@@ -332,44 +332,6 @@ public:
 
 public:
 
-	UE_DEPRECATED(4.26, "PlayToFrame is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", DisplayName = "Play To (Frames)", meta=(DeprecatedFunction, DeprecationMessage="PlayToFrame is deprecated, use SetPlaybackPosition."))
-	void PlayToFrame(FFrameTime NewPosition) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NewPosition, EUpdatePositionMethod::Play)); }
-
-	UE_DEPRECATED(4.26, "ScrubToFrame is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", DisplayName = "Scrub To (Frames)", meta=(DeprecatedFunction, DeprecationMessage="ScrubToFrame is deprecated, use SetPlaybackPosition."))
-	void ScrubToFrame(FFrameTime NewPosition) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NewPosition, EUpdatePositionMethod::Scrub)); }
-
-	UE_DEPRECATED(4.26, "JumpToFrame is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", DisplayName="Jump To (Frames)", meta=(DeprecatedFunction, DeprecationMessage="JumpToFrame is deprecated, use SetPlaybackPosition."))
-	void JumpToFrame(FFrameTime NewPosition) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NewPosition, EUpdatePositionMethod::Jump)); }
-
-	UE_DEPRECATED(4.26, "PlayToSeconds is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", DisplayName = "Play To (Seconds)", meta=(DeprecatedFunction, DeprecationMessage="PlayToSeconds is deprecated, use SetPlaybackPosition."))
-	void PlayToSeconds(float TimeInSeconds) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(TimeInSeconds, EUpdatePositionMethod::Play)); }
-
-	UE_DEPRECATED(4.26, "ScrubToSeconds is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", DisplayName = "Scrub To (Seconds)", meta=(DeprecatedFunction, DeprecationMessage="ScrubToSeconds is deprecated, use SetPlaybackPosition."))
-	void ScrubToSeconds(float TimeInSeconds) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(TimeInSeconds, EUpdatePositionMethod::Scrub)); }
-
-	UE_DEPRECATED(4.26, "JumpToSeconds is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", DisplayName = "Jump To (Seconds)", meta=(DeprecatedFunction, DeprecationMessage="JumpToSeconds is deprecated, use SetPlaybackPosition."))
-	void JumpToSeconds(float TimeInSeconds) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(TimeInSeconds, EUpdatePositionMethod::Jump)); }
-
-	UE_DEPRECATED(4.26, "PlayToMarkedFrame is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", meta=(DeprecatedFunction, DeprecationMessage="PlayToMarkedFrame is deprecated, use SetPlaybackPosition."))
-	bool PlayToMarkedFrame(const FString& InLabel) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(InLabel, EUpdatePositionMethod::Play)); return true; }
-
-	UE_DEPRECATED(4.26, "ScrubToMarkedFrame is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", meta=(DeprecatedFunction, DeprecationMessage="ScrubToMarkedFrame is deprecated, use SetPlaybackPosition."))
-	bool ScrubToMarkedFrame(const FString& InLabel) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(InLabel, EUpdatePositionMethod::Scrub)); return true; }
-
-	UE_DEPRECATED(4.26, "JumpToMarkedFrame is deprecated, use SetPlaybackPosition.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", meta=(DeprecatedFunction, DeprecationMessage="JumpToMarkedFrame is deprecated, use SetPlaybackPosition."))
-	bool JumpToMarkedFrame(const FString& InLabel) { SetPlaybackPosition(FMovieSceneSequencePlaybackParams(InLabel, EUpdatePositionMethod::Jump)); return true; }
-
-public:
-
 	/** Check whether the sequence is actively playing. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	bool IsPlaying() const;

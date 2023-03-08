@@ -648,23 +648,6 @@ EUpdateClockSource UMovieSceneSequenceExtensions::GetClockSource(UMovieSceneSequ
 	return EUpdateClockSource::Tick;
 }
 
-FTimecode UMovieSceneSequenceExtensions::GetTimecodeSource(UMovieSceneSequence* Sequence)
-{
-	if (!Sequence)
-	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call GetTimecodeSource on a null sequence"), ELogVerbosity::Error);
-		return FTimecode();
-	}
-
-	UMovieScene* MovieScene = GetMovieScene(Sequence);
-	if (!MovieScene)
-	{
-		return FTimecode();
-	}
-
-	return MovieScene->GetEarliestTimecodeSource().Timecode;
-}
-
 FMovieSceneBindingProxy UMovieSceneSequenceExtensions::FindBindingByName(UMovieSceneSequence* Sequence, FString Name)
 {
 	if (!Sequence)
@@ -843,24 +826,6 @@ TArray<UObject*> UMovieSceneSequenceExtensions::LocateBoundObjects(UMovieSceneSe
 	Result.Append(OutObjects);
 
 	return Result;
-}
-
-FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* RootSequence, const FMovieSceneBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space)
-{
-	if (!RootSequence)
-	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call MakeBindingID on a null sequence"), ELogVerbosity::Error);
-		return FMovieSceneObjectBindingID();
-	}
-
-	// This function was kinda flawed before - when ::Local was passed for the Space parameter,
-	// and the sub sequence ID could not be found it would always fall back to a binding for ::Root without any Sequence ID
-	FMovieSceneObjectBindingID BindingID = GetPortableBindingID(RootSequence, RootSequence, InBinding);
-	if (Space == EMovieSceneObjectBindingSpace::Root)
-	{
-		BindingID.ReinterpretAsFixed();
-	}
-	return BindingID;
 }
 
 FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetBindingID(const FMovieSceneBindingProxy& InBinding)

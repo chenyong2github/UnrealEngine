@@ -245,10 +245,6 @@ public:
 public:
 
 	MOVIESCENE_API virtual void PostLoad() override;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	MOVIESCENE_API virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	MOVIESCENE_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	MOVIESCENE_API virtual void BeginDestroy() override;
 	MOVIESCENE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;

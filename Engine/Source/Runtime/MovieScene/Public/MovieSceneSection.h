@@ -611,9 +611,6 @@ public:
 	 */
 	virtual void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player) {}
 
-	UE_DEPRECATED(5.0, "OnBindingsUpdated has been deprecated. Use OnBindingIDsUpdated instead")
-	virtual void OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap) { }
-
 	/** Get the referenced bindings for this section */
 	MOVIESCENE_API virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) {}
 

@@ -40,13 +40,7 @@ struct FMovieSceneTrackCompilerArgs
 
 	struct FMovieSceneSequenceTemplateStore {};
 
-	UE_DEPRECATED(4.19, "Template store is no longer supplied as part of track compilation")
-	FMovieSceneSequenceTemplateStore SubSequenceStore;
-
 	struct FMovieSceneTrackCompilationParams { 	bool bForEditorPreview, bDuringBlueprintCompile; };
-
-	UE_DEPRECATED(4.19, "Template store is no longer supplied as part of track compilation")
-	FMovieSceneTrackCompilationParams Params;
 };
 
 

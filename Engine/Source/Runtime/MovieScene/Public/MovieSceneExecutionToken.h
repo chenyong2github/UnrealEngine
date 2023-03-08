@@ -27,9 +27,6 @@ struct IMovieScenePreAnimatedToken
 	 * @param Params Parameters for restoring state
 	 */
 	virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) = 0;
-
-	UE_DEPRECATED(4.27, "Please use the overload that takes UE::MovieScene::FRestoreStateParams")
-	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) {}
 };
 typedef TInlineValue<IMovieScenePreAnimatedToken, 32> IMovieScenePreAnimatedTokenPtr;
 
@@ -74,9 +71,6 @@ struct IMovieScenePreAnimatedGlobalToken
 	 * @param Params Parameters for restoring state
 	 */
 	virtual void RestoreState(const UE::MovieScene::FRestoreStateParams& Params) = 0;
-
-	UE_DEPRECATED(4.27, "Please use the overload that takes UE::MovieScene::FRestoreStateParams")
-	virtual void RestoreState(IMovieScenePlayer& Player) {}
 };
 typedef TInlineValue<IMovieScenePreAnimatedGlobalToken, 32> IMovieScenePreAnimatedGlobalTokenPtr;
 

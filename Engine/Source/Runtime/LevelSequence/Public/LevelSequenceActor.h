@@ -133,16 +133,6 @@ public:
 	ULevelSequence* GetSequence() const;
 
 	/**
-	 * Get the level sequence being played by this actor.
-	 *
-	 * @return Level sequence, or nullptr if not assigned or if it cannot be loaded.
-	 * @see SetSequence
-	 */
-	UE_DEPRECATED(5.0, "LoadSequence has been deprecated, please use GetSequence")
-	UFUNCTION(BlueprintCallable, Category="Sequencer|Player", meta=(DeprecatedFunction))
-	ULevelSequence* LoadSequence() const { return GetSequence(); }
-
-	/**
 	 * Set the level sequence being played by this actor.
 	 *
 	 * @param InSequence The sequence object to set.

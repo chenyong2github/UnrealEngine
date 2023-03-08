@@ -27,10 +27,6 @@ class UCameraComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLevelSequencePlayerCameraCutEvent, UCameraComponent*, CameraComponent);
 
-USTRUCT(BlueprintType)
-struct UE_DEPRECATED(5.0, "Snapshot settings are deprecated. Use the frame rate from the FQualifiedFrameTime on the RootTime and the ShotTime") FLevelSequenceSnapshotSettings
-{ GENERATED_BODY() };
-
 /**
  * Frame snapshot information for a level sequence
  */

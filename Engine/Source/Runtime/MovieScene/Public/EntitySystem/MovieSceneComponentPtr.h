@@ -188,18 +188,6 @@ struct TRead : TComponentPtr<const T>
 	{
 		return (*this)[Index];
 	}
-
-	UE_DEPRECATED(4.27, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
-	const T* Resolve(const FEntityAllocation* Allocation) const
-	{
-		return this->AsPtr();
-	}
-
-	UE_DEPRECATED(4.27, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
-	TArrayView<const T> ResolveAsArray(const FEntityAllocation* Allocation) const
-	{
-		return MakeArrayView(this->AsPtr(), Allocation->Num());
-	}
 };
 using FReadEntityIDs = TRead<FMovieSceneEntityID>;
 
@@ -213,19 +201,6 @@ struct TReadOptional : TComponentPtr<const T>
 		{
 			this->ComponentPtr = reinterpret_cast<const T*>(InHeader->Components) + ComponentOffset;
 		}
-	}
-
-	UE_DEPRECATED(4.27, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
-	const T* Resolve(const FEntityAllocation* Allocation) const
-	{
-		return this->AsPtr();
-	}
-
-	UE_DEPRECATED(4.27, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
-	TArrayView<const T> ResolveAsArray(const FEntityAllocation* Allocation) const
-	{
-		const T* Ptr = this->AsPtr();
-		return MakeArrayView(Ptr, Ptr ? Allocation->Num() : 0);
 	}
 };
 
@@ -278,18 +253,6 @@ struct TWrite : TComponentPtr<T>
 	explicit TWrite(const FComponentHeader* InHeader, int32 ComponentOffset = 0)
 		: TComponentPtr<T>(reinterpret_cast<T*>(InHeader->Components) + ComponentOffset)
 	{}
-
-	UE_DEPRECATED(4.27, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
-	T* Resolve(const FEntityAllocation* Allocation) const
-	{
-		return this->AsPtr();
-	}
-
-	UE_DEPRECATED(4.27, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
-	TArrayView<T> ResolveAsArray(const FEntityAllocation* Allocation) const
-	{
-		return MakeArrayView(this->AsPtr(), Allocation->Num());
-	}
 };
 
 template<typename T>
@@ -302,19 +265,6 @@ struct TWriteOptional : TComponentPtr<T>
 		{
 			this->ComponentPtr = reinterpret_cast<T*>(InHeader->Components) + ComponentOffset;
 		}
-	}
-
-	UE_DEPRECATED(4.27, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
-	T* Resolve(const FEntityAllocation* Allocation) const
-	{
-		return this->AsPtr();
-	}
-
-	UE_DEPRECATED(4.27, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
-	TArrayView<T> ResolveAsArray(const FEntityAllocation* Allocation) const
-	{
-		T* Ptr = this->AsPtr();
-		return MakeArrayView(Ptr, Ptr ? Allocation->Num() : 0);
 	}
 };
 

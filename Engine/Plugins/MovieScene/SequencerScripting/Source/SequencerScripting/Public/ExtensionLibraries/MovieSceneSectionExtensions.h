@@ -21,9 +21,6 @@ class UMovieSceneSectionExtensions : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 public:
 
-	UE_DEPRECATED(4.22, "Please use GetStartFrame and GetEndFrame instead.")
-	static FSequencerScriptingRange GetRange(UMovieSceneSection* Section);
-
 	/**
 	 * Has start frame
 	 *
@@ -208,21 +205,6 @@ public:
 
 	/**
 	* Find all channels that belong to the specified UMovieSceneSection. Some sections have many channels (such as
-	* Transforms containing 9 float channels to represent Translation/Rotation/Scale), and a section may have mixed
-	* channel types.
-	*
-	* For backwards compatibility reasons, all double channels will be wrapped inside float scripting channels.
-	* Use GetAllChannels to get proper double channels.
-	*
-	* @param Section       The section to use.
-	* @return An array containing any key channels that match the type specified
-	*/
-	UE_DEPRECATED(5.0, "Please use GetAllChannels instead and query double-precision channels as such where appropriate")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta=(ScriptMethod, DevelopmentOnly, DeprecatedFunction, DeprecationMessage = "Please use GetAllChannels instead and query double-precision channels as such where appropriate"))
-	static TArray<UMovieSceneScriptingChannel*> GetChannels(UMovieSceneSection* Section);
-
-	/**
-	* Find all channels that belong to the specified UMovieSceneSection. Some sections have many channels (such as
 	* Transforms containing 9 double channels to represent Translation/Rotation/Scale), and a section may have mixed
 	* channel types.
 	*
@@ -231,21 +213,6 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta=(ScriptMethod, DevelopmentOnly))
 	static TArray<UMovieSceneScriptingChannel*> GetAllChannels(UMovieSceneSection* Section);
-
-	/**
-	* Find all channels that belong to the specified UMovieSceneSection that match the specific type. This will filter out any children who do not inherit
-	* from the specified type for you.
-	*
-	* For backwards compatibility reasons, all double channels will be wrapped inside float scripting channels.
-	* Use GetAllChannels to get proper double channels.
-	*
-	* @param Section        The section to use.
-	* @param ChannelType	The class type to look for.
-	* @return An array containing any key channels that match the type specified
-	*/
-	UE_DEPRECATED(5.0, "Please use GetChannelsByType instead")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod, DeterminesOutputType="TrackType", DevelopmentOnly, DeprecatedFunction, DeprecationMessage = "Please use GetChannelsByType instead"))
-	static TArray<UMovieSceneScriptingChannel*> FindChannelsByType(UMovieSceneSection* Section, TSubclassOf<UMovieSceneScriptingChannel> ChannelType);
 
 	/**
 	* Find all channels that belong to the specified UMovieSceneSection that match the specific type. This will filter out any children who do not inherit

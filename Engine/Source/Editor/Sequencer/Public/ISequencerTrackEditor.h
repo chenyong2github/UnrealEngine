@@ -174,9 +174,6 @@ public:
 	 */
 	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams) = 0;
 
-	UE_DEPRECATED(4.27, "Use OnAllowDrop with DragDropParams.")
-	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) { FSequencerDragDropParams DragDropParams; return OnAllowDrop(DragDropEvent, DragDropParams); }
-
 	/**
 	 * Called when an asset is dropped directly onto a track.
 	 *
@@ -185,9 +182,6 @@ public:
 	 * @return Whether the drop event was handled.
 	 */	
 	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams) = 0;
-
-	UE_DEPRECATED(4.27, "Use OnDrop with DragDropParams.")
-	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) { return OnDrop(DragDropEvent, FSequencerDragDropParams()); }
 
 	/**
 	 * Called to generate a section layout for a particular section.
@@ -206,9 +200,6 @@ public:
 
 	/** Called when the instance of this track editor is released */
 	virtual void OnRelease() = 0;
-
-	UE_DEPRECATED(5.0, "This function is no longer used.")
-	virtual int32 PaintTrackArea(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle) { return LayerId; }
 
 	/**
 	 * Returns whether a track class is supported by this tool.

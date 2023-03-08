@@ -45,17 +45,6 @@ public:
 
 	virtual void SavePreAnimatedState(const FPreAnimationParameters& InParameters) {}
 	virtual void RestorePreAnimatedState(const FPreAnimationParameters& InParameters) {}
-
-private:
-
-	UE_DEPRECATED(4.26, "Please override the method that takes a FPreAnimationParameters")
-	virtual void SavePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) final {}
-
-	UE_DEPRECATED(4.26, "Please override the method that takes a FPreAnimationParameters")
-	virtual void SaveGlobalPreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) final {}
-
-	UE_DEPRECATED(4.26, "Please override the method that takes a FPreAnimationParameters")
-	virtual void RestorePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) final {}
 };
 
 

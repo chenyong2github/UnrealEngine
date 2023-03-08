@@ -362,16 +362,6 @@ public:
 	static EUpdateClockSource GetClockSource(UMovieSceneSequence* InSequence);
 
 	/**
-	 * Get the timecode source of this sequence
-	 *
-	 * @param Sequence        The sequence within which to get the timecode source
-	 * @return Timecode source of this sequence
-	 */
-	UE_DEPRECATED(5.0, "GetTimecodeSource() is no longer supported for movie scene sequences. Please use GetEarliestTimecodeSource() instead.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage = "GetTimecodeSource() is no longer supported for movie scene sequences. Please use GetEarliestTimecodeSource() instead."))
-	static FTimecode GetTimecodeSource(UMovieSceneSequence* Sequence);
-
-	/**
 	 * Attempt to locate a binding in this sequence by its name
 	 *
 	 * @param Sequence        The sequence within which to find the binding
@@ -458,19 +448,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
 	static TArray<UObject*> LocateBoundObjects(UMovieSceneSequence* Sequence, const FMovieSceneBindingProxy& InBinding, UObject* Context);
-
-
-	/**
-	 * Make a binding id for the given binding in this sequence
-	 *
-	 * @param Sequence  The sequence that contains the sequence
-	 * @param Binding The binding proxy to generate the binding id from
-	 * @param Space The object binding space to resolve from (Root or Local)
-	 * @return The new object binding id
-	 */
-	UE_DEPRECATED(5.0, "Please migrate to GetBindingID or GetPortableBindingID depending on use-case.")
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage="Please migrate to GetBindingID or GetPortableBindingID depending on use-case."))
-	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* Sequence, const FMovieSceneBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
 
 
 	/**
