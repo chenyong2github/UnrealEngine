@@ -76,13 +76,15 @@ namespace Horde.Build.Perforce
 	[Route("[controller]")]
 	public class PublicPerforceController : ControllerBase
 	{
+		private readonly IPerforceService _perforceService;
 		private readonly ILogger<PerforceController> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PublicPerforceController(ILogger<PerforceController> logger)
+		public PublicPerforceController(IPerforceService perforceService, ILogger<PerforceController> logger)
 		{
+			_perforceService = perforceService;
 			_logger = logger;
 		}
 
@@ -91,11 +93,17 @@ namespace Horde.Build.Perforce
 		/// </summary>
 		/// <returns>200 OK on success</returns>
 		[HttpPost]
-		[Route("/api/v1/perforce/trigger/{type}")]
-		public ActionResult TriggerCallback(string type, [FromQuery] long? changelist = null, [FromQuery(Name = "user")] string? perforceUser = null)
+		[Route("/api/v1/perforce/{cluster}/trigger/{type}")]
+		public async Task<ActionResult> TriggerCallback(string cluster, string type, [FromQuery] long? changelist = null, [FromQuery(Name = "user")] string? perforceUser = null)
 		{
 			// Currently just a placeholder until correct triggers are in place.
-			_logger.LogDebug("Received Perforce trigger callback. Type={Type} Changelist={Changelist} User={User}", type, changelist, perforceUser);
+			_logger.LogDebug("Received Perforce trigger callback. Cluster={Cluster} Type={Type} Changelist={Changelist} User={User}", cluster, type, changelist, perforceUser);
+
+			if (type == "change-commit" && changelist != null)
+			{
+				await _perforceService.RefreshCachedCommitAsync(cluster, (int)changelist.Value);
+			}
+
 			string content = "{\"message\": \"Trigger received\"}";
 			return new ContentResult { ContentType = "text/plain", StatusCode = (int)HttpStatusCode.OK, Content = content };
 		}

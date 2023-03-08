@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
 using EpicGames.Redis;
-using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
@@ -393,6 +392,9 @@ namespace Horde.Build.Perforce
 
 			using (IPooledPerforceConnection perforce = await ConnectAsync(clusterName, null, cancellationToken))
 			{
+				// Remove any changes we need to update
+				int[] refreshNumbers = await _redisService.GetDatabase().SetPopAsync(GetRefreshSetKey(clusterName), 100);
+
 				// Get the changelist range to query
 				FileSpecList spec = FileSpecList.Any;
 				if (state.MaxChange > 0)
@@ -402,7 +404,12 @@ namespace Horde.Build.Perforce
 
 				// Find the changes within that range, and abort if there's nothing new
 				List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.None, MaxChanges, ChangeStatus.Submitted, spec, cancellationToken);
-				if (changes.Count == 0)
+
+				List<int> changeNumbers = new List<int>();
+				changeNumbers.AddRange(refreshNumbers.Where(x => x <= state.MaxChange));
+				changeNumbers.AddRange(changes.Select(x => x.Number));
+
+				if (changeNumbers.Count == 0)
 				{
 					return null;
 				}
@@ -425,7 +432,7 @@ namespace Horde.Build.Perforce
 				const int MaxFiles = 1000;
 
 				// Describe the changes and create records for them
-				List<DescribeRecord> describeRecords = await perforce.DescribeAsync(DescribeOptions.None, MaxFiles, changes.Select(x => x.Number).ToArray(), cancellationToken);
+				List<DescribeRecord> describeRecords = await perforce.DescribeAsync(DescribeOptions.None, MaxFiles, changeNumbers.ToArray(), cancellationToken);
 				foreach (StreamInfo streamInfo in streamInfos)
 				{
 					foreach (DescribeRecord describeRecord in describeRecords)
@@ -463,18 +470,21 @@ namespace Horde.Build.Perforce
 				}
 
 				// Update the cache state
-				Dictionary<StreamId, int> minChanges = new Dictionary<StreamId, int>(streamInfos.Count);
-				foreach (StreamInfo streamInfo in streamInfos)
+				if (changes.Count > 0)
 				{
-					int minChange;
-					if (reset || !state.MinChanges.TryGetValue(streamInfo.StreamConfig.Id, out minChange))
+					Dictionary<StreamId, int> minChanges = new Dictionary<StreamId, int>(streamInfos.Count);
+					foreach (StreamInfo streamInfo in streamInfos)
 					{
-						minChange = changes[^1].Number;
+						int minChange;
+						if (reset || !state.MinChanges.TryGetValue(streamInfo.StreamConfig.Id, out minChange))
+						{
+							minChange = changes[^1].Number;
+						}
+						minChanges.Add(streamInfo.StreamConfig.Id, minChange);
 					}
-					minChanges.Add(streamInfo.StreamConfig.Id, minChange);
+					state.MinChanges = minChanges;
+					state.MaxChange = changes[0].Number;
 				}
-				state.MinChanges = minChanges;
-				state.MaxChange = changes[0].Number;
 				return state;
 			}
 		}
@@ -483,6 +493,17 @@ namespace Horde.Build.Perforce
 		{
 			FilterDefinition<CachedCommitDoc> filter = Builders<CachedCommitDoc>.Filter.Expr(x => x.StreamId == commitDoc.StreamId && x.Number == commitDoc.Number);
 			await _commits.ReplaceOneAsync(filter, commitDoc, new ReplaceOptions { IsUpsert = true }, cancellationToken);
+		}
+
+#pragma warning disable CA1308 // Normalize strings to uppercase
+		static RedisSetKey<int> GetRefreshSetKey(string clusterName) => new RedisSetKey<int>($"perforce/{clusterName.ToLowerInvariant()}/refresh");
+#pragma warning restore CA1308 // Normalize strings to uppercase
+
+		/// <inheritdoc/>
+		public override async Task RefreshCachedCommitAsync(string clusterName, int change)
+		{
+			RedisSetKey<int> refreshSetKey = GetRefreshSetKey(clusterName);
+			await _redisService.GetDatabase().SetAddAsync(refreshSetKey, change, CommandFlags.FireAndForget);
 		}
 
 		#endregion

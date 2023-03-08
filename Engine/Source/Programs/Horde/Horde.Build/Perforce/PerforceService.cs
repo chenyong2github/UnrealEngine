@@ -854,7 +854,7 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateChangelistDescription(string clusterName, int change, Func<string, string> updateFunc, CancellationToken cancellationToken)
+		public async Task UpdateChangelistDescriptionAsync(string clusterName, int change, Func<string, string> updateFunc, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.UpdateChangelistDescription").StartActive();
 			scope.Span.SetTag("ClusterName", clusterName);
@@ -880,6 +880,9 @@ namespace Horde.Build.Perforce
 				_logger.LogError(ex, "Unable to update Changelist for CL {Change}: {Message}", change, ex.Message);
 			}
 		}
+
+		/// <inheritdoc/>
+		public virtual Task RefreshCachedCommitAsync(string clusterName, int change) => Task.CompletedTask;
 
 		static async Task ResetClientAsync(IPerforceConnection perforce, CancellationToken cancellationToken)
 		{

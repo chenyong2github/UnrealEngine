@@ -197,7 +197,14 @@ namespace Horde.Build.Perforce
 		/// <param name="updateFunc">Function to update the description</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Async task</returns>
-		public Task UpdateChangelistDescription(string clusterName, int change, Func<string, string> updateFunc, CancellationToken cancellationToken = default);
+		public Task UpdateChangelistDescriptionAsync(string clusterName, int change, Func<string, string> updateFunc, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Refreshes any cached metadata for the given change
+		/// </summary>
+		/// <param name="clusterName">Name of the Perforce cluster</param>
+		/// <param name="change">Change to update</param>
+		public Task RefreshCachedCommitAsync(string clusterName, int change);
 
 		/// <summary>
 		/// Creates a commit source for the given stream

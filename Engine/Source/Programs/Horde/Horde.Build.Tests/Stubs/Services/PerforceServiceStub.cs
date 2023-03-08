@@ -11,7 +11,6 @@ using EpicGames.Perforce;
 using Horde.Build.Perforce;
 using Horde.Build.Streams;
 using Horde.Build.Users;
-using Horde.Build.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Stubs.Services
@@ -193,7 +192,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			return Task.CompletedTask;
 		}
 
-		public Task UpdateChangelistDescription(string clusterName, int change, Func<string, string> description, CancellationToken cancellationToken)
+		public Task UpdateChangelistDescriptionAsync(string clusterName, int change, Func<string, string> description, CancellationToken cancellationToken)
 		{
 			return Task.CompletedTask;
 		}
@@ -261,6 +260,11 @@ namespace Horde.Build.Tests.Stubs.Services
 		public ICommitCollection GetCommits(StreamConfig streamConfig)
 		{
 			return new CommitCollection(this, streamConfig);
+		}
+
+		public Task RefreshCachedCommitAsync(string clusterName, int change)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }
