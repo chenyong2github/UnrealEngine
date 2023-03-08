@@ -18,6 +18,7 @@ public:
 private:
 
 	bool CanExecuteSourceControlActions() const;
+	bool CanExecuteSourceControlRevert() const;
 	void CacheCanExecuteVars();
 	bool CanExecuteSCC() const;
 	bool CanExecuteSCCCheckOut() const;

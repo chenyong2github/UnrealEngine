@@ -28,6 +28,7 @@
 #include "Logging/MessageLog.h"
 #include "RevisionControlStyle/RevisionControlStyle.h"
 #include "Bookmarks/BookmarkScoped.h"
+#include "HAL/IConsoleManager.h"
 #include "Algo/AllOf.h"
 
 #if SOURCE_CONTROL_WITH_SLATE
@@ -456,15 +457,18 @@ TSharedPtr<SWidget> SSourceControlSubmitWidget::OnCreateContextMenu()
 			);
 		}
 
-		MenuBuilder.AddMenuEntry(
-			NSLOCTEXT("SourceControl.SubmitWindow.Menu", "Revert", "Revert"),
-			NSLOCTEXT("SourceControl.SubmitWindow.Menu", "RevertTooltip", "Revert the selected assets to their original state from revision control."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SSourceControlSubmitWidget::OnRevert), 
-				FCanExecuteAction::CreateSP(this, &SSourceControlSubmitWidget::CanRevert)
-			)
-		);
+		if (AllowRevert())
+		{
+			MenuBuilder.AddMenuEntry(
+				NSLOCTEXT("SourceControl.SubmitWindow.Menu", "Revert", "Revert"),
+				NSLOCTEXT("SourceControl.SubmitWindow.Menu", "RevertTooltip", "Revert the selected assets to their original state from revision control."),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SSourceControlSubmitWidget::OnRevert),
+					FCanExecuteAction::CreateSP(this, &SSourceControlSubmitWidget::CanRevert)
+				)
+			);
+		}
 	}
 	MenuBuilder.EndSection();
 
@@ -516,6 +520,18 @@ void SSourceControlSubmitWidget::OnDiffAgainstDepotSelected(TSharedPtr<FFileTree
 				}
 			}
 		}
+	}
+}
+
+bool SSourceControlSubmitWidget::AllowRevert() const
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("SourceControl.Revert.EnableFromSubmitWidget")))
+	{
+		return CVar->GetBool();
+	}
+	else
+	{
+		return false;
 	}
 }
 

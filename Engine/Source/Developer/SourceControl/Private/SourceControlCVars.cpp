@@ -1,0 +1,18 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SourceControlCVars.h"
+
+namespace SourceControlCVars
+{
+	TAutoConsoleVariable<bool> CVarSourceControlEnableRevertFromSceneOutliner(
+		TEXT("SourceControl.Revert.EnableFromSceneOutliner"),
+		false,
+		TEXT("Allows a SourceControl 'Revert' operation to be triggered from the SceneOutliner."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarSourceControlEnableRevertFromSubmitWidget(
+		TEXT("SourceControl.Revert.EnableFromSubmitWidget"),
+		false,
+		TEXT("Allows a SourceControl 'Revert' operation to be triggered from the SubmitWidget."),
+		ECVF_Default);
+}

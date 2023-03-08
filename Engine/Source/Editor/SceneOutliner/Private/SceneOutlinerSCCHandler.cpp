@@ -4,6 +4,7 @@
 #include "ISourceControlModule.h"
 #include "SourceControlOperations.h"
 #include "Misc/MessageDialog.h"
+#include "HAL/IConsoleManager.h"
 #include "FileHelpers.h"
 #include "SourceControlWindows.h"
 #include "ISourceControlWindowsModule.h"
@@ -81,6 +82,18 @@ bool FSceneOutlinerSCCHandler::CanExecuteSourceControlActions() const
 	return SelectedItems.Num() > 0;
 }
 
+bool FSceneOutlinerSCCHandler::CanExecuteSourceControlRevert() const
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("SourceControl.Revert.EnableFromSceneOutliner")))
+	{
+		return CVar->GetBool();
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 {
 	bCanExecuteSCC = true;
@@ -132,7 +145,8 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 					bCanExecuteSCCCheckIn = true;
 				}
 
-				if (SourceControlState->CanRevert())
+				bool bAllowRevert = CanExecuteSourceControlRevert();
+				if ( SourceControlState->CanRevert() && bAllowRevert )
 				{
 					bCanExecuteSCCRevert = true;
 				}

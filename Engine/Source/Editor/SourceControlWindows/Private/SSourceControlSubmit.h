@@ -177,6 +177,7 @@ private:
 	void OnDiffAgainstDepotSelected(TSharedPtr<FFileTreeItem> InSelectedItem);
 
 	/** Called to check whether the selected files in the ListView can be reverted */
+	bool AllowRevert() const;
 	bool CanRevert() const;
 
 	/** Reverts the files selected in the ListView */
