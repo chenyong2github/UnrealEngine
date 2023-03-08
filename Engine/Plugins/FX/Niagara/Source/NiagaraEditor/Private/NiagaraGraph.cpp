@@ -1026,44 +1026,31 @@ void UNiagaraGraph::ReplaceScriptReferences(UNiagaraScript* OldScript, UNiagaraS
 
 TArray<UEdGraphPin*> UNiagaraGraph::FindParameterMapDefaultValuePins(const FName VariableName) const
 {
-	TArray<UEdGraphPin*> DefaultPins;
+	TArray<UEdGraphPin*> OutDefaultPins;
+	
+	TArray<UNiagaraNodeParameterMapGet*> MapGetNodes;
+	GetNodesOfClass<UNiagaraNodeParameterMapGet>(MapGetNodes);
 
-	TArray<UNiagaraNode*> NodesTraversed;
-	FPinCollectorArray OutputPins;
-	for (UEdGraphNode* Node : Nodes)
+	for(UNiagaraNodeParameterMapGet* MapGet : MapGetNodes)
 	{
-		UNiagaraNodeOutput* OutNode = Cast<UNiagaraNodeOutput>(Node);
-		if (!OutNode)
+		FPinCollectorArray OutputPins;
+		MapGet->GetOutputPins(OutputPins);
+		for (UEdGraphPin* OutputPin : OutputPins)
 		{
-			continue;
-		}
-		NodesTraversed.Reset();
-		BuildTraversal(NodesTraversed, OutNode);
-
-		for (UNiagaraNode* NiagaraNode : NodesTraversed)
-		{
-			UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(NiagaraNode);
-			if (!GetNode)
+			if (VariableName != OutputPin->PinName || OutputPin->PinType.PinSubCategory != UNiagaraNodeParameterMapBase::ParameterPinSubCategory)
 			{
 				continue;
 			}
-			OutputPins.Reset();
-			GetNode->GetOutputPins(OutputPins);
-			for (UEdGraphPin* OutputPin : OutputPins)
+			
+			if (UEdGraphPin* Pin = MapGet->GetDefaultPin(OutputPin))
 			{
-				if (VariableName != OutputPin->PinName || OutputPin->PinType.PinSubCategory != UNiagaraNodeParameterMapBase::ParameterPinSubCategory)
-				{
-					continue;
-				}
-				if (UEdGraphPin* Pin = GetNode->GetDefaultPin(OutputPin))
-				{
-					check(Pin->Direction == EEdGraphPinDirection::EGPD_Input);
-					DefaultPins.AddUnique(Pin);
-				}
+				check(Pin->Direction == EEdGraphPinDirection::EGPD_Input);
+				OutDefaultPins.AddUnique(Pin);
 			}
 		}
 	}
-	return DefaultPins;
+	
+	return OutDefaultPins;
 }
 
 // Impacts of this function include changing the default value of UNiagaraScriptVariable::Variable & DefaultMode (note that this won't impact the

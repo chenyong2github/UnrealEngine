@@ -43,6 +43,13 @@ FNiagaraScriptVariableDetails::FNiagaraScriptVariableDetails()
 
 FNiagaraScriptVariableDetails::~FNiagaraScriptVariableDetails()
 {
+	if(ParameterMapWatcherDelegate.IsValid() && Variable.IsValid())
+	{
+		if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(Variable->GetOuter()))
+		{
+			Graph->RemoveOnGraphChangedHandler(ParameterMapWatcherDelegate);	
+		}
+	}
 }
 
 UEdGraphPin* FNiagaraScriptVariableDetails::GetAnyDefaultPin()
@@ -279,6 +286,23 @@ void FNiagaraScriptVariableDetails::CustomizeDetailsParameterDefinitionsSynchron
 	}
 }
 
+void FNiagaraScriptVariableDetails::OnGraphChanged(const FEdGraphEditAction& EdGraphEditAction,	TWeakObjectPtr<UNiagaraScriptVariable> ScriptVariable)
+{
+	if(!ScriptVariable.IsValid())
+	{
+		return;
+	}
+	
+	if(GetAnyDefaultPin() != nullptr)
+	{
+		Refresh();
+		if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(Variable->GetOuter()))
+		{
+			Graph->RemoveOnGraphChangedHandler(ParameterMapWatcherDelegate);	
+		}
+	}
+}
+
 void FNiagaraScriptVariableDetails::AddGraphDefaultValueCustomRow(IDetailCategoryBuilder& CategoryBuilder)
 {
 	if (UEdGraphPin* Pin = GetAnyDefaultPin())
@@ -317,6 +341,11 @@ void FNiagaraScriptVariableDetails::AddGraphDefaultValueCustomRow(IDetailCategor
 	}
 	else
 	{
+		if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(Variable->GetOuter()))
+		{
+			ParameterMapWatcherDelegate = Graph->AddOnGraphChangedHandler(FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScriptVariableDetails::OnGraphChanged, Variable));
+		}
+		
 		if (Variable->DefaultMode == ENiagaraDefaultMode::Value)
 		{
 			FDetailWidgetRow& DefaultValueWidget = CategoryBuilder.AddCustomRow(LOCTEXT("DefaultValueFilterText", "Default Value"));
@@ -325,7 +354,7 @@ void FNiagaraScriptVariableDetails::AddGraphDefaultValueCustomRow(IDetailCategor
 			[
 				SNew(STextBlock)
 				.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
-				.Text(NSLOCTEXT("ScriptVariableCustomization", "MissingDefaults", "To set default, add to a Map Get node that is wired to the graph."))
+				.Text(NSLOCTEXT("ScriptVariableCustomization", "MissingDefaults", "To set the default value, add this parameter to a Parameter Map Get node."))
 			];
 		}
 	}
