@@ -8,7 +8,14 @@ namespace UE::AnimNext::Interface
 
 static FParamType DefaultType;
 static TArray<FParamType*> GTypeRegistry;
-static TArray<TUniqueFunction<void(void)>> GDeferredTypes;
+
+// This avoids c++ static ordering problems with the types definitions (for the deferred type registration)
+/*static*/ TArray<TUniqueFunction<void(void)>>& FParamType::FRegistrar::GetDeferredTypes()
+{
+	static TArray<TUniqueFunction<void(void)>> GDeferredTypes;
+	return GDeferredTypes;
+}
+
 
 FParam::FParam(const FParamType& InType, void* InData, EFlags InFlags)
 	: Data(InData)
@@ -135,19 +142,19 @@ const FParamType& FParamType::FRegistrar::GetTypeById(uint16 InTypeId)
 FParamType::FRegistrar::FRegistrar(TUniqueFunction<void(void)>&& InFunction)
 {
 	check(IsInGameThread());
-	GDeferredTypes.Add(MoveTemp(InFunction));
+	GetDeferredTypes().Add(MoveTemp(InFunction));
 }
 
 void FParamType::FRegistrar::RegisterDeferredTypes()
 {
 	check(IsInGameThread());
-	
-	for(TUniqueFunction<void(void)>& Function : GDeferredTypes)
+
+	for(TUniqueFunction<void(void)>& Function : FRegistrar::GetDeferredTypes())
 	{
 		Function();
 	}
 
-	GDeferredTypes.Empty();
+	FRegistrar::GetDeferredTypes().Empty();
 }
 
 const FParamType& FParam::GetType() const

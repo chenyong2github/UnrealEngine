@@ -10,7 +10,7 @@ namespace UE::AnimNext::Interface
 FParamStorage::FParamStorage(int32 InMaxParams, int32 InAllocatedMemorySize, int32 InMaxBlocks, bool InAllowGrowing)
 	: AllowGrowing(InAllowGrowing)
 {
-	check(InMaxParams > 0 && InMaxBlocks > 0 && InAllocatedMemorySize > 0);
+	check(InMaxParams > 0 && (InMaxBlocks == 0 || (InMaxBlocks > 0 && InAllocatedMemorySize > 0)));
 
 	Parameters.Reserve(InMaxParams);
 	Parameters.AddDefaulted(InMaxParams);
@@ -26,17 +26,23 @@ FParamStorage::FParamStorage(int32 InMaxParams, int32 InAllocatedMemorySize, int
 
 	// --- ---
 
-	RawMemory = (uint8*)FMemory::Malloc(InAllocatedMemorySize);
-	RawMemorySize = InAllocatedMemorySize;
+	if (InAllocatedMemorySize > 0)
+	{
+		RawMemory = (uint8*)FMemory::Malloc(InAllocatedMemorySize);
+		RawMemorySize = InAllocatedMemorySize;
+	}
 
-	BlockOffets.Reserve(InMaxBlocks);
-	BlockOffets.AddZeroed(InMaxBlocks);
+	if (InMaxBlocks > 0)
+	{
+		BlockOffets.Reserve(InMaxBlocks);
+		BlockOffets.AddZeroed(InMaxBlocks);
 
-	BlockSizes.Reserve(InMaxBlocks);
-	BlockSizes.AddZeroed(InMaxBlocks);
+		BlockSizes.Reserve(InMaxBlocks);
+		BlockSizes.AddZeroed(InMaxBlocks);
 
-	BlockFreeFlag.Reserve(InMaxBlocks);
-	BlockFreeFlag.Init(true, InMaxBlocks);
+		BlockFreeFlag.Reserve(InMaxBlocks);
+		BlockFreeFlag.Init(true, InMaxBlocks);
+	}
 
 	FreeBlockIndex = 0;
 }

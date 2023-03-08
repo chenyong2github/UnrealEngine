@@ -1,0 +1,106 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "RigUnit_AnimNextAnimSequence.h"
+#include "AnimNextInterfaceUnitContext.h"
+#include "AnimNextInterfaceExecuteContext.h"
+#include "AnimNextInterface.h"
+#include "AnimNextInterfaceTypes.h"
+#include "AnimNextInterfaceKernel.h"
+#include "AnimationDecompressionTools.h"
+#include "Animation/AnimSequence.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_AnimNextAnimSequence)
+
+
+IMPLEMENT_ANIM_NEXT_INTERFACE_PARAM_TYPE(FAnimNextGraph_AnimSequence, FAnimNextGraph_AnimSequence);
+
+
+struct FAnimSequencePlayerState
+{
+	float InternalTimeAccumulator = 0.0f;
+	float PrevInternalTimeAccumulator = 0.0f;
+};
+
+IMPLEMENT_ANIM_NEXT_INTERFACE_STATE_TYPE(FAnimSequencePlayerState, AnimSequencePlayerState);
+
+// --- FRigUnit_AnimNext_AnimSequenceAsset --- 
+
+FRigUnit_AnimNext_AnimSequenceAsset_Execute()
+{
+	using namespace UE::AnimNext::Interface;
+
+	//Sequence.AnimSequence = AnimSequence; // TODO : Enable once we have RigVM object support enabled
+}
+
+// --- FRigUnit_AnimNext_AnimSequencePlayer --- 
+
+FRigUnit_AnimNext_AnimSequencePlayer_Initialize()
+{
+	using namespace UE::AnimNext::Interface;
+
+	const FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
+
+	const UAnimSequenceBase* AnimSequenceBase = Sequence.AnimSequence;
+	if (AnimSequenceBase != nullptr)
+	{
+		// Get or Create the internal state
+		const TParam<FAnimSequencePlayerState> AnimSequencePlayerState = AnimNextInterfaceContext.GetState<FAnimSequencePlayerState>(ExecuteContext.GetInterface(), 0);
+
+		const float SequenceLength = AnimSequenceBase->GetPlayLength();
+		AnimSequencePlayerState->InternalTimeAccumulator = FMath::Clamp(Parameters.StartPosition, 0.f, SequenceLength);
+		AnimSequencePlayerState->PrevInternalTimeAccumulator = AnimSequencePlayerState->InternalTimeAccumulator;
+	}
+}
+
+FRigUnit_AnimNext_AnimSequencePlayer_Execute()
+{
+	using namespace UE::AnimNext::Interface;
+
+	const FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
+	
+	const UAnimSequenceBase* AnimSequenceBase = Sequence.AnimSequence;
+	if (AnimSequenceBase != nullptr)
+	{
+		// Get or Create the internal state
+		//const TParam<FAnimSequencePlayerState> AnimSequencePlayerState = AnimNextInterfaceContext.GetState<FAnimSequencePlayerState>(ExecuteContext.GetInterface(), 0);
+		FAnimSequencePlayerState& AnimSequencePlayerState = AnimNextInterfaceContext.GetState<FAnimSequencePlayerState, EStatePersistence::Permanent>(ExecuteContext.GetInterface(), 0).GetDataChecked();
+
+		const float DeltaTime = AnimNextInterfaceContext.GetDeltaTime();
+		const float EffectiveDelta = FMath::IsNearlyZero(DeltaTime) || FMath::IsNearlyZero(Parameters.PlayRate) ? 0.f : DeltaTime * Parameters.PlayRate;
+
+		const float SequenceLength = AnimSequenceBase->GetPlayLength();
+		float CurrentTime = Parameters.bLoop
+			? FMath::Fmod(AnimSequencePlayerState.InternalTimeAccumulator + EffectiveDelta, SequenceLength)
+			: FMath::Clamp(AnimSequencePlayerState.InternalTimeAccumulator + EffectiveDelta, 0.f, SequenceLength);
+
+		if (Parameters.bLoop && CurrentTime < 0.f)
+		{
+			CurrentTime += SequenceLength;
+		}
+
+		AnimSequencePlayerState.PrevInternalTimeAccumulator = AnimSequencePlayerState.InternalTimeAccumulator;
+		AnimSequencePlayerState.InternalTimeAccumulator = CurrentTime;
+
+		FDeltaTimeRecord DeltaTimeRecord;
+		DeltaTimeRecord.Set(AnimSequencePlayerState.PrevInternalTimeAccumulator, AnimSequencePlayerState.InternalTimeAccumulator);
+
+		const FAnimExtractContext ExtractionContext(static_cast<double>(AnimSequencePlayerState.InternalTimeAccumulator)
+			, false /*Output.AnimInstanceProxy->ShouldExtractRootMotion()*/
+			, DeltaTimeRecord
+			, Parameters.bLoop);
+
+		const FAnimNextGraphReferencePose& GraphReferencePose = AnimNextInterfaceContext.GetParameterChecked<FAnimNextGraphReferencePose>(TEXT("GraphReferencePose")).GetDataChecked();
+		const int32 GraphLODLevel = AnimNextInterfaceContext.GetParameterChecked<int32>(TEXT("GraphLODLevel")).GetDataChecked();
+		const bool bGraphExpectsAdditive = AnimNextInterfaceContext.GetParameterChecked<bool>(TEXT("GraphExpectsAdditive")).GetDataChecked();
+
+		LODPose.LODPose.PrepareForLOD(*GraphReferencePose.ReferencePose, GraphLODLevel, true, bGraphExpectsAdditive);
+		
+		// Note : calling FDecompressionTools instead of UAnimSequence / UAnimSequenceBase, as I can not modify the engine code (so I extracted the function)
+		// TODO : Revisit this, so we can plug other sequence types
+		const UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase);
+		if (AnimSequence != nullptr)
+		{
+			FDecompressionTools::GetAnimationPose(AnimSequence, LODPose.LODPose, ExtractionContext);
+		}
+	}
+}

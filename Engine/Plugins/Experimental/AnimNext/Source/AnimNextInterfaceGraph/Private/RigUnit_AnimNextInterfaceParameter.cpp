@@ -19,6 +19,25 @@ FRigUnit_AnimNextInterfaceParameter_Float_Execute()
 	GetParameterInternal(Parameter, ExecuteContext, &Result);
 }
 
+FRigUnit_AnimNextInterfaceParameter_GraphLODPose_Execute()
+{
+	const UE::AnimNext::Interface::FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
+
+	Result = AnimNextInterfaceContext.GetParameterChecked<FAnimNextGraphLODPose>(Parameter);
+
+	//GetParameterInternal(Parameter, ExecuteContext, &Result);
+}
+
+FRigUnit_AnimNextInterfaceParameter_AnimSequence_Execute()
+{
+	const UE::AnimNext::Interface::FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
+
+	Result = AnimNextInterfaceContext.GetParameterChecked<FAnimNextGraph_AnimSequence>(Parameter);
+
+	//GetParameterInternal(Parameter, ExecuteContext, &Result);
+}
+
+
 FRigUnit_AnimNextInterfaceParameter_AnimNextInterface_Execute()
 {
 	GetParameterInternal(Parameter, ExecuteContext, &Result);
@@ -63,7 +82,8 @@ FRigUnit_PoseOperator_Execute()
 {}
 
 FRigUnit_AnimNextInterface_SequencePlayer_Execute()
-{}
+{
+}
 
 struct FSpringDamperState
 {

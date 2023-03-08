@@ -5,7 +5,11 @@
 #include "Animation/AnimNode_CustomProperty.h"
 #include "Animation/InputScaleBias.h"
 #include "AnimNextInterfaceGraph.h"
+#include "AnimNextInterfaceContext.h"
+#include "AnimNextInterfaceParamStorage.h"
+// --- ---
 #include "AnimNode_AnimNextInterfaceGraph.generated.h"
+
 
 class UNodeMappingContainer;
 
@@ -39,11 +43,14 @@ private:
 private:
 
 	/** The input pose we will pass to the graph */
-	UPROPERTY(EditAnywhere, Category = Links)
-	FPoseLink Source;
+	UPROPERTY(EditAnywhere, Category = Links, meta = (DisplayName = "Source"))
+	FPoseLink SourceLink;
 
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	TObjectPtr<UAnimNextInterfaceGraph> AnimNextInterfaceGraph;
+
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses = "/Script/Engine.AnimMontage"))
+	TObjectPtr<UAnimSequence> TestSequence = nullptr;
 
 	/*
 	 * Max LOD that this node is allowed to run
@@ -53,6 +60,12 @@ private:
 	 */
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (DisplayName = "LOD Threshold"))
 	int32 LODThreshold;
+
+	// This should come from the FPoseContext, but as I need persistence, I store the state here
+	UE::AnimNext::Interface::FState RootState; // TODO : Get rid of num elements ? Let the param itself have it
+
+	// Delta time received accumulated in update and used at Evaluate (so we can receive multiple calls to Evaluate)
+	float GraphDeltaTime = 0.f;
 
 protected:
 	virtual UClass* GetTargetClass() const override { return AnimNextInterfaceGraph ? AnimNextInterfaceGraph->StaticClass() : nullptr; }

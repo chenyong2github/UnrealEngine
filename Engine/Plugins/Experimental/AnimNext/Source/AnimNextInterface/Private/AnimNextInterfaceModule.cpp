@@ -5,6 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "AnimNextInterfaceParam.h"
+#include "AnimationDataRegistry.h"
 
 namespace UE::AnimNext::Interface
 {
@@ -14,10 +15,18 @@ class FModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
-		FCoreDelegates::OnPostEngineInit.AddLambda([]()
+		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([]()
 		{
 			FParamType::FRegistrar::RegisterDeferredTypes();
+
+			UE::AnimNext::Interface::FAnimationDataRegistry::Init();
 		});
+
+		FCoreDelegates::OnEnginePreExit.AddLambda([]()
+		{
+			UE::AnimNext::Interface::FAnimationDataRegistry::Destroy();
+		});
+		
 	}
 };
 

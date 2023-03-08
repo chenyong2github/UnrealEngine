@@ -14,3 +14,8 @@ FRigUnit_AnimNextInterfaceEndExecution_Float_Execute()
 {
 	SetResult(ExecuteContext, Result);
 }
+
+FRigUnit_AnimNextInterfaceEndExecution_LODPose_Execute()
+{
+	SetResult(ExecuteContext, Result);
+}

@@ -6,6 +6,8 @@
 #include "AnimNextInterfaceExecuteContext.h"
 #include "AnimNextInterfaceUnitContext.h"
 #include "AnimNextInterfaceTypes.h"
+#include "AnimNextInterface_LODPose.h"
+// --- ---
 #include "RigUnit_AnimNextInterfaceEndExecution.generated.h"
 
 struct FRigUnitContext;
@@ -67,4 +69,23 @@ struct ANIMNEXTINTERFACEGRAPH_API FRigUnit_AnimNextInterfaceEndExecution_Float :
 
 	UPROPERTY(EditAnywhere, Category = Result, meta = (Input))
 	float Result;
+};
+
+/** Event for writing back a calculated pose */
+USTRUCT(meta = (DisplayName = "End Execute LODPose", Category = "Events", TitleColor = "1 0 0", NodeColor = "1 1 1"))
+struct ANIMNEXTINTERFACEGRAPH_API FRigUnit_AnimNextInterfaceEndExecution_LODPose : public FRigUnit_AnimNextInterfaceEndExecution
+{
+	GENERATED_BODY()
+
+	FRigUnit_AnimNextInterfaceEndExecution_LODPose()
+		: FRigUnit_AnimNextInterfaceEndExecution()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	virtual bool CanOnlyExistOnce() const override { return true; }
+
+	UPROPERTY(EditAnywhere, Category = Result, meta = (Input))
+	FAnimNextGraphLODPose Result;
 };

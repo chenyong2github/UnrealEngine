@@ -13,7 +13,13 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 				}
 			);
-
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"AssetRegistry",
+					"Engine"
+				}
+			);
 		}
 	}
 }

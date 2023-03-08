@@ -5,7 +5,11 @@
 #include "AnimNextInterfaceExecuteContext.h"
 #include "IAnimNextInterface.h"
 #include "Units/RigUnit.h"
+#include "AnimNextInterface_LODPose.h"
+#include "RigUnit_AnimNextAnimSequence.h"
+// --- ---
 #include "RigUnit_AnimNextInterfaceParameter.generated.h"
+
 
 struct FAnimNextInterfaceUnitContext;
 class UAnimNextInterfaceGraph;
@@ -35,6 +39,34 @@ struct FRigUnit_AnimNextInterfaceParameter_Float : public FRigUnit_AnimNextInter
 protected:
 	UPROPERTY(EditAnywhere, Category = "Result", meta = (Output))
 	float Result = 0.0f;
+};
+
+/** Unit for reading a GraphLODPose parameter from context */
+USTRUCT(meta = (DisplayName = "LODPose Parameter", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
+struct FRigUnit_AnimNextInterfaceParameter_GraphLODPose : public FRigUnit_AnimNextInterfaceParameter
+{
+	GENERATED_BODY()
+
+	RIGVM_METHOD()
+	void Execute();
+	
+protected:
+	UPROPERTY(EditAnywhere, Category = "Result", meta = (Output))
+	FAnimNextGraphLODPose Result;
+};
+
+/** Unit for reading an AnimSequence parameter from context */
+USTRUCT(meta = (DisplayName = "AnimSequence Parameter", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
+struct FRigUnit_AnimNextInterfaceParameter_AnimSequence : public FRigUnit_AnimNextInterfaceParameter
+{
+	GENERATED_BODY()
+
+	RIGVM_METHOD()
+	void Execute();
+
+protected:
+	UPROPERTY(EditAnywhere, Category = "Result", meta = (Output))
+	FAnimNextGraph_AnimSequence Result;
 };
 
 /** Unit for reading anim interface graph parameter from context */
@@ -242,37 +274,22 @@ protected:
 	FAnimNextInterfaceExecuteContext Result;
 };
 
-USTRUCT(BlueprintType)
-struct FAnimSequenceParameters
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Anim Sequence")
-	float PlayRate = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Anim Sequence")
-	float StartPosition = 0.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Anim Sequence")
-	bool bLoop = 0.0f;
-};
-
 /** Unit for getting a pose via an anim interface */
 USTRUCT(meta = (DisplayName = "Anim Sequence", Category = "Animation", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_AnimNextInterface_SequencePlayer : public FRigUnit_AnimNextInterfaceBase
 {
 	GENERATED_BODY()
 
-	RIGVM_METHOD()
-	void Execute();
-	
+		RIGVM_METHOD()
+		void Execute();
+
 protected:
 	UPROPERTY(EditAnywhere, Category = "Anim Interface", meta = (Input))
 	FAnimSequenceParameters Parameters;
 
 	UPROPERTY(EditAnywhere, Category = "Anim Interface", meta = (Input))
 	TScriptInterface<IAnimNextInterface> Sequence = nullptr;
-	
+
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Result", Category = "BeginExecution", meta = (Output))
 	FAnimNextInterfaceExecuteContext Result;
 };

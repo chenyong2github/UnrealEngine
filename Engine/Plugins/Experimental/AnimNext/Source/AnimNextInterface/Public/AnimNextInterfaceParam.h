@@ -118,6 +118,8 @@ struct ANIMNEXTINTERFACE_API FParamType
 
 	struct ANIMNEXTINTERFACE_API FRegistrar
 	{
+		static TArray<TUniqueFunction<void(void)>>& GetDeferredTypes();
+
 		// Helper for registration (via IMPLEMENT_DATA_INTERFACE_PARAM_TYPE).
 		// Registers the type via deferred callback
 		FRegistrar(TUniqueFunction<void(void)>&& InFunction);
@@ -207,6 +209,28 @@ public:
 		return ((Data != nullptr || EnumHasAnyFlags(Flags, FParam::EFlags::Embedded))
 			&& TypeId != INDEX_NONE 
 			&& NumElements > 0);
+	}
+
+	FORCEINLINE_DEBUGGABLE const ValueType& GetDataChecked() const
+	{
+		check((Data != nullptr || EnumHasAnyFlags(Flags, FParam::EFlags::Embedded)) && NumElements == 1);
+
+		const ValueType* ValueData = EnumHasAnyFlags(Flags, FParam::EFlags::Embedded)
+			? static_cast<const ValueType*>((void*)&Data)
+			: static_cast<const ValueType*>(Data);
+
+		return *ValueData;
+	}
+
+	FORCEINLINE_DEBUGGABLE ValueType& GetDataChecked()
+	{
+		check((Data != nullptr || EnumHasAnyFlags(Flags, FParam::EFlags::Embedded)) && NumElements == 1);
+
+		ValueType* ValueData = EnumHasAnyFlags(Flags, FParam::EFlags::Embedded)
+			? static_cast<ValueType*>((void*)&Data)
+			: static_cast<ValueType*>(Data);
+
+		return *ValueData;
 	}
 
 	FORCEINLINE_DEBUGGABLE const ValueType& operator[](int32 InIndex) const

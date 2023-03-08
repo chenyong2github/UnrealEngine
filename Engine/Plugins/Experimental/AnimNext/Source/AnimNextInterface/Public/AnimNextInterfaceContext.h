@@ -91,6 +91,66 @@ public:
 		Output		= 1 << 1,
 	};
 
+	// Add an Input parameter by value, copying it to the shared storage
+	template<typename ValueType>
+	FHParam AddInputValue(FName ParameterId, ValueType& Value)
+	{
+		// Values are added mutable even if source is const
+		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
+
+		return AddParameter(EParamType::Input, ParameterId, Flags, &Value);
+	}
+
+	// Add an Input parameter by value, copying it to the shared storage
+	template<typename ValueType>
+	FHParam AddInputValue(FName ParameterId, ValueType&& Value)
+	{
+		// Values are added mutable even if source is const
+		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
+
+		return AddParameter(EParamType::Input, ParameterId, Flags, &Value);
+	}
+
+	// Add an Input parameter by value, copying it to the shared storage
+	template<typename ValueType>
+	FHParam AddInputValue(FName ParameterId, ValueType* Value)
+	{
+		// Values are added mutable even if source is const
+		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
+
+		return AddParameter(EParamType::Input, ParameterId, Flags, Value);
+	}
+
+	// Add an Output parameter by value, copying it to the shared storage
+	template<typename ValueType>
+	FHParam AddOutputValue(FName ParameterId, ValueType& Value)
+	{
+		// Values are added mutable even if source is const
+		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
+
+		return AddParameter(EParamType::Output, ParameterId, Flags, &Value);
+	}
+
+	// Add an Output parameter by value, copying it to the shared storage
+	template<typename ValueType>
+	FHParam AddOutputValue(FName ParameterId, ValueType&& Value)
+	{
+		// Values are added mutable even if source is const
+		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
+
+		return AddParameter(EParamType::Output, ParameterId, Flags, &Value);
+	}
+
+	// Add an Output parameter by value, copying it to the shared storage
+	template<typename ValueType>
+	FHParam AddOutputValue(FName ParameterId, ValueType* Value)
+	{
+		// Values are added mutable even if source is const
+		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
+
+		return AddParameter(EParamType::Output, ParameterId, Flags, Value);
+	}
+
 	// Add a parameter by value, copying it to the shared storage
 	template<typename ValueType>
 	FHParam AddValue(EParamType InParamType, FName ParameterId, ValueType &Value)
@@ -119,6 +179,44 @@ public:
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
 
 		return AddParameter(InParamType, ParameterId, Flags, Value);
+	}
+
+	// --- Parameters by refecence / pointer ---
+
+	// Add an Input parameter by reference, adding just a pointer to the shared storage
+	template<typename ValueType>
+	FHParam AddInputReference(FName ParameterId, ValueType& Value)
+	{
+		const FParam::EFlags Flags = FParam::EFlags::Reference;
+
+		return AddParameter(EParamType::Input, ParameterId, Flags, &Value);
+	}
+
+	// Add an Input parameter by reference, adding just a pointer to the shared storage
+	template<typename ValueType>
+	FHParam AddInputReference(FName ParameterId, ValueType* Value)
+	{
+		FParam::EFlags Flags = FParam::EFlags::Reference;
+
+		return AddParameter(EParamType::Input, ParameterId, Flags, Value);
+	}
+
+	// Add an Output parameter by reference, adding just a pointer to the shared storage
+	template<typename ValueType>
+	FHParam AddOutputReference(FName ParameterId, ValueType& Value)
+	{
+		const FParam::EFlags Flags = FParam::EFlags::Reference;
+
+		return AddParameter(EParamType::Output, ParameterId, Flags, &Value);
+	}
+
+	// Add an Output parameter by reference, adding just a pointer to the shared storage
+	template<typename ValueType>
+	FHParam AddOutputReference(FName ParameterId, ValueType* Value)
+	{
+		FParam::EFlags Flags = FParam::EFlags::Reference;
+
+		return AddParameter(EParamType::Output, ParameterId, Flags, Value);
 	}
 
 	// Add a parameter by reference, adding just a pointer to the shared storage
