@@ -1127,7 +1127,7 @@ void SDetailSingleItemRow::OnToggleDenyList() const
 		else
 		{
 			FPropertyEditorPermissionList::Get().AddToDenyList(ExactStruct, Owner->GetNodeName(), OwnerName);
-			UE_LOG(LogPropertyEditorPermissionList, Log, TEXT("Adding %s to AllowList"), *GetRowNameText());
+			UE_LOG(LogPropertyEditorPermissionList, Log, TEXT("Adding %s to DenyList"), *GetRowNameText());
 		}
 	}
 }

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerCommonHelpers.h"
+
 #include "FrameNumberDetailsCustomization.h"
 #include "IDetailsView.h"
 #include "ISequencerSection.h"
@@ -21,6 +22,7 @@
 #include "MovieSceneSectionDetailsCustomization.h"
 #include "MovieSceneSequence.h"
 #include "PropertyEditorModule.h"
+#include "PropertyPermissionList.h"
 #include "SSequencer.h"
 #include "Sequencer.h"
 #include "SequencerContextMenus.h"
@@ -325,6 +327,12 @@ void SequencerHelpers::AddPropertiesMenu(FSequencer& Sequencer, FMenuBuilder& Me
 		return MakeShared<FFrameNumberDetailsCustomization>(NumericTypeInterface); }));
 	DetailsView->RegisterInstancedCustomPropertyLayout(UMovieSceneSection::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda([=]() {
 		return MakeShared<FMovieSceneSectionDetailsCustomization>(NumericTypeInterface, CurrentScene); }));
+	
+	DetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateLambda([](const FPropertyAndParent& PropertyAndParent)
+		{			
+			return FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(PropertyAndParent.Property.GetOwnerStruct(), PropertyAndParent.Property.GetFName());
+		})
+	);
 
 	// Let section interfaces further customize the properties details view.
 	TSharedRef<FSequencerNodeTree> SequencerNodeTree = Sequencer.GetNodeTree();
