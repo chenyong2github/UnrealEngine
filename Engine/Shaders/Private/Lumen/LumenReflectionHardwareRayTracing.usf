@@ -20,6 +20,7 @@
 #include "LumenScreenTracing.ush"
 #define USE_HAIRSTRANDS_VOXEL DIM_HAIRSTRANDS_VOXEL
 #include "LumenHairTracing.ush"
+#include "LumenFog.ush"
 
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
@@ -264,6 +265,13 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 		TraceResult.Lighting += GetSkylightLeaking(Ray.Direction, TraceResult.OpaqueHitDistance);
 		TraceResult.Lighting *= View.PreExposure;
+
+		if (SampleHeightFog > 0)
+		{
+			float CoverageForFog = 1.0; // There is always something of the sky fallback.
+			float3 OriginToCollider = Ray.Direction * TraceResult.OpaqueHitDistance;
+			TraceResult.Lighting.rgb = GetFogOnLuminance(TraceResult.Lighting.rgb, CoverageForFog, OriginToCollider);
+		}
 
 		float MaxLighting = max3(TraceResult.Lighting.x, TraceResult.Lighting.y, TraceResult.Lighting.z);
 

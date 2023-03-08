@@ -14,6 +14,7 @@
 #define HZB_TRACE_INCLUDE_FULL_RES_DEPTH 1
 #include "LumenScreenTracing.ush"
 #include "LumenHairTracing.ush"
+#include "LumenFog.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -471,6 +472,13 @@ void TraceMeshSDFs(
 	float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
 	DistanceFade = max(DistanceFade, saturate((OpaqueHitDistance - MaxMeshSDFTraceDistance * .7f) / (MaxMeshSDFTraceDistance * .3f)));
 
+	if(SampleHeightFog > 0)
+	{
+		float CoverageForFog = saturate(1.0 - Transparency);	// LUMEN_TODO single evaluation for now even if we can hit translucent hair above.
+		float3 OriginToCollider = RayData.Direction * TraceResult.OpaqueHitDistance;
+		Lighting.rgb = GetFogOnLuminance(Lighting.rgb, CoverageForFog, OriginToCollider);
+	}
+
 	Transparency = lerp(Transparency, 1, DistanceFade);
 
 	Lighting += GetSkylightLeaking(RayData.Direction, OpaqueHitDistance) * View.PreExposure;
@@ -620,6 +628,8 @@ void TraceVoxels(
 	}
 #endif
 
+	float CoverageForFog = saturate(1.0 - TraceResult.Transparency);
+
 #if DISTANT_SCREEN_TRACES
 	if (!bHit)
 	{
@@ -658,12 +668,20 @@ void TraceVoxels(
 		{
 			TraceHitDistance = MaxTraceDistance;
 			ApplySkylightToTraceResult(RayData.Direction, TraceResult);
+			CoverageForFog = 1.0f;
 		}
 	}
 
 	TraceResult.Lighting += GetSkylightLeaking(RayData.Direction, TraceResult.OpaqueHitDistance);
 
 	TraceResult.Lighting *= View.PreExposure;
+
+	if (SampleHeightFog > 0)
+	{
+		float3 OriginToCollider = RayData.Direction * TraceHitDistance;
+		TraceResult.Lighting.rgb = GetFogOnLuminance(TraceResult.Lighting.rgb, CoverageForFog, OriginToCollider);
+	}
+
 	float MaxLighting = max3(TraceResult.Lighting.x, TraceResult.Lighting.y, TraceResult.Lighting.z);
 
 	if (MaxLighting > MaxRayIntensity)

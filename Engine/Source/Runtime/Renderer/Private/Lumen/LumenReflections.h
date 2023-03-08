@@ -54,6 +54,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
 	SHADER_PARAMETER(uint32, ReflectionPass)
 	SHADER_PARAMETER(uint32, UseJitter)
 	SHADER_PARAMETER(uint32, UseHighResSurface)
+	SHADER_PARAMETER(uint32, SampleHeightFog)
 	SHADER_PARAMETER(uint32, MaxReflectionBounces)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
@@ -95,6 +96,7 @@ namespace LumenReflections
 	bool IsHitLightingForceEnabled(const FViewInfo& View);
 	bool UseSurfaceCacheFeedback();
 	float GetSampleSceneColorNormalTreshold();
+	bool SampleHeightFog();
 	uint32 GetMaxReflectionBounces(const FViewInfo& View);
 };
 
