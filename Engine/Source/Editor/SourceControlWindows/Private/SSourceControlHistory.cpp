@@ -1168,17 +1168,30 @@ private:
 	/** Called to create a context menu when right-clicking on a history item */
 	TSharedPtr< SWidget > OnCreateContextMenu()
 	{
-		if (CanDiff())
+		FToolMenuContext Context;
+		USourceControlHistoryWidgetContext* SourceControlHistoryWidgetContext = NewObject<USourceControlHistoryWidgetContext>();
+		SourceControlHistoryWidgetContext->HistoryWidget = SharedThis(this);
+
+		for (TSharedPtr<FHistoryTreeItem> Item : MainHistoryListView->GetSelectedItems())
 		{
-			FToolMenuContext Context;
-			USourceControlHistoryWidgetContext* SourceControlHistoryWidgetContext = NewObject<USourceControlHistoryWidgetContext>();
-			SourceControlHistoryWidgetContext->HistoryWidget = SharedThis(this);
-			Context.AddObject(SourceControlHistoryWidgetContext);
-			if (UToolMenu* GeneratedContextMenu = UToolMenus::Get()->GenerateMenu(SourceControlHistoryContextMenu, Context))
+			if (Item->Parent.IsValid())
 			{
-				return UToolMenus::Get()->GenerateWidget(GeneratedContextMenu);
+				TSharedPtr<FHistoryTreeItem> Parent = Item->Parent.Pin();
+
+				USourceControlHistoryWidgetContext::SelectedItem ItemInfo;
+				ItemInfo.FileName = Parent->FileListItem->FileName;
+				ItemInfo.Revision = Item->RevisionListItem->Revision;
+
+				SourceControlHistoryWidgetContext->GetSelectedItems().Add(ItemInfo);
 			}
 		}
+	
+		Context.AddObject(SourceControlHistoryWidgetContext);
+		if (UToolMenu* GeneratedContextMenu = UToolMenus::Get()->GenerateMenu(SourceControlHistoryContextMenu, Context))
+		{
+			return UToolMenus::Get()->GenerateWidget(GeneratedContextMenu);
+		}
+
 		return SNullWidget::NullWidget;
 	}
 
@@ -1405,7 +1418,7 @@ private:
 	 *
 	 * @return True if the SourceControl provider supports diffing, false if not.
 	 */
-	bool CanDiff() const
+	static bool CanDiff()
 	{
 		return ISourceControlModule::Get().GetProvider().AllowsDiffAgainstDepot();
 	}
@@ -1622,6 +1635,11 @@ void SSourceControlHistoryWidget::CreateDiffMenu(UToolMenu* InToolMenu)
 
 	TSharedPtr<SSourceControlHistoryWidget> PinnedHistoryWidget = FoundContext->HistoryWidget.Pin();
 	if (!PinnedHistoryWidget)
+	{
+		return;
+	}
+
+	if (!CanDiff())
 	{
 		return;
 	}

@@ -14,12 +14,26 @@ class SSourceControlHistoryWidget;
 
 /** Context object for SSourceControlHistoryWidget's right-click context menu to get info about which history widget is trying to generate the menu */
 UCLASS()
-class USourceControlHistoryWidgetContext : public UObject
+class SOURCECONTROLWINDOWS_API USourceControlHistoryWidgetContext : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	TWeakPtr<SSourceControlHistoryWidget> HistoryWidget;
+	struct SelectedItem
+	{
+		FString FileName;
+		FString Revision;
+	};
+
+	TWeakPtr<class SSourceControlHistoryWidget> HistoryWidget;
+
+	TArray<SelectedItem>& GetSelectedItems()
+	{
+		return SelectedItems;
+	}
+
+private:
+	TArray<SelectedItem> SelectedItems;
 };
 
 
