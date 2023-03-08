@@ -9,6 +9,7 @@ using System.Reflection;
 using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -107,7 +108,7 @@ namespace AutomationTool
 		private static Dictionary<TargetPlatformDescriptor, Platform> AllPlatforms = new Dictionary<TargetPlatformDescriptor, Platform>();
 		internal static void InitializePlatforms(HashSet<Assembly> AssembliesWithPlatforms)
 		{
-			LogVerbose("Creating platforms.");
+			Log.Logger.LogDebug("Creating platforms.");
 
 			// Create all available platforms.
 			foreach (var ScriptAssembly in AssembliesWithPlatforms)
@@ -121,7 +122,7 @@ namespace AutomationTool
 				Platform ExistingInstance;
 				if (AllPlatforms.TryGetValue(TargetDesc, out ExistingInstance) == false)
 				{
-					LogVerbose("Creating placeholder platform for target: {0}", TargetDesc.Type);
+					Log.Logger.LogDebug("Creating placeholder platform for target: {TargetType}", TargetDesc.Type);
 					AllPlatforms.Add(TargetDesc, new Platform(TargetDesc.Type));
 				}
 			}
@@ -129,7 +130,7 @@ namespace AutomationTool
 
 		private static void CreatePlatformsFromAssembly(Assembly ScriptAssembly)
 		{
-			LogVerbose("Looking for platforms in {0}", ScriptAssembly.Location);
+			Log.Logger.LogDebug("Looking for platforms in {Location}", ScriptAssembly.Location);
 			Type[] AllTypes = null;
 			try
 			{
@@ -137,21 +138,21 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				LogError("Failed to get assembly types for {0}", ScriptAssembly.Location);
+				Log.Logger.LogError("Failed to get assembly types for {Location}", ScriptAssembly.Location);
 				if (Ex is ReflectionTypeLoadException)
 				{
 					var TypeLoadException = (ReflectionTypeLoadException)Ex;
 					if (!IsNullOrEmpty(TypeLoadException.LoaderExceptions))
 					{
-						LogError("Loader Exceptions:");
+						Log.Logger.LogError("Loader Exceptions:");
 						foreach (var LoaderException in TypeLoadException.LoaderExceptions)
 						{
-							LogError(LogUtils.FormatException(LoaderException));
+							Log.Logger.LogError(LoaderException, "{Text}", LogUtils.FormatException(LoaderException));
 						}
 					}
 					else
 					{
-						LogError("No Loader Exceptions available.");
+						Log.Logger.LogError("No Loader Exceptions available.");
 					}
 				}
 				// Re-throw, this is still a critical error!
@@ -161,7 +162,7 @@ namespace AutomationTool
 			{
 				if (PotentialPlatformType != typeof(Platform) && typeof(Platform).IsAssignableFrom(PotentialPlatformType) && !PotentialPlatformType.IsAbstract)
 				{
-					LogVerbose("Creating platform {0} from {1}.", PotentialPlatformType.Name, ScriptAssembly.Location);
+					Log.Logger.LogDebug("Creating platform {Platform} from {Location}.", PotentialPlatformType.Name, ScriptAssembly.Location);
 					var PlatformInstance = Activator.CreateInstance(PotentialPlatformType) as Platform;
 					var PlatformDesc = PlatformInstance.GetTargetPlatformDescriptor();
 
@@ -174,7 +175,7 @@ namespace AutomationTool
 					{
 						if (ExistingInstance.GetType() != PlatformInstance.GetType())
 						{
-							LogWarning("Platform {0} already exists", PotentialPlatformType.Name);
+							Log.Logger.LogWarning("Platform {Platform} already exists", PotentialPlatformType.Name);
 						}
 					}
 				}
@@ -361,7 +362,7 @@ namespace AutomationTool
 		public virtual void GetConnectedDevices(ProjectParams Params, out List<string> Devices)
 		{
 			Devices = null;
-			LogWarning("{0} does not implement GetConnectedDevices", PlatformType);
+			Logger.LogWarning("{PlatformType} does not implement GetConnectedDevices", PlatformType);
 		}
 
 		/// <summary>
@@ -382,7 +383,7 @@ namespace AutomationTool
 		/// <param name="SC"></param>
 		public virtual void Deploy(ProjectParams Params, DeploymentContext SC)
 		{
-			LogWarning("{0} does not implement Deploy...", PlatformType);
+			Logger.LogWarning("{PlatformType} does not implement Deploy...", PlatformType);
 		}
 
 		/// <summary>
@@ -887,12 +888,12 @@ namespace AutomationTool
 
 		public virtual void PrepareForDebugging(string SourcePackage, string ProjectFilePath, string ClientPlatform)
 		{
-			LogError("Not implemented for the %s platform.", ClientPlatform);
+			Logger.LogError("Not implemented for the {Platform} platform.", ClientPlatform);
 		}
 
 		public virtual void SetSecondaryRemoteMac(string ProjectFilePath, string ClientPlatform)
 		{
-			LogError("Not implemented for this platform.");
+			Logger.LogError("Not implemented for this platform.");
 		}
 
 		// let the platform set the exe extension if it chooses (otherwise, use

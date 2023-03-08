@@ -112,11 +112,11 @@ namespace AutomationTool.Tasks
 			HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 			if (Files.Count == 0)
 			{
-				Log.TraceInformation("No files to submit.");
+				Log.Logger.LogInformation("No files to submit.");
 			}
 			else if (!CommandUtils.AllowSubmit)
 			{
-				Log.TraceWarning("Submitting to Perforce is disabled by default. Run with the -submit argument to allow.");
+				Log.Logger.LogWarning("Submitting to Perforce is disabled by default. Run with the -submit argument to allow.");
 			}
 			else
 			{

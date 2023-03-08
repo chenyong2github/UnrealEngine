@@ -9,6 +9,7 @@ using System.Diagnostics;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -136,7 +137,7 @@ namespace AutomationTool
 
 			if (IsChildInstance)
 			{
-				Log.TraceInformation($"AutomationTool is running as a child instance ({EnvVarNames.IsChildInstance}={IsChildInstanceInt.ToString()})");
+				Log.Logger.LogInformation("AutomationTool is running as a child instance ({Name}={Value})", EnvVarNames.IsChildInstance, IsChildInstanceInt.ToString());
 			}
 
 			// Setup the timestamp string
@@ -181,18 +182,18 @@ namespace AutomationTool
 
 		void LogSettings()
 		{
-			Log.TraceVerbose("Command Environment settings:");
-			Log.TraceVerbose("CmdExe={0}", CmdExe);
-			Log.TraceVerbose("EngineSavedFolder={0}", EngineSavedFolder);
-			Log.TraceVerbose("HasCapabilityToCompile={0}", HasCapabilityToCompile);
-			Log.TraceVerbose("LocalRoot={0}", LocalRoot);
-			Log.TraceVerbose("LogFolder={0}", LogFolder);
-			Log.TraceVerbose("MountExe={0}", MountExe);
-			Log.TraceVerbose("FrameworkMsbuildExe={0}", FrameworkMsbuildPath);
-			Log.TraceVerbose("DotnetMsbuildExe={0}", DotnetMsbuildPath);
-			Log.TraceVerbose("RobocopyExe={0}", RobocopyExe);
-			Log.TraceVerbose("TimestampAsString={0}", TimestampAsString);
-			Log.TraceVerbose("AutomationToolDll={0}", AutomationToolDll);			
+			Log.Logger.LogDebug("Command Environment settings:");
+			Log.Logger.LogDebug("CmdExe={CmdExe}", CmdExe);
+			Log.Logger.LogDebug("EngineSavedFolder={EngineSavedFolder}", EngineSavedFolder);
+			Log.Logger.LogDebug("HasCapabilityToCompile={HasCapabilityToCompile}", HasCapabilityToCompile);
+			Log.Logger.LogDebug("LocalRoot={LocalRoot}", LocalRoot);
+			Log.Logger.LogDebug("LogFolder={LogFolder}", LogFolder);
+			Log.Logger.LogDebug("MountExe={MountExe}", MountExe);
+			Log.Logger.LogDebug("FrameworkMsbuildExe={FrameworkMsbuildPath}", FrameworkMsbuildPath);
+			Log.Logger.LogDebug("DotnetMsbuildExe={DotnetMsbuildPath}", DotnetMsbuildPath);
+			Log.Logger.LogDebug("RobocopyExe={RobocopyExe}", RobocopyExe);
+			Log.Logger.LogDebug("TimestampAsString={TimestampAsString}", TimestampAsString);
+			Log.Logger.LogDebug("AutomationToolDll={AutomationToolDll}", AutomationToolDll);
 		}
 
 		/// <summary>
@@ -214,11 +215,11 @@ namespace AutomationTool
 				HasCapabilityToCompile = false;
 				FrameworkMsbuildPath = "";
 			}
-			Log.TraceVerbose("CompilationEvironment.HasCapabilityToCompile={0}", HasCapabilityToCompile);
-			Log.TraceVerbose("CompilationEvironment.FrameworkMsbuildExe={0}", FrameworkMsbuildPath);
+			Log.Logger.LogDebug("CompilationEvironment.HasCapabilityToCompile={HasCapabilityToCompile}", HasCapabilityToCompile);
+			Log.Logger.LogDebug("CompilationEvironment.FrameworkMsbuildExe={FrameworkMsbuildPath}", FrameworkMsbuildPath);
 
 			DotnetMsbuildPath = Unreal.DotnetPath.FullName;
-			Log.TraceVerbose("CompilationEvironment.DotnetMsbuildExe={0}", DotnetMsbuildPath);
+			Log.Logger.LogDebug("CompilationEvironment.DotnetMsbuildExe={DotnetMsbuildPath}", DotnetMsbuildPath);
 		}
 
 		/// <summary>
@@ -237,7 +238,7 @@ namespace AutomationTool
 			while (true)
 			{
 				var PathToCheck = Path.GetFullPath(CommandUtils.CombinePaths(CurrentPath, KnownFilePathFromRoot));
-				Log.TraceVerbose("Checking for {0}", PathToCheck);
+				Log.Logger.LogDebug("Checking for {PathToCheck}", PathToCheck);
 				if (!File.Exists(PathToCheck))
 				{
 					var LastSeparatorIndex = CurrentPath.LastIndexOf('/');

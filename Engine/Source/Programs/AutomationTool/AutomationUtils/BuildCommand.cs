@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -52,11 +53,11 @@ namespace AutomationTool
 				{
 					if (ParamValue == null)
 					{
-						Log.TraceWarning($"Param name \"{ObsoleteParam}\" is deprecated, use \"{Param}\" instead.");
+						Log.Logger.LogWarning("Param name \"{ObsoleteParam}\" is deprecated, use \"{Param}\" instead.", ObsoleteParam, Param);
 					}
 					else
 					{
-						Log.TraceWarning($"Deprecated param name \"{ObsoleteParam}\" was ignored because \"{Param}\" was set.");
+						Log.Logger.LogWarning("Deprecated param name \"{ObsoleteParam}\" was ignored because \"{Param}\" was set.", ObsoleteParam, Param);
 					}
 				}
 

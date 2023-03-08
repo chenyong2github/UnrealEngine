@@ -9,6 +9,7 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using System.Threading.Tasks;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -56,7 +57,7 @@ namespace AutomationTool
 				{
 					foreach (Exception SubEx in LoadEx.LoaderExceptions)
 					{
-						Log.TraceWarning("Got type loader exception: {0}", SubEx.ToString());
+						Log.Logger.LogWarning(SubEx, "Got type loader exception: {SubEx}", SubEx.ToString());
 					}
 					throw new AutomationException("Failed to add commands from {0}. {1}", CompiledScripts, LoadEx);
 				}

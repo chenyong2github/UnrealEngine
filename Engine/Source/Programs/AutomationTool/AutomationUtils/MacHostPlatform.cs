@@ -10,6 +10,7 @@ using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -26,13 +27,13 @@ namespace AutomationTool
 
 				if (CanUseMsBuild)
 				{
-					Log.TraceInformation($"using {CommandUtils.WhichApp("dotnet")}!");
+					Log.Logger.LogInformation("using {DotNet}!", CommandUtils.WhichApp("dotnet"));
 
 					CachedFrameworkMsbuildExe = "dotnet msbuild";
 				}
 				else
 				{
-					Log.TraceInformation("Using xbuild. Install Mono 5.0 or greater for faster builds!");
+					Log.Logger.LogInformation("Using xbuild. Install Mono 5.0 or greater for faster builds!");
 					CachedFrameworkMsbuildExe = "xbuild";
 				}
 			}

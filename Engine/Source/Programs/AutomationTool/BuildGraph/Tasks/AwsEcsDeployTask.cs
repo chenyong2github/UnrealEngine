@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
@@ -115,7 +116,7 @@ namespace AutomationTool.Tasks
 			string Params = $"ecs update-service --cluster {Parameters.Cluster} --service {Parameters.Service} --task-definition {TaskDefFamily}:{TaskDefRevision}";
 			await SpawnTaskBase.ExecuteAsync("aws", Params, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), LogOutput: Parameters.LogOutput);
 
-			Log.TraceInformation($"Service {Parameters.Service} updated to use new task def {TaskDefFamily}:{TaskDefRevision}");
+			Log.Logger.LogInformation("Service {Service} updated to use new task def {TaskDefFamily}:{TaskDefRevision}", Parameters.Service, TaskDefFamily, TaskDefRevision);
 		}
 
 		/// <summary>

@@ -12,6 +12,7 @@ using System.Runtime.CompilerServices;
 using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -819,11 +820,11 @@ namespace AutomationTool
 
 			if (ResolvedPath != null)
 			{
-				Log.TraceVeryVerbose("Resolved {0} to {1}", App, ResolvedPath);
+				Log.Logger.LogTrace("Resolved {App} to {ResolvedPath}", App, ResolvedPath);
 			}
 			else
 			{
-				Log.TraceVerbose("Could not resolve app {0}", App);
+				Log.Logger.LogDebug("Could not resolve app {App}", App);
 			}
 
 			return ResolvedPath;
@@ -1133,7 +1134,7 @@ namespace AutomationTool
 		{
 			while (!FileExists(LogFilename) && !LogProcess.HasExited)
 			{
-				LogInformation("Waiting for logging process to start...");
+				Log.Logger.LogInformation("Waiting for logging process to start...");
 				Thread.Sleep(2000);
 			}
 			Thread.Sleep(1000);

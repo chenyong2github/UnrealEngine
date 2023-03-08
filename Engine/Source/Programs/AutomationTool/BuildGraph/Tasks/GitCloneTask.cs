@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
@@ -75,7 +76,7 @@ namespace AutomationTool.Tasks
 			}
 
 			DirectoryReference Dir = ResolveDirectory(Parameters.Dir);
-			Log.TraceInformation("Cloning Git repository into {0}", Parameters.Dir);
+			Log.Logger.LogInformation("Cloning Git repository into {Dir}", Parameters.Dir);
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
 				DirectoryReference GitDir = DirectoryReference.Combine(Dir, ".git");

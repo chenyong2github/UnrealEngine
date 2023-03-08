@@ -9,6 +9,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using System.Linq;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -173,14 +174,14 @@ namespace AutomationTool
 			{
 				if (!RHS.HasEntryForName(Entry.Name))
 				{
-					Log.TraceInformation("RHS does not have an entry for {0}", Entry.Name);
+					Log.Logger.LogInformation("RHS does not have an entry for {Name}", Entry.Name);
 				}
 				else if (!RHS.Hashes.Contains(Entry))
 				{
 					HashEntry RHSEntry = RHS.GetEntryForName(Entry.Name);
-					Log.TraceInformation("RHS hash mismatch for {0}", Entry.Name);
-					Log.TraceInformation("LHS:\n\t{0}\n\t{1}\n\t{2}", Entry.Hash, Entry.Name, Entry.MetaData);
-					Log.TraceInformation("RHS:\n\t{0}\n\t{1}\n\t{2}", RHSEntry.Hash, RHSEntry.Name, RHSEntry.MetaData);
+					Log.Logger.LogInformation("RHS hash mismatch for {Name}", Entry.Name);
+					Log.Logger.LogInformation("LHS:\n\t{Hash}\n\t{Name}\n\t{MetaData}", Entry.Hash, Entry.Name, Entry.MetaData);
+					Log.Logger.LogInformation("RHS:\n\t{Hash}\n\t{Name}\n\t{MetaData}", RHSEntry.Hash, RHSEntry.Name, RHSEntry.MetaData);
 				}
 			}
 		}
@@ -211,7 +212,7 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Failed to load HashCollection from {0}. {1}", InPath, Ex.Message);
+				Log.Logger.LogWarning(Ex, "Failed to load HashCollection from {InPath}. {Message}", InPath, Ex.Message);
 			}
 
 			return null;

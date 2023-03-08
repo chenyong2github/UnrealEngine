@@ -9,6 +9,7 @@ using EpicGames.Core;
 using EpicGames.Perforce;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -157,7 +158,7 @@ namespace AutomationTool
 				{
 					string HostName = System.Net.Dns.GetHostName();
 					ThisClient = DetectClient(DefaultConnection, User, HostName, CmdEnv.AutomationToolDll);
-					Log.TraceInformation("Using user {0} clientspec {1} {2}", User, ThisClient.Name, ThisClient.RootPath);
+					Log.Logger.LogInformation("Using user {User} clientspec {ClientName} {ClientPath}", User, ThisClient.Name, ThisClient.RootPath);
 					Client = ThisClient.Name;
 					CommandUtils.SetEnvVar(EnvVarNames.Client, Client);
 				}
@@ -217,7 +218,7 @@ namespace AutomationTool
 				using PerforceConnection Connection = new PerforceConnection(new PerforceSettings(ServerAndPort, User) { ClientName = Client }, Log.Logger);
 				CodeChangelistString = DetectCurrentCodeCL(Connection, Changelist).Result.ToString();
 				CommandUtils.SetEnvVar(EnvVarNames.CodeChangelist, CodeChangelistString);
-				Log.TraceVerbose("Took {0}ms to query last code change", Timer.ElapsedMilliseconds);
+				Log.Logger.LogDebug("Took {ElapsedMs}ms to query last code change", Timer.ElapsedMilliseconds);
 			}
 			if(!String.IsNullOrEmpty(CodeChangelistString))
 			{
@@ -232,18 +233,18 @@ namespace AutomationTool
 			// Write a summary of the settings to the output window
 			if (!CommandUtils.CmdEnv.IsChildInstance)
 			{
-				Log.TraceInformation("Detected Perforce Settings:");
-				Log.TraceInformation("  Server: {0}", ServerAndPort);
-				Log.TraceInformation("  User: {0}", User);
-				Log.TraceInformation("  Client: {0}", Client);
-				Log.TraceInformation("  Branch: {0}", Branch);
+				Log.Logger.LogInformation("Detected Perforce Settings:");
+				Log.Logger.LogInformation("  Server: {ServerAndPort}", ServerAndPort);
+				Log.Logger.LogInformation("  User: {User}", User);
+				Log.Logger.LogInformation("  Client: {Client}", Client);
+				Log.Logger.LogInformation("  Branch: {Branch}", Branch);
 				if (ChangelistInternal != -1)
 				{
-					Log.TraceInformation("  Last Change: {0}", Changelist);
+					Log.Logger.LogInformation("  Last Change: {Changelist}", Changelist);
 				}
 				if (CodeChangelistInternal != -1)
 				{
-					Log.TraceInformation("  Last Code Change: {0}", CodeChangelist);
+					Log.Logger.LogInformation("  Last Code Change: {CodeChangelist}", CodeChangelist);
 				}
 			}
 
@@ -289,7 +290,7 @@ namespace AutomationTool
 			// Otherwise fallback to the uebp variables, or the default
 			if(String.IsNullOrEmpty(P4Port))
 			{
-				Log.TraceWarning("P4PORT is not set. Using perforce:1666");
+				Log.Logger.LogWarning("P4PORT is not set. Using perforce:1666");
 				P4Port = "perforce:1666";
 			}
 
@@ -315,7 +316,7 @@ namespace AutomationTool
 			{
 				if (!String.IsNullOrEmpty(UserName))
 				{
-					Log.TraceWarning("Unable to retrieve perforce user name. Trying to fall back to {0} which is set to {1}.", EnvVarNames.User, UserName);
+					Log.Logger.LogWarning("Unable to retrieve perforce user name. Trying to fall back to {UserNameEnvVar} which is set to {UserName}.", EnvVarNames.User, UserName);
 				}
 				else
 				{
@@ -360,7 +361,7 @@ namespace AutomationTool
 			{
 				if (!String.IsNullOrEmpty(Client.Host) && String.Compare(Client.Host, HostName, true) != 0)
 				{
-					Log.TraceInformation("Rejecting client because of different Host {0} \"{1}\" != \"{2}\"", Client.Name, Client.Host, HostName);
+					Log.Logger.LogInformation("Rejecting client because of different Host {ClientName} \"{ClientHost}\" != \"{HostName}\"", Client.Name, Client.Host, HostName);
 					continue;
 				}
 				
@@ -389,7 +390,7 @@ namespace AutomationTool
 				}
 				if (ClientToUse == null)
 				{
-					Log.TraceWarning("{0} clients found that match the current host and root path. The most recently accessed client will be used.", MatchingClients.Count);
+					Log.Logger.LogWarning("{NumClients} clients found that match the current host and root path. The most recently accessed client will be used.", MatchingClients.Count);
 					ClientToUse = GetMostRecentClient(MatchingClients);
 				}
 			}
@@ -404,7 +405,7 @@ namespace AutomationTool
 		/// <returns>The most recent client from the list.</returns>
 		private static P4ClientInfo GetMostRecentClient(List<P4ClientInfo> Clients)
 		{
-			Log.TraceVerbose("Detecting the most recent client.");
+			Log.Logger.LogDebug("Detecting the most recent client.");
 			P4ClientInfo MostRecentClient = null;
 			var MostRecentAccessTime = DateTime.MinValue;
 			foreach (var ClientInfo in Clients)
@@ -525,7 +526,7 @@ namespace AutomationTool
 				string KnownFileDepotMapping = P4Result.Output;
 
 				// Get the build root
-				Log.TraceVerbose("Looking for {0} in {1}", KnownFilePathFromRoot, KnownFileDepotMapping);
+				Log.Logger.LogDebug("Looking for {KnownFilePathFromRoot} in {KnownFileDepotMapping}", KnownFilePathFromRoot, KnownFileDepotMapping);
 				int EndIdx = KnownFileDepotMapping.IndexOf(KnownFilePathFromRoot, StringComparison.CurrentCultureIgnoreCase);
 				if (EndIdx < 0)
 				{

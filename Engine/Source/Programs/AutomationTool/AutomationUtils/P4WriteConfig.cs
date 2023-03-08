@@ -7,6 +7,7 @@ using EpicGames.Core;
 using System.Collections.Generic;
 using System.Linq;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -19,7 +20,7 @@ namespace AutomationTool
 	{
 		public override ExitCode Execute()
 		{
-			Log.TraceInformation("Setting up Perforce environment.");
+			Log.Logger.LogInformation("Setting up Perforce environment.");
 
 			// User can specify these to help auto detection
 			string Port = ParseParamValue("p4port", "");
@@ -51,7 +52,7 @@ namespace AutomationTool
 			{
 				Log.TraceError(
 					"Unable to find matching Perforce info. If the below does not help try P4WriteConfig -p4port=<server:port> and -p4user=<username> to supply more info");
-				Log.TraceError("{0}", Ex.Message);
+				Log.Logger.LogError(Ex, "{Message}", Ex.Message);
 				return ExitCode.Error_Arguments;
 			}
 
@@ -95,14 +96,14 @@ namespace AutomationTool
 
 				string OutputFile = Path.GetFileName(OutputPath);
 
-				Log.TraceInformation("Wrote P4 settings to {0}", OutputPath);
+				Log.Logger.LogInformation("Wrote P4 settings to {OutputPath}", OutputPath);
 
 				P4.P4(string.Format("set P4CONFIG={0}", OutputFile));
-				Log.TraceInformation("set P4CONFIG={0}", OutputFile);
+				Log.Logger.LogInformation("set P4CONFIG={OutputFile}", OutputFile);
 			}
 			else
 			{
-				Log.TraceInformation("Skipped write");
+				Log.Logger.LogInformation("Skipped write");
 			}
 
 			return ExitCode.Success;

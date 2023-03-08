@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using EpicGames.Jupiter;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
@@ -128,7 +129,7 @@ namespace AutomationTool.Tasks
 			}
 
 			// Create the jupiter tree
-			Log.TraceInformation("Uploading {0} files to {1}...", Files.Count, Parameters.JupiterUrl);
+			Log.Logger.LogInformation("Uploading {NumFiles} files to {Url}...", Files.Count, Parameters.JupiterUrl);
 
 			JupiterFileTree FileTree = new JupiterFileTree(Parameters.FromDir, Parameters.LimitMemoryUsage);
 			foreach (FileReference File in Files)

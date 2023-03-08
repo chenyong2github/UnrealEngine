@@ -10,6 +10,7 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
@@ -141,7 +142,7 @@ namespace AutomationTool.Tasks
 						int EqualsIdx = Property.IndexOf('=');
 						if (EqualsIdx == -1)
 						{
-							Log.TraceWarning("Missing '=' in property assignment");
+							Log.Logger.LogWarning("Missing '=' in property assignment");
 						}
 						else
 						{

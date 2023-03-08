@@ -278,7 +278,7 @@ namespace AutomationTool
 			// Look for overrides
 			if (!string.IsNullOrEmpty(BranchOverride))
 			{
-				LogInformation("Overriding default branch '{0}' with '{1}'", DefaultProperties["Branch"], BranchOverride);
+				Logger.LogInformation("Overriding default branch '{Branch}' with '{BranchOverride}'", DefaultProperties["Branch"], BranchOverride);
 				DefaultProperties["Branch"] = BranchOverride;
 				DefaultProperties["EscapedBranch"] = CommandUtils.EscapePath(DefaultProperties["Branch"]);
 			}
@@ -326,7 +326,7 @@ namespace AutomationTool
 					}
 					else
 					{
-						LogWarning("Missing value for '{0}'", Param.Substring(SetPrefix.Length));
+						Logger.LogWarning("Missing value for '{Arg0}'", Param.Substring(SetPrefix.Length));
 					}
 				}
 
@@ -349,7 +349,7 @@ namespace AutomationTool
 					}
 					else
 					{
-						LogWarning("Missing value for '{0}'", Param.Substring(AppendPrefix.Length));
+						Logger.LogWarning("Missing value for '{Arg0}'", Param.Substring(AppendPrefix.Length));
 					}
 				}
 			}
@@ -420,7 +420,7 @@ namespace AutomationTool
 					if (SchemaFileName != null)
 					{
 						FileReference FullSchemaFileName = new FileReference(SchemaFileName);
-						LogInformation("Writing schema to {0}...", FullSchemaFileName.FullName);
+						Logger.LogInformation("Writing schema to {Arg0}...", FullSchemaFileName.FullName);
 						Schema.Export(FullSchemaFileName);
 						if (ScriptFileName == null)
 						{
@@ -432,7 +432,7 @@ namespace AutomationTool
 				// Check there was a script specified
 				if (ScriptFileName == null)
 				{
-					LogError("Missing -Script= parameter for BuildGraph");
+					Logger.LogError("Missing -Script= parameter for BuildGraph");
 					return ExitCode.Error_Unknown;
 				}
 
@@ -471,7 +471,7 @@ namespace AutomationTool
 			{
 				if (!bListOnly && SingleNodeName == null)
 				{
-					LogError("Missing -Target= parameter for BuildGraph");
+					Logger.LogError("Missing -Target= parameter for BuildGraph");
 					return ExitCode.Error_Unknown;
 				}
 				TargetNodes.UnionWith(Graph.Agents.SelectMany(x => x.Nodes));
@@ -496,7 +496,7 @@ namespace AutomationTool
 					BgNodeDef[] Nodes;
 					if(!Graph.TryResolveReference(TargetName, out Nodes))
 					{
-						LogError("Target '{0}' is not in graph", TargetName);
+						Logger.LogError("Target '{TargetName}' is not in graph", TargetName);
 						return ExitCode.Error_Unknown;
 					}
 					TargetNodes.UnionWith(Nodes);
@@ -549,12 +549,12 @@ namespace AutomationTool
 						HashSet<BgNodeDef> SkipNodes = new HashSet<BgNodeDef>();
 						foreach(IGrouping<string, FileReference> MissingTokensForBuild in MissingTokens.GroupBy(x => x.Value, x => x.Key))
 						{
-							LogInformation("Skipping the following nodes due to {0}:", MissingTokensForBuild.Key);
+							Logger.LogInformation("Skipping the following nodes due to {Arg0}:", MissingTokensForBuild.Key);
 							foreach(FileReference MissingToken in MissingTokensForBuild)
 							{
 								foreach(BgNodeDef SkipNode in TargetNodes.Where(x => x.RequiredTokens.Contains(MissingToken) && SkipNodes.Add(x)))
 								{
-									LogInformation("    {0}", SkipNode);
+									Logger.LogInformation("    {SkipNode}", SkipNode);
 								}
 							}
 						}
@@ -563,14 +563,14 @@ namespace AutomationTool
 						if(SkipNodes.Count > 0)
 						{
 							TargetNodes.ExceptWith(SkipNodes);
-							LogInformation("Remaining target nodes:");
+							Logger.LogInformation("Remaining target nodes:");
 							foreach(BgNodeDef TargetNode in TargetNodes)
 							{
-								LogInformation("    {0}", TargetNode);
+								Logger.LogInformation("    {TargetNode}", TargetNode);
 							}
 							if(TargetNodes.Count == 0)
 							{
-								LogInformation("    None.");
+								Logger.LogInformation("    None.");
 							}
 						}
 					}
@@ -579,7 +579,7 @@ namespace AutomationTool
 						foreach(KeyValuePair<FileReference, string> Pair in MissingTokens)
 						{
 							List<BgNodeDef> SkipNodes = TargetNodes.Where(x => x.RequiredTokens.Contains(Pair.Key)).ToList();
-							LogError("Cannot run {0} due to previous build: {1}", String.Join(", ", SkipNodes), Pair.Value);
+							Logger.LogError("Cannot run {Arg0} due to previous build: {Arg1}", String.Join(", ", SkipNodes), Pair.Value);
 						}
 						foreach(FileReference CreatedToken in CreatedTokens)
 						{
@@ -605,7 +605,7 @@ namespace AutomationTool
 			if (PreprocessedFileName != null)
 			{
 				FileReference PreprocessedFileLocation = new FileReference(PreprocessedFileName);
-				LogInformation("Writing {0}...", PreprocessedFileLocation);
+				Logger.LogInformation("Writing {PreprocessedFileLocation}...", PreprocessedFileLocation);
 				Graph.Write(PreprocessedFileLocation, (SchemaFileName != null)? new FileReference(SchemaFileName) : null);
 				bListOnly = true;
 			}
@@ -614,7 +614,7 @@ namespace AutomationTool
 			BgNodeDef SingleNode = null;
 			if(SingleNodeName != null && !Graph.NameToNode.TryGetValue(SingleNodeName, out SingleNode))
 			{
-				LogError("Node '{0}' is not in the trimmed graph", SingleNodeName);
+				Logger.LogError("Node '{SingleNodeName}' is not in the trimmed graph", SingleNodeName);
 				return ExitCode.Error_Unknown;
 			}
 
@@ -741,7 +741,7 @@ namespace AutomationTool
 				}
 				catch (ReflectionTypeLoadException ex)
 				{
-					LogWarning("Exception {0} while trying to get types from assembly {1}. LoaderExceptions: {2}", ex, LoadedAssembly, string.Join("\n", ex.LoaderExceptions.Select(x => x.Message)));
+					Logger.LogWarning("Exception {ex} while trying to get types from assembly {LoadedAssembly}. LoaderExceptions: {Arg2}", ex, LoadedAssembly, string.Join("\n", ex.LoaderExceptions.Select(x => x.Message)));
 					continue;
 				}
 
@@ -777,7 +777,7 @@ namespace AutomationTool
 				}
 				catch (ReflectionTypeLoadException ex)
 				{
-					LogWarning("Exception {0} while trying to get types from assembly {1}. LoaderExceptions: {2}", ex, LoadedAssembly, string.Join("\n", ex.LoaderExceptions.Select(x => x.Message)));
+					Logger.LogWarning("Exception {ex} while trying to get types from assembly {LoadedAssembly}. LoaderExceptions: {Arg2}", ex, LoadedAssembly, string.Join("\n", ex.LoaderExceptions.Select(x => x.Message)));
 					continue;
 				}
 
@@ -938,15 +938,15 @@ namespace AutomationTool
 			int NodeIdx = 0;
 			foreach(BgNodeDef NodeToExecute in NodesToExecute)
 			{
-				LogInformation("****** [{0}/{1}] {2}", ++NodeIdx, NodesToExecute.Length, NodeToExecute.Name);
+				Logger.LogInformation("****** [{Arg0}/{Arg1}] {Arg2}", ++NodeIdx, NodesToExecute.Length, NodeToExecute.Name);
 				if(!Storage.IsComplete(NodeToExecute.Name))
 				{
-					LogInformation("");
+					Logger.LogInformation("");
 					if(!await BuildNodeAsync(Job, Graph, NodeToExecute, NodeToExecutor, Storage, bWithBanner: false))
 					{
 						return false;
 					} 
-					LogInformation("");
+					Logger.LogInformation("");
 				}
 			}
 			return true;
@@ -1001,7 +1001,7 @@ namespace AutomationTool
 					TempStorageBlock CurrentStorageBlock;
 					if(FileToStorageBlock.TryGetValue(File, out CurrentStorageBlock) && !TempStorage.IsDuplicateBuildProduct(File))
 					{
-						LogError("File '{0}' was produced by {1} and {2}", File, InputStorageBlock, CurrentStorageBlock);
+						Logger.LogError("File '{File}' was produced by {InputStorageBlock} and {CurrentStorageBlock}", File, InputStorageBlock, CurrentStorageBlock);
 					}
 					FileToStorageBlock[File] = InputStorageBlock;
 				}
@@ -1332,7 +1332,7 @@ namespace AutomationTool
 		/// <param name="OutputFile">The output file to write to</param>
 		static void WriteDocumentationHTML(Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<string, XmlElement> MemberNameToElement, FileReference OutputFile)
 		{
-			LogInformation("Writing {0}...", OutputFile);
+			Logger.LogInformation("Writing {OutputFile}...", OutputFile);
 			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
 			{
 				Writer.WriteLine("<html>");

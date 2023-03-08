@@ -11,6 +11,7 @@ using EpicGames.Core;
 using OpenTracing.Util;
 using UnrealBuildBase;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -69,7 +70,7 @@ namespace AutomationTool
 					}
 				}
 
-				Log.TraceVerbose("IsBuildMachine={0}", IsBuildMachine);
+				Log.Logger.LogDebug("IsBuildMachine={IsBuildMachine}", IsBuildMachine);
 				Environment.SetEnvironmentVariable("IsBuildMachine", IsBuildMachine ? "1" : "0");
 
 				// Register all the log event matchers
@@ -85,7 +86,7 @@ namespace AutomationTool
 
 				// should we kill processes on exit
 				ShouldKillProcesses = !GlobalCommandLine.NoKill;
-				Log.TraceVerbose("ShouldKillProcesses={0}", ShouldKillProcesses);
+				Log.Logger.LogDebug("ShouldKillProcesses={ShouldKillProcesses}", ShouldKillProcesses);
 
 				if (AutomationToolCommandLine.CommandsToExecute.Count == 0 && GlobalCommandLine.Help)
 				{
@@ -107,13 +108,13 @@ namespace AutomationTool
 				LogUtils.AddLogFileListener(new DirectoryReference(CommandUtils.CmdEnv.LogFolder), new DirectoryReference(CommandUtils.CmdEnv.FinalLogFolder));
 				if (LogUtils.FinalLogFileName != LogUtils.LogFileName)
 				{
-					Log.TraceInformation($"Final log location: {LogUtils.FinalLogFileName}");	
+					Log.Logger.LogInformation("Final log location: {Location}", LogUtils.FinalLogFileName);
 				}
 				
 				// Initialize UBT
 				if (!UnrealBuildTool.PlatformExports.Initialize(Log.Logger))
 				{
-					Log.TraceInformation("Failed to initialize UBT");
+					Log.Logger.LogInformation("Failed to initialize UBT");
 					return ExitCode.Error_Unknown;
 				}
 				
@@ -185,8 +186,8 @@ namespace AutomationTool
 				}
 				else if (Ex.OutputFormat == AutomationExceptionOutputFormat.Minimal)
 				{
-					Log.TraceInformation("{0}", Ex.ToString().Replace("\n", "\n  "));
-					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+					Log.Logger.LogInformation(Ex, "{Message}", Ex.ToString().Replace("\n", "\n  "));
+					Log.Logger.LogDebug(Ex, "{Details}", ExceptionUtils.FormatExceptionDetails(Ex));
 				}
 				else
 				{
@@ -231,7 +232,7 @@ namespace AutomationTool
             }
             catch (Exception Ex)
             {
-                Log.TraceError("Exception performing nothrow action \"{0}\": {1}", ActionDesc, ExceptionUtils.FormatException(Ex));
+                Log.Logger.LogError(Ex, "Exception performing nothrow action \"{ActionDesc}\": {Exception}", ActionDesc, ExceptionUtils.FormatException(Ex));
             }
         }
 
@@ -246,7 +247,7 @@ namespace AutomationTool
 			for (int CommandIndex = 0; CommandIndex < CommandsToExecute.Count; ++CommandIndex)
 			{
 				var CommandInfo = CommandsToExecute[CommandIndex];
-				Log.TraceVerbose("Attempting to execute {0}", CommandInfo.ToString());
+				Log.Logger.LogDebug("Attempting to execute {CommandInfo}", CommandInfo.ToString());
 				Type CommandType;
 				if (!Commands.TryGetValue(CommandInfo.CommandName, out CommandType))
 				{
@@ -293,7 +294,7 @@ namespace AutomationTool
 				Type CommandType;
 				if (Commands.TryGetValue(CommandInfo.CommandName, out CommandType) == false)
 				{
-					Log.TraceError("Help: Failed to find command {0}", CommandInfo.CommandName);
+					Log.Logger.LogError("Help: Failed to find command {CommandName}", CommandInfo.CommandName);
 				}
 				else
 				{

@@ -11,6 +11,7 @@ using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -85,8 +86,8 @@ namespace AutomationTool
 				}
 				else
 				{
-					Log.TraceWarning("Failed to create directory {0} in {1} attempts.", Path, MaxAttempts);
-					Log.TraceWarning(LogUtils.FormatException(LastException));
+					Log.Logger.LogWarning("Failed to create directory {Path} in {MaxAttempts} attempts.", Path, MaxAttempts);
+					Log.Logger.LogWarning("{Text}", LogUtils.FormatException(LastException));
 				}
 			}
 			return Result;
@@ -147,8 +148,8 @@ namespace AutomationTool
 				}
 				else
 				{
-					Log.TraceWarning("Failed to delete file {0} in {1} attempts.", Path, MaxAttempts);
-					Log.TraceWarning(LogUtils.FormatException(LastException));
+					Log.Logger.LogWarning("Failed to delete file {Path} in {MaxAttempts} attempts.", Path, MaxAttempts);
+					Log.Logger.LogWarning("{Text}", LogUtils.FormatException(LastException));
 				}
 			}
 
@@ -230,8 +231,8 @@ namespace AutomationTool
 
 			if (Result == false && LastException != null)
 			{
-				Log.TraceWarning("Failed to delete directory {0} in {1} attempts.", Path, MaxAttempts);
-				Log.TraceWarning(LogUtils.FormatException(LastException));
+				Log.Logger.LogWarning("Failed to delete directory {Path} in {MaxAttempts} attempts.", Path, MaxAttempts);
+				Log.Logger.LogWarning("{Text}", LogUtils.FormatException(LastException));
 			}
 
 			return Result;
@@ -289,8 +290,8 @@ namespace AutomationTool
 					{
 						if (!bQuiet)
 						{
-							Log.TraceWarning("Failed to rename {0} to {1}", OldName, NewName);
-							Log.TraceWarning(LogUtils.FormatException(Ex));
+							Log.Logger.LogWarning("Failed to rename {OldName} to {NewName}", OldName, NewName);
+							Log.Logger.LogWarning("{Text}", LogUtils.FormatException(Ex));
 						}
 						Result = false;
 					}
@@ -347,8 +348,8 @@ namespace AutomationTool
 				{
 					if (File.Exists(OldName) == true || File.Exists(NewName) == false)
 					{
-						Log.TraceWarning("Failed to rename {0} to {1}", OldName, NewName);
-						Log.TraceWarning(LogUtils.FormatException(Ex));
+						Log.Logger.LogWarning("Failed to rename {OldName} to {NewName}", OldName, NewName);
+						Log.Logger.LogWarning("{Text}", LogUtils.FormatException(Ex));
 						Result = false;
 					}
 				}
@@ -470,7 +471,7 @@ namespace AutomationTool
 						}
 						else
 						{
-							Log.TraceInformation("Skip copying file {0} because it doesn't exist.", SourceName);
+							Log.Logger.LogInformation("Skip copying file {SourceName} because it doesn't exist.", SourceName);
 						}
 					}
 					Retry = !File.Exists(TargetName);
@@ -480,7 +481,7 @@ namespace AutomationTool
 						FileInfo TargetInfo = new FileInfo(TargetName);
 						if (!bSkipSizeCheck && SourceInfo.Length != TargetInfo.Length)
 						{
-							Log.TraceInformation("Size mismatch {0} = {1} to {2} = {3}", SourceName, SourceInfo.Length, TargetName, TargetInfo.Length);
+							Log.Logger.LogInformation("Size mismatch {SourceName} = {SourceLength} to {TargetName} = {TargetLength}", SourceName, SourceInfo.Length, TargetName, TargetInfo.Length);
 							Retry = true;
 						}
 						// Timestamps should be no more than 2 seconds out - assuming this as exFAT filesystems store timestamps at 2 second intervals:
@@ -493,7 +494,7 @@ namespace AutomationTool
 							TargetInfo.Refresh();
 							if (!((SourceInfo.LastWriteTimeUtc - TargetInfo.LastWriteTimeUtc).TotalSeconds < 2 && (SourceInfo.LastWriteTimeUtc - TargetInfo.LastWriteTimeUtc).TotalSeconds > -2))
 							{
-								Log.TraceInformation("Date mismatch {0} = {1} to {2} = {3}", SourceName, SourceInfo.LastWriteTimeUtc, TargetName, TargetInfo.LastWriteTimeUtc);
+								Log.Logger.LogInformation("Date mismatch {SourceName} = {SourceTime} to {TargetName} = {TargetTime}", SourceName, SourceInfo.LastWriteTimeUtc, TargetName, TargetInfo.LastWriteTimeUtc);
 								Retry = true;
 							}
 						}
@@ -501,7 +502,7 @@ namespace AutomationTool
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceInformation("SafeCopyFile Exception was {0}", LogUtils.FormatException(Ex));
+					Log.Logger.LogInformation("SafeCopyFile Exception was {Ex}", LogUtils.FormatException(Ex));
 					Retry = true;
 				}
 
@@ -509,7 +510,7 @@ namespace AutomationTool
 				{
 					if (Attempts + 1 < MaxAttempts)
 					{
-						Log.TraceInformation("Failed to copy {0} to {1}, deleting, waiting 10s and retrying.", SourceName, TargetName);
+						Log.Logger.LogInformation("Failed to copy {SourceName} to {TargetName}, deleting, waiting 10s and retrying.", SourceName, TargetName);
 						if (File.Exists(TargetName))
 						{
 							SafeDeleteFile(TargetName);
@@ -518,7 +519,7 @@ namespace AutomationTool
 					}
 					else
 					{
-						Log.TraceError("Failed to copy {0} to {1}", SourceName, TargetName);
+						Log.Logger.LogError("Failed to copy {SourceName} to {TargetName}", SourceName, TargetName);
 					}
 					Result = false;
 				}
@@ -544,8 +545,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Failed to load {0}", Filename);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Failed to load {Filename}", Filename);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Result;
 		}
@@ -565,8 +566,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Failed to load {0}", Filename);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Failed to load {Filename}", Filename);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Result;
 		}
@@ -604,7 +605,7 @@ namespace AutomationTool
 					{
 						if (!bQuiet)
 						{
-							Log.TraceWarning("Ignoring symlink {0}", File.FullName);
+							Log.Logger.LogWarning("Ignoring symlink {Path}", File.FullName);
 						}
 						continue;
 					}
@@ -652,8 +653,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to Find Files in {0}", Path);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Unable to Find Files in {Path}", Path);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Files;
 		}
@@ -678,8 +679,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to Find Directories in {0}", Path);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Unable to Find Directories in {Path}", Path);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Directories;
 		}
@@ -703,8 +704,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to check if file {0} exists.", Path);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Unable to check if file {Path} exists.", Path);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Result;
 		}
@@ -729,8 +730,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to check if directory {0} exists.", Path);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Unable to check if directory {Path} exists.", Path);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Result;
 		}
@@ -752,8 +753,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to write text to {0}", Path);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Unable to write text to {Path}", Path);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Result;
 		}
@@ -775,8 +776,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to write text to {0}", Path);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Unable to write text to {Path}", Path);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Result;
 		}
@@ -798,8 +799,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to write text to {0}", Path);
-				Log.TraceWarning(LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Unable to write text to {Path}", Path);
+				Log.Logger.LogWarning(Ex, "{Text}", LogUtils.FormatException(Ex));
 			}
 			return Result;
 		}

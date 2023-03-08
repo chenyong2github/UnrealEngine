@@ -261,7 +261,7 @@ namespace AutomationTool
 		{
 			if(bShowProgress)
 			{
-				LogInformation("[@progress push {0}/{1} skipline]", Numerator, Denominator);
+				Log.Logger.LogInformation("[@progress push {Numerator}/{Denominator} skipline]", Numerator, Denominator);
 			}
 		}
 
@@ -269,7 +269,7 @@ namespace AutomationTool
 		{
 			if(bShowProgress)
 			{
-				LogInformation("[@progress pop skipline]");
+				Log.Logger.LogInformation("[@progress pop skipline]");
 			}
 		}
 
@@ -277,7 +277,7 @@ namespace AutomationTool
 		{
 			if(bShowProgress)
 			{
-				LogInformation("[@progress increment {0}/{1} skipline]", Numerator, Denominator);
+				Log.Logger.LogInformation("[@progress increment {Numerator}/{Denominator} skipline]", Numerator, Denominator);
 			}
 		}
 
@@ -286,7 +286,7 @@ namespace AutomationTool
 		{
 			if(bShowProgress)
 			{
-				LogInformation("[@progress '{0}' skipline]", String.Format(Format, Args));
+				Log.Logger.LogInformation("[@progress '{Message}' skipline]", String.Format(Format, Args));
 			}
 		}
 
@@ -295,7 +295,7 @@ namespace AutomationTool
 		{
 			if(bShowProgress)
 			{
-				LogInformation("[@progress {0}/{1} '{2}' skipline]", Numerator, Denominator, String.Format(Format, Args));
+				Log.Logger.LogInformation("[@progress {Numerator}/{Denominator} '{Arg2}' skipline]", Numerator, Denominator, String.Format(Format, Args));
 			}
 		}
 
@@ -486,7 +486,7 @@ namespace AutomationTool
 			var NormalizedFilename = ConvertSeparators(PathSeparator.Default, FileName);
 			if (!InternalUtils.SafeDeleteFile(NormalizedFilename))
 			{
-				LogWarning("Failed to delete file '{0}'", NormalizedFilename);
+				Log.Logger.LogWarning("Failed to delete file '{NormalizedFilename}'", NormalizedFilename);
 				Result = false;
 			}
 			return Result;
@@ -559,7 +559,7 @@ namespace AutomationTool
             {
                 if (!InternalUtils.SafeDeleteDirectory(NormalizedDirectory, bQuiet))
                 {
-                    LogWarning("Failed to delete directory '{0}'", NormalizedDirectory);
+					Log.Logger.LogWarning("Failed to delete directory '{NormalizedDirectory}'", NormalizedDirectory);
                     Result = false;
                 }
             }
@@ -567,8 +567,8 @@ namespace AutomationTool
             {
 				if (!bQuiet)
 				{
-					LogWarning("Failed to delete directory, exception '{0}'", NormalizedDirectory);
-					LogWarning(Ex.Message);
+					Log.Logger.LogWarning("Failed to delete directory, exception '{NormalizedDirectory}'", NormalizedDirectory);
+					Log.Logger.LogWarning(Ex, "{Text}", Ex.Message);
 				}
                 Result = false;
             }
@@ -595,7 +595,7 @@ namespace AutomationTool
 		/// <param name="DirectoryName"></param>
 		public static void DeleteDirectoryContents(string DirectoryName)
 		{
-			LogVerbose("DeleteDirectoryContents({0})", DirectoryName);
+			Log.Logger.LogDebug("DeleteDirectoryContents({DirectoryName})", DirectoryName);
 			const bool bQuiet = true;
 			var Files = CommandUtils.FindFiles_NoExceptions(bQuiet, "*", false, DirectoryName);
 			foreach (var Filename in Files)
@@ -645,8 +645,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				LogWarning("Unable to check if directory exists: {0}", NormalizedDirectory);
-				LogWarning(Ex.Message);
+				Log.Logger.LogWarning("Unable to check if directory exists: {NormalizedDirectory}", NormalizedDirectory);
+				Log.Logger.LogWarning(Ex, "{Text}", Ex.Message);
 				return false;
 			}
 		}
@@ -733,7 +733,7 @@ namespace AutomationTool
 			var Result = InternalUtils.SafeRenameFile(OldNormalized, NewNormalized);
 			if (!Result)
 			{
-				LogWarning("Failed to rename/move file '{0}' to '{1}'", OldName, NewName);
+				Log.Logger.LogWarning("Failed to rename/move file '{OldName}' to '{NewName}'", OldName, NewName);
 			}
 			return Result;
 		}
@@ -822,7 +822,7 @@ namespace AutomationTool
 			}
 			catch
 			{
-				LogWarning("Unable to change current directory to {0}", WorkingDirectory);
+				Log.Logger.LogWarning("Unable to change current directory to {WorkingDirectory}", WorkingDirectory);
 				Result = false;
 			}
 			return Result;
@@ -855,7 +855,7 @@ namespace AutomationTool
 			}
 			else
 			{
-				LogWarning("Unable to PopDir. WorkingDirectoryStack is empty.");
+				Log.Logger.LogWarning("Unable to PopDir. WorkingDirectoryStack is empty.");
 				Result = false;
 			}
 			return Result;
@@ -903,7 +903,7 @@ namespace AutomationTool
 			}
 			catch
 			{
-				LogWarning("Unable to change current directory to {0}", WorkingDirectory);
+				Log.Logger.LogWarning("Unable to change current directory to {WorkingDirectory}", WorkingDirectory);
 				Result = false;
 			}
 			return Result;
@@ -981,7 +981,7 @@ namespace AutomationTool
 			Filename = ConvertSeparators(PathSeparator.Default, Filename);
 			if (!File.Exists(Filename))
 			{
-				LogWarning("Unable to set attributes for a non-exisiting file ({0})", Filename);
+				Log.Logger.LogWarning("Unable to set attributes for a non-exisiting file ({Filename})", Filename);
 				return false;
 			}
 
@@ -994,8 +994,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				LogWarning("Error trying to set file attributes for: {0}", Filename);
-				LogWarning(Ex.Message);
+				Log.Logger.LogWarning("Error trying to set file attributes for: {Filename}", Filename);
+				Log.Logger.LogWarning(Ex, "{Text}", Ex.Message);
 				Result = false;
 			}
 			return Result;
@@ -1386,13 +1386,13 @@ namespace AutomationTool
 			{
 				if (bAllowDifferingTimestamps == true)
 				{
-					LogVerbose("CopyFileIncremental Skipping {0}, already exists", Dest);
+					Log.Logger.LogDebug("CopyFileIncremental Skipping {Dest}, already exists", Dest);
 					return;
 				}
 				TimeSpan Diff = File.GetLastWriteTimeUtc(Dest.FullName) - File.GetLastWriteTimeUtc(Source.FullName);
 				if (Diff.TotalSeconds > -1 && Diff.TotalSeconds < 1)
 				{
-					LogVerbose("CopyFileIncremental Skipping {0}, up to date.", Dest);
+					Log.Logger.LogDebug("CopyFileIncremental Skipping {Dest}, up to date.", Dest);
 					return;
 				}
 				InternalUtils.SafeDeleteFile(Dest.FullName);
@@ -1766,7 +1766,7 @@ namespace AutomationTool
 		{
 			if(!bQuiet)
 			{
-				LogInformation("Copying {0} file(s) using max {1} thread(s)", Source.Count, MaxThreads);
+				Log.Logger.LogInformation("Copying {NumFiles} file(s) using max {MaxThreads} thread(s)", Source.Count, MaxThreads);
 			}
 
             if (Source.Count != Dest.Count)
@@ -1809,7 +1809,7 @@ namespace AutomationTool
 		public static List<string> ThreadedCopyFiles(string SourceDir, string TargetDir, FileFilter Filter, bool bIgnoreSymlinks, int MaxThreads = 64, bool bRetry = false)
 		{
 			// Filter all the relative paths
-			LogInformation("Applying filter to {0}...", SourceDir);
+			Log.Logger.LogInformation("Applying filter to {SourceDir}...", SourceDir);
 			DirectoryReference SourceDirRef = new DirectoryReference(SourceDir);
 			var RelativePaths = Filter.ApplyToDirectory(SourceDirRef, bIgnoreSymlinks).Select(x => x.MakeRelativeTo(SourceDirRef)).ToList();
 			return ThreadedCopyFiles(SourceDir, TargetDir, RelativePaths, MaxThreads, bRetry: bRetry);
@@ -1912,7 +1912,7 @@ namespace AutomationTool
 		{
 			try
 			{
-				LogLog("SetEnvVar {0}={1}", Name, Value);
+				Log.Logger.LogDebug("SetEnvVar {Name}={Value}", Name, Value);
 				Environment.SetEnvironmentVariable(Name, Value.ToString());
 			}
 			catch (Exception Ex)
@@ -2119,7 +2119,7 @@ namespace AutomationTool
         {
             if (!DirectoryExists_NoExceptions(Dir))
             {
-				LogLog("Directory {0} does not exist", Dir);
+				Log.Logger.LogDebug("Directory {Dir} does not exist", Dir);
 				return false;
 			}
 
@@ -2134,7 +2134,7 @@ namespace AutomationTool
 				if(File.Exists(NativeFilename))
 				{
 		            DeleteFile_NoExceptions(Filename, true);
-		            LogLog("Directory {0} is writable", Dir);
+					Log.Logger.LogDebug("Directory {Dir} is writable", Dir);
 					return true;
 				}
 			}
@@ -2142,7 +2142,7 @@ namespace AutomationTool
 			{
 			}
 
-			LogLog("Directory {0} is not writable", Dir);
+			Log.Logger.LogDebug("Directory {Dir} is not writable", Dir);
 			return false;
 		}
 
@@ -2155,25 +2155,25 @@ namespace AutomationTool
             try
             {
                 DirectoryInfo DirInfo = new DirectoryInfo(ParentDir);
-				LogInformation("Looking for directories to delete in {0}", ParentDir);
+				Log.Logger.LogInformation("Looking for directories to delete in {ParentDir}", ParentDir);
                 foreach (DirectoryInfo ThisDirInfo in DirInfo.EnumerateDirectories(SearchPattern))
                 {
 					double AgeDays = (DateTime.UtcNow - ThisDirInfo.CreationTimeUtc).TotalDays;
 					if (AgeDays > MaximumDaysToKeepTempStorage)
                     {
-                        LogInformation("Deleting formal build directory {0}, because it is {1} days old (maximum {2}).", ThisDirInfo.FullName, (int)AgeDays, MaximumDaysToKeepTempStorage);
+						Log.Logger.LogInformation("Deleting formal build directory {Directory}, because it is {Age} days old (maximum {MaximumDaysToKeepTempStorage}).", ThisDirInfo.FullName, (int)AgeDays, MaximumDaysToKeepTempStorage);
                         DeleteDirectory_NoExceptions(true, ThisDirInfo.FullName);
                     }
                     else
                     {
-						LogVerbose("Not deleting formal build directory {0}, because it is {1} days old (maximum {2}).", ThisDirInfo.FullName, (int)AgeDays, MaximumDaysToKeepTempStorage);
+						Log.Logger.LogDebug("Not deleting formal build directory {Directory}, because it is {Age} days old (maximum {MaximumDaysToKeepTempStorage}).", ThisDirInfo.FullName, (int)AgeDays, MaximumDaysToKeepTempStorage);
                     }
                 }
             }
             catch (Exception Ex)
             {
-                LogWarning("Unable to clean formal builds from directory: {0}", ParentDir);
-                LogWarning(" Exception was {0}", LogUtils.FormatException(Ex));
+				Log.Logger.LogWarning("Unable to clean formal builds from directory: {ParentDir}", ParentDir);
+				Log.Logger.LogWarning(Ex, " Exception was {Exception}", LogUtils.FormatException(Ex));
             }
         }
 
@@ -2478,11 +2478,11 @@ namespace AutomationTool
 
 					if (Iterations == 0)
 					{
-						LogInformation("Waiting for lock file '{0}' to be removed...", LockFilePath);
+						Log.Logger.LogInformation("Waiting for lock file '{LockFilePath}' to be removed...", LockFilePath);
 					}
 					else if ((Iterations % 30) == 0)
 					{
-						LogInformation("Still waiting for lock file '{0}' after {1} seconds.", LockFilePath, CurrentTime.Subtract(StartTime).TotalSeconds);
+						Log.Logger.LogInformation("Still waiting for lock file '{LockFilePath}' after {Seconds} seconds.", LockFilePath, CurrentTime.Subtract(StartTime).TotalSeconds);
 					}
 
 					// Wait for a while before retrying.

@@ -9,6 +9,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Copies all UAT and UBT build products to a directory
@@ -54,7 +55,7 @@ public class CopyUAT : BuildCommand
 		List<FileReference> SourceFiles = SourceFilesSet.OrderBy(x => x.FullName).ToList();
 		CommandUtils.ThreadedCopyFiles(SourceFiles, Unreal.RootDirectory, TargetDir);
 
-		LogInformation("Copied {0} files to {1}", SourceFiles.Count, TargetDir);
+		Logger.LogInformation("Copied {NumFiles} files to {TargetDir}", SourceFiles.Count, TargetDir);
 		File.WriteAllLines(Path.Combine(TargetDirParam, "CopiedFiles.txt"), SourceFiles.Select(F => F.FullName));
 	}
 }

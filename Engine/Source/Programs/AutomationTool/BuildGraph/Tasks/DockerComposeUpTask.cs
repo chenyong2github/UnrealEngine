@@ -10,6 +10,7 @@ using System.Xml;
 using AutomationTool;
 using UnrealBuildBase;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
@@ -70,7 +71,7 @@ namespace AutomationTool.Tasks
 				Arguments.Append($" {Parameters.Arguments}");
 			}
 
-			Log.TraceInformation("Running docker compose {0}", Arguments.ToString());
+			Log.Logger.LogInformation("Running docker compose {Arguments}", Arguments.ToString());
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
 				await SpawnTaskBase.ExecuteAsync("docker-compose", Arguments.ToString());

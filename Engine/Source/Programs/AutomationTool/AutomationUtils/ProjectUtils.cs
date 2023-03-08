@@ -12,6 +12,7 @@ using System.Reflection;
 using UnrealBuildBase;
 using System.Runtime.Serialization;
 using System.Collections;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -240,7 +241,7 @@ namespace AutomationTool
 					string Reason;
 					if(RequiresTempTarget(RawProjectPath, bHasCode, Platform, Configuration, TargetType.Game, AssetNativizationRequested, true, out Reason))
 					{
-						Log.TraceInformation("{0} requires a temporary target.cs to be generated ({1})", RawProjectPath.GetFileName(), Reason);
+						Log.Logger.LogInformation("{Project} requires a temporary target.cs to be generated ({Reason})", RawProjectPath.GetFileName(), Reason);
 						return true;
 					}
 				}
@@ -813,7 +814,7 @@ namespace AutomationTool
 
 				if (!CommandUtils.IsBuildMachine && !CheckIfScriptAssemblyIsOutOfDate(TargetsDllFilename, TargetScripts))
 				{
-					Log.TraceVerbose("Targets DLL {0} is up to date.", TargetsDllFilename);
+					Log.Logger.LogDebug("Targets DLL {Filename} is up to date.", TargetsDllFilename);
 					DoNotCompile = true;
 				}
 				if (!DoNotCompile && CommandUtils.FileExists_NoExceptions(TargetsDllFilename.FullName))

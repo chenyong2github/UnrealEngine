@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -1156,7 +1157,7 @@ namespace AutomationTool
 													throw;
 												}
 
-												Log.TraceWarning("Failed to unzip '{0}' from '{1}' to '{2}', retrying.. (Error: {3})", Entry.FullName, LocalZipFile, ExtractedFilename, IOEx.Message);
+												Log.Logger.LogWarning(IOEx, "Failed to unzip '{File}' from '{LocalZipFile}' to '{ExtractedFilename}', retrying.. (Error: {Message})", Entry.FullName, LocalZipFile, ExtractedFilename, IOEx.Message);
 											}
 										}
 									}
@@ -1169,7 +1170,7 @@ namespace AutomationTool
 						{
 							if (UnzipFileAttempts == 0)
 							{
-								Log.TraceError("All retries exhausted attempting to unzip entries from '{0}'. Terminating.", LocalZipFile);
+								Log.Logger.LogError(Ex, "All retries exhausted attempting to unzip entries from '{LocalZipFile}'. Terminating.", LocalZipFile);
 								string LogPath = CommandUtils.CombinePaths(RootDir.FullName, "Engine/Programs/AutomationTool/Saved/Logs", $"Copy Manifest - {ZipFile.Name}.log");
 								CommandUtils.LogInformation("Saving copy log to {0}", LogPath);
 								File.WriteAllText(LogPath, string.Join(Environment.NewLine, CopyResults));
@@ -1179,7 +1180,7 @@ namespace AutomationTool
 							// Some exceptions may be caused by networking hiccups. We want to retry in those cases.
 							if ((Ex is IOException || Ex is InvalidDataException))
 							{
-								Log.TraceWarning("Failed to unzip entries from '{0}' to '{1}', retrying.. (Error: {2})", LocalZipFile, RootDir.FullName, Ex.Message);
+								Log.Logger.LogWarning(Ex, "Failed to unzip entries from '{LocalZipFile}' to '{TargetDir}', retrying.. (Error: {Message})", LocalZipFile, RootDir.FullName, Ex.Message);
 							}
 						}
 						finally
@@ -1528,13 +1529,13 @@ namespace AutomationTool
 						}
 						catch (Exception Ex)
 						{
-							Log.TraceError("Exception while trying to scan files under {0}: {1}", BuildDirectory, Ex);
+							Log.Logger.LogError(Ex, "Exception while trying to scan files under {BuildDirectory}: {Ex}", BuildDirectory, Ex);
 						}
 					}
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceError("Exception while trying to scan {0}: {1}", StreamDirectory, Ex);
+					Log.Logger.LogError(Ex, "Exception while trying to scan {StreamDirectory}: {Ex}", StreamDirectory, Ex);
 				}
 			}
 			CommandUtils.LogInformation("Found {0} builds; {1} to delete.", NumBuilds, BuildsToDelete.Count);
@@ -1593,7 +1594,7 @@ namespace AutomationTool
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceError("Exception while trying to delete {0}: {1}", StreamDirectory, Ex);
+					Log.Logger.LogError(Ex, "Exception while trying to delete {StreamDirectory}: {Ex}", StreamDirectory, Ex);
 				}
 			}
 		}

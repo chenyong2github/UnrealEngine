@@ -15,6 +15,7 @@ using System.ComponentModel;
 using System.Reflection;
 using EpicGames.Core;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -311,12 +312,12 @@ namespace AutomationTool
 					}
 					else
 					{
-						LogWarning("Duplicated help parameter \"{0}\"", ParamName);
+						Log.Logger.LogWarning("Duplicated help parameter \"{ParamName}\"", ParamName);
 					}
 				}
 			}
 
-			Log.TraceInformation("");
+			Log.Logger.LogInformation("");
 			HelpUtils.PrintHelp(String.Format("{0} Help:", Command.Name), Description, ParamDict.ToList());
 		}
 

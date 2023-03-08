@@ -117,20 +117,20 @@ namespace AutomationTool.Tasks
 				}
 				else
 				{
-					Log.TraceInformation("Unable to map {0} to workspace; skipping.", File.DepotFile);
+					Log.Logger.LogInformation("Unable to map {DepotFile} to workspace; skipping.", File.DepotFile);
 				}
 			}
 
-			Log.TraceInformation("Found {0} modified files matching {1}", LocalFiles.Count, Filter.ToString());
+			Log.Logger.LogInformation("Found {NumFiles} modified files matching {Filter}", LocalFiles.Count, Filter.ToString());
 			foreach (string LocalFile in LocalFiles)
 			{
-				Log.TraceInformation("  {0}", LocalFile);
+				Log.Logger.LogInformation("  {LocalFile}", LocalFile);
 			}
 
 			if (Parameters.Output != null)
 			{
 				await FileReference.WriteAllLinesAsync(Parameters.Output, LocalFiles);
-				Log.TraceInformation("Written {0}", Parameters.Output);
+				Log.Logger.LogInformation("Written {OutputFile}", Parameters.Output);
 			}
 		}
 

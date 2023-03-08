@@ -13,6 +13,7 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using EpicGames.BuildGraph;
 using AutomationTool.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
@@ -125,7 +126,7 @@ namespace AutomationTool.Tasks
 				}
 				else
 				{
-					Log.TraceWarning("Unable to read UAT telemetry file from {0}", TelemetryFile);
+					Log.Logger.LogWarning("Unable to read UAT telemetry file from {TelemetryFile}", TelemetryFile);
 				}
 			}
 			return Task.CompletedTask;

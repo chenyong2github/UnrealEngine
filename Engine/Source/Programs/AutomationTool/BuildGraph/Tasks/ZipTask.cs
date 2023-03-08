@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
@@ -83,7 +84,7 @@ namespace AutomationTool.Tasks
 			}
 
 			// Create the zip file
-			Log.TraceInformation("Adding {0} files to {1}...", Files.Count, Parameters.ZipFile);
+			Log.Logger.LogInformation("Adding {NumFiles} files to {ZipFile}...", Files.Count, Parameters.ZipFile);
 			CommandUtils.ZipFiles(Parameters.ZipFile, Parameters.FromDir, Files);
 
 			// Apply the optional tag to the produced archive

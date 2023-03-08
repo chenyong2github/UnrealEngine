@@ -8,6 +8,7 @@ using System.IO;
 using System.Reflection;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool
 {
@@ -129,12 +130,12 @@ namespace AutomationTool
 			{
 				if (SpecifiedValue == null)
 				{
-					Log.TraceWarning($"Value was provided for \"{ParamName}\" using obsolete name \"{ObsoleteParamName}\"");
+					Log.Logger.LogWarning("Value was provided for \"{ParamName}\" using obsolete name \"{ObsoleteParamName}\"", ParamName, ObsoleteParamName);
 					Result = SpecifiedValue;
 				}
 				else
 				{
-					Log.TraceWarning($"Value provided for obsolete name \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided");
+					Log.Logger.LogWarning("Value provided for obsolete name \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided", ObsoleteParamName, ParamName);
 				}
 			}
 			else if (SpecifiedValue != null)
@@ -153,14 +154,14 @@ namespace AutomationTool
 						// Didn't find the new name on the command line. If the obsolete name was found, use it, and warn.
 						if (ParsedObsolete != null)
 						{
-							Log.TraceWarning($"Obsolete argument \"{ObsoleteParamName}\" on command line - use \"{ParamName}\" instead");
+							Log.Logger.LogWarning("Obsolete argument \"{ObsoleteParamName}\" on command line - use \"{ParamName}\" instead", ObsoleteParamName, ParamName);
 							Parsed = ParsedObsolete;
 						}
 					}
 					else if (ParsedObsolete != null)
 					{
 						// Did find the new name on the command line - check for the obsolete name. If found, do not use it, and warn.
-						Log.TraceWarning($"Obsolete argument \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided");
+						Log.Logger.LogWarning("Obsolete argument \"{ObsoleteParamName}\" will be ignored as \"{ParamName}\" was provided", ObsoleteParamName, ParamName);
 					}
 				}
 

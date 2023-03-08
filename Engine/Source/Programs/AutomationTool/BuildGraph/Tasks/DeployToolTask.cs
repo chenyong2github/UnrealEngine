@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 #nullable enable
 
@@ -141,7 +142,7 @@ namespace AutomationTool.Tasks
 						content.Add(streamContent, "file", file.GetFileName());
 						request.Content = content;
 
-						Log.TraceInformation("Uploading {0} to {1}", file, request.RequestUri);
+						Log.Logger.LogInformation("Uploading {File} to {Url}", file, request.RequestUri);
 						using (HttpResponseMessage response = await httpClient.SendAsync(request))
 						{
 							if (!response.IsSuccessStatusCode)
