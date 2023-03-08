@@ -148,18 +148,16 @@ bool IsPrimaryAsset(const FAssetData& InAssetData)
 {
 	// External assets are not displayed in the Content Browser or other asset pickers
 	const bool bIsExternalAsset = !InAssetData.GetOptionalOuterPathName().IsNone();
-
-	// Check for the asset being a redirector first, as currently only class 
-	// redirectors emit non-primary assets from the Asset Registry
-	return !InAssetData.IsRedirector() && InAssetData.IsUAsset() && !bIsExternalAsset;
+	
+	return !bIsExternalAsset && InAssetData.IsUAsset();
 }
 
 bool IsPrimaryAsset(UObject* InObject)
 {
 	// External assets are not displayed in the Content Browser or other asset pickers
 	const bool bIsExternalAsset = InObject->IsPackageExternal();
-
-	return !FAssetData::IsRedirector(InObject) && FAssetData::IsUAsset(InObject) && !bIsExternalAsset;
+	
+	return !bIsExternalAsset && FAssetData::IsUAsset(InObject);
 }
 
 void SetOptionalErrorMessage(FText* OutErrorMsg, FText InErrorMsg)
