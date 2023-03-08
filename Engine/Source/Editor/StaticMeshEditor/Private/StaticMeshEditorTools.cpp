@@ -4058,6 +4058,12 @@ float FLevelOfDetailSettingsLayout::GetLODScreenSize(FName PlatformGroupName, in
 	if(Mesh->bAutoComputeLODScreenSize && Mesh->GetRenderData())
 	{
 		ScreenSize = Mesh->GetRenderData()->ScreenSize[LODIndex].Default;
+		const float* PlatformScreenSize = Mesh->GetRenderData()->ScreenSize[LODIndex].PerPlatform.Find(PlatformGroupName);
+		if (PlatformScreenSize != nullptr)
+		{
+			ScreenSize = *PlatformScreenSize;
+		}
+
 	}
 	else if(Mesh->IsSourceModelValid(LODIndex))
 	{

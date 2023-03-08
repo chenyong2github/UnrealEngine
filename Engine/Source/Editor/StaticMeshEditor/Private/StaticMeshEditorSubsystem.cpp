@@ -992,7 +992,7 @@ TArray<float> UStaticMeshEditorSubsystem::GetLodScreenSizes(UStaticMesh* StaticM
 	{
 		if (StaticMesh->GetRenderData())
 		{
-			float CurScreenSize = StaticMesh->GetRenderData()->ScreenSize[i].Default;
+			float CurScreenSize = StaticMesh->GetRenderData()->ScreenSize[i].GetValue();
 			ScreenSizes.Add(CurScreenSize);
 		}
 		else
