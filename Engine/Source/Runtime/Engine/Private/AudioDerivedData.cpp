@@ -298,28 +298,6 @@ static void GetStreamedAudioDerivedDataKey(
 	GetStreamedAudioDerivedDataKeyFromSuffix(KeySuffix, OutKey);
 }
 
-static ITargetPlatform* GetRunningTargetPlatform(ITargetPlatformManagerModule* TPM)
-{
-	ITargetPlatform* CurrentPlatform = NULL;
-	const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
-
-	check(Platforms.Num());
-
-	CurrentPlatform = Platforms[0];
-
-	for (int32 Index = 1; Index < Platforms.Num(); Index++)
-	{
-		if (Platforms[Index]->IsRunningPlatform())
-		{
-			CurrentPlatform = Platforms[Index];
-			break;
-		}
-	}
-
-	check(CurrentPlatform != NULL);
-	return CurrentPlatform;
-}
-
 /**
  * Gets Wave format for a SoundWave on the current running platform
  * @param SoundWave - The SoundWave to get format for.
@@ -330,8 +308,9 @@ static FName GetWaveFormatForRunningPlatform(USoundWave& SoundWave)
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 	if (TPM)
 	{
-		ITargetPlatform* CurrentPlatform = GetRunningTargetPlatform(TPM);
+		ITargetPlatform* CurrentPlatform = TPM->GetRunningTargetPlatform();
 
+		check( CurrentPlatform != nullptr );
 
 		return CurrentPlatform->GetWaveFormat(&SoundWave);
 	}

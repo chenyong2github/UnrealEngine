@@ -543,9 +543,10 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 	if (!Platform)
 	{
 		Platform = TPM->GetRunningTargetPlatform();
+		check( Platform != nullptr );
 	}
 
-	const bool bIsRunningPlatform = (Platform == TPM->GetRunningTargetPlatform());
+	const bool bIsRunningPlatform = Platform->IsRunningPlatform();
 
 	if (bIsRunningPlatform)
 	{

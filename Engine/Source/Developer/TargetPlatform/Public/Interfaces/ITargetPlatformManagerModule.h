@@ -125,7 +125,7 @@ public:
 	/**
 	 * Returns the target platform that is currently running.
 	 *
-	 * Note: This method is not available on consoles.
+	 * Note: This method only returns a Target Platform when WITH_EDITOR.
 	 *
 	 * @return Running target platform.
 	 */
