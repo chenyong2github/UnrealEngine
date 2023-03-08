@@ -125,6 +125,17 @@ private:
 	void RegisterMaskingFactories();
 
 	/**
+	 * Whether function can be intercepted by a remote control interceptor.
+	 */
+	bool CanInterceptFunction(const FRCCall& RCCall) const;
+
+	/**
+	 * Used to log once per program execution. Called by the REMOTE_CONTROL_LOG_ONCE macro.
+	 */
+	void LogOnce(ELogVerbosity::Type InVerbosity, const FString& LogDetails, const FString& FileName, int32 LineNumber) const;
+
+
+	/**
 	 * Add an item to an array property, handling transactions and editor events automatically.
 	 * @param ObjectAccess Reference to the array property to be modified.
 	 * @param Backend Deserialization backend for the value to be added to the array. This will be deserialized into the array at the index provided by ModifyFunction.
