@@ -8429,6 +8429,10 @@ void UCookOnTheFlyServer::BeginCookStartShaderCodeLibrary(FBeginCookContext& Beg
 		GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bAllPlatformsNeedStableKeys, GEngineIni);
 		GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bNeedsShaderStableKeys"), bAllPlatformsNeedStableKeys, GEngineIni);
 
+		// PSO manual cache in DLC is not currently supported. Although stable keys can have other uses, disable this for DLC as it will
+		// also make it cook faster.
+		bAllPlatformsNeedStableKeys &= !IsCookingDLC();
+
  		for (const ITargetPlatform* TargetPlatform : BeginContext.TargetPlatforms)
  		{
 			// Find out if this platform requires stable shader keys, by reading the platform setting file.
