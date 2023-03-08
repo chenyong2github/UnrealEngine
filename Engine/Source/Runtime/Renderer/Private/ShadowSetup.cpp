@@ -5299,6 +5299,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 		{
 			FProjectedShadowInfo* ProjectedShadowInfo = ShadowArrays.CachedPreShadows[ShadowIndex];
 			ProjectedShadowInfo->RenderTargets.DepthTarget = Scene->PreShadowCacheDepthZ.GetReference();
+			SortedShadowsForShadowDepthPass.PreshadowCache.Shadows.Add(ProjectedShadowInfo);
 		}
 	}
 
