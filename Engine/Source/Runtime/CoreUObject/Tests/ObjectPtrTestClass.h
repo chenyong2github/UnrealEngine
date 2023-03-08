@@ -23,6 +23,7 @@ class UObjectPtrTestClassWithRef : public UObject
 public:
 	TObjectPtr<UObjectPtrTestClass> ObjectPtr;
 	TObjectPtr<UObjectPtrTestClass> ObjectPtrNonNullable;
+	TArray<TObjectPtr<UObjectPtrTestClass>> ArrayObjPtr;
 };
 
 

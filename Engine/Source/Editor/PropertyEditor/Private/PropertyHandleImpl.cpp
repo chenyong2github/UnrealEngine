@@ -3944,7 +3944,7 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 	TSharedPtr<FPropertyNode> PropertyNodePin = Implementation->GetPropertyNode();
 	FProperty* NodeProperty = PropertyNodePin.IsValid() ? PropertyNodePin->GetProperty() : nullptr;
 	const TCHAR* ObjectBuffer = *InValue;
-	UObject* QualifiedObject = nullptr;
+	TObjectPtr<UObject> QualifiedObject = nullptr;
 
 	// Only allow finding any object with the same name if package path not provided
 	const bool bAllowAnyPackage = !InValue.Contains(TEXT("/"));

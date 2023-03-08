@@ -157,7 +157,7 @@ const TCHAR* FObjectProperty::ImportText_Internal(const TCHAR* Buffer, void* Con
 	if (Result)
 	{
 		void* Data = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
-		UObject* ObjectValue = GetObjectPropertyValue(Data);
+		TObjectPtr<UObject> ObjectValue = GetObjectPtrPropertyValue(Data);
 		CheckValidObject(Data, ObjectValue);
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING		
@@ -201,6 +201,18 @@ UObject* FObjectProperty::GetObjectPropertyValue_InContainer(const void* Contain
 	UObject* Result = nullptr;
 	GetWrappedUObjectPtrValues<FObjectPtr>(&Result, ContainerAddress, EPropertyMemoryAccess::InContainer, ArrayIndex, 1);
 	return Result;
+}
+
+void FObjectProperty::SetObjectPtrPropertyValue(void* PropertyValueAddress, TObjectPtr<UObject> Value) const
+{
+	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
+	{
+		SetPropertyValue(PropertyValueAddress, Value);
+	}
+	else
+	{
+		UE_LOG(LogProperty, Verbose /*Warning*/, TEXT("Trying to assign null object value to non-nullable \"%s\""), *GetFullName());
+	}
 }
 
 void FObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const

@@ -12,6 +12,8 @@
 #include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/ObjectHandleTracking.h"
 #include "LowLevelTestsRunner/WarnFilterScope.h"
+#include "Misc/AssetRegistryInterface.h"
+#include "AssetRegistry/AssetData.h"
 
 TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddress")
 {
@@ -214,6 +216,134 @@ TEST_CASE("UE::CoreUObject::FObjectPtrProperty::StaticSerializeItem")
 TEST_CASE("UE::CoreUObject::FObjectProperty::StaticSerializeItem")
 {
 	TestSerializeItem<UObjectWithRawProperty>(TEXT("Object2"));
+}
+
+
+class MockAssetRegistryInterface : public IAssetRegistryInterface
+{
+public:
+	MockAssetRegistryInterface()
+		: Old(IAssetRegistryInterface::Default)
+	{
+		IAssetRegistryInterface::Default = this;
+	}
+
+	virtual ~MockAssetRegistryInterface()
+	{
+		IAssetRegistryInterface::Default = Old;
+	}
+
+	virtual void GetDependencies(FName InPackageName, TArray<FName>& OutDependencies, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::Package, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) override
+	{
+
+	}
+
+	virtual UE::AssetRegistry::EExists TryGetAssetByObjectPath(const FSoftObjectPath& ObjectPath, FAssetData& OutAssetData) const override
+	{
+
+		const FAssetData* Found = AssetData.Find(ObjectPath);
+		if (Found)
+		{
+			OutAssetData = *Found;
+			return UE::AssetRegistry::EExists::Exists;
+		}
+		return UE::AssetRegistry::EExists::DoesNotExist;
+	}
+
+	virtual UE::AssetRegistry::EExists TryGetAssetPackageData(FName PackageName, FAssetPackageData& OutPackageData) const override
+	{
+		return UE::AssetRegistry::EExists::Exists;
+	}
+
+	IAssetRegistryInterface* Old;
+	TMap<FSoftObjectPath, FAssetData> AssetData;
+};
+
+TEST_CASE("UE::CoreUObject::FObjectProperty::ParseObjectPropertyValue")
+{
+	UClass* Class = UObjectPtrTestClassWithRef::StaticClass();
+	FObjectProperty* Property = CastField<FObjectProperty>(Class->FindPropertyByName(TEXT("ObjectPtr")));
+
+	//make a fake entry for the asset registry
+	//this allows lazy load to return an unresolved handle
+	MockAssetRegistryInterface MockAssetRegistry;
+	const TCHAR* Text = TEXT("/TestPackageName.Other");
+	FSoftObjectPath Path(Text);
+	FAssetData AssetData;
+	AssetData.PackageName = "/TestPackageName";
+	AssetData.PackagePath = "/";
+	AssetData.AssetName = "Other";
+	AssetData.AssetClassPath.TrySetPath(UObjectPtrTestClass::StaticClass());
+
+	MockAssetRegistry.AssetData.Add(Path, AssetData);
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TEXT("TestPackageName"), RF_Transient);
+	TestPackage->AddToRoot();
+	ON_SCOPE_EXIT
+	{
+		TestPackage->RemoveFromRoot();
+	};
+	UObjectPtrTestClassWithRef* Obj = NewObject<UObjectPtrTestClassWithRef>(TestPackage, "ObjectName");
+	TObjectPtr<UObject> Result;
+	FObjectPropertyBase::ParseObjectPropertyValue(Property, Obj, UObjectPtrTestClass::StaticClass(), 0, Text, Result);
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	CHECK(Result != nullptr);
+	CHECK(!Result.IsResolved());
+#else
+	CHECK(Result == nullptr);
+#endif
+
+	{
+		const TCHAR * Buffer = TEXT("ObjectPtr=/TestPackageName.Other");
+		TArray<FDefinedProperty> DefinedProperties;
+		Buffer = FProperty::ImportSingleProperty(Buffer, Obj, Class, Obj, PPF_Delimited, nullptr, DefinedProperties);
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		CHECK(Obj->ObjectPtr != nullptr);
+		CHECK(!Obj->ObjectPtr.IsResolved());
+#else
+		CHECK(Obj->ObjectPtr == nullptr);
+#endif
+	}
+
+	{
+		const TCHAR* Buffer = TEXT("ObjectPtr=/TestPackageName.Other");
+
+		FProperty* ObjProperty = Class->FindPropertyByName(TEXT("ObjectPtr"));
+		ObjProperty->ImportText_InContainer(Buffer, Obj, Obj, 0);
+		CHECK(Obj->ObjectPtr == nullptr); //TODO this should not resolve and not be null
+		CHECK(Obj->ObjectPtr.IsResolved());
+
+	}
+
+	{
+		const TCHAR * Buffer = TEXT("ArrayObjPtr=(/TestPackageName.Other)");
+		TArray<FDefinedProperty> DefinedProperties;
+		Buffer = FProperty::ImportSingleProperty(Buffer, Obj, Class, Obj, PPF_Delimited, nullptr, DefinedProperties);
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		CHECK(Obj->ArrayObjPtr.Num() == 1);
+		CHECK(!Obj->ArrayObjPtr[0].IsResolved());
+#else
+		CHECK(Obj->ArrayObjPtr.Num() == 0);
+#endif
+	}
+
+
+
+	{
+		const TCHAR* Buffer = TEXT("ArrayObjPtr=(/TestPackageName.Other)");
+		
+		FProperty* ArrayProperty = Class->FindPropertyByName(TEXT("ArrayObjPtr"));
+
+		ArrayProperty->ImportText_InContainer(Buffer, Obj, Obj, 0);
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		CHECK(Obj->ArrayObjPtr.Num() == 1);
+		CHECK(!Obj->ArrayObjPtr[0].IsResolved());
+#else
+		CHECK(Obj->ArrayObjPtr.Num() == 0);
+#endif
+	}
 }
 
 #endif
