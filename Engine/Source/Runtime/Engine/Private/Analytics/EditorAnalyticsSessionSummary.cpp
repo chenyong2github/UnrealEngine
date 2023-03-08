@@ -21,6 +21,7 @@ namespace EditorAnalyticsProperties
 	static const TAnalyticsProperty<int32>   Idle30Min              = TEXT("30MinIdle");
 	static const TAnalyticsProperty<bool>    IsInPIE                = TEXT("IsInPIE");
 	static const TAnalyticsProperty<bool>    IsInVRMode             = TEXT("IsInVRMode");
+	static const TAnalyticsProperty<bool>    IsUnattended           = TEXT("IsUnattended");
 	static const TAnalyticsProperty<uint32>  DirtyPackageCount      = TEXT("DirtyPackageCount");
 
 	static const TAnalyticsProperty<uint32>  TotalStallCount        = TEXT("TotalStallCount");
@@ -49,6 +50,7 @@ FEditorAnalyticsSessionSummary::FEditorAnalyticsSessionSummary(TSharedPtr<IAnaly
 	EditorAnalyticsProperties::Idle30Min.Set(GetStore(), 0);
 	EditorAnalyticsProperties::IsInVRMode.Set(GetStore(), IVREditorModule::Get().IsVREditorModeActive());
 	EditorAnalyticsProperties::IsInPIE.Set(GetStore(), FPlayWorldCommandCallbacks::IsInPIE());
+	EditorAnalyticsProperties::IsUnattended.Set(GetStore(), FApp::IsUnattended());
 	EditorAnalyticsProperties::DirtyPackageCount.Set(GetStore(), 0);
 
 	EditorAnalyticsProperties::TopStallName.Set(GetStore(), TEXT(""), /*Capacity*/128);
