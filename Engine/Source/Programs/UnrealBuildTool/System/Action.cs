@@ -134,6 +134,11 @@ namespace UnrealBuildTool
 		/// If set to true it will propagate high priority to all its prerequisite tasks
 		/// </summary>
 		bool bIsHighPriority { get; }
+
+		/// <summary>
+		/// Used to determine how much weight(CPU and Memory work) this action is.
+		/// </summary>
+		float Weight { get; }
 	}
 
 	/// <summary>
@@ -231,6 +236,9 @@ namespace UnrealBuildTool
 
 		/// <inheritdoc/>
 		public bool bIsHighPriority { get; set; } = false;
+
+		/// <inheritdoc/>
+		public float Weight { get; set; } = 1.0f;
 
 		IEnumerable<FileItem> IExternalAction.PrerequisiteItems => PrerequisiteItems;
 		IEnumerable<FileItem> IExternalAction.ProducedItems => ProducedItems;
@@ -596,6 +604,7 @@ namespace UnrealBuildTool
 		public bool bProducesImportLibrary => Inner.bProducesImportLibrary;
 		public bool bUseActionHistory => Inner.bUseActionHistory;
 		public bool bIsHighPriority => IsHighPriority != 0;
+		public float Weight => Inner.Weight;
 
 		#endregion
 

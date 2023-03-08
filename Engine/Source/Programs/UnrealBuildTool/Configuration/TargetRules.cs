@@ -1999,6 +1999,18 @@ namespace UnrealBuildTool
 		public string? ToolChainName = null;
 
 		/// <summary>
+		/// The weight(cpu/memory utilization) of a MSVC compile action
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public float MSVCCompileActionWeight = 1.5f;
+
+		/// <summary>
+		/// The weight(cpu/memory utilization) of a clang compile action
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public float ClangCompileActionWeight = 1.0f;
+
+		/// <summary>
 		/// Whether to allow engine configuration to determine if we can load unverified certificates.
 		/// </summary>
 		public bool bDisableUnverifiedCertificates = false;
@@ -3724,6 +3736,16 @@ namespace UnrealBuildTool
 		public string? ToolChainName
 		{
 			get { return Inner.ToolChainName; }
+		}
+
+		public float MSVCCompileActionWeight
+		{
+			get { return Inner.MSVCCompileActionWeight; }
+		}
+
+		public float ClangCompileActionWeight
+		{
+			get { return Inner.ClangCompileActionWeight; }
 		}
 
 		public bool bLegacyPublicIncludePaths

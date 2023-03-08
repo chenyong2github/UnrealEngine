@@ -1263,6 +1263,64 @@ namespace UnrealBuildTool
 			return FreeMemoryBytes;
 		}
 
+		[DllImport("pdh.dll", SetLastError = true, CharSet = CharSet.Auto)]
+		static extern int PdhOpenQueryW([MarshalAs(UnmanagedType.LPWStr)] string? szDataSource, UIntPtr dwUserData, out IntPtr phQuery);
+
+		[DllImport("pdh.dll", SetLastError = true, CharSet = CharSet.Auto)]
+		static extern UInt32 PdhAddCounter(IntPtr hQuery, string szFullCounterPath, IntPtr dwUserData, out IntPtr phCounter);
+
+		[DllImport("pdh.dll", SetLastError = true)]
+		static extern UInt32 PdhCollectQueryData(IntPtr phQuery);
+
+		struct PDH_FMT_COUNTERVALUE
+		{
+			public uint CStatus;
+			public double doubleValue;
+		};
+
+		[DllImport("pdh.dll", SetLastError = true)]
+		static extern UInt32 PdhGetFormattedCounterValue(IntPtr phCounter, uint dwFormat, IntPtr lpdwType, out PDH_FMT_COUNTERVALUE pValue);
+
+		static IntPtr CpuQuery;
+		static IntPtr CpuTotal;
+		static bool CpuInitialized = false;
+
+		/// <summary>
+		/// Gives the current CPU utilization.
+		/// </summary>
+		/// <param name="Utilization">Percentage of CPU utilization currently.</param>
+		/// <returns>Whether or not it was successful in getting the CPU utilization.</returns>
+		public static bool GetTotalCpuUtilization(out float Utilization)
+		{
+			Utilization = 0.0f;
+			if (RuntimePlatform.IsWindows)
+			{
+				const UInt32 ERROR_SUCCESS = 0;
+				if (!CpuInitialized)
+				{
+					if (PdhOpenQueryW(null, UIntPtr.Zero, out CpuQuery) == ERROR_SUCCESS)
+					{
+						PdhAddCounter(CpuQuery, "\\Processor(_Total)\\% Processor Time", IntPtr.Zero, out CpuTotal);
+						PdhCollectQueryData(CpuQuery);
+						CpuInitialized = true;
+					}
+				}
+
+				if (CpuInitialized)
+				{
+					const uint PDH_FMT_DOUBLE = 0x00000200;
+
+					PDH_FMT_COUNTERVALUE counterVal;
+					PdhCollectQueryData(CpuQuery);
+					PdhGetFormattedCounterValue(CpuTotal, PDH_FMT_DOUBLE, IntPtr.Zero, out counterVal);
+					Utilization = (float)counterVal.doubleValue;
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		/// <summary>
 		/// Determines the maximum number of actions to execute in parallel, taking into account the resources available on this machine.
 		/// </summary>

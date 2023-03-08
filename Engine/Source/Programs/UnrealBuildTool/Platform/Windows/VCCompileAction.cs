@@ -168,6 +168,8 @@ namespace UnrealBuildTool
 		/// <inheritdoc/>
 		public bool bIsHighPriority { get => CreatePchFile != null; }
 
+		/// <inheritdoc/>
+		public float Weight { get; set; } = 1.0f;
 		#endregion
 
 		#region Implementation of IAction
@@ -328,6 +330,7 @@ namespace UnrealBuildTool
 			bCanExecuteRemotely = InAction.bCanExecuteRemotely;
 			bCanExecuteRemotelyWithSNDBS = InAction.bCanExecuteRemotelyWithSNDBS;
 			Architecture = InAction.Architecture;
+			Weight = InAction.Weight;
 
 			AdditionalPrerequisiteItems = new List<FileItem>(InAction.AdditionalPrerequisiteItems);
 			AdditionalProducedItems = new List<FileItem>(InAction.AdditionalProducedItems);

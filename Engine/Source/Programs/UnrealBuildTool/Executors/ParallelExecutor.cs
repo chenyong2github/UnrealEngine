@@ -81,6 +81,18 @@ namespace UnrealBuildTool
 		private static bool bPrintActionTargetNames = false;
 
 		/// <summary>
+		/// Whether to take into account the Action's weight when determining to do more work or not.
+		/// </summary>
+		[XmlConfigFile]
+		private static bool bUseActionWeights = false;
+
+		/// <summary>
+		/// Whether to show CPU utilization after the work is complete.
+		/// </summary>
+		[XmlConfigFile]
+		private static bool bShowCPUUtilization = false;
+
+		/// <summary>
 		/// Collapse non-error output lines
 		/// </summary>
 		private bool bCompactOutput = false;
@@ -204,8 +216,13 @@ namespace UnrealBuildTool
 
 			var ActiveTasks = new Task<ExecuteResults>[ActualNumParallelProcesses];
 			var ActiveActionIndices = new int[ActualNumParallelProcesses];
+			float MaxParallelProcessWeight = (float)ActualNumParallelProcesses;
+			float ActiveTaskWeight = 0.0f;
 			int ActiveTaskCount = 0;
 			bool Success = true;
+			List<float> LoggedCpuUtilization = new List<float>();
+			Stopwatch CpuQueryUtilization = new Stopwatch();
+			CpuQueryUtilization.Start();
 
 			int FirstQueuedAction = 0;
 
@@ -215,14 +232,15 @@ namespace UnrealBuildTool
 			while (!CancellationTokenSource.IsCancellationRequested)
 			{
 				// Always fill up to allowed number of processes
-				while (ActiveTaskCount < ActualNumParallelProcesses)
+				while (bUseActionWeights ? 
+					(ActiveTaskWeight < MaxParallelProcessWeight && ActiveTaskCount < ActualNumParallelProcesses)
+					: ActiveTaskCount < ActualNumParallelProcesses)
 				{
-
 					// Always traverse from first not started/finished action. We always want to respect the sorting.
 					// Note that there might be multiple actions we need to search passed to find the one we can run next
 					int ActionToRunIndex = -1;
 					bool FoundFirstQueued = false;
-					for (int i= FirstQueuedAction; i!= Actions.Length; ++i)
+					for (int i = FirstQueuedAction; i!= Actions.Length; ++i)
 					{
 						if (ActionsStatus[i] != ActionStatus.Queued)
 						{
@@ -260,6 +278,16 @@ namespace UnrealBuildTool
 						break;
 					}
 
+					if (bShowCPUUtilization && CpuQueryUtilization.Elapsed.Seconds > 1)
+					{
+						if (Utils.GetTotalCpuUtilization(out float CpuUtilization))
+						{
+							LoggedCpuUtilization.Add(CpuUtilization);
+						}
+						
+						CpuQueryUtilization.Restart();
+					}
+
 					// Didn't find an action we can run. Either there are none left or all depends on currently running actions
 					if (ActionToRunIndex == -1)
 					{
@@ -274,6 +302,7 @@ namespace UnrealBuildTool
 					ActiveTasks[ActiveTaskCount] = NewTask;
 					ActionsStatus[ActionToRunIndex] = ActionStatus.Running;
 					ActiveActionIndices[ActiveTaskCount] = ActionToRunIndex;
+					ActiveTaskWeight += ActionToRun.Weight;
 					++ActiveTaskCount;
 				}
 
@@ -317,6 +346,7 @@ namespace UnrealBuildTool
 				--ActiveTaskCount;
 				ActiveTasks[ActiveTaskIndex] = ActiveTasks[ActiveTaskCount];
 				ActiveActionIndices[ActiveTaskIndex] = ActiveActionIndices[ActiveTaskCount];
+				ActiveTaskWeight -= FinishedAction.Weight;
 
 				// Update Success status
 				Success = Success && ActionSuccess;
@@ -326,7 +356,7 @@ namespace UnrealBuildTool
 			LastLoggingTask.Wait();
 
 			// Summary
-			TraceSummary(ActionToTaskLookup, ProcessGroup, Logger);
+			TraceSummary(ActionToTaskLookup, ProcessGroup, Logger, LoggedCpuUtilization);
 
 			return Success;
 		}
@@ -468,7 +498,7 @@ namespace UnrealBuildTool
 					}
 					// END TEMPORARY
 
-					// prevent overrwriting of error text
+					// prevent overwriting of error text
 					s_previousLineLength = -1;
 
 					// Cancel all other pending tasks
@@ -480,8 +510,14 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected static void TraceSummary(Dictionary<LinkedAction, Task<ExecuteResults>> Tasks, ManagedProcessGroup ProcessGroup, ILogger Logger)
+		protected static void TraceSummary(Dictionary<LinkedAction, Task<ExecuteResults>> Tasks, ManagedProcessGroup ProcessGroup, ILogger Logger, IList<float>? LoggedCpuUtilization)
 		{
+			if (bShowCPUUtilization && LoggedCpuUtilization != null && LoggedCpuUtilization.Any())
+			{
+				Logger.LogInformation("");
+				Logger.LogInformation("Average CPU Utilization: {CPUPercentage}%",(int)(LoggedCpuUtilization.Average()));
+			}
+
 			if (!bShowCompilationTimes)
 			{
 				return;

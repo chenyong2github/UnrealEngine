@@ -1438,6 +1438,16 @@ namespace UnrealBuildTool
 		{
 			VCCompileAction BaseCompileAction = CreateBaseCompileAction(CompileEnvironment);
 
+			// MSVC uses multiple processes when compiling CPP files, so the "weight" is more than 1
+			if (Target.WindowsPlatform.Compiler.IsMSVC())
+			{
+				BaseCompileAction.Weight = Target.MSVCCompileActionWeight;
+			}
+			else if (Target.WindowsPlatform.Compiler.IsClang())
+			{
+				BaseCompileAction.Weight = Target.ClangCompileActionWeight;
+			}
+
 			// Create a compile action for each source file.
 			List<VCCompileAction> Actions = new List<VCCompileAction>();
 			foreach (FileItem SourceFile in InputFiles)
