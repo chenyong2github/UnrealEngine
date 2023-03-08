@@ -5,6 +5,8 @@
 #include "DTLSHandlerTypes.h"
 #include "Misc/Timespan.h"
 
+#if WITH_SSL
+
 /*
 * Wrapper for a fingerprint (SHA256 hash) of an X509 certificate
 */
@@ -89,3 +91,5 @@ private:
 	X509* Certificate;
 	FDTLSFingerprint Fingerprint;
 };
+
+#endif // WITH_SSL

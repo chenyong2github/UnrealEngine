@@ -6,6 +6,8 @@
 #include "Misc/FileHelper.h"
 #include "HAL/IConsoleManager.h"
 
+#if WITH_SSL
+
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarDTLSDebugFingerprints(TEXT("DTLS.DebugFingerprints"), 0, TEXT(""));
 #endif
@@ -90,3 +92,5 @@ bool FDTLSCertStore::RemoveCert(const FString& Identifier)
 {
 	return (CertMap.Remove(Identifier) != 0);
 }
+
+#endif // WITH_SSL

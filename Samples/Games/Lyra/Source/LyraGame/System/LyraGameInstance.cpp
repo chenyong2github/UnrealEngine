@@ -8,9 +8,12 @@
 #include "LyraGameplayTags.h"
 #include "Player/LyraPlayerController.h"
 #include "GameFramework/PlayerState.h"
+
+#if UE_WITH_DTLS
 #include "DTLSCertStore.h"
 #include "DTLSHandlerComponent.h"
 #include "Misc/FileHelper.h"
+#endif // UE_WITH_DTLS
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraGameInstance)
 
@@ -23,6 +26,7 @@ namespace Lyra
 		TEXT("If true, clients will send an encryption token with their request to join the server and attempt to encrypt the connection using a debug key. This is NOT SECURE and for demonstration purposes only."),
 		ECVF_Default);
 
+#if UE_WITH_DTLS
 	static bool bUseDTLSEncryption = false;
 	static FAutoConsoleVariableRef CVarLyraUseDTLSEncryption(
 		TEXT("Lyra.UseDTLSEncryption"),
@@ -70,6 +74,7 @@ namespace Lyra
 				}
 			}));
 #endif // UE_BUILD_SHIPPING
+#endif // UE_WITH_DTLS
 };
 
 ULyraGameInstance::ULyraGameInstance(const FObjectInitializer& ObjectInitializer)
@@ -149,6 +154,7 @@ void ULyraGameInstance::ReceivedNetworkEncryptionToken(const FString& Encryption
 	}
 	else
 	{
+#if UE_WITH_DTLS
 		if (Lyra::bUseDTLSEncryption)
 		{
 			TSharedPtr<FDTLSCertificate> Cert;
@@ -199,6 +205,7 @@ void ULyraGameInstance::ReceivedNetworkEncryptionToken(const FString& Encryption
 			}
 		}
 		else
+#endif // UE_WITH_DTLS
 		{
 			Response.Response = EEncryptionResponse::Success;
 			Response.EncryptionData.Key = DebugTestEncryptionKey;
@@ -217,6 +224,7 @@ void ULyraGameInstance::ReceivedNetworkEncryptionAck(const FOnEncryptionKeyRespo
 
 	FEncryptionKeyResponse Response;
 
+#if UE_WITH_DTLS
 	if (Lyra::bUseDTLSEncryption)
 	{
 		Response.Response = EEncryptionResponse::Failure;
@@ -273,6 +281,7 @@ void ULyraGameInstance::ReceivedNetworkEncryptionAck(const FOnEncryptionKeyRespo
 		}
 	}
 	else
+#endif // UE_WITH_DTLS
 	{
 		Response.Response = EEncryptionResponse::Success;
 		Response.EncryptionData.Key = DebugTestEncryptionKey;
@@ -286,6 +295,7 @@ void ULyraGameInstance::OnPreClientTravelToSession(FString& URL)
 	// Add debug encryption token if desired.
 	if (Lyra::bTestEncryption)
 	{
+#if UE_WITH_DTLS
 		if (Lyra::bUseDTLSEncryption)
 		{
 			APlayerController* const PlayerController = GetFirstLocalPlayerController();
@@ -299,6 +309,7 @@ void ULyraGameInstance::OnPreClientTravelToSession(FString& URL)
 			}
 		}
 		else
+#endif // UE_WITH_DTLS
 		{
 			// This is just a value for testing/debugging, the server will use the same key regardless of the token value.
 			// But the token could be a user ID and/or session ID that would be used to generate a unique key per user and/or session, if desired.

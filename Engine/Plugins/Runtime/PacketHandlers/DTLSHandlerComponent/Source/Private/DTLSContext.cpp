@@ -5,6 +5,8 @@
 #include "DTLSHandlerComponent.h"
 #include "DTLSCertStore.h"
 
+#if WITH_SSL
+
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
 #include "Interfaces/ISslCertificateManager.h"
@@ -457,3 +459,6 @@ bool FDTLSContext::IsHandshakeComplete() const
 {
 	return (SSLPtr != nullptr) && SSL_is_init_finished(SSLPtr);
 }
+
+
+#endif // WITH_SSL

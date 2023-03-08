@@ -5,6 +5,8 @@
 #include "DTLSHandlerTypes.h"
 #include "DTLSCertificate.h"
 
+#if WITH_SSL
+
 class FDTLSHandlerComponent;
 
 /*
@@ -117,3 +119,5 @@ private:
 
 	TSharedPtr<FDTLSCertificate> Cert;
 };
+
+#endif // WITH_SSL

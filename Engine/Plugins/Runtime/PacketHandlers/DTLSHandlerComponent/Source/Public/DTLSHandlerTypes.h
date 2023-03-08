@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogDTLSHandler, Log, All);
+#if WITH_SSL
 
 /** Forward some OpenSSL types  */
 
@@ -32,3 +32,7 @@ enum class EDTLSContextType
 };
 
 const TCHAR* LexToString(EDTLSContextType ContextType);
+
+#endif // WITH_SSL
+
+DECLARE_LOG_CATEGORY_EXTERN(LogDTLSHandler, Log, All);

@@ -5,6 +5,8 @@
 #include "Misc/ScopeExit.h"
 #include "HAL/FileManager.h"
 
+#if WITH_SSL
+
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
 #include <openssl/asn1.h>
@@ -233,3 +235,5 @@ bool FDTLSCertificate::GenerateFingerprint()
 
 	return true;
 }
+
+#endif // WITH_SSL

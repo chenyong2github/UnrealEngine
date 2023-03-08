@@ -5,6 +5,8 @@
 #include "DTLSHandlerTypes.h"
 #include "DTLSCertificate.h"
 
+#if WITH_SSL
+
 /*
 * Certificate store that can generate self-signed X509 certificates for DTLS
 */
@@ -79,3 +81,5 @@ private:
 
 	static TUniquePtr<FDTLSCertStore> Instance;
 };
+
+#endif // WITH_SSL

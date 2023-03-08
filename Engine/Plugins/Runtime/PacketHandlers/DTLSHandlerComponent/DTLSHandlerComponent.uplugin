@@ -17,16 +17,9 @@
 	"Modules" :
 	[
 		{
-			"Name" : "DTLSHandlerComponent",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default",
-			"PlatformAllowList":
-			[
-				"IOS",
-				"Mac",
-				"Win64",
-				"Linux"
-			]
+			"Name": "DTLSHandlerComponent",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
