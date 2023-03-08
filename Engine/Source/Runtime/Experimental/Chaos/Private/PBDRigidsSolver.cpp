@@ -693,6 +693,7 @@ namespace Chaos
 
 		if (FPBDRigidParticle* Particle = Proxy->GetParticle_External())
 		{
+			Particle->SetSpatialIdx(FSpatialAccelerationIdx{ 0, 0 });
 			Particle->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
 		}
 		Proxy->SetSolver(this);
