@@ -69,11 +69,23 @@ void FWorldPartitionDestructibleHLODState::SetActorHealth(int32 InActorIndex, ui
 	// If we are the server, replicate damage to clients
 	if (IsServer())
 	{
+		// Perform replication only if necessary
+		bool bReplicationNeeded = false;
+		auto ReplicationNeeded = [this, &bReplicationNeeded]()
+		{
+			if (!bReplicationNeeded)
+			{
+				OwnerComponent->GetOwner()->FlushNetDormancy();
+				bReplicationNeeded = true;
+			}
+		};
+
 		int32 DamagedActorIdx = ActorsToDamagedActorsMapping[InActorIndex];
 
 		// Add a new damaged actor entry
 		if (DamagedActorIdx == INDEX_NONE)
 		{
+			ReplicationNeeded();
 			DamagedActorIdx = DamagedActors.Num();
 			ActorsToDamagedActorsMapping[InActorIndex] = DamagedActorIdx;
 			DamagedActors.Emplace(InActorIndex);
@@ -81,9 +93,16 @@ void FWorldPartitionDestructibleHLODState::SetActorHealth(int32 InActorIndex, ui
 
 		FWorldPartitionDestructibleHLODDamagedActorState& DamagedActor = DamagedActors[DamagedActorIdx];
 		check(DamagedActor.ActorIndex == InActorIndex);
+		if (DamagedActor.ActorHealth != InActorHealth)
+		{
+			ReplicationNeeded();
+			DamagedActor.ActorHealth = InActorHealth;
+		}
 
-		DamagedActor.ActorHealth = InActorHealth;
-		MarkItemDirty(DamagedActor);
+		if (bReplicationNeeded)
+		{
+			MarkItemDirty(DamagedActor);
+		}
 	}
 
 	// If we are the client, directly update the visibility buffer
@@ -107,7 +126,18 @@ void FWorldPartitionDestructibleHLODState::PostReplicatedChange(const TArrayView
 		if (DamagedActors.IsValidIndex(ChangedIndex))
 		{
 			const FWorldPartitionDestructibleHLODDamagedActorState& DamagedActorState = DamagedActors[ChangedIndex];
-			VisibilityBuffer[DamagedActorState.ActorIndex] = DamagedActorState.ActorHealth;
+			if (VisibilityBuffer.IsValidIndex(DamagedActorState.ActorIndex))
+			{
+				VisibilityBuffer[DamagedActorState.ActorIndex] = DamagedActorState.ActorHealth;
+			}
+			else
+			{
+				// !! This should never occur !!
+				// Investigating FORT-546969, where default constructed (invalid) DamagedActors seems to be found in the replicated fast array
+				// We're never adding invalid entries in the DamagedActors array, see SetActorHealth() above
+
+				UE_LOG(LogHLODDestruction, Error, TEXT("Invalid ActorIndex %d found in DamagedActors array at index %d"), DamagedActorState.ActorIndex, ChangedIndex);
+			}
 		}
 		else
 		{

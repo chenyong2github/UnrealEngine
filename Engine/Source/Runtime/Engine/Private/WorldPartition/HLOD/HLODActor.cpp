@@ -51,6 +51,8 @@ AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitial
 	// needs to be replicated.
 	bReplicates = true;
 
+	NetDormancy = DORM_DormantAll;
+
 #if WITH_EDITORONLY_DATA
 	HLODHash = 0;
 	HLODBounds = FBox(EForceInit::ForceInit);
