@@ -142,6 +142,9 @@ private:
 	/** Flag indicating that when the component is registered that the child actor should be recreated */
 	uint8 bNeedsRecreate:1;
 
+	/** When true, does not modify ChildActorName during spawn such as removing _UAID_ */
+	uint8 bChildActorNameIsExact:1;
+
 #if WITH_EDITOR
 	virtual void SetPackageExternal(bool bExternal, bool bShouldDirty) override;
 #endif
@@ -186,6 +189,10 @@ public:
 	AActor* GetChildActorTemplate() const { return ChildActorTemplate; }
 
 	FName GetChildActorName() const { return ChildActorName; }
+	void SetChildActorName(const FName InName);
+
+	/** When true, does not modify ChildActorName during spawn such as removing _UAID_ */
+	void SetChildActorNameIsExact(bool bInExact);
 
 	/** Kill any currently present child actor */
 	void DestroyChildActor();

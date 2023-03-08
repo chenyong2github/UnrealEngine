@@ -32,6 +32,8 @@ static FAutoConsoleVariableRef CVarExperimentalAllowPerInstanceChildActorPropert
 UChildActorComponent::UChildActorComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ActorOuter(nullptr)
+	, bNeedsRecreate(false)
+	, bChildActorNameIsExact(false)
 {
 	bAllowReregistration = false;
 
@@ -751,7 +753,13 @@ void UChildActorComponent::CreateChildActor(TFunction<void(AActor*)> CustomizerF
 				Params.bAllowDuringConstructionScript = true;
 				Params.OverrideLevel = (MyOwner ? MyOwner->GetLevel() : nullptr);
 				Params.Name = ChildActorName;
-				Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+
+				if (!bChildActorNameIsExact)
+				{
+					// Note: Requested will remove of _UAID_ from a name
+					Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+				}
+
 				Params.OverrideParentComponent = this;
 
 #if WITH_EDITOR
@@ -837,6 +845,16 @@ void UChildActorComponent::CreateChildActor(TFunction<void(AActor*)> CustomizerF
 		delete CachedInstanceData;
 		CachedInstanceData = nullptr;
 	}
+}
+
+void UChildActorComponent::SetChildActorName(const FName InName)
+{
+	ChildActorName = InName;
+}
+
+void UChildActorComponent::SetChildActorNameIsExact(bool bInExact)
+{
+	bChildActorNameIsExact = bInExact;
 }
 
 void UChildActorComponent::DestroyChildActor()
