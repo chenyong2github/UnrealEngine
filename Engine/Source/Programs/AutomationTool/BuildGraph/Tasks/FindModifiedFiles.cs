@@ -12,6 +12,7 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
