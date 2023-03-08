@@ -17,6 +17,7 @@
 #include "AnimationReferencePose.h"
 #include "AnimNextInterface_LODPose.h"
 #include "RigUnit_AnimNextAnimSequence.h" // TEST
+#include "Animation/AnimSequence.h"
 #include "Engine/SkeletalMesh.h"
 #include "BoneContainer.h"
 
