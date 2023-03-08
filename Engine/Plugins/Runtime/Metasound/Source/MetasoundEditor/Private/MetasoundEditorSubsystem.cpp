@@ -43,3 +43,4 @@ TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundEditorSubsystem::BuildTo
 	OutResult = EMetaSoundBuilderResult::Failed;
 	return nullptr;
 }
+#undef LOCTEXT_NAMESPACE // "MetaSoundEditor"
