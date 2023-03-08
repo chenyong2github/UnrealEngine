@@ -145,55 +145,6 @@ namespace Metasound
 			// Collect data for generator
 			FMetasoundGeneratorData GeneratorData = BuildGeneratorData(InitParams, MoveTemp(GraphOperator), MoveTemp(GraphAnalyzer));
 
-			// Gather relevant input and output references
-			FVertexInterfaceData VertexData(InitParams.Graph->GetVertexInterface());
-			GraphOperator->Bind(VertexData);
-
-			// Get inputs
-			FTriggerWriteRef PlayTrigger = VertexData.GetInputs().GetOrConstructDataWriteReference<FTrigger>(SourceInterface::Inputs::OnPlay, InitParams.OperatorSettings, false);
-
-			// Get outputs
-			TArray<FAudioBufferReadRef> OutputBuffers = FindOutputAudioBuffers(VertexData);
-			FTriggerReadRef FinishTrigger = TDataReadReferenceFactory<FTrigger>::CreateExplicitArgs(InitParams.OperatorSettings, false);
-
-			if (InitParams.Graph->GetVertexInterface().GetOutputInterface().Contains(SourceOneShotInterface::Outputs::OnFinished))
-			{
-				// Only attempt to retrieve the on finished trigger if it exists.
-				// Attempting to retrieve a data reference from a non-existent vertex 
-				// will log an error. 
-				FinishTrigger = VertexData.GetOutputs().GetOrConstructDataReadReference<FTrigger>(SourceOneShotInterface::Outputs::OnFinished, InitParams.OperatorSettings, false);
-			}
-
-			// Create the parameter setter map so parameter packs can be cracked
-			// open and distributed as appropriate...
-			TMap<FName, FParameterSetter> ParameterSetters;
-			FInputVertexInterfaceData& GraphInputs = VertexData.GetInputs();
-			for (auto InputIterator = GraphInputs.begin(); InputIterator != GraphInputs.end(); ++InputIterator)
-			{
-				const FInputDataVertex& InputVertex = (*InputIterator).GetVertex();
-				const Frontend::IParameterAssignmentFunction& Setter = IDataTypeRegistry::Get().GetRawAssignmentFunction(InputVertex.DataTypeName);
-				if (Setter)
-				{
-					FParameterSetter ParameterSetter(InputVertex.DataTypeName,
-						(*InputIterator).GetDataReference()->GetRaw(),
-						Setter);
-					ParameterSetters.Add(InputVertex.VertexName, ParameterSetter);
-				}
-			}
-
-			// Set data needed for graph
-			FMetasoundGeneratorData GeneratorData
-			{
-				InitParams.OperatorSettings,
-				MoveTemp(GraphOperator),
-				MoveTemp(VertexData),
-				MoveTemp(ParameterSetters),
-				MoveTemp(GraphAnalyzer),
-				MoveTemp(OutputBuffers),
-				MoveTemp(PlayTrigger),
-				MoveTemp(FinishTrigger),
-			};
-
 			Generator->SetPendingGraph(MoveTemp(GeneratorData), bTriggerGenerator);
 		}
 		else 
@@ -257,6 +208,7 @@ namespace Metasound
 		{
 			InInitParams.OperatorSettings,
 			MoveTemp(InGraphOperator),
+			MoveTemp(VertexData),
 			MoveTemp(ParameterSetters),
 			MoveTemp(InAnalyzer),
 			MoveTemp(OutputBuffers),
