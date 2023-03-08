@@ -601,7 +601,15 @@ void SSourceControlSubmitWidget::OnRevert()
 		
 		if (bAnyReverted)
 		{
-			ListView->RebuildList();
+			if (ListViewItems.IsEmpty())
+			{
+				DialogResult = ESubmitResults::SUBMIT_CANCELED;
+				ParentFrame.Pin()->RequestDestroyWindow();
+			}
+			else
+			{
+				ListView->RebuildList();
+			}
 		}
 	}
 }
