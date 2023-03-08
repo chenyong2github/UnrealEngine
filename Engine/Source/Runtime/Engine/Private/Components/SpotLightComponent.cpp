@@ -247,7 +247,7 @@ float USpotLightComponent::ComputeLightBrightness() const
 		}
 		else if (IntensityUnits == ELightUnits::EV)
 		{
-			LightBrightness = EV100ToLuminance(LightBrightness * (100.f * 100.f));
+			LightBrightness = EV100ToLuminance(LightBrightness) * (100.f * 100.f);
 		}
 		else
 		{
