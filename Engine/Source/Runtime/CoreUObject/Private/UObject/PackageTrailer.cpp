@@ -503,22 +503,6 @@ void FPackageTrailerBuilder::RemoveDuplicateEntries()
 	}
 }
 
-bool FPackageTrailer::IsEnabled()
-{
-	static struct FUsePackageTrailer
-	{
-		bool bEnabled = true;
-
-		FUsePackageTrailer()
-		{
-			GConfig->GetBool(TEXT("Core.System"), TEXT("UsePackageTrailer"), bEnabled, GEngineIni);
-			UE_LOG(LogSerialization, Log, TEXT("UsePackageTrailer: '%s'"), bEnabled ? TEXT("true") : TEXT("false"));
-		}
-	} UsePackageTrailer;
-
-	return UsePackageTrailer.bEnabled;
-}
-
 bool FPackageTrailer::TryLoadFromPackage(const FPackagePath& PackagePath, FPackageTrailer& OutTrailer)
 {
 	//TODO: Need to do this in a way that supports text based assets

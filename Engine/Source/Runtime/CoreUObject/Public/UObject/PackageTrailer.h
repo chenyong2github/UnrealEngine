@@ -411,7 +411,11 @@ public:
 	 * 
 	 * Note that this is for development purposes only and should ship as always enabled!
 	 */
-	[[nodiscard]] static bool IsEnabled();
+	UE_DEPRECATED(5.3, "FPackageTrailer::IsEnabled will always return true as the system is no longer optional")
+	[[nodiscard]] static bool IsEnabled()
+	{
+		return true;
+	}
 
 	/** Try to load a trailer from a given package path. Note that it will always try to load the trailer from the workspace domain */
 	[[nodiscard]] static bool TryLoadFromPackage(const FPackagePath& PackagePath, FPackageTrailer& OutTrailer);

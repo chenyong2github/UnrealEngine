@@ -961,22 +961,19 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 
 		SaveContext.GetLinker()->bRehydratePayloads = SaveContext.ShouldRehydratePayloads();
 		
-		if (UE::FPackageTrailer::IsEnabled())
+		// The package trailer is not supported for text based assets yet
+		if (!SaveContext.IsTextFormat() && !SaveContext.IsProceduralSave())
 		{
-			// The package trailer is not supported for text based assets yet
-			if (!SaveContext.IsTextFormat() && !SaveContext.IsProceduralSave())
-			{		
-				SaveContext.GetLinker()->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(SaveContext.GetPackage()->GetName());
-			}
-			else if ((SaveContext.GetSaveArgs().SaveFlags & SAVE_BulkDataByReference) != 0)
+			SaveContext.GetLinker()->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(SaveContext.GetPackage()->GetName());
+		}
+		else if ((SaveContext.GetSaveArgs().SaveFlags & SAVE_BulkDataByReference) != 0)
+		{
+			if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(SaveContext.GetPackage()))
 			{
-				if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(SaveContext.GetPackage()))
+				const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer();
+				if (Trailer && Trailer->GetNumPayloads(UE::EPayloadStorageType::Any) > 0)
 				{
-					const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer();
-					if (Trailer && Trailer->GetNumPayloads(UE::EPayloadStorageType::Any) > 0)
-					{
-						SaveContext.GetLinker()->PackageTrailerBuilder = UE::FPackageTrailerBuilder::CreateReferenceToTrailer(*Trailer, SaveContext.GetPackage()->GetName());
-					}
+					SaveContext.GetLinker()->PackageTrailerBuilder = UE::FPackageTrailerBuilder::CreateReferenceToTrailer(*Trailer, SaveContext.GetPackage()->GetName());
 				}
 			}
 		}
