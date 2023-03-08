@@ -1542,7 +1542,6 @@ void UMaterialInterface::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		if (EditorOnlyExisting && EditorOnlyExisting != EditorOnly)
 		{
 			EditorOnlyExisting->Rename(*(EditorOnlyDataName + "_Unused"), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
-			EditorOnlyExisting->MarkAsGarbage();
 		}
 		if (EditorOnly)
 		{
