@@ -537,11 +537,14 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlFloat_Settings : public FRigUn
 USTRUCT(meta=(TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl", Varying))
 struct CONTROLRIG_API FRigUnit_HierarchyAddControlElement : public FRigUnit_HierarchyAddElement
 {
+public:
+	
 	GENERATED_BODY()
 
 	FRigUnit_HierarchyAddControlElement()
 	{
 		Name = TEXT("NewControl");
+		OffsetSpace = ERigVMTransformSpace::LocalSpace;
 	}
 
 	virtual ERigElementType GetElementTypeToSpawn() const override { return ERigElementType::Control; }
@@ -552,6 +555,16 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlElement : public FRigUnit_Hier
 	 */
 	UPROPERTY(meta = (Input))
 	FTransform OffsetTransform;
+
+	/*
+	 * The space the offset is in
+	 */
+	UPROPERTY(meta = (Input))
+	ERigVMTransformSpace OffsetSpace;
+
+protected:
+	
+	static FTransform ProjectOffsetTransform(const FTransform& InOffsetTransform, ERigVMTransformSpace InOffsetSpace, const FRigElementKey& InParent, const URigHierarchy* InHierarchy);
 };
 
 /**
@@ -807,6 +820,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector_Settings : public FRigU
 	
 	FRigUnit_HierarchyAddControlVector_Settings()
 		: FRigUnit_HierarchyAddControl_Settings()
+		, InitialSpace(ERigVMTransformSpace::LocalSpace)
 		, bIsPosition(true)
 	{
 		FilteredChannels.Reset();
@@ -814,6 +828,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector_Settings : public FRigU
 	virtual ~FRigUnit_HierarchyAddControlVector_Settings() override {}
 
 	virtual void Configure(FRigControlSettings& OutSettings) const override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	ERigVMTransformSpace InitialSpace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	bool bIsPosition;
@@ -908,12 +925,16 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlRotator_Settings : public FRig
 	
 	FRigUnit_HierarchyAddControlRotator_Settings()
 		: FRigUnit_HierarchyAddControl_Settings()
+		, InitialSpace(ERigVMTransformSpace::LocalSpace)
 	{
 		FilteredChannels.Reset();
 	}
 	virtual ~FRigUnit_HierarchyAddControlRotator_Settings() override {}
 
 	virtual void Configure(FRigControlSettings& OutSettings) const override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	ERigVMTransformSpace InitialSpace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FRigUnit_HierarchyAddControlRotator_LimitSettings Limits;;
@@ -967,12 +988,16 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlTransform_Settings : public FR
 	
 	FRigUnit_HierarchyAddControlTransform_Settings()
 		: FRigUnit_HierarchyAddControl_Settings()
+		, InitialSpace(ERigVMTransformSpace::LocalSpace)
 	{
 		FilteredChannels.Reset();
 	}
 	virtual ~FRigUnit_HierarchyAddControlTransform_Settings() override {}
 
 	virtual void Configure(FRigControlSettings& OutSettings) const override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	ERigVMTransformSpace InitialSpace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FRigUnit_HierarchyAddControl_ShapeSettings Shape;
