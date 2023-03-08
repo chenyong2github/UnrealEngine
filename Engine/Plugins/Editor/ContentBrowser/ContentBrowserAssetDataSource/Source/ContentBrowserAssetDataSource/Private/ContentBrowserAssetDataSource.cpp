@@ -60,6 +60,7 @@ void UContentBrowserAssetDataSource::Initialize(const bool InAutoRegister)
 	AssetRegistry->OnAssetRemoved().AddUObject(this, &UContentBrowserAssetDataSource::OnAssetRemoved);
 	AssetRegistry->OnAssetRenamed().AddUObject(this, &UContentBrowserAssetDataSource::OnAssetRenamed);
 	AssetRegistry->OnAssetUpdated().AddUObject(this, &UContentBrowserAssetDataSource::OnAssetUpdated);
+	AssetRegistry->OnAssetUpdatedOnDisk().AddUObject(this, &UContentBrowserAssetDataSource::OnAssetUpdatedOnDisk);
 	AssetRegistry->OnPathAdded().AddUObject(this, &UContentBrowserAssetDataSource::OnPathAdded);
 	AssetRegistry->OnPathRemoved().AddUObject(this, &UContentBrowserAssetDataSource::OnPathRemoved);
 	AssetRegistry->OnFilesLoaded().AddUObject(this, &UContentBrowserAssetDataSource::OnScanCompleted);
@@ -187,6 +188,7 @@ void UContentBrowserAssetDataSource::Shutdown()
 			AssetRegistryMaybe->OnAssetRemoved().RemoveAll(this);
 			AssetRegistryMaybe->OnAssetRenamed().RemoveAll(this);
 			AssetRegistryMaybe->OnAssetUpdated().RemoveAll(this);
+			AssetRegistryMaybe->OnAssetUpdatedOnDisk().RemoveAll(this);	
 			AssetRegistryMaybe->OnPathAdded().RemoveAll(this);
 			AssetRegistryMaybe->OnPathRemoved().RemoveAll(this);
 			AssetRegistryMaybe->OnFilesLoaded().RemoveAll(this);
@@ -2153,6 +2155,14 @@ void UContentBrowserAssetDataSource::OnAssetRenamed(const FAssetData& InAssetDat
 }
 
 void UContentBrowserAssetDataSource::OnAssetUpdated(const FAssetData& InAssetData)
+{
+	if (ContentBrowserAssetData::IsPrimaryAsset(InAssetData))
+	{
+		QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemModifiedUpdate(CreateAssetFileItem(InAssetData)));
+	}
+}
+
+void UContentBrowserAssetDataSource::OnAssetUpdatedOnDisk(const FAssetData& InAssetData)
 {
 	if (ContentBrowserAssetData::IsPrimaryAsset(InAssetData))
 	{

@@ -329,6 +329,8 @@ private:
 
 	void OnAssetUpdated(const FAssetData& InAssetData);
 
+	void OnAssetUpdatedOnDisk(const FAssetData& InAssetData);
+
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
 
 	void OnObjectPreSave(UObject* InObject, class FObjectPreSaveContext InObjectPreSaveContext);

@@ -707,6 +707,8 @@ void UContentBrowserDataSubsystem::Tick(const float InDeltaTime)
 
 	if (PendingUpdates.Num() > 0)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserDataSubsystem::BroadCastItemDataUpdate);
+
 		TArray<FContentBrowserItemDataUpdate> LocalPendingUpdates = MoveTemp(PendingUpdates);
 		PendingUpdates.Empty();
 		ItemDataUpdatedDelegate.Broadcast(MakeArrayView(LocalPendingUpdates));
