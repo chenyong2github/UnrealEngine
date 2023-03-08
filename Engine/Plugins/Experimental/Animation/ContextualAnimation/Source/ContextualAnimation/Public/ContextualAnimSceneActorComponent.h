@@ -100,6 +100,13 @@ struct FContextualAnimRepTransitionData : public FContextualAnimRepData
 
 	UPROPERTY()
 	TArray<FContextualAnimWarpTarget> ExternalWarpTargets;
+
+	void Reset()
+	{
+		SectionIdx = MAX_uint8;
+		AnimSetIdx = MAX_uint8;
+		ExternalWarpTargets.Reset();
+	}
 };
 
 UCLASS(meta = (BlueprintSpawnableComponent))
