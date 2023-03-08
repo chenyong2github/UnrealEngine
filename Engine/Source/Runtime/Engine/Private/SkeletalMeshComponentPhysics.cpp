@@ -2865,6 +2865,10 @@ void USkeletalMeshComponent::ExtractCollisionsForCloth(
 		// Init cache on first copy
 		if(!ClothCollisionSource.bCached || ClothCollisionSource.CachedSkeletalMesh.Get() != SourceComponent->GetSkeletalMeshAsset())
 		{
+			// Clear previous cached data
+			ClothCollisionSource.CachedSpheres.Reset();
+			ClothCollisionSource.CachedSphereConnections.Reset();
+
 			for(const USkeletalBodySetup* SkeletalBodySetup : PhysicsAsset->SkeletalBodySetups)
 			{
 				// Cache bones
