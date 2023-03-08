@@ -517,12 +517,22 @@ public:
 			{
 				// For clustered particles, they may appear disabled but they're being driven by an internal (solver-owned) cluster parent.
 				// If this is the case we let the spatial data update with those particles, otherwise skip.
+				// Alternatively, the particle may be being driven by a cluster union. Disabled children of a cluster union should not be added
+				// to the SQ.
 				// #BGTODO consider converting MDisabled into a bitfield for multiple disable types (Disabled, DisabledDriven, etc.)
 				if(FPBDRigidParticleHandle* ClusterParentBase = AsClustered->ClusterIds().Id)
 				{
 					if(Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>* ClusterParent = ClusterParentBase->CastToClustered())
 					{
 						if(!ClusterParent->InternalCluster())
+						{
+							return;
+						}
+
+						// We know we're an internal cluster now. If this was a GC internal proxy, we'd expect the 
+						// parent's proxy to be the same as the input particle's. If this is not the case, we know
+						// we're in a cluster union.
+						if (ClusterParent->PhysicsProxy() != Particle.PhysicsProxy())
 						{
 							return;
 						}
