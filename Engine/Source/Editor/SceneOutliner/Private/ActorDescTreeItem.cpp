@@ -257,6 +257,11 @@ FSceneOutlinerTreeItemID FActorDescTreeItem::ComputeTreeItemID(FGuid InActorGuid
 	return FSceneOutlinerTreeItemID(MD5HashToGuid(MD5Hash));
 }
 
+bool FActorDescTreeItem::ShouldDisplayInOutliner(const FWorldPartitionActorDesc* ActorDesc)
+{
+	return ActorDesc && (ActorDesc->GetActorIsRuntimeOnly() || ActorDesc->IsEditorRelevant());
+}
+
 FSceneOutlinerTreeItemID FActorDescTreeItem::GetID() const
 {
 	return ID;

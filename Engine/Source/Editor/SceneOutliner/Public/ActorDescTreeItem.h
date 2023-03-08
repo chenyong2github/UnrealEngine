@@ -36,6 +36,7 @@ public:
 	FSceneOutlinerTreeItemID ID;
 
 	static FSceneOutlinerTreeItemID ComputeTreeItemID(FGuid InActorGuid, UActorDescContainer* InContainer);
+	static bool ShouldDisplayInOutliner(const FWorldPartitionActorDesc* ActorDesc);
 
 	/** Static type identifier for this tree item class */
 	static const FSceneOutlinerTreeItemType Type;
