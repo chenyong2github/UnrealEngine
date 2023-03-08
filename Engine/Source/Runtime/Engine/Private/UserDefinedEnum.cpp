@@ -80,6 +80,11 @@ void UUserDefinedEnum::PostDuplicate(bool bDuplicateForPIE)
 	}
 }
 
+bool UUserDefinedEnum::IsPostLoadThreadSafe() const
+{
+	return true;
+}
+
 void UUserDefinedEnum::PostLoad()
 {
 	Super::PostLoad();
