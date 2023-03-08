@@ -52,7 +52,6 @@ namespace UE::PoseSearch
 		bool IsValid() const;
 		void Process();
 		const FAssetSamplerBase* GetSampler() const;
-		float GetScaledTime(float Time) const;
 		UDebugSkelMeshComponent* GetDebugSkelMeshComponent();
 		UAnimPreviewInstance* GetAnimPreviewInstance();
 	};
