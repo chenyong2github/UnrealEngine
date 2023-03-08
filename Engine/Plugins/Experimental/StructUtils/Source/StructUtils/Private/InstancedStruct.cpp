@@ -362,6 +362,24 @@ void FInstancedStruct::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	if (UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(GetScriptStruct()))
 	{
 		OutDeps.Add(NonConstStruct);
+
+		// Report direct dependencies of the instanced struct
+		if (UScriptStruct::ICppStructOps* CppStructOps = GetScriptStruct()->GetCppStructOps())
+		{
+			CppStructOps->GetPreloadDependencies(GetMutableMemory(), OutDeps);
+		}
+
+		// Report indirect dependencies of the instanced struct
+		// The iterator will recursively loop through all structs in structs/containers too
+		for (TPropertyValueIterator<FStructProperty> It(GetScriptStruct(), GetMutableMemory()); It; ++It)
+		{
+			const UScriptStruct* StructType = It.Key()->Struct;
+			if (UScriptStruct::ICppStructOps* CppStructOps = StructType->GetCppStructOps())
+			{
+				void* StructDataPtr = const_cast<void*>(It.Value());
+				CppStructOps->GetPreloadDependencies(StructDataPtr, OutDeps);
+			}
+		}
 	}
 }
 
