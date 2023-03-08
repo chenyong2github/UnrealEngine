@@ -1612,6 +1612,7 @@ namespace UnrealBuildTool
 			LinkEnvironment.SystemLibraries.Add("netapi32.lib");
 			LinkEnvironment.SystemLibraries.Add("iphlpapi.lib");
 			LinkEnvironment.SystemLibraries.Add("setupapi.lib"); //  Required for access monitor device enumeration
+			LinkEnvironment.SystemLibraries.Add("synchronization.lib"); // Required for WaitOnAddress and WakeByAddressSingle
 
 			// Windows 7 Desktop Windows Manager API for Slate Windows Compliance
 			LinkEnvironment.SystemLibraries.Add("dwmapi.lib");
