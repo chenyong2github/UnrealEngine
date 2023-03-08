@@ -103,11 +103,6 @@ namespace UE::PoseSearch
 
 		MaxPreviewPlayLength = 0.0f;
 
-		if (AnimationPreviewMode == EAnimationPreviewMode::None && SelectedNodes.IsEmpty())
-		{
-			return;
-		}
-
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
 			FBoneContainer BoneContainer;

@@ -34,7 +34,6 @@ namespace UE::PoseSearch
 
 	enum class EAnimationPreviewMode : uint8
 	{
-		None,
 		OriginalOnly,
 		OriginalAndMirrored
 	};

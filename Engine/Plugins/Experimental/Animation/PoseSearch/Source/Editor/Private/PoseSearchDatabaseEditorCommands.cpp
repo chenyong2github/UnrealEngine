@@ -21,9 +21,6 @@ namespace UE::PoseSearch
 			EUserInterfaceActionType::RadioButton, FInputChord());
 
 		UI_COMMAND(
-			ShowAnimationNone, "None", "Don't show animations",
-			EUserInterfaceActionType::RadioButton, FInputChord());
-		UI_COMMAND(
 			ShowAnimationOriginalOnly, "Original Only", "Show only original animations",
 			EUserInterfaceActionType::RadioButton, FInputChord());
 		UI_COMMAND(
