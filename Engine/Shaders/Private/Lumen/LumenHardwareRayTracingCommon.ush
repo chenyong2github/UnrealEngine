@@ -521,7 +521,7 @@ FLumenHitLightingMaterial GetLumenHitLightingMaterial(FPackedMaterialClosestHitP
 	{
 		const float3 V = -Ray.Direction;
 
-		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(true /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/, false/*bRoughnessTracking*/);
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/, false/*bRoughnessTracking*/);
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0, 0, 0);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedPayload.StrataData, StrataAddressing, PackedPayload.StrataData);
 
