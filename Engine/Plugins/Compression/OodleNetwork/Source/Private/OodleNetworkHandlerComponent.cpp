@@ -538,7 +538,7 @@ void OodleNetworkHandlerComponent::Initialize()
 
 #endif
 
-		EOodleNetworkEnableMode EnableMode = (Handler->Mode == Handler::Mode::Server ? ServerEnableMode : ClientEnableMode);
+		EOodleNetworkEnableMode EnableMode = (Handler->Mode == UE::Handler::Mode::Server ? ServerEnableMode : ClientEnableMode);
 
 		if (EnableMode == EOodleNetworkEnableMode::AlwaysEnabled)
 		{
@@ -920,7 +920,7 @@ void OodleNetworkHandlerComponent::InitializePacketLogs()
 	// @todo #JohnB: Convert this code so that just one capture file is used for all connections, per session
 	//					(could set it up much like the dictionary sharing code)
 	//					Downside, is potential for corruption. Lots of files is a bit unwieldy, yet very stable.
-	if (bCaptureMode && Handler->Mode == Handler::Mode::Server && InPacketLog == nullptr && OutPacketLog == nullptr)
+	if (bCaptureMode && Handler->Mode == UE::Handler::Mode::Server && InPacketLog == nullptr && OutPacketLog == nullptr)
 	{
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 		FString ReadOutputLogDirectory = FPaths::Combine(*GOodleSaveDir, TEXT("Server"));
@@ -1027,7 +1027,7 @@ void OodleNetworkHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 		// If the packet is not compressed, no further processing is necessary
 		if (bCompressedPacket)
 		{
-			const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
+			const bool bIsServer = (Handler->Mode == UE::Handler::Mode::Server);
 
 			// Lazy-loading of dictionary when EOodleNetworkEnableMode::WhenCompressedPacketReceived is active
 			if (!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleNetworkEnableMode::WhenCompressedPacketReceived)
@@ -1123,7 +1123,7 @@ void OodleNetworkHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 						Packet.SetData(DecompressedData, DecompressedLength * 8);
 
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
-						if (bCaptureMode && Handler->Mode == Handler::Mode::Server && InPacketLog != nullptr)
+						if (bCaptureMode && Handler->Mode == UE::Handler::Mode::Server && InPacketLog != nullptr)
 						{
 #if !UE_BUILD_SHIPPING
 							QUICK_SCOPE_CYCLE_COUNTER(STAT_Oodle_InCaptureTime);
@@ -1186,7 +1186,7 @@ void OodleNetworkHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 			}
 
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
-			if (bCaptureMode && Handler->Mode == Handler::Mode::Server && InPacketLog != nullptr)
+			if (bCaptureMode && Handler->Mode == UE::Handler::Mode::Server && InPacketLog != nullptr)
 			{
 				uint32 SizeOfPacket = Packet.GetBytesLeft();
 
@@ -1213,7 +1213,7 @@ void OodleNetworkHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits
 	if (bEnableOodle)
 	{
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
-		if (bCaptureMode && Handler->Mode == Handler::Mode::Server && OutPacketLog != nullptr)
+		if (bCaptureMode && Handler->Mode == UE::Handler::Mode::Server && OutPacketLog != nullptr)
 		{
 			uint32 SizeOfPacket = Packet.GetNumBytes();
 
@@ -1239,7 +1239,7 @@ void OodleNetworkHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits
 		static uint8 CompressedData[MAX_OODLE_BUFFER];
 
 		FOodleNetworkAnalyticsVars* AnalyticsVars = (bOodleNetworkAnalytics && NetAnalyticsData.IsValid()) ? NetAnalyticsData->GetLocalData() : nullptr;
-		const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
+		const bool bIsServer = (Handler->Mode == UE::Handler::Mode::Server);
 		FOodleNetworkDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
 		uint32 UncompressedBytes = Packet.GetNumBytes();
 		bool bSkipCompressionClientDisabled = false;
@@ -1441,7 +1441,7 @@ bool OodleNetworkHandlerComponent::IsCompressionActive() const
 
 	if (bEnableOodle && Handler)
 	{
-		const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
+		const bool bIsServer = (Handler->Mode == UE::Handler::Mode::Server);
 		FOodleNetworkDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
 
 		const bool bSkipCompression =
@@ -1475,7 +1475,7 @@ void OodleNetworkHandlerComponent::NotifyAnalyticsProvider()
 
 		if (Handler->GetProvider().IsValid() && Aggregator.IsValid())
 		{
-			const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
+			const bool bIsServer = (Handler->Mode == UE::Handler::Mode::Server);
 
 			if (bIsServer)
 			{
@@ -1587,7 +1587,7 @@ static bool OodleExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 			bool bSendServerCommand = FModuleManager::Get().IsModuleLoaded(TEXT("NetcodeUnitTest"));
 
 			bSendServerCommand = bSendServerCommand && OodleComponentList.Num() > 0 &&
-									OodleComponentList[0]->Handler->Mode == Handler::Mode::Client;
+				OodleComponentList[0]->Handler->Mode == UE::Handler::Mode::Client;
 
 			if (bSendServerCommand)
 			{
@@ -1689,7 +1689,7 @@ static bool OodleExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				bool bSendServerCommand = FModuleManager::Get().IsModuleLoaded(TEXT("NetcodeUnitTest"));
 
 				bSendServerCommand = bSendServerCommand && OodleComponentList.Num() > 0 &&
-										OodleComponentList[0]->Handler->Mode == Handler::Mode::Client;
+										OodleComponentList[0]->Handler->Mode == UE::Handler::Mode::Client;
 
 				if (bSendServerCommand)
 				{

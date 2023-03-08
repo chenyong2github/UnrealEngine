@@ -77,39 +77,42 @@ DECLARE_DELEGATE(FPacketHandlerHandshakeComplete);
  * Enums related to the PacketHandler
  */
 
-namespace Handler
+namespace UE
 {
-	/**
-	 * State of PacketHandler
-	 */
-	enum class State : uint8
-	{
-		Uninitialized,			// PacketHandler is uninitialized
-		InitializingComponents,	// PacketHandler is initializing HandlerComponents
-		Initialized				// PacketHandler and all HandlerComponents (if any) are initialized
-	};
-
-	/**
-	 * Mode of Packet Handler
-	 */
-	enum class Mode : uint8
-	{
-		Client,					// Clientside PacketHandler
-		Server					// Serverside PacketHandler
-	};
-
-	namespace Component
+	namespace Handler
 	{
 		/**
-		 * HandlerComponent State
-		 */
+		* State of PacketHandler
+		*/
 		enum class State : uint8
 		{
-			UnInitialized,		// HandlerComponent not yet initialized
-			InitializedOnLocal, // Initialized on local instance
-			InitializeOnRemote, // Initialized on remote instance, not on local instance
-			Initialized         // Initialized on both local and remote instances
+			Uninitialized,			// PacketHandler is uninitialized
+			InitializingComponents,	// PacketHandler is initializing HandlerComponents
+			Initialized				// PacketHandler and all HandlerComponents (if any) are initialized
 		};
+	
+		/**
+		* Mode of Packet Handler
+		*/
+		enum class Mode : uint8
+		{
+			Client,					// Clientside PacketHandler
+			Server					// Serverside PacketHandler
+		};
+	
+		namespace Component
+		{
+			/**
+			* HandlerComponent State
+			*/
+			enum class State : uint8
+			{
+				UnInitialized,		// HandlerComponent not yet initialized
+				InitializedOnLocal, // Initialized on local instance
+				InitializeOnRemote, // Initialized on remote instance, not on local instance
+				Initialized         // Initialized on both local and remote instances
+			};
+		}
 	}
 }
 
@@ -268,7 +271,7 @@ public:
 	 * @param InDDoS				Reference to the owning net drivers DDoS detection handler
 	 * @param InDriverProfile		The PacketHandler configuration profile to use
 	 */
-	void Initialize(Handler::Mode Mode, uint32 InMaxPacketBits, bool bConnectionlessOnly=false,
+	void Initialize(UE::Handler::Mode Mode, uint32 InMaxPacketBits, bool bConnectionlessOnly=false,
 					TSharedPtr<class IAnalyticsProvider> InProvider=nullptr, FDDoSDetection* InDDoS=nullptr, FName InDriverProfile=NAME_None);
 
 	/**
@@ -596,7 +599,7 @@ public:
 	 */
 	FORCEINLINE bool IsFullyInitialized()
 	{
-		return State == Handler::State::Initialized;
+		return State == UE::Handler::State::Initialized;
 	}
 
 	/** Returns a pointer to the DDoS detection handler */
@@ -615,7 +618,7 @@ private:
 	 *
 	 * @param InState	The new state for the handler
 	 */
-	void SetState(Handler::State InState);
+	void SetState(UE::Handler::State InState);
 
 	/**
 	 * Called when net send/receive functions are triggered, when the handler is still uninitialized - to set a valid initial state
@@ -644,7 +647,7 @@ private:
 
 public:
 	/** Mode of the handler, Client or Server */
-	Handler::Mode Mode;
+	UE::Handler::Mode Mode;
 
 	static FPacketHandlerAddComponentByNameDelegate& GetAddComponentByNameDelegate();
 	static FPacketHandlerAddComponentDelegate& GetAddComponentDelegate();
@@ -681,7 +684,7 @@ private:
 	uint32 MaxPacketBits;
 
 	/** State of the handler */
-	Handler::State State;
+	UE::Handler::State State;
 
 	/** Packets that are buffered while HandlerComponents are being initialized */
 	TArray<BufferedPacket*> BufferedPackets;
@@ -895,7 +898,7 @@ protected:
 	 *
 	 * @param State		The new state for the handler
 	 */
-	void SetState(Handler::Component::State State);
+	void SetState(UE::Handler::Component::State State);
 
 	/**
 	 * Should be called when the handler is fully initialized on both remote and local
@@ -909,7 +912,7 @@ public:
 
 protected:
 	/** The state of this handler */
-	Handler::Component::State State;
+	UE::Handler::Component::State State;
 
 	/** Maximum number of Outgoing packet bits supported (automatically calculated to factor in other HandlerComponent reserved bits) */
 	uint32 MaxOutgoingBits;

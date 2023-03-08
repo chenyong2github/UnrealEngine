@@ -40,7 +40,7 @@ void ReliabilityHandlerComponent::Initialize()
 {
 	SetActive(true);
 	Initialized();
-	State = Handler::Component::State::Initialized;
+	State = UE::Handler::Component::State::Initialized;
 }
 
 bool ReliabilityHandlerComponent::IsValid() const
@@ -52,7 +52,7 @@ void ReliabilityHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits&
 {
 	switch (State)
 	{
-		case Handler::Component::State::Initialized:
+		case UE::Handler::Component::State::Initialized:
 		{
 			check(IsActive() && IsValid());
 
@@ -83,7 +83,7 @@ void ReliabilityHandlerComponent::Incoming(FBitReader& Packet)
 {
 	switch (State)
 	{
-		case Handler::Component::State::Initialized:
+		case UE::Handler::Component::State::Initialized:
 		{
 			if (IsActive() && IsValid())
 			{

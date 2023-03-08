@@ -90,7 +90,7 @@ BufferedPacket::~BufferedPacket()
  */
 
 PacketHandler::PacketHandler(FDDoSDetection* InDDoS/*=nullptr*/)
-	: Mode(Handler::Mode::Client)
+	: Mode(UE::Handler::Mode::Client)
 	, bConnectionlessHandler(false)
 	, DDoS(InDDoS)
 	, LowLevelSendDel()
@@ -99,7 +99,7 @@ PacketHandler::PacketHandler(FDDoSDetection* InDDoS/*=nullptr*/)
 	, IncomingPacket()
 	, HandlerComponents()
 	, MaxPacketBits(0)
-	, State(Handler::State::Uninitialized)
+	, State(UE::Handler::State::Uninitialized)
 	, BufferedPackets()
 	, QueuedPackets()
 	, QueuedRawPackets()
@@ -153,7 +153,7 @@ FPacketHandlerAddComponentDelegate& PacketHandler::GetAddComponentDelegate()
 	return AddComponentDelegate;
 }
 
-void PacketHandler::Initialize(Handler::Mode InMode, uint32 InMaxPacketBits, bool bConnectionlessOnly/*=false*/,
+void PacketHandler::Initialize(UE::Handler::Mode InMode, uint32 InMaxPacketBits, bool bConnectionlessOnly/*=false*/,
 								TSharedPtr<IAnalyticsProvider> InProvider/*=nullptr*/, FDDoSDetection* InDDoS/*=nullptr*/, FName InDriverProfile/*=NAME_None*/)
 {
 	Mode = InMode;
@@ -245,7 +245,7 @@ void PacketHandler::NotifyAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InPro
 	Provider = InProvider;
 	Aggregator = InAggregator;
 
-	if (State != Handler::State::Uninitialized)
+	if (State != UE::Handler::State::Uninitialized)
 	{
 		for (const TSharedPtr<HandlerComponent>& CurComponent : HandlerComponents)
 		{
@@ -259,11 +259,11 @@ void PacketHandler::NotifyAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InPro
 
 void PacketHandler::InitializeComponents()
 {
-	if (State == Handler::State::Uninitialized)
+	if (State == UE::Handler::State::Uninitialized)
 	{
 		if (HandlerComponents.Num() > 0)
 		{
-			SetState(Handler::State::InitializingComponents);
+			SetState(UE::Handler::State::InitializingComponents);
 		}
 		else
 		{
@@ -308,7 +308,7 @@ void PacketHandler::BeginHandshaking(FPacketHandlerHandshakeComplete InHandshake
 void PacketHandler::AddHandler(TSharedPtr<HandlerComponent>& NewHandler, bool bDeferInitialize/*=false*/)
 {
 	// This is never valid. Can end up silently changing maximum allow packet size, which could cause failure to send packets.
-	if (State != Handler::State::Uninitialized)
+	if (State != UE::Handler::State::Uninitialized)
 	{
 		LowLevelFatalError(TEXT("Handler added during runtime."));
 		return;
@@ -590,7 +590,7 @@ EIncomingResult PacketHandler::Incoming_Internal(FReceivedPacketView& PacketView
 
 		FPacketAudit::CheckStage(TEXT("PostPacketHandler"), ProcessedPacketReader);
 
-		if (State == Handler::State::Uninitialized)
+		if (State == UE::Handler::State::Uninitialized)
 		{
 			UpdateInitialState();
 		}
@@ -737,13 +737,13 @@ const ProcessedPacket PacketHandler::Outgoing_Internal(uint8* Packet, int32 Coun
 	{
 		OutgoingPacket.Reset();
 
-		if (State == Handler::State::Uninitialized)
+		if (State == UE::Handler::State::Uninitialized)
 		{
 			UpdateInitialState();
 		}
 
 
-		if (State == Handler::State::Initialized)
+		if (State == UE::Handler::State::Initialized)
 		{
 			OutgoingPacket.SerializeBits(Packet, CountBits);
 
@@ -813,7 +813,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 		// Buffer any packets being sent from game code until processors are initialized
-		else if (State == Handler::State::InitializingComponents && CountBits > 0)
+		else if (State == UE::Handler::State::InitializingComponents && CountBits > 0)
 		{
 			if (bConnectionless)
 			{
@@ -926,7 +926,7 @@ void PacketHandler::SendHandlerPacket(HandlerComponent* InComponent, FBitWriter&
 	// @todo #JohnB: There is duplication between this function and others, it would be nice to reduce this.
 
 	// Prevent any cases where a send happens before the handler is ready.
-	check(State != Handler::State::Uninitialized);
+	check(State != UE::Handler::State::Uninitialized);
 
 	if (LowLevelSendDel.IsBound())
 	{
@@ -997,7 +997,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
-void PacketHandler::SetState(Handler::State InState)
+void PacketHandler::SetState(UE::Handler::State InState)
 {
 	if (InState == State)
 	{
@@ -1011,7 +1011,7 @@ void PacketHandler::SetState(Handler::State InState)
 
 void PacketHandler::UpdateInitialState()
 {
-	if (State == Handler::State::Uninitialized)
+	if (State == UE::Handler::State::Uninitialized)
 	{
 		if (HandlerComponents.Num() > 0)
 		{
@@ -1063,7 +1063,7 @@ void PacketHandler::HandlerInitialized()
 
 	BufferedConnectionlessPackets.Empty();
 
-	SetState(Handler::State::Initialized);
+	SetState(UE::Handler::State::Initialized);
 
 	if (bBeganHandshaking)
 	{
@@ -1074,7 +1074,7 @@ void PacketHandler::HandlerInitialized()
 void PacketHandler::HandlerComponentInitialized(HandlerComponent* InComponent)
 {
 	// Check if all handlers are initialized
-	if (State != Handler::State::Initialized)
+	if (State != UE::Handler::State::Initialized)
 	{
 		bool bAllInitialized = true;
 		bool bEncounteredComponent = false;
@@ -1216,7 +1216,7 @@ int32 PacketHandler::GetTotalReservedPacketBits()
 
 HandlerComponent::HandlerComponent()
 	: Handler(nullptr)
-	, State(Handler::Component::State::UnInitialized)
+	, State(UE::Handler::Component::State::UnInitialized)
 	, MaxOutgoingBits(0)
 	, bRequiresHandshake(false)
 	, bRequiresReliability(false)
@@ -1227,7 +1227,7 @@ HandlerComponent::HandlerComponent()
 
 HandlerComponent::HandlerComponent(FName InName)
 	: Handler(nullptr)
-	, State(Handler::Component::State::UnInitialized)
+	, State(UE::Handler::Component::State::UnInitialized)
 	, MaxOutgoingBits(0)
 	, bRequiresHandshake(false)
 	, bRequiresReliability(false)
@@ -1247,7 +1247,7 @@ void HandlerComponent::SetActive(bool Active)
 	bActive = Active;
 }
 
-void HandlerComponent::SetState(Handler::Component::State InState)
+void HandlerComponent::SetState(UE::Handler::Component::State InState)
 {
 	State = InState;
 }

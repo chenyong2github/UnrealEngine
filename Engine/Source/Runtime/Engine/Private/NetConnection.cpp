@@ -635,7 +635,7 @@ void UNetConnection::InitHandler()
 
 		if (Handler.IsValid())
 		{
-			Handler::Mode Mode = Driver->ServerConnection != nullptr ? Handler::Mode::Client : Handler::Mode::Server;
+			UE::Handler::Mode Mode = Driver->ServerConnection != nullptr ? UE::Handler::Mode::Client : UE::Handler::Mode::Server;
 
 			FPacketHandlerNotifyAddHandler NotifyAddHandler;
 			

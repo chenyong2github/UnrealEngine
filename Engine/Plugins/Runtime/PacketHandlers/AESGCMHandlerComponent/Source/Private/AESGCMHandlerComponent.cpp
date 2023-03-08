@@ -55,7 +55,7 @@ bool FAESGCMHandlerComponent::IsEncryptionEnabled() const
 void FAESGCMHandlerComponent::Initialize()
 {
 	SetActive(true);
-	SetState(Handler::Component::State::Initialized);
+	SetState(UE::Handler::Component::State::Initialized);
 	Initialized();
 }
 

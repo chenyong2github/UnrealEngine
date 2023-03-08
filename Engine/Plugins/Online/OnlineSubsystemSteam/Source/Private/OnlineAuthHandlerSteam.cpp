@@ -124,7 +124,7 @@ FSteamAuthHandlerComponent::~FSteamAuthHandlerComponent()
 		return;
 	}
 
-	if (Handler->Mode == Handler::Mode::Client)
+	if (Handler->Mode == UE::Handler::Mode::Client)
 	{
 		AuthInterface->RevokeTicket(TicketHandle);
 	}
@@ -168,7 +168,7 @@ void FSteamAuthHandlerComponent::NotifyHandshakeBegin()
 		return;
 	}
 
-	if (Handler->Mode == Handler::Mode::Client)
+	if (Handler->Mode == UE::Handler::Mode::Client)
 	{
 		SendAuthKey(true);
 	}
@@ -280,7 +280,7 @@ void FSteamAuthHandlerComponent::RequestResend()
 	ResendWriter.WriteBit(1);
 
 	// Steam Auth is so simplistic that we really only have two messages we need to handle.
-	ResendingPacket.Type = (Handler->Mode == Handler::Mode::Server) ? 
+	ResendingPacket.Type = (Handler->Mode == UE::Handler::Mode::Server) ? 
 		ESteamAuthMsgType::ResendKey : ESteamAuthMsgType::ResendResult;
 
 	ResendWriter << ResendingPacket;
@@ -380,7 +380,7 @@ void FSteamAuthHandlerComponent::Incoming(FBitReader& Packet)
 			SendAuthKey(false);
 		}
 	}
-	else if (Handler && Handler->Mode == Handler::Mode::Server && Header.Type == ESteamAuthMsgType::ResendResult)
+	else if (Handler && Handler->Mode == UE::Handler::Mode::Server && Header.Type == ESteamAuthMsgType::ResendResult)
 	{
 		if (State == ESteamAuthHandlerState::Initialized)
 		{

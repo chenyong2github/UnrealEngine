@@ -59,7 +59,7 @@ bool FAESHandlerComponent::IsEncryptionEnabled() const
 void FAESHandlerComponent::Initialize()
 {
 	SetActive(true);
-	SetState(Handler::Component::State::Initialized);
+	SetState(UE::Handler::Component::State::Initialized);
 	Initialized();
 }
 

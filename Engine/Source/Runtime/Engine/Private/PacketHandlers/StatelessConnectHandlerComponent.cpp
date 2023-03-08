@@ -466,7 +466,7 @@ void StatelessConnectHandlerComponent::SendInitialPacket(EHandshakeVersion Hands
 {
 	using namespace UE::Net;
 
-	if (Handler->Mode == Handler::Mode::Client)
+	if (Handler->Mode == UE::Handler::Mode::Client)
 	{
 		UNetConnection* ServerConn = (Driver != nullptr ? ToRawPtr(Driver->ServerConnection) : nullptr);
 
@@ -831,7 +831,7 @@ void StatelessConnectHandlerComponent::SetDriver(UNetDriver* InDriver)
 {
 	Driver = InDriver;
 
-	if (Handler->Mode == Handler::Mode::Server)
+	if (Handler->Mode == UE::Handler::Mode::Server)
 	{
 		StatelessConnectHandlerComponent* StatelessComponent = Driver->StatelessConnectComponent.Pin().Get();
 
@@ -885,7 +885,7 @@ void StatelessConnectHandlerComponent::Initialize()
 	using namespace UE::Net;
 
 	// On the server, initializes immediately. Clientside doesn't initialize until handshake completes.
-	if (Handler->Mode == Handler::Mode::Server)
+	if (Handler->Mode == UE::Handler::Mode::Server)
 	{
 		Initialized();
 
@@ -980,12 +980,12 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 		if (bHandshakePacket)
 		{
 			const bool bIsChallengePacket = HandshakeData.HandshakePacketType == EHandshakePacketType::Challenge && HandshakeData.Timestamp > 0.0;
-			const bool bIsInitialChallengePacket = bIsChallengePacket && State != Handler::Component::State::Initialized;
+			const bool bIsInitialChallengePacket = bIsChallengePacket && State != UE::Handler::Component::State::Initialized;
 			const bool bIsUpgradePacket = HandshakeData.HandshakePacketType == EHandshakePacketType::VersionUpgrade;
 
-			if (Handler->Mode == Handler::Mode::Client && bHasValidClientID && (bHasValidSessionID || bIsInitialChallengePacket || bIsUpgradePacket))
+			if (Handler->Mode == UE::Handler::Mode::Client && bHasValidClientID && (bHasValidSessionID || bIsInitialChallengePacket || bIsUpgradePacket))
 			{
-				if (State == Handler::Component::State::UnInitialized || State == Handler::Component::State::InitializedOnLocal)
+				if (State == UE::Handler::Component::State::UnInitialized || State == UE::Handler::Component::State::InitializedOnLocal)
 				{
 					if (HandshakeData.bRestartHandshake)
 					{
@@ -1007,7 +1007,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 						SendChallengeResponse(HandshakeData.RemoteCurVersion, HandshakeData.SecretId, HandshakeData.Timestamp, HandshakeData.Cookie);
 
 						// Utilize this state as an intermediary, indicating that the challenge response has been sent
-						SetState(Handler::Component::State::InitializedOnLocal);
+						SetState(UE::Handler::Component::State::InitializedOnLocal);
 					}
 					// Receiving challenge ack, verify the timestamp is < 0.0f
 					else if (HandshakeData.HandshakePacketType == EHandshakePacketType::Ack && HandshakeData.Timestamp < 0.0)
@@ -1032,7 +1032,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 						}
 
 						// Now finish initializing the handler - flushing the queued packet buffer in the process.
-						SetState(Handler::Component::State::Initialized);
+						SetState(UE::Handler::Component::State::Initialized);
 						Initialized();
 
 						bRestartedHandshake = false;
@@ -1134,7 +1134,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 
 							bRestartedHandshake = true;
 
-							SetState(Handler::Component::State::UnInitialized);
+							SetState(UE::Handler::Component::State::UnInitialized);
 							SendInitialPacket(LastRemoteHandshakeVersion);
 						}
 						else if (WithinHandshakeLogLimit())
@@ -1167,7 +1167,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 					// Ignore, could be a dupe/out-of-order challenge packet
 				}
 			}
-			else if (Handler->Mode == Handler::Mode::Server && bHasValidSessionID && bHasValidClientID)
+			else if (Handler->Mode == UE::Handler::Mode::Server && bHasValidSessionID && bHasValidClientID)
 			{
 				if (LastChallengeSuccessAddress.IsValid())
 				{
@@ -1224,7 +1224,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 	{
 		// Servers should wipe LastChallengeSuccessAddress shortly after the first non-handshake packet is received by the client,
 		// in order to disable challenge ack resending
-		if (LastInitTimestamp != 0.0 && LastChallengeSuccessAddress.IsValid() && Handler->Mode == Handler::Mode::Server)
+		if (LastInitTimestamp != 0.0 && LastChallengeSuccessAddress.IsValid() && Handler->Mode == UE::Handler::Mode::Server)
 		{
 			// Restart handshakes require extra time before disabling challenge ack resends, as NetConnection packets will already be in flight
 			const double RestartHandshakeAckResendWindow = 10.0;
@@ -1321,7 +1321,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(FIncomingPacketRef
 			const bool bInitialConnect = HandshakeData.HandshakePacketType == EHandshakePacketType::InitialPacket &&
 												HandshakeData.Timestamp == 0.0;
 
-			if (Handler->Mode == Handler::Mode::Server && bValidVersion && (bHasValidSessionID || bInitialConnect))
+			if (Handler->Mode == UE::Handler::Mode::Server && bValidVersion && (bHasValidSessionID || bInitialConnect))
 			{
 				if (bInitialConnect)
 				{
@@ -1381,7 +1381,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(FIncomingPacketRef
 					}
 				}
 			}
-			else if (Handler->Mode == Handler::Mode::Server && bValidVersion && !bHasValidSessionID)
+			else if (Handler->Mode == UE::Handler::Mode::Server && bValidVersion && !bHasValidSessionID)
 			{
 #if !UE_BUILD_SHIPPING
 				UE_LOG(LogHandshake, Log, TEXT("IncomingConnectionless: Rejecting packet with invalid session id: %u vs %u."),
@@ -1390,7 +1390,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(FIncomingPacketRef
 
 				Packet.SetError();
 			}
-			else if (Handler->Mode == Handler::Mode::Server && !bValidVersion && bInitialConnect &&
+			else if (Handler->Mode == UE::Handler::Mode::Server && !bValidVersion && bInitialConnect &&
 						HandshakeData.RemoteCurVersion >= EHandshakeVersion::NetCLUpgradeMessage)
 			{
 				// Limit of 512 upgrade message packets, over 5 minutes
@@ -1565,11 +1565,11 @@ bool StatelessConnectHandlerComponent::ParseHandshakePacket(FBitReader& Packet, 
 	}
 	else if (bRestartHandshakePacket)
 	{
-		bValidPacket = !Packet.IsError() && OutResult.bRestartHandshake && Handler->Mode == Handler::Mode::Client;
+		bValidPacket = !Packet.IsError() && OutResult.bRestartHandshake && Handler->Mode == UE::Handler::Mode::Client;
 	}
 	else if (bVersionUpgradePacket)
 	{
-		bValidPacket = !Packet.IsError() && !OutResult.bRestartHandshake && Handler->Mode == Handler::Mode::Client;
+		bValidPacket = !Packet.IsError() && !OutResult.bRestartHandshake && Handler->Mode == UE::Handler::Mode::Client;
 	}
 
 	if (bValidPacket)
@@ -1609,7 +1609,7 @@ bool StatelessConnectHandlerComponent::ParseHandshakePacketOriginal(FBitReader& 
 		}
 		else if (OutResult.Timestamp > 0.0)
 		{
-			if (Handler->Mode == Handler::Mode::Client)
+			if (Handler->Mode == UE::Handler::Mode::Client)
 			{
 				OutResult.HandshakePacketType = EHandshakePacketType::Challenge;
 			}
@@ -1633,7 +1633,7 @@ bool StatelessConnectHandlerComponent::ParseHandshakePacketOriginal(FBitReader& 
 	{
 		OutResult.HandshakePacketType = EHandshakePacketType::RestartHandshake;
 		OutResult.bRestartHandshake = !!Packet.ReadBit();
-		bValidPacket = !Packet.IsError() && OutResult.bRestartHandshake && Handler->Mode == Handler::Mode::Client;
+		bValidPacket = !Packet.IsError() && OutResult.bRestartHandshake && Handler->Mode == UE::Handler::Mode::Client;
 	}
 
 	return bValidPacket;
@@ -1797,9 +1797,9 @@ void StatelessConnectHandlerComponent::Tick(float DeltaTime)
 {
 	using namespace UE::Net;
 
-	if (Handler->Mode == Handler::Mode::Client)
+	if (Handler->Mode == UE::Handler::Mode::Client)
 	{
-		if (State != Handler::Component::State::Initialized && LastClientSendTimestamp != 0.0)
+		if (State != UE::Handler::Component::State::Initialized && LastClientSendTimestamp != 0.0)
 		{
 			double LastSendTimeDiff = FPlatformTime::Seconds() - LastClientSendTimestamp;
 
@@ -1809,10 +1809,10 @@ void StatelessConnectHandlerComponent::Tick(float DeltaTime)
 
 				if (bRestartChallenge)
 				{
-					SetState(Handler::Component::State::UnInitialized);
+					SetState(UE::Handler::Component::State::UnInitialized);
 				}
 
-				if (State == Handler::Component::State::UnInitialized)
+				if (State == UE::Handler::Component::State::UnInitialized)
 				{
 					UE_LOG(LogHandshake, Verbose, TEXT("Initial handshake packet timeout - resending."));
 
@@ -1834,7 +1834,7 @@ void StatelessConnectHandlerComponent::Tick(float DeltaTime)
 
 					SendInitialPacket(ResendVersion);
 				}
-				else if (State == Handler::Component::State::InitializedOnLocal && LastTimestamp != 0.0)
+				else if (State == UE::Handler::Component::State::InitializedOnLocal && LastTimestamp != 0.0)
 				{
 					UE_LOG(LogHandshake, Verbose, TEXT("Challenge response packet timeout - resending."));
 
