@@ -911,42 +911,35 @@ void ENGINE_API HDRSettingChangedSinkCallback()
 		return;
 	}
 
-	bool bIsHDREnabled = CVarHDROutputEnabled->GetValueOnAnyThread() != 0;
-	if (bIsHDREnabled && !IsHDREnabled())
-	{
-		UE_LOG(LogConsoleResponse, Display, TEXT("Tried to enable HDR display output but unsupported, forcing off."));
-		bIsHDREnabled = false;
-	}
-
 	static float GHDRMinLuminnanceLog10 = CVarHDRMinLuminanceLog10->GetValueOnAnyThread();
 	static float GHDRMidLuminnance = CVarHDRMidLuminance->GetValueOnAnyThread();
 	static int32 GHDRMaxLuminnance = CVarHDRMaxLuminance->GetValueOnAnyThread();
 	static float GHDRSceneColorMultiplier = CVarHDRSceneColorMultiplier->GetValueOnAnyThread();
+	static int32 GDisplayNitLevel = 1000;
 
-	if(bIsHDREnabled != GRHIIsHDREnabled || !FMath::IsNearlyEqual(GHDRMinLuminnanceLog10, CVarHDRMinLuminanceLog10->GetValueOnAnyThread()) || !FMath::IsNearlyEqual(GHDRMidLuminnance, CVarHDRMidLuminance->GetValueOnAnyThread()) ||
-									        (GHDRMaxLuminnance != CVarHDRMaxLuminance->GetValueOnAnyThread()) || !FMath::IsNearlyEqual(GHDRSceneColorMultiplier, CVarHDRSceneColorMultiplier->GetValueOnAnyThread()))
+	bool bIsHDREnabled = IsHDREnabled();
+	int32 DisplayNitLevel = (GEngine && GEngine->GetGameUserSettings()) ? GEngine->GetGameUserSettings()->GetCurrentHDRDisplayNits() : 0;
+
+	// We'll naively fall back to 1000 if DisplayNits is 0. This can happen also if HDR is disabled from GameUserSettings
+	if (DisplayNitLevel == 0)
 	{
-		// We'll naively fall back to 1000 if DisplayNits is 0
-		uint32 DisplayNitLevel = 0;
-		
-		if (GEngine && GEngine->GetGameUserSettings())
-		{
-			DisplayNitLevel = GEngine->GetGameUserSettings()->GetCurrentHDRDisplayNits();
-		}
+		DisplayNitLevel = 1000;
+	}
 
-		if(DisplayNitLevel == 0)
-		{
-			DisplayNitLevel = 1000;
-		}
-		
+	if(bIsHDREnabled != GRHIIsHDREnabled || !FMath::IsNearlyEqual(GHDRMinLuminnanceLog10, CVarHDRMinLuminanceLog10->GetValueOnAnyThread())
+		|| !FMath::IsNearlyEqual(GHDRMidLuminnance, CVarHDRMidLuminance->GetValueOnAnyThread())
+		|| (GHDRMaxLuminnance != CVarHDRMaxLuminance->GetValueOnAnyThread()) || (DisplayNitLevel != GDisplayNitLevel)
+		|| !FMath::IsNearlyEqual(GHDRSceneColorMultiplier, CVarHDRSceneColorMultiplier->GetValueOnAnyThread()))
+	{
 		HDRConfigureCVars(bIsHDREnabled, DisplayNitLevel, false);
 
 		// Now set the HDR setting.
-		GRHIIsHDREnabled = IsHDREnabled();
+		GRHIIsHDREnabled = bIsHDREnabled;
 		GHDRMinLuminnanceLog10 = CVarHDRMinLuminanceLog10->GetValueOnAnyThread();
 		GHDRMidLuminnance = CVarHDRMidLuminance->GetValueOnAnyThread();
 		GHDRMaxLuminnance = CVarHDRMaxLuminance->GetValueOnAnyThread();
 		GHDRSceneColorMultiplier = CVarHDRSceneColorMultiplier->GetValueOnAnyThread();
+		GDisplayNitLevel = DisplayNitLevel;
 	}
 }
 
