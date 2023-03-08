@@ -54,8 +54,8 @@ public:
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
-	void OnPreConstruction_AnyThread(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
-	void OnPostConstruction_AnyThread(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
+	void OnPreConstruction_AnyThread(UControlRig* InControlRig, const FName& InEventName);
+	void OnPostConstruction_AnyThread(UControlRig* InControlRig, const FName& InEventName);
 
 private:
 	FReferenceSkeleton DebugDrawSkeleton;

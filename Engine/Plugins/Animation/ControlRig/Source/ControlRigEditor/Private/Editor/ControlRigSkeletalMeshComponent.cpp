@@ -279,8 +279,10 @@ void UControlRigSkeletalMeshComponent::OnHierarchyModified_AnyThread(ERigHierarc
 		{
 			return;
 		}
-		const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
-		OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+		if (const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key))
+		{
+			OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+		}
 	};
 
 	if (IsInGameThread())
@@ -296,12 +298,12 @@ void UControlRigSkeletalMeshComponent::OnHierarchyModified_AnyThread(ERigHierarc
 	}
 }
 
-void UControlRigSkeletalMeshComponent::OnPreConstruction_AnyThread(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigSkeletalMeshComponent::OnPreConstruction_AnyThread(UControlRig* InControlRig, const FName& InEventName)
 {
 	bIsConstructionEventRunning = true;
 }
 
-void UControlRigSkeletalMeshComponent::OnPostConstruction_AnyThread(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigSkeletalMeshComponent::OnPostConstruction_AnyThread(UControlRig* InControlRig, const FName& InEventName)
 {
 	bIsConstructionEventRunning = false;
 
