@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/IConsoleManager.h"
 #include "Engine/StreamableManager.h"
 #include "AssetRegistry/AssetData.h"
 
