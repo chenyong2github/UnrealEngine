@@ -49,7 +49,7 @@ EImportBehavior FindLoadBehavior(const UClass& Class)
 
 EImportBehavior GetPropertyImportLoadBehavior(const FObjectImport& Import, const FLinkerLoad& LinkerLoad)
 {
-	if (Import.bImportSearchedFor)
+	if (Import.bImportSearchedFor || Import.XObject)
 	{
 		// If it was something that's been searched for, we've already attempted a resolve, might as well use it
 		return EImportBehavior::Eager;
@@ -79,7 +79,7 @@ EImportBehavior GetPropertyImportLoadBehavior(const FObjectImport& Import, const
 }
 
 // recursively handles FAssetData redirectors
-static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const FAssetData& InAssetData, TSet<FSoftObjectPath>& SeenPaths, FObjectPtr& OutObjectPtr)
+static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const FAssetData& InAssetData, TSet<FSoftObjectPath>& SeenPaths, FAssetData& AssetData)
 {
 	using namespace UE::CoreUObject::Private;
 
@@ -100,7 +100,6 @@ static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const
 		return false;
 	}
 
-	FAssetData AssetData;
 	UE::AssetRegistry::EExists Exists = AssetRegistry.TryGetAssetByObjectPath(RedirectedPathName, AssetData);
 	if (Exists == UE::AssetRegistry::EExists::Unknown)
 	{
@@ -114,24 +113,14 @@ static bool HandleRedirector(const IAssetRegistryInterface& AssetRegistry, const
 	}
 	if (AssetData.IsRedirector())
 	{
-		return HandleRedirector(AssetRegistry, AssetData, SeenPaths, OutObjectPtr);
+		return HandleRedirector(AssetRegistry, AssetData, SeenPaths, AssetData);
 	}
-
-	FNameBuilder NameBuilder;
-	AssetData.AssetName.AppendString(NameBuilder);
-	FObjectRef ImportRef( AssetData.PackageName, AssetData.AssetClassPath.GetPackageName(), AssetData.AssetClassPath.GetAssetName(), FObjectPathId(NameBuilder) );
-	FPackedObjectRef PackedObjectRef = MakePackedObjectRef(ImportRef);
-	FObjectPtr Ptr({ PackedObjectRef.EncodedRef });
-	OutObjectPtr = Ptr;
 	return true;
 }
 
-static bool TryLazyLoad(const IAssetRegistryInterface& AssetRegistry, const FSoftObjectPath& ObjectPath, FObjectPtr& OutObjectPtr)
+static bool CanLazyImport(const IAssetRegistryInterface& AssetRegistry, const FSoftObjectPath& ObjectPath, FAssetData& AssetData)
 {
 	using namespace UE::CoreUObject::Private;
-	OutObjectPtr = nullptr;
-	
-	FAssetData AssetData;
 	UE::AssetRegistry::EExists Exists = AssetRegistry.TryGetAssetByObjectPath(ObjectPath, AssetData);
 	if (Exists == UE::AssetRegistry::EExists::Unknown)
 	{
@@ -145,23 +134,58 @@ static bool TryLazyLoad(const IAssetRegistryInterface& AssetRegistry, const FSof
 	if (AssetData.IsRedirector())
 	{
 		TSet<FSoftObjectPath> SeenPaths;
-		return HandleRedirector(AssetRegistry, AssetData, SeenPaths, OutObjectPtr);
+		return HandleRedirector(AssetRegistry, AssetData, SeenPaths, AssetData);
 	}
-	FNameBuilder NameBuilder;
-	AssetData.AssetName.AppendString(NameBuilder);
-
-	FObjectRef ImportRef = { AssetData.PackageName, AssetData.AssetClassPath.GetPackageName(), AssetData.AssetClassPath.GetAssetName(), FObjectPathId(NameBuilder) };
-	FPackedObjectRef PackedObjectRef = MakePackedObjectRef(ImportRef);
-	FObjectPtr Ptr({ PackedObjectRef.EncodedRef });
-	OutObjectPtr = Ptr;
 	return true;
 }
+
+
+bool CanLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectImport& Import, const FLinkerLoad& LinkerLoad)
+{
+	//most of this is duplicated from TryLazyImport with the out parameter but it avoids a bunch of string allocations
+	using namespace UE::CoreUObject::Private;
+	EImportBehavior Behavior = GetPropertyImportLoadBehavior(Import, LinkerLoad);
+	if (GIsPlayInEditorWorld || Behavior != EImportBehavior::LazyOnDemand)
+	{
+		return false;
+	}
+
+	static const FName Name_CoreUObjectPackage("/Script/CoreUObject");
+
+	//packages need to handles differently since the can't be found by object path in the AssetRegistry
+	if (Import.ClassPackage == Name_CoreUObjectPackage && Import.ClassName == NAME_Package)
+	{
+		FAssetPackageData PackageData;
+		UE::AssetRegistry::EExists Exists = AssetRegistry.TryGetAssetPackageData(Import.ObjectName, PackageData);
+		if (Exists == UE::AssetRegistry::EExists::Unknown)
+		{
+			return false;
+		}
+		if (Exists == UE::AssetRegistry::EExists::DoesNotExist)
+		{
+			//package doesn't exist. resolve to nullptr
+			return true;
+		}
+		return true;
+	}
+
+	//build the a full objectpath for the AssetRegistry
+	FObjectPathId ObjectPath;
+	FName PackageName = FObjectPathId::MakeImportPathIdAndPackageName(Import, LinkerLoad, ObjectPath);
+	FObjectRef ImportRef(PackageName, Import.ClassPackage, Import.ClassName, ObjectPath);
+
+	TStringBuilder<FName::StringBufferSize> PathName;
+	ImportRef.AppendPathName(PathName);
+
+	FAssetData AssetData;
+	return CanLazyImport(AssetRegistry, FSoftObjectPath(PathName), AssetData);
+}
+
 
 bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectImport& Import, const FLinkerLoad& LinkerLoad, FObjectPtr& ObjectPtr)
 {
 	using namespace UE::CoreUObject::Private;
-	EImportBehavior Behavior = GetPropertyImportLoadBehavior(Import, LinkerLoad);
-	if (Behavior != EImportBehavior::LazyOnDemand)
+	if (GIsPlayInEditorWorld || GetPropertyImportLoadBehavior(Import, LinkerLoad) != EImportBehavior::LazyOnDemand )
 	{
 		return false;
 	}
@@ -185,6 +209,12 @@ bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectIm
 			return true;
 		}
 
+		UPackage* Package = FindObjectFast<UPackage>(nullptr, Import.ObjectName);
+		if (Package)
+		{
+			//already loaded don't bother with setting up lazy load
+			return false;
+		}
 		FObjectPathId ObjectPath;
 		FObjectRef ImportRef(Import.ObjectName, Import.ClassPackage, Import.ClassName, ObjectPath);
 		FPackedObjectRef PackedObjectRef = MakePackedObjectRef(ImportRef);
@@ -200,13 +230,26 @@ bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectIm
 	TStringBuilder<FName::StringBufferSize> PathName;
 	ImportRef.AppendPathName(PathName);
 
-	return TryLazyLoad(AssetRegistry, FSoftObjectPath(PathName), ObjectPtr);
+	FAssetData AssetData;
+	if (!CanLazyImport(AssetRegistry, FSoftObjectPath(PathName), AssetData))
+	{
+		return false;
+	}
+	
+	FNameBuilder NameBuilder;
+	AssetData.AssetName.AppendString(NameBuilder);
+	FObjectRef Ref = { AssetData.PackageName, AssetData.AssetClassPath.GetPackageName(), AssetData.AssetClassPath.GetAssetName(), FObjectPathId(NameBuilder) };
+	FPackedObjectRef PackedObjectRef = MakePackedObjectRef(Ref);
+	FObjectPtr Ptr({ PackedObjectRef.EncodedRef });
+	ObjectPtr = Ptr;
+	return true;
 }
 
 
 bool TryLazyLoad(const UClass& Class, const FSoftObjectPath& ObjectPath, TObjectPtr<UObject>& OutObjectPtr)
 {
-	if (!FLinkerLoad::IsImportLazyLoadEnabled())
+	using namespace UE::CoreUObject::Private;
+	if (GIsPlayInEditorWorld || !FLinkerLoad::IsImportLazyLoadEnabled())
 	{
 		return false;
 	}
@@ -222,7 +265,19 @@ bool TryLazyLoad(const UClass& Class, const FSoftObjectPath& ObjectPath, TObject
 		return false;
 	}
 	FObjectPtr& ObjectPtr = reinterpret_cast<FObjectPtr&>(OutObjectPtr);
-	return TryLazyLoad(*AssetRegistry, ObjectPath, ObjectPtr);
+
+	FAssetData AssetData;
+	if (!CanLazyImport(*AssetRegistry, ObjectPath, AssetData))
+	{
+		return false;
+	}
+	FNameBuilder NameBuilder;
+	AssetData.AssetName.AppendString(NameBuilder);
+	FObjectRef ImportRef = { AssetData.PackageName, AssetData.AssetClassPath.GetPackageName(), AssetData.AssetClassPath.GetAssetName(), FObjectPathId(NameBuilder) };
+	FPackedObjectRef PackedObjectRef = MakePackedObjectRef(ImportRef);
+	FObjectPtr Ptr({ PackedObjectRef.EncodedRef });
+	ObjectPtr = Ptr;
+	return true;
 }
 
 bool IsImportLazyLoadEnabled()

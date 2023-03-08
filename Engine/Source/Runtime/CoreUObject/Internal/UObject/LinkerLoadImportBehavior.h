@@ -31,6 +31,14 @@ EImportBehavior GetPropertyImportLoadBehavior(const FObjectImport& Import, const
 /// @return true if import was lazy loaded otherwise false
 bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectImport& Import, const FLinkerLoad& LinkerLoad, FObjectPtr& ObjectPtr);
 
+/// @brief determines if an import can be lazy loaded
+/// 
+/// @param AssetRegistry to see if import exists
+/// @param Import to try to lazy load
+/// @param LinkerLoad for the Import
+/// @return true if import can be lazy loaded otherwise false
+bool CanLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectImport& Import, const FLinkerLoad& LinkerLoad);
+
 /// @brief tries to resolve an object path to a lazy loaded TObjectPtr
 ///
 /// @param Class type of the object that will be resolved
@@ -38,7 +46,6 @@ bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectIm
 /// @param OutObjectPtr out parameter
 /// @return true if was lazy loaded otherwise false
 bool TryLazyLoad(const UClass& Class, const FSoftObjectPath& ObjectPath, TObjectPtr<UObject>& OutObjectPtr);
-
 
 /// @brief Finds LoadBehavior meta data recursively
 /// @return Eager by default in not found

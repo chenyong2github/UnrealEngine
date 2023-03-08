@@ -57,6 +57,7 @@
 #include "Serialization/MemoryReader.h"
 #include "UObject/UObjectClusters.h"
 #include "UObject/LinkerInstancingContext.h"
+#include "UObject/LinkerLoadImportBehavior.h"
 #include "UObject/ObjectSerializeAccessScope.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
@@ -67,6 +68,7 @@
 #include "Modules/ModuleManager.h"
 #include "Containers/MpscQueue.h"
 #include "Containers/SpscQueue.h"
+#include "Misc/AssetRegistryInterface.h"
 #include "Misc/PathViews.h"
 #include "UObject/LinkerLoad.h"
 #include "Containers/SpscQueue.h"
@@ -5038,6 +5040,13 @@ EEventLoadNodeExecutionResult FAsyncPackage2::ProcessLinkerLoadPackageSummary(FA
 		}
 		else
 		{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+			auto AssetRegistry = IAssetRegistryInterface::GetPtr();
+			if (UE::LinkerLoad::CanLazyImport(*AssetRegistry, LinkerImport, *LinkerLoadState->Linker))
+			{
+				continue;
+			}
+#endif
 			FPackageId ImportedPackageId = FPackageId::FromName(ImportPackageName);
 			int32 ImportedPackageIndex = ImportedPackageIds.AddUnique(ImportedPackageId);
 			if (ImportedPackageIndex == ImportedPackageNames.Num())
