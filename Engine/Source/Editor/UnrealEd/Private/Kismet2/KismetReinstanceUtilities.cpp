@@ -2202,6 +2202,18 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 	// Set global flag to let system know we are reconstructing blueprint instances
 	TGuardValue<bool> GuardTemplateNameFlag(GIsReconstructingBlueprintInstances, true);
 
+	// Keep track of non-dirty packages for objects about to be reinstanced, so we can clear the dirty state after reinstancing them
+	TSet<UPackage*> CleanPackageList;
+	auto CheckAndSaveOuterPackageToCleanList = [&CleanPackageList](const UObject* InObject)
+	{
+		check(InObject);
+		UPackage* ObjectPackage = InObject->GetPackage();
+		if (ObjectPackage && !ObjectPackage->IsDirty() && ObjectPackage != GetTransientPackage())
+		{
+			CleanPackageList.Add(ObjectPackage);
+		}
+	};
+
 	struct FObjectRemappingHelper
 	{
 		void OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacedObjects)
@@ -2255,6 +2267,13 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 		if(GEditor && GEditor->GetSelectedActors())
 		{
 			SelectedActors = GEditor->GetSelectedActors();
+
+			// Note: For OFPA, each instance may be stored in its own external package.
+			for (int32 SelectionIdx = 0; SelectionIdx < SelectedActors->Num(); ++SelectionIdx)
+			{
+				CheckAndSaveOuterPackageToCleanList(SelectedActors->GetSelectedObject(SelectionIdx));
+			}
+			
 			SelectedActors->BeginBatchSelectOperation();
 			SelectedActors->Modify();
 		}
@@ -2322,6 +2341,8 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 					// WARNING: This loop only handles non-actor objects, actor objects are handled below:
 					if (OldActor == nullptr)
 					{
+						CheckAndSaveOuterPackageToCleanList(OldObject);
+
 						UObject* NewUObject = nullptr;
 						ReplaceObjectHelper(OldObject, OldClass, NewUObject, NewClass, OldToNewInstanceMap, OldToNewNameMap, OldObjIndex, ObjectsToReplace, PotentialEditorsForRefreshing, OwnersToRerunConstructionScript, &FDirectAttachChildrenAccessor::Get, bIsComponent, bArchetypesAreUpToDate);
 						UpdateObjectBeingDebugged(OldObject, NewUObject);
@@ -2396,6 +2417,9 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 					// handled above
 					if (OldActor != nullptr)
 					{
+						// Note: For OFPA, each instance may be stored in its own external package.
+						CheckAndSaveOuterPackageToCleanList(OldActor);
+
 						UObject* NewUObject = nullptr;
 						if (OldActor->GetLevel() && OldActor->GetWorld())
 						{
@@ -2545,6 +2569,13 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 	if (bSelectionChanged && GEditor)
 	{
 		GEditor->NoteSelectionChange();
+	}
+
+	// Clear the dirty flag on packages that didn't already have it set prior to objects being reinstanced.
+	for (UPackage* PackageToMarkAsClean : CleanPackageList)
+	{
+		check(PackageToMarkAsClean);
+		PackageToMarkAsClean->SetDirtyFlag(false);
 	}
 
 	TSet<UBlueprintGeneratedClass*> FixedSCS;

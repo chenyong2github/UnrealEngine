@@ -279,6 +279,21 @@ void AActor::RerunConstructionScripts()
 		// Temporarily suspend the undo buffer; we don't need to record reconstructed component objects into the current transaction
 		ITransaction* CurrentTransaction = GUndo;
 		GUndo = nullptr;
+
+		// Mark package as clean on exit if not transient and not already dirty.
+		bool bMarkPackageClean = false;
+		const UPackage* ActorPackage = GetPackage();
+		if (ActorPackage && !ActorPackage->IsDirty() && ActorPackage != GetTransientPackage())
+		{
+			bMarkPackageClean = true;
+		}
+		ON_SCOPE_EXIT
+		{
+			if (bMarkPackageClean)
+			{
+				GetPackage()->SetDirtyFlag(false);
+			}
+		};
 		
 		// Create cache to store component data across rerunning construction scripts
 		FComponentInstanceDataCache* InstanceDataCache;
