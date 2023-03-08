@@ -2390,11 +2390,8 @@ protected:
 
 	void RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 	void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled);
-	struct FRenderShadowDepthMapAtlasesResult
-	{
-		UE::Tasks::FTask NaniteViewsSetupTask;
-	};
-	FRenderShadowDepthMapAtlasesResult RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder);
+
+	void RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder);
 
 	/**
 	* Creates a projected shadow for all primitives affected by a light.

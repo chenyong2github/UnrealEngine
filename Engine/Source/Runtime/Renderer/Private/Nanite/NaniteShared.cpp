@@ -172,7 +172,15 @@ FPackedViewArray* FPackedViewArray::Create(FRDGBuilder& GraphBuilder, const FPac
 	return ViewArray;
 }
 
-FPackedViewArray* FPackedViewArray::CreateWithSetupTask(FRDGBuilder& GraphBuilder, uint32 NumPrimaryViews, uint32 MaxNumMips, TaskLambdaType&& TaskLambda, bool bExecuteInTask)
+FPackedViewArray* FPackedViewArray::Create(FRDGBuilder& GraphBuilder, uint32 NumPrimaryViews, uint32 MaxNumMips, ArrayType&& View)
+{
+	FPackedViewArray* ViewArray = GraphBuilder.AllocObject<FPackedViewArray>(NumPrimaryViews, MaxNumMips);
+	ViewArray->Views = Forward<ArrayType&&>(View);
+	checkf(ViewArray->Views.Num() == ViewArray->NumViews, TEXT("Expected View array to have %d elements, but it only has %d"), ViewArray->Views.Num(), ViewArray->NumViews);
+	return ViewArray;
+}
+
+FPackedViewArray* FPackedViewArray::CreateWithSetupTask(FRDGBuilder& GraphBuilder, uint32 NumPrimaryViews, uint32 MaxNumMips, TaskLambdaType&& TaskLambda, UE::Tasks::FPipe* Pipe, bool bExecuteInTask)
 {
 	FPackedViewArray* ViewArray = GraphBuilder.AllocObject<FPackedViewArray>(NumPrimaryViews, MaxNumMips);
 
@@ -182,7 +190,7 @@ FPackedViewArray* FPackedViewArray::CreateWithSetupTask(FRDGBuilder& GraphBuilde
 		TaskLambda(ViewArray->Views);
 		checkf(ViewArray->Views.Num() == ViewArray->NumViews, TEXT("Expected View array to have %d elements, but it only has %d"), ViewArray->Views.Num(), ViewArray->NumViews);
 
-	}, bExecuteInTask);
+	}, Pipe, UE::Tasks::ETaskPriority::Normal, bExecuteInTask);
 
 	return ViewArray;
 }

@@ -3650,16 +3650,11 @@ static void CullRasterizeMultiPass(
 		// Construct new view range
 		const uint32 RangeNumPrimaryViews = NextPrimaryViewIndex - RangeStartPrimaryView;
 
-		// Just execute it inline as it shouldn't take very long.
-		const bool bExecuteInTask = false;
+		FPackedViewArray* RangeViews = nullptr;
 
-		FPackedViewArray* RangeViews = FPackedViewArray::CreateWithSetupTask(
-			GraphBuilder,
-			RangeNumPrimaryViews,
-			RangeMaxMip,
-			[NumPrimaryViews = ViewArray.NumPrimaryViews, Views, RangeNumViews, RangeNumPrimaryViews, RangeStartPrimaryView] (FPackedViewArray::ArrayType& RangeViews)
 		{
-			RangeViews.SetNum(RangeNumViews);
+			FPackedViewArray::ArrayType RangeViewsArray;
+			RangeViewsArray.SetNum(RangeNumViews);
 
 			for (uint32 ViewIndex = 0; ViewIndex < RangeNumPrimaryViews; ++ViewIndex)
 			{
@@ -3668,11 +3663,12 @@ static void CullRasterizeMultiPass(
 
 				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 				{
-					RangeViews[MipIndex * RangeNumPrimaryViews + ViewIndex] = Views[MipIndex * NumPrimaryViews + (RangeStartPrimaryView + ViewIndex)];
+					RangeViewsArray[MipIndex * RangeNumPrimaryViews + ViewIndex] = Views[MipIndex * ViewArray.NumPrimaryViews + (RangeStartPrimaryView + ViewIndex)];
 				}
 			}
 
-		}, bExecuteInTask);
+			RangeViews = FPackedViewArray::Create(GraphBuilder, RangeNumPrimaryViews, RangeMaxMip, MoveTemp(RangeViewsArray));
+		}
 
 		CullRasterize(
 			GraphBuilder,

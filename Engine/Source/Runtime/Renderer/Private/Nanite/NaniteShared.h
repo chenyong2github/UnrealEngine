@@ -92,8 +92,11 @@ public:
 	/** Creates a packed view array for a single element. */
 	static FPackedViewArray* Create(FRDGBuilder& GraphBuilder, const FPackedView& View);
 
+	/** Creates a packed view array for an existing array. */
+	static FPackedViewArray* Create(FRDGBuilder& GraphBuilder, uint32 NumPrimaryViews, uint32 MaxNumMips, ArrayType&& Views);
+
 	/** Creates a packed view array by launching an RDG setup task. */
-	static FPackedViewArray* CreateWithSetupTask(FRDGBuilder& GraphBuilder, uint32 NumPrimaryViews, uint32 MaxNumMips, TaskLambdaType&& TaskLambda, bool bExecuteInTask = true);
+	static FPackedViewArray* CreateWithSetupTask(FRDGBuilder& GraphBuilder, uint32 NumPrimaryViews, uint32 MaxNumMips, TaskLambdaType&& TaskLambda, UE::Tasks::FPipe* Pipe = nullptr, bool bExecuteInTask = true);
 
 	/** Returns the view array, and will sync the setup task if one exists. */
 	const ArrayType& GetViews() const
