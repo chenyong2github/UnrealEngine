@@ -25,8 +25,8 @@ void FControlRigHierarchyCommands::RegisterCommands()
 	UI_COMMAND(ResetAllTransforms, "Reset All Transforms", "Resets all Transforms", EUserInterfaceActionType::Button, FInputChord(EKeys::G, EModifierKey::Control | EModifierKey::Shift));
 	UI_COMMAND(ResetNull, "Reset Null", "Resets or injects a Null below the Control", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(FrameSelection, "Frame Selection", "Expands and frames the selection in the tree", EUserInterfaceActionType::Button, FInputChord(EKeys::F));
-	UI_COMMAND(ControlBoneTransform, "Control Bone Transform", "Sets the bone transform using a shape", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ControlSpaceTransform, "Control Space Transform", "Sets the space transform using a shape", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ControlBoneTransform, "Control Bone Transform", "Sets the bone transform using a shape", EUserInterfaceActionType::Button, FInputChord(EKeys::B, EModifierKey::Control));
+	UI_COMMAND(ControlSpaceTransform, "Control Space Transform", "Sets the space transform using a shape", EUserInterfaceActionType::Button, FInputChord(EKeys::B, EModifierKey::Control));
 	UI_COMMAND(Unparent, "Unparent", "Unparents the selected elements from the hierarchy", EUserInterfaceActionType::Button, FInputChord(EKeys::P, EModifierKey::Shift));
 	UI_COMMAND(FilteringFlattensHierarchy, "Filtering Flattens Hierarchy", "Whether to keep the hierarchy or flatten it when searching for tree items", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(HideParentsWhenFiltering, "Hide Parents When Filtering", "Whether to show parent items grayed out, or hide them entirely when filtering", EUserInterfaceActionType::ToggleButton, FInputChord());
