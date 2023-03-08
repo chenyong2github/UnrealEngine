@@ -513,6 +513,7 @@ void USynthComponent::Start()
 		AudioComponent->SoundClassOverride = SoundClass;
 		AudioComponent->EnvelopeFollowerAttackTime = EnvelopeFollowerAttackTime;
 		AudioComponent->EnvelopeFollowerReleaseTime = EnvelopeFollowerReleaseTime;
+		AudioComponent->ModulationRouting = ModulationRouting;
 
 		// Copy sound base data to the sound
 		Synth->AttenuationSettings = AttenuationSettings;
@@ -647,6 +648,24 @@ void USynthComponent::AdjustVolume(float AdjustVolumeDuration, float AdjustVolum
 	{
 		AudioComponent->AdjustVolume(AdjustVolumeDuration, AdjustVolumeLevel, FadeCurve);
 	}
+}
+
+void USynthComponent::SetModulationRouting(const TSet<USoundModulatorBase*>& Modulators, const EModulationDestination Destination, const EModulationRouting RoutingMethod)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetModulationRouting(Modulators, Destination, RoutingMethod);
+	}
+}
+
+TSet<USoundModulatorBase*> USynthComponent::GetModulators(const EModulationDestination Destination)
+{
+	if (AudioComponent)
+	{
+		return AudioComponent->GetModulators(Destination);
+	}
+
+	return TSet<USoundModulatorBase*>();
 }
 
 void USynthComponent::SynthCommand(TFunction<void()> Command)
