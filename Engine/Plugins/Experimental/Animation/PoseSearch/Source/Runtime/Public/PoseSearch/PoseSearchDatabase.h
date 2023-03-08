@@ -217,9 +217,6 @@ public:
 	TObjectPtr<const UPoseSearchSchema> Schema;
 
 	UPROPERTY(EditAnywhere, Category = "Database")
-	FPoseSearchExtrapolationParameters ExtrapolationParameters;
-
-	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchExcludeFromDatabaseParameters ExcludeFromDatabaseParameters;
 
 #if WITH_EDITORONLY_DATA

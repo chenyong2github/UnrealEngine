@@ -74,7 +74,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 			if (Sequence && !SamplerMap.Contains(Sequence))
 			{
 				FSequenceBaseSampler::FInput Input;
-				Input.ExtrapolationParameters = Database.ExtrapolationParameters;
 				Input.SequenceBase = Sequence;
 
 				SamplerMap.Add(Sequence, Samplers.Num());
@@ -110,7 +109,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 						{
 							FBlendSpaceSampler::FInput Input;
 							Input.BoneContainer = BoneContainer;
-							Input.ExtrapolationParameters = Database.ExtrapolationParameters;
 							Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
 							Input.BlendParameters = BlendParameters;
 
@@ -129,7 +127,6 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 			if (DatabaseAnimMontage->AnimMontage && !SamplerMap.Contains(DatabaseAnimMontage->AnimMontage))
 			{
 				FAnimMontageSampler::FInput Input;
-				Input.ExtrapolationParameters = Database.ExtrapolationParameters;
 				Input.AnimMontage = DatabaseAnimMontage->AnimMontage;
 
 				SamplerMap.Add(DatabaseAnimMontage->AnimMontage, Samplers.Num());

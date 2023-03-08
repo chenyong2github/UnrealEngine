@@ -20,34 +20,10 @@ static FTransform ExtrapolateRootMotion(
 	FTransform SampleToExtrapolate,
 	float SampleStart, 
 	float SampleEnd, 
-	float ExtrapolationTime,
-	const FPoseSearchExtrapolationParameters& ExtrapolationParameters)
+	float ExtrapolationTime)
 {
 	const float SampleDelta = SampleEnd - SampleStart;
 	check(!FMath::IsNearlyZero(SampleDelta));
-
-	const FVector LinearVelocityToExtrapolate = SampleToExtrapolate.GetTranslation() / SampleDelta;
-	const float LinearSpeedToExtrapolate = LinearVelocityToExtrapolate.Size();
-	const bool bCanExtrapolateTranslation =
-		LinearSpeedToExtrapolate >= ExtrapolationParameters.LinearSpeedThreshold;
-
-	const float AngularSpeedToExtrapolateRad = SampleToExtrapolate.GetRotation().GetAngle() / SampleDelta;
-	const bool bCanExtrapolateRotation = FMath::RadiansToDegrees(AngularSpeedToExtrapolateRad) >= ExtrapolationParameters.AngularSpeedThreshold;
-
-	if (!bCanExtrapolateTranslation && !bCanExtrapolateRotation)
-	{
-		return FTransform::Identity;
-	}
-
-	if (!bCanExtrapolateTranslation)
-	{
-		SampleToExtrapolate.SetTranslation(FVector::ZeroVector);
-	}
-
-	if (!bCanExtrapolateRotation)
-	{
-		SampleToExtrapolate.SetRotation(FQuat::Identity);
-	}
 
 	// converting ExtrapolationTime to a positive number to avoid dealing with the negative extrapolation and inverting
 	// transforms later on.
@@ -130,8 +106,6 @@ FTransform FSequenceBaseSampler::ExtractRootTransform(float Time) const
 	}
 	else
 	{
-		const float ExtrapolationSampleTime = Input.ExtrapolationParameters.SampleTime;
-
 		const float PlayLength = SequenceBase->GetPlayLength();
 		const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
 		const float ExtrapolationTime = Time - ClampedTime;
@@ -145,8 +119,7 @@ FTransform FSequenceBaseSampler::ExtractRootTransform(float Time) const
 			const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
 				SampleToExtrapolate,
 				0.0f, ExtrapolationSampleTime,
-				ExtrapolationTime,
-				Input.ExtrapolationParameters);
+				ExtrapolationTime);
 			RootTransform = ExtrapolatedRootMotion;
 		}
 		else
@@ -162,8 +135,7 @@ FTransform FSequenceBaseSampler::ExtractRootTransform(float Time) const
 				const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
 					SampleToExtrapolate,
 					PlayLength - ExtrapolationSampleTime, PlayLength,
-					ExtrapolationTime,
-					Input.ExtrapolationParameters);
+					ExtrapolationTime);
 				RootTransform = ExtrapolatedRootMotion * RootTransform;
 			}
 		}
@@ -177,7 +149,6 @@ void FSequenceBaseSampler::ExtractPoseSearchNotifyStates(
 	TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const
 {
 	// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
-	constexpr float ExtractionInterval = 1.0f / 120.0f;
 	FAnimNotifyContext NotifyContext;
 	Input.SequenceBase->GetAnimNotifies(Time - (ExtractionInterval * 0.5f), ExtractionInterval, NotifyContext);
 
@@ -275,8 +246,6 @@ FTransform FBlendSpaceSampler::ExtractRootTransform(float Time) const
 	}
 	else
 	{
-		const float ExtrapolationSampleTime = Input.ExtrapolationParameters.SampleTime;
-
 		const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
 		const float ExtrapolationTime = Time - ClampedTime;
 
@@ -290,8 +259,7 @@ FTransform FBlendSpaceSampler::ExtractRootTransform(float Time) const
 			const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
 				SampleToExtrapolate,
 				0.0f, ExtrapolationSampleTime,
-				ExtrapolationTime,
-				Input.ExtrapolationParameters);
+				ExtrapolationTime);
 			RootTransform = ExtrapolatedRootMotion;
 		}
 		else
@@ -307,8 +275,7 @@ FTransform FBlendSpaceSampler::ExtractRootTransform(float Time) const
 				const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
 					SampleToExtrapolate,
 					PlayLength - ExtrapolationSampleTime, PlayLength,
-					ExtrapolationTime,
-					Input.ExtrapolationParameters);
+					ExtrapolationTime);
 				RootTransform = ExtrapolatedRootMotion * RootTransform;
 			}
 		}
@@ -349,8 +316,6 @@ void FBlendSpaceSampler::ExtractPoseSearchNotifyStates(
 		check(HighestWeightIndex != -1);
 
 		// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
-		constexpr float ExtractionInterval = 1.0f / 120.0f;
-
 		float SampleTime = Time * (BlendSamples[HighestWeightIndex].Animation->GetPlayLength() / PlayLength);
 
 		// Get notifies for highest weighted
@@ -622,8 +587,6 @@ FTransform FAnimMontageSampler::ExtractRootTransform(float Time) const
 	}
 	else
 	{
-		const float ExtrapolationSampleTime = Input.ExtrapolationParameters.SampleTime;
-
 		const float PlayLength = GetPlayLength();
 		const float ClampedTime = FMath::Clamp(Time, 0.f, PlayLength);
 		const float ExtrapolationTime = Time - ClampedTime;
@@ -637,8 +600,7 @@ FTransform FAnimMontageSampler::ExtractRootTransform(float Time) const
 			const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
 				SampleToExtrapolate,
 				0.0f, ExtrapolationSampleTime,
-				ExtrapolationTime,
-				Input.ExtrapolationParameters);
+				ExtrapolationTime);
 			RootTransform = ExtrapolatedRootMotion;
 		}
 		else
@@ -654,8 +616,7 @@ FTransform FAnimMontageSampler::ExtractRootTransform(float Time) const
 				const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
 					SampleToExtrapolate,
 					PlayLength - ExtrapolationSampleTime, PlayLength,
-					ExtrapolationTime,
-					Input.ExtrapolationParameters);
+					ExtrapolationTime);
 				RootTransform = ExtrapolatedRootMotion * RootTransform;
 			}
 		}
@@ -667,7 +628,6 @@ FTransform FAnimMontageSampler::ExtractRootTransform(float Time) const
 void FAnimMontageSampler::ExtractPoseSearchNotifyStates(float Time, TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const
 {
 	// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
-	constexpr float ExtractionInterval = 1.0f / 120.0f;
 	FAnimNotifyContext NotifyContext;
 	Input.AnimMontage->GetAnimNotifies(Time - (ExtractionInterval * 0.5f), ExtractionInterval, NotifyContext);
 

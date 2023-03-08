@@ -3,25 +3,6 @@
 #pragma once
 
 #include "BonePose.h"
-#include "PoseSearchAssetSampler.generated.h"
-
-USTRUCT()
-struct POSESEARCH_API FPoseSearchExtrapolationParameters
-{
-	GENERATED_BODY()
-
-	// If the angular root motion speed in degrees is below this value, it will be treated as zero.
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	float AngularSpeedThreshold = 1.0f;
-
-	// If the root motion linear speed is below this value, it will be treated as zero.
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	float LinearSpeedThreshold = 1.0f;
-
-	// Time from sequence start/end used to extrapolate the trajectory.
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	float SampleTime = 0.05f;
-};
 
 struct FAnimationPoseData;
 struct FAnimExtractContext;
@@ -62,6 +43,9 @@ struct POSESEARCH_API FAssetSamplerBase : public TSharedFromThis<FAssetSamplerBa
 	virtual const UAnimationAsset* GetAsset() const { return nullptr; }
 
 	virtual void Process() { }
+
+	const float ExtrapolationSampleTime = 1.f / 30.f;
+	const float ExtractionInterval = 1.0f / 120.0f;
 };
 
 // Sampler working with UAnimSequenceBase so it can be used for UAnimSequence as well as UAnimComposite.
@@ -70,7 +54,6 @@ struct POSESEARCH_API FSequenceBaseSampler : public FAssetSamplerBase
 	struct FInput
 	{
 		TWeakObjectPtr<const UAnimSequenceBase> SequenceBase;
-		FPoseSearchExtrapolationParameters ExtrapolationParameters;
 	} Input;
 
 	void Init(const FInput& Input);
@@ -95,7 +78,6 @@ struct POSESEARCH_API FBlendSpaceSampler : public FAssetSamplerBase
 		FBoneContainer BoneContainer;
 		TWeakObjectPtr<const UBlendSpace> BlendSpace;
 		int32 RootTransformSamplingRate = 30;
-		FPoseSearchExtrapolationParameters ExtrapolationParameters;
 		FVector BlendParameters;
 	} Input;
 
@@ -133,7 +115,6 @@ struct POSESEARCH_API FAnimMontageSampler : public FAssetSamplerBase
 	{
 		// @todo: add support for SlotName / multiple SlotAnimTracks
 		TWeakObjectPtr<const UAnimMontage> AnimMontage;
-		FPoseSearchExtrapolationParameters ExtrapolationParameters;
 	} Input;
 
 	void Init(const FInput& Input);

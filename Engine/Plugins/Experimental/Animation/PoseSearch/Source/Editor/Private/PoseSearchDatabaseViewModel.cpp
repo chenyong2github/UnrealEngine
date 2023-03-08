@@ -206,7 +206,6 @@ namespace UE::PoseSearch
 		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
 		{
 			FSequenceBaseSampler::FInput Input;
-			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.SequenceBase = DatabaseSequence->Sequence;
 
 			TSharedPtr<FSequenceBaseSampler> Sampler = MakeShared<FSequenceBaseSampler>();
@@ -216,7 +215,6 @@ namespace UE::PoseSearch
 		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
 			FSequenceBaseSampler::FInput Input;
-			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.SequenceBase = DatabaseAnimComposite->AnimComposite;
 
 			TSharedPtr<FSequenceBaseSampler> Sampler = MakeShared<FSequenceBaseSampler>();
@@ -227,7 +225,6 @@ namespace UE::PoseSearch
 		{
 			FBlendSpaceSampler::FInput Input;
 			Input.BoneContainer = BoneContainer;
-			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
 			Input.BlendParameters = IndexAsset.BlendParameters;
 
@@ -238,7 +235,6 @@ namespace UE::PoseSearch
 		else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimMontage>())
 		{
 			FAnimMontageSampler::FInput Input;
-			Input.ExtrapolationParameters = PoseSearchDatabase->ExtrapolationParameters;
 			Input.AnimMontage = DatabaseAnimMontage->AnimMontage;
 
 			TSharedPtr<FAnimMontageSampler> Sampler = MakeShared<FAnimMontageSampler>();
