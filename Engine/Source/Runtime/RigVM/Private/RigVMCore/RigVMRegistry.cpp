@@ -863,6 +863,11 @@ bool FRigVMRegistry::IsArrayType(TRigVMTypeIndex InTypeIndex) const
 
 bool FRigVMRegistry::IsExecuteType(TRigVMTypeIndex InTypeIndex) const
 {
+	if(InTypeIndex == INDEX_NONE)
+	{
+		return false;
+	}
+	
 	if(ensure(Types.IsValidIndex(InTypeIndex)))
 	{
 		return Types[InTypeIndex].bIsExecute;
