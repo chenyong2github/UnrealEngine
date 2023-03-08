@@ -8,6 +8,7 @@
 #include "IteratorAdapter.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
+#include "Serialization/StructuredArchive.h"
 #include "Templates/UnrealTemplate.h"  // For GetData, GetNum
 
 #include <cstring>
@@ -17,7 +18,7 @@
 template <typename InElementType, int32 InPageSizeInBytes = 16384, typename InAllocatorType = FDefaultAllocator>
 class TPagedArray;
 
-namespace UE::PagedArray::Private
+namespace UE::Core::PagedArray::Private
 {
 
 /**
@@ -85,7 +86,63 @@ private:
 template <typename InElementType, typename InPageType, typename InPageTraits>
 using TIterator = TIteratorAdapter<TIteratorBase<InElementType, InPageType, InPageTraits>>;
 
-}  // namespace UE::PagedArray::Private
+/** Serializer. */
+template <typename ElementType, int32 PageSizeInBytes, typename AllocatorType>
+FArchive& Serialize(FArchive& Ar, TPagedArray<ElementType, PageSizeInBytes, AllocatorType>& InOutPagedArray)
+{
+	using SizeType = typename AllocatorType::SizeType;
+
+	InOutPagedArray.CountBytes(Ar);
+
+	SizeType NumElements = InOutPagedArray.Num();
+	Ar << NumElements;
+
+	if (Ar.IsLoading())
+	{
+		InOutPagedArray.Empty(NumElements);
+
+		for (SizeType ElementIndex = 0; ElementIndex < NumElements; ++ElementIndex)
+		{
+			Ar << InOutPagedArray.Emplace_GetRef();
+		}
+	}
+	else
+	{
+		for (ElementType& Element : InOutPagedArray)
+		{
+			Ar << Element;
+		}
+	}
+	return Ar;
+}
+
+/** Structured archive serializer. */
+template <typename ElementType, int32 PageSizeInBytes, typename AllocatorType>
+void SerializeStructured(FStructuredArchive::FSlot Slot, TPagedArray<ElementType, PageSizeInBytes, AllocatorType>& InOutPagedArray)
+{
+	int32 NumElements = InOutPagedArray.Num();
+	FStructuredArchive::FArray Array = Slot.EnterArray(NumElements);
+	if (Slot.GetUnderlyingArchive().IsLoading())
+	{
+		InOutPagedArray.Empty(NumElements);
+
+		for (int32 ElementIndex = 0; ElementIndex < NumElements; ++ElementIndex)
+		{
+			FStructuredArchive::FSlot ElementSlot = Array.EnterElement();
+			ElementSlot << InOutPagedArray.Emplace_GetRef();
+		}
+	}
+	else
+	{
+		for (ElementType& Element : InOutPagedArray)
+		{
+			FStructuredArchive::FSlot ElementSlot = Array.EnterElement();
+			ElementSlot << Element;
+		}
+	}
+}
+
+}  // namespace UE::Core::PagedArray::Private
 
 /**
  * Fixed size block allocated container class.
@@ -104,7 +161,7 @@ class TPagedArray
 	friend class TPagedArray;
 
 	using PageType = TArray<InElementType, InAllocatorType>;
-	using PageTraits = UE::PagedArray::Private::TPageTraits<InElementType, InPageSizeInBytes>;
+	using PageTraits = UE::Core::PagedArray::Private::TPageTraits<InElementType, InPageSizeInBytes>;
 
 public:
 	using AllocatorType = InAllocatorType;
@@ -133,8 +190,8 @@ private:
 	}
 
 public:
-	using ConstIteratorType = UE::PagedArray::Private::TIterator<const ElementType, const PageType, PageTraits>;
-	using IteratorType = UE::PagedArray::Private::TIterator<ElementType, PageType, PageTraits>;
+	using ConstIteratorType = UE::Core::PagedArray::Private::TIterator<const ElementType, const PageType, PageTraits>;
+	using IteratorType = UE::Core::PagedArray::Private::TIterator<ElementType, PageType, PageTraits>;
 
 	static constexpr SizeType MaxPerPage()
 	{
@@ -209,6 +266,16 @@ public:
 			Size += Page.GetAllocatedSize();
 		}
 		return Size;
+	}
+
+	/**
+	 * Count bytes needed to serialize this paged array.
+	 *
+	 * @param Ar Archive to count for.
+	 */
+	void CountBytes(FArchive& Ar) const
+	{
+		Ar.CountBytes(Num() * sizeof(ElementType), Max() * sizeof(ElementType));
 	}
 
 	[[nodiscard]] FORCEINLINE SizeType Max() const
@@ -731,3 +798,17 @@ private:
 		checkf((Index >= 0) & (Index < Count), TEXT("Parameter index %d exceeds container size %d"), Index, Count);
 	}
 };
+
+/** Serializer. */
+template <typename ElementType, int32 PageSizeInBytes, typename AllocatorType>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, TPagedArray<ElementType, PageSizeInBytes, AllocatorType>& InOutPagedArray)
+{
+	return UE::Core::PagedArray::Private::Serialize(Ar, InOutPagedArray);
+}
+
+/** Structured archive serializer. */
+template <typename ElementType, int32 PageSizeInBytes, typename AllocatorType>
+FORCEINLINE void operator<<(FStructuredArchive::FSlot Slot, TPagedArray<ElementType, PageSizeInBytes, AllocatorType>& InOutPagedArray)
+{
+	UE::Core::PagedArray::Private::SerializeStructured(Slot, InOutPagedArray);
+}

@@ -4,6 +4,9 @@
 
 #include "Containers/PagedArray.h"
 #include "CoreMinimal.h"
+#include "Serialization/Formatters/BinaryArchiveFormatter.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "TestUtils.h"
 #include "TokenTest.h"
 
@@ -1392,6 +1395,228 @@ TEST_CASE("System::Core::Containers::TPagedArray::Iterator arithmetic", "[SmokeF
 	}
 	// 5 from container, 3 manual instantiations
 	CHECK(int32Token::EvenConstructionDestructionCalls(5 + 3));
+}
+
+TEST_CASE("System::Core::Containers::TPagedArray::Serialize", "[SmokeFilter][Core][Containers][PagedArray]")
+{
+	using ArrayType = TPagedArray<int32Token, 16>;
+	int32Token::Reset();
+	// Container with no pages
+	{
+		ArrayType SourcePagedArray;
+		ArrayType DestPagedArray;
+
+		CHECK(SourcePagedArray.IsEmpty());
+		CHECK(DestPagedArray.IsEmpty());
+
+		TArray<uint8> Bytes;
+		{
+			FMemoryWriter MemoryWriter(Bytes);
+			MemoryWriter << SourcePagedArray;
+		}
+
+		// Just storing the count - no elements
+		CHECK(Bytes.Num() == sizeof(ArrayType::SizeType));
+
+		{
+			FMemoryReader MemoryReader(Bytes);
+			MemoryReader << DestPagedArray;
+		}
+
+		CHECK(SourcePagedArray == DestPagedArray);
+	}
+	CHECK(int32Token::EvenConstructionDestructionCalls(0));
+	int32Token::Reset();
+	// Container with single page
+	{
+		ArrayType SourcePagedArray;
+		ArrayType DestPagedArray;
+
+		SourcePagedArray.SetNum(ArrayType::MaxPerPage());
+		int32 CheckValue = 0;
+		for (int32Token& Value : SourcePagedArray)
+		{
+			Value = CheckValue++;
+		}
+
+		CHECK(SourcePagedArray.Num() == ArrayType::MaxPerPage());
+		CHECK(DestPagedArray.IsEmpty());
+
+		TArray<uint8> Bytes;
+		{
+			FMemoryWriter MemoryWriter(Bytes);
+			MemoryWriter << SourcePagedArray;
+		}
+
+		// Storing the count and the elements
+		CHECK(Bytes.Num() == (sizeof(ArrayType::SizeType) + (sizeof(ArrayType::ElementType) * ArrayType::MaxPerPage())));
+
+		{
+			FMemoryReader MemoryReader(Bytes);
+			MemoryReader << DestPagedArray;
+		}
+
+		CHECK(SourcePagedArray == DestPagedArray);
+	}
+	// We construct 3 times over - SetNum, assigning CheckValue and then reading into the dest array
+	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 3));
+	int32Token::Reset();
+	// Container with multiple pages
+	{
+		ArrayType SourcePagedArray;
+		ArrayType DestPagedArray;
+
+		SourcePagedArray.SetNum(ArrayType::MaxPerPage() * 3);
+		int32 CheckValue = 0;
+		for (int32Token& Value : SourcePagedArray)
+		{
+			Value = CheckValue++;
+		}
+
+		CHECK(SourcePagedArray.Num() == ArrayType::MaxPerPage() * 3);
+		CHECK(DestPagedArray.IsEmpty());
+
+		TArray<uint8> Bytes;
+		{
+			FMemoryWriter MemoryWriter(Bytes);
+			MemoryWriter << SourcePagedArray;
+		}
+
+		// Storing the count and the elements
+		CHECK(Bytes.Num() == (sizeof(ArrayType::SizeType) + (sizeof(ArrayType::ElementType) * ArrayType::MaxPerPage() * 3)));
+
+		{
+			FMemoryReader MemoryReader(Bytes);
+			MemoryReader << DestPagedArray;
+		}
+
+		CHECK(SourcePagedArray == DestPagedArray);
+	}
+	// We construct 3 times over - SetNum, assigning CheckValue and then reading into the dest array
+	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 3 * 3));
+}
+
+TEST_CASE("System::Core::Containers::TPagedArray::Structured Serialize", "[SmokeFilter][Core][Containers][PagedArray]")
+{
+	using ArrayType = TPagedArray<int32Token, 16>;
+	int32Token::Reset();
+	// Container with no pages
+	{
+		ArrayType SourcePagedArray;
+		ArrayType DestPagedArray;
+
+		CHECK(SourcePagedArray.IsEmpty());
+		CHECK(DestPagedArray.IsEmpty());
+
+		TArray<uint8> Bytes;
+		{
+			FMemoryWriter MemoryWriter(Bytes);
+			FBinaryArchiveFormatter BinaryFormatter(MemoryWriter);
+			FStructuredArchive StructuredArchive(BinaryFormatter);
+			FStructuredArchive::FSlot RootSlot = StructuredArchive.Open();
+			RootSlot << SourcePagedArray;
+			StructuredArchive.Close();
+		}
+
+		// Just storing the count - no elements
+		CHECK(Bytes.Num() == sizeof(ArrayType::SizeType));
+
+		{
+			FMemoryReader MemoryReader(Bytes);
+			FBinaryArchiveFormatter BinaryFormatter(MemoryReader);
+			FStructuredArchive StructuredArchive(BinaryFormatter);
+			FStructuredArchive::FSlot RootSlot = StructuredArchive.Open();
+			RootSlot << DestPagedArray;
+			StructuredArchive.Close();
+		}
+
+		CHECK(SourcePagedArray == DestPagedArray);
+	}
+	CHECK(int32Token::EvenConstructionDestructionCalls(0));
+	int32Token::Reset();
+	// Container with single page
+	{
+		ArrayType SourcePagedArray;
+		ArrayType DestPagedArray;
+
+		SourcePagedArray.SetNum(ArrayType::MaxPerPage());
+		int32 CheckValue = 0;
+		for (int32Token& Value : SourcePagedArray)
+		{
+			Value = CheckValue++;
+		}
+
+		CHECK(SourcePagedArray.Num() == ArrayType::MaxPerPage());
+		CHECK(DestPagedArray.IsEmpty());
+
+		TArray<uint8> Bytes;
+		{
+			FMemoryWriter MemoryWriter(Bytes);
+			FBinaryArchiveFormatter BinaryFormatter(MemoryWriter);
+			FStructuredArchive StructuredArchive(BinaryFormatter);
+			FStructuredArchive::FSlot RootSlot = StructuredArchive.Open();
+			RootSlot << SourcePagedArray;
+			StructuredArchive.Close();
+		}
+
+		// Storing the count and the elements
+		CHECK(Bytes.Num() == (sizeof(ArrayType::SizeType) + (sizeof(ArrayType::ElementType) * ArrayType::MaxPerPage())));
+
+		{
+			FMemoryReader MemoryReader(Bytes);
+			FBinaryArchiveFormatter BinaryFormatter(MemoryReader);
+			FStructuredArchive StructuredArchive(BinaryFormatter);
+			FStructuredArchive::FSlot RootSlot = StructuredArchive.Open();
+			RootSlot << DestPagedArray;
+			StructuredArchive.Close();
+		}
+
+		CHECK(SourcePagedArray == DestPagedArray);
+	}
+	// We construct 3 times over - SetNum, assigning CheckValue and then reading into the dest array
+	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 3));
+	int32Token::Reset();
+	// Container with multiple pages
+	{
+		ArrayType SourcePagedArray;
+		ArrayType DestPagedArray;
+
+		SourcePagedArray.SetNum(ArrayType::MaxPerPage() * 3);
+		int32 CheckValue = 0;
+		for (int32Token& Value : SourcePagedArray)
+		{
+			Value = CheckValue++;
+		}
+
+		CHECK(SourcePagedArray.Num() == ArrayType::MaxPerPage() * 3);
+		CHECK(DestPagedArray.IsEmpty());
+
+		TArray<uint8> Bytes;
+		{
+			FMemoryWriter MemoryWriter(Bytes);
+			FBinaryArchiveFormatter BinaryFormatter(MemoryWriter);
+			FStructuredArchive StructuredArchive(BinaryFormatter);
+			FStructuredArchive::FSlot RootSlot = StructuredArchive.Open();
+			RootSlot << SourcePagedArray;
+			StructuredArchive.Close();
+		}
+
+		// Storing the count and the elements
+		CHECK(Bytes.Num() == (sizeof(ArrayType::SizeType) + (sizeof(ArrayType::ElementType) * ArrayType::MaxPerPage() * 3)));
+
+		{
+			FMemoryReader MemoryReader(Bytes);
+			FBinaryArchiveFormatter BinaryFormatter(MemoryReader);
+			FStructuredArchive StructuredArchive(BinaryFormatter);
+			FStructuredArchive::FSlot RootSlot = StructuredArchive.Open();
+			RootSlot << DestPagedArray;
+			StructuredArchive.Close();
+		}
+
+		CHECK(SourcePagedArray == DestPagedArray);
+	}
+	// We construct 3 times over - SetNum, assigning CheckValue and then reading into the dest array
+	CHECK(int32Token::EvenConstructionDestructionCalls(ArrayType::MaxPerPage() * 3 * 3));
 }
 
 }  // namespace PagedArray
