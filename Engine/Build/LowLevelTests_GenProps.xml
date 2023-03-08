@@ -19,7 +19,7 @@
   <Option Name="RunReplicationSystemTests" DefaultValue="False" Description="Run Replication System Tests" />
   <Option Name="RunFoundationTests" DefaultValue="False" Description="Run Foundation Tests" />
   <Option Name="RunHeadlessChaosTests" DefaultValue="False" Description="Run Headless Chaos Tests" />
-  <Property Name="ReplicationSystemSupportedPlatforms" Value="Win64" />
+  <Property Name="ReplicationSystemSupportedPlatforms" Value="Win64;Mac;Linux;Android" />
   <Property Name="FoundationSupportedPlatforms" Value="Win64;Mac;Linux;Android" />
   <Property Name="HeadlessChaosSupportedPlatforms" Value="Win64" />
 </BuildGraph>
