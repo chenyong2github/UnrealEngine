@@ -20,6 +20,7 @@ namespace Chaos
 	template <typename T, int d>
 	class TPlane;
 
+	class FBVHParticles;
 	class FCollisionContext;
 	class FHeightField;
 	class FImplicitObject;
@@ -49,8 +50,13 @@ namespace Chaos
 		/**
 		 * @brief Determine the shape pair type for use in UpdateConstraints
 		*/
-		EContactShapesType CHAOS_API CalculateShapePairType(const FImplicitObject* Implicit0, const FBVHParticles* BVHParticles0, const FImplicitObject* Implicit1, const FBVHParticles* BVHParticles1, bool& bOutSwap);
-		EContactShapesType CHAOS_API CalculateShapePairType(const EImplicitObjectType Implicit0Type, const EImplicitObjectType Implicit1Type, const bool bIsConvex0, const bool bIsConvex1, const bool bIsBVH0, const bool bIsBVH1, bool& bOutSwap);
+		EContactShapesType CHAOS_API CalculateShapePairType(const FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, bool& bOutSwap);
+
+		/**
+		 * Extract the implicit type from the geometry. This just calls GetInnerType but with a check for valid levels sets if the geometry is set to collide with a levelset
+		 * and is the collision type used by CalculateShapePairType()
+		 */
+		EImplicitObjectType CHAOS_API GetImplicitCollisionType(const FGeometryParticleHandle* Particle, const FImplicitObject* Implicit);
 
 		/**
 		 * @brief Whether CCD should be enabled for a contact given the current particle velocities etc
@@ -66,7 +72,13 @@ namespace Chaos
 		// Reset per-frame collision stat counters
 		void CHAOS_API ResetChaosCollisionCounters();
 
-		// See Above
+
+		//
+		//
+		// DEPRECATED STUFF (see above)
+		//
+		//
+
 		UE_DEPRECATED(5.3, "Replaced with a version that takes a bEnableSweep flag")
 		inline void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const FCollisionContext& Context)
 		{
@@ -76,5 +88,16 @@ namespace Chaos
 		template<ECollisionUpdateType UpdateType>
 		UE_DEPRECATED(5.3, "Use UpdateConstraint, but call Constraint.SetShapeWorldTransform first (see implementation)")
 		void CHAOS_API UpdateConstraintFromGeometry(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal Dt);
+
+		UE_DEPRECATED(5.3, "Use the version which takes a particle and an implicit")
+		inline EContactShapesType CHAOS_API CalculateShapePairType(const FImplicitObject* Implicit0, const FBVHParticles* BVHParticles0, const FImplicitObject* Implicit1, const FBVHParticles* BVHParticles1, bool& bOutSwap)
+		{
+			return EContactShapesType::Unknown;
+		}
+		UE_DEPRECATED(5.3, "Use the version which takes a particle and an implicit")
+		inline EContactShapesType CHAOS_API CalculateShapePairType(const EImplicitObjectType Implicit0Type, const EImplicitObjectType Implicit1Type, const bool bIsConvex0, const bool bIsConvex1, const bool bIsBVH0, const bool bIsBVH1, bool& bOutSwap)
+		{
+			return EContactShapesType::Unknown;
+		}
 	}
 }

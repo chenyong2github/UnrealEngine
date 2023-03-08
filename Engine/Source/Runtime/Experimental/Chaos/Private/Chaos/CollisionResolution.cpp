@@ -1429,7 +1429,7 @@ namespace Chaos
 			// If we get here, we have a pair of concrete shapes (i.e., no wrappers or containers)
 			// Create a constraint for the shape pair
 			bool bShouldSwapParticles = false;
-			const EContactShapesType ShapePairType = CalculateShapePairType(Implicit0, Simplicial0, Implicit1, Simplicial1, bShouldSwapParticles);
+			const EContactShapesType ShapePairType = CalculateShapePairType(Particle0, Implicit0, Particle1, Implicit1, bShouldSwapParticles);
 
 			if (bShouldSwapParticles)
 			{
@@ -1441,8 +1441,39 @@ namespace Chaos
 			}
 		}
 
-		EContactShapesType CalculateShapePairType(const EImplicitObjectType Implicit0Type, const EImplicitObjectType Implicit1Type, const bool bIsConvex0, const bool bIsConvex1, const bool bHasSimplicial0, const bool bHasSimplicial1,  bool &bOutSwap)
+		EImplicitObjectType GetImplicitCollisionType(const FGeometryParticleHandle* Particle, const FImplicitObject* Implicit)
 		{
+			// NOTE: GetCollisionType(), not GetType()
+			// We use CollisionType on the implicit to determine how to collide. Normally this is the same as the actual ImplicitObject's
+			// type, but may be set to LevelSet in which case we will use CollisionParticles instead (if it has any).
+			EImplicitObjectType ImplicitType = (Implicit != nullptr) ? GetInnerType(Implicit->GetCollisionType()) : ImplicitObjectType::Unknown;
+
+			// If we are a levelset make sure we have CollisionParticles, otherwise go back to the builtin implicit object collision type
+			if ((ImplicitType == ImplicitObjectType::LevelSet) || (ImplicitType == ImplicitObjectType::Unknown))
+			{
+				const FBVHParticles* Simplicial = FConstGenericParticleHandle(Particle)->CollisionParticles().Get();
+				const bool bHasSimplicial = (Simplicial != nullptr) && (Simplicial->Size() > 0);
+				if (!bHasSimplicial)
+				{
+					// NOTE: GetType(), not GetCollisionType()
+					ImplicitType = (Implicit != nullptr) ? GetInnerType(Implicit->GetType()) : ImplicitObjectType::Unknown;
+				}
+			}
+
+			return ImplicitType;
+		}
+
+		EContactShapesType CalculateShapePairType(const FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, bool &bOutSwap)
+		{
+			// What types do the implicits collide as?
+			// NOTE: If the implicit is set to LevelSet but has no CollisionParticles we default to the implicits actual type
+			const EImplicitObjectType Implicit0Type = GetImplicitCollisionType(Particle0, Implicit0);
+			const EImplicitObjectType Implicit1Type = GetImplicitCollisionType(Particle1, Implicit1);
+
+			//
+			// Basic implicit pairs
+			//
+
 			bOutSwap = false;
 			if (Implicit0Type == TBox<FReal, 3>::StaticType() && Implicit1Type == TBox<FReal, 3>::StaticType())
 			{
@@ -1573,7 +1604,14 @@ namespace Chaos
 				bOutSwap = true;
 				return EContactShapesType::CapsuleTriMesh;
 			}
-			else if (bIsConvex0 && Implicit1Type == FHeightField::StaticType())
+
+			//
+			// Convex implicits
+			//
+
+			const bool bIsConvex0 = (Implicit0 != nullptr) && Implicit0->IsConvex() && (Implicit0Type != ImplicitObjectType::LevelSet);
+			const bool bIsConvex1 = (Implicit1 != nullptr) && Implicit1->IsConvex() && (Implicit1Type != ImplicitObjectType::LevelSet);
+			if (bIsConvex0 && Implicit1Type == FHeightField::StaticType())
 			{
 				return EContactShapesType::ConvexHeightField;
 			}
@@ -1595,34 +1633,34 @@ namespace Chaos
 			{
 				return EContactShapesType::GenericConvexConvex;
 			}
-			else if ((Implicit0Type == FImplicitObjectUnion::StaticType()) || (Implicit1Type == FImplicitObjectUnion::StaticType()))
+
+			//
+			// Unions
+			//
+			
+			if ((Implicit0Type == FImplicitObjectUnion::StaticType()) || (Implicit1Type == FImplicitObjectUnion::StaticType()))
 			{
 				// Unknown here is used to mean "run the recursive collision detection path" in the midphase
 				// @todo(chaos): support FImplicitObjectUnion and FImplicitObjectUnionClustered more explicitly here
 				return EContactShapesType::Unknown;
 			}
-			else if (bHasSimplicial0 || bHasSimplicial1)
+
+			//
+			// Levelsets
+			//
+
+			const bool bIsLevelSet0 = (Implicit0Type == ImplicitObjectType::LevelSet);
+			const bool bIsLevelSet1 = (Implicit1Type == ImplicitObjectType::LevelSet);
+			if (bIsLevelSet0 || bIsLevelSet1)
 			{
-				// If only one of the shapes has no implicit, it goes first
-				const bool bSwapBasedOnImplicit = ((Implicit1Type == ImplicitObjectType::Unknown) && (Implicit0Type != ImplicitObjectType::Unknown));
-				// If only one shape has a Simplicial, it goes first
-				const bool bSwapBasedOnSimplicial = bHasSimplicial1 && !bHasSimplicial0;
-				bOutSwap = bSwapBasedOnImplicit || bSwapBasedOnSimplicial;
+				// If only one of the shapes is a levelset, it goes first
+				bOutSwap = bIsLevelSet1 && !bIsLevelSet0;
 				return EContactShapesType::LevelSetLevelSet;
 			}
 
+			// If we get here something is probably wrong.
+			ensure(false);
 			return EContactShapesType::Unknown;
-		}
-
-		EContactShapesType CalculateShapePairType(const FImplicitObject* Implicit0, const FBVHParticles* BVHParticles0, const FImplicitObject* Implicit1, const FBVHParticles* BVHParticles1, bool& bOutSwap)
-		{
-			const EImplicitObjectType Implicit0Type = (Implicit0 != nullptr) ? GetInnerType(Implicit0->GetCollisionType()) : ImplicitObjectType::Unknown;
-			const EImplicitObjectType Implicit1Type = (Implicit1 != nullptr) ? GetInnerType(Implicit1->GetCollisionType()) : ImplicitObjectType::Unknown;
-			const bool bIsConvex0 = (Implicit0 != nullptr) && Implicit0->IsConvex() && (Implicit0Type != ImplicitObjectType::LevelSet);
-			const bool bIsConvex1 = (Implicit1 != nullptr) && Implicit1->IsConvex() && (Implicit1Type != ImplicitObjectType::LevelSet);
-			const bool bHasSimplicial0 = (BVHParticles0 != nullptr) && (BVHParticles0->Size() > 0);
-			const bool bHasSimplicial1 = (BVHParticles1 != nullptr) && (BVHParticles1->Size() > 0);
-			return CalculateShapePairType(Implicit0Type, Implicit1Type, bIsConvex0, bIsConvex1, bHasSimplicial0, bHasSimplicial1, bOutSwap);
 		}
 
 		void ConstructConstraints(
