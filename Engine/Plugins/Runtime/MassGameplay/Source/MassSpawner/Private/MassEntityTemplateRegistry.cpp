@@ -176,11 +176,11 @@ bool FMassEntityTemplateBuildContext::ValidateBuildContext(const UWorld& World)
 		{
 			if (!bHeaderOutputed)
 			{
-				UE_LOG(LogMass, Error, TEXT("Fragment(%s) was added multiple time and can only be added by one trait. Fragment was added by:"), CurrentStruct ? *CurrentStruct->GetName() : TEXT("null"));
-				UE_LOG(LogMass, Error, TEXT("\t\t%s"), CurrentTrait ? *CurrentTrait->GetClass()->GetName() : TEXT("null"));
+				UE_LOG(LogMass, Warning, TEXT("Fragment(%s) was added multiple time and should only be added by one trait. Fragment was added by:"), CurrentStruct ? *CurrentStruct->GetName() : TEXT("null"));
+				UE_LOG(LogMass, Warning, TEXT("\t\t%s"), CurrentTrait ? *CurrentTrait->GetClass()->GetName() : TEXT("null"));
 				bHeaderOutputed = true;
 			}
-			UE_LOG(LogMass, Error, TEXT("\t\t%s"), *Pair.Value->GetClass()->GetName());
+			UE_LOG(LogMass, Warning, TEXT("\t\t%s"), *Pair.Value->GetClass()->GetName());
 			bFragmentHasMultipleOwners = true;
 		}
  	}
@@ -212,10 +212,10 @@ bool FMassEntityTemplateBuildContext::ValidateBuildContext(const UWorld& World)
 #if WITH_UNREAL_DEVELOPER_TOOLS
 	if (bFragmentHasMultipleOwners || bMissingFragmentDependencies)
 	{
-		FMessageLog EditorErrors("LogMass");
+		FMessageLog EditorErrors("MassEntity");
 		if (bFragmentHasMultipleOwners)
 		{
-			EditorErrors.Error(LOCTEXT("MassEntityTraitsFragmentOwnershipError", "Some fragments are added by multiple traits and can only be added by one!"));
+			EditorErrors.Warning(LOCTEXT("MassEntityTraitsFragmentOwnershipError", "Some fragments are added by multiple traits and can only be added by one!"));
 			EditorErrors.Notify(LOCTEXT("MassEntityTraitsFragmentOwnershipError", "Some fragments are added by multiple traits and can only be added by one!"));
 		}
 		if (bMissingFragmentDependencies)

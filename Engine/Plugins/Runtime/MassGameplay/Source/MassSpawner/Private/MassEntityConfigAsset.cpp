@@ -55,9 +55,9 @@ void UMassEntityConfigAsset::ValidateEntityConfig()
 	{
 		if (Config.ValidateEntityTemplate(*EditorWorld))
 		{
-			const FText InfoText = LOCTEXT("MassEntityConfigAssetNoErrorsDetected", "There were no error detected during validation of the EntityConfigAsset");
+			const FText InfoText = LOCTEXT("MassEntityConfigAssetNoErrorsDetected", "There were no errors nor warnings detected during validation of the EntityConfigAsset");
 			
-			FMessageLog EditorInfo("LogMass");
+			FMessageLog EditorInfo("MassEntity");
 			EditorInfo.Info(InfoText);
 
 			FNotificationInfo Info(InfoText);
