@@ -21,11 +21,22 @@ public class ChangelistReview : ModuleRules
 				"Slate",
 				"EditorFramework",
 				"UnrealEd",
+				"Kismet",
 				"EditorStyle",
 				"ToolMenus",
 				"SourceControl",
-				"InputCore"
+				"InputCore",
+				"HTTP",
+				"Json"
 			}
 		);
+
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "Perforce");
+
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
+		}
 	}
 }
