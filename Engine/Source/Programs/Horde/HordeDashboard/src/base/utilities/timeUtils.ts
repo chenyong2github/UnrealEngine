@@ -269,8 +269,10 @@ export const getElapsedString = (start: Moment, end: Moment, includeSeconds:bool
         }
 
         if (includeSeconds || !duration) {
-            if (d.seconds()) {
+            if (d.seconds() > 0) {
                 duration += `${d.seconds()}s `;
+            } else {
+                duration += `0s `;
             }
         }
     }
