@@ -261,6 +261,21 @@ UMaterialInterface* UGeometryCacheComponent::GetMaterial(int32 MaterialIndex) co
 	}
 }
 
+int32 UGeometryCacheComponent::GetMaterialIndex(FName MaterialSlotName) const
+{
+	return GeometryCache ? GeometryCache->MaterialSlotNames.IndexOfByKey(MaterialSlotName) : INDEX_NONE;
+}
+
+TArray<FName> UGeometryCacheComponent::GetMaterialSlotNames() const
+{
+	return GeometryCache ? GeometryCache->MaterialSlotNames : TArray<FName>();
+}
+
+bool UGeometryCacheComponent::IsMaterialSlotNameValid(FName MaterialSlotName) const
+{
+	return GetMaterialIndex(MaterialSlotName) != INDEX_NONE;
+}
+
 void UGeometryCacheComponent::CreateTrackSection(int32 TrackIndex)
 {
 	// Ensure sections array is long enough

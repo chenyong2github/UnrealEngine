@@ -69,6 +69,9 @@ class GEOMETRYCACHE_API UGeometryCacheComponent : public UMeshComponent
 	//~ Begin UMeshComponent Interface.
 	virtual int32 GetNumMaterials() const override;
 	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	virtual int32 GetMaterialIndex(FName MaterialSlotName) const override;
+	virtual TArray<FName> GetMaterialSlotNames() const override;
+	virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const override;
 	//~ End UMeshComponent Interface.
 
 

@@ -77,6 +77,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogAbcImporter, Verbose, All);
 
 #define PRINT_UNIQUE_VERTICES 0
 
+static const FString NoFaceSetNameStr(TEXT("NoFaceSetName"));
+static const FName NoFaceSetName(TEXT("NoFaceSetName"));
+
 FAbcImporter::FAbcImporter()
 	: ImportSettings(nullptr), AbcFile(nullptr)
 {
@@ -238,7 +241,14 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 				}
 			}
 
-			StaticMesh->GetStaticMaterials().Add((Material != nullptr) ? Material : DefaultMaterial);
+			FStaticMaterial StaticMaterial;
+			StaticMaterial.MaterialInterface = (Material != nullptr) ? Material : DefaultMaterial;
+
+			FName SlotName((Material != nullptr) ? FName(FaceSetNames[MaterialIndex]) : NoFaceSetName);
+			StaticMaterial.MaterialSlotName = SlotName;
+			StaticMaterial.ImportedMaterialSlotName = SlotName;
+
+			StaticMesh->GetStaticMaterials().Add(StaticMaterial);
 		}
 
 		GenerateMeshDescriptionFromSample(Sample, MeshDescription, StaticMesh);
@@ -307,8 +317,7 @@ const TArray<UStaticMesh*> FAbcImporter::ImportAsStaticMesh(UObject* InParent, E
 					else
 					{
 						// Default name
-						static const FString DefaultName("NoFaceSetName");
-						MergedFaceSetNames.Add(DefaultName);
+						MergedFaceSetNames.Add(NoFaceSetNameStr);
 					}
 				}
 			}
@@ -442,6 +451,7 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 				{
 					UMaterialInterface* Material = AbcImporterUtilities::RetrieveMaterial(*AbcFile, FaceSetName, InParent, Flags);
 					GeometryCache->Materials.Add((Material != nullptr) ? Material : DefaultMaterial);		
+					GeometryCache->MaterialSlotNames.Add(FaceSetName != TEXT("DefaultMaterial") ? FName(FaceSetName) : NoFaceSetName);
 
 					if (Material != UMaterial::GetDefaultMaterial(MD_Surface))
 					{
@@ -480,10 +490,15 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 							if (PolyMesh->FaceSetNames.IsValidIndex(MaterialIndex))
 							{
 								Material = AbcImporterUtilities::RetrieveMaterial(*AbcFile, PolyMesh->FaceSetNames[MaterialIndex], InParent, Flags);
+								GeometryCache->MaterialSlotNames.Add(FName(PolyMesh->FaceSetNames[MaterialIndex]));
 								if (Material != UMaterial::GetDefaultMaterial(MD_Surface))
 								{
 									Material->PostEditChange();
 								}
+							}
+							else
+							{
+								GeometryCache->MaterialSlotNames.Add(NoFaceSetName);
 							}
 
 							GeometryCache->Materials.Add((Material != nullptr) ? Material : DefaultMaterial);
@@ -744,7 +759,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 				{
 					const FString& MaterialName = CompressedData.MaterialNames[MaterialIndex];
 					UMaterialInterface* Material = AbcImporterUtilities::RetrieveMaterial(*AbcFile, MaterialName, InParent, Flags);
-					SkeletalMesh->GetMaterials().Add(FSkeletalMaterial(Material, true));
+					SkeletalMesh->GetMaterials().Add(FSkeletalMaterial(Material, true, false, FName(MaterialName), FName(MaterialName)));
 					if (Material != UMaterial::GetDefaultMaterial(MD_Surface))
 					{
 						Material->PostEditChange();
@@ -1014,8 +1029,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 				}
 				else
 				{
-					static const FString DefaultName("NoFaceSetName");
-					CompressedData.MaterialNames.Add(DefaultName);
+					CompressedData.MaterialNames.Add(NoFaceSetNameStr);
 				}
 			}
 
@@ -1386,8 +1400,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 				}
 				else
 				{
-					static const FString DefaultName("NoFaceSetName");
-					CompressedData.MaterialNames.Add(DefaultName);
+					CompressedData.MaterialNames.Add(NoFaceSetNameStr);
 				}
 
 				if (bRunComparison)
@@ -1429,8 +1442,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 		}
 		else
 		{
-			static const FString DefaultName("NoFaceSetName");
-			CompressedData.MaterialNames.Add(DefaultName);
+			CompressedData.MaterialNames.Add(NoFaceSetNameStr);
 		}
 	}
 		

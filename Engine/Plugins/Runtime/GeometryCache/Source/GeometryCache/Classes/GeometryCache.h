@@ -54,9 +54,12 @@ public:
 	UPROPERTY(VisibleAnywhere, Instanced, Category = Thumbnail)
 	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 #endif
-	UPROPERTY(EditAnywhere, Category = GeometryCache)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GeometryCache)
 	TArray<TObjectPtr<UMaterialInterface>> Materials;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GeometryCache)
+	TArray<FName> MaterialSlotNames;
+
 	/** GeometryCache track defining the samples/geometry data for this GeomCache instance */
 	UPROPERTY(VisibleAnywhere, Category=GeometryCache)
 	TArray<TObjectPtr<UGeometryCacheTrack>> Tracks;
