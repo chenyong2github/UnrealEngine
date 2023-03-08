@@ -8,6 +8,7 @@
 #include "UObject/GCObject.h"
 #include "Folder.h"
 #include "LevelInstance/LevelInstanceTypes.h"
+#include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 
 #include "LevelInstanceSubsystem.generated.h"
@@ -125,6 +126,9 @@ public:
 	FLevelInstanceChanged& OnLevelInstanceChanged() { return LevelInstanceChangedEvent; }
 
 	static void ResetLoadersForWorldAsset(const FString& WorldAsset);
+
+	FWorldPartitionActorFilter GetLevelInstanceFilter(const FString& LevelPackage) const;
+	bool PassLevelInstanceFilter(UWorld* World, const FWorldPartitionHandle& Actor) const;
 #endif
 
 private:
@@ -137,6 +141,8 @@ private:
 	void RegisterLoadedLevelStreamingLevelInstance(ULevelStreamingLevelInstance* LevelStreaming);
 
 #if WITH_EDITOR
+	FWorldPartitionActorFilter GetLevelInstanceFilterInternal(const FString& LevelPackage, TSet<FString>& VisitedPackages) const;
+
 	void ResetLoadersForWorldAssetInternal(const FString& WorldAsset);
 	void OnAssetsPreDelete(const TArray<UObject*>& Objects);
 
@@ -257,7 +263,7 @@ private:
 
 	TMap<FLevelInstanceID, int32> ChildEdits;
 
-	FActorDescContainerInstanceManager ActorDescContainerInstanceManager;
+	mutable FActorDescContainerInstanceManager ActorDescContainerInstanceManager;
 
 	FWorldPartitionReference CurrentEditLevelInstanceActor;
 #endif

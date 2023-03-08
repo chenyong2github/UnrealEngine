@@ -9,6 +9,7 @@
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/WorldPartitionActorContainerID.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 FArchive& operator<<(FArchive& Ar, FDataLayerInstanceDesc& Desc)
 {
@@ -40,6 +41,11 @@ FArchive& operator<<(FArchive& Ar, FDataLayerInstanceDesc& Desc)
 		FWorldPartitionActorDescUtils::FixupRedirectedAssetPath(Desc.AssetPath);
 	}
 
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorFilter)
+	{
+		Ar << Desc.bIsIncludedInActorFilterDefault;
+	}
+
 	return Ar;
 }
 
@@ -50,7 +56,8 @@ bool operator == (const FDataLayerInstanceDesc& Lhs, const FDataLayerInstanceDes
 		(Lhs.bIsUsingAsset == Rhs.bIsUsingAsset) &&
 		(Lhs.AssetPath == Rhs.AssetPath) &&
 		(Lhs.bIsRuntime == Rhs.bIsRuntime) &&
-		(Lhs.ShortName == Rhs.ShortName);
+		(Lhs.ShortName == Rhs.ShortName) &&
+		(Lhs.bIsIncludedInActorFilterDefault == Rhs.bIsIncludedInActorFilterDefault);
 }
 
 bool operator < (const FDataLayerInstanceDesc& Lhs, const FDataLayerInstanceDesc& Rhs)
@@ -65,6 +72,10 @@ bool operator < (const FDataLayerInstanceDesc& Lhs, const FDataLayerInstanceDesc
 				{
 					if (Lhs.bIsRuntime == Rhs.bIsRuntime)
 					{
+						if (Lhs.ShortName == Rhs.ShortName)
+						{
+							return (int)Lhs.bIsIncludedInActorFilterDefault < (int)Rhs.bIsIncludedInActorFilterDefault;
+						}
 						return Lhs.ShortName < Rhs.ShortName;
 					}
 					return (int)Lhs.bIsRuntime < (int)Rhs.bIsRuntime;
@@ -115,6 +126,7 @@ FString FDataLayerInstanceDesc::GetShortName() const
 FDataLayerInstanceDesc::FDataLayerInstanceDesc()
 : bIsUsingAsset(false)
 , bIsRuntime(false)
+, bIsIncludedInActorFilterDefault(true)
 {
 }
 
@@ -129,6 +141,8 @@ void FDataLayerInstanceDesc::Init(UDataLayerInstance* InDataLayerInstance)
 		if (const UDataLayerAsset* DataLayerAsset = DataLayerWithAsset->GetAsset())
 		{
 			AssetPath = FName(DataLayerAsset->GetPathName());
+			bIsIncludedInActorFilterDefault = DataLayerWithAsset->IsIncludedInActorFilterDefault();
+			
 		}
 	}
 	ShortName = InDataLayerInstance->GetDataLayerShortName();
@@ -167,6 +181,7 @@ bool FWorldDataLayersActorDesc::Equals(const FWorldPartitionActorDesc* Other) co
 void FWorldDataLayersActorDesc::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	FWorldPartitionActorDesc::Serialize(Ar);
 

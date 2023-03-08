@@ -237,6 +237,17 @@ bool ILevelInstanceInterface::MoveActorsTo(const TArray<AActor*>& ActorsToMove)
 	return false;
 }
 
+const FWorldPartitionActorFilter& ILevelInstanceInterface::GetFilter() const
+{
+	if (ULevelInstanceComponent* LevelInstanceComponent = GetLevelInstanceComponent())
+	{
+		return LevelInstanceComponent->GetFilter();
+	}
+
+	static FWorldPartitionActorFilter NoFilter;
+	return NoFilter;
+}
+
 #endif
 
 

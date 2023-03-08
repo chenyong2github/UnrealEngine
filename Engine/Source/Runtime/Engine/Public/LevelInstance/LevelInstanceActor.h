@@ -27,6 +27,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Level, meta = (NoCreate, DisplayName="Level"))
 	TSoftObjectPtr<UWorld> WorldAsset;
 #endif
+	UPROPERTY(VisibleAnywhere, Category = Default)
+	TObjectPtr<ULevelInstanceComponent> LevelInstanceComponent;
 
 	UPROPERTY()
 	TSoftObjectPtr<UWorld> CookedWorldAsset;

@@ -2,6 +2,7 @@
 #include "LevelInstanceEditorModule.h"
 #include "LevelInstanceActorDetails.h"
 #include "LevelInstancePivotDetails.h"
+#include "LevelInstanceFilterPropertyTypeCustomization.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceActor.h"
@@ -41,6 +42,7 @@
 #include "MessageLogModule.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "WorldPartition/WorldPartitionConverter.h"
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 
 IMPLEMENT_MODULE( FLevelInstanceEditorModule, LevelInstanceEditor );
 
@@ -669,7 +671,8 @@ void FLevelInstanceEditorModule::StartupModule()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("LevelInstance", FOnGetDetailCustomizationInstance::CreateStatic(&FLevelInstanceActorDetails::MakeInstance));
-	PropertyModule.RegisterCustomClassLayout("LevelInstancePivot", FOnGetDetailCustomizationInstance::CreateStatic(&FLevelInstancePivotDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout("LevelInstancePivot", FOnGetDetailCustomizationInstance::CreateStatic(&FLevelInstancePivotDetails::MakeInstance));		
+	PropertyModule.RegisterCustomPropertyTypeLayout("WorldPartitionActorFilter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLevelInstanceFilterPropertyTypeCustomization::MakeInstance), MakeShared<FLevelInstancePropertyTypeIdentifier>());
 	PropertyModule.NotifyCustomizationModuleChanged();
 
 	// GEditor needs to be set before this module is loaded
@@ -677,6 +680,20 @@ void FLevelInstanceEditorModule::StartupModule()
 	GEditor->OnLevelActorDeleted().AddRaw(this, &FLevelInstanceEditorModule::OnLevelActorDeleted);
 	
 	EditorLevelUtils::CanMoveActorToLevelDelegate.AddRaw(this, &FLevelInstanceEditorModule::CanMoveActorToLevel);
+
+	// Register actor descriptor loading filter
+	IWorldPartitionActorLoaderInterface::RegisterActorDescFilter([](UWorld* World, const FWorldPartitionHandle& ActorHandle) 
+	{ 
+		if (UWorld* OwningWorld = World->PersistentLevel->GetWorld())
+		{
+			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = OwningWorld->GetSubsystem<ULevelInstanceSubsystem>())
+			{
+				return LevelInstanceSubsystem->PassLevelInstanceFilter(World, ActorHandle);
+			}
+		}
+
+		return true;
+	});
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	FMessageLogInitializationOptions InitOptions;

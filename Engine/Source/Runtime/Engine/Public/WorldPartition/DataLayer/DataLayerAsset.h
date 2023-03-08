@@ -37,11 +37,15 @@ public:
 	UFUNCTION(Category = "Data Layer|Runtime", BlueprintCallable)
 	FColor GetDebugColor() const { return DebugColor; }
 
+	bool SupportsActorFilters() const { return bSupportsActorFilters; }
 private:
 	/** Whether the Data Layer affects actor runtime loading */
 	UPROPERTY(Category = "Data Layer", EditAnywhere)
 	EDataLayerType DataLayerType;
 
+	UPROPERTY(Category = "Data Layer|Actor Filter", EditAnywhere)
+	bool bSupportsActorFilters;
+		
 	UPROPERTY(Category = "Data Layer|Runtime", EditAnywhere)
 	FColor DebugColor;
 };

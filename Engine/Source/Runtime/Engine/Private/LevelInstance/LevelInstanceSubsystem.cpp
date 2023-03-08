@@ -19,10 +19,12 @@
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "LevelInstance/LevelInstanceEditorObject.h"
 #include "LevelInstance/LevelInstanceEditorPivotActor.h"
+#include "WorldPartition/LevelInstance/LevelInstanceActorDesc.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
+#include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/Paths.h"
@@ -2466,6 +2468,141 @@ bool ULevelInstanceSubsystem::CanUseWorldAsset(const ILevelInstanceInterface* Le
 		}
 
 		return false;
+	}
+
+	return true;
+}
+
+FWorldPartitionActorFilter ULevelInstanceSubsystem::GetLevelInstanceFilter(const FString& LevelPackage) const
+{
+	TSet<FString> VisitedPackages;
+	return GetLevelInstanceFilterInternal(LevelPackage, VisitedPackages);
+}
+
+FWorldPartitionActorFilter ULevelInstanceSubsystem::GetLevelInstanceFilterInternal(const FString& LevelPackage, TSet<FString>& VisitedPackages) const
+{
+	if (VisitedPackages.Contains(LevelPackage))
+	{
+		return FWorldPartitionActorFilter(LevelPackage);
+	}
+
+	VisitedPackages.Add(LevelPackage);
+		
+	// Most of the time if the LevelInstance Actor already exists this will return an existing Container but when loading a new LevelInstance (Content Browser Drag&Drop, Create LI) 
+	// This will make sure Container exists.
+	UActorDescContainer* LevelContainer = ActorDescContainerInstanceManager.RegisterContainer(*LevelPackage, GetWorld());
+	check(LevelContainer);
+	ON_SCOPE_EXIT{ ActorDescContainerInstanceManager.UnregisterContainer(LevelContainer); };
+
+	// Lazy create filter for now
+	TArray<const FLevelInstanceActorDesc*> LevelInstanceActorDescs;
+	const FWorldDataLayersActorDesc* WorldDataLayersActorDesc = nullptr;
+
+	for (FActorDescList::TConstIterator<> ActorDescIt(LevelContainer); ActorDescIt; ++ActorDescIt)
+	{
+		if (ActorDescIt->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
+		{
+			check(!WorldDataLayersActorDesc);
+			WorldDataLayersActorDesc = static_cast<const FWorldDataLayersActorDesc*>(*ActorDescIt);
+		}
+		else if (ActorDescIt->GetActorNativeClass()->ImplementsInterface(ULevelInstanceInterface::StaticClass()))
+		{
+			LevelInstanceActorDescs.Add(static_cast<const FLevelInstanceActorDesc*>(*ActorDescIt));
+		}
+	}
+	
+	FWorldPartitionActorFilter Filter(LevelPackage);
+
+	if (WorldDataLayersActorDesc)
+	{
+		for (const FDataLayerInstanceDesc& DataLayerInstanceDesc : WorldDataLayersActorDesc->GetDataLayerInstances())
+		{
+			// For now consider all DataLayerInstances using Assets as filters that are included by default
+			if (DataLayerInstanceDesc.IsUsingAsset() && DataLayerInstanceDesc.GetAsset() && DataLayerInstanceDesc.GetAsset()->SupportsActorFilters())
+			{
+				Filter.DataLayerFilters.Add(FSoftObjectPath(DataLayerInstanceDesc.GetAssetPath().ToString()), FWorldPartitionActorFilter::FDataLayerFilter(DataLayerInstanceDesc.GetShortName(), DataLayerInstanceDesc.IsIncludedInActorFilterDefault()));
+			}
+		}
+	}
+
+	for (const FLevelInstanceActorDesc* LevelInstanceActorDesc : LevelInstanceActorDescs)
+	{
+		TSet<FString> VisitedPackagesCopy(VisitedPackages);
+
+		// Get World Default Filter
+		FWorldPartitionActorFilter* ChildFilter = new FWorldPartitionActorFilter(GetLevelInstanceFilterInternal(LevelInstanceActorDesc->GetLevelPackage().ToString(), VisitedPackagesCopy));
+		ChildFilter->DisplayName = LevelInstanceActorDesc->GetActorLabelOrName().ToString();
+
+		// Apply LevelInstanceActorDesc Filter to Default
+		ChildFilter->Override(LevelInstanceActorDesc->GetFilter());
+
+		Filter.AddChildFilter(LevelInstanceActorDesc->GetGuid(), ChildFilter);
+	}
+
+	return Filter;
+}
+
+bool ULevelInstanceSubsystem::PassLevelInstanceFilter(UWorld* World, const FWorldPartitionHandle& Actor) const
+{
+	if (Actor->IsUsingDataLayerAsset() && Actor->GetDataLayers().Num() > 0)
+	{
+		// Make sure Actor is using a filtered Data Layer Instance
+		TSet<FSoftObjectPath> FilteredDataLayerAssets;
+		if (UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(World))
+		{
+			bool bFoundFilteredDataLayer = false;
+			for (FName AssetPath : Actor->GetDataLayers())
+			{
+				FSoftObjectPath SoftAssetPath(AssetPath.ToString());
+				UDataLayerAsset* Asset = Cast<UDataLayerAsset>(SoftAssetPath.TryLoad());
+				if (const UDataLayerInstanceWithAsset* DataLayerInstance = Cast<UDataLayerInstanceWithAsset>(DataLayerManager->GetDataLayerInstanceFromAsset(Asset)); DataLayerInstance && DataLayerInstance->SupportsActorFilters())
+				{
+					FilteredDataLayerAssets.Add(SoftAssetPath);
+				}
+			}
+		}
+
+		// Actor is not using a filtered Data Layer Instance
+		if (FilteredDataLayerAssets.IsEmpty())
+		{
+			return true;
+		}
+
+		// Build Filter
+		if (const ILevelInstanceInterface* LevelInstanceInterface = GetOwningLevelInstance(World->PersistentLevel))
+		{
+			TArray<FGuid> AncestorGuids;
+			ForEachLevelInstanceAncestorsAndSelf(Cast<AActor>(LevelInstanceInterface), [&AncestorGuids, &LevelInstanceInterface](const ILevelInstanceInterface* Ancestor)
+			{
+				AncestorGuids.Insert(Cast<AActor>(Ancestor)->GetActorGuid(), 0);
+				LevelInstanceInterface = Ancestor;
+				return true;
+			});
+
+			check(LevelInstanceInterface);
+
+			FWorldPartitionActorFilter ActorFilter = GetLevelInstanceFilter(LevelInstanceInterface->GetWorldAssetPackage());
+			ActorFilter.Override(LevelInstanceInterface->GetFilter());
+
+			FWorldPartitionActorFilter* FoundFilter = &ActorFilter;
+			for (int32 AncestorIndex = 1; AncestorIndex < AncestorGuids.Num(); ++AncestorIndex)
+			{
+				FoundFilter = FoundFilter->GetChildFilters().FindChecked(AncestorGuids[AncestorIndex]);
+			}
+
+			for (const FSoftObjectPath& AssetPath : FilteredDataLayerAssets)
+			{
+				if (FWorldPartitionActorFilter::FDataLayerFilter* DataLayerFilter = FoundFilter->DataLayerFilters.Find(AssetPath))
+				{
+					if (DataLayerFilter->bIncluded)
+					{
+						return true;
+					}
+				}				
+			}
+
+			return false;
+		}
 	}
 
 	return true;

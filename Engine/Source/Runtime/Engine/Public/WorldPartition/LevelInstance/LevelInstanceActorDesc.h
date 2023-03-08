@@ -9,6 +9,7 @@
 #include "UObject/ObjectPtr.h"
 #include "Containers/Map.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 
 class ULevelInstanceSubsystem;
 class UActorDescContainer;
@@ -26,8 +27,9 @@ public:
 
 	virtual bool IsContainerInstance() const override;
 	virtual FName GetLevelPackage() const override { return LevelPackage; }
-	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const override;
+	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance, bool bInBuildFilter) const override;
 	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const override;
+	const FWorldPartitionActorFilter& GetFilter() const { return Filter; }
 
 protected:
 	virtual void Init(const AActor* InActor) override;
@@ -43,6 +45,8 @@ protected:
 
 	TWeakObjectPtr<UActorDescContainer> LevelInstanceContainer;
 	TWeakObjectPtr<UWorld> LevelInstanceContainerWorldContext;
+
+	FWorldPartitionActorFilter Filter;
 
 private:
 	void RegisterContainerInstance(UWorld* InWorldContext);

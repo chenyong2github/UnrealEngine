@@ -23,6 +23,7 @@ public:
 	class UDataLayerAsset* GetAsset() const;
 	EDataLayerType GetDataLayerType() const;
 	FString GetShortName() const;
+	bool IsIncludedInActorFilterDefault() const { return bIsIncludedInActorFilterDefault; }
 
 private:
 	// DataLayerInstance Name
@@ -43,6 +44,9 @@ private:
 	// Label
 	FString ShortName;
 	//~ End UDeprecatedDataLayerInstance
+
+	// Returns if data layer should be included by default in FWorldPartitionActorFilter.
+	bool bIsIncludedInActorFilterDefault;
 };
 
 /**

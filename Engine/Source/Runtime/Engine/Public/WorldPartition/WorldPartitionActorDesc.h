@@ -84,7 +84,7 @@ public:
 		const UActorDescContainer* Container = nullptr;
 		FTransform Transform = FTransform::Identity;
 		EContainerClusterMode ClusterMode;
-
+		TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
 	private:
 		FActorContainerID ContainerID;
 	};
@@ -153,7 +153,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual bool IsContainerInstance() const { return false; }
 	virtual FName GetLevelPackage() const { return NAME_None; }
-	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const { return false; }
+	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance, bool bInBuildFilter = false) const { return false; }
 
 	FGuid GetContentBundleGuid() const;
 

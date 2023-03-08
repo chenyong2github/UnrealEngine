@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 
 #include "LevelInstanceComponent.generated.h"
 
@@ -26,6 +27,7 @@ public:
 #if WITH_EDITOR
 	// Those are the methods that need overriding to be able to properly update the AttachComponent
 	virtual void OnRegister() override;
+	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
@@ -33,9 +35,19 @@ public:
 	void UpdateEditorInstanceActor();
 	void OnEdit();
 	void OnCommit();
+
+	const FWorldPartitionActorFilter& GetFilter() const { return Filter; }
+	void SetFilter(const FWorldPartitionActorFilter& InFilter);
 private:
 	bool ShouldShowSpriteComponent() const;
 
 	TWeakObjectPtr<AActor> CachedEditorInstanceActorPtr;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = Filter, meta=(LevelInstanceFilter))
+	FWorldPartitionActorFilter Filter;
+
+	FWorldPartitionActorFilter CachedFilter;
 #endif
 };

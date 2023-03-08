@@ -46,9 +46,24 @@ void ULevelInstanceComponent::OnRegister()
 #endif //WITH_EDITORONLY_DATA
 }
 
+void ULevelInstanceComponent::SetFilter(const FWorldPartitionActorFilter& InFilter)
+{
+	if (Filter != InFilter)
+	{
+		Modify();
+		Filter = InFilter;
+		FWorldPartitionActorFilter::GetOnWorldPartitionActorFilterChanged().Broadcast();
+	}
+}
+
 bool ULevelInstanceComponent::ShouldShowSpriteComponent() const
 {
 	return GetOwner() && GetOwner()->GetLevel() && (GetOwner()->GetLevel()->IsPersistentLevel() || !GetOwner()->GetLevel()->IsInstancedLevel());
+}
+
+void ULevelInstanceComponent::PreEditUndo()
+{
+	CachedFilter = Filter;
 }
 
 void ULevelInstanceComponent::PostEditUndo()
@@ -57,6 +72,13 @@ void ULevelInstanceComponent::PostEditUndo()
 		
 	UpdateComponentToWorld();
 	UpdateEditorInstanceActor();
+
+	if (Filter != CachedFilter)
+	{
+		FWorldPartitionActorFilter::RequestFilterRefresh(false);
+		FWorldPartitionActorFilter::GetOnWorldPartitionActorFilterChanged().Broadcast();
+	}
+	CachedFilter = FWorldPartitionActorFilter();
 }
 
 void ULevelInstanceComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

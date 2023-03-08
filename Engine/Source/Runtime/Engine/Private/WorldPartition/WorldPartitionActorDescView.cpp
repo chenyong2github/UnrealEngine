@@ -184,9 +184,9 @@ FName FWorldPartitionActorDescView::GetLevelPackage() const
 	return ActorDesc->GetLevelPackage();
 }
 
-bool FWorldPartitionActorDescView::GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const
+bool FWorldPartitionActorDescView::GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance, bool bInBuildFilter) const
 {
-	return ActorDesc->GetContainerInstance(OutContainerInstance);
+	return ActorDesc->GetContainerInstance(OutContainerInstance, bInBuildFilter);
 }
 
 void FWorldPartitionActorDescView::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const

@@ -65,7 +65,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool IsContainerInstance() const;
 	FName GetLevelPackage() const;
-	bool GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const;
+	bool GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance, bool bInBuildFilter) const;
 
 	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 

@@ -12,6 +12,9 @@
 
 UDataLayerInstanceWithAsset::UDataLayerInstanceWithAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+	, bIsIncludedInActorFilterDefault(true)
+#endif
 {
 
 }
@@ -122,6 +125,31 @@ void UDataLayerInstanceWithAsset::PostEditChangeProperty(FPropertyChangedEvent& 
 	{
 		GetOuterWorldDataLayers()->ResolveActorDescContainers();
 	}
+}
+
+bool UDataLayerInstanceWithAsset::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (InProperty && (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDataLayerInstanceWithAsset, bIsIncludedInActorFilterDefault)))
+	{
+		return SupportsActorFilters();
+	}
+
+	return true;
+}
+
+bool UDataLayerInstanceWithAsset::SupportsActorFilters() const
+{
+	return DataLayerAsset && DataLayerAsset->SupportsActorFilters();
+}
+
+bool UDataLayerInstanceWithAsset::IsIncludedInActorFilterDefault() const
+{
+	return bIsIncludedInActorFilterDefault;
 }
 
 void UDataLayerInstanceWithAsset::PreEditUndo()

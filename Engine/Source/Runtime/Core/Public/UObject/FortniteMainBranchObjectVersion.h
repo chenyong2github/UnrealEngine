@@ -271,6 +271,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Dynamic cast nodes use an enumerated pure node state to include a value for the default setting
 		DynamicCastNodesUsePureStateEnum,
 
+		// Add FWorldPartitionActorFilter to FLevelInstanceActorDesc/FDataLayerInstanceDesc
+		WorldPartitionActorFilter,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

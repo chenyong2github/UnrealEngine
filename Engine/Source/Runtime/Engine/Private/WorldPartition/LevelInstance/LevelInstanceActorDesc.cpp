@@ -8,11 +8,13 @@
 #include "Engine/Level.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceComponent.h"
 #include "Misc/PackageName.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 static int32 GLevelInstanceDebugForceLevelStreaming = 0;
 static FAutoConsoleVariableRef CVarForceLevelStreaming(
@@ -40,6 +42,7 @@ void FLevelInstanceActorDesc::Init(const AActor* InActor)
 	LevelPackage = *LevelInstance->GetWorldAssetPackage();
 	LevelInstanceTransform = InActor->GetActorTransform();
 	DesiredRuntimeBehavior = LevelInstance->GetDesiredRuntimeBehavior();
+	Filter = LevelInstance->GetFilter();
 }
 
 void FLevelInstanceActorDesc::Init(const FWorldPartitionActorDescInitData& DescData)
@@ -159,7 +162,7 @@ bool FLevelInstanceActorDesc::IsContainerInstance() const
 	return ULevelInstanceSubsystem::CanUsePackage(LevelPackage);
 }
 
-bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContainerInstance) const
+bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContainerInstance, bool bInBuildFilter) const
 {
 	if (LevelInstanceContainer.IsValid())
 	{
@@ -170,6 +173,71 @@ bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContai
 		FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelInstanceContainer->GetContainerPackage()));
 		OutContainerInstance.Transform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
 
+		if (bInBuildFilter)
+		{
+			// Fill Container Instance Filter
+			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(LevelInstanceContainerWorldContext.Get());
+			check(LevelInstanceSubsystem);
+
+			FWorldPartitionActorFilter ContainerFilter = LevelInstanceSubsystem->GetLevelInstanceFilter(LevelInstanceContainer->GetContainerPackage().ToString());
+			ContainerFilter.Override(Filter);
+
+			// Flatten Filter to FActorContainerID map
+			TMap<FActorContainerID, TSet<FSoftObjectPath>> FilteredOutDataLayersPerContainer;
+			TFunction<void(const FActorContainerID&, const FWorldPartitionActorFilter&)> ProcessFilter = [&FilteredOutDataLayersPerContainer, &ProcessFilter](const FActorContainerID& InContainerID, const FWorldPartitionActorFilter& InContainerFilter)
+			{
+				check(!FilteredOutDataLayersPerContainer.Contains(InContainerID));
+				TSet<FSoftObjectPath>& Filtered = FilteredOutDataLayersPerContainer.Add(InContainerID);
+
+				for (auto& [AssetPath, DataLayerFilter] : InContainerFilter.DataLayerFilters)
+				{
+					if (!DataLayerFilter.bIncluded)
+					{
+						Filtered.Add(AssetPath);
+					}
+				}
+
+				for (auto& [ActorGuid, WorldPartitionActorFilter] : InContainerFilter.GetChildFilters())
+				{
+					ProcessFilter(FActorContainerID(InContainerID, ActorGuid), *WorldPartitionActorFilter);
+				}
+			};
+
+			ProcessFilter(OutContainerInstance.GetID(), ContainerFilter);
+
+			TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&FilteredOutDataLayersPerContainer, &OutContainerInstance, &ProcessContainers](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
+			{
+				const TSet<FSoftObjectPath>& Filtered = FilteredOutDataLayersPerContainer.FindChecked(InContainerID);
+				for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
+				{
+					if (ActorDescIt->GetDataLayers().Num() > 0 && ActorDescIt->IsUsingDataLayerAsset())
+					{
+						for (FName DataLayerName : ActorDescIt->GetDataLayers())
+						{
+							FSoftObjectPath DataLayerAsset(DataLayerName.ToString());
+							if (Filtered.Contains(DataLayerAsset))
+							{
+								OutContainerInstance.FilteredActors.FindOrAdd(InContainerID).Add(ActorDescIt->GetGuid());
+								break;
+							}
+						}
+					}
+
+					if (ActorDescIt->GetActorNativeClass()->ImplementsInterface(ULevelInstanceInterface::StaticClass()))
+					{
+						const FLevelInstanceActorDesc* LevelInstanceActorDesc = static_cast<const FLevelInstanceActorDesc*>(*ActorDescIt);
+						FWorldPartitionActorDesc::FContainerInstance ChildContainerInstance;
+						const bool bBuildFilter = false;
+						if (LevelInstanceActorDesc->GetContainerInstance(ChildContainerInstance, bBuildFilter))
+						{
+							ProcessContainers(FActorContainerID(InContainerID, ActorDescIt->GetGuid()), ChildContainerInstance.Container);
+						}
+					}
+				}
+			};
+
+			ProcessContainers(OutContainerInstance.GetID(), OutContainerInstance.Container);
+		}
 		return true;
 	}
 
@@ -221,6 +289,7 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 	FWorldPartitionActorDesc::Serialize(Ar);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	Ar << LevelPackage;
 
@@ -263,6 +332,11 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 				}
 			}
 		}
+	}
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorFilter)
+	{
+		Ar << Filter;
 	}
 }
 

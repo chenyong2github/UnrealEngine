@@ -440,5 +440,10 @@ void UWorldPartitionChangelistValidator::OnLevelInstanceInvalidWorldAsset(const 
 	}
 }
 
+void UWorldPartitionChangelistValidator::OnActorFilterFailed(const FWorldPartitionActorDescView& ActorDescView)
+{
+	// Not a validation error
+}
+
 #undef LOCTEXT_NAMESPACE
 

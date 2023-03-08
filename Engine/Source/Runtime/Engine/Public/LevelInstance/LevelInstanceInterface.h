@@ -10,6 +10,7 @@
 
 class ULevelInstanceComponent;
 class ULevelStreamingLevelInstance;
+struct FWorldPartitionActorFilter;
 
 UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class ENGINE_API ULevelInstanceInterface : public UInterface
@@ -114,5 +115,7 @@ class ENGINE_API ILevelInstanceInterface
 	virtual bool SetCurrent();
 	
 	virtual bool MoveActorsTo(const TArray<AActor*>& ActorsToMove);
+
+	virtual const FWorldPartitionActorFilter& GetFilter() const;
 #endif
 };

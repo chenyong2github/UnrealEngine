@@ -18,6 +18,7 @@ public:
 	static FName MakeName(const UDataLayerAsset* DeprecatedDataLayer);
 	void OnCreated(const UDataLayerAsset* Asset);
 
+	virtual bool CanEditChange(const FProperty* InProperty) const;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual bool IsLocked() const override;
@@ -27,6 +28,9 @@ public:
 
 	virtual bool Validate(IStreamingGenerationErrorHandler* ErrorHandler) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	bool SupportsActorFilters() const;
+	bool IsIncludedInActorFilterDefault() const;
 #endif
 
 	const UDataLayerAsset* GetAsset() const { return DataLayerAsset; }
@@ -49,6 +53,11 @@ protected:
 private:
 	UPROPERTY(Category = "Data Layer", EditAnywhere)
 	TObjectPtr<const UDataLayerAsset> DataLayerAsset;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Category = "Data Layer|Actor Filter", EditAnywhere, meta = (DisplayName = "Is Included", ToolTip = "Whether actors assigned to this DataLayer are included by default when used in a filter"))
+	bool bIsIncludedInActorFilterDefault;
+#endif
 
 #if WITH_EDITOR
 	// Used to compare state pre/post undo

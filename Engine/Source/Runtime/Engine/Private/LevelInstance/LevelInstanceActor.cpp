@@ -21,7 +21,7 @@ ALevelInstance::ALevelInstance()
 	: LevelInstanceActorGuid(this)
 	, LevelInstanceActorImpl(this)
 {
-	RootComponent = CreateDefaultSubobject<ULevelInstanceComponent>(TEXT("Root"));
+	RootComponent = LevelInstanceComponent = CreateDefaultSubobject<ULevelInstanceComponent>(TEXT("Root"));
 	RootComponent->Mobility = EComponentMobility::Static;
 
 #if WITH_EDITORONLY_DATA
@@ -150,6 +150,7 @@ void ALevelInstance::PostLoad()
 {
 	Super::PostLoad();
 
+	LevelInstanceComponent = Cast<ULevelInstanceComponent>(RootComponent);
 	OnLevelInstanceActorPostLoad.Broadcast(this);
 }
 

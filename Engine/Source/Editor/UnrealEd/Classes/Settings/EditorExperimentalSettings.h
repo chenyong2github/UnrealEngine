@@ -140,6 +140,9 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Level)
 	bool bLevelInstance;
 
+	UPROPERTY(EditAnywhere, config, Category = WorldPartition)
+	bool bEnableWorldPartitionActorFilters;
+
 	/**
 	 * Returns an event delegate that is executed when a setting has changed.
 	 *
