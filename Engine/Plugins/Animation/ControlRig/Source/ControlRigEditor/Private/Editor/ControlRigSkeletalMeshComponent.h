@@ -54,6 +54,9 @@ public:
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
+	void OnPreConstruction_AnyThread(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
+	void OnPostConstruction_AnyThread(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
+
 private:
 	FReferenceSkeleton DebugDrawSkeleton;
 	TArray<FBoneIndexType> DebugDrawBones;
@@ -61,4 +64,5 @@ private:
 	TWeakObjectPtr<UControlRig> ControlRigBeingDebuggedPtr;
 	int32 HierarchyInteractionBracket;
 	bool bRebuildDebugDrawSkeletonRequired;
+	bool bIsConstructionEventRunning;
 };
