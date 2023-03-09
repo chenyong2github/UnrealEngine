@@ -436,6 +436,15 @@
 			"targets": [
 				{ "target": "Unsqueeze" }
 			]
+		},
+		{
+			"category": "MaxPool",
+			"targets": [
+				{ "target": "MaxPool" }
+			],
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
+			]
 		}
 	],
 
@@ -1035,6 +1044,18 @@
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 4, 3 ] } ], "weights": [ { "shape": [ 3 ], "source": [ "3", "0", "2" ], "type": "int64" } ], "outputs": [ { "shape": [ 3, 4, 2 ] } ] }
 			]
+		},
+		{
+			"name": "MaxPool.2D.Default",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 3, 32, 32 ] } ], "outputs": [ { "shape": [ 1, 3, 31, 31 ] } ] }
+			]
+		},
+		{
+			"name": "MaxPool.2D.Strides2",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 2, 256, 256 ] } ], "outputs": [ { "shape": [ 1, 2, 128, 128 ] } ] }
+			]
 		}
 	],
 
@@ -1494,6 +1515,26 @@
 				{ "attributes": [
 					{ "name": "axis", "value": -3, "type": "Int32" }
 				] }
+			]
+		},
+		{
+			"name": "MaxPool.2D.Default",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" } 
+					]
+				}
+			]
+		},
+		{
+			"name": "MaxPool.2D.Strides2",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" },
+						{ "name": "pads", "value": [0, 0, 0, 0], "type": "Int32Array" },
+						{ "name": "strides", "value": [2, 2], "type": "Int32Array" } 
+					]
+				}
 			]
 		}
 	]

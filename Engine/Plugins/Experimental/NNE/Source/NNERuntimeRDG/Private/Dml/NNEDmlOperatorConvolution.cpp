@@ -3,6 +3,7 @@
 #ifdef NNE_USE_DIRECTML
 
 #include "NNEDmlOperator.h"
+#include "NNEDmlPaddingCommon.h"
 
 namespace UE::NNERuntimeRDG::Private::Dml
 {
@@ -14,44 +15,12 @@ class FOperatorDmlConv : public FOperatorDml
 {
 	using FSmallArray = TArray<uint32, TInlineAllocator<NcdhwSpatialDimensionCount>>;
 	using FIntArray = TArray<int32>;
-	
-	enum EAutoPad
-	{
-		NOTSET,
-		SAME_UPPER,
-		SAME_LOWER,
-		VALID
-	};
-
-	static EAutoPad AutoPadFromString(FStringView StringVal) 
-	{
-		if (FCString::Stricmp(StringVal.GetData(), TEXT("NOTSET")) == 0) 
-		{
-			return EAutoPad::NOTSET;
-		}
-		else if (FCString::Stricmp(StringVal.GetData(), TEXT("SAME_UPPER")) == 0)
-		{
-			return EAutoPad::SAME_UPPER;
-		}
-		else if (FCString::Stricmp(StringVal.GetData(), TEXT("SAME_LOWER")) == 0)
-		{
-			return EAutoPad::SAME_LOWER;
-		}
-		else if (FCString::Stricmp(StringVal.GetData(), TEXT("VALID")) == 0)
-		{
-			return EAutoPad::VALID;
-		}
-		else
-		{
-			return EAutoPad::NOTSET;
-		}
-	}
 
 	struct FConvArgs
 	{
 		EAutoPad		AutoPad;
-		FSmallArray		StartPadding;
-		FSmallArray		EndPadding;
+		DmlUtil::FSmallUIntArray StartPadding;
+		DmlUtil::FSmallUIntArray EndPadding;
 		FIntArray		OutPadding;
 		FIntArray		Dilations;
 		FIntArray		Strides;
@@ -123,40 +92,13 @@ class FOperatorDmlConv : public FOperatorDml
 
 			Group = Attributes.GetValueOrDefault<int32>(TEXT("group"), 1);
 
-			AutoPad = AutoPadFromString(*Attributes.GetValue<FString>(TEXT("auto_pad")));
-
-			if (AutoPad == EAutoPad::NOTSET)
-			{
-				const FNNEAttributeValue* AttrPads = Attributes.GetAttributeValue(TEXT("pads"));
-				TArray<int32>	Pads;
-
-				if (AttrPads)
-				{
-					Pads = AttrPads->GetValue<TArray<int32>>();
-				}
-				else
-				{
-					Pads.Init(0, 2 * NumDimensions);
-				}
-
-				for (uint32 Dim = 0; Dim < NumDimensions; ++Dim)
-				{
-					StartPadding.Add(Pads[Dim]);
-					EndPadding.Add(Pads[Dim + NumDimensions]);
-				}
-			}
-			else if (AutoPad == EAutoPad::VALID)
-			{
-				StartPadding.Init(0, NumDimensions);
-				EndPadding.Init(0, NumDimensions);
-			}
-			else
-			{
-				StartPadding.Init(0, NumDimensions);
-				EndPadding.Init(0, NumDimensions);
-
-				SetAutoPadding(InputShape.GetData(), FilterShape.GetData());
-			}
+			ComputeStartEndPaddings(
+				InputShape.GetData(),
+				Attributes, 
+				StartPadding, 
+				EndPadding,
+				ConvolutionPadding(InputShape.GetData())
+			);
 
 			if (Direction == DML_CONVOLUTION_DIRECTION_FORWARD)
 			{
@@ -187,38 +129,29 @@ class FOperatorDmlConv : public FOperatorDml
 		//
 		//
 		//
-		void SetAutoPadding(TConstArrayView<uint32> InputShape, TConstArrayView<uint32> FilterShape)
+		DmlUtil::FSmallUIntArray ConvolutionPadding(TConstArrayView<uint32> InputShape)
 		{
 			const uint32 DimOffset = NonspatialDimensionCount;
 
-			for (uint32 Dim = 0; Dim < NumDimensions; ++Dim)
+			if(Direction == DML_CONVOLUTION_DIRECTION_FORWARD)
 			{
-				uint32 Padding;
-
-				if (Direction == DML_CONVOLUTION_DIRECTION_FORWARD)
+				return KernelPadding(
+					InputShape, WindowSize,
+					MakeArrayView((uint32*) Dilations.GetData(), Dilations.Num()), MakeArrayView((uint32*) Strides.GetData(), Strides.Num())
+				);
+			}
+			// Deconvolution
+			else
+			{
+				DmlUtil::FSmallUIntArray Padding;
+				Padding.SetNumUninitialized(NumDimensions);
+				
+				for (uint32 Dim = 0; Dim < NumDimensions; ++Dim)
 				{
-					uint32 InputLen = uint32(InputShape[Dim + DimOffset]);
-					uint32 StridedOutLen = (InputLen + Strides[Dim] - 1) / Strides[Dim];
-					uint32 KernelLen = 1 + (WindowSize[Dim] - 1) * Dilations[Dim];
-					uint32 Len = Strides[Dim] * (StridedOutLen - 1) + KernelLen;
-					
-					Padding = (Len <= InputLen) ? 0 : (Len - InputLen);
-				}
-				else
-				{
-					Padding = (InputShape[Dim + DimOffset] - 1) * Dilations[Dim] - Strides[Dim] + OutPadding[Dim] + 1;
-				}
-
-				if (AutoPad == EAutoPad::SAME_LOWER)
-				{
-					StartPadding[Dim] = (Padding + 1) / 2;
-				}
-				else
-				{
-					StartPadding[Dim] = Padding / 2;
+					Padding[Dim] = (InputShape[Dim + DimOffset] - 1) * Dilations[Dim] - Strides[Dim] + OutPadding[Dim] + 1;
 				}
 
-				EndPadding[Dim] = Padding - StartPadding[Dim];
+				return Padding;
 			}
 		}
 

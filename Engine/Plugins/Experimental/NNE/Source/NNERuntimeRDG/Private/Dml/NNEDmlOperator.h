@@ -36,6 +36,12 @@ inline TArrayView<T> MakeEmptyArrayView()
 	return MakeArrayView(static_cast<T*>(nullptr), 0);
 }
 
+template<typename T>
+inline TConstArrayView<T> MakeEmptyConstArrayView()
+{
+	return TConstArrayView<T>(static_cast<const T*>(nullptr), 0);
+}
+
 //
 //
 //
@@ -55,6 +61,67 @@ namespace DmlUtil
 	using FSmallArray = TArray<T, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 	using FSmallIntArray = TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 	using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
+
+	template<typename InputType, typename OutputType>
+	inline bool ConvertArrayViewNoOverflow(TConstArrayView<InputType> InputView, TArrayView<OutputType>& OutputView)
+	{
+		OutputView = MakeArrayView((OutputType*) InputView.GetData(), InputView.Num());
+		for(int32 Idx = 0; Idx < InputView.Num(); ++Idx)
+		{
+			if(InputView[Idx] != static_cast<InputType>(OutputView[Idx]))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	template<typename OutputType, typename AllocatorType>
+	inline bool GetArrayAttributeNoOverflow(
+		const FNNEAttributeValue* Attr, 
+		TArray<OutputType, AllocatorType>& OutputArray, 
+		TConstArrayView<OutputType> DefaultValues = MakeEmptyConstArrayView<OutputType>()
+		)
+	{
+		if (Attr)
+		{
+
+			TArrayView<OutputType> ConvertedView;
+			TArray<int32> IntArray;
+			TArray<float> FloatArray;
+
+			switch(Attr->GetType())
+			{
+			case ENNEAttributeDataType::Int32Array:
+				{
+					IntArray = Attr->GetValue<TArray<int32>>();
+					if(!ConvertArrayViewNoOverflow(TConstArrayView<int32>(IntArray), ConvertedView))
+					{
+						return false;
+					}
+				}
+				break;
+			case ENNEAttributeDataType::FloatArray:
+				{
+					FloatArray = Attr->GetValue<TArray<float>>();
+					if(!ConvertArrayViewNoOverflow(TConstArrayView<float>(FloatArray), ConvertedView))
+					{
+						return false;
+					}
+				}
+				break;
+			default:
+				return false;
+			}
+			
+			OutputArray = TArray<OutputType, AllocatorType>{ ConvertedView };
+		}
+		else
+		{
+			OutputArray = TArray<OutputType, AllocatorType>{ DefaultValues };
+		}
+		return true;
+	}
 
 	struct FTensorDesc
 	{
