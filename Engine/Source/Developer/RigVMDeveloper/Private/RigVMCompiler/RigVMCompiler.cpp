@@ -1758,7 +1758,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 				continue;
 			}
 			const FRigVMOperand& Operand = Operands[OperandIndex];
-
+			
 			if(InputPin->GetDirection() == ERigVMPinDirection::Output || InputPin->GetDirection() == ERigVMPinDirection::IO)
 			{
 				OutputOperands.Add(Operand);
