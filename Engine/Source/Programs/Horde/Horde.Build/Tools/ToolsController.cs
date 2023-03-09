@@ -83,17 +83,23 @@ namespace Horde.Build.Tools
 		public RefName RefName => _deployment.RefName;
 
 		/// <summary>
+		/// Hash of the root node
+		/// </summary>
+		public IoHash Hash { get; }
+
+		/// <summary>
 		/// Node for downloading this deployment
 		/// </summary>
-		public NodeHandle RootNode { get; }
+		public NodeLocator Locator { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetToolDeploymentResponse(IToolDeployment deployment, NodeHandle rootNode)
+		public GetToolDeploymentResponse(IToolDeployment deployment, NodeHandle handle)
 		{
 			_deployment = deployment;
-			RootNode = rootNode;
+			Hash = handle.Hash;
+			Locator = handle.Locator;
 		}
 	}
 
