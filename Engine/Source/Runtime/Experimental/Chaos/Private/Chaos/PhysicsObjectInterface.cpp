@@ -495,7 +495,7 @@ namespace Chaos
 		bool bDisabled = !InObjects.IsEmpty();
 		for (FPhysicsObjectHandle Object : InObjects)
 		{
-			bool bParticleDisabled = false;
+			bool bParticleDisabled = true;
 			if (Object)
 			{
 				if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
