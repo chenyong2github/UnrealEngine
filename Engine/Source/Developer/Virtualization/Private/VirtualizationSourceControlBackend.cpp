@@ -879,7 +879,7 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 	{
 		FParse::Value(*ConfigEntry, TEXT("Server="), ServerAddress);
 
-		if (!ClientStream.IsEmpty())
+		if (!ServerAddress.IsEmpty())
 		{
 			UE_LOG(LogVirtualization, Log, TEXT("[%s] Using server address: '%s'"), *GetDebugName(), *ServerAddress);
 		}
