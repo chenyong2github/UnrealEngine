@@ -221,9 +221,15 @@ public:
 	/** Add a static mesh for a nmesh group */
 	bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
+	/** Get the ISM component related to a mesh id. */
+	UInstancedStaticMeshComponent* GetISMForMeshId(FMeshGroupId MeshGroupId, FMeshId MeshId) const;
+
 private:
 	uint32 NextMeshGroupId = 0;
 	TMap<FMeshGroupId, FGeometryCollectionMeshGroup> MeshGroups;
 	FGeometryCollectionISMPool Pool;
+
+	// Expose internals for debug draw support.
+	friend class UGeometryCollectionISMPoolDebugDrawComponent;
 };
 #endif

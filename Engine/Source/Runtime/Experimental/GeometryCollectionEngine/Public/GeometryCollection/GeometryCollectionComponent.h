@@ -1012,6 +1012,8 @@ public:
 	const FGeometryDynamicCollection* GetDynamicCollection() const;
 	FGeometryDynamicCollection* GetDynamicCollection();  // TEMP HACK?
 
+	UInstancedStaticMeshComponent* GetRootProxyISM() const;
+
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
 	FOnChaosPhysicsCollision OnChaosPhysicsCollision;

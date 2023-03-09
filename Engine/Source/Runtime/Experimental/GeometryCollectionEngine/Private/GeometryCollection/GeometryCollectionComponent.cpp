@@ -4523,6 +4523,22 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 	}
 }
 
+UInstancedStaticMeshComponent* UGeometryCollectionComponent::GetRootProxyISM() const
+{
+	if (AssignedISMPool != nullptr)
+	{
+		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = AssignedISMPool->GetISMPoolComp())
+		{
+			if (RestCollection->AutoInstanceMeshes.Num())
+			{
+				return ISMPoolComp->GetISMForMeshId(ISMPoolMeshGroupIndex, 0);
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 bool UGeometryCollectionComponent::IsRootBroken() const
 {
 	if (DynamicCollection && DynamicCollection->Active.Num() > 0)

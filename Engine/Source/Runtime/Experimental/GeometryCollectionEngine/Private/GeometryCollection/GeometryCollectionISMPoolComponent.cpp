@@ -216,3 +216,19 @@ bool UGeometryCollectionISMPoolComponent::BatchUpdateInstancesTransforms(FMeshGr
 	UE_LOG(LogChaos, Warning, TEXT("UGeometryCollectionISMPoolComponent : Trying to update instance with mesh group (%d) that not exists"), MeshGroupId);
 	return false;
 }
+
+UInstancedStaticMeshComponent* UGeometryCollectionISMPoolComponent::GetISMForMeshId(FMeshGroupId MeshGroupId, FMeshId MeshId) const
+{
+	if (FGeometryCollectionMeshGroup const* MeshGroup = MeshGroups.Find(MeshGroupId))
+	{
+		if (MeshGroup->MeshInfos.IsValidIndex(MeshId))
+		{
+			int32 ISMIndex = MeshGroup->MeshInfos[MeshId].ISMIndex;
+			if (Pool.ISMs.IsValidIndex(ISMIndex))
+			{
+				return Pool.ISMs[ISMIndex].ISMComponent;
+			}
+		}
+	}
+	return nullptr;
+}
