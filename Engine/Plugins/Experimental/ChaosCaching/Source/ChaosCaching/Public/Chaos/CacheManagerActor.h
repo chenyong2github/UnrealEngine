@@ -47,6 +47,7 @@ struct CHAOSCACHING_API FObservedComponent
 	FObservedComponent()
 		: CacheName(NAME_None)
 		, bIsSimulating(true)
+		, bHasNotifyBreaks(false)
 		, bPlaybackEnabled(true)
 		, bHasNotifyBreaks(false)
 		, Cache(nullptr)
