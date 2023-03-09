@@ -42,7 +42,7 @@ namespace Audio
 	)
 		: NamePrivate(InName)
 		, VersionPrivate(InVersion)
-		, SupportedUClassNames({ InType.GetFullName() })
+		, SupportedUClassNames({ InType.GetPathName() })
 	{
 	}
 
@@ -59,7 +59,7 @@ namespace Audio
 		Algo::Transform(InClasses, SupportedUClassNames, [](const UClass* Class)
 		{
 			check(Class);
-			return Class->GetFullName();
+			return Class->GetPathName();
 		});
 	}
 
@@ -98,7 +98,7 @@ namespace Audio
 		TArray<const UClass*> SupportedUClasses;
 		for (const FString& Name : SupportedUClassNames)
 		{
-			if (const UClass* Class = FindObject<const UClass>(nullptr, *Name))
+			if (const UClass* Class = FindFirstObject<const UClass>(*Name, EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("FParameterInterface::FindSupportedUClasses")))
 			{
 				SupportedUClasses.Add(Class);
 			}

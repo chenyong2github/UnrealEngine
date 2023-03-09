@@ -216,7 +216,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNodeClassInterfaceBindings(con
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	auto FindNodeClassDocAndInterfaces = [this](const FGuid & InNodeID) -> const FMetasoundFrontendDocument*
+	auto FindNodeClassDoc = [this](const FGuid & InNodeID) -> const FMetasoundFrontendDocument*
 	{
 		const TScriptInterface<IMetaSoundDocumentInterface> NodeDocumentUInterface = FindOrLoadNodeClassDocument(InNodeID);
 		if (NodeDocumentUInterface)
@@ -227,8 +227,8 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNodeClassInterfaceBindings(con
 		return nullptr;
 	};
 
-	const FMetasoundFrontendDocument* OutputNodeDocument = FindNodeClassDocAndInterfaces(InFromNodeID);
-	const FMetasoundFrontendDocument* InputNodeDocument = FindNodeClassDocAndInterfaces(InToNodeID);
+	const FMetasoundFrontendDocument* OutputNodeDocument = FindNodeClassDoc(InFromNodeID);
+	const FMetasoundFrontendDocument* InputNodeDocument = FindNodeClassDoc(InToNodeID);
 
 	if (!InputNodeDocument || !OutputNodeDocument)
 	{
@@ -1107,7 +1107,7 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveEdgesByNamedConnections(const TSet
 			else
 			{
 				bSuccess = false;
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to remove connections between MetaSound node output '%s' and input '%s': No connection found."), *Connection.OutputName.ToString(), *Connection.InputName.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to remove connection between MetaSound node output '%s' and input '%s': No connection found."), *Connection.OutputName.ToString(), *Connection.InputName.ToString());
 			}
 		}
 	}
@@ -1136,7 +1136,7 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveEdgesByNodeClassInterfaceBindings(
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	auto FindNodeClassDocAndInterfaces = [this](const FGuid& InNodeID) -> const FMetasoundFrontendDocument*
+	auto FindNodeClassDoc = [this](const FGuid& InNodeID) -> const FMetasoundFrontendDocument*
 	{
 		const TScriptInterface<IMetaSoundDocumentInterface> NodeDocumentUInterface = FindOrLoadNodeClassDocument(InNodeID);
 		if (NodeDocumentUInterface)
@@ -1147,8 +1147,8 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveEdgesByNodeClassInterfaceBindings(
 		return nullptr;
 	};
 
-	const FMetasoundFrontendDocument* OutputNodeDocument = FindNodeClassDocAndInterfaces(InFromNodeID);
-	const FMetasoundFrontendDocument* InputNodeDocument = FindNodeClassDocAndInterfaces(InToNodeID);
+	const FMetasoundFrontendDocument* OutputNodeDocument = FindNodeClassDoc(InFromNodeID);
+	const FMetasoundFrontendDocument* InputNodeDocument = FindNodeClassDoc(InToNodeID);
 
 	if (!InputNodeDocument || !OutputNodeDocument)
 	{

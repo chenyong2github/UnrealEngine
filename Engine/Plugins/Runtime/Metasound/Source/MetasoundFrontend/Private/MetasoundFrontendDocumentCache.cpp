@@ -363,11 +363,11 @@ namespace Metasound::Frontend
 
 	bool FDocumentGraphEdgeCache::ContainsEdge(const FMetasoundFrontendEdge& InEdge) const
 	{
-		const FMetasoundFrontendVertexHandle InputPair = { InEdge.FromNodeID, InEdge.FromVertexID };
+		const FMetasoundFrontendVertexHandle InputPair = { InEdge.ToNodeID, InEdge.ToVertexID };
 		if (const int32* Index = InputToEdgeIndex.Find(InputPair))
 		{
 			const FMetasoundFrontendEdge& Edge = GetDocument().RootGraph.Graph.Edges[*Index];
-			return Edge.ToNodeID == InEdge.ToNodeID && Edge.ToVertexID == InEdge.ToVertexID;
+			return Edge.FromNodeID == InEdge.FromNodeID && Edge.FromVertexID == InEdge.FromVertexID;
 		}
 
 		return false;

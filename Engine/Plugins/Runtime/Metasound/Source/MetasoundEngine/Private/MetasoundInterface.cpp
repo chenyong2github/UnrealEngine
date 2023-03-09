@@ -423,16 +423,22 @@ namespace Metasound
 
 				bool bInterfaceSupportsPatch = true;
 				bool bInterfaceSupportsSource = true;
-				const TArray<const UClass*> SupportedUClasses = Interface->FindSupportedUClasses();
-				for (const UClass* SupportedUClass : SupportedUClasses )
-				{
-					const UClass* PatchClass = UMetaSoundPatch::StaticClass();
-					check(PatchClass);
-					bInterfaceSupportsPatch |= PatchClass->IsChildOf(SupportedUClass);
 
-					const UClass* SourceClass = UMetaSoundSource::StaticClass();
-					check(SourceClass);
-					bInterfaceSupportsSource |= SourceClass->IsChildOf(SupportedUClass);
+				const TArray<const UClass*> SupportedUClasses = Interface->FindSupportedUClasses();
+				if (!SupportedUClasses.IsEmpty())
+				{
+					bInterfaceSupportsPatch = false;
+					bInterfaceSupportsSource = false;
+					for (const UClass* SupportedUClass : SupportedUClasses)
+					{
+						const UClass* PatchClass = UMetaSoundPatch::StaticClass();
+						check(PatchClass);
+						bInterfaceSupportsPatch |= PatchClass->IsChildOf(SupportedUClass);
+
+						const UClass* SourceClass = UMetaSoundSource::StaticClass();
+						check(SourceClass);
+						bInterfaceSupportsSource |= SourceClass->IsChildOf(SupportedUClass);
+					}
 				}
 
 				const bool bSupported = bInterfaceSupportsSource || bInterfaceSupportsPatch;

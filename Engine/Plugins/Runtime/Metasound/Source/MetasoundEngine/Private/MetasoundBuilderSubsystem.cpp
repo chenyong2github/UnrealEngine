@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundBuilderSubsystem.h"
 
+#include "Algo/Find.h"
 #include "Algo/Transform.h"
 #include "Components/AudioComponent.h"
 #include "HAL/IConsoleManager.h"
@@ -16,7 +17,6 @@
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "MetasoundUObjectRegistry.h"
-#include "Algo/Find.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundBuilderSubsystem)
 
@@ -41,6 +41,18 @@ namespace Metasound::Engine
 			FMetasoundFrontendLiteral Literal;
 			Literal.Set(Value);
 			return Literal;
+		}
+
+		template <typename BuilderClass>
+		BuilderClass& CreateTransientBuilder()
+		{
+			const EObjectFlags NewObjectFlags = RF_Public | RF_Transient;
+			UPackage* TransientPackage = GetTransientPackage();
+			const FName ObjectName = MakeUniqueObjectName(TransientPackage, BuilderClass::StaticClass());
+			TObjectPtr<BuilderClass> NewBuilder = NewObject<BuilderClass>(TransientPackage, ObjectName, NewObjectFlags);
+			check(NewBuilder);
+			NewBuilder->CreateTransientDocument();
+			return *NewBuilder.Get();
 		}
 	} // namespace BuilderSubsystemPrivate
 } // namespace Metasound::Engine
@@ -166,21 +178,21 @@ bool UMetaSoundBuilderBase::ContainsNodeOutput(const FMetaSoundBuilderNodeOutput
 	return Builder.FindNodeOutput(OutputHandle.NodeID, OutputHandle.VertexID) != nullptr;
 }
 
-void UMetaSoundBuilderBase::ConnectNodes(const FMetaSoundBuilderNodeOutputHandle& NodeOutput, const FMetaSoundBuilderNodeInputHandle& NodeInput, EMetaSoundBuilderResult& OutResult)
+void UMetaSoundBuilderBase::ConnectNodes(const FMetaSoundBuilderNodeOutputHandle& NodeOutputHandle, const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, EMetaSoundBuilderResult& OutResult)
 {
 	const FMetasoundFrontendEdge* NewEdge = Builder.AddEdge(FMetasoundFrontendEdge
 	{
-		NodeOutput.NodeID,
-		NodeOutput.VertexID,
-		NodeInput.NodeID,
-		NodeInput.VertexID,
+		NodeOutputHandle.NodeID,
+		NodeOutputHandle.VertexID,
+		NodeInputHandle.NodeID,
+		NodeInputHandle.VertexID,
 	});
 	OutResult = NewEdge ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
-void UMetaSoundBuilderBase::ConnectNodesByInterfaceBindings(const FMetaSoundNodeHandle& FromNode, const FMetaSoundNodeHandle& ToNode, EMetaSoundBuilderResult& OutResult)
+void UMetaSoundBuilderBase::ConnectNodesByInterfaceBindings(const FMetaSoundNodeHandle& FromNodeHandle, const FMetaSoundNodeHandle& ToNodeHandle, EMetaSoundBuilderResult& OutResult)
 {
-	const bool bEdgesAdded = Builder.AddEdgesByNodeClassInterfaceBindings(FromNode.NodeID, ToNode.NodeID);
+	const bool bEdgesAdded = Builder.AddEdgesByNodeClassInterfaceBindings(FromNodeHandle.NodeID, ToNodeHandle.NodeID);
 	OutResult = bEdgesAdded ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
@@ -218,7 +230,7 @@ TArray<FMetaSoundBuilderNodeOutputHandle> UMetaSoundBuilderBase::ConnectNodeInpu
 	return ConnectedVertices;
 }
 
-void UMetaSoundBuilderBase::ConnectNodeOutputToGraphOutput(FName GraphOutputName, const FMetaSoundBuilderNodeOutputHandle& NodeOutput, EMetaSoundBuilderResult& OutResult)
+void UMetaSoundBuilderBase::ConnectNodeOutputToGraphOutput(FName GraphOutputName, const FMetaSoundBuilderNodeOutputHandle& NodeOutputHandle, EMetaSoundBuilderResult& OutResult)
 {
 	OutResult = EMetaSoundBuilderResult::Failed;
 
@@ -227,8 +239,8 @@ void UMetaSoundBuilderBase::ConnectNodeOutputToGraphOutput(FName GraphOutputName
 		const FMetasoundFrontendVertex& InputVertex = GraphOutputNode->Interface.Inputs.Last();
 		const FMetasoundFrontendEdge* EdgeAdded = Builder.AddEdge(FMetasoundFrontendEdge
 		{
-			NodeOutput.NodeID,
-			NodeOutput.VertexID,
+			NodeOutputHandle.NodeID,
+			NodeOutputHandle.VertexID,
 			GraphOutputNode->GetID(),
 			InputVertex.VertexID
 		});
@@ -236,7 +248,7 @@ void UMetaSoundBuilderBase::ConnectNodeOutputToGraphOutput(FName GraphOutputName
 	}
 }
 
-void UMetaSoundBuilderBase::ConnectNodeInputToGraphInput(FName GraphInputName, const FMetaSoundBuilderNodeInputHandle& NodeInput, EMetaSoundBuilderResult& OutResult)
+void UMetaSoundBuilderBase::ConnectNodeInputToGraphInput(FName GraphInputName, const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, EMetaSoundBuilderResult& OutResult)
 {
 	const FMetasoundFrontendNode* GraphInputNode = Builder.FindGraphInputNode(GraphInputName);
 	if (!GraphInputNode)
@@ -250,34 +262,40 @@ void UMetaSoundBuilderBase::ConnectNodeInputToGraphInput(FName GraphInputName, c
 	{
 		GraphInputNode->GetID(),
 		OutputVertex.VertexID,
-		NodeInput.NodeID,
-		NodeInput.VertexID
+		NodeInputHandle.NodeID,
+		NodeInputHandle.VertexID
 	});
 	OutResult = EdgeAdded ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
-void UMetaSoundBuilderBase::DisconnectNodes(const FMetaSoundBuilderNodeOutputHandle& NodeOutput, const FMetaSoundBuilderNodeInputHandle& NodeInput, EMetaSoundBuilderResult& OutResult)
+void UMetaSoundBuilderBase::DisconnectNodes(const FMetaSoundBuilderNodeOutputHandle& NodeOutputHandle, const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, EMetaSoundBuilderResult& OutResult)
 {
 	const bool bEdgeRemoved = Builder.RemoveEdge(FMetasoundFrontendEdge
 	{
-		NodeOutput.NodeID,
-		NodeOutput.VertexID,
-		NodeInput.NodeID,
-		NodeInput.VertexID,
+		NodeOutputHandle.NodeID,
+		NodeOutputHandle.VertexID,
+		NodeInputHandle.NodeID,
+		NodeInputHandle.VertexID,
 	});
 	OutResult = bEdgeRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
-void UMetaSoundBuilderBase::DisconnectNodeInput(const FMetaSoundBuilderNodeInputHandle& NodeInput, EMetaSoundBuilderResult& OutResult)
+void UMetaSoundBuilderBase::DisconnectNodeInput(const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, EMetaSoundBuilderResult& OutResult)
 {
-	const bool bEdgeRemoved = Builder.RemoveEdgeToNodeInput(NodeInput.NodeID, NodeInput.VertexID);
+	const bool bEdgeRemoved = Builder.RemoveEdgeToNodeInput(NodeInputHandle.NodeID, NodeInputHandle.VertexID);
 	OutResult = bEdgeRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
-void UMetaSoundBuilderBase::DisconnectNodeOutput(const FMetaSoundBuilderNodeOutputHandle& NodeOutput, EMetaSoundBuilderResult& OutResult)
+void UMetaSoundBuilderBase::DisconnectNodeOutput(const FMetaSoundBuilderNodeOutputHandle& NodeOutputHandle, EMetaSoundBuilderResult& OutResult)
 {
-	const bool bEdgeRemoved = Builder.RemoveEdgesFromNodeOutput(NodeOutput.NodeID, NodeOutput.VertexID);
+	const bool bEdgeRemoved = Builder.RemoveEdgesFromNodeOutput(NodeOutputHandle.NodeID, NodeOutputHandle.VertexID);
 	OutResult = bEdgeRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+}
+
+void UMetaSoundBuilderBase::DisconnectNodesByInterfaceBindings(const FMetaSoundNodeHandle& FromNodeHandle, const FMetaSoundNodeHandle& ToNodeHandle, EMetaSoundBuilderResult& OutResult)
+{
+	const bool bEdgesRemoved = Builder.RemoveEdgesByNodeClassInterfaceBindings(FromNodeHandle.NodeID, ToNodeHandle.NodeID);
+	OutResult = bEdgesRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
 FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::FindNodeInputByName(const FMetaSoundNodeHandle& NodeHandle, FName InputName, EMetaSoundBuilderResult& OutResult) const
@@ -443,6 +461,15 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphOutputNode(FName OutputName
 	return { };
 }
 
+void UMetaSoundBuilderBase::CreateTransientDocument()
+{
+	TObjectPtr<UMetaSoundBuilderDocument> NewBuilder = NewObject<UMetaSoundBuilderDocument>();
+	TScriptInterface<IMetaSoundDocumentInterface> MetaSoundSourceDocInterface = NewBuilder;
+	Builder = FMetaSoundFrontendDocumentBuilder(MetaSoundSourceDocInterface);
+	const UClass& BuilderClass = GetBuilderUClass();
+	Builder.InitDocument(BuilderClass.GetFName());
+}
+
 void UMetaSoundBuilderBase::InitNodeLocations()
 {
 	Builder.InitNodeLocations();
@@ -467,17 +494,6 @@ bool UMetaSoundBuilderBase::NodeInputIsConnected(const FMetaSoundBuilderNodeInpu
 bool UMetaSoundBuilderBase::NodeOutputIsConnected(const FMetaSoundBuilderNodeOutputHandle& OutputHandle) const
 {
 	return Builder.IsNodeOutputConnected(OutputHandle.NodeID, OutputHandle.VertexID);
-}
-
-void UMetaSoundBuilderBase::PostInitProperties()
-{
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		UClass& MetaSoundUClass = GetBuilderUClass();
-		Builder.InitDocument(MetaSoundUClass.GetFName());
-	}
-
-	Super::PostInitProperties();
 }
 
 void UMetaSoundBuilderBase::RemoveInterface(FName InterfaceName, EMetaSoundBuilderResult& OutResult)
@@ -708,7 +724,6 @@ void UMetaSoundSourceBuilder::SetFormat(EMetaSoundOutputAudioFormat OutputFormat
 	OutResult = bSuccess ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
-
 UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::CreatePatchBuilder(FName BuilderName, EMetaSoundBuilderResult& OutResult)
 {
 	using namespace Metasound::Engine::BuilderSubsystemPrivate;
@@ -718,12 +733,7 @@ UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::CreatePatchBuilder(FName Bui
 		UE_LOG(LogMetaSound, Error, TEXT("CreatePatchBuilder Failed to create MetaSound Builder '%s': See CVar au.MetaSound.BuilderSubsystem.Enabled (%s')"), *BuilderName.ToString(), CVarEnableDocumentBuilder->GetHelp());
 		return nullptr;
 	}
-
-	const EObjectFlags NewObjectFlags = RF_Public | RF_Transient;
-	const FName ObjectName = MakeUniqueObjectName(GetTransientPackage(), UMetaSoundPatchBuilder::StaticClass());
-	TObjectPtr<UMetaSoundPatchBuilder> NewBuilder = NewObject<UMetaSoundPatchBuilder>(this, ObjectName, NewObjectFlags);
-	check(NewBuilder);
-	return NewBuilder;
+	return &CreateTransientBuilder<UMetaSoundPatchBuilder>();
 }
 
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
@@ -750,27 +760,23 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 		return nullptr;
 	}
 
-	const EObjectFlags NewObjectFlags = RF_Public | RF_Transient;
-	UPackage* TransientPackage = GetTransientPackage();
-	const FName ObjectName = MakeUniqueObjectName(TransientPackage, UMetaSoundSourceBuilder::StaticClass());
-	TObjectPtr<UMetaSoundSourceBuilder> NewBuilder = NewObject<UMetaSoundSourceBuilder>(TransientPackage, ObjectName, NewObjectFlags);
-	check(NewBuilder);
+	UMetaSoundSourceBuilder& NewBuilder = CreateTransientBuilder<UMetaSoundSourceBuilder>();
 
 	bool bFormatSet = OutputFormat == EMetaSoundOutputAudioFormat::Mono;
 	if (!bFormatSet)
 	{
 		EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
-		NewBuilder->SetFormat(OutputFormat, Result);
+		NewBuilder.SetFormat(OutputFormat, Result);
 		bFormatSet = Result == EMetaSoundBuilderResult::Succeeded;
 	}
 
 	if (bFormatSet)
 	{
-		const Metasound::Engine::FOutputAudioFormatInfoPair* FormatInfo = NewBuilder->FindOutputAudioFormatInfo();
+		const Metasound::Engine::FOutputAudioFormatInfoPair* FormatInfo = NewBuilder.FindOutputAudioFormatInfo();
 		TArray<FMetaSoundNodeHandle> AudioOutputNodes;
 		if (FormatInfo)
 		{
-			AudioOutputNodes = NewBuilder->FindInterfaceOutputNodes(FormatInfo->Value.InterfaceVersion.Name, OutResult);
+			AudioOutputNodes = NewBuilder.FindInterfaceOutputNodes(FormatInfo->Value.InterfaceVersion.Name, OutResult);
 		}
 
 		if (!AudioOutputNodes.IsEmpty())
@@ -778,7 +784,7 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 			Algo::Transform(AudioOutputNodes, AudioOutNodeInputs, [&NewBuilder, &BuilderName](const FMetaSoundNodeHandle& AudioOutputNode) -> FMetaSoundBuilderNodeInputHandle
 			{
 				EMetaSoundBuilderResult Result;
-				TArray<FMetaSoundBuilderNodeInputHandle> Inputs = NewBuilder->FindNodeInputs(AudioOutputNode, Result);
+				TArray<FMetaSoundBuilderNodeInputHandle> Inputs = NewBuilder.FindNodeInputs(AudioOutputNode, Result);
 				if (!Inputs.IsEmpty())
 				{
 					return Inputs.Last();
@@ -801,14 +807,14 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 	}
 
 	{
-		FMetaSoundNodeHandle OnPlayNode = NewBuilder->FindGraphInputNode(SourceInterface::Inputs::OnPlay, OutResult);
+		FMetaSoundNodeHandle OnPlayNode = NewBuilder.FindGraphInputNode(SourceInterface::Inputs::OnPlay, OutResult);
 		if (OutResult == EMetaSoundBuilderResult::Failed)
 		{
 			UE_LOG(LogMetaSound, Error, TEXT("Builder '%s' Creation Error: Failed to add required interface '%s' when attempting to create MetaSound Source Builder"), *BuilderName.ToString(), * SourceInterface::GetVersion().ToString());
 			return nullptr;
 		}
 
-		TArray<FMetaSoundBuilderNodeOutputHandle> Outputs = NewBuilder->FindNodeOutputs(OnPlayNode, OutResult);
+		TArray<FMetaSoundBuilderNodeOutputHandle> Outputs = NewBuilder.FindNodeOutputs(OnPlayNode, OutResult);
 		if (OutResult == EMetaSoundBuilderResult::Failed)
 		{
 			UE_LOG(LogMetaSound, Error, TEXT("Builder '%s' Creation Error: Failed to find output vertex for 'OnPlay' input node when attempting to create MetaSound Source Builder"), *BuilderName.ToString());
@@ -822,13 +828,13 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 	{
 		if (bIsOneShot)
 		{
-			FMetaSoundNodeHandle OnFinishedNode = NewBuilder->FindGraphOutputNode(SourceOneShotInterface::Outputs::OnFinished, OutResult);
+			FMetaSoundNodeHandle OnFinishedNode = NewBuilder.FindGraphOutputNode(SourceOneShotInterface::Outputs::OnFinished, OutResult);
 			if (OutResult == EMetaSoundBuilderResult::Failed)
 			{
 				UE_LOG(LogMetaSound, Error, TEXT("Builder '%s' Creation Error: Failed to add '%s' interface; interface definition may not be registered."), *BuilderName.ToString(), *SourceOneShotInterface::GetVersion().ToString());
 			}
 
-			TArray<FMetaSoundBuilderNodeInputHandle> Inputs = NewBuilder->FindNodeInputs(OnFinishedNode, OutResult);
+			TArray<FMetaSoundBuilderNodeInputHandle> Inputs = NewBuilder.FindNodeInputs(OnFinishedNode, OutResult);
 			if (OutResult == EMetaSoundBuilderResult::Failed)
 			{
 				UE_LOG(LogMetaSound, Error, TEXT("Builder '%s' Creation Error: Failed to find input vertex for 'OnFinished' output node when attempting to create MetaSound Source Builder"), *BuilderName.ToString());
@@ -840,12 +846,12 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 		}
 		else
 		{
-			NewBuilder->RemoveInterface(SourceOneShotInterface::GetVersion().Name, OutResult);
+			NewBuilder.RemoveInterface(SourceOneShotInterface::GetVersion().Name, OutResult);
 		}
 	}
 
 	OutResult = EMetaSoundBuilderResult::Succeeded;
-	return NewBuilder;
+	return &NewBuilder;
 }
 
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::AttachSourceBuilderToAsset(UMetaSoundSource* InSource) const
