@@ -306,6 +306,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_GetLengthAtParamControlRigSpline : public F
 
 	FRigUnit_GetLengthAtParamControlRigSpline()
 	{
+		U = 0.f;
 		Length = 0.f;
 	}
 
