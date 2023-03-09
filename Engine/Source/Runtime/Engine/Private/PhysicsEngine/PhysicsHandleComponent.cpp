@@ -101,6 +101,12 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 		return;
 	}
 
+	// If the grabbed body is welded to another, grab that instead
+	if (BodyInstance->WeldParent != nullptr)
+	{
+		BodyInstance = BodyInstance->WeldParent;
+	}
+
 	// simulatable bodies should have handles.
 	FPhysicsActorHandle& InHandle = BodyInstance->GetPhysicsActorHandle();
 	if (!InHandle)
