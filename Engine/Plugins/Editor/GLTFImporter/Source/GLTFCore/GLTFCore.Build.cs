@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
                     "Json",
                     "RenderCore",
+					"HTTP",
                 }
                 );
         }
