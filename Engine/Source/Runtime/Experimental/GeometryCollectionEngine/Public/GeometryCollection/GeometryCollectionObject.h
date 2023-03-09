@@ -524,15 +524,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
 	bool bStripRenderDataOnCook;
 
-	/** list of unique static mesh / materials pairs for auto instancing*/
-	UPROPERTY(EditAnywhere, Category = "Rendering")
-	TArray<FGeometryCollectionAutoInstanceMesh> AutoInstanceMeshes;
-
 	/** static mesh to use as a proxy for rendering until the geometry collection is broken */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Rendering")
 	FGeometryCollectionProxyMeshData RootProxyData;
 
+	/** list of unique static mesh / materials pairs for auto instancing*/
+	UPROPERTY(EditAnywhere, Category = "Rendering")
+	TArray<FGeometryCollectionAutoInstanceMesh> AutoInstanceMeshes;
 
+	/** Array of material custom data for all static meshes in AutoInstanceMeshes. */
+	UPROPERTY(EditAnywhere, Category = "Rendering")
+	TArray<float> AutoInstanceMaterialCustomData;
 
 	UFUNCTION(BlueprintCallable, Category = "Nanite")
 	void SetEnableNanite(bool bValue);

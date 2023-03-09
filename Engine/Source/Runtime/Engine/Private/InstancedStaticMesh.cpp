@@ -3383,7 +3383,7 @@ bool UInstancedStaticMeshComponent::SetCustomDataValue(int32 InstanceIndex, int3
 	return true;
 }
 
-bool UInstancedStaticMeshComponent::SetCustomData(int32 InstanceIndex, const TArray<float>& InCustomData, bool bMarkRenderStateDirty)
+bool UInstancedStaticMeshComponent::SetCustomData(int32 InstanceIndex, TArrayView<const float> InCustomData, bool bMarkRenderStateDirty)
 {
 	if (!PerInstanceSMData.IsValidIndex(InstanceIndex) || InCustomData.Num() == 0)
 	{

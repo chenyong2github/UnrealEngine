@@ -1076,6 +1076,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Rendering")
 	bool bAutoAssignISMPool;
 
+	/** 
+	 * Values that will be added to the Per Instance Custom Data for every instance in all ISMPools. 
+	 * This will be added in slots after values that come from the Geometry Collection AutoInstanceMaterialCustomData. 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rendering)
+	TArray<float> ISMPoolMaterialCustomData;
+
 	TObjectPtr<AGeometryCollectionISMPoolActor> AssignedISMPool = nullptr;
 	int32 ISMPoolMeshGroupIndex = INDEX_NONE;
 	TArray<int32> ISMPoolRootProxyMeshIds;
@@ -1172,6 +1179,7 @@ protected:
 	// We track this on the client to be able to turn off the tick for perf reasons
 	// if we spend a lot of ticks sequentially doing nothing.
 	int64 LastAsyncPhysicsTickMs = 0;
+
 private:
 
 	bool bRenderStateDirty;

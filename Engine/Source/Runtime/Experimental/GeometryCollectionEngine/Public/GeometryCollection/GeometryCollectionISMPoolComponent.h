@@ -104,10 +104,11 @@ struct FGeometryCollectionStaticMeshInstance
 {
 	UStaticMesh* StaticMesh = nullptr;
 	TArray<UMaterialInterface*> MaterialsOverrides;
+	int32 NumCustomDataFloats = 0;
 
 	bool operator==(const FGeometryCollectionStaticMeshInstance& Other) const 
 	{
-		if (StaticMesh == Other.StaticMesh)
+		if (StaticMesh == Other.StaticMesh && NumCustomDataFloats == Other.NumCustomDataFloats)
 		{
 			if (MaterialsOverrides.Num() == Other.MaterialsOverrides.Num())
 			{
@@ -167,7 +168,7 @@ struct FGeometryCollectionISM
 {
 	FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& MeshInstance, bool bPreferHISM);
 
-	int32 AddInstanceGroup(int32 InstanceCount);
+	int32 AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 
 	TObjectPtr<UInstancedStaticMeshComponent> ISMComponent;
 	FInstanceGroups InstanceGroups;
@@ -178,7 +179,7 @@ struct FGeometryCollectionISMPool
 {
 	using FISMIndex = int32;
 
-	FGeometryCollectionMeshInfo AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, bool bPreferHISM);
+	FGeometryCollectionMeshInfo AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM);
 	bool BatchUpdateInstancesTransforms(FGeometryCollectionMeshInfo& MeshInfo, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport);
 	void RemoveISM(const FGeometryCollectionMeshInfo& MeshInfo);
 
@@ -215,7 +216,7 @@ public:
 	void DestroyMeshGroup(FMeshGroupId MeshGroupId);
 
 	/** Add a static mesh for a nmesh group */
-	FMeshId AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, bool bPreferHISM = true);
+	FMeshId AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM = true);
 
 	/** Add a static mesh for a nmesh group */
 	bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);

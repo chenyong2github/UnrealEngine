@@ -4308,7 +4308,9 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 
 						FGeometryCollectionStaticMeshInstance StaticMeshInstance;
 						StaticMeshInstance.StaticMesh = Mesh;
-						ISMPoolRootProxyMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, 1, bChaos_GC_UseHierarchicalISMForProxyMesh));
+						StaticMeshInstance.NumCustomDataFloats = ISMPoolMaterialCustomData.Num();
+
+						ISMPoolRootProxyMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, 1, ISMPoolMaterialCustomData, bChaos_GC_UseHierarchicalISMForProxyMesh));
 					}
 				}
 
@@ -4361,8 +4363,10 @@ void UGeometryCollectionComponent::AddAutoInstancesToISMPool()
 			if (RestCollection->GetGeometryCollection())
 			{
 				// first count the instance per mesh 
+				const int32 NumMeshes = RestCollection->AutoInstanceMeshes.Num();
 				TArray<int32> InstanceCounts;
-				InstanceCounts.AddZeroed(RestCollection->AutoInstanceMeshes.Num());
+				InstanceCounts.AddZeroed(NumMeshes);
+				int32 TotalInstanceCount = 0;
 
 				const TManagedArray<TSet<int32>>& Children = RestCollection->GetGeometryCollection()->Children;
 
@@ -4375,12 +4379,21 @@ void UGeometryCollectionComponent::AddAutoInstancesToISMPool()
 						if (Children[TransformIndex].Num() == 0)
 						{
 							InstanceCounts[AutoInstanceMeshIndex]++;
+							TotalInstanceCount++;
 						}
 					}
 				}
 
+				// Apply custom instance data from geometry collcection object if custom data array is set up correctly so that it's size matches a multiple of the number of instances.
+				const bool bHasValidAssetCustomInstanceData = TotalInstanceCount && RestCollection->AutoInstanceMaterialCustomData.Num() % TotalInstanceCount == 0;
+				const int32 NumCustomDataFloatsFromAsset = bHasValidAssetCustomInstanceData ? RestCollection->AutoInstanceMaterialCustomData.Num() / TotalInstanceCount : 0;
+				const int32 NumCustomDataFloatsFromComponent = ISMPoolMaterialCustomData.Num();
+				const int32 NumCustomDataFloats = NumCustomDataFloatsFromAsset + NumCustomDataFloatsFromComponent;
+				TArray<float, TInlineAllocator<64>> CustomFloatData;
+				int32 CustomDataFromAssetReadIndex = 0;
+
 				// now register each mesh 
-				for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
+				for (int32 MeshIndex = 0; MeshIndex < NumMeshes; MeshIndex++)
 				{
 					const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh = RestCollection->AutoInstanceMeshes[MeshIndex];
 					if (const UStaticMesh* StaticMesh = AutoInstanceMesh.Mesh)
@@ -4401,7 +4414,24 @@ void UGeometryCollectionComponent::AddAutoInstancesToISMPool()
 						{
 							StaticMeshInstance.MaterialsOverrides = AutoInstanceMesh.Materials;
 						}
-						ISMPoolAutoInstancesMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, InstanceCounts[MeshIndex], bChaos_GC_UseHierarchicalISMForLeafMeshes));
+						StaticMeshInstance.NumCustomDataFloats = NumCustomDataFloats;
+
+						if (NumCustomDataFloats > 0)
+						{
+							const int32 InstanceCount = InstanceCounts[MeshIndex];
+							CustomFloatData.Reset();
+							CustomFloatData.Reserve(InstanceCount * NumCustomDataFloats);
+							
+							for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+							{
+								CustomFloatData.Append(ISMPoolMaterialCustomData);
+								// Append each set of values from AutoInstanceMaterialCustomData after the common values from ISMPoolMaterialCustomData
+								CustomFloatData.Append(&RestCollection->AutoInstanceMaterialCustomData[CustomDataFromAssetReadIndex], NumCustomDataFloatsFromAsset);
+								CustomDataFromAssetReadIndex += NumCustomDataFloatsFromAsset;
+							}
+						}
+
+						ISMPoolAutoInstancesMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, InstanceCounts[MeshIndex], CustomFloatData, bChaos_GC_UseHierarchicalISMForLeafMeshes));
 					}
 				}
 			}
@@ -4471,7 +4501,7 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 								}
 
 								TArray<FTransform> InstanceTransforms;
-								for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
+								for (int32 MeshIndex = 0; MeshIndex < ISMPoolAutoInstancesMeshIds.Num(); MeshIndex++)
 								{
 									InstanceTransforms.Reset(NumTransforms); // Allocate for worst case
 									for (int32 TransformIndex = 0; TransformIndex < NumTransforms; TransformIndex++)

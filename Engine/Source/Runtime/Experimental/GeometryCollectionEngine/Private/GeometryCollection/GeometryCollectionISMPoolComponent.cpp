@@ -61,6 +61,7 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeome
 		{
 			ISMC->SetMaterial(MaterialIndex, MeshInstance.MaterialsOverrides[MaterialIndex]);
 		}
+		ISMC->NumCustomDataFloats = MeshInstance.NumCustomDataFloats;
 		ISMC->SetCullDistances(0, 0);
 		ISMC->SetCanEverAffectNavigation(false);
 		ISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -73,9 +74,10 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeome
 	}
 }
 
-int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount)
+int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats)
 {
 	const int32 InstanceGroupIndex = InstanceGroups.AddGroup(InstanceCount);
+	const FInstanceGroups::FInstanceGroupRange& NewInstanceGroup = InstanceGroups.GetGroup(InstanceGroupIndex);
 
 	ISMComponent->PreAllocateInstancesMemory(InstanceCount);
 
@@ -86,10 +88,22 @@ int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount)
 
 	ISMComponent->AddInstances(ZeroScaleTransforms, false, true);
 
+	if (CustomDataFloats.Num())
+	{
+		const int32 NumCustomDataFloats = ISMComponent->NumCustomDataFloats;
+		if (ensure(NumCustomDataFloats * InstanceCount == CustomDataFloats.Num()))
+		{
+			for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+			{
+				ISMComponent->SetCustomData(NewInstanceGroup.Start + InstanceIndex, CustomDataFloats.Slice(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats));
+			}
+		}
+	}
+
 	return InstanceGroupIndex;
 }
 
-FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, bool bPreferHISM)
+FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM)
 {
 	FGeometryCollectionMeshInfo Info;
 
@@ -104,7 +118,7 @@ FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollecti
 		Info.ISMIndex = *ISMIndex;
 	}
 	// add to the ISM 
-	Info.InstanceGroupIndex = ISMs[Info.ISMIndex].AddInstanceGroup(InstanceCount);
+	Info.InstanceGroupIndex = ISMs[Info.ISMIndex].AddInstanceGroup(InstanceCount, CustomDataFloats);
 	return Info;
 }
 
@@ -182,11 +196,11 @@ void UGeometryCollectionISMPoolComponent::DestroyMeshGroup(FMeshGroupId MeshGrou
 	}
 }
 
-UGeometryCollectionISMPoolComponent::FMeshId UGeometryCollectionISMPoolComponent::AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, bool bPreferHISM)
+UGeometryCollectionISMPoolComponent::FMeshId UGeometryCollectionISMPoolComponent::AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM)
 {
 	if (FGeometryCollectionMeshGroup* MeshGroup = MeshGroups.Find(MeshGroupId))
 	{
-		const FGeometryCollectionMeshInfo ISMInstanceInfo = Pool.AddISM(this, MeshInstance, InstanceCount, bPreferHISM);
+		const FGeometryCollectionMeshInfo ISMInstanceInfo = Pool.AddISM(this, MeshInstance, InstanceCount, CustomDataFloats, bPreferHISM);
 		return MeshGroup->AddMesh(MeshInstance, InstanceCount, ISMInstanceInfo);
 	}
 	UE_LOG(LogChaos, Warning, TEXT("UGeometryCollectionISMPoolComponent : Trying to add a mesh to a mesh group (%d) that does not exists"), MeshGroupId);

@@ -416,6 +416,7 @@ void UGeometryCollection::Reset()
 		Materials.Empty();
 		EmbeddedGeometryExemplar.Empty();
 		AutoInstanceMeshes.Empty();
+		AutoInstanceMaterialCustomData.Empty();
 		InvalidateCollection();
 	}
 }

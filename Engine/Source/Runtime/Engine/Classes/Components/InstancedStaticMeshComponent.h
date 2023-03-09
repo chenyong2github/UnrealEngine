@@ -163,7 +163,7 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	virtual bool SetCustomDataValue(int32 InstanceIndex, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty = false);
 
 	/** Per Instance Custom Data */
-	virtual bool SetCustomData(int32 InstanceIndex, const TArray<float>& CustomDataFloats, bool bMarkRenderStateDirty = false); 
+	virtual bool SetCustomData(int32 InstanceIndex, TArrayView<const float> CustomDataFloats, bool bMarkRenderStateDirty = false); 
 
 	/** Preallocated memory to include the new added instances count, to prevent reallloc during the add operation. */
 	virtual void PreAllocateInstancesMemory(int32 AddedInstanceCount);
