@@ -50,9 +50,7 @@ namespace Metasound::Frontend
 } // namespace Metasound::Frontend
 
 FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder()
-	: DocumentInterface(NewObject<UMetaSoundBuilderDocument>())
 {
-	ReloadCache();
 }
 
 FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(TScriptInterface<IMetaSoundDocumentInterface> InDocumentInterface)
@@ -63,11 +61,11 @@ FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(TScriptInte
 
 FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(const FMetaSoundFrontendDocumentBuilder& InBuilder)
 {
-	// A new object doc has to be created when copied to avoid multiple builders/caches operating on a single document.
-	UMetaSoundBuilderDocument* NewDoc = NewObject<UMetaSoundBuilderDocument>();
-	NewDoc->Document = InBuilder.GetDocument();
-	DocumentInterface = NewDoc;
-	ReloadCache();
+	DocumentInterface = InBuilder.DocumentInterface;
+	if (DocumentInterface)
+	{
+		ReloadCache();
+	}	
 }
 
 FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(FMetaSoundFrontendDocumentBuilder&& InBuilder)
@@ -88,11 +86,11 @@ FMetaSoundFrontendDocumentBuilder& FMetaSoundFrontendDocumentBuilder::operator=(
 {
 	using namespace Metasound::Frontend;
 
-	// A new object doc has to be created when copied to avoid multiple builders/caches operating on a single document.
-	UMetaSoundBuilderDocument* NewDoc = NewObject<UMetaSoundBuilderDocument>();
-	NewDoc->Document = InRHS.GetDocument();
-	DocumentInterface = NewDoc;
-	ReloadCache();
+	DocumentInterface = InRHS.DocumentInterface;
+	if (DocumentInterface)
+	{
+		ReloadCache();
+	}	
 	return *this;
 }
 
