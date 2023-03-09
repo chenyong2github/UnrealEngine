@@ -2496,8 +2496,8 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 	// Update the preview mesh for the preview mesh mode. 
 	GEditor->UpdatePreviewMesh();
 
-	// Copy perspective views to the global if this viewport is a view parent or has streaming volume previs enabled
-	if ( ViewState.GetReference()->IsViewParent() || (IsPerspective() && GetDefault<ULevelEditorViewportSettings>()->bLevelStreamingVolumePrevis && Viewport->GetSizeXY().X > 0) )
+	// Copy perspective views to the global if this viewport has streaming volume previs enabled
+	if ( (IsPerspective() && GetDefault<ULevelEditorViewportSettings>()->bLevelStreamingVolumePrevis && Viewport->GetSizeXY().X > 0) )
 	{
 		GPerspFrustumAngle=ViewFOV;
 		GPerspFrustumAspectRatio=AspectRatio;
@@ -4381,35 +4381,25 @@ void FLevelEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDrawInter
 		DrawTextureStreamingBounds(View, PDI);
 	}
 
-	// Determine if a view frustum should be rendered in the viewport.
-	// The frustum should definitely be rendered if the viewport has a view parent.
-	bool bRenderViewFrustum = ViewState.GetReference()->HasViewParent();
-
-	// If the viewport doesn't have a view parent, a frustum still should be drawn anyway if the viewport is ortho and level streaming
-	// volume previs is enabled in some viewport
-	if ( !bRenderViewFrustum && IsOrtho() )
+	// A frustum should be drawn if the viewport is ortho and level streaming volume previs is enabled in some viewport
+	if ( IsOrtho() )
 	{
 		for (FLevelEditorViewportClient* CurViewportClient : GEditor->GetLevelViewportClients())
 		{
 			if ( CurViewportClient && IsPerspective() && GetDefault<ULevelEditorViewportSettings>()->bLevelStreamingVolumePrevis )
 			{
-				bRenderViewFrustum = true;
+				// Draw the view frustum of the level streaming volume previs viewport.
+				RenderViewFrustum(PDI, FLinearColor(1.0, 0.0, 1.0, 1.0),
+					GPerspFrustumAngle,
+					GPerspFrustumAspectRatio,
+					GPerspFrustumStartDist,
+					GPerspFrustumEndDist,
+					GPerspViewMatrix);
+
 				break;
 			}
 		}
 	}
-
-	// Draw the view frustum of the view parent or level streaming volume previs viewport, if necessary
-	if ( bRenderViewFrustum )
-	{
-		RenderViewFrustum( PDI, FLinearColor(1.0,0.0,1.0,1.0),
-			GPerspFrustumAngle,
-			GPerspFrustumAspectRatio,
-			GPerspFrustumStartDist,
-			GPerspFrustumEndDist,
-			GPerspViewMatrix);
-	}
-
 
 	if (IsPerspective())
 	{

@@ -131,59 +131,12 @@ public:
 	FSceneViewStateInterface()
 		:	bValidEyeAdaptationTexture(0)
 		,	bValidEyeAdaptationBuffer(0)
-		,	ViewParent(NULL)
-		,	NumChildren( 0 )
 	{}
 	
 	/** Called in the game thread to destroy the view state. */
 	virtual void Destroy() = 0;
 
 public:
-	/** Sets the view state's scene parent. */
-	void SetViewParent(FSceneViewStateInterface* InViewParent)
-	{
-		if ( ViewParent )
-		{
-			// Assert that the existing parent does not have a parent.
-			check( !ViewParent->HasViewParent() );
-			// Decrement ref ctr of existing parent.
-			--ViewParent->NumChildren;
-		}
-
-		if ( InViewParent && InViewParent != this )
-		{
-			// Assert that the incoming parent does not have a parent.
-			check( !InViewParent->HasViewParent() );
-			ViewParent = InViewParent;
-			// Increment ref ctr of new parent.
-			InViewParent->NumChildren++;
-		}
-		else
-		{
-			ViewParent = NULL;
-		}
-	}
-	/** @return			The view state's scene parent, or NULL if none present. */
-	FSceneViewStateInterface* GetViewParent()
-	{
-		return ViewParent;
-	}
-	/** @return			The view state's scene parent, or NULL if none present. */
-	const FSceneViewStateInterface* GetViewParent() const
-	{
-		return ViewParent;
-	}
-	/** @return			true if the scene state has a parent, false otherwise. */
-	bool HasViewParent() const
-	{
-		return GetViewParent() != NULL;
-	}
-	/** @return			true if this scene state is a parent, false otherwise. */
-	bool IsViewParent() const
-	{
-		return NumChildren > 0;
-	}
-	
 	/** @return	the derived view state object */
 	virtual FSceneViewState* GetConcreteViewState () = 0;
 
@@ -303,7 +256,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void AddLumenSceneData(FSceneInterface* InScene, float SurfaceCacheResolution = 1.0f) {}
 	virtual void RemoveLumenSceneData(FSceneInterface* InScene) {}
 	virtual bool HasLumenSceneData() const = 0;
+	
+	UE_DEPRECATED(5.3, "SetViewParent is deprecated")
+	void SetViewParent(FSceneViewStateInterface*) {}
 
+	UE_DEPRECATED(5.3, "GetViewParent is deprecated")
+	FSceneViewStateInterface* GetViewParent() { return nullptr; }
+
+	UE_DEPRECATED(5.3, "GetViewParent is deprecated")
+	const FSceneViewStateInterface* GetViewParent() const { return nullptr; }
+
+	UE_DEPRECATED(5.3, "HasViewParent is deprecated")
+	bool HasViewParent() const { return false; }
+
+	UE_DEPRECATED(5.3, "IsViewParent is deprecated")
+	bool IsViewParent() const { return false; }
+	
 protected:
 	// Don't allow direct deletion of the view state, Destroy should be called instead.
 	virtual ~FSceneViewStateInterface() {}
@@ -313,11 +281,6 @@ protected:
 	uint8 bValidEyeAdaptationBuffer : 1;
 
 private:
-	/** This scene state's view parent; NULL if no parent present. */
-	FSceneViewStateInterface*	ViewParent;
-	/** Reference counts the number of children parented to this state. */
-	int32							NumChildren;
-
 	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache(const FScene* InScene) const { return nullptr; }
 	friend class FScene;
 };

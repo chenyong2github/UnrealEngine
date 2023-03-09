@@ -1774,7 +1774,7 @@ int32 FMobileSceneRenderer::ComputeNumOcclusionQueriesToBatch() const
 		const FViewInfo& View = Views[ViewIndex];
 		const FSceneViewState* ViewState = (FSceneViewState*)View.State;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (!ViewState || (!ViewState->HasViewParent() && !ViewState->bIsFrozen))
+		if (!ViewState || (!ViewState->bIsFrozen))
 #endif
 		{
 			NumQueriesForBatch += View.IndividualOcclusionQueries.GetNumBatchOcclusionQueries();

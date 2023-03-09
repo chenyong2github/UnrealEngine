@@ -2054,7 +2054,7 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 	{
 		bool bSubmitQueries = !View.bDisableQuerySubmissions;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		bSubmitQueries = bSubmitQueries && !ViewState->HasViewParent() && !ViewState->bIsFrozen;
+		bSubmitQueries = bSubmitQueries && !ViewState->bIsFrozen;
 #endif
 
 		if (ViewState->OcclusionFeedback.IsInitialized())
@@ -4547,15 +4547,6 @@ void FSceneRenderer::ComputeViewVisibility(
 			View.PrimitiveViewRelevanceMap.Reset(Scene->Primitives.Num());
 			View.PrimitiveViewRelevanceMap.AddZeroed(Scene->Primitives.Num());
 
-			// If this is the visibility-parent of other views, reset its ParentPrimitives list.
-			const bool bIsParent = ViewState && ViewState->IsViewParent();
-			if (bIsParent)
-			{
-				// PVS-Studio does not understand the validation of ViewState above, so we're disabling
-				// its warning that ViewState may be null:
-				ViewState->ParentPrimitives.Reset(); //-V595
-			}
-
 			if (ViewState)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_DecompressPrecomputedOcclusion);
@@ -4577,22 +4568,6 @@ void FSceneRenderer::ComputeViewVisibility(
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (ViewState)
 			{
-#if WITH_EDITOR
-				// For visibility child views, check if the primitive was visible in the parent view.
-				const FSceneViewState* const ViewParent = (FSceneViewState*)ViewState->GetViewParent();
-				if (ViewParent)
-				{
-					bNeedsFrustumCulling = false;
-					for (int32 Index = 0; Index < View.PrimitiveVisibilityMap.Num(); ++Index)
-					{
-						if (ViewParent->ParentPrimitives.Contains(Scene->PrimitiveComponentIds[Index]) || 
-							IsAlwaysVisible(Scene, Index))
-						{
-							View.PrimitiveVisibilityMap[Index] = true;
-						}
-					}
-				}
-#endif
 				// For views with frozen visibility, check if the primitive is in the frozen visibility set.
 				if (ViewState->bIsFrozen)
 				{
@@ -4684,17 +4659,6 @@ void FSceneRenderer::ComputeViewVisibility(
 			}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			// Store the primitive for parent occlusion rendering.
-			if (FPlatformProperties::SupportsWindowedMode() && ViewState && ViewState->IsViewParent())
-			{
-				for (FSceneDualSetBitIterator BitIt(View.PrimitiveVisibilityMap, View.PrimitiveDefinitelyUnoccludedMap); BitIt; ++BitIt)
-				{
-					ViewState->ParentPrimitives.Add(Scene->PrimitiveComponentIds[BitIt.GetIndex()]);
-				}
-			}
-#endif
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			// if we are freezing the scene, then remember the primitives that are rendered.
 			if (ViewState && ViewState->bIsFreezing)
 			{
@@ -4704,10 +4668,6 @@ void FSceneRenderer::ComputeViewVisibility(
 				}
 			}
 #endif
-
-			// TODO: right now decals visibility computed right before rendering them, ideally it should be done in InitViews and this flag should be replaced with list of visible decals  
-			// Currently used to disable stencil operations in forward base pass when scene has no any decals
-			View.bSceneHasDecals = (Scene->Decals.Num() > 0) || (GForceSceneHasDecals != 0);
 
 			if (bIsSinglePassStereo && IStereoRendering::IsASecondaryView(View) && Views.IsValidIndex(View.PrimaryViewIndex))
 			{

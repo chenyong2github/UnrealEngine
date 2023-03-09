@@ -301,29 +301,6 @@ void UEditorEngine::RedrawAllViewports(bool bInvalidateHitProxies)
 	}
 }
 
-
-void UEditorEngine::InvalidateChildViewports(FSceneViewStateInterface* InParentView, bool bInvalidateHitProxies)
-{
-	if ( InParentView )
-	{
-		// Iterate over viewports and redraw those that have the specified view as a parent.
-		for (FEditorViewportClient* ViewportClient : AllViewportClients)
-		{
-			if ( ViewportClient && ViewportClient->ViewState.GetReference() )
-			{
-				if ( ViewportClient->ViewState.GetReference()->HasViewParent() &&
-					ViewportClient->ViewState.GetReference()->GetViewParent() == InParentView &&
-					!ViewportClient->ViewState.GetReference()->IsViewParent() )
-				{
-					constexpr bool bForceChildViewportRedraw = false;
-					ViewportClient->Invalidate(bForceChildViewportRedraw, bInvalidateHitProxies);
-				}
-			}
-		}
-	}
-}
-
-
 bool UEditorEngine::SafeExec( UWorld* InWorld, const TCHAR* InStr, FOutputDevice& Ar )
 {
 	const TCHAR* Str = InStr;

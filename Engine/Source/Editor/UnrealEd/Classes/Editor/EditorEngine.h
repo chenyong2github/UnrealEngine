@@ -1203,13 +1203,8 @@ public:
 	 */
 	void RedrawAllViewports(bool bInvalidateHitProxies=true);
 
-	/**
-	 * Invalidates all viewports parented to the specified view.
-	 *
-	 * @param	InParentView				The parent view whose child views should be invalidated.
-	 * @param	bInvalidateHitProxies		[opt] If true (the default), invalidates cached hit proxies too.
-	 */
-	void InvalidateChildViewports(FSceneViewStateInterface* InParentView, bool bInvalidateHitProxies=true);
+	UE_DEPRECATED(5.3, "InvalidateChildViewports is deprecated")
+	void InvalidateChildViewports(FSceneViewStateInterface* InParentView, bool bInvalidateHitProxies=true) {}
 
 	/**
 	 * Looks for an appropriate actor factory for the specified UClass.

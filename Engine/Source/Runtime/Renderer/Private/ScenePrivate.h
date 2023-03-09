@@ -757,9 +757,6 @@ public:
 	// A counter incremented once each time this view is rendered.
 	uint32 OcclusionFrameCounter;
 
-	/** Used by states that have IsViewParent() == true to store primitives for child states. */
-	TSet<FPrimitiveComponentId> ParentPrimitives;
-
 	/** For this view, the set of primitives that are currently fading, either in or out. */
 	FPrimitiveFadingStateMap PrimitiveFadingStates;
 

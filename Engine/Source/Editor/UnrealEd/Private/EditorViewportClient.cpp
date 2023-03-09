@@ -5583,13 +5583,6 @@ void FEditorViewportClient::Invalidate(bool bInvalidateChildViews, bool bInvalid
 			// Invalidate only display pixels.
 			Viewport->InvalidateDisplay();
 		}
-
-		// If this viewport is a view parent . . .
-		if ( bInvalidateChildViews &&
-			ViewState.GetReference()->IsViewParent() )
-		{
-			GEditor->InvalidateChildViewports( ViewState.GetReference(), bInvalidateHitProxies );
-		}
 	}
 }
 

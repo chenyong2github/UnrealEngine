@@ -2930,15 +2930,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	check(Views.Num());
 	#if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		const bool bIsViewFrozen = false;
-		const bool bHasViewParent = false;
 	#else
 		const bool bIsViewFrozen = Views[0].State && ((FSceneViewState*)Views[0].State)->bIsFrozen;
-		const bool bHasViewParent = Views[0].State && ((FSceneViewState*)Views[0].State)->HasViewParent();
 	#endif
 
 	
 	const bool bIsOcclusionTesting = DoOcclusionQueries() && !ViewFamily.EngineShowFlags.DisableOcclusionQueries
-		&& (!ViewFamily.EngineShowFlags.Wireframe || bIsViewFrozen || bHasViewParent);
+		&& (!ViewFamily.EngineShowFlags.Wireframe || bIsViewFrozen);
 	const bool bNeedsPrePass = ShouldRenderPrePass();
 
 	// Sanity check - Note: Nanite forces a Z prepass in ShouldForceFullDepthPass()

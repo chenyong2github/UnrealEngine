@@ -2194,9 +2194,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 					// Only update ortho viewports if that mode is turned on, the viewport client we are about to update is orthographic and the current editing viewport is orthographic and tracking mouse movement.
 					bUpdateLinkedOrthoViewports = GetDefault<ULevelEditorViewportSettings>()->bUseLinkedOrthographicViewports && ViewportClient->IsOrtho() && GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsOrtho() && GCurrentLevelEditingViewportClient->IsTracking();
 
-					const bool bIsViewParent = ViewportClient->ViewState.GetReference()->IsViewParent();
-					if ((bRenderingChildren && !bIsViewParent) ||
-						(!bRenderingChildren && bIsViewParent) || bUpdateLinkedOrthoViewports)
+					if (bRenderingChildren || bUpdateLinkedOrthoViewports)
 					{
 						//if we haven't drawn a non-realtime viewport OR not one of the main viewports
 						bool bAllowNonRealtimeViewports = (!bEditorFrameNonRealtimeViewportDrawn) || !(ViewportClient->IsLevelEditorClient());

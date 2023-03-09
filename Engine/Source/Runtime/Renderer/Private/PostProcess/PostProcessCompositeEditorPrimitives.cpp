@@ -284,9 +284,6 @@ const FViewInfo* CreateEditorPrimitiveView(const FViewInfo& ParentView, FIntRect
 	// Kills material texture mipbias because after TAA.
 	EditorView->MaterialTextureMipBias = 0.0f;
 
-	// Disable decals so that we don't do a SetDepthStencilState() in TMobileBasePassDrawingPolicy::SetupPipelineState()
-	EditorView->bSceneHasDecals = false;
-
 	if (IsTemporalAccumulationBasedMethod(EditorView->AntiAliasingMethod))
 	{
 		EditorView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();

@@ -325,7 +325,6 @@ SIZE_T FSceneViewState::GetSizeBytes() const
 
 	return sizeof(*this) 
 		+ ShadowOcclusionQuerySize
-		+ ParentPrimitives.GetAllocatedSize() 
 		+ PrimitiveFadingStates.GetAllocatedSize()
 		+ PrimitiveOcclusionHistorySet.GetAllocatedSize();
 }
@@ -1209,7 +1208,7 @@ static FViewOcclusionQueriesPerView AllocateOcclusionTests(const FScene* Scene, 
 
 			// Don't do primitive occlusion if we have a view parent or are frozen - only applicable to Debug & Development.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			ViewQuery.bFlushQueries &= (!ViewState->HasViewParent() && !ViewState->bIsFrozen);
+			ViewQuery.bFlushQueries &= (!ViewState->bIsFrozen);
 #endif
 
 			bBatchedQueries |= (View.IndividualOcclusionQueries.HasBatches() || View.GroupedOcclusionQueries.HasBatches() || ViewQuery.bFlushQueries);
@@ -1437,7 +1436,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 					FViewInfo& View = Views[ViewIndex];
 					FSceneViewState* ViewState = (FSceneViewState*)View.State;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-					if (!ViewState->HasViewParent() && !ViewState->bIsFrozen)
+					if (!ViewState->bIsFrozen)
 #endif
 					{
 						NumQueriesForBatch += View.IndividualOcclusionQueries.GetNumBatchOcclusionQueries();

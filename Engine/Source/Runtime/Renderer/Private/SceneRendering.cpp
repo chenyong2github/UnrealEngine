@@ -862,7 +862,6 @@ void FViewInfo::Init()
 
 	NumVisibleStaticMeshElements = 0;
 	PrecomputedVisibilityData = 0;
-	bSceneHasDecals = 0;
 
 	bIsViewInfo = true;
 	
@@ -3395,7 +3394,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 
 				// display a message saying we're frozen
 				FSceneViewState* ViewState = (FSceneViewState*)View.State;
-				bool bViewParentOrFrozen = ViewState && (ViewState->HasViewParent() || ViewState->bIsFrozen);
+				bool bIsFrozen = ViewState && (ViewState->bIsFrozen);
 				bool bLocked = View.bIsLocked;
 				const bool bStereoView = IStereoRendering::IsStereoEyeView(View);
 
@@ -3415,7 +3414,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 					}
 				}
 #endif
-				if ((GAreScreenMessagesEnabled && !GEngine->bSuppressMapWarnings) && (bViewParentOrFrozen || bLocked || bStereoView || bShowAmbientCubemapMipGenSettingsWarning || bAnyWarning))
+				if ((GAreScreenMessagesEnabled && !GEngine->bSuppressMapWarnings) && (bIsFrozen || bLocked || bStereoView || bShowAmbientCubemapMipGenSettingsWarning || bAnyWarning))
 				{
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
@@ -3427,7 +3426,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 					AddDrawCanvasPass(GraphBuilder, {}, View, Output,
 						[this, &ReadOnlyCVARCache, ViewState, GPUSkinCacheExtraRequiredMemory,
 						bLocked, bShowPrecomputedVisibilityWarning, bShowDemotedLocalMemoryWarning, bShowGlobalClipPlaneWarning, bShowDFAODisabledWarning, bShowDFDisabledWarning,
-						bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
+						bIsFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileMissingSkyMaterial, 
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bShowLocalExposureDisabledWarning,
 						bLumenEnabledButHasNoDataForTracing, bLumenEnabledButDisabledForTheProject, bNaniteEnabledButNoAtomics, bNaniteEnabledButDisabledInProject, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight, bShowAmbientCubemapMipGenSettingsWarning,
@@ -3437,13 +3436,9 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						// so it can get the screen size
 						FScreenMessageWriter Writer(Canvas, 130);
 
-						if (bViewParentOrFrozen)
+						if (bIsFrozen)
 						{
-							const FText StateText =
-								ViewState->bIsFrozen ?
-								NSLOCTEXT("SceneRendering", "RenderingFrozen", "Rendering frozen...")
-								:
-								NSLOCTEXT("SceneRendering", "OcclusionChild", "Occlusion Child");
+							static const FText StateText = NSLOCTEXT("SceneRendering", "RenderingFrozen", "Rendering frozen...");
 							Writer.DrawLine(StateText, 10, FLinearColor(0.8, 1.0, 0.2, 1.0));
 						}
 						if (bShowPrecomputedVisibilityWarning)
