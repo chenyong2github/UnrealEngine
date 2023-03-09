@@ -203,6 +203,31 @@ public:
 		return OutArray;
 	}
 
+	virtual void AllowClient(const FString& InClientAddressStr)
+	{
+		// Return early if we have this in range.
+		if (IsClientAllowed(InClientAddressStr))
+		{
+			return;
+		}
+
+		// Add a new range.
+		TArray<FString> IndividualClasses;
+
+		if (InClientAddressStr.ParseIntoArray(IndividualClasses, TEXT(".")) == 4)
+		{
+			FRCNetworkAddress LowerAndUpperBounds { FCString::Atoi(*IndividualClasses[0]) // Class A
+				, FCString::Atoi(*IndividualClasses[1]) // Class B
+				, FCString::Atoi(*IndividualClasses[2]) // Class C
+				, FCString::Atoi(*IndividualClasses[3]) // Class D
+			};
+
+			FRCNetworkAddressRange NewRange = { LowerAndUpperBounds, LowerAndUpperBounds };
+
+			AllowlistedClients.Add(NewRange);
+		}
+	}
+	
 	virtual bool IsClientAllowed(const FString& InClientAddressStr) const
 	{
 		for (const FRCNetworkAddressRange& AllowlistedClient : AllowlistedClients)
@@ -314,12 +339,6 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security")
 	bool bEnforcePassphraseForRemoteClients = false;
-	
-	/**
-     * List of IPs that are explicitly *not* required to have a passphrase when accessing remote control.
-     */
-    UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security", meta= (EditCondition = bEnforcePassphraseForRemoteClients))
-    TArray<FString> AllowedIPsForRemotePassphrases;
 	
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security", DisplayName = "Remote Control Passphrase")
 	TArray<FRCPassphrase> Passphrases = {};

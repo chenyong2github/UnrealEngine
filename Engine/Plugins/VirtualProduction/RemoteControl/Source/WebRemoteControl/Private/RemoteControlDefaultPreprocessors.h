@@ -108,7 +108,7 @@ namespace UE::WebRemoteControl
 		{
 			Notification->SetCompletionState(SNotificationItem::ECompletionState::CS_Pending);
 
-			GetMutableDefault<URemoteControlSettings>()->AllowedIPsForRemotePassphrases.Add(IPAddress);
+			GetMutableDefault<URemoteControlSettings>()->AllowClient(IPAddress);
 			SaveRemoteControlConfig();
 			
 			Notification->SetCompletionState(SNotificationItem::ECompletionState::CS_Success);
@@ -273,7 +273,7 @@ namespace UE::WebRemoteControl
 						if (ForwardedIP->Num())
 						{
 							// We will need to rework this when the IP range change is in.
-							if (GetDefault<URemoteControlSettings>()->AllowedIPsForRemotePassphrases.Contains(ForwardedIP->Last()))
+							if (GetDefault<URemoteControlSettings>()->IsClientAllowed(ForwardedIP->Last()))
 							{
 								return EPreprocessorResult::RequestPassthrough;
 							}
@@ -289,7 +289,7 @@ namespace UE::WebRemoteControl
 					}
 				}
 
-				if (GetDefault<URemoteControlSettings>()->AllowedIPsForRemotePassphrases.Contains(PeerAddress))
+				if (GetDefault<URemoteControlSettings>()->IsClientAllowed(PeerAddress))
 				{
 					return EPreprocessorResult::RequestPassthrough;
 				}
@@ -431,6 +431,14 @@ namespace UE::WebRemoteControl
 				// Allow requests from localhost
 				if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
 				{
+					if (!GetDefault<URemoteControlSettings>()->IsClientAllowed(ClientIP))
+					{
+						WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Client IP %s does not respect the allowed IP set in Remote Control Settings."), *ClientIP), Response->Body);
+						Response->Code = EHttpServerResponseCodes::Denied;
+						OnComplete(MoveTemp(Response));
+						return EPreprocessorResult::RequestHandled;
+					}
+
 					if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
 					{
 						WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Client IP %s does not respect the allowed IP set in Remote Control Settings."), *ClientIP), Response->Body);
