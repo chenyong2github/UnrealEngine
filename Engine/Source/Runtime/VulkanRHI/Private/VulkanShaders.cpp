@@ -64,6 +64,8 @@ ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVu
 		FMemoryReaderView Ar(Code, true);
 		FVulkanShaderHeader CodeHeader;
 		Ar << CodeHeader;
+		FShaderResourceTable SerializedSRT;
+		Ar << SerializedSRT;
 		FVulkanShader::FSpirvContainer SpirvContainer;
 		Ar << SpirvContainer;
 
@@ -77,7 +79,7 @@ ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVu
 			else
 			{
 				RetShader = new ShaderType(Device);
-				RetShader->Setup(MoveTemp(CodeHeader), MoveTemp(SpirvContainer), ShaderKey);
+				RetShader->Setup(MoveTemp(CodeHeader), MoveTemp(SerializedSRT), MoveTemp(SpirvContainer), ShaderKey);
 				if constexpr (
 					ShaderType::StaticFrequency == SF_RayCallable ||
 					ShaderType::StaticFrequency == SF_RayGen ||
@@ -192,7 +194,7 @@ FVulkanShader::FSpirvCode FVulkanShader::GetSpirvCode()
 }
 
 
-void FVulkanShader::Setup(FVulkanShaderHeader&& InCodeHeader, FSpirvContainer&& InSpirvContainer, uint64 InShaderKey)
+void FVulkanShader::Setup(FVulkanShaderHeader&& InCodeHeader, FShaderResourceTable&& InSRT, FSpirvContainer&& InSpirvContainer, uint64 InShaderKey)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanShaders);
 	check(Device);
@@ -200,6 +202,8 @@ void FVulkanShader::Setup(FVulkanShaderHeader&& InCodeHeader, FSpirvContainer&& 
 	ShaderKey = InShaderKey;
 
 	CodeHeader = MoveTemp(InCodeHeader);
+
+	ShaderResourceTable = MoveTemp(InSRT);
 
 	SpirvContainer = MoveTemp(InSpirvContainer);
 

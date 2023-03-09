@@ -194,6 +194,11 @@ public:
 		return GetCurrentShaderKey(ShaderStage::GetFrequencyForGfxStage(Stage));
 	}
 
+	const FVulkanShader* GetCurrentShader(EShaderFrequency Frequency) const
+	{
+		return (CurrentPipeline ? CurrentPipeline->GetShader(Frequency) : nullptr);
+	}
+
 	void SetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ)
 	{
 		Viewports.SetNumZeroed(1);

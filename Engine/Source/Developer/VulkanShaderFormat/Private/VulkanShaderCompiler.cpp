@@ -590,103 +590,103 @@ static bool IsSamplerState(const CrossCompiler::FHlslccHeader& CCHeader, const F
 static void PrepareGlobals(const FVulkanBindingTable& BindingTable, const FVulkanHlslccHeader& CCHeader, const FShaderCompilerResourceTable& SRT, const TMap<FString, FVulkanShaderHeader::EType>& EntryTypes, const FShaderCompilerInput& ShaderInput, const TArray<FString>& ParameterNames, FShaderParameterMap& ParameterMap, TArray<FString>& OutGlobalNames, FVulkanShaderHeader& OutHeader)
 {
 	// First pass, gather names for all the Globals that are NOT Samplers
-	for (int32 ParameterIndex = 0; ParameterIndex < ParameterNames.Num(); ++ParameterIndex)
 	{
-		uint16 BufferIndex;
-		uint16 BaseIndex;
-		uint16 Size;
-		const FString& ParameterName = *ParameterNames[ParameterIndex];
-		ParameterMap.FindParameterAllocation(*ParameterName, BufferIndex, BaseIndex, Size);
-
-		auto AddGlobalNamesForUB = [&]()
+		auto AddGlobalNamesForUB = [&](const FString& ParameterName)
 		{
+			TOptional<FParameterAllocation> ParameterAllocation = ParameterMap.FindParameterAllocation(*ParameterName);
+			checkf(ParameterAllocation.IsSet(), TEXT("PrepareGlobals failed to find resource ParameterName=%s"), *ParameterName);
+
 			// Add used resources...
-			if (SRT.ResourceTableBits & (1 << BufferIndex))
+			if (SRT.ResourceTableBits & (1 << ParameterAllocation->BufferIndex))
 			{
-				PrepareUBResourceEntryGlobals(CCHeader, SRT.TextureMap, ShaderInput.Environment.ResourceTableMap, BufferIndex, ParameterName, OutGlobalNames, OutHeader);
-				PrepareUBResourceEntryGlobals(CCHeader, SRT.ShaderResourceViewMap, ShaderInput.Environment.ResourceTableMap, BufferIndex, ParameterName, OutGlobalNames, OutHeader);
-				PrepareUBResourceEntryGlobals(CCHeader, SRT.UnorderedAccessViewMap, ShaderInput.Environment.ResourceTableMap, BufferIndex, ParameterName, OutGlobalNames, OutHeader);
+				PrepareUBResourceEntryGlobals(CCHeader, SRT.TextureMap, ShaderInput.Environment.ResourceTableMap, ParameterAllocation->BufferIndex, ParameterName, OutGlobalNames, OutHeader);
+				PrepareUBResourceEntryGlobals(CCHeader, SRT.ShaderResourceViewMap, ShaderInput.Environment.ResourceTableMap, ParameterAllocation->BufferIndex, ParameterName, OutGlobalNames, OutHeader);
+				PrepareUBResourceEntryGlobals(CCHeader, SRT.UnorderedAccessViewMap, ShaderInput.Environment.ResourceTableMap, ParameterAllocation->BufferIndex, ParameterName, OutGlobalNames, OutHeader);
 			}
 		};
 
-		const FVulkanShaderHeader::EType* FoundType = EntryTypes.Find(ParameterName);
-		if (FoundType)
+		for (int32 ParameterIndex = 0; ParameterIndex < ParameterNames.Num(); ++ParameterIndex)
 		{
-			switch (*FoundType)
+			const FString& ParameterName = *ParameterNames[ParameterIndex];
+			const FVulkanShaderHeader::EType* FoundType = EntryTypes.Find(ParameterName);
+			if (FoundType)
 			{
-			case FVulkanShaderHeader::Global:
-				if (!IsSamplerState(CCHeader, ParameterName))
+				switch (*FoundType)
 				{
-					int32 GlobalIndex = DoAddGlobal(ParameterName, OutHeader, OutGlobalNames);
-					if (CCHeader.ExternalTextures.Contains(ParameterName))
+				case FVulkanShaderHeader::Global:
+					if (!IsSamplerState(CCHeader, ParameterName))
 					{
-						AddImmutable(OutHeader, GlobalIndex);
+						int32 GlobalIndex = DoAddGlobal(ParameterName, OutHeader, OutGlobalNames);
+						if (CCHeader.ExternalTextures.Contains(ParameterName))
+						{
+							AddImmutable(OutHeader, GlobalIndex);
+						}
 					}
+					break;
+				case FVulkanShaderHeader::UniformBuffer:
+					AddGlobalNamesForUB(ParameterName);
+					break;
+				case FVulkanShaderHeader::PackedGlobal:
+					// Ignore
+					break;
+				default:
+					check(0);
+					break;
 				}
-				break;
-			case FVulkanShaderHeader::UniformBuffer:
-				AddGlobalNamesForUB();
-				break;
-			case FVulkanShaderHeader::PackedGlobal:
-				// Ignore
-				break;
-			default:
-				check(0);
-				break;
 			}
-		}
-		else
-		{
-			AddGlobalNamesForUB();
+			else
+			{
+				AddGlobalNamesForUB(ParameterName);
+			}
 		}
 	}
 
 	// Second pass, add all samplers
-	for (int32 ParameterIndex = 0; ParameterIndex < ParameterNames.Num(); ++ParameterIndex)
 	{
-		uint16 BufferIndex;
-		uint16 BaseIndex;
-		uint16 Size;
-		const FString& ParameterName = *ParameterNames[ParameterIndex];
-		ParameterMap.FindParameterAllocation(*ParameterName, BufferIndex, BaseIndex, Size);
-
-		auto AddGlobalNamesForUB = [&]()
+		auto AddGlobalNamesForUB = [&](const FString& ParameterName)
 		{
+			TOptional<FParameterAllocation> ParameterAllocation = ParameterMap.FindParameterAllocation(*ParameterName);
+			checkf(ParameterAllocation.IsSet(), TEXT("PrepareGlobals failed to find sampler ParameterName=%s"), *ParameterName);
+
 			// Add used resources...
-			if (SRT.ResourceTableBits & (1 << BufferIndex))
+			if (SRT.ResourceTableBits & (1 << ParameterAllocation->BufferIndex))
 			{
-				PrepareUBResourceEntryGlobals(CCHeader, SRT.SamplerMap, ShaderInput.Environment.ResourceTableMap, BufferIndex, ParameterName, OutGlobalNames, OutHeader);
+				PrepareUBResourceEntryGlobals(CCHeader, SRT.SamplerMap, ShaderInput.Environment.ResourceTableMap, ParameterAllocation->BufferIndex, ParameterName, OutGlobalNames, OutHeader);
 			}
 		};
 
-		const FVulkanShaderHeader::EType* FoundType = EntryTypes.Find(ParameterName);
-		if (FoundType)
+		for (int32 ParameterIndex = 0; ParameterIndex < ParameterNames.Num(); ++ParameterIndex)
 		{
-			switch (*FoundType)
+			const FString& ParameterName = *ParameterNames[ParameterIndex];
+			const FVulkanShaderHeader::EType* FoundType = EntryTypes.Find(ParameterName);
+			if (FoundType)
 			{
-			case FVulkanShaderHeader::Global:
-				if (IsSamplerState(CCHeader, ParameterName))
+				switch (*FoundType)
 				{
-					int32 GlobalIndex = DoAddGlobal(ParameterName, OutHeader, OutGlobalNames);
-					if (CCHeader.ExternalTextures.Contains(ParameterName))
+				case FVulkanShaderHeader::Global:
+					if (IsSamplerState(CCHeader, ParameterName))
 					{
-						AddImmutable(OutHeader, GlobalIndex);
+						int32 GlobalIndex = DoAddGlobal(ParameterName, OutHeader, OutGlobalNames);
+						if (CCHeader.ExternalTextures.Contains(ParameterName))
+						{
+							AddImmutable(OutHeader, GlobalIndex);
+						}
 					}
+					break;
+				case FVulkanShaderHeader::UniformBuffer:
+					AddGlobalNamesForUB(ParameterName);
+					break;
+				case FVulkanShaderHeader::PackedGlobal:
+					break;
+				default:
+					check(0);
+					break;
 				}
-				break;
-			case FVulkanShaderHeader::UniformBuffer:
-				AddGlobalNamesForUB();
-				break;
-			case FVulkanShaderHeader::PackedGlobal:
-				break;
-			default:
-				check(0);
-				break;
 			}
-		}
-		else
-		{
-			AddGlobalNamesForUB();
+			else
+			{
+				AddGlobalNamesForUB(ParameterName);
+			}
 		}
 	}
 
@@ -886,8 +886,68 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 	{
 		OutHeader.RayTracingPayloadSize = FCString::Atoi(**RTPayloadSizePtr);
 	}
-
 }
+
+
+// Fills the SRT using final values kept in the FVulkanShaderHeader.
+// NOTE: Uses GloalIndex so it can be consumed directly at runtime.
+// NOTE: Keep in sync with BuildResourceTableMapping.
+static FShaderResourceTable BuildSRTFromHeader(const FVulkanShaderHeader& NEWHeader)
+{
+	FShaderResourceTable ShaderResourceTable;
+
+	TArray<uint32> TextureMap;
+	TArray<uint32> ShaderResourceViewMap;
+	TArray<uint32> SamplerMap;
+	TArray<uint32> UnorderedAccessViewMap;
+
+	for (int32 UBIndex = 0; UBIndex < NEWHeader.UniformBuffers.Num(); ++UBIndex)
+	{
+		const FVulkanShaderHeader::FUniformBufferInfo& UBHeader = NEWHeader.UniformBuffers[UBIndex];
+
+		ShaderResourceTable.ResourceTableLayoutHashes.Emplace(UBHeader.LayoutHash);
+		if (UBHeader.ResourceEntries.Num() > 0)
+		{
+			ShaderResourceTable.ResourceTableBits |= 1 << UBIndex;
+
+			for (const FVulkanShaderHeader::FUBResourceInfo& UBRes : UBHeader.ResourceEntries)
+			{
+				uint32 ResourceMap = FRHIResourceTableEntry::Create(UBIndex, UBRes.SourceUBResourceIndex, UBRes.GlobalIndex);
+				switch (UBRes.UBBaseType)
+				{
+				case UBMT_TEXTURE:
+				case UBMT_RDG_TEXTURE:
+					TextureMap.Add(ResourceMap);
+					break;
+				case UBMT_SAMPLER:
+					SamplerMap.Add(ResourceMap);
+					break;
+				case UBMT_SRV:
+				case UBMT_RDG_TEXTURE_SRV:
+				case UBMT_RDG_BUFFER_SRV:
+					ShaderResourceViewMap.Add(ResourceMap);
+					break;
+				case UBMT_UAV:
+				case UBMT_RDG_TEXTURE_UAV:
+				case UBMT_RDG_BUFFER_UAV:
+					UnorderedAccessViewMap.Add(ResourceMap);
+					break;
+				default:
+					check(false);
+				}
+			}
+		}
+	}
+
+	const int32 MaxBoundResourceTable = NEWHeader.UniformBuffers.Num();
+	BuildResourceTableTokenStream(TextureMap, MaxBoundResourceTable, ShaderResourceTable.TextureMap);
+	BuildResourceTableTokenStream(ShaderResourceViewMap, MaxBoundResourceTable, ShaderResourceTable.ShaderResourceViewMap);
+	BuildResourceTableTokenStream(SamplerMap, MaxBoundResourceTable, ShaderResourceTable.SamplerMap);
+	BuildResourceTableTokenStream(UnorderedAccessViewMap, MaxBoundResourceTable, ShaderResourceTable.UnorderedAccessViewMap);
+
+	return ShaderResourceTable;
+}
+
 
 
 static void BuildShaderOutput(
@@ -1327,12 +1387,16 @@ static void BuildShaderOutput(
 		NEWHeader.DebugName = ShaderInput.GenerateShaderName();
 	}
 
+	// Build the SRT for this shader from the NEWHeader
+	FShaderResourceTable SerializedSRT = BuildSRTFromHeader(NEWHeader);
+
 	// Plug the passed in WaveSize
 	NEWHeader.WaveSize = WaveSize;
 
 	// Write out the header and shader source code.
 	FMemoryWriter Ar(ShaderOutput.ShaderCode.GetWriteAccess(), true);
 	Ar << NEWHeader;
+	Ar << SerializedSRT;
 
 	check(Spirv.Data.Num() != 0);
 	uint32 SpirvCodeSizeBytes = Spirv.Data.Num() * Spirv.Data.GetTypeSize();

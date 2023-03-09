@@ -88,9 +88,6 @@ bool BuildResourceTableMapping(
 
 	// Build resource table mapping
 	int32 MaxBoundResourceTable = -1;
-	TArray<uint32> ResourceTableSRVs;
-	TArray<uint32> ResourceTableSamplerStates;
-	TArray<uint32> ResourceTableUAVs;
 
 	// Go through ALL the members of ALL the UB resources
 	for( auto MapIt = ResourceTableMap.CreateConstIterator(); MapIt; ++MapIt )

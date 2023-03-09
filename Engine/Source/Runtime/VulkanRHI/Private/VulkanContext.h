@@ -35,6 +35,10 @@ public:
 		return Immediate == nullptr;
 	}
 
+	template <class ShaderType> void SetResourcesFromTables(const ShaderType* RESTRICT);
+	void CommitGraphicsResourceTables();
+	void CommitComputeResourceTables();
+
 	virtual void RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* VertexBuffer, uint32 Offset) final override;
 	virtual void RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ) final override;
 	virtual void RHISetStereoViewport(float LeftMinX, float RightMinX, float LeftMinY, float RightMinY, float MinZ, float LeftMaxX, float RightMaxX, float LeftMaxY, float RightMaxY, float MaxZ) override;
@@ -198,8 +202,6 @@ protected:
 	void BeginOcclusionQueryBatch(FVulkanCmdBuffer* CmdBuffer, uint32 NumQueriesInBatch);
 	void EndOcclusionQueryBatch(FVulkanCmdBuffer* CmdBuffer);
 
-	void SetShaderUniformBuffer(ShaderStage::EStage Stage, const FVulkanUniformBuffer* UniformBuffer, int32 ParameterIndex, const FVulkanShader* Shader);
-
 	VulkanRHI::FTempFrameAllocationBuffer TempFrameAllocationBuffer;
 
 	TArray<FString> EventStack;
@@ -213,6 +215,15 @@ protected:
 
 	FVulkanPendingGfxState* PendingGfxState;
 	FVulkanPendingComputeState* PendingComputeState;
+
+	// Match the D3D12 maximum of 16 constant buffers per shader stage.
+	enum { MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE = 16 };
+
+	// Track the currently bound uniform buffers.
+	FVulkanUniformBuffer* BoundUniformBuffers[SF_NumStandardFrequencies][MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE] = {};
+
+	// Bit array to track which uniform buffers have changed since the last draw call.
+	uint16 DirtyUniformBuffers[SF_NumStandardFrequencies] = {};
 
 	void PrepareForCPURead();
 	void RequestSubmitCurrentCommands();

@@ -737,6 +737,12 @@ public:
 		return ShaderKeys[Stage];
 	}
 
+	inline const FVulkanShader* GetShader(EShaderFrequency Frequency) const
+	{
+		ShaderStage::EStage Stage = ShaderStage::GetStageForFrequency(Frequency);
+		return VulkanShaders[Stage];
+	}
+
 	inline VkPipeline GetVulkanPipeline() const
 	{
 		return VulkanPipeline;

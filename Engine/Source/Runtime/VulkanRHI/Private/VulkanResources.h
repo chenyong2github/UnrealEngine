@@ -191,6 +191,8 @@ protected:
 
 	TArray<FUniformBufferStaticSlot> StaticSlots;
 
+	FShaderResourceTable			ShaderResourceTable;
+
 private:
 	class FSpirvContainer
 	{
@@ -207,7 +209,7 @@ private:
 	static FSpirvCode PatchSpirvInputAttachments(FSpirvCode& SpirvCode);
 
 protected:
-	void Setup(FVulkanShaderHeader&& InCodeHeader, FSpirvContainer&& InSpirvContainer, uint64 InShaderKey);
+	void Setup(FVulkanShaderHeader&& InCodeHeader, FShaderResourceTable&& InSRT, FSpirvContainer&& InSpirvContainer, uint64 InShaderKey);
 
 	FVulkanDevice*					Device;
 

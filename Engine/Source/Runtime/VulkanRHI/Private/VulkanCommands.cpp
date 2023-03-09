@@ -13,6 +13,7 @@
 #include "GlobalRenderResources.h"
 #include "RHIShaderParametersShared.h"
 #include "RHIUtilities.h"
+#include "RHICoreShader.h"
 
 static TAutoConsoleVariable<int32> GCVarSubmitOnDispatch(
 	TEXT("r.Vulkan.SubmitOnDispatch"),
@@ -118,16 +119,157 @@ void FVulkanCommandListContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffe
 	}
 }
 
+template <class PendingStateType>
+struct FVulkanResourceBinder
+{
+	FVulkanCommandListContext& Context;
+	const EShaderFrequency Frequency;
+	const TArray<FDescriptorSetRemappingInfo::FRemappingInfo>& GlobalRemappingInfo;
+	PendingStateType* PendingState;
+
+	FVulkanResourceBinder(FVulkanCommandListContext& InContext, EShaderFrequency InFrequency, const TArray<FDescriptorSetRemappingInfo::FRemappingInfo>& InGlobalRemappingInfo, PendingStateType* InPendingState)
+		: Context(InContext)
+		, Frequency(InFrequency)
+		, GlobalRemappingInfo(InGlobalRemappingInfo)
+		, PendingState(InPendingState)
+	{
+	}
+
+	void SetUAV(FRHIUnorderedAccessView* UAV, uint8 Index, bool bClearResources = false)
+	{
+		if (bClearResources)
+		{
+			//Context.ClearShaderResources(D3D12UAV);
+		}
+
+		PendingState->SetUAVForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, ResourceCast(UAV));
+	}
+
+	void SetSRV(FRHIShaderResourceView* SRV, uint8 Index)
+	{
+		PendingState->SetSRVForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, ResourceCast(SRV));;
+	}
+
+	void SetTexture(FRHITexture* TextureRHI, uint8 Index)
+	{
+		FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(TextureRHI);
+		const ERHIAccess RHIAccess = (Frequency == SF_Compute) ? ERHIAccess::SRVCompute : ERHIAccess::SRVGraphics;
+		const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, RHIAccess);
+		PendingState->SetTextureForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, VulkanTexture, ExpectedLayout);;
+	}
+
+	void SetSampler(FRHISamplerState* Sampler, uint8 Index)
+	{
+		PendingState->SetSamplerStateForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, ResourceCast(Sampler));
+	}
+};
+
+template <class ShaderType> 
+void FVulkanCommandListContext::SetResourcesFromTables(const ShaderType* Shader)
+{
+	checkSlow(Shader);
+
+	static constexpr EShaderFrequency Frequency = static_cast<EShaderFrequency>(ShaderType::StaticFrequency);
+
+	if (Frequency == SF_Compute)
+	{
+		const TArray<FDescriptorSetRemappingInfo::FRemappingInfo>& GlobalRemappingInfo =
+			PendingComputeState->CurrentState->GetComputePipelineDescriptorInfo().GetGlobalRemappingInfo();
+
+		FVulkanResourceBinder Binder(*this, Frequency, GlobalRemappingInfo, PendingComputeState);
+		UE::RHICore::SetResourcesFromTables(
+			Binder
+			, *Shader
+			, Shader->ShaderResourceTable
+			, DirtyUniformBuffers[Frequency]
+			, BoundUniformBuffers[Frequency]
+#if ENABLE_RHI_VALIDATION
+			, Tracker
+#endif
+		);
+	}
+	else
+	{
+		const TArray<FDescriptorSetRemappingInfo::FRemappingInfo>& GlobalRemappingInfo =
+		PendingGfxState->CurrentState->GetGfxPipelineDescriptorInfo().GetGlobalRemappingInfo(ShaderStage::GetStageForFrequency(Frequency));
+
+		FVulkanResourceBinder Binder(*this, Frequency, GlobalRemappingInfo, PendingGfxState);
+		UE::RHICore::SetResourcesFromTables(
+			Binder
+			, *Shader
+			, Shader->ShaderResourceTable
+			, DirtyUniformBuffers[Frequency]
+			, BoundUniformBuffers[Frequency]
+#if ENABLE_RHI_VALIDATION
+			, Tracker
+#endif
+		);
+	}
+}
+
+void FVulkanCommandListContext::CommitGraphicsResourceTables()
+{
+	checkSlow(PendingGfxState);
+
+	if (const FVulkanShader* Shader = PendingGfxState->GetCurrentShader(SF_Vertex))
+	{
+		checkSlow(Shader->Frequency == SF_Vertex);
+		const FVulkanVertexShader* VertexShader = static_cast<const FVulkanVertexShader*>(Shader);
+		SetResourcesFromTables(VertexShader);
+	}
+
+	if (const FVulkanShader* Shader = PendingGfxState->GetCurrentShader(SF_Pixel))
+	{
+		checkSlow(Shader->Frequency == SF_Pixel);
+		const FVulkanPixelShader* PixelShader = static_cast<const FVulkanPixelShader*>(Shader);
+		SetResourcesFromTables(PixelShader);
+	}
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	// :todo-jn: mesh shaders
+	//if (const FVulkanShader* Shader = PendingGfxState->GetCurrentShader(SF_Mesh))
+	//{
+	//  checkSlow(Shader->Frequency == SF_Mesh);
+	//	const FVulkanMeshShader* MeshShader = static_cast<const FVulkanMeshShader*>(Shader);
+	//	SetResourcesFromTables(MeshShader);
+	//}
+	//if (const FVulkanShader* Shader = PendingGfxState->GetCurrentShader(SF_Amplification))
+	//{
+	//  checkSlow(Shader->Frequency == SF_Amplification);
+	//	const FVulkanAmplificationShader* AmplificationShader = static_cast<const FVulkanAmplificationShader*>(Shader);
+	//	SetResourcesFromTables(AmplificationShader);
+	//}
+#endif
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	if (const FVulkanShader* Shader = PendingGfxState->GetCurrentShader(SF_Geometry))
+	{
+		checkSlow(Shader->Frequency == SF_Geometry);
+		const FVulkanGeometryShader* GeometryShader = static_cast<const FVulkanGeometryShader*>(Shader);
+		SetResourcesFromTables(GeometryShader);
+	}
+#endif
+}
+
+void FVulkanCommandListContext::CommitComputeResourceTables()
+{
+	SetResourcesFromTables(PendingComputeState->GetCurrentShader());
+}
+
+
 void FVulkanCommandListContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
 {
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 	SCOPE_CYCLE_COUNTER(STAT_VulkanDispatchCallTime);
 #endif
 
+	CommitComputeResourceTables();
+
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
 	ensure(Cmd->IsOutsideRenderPass());
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
 	PendingComputeState->PrepareForDispatch(Cmd);
+
 	VulkanRHI::vkCmdDispatch(CmdBuffer, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 
 	if (GCVarSubmitOnDispatch.GetValueOnRenderThread())
@@ -148,11 +290,12 @@ void FVulkanCommandListContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Arg
 	static_assert(sizeof(FRHIDispatchIndirectParameters) == sizeof(VkDispatchIndirectCommand), "Dispatch indirect doesn't match!");
 	FVulkanResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
+	CommitComputeResourceTables();
+
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
 	ensure(Cmd->IsOutsideRenderPass());
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
 	PendingComputeState->PrepareForDispatch(Cmd);
-
 
 	VulkanRHI::vkCmdDispatchIndirect(CmdBuffer, ArgumentBuffer->GetHandle(), ArgumentBuffer->GetOffset() + ArgumentOffset);
 
@@ -173,9 +316,9 @@ void FVulkanCommandListContext::RHISetUAVParameter(FRHIPixelShader* PixelShaderR
 {
 	if (UAVRHI)
 	{
-	FVulkanUnorderedAccessView* UAV = ResourceCast(UAVRHI);
-	PendingGfxState->SetUAVForStage(ShaderStage::Pixel, UAVIndex, UAV);
-}
+		FVulkanUnorderedAccessView* UAV = ResourceCast(UAVRHI);
+		PendingGfxState->SetUAVForStage(ShaderStage::Pixel, UAVIndex, UAV);
+	}
 }
 
 void FVulkanCommandListContext::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI, uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI)
@@ -184,9 +327,9 @@ void FVulkanCommandListContext::RHISetUAVParameter(FRHIComputeShader* ComputeSha
 	{
 		check(PendingComputeState->GetCurrentShader() == ResourceCast(ComputeShaderRHI));
 
-	FVulkanUnorderedAccessView* UAV = ResourceCast(UAVRHI);
-	PendingComputeState->SetUAVForStage(UAVIndex, UAV);
-}
+		FVulkanUnorderedAccessView* UAV = ResourceCast(UAVRHI);
+		PendingComputeState->SetUAVForStage(UAVIndex, UAV);
+	}
 }
 
 void FVulkanCommandListContext::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,uint32 UAVIndex, FRHIUnorderedAccessView* UAVRHI, uint32 InitialCount)
@@ -220,10 +363,10 @@ void FVulkanCommandListContext::RHISetShaderResourceViewParameter(FRHIGraphicsSh
 {
 	if (SRVRHI)
 	{
-	ShaderStage::EStage Stage = GetAndVerifyShaderStage(ShaderRHI, PendingGfxState);
-	FVulkanShaderResourceView* SRV = ResourceCast(SRVRHI);
-	PendingGfxState->SetSRVForStage(Stage, TextureIndex, SRV);
-}
+		ShaderStage::EStage Stage = GetAndVerifyShaderStage(ShaderRHI, PendingGfxState);
+		FVulkanShaderResourceView* SRV = ResourceCast(SRVRHI);
+		PendingGfxState->SetSRVForStage(Stage, TextureIndex, SRV);
+	}
 }
 
 void FVulkanCommandListContext::RHISetShaderResourceViewParameter(FRHIComputeShader* ComputeShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
@@ -232,9 +375,9 @@ void FVulkanCommandListContext::RHISetShaderResourceViewParameter(FRHIComputeSha
 	{
 		check(PendingComputeState->GetCurrentShader() == ResourceCast(ComputeShaderRHI));
 
-	FVulkanShaderResourceView* SRV = ResourceCast(SRVRHI);
-	PendingComputeState->SetSRVForStage(TextureIndex, SRV);
-}
+		FVulkanShaderResourceView* SRV = ResourceCast(SRVRHI);
+		PendingComputeState->SetSRVForStage(TextureIndex, SRV);
+	}
 }
 
 void FVulkanCommandListContext::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI, uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
@@ -325,154 +468,32 @@ void FVulkanCommandListContext::RHISetShaderParameters(FRHIComputeShader* Shader
 	);
 }
 
-template <typename TState>
-inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, TState* State, const FVulkanShader* Shader, const TArray<FVulkanShaderHeader::FGlobalInfo>& GlobalInfos, const TArray<TEnumAsByte<EVulkanBindingType::EType>>& DescriptorTypes, const FVulkanShaderHeader::FUniformBufferInfo& HeaderUBInfo, const FVulkanUniformBuffer* UniformBuffer, const TArray<FDescriptorSetRemappingInfo::FRemappingInfo>& GlobalRemappingInfo)
+void FVulkanCommandListContext::RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
 {
-#if ENABLE_RHI_VALIDATION
-	static_assert(std::is_same_v<TState, FVulkanPendingGfxState> || std::is_same_v<TState, FVulkanPendingComputeState>, "TState must be FVulkanPendingGfxState or FVulkanPendingComputeState");
-	constexpr bool bIsGfx = std::is_same_v<TState, FVulkanPendingGfxState>;
-	constexpr ERHIAccess SRVAccess = bIsGfx ? ERHIAccess::SRVGraphics : ERHIAccess::SRVCompute;
-	constexpr ERHIAccess UAVAccess = bIsGfx ? ERHIAccess::UAVGraphics : ERHIAccess::UAVCompute;
-#endif
+	FMemory::Memzero(GlobalUniformBuffers.GetData(), GlobalUniformBuffers.Num() * sizeof(FRHIUniformBuffer*));
 
-	ensure(UniformBuffer->GetLayout().GetHash() == HeaderUBInfo.LayoutHash);
-	float CurrentTime = (float)FPlatformTime::Seconds();
-	const TArray<TRefCountPtr<FRHIResource>>& ResourceArray = UniformBuffer->GetResourceTable();
-	for (int32 Index = 0; Index < HeaderUBInfo.ResourceEntries.Num(); ++Index)
+	for (int32 Index = 0; Index < InUniformBuffers.GetUniformBufferCount(); ++Index)
 	{
-		const FVulkanShaderHeader::FUBResourceInfo& ResourceInfo = HeaderUBInfo.ResourceEntries[Index];
-		switch (ResourceInfo.UBBaseType)
-		{
-		case UBMT_SAMPLER:
-		{
-			uint16 CombinedAlias = GlobalInfos[ResourceInfo.GlobalIndex].CombinedSamplerStateAliasIndex;
-			uint32 GlobalIndex = CombinedAlias == UINT16_MAX ? ResourceInfo.GlobalIndex : CombinedAlias;
-			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[GlobalIndex].TypeIndex]);
-			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-			FVulkanSamplerState* CurrSampler = static_cast<FVulkanSamplerState*>(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
-			if (CurrSampler)
-			{
-				if (CurrSampler->Sampler)
-				{
-					State->SetSamplerStateForUBResource(GlobalRemappingInfo[GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[GlobalIndex].NewBindingIndex, CurrSampler);
-				}
-			}
-			else
-			{
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid sampler in SRT table for shader '%s'"), *Shader->GetDebugName());
-			}
-			break;
-		}
-
-		case UBMT_TEXTURE:
-		case UBMT_RDG_TEXTURE:
-		{
-			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex]);
-			// Tolerate STORAGE_IMAGE for now, it is sometimes used on formats that don't support sampling
-			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER || DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-			FRHITexture* TexRef = (FRHITexture*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
-			if (TexRef)
-			{
-				const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(TexRef);
-				if (!ensure(VulkanTexture))
-				{
-					VulkanTexture = FVulkanTexture::Cast(GBlackTexture->TextureRHI.GetReference());
-				}
-
-				// If the descriptor is a storage image in a slot expecting to read only, make sure it's because we don't support sampling
-				ensure(DescriptorType != VK_DESCRIPTOR_TYPE_STORAGE_IMAGE || !VulkanTexture->SupportsSampling());
-
-#if ENABLE_RHI_VALIDATION
-				if (Context->Tracker)
-				{
-					Context->Tracker->Assert(TexRef->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Common), 1), SRVAccess);
-				}
-#endif
-
-				const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(Context->GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVMask);
-				State->SetTextureForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, VulkanTexture, ExpectedLayout);
-				TexRef->SetLastRenderTime(CurrentTime);
-			}
-			else
-			{
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table for shader '%s'"), *Shader->GetDebugName());
-			}
-			break;
-		}
-
-		case UBMT_RDG_TEXTURE_SRV:
-		case UBMT_SRV:
-		case UBMT_RDG_BUFFER_SRV:
-		{
-			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex]);
-			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER 
-				|| DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-				|| DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
-				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-			FRHIShaderResourceView* CurrentSRV = (FRHIShaderResourceView*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
-			if (CurrentSRV)
-			{
-#if ENABLE_RHI_VALIDATION
-				if (Context->Tracker)
-				{
-					Context->Tracker->Assert(CurrentSRV->ViewIdentity, SRVAccess);
-				}
-#endif
-				FVulkanShaderResourceView* SRV = ResourceCast(CurrentSRV);
-				State->SetSRVForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, SRV);
-			}
-			else
-			{
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table for shader '%s'"), *Shader->GetDebugName());
-			}
-			break;
-		}
-
-		case UBMT_RDG_TEXTURE_UAV:
-		case UBMT_UAV:
-		case UBMT_RDG_BUFFER_UAV:
-		{
-			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex]);
-			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
-				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER);
-			FRHIUnorderedAccessView* CurrentUAV = (FRHIUnorderedAccessView*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
-			if (CurrentUAV)
-			{
-#if ENABLE_RHI_VALIDATION
-				if (Context->Tracker)
-				{
-					Context->Tracker->Assert(CurrentUAV->ViewIdentity, UAVAccess);
-				}
-#endif
-				FVulkanUnorderedAccessView* UAV = ResourceCast(CurrentUAV);
-				State->SetUAVForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, UAV);
-			}
-			else
-			{
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Invalid texture in SRT table for shader '%s'"), *Shader->GetDebugName());
-			}
-			break;
-		}
-
-		default:
-			checkf(0, TEXT("Missing handling for UBMT_ %d"), (int32)ResourceInfo.UBBaseType);
-			break;
-		}
+		GlobalUniformBuffers[InUniformBuffers.GetSlot(Index)] = InUniformBuffers.GetUniformBuffer(Index);
 	}
 }
 
-inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStage Stage, const FVulkanUniformBuffer* UniformBuffer, int32 BufferIndex, const FVulkanShader* Shader)
+void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 	SCOPE_CYCLE_COUNTER(STAT_VulkanSetUniformBufferTime);
 #endif
+
+	FVulkanShader* Shader = nullptr;
+	const ShaderStage::EStage Stage = GetAndVerifyShaderStageAndVulkanShader(ShaderRHI, PendingGfxState, Shader);
 	check(Shader->GetShaderKey() == PendingGfxState->GetCurrentShaderKey(Stage));
 
+	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
 	const FVulkanShaderHeader& CodeHeader = Shader->GetCodeHeader();
 	const FVulkanShaderHeader::FUniformBufferInfo& HeaderUBInfo = CodeHeader.UniformBuffers[BufferIndex];
 	checkfSlow(!HeaderUBInfo.LayoutHash || HeaderUBInfo.LayoutHash == UniformBuffer->GetLayout().GetHash(), TEXT("Mismatched UB layout! Got hash 0x%x, expected 0x%x!"), UniformBuffer->GetLayout().GetHash(), HeaderUBInfo.LayoutHash);
 	const FVulkanGfxPipelineDescriptorInfo& DescriptorInfo = PendingGfxState->CurrentState->GetGfxPipelineDescriptorInfo();
+
 	if (!HeaderUBInfo.bOnlyHasResources)
 	{
 		checkSlow(UniformBuffer->GetLayout().ConstantBufferSize > 0);
@@ -499,31 +520,16 @@ inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStag
 
 	if (HeaderUBInfo.ResourceEntries.Num())
 	{
-		SetShaderUniformBufferResources(this, PendingGfxState, Shader, CodeHeader.Globals, CodeHeader.GlobalDescriptorTypes, HeaderUBInfo, UniformBuffer, DescriptorInfo.GetGlobalRemappingInfo(Stage));
+		checkSlow(Shader->Frequency < SF_NumStandardFrequencies);
+		check(BufferIndex < MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE);
+		BoundUniformBuffers[Shader->Frequency][BufferIndex] = UniformBuffer;
+		DirtyUniformBuffers[Shader->Frequency] |= (1 << BufferIndex);
 	}
 	else
 	{
 		// Internal error: Completely empty UB!
 		checkSlow(!HeaderUBInfo.bOnlyHasResources);
 	}
-}
-
-void FVulkanCommandListContext::RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
-{
-	FMemory::Memzero(GlobalUniformBuffers.GetData(), GlobalUniformBuffers.Num() * sizeof(FRHIUniformBuffer*));
-
-	for (int32 Index = 0; Index < InUniformBuffers.GetUniformBufferCount(); ++Index)
-	{
-		GlobalUniformBuffers[InUniformBuffers.GetSlot(Index)] = InUniformBuffers.GetUniformBuffer(Index);
-	}
-}
-
-void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
-{
-	FVulkanShader* Shader = nullptr;
-	ShaderStage::EStage Stage = GetAndVerifyShaderStageAndVulkanShader(ShaderRHI, PendingGfxState, Shader);
-	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
-	SetShaderUniformBuffer(Stage, UniformBuffer, BufferIndex, Shader);
 }
 
 void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
@@ -572,7 +578,10 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* Com
 
 	if (HeaderUBInfo.ResourceEntries.Num())
 	{
-		SetShaderUniformBufferResources(this, PendingComputeState, Shader, Shader->CodeHeader.Globals, Shader->CodeHeader.GlobalDescriptorTypes, HeaderUBInfo, UniformBuffer, DescriptorInfo.GetGlobalRemappingInfo());
+		checkSlow(ComputeShaderRHI->GetFrequency() == SF_Compute);
+		check(BufferIndex < MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE);
+		BoundUniformBuffers[SF_Compute][BufferIndex] = UniformBuffer;
+		DirtyUniformBuffers[SF_Compute] |= (1 << BufferIndex);
 	}
 	else
 	{
@@ -595,6 +604,8 @@ void FVulkanCommandListContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 
 
 	RHI_DRAW_CALL_STATS(PendingGfxState->PrimitiveType, NumInstances*NumPrimitives);
 
+	CommitGraphicsResourceTables();
+
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 	PendingGfxState->PrepareForDraw(CmdBuffer);
 	uint32 NumVertices = GetVertexCountForPrimitiveCount(NumPrimitives, PendingGfxState->PrimitiveType);
@@ -614,6 +625,8 @@ void FVulkanCommandListContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBuf
 	SCOPE_CYCLE_COUNTER(STAT_VulkanDrawCallTime);
 #endif
 	RHI_DRAW_CALL_INC();
+
+	CommitGraphicsResourceTables();
 
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
@@ -640,6 +653,8 @@ void FVulkanCommandListContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferR
 	RHI_DRAW_CALL_STATS(PendingGfxState->PrimitiveType, NumInstances*NumPrimitives);
 	checkf(GRHISupportsFirstInstance || FirstInstance == 0, TEXT("FirstInstance must be 0, see GRHISupportsFirstInstance"));
 
+	CommitGraphicsResourceTables();
+
 	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
 	VkCommandBuffer CmdBuffer = Cmd->GetHandle();
@@ -661,6 +676,8 @@ void FVulkanCommandListContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRH
 	SCOPE_CYCLE_COUNTER(STAT_VulkanDrawCallTime);
 #endif
 	RHI_DRAW_CALL_INC();
+
+	CommitGraphicsResourceTables();
 
 	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
@@ -686,6 +703,8 @@ void FVulkanCommandListContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* Inde
 	SCOPE_CYCLE_COUNTER(STAT_VulkanDrawCallTime);
 #endif
 	RHI_DRAW_CALL_INC();
+
+	CommitGraphicsResourceTables();
 
 	FVulkanResourceMultiBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	FVulkanCmdBuffer* Cmd = CommandBufferManager->GetActiveCmdBuffer();
