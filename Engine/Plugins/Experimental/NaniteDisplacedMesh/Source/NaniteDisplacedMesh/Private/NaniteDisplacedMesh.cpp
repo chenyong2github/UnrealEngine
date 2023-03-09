@@ -136,6 +136,8 @@ public:
 	void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
 
 private:
+	bool ShouldWaitForBaseMeshCompilation() const;
+
 	void BeginCacheIfDependenciesAreFree();
 	void WaitForDependenciesAndBeginCache();
 
@@ -172,7 +174,7 @@ FNaniteBuildAsyncCacheTask::FNaniteBuildAsyncCacheTask(
 	// to avoid holding on to memory for a long time. We use the highest priority for all
 	// subsequent task.
 	, Owner(UE::DerivedData::EPriority::Highest)
-	, bIsWaitingOnMeshCompilation(InDisplacedMesh.Parameters.BaseMesh->IsCompiling())
+	, bIsWaitingOnMeshCompilation(ShouldWaitForBaseMeshCompilation())
 	, KeyHash(InKeyHash)
 {
 	/**
@@ -202,11 +204,27 @@ void FNaniteDisplacedMeshAsyncBuildWorker::DoWork()
 	}
 }
 
+bool FNaniteBuildAsyncCacheTask::ShouldWaitForBaseMeshCompilation() const 
+{
+	if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
+	{
+		// If the mesh is still waiting for a post load call, let it build it stuff first to avoid blocking the Game Thread
+		if (DisplacedMesh->Parameters.BaseMesh->HasAnyFlags(RF_NeedPostLoad))
+		{
+			return true;
+		}
+
+		return DisplacedMesh->Parameters.BaseMesh->IsCompiling();
+	}
+
+	return false;
+}
+
 void FNaniteBuildAsyncCacheTask::BeginCacheIfDependenciesAreFree()
 {
 	if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
 	{
-		if (!DisplacedMesh->Parameters.BaseMesh->IsCompiling())
+		if (!ShouldWaitForBaseMeshCompilation())
 		{
 			bIsWaitingOnMeshCompilation = false;
 			BeginCache(KeyHash);
@@ -222,6 +240,11 @@ void FNaniteBuildAsyncCacheTask::WaitForDependenciesAndBeginCache()
 {
 	if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
 	{
+		if (DisplacedMesh->Parameters.BaseMesh->HasAnyFlags(RF_NeedPostLoad))
+		{
+			DisplacedMesh->Parameters.BaseMesh->ConditionalPostLoad();
+		}
+
 		FStaticMeshCompilingManager::Get().FinishCompilation({DisplacedMesh->Parameters.BaseMesh});
 
 		bIsWaitingOnMeshCompilation = false;
