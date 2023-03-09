@@ -679,6 +679,16 @@ static void FinalizeBuildSettingsForLayer(
 			if (TextureFormat)
 			{
 				bSupportsEncodeSpeed = TextureFormat->SupportsEncodeSpeed(OutSettings.TextureFormatName);
+				const FChildTextureFormat* ChildTextureFormat = TextureFormat->GetChildFormat();
+
+				if (ChildTextureFormat)
+				{
+					OutSettings.BaseTextureFormatName = ChildTextureFormat->GetBaseFormatName(OutSettings.TextureFormatName);
+				}
+				else
+				{
+					OutSettings.BaseTextureFormatName = OutSettings.TextureFormatName;
+				}
 
 				if (OutBuildResultMetadata)
 				{
@@ -704,16 +714,9 @@ static void FinalizeBuildSettingsForLayer(
 
 						// Shared linear encoding can only work if the base texture format does not expect to
 						// do the tiling itself (SupportsTiling == false).
-						const FChildTextureFormat* ChildTextureFormat = TextureFormat->GetChildFormat();
 						if (ChildTextureFormat && ChildTextureFormat->GetBaseFormatObject(OutSettings.TextureFormatName)->SupportsTiling() == false)
 						{
 							OutSettings.Tiler = ChildTextureFormat->GetTiler();
-							if (OutSettings.Tiler && IsUsingNewDerivedData())
-							{
-								// New derived data wants to treat everything as the base format and then have a separate tiling function
-								// afterwards.
-								OutSettings.TextureFormatName = ChildTextureFormat->GetBaseFormatName(OutSettings.TextureFormatName);
-							}
 						}
 					} // end if enabled
 				} // end if ddc2

@@ -1670,6 +1670,8 @@ bool DDC1_BuildTiledClassicTexture(
 	int64& BytesCached
 )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::BuildTiledClassicTexture);
+
 	// we know we are a child format if we have a tiler.
 	const ITextureTiler* Tiler = BuildSettingsPerLayerFetchOrBuild[0].Tiler;
 	const FChildTextureFormat* ChildFormat = GetTextureFormatManager()->FindTextureFormat(BuildSettingsPerLayerFetchOrBuild[0].TextureFormatName)->GetChildFormat();
@@ -1735,6 +1737,8 @@ bool DDC1_BuildTiledClassicTexture(
 		UE_LOG(LogTexture, Error, TEXT("Tiling texture build was unable to fetch or build the linear texture source: %s"), *TexturePathName);
 		return false;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::TileTexture);
 
 	check(LinearDerivedData.GetNumMipsInTail() == 0);
 
@@ -2915,15 +2919,37 @@ FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	ETextureCacheFlags Flags)
 {
 	using namespace UE::DerivedData;
+
+	// If we are tiling, we need to alter the build settings to act as though it's 
+	// for the linear base format for the build function - the tiling itself will be
+	// a separate build function that will consume the output of that.
+	// We have to do this here because if we do it where build settings are created, then
+	// the DDC key that is externally visible won't know anything about the tiling and
+	// the de-dupe code in BeginCacheForCookedPlatformData will delete the tiling build.
+	TOptional<FTextureBuildSettings> BaseSettingsFetch;
+	TOptional<FTextureBuildSettings> BaseSettingsFetchOrBuild;
 	FUtf8SharedString TilingFunctionName;
+	const FTextureBuildSettings* UseSettingsFetch = SettingsFetch;
+	const FTextureBuildSettings* UseSettingsFetchOrBuild = &SettingsFetchOrBuild;
 	if (SettingsFetchOrBuild.Tiler)
 	{
 		TilingFunctionName = SettingsFetchOrBuild.Tiler->GetBuildFunctionName();
-	}
 
-	if (FUtf8SharedString FunctionName = FindTextureBuildFunction(SettingsFetchOrBuild.TextureFormatName); !FunctionName.IsEmpty())
+		if (SettingsFetch)
+		{
+			BaseSettingsFetch = *SettingsFetch;
+			BaseSettingsFetch->TextureFormatName = BaseSettingsFetch->BaseTextureFormatName;
+			BaseSettingsFetch->Tiler = nullptr;
+			UseSettingsFetch = BaseSettingsFetch.GetPtrOrNull();
+		}
+		BaseSettingsFetchOrBuild = SettingsFetchOrBuild;
+		BaseSettingsFetchOrBuild->TextureFormatName = BaseSettingsFetchOrBuild->BaseTextureFormatName;
+		UseSettingsFetchOrBuild = BaseSettingsFetchOrBuild.GetPtrOrNull();
+	}
+	
+	if (FUtf8SharedString FunctionName = FindTextureBuildFunction(UseSettingsFetchOrBuild->TextureFormatName); !FunctionName.IsEmpty())
 	{
-		return new FTextureBuildTask(Texture, DerivedData, FunctionName, TilingFunctionName, SettingsFetch, SettingsFetchOrBuild, FetchMetadata, FetchOrBuildMetadata, Priority, Flags);
+		return new FTextureBuildTask(Texture, DerivedData, FunctionName, TilingFunctionName, UseSettingsFetch, *UseSettingsFetchOrBuild, FetchMetadata, FetchOrBuildMetadata, Priority, Flags);
 
 	}
 	return nullptr;
@@ -2941,7 +2967,7 @@ FTexturePlatformData::FStructuredDerivedDataKey CreateTextureDerivedDataKey(
 	{
 		TilingFunctionName = Settings.Tiler->GetBuildFunctionName();
 	}
-	if (FUtf8SharedString FunctionName = FindTextureBuildFunction(Settings.TextureFormatName); !FunctionName.IsEmpty())
+	if (FUtf8SharedString FunctionName = FindTextureBuildFunction(Settings.BaseTextureFormatName); !FunctionName.IsEmpty())
 	{
 		IBuild& Build = GetBuild();
 

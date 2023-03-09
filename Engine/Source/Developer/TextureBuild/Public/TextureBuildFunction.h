@@ -28,7 +28,7 @@ protected:
 *	This function does the meat of breaking out the inputs from the build context and handing them
 *	to the tiler, then packing them back up for the build process.
 */
-TEXTUREBUILD_API void GenericTextureTilingBuildFunction(UE::DerivedData::FBuildContext& Context, const ITextureTiler* Tiler);
+TEXTUREBUILD_API void GenericTextureTilingBuildFunction(UE::DerivedData::FBuildContext& Context, const ITextureTiler* Tiler, const UE::DerivedData::FUtf8SharedString& BuildFunctionName);
 
 
 /**
@@ -43,7 +43,7 @@ class FGenericTextureTilingBuildFunction : public UE::DerivedData::IBuildFunctio
 	virtual void Build(UE::DerivedData::FBuildContext& Context) const
 	{
 		ITextureTilerObject Tiler;
-		GenericTextureTilingBuildFunction(Context, &Tiler);
+		GenericTextureTilingBuildFunction(Context, &Tiler, GetName());
 	}
 	virtual void Configure(UE::DerivedData::FBuildConfigContext& Context) const
 	{

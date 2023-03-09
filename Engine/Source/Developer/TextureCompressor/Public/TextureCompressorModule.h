@@ -236,6 +236,10 @@ struct FTextureBuildSettings
 	// this so we can segregate the derived data keys.
 	bool bAffectedBySharedLinearEncoding = false;
 
+	// If we have a child format, this is the base format (i.e. will have the platform prefix removed). Otherwise equal
+	// to TextureFormatName.
+	FName BaseTextureFormatName;
+	
 	static constexpr uint32 MaxTextureResolutionDefault = TNumericLimits<uint32>::Max();
 
 	/** Default settings. */
