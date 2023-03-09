@@ -315,22 +315,32 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 	check(GPUIndex == Device->GetGPUIndex());
 
 	const bool bSharedResource = EnumHasAnyFlags(InDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS);
-	const bool PoolResource = InSize <= MaxAllocationSize && !bSharedResource;
+	
+	bool bPoolResource = InSize <= MaxAllocationSize && !bSharedResource;
+	bool bPlacedResource = bPoolResource && (AllocationStrategy == EResourceAllocationStrategy::kPlacedResource);
+	if (bPlacedResource)
+	{
+		// Make sure that we can satisfy the alignment requirements. If not, we have to fall back to a committed resource. This can happen for MSAA targets,
+		// because the pools are aligned to D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, but MSAA needs more.
+		if (InAllocationAlignment > PoolAlignment || InDesc.Alignment > PoolAlignment)
+		{
+			bPoolResource = false;
+			bPlacedResource = false;
+		}
+	}
 
 	// Disable pooling for VRAM allocated textures and force use the committed resource path
 	bool bForceCommittedResourcePath = false;
 #if PLATFORM_WINDOWS
 	const bool bUseCommittedTexturesNV = GUseCommittedTexturesNV && IsRHIDeviceNVIDIA();
-	if (PoolResource && bUseCommittedTexturesNV && InHeapType == D3D12_HEAP_TYPE_DEFAULT && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
+	if (bPoolResource && bUseCommittedTexturesNV && InHeapType == D3D12_HEAP_TYPE_DEFAULT && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		bForceCommittedResourcePath = true;
 	}
 #endif // PLATFORM_WINDOWS
 
-	if (PoolResource && !bForceCommittedResourcePath)
+	if (bPoolResource && !bForceCommittedResourcePath)
 	{
-		const bool bPlacedResource = (AllocationStrategy == EResourceAllocationStrategy::kPlacedResource);
-
 		uint32 AllocationAlignment = InAllocationAlignment;
 
 		// Ensure we're allocating from the correct pool
@@ -338,8 +348,6 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 		{
 			// If it's a placed resource then base offset will always be 0 from the actual d3d resource so ignore the allocation alignment - no extra offset required
 			// for creating the views!
-			check(InAllocationAlignment <= PoolAlignment);
-			check(InDesc.Alignment <= PoolAlignment);
 			AllocationAlignment = PoolAlignment;
 		}
 		else

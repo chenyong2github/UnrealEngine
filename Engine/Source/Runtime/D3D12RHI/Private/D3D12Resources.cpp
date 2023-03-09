@@ -663,7 +663,15 @@ void FD3D12Adapter::CreateUAVAliasResource(D3D12_CLEAR_VALUE* ClearValuePtr, con
 
 	if (ensure(ResourceHeap != nullptr) && ensure(SourceFormat != PF_Unknown) && SourceFormat != AliasTextureFormat)
 	{
-		const uint64 SourceOffset = Location.GetOffsetFromBaseOfResource();
+		uint64 SourceOffset = Location.GetOffsetFromBaseOfResource();
+
+		if (Location.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool && Location.GetType() == FD3D12ResourceLocation::ResourceLocationType::eSubAllocation)
+		{
+			FD3D12HeapAndOffset HeapAndOffset = Location.GetPoolAllocator()->GetBackingHeapAndAllocationOffsetInBytes(Location);
+			check(SourceOffset == 0);
+			check(ResourceHeap == HeapAndOffset.Heap);
+			SourceOffset = HeapAndOffset.Offset;
+		}
 
 		FD3D12ResourceDesc AliasTextureDesc = SourceDesc;
 		AliasTextureDesc.Format = (DXGI_FORMAT)GPixelFormats[AliasTextureFormat].PlatformFormat;
@@ -1143,7 +1151,6 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 
 		FD3D12Resource* NewResource = nullptr;
 		VERIFYD3D12RESULT(CurrentResource->GetParentDevice()->GetParentAdapter()->CreatePlacedResource(CurrentResource->GetDesc(), HeapAndOffset.Heap, HeapAndOffset.Offset, CreateState, ResourceStateMode, D3D12_RESOURCE_STATE_TBD, ClearValue, &NewResource, *Name.ToString()));
-
 		UnderlyingResource = NewResource;
 		GPUVirtualAddress = UnderlyingResource->GetGPUVirtualAddress() + OffsetFromBaseOfResource;
 	}
@@ -1160,6 +1167,10 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 		OtherResourceLocation->GPUVirtualAddress = GPUVirtualAddress;
 		OtherResourceLocation->ResidencyHandle = ResidencyHandle;
 	}
+
+	// TODO: recreate the aliased UAV resource if we have one. For the time being we just check that we don't get here with such a resource,
+	// because defrag is disabled for the UAV pool in the FD3D12TextureAllocatorPool constructor.
+	check(!CurrentResource->GetDesc().NeedsUAVAliasWorkarounds());
 
 	// Notify all the dependent resources about the change
 	Owner->ResourceRenamed(this);

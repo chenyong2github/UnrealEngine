@@ -1686,7 +1686,8 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		const FString Name(L"D3D12 RT Texture Pool Allocator");
 		uint64 PoolSize = GD3D12PoolAllocatorRTUAVTextureVRAMPoolSize;
 		uint64 MaxAllocationSize = GD3D12PoolAllocatorRTUAVTextureVRAMMaxAllocationSize;
-		bool bDefragEnabled = true;
+		// FD3D12ResourceLocation::OnAllocationMoved doesn't correctly retrieve the clear value when recreating moved resources, so we need to disable defrag for this pool for the time being.
+		bool bDefragEnabled = false;
 		FD3D12PoolAllocator* RTPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled, TraceHeapId);
 		RTPool->Initialize();
 
@@ -1700,7 +1701,8 @@ FD3D12TextureAllocatorPool::FD3D12TextureAllocatorPool(FD3D12Device* Device, FRH
 		const FString Name(L"D3D12 UAV Texture Pool Allocator");
 		uint64 PoolSize = GD3D12PoolAllocatorRTUAVTextureVRAMPoolSize;
 		uint64 MaxAllocationSize = GD3D12PoolAllocatorRTUAVTextureVRAMMaxAllocationSize;
-		bool bDefragEnabled = true;
+		// Defrag doesn't correctly handle resources which need the BCn/UINT UAV aliasing workaround, so we'll turn off defrag for this heap for now.
+		bool bDefragEnabled = false;
 		FD3D12PoolAllocator* UAVPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, MaxAllocationSize, FreeListOrder, bDefragEnabled, TraceHeapId);
 		UAVPool->Initialize();
 
