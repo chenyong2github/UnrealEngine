@@ -453,7 +453,7 @@ void FStaticMeshVertexBuffer::AllocateData(bool bNeedsCPUAccess /*= true*/)
 	}
 }
 
-int FStaticMeshVertexBuffer::GetTangentSize()
+int FStaticMeshVertexBuffer::GetTangentSize() const
 {
 	if (GetUseHighPrecisionTangentBasis())
 	{
@@ -469,7 +469,7 @@ int FStaticMeshVertexBuffer::GetTangentSize()
 	}
 }
 
-int FStaticMeshVertexBuffer::GetTexCoordSize()
+int FStaticMeshVertexBuffer::GetTexCoordSize() const
 {
 	if (GetUseFullPrecisionUVs())
 	{
