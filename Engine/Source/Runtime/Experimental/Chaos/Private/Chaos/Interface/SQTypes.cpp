@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosSQTypes.h"
+#include "Chaos/Interface/SQTypes.h"
 #include "Chaos/ChaosArchive.h"
 #include "Chaos/Serializable.h"
 #include "Chaos/ParticleHandle.h"
