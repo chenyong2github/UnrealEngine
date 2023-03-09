@@ -73,6 +73,7 @@ void FPixelCaptureCapturer::MarkCPUWorkStart()
 
 void FPixelCaptureCapturer::MarkCPUWorkEnd()
 {
+	check(CurrentOutputBuffer != nullptr);
 	CurrentOutputBuffer->Metadata.CaptureProcessCPUTime += FPlatformTime::Cycles64() - CPUStartTime;
 	CPUStartTime = 0;
 

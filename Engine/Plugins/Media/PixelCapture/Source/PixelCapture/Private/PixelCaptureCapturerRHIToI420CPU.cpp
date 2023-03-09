@@ -92,14 +92,14 @@ void FPixelCaptureCapturerRHIToI420CPU::BeginProcess(const IPixelCaptureInputFra
 
 	RHICmdList.Transition(FRHITransitionInfo(ReadbackTexture, ERHIAccess::CopyDest, ERHIAccess::CPURead));
 
+	MarkCPUWorkEnd();
+
 	// by adding this shared ref to the rhi lambda we can ensure that 'this' will not be destroyed
 	// until after the rhi thread is done with it, so all the commands will still have valid references.
 	TSharedRef<FPixelCaptureCapturerRHIToI420CPU> ThisRHIRef = StaticCastSharedRef<FPixelCaptureCapturerRHIToI420CPU>(AsShared());
 	RHICmdList.EnqueueLambda([ThisRHIRef, OutputBuffer](FRHICommandListImmediate&) {
 		ThisRHIRef->OnRHIStageComplete(OutputBuffer);
 	});
-
-	MarkCPUWorkEnd();
 }
 
 void FPixelCaptureCapturerRHIToI420CPU::OnRHIStageComplete(IPixelCaptureOutputFrame* OutputBuffer)
