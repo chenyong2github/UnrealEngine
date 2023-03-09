@@ -79,9 +79,11 @@ public:
 		XrPath			UserPath;
 		XrAction		GripAction;
 		XrAction		AimAction;
+		XrAction		PalmAction;
 		XrAction		VibrationAction;
 		int32			GripDeviceId;
 		int32			AimDeviceId;
+		int32			PalmDeviceId;
 
 		bool			bHapticActive;
 
@@ -156,6 +158,7 @@ public:
 
 		bool bActionsAttached;
 		bool bDirectionalBindingSupported;
+		bool bPalmPoseSupported;
 
 		/**
 		* Buffer for current delta time to get an accurate approximation of how long to play haptics for

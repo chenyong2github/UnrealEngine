@@ -234,10 +234,9 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 			}
 		}
 
+		const float WorldToMeters = GetWorldToMetersScale();
 		if (MotionController)
 		{
-			const float WorldToMeters = GetWorldToMetersScale();
-
 			bool bSuccess = false;
 			FVector Position = FVector::ZeroVector;
 			FRotator Rotation = FRotator::ZeroRotator;
@@ -260,6 +259,15 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 			}
 			MotionControllerData.bValid |= bSuccess;
 
+			FName PalmSource = Hand == EControllerHand::Left ? FName("LeftPalm") : FName("RightPalm");
+			bSuccess = MotionController->GetControllerOrientationAndPosition(0, PalmSource, Rotation, Position, WorldToMeters);
+			if (bSuccess)
+			{
+				MotionControllerData.GripPosition = trackingToWorld.TransformPosition(Position);
+				MotionControllerData.GripRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
+			}
+			MotionControllerData.bValid |= bSuccess;
+
 			MotionControllerData.TrackingStatus = MotionController->GetControllerTrackingStatus(0, GripSource);
 		}
 
@@ -270,7 +278,7 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 
 			MotionControllerData.bValid = HandTracker->GetAllKeypointStates(Hand, MotionControllerData.HandKeyPositions, MotionControllerData.HandKeyRotations, MotionControllerData.HandKeyRadii);
 			check(!MotionControllerData.bValid || (MotionControllerData.HandKeyPositions.Num() == EHandKeypointCount && MotionControllerData.HandKeyRotations.Num() == EHandKeypointCount && MotionControllerData.HandKeyRadii.Num() == EHandKeypointCount));
-		}	
+		}
 	}
 
 	//TODO: this is reportedly a wmr specific convenience function for rapid prototyping.  Not sure it is useful for openxr.

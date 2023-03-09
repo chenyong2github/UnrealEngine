@@ -352,17 +352,27 @@ struct HEADMOUNTEDDISPLAY_API FXRMotionControllerData
 
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
 	ETrackingStatus TrackingStatus = ETrackingStatus::NotTracked;
-	
+
+	// Vector representing an object being held in the player's hand
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
 	FVector GripPosition = FVector(0.0f);
+	// Quaternion representing an object being held in the player's hand
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
 	FQuat GripRotation = FQuat(EForceInit::ForceInitToZero);
 
-	//for hand controllers, provides a more steady vector based on the elbow
+	// For handheld controllers, gives a vector for pointing at objects
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
-	FVector AimPosition = FVector(0.0f);;
+	FVector AimPosition = FVector(0.0f);
+	// For handheld controllers, gives a quaternion for pointing at objects
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
 	FQuat AimRotation = FQuat(EForceInit::ForceInitToZero);
+
+	// For handheld controllers, gives a vector for representing the hand
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FVector PalmPosition = FVector(0.0f);
+	// For handheld controllers, gives a quaternion for representing the hand
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	FQuat PalmRotation = FQuat(EForceInit::ForceInitToZero);
 
 	// The indices of this array are the values of EHandKeypoint (Palm, Wrist, ThumbMetacarpal, etc).
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
