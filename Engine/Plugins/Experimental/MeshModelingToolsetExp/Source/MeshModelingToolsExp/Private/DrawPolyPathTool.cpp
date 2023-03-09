@@ -266,7 +266,7 @@ void UDrawPolyPathTool::Shutdown(EToolShutdownType ShutdownType)
 	// it's a bit more work.
 	if (State == EState::SettingHeight && ShutdownType != EToolShutdownType::Cancel)
 	{
-		CurHeight = TransformProps->ExtrudeHeight;
+		CurHeight = TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::Flat ? 0.0 : TransformProps->ExtrudeHeight;
 		OnCompleteExtrudeHeight();
 	}
 
