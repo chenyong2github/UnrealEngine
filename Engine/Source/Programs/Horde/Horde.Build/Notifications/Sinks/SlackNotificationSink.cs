@@ -1017,6 +1017,17 @@ namespace Horde.Build.Notifications.Sinks
 				await UpdateMessageStateAsync(state.Id, state.MessageId, permalink);
 
 				_issueService.Collection.GetLogger(issue.Id).LogInformation("Created Slack thread: {SlackLink}", permalink);
+				if (permalink != null)
+				{
+					try
+					{
+						await _issueService.UpdateIssueAsync(issue.Id, workflowThreadUrl: new Uri(permalink));
+					}
+					catch (Exception Ex)
+					{
+						_issueService.Collection.GetLogger(issue.Id).LogInformation("Error associating workflow thread with issue, bad URI format? {ErrorMessage}", Ex.Message);
+					}					
+				}				
 			}
 
 			// Post a message containing the controls and status

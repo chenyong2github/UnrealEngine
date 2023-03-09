@@ -531,6 +531,11 @@ namespace Horde.Build.Issues
 		public GetThinUserInfoResponse? ForceClosedByUserInfo { get; set; }
 
 		/// <summary>
+		/// The workflow thread url for this issue
+		/// </summary>
+		public Uri? WorkflowThreadUrl { get; set; }
+
+		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
 		/// <param name="details">Issue to construct from</param>
@@ -591,6 +596,7 @@ namespace Horde.Build.Issues
 			QuarantinedByUserInfo = details.QuarantinedBy != null ? new GetThinUserInfoResponse(details.QuarantinedBy) : null;
 			QuarantineTimeUtc = details.QuarantineTimeUtc;
 			ForceClosedByUserInfo = details.ForceClosedBy != null ? new GetThinUserInfoResponse(details.ForceClosedBy) : null;
+			WorkflowThreadUrl = issue.WorkflowThreadUrl;
 		}
 	}
 

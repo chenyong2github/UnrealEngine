@@ -171,6 +171,11 @@ namespace Horde.Build.Issues
 		/// </summary>
 		public UserId? ForceClosedByUserId { get; set; }
 
+		/// <summary>
+		/// The workflow thread url created for this issue
+		/// </summary>
+		public Uri? WorkflowThreadUrl { get; set; }
+
 	}
 
 	/// <summary>
