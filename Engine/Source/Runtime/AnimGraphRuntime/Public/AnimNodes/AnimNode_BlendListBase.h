@@ -117,4 +117,8 @@ public:
 protected:
 	virtual int32 GetActiveChildIndex() { return 0; }
 	virtual FString GetNodeName(FNodeDebugData& DebugData) { return DebugData.GetNodeName(this); }
+
+	void Initialize();
+
+	friend class UBlendListBaseLibrary;
 };

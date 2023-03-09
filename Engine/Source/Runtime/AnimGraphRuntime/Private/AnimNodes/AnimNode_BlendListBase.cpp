@@ -16,7 +16,6 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
-
 	const int32 NumPoses = BlendPose.Num();
 	const TArray<float>& CurrentBlendTimes = GetBlendTimes();
 	checkSlow(CurrentBlendTimes.Num() == NumPoses);
@@ -35,13 +34,20 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 		}
 	}
 
+	Initialize();
+}
+
+void FAnimNode_BlendListBase::Initialize()
+{
 	UBlendProfile* CurrentBlendProfile = GetBlendProfile();
+
+	const int32 NumPoses = BlendPose.Num();
 
 	LastActiveChildIndex = INDEX_NONE;
 
 	EAlphaBlendOption CurrentBlendType = GetBlendType();
 	UCurveFloat* CurrentCustomBlendCurve = GetCustomBlendCurve();
-	for(int32 i = 0 ; i < PerBlendData.Num() ; ++i)
+	for (int32 i = 0; i < PerBlendData.Num(); ++i)
 	{
 		FAlphaBlend& Blend = PerBlendData[i].Blend;
 
@@ -56,7 +62,7 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 	}
 	PerBlendData[0].Blend.SetAlpha(1.0f);
 
-	if(CurrentBlendProfile)
+	if (CurrentBlendProfile)
 	{
 		PerBlendData[0].StartAlpha = 1.0f;
 
@@ -64,7 +70,7 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 		PerBoneSampleData.Empty(NumPoses);
 		PerBoneSampleData.AddZeroed(NumPoses);
 
-		for(int32 Idx = 0 ; Idx < NumPoses ; ++Idx)
+		for (int32 Idx = 0; Idx < NumPoses; ++Idx)
 		{
 			FBlendSampleData& SampleData = PerBoneSampleData[Idx];
 			SampleData.SampleDataIndex = Idx;
