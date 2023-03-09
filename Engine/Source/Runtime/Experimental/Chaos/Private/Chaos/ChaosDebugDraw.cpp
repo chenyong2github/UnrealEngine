@@ -544,7 +544,7 @@ namespace Chaos
 				{
 					// Retrieve shape from union's shapes array
 					const FPerShapeData* PerShapeData = nullptr;
-					if (ensure(!Shapes.IsSingleShape()))
+					if (!Shapes.IsSingleShape())
 					{
 						const FShapesArray& ShapesArray = *Shapes.GetShapesArray();
 						PerShapeData = ShapesArray[UnionIdx].Get();
