@@ -1423,12 +1423,13 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 			for (const FAssetIdentifier& Referencer : Referencers)
 			{
 				FName ReferencerPackageName = Referencer.PackageName;
-				// TODO: Replace this workaround for ExternalActors with a modification to the ExternalActor Packages' 
+				// EXTERNALACTOR_TODO: Replace this workaround for ExternalActors with a modification to the ExternalActor Packages' 
 				// dependencies. External actors have an import dependency (hard, build, game) on their Map package because
 				// the map package is their outer. But unless they have some other use of the Map package, we do not want to
 				// mark them as modified even if their map package is modified. Doing so would mark all actors in the map as
 				// modified anytime one of them changed.
 				// Workaround: Detect external actors by naming convention and suppress their reference to the map package.
+				// See also UAssetManager::ShouldSetManager
 				TStringBuilder<256> ReferencerPackageNameStr(InPlace, ReferencerPackageName);
 				int32 ExternalActorsFolderIndex = ReferencerPackageNameStr.ToView().Find(ExternalActorsFolderName);
 				if (ExternalActorsFolderIndex != INDEX_NONE)

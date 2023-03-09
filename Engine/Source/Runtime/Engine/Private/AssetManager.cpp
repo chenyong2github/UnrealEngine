@@ -25,9 +25,11 @@
 #include "Misc/DelayedAutoRegister.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/PackageName.h"
+#include "Misc/PathViews.h"
 #include "MoviePlayerProxy.h"
 #include "Modules/ModuleManager.h"
 #include "Stats/StatsMisc.h"
+#include "String/Find.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
@@ -3658,6 +3660,30 @@ EAssetSetManagerResult::Type UAssetManager::ShouldSetManager(const FAssetIdentif
 	if (FStringView(TargetPackageString).StartsWith(TEXT("/Script/"), ESearchCase::CaseSensitive))
 	{
 		return EAssetSetManagerResult::DoNotSet;
+	}
+
+	// EXTERNALACTOR_TODO: Replace this workaround for ExternalActors with a modification to the ExternalActor Packages' 
+	// dependencies. External actors have an import dependency (hard, build, game) on their Map package because
+	// the map package is their outer. At cook time they are saved in umaps (WorldPartition cells, generated packages). Prevent
+	// their dependency on the WorldPartition generator package to set them as a manager of the generator package.
+	// Workaround: Detect external actors by naming convention and suppress their reference to the map package.
+	// Long-Term Fix: Make the external actors dependency on their map a non-game one so they are not considered while evaluating the manager asset.
+	// See also FAssetRegistryGenerator::ComputePackageDifferences
+	TStringBuilder<256> SourcePackageString;
+	Source.PackageName.ToString(SourcePackageString);
+	int32 ExternalActorIdx = UE::String::FindFirst(SourcePackageString, ULevel::GetExternalActorsFolderName(), ESearchCase::IgnoreCase);
+	if (ExternalActorIdx != INDEX_NONE)
+	{
+		FStringView TargetMountPoint = FPathViews::GetMountPointNameFromPath(TargetPackageString);
+		FStringView TargetRelativePath = FStringView(TargetPackageString).RightChop(TargetMountPoint.Len() + 1);
+
+		FStringView ChoppedExternalActor = FStringView(SourcePackageString).RightChop(ExternalActorIdx + FStringView(ULevel::GetExternalActorsFolderName()).Len());
+		bool bIsTargetWorld = UE::String::FindFirst(ChoppedExternalActor, TargetRelativePath, ESearchCase::IgnoreCase) != INDEX_NONE;
+		if (bIsTargetWorld)
+		{
+			// If the Target is the UWorld and its source an External actor, then do not set. ExternalActors do not influence their level's chunk.
+			return EAssetSetManagerResult::DoNotSet;
+		}
 	}
 
 	if (Flags & EAssetSetManagerFlags::TargetHasExistingManager)
