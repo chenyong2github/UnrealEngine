@@ -20,7 +20,7 @@ struct FEmitterCompiledScriptPair
 	uint32 PendingJobID = INDEX_NONE; // this is the ID for any active shader compiler worker job
 	FNiagaraVMExecutableDataId CompileId;
 	TSharedPtr<FNiagaraVMExecutableData> CompileResults;
-	double CompileTime = 0;
+	float CompileTime = 0.0f;
 };
 
 UENUM()
