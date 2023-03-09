@@ -5,7 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 
-namespace UE::Chaos::ClothAsset{ class FClothCollection; }
+struct FManagedArrayCollection;
 
 struct FClothCollectionHeaderData
 {
@@ -45,13 +45,13 @@ class SClothCollectionOutliner : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS(SClothCollectionOutliner) {}
-		SLATE_ARGUMENT(TWeakPtr<UE::Chaos::ClothAsset::FClothCollection>, ClothCollection)
+		SLATE_ARGUMENT(TWeakPtr<FManagedArrayCollection>, ClothCollection)
 		SLATE_ARGUMENT(FName, SelectedGroupName)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 
-	void SetClothCollection(TWeakPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection);
+	void SetClothCollection(TWeakPtr<FManagedArrayCollection> ClothCollection);
 
 	///  Changing the selected group name will also automatically rebuild the header and all rows
 	void SetSelectedGroupName(const FName& SelectedGroupName);
@@ -62,7 +62,7 @@ public:
 
 private:
 
-	TWeakPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection;
+	TWeakPtr<FManagedArrayCollection> ClothCollection;
 	FName SelectedGroupName;
 
 	TSharedPtr<SListView<TSharedPtr<const FClothCollectionItem>>> ListView;

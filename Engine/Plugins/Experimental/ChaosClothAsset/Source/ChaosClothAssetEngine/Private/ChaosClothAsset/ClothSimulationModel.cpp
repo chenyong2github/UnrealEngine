@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/ClothSimulationModel.h"
-#include "ChaosClothAsset/ClothCollection.h"
-#include "ChaosClothAsset/ClothAdapter.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ReferenceSkeleton.h"
 
 namespace UE::Chaos::ClothAsset
@@ -106,11 +105,11 @@ namespace UE::Chaos::ClothAsset
 	}
 }  // End namespace UE::Chaos::ClothAsset
 
-FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection>& ClothCollection, const FReferenceSkeleton& ReferenceSkeleton)
+FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FManagedArrayCollection>& ClothCollection, const FReferenceSkeleton& ReferenceSkeleton)
 {
 	using namespace UE::Chaos::ClothAsset;
 
-	const FClothConstAdapter Cloth(ClothCollection);
+	const FCollectionClothConstFacade Cloth(ClothCollection);
 
 	// Initialize LOD models
 	const int32 NumLods = Cloth.GetNumLods();
@@ -119,27 +118,29 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const UE
 	for (int32 LodIndex = 0; LodIndex < NumLods; ++LodIndex)
 	{
 		FChaosClothSimulationLodModel& LodModel = ClothSimulationLodModels[LodIndex];
-		const FClothLodConstAdapter ClothLod = Cloth.GetLod(LodIndex);
+		const FCollectionClothLodConstFacade ClothLod = Cloth.GetLod(LodIndex);
 		TArray<int32> WeldingMap;
 		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices, WeldingMap);
 
-		const TManagedArray<float>* const MaxDistanceValues = ClothCollection->FindAttributeTyped<float>("MaxDistance", FClothCollection::SimVerticesGroup);
-		if (MaxDistanceValues)
+		static const FName MaxDistanceName = TEXT("MaxDistance");
+		const TConstArrayView<float> MaxDistanceValues = ClothLod.GetWeightMap(MaxDistanceName);
+
+		if (MaxDistanceValues.Num())
 		{
-			LodModel.MaxDistance = MaxDistanceValues->GetConstArray();
+			LodModel.MaxDistance = MaxDistanceValues;
 		}
 		else
 		{
 			LodModel.MaxDistance.Init(1.0, LodModel.Positions.Num());
 		}
 
-		TConstArrayView<int32> NumBoneInfluences = ClothLod.GetPatternsSimNumBoneInfluences();
-		TConstArrayView<TArray<int32>> SimBoneIndices = ClothLod.GetPatternsSimBoneIndices();
-		TConstArrayView<TArray<float>> SimBoneWeights = ClothLod.GetPatternsSimBoneWeights();
+		TConstArrayView<int32> NumBoneInfluences = ClothLod.GetSimNumBoneInfluences();
+		TConstArrayView<TArray<int32>> SimBoneIndices = ClothLod.GetSimBoneIndices();
+		TConstArrayView<TArray<float>> SimBoneWeights = ClothLod.GetSimBoneWeights();
 		LodModel.BoneData.SetNum(LodModel.Positions.Num());
 
 		uint32 WeldedIndex = 0;
-		for (int32 VertexIndex = 0; VertexIndex <  ClothLod.GetPatternsNumSimVertices(); ++VertexIndex)
+		for (int32 VertexIndex = 0; VertexIndex <  ClothLod.GetNumSimVertices(); ++VertexIndex)
 		{
 			if (WeldingMap[VertexIndex] == VertexIndex)
 			{

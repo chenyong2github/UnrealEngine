@@ -3,7 +3,7 @@
 #include "ChaosClothAsset/DataflowNodes/ImportNode.h"
 #include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
 #include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/ClothCollection.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Materials/Material.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -15,6 +15,8 @@
 FChaosClothAssetImportNode::FChaosClothAssetImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
 	: FDataflowNode(InParam, InGuid)
 {
+	RegisterInputConnection(&ClothAsset);
+	RegisterInputConnection(&ImportLod);
 	RegisterOutputConnection(&Collection);
 }
 
@@ -52,52 +54,31 @@ void FChaosClothAssetImportNode::Evaluate(Dataflow::FContext& Context, const FDa
 			}
 		}
 
+		// Create a new cloth collection with its LOD 0
+		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>();
+		FCollectionClothFacade ClothFacade(ClothCollection);
+		ClothFacade.DefineSchema();
+		FCollectionClothLodFacade ClothLodFacade = ClothFacade.AddGetLod();  // Always output a single LOD at LOD 0, even if empty
+
 		// Copy the cloth asset to this node's output collection
 		if (bSetValue)
 		{
-			// TODO: Needs to make cloth collection a facade to avoid the copy of the cloth collection to a managed array
-			TSharedPtr<FClothCollection> ClothCollection = MakeShared<FClothCollection>();
-
-			if (ClothAsset->GetClothCollection())
+			const TObjectPtr<const UChaosClothAsset>& InClothAsset = GetValue<TObjectPtr<const UChaosClothAsset>>(Context, &ClothAsset);
+			if (InClothAsset->GetClothCollection())
 			{
-				const TArray<FName> GroupsToSkip =
+				const int32& InImportLod = GetValue<int32>(Context, &ImportLod);
+				const FCollectionClothConstFacade InClothFacade(InClothAsset->GetClothCollection());
+
+				if (InImportLod >= 0 && InImportLod < InClothFacade.GetNumLods())
 				{
-					FClothCollection::MaterialsGroup,   // Don't copy materials, and collisions but rebuild the
-					FClothCollection::CollisionsGroup   // group from the asset for backward compatibility instead
-				};
-				ClothAsset->GetClothCollection()->CopyTo(ClothCollection.Get(), GroupsToSkip);
+					// Copy specified LOD from the input asset to the LOD 0 of the output collection
+					const FCollectionClothLodConstFacade InClothLodFacade = InClothFacade.GetLod(InImportLod);
+					ClothLodFacade.Initialize(InClothLodFacade);
+				}
 			}
-
-			// Rebuild material list
-			const TArray<FSkeletalMaterial>& Materials = ClothAsset->GetMaterials();
-			const int32 NumMaterials = Materials.Num();
-
-			ClothCollection->AddElements(NumMaterials, FClothCollection::MaterialsGroup);
-
-			for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
-			{
-				const FSkeletalMaterial& Material = Materials[MaterialIndex];
-				ClothCollection->MaterialPathName[MaterialIndex] = Material.MaterialInterface ?
-					Material.MaterialInterface->GetPathName() :
-					FString();
-			}
-
-			// Overwrite physics asset
-			if (const UPhysicsAsset* const PhysicsAsset = ClothAsset->GetPhysicsAsset())
-			{
-				ClothCollection->AddElements(1, FClothCollection::CollisionsGroup);
-				ClothCollection->PhysicsAssetPathName[0] = PhysicsAsset->GetPathName();
-			}
-
-			SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 		}
-		else
-		{
-			// Init with an empty cloth collection
-			UE::Chaos::ClothAsset::FClothCollection ClothCollection;
-			SetValue<FManagedArrayCollection>(Context, ClothCollection, &Collection);
-		}
-	}
+		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+}
 }
 
 #undef LOCTEXT_NAMESPACE

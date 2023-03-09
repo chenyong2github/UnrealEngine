@@ -14,13 +14,41 @@ struct FChaosClothAssetTerminalNode : public FDataflowTerminalNode
 	//DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")  // TODO: Leave out the render type until there is something to render
 
 public:
+	static constexpr int32 MaxLods = 6;  // Hardcoded number of LODs since it is currently not possible to use arrays for optional inputs
 
-	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
-	FManagedArrayCollection Collection;
+	/** LOD 0 input, right click on the node and add pins to add more LODs. */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection LOD 0"))
+	FManagedArrayCollection CollectionLod0;
+	/** LOD 1 input, right click on the node and add pins to add more LODs. */
+	UPROPERTY(meta = (DisplayName = "Collection LOD 1"))
+	FManagedArrayCollection CollectionLod1;
+	/** LOD 2 input, right click on the node and add pins to add more LODs. */
+	UPROPERTY(meta = (DisplayName = "Collection LOD 2"))
+	FManagedArrayCollection CollectionLod2;
+	/** LOD 3 input, right click on the node and add pins to add more LODs. */
+	UPROPERTY(meta = (DisplayName = "Collection LOD 3"))
+	FManagedArrayCollection CollectionLod3;
+	/** LOD 4 input, right click on the node and add pins to add more LODs. */
+	UPROPERTY(meta = (DisplayName = "Collection LOD 4"))
+	FManagedArrayCollection CollectionLod4;
+	/** LOD 5 input, right click on the node and add pins to add more LODs. */
+	UPROPERTY(meta = (DisplayName = "Collection LOD 5"))
+	FManagedArrayCollection CollectionLod5;
+	/** The number of LODs currently exposed to the node UI. */
+	UPROPERTY()
+	int32 NumLods = 1;
 
 	FChaosClothAssetTerminalNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
 	virtual void SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const override;
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override {}
+
+	virtual Dataflow::FPin AddPin() override;
+	virtual bool CanAddPin() const override { return NumLods < MaxLods; }
+	virtual bool CanRemovePin() const override { return NumLods > 1; }
+	virtual Dataflow::FPin RemovePin() override;
+
+private:
+	TArray<const FManagedArrayCollection*> GetCollectionLods() const;
 };

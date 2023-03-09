@@ -5,8 +5,7 @@
 #include "ChaosClothAsset/ClothEditorModeToolkit.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothComponent.h"
-#include "ChaosClothAsset/ClothCollection.h"
-#include "ChaosClothAsset/ClothAdapter.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ChaosClothAsset/ClothEditorRestSpaceViewportClient.h"
 #include "ChaosClothAsset/ClothPatternToDynamicMesh.h"
 #include "ChaosClothAsset/ClothEditorPreviewScene.h"
@@ -63,31 +62,13 @@ const FEditorModeID UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId =
 
 namespace ChaosClothAssetEditorModeHelpers
 {
-	TArray<FName> GetClothAssetWeightMapNames(const UE::Chaos::ClothAsset::FClothAdapter& ClothAdapter)
+	void RemoveClothWeightMaps(UE::Chaos::ClothAsset::FCollectionClothFacade& ClothFacade, const TArray<FName>& WeightMapNames)
 	{
-		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAdapter.FClothConstAdapter::GetClothCollection();
-
-		TArray<FName> OutWeightMapNames;
-		const TArray<FName> SimVerticesAttributeNames = ClothCollection->AttributeNames(UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup);
-		for (const FName& AttributeName : SimVerticesAttributeNames)
+		for (const FName& WeightMapName : WeightMapNames)
 		{
-			if (ClothCollection->FindAttributeTyped<float>(AttributeName, UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup))
+			if (ClothFacade.HasWeightMap(WeightMapName))
 			{
-				OutWeightMapNames.Add(AttributeName);
-			}
-		}
-
-		return OutWeightMapNames;
-	}
-
-	void RemoveClothWeightMaps(UE::Chaos::ClothAsset::FClothAdapter& ClothAdapter, const TArray<FName>& WeightMapNames)
-	{
-		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAdapter.GetClothCollection();
-		for (const FName& RemovedMap : WeightMapNames)
-		{
-			if (ClothCollection->FindAttributeTyped<float>(RemovedMap, UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup))
-			{
-				ClothAdapter.RemoveWeightMap(RemovedMap);
+				ClothFacade.RemoveWeightMap(WeightMapName);
 			}
 		}
 	}
@@ -363,13 +344,13 @@ void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 	UChaosClothAsset* ChaosClothAsset = PreviewScene->ClothComponent->GetClothAsset();
 	ChaosClothAsset->Modify();
 
-	UE::Chaos::ClothAsset::FClothAdapter ClothAdapter(ChaosClothAsset->GetClothCollection());
+	UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ChaosClothAsset->GetClothCollection());
 
 	check(DynamicMeshSourceInfos.Num() == DynamicMeshComponents.Num());
 
 	// Search for weight map names that are in the original cloth asset, but are not in *all* dynamic mesh components. These are weight maps
 	// that have been removed by one of the mesh tools, and so should be removed from the asset.
-	const TSet<FName> ClothAssetWeightMapNames = TSet<FName>(ChaosClothAssetEditorModeHelpers::GetClothAssetWeightMapNames(ClothAdapter));
+	const TSet<FName> ClothAssetWeightMapNames = TSet<FName>(ClothFacade.GetWeightMapNames());
 	TSet<FName> CommonDynamicMeshWeightMapNames;
 	bool bFirstIteration = true;
 
@@ -378,8 +359,8 @@ void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 		const int32 LodIndex = DynamicMeshSourceInfos[DynamicMeshIndex].LodIndex;
 		const int32 PatternIndex = DynamicMeshSourceInfos[DynamicMeshIndex].PatternIndex;
 
-		UE::Chaos::ClothAsset::FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
-		UE::Chaos::ClothAsset::FClothPatternAdapter ClothPatternAdapter = ClothLodAdapter.GetPattern(PatternIndex);
+		UE::Chaos::ClothAsset::FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
+		UE::Chaos::ClothAsset::FCollectionClothPatternFacade ClothPatternFacade = ClothLodFacade.GetPattern(PatternIndex);
 
 		const UDynamicMeshComponent& DynamicMeshComponent = *DynamicMeshComponents[DynamicMeshIndex];
 		const UE::Geometry::FDynamicMesh3* DynamicMesh = DynamicMeshComponent.GetMesh();
@@ -416,9 +397,9 @@ void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 			const UE::Geometry::FDynamicMeshWeightAttribute* WeightMapAttribute = DynamicMesh->Attributes()->GetWeightLayer(DynamicMeshWeightMapIndex);
 			const FName WeightMapName = WeightMapAttribute->GetName();
 
-			ClothAdapter.AddWeightMap(WeightMapName);		// Does nothing if weight map already exists
+			ClothFacade.AddWeightMap(WeightMapName);		// Does nothing if weight map already exists
 
-			TArrayView<float> PatternWeights = ClothPatternAdapter.GetWeightMap(WeightMapName);
+			TArrayView<float> PatternWeights = ClothPatternFacade.GetWeightMap(WeightMapName);
 			for (int VertexID = 0; VertexID < NumInputWeightElements; ++VertexID)
 			{
 				float Val;
@@ -429,7 +410,7 @@ void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 	}
 
 	const TSet<FName> WeightMapsToRemove = ClothAssetWeightMapNames.Difference(CommonDynamicMeshWeightMapNames);
-	ChaosClothAssetEditorModeHelpers::RemoveClothWeightMaps(ClothAdapter, WeightMapsToRemove.Array());
+	ChaosClothAssetEditorModeHelpers::RemoveClothWeightMaps(ClothFacade, WeightMapsToRemove.Array());
 
 	ChaosClothAsset->Build();
 
@@ -512,11 +493,11 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 		return;
 	}
 
-	const UE::Chaos::ClothAsset::FClothConstAdapter ClothAdapter(ChaosClothAsset->GetClothCollection());
+	const UE::Chaos::ClothAsset::FCollectionClothConstFacade ClothFacade(ChaosClothAsset->GetClothCollection());
 
-	for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
+	for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
 	{
-		const UE::Chaos::ClothAsset::FClothLodConstAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+		const UE::Chaos::ClothAsset::FCollectionClothLodConstFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
 
 		if (bCombineAllPatterns)
 		{
@@ -525,11 +506,11 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 		}
 		else
 		{
-			const int32 NumComponents = ClothLodAdapter.GetNumPatterns();
+			const int32 NumComponents = ClothLodFacade.GetNumPatterns();
 			DynamicMeshComponents.SetNum(NumComponents);
 			DynamicMeshComponentParentActors.SetNum(NumComponents);
 
-			for (int32 PatternIndex = 0; PatternIndex < ClothLodAdapter.GetNumPatterns(); ++PatternIndex)
+			for (int32 PatternIndex = 0; PatternIndex < ClothLodFacade.GetNumPatterns(); ++PatternIndex)
 			{
 				UE::Geometry::FDynamicMesh3 PatternMesh;
 				FClothPatternToDynamicMesh Converter;
@@ -567,7 +548,7 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 
 		// If we found any patterns, use this LOD
 		// TODO: Give the user the ability to specify which LOD to display
-		if (ClothLodAdapter.GetNumPatterns() > 0)
+		if (ClothLodFacade.GetNumPatterns() > 0)
 		{
 			break;
 		}

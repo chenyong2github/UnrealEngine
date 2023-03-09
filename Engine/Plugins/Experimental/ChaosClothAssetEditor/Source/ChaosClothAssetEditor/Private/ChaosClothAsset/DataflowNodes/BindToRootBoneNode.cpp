@@ -22,14 +22,10 @@ void FChaosClothAssetBindToRootBoneNode::Evaluate(Dataflow::FContext& Context, c
 		using namespace UE::Chaos::ClothAsset;
 
 		// Evaluate in collection
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
-		// TODO: Needs to make cloth collection a facade to avoid the copy of the cloth collection to a managed array
-		//       and remove the above const reference to operate on the InCollection instead.
-		TSharedPtr<FClothCollection> ClothCollection = MakeShared<FClothCollection>();
-		InCollection.CopyTo(ClothCollection.Get());
-
-        FClothGeometryTools::BindMeshToRootBone(ClothCollection, bBindSimMesh, bBindRenderMesh);
+		FClothGeometryTools::BindMeshToRootBone(ClothCollection, bBindSimMesh, bBindRenderMesh);
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}

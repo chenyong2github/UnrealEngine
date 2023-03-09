@@ -2,7 +2,7 @@
 
 #include "ClothingAssetToClothAssetExporter.h"
 #include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/ClothAdapter.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Engine/SkeletalMesh.h"
@@ -34,37 +34,36 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 
 	UChaosClothAsset* const ClothAsset = CastChecked<UChaosClothAsset>(ExportedAsset);
 	check(ClothAsset);
+	FCollectionClothFacade Cloth(ClothAsset->GetClothCollection());
 
+	// Create the LODs
 	for (const FClothLODDataCommon& ClothLODData : ClothingAssetCommon->LodData)
 	{
 		const FClothPhysicalMeshData& PhysicalMeshData = ClothLODData.PhysicalMeshData;
 
 		// Unwrap the physical mesh data into the pattern and rest meshes
-		FClothAdapter Cloth(ClothAsset->GetClothCollection());
-		FClothLodAdapter ClothLod = Cloth.AddGetLod();
+		FCollectionClothLodFacade ClothLod = Cloth.AddGetLod();
 		ClothLod.Initialize(PhysicalMeshData.Vertices, PhysicalMeshData.Indices);
 	}
 
-	// Add a default material
-	ClothAsset->GetMaterials().Reset(1);
-	UMaterialInterface* const DefaultMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);
-	const int32 MaterialId = ClothAsset->GetMaterials().Emplace(DefaultMaterial, true, false, DefaultMaterial->GetFName());
+	if (Cloth.GetNumLods())
+	{
+		// Set the render mesh to duplicate the sim mesh
+		ClothAsset->CopySimMeshToRenderMesh();
+	}
+	else
+	{
+		// Make sure that at least one empty LOD is always created
+		Cloth.AddLod();
+	}
 
-	// Assign the physics asset if any
+	// Assign the physics asset if any (must be done after having added the LODs)
 	ClothAsset->SetPhysicsAsset(ClothingAssetCommon->PhysicsAsset);
 
-	// Set the skeleton from the skeletal mesh, or create a default skeleton if it can't find one
-	USkeletalMesh* const SkeletalMesh = Cast<USkeletalMesh>(ClothingAssetCommon->GetOuter());
-
-	ClothAsset->SetReferenceSkeleton(SkeletalMesh ?
-		SkeletalMesh->GetRefSkeleton() :
-		LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr)->GetReferenceSkeleton());
-
-	// Bind the mesh to the root bone.
-	ClothAsset->BindSimMeshToRootBone(); 
-
-	// Set the render mesh to duplicate the sim mesh
-	ClothAsset->CopySimMeshToRenderMesh(MaterialId);
+	// Set the skeleton from the skeletal mesh (must be done after having added the LODs)
+	constexpr bool bRebuildModels = false;  // Build is called last
+	USkeletalMesh* const SkeletalMesh = CastChecked<USkeletalMesh>(ClothingAssetCommon->GetOuter());
+	ClothAsset->SetSkeleton(SkeletalMesh->GetSkeleton(), bRebuildModels);
 
 	// Build the asset, since it is already loaded, it won't rebuild on load
 	ClothAsset->Build();

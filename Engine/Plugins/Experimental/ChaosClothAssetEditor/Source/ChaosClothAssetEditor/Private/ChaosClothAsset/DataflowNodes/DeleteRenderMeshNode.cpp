@@ -23,12 +23,8 @@ void FChaosClothAssetDeleteRenderMeshNode::Evaluate(Dataflow::FContext& Context,
 		using namespace UE::Chaos::ClothAsset;
 
 		// Evaluate in collection
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-
-		// TODO: Needs to make cloth collection a facade to avoid the copy of the cloth collection to a managed array
-		//       and remove the above const reference to operated on the InCollection instead.
-		TSharedPtr<FClothCollection> ClothCollection = MakeShared<FClothCollection>();
-		InCollection.CopyTo(ClothCollection.Get());
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
 		if (Patterns.IsEmpty())
 		{

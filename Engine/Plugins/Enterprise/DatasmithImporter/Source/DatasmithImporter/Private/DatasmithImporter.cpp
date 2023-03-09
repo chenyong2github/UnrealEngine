@@ -83,9 +83,7 @@
 
 #include "Animation/Skeleton.h"
 #include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/ClothAdapter.h"
-#include "ChaosClothAsset/ClothLodAdapter.h"
-#include "ChaosClothAsset/ClothPatternAdapter.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 
 extern UNREALED_API UEditorEngine* GEditor;
 
@@ -488,14 +486,6 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 		else
 		{
 			ClothAsset = NewObject<UChaosClothAsset>(ImportPackage, *ClothName, ObjectFlags);
-
-			// Setup a default skeleton
-			if (ClothAsset && !ClothAsset->GetSkeleton())
-			{
-				USkeleton* const DefaultSkeleton = LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr);
-				check(DefaultSkeleton);
-				ClothAsset->SetSkeleton(DefaultSkeleton);
-			}
 		}
 
 		if (!ensure(ClothAsset))
@@ -503,30 +493,30 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 			continue;
 		}
 
-		TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> Collection = ClothAsset->GetClothCollection();
-		UE::Chaos::ClothAsset::FClothAdapter Adapter(Collection);
-		Adapter.Reset(); // on reimport, asset is non-empty
-		UE::Chaos::ClothAsset::FClothLodAdapter LODAdapter = Adapter.GetNumLods() ? Adapter.GetLod(0) : Adapter.AddGetLod();
+		TSharedPtr<FManagedArrayCollection> Collection = ClothAsset->GetClothCollection();
+		UE::Chaos::ClothAsset::FCollectionClothFacade Cloth(Collection);
+		Cloth.Reset(); // on reimport, asset is non-empty
+		UE::Chaos::ClothAsset::FCollectionClothLodFacade ClothLod = Cloth.GetNumLods() ? Cloth.GetLod(0) : Cloth.AddGetLod();
 
 		for (FDatasmithClothPattern& Pattern : DsCloth.Patterns)
 		{
 			if (Pattern.IsValid())
 			{
-				UE::Chaos::ClothAsset::FClothPatternAdapter ClothPattern = LODAdapter.AddGetPattern();
+				UE::Chaos::ClothAsset::FCollectionClothPatternFacade ClothPattern = ClothLod.AddGetPattern();
 				ClothPattern.Initialize(Pattern.SimPosition, Pattern.SimRestPosition, Pattern.SimTriangleIndices);
 			}
 		}
 
-		LODAdapter.SetNumSeams(DsCloth.Sewing.Num());
-		TArrayView<FIntVector2> SeamPatterns = LODAdapter.GetSeamPatterns();
-		TArrayView<TArray<FIntVector2>> SeamStitches = LODAdapter.GetSeamStitches();
+		ClothLod.SetNumSeams(DsCloth.Sewing.Num());
+		TArrayView<FIntVector2> SeamPatterns = ClothLod.GetSeamPatterns();
+		TArrayView<TArray<FIntVector2>> SeamStitches = ClothLod.GetSeamStitches();
 
 		uint32 SeamIndex = 0;
 		for (const FDatasmithClothSewingInfo& SeamInfo : DsCloth.Sewing)
 		{
 			SeamPatterns[SeamIndex] = FIntVector2(SeamInfo.Seam0PanelIndex, SeamInfo.Seam1PanelIndex);
 			TArray<FIntVector2>& Stitches = SeamStitches[SeamIndex];
-			uint32 StitchesCount = std::min(SeamInfo.Seam0MeshIndices.Num(), SeamInfo.Seam1MeshIndices.Num());
+			const uint32 StitchesCount = FMath::Min(SeamInfo.Seam0MeshIndices.Num(), SeamInfo.Seam1MeshIndices.Num());
 			Stitches.Reserve(StitchesCount);
 			for (uint32 StitchIndex = 0; StitchIndex < StitchesCount; ++StitchIndex)
 			{
@@ -536,23 +526,14 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 			++SeamIndex;
 		}
 
-		// Add a default material
-		ClothAsset->GetMaterials().Reset(1);
-		UMaterial* DefaultMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);
-		const int32 MaterialId = ClothAsset->GetMaterials().Emplace(DefaultMaterial, true, false, DefaultMaterial->GetFName());
-
 		// Set a default skeleton
-		if (USkeleton* DefaultSkeleton = LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr))
-		{
-			ClothAsset->SetReferenceSkeleton(DefaultSkeleton->GetReferenceSkeleton(), false);
-		}
-
-		// Bind the mesh to the root bone.
-		ClothAsset->BindSimMeshToRootBone(); 
+		constexpr bool bRebuildModels = false;
+		ClothAsset->SetSkeleton(nullptr, bRebuildModels);
 
 		// Set the render mesh to duplicate the sim mesh
-		ClothAsset->CopySimMeshToRenderMesh(MaterialId);
+		ClothAsset->CopySimMeshToRenderMesh();
 
+		// Rebuild static data
 		ClothAsset->Build();
 
 		ImportContext.ImportedClothes.Add(ClothElement, ClothAsset);

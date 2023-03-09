@@ -2,8 +2,8 @@
 
 #include "ChaosClothAsset/DataflowNodes/DatasmithImportNode.h"
 #include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
-#include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/ClothAsset.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "DatasmithImportContext.h"
 #include "DatasmithImportFactory.h"
 #include "ExternalSource.h"
@@ -99,9 +99,15 @@ void FChaosClothAssetDatasmithImportNode::Evaluate(Dataflow::FContext& Context, 
 	}
 	else
 	{
+		using namespace UE::Chaos::ClothAsset;
+
 		// Init with an empty cloth collection
-		UE::Chaos::ClothAsset::FClothCollection ClothCollection;
-		SetValue<FManagedArrayCollection>(Context, ClothCollection, &Collection);
+		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>();
+		FCollectionClothFacade CollectionClothFacade(ClothCollection);
+		CollectionClothFacade.DefineSchema();
+		CollectionClothFacade.AddLod();
+
+		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}
 }
 

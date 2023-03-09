@@ -11,7 +11,6 @@
 #include "ChaosClothAsset/ClothEditorRestSpaceViewportClient.h"
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/ClothEditorModeToolkit.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "AssetEditorModeManager.h"
@@ -706,7 +705,7 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 
 void FChaosClothAssetEditorToolkit::PopulateOutliner()
 {
-	TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection;
+	TSharedPtr<FManagedArrayCollection> ClothCollection;
 	if (const TObjectPtr<UChaosClothComponent> ClothComponent = ClothPreviewScene->ClothComponent)
 	{
 		if (UChaosClothAsset* const ClothAsset = ClothComponent->GetClothAsset())
@@ -717,12 +716,15 @@ void FChaosClothAssetEditorToolkit::PopulateOutliner()
 	
 	if (Outliner.IsValid() && ClothCollection.IsValid())
 	{
-		const FName& SelectedGroupName = ClothCollection->SimVerticesGroup;
-		
-		Outliner->SetClothCollection(ClothCollection);
-		Outliner->SetSelectedGroupName(SelectedGroupName);
-
 		ClothCollectionGroupNames = ClothCollection->GroupNames();
+		if (ClothCollectionGroupNames.Num())
+		{
+			const FName& SelectedGroupName = ClothCollectionGroupNames[0];
+	
+			Outliner->SetClothCollection(ClothCollection);
+			Outliner->SetSelectedGroupName(SelectedGroupName);
+		}
+
 	}
 }
 

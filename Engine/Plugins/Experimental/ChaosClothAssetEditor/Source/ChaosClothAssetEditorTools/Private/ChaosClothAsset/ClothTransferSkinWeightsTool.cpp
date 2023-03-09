@@ -5,8 +5,7 @@
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothComponentToolTarget.h"
 #include "ChaosClothAsset/ClothPatternToDynamicMesh.h"
-#include "ChaosClothAsset/ClothAdapter.h"
-#include "ChaosClothAsset/ClothCollection.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 
 #include "BoneWeights.h"
 #include "SkeletalMeshAttributes.h"
@@ -74,21 +73,23 @@ namespace ClothTransferSkinWeightsToolHelpers
 
 	void ClothComponentToDynamicMesh(const UChaosClothComponent* ClothComponent, UE::Geometry::FDynamicMesh3& MeshOut)
 	{
+		using namespace UE::Chaos::ClothAsset;
+
 		const UChaosClothAsset* ChaosClothAsset = ClothComponent->GetClothAsset();
 		if (!ChaosClothAsset)
 		{
 			return;
 		}
 
-		const UE::Chaos::ClothAsset::FClothConstAdapter ClothAdapter(ChaosClothAsset->GetClothCollection());
+		const FCollectionClothConstFacade ClothFacade(ChaosClothAsset->GetClothCollection());
 		constexpr int32 LodIndex = 0;
-		const UE::Chaos::ClothAsset::FClothLodConstAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+		const FCollectionClothLodConstFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
 		constexpr bool bGet2DPattern = false;
 
 		UE::Geometry::FDynamicMeshEditor MeshEditor(&MeshOut);
 		FClothPatternToDynamicMesh Converter;
 
-		for (int32 PatternIndex = 0; PatternIndex < ClothLodAdapter.GetNumPatterns(); ++PatternIndex)
+		for (int32 PatternIndex = 0; PatternIndex < ClothLodFacade.GetNumPatterns(); ++PatternIndex)
 		{
 			UE::Geometry::FDynamicMesh3 PatternMesh;
 			Converter.Convert(ChaosClothAsset, LodIndex, PatternIndex, bGet2DPattern, PatternMesh);
@@ -353,6 +354,7 @@ void UClothTransferSkinWeightsTool::TransferWeights()
 {
 	using namespace UE::AnimationCore;
 	using namespace UE::Geometry;
+	using namespace UE::Chaos::ClothAsset;
 	
 	//TODO: for now, assume we are always transfering from LOD 0, but make this a parameter in the future...
 	constexpr int32 SourceLODIdx = 0; 
@@ -387,28 +389,28 @@ void UClothTransferSkinWeightsTool::TransferWeights()
 		return;
 	}
 
-	UE::Chaos::ClothAsset::FClothAdapter ClothAdapter(TargetClothAsset->GetClothCollection());
+	FCollectionClothFacade ClothFacade(TargetClothAsset->GetClothCollection());
     FTransformSRT3d TargetToWorld = ClothComponent->GetComponentTransform();
 
 	// Iterate over the LODs and transfer the bone weights from the source Skeletal mesh to the Cloth asset
-	for (int TargetLODIdx = 0; TargetLODIdx < ClothAdapter.GetNumLods(); ++TargetLODIdx) 
+	for (int TargetLODIdx = 0; TargetLODIdx < ClothFacade.GetNumLods(); ++TargetLODIdx) 
 	{
-		UE::Chaos::ClothAsset::FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(TargetLODIdx);
+		FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(TargetLODIdx);
 
 		// Cloth collection data arrays we are writing to
-		TArrayView<int32> SimNumBoneInfluences = ClothLodAdapter.GetPatternsSimNumBoneInfluences();
-		TArrayView<TArray<int32>> SimBoneIndices = ClothLodAdapter.GetPatternsSimBoneIndices();
-		TArrayView<TArray<float>> SimBoneWeights = ClothLodAdapter.GetPatternsSimBoneWeights();
+		TArrayView<int32> SimNumBoneInfluences = ClothLodFacade.GetSimNumBoneInfluences();
+		TArrayView<TArray<int32>> SimBoneIndices = ClothLodFacade.GetSimBoneIndices();
+		TArrayView<TArray<float>> SimBoneWeights = ClothLodFacade.GetSimBoneWeights();
 
-		TArrayView<int32> RenderNumBoneInfluences = ClothLodAdapter.GetPatternsRenderNumBoneInfluences();
-		TArrayView<TArray<int32>> RenderBoneIndices = ClothLodAdapter.GetPatternsRenderBoneIndices();
-		TArrayView<TArray<float>> RenderBoneWeights = ClothLodAdapter.GetPatternsRenderBoneWeights();
+		TArrayView<int32> RenderNumBoneInfluences = ClothLodFacade.GetRenderNumBoneInfluences();
+		TArrayView<TArray<int32>> RenderBoneIndices = ClothLodFacade.GetRenderBoneIndices();
+		TArrayView<TArray<float>> RenderBoneWeights = ClothLodFacade.GetRenderBoneWeights();
 
-		const TArrayView<FVector3f> SimPositions =  ClothLodAdapter.GetPatternsSimRestPosition();
+		const TArrayView<FVector3f> SimPositions =  ClothLodFacade.GetSimRestPosition();
 		
 		checkSlow(SimPositions.Num() == SimBoneIndices.Num());
 		
-		const int32 NumVert = ClothLodAdapter.GetPatternsNumSimVertices();
+		const int32 NumVert = ClothLodFacade.GetNumSimVertices();
 		constexpr bool bUseParallel = true; 
 
 		// Iterate over each vertex and write the data from FBoneWeights into cloth collection managed arrays

@@ -2,7 +2,7 @@
 
 #include "ClothAssetFactory.h"
 #include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/ClothAdapter.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Animation/Skeleton.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothAssetFactory)
@@ -23,24 +23,14 @@ UObject* UChaosClothAssetFactory::FactoryCreateNew(UClass* Class, UObject* Paren
 	ClothAsset->MarkPackageDirty();
 
 	// Add an empty default LOD, to avoid LOD mismatch with render data
-	TSharedPtr<FClothCollection> ClothCollection = ClothAsset->GetClothCollection();
+	TSharedPtr<FManagedArrayCollection> ClothCollection = ClothAsset->GetClothCollection();
 
-	FClothAdapter ClothAdapter(ClothCollection);
-	ClothAdapter.AddLod();
+	FCollectionClothFacade ClothFacade(ClothCollection);
+	ClothFacade.DefineSchema();
+	ClothFacade.AddLod();
 
-	// Set reference skeleton in both the collection and the asset
-	ClothCollection->AddElements(1, FClothCollection::SkeletonsGroup);
-	ClothCollection->SkeletonAssetPathName[0] = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
-
-	if (const USkeleton* const Skeleton = LoadObject<USkeleton>(nullptr, *ClothCollection->SkeletonAssetPathName[0], nullptr, LOAD_None, nullptr))
-	{
-		constexpr bool bRebuildClothSimulationModel = false;  // Avoid rebuilding the asset twice
-		ClothAsset->SetReferenceSkeleton(Skeleton->GetReferenceSkeleton(), bRebuildClothSimulationModel);
-	}
-
-	// Build static data
-	ClothAsset->Build();
+	// Set the default skeleton on this new LOD and rebuild the static data models (which is done by default with this override)
+	ClothAsset->SetSkeleton(nullptr);
 
 	return ClothAsset;
 }
-

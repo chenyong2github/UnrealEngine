@@ -20,8 +20,13 @@ public:
 	UPROPERTY(Meta = (DataflowOutput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	/** The Cloth Asset to import into a collection. */
+	UPROPERTY(EditAnywhere, Category = "ClothAsset")
 	TObjectPtr<const UChaosClothAsset> ClothAsset;
+
+	/** The LOD to import into the collection. Only one LOD can be imported at a time. */
+	UPROPERTY(EditAnywhere, Category = "ClothAsset", Meta = (DisplayName = "Import LOD"))
+	int32 ImportLod;
 
 	FChaosClothAssetImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 

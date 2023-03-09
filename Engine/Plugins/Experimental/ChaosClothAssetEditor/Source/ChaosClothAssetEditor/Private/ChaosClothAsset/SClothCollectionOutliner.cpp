@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/SClothCollectionOutliner.h"
-#include "ChaosClothAsset/ClothCollection.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
 #include "Templates/EnableIf.h"
 
 #define LOCTEXT_NAMESPACE "ClothCollectionOutliner"
@@ -77,7 +77,7 @@ void SClothCollectionOutliner::Construct(const FArguments& InArgs)
 	];
 }
 
-void SClothCollectionOutliner::SetClothCollection(TWeakPtr<UE::Chaos::ClothAsset::FClothCollection> InClothCollection)
+void SClothCollectionOutliner::SetClothCollection(TWeakPtr<FManagedArrayCollection> InClothCollection)
 {
 	ClothCollection = InClothCollection;
 }
@@ -99,7 +99,7 @@ void SClothCollectionOutliner::RegenerateHeader()
 {
 	constexpr float CustomFillWidth = 2.0f;
 
-	TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> PinnedClothCollection = ClothCollection.Pin();
+	TSharedPtr<FManagedArrayCollection> PinnedClothCollection = ClothCollection.Pin();
 
 	if (!PinnedClothCollection.IsValid())
 	{
@@ -142,6 +142,11 @@ namespace ClothCollectionOutlinerHelpers
 		return FString::FromInt(Value);
 	}
 
+	FString AttributeValueToString(const FString& Value)
+	{
+		return Value;
+	}
+
 	template<typename T>
 	FString AttributeValueToString(const TArray<T>& Array)
 	{
@@ -159,7 +164,7 @@ namespace ClothCollectionOutlinerHelpers
 	}
 
 	template<typename T>
-	FString AttributeValueToString(const UE::Chaos::ClothAsset::FClothCollection& ClothCollection, const FName& AttributeName, const FName& GroupName, int32 AttributeArrayIndex)
+	FString AttributeValueToString(const FManagedArrayCollection& ClothCollection, const FName& AttributeName, const FName& GroupName, int32 AttributeArrayIndex)
 	{
 		const TManagedArray<T>* const Array = ClothCollection.FindAttributeTyped<T>(AttributeName, GroupName);
 		if (Array == nullptr)
@@ -170,7 +175,7 @@ namespace ClothCollectionOutlinerHelpers
 		return AttributeValueToString((*Array)[AttributeArrayIndex]);
 	}
 
-	FString AttributeValueToString(const UE::Chaos::ClothAsset::FClothCollection& ClothCollection, const FName& AttributeName, const FName& GroupName, int32 AttributeArrayIndex)
+	FString AttributeValueToString(const FManagedArrayCollection& ClothCollection, const FName& AttributeName, const FName& GroupName, int32 AttributeArrayIndex)
 	{
 		const FManagedArrayCollection::EArrayType ArrayType = ClothCollection.GetAttributeType(AttributeName, GroupName);
 
@@ -188,7 +193,7 @@ namespace ClothCollectionOutlinerHelpers
 			ValueAsString = AttributeValueToString<float>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
 			break;
 		case FManagedArrayCollection::EArrayType::FIntVectorType:
-			ValueAsString = AttributeValueToString<FIntVector>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
+			ValueAsString = AttributeValueToString<FIntVector3>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
 			break;
 		case FManagedArrayCollection::EArrayType::FVector2DArrayType:
 			ValueAsString = AttributeValueToString<TArray<FVector2f>>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
@@ -205,6 +210,9 @@ namespace ClothCollectionOutlinerHelpers
 		case FManagedArrayCollection::EArrayType::FFloatArrayType:
 			ValueAsString = AttributeValueToString<TArray<float>>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
 			break;
+		case FManagedArrayCollection::EArrayType::FStringType:
+			ValueAsString = AttributeValueToString<FString>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
+			break;
 		default:
 			ensure(false);
 			ValueAsString = "(Unknown Data Type)";
@@ -218,7 +226,7 @@ void SClothCollectionOutliner::RepopulateListView()
 {
 	ListItems.Empty();
 
-	const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> PinnedClothCollection = ClothCollection.Pin();
+	const TSharedPtr<const FManagedArrayCollection> PinnedClothCollection = ClothCollection.Pin();
 
 	if (!PinnedClothCollection.IsValid())
 	{

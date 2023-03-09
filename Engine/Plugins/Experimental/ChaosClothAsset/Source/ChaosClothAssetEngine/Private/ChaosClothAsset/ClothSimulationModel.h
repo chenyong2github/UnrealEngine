@@ -10,10 +10,7 @@
 #include "ClothSimulationModel.generated.h"
 
 struct FReferenceSkeleton;
-namespace UE::Chaos::ClothAsset
-{
-	class FClothCollection;
-}
+struct FManagedArrayCollection;
 
 /**
  * Cloth simulation LOD model.
@@ -70,7 +67,7 @@ struct FChaosClothSimulationModel
 	int32 ReferenceBoneIndex = INDEX_NONE;
 
 	FChaosClothSimulationModel() = default;
-	FChaosClothSimulationModel(const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection>& ClothCollection, const FReferenceSkeleton& ReferenceSkeleton);
+	FChaosClothSimulationModel(const TSharedPtr<const FManagedArrayCollection>& ClothCollection, const FReferenceSkeleton& ReferenceSkeleton);
 
 	int32 GetNumLods() const { return ClothSimulationLodModels.Num(); }
 

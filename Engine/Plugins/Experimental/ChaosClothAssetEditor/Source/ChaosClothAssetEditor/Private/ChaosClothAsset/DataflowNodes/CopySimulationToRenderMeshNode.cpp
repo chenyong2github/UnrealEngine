@@ -24,12 +24,8 @@ void FChaosClothAssetCopySimulationToRenderMeshNode::Evaluate(Dataflow::FContext
 		using namespace UE::Chaos::ClothAsset;
 
 		// Evaluate in collection
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-
-		// TODO: Needs to make cloth collection a facade to avoid the copy of the cloth collection to a managed array
-		//       and remove the above const reference to operated on the InCollection instead.
-		TSharedPtr<FClothCollection> ClothCollection = MakeShared<FClothCollection>();
-		InCollection.CopyTo(ClothCollection.Get());
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
 		// Empty mesh and materials
 		FClothGeometryTools::DeleteRenderMesh(ClothCollection);
@@ -39,22 +35,8 @@ void FChaosClothAssetCopySimulationToRenderMeshNode::Evaluate(Dataflow::FContext
 			Material->GetPathName() :
 			FString(TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"));
 
-		// Find or add the material attribute
-		// TODO: Add to ClothAdapter functionality
-		TManagedArray<FString>* const FindAttributeResult = ClothCollection->FindAttribute<FString>("MaterialPathName", FClothCollection::MaterialsGroup);
-		TManagedArray<FString>& MaterialPathNameArray = FindAttributeResult ? *FindAttributeResult :
-			ClothCollection->AddAttribute<FString>("MaterialPathName", FClothCollection::MaterialsGroup);
-
-		// Work out the material index and set the path name
-		int32 MaterialIndex = MaterialPathNameArray.Find(MaterialPathName);
-	
-		if (MaterialIndex == INDEX_NONE)
-		{
-			MaterialIndex = ClothCollection->AddElements(1, FClothCollection::MaterialsGroup);
-			MaterialPathNameArray[MaterialIndex] = MaterialPathName;
-		}
-
-		FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialIndex);
+		// Copy the mesh data
+		FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialPathName);
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}

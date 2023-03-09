@@ -1,63 +1,143 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/ClothGeometryTools.h"
-#include "ChaosClothAsset/ClothCollection.h"
-#include "ChaosClothAsset/ClothAdapter.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
+#include "Math/Vector.h"
 
 namespace UE::Chaos::ClothAsset
 {
-	void FClothGeometryTools::DeleteRenderMesh(const TSharedPtr<FClothCollection>& ClothCollection)
+	// TODO: Move these functions to the cloth facade?
+	bool FClothGeometryTools::HasSimMesh(const TSharedPtr<const FManagedArrayCollection>& ClothCollection)
 	{
-		FClothAdapter ClothAdapter(ClothCollection);
+		bool bHasSimMesh = false;
 
-		for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
+		FCollectionClothConstFacade ClothFacade(ClothCollection);
+
+		for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
 		{
-			FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+			FCollectionClothLodConstFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
 
-			for (int32 PatternIndex = ClothLodAdapter.GetNumPatterns() - 1; PatternIndex >= 0 ; --PatternIndex)  // Use a reverse order to avoid having to move previous elements
+			for (int32 PatternIndex = ClothLodFacade.GetNumPatterns() - 1; PatternIndex >= 0 ; --PatternIndex)  // Use a reverse order to avoid having to move previous elements
 			{
-				FClothPatternAdapter ClothPatternAdapter = ClothLodAdapter.GetPattern(PatternIndex);
-				ClothPatternAdapter.SetNumRenderVertices(0);
-				ClothPatternAdapter.SetNumRenderFaces(0);
+				FCollectionClothPatternConstFacade ClothPatternFacade = ClothLodFacade.GetPattern(PatternIndex);
+				if (ClothPatternFacade.GetNumSimVertices() && ClothPatternFacade.GetNumSimFaces())
+				{
+					bHasSimMesh = true;
+					break;
+				}
 			}
 		}
-		// TODO: Add Materials functions to cloth adapter
-		ClothCollection->EmptyGroup(FClothCollection::MaterialsGroup);
+		return bHasSimMesh;
 	}
 
-	void FClothGeometryTools::CopySimMeshToRenderMesh(const TSharedPtr<FClothCollection>& ClothCollection, int32 MaterialIndex)
+	bool FClothGeometryTools::HasRenderMesh(const TSharedPtr<const FManagedArrayCollection>& ClothCollection)
 	{
-		FClothAdapter ClothAdapter(ClothCollection);
+		bool bHasRenderMesh = false;
 
-		for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
+		FCollectionClothConstFacade ClothFacade(ClothCollection);
+
+		for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
 		{
-			FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+			FCollectionClothLodConstFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
 
-			const TConstArrayView<FVector2f> LodSimPosition = ClothLodAdapter.GetPatternsSimPosition();
-			const TConstArrayView<FVector3f> LodSimRestPosition = ClothLodAdapter.GetPatternsSimRestPosition();
-
-			for (int32 PatternIndex = 0; PatternIndex < ClothLodAdapter.GetNumPatterns(); ++PatternIndex)
+			for (int32 PatternIndex = ClothLodFacade.GetNumPatterns() - 1; PatternIndex >= 0 ; --PatternIndex)  // Use a reverse order to avoid having to move previous elements
 			{
-				FClothPatternAdapter ClothPatternAdapter = ClothLodAdapter.GetPattern(PatternIndex);
+				FCollectionClothPatternConstFacade ClothPatternFacade = ClothLodFacade.GetPattern(PatternIndex);
+				if (ClothPatternFacade.GetNumRenderVertices() && ClothPatternFacade.GetNumRenderFaces())
+				{
+					bHasRenderMesh = true;
+					break;
+				}
+			}
+		}
+		return bHasRenderMesh;
+	}
 
-				const int32 NumVertices = ClothPatternAdapter.GetNumSimVertices();
-				const int32 NumFaces = ClothPatternAdapter.GetNumSimFaces();
+	void FClothGeometryTools::SetSkeletonAssetPathName(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FString& SkeletonAssetPathName)
+	{
+		FCollectionClothFacade ClothFacade(ClothCollection);
+
+		for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
+		{
+			FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
+			ClothLodFacade.SetSkeletonAssetPathName(SkeletonAssetPathName);
+		}
+	}
+
+	void FClothGeometryTools::SetPhysicsAssetPathName(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FString& PhysicsAssetPathName)
+	{
+		FCollectionClothFacade ClothFacade(ClothCollection);
+
+		for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
+		{
+			FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
+			ClothLodFacade.SetPhysicsAssetPathName(PhysicsAssetPathName);
+		}
+	}
+
+	void FClothGeometryTools::DeleteRenderMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection)
+	{
+		FCollectionClothFacade ClothFacade(ClothCollection);
+
+		for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
+		{
+			FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
+
+			for (int32 PatternIndex = ClothLodFacade.GetNumPatterns() - 1; PatternIndex >= 0 ; --PatternIndex)  // Use a reverse order to avoid having to move previous elements
+			{
+				FCollectionClothPatternFacade ClothPatternFacade = ClothLodFacade.GetPattern(PatternIndex);
+				ClothPatternFacade.SetNumRenderVertices(0);
+				ClothPatternFacade.SetNumRenderFaces(0);
+			}
+
+			ClothLodFacade.SetNumMaterials(0);
+		}
+	}
+
+	void FClothGeometryTools::CopySimMeshToRenderMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FString& RenderMaterialPathName)
+	{
+		FCollectionClothFacade ClothFacade(ClothCollection);
+
+		for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
+		{
+			FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
+
+			// Add the material if it doesn't already exists in this LOD
+			const TConstArrayView<FString> RenderMaterialPathNameArray = ClothLodFacade.GetRenderMaterialPathName();
+			int32 MaterialIndex = RenderMaterialPathNameArray.Find(RenderMaterialPathName);
+			if (MaterialIndex == INDEX_NONE)
+			{
+				MaterialIndex = RenderMaterialPathNameArray.Num();
+				ClothLodFacade.SetNumMaterials(MaterialIndex + 1);
+				ClothLodFacade.GetRenderMaterialPathName()[MaterialIndex] = RenderMaterialPathName;
+			}
+
+			// Copy sim data to render data
+			const TConstArrayView<FVector2f> LodSimPosition = ClothLodFacade.GetSimPosition();
+			const TConstArrayView<FVector3f> LodSimRestPosition = ClothLodFacade.GetSimRestPosition();
+
+			for (int32 PatternIndex = 0; PatternIndex < ClothLodFacade.GetNumPatterns(); ++PatternIndex)
+			{
+				FCollectionClothPatternFacade ClothPatternFacade = ClothLodFacade.GetPattern(PatternIndex);
+
+				const int32 NumVertices = ClothPatternFacade.GetNumSimVertices();
+				const int32 NumFaces = ClothPatternFacade.GetNumSimFaces();
 
 				if (!NumVertices || !NumFaces)
 				{
-					ClothPatternAdapter.SetNumRenderVertices(0);
-					ClothPatternAdapter.SetNumRenderFaces(0);
+					ClothPatternFacade.SetNumRenderVertices(0);
+					ClothPatternFacade.SetNumRenderFaces(0);
 					continue;
 				}
 
-				ClothPatternAdapter.SetNumRenderVertices(NumVertices);
-				ClothPatternAdapter.SetNumRenderFaces(NumFaces);
+				ClothPatternFacade.SetNumRenderVertices(NumVertices);
+				ClothPatternFacade.SetNumRenderFaces(NumFaces);
 
-				const TConstArrayView<FVector2f> SimPosition = ClothPatternAdapter.GetSimPosition();
-				const TConstArrayView<FVector3f> SimRestPosition = ClothPatternAdapter.GetSimRestPosition();
-				const TConstArrayView<FVector3f> SimRestNormal = ClothPatternAdapter.GetSimRestNormal();
-				const TArrayView<FVector3f> RenderTangentU = ClothPatternAdapter.GetRenderTangentU();
-				const TArrayView<FVector3f> RenderTangentV = ClothPatternAdapter.GetRenderTangentV();
+				const TConstArrayView<FVector2f> SimPosition = ClothPatternFacade.GetSimPosition();
+				const TConstArrayView<FVector3f> SimRestPosition = ClothPatternFacade.GetSimRestPosition();
+				const TConstArrayView<FVector3f> SimRestNormal = ClothPatternFacade.GetSimRestNormal();
+				const TArrayView<FVector3f> RenderTangentU = ClothPatternFacade.GetRenderTangentU();
+				const TArrayView<FVector3f> RenderTangentV = ClothPatternFacade.GetRenderTangentV();
 
 				FVector2f MinPosition(TNumericLimits<float>::Max());
 				FVector2f MaxPosition(TNumericLimits<float>::Lowest());
@@ -77,11 +157,11 @@ namespace UE::Chaos::ClothAsset
 					UVScale.Y < SMALL_NUMBER ? 0.f : 1.f / UVScale.Y);
 
 				// Face group
-				const TConstArrayView<FIntVector3> SimIndices = ClothPatternAdapter.GetSimIndices();
-				const TArrayView<FIntVector3> RenderIndices = ClothPatternAdapter.GetRenderIndices();
-				const TArrayView<int32> RenderMaterialIndex = ClothPatternAdapter.GetRenderMaterialIndex();
-				const TArrayView<FVector3f> LodRenderTangentU = ClothLodAdapter.GetPatternsRenderTangentU();
-				const TArrayView<FVector3f> LodRenderTangentV = ClothLodAdapter.GetPatternsRenderTangentV();
+				const TConstArrayView<FIntVector3> SimIndices = ClothPatternFacade.GetSimIndices();
+				const TArrayView<FIntVector3> RenderIndices = ClothPatternFacade.GetRenderIndices();
+				const TArrayView<int32> RenderMaterialIndex = ClothPatternFacade.GetRenderMaterialIndex();
+				const TArrayView<FVector3f> LodRenderTangentU = ClothLodFacade.GetRenderTangentU();
+				const TArrayView<FVector3f> LodRenderTangentV = ClothLodFacade.GetRenderTangentV();
 				for (int32 FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
 				{
 					const FIntVector3& Face = SimIndices[FaceIndex];
@@ -89,19 +169,15 @@ namespace UE::Chaos::ClothAsset
 					RenderIndices[FaceIndex] = Face;
 					RenderMaterialIndex[FaceIndex] = MaterialIndex;
 
-					// Edges of the triangle : position delta
-					const FVector3f DeltaPos1 = LodSimRestPosition[Face[1]] - LodSimRestPosition[Face[0]];
-					const FVector3f DeltaPos2 = LodSimRestPosition[Face[2]] - LodSimRestPosition[Face[0]];
-
-					// UV delta
-					const FVector2f DeltaUV1 = LodSimPosition[Face[1]] - LodSimPosition[Face[0]];
-					const FVector2f DeltaUV2 = LodSimPosition[Face[2]] - LodSimPosition[Face[0]];
+					const FVector3f Pos01 = LodSimRestPosition[Face[1]] - LodSimRestPosition[Face[0]];
+					const FVector3f Pos02 = LodSimRestPosition[Face[2]] - LodSimRestPosition[Face[0]];
+					const FVector2f UV01 = LodSimPosition[Face[1]] - LodSimPosition[Face[0]];
+					const FVector2f UV02 = LodSimPosition[Face[2]] - LodSimPosition[Face[0]];
 					
-					// We can now use our formula to compute the tangent and the bitangent :
-					const float Denom = DeltaUV1.X * DeltaUV2.Y - DeltaUV1.Y * DeltaUV2.X;
-					const float R = (Denom < SMALL_NUMBER) ? 0.f : 1.f / Denom;
-					const FVector3f TangentU = (DeltaPos1 * DeltaUV2.Y - DeltaPos2 * DeltaUV1.Y) * R;
-					const FVector3f TangentV = (DeltaPos2 * DeltaUV1.X - DeltaPos1 * DeltaUV2.X) * R;
+					const float Denom = UV01.X * UV02.Y - UV01.Y * UV02.X;
+					const float InvDenom = (Denom < SMALL_NUMBER) ? 0.f : 1.f / Denom;
+					const FVector3f TangentU = (Pos01 * UV02.Y - Pos02 * UV01.Y) * InvDenom;
+					const FVector3f TangentV = (Pos02 * UV01.X - Pos01 * UV02.X) * InvDenom;
 
 					for (int32 PointIndex = 0; PointIndex < 3; ++PointIndex)
 					{
@@ -111,16 +187,16 @@ namespace UE::Chaos::ClothAsset
 				}
 
 				// Vertex group
-				const TArrayView<FVector3f> RenderPosition = ClothPatternAdapter.GetRenderPosition();
-				const TArrayView<FVector3f> RenderNormal = ClothPatternAdapter.GetRenderNormal();
-				const TArrayView<TArray<FVector2f>> RenderUVs = ClothPatternAdapter.GetRenderUVs();
-				const TArrayView<FLinearColor> RenderColor = ClothPatternAdapter.GetRenderColor();
-				const TArrayView<int32> RenderNumBoneInfluences = ClothPatternAdapter.GetRenderNumBoneInfluences();
-				const TArrayView<TArray<int32>> RenderBoneIndices = ClothPatternAdapter.GetRenderBoneIndices();
-				const TArrayView<TArray<float>> RenderBoneWeights = ClothPatternAdapter.GetRenderBoneWeights();
-				const TArrayView<int32> SimNumBoneInfluences = ClothPatternAdapter.GetSimNumBoneInfluences();
-				const TArrayView<TArray<int32>> SimBoneIndices = ClothPatternAdapter.GetSimBoneIndices();
-				const TArrayView<TArray<float>> SimBoneWeights = ClothPatternAdapter.GetSimBoneWeights();
+				const TArrayView<FVector3f> RenderPosition = ClothPatternFacade.GetRenderPosition();
+				const TArrayView<FVector3f> RenderNormal = ClothPatternFacade.GetRenderNormal();
+				const TArrayView<TArray<FVector2f>> RenderUVs = ClothPatternFacade.GetRenderUVs();
+				const TArrayView<FLinearColor> RenderColor = ClothPatternFacade.GetRenderColor();
+				const TArrayView<int32> RenderNumBoneInfluences = ClothPatternFacade.GetRenderNumBoneInfluences();
+				const TArrayView<TArray<int32>> RenderBoneIndices = ClothPatternFacade.GetRenderBoneIndices();
+				const TArrayView<TArray<float>> RenderBoneWeights = ClothPatternFacade.GetRenderBoneWeights();
+				const TArrayView<int32> SimNumBoneInfluences = ClothPatternFacade.GetSimNumBoneInfluences();
+				const TArrayView<TArray<int32>> SimBoneIndices = ClothPatternFacade.GetSimBoneIndices();
+				const TArrayView<TArray<float>> SimBoneWeights = ClothPatternFacade.GetSimBoneWeights();
 
 				for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 				{
@@ -139,7 +215,7 @@ namespace UE::Chaos::ClothAsset
 	}
 
 	void FClothGeometryTools::ReverseNormals(
-		const TSharedPtr<FClothCollection>& ClothCollection,
+		const TSharedPtr<FManagedArrayCollection>& ClothCollection,
 		bool bReverseSimMeshNormals,
 		bool bReverseRenderMeshNormals,
 		const TArray<int32>& PatternSelection)
@@ -161,38 +237,38 @@ namespace UE::Chaos::ClothAsset
 			}
 		};
 
-		FClothAdapter ClothAdapter(ClothCollection);
+		FCollectionClothFacade ClothFacade(ClothCollection);
 
-		for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
+		for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
 		{
-			FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+			FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
 
 			if (PatternSelection.IsEmpty())
 			{
 				if (bReverseSimMeshNormals)
 				{
-					ReverseSimNormals(ClothLodAdapter.GetPatternsSimRestNormal());
+					ReverseSimNormals(ClothLodFacade.GetSimRestNormal());
 				}
 				if (bReverseRenderMeshNormals)
 				{
-					ReverseRenderNormals(ClothLodAdapter.GetPatternsRenderNormal(), ClothLodAdapter.GetPatternsRenderTangentU());
+					ReverseRenderNormals(ClothLodFacade.GetRenderNormal(), ClothLodFacade.GetRenderTangentU());
 				}
 			}
 			else
 			{
-				for (int32 PatternIndex = 0; PatternIndex < ClothLodAdapter.GetNumPatterns(); ++PatternIndex)
+				for (int32 PatternIndex = 0; PatternIndex < ClothLodFacade.GetNumPatterns(); ++PatternIndex)
 				{
 					if (PatternSelection.Find(PatternIndex) != INDEX_NONE)
 					{
-						FClothPatternAdapter ClothPatternAdapter = ClothLodAdapter.GetPattern(PatternIndex);
+						FCollectionClothPatternFacade ClothPatternFacade = ClothLodFacade.GetPattern(PatternIndex);
 
 						if (bReverseSimMeshNormals)
 						{
-							ReverseSimNormals(ClothPatternAdapter.GetSimRestNormal());
+							ReverseSimNormals(ClothPatternFacade.GetSimRestNormal());
 						}
 						if (bReverseRenderMeshNormals)
 						{
-							ReverseRenderNormals(ClothPatternAdapter.GetRenderNormal(), ClothPatternAdapter.GetRenderTangentU());
+							ReverseRenderNormals(ClothPatternFacade.GetRenderNormal(), ClothPatternFacade.GetRenderTangentU());
 						}
 					}
 				}
@@ -200,24 +276,25 @@ namespace UE::Chaos::ClothAsset
 		}
 	}
 
-	void FClothGeometryTools::BindMeshToRootBone(const TSharedPtr<FClothCollection>& ClothCollection,
-												 bool bBindSimMesh,
-												 bool bBindRenderMesh,
-												 const TArray<int32> Lods)
+	void FClothGeometryTools::BindMeshToRootBone(
+		const TSharedPtr<FManagedArrayCollection>& ClothCollection,
+		bool bBindSimMesh,
+		bool bBindRenderMesh,
+		const TArray<int32> Lods)
 	{
 		if (!bBindSimMesh && !bBindRenderMesh)
 		{
 			return;
 		}
 		
-		FClothAdapter ClothAdapter(ClothCollection);
+		FCollectionClothFacade ClothFacade(ClothCollection);
 
 		TArray<int32> LodsToBind;
 		if (Lods.IsEmpty())
 		{
-			LodsToBind.Reserve(ClothAdapter.GetNumLods());
+			LodsToBind.Reserve(ClothFacade.GetNumLods());
 			
-			for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
+			for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
 			{
 				LodsToBind.Add(LodIndex);
 			}
@@ -229,7 +306,7 @@ namespace UE::Chaos::ClothAsset
 			for (const int32 Lod : Lods)
 			{	
 				// Make sure the Lod indices are valid.
-				if (Lod < ClothAdapter.GetNumLods())
+				if (Lod < ClothFacade.GetNumLods())
 				{
 					LodsToBind.Add(Lod);
 				}
@@ -238,14 +315,14 @@ namespace UE::Chaos::ClothAsset
 
 		for (const int32 LodIndex : LodsToBind)
 		{
-			FClothLodAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
+			FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
 			
 			if (bBindSimMesh)
 			{	
-				const int32 NumVertices = ClothLodAdapter.GetPatternsNumSimVertices();
-				TArrayView<int32> NumBoneInfluences = ClothLodAdapter.GetPatternsSimNumBoneInfluences();
-				TArrayView<TArray<int32>> BoneIndices = ClothLodAdapter.GetPatternsSimBoneIndices();
-				TArrayView<TArray<float>> BoneWeights = ClothLodAdapter.GetPatternsSimBoneWeights();
+				const int32 NumVertices = ClothLodFacade.GetNumSimVertices();
+				TArrayView<int32> NumBoneInfluences = ClothLodFacade.GetSimNumBoneInfluences();
+				TArrayView<TArray<int32>> BoneIndices = ClothLodFacade.GetSimBoneIndices();
+				TArrayView<TArray<float>> BoneWeights = ClothLodFacade.GetSimBoneWeights();
 
 				for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 				{
@@ -257,10 +334,10 @@ namespace UE::Chaos::ClothAsset
 
 			if (bBindRenderMesh)
 			{
-				const int32 NumVertices = ClothLodAdapter.GetPatternsNumRenderVertices();
-				TArrayView<int32> NumBoneInfluences = ClothLodAdapter.GetPatternsRenderNumBoneInfluences();
-				TArrayView<TArray<int32>> BoneIndices = ClothLodAdapter.GetPatternsRenderBoneIndices();
-				TArrayView<TArray<float>> BoneWeights = ClothLodAdapter.GetPatternsRenderBoneWeights();
+				const int32 NumVertices = ClothLodFacade.GetNumRenderVertices();
+				TArrayView<int32> NumBoneInfluences = ClothLodFacade.GetRenderNumBoneInfluences();
+				TArrayView<TArray<int32>> BoneIndices = ClothLodFacade.GetRenderBoneIndices();
+				TArrayView<TArray<float>> BoneWeights = ClothLodFacade.GetRenderBoneWeights();
 
 				for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 				{

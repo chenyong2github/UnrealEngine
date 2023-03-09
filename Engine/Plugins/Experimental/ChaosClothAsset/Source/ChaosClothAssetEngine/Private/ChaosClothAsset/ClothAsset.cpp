@@ -2,7 +2,7 @@
 
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothAssetBuilder.h"
-#include "ChaosClothAsset/ClothAdapter.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
 #include "ChaosClothAsset/ClothAssetPrivate.h"
@@ -11,10 +11,12 @@
 #include "Engine/RendererSettings.h"
 #include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "Features/IModularFeatures.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "EngineUtils.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "UObject/Package.h"
+#include "EngineUtils.h"
 #if WITH_EDITOR
 #include "IMeshBuilderModule.h"
 #include "DerivedDataCacheInterface.h"
@@ -29,11 +31,19 @@
 UChaosClothAsset::UChaosClothAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DisableBelowMinLodStripping(FPerPlatformBool(false))
-	, ClothCollection(MakeShared<UE::Chaos::ClothAsset::FClothCollection>())
+	, ClothCollection(MakeShared<FManagedArrayCollection>())
 #if WITH_EDITORONLY_DATA
 	, MeshModel(MakeShareable(new FSkeletalMeshModel()))
 #endif
 {
+	// Setup the collection to be a cloth collection and have at least one LOD
+	UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
+	ClothFacade.DefineSchema();
+	ClothFacade.AddLod();
+
+	// Set default skeleton (must be done after having added the LOD)
+	constexpr bool bRebuildModels = false;
+	SetSkeleton(nullptr, bRebuildModels);
 }
 
 UChaosClothAsset::UChaosClothAsset(FVTableHelper& Helper)
@@ -77,7 +87,8 @@ void UChaosClothAsset::Serialize(FArchive& Ar)
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 
-	ClothCollection->Serialize(Ar);
+	Chaos::FChaosArchive ChaosArchive(Ar);
+	ClothCollection->Serialize(ChaosArchive);
 
 	Ar << GetRefSkeleton();
 	if (Ar.IsLoading())
@@ -117,7 +128,7 @@ void UChaosClothAsset::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Conte
 #if WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(UChaosClothAsset::BeginPostLoadInternal);
 
-	checkf(IsInGameThread(), TEXT("Cannot execute function UChaosClothAsset::BeginPostLoadInternal asynchronously. Asset: %s"), *this->GetFullName());
+	checkf(IsInGameThread(), TEXT("Cannot execute function UChaosClothAsset::BeginPostLoadInternal asynchronously. Asset: %s"), *GetFullName());
 	SetInternalFlags(EInternalObjectFlags::Async);
 
 	// Lock all properties that should not be modified/accessed during async post-load
@@ -125,6 +136,23 @@ void UChaosClothAsset::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Conte
 
 	// This scope allows us to use any locked properties without causing stalls
 	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
+
+	// Make sure that the collection is still compatible and valid
+	UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
+	if (!ClothFacade.IsValid())
+	{
+		UE_LOG(LogChaosClothAsset, Warning, TEXT("Invalid Cloth Collection found while loading Cloth Asset %s."), *GetFullName());
+		ClothCollection = MakeShared<FManagedArrayCollection>();
+		ClothFacade = UE::Chaos::ClothAsset::FCollectionClothFacade(ClothCollection);
+		ClothFacade.DefineSchema();
+	}
+	if (!ClothFacade.GetNumLods())
+	{
+		ClothFacade.AddLod();
+		constexpr bool bRebuildModels = false;
+		SetSkeleton(Skeleton, bRebuildModels);  // Re-update the collection with the skeleton information if any
+		SetPhysicsAsset(PhysicsAsset);  // Re-update the collection with the physics asset information if any
+	}
 
 	BuildClothSimulationModel();  // TODO: Cache ClothSimulationModel?
 
@@ -285,26 +313,16 @@ void UChaosClothAsset::CalculateBounds()
 
 	FBox BoundingBox(ForceInit);
 
-	const FClothConstAdapter Cloth(ClothCollection);
+	const FCollectionClothConstFacade Cloth(ClothCollection);
 
 	for (int32 LodIndex = 0; LodIndex < Cloth.GetNumLods(); ++LodIndex)
 	{
-		const FClothLodConstAdapter ClothLod = Cloth.GetLod(LodIndex);
+		const FCollectionClothLodConstFacade ClothLod = Cloth.GetLod(LodIndex);
+		const TConstArrayView<FVector3f> RenderPositionArray = ClothLod.GetRenderPosition();
 
-		for (int32 ClothPatternIndex = 0; ClothPatternIndex < ClothLod.GetNumPatterns(); ++ClothPatternIndex)
+		for (const FVector3f& RenderPosition : RenderPositionArray)
 		{
-			const FClothPatternConstAdapter ClothPattern = ClothLod.GetPattern(ClothPatternIndex);
-			const int32 PatternElementIndex = ClothPattern.GetElementIndex();
-
-			const int32 RenderVerticesStart = ClothCollection->RenderVerticesStart[PatternElementIndex];
-			const int32 RenderVerticesEnd = ClothCollection->RenderVerticesEnd[PatternElementIndex];
-			if (RenderVerticesStart != INDEX_NONE && RenderVerticesEnd != INDEX_NONE)
-			{
-				for (int32 RenderVertexIndex = RenderVerticesStart; RenderVertexIndex <= RenderVerticesEnd; ++RenderVertexIndex)
-				{
-					BoundingBox += (FVector)ClothCollection->RenderPosition[RenderVertexIndex];
-				}
-			}
+			BoundingBox += (FVector)RenderPosition;
 		}
 	}
 
@@ -338,15 +356,14 @@ void UChaosClothAsset::Build()
 	// Set a new Guid to invalidate the DDC
 	AssetGuid = FGuid::NewGuid();
 
-	// Rebuild Skeleton
-	constexpr bool bRebuildClothSimulationModel = false;
-	UpdateSkeleton(bRebuildClothSimulationModel);
+	// Rebuild matrices
+	CalculateInvRefMatrices();
 
 	// Update bounds
 	CalculateBounds();
 
 	// Add LODs to the render data
-	const FClothConstAdapter Cloth(ClothCollection);
+	const FCollectionClothConstFacade Cloth(ClothCollection);
 	const int32 NumLods = FMath::Max(Cloth.GetNumLods(), 1);  // The render data will always look for at least one default LOD 0
 
 	// Rebuild LOD Infos
@@ -428,7 +445,7 @@ void UChaosClothAsset::BuildMeshModel()
 		{
 			using namespace UE::Chaos::ClothAsset;
 
-			const FClothConstAdapter Cloth(GetClothCollection());
+			const FCollectionClothConstFacade Cloth(GetClothCollection());
 			const int32 NumLods = Cloth.GetNumLods();
 
 			check(MeshModel);  // MeshModel should always be created in the Cloth Asset constructor WITH_EDITORONLY_DATA
@@ -501,6 +518,36 @@ void UChaosClothAsset::CacheDerivedData(FSkinnedAssetCompilationContext* Context
 	// Load render data from DDC, or generate it and save to DDC
 	GetResourceForRendering()->Cache(RunningPlatform, this, Context);
 
+}
+
+void UChaosClothAsset::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
+{
+	using namespace UE::Chaos::ClothAsset;
+
+	PhysicsAsset = InPhysicsAsset;
+	FClothGeometryTools::SetPhysicsAssetPathName(ClothCollection, PhysicsAsset ? PhysicsAsset->GetPathName() : FString());
+}
+
+void UChaosClothAsset::SetSkeleton(USkeleton* InSkeleton, bool bRebuildModels)
+{
+	using namespace UE::Chaos::ClothAsset;
+	check(ClothCollection.IsValid());
+
+	const TCHAR* const DefaultSkeletonPathName = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
+	Skeleton = InSkeleton ?
+		InSkeleton :
+		LoadObject<USkeleton>(nullptr, DefaultSkeletonPathName, nullptr, LOAD_None, nullptr);
+
+	RefSkeleton = Skeleton->GetReferenceSkeleton();
+
+	constexpr bool bBindSimMesh = true;
+	constexpr bool bBindRenderMesh = true;
+	FClothGeometryTools::BindMeshToRootBone(ClothCollection, bBindSimMesh, bBindRenderMesh);
+	FClothGeometryTools::SetSkeletonAssetPathName(ClothCollection, Skeleton->GetPathName());
+	if (bRebuildModels)
+	{
+		Build();
+	}
 }
 
 FString UChaosClothAsset::BuildDerivedDataKey(const ITargetPlatform* TargetPlatform)
@@ -578,12 +625,27 @@ bool UChaosClothAsset::IsInitialBuildDone() const
 }
 #endif // WITH_EDITOR
 
-void UChaosClothAsset::CopySimMeshToRenderMesh(int32 MaterialIndex)
+void UChaosClothAsset::CopySimMeshToRenderMesh(UMaterialInterface* Material)
 {
 	using namespace UE::Chaos::ClothAsset;
-
 	check(ClothCollection.IsValid());
-	FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialIndex);
+
+	// Add a default material if none is specified
+	const FString RenderMaterialPathName = Material ?
+		Material->GetPathName() :
+		FString(TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"));
+
+	FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, RenderMaterialPathName);
+
+	// Set new material
+	Materials.Reset(1);
+	if (FClothGeometryTools::HasRenderMesh(ClothCollection))
+	{
+		if (UMaterialInterface* const LoadedMaterial = LoadObject<UMaterialInterface>(nullptr, *RenderMaterialPathName, nullptr, LOAD_None, nullptr))
+		{
+			Materials.Emplace(LoadedMaterial, true, false, LoadedMaterial->GetFName());
+		}
+	}
 }
 
 void UChaosClothAsset::ReregisterComponents()
