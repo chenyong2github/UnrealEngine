@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.IO;
 using UnrealBuildTool;
 
@@ -32,10 +33,10 @@ public class NNERuntimeRDG : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrivateDependencyModuleNames.Add("D3D12RHI");
-			PrivateDependencyModuleNames.Add("DirectMLDefault");
+			PrivateDependencyModuleNames.Add("DirectML");
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectMLDefault");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectML");
 
 			PublicDefinitions.Add("NNE_USE_DIRECTML");
 		}

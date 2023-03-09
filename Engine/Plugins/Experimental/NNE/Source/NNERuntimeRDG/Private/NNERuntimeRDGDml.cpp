@@ -38,10 +38,19 @@ bool FRuntimeDmlStartup()
 		
 	if (bIsD3D12RHI && bLoadDirectML)
 	{
-		const FString DirectMLRuntimeBinPath = FPlatformProcess::BaseDir() / FString(TEXT(PREPROCESSOR_TO_STRING(DIRECTML_PATH)));
+		FString DirectMLRuntimeBinPath = FPlatformProcess::BaseDir();
 		FString DirectMLDLLPaths[2];
 		int32	NumPaths = 1;
 		
+		if (DirectMLRuntimeBinPath.IsEmpty())
+		{
+			DirectMLRuntimeBinPath = FPlatformProcess::GetModulesDirectory();
+		}
+
+#if defined(DIRECTML_PATH)
+		DirectMLRuntimeBinPath /= FString(TEXT(PREPROCESSOR_TO_STRING(DIRECTML_PATH)));
+#endif
+
 		DirectMLDLLPaths[0] = DirectMLRuntimeBinPath / TEXT("DirectML.dll");
 
 #ifdef WITH_DIRECTML_DEBUG
@@ -52,22 +61,26 @@ bool FRuntimeDmlStartup()
 		}
 #endif
 
+#if defined(DIRECTML_PATH)
 		FPlatformProcess::PushDllDirectory(*DirectMLRuntimeBinPath);
+#endif
 
 		for (int32 Idx = 0; Idx < NumPaths; ++Idx)
 		{
 			if (!FPaths::FileExists(DirectMLDLLPaths[Idx]))
 			{
-				const FString ErrorMessage = FString::Format(TEXT("DirectML DLL file not found in \"{0}\"."),
+				const FString ErrorMessage = FString::Format(TEXT("DLL file not found in \"{0}\"."),
 					{ IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DirectMLDLLPaths[Idx])});
-				UE_LOG(LogNNE, Warning, TEXT("NNERuntimeDll:%s"), *ErrorMessage);
+				UE_LOG(LogNNE, Warning, TEXT("NNERuntimeRDGDml:%s"), *ErrorMessage);
 				checkf(false, TEXT("%s"), *ErrorMessage);
 			}
 
 			FPlatformProcess::GetDllHandle(*DirectMLDLLPaths[Idx]);
 		}
 
+#if defined(DIRECTML_PATH)
 		FPlatformProcess::PopDllDirectory(*DirectMLRuntimeBinPath);
+#endif
 	}
 #endif // WITH_DIRECTML
 

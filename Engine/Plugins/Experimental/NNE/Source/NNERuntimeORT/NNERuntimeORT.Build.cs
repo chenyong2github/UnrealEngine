@@ -50,10 +50,10 @@ public class NNERuntimeORT : ModuleRules
 			});
 
 			PrivateDependencyModuleNames.Add("D3D12RHI");
-			PrivateDependencyModuleNames.Add("DirectMLDefault");
+			PrivateDependencyModuleNames.Add("DirectML");
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectMLDefault");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectML");
 
 		}
 	}
