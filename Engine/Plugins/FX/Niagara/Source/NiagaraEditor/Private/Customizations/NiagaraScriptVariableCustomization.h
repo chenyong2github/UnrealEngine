@@ -12,7 +12,7 @@
  
 class IDetailCategoryBuilder;
 class UEdGraphPin;
-
+struct FEdGraphEditAction;
 
 /** Intermediate representations for default mode set on parameter definition script variables. Maps to ENiagaraDefaultMode and bOverrideParameterDefinitionsDefaultValue of UNiagaraScriptVariable. */
 UENUM()
@@ -64,7 +64,7 @@ private:
 	void CustomizeDetailsStaticSwitchScriptVariable(IDetailLayoutBuilder& DetailBuilder);
 	void CustomizeDetailsParameterDefinitionsSynchronizedScriptVariable(IDetailLayoutBuilder& DetailBuilder);
 
-	void OnGraphChanged(const FEdGraphEditAction& EdGraphEditAction, TWeakObjectPtr<UNiagaraScriptVariable> ScriptVariable);
+	void OnGraphChanged(const FEdGraphEditAction& EdGraphEditAction, TWeakObjectPtr<class UNiagaraScriptVariable> ScriptVariable);
 	
 	void AddGraphDefaultValueCustomRow(IDetailCategoryBuilder& CategoryBuilder);
 	void AddLibraryDefaultValueCustomRow(IDetailCategoryBuilder& CategoryBuilder, bool bInLibraryAsset);

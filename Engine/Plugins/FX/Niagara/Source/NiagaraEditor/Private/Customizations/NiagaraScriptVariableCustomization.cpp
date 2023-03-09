@@ -19,6 +19,7 @@
 #include "NiagaraParameterDefinitions.h"
 #include "NiagaraScriptVariable.h"
 #include "SNiagaraParameterEditor.h"
+#include "GraphEditAction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScriptVariableCustomization)
 
