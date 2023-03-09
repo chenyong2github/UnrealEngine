@@ -1688,7 +1688,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		SlimPaletteToolBarStyle.SetLabelStyle(SlimPaletteToolbarLabelStyle);
 		SlimPaletteToolBarStyle.SetBackgroundPadding(FMargin(2.0f, 4.0f, 6.0f, 8.0f));
 		SlimPaletteToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Panel));
-		SlimPaletteToolBarStyle.SetLabelPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f));
+		SlimPaletteToolBarStyle.SetLabelPadding(FMargin(0.0f, 0.0f, 4.0f, 0.0f));
 		SlimPaletteToolBarStyle.SetIconSize(Icon20x20);
 
 		SlimPaletteToolBarStyle.SetButtonPadding(       FMargin(4.0f, 4.0f, 0.0f, 0.0f));

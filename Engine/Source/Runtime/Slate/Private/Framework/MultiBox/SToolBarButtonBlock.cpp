@@ -220,13 +220,23 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 		.Image(this, &SToolBarButtonBlock::GetIconBrush);
 
 	IconWidget->AddLayer(TAttribute<const FSlateBrush*>(this, &SToolBarButtonBlock::GetOverlayIconBrush));
+	const bool bIsSlimHorizontalUniformToolBar = MultiBox->GetType() == EMultiBoxType::SlimHorizontalUniformToolBar;
 
 	// Create the content for our button
 	TSharedRef<SWidget> ButtonContent = SNullWidget::NullWidget;
 	if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar 
-		|| MultiBox->GetType() == EMultiBoxType::SlimHorizontalUniformToolBar)
+		|| bIsSlimHorizontalUniformToolBar)
 	{
 		const FVector2f IconSize = ToolBarStyle.IconSize;
+		const TSharedRef<STextBlock> TextBlock = SNew(STextBlock)
+				.Visibility(LabelVisibility)
+				.Text(ActualLabel)
+				.TextStyle(&ToolBarStyle.LabelStyle); // Smaller font for tool tip labels
+
+		if (bIsSlimHorizontalUniformToolBar)
+		{
+			TextBlock->SetOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		}
 
 		IconWidget->SetDesiredSizeOverride(FVector2D(IconSize));
 		ButtonContent =
@@ -241,16 +251,15 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 				IconWidget
 			]
 			// Label text
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(ToolBarStyle.LabelPadding)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Visibility(LabelVisibility)
-				.Text(ActualLabel)
-				.TextStyle(&ToolBarStyle.LabelStyle)	// Smaller font for tool tip labels
-			];
+		+ (bIsSlimHorizontalUniformToolBar ?
+		SHorizontalBox::Slot()
+		.Padding(ToolBarStyle.LabelPadding)
+		.VAlign(VAlign_Center) :
+		SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(ToolBarStyle.LabelPadding)
+		.VAlign(VAlign_Center))
+		[ TextBlock ];
 	}
 	else
 	{
