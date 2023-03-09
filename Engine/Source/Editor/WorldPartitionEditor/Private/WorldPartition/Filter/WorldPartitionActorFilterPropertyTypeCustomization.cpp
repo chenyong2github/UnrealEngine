@@ -81,10 +81,10 @@ void FWorldPartitionActorFilterPropertyTypeCustomization::CustomizeHeader(TShare
 
 	SceneOutliner = SceneOutlinerModule.CreateSceneOutliner(InitOptions);
 
-	auto OnApplyFilter = [OnValueChanged, this]()
+	auto OnApplyFilter = [StructPropertyHandle, OnValueChanged, this]()
 	{
 		const FWorldPartitionActorFilterMode* Mode = static_cast<const FWorldPartitionActorFilterMode*>(SceneOutliner->GetMode());
-		ApplyFilter(*Mode);
+		ApplyFilter(StructPropertyHandle, *Mode);
 		OnValueChanged.Execute();
 		return FReply::Handled();
 	};

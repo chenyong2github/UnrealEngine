@@ -8,6 +8,11 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "ScopedTransaction.h"
+#include "Editor.h"
+#include "BlueprintEditor.h"
+#include "PreviewScene.h"
+#include "PropertyHandle.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionActorFilter"
 
@@ -30,8 +35,22 @@ TSharedPtr<FWorldPartitionActorFilterMode::FFilter> FLevelInstanceFilterProperty
 
 				if (WorldAssetPackage.IsEmpty())
 				{
-					World = OuterActor->GetWorld();
 					WorldAssetPackage = LevelInstanceInterface->GetWorldAssetPackage();
+
+					World = OuterActor->GetWorld();
+
+					// Handle Blueprint Editing. In this case we are going to rely on the preview world to build the filters
+					if (!World && OuterActor->IsTemplate() && OuterActor->GetClass()->ClassGeneratedBy)
+					{
+						if (FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(OuterActor->GetClass()->ClassGeneratedBy, false)))
+						{
+							if (FPreviewScene* PreviewScene = BlueprintEditor->GetPreviewScene())
+							{
+								World = PreviewScene->GetWorld();
+								break;
+							}
+						}
+					}
 				}
 				else if (WorldAssetPackage != LevelInstanceInterface->GetWorldAssetPackage())
 				{
@@ -65,7 +84,7 @@ TSharedPtr<FWorldPartitionActorFilterMode::FFilter> FLevelInstanceFilterProperty
 	return MakeShared<FWorldPartitionActorFilterMode::FFilter>(Filter, SelectedFilters);
 }
 
-void FLevelInstanceFilterPropertyTypeCustomization::ApplyFilter(const FWorldPartitionActorFilterMode& Mode)
+void FLevelInstanceFilterPropertyTypeCustomization::ApplyFilter(TSharedRef<IPropertyHandle> PropertyHandle, const FWorldPartitionActorFilterMode& Mode)
 {
 	const FScopedTransaction Transaction(LOCTEXT("WorldPartitionActorFilterApply_Transaction", "Apply Level Instance Filter"));
 	for (ILevelInstanceInterface* LevelInstance : LevelInstances)
@@ -73,7 +92,9 @@ void FLevelInstanceFilterPropertyTypeCustomization::ApplyFilter(const FWorldPart
 		ULevelInstanceComponent* Component = LevelInstance->GetLevelInstanceComponent();
 		FWorldPartitionActorFilter ComponentFilter = Component->GetFilter();
 		Mode.Apply(ComponentFilter);
-		Component->SetFilter(ComponentFilter);
+		
+		// Setting value through PropertyHandle will take care of propagating to instances if we are editing a template (Blueprint)
+		PropertyHandle->SetValueFromFormattedString(ComponentFilter.ToString(), EPropertyValueSetFlags::DefaultFlags);
 	}
 }
 

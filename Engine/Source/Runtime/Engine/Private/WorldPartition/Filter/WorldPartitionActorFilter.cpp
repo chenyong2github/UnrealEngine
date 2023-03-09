@@ -225,6 +225,18 @@ FArchive& operator<<(FArchive& Ar, FWorldPartitionActorFilter& Filter)
 	return Ar;
 }
 
+FString FWorldPartitionActorFilter::ToString() const
+{
+	FString ReturnValue;
+	FWorldPartitionActorFilter Default;
+	if (ExportTextItem(ReturnValue, Default, nullptr, 0, nullptr))
+	{
+		return ReturnValue;
+	}
+
+	return FString();
+}
+
 bool FWorldPartitionActorFilter::ExportTextItem(FString& ValueStr, FWorldPartitionActorFilter const& DefaultValue, UObject* ParentObject, int32 PortFlags, UObject* ExportRootScope) const
 {
 	const uint32 OriginalLen = ValueStr.Len();

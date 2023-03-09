@@ -24,7 +24,7 @@ public:
 
 private:
 	virtual TSharedPtr<FWorldPartitionActorFilterMode::FFilter> CreateModeFilter(TArray<UObject*> OuterObjects) = 0;
-	virtual void ApplyFilter(const FWorldPartitionActorFilterMode& Mode) = 0;
+	virtual void ApplyFilter(TSharedRef<IPropertyHandle> PropertyHandle, const FWorldPartitionActorFilterMode& Mode) = 0;
 
 	FDelegateHandle WorldPartitionActorFilterChangedHandle;
 	TSharedPtr<ISceneOutliner> SceneOutliner;

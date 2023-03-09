@@ -70,6 +70,7 @@ struct ENGINE_API FWorldPartitionActorFilter
 	// Needed for Copy/Paste/ResetToDefault
 	bool ExportTextItem(FString& ValueStr, FWorldPartitionActorFilter const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
 	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
+	FString ToString() const;
 
 	static void RequestFilterRefresh(bool bIsFromUserChange);
 

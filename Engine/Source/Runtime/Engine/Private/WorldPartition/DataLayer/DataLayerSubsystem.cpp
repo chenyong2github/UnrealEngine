@@ -30,7 +30,7 @@
 
 bool UDataLayerSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::Inactive;
+	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::Inactive || WorldType == EWorldType::EditorPreview;
 }
 
 #if WITH_EDITOR

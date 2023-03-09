@@ -167,7 +167,7 @@ void UWorldPartitionSubsystem::Deinitialize()
 // because DataLayerManager is required to be initialized when duplicating a partitioned world.
 bool UWorldPartitionSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
-	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::Inactive;
+	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::Inactive || WorldType == EWorldType::EditorPreview;
 }
 
 void UWorldPartitionSubsystem::ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func)
