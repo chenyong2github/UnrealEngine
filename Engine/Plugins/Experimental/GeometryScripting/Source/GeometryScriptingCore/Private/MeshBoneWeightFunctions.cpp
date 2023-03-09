@@ -10,6 +10,8 @@
 #include "DynamicMesh/DynamicBoneAttribute.h"
 #include "SkinningOps/SkinBindingOp.h"
 #include "UDynamicMesh.h"
+#include "Operations/TransferBoneWeights.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBoneWeightFunctions)
 
@@ -342,6 +344,88 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::ComputeSmoothBoneW
 
 	return TargetMesh;
 }
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::TransferBoneWeightsFromMesh(
+	UDynamicMesh* SourceMesh,
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptTransferBoneWeightsOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	using namespace UE::Geometry;
+
+	if (SourceMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("TransferBoneWeightsFromMesh_InvalidSourceMesh", "TransferBoneWeightsFromMesh: Source Mesh is Null"));
+		return TargetMesh;
+	}
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("TransferBoneWeightsFromMesh_InvalidTargetMesh", "TransferBoneWeightsFromMesh: Target Mesh is Null"));
+		return TargetMesh;
+	}
+
+	SourceMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+	{
+		if (!ReadMesh.HasAttributes() || !ReadMesh.Attributes()->HasBones())
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("TransferBoneWeightsFromMesh_NoBones", "Source Mesh has no bone attribute"));
+			return;
+		}
+		if (ReadMesh.Attributes()->GetNumBones() == 0)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("TransferBoneWeightsFromMesh_EmptyBones", "Source Mesh has an empty bone attribute"));
+			return;
+		}
+
+		FTransferBoneWeights TransferBoneWeights(&ReadMesh, Options.SourceProfile.GetProfileName());
+		TransferBoneWeights.TransferMethod = static_cast<FTransferBoneWeights::ETransferBoneWeightsMethod>(Options.TransferMethod);
+		if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("TransferBoneWeightsFromMesh_ValidationFailed", "TransferBoneWeightsFromMesh: Invalid parameters were set for the transfer weight operator"));
+			return;
+		}
+
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			if (!EditMesh.HasAttributes())
+			{
+				EditMesh.EnableAttributes();
+			}
+			
+			if (EditMesh.Attributes()->HasBones())
+			{
+				// If the TargetMesh has bone attributes, but we want to use the SourceMesh bone attributes, then we copy.
+				// Otherwise, nothing to do, and we use the target mesh bone attributes.
+				if (Options.OutputTargetMeshBones == EOutputTargetMeshBones::SourceBones)
+				{
+					EditMesh.Attributes()->CopyBoneAttributes(*ReadMesh.Attributes());
+				}
+			}
+			else
+			{
+				// If the TargetMesh has no bone attributes, then we must use the SourceMesh bone attributes. Otherwise, throw an error.
+				if (Options.OutputTargetMeshBones == EOutputTargetMeshBones::SourceBones)
+				{
+					EditMesh.Attributes()->CopyBoneAttributes(*ReadMesh.Attributes());
+				}
+				else 
+				{
+					UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("TransferBoneWeightsFromMesh_NoTargetMeshBones", "TransferBoneWeightsFromMesh: TargetMesh has no bone attributes but the OutputTargetMeshBones option is set to TargetBones"));
+				}
+			}
+			
+			if (!TransferBoneWeights.Compute(EditMesh, FTransformSRT3d::Identity(), Options.TargetProfile.GetProfileName()))
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("TransferBoneWeightsFromMesh_TransferFailed", "TransferBoneWeightsFromMesh: Failed to transfer the weights"));
+			}
+			
+		}, EDynamicMeshChangeType::AttributeEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	});
+
+	return TargetMesh;
+}
+
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::CopyBonesFromMesh(
 	UDynamicMesh* SourceMesh, 
