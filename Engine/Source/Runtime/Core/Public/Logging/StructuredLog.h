@@ -234,18 +234,31 @@ struct FStaticLogDynamicData
 /** Data about a static log that is constant for every occurrence. */
 struct FStaticLogRecord
 {
-	const FLogCategoryBase& Category;
 	const TCHAR* Format = nullptr;
 	const ANSICHAR* File = nullptr;
 	int32 Line = 0;
 	ELogVerbosity::Type Verbosity = ELogVerbosity::Log;
 	FStaticLogDynamicData& DynamicData;
+
+	// Workaround for https://developercommunity.visualstudio.com/t/Incorrect-warning-C4700-with-unrelated-s/10285950
+	constexpr FStaticLogRecord(
+		const TCHAR* InFormat,
+		const ANSICHAR* InFile,
+		int32 InLine,
+		ELogVerbosity::Type InVerbosity,
+		FStaticLogDynamicData& InDynamicData)
+		: Format(InFormat)
+		, File(InFile)
+		, Line(InLine)
+		, Verbosity(InVerbosity)
+		, DynamicData(InDynamicData)
+	{
+	}
 };
 
 /** Data about a static localized log that is constant for every occurrence. */
 struct FStaticLocalizedLogRecord
 {
-	const FLogCategoryBase& Category;
 	const TCHAR* TextNamespace = nullptr;
 	const TCHAR* TextKey = nullptr;
 	const TCHAR* Format = nullptr;
@@ -253,6 +266,25 @@ struct FStaticLocalizedLogRecord
 	int32 Line = 0;
 	ELogVerbosity::Type Verbosity = ELogVerbosity::Log;
 	FStaticLogDynamicData& DynamicData;
+
+	// Workaround for https://developercommunity.visualstudio.com/t/Incorrect-warning-C4700-with-unrelated-s/10285950
+	constexpr FStaticLocalizedLogRecord(
+		const TCHAR* InTextNamespace,
+		const TCHAR* InTextKey,
+		const TCHAR* InFormat,
+		const ANSICHAR* InFile,
+		int32 InLine,
+		ELogVerbosity::Type InVerbosity,
+		FStaticLogDynamicData& InDynamicData)
+		: TextNamespace(InTextNamespace)
+		, TextKey(InTextKey)
+		, Format(InFormat)
+		, File(InFile)
+		, Line(InLine)
+		, Verbosity(InVerbosity)
+		, DynamicData(InDynamicData)
+	{
+	}
 };
 
 struct FLogField
@@ -277,11 +309,17 @@ struct FLogField
 namespace UE::Logging::Private
 {
 
-UE_API void LogWithNoFields(const FStaticLogRecord& Log);
-UE_API void LogWithFieldArray(const FStaticLogRecord& Log, const FLogField* Fields, int32 FieldCount);
+UE_API void LogWithNoFields(const FLogCategoryBase& Category, const FStaticLogRecord& Log);
+UE_API void LogWithFieldArray(const FLogCategoryBase& Category, const FStaticLogRecord& Log, const FLogField* Fields, int32 FieldCount);
 
-UE_API void LogWithNoFields(const FStaticLocalizedLogRecord& Log);
-UE_API void LogWithFieldArray(const FStaticLocalizedLogRecord& Log, const FLogField* Fields, int32 FieldCount);
+UE_API void FatalLogWithNoFields(const FLogCategoryBase& Category, const FStaticLogRecord& Log);
+UE_API void FatalLogWithFieldArray(const FLogCategoryBase& Category, const FStaticLogRecord& Log, const FLogField* Fields, int32 FieldCount);
+
+UE_API void LogWithNoFields(const FLogCategoryBase& Category, const FStaticLocalizedLogRecord& Log);
+UE_API void LogWithFieldArray(const FLogCategoryBase& Category, const FStaticLocalizedLogRecord& Log, const FLogField* Fields, int32 FieldCount);
+
+UE_API void FatalLogWithNoFields(const FLogCategoryBase& Category, const FStaticLocalizedLogRecord& Log);
+UE_API void FatalLogWithFieldArray(const FLogCategoryBase& Category, const FStaticLocalizedLogRecord& Log, const FLogField* Fields, int32 FieldCount);
 
 /** Wrapper to identify field names interleaved with field values. */
 template <typename NameType>
@@ -342,45 +380,59 @@ struct TFieldArgType<TLogFieldName<NameType>>
 };
 
 /** Log with fields created from the arguments, which may be values or pairs of name/value. */
-template <const auto& Log, typename... FieldArgTypes>
-FORCENOINLINE UE_DEBUG_SECTION void LogWithFields(typename TFieldArgType<FieldArgTypes>::Type... FieldArgs)
+template <typename... FieldArgTypes, typename LogType>
+FORCENOINLINE UE_DEBUG_SECTION void LogWithFields(const FLogCategoryBase& Category, const LogType& Log, typename TFieldArgType<FieldArgTypes>::Type... FieldArgs)
 {
 	constexpr int32 FieldCount = FLogFieldCreator::template GetCount<FieldArgTypes...>();
 	static_assert(FieldCount > 0);
 	FLogField Fields[FieldCount];
 	FLogFieldCreator::Create(Fields, (FieldArgTypes&&)FieldArgs...);
-	LogWithFieldArray(Log, Fields, FieldCount);
+	LogWithFieldArray(Category, Log, Fields, FieldCount);
+}
+
+/** Fatal log with fields created from the arguments, which may be values or pairs of name/value. */
+template <typename... FieldArgTypes, typename LogType>
+inline void FatalLogWithFields(const FLogCategoryBase& Category, const LogType& Log, typename TFieldArgType<FieldArgTypes>::Type... FieldArgs)
+{
+	constexpr int32 FieldCount = FLogFieldCreator::template GetCount<FieldArgTypes...>();
+	static_assert(FieldCount > 0);
+	FLogField Fields[FieldCount];
+	FLogFieldCreator::Create(Fields, (FieldArgTypes&&)FieldArgs...);
+	FatalLogWithFieldArray(Category, Log, Fields, FieldCount);
 }
 
 /** Log if the category is active at this level of verbosity. */
-template <const auto& Log, typename LogCategoryType, ELogVerbosity::Type Verbosity, typename... FieldArgTypes>
-inline void LogIfActive(FieldArgTypes&&... FieldArgs)
+template <typename LogCategoryType, ELogVerbosity::Type Verbosity, typename LogRecordType, typename... FieldArgTypes>
+inline void LogIfActive(const LogCategoryType& Category, const LogRecordType& Log, FieldArgTypes&&... FieldArgs)
 {
-	static_assert((Verbosity & ELogVerbosity::VerbosityMask) != ELogVerbosity::Fatal, "Fatal verbosity is not supported by this API at this time.");
 	static_assert((Verbosity & ELogVerbosity::VerbosityMask) < ELogVerbosity::NumVerbosity && Verbosity > 0, "Verbosity must be constant and in range.");
-
-	if constexpr (
+	if constexpr ((Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal)
+	{
+		if constexpr (sizeof...(FieldArgTypes) == 0)
+		{
+			FatalLogWithNoFields(Category, Log);
+		}
+		else
+		{
+			FatalLogWithFields<FieldArgTypes...>(Category, Log, (FieldArgTypes&&)FieldArgs...);
+		}
+		CA_ASSUME(false);
+	}
+	else if constexpr (
 		(Verbosity & ELogVerbosity::VerbosityMask) <= ELogVerbosity::COMPILED_IN_MINIMUM_VERBOSITY &&
 		(Verbosity & ELogVerbosity::VerbosityMask) <= LogCategoryType::CompileTimeVerbosity)
 	{
-		if ((Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal || !Log.Category.IsSuppressed(Verbosity))
+		if (!Category.IsSuppressed(Verbosity))
 		{
 			if constexpr (sizeof...(FieldArgTypes) == 0)
 			{
-				LogWithNoFields(Log);
+				LogWithNoFields(Category, Log);
 			}
 			else
 			{
-				LogWithFields<Log, FieldArgTypes...>((FieldArgTypes&&)FieldArgs...);
+				LogWithFields<FieldArgTypes...>(Category, Log, (FieldArgTypes&&)FieldArgs...);
 			}
 		}
-	}
-
-	if constexpr ((Verbosity & ELogVerbosity::VerbosityMask) == ELogVerbosity::Fatal)
-	{
-		UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
-		FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS());
-		CA_ASSUME(false);
 	}
 }
 
@@ -390,8 +442,8 @@ inline void LogIfActive(FieldArgTypes&&... FieldArgs)
 	do \
 	{ \
 		static ::UE::Logging::Private::FStaticLogDynamicData LOG_Dynamic; \
-		static constexpr ::UE::Logging::Private::FStaticLogRecord LOG_Static{CategoryName, TEXT(Format), __FILE__, __LINE__, ::ELogVerbosity::Verbosity, LOG_Dynamic}; \
-		::UE::Logging::Private::LogIfActive<LOG_Static, FLogCategory##CategoryName, ::ELogVerbosity::Verbosity>(__VA_ARGS__); \
+		static constexpr ::UE::Logging::Private::FStaticLogRecord LOG_Static UE_PRIVATE_LOGFMT_AGGREGATE(TEXT(Format), __FILE__, __LINE__, ::ELogVerbosity::Verbosity, LOG_Dynamic); \
+		::UE::Logging::Private::LogIfActive<FLogCategory##CategoryName, ::ELogVerbosity::Verbosity>(CategoryName, LOG_Static, ##__VA_ARGS__); \
 	} \
 	while (false)
 
@@ -399,10 +451,14 @@ inline void LogIfActive(FieldArgTypes&&... FieldArgs)
 	do \
 	{ \
 		static ::UE::Logging::Private::FStaticLogDynamicData LOG_Dynamic; \
-		static constexpr ::UE::Logging::Private::FStaticLocalizedLogRecord LOG_Static{CategoryName, TEXT(Namespace), TEXT(Key), TEXT(Format), __FILE__, __LINE__, ::ELogVerbosity::Verbosity, LOG_Dynamic}; \
-		::UE::Logging::Private::LogIfActive<LOG_Static, FLogCategory##CategoryName, ::ELogVerbosity::Verbosity>(__VA_ARGS__); \
+		static constexpr ::UE::Logging::Private::FStaticLocalizedLogRecord LOG_Static UE_PRIVATE_LOGFMT_AGGREGATE(TEXT(Namespace), TEXT(Key), TEXT(Format), __FILE__, __LINE__, ::ELogVerbosity::Verbosity, LOG_Dynamic); \
+		::UE::Logging::Private::LogIfActive<FLogCategory##CategoryName, ::ELogVerbosity::Verbosity>(CategoryName, LOG_Static, ##__VA_ARGS__); \
 	} \
 	while (false)
+
+// This macro avoids having non-parenthesized commas in the log macros.
+// Such commas can cause issues when a log macro is wrapped by another macro.
+#define UE_PRIVATE_LOGFMT_AGGREGATE(...) {__VA_ARGS__}
 
 // This macro expands a field from either `(Name, Value)` or `Value`
 // A `(Name, Value)` field is converted to `CheckFieldName(Name), Value`

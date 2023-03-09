@@ -22,15 +22,8 @@
 #include "Serialization/CompactBinaryValue.h"
 #include "Serialization/VarInt.h"
 
-void StaticFailDebugV(
-	const TCHAR* Error,
-	const ANSICHAR* Expression,
-	const ANSICHAR* File,
-	int32 Line,
-	bool bIsEnsure,
-	void* ProgramCounter,
-	const TCHAR* DescriptionFormat,
-	va_list DescriptionArgs);
+void VARARGS StaticFailDebug (const TCHAR* Error, const ANSICHAR* Expression, const ANSICHAR* File, int32 Line, bool bIsEnsure, void* ProgramCounter, const TCHAR* DescriptionFormat, ...);
+void         StaticFailDebugV(const TCHAR* Error, const ANSICHAR* Expression, const ANSICHAR* File, int32 Line, bool bIsEnsure, void* ProgramCounter, const TCHAR* DescriptionFormat, va_list DescriptionArgs);
 
 namespace UE::Logging::Private
 {
@@ -706,10 +699,10 @@ FORCENOINLINE static FCbObject SerializeLogFields(
 }
 
 template <typename StaticLogRecordType>
-FORCENOINLINE static FLogTemplate& CreateLogTemplate(const StaticLogRecordType& Log, const FLogField* Fields, const int32 FieldCount)
+FORCENOINLINE static FLogTemplate& CreateLogTemplate(const FLogCategoryBase& Category, const StaticLogRecordType& Log, const FLogField* Fields, const int32 FieldCount)
 {
 #if LOGTRACE_ENABLED
-	FLogTrace::OutputLogMessageSpec(&Log, &Log.Category, Log.Verbosity, Log.File, Log.Line, TEXT("%s"));
+	FLogTrace::OutputLogMessageSpec(&Log, &Category, Log.Verbosity, Log.File, Log.Line, TEXT("%s"));
 #endif
 
 	FLogTemplate* NewTemplate = FLogTemplate::CreateStatic(Log, Fields, FieldCount);
@@ -734,19 +727,19 @@ FORCENOINLINE static FLogTemplate& CreateLogTemplate(const StaticLogRecordType& 
 }
 
 template <typename StaticLogRecordType>
-inline static FLogTemplate& EnsureLogTemplate(const StaticLogRecordType& Log, const FLogField* Fields, const int32 FieldCount)
+inline static FLogTemplate& EnsureLogTemplate(const FLogCategoryBase& Category, const StaticLogRecordType& Log, const FLogField* Fields, const int32 FieldCount)
 {
 	if (FLogTemplate* Template = Log.DynamicData.Template.load(std::memory_order_acquire); LIKELY(Template))
 	{
 		return *Template;
 	}
-	return CreateLogTemplate(Log, Fields, FieldCount);
+	return CreateLogTemplate(Category, Log, Fields, FieldCount);
 }
 
 template <typename StaticLogRecordType>
-inline static FLogRecord CreateLogRecord(const StaticLogRecordType& Log, const FLogField* Fields, const int32 FieldCount)
+inline static FLogRecord CreateLogRecord(const FLogCategoryBase& Category, const StaticLogRecordType& Log, const FLogField* Fields, const int32 FieldCount)
 {
-	FLogTemplate& Template = EnsureLogTemplate(Log, Fields, FieldCount);
+	FLogTemplate& Template = EnsureLogTemplate(Category, Log, Fields, FieldCount);
 
 	FLogRecord Record;
 	Record.SetFormat(Log.Format);
@@ -754,7 +747,7 @@ inline static FLogRecord CreateLogRecord(const StaticLogRecordType& Log, const F
 	Record.SetFields(SerializeLogFields(Log, Template, Fields, FieldCount));
 	Record.SetFile(Log.File);
 	Record.SetLine(Log.Line);
-	Record.SetCategory(Log.Category.GetCategoryName());
+	Record.SetCategory(Category.GetCategoryName());
 	Record.SetVerbosity(Log.Verbosity);
 	Record.SetTime(FLogTime::Now());
 	return Record;
@@ -785,29 +778,75 @@ inline static void DispatchLogRecord(const StaticLogRecordType& Log, const FLogR
 	(OutputDevice ? OutputDevice : GLog)->SerializeRecord(Record);
 }
 
-void LogWithFieldArray(const FStaticLogRecord& Log, const FLogField* Fields, const int32 FieldCount)
+void LogWithFieldArray(const FLogCategoryBase& Category, const FStaticLogRecord& Log, const FLogField* Fields, const int32 FieldCount)
 {
-	DispatchLogRecord(Log, CreateLogRecord(Log, Fields, FieldCount));
+#if !NO_LOGGING
+	DispatchLogRecord(Log, CreateLogRecord(Category, Log, Fields, FieldCount));
+#endif
 }
 
-void LogWithNoFields(const FStaticLogRecord& Log)
+void LogWithNoFields(const FLogCategoryBase& Category, const FStaticLogRecord& Log)
 {
 	// A non-null field pointer enables field validation in FLogTemplate::Create.
 	static constexpr FLogField EmptyField{};
-	LogWithFieldArray(Log, &EmptyField, 0);
+	LogWithFieldArray(Category, Log, &EmptyField, 0);
 }
 
-void LogWithFieldArray(const FStaticLocalizedLogRecord& Log, const FLogField* Fields, const int32 FieldCount)
+void LogWithFieldArray(const FLogCategoryBase& Category, const FStaticLocalizedLogRecord& Log, const FLogField* Fields, const int32 FieldCount)
 {
-	FLogRecord Record = CreateLogRecord(Log, Fields, FieldCount);
+	FLogRecord Record = CreateLogRecord(Category, Log, Fields, FieldCount);
 	Record.SetTextNamespace(Log.TextNamespace);
 	Record.SetTextKey(Log.TextKey);
 	DispatchLogRecord(Log, Record);
 }
 
-void LogWithNoFields(const FStaticLocalizedLogRecord& Log)
+void LogWithNoFields(const FLogCategoryBase& Category, const FStaticLocalizedLogRecord& Log)
 {
-	LogWithFieldArray(Log, nullptr, 0);
+	LogWithFieldArray(Category, Log, nullptr, 0);
+}
+
+void FatalLogWithFieldArray(const FLogCategoryBase& Category, const FStaticLogRecord& Log, const FLogField* Fields, const int32 FieldCount)
+{
+#if !NO_LOGGING
+	FLogRecord Record = CreateLogRecord(Category, Log, Fields, FieldCount);
+	TStringBuilder<512> Message;
+	Record.FormatMessageTo(Message);
+
+	StaticFailDebug(TEXT("Fatal error:"), "", Log.File, Log.Line, /*bIsEnsure*/ false, PLATFORM_RETURN_ADDRESS(), TEXT("%s"), *Message);
+	FDebug::AssertFailed("", Log.File, Log.Line, TEXT("%s"), *Message);
+
+	UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
+	FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS());
+#endif
+}
+
+void FatalLogWithNoFields(const FLogCategoryBase& Category, const FStaticLogRecord& Log)
+{
+	// A non-null field pointer enables field validation in FLogTemplate::Create.
+	static constexpr FLogField EmptyField{};
+	FatalLogWithFieldArray(Category, Log, &EmptyField, 0);
+}
+
+void FatalLogWithFieldArray(const FLogCategoryBase& Category, const FStaticLocalizedLogRecord& Log, const FLogField* Fields, const int32 FieldCount)
+{
+#if !NO_LOGGING
+	FLogRecord Record = CreateLogRecord(Category, Log, Fields, FieldCount);
+	TStringBuilder<512> Message;
+	Record.FormatMessageTo(Message);
+
+	StaticFailDebug(TEXT("Fatal error:"), "", Log.File, Log.Line, /*bIsEnsure*/ false, PLATFORM_RETURN_ADDRESS(), TEXT("%s"), *Message);
+	FDebug::AssertFailed("", Log.File, Log.Line, TEXT("%s"), *Message);
+
+	UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
+	FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS());
+#endif
+}
+
+void FatalLogWithNoFields(const FLogCategoryBase& Category, const FStaticLocalizedLogRecord& Log)
+{
+	// A non-null field pointer enables field validation in FLogTemplate::Create.
+	static constexpr FLogField EmptyField{};
+	FatalLogWithFieldArray(Category, Log, &EmptyField, 0);
 }
 
 } // UE::Logging::Private
@@ -944,6 +983,7 @@ void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasicLogRecord
 	va_start(Args, Log);
 	FDebug::AssertFailedV("", Log->File, Log->Line, Log->Format, Args);
 	va_end(Args);
+
 	UE_DEBUG_BREAK_AND_PROMPT_FOR_REMOTE();
 	FDebug::ProcessFatalError(PLATFORM_RETURN_ADDRESS());
 #endif
