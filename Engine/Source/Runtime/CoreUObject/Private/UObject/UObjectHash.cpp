@@ -21,11 +21,8 @@ DECLARE_CYCLE_STAT( TEXT( "GetObjectsOfClass" ), STAT_Hash_GetObjectsOfClass, ST
 #if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
 DECLARE_CYCLE_STAT( TEXT( "HashObject" ), STAT_Hash_HashObject, STATGROUP_UObjectHash );
 DECLARE_CYCLE_STAT( TEXT( "UnhashObject" ), STAT_Hash_UnhashObject, STATGROUP_UObjectHash );
-#endif
-
-#if UE_GC_TRACK_OBJ_AVAILABLE
 DEFINE_STAT( STAT_Hash_NumObjects );
-#endif
+#endif // !UE_BUILD_TEST && !UE_BUILD_SHIPPING
 
 LLM_DEFINE_TAG(UObjectHash, TEXT("UObject hashtables"));
 

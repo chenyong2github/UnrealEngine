@@ -217,10 +217,8 @@ void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, EInternalObjectFla
 		if (ObjAvailableList.Num() > 0)
 		{
 			Index = ObjAvailableList.Pop();
-#if UE_GC_TRACK_OBJ_AVAILABLE
-			const int32 AvailableCount = ObjAvailableCount.Decrement();
+			const int32 AvailableCount = ObjAvailableList.Num();
 			checkSlow(AvailableCount >= 0);
-#endif
 		}
 		else
 		{
@@ -306,9 +304,6 @@ void FUObjectArray::FreeUObjectIndex(UObjectBase* Object)
 	if (Index > ObjLastNonGCIndex && !GExitPurge && bShouldRecycleObjectIndices)
 	{
 		ObjAvailableList.Add(Index);
-#if UE_GC_TRACK_OBJ_AVAILABLE
-		ObjAvailableCount.Increment();
-#endif
 	}
 }
 

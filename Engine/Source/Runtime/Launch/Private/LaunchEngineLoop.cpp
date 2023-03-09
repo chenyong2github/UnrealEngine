@@ -6098,9 +6098,9 @@ void FEngineLoop::Tick()
 		SET_FLOAT_STAT( STAT_CPUTimePctRelative, CPUTime.CPUTimePctRelative );
 
 		// Set the UObject count stat
-#if UE_GC_TRACK_OBJ_AVAILABLE
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
 		SET_DWORD_STAT(STAT_Hash_NumObjects, GUObjectArray.GetObjectArrayNumMinusAvailable());
-#endif
+#endif // !UE_BUILD_TEST && !UE_BUILD_SHIPPING
 	}
 
 	TRACE_END_FRAME(TraceFrameType_Game);

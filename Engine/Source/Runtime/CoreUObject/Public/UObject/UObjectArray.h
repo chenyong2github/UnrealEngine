@@ -16,7 +16,7 @@
 * By default it is only tracked in WITH_EDITOR builds as it adds a small amount of tracking overhead
 */
 #if !defined(UE_GC_TRACK_OBJ_AVAILABLE)
-#define UE_GC_TRACK_OBJ_AVAILABLE (WITH_EDITOR)
+#define UE_GC_TRACK_OBJ_AVAILABLE UE_DEPRECATED_MACRO(5.2, "The UE_GC_TRACK_OBJ_AVAILABLE macro has been deprecated because it is no longer necessary.") 1
 #endif
 
 /**
@@ -897,26 +897,24 @@ public:
 		return ObjLastNonGCIndex + 1;
 	}
 
-#if UE_GC_TRACK_OBJ_AVAILABLE
 	/**
 	 * Returns the number of actual object indices that are claimed (the total size of the global object array minus
 	 * the number of available object array elements
 	 *
 	 * @return	The number of objects claimed
 	 */
-	int32 GetObjectArrayNumMinusAvailable()
+	int32 GetObjectArrayNumMinusAvailable() const
 	{
-		return ObjObjects.Num() - ObjAvailableCount.GetValue();
+		return ObjObjects.Num() - ObjAvailableList.Num();
 	}
 
 	/**
 	* Returns the estimated number of object indices available for allocation
 	*/
-	int32 GetObjectArrayEstimatedAvailable()
+	int32 GetObjectArrayEstimatedAvailable() const
 	{
 		return ObjObjects.Capacity() - GetObjectArrayNumMinusAvailable();
 	}
-#endif
 
 	/**
 	* Returns the estimated number of object indices available for allocation
@@ -924,14 +922,6 @@ public:
 	int32 GetObjectArrayCapacity() const
 	{
 		return ObjObjects.Capacity();
-	}
-
-	/**
-	* Returns the estimated number of object indices available for allocation
-	*/
-	int32 GetObjectArrayNumAvailable() const
-	{
-		return ObjObjects.Capacity() - ObjObjects.Num() + ObjAvailableList.Num();
 	}
 
 	/**
@@ -1113,10 +1103,7 @@ private:
 	mutable FCriticalSection ObjObjectsCritical;
 	/** Available object indices.											*/
 	TArray<int32> ObjAvailableList;
-#if UE_GC_TRACK_OBJ_AVAILABLE
-	/** Available object index count.										*/
-	FThreadSafeCounter ObjAvailableCount;
-#endif
+
 	/**
 	 * Array of things to notify when a UObjectBase is created
 	 */
