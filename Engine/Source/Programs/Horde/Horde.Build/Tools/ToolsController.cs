@@ -215,7 +215,7 @@ namespace Horde.Build.Tools
 			}
 			else
 			{
-				Stream stream = await _toolCollection.GetDeploymentPayloadAsync(tool, deployment, cancellationToken);
+				Stream stream = await _toolCollection.GetDeploymentZipAsync(tool, deployment, cancellationToken);
 				return new FileStreamResult(stream, "application/zip");
 			}
 		}
@@ -351,7 +351,7 @@ namespace Horde.Build.Tools
 
 		async Task<ActionResult> GetDeploymentPayloadAsync(ITool tool, IToolDeployment deployment, CancellationToken cancellationToken)
 		{
-			Stream stream = await _toolCollection.GetDeploymentPayloadAsync(tool, deployment, cancellationToken);
+			Stream stream = await _toolCollection.GetDeploymentZipAsync(tool, deployment, cancellationToken);
 			return new FileStreamResult(stream, deployment.MimeType);
 		}
 

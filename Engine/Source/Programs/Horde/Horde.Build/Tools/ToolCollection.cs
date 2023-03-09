@@ -16,8 +16,10 @@ using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using StackExchange.Redis;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -246,10 +248,10 @@ namespace Horde.Build.Tools
 			NodeHandle handle;
 			using (TreeWriter writer = new TreeWriter(client, refName))
 			{
-				FileNodeWriter nodeWriter = new FileNodeWriter(writer, new ChunkingOptions());
-				handle = await nodeWriter.CreateAsync(stream, cancellationToken);
+				DirectoryNode directoryNode = new DirectoryNode();
+				await directoryNode.CopyFromZipStreamAsync(stream, writer, cancellationToken);
+				handle = await writer.WriteAsync(refName, directoryNode, cancellationToken: cancellationToken);
 			}
-			await client.WriteRefTargetAsync(refName, handle, cancellationToken: cancellationToken);
 
 			// Create the new deployment object
 			ToolDeployment deployment = new ToolDeployment(deploymentId, options, refName);
@@ -367,26 +369,15 @@ namespace Horde.Build.Tools
 		/// <param name="deployment">The deployment</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Stream for the data</returns>
-		public async Task<Stream> GetDeploymentPayloadAsync(ITool tool, IToolDeployment deployment, CancellationToken cancellationToken)
+		public async Task<Stream> GetDeploymentZipAsync(ITool tool, IToolDeployment deployment, CancellationToken cancellationToken)
 		{
 			_ = tool;
 
 			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
 			TreeReader reader = new TreeReader(client, _cache, _logger);
-			FileNode node = await reader.ReadNodeAsync<FileNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
+			DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
 
-			MemoryStream memoryStream = new MemoryStream();
-			try
-			{
-				await node.CopyToStreamAsync(reader, memoryStream, cancellationToken);
-				memoryStream.Position = 0;
-				return memoryStream;
-			}
-			catch
-			{
-				await memoryStream.DisposeAsync();
-				throw;
-			}
+			return node.ToZipStream(reader);
 		}
 	}
 }

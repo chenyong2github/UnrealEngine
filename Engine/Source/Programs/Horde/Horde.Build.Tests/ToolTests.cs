@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,10 +60,25 @@ namespace Horde.Build.Tests
 			Assert.AreEqual("Tool for syncing content from source control", tool.Config.Description);
 			Assert.AreEqual(0, tool.Deployments.Count);
 
-			byte[] deploymentData = Encoding.UTF8.GetBytes("hello world");
+			const string FileName = "test.txt";
+			byte[] fileData = Encoding.UTF8.GetBytes("hello world");
+
+			byte[] zipData;
+			using (MemoryStream stream = new MemoryStream())
+			{
+				using (ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Create))
+				{
+					ZipArchiveEntry entry = archive.CreateEntry(FileName);
+					using (Stream entryStream = entry.Open())
+					{
+						await entryStream.WriteAsync(fileData);
+					}
+				}
+				zipData = stream.ToArray();
+			}
 
 			ToolDeploymentId deploymentId;
-			using (MemoryStream stream = new MemoryStream(deploymentData))
+			using (MemoryStream stream = new MemoryStream(zipData))
 			{
 				tool = Deref(await collection.CreateDeploymentAsync(tool, new ToolDeploymentConfig { Version = "1.0", Duration = TimeSpan.FromMinutes(5.0), CreatePaused = true }, stream, GlobalConfig.CurrentValue, CancellationToken.None));
 				Assert.AreEqual(1, tool.Deployments.Count);
@@ -98,14 +115,22 @@ namespace Horde.Build.Tests
 			Assert.IsTrue((tool.Deployments[0].Progress - 0.5) < 0.1);
 
 			// Get the deployment data
-			byte[] outputDeploymentData;
-			using (MemoryStream stream = new MemoryStream())
+			using Stream dataStream = await collection.GetDeploymentZipAsync(tool, tool.Deployments[0], CancellationToken.None);
+			using (ZipArchive archive = new ZipArchive(dataStream, ZipArchiveMode.Read))
 			{
-				Stream dataStream = await collection.GetDeploymentPayloadAsync(tool, tool.Deployments[0], CancellationToken.None);
-				await dataStream.CopyToAsync(stream);
-				outputDeploymentData = stream.ToArray();
+				ZipArchiveEntry entry = archive.Entries.First();
+				Assert.AreEqual(entry.Name, FileName);
+
+				byte[] outputFileData;
+				using (MemoryStream stream = new MemoryStream())
+				{
+					using Stream entryStream = entry.Open();
+					await entryStream.CopyToAsync(stream);
+					outputFileData = stream.ToArray();
+				}
+
+				Assert.IsTrue(fileData.AsSpan().SequenceEqual(outputFileData.AsSpan()));
 			}
-			Assert.IsTrue(deploymentData.AsSpan().SequenceEqual(outputDeploymentData));
 		}
 	}
 }
