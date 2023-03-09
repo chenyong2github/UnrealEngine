@@ -136,6 +136,7 @@ spec:
           containerPort: 8091
         - name: nginx-corp-h2
           containerPort: 8092
+        - containerPort: 18080
         {{- if .Values.nginx.livenessProbe.enabled }}
         livenessProbe:
           httpGet:
@@ -162,7 +163,9 @@ spec:
           - name: nginx
             mountPath: /nginx
           - name: nginx-config-volume
-            mountPath: /etc/nginx
+            mountPath: /etc/nginx/nginx.conf
+            subPath: nginx.conf
+            readOnly: true
         {{- if or .Values.persistence.volume .Values.persistence.enabled }}
           - name: data
             mountPath: {{ .Values.persistence.mountPath }}

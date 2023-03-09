@@ -9,7 +9,7 @@ data:
     worker_processes auto;
 
     events {
-      worker_connections  2048;
+      worker_connections {{ .Values.nginx.workerConnections }};
     }
 
     http {
@@ -138,5 +138,20 @@ data:
           return 200; # error_code is ignored
         }
       }
-    }
+
+      server {
+        listen 18080;
+
+        # ensures the version information can be retrieved
+        server_tokens on;
+        
+        location /nginx_status {
+          stub_status on;
+        }
+
+        location / {
+          return 404;
+        }
+      }
+    }  
 {{ end }}
