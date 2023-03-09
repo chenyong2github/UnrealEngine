@@ -18,6 +18,7 @@ class UAnimSequence;
 class USkeletalMeshComponent;
 struct FLiveLinkCurveElement;
 struct FReferenceSkeleton;
+class FPoseAssetDetails;
 
 /** 
  * Pose data 
@@ -190,7 +191,7 @@ private:
 	struct FPoseDataContainer PoseContainer;
 
 	/** Whether or not Additive Pose or not - these are property that needs post process, so */
-	UPROPERTY()
+	UPROPERTY(Category = Additive, EditAnywhere)
 	bool bAdditivePose;
 
 	/** if -1, use ref pose */
@@ -415,4 +416,6 @@ private:
 #endif
 	const TArray<FTransform>& GetRetargetTransforms() const;
 	FName GetRetargetTransformsSourceName() const;
+
+	friend class FPoseAssetDetails;
 };

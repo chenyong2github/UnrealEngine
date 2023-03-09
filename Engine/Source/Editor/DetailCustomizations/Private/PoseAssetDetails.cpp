@@ -210,7 +210,9 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 
 	IDetailCategoryBuilder& AdditiveCategory = DetailBuilder.EditCategory("Additive");
 
-	AdditiveCategory.AddCustomRow(LOCTEXT("AdditiveSettingCategoryLabel", "AdditiveSetting"))
+	TSharedPtr<IPropertyHandle> AdditivePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseAsset, bAdditivePose));
+	IDetailPropertyRow& AdditivePropertyRow = AdditiveCategory.AddProperty(AdditivePropertyHandle);
+	AdditivePropertyRow.CustomWidget()
 	.NameContent()
 	[
 		SNew(SCheckBox)
