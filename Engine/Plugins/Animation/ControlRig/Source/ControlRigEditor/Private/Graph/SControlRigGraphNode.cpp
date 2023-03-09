@@ -1090,11 +1090,17 @@ void SControlRigGraphNode::HandleNodePinsChanged()
 	
 	for (const TSharedRef<SGraphPin>& GraphPin: InputPins)
 	{
-		LocalPinsToDelete.Add(GraphPin->GetPinObj());
+		if (UEdGraphPin* PinObj = GraphPin->GetPinObj())
+		{
+			LocalPinsToDelete.Add(PinObj);
+		}
 	}
 	for (const TSharedRef<SGraphPin>& GraphPin: OutputPins)
 	{
-		LocalPinsToDelete.Add(GraphPin->GetPinObj());
+		if (UEdGraphPin* PinObj = GraphPin->GetPinObj())
+		{
+			LocalPinsToDelete.Add(PinObj);
+		}
 	}
 
 	check(PinsToKeep.IsEmpty());
