@@ -172,13 +172,13 @@ private:
 	UPROPERTY()
 	FMVVMVCompiledFieldId FieldId;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	FName SourcePropertyName;
 
 	UPROPERTY()
 	FMVVMVCompiledBinding Binding;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	EMVVMExecutionMode ExecutionMode = EMVVMExecutionMode::Immediate;
 
 	enum EBindingFlags
@@ -200,7 +200,7 @@ private:
 		SourceObjectIsSelf = 1 << 7,
 	};
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	uint8 Flags = EBindingFlags::None;
 };
 
