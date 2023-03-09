@@ -68,6 +68,9 @@ private:
 	void OnTakeRecorderInitialized(UTakeRecorder* TakeRecorder);
 	void OnRecordingFinished(UTakeRecorder* TakeRecorder);
 	void OnRecordingCancelled(UTakeRecorder* TakeRecorder);
+	void OnTakeRecorderStarted(UTakeRecorder* TakeRecorder);
+	void OnTakeRecorderStopped(UTakeRecorder* TakeRecorder);
+
 	void OnFrameAdjustment(UTakeRecorder* TakeRecorder, const FFrameNumber& InPlaybackStartFrame);
 
 	//~ Concert event handlers
