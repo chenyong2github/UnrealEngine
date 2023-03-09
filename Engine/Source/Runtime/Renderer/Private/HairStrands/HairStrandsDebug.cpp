@@ -1206,9 +1206,9 @@ static void InternalRenderHairStrandsDebugInfo(
 
 	// Display tangent vector for strands/cards/meshes
 	if (ViewMode == EGroomViewMode::Tangent)
-	{
-		AddDebugHairTangentPass(GraphBuilder, View, SceneTextures, SceneColorTexture);
-	}
+		{
+			AddDebugHairTangentPass(GraphBuilder, View, SceneTextures, SceneColorTexture);
+		}
 
 	// Draw LOD info 
 	for (const FMeshBatchAndRelevance& Mesh : View.HairStrandsMeshElements)
@@ -1236,7 +1236,7 @@ static void InternalRenderHairStrandsDebugInfo(
 	}
 
 	const FScreenPassRenderTarget SceneColor(SceneColorTexture, View.ViewRect, ERenderTargetLoadAction::ELoad);
-	
+
 	const FHairStrandsViewData& HairData = View.HairStrandsViewData;
 
 	if (GHairStrandsDebugPlotBsdf > 0 || HairData.DebugData.IsPlotDataValid())
