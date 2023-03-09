@@ -214,7 +214,7 @@ namespace EpicGames.Core
 		/// <returns>The created trace listener</returns>
 		public static void AddFileWriter(string name, FileReference outputFile)
 		{
-			Logger.LogInformation($"Log file: {OutputFile}", outputFile);
+			Logger.LogInformation("Log file: {OutputFile}", outputFile);
 
 			if (Log.BackupLogFiles && FileReference.Exists(outputFile))
 			{
