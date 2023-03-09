@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NodeTestGraphBuilder.h"
+#include "Analysis/MetasoundFrontendAnalyzerView.h"
 #include "Misc/AutomationTest.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -16,17 +17,28 @@ namespace Metasound::Test::Generator
 		const FName& InputName,
 		const FName& OutputName,
 		const FSampleRate SampleRate,
-		const int32 NumSamplesPerBlock)
+		const int32 NumSamplesPerBlock,
+		FGuid* OutputGuid = nullptr)
 	{
 		GraphBuilder Builder;
 		const FNodeHandle InputNode = Builder.AddInput(InputName, Metasound::GetMetasoundDataTypeName<DataType>());
 		const FNodeHandle OutputNode = Builder.AddOutput(OutputName, Metasound::GetMetasoundDataTypeName<DataType>());
 		const FOutputHandle OutputToConnect = InputNode->GetOutputWithVertexName(InputName);
 		const FInputHandle InputToConnect = OutputNode->GetInputWithVertexName(OutputName);
+
 		if (!Test.TestTrue("Connected input to output", InputToConnect->Connect(*OutputToConnect)))
 		{
 			return nullptr;
 		}
+
+		if (nullptr != OutputGuid)
+		{
+			*OutputGuid = OutputNode->GetID();
+		}
+
+		// have to add an audio output for the generator to render
+		Builder.AddOutput("Audio", Metasound::GetMetasoundDataTypeName<FAudioBuffer>());
+		
 		return Builder.BuildGenerator(SampleRate, NumSamplesPerBlock);
 	}
 	
@@ -270,6 +282,98 @@ namespace Metasound::Test::Generator
 			Value = ExpectedValue;
 		};
 		return RunApplyToInputValueTest<DataType>(*this, Fn, ExpectedValue);
+	}
+
+	template<typename DataType>
+	bool RunOutputAnalyzerForwardValueTest(FAutomationTestBase& Test, DataType ExpectedValue, FName AnalyzerName)
+	{
+		const FName InputName = "MyInput";
+		const FName OutputName = "MyOutput";
+		constexpr FSampleRate SampleRate = 48000;
+		constexpr int32 NumSamplesPerBlock = 128;
+
+		// Build a passthrough graph
+		FGuid OutputNodeId;
+		const TUniquePtr<FMetasoundGenerator> Generator =
+			BuildPassthroughGraph<DataType>(Test, InputName, OutputName, SampleRate, NumSamplesPerBlock, &OutputNodeId);
+		if (!Test.TestNotNull("Generator built", Generator.Get()))
+		{
+			return false;
+		}
+
+		// Add an analyzer to the output
+		FAnalyzerAddress AnalyzerAddress;
+		AnalyzerAddress.DataType = GetMetasoundDataTypeName<DataType>();
+		AnalyzerAddress.InstanceID = 1234;
+		AnalyzerAddress.OutputName = OutputName;
+		AnalyzerAddress.AnalyzerName = AnalyzerName;
+		AnalyzerAddress.AnalyzerInstanceID = FGuid::NewGuid();
+		AnalyzerAddress.NodeID = OutputNodeId;
+		Generator->AddOutputVertexAnalyzer(AnalyzerAddress);
+
+
+		// Add an analyzer view to watch the output
+		FMetasoundAnalyzerView AnalyzerView{ MoveTemp(AnalyzerAddress) };
+		AnalyzerView.BindToAllOutputs(Generator->OperatorSettings);
+		
+		// Set the input value
+		Generator->SetInputValue(InputName, ExpectedValue);
+
+		// Render a block
+		{
+			TArray<float> Buffer;
+			Buffer.Reserve(NumSamplesPerBlock);
+			if (!Test.TestEqual(
+				"Generated the right number of samples.",
+				Generator->OnGenerateAudio(Buffer.GetData(), NumSamplesPerBlock),
+				NumSamplesPerBlock))
+			{
+				return false;
+			}
+		}
+
+		// Check the output
+		DataType Value;
+
+		if (!Test.TestTrue("Got output data.", AnalyzerView.TryGetOutputData("Value", Value)))
+		{
+			return false;
+		}
+
+		return Test.TestEqual("Input was passed through", Value, ExpectedValue);
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMetasoundGeneratorOututAnalyzerForwardValueFloatTest,
+	"Audio.Metasound.Generator.OutputAnalyzer.ForwardValue.Float",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	bool FMetasoundGeneratorOututAnalyzerForwardValueFloatTest::RunTest(const FString&)
+	{
+		using DataType = float;
+		constexpr DataType ExpectedValue = 678.345f;
+		return RunOutputAnalyzerForwardValueTest<DataType>(*this, ExpectedValue, "UE.Forward.Float");
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMetasoundGeneratorOututAnalyzerForwardValueIntTest,
+	"Audio.Metasound.Generator.OutputAnalyzer.ForwardValue.Int",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	bool FMetasoundGeneratorOututAnalyzerForwardValueIntTest::RunTest(const FString&)
+	{
+		using DataType = int32;
+		constexpr DataType ExpectedValue = 678345;
+		return RunOutputAnalyzerForwardValueTest<DataType>(*this, ExpectedValue, "UE.Forward.Int32");
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMetasoundGeneratorOututAnalyzerForwardValueBoolTest,
+	"Audio.Metasound.Generator.OutputAnalyzer.ForwardValue.Bool",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	bool FMetasoundGeneratorOututAnalyzerForwardValueBoolTest::RunTest(const FString&)
+	{
+		using DataType = bool;
+		constexpr DataType ExpectedValue = true;
+		return RunOutputAnalyzerForwardValueTest<DataType>(*this, ExpectedValue, "UE.Forward.Bool");
 	}
 }
 

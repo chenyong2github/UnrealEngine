@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundGenerator.h"
 
-#include "Analysis/MetasoundFrontendVertexAnalyzer.h"
 #include "AudioParameter.h"
-#include "DSP/FloatArrayMath.h"
-#include "Interfaces/MetasoundFrontendSourceInterface.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundOutputNode.h"
@@ -13,7 +11,11 @@
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertexData.h"
-#include "MetasoundFrontendDataTypeRegistry.h"
+#include "Analysis/MetasoundFrontendAnalyzerFactory.h"
+#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzer.h"
+#include "DSP/FloatArrayMath.h"
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 
 #ifndef METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING 
 #define METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING !UE_BUILD_SHIPPING
@@ -305,6 +307,7 @@ namespace Metasound
 
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
 		: MetasoundName(InParams.MetaSoundName)
+		, OperatorSettings(InParams.OperatorSettings)
 		, bIsFinishTriggered(false)
 		, bIsFinished(false)
 		, NumChannels(0)
@@ -464,6 +467,43 @@ namespace Metasound
 		return NumChannels;
 	}
 
+	void FMetasoundGenerator::AddOutputVertexAnalyzer(const Frontend::FAnalyzerAddress& AnalyzerAddress)
+	{
+		OutputAnalyzerModificationQueue.Enqueue([this, AnalyzerAddress]
+		{
+			const FAnyDataReference* OutputReference = VertexInterfaceData.GetOutputs().FindDataReference(AnalyzerAddress.OutputName);
+			
+			if (nullptr == OutputReference)
+			{
+				return;
+			}
+			
+			const Frontend::IVertexAnalyzerFactory* Factory = Frontend::IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(AnalyzerAddress.AnalyzerName);
+			
+			if (nullptr == Factory)
+			{
+				return;
+			}
+			
+			TUniquePtr<Frontend::IVertexAnalyzer> Analyzer = Factory->CreateAnalyzer({ AnalyzerAddress, OperatorSettings, *OutputReference});
+			
+			if (nullptr == Analyzer)
+			{
+				return;
+			}
+			
+			OutputAnalyzers.Emplace(AnalyzerAddress.OutputName, MoveTemp(Analyzer));
+		});
+	}
+	
+	void FMetasoundGenerator::RemoveOutputVertexAnalyzer(const FName& OutputName)
+	{
+		OutputAnalyzerModificationQueue.Enqueue([this, OutputName]
+		{
+			OutputAnalyzers.Remove(OutputName);
+		});
+	}
+
 	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamplesRemaining)
 	{
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MetasoundGenerator::OnGenerateAudio %s"), *MetasoundName));
@@ -498,6 +538,14 @@ namespace Metasound
 			return NumSamplesRemaining;
 		}
 
+		// Modify the output analyzers as needed
+		{
+			while (TOptional<TUniqueFunction<void()>> ModFn = OutputAnalyzerModificationQueue.Dequeue())
+			{
+				(*ModFn)();
+			}
+		}
+
 		// If we have any audio left in the internal overflow buffer from 
 		// previous calls, write that to the output before generating more audio.
 		int32 NumSamplesWritten = FillWithBuffer(OverflowBuffer, OutAudio, NumSamplesRemaining);
@@ -518,6 +566,12 @@ namespace Metasound
 			if (GraphAnalyzer.IsValid())
 			{
 				GraphAnalyzer->Execute();
+			}
+
+			// Execute the output analyzers
+			for (const auto& Pair : OutputAnalyzers)
+			{
+				Pair.Value->Execute();
 			}
 
 			// Check if generated finished during this execute call

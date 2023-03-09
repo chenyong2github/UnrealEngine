@@ -5,6 +5,7 @@
 #include "MetasoundFrontendGraph.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundOperatorBuilder.h"
+#include "Interfaces/MetasoundOutputFormatInterfaces.h"
 
 namespace Metasound::Test
 {
@@ -53,7 +54,15 @@ namespace Metasound::Test
 		Output.Name = OutputName;
 		Output.TypeName = TypeName;
 		Output.VertexID = FGuid::NewGuid();
-		return RootGraph->AddOutputVertex(Output);
+		FNodeHandle NodeHandle = RootGraph->AddOutputVertex(Output);
+
+		static const FName AudioBufferTypeName = GetMetasoundDataTypeName<FAudioBuffer>();
+		if (TypeName == AudioBufferTypeName)
+		{
+			AudioOutputNames.Add(OutputName);
+		}
+
+		return NodeHandle;
 	}
 
 	TUniquePtr<IOperator> FNodeTestGraphBuilder::BuildGraph(FSampleRate SampleRate, int32 SamplesPerBlock)
@@ -113,7 +122,7 @@ namespace Metasound::Test
 				MakeShared<const FFrontendGraph, ESPMode::ThreadSafe>(*Graph),
 				Environment,
 				"TestMetasound",
-				TArray<FVertexName>(),
+				AudioOutputNames,
 				TArray<FAudioParameter>(),
 				true // bBuildSynchronous, so we don't have to do latent tasks
 			};

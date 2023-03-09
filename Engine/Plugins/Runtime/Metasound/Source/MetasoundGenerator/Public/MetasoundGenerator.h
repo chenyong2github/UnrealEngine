@@ -1,25 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Analysis/MetasoundFrontendGraphAnalyzer.h"
-#include "Async/Async.h"
-#include "Async/AsyncWork.h"
-#include "Containers/MpscQueue.h"
-#include "DSP/Dsp.h"
-#include "MetasoundAudioFormats.h"
 #include "MetasoundExecutableOperator.h"
-#include "MetasoundFrontendController.h"
 #include "MetasoundGraphOperator.h"
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundParameterPack.h"
-#include "MetasoundPrimitives.h"
 #include "MetasoundRouter.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 #include "MetasoundVertexData.h"
+#include "Analysis/MetasoundFrontendGraphAnalyzer.h"
+#include "Async/AsyncWork.h"
+#include "Containers/MpscQueue.h"
 #include "Sound/SoundGenerator.h"
-#include "Tickable.h"
 
 namespace Metasound
 {
@@ -106,14 +100,15 @@ namespace Metasound
 
 		FString MetasoundName;
 
+		const FOperatorSettings OperatorSettings;
+
 		/** Create the generator with a graph operator and an output audio reference.
 		 *
-		 * @param InGraphOperator - Unique pointer to the IOperator which executes the entire graph.
-		 * @param InGraphOutputAudioRef - Read reference to the audio buffer filled by the InGraphOperator.
+		 * @param InParams - The generator initialization parameters
 		 */
-		FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams);
+		explicit FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams);
 
-		virtual ~FMetasoundGenerator();
+		virtual ~FMetasoundGenerator() override;
 
 		/** Set the value of a graph's input data using the assignment operator.
 		 *
@@ -186,6 +181,20 @@ namespace Metasound
 			
 			return ReadRef;
 		}
+
+		/**
+		 * Add a vertex analyzer for a named output with the given address info.
+		 *
+		 * @param AnalyzerAddress - Address information for the analyzer to use when making views
+		 */
+		void AddOutputVertexAnalyzer(const Frontend::FAnalyzerAddress& AnalyzerAddress);
+		
+		/**
+		 * Remove a vertex analyzer for a named output
+		 *
+		 * @param OutputName - The name of the output in the MetaSound graph
+		 */
+		void RemoveOutputVertexAnalyzer(const FName& OutputName);
 		
 		/** Return the number of audio channels. */
 		int32 GetNumChannels() const;
@@ -270,5 +279,8 @@ namespace Metasound
 		// a faster method of sending parameters is via the QueueParameterPack function 
 		// and this queue.
 		TMpscQueue<TSharedPtr<FMetasoundParameterPackStorage>> ParameterPackQueue;
+
+		TMpscQueue<TUniqueFunction<void()>> OutputAnalyzerModificationQueue;
+		TMap<FName, TUniquePtr<Frontend::IVertexAnalyzer>> OutputAnalyzers;
 	};
 }

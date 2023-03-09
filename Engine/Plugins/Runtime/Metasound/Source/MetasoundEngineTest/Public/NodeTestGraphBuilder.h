@@ -41,5 +41,6 @@ namespace Metasound::Test
 		FMetasoundFrontendDocument Document;
 		Frontend::FDocumentHandle DocumentHandle = Frontend::IDocumentController::GetInvalidHandle();
 		Frontend::FGraphHandle RootGraph = Frontend::IGraphController::GetInvalidHandle();
+		TArray<FVertexName> AudioOutputNames;
 	};
 }
