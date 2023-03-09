@@ -63,9 +63,10 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 				TArray<FSkeletalMaterial>& Materials = ClothAsset->GetMaterials();
 				Materials.Reserve(Materials.Num() + NumLodMaterials);
 
+				const TConstArrayView<FString> LodRenderMaterialPathName = ClothLodFacade.GetRenderMaterialPathName();
 				for (int32 LodMaterialIndex = 0; LodMaterialIndex < NumLodMaterials; ++LodMaterialIndex)
 				{
-					const FString& RenderMaterialPathName = ClothLodFacade.GetRenderMaterialPathName()[LodMaterialIndex];
+					const FString& RenderMaterialPathName = LodRenderMaterialPathName[LodMaterialIndex];
 
 					auto Predicate = [&RenderMaterialPathName](const FSkeletalMaterial& SkeletalMaterial)
 						{

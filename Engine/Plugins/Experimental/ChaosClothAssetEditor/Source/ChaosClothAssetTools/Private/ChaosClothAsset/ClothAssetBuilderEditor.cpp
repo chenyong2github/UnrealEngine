@@ -41,12 +41,14 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 	const FCollectionClothLodConstFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
 
 	const int32 NumLodMaterials = ClothLodFacade.GetNumMaterials();
+	const TConstArrayView<FString> LodRenderMaterialPathName = ClothLodFacade.GetRenderMaterialPathName();
 
 	TArray<int32> LodMaterialMap;
 	LodMaterialMap.AddUninitialized(NumLodMaterials);
+
 	for (int32 LodMaterialIndex = 0; LodMaterialIndex < NumLodMaterials; ++LodMaterialIndex)
 	{
-		const FString& RenderMaterialPathName = ClothLodFacade.GetRenderMaterialPathName()[LodMaterialIndex];
+		const FString& RenderMaterialPathName = LodRenderMaterialPathName[LodMaterialIndex];
 		const int32 SkeletalMaterialIndex = Materials.IndexOfByPredicate([&RenderMaterialPathName](const FSkeletalMaterial& SkeletalMaterial)
 			{
 				return SkeletalMaterial.MaterialInterface && SkeletalMaterial.MaterialInterface->GetPathName() == RenderMaterialPathName;
