@@ -28,7 +28,7 @@ FWorldPartitionRuntimeSpatialHashGridPreviewer::FWorldPartitionRuntimeSpatialHas
 }
 
 #if WITH_EDITOR
-void FWorldPartitionRuntimeSpatialHashGridPreviewer::Draw(UWorld* World, const TArray<FSpatialHashRuntimeGrid>& Grids, bool bEnabled)
+void FWorldPartitionRuntimeSpatialHashGridPreviewer::Draw(UWorld* World, const TArray<FSpatialHashRuntimeGrid>& Grids, bool bEnabled, int32 PreviewGridLevel)
 {
 	if (bEnabled && Material)
 	{
@@ -63,10 +63,12 @@ void FWorldPartitionRuntimeSpatialHashGridPreviewer::Draw(UWorld* World, const T
 				{
 					const FSpatialHashRuntimeGrid& Grid = Grids[i];
 
-					if (CachedParameters.CellSize != Grid.CellSize)
+					const int32 PreviewCellSize = (1 << FMath::Max(0, PreviewGridLevel)) * Grid.CellSize;
+
+					if (CachedParameters.CellSize != PreviewCellSize)
 					{
-						MID->SetScalarParameterValue(*FString::Printf(TEXT("Grid%d_CellSize"), i), (float)Grid.CellSize);
-						CachedParameters.CellSize = Grid.CellSize;
+						MID->SetScalarParameterValue(*FString::Printf(TEXT("Grid%d_CellSize"), i), (float)PreviewCellSize);
+						CachedParameters.CellSize = PreviewCellSize;
 					}
 
 					if (CachedParameters.LoadingRange != Grid.LoadingRange)
@@ -81,7 +83,7 @@ void FWorldPartitionRuntimeSpatialHashGridPreviewer::Draw(UWorld* World, const T
 						CachedParameters.GridColor = Grid.DebugColor;
 					}
 
-					FVector GridOffset = GRuntimeSpatialHashUseAlignedGridLevels ? FVector(0.5 * Grid.CellSize) : FVector::ZeroVector;
+					FVector GridOffset = FVector(Grid.Origin, 0) + (GRuntimeSpatialHashUseAlignedGridLevels ? FVector(0.5 * PreviewCellSize) : FVector::ZeroVector);
 					if (CachedParameters.GridOffset != GridOffset)
 					{
 						MID->SetVectorParameterValue(*FString::Printf(TEXT("Grid%d_Offset"), i), GridOffset);

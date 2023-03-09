@@ -17,7 +17,7 @@ struct ENGINE_API FWorldPartitionRuntimeSpatialHashGridPreviewer
 	FWorldPartitionRuntimeSpatialHashGridPreviewer();
 
 #if WITH_EDITOR
-	void Draw(UWorld* World, const TArray<FSpatialHashRuntimeGrid>& Grids, bool bEnabled);
+	void Draw(UWorld* World, const TArray<FSpatialHashRuntimeGrid>& Grids, bool bEnabled, int32 PreviewGridLevel);
 #endif
 
 #if WITH_EDITORONLY_DATA

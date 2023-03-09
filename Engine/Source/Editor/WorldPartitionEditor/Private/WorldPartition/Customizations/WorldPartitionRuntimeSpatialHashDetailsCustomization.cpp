@@ -7,6 +7,7 @@
 #include "DetailWidgetRow.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FWorldPartitionRuntimeSpatialHashDetails"
@@ -42,6 +43,29 @@ void FWorldPartitionRuntimeSpatialHashDetails::CustomizeDetails(IDetailLayoutBui
 			{
 				FScopedTransaction Transaction(LOCTEXT("SetRuntimeSpatialHashPreviewGrids", "Change the Runtime Spatial Hash Preview Grids"));
 				WorldPartitionRuntimeSpatialHash->SetPreviewGrids(InState == ECheckBoxState::Checked);
+			})
+		];
+
+	RuntimeSettingsCategory.AddCustomRow(LOCTEXT("PreviewGridLevel", "Preview Grid Level"), false)
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.IsEnabled_Lambda([this]() { return WorldPartitionRuntimeSpatialHash->GetPreviewGrids(); })
+			.Text(LOCTEXT("WorldPartitionRuntimeSpatialHashPreviewGridLevel", "Preview Grid Level"))
+			.ToolTipText(LOCTEXT("WorldPartitionRuntimeSpatialHashPreviewGridLevel_ToolTip", "The grid level to preview"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SNumericEntryBox<int32>)
+			.IsEnabled_Lambda([this]() { return WorldPartitionRuntimeSpatialHash->GetPreviewGrids(); })
+			.AllowSpin(false)
+			.MinValue(0)
+			.Value_Lambda([this]() { return WorldPartitionRuntimeSpatialHash->GetPreviewGridLevel(); })
+			.OnValueCommitted_Lambda([this](int32 NewValue, ETextCommit::Type CommitType)
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetRuntimeSpatialHashPreviewGridLevel", "Change the Runtime Spatial Hash Preview Grid Level"));
+				WorldPartitionRuntimeSpatialHash->SetPreviewGridLevel(NewValue);
 			})
 		];
 }

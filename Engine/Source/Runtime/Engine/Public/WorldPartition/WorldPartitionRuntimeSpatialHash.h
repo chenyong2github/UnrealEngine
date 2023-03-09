@@ -177,6 +177,7 @@ struct FSpatialHashRuntimeGrid
 		: CellSize(12800)
 		, LoadingRange(25600)
 		, bBlockOnSlowStreaming(false)
+		, Origin(FVector2D::ZeroVector)
 		, Priority(0)
 		, DebugColor(FLinearColor::MakeRandomColor())
 		, bClientOnlyVisible(false)
@@ -195,8 +196,11 @@ struct FSpatialHashRuntimeGrid
 	float LoadingRange;
 
 	/** Should streaming block in situations where cells aren't getting loaded fast enough. */
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category=Settings)
 	bool bBlockOnSlowStreaming;
+
+	UPROPERTY(EditAnywhere, Category=Settings)
+	FVector2D Origin;
 
 	UPROPERTY(EditAnywhere, Category=Settings)
 	int32 Priority;
@@ -267,6 +271,9 @@ public:
 
 	bool GetPreviewGrids() const;
 	void SetPreviewGrids(bool bInPreviewGrids);
+
+	int32 GetPreviewGridLevel() const;
+	void SetPreviewGridLevel(int32 InPreviewGridLevel);
 #endif
 
 	// streaming interface
@@ -306,6 +313,9 @@ private:
 	/** Whether to preview runtime grids. */
 	UPROPERTY(Transient)
 	bool bPreviewGrids;
+
+	UPROPERTY(Transient)
+	int32 PreviewGridLevel;
 
 	UPROPERTY(Transient)
 	mutable FWorldPartitionRuntimeSpatialHashGridPreviewer GridPreviewer;

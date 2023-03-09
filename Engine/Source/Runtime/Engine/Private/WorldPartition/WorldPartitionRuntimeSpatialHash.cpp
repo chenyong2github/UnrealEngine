@@ -958,6 +958,7 @@ bool FSpatialHashRuntimeGrid::operator == (const FSpatialHashRuntimeGrid& Other)
 		   CellSize == Other.CellSize &&
 		   LoadingRange == Other.LoadingRange &&
 		   bBlockOnSlowStreaming == Other.bBlockOnSlowStreaming &&
+		   Origin == Other.Origin &&
 		   Priority == Other.Priority &&
 		   DebugColor == Other.DebugColor &&
 		   bClientOnlyVisible == Other.bClientOnlyVisible &&
@@ -985,6 +986,7 @@ UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObje
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, bPreviewGrids(false)
+	, PreviewGridLevel(0)
 #endif
 	, bIsNameToGridMappingDirty(true)
 {}
@@ -1017,7 +1019,7 @@ FString UWorldPartitionRuntimeSpatialHash::GetCellCoordString(const FGridCellCoo
 #if WITH_EDITOR
 void UWorldPartitionRuntimeSpatialHash::DrawPreview() const
 {
-	GridPreviewer.Draw(GetWorld(), Grids, bPreviewGrids);
+	GridPreviewer.Draw(GetWorld(), Grids, bPreviewGrids, PreviewGridLevel);
 }
 
 URuntimeHashExternalStreamingObjectBase* UWorldPartitionRuntimeSpatialHash::StoreToExternalStreamingObject(UObject* StreamingObjectOuter, FName StreamingObjectName)
@@ -1182,6 +1184,7 @@ void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar
 		Ar.Printf(TEXT("     Loading Range: %3.2f"), StreamingGrid.LoadingRange);
 		Ar.Printf(TEXT("Block Slow Loading: %s"), StreamingGrid.bBlockOnSlowStreaming ? TEXT("Yes") : TEXT("No"));
 		Ar.Printf(TEXT(" ClientOnlyVisible: %s"), StreamingGrid.bClientOnlyVisible ? TEXT("Yes") : TEXT("No"));
+		Ar.Printf(TEXT("            Origin: %s"), *StreamingGrid.Origin.ToString());
 		Ar.Printf(TEXT(""));
 		if (const UHLODLayer* HLODLayer = StreamingGrid.HLODLayer)
 		{
@@ -1296,6 +1299,17 @@ void UWorldPartitionRuntimeSpatialHash::SetPreviewGrids(bool bInPreviewGrids)
 	bPreviewGrids = bInPreviewGrids;
 }
 
+int32 UWorldPartitionRuntimeSpatialHash::GetPreviewGridLevel() const
+{
+	return PreviewGridLevel;
+}
+
+void UWorldPartitionRuntimeSpatialHash::SetPreviewGridLevel(int32 InPreviewGridLevel)
+{
+	Modify(false);
+	PreviewGridLevel = FMath::Max(0, InPreviewGridLevel);
+}
+
 bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateStreamingGrid);
@@ -1318,6 +1332,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	CurrentStreamingGrid.WorldBounds = PartionedActors.WorldBounds;
 	CurrentStreamingGrid.LoadingRange = RuntimeGrid.LoadingRange;
 	CurrentStreamingGrid.bBlockOnSlowStreaming = RuntimeGrid.bBlockOnSlowStreaming;
+	CurrentStreamingGrid.Origin = FVector(RuntimeGrid.Origin, 0);
 	CurrentStreamingGrid.DebugColor = RuntimeGrid.DebugColor;
 	CurrentStreamingGrid.bClientOnlyVisible = RuntimeGrid.bClientOnlyVisible;
 	CurrentStreamingGrid.HLODLayer = RuntimeGrid.HLODLayer;

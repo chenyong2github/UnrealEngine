@@ -137,10 +137,9 @@ int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphericalSector& InSh
 }
 
 #if WITH_EDITOR
-FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int64 GridCellSize)
+FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, const FVector& GridOrigin, int64 GridCellSize)
 {
 	// Default grid to a minimum of 1 level and 1 cell, for always loaded actors
-	FVector GridOrigin = FVector::ZeroVector;
 	return FSquare2DGridHelper(WorldBounds, GridOrigin, GridCellSize);
 }
 
@@ -151,7 +150,7 @@ FSquare2DGridHelper GetPartitionedActors(const FBox& WorldBounds, const FSpatial
 	//
 	// Create the hierarchical grids for the game
 	//	
-	FSquare2DGridHelper PartitionedActors = GetGridHelper(WorldBounds, Grid.CellSize);
+	FSquare2DGridHelper PartitionedActors = GetGridHelper(WorldBounds, FVector(Grid.Origin, 0), Grid.CellSize);
 	if (ensure(PartitionedActors.Levels.Num()) && WorldBounds.IsValid)
 	{
 		int32 IntersectingCellCount = 0;
