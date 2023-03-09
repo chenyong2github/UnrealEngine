@@ -2,6 +2,7 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "AI/NavigationSystemBase.h"
+#include "Collision/CollisionConversions.h"
 #include "EngineLogs.h"
 #include "Logging/MessageLog.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
@@ -1128,7 +1129,12 @@ bool UPrimitiveComponent::K2_BoxOverlapComponent(FVector InBoxCentre, const FBox
 {
 	FCollisionShape QueryBox = FCollisionShape::MakeBox(InBox.GetExtent());
 
-	bool bHit = OverlapComponent(InBoxCentre, FQuat::Identity, QueryBox);
+	TArray<FOverlapResult> OverlapResult;
+	bool bHit = OverlapComponentWithResult(InBoxCentre, FQuat::Identity, QueryBox, OverlapResult);
+	if (bHit && !OverlapResult.IsEmpty())
+	{
+		OutHit = ConvertOverlapToHitResult(OverlapResult[0]);
+	}
 
 	if(bShowTrace)
 	{
@@ -1144,7 +1150,12 @@ bool UPrimitiveComponent::K2_SphereOverlapComponent(FVector InSphereCentre, floa
 {
 	FCollisionShape QuerySphere = FCollisionShape::MakeSphere(InSphereRadius);
 
-	bool bHit = OverlapComponent(InSphereCentre, FQuat::Identity, QuerySphere);
+	TArray<FOverlapResult> OverlapResult;
+	bool bHit = OverlapComponentWithResult(InSphereCentre, FQuat::Identity, QuerySphere, OverlapResult);
+	if (bHit && !OverlapResult.IsEmpty())
+	{
+		OutHit = ConvertOverlapToHitResult(OverlapResult[0]);
+	}
 
 	if(bShowTrace)
 	{

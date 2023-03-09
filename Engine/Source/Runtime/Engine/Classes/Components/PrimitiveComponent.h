@@ -49,6 +49,7 @@ struct FConvexVolume;
 struct FEngineShowFlags;
 struct FNavigableGeometryExport;
 struct FPSOPrecacheParams;
+struct FOverlapResult;
 
 namespace PrimitiveComponentCVars
 {
@@ -2767,7 +2768,7 @@ public:
 	 *  @param  PrimComp        Component to use geometry from to test against this component. Transform of this component is ignored.
 	 *  @param  Pos             Location to place PrimComp geometry at 
 	 *  @param  Rot             Rotation to place PrimComp geometry at 
-	 *  @param	Params			Parameter for trace. TraceTag is only used.
+	 *  @param  Params          Parameter for trace. TraceTag is only used.
 	 *  @return true if PrimComp overlaps this component at the specified location/rotation
 	 */
 	bool ComponentOverlapComponent(class UPrimitiveComponent* PrimComp, const FVector Pos, const FQuat& Rot, const FCollisionQueryParams& Params);
@@ -2782,8 +2783,8 @@ public:
 	 *  Test the collision of the supplied shape at the supplied location, and determine if it overlaps this component.
 	 *
 	 *  @param  Pos             Location to place PrimComp geometry at 
-	 *	@param	Rot				Rotation of PrimComp geometry
-	 *  @param  CollisionShape 	Shape of collision of PrimComp geometry
+	 *	@param  Rot             Rotation of PrimComp geometry
+	 *  @param  CollisionShape  Shape of collision of PrimComp geometry
 	 *  @return true if PrimComp overlaps this component at the specified location/rotation
 	 */
 
@@ -2793,6 +2794,18 @@ public:
 		return const_cast<const UPrimitiveComponent*>(this)->OverlapComponent(Pos, Rot, CollisionShape);
 	}
 	virtual bool OverlapComponent(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape) const;
+
+	/**
+	 * Test the collision of the supplied shape at the supplied location, and determine if it overlaps this component.
+	 * Also will return information about the overlap.
+	 *  @param  Pos             Location to place PrimComp geometry at
+	 *	@param  Rot             Rotation of PrimComp geometry
+	 *  @param  CollisionShape  Shape of collision of PrimComp geometry
+	 *  @param  OutOverlap      Additional information about what exactly was overlapped.
+	 *  @return true if PrimComp overlaps this component at the specified location/rotation
+	 */
+	virtual bool OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape, TArray<FOverlapResult>& OutOverlap) const;
+
 
 	/**
 	 * Computes the minimum translation direction (MTD) when an overlap exists between the component and the given shape.

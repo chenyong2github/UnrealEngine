@@ -771,3 +771,13 @@ bool ConvertOverlapResults(int32 NumOverlaps, ChaosInterface::FPTOverlapHit* Ove
 {
 	return ConvertOverlapResultsImp(NumOverlaps, OverlapResults, QueryFilter, OutOverlaps);
 }
+
+FHitResult ConvertOverlapToHitResult(const FOverlapResult& Overlap)
+{
+	FHitResult Hit;
+	Hit.bBlockingHit = Overlap.bBlockingHit;
+	Hit.Item = Overlap.ItemIndex;
+	Hit.Component = Overlap.Component;
+	Hit.HitObjectHandle = Overlap.OverlapObjectHandle;
+	return Hit;
+}

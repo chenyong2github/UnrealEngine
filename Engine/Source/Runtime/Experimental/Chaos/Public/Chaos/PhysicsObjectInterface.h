@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/Interface/SQTypes.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PhysicsObject.h"
 #include "Chaos/ISpatialAcceleration.h"
@@ -68,6 +69,9 @@ namespace Chaos
 		TArray<TThreadRigidParticle<Id>*> GetAllRigidParticles(TArrayView<FPhysicsObjectHandle> InObjects);
 		TArray<FPerShapeData*> GetAllShapes(TArrayView<FPhysicsObjectHandle> InObjects);
 
+		// Returns true if a shape is found and we can stop iterating.
+		void VisitEveryShape(TArrayView<FPhysicsObjectHandle> InObjects, TFunctionRef<bool(FPhysicsObjectHandle, FPerShapeData*)> Lambda);
+
 		UE_DEPRECATED(5.3, "GetPhysicsObjectOverlap has been deprecated. Please use the function for the specific overlap metric you wish to compute instead.")
 		bool GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, FPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
 
@@ -96,6 +100,11 @@ namespace Chaos
 		FBox GetWorldBounds(TArrayView<FPhysicsObjectHandle> InObjects);
 		FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
 		FAccelerationStructureHandle CreateAccelerationStructureHandle(FPhysicsObjectHandle Handle);
+
+		bool LineTrace(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& WorldStart, const FVector& WorldEnd, bool bTraceComplex, ChaosInterface::FRaycastHit& OutBestHit);
+		bool ShapeOverlap(TArrayView<FPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, TArray<ChaosInterface::FOverlapHit>& OutOverlaps);
+		bool ShapeSweep(TArrayView<FPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& StartTM, const FVector& EndPos, bool bSweepComplex, ChaosInterface::FSweepHit& OutBestHit);
+
 		friend class FPhysicsObjectInterface;
 	protected:
 		FReadPhysicsObjectInterface() = default;

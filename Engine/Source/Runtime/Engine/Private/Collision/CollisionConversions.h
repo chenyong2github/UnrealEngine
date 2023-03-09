@@ -85,6 +85,10 @@ bool IsBlocking(const FPhysicsShape& PShape, const FCollisionFilterData& QueryFi
 bool ConvertOverlapResults(int32 NumOverlaps, FHitOverlap* POverlapResults, const FCollisionFilterData& QueryFilter, TArray<FOverlapResult>& OutOverlaps);
 bool ConvertOverlapResults(int32 NumOverlaps, ChaosInterface::FPTOverlapHit* POverlapResults, const FCollisionFilterData& QueryFilter, TArray<FOverlapResult>& OutOverlaps);
 
+/**
+ * Converts an overlap result to a hit result.
+ */
+FHitResult ConvertOverlapToHitResult(const FOverlapResult& Overlap);
 
 struct FCompareFHitResultTime
 {

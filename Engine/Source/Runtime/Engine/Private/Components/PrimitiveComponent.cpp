@@ -5,6 +5,10 @@
 =============================================================================*/
 
 #include "Components/PrimitiveComponent.h"
+
+#include "Chaos/ChaosEngineInterface.h"
+#include "ChaosInterfaceWrapperCore.h"
+#include "Collision/CollisionConversions.h"
 #include "Engine/Level.h"
 #include "Engine/Texture.h"
 #include "GameFramework/DamageType.h"
@@ -30,6 +34,7 @@
 #include "Misc/MapErrors.h"
 #include "CollisionDebugDrawingPublic.h"
 #include "GameFramework/CheatManager.h"
+#include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include "RenderingThread.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "PrimitiveSceneProxy.h"
@@ -2914,7 +2919,35 @@ extern float DebugLineLifetime;
 
 bool UPrimitiveComponent::LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params)
 {
-	bool bHaveHit = BodyInstance.LineTrace(OutHit, Start, End, Params.bTraceComplex, Params.bReturnPhysicalMaterial); 
+	bool bHaveHit = false;
+	
+	if (FBodyInstance* ThisBodyInstance = GetBodyInstance())
+	{
+		bHaveHit = ThisBodyInstance->LineTrace(OutHit, Start, End, Params.bTraceComplex, Params.bReturnPhysicalMaterial);
+	}
+	else
+	{
+		TArray<Chaos::FPhysicsObjectHandle> Objects = GetAllPhysicsObjects();
+		FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(Objects);
+		Objects = Objects.FilterByPredicate(
+			[&Interface](Chaos::FPhysicsObjectHandle Handle)
+			{
+				return !Interface->AreAllDisabled({ &Handle, 1 });
+			}
+		);
+
+		ChaosInterface::FRaycastHit BestHit;
+		if (Interface->LineTrace(Objects, Start, End, Params.bTraceComplex, BestHit))
+		{
+			bHaveHit = true;
+
+			FCollisionFilterData QueryFilter;
+			QueryFilter.Word1 = 0xFFFFF;
+			ChaosInterface::SetFlags(BestHit, EHitFlags::Distance | EHitFlags::Normal | EHitFlags::Position);
+
+			ConvertQueryImpactHit(GetWorld(), BestHit, OutHit, (End - Start).Size(), QueryFilter, Start, End, nullptr, FTransform{ Start }, true, Params.bReturnPhysicalMaterial);
+		}
+	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (GetWorld()->DebugDrawSceneQueries(Params.TraceTag))
@@ -2933,7 +2966,40 @@ bool UPrimitiveComponent::LineTraceComponent(struct FHitResult& OutHit, const FV
 
 bool UPrimitiveComponent::SweepComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FCollisionShape &CollisionShape, bool bTraceComplex)
 {
-	return BodyInstance.Sweep(OutHit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex);
+	if (FBodyInstance* ThisBodyInstance = GetBodyInstance())
+	{
+		return ThisBodyInstance->Sweep(OutHit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex);
+	}
+
+	if (CollisionShape.IsNearlyZero())
+	{
+		FCollisionQueryParams Params;
+		Params.bTraceComplex = bTraceComplex;
+		return LineTraceComponent(OutHit, Start, End, Params);
+	}
+
+	FPhysicsShapeAdapter_Chaos ShapeAdapter(ShapeWorldRotation, CollisionShape);
+	TArray<Chaos::FPhysicsObjectHandle> Objects = GetAllPhysicsObjects();
+	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(Objects);
+	Objects = Objects.FilterByPredicate(
+		[&Interface](Chaos::FPhysicsObjectHandle Handle)
+		{
+			return !Interface->AreAllDisabled({ &Handle, 1 });
+		}
+	);
+
+	ChaosInterface::FSweepHit BestHit;
+	if (Interface->ShapeSweep(Objects, ShapeAdapter.GetGeometry(), ShapeAdapter.GetGeomPose(Start), End, bTraceComplex, BestHit))
+	{
+		FCollisionFilterData QueryFilter;
+		QueryFilter.Word1 = 0xFFFFF;
+		ChaosInterface::SetFlags(BestHit, EHitFlags::Distance | EHitFlags::Normal | EHitFlags::Position | EHitFlags::FaceIndex);
+
+		ConvertQueryImpactHit(GetWorld(), BestHit, OutHit, (End - Start).Size(), QueryFilter, Start, End, nullptr, FTransform{ Start }, false, false);
+		return true;
+	}
+
+	return false;
 }
 
 bool UPrimitiveComponent::ComponentOverlapComponentImpl(class UPrimitiveComponent* PrimComp, const FVector Pos, const FQuat& Quat, const struct FCollisionQueryParams& Params)
@@ -2960,21 +3026,85 @@ bool UPrimitiveComponent::ComponentOverlapComponentImpl(class UPrimitiveComponen
 		}
 	}
 
-	if(FBodyInstance* BI = PrimComp->GetBodyInstance())
+	FBodyInstance* BI = PrimComp->GetBodyInstance();
+	FBodyInstance* ThisBodyInstance = GetBodyInstance();
+	if(BI && ThisBodyInstance)
 	{
-		if (FBodyInstance* ThisBodyInstance = GetBodyInstance())
-		{
-			return BI->OverlapTestForBody(Pos, Quat, ThisBodyInstance);
-		}
+		return BI->OverlapTestForBody(Pos, Quat, ThisBodyInstance);
 	}
 
+	TArray<Chaos::FPhysicsObjectHandle> InObjects = PrimComp->GetAllPhysicsObjects();
+	TArray<Chaos::FPhysicsObjectHandle> ThisObjects = GetAllPhysicsObjects();
+
+	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(InObjects);
+	InObjects = InObjects.FilterByPredicate(
+		[&Interface](Chaos::FPhysicsObjectHandle Handle)
+		{
+			return !Interface->AreAllDisabled({ &Handle, 1 });
+		}
+	);
+
+	ThisObjects = ThisObjects.FilterByPredicate(
+		[&Interface](Chaos::FPhysicsObjectHandle Handle)
+		{
+			return !Interface->AreAllDisabled({ &Handle, 1 });
+		}
+	);
+
+	for (Chaos::FPhysicsObjectHandle InObject : InObjects)
+	{
+		for (Chaos::FPhysicsObjectHandle ThisObject : ThisObjects)
+		{
+			if (Interface->GetPhysicsObjectOverlap(InObject, FTransform::Identity, ThisObject, FTransform::Identity, Params.bTraceComplex))
+			{
+				return true;
+			}
+		}
+	}
 	return false;
 }
 
 
 bool UPrimitiveComponent::OverlapComponent(const FVector& Pos, const FQuat& Rot, const struct FCollisionShape& CollisionShape) const
 {
-	return BodyInstance.OverlapTest(Pos, Rot, CollisionShape);
+	if (FBodyInstance* ThisBodyInstance = GetBodyInstance())
+	{
+		return ThisBodyInstance->OverlapTest(Pos, Rot, CollisionShape);
+	}
+
+	TArray<FOverlapResult> NopResult;
+	return OverlapComponentWithResult(Pos, Rot, CollisionShape, NopResult);
+}
+
+bool UPrimitiveComponent::OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape, TArray<FOverlapResult>& OutOverlap) const
+{
+	FPhysicsShapeAdapter_Chaos ShapeAdapter(Rot, CollisionShape);
+	TArray<Chaos::FPhysicsObjectHandle> Objects = GetAllPhysicsObjects();
+	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(Objects);
+	Objects = Objects.FilterByPredicate(
+		[&Interface](Chaos::FPhysicsObjectHandle Handle)
+		{
+			return !Interface->AreAllDisabled({ &Handle, 1 });
+		}
+	);
+
+	TArray<ChaosInterface::FOverlapHit> OverlapHits;
+	if (Interface->ShapeOverlap(Objects, ShapeAdapter.GetGeometry(), ShapeAdapter.GetGeomPose(Pos), OverlapHits))
+	{
+		TArray<FOverlapResult> Overlaps;
+
+		FCollisionFilterData QueryFilter;
+		QueryFilter.Word2 = 0xFFFFF;
+		ConvertOverlapResults(OverlapHits.Num(), OverlapHits.GetData(), QueryFilter, Overlaps);
+
+		if (!Overlaps.IsEmpty())
+		{
+			OutOverlap = Overlaps;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool UPrimitiveComponent::ComputePenetration(FMTDResult& OutMTD, const FCollisionShape & CollisionShape, const FVector& Pos, const FQuat& Rot)
