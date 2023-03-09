@@ -33,7 +33,10 @@ namespace GLTF
 		    : MaterialElementFactory(MaterialElementFactory)
 		    , TextureFactory(TextureFactory)
 		{
-			check(MaterialElementFactory);
+			if (!ensure(MaterialElementFactory))
+			{
+				Messages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("MaterialElementFactory is unexpected nullptr.")));
+			}
 		}
 
 		const TArray<FMaterialElement*>& CreateMaterials(const GLTF::FAsset& Asset, UObject* ParentPackage, EObjectFlags Flags);
@@ -83,6 +86,12 @@ namespace GLTF
 			for (int32 Index = 0; Index < MaterialElement.GetExpressionsCount(); ++Index)
 			{
 				FMaterialExpression* Expression = MaterialElement.GetExpression(Index);
+
+				if (!Expression)
+				{
+					continue;
+				}
+
 				if (Expression->GetType() != EMaterialExpressionType::ConstantColor &&
 				    Expression->GetType() != EMaterialExpressionType::ConstantScalar && Expression->GetType() != EMaterialExpressionType::Texture)
 					continue;
@@ -90,8 +99,10 @@ namespace GLTF
 				FMaterialExpressionParameter* ExpressionParameter = static_cast<FMaterialExpressionParameter*>(Expression);
 				if (ExpressionParameter->GetName() == Name)
 				{
-					Result = static_cast<ReturnClass*>(ExpressionParameter);
-					check(Expression->GetType() == (EMaterialExpressionType)ReturnClass::Type);
+					if (ensure(Expression->GetType() == (EMaterialExpressionType)ReturnClass::Type))
+					{
+						Result = static_cast<ReturnClass*>(ExpressionParameter);
+					}
 					break;
 				}
 			}
@@ -104,6 +115,12 @@ namespace GLTF
 	{
 		TextureFactory->CleanUp();
 		Materials.Empty();
+
+		if (!MaterialElementFactory)
+		{
+			return Materials;
+		}
+
 		Materials.Reserve(Asset.Materials.Num() + 1);
 
 		Messages.Empty();
@@ -113,7 +130,10 @@ namespace GLTF
 
 		for (const GLTF::FMaterial& GLTFMaterial : Asset.Materials)
 		{
-			check(!GLTFMaterial.Name.IsEmpty());
+			if (!ensure(!GLTFMaterial.Name.IsEmpty()))
+			{
+				continue;
+			}
 
 			FMaterialElement* MaterialElement = MaterialElementFactory->CreateMaterial(*GLTFMaterial.Name, ParentPackage, Flags);
 			MaterialElement->SetTwoSided(GLTFMaterial.bIsDoubleSided);
@@ -204,7 +224,10 @@ namespace GLTF
 				break;
 			}
 			default:
-				check(false);
+				if (!ensure(false))
+				{
+					Messages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("AlphaMode Opaque not supported for Opacity")));
+				}
 				break;
 		}
 	}

@@ -34,18 +34,20 @@ namespace GLTF
 				// Handle textureInfo extensions
 				if (TexObj.HasTypedField<EJson::Object>(TEXT("extensions")))
 				{
-					enum
-					{
-						KHR_texture_transform = 0
+					static const TArray<EExtension> SupportedTextureInfoExtensions = {
+						EExtension::KHR_TextureTransform
 					};
-
-					static const TArray<FString> SupportedTextureInfoExtensions = { TEXT("KHR_texture_transform") };
+					TArray<FString> SupportedTextureInfoExtensionsStringified;
+					for (size_t ExtensionIndex = 0; ExtensionIndex < SupportedTextureInfoExtensions.Num(); ExtensionIndex++)
+					{
+						SupportedTextureInfoExtensionsStringified.Add(GLTF::ToString(SupportedTextureInfoExtensions[ExtensionIndex]));
+					}
 
 					const FJsonObject& ExtensionsObj = *TexObj.GetObjectField(TEXT("extensions"));
 
 					for (int32 Index = 0; Index < SupportedTextureInfoExtensions.Num(); ++Index)
 					{
-						const FString ExtensionName = SupportedTextureInfoExtensions[Index];
+						const FString ExtensionName = SupportedTextureInfoExtensionsStringified[Index];
 						if (!ExtensionsObj.HasTypedField<EJson::Object>(ExtensionName))
 						{
 							OutMessages.Emplace(EMessageSeverity::Warning, FString::Printf(TEXT("Extension is not supported: %s"), *ExtensionName));
@@ -53,9 +55,11 @@ namespace GLTF
 						}
 
 						const FJsonObject& ExtObj = *ExtensionsObj.GetObjectField(ExtensionName);
-						switch (Index)
+
+						const EExtension Extension = SupportedTextureInfoExtensions[Index];
+						switch (Extension)
 						{
-							case KHR_texture_transform:
+							case EExtension::KHR_TextureTransform:
 							{
 								OutMap.bHasTextureTransform = true;
 								OutMap.TextureTransform.Offset[0] = 0.0f;

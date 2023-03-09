@@ -119,7 +119,10 @@ namespace GLTF
 		template <typename T>
 		void ReIndex(const TArray<T>& Source, const TArray<uint32>& Indices, TArray<T>& Dst)
 		{
-			check(&Source != &Dst);
+			if (!ensure(&Source != &Dst))
+			{
+				return;
+			}
 
 			Dst.Reserve(Indices.Num());
 			for (uint32 Index : Indices)
@@ -132,8 +135,11 @@ namespace GLTF
 		{
 			Normals.Empty();
 
-			const uint32 N = Indices.Num();
-			check(N % 3 == 0);
+			uint32 N = Indices.Num();
+			if (!ensure(N % 3 == 0))
+			{
+				N -= N % 3;
+			}
 			Normals.AddUninitialized(N);
 
 			for (uint32 i = 0; i < N; i += 3)

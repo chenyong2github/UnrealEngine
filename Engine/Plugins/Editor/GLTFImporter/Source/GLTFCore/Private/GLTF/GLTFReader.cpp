@@ -236,6 +236,11 @@ namespace GLTF
 	void FFileReader::SetupPrimitive(const FJsonObject& Object, FMesh& Mesh) const
 	{
 		const FPrimitive::EMode       Mode = PrimitiveModeFromNumber(GetUnsignedInt(Object, TEXT("mode"), (uint32)FPrimitive::EMode::Triangles));
+		if (Mode == FPrimitive::EMode::Unknown)
+		{
+			return;
+		}
+
 		const int32                   MaterialIndex = GetIndex(Object, TEXT("material"));
 		const TArray<FValidAccessor>& A             = Asset->Accessors;
 
@@ -929,8 +934,9 @@ namespace GLTF
 			OutAsset.Samplers.Empty(SamplerCount);
 			OutAsset.Textures.Empty(TextureCount);
 			OutAsset.Materials.Empty(MaterialCount);
-			OutAsset.ExtensionsUsed.Empty((int)EExtension::Count);
-			OutAsset.RequiredExtensions.Empty();
+			OutAsset.ProcessedExtensions.Empty((int)EExtension::Count);
+			OutAsset.ExtensionsUsed.Empty();
+			OutAsset.ExtensionsRequired.Empty();
 		}
 
 		// allocate asset mapped data for images and buffers
@@ -966,11 +972,23 @@ namespace GLTF
 		const TArray<TSharedPtr<FJsonValue>>* ExtensionsRequired;
 		if (JsonRoot->TryGetArrayField(TEXT("extensionsRequired"), ExtensionsRequired))
 		{
-			check(ExtensionsRequired);
-			OutAsset.RequiredExtensions.Reserve(OutAsset.RequiredExtensions.Num() + ExtensionsRequired->Num());
-			for (const TSharedPtr<FJsonValue>& Extension : *ExtensionsRequired)
+			if (ensure(ExtensionsRequired))
 			{
-				OutAsset.RequiredExtensions.Add(Extension->AsString());
+				OutAsset.ExtensionsRequired.Reserve(OutAsset.ExtensionsRequired.Num() + ExtensionsRequired->Num());
+				for (const TSharedPtr<FJsonValue>& Extension : *ExtensionsRequired)
+				{
+					OutAsset.ExtensionsRequired.Add(Extension->AsString());
+				}
+			}
+		}
+
+		const TArray<TSharedPtr<FJsonValue>>* ExtensionsUsed;
+		if (JsonRoot->TryGetArrayField(TEXT("extensionsUsed"), ExtensionsUsed))
+		{
+			OutAsset.ExtensionsUsed.Reserve(ExtensionsUsed->Num());
+			for (const TSharedPtr<FJsonValue>& Extension : *ExtensionsUsed)
+			{
+				OutAsset.ExtensionsUsed.Add(Extension->AsString());
 			}
 		}
 

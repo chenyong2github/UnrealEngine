@@ -52,23 +52,24 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
 	TEXT("Whether glTF support is enabled."),
 	ECVF_Default);
 
-static const TArray<FString> SupportedExtensions = {/* Lights */
-													TEXT("KHR_lights_punctual"),
-													TEXT("KHR_lights"),
-													/* Variants */
-													TEXT("KHR_materials_variants"), 
-													/* Materials */
-													TEXT("KHR_materials_unlit"),
-													TEXT("KHR_materials_ior"),
-													TEXT("KHR_materials_clearcoat"),
-													TEXT("KHR_materials_transmission"),
-													TEXT("KHR_materials_sheen"),
-													TEXT("KHR_materials_specular"),
-													TEXT("KHR_materials_pbrSpecularGlossiness"),
-													TEXT("MSFT_packing_occlusionRoughnessMetallic"),
-													TEXT("MSFT_packing_normalRoughnessMetallic"),
-													/* Textures */
-													TEXT("KHR_texture_transform")
+static const TArray<FString> ImporterSupportedExtensions = {
+	/* Lights */
+	GLTF::ToString(GLTF::EExtension::KHR_LightsPunctual),
+	GLTF::ToString(GLTF::EExtension::KHR_Lights),
+	/* Variants */
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsVariants),
+	/* Materials */
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsUnlit),
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsIOR),
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsClearCoat),
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsTransmission),
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsSheen),
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsSpecular),
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsPbrSpecularGlossiness),
+	GLTF::ToString(GLTF::EExtension::MSFT_PackingOcclusionRoughnessMetallic),
+	GLTF::ToString(GLTF::EExtension::MSFT_PackingNormalRoughnessMetallic),
+	/* Textures */
+	GLTF::ToString(GLTF::EExtension::KHR_TextureTransform)
 };
 
 namespace UE::Interchange::Gltf::Private
@@ -143,31 +144,44 @@ namespace UE::Interchange::Gltf::Private
 		NOTSUPPORTED_EXTENSION_FOUND
 	};
 	void SendAnalytics(const TranslationResult& TranslationResult,
-		const FString& NotSupportedExtensions = FString(),
-		const TSet<GLTF::EExtension>& ExtensionsUsed = TSet<GLTF::EExtension>(),
-		const TArray<FString>& RequiredExtensions = TArray<FString>(),
+		const TArray<FString>& ExtensionsUsed = TArray<FString>(),
+		const TArray<FString>& ExtensionsRequired = TArray<FString>(),
 		GLTF::FMetadata Metadata = GLTF::FMetadata(),
 		const FString& GLTFReaderLogMessage = "")
 	{
 		if (FEngineAnalytics::IsAvailable())
 		{
-			TArray<FString> ExtensionsUsedStringified;
-			for (GLTF::EExtension Extension : ExtensionsUsed)
-			{
-				ExtensionsUsedStringified.Add(FString(GLTF::ToString(Extension)));
-			}
-
 			TMap<FString, FString> MetadataExtras;
 			for (GLTF::FMetadata::FExtraData ExtraData : Metadata.Extras)
 			{
 				MetadataExtras.Add(ExtraData.Name, ExtraData.Value);
 			}
 
+			TSet<FString> AllExtensions;
+			AllExtensions.Append(ExtensionsUsed);
+			AllExtensions.Append(ExtensionsRequired);
+
+			TArray<FString> ExtensionsSupported;
+			TArray<FString> ExtensionsUnsupported;
+
+			for (const FString& Extension : AllExtensions)
+			{
+				if (ImporterSupportedExtensions.Find(Extension) == INDEX_NONE)
+				{
+					ExtensionsUnsupported.Add(Extension);
+				}
+				else
+				{
+					ExtensionsSupported.Add(Extension);
+				}
+			}
+
 			TArray<FAnalyticsEventAttribute> GLTFAnalytics;
-			if (NotSupportedExtensions.Len() > 0)			GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("NotSupportedExtensions"), NotSupportedExtensions));
-			if (RequiredExtensions.Num() > 0)		GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("RequiredExtensions"), RequiredExtensions));
-			if (ExtensionsUsedStringified.Num() > 0)		GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("UsedExtensions"), ExtensionsUsedStringified));
-			if (Metadata.GeneratorName.Len() > 0)	GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("MetaData.GeneratorName"), Metadata.GeneratorName));
+			if (ExtensionsUsed.Num() > 0)					GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("ExtensionsUsed"), ExtensionsUsed));
+			if (ExtensionsRequired.Num() > 0)				GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("ExtensionsRequired"), ExtensionsRequired));
+			if (ExtensionsSupported.Num() > 0)				GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("ExtensionsSupported"), ExtensionsSupported));
+			if (ExtensionsUnsupported.Num() > 0)			GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("ExtensionsUnsupported"), ExtensionsUnsupported));
+			if (Metadata.GeneratorName.Len() > 0)			GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("MetaData.GeneratorName"), Metadata.GeneratorName));
 			if (MetadataExtras.Num() > 0)					GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("MetaData.Extras"), MetadataExtras));
 			/*Version is always set at this point.*/		GLTFAnalytics.Add(FAnalyticsEventAttribute(TEXT("MetaData.Version"), Metadata.Version));
 
@@ -964,18 +978,14 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 	const FString FileName = GltfAsset.Name;
 
 	//Required Extension Check:
-	FString NotSupportedExtensions;
-	if (GltfAsset.RequiredExtensions.Num() != 0)
+	TArray<FString> NotSupportedRequiredExtensions;
+	if (GltfAsset.ExtensionsRequired.Num() != 0)
 	{
-		for (const FString& RequiredExtension : GltfAsset.RequiredExtensions)
+		for (const FString& RequiredExtension : GltfAsset.ExtensionsRequired)
 		{
-			if (SupportedExtensions.Find(RequiredExtension) == INDEX_NONE)
+			if (ImporterSupportedExtensions.Find(RequiredExtension) == INDEX_NONE)
 			{
-				if (NotSupportedExtensions.Len() > 0)
-				{
-					NotSupportedExtensions += ", ";
-				}
-				NotSupportedExtensions += RequiredExtension;
+				NotSupportedRequiredExtensions.Add(RequiredExtension);
 			}
 		}
 	}
@@ -990,21 +1000,31 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			ErrorResult->SourceAssetName = FileName;
 			ErrorResult->Text = FText::Format(LOCTEXT("GLTF::FFileReader::ReadFile Failed.", "LogMessage: {0}"), FText::FromString(LogMessage.Value));
 
-			SendAnalytics(TranslationResult::GLTFREADER_FAILED, NotSupportedExtensions, GltfAsset.ExtensionsUsed, GltfAsset.RequiredExtensions, GltfAsset.Metadata, LogMessage.Value);
+			SendAnalytics(TranslationResult::GLTFREADER_FAILED, GltfAsset.ExtensionsUsed,GltfAsset.ExtensionsRequired, GltfAsset.Metadata, LogMessage.Value);
 			return false;
 		}
 	}
 
 	//In case of non supported extensions fail out:
-	if (NotSupportedExtensions.Len() > 0)
+	if (NotSupportedRequiredExtensions.Num() > 0)
 	{
+		FString NotSupportedRequiredExtensionsStringified;
+		for (const FString& NotSupportedExtension : NotSupportedRequiredExtensions)
+		{
+			if (NotSupportedRequiredExtensionsStringified.Len() > 0)
+			{
+				NotSupportedRequiredExtensionsStringified += ", ";
+			}
+			NotSupportedRequiredExtensionsStringified += NotSupportedExtension;
+		}
+
 		UInterchangeResultError_Generic* ErrorResult = AddMessage< UInterchangeResultError_Generic >();
 		ErrorResult->SourceAssetName = FileName;
 		ErrorResult->Text = FText::Format(
 			LOCTEXT("UnsupportedRequiredExtensions", "Not All Required Extensions are supported. (Unsupported extensions: {0})"),
-			FText::FromString(NotSupportedExtensions));
+			FText::FromString(NotSupportedRequiredExtensionsStringified));
 
-		SendAnalytics(TranslationResult::NOTSUPPORTED_EXTENSION_FOUND, NotSupportedExtensions, GltfAsset.ExtensionsUsed, GltfAsset.RequiredExtensions, GltfAsset.Metadata);
+		SendAnalytics(TranslationResult::NOTSUPPORTED_EXTENSION_FOUND, GltfAsset.ExtensionsUsed, GltfAsset.ExtensionsRequired, GltfAsset.Metadata);
 		return false;
 	}
 
@@ -1254,7 +1274,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF Mesh Import Warning. Gltf Mesh Usage expectation is not met."));
 	}
 
-	SendAnalytics(TranslationResult::SUCCESSFULL, NotSupportedExtensions, GltfAsset.ExtensionsUsed, GltfAsset.RequiredExtensions, GltfAsset.Metadata);;
+	SendAnalytics(TranslationResult::SUCCESSFULL, GltfAsset.ExtensionsUsed, GltfAsset.ExtensionsRequired, GltfAsset.Metadata);
 	return true;
 }
 

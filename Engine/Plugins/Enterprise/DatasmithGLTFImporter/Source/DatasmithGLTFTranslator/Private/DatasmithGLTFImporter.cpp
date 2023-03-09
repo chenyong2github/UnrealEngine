@@ -96,7 +96,7 @@ bool FDatasmithGLTFImporter::OpenFile(const FString& InFileName)
 	check(GLTFAsset->ValidationCheck() == GLTF::FAsset::Valid);
 
 	// check extensions supported
-	for (GLTF::EExtension Extension : GLTFAsset->ExtensionsUsed)
+	for (GLTF::EExtension Extension : GLTFAsset->ProcessedExtensions)
 	{
 		if (!GLTF::FAsset::SupportedExtensions.Contains(Extension))
 		{

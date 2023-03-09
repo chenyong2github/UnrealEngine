@@ -69,28 +69,28 @@ namespace GLTF
 
 	void FMaterialExpressionParameter::SetName(const TCHAR* InName)
 	{
-		check(Type == EMaterialExpressionType::ConstantColor || Type == EMaterialExpressionType::ConstantScalar ||
+		ensure(Type == EMaterialExpressionType::ConstantColor || Type == EMaterialExpressionType::ConstantScalar ||
 		      Type == EMaterialExpressionType::Texture);
 		Name = InName;
 	}
 
 	const TCHAR* FMaterialExpressionParameter::GetName() const
 	{
-		check(Type == EMaterialExpressionType::ConstantColor || Type == EMaterialExpressionType::ConstantScalar ||
+		ensure(Type == EMaterialExpressionType::ConstantColor || Type == EMaterialExpressionType::ConstantScalar ||
 		      Type == EMaterialExpressionType::Texture);
 		return *Name;
 	}
 
 	void FMaterialExpressionParameter::SetGroupName(const TCHAR* InGroupName)
 	{
-		check(Type == EMaterialExpressionType::ConstantColor || Type == EMaterialExpressionType::ConstantScalar ||
+		ensure(Type == EMaterialExpressionType::ConstantColor || Type == EMaterialExpressionType::ConstantScalar ||
 		      Type == EMaterialExpressionType::Texture);
 		GroupName = InGroupName;
 	}
 
 	const TCHAR* FMaterialExpressionParameter::GetGroupName() const
 	{
-		check(Type == EMaterialExpressionType::ConstantColor || Type == EMaterialExpressionType::ConstantScalar ||
+		ensure(Type == EMaterialExpressionType::ConstantColor || Type == EMaterialExpressionType::ConstantScalar ||
 		      Type == EMaterialExpressionType::Texture);
 		return *GroupName;
 	}
@@ -99,7 +99,7 @@ namespace GLTF
 
 	FMaterialExpressionInput* FMaterialExpressionTexture::GetInput(int32 Index)
 	{
-		check(Index == 0);
+		ensure(Index == 0);
 		return &InputCoordinate;
 	}
 
@@ -185,7 +185,10 @@ namespace GLTF
 
 	FMaterialExpression* FMaterialElement::GetExpression(int32 Index)
 	{
-		check(Index < Expressions.Num());
+		if (!ensure(Index < Expressions.Num()))
+		{
+			return nullptr;
+		}
 		return Expressions[Index];
 	}
 
@@ -213,7 +216,7 @@ namespace GLTF
 				Expression = new FMaterialExpressionTextureCoordinate();
 				break;
 			default:
-				check(false);
+				ensure(false);
 		}
 		if (Expression)
 			Expressions.Add(Expression);

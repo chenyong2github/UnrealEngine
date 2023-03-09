@@ -48,7 +48,7 @@ namespace GLTF
 				}
 			}
 			else
-				check(false);
+				ensure(false);
 
 			return Res;
 		}
@@ -113,7 +113,7 @@ namespace GLTF
 				}
 			}
 			else
-				check(false);
+				ensure(false);
 		}
 
 		// Copy data items that don't need conversion/expansion(i.e. Vec3 to Vec3, uint8 to uint8(not uint16)
@@ -309,7 +309,7 @@ namespace GLTF
 			}
 		}
 
-		check(false);
+		ensure(false);
 		return 0;
 	}
 
@@ -341,7 +341,7 @@ namespace GLTF
 				}
 			}
 		}
-		check(false);
+		ensure(false);
 	}
 
 	float FValidAccessor::GetFloat(uint32 Index) const
@@ -363,7 +363,7 @@ namespace GLTF
 			}
 		}
 
-		check(false);
+		ensure(false);
 		return 0.f;
 	}
 
@@ -393,7 +393,7 @@ namespace GLTF
 			}
 		}
 
-		check(false);
+		ensure(false);
 		return FVector2D::ZeroVector;
 	}
 
@@ -423,7 +423,7 @@ namespace GLTF
 			}
 		}
 
-		check(false);
+		ensure(false);
 		return FVector::ZeroVector;
 	}
 
@@ -453,7 +453,7 @@ namespace GLTF
 			}
 		}
 
-		check(false);
+		ensure(false);
 		return FVector4();
 	}
 
@@ -473,7 +473,7 @@ namespace GLTF
 			}
 		}
 
-		check(false);
+		ensure(false);
 		return FMatrix();
 	}
 
@@ -498,7 +498,7 @@ namespace GLTF
 			}
 		}
 
-		check(false);
+		ensure(false);
 	}
 
 	void FValidAccessor::GetFloatArray(float* Buffer) const
@@ -516,7 +516,7 @@ namespace GLTF
 			}
 		}
 
-		check(false);
+		ensure(false);
 	}
 
 	void FValidAccessor::GetVec2Array(FVector2f* Buffer) const
@@ -558,7 +558,7 @@ namespace GLTF
 			return;
 		}
 
-		check(false);
+		ensure(false);
 	}
 
 	inline const uint8* FValidAccessor::DataAt(uint32 Index) const

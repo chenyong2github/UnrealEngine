@@ -35,6 +35,7 @@ namespace GLTF
 		KHR_TextureTransform,
 		KHR_DracoMeshCompression,
 		KHR_LightsPunctual,
+		KHR_Lights,
 		KHR_Blend,
 		MSFT_TextureDDS,
 		MSFT_PackingNormalRoughnessMetallic,
@@ -95,9 +96,12 @@ namespace GLTF
 
 		TArray<FString>   Variants;
 
-		TSet<EExtension> ExtensionsUsed;
-		TArray<FString>	 RequiredExtensions;
+		TArray<FString>	 ExtensionsUsed;      //marked in the gltf
+		TArray<FString>	 ExtensionsRequired;  //marked in the gltf
+
+		TSet<EExtension> ProcessedExtensions;
 		FMetadata        Metadata;
+
 
 		/**
 		 * Will clear the asset's buffers.

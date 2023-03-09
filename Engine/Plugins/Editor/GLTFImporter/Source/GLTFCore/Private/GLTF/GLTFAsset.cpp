@@ -84,8 +84,8 @@ namespace GLTF
 		Textures.Empty();
 		Materials.Empty();
 
-		ExtensionsUsed.Empty((int)EExtension::Count);
-		RequiredExtensions.Empty();
+		ProcessedExtensions.Empty((int)EExtension::Count);
+		ExtensionsRequired.Empty();
 		Metadata.GeneratorName.Empty();
 		Metadata.Extras.Empty();
 
@@ -97,7 +97,7 @@ namespace GLTF
 
 	void FAsset::GenerateNames(const FString& Prefix)
 	{
-		check(!Prefix.IsEmpty());
+		ensure(!Prefix.IsEmpty());
 
 		{
 			const FString ScenePrefix = Prefix + TEXT("_scene_");
@@ -319,7 +319,7 @@ namespace GLTF
 			if (!VisitCount.Contains(NodeIndex))
 				NodeIndices.Add(NodeIndex);
 			else
-				check(VisitCount[NodeIndex] == 1);
+				ensure(VisitCount[NodeIndex] == 1);
 		}
 	}
 
@@ -367,35 +367,39 @@ namespace GLTF
 		switch (Extension)
 		{
 			case GLTF::EExtension::KHR_MaterialsPbrSpecularGlossiness:
-				return TEXT("KHR_Materials_PbrSpecularGlossiness");
+				return TEXT("KHR_materials_pbrSpecularGlossiness");
 			case GLTF::EExtension::KHR_MaterialsUnlit:
-				return TEXT("KHR_Materials_Unlit");
+				return TEXT("KHR_materials_unlit");
 			case GLTF::EExtension::KHR_MaterialsClearCoat:
-				return TEXT("KHR_MaterialsClearCoat");
-			case GLTF::EExtension::KHR_MaterialsSheen:
-				return TEXT("KHR_MaterialsSheen");
+				return TEXT("KHR_materials_clearcoat");
 			case GLTF::EExtension::KHR_MaterialsTransmission:
-				return TEXT("KHR_MaterialsTransmission");
-			case GLTF::EExtension::KHR_MaterialsSpecular:
-				return TEXT("KHR_MaterialsSpecular");
+				return TEXT("KHR_materials_transmission");
+			case GLTF::EExtension::KHR_MaterialsSheen:
+				return TEXT("KHR_materials_sheen");
+			case GLTF::EExtension::KHR_MaterialsVariants:
+				return TEXT("KHR_materials_variants");
 			case GLTF::EExtension::KHR_MaterialsIOR:
-				return TEXT("KHR_MaterialsIOR");
+				return TEXT("KHR_materials_ior");
+			case GLTF::EExtension::KHR_MaterialsSpecular:
+				return TEXT("KHR_materials_specular");
 			case GLTF::EExtension::KHR_TextureTransform:
-				return TEXT("KHR_Texture_Transform");
+				return TEXT("KHR_texture_transform");
 			case GLTF::EExtension::KHR_DracoMeshCompression:
-				return TEXT("KHR_DracoMeshCompression");
+				return TEXT("KHR_draco_mesh_compression");
 			case GLTF::EExtension::KHR_LightsPunctual:
-				return TEXT("KHR_LightsPunctual");
+				return TEXT("KHR_lights_punctual");
+			case GLTF::EExtension::KHR_Lights:
+				return TEXT("KHR_lights");
 			case GLTF::EExtension::KHR_Blend:
-				return TEXT("KHR_Blend");
+				return TEXT("KHR_blend");
 			case GLTF::EExtension::MSFT_TextureDDS:
-				return TEXT("MSFT_Texture_DDS");
+				return TEXT("MSFT_texture_dds");
 			case GLTF::EExtension::MSFT_PackingNormalRoughnessMetallic:
-				return TEXT("MSFT_Packing_NormalRoughnessMetallic");
+				return TEXT("MSFT_packing_normalRoughnessMetallic");
 			case GLTF::EExtension::MSFT_PackingOcclusionRoughnessMetallic:
-				return TEXT("MSFT_Packing_OcclusionRoughnessMetallic");
+				return TEXT("MSFT_packing_occlusionRoughnessMetallic");
 			case GLTF::EExtension::Count:
-				check(false);
+				ensure(false);
 			default:
 				return TEXT("UnknwonExtension");
 		}

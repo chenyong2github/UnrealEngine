@@ -74,7 +74,7 @@ namespace GLTFImporterImpl
 				return TEXT("jpeg");
 				break;
 			default:
-				check(false);
+				ensure(false);
 				return TEXT("unknown");
 		}
 	}
@@ -110,7 +110,7 @@ GLTF::ITextureElement* FGLTFTextureFactory::CreateTexture(const GLTF::FTexture& 
 	UTexture2D* Texture = nullptr;
 	if (!FPaths::GetExtension(GltfTexture.Source.FilePath).IsEmpty())
 	{
-		check(GltfTexture.Source.Data == nullptr);
+		ensure(GltfTexture.Source.Data == nullptr);
 		bool bOperationCanceled = false;
 		Texture                 = static_cast<UTexture2D*>(Factory->FactoryCreateFile(UTexture2D::StaticClass(), AssetPackage, *TextureName, Flags,
                                                                       GltfTexture.Source.FilePath, nullptr, nullptr, bOperationCanceled));
@@ -121,7 +121,7 @@ GLTF::ITextureElement* FGLTFTextureFactory::CreateTexture(const GLTF::FTexture& 
 	}
 	else if (GltfTexture.Source.Format != GLTF::FImage::EFormat::Unknown)
 	{
-		check(GltfTexture.Source.Data != nullptr);
+		ensure(GltfTexture.Source.Data != nullptr);
 
 		const uint8* PtrTextureData    = GltfTexture.Source.Data;
 		const uint8* PtrTextureDataEnd = PtrTextureData + GltfTexture.Source.DataByteLength;

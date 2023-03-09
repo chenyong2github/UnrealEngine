@@ -78,7 +78,7 @@ namespace GLTF
 		{
 			return FMaterial::EAlphaMode::Blend;
 		}
-		check(false);
+		ensure(false);
 		return FMaterial::EAlphaMode::Opaque;
 	}
 
@@ -101,7 +101,7 @@ namespace GLTF
 		{
 			return FAnimation::EPath::Weights;
 		}
-		check(false);
+		ensure(false);
 		return FAnimation::EPath::Rotation;
 	}
 
@@ -116,7 +116,11 @@ namespace GLTF
 		    FPrimitive::EMode::TriangleStrip,
 		    FPrimitive::EMode::TriangleFan,
 		});
-		check(SafetyCheck.Find(static_cast<FPrimitive::EMode>(Num)) != INDEX_NONE);
+
+		if (!ensure(SafetyCheck.Find(static_cast<FPrimitive::EMode>(Num)) != INDEX_NONE))
+		{
+			return FPrimitive::EMode::Unknown;
+		}
 
 		return static_cast<FPrimitive::EMode>(Num);
 	}
@@ -156,7 +160,10 @@ namespace GLTF
 		static const TArray<FSampler::EFilter> SafetyCheck({FSampler::EFilter::Nearest, FSampler::EFilter::Linear,
 		                                                    FSampler::EFilter::NearestMipmapNearest, FSampler::EFilter::LinearMipmapNearest,
 		                                                    FSampler::EFilter::NearestMipmapLinear, FSampler::EFilter::LinearMipmapLinear});
-		check(SafetyCheck.Find(static_cast<FSampler::EFilter>(Num)) != INDEX_NONE);
+		if (!ensure(SafetyCheck.Find(static_cast<FSampler::EFilter>(Num)) != INDEX_NONE))
+		{
+			return FSampler::EFilter::Linear;
+		}
 
 		return static_cast<FSampler::EFilter>(Num);
 	}
@@ -164,7 +171,10 @@ namespace GLTF
 	inline FSampler::EWrap WrapModeFromNumber(uint16 Num)
 	{
 		static const TArray<FSampler::EWrap> SafetyCheck({FSampler::EWrap::ClampToEdge, FSampler::EWrap::MirroredRepeat, FSampler::EWrap::Repeat});
-		check(SafetyCheck.Find(static_cast<FSampler::EWrap>(Num)) != INDEX_NONE);
+		if (!ensure(SafetyCheck.Find(static_cast<FSampler::EWrap>(Num)) != INDEX_NONE))
+		{
+			return FSampler::EWrap::Repeat;
+		}
 
 		return static_cast<FSampler::EWrap>(Num);
 	}

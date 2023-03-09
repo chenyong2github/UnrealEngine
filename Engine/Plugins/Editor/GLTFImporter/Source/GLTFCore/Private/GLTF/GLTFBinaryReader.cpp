@@ -97,7 +97,10 @@ namespace GLTF
 
 	bool FBinaryFileReader::ReadFile(FArchive& FileReader)
 	{
-		check(BinChunk);
+		if (!ensure(BinChunk))
+		{
+			return false;
+		}
 
 		Messages.Empty();
 

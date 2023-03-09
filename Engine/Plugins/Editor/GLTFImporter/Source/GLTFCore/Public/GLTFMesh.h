@@ -90,7 +90,10 @@ namespace GLTF
 			Triangles = 4,
 			// will be supported prior to release
 			TriangleStrip = 5,
-			TriangleFan   = 6
+			TriangleFan   = 6,
+
+			//
+			Unknown = 7
 		};
 
 		const EMode Mode;
@@ -225,7 +228,7 @@ namespace GLTF
 			case 1:
 				return TexCoord1.GetVec2Array(Buffer);
 			default:
-				check(false);
+				ensure(false);
 				break;
 		}
 	}
@@ -269,7 +272,7 @@ namespace GLTF
 			{
 				Count += Prim.HasJointWeights();
 			}
-			check(Primitives.Num() == Count);
+			ensure(Primitives.Num() == Count);
 		}
 
 		return Result;

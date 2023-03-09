@@ -206,7 +206,10 @@ void UGLTFImportFactory::UpdateMeshes() const
 	const FGLTFImporterContext& Context   = GLTFImporterModule->GetImporterContext();
 	const TArray<UStaticMesh*>& Meshes    = Context.StaticMeshFactory.GetMeshes();
 	const TArray<UMaterial*>&   Materials = Context.Materials;
-	check(Materials.Num() == Context.Asset.Materials.Num());
+	if (!ensure(Materials.Num() == Context.Asset.Materials.Num()))
+	{
+		return;
+	}
 
 	int32 MeshIndex = 0;
 	for (UStaticMesh* StaticMesh : Meshes)
@@ -221,7 +224,10 @@ void UGLTFImportFactory::UpdateMeshes() const
 			if (Primitive.MaterialIndex != INDEX_NONE)
 			{
 				Material = static_cast<UMaterialInterface*>(Materials[Primitive.MaterialIndex]);
-				check(Material);
+				if (!ensure(Material))
+				{
+					continue;
+				}
 			}
 
 			StaticMesh->GetStaticMaterials()[PrimIndex].MaterialInterface = Material;

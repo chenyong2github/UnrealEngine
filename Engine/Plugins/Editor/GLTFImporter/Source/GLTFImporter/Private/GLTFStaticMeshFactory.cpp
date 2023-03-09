@@ -71,7 +71,10 @@ namespace GLTF
 
 	UStaticMesh* FStaticMeshFactoryImpl::CreateMesh(const FMesh& Mesh, UObject* ParentPackage, EObjectFlags Flags)
 	{
-		check(!Mesh.Name.IsEmpty());
+		if (!ensure(!Mesh.Name.IsEmpty()))
+		{
+			return nullptr;
+		}
 
 		const FString PackageName  = UPackageTools::SanitizePackageName(FPaths::Combine(ParentPackage->GetName(), Mesh.Name));
 		UPackage*     AssetPackage = CreatePackage(*PackageName);

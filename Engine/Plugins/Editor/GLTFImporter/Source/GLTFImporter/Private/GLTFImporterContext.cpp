@@ -44,10 +44,13 @@ bool FGLTFImporterContext::OpenFile(const FString& FilePath)
 	{
 		return false;
 	}
-	check(Asset.ValidationCheck() == GLTF::FAsset::Valid);
+	if (!ensure(Asset.ValidationCheck() == GLTF::FAsset::Valid))
+	{
+		return false;
+	}
 
 	// check extensions supported
-	for (GLTF::EExtension Extension : Asset.ExtensionsUsed)
+	for (GLTF::EExtension Extension : Asset.ProcessedExtensions)
 	{
 		if (!GLTF::FAsset::SupportedExtensions.Contains(Extension))
 		{

@@ -22,7 +22,7 @@ namespace GLTFImporterImpl
 	template <typename T>
 	T* NewMaterialExpression(UObject* Parent)
 	{
-		check(Parent != nullptr);
+		ensure(Parent != nullptr);
 
 		T* Expression                      = NewObject<T>(Parent);
 		Expression->MaterialExpressionGuid = FGuid::NewGuid();
@@ -65,7 +65,10 @@ namespace GLTFImporterImpl
 
 	UClass* FindClass(const TCHAR* ClassName)
 	{
-		check(ClassName);
+		if (!ensure(ClassName))
+		{
+			return nullptr;
+		}
 
 		if (UClass* Result = FindFirstObject<UClass>(ClassName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("GLTFImporter")))
 		{
@@ -82,7 +85,10 @@ namespace GLTFImporterImpl
 
 	UMaterialExpression* CreateTextureExpression(const GLTF::FMaterialExpression* Expression, UMaterial* UnrealMaterial)
 	{
-		check(Expression->GetType() == GLTF::EMaterialExpressionType::Texture);
+		if (!ensure(Expression->GetType() == GLTF::EMaterialExpressionType::Texture))
+		{
+			return nullptr;
+		}
 		const GLTF::FMaterialExpressionTexture& TextureExpression = *static_cast<const GLTF::FMaterialExpressionTexture*>(Expression);
 
 		UMaterialExpressionTextureSampleParameter2D* MaterialExpression =
@@ -101,7 +107,10 @@ namespace GLTFImporterImpl
 
 	UMaterialExpression* CreateTextureCoordinateExpression(const GLTF::FMaterialExpression* Expression, UMaterial* UnrealMaterial)
 	{
-		check(Expression->GetType() == GLTF::EMaterialExpressionType::TextureCoordinate);
+		if (!ensure(Expression->GetType() == GLTF::EMaterialExpressionType::TextureCoordinate))
+		{
+			return nullptr;
+		}
 		const GLTF::FMaterialExpressionTextureCoordinate& TextureCoordinateExpression =
 		    *static_cast<const GLTF::FMaterialExpressionTextureCoordinate*>(Expression);
 
@@ -113,7 +122,10 @@ namespace GLTFImporterImpl
 
 	UMaterialExpression* CreateGenericExpression(const GLTF::FMaterialExpression* Expression, UMaterial* UnrealMaterial)
 	{
-		check(Expression->GetType() == GLTF::EMaterialExpressionType::Generic);
+		if (!ensure(Expression->GetType() == GLTF::EMaterialExpressionType::Generic))
+		{
+			return nullptr;
+		}
 		const GLTF::FMaterialExpressionGeneric& GenericExpression = *static_cast<const GLTF::FMaterialExpressionGeneric*>(Expression);
 
 		UClass* ExpressionClass = FindClass(*(FString(TEXT("MaterialExpression")) + GenericExpression.GetExpressionName()));
@@ -140,7 +152,10 @@ namespace GLTFImporterImpl
 
 	UMaterialExpression* CreateFunctionCallExpression(const GLTF::FMaterialExpression* Expression, UMaterial* UnrealMaterial)
 	{
-		check(Expression->GetType() == GLTF::EMaterialExpressionType::FunctionCall);
+		if (!ensure(Expression->GetType() == GLTF::EMaterialExpressionType::FunctionCall))
+		{
+			return nullptr;
+		}
 		const GLTF::FMaterialExpressionFunctionCall& FunctionCall = *static_cast<const GLTF::FMaterialExpressionFunctionCall*>(Expression);
 
 		const FSoftObjectPath       MaterialFunctionObjectPath(FString(FunctionCall.GetFunctionPathName()));
@@ -155,7 +170,10 @@ namespace GLTFImporterImpl
 
 	UMaterialExpression* CreateScalarExpression(const GLTF::FMaterialExpression* Expression, UMaterial* UnrealMaterial)
 	{
-		check(Expression->GetType() == GLTF::EMaterialExpressionType::ConstantScalar);
+		if (!ensure(Expression->GetType() == GLTF::EMaterialExpressionType::ConstantScalar))
+		{
+			return nullptr;
+		}
 		const GLTF::FMaterialExpressionScalar& ScalarExpression = *static_cast<const GLTF::FMaterialExpressionScalar*>(Expression);
 
 		UMaterialExpression* Result = nullptr;
@@ -181,7 +199,10 @@ namespace GLTFImporterImpl
 
 	UMaterialExpression* CreateColorExpression(const GLTF::FMaterialExpression* Expression, UMaterial* UnrealMaterial)
 	{
-		check(Expression->GetType() == GLTF::EMaterialExpressionType::ConstantColor);
+		if (!ensure(Expression->GetType() == GLTF::EMaterialExpressionType::ConstantColor))
+		{
+			return nullptr;
+		}
 		const GLTF::FMaterialExpressionColor& ColorExpression = *static_cast<const GLTF::FMaterialExpressionColor*>(Expression);
 
 		UMaterialExpression* Result = nullptr;
@@ -210,41 +231,49 @@ FGLTFMaterialElement::FGLTFMaterialElement(UMaterial* Material)
     : GLTF::FMaterialElement(Material->GetName())
     , Material(Material)
 {
-	check(Material);
+	ensure(Material);
 }
 
 int FGLTFMaterialElement::GetBlendMode() const
 {
-	return Material->BlendMode;
+	if (Material) return Material->BlendMode;
+	
+	return 0;
 }
 
 void FGLTFMaterialElement::SetBlendMode(int InBlendMode)
 {
-	Material->BlendMode = static_cast<EBlendMode>(InBlendMode);
+	if (Material) Material->BlendMode = static_cast<EBlendMode>(InBlendMode);
 }
 
 bool FGLTFMaterialElement::GetTwoSided() const
 {
-	return Material->IsTwoSided();
+	if (Material) return Material->IsTwoSided();
+
+	return false;
 }
 
 void FGLTFMaterialElement::SetTwoSided(bool bTwoSided)
 {
-	Material->TwoSided = bTwoSided;
+	if (Material) Material->TwoSided = bTwoSided;
 }
 
 bool FGLTFMaterialElement::GetIsThinSurface() const
 {
-	return Material->IsThinSurface();
+	if (Material) return Material->IsThinSurface();
+
+	return false;
 }
 
 void FGLTFMaterialElement::SetIsThinSurface(bool bIsThinSurface)
 {
-	Material->bIsThinSurface = bIsThinSurface;
+	if (Material) Material->bIsThinSurface = bIsThinSurface;
 }
 
 void FGLTFMaterialElement::SetShadingModel(GLTF::EGLTFMaterialShadingModel InShadingModel)
 {
+	if (!Material) return;
+
 	EMaterialShadingModel MaterialShadingModel;
 
 	switch (InShadingModel)
@@ -266,12 +295,16 @@ void FGLTFMaterialElement::SetShadingModel(GLTF::EGLTFMaterialShadingModel InSha
 
 void FGLTFMaterialElement::SetTranslucencyLightingMode(int InLightingMode)
 {
-	Material->TranslucencyLightingMode = static_cast<ETranslucencyLightingMode>( InLightingMode );
+	if (Material) Material->TranslucencyLightingMode = static_cast<ETranslucencyLightingMode>( InLightingMode );
 }
 
 void FGLTFMaterialElement::Finalize()
 {
-	check(!bIsFinal);
+	if (!ensure(!bIsFinal) || !Material)
+	{
+		//already finalized.
+		return;
+	}
 
 	TArray<TStrongObjectPtr<UMaterialExpression> > MaterialExpressions;
 	CreateExpressions(MaterialExpressions);
@@ -341,7 +374,10 @@ void FGLTFMaterialElement::CreateExpressions(TArray<TStrongObjectPtr<UMaterialEx
 	{
 		using namespace GLTFImporterImpl;
 
-		check(Expression);
+		if (!ensure(Expression))
+		{
+			continue;
+		}
 
 		UMaterialExpression* MaterialExpression = nullptr;
 		switch (Expression->GetType())
@@ -368,7 +404,7 @@ void FGLTFMaterialElement::CreateExpressions(TArray<TStrongObjectPtr<UMaterialEx
 				break;
 		}
 
-		check(MaterialExpression);
+		ensure(MaterialExpression);
 
 		MaterialExpressions.Add(TStrongObjectPtr<UMaterialExpression>(MaterialExpression));
 
@@ -397,17 +433,16 @@ void FGLTFMaterialElement::ConnectExpression(const GLTF::FMaterialExpression*   
                                              FExpressionInput&                                     ExpressionInput,      //
                                              int32                                                 OutputIndex)
 {
-	check(Expressions.Num() == MaterialExpressions.Num());
+	ensure(Expressions.Num() == MaterialExpressions.Num());
 
 	if (ExpressionPtr == nullptr)
 		return;
 
 	GLTF::FMaterialExpression& Expression      = *const_cast<GLTF::FMaterialExpression*>(ExpressionPtr);  // safe as we dont modify it
 	const int32                ExpressionIndex = Expressions.Find(&Expression);
-	check(ExpressionIndex != INDEX_NONE);
-	if (!MaterialExpressions.IsValidIndex(ExpressionIndex))
+	if (ExpressionIndex != INDEX_NONE  || !MaterialExpressions.IsValidIndex(ExpressionIndex))
 	{
-		check(false);
+		ensure(false);
 		return;
 	}
 

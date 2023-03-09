@@ -127,7 +127,10 @@ namespace GLTF
 
 	void FPBRMapFactory::CreateNormalMap(const GLTF::FTexture& Map, int CoordinateIndex, float NormalScale, const GLTF::FTextureTransform* TextureTransform)
 	{
-		check(CurrentMaterialElement);
+		if (!ensure(CurrentMaterialElement))
+		{
+			return;
+		}
 
 		FMaterialExpressionTexture* TexExpression = CreateTextureMap(Map, CoordinateIndex, TEXT("Normal Map"), ETextureMode::Normal, TextureTransform);
 		if (!TexExpression)
@@ -317,8 +320,10 @@ namespace GLTF
 	                                               const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput, 
 												   const GLTF::FTextureTransform* TextureTransform)
 	{
-		check(MapName);
-		check(CurrentMaterialElement);
+		if (!ensure(MapName) || !ensure(CurrentMaterialElement))
+		{
+			return nullptr;
+		}
 
 		ValueExpressionClass* ValueExpression = CurrentMaterialElement->AddMaterialExpression<ValueExpressionClass>();
 		if (ValueName)
