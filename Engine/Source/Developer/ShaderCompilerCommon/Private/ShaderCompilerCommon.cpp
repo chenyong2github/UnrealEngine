@@ -815,6 +815,25 @@ void HandleReflectedShaderResource(
 	);
 }
 
+void UpdateStructuredBufferStride(
+	const FShaderCompilerInput& Input,
+	const FString& ResourceName,
+	uint16 BindPoint,
+	uint16 Stride,
+	FShaderCompilerOutput& CompilerOutput
+)
+{
+	if (BindPoint <= UINT16_MAX && Stride <= UINT16_MAX)
+	{
+		CompilerOutput.ParametersStrideToValidate.Add(FShaderCodeValidationStride{ BindPoint, Stride });
+	}
+	else
+	{
+		FString ErrorMessage = FString::Printf(TEXT("%s: Failed to set stride on parameter %s: Bind point %d, Stride %d"), *Input.GenerateShaderName(), *ResourceName, BindPoint, Stride);
+		CompilerOutput.Errors.Add(FShaderCompilerError(*ErrorMessage));
+	}
+}
+
 void HandleReflectedShaderUAV(
 	const FString& UAVName,
 	int32 BindOffset,

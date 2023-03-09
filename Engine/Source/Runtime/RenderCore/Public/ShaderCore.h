@@ -730,6 +730,29 @@ struct FShaderCodeVendorExtension
 
 };
 
+
+inline FArchive& operator<<(FArchive& Ar, FShaderCodeValidationStride& ShaderCodeValidationStride)
+{
+	return Ar << ShaderCodeValidationStride.BindPoint << ShaderCodeValidationStride.Stride;
+}
+
+struct FShaderCodeValidationExtension
+{
+	// for FindOptionalData() and AddOptionalData()
+	static constexpr uint8 Key = 'V';
+	static constexpr uint16 StaticVersion = 0;
+
+	TArray<FShaderCodeValidationStride> ShaderCodeValidationStride;
+	uint16 Version = StaticVersion;
+
+	friend FArchive& operator<<(FArchive& Ar, FShaderCodeValidationExtension& Extension)
+	{
+		Ar << Extension.Version;
+		Ar << Extension.ShaderCodeValidationStride;
+		return Ar;
+	}
+};
+
 #ifndef RENDERCORE_ATTRIBUTE_UNALIGNED
 // TODO find out if using GCC_ALIGN(1) instead of this new #define break on all kinds of platforms...
 #define RENDERCORE_ATTRIBUTE_UNALIGNED

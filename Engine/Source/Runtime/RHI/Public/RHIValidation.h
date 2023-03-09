@@ -495,6 +495,7 @@ public:
 	{
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(Buffer);
 		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+		SRV->ValidationStride = Buffer->GetStride();
 		return SRV;
 	}
 
@@ -504,6 +505,7 @@ public:
 	{
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(Buffer, Stride, Format);
 		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+		SRV->ValidationStride = Stride;
 		return SRV;
 	}
 
@@ -524,10 +526,12 @@ public:
 		if (Buffer)
 		{
 			SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+			SRV->ValidationStride = Stride;
 		}
 		else
 		{
 			SRV->ResetViewIdentity();
+			SRV->ValidationStride = 0;
 		}
 	}
 
@@ -538,10 +542,12 @@ public:
 		if (Buffer)
 		{
 			SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+			SRV->ValidationStride = Buffer->GetStride();
 		}
 		else
 		{
 			SRV->ResetViewIdentity();
+			SRV->ValidationStride = 0;
 		}
 	}
 
@@ -1279,6 +1285,7 @@ public:
 	{
 		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Buffer, Stride, Format);
 		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+		SRV->ValidationStride = Stride;
 		return SRV;
 	}
 
@@ -1293,6 +1300,11 @@ public:
 			SRV->ViewIdentity = Initializer.AsBufferSRV().Buffer->GetWholeResourceIdentity();
 		}
 
+		if (Initializer.GetType() == FShaderResourceViewInitializer::EType::StructuredBufferSRV && Initializer.AsStructuredBufferSRV().Buffer)
+		{
+			SRV->ValidationStride = Initializer.AsStructuredBufferSRV().Buffer->GetStride();
+		}
+
 		return SRV;
 	}
 
@@ -1300,6 +1312,7 @@ public:
 	{
 		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Buffer);
 		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+		SRV->ValidationStride = Buffer->GetStride();
 		return SRV;
 	}
 
@@ -1432,6 +1445,7 @@ public:
 	{
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Buffer, Stride, Format);
 		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+		SRV->ValidationStride = Stride;
 		return SRV;
 	}
 
@@ -1439,6 +1453,7 @@ public:
 	{
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Buffer);
 		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+		SRV->ValidationStride = Buffer->GetStride();
 		return SRV;
 	}
 

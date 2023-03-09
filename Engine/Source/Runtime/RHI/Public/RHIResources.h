@@ -779,6 +779,8 @@ public:
 			: TEXT("<unknown>");
 	}
 
+	TArray<FShaderCodeValidationStride> DebugStrideValidationData;
+
 #else
 
 	const TCHAR* GetShaderName() const { return TEXT("<unknown>"); }

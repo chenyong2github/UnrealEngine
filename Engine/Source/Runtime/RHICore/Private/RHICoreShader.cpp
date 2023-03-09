@@ -62,5 +62,23 @@ void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBuffe
 #endif
 }
 
+void SetupShaderCodeValidationData(FRHIShader* RHIShader, FShaderCodeReader& ShaderCodeReader)
+{
+#if RHI_INCLUDE_SHADER_DEBUG_DATA && ENABLE_RHI_VALIDATION
+	if (GRHIValidationEnabled && RHIShader)
+	{
+		int32 ShaderCodeValidationExtensionSize = 0;
+		const uint8* ShaderCodeValidationExtensionData = ShaderCodeReader.FindOptionalDataAndSize(FShaderCodeValidationExtension::Key, ShaderCodeValidationExtensionSize);
+		if (ShaderCodeValidationExtensionData && ShaderCodeValidationExtensionSize > 0)
+		{
+			FBufferReader ArValidationExtensionData((void*)ShaderCodeValidationExtensionData, ShaderCodeValidationExtensionSize, false);
+			FShaderCodeValidationExtension ShaderCodeValidationExtension;
+			ArValidationExtensionData << ShaderCodeValidationExtension;
+			RHIShader->DebugStrideValidationData.Append(ShaderCodeValidationExtension.ShaderCodeValidationStride);
+		}
+	}
+#endif
+}
+
 } //! RHICore
 } //! UE

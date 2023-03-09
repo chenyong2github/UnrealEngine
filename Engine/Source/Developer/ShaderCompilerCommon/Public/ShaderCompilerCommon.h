@@ -173,6 +173,14 @@ extern SHADERCOMPILERCOMMON_API void HandleReflectedShaderResource(
 	FShaderCompilerOutput& CompilerOutput
 );
 
+extern SHADERCOMPILERCOMMON_API void UpdateStructuredBufferStride(
+	const FShaderCompilerInput& Input,
+	const FString& ResourceName,
+	uint16 BindPoint,
+	uint16 Stride,
+	FShaderCompilerOutput& CompilerOutput
+);
+
 inline void HandleReflectedShaderResource(const FString& ResourceName, int32 ReflectionSlot, int32 BindCount, FShaderCompilerOutput& CompilerOutput)
 {
 	HandleReflectedShaderResource(ResourceName, 0, ReflectionSlot, BindCount, CompilerOutput);

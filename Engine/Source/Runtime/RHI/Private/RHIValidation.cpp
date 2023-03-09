@@ -13,6 +13,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "RHIContext.h"
 #include "RHIStrings.h"
+#include "Algo/BinarySearch.h"
 
 #if ENABLE_RHI_VALIDATION
 
@@ -1948,6 +1949,42 @@ namespace RHIValidation
 		FPlatformStackWalk::CaptureStackBackTrace(Backtrace, MaxDepth);
 
 		return Backtrace;
+	}
+
+	/** Validates that the SRV is conform to what the shader expects */
+	void ValidateShaderResourceView(const FRHIShader* RHIShaderBase, uint32 BindIndex, FRHIShaderResourceView* SRV)
+	{
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
+		if (SRV)
+		{
+			// DebugStrideValidationData is supposed to be already sorted
+			static const auto ShaderCodeValidationStridePredicate = [](const FShaderCodeValidationStride& lhs, const FShaderCodeValidationStride& rhs) -> bool { return lhs.BindPoint < rhs.BindPoint; };
+			FShaderCodeValidationStride SRVValidationStride = { BindIndex , SRV->ValidationStride };
+			const int32 FoundIndex =  Algo::BinarySearch(RHIShaderBase->DebugStrideValidationData, SRVValidationStride, ShaderCodeValidationStridePredicate);
+			if (FoundIndex != INDEX_NONE)
+			{
+				uint16 ExpectedStride = RHIShaderBase->DebugStrideValidationData[FoundIndex].Stride;
+				// ensure(SRVValidationStride.Stride > 0) because there's a few ways to set .ValidationStride: don't trigger a validation error if we forgot to set the validation data during 
+				// some *CreateShaderResourceView* variant
+				if (ensure(SRVValidationStride.Stride > 0) && ExpectedStride != SRVValidationStride.Stride)
+				{
+					FString SRVName;
+					// It seems that owner name is usually unknown. Instead try to rely on the tracked buffer
+					if (SRV->ViewIdentity.Resource)
+					{
+						SRVName = SRV->ViewIdentity.Resource->GetDebugName();
+					}
+					if (SRVName.IsEmpty())
+					{
+						SRVName = SRV->GetOwnerName().ToString();
+					}
+					FString ErrorMessage = FString::Printf(TEXT("Shader %s: Buffer stride for \"%s\" must match structure size declared in the shader"), RHIShaderBase->GetShaderName(), *SRVName);
+					ErrorMessage += FString::Printf(TEXT("\nBind point: %d, HLSL size: %d, Buffer Size: %d"), BindIndex, ExpectedStride, SRVValidationStride.Stride);
+					RHI_VALIDATION_CHECK(false, *ErrorMessage);
+				}
+			}
+		}
+#endif
 	}
 }
 

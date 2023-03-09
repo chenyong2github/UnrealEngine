@@ -445,7 +445,9 @@ namespace RHIValidation
 	};
 
 	struct FShaderResourceView : public FView
-	{};
+	{
+		uint32 ValidationStride = 0;
+	};
 
 	struct FUnorderedAccessView : public FView
 	{};
@@ -1016,6 +1018,10 @@ namespace RHIValidation
 	};
 
 	extern RHI_API void* CaptureBacktrace();
+
+	/** Validates that the SRV is conform to what the shader expects */
+	extern RHI_API void ValidateShaderResourceView(const class FRHIShader* RHIShaderBase, uint32 BindIndex, class FRHIShaderResourceView* SRV);
+
 }
 
 #endif // ENABLE_RHI_VALIDATION

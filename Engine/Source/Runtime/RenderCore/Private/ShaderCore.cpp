@@ -733,6 +733,22 @@ void FShaderCompilerOutput::CompressOutput(FName ShaderCompressionFormat, FOodle
 	ShaderCode.Compress(ShaderCompressionFormat, OodleCompressor, OodleLevel);
 }
 
+void FShaderCompilerOutput::SerializeShaderCodeValidation()
+{
+	if (ParametersStrideToValidate.Num() > 0)
+	{
+		FShaderCodeValidationExtension ShaderCodeValidationExtension;
+		ShaderCodeValidationExtension.ShaderCodeValidationStride.Append(ParametersStrideToValidate);
+		ShaderCodeValidationExtension.ShaderCodeValidationStride.Sort([](const FShaderCodeValidationStride& lhs, const FShaderCodeValidationStride& rhs) -> bool { return lhs.BindPoint < rhs.BindPoint; });
+
+		TArray<uint8> WriterBytes;
+		FMemoryWriter Writer(WriterBytes);
+		Writer << ShaderCodeValidationExtension;
+
+		ShaderCode.AddOptionalData(FShaderCodeValidationExtension::Key, WriterBytes.GetData(), WriterBytes.Num());
+	}
+}
+
 static void ReportVirtualShaderFilePathError(TArray<FShaderCompilerError>* CompileErrors, FString ErrorString)
 {
 	if (CompileErrors)

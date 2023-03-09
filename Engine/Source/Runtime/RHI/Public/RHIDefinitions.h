@@ -1346,6 +1346,12 @@ struct FScreenResolutionRHI
 	uint32	RefreshRate;
 };
 
+struct FShaderCodeValidationStride
+{
+	uint16 BindPoint;
+	uint16 Stride;
+};
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "DataDrivenShaderPlatformInfo.h"

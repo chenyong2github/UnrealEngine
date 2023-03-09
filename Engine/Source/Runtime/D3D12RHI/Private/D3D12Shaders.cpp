@@ -52,6 +52,8 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	}
 #endif
 
+	UE::RHICore::SetupShaderCodeValidationData(&OutShader, InShaderCode);
+
 	return true;
 }
 

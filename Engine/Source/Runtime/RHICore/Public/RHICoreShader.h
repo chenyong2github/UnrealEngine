@@ -12,6 +12,7 @@ namespace RHICore
 
 /** Validates that the uniform buffer at the requested static slot. */
 extern RHICORE_API void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBufferStaticSlot Slot, uint32 ExpectedHash);
+extern RHICORE_API void SetupShaderCodeValidationData(FRHIShader* RHIShader, class FShaderCodeReader& ShaderCodeReader);
 
 inline void InitStaticUniformBufferSlots(TArray<FUniformBufferStaticSlot>& StaticSlots, const FShaderResourceTable& ShaderResourceTable)
 {
@@ -195,6 +196,10 @@ void SetResourcesFromTables(TBinder&& Binder, FRHIShader const& Shader, FShaderR
 						: ERHIAccess::SRVGraphics;
 
 					Tracker->Assert(SRV->ViewIdentity, Access);
+				}
+				if (GRHIValidationEnabled)
+				{
+					RHIValidation::ValidateShaderResourceView(&Shader, Index, SRV);
 				}
 #endif
 				Binder.SetSRV(SRV, Index);

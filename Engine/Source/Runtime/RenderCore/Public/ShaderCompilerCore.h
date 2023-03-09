@@ -490,6 +490,8 @@ struct FShaderCompilerOutput
 	bool bUsedHLSLccCompiler;
 	TArray<FString> UsedAttributes;
 
+	TArray<FShaderCodeValidationStride> ParametersStrideToValidate;
+
 	FString OptionalFinalShaderSource;
 
 	TArray<uint8> PlatformDebugData;
@@ -499,6 +501,9 @@ struct FShaderCompilerOutput
 
 	/** Calls GenerateOutputHash() before the compression, replaces FShaderCode with the compressed data (if compression result was smaller). */
 	RENDERCORE_API void CompressOutput(FName ShaderCompressionFormat, FOodleDataCompression::ECompressor OodleCompressor, FOodleDataCompression::ECompressionLevel OodleLevel);
+
+	/** Add optional data in ShaderCode to perform additional shader input validation at runtime*/
+	RENDERCORE_API void SerializeShaderCodeValidation();
 
 	friend FArchive& operator<<(FArchive& Ar, FShaderCompilerOutput& Output)
 	{

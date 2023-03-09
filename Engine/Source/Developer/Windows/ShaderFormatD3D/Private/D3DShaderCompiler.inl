@@ -508,7 +508,16 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 		else if (BindDesc.Type == D3D_SIT_STRUCTURED || BindDesc.Type == D3D_SIT_BYTEADDRESS)
 		{
 			check(BindDesc.BindCount == 1);
-			HandleReflectedShaderResource(FString(BindDesc.Name), BindDesc.BindPoint, Output);
+			FString BindDescName(BindDesc.Name);
+			HandleReflectedShaderResource(BindDescName, BindDesc.BindPoint, Output);
+
+			// https://learn.microsoft.com/en-us/windows/win32/api/d3d12shader/ns-d3d12shader-d3d12_shader_input_bind_desc
+			// If the shader resource is a structured buffer, the field contains the stride of the type in bytes
+			if ( BindDesc.Type == D3D_SIT_STRUCTURED)
+			{
+				UpdateStructuredBufferStride(Input, BindDescName, BindDesc.BindPoint, BindDesc.NumSamples, Output);
+			}
+
 			NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + 1);
 		}
 		else if (BindDesc.Type == (D3D_SHADER_INPUT_TYPE)(D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER + 1)) // D3D_SIT_RTACCELERATIONSTRUCTURE (12)
@@ -536,7 +545,7 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 
 	TArray<uint8> UniformBufferNameBytes;
 
-	{
+	{	
 		// Build the generic SRT for this shader.
 		FShaderCompilerResourceTable GenericSRT;
 		BuildResourceTableMapping(Input.Environment.ResourceTableMap, Input.Environment.UniformBufferMap, UsedUniformBufferSlots, Output.ParameterMap, GenericSRT);
@@ -622,6 +631,8 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 	{
 		Output.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*Input.GenerateShaderName()));
 	}
+
+	Output.SerializeShaderCodeValidation();
 
 	// Set the number of instructions.
 	Output.NumInstructions = NumInstructions;
