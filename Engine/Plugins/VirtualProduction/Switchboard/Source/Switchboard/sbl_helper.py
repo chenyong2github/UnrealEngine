@@ -657,8 +657,7 @@ class SbListenerHelper:
             project_paths.append(f'{self.uproj_path.parent / "..."}')
 
             for path in self.additional_paths_to_sync:
-                path = path.lstrip('/')
-                project_paths.append(f'{self.engine_dir.parent / path}')
+                project_paths.append(f'//{self.p4client}{path}')
 
             pathspecs.extend(
                 [f'{path}@{self.sync_project_cl}' for path in project_paths])
