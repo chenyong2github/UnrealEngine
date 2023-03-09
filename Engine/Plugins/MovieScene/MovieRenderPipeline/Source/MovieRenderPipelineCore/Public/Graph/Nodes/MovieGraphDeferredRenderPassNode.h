@@ -45,6 +45,22 @@ protected:
 
 	struct FViewFamilyContextInitData
 	{
+		FViewFamilyContextInitData()
+			: RenderTarget(nullptr)
+			, World(nullptr)
+			, SceneCaptureSource(ESceneCaptureSource::SCS_MAX)
+			, bWorldIsPaused(false)
+			, GlobalScreenPercentageFraction(1.0f)
+			, OverscanFraction(0.f)
+			, FrameIndex(-1)
+			, bCameraCut(false)
+			, AntiAliasingMethod(EAntiAliasingMethod::AAM_None)
+			, View(nullptr)
+			, SceneViewStateReference(nullptr)
+			, ViewActor(nullptr)
+		{
+		}
+
 		class FRenderTarget* RenderTarget;
 		class UWorld* World;
 		FMoviePipelineFrameOutputState::FTimeData TimeData;

@@ -2,14 +2,12 @@
 #pragma once
 
 #include "Graph/MovieGraphDataTypes.h"
+#include "PixelFormat.h"
 #include "MovieGraphDefaultRenderer.generated.h"
 
 // Forward Declares
 class UMovieGraphRenderPassNode;
 class UTextureRenderTarget2D;
-enum EPixelFormat : uint8;
-
-
 
 /**
 * This class 
@@ -22,6 +20,13 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphDefaultRenderer : public UMovieGrap
 public:
 	struct FRenderTargetInitParams
 	{
+		FRenderTargetInitParams()
+			: Size(FIntPoint(0, 0))
+			, TargetGamma(0.f)
+			, PixelFormat(EPixelFormat::PF_Unknown)
+		{
+		}
+
 		FIntPoint Size;
 		float TargetGamma;
 		EPixelFormat PixelFormat;
