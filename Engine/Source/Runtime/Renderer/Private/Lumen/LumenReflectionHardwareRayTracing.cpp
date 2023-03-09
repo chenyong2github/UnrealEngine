@@ -12,7 +12,6 @@
 #include "IndirectLightRendering.h"
 #include "LumenReflections.h"
 #include "HairStrands/HairStrandsData.h"
-#include "FogRendering.h"
 
 #if RHI_RAYTRACING
 #include "RayTracing/RayTracingDeferredMaterials.h"
@@ -163,7 +162,6 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFogUniformParameters, FogUniformParameters)
 
 		// Ray continuation buffer
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, RWTraceDataPacked)
@@ -417,8 +415,6 @@ void SetLumenHardwareRayTracingReflectionParameters(
 	{
 		Parameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 	}
-
-	Parameters->FogUniformParameters = CreateFogUniformBuffer(GraphBuilder, View);
 
 	// Ray continuation buffer
 	Parameters->RWTraceDataPacked = GraphBuilder.CreateUAV(TraceDataPackedBuffer);

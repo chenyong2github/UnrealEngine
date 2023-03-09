@@ -11,6 +11,7 @@
 #include "LumenScreenProbeCommon.ush"
 #include "LumenScreenProbeTracingCommon.ush"
 #include "LumenHardwareRayTracingPipelineCommon.ush"
+#include "LumenFog.ush"
 
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
@@ -252,8 +253,16 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		}
 
 		Result.Radiance += GetSkylightLeaking(Ray.Direction, TraceHitDistance);
+		Result.Radiance *= View.PreExposure;
 
-		RWTraceRadiance[ScreenProbeTraceCoord] = Result.Radiance * View.PreExposure;
+		if (SampleHeightFog > 0)
+		{
+			float3 OriginToCollider = Ray.Direction * Result.TraceHitDistance;
+			float CoverageForFog = 1.0; // There is always something or the sky fallback.
+			Result.Radiance.rgb = GetFogOnLuminance(Result.Radiance.rgb, CoverageForFog, OriginToCollider);
+		}
+
+		RWTraceRadiance[ScreenProbeTraceCoord] = Result.Radiance;
 		RWTraceHit[ScreenProbeTraceCoord] = EncodeProbeRayDistance(min(Result.TraceHitDistance, MaxTraceDistance), Result.bIsHit, bMoving);
 #endif // DIM_WRITE_FINAL_LIGHTING
 	}

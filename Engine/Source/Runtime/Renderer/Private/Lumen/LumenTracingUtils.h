@@ -7,6 +7,7 @@
 #include "LumenSceneData.h"
 #include "IndirectLightRendering.h"
 #include "ReflectionEnvironment.h"
+#include "FogRendering.h"
 
 DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
 
@@ -41,6 +42,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER(float, SkylightLeaking)
 	SHADER_PARAMETER(float, SkylightLeakingRoughness)
 	SHADER_PARAMETER(float, InvFullSkylightLeakingDistance)
+
+	SHADER_PARAMETER(uint32, SampleHeightFog)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFogUniformParameters, FogUniformParameters)
 
 	// GPU Scene
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)

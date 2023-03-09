@@ -1075,7 +1075,6 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.ReflectionPass = (uint32)ReflectionPass;
 	ReflectionTracingParameters.UseJitter = bDenoise && GLumenReflectionTemporalFilter ? 1 : 0;
 	ReflectionTracingParameters.UseHighResSurface = CVarLumenReflectionsHiResSurface.GetValueOnRenderThread() != 0 ? 1 : 0;
-	ReflectionTracingParameters.SampleHeightFog = LumenReflections::SampleHeightFog() ? 1u : 0u; 
 	ReflectionTracingParameters.MaxReflectionBounces = LumenReflections::GetMaxReflectionBounces(View);
 
 	FRDGTextureDesc RayBufferDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));

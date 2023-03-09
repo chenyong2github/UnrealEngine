@@ -20,7 +20,6 @@ float ReflectionSmoothBias;
 uint ReflectionPass;
 uint UseJitter;
 uint UseHighResSurface;
-uint SampleHeightFog;
 
 // Note: negative if invalid ray
 Texture2D DownsampledDepth;

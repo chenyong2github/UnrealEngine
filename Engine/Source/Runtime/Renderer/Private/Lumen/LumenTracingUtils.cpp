@@ -14,6 +14,13 @@ FAutoConsoleVariableRef CVarLumenSkylightLeakingRoughness(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenSampleFog(
+	TEXT("r.Lumen.SampleFog"),
+	1,
+	TEXT("Sample the fog contribution in Lumen tracing. Enabled by default."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 void GetLumenCardTracingParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
@@ -33,6 +40,9 @@ void GetLumenCardTracingParameters(
 	TracingParameters.SkylightLeaking = View.FinalPostProcessSettings.LumenSkylightLeaking;
 	TracingParameters.SkylightLeakingRoughness = GLumenSkylightLeakingRoughness;
 	TracingParameters.InvFullSkylightLeakingDistance = 1.0f / FMath::Clamp<float>(View.FinalPostProcessSettings.LumenFullSkylightLeakingDistance, .1f, Lumen::GetMaxTraceDistance(View));
+
+	TracingParameters.SampleHeightFog = CVarLumenSampleFog.GetValueOnRenderThread() > 0 ? 1u : 0u;
+	TracingParameters.FogUniformParameters = CreateFogUniformBuffer(GraphBuilder, View);
 
 	// GPUScene
 	const FScene* Scene = ((const FScene*)View.Family->Scene);

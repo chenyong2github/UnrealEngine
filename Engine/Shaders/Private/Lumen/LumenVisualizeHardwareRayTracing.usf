@@ -430,6 +430,8 @@ float FarFieldDitheredStartDistanceFactor;
 uint ApplySkylightStage;
 uint MaxReflectionBounces;
 
+#include "LumenFog.ush"
+
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 {
 	uint ThreadIndex = DispatchThreadIndex.x;
@@ -573,6 +575,13 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		//TraceResult.Lighting += GetSkylightLeaking(Ray.Direction, TraceResult.OpaqueHitDistance);
 
 		TraceResult.Lighting *= View.PreExposure;
+
+		if (SampleHeightFog > 0)
+		{
+			float CoverageForFog = 1.0; // There is always something or the sky fallback.
+			float3 OriginToCollider = Ray.Direction * TraceResult.OpaqueHitDistance;
+			TraceResult.Lighting.rgb = GetFogOnLuminance(TraceResult.Lighting.rgb, CoverageForFog, OriginToCollider);
+		}
 
 		// The overview outputs after the tonemapper to overwrite editor primitives and must apply its own tonemapping
 		float3 TonemappedLighting = VisualizeTonemap(TraceResult.Lighting);

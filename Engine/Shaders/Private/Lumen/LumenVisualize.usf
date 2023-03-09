@@ -10,6 +10,7 @@
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenVisualizeTraces.ush"
 #include "LumenVisualize.ush"
+#include "LumenFog.ush"
 
 uint3 CullGridSize;
 uint CardGridPixelSizeShift;
@@ -125,6 +126,13 @@ void VisualizeQuadsCS(
 
 	//TraceResult.Lighting += GetSkylightLeaking(CameraVector, TraceResult.OpaqueHitDistance);
 	TraceResult.Lighting *= View.PreExposure;
+
+	if (SampleHeightFog > 0)
+	{
+		const float CoverageForFog = saturate(1.0 - TraceResult.Transparency);
+		float3 OriginToCollider = CameraVector * TraceResult.OpaqueHitDistance;
+		TraceResult.Lighting.rgb = GetFogOnLuminance(TraceResult.Lighting.rgb, CoverageForFog, OriginToCollider);
+	}
 
 	float4 FinalColor = 0.0f;
 

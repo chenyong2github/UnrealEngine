@@ -9,6 +9,7 @@
 #include "LumenScreenProbeCommon.ush"
 #include "LumenScreenProbeTracingCommon.ush"
 #include "LumenVisualizeTraces.ush"
+#include "LumenFog.ush"
 
 #define IS_SSGI_SHADER 0
 #include "../SHCommon.ush"
@@ -563,6 +564,7 @@ void TraceMeshSDFs(
 			float DistanceFromViewpoint = length(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 			float DistanceFade = saturate(6 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 5);
 
+			float CoverageForFog = saturate(1.0 - Transparency);	// LUMEN_TODO single evaluation for now even if we can hit translucent hair above.
 			Transparency = lerp(Transparency, 1, DistanceFade);
 
 			if (Transparency < InterleavedGradientNoise(TraceBufferCoord + 0.5f, 0))
@@ -576,6 +578,12 @@ void TraceMeshSDFs(
 				Lighting *= 1 - DistanceFade;
 				Lighting += GetSkylightLeaking(RayWorldDirection, OpaqueHitDistance);
 				Lighting *= View.PreExposure;
+
+				if (SampleHeightFog > 0)
+				{
+					float3 OriginToCollider = RayWorldDirection * OpaqueHitDistance;
+					Lighting.rgb = GetFogOnLuminance(Lighting.rgb, CoverageForFog, OriginToCollider);
+				}
 
 				#if DEBUG_VISUALIZE_TRACE_TYPES
 					RWTraceRadiance[TraceBufferCoord] = float3(0, .5f, 0) * View.PreExposure;
@@ -765,6 +773,13 @@ void TraceVoxels(
 			TraceResult.Lighting += GetSkylightLeaking(RayWorldDirection, TraceHitDistanceForSkyLeaking);
 
 			TraceResult.Lighting *= View.PreExposure;
+
+			if (SampleHeightFog > 0)
+			{
+				float CoverageForFog = 1.0; // always assuming the closest hit and sky fallback
+				float3 OriginToCollider = RayWorldDirection * TraceHitDistance;
+				TraceResult.Lighting.rgb = GetFogOnLuminance(TraceResult.Lighting.rgb, CoverageForFog, OriginToCollider);
+			}
 
 			#if DEBUG_VISUALIZE_TRACE_TYPES
 				RWTraceRadiance[TraceBufferCoord] = float3(0, 0, .5f) * View.PreExposure;

@@ -962,6 +962,7 @@ void ApplySkylightToTraceResult(float3 ConeDirection, inout FConeTraceResult Tra
 float SkylightLeaking;
 float SkylightLeakingRoughness;
 float InvFullSkylightLeakingDistance;
+uint  SampleHeightFog;
 
 float CalculateSkylightLeakingAmount(float HitDistance)
 {
