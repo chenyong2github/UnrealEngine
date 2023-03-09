@@ -885,17 +885,35 @@ namespace EpicGames.Horde.Storage.Nodes
 
 		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, TreeWriter baseWriter, CopyStats? copyStats, CancellationToken cancellationToken)
 		{
-			using TreeWriter writer = new TreeWriter(baseWriter);
-
-			FileNodeWriter fileNodeWriter = new FileNodeWriter(writer, options);
-			for(int idx = minIdx; idx < maxIdx; idx++)
+			TreeWriter writer = baseWriter;
+			try
 			{
-				FileInfo fileInfo = files[idx].FileInfo;
-				NodeHandle handle = await fileNodeWriter.CreateAsync(fileInfo, cancellationToken);
-				entries[idx] = new FileEntry(fileInfo.Name, FileEntryFlags.None, fileNodeWriter.Length, handle);
-				copyStats?.Update(1, fileNodeWriter.Length);
+				if (minIdx != 0)
+				{
+					writer = new TreeWriter(baseWriter);
+				}
+
+				FileNodeWriter fileNodeWriter = new FileNodeWriter(writer, options);
+				for (int idx = minIdx; idx < maxIdx; idx++)
+				{
+					FileInfo fileInfo = files[idx].FileInfo;
+					NodeHandle handle = await fileNodeWriter.CreateAsync(fileInfo, cancellationToken);
+					entries[idx] = new FileEntry(fileInfo.Name, FileEntryFlags.None, fileNodeWriter.Length, handle);
+					copyStats?.Update(1, fileNodeWriter.Length);
+				}
+
+				if (minIdx != 0)
+				{
+					await writer.FlushAsync(cancellationToken);
+				}
 			}
-			await writer.FlushAsync(cancellationToken);
+			finally
+			{
+				if (minIdx != 0)
+				{
+					writer.Dispose();
+				}
+			}
 		}
 
 		/// <summary>

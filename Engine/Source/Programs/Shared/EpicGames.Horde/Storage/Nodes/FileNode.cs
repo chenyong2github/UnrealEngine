@@ -490,7 +490,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			Reset();
 			await AppendAsync(stream, cancellationToken);
-			return await FlushAsync(cancellationToken);
+			return await CompleteAsync(cancellationToken);
 		}
 
 		/// <summary>
