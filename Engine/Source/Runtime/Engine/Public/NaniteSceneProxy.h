@@ -110,7 +110,7 @@ ENGINE_API bool IsSupportedBlendMode(const UMaterialInterface& In);
 ENGINE_API bool IsSupportedMaterialDomain(EMaterialDomain Domain);
 ENGINE_API bool IsSupportedShadingModel(FMaterialShadingModelField ShadingModelField);
 
-ENGINE_API bool IsMaskingAllowedForWorld(UWorld* World);
+ENGINE_API bool IsMaskingAllowed(UWorld* World, bool bForceNaniteForMasked);
 
 struct FResourceMeshInfo
 {

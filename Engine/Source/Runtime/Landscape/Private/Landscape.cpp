@@ -5555,7 +5555,7 @@ void ALandscapeProxy::UpdateRenderingMethod()
 		Nanite::FMaterialAudit NaniteMaterials;
 		Nanite::AuditMaterials(NaniteComponent, NaniteMaterials);
 
-		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || NaniteComponent->bForceNaniteForMasked;
+		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowed(GetWorld(), NaniteComponent->bForceNaniteForMasked);
 		bNaniteActive = NaniteMaterials.IsValid(bIsMaskingAllowed);
 	}
 

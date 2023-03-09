@@ -26,6 +26,8 @@
 #include "StaticMeshComponentLODInfo.h"
 #include "Stats/StatsTrace.h"
 
+#include "ComponentRecreateRenderStateContext.h"
+
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
@@ -67,6 +69,18 @@ static TAutoConsoleVariable<int32> CVarNaniteAllowComputeMaterials(
 	0, // Off by default
 	TEXT("Whether to enable support for (highly experimental) Nanite compute materials"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+int32 GNaniteAllowMaskedMaterials = 1;
+FAutoConsoleVariableRef CVarNaniteAllowMaskedMaterials(
+	TEXT("r.Nanite.AllowMaskedMaterials"),
+	GNaniteAllowMaskedMaterials,
+	TEXT("Whether to allow meshes using masked materials to render using Nanite."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_RenderThreadSafe
+);
 
 int32 GNaniteOptimizedRelevance = 1;
 FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
@@ -2174,19 +2188,19 @@ bool IsSupportedShadingModel(FMaterialShadingModelField ShadingModelField)
 	return !ShadingModelField.HasShadingModel(MSM_SingleLayerWater);
 }
 
-bool IsMaskingAllowedForWorld(UWorld* World)
+bool IsMaskingAllowed(UWorld* World, bool bForceNaniteForMasked)
 {
-	bool bAllowed = true;
+	bool bAllowedByWorld = true;
 
 	if (World)
 	{
 		if (AWorldSettings* WorldSettings = World->GetWorldSettings())
 		{
-			bAllowed = WorldSettings->NaniteSettings.bAllowMaskedMaterials;
+			bAllowedByWorld = WorldSettings->NaniteSettings.bAllowMaskedMaterials;
 		}
 	}
 	
-	return bAllowed;
+	return (GNaniteAllowMaskedMaterials != 0) && (bAllowedByWorld || bForceNaniteForMasked);
 }
 
 void FVertexFactoryResource::InitRHI()

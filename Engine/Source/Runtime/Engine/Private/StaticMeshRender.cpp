@@ -2497,7 +2497,7 @@ bool UStaticMeshComponent::ShouldCreateNaniteProxy(Nanite::FMaterialAudit* OutNa
 		Nanite::FMaterialAudit NaniteMaterials{};
 		Nanite::AuditMaterials(this, NaniteMaterials);
 
-		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
+		const bool bIsMaskingAllowed = Nanite::IsMaskingAllowed(GetWorld(), bForceNaniteForMasked);
 		if (!NaniteMaterials.IsValid(bIsMaskingAllowed))
 		{
 			return false;
@@ -2545,7 +2545,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
-	const bool bIsMaskingAllowed = Nanite::IsMaskingAllowedForWorld(GetWorld()) || bForceNaniteForMasked;
+	const bool bIsMaskingAllowed = Nanite::IsMaskingAllowed(GetWorld(), bForceNaniteForMasked);
 
 	Nanite::FMaterialAudit NaniteMaterials{};
 
