@@ -57,7 +57,7 @@
 
 TAutoConsoleVariable<bool> CVarEnablePreLoadFiltering(
 	TEXT("ControlRig.EnablePreLoadFiltering"),
-	true,
+	false,
 	TEXT("When true the RigVMGraphs will be skipped during preload to speed up load times."));
 
 TAutoConsoleVariable<bool> CVarEnablePostLoadHashing(
