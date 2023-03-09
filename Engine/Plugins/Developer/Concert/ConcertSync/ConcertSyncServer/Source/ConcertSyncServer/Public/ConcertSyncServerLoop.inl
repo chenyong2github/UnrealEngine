@@ -191,7 +191,10 @@ int32 ConcertSyncServerLoop(const TCHAR* CommandLine, const FConcertSyncServerLo
 	// Unloading Modules isn't handled by AppExit
 	FModuleManager::Get().UnloadModulesAtShutdown();
 
+	// On Mac AppExit is passed as delegate to the OS, which will call it implicitly
+#if !PLATFORM_MAC
 	FEngineLoop::AppExit();
+#endif
 
 	return Result;
 }
