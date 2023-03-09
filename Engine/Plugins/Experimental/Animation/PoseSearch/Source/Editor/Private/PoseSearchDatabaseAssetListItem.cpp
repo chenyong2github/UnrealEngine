@@ -1,33 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDatabaseAssetListItem.h"
-#include "PoseSearchDatabaseViewModel.h"
 
-#include "Animation/AnimSequence.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
-
-#include "Misc/TransactionObjectEvent.h"
-#include "DragAndDrop/AssetDragDropOp.h"
-#include "Misc/FeedbackContext.h"
+#include "Animation/DebugSkelMeshComponent.h"
+#include "AnimPreviewInstance.h"
 #include "AssetSelection.h"
 #include "ClassIconFinder.h"
 #include "DetailColumnSizeData.h"
-#include "PoseSearch/PoseSearchDatabase.h"
-#include "PoseSearchDatabaseAssetTree.h"
-
-#include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "Editor.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IAnimationEditor.h"
+#include "IPersonaToolkit.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/TransactionObjectEvent.h"
+#include "PoseSearch/PoseSearchDatabase.h"
+#include "PoseSearchDatabaseAssetTree.h"
+#include "PoseSearchDatabaseViewModel.h"
+#include "ScopedTransaction.h"
 #include "SPositiveActionButton.h"
 #include "Styling/AppStyle.h"
-
-#include "ScopedTransaction.h"
 #include "Styling/StyleColors.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Text/SRichTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SDatabaseAssetListItem"
 
@@ -122,7 +123,34 @@ namespace UE::PoseSearch
 			{
 				if (UAssetEditorSubsystem* AssetEditorSS = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
 				{
-					AssetEditorSS->OpenEditorForAsset(DatabaseAnimationAsset->GetAnimationAsset());
+					UAnimationAsset* AnimationAsset = DatabaseAnimationAsset->GetAnimationAsset();
+
+					AssetEditorSS->OpenEditorForAsset(AnimationAsset);
+
+					if (IAssetEditorInstance* Editor = AssetEditorSS->FindEditorForAsset(AnimationAsset, true))
+					{
+						if (Editor->GetEditorName() == "AnimationEditor")
+						{
+							float AnimationAssetTime = 0.f;
+							FVector AnimationAssetBlendParameters = FVector::ZeroVector;
+							TArray<const FPoseSearchIndexAsset*> SearchIndexAssets;
+							if (Database->GetPoseSearchIndexAssets(Node->SourceAssetIdx, SearchIndexAssets) && !SearchIndexAssets.IsEmpty())
+							{
+								const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndexAssets[0];
+								check(SearchIndexAsset);
+								AnimationAssetTime = ViewModel->GetPlayTime() + SearchIndexAsset->SamplingInterval.Min;
+								AnimationAssetBlendParameters = SearchIndexAsset->BlendParameters;
+							}
+
+							const IAnimationEditor* AnimationEditor = static_cast<IAnimationEditor*>(Editor);
+							const UDebugSkelMeshComponent* PreviewComponent = AnimationEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
+
+							// Open asset paused and at specific time as seen on the pose search debugger.
+							PreviewComponent->PreviewInstance->SetPosition(AnimationAssetTime);
+							PreviewComponent->PreviewInstance->SetPlaying(false);
+							PreviewComponent->PreviewInstance->SetBlendSpacePosition(AnimationAssetBlendParameters);
+						}
+					}
 				}
 			}
 		}

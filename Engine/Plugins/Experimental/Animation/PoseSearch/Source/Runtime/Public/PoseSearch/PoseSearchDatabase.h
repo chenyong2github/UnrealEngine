@@ -60,7 +60,7 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimationAssetBase
 	virtual UAnimationAsset* GetAnimationAsset() const { return nullptr; }
 	virtual UClass* GetAnimationAssetStaticClass() const { return nullptr; }
 	virtual bool IsLooping() const { return false; }
-	virtual const FString GetName() const { return {}; }
+	virtual const FString GetName() const { return FString(); }
 	virtual bool IsEnabled() const { return false; }
 	virtual void SetIsEnabled(bool bInIsEnabled) {}
 	virtual bool IsRootMotionEnabled() const { return false; }
@@ -81,7 +81,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	bool bEnabled = true;
 
 	UPROPERTY(EditAnywhere, Category="Sequence", meta = (DisplayPriority = 1))
-	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
+	FFloatInterval SamplingRange = FFloatInterval(0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category = "Sequence", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
@@ -150,7 +150,7 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimComposite : public FPoseSearchDatab
 	bool bEnabled = true;
 
 	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 1))
-	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
+	FFloatInterval SamplingRange = FFloatInterval(0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
@@ -179,7 +179,7 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimMontage : public FPoseSearchDatabas
 	bool bEnabled = true;
 
 	UPROPERTY(EditAnywhere, Category="AnimMontage", meta = (DisplayPriority = 1))
-	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
+	FFloatInterval SamplingRange = FFloatInterval(0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category = "AnimMontage", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
@@ -291,6 +291,9 @@ public:
 #if WITH_EDITOR
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+
+	// returns all the FPoseSearchIndexAsset associated with the AnimationAssetIndex
+	bool GetPoseSearchIndexAssets(int32 AnimationAssetIndex, TArray<const FPoseSearchIndexAsset*>& OutSearchIndexAssets) const;
 
 private:
 	DECLARE_MULTICAST_DELEGATE(FOnDerivedDataRebuildMulticaster);

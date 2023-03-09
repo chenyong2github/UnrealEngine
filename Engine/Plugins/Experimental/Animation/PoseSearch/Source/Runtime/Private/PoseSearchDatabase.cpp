@@ -243,8 +243,10 @@ UClass* FPoseSearchDatabaseSequence::GetAnimationAssetStaticClass() const
 
 bool FPoseSearchDatabaseSequence::IsLooping() const
 {
-	// @todo: we should check if against the sample range (look for GetEffectiveSamplingRange()...)
-	return Sequence ? Sequence->bLoop : false;
+	return Sequence &&
+		Sequence->bLoop &&
+		SamplingRange.Min == 0.f &&
+		SamplingRange.Max == 0.f;
 }
 
 const FString FPoseSearchDatabaseSequence::GetName() const
@@ -271,7 +273,7 @@ UClass* FPoseSearchDatabaseBlendSpace::GetAnimationAssetStaticClass() const
 
 bool FPoseSearchDatabaseBlendSpace::IsLooping() const
 {
-	return BlendSpace ? BlendSpace->bLoop : false;
+	return BlendSpace && BlendSpace->bLoop;
 }
 
 const FString FPoseSearchDatabaseBlendSpace::GetName() const
@@ -361,7 +363,10 @@ UClass* FPoseSearchDatabaseAnimComposite::GetAnimationAssetStaticClass() const
 
 bool FPoseSearchDatabaseAnimComposite::IsLooping() const
 {
-	return AnimComposite ? AnimComposite->bLoop : false;
+	return AnimComposite &&
+		AnimComposite->bLoop &&
+		SamplingRange.Min == 0.f &&
+		SamplingRange.Max == 0.f;
 }
 
 const FString FPoseSearchDatabaseAnimComposite::GetName() const
@@ -388,7 +393,10 @@ UClass* FPoseSearchDatabaseAnimMontage::GetAnimationAssetStaticClass() const
 
 bool FPoseSearchDatabaseAnimMontage::IsLooping() const
 {
-	return AnimMontage ? AnimMontage->bLoop : false;
+	return AnimMontage &&
+		AnimMontage->bLoop &&
+		SamplingRange.Min == 0.f &&
+		SamplingRange.Max == 0.f;
 }
 
 const FString FPoseSearchDatabaseAnimMontage::GetName() const
@@ -625,6 +633,26 @@ bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform
 	using namespace UE::PoseSearch;
 	check(IsInGameThread());
 	return FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(this, ERequestAsyncBuildFlag::ContinueRequest);
+}
+
+// returns all the FPoseSearchIndexAsset associated with the AnimationAssetIndex
+bool UPoseSearchDatabase::GetPoseSearchIndexAssets(int32 AnimationAssetIndex, TArray<const FPoseSearchIndexAsset*>& OutSearchIndexAssets) const
+{
+	using namespace UE::PoseSearch;
+	OutSearchIndexAssets.Reset();
+	if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(this, ERequestAsyncBuildFlag::ContinueRequest))
+	{
+		const FPoseSearchIndex& SearchIndex = GetSearchIndex();
+		for (const FPoseSearchIndexAsset& SearchIndexAsset : SearchIndex.Assets)
+		{
+			if (SearchIndexAsset.SourceAssetIdx == AnimationAssetIndex)
+			{
+				OutSearchIndexAssets.Add(&SearchIndexAsset);
+			}
+		}
+		return true;
+	}
+	return false;
 }
 #endif // WITH_EDITOR
 
