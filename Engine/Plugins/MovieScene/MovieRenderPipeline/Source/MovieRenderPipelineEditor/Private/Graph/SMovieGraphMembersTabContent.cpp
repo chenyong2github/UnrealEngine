@@ -30,6 +30,7 @@ void SMovieGraphMembersTabContent::Construct(const FArguments& InArgs)
 		SAssignNew(ActionMenu, SGraphActionMenu)
 		.OnActionSelected(OnActionSelected)
 		.AutoExpandActionMenu(true)
+		.AlphaSortItems(false)
 		.OnCollectStaticSections(this, &SMovieGraphMembersTabContent::CollectStaticSections)
 		.OnContextMenuOpening(this, &SMovieGraphMembersTabContent::OnContextMenuOpening)
 		.OnGetSectionTitle(this, &SMovieGraphMembersTabContent::GetSectionTitle)
@@ -64,7 +65,7 @@ void SMovieGraphMembersTabContent::DeleteSelectedMembers() const
 		}
 	}
 
-	RefreshActions();
+	RefreshMemberActions();
 }
 
 bool SMovieGraphMembersTabContent::CanDeleteSelectedMembers() const
@@ -84,47 +85,54 @@ void SMovieGraphMembersTabContent::CollectAllActions(FGraphActionListBuilderBase
 	{
 		return;
 	}
-	
-	// TODO: These are placeholder actions and need to be dynamically populated by what is in the graph
 
 	FGraphActionMenuBuilder ActionMenuBuilder;
-	
-	const FText InputActionDesc = LOCTEXT("InputAction", "This is an input");
-	const FText InputActionCategory;
-	const FText InputActionDescription = LOCTEXT("InputActionTooltip", "This is an input tooltip.");
-	const FText InputActionKeywords;
-	const int32 InputActionSectionID = static_cast<int32>(EActionSection::Inputs);
-	const TSharedPtr<FMovieGraphSchemaAction> InputAction(new FMovieGraphSchemaAction(InputActionCategory, InputActionDesc, InputActionDescription, 0, InputActionKeywords, InputActionSectionID));
 
-	const FText OutputActionDesc = LOCTEXT("OutputAction", "This is an output");
-	const FText OutputActionCategory;
-	const FText OutputActionDescription = LOCTEXT("OutputActionTooltip", "This is an output tooltip.");
-	const FText OutputActionKeywords;
-	const int32 OutputActionSectionID = static_cast<int32>(EActionSection::Outputs);
-	const TSharedPtr<FMovieGraphSchemaAction> OutputAction(new FMovieGraphSchemaAction(OutputActionCategory, OutputActionDesc, OutputActionDescription, 0, OutputActionKeywords, OutputActionSectionID));
+	// Creates a new action in the action menu under a specific section w/ the provided action target
+	auto AddToActionMenu = [&ActionMenuBuilder](UMovieGraphMember* ActionTarget, const EActionSection Section) -> void
+	{
+		const FText InputActionDesc = FText::FromString(ActionTarget->Name);
+		const FText InputActionCategory;
+		const FText InputActionTooltip;
+		const FText InputActionKeywords;
+		const int32 InputActionSectionID = static_cast<int32>(Section);
+		const TSharedPtr<FMovieGraphSchemaAction> InputAction(new FMovieGraphSchemaAction(InputActionCategory, InputActionDesc, InputActionTooltip, 0, InputActionKeywords, InputActionSectionID));
+		InputAction->ActionTarget = ActionTarget;
+		ActionMenuBuilder.AddAction(InputAction);
+	};
+
+	for (UMovieGraphInput* Input : CurrentGraph->GetInputs())
+	{
+		if (Input)
+		{
+			AddToActionMenu(Input, EActionSection::Inputs);
+            
+            // Update actions when an input is updated (renamed, etc)
+            Input->OnMovieGraphInputChangedDelegate.AddSP(this, &SMovieGraphMembersTabContent::RefreshMemberActions);
+		}
+	}
+
+	for (UMovieGraphOutput* Output : CurrentGraph->GetOutputs())
+	{
+		if (Output)
+		{
+			AddToActionMenu(Output, EActionSection::Outputs);
+
+			// Update actions when an output is updated (renamed, etc)
+			Output->OnMovieGraphOutputChangedDelegate.AddSP(this, &SMovieGraphMembersTabContent::RefreshMemberActions);
+		}
+	}
 
 	for (UMovieGraphVariable* Variable : CurrentGraph->GetVariables())
 	{
-		if (!Variable)
+		if (Variable)
 		{
-			continue;
-		}
-		
-		const FText VariableActionDesc = FText::FromString(Variable->Name);
-		const FText VariableActionCategory;
-		const FText VariableActionTooltip;
-		const FText VariableActionKeywords;
-		const int32 VariableActionSectionID = static_cast<int32>(EActionSection::Variables);
-		const TSharedPtr<FMovieGraphSchemaAction> VariableAction(new FMovieGraphSchemaAction(VariableActionCategory, VariableActionDesc, VariableActionTooltip, 0, VariableActionKeywords, VariableActionSectionID));
-		VariableAction->ActionTarget = Variable;
-		ActionMenuBuilder.AddAction(VariableAction);
+			AddToActionMenu(Variable, EActionSection::Variables);
 
-		// Update actions when a variable is renamed
-		Variable->OnMovieGraphVariableChangedDelegate.AddSP(this, &SMovieGraphMembersTabContent::RefreshActions);
+			// Update actions when a variable is updated (renamed, etc)
+			Variable->OnMovieGraphVariableChangedDelegate.AddSP(this, &SMovieGraphMembersTabContent::RefreshMemberActions);
+		}
 	}
-	
-	ActionMenuBuilder.AddAction(InputAction);
-	ActionMenuBuilder.AddAction(OutputAction);
 	
 	OutAllActions.Append(ActionMenuBuilder);
 }
@@ -212,18 +220,26 @@ TSharedPtr<SWidget> SMovieGraphMembersTabContent::OnContextMenuOpening()
 FReply SMovieGraphMembersTabContent::OnAddButtonClickedOnSection(const int32 InSectionID)
 {
 	const EActionSection Section = static_cast<EActionSection>(InSectionID);
-	
-	if (Section == EActionSection::Variables)
+
+	if (Section == EActionSection::Inputs)
+	{
+		CurrentGraph->AddInput();
+	}
+	else if (Section == EActionSection::Outputs)
+	{
+		CurrentGraph->AddOutput();
+	}
+	else if (Section == EActionSection::Variables)
 	{
 		CurrentGraph->AddVariable();
 	}
 
-	RefreshActions();
+	RefreshMemberActions();
 
 	return FReply::Handled();
 }
 
-void SMovieGraphMembersTabContent::RefreshActions(UMovieGraphVariable* UpdatedVariable) const
+void SMovieGraphMembersTabContent::RefreshMemberActions(UMovieGraphMember* UpdatedMember) const
 {
 	// Currently the entire action menu is refreshed rather than a specific action being targeted
 	

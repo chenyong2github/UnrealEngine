@@ -6,7 +6,8 @@
 
 FText UMoviePipelineEdGraphNodeOutput::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return FText::FromName(TEXT("Output"));
+	static const FText NodeTitle = LOCTEXT("OutputsNodeTitle", "Outputs");
+	return NodeTitle;
 }
 
 void UMoviePipelineEdGraphNodeOutput::AllocateDefaultPins()

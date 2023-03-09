@@ -240,7 +240,7 @@ void UMoviePipelineEdGraphNodeBase::AutowireNewNode(UEdGraphPin* FromPin)
 	}
 }
 
-void UMoviePipelineEdGraphNodeBase::OnRuntimeNodeChanged(UMovieGraphNode* InChangedNode)
+void UMoviePipelineEdGraphNodeBase::OnRuntimeNodeChanged(const UMovieGraphNode* InChangedNode)
 {
 	if (InChangedNode == GetRuntimeNode())
 	{

@@ -3,9 +3,11 @@
 #include "Graph/MovieEdGraphInputNode.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineGraph"
+
 FText UMoviePipelineEdGraphNodeInput::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return FText::FromName(TEXT("Input"));
+	static const FText NodeTitle = LOCTEXT("InputsNodeTitle", "Inputs");
+	return NodeTitle;
 }
 
 void UMoviePipelineEdGraphNodeInput::AllocateDefaultPins()

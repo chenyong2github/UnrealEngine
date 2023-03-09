@@ -73,8 +73,8 @@ private:
 	/** Handler which deals with clicking the add button for an action section. */
 	FReply OnAddButtonClickedOnSection(const int32 InSectionID);
 
-	/** Refresh/regenerate the action menu when the given variable is updated. */
-	void RefreshActions(class UMovieGraphVariable* UpdatedVariable = nullptr) const;
+	/** Refresh/regenerate the action menu when the given member is updated. */
+	void RefreshMemberActions(class UMovieGraphMember* UpdatedMember = nullptr) const;
 
 private:
 	/** The editor that this widget is associated with. */

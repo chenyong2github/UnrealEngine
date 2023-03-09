@@ -16,6 +16,20 @@ void UMovieGraphVariable::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 	OnMovieGraphVariableChangedDelegate.Broadcast(this);
 }
+
+void UMovieGraphInput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	OnMovieGraphInputChangedDelegate.Broadcast(this);
+}
+
+void UMovieGraphOutput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnMovieGraphOutputChangedDelegate.Broadcast(this);
+}
 #endif
 
 UMovieGraphConfig::UMovieGraphConfig()
@@ -83,14 +97,6 @@ TArray<UMovieGraphNode*> UMovieGraphConfig::TraverseGraph(TSubclassOf<UMovieGrap
 		TraverseGraphRecursive(OutputNode, InClassType, InContext, /*Out*/OutNodes);
 	}
 	return OutNodes;
-}
-
-void UMovieGraphConfig::OnVariableUpdated(UMovieGraphVariable* UpdatedVariable)
-{
-#if WITH_EDITOR
-	OnGraphChangedDelegate.Broadcast();
-	OnGraphVariablesChangedDelegate.Broadcast();
-#endif
 }
 
 bool UMovieGraphConfig::AddLabeledEdge(UMovieGraphNode* FromNode, const FName& FromPinLabel, UMovieGraphNode* ToNode, const FName& ToPinLabel)
@@ -285,27 +291,66 @@ bool UMovieGraphConfig::RemoveNode(UMovieGraphNode* InNode)
 	return AllNodes.RemoveSingle(InNode) == 1;
 }
 
-UMovieGraphVariable* UMovieGraphConfig::AddVariable()
+template<typename T>
+T* UMovieGraphConfig::AddMember(TArray<TObjectPtr<T>>& MemberArray, const FText& BaseName)
 {
+	static_assert(std::is_base_of_v<UMovieGraphMember, T>, "T is not derived from UMovieGraphMember");
+	
 	using namespace UE::MoviePipeline::RenderGraph;
 	
-	UMovieGraphVariable* NewVariable = NewObject<UMovieGraphVariable>(this, NAME_None, RF_Transactional);
-	Variables.Add(NewVariable);
+	T* NewMember = NewObject<T>(this, NAME_None, RF_Transactional);
+	MemberArray.Add(NewMember);
 
-	NewVariable->Type = EMovieGraphVariableType::Float;
-	NewVariable->SetGuid(FGuid::NewGuid());
+	NewMember->Type = EMovieGraphMemberType::Float;
+	NewMember->SetGuid(FGuid::NewGuid());
 
 	// Generate and set a unique name
-	TArray<FString> ExistingVariableNames;
-	Algo::Transform(GetVariables(), ExistingVariableNames, [](const UMovieGraphVariable* Variable) { return Variable->Name; });
-	NewVariable->Name = GetUniqueName(ExistingVariableNames, "Variable");
+	TArray<FString> ExistingMemberNames;
+	Algo::Transform(MemberArray, ExistingMemberNames, [](const T* Member) { return Member->Name; });
+	NewMember->Name = GetUniqueName(ExistingMemberNames, BaseName.ToString());
+
+	return NewMember;
+}
+
+UMovieGraphVariable* UMovieGraphConfig::AddVariable()
+{
+	static const FText VariableBaseName = LOCTEXT("VariableBaseName", "Variable");
+	
+	UMovieGraphVariable* NewVariable = AddMember(Variables, VariableBaseName);
 
 #if WITH_EDITOR
-	NewVariable->OnMovieGraphVariableChangedDelegate.AddUObject(this, &UMovieGraphConfig::OnVariableUpdated);
 	OnGraphVariablesChangedDelegate.Broadcast();
 #endif
 
 	return NewVariable;
+}
+
+UMovieGraphInput* UMovieGraphConfig::AddInput()
+{
+	static const FText InputBaseName = LOCTEXT("InputBaseName", "Input");
+
+	UMovieGraphInput* NewInput = AddMember(Inputs, InputBaseName);
+	InputNode->UpdatePins();
+	
+#if WITH_EDITOR
+	OnGraphInputAddedDelegate.Broadcast(NewInput);
+#endif
+
+	return NewInput;
+}
+
+UMovieGraphOutput* UMovieGraphConfig::AddOutput()
+{
+	static const FText OutputBaseName = LOCTEXT("OutputBaseName", "Output");
+	
+	UMovieGraphOutput* NewOutput = AddMember(Outputs, OutputBaseName);
+	OutputNode->UpdatePins();
+
+#if WITH_EDITOR
+	OnGraphOutputAddedDelegate.Broadcast(NewOutput);
+#endif
+
+	return NewOutput;
 }
 
 UMovieGraphVariable* UMovieGraphConfig::GetVariableByGuid(const FGuid& InGuid) const
@@ -326,6 +371,16 @@ TArray<UMovieGraphVariable*> UMovieGraphConfig::GetVariables() const
 	return Variables;
 }
 
+TArray<UMovieGraphInput*> UMovieGraphConfig::GetInputs() const
+{
+	return Inputs;
+}
+
+TArray<UMovieGraphOutput*> UMovieGraphConfig::GetOutputs() const
+{
+	return Outputs;
+}
+
 void UMovieGraphConfig::DeleteMember(UObject* MemberToDelete)
 {
 	if (!MemberToDelete)
@@ -336,6 +391,14 @@ void UMovieGraphConfig::DeleteMember(UObject* MemberToDelete)
 	if (UMovieGraphVariable* GraphVariableToDelete = Cast<UMovieGraphVariable>(MemberToDelete))
 	{
 		DeleteVariableMember(GraphVariableToDelete);
+	}
+	else if (UMovieGraphInput* GraphInputToDelete = Cast<UMovieGraphInput>(MemberToDelete))
+	{
+		DeleteInputMember(GraphInputToDelete);
+	}
+	else if (UMovieGraphOutput* GraphOutputToDelete = Cast<UMovieGraphOutput>(MemberToDelete))
+	{
+		DeleteOutputMember(GraphOutputToDelete);
 	}
 }
 
@@ -388,6 +451,30 @@ TArray<FMovieGraphBranch> UMovieGraphConfig::GetOutputBranches() const
 	}
 
 	return Branches;
+}
+
+void UMovieGraphConfig::DeleteInputMember(UMovieGraphInput* InputMemberToDelete)
+{
+	if (InputMemberToDelete)
+	{
+		Inputs.RemoveSingle(InputMemberToDelete);
+		RemoveOutboundEdges(InputNode, FName(InputMemberToDelete->Name));
+
+		// This calls OnNodeChangedDelegate to update the graph
+		InputNode->UpdatePins();
+	}
+}
+
+void UMovieGraphConfig::DeleteOutputMember(UMovieGraphOutput* OutputMemberToDelete)
+{
+	if (OutputMemberToDelete)
+	{
+		Outputs.RemoveSingle(OutputMemberToDelete);
+		RemoveInboundEdges(OutputNode, FName(OutputMemberToDelete->Name));
+
+		// This calls OnNodeChangedDelegate to update the graph
+		OutputNode->UpdatePins();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -18,7 +18,7 @@ public:
 
 	void Construct(UMovieGraphNode* InRuntimeNode);
 
-	void OnRuntimeNodeChanged(UMovieGraphNode* InChangedNode);
+	void OnRuntimeNodeChanged(const UMovieGraphNode* InChangedNode);
 
 	//~ Begin UEdGraphNode Interface
 	virtual void ReconstructNode() override;

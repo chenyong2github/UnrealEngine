@@ -186,6 +186,159 @@ UMovieGraphPin* UMovieGraphNode::GetOutputPin(const FName& Label) const
 	return nullptr;
 }
 
+void UMovieGraphNode::PostLoad()
+{
+	Super::PostLoad();
+
+	RegisterDelegates();
+}
+
+UMovieGraphOutputNode::UMovieGraphOutputNode()
+{
+#if WITH_EDITOR
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if (UMovieGraphConfig* Graph = GetGraph())
+		{
+			// Register delegates for new outputs when they're added to the graph
+			Graph->OnGraphOutputAddedDelegate.AddUObject(this, &UMovieGraphOutputNode::RegisterDelegates);
+		}
+	}
+#endif
+}
+
+TArray<FMovieGraphPinProperties> UMovieGraphOutputNode::GetInputPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> Properties;
+
+	if (const UMovieGraphConfig* ParentGraph = GetGraph())
+	{
+		for (const UMovieGraphOutput* Output : ParentGraph->GetOutputs())
+        {
+        	Properties.Add(FMovieGraphPinProperties(FName(Output->Name), false));
+        }
+	}
+	
+	return Properties;
+}
+
+void UMovieGraphOutputNode::RegisterDelegates() const
+{
+	Super::RegisterDelegates();
+	
+	if (const UMovieGraphConfig* Graph = GetGraph())
+	{
+		for (UMovieGraphOutput* OutputMember : Graph->GetOutputs())
+		{
+			RegisterDelegates(OutputMember);
+		}
+	}
+}
+
+void UMovieGraphOutputNode::RegisterDelegates(UMovieGraphOutput* Output) const
+{
+#if WITH_EDITOR
+	if (Output)
+	{
+		Output->OnMovieGraphOutputChangedDelegate.AddUObject(this, &UMovieGraphOutputNode::UpdateExistingPins);
+	}
+#endif
+}
+
+void UMovieGraphOutputNode::UpdateExistingPins(UMovieGraphMember* ChangedOutput) const
+{
+	if (const UMovieGraphConfig* Graph = GetGraph())
+	{
+		const TArray<UMovieGraphOutput*> OutputMembers = Graph->GetOutputs();
+		if (OutputMembers.Num() == InputPins.Num())
+		{
+			for (int32 Index = 0; Index < OutputMembers.Num(); ++Index)
+			{
+				InputPins[Index]->Properties.Label = FName(OutputMembers[Index]->Name);
+			}
+		}
+
+		OnNodeChangedDelegate.Broadcast(this);
+	}
+}
+
+UMovieGraphInputNode::UMovieGraphInputNode()
+{
+#if WITH_EDITOR
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if (UMovieGraphConfig* Graph = GetGraph())
+		{
+			// Register delegates for new inputs when they're added to the graph
+			Graph->OnGraphInputAddedDelegate.AddUObject(this, &UMovieGraphInputNode::RegisterDelegates);
+		}
+	}
+#endif
+}
+
+TArray<FMovieGraphPinProperties> UMovieGraphInputNode::GetOutputPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> Properties;
+
+	if (const UMovieGraphConfig* ParentGraph = GetGraph())
+	{
+		for (const UMovieGraphInput* Input : ParentGraph->GetInputs())
+		{
+			Properties.Add(FMovieGraphPinProperties(FName(Input->Name), false));
+		}
+	}
+	
+	return Properties;
+}
+
+void UMovieGraphInputNode::RegisterDelegates() const
+{
+	Super::RegisterDelegates();
+	
+	if (const UMovieGraphConfig* Graph = GetGraph())
+	{
+		for (UMovieGraphInput* InputMember : Graph->GetInputs())
+		{
+			RegisterDelegates(InputMember);
+		}
+	}
+}
+
+void UMovieGraphInputNode::RegisterDelegates(UMovieGraphInput* Input) const
+{
+#if WITH_EDITOR
+	if (Input)
+	{
+		Input->OnMovieGraphInputChangedDelegate.AddUObject(this, &UMovieGraphInputNode::UpdateExistingPins);
+	}
+#endif
+}
+
+void UMovieGraphInputNode::UpdateExistingPins(UMovieGraphMember* ChangedInput) const
+{
+	if (const UMovieGraphConfig* Graph = GetGraph())
+	{
+		const TArray<UMovieGraphInput*> InputMembers = Graph->GetInputs();
+		if (InputMembers.Num() == OutputPins.Num())
+		{
+			for (int32 Index = 0; Index < InputMembers.Num(); ++Index)
+			{
+				OutputPins[Index]->Properties.Label = FName(InputMembers[Index]->Name);
+			}
+		}
+		
+		OnNodeChangedDelegate.Broadcast(this);
+	}
+}
+
+UMovieGraphVariableNode::UMovieGraphVariableNode()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		RegisterDelegates();
+	}
+}
+
 TArray<FMovieGraphPinProperties> UMovieGraphVariableNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
@@ -212,9 +365,7 @@ void UMovieGraphVariableNode::SetVariable(UMovieGraphVariable* InVariable)
 		// (eg, when the variable is renamed)
 		UpdateOutputPin(GraphVariable);
 
-#if WITH_EDITOR
-		GraphVariable->OnMovieGraphVariableChangedDelegate.AddUObject(this, &UMovieGraphVariableNode::UpdateOutputPin);
-#endif
+		RegisterDelegates();
 	}
 }
 
@@ -230,11 +381,25 @@ FText UMovieGraphVariableNode::GetMenuCategory() const
 }
 #endif // WITH_EDITOR
 
-void UMovieGraphVariableNode::UpdateOutputPin(UMovieGraphVariable* ChangedVariable)
+void UMovieGraphVariableNode::RegisterDelegates() const
+{
+	Super::RegisterDelegates();
+
+#if WITH_EDITOR
+	if (GraphVariable)
+	{
+		GraphVariable->OnMovieGraphVariableChangedDelegate.AddUObject(this, &UMovieGraphVariableNode::UpdateOutputPin);
+	}
+#endif
+}
+
+void UMovieGraphVariableNode::UpdateOutputPin(UMovieGraphMember* ChangedVariable) const
 {
 	if (!OutputPins.IsEmpty() && ChangedVariable)
 	{
 		// Update the output pin w/ the name of the variable
 		OutputPins[0]->Properties.Label = FName(ChangedVariable->Name);
 	}
+
+	OnNodeChangedDelegate.Broadcast(this);
 }

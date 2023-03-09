@@ -36,9 +36,9 @@ struct FMovieGraphTraversalContext
 	FString RenderLayerName;
 };
 
-/** Types of UMovieGraphVariable that can be used in the graph. */
+/** Types of members that can be used in the graph. */
 UENUM()
-enum class EMovieGraphVariableType : uint8
+enum class EMovieGraphMemberType : uint8
 {
 	Bool,
 	Float,
@@ -47,66 +47,120 @@ enum class EMovieGraphVariableType : uint8
 };
 
 #if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphVariableChanged, UMovieGraphVariable*);
-#endif 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphVariableChanged, class UMovieGraphMember*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphInputChanged, class UMovieGraphMember*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphOutputChanged, class UMovieGraphMember*);
+#endif
+
+UCLASS(Abstract)
+class UMovieGraphMember : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UMovieGraphMember() = default;
+
+	/** Gets the GUID that uniquely identifies this member. */
+	const FGuid& GetGuid() const { return Guid; }
+
+	/** Sets the GUID that uniquely identifies this member. */
+	void SetGuid(const FGuid& InGuid) { Guid = InGuid; }
+
+public:
+	/** The type of data associated with this member. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	EMovieGraphMemberType Type = EMovieGraphMemberType::Float;
+
+	// TODO: Need a details customization that validates whether or not the name is valid/unique
+	/** The name of this member, which is user-facing. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	FString Name;
+
+	/** The optional description of this member, which is user-facing. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	FString Description;
+
+	// TODO: This needs to eventually be capable of storing multiple types. Using TVariant looks promising, but it will
+	// still require extensive details panel customizations
+	/** The default value of this member. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	float Default = 0.f;
+
+private:
+	/** A GUID that uniquely identifies this member within its graph. */
+	UPROPERTY()
+	FGuid Guid;
+};
 
 /**
  * A variable that can be created and used inside the graph. These variables can be controlled at
  * the job level.
  */
 UCLASS(BlueprintType)
-class UMovieGraphVariable : public UObject
+class UMovieGraphVariable : public UMovieGraphMember
 {
 	GENERATED_BODY()
 
 public:
 	UMovieGraphVariable() = default;
 
-	/** Gets the GUID that uniquely identifies this variable. */
-	const FGuid& GetGuid() const { return Guid; }
-
-	/** Sets the GUID that uniquely identifies this variable. */
-	void SetGuid(const FGuid& InGuid) { Guid = InGuid; }
-
 public:
 #if WITH_EDITOR
 	FOnMovieGraphVariableChanged OnMovieGraphVariableChangedDelegate;
-#endif
-
-	/** The type of data stored in this variable. */
-	UPROPERTY(EditAnywhere, Category = "General")
-	EMovieGraphVariableType Type = EMovieGraphVariableType::Float;
-
-	// TODO: Need a details customization that validates whether or not the name is valid/unique
-	/** The name of this variable, which is user-facing. */
-	UPROPERTY(EditAnywhere, Category = "General")
-	FString Name;
-
-	/** The optional description of this variable, which is user-facing. */
-	UPROPERTY(EditAnywhere, Category = "General")
-	FString Description;
-
-	// TODO: This needs to eventually be capable of storing multiple types. Using TVariant looks promising, but it will
-	// still require extensive details panel customizations
-	/** The default value of this variable. */
-	UPROPERTY(EditAnywhere, Category = "General")
-	float Default = 0.f;
 
 	//~ Begin UObject overrides
-#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 	//~ End UObject overrides
+#endif // WITH_EDITOR
+};
 
-private:
-	/** A GUID that uniquely identifies this variable within its graph. */
-	UPROPERTY()
-	FGuid Guid;
+/**
+ * An input exposed on the graph that will be available for nodes to connect to.
+ */
+UCLASS(BlueprintType)
+class UMovieGraphInput : public UMovieGraphMember
+{
+	GENERATED_BODY()
+
+public:
+	UMovieGraphInput() = default;
+
+public:
+#if WITH_EDITOR
+	FOnMovieGraphInputChanged OnMovieGraphInputChangedDelegate;
+
+	//~ Begin UObject overrides
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject overrides
+#endif
+};
+
+/**
+ * An output exposed on the graph that will be available for nodes to connect to.
+ */
+UCLASS(BlueprintType)
+class UMovieGraphOutput : public UMovieGraphMember
+{
+	GENERATED_BODY()
+
+public:
+	UMovieGraphOutput() = default;
+
+public:
+#if WITH_EDITOR
+	FOnMovieGraphOutputChanged OnMovieGraphOutputChangedDelegate;
+
+	//~ Begin UObject overrides
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject overrides
+#endif
 };
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnMovieGraphChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnMovieGraphVariablesChanged);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphInputAdded, UMovieGraphInput*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphOutputAdded, UMovieGraphOutput*);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphNodesDeleted, TArray<UMovieGraphNode*>);
 #endif // WITH_EDITOR
 
@@ -134,19 +188,30 @@ public:
 	bool RemoveNode(UMovieGraphNode* InNode);
 	bool RemoveNodes(TArray<UMovieGraphNode*> InNodes);
 
-
 	UMovieGraphNode* GetInputNode() const { return InputNode; }
 	UMovieGraphNode* GetOutputNode() const { return OutputNode; }
 	const TArray<TObjectPtr<UMovieGraphNode>>& GetNodes() const { return AllNodes; }
 
-	/** Adds a new variable with default values to the graph. Returns the new variable on success, else nullptr. */
+	/** Adds a new variable member with default values to the graph. Returns the new variable on success, else nullptr. */
 	UMovieGraphVariable* AddVariable();
+
+	/** Adds a new input member to the graph. Returns the new input on success, else nullptr. */
+	UMovieGraphInput* AddInput();
+
+	/** Adds a new output member to the graph. Returns the new output on success, else nullptr. */
+	UMovieGraphOutput* AddOutput();
 
 	/** Gets the variable in the graph with the specified GUID, else nullptr if one could not be found. */
 	UMovieGraphVariable* GetVariableByGuid(const FGuid& InGuid) const;
 
-	/** Get all variables that have been defined on the graph. */
+	/** Gets all variables that have been defined on the graph. */
 	TArray<UMovieGraphVariable*> GetVariables() const;
+
+	/** Gets all inputs that have been defined on the graph. */
+	TArray<UMovieGraphInput*> GetInputs() const;
+
+	/** Gets all outputs that have been defined on the graph. */
+	TArray<UMovieGraphOutput*> GetOutputs() const;
 
 	/** Remove the specified member (input, output, variable) from the graph. */
 	void DeleteMember(UObject* MemberToDelete);
@@ -183,6 +248,11 @@ public:
 
 	TArray<UMovieGraphNode*> TraverseGraph(TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext) const;
 
+	/** Remove the specified input member from the graph. */
+	void DeleteInputMember(UMovieGraphInput* InputMemberToDelete);
+
+	/** Remove the specified output member from the graph. */
+	void DeleteOutputMember(UMovieGraphOutput* OutputMemberToDelete);
 
 protected:
 	void TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext, TArray<UMovieGraphNode*>& OutNodes) const;
@@ -191,6 +261,8 @@ public:
 #if WITH_EDITOR
 	FOnMovieGraphChanged OnGraphChangedDelegate;
 	FOnMovieGraphVariablesChanged OnGraphVariablesChangedDelegate;
+	FOnMovieGraphInputAdded OnGraphInputAddedDelegate;
+	FOnMovieGraphOutputAdded OnGraphOutputAddedDelegate;
 	FOnMovieGraphNodesDeleted OnGraphNodesDeletedDelegate;
 #endif
 	
@@ -227,10 +299,20 @@ public:
 	}
 
 private:
-	void OnVariableUpdated(UMovieGraphVariable* UpdatedVariable);
+	/** Add a new member of type T to MemberArray, with a unique name that includes BaseName in it. */
+	template<typename T>
+	T* AddMember(TArray<TObjectPtr<T>>& MemberArray, const FText& BaseName);
 
 private:
 	/** All variables which have been defined on the graph. */
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieGraphVariable>> Variables;
+
+	/** All inputs which have been defined on the graph. */
+	UPROPERTY()
+	TArray<TObjectPtr<UMovieGraphInput>> Inputs;
+
+	/** All outputs which have been defined on the graph. */
+	UPROPERTY()
+	TArray<TObjectPtr<UMovieGraphOutput>> Outputs;
 };
