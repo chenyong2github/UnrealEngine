@@ -39,10 +39,9 @@ void UGraphIsland::MergeWith(TObjectPtr<UGraphIsland> OtherIsland)
 		return;
 	}
 
-	TSet<FGraphVertexHandle> OtherVertices = OtherIsland->Vertices;
-	for (const FGraphVertexHandle& Node : OtherVertices)
+	for (const FGraphVertexHandle& Node : OtherIsland->Vertices)
 	{
-		OtherIsland->RemoveVertex(Node);
+		OtherIsland->HandleOnVertexRemoved(Node);
 		AddVertex(Node);
 	}
 
