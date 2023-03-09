@@ -15,15 +15,15 @@ namespace Audio
 	{
 		if (!OldInfoObject.IsValid())
 		{
-			FAudioDeviceHandle Handle = FAudioDeviceManager::Get()->GetActiveAudioDevice();
+			TUniquePtr<ICompressedAudioInfo> InfoInstance;
 			FName Format = Wave->GetRuntimeFormat();
 			IAudioInfoFactory* Factory = IAudioInfoFactoryRegistry::Get().Find(Format);
-			if (ensure(Handle))
+			if (!ensure(Factory))
 			{
 				return nullptr;
 			}
 
-				OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(Wave));
+			InfoInstance.Reset(Factory->Create());
 			if (!ensure(InfoInstance.IsValid()))
 			{
 				return nullptr;
