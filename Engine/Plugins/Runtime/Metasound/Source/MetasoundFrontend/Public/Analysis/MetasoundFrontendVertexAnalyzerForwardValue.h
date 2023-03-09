@@ -69,6 +69,7 @@ namespace Metasound
 				const DataType& Value = GetVertexData<DataType>();
 				if (LastValue != Value)
 				{
+					LastValue = Value;
 					MarkOutputDirty();
 				}
 			}
