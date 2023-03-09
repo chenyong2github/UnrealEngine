@@ -322,6 +322,8 @@ FRDGTextureRef OrDefault3dUintTextureIfNull(FRDGBuilder& GraphBuilder, FRDGTextu
 	return Texture ? Texture: GSystemTextures.GetVolumetricBlackUintDummy(GraphBuilder);
 }
 
+float GetLumenReflectionSpecularScale();
+float GetLumenReflectionContrast();
 FLumenTranslucencyLightingParameters GetLumenTranslucencyLightingParameters(
 	FRDGBuilder& GraphBuilder, 
 	const FLumenTranslucencyGIVolume& LumenTranslucencyGIVolume,
@@ -353,6 +355,8 @@ FLumenTranslucencyLightingParameters GetLumenTranslucencyLightingParameters(
 	Parameters.FrontLayerTranslucencyReflectionParameters.Radiance = OrDefault2dTextureIfNull(GraphBuilder, LumenFrontLayerTranslucency.Radiance);
 	Parameters.FrontLayerTranslucencyReflectionParameters.Normal = OrDefault2dTextureIfNull(GraphBuilder, LumenFrontLayerTranslucency.Normal);
 	Parameters.FrontLayerTranslucencyReflectionParameters.SceneDepth = OrDefault2dTextureIfNull(GraphBuilder, LumenFrontLayerTranslucency.SceneDepth);
+	Parameters.FrontLayerTranslucencyReflectionParameters.SpecularScale = GetLumenReflectionSpecularScale();
+	Parameters.FrontLayerTranslucencyReflectionParameters.Contrast = GetLumenReflectionContrast();
 
 	Parameters.TranslucencyGIVolume0            = LumenTranslucencyGIVolume.Texture0        ? LumenTranslucencyGIVolume.Texture0        : SystemTextures.VolumetricBlack;
 	Parameters.TranslucencyGIVolume1            = LumenTranslucencyGIVolume.Texture1        ? LumenTranslucencyGIVolume.Texture1        : SystemTextures.VolumetricBlack;

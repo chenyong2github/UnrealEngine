@@ -78,5 +78,8 @@ bool UseFrontLayerReflection(float2 BufferUV, float SceneDepth)
 
 float3 SampleFrontLayerReflection(float2 BufferUV)
 {
-	return Texture2DSampleLevel(FrontLayerTranslucencyReflectionsStruct.Radiance, GlobalPointClampedSampler, BufferUV, 0.0f).xyz * View.OneOverPreExposure;
+	const float3 Radiance = Texture2DSampleLevel(FrontLayerTranslucencyReflectionsStruct.Radiance, GlobalPointClampedSampler, BufferUV, 0.0f).xyz * View.OneOverPreExposure;
+	
+	// Constrast adjustment with mid-grey as 'anchor' point so that overall exposure don't change
+	return (pow(Radiance * (1.f / 0.18f), FrontLayerTranslucencyReflectionsStruct.Contrast) * 0.18f) * FrontLayerTranslucencyReflectionsStruct.SpecularScale;
 }

@@ -262,6 +262,30 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHiResSurface(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenReflectionsSpecularScale = 1.f;
+FAutoConsoleVariableRef GVarLumenReflectionsSpecularScale(
+	TEXT("r.Lumen.Reflections.SpecularScale"),
+	GLumenReflectionsSpecularScale,
+	TEXT("Scale Lumen specular reflection."),
+	ECVF_RenderThreadSafe);
+
+float GLumenReflectionsContrast = 1.f;
+FAutoConsoleVariableRef GVarLumenReflectionsContrast(
+	TEXT("r.Lumen.Reflections.Contrast"),
+	GLumenReflectionsContrast,
+	TEXT("Scale Lumen reflection contrast."),
+	ECVF_RenderThreadSafe);
+
+float GetLumenReflectionSpecularScale()
+{
+	return FMath::Max(GLumenReflectionsSpecularScale, 0.f);
+}
+
+float GetLumenReflectionContrast()
+{
+	return FMath::Clamp(GLumenReflectionsContrast, 0.001f, 1.0f);
+}
+
 bool LumenReflections::UseSurfaceCacheFeedback()
 {
 	return CVarLumenReflectionsSurfaceCacheFeedback.GetValueOnRenderThread() != 0;

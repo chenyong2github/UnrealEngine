@@ -125,6 +125,8 @@ uint bLumenSupportBackfaceDiffuse;
 uint bLumenReflectionInputIsSSR;
 float LumenFoliageOcclusionStrength;
 float LumenMaxAOMultibounceAlbedo;
+float LumenReflectionContrast;
+float LumenReflectionSpecularScale;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper functions
@@ -160,6 +162,13 @@ FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, floa
 	return Out;
 }
 
+float3 AddContrastAndSpecularScale(float3 In)
+{
+	// Constrast adjustment with mid-grey as 'anchor' point so that overall exposure don't change
+	In = pow(In * (1.f / 0.18f), LumenReflectionContrast) * 0.18f;
+	return In * LumenReflectionSpecularScale;
+}
+
 float3 MixSpecularAndRoughReflections(float InRoughness, bool bHasBackfaceDiffuse, float4 SpecularReflections, float3 RoughReflections)
 {
 	const float FadeAlpha = LumenCombineReflectionsAlpha(InRoughness, bHasBackfaceDiffuse);
@@ -182,7 +191,7 @@ float3 MixSpecularAndRoughReflections(float InRoughness, bool bHasBackfaceDiffus
 		Lighting += SpecularReflections.rgb * FadeAlpha;
 	}
 	
-	return Lighting;
+	return AddContrastAndSpecularScale(Lighting);
 }
 
 float3 CombineRoughSpecular(FGBufferData GBuffer, bool bHasBackfaceDiffuse, float NoV, float4 RayTracedReflections, float3 RoughReflections, float3 SpecularColor)
@@ -191,7 +200,7 @@ float3 CombineRoughSpecular(FGBufferData GBuffer, bool bHasBackfaceDiffuse, floa
 	
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
-		Lighting = ClearCoatLayerCombine(GBuffer, NoV, RayTracedReflections.xyz, RoughReflections, SpecularColor);
+		Lighting = ClearCoatLayerCombine(GBuffer, NoV, AddContrastAndSpecularScale(RayTracedReflections.xyz), AddContrastAndSpecularScale(RoughReflections), SpecularColor);
 	}
 	else
 	{
@@ -537,7 +546,7 @@ void MainPS(
 					RoughSpecularIndirectLighting *= Occlusion.SpecularOcclusion;
 					IndirectLighting.Specular = CombineRoughSpecular(GBuffer, HasBackfaceDiffuse(Material), NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
 				#else
-					IndirectLighting.Specular = SpecularIndirectLighting.xyz * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
+					IndirectLighting.Specular = AddContrastAndSpecularScale(SpecularIndirectLighting.xyz) * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 				#endif
 			}
 			}
