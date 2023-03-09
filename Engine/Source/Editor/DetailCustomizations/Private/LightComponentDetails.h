@@ -9,6 +9,7 @@
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class ULightComponent;
+class ULocalLightComponent;
 
 class FLightComponentDetails : public IDetailCustomization
 {
@@ -18,6 +19,7 @@ public:
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+	virtual void CustomizeDetails(const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder) override;
 
 	static void SetComponentIntensity(ULightComponent* Component, float InIntensity);
 
@@ -36,4 +38,18 @@ private:
 	TSharedPtr<IPropertyHandle> IESBrightnessEnabledProperty;
 	TSharedPtr<IPropertyHandle> IESBrightnessScaleProperty;
 	TSharedPtr<IPropertyHandle> LightIntensityProperty;
+	TSharedPtr<IPropertyHandle> IntensityUnitsProperty;
+
+	TWeakPtr<IDetailLayoutBuilder> CachedDetailBuilder;
+	void ResetIntensityUnitsToDefault(TSharedPtr<IPropertyHandle> PropertyHandle, ULocalLightComponent* Component);
+	bool IsIntensityUnitsResetToDefaultVisible(TSharedPtr<IPropertyHandle> PropertyHandle, ULocalLightComponent* Component) const;
+
+	/** Called when the intensity units are changed */
+	void OnIntensityUnitsPreChange(ULocalLightComponent* Component);
+	void OnIntensityUnitsChanged(ULocalLightComponent* Component);
+
+	/* Add local light intensity with unit */
+	void AddLocalLightIntensityWithUnit(IDetailLayoutBuilder& DetailBuilder, ULocalLightComponent* Component);
+
+	float LastLightBrigtness = 0;
 };
