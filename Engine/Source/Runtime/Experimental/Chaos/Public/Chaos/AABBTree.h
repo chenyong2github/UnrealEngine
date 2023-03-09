@@ -1601,7 +1601,7 @@ public:
 		DeAllocateLeafNode(LeafNodeIdx);
 	}
 
-	virtual void RemoveElement(const TPayloadType& Payload)
+	virtual bool RemoveElement(const TPayloadType& Payload)
 	{
 		ensure(bModifyingTreeMultiThreadingFastCheck == false);
 		bModifyingTreeMultiThreadingFastCheck = true;
@@ -1655,9 +1655,12 @@ public:
 
 				PayloadToInfo.Remove(Payload);
 				bShouldRebuild = true;
+				bModifyingTreeMultiThreadingFastCheck = false;
+				return true;
 			}
 		}
 		bModifyingTreeMultiThreadingFastCheck = false;
+		return false;
 	}
 
 	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bInHasBounds) override

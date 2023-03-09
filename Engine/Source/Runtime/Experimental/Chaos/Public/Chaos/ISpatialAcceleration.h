@@ -288,9 +288,11 @@ public:
 		check(false);
 	}
 
-	virtual void RemoveElement(const TPayloadType& Payload)
+	// Returns true if element was removed successfully
+	virtual bool RemoveElement(const TPayloadType& Payload)
 	{
 		check(false);	//not implemented
+		return true;
 	}
 
 	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, d>& NewBounds, bool bHasBounds)

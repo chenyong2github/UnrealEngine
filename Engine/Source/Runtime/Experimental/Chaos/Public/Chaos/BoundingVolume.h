@@ -241,7 +241,7 @@ public:
 		bIsEmpty = true;
 	}
 
-	virtual void RemoveElement(const TPayloadType& Payload) override
+	virtual bool RemoveElement(const TPayloadType& Payload) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeRemoveElement);
 		if (const FPayloadInfo* PayloadInfo = MPayloadInfo.Find(Payload))
@@ -256,7 +256,9 @@ public:
 			}
 
 			MPayloadInfo.Remove(Payload);
+			return true;
 		}
+		return false;
 	}
 
 	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T,d>& NewBounds, bool bHasBounds) override

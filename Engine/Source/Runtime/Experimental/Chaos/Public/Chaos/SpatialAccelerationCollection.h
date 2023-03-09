@@ -573,7 +573,21 @@ public:
 	virtual void RemoveElementFrom(const TPayloadType& Payload, FSpatialAccelerationIdx SpatialIdx) override
 	{
 		const uint16 UseBucket = ((1 << SpatialIdx.Bucket) & this->ActiveBucketsMask) ? SpatialIdx.Bucket : 0;
-		Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->RemoveElement(Payload);
+		const bool Success = Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->RemoveElement(Payload);
+		//ensure(Success); // We are removing this element with the wrong spatial index
+		if (!Success)
+		{
+			// Make sure that we remove this Payload to prevent crashes
+			for (FSpatialAccelerationIdx Idx : GetAllSpatialIndices())
+			{
+				if (!(Idx == SpatialIdx))
+				{
+					const uint16 Buckt = ((1 << Idx.Bucket) & this->ActiveBucketsMask) ? Idx.Bucket : 0;
+					const bool Removed = Buckets[Buckt].Objects[Idx.InnerIdx].Acceleration->RemoveElement(Payload);
+					//ensure(!Removed); // If this ensure hits, the payload was found in another substructure and successfully removed
+				}
+			}
+		}
 	}
 
 	virtual void UpdateElementIn(const TPayloadType& Payload, const TAABB<T, d>& NewBounds, bool bHasBounds, FSpatialAccelerationIdx SpatialIdx)
