@@ -11,6 +11,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using AutomationTool;
 using FileLockInfo;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 #pragma warning disable SYSLIB0014
 
@@ -41,7 +44,7 @@ namespace LyraDeployment
 			}
 
 			// Decompress the zip file to the target directory
-			CommandUtils.LogInformation("Decompressing to {0}...", BuildPathToolInstallPath);
+			Logger.LogInformation("Decompressing to {BuildPathToolInstallPath}...", BuildPathToolInstallPath);
 			CommandUtils.LegacyUnzipFiles(BuildPathToolDownloadPath, BuildPathToolInstallPath);
 			CommandUtils.DeleteFile(BuildPathToolDownloadPath);
 
@@ -57,7 +60,7 @@ namespace LyraDeployment
 
 		public override void ExecuteBuild()
 		{
-			LogInformation("*************************");
+			Logger.LogInformation("*************************");
 
 			var LogInstanceId = Guid.NewGuid().ToString("N");
 			var LogFileDirectory = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "Saved", "Logs", "BuildPatchToolLog");
@@ -83,7 +86,7 @@ namespace LyraDeployment
 
 			// Verify nothing is locked before moving on.
 			{
-				CommandUtils.LogInformation("Are Build Files Are Unlocked: Starting");
+				Logger.LogInformation("Are Build Files Are Unlocked: Starting");
 
 				string[] FilesInBuildRoot = Directory.GetFiles(BuildRoot);
 
@@ -96,16 +99,16 @@ namespace LyraDeployment
 					if (LockingProcesses.Count > 0)
 					{
 						string LockingProcessesString = string.Join(", ", LockingProcesses.Select(c => c.ProcessName));
-						CommandUtils.LogInformation("The following processes are locking files, {0}", LockingProcessesString);
+						Logger.LogInformation("The following processes are locking files, {LockingProcessesString}", LockingProcessesString);
 						Thread.Sleep(2000);
 					}
 				}
 				stopwatch.Stop();
 
-				CommandUtils.LogInformation("Are Build Files Are Unlocked: Done");
+				Logger.LogInformation("Are Build Files Are Unlocked: Done");
 			}
 
-			CommandUtils.LogInformation("Running BuildPatchTool Patch Generation on {0}", ArtifactId);
+			Logger.LogInformation("Running BuildPatchTool Patch Generation on {ArtifactId}", ArtifactId);
 			{
 				string Args = "";
 				Args += Arg("mode", "PatchGeneration");
@@ -135,7 +138,7 @@ namespace LyraDeployment
 				}
 				catch (AutomationException Ex)
 				{
-					CommandUtils.LogError(Ex.ToString());
+					Logger.LogError("{Text}", Ex.ToString());
 
 					//if (File.Exists(LogFilePath))
 					//{
@@ -147,9 +150,9 @@ namespace LyraDeployment
 					throw Ex;
 				}
 			}
-			CommandUtils.LogInformation("BuildPatchTool Patch Generation Done!");
+			Logger.LogInformation("BuildPatchTool Patch Generation Done!");
 
-			CommandUtils.LogInformation("Running BuildPatchTool LabelBuild on {0}", ArtifactId);
+			Logger.LogInformation("Running BuildPatchTool LabelBuild on {ArtifactId}", ArtifactId);
 			{
 				string Args = "";
 				Args += Arg("mode", "LabelBuild");
@@ -177,7 +180,7 @@ namespace LyraDeployment
 				}
 				catch (AutomationException Ex)
 				{
-					CommandUtils.LogError(Ex.ToString());
+					Logger.LogError("{Text}", Ex.ToString());
 
 					//if (File.Exists(LogFilePath))
 					//{
@@ -189,10 +192,10 @@ namespace LyraDeployment
 					throw Ex;
 				}
 			}
-			CommandUtils.LogInformation("BuildPatchTool Patch Generation Done!");
+			Logger.LogInformation("BuildPatchTool Patch Generation Done!");
 
 
-			LogInformation("*************************");
+			Logger.LogInformation("*************************");
 		}
 
 		private static string Arg(string Key, string Value)

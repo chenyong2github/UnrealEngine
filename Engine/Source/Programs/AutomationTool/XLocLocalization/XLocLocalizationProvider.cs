@@ -12,6 +12,9 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Localization;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 #pragma warning disable SYSLIB0014
 
@@ -106,12 +109,12 @@ namespace EpicGames.XLocLocalization
 			}
 			catch (Exception Ex)
 			{
-				BuildCommand.LogWarning("RequestLatestBuild failed for {0}. {1}", Culture, Ex);
+				Logger.LogWarning(Ex, "RequestLatestBuild failed for {Culture}. {Ex}", Culture, Ex);
 				return;
 			}
 			if (String.IsNullOrEmpty(LatestBuildXml))
 			{
-				Console.WriteLine("[IGNORED] '{0}' has no build data ({1})", XLocFilename, Culture);
+				Logger.LogInformation("[IGNORED] '{0}' has no build data ({1})", XLocFilename, Culture);
 				return;
 			}
 
@@ -174,7 +177,7 @@ namespace EpicGames.XLocLocalization
 				{
 					if (Response.StatusCode != HttpStatusCode.OK)
 					{
-						BuildCommand.LogWarning("HTTP Request to '{0}' failed. {1}", POFileUri, Response.StatusDescription);
+						Logger.LogWarning("HTTP Request to '{Url}' failed. {Status}", POFileUri, Response.StatusDescription);
 						return;
 					}
 
@@ -195,7 +198,7 @@ namespace EpicGames.XLocLocalization
 							using (var FileStream = ExportFile.Open(FileMode.Create))
 							{
 								ResponseStream.CopyTo(FileStream);
-								Console.WriteLine("[SUCCESS] Exporting: '{0}' as '{1}' ({2})", XLocFilename, ExportFile.FullName, Culture);
+								Logger.LogInformation("[SUCCESS] Exporting: '{File}' as '{ExportFile}' ({Culture})", XLocFilename, ExportFile.FullName, Culture);
 							}
 
 							if (ExportFileWasReadOnly)
@@ -373,11 +376,11 @@ namespace EpicGames.XLocLocalization
 				{
 					if (++Count < MAX_COUNT)
 					{
-						BuildCommand.LogWarning("RequestAuthToken attempt {0}/{1} failed. Retrying...", Count, MAX_COUNT);
+						Logger.LogWarning("RequestAuthToken attempt {Count}/{Total} failed. Retrying...", Count, MAX_COUNT);
 						continue;
 					}
 
-					BuildCommand.LogWarning("RequestAuthToken attempt {0}/{1} failed.", Count, MAX_COUNT);
+					Logger.LogWarning("RequestAuthToken attempt {Count}/{Total} failed.", Count, MAX_COUNT);
 					throw;
 				}
 			}

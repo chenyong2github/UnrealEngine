@@ -163,6 +163,7 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		public FASTBuild(int MaxLocalActions, bool bAllCores, bool bCompactOutput, ILogger Logger)
+			: base(Logger)
 		{
 			XmlConfig.ApplyTo(this);
 

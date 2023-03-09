@@ -483,9 +483,6 @@ namespace UnrealBuildTool
 					Utils.WriteFileIfChangedTrace = Options.TraceWrites;
 				}
 
-				// Add all the default event matchers from the UBT assembly
-				Log.EventParser.AddMatchersFromAssembly(Assembly.GetExecutingAssembly());
-
 				// Configure the progress writer
 				ProgressWriter.bWriteMarkup = Options.bWriteProgressMarkup;
 

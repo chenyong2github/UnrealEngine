@@ -877,31 +877,35 @@ namespace UnrealBuildTool
 		public static int RunExternalNativeExecutable(FileReference ExePath, string Commandline, ILogger Logger)
 		{
 			Logger.LogDebug("RunExternalExecutable {ExePathFullName} {Commandline}", ExePath.FullName, Commandline);
-			using (Process GameProcess = new Process())
+			using (LogEventParser Parser = new LogEventParser(Logger))
 			{
-				GameProcess.StartInfo.FileName = ExePath.FullName;
-				GameProcess.StartInfo.Arguments = Commandline;
-				GameProcess.StartInfo.UseShellExecute = false;
-				GameProcess.StartInfo.RedirectStandardOutput = true;
-				GameProcess.OutputDataReceived += (s, e) => PrintProcessOutputAsync(s, e, Logger);
-				GameProcess.Start();
-				GameProcess.BeginOutputReadLine();
-				GameProcess.WaitForExit();
+				Parser.AddMatchersFromAssembly(Assembly.GetExecutingAssembly());
+				using (Process GameProcess = new Process())
+				{
+					GameProcess.StartInfo.FileName = ExePath.FullName;
+					GameProcess.StartInfo.Arguments = Commandline;
+					GameProcess.StartInfo.UseShellExecute = false;
+					GameProcess.StartInfo.RedirectStandardOutput = true;
+					GameProcess.OutputDataReceived += (s, e) => PrintProcessOutputAsync(s, e, Parser);
+					GameProcess.Start();
+					GameProcess.BeginOutputReadLine();
+					GameProcess.WaitForExit();
 
-				return GameProcess.ExitCode;
+					return GameProcess.ExitCode;
+				}
 			}
 		}
 
 		/// <summary>
 		/// Simple function to pipe output asynchronously
 		/// </summary>
-		private static void PrintProcessOutputAsync(object Sender, DataReceivedEventArgs Event, ILogger Logger)
+		private static void PrintProcessOutputAsync(object Sender, DataReceivedEventArgs Event, LogEventParser Parser)
 		{
 			// DataReceivedEventHandler is fired with a null string when the output stream is closed.  We don't want to
 			// print anything for that event.
 			if (!String.IsNullOrEmpty(Event.Data))
 			{
-				Log.TraceInformation("{0}", Event.Data); // Output must be routed through event matchers; can't use Logger directly.
+				Parser.WriteLine(Event.Data);
 			}
 		}
 

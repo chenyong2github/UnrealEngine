@@ -667,9 +667,8 @@ namespace UnrealBuildTool.Modes
 			string OutPath = Path.Combine(TestOutputDirectory, Script);
 
 			UhtTestFileManager TestFileManager = new(TestDirectory);
-			UhtSession Session = new()
+			UhtSession Session = new(Logger)
 			{
-				Logger = Logger,
 				Tables = Tables,
 				Config = Config,
 				FileManager = TestFileManager,
@@ -1218,9 +1217,8 @@ namespace UnrealBuildTool.Modes
 
 				string? ProjectPath = ProjectFile != null ? Path.GetDirectoryName(ProjectFile) : null;
 
-				UhtSession Session = new()
+				UhtSession Session = new(Logger)
 				{
-					Logger = Logger,
 					Tables = Tables,
 					Config = Config,
 					FileManager = new UhtStdFileManager(),

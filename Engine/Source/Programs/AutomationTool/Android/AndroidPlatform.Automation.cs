@@ -985,7 +985,7 @@ public class AndroidPlatform : Platform
 					if (e.EventType == ZipProgressEventType.Adding_AfterAddEntry)
 					{
 						ObbFileCount += 1;
-						LogInformation("[{0}/{1}] Adding {2} to OBB",
+						Logger.LogInformation("[{Count}/{Total}] Adding {File} to OBB",
 							ObbFileCount, e.EntriesTotal,
 							e.CurrentEntry.FileName);
 					}

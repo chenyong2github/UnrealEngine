@@ -44,7 +44,7 @@ namespace EpicGames.OneSkyLocalization.Config
 							}
 							catch
 							{
-								BuildCommand.LogWarning("Unable to create OneSky config data: {0}", PotentialConfigType.Name);
+								Logger.LogWarning("Unable to create OneSky config data: {Name}", PotentialConfigType.Name);
 							}
 						}
 					}

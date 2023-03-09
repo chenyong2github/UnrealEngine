@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
 using System.Collections.Generic;
@@ -8,6 +8,9 @@ using EpicGames.Core;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System;
+
+using static AutomationTool.CommandUtils;
+using Microsoft.Extensions.Logging;
 
 #pragma warning disable SYSLIB0014
 
@@ -169,7 +172,7 @@ namespace Turnkey
 
 			if (!bResult)
 			{
-				Turnkey.LogWarning($"You do not have permission to access {PathString}");
+				Logger.LogWarning("You do not have permission to access {PathString}", PathString);
 			}
 			return bResult;
 		}

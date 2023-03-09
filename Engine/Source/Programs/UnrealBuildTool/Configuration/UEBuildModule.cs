@@ -272,7 +272,7 @@ namespace UnrealBuildTool
 					else
 					{
 						// Framework on disk
-						Framework = new UEBuildFramework(FrameworkRules.Name, DirectoryReference.Combine(ModuleDirectory, FrameworkRules.Path), FrameworkRules.CopyBundledAssets, FrameworkRules.bCopyFramework);
+						Framework = new UEBuildFramework(FrameworkRules.Name, DirectoryReference.Combine(ModuleDirectory, FrameworkRules.Path), FrameworkRules.CopyBundledAssets, FrameworkRules.bCopyFramework, Logger);
 					}
 					PublicAdditionalFrameworks.Add(Framework);
 				}
@@ -1081,12 +1081,12 @@ namespace UnrealBuildTool
 				// Log dependencies if required
 				if ( Log.OutputLevel >= LogEventType.VeryVerbose)
 				{
-					Log.TraceVeryVerbose("Module {0} dependencies:", this.Name);
-					LogDependencyNameList("Public:", Rules.PublicDependencyModuleNames);
-					LogDependencyNameList("Private:", Rules.PrivateDependencyModuleNames);
-					LogDependencyNameList("Dynamic:", Rules.DynamicallyLoadedModuleNames);
-					LogDependencyNameList("Public Include Paths:", Rules.PublicIncludePathModuleNames);
-					LogDependencyNameList("Private Include Paths:", Rules.PrivateIncludePathModuleNames);
+					Logger.LogTrace("Module {0} dependencies:", this.Name);
+					LogDependencyNameList("Public:", Rules.PublicDependencyModuleNames, Logger);
+					LogDependencyNameList("Private:", Rules.PrivateDependencyModuleNames, Logger);
+					LogDependencyNameList("Dynamic:", Rules.DynamicallyLoadedModuleNames, Logger);
+					LogDependencyNameList("Public Include Paths:", Rules.PublicIncludePathModuleNames, Logger);
+					LogDependencyNameList("Private Include Paths:", Rules.PrivateIncludePathModuleNames, Logger);
 				}
 
 				// Create the private include path modules
@@ -1117,12 +1117,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static void LogDependencyNameList(string Title, List<string> DependencyNameList)
+		private static void LogDependencyNameList(string Title, List<string> DependencyNameList, ILogger logger)
 		{
-			Log.TraceVeryVerbose("  " + Title);
+			logger.LogTrace("  {Title}", Title);
 			foreach (string name in DependencyNameList)
 			{
-				Log.TraceVeryVerbose("    " + name);
+				logger.LogTrace("    {Name}", name);
 			}
 		}
 

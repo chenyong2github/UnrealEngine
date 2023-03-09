@@ -93,7 +93,8 @@ namespace UnrealBuildTool
 			"Unexpected PDB error; OK (0)"
 		};
 
-		public XGE()
+		public XGE(ILogger Logger)
+			: base(Logger)
 		{
 			XmlConfig.ApplyTo(this);
 		}
@@ -764,7 +765,7 @@ namespace UnrealBuildTool
 							CommandDescription = string.Empty;
 							return;
 						}
-						Log.TraceInformation("{0}", Text); // Using old log function to pick up registered event parsers
+						WriteToolOutput(Text);
 					}
 				};
 

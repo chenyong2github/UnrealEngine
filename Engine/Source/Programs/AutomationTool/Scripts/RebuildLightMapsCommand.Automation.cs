@@ -135,11 +135,11 @@ namespace AutomationScripts.Automation
                 if ( AEx != null )
                 {
                     string LogFile = AEx.LogFileName;
-                    EpicGames.Core.Log.TraceWarning("Attempting to load file {0}", LogFile);
+                    Logger.LogWarning("Attempting to load file {File}", LogFile);
                     if ( LogFile != "")
                     {
                         
-                        EpicGames.Core.Log.TraceWarning("Attempting to read file {0}", LogFile);
+                        Logger.LogWarning("Attempting to read file {File}", LogFile);
                         try
                         {
                             string[] AllLogFile = ReadAllLines(LogFile);

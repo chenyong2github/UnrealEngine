@@ -476,7 +476,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			Log.TraceInformation("GettingNativeInfo {0}ms overall", (DateTime.UtcNow - MainStart).TotalMilliseconds);
+			Logger.LogInformation("GettingNativeInfo {TimeMs}ms overall", (DateTime.UtcNow - MainStart).TotalMilliseconds);
 		}
 	}
 }

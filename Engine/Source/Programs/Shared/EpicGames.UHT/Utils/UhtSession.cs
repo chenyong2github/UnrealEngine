@@ -305,7 +305,7 @@ namespace EpicGames.UHT.Utils
 
 					if (!String.IsNullOrEmpty(message))
 					{
-						Log.TraceInformation(message);
+						Session.Logger.LogInformation("{Message}", message);
 						lock (ReferenceErrorMessages)
 						{
 							ReferenceErrorMessages.Add(message, true);
@@ -563,9 +563,9 @@ namespace EpicGames.UHT.Utils
 		#region Configurable settings
 
 		/// <summary>
-		/// Logger interface.  If not set, Log.Logger will be used
+		/// Logger interface.
 		/// </summary>
-		public ILogger? Logger { get; set; }
+		public ILogger Logger { get; }
 
 		/// <summary>
 		/// Interface used to read/write files
@@ -818,6 +818,15 @@ namespace EpicGames.UHT.Utils
 		#endregion
 
 		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="logger">Logger for the session</param>
+		public UhtSession(ILogger logger)
+		{
+			Logger = logger;
+		}
+
+		/// <summary>
 		/// Return the index for a newly defined type
 		/// </summary>
 		/// <returns>New index</returns>
@@ -980,21 +989,21 @@ namespace EpicGames.UHT.Utils
 			if (FileManager == null)
 			{
 				Interlocked.Increment(ref _errorCount);
-				Log.Logger.LogError("No file manager supplied, aborting.");
+				Logger.LogError("No file manager supplied, aborting.");
 				return;
 			}
 
 			if (Config == null)
 			{
 				Interlocked.Increment(ref _errorCount);
-				Log.Logger.LogError("No configuration supplied, aborting.");
+				Logger.LogError("No configuration supplied, aborting.");
 				return;
 			}
 
 			if (Tables == null)
 			{
 				Interlocked.Increment(ref _errorCount);
-				Log.Logger.LogError("No parsing tables supplied, aborting.");
+				Logger.LogError("No parsing tables supplied, aborting.");
 				return;
 			}
 
@@ -1006,7 +1015,7 @@ namespace EpicGames.UHT.Utils
 				case UhtReferenceMode.Reference:
 					if (String.IsNullOrEmpty(ReferenceDirectory))
 					{
-						Log.Logger.LogError("WRITEREF requested but directory not set, ignoring");
+						Logger.LogError("WRITEREF requested but directory not set, ignoring");
 						ReferenceMode = UhtReferenceMode.None;
 					}
 					break;
@@ -1014,7 +1023,7 @@ namespace EpicGames.UHT.Utils
 				case UhtReferenceMode.Verify:
 					if (String.IsNullOrEmpty(ReferenceDirectory) || String.IsNullOrEmpty(VerifyDirectory))
 					{
-						Log.Logger.LogError("VERIFYREF requested but directories not set, ignoring");
+						Logger.LogError("VERIFYREF requested but directories not set, ignoring");
 						ReferenceMode = UhtReferenceMode.None;
 					}
 					break;
@@ -1026,7 +1035,7 @@ namespace EpicGames.UHT.Utils
 				{
 					if (!Config.DocumentationPolicies.TryGetValue(defaultPolicyName, out UhtDocumentationPolicy? policy))
 					{
-						Log.Logger.LogError("The default documentation policy '{DefaultPolicyName}' isn't known", defaultPolicyName);
+						Logger.LogError("The default documentation policy '{DefaultPolicyName}' isn't known", defaultPolicyName);
 						return;
 					}
 				}
@@ -1064,11 +1073,11 @@ namespace EpicGames.UHT.Utils
 			// If we are deleting the reference directory, then wait for that task to complete
 			if (_referenceDeleteTask != null)
 			{
-				Log.Logger.LogTrace("Step - Waiting for reference output to be cleared.");
+				Logger.LogTrace("Step - Waiting for reference output to be cleared.");
 				_referenceDeleteTask.Wait();
 			}
 
-			Log.Logger.LogTrace("Step - Starting exporters.");
+			Logger.LogTrace("Step - Starting exporters.");
 			StepExport();
 		}
 
@@ -2486,7 +2495,7 @@ namespace EpicGames.UHT.Utils
 			long totalWrittenFiles = 0;
 			Try(null, () =>
 			{
-				Log.Logger.LogTrace("Step - Exports");
+				Logger.LogDebug("Step - Exports");
 
 				foreach (UhtExporter exporter in ExporterTable)
 				{
@@ -2509,14 +2518,14 @@ namespace EpicGames.UHT.Utils
 						}
 						if (pluginModule == null)
 						{
-							Log.TraceWarning($"Exporter \"{exporter.Name}\" skipped because module \"{exporter.ModuleName}\" was not found in manifest");
+							Logger.LogWarning("Exporter \"{ExporterName}\" skipped because module \"{ModuleName}\" was not found in manifest", exporter.Name, exporter.ModuleName);
 							continue;
 						}
 					}
 
 					if (run)
 					{
-						Log.TraceLog($"       Running exporter {exporter.Name}");
+						Logger.LogDebug("       Running exporter {ExporterName}", exporter.Name);
 						UhtExportFactory factory = new(this, pluginModule, exporter);
 						factory.Run();
 						foreach (UhtExportFactory.Output output in factory.Outputs)
@@ -2533,7 +2542,7 @@ namespace EpicGames.UHT.Utils
 					}
 					else
 					{
-						Log.TraceLog($"       Exporter {exporter.Name} skipped");
+						Logger.LogDebug("       Exporter {ExporterName} skipped", exporter.Name);
 					}
 				}
 
@@ -2548,7 +2557,7 @@ namespace EpicGames.UHT.Utils
 				}
 			});
 
-			Log.TraceInformation($"Total of {totalWrittenFiles} written");
+			Logger.LogInformation("Total of {NumFiles} written", totalWrittenFiles);
 		}
 		#endregion
 	}

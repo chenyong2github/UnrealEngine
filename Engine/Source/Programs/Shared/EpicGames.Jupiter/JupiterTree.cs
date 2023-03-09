@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -97,7 +98,7 @@ namespace EpicGames.Jupiter
 			List<JupiterTree> AllTrees = GetAllTrees();
 			using (HttpClient JupiterClient = new HttpClient {BaseAddress = new Uri(JupiterUrl)})
 			{
-				Log.TraceInformation("Creating a new tree root in Jupiter with id: {0}", JupiterTreeKey);
+				Log.Logger.LogInformation("Creating a new tree root in Jupiter with id: {Key}", JupiterTreeKey);
 
 				if (Metadata == null)
 				{
@@ -128,7 +129,7 @@ namespace EpicGames.Jupiter
 					}
 				}
 
-				Log.TraceInformation("Uploading \"{0}\" trees to Jupiter", AllTrees.Count);
+				Log.Logger.LogInformation("Uploading \"{Count}\" trees to Jupiter", AllTrees.Count);
 
 				{
 					// upload the trees we have
@@ -179,7 +180,7 @@ namespace EpicGames.Jupiter
 					List<string> UnknownBlobs = JsonSerializer.Deserialize<List<string>>(ResponseString);
 					FoundBlobs = BlobIdentifiers.Where(Blob => !UnknownBlobs.Contains(Blob)).ToList();
 
-					Log.TraceInformation("Determined that build consist of \"{0}\" chunks of which \"{1}\" where already present. Thus uploading \"{2}\" blobs", BlobIdentifiers.Count, FoundBlobs.Count, BlobIdentifiers.Count - FoundBlobs.Count);
+					Log.Logger.LogInformation("Determined that build consist of \"{NumChunks}\" chunks of which \"{NumPresent}\" where already present. Thus uploading \"{Count}\" blobs", BlobIdentifiers.Count, FoundBlobs.Count, BlobIdentifiers.Count - FoundBlobs.Count);
 				}
 
 				{
@@ -227,7 +228,7 @@ namespace EpicGames.Jupiter
 					}
 				}
 
-				Log.TraceInformation("Build upload and verification complete.");
+				Log.Logger.LogInformation("Build upload and verification complete.");
 			}
 		}
 
@@ -235,7 +236,7 @@ namespace EpicGames.Jupiter
 		{
 			using (HttpClient JupiterClient = new HttpClient {BaseAddress = new Uri(JupiterUrl)})
 			{
-				Log.TraceInformation("Downloading tree with key \"{0}\" from Jupiter at {1} in namespace {2}", JupiterTreeKey, JupiterUrl, JupiterNamespace);
+				Log.Logger.LogInformation("Downloading tree with key \"{Key}\" from Jupiter at {Url} in namespace {Namespace}", JupiterTreeKey, JupiterUrl, JupiterNamespace);
 
 				string TopTreeHash;
 
@@ -551,7 +552,7 @@ namespace EpicGames.Jupiter
 			JupiterTree[] FileTrees = new JupiterTree[CountOfFileTrees];
 			Tree.Trees.CopyTo(1, FileTrees, 0, CountOfFileTrees);
 
-			Log.TraceInformation("Build {0} consisted of {1} files. Downloading.", JupiterTreeKey, CountOfFileTrees);
+			Log.Logger.LogInformation("Build {Key} consisted of {NumFiles} files. Downloading.", JupiterTreeKey, CountOfFileTrees);
 
 			List<FileReference> FilesWritten = new List<FileReference>();
 			int CountOfFilesWritten = 0;
@@ -569,14 +570,14 @@ namespace EpicGames.Jupiter
 				{
 					if (FileReference.Exists(LocalFileReference) && LocalHash == TreeHash)
 					{
-						Log.TraceInformation("File \"{0}\" already present with hash \"{1}\". Skipping.", LocalFileReference, LocalHash);
+						Log.Logger.LogInformation("File \"{File}\" already present with hash \"{Hash}\". Skipping.", LocalFileReference, LocalHash);
 						FileAlreadyPresent = true;
 					}
 				}
 
 				if (!FileAlreadyPresent)
 				{
-					Log.TraceInformation("Creating file: {0}", LocalFileReference);
+					Log.Logger.LogInformation("Creating file: {File}", LocalFileReference);
 
 					foreach (string ContentHash in FileTree.ContentHashes)
 					{

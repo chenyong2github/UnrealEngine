@@ -123,6 +123,7 @@ namespace UnrealBuildTool
 		/// <param name="bCompactOutput">Should output be written in a compact fashion</param>
 		/// <param name="Logger">Logger for output</param>
 		public ParallelExecutor(int MaxLocalActions, bool bAllCores, bool bCompactOutput, ILogger Logger)
+			: base(Logger)
 		{
 			XmlConfig.ApplyTo(this);
 
@@ -472,7 +473,9 @@ namespace UnrealBuildTool
 
 				s_previousLineLength = message.Length;
 
-				Log.TraceInformation("{0}", message); // Need to send this through registered event parser; using old logger
+				LogEventParser Parser = new LogEventParser(Logger);
+
+				WriteToolOutput(message);
 				foreach (string Line in LogLines.Skip(Action.bShouldOutputStatusDescription ? 0 : 1))
 				{
 					// suppress library creation messages when writing compact output
@@ -481,7 +484,7 @@ namespace UnrealBuildTool
 						continue;
 					}
 
-					Log.TraceInformation("{0}", Line);
+					WriteToolOutput(Line);
 
 					// Prevent overwriting of logged lines
 					s_previousLineLength = -1;

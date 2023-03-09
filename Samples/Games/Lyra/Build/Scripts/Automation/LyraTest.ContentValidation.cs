@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 using AutomationTool;
 using EpicGame;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace LyraTest
 {
@@ -40,7 +43,7 @@ namespace LyraTest
 			List<string> ExtensionTypeList = new List<string>();
 			if (string.IsNullOrEmpty(ExtensionTypeListParam))
 			{
-				CommandUtils.LogInformation("No extensions were passed in, defaulting to always run.  Set -ExtTypeList to the extension typelist for triggering the commandlet");
+				Logger.LogInformation("No extensions were passed in, defaulting to always run.  Set -ExtTypeList to the extension typelist for triggering the commandlet");
 				RunCommandlet = true;
 			}
 			else
@@ -104,12 +107,12 @@ namespace LyraTest
 
 					if (PrevCL <= 0)
 					{
-						CommandUtils.LogInformation("Previous CL file didn't exist. Defaulting to none!");
+						Logger.LogInformation("Previous CL file didn't exist. Defaulting to none!");
 						RunCommandlet = true;
 					}
 					else if (PrevCL >= ThisCLInt)
 					{
-						CommandUtils.LogInformation("Previous CL file shows a CL equal or newer than the current CL. This content was already checked. Skipping.");
+						Logger.LogInformation("Previous CL file shows a CL equal or newer than the current CL. This content was already checked. Skipping.");
 						RunCommandlet = false;
 					}
 					else
@@ -117,14 +120,14 @@ namespace LyraTest
 						// +1 to the previous cl so it won't use content from the previous change
 						PrevCL++;
 						CommandletArgs = String.Format("-P4Filter={0}/{1}/...@{2},{3}", Branch, GameProjectDirectory, PrevCL, ThisCL);
-						CommandUtils.LogInformation("Generated Filter: {0}", CommandletArgs);
+						Logger.LogInformation("Generated Filter: {CommandletArgs}", CommandletArgs);
 
 						RunCommandlet = WereFileTypesModifiedInChangelistRange(Branch, PrevCL, ThisCL, ExtensionTypeList);
 					}
 
 					if (!RunCommandlet)
 					{
-						CommandUtils.LogInformation("No files in CL Range {0} -> {1} contained any files ending with extensions {2}, or they were already checked in a previous job, skipping commandlet run", PrevCL, ThisCL, ExtensionTypeListParam);
+						Logger.LogInformation("No files in CL Range {PrevCL} -> {ThisCL} contained any files ending with extensions {ExtensionTypeListParam}, or they were already checked in a previous job, skipping commandlet run", PrevCL, ThisCL, ExtensionTypeListParam);
 					}
 				}
 			}
@@ -161,12 +164,12 @@ namespace LyraTest
 
 				if (PrevCL < ThisCLInt)
 				{
-					CommandUtils.LogInformation("Writing PrevCLFile {0}...", PrevCLFilePath);
+					Logger.LogInformation("Writing PrevCLFile {PrevCLFilePath}...", PrevCLFilePath);
 					WritePrevCLFile(PrevCLFilePath, ThisCLInt.ToString());
 				}
 				else
 				{
-					CommandUtils.LogInformation("Not writing PrevCLFile {0}. The current CL was not newer", PrevCLFilePath);
+					Logger.LogInformation("Not writing PrevCLFile {PrevCLFilePath}. The current CL was not newer", PrevCLFilePath);
 				}
 			}
 		}
@@ -190,13 +193,13 @@ namespace LyraTest
 					{
 						if (RetryCount > 0)
 						{
-							CommandUtils.LogInformation("Failed to read PrevCLFilePath {0}. Retrying in a few seconds. Ex:{1}", PrevCLFilePath, Ex.Message);
+							Logger.LogInformation("Failed to read PrevCLFilePath {PrevCLFilePath}. Retrying in a few seconds. Ex:{Arg1}", PrevCLFilePath, Ex.Message);
 							RetryCount--;
 							Thread.Sleep(TimeSpan.FromSeconds(5));
 						}
 						else
 						{
-							CommandUtils.LogError("Failed to read PrevCLFilePath {0}. All Retries exhausted, skipping. Ex:{1}", PrevCLFilePath, Ex.Message);
+							Logger.LogError("Failed to read PrevCLFilePath {PrevCLFilePath}. All Retries exhausted, skipping. Ex:{Arg1}", PrevCLFilePath, Ex.Message);
 							bProceed = true;
 						}
 					}
@@ -208,7 +211,7 @@ namespace LyraTest
 				}
 				else
 				{
-					CommandUtils.LogWarning("Couldn't parse out the changelist number from the saved PrevCLFilePath file. " + PrevCLFilePath);
+					Logger.LogWarning("{Text}", "Couldn't parse out the changelist number from the saved PrevCLFilePath file. " + PrevCLFilePath);
 				}
 			}
 
@@ -231,13 +234,13 @@ namespace LyraTest
 				{
 					if (RetryCount > 0)
 					{
-						CommandUtils.LogInformation("Failed to write PrevCLFilePath {0}. Retrying in a few seconds. Ex:{1}", PrevCLFilePath, Ex.Message);
+						Logger.LogInformation("Failed to write PrevCLFilePath {PrevCLFilePath}. Retrying in a few seconds. Ex:{Arg1}", PrevCLFilePath, Ex.Message);
 						RetryCount--;
 						Thread.Sleep(TimeSpan.FromSeconds(5));
 					}
 					else
 					{
-						CommandUtils.LogError("Failed to write PrevCLFilePath {0}. All Retries exhausted, skipping. Ex:{1}", PrevCLFilePath, Ex.Message);
+						Logger.LogError("Failed to write PrevCLFilePath {PrevCLFilePath}. All Retries exhausted, skipping. Ex:{Arg1}", PrevCLFilePath, Ex.Message);
 						bProceed = true;
 					}
 				}

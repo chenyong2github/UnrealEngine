@@ -284,7 +284,7 @@ namespace UnrealBuildTool
 			// Add additional frameworks so that their headers can be found
 			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
 			{
-				DirectoryReference? FrameworkDirectory = Framework.GetFrameworkDirectory(CompileEnvironment.Platform, CompileEnvironment.Architecture);
+				DirectoryReference? FrameworkDirectory = Framework.GetFrameworkDirectory(CompileEnvironment.Platform, CompileEnvironment.Architecture, Logger);
 				if (FrameworkDirectory != null)
 				{
 					string FrameworkDir = FrameworkDirectory.FullName;
@@ -435,7 +435,7 @@ namespace UnrealBuildTool
 			}
 			foreach (UEBuildFramework Framework in LinkEnvironment.AdditionalFrameworks)
 			{
-				DirectoryReference? FrameworkDirectory = Framework.GetFrameworkDirectory(LinkEnvironment.Platform, LinkEnvironment.Architecture);
+				DirectoryReference? FrameworkDirectory = Framework.GetFrameworkDirectory(LinkEnvironment.Platform, LinkEnvironment.Architecture, Logger);
 				if (FrameworkDirectory != null)
 				{
 					// If this framework has a directory specified, we'll need to setup the path as well
@@ -1257,7 +1257,7 @@ namespace UnrealBuildTool
 					DirectoryReference BundleDirectory = Target.bShouldCompileAsDLL ? Executable.Directory.Location : StagedExecutablePath.Directory;
 					foreach (UEBuildFramework Framework in BinaryLinkEnvironment.AdditionalFrameworks)
 					{
-						DirectoryReference? FrameworkDirectory = Framework.GetFrameworkDirectory(BinaryLinkEnvironment.Platform, BinaryLinkEnvironment.Architecture);
+						DirectoryReference? FrameworkDirectory = Framework.GetFrameworkDirectory(BinaryLinkEnvironment.Platform, BinaryLinkEnvironment.Architecture, Logger);
 						if (FrameworkDirectory != null)
 						{
 							if (!String.IsNullOrEmpty(Framework.CopyBundledAssets))

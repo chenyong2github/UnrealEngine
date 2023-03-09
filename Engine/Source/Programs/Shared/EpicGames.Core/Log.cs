@@ -214,7 +214,7 @@ namespace EpicGames.Core
 		/// <returns>The created trace listener</returns>
 		public static void AddFileWriter(string name, FileReference outputFile)
 		{
-			Log.TraceInformation($"Log file: {outputFile}");
+			Logger.LogInformation($"Log file: {OutputFile}", outputFile);
 
 			if (Log.BackupLogFiles && FileReference.Exists(outputFile))
 			{
@@ -234,7 +234,7 @@ namespace EpicGames.Core
 					// skip the newest ones that are to be kept; -1 because we're about to create another backup.
 					.Skip(Log.LogFileBackupCount - 1))
 				{
-					Log.TraceLog($"Deleting old log file: {oldBackup}");
+					Logger.LogDebug("Deleting old log file: {File}", oldBackup);
 					FileReference.Delete(oldBackup);
 				}
 
@@ -478,10 +478,11 @@ namespace EpicGames.Core
 		public static void WriteException(Exception ex, FileReference? logFileName)
 		{
 			string logSuffix = (logFileName == null) ? "" : String.Format("\n(see {0} for full exception trace)", logFileName);
-			TraceLog("==============================================================================");
-			TraceError("{0}{1}", ExceptionUtils.FormatException(ex), logSuffix);
-			TraceLog("\n{0}", ExceptionUtils.FormatExceptionDetails(ex));
-			TraceLog("==============================================================================");
+			Logger.LogDebug("==============================================================================");
+			Logger.LogError(ex, "{Message}{Suffix}", ExceptionUtils.FormatException(ex), logSuffix);
+			Logger.LogDebug("");
+			Logger.LogDebug("{Details}", ExceptionUtils.FormatExceptionDetails(ex));
+			Logger.LogDebug("==============================================================================");
 		}
 
 		/// <summary>
@@ -490,6 +491,7 @@ namespace EpicGames.Core
 		/// <param name="format">Message format string</param>
 		/// <param name="args">Optional arguments</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogError with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void TraceError(string format, params object?[] args)
 		{
 			WriteLinePrivate(false, LogEventType.Error, LogFormatOptions.None, format, args);
@@ -527,6 +529,7 @@ namespace EpicGames.Core
 		/// <param name="args">Optional arguments</param>
 		[Conditional("TRACE")]
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogDebug with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void TraceVerbose(string format, params object?[] args)
 		{
 			WriteLinePrivate(false, LogEventType.Verbose, LogFormatOptions.None, format, args);
@@ -538,6 +541,7 @@ namespace EpicGames.Core
 		/// <param name="format">Message format string</param>
 		/// <param name="args">Optional arguments</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogInformation with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void TraceInformation(string format, params object?[] args)
 		{
 			WriteLinePrivate(false, LogEventType.Console, LogFormatOptions.None, format, args);
@@ -549,6 +553,7 @@ namespace EpicGames.Core
 		/// <param name="format">Message format string</param>
 		/// <param name="args">Optional arguments</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogWarning with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void TraceWarning(string format, params object?[] args)
 		{
 			WriteLinePrivate(false, LogEventType.Warning, LogFormatOptions.None, format, args);
@@ -598,6 +603,7 @@ namespace EpicGames.Core
 		/// <param name="args">Optional arguments</param>
 		[Conditional("TRACE")]
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogTrace with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void TraceVeryVerbose(string format, params object?[] args)
 		{
 			WriteLinePrivate(false, LogEventType.VeryVerbose, LogFormatOptions.None, format, args);
@@ -610,6 +616,7 @@ namespace EpicGames.Core
 		/// <param name="args">Optional arguments</param>
 		[Conditional("TRACE")]
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogDebug with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void TraceLog(string format, params object?[] args)
 		{
 			WriteLinePrivate(false, LogEventType.Log, LogFormatOptions.None, format, args);

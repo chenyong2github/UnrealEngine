@@ -7,6 +7,9 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using System.Threading.Tasks;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
+
+using static AutomationTool.CommandUtils;
 
 namespace EpicGames.Localization
 {
@@ -179,12 +182,12 @@ namespace EpicGames.Localization
 								}
 								catch
 								{
-									BuildCommand.LogWarning("Type '{0}' threw when calling its StaticGetLocalizationProviderId method.", PotentialLocalizationNodeType.FullName);
+									Logger.LogWarning("Type '{Name}' threw when calling its StaticGetLocalizationProviderId method.", PotentialLocalizationNodeType.FullName);
 								}
 							}
 							else
 							{
-								BuildCommand.LogWarning("Type '{0}' derives from LocalizationProvider but is missing its StaticGetLocalizationProviderId method.", PotentialLocalizationNodeType.FullName);
+								Logger.LogWarning("Type '{Name}' derives from LocalizationProvider but is missing its StaticGetLocalizationProviderId method.", PotentialLocalizationNodeType.FullName);
 							}
 						}
 					}
@@ -201,12 +204,12 @@ namespace EpicGames.Localization
 				}
 				catch (Exception e)
 				{
-					BuildCommand.LogWarning("Unable to create an instance of the type '{0}'. {1}", LocalizationNodeType.FullName, e.ToString());
+					Logger.LogWarning(e, "Unable to create an instance of the type '{Type}'. {Message}", LocalizationNodeType.FullName, e.ToString());
 				}
 			}
 			else
 			{
-				BuildCommand.LogWarning("Could not find a localization provider for '{0}'", InLocalizationProviderId);
+				Logger.LogWarning("Could not find a localization provider for '{Id}'", InLocalizationProviderId);
 			}
 
 			return null;

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -237,9 +237,9 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public Dictionary<MetadataPlatform, MetadataItem> EntitlementsFiles = new();
 
 
-		public Metadata(DirectoryReference ProductDirectory, DirectoryReference XcodeProject, ConfigHierarchy Ini, bool bSupportsMac, bool bSupportsIOSOrTVOS)
+		public Metadata(DirectoryReference ProductDirectory, DirectoryReference XcodeProject, ConfigHierarchy Ini, bool bSupportsMac, bool bSupportsIOSOrTVOS, ILogger Logger)
 		{
-			Log.TraceInformation($"making metadata for {ProductDirectory} / {XcodeProject}");
+			Logger.LogInformation("making metadata for {ProductDirectory} / {XcodeProject}", ProductDirectory, XcodeProject);
 			if (bSupportsMac)
 			{
 				PlistFiles[MetadataPlatform.MacEditor] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:PremadeMacEditorPlist", "template:TemplateMacEditorPlist");
@@ -400,7 +400,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				}
 			}
 
-			InitializeMetadata();
+			InitializeMetadata(Logger);
 
 			// Figure out all the desired configurations on the unreal side
 			AllConfigs = GetSupportedBuildConfigs(XcodeProjectFileGenerator.XcodePlatforms, Configurations, Logger);
@@ -438,14 +438,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			return true;
 		}
 
-		private void InitializeMetadata()
+		private void InitializeMetadata(ILogger Logger)
 		{
 
 			// read setings from the configs, now that we have a project
 			ConfigHierarchy SharedPlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
 			SharedPlatformIni.TryGetValue("XcodeConfiguration", "bUseModernCodeSigning", out bUseAutomaticSigning);
 
-			Metadata = new Metadata(ProductDirectory, XcodeProjectFileLocation, SharedPlatformIni, bSupportsMac, bSupportsIOS || bSupportsTVOS);
+			Metadata = new Metadata(ProductDirectory, XcodeProjectFileLocation, SharedPlatformIni, bSupportsMac, bSupportsIOS || bSupportsTVOS, Logger);
 		}
 
 		public string? FindFile(List<string> Paths, UnrealTargetPlatform Platform, bool bMakeRelative)
@@ -1403,7 +1403,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public UnrealTargetPlatform Platform;
 		public TargetType TargetType;
 
-		public XcodeRunTarget(XcodeProject Project, string TargetName, TargetType TargetType, UnrealTargetPlatform Platform, XcodeBuildTarget? BuildTarget, XcodeProjectFile ProjectFile)
+		public XcodeRunTarget(XcodeProject Project, string TargetName, TargetType TargetType, UnrealTargetPlatform Platform, XcodeBuildTarget? BuildTarget, XcodeProjectFile ProjectFile, ILogger Logger)
 			: base(Project.UnrealData.bIsAppBundle ? XcodeTarget.Type.Run_App : XcodeTarget.Type.Run_Tool, Project.UnrealData,
 				  TargetName + (XcodeProjectFileGenerator.PerPlatformMode == XcodePerPlatformMode.OneWorkspacePerPlatform ? "" : $"_{Platform}"))
 		{
@@ -1422,7 +1422,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				BuildPhases.Add(ResourcesBuildPhase);
 				References.Add(ResourcesBuildPhase);
 
-				ProcessFrameworks(ResourcesBuildPhase, Project, ProjectFile);
+				ProcessFrameworks(ResourcesBuildPhase, Project, ProjectFile, Logger);
 
 				if (Project.Platform == UnrealTargetPlatform.IOS || Project.Platform == UnrealTargetPlatform.TVOS)
 				{
@@ -1491,7 +1491,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			BuildConfigList!.BuildConfigs.ForEach(x => x.Xcconfig = Xcconfig);
 		}
 
-		protected void ProcessFrameworks(XcodeResourcesBuildPhase ResourcesBuildPhase, XcodeProject Project, XcodeProjectFile ProjectFile)
+		protected void ProcessFrameworks(XcodeResourcesBuildPhase ResourcesBuildPhase, XcodeProject Project, XcodeProjectFile ProjectFile, ILogger Logger)
 		{
 			// look up to see if we had cached any Frameworks
 			Tuple<ProjectFile, UnrealTargetPlatform> FrameworkKey = Tuple.Create((ProjectFile)ProjectFile, Platform);
@@ -1510,7 +1510,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				// only look at frameworks that need anything copied into 
 				foreach (UEBuildFramework Framework in InstalledFrameworks)
 				{
-					DirectoryReference? FinalFrameworkDir = Framework.GetFrameworkDirectory(null, null);
+					DirectoryReference? FinalFrameworkDir = Framework.GetFrameworkDirectory(null, null, Logger);
 					if (FinalFrameworkDir == null)
 					{
 						continue;
@@ -1521,7 +1521,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 						FinalFrameworkDir = DirectoryReference.Combine(FinalFrameworkDir, Framework.Name + ".framework");
 					}
 
-					DirectoryReference BundleRootDir = Framework.GetFrameworkDirectory(null, null)!;
+					DirectoryReference BundleRootDir = Framework.GetFrameworkDirectory(null, null, Logger)!;
 
 					if (Framework.ZipFile != null)
 					{
@@ -1706,7 +1706,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 		public XcodeBuildConfigList ProjectBuildConfigs;
 
-		public XcodeProject(UnrealTargetPlatform? Platform, UnrealData UnrealData, XcodeFileCollection FileCollection, XcodeProjectFile ProjectFile)
+		public XcodeProject(UnrealTargetPlatform? Platform, UnrealData UnrealData, XcodeFileCollection FileCollection, XcodeProjectFile ProjectFile, ILogger Logger)
 		{
 			this.Platform = Platform;
 			this.UnrealData = UnrealData;
@@ -1725,7 +1725,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			List<UnrealTargetPlatform> TargetPlatforms = Platform == null ? XcodeProjectFileGenerator.XcodePlatforms : new() { Platform.Value };
 			foreach (UnrealTargetPlatform TargetPlatform in TargetPlatforms)
 			{
-				XcodeRunTarget RunTarget = new XcodeRunTarget(this, UnrealData.ProductName, UnrealData.AllConfigs[0].ProjectTarget!.TargetRules!.Type, TargetPlatform, BuildTarget, ProjectFile);
+				XcodeRunTarget RunTarget = new XcodeRunTarget(this, UnrealData.ProductName, UnrealData.AllConfigs[0].ProjectTarget!.TargetRules!.Type, TargetPlatform, BuildTarget, ProjectFile, Logger);
 				RunTargets.Add(RunTarget);
 				References.Add(RunTarget);
 			}
@@ -2959,7 +2959,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 				// now create the xcodeproject elements (project -> target -> buildconfigs, etc)
 				FileCollection = new XcodeFileCollection(SharedFileCollection);
-				XcodeProject RootProject = new XcodeProject(Platform, UnrealData, FileCollection, this);
+				XcodeProject RootProject = new XcodeProject(Platform, UnrealData, FileCollection, this, Logger);
 				RootProjects[RootProject] = Platform;
 
 				if (FileReference.Exists(TemplateProject))

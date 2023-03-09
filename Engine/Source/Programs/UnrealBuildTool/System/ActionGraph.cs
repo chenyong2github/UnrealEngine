@@ -361,7 +361,7 @@ namespace UnrealBuildTool
 				}
 				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable(Logger) && ActionCount >= XGE.MinActions)
 				{
-					return new XGE();
+					return new XGE(Logger);
 				}
 				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable(Logger))
 				{
@@ -369,7 +369,7 @@ namespace UnrealBuildTool
 				}
 				else if (BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable(Logger))
 				{
-					return new SNDBS(TargetDescriptors);
+					return new SNDBS(TargetDescriptors, Logger);
 				}
 			}
 
@@ -388,7 +388,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// Figure out which executor to use
-				ActionExecutor Executor = SelectExecutor(BuildConfiguration, ActionsToExecute.Count, TargetDescriptors, Logger);
+				using ActionExecutor Executor = SelectExecutor(BuildConfiguration, ActionsToExecute.Count, TargetDescriptors, Logger);
 
 				// Execute the build
 				Stopwatch Timer = Stopwatch.StartNew();

@@ -32,16 +32,28 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		public HybridExecutor(List<TargetDescriptor> TargetDescriptors, int InMaxLocalActions, bool bAllCores, bool bCompactOutput, ILogger Logger, ActionExecutor? InLocalExecutor = null, ActionExecutor? InRemoteExecutor = null)
+			: base(Logger)
 		{
 			MaxLocalActions = InMaxLocalActions;
 			LocalExecutor = InLocalExecutor ?? new ParallelExecutor(MaxLocalActions, bAllCores, bCompactOutput, Logger);
-			RemoteExecutor = InRemoteExecutor ?? (XGE.IsAvailable(Logger) ? (ActionExecutor)new XGE() : new SNDBS(TargetDescriptors));
+			RemoteExecutor = InRemoteExecutor ?? (XGE.IsAvailable(Logger) ? (ActionExecutor)new XGE(Logger) : new SNDBS(TargetDescriptors, Logger));
 
 			XmlConfig.ApplyTo(this);
 
 			if (MaxLocalActions == 0)
 			{
 				MaxLocalActions = Utils.GetPhysicalProcessorCount();
+			}
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			base.Dispose(disposing);
+
+			if (disposing)
+			{
+				LocalExecutor.Dispose();
+				RemoteExecutor.Dispose();
 			}
 		}
 

@@ -389,7 +389,7 @@ class BuildHlslcc : BuildCommand
 	{
 		Process LocalProcess = new Process();
 		LocalProcess.StartInfo = StartInfo;
-		LocalProcess.OutputDataReceived += (Sender, Line) => { if (Line != null && Line.Data != null) EpicGames.Core.Log.TraceInformation(Line.Data); };
+		LocalProcess.OutputDataReceived += (Sender, Line) => { if (Line != null && Line.Data != null) Logger.LogInformation("{Line}", Line.Data); };
 		return RunLocalProcess(LocalProcess);
 	}
 

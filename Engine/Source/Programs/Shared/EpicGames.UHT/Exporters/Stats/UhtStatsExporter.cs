@@ -2,10 +2,10 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.UHT.Exporters.Stats
 {
@@ -22,13 +22,14 @@ namespace EpicGames.UHT.Exporters.Stats
 				Collect(countByType, type);
 			}
 
-			Log.TraceInformation("Counts by type:");
+			ILogger logger = factory.Session.Logger;
+			logger.LogInformation("Counts by type:");
 
 			foreach (KeyValuePair<string, int> kvp in countByType)
 			{
-				Log.TraceInformation($"{kvp.Key} {kvp.Value}");
+				logger.LogInformation("{Key} {Value}", kvp.Key, kvp.Value);
 			}
-			Log.TraceInformation("");
+			logger.LogInformation("");
 		}
 
 		private static void Collect(SortedDictionary<string, int> countByType, UhtType type)

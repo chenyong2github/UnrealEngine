@@ -113,6 +113,7 @@ namespace AutomationTool
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogInformation with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogInformation(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Console, Format, Args);
@@ -122,6 +123,7 @@ namespace AutomationTool
 		/// Writes formatted text to log (with LogEventType.Console).
 		/// </summary>
 		/// <param name="Message">Text</param>
+		[Obsolete("Use Logger.LogInformation with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogInformation(string Message)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Console, Message);
@@ -133,6 +135,7 @@ namespace AutomationTool
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogError with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogError(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Error, Format, Args);
@@ -142,6 +145,7 @@ namespace AutomationTool
 		/// Writes formatted text to log (with LogEventType.Error).
 		/// </summary>
 		/// <param name="Message">Text</param>
+		[Obsolete("Use Logger.LogError with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogError(string Message)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Error, Message);
@@ -153,6 +157,7 @@ namespace AutomationTool
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogWarning with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogWarning(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Warning, Format, Args);
@@ -162,6 +167,7 @@ namespace AutomationTool
 		/// Writes a message to log (with LogEventType.Warning).
 		/// </summary>
 		/// <param name="Message">Text</param>
+		[Obsolete("Use Logger.LogWarning with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogWarning(string Message)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Warning, Message);
@@ -173,6 +179,7 @@ namespace AutomationTool
 		/// <param name="Foramt">Format string</param>
 		/// <param name="Args">Arguments</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogDebug with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogVerbose(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Verbose, Format, Args);
@@ -182,6 +189,7 @@ namespace AutomationTool
 		/// Writes formatted text to log (with LogEventType.Verbose).
 		/// </summary>
 		/// <param name="Message">Text</param>
+		[Obsolete("Use Logger.LogDebug with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogVerbose(string Message)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Verbose, Message);
@@ -190,9 +198,10 @@ namespace AutomationTool
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.VeryVerbose).
 		/// </summary>
-		/// <param name="Foramt">Format string</param>
+		/// <param name="Format">Format string</param>
 		/// <param name="Args">Arguments</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogTrace with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogVeryVerbose(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.VeryVerbose, Format, Args);
@@ -202,6 +211,7 @@ namespace AutomationTool
 		/// Writes formatted text to log (with LogEventType.VeryVerbose).
 		/// </summary>
 		/// <param name="Message">Text</param>
+		[Obsolete("Use Logger.LogTrace with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogVeryVerbose(string Message)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.VeryVerbose, Message);
@@ -210,9 +220,10 @@ namespace AutomationTool
 		/// <summary>
 		/// Writes formatted text to log (with LogEventType.Log).
 		/// </summary>
-		/// <param name="Foramt">Format string</param>
+		/// <param name="Format">Format string</param>
 		/// <param name="Args">Arguments</param>
 		[StringFormatMethod("Format")]
+		[Obsolete("Use Logger.LogDebug with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogLog(string Format, params object[] Args)
 		{
 			EpicGames.Core.Log.WriteLine(EpicGames.Core.LogEventType.Log, Format, Args);
@@ -222,6 +233,7 @@ namespace AutomationTool
 		/// Writes formatted text to log (with LogEventType.Log).
 		/// </summary>
 		/// <param name="Message">Text</param>
+		[Obsolete("Use Logger.LogDebug with a message template instead; see https://tinyurl.com/bp96bk2r.", false)]
 		public static void LogLog(string Message)
 		{
 			EpicGames.Core.Log.WriteLine(LogEventType.Log, Message);

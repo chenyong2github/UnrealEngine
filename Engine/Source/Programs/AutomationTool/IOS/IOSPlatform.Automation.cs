@@ -1824,8 +1824,8 @@ public class IOSPlatform : ApplePlatform
 
 		using (Process IDeviceFSProcess = new Process())
 		{
-			DataReceivedEventHandler StdOutHandler = (E, Args) => { if (Args.Data != null) { Log.TraceInformation("{0}", Args.Data); } };
-			DataReceivedEventHandler StdErrHandler = (E, Args) => { if (Args.Data != null) { Log.TraceError("{0}", Args.Data); } };
+			DataReceivedEventHandler StdOutHandler = (E, Args) => { if (Args.Data != null) { Logger.LogInformation("{Text}", Args.Data); } };
+			DataReceivedEventHandler StdErrHandler = (E, Args) => { if (Args.Data != null) { Logger.LogError("{Text}", Args.Data); } };
 
 			IDeviceFSProcess.StartInfo.FileName = DeviceFS;
 			IDeviceFSProcess.StartInfo.Arguments = IdeviceFSArgs;

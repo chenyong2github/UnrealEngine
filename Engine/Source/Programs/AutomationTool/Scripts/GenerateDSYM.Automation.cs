@@ -35,7 +35,7 @@ public class GenerateDSYM : BuildCommand
 
 				if (ProjectFile == null || PlatformName == null || TargetName == null)
 				{
-					Log.TraceError("Must specify a file(s) with -file=, or other parameters to find the binaries:-project=<Path or name of project>\n" +
+					Logger.LogError("Must specify a file(s) with -file=, or other parameters to find the binaries:-project=<Path or name of project>\n" +
 						"-platform=<Mac|IOS|TVOS>\n" + 
 						"-target=<TargetName> (Optional, defaults to the ProjectName)\n" + 
 						"-config=<Debug|DebugGame|Development|Test|Shipping> (Optional - defaults to Development)\n" +
