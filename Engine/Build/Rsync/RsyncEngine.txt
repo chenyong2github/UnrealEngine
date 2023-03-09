@@ -191,6 +191,8 @@ protect /Source/Programs/Shared/EpicGames.*/***
 + /Source/ThirdParty/mimalloc/src/**
 + /Source/ThirdParty/**/IOS/**.framework/**
 + /Source/ThirdParty/**/TVOS/**.framework/**
++ /Source/ThirdParty/**/IOS/**.xcframework/**
++ /Source/ThirdParty/**/TVOS/**.xcframework/**
 - /Source/ThirdParty/**
 
 # Source: Include everything else
