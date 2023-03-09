@@ -246,7 +246,14 @@ void SGraphPinKnot::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEven
 FSlateColor SGraphPinKnot::GetPinColor() const
 {
 	// Make ourselves transparent if we're the input, since we are underneath the output pin and would double-blend looking ugly
-	return (GetPinObj()->Direction == EEdGraphPinDirection::EGPD_Input) ? FLinearColor::Transparent : SGraphPin::GetPinColor();
+	if (UEdGraphPin* EdGraphPin = GetPinObj())
+	{
+		if (EdGraphPin->Direction == EEdGraphPinDirection::EGPD_Input)
+		{
+			return FLinearColor::Transparent;
+		}
+	}
+	return SGraphPin::GetPinColor();
 }
 
 TSharedRef<SWidget>	SGraphPinKnot::GetDefaultValueWidget()

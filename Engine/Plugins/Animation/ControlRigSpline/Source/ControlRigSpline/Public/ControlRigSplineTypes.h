@@ -54,6 +54,8 @@ public:
 	
 	virtual TArray<FVector> GetControlPointsWithoutDuplicates();
 
+	virtual TArray<uint16> GetControlIndicesWithoutDuplicates();
+
 	uint8 GetDegree() const { return Degree; }
 };
 
@@ -102,6 +104,9 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 	// Spline type
 	ESplineType SplineMode;
 
+	// The transforms of the control points
+	TArray<FTransform> ControlTransforms;
+
 	// The initial lengths between samples
 	TArray<float> InitialLengths;
 
@@ -121,7 +126,7 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 	float Stretch;
 
 	// Positions along the "real" curve (no samples in the first and last segments of a hermite spline)
-	TArray<FVector> SamplesArray;
+	TArray<FTransform> SamplesArray;
 
 	// Accumulated length along the spline given by samples
 	TArray<float> AccumulatedLenth;
@@ -129,11 +134,20 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 	// Returns a reference to the control points that were used to create this spline 
 	TArray<FVector>& GetControlPoints();
 
+	// Returns a reference to the control transforms that were used to create this spline 
+	TArray<FTransform>& GetControlTransforms();
+
 	// Returns the control points that were used to create this spline, removing the duplicates in case of a closed spline
 	TArray<FVector> GetControlPointsWithoutDuplicates();
+	
+	// Returns the control transforms that were used to create this spline, removing the duplicates in case of a closed spline
+	TArray<FTransform> GetControlTransformsWithoutDuplicates();
 
 	// Returns the degree of the curve
 	uint8 GetDegree() const;
+
+	// Returns the total number of samples cached
+	uint16 NumSamples() const;
 };
 
 USTRUCT(BlueprintType)
@@ -158,7 +172,7 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	uint8 GetDegree() const;
 
 	/**
-	* Sets the control points in the spline. It will build the spline if needed, or forceRebuild is true,
+	* Sets the control points in the spline. It will build the spline if needed, 
 	* or will update the points if building from scratch is not necessary. The type of spline to build will
 	* depend on what is set in SplineMode.
 	*
@@ -172,12 +186,34 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	void SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const bool bInClosed = false, const int32 SamplesPerSegment = 16, const float Compression = 1.f, const float Stretch = 1.f);
 
 	/**
+	* Sets the control transforms in the spline. It will build the spline if needed, 
+	* or will update the transforms if building from scratch is not necessary. The type of spline to build will
+	* depend on what is set in SplineMode.
+	*
+	* @param InTransforms	The control transforms to set.
+	* @param SplineMode	The type of spline
+	* @param bInClosed	If the spline should be closed
+	* @param SamplesPerSegment The samples to cache for every segment defined between two control rig
+	* @param Compression The allowed length compression (1.f being do not allow compression`). If 0, no restriction wil be applied.
+	* @param Stretch The allowed length stretch (1.f being do not allow stretch). If 0, no restriction wil be applied.
+	*/
+	void SetControlTransforms(const TArrayView<const FTransform>& InTransforms, const ESplineType SplineMode = ESplineType::BSpline, const bool bInClosed = false, const int32 SamplesPerSegment = 16, const float Compression = 1.f, const float Stretch = 1.f);
+
+	/**
 	* Given an InParam float in [0, 1], will return the position of the spline at that point.
 	*
 	* @param InParam	The parameter between [0, 1] to query.
 	* @return			The position in the spline.
 	*/
 	FVector PositionAtParam(const float InParam) const;
+	
+	/**
+	* Given an InParam float in [0, 1], will return the transform of the spline at that point.
+	*
+	* @param InParam	The parameter between [0, 1] to query.
+	* @return			The transform in the spline.
+	*/
+	FTransform TransformAtParam(const float InParam) const;
 
 	/**
 	* Given an InParam float in [0, 1], will return the tangent vector of the spline at that point. 
@@ -187,4 +223,12 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	* @return			The tangent of the spline at InParam.
 	*/
 	FVector TangentAtParam(const float InParam) const;
+
+	/**
+	* Given an InParam float in [0, 1], will return the length of the spline at that point. 
+	*
+	* @param InParam	The parameter between [0, 1] to query.
+	* @return			The length of the spline at InParam.
+	*/
+	float LengthAtParam(const float InParam) const;
 };

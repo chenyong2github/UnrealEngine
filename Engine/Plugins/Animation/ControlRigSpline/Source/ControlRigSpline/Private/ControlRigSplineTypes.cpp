@@ -45,6 +45,31 @@ TArray<FVector> ControlRigBaseSpline::GetControlPointsWithoutDuplicates()
 	return ControlPoints;
 }
 
+TArray<uint16> ControlRigBaseSpline::GetControlIndicesWithoutDuplicates()
+{
+	if (bClosed)
+	{
+		const int32 NumPoints = ControlPoints.Num() - Degree;
+		const int32 NumInitPointsToIgnore = FMath::RoundToPositiveInfinity((float)Degree/2) - 1;
+		
+		TArray<uint16> ReducedControlIndices;
+		ReducedControlIndices.Reserve(NumPoints);
+		for (int32 i=0; i<NumPoints; ++i)
+		{
+			ReducedControlIndices.Add(i+NumInitPointsToIgnore);
+		}
+		return ReducedControlIndices;
+	}
+
+	TArray<uint16> ControlIndices;
+	ControlIndices.SetNumUninitialized(ControlPoints.Num());
+	for(int32 i = 0; i<ControlPoints.Num(); ++i)
+	{
+		ControlIndices[i] = i;
+	}
+	return ControlIndices;
+}
+
 void ControlRigBaseSpline::SetControlPoints(const TArrayView<const FVector>& InControlPoints)
 {
 	if (bClosed)
@@ -66,9 +91,9 @@ void ControlRigBaseSpline::SetControlPoints(const TArrayView<const FVector>& InC
 ControlRigBSpline::ControlRigBSpline(const TArrayView<const FVector>& InControlPoints, const uint16 InDegree, const bool bInClosed, bool bInClamped)
 : ControlRigBaseSpline(InControlPoints, InDegree, bInClosed)
 {
-	uint16 N = ControlPoints.Num() - 1;
-	uint16 P = Degree;
-	uint16 M = N + P + 1;
+	const uint16 N = ControlPoints.Num() - 1;
+	const uint16 P = Degree;
+	const uint16 M = N + P + 1;
 	KnotVector.SetNumZeroed(M+1);
 
 	// Clamped means there is p+1 0s at the beginning and 1s at the end of the knot vector
@@ -100,16 +125,16 @@ FVector ControlRigBSpline::GetPointAtParam(float Param)
 	// DeBoor's Algorithm
 	// https://pages.mtu.edu/~shene/COURSES/cs3621/NOTES/spline/B-spline/de-Boor.html
 	
-	float ClampedU = FMath::Clamp(Param, 0.f, 1.f);
+	const float ClampedU = FMath::Clamp(Param, 0.f, 1.f);
 
-	uint16 N = ControlPoints.Num() - 1;
-	uint16 P = Degree;
-	uint16 M = N + P + 1;
+	const uint16 N = ControlPoints.Num() - 1;
+	const uint16 P = Degree;
+	const uint16 M = N + P + 1;
 
 	// Remap U value to KnotVector[P] : KnotVector[M+1 - (P+1)]
-	float Min = KnotVector[P] + KINDA_SMALL_NUMBER;
-	float Max = KnotVector[M-P] - KINDA_SMALL_NUMBER;
-	float U = Min + ClampedU*(Max-Min);
+	const float Min = KnotVector[P] + KINDA_SMALL_NUMBER;
+	const float Max = KnotVector[M-P] - KINDA_SMALL_NUMBER;
+	const float U = Min + ClampedU*(Max-Min);
 
 	// Find [uk, uk+1) where U lives (or k == the first appearence of U)
 	uint16 K = 0;
@@ -163,6 +188,7 @@ ControlRigHermite::ControlRigHermite(const TArrayView<const FVector>& InControlP
 	}
 	else
 	{
+		SegmentPoints.Reserve(ControlPoints.Num()+2);
 		SegmentPoints.Add(ControlPoints[0] + ControlPoints[0] - ControlPoints[1]);
 		SegmentPoints.Append(ControlPoints);
 		SegmentPoints.Add(ControlPoints.Last() + ControlPoints.Last() - ControlPoints[ControlPoints.Num()-2]);
@@ -181,6 +207,7 @@ void ControlRigHermite::SetControlPoints(const TArrayView<const FVector>& InCont
 	}
 	else
 	{
+		SegmentPoints.Reserve(ControlPoints.Num()+2);
 		SegmentPoints.Add(ControlPoints[0] + ControlPoints[0] - ControlPoints[1]);
 		SegmentPoints.Append(ControlPoints);
 		SegmentPoints.Add(ControlPoints.Last() + ControlPoints.Last() - ControlPoints[ControlPoints.Num()-2]);
@@ -195,19 +222,19 @@ static FVector Hermite(const FVector& P0, const FVector& P1, const FVector& M0, 
 	const float T2 = T*T;
 	const float T3 = T2*T;
 	
-	float H00 = 2*T3 - 3*T2 + 1;
-	float H10 = T3 - 2*T2 + T;
-	float H01 = -2*T3 + 3*T2;
-	float H11 = T3 - T2;
+	const float H00 = 2*T3 - 3*T2 + 1;
+	const float H10 = T3 - 2*T2 + T;
+	const float H01 = -2*T3 + 3*T2;
+	const float H11 = T3 - T2;
 
 	return H00*P0 + H10*M0 + H01*P1 + H11*M1;
 }
 
 FVector ControlRigHermite::GetPointAtParam(float Param)
 {
-	float ClampedParam = FMath::Clamp(Param, 0.f, 1.f);	
+	const float ClampedParam = FMath::Clamp(Param, 0.f, 1.f);	
 
-	float ParamIntervals = 1.f / (float) NumSegments;
+	const float ParamIntervals = 1.f / (float) NumSegments;
 	uint16 SegmentIndex = FMath::Floor(ClampedParam / ParamIntervals);
 	if (SegmentIndex >= NumSegments)
 	{
@@ -216,12 +243,12 @@ FVector ControlRigHermite::GetPointAtParam(float Param)
 
 	uint16 P3Index = SegmentIndex + 3;
 	P3Index = (P3Index < SegmentPoints.Num()) ? P3Index : SegmentPoints.Num()-1;
-	uint16 P0Index = P3Index - 3;
-	uint16 P1Index = P3Index - 2;
-	uint16 P2Index = P3Index - 1;
+	const uint16 P0Index = P3Index - 3;
+	const uint16 P1Index = P3Index - 2;
+	const uint16 P2Index = P3Index - 1;
 
-	float StartSegmentParam = SegmentIndex * ParamIntervals;
-	float T = FMath::Clamp((ClampedParam-StartSegmentParam)/ParamIntervals, 0.f, 1.f);
+	const float StartSegmentParam = SegmentIndex * ParamIntervals;
+	const float T = FMath::Clamp((ClampedParam-StartSegmentParam)/ParamIntervals, 0.f, 1.f);
 
 	const FVector& P0 = SegmentPoints[P0Index];
 	const FVector& P1 = SegmentPoints[P1Index];
@@ -229,9 +256,9 @@ FVector ControlRigHermite::GetPointAtParam(float Param)
 	const FVector& P3 = SegmentPoints[P3Index];
 
 	// https://www.cs.cmu.edu/~fp/courses/graphics/asst5/catmullRom.pdf
-	float Tension = 0.5f;
-	FVector M1 = Tension * (P2 - P0);
-	FVector M2 = Tension * (P3 - P1);
+	static const float Tension = 0.5f;
+	const FVector M1 = Tension * (P2 - P0);
+	const FVector M2 = Tension * (P3 - P1);
 	return Hermite(P1, P2, M1, M2, T);
 }
 
@@ -247,7 +274,12 @@ FControlRigSplineImpl::~FControlRigSplineImpl()
 TArray<FVector>& FControlRigSplineImpl::GetControlPoints()
 {
 	check(Spline);
-	return Spline->GetControlPoints();	
+	return Spline->GetControlPoints();
+}
+
+TArray<FTransform>& FControlRigSplineImpl::GetControlTransforms()
+{
+	return ControlTransforms;
 }
 
 TArray<FVector> FControlRigSplineImpl::GetControlPointsWithoutDuplicates()
@@ -256,10 +288,28 @@ TArray<FVector> FControlRigSplineImpl::GetControlPointsWithoutDuplicates()
 	return Spline->GetControlPointsWithoutDuplicates();
 }
 
+TArray<FTransform> FControlRigSplineImpl::GetControlTransformsWithoutDuplicates()
+{
+	check(Spline);
+	TArray<uint16> ControlIndices = Spline->GetControlIndicesWithoutDuplicates();
+	TArray<FTransform> Transforms;
+	Transforms.Reserve(ControlIndices.Num());
+	for (const uint16& Index : ControlIndices)
+	{
+		Transforms.Add(ControlTransforms[Index]);
+	}
+	return Transforms;
+}
+
 uint8 FControlRigSplineImpl::GetDegree() const
 {
 	check(Spline);
 	return Spline->GetDegree();
+}
+
+uint16 FControlRigSplineImpl::NumSamples() const
+{
+	return SamplesArray.Num();
 }
 
 FControlRigSpline::FControlRigSpline(const FControlRigSpline& InOther)
@@ -284,7 +334,20 @@ uint8 FControlRigSpline::GetDegree() const
 
 void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode, const bool bInClosed, const int32 SamplesPerSegment, const float Compression, const float Stretch)
 {
-	const int32 ControlPointsCount = InPoints.Num();
+	TArray<FTransform> Transforms;
+	Transforms.Reserve(InPoints.Num());
+	for (const FVector& Point : InPoints)
+	{
+		FTransform Transform = FTransform::Identity;
+		Transform.SetTranslation(Point);
+		Transforms.Add(Transform);
+	}
+	return SetControlTransforms(Transforms, SplineMode, bInClosed, SamplesPerSegment, Compression, Stretch);
+}
+
+void FControlRigSpline::SetControlTransforms(const TArrayView<const FTransform>& InTransforms, const ESplineType SplineMode, const bool bInClosed, const int32 SamplesPerSegment, const float Compression, const float Stretch)
+{
+	const int32 ControlPointsCount = InTransforms.Num();
 	if (ControlPointsCount < 4)
 	{
 		return;
@@ -300,23 +363,40 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		SplineData = MakeShared<FControlRigSplineImpl>();
 	}
 
-	TArray<FVector> OldControlPoints;
+	TArray<FTransform> OldControlTransforms;
 	if (SplineData->Spline)
 	{
-		OldControlPoints = SplineData->GetControlPointsWithoutDuplicates();
+		OldControlTransforms = SplineData->GetControlTransformsWithoutDuplicates();
 	}
 
-	bool bControlPointsChanged = (SplineData->Spline) ? InPoints != OldControlPoints : true;
-	bool bNumControlPointsChanged = (SplineData->Spline) ? OldControlPoints.Num() != ControlPointsCount : true;
-	bool bSplineModeChanged = SplineMode != SplineData->SplineMode;
-	bool bSamplesCountChanged = SamplesPerSegment != SplineData->SamplesPerSegment;
-	bool bStretchChanged = Stretch != SplineData->Stretch || Compression != SplineData->Compression;
-	bool bClosedChanged = bInClosed != SplineData->bClosed;
+	bool bControlPointsChanged = false;
+	const bool bNumControlPointsChanged = (SplineData->Spline) ? OldControlTransforms.Num() != ControlPointsCount : true;
+	if (!bNumControlPointsChanged)
+	{
+		for (int32 i=0; i<ControlPointsCount; ++i)
+		{
+			if (!InTransforms[i].Equals(OldControlTransforms[i]))
+			{
+				bControlPointsChanged = true;
+				break;
+			}
+		}
+	}
+	else
+	{
+		bControlPointsChanged = true;
+	}
+	
+	const bool bSplineModeChanged = SplineMode != SplineData->SplineMode;
+	const bool bSamplesCountChanged = SamplesPerSegment != SplineData->SamplesPerSegment;
+	const bool bStretchChanged = Stretch != SplineData->Stretch || Compression != SplineData->Compression;
+	const bool bClosedChanged = bInClosed != SplineData->bClosed;
 	if (!bSplineModeChanged && !bControlPointsChanged && !bSamplesCountChanged && !bStretchChanged && !bClosedChanged)
 	{
 		return;
 	}
 
+	SplineData->ControlTransforms = InTransforms;
 	SplineData->SplineMode = SplineMode;
 	SplineData->bClosed = bInClosed;
 	SplineData->SamplesPerSegment = SamplesPerSegment;
@@ -325,7 +405,14 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 
 	// If we need to update the spline because the controls points have changed, or the spline mode has changed
 	if (bControlPointsChanged || bSplineModeChanged || bClosedChanged)
-	{	
+	{
+		TArray<FVector> ControlPoints;
+		ControlPoints.Reserve(InTransforms.Num());
+		for (const FTransform& Transform : InTransforms)
+		{
+			ControlPoints.Add(Transform.GetTranslation());
+		}
+		
 		if (bNumControlPointsChanged || bSplineModeChanged || bClosedChanged)
 		{
 			// Delete previously created spline
@@ -339,13 +426,13 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 			{
 				case ESplineType::BSpline:
 				{
-					SplineData->Spline = new ControlRigBSpline(InPoints, 3, bInClosed, true);
+					SplineData->Spline = new ControlRigBSpline(ControlPoints, 3, bInClosed, true);
 					break;
 				}
 				case ESplineType::Hermite:
 				{
 					
-					SplineData->Spline = new ControlRigHermite(InPoints, bInClosed);
+					SplineData->Spline = new ControlRigHermite(ControlPoints, bInClosed);
 					break;
 				}
 				default:
@@ -357,7 +444,7 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		}
 		else if (bControlPointsChanged)
 		{
-			SplineData->Spline->SetControlPoints(InPoints);
+			SplineData->Spline->SetControlPoints(ControlPoints);
 		}
 	}
 
@@ -365,14 +452,46 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 	if (bControlPointsChanged || bSplineModeChanged || bSamplesCountChanged || bStretchChanged || bClosedChanged)
 	{
 		// Cache sample positions of the spline
-		int32 NumSamples = (ControlPointsCount-1) * SamplesPerSegment;
+		const int32 NumSamples = (ControlPointsCount-1) * SamplesPerSegment;
 		SplineData->SamplesArray.SetNumUninitialized(NumSamples, false);
 			
 		float U = 0.f;
-		float DeltaU = 1.f/(NumSamples-1);
+		const float DeltaU = 1.f/(NumSamples-1);
 		for (int32 i=0; i<NumSamples; ++i, U+=DeltaU)
 		{
-			SplineData->SamplesArray[i] = SplineData->Spline->GetPointAtParam(U); 
+			SplineData->SamplesArray[i].SetTranslation(SplineData->Spline->GetPointAtParam(U));
+		}
+
+		FVector UpVector = ControlPointsCount > 0 ? InTransforms[0].GetRotation().GetUpVector() : FVector(0,0,0);
+		UpVector.Normalize();
+
+		U = 0.f;
+		for (int32 i=0; i<NumSamples; ++i, U+=DeltaU)
+		{
+			FVector Tangent = TangentAtParam(U);
+			Tangent.Normalize();
+			
+			int32 PrevIndex = U*(ControlPointsCount-1);
+			int32 NextIndex = PrevIndex+1;
+			if (!InTransforms.IsValidIndex(NextIndex))
+			{
+				PrevIndex--;
+				NextIndex--;
+			}
+			
+			// Interpolate inside segment
+			const float UPrev = PrevIndex / (float)(ControlPointsCount-1);
+			const float UNext = NextIndex / (float)(ControlPointsCount-1);
+			const float Interp = (U - UPrev) / (UNext - UPrev);
+			const FQuat InterpRotation = FQuat::Slerp(InTransforms[PrevIndex].GetRotation(), InTransforms[NextIndex].GetRotation(), Interp);
+			
+			//FVector Binormal = FVector::CrossProduct(Tangent, UpVector);
+			FMatrix RotationMatrix = FRotationMatrix::MakeFromXZ(Tangent, InterpRotation.GetUpVector());
+			FQuat RotationQuat = RotationMatrix.ToQuat();
+			RotationQuat.Normalize();
+			SplineData->SamplesArray[i].SetRotation(RotationQuat);
+
+			SplineData->SamplesArray[i].SetScale3D(FMath::Lerp(InTransforms[PrevIndex].GetScale3D(), InTransforms[NextIndex].GetScale3D(), Interp));
 		}
 
 		// Correct length of samples
@@ -380,7 +499,7 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 		{
 			if (SplineData->InitialLengths.Num() > 0)
 			{
-				TArray<FVector> SamplesBeforeCorrect = SplineData->SamplesArray;
+				const TArray<FTransform> SamplesBeforeCorrect = SplineData->SamplesArray;
 				for (int32 i = 0; i < ControlPointsCount - 1; ++i)
 				{
 					for (int32 j = (i == 0) ? 1 : 0; j < SamplesPerSegment; ++j)
@@ -393,17 +512,17 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 						}
 						
 						// Get direction from samples before correction
-						FVector Dir = SamplesBeforeCorrect[CurSampleIndex] - SamplesBeforeCorrect[PrevSampleIndex];
+						FVector Dir = SamplesBeforeCorrect[CurSampleIndex].GetTranslation() - SamplesBeforeCorrect[PrevSampleIndex].GetTranslation();
 						Dir.Normalize();
 
 						float InitialLength = SplineData->InitialLengths[PrevSampleIndex];
 						// Current length as the projection on the Dir vector (might be negative)
-						float CurrentLength = (SplineData->SamplesArray[CurSampleIndex] - SplineData->SamplesArray[PrevSampleIndex]).Dot(Dir);
+						float CurrentLength = (SplineData->SamplesArray[CurSampleIndex].GetTranslation() - SplineData->SamplesArray[PrevSampleIndex].GetTranslation()).Dot(Dir);
 						float FixedLength = FMath::Clamp(CurrentLength,
 							(Compression > 0.f) ? InitialLength * Compression : CurrentLength,
 							(Stretch > 0.f) ? InitialLength * Stretch : CurrentLength);
 
-						SplineData->SamplesArray[CurSampleIndex] = SplineData->SamplesArray[PrevSampleIndex] + Dir * FixedLength;
+						SplineData->SamplesArray[CurSampleIndex].SetTranslation(SplineData->SamplesArray[PrevSampleIndex].GetTranslation() + Dir * FixedLength);
 					}
 				}
 			}
@@ -420,7 +539,7 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 			}
 			for (int32 i = 1; i < SplineData->SamplesArray.Num(); ++i)
 			{
-				float CurrentLength = FVector::Distance(SplineData->SamplesArray[i - 1], SplineData->SamplesArray[i]);
+				float CurrentLength = FVector::Distance(SplineData->SamplesArray[i - 1].GetTranslation(), SplineData->SamplesArray[i].GetTranslation());
 				if (bSplineModeChanged || bClosedChanged || bSamplesCountChanged || bNumControlPointsChanged)
 				{
 					SplineData->InitialLengths[i-1] = CurrentLength;
@@ -428,7 +547,7 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 				SplineData->AccumulatedLenth[i] = SplineData->AccumulatedLenth[i - 1] + CurrentLength;
 			}
 		}
-	}	
+	}
 }
 
 FVector FControlRigSpline::PositionAtParam(const float InParam) const
@@ -438,15 +557,38 @@ FVector FControlRigSpline::PositionAtParam(const float InParam) const
 		return FVector();
 	}
 
-	float ClampedU = FMath::Clamp<float>(InParam, 0.f, 1.f);
+	const float ClampedU = FMath::Clamp<float>(InParam, 0.f, 1.f);
 
 	const int32 LastIndex = SplineData->SamplesArray.Num() - 1;
-	float fIndexPrev = ClampedU * LastIndex;	
-	int32 IndexPrev = FMath::Floor<int32>(fIndexPrev);
-	float ULocal = fIndexPrev - IndexPrev;
-	int32 IndexNext = (IndexPrev < LastIndex) ? IndexPrev + 1 : IndexPrev;
+	const float fIndexPrev = ClampedU * LastIndex;	
+	const int32 IndexPrev = FMath::Floor<int32>(fIndexPrev);
+	const float ULocal = fIndexPrev - IndexPrev;
+	const int32 IndexNext = (IndexPrev < LastIndex) ? IndexPrev + 1 : IndexPrev;
 
-	return SplineData->SamplesArray[IndexPrev] * (1.f - ULocal) + SplineData->SamplesArray[IndexNext] * ULocal;
+	return SplineData->SamplesArray[IndexPrev].GetTranslation() * (1.f - ULocal) + SplineData->SamplesArray[IndexNext].GetTranslation() * ULocal;
+}
+
+FTransform FControlRigSpline::TransformAtParam(const float InParam) const
+{
+	if (!SplineData.IsValid())
+	{
+		return FTransform();
+	}
+
+	const float ClampedU = FMath::Clamp<float>(InParam, 0.f, 1.f);
+
+	const int32 LastIndex = SplineData->SamplesArray.Num() - 1;
+	const float fIndexPrev = ClampedU * LastIndex;	
+	const int32 IndexPrev = FMath::Floor<int32>(fIndexPrev);
+	const float ULocal = fIndexPrev - IndexPrev;
+	const int32 IndexNext = (IndexPrev < LastIndex) ? IndexPrev + 1 : IndexPrev;
+
+	FTransform Result;
+	FQuat Rotation = FQuat::Slerp(SplineData->SamplesArray[IndexPrev].GetRotation(), SplineData->SamplesArray[IndexNext].GetRotation(), ULocal);
+	Rotation.Normalize();
+	Result.SetRotation(Rotation);
+	Result.LerpTranslationScale3D(SplineData->SamplesArray[IndexPrev], SplineData->SamplesArray[IndexNext], ScalarRegister(ULocal));
+	return Result;
 }
 
 FVector FControlRigSpline::TangentAtParam(const float InParam) const
@@ -458,7 +600,25 @@ FVector FControlRigSpline::TangentAtParam(const float InParam) const
 
 	const float ClampedU = FMath::Clamp<float>(InParam, 0.f, 1.f);
 
-	int32 IndexPrev = ClampedU * (SplineData->SamplesArray.Num()-2);
-	return SplineData->SamplesArray[IndexPrev+1] - SplineData->SamplesArray[IndexPrev];
+	const int32 IndexPrev = ClampedU * (SplineData->SamplesArray.Num()-2);
+	return SplineData->SamplesArray[IndexPrev+1].GetTranslation() - SplineData->SamplesArray[IndexPrev].GetTranslation();
+}
+
+float FControlRigSpline::LengthAtParam(const float InParam) const
+{
+	if (!SplineData.IsValid())
+	{
+		return 0.f;
+	}
+
+	const float ClampedU = FMath::Clamp<float>(InParam, 0.f, 1.f);
+
+	const int32 LastIndex = SplineData->SamplesArray.Num() - 1;
+	const float fIndexPrev = ClampedU * LastIndex;	
+	const int32 IndexPrev = FMath::Floor<int32>(fIndexPrev);
+	const float ULocal = fIndexPrev - IndexPrev;
+	const int32 IndexNext = (IndexPrev < LastIndex) ? IndexPrev + 1 : IndexPrev;
+
+	return SplineData->AccumulatedLenth[IndexPrev] * (1.f - ULocal) + SplineData->AccumulatedLenth[IndexNext] * ULocal;
 }
 

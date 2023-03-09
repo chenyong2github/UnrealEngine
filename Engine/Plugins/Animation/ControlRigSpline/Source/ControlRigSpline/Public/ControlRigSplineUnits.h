@@ -58,6 +58,49 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 };
 
 /*
+ * Creates a Spline curve from an array of positions
+ */
+USTRUCT(meta = (DisplayName = "Spline From Transforms", Keywords="Spline From Transforms", Category = "Splines", Varying, NodeColor="0.737911 0.099899 0.099899"))
+struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromTransforms : public FRigUnit_ControlRigSplineBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_ControlRigSplineFromTransforms()
+	{
+		SplineMode = ESplineType::Hermite;
+		bClosed = false;
+		SamplesPerSegment = 16;
+		Compression = 0.f;
+		Stretch = 0.f;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	TArray<FTransform> Transforms;
+
+	UPROPERTY(meta = (Input))
+	ESplineType SplineMode;
+
+	UPROPERTY(meta = (Input))
+	bool bClosed;
+
+	UPROPERTY(meta = (Input))
+	int32 SamplesPerSegment;
+
+	UPROPERTY(meta = (Input))
+	float Compression;
+
+	UPROPERTY(meta = (Input))
+	float Stretch;
+
+	UPROPERTY(meta = (Output))
+	FControlRigSpline Spline;
+};
+
+/*
  * Set the points of a spline, given a spline and an array of positions
  */
 USTRUCT(meta = (DisplayName = "Set Spline Points", Category = "Splines", Varying, NodeColor = "0.0 0.36470600962638855 1.0"))
@@ -76,6 +119,30 @@ struct CONTROLRIGSPLINE_API FRigUnit_SetSplinePoints : public FRigUnitMutable
 
 	UPROPERTY(meta = (Input))
 	TArray<FVector> Points;
+
+	UPROPERTY(meta = (Input, Output))
+	FControlRigSpline Spline;
+};
+
+/*
+ * Set the points of a spline, given a spline and an array of positions
+ */
+USTRUCT(meta = (DisplayName = "Set Spline Transforms", Category = "Splines", Varying, NodeColor = "0.0 0.36470600962638855 1.0"))
+struct CONTROLRIGSPLINE_API FRigUnit_SetSplineTransforms : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SetSplineTransforms()
+	{
+		
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	TArray<FTransform> Transforms;
 
 	UPROPERTY(meta = (Input, Output))
 	FControlRigSpline Spline;
@@ -102,7 +169,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigU
 	UPROPERTY(meta = (Input))
 	FControlRigSpline Spline;
 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0"))
 	float U;
 
 	UPROPERTY(meta = (Output))
@@ -166,7 +233,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_TangentFromControlRigSpline : public FRigUn
 	UPROPERTY(meta = (Input))
 	FControlRigSpline Spline;
 
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0"))
 	float U;
 
 	UPROPERTY(meta = (Output))
@@ -224,6 +291,33 @@ struct CONTROLRIGSPLINE_API FRigUnit_GetLengthControlRigSpline : public FRigUnit
 
 	UPROPERTY(meta = (Input))
 	FControlRigSpline Spline;
+
+	UPROPERTY(meta = (Output))
+	float Length;
+};
+
+/*
+ * Retrieves the length from a given Splin
+ */
+USTRUCT(meta = (DisplayName = "Get Length At Param Of Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899"))
+struct CONTROLRIGSPLINE_API FRigUnit_GetLengthAtParamControlRigSpline : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_GetLengthAtParamControlRigSpline()
+	{
+		Length = 0.f;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	FControlRigSpline Spline;
+
+	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0"))
+	float U;
 
 	UPROPERTY(meta = (Output))
 	float Length;
@@ -464,6 +558,93 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitChainToSplineCurveItemArray : public FRi
 	FRigUnit_FitChainToCurve_WorkData WorkData;
 };
 
+USTRUCT()
+struct CONTROLRIGSPLINE_API FRigUnit_SplineConstraint_WorkData
+{
+	GENERATED_BODY()
+
+	FRigUnit_SplineConstraint_WorkData()
+	{
+		ChainLength = 0.f;
+	}
+
+	UPROPERTY()
+	float ChainLength;
+
+	UPROPERTY()
+	TArray<FTransform> ItemTransforms;
+
+	UPROPERTY()
+	TArray<float> ItemSegments;
+
+	UPROPERTY()
+	TArray<FCachedRigElement> CachedItems;
+};
+
+
+/**
+ * Fits a given chain to a spline curve.
+ * Additionally provides rotational control matching the features of the Distribute Rotation node.
+ */
+USTRUCT(meta=(DisplayName="Spline Constraint", Category="Splines", Keywords="Fit,Resample,Spline"))
+struct CONTROLRIGSPLINE_API FRigUnit_SplineConstraint : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SplineConstraint()
+	{
+		Alignment = EControlRigCurveAlignment::Stretched;
+		Minimum = 0.f;
+		Maximum = 1.f;
+		bPropagateToChildren = true;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	/** 
+	 * The items to align
+	 */
+	UPROPERTY(meta = (Input))
+	TArray<FRigElementKey> Items;
+
+	/** 
+	 * The curve to align to
+	 */
+	UPROPERTY(meta = (Input))
+	FControlRigSpline Spline;
+
+	/** 
+	 * Specifies how to align the chain on the curve
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	EControlRigCurveAlignment Alignment;
+
+	/** 
+	 * The minimum U value to use on the curve
+	 */
+	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0"))
+	float Minimum;
+
+	/** 
+	 * The maximum U value to use on the curve
+	 */
+	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0"))
+	float Maximum;
+
+	/**
+	 * If set to true all of the global transforms of the children
+	 * of this bone will be recalculated based on their local transforms.
+	 * Note: This is computationally more expensive than turning it off.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	bool bPropagateToChildren;
+
+	UPROPERTY(transient)
+	FRigUnit_SplineConstraint_WorkData WorkData;
+};
+
+
 /**
  * Fits a given spline curve to a chain.
  */
@@ -522,7 +703,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitSplineCurveToChainItemArray : public FRi
 	 * The curve to align
 	 */
 	UPROPERTY(meta = (Input, Output))
-	FControlRigSpline Spline;	
+	FControlRigSpline Spline;
 };
 
 /*
