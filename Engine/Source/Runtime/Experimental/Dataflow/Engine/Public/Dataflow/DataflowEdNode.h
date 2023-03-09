@@ -57,6 +57,8 @@ public:
 	TSharedPtr<const Dataflow::FGraph> GetDataflowGraph() const { return DataflowGraph; }
 	void SetDataflowGraph(TSharedPtr<Dataflow::FGraph> InDataflowGraph) { DataflowGraph = InDataflowGraph; }
 
+	void UpdatePinsFromDataflowNode();
+
 	FGuid GetDataflowNodeGuid() const { return DataflowNodeGuid; }
 	void SetDataflowNodeGuid(FGuid InGuid) { DataflowNodeGuid = InGuid; }
 

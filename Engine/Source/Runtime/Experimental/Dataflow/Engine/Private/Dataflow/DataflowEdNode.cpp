@@ -94,6 +94,69 @@ void UDataflowEdNode::AllocateDefaultPins()
 #endif // WITH_EDITOR && !UE_BUILD_SHIPPING
 }
 
+void UDataflowEdNode::UpdatePinsFromDataflowNode()
+{
+	UE_LOG(DATAFLOWNODE_LOG, Verbose, TEXT("UDataflowEdNode::UpdatePinsFromDataflowNode()"));
+	// called on node creation from UI. 
+
+#if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (DataflowGraph)
+	{
+		if (DataflowNodeGuid.IsValid())
+		{
+			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+			{
+				// remove pins that do not match inputs / outputs anymore
+				TArray<UEdGraphPin*> PinsToRemove;
+				for (UEdGraphPin* Pin : GetAllPins())
+				{
+					if (Pin)
+					{
+						if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
+						{
+							if (!DataflowNode->FindInput(Pin->GetFName()))
+							{
+								PinsToRemove.Add(Pin);
+							}
+						}
+						else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
+						{
+							if (!DataflowNode->FindOutput(Pin->GetFName()))
+							{
+								PinsToRemove.Add(Pin);
+							}
+						}
+					}
+				}
+				for (UEdGraphPin* PinToRemove : PinsToRemove)
+				{
+					RemovePin(PinToRemove);
+				}
+				PinsToRemove.Reset();
+
+				for (const Dataflow::FPin& Pin : DataflowNode->GetPins())
+				{
+					if (Pin.Direction == Dataflow::FPin::EDirection::INPUT)
+					{
+						if (!FindPin(Pin.Name, EEdGraphPinDirection::EGPD_Input))
+						{
+							CreatePin(EEdGraphPinDirection::EGPD_Input, Pin.Type, Pin.Name);
+						}
+					}
+					if (Pin.Direction == Dataflow::FPin::EDirection::OUTPUT)
+					{
+						if (!FindPin(Pin.Name, EEdGraphPinDirection::EGPD_Output))
+						{
+							CreatePin(EEdGraphPinDirection::EGPD_Output, Pin.Type, Pin.Name);
+						}
+					}
+				}
+			}
+		}
+	}
+#endif // WITH_EDITOR && !UE_BUILD_SHIPPING
+}
+
 void UDataflowEdNode::AddOptionPin()
 {
 #if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

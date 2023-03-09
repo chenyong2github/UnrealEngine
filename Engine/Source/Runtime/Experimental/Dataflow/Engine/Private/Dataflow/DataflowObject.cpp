@@ -67,6 +67,7 @@ void UDataflow::PostLoad()
 		if (DataflowEdNode)
 		{
 			DataflowEdNode->SetDataflowGraph(Dataflow);
+			DataflowEdNode->UpdatePinsFromDataflowNode();
 		}
 
 		if (DisabledNodes.Contains(FName(EdNode->GetName())))
