@@ -20,6 +20,7 @@ namespace FPCGAsync
 	struct ConsoleVar
 	{
 		static TAutoConsoleVariable<bool> CVarDisableAsyncTimeSlicing;
+		static TAutoConsoleVariable<int32> CVarAsyncOverrideChunkSize;
 	};
 
 	/** 
@@ -93,9 +94,12 @@ namespace FPCGAsync
 	namespace Private
 	{
 	template <typename OutputType, typename Func>
-	bool AsyncProcessing(FPCGAsyncState& AsyncState, int32 NumIterations, TArray<OutputType>& OutData, Func IterationInnerLoop, const bool bInEnableTimeSlicing, const int32 ChunkSize)
+	bool AsyncProcessing(FPCGAsyncState& AsyncState, int32 NumIterations, TArray<OutputType>& OutData, Func IterationInnerLoop, const bool bInEnableTimeSlicing, const int32 InChunkSize)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGAsync::AsyncProcessing);
+
+		const int32 OverrideChunkSize = ConsoleVar::CVarAsyncOverrideChunkSize.GetValueOnAnyThread();
+		const int32 ChunkSize = OverrideChunkSize > 0 ? OverrideChunkSize : InChunkSize;
 
 		const int32 StartIndex = AsyncState.AsyncCurrentReadIndex;
 		const bool bEnableTimeSlicing = bInEnableTimeSlicing && !ConsoleVar::CVarDisableAsyncTimeSlicing.GetValueOnAnyThread();
@@ -318,7 +322,7 @@ namespace FPCGAsync
 	* @returns true if the processing is done, false otherwise. Use this to know if you need to reschedule the task.
 	*/
 	template <typename OutputType, typename Func>
-	bool AsyncProcessing(FPCGAsyncState* AsyncState, int32 NumIterations, TArray<OutputType>& OutData, Func InFunc, const bool bEnableTimeSlicing, const int32 ChunkSize = 16)
+	bool AsyncProcessing(FPCGAsyncState* AsyncState, int32 NumIterations, TArray<OutputType>& OutData, Func InFunc, const bool bEnableTimeSlicing, const int32 ChunkSize = 64)
 	{
 		auto IterationInnerLoop = [&InFunc, &OutData](int32 StartReadIndex, int32 StartWriteIndex, int32 Count) -> int32
 		{

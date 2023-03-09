@@ -9,10 +9,16 @@
 
 namespace FPCGAsync
 {
-	TAutoConsoleVariable<bool> ConsoleVar::CVarDisableAsyncTimeSlicing{
+	TAutoConsoleVariable<bool> ConsoleVar::CVarDisableAsyncTimeSlicing {
 		TEXT("pcg.DisableAsyncTimeSlicing"),
 		false,
 		TEXT("To help debug, we can disable time slicing for async tasks.")
+	};
+
+	TAutoConsoleVariable<int32> ConsoleVar::CVarAsyncOverrideChunkSize{
+		TEXT("pcg.AsyncOverrideChunkSize"),
+		-1,
+		TEXT("For quick benchmarking, we can override the value of chunk size for async processing. Any negative value is discarded.")
 	};
 
 	void AsyncPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<int32(int32, int32)>& IterationInnerLoop)
