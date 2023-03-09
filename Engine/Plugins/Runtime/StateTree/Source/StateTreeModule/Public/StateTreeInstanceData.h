@@ -72,7 +72,10 @@ struct STATETREEMODULE_API FStateTreeInstanceStorage
 
 	/** Reset all pending transition requests. */
 	void ResetTransitionRequests();
-	
+
+	/** @return true if all instances are valid. */
+	bool AreAllInstancesValid() const;
+
 protected:
 	/** Struct instances */
 	UPROPERTY()
@@ -173,6 +176,9 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 
 	/** Reset all pending transition requests. */
 	void ResetTransitionRequests();
+
+	/** @return true if all instances are valid. */
+	bool AreAllInstancesValid() const;
 
 	FStateTreeInstanceStorage& GetMutableStorage();
 	const FStateTreeInstanceStorage& GetStorage() const;

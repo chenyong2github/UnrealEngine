@@ -71,6 +71,25 @@ void FStateTreeInstanceStorage::ResetTransitionRequests()
 	TransitionRequests.Reset();
 }
 
+bool FStateTreeInstanceStorage::AreAllInstancesValid() const
+{
+	for (FConstStructView Instance : InstanceStructs)
+	{
+		if (!Instance.IsValid())
+		{
+			return false;
+		}
+	}
+	for (const UObject* Instance : InstanceObjects)
+	{
+		if (!Instance)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 
 //----------------------------------------------------------------//
 // FStateTreeInstanceData
@@ -141,6 +160,11 @@ TConstArrayView<FStateTreeTransitionRequest> FStateTreeInstanceData::GetTransiti
 void FStateTreeInstanceData::ResetTransitionRequests()
 {
 	GetMutableStorage().ResetTransitionRequests();
+}
+
+bool FStateTreeInstanceData::AreAllInstancesValid() const
+{
+	return GetStorage().AreAllInstancesValid();
 }
 
 int32 FStateTreeInstanceData::GetEstimatedMemoryUsage() const
