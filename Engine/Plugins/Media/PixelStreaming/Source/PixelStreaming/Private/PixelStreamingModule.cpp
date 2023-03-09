@@ -165,7 +165,10 @@ namespace UE::PixelStreaming
 		}
 
 		// We explicitly call release on streamer so WebRTC gets shutdown before our module is deleted
+		// additionally the streamer does a bunch of delegate calls and unbinds which seem to have issues
+		// when called during engine destruction rather than here.
 		Streamers.Empty();
+		DefaultStreamer.Reset();
 		ExternalVideoSourceGroup->Stop();
 
 		FPixelStreamingPeerConnection::Shutdown();
