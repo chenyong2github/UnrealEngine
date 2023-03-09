@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/ReverseIterate.h"
 #include "HAL/UnrealMemory.h"
 #include "Templates/IsSigned.h"
 #include "Templates/UnrealTypeTraits.h"
@@ -191,7 +192,7 @@ FORCEINLINE TIndexedContainerIterator<ContainerType, ElementType, SizeType> oper
 	 * Pointer-like iterator type for ranged-for loops which checks that the
 	 * container hasn't been resized during iteration.
 	 */
-	template <typename ElementType, typename SizeType>
+	template <typename ElementType, typename SizeType, bool bReverse = false>
 	struct TCheckedPointerIterator
 	{
 		// This iterator type only supports the minimal functionality needed to support
@@ -208,18 +209,39 @@ FORCEINLINE TIndexedContainerIterator<ContainerType, ElementType, SizeType> oper
 
 		FORCEINLINE ElementType& operator*() const
 		{
-			return *Ptr;
+			if constexpr (bReverse)
+			{
+				return *(Ptr - 1);
+			}
+			else
+			{
+				return *Ptr;
+			}
 		}
 
 		FORCEINLINE TCheckedPointerIterator& operator++()
 		{
-			++Ptr;
+			if constexpr (bReverse)
+			{
+				--Ptr;
+			}
+			else
+			{
+				++Ptr;
+			}
 			return *this;
 		}
 
 		FORCEINLINE TCheckedPointerIterator& operator--()
 		{
-			--Ptr;
+			if constexpr (bReverse)
+			{
+				++Ptr;
+			}
+			else
+			{
+				--Ptr;
+			}
 			return *this;
 		}
 
@@ -2774,11 +2796,15 @@ public:
 	}
 
 	#if TARRAY_RANGED_FOR_CHECKS
-		typedef TCheckedPointerIterator<      ElementType, SizeType> RangedForIteratorType;
-		typedef TCheckedPointerIterator<const ElementType, SizeType> RangedForConstIteratorType;
+		typedef TCheckedPointerIterator<      ElementType, SizeType, false> RangedForIteratorType;
+		typedef TCheckedPointerIterator<const ElementType, SizeType, false> RangedForConstIteratorType;
+		typedef TCheckedPointerIterator<      ElementType, SizeType, true>  RangedForReverseIteratorType;
+		typedef TCheckedPointerIterator<const ElementType, SizeType, true>  RangedForConstReverseIteratorType;
 	#else
-		typedef       ElementType* RangedForIteratorType;
-		typedef const ElementType* RangedForConstIteratorType;
+		typedef                               ElementType* RangedForIteratorType;
+		typedef                         const ElementType* RangedForConstIteratorType;
+		typedef TReversePointerIterator<      ElementType> RangedForReverseIteratorType;
+		typedef TReversePointerIterator<const ElementType> RangedForConstReverseIteratorType;
 	#endif
 
 public:
@@ -2788,15 +2814,23 @@ public:
 	 * STL-like iterators to enable range-based for loop support.
 	 */
 	#if TARRAY_RANGED_FOR_CHECKS
-		FORCEINLINE RangedForIteratorType      begin()       { return RangedForIteratorType     (ArrayNum, GetData()); }
-		FORCEINLINE RangedForConstIteratorType begin() const { return RangedForConstIteratorType(ArrayNum, GetData()); }
-		FORCEINLINE RangedForIteratorType      end  ()       { return RangedForIteratorType     (ArrayNum, GetData() + Num()); }
-		FORCEINLINE RangedForConstIteratorType end  () const { return RangedForConstIteratorType(ArrayNum, GetData() + Num()); }
+		FORCEINLINE RangedForIteratorType             begin ()       { return RangedForIteratorType            (ArrayNum, GetData()); }
+		FORCEINLINE RangedForConstIteratorType        begin () const { return RangedForConstIteratorType       (ArrayNum, GetData()); }
+		FORCEINLINE RangedForIteratorType             end   ()       { return RangedForIteratorType            (ArrayNum, GetData() + Num()); }
+		FORCEINLINE RangedForConstIteratorType        end   () const { return RangedForConstIteratorType       (ArrayNum, GetData() + Num()); }
+		FORCEINLINE RangedForReverseIteratorType      rbegin()       { return RangedForReverseIteratorType     (ArrayNum, GetData() + Num()); }
+		FORCEINLINE RangedForConstReverseIteratorType rbegin() const { return RangedForConstReverseIteratorType(ArrayNum, GetData() + Num()); }
+		FORCEINLINE RangedForReverseIteratorType      rend  ()       { return RangedForReverseIteratorType     (ArrayNum, GetData()); }
+		FORCEINLINE RangedForConstReverseIteratorType rend  () const { return RangedForConstReverseIteratorType(ArrayNum, GetData()); }
 	#else
-		FORCEINLINE RangedForIteratorType      begin()       { return GetData(); }
-		FORCEINLINE RangedForConstIteratorType begin() const { return GetData(); }
-		FORCEINLINE RangedForIteratorType      end()         { return GetData() + Num(); }
-		FORCEINLINE RangedForConstIteratorType end() const   { return GetData() + Num(); }
+		FORCEINLINE RangedForIteratorType             begin ()       { return                                   GetData(); }
+		FORCEINLINE RangedForConstIteratorType        begin () const { return                                   GetData(); }
+		FORCEINLINE RangedForIteratorType             end   ()       { return                                   GetData() + Num(); }
+		FORCEINLINE RangedForConstIteratorType        end   () const { return                                   GetData() + Num(); }
+		FORCEINLINE RangedForReverseIteratorType      rbegin()       { return RangedForReverseIteratorType     (GetData() + Num()); }
+		FORCEINLINE RangedForConstReverseIteratorType rbegin() const { return RangedForConstReverseIteratorType(GetData() + Num()); }
+		FORCEINLINE RangedForReverseIteratorType      rend  ()       { return RangedForReverseIteratorType     (GetData()); }
+		FORCEINLINE RangedForConstReverseIteratorType rend  () const { return RangedForConstReverseIteratorType(GetData()); }
 	#endif
 
 public:

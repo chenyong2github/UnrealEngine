@@ -5797,9 +5797,9 @@ void FAssetRegistryImpl::PushProcessLoadedAssetsBatch(Impl::FEventContext& Event
 	}
 
 	// Push back any objects from the batch that were not processed due to timing out
-	for (int32 Index = UnprocessedFromBatch.Num() - 1; Index >= 0; --Index)
+	for (const UObject* Obj : ReverseIterate(UnprocessedFromBatch))
 	{
-		LoadedAssetsToProcess.EmplaceFront(UnprocessedFromBatch[Index]);
+		LoadedAssetsToProcess.EmplaceFront(Obj);
 	}
 }
 

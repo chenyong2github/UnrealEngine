@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/ReverseIterate.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Delegates/IntegerSequence.h"
@@ -137,7 +138,7 @@ private:
 
 public:
 
-	template <typename StorageElementType>
+	template <typename StorageElementType, bool bReverse = false>
 	struct FRangedForIterator
 	{
 		explicit FRangedForIterator(StorageElementType* InPtr)
@@ -146,12 +147,26 @@ public:
 
 		auto& operator*() const
 		{
-			return Ptr->Element;
+			if constexpr (bReverse)
+			{
+				return (Ptr - 1)->Element;
+			}
+			else
+			{
+				return Ptr->Element;
+			}
 		}
 
 		FRangedForIterator& operator++()
 		{
-			++Ptr;
+			if constexpr (bReverse)
+			{
+				--Ptr;
+			}
+			else
+			{
+				++Ptr;
+			}
 			return *this;
 		}
 
@@ -164,15 +179,20 @@ public:
 		StorageElementType* Ptr;
 	};
 
-	using RangedForIteratorType = FRangedForIterator<TArrayStorageElementAligned>;
-	using RangedForConstIteratorType = FRangedForIterator<const TArrayStorageElementAligned>;
+	using RangedForIteratorType             = FRangedForIterator<      TArrayStorageElementAligned>;
+	using RangedForConstIteratorType        = FRangedForIterator<const TArrayStorageElementAligned>;
+	using RangedForReverseIteratorType      = FRangedForIterator<      TArrayStorageElementAligned, true>;
+	using RangedForConstReverseIteratorType = FRangedForIterator<const TArrayStorageElementAligned, true>;
 
 	/** STL-like iterators to enable range-based for loop support. */
-	FORCEINLINE RangedForIteratorType		begin()			{ return RangedForIteratorType(Storage.Elements); }
-	FORCEINLINE RangedForConstIteratorType	begin() const	{ return RangedForConstIteratorType(Storage.Elements); }
-	FORCEINLINE RangedForIteratorType		end()			{ return RangedForIteratorType(Storage.Elements + NumElements); }
-	FORCEINLINE RangedForConstIteratorType	end() const		{ return RangedForConstIteratorType(Storage.Elements + NumElements); }
-
+	FORCEINLINE RangedForIteratorType				begin()			{ return RangedForIteratorType(Storage.Elements); }
+	FORCEINLINE RangedForConstIteratorType			begin() const	{ return RangedForConstIteratorType(Storage.Elements); }
+	FORCEINLINE RangedForIteratorType				end()			{ return RangedForIteratorType(Storage.Elements + NumElements); }
+	FORCEINLINE RangedForConstIteratorType			end() const		{ return RangedForConstIteratorType(Storage.Elements + NumElements); }
+	FORCEINLINE RangedForReverseIteratorType		rbegin()		{ return RangedForReverseIteratorType(Storage.Elements + NumElements); }
+	FORCEINLINE RangedForConstReverseIteratorType	rbegin() const	{ return RangedForConstReverseIteratorType(Storage.Elements + NumElements); }
+	FORCEINLINE RangedForReverseIteratorType		rend()			{ return RangedForReverseIteratorType(Storage.Elements); }
+	FORCEINLINE RangedForConstReverseIteratorType	rend() const	{ return RangedForConstReverseIteratorType(Storage.Elements); }
 };
 
 /** Creates a static array filled with the specified value. */

@@ -3406,11 +3406,11 @@ void AActor::ClearInstanceComponents(const bool bDestroyComponents)
 		TArray<UActorComponent*> CachedComponents(InstanceComponents);
 
 		// Run in reverse to reduce memory churn when the components are removed from InstanceComponents
-		for (int32 Index=CachedComponents.Num()-1; Index >= 0; --Index)
+		for (UActorComponent* CachedComponent : ReverseIterate(CachedComponents))
 		{
-			if (CachedComponents[Index])
+			if (CachedComponent)
 			{
-				CachedComponents[Index]->DestroyComponent();
+				CachedComponent->DestroyComponent();
 			}
 		}
 	}

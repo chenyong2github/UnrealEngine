@@ -9,6 +9,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/Crc.h"
 #include "Misc/CString.h"
+#include "Misc/ReverseIterate.h"
 #include "String/Find.h"
 #include "Templates/UnrealTemplate.h"
 #include "Traits/ElementType.h"
@@ -444,6 +445,8 @@ public:
 	 */
 	constexpr inline const CharType* begin() const { return DataPtr; }
 	constexpr inline const CharType* end() const { return DataPtr + Size; }
+	constexpr inline TReversePointerIterator<const CharType> rbegin() const { return TReversePointerIterator<const CharType>(DataPtr + Size); }
+	constexpr inline TReversePointerIterator<const CharType> rend() const { return TReversePointerIterator<const CharType>(DataPtr); }
 
 protected:
 	const CharType* DataPtr = nullptr;

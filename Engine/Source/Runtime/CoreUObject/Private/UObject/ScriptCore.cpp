@@ -737,10 +737,10 @@ void FFrame::GetStackTrace(FStringBuilderBase& Result) const
 	if (FrameStack.Num() > 0)
 	{
 		Result << TEXT("Script call stack:\n");
-		for (int32 Index = FrameStack.Num() - 1; Index >= 0; Index--)
+		for (const FFrame* Frame : ReverseIterate(FrameStack))
 		{
 			Result << TEXT("\t");
-			FrameStack[Index]->Node->GetFullName(Result);
+			Frame->Node->GetFullName(Result);
 			Result << TEXT("\n");
 		}
 	}

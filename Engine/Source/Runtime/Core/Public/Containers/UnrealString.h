@@ -253,10 +253,14 @@ public:
 	 * DO NOT USE DIRECTLY
 	 * STL-like iterators to enable range-based for loop support.
 	 */
-	FORCEINLINE DataType::RangedForIteratorType      begin()       { auto Result = Data.begin();                                   return Result; }
-	FORCEINLINE DataType::RangedForConstIteratorType begin() const { auto Result = Data.begin();                                   return Result; }
-	FORCEINLINE DataType::RangedForIteratorType      end  ()       { auto Result = Data.end();   if (Data.Num()) { --Result; }     return Result; }
-	FORCEINLINE DataType::RangedForConstIteratorType end  () const { auto Result = Data.end();   if (Data.Num()) { --Result; }     return Result; }
+	FORCEINLINE DataType::RangedForIteratorType             begin ()       { auto Result = Data.begin();                                return Result; }
+	FORCEINLINE DataType::RangedForConstIteratorType        begin () const { auto Result = Data.begin();                                return Result; }
+	FORCEINLINE DataType::RangedForIteratorType             end   ()       { auto Result = Data.end();    if (Data.Num()) { --Result; } return Result; }
+	FORCEINLINE DataType::RangedForConstIteratorType        end   () const { auto Result = Data.end();    if (Data.Num()) { --Result; } return Result; }
+	FORCEINLINE DataType::RangedForReverseIteratorType      rbegin()       { auto Result = Data.rbegin(); if (Data.Num()) { ++Result; } return Result; }
+	FORCEINLINE DataType::RangedForConstReverseIteratorType rbegin() const { auto Result = Data.rbegin(); if (Data.Num()) { ++Result; } return Result; }
+	FORCEINLINE DataType::RangedForReverseIteratorType      rend  ()       { auto Result = Data.rend();                                 return Result; }
+	FORCEINLINE DataType::RangedForConstReverseIteratorType rend  () const { auto Result = Data.rend();                                 return Result; }
 
 	FORCEINLINE SIZE_T GetAllocatedSize() const
 	{
