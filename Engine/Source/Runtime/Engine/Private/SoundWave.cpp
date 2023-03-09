@@ -1619,10 +1619,10 @@ void USoundWave::InvalidateCompressedData(bool bFreeResources, bool bRebuildStre
 	check(SoundWaveDataPtr);
 
 	CompressedDataGuid = FGuid::NewGuid();
+
 	SoundWaveDataPtr->DiscardZerothChunkData();
 	SoundWaveDataPtr->CompressedFormatData.FlushData();
-	SoundWaveDataPtr->ResourceSize = 0;
-	SoundWaveDataPtr->ResourceData.Empty();
+	RemoveAudioResource();
 
 	if (bFreeResources)
 	{
