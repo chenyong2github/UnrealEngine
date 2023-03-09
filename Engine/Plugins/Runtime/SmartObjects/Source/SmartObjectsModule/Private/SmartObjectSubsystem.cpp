@@ -516,7 +516,7 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 {
 	if (SmartObjectComponent.GetDefinition() == nullptr)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Attempting to register %s while its DefinitionAsset is not set. Bailing out."),
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Attempting to register %s while its DefinitionAsset is not set. Bailing out."),
 			*GetFullNameSafe(&SmartObjectComponent));
 		return false;
 	}
@@ -531,7 +531,7 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 	
 	if (bIsValid.GetValue() == false)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Attempting to register %s while its DefinitionAsset fails validation test. Bailing out."
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Attempting to register %s while its DefinitionAsset fails validation test. Bailing out."
 													" Resave asset %s to see the errors and fix the problem."),
 			*GetFullNameSafe(&SmartObjectComponent),
 			*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
