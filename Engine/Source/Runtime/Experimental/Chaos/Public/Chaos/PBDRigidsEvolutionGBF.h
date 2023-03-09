@@ -71,6 +71,7 @@ namespace Chaos
 			THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, 
 			const TArray<ISimCallbackObject*>* InMidPhaseModifiers = nullptr,
 			const TArray<ISimCallbackObject*>* InCCDModifiers = nullptr,
+			const TArray<ISimCallbackObject*>* InStrainModifiers = nullptr,
 			const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr,
 			bool InIsSingleThreaded = false);
 		CHAOS_API ~FPBDRigidsEvolutionGBF();

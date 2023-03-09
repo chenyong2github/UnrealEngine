@@ -21,6 +21,7 @@
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
+#include "Chaos/StrainModification.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "CoreMinimal.h"
 
@@ -87,7 +88,7 @@ namespace Chaos
 	// TPBDRigidClustering
 	//==========================================================================
 
-	FRigidClustering::FRigidClustering(FPBDRigidsEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles)
+	FRigidClustering::FRigidClustering(FPBDRigidsEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles, const TArray<ISimCallbackObject*>* InStrainModifiers)
 		: MEvolution(InEvolution)
 		, MParticles(InParticles)
 		, ClusterUnionManager(*this, InEvolution)
@@ -95,6 +96,7 @@ namespace Chaos
 		, DoGenerateBreakingData(false)
 		, MClusterConnectionFactor(1.0)
 		, MClusterUnionConnectionType(FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation)
+		, StrainModifiers(InStrainModifiers)
 	{}
 
 	FRigidClustering::~FRigidClustering()
@@ -884,6 +886,13 @@ namespace Chaos
 			}
 
 			//
+			// Modify internal strains
+			//
+			if (StrainModifiers)
+			{
+				ApplyStrainModifiers();
+			}
+
 			//  Monitor the MStrain array for 0 or less values.
 			//  That will trigger a break too.
 			//
@@ -1209,6 +1218,7 @@ namespace Chaos
 							if (TPBDRigidClusteredParticleHandle<FReal, 3>* ClusteredChild = ClosestChild->CastToClustered())
 							{
 								ClusteredChild->CollisionImpulses() += AccumulatedImpulse;
+								UpdateTopLevelParticle(ClusteredChild);
 							}
 						}
 					}
@@ -1227,6 +1237,7 @@ namespace Chaos
 								if (TPBDRigidClusteredParticleHandle<FReal, 3>*ClusteredChild = Child->CastToClustered())
 								{
 									ClusteredChild->CollisionImpulses() += AccumulatedImpulse;
+									UpdateTopLevelParticle(ClusteredChild);
 								}
 							}
 						}
@@ -1277,6 +1288,18 @@ namespace Chaos
 		GetChildrenMap().Remove(ClusteredParticle);
 		ClusteredParticle->ClusterIds() = ClusterId();
 		ClusteredParticle->ClusterGroupIndex() = 0;
+	}
+
+	void FRigidClustering::ApplyStrainModifiers()
+	{
+		if (StrainModifiers)
+		{
+			for (ISimCallbackObject* Modifier : *StrainModifiers)
+			{
+				FStrainModifierAccessor Accessor(*this);
+				Modifier->StrainModification_Internal(Accessor);
+			}
+		}
 	}
 
 	FPBDRigidClusteredParticleHandle*

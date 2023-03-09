@@ -12,6 +12,7 @@ namespace Chaos
 class FPhysicsSolverBase;
 class FMidPhaseModifierAccessor;
 class FCCDModifierAccessor;
+class FStrainModifierAccessor;
 class FCollisionContactModifier;
 class FSingleParticlePhysicsProxy;
 
@@ -20,16 +21,17 @@ namespace Utilities
 	CHAOS_API FReal GetSolverPhysicsResultsTime(FPhysicsSolverBase*);
 }
 
-enum class ESimCallbackOptions : uint8
+enum class ESimCallbackOptions : uint16
 {
 	Presimulate				= 1 << 0,
 	MidPhaseModification	= 1 << 1,
 	CCDModification			= 1 << 2,
 	ContactModification		= 1 << 3,
-	ParticleRegister		= 1 << 4,
-	ParticleUnregister		= 1 << 5,
-	RunOnFrozenGameThread	= 1 << 6,
-	Rewind					= 1 << 7
+	StrainModification		= 1 << 5,
+	ParticleRegister		= 1 << 6,
+	ParticleUnregister		= 1 << 7,
+	RunOnFrozenGameThread	= 1 << 8,
+	Rewind					= 1 << 9
 };
 ENUM_CLASS_FLAGS(ESimCallbackOptions)
 
@@ -77,6 +79,11 @@ public:
 	void CCDModification_Internal(FCCDModifierAccessor& Modifier)
 	{
 		OnCCDModification_Internal(Modifier);
+	}
+
+	void StrainModification_Internal(FStrainModifierAccessor& Modifier)
+	{
+		OnStrainModification_Internal(Modifier);
 	}
 
 	void ContactModification_Internal(FCollisionContactModifier& Modifier)
@@ -187,6 +194,11 @@ private:
 	* NOTE: you must explicitly request CCD modification when registering the callback for this to be called
 	*/
 	virtual void OnCCDModification_Internal(FCCDModifierAccessor& Modifier)
+	{
+		check(false);
+	}
+
+	virtual void OnStrainModification_Internal(FStrainModifierAccessor& Modifier)
 	{
 		check(false);
 	}

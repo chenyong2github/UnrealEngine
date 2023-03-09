@@ -719,10 +719,11 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(
 	THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, 
 	const TArray<ISimCallbackObject*>* InMidPhaseModifiers,
 	const TArray<ISimCallbackObject*>* InCCDModifiers,
+	const TArray<ISimCallbackObject*>* InStrainModifiers,
 	const TArray<ISimCallbackObject*>* InCollisionModifiers,
 	bool InIsSingleThreaded)
 	: Base(InParticles, SolverPhysicsMaterials, InIsSingleThreaded)
-	, Clustering(*this, Particles.GetClusteredParticles())
+	, Clustering(*this, Particles.GetClusteredParticles(), InStrainModifiers)
 	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, &SolverPhysicsMaterials, CalculateNumCollisionsPerBlock(), DefaultRestitutionThreshold)
 	, BroadPhase(InParticles)
 	, CollisionDetector(BroadPhase, CollisionConstraints)

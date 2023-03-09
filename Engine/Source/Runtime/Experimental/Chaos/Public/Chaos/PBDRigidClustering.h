@@ -61,7 +61,7 @@ public:
 	typedef TMap<FClusterHandle, FRigidHandleArray>				FClusterMap;
 	typedef TFunction<void(FRigidClustering&, FRigidHandle)>	FVisitorFunction;
 
-	FRigidClustering(FRigidEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles);
+	FRigidClustering(FRigidEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles, const TArray<ISimCallbackObject*>* InStrainModifiers);
 	~FRigidClustering();
 
 	//
@@ -364,11 +364,16 @@ public:
 
 	FClusterUnionManager& GetClusterUnionManager() { return ClusterUnionManager; }
 	const FClusterUnionManager& GetClusterUnionManager() const { return ClusterUnionManager; }
+
+
+	const TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParentsStrained() const { return TopLevelClusterParentsStrained; }
+
  protected:
 
 	void ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule);
 	void ResetCollisionImpulseArray();
 	void DisableCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle);
+	void ApplyStrainModifiers();
 
 	/*
 	* Connectivity
@@ -404,6 +409,7 @@ public:
 	TArray<FPBDRigidParticleHandle*> CreateClustersFromNewIslands(TArray<FParticleIsland>& Islands, FPBDRigidClusteredParticleHandle* ClusteredParent);
 
 	void UpdateTopLevelParticle(FPBDRigidClusteredParticleHandle* Particle);
+
 private:
 
 	FRigidEvolution& MEvolution;
@@ -434,6 +440,9 @@ private:
 
 	FReal MClusterConnectionFactor;
 	FClusterCreationParameters::EConnectionMethod MClusterUnionConnectionType;
+
+	// Sim callback objects which implement cluster modification steps
+	const TArray<ISimCallbackObject*>* StrainModifiers;
 };
 
 } // namespace Chaos
