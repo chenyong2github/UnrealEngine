@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Serialization/StructuredArchive.h"
 #include "Templates/UnrealTemplate.h"
 
 template <typename InValueType>
