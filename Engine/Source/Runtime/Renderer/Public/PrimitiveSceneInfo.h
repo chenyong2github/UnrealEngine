@@ -438,14 +438,6 @@ public:
 	static void ReallocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 	void FreeGPUSceneInstances();
 
-	/** return true if we need to call ConditionalUpdateStaticMeshes */
-	bool NeedsUpdateStaticMeshes();
-
-	/** return true if we need to call LazyUpdateForRendering */
-	FORCEINLINE bool NeedsUniformBufferUpdate() const
-	{
-		return bNeedsUniformBufferUpdate;
-	}
 
 	/** return true if we need to call LazyUpdateForRendering */
 	FORCEINLINE bool NeedsIndirectLightingCacheBufferUpdate()
@@ -456,23 +448,11 @@ public:
 	/** Updates the primitive's static meshes in the scene. */
 	static void UpdateStaticMeshes(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, EUpdateStaticMeshFlags UpdateFlags, bool bReAddToDrawLists = true);
 
-	/** Updates the primitive's uniform buffer. */
-	void UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList);
-
-	/** Updates the primitive's uniform buffer. */
-	FORCEINLINE void ConditionalUpdateUniformBuffer(FRHICommandListImmediate& RHICmdList)
-	{
-		if (NeedsUniformBufferUpdate())
-		{
-			UpdateUniformBuffer(RHICmdList);
-		}
-	}
-
 	/** Sets a flag to update the primitive's static meshes before it is next rendered. */
-	void BeginDeferredUpdateStaticMeshes();
+	void RequestStaticMeshUpdate();
 
-	/** Will update static meshes during next InitViews, even if it's not visible. */
-	void BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck();
+	/** Sets a flag to update the primitive's uniform buffer before it is next rendered. */
+	RENDERER_API bool RequestUniformBufferUpdate();
 
 	/** Adds the primitive's static meshes to the scene. */
 	static void AddStaticMeshes(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, bool bCacheMeshDrawCommands = true);
@@ -498,7 +478,7 @@ public:
 	/** Marks the primitive UB as needing updated and requests a GPU scene update */
 	void MarkGPUStateDirty(EPrimitiveDirtyState PrimitiveDirtyState = EPrimitiveDirtyState::ChangedAll)
 	{
-		SetNeedsUniformBufferUpdate(true);
+		RequestUniformBufferUpdate();
 		RequestGPUSceneUpdate(PrimitiveDirtyState);
 	}
 
@@ -554,11 +534,6 @@ public:
 	 * @param InOffset - The delta to shift by
 	 */
 	void ApplyWorldOffset(FVector InOffset);
-
-	FORCEINLINE void SetNeedsUniformBufferUpdate(bool bInNeedsUniformBufferUpdate)
-	{
-		bNeedsUniformBufferUpdate = bInNeedsUniformBufferUpdate;
-	}
 
 	FORCEINLINE void MarkIndirectLightingCacheBufferDirty()
 	{
@@ -630,6 +605,27 @@ public:
 
 	void SetCacheShadowAsStatic(bool bStatic);
 
+	UE_DEPRECATED(5.3, "NeedsUpdateStaticMeshes has been deprecated.")
+	bool NeedsUpdateStaticMeshes() { return false; }
+
+	UE_DEPRECATED(5.3, "NeedsUniformBufferUpdate has been deprecated.")
+	bool NeedsUniformBufferUpdate() const { return false; }
+	
+	UE_DEPRECATED(5.3, "UpdateUniformBuffer has been deprecated.")
+	void UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList) {}
+	
+	UE_DEPRECATED(5.3, "ConditionalUpdateUniformBuffer has been deprecated.")
+	void ConditionalUpdateUniformBuffer(FRHICommandListImmediate& RHICmdList) {}
+	
+	UE_DEPRECATED(5.3, "BeginDeferredUpdateStaticMeshes has been deprecated. Use RequestStaticMeshUpdate instead.")
+	void BeginDeferredUpdateStaticMeshes() { RequestStaticMeshUpdate(); }
+	
+	UE_DEPRECATED(5.3, "BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck has been deprecated. Use RequestStaticMeshUpdate instead.")
+	void BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck() { RequestStaticMeshUpdate(); }
+	
+	UE_DEPRECATED(5.3, "SetNeedsUniformBufferUpdate is deprecated. Use RequestUniformBufferUpdate instead.")
+	void SetNeedsUniformBufferUpdate(bool bInNeedsUniformBufferUpdate) { RequestUniformBufferUpdate(); }
+
 private:
 
 	/** Let FScene have direct access to the Id. */
@@ -652,9 +648,6 @@ private:
 	 * Use PrimitiveComponentId instead when a component identifier is needed.
 	 */
 	const UPrimitiveComponent* ComponentForDebuggingOnly;
-
-	/** If this is TRUE, this primitive's static meshes will be update even if it's not visible. */
-	bool bNeedsStaticMeshUpdateWithoutVisibilityCheck : 1;
 
 	/** If this is TRUE, this primitive's uniform buffer needs to be updated before it can be rendered. */
 	bool bNeedsUniformBufferUpdate : 1;

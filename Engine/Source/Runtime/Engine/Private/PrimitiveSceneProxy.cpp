@@ -541,7 +541,15 @@ FPrimitiveViewRelevance FPrimitiveSceneProxy::GetViewRelevance(const FSceneView*
 	return FPrimitiveViewRelevance();
 }
 
-void FPrimitiveSceneProxy::UpdateUniformBuffer()
+void FPrimitiveSceneProxy::CreateUniformBuffer()
+{
+	if (DoesVFRequirePrimitiveUniformBuffer())
+	{
+		UniformBuffer = TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateEmptyUniformBufferImmediate(UniformBuffer_MultiFrame);
+	}
+}
+
+void FPrimitiveSceneProxy::UpdateUniformBuffer(FRHICommandList& RHICmdList)
 {
 	// stat disabled by default due to low-value/high-frequency
 	//QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneProxy_UpdateUniformBuffer);
@@ -619,19 +627,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 
 		FPrimitiveUniformShaderParameters PrimitiveParams = Builder.Build();
 
-		if (UniformBuffer.GetReference())
-		{
-			UniformBuffer.UpdateUniformBufferImmediate(PrimitiveParams);
-		}
-		else
-		{
-			UniformBuffer = TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(PrimitiveParams, UniformBuffer_MultiFrame);
-		}
-	}
-
-	if (PrimitiveSceneInfo)
-	{
-		PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(false);
+		check(UniformBuffer);
+		UniformBuffer.UpdateUniformBufferImmediate(RHICmdList, PrimitiveParams);
 	}
 }
 
@@ -696,14 +693,11 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	if (PrimitiveSceneInfo)
 	{
 		PrimitiveSceneInfo->bNeedsCachedReflectionCaptureUpdate = true;
+		Scene->RequestUniformBufferUpdate(*PrimitiveSceneInfo);
 	}
 
 	// Notify the proxy's implementation of the change.
 	OnTransformChanged();
-	
-	// Need to update the uniform buffer after calling OnTransformChanged because
-	// OnTransformChanged could change values used in the uniform buffer.
-	UpdateUniformBuffer();
 }
 
 void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds)
@@ -716,8 +710,11 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 	Bounds = InBounds;
 	LocalBounds = InLocalBounds;
 
-	UpdateUniformBuffer();
-	
+	if (PrimitiveSceneInfo)
+	{
+		Scene->RequestUniformBufferUpdate(*PrimitiveSceneInfo);
+	}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// JIT initialize only when we go through UpdateInstances.
 	// This will also clear the bits so we can reset the state for this frame.
@@ -1031,14 +1028,17 @@ void FPrimitiveSceneProxy::SetCustomDepthEnabled_RenderThread(const bool bInRend
 	if (bRenderCustomDepth != bInRenderCustomDepth)
 	{
 		bRenderCustomDepth = bInRenderCustomDepth;
-		PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(true);
-		Scene->RequestGPUSceneUpdate(*PrimitiveSceneInfo, EPrimitiveDirtyState::ChangedOther);
-		
-		if (IsNaniteMesh())
+
+		if (PrimitiveSceneInfo)
 		{
-			// We have to invalidate the primitive scene info's Nanite raster bins to refresh
-			// whether or not they should render custom depth.
-			Scene->RefreshNaniteRasterBins(*PrimitiveSceneInfo);
+			Scene->RequestUniformBufferUpdate(*PrimitiveSceneInfo);
+
+			if (IsNaniteMesh())
+			{
+				// We have to invalidate the primitive scene info's Nanite raster bins to refresh
+				// whether or not they should render custom depth.
+				Scene->RefreshNaniteRasterBins(*PrimitiveSceneInfo);
+			}
 		}
 	}
 }
@@ -1070,8 +1070,12 @@ void FPrimitiveSceneProxy::SetCustomDepthStencilValue_RenderThread(const int32 I
 	if (CustomDepthStencilValue != InCustomDepthStencilValue)
 	{
 		CustomDepthStencilValue = InCustomDepthStencilValue;
-		PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(true);
-		Scene->RequestGPUSceneUpdate(*PrimitiveSceneInfo, EPrimitiveDirtyState::ChangedOther);	
+
+		if (PrimitiveSceneInfo)
+		{
+			Scene->RequestUniformBufferUpdate(*PrimitiveSceneInfo);
+			Scene->RequestGPUSceneUpdate(*PrimitiveSceneInfo, EPrimitiveDirtyState::ChangedOther);	
+		}
 	}
 }
 
@@ -1122,11 +1126,15 @@ void FPrimitiveSceneProxy::SetLightingChannels_GameThread(FLightingChannels Ligh
 	FPrimitiveSceneProxy* PrimitiveSceneProxy = this;
 	const uint8 LocalLightingChannelMask = GetLightingChannelMaskForStruct(LightingChannels);
 	ENQUEUE_RENDER_COMMAND(SetLightingChannelsCmd)(
-		[PrimitiveSceneProxy, LocalLightingChannelMask](FRHICommandListImmediate& RHICmdList)
+		[PrimitiveSceneProxy, LocalLightingChannelMask, Scene = Scene, PrimitiveSceneInfo = PrimitiveSceneInfo](FRHICommandListImmediate& RHICmdList)
 	{
 		PrimitiveSceneProxy->LightingChannelMask = LocalLightingChannelMask;
-		PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
-		PrimitiveSceneProxy->GetScene().RequestGPUSceneUpdate(*PrimitiveSceneProxy->GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
+
+		if (PrimitiveSceneInfo)
+		{
+			Scene->RequestUniformBufferUpdate(*PrimitiveSceneInfo);
+			Scene->RequestGPUSceneUpdate(*PrimitiveSceneInfo, EPrimitiveDirtyState::ChangedOther);
+		}
 	});
 }
 
@@ -1252,7 +1260,7 @@ void FPrimitiveSceneProxy::SetEvaluateWorldPositionOffset_GameThread(bool bEvalu
 
 	FPrimitiveSceneProxy* PrimitiveSceneProxy = this;
 	ENQUEUE_RENDER_COMMAND(SetEvaluateWorldPositionOffset)
-		([PrimitiveSceneProxy, bEvaluate](FRHICommandList& RHICmdList)
+		([PrimitiveSceneProxy, bEvaluate, Scene = Scene, PrimitiveSceneInfo = PrimitiveSceneInfo](FRHICommandList& RHICmdList)
 	{
 		const bool bOptimizedWPO = CVarOptimizedWPO.GetValueOnRenderThread();
 		const bool bWPOEvaluate = !bOptimizedWPO || bEvaluate;
@@ -1260,8 +1268,13 @@ void FPrimitiveSceneProxy::SetEvaluateWorldPositionOffset_GameThread(bool bEvalu
 		if (PrimitiveSceneProxy->bEvaluateWorldPositionOffset != bWPOEvaluate)
 		{
 			PrimitiveSceneProxy->bEvaluateWorldPositionOffset = bWPOEvaluate;
-			PrimitiveSceneProxy->GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
-			PrimitiveSceneProxy->GetScene().RequestGPUSceneUpdate(*PrimitiveSceneProxy->GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
+
+			if (PrimitiveSceneInfo)
+			{
+				Scene->RequestUniformBufferUpdate(*PrimitiveSceneInfo);
+				Scene->RequestGPUSceneUpdate(*PrimitiveSceneInfo, EPrimitiveDirtyState::ChangedOther);
+			}
+
 			PrimitiveSceneProxy->OnEvaluateWorldPositionOffsetChanged_RenderThread();
 		}
 	});

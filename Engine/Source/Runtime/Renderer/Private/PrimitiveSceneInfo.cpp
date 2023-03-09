@@ -192,7 +192,6 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent, FScen
 	PackedIndex(INDEX_NONE),
 	PersistentIndex(FPersistentPrimitiveIndex{ INDEX_NONE }),
 	ComponentForDebuggingOnly(InComponent),
-	bNeedsStaticMeshUpdateWithoutVisibilityCheck(false),
 	bNeedsUniformBufferUpdate(false),
 	bIndirectLightingCacheBufferDirty(false),
 	bRegisteredVirtualTextureProducerCallback(false),
@@ -1661,13 +1660,6 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 			Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex] = false;
 		}
 
-		if (bNeedsStaticMeshUpdateWithoutVisibilityCheck)
-		{
-			Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Remove(this);
-
-			bNeedsStaticMeshUpdateWithoutVisibilityCheck = false;
-		}
-
 		// IndirectLightingCacheUniformBuffer may be cached inside cached mesh draw commands, so we 
 		// can't delete it unless we also update cached mesh command.
 		IndirectLightingCacheUniformBuffer.SafeRelease();
@@ -1733,11 +1725,6 @@ void FPrimitiveSceneInfo::UpdateRuntimeVirtualTextureFlags()
 	}
 }
 
-bool FPrimitiveSceneInfo::NeedsUpdateStaticMeshes()
-{
-	return Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex];
-}
-
 void FPrimitiveSceneInfo::UpdateStaticMeshes(FScene* Scene, TArrayView<FPrimitiveSceneInfo*> SceneInfos, EUpdateStaticMeshFlags UpdateFlags, bool bReAddToDrawLists)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneInfo_UpdateStaticMeshes);
@@ -1752,13 +1739,6 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FScene* Scene, TArrayView<FPrimitiv
 	{
 		FPrimitiveSceneInfo* SceneInfo = SceneInfos[Index];
 		Scene->PrimitivesNeedingStaticMeshUpdate[SceneInfo->PackedIndex] = bNeedsStaticMeshUpdate;
-
-		if (!bNeedsStaticMeshUpdate && SceneInfo->bNeedsStaticMeshUpdateWithoutVisibilityCheck)
-		{
-			Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Remove(SceneInfo);
-
-			SceneInfo->bNeedsStaticMeshUpdateWithoutVisibilityCheck = false;
-		}
 
 		if (EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RasterCommands))
 		{
@@ -1817,16 +1797,7 @@ void FPrimitiveSceneInfo::UpdateCachedRaytracingData(FScene* Scene, const TArray
 }
 #endif //RHI_RAYTRACING
 
-void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList)
-{
-	checkSlow(bNeedsUniformBufferUpdate);
-	bNeedsUniformBufferUpdate = false;
-	Proxy->UpdateUniformBuffer();
-	// TODO: Figure out when and why this is called
-	Scene->GPUScene.AddPrimitiveToUpdate(PackedIndex, EPrimitiveDirtyState::ChangedAll);
-}
-
-void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshes()
+void FPrimitiveSceneInfo::RequestStaticMeshUpdate()
 {
 	// Set a flag which causes InitViews to update the static meshes the next time the primitive is visible.
 	if (IsIndexValid()) // PackedIndex
@@ -1835,14 +1806,14 @@ void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshes()
 	}
 }
 
-void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck()
+bool FPrimitiveSceneInfo::RequestUniformBufferUpdate()
 {
-	if (NeedsUpdateStaticMeshes() && !bNeedsStaticMeshUpdateWithoutVisibilityCheck)
+	if (IsIndexValid()) // PackedIndex
 	{
-		bNeedsStaticMeshUpdateWithoutVisibilityCheck = true;
-
-		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Add(this);
+		Scene->PrimitivesNeedingUniformBufferUpdate[PackedIndex] = true;
+		return true;
 	}
+	return false;
 }
 
 void FPrimitiveSceneInfo::FlushRuntimeVirtualTexture()
@@ -2199,6 +2170,7 @@ void FPrimitiveSceneInfo::RemoveCachedReflectionCaptures()
 	CachedPlanarReflectionProxy = nullptr;
 	FMemory::Memzero(CachedReflectionCaptureProxies);
 	bNeedsCachedReflectionCaptureUpdate = true;
+	MarkGPUStateDirty(EPrimitiveDirtyState::ChangedAll);
 }
 
 void FPrimitiveSceneInfo::UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const

@@ -1381,7 +1381,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						// We are only doing this for dynamic geometries now
 						SceneInfo->LastRenderTime = CurrentWorldTime;
 						SceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/true);
-						SceneInfo->ConditionalUpdateUniformBuffer(GraphBuilder.RHICmdList);
 					}
 				}
 			}
@@ -2532,7 +2531,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands;
 		}
 
-		Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, AsyncOps);
+		UpdateScene(GraphBuilder, AsyncOps);
 	}
 	// kick off dependent scene updates 
 	Scene->ShadowScene->UpdateForRenderedFrame(GraphBuilder);

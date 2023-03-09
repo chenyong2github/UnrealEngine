@@ -253,7 +253,7 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 				if (PrimitiveSceneInfo->NumMobileDynamicLocalLights == 1)
 				{
 					// Update static meshes to choose the shader permutation with local lights.
-					PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
+					PrimitiveSceneInfo->RequestStaticMeshUpdate();
 				}
 			} 
 
@@ -324,7 +324,7 @@ FLightPrimitiveInteraction::~FLightPrimitiveInteraction()
 		if (PrimitiveSceneInfo->NumMobileDynamicLocalLights == 0)
 		{
 			// Update static meshes to choose the shader permutation without local lights.
-			PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
+			PrimitiveSceneInfo->RequestStaticMeshUpdate();
 		}
 	}
 

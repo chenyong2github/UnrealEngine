@@ -917,7 +917,6 @@ private:
 		FViewInfo& InCurrentView,
 		const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact,
 		bool bMayBeFading,
-		bool bNeedUpdateStaticMeshes,
 		struct FAddSubjectPrimitiveResult& OutResult,
 		struct FAddSubjectPrimitiveStats& OutStats,
 		struct FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const;

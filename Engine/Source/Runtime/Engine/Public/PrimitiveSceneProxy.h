@@ -982,7 +982,13 @@ public:
 	/**
 	 * Updates the primitive proxy's uniform buffer.
 	 */
-	ENGINE_API void UpdateUniformBuffer();
+	ENGINE_API void UpdateUniformBuffer(FRHICommandList& RHICmdList);
+
+	UE_DEPRECATED(5.3, "UpdateUniformBuffer now takes a command list.")
+	inline void UpdateUniformBuffer()
+	{
+		UpdateUniformBuffer(FRHICommandListExecutor::GetImmediateCommandList());
+	}
 
 #if ENABLE_DRAW_DEBUG
 
@@ -1522,6 +1528,8 @@ private:
 	ENGINE_API void SetTransform(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, FVector InActorPosition);
 
 	ENGINE_API bool WouldSetTransformBeRedundant_AnyThread(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FVector& InActorPosition) const;
+
+	ENGINE_API void CreateUniformBuffer();
 
 	/** Updates the hidden editor view visibility map on the render thread */
 	void SetHiddenEdViews_RenderThread( uint64 InHiddenEditorViews );

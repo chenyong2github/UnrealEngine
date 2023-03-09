@@ -2716,6 +2716,31 @@ FIntPoint FSceneRenderer::GetDesiredInternalBufferSize(const FSceneViewFamily& V
 	return DesiredBufferSize;
 }
 
+void FSceneRenderer::UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps)
+{
+	/**
+	  * UpdateStaticMeshes removes and re-creates cached FMeshDrawCommands.  If there are multiple scene renderers being run together,
+	  * we need allocated pipeline state IDs not to change, in case async tasks related to prior scene renderers are still in flight
+	  * (FSubmitNaniteMaterialPassCommandsAnyThreadTask or FDrawVisibleMeshCommandsAnyThreadTask).  So we freeze pipeline state IDs,
+	  * preventing them from being de-allocated even if their reference count temporarily goes to zero during calls to
+	  * RemoveCachedMeshDrawCommands followed by CacheMeshDrawCommands (or the Nanite equivalent).
+	  *
+	  * Note that on the first scene renderer, we do want to de-allocate items, so they can be permanently released if no longer in use
+	  * (for example, if there was an impactful change to a render proxy by game logic), but the assumption is that sequential renders
+	  * of the same scene from different views can't make such changes.
+	  */
+	if (!bIsFirstSceneRenderer)
+	{
+		FGraphicsMinimalPipelineStateId::FreezeIdTable(true);
+	}
+
+	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, AsyncOps);
+
+	if (!bIsFirstSceneRenderer)
+	{
+		FGraphicsMinimalPipelineStateId::FreezeIdTable(false);
+	}
+}
 
 void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList)
 {
@@ -5004,11 +5029,11 @@ const FGlobalDistanceFieldParameterData* FRendererModule::GetGlobalDistanceField
 	return nullptr;
 }
 
-void FRendererModule::BeginDeferredUpdateOfPrimitiveSceneInfo(FPrimitiveSceneInfo* Info)
+void FRendererModule::RequestStaticMeshUpdate(FPrimitiveSceneInfo* Info)
 {
 	if (Info)
 	{
-		Info->BeginDeferredUpdateStaticMeshes();
+		Info->RequestStaticMeshUpdate();
 	}
 }
 

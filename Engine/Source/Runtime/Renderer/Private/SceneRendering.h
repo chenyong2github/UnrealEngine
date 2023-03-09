@@ -42,6 +42,7 @@
 #include "SceneTexturesConfig.h"
 #include "SceneUniformBuffer.h"
 #include "TextureFallbacks.h"
+#include "SceneInterface.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstanceBufferUtil.h"
@@ -2294,6 +2295,8 @@ protected:
 	bool bDumpMeshDrawCommandInstancingStats;
 
 	// Shared functionality between all scene renderers
+
+	void UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None);
 
 	FDynamicShadowsTaskData* BeginInitDynamicShadows(bool bRunningEarly);
 	void FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynamicShadowsTaskData* TaskData, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);

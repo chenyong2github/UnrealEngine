@@ -1247,10 +1247,6 @@ struct FDynamicShadowsTaskData
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ViewDependentWholeSceneShadows;
 	TArray<FDrawDebugShadowFrustumOp, SceneRenderingAllocator> DrawDebugShadowFrustumOps;
 
-	// Generated from finalize task.
-	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> NeedsUniformBufferUpdatePrimitives;
-	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> NeedsUpdateStaticMeshPrimitives;
-
 	// Written from task
 	TArray<struct FGatherShadowPrimitivesPacket*, SceneRenderingAllocator> Packets;
 	FPerShadowGatherStats GatherStats;
@@ -1335,7 +1331,6 @@ struct FAddSubjectPrimitiveResult
 			uint32 bDynamicSubjectPrimitive : 1;
 			uint32 bTranslucentSubjectPrimitive : 1;
 			uint32 bNeedUniformBufferUpdate : 1;
-			uint32 bNeedUpdateStaticMeshes : 1;
 			uint32 bNeedPrimitiveFadingStateUpdate : 1;
 			uint32 bFadingIn : 1;
 			uint32 bAddOnRenderThread : 1;
@@ -1637,7 +1632,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 		{
 			// Don't cache if it requires per view per mesh state for distance cull fade.
 			const bool bIsPrimitiveDistanceCullFading = InCurrentView.PotentiallyFadingPrimitiveMap[InPrimitiveSceneInfo->GetIndex()];
-			const bool bCanCache = !bIsPrimitiveDistanceCullFading && !InPrimitiveSceneInfo->NeedsUpdateStaticMeshes();
+			const bool bCanCache = !bIsPrimitiveDistanceCullFading;
 
 			for (int32 MeshIndex = 0; MeshIndex < InPrimitiveSceneInfo->StaticMeshRelevances.Num(); MeshIndex++)
 			{
@@ -1690,7 +1685,6 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 	FViewInfo& CurrentView,
 	const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact,
 	bool bMayBeFading,
-	bool bNeedUpdateStaticMeshes,
 	FAddSubjectPrimitiveResult& OutResult,
 	FAddSubjectPrimitiveStats& OutStats,
 	FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const
@@ -1709,7 +1703,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 		if (WholeSceneDirectionalShadow)
 		{
 			// Don't cache if it requires per view per mesh state for distance cull fade.
-			const bool bCanCache = !bMayBeFading && !bNeedUpdateStaticMeshes;
+			const bool bCanCache = !bMayBeFading;
 			int32 NumAcceptedStaticMeshes = 0;
 
 			for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); MeshIndex++)
@@ -1843,16 +1837,6 @@ bool FProjectedShadowInfo::AddSubjectPrimitive(FDynamicShadowsTaskData& TaskData
 			// Update the primitive component's last render time. Allows the component to update when using bCastWhenHidden.
 			const float CurrentWorldTime = Views[0].Family->Time.GetWorldTimeSeconds();
 			PrimitiveSceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/false);
-
-			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
-			{
-				TaskData.NeedsUniformBufferUpdatePrimitives.Emplace(PrimitiveSceneInfo);
-			}
-
-			if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
-			{
-				TaskData.NeedsUpdateStaticMeshPrimitives.Emplace(PrimitiveSceneInfo);
-			}
 		}
 
 		if (bOpaque && bShadowRelevance)
@@ -2006,7 +1990,6 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 		bool bShadowRelevance = false;
 		bool bStaticRelevance = false;
 		bool bMayBeFading = false;
-		bool bNeedUpdateStaticMeshes = false;
 		bool bDynamicRelevance = false;
 
 		const int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
@@ -2073,21 +2056,6 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 		const float CurrentWorldTime = CurrentView->Family->Time.GetWorldTimeSeconds();
 		PrimitiveSceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/false);
 
-		if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
-		{
-			// Main view visible primitives are processed on parallel tasks, updating uniform buffer them here will cause a race condition.
-			check(!CurrentView->PrimitiveVisibilityMap[PrimitiveId]);
-			Result.bNeedUniformBufferUpdate = true;
-		}
-
-		if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
-		{
-			// Need to defer to next InitViews, as main view visible primitives are processed on parallel tasks and calling 
-			// CacheMeshDrawCommands may resize CachedDrawLists/CachedMeshDrawCommandStateBuckets causing a crash.
-			Result.bNeedUpdateStaticMeshes = true;
-			bNeedUpdateStaticMeshes = true;
-		}
-
 		if (bOpaque)
 		{
 			bool bDrawingStaticMeshes = false;
@@ -2114,7 +2082,6 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 						*CurrentView,
 						PrimitiveSceneInfoCompact,
 						bMayBeFading,
-						bNeedUpdateStaticMeshes,
 						Result,
 						OutStats,
 						OverflowBuffer);
@@ -2254,16 +2221,6 @@ void FProjectedShadowInfo::FinalizeAddSubjectPrimitive(
 	if (Result.bTranslucentSubjectPrimitive)
 	{
 		SubjectTranslucentPrimitives.Add(PrimitiveSceneInfo);
-	}
-
-	if (Result.bNeedUniformBufferUpdate)
-	{
-		TaskData.NeedsUniformBufferUpdatePrimitives.Add(PrimitiveSceneInfo);
-	}
-
-	if (Result.bNeedUpdateStaticMeshes)
-	{
-		TaskData.NeedsUpdateStaticMeshPrimitives.Add(PrimitiveSceneInfo);
 	}
 }
 
@@ -4977,16 +4934,6 @@ void FSceneRenderer::FinishGatherShadowPrimitives(FDynamicShadowsTaskData* TaskD
 		}
 		TaskData->Packets.Empty();
 		FilterDynamicShadows(*TaskData);
-	}
-
-	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : TaskData->NeedsUniformBufferUpdatePrimitives)
-	{
-		PrimitiveSceneInfo->ConditionalUpdateUniformBuffer(FRHICommandListExecutor::GetImmediateCommandList());
-	}
-
-	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : TaskData->NeedsUpdateStaticMeshPrimitives)
-	{
-		PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck();
 	}
 
 	for (FDrawDebugShadowFrustumOp Op : TaskData->DrawDebugShadowFrustumOps)

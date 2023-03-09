@@ -845,7 +845,7 @@ public:
 
 	virtual const FViewMatrices& GetPreviousViewMatrices(const FSceneView& View) = 0;
 	virtual const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameterData(const FSceneView& View) = 0;
-	virtual void BeginDeferredUpdateOfPrimitiveSceneInfo(FPrimitiveSceneInfo* Info) = 0;
+	virtual void RequestStaticMeshUpdate(FPrimitiveSceneInfo* Info) = 0;
 	virtual void AddMeshBatchToGPUScene(FGPUScenePrimitiveCollector* Collector, FMeshBatch& MeshBatch) = 0;
 };
 

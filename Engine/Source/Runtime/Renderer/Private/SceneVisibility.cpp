@@ -2295,9 +2295,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 	FTranslucenyPrimCount TranslucentPrimCount;
 	bool bHasDistortionPrimitives;
 	bool bHasCustomDepthPrimitives;
-	FRelevancePrimSet<FPrimitiveSceneInfo*> LazyUpdatePrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> DirtyIndirectLightingCacheBufferPrimitives;
-	FRelevancePrimSet<FPrimitiveSceneInfo*> RecachedReflectionCapturePrimitives;
 #if WITH_EDITOR
 	FRelevancePrimSet<FPrimitiveSceneInfo*> EditorVisualizeLevelInstancePrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> EditorSelectedPrimitives;
@@ -2577,19 +2575,8 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 			{
 				// mobile should not have any outstanding reflection capture update requests at this point, except for when lighting isn't rebuilt		
 				PrimitiveSceneInfo->CacheReflectionCaptures();
-
-				// With forward shading we need to track reflection capture cache updates
-				// in order to update primitive's uniform buffer's closest reflection capture id.
-				if (IsForwardShadingEnabled(Scene->GetShaderPlatform()))
-				{
-					RecachedReflectionCapturePrimitives.AddPrim(PrimitiveSceneInfo);
-				}
 			}
 
-			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
-			{
-				LazyUpdatePrimitives.AddPrim(PrimitiveSceneInfo);
-			}
 			if (PrimitiveSceneInfo->NeedsIndirectLightingCacheBufferUpdate())
 			{
 				DirtyIndirectLightingCacheBufferPrimitives.AddPrim(PrimitiveSceneInfo);
@@ -3030,19 +3017,6 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 		WriteView.HeterogeneousVolumesMeshBatches.Append(HeterogeneousVolumesMeshBatches);
 		WriteView.SkyMeshBatches.Append(SkyMeshBatches);
 		WriteView.SortedTrianglesMeshBatches.Append(SortedTrianglesMeshBatches);
-
-		for (int32 Index = 0; Index < RecachedReflectionCapturePrimitives.NumPrims; ++Index)
-		{
-			FPrimitiveSceneInfo* PrimitiveSceneInfo = RecachedReflectionCapturePrimitives.Prims[Index];
-
-			PrimitiveSceneInfo->MarkGPUStateDirty(EPrimitiveDirtyState::ChangedAll);
-			PrimitiveSceneInfo->ConditionalUpdateUniformBuffer(RHICmdList);
-		}
-
-		for (int32 Index = 0; Index < LazyUpdatePrimitives.NumPrims; Index++)
-		{
-			LazyUpdatePrimitives.Prims[Index]->ConditionalUpdateUniformBuffer(RHICmdList);
-		}
 
 		for (int32 i = 0; i < PrimitivesLODMask.NumPrims; ++i)
 		{
@@ -4170,131 +4144,6 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	MotionBlurTimeScale = MotionBlurTargetDeltaTime / DeltaRealTime;
 }
 
-void UpdateReflectionSceneData(FScene* Scene)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateReflectionSceneData)
-	SCOPED_NAMED_EVENT(UpdateReflectionScene, FColor::Red);
-
-
-	FReflectionEnvironmentSceneData& ReflectionSceneData = Scene->ReflectionSceneData;
-
-	ReflectionSceneData.SortedCaptures.Reset(ReflectionSceneData.RegisteredReflectionCaptures.Num());
-	ReflectionSceneData.NumBoxCaptures = 0;
-	ReflectionSceneData.NumSphereCaptures = 0;
-
-	const int32 MaxCubemaps = ReflectionSceneData.CubemapArray.GetMaxCubemaps();
-	int32_t PlatformMaxNumReflectionCaptures = FMath::Min(FMath::FloorToInt(GMaxTextureArrayLayers / 6.0f), GMaxNumReflectionCaptures);
-
-	// Pack visible reflection captures into the uniform buffer, each with an index to its cubemap array entry.
-	// GPUScene primitive data stores closest reflection capture as index into this buffer, so this index which must be invalidate every time OutSortData contents change.
-	for (int32 ReflectionProxyIndex = 0; ReflectionProxyIndex < ReflectionSceneData.RegisteredReflectionCaptures.Num() && ReflectionSceneData.SortedCaptures.Num() < PlatformMaxNumReflectionCaptures; ReflectionProxyIndex++)
-	{
-		FReflectionCaptureProxy* CurrentCapture = ReflectionSceneData.RegisteredReflectionCaptures[ReflectionProxyIndex];
-
-		FReflectionCaptureSortData NewSortEntry;
-
-		NewSortEntry.CubemapIndex = -1;
-		NewSortEntry.CaptureOffsetAndAverageBrightness = FVector4f(CurrentCapture->CaptureOffset, 1.0f);
-		NewSortEntry.CaptureProxy = CurrentCapture;
-		if (SupportsTextureCubeArray(Scene->GetFeatureLevel()))
-		{
-			FCaptureComponentSceneState* ComponentStatePtr = ReflectionSceneData.AllocatedReflectionCaptureState.Find(CurrentCapture->Component);
-			if (!ComponentStatePtr)
-			{
-				// Skip reflection captures without built data to upload
-				continue;
-			}
-
-			NewSortEntry.CubemapIndex = ComponentStatePtr->CubemapIndex;
-			check(NewSortEntry.CubemapIndex < MaxCubemaps || NewSortEntry.CubemapIndex == 0);
-			NewSortEntry.CaptureOffsetAndAverageBrightness.W = ComponentStatePtr->AverageBrightness;
-		}
-
-		NewSortEntry.Guid = CurrentCapture->Guid;
-		NewSortEntry.RelativePosition = CurrentCapture->RelativePosition;
-		NewSortEntry.TilePosition = CurrentCapture->TilePosition;
-		NewSortEntry.Radius = CurrentCapture->InfluenceRadius;
-		float ShapeTypeValue = (float)CurrentCapture->Shape;
-		NewSortEntry.CaptureProperties = FVector4f(CurrentCapture->Brightness, NewSortEntry.CubemapIndex, ShapeTypeValue, 0);
-
-		if (CurrentCapture->Shape == EReflectionCaptureShape::Plane)
-		{
-			//planes count as boxes in the compute shader.
-			++ReflectionSceneData.NumBoxCaptures;
-			NewSortEntry.BoxTransform = FMatrix44f(
-				FPlane4f(CurrentCapture->LocalReflectionPlane),
-				FPlane4f((FVector4f)CurrentCapture->ReflectionXAxisAndYScale), // LWC_TODO: precision loss
-				FPlane4f(0, 0, 0, 0),
-				FPlane4f(0, 0, 0, 0));
-
-			NewSortEntry.BoxScales = FVector4f(0);
-		}
-		else if (CurrentCapture->Shape == EReflectionCaptureShape::Sphere)
-		{
-			++ReflectionSceneData.NumSphereCaptures;
-		}
-		else
-		{
-			++ReflectionSceneData.NumBoxCaptures;
-			NewSortEntry.BoxTransform = CurrentCapture->BoxTransform;
-			NewSortEntry.BoxScales = FVector4f(CurrentCapture->BoxScales, CurrentCapture->BoxTransitionDistance);
-		}
-
-		ReflectionSceneData.SortedCaptures.Add(NewSortEntry);
-	}
-
-	ReflectionSceneData.SortedCaptures.Sort();
-
-	for (int32 CaptureIndex = 0; CaptureIndex < ReflectionSceneData.SortedCaptures.Num(); CaptureIndex++)
-	{
-		ReflectionSceneData.SortedCaptures[CaptureIndex].CaptureProxy->SortedCaptureIndex = CaptureIndex;
-	}
-
-
-	// If SortedCaptures change, then in case of forward renderer all scene primitives need to be updated, as they 
-	// store index into sorted reflection capture uniform buffer for the forward renderer.
-	if (IsForwardShadingEnabled(Scene->GetShaderPlatform()) && ReflectionSceneData.AllocatedReflectionCaptureStateHasChanged)
-	{
-		const int32 NumPrimitives = Scene->Primitives.Num();
-		for (int32 PrimitiveIndex = 0; PrimitiveIndex < NumPrimitives; ++PrimitiveIndex)
-		{
-			Scene->Primitives[PrimitiveIndex]->SetNeedsUniformBufferUpdate(true);
-		}
-
-		Scene->GPUScene.bUpdateAllPrimitives = true;
-
-		ReflectionSceneData.AllocatedReflectionCaptureStateHasChanged = false;
-	}
-
-
-	// Mark all primitives for reflection proxy update
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_MarkAllPrimitivesForReflectionProxyUpdate);
-
-		if (Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged)
-		{
-			// Mobile needs to re-cache all mesh commands when scene capture data has changed
-			const bool bNeedsStaticMeshUpdate = Scene->GetShadingPath() == EShadingPath::Mobile;
-			
-			// Mark all primitives as needing an update
-			// Note: Only visible primitives will actually update their reflection proxy
-			for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); PrimitiveIndex++)
-			{
-				FPrimitiveSceneInfo* Primitive = Scene->Primitives[PrimitiveIndex];
-				Primitive->RemoveCachedReflectionCaptures();
-
-				if (bNeedsStaticMeshUpdate)
-				{
-					Primitive->CacheReflectionCaptures();
-					Primitive->BeginDeferredUpdateStaticMeshes();
-				}
-			}
-
-			Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = false;
-		}
-	}
-}
-
 #if !UE_BUILD_SHIPPING
 static uint32 GetDrawCountFromPrimitiveSceneInfo(FScene* Scene, const FPrimitiveSceneInfo* PrimitiveSceneInfo)
 {
@@ -4644,22 +4493,6 @@ void FSceneRenderer::ComputeViewVisibility(
 	STAT(int32 NumCulledPrimitives = 0);
 	STAT(int32 NumOccludedPrimitives = 0);
 
-	/**
-	  * UpdateStaticMeshes removes and re-creates cached FMeshDrawCommands.  If there are multiple scene renderers being run together,
-	  * we need allocated pipeline state IDs not to change, in case async tasks related to prior scene renderers are still in flight
-	  * (FSubmitNaniteMaterialPassCommandsAnyThreadTask or FDrawVisibleMeshCommandsAnyThreadTask).  So we freeze pipeline state IDs,
-	  * preventing them from being de-allocated even if their reference count temporarily goes to zero during calls to
-	  * RemoveCachedMeshDrawCommands followed by CacheMeshDrawCommands (or the Nanite equivalent).
-	  *
-	  * Note that on the first scene renderer, we do want to de-allocate items, so they can be permanently released if no longer in use
-	  * (for example, if there was an impactful change to a render proxy by game logic), but the assumption is that sequential renders
-	  * of the same scene from different views can't make such changes.
-	  */
-	if (!bIsFirstSceneRenderer)
-	{
-		FGraphicsMinimalPipelineStateId::FreezeIdTable(true);
-	}
-
 	UE::Tasks::FTask ComputeLightVisibilityTask = LaunchSceneRenderTask(UE_SOURCE_LOCATION, [this]
 	{
 		ComputeLightVisibility();
@@ -4677,8 +4510,6 @@ void FSceneRenderer::ComputeViewVisibility(
 	{
 		HasDynamicEditorMeshElementsMasks.AddZeroed(NumPrimitives);
 	}
-
-	UpdateReflectionSceneData(Scene);
 
 	uint8 ViewBit = 0x1;
 	{
@@ -4843,41 +4674,7 @@ void FSceneRenderer::ComputeViewVisibility(
 				STAT(NumOccludedPrimitives += NumOccludedPrimitivesInView);
 			}
 
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_ConditionalUpdateStaticMeshes);
-				SCOPED_NAMED_EVENT(FSceneRenderer_UpdateStaticMeshes, FColor::Red);
-
-				Scene->WaitForCacheMeshDrawCommandsTask();
-				Scene->ConditionalMarkStaticMeshElementsForUpdate();
-
-				TArray<FPrimitiveSceneInfo*> AddedSceneInfos;
-				for (TSet<FPrimitiveSceneInfo*>::TIterator It(Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck); It; ++It)
-				{
-					FPrimitiveSceneInfo* Primitive = *It;
-					if (Primitive->NeedsUpdateStaticMeshes())
-					{
-						AddedSceneInfos.Add(Primitive);
-					}
-				}
-
-				for (TConstDualSetBitIterator<SceneRenderingBitArrayAllocator, FDefaultBitArrayAllocator> BitIt(View.PrimitiveVisibilityMap, Scene->PrimitivesNeedingStaticMeshUpdate); BitIt; ++BitIt)
-				{
-					int32 PrimitiveIndex = BitIt.GetIndex();
-					FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
-
-					if (!Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Contains(SceneInfo))
-					{
-						AddedSceneInfos.Add(Scene->Primitives[PrimitiveIndex]);
-					}
-				}
-
-				if (AddedSceneInfos.Num() > 0)
-				{
-					FPrimitiveSceneInfo::UpdateStaticMeshes(Scene, AddedSceneInfos, EUpdateStaticMeshFlags::AllCommands);
-				}
-
-				Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Reset();
-			}
+			Scene->WaitForCacheMeshDrawCommandsTask();
 
 			// Single-pass stereo views can't compute relevance until all views are visibility culled
 			if (!bIsSinglePassStereo)
@@ -4991,12 +4788,6 @@ void FSceneRenderer::ComputeViewVisibility(
 	INC_DWORD_STAT_BY(STAT_ProcessedPrimitives,NumProcessedPrimitives);
 	INC_DWORD_STAT_BY(STAT_CulledPrimitives,NumCulledPrimitives);
 	INC_DWORD_STAT_BY(STAT_OccludedPrimitives,NumOccludedPrimitives);
-
-	// See comment where this is called above
-	if (!bIsFirstSceneRenderer)
-	{
-		FGraphicsMinimalPipelineStateId::FreezeIdTable(false);
-	}
 }
 
 void FDeferredShadingSceneRenderer::ComputeLightVisibility()

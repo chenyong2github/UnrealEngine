@@ -840,7 +840,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	RDG_RHI_EVENT_SCOPE(GraphBuilder, MobileSceneRender);
 	RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, MobileSceneRender);
 
-	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
+	UpdateScene(GraphBuilder);
 
 	GPU_MESSAGE_SCOPE(GraphBuilder);
 

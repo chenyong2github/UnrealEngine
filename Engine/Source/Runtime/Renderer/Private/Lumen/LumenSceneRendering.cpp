@@ -1508,19 +1508,6 @@ bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup, FLumenCardRenderer
 	{
 		if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
 		{
-			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
-			{
-				LumenCardRenderer.PrimitivesToUpdateUniformBuffer.Add(PrimitiveSceneInfo);
-			}
-
-			if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
-			{
-				// Need to defer to next InitViews, as main view visible primitives are processed on parallel tasks and calling 
-				// CacheMeshDrawCommands may resize CachedDrawLists/CachedMeshDrawCommandStateBuckets causing a crash.
-				PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck();
-				bReadyToRender = false;
-			}
-
 			if (PrimitiveSceneInfo->Proxy->StaticMeshHasPendingStreaming())
 			{
 				bReadyToRender = false;
@@ -2734,12 +2721,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 		RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, UpdateLumenSceneBuffers);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, LumenSceneUpdate);
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenSceneUpdate: %u card captures %.3fM texels", CardPagesToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / (1024.0f * 1024.0f));
-
-		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : LumenCardRenderer.PrimitivesToUpdateUniformBuffer)
-		{
-			PrimitiveSceneInfo->UpdateUniformBuffer(GraphBuilder.RHICmdList);
-		}
-		LumenCardRenderer.PrimitivesToUpdateUniformBuffer.Empty();
 
 		// Atlas reallocation
 		if (FrameTemporaries.bReallocateAtlas || !LumenSceneData.AlbedoAtlas)

@@ -73,7 +73,6 @@ public:
 	TArray<FCardPageRenderData, SceneRenderingAllocator> CardPagesToRender;
 
 	TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> LandscapePrimitivesInRange;
-	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> PrimitivesToUpdateUniformBuffer;
 
 	int32 NumCardTexelsToCapture;
 	FMeshCommandOneFrameArray MeshDrawCommands;

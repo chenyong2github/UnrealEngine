@@ -14,6 +14,7 @@
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "Misc/AssertionMacros.h"
+#include "RHICommandList.h"
 
 class FRDGTexture;
 class FRDGTextureSRV;
@@ -139,10 +140,20 @@ public:
 	{
 		return TUniformBufferRef<TBufferStruct>(RHICreateUniformBuffer(&Value, TUniformBufferMetadataHelper<TBufferStruct>::GetStructMetadata()->GetLayoutPtr(), Usage, Validation));
 	}
+	/** Creates a uniform buffer with the given value, and returns a structured reference to it. */
+	static TUniformBufferRef<TBufferStruct> CreateEmptyUniformBufferImmediate(EUniformBufferUsage Usage)
+	{
+		return TUniformBufferRef<TBufferStruct>(RHICreateUniformBuffer(nullptr, TUniformBufferMetadataHelper<TBufferStruct>::GetStructMetadata()->GetLayoutPtr(), Usage, EUniformBufferValidation::ValidateResources));
+	}
 
 	void UpdateUniformBufferImmediate(const TBufferStruct& Value)
 	{
 		RHIUpdateUniformBuffer(GetReference(), &Value);
+	}
+
+	void UpdateUniformBufferImmediate(FRHICommandListBase& RHICmdList, const TBufferStruct& Value)
+	{
+		RHICmdList.UpdateUniformBuffer(GetReference(), &Value);
 	}
 
 private:

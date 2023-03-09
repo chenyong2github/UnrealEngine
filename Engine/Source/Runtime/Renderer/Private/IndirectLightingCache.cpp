@@ -590,7 +590,7 @@ void FIndirectLightingCache::FinalizeUpdateInternal_RenderThread(FScene* Scene, 
 
 		for (int32 PrimitiveIndex = 0; PrimitiveIndex < PrimitivesToUpdateStaticMeshes.Num(); ++PrimitiveIndex)
 		{
-			PrimitivesToUpdateStaticMeshes[PrimitiveIndex]->BeginDeferredUpdateStaticMeshes();
+			PrimitivesToUpdateStaticMeshes[PrimitiveIndex]->RequestStaticMeshUpdate();
 		}
 	}	
 

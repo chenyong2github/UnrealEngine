@@ -2761,7 +2761,7 @@ public:
 #endif
 
 	TBitArray<> PrimitivesNeedingStaticMeshUpdate;
-	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;
+	TBitArray<> PrimitivesNeedingUniformBufferUpdate;
 
 	TArray<int32> PersistentPrimitiveIdToIndexMap;
 
@@ -3175,6 +3175,7 @@ public:
 	virtual void UpdateParameterCollections(const TArray<FMaterialParameterCollectionInstanceResource*>& InParameterCollections) override;
 
 	virtual bool RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState) override;
+	virtual bool RequestUniformBufferUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo) override;
 
 	virtual void RefreshNaniteRasterBins(FPrimitiveSceneInfo& PrimitiveSceneInfo) override;
 
@@ -3271,11 +3272,6 @@ public:
 	 * Get the default base pass depth stencil access
 	 */
 	static void GetEarlyZPassMode(ERHIFeatureLevel::Type InFeatureLevel, EDepthDrawingMode& OutZPassMode, bool& bOutEarlyZPassMovable);
-
-	/**
-	 * Marks static mesh elements as needing an update if necessary.
-	 */
-	void ConditionalMarkStaticMeshElementsForUpdate();
 
 	/**
 	 * @return		true if hit proxies should be rendered in this scene.

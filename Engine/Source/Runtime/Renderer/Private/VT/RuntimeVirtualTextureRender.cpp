@@ -999,7 +999,7 @@ namespace RuntimeVirtualTexture
 				if (StaticMeshRelevance.bRenderToVirtualTexture && StaticMeshRelevance.LODIndex == LodIndex && StaticMeshRelevance.RuntimeVirtualTextureMaterialType == (uint32)MaterialType)
 				{
 					bool bCachedDraw = false;
-					if (StaticMeshRelevance.bSupportsCachingMeshDrawCommands && !PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
+					if (StaticMeshRelevance.bSupportsCachingMeshDrawCommands)
 					{
 						// Use cached draw command
 						const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(EMeshPass::VirtualTexture);

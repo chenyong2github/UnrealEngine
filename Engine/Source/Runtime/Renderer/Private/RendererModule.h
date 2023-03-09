@@ -140,7 +140,7 @@ public:
 
 	virtual const FViewMatrices& GetPreviousViewMatrices(const FSceneView& View) override;
 	virtual const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameterData(const FSceneView& View) override;
-	virtual void BeginDeferredUpdateOfPrimitiveSceneInfo(FPrimitiveSceneInfo* Info) override;
+	virtual void RequestStaticMeshUpdate(FPrimitiveSceneInfo* Info) override;
 	virtual void AddMeshBatchToGPUScene(FGPUScenePrimitiveCollector* Collector, FMeshBatch& MeshBatch) override;
 
 private:

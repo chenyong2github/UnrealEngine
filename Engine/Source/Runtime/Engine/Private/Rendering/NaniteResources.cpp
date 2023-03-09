@@ -1018,7 +1018,7 @@ void FSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
 		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
 
-	GetRendererModule().BeginDeferredUpdateOfPrimitiveSceneInfo(GetPrimitiveSceneInfo());
+	GetRendererModule().RequestStaticMeshUpdate(GetPrimitiveSceneInfo());
 }
 
 SIZE_T FSceneProxy::GetTypeHash() const
