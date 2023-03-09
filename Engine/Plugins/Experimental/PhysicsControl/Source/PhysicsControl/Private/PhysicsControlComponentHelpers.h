@@ -22,7 +22,7 @@ namespace PhysicsControlComponent
  */
 void ConvertStrengthToSpringParams(
 	FVector& OutSpring, FVector& OutDamping, 
-	const FVector& InStrength, float InDampingRatio, const FVector& InExtraDamping);
+	const FVector& InStrength, const FVector& InDampingRatio, const FVector& InExtraDamping);
 
 /**
  * Converts the drive settings from the constraint profile into the control data strength/damping etc. 

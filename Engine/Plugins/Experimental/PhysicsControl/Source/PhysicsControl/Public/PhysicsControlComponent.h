@@ -33,6 +33,26 @@ enum class EPhysicsControlType : uint8
 };
 
 /**
+ * Specifies how any reset to cached target should work. 
+ */
+UENUM(BlueprintType)
+enum class EResetToCachedTargetBehavior : uint8
+{
+	/** 
+	 * Reset of the associated physics bodies is done immediately, to whatever transforms are in the cache. These
+	 * will reflect the previous or the upcoming animation targets, depending on what stage of the tick this 
+	 * is called.
+	 */
+	ResetImmediately,
+	/**
+	 * Reset of the associated physics bodies will be done during the next Tick (or UpdateControls). Note that
+	 * this will reset the bodies to the updated animation targets, and then there will be a subsequent physics 
+	 * update, which will result in the final transforms.
+	 */
+	ResetDuringUpdateControls
+};
+
+/**
  * This is the main Physics Control Component class which manages Controls and Body Modifiers associated 
  * with one or more static or skeletal meshes. You can add this as a component to an actor containing a 
  * mesh and then use it to create, configure and destroy Controls/Body Modifiers:
@@ -52,6 +72,31 @@ class PHYSICSCONTROL_API UPhysicsControlComponent : public USceneComponent
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	/**
+	* Allows manual ticking so that your code can run in between updating the target caches and updating 
+	* the controls. This allows you to read the targets coming from animation and use those values to 
+	* create your own controls etc.
+	* 
+	* To use this function, you should disable ticking of the Physics Control Component, and ensure that the 
+	* relevant Skeletal Mesh Component (if being used) has ticked, using a tick prerequisite. Then explicitly 
+	* call (in order) UpdateTargetCaches and UpdateControls as you process your tick.
+	*/
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void UpdateTargetCaches(float DeltaTime);
+
+	/**
+	* Allows manual ticking so that your code can run in between updating the target caches and updating
+	* the controls and body modifiers. This allows you to read the targets coming from animation and use 
+	* those values to create your own controls etc.
+	*
+	* To use this function, you should disable ticking of the Physics Control Component, and ensure that the
+	* relevant Skeletal Mesh Component (if being used) has ticked, using a tick prerequisite. Then explicitly
+	* call (in order) UpdateTargetCaches and UpdateControls as you process your tick.
+	*/
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void UpdateControls(float DeltaTime);
+
 	/**
 	 * Creates a new control for mesh components
 	 * 
@@ -504,6 +549,30 @@ public:
 		const bool     bApplyControlPointToTarget = false);
 
 	/**
+	 * Calls SetControlTargetPositionAndOrientation for each of the control names
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlTargetPositionsAndOrientations(
+		const TArray<FName>& Names,
+		const FVector        Position,
+		const FRotator       Orientation,
+		const float          VelocityDeltaTime,
+		const bool           bEnableControl = true,
+		const bool           bApplyControlPointToTarget = false);
+
+	/**
+	 * Calls SetControlTargetPositionAndOrientation for each control in the set
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlTargetPositionsAndOrientationsInSet(
+		const FName          SetName,
+		const FVector        Position,
+		const FRotator       Orientation,
+		const float          VelocityDeltaTime,
+		const bool           bEnableControl = true,
+		const bool           bApplyControlPointToTarget = false);
+
+	/**
 	 * Modifies an existing control target - i.e. what it is driving towards, relative to the parent object
 	 *
 	 * @param Name The name of the control to modify. 
@@ -529,6 +598,28 @@ public:
 		const bool    bApplyControlPointToTarget = false);
 
 	/**
+	 * Calls SetControlTargetPosition for each of the control names
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlTargetPositions(
+		const TArray<FName>& Names,
+		const FVector        Position, 
+		const float          VelocityDeltaTime, 
+		const bool           bEnableControl = true,
+		const bool           bApplyControlPointToTarget = false);
+
+	/**
+	 * Calls SetControlTargetPosition for each of the controls in the set
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlTargetPositionsInSet(
+		const FName   SetName,
+		const FVector Position, 
+		const float   VelocityDeltaTime, 
+		const bool    bEnableControl = true,
+		const bool    bApplyControlPointToTarget = false);
+
+	/**
 	 * Modifies an existing control target - i.e. what it is driving towards, relative to the parent object
 	 *
 	 * @param Name The name of the control to modify. 
@@ -548,6 +639,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool SetControlTargetOrientation(
 		const FName    Name,
+		const FRotator Orientation, 
+		const float    AngularVelocityDeltaTime, 
+		const bool     bEnableControl = true,
+		const bool     bApplyControlPointToTarget = false);
+
+	/**
+	 * Calls SetControlTargetOrientation for each of the control names
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlTargetOrientations(
+		const TArray<FName>& Names,
+		const FRotator Orientation,
+		const float    AngularVelocityDeltaTime, 
+		const bool     bEnableControl = true,
+		const bool     bApplyControlPointToTarget = false);
+
+	/**
+	 * Calls SetControlTargetOrientation for each of the controls in the set
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetControlTargetOrientationsInSet(
+		const FName    SetName,
 		const FRotator Orientation, 
 		const float    AngularVelocityDeltaTime, 
 		const bool     bEnableControl = true,
@@ -1195,6 +1308,124 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	TArray<FName> GetSetsContainingBodyModifier(const FName Control) const;
+
+	/**
+	 * Gets the transforms of the requested bones that will be used as targets (in world space). Targets for bones 
+	 * that are not found will be set to Identity. Note that these targets will have been calculated and cached 
+	 * at the start of the Physics Control Component, so if using the built in tick, may be too old to be useful. 
+	 * If you manually update the component then you can access these target transforms prior to applying your 
+	 * own targets.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	TArray<FTransform> GetCachedTargetBoneTransforms(
+		const USkeletalMeshComponent* SkeletalMeshComponent,
+		const TArray<FName>&          BoneNames);
+
+	/**
+	 * Gets the linear velocities of the requested bones that will be used as targets (in world space). Target 
+	 * velocities for bones that are not found will be set to zero. Note that these targets will have been 
+	 * calculated and cached at the start of the Physics Control Component, so if using the built in tick, 
+	 * may be too old to be useful. If you manually update the component then you can access these target 
+	 * velocities prior to applying your own targets.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	TArray<FVector> GetCachedTargetBoneVelocities(
+		const USkeletalMeshComponent* SkeletalMeshComponent,
+		const TArray<FName>&          BoneNames);
+
+	/**
+	 * Gets the angular velocities of the requested bones that will be used as targets (in world space). Target 
+	 * velocities for bones that are not found will be set to zero. Note that these targets will have been 
+	 * calculated and cached at the start of the Physics Control Component, so if using the built in tick, 
+	 * may be too old to be useful. If you manually update the component then you can access these target 
+	 * velocities prior to applying your own targets.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	TArray<FVector> GetCachedTargetBoneAngularVelocities(
+		const USkeletalMeshComponent* SkeletalMeshComponent,
+		const TArray<FName>&          BoneNames);
+
+	/**
+	 * Gets the transforms of the requested bone that will be used as a target (in world space). Targets for bones
+	 * that are not found will be set to Identity. Note that these targets will have been calculated and cached
+	 * at the start of the Physics Control Component, so if using the built in tick, may be too old to be useful.
+	 * If you manually update the component then you can access these target transforms prior to applying your
+	 * own targets.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	FTransform GetCachedTargetBoneTransform(
+		const USkeletalMeshComponent* SkeletalMeshComponent,
+		const FName                   BoneName);
+
+	/**
+	 * Gets the linear velocity of the requested bone that will be used as a target (in world space). Target 
+	 * velocities for bones that are not found will be set to zero. Note that these targets will have been 
+	 * calculated and cached at the start of the Physics Control Component, so if using the built in tick, 
+	 * may be too old to be useful. If you manually update the component then you can access these target 
+	 * velocities prior to applying your own targets.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	FVector GetCachedTargetBoneVelocity(
+		const USkeletalMeshComponent* SkeletalMeshComponent,
+		const FName                   BoneName);
+
+	/**
+	 * Gets the angular velocity of the requested bone that will be used as a target (in world space). Target 
+	 * velocities for bones that are not found will be set to zero. Note that these targets will have been 
+	 * calculated and cached at the start of the Physics Control Component update, so if using the built in tick, 
+	 * may be too old to be useful. If you manually update the component then you can access these target 
+	 * velocities prior to applying your own targets.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	FVector GetCachedTargetBoneAngularVelocity(
+		const USkeletalMeshComponent* SkeletalMeshComponent,
+		const FName                   BoneName);
+
+	/**
+	 * This allows the caller to override the target that will have been calculated and cached at the start of 
+	 * the Physics Control Component update. This is unlikely to be useful when using the built in tick, 
+	 * but if you are manually updating the component then you may wish to call this after UpdateTargetCaches 
+	 * but before UpdateControls. 
+	 * 
+	 * @return true if successful, and false if no cached target can be found for the bone.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	bool SetCachedTargetBoneData(
+		const USkeletalMeshComponent* SkeletalMeshComponent,
+		const FName                   BoneName, 
+		const FTransform&             TM,
+		const FVector                 Velocity,
+		const FVector                 AngularVelocity);
+
+	/**
+	 * This flags the body associated with the modifier to set (using teleport) its position and velocity to 
+	 * the cached animation target. This will only affect skeletal mesh component bodies. 
+	 * 
+	 * @param Name     The name of the body modifier to use to identify the body to reset.
+	 * @param Behavior When the reset should happen.
+	 * 
+	 * @return true if the body modifier is found (even if no cached target is found), and false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	bool ResetBodyModifierToCachedTarget(
+		const FName                        Name,
+		const EResetToCachedTargetBehavior Behavior = EResetToCachedTargetBehavior::ResetImmediately);
+
+	/**
+	 * Calls ResetBodyModifierToCachedTarget for each of the body modifiers
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void ResetBodyModifiersToCachedTargets(
+		const TArray<FName>&               Names,
+		const EResetToCachedTargetBehavior Behavior = EResetToCachedTargetBehavior::ResetImmediately);
+
+	/**
+	 * Calls ResetBodyModifierToCachedTarget for each of the body modifiers in the set
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void ResetBodyModifiersInSetToCachedTargets(
+		const FName                        SetName,
+		const EResetToCachedTargetBehavior Behavior = EResetToCachedTargetBehavior::ResetImmediately);
 
 public:
 

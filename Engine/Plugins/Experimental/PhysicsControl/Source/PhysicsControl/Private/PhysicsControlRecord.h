@@ -73,6 +73,7 @@ struct FPhysicsBodyModifier
 		, KinematicTargetPosition(FVector::ZeroVector)
 		, KinematicTargetOrientation(FQuat::Identity)
 		, bUseSkeletalAnimation(InUseSkeletalAnimation)
+		, bResetToCachedTarget(false)
 	{}
 
 	/**  The mesh that will be modified. */
@@ -112,6 +113,12 @@ struct FPhysicsBodyModifier
 
 	/** If true then the target will be applied on top of the skeletal animation (if there is any) */
 	uint8 bUseSkeletalAnimation:1;
+
+	/** 
+	 * If true then the body will be set to the transform/velocity stored in any cached target (if that
+	 * exists), and then this flag will be cleared.
+	 */
+	uint8 bResetToCachedTarget:1;
 };
 
 /**
@@ -157,9 +164,15 @@ public:
 			Velocity(FVector::ZeroVector), AngularVelocity(FVector::ZeroVector) {}
 
 		/**
-		 * Sets position and velocity, and calculates velocity if Dt > 0 (otherwise sets it to zero)
+		 * Sets position/orientation and calculates velocity/angular velocity - requires Dt > 0 
 		 */
 		void Update(const FVector& InPosition, const FQuat& InOrientation, float Dt);
+
+		/**
+		 * Sets position/orientation, and sets velocity to zero
+		 */
+		void Update(const FVector& InPosition, const FQuat& InOrientation);
+
 		FTransform GetTM() const { return FTransform(Orientation, Position); }
 
 		FVector Position;
@@ -187,3 +200,25 @@ public:
 	int32 ReferenceCount;
 };
 
+//======================================================================================================================
+inline void FCachedSkeletalMeshData::FBoneData::Update(const FVector& InPosition, const FQuat& InOrientation, float Dt)
+{
+	check(Dt > 0);
+
+	Velocity = (InPosition - Position) / Dt;
+	Orientation.EnforceShortestArcWith(InOrientation);
+	// Note that quats multiply in the opposite order to TMs
+	const FQuat DeltaQ = InOrientation * Orientation.Inverse();
+	AngularVelocity = DeltaQ.ToRotationVector() / Dt;
+	Position = InPosition;
+	Orientation = InOrientation;
+}
+
+//======================================================================================================================
+inline void FCachedSkeletalMeshData::FBoneData::Update(const FVector& InPosition, const FQuat& InOrientation)
+{
+	Position = InPosition;
+	Orientation = InOrientation;
+	Velocity = FVector::ZeroVector;
+	AngularVelocity = FVector::ZeroVector;
+}

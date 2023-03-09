@@ -35,11 +35,11 @@ struct PHYSICSCONTROL_API FPhysicsControlData
 	GENERATED_BODY()
 
 	FPhysicsControlData()
-		: LinearStrength(1.0f)
+		: LinearStrength(0.0f)
 		, LinearDampingRatio(1.0f)
 		, LinearExtraDamping(0.0f)
 		, MaxForce(0.0f)
-		, AngularStrength(1.0f)
+		, AngularStrength(0.0f)
 		, AngularDampingRatio(1.0f)
 		, AngularExtraDamping(0.0f)
 		, MaxTorque(0.0f)
@@ -108,9 +108,11 @@ struct PHYSICSCONTROL_API FPhysicsControlMultiplier
 
 	FPhysicsControlMultiplier()
 		: LinearStrengthMultiplier(1.0)
+		, LinearDampingRatioMultiplier(1.0)
 		, LinearExtraDampingMultiplier(1.0)
 		, MaxForceMultiplier(1.0)
 		, AngularStrengthMultiplier(1.0)
+		, AngularDampingRatioMultiplier(1.0)
 		, AngularExtraDampingMultiplier(1.0)
 		, MaxTorqueMultiplier(1.0)
 	{
@@ -119,6 +121,10 @@ struct PHYSICSCONTROL_API FPhysicsControlMultiplier
 	// Per-direction multiplier on the linear strength.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl, meta = (ClampMin = "0.0"))
 	FVector LinearStrengthMultiplier;
+
+	// Per-direction multiplier on the linear damping ratio.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl, meta = (ClampMin = "0.0"))
+	FVector LinearDampingRatioMultiplier;
 
 	// Per-direction multiplier on the linear extra damping.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl, meta = (ClampMin = "0.0"))
@@ -131,6 +137,10 @@ struct PHYSICSCONTROL_API FPhysicsControlMultiplier
 	// Multiplier on the angular strength.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl, meta = (ClampMin = "0.0"))
 	float AngularStrengthMultiplier;
+
+	// Multiplier on the angular damping ratio.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl, meta = (ClampMin = "0.0"))
+	float AngularDampingRatioMultiplier;
 
 	// Multiplier on the angular extra damping.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl, meta = (ClampMin = "0.0"))

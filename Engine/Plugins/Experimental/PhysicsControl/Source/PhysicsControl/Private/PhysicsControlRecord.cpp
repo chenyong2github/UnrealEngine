@@ -94,24 +94,3 @@ void FPhysicsControlRecord::ResetControlPoint()
 	UpdateConstraintControlPoint();
 }
 
-//======================================================================================================================
-void FCachedSkeletalMeshData::FBoneData::Update(const FVector& InPosition, const FQuat& InOrientation, float Dt)
-{
-	if (Dt > 0)
-	{
-		Velocity = (InPosition - Position) / Dt;
-		Orientation.EnforceShortestArcWith(InOrientation);
-		// Note that quats multiply in the opposite order to TMs
-		FQuat DeltaQ = InOrientation * Orientation.Inverse();
-		AngularVelocity = DeltaQ.ToRotationVector() / Dt;
-	}
-	else
-	{
-		Velocity = FVector::ZeroVector;
-		AngularVelocity = FVector::ZeroVector;
-	}
-	Position = InPosition;
-	Orientation = InOrientation;
-}
-
-

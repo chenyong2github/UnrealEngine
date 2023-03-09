@@ -34,6 +34,19 @@ public:
 		const USkeletalMeshComponent*       InSkeletalMeshComponent,
 		const FName                         InBoneName) const;
 
+	/*
+	 * Retrieves the bone data for the specified bone given the skeletal mesh component, for modification
+	 *
+	 * @param OutBoneData If successful, this will point to the bone data.
+	 * @param InSkeletalMeshComponent Required to be a valid pointer to a skeletal mesh component
+	 * @param InBoneName The name of the bone to retrieve data for
+	 * @return true if the bone and data were found, false if not (in which case warnings will be logged)
+	 */
+	bool GetModifiableBoneData(
+		FCachedSkeletalMeshData::FBoneData*& OutBoneData,
+		const USkeletalMeshComponent*        InSkeletalMeshComponent,
+		const FName                          InBoneName);
+
 	/**
 	 * Retrieves the control for the name. Note that if Name is blank then the first control will be returned,
 	 * assuming there is one.
@@ -113,6 +126,12 @@ public:
 	 * orientation (and whether any were found) for any controls that are related to the body modifier.
 	 */
 	void ApplyKinematicTarget(const FPhysicsBodyModifier& BodyModifier) const;
+
+	/**
+	 * Sets the body (simulated or kinematic) to have the position/velocity etc state that has been cached. 
+	 * Has no effect if there is no cached target data.
+	 */
+	void ResetToCachedTarget(const FPhysicsBodyModifier& BodyModifier) const;
 
 	/**
 	 * Retrieves the body modifier for the name. Note that if Name is blank then the first modifier will be returned,

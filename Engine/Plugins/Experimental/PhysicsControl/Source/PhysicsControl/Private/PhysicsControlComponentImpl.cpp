@@ -82,6 +82,40 @@ bool FPhysicsControlComponentImpl::GetBoneData(
 }
 
 //======================================================================================================================
+bool FPhysicsControlComponentImpl::GetModifiableBoneData(
+	FCachedSkeletalMeshData::FBoneData*& OutBoneData,
+	const USkeletalMeshComponent*        InSkeletalMeshComponent,
+	const FName                          InBoneName)
+{
+	check(InSkeletalMeshComponent);
+	const FReferenceSkeleton& RefSkeleton = InSkeletalMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
+	const int32 BoneIndex = RefSkeleton.FindBoneIndex(InBoneName);
+
+	if (BoneIndex == INDEX_NONE)
+	{
+		UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Failed to find BoneIndex for %s"), *InBoneName.ToString());
+		return false;
+	}
+
+	FCachedSkeletalMeshData* CachedSkeletalMeshData = CachedSkeletalMeshDatas.Find(InSkeletalMeshComponent);
+	if (CachedSkeletalMeshData &&
+		CachedSkeletalMeshData->ReferenceCount > 0 &&
+		!CachedSkeletalMeshData->BoneData.IsEmpty())
+	{
+		if (BoneIndex < CachedSkeletalMeshData->BoneData.Num())
+		{
+			OutBoneData = &CachedSkeletalMeshData->BoneData[BoneIndex];
+			return true;
+		}
+		UE_LOG(LogPhysicsControlComponent, Warning, TEXT("BoneIndex is out of range"));
+
+	}
+	UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Failed to find bone data for %s"), *InBoneName.ToString());
+	return false;
+}
+
+
+//======================================================================================================================
 FPhysicsControlRecord* FPhysicsControlComponentImpl::FindControlRecord(const FName Name)
 {
 	if (FPhysicsControlRecord* Record = PhysicsControlRecords.Find(Name))
@@ -148,18 +182,31 @@ void FPhysicsControlComponentImpl::UpdateCachedSkeletalBoneData(float Dt)
 		{
 			FTransform ComponentTM = SkeletalMesh->GetComponentToWorld();
 			const TArray<FTransform>& TMs = SkeletalMesh->GetEditableComponentSpaceTransforms();
-			if (TMs.Num() == CachedSkeletalMeshData.BoneData.Num() &&
+			const int32 NumTMs = TMs.Num();
+			if (NumTMs == CachedSkeletalMeshData.BoneData.Num() &&
 				!DetectTeleport(CachedSkeletalMeshData.ComponentTM, ComponentTM))
 			{
-				for (int32 Index = 0; Index != TMs.Num(); ++Index)
+				// Avoid the Dt test on every bone
+				if (Dt > 0)
 				{
-					FTransform TM = TMs[Index] * ComponentTM;
-					CachedSkeletalMeshData.BoneData[Index].Update(TM.GetTranslation(), TM.GetRotation(), Dt);
+					for (int32 Index = 0; Index != NumTMs; ++Index)
+					{
+						FTransform TM = TMs[Index] * ComponentTM;
+						CachedSkeletalMeshData.BoneData[Index].Update(TM.GetTranslation(), TM.GetRotation(), Dt);
+					}
+				}
+				else
+				{
+					for (int32 Index = 0; Index != NumTMs; ++Index)
+					{
+						FTransform TM = TMs[Index] * ComponentTM;
+						CachedSkeletalMeshData.BoneData[Index].Update(TM.GetTranslation(), TM.GetRotation());
+					}
 				}
 			}
 			else
 			{
-				CachedSkeletalMeshData.BoneData.Empty(TMs.Num());
+				CachedSkeletalMeshData.BoneData.Empty(NumTMs);
 				for (const FTransform& BoneTM : TMs)
 				{
 					FTransform TM = BoneTM * ComponentTM;
@@ -203,7 +250,7 @@ void FPhysicsControlComponentImpl::ApplyKinematicTarget(const FPhysicsBodyModifi
 			return;
 		}
 
-		FTransform TM = BodyInstance->GetUnrealWorldTransform();
+		FTransform TM = BodyInstance->GetUnrealWorldTransform(); // Preserve scale
 		FTransform KinematicTarget = TM;
 		KinematicTarget.SetRotation(BodyModifier.KinematicTargetOrientation);
 		KinematicTarget.SetTranslation(BodyModifier.KinematicTargetPosition);
@@ -229,6 +276,32 @@ void FPhysicsControlComponentImpl::ApplyKinematicTarget(const FPhysicsBodyModifi
 		// Note that calling BodyInstance->SetBodyTransform moves the physics, but not the mesh
 		BodyModifier.MeshComponent->SetWorldLocationAndRotation(
 			BodyModifier.KinematicTargetPosition, BodyModifier.KinematicTargetOrientation, false, nullptr, TT);
+	}
+}
+
+//======================================================================================================================
+void FPhysicsControlComponentImpl::ResetToCachedTarget(const FPhysicsBodyModifier& BodyModifier) const
+{
+	FBodyInstance* BodyInstance = UE::PhysicsControlComponent::GetBodyInstance(
+		BodyModifier.MeshComponent, BodyModifier.BoneName);
+	if (!BodyInstance)
+	{
+		return;
+	}
+
+	if (USkeletalMeshComponent* SkeletalMeshComponent = GetValidSkeletalMeshComponentFromBodyModifier(BodyModifier))
+	{
+		FCachedSkeletalMeshData::FBoneData BoneData;
+		if (GetBoneData(BoneData, SkeletalMeshComponent, BodyModifier.BoneName))
+		{
+			FTransform BoneTM = BodyInstance->GetUnrealWorldTransform(); // Preserve scale
+			BoneTM.SetLocation(BoneData.Position);
+			BoneTM.SetRotation(BoneData.Orientation);
+
+			BodyInstance->SetBodyTransform(BoneTM, ETeleportType::TeleportPhysics);
+			BodyInstance->SetLinearVelocity(BoneData.Velocity, false);
+			BodyInstance->SetAngularVelocityInRadians(BoneData.AngularVelocity, false);
+		}
 	}
 }
 
@@ -589,12 +662,12 @@ bool FPhysicsControlComponentImpl::ApplyControlStrengths(
 	UE::PhysicsControlComponent::ConvertStrengthToSpringParams(
 		AngularSpring, AngularDamping,
 		Data.AngularStrength * Multiplier.AngularStrengthMultiplier,
-		Data.AngularDampingRatio,
+		Data.AngularDampingRatio * Multiplier.AngularDampingRatioMultiplier,
 		Data.AngularExtraDamping * Multiplier.AngularExtraDampingMultiplier);
 	UE::PhysicsControlComponent::ConvertStrengthToSpringParams(
 		LinearSpring, LinearDamping,
 		Data.LinearStrength * Multiplier.LinearStrengthMultiplier,
-		Data.LinearDampingRatio,
+		Data.LinearDampingRatio * Multiplier.LinearDampingRatioMultiplier,
 		Data.LinearExtraDamping * Multiplier.LinearExtraDampingMultiplier);
 
 	if (Multiplier.MaxTorqueMultiplier <= 0)
