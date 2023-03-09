@@ -116,7 +116,7 @@ void SetUV(inout FPostProcessMaterialVSToPS Interpolants, int UVIndex, float2 In
 FMaterialVertexParameters GetPostProcessMaterialVSParameters(float2 UV)
 {
 	// Most params irrelevant so not a lot to fill out here
-	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	FMaterialVertexParameters Result = MakeInitializedMaterialVertexParameters();
 	Result.VertexColor = 1.f.xxxx;
 	Result.WorldPosition = float3(UV, 0.f); 
 	

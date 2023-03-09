@@ -66,7 +66,8 @@ void DrawDistanceCull(
 	FPrimitiveSceneData PrimitiveData,
 	FInstanceSceneData InstanceData,
 	FInstanceDynamicData DynamicData,
-	bool bSkipCamPerPrimDistanceCull,
+	bool bSkipPerViewDrawDistanceCull,
+	bool bSkipPerPrimDrawDistanceCull,
 	bool bSkipDisableWPODistance,
 	inout bool bVisible,
 	inout bool bEnableWPO)
@@ -82,7 +83,7 @@ void DrawDistanceCull(
 
 		// Check to cull the instances based on its distance from the view's camera (per-view setting)
 		BRANCH
-		if (bVisible && (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u)
+		if (bVisible && !bSkipPerViewDrawDistanceCull && (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u)
 		{
 			const float InstanceViewDistSq = dot(TranslatedWorldCenter, TranslatedWorldCenter);
 			const float InstanceRadius = length(InstanceData.LocalBoundsExtent * InstanceData.NonUniformScale.xyz);
@@ -97,7 +98,7 @@ void DrawDistanceCull(
 
 		// Check to cull the instance based on its distance from the main view's location (per-primitive setting)
 		BRANCH
-		if (bVisible && !bSkipCamPerPrimDistanceCull && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL) != 0u)
+		if (bVisible && !bSkipPerPrimDrawDistanceCull && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL) != 0u)
 		{
 			const float MinDistanceSq = PrimitiveData.InstanceDrawDistanceMinMaxSquared.x;
 			const float MaxDistanceSq = PrimitiveData.InstanceDrawDistanceMinMaxSquared.y;

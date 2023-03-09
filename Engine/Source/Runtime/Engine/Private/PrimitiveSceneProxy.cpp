@@ -358,12 +358,12 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,   bIsFoliage(false)
 #endif
 ,	VisibilityId(InComponent->VisibilityId)
-,	MaxDrawDistance(InComponent->CachedMaxDrawDistance > 0 ? InComponent->CachedMaxDrawDistance : FLT_MAX)
-,	MinDrawDistance(InComponent->MinDrawDistance)
 ,	ComponentForDebuggingOnly(InComponent)
 #if WITH_EDITOR
 ,	NumUncachedStaticLightingInteractions(0)
 #endif
+,	MaxDrawDistance(InComponent->CachedMaxDrawDistance > 0 ? InComponent->CachedMaxDrawDistance : FLT_MAX)
+,	MinDrawDistance(InComponent->MinDrawDistance)
 {
 	check(Scene);
 

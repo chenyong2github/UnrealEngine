@@ -15,8 +15,7 @@
 #include "../LightmapData.ush"
 #include "InstanceCullingCommon.ush"
 #include "InstanceCompactionCommon.ush"
-#include "../Nanite/NaniteDataDecode.ush"
-#include "../Nanite/NaniteHZBCull.ush"
+#include "../Nanite/NaniteCullingCommon.ush"
 #include "../WaveOpUtil.ush"
 #include "../ComputeShaderUtils.ush"
 
@@ -95,10 +94,8 @@ float2 PackLocalBoundsExtent(float3 Extent)
 	return Result;
 }
 
-void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex, uint MeshLODIndex)
+void WritePackedInstanceData(uint Offset, uint InstanceId, FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, uint ViewIdIndex, uint CullingFlags, uint MeshLODIndex)
 {
-	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-	
 	float InstanceAuxData1 = 0;
 	float4 InstanceAuxData4 = 0;
 #if ALLOW_STATIC_LIGHTING 
@@ -134,7 +131,7 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 
 	// This will only write out the relative instance transform, but that's fine; the tile coordinate of the instance transform comes from the primitive data
 	float4 InstanceOriginAndId = InstanceData.LocalToWorld.M[3];
-	InstanceOriginAndId.w = asfloat(InstanceData.PrimitiveId);
+	InstanceOriginAndId.w = asfloat(InstanceData.PrimitiveId | (CullingFlags << PRIMITIVE_ID_NUM_BITS));
 
 	float4 InstanceTransform1 = InstanceData.LocalToWorld.M[0];
 	float4 InstanceTransform2 = InstanceData.LocalToWorld.M[1];
@@ -156,20 +153,20 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 }
 #endif
 
-void WriteInstance(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex, uint MeshLODIndex)
+void WriteInstance(uint Offset, uint InstanceId, FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, uint ViewIdIndex, uint CullingFlags, uint MeshLODIndex)
 {
 	checkSlow(InstanceId < GPUSceneNumInstances);
 
 #if USES_PACKED_INSTANCE_DATA
-	WritePackedInstanceData(Offset, InstanceId, InstanceData, ViewIdIndex, MeshLODIndex);
+	WritePackedInstanceData(Offset, InstanceId, PrimitiveData, InstanceData, ViewIdIndex, CullingFlags, MeshLODIndex);
 #else
-	uint PackedId = InstanceId | (ViewIdIndex << 28U);
+	uint PackedId = PackInstanceCullingOutput(InstanceId, ViewIdIndex, CullingFlags);
 	checkStructuredBufferAccessSlow(InstanceIdsBufferOut, Offset);
 	InstanceIdsBufferOut[Offset] = PackedId;
 #endif
 }
 
-void WriteInstanceForCompaction(uint Offset, bool bVisible, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex)
+void WriteInstanceForCompaction(uint Offset, bool bVisible, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex, uint CullingFlags)
 {
 	checkSlow(InstanceId < GPUSceneNumInstances);
 
@@ -178,16 +175,14 @@ void WriteInstanceForCompaction(uint Offset, bool bVisible, uint InstanceId, FIn
 	CompactInstanceIdsBufferOut[Offset] = PackedId;	
 }
 
-bool ShouldRenderInstance(FInstanceSceneData InstanceData, FDrawCommandDesc Desc)
+bool ShouldRenderInstance(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, FDrawCommandDesc Desc)
 {
 #if DEBUG_MODE
 	BRANCH
 		if (bDrawOnlyVSMInvalidatingGeometry != 0)
 		{
 			const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Desc.bMaterialUsesWorldPositionOffset;
-
-			// TODO: Fix the shadow flag here:
-			const bool bCastShadow = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & 1u) != 0u;
+			const bool bCastShadow = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
 
 			return bHasMoved && bCastShadow;
 		}
@@ -195,15 +190,16 @@ bool ShouldRenderInstance(FInstanceSceneData InstanceData, FDrawCommandDesc Desc
 	return true;
 }
 
-bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
+bool IsInstanceVisible(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, uint ViewIdIndex, inout uint CullingFlags)
 {
+	CullingFlags = INSTANCE_CULLING_FLAGS_DEFAULT;
+
 #if CULL_INSTANCES
 	// Should not draw invalid instances, 
 	if (!InstanceData.ValidInstance)
 	{
 		return false;
 	}
-
 
 	// TODO: The test for dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent) <= 0.0f is just a workaround since the FDynamicMeshBuilder::GetMesh
 	//       seems to just set empty bounds (and FLineBatcherSceneProxy pretends everything is at the origin). In the future these should compute reasonable bounds and 
@@ -212,7 +208,17 @@ bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 	{
 		return true;
 	}
+#elif ALLOW_WPO_DISABLE
+	// When culling is disabled, we don't need to do anything if we don't have to evaluate WPO disable distance
+	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE) == 0)
+	{
+		return true;
+	}
+#endif
 
+	bool bVisible = true;
+
+#if CULL_INSTANCES || ALLOW_WPO_DISABLE
 	// TODO: remove this indirection and go straight to data index
 	checkStructuredBufferAccessSlow(ViewIds, ViewIdIndex);
 
@@ -221,17 +227,58 @@ bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 	if (ViewDataIndex < NumCullingViews)
 	{
 		FNaniteView NaniteView = GetNaniteView(ViewDataIndex);
+		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-		float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-		float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
-		const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
+#if ALLOW_WPO_DISABLE
+		const bool bSkipWPODisableDistance = false;
+#else
+		const bool bSkipWPODisableDistance = true;
+#endif
+
+#if CULL_INSTANCES
+		const bool bSkipPerViewDrawDistanceCull = false;
+		const bool bSkipPerPrimDrawDistanceCull = false;
+		const bool bSkipGlobalClipPlaneCull = false;
+#else
+		const bool bSkipPerViewDrawDistanceCull = true;
+		const bool bSkipPerPrimDrawDistanceCull = true;
+		const bool bSkipGlobalClipPlaneCull = true;
+#endif
+
+		bool bEnableWPO = true;
+		DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerViewDrawDistanceCull, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bVisible, bEnableWPO);
+
+		if (!bEnableWPO)
+		{
+			CullingFlags &= ~INSTANCE_CULLING_FLAG_EVALUATE_WPO;
+		}
+
+#if CULL_INSTANCES
 		const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0;
+		const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 
-		FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false);
+#if USE_GLOBAL_CLIP_PLANE
+		BRANCH
+		if (bVisible)
+		{
+			// Also cull instances that are beyond the global clip plane
+			bVisible = GlobalClipPlaneCullBox(NaniteView, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipGlobalClipPlaneCull) != EClipPlaneTestResult::AllOut;
+		}
+#endif
+
+		BRANCH
+		if (bVisible)
+		{
+			const float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
+			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
+
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false);
+			bVisible = Cull.bIsVisible;
+		}
 
 #if OCCLUSION_CULL_INSTANCES
 		BRANCH
-		if (Cull.bIsVisible)
+		if (bVisible)
 		{
 			float4x4 LocalToPrevTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PrevPreViewTranslation);
 			float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
@@ -241,15 +288,15 @@ bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 			if ((PrevCull.bIsVisible || PrevCull.bFrustumSideCulled) && !PrevCull.bCrossesNearPlane)
 			{
 				FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
-				Cull.bIsVisible = IsVisibleHZB( PrevRect, true );
+				bVisible = IsVisibleHZB( PrevRect, true );
 			}
 		}
-#endif
-
-		return Cull.bIsVisible;
-	}
+#endif // OCCLUSION_CULL_INSTANCES
 #endif // CULL_INSTANCES
-	return true;
+	}
+#endif // CULL_INSTANCES || ALLOW_WPO_DISABLE
+
+	return bVisible;
 }
 
 
@@ -322,44 +369,50 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 	const uint InstanceDataOutputOffset = InstanceIdOffsetBuffer[Payload.IndirectArgIndex];
 
 	const FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
+	const FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 
-	if (!ShouldRenderInstance(InstanceData, DrawCommandDesc))
+	if (!ShouldRenderInstance(PrimitiveData, InstanceData, DrawCommandDesc))
 	{
 		return;
 	}
 
 	uint NumVisibleInstances = 0;
 #if STEREO_CULLING_MODE
-	const bool bVisible = IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + 0U) || IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + 1U);
+	uint CullingFlags0 = 0;
+	uint CullingFlags1 = 0;
+	const bool bVisible = IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + 0U, CullingFlags0) ||
+						  IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + 1U, CullingFlags1);
+	const uint CullingFlags = CullingFlags0 | CullingFlags1;
 	NumVisibleInstances += bVisible ? 2 : 0;
 	
 	BRANCH
 	if (bCompactInstances)
 	{
 		const uint OutputOffset = CompactOutputInstanceIndex * 2U;
-		WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset + 0U, bVisible, InstanceId, InstanceData, 0U);
-		WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset + 1U, bVisible, InstanceId, InstanceData, 1U);
+		WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset + 0U, bVisible, InstanceId, InstanceData, 0U, CullingFlags);
+		WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset + 1U, bVisible, InstanceId, InstanceData, 1U, CullingFlags);
 	}
 	else if (bVisible)
 	{
 		uint OutputOffset;
-		InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 2U, OutputOffset);				
-		WriteInstance(InstanceDataOutputOffset + OutputOffset + 0U, InstanceId, InstanceData, 0U, DrawCommandDesc.MeshLODIndex);
-		WriteInstance(InstanceDataOutputOffset + OutputOffset + 1U, InstanceId, InstanceData, 1U, DrawCommandDesc.MeshLODIndex);
+		InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 2U, OutputOffset);
+		WriteInstance(InstanceDataOutputOffset + OutputOffset + 0U, InstanceId, PrimitiveData, InstanceData, 0U, CullingFlags, DrawCommandDesc.MeshLODIndex);
+		WriteInstance(InstanceDataOutputOffset + OutputOffset + 1U, InstanceId, PrimitiveData, InstanceData, 1U, CullingFlags, DrawCommandDesc.MeshLODIndex);
 	}
 #else // !STEREO_CULLING_MODE
 
 	for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
 	{
 		// Culling is disabled for multi-view
-		const bool bVisible = IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + ViewIdIndex);
+		uint CullingFlags = 0;
+		const bool bVisible = IsInstanceVisible(PrimitiveData, InstanceData, BatchInfo.ViewIdsOffset + ViewIdIndex, CullingFlags);
 		NumVisibleInstances += bVisible ? 1 : 0;
 		
 		BRANCH
 		if (bCompactInstances)
 		{
 			const uint OutputOffset = CompactOutputInstanceIndex * BatchInfo.NumViewIds + ViewIdIndex;
-			WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset, bVisible, InstanceId, InstanceData, ViewIdIndex);
+			WriteInstanceForCompaction(CompactionData.SrcInstanceIdOffset + OutputOffset, bVisible, InstanceId, InstanceData, ViewIdIndex, CullingFlags);
 		}
 		else if (bVisible)
 		{
@@ -369,7 +422,7 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 			uint OutputOffset;
 			InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 1U, OutputOffset);
 
-			WriteInstance(InstanceDataOutputOffset + OutputOffset, InstanceId, InstanceData, ViewIdIndex, DrawCommandDesc.MeshLODIndex);
+			WriteInstance(InstanceDataOutputOffset + OutputOffset, InstanceId, PrimitiveData, InstanceData, ViewIdIndex, CullingFlags, DrawCommandDesc.MeshLODIndex);
 		}
 	}
 #endif // STEREO_CULLING_MODE
@@ -377,7 +430,7 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 	BRANCH
 	if (bCompactInstances && NumVisibleInstances > 0)
 	{
-		// Determine compaction block and atomically increment its count			
+		// Determine compaction block and atomically increment its count
 		const uint BlockIndex = GetCompactionBlockIndexFromInstanceIndex(CompactOutputInstanceIndex);
 		InterlockedAdd(CompactionBlockCounts[CompactionData.BlockOffset + BlockIndex], NumVisibleInstances);
 	}

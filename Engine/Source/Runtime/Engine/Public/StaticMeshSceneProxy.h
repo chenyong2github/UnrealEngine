@@ -74,6 +74,8 @@ public:
 
 	virtual int32 GetLightMapCoordinateIndex() const override;
 
+	virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const override;
+
 protected:
 	/** Configures mesh batch vertex / index state. Returns the number of primitives used in the element. */
 	uint32 SetMeshElementGeometrySource(
@@ -250,6 +252,9 @@ protected:
 
 	/** The view relevance for all the static mesh's materials. */
 	FMaterialRelevance MaterialRelevance;
+
+	/** The distance at which to disable World Position Offset (0 = no max). */
+	float WPODisableDistance;
 
 #if WITH_EDITORONLY_DATA
 	/** The component streaming distance multiplier */
