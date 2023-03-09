@@ -9,6 +9,7 @@
 #include "Chaos/HeightField.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
@@ -95,6 +96,27 @@ namespace Chaos
 				{
 					const FLevelSet& ALevelSet = static_cast<const FLevelSet&>(A);
 					return ALevelSet.OverlapGeom(B, BToATM, Thickness, OutMTD);
+				}
+				case ImplicitObjectType::Union:
+				case ImplicitObjectType::UnionClustered:
+				{
+					const FImplicitObjectUnion& AUnion = static_cast<const FImplicitObjectUnion&>(A);
+					bool bHit = false;
+					AUnion.ForEachObject(
+						[&bHit, &ATM, &B, &BTM, Thickness, &OutMTD](const FImplicitObject& SubObject, const FRigidTransform3& SubTransform)
+						{
+							const FRigidTransform3 NewATM = SubTransform * ATM;
+							if (OverlapQuery(SubObject, NewATM, B, BTM, Thickness, OutMTD))
+							{
+								bHit = true;
+								return true;
+							}
+
+							return false;
+						}
+					);
+
+					return bHit;
 				}
 				default:
 				{
@@ -219,6 +241,42 @@ namespace Chaos
 					const FLevelSet& ALevelSet = static_cast<const FLevelSet&>(A);
 					bResult = ALevelSet.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
 					break;
+				}
+				case ImplicitObjectType::Union:
+				case ImplicitObjectType::UnionClustered:
+				{
+					const FImplicitObjectUnion& AUnion = static_cast<const FImplicitObjectUnion&>(A);
+
+					bool bHit = false;
+					AUnion.ForEachObject(
+						[&bHit, &ATM, &B, &BTM, &Dir, Length, &OutTime, &OutPosition, &OutNormal, &OutFaceIndex, &OutFaceNormal, Thickness, bComputeMTD](const FImplicitObject& SubObject, const FRigidTransform3& SubTransform)
+						{
+							const FRigidTransform3 NewATM = SubTransform * ATM;
+
+							FReal ObjectTime = 0.0;
+							FVec3 ObjectPosition;
+							FVec3 ObjectNormal;
+							int32 ObjectFaceIndex;
+							FVec3 ObjectFaceNormal;
+
+							if (SweepQuery(SubObject, NewATM, B, BTM, Dir, Length, ObjectTime, ObjectPosition, ObjectNormal, ObjectFaceIndex, ObjectFaceNormal, Thickness, bComputeMTD))
+							{
+								bHit = true;
+								if (ObjectTime < OutTime)
+								{
+									OutTime = ObjectTime;
+									OutPosition = ObjectPosition;
+									OutNormal = ObjectNormal;
+									OutFaceIndex = ObjectFaceIndex;
+									OutFaceNormal = ObjectFaceNormal;
+								}
+							}
+
+							return false;
+						}
+					);
+
+					return bHit;
 				}
 				default:
 				if (IsScaled(AType))

@@ -234,6 +234,37 @@ TUniquePtr<FImplicitObject> FImplicitObjectUnion::DeepCopyWithScale(const FVec3&
 	}
 	return MakeUnique<FImplicitObjectUnion>(MoveTemp(CopyOfObjects));
 }
+
+void FImplicitObjectUnion::ForEachObject(TFunctionRef<bool(const FImplicitObject&, const FRigidTransform3&)> Lambda) const
+{
+	if (LargeUnionData)
+	{
+		for (int32 Index = 0; Index < static_cast<int32>(LargeUnionData->GeomParticles.Size()); ++Index)
+		{
+			if (TSerializablePtr<FImplicitObject> SubObject = LargeUnionData->GeomParticles.Geometry(Index))
+			{
+				const FRigidTransform3 SubTransform{ LargeUnionData->GeomParticles.X(Index), LargeUnionData->GeomParticles.R(Index) };
+				if (Lambda(*SubObject, SubTransform))
+				{
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		for (const TUniquePtr<FImplicitObject>& Object : MObjects)
+		{
+			if (Object)
+			{
+				if (Lambda(*Object, FRigidTransform3::Identity))
+				{
+					break;
+				}
+			}
+		}
+	}
+}
 	
 void FImplicitObjectUnion::Serialize(FChaosArchive& Ar)
 {

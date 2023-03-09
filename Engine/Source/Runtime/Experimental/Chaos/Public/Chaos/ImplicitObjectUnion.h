@@ -149,6 +149,9 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 
 	TArray<TUniquePtr<FImplicitObject>>& GetObjects() { return MObjects; }
 
+	// The lambda returns TRUE if an object was found and iteration should stop.
+	void ForEachObject(TFunctionRef<bool(const FImplicitObject&, const FRigidTransform3&)> Lambda) const;
+
 	virtual uint32 GetTypeHash() const override
 	{
 		uint32 Result = 0;
