@@ -1429,14 +1429,13 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 				// mark them as modified even if their map package is modified. Doing so would mark all actors in the map as
 				// modified anytime one of them changed.
 				// Workaround: Detect external actors by naming convention and suppress their reference to the map package.
-				WriteToString<256> ReferencerPackageNameStr(ReferencerPackageName);
+				TStringBuilder<256> ReferencerPackageNameStr(InPlace, ReferencerPackageName);
 				int32 ExternalActorsFolderIndex = ReferencerPackageNameStr.ToView().Find(ExternalActorsFolderName);
 				if (ExternalActorsFolderIndex != INDEX_NONE)
 				{
 					if (ModifiedPackageLeafName.IsEmpty())
 					{
-						WriteToString<256> ModifiedPackageNameStr(ModifiedPackage);
-						ModifiedPackageLeafName = FPathViews::GetCleanFilename(ModifiedPackageNameStr);
+						ModifiedPackageLeafName = FPathViews::GetCleanFilename(WriteToString<256>(ModifiedPackage));
 					}
 					FStringView GeneratedRelativePath = ReferencerPackageNameStr.ToView().RightChop(ExternalActorsFolderIndex + ExternalActorsFolderName.Len());
 					if (GeneratedRelativePath.Contains(ModifiedPackageLeafName))

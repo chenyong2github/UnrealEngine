@@ -2492,9 +2492,9 @@ TUniquePtr<FArchive> FFileSystemCacheStore::OpenFileRead(FStringBuilderBase& Pat
 	if (IsInGameThread() && FStringView(CachePath).StartsWith(TEXTVIEW("//"), ESearchCase::CaseSensitive))
 	{
 		FRequestOwner AsyncOwner(EPriority::Normal);
-		Private::LaunchTaskInCacheThreadPool(AsyncOwner, [this, Path = WriteToString<256>(Path)]() mutable
+		Private::LaunchTaskInCacheThreadPool(AsyncOwner, [this, Path = MakeShared<TStringBuilder<256>>(InPlace, Path)]() mutable
 		{
-			(void)FileExists(Path);
+			(void)FileExists(*Path);
 		});
 		AsyncOwner.KeepAlive();
 	}

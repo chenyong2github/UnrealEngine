@@ -3468,8 +3468,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt, double& TickSta
 		if (AssetFileData.Type == EGatherableFileType::VerseFile)
 		{
 			// Store Verse results in a hybrid format using the LongPackageName but keeping the extension
-			WriteToString<256> MappedPath(AssetFileData.LongPackageName, FPathViews::GetExtension(AssetFileData.LocalAbsPath, true));
-			LocalVerseResults.Add(*MappedPath);
+			LocalVerseResults.Emplace(WriteToString<256>(AssetFileData.LongPackageName, FPathViews::GetExtension(AssetFileData.LocalAbsPath, true)));
 			continue;
 		}
 

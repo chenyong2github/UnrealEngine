@@ -93,15 +93,14 @@ void TrackPackageAssetClass(UPackage* Package, FLinkerLoad& LinkerLoad, const TA
 	}
 
 	FName PackageName = Package->GetFName();
-	WriteToString<256> PackageNameStr(PackageName);
-	FStringView PackageLeafName = FPathViews::GetCleanFilename(PackageNameStr.ToView());
+	TStringBuilder<256> PackageNameStr(InPlace, PackageName);
+	FStringView PackageLeafName = FPathViews::GetCleanFilename(PackageNameStr);
 	const FObjectExport* MostImportant = nullptr;
 	for (const FObjectExport& Export : Exports)
 	{
 		if (Export.bIsAsset && Export.ClassIndex.IsImport())
 		{
-			WriteToString<256> ObjectName(Export.ObjectName);
-			if (ObjectName.ToView() == PackageLeafName)
+			if (WriteToString<256>(Export.ObjectName) == PackageLeafName)
 			{
 				MostImportant = &Export;
 				break;

@@ -722,8 +722,7 @@ bool FAssetData::TryNetworkRead(FCbFieldView Field, bool bReadPackageName, FName
 	{
 		if (bHasAssetName)
 		{
-			WriteToString<256> PackageNameStr(InPackageName);
-			PackagePath = FName(FPathViews::GetPath(PackageNameStr.ToView()));
+			PackagePath = FName(FPathViews::GetPath(WriteToString<256>(InPackageName)));
 		}
 		else
 		{

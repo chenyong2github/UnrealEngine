@@ -5069,8 +5069,7 @@ void FAssetRegistryImpl::VerseFilesGathered(const double TickStartTime, TRingBuf
 		CachedVerseFiles.Add(VerseFilePath, &bAlreadyExists);
 		if (!bAlreadyExists)
 		{
-			WriteToString<256> VerseFilePathString(VerseFilePath);
-			FName VerseDirectoryPath(FPathViews::GetPath(VerseFilePathString.ToView()));
+			FName VerseDirectoryPath(FPathViews::GetPath(WriteToString<256>(VerseFilePath)));
 			TArray<FName>& FilePathsArray = CachedVerseFilesByPath.FindOrAdd(VerseDirectoryPath);
 			FilePathsArray.Add(VerseFilePath);
 		}
@@ -5332,8 +5331,7 @@ void FAssetRegistryImpl::RemoveVerseFile(FName VerseFilePathToRemove)
 {
 	if (CachedVerseFiles.Remove(VerseFilePathToRemove))
 	{
-		WriteToString<256> VerseFilePathString(VerseFilePathToRemove);
-		FName VerseDirectoryPath(FPathViews::GetPath(VerseFilePathString.ToView()));
+		FName VerseDirectoryPath(FPathViews::GetPath(WriteToString<256>(VerseFilePathToRemove)));
 		TArray<FName>* FilePathsArray = CachedVerseFilesByPath.Find(VerseDirectoryPath);
 		if (ensure(FilePathsArray)) // We found it in CachedVerseFiles, so we must also find it here
 		{
@@ -5471,8 +5469,7 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext,
 					break;
 
 				case FFileChangeData::FCA_Removed:
-					WriteToString<256> VerseFilePathString(LongPackageName, FPathViews::GetExtension(File, true));
-					RemoveVerseFile(*VerseFilePathString);
+					RemoveVerseFile(FName(WriteToString<256>(LongPackageName, FPathViews::GetExtension(File, /*bIncludeDot*/ true))));
 					UE_LOG(LogAssetRegistry, Verbose, TEXT("Verse file was removed from content directory: %s"), *File);
 					break;
 				}

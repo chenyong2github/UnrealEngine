@@ -2502,7 +2502,7 @@ void UCookOnTheFlyServer::DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::
 			// Suppress the message in cases that cause large spam like NotInCurrentPlugin for DLC cooks.
 			if (Reason != ESuppressCookReason::NotInCurrentPlugin)
 			{
-				WriteToString<256> PackageNameStr(PackageData.GetPackageName());
+				TStringBuilder<256> PackageNameStr(InPlace, PackageData.GetPackageName());
 
 				// ExternalActors: Do not send a message for every NeverCook external Actor package; too much spam
 				if (!(Reason == ESuppressCookReason::NeverCook &&
@@ -11529,7 +11529,7 @@ void UCookOnTheFlyServer::ReportHiddenDependency(FName Referencer, FName Depende
 static
 void ConditionalWaitOnCommandFile(FStringView GateName, TFunctionRef<void (FStringView)> CommandHandler)
 {
-	WriteToString<128> ArgPrefix(TEXTVIEW("-"), GateName, TEXTVIEW("WaitOnCommandFile="));
+	TStringBuilder<128> ArgPrefix(InPlace, TEXTVIEW("-"), GateName, TEXTVIEW("WaitOnCommandFile="));
 
 	FString WaitOnCommandFile;
 	if (!FParse::Value(FCommandLine::Get(), *ArgPrefix, WaitOnCommandFile))

@@ -412,6 +412,16 @@ public:
 	{
 	}
 
+	/**
+	 * Construct a string builder by appending the arguments using operator<<.
+	 */
+	template <typename... ArgTypes>
+	explicit TStringBuilderWithBuffer(EInPlace, ArgTypes&&... Args)
+		: TStringBuilderBase<CharType>(StringBuffer, BufferSize)
+	{
+		(*this << ... << (ArgTypes&&)Args);
+	}
+
 	using TStringBuilderBase<CharType>::operator=;
 
 private:
@@ -483,40 +493,59 @@ inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, uint
 inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, int16 Value)							{ return Builder << int32(Value); }
 inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, uint16 Value)							{ return Builder << uint32(Value); }
 
+template <typename CharType, int32 BufferSize>
+class UE_DEPRECATED(5.3, "Use WriteToString<N>(...) or TStringBuilder<N>(InPlace, ...).") TWriteToString : public TStringBuilderWithBuffer<CharType, BufferSize>
+{
+public:
+	template <typename... ArgTypes>
+	explicit TWriteToString(ArgTypes&&... Args)
+	{
+		(*this << ... << (ArgTypes&&)Args);
+	}
+};
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+template <typename CharType, int32 BufferSize>
+struct TIsContiguousContainer<TWriteToString<CharType, BufferSize>>
+{
+	static constexpr inline bool Value = true;
+};
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 /**
- * A function-like type that creates a TStringBuilder by appending its arguments.
+ * A function to create and append to a temporary string builder.
  *
  * Example Use Cases:
  *
  * For void Action(FStringView) -> Action(WriteToString<64>(Arg1, Arg2));
  * For UE_LOG or checkf -> checkf(Condition, TEXT("%s"), *WriteToString<32>(Arg));
  */
-template <typename CharType, int32 BufferSize>
-class TWriteToString : public TStringBuilderWithBuffer<CharType, BufferSize>
+template <int32 BufferSize, typename... ArgTypes>
+TStringBuilderWithBuffer<TCHAR, BufferSize> WriteToString(ArgTypes&&... Args)
 {
-public:
-	template <typename... ArgTypes>
-	explicit TWriteToString(ArgTypes&&... Args)
-	{
-	#if PLATFORM_COMPILER_HAS_FOLD_EXPRESSIONS
-		(*this << ... << Forward<ArgTypes>(Args));
-	#else
-		using Fold = int[];
-		void(Fold{0, (void(*this << Forward<ArgTypes>(Args)), 0)...});
-	#endif
-	}
-};
+	return TStringBuilderWithBuffer<TCHAR, BufferSize>(InPlace, (ArgTypes&&)Args...);
+}
 
-template <typename CharType, int32 BufferSize>
-struct TIsContiguousContainer<TWriteToString<CharType, BufferSize>>
+/** A function to create and append to a temporary string builder. See WriteToString. */
+template <int32 BufferSize, typename... ArgTypes>
+TStringBuilderWithBuffer<ANSICHAR, BufferSize> WriteToAnsiString(ArgTypes&&... Args)
 {
-	static constexpr inline bool Value = true;
-};
+	return TStringBuilderWithBuffer<ANSICHAR, BufferSize>(InPlace, (ArgTypes&&)Args...);
+}
 
-template <int32 BufferSize> using WriteToString = TWriteToString<TCHAR, BufferSize>;
-template <int32 BufferSize> using WriteToAnsiString = TWriteToString<ANSICHAR, BufferSize>;
-template <int32 BufferSize> using WriteToWideString = TWriteToString<WIDECHAR, BufferSize>;
-template <int32 BufferSize> using WriteToUtf8String = TWriteToString<UTF8CHAR, BufferSize>;
+/** A function to create and append to a temporary string builder. See WriteToString. */
+template <int32 BufferSize, typename... ArgTypes>
+TStringBuilderWithBuffer<WIDECHAR, BufferSize> WriteToWideString(ArgTypes&&... Args)
+{
+	return TStringBuilderWithBuffer<WIDECHAR, BufferSize>(InPlace, (ArgTypes&&)Args...);
+}
+
+/** A function to create and append to a temporary string builder. See WriteToString. */
+template <int32 BufferSize, typename... ArgTypes>
+TStringBuilderWithBuffer<UTF8CHAR, BufferSize> WriteToUtf8String(ArgTypes&&... Args)
+{
+	return TStringBuilderWithBuffer<UTF8CHAR, BufferSize>(InPlace, (ArgTypes&&)Args...);
+}
 
 /**
  * Returns an object that can be used as the output container for algorithms by appending to the builder.

@@ -122,9 +122,9 @@ TEST_CASE_NAMED(FStringViewConstructorTest, "System::Core::String::StringView::C
 		STATIC_CHECK(std::is_same_v<decltype(ViewWideConstLiteral)::ElementType, WIDECHAR>);
 		STATIC_CHECK(std::is_same_v<decltype(ViewUtf8ConstLiteral)::ElementType, UTF8CHAR>);
 
-		TWriteToString<ANSICHAR, 16> WriteAnsiString = WriteToAnsiString<16>("Test");
- 		TWriteToString<WIDECHAR, 16> WriteWideString = WriteToWideString<16>(WIDETEXT("Test"));
- 		TWriteToString<UTF8CHAR, 16> WriteUft8String = WriteToUtf8String<16>(UTF8TEXT("Test"));
+		auto WriteAnsiString = WriteToAnsiString<16>("Test");
+ 		auto WriteWideString = WriteToWideString<16>(WIDETEXT("Test"));
+ 		auto WriteUft8String = WriteToUtf8String<16>(UTF8TEXT("Test"));
 		TStringView ViewAnsiStringBuilder(WriteAnsiString);
 		TStringView ViewWideStringBuilder(WriteWideString);
 		TStringView ViewUtf8StringBuilder(WriteUft8String);
