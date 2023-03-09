@@ -40,6 +40,17 @@ void SAboutScreen::Construct(const FArguments& InArgs)
 	FText Version = FText::Format( LOCTEXT("VersionLabel", "Version: {0}"), FText::FromString( FEngineVersion::Current().ToString( ) ) );
 	FText Title = FText::FromString(FApp::GetName());
 	
+	FString OSLabel, OSSubLabel;
+	FPlatformMisc::GetOSVersions(OSLabel, OSSubLabel);
+	FText OSName = FText::FromString(OSLabel);
+#if PLATFORM_CPU_ARM_FAMILY
+	FText ArchName = FText::FromString("arm64");
+#else
+	FText ArchName = FText::FromString("x86_64");
+#endif
+	
+	FText Platform = FText::Format( LOCTEXT("PlatformArchLabel", "Platform: {0} ({1})"), OSName, ArchName);
+	
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -84,6 +95,13 @@ void SAboutScreen::Construct(const FArguments& InArgs)
 						.IsReadOnly(true)
 						.ColorAndOpacity(FStyleColors::ForegroundHover)
 						.Text( Version )
+					]
+					+SVerticalBox::Slot()
+					[
+						SNew(SEditableText)
+						.IsReadOnly(true)
+						.ColorAndOpacity(FStyleColors::ForegroundHover)
+						.Text(Platform)
 					]
 				]
 

@@ -1619,6 +1619,7 @@ FGPUDriverInfo FMacPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescripti
 void FMacPlatformMisc::GetOSVersions( FString& out_OSVersionLabel, FString& out_OSSubVersionLabel )
 {
 	MacPlatformGetOSProductVersion(out_OSVersionLabel);
+	out_OSVersionLabel = FString("macOS ") + out_OSVersionLabel;
 	MacPlatformGetOSVersion(out_OSSubVersionLabel);
 }
 
