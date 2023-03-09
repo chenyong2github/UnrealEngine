@@ -884,7 +884,9 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   #else
     #define KK_MADV_FREE_INITIAL  MADV_FREE
   #endif
-  static _Atomic(uintptr_t) advice = ATOMIC_VAR_INIT(KK_MADV_FREE_INITIAL);
+  // BEGIN EPIC MOD  - Fix ATOMIC_VAR_INIT deprecation in Xcode14.3
+  static _Atomic(uintptr_t) advice = KK_MADV_FREE_INITIAL;
+  // END EPIC MOD
   int oadvice = (int)mi_atomic_load_relaxed(&advice);
   int err;
   while ((err = madvise(start, csize, oadvice)) != 0 && errno == EAGAIN) { errno = 0;  };
