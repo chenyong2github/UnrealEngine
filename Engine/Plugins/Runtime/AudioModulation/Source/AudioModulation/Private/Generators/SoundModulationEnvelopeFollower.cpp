@@ -71,6 +71,8 @@ namespace AudioModulation
 
 		virtual ~FEnvelopeFollowerGenerator()
 		{
+			FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
+
 			AudioBusPatch.Reset();
 		}
 
