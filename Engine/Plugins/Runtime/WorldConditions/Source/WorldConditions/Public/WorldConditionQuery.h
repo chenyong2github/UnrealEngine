@@ -114,7 +114,7 @@ struct WORLDCONDITIONS_API FWorldConditionQuerySharedDefinition
 private:
 
 	/** Updates the state memory layout and initializes the conditions. */
-	bool Link();
+	bool Link(const UObject* Outer);
 	
 	/** Sets the definition data. */
 	void Set(const TSubclassOf<UWorldConditionSchema> InSchema, const TArrayView<FConstStructView> InConditions);
