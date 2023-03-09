@@ -229,7 +229,7 @@ FVector FContextualAnimSceneBindingContext::GetVelocity() const
 
 UContextualAnimSceneActorComponent* FContextualAnimSceneBindingContext::GetSceneActorComponent() const
 {
-	if (!CachedSceneActorComp.IsValid())
+	if (!CachedSceneActorComp.IsValid() || CachedSceneActorComp->GetOwner() != GetActor())
 	{
 		if (Actor.IsValid())
 		{
@@ -242,7 +242,7 @@ UContextualAnimSceneActorComponent* FContextualAnimSceneBindingContext::GetScene
 
 UAnimInstance* FContextualAnimSceneBindingContext::GetAnimInstance() const
 {
-	if (!CachedAnimInstance.IsValid())
+	if (!CachedAnimInstance.IsValid() || CachedAnimInstance->GetOwningActor() != GetActor())
 	{
 		CachedAnimInstance = UContextualAnimUtilities::TryGetAnimInstance(GetActor());
 	}
@@ -252,7 +252,7 @@ UAnimInstance* FContextualAnimSceneBindingContext::GetAnimInstance() const
 
 USkeletalMeshComponent* FContextualAnimSceneBindingContext::GetSkeletalMeshComponent() const
 {
-	if (!CachedSkeletalMesh.IsValid())
+	if (!CachedSkeletalMesh.IsValid() || CachedSkeletalMesh->GetOwner() != GetActor())
 	{
 		CachedSkeletalMesh = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetActor());
 	}
