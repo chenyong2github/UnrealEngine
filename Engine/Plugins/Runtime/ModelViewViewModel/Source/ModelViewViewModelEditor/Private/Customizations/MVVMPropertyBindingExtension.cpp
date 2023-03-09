@@ -79,11 +79,11 @@ static void ExtendBindingsMenu(FMenuBuilder& MenuBuilder, const UWidgetBlueprint
 	{
 		FMVVMBlueprintViewBinding& NewBinding = MVVMBlueprintView->AddDefaultBinding();
 
-		NewBinding.ViewModelPath.SetViewModelId(ViewModelId);
-		NewBinding.ViewModelPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(ViewModelProperty));
+		NewBinding.SourcePath.SetViewModelId(ViewModelId);
+		NewBinding.SourcePath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(ViewModelProperty));
 
-		NewBinding.WidgetPath.SetWidgetName(Widget->GetFName());
-		NewBinding.WidgetPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(WidgetProperty));
+		NewBinding.DestinationPath.SetWidgetName(Widget->GetFName());
+		NewBinding.DestinationPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(WidgetProperty));
 
 		NewBinding.BindingType = EMVVMBindingMode::OneWayToDestination;
 	};
@@ -159,7 +159,7 @@ TOptional<FName> FMVVMPropertyBindingExtension::GetCurrentValue(const UWidgetBlu
 		return TOptional<FName>();
 	}
 
-	TArray<FName> Names = Binding->ViewModelPath.GetPaths();
+	TArray<FName> Names = Binding->SourcePath.GetPaths();
 	if (Names.Num() > 0)
 	{
 		return Names.Last();
@@ -182,7 +182,7 @@ const FSlateBrush* FMVVMPropertyBindingExtension::GetCurrentIcon(const UWidgetBl
 		return nullptr;
 	}
 
-	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Binding->ViewModelPath.GetFields();
+	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Binding->SourcePath.GetFields();
 	if (Fields.IsEmpty())
 	{
 		return nullptr;
@@ -211,7 +211,7 @@ void FMVVMPropertyBindingExtension::ClearCurrentValue(const UWidgetBlueprint* Wi
 		{
 			if (FMVVMBlueprintViewBinding* Binding = MVVMBlueprintView->FindBinding(Widget, Property))
 			{
-				Binding->ViewModelPath.ResetBasePropertyPath();
+				Binding->SourcePath.ResetBasePropertyPath();
 			}
 		}
 	}

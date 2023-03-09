@@ -177,8 +177,8 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 
 	for (const FMVVMBlueprintViewBinding* Binding : ViewBindings)
 	{
-		FMVVMBlueprintPropertyPath SourcePath = bSourceToDestination ? Binding->ViewModelPath : Binding->WidgetPath;
-		FMVVMBlueprintPropertyPath DestPath = bSourceToDestination ? Binding->WidgetPath : Binding->ViewModelPath;
+		FMVVMBlueprintPropertyPath SourcePath = bSourceToDestination ? Binding->SourcePath : Binding->DestinationPath;
+		FMVVMBlueprintPropertyPath DestPath = bSourceToDestination ? Binding->DestinationPath : Binding->SourcePath;
 
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 		TArray<UFunction*> FunctionsForThis = EditorSubsystem->GetAvailableConversionFunctions(WidgetBlueprint, SourcePath, DestPath);

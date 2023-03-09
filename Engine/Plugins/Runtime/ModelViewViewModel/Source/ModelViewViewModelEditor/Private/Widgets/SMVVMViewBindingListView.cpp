@@ -238,7 +238,7 @@ private:
 			{
 				if (FMVVMBlueprintViewBinding* Binding = ChildEntry->GetBinding(View))
 				{
-					FMVVMBlueprintPropertyPath CurrentPath = Binding->WidgetPath;
+					FMVVMBlueprintPropertyPath CurrentPath = Binding->DestinationPath;
 					CurrentPath.SetWidgetName(Source.Name);
 
 					EditorSubsystem->SetWidgetPropertyForBinding(WidgetBlueprint, *Binding, CurrentPath);
@@ -281,7 +281,7 @@ public:
 		CVarDefaultExecutionMode = IConsoleManager::Get().FindConsoleVariable(TEXT("MVVM.DefaultExecutionMode"));
 		
 		FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding();
-		FBindingSource WidgetSource = FBindingSource::CreateForWidget(InWidgetBlueprint, ViewBinding->WidgetPath.GetWidgetName());
+		FBindingSource WidgetSource = FBindingSource::CreateForWidget(InWidgetBlueprint, ViewBinding->DestinationPath.GetWidgetName());
 
 		STableRow<TSharedPtr<FBindingEntry>>::Construct(
 			STableRow<TSharedPtr<FBindingEntry>>::FArguments()
@@ -571,11 +571,11 @@ private:
 			TArray<FMVVMConstFieldVariant> Fields;
 			if (bViewModel)
 			{
-				Fields = ViewBinding->WidgetPath.GetFields();
+				Fields = ViewBinding->DestinationPath.GetFields();
 			}
 			else
 			{
-				Fields = ViewBinding->ViewModelPath.GetFields();
+				Fields = ViewBinding->SourcePath.GetFields();
 			}
 
 			if (Fields.Num() > 0)
@@ -638,7 +638,7 @@ private:
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			return ViewBinding->ViewModelPath;
+			return ViewBinding->SourcePath;
 		}
 		return FMVVMBlueprintPropertyPath();
 	}
@@ -647,7 +647,7 @@ private:
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			return ViewBinding->WidgetPath;
+			return ViewBinding->DestinationPath;
 		}
 		return FMVVMBlueprintPropertyPath();
 	}
@@ -667,7 +667,7 @@ private:
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			if (ViewBinding->ViewModelPath != SelectedField)
+			if (ViewBinding->SourcePath != SelectedField)
 			{
 				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 				Subsystem->SetViewModelPropertyForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, SelectedField);
@@ -684,7 +684,7 @@ private:
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			if (ViewBinding->WidgetPath != SelectedField)
+			if (ViewBinding->DestinationPath != SelectedField)
 			{
 				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 				Subsystem->SetWidgetPropertyForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, SelectedField);
@@ -1175,7 +1175,7 @@ void SBindingsList::Refresh()
 		{
 			const FMVVMBlueprintViewBinding& Binding = Bindings[BindingIndex];
 			
-			FName WidgetName = Binding.WidgetPath.GetWidgetName();
+			FName WidgetName = Binding.DestinationPath.GetWidgetName();
 
 			TSharedPtr<FBindingEntry> ExistingWidget;
 			for (TSharedPtr<FBindingEntry> Widget : RootWidgets)

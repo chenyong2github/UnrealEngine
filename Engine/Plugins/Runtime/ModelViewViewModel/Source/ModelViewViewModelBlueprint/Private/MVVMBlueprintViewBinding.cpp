@@ -98,7 +98,7 @@ namespace UE::MVVM::Private
 				NameBuilder << SourceToDestFunction->GetName();
 				NameBuilder << TEXT("(");
 			
-				AppendViewModelPathString(BlueprintView, Binding.ViewModelPath, NameBuilder);
+				AppendViewModelPathString(BlueprintView, Binding.SourcePath, NameBuilder);
 
 				NameBuilder << TEXT(")");
 			}
@@ -108,9 +108,9 @@ namespace UE::MVVM::Private
 				NameBuilder << TEXT("()");
 			}
 		}
-		else if (!Binding.ViewModelPath.IsEmpty())
+		else if (!Binding.SourcePath.IsEmpty())
 		{
-			AppendViewModelPathString(BlueprintView, Binding.ViewModelPath, NameBuilder);
+			AppendViewModelPathString(BlueprintView, Binding.SourcePath, NameBuilder);
 		}
 
 		FString Name = NameBuilder.ToString();
@@ -195,7 +195,7 @@ namespace UE::MVVM::Private
 				NameBuilder << DestToSourceFunction->GetName();
 				NameBuilder << TEXT("(");
 			
-				AppendWidgetPathString(WidgetBlueprint, Binding.WidgetPath, NameBuilder);
+				AppendWidgetPathString(WidgetBlueprint, Binding.DestinationPath, NameBuilder);
 
 				NameBuilder << TEXT(")");
 			}
@@ -205,9 +205,9 @@ namespace UE::MVVM::Private
 				NameBuilder << TEXT("()");
 			}
 		}
-		else if (!Binding.WidgetPath.IsEmpty())
+		else if (!Binding.DestinationPath.IsEmpty())
 		{
-			AppendWidgetPathString(WidgetBlueprint, Binding.WidgetPath, NameBuilder);
+			AppendWidgetPathString(WidgetBlueprint, Binding.DestinationPath, NameBuilder);
 		}
 
 		FString Name = NameBuilder.ToString();

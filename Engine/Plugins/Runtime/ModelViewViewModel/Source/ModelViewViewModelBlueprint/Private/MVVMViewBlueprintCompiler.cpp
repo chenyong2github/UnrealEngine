@@ -518,18 +518,18 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 				// generate destination source
 				if (bIsForwardBinding)
 				{
-					bAreSourceContextsValid &= GenerateCompilerSourceContext(Binding.WidgetPath, false);
+					bAreSourceContextsValid &= GenerateCompilerSourceContext(Binding.DestinationPath, false);
 				}
 				else
 				{
-					bAreSourceContextsValid &= GenerateCompilerSourceContext(Binding.ViewModelPath, true);
+					bAreSourceContextsValid &= GenerateCompilerSourceContext(Binding.SourcePath, true);
 				}
 			}
 			else
 			{
 				// if we aren't using a conversion function, just validate the widget and viewmodel paths
-				bAreSourceContextsValid &= GenerateCompilerSourceContext(Binding.WidgetPath, false);
-				bAreSourceContextsValid &= GenerateCompilerSourceContext(Binding.ViewModelPath, true);
+				bAreSourceContextsValid &= GenerateCompilerSourceContext(Binding.DestinationPath, false);
+				bAreSourceContextsValid &= GenerateCompilerSourceContext(Binding.SourcePath, true);
 			}
 		}
 	}
@@ -660,7 +660,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 			{
 				AddErrorForBinding(Binding, 
 					FText::Format(LOCTEXT("PropertyPathInvalidWithReason", "The property path '{0}' is invalid. {1}"),
-						PropertyPathToText(BlueprintView, Binding.ViewModelPath),
+						PropertyPathToText(BlueprintView, Binding.SourcePath),
 						CreatedBindingSourceContext.GetError()
 					),
 					ArgumentName
@@ -673,7 +673,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 			{
 				AddErrorForBinding(Binding, 
 					FText::Format(LOCTEXT("PropertyPathIsInvalid", "The property path '{0}' is invalid."), 
-						PropertyPathToText(BlueprintView, Binding.ViewModelPath)
+						PropertyPathToText(BlueprintView, Binding.SourcePath)
 					),
 					ArgumentName
 				);
@@ -712,9 +712,9 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 		{
 			CreateSourcesForConversionFunction(true);
 
-			if (!Binding.ViewModelPath.IsEmpty())
+			if (!Binding.SourcePath.IsEmpty())
 			{
-				if (!CreateSourceContextForPropertyPath(Binding.ViewModelPath, true))
+				if (!CreateSourceContextForPropertyPath(Binding.SourcePath, true))
 				{
 					bIsBindingsValid = false;
 					continue;
@@ -726,9 +726,9 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 		{
 			CreateSourcesForConversionFunction(false);
 
-			if (!Binding.WidgetPath.IsEmpty() && Binding.WidgetPath.HasPaths())
+			if (!Binding.DestinationPath.IsEmpty() && Binding.DestinationPath.HasPaths())
 			{
-				if (!CreateSourceContextForPropertyPath(Binding.WidgetPath, false))
+				if (!CreateSourceContextForPropertyPath(Binding.DestinationPath, false))
 				{
 					bIsBindingsValid = false;
 					continue;
@@ -1055,7 +1055,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 
 		TArray<UE::MVVM::FMVVMConstFieldVariant> SetterPath;
 		{
-			const FMVVMBlueprintPropertyPath& DestinationPath = BindingSourceContext.bIsForwardBinding ? Binding.WidgetPath : Binding.ViewModelPath;
+			const FMVVMBlueprintPropertyPath& DestinationPath = BindingSourceContext.bIsForwardBinding ? Binding.DestinationPath : Binding.SourcePath;
 			SetterPath = CreateBindingDestinationPath(BlueprintView, Class, DestinationPath);
 			if (!IsPropertyPathValid(SetterPath))
 			{

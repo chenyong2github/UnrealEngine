@@ -30,12 +30,12 @@ void FPropertyPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InP
 
 	const FName PropertyName = PropertyHandle->GetProperty()->GetFName();
 	FText PropertyDisplayName;
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, DestinationPath))
 	{
 		bIsWidget = true;
 		PropertyDisplayName = LOCTEXT("PropertyDisplay_Widget", "Destination");
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, SourcePath))
 	{
 		bIsWidget = false;
 
@@ -51,11 +51,11 @@ void FPropertyPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InP
 
 	if (bIsWidget)
 	{
-		OtherHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath));
+		OtherHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, SourcePath));
 	}
 	else
 	{
-		OtherHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath));
+		OtherHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, DestinationPath));
 	}
 
 	if (OtherHandle.IsValid() && OtherHandle->IsValidHandle())

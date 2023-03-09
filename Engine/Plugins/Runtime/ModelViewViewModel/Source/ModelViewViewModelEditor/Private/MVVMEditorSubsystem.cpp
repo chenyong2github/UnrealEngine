@@ -399,7 +399,7 @@ void UMVVMEditorSubsystem::SetSourceToDestinationConversionFunction(UWidgetBluep
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 	{
-		if (ConversionFunction == nullptr || IsValidConversionFunction(ConversionFunction, Binding.ViewModelPath, Binding.WidgetPath))
+		if (ConversionFunction == nullptr || IsValidConversionFunction(ConversionFunction, Binding.SourcePath, Binding.DestinationPath))
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetConversionFunction", "Set Conversion Function"));
 
@@ -433,7 +433,7 @@ void UMVVMEditorSubsystem::SetDestinationToSourceConversionFunction(UWidgetBluep
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 	{
-		if (ConversionFunction == nullptr || IsValidConversionFunction(ConversionFunction, Binding.WidgetPath, Binding.ViewModelPath))
+		if (ConversionFunction == nullptr || IsValidConversionFunction(ConversionFunction, Binding.DestinationPath, Binding.SourcePath))
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetConversionFunction", "Set Conversion Function"));
 
@@ -469,11 +469,11 @@ void UMVVMEditorSubsystem::SetWidgetPropertyForBinding(UWidgetBlueprint* WidgetB
 	{
 		FScopedTransaction Transaction(LOCTEXT("SetBindingProperty", "Set Binding Property"));
 
-		UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath));
+		UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, DestinationPath));
 
-		Binding.WidgetPath = Field;
+		Binding.DestinationPath = Field;
 
-		UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath));
+		UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, DestinationPath));
 	}
 }
 
@@ -483,11 +483,11 @@ void UMVVMEditorSubsystem::SetViewModelPropertyForBinding(UWidgetBlueprint* Widg
 	{
 		FScopedTransaction Transaction(LOCTEXT("SetBindingProperty", "Set Binding Property"));
 
-		UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath));
+		UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, SourcePath));
 
-		Binding.ViewModelPath = Field;
+		Binding.SourcePath = Field;
 
-		UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath));
+		UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, SourcePath));
 	}
 }
 
@@ -765,11 +765,11 @@ FMVVMBlueprintPropertyPath UMVVMEditorSubsystem::GetPathForConversionFunctionArg
 	{
 		if (bSourceToDestination)
 		{
-			return Binding.ViewModelPath;
+			return Binding.SourcePath;
 		}
 		else
 		{
-			return Binding.WidgetPath;
+			return Binding.DestinationPath;
 		}
 	}
 
@@ -790,11 +790,11 @@ void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint
 		// simple conversion function
 		if (bSourceToDestination)
 		{
-			Binding.ViewModelPath = Path;
+			Binding.SourcePath = Path;
 		}
 		else
 		{
-			Binding.WidgetPath = Path;
+			Binding.DestinationPath = Path;
 		}
 
 		return;

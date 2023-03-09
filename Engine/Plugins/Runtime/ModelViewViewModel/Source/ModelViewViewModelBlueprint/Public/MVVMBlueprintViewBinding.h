@@ -43,10 +43,10 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "Viewmodel")
-	FMVVMBlueprintPropertyPath ViewModelPath;
+	FMVVMBlueprintPropertyPath SourcePath;
 
 	UPROPERTY(EditAnywhere, Category = "Viewmodel")
-	FMVVMBlueprintPropertyPath WidgetPath;
+	FMVVMBlueprintPropertyPath DestinationPath;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category = "Viewmodel")
