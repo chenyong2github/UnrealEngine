@@ -103,6 +103,11 @@ namespace UnrealBuildTool
 		/// Indicates that the target is a moduler build i.e. Target.LinkType == TargetLinkType.Modular
 		/// </summary>
 		ModularBuild = 1 << 15,
+
+		/// <summary>
+		/// Disable Dump Syms step for faster iteration
+		/// </summary>
+		DisableDumpSyms = 1 << 16,
 	}
 
 	abstract class ClangToolChain : ISPCToolChain

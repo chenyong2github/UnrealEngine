@@ -161,19 +161,29 @@ namespace UnrealBuildTool
 			StringWriter Out = new StringWriter();
 			Out.NewLine = bUseCmdExe ? "\r\n" : "\n";
 
-			// dump_syms
-			Out.WriteLine(DumpCommand,
-				LinuxInfo.DumpSyms,
-				OutputFile.AbsolutePath,
-				SymbolsFile.AbsolutePath
-			);
 
-			// encode breakpad symbols
-			Out.WriteLine("\"{0}\" \"{1}\" \"{2}\"",
-				LinuxInfo.BreakpadEncoder,
-				SymbolsFile.AbsolutePath,
-				EncodedBinarySymbolsFile.AbsolutePath
-			);
+			if (!Options.HasFlag(ClangToolChainOptions.DisableDumpSyms) || Options.HasFlag(ClangToolChainOptions.PreservePSYM))
+			{
+				// dump_syms
+				Out.WriteLine(DumpCommand,
+					LinuxInfo.DumpSyms,
+					OutputFile.AbsolutePath,
+					SymbolsFile.AbsolutePath
+				);
+
+				// encode breakpad symbols
+				Out.WriteLine("\"{0}\" \"{1}\" \"{2}\"",
+					LinuxInfo.BreakpadEncoder,
+					SymbolsFile.AbsolutePath,
+					EncodedBinarySymbolsFile.AbsolutePath
+				);
+			}
+			else
+			{
+				// we have to create dummy files to prevent packaging errors
+				Out.WriteLine("echo DummyPSym >> \"{0}\"", SymbolsFile.AbsolutePath);
+				Out.WriteLine("echo DummySyms>> \"{0}\"", EncodedBinarySymbolsFile.AbsolutePath);
+			}
 
 			if (!Options.HasFlag(ClangToolChainOptions.DisableSplitDebugInfoWithObjCopy) && LinkEnvironment.bCreateDebugInfo)
 			{

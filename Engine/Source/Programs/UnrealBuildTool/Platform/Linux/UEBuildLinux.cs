@@ -89,6 +89,13 @@ namespace UnrealBuildTool
 		public bool bTuneDebugInfoForLLDB = false;
 
 		/// <summary>
+		/// Whether to globally disable calling dump_syms
+		/// </summary>
+		[CommandLine("-NoDumpSyms")]
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bDisableDumpSyms")]
+		public bool bDisableDumpSyms = false;
+
+		/// <summary>
 		/// Enables runtime ray tracing support.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/LinuxTargetPlatform.LinuxTargetSettings")]
@@ -145,6 +152,11 @@ namespace UnrealBuildTool
 		public bool bTuneDebugInfoForLLDB
 		{
 			get { return Inner.bTuneDebugInfoForLLDB; }
+		}
+
+		public bool bDisableDumpSyms
+		{
+			get { return Inner.bDisableDumpSyms; }
 		}
 
 		public bool bEnableRayTracing
@@ -583,6 +595,10 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException("Memory Sanitizer (MSan) unsupported for non-monolithic builds");
 				}
+			}
+			if (Target.LinuxPlatform.bDisableDumpSyms)
+			{
+				Options |= ClangToolChainOptions.DisableDumpSyms;
 			}
 			if (Target.bAllowLTCG && Target.bPreferThinLTO)
 			{
