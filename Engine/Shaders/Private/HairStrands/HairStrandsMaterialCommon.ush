@@ -58,7 +58,7 @@ struct FHairVertexData
 // GPUCULL_TODO: this should be switched over to use Instance ID instead of Primitive ID.
 FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrimitiveId, inout FHairVertexData OutHairVertex)
 {
-	FMaterialVertexParameters Empty = (FMaterialVertexParameters)0;
+	FMaterialVertexParameters Empty = MakeInitializedMaterialVertexParameters();
 
 	FVertexFactoryInput Input;
 	// Assumes no actual instancing used for these draws. Will load the first instance data.

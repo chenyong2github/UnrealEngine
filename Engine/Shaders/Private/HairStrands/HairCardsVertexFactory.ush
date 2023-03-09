@@ -209,7 +209,7 @@ half3x3 CalcTangentToWorldNoScale(FVertexFactoryIntermediates Intermediates, hal
 /** Converts from vertex factory specific input to a FMaterialVertexParameters, which is used by vertex shader material inputs. */
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, half3x3 TangentToLocal)
 {
-	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	FMaterialVertexParameters Result = MakeInitializedMaterialVertexParameters();
 	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 

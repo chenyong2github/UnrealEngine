@@ -590,10 +590,17 @@ struct FMaterialVertexParameters
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
 
-#if IS_NANITE_PASS
 	bool bEvaluateWorldPositionOffset;
-#endif
 };
+
+FMaterialVertexParameters MakeInitializedMaterialVertexParameters()
+{
+	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.PrimitiveId = INVALID_PRIMITIVE_ID;
+	Result.bEvaluateWorldPositionOffset = true;
+
+	return Result;
+}
 
 float MaterialReadInterpolatorComponent(FMaterialPixelParameters Parameters, int InterpolatorIndex)
 {
@@ -2918,31 +2925,17 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 
 bool ShouldEnableWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
-#if IS_NANITE_PASS
-	if (!Parameters.bEvaluateWorldPositionOffset)
-	{
-		return false;
-	}
-#endif
-
-#if !USES_WORLD_POSITION_OFFSET
-	return false;
-#endif
-
-#if USE_INSTANCING || USE_INSTANCE_CULLING
-	// skip if this instance is hidden
-	if (Parameters.PerInstanceParams.y < 1.f)
-	{
-		return false;
-	}
-#endif
-
-	if ((GetPrimitiveData(Parameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) == 0)
+#if USES_WORLD_POSITION_OFFSET
+	if (!Parameters.bEvaluateWorldPositionOffset ||
+		(GetPrimitiveData(Parameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) == 0)
 	{
 		return false;
 	}
 
 	return true;
+#else
+	return false;
+#endif
 }
 
 float3 ClampWorldPositionOffset(FMaterialVertexParameters Parameters, float3 InOffset)

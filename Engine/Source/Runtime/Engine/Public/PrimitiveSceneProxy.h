@@ -1493,12 +1493,6 @@ private:
 	/** Used for precomputed visibility */
 	int32 VisibilityId;
 
-	/** The primitive's cull distance. */
-	float MaxDrawDistance;
-
-	/** The primitive's minimum cull distance. */
-	float MinDrawDistance;
-
 	/** The primitive's uniform buffer. */
 	TUniformBufferRef<FPrimitiveUniformShaderParameters> UniformBuffer;
 
@@ -1535,6 +1529,13 @@ private:
 	void SetHiddenEdViews_RenderThread( uint64 InHiddenEditorViews );
 
 protected:
+
+	/** The primitive's cull distance. */
+	float MaxDrawDistance;
+
+	/** The primitive's minimum cull distance. */
+	float MinDrawDistance;
+	
 	/**
 	 * Updates the primitive proxy's cached transforms for all instances given a buffer of instance updates.
 	 * @param CmdBuffer - A record of all the add, update and remove instances for the proxy to apply to its internal data.

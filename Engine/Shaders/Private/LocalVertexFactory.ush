@@ -325,6 +325,8 @@ struct FVertexFactoryIntermediates
 
 	half4 Color;
 
+	bool bEvaluateWorldPositionOffset;
+
 #if USE_INSTANCE_CULLING
 	float4 HitProxyId;
 	float IsSelected;
@@ -556,7 +558,7 @@ half3x3 CalcTangentToWorldNoScale(FVertexFactoryIntermediates Intermediates, hal
 /** Converts from vertex factory specific input to a FMaterialVertexParameters, which is used by vertex shader material inputs. */
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, half3x3 TangentToLocal)
 {
-	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	FMaterialVertexParameters Result = MakeInitializedMaterialVertexParameters();
 	Result.SceneData = Intermediates.SceneData;
 	// FIXME: just for compatibility with assets that use custom HLSL expressions, will be removed once we fix up all these assets
 	Result.PrimitiveId = Intermediates.SceneData.PrimitiveId;
@@ -566,6 +568,8 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 	// does not handle instancing!
 	Result.TangentToWorld = Intermediates.TangentToWorld;
+
+	Result.bEvaluateWorldPositionOffset = Intermediates.bEvaluateWorldPositionOffset;
 
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(Intermediates);
 
@@ -868,6 +872,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(Intermediates);
 
+	// Initialize this flag with culling results when applicable.
+#if USES_WORLD_POSITION_OFFSET
+	Intermediates.bEvaluateWorldPositionOffset = (Intermediates.SceneData.CullingFlags & INSTANCE_CULLING_FLAG_EVALUATE_WPO) != 0;
+#else
+	Intermediates.bEvaluateWorldPositionOffset = false;
+#endif
+
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	// Calculate the local (within the range of instance IDs belonging to a given primitive), as this can be used to load custom stuff
 	Intermediates.PrimitiveLocalInstanceIndex = Intermediates.SceneData.InstanceId - PrimitiveData.InstanceSceneDataOffset;
@@ -909,6 +920,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	#else
 		Intermediates.PerInstanceParams.z = 0;
 	#endif
+
+		// Disable WPO if this instance is not visible for dithered LOD transition or instance fade reasons
+		Intermediates.bEvaluateWorldPositionOffset &= (Intermediates.IsVisible != 0.0f);
 	}
 #endif // USE_INSTANCE_CULLING
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
@@ -946,7 +960,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float SelectedValue = GetInstanceSelected(Intermediates);
 	// GPUCULL_TODO: This can't be right
 	float3 InstanceTranslatedLocation = TransformLocalToTranslatedWorld(GetInstanceOrigin(Intermediates), PrimitiveData.LocalToWorld).xyz;
-	Intermediates.PerInstanceParams.x = 1.0 - saturate((length(InstanceTranslatedLocation) - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
+	float InstanceViewDistance = length(InstanceTranslatedLocation);
+	Intermediates.PerInstanceParams.x = 1.0 - saturate((InstanceViewDistance - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
 	// InstancingFadeOutParams.z,w are RenderSelected and RenderDeselected respectively.
 	Intermediates.PerInstanceParams.y = InstancingFadeOutParams.z * SelectedValue + InstancingFadeOutParams.w * (1-SelectedValue);
 	#if USE_DITHERED_LOD_TRANSITION
@@ -965,7 +980,29 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		// index into instance CustomData
 		Intermediates.PerInstanceParams.w = asfloat(GetInstanceId(Input.InstanceId) + InstanceOffset);
 	#endif
-#endif	// USE_INSTANCING
+
+	// Disable WPO if this instance is not visible for dithered LOD transition or instance fade reasons
+	Intermediates.bEvaluateWorldPositionOffset &= (Intermediates.PerInstanceParams.y != 0.0f);
+
+	const float InstanceViewDistSq = Square(InstanceViewDistance);
+#else
+	// get the "instance" view distance from the primitive bounding center
+	const float InstanceViewDistSq = length2(LWCToFloat(LWCAdd(PrimitiveData.ObjectWorldPosition, ResolvedView.PreViewTranslation)));
+#endif // USE_INSTANCING
+
+#if !USE_INSTANCE_CULLING
+	// In this case, we have to do the WPO disable distance check in the VS because it wasn't done in instance culling
+	if (Intermediates.bEvaluateWorldPositionOffset)
+	{
+		const bool bPrimEvalWPO = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0;
+		const bool bWPODisableDistance = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE) != 0;
+		
+		if (!bPrimEvalWPO || (bWPODisableDistance && InstanceViewDistSq >= PrimitiveData.InstanceWPODisableDistanceSquared))
+		{
+			Intermediates.bEvaluateWorldPositionOffset = false;
+		}
+	}
+#endif
 
 	if (IsGPUSkinPassThrough())
 	{
@@ -982,7 +1019,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-	Intermediates.PreSkinPosition = Input.Position.xyz;
+		Intermediates.PreSkinPosition = Input.Position.xyz;
 	}
 
 	return Intermediates;
