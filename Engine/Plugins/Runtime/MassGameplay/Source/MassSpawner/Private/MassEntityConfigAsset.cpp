@@ -17,30 +17,6 @@
 
 #define LOCTEXT_NAMESPACE "Mass"
 
-namespace UE::MassSpawner
-{
-	uint32 HashTraits(const TArray<UMassEntityTraitBase*>& CombinedTraits)
-	{
-		class FArchiveObjectCRC32AgentConfig : public FArchiveObjectCrc32
-		{
-		public:
-			virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
-			{
-				check(InProperty);
-				return FArchiveObjectCrc32::ShouldSkipProperty(InProperty) || InProperty->HasAllPropertyFlags(CPF_Transient);
-			}
-		};
-
-		uint32 CRC = 0;
-		for (UMassEntityTraitBase* Trait : CombinedTraits)
-		{
-			FArchiveObjectCRC32AgentConfig Archive;
-			CRC = Archive.Crc32(Trait, CRC);
-		}
-		return CRC;
-	}
-} // UE::MassSpawner
-
 
 FMassEntityConfig::FMassEntityConfig(UObject& InOwner)
 	: ConfigOwner(&InOwner)

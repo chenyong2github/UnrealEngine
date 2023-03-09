@@ -13,6 +13,12 @@ class APawn;
 class UCurveFloat;
 class UMassEntityConfigAsset;
 class UMassEntitySpawnDataGeneratorBase;
+class UMassEntityTraitBase;
+
+namespace UE::MassSpawner
+{
+	MASSSPAWNER_API uint32 HashTraits(TConstArrayView<UMassEntityTraitBase*> CombinedTraits);
+}
 
 USTRUCT()
 struct FMassTransformsSpawnData
