@@ -94,11 +94,6 @@ namespace Horde.Build.Tools
 		TimeSpan Duration { get; }
 
 		/// <summary>
-		/// Mime-type for the data
-		/// </summary>
-		string MimeType { get; }
-
-		/// <summary>
 		/// Reference to this tool in Horde Storage.
 		/// </summary>
 		RefName RefName { get; }

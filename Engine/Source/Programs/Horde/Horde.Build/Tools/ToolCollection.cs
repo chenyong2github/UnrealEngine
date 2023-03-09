@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Serialization;
@@ -16,10 +15,8 @@ using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using StackExchange.Redis;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Pipelines;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -89,9 +86,6 @@ namespace Horde.Build.Tools
 			[BsonElement("dur")]
 			public TimeSpan Duration { get; set; }
 
-			[BsonElement("mtp")]
-			public string MimeType { get; set; }
-
 			[BsonElement("ref")]
 			public RefName RefName { get; set; }
 
@@ -99,7 +93,6 @@ namespace Horde.Build.Tools
 			{
 				Id = id;
 				Version = String.Empty;
-				MimeType = ToolDeploymentConfig.DefaultMimeType;
 			}
 
 			public ToolDeployment(ToolDeploymentId id, ToolDeploymentConfig options, RefName refName)
@@ -107,7 +100,6 @@ namespace Horde.Build.Tools
 				Id = id;
 				Version = options.Version;
 				Duration = options.Duration;
-				MimeType = options.MimeType;
 				RefName = refName;
 			}
 

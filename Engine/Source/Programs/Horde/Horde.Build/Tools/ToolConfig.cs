@@ -94,19 +94,11 @@ namespace Horde.Build.Tools
 	/// </summary>
 	public class ToolDeploymentConfig
 	{
-		/// <summary>
-		/// Default mime types for deployment data
-		/// </summary>
-		public const string DefaultMimeType = "application/zip";
-
 		/// <inheritdoc cref="IToolDeployment.Version"/>
 		public string Version { get; set; } = "Unknown";
 
 		/// <inheritdoc cref="IToolDeployment.Duration"/>
 		public TimeSpan Duration { get; set; }
-
-		/// <inheritdoc cref="IToolDeployment.MimeType"/>
-		public string MimeType { get; set; } = DefaultMimeType;
 
 		/// <summary>
 		/// Whether to create the deployment in a paused state
