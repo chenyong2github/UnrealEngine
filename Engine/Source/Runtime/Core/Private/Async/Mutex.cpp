@@ -46,7 +46,7 @@ void FMutex::LockSlow()
 		}
 
 		// Wait if the state has not changed. Either way, loop back and try to acquire the lock trying to wait.
-		FParkingLot::Wait(&State, [this, CurrentState] { return State.load(std::memory_order_acquire) == CurrentState; }, []{});
+		ParkingLot::Wait(&State, [this, CurrentState] { return State.load(std::memory_order_acquire) == CurrentState; }, []{});
 	}
 }
 
@@ -71,7 +71,7 @@ void FMutex::UnlockSlow()
 		}
 
 		// There is at least one thread waiting. Wake one thread and return.
-		FParkingLot::WakeOne(&State, [this](FParkingLotWakeState WakeState) -> uint64
+		ParkingLot::WakeOne(&State, [this](ParkingLot::FWakeState WakeState) -> uint64
 		{
 			constexpr uint8 ExpectedState = IsLockedFlag | HasWaitingThreadsFlag;
 			const uint8 NewState = WakeState.bHasWaitingThreads ? HasWaitingThreadsFlag : 0;
