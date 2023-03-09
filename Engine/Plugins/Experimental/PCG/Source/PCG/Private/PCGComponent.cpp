@@ -1,24 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGComponent.h"
-#include "Data/PCGProjectionData.h"
-#include "Engine/Engine.h"
-#include "Data/PCGSpatialData.h"
-#include "PCGGraph.h"
-#include "LandscapeComponent.h"
-#include "PCGHelpers.h"
-#include "LandscapeProxy.h"
-#include "PCGInputOutputSettings.h"
+
 #include "PCGContext.h"
+#include "PCGEngineSettings.h"
+#include "PCGGraph.h"
+#include "PCGHelpers.h"
+#include "PCGInputOutputSettings.h"
+#include "PCGManagedResource.h"
 #include "PCGParamData.h"
 #include "PCGSubsystem.h"
-#include "PCGManagedResource.h"
 #include "Data/PCGDifferenceData.h"
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGLandscapeData.h"
 #include "Data/PCGLandscapeSplineData.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGPrimitiveData.h"
+#include "Data/PCGProjectionData.h"
+#include "Data/PCGSpatialData.h"
 #include "Data/PCGSplineData.h"
 #include "Data/PCGUnionData.h"
 #include "Data/PCGVolumeData.h"
@@ -26,11 +25,14 @@
 #include "Helpers/PCGActorHelpers.h"
 #include "Utils/PCGGeneratedResourcesLogging.h"
 
+#include "LandscapeComponent.h"
+#include "LandscapeProxy.h"
 #include "Algo/Transform.h"
 #include "Components/BillboardComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SplineComponent.h"
 #include "Components/ShapeComponent.h"
+#include "Engine/Engine.h"
 #include "GameFramework/Volume.h"
 #include "Kismet/GameplayStatics.h"
 #include "LandscapeSplinesComponent.h"
@@ -52,6 +54,14 @@ UPCGComponent::UPCGComponent(const FObjectInitializer& InObjectInitializer)
 	: Super(InObjectInitializer)
 {
 	GraphInstance = InObjectInitializer.CreateDefaultSubobject<UPCGGraphInstance>(this, TEXT("PCGGraphInstance"));
+
+#if WITH_EDITOR
+	// If we are in Editor, and we are a BP template (no owner), we will mark this component to force a generate when added to world.
+	if (!PCGHelpers::IsRuntimeOrPIE() && !GetOwner() && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		bForceGenerateOnBPAddedToWorld = true;
+	}
+#endif // WITH_EDITOR
 }
 
 bool UPCGComponent::CanPartition() const
@@ -400,6 +410,9 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated,
 		CurrentGenerationTask = InvalidPCGTaskId;
 
 #if WITH_EDITOR
+		// Reset this flag to avoid re-generating on further refreshes.
+		bForceGenerateOnBPAddedToWorld = false;
+
 		bDirtyGenerated = false;
 		OnPCGGraphGeneratedDelegate.Broadcast(this);
 #endif
@@ -1000,7 +1013,7 @@ void UPCGComponent::PostLoad()
 	}
 
 	/** Deprecation code, should be removed once generated data has been updated */
-	if (bGenerated && GeneratedResources.Num() == 0)
+	if (GetOwner() && bGenerated && GeneratedResources.Num() == 0)
 	{
 		TArray<UInstancedStaticMeshComponent*> ISMCs;
 		GetOwner()->GetComponents(ISMCs);
@@ -1855,6 +1868,20 @@ void UPCGComponent::Refresh()
 	}
 }
 
+bool UPCGComponent::ShouldGenerateBPPCGAddedToWorld() const
+{
+	if (PCGHelpers::IsRuntimeOrPIE())
+	{
+		return false;
+	}
+	else
+	{
+		// Generate on drop can be disabled by global settings or locally by not having "GenerateOnLoad" as a generation trigger.
+		const UPCGEngineSettings* Settings = GetDefault<UPCGEngineSettings>();
+		return Settings ? (Settings->bGenerateOnDrop && bForceGenerateOnBPAddedToWorld && (GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad)) : false;
+	}
+}
+
 void UPCGComponent::OnRefresh()
 {
 	// Mark the refresh task invalid to allow re-triggering refreshes
@@ -1889,7 +1916,8 @@ void UPCGComponent::OnRefresh()
 	else
 	{
 		// If we just cleaned up resources, call back generate
-		if (bWasGenerated && (!bGenerated || bRegenerateInEditor))
+		// Also, for BPs, we ask if we should generate, to support generate on added to world.
+		if ((bWasGenerated || ShouldGenerateBPPCGAddedToWorld()) && (!bGenerated || bRegenerateInEditor))
 		{
 			GenerateLocal(/*bForce=*/false);
 		}

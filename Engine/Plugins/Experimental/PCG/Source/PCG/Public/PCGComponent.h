@@ -198,6 +198,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Transient, AdvancedDisplay, Category = Properties)
 	bool bDirtyGenerated = false;
 
+	// Property that will automatically be set on BP templates, to allow for "Generate on add to world" in editor.
+	// Set it as a property to automatically transfer it to its child.
+	// Don't use it directly, use ShouldGenerateBPPCGAddedToWorld, as there are other conditions checked.
+	UPROPERTY()
+	bool bForceGenerateOnBPAddedToWorld = false;
+
 	FOnPCGGraphGenerated OnPCGGraphGeneratedDelegate;
 	FOnPCGGraphCleaned OnPCGGraphCleanedDelegate;
 #endif
@@ -236,6 +242,9 @@ public:
 
 	/** Used by the tracking system to know if the component need to track actors. Not enabled for now, tracking is still done on the component.*/
 	bool ShouldTrackActors() const { return false; }
+
+	/** Know if we need to force a generation, in case of BP added to the world in editor */
+	bool ShouldGenerateBPPCGAddedToWorld() const;
 #endif
 
 	/** Utility function (mostly for tests) to properly set the value of bIsComponentPartitioned.

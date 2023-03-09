@@ -3,7 +3,7 @@
 #include "PCGVolumeFactory.h"
 
 #include "PCGComponent.h"
-#include "PCGEditorSettings.h"
+#include "PCGEngineSettings.h"
 #include "PCGGraph.h"
 #include "PCGVolume.h"
 
@@ -45,15 +45,15 @@ void UPCGVolumeFactory::PostSpawnActor(UObject* Asset, AActor* NewActor)
 
 	if (UPCGGraph* PCGGraph = Cast<UPCGGraph>(Asset))
 	{
-		const UPCGEditorSettings* PCGEditorSettings = GetDefault<UPCGEditorSettings>();
+		const UPCGEngineSettings* Settings = GetDefault<UPCGEngineSettings>();
 		
 		APCGVolume* PCGVolume = CastChecked<APCGVolume>(NewActor);
-		PCGVolume->SetActorScale3D(PCGEditorSettings->VolumeScale);
+		PCGVolume->SetActorScale3D(Settings->VolumeScale);
 		
 		UPCGComponent* PCGComponent = CastChecked<UPCGComponent>(PCGVolume->GetComponentByClass(UPCGComponent::StaticClass()));
 		PCGComponent->SetGraph(PCGGraph);
 
-		if (PCGEditorSettings->bGenerateOnDrop)
+		if (Settings->bGenerateOnDrop)
 		{
 			PCGComponent->Generate();
 		}

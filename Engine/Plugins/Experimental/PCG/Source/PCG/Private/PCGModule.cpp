@@ -2,16 +2,18 @@
 
 #include "PCGModule.h"
 
+#include "PCGEngineSettings.h"
+
+#include "ISettingsModule.h"
+#include "Modules/ModuleManager.h"
+
 #if WITH_EDITOR
 #include "Elements/PCGDifferenceElement.h"
-
-#include "Modules/ModuleManager.h"
 #include "Tests/Determinism/PCGDeterminismNativeTests.h"
 #include "Tests/Determinism/PCGDifferenceDeterminismTest.h"
-#else
-#include "Modules/ModuleManager.h"
 #endif
 
+#define LOCTEXT_NAMESPACE "FPCGModule"
 
 class FPCGModule final : public IModuleInterface
 {
@@ -29,6 +31,9 @@ public:
 	//~ End IModuleInterface implementation
 
 private:
+	void RegisterSettings();
+	void UnregisterSettings();
+
 #if WITH_EDITOR
 	void RegisterNativeElementDeterminismTests();
 	void DeregisterNativeElementDeterminismTests();
@@ -37,6 +42,8 @@ private:
 
 void FPCGModule::StartupModule()
 {
+	RegisterSettings();
+
 #if WITH_EDITOR
 	PCGDeterminismTests::FNativeTestRegistry::Create();
 
@@ -46,11 +53,32 @@ void FPCGModule::StartupModule()
 
 void FPCGModule::ShutdownModule()
 {
+	UnregisterSettings();
+
 #if WITH_EDITOR
 	DeregisterNativeElementDeterminismTests();
 
 	PCGDeterminismTests::FNativeTestRegistry::Destroy();
 #endif
+}
+
+void FPCGModule::RegisterSettings()
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->RegisterSettings("Project", "Plugins", "PCG",
+			LOCTEXT("PCGEngineSettingsName", "PCG"),
+			LOCTEXT("PCGEngineSettingsDescription", "Configure PCG."),
+			GetMutableDefault<UPCGEngineSettings>());
+	}
+}
+
+void FPCGModule::UnregisterSettings()
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "PCG");
+	}
 }
 
 #if WITH_EDITOR
@@ -71,3 +99,5 @@ void FPCGModule::DeregisterNativeElementDeterminismTests()
 IMPLEMENT_MODULE(FPCGModule, PCG);
 
 PCG_API DEFINE_LOG_CATEGORY(LogPCG);
+
+#undef LOCTEXT_NAMESPACE
