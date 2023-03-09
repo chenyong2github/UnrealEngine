@@ -191,8 +191,8 @@ void FAnimationDataRegistry::FreeAllocatedBlock(Private::FAllocatedBlock* Alloca
 				AllocatedBlock->Memory = nullptr;
 			}
 
-			delete AllocatedBlock; // TODO : avoid memory fragmentation
 			AllocatedBlocks.Remove(AllocatedBlock);
+			delete AllocatedBlock; // TODO : avoid memory fragmentation
 		}
 	}
 }
