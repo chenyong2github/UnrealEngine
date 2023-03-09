@@ -157,9 +157,7 @@
 				{	"target": "BitShift", "skip": true, "comment": "TODO need attributes" },
 				{	"target": "Cast",     "skip": true, "comment": "TODO need attributes" },
 				{	"target": "Ceil"},
-				{	"target": "Clip", "additional_datasets": [ "Elementwise.Clip.AttributeTest" ], "runtimes": [
-						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "RDG need scalar tensor support"}
-					]},
+				{	"target": "Clip", "additional_datasets": [ "Elementwise.Clip.AttributeTest" ] },
 				{	"target": "Cos" },
 				{	"target": "Cosh" },
 				{	"target": "Elu", "additional_datasets": [ "Elementwise.Elu.AttributeTest" ], "runtimes": [
@@ -487,7 +485,8 @@
 			"datasets": [
 				{ "inputs": [ { "shape": [1], "comment": "input" }, { "shape": [1], "comment": "min" } ] },
 				{ "inputs": [ { "shape": [1], "comment": "input" }, { "shape": [1], "comment": "min" }, { "shape": [1], "comment": "max" } ] }
-			]
+			],
+			"runtimes": [{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "RDG need scalar tensor support"}]
 		},
 		{
 			"name": "Elementwise.Slow.OneInput",
