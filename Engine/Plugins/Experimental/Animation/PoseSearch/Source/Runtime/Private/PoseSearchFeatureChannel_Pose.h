@@ -31,7 +31,7 @@ struct POSESEARCH_API FPoseSearchBone
 	UPROPERTY(EditAnywhere, Category = Config)
 	float Weight = 1.f;
 
-	UPROPERTY(EditAnywhere, Category = Config, meta=(ExcludeFromHash))
+	UPROPERTY(EditAnywhere, Category = Config, meta=(ExcludeFromHash, DisplayPriority = 0))
 	FLinearColor DebugColor = FLinearColor::Green;
 };
 

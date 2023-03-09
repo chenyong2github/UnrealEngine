@@ -30,7 +30,7 @@ public:
 	UPROPERTY(Transient)
 	int8 SchemaOriginBoneIdx = 0;
 
-	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash))
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash, DisplayPriority = 0))
 	FLinearColor DebugColor = FLinearColor::Blue;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")

@@ -32,10 +32,10 @@ class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenc
 
 public:
 	// @todo: used only for indexing: cache it somewhere else
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 0))
 	TObjectPtr<USkeleton> Skeleton;
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "240"), Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 3, ClampMin = "1", ClampMax = "240"))
 	int32 SampleRate = 30;
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Schema")
@@ -46,10 +46,10 @@ public:
 	TArray<TObjectPtr<UPoseSearchFeatureChannel>> FinalizedChannels;
 
 	// If set, this schema will support mirroring pose search databases
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 1))
 	TObjectPtr<UMirrorDataTable> MirrorDataTable;
 
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 2))
 	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Normalize;
 
 	UPROPERTY(Transient)
@@ -80,11 +80,11 @@ public:
 	float LoopingCostBias = 0.f;
 
 	// how many times the animation assets of the database using this schema will be indexed
-	UPROPERTY(EditAnywhere, meta = (ClampMin = "1"), Category = "Permutations")
+	UPROPERTY(EditAnywhere, Category = "Permutations", meta = (ClampMin = "1"))
 	int32 NumberOfPermutations = 1;
 
 	// delta time between every permutation indexing
-	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "240"), Category = "Permutations")
+	UPROPERTY(EditAnywhere, Category = "Permutations", meta = (ClampMin = "1", ClampMax = "240", EditCondition = "NumberOfPermutations > 1", EditConditionHides))
 	int32 PermutationsSampleRate = 30;
 
 	// starting offset of the "PermutationTime" from the "SamplingTime" of the first permutation.
