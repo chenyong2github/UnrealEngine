@@ -166,7 +166,7 @@ struct FMaterialShader
 			LocalToWorld[1] *= InvScale.y;
 			LocalToWorld[2] *= InvScale.z;
 
-			FMaterialVertexParameters VertexParameters = MakeInitializedMaterialVertexParameters();
+			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 			SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
 			SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, PointLocal);
 

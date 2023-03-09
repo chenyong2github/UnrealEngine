@@ -1532,14 +1532,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 		}
 	}
 
-	// Small optimization: If there's only a single instance, assume we can cull the entire primitive if it is outside the instance cull distance
-	if (ensure(InstancedRenderData.PerInstanceRenderData.IsValid()) &&
-		InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances() == 1 &&
-		InComponent->InstanceEndCullDistance > 0)
-	{
-		MaxDrawDistance = FMath::Min(MaxDrawDistance, float(InComponent->InstanceEndCullDistance));
-	}
-
 	// Copy the parameters for LOD - all instances
 	UserData_AllInstances.MeshRenderData = InComponent->GetStaticMesh()->GetRenderData();
 	UserData_AllInstances.StartCullDistance = InComponent->InstanceStartCullDistance;

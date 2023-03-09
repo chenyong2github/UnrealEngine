@@ -7,19 +7,36 @@
 #include "../Common.ush"
 #include "VirtualShadowMapPageOverlap.ush"
 #include "VirtualShadowMapProjectionCommon.ush"
-#include "../Nanite/NaniteCullingCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../InstanceCulling/InstanceCullingCommon.ush"
 #include "../InstanceCulling/InstanceCullingLoadBalancer.ush"
 #include "../WaveOpUtil.ush"
-#include "/Engine/Shared/VirtualShadowMapDefinitions.h"
 #include "VirtualShadowMapStats.ush"
 #include "VirtualShadowMapPageCacheCommon.ush"
 
-RWStructuredBuffer<FVSMVisibleInstanceCmd> VisibleInstancesOut;
+// Stored in an unordered fashion, needs to be reorganized later
+struct FVisibleInstanceCmd
+{
+	uint PackedPageInfo;
+	uint InstanceId;
+	uint IndirectArgIndex;
+};
+
+RWStructuredBuffer<FVisibleInstanceCmd> VisibleInstancesOut;
 RWStructuredBuffer<uint> VisibleInstanceCountBufferOut;
 uint TotalPrimaryViews;
 uint VisibleInstancesBufferNum;
+
+struct FVSMCullingBatchInfo
+{
+	float3 CullingViewOriginOffset;
+	uint FirstPrimaryView;
+	float3 CullingViewOriginTile;
+	uint NumPrimaryViews;
+	uint PrimitiveRevealedOffset;
+	uint PrimitiveRevealedNum;
+	uint2 padding; // avoid error: cannot instantiate StructuredBuffer with given packed alignment; 'VK_EXT_scalar_block_layout' not supported
+};
 
 #if ENABLE_BATCH_MODE
 StructuredBuffer<FVSMCullingBatchInfo> VSMCullingBatchInfos;
@@ -28,7 +45,14 @@ uint FirstPrimaryView;
 uint NumPrimaryViews;
 uint DynamicInstanceIdOffset;
 uint DynamicInstanceIdMax;
+
+float3 CullingViewOriginOffset;
+float3 CullingViewOriginTile;
+
 #endif // ENABLE_BATCH_MODE
+
+
+float MaxMaterialPositionInvalidationRange;
 
 StructuredBuffer<uint> DrawCommandDescs;
 
@@ -71,15 +95,15 @@ bool WasPrimitiveRevealed(FVSMCullingBatchInfo VSMCullingBatchInfo, uint Persist
 	return (PrimitiveRevealedMask[PrimitiveIdWordOffset] & PrimitiveIdWordMask) != 0U;
 }
 
-void WriteCmd(uint MipViewId, uint InstanceId, uint IndirectArgIndex, uint CullingFlags, bool bStaticPage)
+void WriteCmd(uint MipViewId, uint InstanceId, uint IndirectArgIndex, bool bStaticPage)
 {
 	FPageInfo PageInfo;
 	PageInfo.ViewId = MipViewId;
 	PageInfo.bStaticPage = bStaticPage;
 
-	FVSMVisibleInstanceCmd VisibleInstanceCmd;
+	FVisibleInstanceCmd VisibleInstanceCmd;
 	VisibleInstanceCmd.PackedPageInfo = PackPageInfo(PageInfo);
-	VisibleInstanceCmd.InstanceIdAndFlags = (CullingFlags << INSTANCE_ID_NUM_BITS) | InstanceId;
+	VisibleInstanceCmd.InstanceId = InstanceId;
 	VisibleInstanceCmd.IndirectArgIndex = IndirectArgIndex;
 
 	uint VisibleInstanceOutputOffset = 0U;
@@ -202,10 +226,13 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	FVSMCullingBatchInfo VSMCullingBatchInfo;
 	VSMCullingBatchInfo.FirstPrimaryView = FirstPrimaryView;
 	VSMCullingBatchInfo.NumPrimaryViews = NumPrimaryViews;
+	VSMCullingBatchInfo.CullingViewOriginOffset = CullingViewOriginOffset;
+	VSMCullingBatchInfo.CullingViewOriginTile = CullingViewOriginTile;
 	VSMCullingBatchInfo.PrimitiveRevealedOffset = 0U;
 	VSMCullingBatchInfo.PrimitiveRevealedNum = PrimitiveRevealedNum;
 
 #endif // ENABLE_BATCH_MODE
+	FLWCVector3 CullingViewWorldOrigin = MakeLWCVector3(VSMCullingBatchInfo.CullingViewOriginTile, VSMCullingBatchInfo.CullingViewOriginOffset);
 
 	uint CurrentBatchProcessingMode = 0U;
 	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, GetItemDataOffset(BatchInfo, CurrentBatchProcessingMode));
@@ -226,9 +253,25 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 		// Load relevant instance data
 		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, Scene.GPUScene.InstanceDataSOAStride);
-		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 
-		bool bMaterialInvalidatesAnyView = false;
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		bool bMaterialInvalidates = DrawCommandDesc.bMaterialUsesWorldPositionOffset && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;;
+		// Stop invalidations from material if further away than the threshold
+		BRANCH
+		if (MaxMaterialPositionInvalidationRange >= 0.0f && bMaterialInvalidates)
+		{
+			float DistSq = length2(LWCToFloat(LWCSubtract(LWCMultiply(InstanceData.LocalBoundsCenter, InstanceData.LocalToWorld), CullingViewWorldOrigin)));
+			bMaterialInvalidates = DistSq < Square(MaxMaterialPositionInvalidationRange);
+		}
+
+		// A thing is considered to have moved (which causes it to render into cached pages) if:
+		// It was uploaded this frame, OR
+		const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber
+			// it has a material that uses WPO OR
+			|| bMaterialInvalidates
+			// the primitive was "revealed" this frame - i.e., transitioned from culled -> visible on CPU
+			|| WasPrimitiveRevealed(VSMCullingBatchInfo, PrimitiveData.PersistentPrimitiveIndex);
+
 		bool bShouldCacheAsStaticForAnyView = false;
 		uint ThreadTotalForAllViews = 0;
 #if VSM_GENERATE_STATS
@@ -238,73 +281,27 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		// Loop over views and output visible instance (i.e., those that overlap a valid page)
 		for (uint PrimaryViewId = VSMCullingBatchInfo.FirstPrimaryView; PrimaryViewId < VSMCullingBatchInfo.FirstPrimaryView + VSMCullingBatchInfo.NumPrimaryViews; ++PrimaryViewId)
 		{
-			const bool bSkipWPODisableDistance = false;
-			const bool bSkipPerViewDrawDistanceCull = false;
-			const bool bSkipPerPrimDrawDistanceCull = false;
-			const bool bSkipGlobalClipPlaneCull = false;
-
 			FNaniteView NaniteView = GetNaniteView(PrimaryViewId);
 
-			bool bVisible = true;
-			uint CullingFlags = INSTANCE_CULLING_FLAGS_DEFAULT;
-			bool bMaterialInvalidates = DrawCommandDesc.bMaterialUsesWorldPositionOffset;
-
-			// Do draw distance culling and check to disable WPO based on distance
-			{
-				FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-
-				DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerViewDrawDistanceCull, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bVisible, bMaterialInvalidates);
-
-				if (!bMaterialInvalidates)
-				{
-					// Disable the Evaluate WPO culling flag if WPO was disabled
-					CullingFlags &= ~INSTANCE_CULLING_FLAG_EVALUATE_WPO;
-				}
-			}
-
-			bMaterialInvalidatesAnyView |= bMaterialInvalidates;
-
-			const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-
-#if USE_GLOBAL_CLIP_PLANE
-			BRANCH
-			if (bVisible)
-			{
-				// Also cull instances that are beyond the global clip plane
-				bVisible = GlobalClipPlaneCullBox(NaniteView, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipGlobalClipPlaneCull) != EClipPlaneTestResult::AllOut;
-			}
-#endif
-
-			// A thing is considered to have moved (which causes it to render into cached pages) if:
-			// It was uploaded this frame, OR
-			const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber
-				// it has a material that uses WPO OR
-				|| bMaterialInvalidates
-				// the primitive was "revealed" this frame - i.e., transitioned from culled -> visible on CPU
-				|| WasPrimitiveRevealed(VSMCullingBatchInfo, PrimitiveData.PersistentPrimitiveIndex);
-
 			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
+			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 
-			FFrustumCullData Cull = (FFrustumCullData)0;
-			BRANCH
-			if (bVisible)
-			{
-				const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
-				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false);
-				bVisible = Cull.bIsVisible;
-			}
+			const uint2 TargetViewSize = uint2(NaniteView.ViewSizeAndInvSize.xy);
+
+			float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false);
+
+			// Compute estimated footprint in the VSM base level - note that we don't use the actual footprint because it changes under rotation and also with edge clipping which makes it unstable when used for culling.
+			float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, LocalToTranslatedWorld, NaniteView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
+
+#if USE_HZB_OCCLUSION
+			const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0 || HZBMode == 2;
+#endif
 
 			StatsBufferInterlockedAdd(VSM_STAT_NON_NANITE_INSTANCES_TOTAL, NaniteView.TargetNumMipLevels);
 
-			BRANCH
-			if (bVisible)
+			if (Cull.bIsVisible)
 			{
-				// Compute estimated footprint in the VSM base level - note that we don't use the actual footprint because it changes under rotation and also with edge clipping which makes it unstable when used for culling.
-				float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, LocalToTranslatedWorld, NaniteView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
-
-#if USE_HZB_OCCLUSION
-				const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0 || HZBMode == 2;
-#endif
 				bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
 				bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, bIsViewUncached);
 				uint BaseFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
@@ -403,7 +400,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 						if (NumMappedPages > 0U)
 						{
 							++ThreadTotalForAllViews;
-							WriteCmd(MipViewId, InstanceId, Payload.IndirectArgIndex, CullingFlags, bShouldCacheAsStatic);
+							WriteCmd(MipViewId, InstanceId, Payload.IndirectArgIndex, bShouldCacheAsStatic);
 						}
 					}
 					else
@@ -419,7 +416,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		}
 
 		// If the instance has WPO or similar and invalidated the static, we want to move the primitive to be treated as dynamic.
-		if (ThreadTotalForAllViews > 0U && bMaterialInvalidatesAnyView && bShouldCacheAsStaticForAnyView)
+		if (ThreadTotalForAllViews > 0U && bMaterialInvalidates && bShouldCacheAsStaticForAnyView)
 		{
 			RecordStaticPrimitiveInvalidation(PrimitiveData.PersistentPrimitiveIndex);
 		}
@@ -501,7 +498,7 @@ void AllocateCommandInstanceOutputSpaceCs(uint IndirectArgIndex : SV_DispatchThr
 	//}
 }
 
-StructuredBuffer<FVSMVisibleInstanceCmd> VisibleInstances;
+StructuredBuffer<FVisibleInstanceCmd> VisibleInstances;
 StructuredBuffer <uint> VisibleInstanceCountBuffer;
 //RWStructuredBuffer<uint> TmpInstanceIdOffsetBufferOut;
 RWStructuredBuffer<uint> InstanceIdsBufferOut;
@@ -515,15 +512,13 @@ void OutputCommandInstanceListsCs(uint VisibleInstanceIndex : SV_DispatchThreadI
 
 	if (VisibleInstanceIndex < NumVisibleInstances)
 	{
-		FVSMVisibleInstanceCmd VisibleInstanceCmd = VisibleInstances[VisibleInstanceIndex];
-		const uint InstanceId = VisibleInstanceCmd.InstanceIdAndFlags & INSTANCE_ID_MASK;
-		const uint CullingFlags = VisibleInstanceCmd.InstanceIdAndFlags >> INSTANCE_ID_NUM_BITS;
+		FVisibleInstanceCmd VisibleInstanceCmd = VisibleInstances[VisibleInstanceIndex];
 
 		// Scatter the instance ID & other data.
 		uint InstanceIdOutputOffset = 0;
 		InterlockedAdd(TmpInstanceIdOffsetBufferOut[VisibleInstanceCmd.IndirectArgIndex], 1U, InstanceIdOutputOffset);
 		// TODO: maybe repack as uint2 since that might be better for these type of presumably scalar loads.
-		InstanceIdsBufferOut[InstanceIdOutputOffset] = PackInstanceCullingOutput(InstanceId, 0u, CullingFlags);
+		InstanceIdsBufferOut[InstanceIdOutputOffset] = VisibleInstanceCmd.InstanceId;
 		PageInfoBufferOut[InstanceIdOutputOffset] = VisibleInstanceCmd.PackedPageInfo;
 	}
 }

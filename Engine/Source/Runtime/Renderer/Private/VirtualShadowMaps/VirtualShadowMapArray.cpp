@@ -15,7 +15,6 @@
 #include "ScreenPass.h"
 #include "ShaderPrint.h"
 #include "ShaderPrintParameters.h"
-#include "VirtualShadowMapDefinitions.h"
 #include "VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMapClipmap.h"
 #include "VirtualShadowMapVisualizationData.h"
@@ -310,6 +309,15 @@ TAutoConsoleVariable<int32> CVarLargeInstancePageAreaThreshold(
 	ECVF_RenderThreadSafe
 );
 #endif // !UE_BUILD_SHIPPING
+
+static TAutoConsoleVariable<float> CVarMaxMaterialPositionInvalidationRange(
+	TEXT("r.Shadow.Virtual.Cache.MaxMaterialPositionInvalidationRange"),
+	-1.0f,
+	TEXT("Beyond this distance in world units, material position effects (e.g., WPO or PDO) cease to cause VSM invalidations.\n")
+	TEXT(" This can be used to tune performance by reducing re-draw overhead, but causes some artifacts.\n")
+	TEXT(" < 0 <=> infinite (default)"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 static TAutoConsoleVariable<int32> CVarShadowsVirtualUseHZB(
 	TEXT("r.Shadow.Virtual.UseHZB"),
@@ -2080,6 +2088,25 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowDepthPassParameters,)
 END_SHADER_PARAMETER_STRUCT()
 
 
+struct FVSMCullingBatchInfo
+{
+	FVector3f CullingViewOriginOffset;
+	uint32 FirstPrimaryView;
+	FVector3f CullingViewOriginTile;
+	uint32 NumPrimaryViews;
+	uint32 PrimitiveRevealedOffset;
+	uint32 PrimitiveRevealedNum;
+	uint32 padding[2]; // avoid error: cannot instantiate StructuredBuffer with given packed alignment; 'VK_EXT_scalar_block_layout' not supported
+};
+
+
+struct FVisibleInstanceCmd
+{
+	uint32 PackedPageInfo;
+	uint32 InstanceId;
+	uint32 DrawCommandId;
+};
+
 class FCullPerPageDrawCommandsCs : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCullPerPageDrawCommandsCs);
@@ -2112,6 +2139,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 	}
 
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FHZBShaderParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HZBPageTable)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HZBPageFlags)
@@ -2141,6 +2169,9 @@ public:
 		SHADER_PARAMETER(uint32, VisibleInstancesBufferNum)
 		SHADER_PARAMETER(int32, DynamicInstanceIdOffset)
 		SHADER_PARAMETER(int32, DynamicInstanceIdMax)
+		SHADER_PARAMETER(float, MaxMaterialPositionInvalidationRange)
+		SHADER_PARAMETER(FVector3f, CullingViewOriginOffset)
+		SHADER_PARAMETER(FVector3f, CullingViewOriginTile)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedView >, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, DrawCommandDescs)
@@ -2149,7 +2180,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVSMCullingBatchInfo >, VSMCullingBatchInfos)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, BatchInds)
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVSMVisibleInstanceCmd>, VisibleInstancesOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVisibleInstanceCmd>, VisibleInstancesOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VisibleInstanceCountBufferOut)
 
@@ -2233,7 +2264,7 @@ public:
 
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVSMVisibleInstanceCmd >, VisibleInstances)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVisibleInstanceCmd >, VisibleInstances)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, InstanceIdsBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, PageInfoBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, TmpInstanceIdOffsetBufferOut)
@@ -2295,7 +2326,7 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 	// TODO: This is both not right, and also over conservative when running with the atomic path
 	FCullingResult CullingResult;
 	CullingResult.MaxNumInstancesPerPass = TotalInstances * 64u;
-	FRDGBufferRef VisibleInstancesRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstances"), sizeof(FVSMVisibleInstanceCmd), CullingResult.MaxNumInstancesPerPass, nullptr, 0);
+	FRDGBufferRef VisibleInstancesRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstances"), sizeof(FVisibleInstanceCmd), CullingResult.MaxNumInstancesPerPass, nullptr, 0);
 
 	FRDGBufferRef VisibleInstanceWriteOffsetRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstanceWriteOffset"), sizeof(uint32), 1, nullptr, 0);
 	FRDGBufferRef OutputOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.OutputOffsetBuffer"), sizeof(uint32), 1, nullptr, 0);
@@ -2340,12 +2371,16 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 		PassParameters->OutDirtyPageFlags = GraphBuilder.CreateUAV(VirtualShadowMapArray.DirtyPageFlagsRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
 		PassParameters->DynamicInstanceIdOffset = BatchInfos[0].DynamicInstanceIdOffset;
 		PassParameters->DynamicInstanceIdMax = BatchInfos[0].DynamicInstanceIdMax;
+		
+		PassParameters->MaxMaterialPositionInvalidationRange = CVarMaxMaterialPositionInvalidationRange.GetValueOnRenderThread();
 
 		auto GPUData = LoadBalancer->Upload(GraphBuilder);
 		GPUData.GetShaderParameters(GraphBuilder, PassParameters->LoadBalancerParameters);
 
 		PassParameters->FirstPrimaryView = VSMCullingBatchInfos[0].FirstPrimaryView;
 		PassParameters->NumPrimaryViews = VSMCullingBatchInfos[0].NumPrimaryViews;
+		PassParameters->CullingViewOriginOffset = VSMCullingBatchInfos[0].CullingViewOriginOffset;
+		PassParameters->CullingViewOriginTile = VSMCullingBatchInfos[0].CullingViewOriginTile;
 
 		PassParameters->TotalPrimaryViews = TotalPrimaryViews;
 		PassParameters->VisibleInstancesBufferNum = CullingResult.MaxNumInstancesPerPass;
@@ -2701,6 +2736,38 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	TArray<FVirtualShadowDepthPassParameters*, SceneRenderingAllocator> BatchedPassParameters;
 	BatchedPassParameters.Reserve(VirtualSmMeshCommandPasses.Num());
 
+	/**
+	 * TODO: This is now redundant and is supported by the Nanite view, remove & redirect.
+	 * Use the 'dependent view' i.e., the view used to set up a view dependent CSM/VSM(clipmap) OR select the view closest to the local light.
+	 * This last is important to get some kind of reasonable behavior for split screen.
+	 */
+	auto GetCullingViewOrigin = [&Views](const FProjectedShadowInfo* ProjectedShadowInfo) -> FLargeWorldRenderPosition
+	{
+		if (ProjectedShadowInfo->DependentView != nullptr)
+		{
+			return FLargeWorldRenderPosition(ProjectedShadowInfo->DependentView->ShadowViewMatrices.GetViewOrigin());
+		}
+
+		// VSM supports only whole scene shadows, so those without a "DependentView" are local lights
+		// For local lights the origin is the (inverse of) pre-shadow translation. 
+		check(ProjectedShadowInfo->bWholeSceneShadow);
+
+		FVector MinOrigin = Views[0].ShadowViewMatrices.GetViewOrigin();
+		double MinDistanceSq = (MinOrigin + ProjectedShadowInfo->PreShadowTranslation).SquaredLength();
+		for (int Index = 1; Index < Views.Num(); ++Index)
+		{
+			FVector TestOrigin = Views[Index].ShadowViewMatrices.GetViewOrigin();
+			double TestDistanceSq = (TestOrigin + ProjectedShadowInfo->PreShadowTranslation).SquaredLength();
+			if (TestDistanceSq < MinDistanceSq)
+			{
+				MinOrigin = TestOrigin;
+				MinDistanceSq = TestDistanceSq;
+			}
+
+		}
+		return FLargeWorldRenderPosition(MinOrigin);
+	};
+
 	uint32 MaxNumMips = 0;
 	uint32 TotalPrimaryViews = 0;
 	uint32 TotalViews = 0;
@@ -2732,6 +2799,12 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		{
 			PrimitiveRevealedMask.Append(Clipmap->GetRevealedPrimitivesMask().GetData(), Clipmap->GetRevealedPrimitivesMask().Num());
 			VSMCullingBatchInfo.PrimitiveRevealedNum = Clipmap->GetNumRevealedPrimitives();
+		}
+
+		{
+			const FLargeWorldRenderPosition CullingViewOrigin = GetCullingViewOrigin(ProjectedShadowInfo);
+			VSMCullingBatchInfo.CullingViewOriginOffset = CullingViewOrigin.GetOffset();
+			VSMCullingBatchInfo.CullingViewOriginTile = CullingViewOrigin.GetTile();
 		}
 
 		check(Clipmap.IsValid() || ProjectedShadowInfo->HasVirtualShadowMap());

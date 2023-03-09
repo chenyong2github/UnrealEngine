@@ -70,7 +70,7 @@ float3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactor
 
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
 {
-	FMaterialVertexParameters Result = MakeInitializedMaterialVertexParameters();
+	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
 
 	return Result;
 }
@@ -285,11 +285,11 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			Tri.Verts[i].VertIndex = TriIndices[i];
 			Tri.Verts[i].RawAttributeData = RawAttributeData[i];
 
-			FMaterialVertexParameters VertexParameters = MakeInitializedMaterialVertexParameters();
+			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 			SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
 			SetVertexParameterAttributeData(VertexParameters, RawAttributeData[i], Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO[i]);
 
-			FMaterialVertexParameters PrevVertexParameters = MakeInitializedMaterialVertexParameters();
+			FMaterialVertexParameters PrevVertexParameters = (FMaterialVertexParameters)0;
 			SetVertexParameterInstanceData(PrevVertexParameters, InstanceData, PrimitiveData, true /* WPO */);
 			SetVertexParameterAttributeData(PrevVertexParameters, RawAttributeData[i], Transforms.PrevLocalToTranslatedWorld, Transforms.PrevLocalToWorldNoScale, PointLocalNoWPO[i]);
 
@@ -326,7 +326,7 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 			Tri.Verts[i].PointSubpixelClip		= mul(float4(Tri.Verts[i].PointWorld, 1), Transforms.TranslatedWorldToSubpixelClip);
 
 		#if NUM_TEX_COORD_INTERPOLATORS
-			FMaterialVertexParameters VertexParameters = MakeInitializedMaterialVertexParameters();
+			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 			SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, false /* WPO */);
 			SetVertexParameterAttributeData(VertexParameters, RawAttributeData[i], Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO[i]);
 
@@ -354,11 +354,11 @@ FNaniteTransformedVert TransformNaniteVertex(FInstanceSceneData InstanceData, FN
 	BRANCH
 	if (bEvaluateWPO && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
 	{
-		FMaterialVertexParameters VertexParameters = MakeInitializedMaterialVertexParameters();
+		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 		SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
 		SetVertexParameterAttributeData(VertexParameters, RawAttributeData, Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO);
 
-		FMaterialVertexParameters PrevVertexParameters = MakeInitializedMaterialVertexParameters();
+		FMaterialVertexParameters PrevVertexParameters = (FMaterialVertexParameters)0;
 		SetVertexParameterInstanceData(PrevVertexParameters, InstanceData, PrimitiveData, true /* WPO */);
 		SetVertexParameterAttributeData(PrevVertexParameters, RawAttributeData, Transforms.PrevLocalToTranslatedWorld, Transforms.PrevLocalToWorldNoScale, PointLocalNoWPO);
 
@@ -388,7 +388,7 @@ FNaniteTransformedVert TransformNaniteVertex(FInstanceSceneData InstanceData, FN
 		Vert.PointSubpixelClip = mul(float4(Vert.PointWorld, 1), Transforms.TranslatedWorldToSubpixelClip);
 
 	#if NUM_TEX_COORD_INTERPOLATORS
-		FMaterialVertexParameters VertexParameters = MakeInitializedMaterialVertexParameters();
+		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
 		SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, false /* WPO */);
 		SetVertexParameterAttributeData(VertexParameters, RawAttributeData, Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO);
 
@@ -826,7 +826,7 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, half3x3 TangentToLocal)
 {
-	FMaterialVertexParameters Result = MakeInitializedMaterialVertexParameters();
+	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
 	return Result;
 }
 

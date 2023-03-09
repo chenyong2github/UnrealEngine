@@ -205,7 +205,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	, bCastShadow(InComponent->CastShadow)
 	, bReverseCulling(InComponent->bReverseCulling)
 	, MaterialRelevance(InComponent->GetMaterialRelevance(GetScene().GetFeatureLevel()))
-	, WPODisableDistance(InComponent->WorldPositionOffsetDisableDistance)
 #if WITH_EDITORONLY_DATA
 	, StreamingDistanceMultiplier(FMath::Max(0.0f, InComponent->StreamingDistanceMultiplier))
 	, StreamingTransformScale(InComponent->GetTextureStreamingTransformScale())
@@ -478,12 +477,6 @@ int32 FStaticMeshSceneProxy::GetLightMapCoordinateIndex() const
 {
 	const int32 LightMapCoordinateIndex = StaticMesh != nullptr ? StaticMesh->GetLightMapCoordinateIndex() : INDEX_NONE;
 	return LightMapCoordinateIndex;
-}
-
-bool FStaticMeshSceneProxy::GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const
-{
-	OutWPODisableDistance = WPODisableDistance;
-	return WPODisableDistance > 0.0f;
 }
 
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()

@@ -313,7 +313,6 @@ void InstanceCull(
 			const bool bDebugSkipPerPrimDrawDistanceCull = false;
 			const bool bSkipWPODisableDistance = false;
 #endif
-
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 			float BoundsRadiusSq = dot(LocalBoundsExtent, LocalBoundsExtent);
@@ -324,10 +323,9 @@ void InstanceCull(
 			// For now, disable draw distance culling with cached views because we don't want to create issues where a given
 			// instance's visibility is not consistent between cached pages. Since caching is an optimization for reducing draw call
 			// counts, its effectiveness should inherently trump this optimization anyway.
-			const bool bSkipPerViewDrawDistanceCull = false;
 			const bool bSkipPerPrimDrawDistanceCull = bDebugSkipPerPrimDrawDistanceCull || (bIsShadowPass && !bIsViewUncached);
 			bool bEnableWPO = true;
-			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerViewDrawDistanceCull, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bIsVisible, bEnableWPO);
+			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bIsVisible, bEnableWPO);
 			bAnyEnableWPO |= bEnableWPO;
 
 			const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || bEnableWPO;
@@ -564,10 +562,9 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 		// For now, disable draw distance culling with cached views because we don't want to create issues where a given
 		// instance's visibility is not consistent between cached pages. Since caching is an optimization for reducing draw call
 		// counts, its effectiveness should inherently trump this optimization anyway.
-		const bool bSkipPerViewDrawDistanceCull = false;
 		const bool bSkipPerPrimDrawDistanceCull = bDebugSkipPerPrimDrawDistanceCull || !bIsViewUncached;
 		bool bEnableWPO = true;
-		DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerViewDrawDistanceCull, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bVisible, bEnableWPO);
+		DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bVisible, bEnableWPO);
 		bAnyEnableWPO |= bEnableWPO;
 
 		BRANCH

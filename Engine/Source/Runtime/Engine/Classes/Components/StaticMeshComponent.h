@@ -170,6 +170,7 @@ public:
 
 	/**
 	 * Distance at which to disable World Position Offset for an entire instance (0 = Never disable WPO).
+	 * NOTE: Currently works with Nanite only.
 	 **/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering)
 	int32 WorldPositionOffsetDisableDistance = 0;

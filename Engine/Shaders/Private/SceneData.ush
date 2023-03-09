@@ -111,13 +111,11 @@ uint GetDefaultPrimitiveSceneDataFlags()
 #define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
 
 #define PRIMITIVE_ID_NUM_BITS				(20u) // Max of 1,048,576 primitives
-#define INSTANCE_ID_NUM_BITS				(24u) // Max of 16,777,216 instances in the buffer
 #define INSTANCE_SCENE_DATA_FLAGS_NUM_BITS	(12u) // Max of 12 flags
 #define INSTANCE_RELATIVE_ID_NUM_BITS		(24u) // Max of 16,777,216 instances per primitive
 #define INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS	 (8u) // Max of 255 custom data floats per instance
 
 #define PRIMITIVE_ID_MASK			((1u << PRIMITIVE_ID_NUM_BITS) - 1u)
-#define INSTANCE_ID_MASK			((1u << INSTANCE_ID_NUM_BITS) - 1u)
 #define INSTANCE_RELATIVE_ID_MASK	((1u << INSTANCE_RELATIVE_ID_NUM_BITS) - 1u)
 
 #define INVALID_PRIMITIVE_ID PRIMITIVE_ID_MASK
@@ -144,7 +142,7 @@ uint GetDefaultPrimitiveSceneDataFlags()
 
 struct FPrimitiveSceneData
 {
-	uint		Flags;
+	uint		Flags; // TODO: Use 16 bits?
 	int			InstanceSceneDataOffset; // Link to the range of instances that belong to this primitive
 	int			NumInstanceSceneDataEntries;
 	int			PersistentPrimitiveIndex;
@@ -1060,37 +1058,11 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 	return InstanceData;
 }
 
-// Instance culling flags
-#define INSTANCE_CULLING_FLAG_EVALUATE_WPO (1u << 0u)
-
-#define INSTANCE_CULLING_FLAGS_DEFAULT (INSTANCE_CULLING_FLAG_EVALUATE_WPO)
-
-// NOTE: Currently limited to 4 bits to fit into instance culling data DWORD
-#define INSTANCE_CULLING_FLAGS_NUM_BITS (4u)
-#define INSTANCE_CULLING_FLAGS_MASK ((1u << INSTANCE_CULLING_FLAGS_NUM_BITS) - 1u)
-
-uint PackInstanceCullingOutput(uint InstanceId, uint ViewIndex, uint CullingFlags)
-{
-	// We store the view index (which can be used for instanced stereo or other multi-view in the top four bits)
-	// Note: this is an index of views for this render pass, not the view ID in the culling manager.
-	return (InstanceId & INSTANCE_ID_MASK) |
-		((CullingFlags & INSTANCE_CULLING_FLAGS_MASK) << INSTANCE_ID_NUM_BITS) | 
-		(ViewIndex << (INSTANCE_ID_NUM_BITS + INSTANCE_CULLING_FLAGS_NUM_BITS));
-}
-
-void UnpackInstanceCullingOutput(uint PackedId, inout uint InstanceId, inout uint ViewIndex, inout uint CullingFlags)
-{
-	InstanceId = PackedId & INSTANCE_ID_MASK;
-	ViewIndex = PackedId >> (INSTANCE_ID_NUM_BITS + INSTANCE_CULLING_FLAGS_NUM_BITS);
-	CullingFlags = (PackedId >> INSTANCE_ID_NUM_BITS) & INSTANCE_CULLING_FLAGS_MASK;
-}
-
 struct FSceneDataIntermediates
 {
 	uint PrimitiveId;
 	uint InstanceId;
 	uint ViewIndex;
-	uint CullingFlags;
 	// Index from which we load the instance info, needed for the 
 	uint InstanceIdLoadIndex;
 	FInstanceSceneData InstanceData;
@@ -1117,18 +1089,18 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 	{
 		// mask off the flag
 		uint PrimitiveID = InstanceIdOffset & (VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG - 1U);
-		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(PrimitiveID);
-		Intermediates.InstanceId = PrimitiveData.InstanceSceneDataOffset + DrawInstanceId;
+		Intermediates.InstanceId = GetPrimitiveData(PrimitiveID).InstanceSceneDataOffset + DrawInstanceId;
 		Intermediates.ViewIndex = 0;
-		Intermediates.CullingFlags = INSTANCE_CULLING_FLAGS_DEFAULT;
 	}
 // Workaround for Vulkan SPIRV issue when "else" branch is not removed when it should, which leads to higher level code expecting InstanceCulling buffer to be bound.
 // See: https://github.com/KhronosGroup/SPIRV-Tools/issues/4902
 #if USE_INSTANCE_CULLING_DATA
 	else
 	{
-		const uint PackedId = InstanceCulling.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId];
-		UnpackInstanceCullingOutput(PackedId, Intermediates.InstanceId, Intermediates.ViewIndex, Intermediates.CullingFlags);
+		Intermediates.InstanceId = InstanceCulling.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] & ((1U << 28U) - 1);
+		// We store the view index (which can be used for instanced stereo or other multi-view in the top four bits of the instance ID)
+		// Note: this is an index of views for this render pass, not the view ID in the culling manager.
+		Intermediates.ViewIndex = InstanceCulling.InstanceIdsBuffer[InstanceIdOffset + DrawInstanceId] >> 28U;
 	}
 #endif
 
@@ -1181,8 +1153,6 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	const uint PackedPrimitiveFlags = asuint(InstanceTransform1.w);
 	const uint PrimitiveFlags = (PackedPrimitiveFlags & 0x00FFFFFF);
 	const uint InstanceFlags = (PackedPrimitiveFlags >> 24u);
-	const uint PrimitiveId = asuint(InstanceOrigin.w) & PRIMITIVE_ID_MASK;
-	const uint CullingFlags = asuint(InstanceOrigin.w) >> PRIMITIVE_ID_NUM_BITS;
 
 	// Reconstruct InstanceData from a packed data
 	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
@@ -1207,15 +1177,14 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	InstanceData.LocalToWorld = MakeLWCMatrix(TilePosition, LocalToRelativeWorld);
 
 	InstanceData.Flags = InstanceFlags;
-	InstanceData.PrimitiveId = PrimitiveId;
+	InstanceData.PrimitiveId = asuint(InstanceOrigin.w);
 
 	ComputeInstanceDerivedData(InstanceData, TilePosition, LocalToRelativeWorld);
 
 	//
 	FSceneDataIntermediates Intermediates = (FSceneDataIntermediates)0;
 	Intermediates.InstanceData = InstanceData;
-	Intermediates.PrimitiveId = PrimitiveId;
-	Intermediates.CullingFlags = CullingFlags;
+	Intermediates.PrimitiveId = InstanceData.PrimitiveId;
 	Intermediates.InstanceId = 0;
 	Intermediates.ViewIndex = 0;
 	Intermediates.InstanceIdLoadIndex = 0;
@@ -1275,8 +1244,6 @@ FSceneDataIntermediates GetSceneDataIntermediates()
 	Intermediates.InstanceData.LocalBoundsExtent	= (Intermediates.Primitive.LocalObjectBoundsMax - Intermediates.Primitive.LocalObjectBoundsMin) * 0.5f;
 	Intermediates.InstanceData.ValidInstance		= true;
 	
-	Intermediates.CullingFlags = INSTANCE_CULLING_FLAGS_DEFAULT;
-
 	return Intermediates;
 }
 #endif //VF_USE_PRIMITIVE_SCENE_DATA
