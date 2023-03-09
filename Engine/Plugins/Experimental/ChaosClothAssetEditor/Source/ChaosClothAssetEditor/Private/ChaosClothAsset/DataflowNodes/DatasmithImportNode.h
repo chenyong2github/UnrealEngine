@@ -19,10 +19,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Datasmith Importer")
 	FFilePath DatasmithFile;
 
-	/** Package to import into. */
-	UPROPERTY(EditAnywhere, Category = "Datasmith Importer")
-	FString DestPackageName;
-
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
