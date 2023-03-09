@@ -152,7 +152,7 @@ public:
 	/**
 	 * Notify loader out a seek
 	 */
-	void Seek(const FMediaTimeStamp& SeekTarget);
+	void Seek(const FMediaTimeStamp& SeekTarget, bool bReverse);
 
 	/**
 	 * Tries to get the best sample for a given time range.
@@ -511,27 +511,6 @@ protected:
 	FTimespan ModuloTime(FTimespan Time);
 
 	/**
-	 * Gets the amount of overlap (in seconds) between a frame and a time range.
-	 * A negative or zero  value indicates the frame does not overlap the range.
-	 *
-	 * @param FrameIndex Index of frame to check.
-	 * @param StartTime Start of the range.
-	 * @param EndTime End of the range.
-	 * @param Amount of overlap.
-	 */
-	float GetFrameOverlap(uint32 FrameIndex, FTimespan StartTime, FTimespan EndTime) const;
-
-	/**
-	 * Find maximum overlapping frame index for given range
-	 */
-	float FindMaxOverlapInRange(int32 StartIndex, int32 EndIndex, FTimespan StartTime, FTimespan EndTime, int32& MaxIdx) const;
-
-	/**
-	 * Get frame data for given index. If not available attempt to find earlier frame up to given index
-	 */
-	const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* GetFrameForBestIndex(int32 & MaxIdx, int32 LastIndex);
-
-	/**
 	 * Helper function to get the number at the end of a string.
 	 * 
 	 * The number does not have to be at the very end,
@@ -630,6 +609,7 @@ private:
 	FName SequenceName;
 
 private:
+	bool RequestFrame(int32 FrameNumber, float PlayRate, bool Loop);
 
 	/** Index of the previously requested frame. */
 	int32 LastRequestedFrame;

@@ -1151,11 +1151,32 @@ void FMediaPlayerFacade::QueryCacheState(EMediaTrackType TrackType, EMediaCacheS
 }
 
 
-bool FMediaPlayerFacade::Seek(const FTimespan& Time)
+bool FMediaPlayerFacade::Seek(const FTimespan& InTime)
 {
 	auto CurrentPlayer = Player;
 
-	if (!CurrentPlayer.IsValid() || !CurrentPlayer->GetControls().Seek(Time))
+	if (!CurrentPlayer.IsValid())
+	{
+		return false;
+	}
+
+	FTimespan Duration = CurrentPlayer->GetControls().GetDuration();
+	if (Duration == FTimespan::Zero())
+	{
+		return false;
+	}
+
+	FTimespan Time;
+	if (CurrentPlayer->GetControls().IsLooping())
+	{
+		Time = WrappedModulo(InTime, Duration);
+	}
+	else
+	{
+		Time = FTimespan(FMath::Clamp(InTime.GetTicks(), 0, Duration.GetTicks()));
+	}
+
+	if (!CurrentPlayer->GetControls().Seek(Time))
 	{
 		return false;
 	}
@@ -1234,9 +1255,8 @@ void FMediaPlayerFacade::SetBlockOnTimeRange(const TRange<FTimespan>& TimeRange)
 
 void FMediaPlayerFacade::FBlockOnRange::OnFlush()
 {
-	LastBlockOnRange = TRange<FTimespan>::Empty();
+	LastTimeRange = TRange<FTimespan>::Empty();
 	OnBlockPrimaryIndex = 0;
-	OnBlockSecondaryIndex = 0;
 }
 
 
@@ -1245,9 +1265,8 @@ void FMediaPlayerFacade::FBlockOnRange::OnSeek(int32 PrimaryIndex)
 	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Facade->Player);
 	check(CurrentPlayer.IsValid());
 
-	LastBlockOnRange = TRange<FTimespan>::Empty();
+	LastTimeRange = TRange<FTimespan>::Empty();
 	OnBlockPrimaryIndex = PrimaryIndex;
-	OnBlockSecondaryIndex = 0;
 }
 
 
@@ -1287,7 +1306,7 @@ const TRange<FMediaTimeStamp>& FMediaPlayerFacade::FBlockOnRange::GetRange() con
 	// If the range is empty or the player can't support blocked playback: reset everything & return empty block range...
 	if (CurrentTimeRange.IsEmpty() || !CurrentPlayer->GetControls().CanControl(EMediaControl::BlockOnFetch))
 	{
-		LastBlockOnRange = TRange<FTimespan>::Empty();
+		LastTimeRange = TRange<FTimespan>::Empty();
 		BlockOnRange = TRange<FMediaTimeStamp>::Empty();
 		CurrentPlayer->GetControls().SetBlockingPlaybackHint(false);
 		return BlockOnRange;
@@ -1320,7 +1339,7 @@ const TRange<FMediaTimeStamp>& FMediaPlayerFacade::FBlockOnRange::GetRange() con
 
 	if (!CurrentPlayer->GetControls().IsLooping())
 	{
-		int64 SequenceIndex = FMediaTimeStamp::MakeSequenceIndex(OnBlockPrimaryIndex, OnBlockSecondaryIndex);
+		int64 SequenceIndex = FMediaTimeStamp::MakeSequenceIndex(OnBlockPrimaryIndex, 0);
 		BlockOnRange = TRange<FMediaTimeStamp>(FMediaTimeStamp(Start, SequenceIndex), FMediaTimeStamp(End, SequenceIndex));
 	}
 	else
@@ -1348,51 +1367,13 @@ const TRange<FMediaTimeStamp>& FMediaPlayerFacade::FBlockOnRange::GetRange() con
 		Start = WrappedModulo(Start, Duration);
 		End = WrappedModulo(End, Duration);
 
-		/*
-		* Note about moving along over multiple loops at once:
-		* We do not explicitly care about this case, but rather look at the blocking range to always be in the "first" loop, even if - on the external time line - we might be on a higher loop count.
-		* Hence we only need to detect if we moved "backwards" without an explicit seek vs. the last requested blocked range (see below) and then increase the loop index by one.
-		* 
-		* -> visually this will result in the desired behavior
-		*/
+		int64 LoopIdxS = FMath::FloorToInt(CurrentTimeRange.GetLowerBoundValue().GetTotalSeconds() / Duration.GetTotalSeconds());
+		int64 LoopIdxE = FMath::FloorToInt(CurrentTimeRange.GetUpperBoundValue().GetTotalSeconds() / Duration.GetTotalSeconds());
 
-		// Detect any non-monotonic movement of the range...
-		// (seeks will reset the last value, so this is ensured not to trigger in that case)
-		if (!LastBlockOnRange.IsEmpty())
-		{
-			if (Rate >= 0.0f)
-			{
-				FTimespan LastStart = WrappedModulo(LastBlockOnRange.GetLowerBoundValue(), Duration);
-				if ((LastStart > Start) || ((LastStart == Start) && (LastBlockOnRange.GetLowerBoundValue() < CurrentTimeRange.GetLowerBoundValue())))
-				{
-					++OnBlockSecondaryIndex;
-				}
-			}
-			else
-			{
-				FTimespan LastEnd = WrappedModulo(LastBlockOnRange.GetUpperBoundValue(), Duration);
-				if ((LastEnd < End) || ((LastEnd == End) && (LastBlockOnRange.GetUpperBoundValue() > CurrentTimeRange.GetUpperBoundValue())))
-				{
-					--OnBlockSecondaryIndex;
-				}
-			}
-		}
-
-		// Check if our range crosses the loop point (sequence boundary)
-		int32 StartLoopIndex, EndLoopIndex;
-		if (Rate >= 0.0)
-		{
-			StartLoopIndex = OnBlockSecondaryIndex;
-			EndLoopIndex = (Start <= End) ? OnBlockSecondaryIndex : (OnBlockSecondaryIndex + 1);
-		}
-		else
-		{
-			StartLoopIndex = (Start <= End) ? OnBlockSecondaryIndex : (OnBlockSecondaryIndex - 1);
-			EndLoopIndex = OnBlockSecondaryIndex;
-		}
+		int32 EndLoopIndex = LoopIdxE - LoopIdxS;
 
 		// Assemble final blocking range
-		auto SeqIndexStart = FMediaTimeStamp::MakeSequenceIndex(OnBlockPrimaryIndex, StartLoopIndex);
+		auto SeqIndexStart = FMediaTimeStamp::MakeSequenceIndex(OnBlockPrimaryIndex, 0);
 		auto SeqIndexEnd = FMediaTimeStamp::MakeSequenceIndex(OnBlockPrimaryIndex, EndLoopIndex);
 		BlockOnRange = TRange<FMediaTimeStamp>(FMediaTimeStamp(Start, SeqIndexStart), FMediaTimeStamp(End, SeqIndexEnd));
 		check(!BlockOnRange.IsEmpty());
@@ -1415,7 +1396,7 @@ const TRange<FMediaTimeStamp>& FMediaPlayerFacade::FBlockOnRange::GetRange() con
 
 	CurrentPlayer->GetControls().SetBlockingPlaybackHint(!BlockOnRange.IsEmpty());
 
-	LastBlockOnRange = CurrentTimeRange;
+	LastTimeRange = CurrentTimeRange;
 	RangeIsDirty = false;
 
 	return BlockOnRange;
@@ -1572,7 +1553,7 @@ bool FMediaPlayerFacade::BlockOnFetch() const
 {
 	check(Player.IsValid());
 
-	const TRange<FMediaTimeStamp>& BR = BlockOnRange.GetRange();
+	const TRange<FMediaTimeStamp> BR(GetAdjustedBlockOnRange());
 
 	if (BR.IsEmpty() || !Player->GetControls().CanControl(EMediaControl::BlockOnFetch) || BlockOnRangeDisabled || bHaveActiveAudio)
 	{
@@ -1644,7 +1625,7 @@ bool FMediaPlayerFacade::BlockOnFetch() const
 			return false; // block only in forward play
 		}
 
-		const bool VideoReady = (VideoSampleSinks.Num() == 0) || (BR.GetUpperBoundValue() < NextVideoSampleTime);
+		const bool VideoReady = (VideoSampleSinks.Num() == 0) || (BR.GetUpperBoundValue().Time < NextVideoSampleTime);
 
 		if (VideoReady)
 		{
@@ -2598,7 +2579,7 @@ bool FMediaPlayerFacade::GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp>& Ti
 			// Do we now have a current timestamp estimation?
 			if (!NextEstVideoTimeAtFrameStart.IsValid())
 			{
-				// No timing info available, no timerange available, no samples to process
+				// No timing info available, no time range available, no samples to process
 				return false;
 			}
 			else
@@ -2625,17 +2606,23 @@ bool FMediaPlayerFacade::GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp>& Ti
 			// External clock delivers time-range
 			// (for now we just use the blocking time range as this clock type is solely used in that case)
 			//
-			TimeRange = BlockOnRange.GetRange();
+			TimeRange = GetAdjustedBlockOnRange();
 		}
+	}
+
+	if (TimeRange.IsEmpty())
+	{
+		return false;
 	}
 
 	// If we are looping we check to prepare proper ranges should we wrap around either end of the media...
 	// (we do not clamp in the non-looping case as the rest of the code should deal with that fine)
 	if (Player->GetControls().IsLooping())
 	{
-		if (Player->GetControls().GetDuration() > 0.0f)
+		// Can the player already hand out a duration? (we might get here very early on)
+		const FTimespan Duration = Player->GetControls().GetDuration();
+		if (Duration != FTimespan::Zero())
 		{
-			const FTimespan Duration = Player->GetControls().GetDuration();
 			FTimespan WrappedStart = WrappedModulo(TimeRange.GetLowerBoundValue().Time, Duration);
 			FTimespan WrappedEnd = WrappedModulo(TimeRange.GetUpperBoundValue().Time, Duration);
 			if (WrappedStart > WrappedEnd)
@@ -2653,6 +2640,39 @@ bool FMediaPlayerFacade::GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp>& Ti
 	}
 
 	return !TimeRange.IsEmpty();
+}
+
+
+TRange<FMediaTimeStamp> FMediaPlayerFacade::GetAdjustedBlockOnRange() const
+{
+	TRange<FMediaTimeStamp> TimeRange = BlockOnRange.GetRange();
+
+	// The blocking range returned will base any secondary index values on zero. We need to patch in the secondary index value as last returned by the player plugin
+	if (!LastVideoSampleProcessedTimeRange.IsEmpty())
+	{
+		int32 BaseLoopIndex = FMediaTimeStamp::GetSecondaryIndex(LastVideoSampleProcessedTimeRange.GetLowerBoundValue().SequenceIndex);
+
+		// We still might have a time that is before the current one, in which case we need to push the loop index up (or down)...
+		if (GetUnpausedRate() >= 0.0f)
+		{
+			if (LastVideoSampleProcessedTimeRange.GetLowerBoundValue() > FMediaTimeStamp(TimeRange.GetLowerBoundValue().Time, FMediaTimeStamp::AdjustSecondaryIndex(TimeRange.GetLowerBoundValue().SequenceIndex, BaseLoopIndex)))
+			{
+				++BaseLoopIndex;
+			}
+		}
+		else
+		{
+			if (LastVideoSampleProcessedTimeRange.GetLowerBoundValue() < FMediaTimeStamp(TimeRange.GetLowerBoundValue().Time, FMediaTimeStamp::AdjustSecondaryIndex(TimeRange.GetLowerBoundValue().SequenceIndex, BaseLoopIndex)))
+			{
+				--BaseLoopIndex;
+			}
+		}
+
+		TimeRange.SetLowerBoundValue(FMediaTimeStamp(TimeRange.GetLowerBoundValue().Time, FMediaTimeStamp::AdjustSecondaryIndex(TimeRange.GetLowerBoundValue().SequenceIndex, BaseLoopIndex)));
+		TimeRange.SetUpperBoundValue(FMediaTimeStamp(TimeRange.GetUpperBoundValue().Time, FMediaTimeStamp::AdjustSecondaryIndex(TimeRange.GetUpperBoundValue().SequenceIndex, BaseLoopIndex)));
+	}
+
+	return TimeRange;
 }
 
 
@@ -2878,26 +2898,20 @@ bool FMediaPlayerFacade::ProcessVideoSamples(IMediaSamples& Samples, const TRang
 
 		TRange<FMediaTimeStamp> SampleTimeRange(Sample->GetTime(), Sample->GetTime() + Sample->GetDuration());
 
-		// Is it what we want?
-		const TRange<FMediaTimeStamp>& BR = BlockOnRange.GetRange();
-		if (BR.IsEmpty() || BR.Overlaps(SampleTimeRange))
+		// Enqueue the sample to render
+		// (we use a queue to stay compatible with existing structure and older sinks - new sinks will read this single entry right away on the gamethread
+		//  and pass it along to rendering outside the queue)
+		bool bOk = VideoSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxVideoSinkDepth);
+		check(bOk);
+
 		{
-			// Enqueue the sample to render
-			// (we use a queue to stay compatible with existing structure and older sinks - new sinks will read this single entry right away on the gamethread
-			//  and pass it along to rendering outside the queue)
-			bool bOk = VideoSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxVideoSinkDepth);
-			check(bOk);
-
-			{
-				FScopeLock Lock(&LastTimeValuesCS);
-				CurrentFrameVideoDisplayTimeStamp = CurrentFrameVideoTimeStamp = SampleTimeRange.GetLowerBoundValue();
-				LastVideoSampleProcessedTimeRange = SampleTimeRange;
-			}
-
-			UpdateSeekStatus(&CurrentFrameVideoTimeStamp);
-
-			return true;
+			FScopeLock Lock(&LastTimeValuesCS);
+			CurrentFrameVideoDisplayTimeStamp = CurrentFrameVideoTimeStamp = SampleTimeRange.GetLowerBoundValue();
+			LastVideoSampleProcessedTimeRange = SampleTimeRange;
 		}
+
+		UpdateSeekStatus(&CurrentFrameVideoTimeStamp);
+		return true;
 	}
 	return false;
 }

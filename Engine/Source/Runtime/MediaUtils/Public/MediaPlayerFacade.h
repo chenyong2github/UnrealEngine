@@ -861,6 +861,7 @@ private:
 	FMediaVideoSampleSinks VideoSampleSinks;
 
 private:
+	TRange<FMediaTimeStamp> GetAdjustedBlockOnRange() const;
 
 	class FBlockOnRange
 	{
@@ -879,10 +880,9 @@ private:
 		{
 			BlockOnRange = TRange<FMediaTimeStamp>::Empty();
 			CurrentTimeRange = TRange<FTimespan>::Empty();
-			LastBlockOnRange = TRange<FTimespan>::Empty();
+			LastTimeRange = TRange<FTimespan>::Empty();
 			RangeIsDirty = false;
 			OnBlockPrimaryIndex = 0;
-			OnBlockSecondaryIndex = 0;
 		}
 
 	private:
@@ -896,15 +896,13 @@ private:
 		mutable TRange<FMediaTimeStamp> BlockOnRange;
 
 		/** Last user provided BlockOnRange value */
-		mutable TRange<FTimespan> LastBlockOnRange;
+		mutable TRange<FTimespan> LastTimeRange;
 
 		/** Flag to indicate if internal range is valid or not */
 		mutable bool RangeIsDirty;
 
 		/** Primary sequence index used during blocked playback processing */
 		mutable int32 OnBlockPrimaryIndex;
-		/** Secondary sequence index used during blocked playback processing */
-		mutable int32 OnBlockSecondaryIndex;
 	};
 
 	FBlockOnRange BlockOnRange;

@@ -196,17 +196,7 @@ struct FMediaSectionExecutionToken
 		//
 
 		// Setup media time (used for seeks)
-		FTimespan MediaTime;
-		if (!MediaPlayer->IsLooping())
-		{
-			// note: we use a small offset at the end to make sure we can indeed seek to it (exclusive end type range)
-			MediaTime = FMath::Clamp(CurrentTime, FTimespan::Zero(), MediaDuration - FrameDuration * 0.5);
-		}
-		else
-		{
-			// one always seeks into the original media time-range, hence: modulo the time
-			MediaTime = CurrentTime % MediaDuration;
-		}
+		FTimespan MediaTime = CurrentTime;
 
 		#if MOVIESCENEMEDIATEMPLATE_TRACE_EVALUATION
 			GLog->Logf(ELogVerbosity::Log, TEXT("Executing time %s, MediaTime %s"), *CurrentTime.ToString(TEXT("%h:%m:%s.%t")), *MediaTime.ToString(TEXT("%h:%m:%s.%t")));

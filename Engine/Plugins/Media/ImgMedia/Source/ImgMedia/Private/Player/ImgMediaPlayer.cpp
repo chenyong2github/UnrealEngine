@@ -654,7 +654,7 @@ bool FImgMediaPlayer::Seek(const FTimespan& Time)
 	CurrentSeekIndex += (CurrentRate >= 0.0f) ? 1 : -1;
 	if (Loader.IsValid())
 	{
-		Loader->Seek(FMediaTimeStamp(CurrentTime, FMediaTimeStamp::MakeSequenceIndex(CurrentSeekIndex, 0)));
+		Loader->Seek(FMediaTimeStamp(CurrentTime, FMediaTimeStamp::MakeSequenceIndex(CurrentSeekIndex, 0)), LastNonZeroRate < 0.0f);
 	}
 #endif // IMG_MEDIA_PLAYER_VERSION == 1
 
