@@ -132,7 +132,29 @@ void UNearestNeighborModelInstance::Execute(float ModelWeight)
 	{
 		Super::Execute(ModelWeight);
 	}
-	RunNearestNeighborModel(ModelWeight);
+}
+
+void UNearestNeighborModelInstance::Tick(float DeltaTime, float ModelWeight)
+{
+	// Post init hasn't yet succeeded, try again.
+	// This could for example happen when you add an ML Deformer component, but your SkeletalMesh isn't setup yet, but later becomes valid.
+	if (Model && !HasPostInitialized())
+	{
+		PostMLDeformerComponentInit();
+	}
+
+	if (ModelWeight > 0.0001f && HasValidTransforms() && SetupInputs())
+	{
+		// Execute the model instance.
+		// For models using neural networks this will perform the inference, 
+		// calculate the network outputs and possibly use them, depending on how the model works.
+		Execute(ModelWeight);
+		RunNearestNeighborModel(DeltaTime, ModelWeight);
+	}
+	else
+	{
+		HandleZeroModelWeight();
+	}
 }
 
 TArray<float> ExtractArray(const TArray<float>& InArr, int32 Start, int32 End)
@@ -146,7 +168,12 @@ TArray<float> ExtractArray(const TArray<float>& InArr, int32 Start, int32 End)
 	return Result;
 }
 
-void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
+constexpr float FastExpMinusOne(float X)
+{
+	return X + X * X / 2 + X * X * X / 6;
+}
+
+void UNearestNeighborModelInstance::RunNearestNeighborModel(float DeltaTime, float ModelWeight)
 {
 	UNearestNeighborModel* NearestNeighborModel = Cast<UNearestNeighborModel>(Model);
 	if (NearestNeighborModel == nullptr)
@@ -154,6 +181,15 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 		return;
 	}
 	
+	/** DecayCoeff = (e ^ {(DecayFactor - 1) * DeltaTime + Delta0} - 1) / (e ^ {Delta0} - 1)
+	 * DecayFactor is a user defined value. DecayCoeff is the actual coefficient used to compute decay. 
+	 * DecayCoeff is an exponential decay of DeltaTime.
+	 * When DecayFactor = 1, DecayCoeff = 1; when DecayFactor = 0 && DeltaTime = Delta0, DecayCoeff = 0
+	 */	
+	constexpr float Delta0 = 1.0f / 30;
+	const float Delta = (NearestNeighborModel->GetDecayFactor() - 1) * DeltaTime;
+	const float DecayCoeff = FastExpMinusOne(FMath::Max(Delta + Delta0, 0)) / FastExpMinusOne(Delta0);
+
 	// Grab the weight data for this morph set.
 	// This could potentially fail if we are applying this deformer to the wrong skeletal mesh component.
 	const int LOD = 0;	// For now we only support LOD 0, as we can't setup an ML Deformer per LOD yet.
@@ -183,7 +219,7 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 			for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
 			{
 				const float W = OutputTensorData[MorphIndex] * ModelWeight;
-				UpdateWeight(WeightData->Weights, MorphIndex + 1, W);
+				UpdateWeightWithDecay(WeightData->Weights, MorphIndex + 1, W, DecayCoeff);
 			}
 
 			int32 NeighborOffset = NumNetworkWeights + 1;
@@ -201,7 +237,7 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 					const int32 Index = NeighborOffset + NeighborId;
 					if (Index < NumMorphTargets)
 					{
-						UpdateWeight(WeightData->Weights, Index, W);
+						UpdateWeightWithDecay(WeightData->Weights, Index, W, DecayCoeff);
 					}
 				}
 				NeighborOffset += NumNeighbors;
@@ -214,12 +250,10 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 	}
 }
 
-void UNearestNeighborModelInstance::UpdateWeight(TArray<float>& MorphWeights, int32 Index, float W)
+void UNearestNeighborModelInstance::UpdateWeightWithDecay(TArray<float>& MorphWeights, int32 Index, float W, float DecayCoeff)
 {
-	UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
-	const float DecayFactor = NearestNeighborModel->GetDecayFactor();
 	const float PreviousW = PreviousWeights[Index];
-	const float NewW = (1 - DecayFactor) * W + DecayFactor * PreviousW;
+	const float NewW = (1 - DecayCoeff) * W + DecayCoeff * PreviousW;
 	MorphWeights[Index] = NewW;
 	PreviousWeights[Index] = NewW; 
 }

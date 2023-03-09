@@ -87,7 +87,9 @@ namespace UE::NearestNeighborModel
 		FMLDeformerEditorModel::OnPostTraining(TrainingResult, bUsePartiallyTrainedWhenAborted);
 		if (TrainingResult == ETrainingResult::Success || (TrainingResult == ETrainingResult::Aborted && bUsePartiallyTrainedWhenAborted))
 		{
+			GetNearestNeighborModel()->InvalidateNearestNeighborData();
 			InitTestMLDeformerPreviousWeights();
+			GetEditor()->GetModelDetailsView()->ForceRefresh();
 		}
 	}
 

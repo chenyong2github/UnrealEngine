@@ -201,7 +201,7 @@ namespace UE::NearestNeighborModel
 		const int32 MaxPartMeshIndex = NearestNeighborModel->GetMaxPartMeshIndex();
 		if (MaxPartMeshIndex >= SubMeshNames.Num())
 		{
-			UE_LOG(LogNearestNeighborModel, Error, TEXT("Nearest neighbor model was previously created with %d submeshes, but the current skeletal mesh has %d submeshes. Please use the original skeletal mesh or click update to overwrite existing data."), MaxPartMeshIndex, SubMeshNames.Num());
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Nearest neighbor model was previously created with %d submeshes, but the current skeletal mesh has %d submeshes. Please use the original skeletal mesh or click update to overwrite existing data."), MaxPartMeshIndex + 1, SubMeshNames.Num());
 
 			NearestNeighborModel->InvalidateClothPartData();
 			AddActionResultText(ClothPartCategoryBuilder, EUpdateResult::ERROR, TEXT("Loading"));

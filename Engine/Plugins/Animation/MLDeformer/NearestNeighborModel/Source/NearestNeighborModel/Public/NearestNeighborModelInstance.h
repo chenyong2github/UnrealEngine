@@ -19,6 +19,7 @@ public:
     virtual void Execute(float ModelWeight) override;
     virtual bool SetupInputs() override;
     virtual FString CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues=false) override;
+    virtual void Tick(float DeltaTime, float ModelWeight) override;
 
 #if WITH_EDITORONLY_DATA
     const TArray<uint32>& GetNearestNeighborIds() const { return NearestNeighborIds; }
@@ -36,9 +37,9 @@ protected:
     // ~END UMLDeformerModelInstance overrides
 
 private:
-    void RunNearestNeighborModel(float ModelWeight);
+    void RunNearestNeighborModel(float DeltaTime, float ModelWeight);
     int32 FindNearestNeighbor(const float* PCAData, int32 PartId);
-    void UpdateWeight(TArray<float>& MorphWeights, int32 Index, float W);
+    void UpdateWeightWithDecay(TArray<float>& MorphWeights, int32 Index, float W, float DecayCoeff);
 
 #if WITH_EDITORONLY_DATA
     TArray<uint32> NearestNeighborIds;
