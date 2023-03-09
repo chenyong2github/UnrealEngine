@@ -520,36 +520,6 @@ void UChaosClothAsset::CacheDerivedData(FSkinnedAssetCompilationContext* Context
 
 }
 
-void UChaosClothAsset::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
-{
-	using namespace UE::Chaos::ClothAsset;
-
-	PhysicsAsset = InPhysicsAsset;
-	FClothGeometryTools::SetPhysicsAssetPathName(ClothCollection, PhysicsAsset ? PhysicsAsset->GetPathName() : FString());
-}
-
-void UChaosClothAsset::SetSkeleton(USkeleton* InSkeleton, bool bRebuildModels)
-{
-	using namespace UE::Chaos::ClothAsset;
-	check(ClothCollection.IsValid());
-
-	const TCHAR* const DefaultSkeletonPathName = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
-	Skeleton = InSkeleton ?
-		InSkeleton :
-		LoadObject<USkeleton>(nullptr, DefaultSkeletonPathName, nullptr, LOAD_None, nullptr);
-
-	RefSkeleton = Skeleton->GetReferenceSkeleton();
-
-	constexpr bool bBindSimMesh = true;
-	constexpr bool bBindRenderMesh = true;
-	FClothGeometryTools::BindMeshToRootBone(ClothCollection, bBindSimMesh, bBindRenderMesh);
-	FClothGeometryTools::SetSkeletonAssetPathName(ClothCollection, Skeleton->GetPathName());
-	if (bRebuildModels)
-	{
-		Build();
-	}
-}
-
 FString UChaosClothAsset::BuildDerivedDataKey(const ITargetPlatform* TargetPlatform)
 {
 	FString KeySuffix(TEXT(""));
@@ -624,6 +594,36 @@ bool UChaosClothAsset::IsInitialBuildDone() const
 		GetImportedModel()->LODModels[0].Sections.Num() > 0;
 }
 #endif // WITH_EDITOR
+
+void UChaosClothAsset::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
+{
+	using namespace UE::Chaos::ClothAsset;
+
+	PhysicsAsset = InPhysicsAsset;
+	FClothGeometryTools::SetPhysicsAssetPathName(ClothCollection, PhysicsAsset ? PhysicsAsset->GetPathName() : FString());
+}
+
+void UChaosClothAsset::SetSkeleton(USkeleton* InSkeleton, bool bRebuildModels)
+{
+	using namespace UE::Chaos::ClothAsset;
+	check(ClothCollection.IsValid());
+
+	const TCHAR* const DefaultSkeletonPathName = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
+	Skeleton = InSkeleton ?
+		InSkeleton :
+		LoadObject<USkeleton>(nullptr, DefaultSkeletonPathName, nullptr, LOAD_None, nullptr);
+
+	RefSkeleton = Skeleton->GetReferenceSkeleton();
+
+	constexpr bool bBindSimMesh = true;
+	constexpr bool bBindRenderMesh = true;
+	FClothGeometryTools::BindMeshToRootBone(ClothCollection, bBindSimMesh, bBindRenderMesh);
+	FClothGeometryTools::SetSkeletonAssetPathName(ClothCollection, Skeleton->GetPathName());
+	if (bRebuildModels)
+	{
+		Build();
+	}
+}
 
 void UChaosClothAsset::CopySimMeshToRenderMesh(UMaterialInterface* Material)
 {
