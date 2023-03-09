@@ -47,6 +47,12 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	// ~Begin UObject interface
+#if WITH_EDITOR
+	virtual void PostLoad();
+#endif
+	// ~End UObject interface
+
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
 	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const override;
@@ -58,8 +64,8 @@ public:
 	virtual FBox GetStrictBounds() const override;
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
 	virtual bool HasNonTrivialTransform() const override;
-	virtual const UPCGSpatialData* FindShapeFromNetwork(const int InDimension) const override { return Source ? Source->FindShapeFromNetwork(InDimension) : nullptr; }
-	virtual const UPCGSpatialData* FindFirstConcreteShapeFromNetwork() const override { return Source ? Source->FindFirstConcreteShapeFromNetwork() : nullptr; }
+	virtual const UPCGSpatialData* FindShapeFromNetwork(const int InDimension) const override { return GetSource() ? GetSource()->FindShapeFromNetwork(InDimension) : nullptr; }
+	virtual const UPCGSpatialData* FindFirstConcreteShapeFromNetwork() const override { return GetSource() ? GetSource()->FindFirstConcreteShapeFromNetwork() : nullptr; }
 protected:
 	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface
@@ -80,6 +86,25 @@ protected:
 
 	UPROPERTY(BlueprintSetter = SetDensityFunction, EditAnywhere, Category = Settings)
 	EPCGDifferenceDensityFunction DensityFunction = EPCGDifferenceDensityFunction::Minimum;
+
+#if WITH_EDITOR
+	inline const UPCGSpatialData* GetSource() const { return RawPointerSource; }
+	inline const UPCGSpatialData* GetDifference() const { return RawPointerDifference; }
+	inline UPCGUnionData* GetDifferencesUnion() const { return RawPointerDifferencesUnion; }
+#else
+	inline const UPCGSpatialData* GetSource() const { return Source.Get(); }
+	inline const UPCGSpatialData* GetDifference() const { return Difference.Get(); }
+	inline UPCGUnionData* GetDifferencesUnion() const { return DifferencesUnion.Get(); }
+#endif
+
+#if WITH_EDITOR
+private:
+	// Cached pointers to avoid dereferencing object pointer which does access tracking and supports lazy loading, and can come with substantial
+	// overhead (add trace marker to FObjectPtr::Get to see).
+	const UPCGSpatialData* RawPointerSource = nullptr;
+	const UPCGSpatialData* RawPointerDifference = nullptr;
+	UPCGUnionData* RawPointerDifferencesUnion = nullptr;
+#endif
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
