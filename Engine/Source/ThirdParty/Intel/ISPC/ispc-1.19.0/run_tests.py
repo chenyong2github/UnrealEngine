@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#  Copyright (c) 2013-2021, Intel Corporation
+#  Copyright (c) 2013-2022, Intel Corporation
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -125,6 +125,9 @@ class TargetConfig(object):
     def set_cpu(self, cpu):
         if cpu is not None:
             self.cpu = cpu
+            # Alias all of acm-* devices to dg2.
+            if cpu.startswith("acm-"):
+                self.cpu = "dg2"
         else:
             self.cpu = "unspec"
 
@@ -207,38 +210,6 @@ def check_print_output(output):
     else:
         return lines[0:len(lines)//2] == lines[len(lines)//2:len(lines)]
 
-def prerun_debug_check_xe():
-    os.environ['IGC_DumpToCurrentDir'] = '1'
-    os.environ['IGC_ShaderDumpEnable'] = '1'
-    os.environ['ISPCRT_IGC_OPTIONS'] = '+ -g'
-
-def postrun_debug_check_xe(test_name, exe_wd):
-    objdumpProc = subprocess.run('/usr/bin/objdump -h *_dwarf.elf', shell=True, cwd=exe_wd, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    readelfProc = subprocess.run('/usr/bin/readelf --debug-dump *_dwarf.elf', shell=True, cwd=exe_wd, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-    # Cleanup files used to check debug information
-    # since this directory may be reused by other tests.
-    subprocess.run('rm -rf *_dwarf.elf', shell=True)
-
-    if objdumpProc.returncode != 0:
-        print("[DEBUG CHECK] " + test_name + " - objdump failed - return code: " + str(objdumpProc.returncode))
-        return False
-    elif objdumpProc.stdout.find('.debug') == -1:
-        print("[DEBUG CHECK] " + test_name + " - objdump failed - couldn't find .debug info in *_dwarf.elf file")
-        return False
-    elif readelfProc.returncode != 0:
-        print("[DEBUG CHECK] " + test_name + " - readelf failed - return code: " + str(objdumpProc.returncode))
-        return False
-    elif readelfProc.stdout.find('Warning:') != -1 or readelfProc.stdout.find('Error:') != -1:
-        readelfOutput = readelfProc.stdout.splitlines()
-        print("[DEBUG CHECK] " + test_name + " - readelf return Warning / Error: \n")
-        for line in readelfOutput:
-            if line.find('Warning:') != -1 or line.find('Error:') != -1:
-                print(line)
-        return False
-    return True
-
-
 # run the commands in cmd_list
 def run_cmds(compile_cmds, run_cmd, filename, expect_failure, sig, exe_wd="."):
     for cmd in compile_cmds:
@@ -251,9 +222,6 @@ def run_cmds(compile_cmds, run_cmd, filename, expect_failure, sig, exe_wd="."):
             return Status.Compfail
 
     if not options.save_bin:
-        if options.debug_check and options.ispc_output == "spv":
-            prerun_debug_check_xe()
-
         (return_code, output, timeout) = run_command(run_cmd, options.test_time, cwd=exe_wd)
         if sig < 32:
             run_failed = (return_code != 0) or timeout
@@ -263,9 +231,6 @@ def run_cmds(compile_cmds, run_cmd, filename, expect_failure, sig, exe_wd="."):
             if not output_equality:
                 print_debug("Print outputs check failed\n", s, run_tests_log)
             run_failed = (return_code != 0) or not output_equality or timeout
-
-        if options.debug_check and options.ispc_output == "spv":
-            run_failed = not postrun_debug_check_xe(run_cmd, exe_wd)
 
     else:
         run_failed = 0
@@ -344,7 +309,9 @@ def check_if_skip_test(filename, host, target):
     else:
         oss = "unknown"
 
-    rule_values = {"arch": target.arch, "OS": oss, "cpu": target.cpu}
+    target_cpu = target.cpu
+
+    rule_values = {"arch": target.arch, "OS": oss, "cpu": target_cpu}
 
     test_file_path = add_prefix(filename, host, target)
     with open(test_file_path) as test_file:
@@ -439,7 +406,7 @@ def run_test(testname, host, target):
         target_match = re.match('.*-(i[0-9]*)?x([0-9]*)', options.target)
         # If target does not contain width in a standard way:
         if target_match == None:
-            error("Unable to detect the target width for target %s\nOnly canonical form of the target names is supported, depricated forms are not supported" % options.target, 0)
+            error("Unable to detect the target width for target %s\nOnly canonical form of the target names is supported, deprecated forms are not supported" % options.target, 0)
             return Status.Compfail
         width = int(target_match.group(2))
 
@@ -490,6 +457,11 @@ def run_test(testname, host, target):
                 cc_cmd = "%s -O2 -I. %s test_static.cpp -DTEST_SIG=%d -DTEST_WIDTH=%d %s -o %s" % \
                     (options.compiler_exe, gcc_arch, match, width, obj_name, exe_name)
 
+                # Produce position independent code for both c++ and ispc compilations.
+                # The motivation for this is that Clang 15 changed default
+                # from "-mrelocation-model static" to "-mrelocation-model pic", so
+                # we enable PIC compilation to have it consistently regardless compiler version.
+                cc_cmd += ' -fPIE'
                 if should_fail:
                     cc_cmd += " -DEXPECT_FAILURE"
 
@@ -501,8 +473,7 @@ def run_test(testname, host, target):
                              match, width, exe_name)
                     exe_name = "./" + exe_name
                     cc_cmd += " -DTEST_ZEBIN" if options.ispc_output == "ze" else " -DTEST_SPV"
-
-            ispc_cmd = ispc_exe_rel + " --woff %s -o %s --arch=%s --target=%s -DTEST_SIG=%d" % \
+            ispc_cmd = ispc_exe_rel + " --pic --woff %s -o %s --arch=%s --target=%s -DTEST_SIG=%d" % \
                         (filename, obj_name, options.arch, xe_target if target.is_xe() else options.target, match)
 
             if target.is_xe():
@@ -1076,7 +1047,7 @@ if __name__ == "__main__":
                   action = "store_true")
     parser.add_option("--file", dest='in_file', help='file to save run_tests output', default="")
     parser.add_option("--l0loader", dest='l0loader', help='Path to L0 loader', default="")
-    parser.add_option("--device", dest='device', help='Specify target ISPC device. For example: core2, skx, cortex-a9, skl, tgllp, dg2, etc.', default=None)
+    parser.add_option("--device", dest='device', help='Specify target ISPC device. For example: core2, skx, cortex-a9, skl, tgllp, acm-g11, etc.', default=None)
     parser.add_option("--ispc_output", dest='ispc_output', choices=['obj', 'spv', 'ze'], help='Specify ISPC output', default=None)
     parser.add_option("--fail_db", dest='fail_db', help='File to use as a fail database', default='fail_db.txt', type=str)
     parser.add_option("--debug_check", dest='debug_check', help='Run tests in debug mode with validating debug info', default=False, action="store_true")

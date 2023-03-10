@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -136,6 +136,7 @@ static int run() {
         auto device = ispcrtGetDevice(type, gpu_device_idx);
         ISPCRTNewMemoryViewFlags flags;
         flags.allocType = ISPCRT_ALLOC_TYPE_DEVICE;
+        flags.smHint = ISPCRT_SM_HOST_WRITE_DEVICE_READ;
 
         // Setup output array
         auto buf_dev = ispcrtNewMemoryView(device, fimg, imgSize * sizeof(float), &flags);
@@ -180,7 +181,16 @@ static int run() {
         }
 
         printf("[aobench ISPC GPU]:\t\t[%.3f] million cycles (%d x %d image)\n", minCyclesISPC, width, height);
+
+        // Release allocated resources
+        ispcrtRelease(queue);
+        ispcrtRelease(kernel);
+        ispcrtRelease(module);
+        ispcrtRelease(p_dev);
+        ispcrtRelease(buf_dev);
+        ispcrtRelease(device);
     };
+
     run_kernel(ISPCRT_DEVICE_TYPE_CPU);
     savePPM("ao-ispc-cpu.ppm", width, height, fimg);
 

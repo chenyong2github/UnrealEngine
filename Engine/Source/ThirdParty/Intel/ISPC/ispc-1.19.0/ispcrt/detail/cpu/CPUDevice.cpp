@@ -1,7 +1,8 @@
-// Copyright 2020-2022 Intel Corporation
+// Copyright 2020-2023, Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "CPUDevice.h"
+#include "CPUContext.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include "windows.h"
@@ -11,9 +12,11 @@
 // std
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <cstring>
 #include <exception>
 #include <string>
+#include <vector>
 
 namespace ispcrt {
 namespace cpu {
@@ -87,31 +90,62 @@ struct Module : public ispcrt::base::Module {
 #else
             std::string ext = ".so";
 #endif
+            void* lib = nullptr;
 #if defined _WIN32
-            m_lib = LoadLibrary((m_file + ext).c_str());
+            lib = LoadLibrary((m_file + ext).c_str());
 #else
-            m_lib = dlopen(("lib" + m_file + ext).c_str(), RTLD_LAZY | RTLD_LOCAL);
+            lib = dlopen(("lib" + m_file + ext).c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
 
-            if (!m_lib)
-                throw std::logic_error("could not open CPU shared module file");
+            if (!lib)
+                throw std::logic_error("could not open CPU shared module file lib" + m_file + ext);
+            m_libs.push_back(lib);
+        }
+    }
+
+    Module(Module **modules, const uint32_t numModules) {
+        for (uint32_t i = 0; i < numModules; i++ ) {
+            for (auto lib : modules[i]->libs()) {
+                m_libs.push_back(lib);
+            }
         }
     }
 
     ~Module() {
-        if (m_lib)
+        if (m_libs.size() > 0) {
+            for (auto lib : m_libs) {
+                if (lib) {
 #if defined(_WIN32) || defined(_WIN64)
-            FreeLibrary((HMODULE)m_lib);
+                    FreeLibrary((HMODULE)lib);
 #else
-            dlclose(m_lib);
+                    dlclose(lib);
 #endif
+                }
+            }
+        }
     }
 
-    void *lib() const { return m_lib; }
+    void *functionPtr(const char *name) const override {
+        void *fptr = nullptr;
+        for (auto lib : m_libs) {
+#if defined(_WIN32) || defined(_WIN64)
+            fptr = GetProcAddress((HMODULE)lib, name);
+#else
+            fptr = dlsym(lib ? lib : RTLD_DEFAULT, name);
+#endif
+            if (fptr != nullptr)
+                break;
+        }
+        if (!fptr)
+            throw std::logic_error("could not find CPU function");
+        return fptr;
+    }
+
+    std::vector<void*> libs() { return m_libs; };
 
   private:
     std::string m_file;
-    void *m_lib{nullptr};
+    std::vector<void*>m_libs;
 };
 
 struct Kernel : public ispcrt::base::Kernel {
@@ -119,11 +153,7 @@ struct Kernel : public ispcrt::base::Kernel {
         const cpu::Module &module = (const cpu::Module &)_module;
 
         auto name = std::string(_name) + "_cpu_entry_point";
-#if defined(_WIN32) || defined(_WIN64)
-        void *fcn = GetProcAddress((HMODULE)module.lib(), name.c_str());
-#else
-        void *fcn = dlsym(module.lib() ? module.lib() : RTLD_DEFAULT, name.c_str());
-#endif
+        void* fcn = module.functionPtr(name.c_str());
 
         if (!fcn)
             throw std::logic_error("could not find CPU kernel function");
@@ -151,6 +181,13 @@ struct TaskQueue : public ispcrt::base::TaskQueue {
         // no-op
     }
 
+    ~TaskQueue() {
+        for (auto f : m_futures) {
+            delete f;
+        }
+        m_futures.clear();
+    }
+
     void barrier() override {
         // no-op
     }
@@ -164,9 +201,9 @@ struct TaskQueue : public ispcrt::base::TaskQueue {
     }
 
     void copyMemoryView(base::MemoryView &mv_dst, base::MemoryView &mv_src, const size_t size) override {
-        auto &view_dst = (cpu::MemoryView &)mv_dst;
-        auto &view_src = (cpu::MemoryView &)mv_src;
-        memcpy(view_dst.devicePtr(), view_src.devicePtr(), size);
+        auto view_dst_ptr = static_cast<std::byte*>(((cpu::MemoryView &)mv_dst).devicePtr());
+        auto view_src_ptr = static_cast<std::byte*>(((cpu::MemoryView &)mv_src).devicePtr());
+        std::copy(view_src_ptr, view_src_ptr + size, view_dst_ptr);
     }
 
     ispcrt::base::Future *launch(ispcrt::base::Kernel &k, ispcrt::base::MemoryView *params, size_t dim0, size_t dim1,
@@ -178,6 +215,8 @@ struct TaskQueue : public ispcrt::base::TaskQueue {
 
         auto *future = new cpu::Future;
         assert(future);
+        // Vector to know what to deallocate when TaskQueue object destructed
+        m_futures.push_back(future);
 
         auto start = std::chrono::high_resolution_clock::now();
         fcn(parameters ? parameters->devicePtr() : nullptr, dim0, dim1, dim2);
@@ -198,6 +237,9 @@ struct TaskQueue : public ispcrt::base::TaskQueue {
     }
 
     void *taskQueueNativeHandle() const override { return nullptr; }
+
+  private:
+    std::vector<cpu::Future*> m_futures;
 };
 
 uint32_t deviceCount() { return 1; }
@@ -211,14 +253,20 @@ ISPCRTDeviceInfo deviceInfo(uint32_t deviceIdx) {
 
 } // namespace cpu
 
-ispcrt::base::MemoryView *CPUDevice::newMemoryView(void *appMem, size_t numBytes, bool shared) const {
-    return new cpu::MemoryView(appMem, numBytes, shared);
+ispcrt::base::MemoryView *CPUDevice::newMemoryView(void *appMem, size_t numBytes, const ISPCRTNewMemoryViewFlags *flags) const {
+    return new cpu::MemoryView(appMem, numBytes, flags->allocType == ISPCRT_ALLOC_TYPE_SHARED);
 }
 
 ispcrt::base::TaskQueue *CPUDevice::newTaskQueue() const { return new cpu::TaskQueue(); }
 
 ispcrt::base::Module *CPUDevice::newModule(const char *moduleFile, const ISPCRTModuleOptions &moduleOpts) const {
     return new cpu::Module(moduleFile);
+}
+
+void CPUDevice::dynamicLinkModules(base::Module **modules, const uint32_t numModules) const {}
+
+ispcrt::base::Module *CPUDevice::staticLinkModules(base::Module **modules, const uint32_t numModules) const {
+    return new cpu::Module((cpu::Module**)modules, numModules);
 }
 
 ispcrt::base::Kernel *CPUDevice::newKernel(const ispcrt::base::Module &module, const char *name) const {
@@ -234,4 +282,15 @@ void *CPUDevice::contextNativeHandle() const { return nullptr; }
 ISPCRTAllocationType CPUDevice::getMemAllocType(void* appMemory) const {
     return ISPCRT_ALLOC_TYPE_UNKNOWN;
 }
+
+ispcrt::base::MemoryView *CPUContext::newMemoryView(void *appMem, size_t numBytes, const ISPCRTNewMemoryViewFlags *flags) const {
+    return new cpu::MemoryView(appMem, numBytes, flags->allocType == ISPCRT_ALLOC_TYPE_SHARED);
+}
+
+ISPCRTDeviceType CPUContext::getDeviceType() const {
+    return ISPCRTDeviceType::ISPCRT_DEVICE_TYPE_CPU;
+}
+
+void *CPUContext::contextNativeHandle() const { return nullptr; }
+
 } // namespace ispcrt

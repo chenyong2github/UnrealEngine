@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2019-2021, Intel Corporation
+#  Copyright (c) 2019-2022, Intel Corporation
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,6 @@ find_package(Python3 REQUIRED)
 if (NOT Python3_Interpreter_FOUND)
     message(FATAL_ERROR "Failed to find python3 interpretor")
 endif()
-include(FindPythonInterp)
 
 set(COMMON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/common" "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/AddPerfExample.cmake)
@@ -98,6 +97,7 @@ add_subdirectory(aobench)
 add_subdirectory(mandelbrot)
 add_subdirectory(simple)
 add_subdirectory(simple-usm)
+add_subdirectory(usm-mem)
 
 # DPC++ related examples should not run as part of ISPC_BUILD
 # They require complete ISPC installation and ISPC_INCLUDE_DPCPP_EXAMPLES turned ON
@@ -110,6 +110,8 @@ if (NOT ISPC_BUILD AND ISPC_INCLUDE_DPCPP_EXAMPLES)
     add_subdirectory(simple-dpcpp-l0)
     add_subdirectory(pipeline-dpcpp)
     add_subdirectory(simple-esimd)
+    add_subdirectory(vadd-esimd)
+    add_subdirectory(callback-esimd)
 endif()
 
 include(TestLists.txt)

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011-2022, Intel Corporation
+  Copyright (c) 2011-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,7 @@ class Indent {
     (AST) nodes must implement.  The base classes for both expressions
     (Expr) and statements (Stmt) inherit from this class.
 */
-class ASTNode {
+class ASTNode : public Traceable {
     const unsigned char SubclassID; // Subclass identifier (for isa/dyn_cast)
   public:
     ASTNode(SourcePos p, unsigned scid) : SubclassID(scid), pos(p) {}
@@ -134,6 +134,8 @@ class ASTNode {
         enumerant values defined in ispc.h. */
     virtual int EstimateCost() const = 0;
 
+    virtual ASTNode *Instantiate(TemplateInstantiation &templInst) const = 0;
+
     /** All AST nodes must track the file position where they are
         defined. */
     SourcePos pos;
@@ -156,6 +158,7 @@ class ASTNode {
         IndexExprID,
         StructMemberExprID,
         VectorMemberExprID,
+        DependentMemberExprID,
         NewExprID,
         NullPointerExprID,
         ReferenceExprID,
@@ -211,6 +214,8 @@ class AST {
         information and source code. */
     void AddFunction(Symbol *sym, Stmt *code);
 
+    void AddFunctionTemplate(TemplateSymbol *templ, Stmt *code);
+
     /** Generate LLVM IR for all of the functions into the current
         module. */
     void GenerateIR();
@@ -219,6 +224,7 @@ class AST {
 
   private:
     std::vector<Function *> functions;
+    std::vector<FunctionTemplate *> functionTemplates;
 };
 
 /** Callback function type for preorder traversial visiting function for

@@ -13,8 +13,8 @@ on:
   workflow_dispatch:
 
 env:
-  SDE_MIRROR_ID: 684899
-  SDE_TAR_NAME: sde-external-9.0.0-2021-11-07
+  SDE_MIRROR_ID: 751535
+  SDE_TAR_NAME: sde-external-9.14.0-2022-10-25
   USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36"
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
@@ -41,7 +41,7 @@ jobs:
         docker buildx build --tag ispc/ubuntu18.04:stage1 --target=llvm_build_step1 --cache-to=type=local,dest=cache.local --build-arg REPO=$GITHUB_REPOSITORY --build-arg SHA=$GITHUB_SHA --build-arg LLVM_VERSION=15.0 .
 
     - name: Upload package
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: llvm15_linux_stage1_cache
         path: docker/ubuntu/18.04/cpu_ispc_build/cache.local
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
@@ -60,7 +60,7 @@ jobs:
         cat /proc/cpuinfo
 
     - name: Download package
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: llvm15_linux_stage1_cache
         path: docker/ubuntu/18.04/cpu_ispc_build/cache.local
@@ -78,28 +78,28 @@ jobs:
         tar xvf result.tar usr/local/src/llvm
         mv usr/local/src/llvm/bin-15.0 .
         # Note using gzip here, instead of xz - trading of space for speed, as it's just for passing to another stage.
-        tar czvf llvm-15.0.0-ubuntu18.04-Release+Asserts-x86.arm.wasm.tar.gz bin-15.0
+        tar czvf llvm-15.0.7-ubuntu18.04-Release+Asserts-x86.arm.wasm.tar.gz bin-15.0
 
     - name: Upload package
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: llvm_15_linux
-        path: docker/ubuntu/18.04/cpu_ispc_build/llvm-15.0.0-ubuntu18.04-Release+Asserts-x86.arm.wasm.tar.gz
+        path: docker/ubuntu/18.04/cpu_ispc_build/llvm-15.0.7-ubuntu18.04-Release+Asserts-x86.arm.wasm.tar.gz
 
   linux-build-ispc-llvm-15:
     needs: [linux-build-llvm-15-2]
     runs-on: ubuntu-latest
     env:
       LLVM_VERSION: "15.0"
-      LLVM_TAR: llvm-15.0.0-ubuntu18.04-Release+Asserts-x86.arm.wasm.tar.gz
+      LLVM_TAR: llvm-15.0.7-ubuntu18.04-Release+Asserts-x86.arm.wasm.tar.gz
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
     - name: Download package
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: llvm_15_linux
 
@@ -122,7 +122,7 @@ jobs:
         .github/workflows/scripts/check-ispc.sh
 
     - name: Upload package
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ispc_llvm_15_linux
         path: build/ispc-trunk-linux.tar.gz
@@ -141,9 +141,9 @@ jobs:
                  avx512knl-x16,
                  avx512skx-x4, avx512skx-x8, avx512skx-x16, avx512skx-x64, avx512skx-x32]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Download package
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: ispc_llvm_15_linux
 
@@ -161,7 +161,7 @@ jobs:
         ./alloy.py -r --only="stability current -O0 -O1 -O2" --only-targets="${{ matrix.target }}" --time --update-errors=FP
 
     - name: Upload fail_db.txt
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: failure()
       with:
         name: fail_db.${{matrix.target}}.txt
@@ -179,7 +179,7 @@ jobs:
     runs-on: windows-2022
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
@@ -208,15 +208,15 @@ jobs:
       shell: cmd
       run: |
         cd llvm
-        set TAR_BASE_NAME=llvm-15.0.0-win.vs2019-Release+Asserts-x86.arm.wasm
+        set TAR_BASE_NAME=llvm-15.0.7-win.vs2019-Release+Asserts-x86.arm.wasm
         7z.exe a -ttar -snl %TAR_BASE_NAME%.tar bin-15.0
         7z.exe a -t7z %TAR_BASE_NAME%.tar.7z %TAR_BASE_NAME%.tar
 
     - name: Upload package
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: llvm_15_win
-        path: llvm/llvm-15.0.0-win.vs2019-Release+Asserts-x86.arm.wasm.tar.7z
+        path: llvm/llvm-15.0.7-win.vs2019-Release+Asserts-x86.arm.wasm.tar.7z
 
 
   win-build-ispc-llvm-15:
@@ -224,24 +224,24 @@ jobs:
     runs-on: windows-2022
     env:
       LLVM_VERSION: "15.0"
-      LLVM_TAR: llvm-15.0.0-win.vs2019-Release+Asserts-x86.arm.wasm.tar.7z
+      LLVM_TAR: llvm-15.0.7-win.vs2019-Release+Asserts-x86.arm.wasm.tar.7z
       LLVM_HOME: "C:\\projects\\llvm"
       CROSS_TOOLS_GNUWIN32: "C:\\projects\\cross\\gnuwin32"
       BUILD_TYPE: "Release"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
     - name: Download package
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: llvm_15_win
         path: ${{env.LLVM_HOME}}
 
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1
 
     - name: Install dependencies
       run: |
@@ -261,7 +261,7 @@ jobs:
         .github/workflows/scripts/check-ispc.ps1
 
     - name: Upload package
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ispc_llvm15_win
         path: build/ispc-trunk-windows.msi
@@ -285,9 +285,9 @@ jobs:
                  avx512skx-x4, avx512skx-x8, avx512skx-x16, avx512skx-x64, avx512skx-x32]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Download package
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: ispc_llvm15_win
 
@@ -312,7 +312,7 @@ jobs:
         git diff --exit-code
 
     - name: Upload fail_db.txt
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: failure()
       with:
         name: fail_db.llvm15.${{matrix.arch}}.${{matrix.target}}.txt

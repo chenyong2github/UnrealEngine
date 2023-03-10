@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,11 @@
 */
 
 #include "sym.h"
+#include "expr.h"
+#include "func.h"
 #include "type.h"
 #include "util.h"
+
 #include <algorithm>
 #include <array>
 #include <iterator>
@@ -48,15 +51,16 @@ using namespace ispc;
 ///////////////////////////////////////////////////////////////////////////
 // Symbol
 
-Symbol::Symbol(const std::string &n, SourcePos p, const Type *t, StorageClass sc) : pos(p), name(n) {
-    storagePtr = NULL;
-    function = exportedFunction = NULL;
-    type = t;
-    constValue = NULL;
-    storageClass = sc;
-    varyingCFDepth = 0;
-    parentFunction = NULL;
-}
+Symbol::Symbol(const std::string &n, SourcePos p, const Type *t, StorageClass sc)
+    : pos(p), name(n), storageInfo(NULL), function(NULL), exportedFunction(NULL), type(t), constValue(NULL),
+      storageClass(sc), varyingCFDepth(0), parentFunction(NULL) {}
+
+///////////////////////////////////////////////////////////////////////////
+// TemplateSymbol
+
+TemplateSymbol::TemplateSymbol(const TemplateParms *parms, const std::string &n, const FunctionType *t,
+                               const SourcePos p, bool inl, bool noinl)
+    : pos(p), name(n), type(t), templateParms(parms), functionTemplate(nullptr), isInline(inl), isNoInline(noinl) {}
 
 ///////////////////////////////////////////////////////////////////////////
 // SymbolTable
@@ -83,8 +87,8 @@ void SymbolTable::PushScope() {
 }
 
 void SymbolTable::PopScope() {
-    Assert(variables.size() > 1);
-    Assert(types.size() > 1);
+    Assert(variables.size() > 0);
+    Assert(types.size() > 0);
     freeSymbolMaps.push_back(variables.back());
     variables.pop_back();
     types.pop_back();
@@ -185,6 +189,50 @@ Symbol *SymbolTable::LookupIntrinsics(llvm::Function *func) {
     if (iter != intrinsics.end()) {
         Symbol *funcs = iter->second;
         return funcs;
+    }
+    return nullptr;
+}
+
+bool SymbolTable::AddFunctionTemplate(TemplateSymbol *templ) {
+    Assert(templ && templ->templateParms && templ->type);
+    if (LookupFunctionTemplate(templ->templateParms, templ->name, templ->type) != nullptr) {
+        // A function template of the same name and type has already been added to
+        // the symbol table
+        return false;
+    }
+
+    std::vector<TemplateSymbol *> &funTemplOverloads = functionTemplates[templ->name];
+    funTemplOverloads.push_back(templ);
+    return true;
+}
+
+bool SymbolTable::LookupFunctionTemplate(const std::string &name, std::vector<TemplateSymbol *> *matches) {
+    FunctionTemplateMapType::iterator iter = functionTemplates.find(name);
+    if (iter != functionTemplates.end()) {
+        if (matches == nullptr) {
+            return true;
+        }
+        const std::vector<TemplateSymbol *> &templs = iter->second;
+        for (auto templ : templs) {
+            matches->push_back(templ);
+        }
+    }
+    return matches ? (matches->size() > 0) : false;
+}
+
+TemplateSymbol *SymbolTable::LookupFunctionTemplate(const TemplateParms *templateParmList, const std::string &name,
+                                                    const FunctionType *type) {
+    // The template declaration matches if:
+    // - template paramters list matches
+    // - function types match
+    FunctionTemplateMapType::iterator iter = functionTemplates.find(name);
+    if (iter != functionTemplates.end()) {
+        std::vector<TemplateSymbol *> templs = iter->second;
+        for (auto templ : templs) {
+            if (templateParmList->IsEqual(templ->templateParms) && Type::Equal(templ->type, type)) {
+                return templ;
+            }
+        }
     }
     return nullptr;
 }

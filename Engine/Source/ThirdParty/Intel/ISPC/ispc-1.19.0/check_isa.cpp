@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013-2020, Intel Corporation
+  Copyright (c) 2013-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 #define HOST_IS_APPLE
 #endif
 
-#if !defined(__arm__) && !defined(__aarch64__)
+#if !defined(__arm__) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if !defined(HOST_IS_WINDOWS)
 static void __cpuid(int info[4], int infoType) {
     __asm__ __volatile__("cpuid" : "=a"(info[0]), "=b"(info[1]), "=c"(info[2]), "=d"(info[3]) : "0"(infoType));
@@ -102,10 +102,25 @@ static bool __os_has_avx512_support() {
     return (rEAX & 0xE6) == 0xE6;
 #endif // !defined(HOST_IS_WINDOWS)
 }
+
+static bool __os_enabled_amx_support() {
+#if defined(HOST_IS_WINDOWS)
+    // Check if the OS will save the YMM registers
+    unsigned long long xcrFeatureMask = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+    return (xcrFeatureMask & 0x60000) == 0x60000;
+#else  // !defined(HOST_IS_WINDOWS)
+    // Check xgetbv; this uses a .byte sequence instead of the instruction
+    // directly because older assemblers do not include support for xgetbv and
+    // there is no easy way to conditionally compile based on the assembler used.
+    int rEAX, rEDX;
+    __asm__ __volatile__(".byte 0x0f, 0x01, 0xd0" : "=a"(rEAX), "=d"(rEDX) : "c"(0));
+    return (rEAX & 0x60000) == 0x60000;
+#endif // !defined(HOST_IS_WINDOWS)
+}
 #endif // !__arm__
 
 static const char *lGetSystemISA() {
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
     return "ARM NEON";
 #else
     int info[4];
@@ -115,48 +130,96 @@ static const char *lGetSystemISA() {
     // Call cpuid with eax=7, ecx=0
     __cpuidex(info2, 7, 0);
 
-    if ((info[2] & (1 << 27)) != 0 &&  // OSXSAVE
-        (info2[1] & (1 << 5)) != 0 &&  // AVX2
-        (info2[1] & (1 << 16)) != 0 && // AVX512 F
-        __os_has_avx512_support()) {
+    int info3[4];
+    // Call cpuid with eax=7, ecx=1
+    __cpuidex(info3, 7, 1);
+
+    // clang-format off
+    bool sse2 =                (info[3] & (1 << 26))  != 0;
+    bool sse4 =                (info[2] & (1 << 19))  != 0;
+    bool avx_f16c =            (info[2] & (1 << 29))  != 0;
+    bool avx_rdrand =          (info[2] & (1 << 30))  != 0;
+    bool osxsave =             (info[2] & (1 << 27))  != 0;
+    bool avx =                 (info[2] & (1 << 28))  != 0;
+    bool avx2 =                (info2[1] & (1 << 5))  != 0;
+    bool avx512_f =            (info2[1] & (1 << 16)) != 0;
+    bool avx512_dq =           (info2[1] & (1 << 17)) != 0;
+    bool avx512_pf =           (info2[1] & (1 << 26)) != 0;
+    bool avx512_er =           (info2[1] & (1 << 27)) != 0;
+    bool avx512_cd =           (info2[1] & (1 << 28)) != 0;
+    bool avx512_bw =           (info2[1] & (1 << 30)) != 0;
+    bool avx512_vl =           (info2[1] & (1 << 31)) != 0;
+    bool avx512_vbmi2 =        (info2[2] & (1 << 6))  != 0;
+    bool avx512_gfni =         (info2[2] & (1 << 8))  != 0;
+    bool avx512_vaes =         (info2[2] & (1 << 9))  != 0;
+    bool avx512_vpclmulqdq =   (info2[2] & (1 << 10)) != 0;
+    bool avx512_vnni =         (info2[2] & (1 << 11)) != 0;
+    bool avx512_bitalg =       (info2[2] & (1 << 12)) != 0;
+    bool avx512_vpopcntdq =    (info2[2] & (1 << 14)) != 0;
+    bool avx_vnni =            (info3[0] & (1 << 4))  != 0;
+    bool avx512_bf16 =         (info3[0] & (1 << 5))  != 0;
+    bool avx512_vp2intersect = (info2[3] & (1 << 8))  != 0;
+    bool avx512_amx_bf16 =     (info2[3] & (1 << 22)) != 0;
+    bool avx512_amx_tile =     (info2[3] & (1 << 24)) != 0;
+    bool avx512_amx_int8 =     (info2[3] & (1 << 25)) != 0;
+    bool avx512_fp16 =         (info2[3] & (1 << 23)) != 0;
+    // clang-format on
+
+    if (osxsave && avx2 && avx512_f && __os_has_avx512_support()) {
         // We need to verify that AVX2 is also available,
         // as well as AVX512, because our targets are supposed
         // to use both.
 
-        if ((info2[1] & (1 << 17)) != 0 && // AVX512 DQ
-            (info2[1] & (1 << 28)) != 0 && // AVX512 CDI
-            (info2[1] & (1 << 30)) != 0 && // AVX512 BW
-            (info2[1] & (1 << 31)) != 0) { // AVX512 VL
+        // Knights Landing:          KNL = F + PF + ER + CD
+        // Skylake server:           SKX = F + DQ + CD + BW + VL
+        // Cascade Lake server:      CLX = SKX + VNNI
+        // Cooper Lake server:       CPX = CLX + BF16
+        // Ice Lake client & server: ICL = CLX + VBMI2 + GFNI + VAES + VPCLMULQDQ + BITALG + VPOPCNTDQ
+        // Tiger Lake:               TGL = ICL + VP2INTERSECT
+        // Sapphire Rapids:          SPR = ICL + BF16 + AMX_BF16 + AMX_TILE + AMX_INT8 + AVX_VNNI + FP16
+        bool knl = avx512_pf && avx512_er && avx512_cd;
+        bool skx = avx512_dq && avx512_cd && avx512_bw && avx512_vl;
+        bool clx = skx && avx512_vnni;
+        bool cpx = clx && avx512_bf16;
+        bool icl =
+            clx && avx512_vbmi2 && avx512_gfni && avx512_vaes && avx512_vpclmulqdq && avx512_bitalg && avx512_vpopcntdq;
+        bool tgl = icl && avx512_vp2intersect;
+        bool spr =
+            icl && avx512_bf16 && avx512_amx_bf16 && avx512_amx_tile && avx512_amx_int8 && avx_vnni && avx512_fp16;
+#pragma unused(cpx, tgl)
+        if (spr) {
+            if (__os_enabled_amx_support()) {
+                return "SPR (AMX on)";
+            } else {
+                return "SPR (AMX off)";
+            }
+        } else if (skx) {
             return "SKX";
-        } else if ((info2[1] & (1 << 26)) != 0 && // AVX512 PF
-                   (info2[1] & (1 << 27)) != 0 && // AVX512 ER
-                   (info2[1] & (1 << 28)) != 0) { // AVX512 CDI
+        } else if (knl) {
             return "KNL";
         }
         // If it's unknown AVX512 target, fall through and use AVX2
         // or whatever is available in the machine.
     }
 
-    if ((info[2] & (1 << 27)) != 0 &&                           // OSXSAVE
-        (info[2] & (1 << 28)) != 0 && __os_has_avx_support()) { // AVX
+    if (osxsave && avx && __os_has_avx_support()) {
         // AVX1 for sure....
         // Ivy Bridge?
-        if ((info[2] & (1 << 29)) != 0 && // F16C
-            (info[2] & (1 << 30)) != 0) { // RDRAND
+        if (avx_f16c && avx_rdrand) {
             // So far, so good.  AVX2?
-            if ((info2[1] & (1 << 5)) != 0) {
+            if (avx2) {
                 return "AVX2 (codename Haswell)";
             } else {
-                // Ivy Bridge specific target was depricated in ISPC, but
+                // Ivy Bridge specific target was deprecated in ISPC, but
                 // no harm detecting it in standalone tool.
                 return "AVX1.1 (codename Ivy Bridge)";
             }
         }
         // Regular AVX
         return "AVX (codename Sandy Bridge)";
-    } else if ((info[2] & (1 << 19)) != 0) {
+    } else if (sse4) {
         return "SSE4";
-    } else if ((info[3] & (1 << 26)) != 0) {
+    } else if (sse2) {
         return "SSE2";
     } else {
         return "Error";

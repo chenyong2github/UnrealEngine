@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2022, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -105,6 +105,10 @@ void ExprStmt::Print(Indent &indent) const {
 }
 
 int ExprStmt::EstimateCost() const { return 0; }
+
+ExprStmt *ExprStmt::Instantiate(TemplateInstantiation &templInst) const {
+    return new ExprStmt(expr ? expr->Instantiate(templInst) : nullptr, pos);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // DeclStmt
@@ -221,14 +225,16 @@ void DeclStmt::EmitCode(FunctionEmitContext *ctx) const {
 
             // Allocate space for the static variable in global scope, so
             // that it persists across function calls
-            sym->storagePtr = new llvm::GlobalVariable(
-                *m->module, llvmType, sym->type->IsConstType(), llvm::GlobalValue::InternalLinkage, cinit,
-                llvm::Twine("static.") + llvm::Twine(sym->pos.first_line) + llvm::Twine(".") + sym->name.c_str());
+            sym->storageInfo = new AddressInfo(
+                new llvm::GlobalVariable(
+                    *m->module, llvmType, sym->type->IsConstType(), llvm::GlobalValue::InternalLinkage, cinit,
+                    llvm::Twine("static.") + llvm::Twine(sym->pos.first_line) + llvm::Twine(".") + sym->name.c_str()),
+                llvmType);
             // Tell the FunctionEmitContext about the variable
             ctx->EmitVariableDebugInfo(sym);
         } else {
             // For non-static variables, allocate storage on the stack
-            sym->storagePtr = ctx->AllocaInst(sym->type, sym->name.c_str());
+            sym->storageInfo = ctx->AllocaInst(sym->type, sym->name.c_str());
 
             // Tell the FunctionEmitContext about the variable; must do
             // this before the initializer stuff.
@@ -241,7 +247,7 @@ void DeclStmt::EmitCode(FunctionEmitContext *ctx) const {
 
             // And then get it initialized...
             sym->parentFunction = ctx->GetFunction();
-            InitSymbol(sym->storagePtr, sym->type, initExpr, ctx, sym->pos);
+            InitSymbol(sym->storageInfo, sym->type, initExpr, ctx, sym->pos);
         }
     }
 }
@@ -279,6 +285,9 @@ Stmt *DeclStmt::Optimize() {
 // another brace initialization.
 static bool checkInit(const Type *type, Expr **init) {
     bool encounteredError = false;
+    if (type && type->IsDependentType()) {
+        return false;
+    }
 
     // get the right type for stuff like const float foo = 2; so that
     // the int->float type conversion is in there and we don't return
@@ -288,6 +297,11 @@ static bool checkInit(const Type *type, Expr **init) {
         // an error.  Need to leave vars[i].init as is in that case so
         // it is in fact caught later, though.
         if (llvm::dyn_cast<ExprList>(*init) == NULL) {
+            const Type *t = (*init) ? (*init)->GetType() : NULL;
+            if (t && t->IsDependentType()) {
+                return false;
+            }
+
             *init = TypeConvertExpr(*init, type, "initializer");
             if (*init == NULL)
                 encounteredError = true;
@@ -341,6 +355,17 @@ void DeclStmt::Print(Indent &indent) const {
 }
 
 int DeclStmt::EstimateCost() const { return 0; }
+
+DeclStmt *DeclStmt::Instantiate(TemplateInstantiation &templInst) const {
+    std::vector<VariableDeclaration> instVars;
+    for (auto &var : vars) {
+        Expr *instInit = var.init ? var.init->Instantiate(templInst) : nullptr;
+        Symbol *instSym = templInst.InstantiateSymbol(var.sym);
+        VariableDeclaration instDecl(instSym, instInit);
+        instVars.push_back(instDecl);
+    }
+    return new DeclStmt(instVars, pos);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // IfStmt
@@ -469,6 +494,9 @@ Stmt *IfStmt::TypeCheck() {
     if (test != NULL) {
         const Type *testType = test->GetType();
         if (testType != NULL) {
+            if (testType->IsDependentType()) {
+                return this;
+            }
             bool isUniform = (testType->IsUniformType() && !g->opt.disableUniformControlFlow);
             test = TypeConvertExpr(test, isUniform ? AtomicType::UniformBool : AtomicType::VaryingBool,
                                    "\"if\" statement test");
@@ -486,6 +514,13 @@ int IfStmt::EstimateCost() const {
         return 0;
 
     return type->IsUniformType() ? COST_UNIFORM_IF : COST_VARYING_IF;
+}
+
+IfStmt *IfStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instTestExpr = test ? test->Instantiate(templInst) : nullptr;
+    Stmt *instTrueStmts = trueStmts ? trueStmts->Instantiate(templInst) : nullptr;
+    Stmt *instFalseStmts = falseStmts ? falseStmts->Instantiate(templInst) : nullptr;
+    return new IfStmt(instTestExpr, instTrueStmts, instFalseStmts, doAllCheck, pos);
 }
 
 void IfStmt::Print(Indent &indent) const {
@@ -913,6 +948,10 @@ void DoStmt::EmitCode(FunctionEmitContext *ctx) const {
 Stmt *DoStmt::TypeCheck() {
     const Type *testType;
     if (testExpr != NULL && (testType = testExpr->GetType()) != NULL) {
+        if (testType->IsDependentType()) {
+            return this;
+        }
+
         // Should the test condition for the loop be uniform or varying?
         // It can be uniform only if three conditions are met:
         //
@@ -938,12 +977,20 @@ Stmt *DoStmt::TypeCheck() {
     return this;
 }
 
+static bool lLoopStmtUniformTest(Expr *expr, Stmt *stmts) {
+    if (expr) {
+        const Type *type = expr->GetType();
+        Assert(type);
+        return type->IsUniformType();
+    } else {
+        return (!g->opt.disableUniformControlFlow && !lHasVaryingBreakOrContinue(stmts));
+    }
+}
+
 void DoStmt::SetLoopAttribute(std::pair<Globals::pragmaUnrollType, int> lAttr) {
     if (loopAttribute.first != Globals::pragmaUnrollType::none)
         Error(pos, "Multiple '#pragma unroll/nounroll' directives used.");
-    bool uniformTest = testExpr ? testExpr->GetType()->IsUniformType()
-                                : (!g->opt.disableUniformControlFlow && !lHasVaryingBreakOrContinue(bodyStmts));
-    if (uniformTest) {
+    if (lLoopStmtUniformTest(testExpr, bodyStmts)) {
         loopAttribute = lAttr;
     } else {
         Warning(pos, "'#pragma unroll/nounroll' ignored - not supported for varying do loop.");
@@ -951,10 +998,13 @@ void DoStmt::SetLoopAttribute(std::pair<Globals::pragmaUnrollType, int> lAttr) {
 }
 
 int DoStmt::EstimateCost() const {
-    bool uniformTest = testExpr ? testExpr->GetType()->IsUniformType()
-                                : (!g->opt.disableUniformControlFlow && !lHasVaryingBreakOrContinue(bodyStmts));
+    return lLoopStmtUniformTest(testExpr, bodyStmts) ? COST_UNIFORM_LOOP : COST_VARYING_LOOP;
+}
 
-    return uniformTest ? COST_UNIFORM_LOOP : COST_VARYING_LOOP;
+DoStmt *DoStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instTestExpr = testExpr ? testExpr->Instantiate(templInst) : nullptr;
+    Stmt *instBodyStmts = bodyStmts ? bodyStmts->Instantiate(templInst) : nullptr;
+    return new DoStmt(instTestExpr, instBodyStmts, doCoherentCheck, pos);
 }
 
 void DoStmt::Print(Indent &indent) const {
@@ -1114,9 +1164,7 @@ void ForStmt::EmitCode(FunctionEmitContext *ctx) const {
         step->EmitCode(ctx);
 
     llvm::Instruction *branchInst = ctx->BranchInst(btest);
-    if (uniformTest) {
-        ctx->setLoopUnrollMetadata(branchInst, loopAttribute, pos);
-    }
+    ctx->setLoopUnrollMetadata(branchInst, loopAttribute, pos);
 
     // Set the current emission basic block to the loop exit basic block
     ctx->SetCurrentBasicBlock(bexit);
@@ -1128,6 +1176,10 @@ void ForStmt::EmitCode(FunctionEmitContext *ctx) const {
 Stmt *ForStmt::TypeCheck() {
     const Type *testType;
     if (test && (testType = test->GetType()) != NULL) {
+        if (testType->IsDependentType()) {
+            return this;
+        }
+
         // See comments in DoStmt::TypeCheck() regarding
         // 'uniformTest' and the type conversion here.
         bool uniformTest =
@@ -1145,21 +1197,23 @@ void ForStmt::SetLoopAttribute(std::pair<Globals::pragmaUnrollType, int> lAttr) 
     if (loopAttribute.first != Globals::pragmaUnrollType::none)
         Error(pos, "Multiple '#pragma unroll/nounroll' directives used.");
 
-    bool uniformTest = test ? test->GetType()->IsUniformType()
-                            : (!g->opt.disableUniformControlFlow && !lHasVaryingBreakOrContinue(stmts));
-
-    if (uniformTest) {
-        loopAttribute = lAttr;
-    } else {
-        Warning(pos, "'#pragma unroll/nounroll' ignored - not supported for varying for loop.");
+    if (!lLoopStmtUniformTest(test, stmts)) {
+        PerformanceWarning(
+            pos,
+            "'#pragma unroll/nounroll' for varying for loop is slow. Try '#pragma unroll/nounroll' for foreach loop.");
     }
+
+    loopAttribute = lAttr;
 }
 
-int ForStmt::EstimateCost() const {
-    bool uniformTest = test ? test->GetType()->IsUniformType()
-                            : (!g->opt.disableUniformControlFlow && !lHasVaryingBreakOrContinue(stmts));
+int ForStmt::EstimateCost() const { return lLoopStmtUniformTest(test, stmts) ? COST_UNIFORM_LOOP : COST_VARYING_LOOP; }
 
-    return uniformTest ? COST_UNIFORM_LOOP : COST_VARYING_LOOP;
+ForStmt *ForStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instTestExpr = test ? test->Instantiate(templInst) : nullptr;
+    Stmt *instInitStmts = init ? init->Instantiate(templInst) : nullptr;
+    Stmt *instStepStmts = step ? step->Instantiate(templInst) : nullptr;
+    Stmt *instBodyStmts = stmts ? stmts->Instantiate(templInst) : nullptr;
+    return new ForStmt(instInitStmts, instTestExpr, instStepStmts, instBodyStmts, doCoherentCheck, pos);
 }
 
 void ForStmt::Print(Indent &indent) const {
@@ -1205,6 +1259,8 @@ Stmt *BreakStmt::TypeCheck() { return this; }
 
 int BreakStmt::EstimateCost() const { return COST_BREAK_CONTINUE; }
 
+BreakStmt *BreakStmt::Instantiate(TemplateInstantiation &templInst) const { return new BreakStmt(pos); }
+
 void BreakStmt::Print(Indent &indent) const {
     indent.PrintLn("BreakStmt", pos);
     indent.Done();
@@ -1226,6 +1282,8 @@ void ContinueStmt::EmitCode(FunctionEmitContext *ctx) const {
 Stmt *ContinueStmt::TypeCheck() { return this; }
 
 int ContinueStmt::EstimateCost() const { return COST_BREAK_CONTINUE; }
+
+ContinueStmt *ContinueStmt::Instantiate(TemplateInstantiation &templInst) const { return new ContinueStmt(pos); }
 
 void ContinueStmt::Print(Indent &indent) const {
     indent.PrintLn("ContinueStmt", pos);
@@ -1270,10 +1328,11 @@ static llvm::Constant *lCalculateDeltaForVaryingCounter(int dim, int nDims, cons
    uniformCounterPtr, compute the corresponding set of varying counter
    values for use within the loop body.
  */
-static llvm::Value *lUpdateVaryingCounter(int dim, int nDims, FunctionEmitContext *ctx, llvm::Value *uniformCounterPtr,
-                                          llvm::Value *varyingCounterPtr, const std::vector<int> &spans) {
+static llvm::Value *lUpdateVaryingCounter(int dim, int nDims, FunctionEmitContext *ctx,
+                                          AddressInfo *uniformCounterPtrInfo, AddressInfo *varyingCounterPtrInfo,
+                                          const std::vector<int> &spans) {
     // Smear the uniform counter value out to be varying
-    llvm::Value *counter = ctx->LoadInst(uniformCounterPtr);
+    llvm::Value *counter = ctx->LoadInst(uniformCounterPtrInfo);
     llvm::Value *smearCounter = ctx->BroadcastValue(counter, LLVMTypes::Int32VectorType, "smear_counter");
 
     llvm::Constant *delta = lCalculateDeltaForVaryingCounter(dim, nDims, spans);
@@ -1281,7 +1340,7 @@ static llvm::Value *lUpdateVaryingCounter(int dim, int nDims, FunctionEmitContex
     // Add the deltas to compute the varying counter values; store the
     // result to memory and then return it directly as well.
     llvm::Value *varyingCounter = ctx->BinaryOperator(llvm::Instruction::Add, smearCounter, delta, "iter_val");
-    ctx->StoreInst(varyingCounter, varyingCounterPtr);
+    ctx->StoreInst(varyingCounter, varyingCounterPtrInfo);
     return varyingCounter;
 }
 
@@ -1368,8 +1427,9 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     // Setup: compute the number of items we have to work on in each
     // dimension and a number of derived values.
     std::vector<llvm::BasicBlock *> bbReset, bbStep, bbTest;
-    std::vector<llvm::Value *> startVals, endVals, uniformCounterPtrs;
-    std::vector<llvm::Value *> nExtras, alignedEnd, extrasMaskPtrs;
+    std::vector<llvm::Value *> startVals, endVals;
+    std::vector<llvm::Value *> nExtras, alignedEnd;
+    std::vector<AddressInfo *> uniformCounterPtrs, extrasMaskPtrs;
 
     std::vector<int> span(nDims, 0);
     lGetSpans(nDims - 1, nDims, g->target->getVectorWidth(), isTiled, &span[0]);
@@ -1414,7 +1474,7 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
         // There is also a varying variable that holds the set of index
         // values for each dimension in the current loop iteration; this is
         // the value that is program-visible.
-        dimVariables[i]->storagePtr = ctx->AllocaInst(LLVMTypes::Int32VectorType, dimVariables[i]->name.c_str());
+        dimVariables[i]->storageInfo = ctx->AllocaInst(LLVMTypes::Int32VectorType, dimVariables[i]->name.c_str());
         dimVariables[i]->parentFunction = ctx->GetFunction();
         ctx->EmitVariableDebugInfo(dimVariables[i]);
 
@@ -1429,7 +1489,8 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     ctx->StartForeach(FunctionEmitContext::FOREACH_REGULAR);
 
     // On to the outermost loop's test
-    ctx->BranchInst(bbTest[0]);
+    llvm::Instruction *bbBIOuter = ctx->BranchInst(bbTest[0]);
+    ctx->setLoopUnrollMetadata(bbBIOuter, loopAttribute, pos);
 
     ///////////////////////////////////////////////////////////////////////////
     // foreach_reset: this code runs when we need to reset the counter for
@@ -1481,7 +1542,7 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
             inExtras.push_back(ctx->BinaryOperator(llvm::Instruction::Or, inEx, inExtras[i - 1], "in_extras_all"));
 
         llvm::Value *varyingCounter =
-            lUpdateVaryingCounter(i, nDims, ctx, uniformCounterPtrs[i], dimVariables[i]->storagePtr, span);
+            lUpdateVaryingCounter(i, nDims, ctx, uniformCounterPtrs[i], dimVariables[i]->storageInfo, span);
 
         llvm::Value *smearEnd = ctx->BroadcastValue(endVals[i], LLVMTypes::Int32VectorType, "smear_end");
 
@@ -1566,8 +1627,8 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     {
         // Update the varying counter value here, since all subsequent
         // blocks along this path need it.
-        lUpdateVaryingCounter(nDims - 1, nDims, ctx, uniformCounterPtrs[nDims - 1], dimVariables[nDims - 1]->storagePtr,
-                              span);
+        lUpdateVaryingCounter(nDims - 1, nDims, ctx, uniformCounterPtrs[nDims - 1],
+                              dimVariables[nDims - 1]->storageInfo, span);
 
         // here we just check to see if counter < alignedEnd
         llvm::Value *counter = ctx->LoadInst(uniformCounterPtrs[nDims - 1], NULL, "counter");
@@ -1582,7 +1643,7 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     // the innermost dimension but also when outer dimensions have set the
     // mask to be partially on.
     //
-    // The value stored in stepIndexAfterMaskedBodyPtr is used after each
+    // The value stored in stepIndexAfterMaskedBodyPtrInfo is used after each
     // execution of the body code to determine whether the innermost index
     // value should be incremented by the step (we're running the "for"
     // loop of full vectors at the innermost dimension, with outer
@@ -1592,7 +1653,7 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     // should step the loop counter for the next enclosing dimension
     // instead.
     // Revisit : Should this be an i1.
-    llvm::Value *stepIndexAfterMaskedBodyPtr = ctx->AllocaInst(LLVMTypes::BoolType, "step_index");
+    AddressInfo *stepIndexAfterMaskedBodyPtrInfo = ctx->AllocaInst(LLVMTypes::BoolType, "step_index");
 
     ///////////////////////////////////////////////////////////////////////////
     // We're in the inner loop part where the only masking is due to outer
@@ -1609,7 +1670,7 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
 
         ctx->SetInternalMask(mask);
 
-        ctx->StoreInst(LLVMTrue, stepIndexAfterMaskedBodyPtr);
+        ctx->StoreInst(LLVMTrue, stepIndexAfterMaskedBodyPtrInfo);
         ctx->BranchInst(bbMaskedBody);
     }
 
@@ -1618,7 +1679,8 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     // for the final bits here
     ctx->SetCurrentBasicBlock(bbPartial);
     {
-        llvm::Value *varyingCounter = ctx->LoadInst(dimVariables[nDims - 1]->storagePtr, dimVariables[nDims - 1]->type);
+        llvm::Value *varyingCounter =
+            ctx->LoadInst(dimVariables[nDims - 1]->storageInfo, dimVariables[nDims - 1]->type);
         llvm::Value *smearEnd = ctx->BroadcastValue(endVals[nDims - 1], LLVMTypes::Int32VectorType, "smear_end");
 
         llvm::Value *emask = ctx->CmpInst(llvm::Instruction::ICmp, llvm::CmpInst::ICMP_SLT, varyingCounter, smearEnd);
@@ -1632,7 +1694,7 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
             ctx->SetInternalMask(newMask);
         }
 
-        ctx->StoreInst(LLVMFalse, stepIndexAfterMaskedBodyPtr);
+        ctx->StoreInst(LLVMFalse, stepIndexAfterMaskedBodyPtrInfo);
 
         // check to see if counter != end, otherwise, the next step is not necessary
         llvm::Value *counter = ctx->LoadInst(uniformCounterPtrs[nDims - 1], NULL, "counter");
@@ -1659,7 +1721,8 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
         llvm::Value *counter = ctx->LoadInst(uniformCounterPtrs[nDims - 1], NULL, "counter");
         llvm::Value *beforeAlignedEnd = ctx->CmpInst(llvm::Instruction::ICmp, llvm::CmpInst::ICMP_SLT, counter,
                                                      alignedEnd[nDims - 1], "before_aligned_end");
-        ctx->BranchInst(bbFullBody, bbPartialInnerAllOuter, beforeAlignedEnd);
+        llvm::Instruction *bbBIOuterNotInExtras = ctx->BranchInst(bbFullBody, bbPartialInnerAllOuter, beforeAlignedEnd);
+        ctx->setLoopUnrollMetadata(bbBIOuterNotInExtras, loopAttribute, pos);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -1673,8 +1736,8 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     {
         ctx->SetInternalMask(LLVMMaskAllOn);
         ctx->SetBlockEntryMask(LLVMMaskAllOn);
-        lUpdateVaryingCounter(nDims - 1, nDims, ctx, uniformCounterPtrs[nDims - 1], dimVariables[nDims - 1]->storagePtr,
-                              span);
+        lUpdateVaryingCounter(nDims - 1, nDims, ctx, uniformCounterPtrs[nDims - 1],
+                              dimVariables[nDims - 1]->storageInfo, span);
         ctx->SetContinueTarget(bbFullBodyContinue);
         ctx->AddInstrumentationPoint("foreach loop body (all on)");
         stmts->EmitCode(ctx);
@@ -1710,14 +1773,14 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     ctx->SetCurrentBasicBlock(bbSetInnerMask);
     {
         llvm::Value *varyingCounter = lUpdateVaryingCounter(nDims - 1, nDims, ctx, uniformCounterPtrs[nDims - 1],
-                                                            dimVariables[nDims - 1]->storagePtr, span);
+                                                            dimVariables[nDims - 1]->storageInfo, span);
         llvm::Value *smearEnd = ctx->BroadcastValue(endVals[nDims - 1], LLVMTypes::Int32VectorType, "smear_end");
         llvm::Value *emask = ctx->CmpInst(llvm::Instruction::ICmp, llvm::CmpInst::ICMP_SLT, varyingCounter, smearEnd);
         emask = ctx->I1VecToBoolVec(emask);
         ctx->SetInternalMask(emask);
         ctx->SetBlockEntryMask(emask);
 
-        ctx->StoreInst(LLVMFalse, stepIndexAfterMaskedBodyPtr);
+        ctx->StoreInst(LLVMFalse, stepIndexAfterMaskedBodyPtrInfo);
         ctx->BranchInst(bbMaskedBody);
     }
 
@@ -1742,7 +1805,7 @@ void ForeachStmt::EmitCode(FunctionEmitContext *ctx) const {
     ctx->SetCurrentBasicBlock(bbMaskedBodyContinue);
     {
         ctx->RestoreContinuedLanes();
-        llvm::Value *stepIndex = ctx->LoadInst(stepIndexAfterMaskedBodyPtr);
+        llvm::Value *stepIndex = ctx->LoadInst(stepIndexAfterMaskedBodyPtrInfo);
         ctx->BranchInst(bbStepInnerIndex, bbReset[nDims - 1], stepIndex);
     }
 
@@ -1844,9 +1907,9 @@ void ForeachStmt::EmitCodeForXe(FunctionEmitContext *ctx) const {
         steps.push_back(step);
 
         // Init vectorized counters
-        dimVariables[i]->storagePtr = ctx->AllocaInst(LLVMTypes::Int32VectorType, dimVariables[i]->name.c_str());
+        dimVariables[i]->storageInfo = ctx->AllocaInst(LLVMTypes::Int32VectorType, dimVariables[i]->name.c_str());
         dimVariables[i]->parentFunction = ctx->GetFunction();
-        ctx->StoreInst(sv, dimVariables[i]->storagePtr);
+        ctx->StoreInst(sv, dimVariables[i]->storageInfo);
         ctx->EmitVariableDebugInfo(dimVariables[i]);
     }
 
@@ -1867,7 +1930,7 @@ void ForeachStmt::EmitCodeForXe(FunctionEmitContext *ctx) const {
             ctx->BranchInst(bbExit);
         else {
             // Reset counter for this dimension, iterate over previous one
-            ctx->StoreInst(startVals[i], dimVariables[i]->storagePtr);
+            ctx->StoreInst(startVals[i], dimVariables[i]->storageInfo);
             ctx->BranchInst(bbStep[i - 1]);
         }
     }
@@ -1877,9 +1940,9 @@ void ForeachStmt::EmitCodeForXe(FunctionEmitContext *ctx) const {
     // entering foreach.
     for (int i = 0; i < nDims; ++i) {
         ctx->SetCurrentBasicBlock(bbStep[i]);
-        llvm::Value *counter = ctx->LoadInst(dimVariables[i]->storagePtr);
+        llvm::Value *counter = ctx->LoadInst(dimVariables[i]->storageInfo);
         llvm::Value *newCounter = ctx->BinaryOperator(llvm::Instruction::Add, counter, steps[i], "new_counter");
-        ctx->StoreInst(newCounter, dimVariables[i]->storagePtr);
+        ctx->StoreInst(newCounter, dimVariables[i]->storageInfo);
         ctx->BranchInst(bbTest[i]);
     }
 
@@ -1899,7 +1962,7 @@ void ForeachStmt::EmitCodeForXe(FunctionEmitContext *ctx) const {
     // this stuff doesn't matter: we will exit loop after this iteration anyway.
     for (int i = 0; i < nDims; ++i) {
         ctx->SetCurrentBasicBlock(bbTest[i]);
-        llvm::Value *val = ctx->LoadInst(dimVariables[i]->storagePtr, NULL, "val");
+        llvm::Value *val = ctx->LoadInst(dimVariables[i]->storageInfo, NULL, "val");
         llvm::Value *checkVal = ctx->CmpInst(llvm::Instruction::ICmp, llvm::CmpInst::ICMP_SLT, val, endVals[i]);
         // Target is body for innermost dimension, next dimension test for others
         llvm::BasicBlock *targetBB = (i < nDims - 1) ? bbTest[i + 1] : bbBody;
@@ -1934,6 +1997,19 @@ void ForeachStmt::EmitCodeForXe(FunctionEmitContext *ctx) const {
 #endif
 
 Stmt *ForeachStmt::TypeCheck() {
+    for (auto expr : startExprs) {
+        const Type *t = expr ? expr->GetType() : NULL;
+        if (t && t->IsDependentType()) {
+            return this;
+        }
+    }
+    for (auto expr : endExprs) {
+        const Type *t = expr ? expr->GetType() : NULL;
+        if (t && t->IsDependentType()) {
+            return this;
+        }
+    }
+
     bool anyErrors = false;
     for (unsigned int i = 0; i < startExprs.size(); ++i) {
         if (startExprs[i] != NULL)
@@ -1978,10 +2054,42 @@ Stmt *ForeachStmt::TypeCheck() {
 }
 
 void ForeachStmt::SetLoopAttribute(std::pair<Globals::pragmaUnrollType, int> lAttr) {
-    Warning(pos, "'#pragma unroll/nounroll' ignored - not supported for foreach loop.");
+    if (loopAttribute.first != Globals::pragmaUnrollType::none) {
+        Error(pos, "Multiple '#pragma unroll/nounroll' directives used.");
+    }
+
+    loopAttribute = lAttr;
 }
 
 int ForeachStmt::EstimateCost() const { return dimVariables.size() * (COST_UNIFORM_LOOP + COST_SIMPLE_ARITH_LOGIC_OP); }
+
+ForeachStmt *ForeachStmt::Instantiate(TemplateInstantiation &templInst) const {
+    std::vector<Symbol *> instDimVariables;
+    std::vector<Expr *> instStartExprs;
+    std::vector<Expr *> instEndExprs;
+
+    for (auto dimVar : dimVariables) {
+        Symbol *instDimVar = templInst.InstantiateSymbol(dimVar);
+        instDimVariables.push_back(instDimVar);
+    }
+
+    for (auto startExpr : startExprs) {
+        Expr *instStartExpr = startExpr ? startExpr->Instantiate(templInst) : nullptr;
+        instStartExprs.push_back(instStartExpr);
+    }
+
+    for (auto endExpr : endExprs) {
+        Expr *instEndExpr = endExpr ? endExpr->Instantiate(templInst) : nullptr;
+        instEndExprs.push_back(instEndExpr);
+    }
+
+    Stmt *instStmts = stmts ? stmts->Instantiate(templInst) : nullptr;
+
+    ForeachStmt *inst = new ForeachStmt(instDimVariables, instStartExprs, instEndExprs, instStmts, isTiled, pos);
+    inst->loopAttribute = loopAttribute;
+
+    return inst;
+}
 
 void ForeachStmt::Print(Indent &indent) const {
     indent.PrintLn("ForeachStmt", pos);
@@ -2053,7 +2161,7 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
         return;
     }
     Assert(Type::Equal(sym->type, AtomicType::UniformInt64->GetAsConstType()));
-    sym->storagePtr = ctx->AllocaInst(LLVMTypes::Int64Type, sym->name.c_str());
+    sym->storageInfo = ctx->AllocaInst(LLVMTypes::Int64Type, sym->name.c_str());
 
     ctx->SetDebugPos(pos);
     ctx->EmitVariableDebugInfo(sym);
@@ -2083,9 +2191,9 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
 #endif
         oldFullMask = ctx->GetFullMask();
 
-    llvm::Value *maskBitsPtr = ctx->AllocaInst(LLVMTypes::Int64Type, "mask_bits");
+    AddressInfo *maskBitsPtrInfo = ctx->AllocaInst(LLVMTypes::Int64Type, "mask_bits");
     llvm::Value *movmsk = ctx->LaneMask(oldFullMask);
-    ctx->StoreInst(movmsk, maskBitsPtr);
+    ctx->StoreInst(movmsk, maskBitsPtrInfo);
 
     // Officially start the loop.
     ctx->StartScope();
@@ -2098,7 +2206,7 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
     ctx->SetCurrentBasicBlock(bbFindNext);
     {
         // Load the bitmask of the lanes left to be processed
-        llvm::Value *remainingBits = ctx->LoadInst(maskBitsPtr, NULL, "remaining_bits");
+        llvm::Value *remainingBits = ctx->LoadInst(maskBitsPtrInfo, NULL, "remaining_bits");
 
         // Find the index of the first set bit in the mask
         llvm::Function *ctlzFunc = m->module->getFunction("__count_trailing_zeros_i64");
@@ -2107,7 +2215,7 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
 
         // Store that value into the storage allocated for the iteration
         // variable.
-        ctx->StoreInst(firstSet, sym->storagePtr, sym->type);
+        ctx->StoreInst(firstSet, sym->storageInfo, sym->type);
 
         // Now set the execution mask to be only on for the current program
         // instance.  (TODO: is there a more efficient way to do this? e.g.
@@ -2138,7 +2246,7 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
         llvm::Value *notSetMask = ctx->NotOperator(setMask);
         llvm::Value *newRemaining =
             ctx->BinaryOperator(llvm::Instruction::And, remainingBits, notSetMask, "new_remaining");
-        ctx->StoreInst(newRemaining, maskBitsPtr);
+        ctx->StoreInst(newRemaining, maskBitsPtrInfo);
 
         // and onward to run the loop body...
         // Set Xe EM through simdcf.goto
@@ -2169,7 +2277,7 @@ void ForeachActiveStmt::EmitCode(FunctionEmitContext *ctx) const {
         // statements normally, or a continue statement in the middle of
         // the loop that jumps to the end, see if there are any lanes left
         // to be processed.
-        llvm::Value *remainingBits = ctx->LoadInst(maskBitsPtr, NULL, "remaining_bits");
+        llvm::Value *remainingBits = ctx->LoadInst(maskBitsPtrInfo, NULL, "remaining_bits");
         llvm::Value *nonZero = ctx->CmpInst(llvm::Instruction::ICmp, llvm::CmpInst::ICMP_NE, remainingBits,
                                             LLVMInt64(0), "remaining_ne_zero");
         ctx->BranchInst(bbFindNext, bbDone, nonZero);
@@ -2222,15 +2330,26 @@ void ForeachActiveStmt::SetLoopAttribute(std::pair<Globals::pragmaUnrollType, in
 
 int ForeachActiveStmt::EstimateCost() const { return COST_VARYING_LOOP; }
 
+ForeachActiveStmt *ForeachActiveStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Symbol *instSym = templInst.InstantiateSymbol(sym);
+    Stmt *instStmts = stmts ? stmts->Instantiate(templInst) : nullptr;
+
+    ForeachActiveStmt *inst = new ForeachActiveStmt(instSym, instStmts, pos);
+    inst->loopAttribute = loopAttribute;
+
+    return inst;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // ForeachUniqueStmt
 
 ForeachUniqueStmt::ForeachUniqueStmt(const char *iterName, Expr *e, Stmt *s, SourcePos pos)
-    : Stmt(pos, ForeachUniqueStmtID) {
+    : Stmt(pos, ForeachUniqueStmtID), expr(e), stmts(s) {
     sym = m->symbolTable->LookupVariable(iterName);
-    expr = e;
-    stmts = s;
 }
+
+ForeachUniqueStmt::ForeachUniqueStmt(Symbol *symbol, Expr *e, Stmt *s, SourcePos pos)
+    : Stmt(pos, ForeachUniqueStmtID), sym(symbol), expr(e), stmts(s) {}
 
 void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
     if (!ctx->GetCurrentBasicBlock())
@@ -2249,7 +2368,7 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
         return;
     }
 
-    sym->storagePtr = ctx->AllocaInst(sym->type, sym->name.c_str());
+    sym->storageInfo = ctx->AllocaInst(sym->type, sym->name.c_str());
 
     ctx->SetDebugPos(pos);
     ctx->EmitVariableDebugInfo(sym);
@@ -2282,9 +2401,9 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
 #endif
         oldFullMask = ctx->GetFullMask();
 
-    llvm::Value *maskBitsPtr = ctx->AllocaInst(LLVMTypes::Int64Type, "mask_bits");
+    AddressInfo *maskBitsPtrInfo = ctx->AllocaInst(LLVMTypes::Int64Type, "mask_bits");
     llvm::Value *movmsk = ctx->LaneMask(oldFullMask);
-    ctx->StoreInst(movmsk, maskBitsPtr);
+    ctx->StoreInst(movmsk, maskBitsPtrInfo);
 
     // Officially start the loop.
     ctx->StartForeach(FunctionEmitContext::FOREACH_UNIQUE, emulatedUniform);
@@ -2302,7 +2421,7 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
         return;
     }
     ctx->SetDebugPos(pos);
-    llvm::Value *exprMem = ctx->AllocaInst(exprType, "expr_mem");
+    AddressInfo *exprMem = ctx->AllocaInst(exprType, "expr_mem");
     ctx->StoreInst(exprValue, exprMem, exprType);
 
     // Onward to find the first set of lanes to run the loop for
@@ -2311,7 +2430,7 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
     ctx->SetCurrentBasicBlock(bbFindNext);
     {
         // Load the bitmask of the lanes left to be processed
-        llvm::Value *remainingBits = ctx->LoadInst(maskBitsPtr, NULL, "remaining_bits");
+        llvm::Value *remainingBits = ctx->LoadInst(maskBitsPtrInfo, NULL, "remaining_bits");
 
         // Find the index of the first set bit in the mask
         llvm::Function *ctlzFunc = m->module->getFunction("__count_trailing_zeros_i64");
@@ -2335,7 +2454,7 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
         Assert(uniqueValue != NULL);
         // Store that value in sym's storage so that the iteration variable
         // has the right value inside the loop body
-        ctx->StoreInst(uniqueValue, sym->storagePtr, sym->type);
+        ctx->StoreInst(uniqueValue, sym->storageInfo, sym->type);
 
         // Set the execution mask so that it's on for any lane that a) was
         // running at the start of the foreach loop, and b) where that
@@ -2367,7 +2486,7 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
         llvm::Value *notLoopMaskMM = ctx->NotOperator(loopMaskMM);
         llvm::Value *newRemaining =
             ctx->BinaryOperator(llvm::Instruction::And, remainingBits, notLoopMaskMM, "new_remaining");
-        ctx->StoreInst(newRemaining, maskBitsPtr);
+        ctx->StoreInst(newRemaining, maskBitsPtrInfo);
 
         // and onward...
         // Set Xe EM through simdcf.goto
@@ -2397,7 +2516,7 @@ void ForeachUniqueStmt::EmitCode(FunctionEmitContext *ctx) const {
         // the loop that jumps to the end, see if there are any lanes left
         // to be processed.
         ctx->RestoreContinuedLanes();
-        llvm::Value *remainingBits = ctx->LoadInst(maskBitsPtr, NULL, "remaining_bits");
+        llvm::Value *remainingBits = ctx->LoadInst(maskBitsPtrInfo, NULL, "remaining_bits");
         llvm::Value *nonZero = ctx->CmpInst(llvm::Instruction::ICmp, llvm::CmpInst::ICMP_NE, remainingBits,
                                             LLVMInt64(0), "remaining_ne_zero");
         ctx->BranchInst(bbFindNext, bbDone, nonZero);
@@ -2450,6 +2569,10 @@ Stmt *ForeachUniqueStmt::TypeCheck() {
     if (sym == NULL || expr == NULL || (type = expr->GetType()) == NULL)
         return NULL;
 
+    if (type->IsDependentType()) {
+        return this;
+    }
+
     if (type->IsVaryingType() == false) {
         Error(expr->pos,
               "Iteration domain type in \"foreach_tiled\" loop "
@@ -2474,6 +2597,17 @@ void ForeachUniqueStmt::SetLoopAttribute(std::pair<Globals::pragmaUnrollType, in
 }
 
 int ForeachUniqueStmt::EstimateCost() const { return COST_VARYING_LOOP; }
+
+ForeachUniqueStmt *ForeachUniqueStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instExpr = expr ? expr->Instantiate(templInst) : nullptr;
+    Stmt *instStmts = stmts ? stmts->Instantiate(templInst) : nullptr;
+    Symbol *instSym = templInst.InstantiateSymbol(sym);
+
+    ForeachUniqueStmt *inst = new ForeachUniqueStmt(instSym, instExpr, instStmts, pos);
+    inst->loopAttribute = loopAttribute;
+
+    return inst;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // CaseStmt
@@ -2516,6 +2650,11 @@ Stmt *CaseStmt::TypeCheck() { return this; }
 
 int CaseStmt::EstimateCost() const { return 0; }
 
+CaseStmt *CaseStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Stmt *instStmts = stmts ? stmts->Instantiate(templInst) : nullptr;
+    return new CaseStmt(value, instStmts, pos);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // DefaultStmt
 
@@ -2537,6 +2676,11 @@ void DefaultStmt::Print(Indent &indent) const {
 Stmt *DefaultStmt::TypeCheck() { return this; }
 
 int DefaultStmt::EstimateCost() const { return 0; }
+
+DefaultStmt *DefaultStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Stmt *instStmts = stmts ? stmts->Instantiate(templInst) : nullptr;
+    return new DefaultStmt(instStmts, pos);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // SwitchStmt
@@ -2718,6 +2862,10 @@ Stmt *SwitchStmt::TypeCheck() {
         return NULL;
     }
 
+    if (exprType->IsDependentType()) {
+        return this;
+    }
+
     const Type *toType = NULL;
     exprType = exprType->GetAsConstType();
     bool is64bit = (Type::EqualIgnoringConst(exprType->GetAsUniformType(), AtomicType::UniformUInt64) ||
@@ -2748,6 +2896,12 @@ int SwitchStmt::EstimateCost() const {
         return COST_VARYING_SWITCH;
     else
         return COST_UNIFORM_SWITCH;
+}
+
+SwitchStmt *SwitchStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instExpr = expr ? expr->Instantiate(templInst) : nullptr;
+    Stmt *instStmts = stmts ? stmts->Instantiate(templInst) : nullptr;
+    return new SwitchStmt(instExpr, instStmts, pos);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -2801,6 +2955,11 @@ Stmt *UnmaskedStmt::TypeCheck() { return this; }
 
 int UnmaskedStmt::EstimateCost() const { return COST_ASSIGN; }
 
+UnmaskedStmt *UnmaskedStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Stmt *instStmts = stmts ? stmts->Instantiate(templInst) : nullptr;
+    return new UnmaskedStmt(instStmts, pos);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // ReturnStmt
 
@@ -2843,6 +3002,11 @@ void ReturnStmt::EmitCode(FunctionEmitContext *ctx) const {
 Stmt *ReturnStmt::TypeCheck() { return this; }
 
 int ReturnStmt::EstimateCost() const { return COST_RETURN; }
+
+ReturnStmt *ReturnStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instExpr = expr ? expr->Instantiate(templInst) : nullptr;
+    return new ReturnStmt(instExpr, pos);
+}
 
 void ReturnStmt::Print(Indent &indent) const {
     indent.Print("ReturnStmt", pos);
@@ -2919,6 +3083,11 @@ Stmt *GotoStmt::TypeCheck() { return this; }
 
 int GotoStmt::EstimateCost() const { return COST_GOTO; }
 
+GotoStmt *GotoStmt::Instantiate(TemplateInstantiation &templInst) const {
+    return new GotoStmt(label.c_str(), pos, identifierPos);
+    ;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // LabeledStmt
 
@@ -2977,6 +3146,11 @@ Stmt *LabeledStmt::TypeCheck() {
 
 int LabeledStmt::EstimateCost() const { return 0; }
 
+LabeledStmt *LabeledStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Stmt *instStmt = stmt ? stmt->Instantiate(templInst) : nullptr;
+    return new LabeledStmt(name.c_str(), instStmt, pos);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // StmtList
 
@@ -2992,6 +3166,14 @@ void StmtList::EmitCode(FunctionEmitContext *ctx) const {
 Stmt *StmtList::TypeCheck() { return this; }
 
 int StmtList::EstimateCost() const { return 0; }
+
+StmtList *StmtList::Instantiate(TemplateInstantiation &templInst) const {
+    StmtList *inst = new StmtList(pos);
+    for (auto stmt : stmts) {
+        inst->Add(stmt ? stmt->Instantiate(templInst) : nullptr);
+    }
+    return inst;
+}
 
 void StmtList::Print(Indent &indent) const {
     indent.PrintLn("StmtList", pos);
@@ -3136,11 +3318,11 @@ class PrintArgsBuilder {
     FunctionEmitContext *ctx;
 
     struct AdditionalData {
-        llvm::Value *mask;
+        llvm::Value *mask{NULL};
         enum { LeftParenthesisIdx = 0, RightParenthesisIdx, EmptyIdx, FalseIdx, TrueIdx, NumStrings };
-        std::array<llvm::Value *, NumStrings> strings;
+        std::array<llvm::Value *, NumStrings> strings{};
 
-        AdditionalData() { mask = NULL; }
+        AdditionalData() {}
         AdditionalData(FunctionEmitContext *ctx) {
             if (ctx->emitXeHardwareMask())
                 mask = ctx->XeSimdCFPredicate(LLVMMaskAllOn);
@@ -3489,21 +3671,22 @@ void PrintStmt::emitCode4LZ(FunctionEmitContext *ctx) const {
     expression and store the result to alloca's memory.  Update the
     argTypes string with the type encoding for this expression.
  */
-static llvm::Value *lEmitPrintArgCode(Expr *expr, FunctionEmitContext *ctx) {
+static AddressInfo *lEmitPrintArgCode(Expr *expr, FunctionEmitContext *ctx) {
     const Type *type = expr->GetType();
 
+    Assert(type);
     llvm::Type *llvmExprType = type->LLVMType(g->ctx);
-    llvm::Value *ptr = ctx->AllocaInst(llvmExprType, "print_arg");
+    AddressInfo *ptrInfo = ctx->AllocaInst(llvmExprType, "print_arg");
     llvm::Value *val = expr->GetValue(ctx);
     if (!val)
         return NULL;
-    ctx->StoreInst(val, ptr);
+    ctx->StoreInst(val, ptrInfo);
 
-    ptr = ctx->BitCastInst(ptr, LLVMTypes::VoidPointerType);
-    return ptr;
+    llvm::Value *ptr = ctx->BitCastInst(ptrInfo->getPointer(), LLVMTypes::VoidPointerType);
+    return new AddressInfo(ptr, LLVMTypes::VoidPointerType);
 }
 
-static bool lProcessPrintArg(Expr *expr, FunctionEmitContext *ctx, llvm::Value *argPtrArray, int offset,
+static bool lProcessPrintArg(Expr *expr, FunctionEmitContext *ctx, AddressInfo *argPtrArray, int offset,
                              std::string &argTypes) {
     if (!expr)
         return false;
@@ -3513,11 +3696,11 @@ static bool lProcessPrintArg(Expr *expr, FunctionEmitContext *ctx, llvm::Value *
     if (!expr)
         return false;
     argTypes.push_back(type);
-    llvm::Value *ptr = lEmitPrintArgCode(expr, ctx);
-    if (!ptr)
+    AddressInfo *ptrInfo = lEmitPrintArgCode(expr, ctx);
+    if (!ptrInfo)
         return false;
-    llvm::Value *arrayPtr = ctx->AddElementOffset(argPtrArray, offset, NULL);
-    ctx->StoreInst(ptr, arrayPtr);
+    llvm::Value *arrayPtr = ctx->AddElementOffset(argPtrArray, offset);
+    ctx->StoreInst(ptrInfo->getPointer(), new AddressInfo(arrayPtr, ptrInfo->getElementType()));
     return true;
 }
 
@@ -3541,23 +3724,24 @@ std::vector<llvm::Value *> PrintStmt::getDoPrintArgs(FunctionEmitContext *ctx) c
         checkFormatString(format, nArgs, pos);
         // Allocate space for the array of pointers to values to be printed
         llvm::Type *argPtrArrayType = llvm::ArrayType::get(LLVMTypes::VoidPointerType, nArgs);
-        llvm::Value *argPtrArray = ctx->AllocaInst(argPtrArrayType, "print_arg_ptrs");
+        AddressInfo *argPtrArrayInfo = ctx->AllocaInst(argPtrArrayType, "print_arg_ptrs");
         // Store the array pointer as a void **, which is what __do_print()
         // expects
-        doPrintArgs[ARGS_IDX] = ctx->BitCastInst(argPtrArray, llvm::PointerType::get(LLVMTypes::VoidPointerType, 0));
+        doPrintArgs[ARGS_IDX] =
+            ctx->BitCastInst(argPtrArrayInfo->getPointer(), llvm::PointerType::get(LLVMTypes::VoidPointerType, 0));
 
         // Now, for each of the arguments, emit code to evaluate its value
         // and store the value into alloca's storage.  Then store the
-        // pointer to the alloca's storage into argPtrArray.
+        // pointer to the alloca's storage into argPtrArrayInfo.
         if (elist) {
             for (unsigned int i = 0; i < elist->exprs.size(); ++i) {
                 Expr *expr = elist->exprs[i];
-                if (!lProcessPrintArg(expr, ctx, argPtrArray, i, argTypes)) {
+                if (!lProcessPrintArg(expr, ctx, argPtrArrayInfo, i, argTypes)) {
                     return {};
                 }
             }
         } else {
-            if (lProcessPrintArg(values, ctx, argPtrArray, 0, argTypes)) {
+            if (lProcessPrintArg(values, ctx, argPtrArrayInfo, 0, argTypes)) {
                 return {};
             }
         }
@@ -3613,6 +3797,11 @@ void PrintStmt::Print(Indent &indent) const {
 Stmt *PrintStmt::TypeCheck() { return this; }
 
 int PrintStmt::EstimateCost() const { return COST_FUNCALL; }
+
+PrintStmt *PrintStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instValues = values ? values->Instantiate(templInst) : nullptr;
+    return new PrintStmt(format, instValues, pos);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // AssertStmt
@@ -3716,6 +3905,9 @@ void AssertStmt::Print(Indent &indent) const {
 Stmt *AssertStmt::TypeCheck() {
     const Type *type;
     if (expr && (type = expr->GetType()) != NULL) {
+        if (type->IsDependentType()) {
+            return this;
+        }
         bool isUniform = type->IsUniformType();
         expr = TypeConvertExpr(expr, isUniform ? AtomicType::UniformBool : AtomicType::VaryingBool,
                                "\"assert\" statement");
@@ -3726,6 +3918,11 @@ Stmt *AssertStmt::TypeCheck() {
 }
 
 int AssertStmt::EstimateCost() const { return COST_ASSERT; }
+
+AssertStmt *AssertStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instExpr = expr ? expr->Instantiate(templInst) : nullptr;
+    return new AssertStmt(message, instExpr, pos);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // DeleteStmt
@@ -3805,6 +4002,10 @@ Stmt *DeleteStmt::TypeCheck() {
     if (expr == NULL || ((exprType = expr->GetType()) == NULL))
         return NULL;
 
+    if (exprType->IsDependentType()) {
+        return this;
+    }
+
     if (CastType<PointerType>(exprType) == NULL) {
         Error(pos, "Illegal to delete non-pointer type \"%s\".", exprType->GetString().c_str());
         return NULL;
@@ -3814,3 +4015,8 @@ Stmt *DeleteStmt::TypeCheck() {
 }
 
 int DeleteStmt::EstimateCost() const { return COST_DELETE; }
+
+DeleteStmt *DeleteStmt::Instantiate(TemplateInstantiation &templInst) const {
+    Expr *instExpr = expr->Instantiate(templInst);
+    return new DeleteStmt(instExpr, pos);
+}

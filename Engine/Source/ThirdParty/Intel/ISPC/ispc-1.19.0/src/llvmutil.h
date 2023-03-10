@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2022, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -60,13 +60,11 @@ class PHINode;
 class InsertElementInst;
 } // namespace llvm
 
-#if ISPC_LLVM_VERSION >= ISPC_LLVM_11_0
 #define LLVMVECTOR llvm::FixedVectorType
-#else
-#define LLVMVECTOR llvm::VectorType
-#endif
 
 namespace ispc {
+
+enum class MaskStatus { all_on, all_off, mixed, unknown };
 
 /** This structure holds pointers to a variety of LLVM types; code
     elsewhere can use them from here, ratherthan needing to make more
@@ -325,9 +323,7 @@ extern llvm::Value *LLVMFlattenInsertChain(llvm::Value *inst, int vectorWidth, b
 /** This is a utility routine for debugging that dumps out the given LLVM
     value as well as (recursively) all of the other values that it depends
     on. */
-#ifndef ISPC_NO_DUMPS
 extern void LLVMDumpValue(llvm::Value *v);
-#endif
 
 /** Given a vector-typed value, this function returns the value of its
     first element.  Rather than just doing the straightforward thing of
@@ -350,6 +346,87 @@ extern llvm::Value *LLVMConcatVectors(llvm::Value *v1, llvm::Value *v2, llvm::In
     corresponding shufflevector operation. */
 extern llvm::Value *LLVMShuffleVectors(llvm::Value *v1, llvm::Value *v2, int32_t shuf[], int shufSize,
                                        llvm::Instruction *insertBefore);
+
+/** This utility routine copies the metadata (if any) attached to the
+    'from' instruction in the IR to the 'to' instruction.
+
+    For flexibility, this function takes an llvm::Value rather than an
+    llvm::Instruction for the 'to' parameter; at some places in the code
+    below, we sometimes use a llvm::Value to start out storing a value and
+    then later store instructions.  If a llvm::Value is passed to this, the
+    routine just returns without doing anything; if it is in fact an
+    LLVM::Instruction, then the metadata can be copied to it. */
+extern void LLVMCopyMetadata(llvm::Value *vto, const llvm::Instruction *from);
+
+/** We have a protocol with the front-end LLVM IR code generation process
+    that allows us to encode the source file position that corresponds with
+    instructions.  (For example, this allows us to issue performance
+    warnings related to things like scatter and gather after optimization
+    has been performed, so that we aren't warning about scatters and
+    gathers that have been improved to stores and loads by optimization
+    passes.)  Note that this is slightly redundant with the source file
+    position encoding generated for debugging symbols, though we don't
+    always generate debugging information but we do always generate this
+    position data.
+
+    This function finds the SourcePos that the metadata in the instruction
+    (if present) corresponds to.  See the implementation of
+    FunctionEmitContext::addGSMetadata(), which encodes the source position during
+    code generation.
+
+    @param inst   Instruction to try to find the source position of
+    @param pos    Output variable in which to store the position
+    @returns      True if source file position metadata was present and *pos
+                  has been set.  False otherwise.*/
+extern bool LLVMGetSourcePosFromMetadata(const llvm::Instruction *inst, SourcePos *pos);
+
+/** Given an llvm::Value, return true if we can determine that it's an
+    undefined value.  This only makes a weak attempt at chasing this down,
+    only detecting flat-out undef values, and bitcasts of undef values.
+
+    @todo Is it worth working harder to find more of these?  It starts to
+    get tricky, since having an undef operand doesn't necessarily mean that
+    the result will be undefined.  (And for that matter, is there an LLVM
+    call that will do this for us?)
+ */
+extern bool LLVMIsValueUndef(llvm::Value *value);
+
+/** Below are helper functions to construct LLVM instructions. */
+extern llvm::Instruction *LLVMCallInst(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1,
+                                       const llvm::Twine &name, llvm::Instruction *insertBefore = NULL);
+
+extern llvm::Instruction *LLVMCallInst(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1, llvm::Value *arg2,
+                                       const llvm::Twine &name, llvm::Instruction *insertBefore = NULL);
+
+extern llvm::Instruction *LLVMCallInst(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1, llvm::Value *arg2,
+                                       llvm::Value *arg3, const llvm::Twine &name,
+                                       llvm::Instruction *insertBefore = NULL);
+
+extern llvm::Instruction *LLVMCallInst(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1, llvm::Value *arg2,
+                                       llvm::Value *arg3, llvm::Value *arg4, const llvm::Twine &name,
+                                       llvm::Instruction *insertBefore = NULL);
+
+extern llvm::Instruction *LLVMCallInst(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1, llvm::Value *arg2,
+                                       llvm::Value *arg3, llvm::Value *arg4, llvm::Value *arg5, const llvm::Twine &name,
+                                       llvm::Instruction *insertBefore = NULL);
+
+extern llvm::Instruction *LLVMGEPInst(llvm::Value *ptr, llvm::Type *ptrElType, llvm::Value *offset, const char *name,
+                                      llvm::Instruction *insertBefore);
+
+/** Mask-related helpers */
+
+/** Given an llvm::Value represinting a vector mask, see if the value is a
+    constant.  If so, return true and set *bits to be the integer mask
+    found by taking the high bits of the mask values in turn and
+    concatenating them into a single integer.  In other words, given the
+    4-wide mask: < 0xffffffff, 0, 0, 0xffffffff >, we have 0b1001 = 9.
+ */
+extern bool GetMaskFromValue(llvm::Value *factor, uint64_t *mask);
+
+/** Determines if the given mask value is all on, all off, mixed, or
+    unknown at compile time.
+*/
+extern MaskStatus GetMaskStatusFromValue(llvm::Value *mask, int vecWidth = -1);
 
 #ifdef ISPC_XE_ENABLED
 /** This is utility function to determine memory in which pointer was created.

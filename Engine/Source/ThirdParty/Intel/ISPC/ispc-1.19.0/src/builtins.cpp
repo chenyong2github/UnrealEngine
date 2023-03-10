@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2022, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,8 @@ using namespace ispc;
 extern int yyparse();
 struct yy_buffer_state;
 extern yy_buffer_state *yy_scan_string(const char *);
+typedef struct yy_buffer_state *YY_BUFFER_STATE;
+extern void yy_delete_buffer(YY_BUFFER_STATE);
 
 /** Given an LLVM type, try to find the equivalent ispc type.  Note that
     this is an under-constrained problem due to LLVM's type representations
@@ -310,7 +312,11 @@ static void lUpdateIntrinsicsAttributes(llvm::Module *module) {
 #ifdef ISPC_XE_ENABLED
     for (auto F = module->begin(), E = module->end(); F != E; ++F) {
         llvm::Function *Fn = &*F;
-
+        // WA for isGenXIntrinsic(Fn) and getGenXIntrinsicID(Fn)
+        // There are crashes if intrinsics is not supported on some platforms
+        if (Fn && Fn->getName().contains("prefetch")) {
+            continue;
+        }
         if (Fn && llvm::GenXIntrinsic::isGenXIntrinsic(Fn)) {
             Fn->setAttributes(
                 llvm::GenXIntrinsic::getAttributes(Fn->getContext(), llvm::GenXIntrinsic::getGenXIntrinsicID(Fn)));
@@ -469,6 +475,8 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__cast_mask_to_i1",
         "__cast_mask_to_i8",
         "__cast_mask_to_i16",
+        "__cast_mask_to_i32",
+        "__cast_mask_to_i64",
         "__ceil_uniform_double",
         "__ceil_uniform_float",
         "__ceil_uniform_half",
@@ -628,6 +636,10 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__prefetch_write_uniform_1",
         "__prefetch_write_uniform_2",
         "__prefetch_write_uniform_3",
+        "__prefetch_read_sized_uniform_1",
+        "__prefetch_read_sized_uniform_2",
+        "__prefetch_read_sized_uniform_3",
+        "__prefetch_read_sized_uniform_nt",
         "__pseudo_prefetch_read_varying_1",
         "__pseudo_prefetch_read_varying_2",
         "__pseudo_prefetch_read_varying_3",
@@ -635,6 +647,10 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__pseudo_prefetch_write_varying_1",
         "__pseudo_prefetch_write_varying_2",
         "__pseudo_prefetch_write_varying_3",
+        "__prefetch_read_sized_varying_1",
+        "__prefetch_read_sized_varying_2",
+        "__prefetch_read_sized_varying_3",
+        "__prefetch_read_sized_varying_nt",
         "__psubs_ui8",
         "__psubs_ui16",
         "__psubs_ui32",
@@ -692,6 +708,7 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__reduce_min_int64",
         "__reduce_min_uint32",
         "__reduce_min_uint64",
+        "__restore_ftz_daz_flags",
         "__rotate_double",
         "__rotate_float",
         "__rotate_half",
@@ -729,6 +746,7 @@ static void lSetInternalFunctions(llvm::Module *module) {
         "__saturating_mul_ui8",
         "__saturating_mul_ui16",
         "__saturating_mul_ui32",
+        "__set_ftz_daz_flags",
         "__set_system_isa",
         "__sext_uniform_bool",
         "__sext_varying_bool",
@@ -1085,7 +1103,7 @@ static void lDefineConstantInt(const char *name, int val, llvm::Module *module, 
     llvm::Constant *linit = LLVMInt32(val);
     auto GV = new llvm::GlobalVariable(*module, ltype, true, llvm::GlobalValue::InternalLinkage, linit, name);
     dbg_sym.push_back(GV);
-    sym->storagePtr = GV;
+    sym->storageInfo = new AddressInfo(GV, GV->getValueType());
     symbolTable->AddVariable(sym);
 
     if (m->diBuilder != NULL) {
@@ -1095,7 +1113,7 @@ static void lDefineConstantInt(const char *name, int val, llvm::Module *module, 
         // FIXME? DWARF says that this (and programIndex below) should
         // have the DW_AT_artifical attribute.  It's not clear if this
         // matters for anything though.
-        llvm::GlobalVariable *sym_GV_storagePtr = llvm::dyn_cast<llvm::GlobalVariable>(sym->storagePtr);
+        llvm::GlobalVariable *sym_GV_storagePtr = llvm::dyn_cast<llvm::GlobalVariable>(sym->storageInfo->getPointer());
         Assert(sym_GV_storagePtr);
         llvm::DIGlobalVariableExpression *var =
             m->diBuilder->createGlobalVariableExpression(cu, name, name, file, 0 /* line */, diType, true /* static */);
@@ -1140,14 +1158,14 @@ static void lDefineProgramIndex(llvm::Module *module, SymbolTable *symbolTable,
     auto GV =
         new llvm::GlobalVariable(*module, ltype, true, llvm::GlobalValue::InternalLinkage, linit, sym->name.c_str());
     dbg_sym.push_back(GV);
-    sym->storagePtr = GV;
+    sym->storageInfo = new AddressInfo(GV, GV->getValueType());
     symbolTable->AddVariable(sym);
 
     if (m->diBuilder != NULL) {
         llvm::DIFile *file = m->diCompileUnit->getFile();
         llvm::DICompileUnit *cu = m->diCompileUnit;
         llvm::DIType *diType = sym->type->GetDIType(file);
-        llvm::GlobalVariable *sym_GV_storagePtr = llvm::dyn_cast<llvm::GlobalVariable>(sym->storagePtr);
+        llvm::GlobalVariable *sym_GV_storagePtr = llvm::dyn_cast<llvm::GlobalVariable>(sym->storageInfo->getPointer());
         Assert(sym_GV_storagePtr);
         llvm::DIGlobalVariableExpression *var = m->diBuilder->createGlobalVariableExpression(
             cu, sym->name.c_str(), sym->name.c_str(), file, 0 /* line */, diType, false /* static */);
@@ -1214,7 +1232,9 @@ void ispc::DefineStdlib(SymbolTable *symbolTable, llvm::LLVMContext *ctx, llvm::
     lDefineConstantInt("__math_lib_system", (int)Globals::MathLib::Math_System, module, symbolTable, debug_symbols);
     lDefineConstantIntFunc("__fast_masked_vload", (int)g->opt.fastMaskedVload, module, symbolTable, debug_symbols);
 
-    lDefineConstantInt("__have_native_half", g->target->hasHalf(), module, symbolTable, debug_symbols);
+    lDefineConstantInt("__have_native_half_converts", g->target->hasHalfConverts(), module, symbolTable, debug_symbols);
+    lDefineConstantInt("__have_native_half_full_support", g->target->hasHalfFullSupport(), module, symbolTable,
+                       debug_symbols);
     lDefineConstantInt("__have_native_rand", g->target->hasRand(), module, symbolTable, debug_symbols);
     lDefineConstantInt("__have_native_transcendentals", g->target->hasTranscendentals(), module, symbolTable,
                        debug_symbols);
@@ -1222,7 +1242,11 @@ void ispc::DefineStdlib(SymbolTable *symbolTable, llvm::LLVMContext *ctx, llvm::
     lDefineConstantInt("__have_native_rsqrtd", g->target->hasRsqrtd(), module, symbolTable, debug_symbols);
     lDefineConstantInt("__have_native_rcpd", g->target->hasRcpd(), module, symbolTable, debug_symbols);
     lDefineConstantInt("__have_saturating_arithmetic", g->target->hasSatArith(), module, symbolTable, debug_symbols);
-
+#ifdef ISPC_XE_ENABLED
+    lDefineConstantInt("__have_xe_prefetch", g->target->hasXePrefetch(), module, symbolTable, debug_symbols);
+#else
+    lDefineConstantInt("__have_xe_prefetch", false, module, symbolTable, debug_symbols);
+#endif
     lDefineConstantInt("__is_xe_target", (int)(g->target->isXeTarget()), module, symbolTable, debug_symbols);
 
     if (g->forceAlignment != -1) {
@@ -1230,7 +1254,11 @@ void ispc::DefineStdlib(SymbolTable *symbolTable, llvm::LLVMContext *ctx, llvm::
         alignment->setInitializer(LLVMInt32(g->forceAlignment));
     }
 
-    if (g->generateDebuggingSymbols) {
+    // IGC cannot deal with global references, so to keep debug capabilities
+    // on Xe target, ISPC should not generate any global relocations.
+    // When llvm.used is not generated, all previously defined global debug contants will be eliminated,
+    // so there will not be any global relocations passed to IGC.
+    if (!g->target->isXeTarget() && g->generateDebuggingSymbols) {
         emitLLVMUsed(*module, debug_symbols);
     }
 
@@ -1240,25 +1268,27 @@ void ispc::DefineStdlib(SymbolTable *symbolTable, llvm::LLVMContext *ctx, llvm::
         // definitions added.
         extern const char stdlib_mask1_code[], stdlib_mask8_code[];
         extern const char stdlib_mask16_code[], stdlib_mask32_code[], stdlib_mask64_code[];
+        YY_BUFFER_STATE strbuf;
         switch (g->target->getMaskBitCount()) {
         case 1:
-            yy_scan_string(stdlib_mask1_code);
+            strbuf = yy_scan_string(stdlib_mask1_code);
             break;
         case 8:
-            yy_scan_string(stdlib_mask8_code);
+            strbuf = yy_scan_string(stdlib_mask8_code);
             break;
         case 16:
-            yy_scan_string(stdlib_mask16_code);
+            strbuf = yy_scan_string(stdlib_mask16_code);
             break;
         case 32:
-            yy_scan_string(stdlib_mask32_code);
+            strbuf = yy_scan_string(stdlib_mask32_code);
             break;
         case 64:
-            yy_scan_string(stdlib_mask64_code);
+            strbuf = yy_scan_string(stdlib_mask64_code);
             break;
         default:
             FATAL("Unhandled mask bit size for stdlib.ispc");
         }
         yyparse();
+        yy_delete_buffer(strbuf);
     }
 }

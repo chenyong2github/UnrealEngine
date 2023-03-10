@@ -100,18 +100,43 @@ inline bool Future::valid() const { return handle() && ispcrtFutureIsValid(handl
 inline uint64_t Future::time() const { return ispcrtFutureGetTimeNs(handle()); }
 
 /////////////////////////////////////////////////////////////////////////////
-// Device wrapper ///////////////////////////////////////////////////////////
+// Context wrapper ///////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
+class Context : public GenericObject<ISPCRTContext> {
+  public:
+    Context() = default;
+    Context(ISPCRTDeviceType type);
+    Context(ISPCRTDeviceType type, ISPCRTGenericHandle nativeContextHandle);
+    ~Context() = default;
+    void* nativeContextHandle() const;
+};
+
+// Inlined definitions //
+inline Context::Context(ISPCRTDeviceType type)
+    : GenericObject<ISPCRTContext>(ispcrtNewContext(type)) {}
+
+inline Context::Context(ISPCRTDeviceType type, ISPCRTGenericHandle nativeContextHandle)
+    : GenericObject<ISPCRTContext>(ispcrtGetContextFromNativeHandle(type, nativeContextHandle))
+{}
+
+inline void* Context::nativeContextHandle() const { return ispcrtContextNativeHandle(handle()); }
+/////////////////////////////////////////////////////////////////////////////
+// Device wrapper ///////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+class Module;
 class Device : public GenericObject<ISPCRTDevice> {
   public:
     Device() = default;
     Device(ISPCRTDeviceType type);
+    Device(const Context &context);
     // deviceIdx is an index of the device in the list of supported devices
     // The list of the supported devices can be obtained with:
     // - allDevicesInformation() call or
     // - deviceCount() call and a series of deviceInformation() calls
     Device(ISPCRTDeviceType type, uint32_t deviceIdx);
+    Device(const Context &context, uint32_t deviceIdx);
+    Device(const Context &context, ISPCRTGenericHandle nativeDeviceHandle);
     void* nativePlatformHandle() const;
     void* nativeDeviceHandle() const;
     void* nativeContextHandle() const;
@@ -119,16 +144,29 @@ class Device : public GenericObject<ISPCRTDevice> {
     static uint32_t deviceCount(ISPCRTDeviceType type);
     static ISPCRTDeviceInfo deviceInformation(ISPCRTDeviceType type, uint32_t deviceIdx);
     static std::vector<ISPCRTDeviceInfo> allDevicesInformation(ISPCRTDeviceType type);
+    // link modules
+    void dynamicLinkModules(ISPCRTModule* modules, const uint32_t num);
+    Module staticLinkModules(ISPCRTModule* modules, const uint32_t num);
+    // check memory type
+    ISPCRTAllocationType getMemoryAllocType(void *memBuffer);
 };
 
 // Inlined definitions //
 inline Device::Device(ISPCRTDeviceType type, uint32_t deviceIdx) :
     GenericObject<ISPCRTDevice>(ispcrtGetDevice(type, deviceIdx)) { }
-inline Device::Device(ISPCRTDeviceType type) : Device(type, 0) {}
+inline Device::Device(ISPCRTDeviceType type) : Device(type, uint32_t(0)) {}
+
+inline Device::Device(const Context &context, uint32_t deviceIdx) :
+    GenericObject<ISPCRTDevice>(ispcrtGetDeviceFromContext(context.handle(), deviceIdx)) { }
+inline Device::Device(const Context &context) : Device(context, uint32_t(0)) {}
+
+inline Device::Device(const Context &context, ISPCRTGenericHandle nativeDeviceHandle)
+    : GenericObject<ISPCRTDevice>(ispcrtGetDeviceFromNativeHandle(context.handle(), nativeDeviceHandle))
+{}
 
 inline void* Device::nativePlatformHandle() const { return ispcrtPlatformNativeHandle(handle()); }
 inline void* Device::nativeDeviceHandle() const { return ispcrtDeviceNativeHandle(handle()); }
-inline void* Device::nativeContextHandle() const { return ispcrtContextNativeHandle(handle()); }
+inline void* Device::nativeContextHandle() const { return ispcrtDeviceContextNativeHandle(handle()); }
 
 inline uint32_t Device::deviceCount(ISPCRTDeviceType type) {
     return ispcrtGetDeviceCount(type);
@@ -149,11 +187,25 @@ inline std::vector<ISPCRTDeviceInfo> Device::allDevicesInformation(ISPCRTDeviceT
     return devInfo;
 }
 
+inline void Device::dynamicLinkModules(ISPCRTModule* modules, const uint32_t num) {
+    ispcrtDynamicLinkModules(handle(), (ISPCRTModule*)modules, num);
+}
+
+inline ISPCRTAllocationType Device::getMemoryAllocType(void *memBuffer) {
+    return ispcrtGetMemoryAllocType(handle(), memBuffer);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // Arrays (MemoryView wrapper w/ element type) //////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
 enum class AllocType { Device, Shared };
+
+enum class SharedMemoryUsageHint {
+    HostDeviceReadWrite,
+    HostWriteDeviceRead,
+    HostReadDeviceWrite
+};
 
 template <typename T, AllocType AT = AllocType::Device> class Array : public GenericObject<ISPCRTMemoryView> {
   public:
@@ -183,11 +235,27 @@ template <typename T, AllocType AT = AllocType::Device> class Array : public Gen
 
     // Allocate single object in shared memory
     template<AllocType alloc = AT>
-        Array(const Device &device, EnableForSharedAllocation<alloc> = 0);
+        Array(const Device &device,
+              SharedMemoryUsageHint SMAT = SharedMemoryUsageHint::HostDeviceReadWrite,
+              EnableForSharedAllocation<alloc> = 0);
+
+    // Allocate single object in shared memory for context
+    template<AllocType alloc = AT>
+        Array(const Context &context,
+              SharedMemoryUsageHint SMAT = SharedMemoryUsageHint::HostDeviceReadWrite,
+              EnableForSharedAllocation<alloc> = 0);
 
     // Allocate multiple objects in shared memory
     template<AllocType alloc = AT>
-        Array(const Device &device, size_t size, EnableForSharedAllocation<alloc> = 0);
+        Array(const Device &device, size_t size,
+              SharedMemoryUsageHint SMAT = SharedMemoryUsageHint::HostDeviceReadWrite,
+              EnableForSharedAllocation<alloc> = 0);
+
+    // Allocate multiple objects in shared memory for context
+    template<AllocType alloc = AT>
+        Array(const Context &context, size_t size,
+              SharedMemoryUsageHint SMAT = SharedMemoryUsageHint::HostDeviceReadWrite,
+              EnableForSharedAllocation<alloc> = 0);
 
     //////// Methods valid only for Device memory allocations ////////
 
@@ -202,10 +270,16 @@ template <typename T, AllocType AT = AllocType::Device> class Array : public Gen
     template<AllocType alloc = AT>
         T *sharedPtr(EnableForSharedAllocation<alloc> = 0) const;
 
+    template<AllocType alloc = AT>
+        SharedMemoryUsageHint smType(EnableForSharedAllocation<alloc> = 0) const;
+
     //////// Methods for all types of memory allocations ////////
 
     size_t size() const;
     AllocType type() const;
+
+private:
+    SharedMemoryUsageHint m_smuh{SharedMemoryUsageHint::HostDeviceReadWrite};
 };
 
 // Inlined definitions //
@@ -217,7 +291,8 @@ template<AllocType alloc>
         : GenericObject<ISPCRTMemoryView>() {
             ISPCRTNewMemoryViewFlags flags;
             flags.allocType = ISPCRT_ALLOC_TYPE_DEVICE;
-            setHandle(ispcrtNewMemoryView(device.handle(), appMemory, size * sizeof(T), &flags));
+            flags.smHint = ISPCRT_SM_HOST_DEVICE_READ_WRITE;
+            m_handle = ispcrtNewMemoryView(device.handle(), appMemory, size * sizeof(T), &flags);
         }
 
 template<typename T, AllocType AT>
@@ -237,15 +312,42 @@ template<AllocType alloc>
 // Shared memory allocations
 template<typename T, AllocType AT>
 template<AllocType alloc>
-    inline Array<T, AT>::Array(const Device &device, EnableForSharedAllocation<alloc>) : Array<T, AT>(device, 1) {}
+    inline Array<T, AT>::Array(const Device &device, SharedMemoryUsageHint smuh, EnableForSharedAllocation<alloc>) : Array<T, AT>(device, 1, smuh) {}
 
 template<typename T, AllocType AT>
 template<AllocType alloc>
-    inline Array<T, AT>::Array(const Device &device, size_t size, EnableForSharedAllocation<alloc>) :
+    inline Array<T, AT>::Array(const Context &context, SharedMemoryUsageHint smuh, EnableForSharedAllocation<alloc>) : Array<T, AT>(context, 1, smuh) {}
+
+inline void set_shared_memory_view_flags(ISPCRTNewMemoryViewFlags *p, SharedMemoryUsageHint t) {
+    p->allocType = ISPCRT_ALLOC_TYPE_SHARED;
+    switch (t) {
+    case SharedMemoryUsageHint::HostDeviceReadWrite:
+        p->smHint = ISPCRT_SM_HOST_DEVICE_READ_WRITE; break;
+    case SharedMemoryUsageHint::HostWriteDeviceRead:
+        p->smHint = ISPCRT_SM_HOST_WRITE_DEVICE_READ; break;
+    case SharedMemoryUsageHint::HostReadDeviceWrite:
+        p->smHint = ISPCRT_SM_HOST_READ_DEVICE_WRITE; break;
+    default:
+        throw std::bad_alloc();
+    }
+}
+
+template<typename T, AllocType AT>
+template<AllocType alloc>
+    inline Array<T, AT>::Array(const Device &device, size_t size, SharedMemoryUsageHint smuh, EnableForSharedAllocation<alloc>) : m_smuh(smuh),
         GenericObject<ISPCRTMemoryView>() {
             ISPCRTNewMemoryViewFlags flags;
-            flags.allocType = ISPCRT_ALLOC_TYPE_SHARED;
-            setHandle(ispcrtNewMemoryView(device.handle(), nullptr, size * sizeof(T), &flags));
+            set_shared_memory_view_flags(&flags, smuh);
+            m_handle = ispcrtNewMemoryView(device.handle(), nullptr, size * sizeof(T), &flags);
+        }
+
+template<typename T, AllocType AT>
+template<AllocType alloc>
+    inline Array<T, AT>::Array(const Context &context, size_t size, SharedMemoryUsageHint smuh, EnableForSharedAllocation<alloc>) : m_smuh(smuh),
+        GenericObject<ISPCRTMemoryView>() {
+            ISPCRTNewMemoryViewFlags flags;
+            set_shared_memory_view_flags(&flags, smuh);
+            m_handle = ispcrtNewMemoryViewForContext(context.handle(), nullptr, size * sizeof(T), &flags);
         }
 
 // Device-only methods
@@ -264,6 +366,10 @@ template<typename T, AllocType AT>
 template<AllocType alloc>
     inline T *Array<T,AT>::sharedPtr(EnableForSharedAllocation<alloc>) const { return (T *)ispcrtSharedPtr(handle()); }
 
+template<typename T, AllocType AT>
+template<AllocType alloc>
+    inline SharedMemoryUsageHint Array<T,AT>::smType(EnableForSharedAllocation<alloc>) const { return m_smuh; }
+
 // All other methods
 
 template <typename T, AllocType AT>
@@ -281,15 +387,18 @@ template <typename T> class SharedMemoryAllocator {
     using value_type = T;
 
     SharedMemoryAllocator() = delete;
-    SharedMemoryAllocator(const Device &device) : m_device(device) {}
+    SharedMemoryAllocator(const Context &context, SharedMemoryUsageHint smuh = SharedMemoryUsageHint::HostDeviceReadWrite) : m_context(context), m_smuh(smuh) {}
     SharedMemoryAllocator(const SharedMemoryAllocator&) = default;
     ~SharedMemoryAllocator() = default;
     SharedMemoryAllocator& operator=(const SharedMemoryAllocator&) = delete;
 
     T* allocate(const size_t n);
     void deallocate(T* const p, const size_t n);
+
+    SharedMemoryUsageHint smType() const { return m_smuh; }
 protected:
-    Device m_device;
+    Context m_context;
+    SharedMemoryUsageHint m_smuh;
     std::unordered_map<void*, Array<T, AllocType::Shared>> m_ptrToArray;
 };
 
@@ -298,7 +407,7 @@ protected:
 template <typename T>
 inline T *SharedMemoryAllocator<T>::allocate(const size_t n) {
     // Allocate a memory that can be shared between the host and the device
-    auto a = Array<T, AllocType::Shared>(m_device, n);
+    auto a = Array<T, AllocType::Shared>(m_context, n, m_smuh);
 
     void* ptr = a.sharedPtr();
     if (ptr == nullptr) {
@@ -328,12 +437,24 @@ class Module : public GenericObject<ISPCRTModule> {
   public:
     Module() = default;
     Module(const Device &device, const char *moduleName, const ISPCRTModuleOptions &opts = ISPCRTModuleOptions{});
+    Module(ISPCRTModule module);
+    void *functionPtr(const char *functionName);
 };
 
 // Inlined definitions //
 
 inline Module::Module(const Device &device, const char *moduleName, const ISPCRTModuleOptions &opts)
     : GenericObject<ISPCRTModule>(ispcrtLoadModule(device.handle(), moduleName, opts)) {}
+
+inline Module::Module(ISPCRTModule module) : GenericObject<ISPCRTModule>(module) {}
+
+inline void* Module::functionPtr(const char *functionName){
+    return ispcrtFunctionPtr(handle(), functionName);
+}
+
+inline Module Device::staticLinkModules(ISPCRTModule* modules, const uint32_t num) {
+    return Module(ispcrtStaticLinkModules(handle(), (ISPCRTModule*)modules, num));
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // Kernel wrapper ///////////////////////////////////////////////////////////

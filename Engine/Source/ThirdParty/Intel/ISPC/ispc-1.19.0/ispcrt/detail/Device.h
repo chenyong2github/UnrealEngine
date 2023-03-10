@@ -18,11 +18,14 @@ struct Device : public RefCounted {
 
     virtual ~Device() = default;
 
-    virtual MemoryView *newMemoryView(void *appMemory, size_t numBytes, bool shared) const = 0;
+    virtual MemoryView *newMemoryView(void *appMemory, size_t numBytes, const ISPCRTNewMemoryViewFlags *flags) const = 0;
 
     virtual TaskQueue *newTaskQueue() const = 0;
 
     virtual Module *newModule(const char *moduleFile, const ISPCRTModuleOptions &opts) const = 0;
+
+    virtual void dynamicLinkModules(Module **modules, uint32_t numModules) const = 0;
+    virtual Module* staticLinkModules(Module **modules, uint32_t numModules) const = 0;
 
     virtual Kernel *newKernel(const Module &module, const char *name) const = 0;
 

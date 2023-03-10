@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2018-2022, Intel Corporation
+#  Copyright (c) 2018-2023, Intel Corporation
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -158,8 +158,9 @@ function(builtin_to_cpp bit os_name arch supported_archs supported_oses resultFi
     endif()
 
     # OS to arch constrains
-    if (${os_name} STREQUAL "windows" AND ${arch} STREQUAL "arm")
+    if (${os_name} STREQUAL "windows" AND ${arch} STREQUAL "arm" AND "${bit}" STREQUAL "32")
         set(SKIP ON)
+
     endif()
     if (${os_name} STREQUAL "macos")
         if (${target_arch} STREQUAL "x86_64")
@@ -293,7 +294,7 @@ function(builtin_to_cpp bit os_name arch supported_archs supported_oses resultFi
     else()
         add_custom_command(
             OUTPUT ${output}
-            COMMAND ${CLANGPP_EXECUTABLE} ${target_flags} -I${CMAKE_SOURCE_DIR} -m${bit} -emit-llvm --std=gnu++17 -c ${inputFilePath} -o - | (\"${LLVM_DIS_EXECUTABLE}\" - || echo "builtins-c-*.cpp compile error")
+            COMMAND ${CLANGPP_EXECUTABLE} ${target_flags} -I${CMAKE_SOURCE_DIR} -m${bit} -emit-llvm ${ISPC_OPAQUE_FLAGS} --std=gnu++17 -c ${inputFilePath} -o - | (\"${LLVM_DIS_EXECUTABLE}\" - || echo "builtins-c-*.cpp compile error")
                 | \"${Python3_EXECUTABLE}\" bitcode2cpp.py c --type=builtins-c --runtime=${bit} --os=${os_name} --arch=${target_arch} --llvm_as ${LLVM_AS_EXECUTABLE}
                 > ${output}
             DEPENDS ${inputFilePath} bitcode2cpp.py
@@ -342,7 +343,12 @@ endfunction()
 
 function (generate_target_builtins resultList)
     # Dispatch module for macOS and all the rest of targets.
-    dispatch_ll_to_cpp(dispatch "linux" output_generic)
+    if (${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "14.0.0")
+        dispatch_ll_to_cpp(dispatch "linux" output_generic)
+    else()
+        dispatch_ll_to_cpp(dispatch-no-spr "linux" output_generic)
+    endif()
+
     dispatch_ll_to_cpp(dispatch-macos "macos" output_macos)
     list(APPEND tmpList ${output_generic} ${output_macos})
     if(MSVC)

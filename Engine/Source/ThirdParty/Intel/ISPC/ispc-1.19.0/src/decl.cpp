@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2022, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -218,6 +218,8 @@ static const char *lGetStorageClassName(StorageClass storageClass) {
         return "extern";
     case SC_EXTERN_C:
         return "extern \"C\"";
+    case SC_EXTERN_SYCL:
+        return "extern \"SYCL\"";
     case SC_STATIC:
         return "static";
     case SC_TYPEDEF:
@@ -470,7 +472,9 @@ void Declarator::InitFromType(const Type *baseType, DeclSpecs *ds) {
                 snprintf(buf, sizeof(buf), "__anon_parameter_%d", i);
                 decl->name = buf;
             }
-            decl->type = decl->type->ResolveUnboundVariability(Variability::Varying);
+            if (!decl->type->IsDependentType()) {
+                decl->type = decl->type->ResolveUnboundVariability(Variability::Varying);
+            }
 
             if (d->declSpecs->storageClass != SC_NONE)
                 Error(decl->pos,
@@ -551,12 +555,17 @@ void Declarator::InitFromType(const Type *baseType, DeclSpecs *ds) {
             return;
         }
 
-        returnType = returnType->ResolveUnboundVariability(Variability::Varying);
+        if (!returnType->IsDependentType()) {
+            returnType = returnType->ResolveUnboundVariability(Variability::Varying);
+        }
 
         bool isExternC = ds && (ds->storageClass == SC_EXTERN_C);
+        bool isExternSYCL = ds && (ds->storageClass == SC_EXTERN_SYCL);
         bool isExported = ds && ((ds->typeQualifiers & TYPEQUAL_EXPORT) != 0);
         bool isTask = ds && ((ds->typeQualifiers & TYPEQUAL_TASK) != 0);
         bool isUnmasked = ds && ((ds->typeQualifiers & TYPEQUAL_UNMASKED) != 0);
+        bool isVectorCall = ds && ((ds->typeQualifiers & TYPEQUAL_VECTORCALL) != 0);
+        bool isRegCall = ds && ((ds->typeQualifiers & TYPEQUAL_REGCALL) != 0);
 
         if (isExported && isTask) {
             Error(pos, "Function can't have both \"task\" and \"export\" "
@@ -573,6 +582,16 @@ void Declarator::InitFromType(const Type *baseType, DeclSpecs *ds) {
                        "qualifiers");
             return;
         }
+        if (isExternSYCL && isTask) {
+            Error(pos, "Function can't have both \"extern \"SYCL\"\" and \"task\" "
+                       "qualifiers");
+            return;
+        }
+        if (isExternSYCL && isExported) {
+            Error(pos, "Function can't have both \"extern \"SYCL\"\" and \"export\" "
+                       "qualifiers");
+            return;
+        }
         if (isUnmasked && isExported)
             Warning(pos, "\"unmasked\" qualifier is redundant for exported "
                          "functions.");
@@ -582,8 +601,9 @@ void Declarator::InitFromType(const Type *baseType, DeclSpecs *ds) {
             return;
         }
 
-        const FunctionType *functionType = new FunctionType(returnType, args, argNames, argDefaults, argPos, isTask,
-                                                            isExported, isExternC, isUnmasked);
+        const FunctionType *functionType =
+            new FunctionType(returnType, args, argNames, argDefaults, argPos, isTask, isExported, isExternC,
+                             isExternSYCL, isUnmasked, isVectorCall, isRegCall);
 
         // handle any explicit __declspecs on the function
         if (ds != NULL) {
@@ -606,6 +626,8 @@ void Declarator::InitFromType(const Type *baseType, DeclSpecs *ds) {
         child->InitFromType(functionType, ds);
         type = child->type;
         name = child->name;
+    } else {
+        UNREACHABLE();
     }
 }
 
@@ -644,10 +666,14 @@ std::vector<VariableDeclaration> Declaration::GetVariableDeclarations() const {
         if (decl->type->IsVoidType())
             Error(decl->pos, "\"void\" type variable illegal in declaration.");
         else if (CastType<FunctionType>(decl->type) == NULL) {
-            decl->type = decl->type->ResolveUnboundVariability(Variability::Varying);
+            if (!decl->type->IsDependentType()) {
+                decl->type = decl->type->ResolveUnboundVariability(Variability::Varying);
+            }
             Symbol *sym = new Symbol(decl->name, decl->pos, decl->type, decl->storageClass);
             m->symbolTable->AddVariable(sym);
             vars.push_back(VariableDeclaration(sym, decl->initExpr));
+        } else {
+            Error(decl->pos, "\"%s\" is illegal in declaration.", decl->name.c_str());
         }
     }
 
@@ -672,7 +698,9 @@ void Declaration::DeclareFunctions() {
         bool isInline = (declSpecs->typeQualifiers & TYPEQUAL_INLINE);
         bool isNoInline = (declSpecs->typeQualifiers & TYPEQUAL_NOINLINE);
         bool isVectorCall = (declSpecs->typeQualifiers & TYPEQUAL_VECTORCALL);
-        m->AddFunctionDeclaration(decl->name, ftype, decl->storageClass, isInline, isNoInline, isVectorCall, decl->pos);
+        bool isRegCall = (declSpecs->typeQualifiers & TYPEQUAL_REGCALL);
+        m->AddFunctionDeclaration(decl->name, ftype, decl->storageClass, isInline, isNoInline, isVectorCall, isRegCall,
+                                  decl->pos);
     }
 }
 

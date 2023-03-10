@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015-2022, Intel Corporation
+  Copyright (c) 2015-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -42,16 +42,14 @@
 
 #define ISPC_LLVM_VERSION (LLVM_VERSION_MAJOR * 10000 + LLVM_VERSION_MINOR * 100)
 
-#define ISPC_LLVM_10_0 100000
-#define ISPC_LLVM_11_0 110000
-#define ISPC_LLVM_11_1 110100
-#define ISPC_LLVM_12_0 120000
 #define ISPC_LLVM_13_0 130000
 #define ISPC_LLVM_14_0 140000
 #define ISPC_LLVM_15_0 150000
+#define ISPC_LLVM_16_0 160000
+#define ISPC_LLVM_17_0 170000
 
-#define OLDEST_SUPPORTED_LLVM ISPC_LLVM_10_0
-#define LATEST_SUPPORTED_LLVM ISPC_LLVM_14_0
+#define OLDEST_SUPPORTED_LLVM ISPC_LLVM_13_0
+#define LATEST_SUPPORTED_LLVM ISPC_LLVM_15_0
 
 #ifdef __ispc__xstr
 #undef __ispc__xstr
@@ -63,7 +61,7 @@
     __ispc__xstr(LLVM_VERSION_MAJOR) "." __ispc__xstr(LLVM_VERSION_MINOR) "." __ispc__xstr(LLVM_VERSION_PATCH)
 
 #if ISPC_LLVM_VERSION < OLDEST_SUPPORTED_LLVM || ISPC_LLVM_VERSION > LATEST_SUPPORTED_LLVM
-#error "Only LLVM 11.0 - 14.0 are supported"
+#error "Only LLVM 13.0 - 15.0 are supported"
 #endif
 
 #define ISPC_VERSION_STRING                                                                                            \

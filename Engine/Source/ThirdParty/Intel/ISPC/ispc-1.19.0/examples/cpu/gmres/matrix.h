@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012, Intel Corporation
+  Copyright (c) 2012-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -186,13 +186,17 @@ class DenseMatrix : public Matrix {
     friend class Vector;
 
   public:
-    DenseMatrix(size_t size_r, size_t size_c) : Matrix(size_r, size_c) {
+    DenseMatrix(size_t size_r, size_t size_c) : Matrix(size_r, size_c), shared_ptr(false) {
         entries = (double *)malloc(size_r * size_c * sizeof(double));
     }
 
-    DenseMatrix(size_t size_r, size_t size_c, const double *content) : Matrix(size_r, size_c) {
+    DenseMatrix(size_t size_r, size_t size_c, const double *content) : Matrix(size_r, size_c), shared_ptr(false) {
         entries = (double *)malloc(size_r * size_c * sizeof(double));
         memcpy(entries, content, size_r * size_c * sizeof(double));
+    }
+
+    ~DenseMatrix() {
+        free(entries);
     }
 
     virtual void multiply(const Vector &v, Vector &r) const;

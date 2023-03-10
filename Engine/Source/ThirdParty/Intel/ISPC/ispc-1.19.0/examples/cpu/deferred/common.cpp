@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011-2022, Intel Corporation
+  Copyright (c) 2011-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -122,6 +122,8 @@ InputData *CreateInputDataFromFile(const char *path) {
     // Load header
     if (fread(&input->header, sizeof(ispc::InputHeader), 1, in) != 1) {
         fprintf(stderr, "Preumature EOF reading file \"%s\"\n", path);
+        fclose(in);
+        delete input;
         return NULL;
     }
 
@@ -129,6 +131,8 @@ InputData *CreateInputDataFromFile(const char *path) {
     input->chunk = (uint8_t *)lAlignedMalloc(input->header.inputDataChunkSize, ALIGNMENT_BYTES);
     if (fread(input->chunk, input->header.inputDataChunkSize, 1, in) != 1) {
         fprintf(stderr, "Preumature EOF reading file \"%s\"\n", path);
+        fclose(in);
+        delete input;
         return NULL;
     }
 
@@ -175,6 +179,10 @@ void WriteFrame(const char *filename, const InputData *input, const Framebuffer 
 
     // Write out simple PPM file
     FILE *out = fopen(filename, "wb");
+    if (!out) {
+        printf("Couldn't open a file '%s'\n", filename);
+        exit(1);
+    }
     fprintf(out, "P6 %d %d 255\n", input->header.framebufferWidth, input->header.framebufferHeight);
     fwrite(framebufferAOS, imageBytes, 1, out);
     fclose(out);

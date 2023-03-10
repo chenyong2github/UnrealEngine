@@ -9,19 +9,25 @@
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --dev-stub 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_9
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --host-stub 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_10
 //; RUN: not %{ispc} --nowrap --target=avx2-i32x8 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_11
-//; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --debug-phase= 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_12
+//; RUN not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --debug-phase= 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_12
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --off-phase= 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_13
-//; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --debug-phase=12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_14
+//; RUN not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --debug-phase=12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_14
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --off-phase=12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_15
-//; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --debug-phase=2000 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_16
+//; RUN not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --debug-phase=2000 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_16
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --off-phase=2000 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_17
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --arch=x64 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_18
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target=sse3,avx2-i32x8,gost 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_19
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target sse3,avx2-i32x8,gost 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_20
 //; RUN: %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --arch=x86 --arch=x86_64 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_21
+//; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 link 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_22
+//; RUN: not %{ispc} link %s 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_23
+//; RUN: not %{ispc} link --emit-obj %s 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_24
+//; RUN: %{ispc} %s -o %t.bc --emit-llvm && not %{ispc} link %t.bc 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_25
+//; RUN: %{ispc} %s -o %t.bc --emit-llvm && %{ispc} link %t.bc -o %t_link.bc
 //; RUN: %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --help
 //; RUN: %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --help-dev
 //; RUN: %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 --support-matrix
+//; RUN: not %{ispc} 2>&1 | FileCheck %s -check-prefix=CHECK_ERROR_26
 
 //; RUN: not %{ispc} %s -o %t.o --nowrap --target=avx2-i32x8 -not-existing-opt --quiet 2>&1 | FileCheck %s --allow-empty -check-prefix=CHECK_ERROR_QUIET
 
@@ -57,6 +63,13 @@
 //; CHECK_ERROR_19: Error: Incorrect targets: sse3,gost. Choices are:
 //; CHECK_ERROR_20: Error: Incorrect targets: sse3,gost. Choices are:
 //; CHECK_ERROR_21: Warning: Overwriting --arch=x86 with --arch=x86-64
+//; CHECK_ERROR_22: Error: Option "link" can't be used in compilation mode. Use "ispc link --help" for details
+//; CHECK_ERROR_23: Unrecognized format of input file
+//; CHECK_ERROR_24: Error: Unknown option "--emit-obj"
+//; CHECK_ERROR_25: Warning: No output file name specified
+// The next check veryfies output of ispc executable without any other command line parameters,
+// so `--nowrap` was not passed, hence matching just the first word of the output.
+//; CHECK_ERROR_26: Error:
 
 //; CHECK_ERROR_QUIET-NOT: Error
 

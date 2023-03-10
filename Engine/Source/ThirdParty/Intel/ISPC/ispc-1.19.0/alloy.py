@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#  Copyright (c) 2013-2022, Intel Corporation
+#  Copyright (c) 2013-2023, Intel Corporation
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,7 @@ def try_do_LLVM(text, command, from_validation, verbose=False):
     print_debug("Command line: "+command+"\n", True, alloy_build)
     if from_validation == True:
         text = text + "\n"
-    print_debug("Trying to " + text, from_validation, alloy_build)
+    print_debug("Trying to " + text + " ", from_validation, alloy_build)
 
     with subprocess.Popen(command, shell=True,universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
         for line in proc.stdout:
@@ -116,12 +116,16 @@ def checkout_LLVM(component, version_LLVM, target_dir, from_validation, verbose)
     GIT_REPO_BASE="https://github.com/llvm/llvm-project.git"
 
     # Identify the version
-    # An example of using branch (instead of final tag) is the following (for 9.0):
-    # git: "origin/release/9.x"
+    # An example of using branch (instead of final tag) is the following (for 16.0):
+    # git: "release/16.x"
     if  version_LLVM == "trunk":
         GIT_TAG="main"
+    elif  version_LLVM == "16_0":
+        GIT_TAG="release/16.x"
+    elif  version_LLVM == "15_0":
+        GIT_TAG="llvmorg-15.0.7"
     elif  version_LLVM == "14_0":
-        GIT_TAG="llvmorg-14.0.1"
+        GIT_TAG="llvmorg-14.0.6"
     elif  version_LLVM == "13_0":
         GIT_TAG="llvmorg-13.0.1"
     elif  version_LLVM == "12_0":
@@ -145,20 +149,10 @@ def checkout_LLVM(component, version_LLVM, target_dir, from_validation, verbose)
     else:
         alloy_error("Unsupported llvm version: " + version_LLVM, 1)
 
-    try_do_LLVM("clone "+component+" from "+GIT_REPO_BASE+" to "+target_dir+" ",
-                "git clone "+GIT_REPO_BASE+" "+target_dir,
-                from_validation, verbose)
-    if GIT_TAG != "main":
-        os.chdir(target_dir)
-        try_do_LLVM("switch to "+GIT_TAG+" tag ",
-                    "git checkout -b "+GIT_TAG+" "+GIT_TAG, from_validation, verbose)
-        os.chdir("..")
-
-# ISPC uses LLVM dumps for debug output, so build correctly it requires these functions to be
-# present in LLVM libraries. In LLVM 5.0 they are not there by default and require explicit enabling.
-# In later version this functionality is triggered by enabling assertions.
-def get_llvm_enable_dump_switch(version_LLVM):
-    return " -DLLVM_ENABLE_DUMP=ON "
+    depth = "" if options.full_checkout else "--depth=1 --shallow-submodules"
+    git_clone_cmd = f"git clone {depth} --branch {GIT_TAG} {GIT_REPO_BASE} {target_dir}"
+    try_do_LLVM(f"clone {component} with tag {GIT_TAG} from {GIT_REPO_BASE} to {target_dir}",
+                git_clone_cmd, from_validation, verbose)
 
 def get_llvm_disable_assertions_switch(llvm_disable_assertions):
     if llvm_disable_assertions == True:
@@ -222,7 +216,7 @@ def build_LLVM(version_LLVM, folder, debug, selfbuild, extra, from_validation, f
             alloy_error("Can't find XCode (xcrun tool) - it's required on MacOS 10.9 and newer", 1)
 
     # prepare configuration parameters
-    llvm_enable_projects = " -DLLVM_ENABLE_PROJECTS=\"clang"
+    llvm_enable_runtimes = ""
     if current_OS == "MacOS" and int(current_OS_version.split(".")[0]) >= 13:
         # Starting with MacOS 10.9 Maverics, the system doesn't contain headers for standard C++ library and
         # the default library is libc++, bit libstdc++. The headers are part of XCode now. But we are checking out
@@ -236,7 +230,9 @@ def build_LLVM(version_LLVM, folder, debug, selfbuild, extra, from_validation, f
         # We either need to explicitly opt-out from using libcxxabi from this repo, or build and use it,
         # otherwise a build error will occure (attempt to use just built libcxxabi, which was not built).
         # An option to build seems to be a better one.
-        llvm_enable_projects +=";libcxx;libcxxabi"
+        llvm_enable_runtimes +=" -DLLVM_ENABLE_RUNTIMES=\"libcxx;libcxxabi\""
+
+    llvm_enable_projects = llvm_enable_runtimes + " -DLLVM_ENABLE_PROJECTS=\"clang"
     if current_OS == "Linux":
         # OpenMP is needed for Xe enabled builds.
         # Starting from Ubuntu 20.04 libomp-dev package doesn't install omp.h to default location.
@@ -254,8 +250,10 @@ def build_LLVM(version_LLVM, folder, debug, selfbuild, extra, from_validation, f
         patches = glob.glob(os.environ["ISPC_HOME"] + os.sep + "llvm_patches" + os.sep + "*.*")
         for patch in patches:
             if version_LLVM in os.path.basename(patch):
-                try_do_LLVM("patch LLVM with patch " + patch + " ", "git apply " + patch, from_validation, verbose)
+                try_do_LLVM("patch LLVM with patch " + patch, "git apply " + patch, from_validation, verbose)
         os.chdir("../")
+
+    targets_and_common_options = "  -DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_TARGETS_TO_BUILD=AArch64\;ARM\;X86 -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly"
 
     # configuring llvm and build for first phase of selfbuild
     cmakelists_path = LLVM_SRC + "/llvm"
@@ -265,24 +263,22 @@ def build_LLVM(version_LLVM, folder, debug, selfbuild, extra, from_validation, f
         os.makedirs(LLVM_BUILD_selfbuild)
         os.makedirs(LLVM_BIN_selfbuild)
         os.chdir(LLVM_BUILD_selfbuild)
-        try_do_LLVM("configure release version for selfbuild ",
+        try_do_LLVM("configure release version for selfbuild",
                 "cmake -G " + "\"" + generator + "\"" + " -DCMAKE_EXPORT_COMPILE_COMMANDS=ON" +
                 "  -DCMAKE_INSTALL_PREFIX=" + llvm_home + "/" + LLVM_BIN_selfbuild +
                 "  -DCMAKE_BUILD_TYPE=Release" +
                 llvm_enable_projects +
-                get_llvm_enable_dump_switch(version_LLVM) +
                 get_llvm_disable_assertions_switch(llvm_disable_assertions) +
                 "  -DLLVM_INSTALL_UTILS=ON" +
                 (("  -DGCC_INSTALL_PREFIX=" + gcc_toolchain_path) if gcc_toolchain_path != "" else "") +
                 (("  -DCMAKE_C_COMPILER=" + gcc_toolchain_path+"/bin/gcc") if gcc_toolchain_path != "" else "") +
                 (("  -DCMAKE_CXX_COMPILER=" + gcc_toolchain_path+"/bin/g++") if gcc_toolchain_path != "" else "") +
                 (("  -DDEFAULT_SYSROOT=" + mac_system_root) if mac_system_root != "" else "") +
-                "  -DLLVM_TARGETS_TO_BUILD=AArch64\;ARM\;X86" +
-                "  -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly" +
+                targets_and_common_options +
                 " ../" + cmakelists_path,
                 from_validation, verbose)
-        try_do_LLVM("build release version for selfbuild ", make, from_validation, verbose)
-        try_do_LLVM("install release version for selfbuild ", "make install", from_validation, verbose)
+        try_do_LLVM("build release version for selfbuild", make, from_validation, verbose)
+        try_do_LLVM("install release version for selfbuild" , "make install", from_validation, verbose)
         os.chdir("../")
 
     # set compiler to use if this is selfbuild
@@ -300,42 +296,38 @@ def build_LLVM(version_LLVM, folder, debug, selfbuild, extra, from_validation, f
         os.chdir(LLVM_BUILD)
         build_type = "Release" if debug == False else "Debug"
         if current_OS != "Windows":
-            try_do_LLVM("configure " + build_type + " version ",
+            try_do_LLVM("configure " + build_type + " version",
                     "cmake -G " + "\"" + generator + "\"" + " -DCMAKE_EXPORT_COMPILE_COMMANDS=ON" +
                     selfbuild_compiler +
                     "  -DCMAKE_INSTALL_PREFIX=" + llvm_home + "/" + LLVM_BIN +
                     "  -DCMAKE_BUILD_TYPE=" + build_type +
                     llvm_enable_projects +
-                    get_llvm_enable_dump_switch(version_LLVM) +
                     get_llvm_disable_assertions_switch(llvm_disable_assertions) +
                     "  -DLLVM_INSTALL_UTILS=ON" +
                     (("  -DGCC_INSTALL_PREFIX=" + gcc_toolchain_path) if gcc_toolchain_path != "" else "") +
                     (("  -DCMAKE_C_COMPILER=" + gcc_toolchain_path+"/bin/gcc") if gcc_toolchain_path != "" and selfbuild_compiler == "" else "") +
                     (("  -DCMAKE_CXX_COMPILER=" + gcc_toolchain_path+"/bin/g++") if gcc_toolchain_path != "" and selfbuild_compiler == "" else "") +
                     (("  -DDEFAULT_SYSROOT=" + mac_system_root) if mac_system_root != "" else "") +
-                    "  -DLLVM_TARGETS_TO_BUILD=AArch64\;ARM\;X86" +
-                    "  -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly" +
+                    targets_and_common_options +
                     " ../" + cmakelists_path,
                     from_validation, verbose)
         else:
-            try_do_LLVM("configure " + build_type + " version ",
+            try_do_LLVM("configure " + build_type + " version",
                     'cmake -Thost=x64 -G ' + '\"' + generator + '\"' + ' -DCMAKE_INSTALL_PREFIX="..\\'+ LLVM_BIN + '" ' +
                     '  -DCMAKE_BUILD_TYPE=' + build_type +
                     llvm_enable_projects +
-                    get_llvm_enable_dump_switch(version_LLVM) +
                     get_llvm_disable_assertions_switch(llvm_disable_assertions) +
                     '  -DLLVM_INSTALL_UTILS=ON' +
-                    '  -DLLVM_TARGETS_TO_BUILD=AArch64\;ARM\;X86' +
-                    '  -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly' +
+                    targets_and_common_options +
                     '  -DLLVM_LIT_TOOLS_DIR="C:\\gnuwin32\\bin" ..\\' + cmakelists_path,
                     from_validation, verbose)
 
         # building llvm
         if current_OS != "Windows":
-            try_do_LLVM("build LLVM ", make, from_validation, verbose)
-            try_do_LLVM("install LLVM ", "make install", from_validation, verbose)
+            try_do_LLVM("build LLVM", make, from_validation, verbose)
+            try_do_LLVM("install LLVM", "make install", from_validation, verbose)
         else:
-            try_do_LLVM("build LLVM and then install LLVM ", "msbuild INSTALL.vcxproj /V:m /p:Platform=x64 /p:Configuration=" + build_type + " /t:rebuild", from_validation, verbose)
+            try_do_LLVM("build LLVM and then install LLVM", "msbuild INSTALL.vcxproj /V:m /p:Platform=x64 /p:Configuration=" + build_type + " /t:rebuild", from_validation, verbose)
         os.chdir(current_path)
 
 
@@ -381,6 +373,8 @@ def check_targets():
       ("SSE4",   [["sse4-i32x4",  "sse4-i32x8",   "sse4-i16x8", "sse4-i8x16"],
                  ["SSE2", "SSE4"], "-wsm", False]),
       ("AVX",    [["avx1-i32x4",  "avx1-i32x8",  "avx1-i32x16",  "avx1-i64x4"],
+                 ["SSE2", "SSE4", "AVX"], "-snb", False]),
+      ("AVX1.1", [["avx1-i32x4",  "avx1-i32x8",  "avx1-i32x16",  "avx1-i64x4"],
                  ["SSE2", "SSE4", "AVX"], "-snb", False]),
       ("AVX2",   [["avx2-i32x4", "avx2-i32x8",  "avx2-i32x16",  "avx2-i64x4", "avx2-i8x32", "avx2-i16x16"],
                  ["SSE2", "SSE4", "AVX", "AVX2"], "-hsw", False]),
@@ -447,8 +441,8 @@ def build_ispc(version_LLVM, make):
         try_do_LLVM("configure ispc build", 'cmake -DCMAKE_INSTALL_PREFIX="..\\'+ ISPC_BIN + '" ' +
                     '  -DCMAKE_BUILD_TYPE=Release' +
                         ispc_home, True)
-        try_do_LLVM("build ISPC with LLVM version " + version_LLVM + " ", make_ispc, True)
-        try_do_LLVM("install ISPC ", "make install", True)
+        try_do_LLVM("build ISPC with LLVM version " + version_LLVM, make_ispc, True)
+        try_do_LLVM("install ISPC", "make install", True)
         copyfile(os.path.join(ispc_home, ISPC_BIN, "bin", "ispc"), os.path.join(ispc_home, + "ispc"))
         os.environ["PATH"] = p_temp
     else:
@@ -456,8 +450,8 @@ def build_ispc(version_LLVM, make):
                     '  -DCMAKE_BUILD_TYPE=Release ' +
                         ispc_home, True)
         try_do_LLVM("clean ISPC for building", "msbuild ispc.vcxproj /t:clean", True)
-        try_do_LLVM("build ISPC with LLVM version " + version_LLVM + " ", "msbuild ispc.vcxproj /V:m /p:Platform=x64 /p:Configuration=Release /t:rebuild", True)
-        try_do_LLVM("install ISPC  ", "msbuild INSTALL.vcxproj /p:Platform=x64 /p:Configuration=Release", True)
+        try_do_LLVM("build ISPC with LLVM version " + version_LLVM, "msbuild ispc.vcxproj /V:m /p:Platform=x64 /p:Configuration=Release /t:rebuild", True)
+        try_do_LLVM("install ISPC", "msbuild INSTALL.vcxproj /p:Platform=x64 /p:Configuration=Release", True)
         copyfile(os.path.join(ispc_home, ISPC_BIN, "bin", "ispc.exe"), os.path.join(ispc_home, + "ispc.exe"))
 
     os.chdir(current_path)
@@ -610,7 +604,7 @@ def validation_run(only, only_targets, reference_branch, number, update, speed_n
             archs.append("x86-64")
         if "native" in only:
             sde_targets_t = []
-        for i in ["6.0", "7.0", "8.0", "9.0", "10.0", "11.0", "12.0", "13.0", "14.0", "trunk"]:
+        for i in ["6.0", "7.0", "8.0", "9.0", "10.0", "11.0", "12.0", "13.0", "14.0", "15.0", "16.0", "trunk"]:
             if i in only:
                 LLVM.append(i)
         if "current" in only:
@@ -748,7 +742,7 @@ def validation_run(only, only_targets, reference_branch, number, update, speed_n
             if "No local changes" in take_lines("git stash", "first"):
                 stashing = False
             #try_do_LLVM("stash current branch ", "git stash", True)
-            try_do_LLVM("checkout reference branch " + reference_branch + " ", "git checkout " + reference_branch, True)
+            try_do_LLVM("checkout reference branch " + reference_branch, "git checkout " + reference_branch, True)
             sys.stdout.write(".\n")
             build_ispc(newest_LLVM, make)
             sys.stdout.write(".\n")
@@ -757,9 +751,9 @@ def validation_run(only, only_targets, reference_branch, number, update, speed_n
             else:
                 common.remove_if_exists("ispc_ref.exe")
                 os.rename("ispc.exe", "ispc_ref.exe")
-            try_do_LLVM("checkout test branch " + current_branch + " ", "git checkout " + current_branch, True)
+            try_do_LLVM("checkout test branch " + current_branch, "git checkout " + current_branch, True)
             if stashing:
-                try_do_LLVM("return current branch ", "git stash pop", True)
+                try_do_LLVM("return current branch", "git stash pop", True)
             sys.stdout.write("You can interrupt script now.\n")
             build_ispc(newest_LLVM, make)
         else:
@@ -816,7 +810,7 @@ def Main():
     if os.environ.get("ISPC_HOME") == None:
         alloy_error("you have no ISPC_HOME", 1)
     if options.only != "":
-        test_only_r = " 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 trunk current build stability performance x86 x86-64 x86_64 -O0 -O1 -O2 native debug nodebug "
+        test_only_r = " 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 15.0 16.0 trunk current build stability performance x86 x86-64 x86_64 -O0 -O1 -O2 native debug nodebug "
         test_only = options.only.split(" ")
         for iterator in test_only:
             if not (" " + iterator + " " in test_only_r):
@@ -940,6 +934,9 @@ if __name__ == '__main__':
                     "These options must be used with -b option.")
     llvm_group.add_option('--version', dest='version',
         help='version of llvm to build: 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 trunk. Default: trunk', default="trunk")
+    llvm_group.add_option('--full-checkout', dest='full_checkout', action='store_true', default=False,
+        help=('Disable a shallow clone and checkout a whole LLVM repository.\n'
+              'By default it clones LLVM with --depth=1 to save space and time'))
     llvm_group.add_option('--with-gcc-toolchain', dest='gcc_toolchain_path',
          help='GCC install dir to use when building clang. It is important to set when ' +
          'you have alternative gcc installation. Note that otherwise gcc from standard ' +
@@ -983,7 +980,7 @@ if __name__ == '__main__':
     run_group.add_option('--only', dest='only',
         help='set types of tests. Possible values:\n' +
             '-O0, -O1, -O2, x86, x86-64, stability (test only stability), performance (test only performance),\n' +
-            'build (only build with different LLVM), 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, trunk, native (do not use SDE),\n' +
+            'build (only build with different LLVM), 6.0-16.0, trunk, native (do not use SDE),\n' +
             'current (do not rebuild ISPC), debug (only with debug info), nodebug (only without debug info, default).',
             default="")
     run_group.add_option('--perf_LLVM', dest='perf_llvm',

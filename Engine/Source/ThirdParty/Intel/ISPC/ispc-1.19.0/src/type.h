@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -73,15 +73,16 @@ struct Variability {
 /** Enumerant that records each of the types that inherit from the Type
     baseclass. */
 enum TypeId {
-    ATOMIC_TYPE,           // 0
-    ENUM_TYPE,             // 1
-    POINTER_TYPE,          // 2
-    ARRAY_TYPE,            // 3
-    VECTOR_TYPE,           // 4
-    STRUCT_TYPE,           // 5
-    UNDEFINED_STRUCT_TYPE, // 6
-    REFERENCE_TYPE,        // 7
-    FUNCTION_TYPE          // 8
+    ATOMIC_TYPE,             // 0
+    ENUM_TYPE,               // 1
+    POINTER_TYPE,            // 2
+    ARRAY_TYPE,              // 3
+    VECTOR_TYPE,             // 4
+    STRUCT_TYPE,             // 5
+    UNDEFINED_STRUCT_TYPE,   // 6
+    REFERENCE_TYPE,          // 7
+    FUNCTION_TYPE,           // 8
+    TEMPLATE_TYPE_PARM_TYPE, // 9
 };
 
 /** @brief Interface class that defines the type abstraction.
@@ -89,7 +90,7 @@ enum TypeId {
     Abstract base class that defines the interface that must be implemented
     for all types in the language.
  */
-class Type {
+class Type : public Traceable {
   public:
     /** Returns true if the underlying type is boolean.  In other words,
         this is true for individual bools and for short-vectors with
@@ -117,7 +118,7 @@ class Type {
     /** Returns true if the underlying type is a array type */
     bool IsArrayType() const;
 
-    /** Returns true if the underlying type is a array type */
+    /** Returns true if the underlying type is a reference type */
     bool IsReferenceType() const;
 
     /** Returns true if the underlying type is either a pointer or an array */
@@ -128,6 +129,9 @@ class Type {
 
     /** Returns true if the underlying type is a float or integer type. */
     bool IsNumericType() const { return IsFloatType() || IsIntType(); }
+
+    /** Returns true if the type is any kind of dependent type. */
+    bool IsDependentType() const;
 
     /** Returns the variability of the type. */
     virtual Variability GetVariability() const = 0;
@@ -149,6 +153,16 @@ class Type {
     /** Returns true if the underlying type's uniform/varying-ness is
         unbound. */
     bool HasUnboundVariability() const { return GetVariability() == Variability::Unbound; }
+
+    /** Resolves dependent type with mapping of template types to concrete type passed as argeument.
+        Do not handle variability resolution, which need to be done as a separate step.
+     */
+    virtual const Type *ResolveDependence(TemplateInstantiation &templInst) const = 0;
+
+    /** Resolves dependent type with mapping of template types to concrete type passed as argeument.
+        Resolve variability of the type as well.
+     */
+    const Type *ResolveDependenceForTopType(TemplateInstantiation &templInst) const;
 
     /* Returns a type wherein any elements of the original type and
        contained types that have unbound variability have their variability
@@ -287,6 +301,7 @@ class AtomicType : public Type {
     const AtomicType *GetAsUnboundVariabilityType() const;
     const AtomicType *GetAsSOAType(int width) const;
 
+    const AtomicType *ResolveDependence(TemplateInstantiation &templInst) const;
     const AtomicType *ResolveUnboundVariability(Variability v) const;
     const AtomicType *GetAsUnsignedType() const;
     const AtomicType *GetAsConstType() const;
@@ -317,6 +332,7 @@ class AtomicType : public Type {
         TYPE_INT64,
         TYPE_UINT64,
         TYPE_DOUBLE,
+        TYPE_DEPENDENT,
         NUM_BASIC_TYPES
     };
 
@@ -334,6 +350,7 @@ class AtomicType : public Type {
     static const AtomicType *UniformInt64, *VaryingInt64;
     static const AtomicType *UniformUInt64, *VaryingUInt64;
     static const AtomicType *UniformDouble, *VaryingDouble;
+    static const AtomicType *Dependent;
     static const AtomicType *Void;
 
   private:
@@ -342,6 +359,51 @@ class AtomicType : public Type {
     AtomicType(BasicType basicType, Variability v, bool isConst);
 
     mutable const AtomicType *asOtherConstType, *asUniformType, *asVaryingType;
+};
+
+/** @brief Type representing a template typename type.
+
+    'TemplateTypeParmType' should be resolved during template instantiation.
+ */
+class TemplateTypeParmType : public Type {
+  public:
+    TemplateTypeParmType(std::string, Variability v, bool ic, SourcePos pos);
+
+    Variability GetVariability() const;
+
+    bool IsBoolType() const;
+    bool IsFloatType() const;
+    bool IsIntType() const;
+    bool IsUnsignedType() const;
+    bool IsConstType() const;
+
+    const Type *GetBaseType() const;
+    const Type *GetAsVaryingType() const;
+    const Type *GetAsUniformType() const;
+    const Type *GetAsUnboundVariabilityType() const;
+    const Type *GetAsSOAType(int width) const;
+    const Type *ResolveDependence(TemplateInstantiation &templInst) const;
+    const Type *ResolveUnboundVariability(Variability v) const;
+
+    const Type *GetAsConstType() const;
+    const Type *GetAsNonConstType() const;
+
+    std::string GetName() const;
+    const SourcePos &GetSourcePos() const;
+    std::string GetString() const;
+    std::string Mangle() const;
+    std::string GetCDeclaration(const std::string &name) const;
+
+    llvm::Type *LLVMType(llvm::LLVMContext *ctx) const;
+
+    llvm::DIType *GetDIType(llvm::DIScope *scope) const;
+
+  private:
+    const std::string name;
+    const Variability variability;
+    const bool isConst;
+    const SourcePos pos;
+    mutable const TemplateTypeParmType *asOtherConstType, *asUniformType, *asVaryingType;
 };
 
 /** @brief Type implementation for enumerated types
@@ -369,6 +431,7 @@ class EnumType : public Type {
     const EnumType *GetAsUnboundVariabilityType() const;
     const EnumType *GetAsSOAType(int width) const;
 
+    const EnumType *ResolveDependence(TemplateInstantiation &templInst) const;
     const EnumType *ResolveUnboundVariability(Variability v) const;
     const EnumType *GetAsConstType() const;
     const EnumType *GetAsNonConstType() const;
@@ -454,6 +517,7 @@ class PointerType : public Type {
     const PointerType *GetAsUnboundVariabilityType() const;
     const PointerType *GetAsSOAType(int width) const;
 
+    const PointerType *ResolveDependence(TemplateInstantiation &templInst) const;
     const PointerType *ResolveUnboundVariability(Variability v) const;
     const PointerType *GetAsConstType() const;
     const PointerType *GetAsNonConstType() const;
@@ -555,6 +619,7 @@ class ArrayType : public SequentialType {
     const ArrayType *GetAsUniformType() const;
     const ArrayType *GetAsUnboundVariabilityType() const;
     const ArrayType *GetAsSOAType(int width) const;
+    const ArrayType *ResolveDependence(TemplateInstantiation &templInst) const;
     const ArrayType *ResolveUnboundVariability(Variability v) const;
 
     const ArrayType *GetAsUnsignedType() const;
@@ -622,6 +687,7 @@ class VectorType : public SequentialType {
     const VectorType *GetAsUniformType() const;
     const VectorType *GetAsUnboundVariabilityType() const;
     const VectorType *GetAsSOAType(int width) const;
+    const VectorType *ResolveDependence(TemplateInstantiation &templInst) const;
     const VectorType *ResolveUnboundVariability(Variability v) const;
 
     const VectorType *GetAsUnsignedType() const;
@@ -675,6 +741,7 @@ class StructType : public CollectionType {
     const StructType *GetAsUniformType() const;
     const StructType *GetAsUnboundVariabilityType() const;
     const StructType *GetAsSOAType(int width) const;
+    const StructType *ResolveDependence(TemplateInstantiation &templInst) const;
     const StructType *ResolveUnboundVariability(Variability v) const;
 
     const StructType *GetAsConstType() const;
@@ -695,6 +762,9 @@ class StructType : public CollectionType {
     /** Returns the type of the i'th structure element.  The value of \c i must
         be between 0 and NumElements()-1. */
     const Type *GetElementType(int i) const;
+
+    /** Return the raw element type without "finilizing" varibility and constness of the element. */
+    const Type *GetRawElementType(int i) const;
 
     /** Returns which structure element number (starting from zero) that
         has the given name.  If there is no such element, return -1. */
@@ -763,6 +833,7 @@ class UndefinedStructType : public Type {
     const UndefinedStructType *GetAsUniformType() const;
     const UndefinedStructType *GetAsUnboundVariabilityType() const;
     const UndefinedStructType *GetAsSOAType(int width) const;
+    const UndefinedStructType *ResolveDependence(TemplateInstantiation &templInst) const;
     const UndefinedStructType *ResolveUnboundVariability(Variability v) const;
 
     const UndefinedStructType *GetAsConstType() const;
@@ -806,6 +877,7 @@ class ReferenceType : public Type {
     const ReferenceType *GetAsUniformType() const;
     const ReferenceType *GetAsUnboundVariabilityType() const;
     const Type *GetAsSOAType(int width) const;
+    const ReferenceType *ResolveDependence(TemplateInstantiation &templInst) const;
     const ReferenceType *ResolveUnboundVariability(Variability v) const;
 
     const ReferenceType *GetAsConstType() const;
@@ -843,10 +915,14 @@ class FunctionType : public Type {
     FunctionType(const Type *returnType, const llvm::SmallVector<const Type *, 8> &argTypes,
                  const llvm::SmallVector<std::string, 8> &argNames, const llvm::SmallVector<Expr *, 8> &argDefaults,
                  const llvm::SmallVector<SourcePos, 8> &argPos, bool isTask, bool isExported, bool isExternC,
-                 bool isUnmasked);
+                 bool isExternSYCL, bool isUnmasked, bool isVectorCall, bool isRegCall);
+    // Structure holding the mangling suffix and prefix for function
+    struct FunctionMangledName {
+        std::string prefix;
+        std::string suffix;
+    };
 
     Variability GetVariability() const;
-
     bool IsBoolType() const;
     bool IsFloatType() const;
     bool IsIntType() const;
@@ -861,6 +937,7 @@ class FunctionType : public Type {
     const Type *GetAsUniformType() const;
     const Type *GetAsUnboundVariabilityType() const;
     const Type *GetAsSOAType(int width) const;
+    const FunctionType *ResolveDependence(TemplateInstantiation &templInst) const;
     const FunctionType *ResolveUnboundVariability(Variability v) const;
 
     const Type *GetAsConstType() const;
@@ -879,20 +956,34 @@ class FunctionType : public Type {
 
     const std::string GetReturnTypeString() const;
 
+    /** This method returns the FunctionMangledName depending on Function type.
+        The \c appFunction parameter indicates whether the function is generated for
+        internal ISPC call or for external call from application.*/
+    FunctionMangledName GetFunctionMangledName(bool appFunction,
+                                               std::vector<const Type *> *templateArgs = nullptr) const;
+
+    /** This method returns std::vector of LLVM types of function arguments.
+        The \c disableMask parameter indicates whether the mask parameter should be
+        included to the list of arguments types. */
+    std::vector<llvm::Type *> LLVMFunctionArgTypes(llvm::LLVMContext *ctx, bool disableMask = false) const;
+
     /** This method returns the LLVM FunctionType that corresponds to this
         function type.  The \c disableMask parameter indicates whether the
         llvm::FunctionType should have the trailing mask parameter, if
         present, removed from the return function signature. */
     llvm::FunctionType *LLVMFunctionType(llvm::LLVMContext *ctx, bool disableMask = false) const;
 
+    /* This method returns appropriate llvm::CallingConv for the function*/
+    const unsigned int GetCallingConv() const;
+
+    /* Get string representation of calling convention */
+    const std::string GetNameForCallConv() const;
+
     int GetNumParameters() const { return (int)paramTypes.size(); }
     const Type *GetParameterType(int i) const;
     Expr *GetParameterDefault(int i) const;
     const SourcePos &GetParameterSourcePos(int i) const;
     const std::string &GetParameterName(int i) const;
-
-    /** This method determines if function requires addrspace casts at the beginning*/
-    bool RequiresAddrSpaceCasts(const llvm::Function *func) const;
 
     /** This value is true if the function had a 'task' qualifier in the
         source program. */
@@ -906,10 +997,20 @@ class FunctionType : public Type {
         function in the source program. */
     const bool isExternC;
 
+    /** This value is true if the function was declared as an 'extern "SYCL"'
+    function in the source program. */
+    const bool isExternSYCL;
+
     /** Indicates whether the function doesn't take an implicit mask
         parameter (and thus should start execution with an "all on"
         mask). */
     const bool isUnmasked;
+
+    /** Indicates whether the function has __vectorcall attribute. */
+    const bool isVectorCall;
+
+    /** Indicates whether the function has __regcall attribute. */
+    const bool isRegCall;
 
     /** Indicates whether this function has been declared to be safe to run
         with an all-off mask. */
@@ -920,6 +1021,8 @@ class FunctionType : public Type {
     int costOverride;
 
   private:
+    std::string mangleTemplateArgs(std::vector<const Type *> *templateArgs) const;
+
     const Type *const returnType;
 
     // The following four vectors should all have the same length (which is
@@ -948,6 +1051,13 @@ template <typename T> inline const T *CastType(const Type *type) { return NULL; 
 template <> inline const AtomicType *CastType(const Type *type) {
     if (type != NULL && type->typeId == ATOMIC_TYPE)
         return (const AtomicType *)type;
+    else
+        return NULL;
+}
+
+template <> inline const TemplateTypeParmType *CastType(const Type *type) {
+    if (type != NULL && type->typeId == TEMPLATE_TYPE_PARM_TYPE)
+        return (const TemplateTypeParmType *)type;
     else
         return NULL;
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2022, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -63,14 +63,6 @@ using invokePtr = int (*)(unsigned, const char **, const uint32_t, const uint8_t
                           const uint32_t, const uint8_t **, const uint64_t *, const char **, uint32_t *, uint8_t ***,
                           uint64_t **, char ***);
 using freeOutputPtr = int (*)(uint32_t *, uint8_t ***, uint64_t **, char ***);
-// clang-format off
-const std::unordered_map<std::string, std::string> ISPCToNeoCPU{
-    {"skl", "skl"},
-    {"tgllp", "tgllp"},
-    {"dg1", "dg1"},
-    {"dg2", "dg2"},
-};
-// clang-format on
 #endif
 
 class Module {
@@ -78,6 +70,8 @@ class Module {
     /** The name of the source file being compiled should be passed as the
         module name. */
     Module(const char *filename);
+
+    ~Module();
 
     /** Compiles the source file passed to the Module constructor, adding
         its global variables and functions to both the llvm::Module and
@@ -96,11 +90,26 @@ class Module {
     /** Add a declaration of the function defined by the given function
         symbol to the module. */
     void AddFunctionDeclaration(const std::string &name, const FunctionType *ftype, StorageClass sc, bool isInline,
-                                bool isNoInline, bool isVectorCall, SourcePos pos);
+                                bool isNoInline, bool isVectorCall, bool isRegCall, SourcePos pos);
 
     /** Adds the function described by the declaration information and the
         provided statements to the module. */
     void AddFunctionDefinition(const std::string &name, const FunctionType *ftype, Stmt *code);
+
+    /** Add a declaration of the function template defined by the given function
+        symbol to the module. */
+    void AddFunctionTemplateDeclaration(const TemplateParms *templateParmList, const std::string &name,
+                                        const FunctionType *ftype, StorageClass sc, bool isInline, bool isNoInline,
+                                        bool isVectorCall, SourcePos pos);
+
+    /** Add the function described by the declaration information and the
+        provided statements to the module. */
+    void AddFunctionTemplateDefinition(const TemplateParms *templateParmList, const std::string &name,
+                                       const FunctionType *ftype, Stmt *code);
+
+    void AddFunctionTemplateInstantiation(const std::string &name,
+                                          const std::vector<std::pair<const Type *, SourcePos>> &types,
+                                          const FunctionType *ftype, SourcePos pos);
 
     /** Adds the given type to the set of types that have their definitions
         included in automatically generated header files. */
@@ -168,21 +177,22 @@ class Module {
                                 OutputFlags outputFlags, OutputType outputType, const char *outFileName,
                                 const char *headerFileName, const char *depsFileName, const char *depsTargetName,
                                 const char *hostStubFileName, const char *devStubFileName);
+    static int LinkAndOutput(std::vector<std::string> linkFiles, OutputType outputType, const char *outFileName);
 
     /** Total number of errors encountered during compilation. */
-    int errorCount;
+    int errorCount{0};
 
     /** Symbol table to hold symbols visible in the current scope during
         compilation. */
-    SymbolTable *symbolTable;
+    SymbolTable *symbolTable{nullptr};
 
     /** llvm Module object into which globals and functions are added. */
-    llvm::Module *module;
+    llvm::Module *module{nullptr};
 
     /** The diBuilder manages generating debugging information */
-    llvm::DIBuilder *diBuilder;
+    llvm::DIBuilder *diBuilder{nullptr};
 
-    llvm::DICompileUnit *diCompileUnit;
+    llvm::DICompileUnit *diCompileUnit{nullptr};
 
     /** StructType cache.  This needs to be in the context of Module, so it's reset for
         any new Module in multi-target compilation.
@@ -195,8 +205,8 @@ class Module {
     std::map<std::string, llvm::StructType *> structTypeMap;
 
   private:
-    const char *filename;
-    AST *ast;
+    const char *filename{nullptr};
+    AST *ast{nullptr};
 
     // Definition and member object capturing preprocessing stream during Module lifetime.
     struct CPPBuffer {
@@ -206,7 +216,7 @@ class Module {
         std::unique_ptr<llvm::raw_string_ostream> os;
     };
 
-    std::unique_ptr<CPPBuffer> bufferCPP;
+    std::unique_ptr<CPPBuffer> bufferCPP{nullptr};
 
     std::vector<std::pair<const Type *, SourcePos>> exportedTypes;
 
@@ -229,6 +239,7 @@ class Module {
                                           OutputType outputType, const char *outFileName);
     static bool writeBitcode(llvm::Module *module, const char *outFileName, OutputType outputType);
 #ifdef ISPC_XE_ENABLED
+    static std::unique_ptr<llvm::Module> translateFromSPIRV(std::ifstream &outString);
     static bool translateToSPIRV(llvm::Module *module, std::stringstream &outString);
     static bool writeSPIRV(llvm::Module *module, const char *outFileName);
     static bool writeZEBin(llvm::Module *module, const char *outFileName);

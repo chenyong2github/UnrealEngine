@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2022, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -81,15 +81,6 @@ static void lPrintVersion() {
 #ifdef ISPC_HOST_IS_WINDOWS
     printf("Supported Visual Studio versions: %s.\n", ISPC_VS_VERSION);
 #endif
-
-// The recommended way to build ISPC assumes custom LLVM build with a set of patches.
-// If the default LLVM distribution is used, then the resuling ISPC binary may contain
-// known and already fixed stability and performance problems.
-#ifdef ISPC_NO_DUMPS
-    printf("This version is likely linked against non-recommended LLVM binaries.\n"
-           "For best stability and performance please use official binary distribution from "
-           "http://ispc.github.io/downloads.html");
-#endif
 }
 
 [[noreturn]] static void usage(int ret) {
@@ -170,6 +161,7 @@ static void lPrintVersion() {
     printf("        fast-masked-vload\t\tFaster masked vector loads on SSE (may go past end of array)\n");
     printf("        fast-math\t\t\tPerform non-IEEE-compliant optimizations of numeric expressions\n");
     printf("        force-aligned-memory\t\tAlways issue \"aligned\" vector load and store instructions\n");
+    printf("        reset-ftz-daz\t\t\tReset FTZ/DAZ flags on ISPC extern function entrance / restore on return\n");
     printf("    [--pic]\t\t\t\tGenerate position-independent code.  Ignored for Windows target\n");
     printf("    [--quiet]\t\t\t\tSuppress all output\n");
     printf("    [--support-matrix]\t\t\tPrint full matrix of supported targets, architectures and OSes\n");
@@ -185,7 +177,7 @@ static void lPrintVersion() {
              g->target_registry->getSupportedOSes().c_str());
     PrintWithWordBreaks(targetHelp, 24, TerminalWidth(), stdout);
     printf("    [--time-trace]\t\t\tTurn on time profiler. Generates JSON file based on output filename.\n");
-    printf("    [--time-trace-granularity=<value>\tMinimum time granularity (in microseconds) traced by time "
+    printf("    [--time-trace-granularity=<value>]\tMinimum time granularity (in microseconds) traced by time "
            "profiler.\n");
     printf("    [--vectorcall/--no-vectorcall]\tEnable/disable vectorcall calling convention on Windows (x64 only). "
            "Disabled by default\n");
@@ -207,6 +199,25 @@ static void lPrintVersion() {
     exit(ret);
 }
 
+[[noreturn]] static void linkUsage(int ret) {
+    lPrintVersion();
+    printf("\nusage: ispc link\n");
+    printf("\nLink several IR or SPIR-V files to selected output format: LLVM BC (default), LLVM text or SPIR-V\n");
+    printf("    [--emit-llvm]\t\t\tEmit LLVM bitcode file as output\n");
+    printf("    [--emit-llvm-text]\t\t\tEmit LLVM bitcode file as output in textual form\n");
+#ifdef ISPC_XE_ENABLED
+    printf("    [--emit-spirv]\t\t\tEmit SPIR-V file as output\n");
+#endif
+    printf("    [-o <name>/--outfile=<name>]\tOutput filename (may be \"-\" for standard output)\n");
+    printf("    <files to link or \"-\" for stdin>\n");
+    printf("\nExamples:\n");
+    printf("    Link two SPIR-V files to LLVM BC output:\n");
+    printf("        ispc link test_a.spv test_b.spv --emit-llvm -o test.bc\n");
+    printf("    Link LLVM bitcode files to SPIR-V output:\n");
+    printf("        ispc link test_a.bc test_b.bc --emit-spirv -o test.spv\n");
+    exit(ret);
+}
+
 [[noreturn]] static void devUsage(int ret) {
     lPrintVersion();
     printf("\nusage (developer options): ispc\n");
@@ -214,14 +225,11 @@ static void lPrintVersion() {
            "given, dump AST for user code only\n");
     printf("    [--debug]\t\t\t\tPrint information useful for debugging ispc\n");
     printf("    [--debug-llvm]\t\t\tEnable LLVM debugging information (dumps to stderr)\n");
-#ifndef ISPC_NO_DUMPS
     printf("    [--debug-phase=<value>]\t\tSet optimization phases to dump. "
            "--debug-phase=first,210:220,300,305,310:last\n");
-#endif
     printf("    [--[no-]discard-value-names]\tDo not discard/Discard value names when generating LLVM IR.\n");
-#ifndef ISPC_NO_DUMPS
-    printf("    [--dump-file]\t\t\tDump module IR to file(s) in current directory\n");
-#endif
+    printf("    [--dump-file[=<path>]]\t\tDump module IR to file(s) in "
+           "current directory, or to <path> if specified\n");
     printf("    [--fuzz-seed=<value>]\t\tSeed value for RNG for fuzz testing\n");
     printf("    [--fuzz-test]\t\t\tRandomly perturb program input to test error conditions\n");
     printf("    [--off-phase=<value>]\t\tSwitch off optimization phases. --off-phase=first,210:220,300,305,310:last\n");
@@ -468,11 +476,13 @@ static int ParsingPhaseName(char *stage, ArgErrors &errorHandler) {
     }
 }
 
-enum class VectorCallStatus { none, enabled, disabled };
+// For boolean command line options there are actually three states. Beyond "on" and "off", there's "unspecified",
+// which might trigger a different default behavior.
+enum class BooleanOptValue { none, enabled, disabled };
 
-static void setCallingConv(VectorCallStatus vectorCall, Arch arch) {
+static void setCallingConv(BooleanOptValue vectorCall, Arch arch) {
     // Restrict vectorcall to just x86_64 - vectorcall for x86 not supported yet.
-    if (g->target_os == TargetOS::windows && vectorCall == VectorCallStatus::enabled &&
+    if (g->target_os == TargetOS::windows && vectorCall == BooleanOptValue::enabled &&
         // Arch is not properly set yet, we assume none is x86_64.
         (arch == Arch::x86_64 || arch == Arch::none)) {
         g->calling_conv = CallingConv::x86_vectorcall;
@@ -496,6 +506,12 @@ static void writeCompileTimeFile(const char *outFileName) {
     llvm::timeTraceProfilerWrite(fos);
     of->keep();
     return;
+}
+
+static std::string ParsePath(char *path, ArgErrors &errorHandler) {
+    constexpr int parsing_limit = 1024;
+    auto len = strnlen(path, parsing_limit);
+    return std::string{path, len};
 }
 
 static std::set<int> ParsingPhases(char *stages, ArgErrors &errorHandler) {
@@ -599,6 +615,8 @@ int main(int Argc, char *Argv[]) {
     const char *depsTargetName = NULL;
     const char *hostStubFileName = NULL;
     const char *devStubFileName = NULL;
+
+    std::vector<std::string> linkFileNames;
     // Initiailize globals early so that we can set various option values
     // as we're parsing below
     g = new Globals;
@@ -608,15 +626,72 @@ int main(int Argc, char *Argv[]) {
     Arch arch = Arch::none;
     std::vector<ISPCTarget> targets;
     const char *cpu = NULL, *intelAsmSyntax = NULL;
-    VectorCallStatus vectorCall = VectorCallStatus::none;
+    BooleanOptValue vectorCall = BooleanOptValue::none;
+    BooleanOptValue discardValueNames = BooleanOptValue::none;
 
     ArgErrors errorHandler;
+
+    // If the first argument is "link"
+    // ISPC will be used in a linkage mode
+    if (argc > 1 && !strncmp(argv[1], "link", 4)) {
+        // Use bitcode format by default
+        ot = Module::Bitcode;
+
+        if (argc < 2) {
+            // Not sufficient number of arguments
+            linkUsage(-1);
+        }
+        for (int i = 2; i < argc; ++i) {
+            if (!strcmp(argv[i], "--help")) {
+                linkUsage(0);
+            } else if (!strcmp(argv[i], "-o")) {
+                if (++i != argc) {
+                    outFileName = argv[i];
+                } else {
+                    errorHandler.AddError("No output file specified after -o option.");
+                }
+            } else if (!strncmp(argv[i], "--outfile=", 10)) {
+                outFileName = argv[i] + strlen("--outfile=");
+#ifdef ISPC_XE_ENABLED
+            } else if (!strcmp(argv[i], "--emit-spirv")) {
+                ot = Module::SPIRV;
+#endif
+            } else if (!strcmp(argv[i], "--emit-llvm")) {
+                ot = Module::Bitcode;
+            } else if (!strcmp(argv[i], "--emit-llvm-text")) {
+                ot = Module::BitcodeText;
+            } else if (argv[i][0] == '-') {
+                errorHandler.AddError("Unknown option \"%s\".", argv[i]);
+            } else {
+                file = argv[i];
+                linkFileNames.push_back(file);
+            }
+        }
+        // Emit accumulted errors and warnings, if any.
+        errorHandler.Emit();
+
+        if (linkFileNames.size() == 0) {
+            Error(SourcePos(), "No input files were specified.");
+            exit(1);
+        }
+
+        if (outFileName == NULL) {
+            Warning(SourcePos(), "No output file name specified. "
+                                 "The inputs will be linked and warnings/errors will "
+                                 "be issued, but no output will be generated.");
+        }
+
+        return Module::LinkAndOutput(linkFileNames, ot, outFileName);
+    }
 
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--help")) {
             usage(0);
         } else if (!strcmp(argv[i], "--help-dev")) {
             devUsage(0);
+        } else if (!strncmp(argv[i], "link", 4)) {
+            errorHandler.AddError(
+                "Option \"link\" can't be used in compilation mode. Use \"ispc link --help\" for details");
         } else if (!strcmp(argv[i], "--support-matrix")) {
             g->target_registry->printSupportMatrix();
             exit(0);
@@ -681,9 +756,9 @@ int main(int Argc, char *Argv[]) {
         else if (!strcmp(argv[i], "--debug-llvm"))
             llvm::DebugFlag = true;
         else if (!strcmp(argv[i], "--discard-value-names"))
-            g->ctx->setDiscardValueNames(true);
+            discardValueNames = BooleanOptValue::enabled;
         else if (!strcmp(argv[i], "--no-discard-value-names"))
-            g->ctx->setDiscardValueNames(false);
+            discardValueNames = BooleanOptValue::disabled;
         else if (!strcmp(argv[i], "--dllexport"))
             g->dllExport = true;
         else if (!strncmp(argv[i], "--dwarf-version=", 16)) {
@@ -765,9 +840,9 @@ int main(int Argc, char *Argv[]) {
                                       g->target_registry->getSupportedOSes().c_str());
             }
         } else if (!strcmp(argv[i], "--no-vectorcall")) {
-            vectorCall = VectorCallStatus::disabled;
+            vectorCall = BooleanOptValue::disabled;
         } else if (!strcmp(argv[i], "--vectorcall")) {
-            vectorCall = VectorCallStatus::enabled;
+            vectorCall = BooleanOptValue::enabled;
         } else if (!strncmp(argv[i], "--math-lib=", 11)) {
             const char *lib = argv[i] + 11;
             if (!strcmp(lib, "default"))
@@ -797,6 +872,8 @@ int main(int Argc, char *Argv[]) {
                 g->opt.disableZMM = true;
             else if (!strcmp(opt, "force-aligned-memory"))
                 g->opt.forceAlignedMemory = true;
+            else if (!strcmp(opt, "reset-ftz-daz"))
+                g->opt.resetFTZ_DAZ = true;
 
             // These are only used for performance tests of specific
             // optimizations
@@ -936,16 +1013,17 @@ int main(int Argc, char *Argv[]) {
             } else {
                 errorHandler.AddError("No output file name specified after --host-stub option.");
             }
-        }
-#ifndef ISPC_NO_DUMPS
-        else if (strncmp(argv[i], "--debug-phase=", 14) == 0) {
+        } else if (strncmp(argv[i], "--debug-phase=", 14) == 0) {
             errorHandler.AddWarning("Adding debug phases may change the way PassManager"
                                     "handles the phases and it may possibly make some bugs go"
                                     "away or introduce the new ones.");
             g->debug_stages = ParsingPhases(argv[i] + strlen("--debug-phase="), errorHandler);
-        } else if (strncmp(argv[i], "--dump-file", 11) == 0)
+        } else if (strncmp(argv[i], "--dump-file=", 12) == 0) {
             g->dumpFile = true;
-#endif
+            g->dumpFilePath = ParsePath(argv[i] + strlen("--dump-file="), errorHandler);
+        } else if (strncmp(argv[i], "--dump-file", 11) == 0) {
+            g->dumpFile = true;
+        }
 
         else if (strncmp(argv[i], "--off-phase=", 12) == 0) {
             g->off_stages = ParsingPhases(argv[i] + strlen("--off-phase="), errorHandler);
@@ -979,6 +1057,21 @@ int main(int Argc, char *Argv[]) {
     if (file == NULL) {
         Error(SourcePos(), "No input file were specified. To read text from stdin use \"-\" as file name.");
         exit(1);
+    }
+
+    // If [no]discard-value-names is explicitly specified, then use this value.
+    // Otherwise enable it only if the output is some form of bitcode.
+    // Note that discarding value names significantly saves compile time and memory consumption.
+    if (discardValueNames == BooleanOptValue::enabled) {
+        g->ctx->setDiscardValueNames(true);
+    } else if (discardValueNames == BooleanOptValue::disabled) {
+        g->ctx->setDiscardValueNames(false);
+    } else {
+        if (ot == Module::Bitcode || ot == Module::BitcodeText) {
+            g->ctx->setDiscardValueNames(false);
+        } else {
+            g->ctx->setDiscardValueNames(true);
+        }
     }
 
     // Default settings for PS4
@@ -1069,7 +1162,7 @@ int main(int Argc, char *Argv[]) {
         Warning(SourcePos(), "--dllexport switch will be ignored, as the target OS is not Windows.");
     }
 
-    if (vectorCall != VectorCallStatus::none &&
+    if (vectorCall != BooleanOptValue::none &&
         (g->target_os != TargetOS::windows ||
          // This is a hacky check. Arch is properly set later, so we rely that default means x86_64.
          (arch != Arch::x86_64 && arch != Arch::none))) {
@@ -1128,5 +1221,9 @@ int main(int Argc, char *Argv[]) {
         }
         llvm::timeTraceProfilerCleanup();
     }
+
+    // Free all bookkeeped objects.
+    BookKeeper::in().freeAll();
+
     return ret;
 }

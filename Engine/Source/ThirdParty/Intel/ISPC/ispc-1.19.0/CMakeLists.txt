@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2018-2022, Intel Corporation
+#  Copyright (c) 2018-2023, Intel Corporation
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,12 @@
 cmake_minimum_required(VERSION 3.13)
 
 if (UNIX)
-    set(CMAKE_C_COMPILER "clang")
-    set(CMAKE_CXX_COMPILER "clang++")
+    if (NOT CMAKE_C_COMPILER)
+        set(CMAKE_C_COMPILER "clang")
+    endif()
+    if (NOT CMAKE_CXX_COMPILER)
+        set(CMAKE_CXX_COMPILER "clang++")
+    endif()
 endif()
 
 set(PROJECT_NAME ispc)
@@ -60,7 +64,8 @@ option(ISPC_INCLUDE_BENCHMARKS "Generate build targets for the ISPC tests." OFF)
 option(ISPC_INCLUDE_RT "Generate build targets for ISPC runtime." ON)
 option(ISPC_INCLUDE_UTILS "Generate build targets for the utils." ON)
 option(ISPC_PREPARE_PACKAGE "Generate build targets for ispc package" OFF)
-option(ISPC_NO_DUMPS "Turn off functionality, which requires LLVM dump() functions" OFF)
+
+option(ISPC_OPAQUE_PTR_MODE "Build ISPC with usage of opaque pointers" OFF)
 
 option(ISPC_CROSS "Build ISPC with cross compilation support" OFF)
 # Default settings for cross compilation
@@ -274,6 +279,10 @@ if (X86_ENABLED)
         avx512knl-x16
         avx512skx-x4 avx512skx-x8 avx512skx-x16
         avx512skx-x32 avx512skx-x64)
+    if (${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "14.0.0")
+        list(APPEND ISPC_TARGETS
+            avx512spr-x4 avx512spr-x8 avx512spr-x16 avx512spr-x32 avx512spr-x64)
+    endif()
 endif()
 if (ARM_ENABLED)
     list(APPEND ISPC_TARGETS neon-i8x16 neon-i16x8 neon-i32x4 neon-i32x8)
@@ -288,7 +297,25 @@ if (WASM_ENABLED)
 endif()
 
 set(CLANG_LIBRARY_LIST clangFrontend clangDriver clangSerialization clangParse clangSema clangAnalysis clangAST clangBasic clangEdit clangLex)
+if (${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "15.0.0")
+    list(APPEND CLANG_LIBRARY_LIST clangSupport)
+endif()
+if (${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "16.0.0")
+    list(APPEND CLANG_LIBRARY_LIST clangASTMatchers)
+endif()
+
 set(LLVM_COMPONENTS engine ipo bitreader bitwriter instrumentation linker option frontendopenmp)
+if (XE_ENABLED AND ${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "14.0.0")
+    # passes component is required for SPIR-V usage.
+    list(APPEND LLVM_COMPONENTS passes)
+endif()
+if (${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "15.0.0")
+    # windowsdriver is a small library introduced in LLVM 15. While it's targeted at Windows only,
+    # it's used in the LLVM code without any ifdef and is needed on all platforms.
+    # An interesting fact, that on Linux it is not required, because linker is smart enough to optimize out
+    # the calls to unresolved symbols. It's not the case on macOS though.
+    list(APPEND LLVM_COMPONENTS windowsdriver)
+endif()
 
 if (X86_ENABLED)
     list(APPEND LLVM_COMPONENTS x86)
@@ -300,7 +327,7 @@ if (WASM_ENABLED)
     list(APPEND LLVM_COMPONENTS webassembly)
 endif()
 if (XE_ENABLED)
-    list(APPEND ISPC_TARGETS gen9-x16 gen9-x8 xelp-x16 xelp-x8 xehpg-x16 xehpg-x8)
+    list(APPEND ISPC_TARGETS gen9-x16 gen9-x8 xelp-x16 xelp-x8 xehpg-x16 xehpg-x8 xehpc-x16 xehpc-x32)
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
         set(TARGET_MODIFIER "32")
         set(PB_PATH_MODIFIER "x86")
@@ -311,6 +338,25 @@ if (XE_ENABLED)
 
     list(APPEND XE_LIBRARY_LIST LLVMGenXIntrinsics LLVMSPIRVLib)
 endif()
+
+# Set the flag responsible for generation of opaque pointers in builtins
+set(ISPC_OPAQUE_FLAGS)
+if (ISPC_OPAQUE_PTR_MODE)
+    if (${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "15.0.0")
+    # Do nothing, opaque pointers mode is default
+    elseif (${LLVM_VERSION_NUMBER} VERSION_EQUAL "14.0.0")
+    # Explicitly enable opaque pointers for LLVM 14.0
+        set(ISPC_OPAQUE_FLAGS "-Xclang" "-opaque-pointers")
+    else()
+        message(FATAL_ERROR "ISPC opaque pointers mode is not supported with LLVM " ${LLVM_VERSION_NUMBER})
+    endif()
+else()
+    # Explicitly disable opaque pointers starting LLVM 15.0
+    if (${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "15.0.0")
+        set(ISPC_OPAQUE_FLAGS "-Xclang" "-no-opaque-pointers")
+    endif()
+endif()
+message(STATUS "ISPC opaque pointers mode is " ${ISPC_OPAQUE_PTR_MODE})
 
 get_llvm_libfiles(LLVM_LIBRARY_LIST ${LLVM_COMPONENTS})
 get_llvm_cppflags(LLVM_CPP_FLAGS)
@@ -367,9 +413,8 @@ target_sources(${PROJECT_NAME}
         "common/version.h"
 )
 
-if (XE_ENABLED)
-    target_sources(${PROJECT_NAME} PRIVATE "src/xe/GlobalsLocalization.cpp")
-endif()
+# ISPC passes
+add_subdirectory(src/opt)
 
 # To show stdlib.ispc in VS solution:
 if (WIN32)
@@ -399,16 +444,13 @@ endif()
 if (ARM_ENABLED)
     target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_ARM_ENABLED)
 endif()
+
 if (XE_ENABLED)
     target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_XE_ENABLED)
 endif()
 
 if (WASM_ENABLED)
     target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_WASM_ENABLED)
-endif()
-
-if (ISPC_NO_DUMPS)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_NO_DUMPS)
 endif()
 
 # Compile definitions for cross compilation
@@ -434,6 +476,11 @@ if (NOT ISPC_PS_TARGET)
     target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_PS_TARGET_OFF)
 endif()
 
+# Compile definition for opaque pointers mode
+if (ISPC_OPAQUE_PTR_MODE)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ISPC_OPAQUE_PTR_MODE)
+endif()
+
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
                            ${LLVM_INCLUDE_DIRS}
@@ -455,6 +502,14 @@ else()
     target_compile_options(${PROJECT_NAME} PRIVATE -fstack-protector-strong
                            -fdata-sections -ffunction-sections -fno-delete-null-pointer-checks
                            -Wformat -Wformat-security -fpie -fwrapv)
+    # LLVM 14 switches default DWARF version from v4 to v5
+    # but gdb < 10.1 can't read DWARF v5.
+    # https://discourse.llvm.org/t/gdb-10-1-cant-read-clangs-dwarf-v5/6035
+    # Use DWARF v4 for ISPC build to allow debugging of ispc binary with gdb
+    # on Ubuntu 20.04
+    if (NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND ${LLVM_VERSION_NUMBER} VERSION_GREATER_EQUAL "14.0.0")
+        target_compile_options(${PROJECT_NAME} PRIVATE -gdwarf-4)
+    endif()
 endif()
 
 # Set C++ standard to C++17.
@@ -503,8 +558,18 @@ endif()
 
 # Link against Clang libraries
 foreach(clangLib ${CLANG_LIBRARY_LIST})
-    find_library(${clangLib}Path NAMES ${clangLib} HINTS ${LLVM_LIBRARY_DIRS})
-    list(APPEND CLANG_LIBRARY_FULL_PATH_LIST ${${clangLib}Path})
+    # Preferred way to build ISPC is to link it with individual clang static
+    # libraries. However, when they omitted it can be link with shared library
+    # libclang-cpp.so. Second approach would be utilized in some controlled
+    # environments, like in package managers for particular OSes (issue 2418).
+    find_library(${clangLib}Path
+                 NAMES
+                    "${CMAKE_STATIC_LIBRARY_PREFIX}${clangLib}${CMAKE_STATIC_LIBRARY_SUFFIX}"
+                    clang-cpp
+                 HINTS ${LLVM_LIBRARY_DIRS})
+    if (NOT ${${clangLib}Path} IN_LIST CLANG_LIBRARY_FULL_PATH_LIST)
+        list(APPEND CLANG_LIBRARY_FULL_PATH_LIST ${${clangLib}Path})
+    endif()
 endforeach()
 target_link_libraries(${PROJECT_NAME} ${CLANG_LIBRARY_FULL_PATH_LIST})
 
@@ -529,15 +594,14 @@ if (WIN32)
     target_link_libraries(${PROJECT_NAME} version.lib shlwapi.lib odbc32.lib odbccp32.lib)
 else()
     if (ISPC_STATIC_LINK)
-        target_link_libraries(${PROJECT_NAME} pthread z.a tinfo.a curses.a)
+        target_link_libraries(${PROJECT_NAME} pthread tinfo.a curses.a)
     else()
         find_package(Curses REQUIRED)
-        find_package(ZLIB REQUIRED)
         if (CURSES_EXTRA_LIBRARY)
             # this contains the tinfo library, if found
             target_link_libraries(${PROJECT_NAME} ${CURSES_EXTRA_LIBRARY})
         endif()
-        target_link_libraries(${PROJECT_NAME} pthread ${ZLIB_LIBRARIES} ${CURSES_CURSES_LIBRARY})
+        target_link_libraries(${PROJECT_NAME} pthread ${CURSES_CURSES_LIBRARY})
     endif()
 endif()
 
@@ -606,6 +670,8 @@ if (ISPC_INCLUDE_XE_EXAMPLES AND ISPC_INCLUDE_RT AND NOT ISPC_PREPARE_PACKAGE)
                 -DBENCHMARK_LIB:PATH=$<TARGET_FILE:benchmark>
                 -DCMAKE_C_COMPILER:PATH=${CMAKE_C_COMPILER}
                 -DCMAKE_CXX_COMPILER:PATH=${CMAKE_CXX_COMPILER}
+                -DCMAKE_C_FLAGS:PATH=${CMAKE_C_FLAGS}
+                -DCMAKE_CXX_FLAGS:PATH=${CMAKE_CXX_FLAGS}
                 -DISPC_INCLUDE_BENCHMARKS:BOOL=${ISPC_INCLUDE_BENCHMARKS}
             INSTALL_COMMAND ""
         )
@@ -623,6 +689,8 @@ if (ISPC_INCLUDE_XE_EXAMPLES AND ISPC_INCLUDE_RT AND NOT ISPC_PREPARE_PACKAGE)
                 -DLEVEL_ZERO_ROOT:PATH=${LEVEL_ZERO_ROOT}
                 -DCMAKE_C_COMPILER:PATH=${CMAKE_C_COMPILER}
                 -DCMAKE_CXX_COMPILER:PATH=${CMAKE_CXX_COMPILER}
+                -DCMAKE_C_FLAGS:PATH=${CMAKE_C_FLAGS}
+                -DCMAKE_CXX_FLAGS:PATH=${CMAKE_CXX_FLAGS}
             INSTALL_COMMAND ""
     )
     endif()

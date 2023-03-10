@@ -1,4 +1,4 @@
-// Copyright 2020-2022 Intel Corporation
+// Copyright 2020-2023 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
 #pragma once
@@ -13,6 +13,7 @@ extern "C" {
 // Opaque handle types ////////////////////////////////////////////////////////
 
 #ifdef __cplusplus
+struct _ISPCRTContext;
 struct _ISPCRTDevice;
 struct _ISPCRTMemoryView;
 struct _ISPCRTTaskQueue;
@@ -20,6 +21,7 @@ struct _ISPCRTModule;
 struct _ISPCRTKernel;
 struct _ISPCRTFuture;
 
+typedef _ISPCRTContext *ISPCRTContext;
 typedef _ISPCRTDevice *ISPCRTDevice;
 typedef _ISPCRTMemoryView *ISPCRTMemoryView;
 typedef _ISPCRTTaskQueue *ISPCRTTaskQueue;
@@ -27,6 +29,7 @@ typedef _ISPCRTModule *ISPCRTModule;
 typedef _ISPCRTKernel *ISPCRTKernel;
 typedef _ISPCRTFuture *ISPCRTFuture;
 #else
+typedef void *ISPCRTContext;
 typedef void *ISPCRTDevice;
 typedef void *ISPCRTMemoryView;
 typedef void *ISPCRTTaskQueue;
@@ -61,6 +64,7 @@ void ispcrtSetErrorFunc(ISPCRTErrorFunc);
 
 // Object lifetime ////////////////////////////////////////////////////////////
 
+long long ispcrtUseCount(ISPCRTGenericHandle);
 void ispcrtRelease(ISPCRTGenericHandle);
 void ispcrtRetain(ISPCRTGenericHandle);
 
@@ -81,8 +85,18 @@ typedef struct {
 // The list of the supported devices can be obtained with a ispcrtGetDeviceCount call
 // and a series of ispcrtGetDeviceInfo calls
 ISPCRTDevice ispcrtGetDevice(ISPCRTDeviceType, uint32_t deviceIdx);
+ISPCRTDevice ispcrtGetDeviceFromContext(ISPCRTContext, uint32_t deviceIdx);
+// Alternatively ISPCRTDevice can be constructed from device native handler
+ISPCRTDevice ispcrtGetDeviceFromNativeHandle(ISPCRTContext context, ISPCRTGenericHandle d);
+
 uint32_t ispcrtGetDeviceCount(ISPCRTDeviceType);
 void ispcrtGetDeviceInfo(ISPCRTDeviceType, uint32_t deviceIdx, ISPCRTDeviceInfo*);
+
+// Context initialization //////////////////////////////////////////////////////
+
+ISPCRTContext ispcrtNewContext(ISPCRTDeviceType);
+// Alternatively ISPCRTContext can be constructed from context native handler
+ISPCRTContext ispcrtGetContextFromNativeHandle(ISPCRTDeviceType, ISPCRTGenericHandle c);
 
 // MemoryViews ////////////////////////////////////////////////////////////////
 
@@ -98,11 +112,21 @@ typedef enum {
     ISPCRT_ALLOC_TYPE_UNKNOWN,
 } ISPCRTAllocationType;
 
+// Choose shared memory allocation flags
+typedef enum {
+    ISPCRT_SM_HOST_DEVICE_READ_WRITE = 0,
+    ISPCRT_SM_HOST_WRITE_DEVICE_READ,
+    ISPCRT_SM_HOST_READ_DEVICE_WRITE,
+    ISPCRT_SM_UNKNOWN,
+} ISPCRTSharedMemoryAllocationHint;
+
 typedef struct {
     ISPCRTAllocationType allocType;
+    ISPCRTSharedMemoryAllocationHint smHint;
 } ISPCRTNewMemoryViewFlags;
 
 ISPCRTMemoryView ispcrtNewMemoryView(ISPCRTDevice, void *appMemory, size_t numBytes, ISPCRTNewMemoryViewFlags *flags);
+ISPCRTMemoryView ispcrtNewMemoryViewForContext(ISPCRTContext c, void *appMemory, size_t numBytes, ISPCRTNewMemoryViewFlags *flags);
 
 void *ispcrtHostPtr(ISPCRTMemoryView);
 void *ispcrtDevicePtr(ISPCRTMemoryView);
@@ -113,12 +137,25 @@ size_t ispcrtSize(ISPCRTMemoryView);
 ISPCRTAllocationType ispcrtGetMemoryViewAllocType(ISPCRTMemoryView);
 ISPCRTAllocationType ispcrtGetMemoryAllocType(ISPCRTDevice d, void* memBuffer);
 
-// Kernels ////////////////////////////////////////////////////////////////////
-typedef struct {
-    uint32_t stackSize;
-} ISPCRTModuleOptions;
+// Modules ////////////////////////////////////////////////////////////////////
+typedef enum {
+    // Module using IGC VC backend
+    ISPCRT_VECTOR_MODULE = 0,
+    // Module using IGC scalar backend
+    ISPCRT_SCALAR_MODULE,
+} ISPCRTModuleType;
+
+struct ISPCRTModuleOptions_ {
+    uint32_t stackSize{0};
+    bool libraryCompilation{false};
+    ISPCRTModuleType moduleType{ISPCRTModuleType::ISPCRT_VECTOR_MODULE};
+};
+typedef struct ISPCRTModuleOptions_ ISPCRTModuleOptions;
 
 ISPCRTModule ispcrtLoadModule(ISPCRTDevice, const char *moduleFile, ISPCRTModuleOptions);
+void ispcrtDynamicLinkModules(ISPCRTDevice, ISPCRTModule *modules, uint32_t numModules);
+ISPCRTModule ispcrtStaticLinkModules(ISPCRTDevice, ISPCRTModule *modules, uint32_t numModules);
+void *ispcrtFunctionPtr(ISPCRTModule, const char *name);
 ISPCRTKernel ispcrtNewKernel(ISPCRTDevice, ISPCRTModule, const char *name);
 
 // Task queues ////////////////////////////////////////////////////////////////
@@ -148,7 +185,8 @@ bool ispcrtFutureIsValid(ISPCRTFuture);
 
 ISPCRTGenericHandle ispcrtPlatformNativeHandle(ISPCRTDevice);
 ISPCRTGenericHandle ispcrtDeviceNativeHandle(ISPCRTDevice);
-ISPCRTGenericHandle ispcrtContextNativeHandle(ISPCRTDevice);
+ISPCRTGenericHandle ispcrtDeviceContextNativeHandle(ISPCRTDevice);
+ISPCRTGenericHandle ispcrtContextNativeHandle(ISPCRTContext);
 ISPCRTGenericHandle ispcrtTaskQueueNativeHandle(ISPCRTTaskQueue);
 
 #ifdef __cplusplus

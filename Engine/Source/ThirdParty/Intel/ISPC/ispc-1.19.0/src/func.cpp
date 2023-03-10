@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011-2022, Intel Corporation
+  Copyright (c) 2011-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -71,6 +71,9 @@
 
 using namespace ispc;
 
+///////////////////////////////////////////////////////////////////////////
+// Function
+
 bool Function::IsStdlibSymbol() const {
     if (sym == nullptr) {
         return false;
@@ -119,31 +122,30 @@ void Function::Print() const {
 
 void Function::Print(Indent &indent) const {
     indent.Print("Function");
-    if (sym) {
+
+    if (sym && sym->type) {
         sym->pos.Print();
-        printf(" \"%s\"\n", sym->name.c_str());
+        printf(" [%s] \"%s\"\n", sym->type->GetString().c_str(), sym->name.c_str());
     } else {
-        printf("<NULL>");
+        printf("<NULL>\n");
     }
 
     indent.pushList(args.size() + 1);
-    if (args.size() > 0) {
-        for (int i = 0; i < args.size(); i++) {
-            static constexpr std::size_t BUFSIZE{15};
-            char buffer[BUFSIZE];
-            snprintf(buffer, BUFSIZE, "param %d", i);
-            indent.setNextLabel(buffer);
-            if (args[i]) {
-                indent.Print();
-                if (args[i]->type != nullptr) {
-                    printf("[%s] ", args[i]->type->GetString().c_str());
-                }
-                printf("%s\n", args[i]->name.c_str());
-                indent.Done();
-            } else {
-                indent.Print("<NULL>");
-                indent.Done();
+    for (int i = 0; i < args.size(); i++) {
+        static constexpr std::size_t BUFSIZE{15};
+        char buffer[BUFSIZE];
+        snprintf(buffer, BUFSIZE, "param %d", i);
+        indent.setNextLabel(buffer);
+        if (args[i]) {
+            indent.Print();
+            if (args[i]->type != nullptr) {
+                printf("[%s] ", args[i]->type->GetString().c_str());
             }
+            printf("%s\n", args[i]->name.c_str());
+            indent.Done();
+        } else {
+            indent.Print("<NULL>\n");
+            indent.Done();
         }
     }
 
@@ -156,26 +158,14 @@ void Function::Print(Indent &indent) const {
     indent.Done();
 }
 
-Function::Function(Symbol *s, Stmt *c) {
-    sym = s;
-    code = c;
-
+// The Function is created when the body of the function is already parsed and AST is created for it,
+// and we are about to close the symbol table scope for the function. So all symbols that require special
+// handling during code generation must be saved. This includes symbols for arguments and special symbols
+// like __mask and thread / task variables.
+// Type checking and optimization is also done here.
+Function::Function(Symbol *s, Stmt *c) : sym(s), code(c) {
     maskSymbol = m->symbolTable->LookupVariable("__mask");
     Assert(maskSymbol != NULL);
-
-    if (code != NULL) {
-        debugPrintHelper(DebugPrintPoint::Initial);
-
-        code = TypeCheck(code);
-
-        debugPrintHelper(DebugPrintPoint::AfterTypeChecking);
-
-        if (code != NULL) {
-            code = Optimize(code);
-
-            debugPrintHelper(DebugPrintPoint::AfterOptimization);
-        }
-    }
 
     const FunctionType *type = CastType<FunctionType>(sym->type);
     Assert(type != NULL);
@@ -192,7 +182,7 @@ Function::Function(Symbol *s, Stmt *c) {
             paramSym->parentFunction = this;
     }
 
-    if (type->isTask && !g->target->isXeTarget()) {
+    if (type->isTask) {
         threadIndexSym = m->symbolTable->LookupVariable("threadIndex");
         Assert(threadIndexSym);
         threadCountSym = m->symbolTable->LookupVariable("threadCount");
@@ -220,6 +210,33 @@ Function::Function(Symbol *s, Stmt *c) {
         taskIndexSym0 = taskIndexSym1 = taskIndexSym2 = NULL;
         taskCountSym0 = taskCountSym1 = taskCountSym2 = NULL;
     }
+
+    typeCheckAndOptimize();
+}
+
+// The version of constructor, which accepts symbols directly instead of doing lookup in the symbol table.
+// This is necessary to instantiate template functions, as symbol lookup is not available during instantiation.
+Function::Function(Symbol *s, Stmt *c, Symbol *ms, std::vector<Symbol *> &a)
+    : sym(s), args(a), code(c), maskSymbol(ms), threadIndexSym(nullptr), threadCountSym(nullptr), taskIndexSym(nullptr),
+      taskCountSym(nullptr), taskIndexSym0(nullptr), taskCountSym0(nullptr), taskIndexSym1(nullptr),
+      taskCountSym1(nullptr), taskIndexSym2(nullptr), taskCountSym2(nullptr) {
+    typeCheckAndOptimize();
+}
+
+void Function::typeCheckAndOptimize() {
+    if (code != NULL) {
+        debugPrintHelper(DebugPrintPoint::Initial);
+
+        code = TypeCheck(code);
+
+        debugPrintHelper(DebugPrintPoint::AfterTypeChecking);
+
+        if (code != NULL) {
+            code = Optimize(code);
+
+            debugPrintHelper(DebugPrintPoint::AfterOptimization);
+        }
+    }
 }
 
 const Type *Function::GetReturnType() const {
@@ -239,15 +256,15 @@ const FunctionType *Function::GetType() const {
     local stack-allocated variables.  (Which we expect that LLVM's
     'mem2reg' pass will in turn promote to SSA registers..
  */
-static void lCopyInTaskParameter(int i, llvm::Value *structArgPtr, const std::vector<Symbol *> &args,
+static void lCopyInTaskParameter(int i, AddressInfo *structArgPtrInfo, const std::vector<Symbol *> &args,
                                  FunctionEmitContext *ctx) {
     // We expect the argument structure to come in as a poitner to a
     // structure.  Confirm and figure out its type here.
-    const llvm::Type *structArgType = structArgPtr->getType();
+    const llvm::Type *structArgType = structArgPtrInfo->getPointer()->getType();
     Assert(llvm::isa<llvm::PointerType>(structArgType));
     const llvm::PointerType *pt = llvm::dyn_cast<const llvm::PointerType>(structArgType);
     Assert(pt);
-    Assert(llvm::isa<llvm::StructType>(pt->PTR_ELT_TYPE()));
+    Assert(llvm::isa<llvm::StructType>(structArgPtrInfo->getElementType()));
 
     // Get the type of the argument we're copying in and its Symbol pointer
     Symbol *sym = args[i];
@@ -257,16 +274,25 @@ static void lCopyInTaskParameter(int i, llvm::Value *structArgPtr, const std::ve
         return;
 
     // allocate space to copy the parameter in to
-    sym->storagePtr = ctx->AllocaInst(sym->type, sym->name.c_str());
+    sym->storageInfo = ctx->AllocaInst(sym->type, sym->name.c_str());
+    Assert(sym->storageInfo);
 
     // get a pointer to the value in the struct
-    llvm::Value *ptr = ctx->AddElementOffset(structArgPtr, i, NULL, sym->name.c_str());
+    llvm::Value *ptr = ctx->AddElementOffset(structArgPtrInfo, i, sym->name.c_str());
 
     // and copy the value from the struct and into the local alloca'ed
     // memory
-    llvm::Value *ptrval = ctx->LoadInst(ptr, sym->type, sym->name.c_str());
-    ctx->StoreInst(ptrval, sym->storagePtr, sym->type, sym->type->IsUniformType());
+    llvm::Value *ptrval =
+        ctx->LoadInst(new AddressInfo(ptr, sym->storageInfo->getElementType()), sym->type, sym->name.c_str());
+    ctx->StoreInst(ptrval, sym->storageInfo, sym->type);
     ctx->EmitFunctionParameterDebugInfo(sym, i);
+}
+
+static llvm::Value *lXeGetTaskVariableValue(FunctionEmitContext *ctx, std::string taskFunc) {
+    std::vector<llvm::Value *> args;
+    llvm::Function *task_func = m->module->getFunction(taskFunc);
+    Assert(task_func != NULL);
+    return ctx->CallInst(task_func, NULL, args, taskFunc + "_call");
 }
 
 /** Given the statements implementing a function, emit the code that
@@ -277,7 +303,7 @@ static void lCopyInTaskParameter(int i, llvm::Value *structArgPtr, const std::ve
 void Function::emitCode(FunctionEmitContext *ctx, llvm::Function *function, SourcePos firstStmtPos) {
     // Connect the __mask builtin to the location in memory that stores its
     // value
-    maskSymbol->storagePtr = ctx->GetFullMaskPointer();
+    maskSymbol->storageInfo = ctx->GetFullMaskAddressInfo();
 
     // add debugging info for __mask
     maskSymbol->pos = firstStmtPos;
@@ -294,6 +320,7 @@ void Function::emitCode(FunctionEmitContext *ctx, llvm::Function *function, Sour
 #endif
     const FunctionType *type = CastType<FunctionType>(sym->type);
     Assert(type != NULL);
+
     // CPU tasks
     if (type->isTask == true && !g->target->isXeTarget()) {
         Assert(type->IsISPCExternal() == false);
@@ -313,52 +340,58 @@ void Function::emitCode(FunctionEmitContext *ctx, llvm::Function *function, Sour
         llvm::Value *taskCount0 = &*(argIter++);
         llvm::Value *taskCount1 = &*(argIter++);
         llvm::Value *taskCount2 = &*(argIter++);
+
+        std::vector<llvm::Type *> llvmArgTypes = type->LLVMFunctionArgTypes(g->ctx);
+        llvm::Type *st = llvm::StructType::get(*g->ctx, llvmArgTypes);
+        AddressInfo *stInfo = new AddressInfo(structParamPtr, st);
         // Copy the function parameter values from the structure into local
         // storage
         for (unsigned int i = 0; i < args.size(); ++i)
-            lCopyInTaskParameter(i, structParamPtr, args, ctx);
+            lCopyInTaskParameter(i, stInfo, args, ctx);
 
         if (type->isUnmasked == false) {
             // Copy in the mask as well.
             int nArgs = (int)args.size();
             // The mask is the last parameter in the argument structure
-            llvm::Value *ptr = ctx->AddElementOffset(structParamPtr, nArgs, NULL, "task_struct_mask");
-            llvm::Value *ptrval = ctx->LoadInst(ptr, NULL, "mask");
+            llvm::Value *ptr = ctx->AddElementOffset(stInfo, nArgs, "task_struct_mask");
+            llvm::Value *ptrval = ctx->LoadInst(new AddressInfo(ptr, LLVMTypes::MaskType), NULL, "mask");
             ctx->SetFunctionMask(ptrval);
         }
 
         // Copy threadIndex and threadCount into stack-allocated storage so
         // that their symbols point to something reasonable.
-        threadIndexSym->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "threadIndex");
-        ctx->StoreInst(threadIndex, threadIndexSym->storagePtr);
+        threadIndexSym->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "threadIndex");
+        ctx->StoreInst(threadIndex, threadIndexSym->storageInfo);
 
-        threadCountSym->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "threadCount");
-        ctx->StoreInst(threadCount, threadCountSym->storagePtr);
+        threadCountSym->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "threadCount");
+        ctx->StoreInst(threadCount, threadCountSym->storageInfo);
 
         // Copy taskIndex and taskCount into stack-allocated storage so
         // that their symbols point to something reasonable.
-        taskIndexSym->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex");
-        ctx->StoreInst(taskIndex, taskIndexSym->storagePtr);
+        taskIndexSym->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex");
+        ctx->StoreInst(taskIndex, taskIndexSym->storageInfo);
 
-        taskCountSym->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount");
-        ctx->StoreInst(taskCount, taskCountSym->storagePtr);
+        taskCountSym->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount");
+        ctx->StoreInst(taskCount, taskCountSym->storageInfo);
 
-        taskIndexSym0->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex0");
-        ctx->StoreInst(taskIndex0, taskIndexSym0->storagePtr);
-        taskIndexSym1->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex1");
-        ctx->StoreInst(taskIndex1, taskIndexSym1->storagePtr);
-        taskIndexSym2->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex2");
-        ctx->StoreInst(taskIndex2, taskIndexSym2->storagePtr);
+        taskIndexSym0->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex0");
+        ctx->StoreInst(taskIndex0, taskIndexSym0->storageInfo);
+        taskIndexSym1->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex1");
+        ctx->StoreInst(taskIndex1, taskIndexSym1->storageInfo);
+        taskIndexSym2->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex2");
+        ctx->StoreInst(taskIndex2, taskIndexSym2->storageInfo);
 
-        taskCountSym0->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount0");
-        ctx->StoreInst(taskCount0, taskCountSym0->storagePtr);
-        taskCountSym1->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount1");
-        ctx->StoreInst(taskCount1, taskCountSym1->storagePtr);
-        taskCountSym2->storagePtr = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount2");
-        ctx->StoreInst(taskCount2, taskCountSym2->storagePtr);
+        taskCountSym0->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount0");
+        ctx->StoreInst(taskCount0, taskCountSym0->storageInfo);
+        taskCountSym1->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount1");
+        ctx->StoreInst(taskCount1, taskCountSym1->storageInfo);
+        taskCountSym2->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount2");
+        ctx->StoreInst(taskCount2, taskCountSym2->storageInfo);
     } else {
         // Regular, non-task function or GPU task
         llvm::Function::arg_iterator argIter = function->arg_begin();
+        llvm::FunctionType *fType = type->LLVMFunctionType(g->ctx);
+        Assert(fType->getFunctionNumParams() >= args.size());
         for (unsigned int i = 0; i < args.size(); ++i, ++argIter) {
             Symbol *argSym = args[i];
             if (argSym == NULL)
@@ -369,17 +402,20 @@ void Function::emitCode(FunctionEmitContext *ctx, llvm::Function *function, Sour
 
             // Allocate stack storage for the parameter and emit code
             // to store the its value there.
-            argSym->storagePtr = ctx->AllocaInst(argSym->type, argSym->name.c_str());
+            argSym->storageInfo = ctx->AllocaInst(argSym->type, argSym->name.c_str());
             // ISPC export and extern "C" functions have addrspace in the declaration on Xe so
             // we cast addrspace from generic to default in the alloca BB.
             // define dso_local spir_func void @test(%S addrspace(4)* noalias %s)
             // addrspacecast %S addrspace(4)* %s to %S*
             llvm::Value *addrCasted = &*argIter;
-            if (type->RequiresAddrSpaceCasts(function) && llvm::isa<llvm::PointerType>(argIter->getType())) {
-                addrCasted = ctx->AddrSpaceCast(&*argIter, AddressSpace::ispc_default, true);
+#ifdef ISPC_XE_ENABLED
+            // Update addrspace of passed argument if needed for Xe target
+            if (g->target->isXeTarget()) {
+                addrCasted = ctx->XeUpdateAddrSpaceForParam(addrCasted, fType, i, true);
             }
+#endif
 
-            ctx->StoreInst(addrCasted, argSym->storagePtr, argSym->type);
+            ctx->StoreInst(addrCasted, argSym->storageInfo, argSym->type);
 
             ctx->EmitFunctionParameterDebugInfo(argSym, i);
         }
@@ -390,7 +426,8 @@ void Function::emitCode(FunctionEmitContext *ctx, llvm::Function *function, Sour
         // happens for example with 'export'ed functions that the app
         // calls, with tasks on GPU and with unmasked functions.
         if (argIter == function->arg_end()) {
-            Assert(type->isUnmasked || type->isExported || type->IsISPCExternal() || type->IsISPCKernel());
+            Assert(type->isUnmasked || type->isExported || type->isExternC || type->isExternSYCL ||
+                   type->IsISPCExternal() || type->IsISPCKernel());
             ctx->SetFunctionMask(LLVMMaskAllOn);
         } else {
             Assert(type->isUnmasked == false);
@@ -410,9 +447,43 @@ void Function::emitCode(FunctionEmitContext *ctx, llvm::Function *function, Sour
                 ctx->SetFunctionMask(&*argIter);
             }
 
-            Assert(++argIter == function->arg_end());
+            ++argIter;
+            Assert(argIter == function->arg_end());
+        }
+        if (g->target->isXeTarget() && type->isTask) {
+            // Assign threadIndex and threadCount to the result of calling of corresponding builtins.
+            // On Xe threadIndex equals to taskIndex and threadCount to taskCount.
+            threadIndexSym->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "threadIndex");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_index"), threadIndexSym->storageInfo);
+
+            threadCountSym->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "threadCount");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_count"), threadCountSym->storageInfo);
+
+            // Assign taskIndex and taskCount to the result of calling of corresponding builtins.
+            taskIndexSym->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_index"), taskIndexSym->storageInfo);
+
+            taskCountSym->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_count"), taskCountSym->storageInfo);
+
+            taskIndexSym0->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex0");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_index0"), taskIndexSym0->storageInfo);
+            taskIndexSym1->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex1");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_index1"), taskIndexSym1->storageInfo);
+            taskIndexSym2->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskIndex2");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_index2"), taskIndexSym2->storageInfo);
+
+            taskCountSym0->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount0");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_count0"), taskCountSym0->storageInfo);
+            taskCountSym1->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount1");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_count1"), taskCountSym1->storageInfo);
+            taskCountSym2->storageInfo = ctx->AllocaInst(LLVMTypes::Int32Type, "taskCount2");
+            ctx->StoreInst(lXeGetTaskVariableValue(ctx, "__task_count2"), taskCountSym2->storageInfo);
         }
     }
+
+    // Set FTZ/DAZ flags if requested
+    ctx->SetFunctionFTZ_DAZFlags();
 
     // Finally, we can generate code for the function
     if (code != NULL) {
@@ -524,7 +595,6 @@ void Function::emitCode(FunctionEmitContext *ctx, llvm::Function *function, Sour
         llvm::Type *i32Type = llvm::Type::getInt32Ty(fContext);
         llvm::SmallVector<llvm::Metadata *, 8> argKinds;
         llvm::SmallVector<llvm::Metadata *, 8> argInOutKinds;
-        llvm::SmallVector<llvm::Metadata *, 8> argOffsets;
         llvm::SmallVector<llvm::Metadata *, 8> argTypeDescs;
 
         // In ISPC we need only AK_NORMAL and IK_NORMAL now, in future it can change.
@@ -556,8 +626,6 @@ void Function::emitCode(FunctionEmitContext *ctx, llvm::Function *function, Sour
                     // GRF align if arg would cross GRF boundary
                     offset = llvm::alignTo(offset, grf_size);
             }
-
-            argOffsets.push_back(llvm::ValueAsMetadata::get(llvm::ConstantInt::get(i32Type, offset)));
 
             offset += bytes;
         }
@@ -599,11 +667,11 @@ void Function::GenerateIR() {
         return;
     }
 
-    // If function is an 'extern C', it cannot be defined in ISPC.
     const FunctionType *type = CastType<FunctionType>(sym->type);
     Assert(type != NULL);
-    if (type->isExternC) {
-        Error(sym->pos, "\n\'extern \"C\"\' function \"%s\" cannot be defined in ISPC.", sym->name.c_str());
+
+    if (type->isExternSYCL) {
+        Error(sym->pos, "\n\'extern \"SYCL\"\' function \"%s\" cannot be defined in ISPC.", sym->name.c_str());
         return;
     }
 
@@ -624,49 +692,59 @@ void Function::GenerateIR() {
         // if it is a kernel
         const FunctionType *type = CastType<FunctionType>(sym->type);
         if (!type->IsISPCKernel()) {
-#if ISPC_LLVM_VERSION >= ISPC_LLVM_10_0
             llvm::TimeTraceScope TimeScope("emitCode", llvm::StringRef(sym->name));
-#endif
             FunctionEmitContext ec(this, sym, function, firstStmtPos);
             emitCode(&ec, function, firstStmtPos);
         }
     } else {
-#if ISPC_LLVM_VERSION >= ISPC_LLVM_10_0
-        llvm::TimeTraceScope TimeScope("emitCode", llvm::StringRef(sym->name));
-#endif
-        FunctionEmitContext ec(this, sym, function, firstStmtPos);
-        emitCode(&ec, function, firstStmtPos);
+        // In case of multi-target compilation for extern "C" functions which were defined, we want
+        // to have a target-specific implementation for each target similar to exported functions.
+        // However declarations of extern "C"/"SYCL" functions must be not-mangled and therefore, the calls to such
+        // functions must be not-mangled. The trick to support target-specific implementation in such case is to
+        // generate definition of target-specific implementation mangled with target ("name_<target>") which would be
+        // called from a dispatch function. Since we use not-mangled names in the call, it will be a call to a dispatch
+        // function which will resolve to particular implementation. The condition below ensures that in case of
+        // multi-target compilation we will emit only one-per-target definition of extern "C" function mangled with
+        // <target> suffix.
+        if (!((type->isExternC || type->isExternSYCL) && g->mangleFunctionsWithTarget)) {
+            llvm::TimeTraceScope TimeScope("emitCode", llvm::StringRef(sym->name));
+            FunctionEmitContext ec(this, sym, function, firstStmtPos);
+            emitCode(&ec, function, firstStmtPos);
+        }
     }
 
     if (m->errorCount == 0) {
         // If the function is 'export'-qualified, emit a second version of
         // it without a mask parameter and without name mangling so that
-        // the application can call it
+        // the application can call it.
+        // For 'extern "C"' we emit the version without mask parameter only.
         // For Xe we emit a version without mask parameter only for ISPC kernels and
         // ISPC external functions.
-        if (type->isExported || type->IsISPCExternal() || type->IsISPCKernel()) {
+        if (type->isExported || type->isExternC || type->isExternSYCL || type->IsISPCExternal() ||
+            type->IsISPCKernel()) {
             llvm::FunctionType *ftype = type->LLVMFunctionType(g->ctx, true);
             llvm::GlobalValue::LinkageTypes linkage = llvm::GlobalValue::ExternalLinkage;
-            std::string functionName = sym->name;
-            if (g->mangleFunctionsWithTarget) {
-                functionName += std::string("_") + g->target->GetISAString();
-            }
+            auto [name_pref, name_suf] = type->GetFunctionMangledName(true);
+            std::string functionName = name_pref + sym->name + name_suf;
 
             llvm::Function *appFunction = llvm::Function::Create(ftype, linkage, functionName.c_str(), m->module);
             appFunction->setDoesNotThrow();
-            g->target->markFuncWithCallingConv(appFunction);
+            appFunction->setCallingConv(type->GetCallingConv());
 
             // Xe kernel should have "dllexport" and "CMGenxMain" attribute,
             // otherss have "CMStackCall" attribute
             if (g->target->isXeTarget()) {
                 if (type->IsISPCExternal()) {
-                    // Mark ISPCExternal() function as spirv_func and DSO local.
-                    appFunction->setCallingConv(llvm::CallingConv::SPIR_FUNC);
                     appFunction->addFnAttr("CMStackCall");
-                    appFunction->setDSOLocal(true);
+
                 } else if (type->IsISPCKernel()) {
                     appFunction->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
                     appFunction->addFnAttr("CMGenxMain");
+                }
+            } else {
+                // Make application function callable from DLLs.
+                if ((g->target_os == TargetOS::windows) && (g->dllExport)) {
+                    appFunction->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
                 }
             }
 
@@ -684,9 +762,7 @@ void Function::GenerateIR() {
                 // error, so don't worry about this one...
                 appFunction->eraseFromParent();
             } else {
-#if ISPC_LLVM_VERSION >= ISPC_LLVM_10_0
                 llvm::TimeTraceScope TimeScope("emitCode", llvm::StringRef(sym->name));
-#endif
                 // And emit the code again
                 FunctionEmitContext ec(this, sym, appFunction, firstStmtPos);
                 emitCode(&ec, appFunction, firstStmtPos);
@@ -695,10 +771,372 @@ void Function::GenerateIR() {
                 }
             }
         } else {
-            // In case if it is not the kernel, mark function as a stack call
             if (g->target->isXeTarget()) {
+                // Mark all internal ISPC functions as a stack call
                 function->addFnAttr("CMStackCall");
+                // Mark all internal ISPC functions as AlwaysInline to facilitate inlining on GPU
+                // if it's not marked as "noinline" explicitly
+#if ISPC_LLVM_VERSION >= ISPC_LLVM_14_0
+                if (!(function->getAttributes().getFnAttrs().hasAttribute(llvm::Attribute::NoInline) ||
+                      function->getAttributes().getFnAttrs().hasAttribute(llvm::Attribute::AlwaysInline)))
+#else
+                if (!(function->getAttributes().getFnAttributes().hasAttribute(llvm::Attribute::NoInline) ||
+                      function->getAttributes().getFnAttributes().hasAttribute(llvm::Attribute::AlwaysInline)))
+#endif
+                {
+                    function->addFnAttr(llvm::Attribute::AlwaysInline);
+                }
             }
         }
     }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// TemplateParms
+
+TemplateParms::TemplateParms() {}
+
+void TemplateParms::Add(const TemplateTypeParmType *p) { parms.push_back(p); }
+
+size_t TemplateParms::GetCount() const { return parms.size(); }
+
+const TemplateTypeParmType *TemplateParms::operator[](size_t i) const { return parms[i]; }
+
+bool TemplateParms::IsEqual(const TemplateParms *p) const {
+    if (p == nullptr) {
+        return false;
+    }
+
+    if (GetCount() != p->GetCount()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < GetCount(); i++) {
+        if (!Type::Equal((*this)[i], (*p)[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// TemplateArgs
+
+TemplateArgs::TemplateArgs(const std::vector<std::pair<const Type *, SourcePos>> &a) : args(a) {}
+
+bool TemplateArgs::IsEqual(TemplateArgs &otherArgs) const {
+    if (args.size() != otherArgs.args.size()) {
+        return false;
+    }
+    for (int i = 0; i < args.size(); i++) {
+        if (!Type::Equal(args[i].first, otherArgs.args[i].first)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// FunctionTemplate
+
+FunctionTemplate::FunctionTemplate(TemplateSymbol *s, Stmt *c) : sym(s), code(c) {
+    maskSymbol = m->symbolTable->LookupVariable("__mask");
+    Assert(maskSymbol != NULL);
+
+    const FunctionType *type = GetFunctionType();
+    Assert(type != NULL);
+
+    for (int i = 0; i < type->GetNumParameters(); ++i) {
+        const char *paramName = type->GetParameterName(i).c_str();
+        Symbol *paramSym = m->symbolTable->LookupVariable(paramName);
+        if (paramSym == NULL) {
+            Assert(strncmp(paramName, "__anon_parameter_", 17) == 0);
+        }
+        args.push_back(paramSym);
+
+        // No initialization of parentFunction, as it's needed only for code generation
+        // and hence it doesn't make sense for the template. Instantiations will get it initialized.
+    }
+}
+
+std::string FunctionTemplate::GetName() const {
+    Assert(sym);
+    return sym->name;
+}
+
+const TemplateParms *FunctionTemplate::GetTemplateParms() const {
+    Assert(sym);
+    return sym->templateParms;
+}
+
+const FunctionType *FunctionTemplate::GetFunctionType() const {
+    Assert(sym);
+    return sym->type;
+}
+
+void FunctionTemplate::Print() const {
+    Indent indent;
+    indent.pushSingle();
+    Print(indent);
+    fflush(stdout);
+};
+
+void FunctionTemplate::GenerateIR() const {
+    for (const auto &inst : instantiations) {
+        Function *func = const_cast<Function *>(inst.second->parentFunction);
+        func->GenerateIR();
+    }
+}
+
+void FunctionTemplate::Print(Indent &indent) const {
+    indent.Print("FunctionTemplate", sym->pos);
+
+    const FunctionType *ftype = GetFunctionType();
+    if (ftype) {
+        printf("[%s] ", ftype->GetString().c_str());
+    }
+
+    printf("\"%s\"\n", GetName().c_str());
+
+    const TemplateParms *typenames = GetTemplateParms();
+    int itemsToPrint = typenames->GetCount() + (code ? 1 : 0) + instantiations.size();
+
+    indent.pushList(itemsToPrint);
+    if (typenames->GetCount() > 0) {
+        for (int i = 0; i < typenames->GetCount(); i++) {
+            static constexpr std::size_t BUFSIZE{25};
+            char buffer[BUFSIZE];
+            snprintf(buffer, BUFSIZE, "template param %d", i);
+            indent.setNextLabel(buffer);
+            if ((*typenames)[i]) {
+                indent.Print("TemplateTypeParmType", (*typenames)[i]->GetSourcePos());
+                printf("\"%s\"\n", (*typenames)[i]->GetName().c_str());
+                indent.Done();
+            } else {
+                indent.Print("<NULL>");
+                indent.Done();
+            }
+        }
+    }
+
+    if (code) {
+        indent.setNextLabel("body");
+        code->Print(indent);
+    }
+
+    for (const auto &inst : instantiations) {
+        std::string args;
+        for (size_t i = 0; i < inst.first->args.size(); i++) {
+            auto &arg = inst.first->args[i];
+            args += arg.first->GetString();
+            if (i + 1 < inst.first->args.size()) {
+                args += ", ";
+            }
+        }
+        args = "instantiation <" + args + ">";
+        indent.setNextLabel(args);
+        inst.second->parentFunction->Print(indent);
+    }
+
+    indent.Done();
+};
+
+bool FunctionTemplate::IsStdlibSymbol() const {
+    if (sym == nullptr) {
+        return false;
+    }
+    if (sym->pos.name != nullptr && !strcmp(sym->pos.name, "stdlib.ispc")) {
+        return true;
+    }
+    return false;
+};
+
+Symbol *FunctionTemplate::LookupInstantiation(const std::vector<std::pair<const Type *, SourcePos>> &types) {
+    TemplateArgs argsToMatch(types);
+    for (const auto &inst : instantiations) {
+        if (inst.first->IsEqual(argsToMatch)) {
+            return inst.second;
+        }
+    }
+    return nullptr;
+}
+
+Symbol *FunctionTemplate::AddInstantiation(const std::vector<std::pair<const Type *, SourcePos>> &types) {
+    const TemplateParms *typenames = GetTemplateParms();
+    Assert(typenames);
+    TemplateInstantiation templInst(*typenames, types);
+
+    Symbol *instSym = templInst.InstantiateTemplateSymbol(sym);
+    Symbol *instMaskSym = templInst.InstantiateSymbol(maskSymbol);
+    std::vector<Symbol *> instArgs;
+    for (auto arg : args) {
+        instArgs.push_back(templInst.InstantiateSymbol(arg));
+    }
+
+    Stmt *instCode = code->Instantiate(templInst);
+    Function *inst = new Function(instSym, instCode, instMaskSym, instArgs);
+
+    templInst.SetFunction(inst);
+
+    TemplateArgs *templArgs = new TemplateArgs(types);
+    instantiations.push_back(std::make_pair(templArgs, instSym));
+
+    return instSym;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// TemplateInstantiation
+
+TemplateInstantiation::TemplateInstantiation(const TemplateParms &typeParms,
+                                             const std::vector<std::pair<const Type *, SourcePos>> &typeArgs)
+    : functionSym(nullptr) {
+    Assert(typeArgs.size() <= typeParms.GetCount());
+    // Create a mapping from the template parameters to the arguments.
+    // Note we do that for all specified templates arguments, which number may be less than a number of template
+    // parameters. In this case the rest of template parameters will be deduced later during template argumnet
+    // deduction.
+    for (int i = 0; i < typeArgs.size(); i++) {
+        std::string name = typeParms[i]->GetName();
+        const Type *type = typeArgs[i].first;
+        argsMap[name] = type;
+        templateArgs.push_back(typeArgs[i].first);
+    }
+}
+
+void TemplateInstantiation::AddArgument(std::string paramName, const Type *argType) { argsMap[paramName] = argType; }
+
+const Type *TemplateInstantiation::InstantiateType(const std::string &name) {
+    auto t = argsMap.find(name);
+    if (t == argsMap.end()) {
+        return nullptr;
+    }
+
+    return t->second;
+}
+
+Symbol *TemplateInstantiation::InstantiateSymbol(Symbol *sym) {
+    if (sym == nullptr) {
+        return nullptr;
+    }
+
+    // A note about about global symbols.
+    // In the current state of symbol table there's no clear way to differentiate between global and local symbols.
+    // There's "parentFunction" field, but it's empty for some local symbols and paramters, which prevents using it
+    // for the purpose of differentiation.
+    // There's another possible way to differentiate - "storageInfo" tends to be set only for global symbols, but again
+    // it's inderent and unreliable way to detect what needs to be encoded explicitly.
+    // So we copy all symbols - global and local, while we need not avoid copying globals.
+    // TODO: develop a reliable mechanism to detect global symbols and do not copy them.
+
+    auto t = symMap.find(sym);
+    if (t != symMap.end()) {
+        return t->second;
+    }
+
+    const Type *instType = sym->type->ResolveDependenceForTopType(*this);
+    Symbol *instSym = new Symbol(sym->name, sym->pos, instType, sym->storageClass);
+    instSym->constValue = sym->constValue ? sym->constValue->Instantiate(*this) : nullptr;
+    instSym->varyingCFDepth = sym->varyingCFDepth;
+    instSym->parentFunction = nullptr;
+    instSym->storageInfo = sym->storageInfo;
+
+    symMap.emplace(std::make_pair(sym, instSym));
+    return instSym;
+}
+
+Symbol *TemplateInstantiation::InstantiateTemplateSymbol(TemplateSymbol *sym) {
+    // The function is assumed to be called once per instantiation and
+    // only for the tempalte that is being instantiated.
+    Assert(sym && functionSym == nullptr);
+
+    // Instantiate the function type
+    const Type *instType = sym->type->ResolveDependenceForTopType(*this);
+
+    // Create a function symbol
+    Symbol *instSym = new Symbol(sym->name, sym->pos, instType, SC_STATIC);
+    functionSym = instSym;
+
+    // Create llvm::Function and attach to the symbol, so the symbol is complete and ready for use.
+    llvm::Function *llvmFunc = createLLVMFunction(instSym, sym->isInline, sym->isNoInline);
+    instSym->function = llvmFunc;
+    return instSym;
+}
+
+// After the instance of the template function is created, the symbols should point to the parent function.
+void TemplateInstantiation::SetFunction(Function *func) {
+    for (auto &symPair : symMap) {
+        Symbol *sym = symPair.second;
+        sym->parentFunction = func;
+    }
+    functionSym->parentFunction = func;
+}
+
+// For regular functions, llvm::Function is create when declaration is met in the program to ensure that
+// the function symbol is represented llvm::Module as declaration. So all the work is done in ispc::Module.
+// For function templates we need llvm::Function when instantiation is created, so we do it here.
+// TODO: change the design to unify llvm::Function creation for both regular functions and instantiations of
+// function templates.
+llvm::Function *TemplateInstantiation::createLLVMFunction(Symbol *functionSym, bool isInline, bool isNoInline) {
+    Assert(functionSym && functionSym->type && CastType<FunctionType>(functionSym->type));
+    const FunctionType *functionType = CastType<FunctionType>(functionSym->type);
+
+    // Get the LLVM FunctionType
+    llvm::FunctionType *llvmFunctionType = functionType->LLVMFunctionType(g->ctx, false /*disableMask*/);
+    if (llvmFunctionType == nullptr) {
+        return nullptr;
+    }
+
+    // Mangling
+    auto [name_pref, name_suf] = functionType->GetFunctionMangledName(false, &templateArgs);
+    std::string functionName = name_pref + functionSym->name + name_suf;
+
+    // And create the llvm::Function
+    llvm::Function *function =
+        llvm::Function::Create(llvmFunctionType, llvm::GlobalValue::InternalLinkage, functionName.c_str(), m->module);
+
+    // Set function attributes: we never throw exceptions
+    function->setDoesNotThrow();
+
+    function->setCallingConv(functionType->GetCallingConv());
+    g->target->markFuncWithTargetAttr(function);
+
+    if (isInline) {
+        function->addFnAttr(llvm::Attribute::AlwaysInline);
+    }
+    if (isNoInline) {
+        function->addFnAttr(llvm::Attribute::NoInline);
+    }
+
+    // Add NoAlias attribute to function arguments if needed.
+    int nArgs = functionType->GetNumParameters();
+    for (int i = 0; i < nArgs; ++i) {
+        const Type *argType = functionType->GetParameterType(i);
+
+        // ISPC assumes that no pointers alias.  (It should be possible to
+        // specify when this is not the case, but this should be the
+        // default.)  Set parameter attributes accordingly.  (Only for
+        // uniform pointers, since varying pointers are int vectors...)
+        if (!functionType->isTask && !functionType->isExternSYCL &&
+            ((CastType<PointerType>(argType) != NULL && argType->IsUniformType() &&
+              // Exclude SOA argument because it is a pair {struct *, int}
+              // instead of pointer
+              !CastType<PointerType>(argType)->IsSlice()) ||
+
+             CastType<ReferenceType>(argType) != NULL)) {
+
+            function->addParamAttr(i, llvm::Attribute::NoAlias);
+        }
+    }
+
+    // If llvm gave us back a Function * with a different name than the one
+    // we asked for, then there's already a function with that same
+    // (mangled) name in the llvm::Module.  In that case, erase the one we
+    // tried to add and just work with the one it already had.
+    if (function->getName() != functionName) {
+        function->eraseFromParent();
+        function = m->module->getFunction(functionName);
+    }
+
+    return function;
 }

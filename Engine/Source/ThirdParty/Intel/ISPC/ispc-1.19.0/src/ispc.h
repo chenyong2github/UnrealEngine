@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2022, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -106,16 +106,20 @@ class FunctionEmitContext;
 class Expr;
 class ExprList;
 class Function;
+class FunctionTemplate;
 class FunctionType;
 class Module;
 class PointerType;
 class Stmt;
 class Symbol;
 class SymbolTable;
+class TemplateInstantiation;
+class TemplateParms;
+class TemplateSymbol;
 class Type;
 struct VariableDeclaration;
 
-enum StorageClass { SC_NONE, SC_EXTERN, SC_STATIC, SC_TYPEDEF, SC_EXTERN_C };
+enum StorageClass { SC_NONE, SC_EXTERN, SC_STATIC, SC_TYPEDEF, SC_EXTERN_C, SC_EXTERN_SYCL };
 
 // Enumerant for address spaces.
 enum class AddressSpace {
@@ -158,6 +162,27 @@ struct SourcePos {
     extents. */
 SourcePos Union(const SourcePos &p1, const SourcePos &p2);
 
+typedef unsigned int PerfWarningTypeUnderlyingType;
+
+/** An enum to represent different types of perfarmance warnings that should be triggered for specific target */
+enum class PerfWarningType : PerfWarningTypeUnderlyingType {
+    // x86, SSE2/SSE4/AVX/AVX2.
+    // Converts between [float|double] and uint[32|64] types (both directions) are much more expensive than similar
+    // converts involving signed integers.
+    CVTUIntFloat = 0x1,
+    // x86, AVX2.
+    // Converts between float16 and uint[32|64] types (both directions) are much more expensive than similar
+    // converts involving signed integers.
+    // SSE2/SSE4/AVX does not warn about FP16, as it is extreamly slow due to emulation of any FP16 ops.
+    CVTUIntFloat16 = 0x2,
+    // x86
+    // Varying integer division and modulo operations are not supported in hardware and are scalarized.
+    DIVModInt = 0x4,
+    // x86, SSE2, SSE4.
+    // Shift right by variable amount.
+    VariableShiftRight = 0x8,
+};
+
 /** @brief Structure that defines a compilation target
 
     This structure defines a compilation target for the ispc compiler.
@@ -179,6 +204,7 @@ class Target {
         AVX2 = 3,
         KNL_AVX512 = 4,
         SKX_AVX512 = 5,
+        SPR_AVX512 = 6,
 #ifdef ISPC_ARM_ENABLED
         NEON,
 #endif
@@ -189,6 +215,7 @@ class Target {
         GEN9,
         XELP,
         XEHPG,
+        XEHPC,
 #endif
         NUM_ISAS
     };
@@ -198,6 +225,7 @@ class Target {
         gen9,
         xe_lp,
         xe_hpg,
+        xe_hpc,
     };
 #endif
 
@@ -242,10 +270,16 @@ class Target {
         of the structure where the element is located. */
     llvm::Value *StructOffset(llvm::Type *type, int element, llvm::BasicBlock *insertAtEnd);
 
+    /** Update function name with __regcall3_ prefix. */
+    void markFuncNameWithRegCallPrefix(std::string &funcName) const;
+
     /** Mark LLVM function with target specific attribute, if required. */
     void markFuncWithTargetAttr(llvm::Function *func);
 
-    /** Set LLVM function with Calling Convention. */
+    /** Set LLVM function with Calling Convention.
+        The usage of this function is deprecated. The preferred way is to use
+        llvm::Function::setCallingConv(llvm::CallingConv) and FunctionType::GetCallingConv())
+    */
     void markFuncWithCallingConv(llvm::Function *func);
 
     const llvm::Target *getTarget() const { return m_target; }
@@ -263,7 +297,7 @@ class Target {
 
     bool isXeTarget() {
 #ifdef ISPC_XE_ENABLED
-        return m_isa == Target::GEN9 || m_isa == Target::XELP || m_isa == Target::XEHPG;
+        return m_isa == Target::GEN9 || m_isa == Target::XELP || m_isa == Target::XEHPG || m_isa == Target::XEHPC;
 #else
         return false;
 #endif
@@ -295,7 +329,9 @@ class Target {
 
     int getMaskBitCount() const { return m_maskBitCount; }
 
-    bool hasHalf() const { return m_hasHalf; }
+    bool hasHalfConverts() const { return m_hasHalfConverts; }
+
+    bool hasHalfFullSupport() const { return m_hasHalfFullSupport; }
 
     bool hasRand() const { return m_hasRand; }
 
@@ -315,9 +351,13 @@ class Target {
 
     bool hasSatArith() const { return m_hasSaturatingArithmetic; }
 
+    bool hasFp16Support() const { return m_hasFp16Support; }
+
     bool hasFp64Support() const { return m_hasFp64Support; }
 
-    bool warnFtoU32IsExpensive() const { return m_warnFtoU32IsExpensive; }
+    void setWarning(PerfWarningType warningType) { m_warnings |= static_cast<unsigned int>(warningType); }
+
+    bool shouldWarn(PerfWarningType warningType) { return (m_warnings & static_cast<unsigned int>(warningType)) != 0; }
 
   private:
     /** llvm Target object representing this target. */
@@ -393,9 +433,15 @@ class Target {
         is 32 on SSE/AVX, since that matches the HW better. */
     int m_maskBitCount;
 
-    /** Indicates whether the target has native support for float/half
-        conversions. */
-    bool m_hasHalf;
+    /** Indicates whether the target has native support for float/half conversions. */
+    bool m_hasHalfConverts;
+
+    /** Indicates whether the target has full native support for float16 type, i.e.
+        arithmetic operations, rsqrt, rcp, etc.
+        TODO: this needs to be merged with m_hasFp16Support eventually, but we need to
+              define proper ARM targets with and without FP16 support first.
+    */
+    bool m_hasHalfFullSupport;
 
     /** Indicates whether there is an ISA random number instruction. */
     bool m_hasRand;
@@ -425,11 +471,14 @@ class Target {
     /** Indicates whether the target has special saturating arithmetic instructions. */
     bool m_hasSaturatingArithmetic;
 
+    /** Indicates whether the target has FP16 support. */
+    bool m_hasFp16Support;
+
     /** Indicates whether the target has FP64 support. */
     bool m_hasFp64Support;
 
-    /** Indicates whether the target has uint32 -> float cvt support **/
-    bool m_warnFtoU32IsExpensive;
+    /** A bitset of PerfWarningType values indicating the warnings that are relevant for the target. */
+    PerfWarningTypeUnderlyingType m_warnings;
 };
 
 /** @brief Structure that collects optimization options
@@ -544,6 +593,10 @@ struct Opt {
         Affects only >= 512 bit wide targets and only if avx512vl is available */
     bool disableZMM;
 
+    /** Set FTZ/DAZ flags on the extern function entrance and restore them.
+        upon return to "host" code.*/
+    bool resetFTZ_DAZ;
+
 #ifdef ISPC_XE_ENABLED
     /** Disables optimization that coalesce gathers on Xe. This is
         likely only useful for measuring the impact of this optimization */
@@ -650,6 +703,9 @@ struct Globals {
 
     /** Whether to dump IR to file. */
     bool dumpFile;
+
+    /** Store the path to directory for IR file dumps. */
+    std::string dumpFilePath;
 
     /** Indicates after which optimization we want to generate
         DebugIR information. */
@@ -781,6 +837,7 @@ enum {
     COST_SIMPLE_ARITH_LOGIC_OP = 1,
     COST_SYNC = 32,
     COST_TASK_LAUNCH = 32,
+    COST_INVOKE = 32,
     COST_TYPECAST_COMPLEX = 4,
     COST_TYPECAST_SIMPLE = 1,
     COST_UNIFORM_IF = 2,
@@ -800,4 +857,45 @@ enum {
 
 extern Globals *g;
 extern Module *m;
+
+// Singleton object for bookkeeping heap objects to destroy them later to
+// avoid memory leak.
+class BookKeeper {
+  private:
+    BookKeeper() {}
+
+    template <typename T> std::vector<T *> &getStorage() {
+        // Vector to store bookkeeped objects.
+        static std::vector<T *> v;
+        return v;
+    }
+
+    template <typename T> void freeOne() {
+        std::vector<T *> &v = getStorage<T>();
+        for (auto e : v)
+            delete e;
+        v.clear();
+    }
+
+  public:
+    static BookKeeper &in();
+    BookKeeper(BookKeeper const &) = delete;
+    void operator=(BookKeeper const &) = delete;
+
+    template <typename T> void *add(T *p) {
+        std::vector<T *> &v = getStorage<T>();
+        v.push_back(p);
+        return p;
+    }
+
+    // Free all bookkeeped objects.
+    void freeAll();
+};
+
+// Base class to inherit for objects needed to be bookkeeped.
+class Traceable {
+  public:
+    void *operator new(size_t size) { return BookKeeper::in().add(static_cast<Traceable *>(::operator new(size))); }
+    virtual ~Traceable() = default;
+};
 } // namespace ispc

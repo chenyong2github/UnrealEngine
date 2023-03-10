@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011-2014, Intel Corporation
+  Copyright (c) 2011-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,10 @@ extern void volume_serial(float density[], int nVoxels[3], const float raster2ca
 /* Write a PPM image file with the image */
 static void writePPM(float *buf, int width, int height, const char *fn) {
     FILE *fp = fopen(fn, "wb");
+    if (!fp) {
+        printf("Couldn't open a file '%s'\n", fn);
+        exit(1);
+    }
     fprintf(fp, "P6\n");
     fprintf(fp, "%d %d\n", width, height);
     fprintf(fp, "255\n");
@@ -113,6 +117,7 @@ static float *loadVolume(const char *fn, int n[3]) {
 
     if (fscanf(f, "%d %d %d", &n[0], &n[1], &n[2]) != 3) {
         fprintf(stderr, "Couldn't find resolution at start of density file\n");
+        fclose(f);
         exit(1);
     }
 
@@ -121,10 +126,12 @@ static float *loadVolume(const char *fn, int n[3]) {
     for (int i = 0; i < count; ++i) {
         if (fscanf(f, "%f", &v[i]) != 1) {
             fprintf(stderr, "Unexpected end of file at %d'th density value\n", i);
+            fclose(f);
             exit(1);
         }
     }
 
+    fclose(f);
     return v;
 }
 

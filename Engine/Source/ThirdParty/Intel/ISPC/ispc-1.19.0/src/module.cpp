@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2022, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@
 #include <algorithm>
 #include <ctype.h>
 #include <fcntl.h>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <sstream>
@@ -80,12 +81,15 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/IRReader/IRReader.h>
+#include <llvm/Linker/Linker.h>
 #include <llvm/PassRegistry.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/FileUtilities.h>
 #include <llvm/Support/FormattedStream.h>
 #include <llvm/Support/Host.h>
+#include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
@@ -100,7 +104,6 @@
 
 #ifdef ISPC_XE_ENABLED
 #include <LLVMSPIRVLib/LLVMSPIRVLib.h>
-#include <fstream>
 #if defined(_WIN64)
 #define OCLOC_LIBRARY_NAME "ocloc64.dll"
 #elif defined(_WIN32)
@@ -123,6 +126,37 @@
 #endif
 
 using namespace ispc;
+
+// The magic constants are derived from https://github.com/intel/compute-runtime repo
+// compute-runtime/shared/source/compiler_interface/intermediate_representations.h
+const char *llvmBcMagic = "BC\xc0\xde";
+const char *llvmBcMagicWrapper = "\xDE\xC0\x17\x0B";
+const char *spirvMagic = "\x07\x23\x02\x03";
+const char *spirvMagicInv = "\x03\x02\x23\x07";
+
+static bool lHasSameMagic(const char *expectedMagic, std::ifstream &is) {
+    // Check for magic number at the beginning of the file
+    std::vector<unsigned char> code;
+    is.seekg(0, std::ios::end);
+    size_t codeSize = is.tellg();
+    is.seekg(0, std::ios::beg);
+
+    auto binaryMagicLen = std::min(strlen(expectedMagic), codeSize);
+    code.resize(binaryMagicLen);
+    is.read((char *)code.data(), binaryMagicLen);
+    is.seekg(0, std::ios::beg);
+
+    std::string magicHeader(code.begin(), code.end());
+    return magicHeader.compare(expectedMagic) == 0;
+}
+
+static bool lIsLlvmBitcode(std::ifstream &is) {
+    return lHasSameMagic(llvmBcMagic, is) || lHasSameMagic(llvmBcMagicWrapper, is);
+}
+
+static bool lIsSpirVBitcode(std::ifstream &is) {
+    return lHasSameMagic(spirvMagic, is) || lHasSameMagic(spirvMagicInv, is);
+}
 
 /*! list of files encountered by the parser. this allows emitting of
     the module file's dependencies via the -MMM option */
@@ -160,15 +194,13 @@ static void lStripUnusedDebugInfo(llvm::Module *module) { return; }
 ///////////////////////////////////////////////////////////////////////////
 // Module
 
-Module::Module(const char *fn) : bufferCPP{nullptr} {
+Module::Module(const char *fn) : filename(fn) {
     // It's a hack to do this here, but it must be done after the target
     // information has been set (so e.g. the vector width is known...)  In
     // particular, if we're compiling to multiple targets with different
     // vector widths, this needs to be redone each time through.
     InitLLVMUtil(g->ctx, *g->target);
 
-    filename = fn;
-    errorCount = 0;
     symbolTable = new SymbolTable;
     ast = new AST;
 
@@ -176,9 +208,6 @@ Module::Module(const char *fn) : bufferCPP{nullptr} {
 
     module = new llvm::Module(!IsStdin(filename) ? filename : "<stdin>", *g->ctx);
     module->setTargetTriple(g->target->GetTripleString());
-
-    diBuilder = NULL;
-    diCompileUnit = NULL;
 
     // DataLayout information supposed to be managed in single place in Target class.
     module->setDataLayout(g->target->getDataLayout()->getStringRepresentation());
@@ -210,8 +239,7 @@ Module::Module(const char *fn) : bufferCPP{nullptr} {
         if (IsStdin(filename)) {
             // Unfortunately we can't yet call Error() since the global 'm'
             // variable hasn't been initialized yet.
-            Error(SourcePos(), "Can't emit debugging information with no "
-                               "source file on disk.\n");
+            Error(SourcePos(), "Can't emit debugging information with no source file on disk.\n");
             ++errorCount;
             delete diBuilder;
             diBuilder = NULL;
@@ -232,6 +260,17 @@ Module::Module(const char *fn) : bufferCPP{nullptr} {
                                              0 /* run time version */);
         }
     }
+}
+
+Module::~Module() {
+    if (symbolTable)
+        delete symbolTable;
+    if (ast)
+        delete ast;
+    if (module)
+        delete module;
+    if (diBuilder)
+        delete diBuilder;
 }
 
 extern FILE *yyin;
@@ -348,7 +387,9 @@ Symbol *Module::AddLLVMIntrinsicDecl(const std::string &name, ExprList *args, So
         int nInits = args->exprs.size();
         if (llvm::GenXIntrinsic::isOverloadedRet(ID) || llvm::GenXIntrinsic::isOverloadedArg(ID, nInits)) {
             for (int i = 0; i < nInits; ++i) {
-                exprType.push_back((args->exprs[i])->GetType()->LLVMType(g->ctx));
+                const Type *argType = (args->exprs[i])->GetType();
+                Assert(argType);
+                exprType.push_back(argType->LLVMType(g->ctx));
             }
         }
         llvm::ArrayRef<llvm::Type *> argArr(exprType);
@@ -370,7 +411,9 @@ Symbol *Module::AddLLVMIntrinsicDecl(const std::string &name, ExprList *args, So
         if (llvm::Intrinsic::isOverloaded(ID)) {
             int nInits = args->exprs.size();
             for (int i = 0; i < nInits; ++i) {
-                exprType.push_back((args->exprs[i])->GetType()->LLVMType(g->ctx));
+                const Type *argType = (args->exprs[i])->GetType();
+                Assert(argType);
+                exprType.push_back(argType->LLVMType(g->ctx));
             }
         }
         llvm::ArrayRef<llvm::Type *> argArr(exprType);
@@ -402,16 +445,22 @@ void Module::AddGlobalVariable(const std::string &name, const Type *type, Expr *
     }
 
     if (symbolTable->LookupFunction(name.c_str())) {
-        Error(pos,
-              "Global variable \"%s\" shadows previously-declared "
-              "function.",
-              name.c_str());
+        Error(pos, "Global variable \"%s\" shadows previously-declared function.", name.c_str());
+        return;
+    }
+
+    if (symbolTable->LookupFunctionTemplate(name.c_str())) {
+        Error(pos, "Global variable \"%s\" shadows previously-declared function template.", name.c_str());
         return;
     }
 
     if (storageClass == SC_EXTERN_C) {
-        Error(pos, "extern \"C\" qualifier can only be used for "
-                   "functions.");
+        Error(pos, "extern \"C\" qualifier can only be used for functions.");
+        return;
+    }
+
+    if (storageClass == SC_EXTERN_SYCL) {
+        Error(pos, "extern \"SYCL\" qualifier can only be used for functions.");
         return;
     }
 
@@ -442,10 +491,7 @@ void Module::AddGlobalVariable(const std::string &name, const Type *type, Expr *
     ConstExpr *constValue = NULL;
     if (storageClass == SC_EXTERN) {
         if (initExpr != NULL)
-            Error(pos,
-                  "Initializer can't be provided with \"extern\" "
-                  "global variable \"%s\".",
-                  name.c_str());
+            Error(pos, "Initializer can't be provided with \"extern\" global variable \"%s\".", name.c_str());
     } else {
         if (initExpr != NULL) {
             initExpr = TypeCheck(initExpr);
@@ -470,8 +516,8 @@ void Module::AddGlobalVariable(const std::string &name, const Type *type, Expr *
                         if ((storageClass != SC_STATIC) && (initPair.second == true)) {
                             if (g->isMultiTargetCompilation == true) {
                                 Error(initExpr->pos,
-                                      "Initializer for global variable \"%s\" "
-                                      "is not a constant for multi-target compilation.",
+                                      "Initializer for global variable \"%s\" is not a constant for multi-target "
+                                      "compilation.",
                                       name.c_str());
                                 return;
                             }
@@ -490,9 +536,7 @@ void Module::AddGlobalVariable(const std::string &name, const Type *type, Expr *
                             // represent their values.
                             constValue = llvm::dyn_cast<ConstExpr>(initExpr);
                     } else
-                        Error(initExpr->pos,
-                              "Initializer for global variable \"%s\" "
-                              "must be a constant.",
+                        Error(initExpr->pos, "Initializer for global variable \"%s\" must be a constant.",
                               name.c_str());
                 }
             }
@@ -512,23 +556,21 @@ void Module::AddGlobalVariable(const std::string &name, const Type *type, Expr *
 
         // If the type doesn't match with the previous one, issue an error.
         if (!Type::Equal(sym->type, type) ||
-            (sym->storageClass != SC_EXTERN && sym->storageClass != SC_EXTERN_C && sym->storageClass != storageClass)) {
-            Error(pos,
-                  "Definition of variable \"%s\" conflicts with "
-                  "definition at %s:%d.",
-                  name.c_str(), sym->pos.name, sym->pos.first_line);
+            (sym->storageClass != SC_EXTERN && sym->storageClass != SC_EXTERN_C &&
+             sym->storageClass != SC_EXTERN_SYCL && sym->storageClass != storageClass)) {
+            Error(pos, "Definition of variable \"%s\" conflicts with definition at %s:%d.", name.c_str(), sym->pos.name,
+                  sym->pos.first_line);
             return;
         }
 
-        llvm::GlobalVariable *gv = llvm::dyn_cast<llvm::GlobalVariable>(sym->storagePtr);
+        llvm::GlobalVariable *gv = llvm::dyn_cast<llvm::GlobalVariable>(sym->storageInfo->getPointer());
         Assert(gv != NULL);
 
         // And issue an error if this is a redefinition of a variable
-        if (gv->hasInitializer() && sym->storageClass != SC_EXTERN && sym->storageClass != SC_EXTERN_C) {
-            Error(pos,
-                  "Redefinition of variable \"%s\" is illegal. "
-                  "(Previous definition at %s:%d.)",
-                  sym->name.c_str(), sym->pos.name, sym->pos.first_line);
+        if (gv->hasInitializer() && sym->storageClass != SC_EXTERN && sym->storageClass != SC_EXTERN_C &&
+            sym->storageClass != SC_EXTERN_SYCL) {
+            Error(pos, "Redefinition of variable \"%s\" is illegal. (Previous definition at %s:%d.)", sym->name.c_str(),
+                  sym->pos.name, sym->pos.first_line);
             return;
         }
 
@@ -548,21 +590,22 @@ void Module::AddGlobalVariable(const std::string &name, const Type *type, Expr *
     // Note that the NULL llvmInitializer is what leads to "extern"
     // declarations coming up extern and not defining storage (a bit
     // subtle)...
-    sym->storagePtr = new llvm::GlobalVariable(*module, llvmType, isConst, linkage, llvmInitializer, sym->name.c_str());
+    sym->storageInfo = new AddressInfo(
+        new llvm::GlobalVariable(*module, llvmType, isConst, linkage, llvmInitializer, sym->name.c_str()), llvmType);
 
     // Patch up any references to the previous GlobalVariable (e.g. from a
     // declaration of a global that was later defined.)
     if (oldGV != NULL) {
-        oldGV->replaceAllUsesWith(sym->storagePtr);
+        oldGV->replaceAllUsesWith(sym->storageInfo->getPointer());
         oldGV->removeFromParent();
-        sym->storagePtr->setName(sym->name.c_str());
+        sym->storageInfo->getPointer()->setName(sym->name.c_str());
     }
 
     if (diBuilder) {
         llvm::DIFile *file = pos.GetDIFile();
         llvm::DINamespace *diSpace = pos.GetDINamespace();
         // llvm::MDFile *file = pos.GetDIFile();
-        llvm::GlobalVariable *sym_GV_storagePtr = llvm::dyn_cast<llvm::GlobalVariable>(sym->storagePtr);
+        llvm::GlobalVariable *sym_GV_storagePtr = llvm::dyn_cast<llvm::GlobalVariable>(sym->storageInfo->getPointer());
         Assert(sym_GV_storagePtr);
         llvm::DIGlobalVariableExpression *var = diBuilder->createGlobalVariableExpression(
             diSpace, name, name, file, pos.first_line, sym->type->GetDIType(diSpace), (sym->storageClass == SC_STATIC));
@@ -643,30 +686,19 @@ static void lCheckExportedParameterTypes(const Type *type, const std::string &na
             while (pt) {
                 if (pt->GetBaseType()->IsSOAType()) {
                     isSOAType = true;
-                    Error(pos,
-                          "SOA type parameter \"%s\" is illegal "
-                          "in an exported function.",
-                          name.c_str());
+                    Error(pos, "SOA type parameter \"%s\" is illegal in an exported function.", name.c_str());
                 }
                 pt = CastType<PointerType>(pt->GetBaseType());
             }
             if (!isSOAType) {
-                Error(pos,
-                      "Varying pointer type parameter \"%s\" is illegal "
-                      "in an exported function.",
-                      name.c_str());
+                Error(pos, "Varying pointer type parameter \"%s\" is illegal in an exported function.", name.c_str());
             }
         }
         if (CastType<StructType>(type->GetBaseType()))
-            Error(pos,
-                  "Struct parameter \"%s\" with vector typed "
-                  "member(s) is illegal in an exported function.",
+            Error(pos, "Struct parameter \"%s\" with vector typed member(s) is illegal in an exported function.",
                   name.c_str());
         else if (CastType<VectorType>(type))
-            Error(pos,
-                  "Vector-typed parameter \"%s\" is illegal in an exported "
-                  "function.",
-                  name.c_str());
+            Error(pos, "Vector-typed parameter \"%s\" is illegal in an exported function.", name.c_str());
         else
             Error(pos, "Varying parameter \"%s\" is illegal in an exported function.", name.c_str());
     }
@@ -677,14 +709,9 @@ static void lCheckExportedParameterTypes(const Type *type, const std::string &na
 static void lCheckTaskParameterTypes(const Type *type, const std::string &name, SourcePos pos) {
     if (lRecursiveCheckValidParamType(type, false, false, name, pos) == false) {
         if (CastType<PointerType>(type))
-            Error(pos,
-                  "Varying pointer type parameter \"%s\" is illegal "
-                  "in an \"task\" for Xe targets.",
-                  name.c_str());
+            Error(pos, "Varying pointer type parameter \"%s\" is illegal in an \"task\" for Xe targets.", name.c_str());
         if (CastType<StructType>(type->GetBaseType()))
-            Error(pos,
-                  "Struct parameter \"%s\" with vector typed "
-                  "member(s) is illegal in an \"task\" for Xe targets.",
+            Error(pos, "Struct parameter \"%s\" with vector typed member(s) is illegal in an \"task\" for Xe targets.",
                   name.c_str());
         else if (CastType<VectorType>(type))
             Error(pos,
@@ -721,15 +748,13 @@ static void lCheckForStructParameters(const FunctionType *ftype, SourcePos pos) 
  */
 void Module::AddFunctionDeclaration(const std::string &name, const FunctionType *functionType,
                                     StorageClass storageClass, bool isInline, bool isNoInline, bool isVectorCall,
-                                    SourcePos pos) {
+                                    bool isRegCall, SourcePos pos) {
     Assert(functionType != NULL);
 
     // If a global variable with the same name has already been declared
     // issue an error.
     if (symbolTable->LookupVariable(name.c_str()) != NULL) {
-        Error(pos,
-              "Function \"%s\" shadows previously-declared global variable. "
-              "Ignoring this definition.",
+        Error(pos, "Function \"%s\" shadows previously-declared global variable. Ignoring this definition.",
               name.c_str());
         return;
     }
@@ -785,13 +810,11 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
         }
     }
 
-    if (storageClass == SC_EXTERN_C) {
+    if (storageClass == SC_EXTERN_C || storageClass == SC_EXTERN_SYCL) {
         // Make sure the user hasn't supplied both an 'extern "C"' and a
         // 'task' qualifier with the function
         if (functionType->isTask) {
-            Error(pos,
-                  "\"task\" qualifier is illegal with C-linkage extern "
-                  "function \"%s\".  Ignoring this function.",
+            Error(pos, "\"task\" qualifier is illegal with C-linkage extern function \"%s\".  Ignoring this function.",
                   name.c_str());
             return;
         }
@@ -821,7 +844,7 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
     }
 
     // Get the LLVM FunctionType
-    bool disableMask = (storageClass == SC_EXTERN_C);
+    bool disableMask = (storageClass == SC_EXTERN_C || storageClass == SC_EXTERN_SYCL);
     llvm::FunctionType *llvmFunctionType = functionType->LLVMFunctionType(g->ctx, disableMask);
     if (llvmFunctionType == NULL)
         return;
@@ -831,20 +854,9 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
                                                   ? llvm::GlobalValue::InternalLinkage
                                                   : llvm::GlobalValue::ExternalLinkage;
 
-    // For Xe target all functions except Xe kernels, external functions and explicitly marked extern functions must
-    // be internal.
-    if (g->target->isXeTarget() && !functionType->IsISPCKernel() && !functionType->IsISPCExternal() &&
-        (storageClass != SC_EXTERN))
-        linkage = llvm::GlobalValue::InternalLinkage;
+    auto [name_pref, name_suf] = functionType->GetFunctionMangledName(false);
+    std::string functionName = name_pref + name + name_suf;
 
-    std::string functionName = name;
-    if (storageClass != SC_EXTERN_C) {
-        functionName += functionType->Mangle();
-        // If we treat generic as smth, we should have appropriate mangling
-        if (g->mangleFunctionsWithTarget) {
-            functionName += g->target->GetISAString();
-        }
-    }
     llvm::Function *function = llvm::Function::Create(llvmFunctionType, linkage, functionName.c_str(), module);
 
     if (g->target_os == TargetOS::windows) {
@@ -860,7 +872,7 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
     }
     // Set function attributes: we never throw exceptions
     function->setDoesNotThrow();
-    if (storageClass != SC_EXTERN_C && isInline) {
+    if ((storageClass != SC_EXTERN_C) && (storageClass != SC_EXTERN_SYCL) && isInline) {
         function->addFnAttr(llvm::Attribute::AlwaysInline);
     }
 
@@ -876,6 +888,13 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
         }
     }
 
+    if (isRegCall) {
+        if ((storageClass != SC_EXTERN_C) && (storageClass != SC_EXTERN_SYCL)) {
+            Error(pos, "Illegal to use \"__regcall\" qualifier on non-extern function \"%s\".", name.c_str());
+            return;
+        }
+    }
+
     if (isNoInline) {
         function->addFnAttr(llvm::Attribute::NoInline);
     }
@@ -886,10 +905,7 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
             function->addParamAttr(0, llvm::Attribute::NoAlias);
         }
     }
-    if (((isVectorCall) && (storageClass == SC_EXTERN_C)) || (storageClass != SC_EXTERN_C)) {
-        g->target->markFuncWithCallingConv(function);
-    }
-
+    function->setCallingConv(functionType->GetCallingConv());
     g->target->markFuncWithTargetAttr(function);
 
     // Make sure that the return type isn't 'varying' or vector typed if
@@ -904,22 +920,11 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
     if (functionType->isTask && functionType->GetReturnType()->IsVoidType() == false)
         Error(pos, "Task-qualified functions must have void return type.");
 
-    // This limitation is due to ABI incompatibility between ISPC/ESIMD.
-    // ESIMD makes return value optimization transferring return value to the
-    // argument of the function.
-    if (functionType->IsISPCExternal() && functionType->GetReturnType()->IsVoidType() == false)
-        Warning(pos, "Export and extern \"C\"-qualified functions must have void return type for Xe target.");
-
-    if (functionType->isExported || functionType->isExternC || functionType->IsISPCExternal() ||
-        functionType->IsISPCKernel()) {
+    if (functionType->isExported || functionType->isExternC || functionType->isExternSYCL ||
+        functionType->IsISPCExternal() || functionType->IsISPCKernel()) {
         lCheckForStructParameters(functionType, pos);
     }
 
-    // Mark ISPC external functions as SPIR_FUNC for Xe.
-    if (functionType->IsISPCExternal() && disableMask) {
-        function->setCallingConv(llvm::CallingConv::SPIR_FUNC);
-        function->setDSOLocal(true);
-    }
     // Mark with corresponding attribute
     if (g->target->isXeTarget()) {
         if (functionType->IsISPCKernel()) {
@@ -953,12 +958,13 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
         // specify when this is not the case, but this should be the
         // default.)  Set parameter attributes accordingly.  (Only for
         // uniform pointers, since varying pointers are int vectors...)
-        if (!functionType->isTask && ((CastType<PointerType>(argType) != NULL && argType->IsUniformType() &&
-                                       // Exclude SOA argument because it is a pair {struct *, int}
-                                       // instead of pointer
-                                       !CastType<PointerType>(argType)->IsSlice()) ||
+        if (!functionType->isTask && !functionType->isExternSYCL &&
+            ((CastType<PointerType>(argType) != NULL && argType->IsUniformType() &&
+              // Exclude SOA argument because it is a pair {struct *, int}
+              // instead of pointer
+              !CastType<PointerType>(argType)->IsSlice()) ||
 
-                                      CastType<ReferenceType>(argType) != NULL)) {
+             CastType<ReferenceType>(argType) != NULL)) {
 
             function->addParamAttr(i, llvm::Attribute::NoAlias);
 #if 0
@@ -967,11 +973,14 @@ void Module::AddFunctionDeclaration(const std::string &name, const FunctionType 
 #endif
         }
 
-        if (symbolTable->LookupFunction(argName.c_str()))
-            Warning(argPos,
-                    "Function parameter \"%s\" shadows a function "
-                    "declared in global scope.",
+        if (symbolTable->LookupFunction(argName.c_str())) {
+            Warning(argPos, "Function parameter \"%s\" shadows a function declared in global scope.", argName.c_str());
+        }
+
+        if (symbolTable->LookupFunctionTemplate(argName.c_str())) {
+            Warning(argPos, "Function parameter \"%s\" shadows a function template declared in global scope.",
                     argName.c_str());
+        }
 
         if (defaultValue != NULL)
             seenDefaultArg = true;
@@ -1022,13 +1031,148 @@ void Module::AddFunctionDefinition(const std::string &name, const FunctionType *
     ast->AddFunction(sym, code);
 }
 
+//
+void Module::AddFunctionTemplateDeclaration(const TemplateParms *templateParmList, const std::string &name,
+                                            const FunctionType *ftype, StorageClass sc, bool isInline, bool isNoInline,
+                                            bool isVectorCall, SourcePos pos) {
+    Assert(ftype != NULL);
+    Assert(templateParmList != NULL);
+
+    // If a global variable with the same name has already been declared
+    // issue an error.
+    if (symbolTable->LookupVariable(name.c_str()) != NULL) {
+        Error(pos,
+              "Function template \"%s\" shadows previously-declared global variable. "
+              "Ignoring this definition.",
+              name.c_str());
+        return;
+    }
+
+    // Check overloads if the function template is already declared and we may skip
+    // creating a new symbol.
+    std::vector<TemplateSymbol *> overloadFuncTempls;
+    bool foundAny = symbolTable->LookupFunctionTemplate(name, &overloadFuncTempls);
+
+    if (foundAny) {
+        for (unsigned int i = 0; i < overloadFuncTempls.size(); ++i) {
+            TemplateSymbol *overloadFunc = overloadFuncTempls[i];
+
+            const FunctionType *overloadType = overloadFunc->type;
+            if (overloadType == nullptr) {
+                Assert(m->errorCount == 0);
+                continue;
+            }
+
+            // Check for a redeclaration of a function template with the same name
+            // and type.  This also hits when we have previously declared
+            // the function and are about to define it.
+            if (templateParmList->IsEqual(overloadFunc->templateParms) && Type::Equal(overloadFunc->type, ftype)) {
+                return;
+            }
+        }
+    }
+
+    // TODO: extern "C" - do we allow it?
+
+    // TODO: Xe adjust linkage
+
+    // No mangling for template, only instantiations.
+
+    // TODO: inline / noinline check.
+
+    // TODO: vectorcall checks
+
+    // ...
+
+    TemplateSymbol *funcTemplSym = new TemplateSymbol(templateParmList, name, ftype, pos, isInline, isNoInline);
+    symbolTable->AddFunctionTemplate(funcTemplSym);
+}
+
+void Module::AddFunctionTemplateDefinition(const TemplateParms *templateParmList, const std::string &name,
+                                           const FunctionType *ftype, Stmt *code) {
+    if (templateParmList == nullptr || ftype == nullptr) {
+        return;
+    }
+
+    TemplateSymbol *sym = symbolTable->LookupFunctionTemplate(templateParmList, name, ftype);
+    if (sym == NULL || code == NULL) {
+        Assert(m->errorCount > 0);
+        return;
+    }
+
+    // Same trick, as in AddFunctionDefinition - update source position and the type to be the ones from function
+    // template definition, not declaration.
+    // This actually a hack, which addresses lack of expressiveness of AST, which doesn't represent pure declaration,
+    // only definitions.
+    sym->pos = code->pos;
+    sym->type = ftype;
+
+    ast->AddFunctionTemplate(sym, code);
+}
+
+void Module::AddFunctionTemplateInstantiation(const std::string &name,
+                                              const std::vector<std::pair<const Type *, SourcePos>> &types,
+                                              const FunctionType *ftype, SourcePos pos) {
+    std::vector<TemplateSymbol *> matches;
+    bool found = symbolTable->LookupFunctionTemplate(name, &matches);
+
+    if (found) {
+        // TODO: need to outline this copy-paste code.
+        // Do template argument "normalization", i.e apply "varying type default":
+        //
+        // template <typename T> void foo(T t);
+        // foo<int>(1); // T is assumed to be "varying int" here.
+        std::vector<std::pair<const Type *, SourcePos>> normTypes(types);
+        for (auto &arg : normTypes) {
+            if (arg.first->GetVariability() == Variability::Unbound) {
+                arg.first = arg.first->GetAsVaryingType();
+            }
+        }
+
+        FunctionTemplate *templ = nullptr;
+        for (auto &templateSymbol : matches) {
+            // Number of template parameters must match.
+            if (normTypes.size() != templateSymbol->templateParms->GetCount()) {
+                // We don't have default parameters yet, so just matching the size exactly.
+                continue;
+            }
+
+            // Number of function parameters must match.
+            if (!ftype || !templateSymbol->type ||
+                ftype->GetNumParameters() != templateSymbol->type->GetNumParameters()) {
+                continue;
+            }
+
+            TemplateInstantiation inst(*(templateSymbol->templateParms), normTypes);
+            bool matched = true;
+            for (int i = 0; i < ftype->GetNumParameters(); i++) {
+                const Type *instParam = ftype->GetParameterType(i);
+                const Type *templateParam = templateSymbol->type->GetParameterType(i)->ResolveDependence(inst);
+                if (!Type::Equal(instParam, templateParam)) {
+                    matched = false;
+                    break;
+                }
+            }
+
+            if (matched) {
+                templ = templateSymbol->functionTemplate;
+                break;
+            }
+        }
+
+        if (templ) {
+            templ->AddInstantiation(normTypes);
+        } else {
+            Error(pos, "No matching function template found for instantiation.");
+        }
+    }
+}
+
 void Module::AddExportedTypes(const std::vector<std::pair<const Type *, SourcePos>> &types) {
     for (int i = 0; i < (int)types.size(); ++i) {
         if (CastType<StructType>(types[i].first) == NULL && CastType<VectorType>(types[i].first) == NULL &&
             CastType<EnumType>(types[i].first) == NULL)
-            Error(types[i].second,
-                  "Only struct, vector, and enum types, "
-                  "not \"%s\", are allowed in type export lists.",
+            Error(types[i].second, "Only struct, vector, and enum types, not \"%s\", are allowed in type export lists.",
                   types[i].first->GetString().c_str());
         else
             exportedTypes.push_back(types[i]);
@@ -1115,10 +1259,8 @@ bool Module::writeOutput(OutputType outputType, OutputFlags flags, const char *o
                 return 1;
             }
             if (fileType != NULL)
-                Warning(SourcePos(),
-                        "Emitting %s file, but filename \"%s\" "
-                        "has suffix \"%s\"?",
-                        fileType, outFileName, suffix);
+                Warning(SourcePos(), "Emitting %s file, but filename \"%s\" has suffix \"%s\"?", fileType, outFileName,
+                        suffix);
         }
     }
     if (outputType == Header) {
@@ -1151,6 +1293,7 @@ bool Module::writeBitcode(llvm::Module *module, const char *outFileName, OutputT
     // go.  If we open it, it'll be closed by the llvm::raw_fd_ostream
     // destructor.
     int fd;
+    Assert(outFileName);
     if (!strcmp(outFileName, "-"))
         fd = 1; // stdout
     else {
@@ -1176,25 +1319,34 @@ bool Module::writeBitcode(llvm::Module *module, const char *outFileName, OutputT
 }
 
 #ifdef ISPC_XE_ENABLED
+static llvm::cl::opt<bool>
+    SPIRVAllowExtraDIExpressions("spirv-allow-extra-diexpressions", llvm::cl::init(true),
+                                 llvm::cl::desc("Allow DWARF operations not listed in the OpenCL.DebugInfo.100 "
+                                                "specification (experimental, may produce incompatible SPIR-V "
+                                                "module)"));
+
+std::unique_ptr<llvm::Module> Module::translateFromSPIRV(std::ifstream &is) {
+    std::string err;
+    llvm::Module *m;
+    SPIRV::TranslatorOpts Opts;
+    Opts.enableAllExtensions();
+    Opts.setAllowExtraDIExpressionsEnabled(SPIRVAllowExtraDIExpressions);
+    Opts.setDesiredBIsRepresentation(SPIRV::BIsRepresentation::SPIRVFriendlyIR); // the most important
+
+    bool success = llvm::readSpirv(*g->ctx, Opts, is, m, err);
+    if (!success) {
+        fprintf(stderr, "Fails to read SPIR-V: %s \n", err.c_str());
+        return nullptr;
+    }
+    return std::unique_ptr<llvm::Module>(m);
+}
+
 bool Module::translateToSPIRV(llvm::Module *module, std::stringstream &ss) {
     std::string err;
     SPIRV::TranslatorOpts Opts;
     Opts.enableAllExtensions();
-    llvm::cl::opt<bool> SPIRVAllowExtraDIExpressions(
-        "spirv-allow-extra-diexpressions", llvm::cl::init(true),
-        llvm::cl::desc("Allow DWARF operations not listed in the OpenCL.DebugInfo.100 "
-                       "specification (experimental, may produce incompatible SPIR-V "
-                       "module)"));
-#if ISPC_LLVM_VERSION == ISPC_LLVM_12_0
-    llvm::cl::opt<bool> SPIRVAllowUnknownIntrinsics(
-        "spirv-allow-unknown-intrinsics", llvm::cl::init(true),
-        llvm::cl::desc("Unknown LLVM intrinsics will be translated as external function "
-                       "calls in SPIR-V"));
 
-    Opts.setSPIRVAllowUnknownIntrinsicsEnabled(SPIRVAllowUnknownIntrinsics);
-#else
     Opts.setSPIRVAllowUnknownIntrinsics({"llvm.genx"});
-#endif
     Opts.setAllowExtraDIExpressionsEnabled(SPIRVAllowExtraDIExpressions);
     Opts.setDesiredBIsRepresentation(SPIRV::BIsRepresentation::SPIRVFriendlyIR);
     Opts.setDebugInfoEIS(SPIRV::DebugInfoEIS::OpenCL_DebugInfo_100);
@@ -1223,9 +1375,9 @@ bool Module::writeSPIRV(llvm::Module *module, const char *outFileName) {
 
 // Translate ISPC CPU name to Neo representation
 static std::string translateCPU(const std::string &CPU) {
-    auto It = ISPCToNeoCPU.find(CPU);
-    Assert(It != ISPCToNeoCPU.end() && "Unexpected CPU");
-    return It->second;
+    // For the platforms that we support it's 1:1 mapping at the moment,
+    // in case of exceptions, they need to be handled here.
+    return CPU;
 }
 
 // Copy outputs. Required file should have provided extension (it is
@@ -1279,6 +1431,11 @@ bool Module::writeZEBin(llvm::Module *module, const char *outFileName) {
     }
 
     std::string options{"-vc-codegen -no-optimize -Xfinalizer '-presched'"};
+#ifdef ISPC_IS_LINUX
+    // `newspillcost` is not yet supported on Windows in open source
+    // TODO: use `newspillcost` for all platforms as soon as it available
+    options += " -Xfinalizer '-newspillcost'";
+#endif
     // Add debug option to VC backend of "-g" is set to ISPC
     if (g->generateDebuggingSymbols) {
         options.append(" -g");
@@ -1453,7 +1610,9 @@ static void lEmitStructDecl(const StructType *st, std::vector<const StructType *
     llvm::Type *stype = st->LLVMType(g->ctx);
     const llvm::DataLayout *DL = g->target->getDataLayout();
 
-    if (!(pack = llvm::dyn_cast<llvm::StructType>(stype)->isPacked())) {
+    llvm::StructType *stypeStructType = llvm::dyn_cast<llvm::StructType>(stype);
+    Assert(stypeStructType);
+    if (!(pack = stypeStructType->isPacked())) {
         for (int i = 0; !needsAlign && (i < st->GetElementCount()); ++i) {
             const Type *ftype = st->GetElementType(i)->GetAsNonConstType();
             needsAlign |= ftype->IsVaryingType() && (CastType<StructType>(ftype) == NULL);
@@ -1469,7 +1628,7 @@ static void lEmitStructDecl(const StructType *st, std::vector<const StructType *
     if (!needsAlign) {
         fprintf(file, "%sstruct %s%s {\n", (pack) ? "packed " : "", st->GetCStructName().c_str(), sSOA);
     } else {
-        unsigned uABI = DL->getABITypeAlignment(stype);
+        unsigned uABI = DL->getABITypeAlign(stype).value();
         fprintf(file, "__ISPC_ALIGNED_STRUCT__(%u) %s%s {\n", uABI, st->GetCStructName().c_str(), sSOA);
     }
     for (int i = 0; i < st->GetElementCount(); ++i) {
@@ -1478,7 +1637,7 @@ static void lEmitStructDecl(const StructType *st, std::vector<const StructType *
 
         fprintf(file, "    ");
         if (needsAlign && ftype->IsVaryingType() && (CastType<StructType>(ftype) == NULL)) {
-            unsigned uABI = DL->getABITypeAlignment(ftype->LLVMStorageType(g->ctx));
+            unsigned uABI = DL->getABITypeAlign(ftype->LLVMStorageType(g->ctx)).value();
             fprintf(file, "__ISPC_ALIGN__(%u) ", uABI);
         }
         // Don't expand arrays, pointers and structures:
@@ -1536,8 +1695,8 @@ static void lEmitEnumDecls(const std::vector<const EnumType *> &enumTypes, FILE 
         for (int j = 0; j < enumTypes[i]->GetEnumeratorCount(); ++j) {
             const Symbol *e = enumTypes[i]->GetEnumerator(j);
             Assert(e->constValue != NULL);
-            unsigned int enumValue;
-            int count = e->constValue->GetValues(&enumValue);
+            unsigned int enumValue[1];
+            int count = e->constValue->GetValues(enumValue);
             Assert(count == 1);
 
             // Always print an initializer to set the value.  We could be
@@ -1545,7 +1704,7 @@ static void lEmitEnumDecls(const std::vector<const EnumType *> &enumTypes, FILE 
             // one plus the previous enumerator value (or zero, for the
             // first enumerator) is the same as the value stored with the
             // enumerator, though that doesn't seem worth the trouble...
-            fprintf(file, "    %s = %d%c\n", e->name.c_str(), enumValue,
+            fprintf(file, "    %s = %d%c\n", e->name.c_str(), enumValue[0],
                     (j < enumTypes[i]->GetEnumeratorCount() - 1) ? ',' : ' ');
         }
         fprintf(file, "};\n");
@@ -1576,7 +1735,7 @@ static void lEmitVectorTypedefs(const std::vector<const VectorType *> &types, FI
         int size = vt->GetElementCount();
 
         llvm::Type *ty = vt->LLVMStorageType(g->ctx);
-        int align = g->target->getDataLayout()->getABITypeAlignment(ty);
+        int align = g->target->getDataLayout()->getABITypeAlign(ty).value();
         baseDecl = vt->GetBaseType()->GetCDeclaration("");
         fprintf(file, "#ifndef __ISPC_VECTOR_%s%d__\n", baseDecl.c_str(), size);
         fprintf(file, "#define __ISPC_VECTOR_%s%d__\n", baseDecl.c_str(), size);
@@ -2373,10 +2532,8 @@ int Module::execPreprocessor(const char *infilename, llvm::raw_string_ostream *o
     headerOpts.UseBuiltinIncludes = 0;
     headerOpts.UseStandardSystemIncludes = 0;
     headerOpts.UseStandardCXXIncludes = 0;
-#ifndef ISPC_NO_DUMPS
     if (g->debugPrint)
         headerOpts.Verbose = 1;
-#endif
     for (int i = 0; i < (int)g->includePath.size(); ++i) {
         headerOpts.AddPath(g->includePath[i], clang::frontend::Angled, false /* not a framework */,
                            true /* ignore sys root */);
@@ -2421,7 +2578,7 @@ int Module::execPreprocessor(const char *infilename, llvm::raw_string_ostream *o
     else
         opts.addMacroDef("ISPC_POINTER_SIZE=64");
 
-    if (g->target->hasHalf())
+    if (g->target->hasHalfConverts())
         opts.addMacroDef("ISPC_TARGET_HAS_HALF");
     if (g->target->hasRand())
         opts.addMacroDef("ISPC_TARGET_HAS_RAND");
@@ -2436,6 +2593,10 @@ int Module::execPreprocessor(const char *infilename, llvm::raw_string_ostream *o
     snprintf(ispc_minor, buf_size, "ISPC_MINOR_VERSION=%d", ISPC_VERSION_MINOR);
     opts.addMacroDef(ispc_major);
     opts.addMacroDef(ispc_minor);
+
+    if (g->target->hasFp16Support()) {
+        opts.addMacroDef("ISPC_FP16_SUPPORTED ");
+    }
 
     if (g->target->hasFp64Support()) {
         opts.addMacroDef("ISPC_FP64_SUPPORTED ");
@@ -2455,17 +2616,6 @@ int Module::execPreprocessor(const char *infilename, llvm::raw_string_ostream *o
         }
     }
 
-    if (g->target->isXeTarget()) {
-        opts.addMacroDef("taskIndex=__taskIndex()");
-        opts.addMacroDef("taskCount=__taskCount()");
-        opts.addMacroDef("taskCount0=__taskCount0()");
-        opts.addMacroDef("taskCount1=__taskCount1()");
-        opts.addMacroDef("taskCount2=__taskCount2()");
-        opts.addMacroDef("taskIndex0=__taskIndex0()");
-        opts.addMacroDef("taskIndex1=__taskIndex1()");
-        opts.addMacroDef("taskIndex2=__taskIndex2()");
-    }
-
     inst.getLangOpts().LineComment = 1;
     inst.createPreprocessor(clang::TU_Complete);
 
@@ -2480,28 +2630,18 @@ int Module::execPreprocessor(const char *infilename, llvm::raw_string_ostream *o
 // Given an output filename of the form "foo.obj", and an ISA name like
 // "avx", return a string with the ISA name inserted before the original
 // filename's suffix, like "foo_avx.obj".
-static std::string lGetTargetFileName(const char *outFileName, const char *isaString) {
-    int bufferSize = strlen(outFileName) + 16;
-    char *targetOutFileName = new char[bufferSize];
-    if (strrchr(outFileName, '.') != NULL) {
-        // Copy everything up to the last '.'
-        int count = strrchr(outFileName, '.') - outFileName;
-        strncpy(targetOutFileName, outFileName, count);
-        targetOutFileName[count] = '\0';
+static std::string lGetTargetFileName(const char *outFileName, const std::string &isaString) {
+    assert(outFileName != nullptr && "`outFileName` should not be null");
 
-        // Add the ISA name
-        strncat(targetOutFileName, "_", bufferSize - strlen(targetOutFileName) - 1);
-        strncat(targetOutFileName, isaString, bufferSize - strlen(targetOutFileName) - 1);
+    std::string targetOutFileName{outFileName};
+    const auto pos_dot = targetOutFileName.find_last_of('.');
 
-        // And finish with the original file suffix
-        strncat(targetOutFileName, strrchr(outFileName, '.'), bufferSize - strlen(targetOutFileName) - 1);
+    if (pos_dot != std::string::npos) {
+        targetOutFileName = targetOutFileName.substr(0, pos_dot) + "_" + isaString + targetOutFileName.substr(pos_dot);
     } else {
         // Can't find a '.' in the filename, so just append the ISA suffix
         // to what we weregiven
-        strncpy(targetOutFileName, outFileName, bufferSize - 1);
-        targetOutFileName[bufferSize - 1] = '\0';
-        strncat(targetOutFileName, "_", bufferSize - strlen(targetOutFileName) - 1);
-        strncat(targetOutFileName, isaString, bufferSize - strlen(targetOutFileName) - 1);
+        targetOutFileName.append("_" + isaString);
     }
     return targetOutFileName;
 }
@@ -2616,23 +2756,36 @@ static void lCreateDispatchFunction(llvm::Module *module, llvm::Function *setISA
     // type is the same across all architectures, however in different
     // modules it may have dissimilar names. The loop below works this
     // around.
-
+    unsigned int callingConv = llvm::CallingConv::C;
     for (int i = 0; i < Target::NUM_ISAS; ++i) {
         if (funcs.func[i]) {
 
             targetFuncs[i] =
                 llvm::Function::Create(ftype, llvm::GlobalValue::ExternalLinkage, funcs.func[i]->getName(), module);
-            g->target->markFuncWithCallingConv(targetFuncs[i]);
+            // Calling convention should be the same for all dispatched functions
+            callingConv = funcs.FTs[i]->GetCallingConv();
+            targetFuncs[i]->setCallingConv(callingConv);
+
         } else
             targetFuncs[i] = NULL;
     }
 
     bool voidReturn = ftype->getReturnType()->isVoidTy();
 
+    std::string functionName = name;
+    if (callingConv == llvm::CallingConv::X86_RegCall) {
+        g->target->markFuncNameWithRegCallPrefix(functionName);
+    }
+
     // Now we can emit the definition of the dispatch function..
     llvm::Function *dispatchFunc =
-        llvm::Function::Create(ftype, llvm::GlobalValue::ExternalLinkage, name.c_str(), module);
-    g->target->markFuncWithCallingConv(dispatchFunc);
+        llvm::Function::Create(ftype, llvm::GlobalValue::ExternalLinkage, functionName.c_str(), module);
+    dispatchFunc->setCallingConv(callingConv);
+
+    // Make dispatch function callable from DLLs.
+    if ((g->target_os == TargetOS::windows) && (g->dllExport)) {
+        dispatchFunc->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+    }
     llvm::BasicBlock *bblock = llvm::BasicBlock::Create(*g->ctx, "entry", dispatchFunc);
 
     // Start by calling out to the function that determines the system's
@@ -2640,14 +2793,7 @@ static void lCreateDispatchFunction(llvm::Module *module, llvm::Function *setISA
     llvm::CallInst::Create(setISAFunc, "", bblock);
 
     // Now we can load the system's ISA enumerant
-#if ISPC_LLVM_VERSION >= ISPC_LLVM_11_0
-    llvm::PointerType *ptr_type = llvm::dyn_cast<llvm::PointerType>(systemBestISAPtr->getType());
-    Assert(ptr_type);
-    llvm::Value *systemISA =
-        new llvm::LoadInst(ptr_type->getPointerElementType(), systemBestISAPtr, "system_isa", bblock);
-#else
-    llvm::Value *systemISA = new llvm::LoadInst(systemBestISAPtr, "system_isa", bblock);
-#endif
+    llvm::Value *systemISA = new llvm::LoadInst(LLVMTypes::Int32Type, systemBestISAPtr, "system_isa", bblock);
 
     // Now emit code that works backwards though the available variants of
     // the function.  We'll call out to the first one we find that will run
@@ -2688,15 +2834,11 @@ static void lCreateDispatchFunction(llvm::Module *module, llvm::Function *setISA
         }
         if (voidReturn) {
             llvm::CallInst *callInst = llvm::CallInst::Create(targetFuncs[i], args, "", callBBlock);
-            if (g->calling_conv == CallingConv::x86_vectorcall) {
-                callInst->setCallingConv(llvm::CallingConv::X86_VectorCall);
-            }
+            callInst->setCallingConv(targetFuncs[i]->getCallingConv());
             llvm::ReturnInst::Create(*g->ctx, callBBlock);
         } else {
             llvm::CallInst *callInst = llvm::CallInst::Create(targetFuncs[i], args, "ret_value", callBBlock);
-            if (g->calling_conv == CallingConv::x86_vectorcall) {
-                callInst->setCallingConv(llvm::CallingConv::X86_VectorCall);
-            }
+            callInst->setCallingConv(targetFuncs[i]->getCallingConv());
             llvm::ReturnInst::Create(*g->ctx, callInst, callBBlock);
         }
 
@@ -2768,23 +2910,23 @@ static void lEmitDispatchModule(llvm::Module *module, std::map<std::string, Func
     optPM.run(*module);
 }
 
-// Determines if two types are compatible
+// Determines if two types are compatible.
+// Here we check layout compatibility. We don't care about pointer types.
 static bool lCompatibleTypes(llvm::Type *Ty1, llvm::Type *Ty2) {
     while (Ty1->getTypeID() == Ty2->getTypeID())
         switch (Ty1->getTypeID()) {
-        case llvm::ArrayType::ArrayTyID:
+        case llvm::Type::ArrayTyID:
             if (Ty1->getArrayNumElements() != Ty2->getArrayNumElements())
                 return false;
             Ty1 = Ty1->getArrayElementType();
             Ty2 = Ty2->getArrayElementType();
             break;
-
-        case llvm::ArrayType::PointerTyID:
-            Ty1 = Ty1->getPointerElementType();
-            Ty2 = Ty2->getPointerElementType();
-            break;
-
-        case llvm::ArrayType::StructTyID: {
+        case llvm::Type::PointerTyID:
+            // Uniform pointers are compatible.
+            // Varying pointers are represented as <N x i32>/<N x i64>, it'll
+            // be checked in default statement.
+            return true;
+        case llvm::Type::StructTyID: {
             llvm::StructType *STy1 = llvm::dyn_cast<llvm::StructType>(Ty1);
             llvm::StructType *STy2 = llvm::dyn_cast<llvm::StructType>(Ty2);
             return STy1 && STy2 && STy1->isLayoutIdentical(STy2);
@@ -2809,7 +2951,7 @@ static void lExtractOrCheckGlobals(llvm::Module *msrc, llvm::Module *mdst, bool 
         llvm::GlobalVariable *gv = &*iter;
         // Is it a global definition?
         if (gv->getLinkage() == llvm::GlobalValue::ExternalLinkage && gv->hasInitializer()) {
-            llvm::Type *type = gv->getType()->PTR_ELT_TYPE();
+            llvm::Type *type = gv->getValueType();
             Symbol *sym = m->symbolTable->LookupVariable(gv->getName().str().c_str());
             Assert(sym != NULL);
 
@@ -2821,7 +2963,7 @@ static void lExtractOrCheckGlobals(llvm::Module *msrc, llvm::Module *mdst, bool 
                 // It is possible that the types may not match: for
                 // example, this happens with varying globals if we
                 // compile to different vector widths
-                if (!lCompatibleTypes(exist->getType(), gv->getType())) {
+                if (!lCompatibleTypes(exist->getValueType(), gv->getValueType())) {
                     Warning(sym->pos,
                             "Mismatch in size/layout of global "
                             "variable \"%s\" with different targets. "
@@ -2934,8 +3076,7 @@ int Module::CompileAndOutput(const char *srcFile, Arch arch, const char *cpu, st
             return 1;
         }
         if (cpu != NULL) {
-            Error(SourcePos(), "Illegal to specify cpu type when compiling "
-                               "for multiple targets.");
+            Error(SourcePos(), "Illegal to specify cpu type when compiling for multiple targets.");
             return 1;
         }
 
@@ -2981,6 +3122,7 @@ int Module::CompileAndOutput(const char *srcFile, Arch arch, const char *cpu, st
             DHI.EmitBackMatter = false;
         }
 
+        std::vector<Module *> modules(targets.size());
         for (unsigned int i = 0; i < targets.size(); ++i) {
             g->target = new Target(arch, cpu, targets[i], 0 != (outputFlags & GeneratePIC), g->printTarget);
             if (!g->target->isValid())
@@ -2990,15 +3132,13 @@ int Module::CompileAndOutput(const char *srcFile, Arch arch, const char *cpu, st
             // this target ISA.  (It doesn't make sense to compile to both
             // avx and avx-x2, for example.)
             if (targetMachines[g->target->getISA()] != NULL) {
-                Error(SourcePos(),
-                      "Can't compile to multiple variants of %s "
-                      "target!\n",
-                      g->target->GetISAString());
+                Error(SourcePos(), "Can't compile to multiple variants of %s target!\n", g->target->GetISAString());
                 return 1;
             }
             targetMachines[g->target->getISA()] = g->target->GetTargetMachine();
 
             m = new Module(srcFile);
+            modules.push_back(m);
             const int compileResult = m->CompileFile();
 
             llvm::TimeTraceScope TimeScope("Backend");
@@ -3018,7 +3158,7 @@ int Module::CompileAndOutput(const char *srcFile, Arch arch, const char *cpu, st
 
                 if (outFileName != NULL) {
                     std::string targetOutFileName;
-                    const char *isaName = g->target->GetISAString();
+                    std::string isaName{g->target->GetISAString()};
                     targetOutFileName = lGetTargetFileName(outFileName, isaName);
                     if (!m->writeOutput(outputType, outputFlags, targetOutFileName.c_str())) {
                         return 1;
@@ -3134,10 +3274,52 @@ int Module::CompileAndOutput(const char *srcFile, Arch arch, const char *cpu, st
                 return 1;
         }
 
+        for (auto module : modules) {
+            delete module;
+        }
+
         delete g->target;
         g->target = NULL;
         return errorCount > 0;
     }
+}
+
+int Module::LinkAndOutput(std::vector<std::string> linkFiles, OutputType outputType, const char *outFileName) {
+    auto llvmLink = std::make_unique<llvm::Module>("llvm-link", *g->ctx);
+    llvm::Linker linker(*llvmLink);
+    for (const auto &file : linkFiles) {
+        llvm::SMDiagnostic err;
+        std::unique_ptr<llvm::Module> m = nullptr;
+        std::ifstream inputStream(file, std::ios::binary);
+        if (!inputStream.is_open()) {
+            perror(file.c_str());
+            return 1;
+        }
+        if (lIsLlvmBitcode(inputStream))
+            m = llvm::parseIRFile(file, err, *g->ctx);
+#ifdef ISPC_XE_ENABLED
+        else if (lIsSpirVBitcode(inputStream))
+            m = translateFromSPIRV(inputStream);
+#endif
+        else {
+            Error(SourcePos(), "Unrecognized format of input file %s", file.c_str());
+            return 1;
+        }
+        if (m) {
+            linker.linkInModule(std::move(m), 0);
+        }
+        inputStream.close();
+    }
+    if (outFileName != NULL) {
+        if ((outputType == Bitcode) || (outputType == BitcodeText))
+            writeBitcode(llvmLink.get(), outFileName, outputType);
+#ifdef ISPC_XE_ENABLED
+        else if (outputType == SPIRV)
+            writeSPIRV(llvmLink.get(), outFileName);
+#endif
+        return 0;
+    }
+    return 1;
 }
 
 void Module::clearCPPBuffer() {

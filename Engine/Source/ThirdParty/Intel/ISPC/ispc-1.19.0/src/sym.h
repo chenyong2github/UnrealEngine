@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,10 @@
 
 #pragma once
 
+#include "ctx.h"
 #include "decl.h"
 #include "ispc.h"
+
 #include <map>
 
 namespace ispc {
@@ -69,10 +71,10 @@ class Symbol {
 
     SourcePos pos;            /*!< Source file position where the symbol was defined */
     std::string name;         /*!< Symbol's name */
-    llvm::Value *storagePtr;  /*!< For symbols with storage associated with
+    AddressInfo *storageInfo; /*!< For symbols with storage associated with
                                    them (i.e. variables but not functions),
-                                   this member stores a pointer to its
-                                   location in memory.) */
+                                   this member stores an address info: pointer to
+                                   its location in memory and its element type.) */
     llvm::Function *function; /*!< For symbols that represent functions,
                                    this stores the LLVM Function value for
                                    the symbol once it has been created. */
@@ -90,7 +92,7 @@ class Symbol {
                                     example, the ConstExpr class can't currently represent
                                     struct types.  For cases like these, ConstExpr is NULL,
                                     though for all const symbols, the value pointed to by the
-                                    storagePtr member will be its constant value.  (This
+                                    storageInfo pointer member will be its constant value.  (This
                                     messiness is due to needing an ispc ConstExpr for the early
                                     constant folding optimizations). */
     StorageClass storageClass; /*!< Records the storage class (if any) provided with the
@@ -105,6 +107,33 @@ class Symbol {
     /*!< For symbols that are parameters to functions or are
          variables declared inside functions, this gives the
          function they're in. */
+};
+
+/**
+   @brief Represents function template.
+
+   TODO: The only reason that it's separate from Symbol is that we trying not to introduce additional
+   overhead. Symbol class needs to be refactored to be either a class hierarchy or be implemented as
+   a union of different types of symbols.
+ */
+class TemplateSymbol {
+  public:
+    TemplateSymbol(const TemplateParms *parms, const std::string &n, const FunctionType *t, const SourcePos p,
+                   bool isInline, bool inNoInline);
+
+    SourcePos pos;
+    const std::string name;
+    const FunctionType *type;
+    const TemplateParms *templateParms;
+    FunctionTemplate *functionTemplate;
+
+    // Inline / noinline attributes.
+    // TODO: it's bad idea to store them here, this need to be redesigned.
+    // The reason to keep them here for now is that for regular functions it's not stored anywhere in AST,
+    // but attached as attrubutes to llvm::Function when it's created. For templates we need to store this
+    // information in here and use later when the template is instantiated.
+    bool isInline;
+    bool isNoInline;
 };
 
 /** @brief Symbol table that holds all known symbols during parsing and compilation.
@@ -184,6 +213,29 @@ class SymbolTable {
 
         @return pointer to matching Symbol; NULL if none is found. */
     Symbol *LookupFunction(const char *name, const FunctionType *type);
+
+    /** Adds the given function template to the symbol table.
+        @param templ The function template to be added.
+
+        @return true if the template has been added.  False if another
+        function template with the same name and function signature is
+        already present in the symbol table. */
+    bool AddFunctionTemplate(TemplateSymbol *templ);
+
+    /** Looks for the function or functions with the given name in the
+        symbol name.  If a function has been overloaded and multiple
+        definitions are present for a given function name, all of them will
+        be returned in the provided vector and it's up the the caller to
+        resolve which one (if any) to use.  Returns true if any matches
+        were found. */
+    bool LookupFunctionTemplate(const std::string &name, std::vector<TemplateSymbol *> *matches = nullptr);
+
+    /** Looks for a function template with the given name and type
+        in the symbol table.
+
+        @return pointer to matching FunctionTemplate; NULL if none is found. */
+    TemplateSymbol *LookupFunctionTemplate(const TemplateParms *templateParmList, const std::string &name,
+                                           const FunctionType *type);
 
     /** Returns all of the functions in the symbol table that match the given
         predicate.
@@ -295,7 +347,14 @@ class SymbolTable {
     typedef std::map<llvm::Function *, Symbol *> IntrinsicMapType;
     IntrinsicMapType intrinsics;
 
-    /** Type definitions can't currently be scoped.
+    /** Function template declarations, as well as function declaration, are
+        *not* scoped.  A STL \c vector is used to store the function templates
+        for a given name since, due to function overloading, a name can
+        have multiple function templates associated with it. */
+    typedef std::map<std::string, std::vector<TemplateSymbol *>> FunctionTemplateMapType;
+    FunctionTemplateMapType functionTemplates;
+
+    /** Scoped types.
      */
     typedef std::map<std::string, const Type *> TypeMapType;
     std::vector<TypeMapType> types;

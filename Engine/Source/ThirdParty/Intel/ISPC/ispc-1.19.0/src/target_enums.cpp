@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019-2021, Intel Corporation
+  Copyright (c) 2019-2023, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -142,6 +142,16 @@ ISPCTarget ParseISPCTarget(std::string target) {
         return ISPCTarget::avx512skx_x32;
     } else if (target == "avx512skx-x64" || target == "avx512skx-i8x64") {
         return ISPCTarget::avx512skx_x64;
+    } else if (target == "avx512spr-x4") {
+        return ISPCTarget::avx512spr_x4;
+    } else if (target == "avx512spr-x8") {
+        return ISPCTarget::avx512spr_x8;
+    } else if (target == "avx512spr-x16") {
+        return ISPCTarget::avx512spr_x16;
+    } else if (target == "avx512spr-x32") {
+        return ISPCTarget::avx512spr_x32;
+    } else if (target == "avx512spr-x64") {
+        return ISPCTarget::avx512spr_x64;
     } else if (target == "neon-i8x16") {
         return ISPCTarget::neon_i8x16;
     } else if (target == "neon-i16x8") {
@@ -164,6 +174,10 @@ ISPCTarget ParseISPCTarget(std::string target) {
         return ISPCTarget::xehpg_x8;
     } else if (target == "xehpg-x16") {
         return ISPCTarget::xehpg_x16;
+    } else if (target == "xehpc-x16") {
+        return ISPCTarget::xehpc_x16;
+    } else if (target == "xehpc-x32") {
+        return ISPCTarget::xehpc_x32;
     }
 
     return ISPCTarget::error;
@@ -247,6 +261,16 @@ std::string ISPCTargetToString(ISPCTarget target) {
         return "avx512skx-x32";
     case ISPCTarget::avx512skx_x64:
         return "avx512skx-x64";
+    case ISPCTarget::avx512spr_x4:
+        return "avx512spr-x4";
+    case ISPCTarget::avx512spr_x8:
+        return "avx512spr-x8";
+    case ISPCTarget::avx512spr_x16:
+        return "avx512spr-x16";
+    case ISPCTarget::avx512spr_x32:
+        return "avx512spr-x32";
+    case ISPCTarget::avx512spr_x64:
+        return "avx512spr-x64";
     case ISPCTarget::neon_i8x16:
         return "neon-i8x16";
     case ISPCTarget::neon_i16x8:
@@ -269,6 +293,10 @@ std::string ISPCTargetToString(ISPCTarget target) {
         return "xehpg-x8";
     case ISPCTarget::xehpg_x16:
         return "xehpg-x16";
+    case ISPCTarget::xehpc_x16:
+        return "xehpc-x16";
+    case ISPCTarget::xehpc_x32:
+        return "xehpc-x32";
     case ISPCTarget::none:
     case ISPCTarget::error:
         // Fall through
@@ -302,6 +330,11 @@ bool ISPCTargetIsX86(ISPCTarget target) {
     case ISPCTarget::avx512skx_x16:
     case ISPCTarget::avx512skx_x32:
     case ISPCTarget::avx512skx_x64:
+    case ISPCTarget::avx512spr_x4:
+    case ISPCTarget::avx512spr_x8:
+    case ISPCTarget::avx512spr_x16:
+    case ISPCTarget::avx512spr_x32:
+    case ISPCTarget::avx512spr_x64:
         return true;
     default:
         return false;
@@ -337,6 +370,8 @@ bool ISPCTargetIsGen(ISPCTarget target) {
     case ISPCTarget::xelp_x16:
     case ISPCTarget::xehpg_x8:
     case ISPCTarget::xehpg_x16:
+    case ISPCTarget::xehpc_x16:
+    case ISPCTarget::xehpc_x32:
         return true;
     default:
         return false;

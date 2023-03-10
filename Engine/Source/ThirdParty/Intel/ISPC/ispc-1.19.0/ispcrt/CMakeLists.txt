@@ -33,14 +33,26 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 option(ISPCRT_BUILD_CPU "Enable CPU support in ispcrt" ON)
 option(ISPCRT_BUILD_TASKING "Enable CPU tasking targets in ispcrt" ON)
-if (XE_ENABLED)
+
+# Do not build ISPCRT with GPU support on FreeBSD even if XE_ENABLED is ON.
+# All dependencies, such as L0 and compute-runtime, are theoretically available
+# on FreeBSD, but were never tested. If this switch is enabled, the full recipe to
+# build/test the full stack is needed.
+if (XE_ENABLED AND NOT (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD"))
   option(ISPCRT_BUILD_GPU "Enable Level0 GPU support in ispcrt" ON)
+else()
+  option(ISPCRT_BUILD_GPU "Enable Level0 GPU support in ispcrt" OFF)
+endif()
+
+if (ISPCRT_BUILD_GPU)
   if (WIN32)
     option(ISPCRT_BUILD_TESTS "Enable ispcrt tests" OFF)
   else()
     option(ISPCRT_BUILD_TESTS "Enable ispcrt tests" ON)
   endif()
 endif()
+
+option(ISPCRT_BUILD_STATIC "Build ispcrt static library" ON)
 
 if (NOT ISPCRT_BUILD_CPU AND NOT ISPCRT_BUILD_GPU)
   message(FATAL_ERROR "You must enable either CPU or GPU support!")
@@ -110,6 +122,10 @@ macro(build_ispcrt SHARED_OR_STATIC TARGET_NAME)
     $<$<BOOL:${ISPCRT_BUILD_CPU}>:detail/cpu/CPUDevice.cpp>
     $<$<BOOL:${ISPCRT_BUILD_GPU}>:detail/gpu/GPUDevice.cpp>
   )
+  set_target_properties(${TARGET_NAME} PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+  )
 
   if (ISPCRT_BUILD_GPU)
     target_compile_definitions(${TARGET_NAME} PRIVATE ISPCRT_BUILD_GPU)
@@ -175,6 +191,7 @@ macro(build_ispcrt SHARED_OR_STATIC TARGET_NAME)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
 endmacro()
+
 if (WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
@@ -182,7 +199,10 @@ build_ispcrt(SHARED ${PROJECT_NAME})
 if (WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 endif()
-build_ispcrt(STATIC ${PROJECT_NAME}_static)
+
+if (ISPCRT_BUILD_STATIC)
+  build_ispcrt(STATIC ${PROJECT_NAME}_static)
+endif()
 
 ## Build tests ############################################################
 
