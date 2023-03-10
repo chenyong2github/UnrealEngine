@@ -586,6 +586,26 @@ SIZE_T FManagedArrayCollection::GetAllocatedSize() const
 	return AllocatedSize;
 }
 
+void FManagedArrayCollection::GetElementSizeInfoForGroups(TArray<TPair<FName, SIZE_T>>& OutSizeInfo) const
+{
+	// Group name to total element size map
+	TMap<FName, SIZE_T> GroupToElementSizeMap;
+
+	for (const TPair<FKeyType, FValueType>& Attribute : Map)
+	{
+		SIZE_T& GroupSize = GroupToElementSizeMap.FindOrAdd(Attribute.Key.Get<1>());
+		if (FManagedArrayBase* Array = Attribute.Value.Value)
+		{
+			GroupSize += Array->GetTypeSize();
+		}
+	}
+
+	for (const TPair<FName, SIZE_T>& GroupAndElementSize : GroupToElementSizeMap)
+	{
+		OutSizeInfo.Add(GroupAndElementSize);
+	}
+}
+
 static const FName GuidName("GUID");
 
 // this is a reference wrapper to avoid copying attributes as some may not support copy (unique ptr ones) 

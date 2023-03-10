@@ -549,6 +549,11 @@ public:
 	*/
 	SIZE_T GetAllocatedSize() const;
 
+	/**
+	 * Get information on the total storage required for each element in each group
+	 */
+	 void GetElementSizeInfoForGroups(TArray<TPair<FName, SIZE_T>>& OutSizeInfo) const;
+
 private:
 
 	/****
