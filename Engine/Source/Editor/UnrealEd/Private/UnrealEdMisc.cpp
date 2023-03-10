@@ -1189,16 +1189,12 @@ void FUnrealEdMisc::CB_MapChange( uint32 InFlags )
 		// Minor things like brush subtraction will set it to "0".
 		if (InFlags != MapChangeEventFlags::Default)
 		{
-			World->ClearWorldComponents();
-
-			// Note: CleanupWorld is being abused here to detach components and some other stuff
-			// CleanupWorld should only be called before destroying the world
-			// So bCleanupResources is being passed as false
-			World->CleanupWorld(true, false);
-
-			// CleanupWorld will have nulled the FXSystem, create a new one or else the dependent
-			// FXSystemComponents will be left unregistered and/or fail to activate.
-			World->CreateFXSystem();
+			if (World->IsInitialized())
+			{
+				// Call CleanupWorld/InitWorld to detach components and some other stuff
+				World->CleanupWorld();
+				World->InitWorld();
+			}
 		}
 
 		GEditor->EditorUpdateComponents();
