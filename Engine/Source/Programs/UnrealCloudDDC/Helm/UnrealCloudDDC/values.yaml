@@ -319,6 +319,9 @@ nginx:
   ## Set this to use Unix domain sockets rather then ports for inter process communication
   useDomainSockets: false
 
+  ## Set to enable access log output, can be useful for debugging but will generate a lot of logs in prod
+  accessLogging: false
+
   ## Control the number of worker connections used for nginx
   workerConnections: 1024
 
