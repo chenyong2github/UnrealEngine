@@ -1717,7 +1717,7 @@ export const SearchUpdate: React.FC = observer(() => {
    const csearch = localState.search.toString();
 
    if (state.search !== csearch) {
-      setSearchParams(csearch);
+      setSearchParams(csearch, {replace: true});
       setState({ search: csearch });
    }
 
