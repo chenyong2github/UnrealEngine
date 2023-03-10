@@ -31,7 +31,6 @@ class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenc
 	GENERATED_BODY()
 
 public:
-	// @todo: used only for indexing: cache it somewhere else
 	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 0))
 	TObjectPtr<USkeleton> Skeleton;
 
@@ -55,7 +54,6 @@ public:
 	UPROPERTY(Transient)
 	int32 SchemaCardinality = 0;
 
-	// @todo: used only for indexing: cache it somewhere else
 	UPROPERTY(Transient)
 	TArray<FBoneReference> BoneReferences;
 
@@ -77,7 +75,7 @@ public:
 
 	// cost added to all poses from looping assets of databases that uses this schema
 	UPROPERTY(EditAnywhere, Category = "Bias")
-	float LoopingCostBias = 0.f;
+	float LoopingCostBias = 0.01f;
 
 	// how many times the animation assets of the database using this schema will be indexed
 	UPROPERTY(EditAnywhere, Category = "Permutations", meta = (ClampMin = "1"))

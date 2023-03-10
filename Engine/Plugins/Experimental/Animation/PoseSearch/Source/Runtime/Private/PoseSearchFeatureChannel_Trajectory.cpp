@@ -15,7 +15,7 @@
 UPoseSearchFeatureChannel_Trajectory::UPoseSearchFeatureChannel_Trajectory()
 {
 #if WITH_EDITOR
-	// defaulting UPoseSearchFeatureChannel_Trajectory to a meaningful locomotion setup
+	// defaulting UPoseSearchFeatureChannel_Trajectory for a meaningful locomotion setup
 	Weight = 7.f;
 	Samples.Add(FPoseSearchTrajectorySample({ -0.4f, int32(EPoseSearchTrajectoryFlags::PositionXY), 0.4f, FLinearColor::Red }));
 	Samples.Add(FPoseSearchTrajectorySample({ 0.f, int32(EPoseSearchTrajectoryFlags::VelocityXY | EPoseSearchTrajectoryFlags::FacingDirectionXY), 2.f, FLinearColor::Blue }));

@@ -11,6 +11,16 @@
 
 #define LOCTEXT_NAMESPACE "PoseSearchFeatureChannels"
 
+UPoseSearchFeatureChannel_Pose::UPoseSearchFeatureChannel_Pose()
+{
+#if WITH_EDITOR
+	// defaulting UPoseSearchFeatureChannel_Pose for a meaningful locomotion setup
+	Weight = 1.f;
+	SampledBones.Add(FPoseSearchBone({ {"foot_l"}, int32(EPoseSearchBoneFlags::Position | EPoseSearchBoneFlags::Velocity), 1.f, FLinearColor::Green }));
+	SampledBones.Add(FPoseSearchBone({ {"foot_r"}, int32(EPoseSearchBoneFlags::Position | EPoseSearchBoneFlags::Velocity), 1.f, FLinearColor::Green}));
+#endif
+}
+
 void UPoseSearchFeatureChannel_Pose::Finalize(UPoseSearchSchema* Schema)
 {
 	SubChannels.Reset();
