@@ -1354,7 +1354,9 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 	bool bReportSoftObjectPathRedirects = false;
 
 	{
-		TGuardValue<bool*> GuardValue(
+		// TOptionalGuardValue will not overwrite the value if it remains the same.
+		// This is important for TSAN as we only want warnings if this unprotected value is changing.
+		TOptionalGuardValue<bool*> GuardValue(
 			GReportSoftObjectPathRedirects,
 			  GReportSoftObjectPathRedirects
 			? GReportSoftObjectPathRedirects
