@@ -17,27 +17,42 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::CreateNewClusterUnion"), STAT_CreateNewClusterUnion, STATGROUP_Chaos);
-	FClusterUnionIndex FClusterUnionManager::CreateNewClusterUnion(const FClusterCreationParameters& Parameters, FClusterUnionExplicitIndex ExplicitIndex, const FUniqueIdx* UniqueIndex)
+	FClusterUnionIndex FClusterUnionManager::CreateNewClusterUnion(const FClusterCreationParameters& Parameters, const FClusterUnionCreationParameters& ClusterUnionParameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CreateNewClusterUnion);
 		FClusterUnionIndex NewIndex = ClaimNextUnionIndex();
 		check(NewIndex > 0);
 
 		FClusterUnion NewUnion;
-		NewUnion.ExplicitIndex = ExplicitIndex;
+		NewUnion.ExplicitIndex = ClusterUnionParameters.ExplicitIndex;
 		NewUnion.SharedGeometry = ForceRecreateClusterUnionSharedGeometry(NewUnion);
-		NewUnion.InternalCluster = MClustering.CreateClusterParticle(-NewIndex, {}, Parameters, NewUnion.SharedGeometry, nullptr, UniqueIndex);
+		NewUnion.InternalCluster = MClustering.CreateClusterParticle(-NewIndex, {}, Parameters, NewUnion.SharedGeometry, nullptr, ClusterUnionParameters.UniqueIndex);
 		NewUnion.Parameters = Parameters;
+		NewUnion.ClusterUnionParameters = ClusterUnionParameters;
+
+		// Some parameters aren't relevant after creation.
+		NewUnion.ClusterUnionParameters.UniqueIndex = nullptr;
+
+
 		if (ensure(NewUnion.InternalCluster != nullptr))
 		{
 			NewUnion.InternalCluster->SetInternalCluster(true);
-
+			if (AccelerationStructureSplitStaticAndDynamic == 1)
+			{
+				NewUnion.InternalCluster->SetSpatialIdx(FSpatialAccelerationIdx{ 0, 1 });
+			}
+			else
+			{
+				NewUnion.InternalCluster->SetSpatialIdx(FSpatialAccelerationIdx{ 0, 0 });
+			}
 			// No bounds for now since we don't have particles. When/if we do get particles later, updating the
 			// geometry should switch this flag back on.
 			NewUnion.InternalCluster->SetHasBounds(false);
 		}
+		MEvolution.DisableParticle(NewUnion.InternalCluster);
 
 		ClusterUnions.Add(NewIndex, NewUnion);
+		ParticleToClusterUnionIndex.Add(NewUnion.InternalCluster, NewIndex);
 		return NewIndex;
 	}
 
@@ -48,8 +63,25 @@ namespace Chaos
 
 		if (FClusterUnion* ClusterUnion = FindClusterUnion(Index))
 		{
+			// Need to actually remove the particles and set them back into a simulatable state.
+			// We need a clean removal here just in case the cluster union is actually being destroyed 
+			// on the game thread prior to its children (which would live on another actor).
+			// 
+			// Note that we need to make a copy of the array here since the children list will be modified by the HandleRemoveOperation.
+			// However, the function does not expect that the input array will change.
+			TArray<FPBDRigidParticleHandle*> ChildrenCopy = ClusterUnion->ChildParticles;
+			HandleRemoveOperation(Index, ChildrenCopy, false);
 			ClusterUnion->ChildParticles.Empty();
 			MClustering.DestroyClusterParticle(ClusterUnion->InternalCluster);
+
+			if (ClusterUnion->ExplicitIndex != INDEX_NONE)
+			{
+				ExplicitIndexMap.Remove(ClusterUnion->ExplicitIndex);
+				PendingExplicitIndexOperations.Remove(ClusterUnion->ExplicitIndex);
+			}
+			ReusableIndices.Add(Index);
+			PendingClusterIndexOperations.Remove(Index);
+			ClusterUnions.Remove(Index);
 		}
 	}
 
@@ -65,9 +97,7 @@ namespace Chaos
 
 		const FRigidTransform3 ClusterWorldTM(Union.InternalCluster->X(), Union.InternalCluster->R());
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		TArray<FPBDRigidParticleHandle*> ChildParticleHandles;
 		Objects.Reserve(Union.ChildParticles.Num());
-		ChildParticleHandles.Reserve(Union.ChildParticles.Num());
 
 		for (FPBDRigidParticleHandle* Child : Union.ChildParticles)
 		{
@@ -76,11 +106,10 @@ namespace Chaos
 			if (Child->Geometry())
 			{
 				Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame)));
-				ChildParticleHandles.Add(Child);
 			}
 		}
 
-		return MakeShared<FImplicitObjectUnionClustered>(MoveTemp(Objects), ChildParticleHandles);
+		return MakeShared<FImplicitObjectUnion>(MoveTemp(Objects));
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::ClaimNextUnionIndex"), STAT_ClaimNextUnionIndex, STATGROUP_Chaos);
@@ -142,6 +171,9 @@ namespace Chaos
 				case EClusterUnionOperation::AddReleased:
 					HandleAddOperation(OpMap.Key, Op.Value, Op.Key == EClusterUnionOperation::AddReleased);
 					break;
+				case EClusterUnionOperation::Remove:
+					HandleRemoveOperation(OpMap.Key, Op.Value, true);
+					break;
 				}
 			}
 		}
@@ -173,6 +205,10 @@ namespace Chaos
 		{
 			return;
 		}
+
+		// If we're adding particles to a cluster we need to first make sure they're not part of any other cluster.
+		// Book-keeping might get a bit odd if we try to add a particle to a new clutser and then only later remove the particle from its old cluster.
+		HandleRemoveOperationWithClusterLookup(Particles, true);
 
 		TGuardValue_Bitfield_Cleanup<TFunction<void()>> Cleanup(
 			[this, OldGenerateClusterBreaking=MClustering.GetDoGenerateBreakingData()]() {
@@ -240,6 +276,10 @@ namespace Chaos
 		}
 
 		Cluster->ChildParticles.Append(FinalParticlesToAdd);
+		for (FPBDRigidParticleHandle* Particle : FinalParticlesToAdd)
+		{
+			ParticleToClusterUnionIndex.Add(Particle, ClusterIndex);
+		}
 
 		MClustering.AddParticlesToCluster(Cluster->InternalCluster, FinalParticlesToAdd, ChildToParentMap);
 
@@ -257,30 +297,12 @@ namespace Chaos
 			}
 		}
 
-		// Update cluster properties.
-		FMatrix33 ClusterInertia(0);
-
-		// TODO: These functions are generally just re-building the cluster from scratch. Need to figure out a way
-		// to get these functions to update the already existing cluster instead.
-		TSet<FPBDRigidParticleHandle*> FullChildrenSet(FinalParticlesToAdd);
-
-		const FRigidTransform3 ForceMassOrientation{ Cluster->InternalCluster->X(), Cluster->InternalCluster->R() };
-		UpdateClusterMassProperties(Cluster->InternalCluster, FullChildrenSet, ClusterInertia, bIsNewCluster ? nullptr : &ForceMassOrientation);
-
 		if (bIsNewCluster && bIsAnchored)
 		{
 			// The anchored flag is taken care of in UpdateKinematicProperties so it must be set before that is called.
 			Cluster->InternalCluster->SetIsAnchored(true);
 		}
-		UpdateKinematicProperties(Cluster->InternalCluster, MClustering.GetChildrenMap(), MEvolution);
-
-		// The recreation of the geometry must happen after the call to UpdateClusterMassProperties.
-		// Creating the geometry requires knowing the relative frame between the parent cluster and the child clusters. The
-		// parent transform is not set properly for a new empty cluster until UpdateClusterMassProperties is called for the first time.
-		Cluster->SharedGeometry = ForceRecreateClusterUnionSharedGeometry(*Cluster);
-
-		UpdateGeometry(Cluster->InternalCluster, FullChildrenSet, MClustering.GetChildrenMap(), Cluster->SharedGeometry, Cluster->Parameters);
-		MClustering.GenerateConnectionGraph(Cluster->InternalCluster, Cluster->Parameters);
+		UpdateAllClusterUnionProperties(*Cluster, bIsNewCluster);
 
 		if (OldProxy)
 		{
@@ -296,6 +318,157 @@ namespace Chaos
 
 			MEvolution.SetPhysicsMaterial(Cluster->InternalCluster, MEvolution.GetPhysicsMaterial(FinalParticlesToAdd[0]));
 		}
+
+		if (Cluster->InternalCluster->Disabled())
+		{
+			MEvolution.EnableParticle(Cluster->InternalCluster);
+		}
+
+		MEvolution.DirtyParticle(*Cluster->InternalCluster);
+		MEvolution.GetParticles().MarkTransientDirtyParticle(Cluster->InternalCluster);
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::HandleRemoveOperation"), STAT_HandleRemoveOperation, STATGROUP_Chaos);
+	void FClusterUnionManager::HandleRemoveOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bUpdateClusterProperties)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_HandleRemoveOperation);
+		FClusterUnion* Cluster = ClusterUnions.Find(ClusterIndex);
+		if (!Cluster || Particles.IsEmpty())
+		{
+			return;
+		}
+
+		TGuardValue_Bitfield_Cleanup<TFunction<void()>> Cleanup(
+			[this, OldGenerateClusterBreaking = MClustering.GetDoGenerateBreakingData()]() {
+				MClustering.SetGenerateClusterBreaking(OldGenerateClusterBreaking);
+			}
+		);
+		MClustering.SetGenerateClusterBreaking(false);
+
+		IPhysicsProxyBase* OldProxy = Cluster->InternalCluster->PhysicsProxy();
+		TArray<int32> ParticleIndicesToRemove;
+		ParticleIndicesToRemove.Reserve(Particles.Num());
+
+		for (FPBDRigidParticleHandle* Handle : Particles)
+		{
+			const int32 ParticleIndex = Cluster->ChildParticles.Find(Handle);
+			if (ParticleIndex != INDEX_NONE)
+			{
+				ParticleIndicesToRemove.Add(ParticleIndex);
+				// Remove the parent proxy only if it's a cluster union proxy.
+				if (IPhysicsProxyBase* Proxy = Handle->PhysicsProxy(); Proxy && Proxy->GetParentProxy() && Proxy->GetParentProxy()->GetType() == EPhysicsProxyType::ClusterUnionProxy)
+				{
+					Proxy->SetParentProxy(nullptr);
+				}
+			}
+		}
+
+		ParticleIndicesToRemove.Sort();
+		for (int32 Index = ParticleIndicesToRemove.Num() - 1; Index >= 0; --Index)
+		{
+			const int32 ParticleIndex = ParticleIndicesToRemove[Index];
+			ParticleToClusterUnionIndex.Remove(Cluster->ChildParticles[ParticleIndex]);
+			Cluster->ChildParticles.RemoveAt(ParticleIndex);
+		}
+
+		MClustering.RemoveParticlesFromCluster(Cluster->InternalCluster, Particles);
+
+		if (bUpdateClusterProperties)
+		{
+			UpdateAllClusterUnionProperties(*Cluster, false);
+		}
+
+		// Removing a particle should have no bearing on the proxy of the cluster.
+		// This gets changed because we go through an internal initialization route when we update the cluster union particle's properties.
+		Cluster->InternalCluster->SetPhysicsProxy(OldProxy);
+
+		if (!Cluster->ChildParticles.IsEmpty())
+		{
+			MEvolution.DirtyParticle(*Cluster->InternalCluster);
+		}
+		else
+		{
+			// Note that if we have 0 child particles, our implicit object union will have an invalid bounding box.
+			// We must eject from the acceleration structure otherwise we risk cashes.
+			MEvolution.DisableParticle(Cluster->InternalCluster);
+		}
+		MEvolution.GetParticles().MarkTransientDirtyParticle(Cluster->InternalCluster);
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::HandleRemoveOperationWithClusterLookup"), STAT_HandleRemoveOperationWithClusterLookup, STATGROUP_Chaos);
+	void FClusterUnionManager::HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, bool bUpdateClusterProperties)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_HandleRemoveOperationWithClusterLookup);
+		TMap<FClusterUnionIndex, TSet<FPBDRigidParticleHandle*>> ParticlesPerCluster;
+		for (FPBDRigidParticleHandle* Particle : InParticles)
+		{
+			if (const int32 Index = FindClusterUnionIndexFromParticle(Particle); Index != INDEX_NONE)
+			{
+				ParticlesPerCluster.FindOrAdd(Index).Add(Particle);
+			}
+		}
+
+		for (const TPair<FClusterUnionIndex, TSet<FPBDRigidParticleHandle*>>& Kvp : ParticlesPerCluster)
+		{
+			HandleRemoveOperation(Kvp.Key, Kvp.Value.Array(), bUpdateClusterProperties);
+		}
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::UpdateClusterUnionProperties"), STAT_UpdateClusterUnionProperties, STATGROUP_Chaos);
+	void FClusterUnionManager::UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, bool bRecomputeMassOrientation)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionProperties);
+		// Update cluster properties.
+		FMatrix33 ClusterInertia(0);
+
+		// TODO: These functions are generally just re-building the cluster from scratch. Need to figure out a way
+		// to get these functions to update the already existing cluster instead.
+		TSet<FPBDRigidParticleHandle*> FullChildrenSet(ClusterUnion.ChildParticles);
+
+		const FRigidTransform3 ForceMassOrientation{ ClusterUnion.InternalCluster->X(), ClusterUnion.InternalCluster->R() };
+		UpdateClusterMassProperties(ClusterUnion.InternalCluster, FullChildrenSet, ClusterInertia, bRecomputeMassOrientation ? nullptr : &ForceMassOrientation);
+		UpdateKinematicProperties(ClusterUnion.InternalCluster, MClustering.GetChildrenMap(), MEvolution);
+
+		// The recreation of the geometry must happen after the call to UpdateClusterMassProperties.
+		// Creating the geometry requires knowing the relative frame between the parent cluster and the child clusters. The
+		// parent transform is not set properly for a new empty cluster until UpdateClusterMassProperties is called for the first time.
+		ClusterUnion.SharedGeometry = ForceRecreateClusterUnionSharedGeometry(ClusterUnion);
+		UpdateGeometry(ClusterUnion.InternalCluster, FullChildrenSet, MClustering.GetChildrenMap(), ClusterUnion.SharedGeometry, ClusterUnion.Parameters);
+
+		// TODO: Need to figure out how to do the mapping back to the child shape if we ever do shape simplification...
+		if (!ClusterUnion.ChildParticles.IsEmpty() && ClusterUnion.ChildParticles.Num() == ClusterUnion.InternalCluster->ShapesArray().Num())
+		{
+			for (int32 ChildIndex = 0; ChildIndex < ClusterUnion.ChildParticles.Num(); ++ChildIndex)
+			{
+				// TODO: Is there a better way to do this merge?
+				const TUniquePtr<Chaos::FPerShapeData>& TemplateShape = ClusterUnion.ChildParticles[ChildIndex]->ShapesArray()[0];
+				const TUniquePtr<Chaos::FPerShapeData>& ShapeData = ClusterUnion.InternalCluster->ShapesArray()[ChildIndex];
+				if (ShapeData && TemplateShape)
+				{
+					{
+						FCollisionData Data = TemplateShape->GetCollisionData();
+						Data.UserData = nullptr;
+						ShapeData->SetCollisionData(Data);
+					}
+
+					{
+						FCollisionFilterData Data = TemplateShape->GetQueryData();
+						Data.Word0 = ClusterUnion.ClusterUnionParameters.ActorId;
+						ShapeData->SetQueryData(Data);
+					}
+
+					{
+						FCollisionFilterData Data = TemplateShape->GetSimData();
+						Data.Word0 = 0;
+						Data.Word2 = ClusterUnion.ClusterUnionParameters.ComponentId;
+						ShapeData->SetSimData(Data);
+					}
+				}
+			}
+		}
+
+		MClustering.ClearConnectionGraph(ClusterUnion.InternalCluster);
+		MClustering.GenerateConnectionGraph(ClusterUnion.InternalCluster, ClusterUnion.Parameters);
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::GetOrCreateClusterUnionIndexFromExplicitIndex"), STAT_GetOrCreateClusterUnionIndexFromExplicitIndex, STATGROUP_Chaos);
@@ -308,7 +481,7 @@ namespace Chaos
 			return *OutIndex;
 		}
 
-		FClusterUnionIndex NewIndex = CreateNewClusterUnion(DefaultClusterCreationParameters(), InIndex);
+		FClusterUnionIndex NewIndex = CreateNewClusterUnion(DefaultClusterCreationParameters());
 		ExplicitIndexMap.Add(InIndex, NewIndex);
 		return NewIndex;
 	}
@@ -318,5 +491,21 @@ namespace Chaos
 		 FClusterCreationParameters Parameters{ 0.3f, 100, false, FRigidClustering::ShouldUnionsHaveCollisionParticles() };
 		 Parameters.ConnectionMethod = MClustering.GetClusterUnionConnectionType();
 		 return Parameters;
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::FindClusterUnionIndexFromParticle"), STAT_FindClusterUnionIndexFromParticle, STATGROUP_Chaos);
+	FClusterUnionIndex FClusterUnionManager::FindClusterUnionIndexFromParticle(FPBDRigidParticleHandle* ChildParticle)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_FindClusterUnionIndexFromParticle);
+		if (!ChildParticle)
+		{
+			return INDEX_NONE;
+		}
+
+		if (FClusterUnionIndex* Index = ParticleToClusterUnionIndex.Find(ChildParticle))
+		{
+			return *Index;
+		}
+		return INDEX_NONE;
 	}
 }

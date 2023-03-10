@@ -29,16 +29,19 @@ public:
 	UClusterUnionReplicatedProxyComponent(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION()
+	UClusterUnionComponent* GetParentClusterUnionComponent() const { return ParentClusterUnion; }
+
+	UFUNCTION()
 	void SetParentClusterUnion(UClusterUnionComponent* InComponent);
 
 	UFUNCTION()
 	void SetChildClusteredComponent(UPrimitiveComponent* InComponent);
 
 	UFUNCTION()
-	void SetParticleBoneNames(const TArray<FName>& InNames);
+	void SetParticleBoneIds(const TArray<int32>& InIds);
 
 	UFUNCTION()
-	void SetParticleChildToParent(const FName& BoneName, const FTransform& ChildToParent);
+	void SetParticleChildToParent(int32 BoneId, const FTransform& ChildToParent);
 
 protected:
 
@@ -49,7 +52,7 @@ protected:
 	void OnRep_ChildClusteredComponent();
 
 	UFUNCTION()
-	void OnRep_ParticleBoneNames();
+	void OnRep_ParticleBoneIds();
 
 	UFUNCTION()
 	void OnRep_ParticleChildToParents();
@@ -67,11 +70,11 @@ private:
 	UPROPERTY()
 	bool bNetUpdateChildClusteredComponent;
 
-	UPROPERTY(ReplicatedUsing=OnRep_ParticleBoneNames)
-	TArray<FName> ParticleBoneNames;
+	UPROPERTY(ReplicatedUsing=OnRep_ParticleBoneIds)
+	TArray<int32> ParticleBoneIds;
 
 	UPROPERTY()
-	bool bNetUpdateParticleBoneNames;
+	bool bNetUpdateParticleBoneIds;
 
 	UPROPERTY(ReplicatedUsing=OnRep_ParticleChildToParents)
 	TArray<FTransform> ParticleChildToParents;
@@ -83,6 +86,7 @@ private:
 
 	//~ Begin UActorComponent Interface
 public:
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UActorComponent Interface
 

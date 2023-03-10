@@ -14,6 +14,27 @@
 
 DEFINE_LOG_CATEGORY(LogClusterUnion);
 
+namespace
+{
+	// This can probably be generalized into the physics engine somewhere.
+	UPrimitiveComponent* GetComponentFromUserData(void* UserData)
+	{
+		if (!UserData)
+		{
+			return nullptr;
+		}
+		else if (FBodyInstance* BodyInstance = FChaosUserData::Get<FBodyInstance>(UserData))
+		{
+			return BodyInstance->OwnerComponent.Get();
+		}
+		else if (UPrimitiveComponent* Component = FChaosUserData::Get<UPrimitiveComponent>(UserData))
+		{
+			return Component;
+		}
+		return nullptr;
+	}
+}
+
 UClusterUnionComponent::UClusterUnionComponent(const FObjectInitializer& ObjectInitializer)
 	: UPrimitiveComponent(ObjectInitializer)
 {
@@ -32,7 +53,7 @@ FPhysScene_Chaos* UClusterUnionComponent::GetChaosScene() const
 	return GWorld->GetPhysicsScene();
 }
 
-void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InComponent, const TArray<FName>& BoneNames)
+void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds)
 {
 	if (!InComponent || !PhysicsProxy)
 	{
@@ -45,7 +66,7 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 		{
 			// Early out - defer adding the component to the cluster until the component has a valid physics state.
 			FClusterUnionPendingAddData Data;
-			Data.BoneNames = BoneNames;
+			Data.BoneIds = BoneIds;
 			PendingComponentsToAdd.Add(InComponent, Data);
 			InComponent->OnComponentPhysicsStateChanged.AddDynamic(this, &UClusterUnionComponent::HandleComponentPhysicsStateChange);
 		}
@@ -56,22 +77,22 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 
 	TArray<Chaos::FPhysicsObjectHandle> Objects;
 
-	if (BoneNames.IsEmpty())
+	if (BoneIds.IsEmpty())
 	{
 		Objects = InComponent->GetAllPhysicsObjects();
 	}
 	else
 	{
-		Objects.Reserve(BoneNames.Num());
-		for (const FName& Name : BoneNames)
+		Objects.Reserve(BoneIds.Num());
+		for (int32 Id : BoneIds)
 		{
-			Objects.Add(InComponent->GetPhysicsObjectByName(Name));
+			Objects.Add(InComponent->GetPhysicsObjectById(Id));
 		}
 	}
 
 	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(Objects);
 
-	if (BoneNames.IsEmpty())
+	if (BoneIds.IsEmpty())
 	{
 		Objects = Objects.FilterByPredicate(
 			[&Interface](Chaos::FPhysicsObjectHandle Handle)
@@ -87,71 +108,31 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 		return;
 	}
 
-	// Force the component and its parent actor to stop replicating movement.
-	// Setting the component to not replicate should be sufficient since a simulating
-	// component shouldn't be doing much more than replicating its position anyway.
-	if (AActor* Owner = InComponent->GetOwner())
-	{
-		if (FClusteredActorData* Data = ActorToComponents.Find(Owner))
-		{
-			Data->Components.Add(InComponent);
-		}
-		else
-		{
-			FClusteredActorData NewData;
-			NewData.Components.Add(InComponent);
-			NewData.bWasReplicatingMovement = Owner->IsReplicatingMovement();
-			ActorToComponents.Add(Owner, NewData);
-
-			if (IsAuthority())
-			{
-				Owner->SetReplicatingMovement(false);
-			}
-		}
-	}
-
-	FClusteredComponentData Data;
-	Data.PhysicsObjects = Objects;
-	Data.bWasReplicating = InComponent->GetIsReplicated();
-
-	if (IsAuthority())
-	{
-		InComponent->SetIsReplicated(false);
-		if (AActor* Owner = InComponent->GetOwner())
-		{
-			// Create a replicated proxy component and add it to the actor being added to the cluster.
-			// This component will take care of replicating this addition into the cluster.
-			TObjectPtr<UClusterUnionReplicatedProxyComponent> ReplicatedProxy = NewObject<UClusterUnionReplicatedProxyComponent>(Owner);
-			if (ensure(ReplicatedProxy))
-			{
-				ReplicatedProxy->RegisterComponent();
-				ReplicatedProxy->SetParentClusterUnion(this);
-				ReplicatedProxy->SetChildClusteredComponent(InComponent);
-
-				TArray<FName> PhysicsObjectBoneNames;
-				PhysicsObjectBoneNames.Reserve(Objects.Num());
-
-				for (Chaos::FPhysicsObjectHandle PhysicsObject : Objects)
-				{
-					PhysicsObjectBoneNames.Add(Chaos::FPhysicsObjectInterface::GetName(PhysicsObject));
-				}
-
-				ReplicatedProxy->SetParticleBoneNames(PhysicsObjectBoneNames);
-				ReplicatedProxy->SetIsReplicated(true);
-			}
-
-			Data.ReplicatedProxyComponent = ReplicatedProxy;
-			Owner->FlushNetDormancy();
-		}
-	}
-
-	ComponentToPhysicsObjects.Add(InComponent, Data);
-
-	for (Chaos::FPhysicsObjectHandle Handle : Objects)
-	{
-		PhysicsObjectToComponent.Add(Handle, InComponent);
-	}
 	PhysicsProxy->AddPhysicsObjects_External(Objects);
+}
+
+void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InComponent)
+{
+	if (!InComponent || !PhysicsProxy || !ensure(InComponent->HasValidPhysicsState()))
+	{
+		return;
+	}
+
+	const int32 NumRemoved = PendingComponentsToAdd.Remove(InComponent);
+	if (NumRemoved > 0)
+	{
+		// We haven't actually added yet so we can early out.
+		return;
+	}
+
+	TSet<Chaos::FPhysicsObjectHandle> PhysicsObjectsToRemove;
+
+	if (FClusteredComponentData* ComponentData = ComponentToPhysicsObjects.Find(InComponent))
+	{
+		PhysicsObjectsToRemove = ComponentData->PhysicsObjects;
+	}
+
+	PhysicsProxy->RemovePhysicsObjects_External(PhysicsObjectsToRemove);
 }
 
 void UClusterUnionComponent::SetIsAnchored(bool bIsAnchored)
@@ -202,7 +183,7 @@ void UClusterUnionComponent::OnCreatePhysicsState()
 	Parameters.ConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
 
 	FChaosUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
-	PhysicsProxy = new Chaos::FClusterUnionPhysicsProxy{this, Parameters, static_cast<void*>(&PhysicsUserData), IsAuthority() ? Chaos::EThreadContext::Internal : Chaos::EThreadContext::External };
+	PhysicsProxy = new Chaos::FClusterUnionPhysicsProxy{this, Parameters, static_cast<void*>(&PhysicsUserData), GetOwner()->GetUniqueID(), GetUniqueID()};
 	PhysicsProxy->Initialize_External();
 	if (FPhysScene_Chaos* Scene = GetChaosScene())
 	{
@@ -231,6 +212,22 @@ void UClusterUnionComponent::OnDestroyPhysicsState()
 	if (!PhysicsProxy)
 	{
 		return;
+	}
+
+	// We need to make sure we *immediately* disconnect on the GT side since there's no guarantee the normal flow
+	// will happen once we've destroyed things.
+	TSet<TObjectPtr<UPrimitiveComponent>> RemainingComponents;
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	{
+		RemainingComponents.Add(Kvp.Key.ResolveObjectPtr());
+	}
+
+	for (TObjectPtr<UPrimitiveComponent> Component : RemainingComponents)
+	{
+		if (Component)
+		{
+			HandleRemovedClusteredComponent(Component, false);
+		}
 	}
 
 	if (FPhysScene_Chaos* Scene = GetChaosScene())
@@ -283,6 +280,11 @@ TArray<Chaos::FPhysicsObject*> UClusterUnionComponent::GetAllPhysicsObjects() co
 	return { GetPhysicsObjectById(0) };
 }
 
+int32 UClusterUnionComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
+{
+	return 0;
+}
+
 void UClusterUnionComponent::HandleComponentPhysicsStateChange(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange)
 {
 	// TODO: Maybe we should handle the destroyed state change too?
@@ -295,7 +297,7 @@ void UClusterUnionComponent::HandleComponentPhysicsStateChange(UPrimitiveCompone
 
 	if (FClusterUnionPendingAddData* PendingData = PendingComponentsToAdd.Find(ChangedComponent))
 	{
-		AddComponentToCluster(ChangedComponent, PendingData->BoneNames);
+		AddComponentToCluster(ChangedComponent, PendingData->BoneIds);
 	}
 }
 
@@ -311,44 +313,198 @@ void UClusterUnionComponent::SyncVelocitiesFromPhysics(const FVector& LinearVelo
 	MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionComponent, ReplicatedRigidState, this);
 }
 
-void UClusterUnionComponent::SyncIsAnchoredFromPhysics(bool bIsAnchored)
+void UClusterUnionComponent::SyncClusterUnionFromProxy()
 {
-	if (!IsAuthority())
-	{
-		return;
-	}
-
-	ReplicatedRigidState.bIsAnchored = bIsAnchored;
-	MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionComponent, ReplicatedRigidState, this);
-}
-
-void UClusterUnionComponent::SyncChildToParentFromProxy()
-{
+	// NOTE THAT WE ARE ON THE GAME THREAD HERE.
 	if (!PhysicsProxy)
 	{
 		return;
 	}
 
-	const TArray<Chaos::FPhysicsObjectHandle>& ChildPhysicsObjects = PhysicsProxy->GetChildPhysicsObjects_External();
-	const Chaos::FClusterUnionSyncedData& SyncedData = PhysicsProxy->GetSyncedData_External();
-	if (ChildPhysicsObjects.Num() != SyncedData.ChildToParent.Num())
+	ReplicatedRigidState.bIsAnchored = PhysicsProxy->IsAnchored_External();
+	ReplicatedRigidState.ObjectState = static_cast<uint8>(PhysicsProxy->GetObjectState_External());
+	MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionComponent, ReplicatedRigidState, this);
+	
+	const Chaos::FClusterUnionSyncedData& FullData = PhysicsProxy->GetSyncedData_External();
+
+	// Note that at the UClusterUnionComponent level we really only want to be dealing with components.
+	// Hence why we need to modify each of the particles that we synced from the game thread into a
+	// component + bone id combination for identification. 
+	TMap<TObjectKey<UPrimitiveComponent>, TMap<int32, FTransform>> MappedData;
+	for (const Chaos::FClusterUnionChildData& ChildData : FullData.ChildParticles)
+	{
+		if (UPrimitiveComponent* Component = GetComponentFromUserData(ChildData.Particle->UserData()))
+		{
+			const int32 BoneId = Component->GetIdFromGTParticle(ChildData.Particle);
+			MappedData.FindOrAdd(Component).Add(BoneId, ChildData.ChildToParent);
+		}
+	}
+
+	// We need to handle any additions, deletions, and modifications to any child in the cluster union here.
+	// If a component lives in MappedData but not in ComponentToPhysicsObjects, new component!
+	// If a component lives in both, then it's a modified component.
+	for (const TPair<TObjectKey<UPrimitiveComponent>, TMap<int32, FTransform>>& Kvp : MappedData)
+	{
+		HandleAddOrModifiedClusteredComponent(Kvp.Key.ResolveObjectPtr(), Kvp.Value);
+	}
+
+	// If a component lives in ComponentToPhysicsObjects but not in MappedData, deleted component!
+	TArray<TObjectPtr<UPrimitiveComponent>> ComponentsToRemove;
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	{
+		if (!MappedData.Contains(Kvp.Key))
+		{
+			ComponentsToRemove.Add(Kvp.Key.ResolveObjectPtr());
+		}
+	}
+
+	for (TObjectPtr<UPrimitiveComponent> Component : ComponentsToRemove)
+	{
+		HandleRemovedClusteredComponent(Component, true);
+	}
+}
+
+void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveComponent* ChangedComponent, const TMap<int32, FTransform>& PerBoneChildToParent)
+{
+	if (!ChangedComponent)
 	{
 		return;
 	}
 
-	for (int32 Index = 0; Index < ChildPhysicsObjects.Num(); ++Index)
-	{
-		Chaos::FPhysicsObjectHandle PhysicsObject = ChildPhysicsObjects[Index];
-		const FTransform& ChildToParent = SyncedData.ChildToParent[Index];
+	const bool bIsNew = !ComponentToPhysicsObjects.Contains(ChangedComponent);
+	FClusteredComponentData& ComponentData = ComponentToPhysicsObjects.FindOrAdd(ChangedComponent);
 
-		if (UPrimitiveComponent** Component = PhysicsObjectToComponent.Find(PhysicsObject); Component && *Component)
+	// If this is a *new* component that we're keeping track of then there's additional book-keeping
+	// we need to do to make sure we don't forget what exactly we're tracking. Additionally, we need to
+	// modify the component and its parent actor to ensure their replication stops.
+	if (bIsNew)
+	{
+		// Force the component and its parent actor to stop replicating movement.
+		// Setting the component to not replicate should be sufficient since a simulating
+		// component shouldn't be doing much more than replicating its position anyway.
+		if (AActor* Owner = ChangedComponent->GetOwner())
 		{
-			if (FClusteredComponentData* Data = ComponentToPhysicsObjects.Find(*Component); Data && Data->ReplicatedProxyComponent.IsValid())
+			if (FClusteredActorData* Data = ActorToComponents.Find(Owner))
 			{
-				Data->ReplicatedProxyComponent.Get()->SetParticleChildToParent(Chaos::FPhysicsObjectInterface::GetName(PhysicsObject), ChildToParent);
+				Data->Components.Add(ChangedComponent);
+			}
+			else
+			{
+				FClusteredActorData NewData;
+				NewData.Components.Add(ChangedComponent);
+				NewData.bWasReplicatingMovement = Owner->IsReplicatingMovement();
+				ActorToComponents.Add(Owner, NewData);
+
+				if (IsAuthority())
+				{
+					Owner->SetReplicatingMovement(false);
+				}
+			}
+		}
+
+		ComponentData.bWasReplicating = ChangedComponent->GetIsReplicated();
+		if (IsAuthority())
+		{
+			ChangedComponent->SetIsReplicated(false);
+			if (AActor* Owner = ChangedComponent->GetOwner())
+			{
+				// Create a replicated proxy component and add it to the actor being added to the cluster.
+				// This component will take care of replicating this addition into the cluster.
+				TObjectPtr<UClusterUnionReplicatedProxyComponent> ReplicatedProxy = NewObject<UClusterUnionReplicatedProxyComponent>(Owner);
+				if (ensure(ReplicatedProxy))
+				{
+					ReplicatedProxy->RegisterComponent();
+					ReplicatedProxy->SetParentClusterUnion(this);
+					ReplicatedProxy->SetChildClusteredComponent(ChangedComponent);
+					ReplicatedProxy->SetIsReplicated(true);
+				}
+
+				ComponentData.ReplicatedProxyComponent = ReplicatedProxy;
 			}
 		}
 	}
+
+	if (IsAuthority() && ComponentData.ReplicatedProxyComponent.IsValid())
+	{
+		// We really only need to do modifications on the server since that's where we're changing the replicated proxy to broadcast this data change.
+		TSet<int32> BoneIds;
+		PerBoneChildToParent.GetKeys(BoneIds);
+
+		TObjectPtr<UClusterUnionReplicatedProxyComponent> ReplicatedProxy = ComponentData.ReplicatedProxyComponent.Get();
+		ReplicatedProxy->SetParticleBoneIds(BoneIds.Array());
+		for (const TPair<int32, FTransform>& Kvp : PerBoneChildToParent)
+		{
+			ReplicatedProxy->SetParticleChildToParent(Kvp.Key, Kvp.Value);
+		}
+
+		if (AActor* Owner = ChangedComponent->GetOwner())
+		{
+			Owner->FlushNetDormancy();
+		}
+	}
+
+	// One more loop to ensure that our sets of physics objects are valid and up to date.
+	// This needs to happen on both the client and the server.
+	for (const TPair<int32, FTransform>& Kvp : PerBoneChildToParent)
+	{
+		Chaos::FPhysicsObjectHandle PhysicsObject = ChangedComponent->GetPhysicsObjectById(Kvp.Key);
+		ComponentData.PhysicsObjects.Add(PhysicsObject);
+		PhysicsObjectToComponent.Add(PhysicsObject, ChangedComponent);
+	}
+}
+
+void UClusterUnionComponent::HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy)
+{
+	if (!ChangedComponent)
+	{
+		return;
+	}
+
+	// At this point the component's particles are no longer a part of the cluster union. So we just need
+	// to get our book-keeping and game thread state to match that.
+	AActor* Owner = ChangedComponent->GetOwner();
+	if (!ensure(Owner))
+	{
+		return;
+	}
+
+	if (FClusteredComponentData* ComponentData = ComponentToPhysicsObjects.Find(ChangedComponent))
+	{
+		for (Chaos::FPhysicsObjectHandle Handle : ComponentData->PhysicsObjects)
+		{
+			PhysicsObjectToComponent.Remove(Handle);
+		}
+
+		if (IsAuthority())
+		{
+			ChangedComponent->SetIsReplicated(ComponentData->bWasReplicating);
+
+			if (bDestroyReplicatedProxy && ensure(ComponentData->ReplicatedProxyComponent.IsValid()))
+			{
+				UClusterUnionReplicatedProxyComponent* ProxyComponent = ComponentData->ReplicatedProxyComponent.Get();
+				ProxyComponent->DestroyComponent();
+			}
+		}
+
+		ComponentToPhysicsObjects.Remove(ChangedComponent);
+	}
+
+
+	if (FClusteredActorData* ActorData = ActorToComponents.Find(Owner))
+	{
+		ActorData->Components.Remove(ChangedComponent);
+
+		if (ActorData->Components.IsEmpty())
+		{
+			if (IsAuthority())
+			{
+				Owner->SetReplicatingMovement(ActorData->bWasReplicatingMovement);
+			}
+			ActorToComponents.Remove(Owner);
+		}
+	}
+
+	Owner->FlushNetDormancy();
 }
 
 void UClusterUnionComponent::OnRep_RigidState()
@@ -361,6 +517,7 @@ void UClusterUnionComponent::OnRep_RigidState()
 	PhysicsProxy->SetLinearVelocity_External(ReplicatedRigidState.LinVel);
 	PhysicsProxy->SetAngularVelocity_External(ReplicatedRigidState.AngVel);
 	PhysicsProxy->SetIsAnchored_External(ReplicatedRigidState.bIsAnchored);
+	PhysicsProxy->SetObjectState_External(static_cast<Chaos::EObjectStateType>(ReplicatedRigidState.ObjectState));
 }
 
 void UClusterUnionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -373,18 +530,84 @@ void UClusterUnionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME_WITH_PARAMS_FAST(UClusterUnionComponent, ReplicatedRigidState, Params);
 }
 
-void UClusterUnionComponent::ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<FName>& BoneNames, const TArray<FTransform>& ChildToParent)
+void UClusterUnionComponent::ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds, const TArray<FTransform>& ChildToParent)
 {
-	if (IsAuthority() || !PhysicsProxy || !ensure(InComponent) || !ensure(BoneNames.Num() == ChildToParent.Num()))
+	if (IsAuthority() || !PhysicsProxy || !ensure(InComponent) || !ensure(BoneIds.Num() == ChildToParent.Num()))
 	{
 		return;
 	}
 
-	for (int32 Index = 0; Index < BoneNames.Num(); ++Index)
+	for (int32 Index = 0; Index < BoneIds.Num(); ++Index)
 	{
-		Chaos::FPhysicsObjectHandle Handle = InComponent->GetPhysicsObjectByName(BoneNames[Index]);
+		Chaos::FPhysicsObjectHandle Handle = InComponent->GetPhysicsObjectById(BoneIds[Index]);
 		PhysicsProxy->SetChildToParent_External(Handle, ChildToParent[Index]);
 	}
+}
+
+void UClusterUnionComponent::SetSimulatePhysics(bool bSimulate)
+{
+	if (!PhysicsProxy)
+	{
+		return;
+	}
+
+	PhysicsProxy->SetObjectState_External(bSimulate ? Chaos::EObjectStateType::Dynamic : Chaos::EObjectStateType::Kinematic);
+}
+
+bool UClusterUnionComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params)
+{
+	bool bHasHit = false;
+	OutHit.Distance = TNumericLimits<float>::Max();
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	{
+		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr())
+		{
+			FHitResult ComponentHit;
+			if (Component->LineTraceComponent(ComponentHit, Start, End, Params) && ComponentHit.Distance < OutHit.Distance)
+			{
+				bHasHit = true;
+				OutHit = ComponentHit;
+			}
+		}
+	}
+	return bHasHit;
+}
+
+bool UClusterUnionComponent::SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FCollisionShape& CollisionShape, bool bTraceComplex)
+{
+	bool bHasHit = false;
+	OutHit.Distance = TNumericLimits<float>::Max();
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	{
+		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr())
+		{
+			FHitResult ComponentHit;
+			if (Component->SweepComponent(ComponentHit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex) && ComponentHit.Distance < OutHit.Distance)
+			{
+				bHasHit = true;
+				OutHit = ComponentHit;
+			}
+		}
+	}
+	return bHasHit;
+}
+
+bool UClusterUnionComponent::OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape, TArray<FOverlapResult>& OutOverlap) const
+{
+	bool bHasOverlap = false;
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	{
+		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr())
+		{
+			TArray<FOverlapResult> SubOverlaps;
+			if (Component->OverlapComponentWithResult(Pos, Rot, CollisionShape, SubOverlaps))
+			{
+				bHasOverlap = true;
+				OutOverlap.Append(SubOverlaps);
+			}
+		}
+	}
+	return bHasOverlap;
 }
 
 void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)

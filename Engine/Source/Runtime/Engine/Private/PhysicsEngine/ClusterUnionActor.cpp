@@ -13,4 +13,5 @@ AClusterUnionActor::AClusterUnionActor(const FObjectInitializer& ObjectInitializ
 
 	SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 	bReplicates = true;
+	SetReplicatingMovement(true);
 }

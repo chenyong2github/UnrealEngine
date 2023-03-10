@@ -20,7 +20,16 @@ namespace Chaos
 		Add,
 		// AddReleased is the original behavior where if the particle to be added is a cluster, we will release the cluster first
 		// and add its children instead.
-		AddReleased
+		AddReleased,
+		Remove
+	};
+
+	struct CHAOS_API FClusterUnionCreationParameters
+	{
+		FClusterUnionExplicitIndex ExplicitIndex = INDEX_NONE;
+		const FUniqueIdx* UniqueIndex = nullptr;
+		uint32 ActorId = 0;
+		uint32 ComponentId = 0;
 	};
 
 	struct CHAOS_API FClusterUnion
@@ -39,7 +48,12 @@ namespace Chaos
 
 		// Need to remember the parameters used to create the cluster so we can update it later.
 		FClusterCreationParameters Parameters;
+
+		// Other parameters that aren't related to clusters generally but are related to info we need about the cluster union.
+		FClusterUnionCreationParameters ClusterUnionParameters;
 	};
+
+	
 
 	/**
 	 * This class is used by Chaos to create internal clusters that will
@@ -52,14 +66,23 @@ namespace Chaos
 		FClusterUnionManager(FRigidClustering& InClustering, FPBDRigidsEvolutionGBF& InEvolution);
 
 		// Creates a new cluster union with an automatically assigned cluster union index.
-		FClusterUnionIndex CreateNewClusterUnion(const FClusterCreationParameters& Parameters, FClusterUnionExplicitIndex ExplicitIndex = INDEX_NONE, const FUniqueIdx* UniqueIndex = nullptr);
+		FClusterUnionIndex CreateNewClusterUnion(const FClusterCreationParameters& Parameters, const FClusterUnionCreationParameters& ClusterUnionParameters = FClusterUnionCreationParameters{});
 
 		// Destroy a given cluster union.
 		void DestroyClusterUnion(FClusterUnionIndex Index);
 
-		// Add a new operation to the queue.
+		// Add a new operation to the queue. Note that we currently only support the pending/flush operations for explicit operations. The behavior is legacy anyway so this should be fine.
 		void AddPendingExplicitIndexOperation(FClusterUnionExplicitIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles);
 		void AddPendingClusterIndexOperation(FClusterUnionIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles);
+
+		// Actually performs the change specified in the FClusterUnionOperationData structure.
+		void HandleAddOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bReleaseClustersFirst);
+
+		// Removes the specified particles from the specified cluster.
+		void HandleRemoveOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bUpdateClusterProperties);
+
+		// Helper function to remove particles given only the particle handle. This will consult the lookup table to find which cluster the particle is in before doing a normal remove operation.
+		void HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, bool bUpdateClusterProperties);
 
 		// Will be called at the beginning of every time step to ensure that all the expected cluster unions have been modified.
 		void FlushPendingOperations();
@@ -67,6 +90,8 @@ namespace Chaos
 		// Access the cluster union externally.
 		FClusterUnion* FindClusterUnionFromExplicitIndex(FClusterUnionExplicitIndex Index);
 		FClusterUnion* FindClusterUnion(FClusterUnionIndex Index);
+
+		FClusterUnionIndex FindClusterUnionIndexFromParticle(FPBDRigidParticleHandle* Particle);
 
 	private:
 		FRigidClustering& MClustering;
@@ -107,14 +132,17 @@ namespace Chaos
 		TMap<FClusterUnionExplicitIndex, FClusterUnionIndex> ExplicitIndexMap;
 		FClusterCreationParameters DefaultClusterCreationParameters() const;
 
+		// A particle lookup table. Lets us go from a given particle pointer to the cluster it's in.
+		TMap<FPBDRigidParticleHandle*, FClusterUnionIndex> ParticleToClusterUnionIndex;
+
 		// If no cluster index is set but an explicit index is set, map the explicit index to a regular index.
 		FClusterUnionIndex GetOrCreateClusterUnionIndexFromExplicitIndex(FClusterUnionExplicitIndex InIndex);
 
 		// Forcefully recreate the shared geometry on a cluster. Potentially expensive so ideally should be used rarely.
 		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> ForceRecreateClusterUnionSharedGeometry(const FClusterUnion& Union);
 
-		// Actually performs the change specified in the FClusterUnionOperationData structure.
-		void HandleAddOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bReleaseClustersFirst);
+		// Update the cluster union's properties after its set of particle changes.
+		void UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, bool bRecomputeMassOrientation);
 	};
 
 }

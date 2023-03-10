@@ -63,14 +63,25 @@ struct FDirtyGeometryCollectionData : public TBasePullData<FGeometryCollectionPh
 	FGeometryCollectionResults Results;
 };
 
+struct FDirtyClusterUnionParticleData
+{
+	FPBDRigidParticle* Particle = nullptr;
+	FRigidTransform3 ChildToParent;
+};
+
 struct FDirtyClusterUnionData : public TBasePullData<FClusterUnionPhysicsProxy, FClusterUnionProxyTimestamp>
 {
 	FVec3 X;
 	FQuat R;
 	FVec3 V;
 	FVec3 W;
+	EObjectStateType ObjectState;
 	bool bIsAnchored = false;
-	TArray<FTransform> ChildToParent;
+	TArray<FDirtyClusterUnionParticleData> ChildParticles;
+	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> SharedGeometry;
+	TArray<FCollisionData> CollisionData;
+	TArray<FCollisionFilterData> QueryData;
+	TArray<FCollisionFilterData> SimData;
 };
 
 struct FJointConstraintOutputData {

@@ -31,7 +31,7 @@ struct FClusteredComponentData
 {
 	GENERATED_BODY()
 
-	TArray<Chaos::FPhysicsObjectHandle> PhysicsObjects;
+	TSet<Chaos::FPhysicsObjectHandle> PhysicsObjects;
 
 	// Using a TWeakObjectPtr here because the UClusterUnionReplicatedProxyComponent will have a pointer back
 	// and we don't want to get into a situation where a circular reference occurs.
@@ -66,6 +66,9 @@ struct FClusterUnionReplicatedData
 	FVector_NetQuantize100 AngVel;
 
 	UPROPERTY()
+	uint8 ObjectState = 0;
+
+	UPROPERTY()
 	bool bIsAnchored = false;
 };
 
@@ -75,7 +78,7 @@ struct FClusterUnionPendingAddData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<FName> BoneNames;
+	TArray<int32> BoneIds;
 };
 
 /**
@@ -85,6 +88,21 @@ struct FClusterUnionPendingAddData
  * This component can be used as part of AClusterUnionActor or on its own as its list of
  * clustered components/actors can be specified dynamically at runtime and/or statically
  * on asset creation.
+ * 
+ * The cluster union component needs to not only maintain a game thread representation of what's happening on the
+ * physics thread but it also needs to make sure this data gets replicated to every client. A general model of how
+ * the data flow happens is as follows:
+ * 
+ *  [Server GT Command] -> [Server PT Command] -> [Server Modifies PT Data] -> [Server Sync PT Data back to GT Data].
+ * 
+ * This enables GT control over what happens to the cluster union BUT ALSO maintains a physics-first approach
+ * to the cluster union where a physics event can possibly cause the cluster union to break.
+ * 
+ * The GT data is replicated from the server to the clients either via the FClusterUnionReplicatedData on the cluster union component
+ * or per-child component data is replicated via the UClusterUnionReplicatedProxyComponent. Generally, the same flow is
+ * replicated on the client. The only exception is for replicating the X/R/V/W properties on the cluster union particle which does
+ * a GT -> PT data sync. There's no particula reason this happens...it just mirrors the single particle physics proxy here.
+ *
  */
 UCLASS()
 class ENGINE_API UClusterUnionComponent : public UPrimitiveComponent
@@ -94,17 +112,18 @@ public:
 	UClusterUnionComponent(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category="Cluster Union")
-	void AddComponentToCluster(UPrimitiveComponent* InComponent, const TArray<FName>& BoneNames);
+	void AddComponentToCluster(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds);
+
+	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
+	void RemoveComponentFromCluster(UPrimitiveComponent* InComponent);
 
 	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
 	void SetIsAnchored(bool bIsAnchored);
 
 	// The SyncVelocitiesFromPhysics will set replicated state using data from the physics thread. 
 	void SyncVelocitiesFromPhysics(const FVector& LinearVelocity, const FVector& AngularVelocity);
-	// The SyncIsAnchoredFromPhysics will set replicated state using data from the physics thread.
-	void SyncIsAnchoredFromPhysics(bool bIsAnchored);
-	// SyncChildToParentFromProxy will take the ChildToParent transform data from the proxy and make sure that gets replicated to the correct replicated proxy components.
-	void SyncChildToParentFromProxy();
+	// SyncClusterUnionFromProxy will examine the make up of the cluster union (particles, child to parent, etc.) and do whatever is needed on the GT in terms of bookkeeping.
+	void SyncClusterUnionFromProxy();
 
 	UFUNCTION()
 	bool IsComponentAdded(UPrimitiveComponent* Component) { return ComponentToPhysicsObjects.Contains(Component); }
@@ -114,7 +133,7 @@ protected:
 
 	// This should only be called on the client when replication happens.
 	UFUNCTION()
-	void ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<FName>& BoneNames, const TArray<FTransform>& ChildToParent);
+	void ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds, const TArray<FTransform>& ChildToParent);
 
 private:
 	// These are the statically clustered components. These should
@@ -164,6 +183,11 @@ private:
 	UFUNCTION()
 	void HandleComponentPhysicsStateChange(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange);
 
+	// These functions only get called when the physics thread syncs to the game thread thereby enforcing a physics thread authoritative view of
+	// what particles are currently contained within the cluster union.
+	void HandleAddOrModifiedClusteredComponent(UPrimitiveComponent* ChangedComponent, const TMap<int32, FTransform>& PerBoneChildToParent);
+	void HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy);
+
 	// Whether or not this code is running on the server.
 	UFUNCTION()
 	bool IsAuthority() const;
@@ -177,9 +201,19 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UActorComponent Interface
 
+	//~ Begin UPrimitiveComponent Interface
+public:
+	virtual FBodyInstance* GetBodyInstance(FName BoneName, bool bGetWelded, int32 Index) const override { return nullptr; }
+	virtual void SetSimulatePhysics(bool bSimulate) override;
+	virtual bool CanEditSimulatePhysics() override { return true; }
+	virtual bool LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params) override;
+	virtual bool SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FCollisionShape& CollisionShape, bool bTraceComplex) override;
+	virtual bool OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape, TArray<FOverlapResult>& OutOverlap) const override;
+	//~ End UPrimitiveComponent Interface
+
 	//~ Begin USceneComponent Interface
 public:
-	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport = ETeleportType::None) override;
+	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 	//~ End USceneComponent Interface
 
 	//~ Begin IPhysicsComponent Interface.
@@ -187,6 +221,7 @@ public:
 	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(int32 Id) const override;
 	virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const override;
 	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
+	virtual int32 GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const override;
 	//~ End IPhysicsComponent Interface.
 
 	//~ Begin UObject Interface.

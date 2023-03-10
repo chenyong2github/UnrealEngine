@@ -43,19 +43,38 @@ namespace Chaos
 			BufferData.R = Particle->R();
 			BufferData.V = Particle->V();
 			BufferData.W = Particle->W();
+			BufferData.ObjectState = Particle->ObjectState();
+
+			const FShapesArray& ShapeArray = Particle->ShapesArray();
+			BufferData.CollisionData.Empty(ShapeArray.Num());
+			BufferData.QueryData.Empty(ShapeArray.Num());
+			BufferData.SimData.Empty(ShapeArray.Num());
+
+			for (const TUniquePtr<Chaos::FPerShapeData>& ShapeData : ShapeArray)
+			{
+				BufferData.CollisionData.Add(ShapeData->GetCollisionData());
+				BufferData.QueryData.Add(ShapeData->GetQueryData());
+				BufferData.SimData.Add(ShapeData->GetSimData());
+			}
 
 			if constexpr (std::is_base_of_v<FClusterUnionPhysicsProxy::FInternalParticle, TParticle>)
 			{
 				BufferData.bIsAnchored = Particle->IsAnchored();
+				BufferData.SharedGeometry = ConstCastSharedPtr<FImplicitObject, const FImplicitObject, ESPMode::ThreadSafe>(Particle->SharedGeometry());
+			}
+			else if constexpr (std::is_base_of_v<FClusterUnionPhysicsProxy::FExternalParticle, TParticle>)
+			{
+				BufferData.SharedGeometry = ConstCastSharedPtr<FImplicitObject, const FImplicitObject, ESPMode::ThreadSafe>(Particle->SharedGeometryLowLevel());
 			}
 		}
 	}
 
-	FClusterUnionPhysicsProxy::FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, void* InUserData, EThreadContext InAuthoritativeContext)
+	FClusterUnionPhysicsProxy::FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, void* InUserData, uint32 InActorId, uint32 InComponentId)
 		: Base(InOwner)
 		, ClusterParameters(InParameters)
 		, UserData(InUserData)
-		, AuthoritativeContext(InAuthoritativeContext)
+		, ActorId(InActorId)
+		, ComponentId(InComponentId)
 	{
 	}
 
@@ -94,11 +113,18 @@ namespace Chaos
 
 		FUniqueIdx UniqueIndex = Particle_External->UniqueIdx();
 		FClusterUnionManager& ClusterUnionManager = Evolution->GetRigidClustering().GetClusterUnionManager();
-		ClusterUnionIndex = ClusterUnionManager.CreateNewClusterUnion(ClusterParameters, INDEX_NONE, &UniqueIndex);
+
+		FClusterUnionCreationParameters ClusterUnionParameters;
+		ClusterUnionParameters.UniqueIndex = &UniqueIndex;
+		ClusterUnionParameters.ActorId = ActorId;
+		ClusterUnionParameters.ComponentId = ComponentId;
+
+		ClusterUnionIndex = ClusterUnionManager.CreateNewClusterUnion(ClusterParameters, ClusterUnionParameters);
 		if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnion(ClusterUnionIndex); ensure(ClusterUnion != nullptr))
 		{
 			Particle_Internal = ClusterUnion->InternalCluster;
 			Particle_Internal->SetPhysicsProxy(this);
+			Particle_Internal->GTGeometryParticle() = Particle_External.Get();
 		}
 	}
 
@@ -118,14 +144,6 @@ namespace Chaos
 		{
 			return;
 		}
-
-		int32 OldNum = ChildPhysicsObjects.Num();
-		ChildPhysicsObjects.Append(Objects);
-		for (FPhysicsObjectHandle Handle : Objects)
-		{
-			ChildPhysicsObjectIndexMap.Add(Handle, OldNum++);
-			SyncedData_External.ChildToParent.Add(FTransform::Identity);
-		}
 		
 		Solver->EnqueueCommandImmediate(
 			[this, Objects=Objects]() mutable
@@ -133,7 +151,26 @@ namespace Chaos
 				FReadPhysicsObjectInterface_Internal Interface = FPhysicsObjectInternalInterface::GetRead();
 				if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
 				{
-					Evolution->GetRigidClustering().GetClusterUnionManager().AddPendingClusterIndexOperation(ClusterUnionIndex, EClusterUnionOperation::Add, Interface.GetAllRigidParticles(Objects));
+					Evolution->GetRigidClustering().GetClusterUnionManager().HandleAddOperation(ClusterUnionIndex, Interface.GetAllRigidParticles(Objects), false);
+				}
+			}
+		);
+	}
+
+	void FClusterUnionPhysicsProxy::RemovePhysicsObjects_External(const TSet<FPhysicsObjectHandle>& Objects)
+	{
+		if (!Solver || Objects.IsEmpty())
+		{
+			return;
+		}
+
+		Solver->EnqueueCommandImmediate(
+			[this, Objects = Objects]() mutable
+			{
+				FReadPhysicsObjectInterface_Internal Interface = FPhysicsObjectInternalInterface::GetRead();
+				if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
+				{
+					Evolution->GetRigidClustering().GetClusterUnionManager().HandleRemoveOperation(ClusterUnionIndex, Interface.GetAllRigidParticles(Objects.Array()), true);
 				}
 			}
 		);
@@ -146,12 +183,56 @@ namespace Chaos
 			return;
 		}
 
-		SyncedData_External.bIsAnchored = bIsAnchored;
-		Particle_External->ForceDirty(EChaosPropertyFlags::ClusterIsAnchored);
-		Solver->AddDirtyProxy(this);
+		Solver->EnqueueCommandImmediate(
+			[this, bIsAnchored]() mutable
+			{
+				if (Particle_Internal->IsAnchored() != bIsAnchored)
+				{
+					if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
+					{
+						Particle_Internal->SetIsAnchored(bIsAnchored);
+						if (!bIsAnchored && !Particle_Internal->IsDynamic())
+						{
+							FKinematicTarget NoKinematicTarget;
+							Evolution->SetParticleObjectState(Particle_Internal, EObjectStateType::Dynamic);
+							Evolution->SetParticleKinematicTarget(Particle_Internal, NoKinematicTarget);
+						}
+						Evolution->GetParticles().MarkTransientDirtyParticle(Particle_Internal);
+					}
+				}
+			}
+		);
+	}
 
-		FClusterUnionProxyTimestamp& SyncTS = GetSyncTimestampAs<FClusterUnionProxyTimestamp>();
-		SyncTS.OverWriteAnchored.Set(GetSolverSyncTimestamp_External(), bIsAnchored);
+	EObjectStateType FClusterUnionPhysicsProxy::GetObjectState_External() const
+	{
+		if (!ensure(Particle_External))
+		{
+			return EObjectStateType::Uninitialized;
+		}
+
+		return Particle_External->ObjectState();
+	}
+
+	void FClusterUnionPhysicsProxy::SetObjectState_External(EObjectStateType State)
+	{
+		if (!Solver || !ensure(Particle_External))
+		{
+			return;
+		}
+
+		Solver->EnqueueCommandImmediate(
+			[this, State]() mutable
+			{
+				if (Particle_Internal->ObjectState() != State)
+				{
+					if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
+					{
+						Evolution->SetParticleObjectState(Particle_Internal, State);
+					}
+				}
+			}
+		);
 	}
 
 	void FClusterUnionPhysicsProxy::PushToPhysicsState(const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyProxy& Dirty)
@@ -180,42 +261,6 @@ namespace Chaos
 		{
 			Particle_Internal->SetVelocities(*NewVelocities);
 		}
-
-		if (const bool* bNewIsAnchored = ParticleData.FindClusterIsAnchored(Manager, DataIdx); bNewIsAnchored && *bNewIsAnchored != Particle_Internal->IsAnchored())
-		{
-			Particle_Internal->SetIsAnchored(*bNewIsAnchored);
-			if (!*bNewIsAnchored && !Particle_Internal->IsDynamic())
-			{
-				FKinematicTarget NoKinematicTarget;
-				Evolution.SetParticleObjectState(Particle_Internal, EObjectStateType::Dynamic);
-				Evolution.SetParticleKinematicTarget(Particle_Internal, NoKinematicTarget);
-			}
-		}
-
-		if (AuthoritativeContext == EThreadContext::External)
-		{
-			if (const TArray<FTransform>* NewChildToParent = ParticleData.FindClusterChildToParent(Manager, DataIdx))
-			{
-				if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnion(ClusterUnionIndex))
-				{
-					if (NewChildToParent->Num() == ClusterUnion->ChildParticles.Num())
-					{
-						for (int32 Index = 0; Index < NewChildToParent->Num(); ++Index)
-						{
-							if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[Index]->CastToClustered())
-							{
-								if (ChildHandle->ChildToParent().Equals((*NewChildToParent)[Index]))
-								{
-									continue;
-								}
-								ChildHandle->SetChildToParent((*NewChildToParent)[Index]);
-								RigidsSolver.GetParticles().MarkTransientDirtyParticle(ChildHandle);
-							}
-						}
-					}
-				}
-			}
-		}
 	}
 
 	bool FClusterUnionPhysicsProxy::PullFromPhysicsState(const FDirtyClusterUnionData& PullData, int32 SolverSyncTimestamp, const FDirtyClusterUnionData* NextPullData, const FRealSingle* Alpha)
@@ -231,9 +276,39 @@ namespace Chaos
 			return false;
 		}
 
-		if (SolverSyncTimestamp >= ProxyTimestamp->OverWriteAnchored.Timestamp)
+		
+		SyncedData_External.bIsAnchored = PullData.bIsAnchored;
+		SyncedData_External.ChildParticles.Empty(PullData.ChildParticles.Num());
+		for (const FDirtyClusterUnionParticleData& InData : PullData.ChildParticles)
 		{
-			SyncedData_External.bIsAnchored = PullData.bIsAnchored;
+			FClusterUnionChildData ConvertedData;
+			ConvertedData.Particle = InData.Particle;
+			ConvertedData.ChildToParent = InData.ChildToParent;
+			SyncedData_External.ChildParticles.Add(ConvertedData);
+		}
+
+		Particle_External->SetGeometry(PullData.SharedGeometry);
+		Particle_External->SetObjectState(PullData.ObjectState, true, /*bInvalidate=*/false);
+
+		for (int32 ShapeIndex = 0; ShapeIndex < Particle_External->ShapesArray().Num(); ++ShapeIndex)
+		{
+			if (const TUniquePtr<Chaos::FPerShapeData>& ShapeData = Particle_External->ShapesArray()[ShapeIndex])
+			{
+				if (PullData.CollisionData.IsValidIndex(ShapeIndex))
+				{
+					ShapeData->SetCollisionData(PullData.CollisionData[ShapeIndex]);
+				}
+
+				if (PullData.QueryData.IsValidIndex(ShapeIndex))
+				{
+					ShapeData->SetQueryData(PullData.QueryData[ShapeIndex]);
+				}
+
+				if (PullData.SimData.IsValidIndex(ShapeIndex))
+				{
+					ShapeData->SetSimData(PullData.SimData[ShapeIndex]);
+				}
+			}
 		}
 
 		if (NextPullData)
@@ -295,14 +370,6 @@ namespace Chaos
 				Particle_External->SetW(PullData.W, false);
 			}
 		}
-
-		if (AuthoritativeContext == EThreadContext::Internal && SolverSyncTimestamp >= ProxyTimestamp->OverWriteChildToParent.Timestamp)
-		{
-			for (int32 Index = 0; Index < PullData.ChildToParent.Num() && Index < SyncedData_External.ChildToParent.Num(); ++Index)
-			{
-				SyncedData_External.ChildToParent[Index] = PullData.ChildToParent[Index];
-			}
-		}
 		
 		Particle_External->UpdateShapeBounds();
 		return true;
@@ -314,20 +381,32 @@ namespace Chaos
 	
 		FPBDRigidsEvolutionGBF& Evolution = *static_cast<FPBDRigidsSolver*>(Solver)->GetEvolution();
 		FClusterUnionManager& ClusterUnionManager = Evolution.GetRigidClustering().GetClusterUnionManager();
+
 		if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnion(ClusterUnionIndex))
 		{
-			BufferData.ChildToParent.Empty(ClusterUnion->ChildParticles.Num());
+			BufferData.ChildParticles.Empty(ClusterUnion->ChildParticles.Num());
+
 			for (FPBDRigidParticleHandle* Particle : ClusterUnion->ChildParticles)
 			{
+				if (!ensure(Particle->GTGeometryParticle()))
+				{
+					continue;
+				}
+
+				FDirtyClusterUnionParticleData Data;
+				Data.Particle = Particle->GTGeometryParticle()->CastToRigidParticle();
 				if (FPBDRigidClusteredParticleHandle* ClusteredParticle = Particle->CastToClustered())
 				{
-					BufferData.ChildToParent.Add(ClusteredParticle->ChildToParent());
+					Data.ChildToParent = ClusteredParticle->ChildToParent();
 				}
 				else
 				{
-					BufferData.ChildToParent.Add(FTransform::Identity);
+					Data.ChildToParent = FRigidTransform3::Identity;
 				}
+				BufferData.ChildParticles.Add(Data);
 			}
+
+			BufferData.SharedGeometry = ClusterUnion->SharedGeometry;
 		}
 	}
 
@@ -335,7 +414,15 @@ namespace Chaos
 	{
 		BufferPhysicsResultsImp(this, Particle_External.Get(), BufferData);
 		BufferData.bIsAnchored = SyncedData_External.bIsAnchored;
-		BufferData.ChildToParent = SyncedData_External.ChildToParent;
+
+		BufferData.ChildParticles.Empty(SyncedData_External.ChildParticles.Num());
+		for (const FClusterUnionChildData& Data : SyncedData_External.ChildParticles)
+		{
+			FDirtyClusterUnionParticleData ConvertedData;
+			ConvertedData.Particle = Data.Particle;
+			ConvertedData.ChildToParent = Data.ChildToParent;
+			BufferData.ChildParticles.Add(ConvertedData);
+		}
 	}
 
 	void FClusterUnionPhysicsProxy::SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) const
@@ -362,8 +449,6 @@ namespace Chaos
 		// SyncRemote will check the dirty flags and will skip the change in value if the dirty flag is not actually set.
 		RemoteData.SyncRemote<FParticlePositionRotation, EChaosProperty::ClusterXR>(Manager, DataIdx, Particle_External->XR());
 		RemoteData.SyncRemote<FParticleVelocities, EChaosProperty::ClusterVelocities>(Manager, DataIdx, Particle_External->Velocities());
-		RemoteData.SyncRemote<bool, EChaosProperty::ClusterIsAnchored>(Manager, DataIdx, SyncedData_External.bIsAnchored);
-		RemoteData.SyncRemote<TArray<FTransform>, EChaosProperty::ClusterChildToParent>(Manager, DataIdx, SyncedData_External.ChildToParent);
 	}
 
 	void FClusterUnionPhysicsProxy::ClearAccumulatedData()
@@ -378,7 +463,7 @@ namespace Chaos
 
 	void FClusterUnionPhysicsProxy::SetXR_External(const FVector& X, const FQuat& R)
 	{
-		if (!ensure(Particle_External))
+		if (!Solver || !ensure(Particle_External))
 		{
 			return;
 		}
@@ -390,11 +475,13 @@ namespace Chaos
 		FClusterUnionProxyTimestamp& SyncTS = GetSyncTimestampAs<FClusterUnionProxyTimestamp>();
 		SyncTS.OverWriteX.Set(GetSolverSyncTimestamp_External(), X);
 		SyncTS.OverWriteR.Set(GetSolverSyncTimestamp_External(), R);
+
+		Solver->AddDirtyProxy(this);
 	}
 
 	void FClusterUnionPhysicsProxy::SetLinearVelocity_External(const FVector& V)
 	{
-		if (!ensure(Particle_External))
+		if (!Solver || !ensure(Particle_External))
 		{
 			return;
 		}
@@ -404,6 +491,8 @@ namespace Chaos
 
 		FClusterUnionProxyTimestamp& SyncTS = GetSyncTimestampAs<FClusterUnionProxyTimestamp>();
 		SyncTS.OverWriteV.Set(GetSolverSyncTimestamp_External(), V);
+
+		Solver->AddDirtyProxy(this);
 	}
 
 	void FClusterUnionPhysicsProxy::SetAngularVelocity_External(const FVector& W)
@@ -418,6 +507,8 @@ namespace Chaos
 
 		FClusterUnionProxyTimestamp& SyncTS = GetSyncTimestampAs<FClusterUnionProxyTimestamp>();
 		SyncTS.OverWriteW.Set(GetSolverSyncTimestamp_External(), W);
+
+		Solver->AddDirtyProxy(this);
 	}
 
 	void FClusterUnionPhysicsProxy::SetChildToParent_External(FPhysicsObjectHandle Child, const FTransform& RelativeTransform)
@@ -427,14 +518,32 @@ namespace Chaos
 			return;
 		}
 
-		if (int32* Index = ChildPhysicsObjectIndexMap.Find(Child); Index && *Index >=0 && *Index < ChildPhysicsObjects.Num() && ensure(ChildPhysicsObjects[*Index] == Child))
-		{
-			SyncedData_External.ChildToParent[*Index] = RelativeTransform;
-			Particle_External->ForceDirty(EChaosPropertyFlags::ClusterChildToParent);
-			Solver->AddDirtyProxy(this);
+		Solver->EnqueueCommandImmediate(
+			[this, Child, RelativeTransform]() mutable
+			{
+				FPBDRigidsEvolutionGBF& Evolution = *GetEvolution(this);
+				FClusterUnionManager& ClusterUnionManager = Evolution.GetRigidClustering().GetClusterUnionManager();
 
-			FClusterUnionProxyTimestamp& SyncTS = GetSyncTimestampAs<FClusterUnionProxyTimestamp>();
-			SyncTS.OverWriteChildToParent.Set(GetSolverSyncTimestamp_External(), SyncedData_External.ChildToParent);
-		}
+				if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnion(ClusterUnionIndex))
+				{
+					FGeometryParticleHandle* Particle = Child->GetParticle<EThreadContext::Internal>();
+					if (!ensure(Particle))
+					{
+						return;
+					}
+
+					const int32 ParticleIndex = ClusterUnion->ChildParticles.Find(Particle->CastToRigidParticle());
+					if (ParticleIndex != INDEX_NONE)
+					{
+						if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ParticleIndex]->CastToClustered())
+						{
+							ChildHandle->SetChildToParent(RelativeTransform);
+							Evolution.GetParticles().MarkTransientDirtyParticle(ChildHandle);
+							Evolution.GetParticles().MarkTransientDirtyParticle(Particle);
+						}
+					}
+				}
+			}
+		);
 	}
 }

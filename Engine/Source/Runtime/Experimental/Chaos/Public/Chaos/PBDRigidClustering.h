@@ -107,6 +107,12 @@ public:
 		const TMap<FPBDRigidParticleHandle*, FPBDRigidParticleHandle*>& ChildToParentMap);
 
 	/**
+	 * Manually remove a set of particles from the cluster.
+	 */
+	void RemoveParticlesFromCluster(
+		FPBDRigidClusteredParticleHandle* Cluster,
+		const TArray<FPBDRigidParticleHandle*>& InChildren);
+	/**
 	 *  UnionClusterGroups
 	 *    Clusters that share a group index should be unioned into a single cluster prior to simulation.
 	 *    The GroupIndex should be set on creation, and never touched by the client again.
@@ -351,6 +357,8 @@ public:
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters & Parameters = FClusterCreationParameters());
 
+	void ClearConnectionGraph(FPBDRigidClusteredParticleHandle* Parent);
+
 	const TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParents() const { return TopLevelClusterParents; }
 	TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParents() { return TopLevelClusterParents; }
 
@@ -410,6 +418,15 @@ public:
 
 	void UpdateTopLevelParticle(FPBDRigidClusteredParticleHandle* Particle);
 
+	/**
+	 * This function is a bit more versatile than the name suggests. This function can either be used to update the cluster properties
+	 * incrementally or entirely rebuild the properties all over again. This all depends on whether the input children is
+	 * either 1) the new children or 2) all the children as well as what those initial properties are set to.
+	 */
+	void UpdateClusterParticlePropertiesFromChildren(
+		FPBDRigidClusteredParticleHandle* Cluster,
+		const FRigidHandleArray& Children,
+		const TMap<FPBDRigidParticleHandle*, FPBDRigidParticleHandle*>& ChildToParentMap);
 private:
 
 	FRigidEvolution& MEvolution;

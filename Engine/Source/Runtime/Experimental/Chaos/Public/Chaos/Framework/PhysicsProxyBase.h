@@ -65,8 +65,6 @@ struct CHAOS_API FClusterUnionProxyTimestamp : public FProxyTimestampBase
 	TTimestampProperty<Chaos::FRotation3> OverWriteR;
 	TTimestampProperty<Chaos::FVec3> OverWriteV;
 	TTimestampProperty<Chaos::FVec3> OverWriteW;
-	TTimestampProperty<bool> OverWriteAnchored;
-	TTimestampProperty<TArray<FTransform>> OverWriteChildToParent;
 };
 
 class CHAOS_API IPhysicsProxyBase

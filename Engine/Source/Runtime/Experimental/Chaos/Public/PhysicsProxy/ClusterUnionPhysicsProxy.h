@@ -17,6 +17,12 @@ namespace Chaos
 {
 	struct FDirtyClusterUnionData;
 
+	struct FClusterUnionChildData
+	{
+		FPBDRigidParticle* Particle = nullptr;
+		FTransform ChildToParent;
+	};
+
 	/**
 	 * Extra data that needs to be synced between the PT and GT for cluster unions.
 	 */
@@ -25,12 +31,8 @@ namespace Chaos
 		// Whether the cluster is anchored or not.
 		bool bIsAnchored;
 
-		// For every child, we need to sync its ChildToParent transform. The order of the transforms is identical
-		// to the order of the physics objects stored in the proxy. The *direction* that we sync ChildToParent
-		// is determined by whether we're on the server or the client. On the server, the ChildToParent is physics
-		// thread authoritative so the sync goes from the PT to the GT. On the client, we want to use whatever
-		// ChildToParent was given by the server so it's GT authoritative so the sync goes the other way.
-		TArray<FTransform> ChildToParent;
+		// Data on every child particle in the cluster union.
+		TArray<FClusterUnionChildData> ChildParticles;
 	};
 
 
@@ -43,15 +45,21 @@ namespace Chaos
 		using FInternalParticle = TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>;
 
 		FClusterUnionPhysicsProxy() = delete;
-		FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, void* InUserData, EThreadContext InAuthoritativeContext);
+		FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, void* InUserData, uint32 InActorId, uint32 InComponentId);
 
 		// Add physics objects to the cluster union. Should only be called from the game thread.
 		void AddPhysicsObjects_External(const TArray<FPhysicsObjectHandle>& Objects);
-		const TArray<FPhysicsObjectHandle>& GetChildPhysicsObjects_External() const { return ChildPhysicsObjects; }
 		const FClusterUnionSyncedData& GetSyncedData_External() const { return SyncedData_External; }
+
+		// Remove physics objects from the cluster union.
+		void RemovePhysicsObjects_External(const TSet<FPhysicsObjectHandle>& Objects);
 
 		// Set/Remove any anchors on the cluster particle.
 		void SetIsAnchored_External(bool bIsAnchored);
+
+		// Set Object State.
+		EObjectStateType GetObjectState_External() const;
+		void SetObjectState_External(EObjectStateType State);
 
 		// Cluster union proxy initialization happens in two first on the game thread (external) then on the
 		// physics thread (internal). Cluster unions are a primarily physics concept so the things exposed to
@@ -67,7 +75,7 @@ namespace Chaos
 		virtual void* GetHandleUnsafe() const override { return Particle_Internal; }
 		FPhysicsObjectHandle GetPhysicsObjectHandle() const { return PhysicsObject.Get(); }
 
-		bool HasChildren_External() const { return !ChildrenParticles_External.IsEmpty(); }
+		bool HasChildren_External() const { return !SyncedData_External.ChildParticles.IsEmpty(); }
 		bool HasChildren_Internal() const;
 
 		bool IsAnchored_External() const { return SyncedData_External.bIsAnchored; }
@@ -94,28 +102,20 @@ namespace Chaos
 		const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
 
 		FClusterUnionIndex GetClusterUnionIndex() const { return ClusterUnionIndex; }
+
 	private:
 		bool bIsInitializedOnPhysicsThread = false;
 		FClusterCreationParameters ClusterParameters;
 		void* UserData = nullptr;
-		EThreadContext AuthoritativeContext;
+		uint32 ActorId;
+		uint32 ComponentId;
 
 		FPhysicsObjectUniquePtr PhysicsObject;
 		TUniquePtr<FExternalParticle> Particle_External;
 		FClusterUnionSyncedData SyncedData_External;
 
-		// This isn't captured in TPBDRigidParticle hence why we need to track it manually.
-		TSet<FExternalParticle*> ChildrenParticles_External;
-
 		FInternalParticle* Particle_Internal = nullptr;
 		FClusterUnionIndex ClusterUnionIndex = INDEX_NONE;
-
-		// Children. Assuming that the ChildPhysicsObjects array can get large so we also maintain
-		// the ChildPhysicsObjectIndexMap so that it's easy to find a given physics object handle's index.
-		// This is useful because other things such as the FClusterUnionSyncedData::ChildToParent array
-		// will utilize the same index.
-		TArray<FPhysicsObjectHandle> ChildPhysicsObjects;
-		TMap<FPhysicsObjectHandle, int32> ChildPhysicsObjectIndexMap;
 
 		FProxyInterpolationData InterpolationData;
 

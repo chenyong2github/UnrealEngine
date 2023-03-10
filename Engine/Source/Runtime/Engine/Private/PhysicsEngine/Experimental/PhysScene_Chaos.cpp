@@ -717,8 +717,11 @@ void FPhysScene_Chaos::RemoveObject(Chaos::FClusterUnionPhysicsProxy* InObject)
 {
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver<Chaos::FPhysicsSolver>();
 
+	RemoveActorFromAccelerationStructureImp(InObject->GetParticle_External());
+
 	if (Solver)
 	{
+		Solver->UpdateParticleInAccelerationStructure_External(InObject->GetParticle_External(), true);
 		Solver->UnregisterObject(InObject);
 	}
 
@@ -1892,12 +1895,10 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 					// Any changes in the linear/angular velocity of the particle is meaningless if the X/R doesn't change too.
 					ParentComponent->SyncVelocitiesFromPhysics(DirtyParticle->V(), DirtyParticle->W());
-
-					Interface->AddToSpatialAcceleration({ &Handle, 1 }, Outer->GetSpacialAcceleration());
 				}
 
-				ParentComponent->SyncIsAnchoredFromPhysics(Proxy->IsAnchored_External());
-				ParentComponent->SyncChildToParentFromProxy();
+				Interface->AddToSpatialAcceleration({ &Handle, 1 }, Outer->GetSpacialAcceleration());
+				ParentComponent->SyncClusterUnionFromProxy();
 				DirtyParticle->ClearEvents();
 			}
 		}

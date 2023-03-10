@@ -1957,6 +1957,8 @@ void FGeometryCollectionPhysicsProxy::BreakClusters_External(TArray<FGeometryCol
 			{
 				if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex_Internal(ItemIndex))
 				{
+					// Pre-emptively remove the particle from cluster unions it might be in.
+					Clustering.GetClusterUnionManager().HandleRemoveOperationWithClusterLookup({ ClusteredHandle }, true);
 					Clustering.BreakCluster(ClusteredHandle);
 				}
 			}

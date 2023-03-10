@@ -223,7 +223,19 @@ namespace Chaos
 
 		// Disable all the input children since they no longer need to be simulated.
 		TSet<FPBDRigidParticleHandle*> InChildrenSet(InChildren);
-		MEvolution.DisableParticles(reinterpret_cast<TSet<FGeometryParticleHandle*>&>(InChildrenSet));
+		for (FPBDRigidParticleHandle* Handle : InChildren)
+		{
+			MEvolution.DisableParticle(Handle);
+			MEvolution.GetParticles().MarkTransientDirtyParticle(Handle);
+
+			if (FPBDRigidClusteredParticleHandle* ClusteredChild = Handle->CastToClustered())
+			{
+				TopLevelClusterParents.Remove(ClusteredChild);
+				TopLevelClusterParentsStrained.Remove(ClusteredChild);
+
+				ClusteredChild->ClusterIds().Id = Cluster;
+			}
+		}
 
 		// Note that we want to compute the internal strain on the cluster the same if we build it up incrementally as well as if we
 		// build it all at the same time. The parent cluster's internal strain should be the average of all the child strains.
@@ -232,18 +244,51 @@ namespace Chaos
 		Cluster->SetInternalStrains(Cluster->GetInternalStrains() * OldNumChildren);
 		Cluster->ClusterIds().NumChildren = Children.Num();
 
+		UpdateClusterParticlePropertiesFromChildren(Cluster, InChildren, ChildToParentMap);
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RemoveParticlesFromCluster"), STAT_RemoveParticlesFromCluster, STATGROUP_Chaos);
+	void
+	FRigidClustering::RemoveParticlesFromCluster(
+		FPBDRigidClusteredParticleHandle* Cluster,
+		const TArray<FPBDRigidParticleHandle*>& InChildren)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_RemoveParticlesFromCluster);
+
+		FRigidHandleArray& Children = MChildren.FindOrAdd(Cluster);
+		for (FPBDRigidParticleHandle* Child : InChildren)
+		{
+			if (int32 Index = Children.Find(Child); Child && Index != INDEX_NONE)
+			{
+				RemoveChildFromParent(Child, Cluster);
+				Children.RemoveAtSwap(Index);
+				MEvolution.DirtyParticle(*Child);
+				MEvolution.GetParticles().MarkTransientDirtyParticle(Child);
+			}
+		}
+
+		Cluster->ClusterIds().NumChildren = Children.Num();
+		Cluster->SetInternalStrains(0.0);
+		Cluster->SetCollisionGroup(INT_MAX);
+		Cluster->ClearPhysicsProxies();
+
+		// We need to fully rebuild the cluster properties from the set of children.
+		UpdateClusterParticlePropertiesFromChildren(Cluster, Children, {});
+		MEvolution.DirtyParticle(*Cluster);
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateClusterParticlePropertiesFromChildren"), STAT_UpdateClusterParticlePropertiesFromChildren, STATGROUP_Chaos);
+	void
+	FRigidClustering::UpdateClusterParticlePropertiesFromChildren(
+		FPBDRigidClusteredParticleHandle* Cluster,
+		const FRigidHandleArray& Children,
+		const TMap<FPBDRigidParticleHandle*, FPBDRigidParticleHandle*>& ChildToParentMap)
+	{
 		// An initial pass through the children to transfer some of their cluster properties to their new parent.
-		for (FPBDRigidParticleHandle* Child : InChildrenSet)
+		for (FPBDRigidParticleHandle* Child : Children)
 		{
 			if (FPBDRigidClusteredParticleHandle* ClusteredChild = Child->CastToClustered())
 			{
-				TopLevelClusterParents.Remove(ClusteredChild);
-				TopLevelClusterParentsStrained.Remove(ClusteredChild);
-
-				// Cluster group id 0 means "don't union with other things"
-				// TODO: Use INDEX_NONE instead of 0?
-				ClusteredChild->SetClusterGroupIndex(0);
-				ClusteredChild->ClusterIds().Id = Cluster;
 				Cluster->SetInternalStrains(Cluster->GetInternalStrains() + ClusteredChild->GetInternalStrains());
 				Cluster->SetCollisionImpulses(FMath::Max(Cluster->CollisionImpulses(), ClusteredChild->CollisionImpulses()));
 
@@ -257,9 +302,9 @@ namespace Chaos
 			MEvolution.DoInternalParticleInitilization(ProxyParticle, Cluster);
 		}
 
-		if (!Children.IsEmpty())
+		if (Cluster->ClusterIds().NumChildren > 0)
 		{
-			Cluster->SetInternalStrains(Cluster->GetInternalStrains() / static_cast<FReal>(Children.Num()));
+			Cluster->SetInternalStrains(Cluster->GetInternalStrains() / static_cast<FReal>(Cluster->ClusterIds().NumChildren));
 		}
 	}
 
@@ -618,11 +663,16 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticles_STRAIN);
 
-		if (!ensureMsgf((ClusteredParticle->Parent() == nullptr), TEXT("Removing a cluster that still has a parent")))
+		if (FPBDRigidClusteredParticleHandle* Parent = ClusteredParticle->Parent())
 		{
-			TSet<FPBDRigidParticleHandle*> EmptySet;
-			return EmptySet;
-		};
+			// Having a parent is only OK if the parent is a cluster union since ReleaseClusterParticlesImpl will
+			// cause it to be ejected from the cluster union.
+			if (!ensureMsgf((ClusterUnionManager.FindClusterUnionIndexFromParticle(Parent) != INDEX_NONE), TEXT("Removing a cluster that still has a non-cluster union parent")))
+			{
+				TSet<FPBDRigidParticleHandle*> EmptySet;
+				return EmptySet;
+			}
+		}
 
 		return ReleaseClusterParticlesImpl(ClusteredParticle, bForceRelease, true /*bCreateNewClusters*/);
 	}
@@ -674,6 +724,8 @@ namespace Chaos
 		TArray<FPBDRigidParticleHandle*>& Children = MChildren[ClusteredParticle];
 		const bool bParentCrumbled = CrumbledSinceLastUpdate.Contains(ClusteredParticle);
 
+		bool bFoundFirstRelease = false;
+
 		// only used for propagation
 		TMap<FPBDRigidParticleHandle*, FReal> AppliedStrains;
 
@@ -690,6 +742,12 @@ namespace Chaos
 			const FReal MaxAppliedStrain = FMath::Max(Child->CollisionImpulses(), Child->GetExternalStrain());
 			if ((MaxAppliedStrain >= Child->GetInternalStrains()) || bForceRelease)
 			{
+				if (!bFoundFirstRelease)
+				{
+					ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, true);
+					bFoundFirstRelease = true;
+				}
+
 				//UE_LOG(LogTemp, Warning, TEXT("Releasing child %d from parent %p due to strain %.5f Exceeding internal strain %.5f (Source: %s)"), ChildIdx, ClusteredParticle, ChildStrain, Child->Strain(), bForceRelease ? TEXT("Forced by caller") : ExternalStrainMap ? TEXT("External") : TEXT("Collision"));
 				
 				// The piece that hits just breaks off - we may want more control 
@@ -1134,6 +1192,28 @@ namespace Chaos
 		}
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ClearConnectionGraph"), STAT_ClearConnectionGraph, STATGROUP_Chaos);
+	void
+	FRigidClustering::ClearConnectionGraph(FPBDRigidClusteredParticleHandle* Parent)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ClearConnectionGraph);
+		if (!MChildren.Contains(Parent))
+		{
+			return;
+		}
+
+		const TArray<FPBDRigidParticleHandle*>& Children = MChildren[Parent];
+		for (FPBDRigidParticleHandle* Handle : Children)
+		{
+			if (!Handle)
+			{
+				continue;
+			}
+
+			RemoveNodeConnections(Handle);
+		}
+	}
+
 	FRealSingle MinImpulseForStrainEval = 980 * 2 * 1.f / 30.f; //ignore impulses caused by just keeping object on ground. This is a total hack, we should not use accumulated impulse directly. Instead we need to look at delta v along constraint normal
 	FAutoConsoleVariableRef CVarMinImpulseForStrainEval(TEXT("p.chaos.MinImpulseForStrainEval"), MinImpulseForStrainEval, TEXT("Minimum accumulated impulse before accumulating for strain eval "));
 
@@ -1376,10 +1456,13 @@ namespace Chaos
 
 	bool FRigidClustering::BreakCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
-		if (!ClusteredParticle || ClusteredParticle->Disabled())
+		if (!ClusteredParticle)
 		{
 			return false;
 		}
+
+		// Pre-emptively remove the particle from cluster unions it might be in.
+		ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, true);
 
 		// max strain will allow to unconditionally release the children when strain is evaluated
 		constexpr FReal MaxStrain = TNumericLimits<FReal>::Max();
@@ -1409,11 +1492,40 @@ namespace Chaos
 		// max strain will allow to unconditionally release the children when strain is evaluated
 		constexpr FReal MaxStrain = TNumericLimits<FReal>::Max();
 
-		// we should probably have a way to retrieve all the active clusters per proxy instead of going through the map 
+		// we should probably have a way to retrieve all the active clusters per proxy instead of having to do this iteration
 		for (FPBDRigidClusteredParticleHandle* ClusteredHandle : GetTopLevelClusterParents())
 		{
-			if (ClusteredHandle && ClusteredHandle->PhysicsProxy() == Proxy)
+			const bool bIsInputProxy = ClusteredHandle->PhysicsProxy() == Proxy;
+
+			// This handles the case where we want to break a GC but it's still in a cluster union.
+			const bool bIsInPhysicsProxiesSet = ClusteredHandle->PhysicsProxies().Contains(Proxy);
+			if (ClusteredHandle && (bIsInputProxy || bIsInPhysicsProxiesSet))
 			{
+				// Now we need to go from the parent cluster union particle to the GC particle that corresponds to the proxy.
+				if (bIsInPhysicsProxiesSet)
+				{
+					ClusteredHandle = nullptr;
+					if (TArray<FPBDRigidParticleHandle*>* Children = MChildren.Find(ClusteredHandle))
+					{
+						FPBDRigidParticleHandle** Candidate = Children->FindByPredicate(
+							[Proxy](FPBDRigidParticleHandle* Particle)
+							{
+								return Particle->PhysicsProxy() == Proxy && Particle->CastToClustered();
+							}
+						);
+
+						if (Candidate)
+						{
+							ClusteredHandle = (*Candidate)->CastToClustered();
+						}
+					}
+
+					if (!ClusteredHandle)
+					{
+						continue;
+					}
+				}
+
 				if (const TArray<FPBDRigidParticleHandle*>* Children = MChildren.Find(ClusteredHandle))
 				{
 					for (FPBDRigidParticleHandle* ChildHandle : *Children)
@@ -1432,6 +1544,7 @@ namespace Chaos
 				bCrumbledAnyCluster = true;
 			}
 		}
+
 		return bCrumbledAnyCluster;
 	}
 

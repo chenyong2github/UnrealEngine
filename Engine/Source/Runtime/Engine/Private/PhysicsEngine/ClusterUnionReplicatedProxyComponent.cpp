@@ -19,7 +19,7 @@ UClusterUnionReplicatedProxyComponent::UClusterUnionReplicatedProxyComponent(con
 
 	bNetUpdateParentClusterUnion = false;
 	bNetUpdateChildClusteredComponent = false;
-	bNetUpdateParticleBoneNames = false;
+	bNetUpdateParticleBoneIds = false;
 	bNetUpdateParticleChildToParents = false;
 }
 
@@ -32,8 +32,18 @@ void UClusterUnionReplicatedProxyComponent::GetLifetimeReplicatedProps(TArray<FL
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UClusterUnionReplicatedProxyComponent, ParentClusterUnion, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UClusterUnionReplicatedProxyComponent, ChildClusteredComponent, Params);
-	DOREPLIFETIME_WITH_PARAMS_FAST(UClusterUnionReplicatedProxyComponent, ParticleBoneNames, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UClusterUnionReplicatedProxyComponent, ParticleBoneIds, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UClusterUnionReplicatedProxyComponent, ParticleChildToParents, Params);
+}
+
+void UClusterUnionReplicatedProxyComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UActorComponent::EndPlay(EndPlayReason);
+
+	if (!GetOwner()->HasAuthority() && ParentClusterUnion && ChildClusteredComponent)
+	{
+		ParentClusterUnion->RemoveComponentFromCluster(ChildClusteredComponent);
+	}
 }
 
 void UClusterUnionReplicatedProxyComponent::SetParentClusterUnion(UClusterUnionComponent* InComponent)
@@ -48,24 +58,24 @@ void UClusterUnionReplicatedProxyComponent::SetChildClusteredComponent(UPrimitiv
 	MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionReplicatedProxyComponent, ChildClusteredComponent, this);
 }
 
-void UClusterUnionReplicatedProxyComponent::SetParticleBoneNames(const TArray<FName>& InNames)
+void UClusterUnionReplicatedProxyComponent::SetParticleBoneIds(const TArray<int32>& InIds)
 {
-	ParticleBoneNames = InNames;
+	ParticleBoneIds = InIds;
 
 	ParticleChildToParents.Empty();
-	ParticleChildToParents.Reserve(InNames.Num());
-	for (int32 Index = 0; Index < InNames.Num(); ++Index)
+	ParticleChildToParents.Reserve(InIds.Num());
+	for (int32 Index = 0; Index < InIds.Num(); ++Index)
 	{
 		ParticleChildToParents.Add(FTransform::Identity);
 	}
 
-	MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionReplicatedProxyComponent, ParticleBoneNames, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionReplicatedProxyComponent, ParticleBoneIds, this);
 }
 
-void UClusterUnionReplicatedProxyComponent::SetParticleChildToParent(const FName& BoneName, const FTransform& ChildToParent)
+void UClusterUnionReplicatedProxyComponent::SetParticleChildToParent(int32 BoneId, const FTransform& ChildToParent)
 {
 	int32 Index = INDEX_NONE;
-	if (ParticleBoneNames.Find(BoneName, Index))
+	if (ParticleBoneIds.Find(BoneId, Index))
 	{
 		ParticleChildToParents[Index] = ChildToParent;
 		MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionReplicatedProxyComponent, ParticleChildToParents, this);
@@ -82,9 +92,9 @@ void UClusterUnionReplicatedProxyComponent::OnRep_ChildClusteredComponent()
 	bNetUpdateChildClusteredComponent = true;
 }
 
-void UClusterUnionReplicatedProxyComponent::OnRep_ParticleBoneNames()
+void UClusterUnionReplicatedProxyComponent::OnRep_ParticleBoneIds()
 {
-	bNetUpdateParticleBoneNames = true;
+	bNetUpdateParticleBoneIds = true;
 }
 
 void UClusterUnionReplicatedProxyComponent::OnRep_ParticleChildToParents()
@@ -97,28 +107,28 @@ void UClusterUnionReplicatedProxyComponent::PostRepNotifies()
 	UActorComponent::PostRepNotifies();
 
 	// These three properties should only get set once when the component is created.
-	const bool bIsInitialReplication = bNetUpdateParentClusterUnion || bNetUpdateChildClusteredComponent || bNetUpdateParticleBoneNames;
-	const bool bIsValid = ParentClusterUnion && ChildClusteredComponent && !ParticleBoneNames.IsEmpty();
+	const bool bIsInitialReplication = bNetUpdateParentClusterUnion || bNetUpdateChildClusteredComponent || bNetUpdateParticleBoneIds;
+	const bool bIsValid = ParentClusterUnion && ChildClusteredComponent && !ParticleBoneIds.IsEmpty();
 	if (bIsInitialReplication)
 	{
 		if (bIsValid)
 		{
-			ParentClusterUnion->AddComponentToCluster(ChildClusteredComponent, ParticleBoneNames);
+			ParentClusterUnion->AddComponentToCluster(ChildClusteredComponent, ParticleBoneIds);
 		}
 
 		bNetUpdateParentClusterUnion = false;
 		bNetUpdateChildClusteredComponent = false;
-		bNetUpdateParticleBoneNames = false;
+		bNetUpdateParticleBoneIds = false;
 	}
 
-	if (bIsValid && bNetUpdateParticleChildToParents && ParticleBoneNames.Num() == ParticleChildToParents.Num())
+	if (bIsValid && bNetUpdateParticleChildToParents && ParticleBoneIds.Num() == ParticleChildToParents.Num())
 	{
 		// This particular bit can't happen utnil *after* we add the component to the cluster union. There's an additional deferral
 		// in AddComponentToCluster that we have to wait for.
 		DeferUntilChildClusteredComponentInParentUnion(
 			[this]()
 			{
-				ParentClusterUnion->ForceSetChildToParent(ChildClusteredComponent, ParticleBoneNames, ParticleChildToParents);
+				ParentClusterUnion->ForceSetChildToParent(ChildClusteredComponent, ParticleBoneIds, ParticleChildToParents);
 			}
 		);
 		bNetUpdateParticleChildToParents = false;
