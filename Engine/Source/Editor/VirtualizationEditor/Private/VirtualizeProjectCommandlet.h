@@ -8,12 +8,12 @@
 #include "VirtualizeProjectCommandlet.generated.h"
 
 /**
- * Finds all packages in the project and attempts to virtualize them. If revision control
+ * Finds all packages in the project and attempts to virtualize their content. If revision control
  * is enabled then the commandlet will attempt to checkout the packages that need modification.
  *
- * Because the commmandlet is the VirtualizationEditor module it needs to be invoked
+ * Because the commandlet is the VirtualizationEditor module it needs to be invoked
  * with the command line:
- * -run=VirtualizationEditor.VirtualizeProject
+ * -run="VirtualizationEditor.VirtualizeProject"
  */
 UCLASS()
 class UVirtualizeProjectCommandlet

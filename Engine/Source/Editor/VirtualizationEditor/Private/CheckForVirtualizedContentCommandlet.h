@@ -25,7 +25,7 @@
  *
  * Because the commandlet is the VirtualizationEditor module it needs to be invoked
  * with the command line:
- * -run=VirtualizationEditor.CheckForVirtualizedContent
+ * -run="VirtualizationEditor.CheckForVirtualizedContent"
  *
  * Followed by
  */

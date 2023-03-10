@@ -15,7 +15,7 @@
  * 
  * Because the commmandlet is the VirtualizationEditor module it needs to be invoked 
  * with the command line:
- * -run=VirtualizationEditor.GeneratePayloadManifest
+ * -run="VirtualizationEditor.GeneratePayloadManifest"
  */
 UCLASS()
 class UGeneratePayloadManifestCommandlet
