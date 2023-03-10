@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -11,12 +12,17 @@ using System.Threading.Tasks;
 using Amazon.EC2.Model;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Nodes;
+using EpicGames.Redis;
 using Horde.Build.Acls;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 
@@ -131,13 +137,19 @@ namespace Horde.Build.Storage
 		public int ExportIdx { get; set; }
 
 		/// <summary>
+		/// Link to information about the target node
+		/// </summary>
+		public string Link { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReadRefResponse(NodeHandle target)
+		public ReadRefResponse(NodeHandle target, string link)
 		{
 			Hash = target.Hash;
 			Blob = target.Locator.Blob;
 			ExportIdx = target.Locator.ExportIdx;
+			Link = link;
 		}
 	}
 
@@ -150,15 +162,19 @@ namespace Horde.Build.Storage
 	public class StorageController : HordeControllerBase
 	{
 		readonly StorageService _storageService;
+		readonly IMemoryCache _memoryCache;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StorageController(StorageService storageService, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public StorageController(StorageService storageService, IMemoryCache memoryCache, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<StorageController> logger)
 		{
 			_storageService = storageService;
+			_memoryCache = memoryCache;
 			_globalConfig = globalConfig;
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -200,7 +216,7 @@ namespace Horde.Build.Storage
 				using (Stream stream = file.OpenReadStream())
 				{
 					BlobLocator locator = await client.WriteBlobAsync(stream, prefix: (prefix == null) ? Utf8String.Empty : new Utf8String(prefix), cancellationToken: cancellationToken);
-					return new WriteBlobResponse { Blob = locator, SupportsRedirects = client.SupportsRedirects? (bool?)true : null };
+					return new WriteBlobResponse { Blob = locator, SupportsRedirects = client.SupportsRedirects ? (bool?)true : null };
 				}
 			}
 		}
@@ -396,7 +412,8 @@ namespace Horde.Build.Storage
 				return new NotFoundResult();
 			}
 
-			return new ReadRefResponse(target);
+			string link = $"/api/v1/storage/{namespaceId}/nodes/{target.Locator.Blob}?export={target.Locator.ExportIdx}";
+			return new ReadRefResponse(target, link);
 		}
 
 		/// <summary>
@@ -436,6 +453,172 @@ namespace Horde.Build.Storage
 		static bool HasPathPrefix(string name, ReadOnlySpan<char> prefix)
 		{
 			return name.Length > prefix.Length && name[prefix.Length] == '/' && name.AsSpan(0, prefix.Length).SequenceEqual(prefix);
+		}
+
+		/// <summary>
+		/// Gets information about a particular bundle in storage
+		/// </summary>
+		/// <param name="namespaceId">Namespace containing the blob</param>
+		/// <param name="locator">Blob locator</param>
+		/// <param name="includeImports">Whether to include imports for the bundle</param>
+		/// <param name="includeExports">Whether to include exports for the bundle</param>
+		/// <param name="includePackets">Whether to include packets for the bundle</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		[Route("/api/v1/storage/{namespaceId}/bundles/{*locator}")]
+		public async Task<ActionResult<object>> GetBundleAsync(NamespaceId namespaceId, BlobLocator locator, [FromQuery(Name = "imports")] bool includeImports = false, [FromQuery(Name = "exports")] bool includeExports = true, [FromQuery(Name = "packets")] bool includePackets = false, CancellationToken cancellationToken = default)
+		{
+			NamespaceConfig? namespaceConfig;
+			if (!_globalConfig.Value.Storage.TryGetNamespace(namespaceId, out namespaceConfig))
+			{
+				return NotFound(namespaceId);
+			}
+			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User))
+			{
+				return Forbid(AclAction.ReadBlobs, namespaceId);
+			}
+
+			IStorageClient storageClient = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+			TreeReader reader = new TreeReader(storageClient, _memoryCache, _logger);
+
+			BundleHeader header = await reader.ReadBundleHeaderAsync(locator, cancellationToken);
+
+			string linkBase = $"/api/v1/storage/{namespaceId}";
+
+			List<object>? responseImports = null;
+			if (includeImports)
+			{
+				responseImports = new List<object>();
+				foreach (BundleImport import in header.Imports)
+				{
+					string link = $"{linkBase}/bundles/{import.Locator}";
+					List<string> exports = import.Exports.ConvertAll(x => $"{linkBase}/nodes/{import.Locator}?export={x}");
+					responseImports.Add(new { bundle = link, exports });
+				}
+			}
+
+			List<object>? responseExports = null;
+			if (includeExports)
+			{
+				responseExports = new List<object>();
+				for (int exportIdx = 0; exportIdx < header.Exports.Count; exportIdx++)
+				{
+					BundleExport export = header.Exports[exportIdx];
+
+					string details = $"{linkBase}/nodes/{locator}?export={exportIdx}";
+					BundleType type = header.Types[export.TypeIdx];
+					string typeName = GetNodeType(type.Guid)?.Name ?? type.Guid.ToString();
+
+					responseExports.Add(new { export.Hash, export.Length, details, type = typeName });
+				}
+			}
+
+			List<object>? responsePackets = null;
+			if (includePackets)
+			{
+				responsePackets = new List<object>();
+				for (int packetIdx = 0, exportIdx = 0; packetIdx < header.Packets.Count; packetIdx++)
+				{
+					BundlePacket packet = header.Packets[packetIdx];
+
+					List<string> packetExports = new List<string>();
+
+					int length = 0;
+					for (; exportIdx < header.Exports.Count && length + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
+					{
+						BundleExport export = header.Exports[exportIdx];
+						packetExports.Add($"{linkBase}/{locator}?export={exportIdx}");
+						length += export.Length;
+					}
+
+					responsePackets.Add(new { packetIdx, packet.EncodedLength, packet.DecodedLength, exports = packetExports });
+				}
+			}
+
+			return new { header.CompressionFormat, imports = responseImports, exports = responseExports, packets = responsePackets };
+		}
+
+		/// <summary>
+		/// Gets information about a particular bundle in storage
+		/// </summary>
+		/// <param name="namespaceId">Namespace containing the blob</param>
+		/// <param name="locator">Blob locator</param>
+		/// <param name="exportIdx">Index of the export</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		[Route("/api/v1/storage/{namespaceId}/nodes/{*locator}")]
+		public async Task<ActionResult<object>> GetNodeAsync(NamespaceId namespaceId, BlobLocator locator, [FromQuery(Name = "export")] int exportIdx, CancellationToken cancellationToken = default)
+		{
+			NamespaceConfig? namespaceConfig;
+			if (!_globalConfig.Value.Storage.TryGetNamespace(namespaceId, out namespaceConfig))
+			{
+				return NotFound(namespaceId);
+			}
+			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User))
+			{
+				return Forbid(AclAction.ReadBlobs, namespaceId);
+			}
+
+			IStorageClient storageClient = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+			TreeReader reader = new TreeReader(storageClient, _memoryCache, _logger);
+
+			BundleHeader header = await reader.ReadBundleHeaderAsync(locator, cancellationToken);
+			BundleExport export = header.Exports[exportIdx];
+
+			string linkBase = $"/api/v1/storage/{namespaceId}";
+
+			object content;
+
+			TreeNode node = await reader.ReadNodeAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+			switch (node)
+			{
+				case DirectoryNode directoryNode:
+					{
+						List<object> directories = new List<object>();
+						foreach ((Utf8String name, DirectoryEntry entry) in directoryNode.NameToDirectory)
+						{
+							directories.Add(new { name = name.ToString(), link = GetNodeLink(linkBase, entry) });
+						}
+
+						List<object> files = new List<object>();
+						foreach ((Utf8String name, FileEntry entry) in directoryNode.NameToFile)
+						{
+							files.Add(new { name = name.ToString(), link = GetNodeLink(linkBase, entry) });
+						}
+
+						content = new { directoryNode.Length, directories, files };
+					}
+					break;
+				default:
+					content = new { references = node.EnumerateRefs().Select(x => GetNodeLink(linkBase, x)) };
+					break;
+			}
+
+			return new { bundle = $"{linkBase}/bundles/{locator}", export.Hash, export.Length, guid = header.Types[export.TypeIdx].Guid, type = node.GetType().Name, content = content };
+		}
+
+		static string GetNodeLink(string linkBase, TreeNodeRef treeNodeRef) => $"{linkBase}/nodes/{treeNodeRef.Handle!.Locator.Blob}?export={treeNodeRef.Handle!.Locator.ExportIdx}";
+
+		static readonly Dictionary<Guid, Type> s_guidToType = GetGuidToTypeMap();
+
+		static Dictionary<Guid, Type> GetGuidToTypeMap()
+		{
+			Dictionary<Guid, Type> guidToType = new Dictionary<Guid, Type>();
+			foreach (Type nodeType in new TreeReaderOptions().Types)
+			{
+				TreeNodeAttribute? attribute = nodeType.GetCustomAttribute<TreeNodeAttribute>();
+				if (attribute != null)
+				{
+					guidToType.Add(Guid.Parse(attribute.Guid), nodeType);
+				}
+			}
+			return guidToType;
+		}
+
+		static Type? GetNodeType(Guid typeGuid)
+		{
+			s_guidToType.TryGetValue(typeGuid, out Type? type);
+			return type;
 		}
 	}
 }

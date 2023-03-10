@@ -6,6 +6,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Horde.Build.Perforce;
+using Horde.Build.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,9 @@ namespace Horde.Build.Commands.Bundles
 	{
 		[CommandLine("-Ref=")]
 		public RefName RefName { get; set; } = new RefName("default-ref");
+
+		[CommandLine("-Namespace=")]
+		public NamespaceId NamespaceId { get; set; } = Namespace.Artifacts;
 
 		[CommandLine("-InputDir=", Required = true)]
 		public DirectoryReference InputDir { get; set; } = null!;
@@ -34,8 +38,10 @@ namespace Horde.Build.Commands.Bundles
 		{
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
-			IStorageClient store = serviceProvider.GetRequiredService<IStorageClient<ReplicationService>>();
-			using TreeWriter writer = new TreeWriter(store, prefix: RefName.Text);
+			StorageService storageService = serviceProvider.GetRequiredService<StorageService>();
+			IStorageClient storageClient = await storageService.GetClientAsync(NamespaceId, CancellationToken.None);			
+			
+			using TreeWriter writer = new TreeWriter(storageClient, prefix: RefName.Text);
 
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, new CopyStatsLogger(logger), CancellationToken.None);

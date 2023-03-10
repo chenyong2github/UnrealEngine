@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,6 +26,11 @@ namespace EpicGames.Horde.Storage
 		/// Hash when deserialized
 		/// </summary>
 		public IoHash Hash { get; internal set; }
+
+		/// <summary>
+		/// Accessor for the bundle type definition associated with this node
+		/// </summary>
+		public BundleType BundleType => GetBundleType(GetType());
 
 		/// <summary>
 		/// Default constructor
@@ -62,6 +68,41 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <returns>References to other nodes</returns>
 		public abstract IEnumerable<TreeNodeRef> EnumerateRefs();
+
+		#region Static Methods
+
+		/// <summary>
+		/// Cache of constructed <see cref="BundleType"/> instances.
+		/// </summary>
+		static readonly ConcurrentDictionary<Type, BundleType> s_typeToBundleType = new ConcurrentDictionary<Type, BundleType>();
+
+		/// <summary>
+		/// Gets the <see cref="BundleType"/> instance for a particular node type
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns>Bundle</returns>
+		public static BundleType GetBundleType(Type type)
+		{
+			BundleType? bundleType;
+			if (!s_typeToBundleType.TryGetValue(type, out bundleType))
+			{
+				TreeNodeAttribute? attribute = type.GetCustomAttribute<TreeNodeAttribute>();
+				if (attribute == null)
+				{
+					throw new InvalidOperationException($"Missing {nameof(TreeNodeAttribute)} from type {type.Name}");
+				}
+				bundleType = s_typeToBundleType.GetOrAdd(type, new BundleType(Guid.Parse(attribute.Guid), attribute.Version));
+			}
+			return bundleType;
+		}
+
+		/// <summary>
+		/// Gets the <see cref="BundleType"/> instance for a particular node type
+		/// </summary>
+		/// <typeparam name="T">Type of the node</typeparam>
+		public static BundleType GetBundleType<T>() where T : TreeNode => GetBundleType(typeof(T));
+
+		#endregion
 	}
 
 	/// <summary>
@@ -205,38 +246,6 @@ namespace EpicGames.Horde.Storage
 		{
 			using TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
 			return await writer.WriteAsync(name, node, refOptions, cancellationToken);
-		}
-
-		/// <summary>
-		/// Cache of constructed <see cref="BundleType"/> instances.
-		/// </summary>
-		static readonly ConcurrentDictionary<Type, BundleType> s_typeToBundleType = new ConcurrentDictionary<Type, BundleType>();
-
-		/// <summary>
-		/// Gets the bundle type object for a particular node
-		/// </summary>
-		/// <param name="node"></param>
-		/// <returns></returns>
-		public static BundleType GetBundleType(this TreeNode node) => GetBundleType(node.GetType());
-
-		/// <summary>
-		/// Gets the <see cref="BundleType"/> instance for a particular node type
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns>Bundle</returns>
-		public static BundleType GetBundleType(Type type)
-		{
-			BundleType? bundleType;
-			if (!s_typeToBundleType.TryGetValue(type, out bundleType))
-			{
-				TreeNodeAttribute? attribute = type.GetCustomAttribute<TreeNodeAttribute>();
-				if (attribute == null)
-				{
-					throw new InvalidOperationException($"Missing {nameof(TreeNodeAttribute)} from type {type.Name}");
-				}
-				bundleType = s_typeToBundleType.GetOrAdd(type, new BundleType(Guid.Parse(attribute.Guid), attribute.Version));
-			}
-			return bundleType;
 		}
 	}
 }

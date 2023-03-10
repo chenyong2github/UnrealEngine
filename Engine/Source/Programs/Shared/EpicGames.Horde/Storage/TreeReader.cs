@@ -113,7 +113,7 @@ namespace EpicGames.Horde.Storage
 				TypeInfo? typeInfo;
 				if (!s_cachedTypeInfo.TryGetValue(type, out typeInfo))
 				{
-					BundleType bundleType = TreeNodeExtensions.GetBundleType(type);
+					BundleType bundleType = TreeNode.GetBundleType(type);
 
 					Type[] signature = new[] { typeof(ITreeNodeReader) };
 

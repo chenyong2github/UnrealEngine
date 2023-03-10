@@ -51,6 +51,11 @@ namespace EpicGames.Horde.Storage
 		public static NodeLocator Parse(ReadOnlySpan<char> text)
 		{
 			int hashIdx = text.IndexOf('#');
+			if (hashIdx == -1)
+			{
+				throw new ArgumentException("Invalid node locator", nameof(text));
+			}
+
 			int exportIdx = Int32.Parse(text.Slice(hashIdx + 1), NumberStyles.None, CultureInfo.InvariantCulture);
 			BlobLocator blobLocator = new BlobLocator(new Utf8String(text.Slice(0, hashIdx)));
 			return new NodeLocator(blobLocator, exportIdx);
@@ -76,7 +81,7 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Type converter for BlobId to and from JSON
+	/// Type converter for <see cref="NodeLocator"/> to and from JSON
 	/// </summary>
 	sealed class NodeLocatorJsonConverter : JsonConverter<NodeLocator>
 	{
@@ -88,7 +93,7 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Type converter from strings to BlobId objects
+	/// Type converter from strings to <see cref="NodeLocator"/> objects
 	/// </summary>
 	sealed class NodeLocatorTypeConverter : TypeConverter
 	{
@@ -101,7 +106,7 @@ namespace EpicGames.Horde.Storage
 		/// <inheritdoc/>
 		public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object? value)
 		{
-			return new BlobLocator((string)value!);
+			return NodeLocator.Parse((string)value!);
 		}
 	}
 

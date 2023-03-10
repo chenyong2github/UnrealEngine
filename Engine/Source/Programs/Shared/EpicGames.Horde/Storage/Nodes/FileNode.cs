@@ -390,8 +390,8 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 		}
 
-		static readonly BundleType s_leafNodeType = TreeNodeExtensions.GetBundleType(typeof(LeafFileNode));
-		static readonly BundleType s_interiorNodeType = TreeNodeExtensions.GetBundleType(typeof(InteriorFileNode));
+		static readonly BundleType s_leafNodeType = TreeNode.GetBundleType<LeafFileNode>();
+		static readonly BundleType s_interiorNodeType = TreeNode.GetBundleType<InteriorFileNode>();
 
 		readonly TreeWriter _writer;
 		readonly ChunkingOptions _options;

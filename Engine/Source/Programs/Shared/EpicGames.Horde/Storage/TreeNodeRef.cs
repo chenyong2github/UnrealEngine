@@ -350,7 +350,7 @@ namespace EpicGames.Horde.Storage
 			target.Serialize(nodeWriter);
 
 			// Write the final data
-			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nextRefHandles, target.GetBundleType(), cancellationToken);
+			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nextRefHandles, target.BundleType, cancellationToken);
 			target.Hash = handle.Hash;
 
 			NodeWriteCallback writeState = new NodeWriteCallback(nodeRef, handle);

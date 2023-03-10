@@ -826,7 +826,13 @@ namespace EpicGames.Horde.Storage.Nodes
 							directory = await FindOrAddDirectoryAsync(null!, fullName.Substring(0, slashIdx), cancellationToken);
 						}
 
-						FileEntry fileEntry = new FileEntry(entry.Name, FileEntryFlags.None, fileWriter.Length, node);
+						FileEntryFlags flags = FileEntryFlags.None;
+						if ((entry.ExternalAttributes & (0b_001_001_001 << 16)) != 0)
+						{
+							flags |= FileEntryFlags.Executable;
+						}
+
+						FileEntry fileEntry = new FileEntry(entry.Name, flags, fileWriter.Length, node);
 						directory.AddFile(fileEntry);
 					}
 				}
