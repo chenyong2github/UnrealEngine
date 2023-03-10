@@ -361,15 +361,13 @@ bool FGenericPlatformInputDeviceMapper::RemapControllerIdToPlatformUserAndDevice
 
 FPlatformUserId FGenericPlatformInputDeviceMapper::GetPlatformUserForUserIndex(int32 LocalUserIndex)
 {
-	FPlatformUserId OutUserId;
-	FInputDeviceId TempDeviceId;
-
 	// The platform user index is equivalent to ControllerId in most legacy code
-	if (RemapControllerIdToPlatformUserAndDevice(LocalUserIndex, OutUserId, TempDeviceId))
+	if (IsUsingControllerIdAsUserId())
 	{
-		return OutUserId;
+		return FPlatformUserId::CreateFromInternalId(LocalUserIndex);
 	}
 
+	checkNoEntry();
 	return PLATFORMUSERID_NONE;
 }
 
