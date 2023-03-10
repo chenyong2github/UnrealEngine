@@ -368,7 +368,16 @@ private:
 	 * int32 is an index into MediaTextures.
 	 * -1 signifies no entry.
 	 */
-	TArray<TArray<int32>> TextureLayers;
+	struct Layer
+	{
+		/** The layer in the material that this layer uses. */
+		int32 MaterialLayerIndex;
+		/** List of textures in this layer. */
+		TArray<int32> Textures;
+
+		Layer() : MaterialLayerIndex(0) {};
+	};
+	TArray<Layer> TextureLayers;
 
 	/**
 	 * Plays a media source.
