@@ -240,7 +240,7 @@ namespace Jupiter.Controllers
                         IAsyncEnumerable<Attachment> attachments = _referenceResolver.GetAttachments(ns, cb);
 
                         using CbPackageBuilder writer = new CbPackageBuilder();
-                        await writer.AddAttachment(objectRecord.BlobIdentifier.AsIoHash(), CbPackageAttachmentFlags.IsObject, blobMemory);
+                        writer.AddAttachment(objectRecord.BlobIdentifier.AsIoHash(), CbPackageAttachmentFlags.IsObject, blobMemory);
 
                         await foreach (Attachment attachment in attachments)
                         {
@@ -282,15 +282,15 @@ namespace Jupiter.Controllers
                                     throw new NotSupportedException($"Unknown attachment type {attachment.GetType()}");
                                 }
 
-                                await writer.AddAttachment(attachmentHash, flags, attachmentContents.Stream, (ulong)attachmentContents.Length);
+                                writer.AddAttachment(attachmentHash, flags, attachmentContents.Stream, (ulong)attachmentContents.Length);
                             }
                             catch (Exception e)
                             {
                                 (CbObject errorObject, HttpStatusCode _) = ToErrorResult(e);
-                                await writer.AddAttachment(attachmentHash, CbPackageAttachmentFlags.IsError | CbPackageAttachmentFlags.IsObject, errorObject.GetView().ToArray());
+                                writer.AddAttachment(attachmentHash, CbPackageAttachmentFlags.IsError | CbPackageAttachmentFlags.IsObject, errorObject.GetView().ToArray());
                             }
                         }
-                        await using BlobContents contents = new BlobContents(writer.ToByteArray());
+                        await using BlobContents contents = new BlobContents(await writer.ToByteArray());
                         await WriteBody(contents, CustomMediaTypeNames.UnrealCompactBinaryPackage);
                         break;
                     }

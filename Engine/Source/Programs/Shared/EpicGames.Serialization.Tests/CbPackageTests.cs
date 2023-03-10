@@ -40,8 +40,8 @@ namespace EpicGames.Serialization.Tests
 			IoHash rootHash = IoHash.Compute(rootObject.GetView().Span);
 			
 			using CbPackageBuilder builder = new();
-			await builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
-			byte[] bytes = builder.ToByteArray();
+			builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
+			byte[] bytes = await builder.ToByteArray();
 
 			await using MemoryStream ms = new MemoryStream(bytes);
 			CbPackageReader reader = await CbPackageReader.Create(ms);
@@ -74,11 +74,11 @@ namespace EpicGames.Serialization.Tests
 			IoHash rootHash = IoHash.Compute(rootObject.GetView().Span);
 
 			using CbPackageBuilder builder = new();
-			await builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
-			await builder.AddAttachment(simpleHash, CbPackageAttachmentFlags.IsObject, simpleObject.GetView().ToArray());
-			await builder.AddAttachment(blobHash, 0, blob);
+			builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
+			builder.AddAttachment(simpleHash, CbPackageAttachmentFlags.IsObject, simpleObject.GetView().ToArray());
+			builder.AddAttachment(blobHash, 0, blob);
 
-			byte[] bytes = builder.ToByteArray();
+			byte[] bytes = await builder.ToByteArray();
 
 			await using MemoryStream ms = new MemoryStream(bytes);
 			CbPackageReader reader = await CbPackageReader.Create(ms);
@@ -115,7 +115,12 @@ namespace EpicGames.Serialization.Tests
 		public async Task ReadNoAttachments()
 		{
 			using CbPackageBuilder packageBuilder = new CbPackageBuilder();
-			byte[] buf = packageBuilder.ToByteArray();
+			SimpleObject simple = new SimpleObject();
+			CbObject simpleObject = CbSerializer.Serialize(simple);
+			IoHash simpleHash = IoHash.Compute(simpleObject.GetView().Span);
+			packageBuilder.AddAttachment(simpleHash, CbPackageAttachmentFlags.IsObject, simpleObject.GetView().ToArray());
+
+			byte[] buf = await packageBuilder.ToByteArray();
 			await using MemoryStream ms = new MemoryStream(buf);
 
 			try
