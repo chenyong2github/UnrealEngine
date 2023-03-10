@@ -4748,7 +4748,7 @@ void FFilesToSearch::Shrink()
 
 int32 FFilesToSearch::Num() const
 {
-	return BlockingFiles.Num() + Root.NumFiles() + LaterRetryFiles.Num();
+	return AvailableFilesNum + LaterRetryFiles.Num();
 }
 
 int32 FFilesToSearch::GetNumAvailable() const
