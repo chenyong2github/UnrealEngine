@@ -74,7 +74,7 @@ void SCustomizableObjectNodeLayoutBlocksEditor::SetCurrentLayout(UCustomizableOb
 
 	if (CurrentLayout)
 	{
-		CurrentLayout->GetUVChannel(UVs);
+		CurrentLayout->GetUVChannel(UVs, CurrentLayout->GetUVChannel());
 
 		UnassignedUVs = TArray<FVector2f>();
 		
