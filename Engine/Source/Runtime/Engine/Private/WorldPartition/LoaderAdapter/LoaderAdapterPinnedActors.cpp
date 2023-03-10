@@ -16,27 +16,6 @@ bool FLoaderAdapterPinnedActors::PassActorDescFilter(const FWorldPartitionHandle
 	return ActorHandle.IsValid() && !ActorsToRemove.Contains(ActorHandle);
 }
 
-FText FLoaderAdapterPinnedActors::GetUnloadedReason(FWorldPartitionActorDesc* InActorDesc)
-{
-	if (InActorDesc)
-	{
-		if (InActorDesc->FailedToLoad())
-		{
-			return LOCTEXT("FailedToLoadReason", "Failed to load");
-		}
-
-		UActorDescContainer* ActorDescContainer = InActorDesc->GetContainer();
-		UWorldPartition* WorldPartition = ActorDescContainer != nullptr ? ActorDescContainer->GetWorldPartition() : nullptr;
-		bool bShouldBeLoaded = !InActorDesc->GetIsSpatiallyLoaded() && InActorDesc->IsEditorRelevant();
-		if (WorldPartition && (bShouldBeLoaded || WorldPartition->IsActorPinned(InActorDesc->GetGuid())))
-		{
-			return LOCTEXT("UnloadedDataLayerReason", "Unloaded DataLayer");
-		}
-	}
-	
-	return LOCTEXT("UnloadedReason", "Unloaded");
-}
-
 bool FLoaderAdapterPinnedActors::SupportsPinning(FWorldPartitionActorDesc* InActorDesc)
 {
 	if (!InActorDesc)

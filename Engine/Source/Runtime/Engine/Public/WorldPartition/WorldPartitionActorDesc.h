@@ -176,9 +176,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return GetTypeHash(Key.Guid);
 	}
 
-	bool FailedToLoad() const
+	const FText& GetUnloadedReason() const;
+
+	void SetUnloadedReason(FText* InUnloadedReason)
 	{
-		return bFailedToLoad;
+		UnloadedReason = InUnloadedReason;
 	}
 
 protected:
@@ -306,7 +308,7 @@ protected:
 	UActorDescContainer*			Container;
 	TOptional<TArray<FName>>		ResolvedDataLayerInstanceNames; // Can only resolve in ActorDesc if Container is not used as a template
 	bool							bIsForcedNonSpatiallyLoaded;
-	mutable bool					bFailedToLoad;
+	mutable FText*					UnloadedReason;
 
 	static TMap<TSubclassOf<AActor>, FActorDescDeprecator> Deprecators;
 };

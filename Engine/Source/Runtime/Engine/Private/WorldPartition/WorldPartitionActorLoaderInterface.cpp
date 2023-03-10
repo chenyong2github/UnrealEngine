@@ -18,12 +18,13 @@ UWorldPartitionActorLoaderInterface::UWorldPartitionActorLoaderInterface(const F
 {}
 
 #if WITH_EDITOR
-TArray<IWorldPartitionActorLoaderInterface::FActorDescFilter> IWorldPartitionActorLoaderInterface::ActorDescFilters;
+TArray<TSharedRef<IWorldPartitionActorLoaderInterface::FActorDescFilter>> IWorldPartitionActorLoaderInterface::ActorDescFilters;
 IWorldPartitionActorLoaderInterface::FOnActorLoaderInterfaceRefreshState IWorldPartitionActorLoaderInterface::ActorLoaderInterfaceRefreshState;
 
-void IWorldPartitionActorLoaderInterface::RegisterActorDescFilter(const FActorDescFilter& InActorDescFilter)
+void IWorldPartitionActorLoaderInterface::RegisterActorDescFilter(const TSharedRef<FActorDescFilter>& InActorDescFilter)
 {
 	ActorDescFilters.Add(InActorDescFilter);
+	ActorDescFilters.Sort([](const TSharedRef<FActorDescFilter>& FilterA, const TSharedRef<FActorDescFilter>& FilterB) { return FilterA.Get().GetFilterPriority() > FilterB.Get().GetFilterPriority(); });
 }
 
 IWorldPartitionActorLoaderInterface::ILoaderAdapter::ILoaderAdapter(UWorld* InWorld)
@@ -231,6 +232,8 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::ShouldActorBeLoaded(co
 {
 	check(Actor.IsValid());
 
+	Actor->SetUnloadedReason(nullptr);
+
 	if (!PassActorDescFilter(Actor))
 	{
 		return false;
@@ -238,8 +241,9 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::ShouldActorBeLoaded(co
 
 	for (auto& ActorDescFilter : ActorDescFilters)
 	{
-		if (!ActorDescFilter(World, Actor))
+		if (!ActorDescFilter.Get().PassFilter(World, Actor))
 		{
+			Actor->SetUnloadedReason(ActorDescFilter.Get().GetFilterReason());
 			return false;
 		}
 	}

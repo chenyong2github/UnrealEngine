@@ -682,18 +682,32 @@ void FLevelInstanceEditorModule::StartupModule()
 	EditorLevelUtils::CanMoveActorToLevelDelegate.AddRaw(this, &FLevelInstanceEditorModule::CanMoveActorToLevel);
 
 	// Register actor descriptor loading filter
-	IWorldPartitionActorLoaderInterface::RegisterActorDescFilter([](UWorld* World, const FWorldPartitionHandle& ActorHandle) 
-	{ 
-		if (UWorld* OwningWorld = World->PersistentLevel->GetWorld())
+	class FLevelInstanceActorDescFilter : public IWorldPartitionActorLoaderInterface::FActorDescFilter
+	{
+	public:
+		bool PassFilter(class UWorld* InWorld, const FWorldPartitionHandle& InHandle) override
 		{
-			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = OwningWorld->GetSubsystem<ULevelInstanceSubsystem>())
+			if (UWorld* OwningWorld = InWorld->PersistentLevel->GetWorld())
 			{
-				return LevelInstanceSubsystem->PassLevelInstanceFilter(World, ActorHandle);
+				if (ULevelInstanceSubsystem* LevelInstanceSubsystem = OwningWorld->GetSubsystem<ULevelInstanceSubsystem>())
+				{
+					return LevelInstanceSubsystem->PassLevelInstanceFilter(InWorld, InHandle);
+				}
 			}
+
+			return true;
 		}
 
-		return true;
-	});
+		// Leave [0, 19] for Game code
+		virtual uint32 GetFilterPriority() const override { return 20; }
+
+		virtual FText* GetFilterReason() const override
+		{
+			static FText UnloadedReason(LOCTEXT("LevelInstanceActorDescFilterReason", "Filtered"));
+			return &UnloadedReason;
+		}
+	};
+	IWorldPartitionActorLoaderInterface::RegisterActorDescFilter(MakeShareable<IWorldPartitionActorLoaderInterface::FActorDescFilter>(new FLevelInstanceActorDescFilter()));
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	FMessageLogInitializationOptions InitOptions;

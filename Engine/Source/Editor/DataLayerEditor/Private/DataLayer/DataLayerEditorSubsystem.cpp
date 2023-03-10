@@ -200,8 +200,34 @@ void UDataLayerEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// Register the engine broadcast bridge
 	OnActorDataLayersEditorLoadingStateChangedEngineBridgeHandle = DataLayerEditorLoadingStateChanged.AddStatic(&FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChanged);
 
+	class FDataLayerActorDescFilter : public IWorldPartitionActorLoaderInterface::FActorDescFilter
+	{
+	public:
+		FDataLayerActorDescFilter(UDataLayerEditorSubsystem* InSubsystem) : Subsystem(InSubsystem) {}
+		bool PassFilter(class UWorld* InWorld, const FWorldPartitionHandle& InHandle) override
+		{
+			if (!Subsystem->PassDataLayersFilter(InWorld, InHandle))
+			{
+				return false;
+			}
+
+			return true;
+		}
+
+		// Leave [0,9] for Game code
+		virtual uint32 GetFilterPriority() const { return 10; }
+
+		virtual FText* GetFilterReason() const override
+		{
+			static FText UnloadedReason(LOCTEXT("DataLayerFilterReason", "Unloaded Datalayer"));
+			return &UnloadedReason;
+		}
+	private:
+		UDataLayerEditorSubsystem* Subsystem;
+	};
+
 	// Register actor descriptor loading filter
-	IWorldPartitionActorLoaderInterface::RegisterActorDescFilter([this](UWorld* World, const FWorldPartitionHandle& ActorHandle) { return PassDataLayersFilter(World, ActorHandle); });
+	IWorldPartitionActorLoaderInterface::RegisterActorDescFilter(MakeShareable<IWorldPartitionActorLoaderInterface::FActorDescFilter>(new FDataLayerActorDescFilter(this)));
 }
 
 void UDataLayerEditorSubsystem::Deinitialize()

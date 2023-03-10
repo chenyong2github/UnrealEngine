@@ -15,7 +15,6 @@ public:
 		: FLoaderAdapterActorList(InWorld)
 	{}
 
-	static FText GetUnloadedReason(FWorldPartitionActorDesc* InActorDesc);
 	static bool SupportsPinning(FWorldPartitionActorDesc* InActorDesc);
 	static bool SupportsPinning(AActor* InActor);
 

@@ -27,6 +27,8 @@
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 #include "ActorReferencesUtils.h"
 
+#define LOCTEXT_NAMESPACE "FWorldPartitionActorDesc"
+
 TMap<TSubclassOf<AActor>, FWorldPartitionActorDesc::FActorDescDeprecator> FWorldPartitionActorDesc::Deprecators;
 
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
@@ -35,7 +37,7 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	, HardRefCount(0)
 	, Container(nullptr)
 	, bIsForcedNonSpatiallyLoaded(false)
-	, bFailedToLoad(false)
+	, UnloadedReason(nullptr)
 {}
 
 void FWorldPartitionActorDesc::Init(const AActor* InActor)
@@ -641,9 +643,16 @@ AActor* FWorldPartitionActorDesc::GetActor(bool bEvenIfPendingKill, bool bEvenIf
 	return bEvenIfUnreachable ? ActorPtr.GetEvenIfUnreachable() : ActorPtr.Get(bEvenIfPendingKill);
 }
 
+const FText& FWorldPartitionActorDesc::GetUnloadedReason() const
+{
+	static FText Unloaded(LOCTEXT("UnloadedReason", "Unloaded"));
+	return UnloadedReason ? *UnloadedReason : Unloaded;
+}
+
 AActor* FWorldPartitionActorDesc::Load() const
 {
-	bFailedToLoad = false;
+	static FText FailedToLoad(LOCTEXT("FailedToLoadReason", "Failed to load"));
+	UnloadedReason = nullptr;
 
 	if (ActorPtr.IsExplicitlyNull() || ActorPtr.IsStale())
 	{
@@ -674,7 +683,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 			if (!ActorPtr.IsValid())
 			{
 				UE_LOG(LogWorldPartition, Warning, TEXT("Can't load actor guid `%s` ('%s') from package '%s'"), *Guid.ToString(), *GetActorName().ToString(), *ActorPackage.ToString());
-				bFailedToLoad = true;
+				UnloadedReason = &FailedToLoad;
 			}
 		}
 	}
@@ -711,4 +720,7 @@ void FWorldPartitionActorDesc::Unload()
 		ActorPtr = nullptr;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
+
 #endif

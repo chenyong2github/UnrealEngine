@@ -73,8 +73,18 @@ public:
 
 	virtual ILoaderAdapter* GetLoaderAdapter() =0;
 
-	using FActorDescFilter = TFunction<bool(class UWorld*, const FWorldPartitionHandle&)>;
-	static void RegisterActorDescFilter(const FActorDescFilter& InActorDescFilter);
+	class FActorDescFilter
+	{
+	public:
+		virtual ~FActorDescFilter() {}
+		virtual bool PassFilter(class UWorld*, const FWorldPartitionHandle&) = 0;
+
+		// Higher priority filters are called first
+		virtual uint32 GetFilterPriority() const = 0;
+		virtual FText* GetFilterReason() const = 0;
+	};
+		
+	static void RegisterActorDescFilter(const TSharedRef<FActorDescFilter>& InActorDescFilter);
 
 	static void RefreshLoadedState(bool bIsFromUserChange);
 
@@ -82,7 +92,7 @@ private:
 	DECLARE_EVENT_OneParam(IWorldPartitionActorLoaderInterface, FOnActorLoaderInterfaceRefreshState, bool /*bIsFromUserChange*/);
 	static FOnActorLoaderInterfaceRefreshState ActorLoaderInterfaceRefreshState;
 
-	static TArray<FActorDescFilter> ActorDescFilters;
+	static TArray<TSharedRef<FActorDescFilter>> ActorDescFilters;
 	friend class ILoaderAdapter;
 #endif
 };
