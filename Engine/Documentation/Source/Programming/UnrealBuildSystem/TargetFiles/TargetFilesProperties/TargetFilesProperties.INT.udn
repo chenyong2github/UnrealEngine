@@ -274,6 +274,8 @@ $ bPreprocessOnly (Boolean): Whether to just preprocess source files for this ta
 
 $ bPreprocessDepends (Boolean): Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
 
+$ bWithAssembly (Boolean): Whether to generate assembly data while compiling this target. Works exclusively on MSVC for now.
+
 $ StaticAnalyzer (StaticAnalyzer): Whether static code analysis should be enabled.
 
 $ StaticAnalyzerOutputType (StaticAnalyzerOutputType): The output type to use for the static analyzer. This is only supported for Clang.
@@ -358,6 +360,10 @@ $ bDisableInliningGenCpps (Boolean): Disable supports for inlining gen.cpps
 
 $ ToolChainName (String): Allows overriding the toolchain to be created for this target. This must match the name of a class declared in the UnrealBuildTool assembly.
 
+$ MSVCCompileActionWeight (Single): The weight(cpu/memory utilization) of a MSVC compile action
+
+$ ClangCompileActionWeight (Single): The weight(cpu/memory utilization) of a clang compile action
+
 $ bDisableUnverifiedCertificates (Boolean): Whether to allow engine configuration to determine if we can load unverified certificates.
 
 $ bAllowGeneratedIniWhenCooked (Boolean): Whether to load generated ini files in cooked build, (GameUserSettings.ini loaded either way)
@@ -413,6 +419,8 @@ $ GeneratedProjectName (String): When generating project files, specifies the na
 $ OptedInModulePlatforms (UnrealTargetPlatform[]): If this is non-null, then any platforms NOT listed will not be allowed to have modules in their directories be created
 
 $ Name (String): The name of this target
+
+$ Logger (ILogger): Logger for output relating to this target. Set before the constructor is run from
 
 $ DefaultBuildSettings (BuildSettingsVersion): Specifies the engine version to maintain backwards-compatible default build settings with (eg. DefaultSettingsVersion.Release_4_23, DefaultSettingsVersion.Release_4_24). Specify DefaultSettingsVersion.Latest to always use defaults for the current engine version, at the risk of introducing build errors while upgrading.
 

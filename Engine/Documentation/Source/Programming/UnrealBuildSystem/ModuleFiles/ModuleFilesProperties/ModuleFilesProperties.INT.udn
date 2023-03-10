@@ -8,6 +8,8 @@ Version: 5.3
 
 $ IsPlugin (Boolean): True if a Plugin contains this module
 
+$ Logger (ILogger): Accessor for the target logger
+
 $ HasPackageOverride (Boolean): Returns true if there has been an override type specified on this module
 
 $ AutoSdkDirectory (String): The AutoSDK directory for the active host platform
@@ -166,9 +168,9 @@ $ VerseScope (VerseScope): Visibility of Verse code in this module's Source/Vers
 
 $ bValidateCircularDependencies (Boolean): Whether circular dependencies will be validated against the allow list Circular module dependencies result in slower builds. Disabling this option is strongly discouraged. This option is ignored for Engine modules which will always be validated against the allow list.
 
-$ CppStandard (CppStandardVersion): Which stanard to use for compiling this module
+$ CppStandard (Nullable&lt;CppStandardVersion&gt;): Which stanard to use for compiling this module
 
-$ CStandard (CStandardVersion): Which standard to use for compiling this module
+$ CStandard (Nullable&lt;CStandardVersion&gt;): Which standard to use for compiling this module
 
 $ ModuleSymbolVisibility (SymbolVisibility): Control visibility of symbols
 

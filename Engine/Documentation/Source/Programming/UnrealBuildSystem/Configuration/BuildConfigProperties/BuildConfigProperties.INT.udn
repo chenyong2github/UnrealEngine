@@ -180,6 +180,10 @@ $ bParseTimingInfoForTracing : Whether to parse timing data into a tracing file 
 
 $ bPublicSymbolsByDefault : Whether to expose all symbols as public by default on POSIX platforms
 
+$ MSVCCompileActionWeight : The weight(cpu/memory utilization) of a MSVC compile action
+
+$ ClangCompileActionWeight : The weight(cpu/memory utilization) of a clang compile action
+
 $ CppStandard : Which C++ stanard to use for compiling this target
 
 $ CStandard : Which C standard to use for compiling this target
@@ -207,6 +211,8 @@ $ bEnableUndefinedBehaviorSanitizer : Enables undefined behavior sanitizer (UBSa
 $ bEnableMemorySanitizer : Enables memory sanitizer (MSan)
 
 $ bTuneDebugInfoForLLDB : Turns on tuning of debug info for LLDB
+
+$ bDisableDumpSyms : Whether to globally disable calling dump_syms
 
 $ bUseDSYMFiles : Enables the generation of .dsym files. This can be disabled to enable faster iteration times during development.
 
@@ -253,6 +259,8 @@ $ bPGONoExtraCounters : If specified along with -PGOProfile, prevent the usage o
 $ Compiler : Version of the compiler toolchain to use on Windows platform. A value of "default" will be changed to a specific version at UBT start up.
 
 $ CompilerVersion : The specific toolchain version to use. This may be a specific version number (for example, "14.13.26128"), the string "Latest" to select the newest available version, or the string "Preview" to select the newest available preview version. By default, and if it is available, we use the toolchain version indicated by WindowsPlatform.DefaultToolChainVersion (otherwise, we use the latest version).
+
+$ bVCFastFail : True if /fastfail should be passed to the msvc compiler and linker
 
 $ bAllowClangLinker : True if we should use the Clang linker (LLD) when we are compiling with Clang, or Intel linker (xilink\xilib) when we are compiling with Intel oneAPI, otherwise we use the MSVC linker.
 
@@ -347,6 +355,10 @@ $ bShowPerActionCompilationTimes : Whether to show compilation times for each ex
 $ bLogActionCommandLines : Whether to log command lines for actions being executed
 
 $ bPrintActionTargetNames : Add target names for each action executed
+
+$ bUseActionWeights : Whether to take into account the Action's weight when determining to do more work or not.
+
+$ bShowCPUUtilization : Whether to show CPU utilization after the work is complete.
 
 ### SNDBS
 
