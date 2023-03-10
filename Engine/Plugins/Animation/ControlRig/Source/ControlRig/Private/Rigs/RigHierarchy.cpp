@@ -8,6 +8,7 @@
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "UObject/AnimObjectVersion.h"
+#include "ControlRigObjectVersion.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -142,6 +143,7 @@ void URigHierarchy::Serialize(FArchive& Ar)
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
 
 	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
@@ -199,6 +201,9 @@ void URigHierarchy::Save(FArchive& Ar)
 		FRigBaseElement* Element = Elements[ElementIndex];
 		Element->Serialize(Ar, this, FRigBaseElement::InterElementData);
 	}
+
+	Ar << PreviousNameMap;
+	Ar << PreviousParentMap;
 }
 
 void URigHierarchy::Load(FArchive& Ar)
@@ -276,6 +281,17 @@ void URigHierarchy::Load(FArchive& Ar)
 				OrderedSelection.Add(SelectedKey);
 			}
 		}
+	}
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::RigHierarchyStoringPreviousNames)
+	{
+		Ar << PreviousNameMap;
+		Ar << PreviousParentMap;
+	}
+	else
+	{
+		PreviousNameMap.Reset();
+		PreviousParentMap.Reset();
 	}
 
 	Notify(ERigHierarchyNotification::HierarchyReset, nullptr);

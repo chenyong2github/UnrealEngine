@@ -84,6 +84,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Store function information (and compilation data) in blueprint generated class
 		StoreFunctionsInGeneratedClass,
 
+		// Hierarchy storing previous names
+		RigHierarchyStoringPreviousNames,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
