@@ -16,13 +16,11 @@ void UMoviePipelineEdGraphVariableNode::AllocateDefaultPins()
 {
 	if (const UMovieGraphVariableNode* VariableNode = Cast<UMovieGraphVariableNode>(RuntimeNode))
 	{
-		FEdGraphPinType EdPinType;
-		EdPinType.ResetToDefaults();
-		
-		EdPinType.PinCategory = FName("Outputs");
-		EdPinType.PinSubCategory = FName();
-		
-		CreatePin(EGPD_Output, EdPinType, FName(VariableNode->GetVariable()->Name));
+		const TArray<TObjectPtr<UMovieGraphPin>>& OutputPins = RuntimeNode->GetOutputPins();
+		if (!OutputPins.IsEmpty())
+		{
+			CreatePin(EGPD_Output, GetPinType(OutputPins[0].Get()), FName(VariableNode->GetVariable()->Name));
+		}
 	}
 }
 

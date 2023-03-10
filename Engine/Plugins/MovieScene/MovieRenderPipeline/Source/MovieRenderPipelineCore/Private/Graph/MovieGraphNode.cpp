@@ -17,7 +17,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphNode::GetExposedDynamicPinProperties
 	{
 		// Note: Currently hardcoded to not allow multiple connections, but this may need to change in the future
 		const bool bInAllowMultipleConnections = false;
-		Properties.Add(FMovieGraphPinProperties(PropertyName, bInAllowMultipleConnections));
+		Properties.Add(FMovieGraphPinProperties(PropertyName, EMovieGraphMemberType::Float, bInAllowMultipleConnections));
 	}
 
 	return Properties;
@@ -215,7 +215,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphOutputNode::GetInputPinProperties() 
 	{
 		for (const UMovieGraphOutput* Output : ParentGraph->GetOutputs())
         {
-        	Properties.Add(FMovieGraphPinProperties(FName(Output->Name), false));
+        	Properties.Add(FMovieGraphPinProperties(FName(Output->Name), EMovieGraphMemberType::Branch, false));
         }
 	}
 	
@@ -284,7 +284,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphInputNode::GetOutputPinProperties() 
 	{
 		for (const UMovieGraphInput* Input : ParentGraph->GetInputs())
 		{
-			Properties.Add(FMovieGraphPinProperties(FName(Input->Name), false));
+			Properties.Add(FMovieGraphPinProperties(FName(Input->Name), EMovieGraphMemberType::Branch, false));
 		}
 	}
 	
@@ -345,11 +345,11 @@ TArray<FMovieGraphPinProperties> UMovieGraphVariableNode::GetOutputPinProperties
 	
 	if (GraphVariable)
 	{
-		Properties.Add(FMovieGraphPinProperties(FName(GraphVariable->Name), false));
+		Properties.Add(FMovieGraphPinProperties(FName(GraphVariable->Name), GraphVariable->Type, false));
 	}
 	else
 	{
-		Properties.Add(FMovieGraphPinProperties(TEXT("Unknown"), false));
+		Properties.Add(FMovieGraphPinProperties(TEXT("Unknown"), EMovieGraphMemberType::Float, false));
 	}
 	
 	return Properties;
@@ -397,8 +397,9 @@ void UMovieGraphVariableNode::UpdateOutputPin(UMovieGraphMember* ChangedVariable
 {
 	if (!OutputPins.IsEmpty() && ChangedVariable)
 	{
-		// Update the output pin w/ the name of the variable
+		// Update the output pin to reflect the variable data model
 		OutputPins[0]->Properties.Label = FName(ChangedVariable->Name);
+		OutputPins[0]->Properties.Type = ChangedVariable->Type;
 	}
 
 	OnNodeChangedDelegate.Broadcast(this);

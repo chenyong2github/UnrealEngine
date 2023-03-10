@@ -20,14 +20,14 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override
 	{
 		TArray<FMovieGraphPinProperties> Properties;
-		Properties.Add(FMovieGraphPinProperties(TEXT("Input"), false));
+		Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
 		return Properties;
 	}
 
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override
 	{
 		TArray<FMovieGraphPinProperties> Properties;
-		Properties.Add(FMovieGraphPinProperties(TEXT("Output"), false));
+		Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
 		return Properties;
 	}
 

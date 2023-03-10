@@ -13,6 +13,8 @@ UCLASS()
 class UMovieGraphSchema : public UEdGraphSchema
 {
 	GENERATED_BODY()
+
+public:
 	//~ Begin EdGraphSchema Interface
 	virtual void CreateDefaultNodesForGraph(UEdGraph& Graph) const override;
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
@@ -21,6 +23,7 @@ class UMovieGraphSchema : public UEdGraphSchema
 	virtual bool TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* InB) const override;
 	//virtual const FPinConnectionResponse CanMergeNodes(const UEdGraphNode* A, const UEdGraphNode* B) const override;
 	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
+	virtual FConnectionDrawingPolicy* CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj) const override;
 
 	//virtual int32 GetNodeSelectionCount(const UEdGraph* Graph) const override;
 	//virtual bool IsCacheVisualizationOutOfDate(int32 InVisualizationCacheID) const override;
@@ -31,11 +34,18 @@ class UMovieGraphSchema : public UEdGraphSchema
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
 	//~ End EdGraphSchema Interface
 	static void InitMoviePipelineNodeClasses();
-	
+
+public:
+	// Allowed "PinCategory" values for use on EdGraphPin
+	static const FName PC_Branch;
+	static const FName PC_Float;
+	static const FName PC_Integer;
+	static const FName PC_Boolean;
+	static const FName PC_String;
+	static const FName PC_IntPoint;
 	
 private:
 	static TArray<UClass*> MoviePipelineNodeClasses;
-	
 };
 
 /** Base class for schema actions in the graph. */

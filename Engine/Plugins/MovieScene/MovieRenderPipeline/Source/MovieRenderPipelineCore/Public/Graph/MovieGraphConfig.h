@@ -36,16 +36,6 @@ struct FMovieGraphTraversalContext
 	FString RenderLayerName;
 };
 
-/** Types of members that can be used in the graph. */
-UENUM()
-enum class EMovieGraphMemberType : uint8
-{
-	Bool,
-	Float,
-	Int,
-	String
-};
-
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphVariableChanged, class UMovieGraphMember*);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphInputChanged, class UMovieGraphMember*);

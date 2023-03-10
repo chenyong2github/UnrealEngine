@@ -7,6 +7,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "MovieEdGraph.h"
+#include "MovieGraphSchema.h"
 #include "PropertyBag.h"
 #include "ToolMenu.h"
 #include "EdGraph/EdGraphSchema.h"
@@ -43,8 +44,34 @@ FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* 
 	FEdGraphPinType EdPinType;
 	EdPinType.ResetToDefaults();
 	
-	EdPinType.PinCategory = FName("TestCategory");
-	EdPinType.PinSubCategory = FName("TestSubCategory");
+	EdPinType.PinCategory = NAME_None;
+	EdPinType.PinSubCategory = NAME_None;
+
+	switch (InPin->Properties.Type)
+	{
+	case EMovieGraphMemberType::Branch:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Branch;
+		break;
+	case EMovieGraphMemberType::Float:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Float;
+		break;
+	case EMovieGraphMemberType::Int:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Integer;
+		break;
+	case EMovieGraphMemberType::Bool:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Boolean;
+		break;
+	case EMovieGraphMemberType::String:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_String;
+		break;
+	case EMovieGraphMemberType::IntPoint:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_IntPoint;
+		break;
+	default:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Float;
+		break;
+	}
+	
 	return EdPinType;
 }
 
@@ -176,7 +203,7 @@ void UMoviePipelineEdGraphNodeBase::CreatePins(const TArray<UMovieGraphPin*>& In
 			continue;
 		}
 
-		UEdGraphPin* Pin = CreatePin(EEdGraphPinDirection::EGPD_Input, GetPinType(InputPin), InputPin->Properties.Label);
+		UEdGraphPin* Pin = CreatePin(EGPD_Input, GetPinType(InputPin), InputPin->Properties.Label);
 		// Pin->bAdvancedView = InputPin->Properties.bAdvancedPin;
 		bHasAdvancedPin |= Pin->bAdvancedView;
 	}
@@ -188,7 +215,7 @@ void UMoviePipelineEdGraphNodeBase::CreatePins(const TArray<UMovieGraphPin*>& In
 			continue;
 		}
 
-		UEdGraphPin* Pin = CreatePin(EEdGraphPinDirection::EGPD_Output, GetPinType(OutputPin), OutputPin->Properties.Label);
+		UEdGraphPin* Pin = CreatePin(EGPD_Output, GetPinType(OutputPin), OutputPin->Properties.Label);
 		// Pin->bAdvancedView = OutputPin->Properties.bAdvancedPin;
 		bHasAdvancedPin |= Pin->bAdvancedView;
 	}

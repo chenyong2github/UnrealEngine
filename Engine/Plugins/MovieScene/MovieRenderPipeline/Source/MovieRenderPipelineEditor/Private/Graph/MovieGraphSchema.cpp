@@ -4,6 +4,7 @@
 #include "Graph/MovieGraphConfig.h"
 #include "Graph/MovieGraphNode.h"
 #include "Graph/MovieEdGraph.h"
+#include "Graph/MovieEdGraphConnectionPolicy.h"
 #include "Graph/MovieEdGraphNode.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
@@ -14,6 +15,13 @@
 TArray<UClass*> UMovieGraphSchema::MoviePipelineNodeClasses;
 
 #define LOCTEXT_NAMESPACE "MoviePipelineGraphSchema"
+
+const FName UMovieGraphSchema::PC_Branch(TEXT("branch"));
+const FName UMovieGraphSchema::PC_Float(TEXT("float"));
+const FName UMovieGraphSchema::PC_Integer(TEXT("integer"));
+const FName UMovieGraphSchema::PC_Boolean(TEXT("boolean"));
+const FName UMovieGraphSchema::PC_String(TEXT("string"));
+const FName UMovieGraphSchema::PC_IntPoint(TEXT("intpoint"));
 
 void UMovieGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) const
 {
@@ -132,6 +140,13 @@ const FPinConnectionResponse UMovieGraphSchema::CanCreateConnection(const UEdGra
 	{
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, NSLOCTEXT("MoviePipeline", "CircularPinError", "No Circular Connections!"));
 	}
+
+	// Pins need to be the same type
+	if (PinA->PinType.PinCategory != PinB->PinType.PinCategory)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, NSLOCTEXT("MoviePipeline", "PinTypeMismatchError", "Pin types don't match!"));
+	}
+	
 	// Make sure the pins are not on the same node
 	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, NSLOCTEXT("MoviePipeline", "PinConnect", "Connect nodes"));
 }
@@ -216,44 +231,46 @@ void UMovieGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* 
 
 FLinearColor UMovieGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-	return FLinearColor::Green;
-	/*const FName& TypeName = PinType.PinCategory;
-	if (TypeName == UEdGraphSchema_K2::PC_Struct)
+	const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+
+	if (PinType.PinCategory == PC_Branch)
 	{
-		if (UStruct* Struct = Cast<UStruct>(PinType.PinSubCategoryObject))
-		{
-			if (Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-			{
-				return FLinearColor::White;
-			}
+		return Settings->ExecutionPinTypeColor;
+	}
 
-			if (Struct->IsChildOf(RigVMTypeUtils::GetWildCardCPPTypeObject()))
-			{
-				return FLinearColor(FVector3f::OneVector * 0.25f);
-			}
+	if (PinType.PinCategory == PC_Float)
+	{
+		return Settings->FloatPinTypeColor;
+	}
 
-			if (Struct == FRigElementKey::StaticStruct() || Struct == FRigElementKeyCollection::StaticStruct())
-			{
-				return FLinearColor(0.0, 0.6588, 0.9490);
-			}
+	if (PinType.PinCategory == PC_Integer)
+	{
+		return Settings->IntPinTypeColor;
+	}
 
-			if (Struct == FRigElementKey::StaticStruct() || Struct == FRigPose::StaticStruct())
-			{
-				return FLinearColor(0.0, 0.3588, 0.5490);
-			}
+	if (PinType.PinCategory == PC_Boolean)
+	{
+		return Settings->BooleanPinTypeColor;
+	}
 
-			// external types can register their own colors, check if there are any
-			if (IControlRigDeveloperModule* Module = FModuleManager::GetModulePtr<IControlRigDeveloperModule>("ControlRigDeveloper"))
-			{
-				if (const FLinearColor* Color = Module->FindPinTypeColor(Struct))
-				{
-					return *Color;
-				}
-			}
-		}
-	}*/
+	if (PinType.PinCategory == PC_String)
+	{
+		return Settings->StringPinTypeColor;
+	}
 
-	//return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
+	if (PinType.PinCategory == PC_IntPoint)
+	{
+		return Settings->VectorPinTypeColor;
+	}
+	
+	return Settings->DefaultPinTypeColor;
+}
+
+FConnectionDrawingPolicy* UMovieGraphSchema::CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID,
+	float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements,
+	UEdGraph* InGraphObj) const
+{
+	return new FMovieEdGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
 }
 
 FMovieGraphSchemaAction_NewNode::FMovieGraphSchemaAction_NewNode(FText InNodeCategory, FText InDisplayName, FText InToolTip)

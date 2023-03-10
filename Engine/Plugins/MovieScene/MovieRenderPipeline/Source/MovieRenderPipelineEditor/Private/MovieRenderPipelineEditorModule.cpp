@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieRenderPipelineEditorModule.h"
+
+#include "EdGraphUtilities.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineExecutor.h"
 #include "WorkspaceMenuStructureModule.h"
@@ -32,6 +34,7 @@
 #include "MoviePipelineConsoleVariableSetting.h"
 #include "PropertyEditorModule.h"
 #include "Customizations/ConsoleVariableCustomization.h"
+#include "Graph/MovieGraphPinFactory.h"
 
 #define LOCTEXT_NAMESPACE "FMovieRenderPipelineEditorModule"
 
@@ -213,6 +216,9 @@ void FMovieRenderPipelineEditorModule::StartupModule()
 	RegisterSettings();
 	RegisterTypeCustomizations();
 	RegisterMovieRenderer();
+
+	GraphPanelPinFactory = MakeShared<FMovieGraphPanelPinFactory>();
+	FEdGraphUtilities::RegisterVisualPinFactory(GraphPanelPinFactory);
 }
 
 void FMovieRenderPipelineEditorModule::ShutdownModule()
@@ -221,6 +227,12 @@ void FMovieRenderPipelineEditorModule::ShutdownModule()
 	UnregisterTypeCustomizations();
 	UnregisterSettings();
 	FMoviePipelineCommands::Unregister();
+	
+	if (GraphPanelPinFactory.IsValid())
+	{
+		FEdGraphUtilities::UnregisterVisualPinFactory(GraphPanelPinFactory);
+		GraphPanelPinFactory.Reset();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
