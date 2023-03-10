@@ -5470,7 +5470,7 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 
 	RHICmdList.EnqueueLambda([CurrentFrameCounter](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->SetRenderSubmitLatencyMarkerStart(CurrentFrameCounter);
+		UEngine::SetRenderSubmitLatencyMarkerStart(CurrentFrameCounter);
 	});
 
 #if CSV_PROFILER
@@ -5496,7 +5496,7 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 
 	RHICmdList.EnqueueLambda([CurrentFrameCounter](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->SetRenderSubmitLatencyMarkerEnd(CurrentFrameCounter);
+		UEngine::SetRenderSubmitLatencyMarkerEnd(CurrentFrameCounter);
 	});
 
 	FCoreDelegates::OnEndFrameRT.Broadcast();

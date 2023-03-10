@@ -2290,18 +2290,18 @@ public:
 	 */
 	virtual void UpdateTimeAndHandleMaxTickRate();
 
-	void SetInputSampleLatencyMarker(uint64 FrameNumber);
+	static void SetInputSampleLatencyMarker(uint64 FrameNumber);
 
-	void SetSimulationLatencyMarkerStart(uint64 FrameNumber);
-	void SetSimulationLatencyMarkerEnd(uint64 FrameNumber);
+	static void SetSimulationLatencyMarkerStart(uint64 FrameNumber);
+	static void SetSimulationLatencyMarkerEnd(uint64 FrameNumber);
 
-	void SetPresentLatencyMarkerStart(uint64 FrameNumber);
-	void SetPresentLatencyMarkerEnd(uint64 FrameNumber);
+	static void SetPresentLatencyMarkerStart(uint64 FrameNumber);
+	static void SetPresentLatencyMarkerEnd(uint64 FrameNumber);
 
-	void SetRenderSubmitLatencyMarkerStart(uint64 FrameNumber);
-	void SetRenderSubmitLatencyMarkerEnd(uint64 FrameNumber);
+	static void SetRenderSubmitLatencyMarkerStart(uint64 FrameNumber);
+	static void SetRenderSubmitLatencyMarkerEnd(uint64 FrameNumber);
 
-	void SetFlashIndicatorLatencyMarker(uint64 FrameNumber);
+	static void SetFlashIndicatorLatencyMarker(uint64 FrameNumber);
 
 	/**
 	 * Allows games to correct the negative delta

@@ -1679,7 +1679,7 @@ void FViewport::EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool bPrese
 
 	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->SetPresentLatencyMarkerStart(CurrentFrameCounter);
+		UEngine::SetPresentLatencyMarkerStart(CurrentFrameCounter);
 	});
 
 	{
@@ -1689,7 +1689,7 @@ void FViewport::EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool bPrese
 
 	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->SetPresentLatencyMarkerEnd(CurrentFrameCounter);
+		UEngine::SetPresentLatencyMarkerEnd(CurrentFrameCounter);
 	});
 }
 

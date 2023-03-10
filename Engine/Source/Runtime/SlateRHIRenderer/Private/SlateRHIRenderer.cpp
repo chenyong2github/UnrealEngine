@@ -1499,14 +1499,14 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->SetPresentLatencyMarkerStart(CurrentFrameCounter);
+		UEngine::SetPresentLatencyMarkerStart(CurrentFrameCounter);
 	});
 
 	RHICmdList.EndDrawingViewport(ViewportInfo.ViewportRHI, true, DrawCommandParams.bLockToVsync);
 
 	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
 	{
-		GEngine->SetPresentLatencyMarkerEnd(CurrentFrameCounter);
+		UEngine::SetPresentLatencyMarkerEnd(CurrentFrameCounter);
 	});
 
 	uint32 EndTime = FPlatformTime::Cycles();
