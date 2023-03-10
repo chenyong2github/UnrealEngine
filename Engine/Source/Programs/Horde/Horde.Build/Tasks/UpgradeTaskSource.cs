@@ -61,7 +61,7 @@ namespace Horde.Build.Tasks
 			{
 				return Skip(cancellationToken);
 			}
-			if (agent.Leases.Count > 0 || !(agent.LastUpgradeTime == null || agent.LastUpgradeTime.Value + TimeSpan.FromMinutes(5.0) < _clock.UtcNow || agent.LastUpgradeVersion != requiredVersion.ToString()))
+			if (agent.Leases.Count > 0 || !(agent.LastUpgradeTime == null || agent.LastUpgradeTime.Value + TimeSpan.FromMinutes(5.0) < _clock.UtcNow || agent.LastUpgradeVersion != deployment.Version))
 			{
 				return await DrainAsync(cancellationToken);
 			}

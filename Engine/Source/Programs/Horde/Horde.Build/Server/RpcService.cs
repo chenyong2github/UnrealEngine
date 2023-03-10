@@ -9,6 +9,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.EC2.Model;
+using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Horde.Build.Acls;
@@ -449,7 +450,7 @@ namespace Horde.Build.Server
 					}
 
 					DownloadSoftwareResponse response = new DownloadSoftwareResponse();
-					response.Data = Google.Protobuf.ByteString.CopyFrom(buffer.Memory.Slice(0, read).Span);
+					response.Data = UnsafeByteOperations.UnsafeWrap(buffer.Memory.Slice(0, read));
 					await responseStream.WriteAsync(response);
 				}
 			}
