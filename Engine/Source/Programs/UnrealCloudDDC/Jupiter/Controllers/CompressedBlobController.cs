@@ -76,7 +76,7 @@ namespace Jupiter.Controllers
 
                 if (_nginxRedirectHelper.CanRedirect(Request, blobContents))
                 {
-                    return _nginxRedirectHelper.CreateActionResult(blobContents);
+                    return _nginxRedirectHelper.CreateActionResult(blobContents, mediaType);
                 }
 
                 return File(blobContents.Stream, mediaType, enableRangeProcessing: true);

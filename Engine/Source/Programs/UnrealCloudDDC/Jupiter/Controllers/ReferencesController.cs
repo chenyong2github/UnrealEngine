@@ -207,7 +207,7 @@ namespace Jupiter.Controllers
 
                             if (_nginxRedirectHelper.CanRedirect(Request, referencedBlobContents))
                             {
-                                return _nginxRedirectHelper.CreateActionResult(referencedBlobContents);
+                                return _nginxRedirectHelper.CreateActionResult(referencedBlobContents, MediaTypeNames.Application.Octet);
                             }
                             await WriteBody(referencedBlobContents, MediaTypeNames.Application.Octet);
                             break;
@@ -351,7 +351,7 @@ namespace Jupiter.Controllers
 
                                     if (_nginxRedirectHelper.CanRedirect(Request, referencedBlobContents))
                                     {
-                                        return _nginxRedirectHelper.CreateActionResult(referencedBlobContents);
+                                        return _nginxRedirectHelper.CreateActionResult(referencedBlobContents, CustomMediaTypeNames.JupiterInlinedPayload);
                                     }
                                     await WriteBody(referencedBlobContents, CustomMediaTypeNames.JupiterInlinedPayload);
                                 }

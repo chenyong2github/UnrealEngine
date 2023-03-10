@@ -67,7 +67,7 @@ namespace Jupiter.Controllers
                 }
                 if (_nginxRedirectHelper.CanRedirect(Request, blobContents))
                 {
-                    return _nginxRedirectHelper.CreateActionResult(blobContents);
+                    return _nginxRedirectHelper.CreateActionResult(blobContents, MediaTypeNames.Application.Octet);
                 }
                 return File(blobContents.Stream, MediaTypeNames.Application.Octet, enableRangeProcessing: true);
             }
