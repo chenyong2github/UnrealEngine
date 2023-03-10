@@ -104,6 +104,16 @@ public:
 	}
 
 	/**
+	* Check if any sinks are inserted
+	* 
+	* @return True if empty, false otherwise
+	*/
+	bool IsEmpty() const
+	{
+		return Sinks.IsEmpty();
+	}
+
+	/**
 	 * Remove the given media sample sink from the collection.
 	 *
 	 * @param SampleSink The sink to remove.

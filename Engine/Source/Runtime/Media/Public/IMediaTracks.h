@@ -35,7 +35,9 @@ enum class EMediaTrackType
 	Text,
 
 	/** Video track. */
-	Video
+	Video,
+
+	Num
 };
 
 

@@ -12,6 +12,7 @@
 #include "IMediaPlayerLifecycleManager.h"
 #include "IMediaTickable.h"
 #include "IMediaTimeSource.h"
+#include "IMediaTracks.h"
 #include "Internationalization/Text.h"
 #include "Math/MathFwd.h"
 #include "Math/Quat.h"
@@ -794,6 +795,19 @@ protected:
 	 * @param bIsBroadcastAllowed If true then we can broadcast events, if false then they will sent when possible.
 	 **/
 	void ProcessEvent(EMediaEvent Event, bool bIsBroadcastAllowed);
+
+private:
+	struct FTrackSelection
+	{
+		int32 UserSelection[(int32)EMediaTrackType::Num];
+		int32 PlayerSelection[(int32)EMediaTrackType::Num];
+	} TrackSelection;
+
+	/** Reset all tracks. */
+	void ResetTracks();
+
+	/** Setup track selection with player. */
+	void UpdateTrackSelectionWithPlayer();
 
 	/** Select the default media tracks. */
 	void SelectDefaultTracks();

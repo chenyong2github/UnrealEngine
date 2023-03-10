@@ -125,6 +125,8 @@ FMediaPlayerFacade::FMediaPlayerFacade()
 
 	MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
 	bDidRecentPlayerHaveError = false;
+
+	ResetTracks();
 }
 
 
@@ -395,17 +397,6 @@ float FMediaPlayerFacade::GetRate() const
 		return 0.0f;
 	}
 	return CurrentPlayer->GetControls().GetRate();
-}
-
-
-int32 FMediaPlayerFacade::GetSelectedTrack(EMediaTrackType TrackType) const
-{
-	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Player);
-	if (!CurrentPlayer.IsValid())
-	{
-		return INDEX_NONE;
-	}
-	return CurrentPlayer->GetTracks().GetSelectedTrack((EMediaTrackType)TrackType);
 }
 
 
@@ -1114,6 +1105,8 @@ bool FMediaPlayerFacade::ContinueOpen(IMediaPlayerLifecycleManagerDelegate::ICon
 		SeekIndex = 0;
 	}
 
+	ResetTracks();
+
 	if (bCreateNewPlayer)
 	{
 		NotifyLifetimeManagerDelegate_PlayerCreated();
@@ -1202,21 +1195,6 @@ bool FMediaPlayerFacade::Seek(const FTimespan& InTime)
 
 	SeekTargetTime = FMediaTimeStamp(Time, FMediaTimeStamp::MakeSequenceIndex(SeekIndex, 0));
 
-	return true;
-}
-
-
-bool FMediaPlayerFacade::SelectTrack(EMediaTrackType TrackType, int32 TrackIndex)
-{
-	if (!Player.IsValid() || !Player->GetTracks().SelectTrack((EMediaTrackType)TrackType, TrackIndex))
-	{
-		return false;
-	}
-
-	if (!Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::IsTrackSwitchSeamless))
-	{
-		Flush();
-	}
 	return true;
 }
 
@@ -1902,26 +1880,110 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event, bool bIsBroadcastAllowe
 }
 
 
+void FMediaPlayerFacade::ResetTracks()
+{
+	for (int32 Idx = 0; Idx < (int32)EMediaTrackType::Num; ++Idx)
+	{
+		TrackSelection.UserSelection[Idx] = -1;
+		TrackSelection.PlayerSelection[Idx] = -1;
+	}
+}
+
+
 void FMediaPlayerFacade::SelectDefaultTracks()
 {
-	if (!Player.IsValid())
-	{
-		return;
-	}
-
-	IMediaTracks& Tracks = Player->GetTracks();
-
 	FMediaPlayerTrackOptions TrackOptions;
 	if (ActivePlayerOptions.IsSet())
 	{
 		TrackOptions = ActivePlayerOptions.GetValue().Tracks;
 	}
 
-	Tracks.SelectTrack(EMediaTrackType::Audio, TrackOptions.Audio);
-	Tracks.SelectTrack(EMediaTrackType::Caption, TrackOptions.Caption);
-	Tracks.SelectTrack(EMediaTrackType::Metadata, TrackOptions.Metadata);
-	Tracks.SelectTrack(EMediaTrackType::Subtitle, TrackOptions.Subtitle);
-	Tracks.SelectTrack(EMediaTrackType::Video, TrackOptions.Video);
+	TrackSelection.UserSelection[(int32)EMediaTrackType::Audio] = TrackOptions.Audio;
+	TrackSelection.UserSelection[(int32)EMediaTrackType::Caption] = TrackOptions.Caption;
+	TrackSelection.UserSelection[(int32)EMediaTrackType::Metadata] = TrackOptions.Metadata;
+	TrackSelection.UserSelection[(int32)EMediaTrackType::Subtitle] = TrackOptions.Subtitle;
+	TrackSelection.UserSelection[(int32)EMediaTrackType::Video] = TrackOptions.Video;
+}
+
+
+bool FMediaPlayerFacade::SelectTrack(EMediaTrackType TrackType, int32 TrackIndex)
+{
+	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Player);
+	if (CurrentPlayer.IsValid())
+	{
+		IMediaTracks& Tracks = CurrentPlayer->GetTracks();
+
+		if (Tracks.GetNumTracks(TrackType) > TrackIndex)
+		{
+			TrackSelection.UserSelection[(int32)TrackType] = TrackIndex;
+			return true;
+		}
+	}
+	return false;
+}
+
+
+int32 FMediaPlayerFacade::GetSelectedTrack(EMediaTrackType TrackType) const
+{
+	return TrackSelection.UserSelection[(int32)TrackType];
+}
+
+
+void FMediaPlayerFacade::UpdateTrackSelectionWithPlayer()
+{
+	check(Player.IsValid());
+
+	bool bChanges = false;
+
+	IMediaTracks& Tracks = Player->GetTracks();
+	for (int32 Idx = 0; Idx < (int32)EMediaTrackType::Num; ++Idx)
+	{
+		// Player and user selection are different?
+		if (TrackSelection.PlayerSelection[Idx] != TrackSelection.UserSelection[Idx])
+		{
+			// Yes...
+			int32 UserSelection = TrackSelection.UserSelection[Idx];
+
+			// Filter selection against the configured sinks...
+			if (UserSelection != -1)
+			{
+				if ((Idx == (int)EMediaTrackType::Audio && !PrimaryAudioSink.IsValid()) ||
+					(Idx == (int)EMediaTrackType::Video && VideoSampleSinks.IsEmpty()) ||
+					(Idx == (int)EMediaTrackType::Caption && CaptionSampleSinks.IsEmpty()) ||
+					(Idx == (int)EMediaTrackType::Subtitle && SubtitleSampleSinks.IsEmpty()) ||
+					(Idx == (int)EMediaTrackType::Metadata && MetadataSampleSinks.IsEmpty()))
+				{
+					UserSelection = -1;
+				}
+			}
+
+			// After filtering the user's selection, do we still have to change things?
+			if (TrackSelection.PlayerSelection[Idx] != UserSelection)
+			{
+				// Yes!
+				if (Tracks.SelectTrack((EMediaTrackType)Idx, UserSelection))
+				{
+					// Recall what is now selected with the player...
+					TrackSelection.PlayerSelection[Idx] = UserSelection;
+
+					bChanges = true;
+				}
+				else
+				{
+					// Track selection failed. Patch the user selection to be what we know of the player's, so we do not reattempt this over and over...
+					TrackSelection.UserSelection[Idx] = TrackSelection.PlayerSelection[Idx];
+				}
+			}
+		}
+	}
+
+	if (bChanges)
+	{
+		if (!Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::IsTrackSwitchSeamless))
+		{
+			Flush();
+		}
+	}
 }
 
 
@@ -1940,6 +2002,7 @@ void FMediaPlayerFacade::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 
 	if (Player.IsValid())
 	{
+		UpdateTrackSelectionWithPlayer();
 		MonitorAudioEnablement();
 
 		Player->TickInput(DeltaTime, Timecode);
