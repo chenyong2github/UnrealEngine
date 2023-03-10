@@ -178,7 +178,7 @@ FCustomizableObjectSaveDDRunnable::FCustomizableObjectSaveDDRunnable(UCustomizab
 	{
 		// We will be saving all compilation data in two separate files, write CO Data
 		FolderPath = CustomizableObject->GetCompiledDataFolderPath(!InOptions.bIsCooking);
-		CompildeDataFullFileName = FolderPath + CustomizableObject->GetCompiledDataFileName(true, InOptions.TargetPlatform);
+		CompileDataFullFileName = FolderPath + CustomizableObject->GetCompiledDataFileName(true, InOptions.TargetPlatform);
 		StreamableDataFullFileName = FolderPath + CustomizableObject->GetCompiledDataFileName(false, InOptions.TargetPlatform);
 
 		// Serialize Customizable Object's data
@@ -213,10 +213,10 @@ uint32 FCustomizableObjectSaveDDRunnable::Run()
 
 		// Delete files...
 		bool bFilesDeleted = true;
-		if (FileManager.FileExists(*CompildeDataFullFileName)
-			&& !FileManager.Delete(*CompildeDataFullFileName, true, false, true))
+		if (FileManager.FileExists(*CompileDataFullFileName)
+			&& !FileManager.Delete(*CompileDataFullFileName, true, false, true))
 		{
-			UE_LOG(LogMutable, Error, TEXT("Failed to delete compiled data in file [%s]."), *CompildeDataFullFileName);
+			UE_LOG(LogMutable, Error, TEXT("Failed to delete compiled data in file [%s]."), *CompileDataFullFileName);
 			bFilesDeleted = false;
 		}
 
@@ -231,7 +231,7 @@ uint32 FCustomizableObjectSaveDDRunnable::Run()
 		if (bFilesDeleted)
 		{
 			// Create file writers...
-			FArchive* ModelMemoryWriter = FileManager.CreateFileWriter(*CompildeDataFullFileName);
+			FArchive* ModelMemoryWriter = FileManager.CreateFileWriter(*CompileDataFullFileName);
 			FArchive* StreamableMemoryWriter = FileManager.CreateFileWriter(*StreamableDataFullFileName);
 			check(ModelMemoryWriter);
 			check(StreamableMemoryWriter);

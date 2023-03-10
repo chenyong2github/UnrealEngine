@@ -1098,8 +1098,10 @@ int32 UCustomizableObject::GetComponentCount() const
 	{
 		UE_LOG(LogMutable, Warning,
 		       TEXT(
-			       "You are trying to get the component count of a non compiled CO. This will always return 0 as value."
-		       ));
+			       "You are trying to get the component count of the non-compiled CO %s. This will always return 0 as value."
+		       ), *GetName()
+		);
+
 		return 0;
 	}
 	
@@ -1137,7 +1139,7 @@ EMutableParameterType UCustomizableObject::GetParameterTypeByName(const FString&
 		return ParameterProperties[Index].Type;
 	}
 
-	UE_LOG(LogMutable, Warning, TEXT("Name '%s' does not exist in ParameterProperties lookup table at GetParameterTypeByName."), *Name);
+	UE_LOG(LogMutable, Warning, TEXT("Name '%s' does not exist in ParameterProperties lookup table at GetParameterTypeByName at CO %s."), *Name, *GetName());
 
 	for (int32 ParamIndex = 0; ParamIndex < ParameterProperties.Num(); ++ParamIndex)
 	{
@@ -1147,7 +1149,7 @@ EMutableParameterType UCustomizableObject::GetParameterTypeByName(const FString&
 		}
 	}
 
-	UE_LOG(LogMutable, Warning, TEXT("Name '%s' does not exist in ParameterProperties at GetParameterTypeByName."), *Name);
+	UE_LOG(LogMutable, Warning, TEXT("Name '%s' does not exist in ParameterProperties at GetParameterTypeByName at CO %s."), *Name, *GetName());
 
 	return EMutableParameterType::None;
 }
@@ -1163,7 +1165,7 @@ const FString & UCustomizableObject::GetParameterName(int32 ParamIndex) const
 	}
 	else
 	{
-		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetParameterName."), ParamIndex);
+		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetParameterName at CO %s."), ParamIndex, *GetName());
 	}
 
 	return s_EmptyString;
@@ -1261,7 +1263,7 @@ int UCustomizableObject::GetParameterDescriptionCount(int32 ParamIndex) const
 	}
 	else
 	{
-		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetParameterDescriptionCount."), ParamIndex);
+		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetParameterDescriptionCount at CO %s."), ParamIndex, *GetName());
 	}
 
 	return 0;
@@ -1282,7 +1284,7 @@ int32 UCustomizableObject::GetIntParameterNumOptions(int32 ParamIndex) const
 	}
 	else
 	{
-		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetIntParameterNumOptions."), ParamIndex);
+		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetIntParameterNumOptions at CO %s."), ParamIndex, *GetName());
 	}
 
 	return 0;
@@ -1299,12 +1301,12 @@ const FString& UCustomizableObject::GetIntParameterAvailableOption(int32 ParamIn
 		}
 		else
 		{
-			UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of IntParameterNumOptions bounds at GetIntParameterAvailableOption."), K);
+			UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of IntParameterNumOptions bounds at GetIntParameterAvailableOption at CO %s."), K, *GetName());
 		}
 	}
 	else
 	{
-		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetIntParameterAvailableOption."), ParamIndex);
+		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetIntParameterAvailableOption at CO %s."), ParamIndex, *GetName());
 	}
 
 	return s_EmptyString;
@@ -1346,12 +1348,12 @@ int32 UCustomizableObject::FindIntParameterValue(int32 ParamIndex, const FString
 		}
 		else
 		{
-			UE_LOG(LogMutable, Warning, TEXT("No possible values for parameter with index [%d] at FindIntParameterValue."), ParamIndex);
+			UE_LOG(LogMutable, Warning, TEXT("No possible values for parameter with index [%d] at FindIntParameterValue at CO %s."), ParamIndex, *GetName());
 		}
 	}
 	else
 	{
-		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at FindIntParameterValue."), ParamIndex);
+		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at FindIntParameterValue at CO %s."), ParamIndex, *GetName());
 	}
 	return MinValueIndex;
 }
@@ -1373,7 +1375,7 @@ FString UCustomizableObject::FindIntParameterValueName(int32 ParamIndex, int32 P
 	}
 	else
 	{
-		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at FindIntParameterValueName."), ParamIndex);
+		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at FindIntParameterValueName at CO %s."), ParamIndex, *GetName());
 	}
 
 	return FString();

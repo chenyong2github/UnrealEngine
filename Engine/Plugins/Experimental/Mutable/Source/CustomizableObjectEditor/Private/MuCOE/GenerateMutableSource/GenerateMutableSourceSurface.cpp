@@ -83,7 +83,8 @@ void LayoutOperationUVNormalizedWarning(FMutableGraphGenerationContext& Generati
 	}
 }
 
-void SetSurfaceFormat( mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBufferSet& OutIndexBufferFormat, const FMutableGraphMeshGenerationData& MeshData, 
+void SetSurfaceFormat( FMutableGraphGenerationContext& GenerationContext,
+					   mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBufferSet& OutIndexBufferFormat, const FMutableGraphMeshGenerationData& MeshData, 
 					   bool bWithExtraBoneInfluences, bool bWithRealTimeMorphs, bool bWithClothing, bool bWith16BitWeights )
 {
 	// Limit skinning weights if necessary
@@ -92,7 +93,7 @@ void SetSurfaceFormat( mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBuffe
 	
 	if (MutableBonesPerVertex != MeshData.MaxNumBonesPerVertex)
 	{
-		UE_LOG(LogMutable, Log, TEXT("Mesh bone number adjusted from %d to %d."), MeshData.MaxNumBonesPerVertex, MutableBonesPerVertex);
+		UE_LOG(LogMutable, Log, TEXT("In object [%s] Mesh bone number adjusted from %d to %d."), *GenerationContext.Object->GetName(), MeshData.MaxNumBonesPerVertex, MutableBonesPerVertex);
 	}
 
 	int MutableBufferCount = MUTABLE_VERTEXBUFFER_TEXCOORDS + 1;
@@ -352,7 +353,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 				mu::NodeMeshFormatPtr MeshFormatNode = new mu::NodeMeshFormat();
 				MeshFormatNode->SetSource(MeshNode.get());
-				SetSurfaceFormat( 
+				SetSurfaceFormat( GenerationContext,
 						MeshFormatNode->GetVertexBuffers(), MeshFormatNode->GetIndexBuffers(), MeshData,
 						GenerationContext.Options.bExtraBoneInfluencesEnabled,
 						GenerationContext.Options.bRealTimeMorphTargetsEnabled, 
@@ -697,7 +698,10 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 									// Format not supported by Mutable, use RBGA_UBYTE as default.
 									mutableFormat = mu::EImageFormat::IF_RGBA_UBYTE;
 
-									UE_LOG(LogMutable, Warning, TEXT("Unexpected image format [%s]."), *FormatWithoutPrefix);
+									const FString UnexpectedImageFormatMsg = FString::Printf(TEXT("In object [%s] Unexpected image format [%s], RGBA_UBYTE will be used instead."), *GenerationContext.Object->GetName(), *FormatWithoutPrefix);
+									const FText UnexpectedImageFormatText = FText::FromString(UnexpectedImageFormatMsg);
+									GenerationContext.Compiler->CompilerLog(UnexpectedImageFormatText, Node);
+									UE_LOG(LogMutable, Warning, TEXT("%s"), *UnexpectedImageFormatMsg);
 								}
 
 								FormatImage->SetFormat(mutableFormat, mutableFormatIfAlpha);
@@ -986,7 +990,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			if (AddMeshNode)
 			{
 				mu::NodeMeshFormatPtr MeshFormat = new mu::NodeMeshFormat();
-				SetSurfaceFormat( 
+				SetSurfaceFormat( GenerationContext,
 						MeshFormat->GetVertexBuffers(), MeshFormat->GetIndexBuffers(), MeshData,
 						GenerationContext.Options.bExtraBoneInfluencesEnabled,
 						GenerationContext.Options.bRealTimeMorphTargetsEnabled, 

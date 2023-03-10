@@ -49,7 +49,7 @@ bool FCustomizableObjectCompiler::Tick()
 
 	if (CompileTask.IsValid() && CompileTask->IsCompleted())
 	{
-		UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] Finishing Compilation task."), FPlatformTime::Seconds());
+		UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] Finishing Compilation task for Object %s."), FPlatformTime::Seconds(), *CurrentObject->GetName());
 
 		FinishCompilation();
 

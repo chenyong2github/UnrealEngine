@@ -542,7 +542,8 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				if (InSkeletonRefSkeleton.FindRawBoneIndex(BoneInfo.Name) == INDEX_NONE)
 				{
 					bIsSkeletonMissingBones = true;
-					UE_LOG(LogMutable, Warning, TEXT("SkeletalMesh [%s] uses bone [%s] not present in skeleton [%s]."),
+					UE_LOG(LogMutable, Warning, TEXT("In object [%s] SkeletalMesh [%s] uses bone [%s] not present in skeleton [%s]."),
+						*GenerationContext.Object->GetName(),
 						*InSkeletalMesh->GetName(),
 						*BoneInfo.ExportName,
 						*InSkeleton->GetName());
@@ -1311,7 +1312,8 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 			if (BoneMapIndex >= NumRequiredBones)
 			{
 				// This can only happen with invalid data.
-				UE_LOG(LogMutable, Warning, TEXT("ConvertSkeletalMeshToMutable: Source mesh [%s] section uses a bone [%s] that is not in its RequiredBones list."),
+				UE_LOG(LogMutable, Warning, TEXT("In object [%s] ConvertSkeletalMeshToMutable: Source mesh [%s] section uses a bone [%s] that is not in its RequiredBones list."),
+					*GenerationContext.Object->GetName(),
 					*SkeletalMesh->GetName(),
 					*BoneName);
 				MutableSkeleton->SetBoneCount(BoneMapIndex + 1);

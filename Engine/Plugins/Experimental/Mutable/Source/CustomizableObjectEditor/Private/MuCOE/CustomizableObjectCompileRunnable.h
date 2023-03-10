@@ -103,7 +103,7 @@ private:
 
 	// Paths used to save files to disk
 	FString FolderPath;
-	FString CompildeDataFullFileName;
+	FString CompileDataFullFileName;
 	FString StreamableDataFullFileName;
 
 	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model;
