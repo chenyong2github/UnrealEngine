@@ -496,7 +496,10 @@ namespace Horde.Build.Agents
 	/// </summary>
 	public static class AgentExtensions
 	{
-		static readonly ToolId s_defaultToolId = new ToolId("horde-agent");
+		/// <summary>
+		/// Default tool id for agent software
+		/// </summary>
+		public static ToolId DefaultAgentSoftwareToolId { get; } = new ToolId("horde-agent");
 
 		/// <summary>
 		/// Gets the tool id for the software the given agent should be running
@@ -506,7 +509,7 @@ namespace Horde.Build.Agents
 		/// <returns>Identifier for the tool that the agent should be using</returns>
 		public static ToolId GetSoftwareToolId(this IAgent agent, GlobalConfig globalConfig)
 		{
-			ToolId toolId = s_defaultToolId;
+			ToolId toolId = DefaultAgentSoftwareToolId;
 			foreach (AgentSoftwareConfig softwareConfig in globalConfig.Software)
 			{
 				if (softwareConfig.Condition != null && agent.SatisfiesCondition(softwareConfig.Condition))

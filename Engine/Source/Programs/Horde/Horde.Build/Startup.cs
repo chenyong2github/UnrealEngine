@@ -336,7 +336,6 @@ namespace Horde.Build
 			services.AddScoped<JobRpcCommon>();
 
 			services.AddSingleton<IAgentCollection, AgentCollection>();
-			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
 			services.AddSingleton<IArtifactCollection, ArtifactCollection>();
 			services.AddSingleton<IArtifactCollectionV1, ArtifactCollectionV1>();
 			services.AddSingleton<IGraphCollection, GraphCollection>();
@@ -394,8 +393,7 @@ namespace Horde.Build
 			services.AddHostedService<TunnelService>(sp => sp.GetRequiredService<TunnelService>());
 
 			services.AddSingleton<AclService>();
-			services.AddSingleton<AgentService>();			
-			services.AddSingleton<AgentSoftwareService>();
+			services.AddSingleton<AgentService>();
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<CredentialService>();

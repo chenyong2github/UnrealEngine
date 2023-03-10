@@ -417,14 +417,19 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task DownloadSoftware(DownloadSoftwareRequest request, IServerStreamWriter<DownloadSoftwareResponse> responseStream, ServerCallContext context)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.DownloadSoftware, context.GetHttpContext().User))
-			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Access to software is forbidden");
-			}
-
 			int colonIdx = request.Version.IndexOf(':', StringComparison.Ordinal);
 			ToolId toolId = new ToolId(request.Version.Substring(0, colonIdx));
 			string version = request.Version.Substring(colonIdx + 1);
+
+			ToolConfig? toolConfig;
+			if (!_globalConfig.Value.TryGetTool(toolId, out toolConfig))
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, $"Missing tool {toolId}");
+			}
+			if (!toolConfig.Authorize(AclAction.DownloadTool, context.GetHttpContext().User))
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Access to software is forbidden");
+			}
 
 			ITool? tool = await _toolCollection.GetAsync(toolId, _globalConfig.Value);
 			if (tool == null)
