@@ -139,6 +139,7 @@ UAudioComponent* UAudioComponentGroup::AddComponent()
 	if (AActor* Owner = GetOwner())
 	{
 		NewComponent = NewObject<UAudioComponent>(Owner);
+		NewComponent->bAutoActivate = false;
 
 		NewComponent->AttachToComponent(Owner->GetRootComponent(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 		NewComponent->RegisterComponent();
