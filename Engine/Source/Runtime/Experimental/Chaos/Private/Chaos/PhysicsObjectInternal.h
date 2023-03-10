@@ -23,7 +23,7 @@ namespace Chaos
 		const FName& GetBodyName() const { return BodyName; }
 
 		template<EThreadContext Id>
-		EObjectStateType ObjectState()
+		EObjectStateType ObjectState() const
 		{
 			TThreadParticle<Id>* Particle = GetParticle<Id>();
 			if (!Particle)
@@ -42,12 +42,12 @@ namespace Chaos
 		}
 
 		template<EThreadContext Id>
-		FPhysicsObjectHandle GetRootObject()
+		FPhysicsObjectHandle GetRootObject() const
 		{
 			EPhysicsProxyType ProxyType = Proxy->GetType();
 
 			TThreadParticle<Id>* Particle = GetParticle<Id>();
-			FPhysicsObjectHandle CurrentObject = this;
+			FPhysicsObjectHandle CurrentObject = const_cast<FPhysicsObjectHandle>(this);
 			FPhysicsObjectHandle CurrentParent = GetParentObject<Id>();
 			while (CurrentParent && IsParticleDisabled<Id>(Particle))
 			{
@@ -101,7 +101,7 @@ namespace Chaos
 		}
 
 		template <EThreadContext Id>
-		TThreadParticle<Id>* GetRootParticle()
+		TThreadParticle<Id>* GetRootParticle() const
 		{
 			FPhysicsObjectHandle Root = GetRootObject<Id>();
 			if (!Root)
@@ -112,7 +112,7 @@ namespace Chaos
 		}
 
 		template <EThreadContext Id>
-		TThreadParticle<Id>* GetParticle()
+		TThreadParticle<Id>* GetParticle() const
 		{
 			if (Proxy)
 			{

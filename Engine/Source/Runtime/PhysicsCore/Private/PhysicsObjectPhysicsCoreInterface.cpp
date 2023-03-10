@@ -5,7 +5,7 @@
 #include "Chaos/PhysicsObjectInterface.h"
 #include "PBDRigidsSolver.h"
 
-FChaosScene* PhysicsObjectPhysicsCoreInterface::GetScene(TArrayView<Chaos::FPhysicsObjectHandle> InObjects)
+FChaosScene* PhysicsObjectPhysicsCoreInterface::GetScene(TArrayView<const Chaos::FConstPhysicsObjectHandle> InObjects)
 {
 	Chaos::FPBDRigidsSolver* Solver = Chaos::FPhysicsObjectInterface::GetSolver(InObjects);
 	if (!Solver)

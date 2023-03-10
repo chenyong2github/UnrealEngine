@@ -16,6 +16,7 @@ namespace Chaos
 	 */
 	struct FPhysicsObject;
 	using FPhysicsObjectHandle = FPhysicsObject*;
+	using FConstPhysicsObjectHandle = const FPhysicsObject*;
 
 	struct CHAOS_API FPhysicsObjectDeleter
 	{

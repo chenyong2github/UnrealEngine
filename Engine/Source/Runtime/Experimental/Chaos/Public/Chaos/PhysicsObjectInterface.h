@@ -55,55 +55,55 @@ namespace Chaos
 	class CHAOS_API FReadPhysicsObjectInterface
 	{
 	public:
-		FPhysicsObjectHandle GetRootObject(FPhysicsObjectHandle Object);
-		bool HasChildren(FPhysicsObjectHandle Object);
+		FPhysicsObjectHandle GetRootObject(const FConstPhysicsObjectHandle Object);
+		bool HasChildren(const FConstPhysicsObjectHandle Object);
 
-		FTransform GetTransform(FPhysicsObjectHandle Object);
-		FVector GetX(FPhysicsObjectHandle Object);
-		FVector GetCoM(FPhysicsObjectHandle Object);
-		FVector GetWorldCoM(FPhysicsObjectHandle Object);
-		FQuat GetR(FPhysicsObjectHandle Object);
-		FSpatialAccelerationIdx GetSpatialIndex(FPhysicsObjectHandle Object);
+		FTransform GetTransform(const FConstPhysicsObjectHandle Object);
+		FVector GetX(const FConstPhysicsObjectHandle Object);
+		FVector GetCoM(const FConstPhysicsObjectHandle Object);
+		FVector GetWorldCoM(const FConstPhysicsObjectHandle Object);
+		FQuat GetR(const FConstPhysicsObjectHandle Object);
+		FSpatialAccelerationIdx GetSpatialIndex(const FConstPhysicsObjectHandle Object);
 
-		TArray<TThreadParticle<Id>*> GetAllParticles(TArrayView<FPhysicsObjectHandle> InObjects);
-		TArray<TThreadRigidParticle<Id>*> GetAllRigidParticles(TArrayView<FPhysicsObjectHandle> InObjects);
-		TArray<FPerShapeData*> GetAllShapes(TArrayView<FPhysicsObjectHandle> InObjects);
+		TArray<TThreadParticle<Id>*> GetAllParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		TArray<TThreadRigidParticle<Id>*> GetAllRigidParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		TArray<FPerShapeData*> GetAllShapes(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 
 		// Returns true if a shape is found and we can stop iterating.
-		void VisitEveryShape(TArrayView<FPhysicsObjectHandle> InObjects, TFunctionRef<bool(FPhysicsObjectHandle, FPerShapeData*)> Lambda);
+		void VisitEveryShape(TArrayView<const FConstPhysicsObjectHandle> InObjects, TFunctionRef<bool(const FConstPhysicsObjectHandle, FPerShapeData*)> Lambda);
 
 		UE_DEPRECATED(5.3, "GetPhysicsObjectOverlap has been deprecated. Please use the function for the specific overlap metric you wish to compute instead.")
-		bool GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, FPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
+		bool GetPhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FConstPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
 
 		UE_DEPRECATED(5.3, "GetPhysicsObjectOverlapWithTransform has been deprecated. Please use the function for the specific overlap metric you wish to compute instead.")
-		bool GetPhysicsObjectOverlapWithTransform(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
+		bool GetPhysicsObjectOverlapWithTransform(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
 
 		// This function will not compute any overlap heuristic.
-		bool PhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex);
+		bool PhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex);
 
 		// This function does the same as GetPhysicsObjectOverlap but also computes the MTD metric.
-		bool PhysicsObjectOverlapWithMTD(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, FMTDInfo& OutMTD);
+		bool PhysicsObjectOverlapWithMTD(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, FMTDInfo& OutMTD);
 
 		// This function does the same as GetPhysicsObjectOverlap but also computes the AABB overlap metric.
-		bool PhysicsObjectOverlapWithAABB(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, const FVector& Tolerance, FBox& OutOverlap);
-		bool PhysicsObjectOverlapWithAABBSize(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, const FVector& Tolerance, FVector& OutOverlapSize);
+		bool PhysicsObjectOverlapWithAABB(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, const FVector& Tolerance, FBox& OutOverlap);
+		bool PhysicsObjectOverlapWithAABBSize(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, const FVector& Tolerance, FVector& OutOverlapSize);
 
-		bool AreAllValid(TArrayView<FPhysicsObjectHandle> InObjects);
-		bool AreAllKinematic(TArrayView<FPhysicsObjectHandle> InObjects);
-		bool AreAllSleeping(TArrayView<FPhysicsObjectHandle> InObjects);
-		bool AreAllRigidBody(TArrayView<FPhysicsObjectHandle> InObjects);
-		bool AreAllDynamic(TArrayView<FPhysicsObjectHandle> InObjects);
-		bool AreAllDisabled(TArrayView<FPhysicsObjectHandle> InObjects);
-		bool AreAllShapesQueryEnabled(TArrayView<FPhysicsObjectHandle> InObjects);
-		float GetMass(TArrayView<FPhysicsObjectHandle> InObjects);
-		FBox GetBounds(TArrayView<FPhysicsObjectHandle> InObjects);
-		FBox GetWorldBounds(TArrayView<FPhysicsObjectHandle> InObjects);
-		FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
-		FAccelerationStructureHandle CreateAccelerationStructureHandle(FPhysicsObjectHandle Handle);
+		bool AreAllValid(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		bool AreAllKinematic(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		bool AreAllSleeping(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		bool AreAllRigidBody(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		bool AreAllDynamic(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		bool AreAllDisabled(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		bool AreAllShapesQueryEnabled(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		float GetMass(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		FBox GetBounds(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		FBox GetWorldBounds(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<const FConstPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
+		FAccelerationStructureHandle CreateAccelerationStructureHandle(const FConstPhysicsObjectHandle Handle);
 
-		bool LineTrace(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& WorldStart, const FVector& WorldEnd, bool bTraceComplex, ChaosInterface::FRaycastHit& OutBestHit);
-		bool ShapeOverlap(TArrayView<FPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, TArray<ChaosInterface::FOverlapHit>& OutOverlaps);
-		bool ShapeSweep(TArrayView<FPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& StartTM, const FVector& EndPos, bool bSweepComplex, ChaosInterface::FSweepHit& OutBestHit);
+		bool LineTrace(TArrayView<const FConstPhysicsObjectHandle> InObjects, const FVector& WorldStart, const FVector& WorldEnd, bool bTraceComplex, ChaosInterface::FRaycastHit& OutBestHit);
+		bool ShapeOverlap(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, TArray<ChaosInterface::FOverlapHit>& OutOverlaps);
+		bool ShapeSweep(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& StartTM, const FVector& EndPos, bool bSweepComplex, ChaosInterface::FSweepHit& OutBestHit);
 
 		friend class FPhysicsObjectInterface;
 	protected:
@@ -119,7 +119,7 @@ namespace Chaos
 		/**
 		 * For every pair of shapes that overlap, allows the caller to perform some computation. If additional pairs of shapes need to be examined, the input TFunction should return true.
 		 */
-		bool PairwiseShapeOverlapHelper(FPhysicsObjectHandle ObjectA, const FTransform& InTransformA, FPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, bool bComputeMTD, const FVector& Tolerance, const TFunction<bool(const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&)>& Lambda);
+		bool PairwiseShapeOverlapHelper(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, bool bComputeMTD, const FVector& Tolerance, const TFunction<bool(const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&)>& Lambda);
 	};
 
 	using FReadPhysicsObjectInterface_External = FReadPhysicsObjectInterface<EThreadContext::External>;
@@ -132,23 +132,23 @@ namespace Chaos
 	class CHAOS_API FWritePhysicsObjectInterface: public FReadPhysicsObjectInterface<Id>
 	{
 	public:
-		void PutToSleep(TArrayView<FPhysicsObjectHandle> InObjects);
-		void WakeUp(TArrayView<FPhysicsObjectHandle> InObjects);
-		void AddForce(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& Force, bool bInvalidate);
-		void AddTorque(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& Torque, bool bInvalidate);
+		void PutToSleep(TArrayView<const FPhysicsObjectHandle> InObjects);
+		void WakeUp(TArrayView<const FPhysicsObjectHandle> InObjects);
+		void AddForce(TArrayView<const FPhysicsObjectHandle> InObjects, const FVector& Force, bool bInvalidate);
+		void AddTorque(TArrayView<const FPhysicsObjectHandle> InObjects, const FVector& Torque, bool bInvalidate);
 		
-		void UpdateShapeCollisionFlags(TArrayView<FPhysicsObjectHandle> InObjects, bool bSimCollision, bool bQueryCollision);
-		void UpdateShapeFilterData(TArrayView<FPhysicsObjectHandle> InObjects, const FCollisionFilterData& QueryData, const FCollisionFilterData& SimData);
+		void UpdateShapeCollisionFlags(TArrayView<const FPhysicsObjectHandle> InObjects, bool bSimCollision, bool bQueryCollision);
+		void UpdateShapeFilterData(TArrayView<const FPhysicsObjectHandle> InObjects, const FCollisionFilterData& QueryData, const FCollisionFilterData& SimData);
 
 		template<typename TPayloadType, typename T, int d>
-		void AddToSpatialAcceleration(TArrayView<FPhysicsObjectHandle> InObjects, ISpatialAcceleration<TPayloadType, T, d>* SpatialAcceleration)
+		void AddToSpatialAcceleration(TArrayView<const FPhysicsObjectHandle> InObjects, ISpatialAcceleration<TPayloadType, T, d>* SpatialAcceleration)
 		{
 			if (!SpatialAcceleration)
 			{
 				return;
 			}
 
-			for (FPhysicsObjectHandle Handle : InObjects)
+			for (const FConstPhysicsObjectHandle Handle : InObjects)
 			{
 				const FBox WorldBounds = this->GetWorldBounds({ &Handle, 1 });
 				const FAABB3 ChaosWorldBounds{ WorldBounds.Min, WorldBounds.Max };
@@ -158,14 +158,14 @@ namespace Chaos
 		}
 
 		template<typename TPayloadType, typename T, int d>
-		void RemoveFromSpatialAcceleration(TArrayView<FPhysicsObjectHandle> InObjects, ISpatialAcceleration<TPayloadType, T, d>* SpatialAcceleration)
+		void RemoveFromSpatialAcceleration(TArrayView<const FPhysicsObjectHandle> InObjects, ISpatialAcceleration<TPayloadType, T, d>* SpatialAcceleration)
 		{
 			if (!SpatialAcceleration)
 			{
 				return;
 			}
 
-			for (FPhysicsObjectHandle Handle : InObjects)
+			for (const FConstPhysicsObjectHandle Handle : InObjects)
 			{
 				FAccelerationStructureHandle AccelerationHandle = this->CreateAccelerationStructureHandle(Handle);
 				SpatialAcceleration->RemoveElementFrom(AccelerationHandle, this->GetSpatialIndex(Handle));
@@ -188,14 +188,14 @@ namespace Chaos
 	class CHAOS_API FPhysicsObjectInterface
 	{
 	public:
-		static void SetName(FPhysicsObjectHandle Object, const FName& InName);
-		static FName GetName(FPhysicsObjectHandle Object);
+		static void SetName(const FPhysicsObjectHandle Object, const FName& InName);
+		static FName GetName(const FConstPhysicsObjectHandle Object);
 
-		static void SetId(FPhysicsObjectHandle Object, int32 InId);
-		static int32 GetId(FPhysicsObjectHandle Object);
+		static void SetId(const FPhysicsObjectHandle Object, int32 InId);
+		static int32 GetId(const FConstPhysicsObjectHandle Object);
 
-		static FPBDRigidsSolver* GetSolver(TArrayView<FPhysicsObjectHandle> InObjects);
-		static IPhysicsProxyBase* GetProxy(TArrayView<FPhysicsObjectHandle> InObjects);
+		static FPBDRigidsSolver* GetSolver(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		static IPhysicsProxyBase* GetProxy(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 
 	protected:
 		// This function should not be called without an appropriate read-lock on the relevant scene.

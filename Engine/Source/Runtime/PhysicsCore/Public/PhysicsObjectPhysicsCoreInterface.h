@@ -10,5 +10,5 @@ class FChaosScene;
 class PHYSICSCORE_API PhysicsObjectPhysicsCoreInterface
 {
 public:
-	static FChaosScene* GetScene(TArrayView<Chaos::FPhysicsObjectHandle> InObjects);
+	static FChaosScene* GetScene(TArrayView<const Chaos::FConstPhysicsObjectHandle> InObjects);
 };
