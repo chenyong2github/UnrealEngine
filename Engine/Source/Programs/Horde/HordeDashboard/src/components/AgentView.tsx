@@ -592,6 +592,7 @@ class LocalState {
       state.exactSearch = exact?.trim() === "true" ? true : undefined;
       state.agentId = agentId?.trim() ? agentId : undefined;
 
+      this.search = search;
       this.searchState = state;
 
       if (state.agentSearch) {
