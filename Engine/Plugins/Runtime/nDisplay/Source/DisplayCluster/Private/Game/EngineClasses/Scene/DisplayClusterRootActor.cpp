@@ -44,9 +44,10 @@
 #include "Game/EngineClasses/Scene/DisplayClusterRootActorInitializer.h"
 
 #include "Algo/MaxElement.h"
+#include "Components/DisplayClusterChromakeyCardStageActorComponent.h"
+#include "Components/DisplayClusterStageActorComponent.h"
 #include "Components/DisplayClusterStageGeometryComponent.h"
 #include "UObject/Package.h"
-#include "WorldPartition/DataLayer/DataLayerAsset.h"
 
 
 #if WITH_EDITOR
@@ -55,7 +56,6 @@
 #include "IConcertSyncClient.h"
 
 #include "AssetToolsModule.h"
-#include "DataLayer/DataLayerFactory.h"
 #endif
 
 
@@ -141,53 +141,6 @@ const FDisplayClusterConfigurationRenderFrame& ADisplayClusterRootActor::GetRend
 
 	return CurrentConfigData->RenderFrameSettings;
 }
-
-UDataLayerAsset* ADisplayClusterRootActor::GetOrCreateLightCardDataLayerAsset(const FName& InName)
-{
-#if WITH_EDITOR
-	if (LightCardDataLayerAsset == nullptr)
-	{
-		Modify();
-		LightCardDataLayerAsset = CreateDataLayerAsset(InName);
-	}
-#endif
-
-	return LightCardDataLayerAsset;
-}
-
-UDataLayerAsset* ADisplayClusterRootActor::GetOrCreateChromakeyCardDataLayerAsset(const FName& InName)
-{
-#if WITH_EDITOR
-	if (ChromakeyCardDataLayerAsset == nullptr)
-	{
-		Modify();
-		ChromakeyCardDataLayerAsset = CreateDataLayerAsset(InName);
-	}
-#endif
-
-	return ChromakeyCardDataLayerAsset;
-}
-
-#if WITH_EDITOR
-UDataLayerAsset* ADisplayClusterRootActor::CreateDataLayerAsset(const FName& InName)
-{
-	IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	const FString PackageName = GetPackage()->GetName();
-	FString AssetName;
-	FString TempPackageName;
-
-	UDataLayerFactory* Factory = NewObject<UDataLayerFactory>();
-
-	AssetTools.CreateUniqueAssetName(PackageName / InName.ToString(), FString(),
-		TempPackageName, AssetName);
-
-	UClass* AssetClass = Factory->GetSupportedClass();
-	
-	return Cast<UDataLayerAsset>(AssetTools.CreateAsset(AssetName,
-		PackageName, AssetClass, Factory));
-}
-#endif
 
 void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData)
 {
@@ -768,152 +721,106 @@ bool ADisplayClusterRootActor::BuildHierarchy()
 	return true;
 }
 
-void ADisplayClusterRootActor::UpdateLightCardPositions()
+void ADisplayClusterRootActor::SetLightCardOwnership()
 {
-	// Find a view origin to use as the transform "anchor" of each light card. At the moment, assume the first view origin component
-	// found is the correct view origin (the same assumption is made in the light card editor). If no view origin is found, use the root component
-	USceneComponent* ViewOriginComponent = GetRootComponent();
-
-	TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
-	GetComponents(ViewOriginComponents);
-
-	if (ViewOriginComponents.Num())
-	{
-		ViewOriginComponent = ViewOriginComponents[0];
-	}
-
-	const FVector Location = ViewOriginComponent ? ViewOriginComponent->GetComponentLocation() : GetActorLocation();
-	const FVector RelativeLocation = GetTransform().InverseTransformPosition(Location);
-	const FRotator Rotation = GetActorRotation();
-
-	const bool bRepositionLightCards = RelativeLocation != StageActorOrbitLocation;
-
-	// Iterate over all the light cards referenced in the root actor's config data and update their location and rotation to match the view origin
 	if (UDisplayClusterConfigurationData* CurrentData = GetConfigData())
 	{
-		FDisplayClusterConfigurationICVFX_VisibilityList& LightCards = CurrentData->StageSettings.Lightcard.ShowOnlyList;
+		FDisplayClusterConfigurationICVFX_VisibilityList& LightCardVisibilityList = CurrentData->StageSettings.Lightcard.ShowOnlyList;
+		LightCardVisibilityList.AutoAddedActors.Reset();
+		
+		TArray<UDisplayClusterICVFXCameraComponent*> ICVFXComponents;
+		GetComponents(ICVFXComponents);
 
-		for (const TSoftObjectPtr<AActor>& Actor : LightCards.Actors)
+		// Iterate over the VisibilityList.Actors array, looking for legacy cards and set the owner so the
+		// card can look the root actor up in certain situations, like adjusting labels when running as -game.
 		{
-			ADisplayClusterLightCardActor* LightCardActor = Actor.IsValid() ? Cast<ADisplayClusterLightCardActor>(Actor.Get()) : nullptr;
-			if (LightCardActor)
+			if (CurrentData->StageSettings.Lightcard.bEnable)
 			{
-				// Set the owner so the light card actor can look the root actor up in certain situations, like adjusting labels
-				// when running as -game
-				LightCardActor->SetRootActorOwner(this);
-				if (LightCardActor->bLockToOwningRootActor)
+				for (const TSoftObjectPtr<AActor>& Actor : LightCardVisibilityList.Actors)
 				{
-					const FTransform OldLightCardTransform = LightCardActor->GetStageActorTransform();
-
-					LightCardActor->SetActorLocation(Location);
-					LightCardActor->SetActorRotation(Rotation);
-
-					if (bRepositionLightCards)
+					if (ADisplayClusterLightCardActor* LightCardActor = Actor.IsValid() ? Cast<ADisplayClusterLightCardActor>(Actor.Get()) : nullptr)
 					{
-						const FTransform StageActorTransform = LightCardActor->GetOrigin();
-						FDisplayClusterPositionalParams PositionalParams = LightCardActor->GetPositionalParams();
+						LightCardActor->SetWeakRootActorOwner(this);
+					}
+				}
+			}
+		
+			for (UDisplayClusterICVFXCameraComponent* Camera : ICVFXComponents)
+			{
+				if (!Camera->CameraSettings.Chromakey.bEnable)
+				{
+					continue;
+				}
+				
+				FDisplayClusterConfigurationICVFX_VisibilityList& ChromakeyCards = Camera->CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList;
+				ChromakeyCards.AutoAddedActors.Reset();
+				
+				for (const TSoftObjectPtr<AActor>& Actor : ChromakeyCards.Actors)
+				{
+					if (ADisplayClusterChromakeyCardActor* ChromakeyCardActor = Actor.IsValid() ? Cast<ADisplayClusterChromakeyCardActor>(Actor.Get()) : nullptr)
+					{
+						ChromakeyCardActor->SetWeakRootActorOwner(this);
+					}
+				}
+			}
+		}
 
-						// We want to adjust the positional params so that the light card stays in the same world position.
-						// First, compute the desired relative location based on the new orbit origin and the light card's previous world position
-						// Then convert that to longitude and latitude values
-						const FVector OrbitLocation = Rotation.UnrotateVector(OldLightCardTransform.GetLocation() - Location);
-
-						PositionalParams.DistanceFromCenter = OrbitLocation.Length();
-
-						if (PositionalParams.DistanceFromCenter > UE_SMALL_NUMBER)
+		// Next iterate over all light card world actors looking for 5.2+ light cards that determine the root actor
+		// they belong to, as well as handle legacy layer operations.
+		if (const UWorld* World = GetWorld())
+		{
+			for (TActorIterator<ADisplayClusterLightCardActor> Iter(World); Iter; ++Iter)
+			{
+				ADisplayClusterLightCardActor* LightCardActor = *Iter;
+				if (ADisplayClusterChromakeyCardActor* ChromakeyCardActor = Cast<ADisplayClusterChromakeyCardActor>(LightCardActor))
+				{
+					for (UDisplayClusterICVFXCameraComponent* Camera : ICVFXComponents)
+					{
+						if (!Camera->CameraSettings.Chromakey.bEnable)
 						{
-							PositionalParams.Latitude = FMath::RadiansToDegrees(FMath::Asin(OrbitLocation.Z / PositionalParams.DistanceFromCenter));
-							PositionalParams.Longitude = FMath::RadiansToDegrees(FMath::Atan2(OrbitLocation.Y, OrbitLocation.X)) + 180.0;
+							continue;
+						}
+
+						FDisplayClusterConfigurationICVFX_VisibilityList& ChromakeyCards = Camera->CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList;
+
+						const UDisplayClusterChromakeyCardStageActorComponent* ChromakeyStageActor = Cast<UDisplayClusterChromakeyCardStageActorComponent>(ChromakeyCardActor->GetStageActorComponent());
+						if (ChromakeyStageActor && ChromakeyStageActor->IsReferencedByICVFXCamera(Camera))
+						{
+							// 5.2+ chromakey cards
+							ChromakeyCards.AutoAddedActors.Add(ChromakeyCardActor);
 						}
 						else
 						{
-							PositionalParams.Latitude = 0.0;
-							PositionalParams.Longitude = 180.0;
-						}
-
-						// The light card's orientation needs to be adjusted as well, since the orientation parameters are defined in radial space,
-						// which is relative to the orbit origin
-						const FVector WorldNormal = OldLightCardTransform.GetRotation().RotateVector(FVector::ForwardVector);
-						const FVector LocalNormal = FRotationMatrix::MakeFromX(OrbitLocation.GetSafeNormal()).InverseTransformVector(StageActorTransform.InverseTransformVectorNoScale(WorldNormal));
-						const FRotator NormalRotation = FRotationMatrix::MakeFromX(-LocalNormal).Rotator();
-
-						PositionalParams.Pitch = NormalRotation.Pitch;
-						PositionalParams.Yaw = NormalRotation.Yaw;
-
-						// The spin also needs to be adjusted. This can be done by transforming the old spin vector from world space into the new normal space,
-						// and then converting to an angle
-						const FVector WorldSpin = OldLightCardTransform.GetRotation().RotateVector(FVector::UpVector);
-						const FVector LocalSpin = FRotationMatrix::MakeFromX(OrbitLocation.GetSafeNormal()).InverseTransformVector(StageActorTransform.InverseTransformVectorNoScale(WorldSpin));
-						const FVector NormalSpin = FRotationMatrix::MakeFromX(LocalNormal).InverseTransformVector(LocalSpin);
-
-						PositionalParams.Spin = FMath::RadiansToDegrees(FMath::Atan2(NormalSpin.Y, NormalSpin.Z));
-
-						LightCardActor->SetPositionalParams(PositionalParams);
-					}
-				}
-			}
-		}
-
-		if (LightCards.ActorLayers.Num())
-		{
-			if (UWorld* World = GetWorld())
-			{
-				for (TActorIterator<ADisplayClusterLightCardActor> Iter(World); Iter; ++Iter)
-				{
-					ADisplayClusterLightCardActor* LightCardActor = *Iter;
-					for (const FActorLayer& ActorLayer : LightCards.ActorLayers)
-					{
-						if (LightCardActor->Layers.Contains(ActorLayer.Name))
-						{
-							LightCardActor->SetRootActorOwner(this);
-							if (LightCardActor->bLockToOwningRootActor)
+							// Legacy chromakey layers
+							for (const FActorLayer& ActorLayer : ChromakeyCards.ActorLayers)
 							{
-								LightCardActor->SetActorLocation(Location);
-								LightCardActor->SetActorRotation(Rotation);
+								if (ChromakeyCardActor->Layers.Contains(ActorLayer.Name))
+								{
+									ChromakeyCardActor->SetWeakRootActorOwner(this);
+									break;
+								}
 							}
-							break;
 						}
 					}
 				}
-			}
-		}
-	}
-
-	StageActorOrbitLocation = RelativeLocation;
-}
-
-void ADisplayClusterRootActor::SetChromakeyCardsOwner()
-{
-	TArray<UDisplayClusterICVFXCameraComponent*> ICVFXComponents;
-	GetComponents(ICVFXComponents);
-
-	for (UDisplayClusterICVFXCameraComponent* Camera : ICVFXComponents)
-	{
-		FDisplayClusterConfigurationICVFX_VisibilityList& ChromakeyCards = Camera->CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList;
-
-		for (const TSoftObjectPtr<AActor>& Actor : ChromakeyCards.Actors)
-		{
-			if (ADisplayClusterChromakeyCardActor* ChromakeyCardActor = Actor.IsValid() ? Cast<ADisplayClusterChromakeyCardActor>(Actor.Get()) : nullptr)
-			{
-				// Set the owner so the light card actor can look the root actor up in certain situations, like adjusting labels
-				// when running as -game
-				ChromakeyCardActor->SetRootActorOwner(this);
-			}
-		}
-
-		if (ChromakeyCards.ActorLayers.Num())
-		{
-			if (const UWorld* World = GetWorld())
-			{
-				for (TActorIterator<ADisplayClusterChromakeyCardActor> Iter(World); Iter; ++Iter)
+				else if (CurrentData->StageSettings.Lightcard.bEnable)
 				{
-					ADisplayClusterChromakeyCardActor* ChromakeyCardActor = *Iter;
-					for (const FActorLayer& ActorLayer : ChromakeyCards.ActorLayers)
+					if (LightCardActor->GetStageActorComponent() &&
+						LightCardActor->GetStageActorComponent()->GetRootActor() == this)
 					{
-						if (ChromakeyCardActor->Layers.Contains(ActorLayer.Name))
+						// 5.2+ light cards
+						LightCardVisibilityList.AutoAddedActors.Add(LightCardActor);
+					}
+					else if (LightCardVisibilityList.ActorLayers.Num() > 0)
+					{
+						// Legacy light card layers
+						for (const FActorLayer& ActorLayer : LightCardVisibilityList.ActorLayers)
 						{
-							ChromakeyCardActor->SetRootActorOwner(this);
-							break;
+							if (LightCardActor->Layers.Contains(ActorLayer.Name))
+							{
+								LightCardActor->SetWeakRootActorOwner(this);
+								break;
+							}
 						}
 					}
 				}
@@ -1049,13 +956,7 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 	Tick_Editor(DeltaSeconds);
 #endif
 
-	if (UDisplayClusterConfigurationData* CurrentData = GetConfigData())
-	{
-		if (CurrentData->StageSettings.Lightcard.bEnable)
-		{
-			UpdateLightCardPositions();
-		}
-	}
+	SetLightCardOwnership();
 
 	Super::Tick(DeltaSeconds);
 }

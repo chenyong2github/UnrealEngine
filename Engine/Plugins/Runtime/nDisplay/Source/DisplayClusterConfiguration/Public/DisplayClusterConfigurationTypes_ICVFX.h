@@ -120,6 +120,9 @@ public:
 	/** Reference to RootActor components by names */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = NDisplay)
 	TArray<FString> RootActorComponentNames; //@todo change link, now by names
+
+	/** Actors added automatically during a session */
+	TArray<TSoftObjectPtr<AActor>> AutoAddedActors;
 };
 
 USTRUCT(Blueprintable)

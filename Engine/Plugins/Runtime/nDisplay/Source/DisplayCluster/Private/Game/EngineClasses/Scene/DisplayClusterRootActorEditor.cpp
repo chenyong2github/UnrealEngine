@@ -176,8 +176,6 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 			}
 		}
 	}
-	
-	SetChromakeyCardsOwner();
 }
 
 void ADisplayClusterRootActor::PostActorCreated_Editor()

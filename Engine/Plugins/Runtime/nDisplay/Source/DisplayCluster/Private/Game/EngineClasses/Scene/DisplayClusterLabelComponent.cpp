@@ -106,7 +106,7 @@ void UDisplayClusterLabelComponent::UpdateWidgetComponent()
 		{
 			// The light card editor normally will have set this, but if we're running as -game then it will
 			// be set from the DCRA instead
-			SetRootActor(LightCardActor->GetRootActorOwner().Get());
+			SetRootActor(LightCardActor->GetRootActorOwner());
 		}
 
 #if WITH_EDITOR

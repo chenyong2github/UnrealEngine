@@ -232,7 +232,7 @@ protected:
 				return false;
 			}
 
-			bool bIsChromakeyHasAnyRenderComponent = FDisplayClusterViewportConfigurationHelpers_Visibility::IsValid(ChromakeySettings.ChromakeyRenderTexture.ShowOnlyList);
+			const bool bIsChromakeyHasAnyRenderComponent = FDisplayClusterViewportConfigurationHelpers_Visibility::IsVisibilityListValid(ChromakeySettings.ChromakeyRenderTexture.ShowOnlyList);
 			if (ChromakeySettings.ChromakeyRenderTexture.Replace.bAllowReplace == false && !bIsChromakeyHasAnyRenderComponent)
 			{
 				// ChromakeyRenderTexture requires actors for render.

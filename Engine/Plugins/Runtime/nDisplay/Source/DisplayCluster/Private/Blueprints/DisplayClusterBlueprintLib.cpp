@@ -66,7 +66,7 @@ ADisplayClusterLightCardActor* UDisplayClusterBlueprintLib::CreateLightCard(ADis
 	NewActor->AttachToActor(RootActor, AttachmentRules);
 
 	// Add it to the root actor
-	NewActor->AddToLightCardLayer(RootActor);
+	NewActor->AddToRootActor(RootActor);
 
 #if WITH_EDITOR
 	// Required so operator panel updates
@@ -90,7 +90,7 @@ void UDisplayClusterBlueprintLib::DuplicateLightCards(TArray<ADisplayClusterLigh
 			continue;
 		}
 
-		ADisplayClusterRootActor* RootActor = OriginalLightcard->GetRootActorOwner().Get();
+		ADisplayClusterRootActor* RootActor = OriginalLightcard->GetRootActorOwner();
 		if (!RootActor)
 		{
 			continue;
@@ -123,7 +123,7 @@ void UDisplayClusterBlueprintLib::DuplicateLightCards(TArray<ADisplayClusterLigh
 		NewLightCard->AttachToActor(RootActor, AttachmentRules);
 
 		// Add it to the root actor
-		NewLightCard->AddToLightCardLayer(RootActor);
+		NewLightCard->AddToRootActor(RootActor);
 
 #if WITH_EDITOR
 		// Required so operator panel updates
@@ -160,15 +160,7 @@ void UDisplayClusterBlueprintLib::FindLightCardsForRootActor(const ADisplayClust
 		OutLightCards.Add(Cast<ADisplayClusterLightCardActor>(LightCardActor.Get()));
 	}
 
-	// If there are any layers that are specified as light card layers, iterate over all actors in the world and 
-	// add any that are members of any of the light card layers to the list. Only add an actor once, even if it is
-	// in multiple layers
-	if (RootActorLightCards.ActorLayers.IsEmpty())
-	{
-		return;
-	}
-
-	if (UWorld* World = RootActor->GetWorld())
+	if (const UWorld* World = RootActor->GetWorld())
 	{
 		for (TActorIterator<ADisplayClusterLightCardActor> ActorIt(World); ActorIt; ++ActorIt)
 		{
@@ -177,12 +169,22 @@ void UDisplayClusterBlueprintLib::FindLightCardsForRootActor(const ADisplayClust
 				continue;
 			}
 
-			for (const FActorLayer& ActorLayer : RootActorLightCards.ActorLayers)
+			if (ActorIt->GetRootActorOwner() == RootActor)
 			{
-				if (ActorIt->Layers.Contains(ActorLayer.Name))
+				OutLightCards.Add(*ActorIt);
+			}
+			else
+			{
+				// If there are any layers that are specified as light card layers, iterate over all actors in the world and 
+				// add any that are members of any of the light card layers to the list. Only add an actor once, even if it is
+				// in multiple layers
+				for (const FActorLayer& ActorLayer : RootActorLightCards.ActorLayers)
 				{
-					OutLightCards.Add(*ActorIt);
-					break;
+					if (ActorIt->Layers.Contains(ActorLayer.Name))
+					{
+						OutLightCards.Add(*ActorIt);
+						break;
+					}
 				}
 			}
 		}
@@ -214,14 +216,6 @@ void UDisplayClusterBlueprintLib::FindChromakeyCardsForRootActor(const ADisplayC
 			OutChromakeyCards.Add(Cast<ADisplayClusterChromakeyCardActor>(ChromakeyCardActor.Get()));
 		}
 
-		// If there are any layers that are specified as light card layers, iterate over all actors in the world and 
-		// add any that are members of any of the light card layers to the list. Only add an actor once, even if it is
-		// in multiple layers
-		if (RootActorChromakeyCards.ActorLayers.IsEmpty())
-		{
-			continue;
-		}
-
 		if (const UWorld* World = RootActor->GetWorld())
 		{
 			for (TActorIterator<ADisplayClusterChromakeyCardActor> ActorIt(World); ActorIt; ++ActorIt)
@@ -231,12 +225,19 @@ void UDisplayClusterBlueprintLib::FindChromakeyCardsForRootActor(const ADisplayC
 					continue;
 				}
 
-				for (const FActorLayer& ActorLayer : RootActorChromakeyCards.ActorLayers)
+				if (ActorIt->GetRootActorOwner() == RootActor)
 				{
-					if (ActorIt->Layers.Contains(ActorLayer.Name))
+					OutChromakeyCards.Add(*ActorIt);
+				}
+				else
+				{
+					for (const FActorLayer& ActorLayer : RootActorChromakeyCards.ActorLayers)
 					{
-						OutChromakeyCards.Add(*ActorIt);
-						break;
+						if (ActorIt->Layers.Contains(ActorLayer.Name))
+						{
+							OutChromakeyCards.Add(*ActorIt);
+							break;
+						}
 					}
 				}
 			}

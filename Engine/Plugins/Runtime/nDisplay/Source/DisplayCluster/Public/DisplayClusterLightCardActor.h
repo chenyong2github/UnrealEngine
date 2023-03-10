@@ -10,8 +10,8 @@
 
 class ADisplayClusterRootActor;
 class UActorComponent;
-class UDataLayerAsset;
 class UDisplayClusterLabelComponent;
+class UDisplayClusterStageActorComponent;
 class UMeshComponent;
 class USceneComponent;
 class USpringArmComponent;
@@ -51,20 +51,24 @@ struct FLightCardAlphaGradientSettings
 	float Angle = 0;
 };
 
-UCLASS(Blueprintable, DisplayName = "Light Card", HideCategories = (Tick, Physics, Collision, Replication, Cooking, Input, Actor))
+UCLASS(Blueprintable, DisplayName = "Light Card", HideCategories = (Tick, Physics, Collision, Networking, Replication, Cooking, Input, Actor, HLOD))
 class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor, public IDisplayClusterStageActor
 {
 	GENERATED_BODY()
 
 public:
-	/** The default size of the porjection plane UV light cards are rendered to */
+	/** The default size of the projection plane UV light cards are rendered to */
 	static const float UVPlaneDefaultSize;
 
 	/** The default distance from the view of the projection plane UV light cards are rendered to */
 	static const float UVPlaneDefaultDistance;
 
+	/** The name used for the stage actor component */
+	static const FName LightCardStageActorComponentName;
+	
 public:
 	ADisplayClusterLightCardActor(const FObjectInitializer& ObjectInitializer);
+	virtual ~ADisplayClusterLightCardActor() override;
 
 	virtual void PostLoad() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -100,6 +104,9 @@ public:
 	/** Updates the UV Indicator */
 	void UpdateUVIndicator();
 
+	/** Sync the position to the root actor */
+	void UpdateLightCardPositionToRootActor();
+
 	/** Makes the light card flush to the wall */
 	void MakeFlushToWall();
 
@@ -112,14 +119,27 @@ public:
 	/** Show or hide the light card label  */
 	void ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor);
 
-	/** Set the current owner of the light card */
+	/** Set a weak root actor owner. This should be used on legacy light cards that don't have StageActorComponent->RootActor set */
+	void SetWeakRootActorOwner(ADisplayClusterRootActor* InRootActor);
+
+	/** Set the root actor of the stage actor component */
 	void SetRootActorOwner(ADisplayClusterRootActor* InRootActor);
 	
-	/** Return the current owner, providing one was set */
-	TWeakObjectPtr<ADisplayClusterRootActor> GetRootActorOwner() const { return RootActorOwner; }
-	
+	/** Return the root actor owner of the light card */
+	ADisplayClusterRootActor* GetRootActorOwner() const;
+
+	/** Retrieve the stage actor component */
+	UDisplayClusterStageActorComponent* GetStageActorComponent() const;
+
 	/** Add this light card to a light card layer on the given root actor */
+	UE_DEPRECATED(5.2, "Layers are no longer used for light cards by default, use 'AddToRootActor' instead")
 	void AddToLightCardLayer(ADisplayClusterRootActor* InRootActor);
+
+	/** Add this light card to a root actor */
+	virtual void AddToRootActor(ADisplayClusterRootActor* InRootActor);
+
+	/** Remove this light card from the root actor */
+	virtual void RemoveFromRootActor();
 	
 	// ~Begin IDisplayClusterStageActor interface
 	/** Updates the Light Card transform based on its positional properties (Lat, Long, etc.) */
@@ -273,6 +293,12 @@ protected:
 	/** Removes components that were added by IDisplayClusterLightCardActorExtender */
 	void CleanUpComponentsForExtenders();
 
+#if WITH_EDITOR
+	/** Called when a level actor is deleted */
+	void OnLevelActorDeleted(AActor* DeletedActor);
+#endif
+	
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<USceneComponent> DefaultSceneRootComponent;
 
@@ -292,16 +318,28 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UDisplayClusterLabelComponent> LabelComponent;
 
+	/** Manages stage actor properties */
+	UPROPERTY(VisibleAnywhere, Category = "Default")
+	TObjectPtr<UDisplayClusterStageActorComponent> StageActorComponent;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UStaticMeshComponent> UVIndicatorComponent;
 #endif
 
-	/** The current owner of the light card */
-	TWeakObjectPtr<ADisplayClusterRootActor> RootActorOwner;
-
 	/** Indicates this light card should be considered a flag */
 	UPROPERTY()
 	bool bIsLightCardFlag = false;
-	
+
+private:
+	/** Set by DCRA during tick. Meant for legacy light cards that don't have a SoftObjectPtr set */
+	TWeakObjectPtr<ADisplayClusterRootActor> WeakRootActorOwner;
+
+	/** Stores the location relative to the root actor's origin that stage actors like light cards can orbit around */
+	FVector LastOrbitLocation = FVector::ZeroVector;
+
+#if WITH_EDITOR
+	/** Set if there was conflicting root actor ownership */
+	bool bHadRootActorMismatch = false;
+#endif
 };

@@ -216,25 +216,6 @@ AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorCl
 	}
 
 	const UClass* ClassToUse = InTemplate ? InTemplate->GetClass() : InActorClass.Get(); 
-
-	// Partitioned worlds that are not saved will fail to create the data layer asset. Detect this and display
-	// an error message for the user.
-	if (ActiveRootActor->GetWorld()->IsPartitionedWorld() &&
-		(ClassToUse->IsChildOf(ADisplayClusterLightCardActor::StaticClass()) ||
-		ClassToUse->IsChildOf(UDisplayClusterLightCardTemplate::StaticClass())))
-	{
-		const FString PathName = ActiveRootActor->GetWorld()->GetPathName();
-		if (PathName.StartsWith(TEXT("/Temp")))
-		{
-			FNotificationInfo NotificationInfo(LOCTEXT("CannotSpawnActorInUnsavedWorldPartition",
-	"Cannot spawn an actor of this type in a world partition map that is not saved. Please save the map."));
-			NotificationInfo.bUseThrobber = false;
-			NotificationInfo.ExpireDuration = 4.0f;
-			FSlateNotificationManager::Get().AddNotification(NotificationInfo)->SetCompletionState(SNotificationItem::CS_Fail);
-
-			return nullptr;
-		}
-	}
 	
 	FScopedTransaction Transaction(LOCTEXT("SpawnActorTransactionMessage", "Spawn Actor"));
 
@@ -763,6 +744,8 @@ void FDisplayClusterLightCardEditor::RemoveActors(
 					{
 						return InActor.Get() == LightCard;
 					});
+
+				LightCard->RemoveFromRootActor();
 				
 				if (!bDeleteActors)
 				{

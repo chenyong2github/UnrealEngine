@@ -6,10 +6,9 @@
 
 #include "DisplayClusterChromakeyCardActor.generated.h"
 
-class UDataLayerAsset;
 class UDisplayClusterICVFXCameraComponent;
 
-UCLASS(Blueprintable, NotPlaceable, DisplayName = "Chromakey Card", HideCategories = (Tick, Physics, Collision, Replication, Cooking, Input, Actor))
+UCLASS(Blueprintable, NotPlaceable, DisplayName = "Chromakey Card", HideCategories = (Tick, Physics, Collision, Networking, Replication, Cooking, Input, Actor, HLOD))
 class DISPLAYCLUSTER_API ADisplayClusterChromakeyCardActor : public ADisplayClusterLightCardActor
 {
 	GENERATED_BODY()
@@ -18,12 +17,19 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** Setup chroma key for the owning root actor */
-	void AddToChromakeyLayer(ADisplayClusterRootActor* InRootActor);
+	// ~Begin ADisplayClusterLightCardActor interface
+	virtual void AddToRootActor(ADisplayClusterRootActor* InRootActor) override;
+	virtual void RemoveFromRootActor() override;
+	// ~End ADisplayClusterLightCardActor interface
 	
-	/** Checks if the given ICVFX camera has chroma key settings supporting this actor */
-	bool IsReferencedByICVFXCamera(UDisplayClusterICVFXCameraComponent* InCamera) const;
-	
+	/**
+	 * Checks if the given ICVFX camera has chroma key settings supporting this actor.
+	 * 
+	 * @param InCamera The ICVFX camera component to compare against.
+	 *
+	 * @return true if the camera component references this actor.
+	 */
+	bool IsReferencedByICVFXCamera(const UDisplayClusterICVFXCameraComponent* InCamera) const;
 protected:
 	void UpdateChromakeySettings();
 };

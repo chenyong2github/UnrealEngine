@@ -882,10 +882,11 @@ AActor* FDisplayClusterLightCardEditorHelper::SpawnStageActor(const FSpawnActorA
 			}
 		}
 
+		NewLightCard->ShowLightCardLabel(InSpawnArgs.AddLightCardArgs.bShowLabels, InSpawnArgs.AddLightCardArgs.LabelScale, RootActor);
+		
 		if (ADisplayClusterChromakeyCardActor* ChromakeyCardActor = Cast<ADisplayClusterChromakeyCardActor>(NewActor))
 		{
-			// Only add to chroma key layer, not light card layer
-			ChromakeyCardActor->AddToChromakeyLayer(RootActor);
+			ChromakeyCardActor->AddToRootActor(RootActor);
 		}
 		else if (!bIsPreview)
 		{
@@ -929,8 +930,6 @@ void FDisplayClusterLightCardEditorHelper::AddLightCardsToRootActor(
 				return Actor.Get() == LightCard;
 			}))
 		{
-			LightCard->ShowLightCardLabel(AddLightCardArgs.bShowLabels, AddLightCardArgs.LabelScale, RootActor);
-				
 			const TSoftObjectPtr<AActor> LightCardSoftObject(LightCard);
 
 			// Remove any exact paths to this actor. It's possible invalid actors are present if a light card
@@ -940,7 +939,7 @@ void FDisplayClusterLightCardEditorHelper::AddLightCardsToRootActor(
 					return Actor == LightCardSoftObject;
 				});
 
-			LightCard->AddToLightCardLayer(RootActor);
+			LightCard->AddToRootActor(RootActor);
 		}
 
 #if WITH_EDITOR

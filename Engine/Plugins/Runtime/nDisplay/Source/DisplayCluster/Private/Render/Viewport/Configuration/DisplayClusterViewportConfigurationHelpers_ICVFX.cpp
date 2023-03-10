@@ -675,7 +675,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportS
 		// Update visibility settings only for rendered viewports
 		if (!DstViewport.PostRenderSettings.Replace.IsEnabled())
 		{
-			check(FDisplayClusterViewportConfigurationHelpers_Visibility::IsValid(InRenderSettings.ShowOnlyList));
+			check(FDisplayClusterViewportConfigurationHelpers_Visibility::IsVisibilityListValid(InRenderSettings.ShowOnlyList));
 
 			FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateShowOnlyList(DstViewport, RootActor, InRenderSettings.ShowOnlyList);
 		}
@@ -782,17 +782,17 @@ bool FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseLightcard(con
 	}
 
 	// Lightcard require layers for render
-	return FDisplayClusterViewportConfigurationHelpers_Visibility::IsValid(InLightcardSettings.ShowOnlyList);
+	return FDisplayClusterViewportConfigurationHelpers_Visibility::IsVisibilityListValid(InLightcardSettings.ShowOnlyList);
 }
 
 bool FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseUVLightcard(FDisplayClusterViewportManager& InViewportManager, const FDisplayClusterConfigurationICVFX_LightcardSettings& InLightcardSettings)
 {
 	if (InLightcardSettings.bEnable)
 	{
-		TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> LightCardManager = InViewportManager.GetLightCardManager();;
+		const TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> LightCardManager = InViewportManager.GetLightCardManager();
 		if (LightCardManager.IsValid() && LightCardManager->IsUVLightCardEnabled())
 		{
-			return true;
+			return FDisplayClusterViewportConfigurationHelpers_Visibility::IsVisibilityListValid(InLightcardSettings.ShowOnlyList);
 		}
 	}
 
@@ -834,7 +834,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 		// Update visibility settings only for rendered viewports
 		if (!DstViewport.PostRenderSettings.Replace.IsEnabled())
 		{
-			check(FDisplayClusterViewportConfigurationHelpers_Visibility::IsValid(LightcardSettings.ShowOnlyList));
+			check(FDisplayClusterViewportConfigurationHelpers_Visibility::IsVisibilityListValid(LightcardSettings.ShowOnlyList));
 
 			FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateShowOnlyList(DstViewport, RootActor, LightcardSettings.ShowOnlyList);
 		}

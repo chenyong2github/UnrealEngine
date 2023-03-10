@@ -99,13 +99,6 @@ public:
 	const FDisplayClusterConfigurationICVFX_StageSettings& GetStageSettings() const;
 	const FDisplayClusterConfigurationRenderFrame& GetRenderFrameSettings() const;
 
-	UDataLayerAsset* GetOrCreateLightCardDataLayerAsset(const FName& InName);
-	UDataLayerAsset* GetOrCreateChromakeyCardDataLayerAsset(const FName& InName);
-
-private:
-#if WITH_EDITOR
-	UDataLayerAsset* CreateDataLayerAsset(const FName& InName);
-#endif
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// AActor
@@ -127,11 +120,8 @@ protected:
 	// Creates all hierarchy objects declared in a config file
 	bool BuildHierarchy();
 
-	/** Updates the world position and rotation of each light card referenced by this root actor's light card list to match the default view origin */
-	void UpdateLightCardPositions();
-
-	/** Sets self as the owner for any chromakey cards */
-	void SetChromakeyCardsOwner();
+	/** Determine which light card actors are owned by this root actor */
+	void SetLightCardOwnership();
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "NDisplay")
@@ -302,22 +292,12 @@ private:
 	/** Component that stores the stage's geometry map, which is used to make objects flush with the stage's walls and ceilings */
 	UPROPERTY()
 	TObjectPtr<UDisplayClusterStageGeometryComponent> StageGeometryComponent;
-
-	/** Data layer used for light card layers */
-	UPROPERTY()
-	TObjectPtr<UDataLayerAsset> LightCardDataLayerAsset;
-
-	/** Data layer used for chromakey card layers */
-	UPROPERTY()
-	TObjectPtr<UDataLayerAsset> ChromakeyCardDataLayerAsset;
+	
 private:
 	// Current operation mode
 	EDisplayClusterOperationMode OperationMode;
 
 	float LastDeltaSecondsValue = 0.f;
-
-	/** Stores the location relative to the actor's origin that stage actors like light cards or CCWs orbit around when owned by this root actor. */
-	FVector StageActorOrbitLocation = FVector::ZeroVector;
 
 private:
 	template <typename TComp>

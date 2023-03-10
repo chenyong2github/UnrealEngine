@@ -59,8 +59,7 @@ public class DisplayCluster : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"ConcertSyncClient",
-					"DataLayerEditor"
+					"ConcertSyncClient"
 				});
 		}
 
