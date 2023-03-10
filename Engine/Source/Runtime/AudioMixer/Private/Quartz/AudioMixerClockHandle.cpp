@@ -308,6 +308,16 @@ float UQuartzClockHandle::GetBeatsPerMinute(const UObject* WorldContextObject) c
 	return 0.f;
 }
 
+float UQuartzClockHandle::GetBeatProgressPercent(EQuartzCommandQuantization QuantizationBoundary, float PhaseOffset)
+{
+	if(RawHandle.IsValid())
+	{
+		return FMath::Wrap(PhaseOffset + RawHandle.GetBeatProgressPercent(QuantizationBoundary), 0.f, 1.f);
+	}
+
+	return 0.f;
+}
+
 // todo: un-comment when metronome events support the offset
 // void UQuartzClockHandle::SetNotificationAnticipationAmountInMilliseconds(const UObject* WorldContextObject, UQuartzClockHandle*& ClockHandle, const double Milliseconds)
 // {

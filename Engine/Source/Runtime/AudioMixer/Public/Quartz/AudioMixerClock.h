@@ -70,6 +70,8 @@ namespace Audio
 
 		float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier) const;
 
+		float GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const;
+
 		// returns false if the clock is not valid or has shut down
 		bool SendCommandToClock(TFunction<void(FQuartzClock*)> InCommand);
 
@@ -154,6 +156,8 @@ namespace Audio
 
 		float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier);
 
+		float GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const;
+
 		FQuartzTransportTimeStamp GetCurrentTimestamp();
 
 		float GetEstimatedRunTime();
@@ -217,6 +221,7 @@ namespace Audio
 			FQuartzClockTickRate TickRate;
 			FQuartzTransportTimeStamp TimeStamp;
 			float RunTimeInSeconds;
+			float MusicalDurationPhases[static_cast<int32>(EQuartzCommandQuantization::Count)];
 		} CachedClockState;
 
 		void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0, int32 FramesOfDelay = 0);

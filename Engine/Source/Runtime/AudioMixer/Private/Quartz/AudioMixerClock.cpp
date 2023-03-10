@@ -57,6 +57,18 @@ namespace Audio
 		return ClockPtr->GetDurationOfQuantizationTypeInSeconds(QuantizationType, Multiplier);
 	}
 
+	float FQuartzClockProxy::GetBeatProgressPercent(
+		const EQuartzCommandQuantization& QuantizationType) const
+	{
+		TSharedPtr<FQuartzClock, ESPMode::ThreadSafe> ClockPtr = ClockWeakPtr.Pin();
+		if (!ClockPtr)
+		{
+			return 0.f;
+		}
+
+		return ClockPtr->GetBeatProgressPercent(QuantizationType);
+	}
+
 	Audio::FQuartzClockTickRate FQuartzClockProxy::GetTickRate() const
 	{
 		TSharedPtr<FQuartzClock, ESPMode::ThreadSafe> ClockPtr = ClockWeakPtr.Pin();
@@ -367,6 +379,8 @@ namespace Audio
 		CachedClockState.TickRate = Metronome.GetTickRate();
 		CachedClockState.TimeStamp = Metronome.GetTimeStamp();
 		CachedClockState.RunTimeInSeconds = (float)Metronome.GetTimeSinceStart();
+
+		Metronome.CalculateDurationPhases(CachedClockState.MusicalDurationPhases);
 	}
 
 	void FQuartzClock::SetSampleRate(float InNewSampleRate)
@@ -538,6 +552,11 @@ namespace Audio
 		{
 			return INDEX_NONE;
 		}
+	}
+
+	float FQuartzClock::GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const
+	{
+		return CachedClockState.MusicalDurationPhases[static_cast<int32>(QuantizationType)];
 	}
 
 	FQuartzTransportTimeStamp FQuartzClock::GetCurrentTimestamp()

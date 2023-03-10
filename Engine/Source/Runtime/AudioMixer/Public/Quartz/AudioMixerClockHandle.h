@@ -3,16 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/Queue.h"
+#include "UObject/ObjectMacros.h"
+#include "Curves/RichCurve.h"
+#include "Curves/CurveBase.h"
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Sound/QuartzSubscription.h"
 #include "Quartz/QuartzSubsystem.h"
 #include "Quartz/QuartzMetronome.h"
 
 #include "AudioMixerClockHandle.generated.h"
-
-
-
 
 /**
  *  This class is a BP / Game thread wrapper around FQuartzClockProxy
@@ -129,6 +128,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "InDelegate", Keywords = "BPM, Tempo"))
 	float GetBeatsPerMinute(const UObject* WorldContextObject) const;
+
+	/**
+	 * Returns the current progress until the next occurrence of the provided musical duration as a float value from 0 (previous beat) to 1 (next beat).
+	 * This is useful for indexing into curves to animate parameters to musical time.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Quantization", meta = ( AutoCreateRefTerm = "PhaseOffset", Keywords = "BPM, Tempo"))
+	float GetBeatProgressPercent(EQuartzCommandQuantization QuantizationBoundary = EQuartzCommandQuantization::Beat, float PhaseOffset = 0.f);
 
 	// todo: un-comment when metronome events support the offset
 	// Set how early we would like to receive Metronome (not yet supported) and "About To Start" Delegates. (all other command delegates will execute as normal)

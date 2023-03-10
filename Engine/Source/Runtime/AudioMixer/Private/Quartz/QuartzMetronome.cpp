@@ -66,6 +66,7 @@ namespace Audio
 						}
 
 						FramesLeftInMusicalDuration[DurationType] += PulseDurations[PulseDurationIndex];
+						MusicalDurationsInFrames[DurationType] = PulseDurations[PulseDurationIndex];
 					}
 					while (FramesLeftInMusicalDuration[DurationType] <= 0);
 				}
@@ -282,6 +283,14 @@ namespace Audio
 		int32 NumInThisBar = CountNumSubdivisionsSinceBarStart(InSubdivision);
 
 		return (CurrentTimeStamp.Bars - 1) * NumPerBar + NumInThisBar;
+	}
+
+	void FQuartzMetronome::CalculateDurationPhases(float (&OutPhases)[static_cast<int32>(EQuartzCommandQuantization::Count)]) const
+	{
+		for (int i = 0; i < static_cast<int32>(EQuartzCommandQuantization::Count); ++i)
+		{
+			OutPhases[i] = 1.f - FramesLeftInMusicalDuration[i] / static_cast<float>(MusicalDurationsInFrames[i]);
+		}
 	}
 
 	void FQuartzMetronome::SubscribeToTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary)
