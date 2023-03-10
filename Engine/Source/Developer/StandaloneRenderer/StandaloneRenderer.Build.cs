@@ -14,6 +14,7 @@ public class StandaloneRenderer : ModuleRules
 				"ImageWrapper",
 				"InputCore",
 				"SlateCore",
+				"SlateNullRenderer",
 			}
 			);
 
