@@ -42,6 +42,18 @@ namespace AutomationTool.Tasks
 		public string Version = String.Empty;
 
 		/// <summary>
+		/// Duration over which to roll out the tool, in minutes.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public int Duration = 0;
+
+		/// <summary>
+		/// Whether to create the deployment as paused
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool Paused = false;
+
+		/// <summary>
 		/// Zip file containing the data to upload
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -139,6 +151,14 @@ namespace AutomationTool.Tasks
 
 						MultipartFormDataContent content = new MultipartFormDataContent();
 						content.Add(new StringContent(Parameters.Version), "version");
+						if (Parameters.Duration != 0)
+						{
+							content.Add(new StringContent(TimeSpan.FromMinutes(Parameters.Duration).ToString()), "duration");
+						}
+						if (Parameters.Paused)
+						{
+							content.Add(new StringContent("true"), "paused");
+						}
 						content.Add(streamContent, "file", file.GetFileName());
 						request.Content = content;
 
