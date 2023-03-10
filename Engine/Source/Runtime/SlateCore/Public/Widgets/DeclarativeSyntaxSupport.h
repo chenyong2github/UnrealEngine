@@ -59,11 +59,12 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
  *    SLATE_END_ARGS()
  */
 
-#define SLATE_BEGIN_ARGS( WidgetType ) \
+#define SLATE_BEGIN_ARGS( InWidgetType ) \
 	public: \
-	struct FArguments : public TSlateBaseNamedArgs<WidgetType> \
+	struct FArguments : public TSlateBaseNamedArgs<InWidgetType> \
 	{ \
 		typedef FArguments WidgetArgsType; \
+		typedef InWidgetType WidgetType; \
 		FORCENOINLINE FArguments()
 
 /**
@@ -669,9 +670,10 @@ struct FSlateBaseNamedArgs
 
 
 /** Base class for named arguments. Provides settings necessary for all widgets. */
-template<typename WidgetType>
+template<typename InWidgetType>
 struct TSlateBaseNamedArgs : public FSlateBaseNamedArgs
 {
+	typedef InWidgetType WidgetType;
 	typedef typename WidgetType::FArguments WidgetArgsType;
 
 	SLATE_PRIVATE_ATTRIBUTE_FUNCTION(FText, ToolTipText)

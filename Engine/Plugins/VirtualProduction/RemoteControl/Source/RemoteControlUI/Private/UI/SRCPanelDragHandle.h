@@ -17,10 +17,10 @@ template <typename DragDropType>
 class SRCPanelDragHandle : public SCompoundWidget
 {
 public:
-	using WidgetType = typename DragDropType::WidgetType;
+	using DragDropWidgetType = typename DragDropType::WidgetType;
 	SLATE_BEGIN_ARGS(SRCPanelDragHandle)
 	{}
-		SLATE_ARGUMENT(TSharedPtr<WidgetType>, Widget)
+		SLATE_ARGUMENT(TSharedPtr<DragDropWidgetType>, Widget)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, FGuid InId)
@@ -66,7 +66,7 @@ public:
 
 	TSharedPtr<FDragDropOperation> CreateDragDropOperation()
 	{
-		if (TSharedPtr<WidgetType> WidgetPtr = Widget.Pin())
+		if (TSharedPtr<DragDropWidgetType> WidgetPtr = Widget.Pin())
 		{
 			TSharedPtr<FDecoratedDragDropOp> DragDropOperation = MakeShared<DragDropType>(Widget.Pin(), Id);
 			DragDropOperation->Construct();
@@ -77,7 +77,7 @@ public:
 
 private:
 	/** Holds the widget to display when dragging. */
-	TWeakPtr<WidgetType> Widget;
+	TWeakPtr<DragDropWidgetType> Widget;
 	/** Holds the ID of the item being dragged. */
 	FGuid Id;
 };

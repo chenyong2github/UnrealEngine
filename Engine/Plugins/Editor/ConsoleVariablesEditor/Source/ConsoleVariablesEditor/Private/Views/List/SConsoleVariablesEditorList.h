@@ -64,11 +64,6 @@ public:
 	[[nodiscard]] TArray<FConsoleVariablesEditorListRowPtr> GetTreeViewItems() const;
 	void SetTreeViewItems(const TArray<FConsoleVariablesEditorListRowPtr>& InItems);
 
-	[[nodiscard]] int32 GetTreeViewItemCount() const
-	{
-		return TreeViewRootObjects.Num();
-	}
-
 	/** Updates the saved values in a UConsoleVariablesAsset so that the command/value map can be saved to disk */
 	void UpdatePresetValuesForSave(const TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 

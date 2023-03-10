@@ -4,25 +4,26 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ObservableArray.h"
 #include "InputCoreTypes.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/AppStyle.h"
 #include "Framework/SlateDelegates.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Framework/Layout/Overscroll.h"
 #include "Framework/Views/ITypedTableView.h"
 #include "Framework/Views/TableViewMetadata.h"
-#include "Widgets/Views/STableViewBase.h"
 #include "Framework/Views/TableViewTypeTraits.h"
-#include "Widgets/Views/STableRow.h"
 #include "Types/SlateConstants.h"
-#include "Widgets/Layout/SScrollBar.h"
-#include "Framework/Layout/Overscroll.h"
-#include "Widgets/Images/SImage.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Layout/SScrollBar.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/IItemsSource.h"
 #include "Application/SlateApplicationBase.h"
 #if WITH_ACCESSIBILITY
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
@@ -90,7 +91,6 @@ public:
 		, _OnGeneratePinnedRow()
 		, _OnEntryInitialized()
 		, _OnRowReleased()
-		, _ListItemsSource()
 		, _ItemHeight(16)
 		, _MaxPinnedItems(6)
 		, _OnContextMenuOpening()
@@ -137,7 +137,7 @@ public:
 		
 		SLATE_EVENT( FOnFinishedScrolling, OnFinishedScrolling )
 
-		SLATE_ARGUMENT( const TArray<ItemType>* , ListItemsSource )
+		SLATE_ITEMS_SOURCE_ARGUMENT( ItemType, ListItemsSource )
 
 		SLATE_ATTRIBUTE( float, ItemHeight )
 
@@ -219,9 +219,7 @@ public:
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
 		this->OnFinishedScrolling = InArgs._OnFinishedScrolling;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		this->SetItemsSource(InArgs._ListItemsSource);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		this->SetItemsSource(InArgs.MakeListItemsSource(this->SharedThis(this)));
 		this->OnContextMenuOpening = InArgs._OnContextMenuOpening;
 		this->OnClick = InArgs._OnMouseButtonClick;
 		this->OnDoubleClick = InArgs._OnMouseButtonDoubleClick;
@@ -318,7 +316,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 public:
 
-	// SWidget overrides
+	//~ SWidget overrides
 
 	virtual bool SupportsKeyboardFocus() const override
 	{
@@ -586,7 +584,7 @@ public:
 	}
 
 #if WITH_ACCESSIBILITY
-	protected:
+protected:
 	friend class FSlateAccessibleListView;
 	/**
 	* An accessible implementation for SListView to be exposed to platform accessibility APIs.
@@ -656,7 +654,7 @@ public:
 		}
 		// ~
 	};
-	public:
+public:
 	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override
 	{
 		// @TODOAccessibility: Add support for the different types of tables e.g tree and tile 
@@ -696,7 +694,7 @@ private:
 		 * @param Item  The item for which to find the widget.
 		 * @return A pointer to the corresponding widget if it exists; otherwise nullptr.
 		 */
-		TSharedPtr<ITableRow> GetWidgetForItem( const ItemType& Item ) const
+		[[nodiscard]] TSharedPtr<ITableRow> GetWidgetForItem( const ItemType& Item ) const
 		{
 			const TSharedRef<ITableRow>* LookupResult = ItemToWidgetMap.Find(Item);
 			return LookupResult ? TSharedPtr<ITableRow>(*LookupResult) : TSharedPtr<ITableRow>(nullptr);
@@ -737,7 +735,7 @@ private:
 		 */
 		void OnBeginGenerationPass()
 		{
-			// Assume all the previously generated items need to be cleaned up.				
+			// Assume all the previously generated items need to be cleaned up.
 			ItemsToBeCleanedUp = ItemsWithGeneratedWidgets;
 			ItemsWithGeneratedWidgets.Empty();
 		}
@@ -862,6 +860,7 @@ private:
 			}			
 		}
 
+	public:
 		/** We store a pointer to the owner list for error purposes, so when asserts occur we can report which list it happened for. */
 		SListView<ItemType>* OwnerList;
 
@@ -1666,20 +1665,61 @@ public:
 	 */
 	void SetItemsSource(const TArray<ItemType>* InListItemsSource)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (ItemsSource != InListItemsSource)
+		ensureMsgf(InListItemsSource, TEXT("The ListItems is invalid."));
+		if (ViewSource == nullptr || !ViewSource->IsSame(reinterpret_cast<const void*>(InListItemsSource)))
 		{
-			if (IsConstructed())
+			if (InListItemsSource)
 			{
-				Private_ClearSelection();
-				CancelScrollIntoView();
-				ClearWidgets();
-				RebuildList();
+				SetItemsSource(MakeUnique<UE::Slate::ItemsSource::FArrayPointer<ItemType>>(InListItemsSource));
 			}
-			ItemsSource = InListItemsSource;
+			else
+			{
+				ClearItemsSource();
+			}
 		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
+
+	/**
+	 * Establishes a wholly new list of items being observed by the list.
+	 * Wipes all existing state and requests and will fully rebuild on the next tick.
+	 * The ObservableArray will notify the Widget when it needs to refresh.
+	 */
+	void SetItemsSource(TSharedRef<::UE::Slate::Containers::TObservableArray<ItemType>> InListItemsSource)
+	{
+		if (ViewSource == nullptr || !ViewSource->IsSame(reinterpret_cast<const void*>(&InListItemsSource.Get())))
+		{
+			SetItemsSource(MakeUnique<UE::Slate::ItemsSource::FSharedObservableArray<ItemType>>(SharedThis(this), MoveTemp(InListItemsSource)));
+		}
+	}
+
+	/**
+	 * Establishes a wholly new list of items being observed by the list.
+	 * Wipes all existing state and requests and will fully rebuild on the next tick.
+	 */
+	void SetItemsSource(TUniquePtr<UE::Slate::ItemsSource::IItemsSource<ItemType>> Provider)
+	{
+		if (IsConstructed())
+		{
+			Private_ClearSelection();
+			CancelScrollIntoView();
+			ClearWidgets();
+
+			ViewSource = MoveTemp(Provider);
+
+			RebuildList();
+		}
+		else
+		{
+			ViewSource = MoveTemp(Provider);
+		}
+	}
+
+	void ClearItemsSource()
+	{
+		SetItemsSource(TUniquePtr<UE::Slate::ItemsSource::IItemsSource<ItemType>>());
+	}
+
+public:
 
 	UE_DEPRECATED(5.2, "SetListItemsSource is deprecated. Please use the correct SetItemsSource implementation.")
 	void SetListItemsSource(const TArray<ItemType>& InListItemsSource)
@@ -1689,20 +1729,12 @@ public:
 
 	bool HasValidItemsSource() const
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return ItemsSource != nullptr;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return ViewSource != nullptr;
 	}
 
 	TArrayView<const ItemType> GetItems() const
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (ItemsSource)
-		{
-			return *ItemsSource;
-		}
-		return TArrayView<const ItemType>();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return ViewSource ? ViewSource->GetItems() : TArrayView<const ItemType>();
 	}
 
 	/**
@@ -2584,6 +2616,10 @@ protected:
 	
 	/** If true, number of pinned items > MaxPinnedItems so some items are collapsed in the hierarchy */
 	bool bIsHierarchyCollapsed = false;
+
+private:
+	/** Pointer to the source data that we are observing */
+	TUniquePtr<UE::Slate::ItemsSource::IItemsSource<ItemType>> ViewSource;
 
 private:
 	struct FGenerationPassGuard

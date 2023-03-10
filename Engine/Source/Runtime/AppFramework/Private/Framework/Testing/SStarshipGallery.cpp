@@ -18,7 +18,7 @@
 
 // #include "SlateCore.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
-
+#include "Containers/ObservableArray.h"
 
 #include "Layout/WidgetPath.h"
 #include "SlateOptMacros.h"
@@ -58,6 +58,9 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SSegmentedControl.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STileView.h"
+#include "Widgets/Views/STreeView.h"
 
 
 #include "Brushes/SlateImageBrush.h"
@@ -112,6 +115,7 @@ public:
                 ->AddTab("Text", ETabState::OpenedTab)
                 ->AddTab("Icons", ETabState::OpenedTab)
                 ->AddTab("Starship Widgets", ETabState::OpenedTab)
+                ->AddTab("List Widgets", ETabState::OpenedTab)
                 // ->AddTab("SLATE WIDGETS", ETabState::OpenedTab)
                 ->SetForegroundTab(FName("Starship Widgets"))
             )
@@ -175,6 +179,21 @@ public:
                 }
             )
         );
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner("List Widgets",
+			FOnSpawnTab::CreateLambda(
+				[this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
+				{
+					return SNew(SDockTab)
+						.TabRole(ETabRole::PanelTab)
+						.ContentPadding(0)
+						.ForegroundColor(FSlateColor::UseStyle())
+						[
+							ConstructListGallery()
+						];
+				}
+			)
+		);
 
 
         /*
@@ -720,52 +739,51 @@ public:
 
         TSharedPtr<SGridPanel> WidgetGrid = SNew(SGridPanel);
 
-        int WidgetNum = 0, RowCount = 15, Cols = 3;
-        auto NextSlot = [WidgetNum, RowCount, Cols](TSharedPtr<SGridPanel> Grid, const FText& InLabel) mutable -> SHorizontalBox::FScopedWidgetSlotArguments
-        { 
-            TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox);
+		int32 WidgetNum = 0, RowCount = 15, Cols = 3;
+		auto NextSlot = [WidgetNum, RowCount, Cols](TSharedPtr<SGridPanel> Grid, const FText& InLabel) mutable -> SHorizontalBox::FScopedWidgetSlotArguments
+		{
+			TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox);
 
-            // Checkbox to show disabled state
-            Grid->AddSlot((WidgetNum / RowCount)*Cols, WidgetNum % RowCount)
-            .Padding(12.f)
-            .HAlign(HAlign_Left)
-            .VAlign(VAlign_Center)
-            [
-		SNew(SCheckBox)
-                .IsChecked_Lambda( [HBox] { return HBox->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
-                .OnCheckStateChanged_Lambda( [HBox] (ECheckBoxState NewState) { HBox->SetEnabled( NewState == ECheckBoxState::Checked); })
-            ];
+			// Checkbox to show disabled state
+			Grid->AddSlot((WidgetNum / RowCount) * Cols, WidgetNum % RowCount)
+				.Padding(12.f)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SCheckBox)
+					.IsChecked_Lambda([HBox] { return HBox->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.OnCheckStateChanged_Lambda([HBox](ECheckBoxState NewState) { HBox->SetEnabled(NewState == ECheckBoxState::Checked); })
+				];
 
-            // Add the Label
-            Grid->AddSlot((WidgetNum / RowCount)*Cols + 1, WidgetNum % RowCount )
-            .Padding(24.f, 16.f, 12.f, 16.f)
-            .VAlign(VAlign_Center)
-            .HAlign(HAlign_Right)
-            [
-                SNew(STextBlock)
-                .Font(FAppStyle::Get().GetFontStyle("NormalFont"))
-                .ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.White50"))
-                .Text(InLabel)
-            ];
+			// Add the Label
+			Grid->AddSlot((WidgetNum / RowCount) * Cols + 1, WidgetNum % RowCount)
+				.Padding(24.f, 16.f, 12.f, 16.f)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::Get().GetFontStyle("NormalFont"))
+					.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.White50"))
+					.Text(InLabel)
+				];
 
-            //auto& Ret = Grid->AddSlot((WidgetNum / RowCount)*2 + 1, WidgetNum % RowCount)
-            Grid->AddSlot((WidgetNum / RowCount)*Cols + 2, WidgetNum % RowCount)
-            .Padding(12.f, 16.f, 12.f, 16.f)
-            .VAlign(VAlign_Center)
-            .HAlign(HAlign_Fill)
-            [
+			//auto& Ret = Grid->AddSlot((WidgetNum / RowCount)*2 + 1, WidgetNum % RowCount)
+			Grid->AddSlot((WidgetNum / RowCount) * Cols + 2, WidgetNum % RowCount)
+				.Padding(12.f, 16.f, 12.f, 16.f)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Fill)
+				[
+					HBox
+				];
 
-                HBox
-            ];
-
-            ++WidgetNum;
+			++WidgetNum;
 
 			SHorizontalBox::FScopedWidgetSlotArguments NewSlot = HBox->AddSlot();
 			NewSlot.VAlign(VAlign_Center)
 				.HAlign(HAlign_Fill)
 				.AutoWidth();
 			return MoveTemp(NewSlot);
-        };
+		};
 
 
         auto LeftRightLabel = [](const FName& InIconName = FName(), const FText& InLabel = FText::GetEmpty(), const FName& InTextStyle = TEXT("ButtonText")) -> TSharedRef<SWidget>
@@ -885,14 +903,12 @@ public:
                     LeftRightLabel("Icons.box-perspective")
                 ]
             ]
-
         ];
 
 
         // NoBorder Button Button 
         NextSlot(WidgetGrid, LOCTEXT("TextButton", "Simple Button"))
         [
-
             SNew(SHorizontalBox)
             +SHorizontalBox::Slot()
             .AutoWidth()
@@ -1478,9 +1494,157 @@ public:
             ]
         ];
 
-    };
+    }
 
-    TArray< TSharedPtr<EHorizontalAlignment> > HorizontalAlignmentComboItems;
+	class SListGalleryWidget : public SCompoundWidget
+	{
+	private:
+		TArray<TSharedPtr<int32>> ListViewItemsInArray;
+		UE::Slate::Containers::TObservableArray<TSharedPtr<int32>> ListViewItemsInObservableArray;
+		TSharedPtr<UE::Slate::Containers::TObservableArray<TSharedPtr<int32>>> SharedListViewItemsInObservableArray;
+		TSharedPtr<SListView<TSharedPtr<int32>>> ListView_List;
+		TSharedPtr<STileView<TSharedPtr<int32>>> ListView_Tile;
+		TSharedPtr<STreeView<TSharedPtr<int32>>> ListView_Tree;
+
+	public:
+		SLATE_BEGIN_ARGS(SListGalleryWidget){}
+		SLATE_END_ARGS()
+		void Construct(const FArguments&)
+		{
+			TSharedRef<SHorizontalBox> TheBox = SNew(SHorizontalBox);
+
+			SharedListViewItemsInObservableArray = MakeShared<UE::Slate::Containers::TObservableArray<TSharedPtr<int32>>>();
+			for (int32 Index = 0; Index < 15; ++Index)
+			{
+				ListViewItemsInArray.Add(MakeShared<int32>(Index));
+				ListViewItemsInObservableArray.Add(MakeShared<int32>(Index));
+				SharedListViewItemsInObservableArray->Add(MakeShared<int32>(Index));
+			}
+
+			TheBox->AddSlot()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked_Lambda([this]()
+					{
+						ListViewItemsInArray.Add(MakeShared<int32>(ListViewItemsInArray.Num()));
+						ListViewItemsInObservableArray.Add(MakeShared<int32>(ListViewItemsInObservableArray.Num()));
+						SharedListViewItemsInObservableArray->Add(MakeShared<int32>(SharedListViewItemsInObservableArray->Num()));
+						return FReply::Handled();
+					})
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Add", "Add"))
+					]
+				]
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked_Lambda([this]()
+					{
+						int32 Rand = FMath::RandHelper(ListViewItemsInArray.Num());
+						ListViewItemsInArray.RemoveAt(Rand);
+						ListViewItemsInObservableArray.RemoveAt(Rand);
+						SharedListViewItemsInObservableArray->RemoveAt(Rand);
+						return FReply::Handled();
+					})
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Remove", "Remove"))
+					]
+				]
+			];
+
+			TheBox->AddSlot()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				[
+					SAssignNew(ListView_List, SListView<TSharedPtr<int32>>)
+					.ListItemsSource(&ListViewItemsInArray)
+					.ListItemsSource(&ListViewItemsInObservableArray)
+					.ListItemsSource(SharedListViewItemsInObservableArray)
+					.OnGenerateRow_Lambda([](TSharedPtr<int32> Value, const TSharedRef<STableViewBase>& OwnerTable)
+					{
+						typedef STableRow<TSharedPtr<int32>> RowType;
+
+						TSharedRef<RowType> NewRow = SNew(RowType, OwnerTable);
+						NewRow->SetContent(SNew(STextBlock).Text(FText::AsNumber(*Value.Get())));
+
+						return NewRow;
+					})
+				]
+				+ SVerticalBox::Slot()
+				[
+					SAssignNew(ListView_Tile, STileView<TSharedPtr<int32>>)
+					.ListItemsSource(&ListViewItemsInArray)
+					.ListItemsSource(&ListViewItemsInObservableArray)
+					.ListItemsSource(SharedListViewItemsInObservableArray)
+					.OnGenerateTile_Lambda([](TSharedPtr<int32> Value, const TSharedRef<STableViewBase>& OwnerTable)
+					{
+						typedef STableRow<TSharedPtr<int32>> RowType;
+
+						TSharedRef<RowType> NewRow = SNew(RowType, OwnerTable);
+						NewRow->SetContent(SNew(STextBlock).Text(FText::AsNumber(*Value.Get())));
+
+						return NewRow;
+					})
+				]
+				+ SVerticalBox::Slot()
+				[
+					SAssignNew(ListView_Tree, STreeView<TSharedPtr<int32>>)
+					.TreeItemsSource(&ListViewItemsInArray)
+					.TreeItemsSource(&ListViewItemsInObservableArray)
+					.TreeItemsSource(SharedListViewItemsInObservableArray)
+					.OnGenerateRow_Lambda([](TSharedPtr<int32> Value, const TSharedRef<STableViewBase>& OwnerTable)
+					{
+						typedef STableRow<TSharedPtr<int32>> RowType;
+
+						TSharedRef<RowType> NewRow = SNew(RowType, OwnerTable);
+						NewRow->SetContent(SNew(STextBlock).Text(FText::AsNumber(*Value.Get())));
+
+						return NewRow;
+					})
+					.OnGetChildren_Lambda([](TSharedPtr<int32> Parent, TArray<TSharedPtr<int32>>& OutParent)
+					{
+						OutParent.Add(MakeShared<int32>(99));
+					})
+				]
+			];
+
+			ChildSlot[TheBox];
+		}
+		~SListGalleryWidget()
+		{
+			if (ListView_List)
+			{
+				ListView_List->ClearItemsSource();
+				ListView_List.Reset();
+			}
+			if (ListView_Tile)
+			{
+				ListView_Tile->ClearItemsSource();
+				ListView_Tile.Reset();
+			}
+			if (ListView_Tree)
+			{
+				ListView_Tree->ClearRootItemsSource();
+				ListView_Tree.Reset();
+			}
+			ChildSlot[SNullWidget::NullWidget];
+		}
+	};
+	
+	TSharedRef<SWidget> ConstructListGallery()
+	{
+		return SNew(SListGalleryWidget);
+	}
+
+	TArray<TSharedPtr<EHorizontalAlignment>> HorizontalAlignmentComboItems;
 
 }; // class SStarshipGallery
 

@@ -137,11 +137,6 @@ public:
 
 	bool IsTreeViewItemSelected(TSharedPtr<ISceneOutlinerTreeItem> Item);
 
-	UE_NODISCARD int32 GetTreeViewItemCount() const
-	{
-		return GetTree().GetItems().Num();
-	}
-
 	TSet<TSharedPtr<ISceneOutlinerTreeItem>> GetTreeRootItems() const;
 	TSet<TWeakPtr<ISceneOutlinerTreeItem>> GetWeakTreeRootItems() const;
 	

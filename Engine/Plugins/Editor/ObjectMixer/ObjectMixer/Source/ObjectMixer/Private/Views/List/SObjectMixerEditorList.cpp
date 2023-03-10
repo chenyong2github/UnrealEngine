@@ -439,9 +439,9 @@ TSet<TSharedPtr<ISceneOutlinerTreeItem>> SObjectMixerEditorList::GetSoloRows() c
 
 TSet<TSharedPtr<ISceneOutlinerTreeItem>> SObjectMixerEditorList::GetTreeRootItems() const
 {
-	if (GetTree().GetItems().Num())
+	if (GetTree().GetRootItems().Num())
 	{
-		return {GetTree().GetItems()[0]};
+		return {GetTree().GetRootItems()[0]};
 	}
 
 	return {};
@@ -449,9 +449,9 @@ TSet<TSharedPtr<ISceneOutlinerTreeItem>> SObjectMixerEditorList::GetTreeRootItem
 
 TSet<TWeakPtr<ISceneOutlinerTreeItem>> SObjectMixerEditorList::GetWeakTreeRootItems() const
 {
-	if (GetTree().GetItems().Num())
+	if (GetTree().GetRootItems().Num())
 	{
-		return {GetTree().GetItems()[0]};
+		return {GetTree().GetRootItems()[0]};
 	}
 
 	return {};

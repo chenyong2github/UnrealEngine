@@ -17,11 +17,11 @@ template<typename DragDropType>
 class SRenderGridDragHandle : public SCompoundWidget
 {
 public:
-	using WidgetType = typename DragDropType::WidgetType;
+	using DragDropWidgetType = typename DragDropType::WidgetType;
 	using HeldItemType = typename DragDropType::HeldItemType;
 
 	SLATE_BEGIN_ARGS(SRenderGridDragHandle) {}
-		SLATE_ARGUMENT(TSharedPtr<WidgetType>, Widget)
+		SLATE_ARGUMENT(TSharedPtr<DragDropWidgetType>, Widget)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, HeldItemType InItem)
@@ -64,7 +64,7 @@ public:
 
 	TSharedPtr<FDragDropOperation> CreateDragDropOperation()
 	{
-		if (const TSharedPtr<WidgetType> Widget = WidgetWeakPtr.Pin())
+		if (const TSharedPtr<DragDropWidgetType> Widget = WidgetWeakPtr.Pin())
 		{
 			TSharedPtr<DragDropType> DragDropOperation = MakeShared<DragDropType>(Widget, Item);
 			DragDropOperation->Construct();
@@ -75,7 +75,7 @@ public:
 
 private:
 	/** Holds the widget to display when dragging. */
-	TWeakPtr<WidgetType> WidgetWeakPtr;
+	TWeakPtr<DragDropWidgetType> WidgetWeakPtr;
 
 	/** Holds the item being dragged. */
 	HeldItemType Item;

@@ -21,12 +21,12 @@ public:
 		{
 			// Set selection to the first item in a list if no items are selected.
 			// If bReturnFocusToSelection is true find the last selected object and focus on that.
-			if (this->HasValidItemsSource() && this->TreeItemsSource->Num() > 0)
+			if (this->HasValidItemsSource() && this->GetRootItems().Num() > 0)
 			{
 				typename TListTypeTraits<ItemType>::NullableType ItemNavigatedTo = TListTypeTraits<ItemType>::MakeNullPtr();
 				if (this->GetNumItemsSelected() == 0)
 				{
-					ItemNavigatedTo = (*this->TreeItemsSource)[0];
+					ItemNavigatedTo = this->GetRootItems()[0];
 				}
 				else if (this->bReturnFocusToSelection && TListTypeTraits<ItemType>::IsPtrValid(this->SelectorItem))
 				{

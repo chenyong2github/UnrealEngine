@@ -41,7 +41,6 @@ public:
 	SLATE_BEGIN_ARGS(STileView<ItemType>)
 		: _OnGenerateTile()
 		, _OnTileReleased()
-		, _ListItemsSource(static_cast<TArray<ItemType>*>(nullptr)) //@todo Slate Syntax: Initializing from nullptr without a cast
 		, _ItemHeight(128)
 		, _ItemWidth(128)
 		, _ItemAlignment(EListItemAlignment::EvenlyDistributed)
@@ -79,7 +78,7 @@ public:
 
 		SLATE_EVENT( FOnItemScrolledIntoView, OnItemScrolledIntoView )
 
-		SLATE_ARGUMENT( const TArray<ItemType>* , ListItemsSource )
+		SLATE_ITEMS_SOURCE_ARGUMENT( ItemType, ListItemsSource )
 
 		SLATE_ATTRIBUTE( float, ItemHeight )
 
@@ -149,7 +148,7 @@ public:
 		this->OnRowReleased = InArgs._OnTileReleased;
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
 		
-		this->SetItemsSource(InArgs._ListItemsSource);
+		this->SetItemsSource(InArgs.MakeListItemsSource(this->SharedThis(this)));
 		this->OnContextMenuOpening = InArgs._OnContextMenuOpening;
 		this->OnClick = InArgs._OnMouseButtonClick;
 		this->OnDoubleClick = InArgs._OnMouseButtonDoubleClick;
@@ -270,14 +269,14 @@ public:
 		// Clear all the items from our panel. We will re-add them in the correct order momentarily.
 		this->ClearWidgets();
 		
-		const TArrayView<const ItemType> tems = this->GetItems();
-		if (tems.Num() > 0)
+		const TArrayView<const ItemType> Items = this->GetItems();
+		if (Items.Num() > 0)
 		{
 			// Item width and height is constant by design.
 			FTableViewDimensions TileDimensions = GetTileDimensions();
 			FTableViewDimensions AllottedDimensions(this->Orientation, MyGeometry.GetLocalSize());
 
-			const int32 NumItems = tems.Num();
+			const int32 NumItems = Items.Num();
 			const int32 NumItemsPerLine = GetNumItemsPerLine();
 			const int32 NumItemsPaddedToFillLastLine = (NumItems % NumItemsPerLine != 0)
 				? NumItems + NumItemsPerLine - NumItems % NumItemsPerLine
@@ -305,7 +304,7 @@ public:
 			double NumLinesShownOnScreen = 0;
 			for( int32 ItemIndex = StartIndex; !bHasFilledAvailableArea && ItemIndex < NumItems; ++ItemIndex )
 			{
-				const ItemType& CurItem = tems[ItemIndex];
+				const ItemType& CurItem = Items[ItemIndex];
 
 				if (bNewLine)
 				{
