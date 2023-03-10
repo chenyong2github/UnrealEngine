@@ -58,8 +58,8 @@ struct ENGINE_API FSparseVolumeTextureData
 
 	FSparseVolumeTextureDataHeader Header = {};
 	TArray<TArray<uint32>> PageTable; // PageTable[MipLevel][PageCoord]
-	TArray<uint8> PhysicalTileDataA;
-	TArray<uint8> PhysicalTileDataB;
+	TArray64<uint8> PhysicalTileDataA;
+	TArray64<uint8> PhysicalTileDataB;
 
 	void Serialize(FArchive& Ar);
 	bool Construct(const ISparseVolumeTextureDataConstructionAdapter& Adapter);
@@ -67,7 +67,8 @@ struct ENGINE_API FSparseVolumeTextureData
 	FVector4f ReadTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 AttributesIdx) const;
 	FVector4f Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FSparseVolumeTextureDataAddressingInfo& AddressingInfo) const;
 	void WriteTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent = -1);
-	void GenerateMipMaps(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels = -1);
-	void GenerateBorderVoxels(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 MipLevel, const TArray<FIntVector3>& PageCoords);
-	void BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels = -1);
+	bool GenerateMipMaps(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels = -1);
+	bool GenerateBorderVoxels(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 MipLevel, const TArray<FIntVector3>& PageCoords);
+	bool DeduplicateTiles();
+	bool BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FSparseVolumeTextureData& OutDerivedData);
 };

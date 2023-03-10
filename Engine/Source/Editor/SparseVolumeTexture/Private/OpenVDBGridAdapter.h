@@ -116,20 +116,46 @@ public:
 	{
 		constexpr uint32 NumComponents = GetOpenVDBValueNumComponents<ValueType>();
 		static_assert(NumComponents <= 4);
-		for (auto LeafIt = Grid->constTree().cbeginLeaf(); LeafIt; ++LeafIt)
-		{
-			for (auto ValueIt = LeafIt->cbeginValueOn(); ValueIt; ++ValueIt)
-			{
-				const ValueType VoxelValue = ValueIt.getValue();
-				float VoxelValueComponents[4]{};
-				for (uint32 ComponentIdx = 0; ComponentIdx < NumComponents; ++ComponentIdx)
-				{
-					VoxelValueComponents[ComponentIdx] = GetOpenVDBValueComponent(VoxelValue, ComponentIdx);
-				}
 
-				const openvdb::Coord CoordVDB = ValueIt.getCoord();
-				const FIntVector3 Coord(CoordVDB[0], CoordVDB[1], CoordVDB[2]);
+		// Iterate over both voxels and tiles.
+		for (auto ValueIt = Grid->cbeginValueOn(); ValueIt; ++ValueIt)
+		{
+			const ValueType VoxelValue = ValueIt.getValue();
+			const openvdb::Coord CoordVDB = ValueIt.getCoord();
+			
+			float VoxelValueComponents[4]{};
+			for (uint32 ComponentIdx = 0; ComponentIdx < NumComponents; ++ComponentIdx)
+			{
+				VoxelValueComponents[ComponentIdx] = GetOpenVDBValueComponent(VoxelValue, ComponentIdx);
+			}
+			const FIntVector3 Coord(CoordVDB[0], CoordVDB[1], CoordVDB[2]);
+
+			if (ValueIt.isVoxelValue())
+			{
+				// A single voxel
 				OnVisit(Coord, NumComponents, VoxelValueComponents);
+			}
+			else
+			{
+				// Tile, a higher level node specifying a single value for all finer level nodes/children without actually allocating memory for them.
+				openvdb::CoordBBox TileAABB;
+				ValueIt.getBoundingBox(TileAABB);
+				check(TileAABB.min().x() == Coord.X && TileAABB.min().y() == Coord.Y && TileAABB.min().z() == Coord.Z);
+				const openvdb::Coord AABBDimVDB = TileAABB.dim();
+				const FIntVector3 AABBDim = FIntVector3(AABBDimVDB.x(), AABBDimVDB.y(), AABBDimVDB.z());
+				
+				// Iterate over tile AABB and invoke callback for every (virtual) voxel. AABB.max is inclusive, so we need <= instead of <.
+				for (int32 Z = 0; Z <= AABBDim.Z; ++Z)
+				{
+					for (int32 Y = 0; Y <= AABBDim.Y; ++Y)
+					{
+						for (int32 X = 0; X <= AABBDim.X; ++X)
+						{
+							const FIntVector3 TileLocalCoord(Coord.X + X, Coord.Y + Y, Coord.Z + Z);
+							OnVisit(TileLocalCoord, NumComponents, VoxelValueComponents);
+						}
+					}
+				}
 			}
 		}
 	}

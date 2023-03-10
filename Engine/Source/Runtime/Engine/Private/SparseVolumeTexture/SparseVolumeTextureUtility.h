@@ -17,8 +17,8 @@ namespace SVT
 
 	uint32 PackPageTableEntry(const FIntVector3& Coord);
 	FIntVector3 UnpackPageTableEntry(uint32 Packed);
-	FVector4f ReadVoxel(int32 VoxelIndex, const uint8* TileData, EPixelFormat Format);
-	void WriteVoxel(int32 VoxelIndex, uint8* TileData, EPixelFormat Format, const FVector4f& Value, int32 DstComponent = -1);
+	FVector4f ReadVoxel(int64 VoxelIndex, const uint8* TileData, EPixelFormat Format);
+	void WriteVoxel(int64 VoxelIndex, uint8* TileData, EPixelFormat Format, const FVector4f& Value, int32 DstComponent = -1);
 
 namespace Private
 {

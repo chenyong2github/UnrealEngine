@@ -94,9 +94,12 @@ bool FSparseVolumeTextureFrame::BuildDerivedData(const FIntVector3& VolumeResolu
 		AddressingInfo.AddressY = AddressY;
 		AddressingInfo.AddressZ = AddressZ;
 
-		TextureData.BuildDerivedData(AddressingInfo);
-
-		*OutMippedTextureData = MoveTemp(TextureData);
+		const int32 NumMipLevels = 1; // generate entire mip chain
+		const bool bMoveMip0FromSource = true; // we have no need to keep TextureData around
+		if (!TextureData.BuildDerivedData(AddressingInfo, NumMipLevels, bMoveMip0FromSource, *OutMippedTextureData))
+		{
+			return false;
+		}
 
 		// Now unload the raw data
 		RawData.UnloadData();

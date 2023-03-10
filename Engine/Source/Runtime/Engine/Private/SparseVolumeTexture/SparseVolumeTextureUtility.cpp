@@ -36,7 +36,7 @@ FIntVector3 UE::SVT::UnpackPageTableEntry(uint32 Packed)
 	return Result;
 }
 
-FVector4f UE::SVT::ReadVoxel(int32 VoxelIndex, const uint8* TileData, EPixelFormat Format)
+FVector4f UE::SVT::ReadVoxel(int64 VoxelIndex, const uint8* TileData, EPixelFormat Format)
 {
 	using namespace UE::SVT::Private;
 	if (Format == PF_Unknown)
@@ -69,7 +69,7 @@ FVector4f UE::SVT::ReadVoxel(int32 VoxelIndex, const uint8* TileData, EPixelForm
 	}
 }
 
-void UE::SVT::WriteVoxel(int32 VoxelIndex, uint8* TileData, EPixelFormat Format, const FVector4f& Value, int32 DstComponent)
+void UE::SVT::WriteVoxel(int64 VoxelIndex, uint8* TileData, EPixelFormat Format, const FVector4f& Value, int32 DstComponent)
 {
 	if (Format == PF_Unknown)
 	{
