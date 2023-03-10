@@ -15,6 +15,7 @@
 #include "DefaultSpectatorScreenController.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
 #include "IOpenXRExtensionPluginDelegates.h"
+#include "Misc/EnumClassFlags.h"
 
 #include <openxr/openxr.h>
 
@@ -103,8 +104,17 @@ public:
 		TArray<XrSwapchainSubImage> EmulationImages;
 		// This swapchain is where the emulated face locked layers are rendered into.
 		FXRSwapChainPtr EmulationSwapchain;
-		bool bIsFaceLockedLayerEmulationActive = false;
 	};
+
+	enum class EOpenXRLayerStateFlags : uint32
+	{
+		None = 0u,
+		BackgroundLayerVisible = (1u << 0),
+		SubmitBackgroundLayer = (1u << 1),
+		SubmitDepthLayer = (1u << 2),
+		SubmitEmulatedFaceLockedLayer = (1u << 3),
+	};
+	FRIEND_ENUM_CLASS_FLAGS(EOpenXRLayerStateFlags);
 
 	struct FPipelinedLayerState
 	{
@@ -121,8 +131,7 @@ public:
 
 		FEmulatedLayerState EmulatedLayerState;
 
-		bool bBackgroundLayerVisible = true;
-		bool bSubmitBackgroundLayer = true;
+		EOpenXRLayerStateFlags LayerStateFlags = EOpenXRLayerStateFlags::None;
 	};
 
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
@@ -472,3 +481,5 @@ private:
 	TArray<IStereoLayers::FLayerDesc> EmulatedFaceLockedLayers;
 	TArray<FOpenXRLayer>			  NativeLayers;
 };
+
+ENUM_CLASS_FLAGS(FOpenXRHMD::EOpenXRLayerStateFlags);

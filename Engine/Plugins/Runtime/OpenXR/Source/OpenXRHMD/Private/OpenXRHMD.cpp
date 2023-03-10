@@ -960,13 +960,13 @@ void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const in
 	};
 
 	XrSwapchainSubImage& DepthImage = PipelinedLayerStateRendering.DepthImages[ViewIndex];
-	if (bDepthExtensionSupported)
+	if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitDepthLayer))
 	{
 		DepthImage.imageArrayIndex = ColorImage.imageArrayIndex;
 		DepthImage.imageRect = ColorImage.imageRect;
 	}
 	XrSwapchainSubImage& EmulationImage = PipelinedLayerStateRendering.EmulatedLayerState.EmulationImages[ViewIndex];
-	if(PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive)
+	if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
 	{
 		EmulationImage.imageArrayIndex = ColorImage.imageArrayIndex;
 		EmulationImage.imageRect = ColorImage.imageRect;
@@ -1156,11 +1156,11 @@ void FOpenXRHMD::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FS
 		XrSwapchainSubImage& EmulationImage = PipelinedLayerStateRendering.EmulatedLayerState.EmulationImages[ViewIndex];
 
 		ColorImage.swapchain = PipelinedLayerStateRendering.ColorSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.ColorSwapchain.Get())->GetHandle() : XR_NULL_HANDLE;
-		if (bDepthExtensionSupported)
+		if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitDepthLayer))
 		{
 			DepthImage.swapchain = PipelinedLayerStateRendering.DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.DepthSwapchain.Get())->GetHandle() : XR_NULL_HANDLE;
 		}
-		if(PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive)
+		if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
 		{
 			EmulationImage.swapchain = PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain.Get())->GetHandle() : XR_NULL_HANDLE;
 		}
@@ -1177,7 +1177,7 @@ void FOpenXRHMD::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FS
 		Projection.next = nullptr;
 		Projection.subImage = ColorImage;
 
-		if (bDepthExtensionSupported && PipelinedLayerStateRendering.DepthSwapchain.IsValid())
+		if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitDepthLayer))
 		{
 			XrCompositionLayerDepthInfoKHR& DepthLayer = PipelinedLayerStateRendering.DepthLayers[ViewIndex];
 
@@ -1196,7 +1196,7 @@ void FOpenXRHMD::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FS
 
 			Projection.next = &DepthLayer;
 		}
-		if (PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive)
+		if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
 		{
 			XrCompositionLayerProjectionView& CompositedProjection = PipelinedLayerStateRendering.EmulatedLayerState.CompositedProjectionLayers[ViewIndex];
 
@@ -2242,8 +2242,9 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	LastRequestedColorSwapchainFormat = Format;
 	LastActualColorSwapchainFormat = ActualFormat;
 
-	if(IsEmulatingStereoLayers())
+	if(IsEmulatingStereoLayers() && (SystemProperties.graphicsProperties.maxLayerCount > 1))
 	{
+		// If we have at least two native layers, use non-background layer to render the composited image of all the emulated face locked layers.
 		FXRSwapChainPtr& EmulationSwapchain = PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain;
 		const FRHITexture2D* const EmulationSwapchainTexture = EmulationSwapchain == nullptr ? nullptr : EmulationSwapchain->GetTexture2DArray() ? EmulationSwapchain->GetTexture2DArray() : EmulationSwapchain->GetTexture2D();
 		if (EmulationSwapchain == nullptr || EmulationSwapchainTexture == nullptr || EmulationSwapchainTexture->GetSizeX() != SizeX || EmulationSwapchainTexture->GetSizeY() != SizeY)
@@ -2331,6 +2332,12 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 	const FRHITexture2D* const DepthSwapchainTexture = DepthSwapchain->GetTexture2DArray() ? DepthSwapchain->GetTexture2DArray() : DepthSwapchain->GetTexture2D();
 	const FRHITextureDesc& DepthSwapchainDesc = DepthSwapchainTexture->GetDesc();
 
+	if (SizeX != DepthSwapchainDesc.Extent.X || SizeY != DepthSwapchainDesc.Extent.Y)
+	{
+		// We don't yet support different sized SceneTexture depth + OpenXR layer depth
+		return false;
+	}
+
 	// Sample count, mip count and size should be known at AllocateRenderTargetTexture time
 	// Format _could_ change, but we should know it (and can check for it in AllocateDepthTextureInternal)
 	// Flags might also change. We expect TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead from SceneTextures
@@ -2342,6 +2349,8 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 	LastRequestedDepthSwapchainFormat = Format;
 
 	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)PipelinedLayerStateRendering.DepthSwapchain->GetTextureRef();
+
+	PipelinedLayerStateRendering.LayerStateFlags |= EOpenXRLayerStateFlags::SubmitDepthLayer;
 
 	return true;
 }
@@ -2415,7 +2424,7 @@ void FOpenXRHMD::SetupFrameLayers_RenderThread(FRHICommandListImmediate& RHICmdL
 				{
 					// If we have at least one native layer, use it to render the 
 					// composited image of all the emulated face locked layers.
-					if (SystemProperties.graphicsProperties.maxLayerCount > 0)
+					if (PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain.IsValid())
 					{
 						EmulatedFaceLockedLayers.Add(Layer.Desc);
 					}
@@ -2461,9 +2470,9 @@ void FOpenXRHMD::SetupFrameLayers_RenderThread(FRHICommandListImmediate& RHICmdL
 		BackgroundCompositedEmulatedLayers.Sort(LayerCompare);
 		EmulatedFaceLockedLayers.Sort(LayerCompare);
 		NativeLayers.Sort(LayerCompare);
-
-		PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive = !EmulatedFaceLockedLayers.IsEmpty();
 	}
+
+	PipelinedLayerStateRendering.LayerStateFlags |= !EmulatedFaceLockedLayers.IsEmpty() ? EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer : EOpenXRLayerStateFlags::None;
 
 	const FTransform InvTrackingToWorld = GetTrackingToWorldTransform().Inverse();
 	const float WorldToMeters = GetWorldToMetersScale();
@@ -2561,7 +2570,7 @@ void FOpenXRHMD::DrawEmulatedLayers_RenderThread(FRDGBuilder& GraphBuilder, cons
 }
 void FOpenXRHMD::DrawEmulatedFaceLockedLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView)
 {
-	if (!PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive || !PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain)
+	if (!EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
 	{
 		return;
 	}
@@ -2598,7 +2607,7 @@ void FOpenXRHMD::DrawBackgroundCompositedEmulatedLayers_RenderThread(FRDGBuilder
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("EmulatedStereoLayerRender"));
 		RHICmdList.SetViewport((float)RenderParams.Viewport.Min.X, (float)RenderParams.Viewport.Min.Y, 0.0f, (float)RenderParams.Viewport.Max.X, (float)RenderParams.Viewport.Max.Y, 1.0f);
 
-		if (bSplashIsShown || !PipelinedLayerStateRendering.bBackgroundLayerVisible)
+		if (bSplashIsShown || !EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::BackgroundLayerVisible))
 		{
 			DrawClearQuad(RHICmdList, FLinearColor::Black);
 		}
@@ -2675,6 +2684,8 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		Module->OnBeginRendering_RenderThread(Session);
 	}
 
+	SetupFrameLayers_RenderThread(RHICmdList);
+
 	const float WorldToMeters = GetWorldToMetersScale();
 
 	for (int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ViewIndex++)
@@ -2696,15 +2707,13 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		Projection.pose = ToXrPose(BasePoseTransform, WorldToMeters);
 		Projection.fov = View.fov;
 
-		if(PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive)
+		if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
 		{
 			XrCompositionLayerProjectionView& CompositedProjection = PipelinedLayerStateRendering.EmulatedLayerState.CompositedProjectionLayers[ViewIndex];
 			CompositedProjection.pose = ToXrPose(EyePose, WorldToMeters);
 			CompositedProjection.fov = View.fov;
 		}
 	}
-
-	SetupFrameLayers_RenderThread(RHICmdList);
 
 #if !PLATFORM_HOLOLENS
 	if (bHiddenAreaMaskSupported && bNeedReBuildOcclusionMesh)
@@ -2736,10 +2745,8 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		// Always check for sanity before using it.
 		FXRSwapChainPtr EmulationSwapchain = PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain;
 
-		RHICmdList.EnqueueLambda([this, FrameState = PipelinedFrameStateRendering, bIsFaceLockedLayerEmulationActive = PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive, ColorSwapchain, DepthSwapchain, EmulationSwapchain](FRHICommandListImmediate& InRHICmdList)
+		RHICmdList.EnqueueLambda([this, FrameState = PipelinedFrameStateRendering, ColorSwapchain, DepthSwapchain, EmulationSwapchain](FRHICommandListImmediate& InRHICmdList)
 		{
-			// This needs to be passed here or the first frame will not have the correct value and will not acquire the swapchain image even if the emulation is active.
-			PipelinedLayerStateRHI.EmulatedLayerState.bIsFaceLockedLayerEmulationActive = bIsFaceLockedLayerEmulationActive;
 			OnBeginRendering_RHIThread(FrameState, ColorSwapchain, DepthSwapchain, EmulationSwapchain);
 		});
 
@@ -2804,7 +2811,7 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHIC
 		// Update the field-of-view to match the final projection matrix
 		Projection.fov = View.fov;
 
-		if(PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive)
+		if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
 		{
 			XrCompositionLayerProjectionView& CompositedProjection = PipelinedLayerStateRendering.EmulatedLayerState.CompositedProjectionLayers[ViewIndex];
 			CompositedProjection.pose = ToXrPose(EyePose, GetWorldToMetersScale());
@@ -2834,9 +2841,12 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 
 			PipelinedFrameStateRendering = GameFrameState;
 
+			PipelinedLayerStateRendering.LayerStateFlags = EOpenXRLayerStateFlags::None;
+
 			// If we are emulating layers, we still need to submit background layer since we composite into it
-			PipelinedLayerStateRendering.bBackgroundLayerVisible = bBackgroundLayerVisible;
-			PipelinedLayerStateRendering.bSubmitBackgroundLayer = bBackgroundLayerVisible || IsEmulatingStereoLayers();
+			PipelinedLayerStateRendering.LayerStateFlags |= bBackgroundLayerVisible ? EOpenXRLayerStateFlags::BackgroundLayerVisible : EOpenXRLayerStateFlags::None;
+			PipelinedLayerStateRendering.LayerStateFlags |= (bBackgroundLayerVisible || IsEmulatingStereoLayers()) ?
+				EOpenXRLayerStateFlags::SubmitBackgroundLayer : EOpenXRLayerStateFlags::None;
 		});
 }
 
@@ -3146,12 +3156,12 @@ void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameS
 		{
 			ColorSwapchain->IncrementSwapChainIndex_RHIThread();
 			ColorSwapchain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
-			if (bDepthExtensionSupported && DepthSwapchain)
+			if (DepthSwapchain)
 			{
 				DepthSwapchain->IncrementSwapChainIndex_RHIThread();
 				DepthSwapchain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
 			}
-			if(PipelinedLayerStateRHI.EmulatedLayerState.bIsFaceLockedLayerEmulationActive && EmulationSwapchain)
+			if (EmulationSwapchain)
 			{
 				EmulationSwapchain->IncrementSwapChainIndex_RHIThread();
 				EmulationSwapchain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
@@ -3189,11 +3199,11 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	{
 		PipelinedLayerStateRHI.ColorSwapchain->ReleaseCurrentImage_RHIThread();
 
-		if (bDepthExtensionSupported && PipelinedLayerStateRHI.DepthSwapchain)
+		if (PipelinedLayerStateRHI.DepthSwapchain)
 		{
 			PipelinedLayerStateRHI.DepthSwapchain->ReleaseCurrentImage_RHIThread();
 		}
-		if(PipelinedLayerStateRHI.EmulatedLayerState.bIsFaceLockedLayerEmulationActive && PipelinedLayerStateRHI.EmulatedLayerState.EmulationSwapchain)
+		if (PipelinedLayerStateRHI.EmulatedLayerState.EmulationSwapchain)
 		{
 			PipelinedLayerStateRHI.EmulatedLayerState.EmulationSwapchain->ReleaseCurrentImage_RHIThread();
 		}
@@ -3204,7 +3214,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	{
 		TArray<const XrCompositionLayerBaseHeader*> Headers;
 		XrCompositionLayerProjection Layer = {};
-		if (PipelinedLayerStateRHI.bSubmitBackgroundLayer)
+		if (EnumHasAnyFlags(PipelinedLayerStateRHI.LayerStateFlags, EOpenXRLayerStateFlags::SubmitBackgroundLayer))
 		{
 			Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 			Layer.next = nullptr;
@@ -3226,7 +3236,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 		}
 		
 		XrCompositionLayerProjection CompositedLayer = {};
-		if (PipelinedLayerStateRHI.EmulatedLayerState.bIsFaceLockedLayerEmulationActive && PipelinedLayerStateRHI.EmulatedLayerState.EmulationSwapchain)
+		if (EnumHasAnyFlags(PipelinedLayerStateRHI.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
 		{
 			CompositedLayer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 			CompositedLayer.next = nullptr;
@@ -3264,7 +3274,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 				if (PipelinedFrameStateRHI.PluginViewInfos[i].Plugin == Module && PipelinedLayerStateRHI.ColorImages.IsValidIndex(i))
 				{
 					ColorImages.Add(PipelinedLayerStateRHI.ColorImages[i]);
-					if (bDepthExtensionSupported)
+					if (EnumHasAnyFlags(PipelinedLayerStateRHI.LayerStateFlags, EOpenXRLayerStateFlags::SubmitDepthLayer))
 					{
 						DepthImages.Add(PipelinedLayerStateRHI.DepthImages[i]);
 					}
@@ -3724,7 +3734,7 @@ void FOpenXRHMD::RenderTexture_RenderThread(class FRHICommandListImmediate& RHIC
 {
 	if (SpectatorScreenController)
 	{
-		const bool bShouldPassLayersTexture = PipelinedLayerStateRendering.EmulatedLayerState.bIsFaceLockedLayerEmulationActive && PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain && !CVarOpenXRDoNotCopyEmulatedLayersToSpectatorScreen.GetValueOnRenderThread();
+		const bool bShouldPassLayersTexture = EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer) && !CVarOpenXRDoNotCopyEmulatedLayersToSpectatorScreen.GetValueOnRenderThread();
 		const FTexture2DRHIRef LayersTexture = bShouldPassLayersTexture ? PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain->GetTextureRef() : nullptr;
 		SpectatorScreenController->RenderSpectatorScreen_RenderThread(RHICmdList, BackBuffer, SrcTexture, LayersTexture, WindowSize);
 	}
