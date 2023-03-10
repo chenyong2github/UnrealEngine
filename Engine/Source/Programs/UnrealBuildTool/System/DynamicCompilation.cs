@@ -132,8 +132,11 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		private static void LogDiagnostics(IEnumerable<Diagnostic> Diagnostics)
+		private static void LogDiagnostics(IEnumerable<Diagnostic> Diagnostics, ILogger Logger)
 		{
+			using LogEventParser Parser = new LogEventParser(Logger);
+			Parser.AddMatchersFromAssembly(Assembly.GetExecutingAssembly());
+
 			foreach (Diagnostic Diag in Diagnostics)
 			{
 				switch (Diag.Severity)
@@ -141,7 +144,7 @@ namespace UnrealBuildTool
 					// Diagnostics are pre-formatted suitable for Visual Studio consumption - print them without an additional severity prefix
 					case DiagnosticSeverity.Error:
 						{
-							Log.WriteLine(LogEventType.Error, LogFormatOptions.NoSeverityPrefix, Diag.ToString());
+							Parser.WriteLine(Diag.ToString());
 							break;
 						}
 					case DiagnosticSeverity.Hidden:
@@ -150,12 +153,12 @@ namespace UnrealBuildTool
 						}
 					case DiagnosticSeverity.Warning:
 						{
-							Log.WriteLine(LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, Diag.ToString());
+							Parser.WriteLine(Diag.ToString());
 							break;
 						}
 					case DiagnosticSeverity.Info:
 						{
-							Log.WriteLine(LogEventType.Console, LogFormatOptions.NoSeverityPrefix, Diag.ToString());
+							Parser.WriteLine(Diag.ToString());
 							break;
 						}
 				}
@@ -181,7 +184,7 @@ namespace UnrealBuildTool
 				if (Diagnostics.Any())
 				{
 					Logger.LogWarning("Errors generated while parsing '{SourceFileName}'", SourceFileName);
-					LogDiagnostics(Tree.GetDiagnostics());
+					LogDiagnostics(Tree.GetDiagnostics(), Logger);
 					return null;
 				}
 
@@ -272,7 +275,7 @@ namespace UnrealBuildTool
 						peStream: AssemblyStream,
 						pdbStream: PdbStream,
 						options: EmitOptions);
-					LogDiagnostics(Result.Diagnostics);
+					LogDiagnostics(Result.Diagnostics, Logger);
 
 					if (!Result.Success)
 					{

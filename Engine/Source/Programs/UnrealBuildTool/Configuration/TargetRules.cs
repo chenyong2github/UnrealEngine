@@ -501,7 +501,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Logger for output relating to this target. Set before the constructor is run from <see cref="RulesCompiler"/>
 		/// </summary>
-		internal ILogger Logger { get; set; }
+		public ILogger Logger { get; internal set; }
 
 		/// <summary>
 		/// Platform that this target is being built for.
@@ -2772,7 +2772,6 @@ namespace UnrealBuildTool
 			get { return Inner.TargetSourceFile!; }
 		}
 
-
 		internal ReadOnlyHashSet<FileReference> TargetFiles
 		{
 			get { return Inner.TargetFiles!; }
@@ -2812,6 +2811,9 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.Type; }
 		}
+
+		/// <inheritdoc cref="TargetRules.Logger"/>
+		public ILogger Logger => Inner.Logger;
 
 		public BuildSettingsVersion DefaultBuildSettings
 		{

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Linq;
@@ -19,7 +20,7 @@ public class DX12 : ModuleRules
 
 		if (bUsesWindowsD3D12)
 		{
-			Log.TraceLog("Running DX12");
+			Logger.LogDebug("Running DX12");
 
 			string[] AllD3DLibs = new string[]
 			{

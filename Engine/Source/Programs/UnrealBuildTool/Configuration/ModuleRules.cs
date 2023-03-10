@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -566,6 +567,11 @@ namespace UnrealBuildTool
 		/// Type of module
 		/// </summary>
 		public ModuleType Type = ModuleType.CPlusPlus;
+
+		/// <summary>
+		/// Accessor for the target logger
+		/// </summary>
+		public ILogger Logger => Target.Logger;
 
 		/// <summary>
 		/// Overridden type of module that will set different package flags.
