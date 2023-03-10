@@ -216,8 +216,6 @@ bool IsInstanceVisible(FPrimitiveSceneData PrimitiveData, FInstanceSceneData Ins
 	}
 #endif
 
-	bool bVisible = true;
-
 #if CULL_INSTANCES || ALLOW_WPO_DISABLE
 	// TODO: remove this indirection and go straight to data index
 	checkStructuredBufferAccessSlow(ViewIds, ViewIdIndex);
@@ -229,74 +227,61 @@ bool IsInstanceVisible(FPrimitiveSceneData PrimitiveData, FInstanceSceneData Ins
 		FNaniteView NaniteView = GetNaniteView(ViewDataIndex);
 		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-#if ALLOW_WPO_DISABLE
-		const bool bSkipWPODisableDistance = false;
-#else
-		const bool bSkipWPODisableDistance = true;
+		FBoxCull Cull;
+		Cull.Init(
+			NaniteView,
+			InstanceData.LocalBoundsCenter,
+			InstanceData.LocalBoundsExtent,
+			InstanceData.NonUniformScale.xyz,
+			DynamicData.LocalToTranslatedWorld,
+			DynamicData.PrevLocalToTranslatedWorld );
+
+#if !CULL_INSTANCES
+		Cull.bDistanceCull				= false;
+		Cull.bSkipDrawDistance			= true;
+		Cull.bSkipCullGlobalClipPlane	= true;
 #endif
 
-#if CULL_INSTANCES
-		const bool bSkipPerViewDrawDistanceCull = false;
-		const bool bSkipPerPrimDrawDistanceCull = false;
-		const bool bSkipGlobalClipPlaneCull = false;
-#else
-		const bool bSkipPerViewDrawDistanceCull = true;
-		const bool bSkipPerPrimDrawDistanceCull = true;
-		const bool bSkipGlobalClipPlaneCull = true;
+#if !ALLOW_WPO_DISABLE
+		Cull.bSkipWPODisableDistance	= true;
 #endif
 
-		bool bEnableWPO = true;
-		DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerViewDrawDistanceCull, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bVisible, bEnableWPO);
-
+		bool bEnableWPO = Cull.Distance( PrimitiveData );
 		if (!bEnableWPO)
 		{
 			CullingFlags &= ~INSTANCE_CULLING_FLAG_EVALUATE_WPO;
 		}
 
 #if CULL_INSTANCES
-		const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0;
-		const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-
-#if USE_GLOBAL_CLIP_PLANE
-		BRANCH
-		if (bVisible)
-		{
-			// Also cull instances that are beyond the global clip plane
-			bVisible = GlobalClipPlaneCullBox(NaniteView, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipGlobalClipPlaneCull) != EClipPlaneTestResult::AllOut;
-		}
-#endif
+		Cull.GlobalClipPlane();
 
 		BRANCH
-		if (bVisible)
+		if( Cull.bIsVisible )
 		{
-			const float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
-			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
-
-			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false);
-			bVisible = Cull.bIsVisible;
+			Cull.Frustum();
 		}
 
 #if OCCLUSION_CULL_INSTANCES
 		BRANCH
-		if (bVisible)
+		if (Cull.bIsVisible)
 		{
-			float4x4 LocalToPrevTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PrevPreViewTranslation);
-			float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
 			const bool bPrevIsOrtho = IsOrthoProjection(NaniteView.PrevViewToClip);
-			FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, NaniteView.ViewToClip, bPrevIsOrtho, bNearClip, false);
+			FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip, NaniteView.ViewToClip, bPrevIsOrtho, Cull.bNearClip, true);
 			BRANCH
-			if ((PrevCull.bIsVisible || PrevCull.bFrustumSideCulled) && !PrevCull.bCrossesNearPlane)
+			if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
 			{
 				FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
-				bVisible = IsVisibleHZB( PrevRect, true );
+				Cull.bIsVisible = IsVisibleHZB( PrevRect, true );
 			}
 		}
 #endif // OCCLUSION_CULL_INSTANCES
 #endif // CULL_INSTANCES
+
+		return Cull.bIsVisible;
 	}
 #endif // CULL_INSTANCES || ALLOW_WPO_DISABLE
 
-	return bVisible;
+	return true;
 }
 
 

@@ -443,8 +443,7 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
 	Cull.bCrossesFarPlane	= bBehindFarPlane;
 	Cull.bIsVisible			= bBehindNearPlane && bInFrontFarPlane;
 
-	// Near clip
-	if (bInFrontNearPlane && bBehindNearPlane)
+	if (MinW <= 0.0f && MaxW > 0.0f)
 	{
 		Cull.RectMin = float3(-1, -1, -1);
 		Cull.RectMax = float3(+1, +1, +1);

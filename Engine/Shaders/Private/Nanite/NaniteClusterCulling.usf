@@ -219,32 +219,6 @@ struct FNaniteTraversalClusterCullCallback
 	bool ShouldVisitChild(FHierarchyNodeSlice HierarchyNodeSlice, bool bInVisible)
 	{
 		bVisible = bInVisible;
-		bool bWasOccluded = false;
-
-		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-
-#if VIRTUAL_TEXTURE_TARGET
-		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-		const bool bMaterialInvalidates = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
-		const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
-		const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
-#endif
-
-		// Depth clipping should only be disabled with orthographic projections
-		const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
-		const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
-		const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
-		const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
-
-#if DEBUG_FLAGS
-		const bool bSkipCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM) != 0u;
-		const bool bSkipCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB) != 0u;
-		const bool bSkipCullGlobalClipPlane = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_GLOBAL_CLIP_PLANE) != 0u;
-#else
-		const bool bSkipCullFrustum = false;
-		const bool bSkipCullHZB = false;
-		const bool bSkipCullGlobalClipPlane = false;
-#endif
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 		if ((CandidateNode.EnabledBitmask & (1u << ChildIndex)) == 0u)	// Need to check bEnabled because instance cull always writes full mask
@@ -258,6 +232,8 @@ struct FNaniteTraversalClusterCullCallback
 		BRANCH
 		if (bVisible)
 		{
+			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+
 			float4 LODBounds = HierarchyNodeSlice.LODBounds;
 
 			const float3 LocalWPOExtent = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u ?
@@ -265,64 +241,40 @@ struct FNaniteTraversalClusterCullCallback
 			const float3 NodeBoxBoundsCenter = HierarchyNodeSlice.BoxBoundsCenter;
 			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent + LocalWPOExtent;
 
-		#if USE_GLOBAL_CLIP_PLANE
-			bVisible = GlobalClipPlaneCullBox(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
-		#endif // USE_GLOBAL_CLIP_PLANE
-
-			BRANCH
-			if (bVisible && bUseViewRangeDistanceCull)
-			{
-				const float3 BoundsCenterTranslatedWorld = mul(float4(NodeBoxBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
-				const float BoundsRadius = length(NodeBoxBoundsExtent * InstanceData.NonUniformScale.xyz);
-
-				bVisible = length2(BoundsCenterTranslatedWorld) <= Square(NaniteView.RangeBasedCullingDistance + BoundsRadius);
-			}
+			FBoxCull Cull;
+			Cull.Init( NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, InstanceData.NonUniformScale.xyz, DynamicData.LocalToTranslatedWorld, DynamicData.PrevLocalToTranslatedWorld );
+			Cull.Distance();
+			Cull.GlobalClipPlane();
 
 		#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-			if (bVisible && CandidateNode.Flags & NANITE_CULLING_FLAG_TEST_LOD)
+			if (Cull.bIsVisible && CandidateNode.Flags & NANITE_CULLING_FLAG_TEST_LOD)
 		#endif
 			{
-				bVisible = ShouldVisitChildInternal(NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority);
+				Cull.bIsVisible = ShouldVisitChildInternal(NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority);
 			}
 
 			BRANCH
-			if (bVisible)
+			if (Cull.bIsVisible)
 			{
-				FFrustumCullData Cull = BoxCullFrustum(NodeBoxBoundsCenter, NodeBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum );
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
-
-				bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
-
 			#if VIRTUAL_TEXTURE_TARGET
-				BRANCH
-				if( bVisible )
-				{
-					uint4 RectPages = GetPageRect(Rect, NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
-					bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, RectPages, PageFlagMask);
-				}
+				const bool bMaterialInvalidates = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
+				const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
+				Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 			#endif
 
-		// VSM supports one-pass occlusion culling hijacking CULLING_PASS_NO_OCCLUSION (using only previous-frame with artifacts as a result), hence the || here
-		#if (CULLING_PASS == CULLING_PASS_NO_OCCLUSION && VIRTUAL_TEXTURE_TARGET) || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-				TestPrevHZB(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipCullFrustum, bSkipCullHZB, /*bClampToPageLevel*/false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
-			#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION
-				bVisible = bVisible && !bWasOccluded;
-			#endif
-		#elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipCullHZB, /*bClampToPageLevel*/false, bVisible, bWasOccluded);
-		#endif
+				Cull.FrustumHZB( false );
 			}
-		}
 
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		BRANCH
-		if (bVisible && bWasOccluded && HierarchyNodeSlice.bLoaded)
-		{
-			InterlockedOr(GroupOccludedBitmask[LocalNodeIndex], 1u << ChildIndex);
-		}
-#endif
+		#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+			BRANCH
+			if (Cull.bIsVisible && Cull.bWasOccluded && HierarchyNodeSlice.bLoaded)
+			{
+				InterlockedOr(GroupOccludedBitmask[LocalNodeIndex], 1u << ChildIndex);
+			}
+		#endif
 
-		bVisible = bVisible && !bWasOccluded;
+			bVisible = Cull.bIsVisible && !Cull.bWasOccluded;
+		}
 
 		return bVisible;
 	}
@@ -443,6 +395,7 @@ struct FNaniteTraversalClusterCullCallback
 
 		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId, false);
 		FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
+		FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 		if (VisibleCluster.Flags & NANITE_CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
@@ -453,147 +406,69 @@ struct FNaniteTraversalClusterCullCallback
 
 		const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
 
-		// Near depth clipping should only be disabled with orthographic projections
-		const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
-		const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
-		const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
-		const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
-
-#if DEBUG_FLAGS
-		const bool bSkipCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM) != 0u;
-		const bool bSkipCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB) != 0u;
-		const bool bSkipCullGlobalClipPlane = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_GLOBAL_CLIP_PLANE) != 0u;
-#else
-		const bool bSkipCullFrustum = false;
-		const bool bSkipCullHZB = false;
-		const bool bSkipCullGlobalClipPlane = false;
-#endif
-
-		FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-
-		bool bWasOccluded = false;
-		bool bUseHWRaster = false;
-		bool bNeedsClipping = false;
-		bool bVisible = true;
-
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		const float3 LocalWPOExtent = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) ?
 			abs(PrimitiveData.MaxWPODisplacement * InstanceData.InvNonUniformScale) : (float3)0;
 		const float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
 		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent + LocalWPOExtent;
+		
+		bool bUseHWRaster = false;
+		
+		FBoxCull Cull;
+		Cull.Init( NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, InstanceData.NonUniformScale.xyz, DynamicData.LocalToTranslatedWorld, DynamicData.PrevLocalToTranslatedWorld );
+		Cull.Distance();
+		Cull.GlobalClipPlane();
+
+		BRANCH
+		if( CULLING_PASS != CULLING_PASS_OCCLUSION_POST || (VisibleCluster.Flags & NANITE_CULLING_FLAG_TEST_LOD) != 0 )
+		{
+			const bool bSmallEnoughToDraw = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster);
+
+		#if DEBUG_FLAGS
+			if ((DebugFlags & NANITE_DEBUG_FLAG_DRAW_ONLY_ROOT_DATA) != 0u)
+			{
+				Cull.bIsVisible = (Cluster.Flags & NANITE_CLUSTER_FLAG_ROOT_GROUP) && (bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_ROOT_LEAF));
+			}
+			else
+		#endif
+			{
+				Cull.bIsVisible = bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_STREAMING_LEAF);
+			}
+		}
+		else
+		{
+			bUseHWRaster |= (VisibleCluster.Flags & NANITE_CULLING_FLAG_USE_HW) != 0;
+		}
 
 #if VIRTUAL_TEXTURE_TARGET
 		const bool bMaterialInvalidates = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
 		const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
+		const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, Cull.bIsViewUncached);
 
-		const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
-		const bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
-		const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, bIsViewUncached);
-
-		// Rect of overlapped virtual pages, is inclusive (as in zw is max, not max + 1)
-		uint4 RectPages = uint4(1U, 1U, 0U, 0U);
-#endif // VIRTUAL_TEXTURE_TARGET
-		{
-		#if USE_GLOBAL_CLIP_PLANE
-			{
-				EClipPlaneTestResult GlobalClipResult = GlobalClipPlaneCullBox(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipCullGlobalClipPlane);
-				bVisible = GlobalClipResult != EClipPlaneTestResult::AllOut;
-				bUseHWRaster |= GlobalClipResult == EClipPlaneTestResult::Intersecting; // Let HW handle SV_ClipDistance
-			}
-		#endif // USE_GLOBAL_CLIP_PLANE
-
-			BRANCH
-			if (bVisible && bUseViewRangeDistanceCull)
-			{
-				const float3 BoundsCenterTranslatedWorld = mul(float4(ClusterBoxBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
-				const float BoundsRadius = length(ClusterBoxBoundsExtent * InstanceData.NonUniformScale.xyz);
-
-				bVisible = length2(BoundsCenterTranslatedWorld) <= Square(NaniteView.RangeBasedCullingDistance + BoundsRadius);
-			}
-
-			BRANCH
-			if (bVisible)
-			{
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-				BRANCH
-				if ((VisibleCluster.Flags & NANITE_CULLING_FLAG_TEST_LOD) != 0)
+		Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 #endif
-				{
 
-					const bool bSmallEnoughToDraw = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster);
+		Cull.FrustumHZB( true );
 
-#if DEBUG_FLAGS
-					if ((DebugFlags & NANITE_DEBUG_FLAG_DRAW_ONLY_ROOT_DATA) != 0u)
-					{
-						bVisible = (Cluster.Flags & NANITE_CLUSTER_FLAG_ROOT_GROUP) && (bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_ROOT_LEAF));
-					}
-					else
-#endif
-					{
-						bVisible = bSmallEnoughToDraw || (Cluster.Flags & NANITE_CLUSTER_FLAG_STREAMING_LEAF);
-					}
-				}
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-				else
-				{
-					bUseHWRaster |= (VisibleCluster.Flags & NANITE_CULLING_FLAG_USE_HW) != 0;
-				}
-#endif
-			}
-		}
-		FFrustumCullData Cull = (FFrustumCullData)0;	// Workaround for compiler warnings about potentially uninitialized variables
-		FScreenRect Rect = (FScreenRect)0;
-		BRANCH
-		if (bVisible)
-		{
-			Cull = BoxCullFrustum(ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
-			Rect = GetScreenRect(NaniteView.ViewRect, Cull, 4);
+		bUseHWRaster |= Cull.bNeedsClipping;
 
-			bVisible = Cull.bIsVisible && (Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane);	// Rect from box isn't valid if crossing near plane
-			bNeedsClipping = Cull.bCrossesNearPlane || Cull.bCrossesFarPlane;
-			bUseHWRaster = bUseHWRaster || bNeedsClipping;
+		if( CULLING_PASS != CULLING_PASS_OCCLUSION_MAIN )
+			Cull.bIsVisible &= !Cull.bWasOccluded;
 
 #if VIRTUAL_TEXTURE_TARGET
-			BRANCH
-			if (bVisible)
-			{
-				RectPages = GetPageRect(Rect, NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
-				bVisible = OverlapsAnyValidPage(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, RectPages, PageFlagMask);
-			}
-#endif // VIRTUAL_TEXTURE_TARGET
-		}
+		uint4 RectPages = Cull.RectPages;
 
-#if VIRTUAL_TEXTURE_TARGET
-
-		// Cull any rect that doesn't overlap any physical pages, note inclusive rect means area of {0,0,0,0} is 1 (not culled)
+	#if DEBUG_FLAGS
 		uint PageRectArea = GetInclusiveRectArea(RectPages);
-		if (PageRectArea == 0)
-		{
-			bVisible = false;
-		}
-
-#if DEBUG_FLAGS
 		if (PageRectArea >= LargePageRectThreshold)
 		{
 			WaveInterlockedAddScalar(OutStatsBuffer[0].NumLargePageRectClusters, 1);
 		}
-#endif // DEBUG_FLAGS
-#endif // VIRTUAL_TEXTURE_TARGET
+	#endif
 
-#if (CULLING_PASS == CULLING_PASS_NO_OCCLUSION && VIRTUAL_TEXTURE_TARGET) || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		TestPrevHZB(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipCullFrustum, bSkipCullHZB, /*bClampToPageLevel*/true, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
-#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION
-		bVisible = bVisible && !bWasOccluded;
-#endif // CULLING_PASS == CULLING_PASS_NO_OCCLUSION
-#elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipCullHZB, /*bClampToPageLevel*/true, bVisible, bWasOccluded);
-		bVisible = bVisible && !bWasOccluded;
-#endif
-
-#if VIRTUAL_TEXTURE_TARGET
 		uint NumClustersToEmit = 0;
 		FVirtualSMLevelOffset PageTableLevelOffset = (FVirtualSMLevelOffset)0;
-		if (bVisible)
+		if (Cull.bIsVisible)
 		{
 			PageTableLevelOffset = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
 
@@ -606,7 +481,7 @@ struct FNaniteTraversalClusterCullCallback
 					uint2 vPage = uint2(X, Y);
 					uint PageFlagOffset = CalcPageOffset(PageTableLevelOffset, NaniteView.TargetMipLevel, vPage);
 					uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
-					if ((PageFlag & PageFlagMask) != 0)
+					if ((PageFlag & Cull.PageFlagMask) != 0)
 					{
 						RectPagesMapped.xy = min(RectPagesMapped.xy, vPage);
 						RectPagesMapped.zw = max(RectPagesMapped.zw, vPage);
@@ -614,13 +489,13 @@ struct FNaniteTraversalClusterCullCallback
 
 						// TODO: Possibly only emit invalidation for static pages (unless the uncached view override is used) to save on building HZB & merging
 						//       Alternatively store a separate flag array for static & dynamic and deal with how to use that later.
-						if (!bWasOccluded)
+						if (!Cull.bWasOccluded)
 						{
 							// TODO: Use shared function
 							FShadowPhysicalPage PhysPage = ShadowGetPhysicalPage(PageFlagOffset);
 							// Mark the page dirty so we regenerate HZB, etc.
 							uint PhysPageIndex = VSMPhysicalPageAddressToIndex(PhysPage.PhysicalAddress);
-							if (bShouldCacheAsStatic || bIsViewUncached)
+							if (bShouldCacheAsStatic || Cull.bIsViewUncached)
 							{
 								OutDirtyPageFlags[PhysPageIndex] = 1U;
 							}
@@ -649,7 +524,7 @@ struct FNaniteTraversalClusterCullCallback
 		uint ClusterOffsetSW = 0;
 
 		BRANCH
-		if (bVisible && !bWasOccluded)
+		if (Cull.bIsVisible && !Cull.bWasOccluded)
 		{
 #if VIRTUAL_TEXTURE_TARGET
 			// Need full size counters
@@ -673,11 +548,11 @@ struct FNaniteTraversalClusterCullCallback
 #endif
 		}
 
-		if (bVisible)
+		if (Cull.bIsVisible)
 		{
 			const uint2 TotalPrevDrawClusters = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) ? InTotalPrevDrawClusters[0] : 0;
 
-			if (!bWasOccluded)
+			if (!Cull.bWasOccluded)
 			{
 #if VIRTUAL_TEXTURE_TARGET
 
@@ -709,7 +584,7 @@ struct FNaniteTraversalClusterCullCallback
 							uint PageFlagOffset = CalcPageOffset(PageTableLevelOffset, NaniteView.TargetMipLevel, uint2(x, y));
 							uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
 
-							if ((PageFlag & PageFlagMask) == 0)
+							if ((PageFlag & Cull.PageFlagMask) == 0)
 							{
 								continue;
 							}

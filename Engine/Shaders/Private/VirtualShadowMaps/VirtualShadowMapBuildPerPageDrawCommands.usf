@@ -238,42 +238,32 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		// Loop over views and output visible instance (i.e., those that overlap a valid page)
 		for (uint PrimaryViewId = VSMCullingBatchInfo.FirstPrimaryView; PrimaryViewId < VSMCullingBatchInfo.FirstPrimaryView + VSMCullingBatchInfo.NumPrimaryViews; ++PrimaryViewId)
 		{
-			const bool bSkipWPODisableDistance = false;
-			const bool bSkipPerViewDrawDistanceCull = false;
-			const bool bSkipPerPrimDrawDistanceCull = false;
-			const bool bSkipGlobalClipPlaneCull = false;
-
 			FNaniteView NaniteView = GetNaniteView(PrimaryViewId);
 
-			bool bVisible = true;
 			uint CullingFlags = INSTANCE_CULLING_FLAGS_DEFAULT;
 			bool bMaterialInvalidates = DrawCommandDesc.bMaterialUsesWorldPositionOffset;
+			
+			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-			// Do draw distance culling and check to disable WPO based on distance
+			FBoxCull Cull;
+			Cull.Init(
+				NaniteView,
+				InstanceData.LocalBoundsCenter,
+				InstanceData.LocalBoundsExtent,
+				InstanceData.NonUniformScale.xyz,
+				DynamicData.LocalToTranslatedWorld,
+				DynamicData.PrevLocalToTranslatedWorld );
+
+			bMaterialInvalidates &= Cull.Distance( PrimitiveData );
+			if (!bMaterialInvalidates)
 			{
-				FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-
-				DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerViewDrawDistanceCull, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bVisible, bMaterialInvalidates);
-
-				if (!bMaterialInvalidates)
-				{
-					// Disable the Evaluate WPO culling flag if WPO was disabled
-					CullingFlags &= ~INSTANCE_CULLING_FLAG_EVALUATE_WPO;
-				}
+				// Disable the Evaluate WPO culling flag if WPO was disabled
+				CullingFlags &= ~INSTANCE_CULLING_FLAG_EVALUATE_WPO;
 			}
 
 			bMaterialInvalidatesAnyView |= bMaterialInvalidates;
 
-			const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-
-#if USE_GLOBAL_CLIP_PLANE
-			BRANCH
-			if (bVisible)
-			{
-				// Also cull instances that are beyond the global clip plane
-				bVisible = GlobalClipPlaneCullBox(NaniteView, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipGlobalClipPlaneCull) != EClipPlaneTestResult::AllOut;
-			}
-#endif
+			Cull.GlobalClipPlane();
 
 			// A thing is considered to have moved (which causes it to render into cached pages) if:
 			// It was uploaded this frame, OR
@@ -283,30 +273,22 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 				// the primitive was "revealed" this frame - i.e., transitioned from culled -> visible on CPU
 				|| WasPrimitiveRevealed(VSMCullingBatchInfo, PrimitiveData.PersistentPrimitiveIndex);
 
-			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
-
-			FFrustumCullData Cull = (FFrustumCullData)0;
+			FFrustumCullData FrustumCull = (FFrustumCullData)0;
 			BRANCH
-			if (bVisible)
+			if( Cull.bIsVisible )
 			{
-				const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
-				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false);
-				bVisible = Cull.bIsVisible;
+				FrustumCull = Cull.Frustum();
 			}
 
 			StatsBufferInterlockedAdd(VSM_STAT_NON_NANITE_INSTANCES_TOTAL, NaniteView.TargetNumMipLevels);
 
 			BRANCH
-			if (bVisible)
+			if (Cull.bIsVisible)
 			{
 				// Compute estimated footprint in the VSM base level - note that we don't use the actual footprint because it changes under rotation and also with edge clipping which makes it unstable when used for culling.
-				float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, LocalToTranslatedWorld, NaniteView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
+				float PixelEstRadius = CalcClipSpaceRadiusEstimate(Cull.bIsOrtho, InstanceData, Cull.LocalToTranslatedWorld, NaniteView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
 
-#if USE_HZB_OCCLUSION
-				const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0 || HZBMode == 2;
-#endif
-				bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
-				bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, bIsViewUncached);
+				bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, Cull.bIsViewUncached);
 				uint BaseFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 				bShouldCacheAsStaticForAnyView = bShouldCacheAsStaticForAnyView || bShouldCacheAsStatic;
 
@@ -317,7 +299,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 					FNaniteView MipView = GetNaniteView(MipViewId);
 					uint VirtualShadowMapId = uint(MipView.TargetLayerIndex);
 
-					FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
+					FScreenRect Rect = GetScreenRect(MipView.ViewRect, FrustumCull, 4);
 
 					uint FlagMask = BaseFlagMask | GetDetailGeometryFlagMaskForCulling(bShouldCacheAsStatic, false, PixelEstRadius);
 					// Update for next clip level
@@ -332,7 +314,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 						NumVisibleLevels += 1.0f;
 #endif
 #if USE_HZB_OCCLUSION
-						if (bViewHZB)
+						if (Cull.bViewHZB)
 						{
 							// Assume:
 							//  1. Virtual address space has not changed (if so it'd have been invalidated)
@@ -368,7 +350,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 								{
 									for (uint X = RectPages.x; X <= RectPages.z; ++X)
 									{
-										if (MarkPageDirty(PageTableLevelOffset, uint2(X, Y), MipLevel, bMaterialInvalidates, bShouldCacheAsStatic, bIsViewUncached, FlagMask))
+										if (MarkPageDirty(PageTableLevelOffset, uint2(X, Y), MipLevel, bMaterialInvalidates, bShouldCacheAsStatic, Cull.bIsViewUncached, FlagMask))
 										{
 											// Count pages if we're touching all of them anyway
 											++NumMappedPages;
@@ -387,7 +369,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 								Job.MipLevel = MipLevel;
 								Job.bMaterialInvalidates = bMaterialInvalidates;
 								Job.bShouldCacheAsStatic = bShouldCacheAsStatic;
-								Job.bIsViewUncached = bIsViewUncached;
+								Job.bIsViewUncached = Cull.bIsViewUncached;
 								Job.bHasMoved = bHasMoved;
 								if (JobIndex < MARKING_JOB_QUEUE_SIZE)
 								{

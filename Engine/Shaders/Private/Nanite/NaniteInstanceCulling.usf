@@ -276,10 +276,7 @@ void InstanceCull(
 		const float3 LocalBoundsCenter = InstanceData.LocalBoundsCenter;
 		const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent;
 
-#if VIRTUAL_TEXTURE_TARGET
 		bool bVisibleAndShouldCacheAsStaticForAnyView = false;
-#endif // VIRTUAL_TEXTURE_TARGET
-
 		bool bAnyEnableWPO = false;
 
 		uint ViewId = 0;
@@ -291,43 +288,23 @@ void InstanceCull(
 	#endif
 #endif
 		{
-			bool bIsVisible = false;
-			bool bWasOccluded = false;
-
 			FNaniteView NaniteView = GetNaniteView(ViewId);
-
-			// Depth clipping should only be disabled with orthographic projections
-			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
-			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
-
-#if DEBUG_FLAGS
-			const bool bSkipCullFrustum	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM) != 0u;
-			const bool bSkipCullHZB		= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB) != 0u;
-			const bool bSkipCullGlobalClipPlane = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_GLOBAL_CLIP_PLANE) != 0u;
-			const bool bDebugSkipPerPrimDrawDistanceCull	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_DRAW_DISTANCE) != 0u;
-			const bool bSkipWPODisableDistance = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_WPO_DISABLE_DISTANCE) != 0u;
-#else
-			const bool bSkipCullFrustum	= false;
-			const bool bSkipCullHZB		= false;
-			const bool bSkipCullGlobalClipPlane = false;
-			const bool bDebugSkipPerPrimDrawDistanceCull = false;
-			const bool bSkipWPODisableDistance = false;
-#endif
-
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-			float BoundsRadiusSq = dot(LocalBoundsExtent, LocalBoundsExtent);
-			bIsVisible = BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
-			const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
-			const bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
+			FBoxCull Cull;
+			Cull.Init( NaniteView, LocalBoundsCenter, LocalBoundsExtent, InstanceData.NonUniformScale.xyz, DynamicData.LocalToTranslatedWorld, DynamicData.PrevLocalToTranslatedWorld );
+			if( CULLING_PASS == CULLING_PASS_OCCLUSION_POST )
+			{
+				Cull.bSkipCullFrustum = true;
+				Cull.bSkipCullGlobalClipPlane = true;
+			}
 
 			// For now, disable draw distance culling with cached views because we don't want to create issues where a given
 			// instance's visibility is not consistent between cached pages. Since caching is an optimization for reducing draw call
 			// counts, its effectiveness should inherently trump this optimization anyway.
-			const bool bSkipPerViewDrawDistanceCull = false;
-			const bool bSkipPerPrimDrawDistanceCull = bDebugSkipPerPrimDrawDistanceCull || (bIsShadowPass && !bIsViewUncached);
-			bool bEnableWPO = true;
-			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerViewDrawDistanceCull, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bIsVisible, bEnableWPO);
+			Cull.bSkipDrawDistance |= bIsShadowPass && !Cull.bIsViewUncached;
+
+			bool bEnableWPO = Cull.Distance( PrimitiveData );
 			bAnyEnableWPO |= bEnableWPO;
 
 			const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || bEnableWPO;
@@ -337,77 +314,52 @@ void InstanceCull(
 			{
 				return;
 			}
-#endif // DEBUG_FLAGS
-
-			FFrustumCullData Cull;
-#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-	#if USE_GLOBAL_CLIP_PLANE
-			BRANCH
-			if (bIsVisible)
-			{
-				// Cull instances that are fully beyond the global clipping plane
-				bIsVisible = GlobalClipPlaneCullBox(NaniteView, LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
-			}
-	#endif // USE_GLOBAL_CLIP_PLANE
-
-			// Frustum test against current frame
-			BRANCH
-			if( bIsVisible )
-			{
-				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
-				bIsVisible = Cull.bIsVisible;
-			}
 #endif
 
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-			// HZB occlusion test against previous frame
+			Cull.GlobalClipPlane();
+
 			BRANCH
-			if( bViewHZB && bIsVisible )
-			{
-				TestPrevHZB(NaniteView, LocalBoundsCenter, LocalBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipCullFrustum, bSkipCullHZB, /*bClampToPageLevel*/false, true, bIsVisible, bWasOccluded);
-
-				if( bWasOccluded )
-				{
-					WriteOccludedInstance(ViewId, InstanceId);
-				}
-			}
+            if( Cull.bIsVisible )
+            {
+#if VIRTUAL_TEXTURE_TARGET
+                const bool bMaterialInvalidates = bEnableWPO;
+                const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
+                Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 #endif
+                Cull.FrustumHZB( false );
+            }
 
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-			// Retest occluded against current frame HZB
-			BRANCH
-			if( bIsVisible )
+		#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+			if( Cull.bWasOccluded )
 			{
-				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
-
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
-				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipCullHZB, /*bClampToPageLevel*/false, bIsVisible, bWasOccluded);
+				WriteOccludedInstance(ViewId, InstanceId);
 			}
-#endif
+		#endif
 
 			// NOTE: Imposters not supported currently with virtual targets
 #if CULLING_PASS != CULLING_PASS_EXPLICIT_LIST && !VIRTUAL_TEXTURE_TARGET && NANITE_IMPOSTERS_SUPPORTED
 			// Draw imposters
 			const bool bHasNaniteImposter = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER) != 0u;
-			if (bHasNaniteImposter && bIsVisible && !bWasOccluded)
+			if (bHasNaniteImposter && Cull.bIsVisible && !Cull.bWasOccluded)
 			{
-				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
+				FFrustumCullData FrustumCull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, Cull.bIsOrtho, Cull.bNearClip, true);
+				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, FrustumCull, 4 );
 
 				if( all( Rect.Pixels.zw - Rect.Pixels.xy <= ImposterMaxPixels ) )
 				{
 					uint ImposterIndex = PrimitiveData.PackedNaniteFlags & NANITE_IMPOSTER_INDEX_MASK;
 					ImposterIndex = CondMask(ImposterIndex == NANITE_IMPOSTER_INDEX_MASK, INVALID_NANITE_IMPOSTER_INDEX, ImposterIndex);
 					DrawImposter(NaniteView, InstanceData, InstanceId, LocalBoundsCenter, LocalBoundsExtent, ImposterIndex, Rect);
-					bIsVisible = false;
+					Cull.bIsVisible = false;
 				}
 			}
 #endif
 		
-			if( bIsVisible && !bWasOccluded )
+			if( Cull.bIsVisible && !Cull.bWasOccluded )
 			{
-#if VIRTUAL_TEXTURE_TARGET
+			#if VIRTUAL_TEXTURE_TARGET
 				bVisibleAndShouldCacheAsStaticForAnyView = bVisibleAndShouldCacheAsStaticForAnyView || ShouldCacheInstanceAsStatic(InstanceData, NaniteView);
-#endif // VIRTUAL_TEXTURE_TARGET
+			#endif
 				uint NodeOffset = 0;
 				uint QueueStateIndex = ( CULLING_PASS == CULLING_PASS_OCCLUSION_POST );
 				WaveInterlockedAddScalar_( OutQueueState[ 0 ].PassState[ QueueStateIndex ].NodeWriteOffset, 1, NodeOffset );
@@ -416,11 +368,11 @@ void InstanceCull(
 #if DEBUG_FLAGS
 				if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS)
 				{
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+				#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 					WaveInterlockedAddScalar( OutStatsBuffer[0].NumPostInstancesPostCull, 1 );
-#else
+				#else
 					WaveInterlockedAddScalar( OutStatsBuffer[0].NumMainInstancesPostCull, 1 );
-#endif
+				#endif
 				}
 #endif
 
@@ -524,29 +476,44 @@ void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
 
 void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, const uint InstanceId, FInstanceSceneData InstanceData, FCompactedViewInfo ViewInfo, FNaniteView NaniteView, bool bHasMoved, inout bool bVisibleAndShouldCacheAsStaticForAnyView, inout bool bAnyEnableWPO)
 {
-#if DEBUG_FLAGS
-	const bool bSkipCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM) != 0;
-	const bool bSkipCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB) != 0;
-	const bool bSkipCullGlobalClipPlane = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_GLOBAL_CLIP_PLANE) != 0u;
-	const bool bDebugSkipPerPrimDrawDistanceCull = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_DRAW_DISTANCE) != 0;
-	const bool bSkipWPODisableDistance = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_WPO_DISABLE_DISTANCE) != 0u;
-#else
-	const bool bSkipCullFrustum = false;
-	const bool bSkipCullHZB = false;
-	const bool bSkipCullGlobalClipPlane = false;
-	const bool bDebugSkipPerPrimDrawDistanceCull = false;
-	const bool bSkipWPODisableDistance = false;
-#endif
-
-	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
-	const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
-	const bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
-
 	const float3 LocalBoundsCenter = InstanceData.LocalBoundsCenter;
 	const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent;
 
 	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	FFrustumCullData Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum);
+
+	FBoxCull Cull;
+	Cull.Init( NaniteView, LocalBoundsCenter, LocalBoundsExtent, InstanceData.NonUniformScale.xyz, DynamicData.LocalToTranslatedWorld, DynamicData.PrevLocalToTranslatedWorld );
+	Cull.bIsOrtho = bIsOrtho;
+	if( CULLING_PASS == CULLING_PASS_OCCLUSION_POST )
+	{
+		Cull.bSkipCullFrustum = true;
+		Cull.bSkipCullGlobalClipPlane = true;
+	}
+
+	// For now, disable draw distance culling with cached views because we don't want to create issues where a given
+	// instance's visibility is not consistent between cached pages. Since caching is an optimization for reducing draw call
+	// counts, its effectiveness should inherently trump this optimization anyway.
+	Cull.bSkipDrawDistance |= !Cull.bIsViewUncached;
+	
+	bool bEnableWPO = Cull.Distance( PrimitiveData );
+	bAnyEnableWPO |= bEnableWPO;
+
+	Cull.GlobalClipPlane();
+
+	if( !Cull.bIsVisible )
+		return;
+
+	FFrustumCullData FrustumCull = Cull.Frustum();
+
+	if( !Cull.bIsVisible )
+		return;
+
+#if VIRTUAL_TEXTURE_TARGET
+	const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, Cull.bIsViewUncached);
+	float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, DynamicData.LocalToTranslatedWorld, NaniteView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
+	Cull.PageFlagMask	= GetPageFlagMaskForRendering(bShouldCacheAsStatic, bHasMoved || bEnableWPO)
+						| GetDetailGeometryFlagMaskForCulling(bShouldCacheAsStatic, true, PixelEstRadius);
+#endif
 
 	for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
 	{
@@ -556,64 +523,21 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 
 		// TODO: minor optimization possible, but need to duplicate setup from CullRasterize for virtual targets
 		//float2 ViewSize = float2( ( TargetViewSize + ( 1u << TargetMipLevel ) - 1u ) >> TargetMipLevel );
+		
+		Cull.NaniteView		= MipView;
+		Cull.bIsVisible		= true;
+		Cull.bWasOccluded	= false;
+		Cull.HZB( FrustumCull, false );
 
-		FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4 );
-
-		bool bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
-
-		// For now, disable draw distance culling with cached views because we don't want to create issues where a given
-		// instance's visibility is not consistent between cached pages. Since caching is an optimization for reducing draw call
-		// counts, its effectiveness should inherently trump this optimization anyway.
-		const bool bSkipPerViewDrawDistanceCull = false;
-		const bool bSkipPerPrimDrawDistanceCull = bDebugSkipPerPrimDrawDistanceCull || !bIsViewUncached;
-		bool bEnableWPO = true;
-		DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipPerViewDrawDistanceCull, bSkipPerPrimDrawDistanceCull, bSkipWPODisableDistance, bVisible, bEnableWPO);
-		bAnyEnableWPO |= bEnableWPO;
-
-		BRANCH
-		if( bVisible && !Cull.bCrossesNearPlane )
+	#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+		if (Cull.bWasOccluded)
 		{
-			const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, bIsViewUncached);
-			float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, DynamicData.LocalToTranslatedWorld, MipView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
-			const uint PageFlagMask = GetPageFlagMaskForRendering(bShouldCacheAsStatic, bHasMoved || bEnableWPO)
-									| GetDetailGeometryFlagMaskForCulling(bShouldCacheAsStatic, true, PixelEstRadius);
-			uint4 RectPages = GetPageRect(Rect, MipView.TargetLayerIndex, MipView.TargetMipLevel);
-			bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, RectPages, PageFlagMask );
+			WriteOccludedInstance(MipViewId, InstanceId);
 		}
-
-#if USE_GLOBAL_CLIP_PLANE
-		BRANCH
-		if (bVisible)
-		{
-			// Cull instances that are fully beyond the global clipping plane
-			bVisible = GlobalClipPlaneCullBox(NaniteView, LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, InstanceData.NonUniformScale.xyz, bSkipCullGlobalClipPlane) != EClipPlaneTestResult::AllOut;
-		}
-#endif
+	#endif
 
 		BRANCH
-		if( bViewHZB && bVisible )
-		{
-			const bool bPrevIsOrtho = IsOrthoProjection(NaniteView.PrevViewToClip);
-			FFrustumCullData PrevCull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, MipView.ViewToClip, bPrevIsOrtho, bNearClip, bSkipCullFrustum);
-
-			BRANCH
-			if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane && !bSkipCullHZB)
-			{
-				FScreenRect PrevRect = GetScreenRect(MipView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-				bool bWasOccluded = !IsVisibleMaskedHZB(MipView.TargetPrevLayerIndex, MipView.TargetMipLevel, PrevRect, false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, 0U);
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-				if (bWasOccluded)
-				{
-					WriteOccludedInstance(MipViewId, InstanceId);
-				}
-#endif
-
-				bVisible = !bWasOccluded;
-			}
-		}
-
-		BRANCH
-		if( bVisible )
+		if( Cull.bIsVisible && !Cull.bWasOccluded )
 		{
 			uint NodeOffset = 0;
 

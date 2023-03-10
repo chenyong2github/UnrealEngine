@@ -557,9 +557,10 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
 
 		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine( TEXT( "USE_GLOBAL_GPU_SCENE_DATA" ), 1 );
-		OutEnvironment.SetDefine( TEXT( "NANITE_MULTI_VIEW" ), 1 );
-		OutEnvironment.SetDefine( TEXT("DEPTH_ONLY" ), 1 );
+		OutEnvironment.SetDefine( TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1 );
+		OutEnvironment.SetDefine( TEXT("NANITE_MULTI_VIEW"), 1 );
+		OutEnvironment.SetDefine( TEXT("DEPTH_ONLY"), 1 );
+		OutEnvironment.SetDefine( TEXT("VIRTUAL_TEXTURE_TARGET"), 1 );
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
