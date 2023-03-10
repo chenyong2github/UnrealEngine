@@ -99,14 +99,37 @@ public:
 		Initialize(BufferPointer, BufferCapacity);
 	}
 
-	inline int32 Len() const					{ return int32(CurPos - Base); }
-	inline CharType* GetData()					{ return Base; }
-	inline const CharType* GetData() const		{ return Base; }
-	inline const CharType* ToString() const		{ EnsureNulTerminated(); return Base; }
-	inline ViewType ToView() const				{ return ViewType(Base, Len()); }
-	inline const CharType* operator*() const	{ EnsureNulTerminated(); return Base; }
+	inline int32 Len() const { return int32(CurPos - Base); }
 
-	inline const CharType	LastChar() const	{ return *(CurPos - 1); }
+	/** Returns a pointer to Len() code units that are not necessarily null-terminated. */
+	inline CharType* GetData() UE_LIFETIMEBOUND { return Base; }
+	inline const CharType* GetData() const UE_LIFETIMEBOUND { return Base; }
+
+	/** Returns a pointer to a null-terminated string that is valid until the builder is mutated. */
+	inline const CharType* ToString() const UE_LIFETIMEBOUND
+	{
+		EnsureNulTerminated();
+		return Base;
+	}
+
+	/** Returns a pointer to a null-terminated string that is valid until the builder is mutated. */
+	inline const CharType* operator*() const UE_LIFETIMEBOUND
+	{
+		EnsureNulTerminated();
+		return Base;
+	}
+
+	/** Returns a view of the string that is valid until the builder is mutated. */
+	inline ViewType ToView() const UE_LIFETIMEBOUND
+	{
+		return ViewType(Base, Len());
+	}
+
+	/** Returns the last character, technically the last code unit. */
+	inline const CharType LastChar() const
+	{
+		return *(CurPos - 1);
+	}
 
 	/**
 	 * Helper function to return the amount of memory allocated by this container.

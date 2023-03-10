@@ -314,7 +314,7 @@ void UAnimGraphNode_LinkedAnimLayer::ValidateAnimNodeDuringCompilation(USkeleton
 void UAnimGraphNode_LinkedAnimLayer::ValidateCircularRefAndNesting(const UEdGraph* CurrentGraph, const TArray<UEdGraph*>& AllGraphs, TArray<const UEdGraph*> GraphStack, bool bWithinLinkedLayerGraph, FCompilerResultsLog& MessageLog)
 {
 	// Build graph chain string
-	auto BuildGraphChainString = [](const TArray<const UEdGraph*>& GraphStack)
+	auto BuildGraphChainString = [](const TArray<const UEdGraph*>& GraphStack) -> FString
 	{
 		TStringBuilder<1024> GraphChain;
 		bool bFirst = true;
@@ -327,7 +327,7 @@ void UAnimGraphNode_LinkedAnimLayer::ValidateCircularRefAndNesting(const UEdGrap
 			GraphChain << *Graph->GetName();
 			bFirst = false;
 		}
-		return GraphChain.ToString();
+		return FString(GraphChain);
 	};
 
 	// If a graph is already in the stack we have a circular reference
