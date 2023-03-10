@@ -62,6 +62,7 @@ namespace Horde.Build.Agents
 			public DateTime? SessionExpiresAt { get; set; }
 
 			public AgentStatus Status { get; set; }
+			public DateTime? LastStatusChange { get; set; }
 
 			[BsonRequired]
 			public bool Enabled { get; set; }
@@ -136,18 +137,20 @@ namespace Horde.Build.Agents
 		readonly IMongoCollection<AgentDocument> _agents;
 		readonly IAuditLog<AgentId> _auditLog;
 		readonly RedisService _redisService;
+		readonly IClock _clock;
 		readonly RedisChannel<AgentId> _updateEventChannel;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentCollection(MongoService mongoService, RedisService redisService, IAuditLog<AgentId> auditLog)
+		public AgentCollection(MongoService mongoService, RedisService redisService, IClock clock, IAuditLog<AgentId> auditLog)
 		{
 			List<MongoIndex<AgentDocument>> indexes = new List<MongoIndex<AgentDocument>>();
 			indexes.Add(keys => keys.Ascending(x => x.Deleted).Ascending(x => x.Id).Ascending(x => x.Pools));
 
 			_agents = mongoService.GetCollection<AgentDocument>("Agents", indexes);
 			_redisService = redisService;
+			_clock = clock;
 			_updateEventChannel = new RedisChannel<AgentId>("agents/notify");
 			_auditLog = auditLog;
 		}
@@ -360,6 +363,7 @@ namespace Horde.Build.Agents
 			if (status != null && agent.Status != status.Value)
 			{
 				updates.Add(updateBuilder.Set(x => x.Status, status.Value));
+				updates.Add(updateBuilder.Set(x => x.LastStatusChange, _clock.UtcNow));
 			}
 			if (sessionExpiresAt != null)
 			{
@@ -455,7 +459,7 @@ namespace Horde.Build.Agents
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent?> TryStartSessionAsync(IAgent agentInterface, SessionId sessionId, DateTime sessionExpiresAt, AgentStatus status, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources, IReadOnlyList<PoolId> pools, IReadOnlyList<PoolId> dynamicPools, string? version)
+		public async Task<IAgent?> TryStartSessionAsync(IAgent agentInterface, SessionId sessionId, DateTime sessionExpiresAt, AgentStatus status, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources, IReadOnlyList<PoolId> pools, IReadOnlyList<PoolId> dynamicPools, DateTime lastStatusChange, string? version)
 		{
 			AgentDocument agent = (AgentDocument)agentInterface;
 			List<string> newProperties = properties.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
@@ -481,6 +485,11 @@ namespace Horde.Build.Agents
 			updates.Add(updateBuilder.Unset(x => x.RequestShutdown));
 			updates.Add(updateBuilder.Set(x => x.LastShutdownReason, "Unexpected"));
 
+			if (agent.Status != status)
+			{
+				updates.Add(updateBuilder.Set(x => x.LastStatusChange, lastStatusChange));
+			}
+
 			// Apply the update
 			return await TryUpdateAsyncWithRetries(agent, updateBuilder.Combine(updates));
 		}
@@ -495,6 +504,7 @@ namespace Horde.Build.Agents
 			update = update.Unset(x => x.SessionExpiresAt);
 			update = update.Unset(x => x.Leases);
 			update = update.Set(x => x.Status, AgentStatus.Stopped);
+			update = update.Set(x => x.LastStatusChange, _clock.UtcNow);
 
 			bool deleted = agent.Deleted || agent.Ephemeral;
 			if (deleted != agent.Deleted)

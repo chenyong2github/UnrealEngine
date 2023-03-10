@@ -409,6 +409,11 @@ namespace Horde.Build.Agents
 		/// Last update time of this agent
 		/// </summary>
 		public DateTime? UpdateTime { get; set; }
+		
+		/// <summary>
+		/// Last time agent's status was changed
+		/// </summary>
+		public DateTime? LastStatusChange { get; set; }
 
 		/// <summary>
 		/// Pools for this agent
@@ -463,6 +468,7 @@ namespace Horde.Build.Agents
 			Version = agent.Version?.ToString() ?? "Unknown";
 			Version = agent.Version?.ToString();
 			UpdateTime = agent.UpdateTime;
+			LastStatusChange = agent.LastStatusChange;
 			Pools = agent.GetPools().Select(x => x.ToString()).ToList();
 			Workspaces = agent.Workspaces.ConvertAll(x => new GetAgentWorkspaceResponse(x));
 			Capabilities = new { Devices = new[] { new { agent.Properties, agent.Resources } } };

@@ -384,6 +384,11 @@ namespace Horde.Build.Agents
 		/// Current status of this agent
 		/// </summary>
 		public AgentStatus Status { get; }
+		
+		/// <summary>
+		/// Time at which last status change took place.
+		/// </summary>
+		public DateTime? LastStatusChange { get; }
 
 		/// <summary>
 		/// Whether the agent is enabled

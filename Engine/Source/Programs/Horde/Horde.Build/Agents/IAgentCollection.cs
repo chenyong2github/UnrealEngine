@@ -101,9 +101,10 @@ namespace Horde.Build.Agents
 		/// <param name="resources">Resources for the agent</param>
 		/// <param name="pools">New list of pools for the agent</param>
 		/// <param name="dynamicPools">New list of dynamic pools for the agent</param>
+		/// <param name="lastStatusChange">Time to force status change timestamp to</param>
 		/// <param name="version">Current version of the agent software</param>
 		/// <returns>New agent state</returns>
-		Task<IAgent?> TryStartSessionAsync(IAgent agent, SessionId sessionId, DateTime sessionExpiresAt, AgentStatus status, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources, IReadOnlyList<PoolId> pools, IReadOnlyList<PoolId> dynamicPools, string? version);
+		Task<IAgent?> TryStartSessionAsync(IAgent agent, SessionId sessionId, DateTime sessionExpiresAt, AgentStatus status, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources, IReadOnlyList<PoolId> pools, IReadOnlyList<PoolId> dynamicPools, DateTime lastStatusChange, string? version);
 
 		/// <summary>
 		/// Attempt to update the agent state

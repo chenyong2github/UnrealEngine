@@ -308,6 +308,7 @@ namespace Horde.Build.Agents
 		/// <returns>New agent state</returns>
 		public async Task<IAgent> CreateSessionAsync(IAgent agent, AgentStatus status, IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> resources, string? version)
 		{
+			DateTime? lastStatusChange = null;
 			for (; ; )
 			{
 				IAuditLogChannel<AgentId> agentLogger = Agents.GetLogger(agent.Id);
@@ -316,6 +317,9 @@ namespace Horde.Build.Agents
 				IAgent? newAgent;
 				if (agent.SessionId != null)
 				{
+					// Save last status change timestamp to avoid registering the change to "stopped" when it's re-created immediately after to "ok".
+					lastStatusChange = agent.LastStatusChange;
+					
 					// Try to terminate the current session
 					await TryTerminateSessionAsync(agent);
 				}
@@ -339,7 +343,7 @@ namespace Horde.Build.Agents
 					List<PoolId> pools = CombineCurrentAndRequestedPools(agent.ExplicitPools, properties);
 
 					// Reset the agent to use the new session
-					newAgent = await Agents.TryStartSessionAsync(agent, newSession.Id, sessionExpiresAt, status, properties, resources, pools, dynamicPools, version);
+					newAgent = await Agents.TryStartSessionAsync(agent, newSession.Id, sessionExpiresAt, status, properties, resources, pools, dynamicPools, lastStatusChange ?? utcNow, version);
 					if(newAgent != null)
 					{
 						LogPropertyChanges(agentLogger, agent.Properties, newAgent.Properties);
@@ -637,11 +641,14 @@ namespace Horde.Build.Agents
 					// If the session is valid, we can terminate once the agent leases are also empty
 					if (agent.Leases.Count == 0)
 					{
-						if (!await TryTerminateSessionAsync(agent))
+						IAgent? terminatedAgent = await TryTerminateSessionAsync(agent);
+						if (terminatedAgent == null)
 						{
 							agent = await GetAgentAsync(agent.Id);
 							continue;
 						}
+
+						agent = terminatedAgent;
 						break;
 					}
 				}
@@ -739,13 +746,13 @@ namespace Horde.Build.Agents
 		/// Terminates an existing session. Does not update the agent itself, if it's currently 
 		/// </summary>
 		/// <param name="agent">The agent whose current session should be terminated</param>
-		/// <returns>True if the session was terminated</returns>
-		private async Task<bool> TryTerminateSessionAsync(IAgent agent)
+		/// <returns>An up-to-date IAgent if the session was terminated</returns>
+		private async Task<IAgent?> TryTerminateSessionAsync(IAgent agent)
 		{
 			// Make sure the agent has a valid session id
 			if (agent.SessionId == null)
 			{
-				return true;
+				return agent;
 			}
 
 			// Get the time that the session finishes at
@@ -775,9 +782,9 @@ namespace Horde.Build.Agents
 				// Update the session document
 				Agents.GetLogger(agent.Id).LogInformation("Terminated session {SessionId}", sessionId);
 				await _sessions.UpdateAsync(sessionId, finishTime, agent.Properties, agent.Resources);
-				return true;
+				return agent;
 			}
-			return false;
+			return null;
 		}
 
 		/// <summary>

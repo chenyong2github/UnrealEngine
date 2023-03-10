@@ -13,6 +13,7 @@ using Horde.Build.Jobs;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
+using HordeCommon.Rpc.Messages;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -56,6 +57,76 @@ public class AgentServiceTest : TestSetup
 		Assert.IsTrue(AgentService.AuthorizeSession(agent, GetUser(agent)));
 		await Clock.AdvanceAsync(TimeSpan.FromMinutes(20));
 		Assert.IsFalse(AgentService.AuthorizeSession(agent, GetUser(agent)));
+	}
+	
+	private static long ToUnixTime(DateTime dateTime)
+	{
+		return new DateTimeOffset(dateTime).ToUnixTimeSeconds();
+	}
+	
+	[TestMethod]
+	public async Task LastStatusChangeDuringSessionCreate()
+	{
+		// No session created yet, status change timestamp is empty
+		IAgent agent = await AgentService.CreateAgentAsync("agent1", true, null);
+		Assert.AreEqual(AgentStatus.Unspecified, agent.Status);
+		Assert.IsFalse(agent.LastStatusChange.HasValue);
+		
+		// A session has been created, status change timestamp is current time
+		agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), "v1");
+		Assert.AreEqual(AgentStatus.Ok, agent.Status);
+		Assert.AreEqual(ToUnixTime(Clock.UtcNow), ToUnixTime(agent.LastStatusChange!.Value));
+		DateTime lastStatusChange = agent.LastStatusChange!.Value;
+		
+		await Clock.AdvanceAsync(TimeSpan.FromMinutes(1));
+		
+		// The session is re-created, status change timestamp is same as when it first got created
+		agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), "v1");
+		Assert.AreEqual(AgentStatus.Ok, agent.Status);
+		Assert.AreEqual(ToUnixTime(lastStatusChange), ToUnixTime(agent.LastStatusChange!.Value));
+	}
+
+	private static int s_agentId = 1;
+	private async Task<IAgent> CreateAgentSession(bool enabled = true)
+	{
+		IAgent agent = await AgentService.CreateAgentAsync("agentServiceTest-" + s_agentId++, true, null);
+		agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), "v1");
+		return agent;
+	}
+
+	private static void AssertEqual(DateTime expected, DateTime? actual)
+	{
+		// When saved as MongoDB documents, some precision is lost. This compares only Unix seconds.
+		Assert.AreEqual(ToUnixTime(expected), ToUnixTime(actual!.Value));
+	}
+	
+	private static void AssertNotEqual(DateTime expected, DateTime? actual)
+	{
+		// When saved as MongoDB documents, some precision is lost. This compares only Unix seconds.
+		Assert.AreNotEqual(ToUnixTime(expected), ToUnixTime(actual!.Value));
+	}
+
+	[TestMethod]
+	[DataRow(AgentStatus.Ok, false)]
+	[DataRow(AgentStatus.Unhealthy, true)]
+	[DataRow(AgentStatus.Stopping, true)]
+	[DataRow(AgentStatus.Stopped, true)]
+	[DataRow(AgentStatus.Unspecified, true)]
+	public async Task LastStatusChange(AgentStatus status, bool expectTimestampUpdate)
+	{
+		IAgent agent = await CreateAgentSession();
+		DateTime lastStatusChange = agent.LastStatusChange!.Value;
+		await Clock.AdvanceAsync(TimeSpan.FromMinutes(1));
+
+		agent = (await AgentService.UpdateSessionAsync(agent, agent.SessionId!.Value, status, null, null, new List<Lease>()))!;
+		if (expectTimestampUpdate)
+		{
+			AssertNotEqual(lastStatusChange, agent.LastStatusChange);
+		}
+		else
+		{
+			AssertEqual(lastStatusChange, agent.LastStatusChange);
+		}
 	}
 	
 	[TestMethod]
