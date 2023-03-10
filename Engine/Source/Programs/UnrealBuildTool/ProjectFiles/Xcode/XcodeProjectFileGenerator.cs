@@ -238,7 +238,7 @@ namespace UnrealBuildTool
 							IEnumerable<XcodeProjectXcconfig.XcodeProjectFile> SupportedProjects =
 									CurFolder.ChildProjects.Where(P => P.GetType() == typeof(XcodeProjectXcconfig.XcodeProjectFile))
 										.Select(P => (XcodeProjectXcconfig.XcodeProjectFile)P)
-										.Where(P => XcodeProjectXcconfig.UnrealData.ShouldIncludeProjectInWorkspace(P, Logger))
+										.Where(P => XcodeProjectXcconfig.XcodeUtils.ShouldIncludeProjectInWorkspace(P, Logger))
 										// @todo - still need to handle legacy project getting split up?
 										.Where(P => P.RootProjects.Count == 0 || P.RootProjects.ContainsValue(Platform))
 										.OrderBy(P => P.ProjectFilePath.GetFileName());
