@@ -653,8 +653,8 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 
 				if (ResultMetadata.OodleRDO == 0)
 				{
-					const UTextureEncodingProjectSettings* Settings = GetDefault<UTextureEncodingProjectSettings>();
-					const bool bDisabledGlobally = ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ? !Settings->bFastUsesRDO : !Settings->bFinalUsesRDO;
+					const FResolvedTextureEncodingSettings& Settings = FResolvedTextureEncodingSettings::Get();
+					const bool bDisabledGlobally = ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ? !Settings.Project.bFastUsesRDO : !Settings.Project.bFinalUsesRDO;
 
 					OodleRDOText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDODisable", "Disabled"));
 					if (ResultMetadata.bWasEditorCustomEncoding)

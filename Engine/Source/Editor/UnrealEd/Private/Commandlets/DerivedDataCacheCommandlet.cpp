@@ -465,7 +465,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 	FParse::Value(*Params, TEXT("SubsetTarget="), SubsetTarget);
 	bool bDoSubset = SubsetMod > 0 && SubsetTarget < SubsetMod;
 
-	if (GetDefault<UTextureEncodingProjectSettings>()->bSharedLinearTextureEncoding)
+	if (FResolvedTextureEncodingSettings::Get().Project.bSharedLinearTextureEncoding)
 	{
 		bSharedLinearTextureEncodingEnabled = true;
 	}

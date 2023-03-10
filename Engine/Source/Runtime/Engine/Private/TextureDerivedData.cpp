@@ -529,29 +529,6 @@ static void GetTextureDerivedDataKey(
 
 #if WITH_EDITOR
 
-static bool GetSharedLinearEncodingEnabled()
-{
-	// We have to cache this because we are hitting the options on a worker thread, and it'll
-	// crash if we use GetDefault while someone edits the project settings.
-	// At the moment there's no guaranteed game thread place to do this as jobs can be kicked
-	// off from worker threads (async encodes shader/light map).
-	static struct ThreadSafeInitCSO
-	{
-		bool bSharedLinearTextureEncoding = false;
-		ThreadSafeInitCSO()
-		{
-			const UTextureEncodingProjectSettings* Settings = GetDefault<UTextureEncodingProjectSettings>();
-			bSharedLinearTextureEncoding = Settings->bSharedLinearTextureEncoding;
-
-			UE_LOG(LogTexture, Display, TEXT("Shared Linear Texture Encoding: %s"), bSharedLinearTextureEncoding ? TEXT("Enabled") : TEXT("Disabled"));
-		}
-
-	} SLE;
-
-	return SLE.bSharedLinearTextureEncoding;
-}
-
-
 struct FTextureEncodeSpeedOptions
 {
 	ETextureEncodeEffort Effort = ETextureEncodeEffort::Default;
@@ -563,77 +540,20 @@ struct FTextureEncodeSpeedOptions
 // InEncodeSpeed must be fast or final.
 static void GetEncodeSpeedOptions(ETextureEncodeSpeed InEncodeSpeed, FTextureEncodeSpeedOptions* OutOptions)
 {
-	// We have to cache this because we are hitting the options on a worker thread, and it'll
-	// crash if we use GetDefault while someone edits the project settings.
-	// At the moment there's no guaranteed game thread place to do this as jobs can be kicked
-	// off from worker threads (async encodes shader/light map).
-	static struct ThreadSafeInitCSO
-	{
-		FTextureEncodeSpeedOptions Fast, Final;
-		ThreadSafeInitCSO()
-		{
-
-			const UTextureEncodingProjectSettings* Settings = GetDefault<UTextureEncodingProjectSettings>();
-			Fast.Effort = Settings->FastEffortLevel;
-			Fast.Tiling = Settings->FastUniversalTiling;
-			Fast.bUsesRDO = Settings->bFastUsesRDO;
-			Fast.RDOLambda = Settings->FastRDOLambda;
-
-			Final.Effort = Settings->FinalEffortLevel;
-			Final.Tiling = Settings->FinalUniversalTiling;
-			Final.bUsesRDO = Settings->bFinalUsesRDO;
-			Final.RDOLambda = Settings->FinalRDOLambda;
-			
-			// log settings once at startup
-			UEnum* EncodeEffortEnum = StaticEnum<ETextureEncodeEffort>();
-			
-			UEnum* UniversalTilingEnum = StaticEnum<ETextureUniversalTiling>();
-
-			FString FastRDOString;
-			if ( Fast.bUsesRDO )
-			{
-				FastRDOString = FString(TEXT("On"));
-				if ( Fast.Tiling != ETextureUniversalTiling::Disabled )
-				{
-					FastRDOString += TEXT(" UT=");
-					FastRDOString += UniversalTilingEnum->GetNameStringByValue((int64)Fast.Tiling);
-				}
-			}
-			else
-			{
-				FastRDOString = FString(TEXT("Off"));
-			}
-			
-			FString FinalRDOString;
-			if ( Final.bUsesRDO )
-			{
-				FinalRDOString = FString(TEXT("On"));
-				if ( Final.Tiling != ETextureUniversalTiling::Disabled )
-				{
-					FinalRDOString += TEXT(" UT=");
-					FinalRDOString += UniversalTilingEnum->GetNameStringByValue((int64)Final.Tiling);
-				}
-			}
-			else
-			{
-				FinalRDOString = FString(TEXT("Off"));
-			}
-
-			UE_LOG(LogTexture, Display, TEXT("Oodle Texture Encode Speed settings: Fast: RDO %s Lambda=%d, Effort=%s Final: RDO %s Lambda=%d, Effort=%s"), \
-				*FastRDOString, Fast.bUsesRDO ? Fast.RDOLambda : 0,  *(EncodeEffortEnum->GetNameStringByValue((int64)Fast.Effort)), \
-				*FinalRDOString, Final.bUsesRDO ? Final.RDOLambda : 0,  *(EncodeEffortEnum->GetNameStringByValue((int64)Final.Effort)) );
-
-
-		}
-	} EncodeSpeedOptions;
-
+	FResolvedTextureEncodingSettings const& EncodeSettings = FResolvedTextureEncodingSettings::Get();
 	if (InEncodeSpeed == ETextureEncodeSpeed::Final)
 	{
-		*OutOptions = EncodeSpeedOptions.Final;
+		OutOptions->bUsesRDO = EncodeSettings.Project.bFinalUsesRDO;
+		OutOptions->Effort = EncodeSettings.Project.FinalEffortLevel;
+		OutOptions->Tiling = EncodeSettings.Project.FinalUniversalTiling;
+		OutOptions->RDOLambda = EncodeSettings.Project.FinalRDOLambda;
 	}
 	else
 	{
-		*OutOptions = EncodeSpeedOptions.Fast;
+		OutOptions->bUsesRDO = EncodeSettings.Project.bFastUsesRDO;
+		OutOptions->Effort = EncodeSettings.Project.FastEffortLevel;
+		OutOptions->Tiling = EncodeSettings.Project.FastUniversalTiling;
+		OutOptions->RDOLambda = EncodeSettings.Project.FastRDOLambda;
 	}
 }
 
@@ -721,7 +641,7 @@ static void FinalizeBuildSettingsForLayer(
 				}
 			
 				{
-					if (GetSharedLinearEncodingEnabled())
+					if (FResolvedTextureEncodingSettings::Get().Project.bSharedLinearTextureEncoding)
 					{
 						//
 						// We want to separate out textures involved in shared linear encoding in order to facilitate
@@ -801,62 +721,7 @@ ENGINE_API ETextureEncodeSpeed UTexture::GetDesiredEncodeSpeed() const
 		return ETextureEncodeSpeed::Final;
 	}
 
-	// Get the command line and config options with a one-time static init :
-	static struct FThreadSafeInitializer
-	{
-		ETextureEncodeSpeed CachedEncodeSpeedOption;
-
-		// For thread safety, we do all the work in a constructor that the compiler
-		// guarantees will be called only once.
-		FThreadSafeInitializer()
-		{
-			const UEnum* EncodeSpeedEnum = StaticEnum<ETextureEncodeSpeed>();
-
-			// Overridden by command line?
-			FString CmdLineSpeed;
-			if (FParse::Value(FCommandLine::Get(), TEXT("-ForceTextureEncodeSpeed="), CmdLineSpeed))
-			{
-				int64 Value = EncodeSpeedEnum->GetValueByNameString(CmdLineSpeed);
-				if (Value == INDEX_NONE)
-				{
-					UE_LOG(LogTexture, Error, TEXT("Invalid value for ForceTextureEncodeSpeed, ignoring. Valid values are the ETextureEncodeSpeed enum (Final, FinalIfAvailable, Fast)"));
-				}
-				else
-				{
-					CachedEncodeSpeedOption = (ETextureEncodeSpeed)Value;
-					UE_LOG(LogTexture, Display, TEXT("Texture Encode Speed forced to %s via command line."), *EncodeSpeedEnum->GetNameStringByValue(Value));
-					return;
-				}
-			}
-
-			// Overridden by user settings?
-			const UTextureEncodingUserSettings* UserSettings = GetDefault<UTextureEncodingUserSettings>();
-			if (UserSettings->ForceEncodeSpeed != ETextureEncodeSpeedOverride::Disabled)
-			{
-				// enums have same values for payload.
-				CachedEncodeSpeedOption = (ETextureEncodeSpeed)UserSettings->ForceEncodeSpeed;
-				UE_LOG(LogTexture, Display, TEXT("Texture Encode Speed forced to %s via user settings."), *EncodeSpeedEnum->GetNameStringByValue((int64)CachedEncodeSpeedOption));
-				return;
-			}
-
-			// Use project settings
-			const UTextureEncodingProjectSettings* Settings = GetDefault<UTextureEncodingProjectSettings>();
-			if (GIsEditor && !IsRunningCommandlet())
-			{
-				// Interactive editor
-				CachedEncodeSpeedOption = Settings->EditorUsesSpeed;
-				UE_LOG(LogTexture, Display, TEXT("Texture Encode Speed: %s (editor)."), *EncodeSpeedEnum->GetNameStringByValue((int64)CachedEncodeSpeedOption));
-			}
-			else
-			{
-				CachedEncodeSpeedOption = Settings->CookUsesSpeed;
-				UE_LOG(LogTexture, Display, TEXT("Texture Encode Speed: %s (cook)."), *EncodeSpeedEnum->GetNameStringByValue((int64)CachedEncodeSpeedOption));
-			}
-			
-		}
-	} FThreadSafeInitializer;
-
-	return FThreadSafeInitializer.CachedEncodeSpeedOption;
+	return FResolvedTextureEncodingSettings::Get().EncodeSpeed;
 }
 
 
