@@ -3055,7 +3055,7 @@ bool UPrimitiveComponent::ComponentOverlapComponentImpl(class UPrimitiveComponen
 	{
 		for (Chaos::FPhysicsObjectHandle ThisObject : ThisObjects)
 		{
-			if (Interface->GetPhysicsObjectOverlap(InObject, FTransform::Identity, ThisObject, FTransform::Identity, Params.bTraceComplex))
+			if (Interface->PhysicsObjectOverlap(InObject, FTransform::Identity, ThisObject, FTransform::Identity, Params.bTraceComplex))
 			{
 				return true;
 			}
