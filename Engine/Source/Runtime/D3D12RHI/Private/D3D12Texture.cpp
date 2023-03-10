@@ -1155,6 +1155,7 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 
 		return NewTexture;
 	});
+	FTextureRHIRef TextureOutRHI = TextureOut;
 
 	FGraphEventArray CopyCompleteEvents;
 	OutCompletionEvent = nullptr;
@@ -1325,7 +1326,7 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 		FMemory::Free(TempBuffer);
 	}
 
-	return TextureOut;
+	return MoveTemp(TextureOutRHI);
 }
 
 
