@@ -3,6 +3,7 @@
 #include "PoseSearchTypeActions.h"
 #include "PoseSearchDatabaseEditor.h"
 #include "PoseSearch/PoseSearchDatabase.h"
+#include "PoseSearch/PoseSearchNormalizationSet.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchTypeActions"
@@ -85,6 +86,38 @@ namespace UE::PoseSearch
 	}
 
 	const TArray<FText>& FSchemaTypeActions::GetSubMenus() const
+	{
+		static const TArray<FText> SubMenus
+		{
+			PoseSearchSubMenuName
+		};
+		return SubMenus;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// FNormalizationSetTypeActions
+
+	FText FNormalizationSetTypeActions::GetName() const
+	{
+		return LOCTEXT("PoseSearchNormalizationSetTypeActionsName", "Normalization Set");
+	}
+
+	FColor FNormalizationSetTypeActions::GetTypeColor() const
+	{
+		return PoseSearchAssetColor;
+	}
+
+	UClass* FNormalizationSetTypeActions::GetSupportedClass() const
+	{
+		return UPoseSearchNormalizationSet::StaticClass();
+	}
+
+	uint32 FNormalizationSetTypeActions::GetCategories()
+	{
+		return EAssetTypeCategories::Animation;
+	}
+
+	const TArray<FText>& FNormalizationSetTypeActions::GetSubMenus() const
 	{
 		static const TArray<FText> SubMenus
 		{

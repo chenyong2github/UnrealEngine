@@ -20,6 +20,7 @@
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchDerivedDataKey.h"
 #include "PoseSearch/PoseSearchFeatureChannel.h"
+#include "PoseSearch/PoseSearchNormalizationSet.h"
 #include "PoseSearch/PoseSearchSchema.h"
 #include "PoseSearchEigenHelper.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -899,13 +900,7 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 				IndexBaseDatabases.Add(Database); // the first one is always this Database
 				if (Database->NormalizationSet)
 				{
-					for (auto OtherDatabase : Database->NormalizationSet->Databases)
-					{
-						if (OtherDatabase)
-						{
-							IndexBaseDatabases.AddUnique(OtherDatabase);
-						}
-					}
+					Database->NormalizationSet->AddUniqueDatabases(IndexBaseDatabases);
 				}
 
 				// @todo: DDC or parallelize this code

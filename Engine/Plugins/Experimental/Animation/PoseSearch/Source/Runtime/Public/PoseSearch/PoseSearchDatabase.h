@@ -12,6 +12,7 @@ class UAnimationAsset;
 class UAnimComposite;
 class UAnimMontage;
 class UBlendSpace;
+class UPoseSearchNormalizationSet;
 
 UENUM()
 enum class EPoseSearchMode : int32
@@ -194,18 +195,6 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimMontage : public FPoseSearchDatabas
 	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
 };
 
-
-/** A data asset for indexing a collection of animation sequences. */
-UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Normalization Set"))
-class POSESEARCH_API UNormalizationSetAsset : public UDataAsset
-{
-	GENERATED_BODY()
-public:
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NormalizationSet")
-	TArray<TObjectPtr<const UPoseSearchDatabase>> Databases; // @todo: it should be a UPoseSearchSearchableAsset, and have the UPoseSearchSearchableAsset iterate over all it's contained UPoseSearchSearchableAsset recursively (without duplicates)
-};
-
 /** A data asset for indexing a collection of animation sequences. */
 UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Motion Database"))
 class POSESEARCH_API UPoseSearchDatabase : public UPoseSearchSearchableAsset
@@ -248,7 +237,7 @@ public:
 	bool bSkipSearchIfPossible = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Database")
-	TObjectPtr<const UNormalizationSetAsset> NormalizationSet;
+	TObjectPtr<const UPoseSearchNormalizationSet> NormalizationSet;
 
 private:
 	UPROPERTY(Transient, meta = (ExcludeFromHash))
