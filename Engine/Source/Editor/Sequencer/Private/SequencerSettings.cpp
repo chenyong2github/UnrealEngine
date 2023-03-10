@@ -31,7 +31,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	GridSpacing = TOptional<float>();
 	bSnapCurveValueToInterval = false;
 	bShowSelectedNodesOnly = false;
-	ZoomPosition = ESequencerZoomPosition::SZP_CurrentTime;
+	ZoomPosition = ESequencerZoomPosition::SZP_Playhead;
 	bAutoScrollEnabled = false;
 	bLinkCurveEditorTimeRange = false;
 	bSynchronizeCurveEditorSelection = true;

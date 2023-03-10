@@ -1042,8 +1042,8 @@ FReply FSequencerTimeSliderController::OnMouseMoveImpl( SWidget& WidgetOwner, co
 		{
 			float MouseFractionX = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X / MyGeometry.GetLocalSize().X;
 
-			// If zooming on the current time, adjust mouse fractionX
-			if (Sequencer->GetSequencerSettings()->GetZoomPosition() == ESequencerZoomPosition::SZP_CurrentTime)
+			// If zooming on the playhead, adjust mouse fractionX
+			if (Sequencer->GetSequencerSettings()->GetZoomPosition() == ESequencerZoomPosition::SZP_Playhead)
 			{
 				const double ScrubPosition = TimeSliderArgs.ScrubPosition.Get() / GetTickResolution();
 				if (GetViewRange().Contains(ScrubPosition))
@@ -1276,7 +1276,7 @@ FReply FSequencerTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, const
 		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 			
 		// If zooming on the current time, adjust mouse fractionX
-		if (Sequencer.IsValid() && Sequencer->GetSequencerSettings()->GetZoomPosition() == ESequencerZoomPosition::SZP_CurrentTime)
+		if (Sequencer.IsValid() && Sequencer->GetSequencerSettings()->GetZoomPosition() == ESequencerZoomPosition::SZP_Playhead)
 		{
 			const double ScrubPosition = TimeSliderArgs.ScrubPosition.Get() / GetTickResolution();
 			if (GetViewRange().Contains(ScrubPosition))
