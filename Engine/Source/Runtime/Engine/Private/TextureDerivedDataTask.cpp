@@ -53,14 +53,8 @@ static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnSave(
 static TAutoConsoleVariable<int32> CVarForceRetileTextures(
 	TEXT("r.ForceRetileTextures"),
 	0,
-	TEXT("If r.SharedLinearTextureEncoding is enabled, this will force the tiling build step to rebuild,")
+	TEXT("If Shared Linear Texture Encoding is enabled in project settings, this will force the tiling build step to rebuild,")
 	TEXT("however the linear texture is allowed to fetch from cache.")
-);
-
-static TAutoConsoleVariable<int32> CVarSharedLinearTextureEncoding(
-	TEXT("r.SharedLinearTextureEncoding"),
-	0,
-	TEXT("If set to 1, textures for platforms that tile will reuse a host linear texture instead of reencoding.")
 );
 
 

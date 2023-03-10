@@ -7,6 +7,7 @@
 
 UTextureEncodingProjectSettings::UTextureEncodingProjectSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
+	bSharedLinearTextureEncoding(false),
 	bFinalUsesRDO(false),
 	FinalRDOLambda(30), /* OodleTex_RDOLagrangeLambda_Default */
 	FinalEffortLevel(ETextureEncodeEffort::Normal),

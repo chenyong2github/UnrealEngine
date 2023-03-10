@@ -30,6 +30,7 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "PackageHelperFunctions.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "ShaderCompiler.h"
+#include "TextureEncodingSettings.h"
 #include "UObject/CoreRedirects.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
@@ -464,8 +465,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 	FParse::Value(*Params, TEXT("SubsetTarget="), SubsetTarget);
 	bool bDoSubset = SubsetMod > 0 && SubsetTarget < SubsetMod;
 
-	static auto CVarSharedLinearTextureEncoding = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SharedLinearTextureEncoding"));
-	if (CVarSharedLinearTextureEncoding->GetValueOnAnyThread())
+	if (GetDefault<UTextureEncodingProjectSettings>()->bSharedLinearTextureEncoding)
 	{
 		bSharedLinearTextureEncodingEnabled = true;
 	}

@@ -42,12 +42,30 @@ enum class ETextureEncodeSpeedOverride : uint8
 
 // 
 // Encoding can either use the "Final" or "Fast" speeds, for supported encoders (e.g. Oodle)
-// These settings have no effect on encoders that don't support encode speed
+// Encode speed settings have no effect on encoders that don't support encode speed, currently limited to Oodle.
 //
 UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Texture Encoding"))
 class ENGINE_API UTextureEncodingProjectSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
+
+	// If true, platforms that want to take a linearly encoded texture and then tile them
+	// will try to reuse the linear texture rather than encode it for every platform. This can result in
+	// massive speedups for texture building as tiling is very fast compared to encoding. So instead of:
+	//
+	//	Host Platform: Linear encode
+	//	Console 1: Linear encode + platform specific tile
+	//	Console 2: Linear encode + platform specific tile
+	//
+	// you instead get:
+	//	Host platform: Linear encode
+	//	Console 1: fetch linear + platform specific tile
+	//	Console 2: fetch linear + platform specific tile
+	//
+	// Note that this has no effect on cook time, only build time - once the texture is in the DDC this has no
+	// effect.
+	UPROPERTY(EditAnywhere, config, Category=EncodeSettings, meta = (ConfigRestartRequired = true))
+	uint32 bSharedLinearTextureEncoding : 1;
 
 	// If true, Final encode speed enables rate-distortion optimization on supported encoders to
 	// decrease *on disc* size of textures in compressed package files.

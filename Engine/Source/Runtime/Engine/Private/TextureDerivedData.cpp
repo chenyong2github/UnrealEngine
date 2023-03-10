@@ -529,6 +529,29 @@ static void GetTextureDerivedDataKey(
 
 #if WITH_EDITOR
 
+static bool GetSharedLinearEncodingEnabled()
+{
+	// We have to cache this because we are hitting the options on a worker thread, and it'll
+	// crash if we use GetDefault while someone edits the project settings.
+	// At the moment there's no guaranteed game thread place to do this as jobs can be kicked
+	// off from worker threads (async encodes shader/light map).
+	static struct ThreadSafeInitCSO
+	{
+		bool bSharedLinearTextureEncoding = false;
+		ThreadSafeInitCSO()
+		{
+			const UTextureEncodingProjectSettings* Settings = GetDefault<UTextureEncodingProjectSettings>();
+			bSharedLinearTextureEncoding = Settings->bSharedLinearTextureEncoding;
+
+			UE_LOG(LogTexture, Display, TEXT("Shared Linear Texture Encoding: %s"), bSharedLinearTextureEncoding ? TEXT("Enabled") : TEXT("Disabled"));
+		}
+
+	} SLE;
+
+	return SLE.bSharedLinearTextureEncoding;
+}
+
+
 struct FTextureEncodeSpeedOptions
 {
 	ETextureEncodeEffort Effort = ETextureEncodeEffort::Default;
@@ -697,10 +720,8 @@ static void FinalizeBuildSettingsForLayer(
 					OutBuildResultMetadata->bSupportsEncodeSpeed = bSupportsEncodeSpeed;
 				}
 			
-				
 				{
-					static auto CVarSharedLinearTextureEncoding = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SharedLinearTextureEncoding"));
-					if (CVarSharedLinearTextureEncoding->GetValueOnAnyThread())
+					if (GetSharedLinearEncodingEnabled())
 					{
 						//
 						// We want to separate out textures involved in shared linear encoding in order to facilitate
