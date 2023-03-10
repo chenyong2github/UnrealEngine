@@ -35,14 +35,14 @@ namespace Horde.Build.Agents.Software
 	[Route("[controller]")]
 	public class AgentSoftwareController : ControllerBase
 	{
-		private readonly ToolCollection _toolCollection;
+		private readonly IToolCollection _toolCollection;
 		private readonly IClock _clock;
 		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentSoftwareController(ToolCollection toolCollection, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public AgentSoftwareController(IToolCollection toolCollection, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_toolCollection = toolCollection;
 			_clock = clock;

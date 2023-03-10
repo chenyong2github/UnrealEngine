@@ -185,13 +185,13 @@ namespace Horde.Build.Tools
 	[Route("[controller]")]
 	public class ToolsController : HordeControllerBase
 	{
-		readonly ToolCollection _toolCollection;
+		readonly IToolCollection _toolCollection;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ToolsController(ToolCollection toolCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public ToolsController(IToolCollection toolCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_toolCollection = toolCollection;
 			_globalConfig = globalConfig;
@@ -263,7 +263,7 @@ namespace Horde.Build.Tools
 	[ApiController]
 	public class PublicToolsController : HordeControllerBase
 	{
-		readonly ToolCollection _toolCollection;
+		readonly IToolCollection _toolCollection;
 		readonly StorageService _storageService;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 		readonly IClock _clock;
@@ -271,7 +271,7 @@ namespace Horde.Build.Tools
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PublicToolsController(ToolCollection toolCollection, StorageService storageService, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public PublicToolsController(IToolCollection toolCollection, StorageService storageService, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_toolCollection = toolCollection;
 			_storageService = storageService;

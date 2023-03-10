@@ -218,12 +218,11 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ITestDataCollection, TestDataCollection>();
 			services.AddSingleton<ITelemetryCollection, TelemetryCollection>();
 			services.AddSingleton<ITemplateCollection, TemplateCollection>();
+			services.AddSingleton<IToolCollection, ToolCollection>();
 			services.AddSingleton<IUgsMetadataCollection, UgsMetadataCollection>();
 			services.AddSingleton<IUserCollection, UserCollectionV1>();
 			services.AddSingleton<IDeviceCollection, DeviceCollection>();
 			services.AddSingleton<IDashboardPreviewCollection, DashboardPreviewCollection>();
-
-			services.AddSingleton<ToolCollection>();
 
 			services.AddSingleton<FakeClock>();
 			services.AddSingleton<IClock>(sp => sp.GetRequiredService<FakeClock>());

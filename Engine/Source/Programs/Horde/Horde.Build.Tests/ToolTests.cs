@@ -36,7 +36,7 @@ namespace Horde.Build.Tests
         [TestMethod]
         public async Task AddTool()
         {
-			ToolCollection collection = ServiceProvider.GetRequiredService<ToolCollection>();
+			IToolCollection collection = ServiceProvider.GetRequiredService<IToolCollection>();
 
 			ITool tool = Deref(await collection.GetAsync(_toolId, GlobalConfig.CurrentValue));
 			Assert.AreEqual(tool.Id, new ToolId("ugs"));
@@ -52,7 +52,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task AddDeployment()
 		{
-			ToolCollection collection = ServiceProvider.GetRequiredService<ToolCollection>();
+			IToolCollection collection = ServiceProvider.GetRequiredService<IToolCollection>();
 
 			ITool tool = Deref(await collection.GetAsync(_toolId, GlobalConfig.CurrentValue));
 			Assert.AreEqual(new ToolId("ugs"), tool.Id);

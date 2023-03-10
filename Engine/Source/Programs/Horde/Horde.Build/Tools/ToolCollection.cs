@@ -26,7 +26,7 @@ namespace Horde.Build.Tools
 	/// <summary>
 	/// Collection of tool documents
 	/// </summary>
-	public class ToolCollection
+	public class ToolCollection : IToolCollection
 	{
 		class Tool : VersionedDocument<ToolId, Tool>, ITool
 		{

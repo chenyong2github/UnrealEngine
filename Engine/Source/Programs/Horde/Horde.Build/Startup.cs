@@ -362,7 +362,7 @@ namespace Horde.Build
 			services.AddSingleton<INoticeCollection, NoticeCollection>();
 			services.AddSingleton<IDashboardPreviewCollection, DashboardPreviewCollection>();
 
-			services.AddSingleton<ToolCollection>();
+			services.AddSingleton<IToolCollection, ToolCollection>();
 
 			services.AddSingleton<IConfigSource, InMemoryConfigSource>();
 			services.AddSingleton<IConfigSource, FileConfigSource>();
