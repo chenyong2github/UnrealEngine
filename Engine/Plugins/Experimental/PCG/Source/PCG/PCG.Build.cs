@@ -23,7 +23,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Settings",
 					"Voronoi",
 				}
 			);
@@ -34,6 +33,7 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"UnrealEd",
+						"Settings",
 						"SourceControl",
 					}
 				);
