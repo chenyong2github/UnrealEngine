@@ -242,12 +242,12 @@ namespace UE
 		return AppliedSchemas;
 	}
 
-	bool FUsdPrim::IsA( FName SchemaType ) const
+	bool FUsdPrim::IsA( FName SchemaIdentifier ) const
 	{
 #if USE_USD_SDK
 		FScopedUsdAllocs Allocs;
 
-		pxr::TfType Type = pxr::UsdSchemaRegistry::GetTypeFromName( pxr::TfToken( TCHAR_TO_ANSI( *SchemaType.ToString() ) ) );
+		pxr::TfType Type = pxr::UsdSchemaRegistry::GetTypeFromName( pxr::TfToken( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) ) );
 		if ( Type.IsUnknown() )
 		{
 			return false;
@@ -259,23 +259,51 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
-	bool FUsdPrim::HasAPI( FName SchemaType, TOptional<FName> InstanceName ) const
+	bool FUsdPrim::HasAPI( FName SchemaIdentifier ) const
 	{
 #if USE_USD_SDK
 		FScopedUsdAllocs Allocs;
 
-		pxr::TfType Type = pxr::UsdSchemaRegistry::GetTypeFromName( pxr::TfToken( TCHAR_TO_ANSI( *SchemaType.ToString() ) ) );
+		pxr::TfType Type = pxr::UsdSchemaRegistry::GetTypeFromName( pxr::TfToken( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) ) );
 		if ( Type.IsUnknown() )
 		{
 			return false;
 		}
 
-		pxr::TfToken UsdInstanceName = InstanceName.IsSet() ? pxr::TfToken( TCHAR_TO_ANSI( *InstanceName.GetValue().ToString() ) ) : pxr::TfToken();
+		return Impl->PxrUsdPrim.Get().HasAPI( Type );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::HasAPI( FName SchemaIdentifier, FName InstanceName ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		pxr::TfType Type = pxr::UsdSchemaRegistry::GetTypeFromName( pxr::TfToken( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) ) );
+		if ( Type.IsUnknown() )
+		{
+			return false;
+		}
+
+		pxr::TfToken UsdInstanceName = pxr::TfToken( TCHAR_TO_ANSI( *InstanceName.ToString() ) );
 
 		return Impl->PxrUsdPrim.Get().HasAPI( Type, UsdInstanceName );
 #else
 		return false;
 #endif // #if USE_USD_SDK
+	}
+
+	// Deprecated in 5.3
+	bool FUsdPrim::HasAPI( FName SchemaType, TOptional<FName> InstanceName ) const
+	{
+		if ( InstanceName.IsSet() )
+		{
+			return HasAPI( SchemaType, InstanceName.GetValue() );
+		}
+
+		return HasAPI( SchemaType );
 	}
 
 	const FSdfPath FUsdPrim::GetPrimPath() const

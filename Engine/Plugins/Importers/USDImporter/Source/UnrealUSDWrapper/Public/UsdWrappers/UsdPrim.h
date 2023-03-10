@@ -85,8 +85,12 @@ namespace UE
 
 		TArray<FName> GetAppliedSchemas() const;
 
-		bool IsA( FName SchemaType ) const;
-		bool HasAPI( FName SchemaType, TOptional<FName> InstanceName = {} ) const;
+		bool IsA( FName SchemaIdentifier ) const;
+		bool HasAPI( FName SchemaIdentifier ) const;
+		bool HasAPI( FName SchemaIdentifier, FName InstanceName ) const;
+
+		UE_DEPRECATED( 5.3, "Please use the one FName overload for single apply API schemas, or the two FName overload for multiple apply API schemas." )
+		bool HasAPI( FName SchemaType, TOptional<FName> InstanceName ) const;
 
 		const FSdfPath GetPrimPath() const;
 		FUsdStage GetStage() const;
