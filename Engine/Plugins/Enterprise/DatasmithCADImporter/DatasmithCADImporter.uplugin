@@ -16,7 +16,8 @@
 	"Installed" : false,
 	"SupportedTargetPlatforms":
 	[
-		"Win64"
+		"Win64",
+		"Linux"
 	],
 	"Modules": [
 		{
