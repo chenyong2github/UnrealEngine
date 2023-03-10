@@ -43,6 +43,14 @@ FActorDesc::FActorDesc(const FWorldPartitionActorDesc& InActorDesc, const FTrans
 	bIsSpatiallyLoaded = InActorDesc.GetIsSpatiallyLoaded();
 	bActorIsEditorOnly = InActorDesc.GetActorIsEditorOnly();
 	ActorPackage = InActorDesc.GetActorPackage();
+	if (InActorDesc.IsUsingDataLayerAsset())
+	{
+		DataLayerAssets.Reserve(InActorDesc.GetDataLayers().Num());
+		for (FName DataLayerAssetPath : InActorDesc.GetDataLayers())
+		{
+			DataLayerAssets.Add(FSoftObjectPath(DataLayerAssetPath.ToString()));
+		}
+	}
 	
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ActorPath = InActorDesc.GetActorPath();

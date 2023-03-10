@@ -70,6 +70,10 @@ struct FActorDesc
 	/** Actor's path name. */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
 	FName ActorPath;
+
+	/** Actor's data layer assets. */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
+	TArray<FSoftObjectPath> DataLayerAssets;
 };
 
 UCLASS(MinimalAPI)
