@@ -282,6 +282,14 @@ public:
 	}
 
 	/**
+	 * @returns the domains which won't use proxy even if ProxyAddress is set
+	 */
+	inline const FString& GetHttpNoProxy() const
+	{
+		return HttpNoProxy;
+	}
+
+	/**
 	 * Method to check dynamic proxy setting support.
 	 * @returns Whether this http implementation supports dynamic proxy setting.
 	 */
@@ -361,6 +369,8 @@ private:
 	static FHttpModule* Singleton;
 	/** The address to use for proxy, in format IPADDRESS:PORT */
 	FString ProxyAddress;
+	/** The domains which won't use proxy even if the ProxyAddress is set, in format "127.0.0.1,localhost,example.com" */
+	FString HttpNoProxy;
 	/** Whether or not the http implementation we are using supports dynamic proxy setting. */
 	bool bSupportsDynamicProxy;
 	/** List of domains that can be accessed. If Empty then no filtering is applied */

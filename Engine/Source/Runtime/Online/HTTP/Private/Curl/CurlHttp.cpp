@@ -125,6 +125,12 @@ FCurlHttpRequest::FCurlHttpRequest()
 		curl_easy_setopt(EasyHandle, CURLOPT_PROXY, TCHAR_TO_ANSI(*ProxyAddress));
 	}
 
+	const FString& HttpNoProxy = FHttpModule::Get().GetHttpNoProxy();
+	if (!HttpNoProxy.IsEmpty())
+	{
+		curl_easy_setopt(EasyHandle, CURLOPT_NOPROXY, TCHAR_TO_ANSI(*HttpNoProxy));
+	}
+
 	if (FCurlHttpManager::CurlRequestOptions.bDontReuseConnections)
 	{
 		curl_easy_setopt(EasyHandle, CURLOPT_FORBID_REUSE, 1L);
