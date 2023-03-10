@@ -4544,12 +4544,6 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 			ReturnResponse = PR_Cancelled;
 		}
 
-		// Update SCC state for packages that were made writable outside of SCC
-		if (PackagesCheckedOutOrMadeWritable.Num())
-		{
-			ISourceControlModule::Get().QueueStatusUpdate(PackagesCheckedOutOrMadeWritable);
-		}
-
 		if (PackagesToRevert.Num() > 0)
 		{
 			// Check if the world should be reloaded after the revert.
