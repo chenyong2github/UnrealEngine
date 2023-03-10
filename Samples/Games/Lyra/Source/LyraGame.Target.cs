@@ -6,6 +6,7 @@ using System.IO;
 using EpicGames.Core;
 using System.Collections.Generic;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 public class LyraGameTarget : TargetRules
 {
@@ -22,6 +23,8 @@ public class LyraGameTarget : TargetRules
 
 	internal static void ApplySharedLyraTargetSettings(TargetRules Target)
 	{
+		ILogger Logger = Target.Logger;
+		
 		Target.DefaultBuildSettings = BuildSettingsVersion.V3;
 		Target.IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
@@ -81,7 +84,7 @@ public class LyraGameTarget : TargetRules
 				if (!bHasWarnedAboutShared)
 				{
 					bHasWarnedAboutShared = true;
-					Log.TraceWarning("LyraGameEOS and dynamic target options are disabled when packaging from an installed version of the engine");
+					Logger.LogWarning("LyraGameEOS and dynamic target options are disabled when packaging from an installed version of the engine");
 				}
 			}
 		}
@@ -116,6 +119,7 @@ public class LyraGameTarget : TargetRules
 	// work-in-progress features in main but disabling them in the current release branch.
 	static public void ConfigureGameFeaturePlugins(TargetRules Target)
 	{
+		ILogger Logger = Target.Logger;
 		Log.TraceInformationOnce("Compiling GameFeaturePlugins in branch {0}", Target.Version.BranchName);
 
 		bool bBuildAllGameFeaturePlugins = ShouldEnableAllGameFeaturePlugins(Target);
@@ -162,7 +166,7 @@ public class LyraGameTarget : TargetRules
 						bool bExplicitlyLoaded = false;
 						if (!RawObject.TryGetBoolField("ExplicitlyLoaded", out bExplicitlyLoaded) || bExplicitlyLoaded == false)
 						{
-							Log.TraceWarning("GameFeaturePlugin {0}, does not set ExplicitlyLoaded to true. This is required for GameFeaturePlugins.", PluginFile.GetFileNameWithoutExtension());
+							Logger.LogWarning("GameFeaturePlugin {0}, does not set ExplicitlyLoaded to true. This is required for GameFeaturePlugins.", PluginFile.GetFileNameWithoutExtension());
 						}
 
 						// You could read an additional field here that is project specific, e.g.,
@@ -201,11 +205,11 @@ public class LyraGameTarget : TargetRules
 							{
 								// The plugin is for a specific branch, and this isn't it
 								bForceDisabled = true;
-								Log.TraceVerbose("GameFeaturePlugin {0} was marked as restricted to other branches. Disabling.", PluginFile.GetFileNameWithoutExtension());
+								Logger.LogDebug("GameFeaturePlugin {Name} was marked as restricted to other branches. Disabling.", PluginFile.GetFileNameWithoutExtension());
 							}
 							else
 							{
-								Log.TraceVerbose("GameFeaturePlugin {0} was marked as restricted to this branch. Leaving enabled.", PluginFile.GetFileNameWithoutExtension());
+								Logger.Logdebug("GameFeaturePlugin {Name} was marked as restricted to this branch. Leaving enabled.", PluginFile.GetFileNameWithoutExtension());
 							}
 						}
 
@@ -215,7 +219,7 @@ public class LyraGameTarget : TargetRules
 						{
 							// This plugin was marked to never compile, so don't
 							bForceDisabled = true;
-							Log.TraceVerbose("GameFeaturePlugin {0} was marked as NeverBuild, disabling.", PluginFile.GetFileNameWithoutExtension());
+							Logger.LogDebug("GameFeaturePlugin {Name} was marked as NeverBuild, disabling.", PluginFile.GetFileNameWithoutExtension());
 						}
 
 						// Keep track of plugin references for validation later
@@ -243,7 +247,7 @@ public class LyraGameTarget : TargetRules
 					}
 					catch (JsonParseException ParseException)
 					{
-						Log.TraceWarning("Failed to parse GameFeaturePlugin file {0}, disabling. Exception: {1}", PluginFile.GetFileNameWithoutExtension(), ParseException.Message);
+						Logger.LogWarning("Failed to parse GameFeaturePlugin file {Name}, disabling. Exception: {1}", PluginFile.GetFileNameWithoutExtension(), ParseException.Message);
 						bForceDisabled = true;
 					}
 
@@ -254,7 +258,7 @@ public class LyraGameTarget : TargetRules
 					}
 
 					// Print out the final decision for this plugin
-					Log.TraceVerbose("ConfigureGameFeaturePlugins() has decided to {0} feature {1}", bEnabled ? "enable" : (bForceDisabled ? "disable" : "ignore"), PluginFile.GetFileNameWithoutExtension());
+					Logger.LogDebug("ConfigureGameFeaturePlugins() has decided to {Action} feature {Name}", bEnabled ? "enable" : (bForceDisabled ? "disable" : "ignore"), PluginFile.GetFileNameWithoutExtension());
 
 					// Enable or disable it
 					if (bEnabled)
