@@ -491,7 +491,8 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	int32 DynamicInstanceIdOffset,
 	int32 DynamicInstanceIdNum,
 	FInstanceCullingResult& Results,
-	FInstanceCullingDrawParams* InstanceCullingDrawParams) const
+	FInstanceCullingDrawParams* InstanceCullingDrawParams,
+	TFunction<void ()>&& SyncPrerequisitesFunc) const
 {
 	Results = FInstanceCullingResult();
 
@@ -509,8 +510,6 @@ void FInstanceCullingContext::BuildRenderingCommands(
 		return;
 	}
 
-	const bool bOcclusionCullInstances = PrevHZB.IsValid() && IsOcclusionCullingEnabled();
-	const uint32 InstanceIdBufferSize = TotalInstances * ViewIds.Num();
 	if (InstanceCullingDrawParams && InstanceCullingManager && InstanceCullingManager->IsDeferredCullingActive() && (InstanceCullingMode == EInstanceCullingMode::Normal))
 	{
 		FInstanceCullingDeferredContext *DeferredContext = InstanceCullingManager->DeferredContext;
@@ -521,9 +520,14 @@ void FInstanceCullingContext::BuildRenderingCommands(
 			Results.DrawIndirectArgsBuffer = DeferredContext->DrawIndirectArgsBuffer;
 			Results.InstanceDataBuffer = DeferredContext->InstanceDataBuffer;
 			Results.UniformBuffer = DeferredContext->UniformBuffer;
-			DeferredContext->AddBatch(GraphBuilder, this, DynamicInstanceIdOffset, DynamicInstanceIdNum, InstanceCullingDrawParams);
+			DeferredContext->AddBatch(GraphBuilder, this, DynamicInstanceIdOffset, DynamicInstanceIdNum, InstanceCullingDrawParams, MoveTemp(SyncPrerequisitesFunc));
 		}
 		return;
+	}
+	// If not running with a deferred context, ensure sync happens at once
+	if (SyncPrerequisitesFunc)
+	{
+		SyncPrerequisitesFunc();
 	}
 
 	ensure(InstanceCullingMode == EInstanceCullingMode::Normal || ViewIds.Num() == 2);
@@ -577,6 +581,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 
 	FRDGBufferRef ViewIdsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.ViewIds"), ViewIds);
 
+	const uint32 InstanceIdBufferSize = TotalInstances * ViewIds.Num();
 	FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(CreateInstanceIdsBufferDesc(FeatureLevel, InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
 	FRDGBufferUAVRef InstanceIdsBufferUAV = GraphBuilder.CreateUAV(InstanceIdsBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
@@ -644,6 +649,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	PassParametersTmp.DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DrawIndirectArgsRDG, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	PassParametersTmp.InstanceIdOffsetBuffer = GraphBuilder.CreateSRV(InstanceIdOffsetBufferRDG, PF_R32_UINT);
 
+	const bool bOcclusionCullInstances = PrevHZB.IsValid() && IsOcclusionCullingEnabled();
 	if (bOcclusionCullInstances)
 	{
 		PassParametersTmp.HZBTexture = GraphBuilder.RegisterExternalTexture(PrevHZB);

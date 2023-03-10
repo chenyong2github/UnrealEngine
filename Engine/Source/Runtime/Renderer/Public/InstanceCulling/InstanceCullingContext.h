@@ -139,7 +139,8 @@ public:
 		int32 DynamicInstanceIdOffset,
 		int32 DynamicInstanceIdNum,
 		FInstanceCullingResult& Results,
-		FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr) const;
+		FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr,
+		TFunction<void()>&& SyncPrerequisitesFunc = TFunction<void()>()) const;
 
 	inline bool HasCullingCommands() const { return TotalInstances > 0; 	}
 

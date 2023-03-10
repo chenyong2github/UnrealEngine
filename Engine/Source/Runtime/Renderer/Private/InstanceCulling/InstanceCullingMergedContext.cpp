@@ -6,6 +6,12 @@
 
 void FInstanceCullingMergedContext::MergeBatches()
 {
+	for (const FAsyncBatchItem& AsyncBatchItem : AsyncBatches)
+	{
+		AsyncBatchItem.SyncPrerequisitesFunc();
+		AddBatchItem(AsyncBatchItem.BatchItem);
+	}
+
 	for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
 	{
 		LoadBalancers[Mode].ReserveStorage(TotalBatches[Mode], TotalItems[Mode]);
@@ -111,10 +117,9 @@ void FInstanceCullingMergedContext::MergeBatches()
 	}
 }
 
-void FInstanceCullingMergedContext::AddBatch(FRDGBuilder& GraphBuilder, const FInstanceCullingContext* Context, int32 DynamicInstanceIdOffset,	int32 DynamicInstanceIdNum, FInstanceCullingDrawParams* InstanceCullingDrawParams)
+void FInstanceCullingMergedContext::AddBatch(FRDGBuilder& GraphBuilder, const FInstanceCullingContext* Context, int32 DynamicInstanceIdOffset,	int32 DynamicInstanceIdNum, FInstanceCullingDrawParams* InstanceCullingDrawParams, TFunction<void()>&& SyncPrerequisitesFunc)
 {
 	checkfSlow(Batches.FindByPredicate([InstanceCullingDrawParams](const FBatchItem& Item) { return Item.Result == InstanceCullingDrawParams; }) == nullptr, TEXT("Output draw paramters registered twice."));
-	Batches.Add(FBatchItem{ Context, InstanceCullingDrawParams, DynamicInstanceIdOffset, DynamicInstanceIdNum });
 
 	const bool bOcclusionCullInstances = Context->PrevHZB.IsValid() && FInstanceCullingContext::IsOcclusionCullingEnabled();
 
@@ -131,6 +136,23 @@ void FInstanceCullingMergedContext::AddBatch(FRDGBuilder& GraphBuilder, const FI
 		}
 	}
 
+	if (SyncPrerequisitesFunc)
+	{
+		AsyncBatches.Add(FAsyncBatchItem{ FBatchItem{ Context, InstanceCullingDrawParams, DynamicInstanceIdOffset, DynamicInstanceIdNum }, MoveTemp(SyncPrerequisitesFunc) });
+
+	}
+	else
+	{
+		AddBatchItem(FBatchItem{ Context, InstanceCullingDrawParams, DynamicInstanceIdOffset, DynamicInstanceIdNum });
+	}
+
+}
+
+void FInstanceCullingMergedContext::AddBatchItem(const FBatchItem& BatchItem)
+{
+	Batches.Add(BatchItem);
+
+	const FInstanceCullingContext* Context = BatchItem.Context;
 	// Accumulate the totals so the deferred processing can pre-size the arrays
 	for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
 	{

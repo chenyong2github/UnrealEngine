@@ -19,6 +19,12 @@ public:
 		FInstanceCullingDrawParams* Result = nullptr;
 		int32 DynamicInstanceIdOffset = 0;
 		int32 DynamicInstanceIdNum = 0;
+		TFunction<void()> SyncPrerequisitesFunc;
+	};
+	struct FAsyncBatchItem
+	{
+		FBatchItem BatchItem;
+		TFunction<void()> SyncPrerequisitesFunc;
 	};
 
 	// Info about a batch of culling work produced by a context, when part of a batched job
@@ -39,6 +45,8 @@ public:
 	/** Batches of GPU instance culling input data. */
 	TArray<FBatchItem, SceneRenderingAllocator> Batches;
 
+	/** Async (and thus added as to the above as late as possible) Batches of GPU instance culling input data. */
+	TArray<FAsyncBatchItem, SceneRenderingAllocator> AsyncBatches;
 
 	/** 
 	 * Merged data, derived in MergeBatches(), follows.
@@ -77,5 +85,9 @@ public:
 	void MergeBatches();
 
 
-	void AddBatch(FRDGBuilder& GraphBuilder, const FInstanceCullingContext* Context, int32 DynamicInstanceIdOffset, int32 DynamicInstanceIdNum, FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr);
+	void AddBatch(FRDGBuilder& GraphBuilder, const FInstanceCullingContext* Context, int32 DynamicInstanceIdOffset, int32 DynamicInstanceIdNum, FInstanceCullingDrawParams* InstanceCullingDrawParams, TFunction<void()>&& SyncPrerequisitesFunc = TFunction<void()>());
+
+private:
+	void AddBatchItem(const FBatchItem& BatchItem);
+
 };

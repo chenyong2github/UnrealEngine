@@ -1421,21 +1421,23 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(
 	if (TaskContext.InstanceCullingContext.IsEnabled())
 	{
 		check(!bHasInstanceCullingDrawParameters);
-		WaitForMeshPassSetupTask();
-
-#if DO_CHECK
-		for (const FVisibleMeshDrawCommand& VisibleMeshDrawCommand : TaskContext.MeshDrawCommands)
-		{
-			if (VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive)
-			{
-				uint32 PrimitiveIndex = VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId & ~GPrimIDDynamicFlag;
-				TaskContext.View->DynamicPrimitiveCollector.CheckPrimitiveProcessed(PrimitiveIndex, GPUScene);
-			}
-		}
-#endif
-
 		// 2. Run or queue finalize culling commands pass
-		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), TaskContext.View->DynamicPrimitiveCollector.NumInstances(), TaskContext.InstanceCullingResult, &OutInstanceCullingDrawParams);
+		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), TaskContext.View->DynamicPrimitiveCollector.NumInstances(), TaskContext.InstanceCullingResult, &OutInstanceCullingDrawParams,
+		[this, &GPUScene]()
+		{
+			WaitForMeshPassSetupTask();
+
+	#if DO_CHECK
+			for (const FVisibleMeshDrawCommand& VisibleMeshDrawCommand : TaskContext.MeshDrawCommands)
+			{
+				if (VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive)
+				{
+					uint32 PrimitiveIndex = VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId & ~GPrimIDDynamicFlag;
+					TaskContext.View->DynamicPrimitiveCollector.CheckPrimitiveProcessed(PrimitiveIndex, GPUScene);
+				}
+			}
+	#endif
+		});
 		TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
 		bHasInstanceCullingDrawParameters = true;
 		check(!TaskContext.InstanceCullingContext.HasCullingCommands() || OutInstanceCullingDrawParams.DrawIndirectArgsBuffer && OutInstanceCullingDrawParams.InstanceIdOffsetBuffer);
