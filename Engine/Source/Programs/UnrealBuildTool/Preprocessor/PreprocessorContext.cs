@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -22,10 +18,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Outer">The outer context</param>
-		public PreprocessorContext(PreprocessorContext? Outer)
+		/// <param name="outer">The outer context</param>
+		public PreprocessorContext(PreprocessorContext? outer)
 		{
-			this.Outer = Outer;
+			Outer = outer;
 		}
 	}
 
@@ -60,35 +56,35 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The source file being read
 		/// </summary>
-		public SourceFile SourceFile;
+		public readonly SourceFile SourceFile;
 
 		/// <summary>
 		/// The directory containing this file. When searching for included files, MSVC will check this directory.
 		/// </summary>
-		public DirectoryItem Directory;
+		public readonly DirectoryItem Directory;
 
 		/// <summary>
 		/// Index of the current markup object being processed
 		/// </summary>
-		public int MarkupIdx;
+		public int MarkupIdx { get; set; }
 
 		/// <summary>
 		/// Index of the next fragment to be read
 		/// </summary>
-		public int FragmentIdx;
+		public int FragmentIdx { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="SourceFile">The source file being parsed</param>
-		/// <param name="Outer">The outer context</param>
-		public PreprocessorFileContext(SourceFile SourceFile, PreprocessorContext? Outer)
-			: base(Outer)
+		/// <param name="sourceFile">The source file being parsed</param>
+		/// <param name="outer">The outer context</param>
+		public PreprocessorFileContext(SourceFile sourceFile, PreprocessorContext? outer)
+			: base(outer)
 		{
-			this.SourceFile = SourceFile;
-			this.Directory = DirectoryItem.GetItemByDirectoryReference(SourceFile.Location.Directory);
-			this.MarkupIdx = 0;
-			this.FragmentIdx = 0;
+			SourceFile = sourceFile;
+			Directory = DirectoryItem.GetItemByDirectoryReference(sourceFile.Location.Directory);
+			MarkupIdx = 0;
+			FragmentIdx = 0;
 		}
 
 		/// <summary>

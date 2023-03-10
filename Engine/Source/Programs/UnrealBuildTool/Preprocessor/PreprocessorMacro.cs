@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using EpicGames.Core;
 
 namespace UnrealBuildTool
 {
@@ -17,65 +16,68 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Name of the macro
 		/// </summary>
-		public Identifier Name;
+		public readonly Identifier Name;
 
 		/// <summary>
 		/// Parameter names for the macro. The '...' placeholder is represented by the __VA_ARGS__ string.
 		/// </summary>
-		public List<Identifier>? Parameters;
+		public readonly List<Identifier>? Parameters;
 
 		/// <summary>
 		/// Raw list of tokens for this macro
 		/// </summary>
-		public List<Token> Tokens;
+		public readonly List<Token> Tokens;
 
 		/// <summary>
 		/// Construct a preprocessor macro
 		/// </summary>
-		/// <param name="Name">Name of the macro</param>
-		/// <param name="Parameters">Parameter list for the macro. Should be null for object macros. Ownership of this list is transferred.</param>
-		/// <param name="Tokens">Tokens for the macro. Ownership of this list is transferred.</param>
-		public PreprocessorMacro(Identifier Name, List<Identifier>? Parameters, List<Token> Tokens)
+		/// <param name="name">Name of the macro</param>
+		/// <param name="parameters">Parameter list for the macro. Should be null for object macros. Ownership of this list is transferred.</param>
+		/// <param name="tokens">Tokens for the macro. Ownership of this list is transferred.</param>
+		public PreprocessorMacro(Identifier name, List<Identifier>? parameters, List<Token> tokens)
 		{
-			this.Name = Name;
-			this.Parameters = Parameters;
-			this.Tokens = Tokens;
+			Name = name;
+			Parameters = parameters;
+			Tokens = tokens;
 		}
 
 		/// <summary>
 		/// Read a macro from a binary archive
 		/// </summary>
-		/// <param name="Reader">Reader to serialize from</param>
-		public PreprocessorMacro(BinaryArchiveReader Reader)
+		/// <param name="reader">Reader to serialize from</param>
+		public PreprocessorMacro(BinaryArchiveReader reader)
 		{
-			Name = Reader.ReadIdentifier();
-			Parameters = Reader.ReadList(() => Reader.ReadIdentifier());
-			Tokens = Reader.ReadList(() => Reader.ReadToken())!;
+			Name = reader.ReadIdentifier();
+			Parameters = reader.ReadList(() => reader.ReadIdentifier());
+			Tokens = reader.ReadList(() => reader.ReadToken())!;
 		}
 
 		/// <summary>
 		/// Write a macro to a binary archive
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		public void Write(BinaryArchiveWriter Writer)
+		/// <param name="writer">Writer to serialize to</param>
+		public void Write(BinaryArchiveWriter writer)
 		{
-			Writer.WriteIdentifier(Name);
-			Writer.WriteList(Parameters, x => Writer.WriteIdentifier(x));
-			Writer.WriteList(Tokens, x => Writer.WriteToken(x));
+			writer.WriteIdentifier(Name);
+			writer.WriteList(Parameters, x => writer.WriteIdentifier(x));
+			writer.WriteList(Tokens, x => writer.WriteToken(x));
 		}
 
 		/// <summary>
 		/// Finds the index of a parameter in the parameter list
 		/// </summary>
-		/// <param name="Parameter">Parameter name to look for</param>
+		/// <param name="parameter">Parameter name to look for</param>
 		/// <returns>Index of the parameter, or -1 if it's not found.</returns>
-		public int FindParameterIndex(Identifier Parameter)
+		public int FindParameterIndex(Identifier parameter)
 		{
-			for (int Idx = 0; Idx < Parameters!.Count; Idx++)
+			if (Parameters != null)
 			{
-				if (Parameters[Idx] == Parameter)
+				for (int idx = 0; idx < Parameters.Count; idx++)
 				{
-					return Idx;
+					if (Parameters[idx] == parameter)
+					{
+						return idx;
+					}
 				}
 			}
 			return -1;
@@ -84,31 +86,31 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Checks whether this macro definition is equivalent to another macro definition
 		/// </summary>
-		/// <param name="Other">The macro definition to compare against</param>
+		/// <param name="other">The macro definition to compare against</param>
 		/// <returns>True if the macro definitions are equivalent</returns>
-		public bool IsEquivalentTo(PreprocessorMacro Other)
+		public bool IsEquivalentTo(PreprocessorMacro other)
 		{
-			if(this != Other)
+			if (this != other)
 			{
-				if(Name != Other.Name || Tokens.Count != Other.Tokens.Count)
+				if (Name != other.Name || Tokens.Count != other.Tokens.Count)
 				{
 					return false;
 				}
-				if(Parameters != null)
+				if (Parameters != null)
 				{
-					if(Other.Parameters == null || Other.Parameters.Count != Parameters.Count || !Enumerable.SequenceEqual(Parameters, Other.Parameters))
+					if (other.Parameters == null || other.Parameters.Count != Parameters.Count || !Enumerable.SequenceEqual(Parameters, other.Parameters))
 					{
 						return false;
 					}
 				}
 				else
 				{
-					if(Other.Parameters != null)
+					if (other.Parameters != null)
 					{
 						return false;
 					}
 				}
-				if(!Enumerable.SequenceEqual(Tokens, Other.Tokens))
+				if (!Enumerable.SequenceEqual(Tokens, other.Tokens))
 				{
 					return false;
 				}
@@ -119,34 +121,22 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// True if the macro is an object macro
 		/// </summary>
-		public bool IsObjectMacro
-		{
-			get { return Parameters == null; }
-		}
+		public bool IsObjectMacro => Parameters == null;
 
 		/// <summary>
 		/// True if the macro is a function macro
 		/// </summary>
-		public bool IsFunctionMacro
-		{
-			get { return Parameters != null; }
-		}
-		
+		public bool IsFunctionMacro => Parameters != null;
+
 		/// <summary>
 		/// The number of required parameters. For variadic macros, the last parameter is optional.
 		/// </summary>
-		public int MinRequiredParameters
-		{
-			get { return HasVariableArgumentList? (Parameters!.Count - 1) : Parameters!.Count; }
-		}
+		public int MinRequiredParameters => HasVariableArgumentList ? (Parameters!.Count - 1) : Parameters!.Count;
 
 		/// <summary>
 		/// True if the macro has a variable argument list
 		/// </summary>
-		public bool HasVariableArgumentList
-		{
-			get { return Parameters!.Count > 0 && Parameters[Parameters.Count - 1] == Identifiers.__VA_ARGS__; }
-		}
+		public bool HasVariableArgumentList => Parameters!.Count > 0 && Parameters[^1] == Identifiers.__VA_ARGS__;
 
 		/// <summary>
 		/// Converts this macro to a string for debugging
@@ -154,25 +144,25 @@ namespace UnrealBuildTool
 		/// <returns>The tokens in this macro</returns>
 		public override string ToString()
 		{
-			StringBuilder Result = new StringBuilder(Name.ToString());
+			StringBuilder result = new(Name.ToString());
 			if (Parameters != null)
 			{
-				Result.AppendFormat("({0})", String.Join(", ", Parameters));
+				result.AppendFormat("({0})", String.Join(", ", Parameters));
 			}
-			Result.Append("=");
+			result.Append('=');
 			if (Tokens.Count > 0)
 			{
-				Result.Append(Tokens[0].Text);
-				for (int Idx = 1; Idx < Tokens.Count; Idx++)
+				result.Append(Tokens[0].Text);
+				for (int idx = 1; idx < Tokens.Count; idx++)
 				{
-					if(Tokens[Idx].HasLeadingSpace)
+					if (Tokens[idx].HasLeadingSpace)
 					{
-						Result.Append(" ");
+						result.Append(' ');
 					}
-					Result.Append(Tokens[Idx].Text);
+					result.Append(Tokens[idx].Text);
 				}
 			}
-			return Result.ToString();
+			return result.ToString();
 		}
 	}
 }

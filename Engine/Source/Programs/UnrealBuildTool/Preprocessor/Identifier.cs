@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using EpicGames.Core;
 
 namespace UnrealBuildTool
 {
@@ -18,68 +14,68 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The name of this identifier
 		/// </summary>
-		string Name;
+		readonly string _name;
 
 		/// <summary>
 		/// Global map of name to identifier instance
 		/// </summary>
-		static ConcurrentDictionary<string, Identifier> NameToIdentifier = new ConcurrentDictionary<string, Identifier>(StringComparer.Ordinal);
+		static readonly ConcurrentDictionary<string, Identifier> s_nameToIdentifier = new(StringComparer.Ordinal);
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Name">Name of this identifier</param>
-		private Identifier(string Name)
+		/// <param name="name">Name of this identifier</param>
+		private Identifier(string name)
 		{
-			this.Name = Name;
+			_name = name;
 		}
 
 		/// <summary>
-		/// Finds or adds an identifer with the given name
+		/// Finds or adds an identifier with the given name
 		/// </summary>
-		/// <param name="Name">Name of the identifier</param>
+		/// <param name="name">Name of the identifier</param>
 		/// <returns>New Identifier instance</returns>
-		public static Identifier FindOrAdd(string Name)
+		public static Identifier FindOrAdd(string name)
 		{
-			Identifier? Result;
-			if(!NameToIdentifier.TryGetValue(Name, out Result))
+			if (!s_nameToIdentifier.TryGetValue(name, out Identifier? result))
 			{
-				Identifier NewIdentifier = new Identifier(Name);
-				if(NameToIdentifier.TryAdd(Name, NewIdentifier))
+				Identifier newIdentifier = new(name);
+				if (s_nameToIdentifier.TryAdd(name, newIdentifier))
 				{
-					Result = NewIdentifier;
+					result = newIdentifier;
 				}
 				else
 				{
-					Result = NameToIdentifier[Name];
+					result = s_nameToIdentifier[name];
 				}
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Compares this identifier to another identifier
 		/// </summary>
-		/// <param name="Other">Identifier to compare to</param>
+		/// <param name="other">Identifier to compare to</param>
 		/// <returns>Value indicating which identifier should sort first</returns>
-		public int CompareTo(Identifier? Other)
+		public int CompareTo(Identifier? other)
 		{
-			return ReferenceEquals(Other, null)? 1 : Name.CompareTo(Other.Name);
+			return other is null ? 1 : _name.CompareTo(other._name);
 		}
 
 		/// <summary>
-		/// Formats this identifer as a string for debugging
+		/// Formats this identifier as a string for debugging
 		/// </summary>
 		/// <returns>Name of this identifier</returns>
 		public override string ToString()
 		{
-			return Name;
+			return _name;
 		}
 	}
 
 	/// <summary>
 	/// Well known predefined identifiers
 	/// </summary>
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Keep the names closer to definitions")]
 	class Identifiers
 	{
 		public static readonly Identifier Include = Identifier.FindOrAdd("include");
@@ -129,21 +125,21 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Read an identifier from a binary archive
 		/// </summary>
-		/// <param name="Reader">Reader to serialize data from</param>
+		/// <param name="reader">Reader to serialize data from</param>
 		/// <returns>Instance of the serialized identifier</returns>
-		public static Identifier ReadIdentifier(this BinaryArchiveReader Reader)
+		public static Identifier ReadIdentifier(this BinaryArchiveReader reader)
 		{
-			return Reader.ReadObjectReference<Identifier>(() => Identifier.FindOrAdd(Reader.ReadString()!))!;
+			return reader.ReadObjectReference<Identifier>(() => Identifier.FindOrAdd(reader.ReadString()!))!;
 		}
 
 		/// <summary>
 		/// Write an identifier to a binary archive
 		/// </summary>
-		/// <param name="Writer">Writer to serialize data to</param>
-		/// <param name="Identifier">Identifier to write</param>
-		public static void WriteIdentifier(this BinaryArchiveWriter Writer, Identifier? Identifier)
+		/// <param name="writer">Writer to serialize data to</param>
+		/// <param name="identifier">Identifier to write</param>
+		public static void WriteIdentifier(this BinaryArchiveWriter writer, Identifier? identifier)
 		{
-			Writer.WriteObjectReference<Identifier?>(Identifier, () => Writer.WriteString(Identifier!.ToString()));
+			writer.WriteObjectReference<Identifier?>(identifier, () => writer.WriteString(identifier!.ToString()));
 		}
 	}
 }

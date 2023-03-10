@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using EpicGames.Core;
 
 namespace UnrealBuildTool
 {
@@ -100,51 +97,51 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The directive corresponding to this markup
 		/// </summary>
-		public SourceFileMarkupType Type;
+		public readonly SourceFileMarkupType Type;
 
 		/// <summary>
 		/// The one-based line number of this markup
 		/// </summary>
-		public int LineNumber;
+		public readonly int LineNumber;
 
 		/// <summary>
 		/// The tokens parsed for this markup. Set for directives.
 		/// </summary>
-		public List<Token>? Tokens;
+		public readonly List<Token>? Tokens;
 
 		/// <summary>
 		/// Construct the annotation with the given range
 		/// </summary>
-		/// <param name="Type">The type of this directive</param>
-		/// <param name="LineNumber">The line number of this markup</param>
-		/// <param name="Tokens">List of tokens</param>
-		public SourceFileMarkup(SourceFileMarkupType Type, int LineNumber, List<Token>? Tokens)
+		/// <param name="type">The type of this directive</param>
+		/// <param name="lineNumber">The line number of this markup</param>
+		/// <param name="tokens">List of tokens</param>
+		public SourceFileMarkup(SourceFileMarkupType type, int lineNumber, List<Token>? tokens)
 		{
-			this.Type = Type;
-			this.LineNumber = LineNumber;
-			this.Tokens = Tokens;
+			Type = type;
+			LineNumber = lineNumber;
+			Tokens = tokens;
 		}
 
 		/// <summary>
 		/// Constructs a markup object using data read from an archive
 		/// </summary>
-		/// <param name="Reader">The reader to deserialize from</param>
-		public SourceFileMarkup(BinaryArchiveReader Reader)
+		/// <param name="reader">The reader to deserialize from</param>
+		public SourceFileMarkup(BinaryArchiveReader reader)
 		{
-			Type = (SourceFileMarkupType)Reader.ReadByte();
-			LineNumber = Reader.ReadInt();
-			Tokens = Reader.ReadList(() => Reader.ReadToken());
+			Type = (SourceFileMarkupType)reader.ReadByte();
+			LineNumber = reader.ReadInt();
+			Tokens = reader.ReadList(() => reader.ReadToken());
 		}
 
 		/// <summary>
 		/// Serializes this object to a binary archive
 		/// </summary>
-		/// <param name="Writer">Writer to serialize to</param>
-		public void Write(BinaryArchiveWriter Writer)
+		/// <param name="writer">Writer to serialize to</param>
+		public void Write(BinaryArchiveWriter writer)
 		{
-			Writer.WriteByte((byte)Type);
-			Writer.WriteInt(LineNumber);
-			Writer.WriteList(Tokens, x => Writer.WriteToken(x));
+			writer.WriteByte((byte)Type);
+			writer.WriteInt(LineNumber);
+			writer.WriteList(Tokens, x => writer.WriteToken(x));
 		}
 
 		/// <summary>
@@ -153,17 +150,11 @@ namespace UnrealBuildTool
 		/// <returns>True if this object is a conditional preprocessor directive</returns>
 		public bool IsConditionalPreprocessorDirective()
 		{
-			switch(Type)
+			return Type switch
 			{
-				case SourceFileMarkupType.If:
-				case SourceFileMarkupType.Ifdef:
-				case SourceFileMarkupType.Ifndef:
-				case SourceFileMarkupType.Elif:
-				case SourceFileMarkupType.Else:
-				case SourceFileMarkupType.Endif:
-					return true;
-			}
-			return false;
+				SourceFileMarkupType.If or SourceFileMarkupType.Ifdef or SourceFileMarkupType.Ifndef or SourceFileMarkupType.Elif or SourceFileMarkupType.Else or SourceFileMarkupType.Endif => true,
+				_ => false,
+			};
 		}
 
 		/// <summary>
@@ -171,11 +162,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public int GetConditionDepthDelta()
 		{
-			if(Type == SourceFileMarkupType.If || Type == SourceFileMarkupType.Ifdef || Type == SourceFileMarkupType.Ifndef)
+			if (Type == SourceFileMarkupType.If || Type == SourceFileMarkupType.Ifdef || Type == SourceFileMarkupType.Ifndef)
 			{
 				return +1;
 			}
-			else if(Type == SourceFileMarkupType.Endif)
+			else if (Type == SourceFileMarkupType.Endif)
 			{
 				return -1;
 			}
@@ -191,161 +182,161 @@ namespace UnrealBuildTool
 		/// <returns>String representation for debugging</returns>
 		public override string ToString()
 		{
-			StringBuilder Result = new StringBuilder();
-			Result.AppendFormat("[{0}] ", LineNumber);
+			StringBuilder result = new();
+			result.AppendFormat("[{0}] ", LineNumber);
 
-			if(Type == SourceFileMarkupType.Text)
+			if (Type == SourceFileMarkupType.Text)
 			{
-				Result.Append("...");
+				result.Append("...");
 			}
 			else
 			{
-				Result.Append("#");
-				if(Type != SourceFileMarkupType.OtherDirective)
+				result.Append('#');
+				if (Type != SourceFileMarkupType.OtherDirective)
 				{
-					Result.Append(Type.ToString().ToLowerInvariant());
+					result.Append(Type.ToString().ToLowerInvariant());
 				}
-				if(Tokens != null && Tokens.Count > 0)
+				if (Tokens != null && Tokens.Count > 0)
 				{
-					Result.Append(' ');
-					Token.Format(Tokens, Result);
+					result.Append(' ');
+					Token.Format(Tokens, result);
 				}
 			}
-			return Result.ToString();
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Create markup for the given file
 		/// </summary>
-		/// <param name="Reader">Reader for tokens in the file</param>
+		/// <param name="reader">Reader for tokens in the file</param>
 		/// <returns>Array of markup objects which split up the given text buffer</returns>
-		public static SourceFileMarkup[] Parse(TokenReader Reader)
+		public static SourceFileMarkup[] Parse(TokenReader reader)
 		{
-			List<SourceFileMarkup> Markup = new List<SourceFileMarkup>();
-			if(Reader.MoveNext())
+			List<SourceFileMarkup> markup = new();
+			if (reader.MoveNext())
 			{
-				bool bMoveNext = true;
-				while(bMoveNext)
+				bool moveNext = true;
+				while (moveNext)
 				{
-					int StartLineNumber = Reader.LineNumber;
-					if (Reader.Current.Type == TokenType.Hash)
+					int startLineNumber = reader.LineNumber;
+					if (reader.Current.Type == TokenType.Hash)
 					{
 						// Create the appropriate markup object for the directive
-						SourceFileMarkupType Type = SourceFileMarkupType.OtherDirective;
-						if(Reader.MoveNext())
+						SourceFileMarkupType type = SourceFileMarkupType.OtherDirective;
+						if (reader.MoveNext())
 						{
-							if(Reader.Current.Type == TokenType.Identifier)
+							if (reader.Current.Type == TokenType.Identifier)
 							{
-								Identifier Directive = Reader.Current.Identifier!;
-								if(Directive == Identifiers.Include)
+								Identifier directive = reader.Current.Identifier!;
+								if (directive == Identifiers.Include)
 								{
-									Type = SourceFileMarkupType.Include;
+									type = SourceFileMarkupType.Include;
 								}
-								else if(Directive == Identifiers.Define)
+								else if (directive == Identifiers.Define)
 								{
-									Type = SourceFileMarkupType.Define;
+									type = SourceFileMarkupType.Define;
 								}
-								else if(Directive == Identifiers.Undef)
+								else if (directive == Identifiers.Undef)
 								{
-									Type = SourceFileMarkupType.Undef;
+									type = SourceFileMarkupType.Undef;
 								}
-								else if(Directive == Identifiers.If)
+								else if (directive == Identifiers.If)
 								{
-									Type = SourceFileMarkupType.If;
+									type = SourceFileMarkupType.If;
 								}
-								else if(Directive == Identifiers.Ifdef)
+								else if (directive == Identifiers.Ifdef)
 								{
-									Type = SourceFileMarkupType.Ifdef;
+									type = SourceFileMarkupType.Ifdef;
 								}
-								else if(Directive == Identifiers.Ifndef)
+								else if (directive == Identifiers.Ifndef)
 								{
-									Type = SourceFileMarkupType.Ifndef;
+									type = SourceFileMarkupType.Ifndef;
 								}
-								else if(Directive == Identifiers.Elif)
+								else if (directive == Identifiers.Elif)
 								{
-									Type = SourceFileMarkupType.Elif;
+									type = SourceFileMarkupType.Elif;
 								}
-								else if(Directive == Identifiers.Else)
+								else if (directive == Identifiers.Else)
 								{
-									Type = SourceFileMarkupType.Else;
+									type = SourceFileMarkupType.Else;
 								}
-								else if(Directive == Identifiers.Endif)
+								else if (directive == Identifiers.Endif)
 								{
-									Type = SourceFileMarkupType.Endif;
+									type = SourceFileMarkupType.Endif;
 								}
-								else if(Directive == Identifiers.Pragma)
+								else if (directive == Identifiers.Pragma)
 								{
-									Type = SourceFileMarkupType.Pragma;
+									type = SourceFileMarkupType.Pragma;
 								}
-								else if(Directive == Identifiers.Error)
+								else if (directive == Identifiers.Error)
 								{
-									Type = SourceFileMarkupType.Error;
+									type = SourceFileMarkupType.Error;
 								}
-								else if(Directive == Identifiers.Warning)
+								else if (directive == Identifiers.Warning)
 								{
-									Type = SourceFileMarkupType.Warning;
+									type = SourceFileMarkupType.Warning;
 								}
 							}
-							else if(Reader.Current.Type == TokenType.Newline)
+							else if (reader.Current.Type == TokenType.Newline)
 							{
-								Type = SourceFileMarkupType.Empty;
+								type = SourceFileMarkupType.Empty;
 							}
 						}
 
 						// Create the token list
-						List<Token> Tokens = new List<Token>();
-						if(Type == SourceFileMarkupType.OtherDirective)
+						List<Token> tokens = new();
+						if (type == SourceFileMarkupType.OtherDirective)
 						{
-							Tokens.Add(Reader.Current);
+							tokens.Add(reader.Current);
 						}
 
 						// Read the first token
-						if(Type == SourceFileMarkupType.Empty)
+						if (type == SourceFileMarkupType.Empty)
 						{
-							bMoveNext = true;
+							moveNext = true;
 						}
-						else if(Type == SourceFileMarkupType.Include)
+						else if (type == SourceFileMarkupType.Include)
 						{
-							bMoveNext = Reader.MoveNextIncludePath();
+							moveNext = reader.MoveNextIncludePath();
 						}
-						else if(Type == SourceFileMarkupType.Error || Type == SourceFileMarkupType.Warning)
+						else if (type == SourceFileMarkupType.Error || type == SourceFileMarkupType.Warning)
 						{
-							bMoveNext = Reader.MoveNextTokenString();
+							moveNext = reader.MoveNextTokenString();
 						}
 						else
 						{
-							bMoveNext = Reader.MoveNext();
+							moveNext = reader.MoveNext();
 						}
 
 						// Read the rest of the tokens
-						while(bMoveNext && Reader.Current.Type != TokenType.Newline)
+						while (moveNext && reader.Current.Type != TokenType.Newline)
 						{
-							Tokens.Add(Reader.Current);
-							bMoveNext = Reader.MoveNext();
+							tokens.Add(reader.Current);
+							moveNext = reader.MoveNext();
 						}
 
 						// Create the markup
-						Markup.Add(new SourceFileMarkup(Type, StartLineNumber, Tokens));
+						markup.Add(new SourceFileMarkup(type, startLineNumber, tokens));
 
 						// Move to the next token
-						bMoveNext = Reader.MoveNext();
+						moveNext = reader.MoveNext();
 					}
-					else if(Reader.Current.Type != TokenType.Newline)
+					else if (reader.Current.Type != TokenType.Newline)
 					{
 						// Create the new fragment
-						Markup.Add(new SourceFileMarkup(SourceFileMarkupType.Text, StartLineNumber, null));
+						markup.Add(new SourceFileMarkup(SourceFileMarkupType.Text, startLineNumber, null));
 
 						// Move to the next directive
-						bMoveNext = Reader.MoveToNextDirective();
+						moveNext = reader.MoveToNextDirective();
 					}
 					else
 					{
 						// Skip the empty line
-						bMoveNext = Reader.MoveNext();
+						moveNext = reader.MoveNext();
 					}
 				}
 			}
-			return Markup.ToArray();
+			return markup.ToArray();
 		}
 	}
 }

@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using EpicGames.Core;
 
 namespace UnrealBuildTool
 {
@@ -89,154 +88,142 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Static token names
 		/// </summary>
-		static string[] StaticTokens;
+		static readonly string[] s_staticTokens;
 
 		/// <summary>
 		/// Contains the type of the token
 		/// </summary>
-		public TokenType Type
-		{
-			get;
-		}
+		public readonly TokenType Type;
 
 		/// <summary>
 		/// Properties for this token
 		/// </summary>
-		public TokenFlags Flags
-		{
-			get;
-		}
+		public readonly TokenFlags Flags;
 
 		/// <summary>
 		/// If this token is identifier, contains the identifier name
 		/// </summary>
-		public Identifier? Identifier
-		{
-			get;
-		}
+		public readonly Identifier? Identifier;
 
 		/// <summary>
 		/// If this token is a literal, contains the raw utf-8 representation of it.
 		/// </summary>
-		public byte[]? Literal
+		public readonly byte[]? Literal;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="type">The token type</param>
+		/// <param name="flags">Flags for this token</param>
+		public Token(TokenType type, TokenFlags flags)
 		{
-			get;
+			Type = type;
+			Flags = flags;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Type">The token type</param>
-		/// <param name="Flags">Flags for this token</param>
-		public Token(TokenType Type, TokenFlags Flags)
+		/// <param name="identifier">The token identifier</param>
+		/// <param name="flags">Flags for this token</param>
+		public Token(Identifier identifier, TokenFlags flags)
 		{
-			this.Type = Type;
-			this.Flags = Flags;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Identifier">The token identifier</param>
-		/// <param name="Flags">Flags for this token</param>
-		public Token(Identifier Identifier, TokenFlags Flags)
-		{
-			this.Type = TokenType.Identifier;
-			this.Flags = Flags;
-			this.Identifier = Identifier;
+			Type = TokenType.Identifier;
+			Flags = flags;
+			Identifier = identifier;
 		}
 
 		/// <summary>
 		/// Constructs a literal token
 		/// </summary>
-		public Token(TokenType Type, TokenFlags Flags, byte[] Literal) 
-			: this(Type, Flags)
+		public Token(TokenType type, TokenFlags flags, byte[] literal)
+			: this(type, flags)
 		{
-			Debug.Assert(IsLiteral(Type));
-			this.Literal = Literal;
+			Debug.Assert(IsLiteral(type));
+			Literal = literal;
 		}
 
 		/// <summary>
 		/// Constructs a literal token
 		/// </summary>
-		public Token(TokenType Type, TokenFlags Flags, string Literal) 
-			: this(Type, Flags)
+		public Token(TokenType type, TokenFlags flags, string literal)
+			: this(type, flags)
 		{
-			Debug.Assert(IsLiteral(Type));
-			this.Literal = Encoding.UTF8.GetBytes(Literal);
+			Debug.Assert(IsLiteral(type));
+			Literal = Encoding.UTF8.GetBytes(literal);
 		}
 
 		/// <summary>
 		/// Reads a token from a binary archive
 		/// </summary>
-		/// <param name="Reader">Archive to read from</param>
-		public Token(BinaryArchiveReader Reader)
+		/// <param name="reader">Archive to read from</param>
+		public Token(BinaryArchiveReader reader)
 		{
-			Type = (TokenType)Reader.ReadByte();
-			Flags = (TokenFlags)Reader.ReadByte();
-			if(Type == TokenType.Identifier)
+			Type = (TokenType)reader.ReadByte();
+			Flags = (TokenFlags)reader.ReadByte();
+			if (Type == TokenType.Identifier)
 			{
-				Identifier = Reader.ReadIdentifier();
+				Identifier = reader.ReadIdentifier();
 			}
-			else if(IsLiteral(Type))
+			else if (IsLiteral(Type))
 			{
-				Literal = Reader.ReadByteArray();
+				Literal = reader.ReadByteArray();
 			}
 		}
 
 		/// <summary>
 		/// Writes a token to a binary archive
 		/// </summary>
-		/// <param name="Writer">The writer to serialize to</param>
-		public void Write(BinaryArchiveWriter Writer)
+		/// <param name="writer">The writer to serialize to</param>
+		public void Write(BinaryArchiveWriter writer)
 		{
-			Writer.WriteByte((byte)Type);
-			Writer.WriteByte((byte)Flags);
-			if(Type == TokenType.Identifier)
+			writer.WriteByte((byte)Type);
+			writer.WriteByte((byte)Flags);
+			if (Type == TokenType.Identifier)
 			{
-				Writer.WriteIdentifier(Identifier!);
+				writer.WriteIdentifier(Identifier!);
 			}
-			else if(IsLiteral(Type))
+			else if (IsLiteral(Type))
 			{
-				Writer.WriteByteArray(Literal);
+				writer.WriteByteArray(Literal);
 			}
 		}
 
 		/// <summary>
 		/// Checks if a token is equal to another object
 		/// </summary>
-		/// <param name="Other">The object to compare against</param>
+		/// <param name="other">The object to compare against</param>
 		/// <returns>True if the objects are equal, false otherwise</returns>
-		public override bool Equals(object? Other)
+		public override bool Equals(object? other)
 		{
-			return Equals(Other as Token);
+			return Equals(other as Token);
 		}
 
 		/// <summary>
 		/// Checks if two tokens are equivalent
 		/// </summary>
-		/// <param name="Other">The object to compare against</param>
+		/// <param name="other">The object to compare against</param>
 		/// <returns>True if the tokens are equal, false otherwise</returns>
-		public bool Equals(Token? Other)
+		public bool Equals(Token? other)
 		{
-			if(ReferenceEquals(Other, null))
+			if (other is null)
 			{
 				return false;
 			}
-			if(Type != Other.Type || Flags != Other.Flags || Identifier != Other.Identifier)
+			if (Type != other.Type || Flags != other.Flags || Identifier != other.Identifier)
 			{
 				return false;
 			}
-			if(Literal != null)
+			if (Literal != null)
 			{
-				if(Other.Literal == null || Literal.Length != Other.Literal.Length || !Enumerable.SequenceEqual(Literal, Other.Literal))
+				if (other.Literal == null || Literal.Length != other.Literal.Length || !Enumerable.SequenceEqual(Literal, other.Literal))
 				{
 					return false;
 				}
 			}
 			else
 			{
-				if(Other.Literal != null)
+				if (other.Literal != null)
 				{
 					return false;
 				}
@@ -247,30 +234,30 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Compares two tokens for equality
 		/// </summary>
-		/// <param name="A">The first token to compare</param>
-		/// <param name="B">The second token to compare</param>
+		/// <param name="lhs">The first token to compare</param>
+		/// <param name="rhs">The second token to compare</param>
 		/// <returns>True if the objects are equal, false otherwise</returns>
-		public static bool operator==(Token A, Token B)
+		public static bool operator ==(Token lhs, Token rhs)
 		{
-			if((object)A == null)
+			if (lhs is null)
 			{
-				return ((object)B == null);
+				return (rhs is null);
 			}
 			else
 			{
-				return A.Equals(B);
+				return lhs.Equals(rhs);
 			}
 		}
 
 		/// <summary>
 		/// Compares two tokens for inequality
 		/// </summary>
-		/// <param name="A">The first token to compare</param>
-		/// <param name="B">The second token to compare</param>
+		/// <param name="lhs">The first token to compare</param>
+		/// <param name="rhs">The second token to compare</param>
 		/// <returns>True if the objects are not equal, false otherwise</returns>
-		public static bool operator!=(Token A, Token B)
+		public static bool operator !=(Token lhs, Token rhs)
 		{
-			return !(A == B);
+			return !(lhs == rhs);
 		}
 
 		/// <summary>
@@ -279,16 +266,16 @@ namespace UnrealBuildTool
 		/// <returns>Hash code for the object</returns>
 		public override int GetHashCode()
 		{
-			int Result = (int)Type + (int)Flags * 7;
-			if(Identifier != null)
+			int result = (int)Type + (int)Flags * 7;
+			if (Identifier != null)
 			{
-				Result = (Result * 11) + Identifier.GetHashCode();
+				result = (result * 11) + Identifier.GetHashCode();
 			}
-			if(Literal != null)
+			if (Literal != null)
 			{
-				for(int Idx = 0; Idx < Literal.Length; Idx++)
+				for (int idx = 0; idx < Literal.Length; idx++)
 				{
-					Result = (Result * 13) + Literal[Idx];
+					result = (result * 13) + Literal[idx];
 				}
 			}
 			return base.GetHashCode();
@@ -301,17 +288,17 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(Identifier != null)
+				if (Identifier != null)
 				{
 					return Identifier.ToString();
 				}
-				else if(Literal != null)
+				else if (Literal != null)
 				{
 					return Encoding.UTF8.GetString(Literal);
 				}
 				else
 				{
-					return StaticTokens[(int)Type];
+					return s_staticTokens[(int)Type];
 				}
 			}
 		}
@@ -319,119 +306,116 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Returns a new token with different flags
 		/// </summary>
-		/// <param name="FlagsToAdd">Flags to add from the token</param>
+		/// <param name="flagsToAdd">Flags to add from the token</param>
 		/// <returns>New token with updated flags</returns>
-		public Token AddFlags(TokenFlags FlagsToAdd)
+		public Token AddFlags(TokenFlags flagsToAdd)
 		{
-			if(Identifier != null)
+			if (Identifier != null)
 			{
-				return new Token(Identifier, Flags | FlagsToAdd);
+				return new Token(Identifier, Flags | flagsToAdd);
 			}
-			else if(Literal != null)
+			else if (Literal != null)
 			{
-				return new Token(Type, Flags | FlagsToAdd, Literal);
+				return new Token(Type, Flags | flagsToAdd, Literal);
 			}
 			else
 			{
-				return new Token(Type, Flags | FlagsToAdd);
+				return new Token(Type, Flags | flagsToAdd);
 			}
 		}
 
 		/// <summary>
 		/// Returns a new token with different flags
 		/// </summary>
-		/// <param name="FlagsToRemove">Flags to remove from the token</param>
+		/// <param name="flagsToRemove">Flags to remove from the token</param>
 		/// <returns>New token with updated flags</returns>
-		public Token RemoveFlags(TokenFlags FlagsToRemove)
+		public Token RemoveFlags(TokenFlags flagsToRemove)
 		{
-			if(Identifier != null)
+			if (Identifier != null)
 			{
-				return new Token(Identifier, Flags & ~FlagsToRemove);
+				return new Token(Identifier, Flags & ~flagsToRemove);
 			}
-			else if(Literal != null)
+			else if (Literal != null)
 			{
-				return new Token(Type, Flags & ~FlagsToRemove, Literal);
+				return new Token(Type, Flags & ~flagsToRemove, Literal);
 			}
 			else
 			{
-				return new Token(Type, Flags & ~FlagsToRemove);
+				return new Token(Type, Flags & ~flagsToRemove);
 			}
 		}
 
 		/// <summary>
 		/// Accessor for whether this token has leading whitespace
 		/// </summary>
-		public bool HasLeadingSpace
-		{
-			get { return (Flags & TokenFlags.HasLeadingSpace) != 0; }
-		}
+		public bool HasLeadingSpace => (Flags & TokenFlags.HasLeadingSpace) != 0;
 
 		/// <summary>
 		/// Checks whether two tokens match
 		/// </summary>
-		/// <param name="Other">The token to compare against</param>
+		/// <param name="other">The token to compare against</param>
 		/// <returns>True if the tokens match, false otherwise</returns>
-		public bool Matches(Token Other)
+		public bool Matches(Token other)
 		{
-			if(Type != Other.Type)
+			if (Type != other.Type)
 			{
 				return false;
 			}
 
-			if(Literal == null)
+			if (Literal == null)
 			{
-				return Identifier == Other.Identifier;
+				return Identifier == other.Identifier;
 			}
-			else 
+			else
 			{
-				return Other.Literal != null && Enumerable.SequenceEqual(Literal, Other.Literal);
+				return other.Literal != null && Enumerable.SequenceEqual(Literal, other.Literal);
 			}
 		}
 
 		/// <summary>
 		/// Determines whether the given token type is a literal
 		/// </summary>
-		/// <param name="Type">The type to test</param>
+		/// <param name="type">The type to test</param>
 		/// <returns>True if the given type is a literal</returns>
-		public static bool IsLiteral(TokenType Type)
+		public static bool IsLiteral(TokenType type)
 		{
-			return Type == TokenType.Unknown || Type == TokenType.Character || Type == TokenType.String || Type == TokenType.Number || Type == TokenType.StringOfTokens || Type == TokenType.SystemInclude;
+			return type == TokenType.Unknown || type == TokenType.Character || type == TokenType.String || type == TokenType.Number || type == TokenType.StringOfTokens || type == TokenType.SystemInclude;
 		}
 
 		/// <summary>
 		/// Concatenate a sequence of tokens into a string
 		/// </summary>
-		/// <param name="Tokens">The sequence of tokens to concatenate</param>
+		/// <param name="tokens">The sequence of tokens to concatenate</param>
 		/// <returns>String containing the concatenated tokens</returns>
-		public static string Format(IEnumerable<Token> Tokens)
+		public static string Format(IEnumerable<Token> tokens)
 		{
-			StringBuilder Result = new StringBuilder();
-			Format(Tokens, Result);
-			return Result.ToString();
+			StringBuilder result = new();
+			Format(tokens, result);
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Concatenate a sequence of tokens into a string
 		/// </summary>
-		/// <param name="Tokens">The sequence of tokens to concatenate</param>
-		/// <param name="Result">Receives the formatted string</param>
-		public static void Format(IEnumerable<Token> Tokens, StringBuilder Result)
+		/// <param name="tokens">The sequence of tokens to concatenate</param>
+		/// <param name="result">Receives the formatted string</param>
+		public static void Format(IEnumerable<Token> tokens, StringBuilder result)
 		{
-			IEnumerator<Token> Enumerator = Tokens.GetEnumerator();
-			if(Enumerator.MoveNext())
+			IEnumerator<Token> enumerator = tokens.GetEnumerator();
+			if (enumerator.MoveNext())
 			{
-				Result.Append(Enumerator.Current.Text);
+				result.Append(enumerator.Current.Text);
 
-				Token LastToken = Enumerator.Current;
-				while(Enumerator.MoveNext())
+				Token lastToken = enumerator.Current;
+				while (enumerator.MoveNext())
 				{
-					Token Token = Enumerator.Current;
-					if(Token.HasLeadingSpace && (Token.Type != TokenType.LeftParen || LastToken.Type != TokenType.Identifier || LastToken.Identifier != Identifiers.__pragma))
+					Token token = enumerator.Current;
+					if (token.HasLeadingSpace && (token.Type != TokenType.LeftParen || lastToken.Type != TokenType.Identifier || lastToken.Identifier != Identifiers.__pragma))
 					{
-						Result.Append(" ");
+						result.Append(' ');
 					}
-					Result.Append(Token.Text);
-					LastToken = Token;
+					result.Append(token.Text);
+					lastToken = token;
 				}
 			}
 		}
@@ -439,33 +423,34 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Concatenate two tokens together
 		/// </summary>
-		/// <param name="FirstToken">The first token</param>
-		/// <param name="SecondToken">The second token</param>
-		/// <param name="Context">Current preprocessor context</param>
+		/// <param name="firstToken">The first token</param>
+		/// <param name="secondToken">The second token</param>
+		/// <param name="context">Current preprocessor context</param>
 		/// <returns>The combined token</returns>
-		public static Token Concatenate(Token FirstToken, Token SecondToken, PreprocessorContext Context)
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "<Pending>")]
+		public static Token Concatenate(Token firstToken, Token secondToken, PreprocessorContext context)
 		{
-			string Text = FirstToken.Text.ToString() + SecondToken.Text.ToString();
+			string text = firstToken.Text.ToString() + secondToken.Text.ToString();
 
-			List<Token> Tokens = new List<Token>();
+			List<Token> tokens = new();
 
-			TokenReader Reader = new TokenReader(Text);
-			while(Reader.MoveNext())
+			TokenReader reader = new(text);
+			while (reader.MoveNext())
 			{
-				Tokens.Add(Reader.Current);
+				tokens.Add(reader.Current);
 			}
 
-			if(Tokens.Count == 0)
+			if (tokens.Count == 0)
 			{
 				return new Token(TokenType.Placemarker, TokenFlags.None);
 			}
-			else if(Tokens.Count == 1)
+			else if (tokens.Count == 1)
 			{
-				return Tokens[0];
+				return tokens[0];
 			}
 			else
 			{
-				return new Token(TokenType.Unknown, TokenFlags.None, Text);
+				return new Token(TokenType.Unknown, TokenFlags.None, text);
 			}
 		}
 
@@ -474,39 +459,39 @@ namespace UnrealBuildTool
 		/// </summary>
 		static Token()
 		{
-			StaticTokens = new string[(int)TokenType.Max];
-			StaticTokens[(int)TokenType.LeftParen] = "(";
-			StaticTokens[(int)TokenType.RightParen] = ")";
-			StaticTokens[(int)TokenType.Comma] = ",";
-			StaticTokens[(int)TokenType.Newline] = "\n";
-			StaticTokens[(int)TokenType.Ellipsis] = "...";
-			StaticTokens[(int)TokenType.Placemarker] = "";
-			StaticTokens[(int)TokenType.Dot] = ".";
-			StaticTokens[(int)TokenType.QuestionMark] = "?";
-			StaticTokens[(int)TokenType.Colon] = ":";
-			StaticTokens[(int)TokenType.LogicalNot] = "!";
-			StaticTokens[(int)TokenType.LogicalAnd] = "&&";
-			StaticTokens[(int)TokenType.LogicalOr] = "||";
-			StaticTokens[(int)TokenType.BitwiseXor] = "^";
-			StaticTokens[(int)TokenType.BitwiseAnd] = "&";
-			StaticTokens[(int)TokenType.BitwiseNot] = "~";
-			StaticTokens[(int)TokenType.BitwiseOr] = "|";
-			StaticTokens[(int)TokenType.Equals] = "=";
-			StaticTokens[(int)TokenType.LeftShift] = "<<";
-			StaticTokens[(int)TokenType.RightShift] = ">>";
-			StaticTokens[(int)TokenType.CompareEqual] = "==";
-			StaticTokens[(int)TokenType.CompareNotEqual] = "!=";
-			StaticTokens[(int)TokenType.CompareLessOrEqual] = "<=";
-			StaticTokens[(int)TokenType.CompareLess] = "<";
-			StaticTokens[(int)TokenType.CompareGreaterOrEqual] = ">=";
-			StaticTokens[(int)TokenType.CompareGreater] = ">";
-			StaticTokens[(int)TokenType.Plus] = "+";
-			StaticTokens[(int)TokenType.Minus] = "-";
-			StaticTokens[(int)TokenType.Multiply] = "*";
-			StaticTokens[(int)TokenType.Divide] = "/";
-			StaticTokens[(int)TokenType.Modulo] = "%";
-			StaticTokens[(int)TokenType.Hash] = "#";
-			StaticTokens[(int)TokenType.HashHash] = "##";
+			s_staticTokens = new string[(int)TokenType.Max];
+			s_staticTokens[(int)TokenType.LeftParen] = "(";
+			s_staticTokens[(int)TokenType.RightParen] = ")";
+			s_staticTokens[(int)TokenType.Comma] = ",";
+			s_staticTokens[(int)TokenType.Newline] = "\n";
+			s_staticTokens[(int)TokenType.Ellipsis] = "...";
+			s_staticTokens[(int)TokenType.Placemarker] = "";
+			s_staticTokens[(int)TokenType.Dot] = ".";
+			s_staticTokens[(int)TokenType.QuestionMark] = "?";
+			s_staticTokens[(int)TokenType.Colon] = ":";
+			s_staticTokens[(int)TokenType.LogicalNot] = "!";
+			s_staticTokens[(int)TokenType.LogicalAnd] = "&&";
+			s_staticTokens[(int)TokenType.LogicalOr] = "||";
+			s_staticTokens[(int)TokenType.BitwiseXor] = "^";
+			s_staticTokens[(int)TokenType.BitwiseAnd] = "&";
+			s_staticTokens[(int)TokenType.BitwiseNot] = "~";
+			s_staticTokens[(int)TokenType.BitwiseOr] = "|";
+			s_staticTokens[(int)TokenType.Equals] = "=";
+			s_staticTokens[(int)TokenType.LeftShift] = "<<";
+			s_staticTokens[(int)TokenType.RightShift] = ">>";
+			s_staticTokens[(int)TokenType.CompareEqual] = "==";
+			s_staticTokens[(int)TokenType.CompareNotEqual] = "!=";
+			s_staticTokens[(int)TokenType.CompareLessOrEqual] = "<=";
+			s_staticTokens[(int)TokenType.CompareLess] = "<";
+			s_staticTokens[(int)TokenType.CompareGreaterOrEqual] = ">=";
+			s_staticTokens[(int)TokenType.CompareGreater] = ">";
+			s_staticTokens[(int)TokenType.Plus] = "+";
+			s_staticTokens[(int)TokenType.Minus] = "-";
+			s_staticTokens[(int)TokenType.Multiply] = "*";
+			s_staticTokens[(int)TokenType.Divide] = "/";
+			s_staticTokens[(int)TokenType.Modulo] = "%";
+			s_staticTokens[(int)TokenType.Hash] = "#";
+			s_staticTokens[(int)TokenType.HashHash] = "##";
 		}
 	}
 
@@ -518,21 +503,21 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Read a token from a binary archive
 		/// </summary>
-		/// <param name="Reader">Reader to serialize data from</param>
+		/// <param name="reader">Reader to serialize data from</param>
 		/// <returns>Token read from the archive</returns>
-		public static Token ReadToken(this BinaryArchiveReader Reader)
+		public static Token ReadToken(this BinaryArchiveReader reader)
 		{
-			return new Token(Reader);
+			return new Token(reader);
 		}
 
 		/// <summary>
 		/// Write a token to a binary archive
 		/// </summary>
-		/// <param name="Writer">Writer to serialize data to</param>
-		/// <param name="Token">Token to write</param>
-		public static void WriteToken(this BinaryArchiveWriter Writer, Token Token)
+		/// <param name="writer">Writer to serialize data to</param>
+		/// <param name="token">Token to write</param>
+		public static void WriteToken(this BinaryArchiveWriter writer, Token token)
 		{
-			Token.Write(Writer);
+			token.Write(writer);
 		}
 	}
 }

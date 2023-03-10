@@ -87,9 +87,9 @@ namespace UnrealBuildToolTests
 		static string FormatTransform(PreprocessorTransform Transform)
 		{
 			StringBuilder Result = new StringBuilder();
-			if (Transform.bRequireTopmostActive.HasValue)
+			if (Transform.RequireTopmostActive.HasValue)
 			{
-				Result.AppendFormat("=b {0}\n", Transform.bRequireTopmostActive.Value ? "Active" : "0");
+				Result.AppendFormat("=b {0}\n", Transform.RequireTopmostActive.Value ? "Active" : "0");
 			}
 			foreach (PreprocessorBranch Branch in Transform.RequiredBranches)
 			{

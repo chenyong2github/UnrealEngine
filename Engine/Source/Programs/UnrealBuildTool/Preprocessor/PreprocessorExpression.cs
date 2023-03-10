@@ -2,9 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -16,423 +14,423 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Precedence table for binary operators (indexed by TokenType). Lower values indicate higher precedence.
 		/// </summary>
-		static byte[] Precedence;
+		static readonly byte[] s_precedence;
 
 		/// <summary>
 		/// Static constructor. Initializes the Precedence table.
 		/// </summary>
 		static PreprocessorExpression()
 		{
-			Precedence = new byte[(int)TokenType.Max];
-			Precedence[(int)TokenType.Multiply] = 10;
-			Precedence[(int)TokenType.Divide] = 10;
-			Precedence[(int)TokenType.Modulo] = 10;
-			Precedence[(int)TokenType.Plus] = 9;
-			Precedence[(int)TokenType.Minus] = 9;
-			Precedence[(int)TokenType.LeftShift] = 8;
-			Precedence[(int)TokenType.RightShift] = 8;
-			Precedence[(int)TokenType.CompareLess] = 7;
-			Precedence[(int)TokenType.CompareLessOrEqual] = 7;
-			Precedence[(int)TokenType.CompareGreater] = 7;
-			Precedence[(int)TokenType.CompareGreaterOrEqual] = 7;
-			Precedence[(int)TokenType.CompareEqual] = 6;
-			Precedence[(int)TokenType.CompareNotEqual] = 6;
-			Precedence[(int)TokenType.BitwiseAnd] = 5;
-			Precedence[(int)TokenType.BitwiseXor] = 4;
-			Precedence[(int)TokenType.BitwiseOr] = 3;
-			Precedence[(int)TokenType.LogicalAnd] = 2;
-			Precedence[(int)TokenType.LogicalOr] = 1;
+			s_precedence = new byte[(int)TokenType.Max];
+			s_precedence[(int)TokenType.Multiply] = 10;
+			s_precedence[(int)TokenType.Divide] = 10;
+			s_precedence[(int)TokenType.Modulo] = 10;
+			s_precedence[(int)TokenType.Plus] = 9;
+			s_precedence[(int)TokenType.Minus] = 9;
+			s_precedence[(int)TokenType.LeftShift] = 8;
+			s_precedence[(int)TokenType.RightShift] = 8;
+			s_precedence[(int)TokenType.CompareLess] = 7;
+			s_precedence[(int)TokenType.CompareLessOrEqual] = 7;
+			s_precedence[(int)TokenType.CompareGreater] = 7;
+			s_precedence[(int)TokenType.CompareGreaterOrEqual] = 7;
+			s_precedence[(int)TokenType.CompareEqual] = 6;
+			s_precedence[(int)TokenType.CompareNotEqual] = 6;
+			s_precedence[(int)TokenType.BitwiseAnd] = 5;
+			s_precedence[(int)TokenType.BitwiseXor] = 4;
+			s_precedence[(int)TokenType.BitwiseOr] = 3;
+			s_precedence[(int)TokenType.LogicalAnd] = 2;
+			s_precedence[(int)TokenType.LogicalOr] = 1;
 		}
 
 		/// <summary>
 		/// Evaluate a preprocessor expression
 		/// </summary>
-		/// <param name="Context">The current preprocessor context</param>
-		/// <param name="Tokens">List of tokens in the expression</param>
+		/// <param name="context">The current preprocessor context</param>
+		/// <param name="tokens">List of tokens in the expression</param>
 		/// <returns>Value of the expression</returns>
-		public static long Evaluate(PreprocessorContext Context, List<Token> Tokens)
+		public static long Evaluate(PreprocessorContext context, List<Token> tokens)
 		{
-			int Idx = 0;
-			long Result = EvaluateTernary(Context, Tokens, ref Idx);
-			if (Idx != Tokens.Count)
+			int idx = 0;
+			long result = EvaluateTernary(context, tokens, ref idx);
+			if (idx != tokens.Count)
 			{
-				throw new PreprocessorException(Context, $"Garbage after end of expression: {Token.Format(Tokens)}");
+				throw new PreprocessorException(context, $"Garbage after end of expression: {Token.Format(tokens)}");
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Evaluates a ternary expression (a? b :c)
 		/// </summary>
-		/// <param name="Context">The current preprocessor context</param>
-		/// <param name="Tokens">List of tokens in the expression</param>
-		/// <param name="Idx">Index into the token list of the next token to read</param>
+		/// <param name="context">The current preprocessor context</param>
+		/// <param name="tokens">List of tokens in the expression</param>
+		/// <param name="idx">Index into the token list of the next token to read</param>
 		/// <returns>Value of the expression</returns>
-		static long EvaluateTernary(PreprocessorContext Context, List<Token> Tokens, ref int Idx)
+		static long EvaluateTernary(PreprocessorContext context, List<Token> tokens, ref int idx)
 		{
-			long Result = EvaluateUnary(Context, Tokens, ref Idx);
-			if(Idx < Tokens.Count && Precedence[(int)Tokens[Idx].Type] != 0)
+			long result = EvaluateUnary(context, tokens, ref idx);
+			if (idx < tokens.Count && s_precedence[(int)tokens[idx].Type] != 0)
 			{
-				Result = EvaluateBinary(Context, Tokens, ref Idx, Result, 1);
+				result = EvaluateBinary(context, tokens, ref idx, result, 1);
 			}
-			if(Idx < Tokens.Count && Tokens[Idx].Type == TokenType.QuestionMark)
+			if (idx < tokens.Count && tokens[idx].Type == TokenType.QuestionMark)
 			{
 				// Read the left expression
-				Idx++;
-				long Lhs = EvaluateTernary(Context, Tokens, ref Idx);
+				idx++;
+				long lhs = EvaluateTernary(context, tokens, ref idx);
 
 				// Check for the colon in the middle
-				if(Tokens[Idx].Type != TokenType.Colon)
+				if (tokens[idx].Type != TokenType.Colon)
 				{
-					throw new PreprocessorException(Context, $"Expected colon for conditional operator, found {Tokens[Idx].Text}");
+					throw new PreprocessorException(context, $"Expected colon for conditional operator, found {tokens[idx].Text}");
 				}
 
 				// Read the right expression
-				Idx++;
-				long Rhs = EvaluateTernary(Context, Tokens, ref Idx);
+				idx++;
+				long rhs = EvaluateTernary(context, tokens, ref idx);
 
 				// Evaluate it
-				Result = (Result != 0) ? Lhs : Rhs;
+				result = (result != 0) ? lhs : rhs;
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Recursive path for evaluating a sequence of binary operators, given a known LHS. Implementation of the shunting yard algorithm.
 		/// </summary>
-		/// <param name="Context">The current preprocessor context</param>
-		/// <param name="Tokens">List of tokens in the expression</param>
-		/// <param name="Idx">Index into the token list of the next token to read</param>
-		/// <param name="Lhs">The LHS value for the binary expression</param>
-		/// <param name="MinPrecedence">Minimum precedence value to consume</param>
+		/// <param name="context">The current preprocessor context</param>
+		/// <param name="tokens">List of tokens in the expression</param>
+		/// <param name="idx">Index into the token list of the next token to read</param>
+		/// <param name="lhs">The LHS value for the binary expression</param>
+		/// <param name="minPrecedence">Minimum precedence value to consume</param>
 		/// <returns>Value of the expression</returns>
-		static long EvaluateBinary(PreprocessorContext Context, List<Token> Tokens, ref int Idx, long Lhs, byte MinPrecedence)
+		static long EvaluateBinary(PreprocessorContext context, List<Token> tokens, ref int idx, long lhs, byte minPrecedence)
 		{
-			while(Idx < Tokens.Count)
+			while (idx < tokens.Count)
 			{
 				// Read the next operator token
-				Token Operator = Tokens[Idx];
+				Token tokenOp = tokens[idx];
 
 				// Check if this operator binds more tightly than the outer expression, and exit if it does.
-				int OperatorPrecedence = Precedence[(int)Operator.Type];
-				if(OperatorPrecedence < MinPrecedence)
+				int operatorPrecedence = s_precedence[(int)tokenOp.Type];
+				if (operatorPrecedence < minPrecedence)
 				{
 					break;
 				}
 
 				// Move to the next token
-				Idx++;
+				idx++;
 
 				// Evaluate the immediate RHS value, then recursively evaluate any subsequent binary operators that bind more tightly to it than this.
-				long Rhs = EvaluateUnary(Context, Tokens, ref Idx);
-				while(Idx < Tokens.Count)
+				long rhs = EvaluateUnary(context, tokens, ref idx);
+				while (idx < tokens.Count)
 				{
-					byte NextOperatorPrecedence = Precedence[(int)Tokens[Idx].Type];
-					if(NextOperatorPrecedence <= OperatorPrecedence)
+					byte nextOperatorPrecedence = s_precedence[(int)tokens[idx].Type];
+					if (nextOperatorPrecedence <= operatorPrecedence)
 					{
 						break;
 					}
-					Rhs = EvaluateBinary(Context, Tokens, ref Idx, Rhs, NextOperatorPrecedence);
+					rhs = EvaluateBinary(context, tokens, ref idx, rhs, nextOperatorPrecedence);
 				}
 
 				// Evalute the result of applying the operator to the LHS and RHS values
-				switch(Operator.Type)
+				switch (tokenOp.Type)
 				{
 					case TokenType.LogicalOr:
-						Lhs = ((Lhs != 0) || (Rhs != 0))? 1 : 0;
+						lhs = ((lhs != 0) || (rhs != 0)) ? 1 : 0;
 						break;
 					case TokenType.LogicalAnd:
-						Lhs = ((Lhs != 0) && (Rhs != 0))? 1 : 0;
+						lhs = ((lhs != 0) && (rhs != 0)) ? 1 : 0;
 						break;
 					case TokenType.BitwiseOr:
-						Lhs |= Rhs;
+						lhs |= rhs;
 						break;
 					case TokenType.BitwiseXor:
-						Lhs ^= Rhs;
+						lhs ^= rhs;
 						break;
 					case TokenType.BitwiseAnd:
-						Lhs &= Rhs;
+						lhs &= rhs;
 						break;
 					case TokenType.CompareEqual:
-						Lhs = (Lhs == Rhs)? 1 : 0;
+						lhs = (lhs == rhs) ? 1 : 0;
 						break;
 					case TokenType.CompareNotEqual:
-						Lhs = (Lhs != Rhs)? 1 : 0;
+						lhs = (lhs != rhs) ? 1 : 0;
 						break;
 					case TokenType.CompareLess:
-						Lhs = (Lhs < Rhs)? 1 : 0;
+						lhs = (lhs < rhs) ? 1 : 0;
 						break;
 					case TokenType.CompareGreater:
-						Lhs = (Lhs > Rhs)? 1 : 0;
+						lhs = (lhs > rhs) ? 1 : 0;
 						break;
 					case TokenType.CompareLessOrEqual:
-						Lhs = (Lhs <= Rhs)? 1 : 0;
+						lhs = (lhs <= rhs) ? 1 : 0;
 						break;
 					case TokenType.CompareGreaterOrEqual:
-						Lhs = (Lhs >= Rhs)? 1 : 0;
+						lhs = (lhs >= rhs) ? 1 : 0;
 						break;
 					case TokenType.LeftShift:
-						Lhs <<= (int)Rhs;
+						lhs <<= (int)rhs;
 						break;
 					case TokenType.RightShift:
-						Lhs >>= (int)Rhs;
+						lhs >>= (int)rhs;
 						break;
 					case TokenType.Plus:
-						Lhs += Rhs;
+						lhs += rhs;
 						break;
 					case TokenType.Minus:
-						Lhs -= Rhs;
+						lhs -= rhs;
 						break;
 					case TokenType.Multiply:
-						Lhs *= Rhs;
+						lhs *= rhs;
 						break;
 					case TokenType.Divide:
-						Lhs /= Rhs;
+						lhs /= rhs;
 						break;
 					case TokenType.Modulo:
-						Lhs %= Rhs;
+						lhs %= rhs;
 						break;
 					default:
-						throw new NotImplementedException($"Binary operator '{Operator.Type}' has not been implemented");
+						throw new NotImplementedException($"Binary operator '{tokenOp.Type}' has not been implemented");
 				}
 			}
 
-			return Lhs;
+			return lhs;
 		}
 
 		/// <summary>
 		/// Evaluates a unary expression (+, -, !, ~)
 		/// </summary>
-		/// <param name="Context">The current preprocessor context</param>
-		/// <param name="Tokens">List of tokens in the expression</param>
-		/// <param name="Idx">Index into the token list of the next token to read</param>
+		/// <param name="context">The current preprocessor context</param>
+		/// <param name="tokens">List of tokens in the expression</param>
+		/// <param name="idx">Index into the token list of the next token to read</param>
 		/// <returns>Value of the expression</returns>
-		static long EvaluateUnary(PreprocessorContext Context, List<Token> Tokens, ref int Idx)
+		static long EvaluateUnary(PreprocessorContext context, List<Token> tokens, ref int idx)
 		{
-			if(Idx == Tokens.Count)
+			if (idx == tokens.Count)
 			{
-				throw new PreprocessorException(Context, "Early end of expression");
+				throw new PreprocessorException(context, "Early end of expression");
 			}
 
-			switch(Tokens[Idx].Type)
+			switch (tokens[idx].Type)
 			{
 				case TokenType.Plus:
-					Idx++;
-					return +EvaluateUnary(Context, Tokens, ref Idx);
+					idx++;
+					return +EvaluateUnary(context, tokens, ref idx);
 				case TokenType.Minus:
-					Idx++;
-					return -EvaluateUnary(Context, Tokens, ref Idx);
+					idx++;
+					return -EvaluateUnary(context, tokens, ref idx);
 				case TokenType.LogicalNot:
-					Idx++;
-					return (EvaluateUnary(Context, Tokens, ref Idx) == 0) ? 1 : 0;
+					idx++;
+					return (EvaluateUnary(context, tokens, ref idx) == 0) ? 1 : 0;
 				case TokenType.BitwiseNot:
-					Idx++;
-					return ~EvaluateUnary(Context, Tokens, ref Idx);
+					idx++;
+					return ~EvaluateUnary(context, tokens, ref idx);
 				case TokenType.Identifier:
-					Identifier Text = Tokens[Idx].Identifier!;
-					if(Text == Identifiers.Sizeof)
+					Identifier text = tokens[idx].Identifier!;
+					if (text == Identifiers.Sizeof)
 					{
-						throw new NotImplementedException(Text.ToString());
+						throw new NotImplementedException(text.ToString());
 					}
-					else if(Text == Identifiers.Alignof)
+					else if (text == Identifiers.Alignof)
 					{
-						throw new NotImplementedException(Text.ToString());
+						throw new NotImplementedException(text.ToString());
 					}
-					else if (Text == Identifiers.__has_builtin || Text == Identifiers.__has_feature
-						|| Text == Identifiers.__has_warning || Text == Identifiers.__building_module
-						|| Text == Identifiers.__pragma || Text == Identifiers.__builtin_return_address
-						|| Text == Identifiers.__builtin_frame_address || Text == Identifiers.__has_keyword
-						|| Text == Identifiers.__has_extension || Text == Identifiers.__is_target_arch
-						|| Text == Identifiers.__is_identifier)
+					else if (text == Identifiers.__has_builtin || text == Identifiers.__has_feature
+						|| text == Identifiers.__has_warning || text == Identifiers.__building_module
+						|| text == Identifiers.__pragma || text == Identifiers.__builtin_return_address
+						|| text == Identifiers.__builtin_frame_address || text == Identifiers.__has_keyword
+						|| text == Identifiers.__has_extension || text == Identifiers.__is_target_arch
+						|| text == Identifiers.__is_identifier)
 					{
-						if (Tokens[Idx + 1].Type != TokenType.LeftParen || Tokens[Idx + 3].Type != TokenType.RightParen)
+						if (tokens[idx + 1].Type != TokenType.LeftParen || tokens[idx + 3].Type != TokenType.RightParen)
 						{
-							throw new NotImplementedException(Text.ToString());
+							throw new NotImplementedException(text.ToString());
 						}
-						Idx += 4;
+						idx += 4;
 						return 0;
 					}
-					else if (Text == Identifiers.__has_attribute || Text == Identifiers.__has_declspec_attribute
-						|| Text == Identifiers.__has_c_attribute || Text == Identifiers.__has_cpp_attribute
-						|| Text == Identifiers.__has_include || Text == Identifiers.__has_include_next)
+					else if (text == Identifiers.__has_attribute || text == Identifiers.__has_declspec_attribute
+						|| text == Identifiers.__has_c_attribute || text == Identifiers.__has_cpp_attribute
+						|| text == Identifiers.__has_include || text == Identifiers.__has_include_next)
 					{
-						Idx += Tokens.Count - Idx;
+						idx += tokens.Count - idx;
 						return 0;
 					}
 
 					else
 					{
-						return EvaluatePrimary(Context, Tokens, ref Idx);
+						return EvaluatePrimary(context, tokens, ref idx);
 					}
 				default:
-					return EvaluatePrimary(Context, Tokens, ref Idx);
+					return EvaluatePrimary(context, tokens, ref idx);
 			}
 		}
 
 		/// <summary>
 		/// Evaluates a primary expression
 		/// </summary>
-		/// <param name="Context">The current preprocessor context</param>
-		/// <param name="Tokens">List of tokens in the expression</param>
-		/// <param name="Idx">Index into the token list of the next token to read</param>
+		/// <param name="context">The current preprocessor context</param>
+		/// <param name="tokens">List of tokens in the expression</param>
+		/// <param name="idx">Index into the token list of the next token to read</param>
 		/// <returns>Value of the expression</returns>
-		static long EvaluatePrimary(PreprocessorContext Context, List<Token> Tokens, ref int Idx)
+		static long EvaluatePrimary(PreprocessorContext context, List<Token> tokens, ref int idx)
 		{
-			if(Tokens[Idx].Type == TokenType.Identifier)
+			if (tokens[idx].Type == TokenType.Identifier)
 			{
-				Idx++;
+				idx++;
 				return 0;
 			}
-			else if(Tokens[Idx].Type == TokenType.LeftParen)
+			else if (tokens[idx].Type == TokenType.LeftParen)
 			{
 				// Read the expression
-				Idx++;
-				long Result = EvaluateTernary(Context, Tokens, ref Idx);
+				idx++;
+				long result = EvaluateTernary(context, tokens, ref idx);
 
 				// Check for a closing parenthesis
-				if (Tokens[Idx].Type != TokenType.RightParen)
+				if (tokens[idx].Type != TokenType.RightParen)
 				{
-					throw new PreprocessorException(Context, "Missing closing parenthesis");
+					throw new PreprocessorException(context, "Missing closing parenthesis");
 				}
 
 				// Return the value
-				Idx++;
-				return Result;
+				idx++;
+				return result;
 			}
-			else if(Tokens[Idx].Type == TokenType.Number)
+			else if (tokens[idx].Type == TokenType.Number)
 			{
-				return ParseNumericLiteral(Context, Tokens[Idx++].Literal!);
+				return ParseNumericLiteral(context, tokens[idx++].Literal!);
 			}
 			else
 			{
-				throw new PreprocessorException(Context, "Unexpected token in expression: {0}", Tokens[Idx]);
+				throw new PreprocessorException(context, "Unexpected token in expression: {0}", tokens[idx]);
 			}
 		}
 
 		/// <summary>
 		/// Parse a numeric literal from the given token
 		/// </summary>
-		/// <param name="Context">The current preprocessor context</param>
-		/// <param name="Literal">The utf-8 literal characters</param>
+		/// <param name="context">The current preprocessor context</param>
+		/// <param name="literal">The utf-8 literal characters</param>
 		/// <returns>The literal value of the token</returns>
-		static long ParseNumericLiteral(PreprocessorContext Context, byte[] Literal)
+		static long ParseNumericLiteral(PreprocessorContext context, byte[] literal)
 		{
 			// Parse the token
-			long Value = 0;
-			if(Literal.Length >= 2 && Literal[0] == '0' && (Literal[1] == 'x' || Literal[1] == 'X'))
+			long value = 0;
+			if (literal.Length >= 2 && literal[0] == '0' && (literal[1] == 'x' || literal[1] == 'X'))
 			{
-				for (int Idx = 2; Idx < Literal.Length; Idx++)
+				for (int idx = 2; idx < literal.Length; idx++)
 				{
-					if (Literal[Idx] >= '0' && Literal[Idx] <= '9')
+					if (literal[idx] >= '0' && literal[idx] <= '9')
 					{
-						Value = (Value << 4) + (Literal[Idx] - '0');
+						value = (value << 4) + (literal[idx] - '0');
 					}
-					else if (Literal[Idx] >= 'a' && Literal[Idx] <= 'f')
+					else if (literal[idx] >= 'a' && literal[idx] <= 'f')
 					{
-						Value = (Value << 4) + (Literal[Idx] - 'a') + 10;
+						value = (value << 4) + (literal[idx] - 'a') + 10;
 					}
-					else if (Literal[Idx] >= 'A' && Literal[Idx] <= 'F')
+					else if (literal[idx] >= 'A' && literal[idx] <= 'F')
 					{
-						Value = (Value << 4) + (Literal[Idx] - 'A') + 10;
+						value = (value << 4) + (literal[idx] - 'A') + 10;
 					}
-					else if(IsValidIntegerSuffix(Literal, Idx))
+					else if (IsValidIntegerSuffix(literal, idx))
 					{
 						break;
 					}
 					else
 					{
-						throw new PreprocessorException(Context, "Invalid hexadecimal literal: '{0}'", Encoding.UTF8.GetString(Literal));
+						throw new PreprocessorException(context, "Invalid hexadecimal literal: '{0}'", Encoding.UTF8.GetString(literal));
 					}
 				}
 			}
-			else if(Literal[0] == '0')
+			else if (literal[0] == '0')
 			{
-				for (int Idx = 1; Idx < Literal.Length; Idx++)
+				for (int idx = 1; idx < literal.Length; idx++)
 				{
-					if (Literal[Idx] >= '0' && Literal[Idx] <= '7')
+					if (literal[idx] >= '0' && literal[idx] <= '7')
 					{
-						Value = (Value << 3) + (Literal[Idx] - '0');
+						value = (value << 3) + (literal[idx] - '0');
 					}
-					else if(IsValidIntegerSuffix(Literal, Idx))
+					else if (IsValidIntegerSuffix(literal, idx))
 					{
 						break;
 					}
 					else
 					{
-						throw new PreprocessorException(Context, "Invalid octal literal: '{0}'", Encoding.UTF8.GetString(Literal));
+						throw new PreprocessorException(context, "Invalid octal literal: '{0}'", Encoding.UTF8.GetString(literal));
 					}
 				}
 			}
 			else
 			{
-				for (int Idx = 0; Idx < Literal.Length; Idx++)
+				for (int idx = 0; idx < literal.Length; idx++)
 				{
-					if (Literal[Idx] >= '0' && Literal[Idx] <= '9')
+					if (literal[idx] >= '0' && literal[idx] <= '9')
 					{
-						Value = (Value * 10) + (Literal[Idx] - '0');
+						value = (value * 10) + (literal[idx] - '0');
 					}
-					else if(IsValidIntegerSuffix(Literal, Idx))
+					else if (IsValidIntegerSuffix(literal, idx))
 					{
 						break;
 					}
 					else
 					{
-						throw new PreprocessorException(Context, "Invalid decimal literal: '{0}'", Encoding.UTF8.GetString(Literal));
+						throw new PreprocessorException(context, "Invalid decimal literal: '{0}'", Encoding.UTF8.GetString(literal));
 					}
 				}
 			}
-			return Value;
+			return value;
 		}
 
 		/// <summary>
 		/// Checks whether the given literal has a valid integer suffix, starting at the given position
 		/// </summary>
-		/// <param name="Literal">The literal token</param>
-		/// <param name="Index">Index within the literal to start reading</param>
+		/// <param name="literal">The literal token</param>
+		/// <param name="index">Index within the literal to start reading</param>
 		/// <returns>The literal value of the token</returns>
-		static bool IsValidIntegerSuffix(byte[] Literal, int Index)
+		static bool IsValidIntegerSuffix(byte[] literal, int index)
 		{
-			bool bAllowTrailingUnsigned = true;
+			bool allowTrailingUnsigned = true;
 
-			if(Literal[Index] == 'u' || Literal[Index] == 'U')
+			if (literal[index] == 'u' || literal[index] == 'U')
 			{
 				// 'U'
-				Index++;
-				bAllowTrailingUnsigned = false;
+				index++;
+				allowTrailingUnsigned = false;
 			}
 
-			if(Index < Literal.Length && (Literal[Index] == 'l' || Literal[Index] == 'L'))
+			if (index < literal.Length && (literal[index] == 'l' || literal[index] == 'L'))
 			{
 				// 'LL' or 'L'
-				if(Index + 1 < Literal.Length && Literal[Index + 1] == Literal[Index])
+				if (index + 1 < literal.Length && literal[index + 1] == literal[index])
 				{
-					Index += 2;
+					index += 2;
 				}
 				else
 				{
-					Index++;
+					index++;
 				}
 			}
-			else if (Index + 2 < Literal.Length && (Literal[Index] == 'i' || Literal[Index] == 'I') && Literal[Index + 1] == '3' && Literal[Index + 2] == '2')
+			else if (index + 2 < literal.Length && (literal[index] == 'i' || literal[index] == 'I') && literal[index + 1] == '3' && literal[index + 2] == '2')
 			{
 				// 'I32' (Microsoft extension)
-				Index += 3;
-				bAllowTrailingUnsigned = false;
+				index += 3;
+				allowTrailingUnsigned = false;
 			}
-			else if(Index + 2 < Literal.Length && (Literal[Index] == 'i' || Literal[Index] == 'I') && Literal[Index + 1] == '6' && Literal[Index + 2] == '4')
+			else if (index + 2 < literal.Length && (literal[index] == 'i' || literal[index] == 'I') && literal[index + 1] == '6' && literal[index + 2] == '4')
 			{
 				// 'I64' (Microsoft extension)
-				Index += 3;
-				bAllowTrailingUnsigned = false;
+				index += 3;
+				allowTrailingUnsigned = false;
 			}
 
-			if(bAllowTrailingUnsigned && Index < Literal.Length && (Literal[Index] == 'u' || Literal[Index] == 'U'))
+			if (allowTrailingUnsigned && index < literal.Length && (literal[index] == 'u' || literal[index] == 'U'))
 			{
 				// 'U'
-				Index++;
+				index++;
 			}
 
-			return Index == Literal.Length;
+			return index == literal.Length;
 		}
 	}
 }

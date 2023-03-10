@@ -46,8 +46,6 @@ namespace UnrealBuildToolTests
 				}
 			}
 
-			Log.TraceLog("Read {0} source files", SourceFiles.Count);
-
 			FileReference TempDataFile = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Temp", "SourceFileTests.bin");
 			DirectoryReference.CreateDirectory(TempDataFile.Directory);
 

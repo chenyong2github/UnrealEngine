@@ -1,11 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -34,43 +29,43 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of known transforms for this fragment
 		/// </summary>
-		public PreprocessorTransform[] Transforms = new PreprocessorTransform[0];
+		public PreprocessorTransform[] Transforms { get; set; } = Array.Empty<PreprocessorTransform>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="File">The source file that this fragment is part of</param>
-		/// <param name="MarkupMin">Index into the file's markup array of the start of this fragment (inclusive)</param>
-		/// <param name="MarkupMax">Index into the file's markup array of the end of this fragment (exclusive)</param>
-		public SourceFileFragment(SourceFile File, int MarkupMin, int MarkupMax)
+		/// <param name="file">The source file that this fragment is part of</param>
+		/// <param name="markupMin">Index into the file's markup array of the start of this fragment (inclusive)</param>
+		/// <param name="markupMax">Index into the file's markup array of the end of this fragment (exclusive)</param>
+		public SourceFileFragment(SourceFile file, int markupMin, int markupMax)
 		{
-			this.File = File;
-			this.MarkupMin = MarkupMin;
-			this.MarkupMax = MarkupMax;
+			File = file;
+			MarkupMin = markupMin;
+			MarkupMax = markupMax;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="File">The source file that this fragment is part of</param>
-		/// <param name="Reader">Reader to deserialize this object from</param>
-		public SourceFileFragment(SourceFile File, BinaryArchiveReader Reader)
+		/// <param name="file">The source file that this fragment is part of</param>
+		/// <param name="reader">Reader to deserialize this object from</param>
+		public SourceFileFragment(SourceFile file, BinaryArchiveReader reader)
 		{
-			this.File = File;
-			this.MarkupMin = Reader.ReadInt();
-			this.MarkupMax = Reader.ReadInt();
-			this.Transforms = Reader.ReadArray(() => new PreprocessorTransform(Reader))!;
+			File = file;
+			MarkupMin = reader.ReadInt();
+			MarkupMax = reader.ReadInt();
+			Transforms = reader.ReadArray(() => new PreprocessorTransform(reader))!;
 		}
 
 		/// <summary>
 		/// Write this fragment to an archive
 		/// </summary>
-		/// <param name="Writer">The writer to serialize to</param>
-		public void Write(BinaryArchiveWriter Writer)
+		/// <param name="writer">The writer to serialize to</param>
+		public void Write(BinaryArchiveWriter writer)
 		{
-			Writer.WriteInt(MarkupMin);
-			Writer.WriteInt(MarkupMax);
-			Writer.WriteArray(Transforms, x => x.Write(Writer));
+			writer.WriteInt(MarkupMin);
+			writer.WriteInt(MarkupMax);
+			writer.WriteArray(Transforms, x => x.Write(writer));
 		}
 
 		/// <summary>
@@ -79,7 +74,7 @@ namespace UnrealBuildTool
 		/// <returns>String representation of this fragment for the debugger</returns>
 		public override string ToString()
 		{
-			if(MarkupMax == 0)
+			if (MarkupMax == 0)
 			{
 				return File.ToString();
 			}

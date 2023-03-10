@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -42,155 +38,150 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Macro which is defined as part of the header guard. If this macro is defined, we don't need to include the header more than once.
 		/// </summary>
-		public Identifier? HeaderGuardMacro;
+		public Identifier? HeaderGuardMacro { get; private set; }
 
 		/// <summary>
 		/// Parsed fragments in this file. Only set for files which are being optimized.
 		/// </summary>
-		public SourceFileFragment[] Fragments;
+		public readonly SourceFileFragment[] Fragments;
 
 		/// <summary>
 		/// Gets the location of this file
 		/// </summary>
-		public FileReference Location
-		{
-			get { return File.Location; }
-		}
+		public FileReference Location => File.Location;
 
 		/// <summary>
 		/// Construct a SourceFile from a file on disk
 		/// </summary>
-		/// <param name="File">Location of the file</param>
-		public SourceFile(FileItem File)
-			: this(File, ReadFileWithNullTerminator(File.Location))
+		/// <param name="file">Location of the file</param>
+		public SourceFile(FileItem file)
+			: this(file, ReadFileWithNullTerminator(file.Location))
 		{
-			this.LastWriteTimeUtc = File.LastWriteTimeUtc.Ticks;
+			LastWriteTimeUtc = file.LastWriteTimeUtc.Ticks;
 		}
 
 		/// <summary>
 		/// Construct a SourceFile from a raw byte array
 		/// </summary>
-		/// <param name="File">Location of the file</param>
-		/// <param name="Data">Contents of the file</param>
-		public SourceFile(FileItem File, byte[] Data)
+		/// <param name="file">Location of the file</param>
+		/// <param name="data">Contents of the file</param>
+		public SourceFile(FileItem file, byte[] data)
 		{
-			this.File = File;
+			File = file;
 
 			// Compute the hash
-			Hash = ContentHash.MD5(Data);
+			Hash = ContentHash.MD5(data);
 
 			// Read the preprocessor markup
-			TokenReader Reader = new TokenReader(Data);
-			Markup = SourceFileMarkup.Parse(Reader);
+			TokenReader reader = new(data);
+			Markup = SourceFileMarkup.Parse(reader);
 
 			// Try to parse a header guard from this file
 			ParseHeaderGuard();
 
 			// Create the fragments
-			List<SourceFileFragment> FragmentsList = new List<SourceFileFragment>();
-			for(int MaxIdx = 0; MaxIdx < Markup.Length; MaxIdx++)
+			List<SourceFileFragment> fragmentsList = new();
+			for (int maxIdx = 0; maxIdx < Markup.Length; maxIdx++)
 			{
-				if(Markup[MaxIdx].Type != SourceFileMarkupType.Include)
+				if (Markup[maxIdx].Type != SourceFileMarkupType.Include)
 				{
-					int MinIdx = MaxIdx++;
-					while(MaxIdx < Markup.Length && Markup[MaxIdx].Type != SourceFileMarkupType.Include)
+					int minIdx = maxIdx++;
+					while (maxIdx < Markup.Length && Markup[maxIdx].Type != SourceFileMarkupType.Include)
 					{
-						MaxIdx++;
+						maxIdx++;
 					}
-					FragmentsList.Add(new SourceFileFragment(this, MinIdx, MaxIdx));
+					fragmentsList.Add(new SourceFileFragment(this, minIdx, maxIdx));
 				}
 			}
-			Fragments = FragmentsList.ToArray();
+			Fragments = fragmentsList.ToArray();
 		}
 
 		/// <summary>
 		/// Read a source file from a binary reader
 		/// </summary>
-		/// <param name="Reader">The reader to serialize from</param>
-		public SourceFile(BinaryArchiveReader Reader)
+		/// <param name="reader">The reader to serialize from</param>
+		public SourceFile(BinaryArchiveReader reader)
 		{
-			File = Reader.ReadFileItem()!;
-			Hash = Reader.ReadContentHash()!;
-			LastWriteTimeUtc = Reader.ReadLong();
-			Markup = Reader.ReadArray(() => new SourceFileMarkup(Reader))!;
-			HeaderGuardMacro = Reader.ReadIdentifier();
-			Fragments = Reader.ReadArray(() => new SourceFileFragment(this, Reader))!;
+			File = reader.ReadFileItem()!;
+			Hash = reader.ReadContentHash()!;
+			LastWriteTimeUtc = reader.ReadLong();
+			Markup = reader.ReadArray(() => new SourceFileMarkup(reader))!;
+			HeaderGuardMacro = reader.ReadIdentifier();
+			Fragments = reader.ReadArray(() => new SourceFileFragment(this, reader))!;
 		}
 
 		/// <summary>
 		/// Read a source file from a binary reader
 		/// </summary>
-		/// <param name="Writer">The reader to serialize to</param>
-		public void Write(BinaryArchiveWriter Writer)
+		/// <param name="writer">The reader to serialize to</param>
+		public void Write(BinaryArchiveWriter writer)
 		{
-			Writer.WriteFileItem(File);
-			Writer.WriteContentHash(Hash);
-			Writer.WriteLong(LastWriteTimeUtc);
-			Writer.WriteArray(Markup, x => x.Write(Writer));
-			Writer.WriteIdentifier(HeaderGuardMacro);
-			Writer.WriteArray(Fragments, x => x.Write(Writer));
+			writer.WriteFileItem(File);
+			writer.WriteContentHash(Hash);
+			writer.WriteLong(LastWriteTimeUtc);
+			writer.WriteArray(Markup, x => x.Write(writer));
+			writer.WriteIdentifier(HeaderGuardMacro);
+			writer.WriteArray(Fragments, x => x.Write(writer));
 		}
 
 		/// <summary>
 		/// Reads the contents of a file into a buffer, with a null terminator
 		/// </summary>
-		/// <param name="Location">Location of the file</param>
+		/// <param name="location">Location of the file</param>
 		/// <returns>Array of bytes, with a null terminator</returns>
-		public static byte[] ReadFileWithNullTerminator(FileReference Location)
+		public static byte[] ReadFileWithNullTerminator(FileReference location)
 		{
-			using(FileStream Stream = FileReference.Open(Location, FileMode.Open, FileAccess.Read, FileShare.Read))
-			{
-				int Length = (int)Stream.Length;
+			using FileStream stream = FileReference.Open(location, FileMode.Open, FileAccess.Read, FileShare.Read);
+			int length = (int)stream.Length;
 
-				byte[] Data = new byte[Length + 1];
-				Stream.Read(Data, 0, Length);
+			byte[] data = new byte[length + 1];
+			stream.Read(data, 0, length);
 
-				return ConvertToNullTerminatedUtf8(Data, Length);
-			}
+			return ConvertToNullTerminatedUtf8(data, length);
 		}
 
 		/// <summary>
 		/// Converts a buffer from a given encoding to UTF8, appending a null terminator
 		/// </summary>
-		/// <param name="Data">The source data</param>
-		/// <param name="Length">Length of the data in the source buffer</param>
+		/// <param name="data">The source data</param>
+		/// <param name="length">Length of the data in the source buffer</param>
 		/// <returns>Array of utf-8 encoded characters, with a null terminator</returns>
-		public static byte[] ConvertToNullTerminatedUtf8(byte[] Data, int Length)
+		public static byte[] ConvertToNullTerminatedUtf8(byte[] data, int length)
 		{
-			if(Length >= 2)
+			if (length >= 2)
 			{
-				if(Data[0] == 0xfe && Data[1] == 0xff)
+				if (data[0] == 0xfe && data[1] == 0xff)
 				{
-					return ConvertToNullTerminatedUtf8(Encoding.BigEndianUnicode, Data, Length);
+					return ConvertToNullTerminatedUtf8(Encoding.BigEndianUnicode, data, length);
 				}
-				else if(Data[0] == 0xff && Data[1] == 0xfe)
+				else if (data[0] == 0xff && data[1] == 0xfe)
 				{
-					return ConvertToNullTerminatedUtf8(Encoding.Unicode, Data, Length);
+					return ConvertToNullTerminatedUtf8(Encoding.Unicode, data, length);
 				}
 			}
-			return Data;
+			return data;
 		}
 
 		/// <summary>
 		/// Converts a buffer from a given encoding to UTF8, appending a null terminator
 		/// </summary>
-		/// <param name="SourceEncoding">The encoding to convert from</param>
-		/// <param name="Data">The source data</param>
-		/// <param name="Length">Length of the data in the source buffer</param>
+		/// <param name="sourceEncoding">The encoding to convert from</param>
+		/// <param name="data">The source data</param>
+		/// <param name="length">Length of the data in the source buffer</param>
 		/// <returns>Array of utf-8 encoded characters, with a null terminator</returns>
-		public static byte[] ConvertToNullTerminatedUtf8(Encoding SourceEncoding, byte[] Data, int Length)
+		public static byte[] ConvertToNullTerminatedUtf8(Encoding sourceEncoding, byte[] data, int length)
 		{
-			byte[] NewBytes = Data;
-			if(!(SourceEncoding is UTF8Encoding))
+			byte[] newBytes = data;
+			if (sourceEncoding is not UTF8Encoding)
 			{
-				char[] Chars = SourceEncoding.GetChars(Data, 0, Length);
+				char[] chars = sourceEncoding.GetChars(data, 0, length);
 
-				int NewLength = Encoding.UTF8.GetByteCount(Chars);
-				NewBytes = new byte[NewLength + 1];
+				int newLength = Encoding.UTF8.GetByteCount(chars);
+				newBytes = new byte[newLength + 1];
 
-				Encoding.UTF8.GetBytes(Chars, 0, Chars.Length, NewBytes, 0);
+				Encoding.UTF8.GetBytes(chars, 0, chars.Length, newBytes, 0);
 			}
-			return NewBytes;
+			return newBytes;
 		}
 
 		/// <summary>
@@ -199,43 +190,43 @@ namespace UnrealBuildTool
 		void ParseHeaderGuard()
 		{
 			// Make sure there are enough markup entries in this list
-			if(Markup.Length >= 3)
+			if (Markup.Length >= 3)
 			{
-				int MinIdx = 0;
+				int minIdx = 0;
 
 				// Get the define used for the header guard
-				Identifier? PossibleHeaderGuardMacro;
-				if(Markup[MinIdx].Type == SourceFileMarkupType.Ifndef && Markup[MinIdx].Tokens!.Count == 1 && Markup[MinIdx].Tokens![0].Type == TokenType.Identifier)
+				Identifier? possibleHeaderGuardMacro;
+				if (Markup[minIdx].Type == SourceFileMarkupType.Ifndef && Markup[minIdx].Tokens!.Count == 1 && Markup[minIdx].Tokens![0].Type == TokenType.Identifier)
 				{
-					PossibleHeaderGuardMacro = Markup[MinIdx].Tokens![0].Identifier!;
+					possibleHeaderGuardMacro = Markup[minIdx].Tokens![0].Identifier!;
 				}
-				else if(Markup[MinIdx].Type == SourceFileMarkupType.If && Markup[MinIdx].Tokens!.Count == 3 && Markup[MinIdx].Tokens![0].Type == TokenType.LogicalNot && Markup[MinIdx].Tokens![1].Identifier == Identifiers.Defined && Markup[MinIdx].Tokens![2].Type == TokenType.Identifier)
+				else if (Markup[minIdx].Type == SourceFileMarkupType.If && Markup[minIdx].Tokens!.Count == 3 && Markup[minIdx].Tokens![0].Type == TokenType.LogicalNot && Markup[minIdx].Tokens![1].Identifier == Identifiers.Defined && Markup[minIdx].Tokens![2].Type == TokenType.Identifier)
 				{
-					PossibleHeaderGuardMacro = Markup[MinIdx].Tokens![2].Identifier!;
+					possibleHeaderGuardMacro = Markup[minIdx].Tokens![2].Identifier!;
 				}
 				else
 				{
-					PossibleHeaderGuardMacro = null;
+					possibleHeaderGuardMacro = null;
 				}
 
 				// Check it starts with an #if or #ifdef
-				if (Markup[MinIdx + 1].Type == SourceFileMarkupType.Define && Markup[MinIdx + 1].Tokens!.Count == 1 && Markup[MinIdx + 1].Tokens![0].Identifier == PossibleHeaderGuardMacro)
+				if (Markup[minIdx + 1].Type == SourceFileMarkupType.Define && Markup[minIdx + 1].Tokens!.Count == 1 && Markup[minIdx + 1].Tokens![0].Identifier == possibleHeaderGuardMacro)
 				{
 					// Find the point at which the include depth goes back to zero
-					int MaxIdx = MinIdx + 1;
-					for (int Depth = 1; MaxIdx < Markup.Length; MaxIdx++)
+					int maxIdx = minIdx + 1;
+					for (int depth = 1; maxIdx < Markup.Length; maxIdx++)
 					{
-						Depth += Markup[MaxIdx].GetConditionDepthDelta();
-						if (Depth == 0)
+						depth += Markup[maxIdx].GetConditionDepthDelta();
+						if (depth == 0)
 						{
 							break;
 						}
 					}
 
 					// Check it matched the end of the file
-					if (MaxIdx == Markup.Length - 1)
+					if (maxIdx == Markup.Length - 1)
 					{
-						HeaderGuardMacro = PossibleHeaderGuardMacro;
+						HeaderGuardMacro = possibleHeaderGuardMacro;
 					}
 				}
 			}
