@@ -437,13 +437,13 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Selects different agent software versions by evaluating a condition
 	/// </summary>
-	[DebuggerDisplay("{Channel}")]
+	[DebuggerDisplay("{ToolId}")]
 	public class AgentSoftwareConfig
 	{
 		/// <summary>
-		/// Channel name
+		/// Tool identifier
 		/// </summary>
-		public AgentSoftwareChannelName Channel { get; set; }
+		public ToolId ToolId { get; set; }
 
 		/// <summary>
 		/// Condition for using this channel

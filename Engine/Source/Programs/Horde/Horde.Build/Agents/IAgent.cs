@@ -19,6 +19,7 @@ using Horde.Build.Logs;
 using Horde.Build.Perforce;
 using Horde.Build.Server;
 using Horde.Build.Streams;
+using Horde.Build.Tools;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
@@ -495,6 +496,28 @@ namespace Horde.Build.Agents
 	/// </summary>
 	public static class AgentExtensions
 	{
+		static readonly ToolId s_defaultToolId = new ToolId("horde-agent");
+
+		/// <summary>
+		/// Gets the tool id for the software the given agent should be running
+		/// </summary>
+		/// <param name="agent">Agent to check</param>
+		/// <param name="globalConfig">Current global config</param>
+		/// <returns>Identifier for the tool that the agent should be using</returns>
+		public static ToolId GetSoftwareToolId(this IAgent agent, GlobalConfig globalConfig)
+		{
+			ToolId toolId = s_defaultToolId;
+			foreach (AgentSoftwareConfig softwareConfig in globalConfig.Software)
+			{
+				if (softwareConfig.Condition != null && agent.SatisfiesCondition(softwareConfig.Condition))
+				{
+					toolId = softwareConfig.ToolId;
+					break;
+				}
+			}
+			return toolId;
+		}
+
 		/// <summary>
 		/// Determines whether this agent is online
 		/// </summary>

@@ -303,23 +303,14 @@ namespace Horde.Build.Tools
 			{
 				return Forbid(AclAction.DownloadTool, id);
 			}
-			if (tool.Deployments.Count == 0)
+
+			IToolDeployment? deployment = tool.GetCurrentDeployment(phase, _clock.UtcNow);
+			if (deployment == null)
 			{
 				return NotFound(LogEvent.Create(LogLevel.Error, "Tool {ToolId} does not currently have any deployments", id));
 			}
 
-			DateTime utcNow = _clock.UtcNow;
-
-			int idx = tool.Deployments.Count - 1;
-			for (; idx > 0; idx--)
-			{
-				if (phase < tool.Deployments[idx].GetProgressValue(utcNow))
-				{
-					break;
-				}
-			}
-
-			return await GetDeploymentResponseAsync(tool, tool.Deployments[idx], action, cancellationToken);
+			return await GetDeploymentResponseAsync(tool, deployment, action, cancellationToken);
 		}
 
 		/// <summary>

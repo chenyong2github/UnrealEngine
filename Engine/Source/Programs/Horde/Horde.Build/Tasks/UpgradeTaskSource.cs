@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Agents;
@@ -11,7 +13,7 @@ using Horde.Build.Agents.Software;
 using Horde.Build.Jobs;
 using Horde.Build.Logs;
 using Horde.Build.Server;
-using Horde.Build.Utilities;
+using Horde.Build.Tools;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Options;
@@ -24,15 +26,15 @@ namespace Horde.Build.Tasks
 
 		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled | TaskSourceFlags.AllowDuringDowntime;
 
-		readonly AgentSoftwareService _agentSoftwareService;
+		readonly ToolCollection _toolCollection;
 		readonly ILogFileService _logService;
 		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly IOptions<ServerSettings> _serverSettings;
 		readonly IClock _clock;
 
-		public UpgradeTaskSource(AgentSoftwareService agentSoftwareService, ILogFileService logService, IOptionsMonitor<GlobalConfig> globalConfig, IOptions<ServerSettings> serverSettings, IClock clock)
+		public UpgradeTaskSource(ToolCollection toolCollection, ILogFileService logService, IOptionsMonitor<GlobalConfig> globalConfig, IOptions<ServerSettings> serverSettings, IClock clock)
 		{
-			_agentSoftwareService = agentSoftwareService;
+			_toolCollection = toolCollection;
 			_logService = logService;
 			_globalConfig = globalConfig;
 			_serverSettings = serverSettings;
@@ -48,8 +50,14 @@ namespace Horde.Build.Tasks
 				return Skip(cancellationToken);
 			}
 
-			string? requiredVersion = await GetRequiredSoftwareVersion(agent);
-			if (requiredVersion == null || agent.Version == requiredVersion)
+			(ITool, IToolDeployment)? required = await GetRequiredSoftwareVersion(agent);
+			if (required == null)
+			{
+				return Skip(cancellationToken);
+			}
+
+			(ITool tool, IToolDeployment deployment) = required.Value; 
+			if (agent.Version == deployment.Version)
 			{
 				return Skip(cancellationToken);
 			}
@@ -62,23 +70,11 @@ namespace Horde.Build.Tasks
 			ILogFile logFile = await _logService.CreateLogFileAsync(JobId.Empty, leaseId, agent.SessionId, LogType.Json, useNewStorageBackend: false, cancellationToken: cancellationToken);
 
 			UpgradeTask task = new UpgradeTask();
-			task.SoftwareId = requiredVersion.ToString();
+			task.SoftwareId = $"{tool.Id}:{deployment.Version}";
 			task.LogId = logFile.Id.ToString();
 
-			byte[] payload;
-			if (agent.Version == "5.0.0-17425336" || agent.Version == "5.0.0-17448746")
-			{
-				Any any = new Any();
-				any.TypeUrl = "type.googleapis.com/Horde.UpgradeTask";
-				any.Value = task.ToByteString();
-				payload = any.ToByteArray();
-			}
-			else
-			{
-				payload = Any.Pack(task).ToByteArray();
-			}
-
-			return Lease(new AgentLease(leaseId, $"Upgrade to {requiredVersion}", null, null, logFile.Id, LeaseState.Pending, null, true, payload));
+			byte[] payload = Any.Pack(task).ToByteArray();
+			return Lease(new AgentLease(leaseId, $"Upgrade to {tool.Id} {deployment.Version}", null, null, logFile.Id, LeaseState.Pending, null, true, payload));
 		}
 
 		/// <summary>
@@ -86,22 +82,28 @@ namespace Horde.Build.Tasks
 		/// </summary>
 		/// <param name="agent">The agent instance</param>
 		/// <returns>Unique id of the client version this agent should be running</returns>
-		public async Task<string?> GetRequiredSoftwareVersion(IAgent agent)
+		public async Task<(ITool, IToolDeployment)?> GetRequiredSoftwareVersion(IAgent agent)
 		{
 			GlobalConfig globalConfig = _globalConfig.CurrentValue;
 
-			AgentSoftwareChannelName channelName = AgentSoftwareService.DefaultChannelName;
-			foreach (AgentSoftwareConfig softwareConfig in globalConfig.Software)
+			ToolId toolId = agent.GetSoftwareToolId(globalConfig);
+
+			ITool? tool = await _toolCollection.GetAsync(toolId, globalConfig);
+			if (tool == null)
 			{
-				if (softwareConfig.Condition != null && agent.SatisfiesCondition(softwareConfig.Condition))
-				{
-					channelName = softwareConfig.Channel;
-					break;
-				}
+				return null;
 			}
 
-			IAgentSoftwareChannel? channel = await _agentSoftwareService.GetCachedChannelAsync(channelName);
-			return channel?.Version;
+			uint value = BuzHash.Add(0, Encoding.UTF8.GetBytes(agent.Id.ToString()));
+			double phase = (value % 10000) / 10000.0;
+
+			IToolDeployment? deployment = tool.GetCurrentDeployment(phase, _clock.UtcNow);
+			if (deployment == null)
+			{
+				return null;
+			}
+
+			return (tool, deployment);
 		}
 	}
 }

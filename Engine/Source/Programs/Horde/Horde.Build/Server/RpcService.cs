@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.EC2.Model;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Horde.Build.Acls;
@@ -15,6 +18,7 @@ using Horde.Build.Agents.Sessions;
 using Horde.Build.Agents.Software;
 using Horde.Build.Jobs;
 using Horde.Build.Tasks;
+using Horde.Build.Tools;
 using Horde.Build.Utilities;
 using HordeCommon.Rpc;
 using Microsoft.AspNetCore.Authorization;
@@ -43,25 +47,25 @@ namespace Horde.Build.Server
 		internal TimeSpan _longPollTimeout = TimeSpan.FromMinutes(9);
 
 		readonly AgentService _agentService;
-		readonly AgentSoftwareService _agentSoftwareService;
 		readonly PoolService _poolService;
 		readonly LifetimeService _lifetimeService;
 		readonly ConformTaskSource _conformTaskSource;
 		readonly JobRpcCommon _jobRpcCommon;
+		readonly ToolCollection _toolCollection;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RpcService(AgentService agentService, AgentSoftwareService agentSoftwareService, PoolService poolService, LifetimeService lifetimeService, ConformTaskSource conformTaskSource, JobRpcCommon jobRpcCommon, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
+		public RpcService(AgentService agentService, PoolService poolService, LifetimeService lifetimeService, ConformTaskSource conformTaskSource, JobRpcCommon jobRpcCommon, ToolCollection toolCollection, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
 		{
 			_agentService = agentService;
-			_agentSoftwareService = agentSoftwareService;
 			_poolService = poolService;
 			_lifetimeService = lifetimeService;
 			_conformTaskSource = conformTaskSource;
 			_jobRpcCommon = jobRpcCommon;
+			_toolCollection = toolCollection;
 			_globalConfig = globalConfig;
 			_logger = logger;
 		}
@@ -403,31 +407,6 @@ namespace Horde.Build.Server
 		/// <inheritdoc/>
 		public override Task<Empty> CreateEvents(CreateEventsRequest request, ServerCallContext context) => _jobRpcCommon.CreateEvents(request, context);
 
-
-		/// <summary>
-		/// Uploads a new agent archive
-		/// </summary>
-		/// <param name="request">Request arguments</param>
-		/// <param name="context">Context for the RPC call</param>
-		/// <returns>Information about the new agent</returns>
-		public override async Task<UploadSoftwareResponse> UploadSoftware(UploadSoftwareRequest request, ServerCallContext context)
-		{
-			if (!_globalConfig.Value.Authorize(AclAction.UploadSoftware, context.GetHttpContext().User))
-			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access to software is forbidden");
-			}
-
-			string version = await _agentSoftwareService.UploadArchiveAsync(request.Data.ToArray());
-			foreach (string channel in request.Channel.Split('+', ';'))
-			{
-				await _agentSoftwareService.UpdateChannelAsync(new AgentSoftwareChannelName(channel), null, version);
-			}
-
-			UploadSoftwareResponse response = new UploadSoftwareResponse();
-			response.Version = version;
-			return response;
-		}
-
 		/// <summary>
 		/// Downloads a new agent archive
 		/// </summary>
@@ -442,22 +421,37 @@ namespace Horde.Build.Server
 				throw new StructuredRpcException(StatusCode.NotFound, "Access to software is forbidden");
 			}
 
-			byte[]? data = await _agentSoftwareService.GetArchiveAsync(request.Version);
-			if (data == null)
+			int colonIdx = request.Version.IndexOf(':', StringComparison.Ordinal);
+			ToolId toolId = new ToolId(request.Version.Substring(0, colonIdx));
+			string version = request.Version.Substring(colonIdx + 1);
+
+			ITool? tool = await _toolCollection.GetAsync(toolId, _globalConfig.Value);
+			if (tool == null)
 			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Missing version {Version}");
+				throw new StructuredRpcException(StatusCode.NotFound, $"Missing tool {toolId}");
 			}
 
-			for (int offset = 0; offset < data.Length;)
+			IToolDeployment? deployment = tool.Deployments.LastOrDefault(x => x.Version.Equals(version, StringComparison.Ordinal));
+			if (deployment == null)
 			{
-				int nextOffset = Math.Min(offset + 128 * 1024, data.Length);
+				throw new StructuredRpcException(StatusCode.NotFound, $"Missing tool version {version}");
+			}
 
-				DownloadSoftwareResponse response = new DownloadSoftwareResponse();
-				response.Data = Google.Protobuf.ByteString.CopyFrom(data.AsSpan(offset, nextOffset - offset));
+			using Stream stream = await _toolCollection.GetDeploymentZipAsync(tool, deployment, context.CancellationToken);
+			using (IMemoryOwner<byte> buffer = MemoryPool<byte>.Shared.Rent(128 * 1024))
+			{
+				for(; ;)
+				{
+					int read = await stream.ReadAsync(buffer.Memory, context.CancellationToken);
+					if (read == 0)
+					{
+						break;
+					}
 
-				await responseStream.WriteAsync(response);
-
-				offset = nextOffset;
+					DownloadSoftwareResponse response = new DownloadSoftwareResponse();
+					response.Data = Google.Protobuf.ByteString.CopyFrom(buffer.Memory.Slice(0, read).Span);
+					await responseStream.WriteAsync(response);
+				}
 			}
 		}
 

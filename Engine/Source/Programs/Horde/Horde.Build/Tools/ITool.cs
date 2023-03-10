@@ -105,6 +105,26 @@ namespace Horde.Build.Tools
 	public static class ToolExtensions
 	{
 		/// <summary>
+		/// Gets the current deployment
+		/// </summary>
+		/// <param name="tool">Tool to query</param>
+		/// <param name="phase">Adoption phase for the caller. 0 which the </param>
+		/// <param name="utcNow">Current time</param>
+		/// <returns></returns>
+		public static IToolDeployment? GetCurrentDeployment(this ITool tool, double phase, DateTime utcNow)
+		{
+			int idx = tool.Deployments.Count - 1;
+			for (; idx >= 0; idx--)
+			{
+				if (phase < tool.Deployments[idx].GetProgressValue(utcNow) || idx == 0)
+				{
+					return tool.Deployments[idx];
+				}
+			}
+			return null;
+		}
+
+		/// <summary>
 		/// Get the progress fraction for a particular deployment and time
 		/// </summary>
 		/// <param name="deployment"></param>
