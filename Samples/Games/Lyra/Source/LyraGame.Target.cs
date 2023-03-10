@@ -209,7 +209,7 @@ public class LyraGameTarget : TargetRules
 							}
 							else
 							{
-								Logger.Logdebug("GameFeaturePlugin {Name} was marked as restricted to this branch. Leaving enabled.", PluginFile.GetFileNameWithoutExtension());
+								Logger.LogDebug("GameFeaturePlugin {Name} was marked as restricted to this branch. Leaving enabled.", PluginFile.GetFileNameWithoutExtension());
 							}
 						}
 
