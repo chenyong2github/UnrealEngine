@@ -229,7 +229,10 @@ FGameplayTagCustomization::~FGameplayTagCustomization()
 		EditButton->SetIsOpen(false);
 	}
 
-	GEditor->UnregisterForUndo(this);
+	if (GEditor)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
 }
 
 void FGameplayTagCustomization::BuildEditableContainerList()
