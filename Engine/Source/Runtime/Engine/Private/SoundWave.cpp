@@ -2854,7 +2854,9 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	WaveInstance->bApplyRadioFilter = ActiveSound.bApplyRadioFilter;
 	WaveInstance->StartTime = ParseParams.StartTime;
 	WaveInstance->UserIndex = ActiveSound.UserIndex;
-	WaveInstance->OmniRadius = ParseParams.OmniRadius;
+	WaveInstance->NonSpatializedRadiusStart = ParseParams.NonSpatializedRadiusStart;
+	WaveInstance->NonSpatializedRadiusEnd = ParseParams.NonSpatializedRadiusEnd;
+	WaveInstance->NonSpatializedRadiusMode = ParseParams.NonSpatializedRadiusMode;
 	WaveInstance->StereoSpread = ParseParams.StereoSpread;
 	WaveInstance->AttenuationDistance = ParseParams.AttenuationDistance;
 	WaveInstance->ListenerToSoundDistance = ParseParams.ListenerToSoundDistance;

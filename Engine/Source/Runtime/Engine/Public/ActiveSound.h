@@ -105,8 +105,14 @@ struct FSoundParseParameters
 	// Time offset from beginning of sound to start at
 	float StartTime;
 
-	// At what distance from the source of the sound should spatialization begin
-	float OmniRadius;
+	// At what distance from the source of the sound should spatialization begin 
+	float NonSpatializedRadiusStart;
+
+	// At what distance from the source the sound is fully non-spatialized
+	float NonSpatializedRadiusEnd;
+
+	// Which mode to use for non-spatialized radius
+	ENonSpatializedRadiusSpeakerMapMode NonSpatializedRadiusMode;
 
 	// The distance over which the sound is attenuated
 	float AttenuationDistance;
@@ -227,7 +233,9 @@ struct FSoundParseParameters
 		, InteriorVolumeMultiplier(1.f)
 		, Pitch(1.f)
 		, StartTime(-1.f)
-		, OmniRadius(0.0f)
+		, NonSpatializedRadiusStart(0.0f)
+		, NonSpatializedRadiusEnd(0.0f)
+		, NonSpatializedRadiusMode(ENonSpatializedRadiusSpeakerMapMode::OmniDirectional)
 		, AttenuationDistance(0.0f)
 		, ListenerToSoundDistance(0.0f)
 		, ListenerToSoundDistanceForPanning(0.0f)

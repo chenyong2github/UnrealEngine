@@ -531,21 +531,47 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 		// Independently retrieve the attenuation used for distance in case it was overridden
 		Params.AttenuationDistance = AudioDevice->GetDistanceToNearestListener(WaveInstance->Location);
 		
-		// If we are using the OmniRadius feature
-		if (WaveInstance->OmniRadius > 0.0f)
+		// If we are using the Non-spatialized radius feature
+		if (WaveInstance->NonSpatializedRadiusStart > 0.0f)
 		{
-			// Initialize to full omni-directionality (bigger value, more omni)
-			static const float MaxNormalizedRadius = 1000000.0f;
-			Params.NormalizedOmniRadius = MaxNormalizedRadius;
+			float NonSpatializedRadiusEnd = FMath::Min(WaveInstance->NonSpatializedRadiusStart, WaveInstance->NonSpatializedRadiusEnd);
 
-			if (Params.Distance > 0)
+			if (Params.Distance > 0.0f)
 			{
-				Params.NormalizedOmniRadius = FMath::Clamp(WaveInstance->OmniRadius / Params.Distance, 0.0f, MaxNormalizedRadius);
+				// If the user specified a distance below which to be fully 2D
+				if (NonSpatializedRadiusEnd > 0.0f)
+				{
+					// We're in the non-spatialized domain
+					if (Params.Distance < WaveInstance->NonSpatializedRadiusStart)
+					{
+						float NonSpatializationRange = WaveInstance->NonSpatializedRadiusStart - NonSpatializedRadiusEnd;
+						NonSpatializationRange = FMath::Max(NonSpatializationRange, 1.0f);
+						Params.NonSpatializedAmount = FMath::Clamp((WaveInstance->NonSpatializedRadiusStart - Params.Distance)/ NonSpatializationRange, 0.0f, 1.0f);
+					}					
+				}
+				else
+				{
+					// Initialize to full omni-directionality (bigger value, more omni)
+					static const float MaxNormalizedRadius = 1000000.0f;
+					float NormalizedOmniRadus = FMath::Clamp(WaveInstance->NonSpatializedRadiusStart / Params.Distance, 0.0f, MaxNormalizedRadius);
+					if (NormalizedOmniRadus > 1.0f)
+					{
+						float NormalizedOmniRadusSquared = NormalizedOmniRadus * NormalizedOmniRadus;
+						Params.NonSpatializedAmount = 1.0f - 1.0f / NormalizedOmniRadusSquared;
+					}
+					else
+					{
+						Params.NonSpatializedAmount = 0.0f;
+					}
+				}
+
+				UE_LOG(LogTemp, Log, TEXT("Distance: %.2f, NonSpatializedRadiusStart: %.2f, NonSpatializedRadiusEnd: %.2f, NonSpatializedAmount: %.2f"), Params.Distance, WaveInstance->NonSpatializedRadiusStart, WaveInstance->NonSpatializedRadiusEnd, Params.NonSpatializedAmount);
+
 			}
 		}
 		else
 		{
-			Params.NormalizedOmniRadius = 0.0f;
+			Params.NonSpatializedAmount = 0.0f;
 		}
 
 		Params.EmitterPosition = EmitterPosition;
@@ -560,6 +586,7 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 	else
 	{
 		Params.NormalizedOmniRadius = 0.0f;
+		Params.NonSpatializedAmount = 0.0f;
 		Params.Distance = 0.0f;
 		Params.EmitterPosition = FVector::ZeroVector;
 	}
@@ -826,7 +853,9 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, AttenuationHighpassFilterFrequency(MIN_FILTER_FREQUENCY)
 	, Pitch(0.0f)
 	, Location(FVector::ZeroVector)
-	, OmniRadius(0.0f)
+	, NonSpatializedRadiusStart(0.0f)
+	, NonSpatializedRadiusEnd(0.0f)
+	, NonSpatializedRadiusMode(ENonSpatializedRadiusSpeakerMapMode::OmniDirectional)
 	, StereoSpread(0.0f)
 	, AttenuationDistance(0.0f)
 	, ListenerToSoundDistance(0.0f)

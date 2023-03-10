@@ -274,6 +274,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Add FWorldPartitionActorFilter to FLevelInstanceActorDesc/FDataLayerInstanceDesc
 		WorldPartitionActorFilter,
 
+		// Change the non-spatialized radius to blend to a pure 2D spatialized sound vs omnidirectional
+		AudioAttenuationNonSpatializedRadiusBlend,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

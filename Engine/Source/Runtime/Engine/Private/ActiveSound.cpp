@@ -1849,7 +1849,9 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		}
 	}
 
-	ParseParams.OmniRadius = Settings->OmniRadius;
+	ParseParams.NonSpatializedRadiusStart = Settings->NonSpatializedRadiusStart;
+	ParseParams.NonSpatializedRadiusEnd = Settings->NonSpatializedRadiusEnd;
+	ParseParams.NonSpatializedRadiusMode = Settings->NonSpatializedRadiusMode;
 	ParseParams.StereoSpread = Settings->StereoSpread;
 	ParseParams.bApplyNormalizationToStereoSounds = Settings->bApplyNormalizationToStereoSounds;
 	ParseParams.bUseSpatialization |= Settings->bSpatialize;

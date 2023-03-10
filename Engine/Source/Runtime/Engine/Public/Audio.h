@@ -369,8 +369,14 @@ public:
 	/** Current location */
 	FVector Location;
 
-	/** At what distance we start transforming into omnidirectional soundsource */
-	float OmniRadius;
+	/** At what distance we start transforming into non-spatialized soundsource */
+	float NonSpatializedRadiusStart;
+
+	/** At what distance we are fully non-spatialized*/
+	float NonSpatializedRadiusEnd;
+
+	/** How we are doing the non-spatialized radius feature. */
+	ENonSpatializedRadiusSpeakerMapMode NonSpatializedRadiusMode;
 
 	/** Amount of spread for 3d multi-channel asset spatialization */
 	float StereoSpread;

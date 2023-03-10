@@ -4,6 +4,7 @@
 
 #include "AudioDevice.h"
 #include "UObject/AnimPhysObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 /*-----------------------------------------------------------------------------
 	USoundAttenuation implementation.
@@ -57,6 +58,14 @@ void FSoundAttenuationSettings::PostSerialize(const FArchive& Ar)
 			PluginSettings.ReverbPluginSettingsArray.Add(ReverbPluginSettings_DEPRECATED);
 		}
 	}
+
+	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::AudioAttenuationNonSpatializedRadiusBlend)
+	{
+		if (OmniRadius_DEPRECATED)
+		{
+			NonSpatializedRadiusStart = OmniRadius_DEPRECATED;
+		}
+	}
 }
 #endif
 
@@ -90,7 +99,9 @@ bool FSoundAttenuationSettings::operator==(const FSoundAttenuationSettings& Othe
 			&& bSpatialize			    == Other.bSpatialize
 			&& dBAttenuationAtMax	    == Other.dBAttenuationAtMax
 			&& FalloffMode				== Other.FalloffMode
-			&& OmniRadius				== Other.OmniRadius
+			&& NonSpatializedRadiusStart == Other.NonSpatializedRadiusStart
+			&& NonSpatializedRadiusEnd == Other.NonSpatializedRadiusEnd
+			&& NonSpatializedRadiusMode == Other.NonSpatializedRadiusMode
 			&& bApplyNormalizationToStereoSounds == Other.bApplyNormalizationToStereoSounds
 			&& StereoSpread				== Other.StereoSpread
 			&& DistanceAlgorithm	    == Other.DistanceAlgorithm

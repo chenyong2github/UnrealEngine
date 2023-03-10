@@ -150,6 +150,21 @@ struct ENGINE_API FAttenuationSubmixSendSettings
 	FRuntimeFloatCurve CustomSubmixSendCurve;
 };
 
+
+// Defines how to speaker map the sound when using the non-spatialized radius feature
+UENUM(BlueprintType)
+enum class ENonSpatializedRadiusSpeakerMapMode : uint8
+{
+	// Will blend the 3D sound to an omni-directional sound (equal output mapping in all directions)
+	OmniDirectional,
+
+	// Will blend the 3D source to the same representation speaker map used when playing the asset 2D
+	Direct2D,
+
+	// Will blend the 3D source to a multichannel 2D version (i.e. upmix stereo to quad) if rendering in surround
+	Surround2D,
+};
+
 /*
 The settings for attenuating.
 */
@@ -253,11 +268,22 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TEnumAsByte<enum ESoundDistanceCalc> DistanceType_DEPRECATED;
+
+ 	UPROPERTY()
+ 	float OmniRadius_DEPRECATED;
 #endif
 
-	/** The distance below which a sound is non-spatialized (2D). This prevents near-field audio from flipping as audio crosses the listener's position. This does not apply when using a 3rd party binaural plugin (audio will remain spatialized). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta=(ClampMin = "0", EditCondition="bSpatialize", DisplayName="Non-Spatialized Radius"))
-	float OmniRadius;
+	/** The distance below which a sound begins to be non-spatialized (2D). This prevents near-field audio from flipping as audio crosses the listener's position. This does not apply when using a 3rd party binaural plugin (audio will remain spatialized). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize"))
+	float NonSpatializedRadiusStart;
+
+	/** The distance below which a sound is fully non-spatialized (2D). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize"))
+	float NonSpatializedRadiusEnd;
+
+	/** Defines how to blend to the 2D sound when using the non-spatialized radius. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize"))
+	ENonSpatializedRadiusSpeakerMapMode NonSpatializedRadiusMode;
 
 	/** The world-space distance between left and right stereo channels when stereo assets are 3D spatialized. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize", DisplayName = "3D Stereo Spread"))
@@ -438,8 +464,11 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 		, PriorityAttenuationMethod(EPriorityAttenuationMethod::Linear)
 #if WITH_EDITORONLY_DATA
 		, DistanceType_DEPRECATED(SOUNDDISTANCE_Normal)
+		, OmniRadius_DEPRECATED(0.0f)
 #endif
-		, OmniRadius(0.0f)
+		, NonSpatializedRadiusStart(0.0f)
+		, NonSpatializedRadiusEnd(0.0f)
+		, NonSpatializedRadiusMode(ENonSpatializedRadiusSpeakerMapMode::OmniDirectional)
 		, StereoSpread(200.0f)
 #if WITH_EDITORONLY_DATA
 		, SpatializationPluginSettings_DEPRECATED(nullptr)

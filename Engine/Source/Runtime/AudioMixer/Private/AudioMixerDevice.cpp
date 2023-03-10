@@ -1929,7 +1929,7 @@ namespace Audio
 		return SourceManager->GetNumActiveSources();
 	}
 
-	void FMixerDevice::Get3DChannelMap(const int32 InSubmixNumChannels, const FWaveInstance* InWaveInstance, float EmitterAzimith, float NormalizedOmniRadius, Audio::FAlignedFloatBuffer& OutChannelMap)
+	void FMixerDevice::Get3DChannelMap(const int32 InSubmixNumChannels, const FWaveInstance* InWaveInstance, float EmitterAzimith, float InNonSpatializedAmount, const TMap<EAudioMixerChannel::Type, float>* InOmniMap, float InDefaultOmniValue, Audio::FAlignedFloatBuffer& OutChannelMap)
 	{
 		// If we're center-channel only, then no need for spatial calculations, but need to build a channel map
 		if (InWaveInstance->bCenterChannelOnly)
@@ -2025,13 +2025,7 @@ namespace Audio
 			PrevChannelPan = 1.0f - Fraction;
 		}
 
-		float NormalizedOmniRadSquared = NormalizedOmniRadius * NormalizedOmniRadius;
-		float OmniAmount = 0.0f;
-
-		if (NormalizedOmniRadSquared > 1.0f)
-		{
-			OmniAmount = 1.0f - 1.0f / NormalizedOmniRadSquared;
-		}
+		float OmniAmount = InNonSpatializedAmount;
 
 		// Build the output channel map based on the current platform device output channel array 
 
@@ -2040,36 +2034,80 @@ namespace Audio
 		{
 			NumSpatialChannels--;
 		}
-		float OmniPanFactor = 1.0f / NumSpatialChannels;
 
-		float DefaultEffectivePan = !OmniAmount ? 0.0f : FMath::Lerp(0.0f, OmniPanFactor, OmniAmount);
 		const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArray();
 
-		for (EAudioMixerChannel::Type Channel : ChannelArray)
+		if (OmniAmount > 0.0f)
 		{
-			float EffectivePan = DefaultEffectivePan;
+			for (EAudioMixerChannel::Type Channel : ChannelArray)
+			{
+				float OmniPanFactor = InDefaultOmniValue;
 
-			// Check for manual channel mapping parameters (LFE and Front Center)
-			if (Channel == EAudioMixerChannel::LowFrequency)
-			{
-				EffectivePan = InWaveInstance->LFEBleed;
-			}
-			else if (Channel == PrevChannelInfo->Channel)
-			{
-				EffectivePan = !OmniAmount ? PrevChannelPan : FMath::Lerp(PrevChannelPan, OmniPanFactor, OmniAmount);
-			}
-			else if (Channel == NextChannelInfo->Channel)
-			{
-				EffectivePan = !OmniAmount ? NextChannelPan : FMath::Lerp(NextChannelPan, OmniPanFactor, OmniAmount);
-			}
+				if (InOmniMap)
+				{
+					const float* MappedOmniPanFactor = InOmniMap->Find(Channel);
+					if (MappedOmniPanFactor)
+					{
+						OmniPanFactor = *MappedOmniPanFactor;
+					}
+				}
 
-			if (Channel == EAudioMixerChannel::FrontCenter)
-			{
-				EffectivePan = FMath::Max(InWaveInstance->VoiceCenterChannelVolume, EffectivePan);
-			}
+				float EffectivePan = 0.0f;
 
-			AUDIO_MIXER_CHECK(EffectivePan >= 0.0f && EffectivePan <= 1.0f);
-			OutChannelMap.Add(EffectivePan);
+				// Check for manual channel mapping parameters (LFE and Front Center)
+				if (Channel == EAudioMixerChannel::LowFrequency)
+				{
+					EffectivePan = InWaveInstance->LFEBleed;
+				}
+				else if (Channel == PrevChannelInfo->Channel)
+				{
+					EffectivePan = FMath::Lerp(PrevChannelPan, OmniPanFactor, OmniAmount);
+				}
+				else if (Channel == NextChannelInfo->Channel)
+				{
+					EffectivePan = FMath::Lerp(NextChannelPan, OmniPanFactor, OmniAmount);
+				}
+				else if (Channel == EAudioMixerChannel::FrontCenter)
+				{
+					EffectivePan = FMath::Lerp(0.0f, OmniPanFactor, OmniAmount);
+					EffectivePan = FMath::Max(InWaveInstance->VoiceCenterChannelVolume, EffectivePan);
+				}
+				else
+				{
+					EffectivePan = FMath::Lerp(0.0f, OmniPanFactor, OmniAmount);
+				}
+
+				AUDIO_MIXER_CHECK(EffectivePan >= 0.0f && EffectivePan <= 1.0f);
+				OutChannelMap.Add(EffectivePan);
+			}
+		}
+		else
+		{
+			for (EAudioMixerChannel::Type Channel : ChannelArray)
+			{
+				float EffectivePan = 0.0f;
+
+				// Check for manual channel mapping parameters (LFE and Front Center)
+				if (Channel == EAudioMixerChannel::LowFrequency)
+				{
+					EffectivePan = InWaveInstance->LFEBleed;
+				}
+				else if (Channel == PrevChannelInfo->Channel)
+				{
+					EffectivePan = PrevChannelPan;
+				}
+				else if (Channel == NextChannelInfo->Channel)
+				{
+					EffectivePan = NextChannelPan;
+				}
+				else if (Channel == EAudioMixerChannel::FrontCenter)
+				{
+					EffectivePan = FMath::Max(InWaveInstance->VoiceCenterChannelVolume, EffectivePan);
+				}
+
+				AUDIO_MIXER_CHECK(EffectivePan >= 0.0f && EffectivePan <= 1.0f);
+				OutChannelMap.Add(EffectivePan);
+			}
 		}
 	}
 
