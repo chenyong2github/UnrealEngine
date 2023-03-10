@@ -336,7 +336,6 @@ int32 GetOSVersionsHelper( TCHAR* OutOSVersionLabel, int32 OSVersionLabelLength,
 	return ErrorCode;
 }
 
-#if WINDOWS_USE_DEFAULT_OSVERSIONHELPER
 int32 FWindowsOSVersionHelper::GetOSVersions( FString& OutOSVersionLabel, FString& OutOSSubVersionLabel )
 {
 	TCHAR OSVersionLabel[128];
@@ -352,7 +351,6 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& OutOSVersionLabel, FStrin
 
 	return Result;
 }
-#endif //WINDOWS_USE_DEFAULT_OSVERSIONHELPER
 
 namespace
 {
