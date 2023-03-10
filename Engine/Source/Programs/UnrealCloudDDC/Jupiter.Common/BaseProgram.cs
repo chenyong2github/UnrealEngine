@@ -56,13 +56,19 @@ namespace Jupiter
 
             try
             {
-                Log.Information("Creating ASPNET Host");
-                IHost host = CreateHostBuilder(args).Build();
-                host.Start();
-
                 JupiterSettings settings = new JupiterSettings();
                 Configuration.GetSection("Jupiter").Bind(settings);
                 string socketsRoot = settings.DomainSocketsRoot;
+
+                if (settings.UseDomainSockets)
+                {
+                    File.Delete(Path.Combine(socketsRoot, "jupiter-http.sock"));
+                    File.Delete(Path.Combine(socketsRoot, "jupiter-http2.sock"));
+                }
+
+                Log.Information("Creating ASPNET Host");
+                IHost host = CreateHostBuilder(args).Build();
+                host.Start();
 
                 if (settings.ChmodDomainSockets)
                 {
