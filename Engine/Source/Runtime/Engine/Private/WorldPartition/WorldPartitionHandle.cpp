@@ -86,6 +86,9 @@ void FWorldPartitionLoadingContext::FImmediate::RegisterActor(FWorldPartitionAct
 
 void FWorldPartitionLoadingContext::FImmediate::UnregisterActor(FWorldPartitionActorDesc* ActorDesc)
 {
+	// Set GIsEditorLoadingPackage to avoid dirtying the Actor package if Modify() is called during the unload sequence
+	TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
+
 	// When cleaning up worlds, actors are already marked as garbage at this point, so no need to remove them from the world
 	if (AActor* Actor = ActorDesc->GetActor(); IsValid(Actor))
 	{
@@ -149,6 +152,9 @@ FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 
 			if (ContainerOp.Unregistrations.Num())
 			{
+				// Set GIsEditorLoadingPackage to avoid dirtying the Actor package if Modify() is called during the unload sequence
+				TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
+
 				TArray<AActor*> ActorList;
 				if (ULevel* Level = CreateActorList(ActorList, ContainerOp.Unregistrations))
 				{
