@@ -2807,13 +2807,26 @@ void ULevel::FixupActorFolders()
 	{
 		TGuardValue<bool> FixingActorFolders(GIsFixingActorFolders, true);
 
-		// At this point, LoadedExternalActorFolders are fully loaded, transfer them to the ActorFolders list.
-		for (UActorFolder* LoadedActorFolder : LoadedExternalActorFolders)
+		if (IsUsingExternalObjects())
 		{
-			check(LoadedActorFolder->GetGuid().IsValid());
-			AddActorFolder(LoadedActorFolder);
+			// At this point, LoadedExternalActorFolders are fully loaded, transfer them to the ActorFolders list.
+			for (UActorFolder* LoadedActorFolder : LoadedExternalActorFolders)
+			{
+				check(LoadedActorFolder->GetGuid().IsValid());
+				AddActorFolder(LoadedActorFolder);
+			}
+			LoadedExternalActorFolders.Empty();
 		}
-		LoadedExternalActorFolders.Empty();
+		else
+		{
+			// Update FolderLabelToActorFolders for non-externalized ActorFolders
+			ForEachActorFolder([this](UActorFolder* ActorFolder)
+			{
+				FActorFolderSet& Folders = FolderLabelToActorFolders.FindOrAdd(ActorFolder->GetLabel());
+				Folders.Add(ActorFolder);
+				return true;
+			}, /*bSkipDeleted*/ true);
+		}
 
 		ForEachActorFolder([](UActorFolder* ActorFolder)
 		{
