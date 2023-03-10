@@ -103,11 +103,13 @@ private:
 	class FNetSerializerRegistryDelegates final : private UE::Net::FNetSerializerRegistryDelegates
 	{
 	public:
+		FNetSerializerRegistryDelegates();
 		virtual ~FNetSerializerRegistryDelegates();
 
 	private:
 		virtual void OnPreFreezeNetSerializerRegistry() override;
 		virtual void OnPostFreezeNetSerializerRegistry() override;
+		virtual void OnLoadedModulesUpdated() override;
 
 		inline static const FName PropertyNetSerializerRegistry_NAME_RootMotionSourceGroup = FName("RootMotionSourceGroup");
 		UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_RootMotionSourceGroup, FRootMotionSourceGroupNetSerializer);
@@ -529,6 +531,11 @@ void FRootMotionSourceGroupNetSerializer::SetPendingRootMotionSourcesNum(FRootMo
 	ArrayContainer.PendingAddRootMotionSources.SetNum(static_cast<SSIZE_T>(Num));
 }
 
+FRootMotionSourceGroupNetSerializer::FNetSerializerRegistryDelegates::FNetSerializerRegistryDelegates()
+: UE::Net::FNetSerializerRegistryDelegates(EFlags::ShouldBindLoadedModulesUpdatedDelegate)
+{
+}
+
 FRootMotionSourceGroupNetSerializer::FNetSerializerRegistryDelegates::~FNetSerializerRegistryDelegates()
 {
 	UE_NET_UNREGISTER_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_RootMotionSourceGroup);
@@ -542,7 +549,11 @@ void FRootMotionSourceGroupNetSerializer::FNetSerializerRegistryDelegates::OnPre
 void FRootMotionSourceGroupNetSerializer::FNetSerializerRegistryDelegates::OnPostFreezeNetSerializerRegistry()
 {
 	bIsPostFreezeCalled = true;
-	FRootMotionSourceGroupNetSerializer::InitTypeCache();
+}
+
+void FRootMotionSourceGroupNetSerializer::FNetSerializerRegistryDelegates::OnLoadedModulesUpdated()
+{
+	UE::Net::FRootMotionSourceGroupNetSerializer::InitTypeCache();
 }
 
 }

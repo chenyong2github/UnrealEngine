@@ -265,10 +265,6 @@ void UAbilitySystemGlobals::InitTargetDataScriptStructCache()
 {
 	TargetDataStructCache.InitForType(FGameplayAbilityTargetData::StaticStruct());
 	EffectContextStructCache.InitForType(FGameplayEffectContext::StaticStruct());
-#if UE_WITH_IRIS
-	InitGameplayAbilityTargetDataHandleNetSerializerTypeCache();
-	InitGameplayEffectContextHandleNetSerializerTypeCache();
-#endif // UE_WITH_IRIS
 }
 
 // --------------------------------------------------------------------

@@ -8,9 +8,18 @@ namespace UE::Net
 
 using namespace UE::Net::Private;
 
-FNetSerializerRegistryDelegates::FNetSerializerRegistryDelegates()
+FNetSerializerRegistryDelegates::FNetSerializerRegistryDelegates(EFlags Flags)
 : PreFreezeDelegate(FInternalNetSerializerDelegates::GetPreFreezeNetSerializerRegistryDelegate().AddRaw(this, &FNetSerializerRegistryDelegates::PreFreezeNetSerializerRegistry))
 , PostFreezeDelegate(FInternalNetSerializerDelegates::GetPostFreezeNetSerializerRegistryDelegate().AddRaw(this, &FNetSerializerRegistryDelegates::PostFreezeNetSerializerRegistry))
+{
+	if ((Flags & EFlags::ShouldBindLoadedModulesUpdatedDelegate) != 0U)
+	{
+		LoadedModulesUpdatedDelegate = FInternalNetSerializerDelegates::GetLoadedModulesUpdatedDelegate().AddRaw(this, &FNetSerializerRegistryDelegates::LoadedModulesUpdated);
+	}
+}
+
+FNetSerializerRegistryDelegates::FNetSerializerRegistryDelegates()
+: FNetSerializerRegistryDelegates(EFlags::None)
 {
 }
 
@@ -24,6 +33,10 @@ FNetSerializerRegistryDelegates::~FNetSerializerRegistryDelegates()
 	{
 		FInternalNetSerializerDelegates::GetPostFreezeNetSerializerRegistryDelegate().Remove(PostFreezeDelegate);
 	}
+	if (LoadedModulesUpdatedDelegate.IsValid())
+	{
+		FInternalNetSerializerDelegates::GetLoadedModulesUpdatedDelegate().Remove(LoadedModulesUpdatedDelegate);
+	}
 }
 
 void FNetSerializerRegistryDelegates::OnPreFreezeNetSerializerRegistry()
@@ -31,6 +44,10 @@ void FNetSerializerRegistryDelegates::OnPreFreezeNetSerializerRegistry()
 }
 
 void FNetSerializerRegistryDelegates::OnPostFreezeNetSerializerRegistry()
+{
+}
+
+void FNetSerializerRegistryDelegates::OnLoadedModulesUpdated()
 {
 }
 
@@ -46,6 +63,11 @@ void FNetSerializerRegistryDelegates::PostFreezeNetSerializerRegistry()
 	OnPostFreezeNetSerializerRegistry();
 	FInternalNetSerializerDelegates::GetPostFreezeNetSerializerRegistryDelegate().Remove(PostFreezeDelegate);
 	PostFreezeDelegate.Reset();
+}
+
+void FNetSerializerRegistryDelegates::LoadedModulesUpdated()
+{
+	OnLoadedModulesUpdated();
 }
 
 }

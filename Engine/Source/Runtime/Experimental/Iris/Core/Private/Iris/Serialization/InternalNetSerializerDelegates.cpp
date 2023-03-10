@@ -19,6 +19,12 @@ void FInternalNetSerializerDelegates::BroadcastPostFreezeNetSerializerRegistry()
 	PostFreezeNetSerializerRegistryDelegate.Clear();
 }
 
+void FInternalNetSerializerDelegates::BroadcastLoadedModulesUpdated()
+{
+	FSimpleMulticastDelegate& LoadedModulesUpdatedDelegate = GetLoadedModulesUpdatedDelegate();
+	LoadedModulesUpdatedDelegate.Broadcast();
+}
+
 FSimpleMulticastDelegate& FInternalNetSerializerDelegates::GetPreFreezeNetSerializerRegistryDelegate()
 {
 	static FSimpleMulticastDelegate PreFreezeNetSerializerRegistryDelegate;
@@ -29,6 +35,12 @@ FSimpleMulticastDelegate& FInternalNetSerializerDelegates::GetPostFreezeNetSeria
 {
 	static FSimpleMulticastDelegate PostFreezeNetSerializerRegistryDelegate;
 	return PostFreezeNetSerializerRegistryDelegate;
+}
+
+FSimpleMulticastDelegate& FInternalNetSerializerDelegates::GetLoadedModulesUpdatedDelegate()
+{
+	static FSimpleMulticastDelegate LoadedModulesUpdatedDelegate;
+	return LoadedModulesUpdatedDelegate;
 }
 
 }

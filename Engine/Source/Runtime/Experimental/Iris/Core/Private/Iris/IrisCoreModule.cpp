@@ -3,6 +3,7 @@
 #include "CoreTypes.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/CoreDelegates.h"
 #include "Iris/ReplicationState/DefaultPropertyNetSerializerInfos.h"
 #include "Iris/ReplicationState/PropertyNetSerializerInfoRegistry.h"
 #include "Iris/ReplicationSystem/LegacyPushModel.h"
@@ -33,6 +34,8 @@ private:
 	{
 		// Iris requires NetCore
 		FModuleManager::LoadModuleChecked<IModuleInterface>("NetCore");
+
+		FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddRaw(this, &FIrisCoreModule::OnAllModuleLoadingPhasesComplete);
 
 		// Check command line for whether we should override the net.Iris.UseIrisReplication cvar, as we need to do that early
 		int32 UseIrisReplication;
@@ -67,6 +70,14 @@ private:
 		return false;
 	}
 
+	void OnAllModuleLoadingPhasesComplete()
+	{
+		bAllowLoadedModulesUpdatedCallback = true;
+		UE::Net::Private::FInternalNetSerializerDelegates::BroadcastLoadedModulesUpdated();
+
+		FCoreDelegates::OnAllModuleLoadingPhasesComplete.RemoveAll(this);
+	}
+
 	void OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange)
 	{
 		switch (ReasonForChange)
@@ -75,6 +86,10 @@ private:
 			{
 				UE::Net::Private::FInternalNetSerializerDelegates::BroadcastPreFreezeNetSerializerRegistry();
 				UE::Net::Private::FInternalNetSerializerDelegates::BroadcastPostFreezeNetSerializerRegistry();
+				if (bAllowLoadedModulesUpdatedCallback)
+				{
+					UE::Net::Private::FInternalNetSerializerDelegates::BroadcastLoadedModulesUpdated();
+				}
 			}
 			break;
 
@@ -87,5 +102,6 @@ private:
 
 private:
 	FDelegateHandle ModulesChangedHandle;
+	bool bAllowLoadedModulesUpdatedCallback = false;
 };
 IMPLEMENT_MODULE(FIrisCoreModule, IrisCore);

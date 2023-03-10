@@ -65,11 +65,13 @@ private:
 	class FNetSerializerRegistryDelegates final : private UE::Net::FNetSerializerRegistryDelegates
 	{
 	public:
+		FNetSerializerRegistryDelegates();
 		virtual ~FNetSerializerRegistryDelegates();
 
 	private:
 		virtual void OnPreFreezeNetSerializerRegistry() override;
 		virtual void OnPostFreezeNetSerializerRegistry() override;
+		virtual void OnLoadedModulesUpdated() override;
 	};
 
 	static FGameplayAbilityTargetDataHandleNetSerializer::FNetSerializerRegistryDelegates NetSerializerRegistryDelegates;
@@ -235,6 +237,11 @@ void FGameplayAbilityTargetDataHandleNetSerializer::SetArrayNum(FGameplayAbility
 static const FName PropertyNetSerializerRegistry_NAME_GameplayAbilityTargetDataHandle(TEXT("GameplayAbilityTargetDataHandle"));
 UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_GameplayAbilityTargetDataHandle, FGameplayAbilityTargetDataHandleNetSerializer);
 
+FGameplayAbilityTargetDataHandleNetSerializer::FNetSerializerRegistryDelegates::FNetSerializerRegistryDelegates()
+: UE::Net::FNetSerializerRegistryDelegates(EFlags::ShouldBindLoadedModulesUpdatedDelegate)
+{
+}
+
 FGameplayAbilityTargetDataHandleNetSerializer::FNetSerializerRegistryDelegates::~FNetSerializerRegistryDelegates()
 {
 	UE_NET_UNREGISTER_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_GameplayAbilityTargetDataHandle);
@@ -248,6 +255,10 @@ void FGameplayAbilityTargetDataHandleNetSerializer::FNetSerializerRegistryDelega
 void FGameplayAbilityTargetDataHandleNetSerializer::FNetSerializerRegistryDelegates::OnPostFreezeNetSerializerRegistry()
 {
 	bIsPostFreezeCalled = true;
+}
+
+void FGameplayAbilityTargetDataHandleNetSerializer::FNetSerializerRegistryDelegates::OnLoadedModulesUpdated()
+{
 	InitGameplayAbilityTargetDataHandleNetSerializerTypeCache();
 }
 
