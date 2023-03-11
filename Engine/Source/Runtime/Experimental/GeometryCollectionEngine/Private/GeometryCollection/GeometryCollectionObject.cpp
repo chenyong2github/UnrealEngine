@@ -1263,6 +1263,27 @@ TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::CopyCo
 
 #endif
 
+FGeometryCollectionRenderResourceSizeInfo UGeometryCollection::GetRenderResourceSizeInfo() const
+{
+	FGeometryCollectionRenderResourceSizeInfo InfoOut;
+	const FGeometryCollectionMeshResources& MeshResources = RenderData->MeshResource;
+	InfoOut.MeshResourcesSize += MeshResources.IndexBuffer.GetIndexDataSize();
+	InfoOut.MeshResourcesSize += MeshResources.PositionVertexBuffer.GetAllocatedSize();
+	InfoOut.MeshResourcesSize += MeshResources.StaticMeshVertexBuffer.GetResourceSize();
+	InfoOut.MeshResourcesSize += MeshResources.ColorVertexBuffer.GetAllocatedSize();
+	InfoOut.MeshResourcesSize += MeshResources.BoneMapVertexBuffer.GetAllocatedSize();
+
+	const Nanite::FResources& NaniteResource = RenderData->NaniteResource;
+	InfoOut.NaniteResourcesSize += NaniteResource.RootData.GetAllocatedSize();
+	InfoOut.NaniteResourcesSize += NaniteResource.ImposterAtlas.GetAllocatedSize();
+	InfoOut.NaniteResourcesSize += NaniteResource.HierarchyNodes.GetAllocatedSize();
+	InfoOut.NaniteResourcesSize += NaniteResource.HierarchyRootOffsets.GetAllocatedSize();
+	InfoOut.NaniteResourcesSize += NaniteResource.PageStreamingStates.GetAllocatedSize();
+	InfoOut.NaniteResourcesSize += NaniteResource.PageDependencies.GetAllocatedSize();
+
+	return InfoOut;
+}
+
 void UGeometryCollection::InitResources()
 {
 	if (RenderData)

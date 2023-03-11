@@ -96,6 +96,8 @@ public:
 		return NumVertices;
 	}
 	ENGINE_API bool GetAllowCPUAccess() const;
+	
+	FORCEINLINE SIZE_T GetAllocatedSize() const { return (Data != nullptr) ? Stride * NumVertices : 0; }
 
 	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
 	FBufferRHIRef CreateRHIBuffer_RenderThread();

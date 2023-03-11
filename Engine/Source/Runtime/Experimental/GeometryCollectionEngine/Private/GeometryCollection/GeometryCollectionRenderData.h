@@ -29,6 +29,8 @@ public:
 		return *(uint16*)(Data + VertexIndex * PixelFormatStride);
 	}
 
+	SIZE_T GetAllocatedSize() const { return (BoneMapData != nullptr) ? BoneMapData->GetResourceSize() : 0; }
+
 protected:
 	void CleanUp();
 	void AllocateData(bool bInNeedsCPUAccess = true);

@@ -322,6 +322,20 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionProxyMeshData
 	TArray<TObjectPtr<UStaticMesh>> ProxyMeshes;
 };
 
+USTRUCT()
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionRenderResourceSizeInfo
+{
+	GENERATED_BODY();
+
+	// Total size of the arrays for the MeshResources
+	UPROPERTY()
+	uint64 MeshResourcesSize = 0;
+
+	// Total size of the arrays for the NaniteResources
+	UPROPERTY()
+	uint64 NaniteResourcesSize = 0;
+};
+
 /**
 * UGeometryCollectionObject (UObject)
 *
@@ -421,6 +435,9 @@ public:
 
 	/** copy a collection and remove geometry from it */
 	static TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> CopyCollectionAndRemoveGeometry(const TSharedPtr<const FGeometryCollection, ESPMode::ThreadSafe>& CollectionToCopy);
+
+	/** get the size of the render data resources associated with this collection */
+	FGeometryCollectionRenderResourceSizeInfo GetRenderResourceSizeInfo() const;
 
 #if WITH_EDITOR
 	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
