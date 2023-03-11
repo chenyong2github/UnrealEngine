@@ -143,7 +143,7 @@ void TessellateAndDisplace(
 
 	TArray< FLerpVert >	LerpVerts;
 	LerpVerts.AddUninitialized( Verts.Position.Num() );
-	for( int i = 0; i < Verts.Num(); i++ )
+	for( int i = 0; i < Verts.Position.Num(); i++ )
 		LerpVerts[i] = MakeStaticMeshVertex(Verts, i);
 
 	FAdaptiveTessellator Tessellator( LerpVerts, Indexes, MaterialIndexes, TargetError, TargetError, true,
