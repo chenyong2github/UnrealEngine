@@ -63,7 +63,7 @@ void UGameplayTagsK2Node_SwitchGameplayTag::PostEditChangeProperty(struct FPrope
 	if (bIsDirty)
 	{
 		ReconstructNode();
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }

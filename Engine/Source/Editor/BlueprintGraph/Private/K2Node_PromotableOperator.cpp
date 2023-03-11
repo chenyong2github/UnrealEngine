@@ -310,7 +310,7 @@ void UK2Node_PromotableOperator::NodeConnectionListChanged()
 		UpdateFromBestMatchingFunction();
 
 		// Get correct default value boxes
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 	}
 }
 
@@ -1116,7 +1116,7 @@ void UK2Node_PromotableOperator::ResetNodeToWildcard()
 		}
 	}
 
-	GetGraph()->NotifyGraphChanged();
+	GetGraph()->NotifyNodeChanged(this);
 }
 
 void UK2Node_PromotableOperator::RecombineAllSplitPins()
@@ -1375,7 +1375,7 @@ void UK2Node_PromotableOperator::UpdatePinsFromFunction(const UFunction* Functio
 
 	// We need to notify the graph that the node has changed to get 
 	// the correct default value text boxes on the node
-	GetGraph()->NotifyGraphChanged();
+	GetGraph()->NotifyNodeChanged(this);
 }
 
 UEdGraphPin* UK2Node_PromotableOperator::GetOutputPin() const

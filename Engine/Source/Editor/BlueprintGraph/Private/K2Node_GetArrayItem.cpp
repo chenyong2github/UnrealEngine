@@ -302,7 +302,7 @@ void UK2Node_GetArrayItem::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 				if (NewType.PinCategory != UEdGraphSchema_K2::PC_Wildcard)
 				{
 					PropagatePinType(NewType);
-					GetGraph()->NotifyGraphChanged();
+					GetGraph()->NotifyNodeChanged(this);
 				}
 			}
 		}

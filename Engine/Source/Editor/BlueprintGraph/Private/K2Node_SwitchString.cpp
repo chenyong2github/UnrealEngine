@@ -47,7 +47,7 @@ void UK2Node_SwitchString::PostEditChangeProperty(struct FPropertyChangedEvent& 
 	if (bIsDirty)
 	{
 		ReconstructNode();
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }

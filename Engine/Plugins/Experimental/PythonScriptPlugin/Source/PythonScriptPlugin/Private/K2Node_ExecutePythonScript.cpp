@@ -130,7 +130,7 @@ void UK2Node_ExecutePythonScript::SynchronizeArgumentPinTypeImpl(UEdGraphPin* Pi
 	{
 		Pin->PinType = NewPinType;
 
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 
 		UBlueprint* Blueprint = GetBlueprint();
 		if (!Blueprint->bBeingCompiled)
@@ -167,7 +167,7 @@ void UK2Node_ExecutePythonScript::PostEditChangeProperty(struct FPropertyChanged
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_ExecutePythonScript, Inputs) || PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_ExecutePythonScript, Outputs))
 	{
 		ReconstructNode();
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }

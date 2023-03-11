@@ -165,8 +165,11 @@ public:
 	*/
 	bool RemoveNode( UEdGraphNode* NodeToRemove, bool bBreakAllLinks = true );
 
-	/** Signal to listeners that the graph has changed */
+	/** Signal to listeners that the graph has changed - prefer to use NotifyNodeChanged when updating a single node */
 	virtual void NotifyGraphChanged();
+
+	/** Signal to listeners that a node has changed in the graph - commonly used to get UI up to date with a data change */
+	void NotifyNodeChanged(const UEdGraphNode* Node);
 
 	/** 
 	 * Move all nodes from this graph to another graph

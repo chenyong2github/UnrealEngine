@@ -418,7 +418,7 @@ void UK2Node_MakeRequestHeader::AddInputPin()
 	if (!GetBlueprint()->bBeingCompiled)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 	}
 }
 

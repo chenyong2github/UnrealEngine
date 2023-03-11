@@ -619,7 +619,7 @@ void UK2Node_GetClassDefaults::OnClassPinChanged()
 	// Notify the graph that the node has been changed
 	if(UEdGraph* Graph = GetGraph())
 	{
-		Graph->NotifyGraphChanged();
+		Graph->NotifyNodeChanged(this);
 	}
 }
 

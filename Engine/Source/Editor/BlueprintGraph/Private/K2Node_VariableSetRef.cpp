@@ -282,7 +282,7 @@ void UK2Node_VariableSetRef::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 		CachedNodeTitle.MarkDirty();
 		
 		// Get the graph to refresh our title and default value info
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 	}
 }
 

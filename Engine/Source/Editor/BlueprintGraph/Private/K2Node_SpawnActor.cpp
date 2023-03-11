@@ -202,7 +202,7 @@ void UK2Node_SpawnActor::PinDefaultValueChanged(UEdGraphPin* ChangedPin)
 
 		// Refresh the UI for the graph so the pin changes show up
 		UEdGraph* Graph = GetGraph();
-		Graph->NotifyGraphChanged();
+		Graph->NotifyNodeChanged(this);
 
 		// Mark dirty
 		FBlueprintEditorUtils::MarkBlueprintAsModified(GetBlueprint());

@@ -258,7 +258,7 @@ void UK2Node_GetDMXFixturePatch::NotifyInputChanged()
 	}
 
 	UEdGraph* Graph = GetGraph();
-	Graph->NotifyGraphChanged();
+	Graph->NotifyNodeChanged(this);
 }
 
 #undef LOCTEXT_NAMESPACE

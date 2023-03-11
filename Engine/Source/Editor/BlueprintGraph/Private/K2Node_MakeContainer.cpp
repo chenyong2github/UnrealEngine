@@ -304,7 +304,7 @@ void UK2Node_MakeContainer::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 	if (bNotifyGraphChanged)
 	{
 		PropagatePinType();
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 	}
 }
 
@@ -388,7 +388,7 @@ void UK2Node_MakeContainer::PropagatePinType()
 		{
 			if (UEdGraph* Graph = OwningNode->GetGraph())
 			{
-				Graph->NotifyGraphChanged();
+				Graph->NotifyNodeChanged(this);
 			}
 		}
 	}

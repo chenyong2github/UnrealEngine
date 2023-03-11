@@ -29,7 +29,7 @@ void UK2Node_PixelMappingBaseComponent::AllocateDefaultPins()
 void UK2Node_PixelMappingBaseComponent::RefreshGraph()
 {
 	UEdGraph* Graph = GetGraph();
-	Graph->NotifyGraphChanged();
+	Graph->NotifyNodeChanged(this);
 }
 
 UEdGraphPin* UK2Node_PixelMappingBaseComponent::GetInPixelMappingPin() const

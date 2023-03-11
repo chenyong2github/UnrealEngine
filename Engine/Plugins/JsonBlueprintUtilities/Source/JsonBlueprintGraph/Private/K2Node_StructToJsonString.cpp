@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_StructToJsonString.h"
 
@@ -86,7 +86,7 @@ void UK2Node_StructToJsonString::NotifyInputChanged() const
 	}
 
 	UEdGraph* Graph = GetGraph();
-	Graph->NotifyGraphChanged();
+	Graph->NotifyNodeChanged(this);
 }
 
 #undef LOCTEXT_NAMESPACE

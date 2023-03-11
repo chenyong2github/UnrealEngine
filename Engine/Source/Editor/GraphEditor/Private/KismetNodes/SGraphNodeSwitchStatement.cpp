@@ -138,7 +138,7 @@ FReply SGraphNodeSwitchStatement::OnAddPin()
 	FBlueprintEditorUtils::MarkBlueprintAsModified(SwitchNode->GetBlueprint());
 
 	UpdateGraphNode();
-	GraphNode->GetGraph()->NotifyGraphChanged();
+	GraphNode->GetGraph()->NotifyNodeChanged(GraphNode);
 
 	return FReply::Handled();
 }

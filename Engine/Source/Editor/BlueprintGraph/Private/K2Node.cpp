@@ -529,7 +529,7 @@ void UK2Node::PinConnectionListChanged(UEdGraphPin* Pin)
 
 		if (OuterGraph)
 		{
-			OuterGraph->NotifyGraphChanged();
+			OuterGraph->NotifyNodeChanged(this);
 		}
 
 		if (Pin->ParentPin == nullptr)
@@ -780,7 +780,7 @@ void UK2Node::ReconstructNode()
 		}
 	}
 
-	GetGraph()->NotifyGraphChanged();
+	GetGraph()->NotifyNodeChanged(this);
 }
 
 void UK2Node::GetRedirectPinNames(const UEdGraphPin& Pin, TArray<FString>& RedirectPinNames) const

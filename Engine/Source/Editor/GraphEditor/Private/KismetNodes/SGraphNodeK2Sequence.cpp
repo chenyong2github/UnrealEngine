@@ -61,7 +61,7 @@ FReply SGraphNodeK2Sequence::OnAddPin()
 
 		AddPinNode->AddInputPin();
 		UpdateGraphNode();
-		GraphNode->GetGraph()->NotifyGraphChanged();
+		GraphNode->GetGraph()->NotifyNodeChanged(GraphNode);
 	}
 	
 	return FReply::Handled();

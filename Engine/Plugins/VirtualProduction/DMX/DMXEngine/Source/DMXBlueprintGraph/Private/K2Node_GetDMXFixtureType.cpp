@@ -82,7 +82,7 @@ void UK2Node_GetDMXFixtureType::PinDefaultValueChanged(UEdGraphPin* FromPin)
 	Super::PinDefaultValueChanged(FromPin);
 
 	UEdGraph* Graph = GetGraph();
-	Graph->NotifyGraphChanged();
+	Graph->NotifyNodeChanged(this);
 }
 
 void UK2Node_GetDMXFixtureType::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)

@@ -97,7 +97,7 @@ void UK2Node_GetJsonField::NotifyInputChanged() const
 	}
 
 	UEdGraph* Graph = GetGraph();
-	Graph->NotifyGraphChanged();
+	Graph->NotifyNodeChanged(this);
 }
 
 #undef LOCTEXT_NAMESPACE

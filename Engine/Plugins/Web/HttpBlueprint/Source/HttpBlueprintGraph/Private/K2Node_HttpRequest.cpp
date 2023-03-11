@@ -406,7 +406,7 @@ void UK2Node_HttpRequest::SyncBodyPinType(UEdGraphPin* const Pin) const
 
 	if (bBodyTypeChanged)
 	{
-		GetGraph()->NotifyGraphChanged();
+		GetGraph()->NotifyNodeChanged(this);
 		if (UBlueprint* const BP = GetBlueprint(); !BP->bBeingCompiled)
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
