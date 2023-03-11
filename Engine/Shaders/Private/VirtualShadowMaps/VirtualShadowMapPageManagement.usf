@@ -185,11 +185,38 @@ StructuredBuffer<uint> PrunedLightGridData;
 StructuredBuffer<uint> PrunedNumCulledLightsGrid;
 uint2 PixelStride;
 
-#if PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+#if PERMUTATION_WATER_DEPTH
 Texture2D<float> SingleLayerWaterDepthTexture;
 StructuredBuffer< uint > SingleLayerWaterTileMask;
 int2 SingleLayerWaterTileViewRes;
 #endif
+
+#if PERMUTATION_TRANSLUCENCY_DEPTH
+Texture2D<float> FrontLayerTranslucencyDepthTexture;
+#endif
+
+struct FPositionData
+{
+	float SceneDepth;
+	float4 SvPosition;
+	float3 TranslatedWorldPosition;
+	FLWCVector3 WorldPosition;
+	float DeviceZ;
+};
+
+FPositionData InitPositionData(uint2 PixelPos, float DeviceZ, bool bIsValid)
+{
+	FPositionData Out = (FPositionData)0;
+	if (bIsValid)
+	{
+		Out.DeviceZ = DeviceZ;
+		Out.SceneDepth = ConvertFromDeviceZ(Out.DeviceZ);
+		Out.SvPosition = float4(float2(PixelPos) + 0.5f, Out.DeviceZ, 1.0f);
+		Out.TranslatedWorldPosition = SvPositionToTranslatedWorld(Out.SvPosition);
+		Out.WorldPosition = LWCSubtract(Out.TranslatedWorldPosition, PrimaryView.PreViewTranslation);
+	}
+	return Out;
+}
 
 // Note: we use the tile size defined by the water as the group-size - this is needed because the tile mask testing code relies on the size being the same to scalarize efficiently.
 [numthreads(SLW_TILE_SIZE_XY, SLW_TILE_SIZE_XY, 1)]
@@ -222,37 +249,39 @@ void GeneratePageFlagsFromPixels(
 		return;
 	}
 
-	half3  WorldNormal			= half3(0, 0, 0);
-	float  DeviceZ				= 0;
-	bool   bIsValid				= true;
-	bool   bBackfaceCull		= bCullBackfacingPixels != 0;
-	float  DeviceZWater			= 0;
-	bool   bIsWaterDepthValid	= false;
+	half3  WorldNormal				= half3(0, 0, 0);
+	bool   bBackfaceCull			= bCullBackfacingPixels != 0;
+	float  DeviceZ					= 0;
+	float  DeviceZWater				= 0;
+	float  DeviceZTranslucency		= 0;
+	bool   bIsValid					= true;
+	bool   bIsWaterDepthValid		= false;
+	bool   bIsTranslucencyDepthValid= false;
 #if PERMUTATION_INPUT_TYPE == INPUT_TYPE_HAIRSTRANDS
 	{
 		DeviceZ = HairStrands.HairOnlyDepthTexture.Load(uint3(PixelPos, 0)).x;
 		bIsValid = DeviceZ > 0;
 		bBackfaceCull = false;
 	}
-#else // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER || PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+#else // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER
 	{
 		DeviceZ = LookupDeviceZ(PixelPos);
-#if STRATA_ENABLED
+	#if STRATA_ENABLED
 		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 		WorldNormal = TopLayerData.WorldNormal;
 		bIsValid = IsStrataMaterial(StrataPixelHeader);
 		bBackfaceCull = bBackfaceCull && !HasSubsurface(StrataPixelHeader);
-#else // !STRATA_ENABLED
+	#else // !STRATA_ENABLED
 		FGBufferData GBuffer = GetGBufferDataUint(PixelPos, true);
 		WorldNormal = GBuffer.WorldNormal;
 		// Excluding unlit to avoid including processing sky dome
 		bIsValid = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT;
 		bBackfaceCull = bBackfaceCull && !IsSubsurfaceModel(GBuffer.ShadingModelID);
-#endif // STRATA_ENABLED
+	#endif // STRATA_ENABLED
 
-#if PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+	#if PERMUTATION_WATER_DEPTH
 		// Assume valid if there is no mask
 		bIsWaterDepthValid = SingleLayerWaterTileViewRes.x <= 0;
 		// Skip the mask pass if the rect is zero
@@ -289,37 +318,31 @@ void GeneratePageFlagsFromPixels(
 			DeviceZWater = SingleLayerWaterDepthTexture.Load(uint3(PixelPos, 0)).x;
 			bIsWaterDepthValid = DeviceZWater != DeviceZ;
 		}
-#endif // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+	#endif // PERMUTATION_WATER_DEPTH
+
+	#if PERMUTATION_TRANSLUCENCY_DEPTH
+		DeviceZTranslucency = FrontLayerTranslucencyDepthTexture.Load(uint3(PixelPos, 0)).x;
+		bIsTranslucencyDepthValid = DeviceZTranslucency > 0;
+	#endif
 
 	}
 #endif // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER || PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
 	
-	if (!bIsValid && !bIsWaterDepthValid)
+	if (!bIsValid && !bIsWaterDepthValid && !bIsTranslucencyDepthValid)
 	{
 		return;
 	}
 	
-	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
-	const float4 SvPosition = float4(float2(PixelPos) + 0.5f, DeviceZ, 1.0f);
-	const float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(SvPosition);
+	const FPositionData Primary = InitPositionData(PixelPos, DeviceZ, true);
 
-	const FLWCVector3 WorldPosition = LWCSubtract(TranslatedWorldPosition, PrimaryView.PreViewTranslation);
-
-#if PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
-	float SceneDepthWater;
-	float4 SvPositionWater;
-	float3 TranslatedWorldPositionWater;
-	FLWCVector3 WorldPositionWater;
-
-	if (bIsWaterDepthValid)
-	{
-		SceneDepthWater = ConvertFromDeviceZ(DeviceZWater);
-		SvPositionWater = float4(float2(PixelPos) + 0.5f, DeviceZWater, 1.0f);
-		TranslatedWorldPositionWater = SvPositionToTranslatedWorld(SvPositionWater);
-		WorldPositionWater = LWCSubtract(TranslatedWorldPositionWater, PrimaryView.PreViewTranslation);
-	}
+#if PERMUTATION_WATER_DEPTH
+	const FPositionData Water = InitPositionData(PixelPos, DeviceZWater, bIsWaterDepthValid);
 #endif
 	
+#if PERMUTATION_TRANSLUCENCY_DEPTH
+	const FPositionData Translucency = InitPositionData(PixelPos, DeviceZTranslucency, bIsTranslucencyDepthValid);
+#endif
+
 	// Dither pattern for page dilation
 	// We don't need to to check all 8 adjacent pages; as long as there's at least a single pixel near the edge
 	// the adjacent one will get mapped. In practice only checking one diagonal seems to work fine and have minimal
@@ -339,26 +362,34 @@ void GeneratePageFlagsFromPixels(
 			FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(ClipmapStartId);
 
 			bool bBackfaceCulledGBuffer = false;
-#if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
+			#if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
 			// Backface test if requested
 			float3 LightDirection = normalize(-BaseProjectionData.TranslatedWorldToShadowViewMatrix._13_23_33);
 			if (bBackfaceCull && IsBackfaceToDirectionalLight(WorldNormal, LightDirection, BaseProjectionData.LightSourceRadius))
 			{
 				bBackfaceCulledGBuffer = true;
 			}
-#endif
+			#endif
 
 			if (!bBackfaceCulledGBuffer)
 			{
-				MarkPageClipmap(BaseProjectionData, ClipmapStartId, bUsePageDilation, PageDilationOffset, WorldPosition, TranslatedWorldPosition);
+				MarkPageClipmap(BaseProjectionData, ClipmapStartId, bUsePageDilation, PageDilationOffset, Primary.WorldPosition, Primary.TranslatedWorldPosition);
 			}
 			
-#if PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+			#if PERMUTATION_WATER_DEPTH
 			if (bIsWaterDepthValid)
 			{
-				MarkPageClipmap(BaseProjectionData, ClipmapStartId, bUsePageDilation, PageDilationOffset, WorldPositionWater, TranslatedWorldPositionWater);
+				MarkPageClipmap(BaseProjectionData, ClipmapStartId, bUsePageDilation, PageDilationOffset, Water.WorldPosition, Water.TranslatedWorldPosition);
 			}
-#endif // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+			#endif // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+
+
+			#if PERMUTATION_TRANSLUCENCY_DEPTH
+			if (bIsTranslucencyDepthValid)
+			{
+				MarkPageClipmap(BaseProjectionData, ClipmapStartId, bUsePageDilation, PageDilationOffset, Translucency.WorldPosition, Translucency.TranslatedWorldPosition);
+			}
+			#endif
 		}
 	}
 
@@ -369,7 +400,7 @@ void GeneratePageFlagsFromPixels(
 
 		uint EyeIndex = 0U; // Has no effect unless INSTANCED_STEREO is enabled, which is not the case for this CS, (used in GetLightGridData to select ForwardLightData or ForwardLightDataISR, but then only uses redundant parameters anyway)
 		uint2 LocalPosition = PixelPos - uint2(View.ViewRectMin.xy);
-		uint3 GridCoordinate = ComputeLightGridCellCoordinate(LocalPosition, SceneDepth, EyeIndex);
+		uint3 GridCoordinate = ComputeLightGridCellCoordinate(LocalPosition, Primary.SceneDepth, EyeIndex);
 
 		uint GridLinearIndex = ComputeLightGridCellIndex(GridCoordinate, EyeIndex);
 		const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridLinearIndex, EyeIndex);
@@ -387,14 +418,14 @@ void GeneratePageFlagsFromPixels(
 
 			// Relative to PrimaryView
 			const float3 LightTranslatedWorldPosition = LightData.LightPositionAndInvRadius.xyz;
-			float LengthSquared = length2(LightTranslatedWorldPosition - TranslatedWorldPosition);
+			float LengthSquared = length2(LightTranslatedWorldPosition - Primary.TranslatedWorldPosition);
 
 			if (LengthSquared > Square(1.0f / LightData.LightPositionAndInvRadius.w))
 			{
 				continue;
 			}
 
-			float3 ToLight = normalize(LightTranslatedWorldPosition - TranslatedWorldPosition);
+			float3 ToLight = normalize(LightTranslatedWorldPosition - Primary.TranslatedWorldPosition);
 
 			// TODO: Can optimize these tests by fusing them together
 			// Also do precise cone test, since froxels are pretty coarse at times.
@@ -405,13 +436,13 @@ void GeneratePageFlagsFromPixels(
 
 			// TODO: Precise radius test necessary?
 
-#if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
+		#if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
 			// Backface test if requested
 			if (bBackfaceCull && IsBackfaceToLocalLight(ToLight, WorldNormal, GetLightSourceRadius(LightData)))
 			{
 				continue;
 			}
-#endif
+		#endif
 			int VirtualShadowMapId = LightData.VirtualShadowMapId;
 			bool bSpotLight = GetLightSpotAngles(LightData).x > -2.0f;
 			if( !bSpotLight )
@@ -419,8 +450,8 @@ void GeneratePageFlagsFromPixels(
 				VirtualShadowMapId += VirtualShadowMapGetCubeFace(-ToLight);
 			}
 
-			uint MipLevel = GetMipLevelLocal(VirtualShadowMapId, TranslatedWorldPosition, SceneDepth);
-			MarkPage(VirtualShadowMapId, MipLevel, TranslatedWorldPosition, bUsePageDilation, PageDilationOffset);
+			uint MipLevel = GetMipLevelLocal(VirtualShadowMapId, Primary.TranslatedWorldPosition, Primary.SceneDepth);
+			MarkPage(VirtualShadowMapId, MipLevel, Primary.TranslatedWorldPosition, bUsePageDilation, PageDilationOffset);
 		}
 	}
 }

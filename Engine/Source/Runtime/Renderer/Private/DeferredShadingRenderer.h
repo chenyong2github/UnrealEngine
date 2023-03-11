@@ -764,7 +764,13 @@ private:
 		FRDGBuilder& GraphBuilder,
 		FViewInfo& View,
 		const FSceneTextures& SceneTextures,
-		const FLumenSceneFrameTemporaries& LumenFrameTemporaries);
+		const FLumenSceneFrameTemporaries& LumenFrameTemporaries, 
+		const FFrontLayerTranslucencyData& FrontLayerTranslucencyData);
+	
+	FFrontLayerTranslucencyData RenderFrontLayerTranslucency(
+		FRDGBuilder& GraphBuilder,
+		TArray<FViewInfo>& Views,
+		const FSceneTextures& SceneTextures);
 
 	void RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FLumenSceneFrameTemporaries& FrameTemporaries);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);

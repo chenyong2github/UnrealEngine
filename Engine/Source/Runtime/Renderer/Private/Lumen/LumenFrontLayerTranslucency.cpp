@@ -329,7 +329,7 @@ void RenderFrontLayerTranslucencyGBuffer(
 	const FSceneRenderer& SceneRenderer,
 	FViewInfo& View,
 	const FSceneTextures& SceneTextures,
-	FLumenFrontLayerTranslucencyGBufferParameters ReflectionGBuffer)
+	const FFrontLayerTranslucencyData& FrontLayerTranslucencyData)
 {
 	const EMeshPass::Type MeshPass = EMeshPass::LumenFrontLayerTranslucencyGBuffer;
 	const float ViewportScale = 1.0f;
@@ -339,8 +339,8 @@ void RenderFrontLayerTranslucencyGBuffer(
 
 	FLumenFrontLayerTranslucencyGBufferPassParameters* PassParameters = GraphBuilder.AllocParameters<FLumenFrontLayerTranslucencyGBufferPassParameters>();
 
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(ReflectionGBuffer.FrontLayerTranslucencyNormal, ERenderTargetLoadAction::ELoad);
-	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(ReflectionGBuffer.FrontLayerTranslucencySceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(FrontLayerTranslucencyData.Normal, ERenderTargetLoadAction::ELoad);
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(FrontLayerTranslucencyData.SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 	{
 		FViewUniformShaderParameters DownsampledTranslucencyViewParameters = *View.CachedViewUniformShaderParameters;
@@ -401,50 +401,99 @@ void RenderFrontLayerTranslucencyGBuffer(
 	});
 }
 
+bool IsVSMTranslucentHighQualityEnabled();
+
+FFrontLayerTranslucencyData FDeferredShadingSceneRenderer::RenderFrontLayerTranslucency(
+	FRDGBuilder& GraphBuilder,
+	TArray<FViewInfo>& InViews,
+	const FSceneTextures& SceneTextures)
+{
+	// For now allocate & render both depth, normal, and roughness. 
+	// If only VSM resquest front layer data, we could render only the front layer depth.
+	auto NeedsFrontLayerData = [&](const FViewInfo& View) 
+	{ 
+		return View.bTranslucentSurfaceLighting && 
+			((GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen && Lumen::UseLumenFrontLayerTranslucencyReflections(View)) || IsVSMTranslucentHighQualityEnabled());
+	};
+
+	// Check if any view require translucent front layer data
+	bool bNeedFrontLayerData = false;
+	for (const FViewInfo& View : InViews)
+	{
+		if (NeedsFrontLayerData(View))
+		{
+			bNeedFrontLayerData = true;
+			break;
+		}	
+	}
+
+	FFrontLayerTranslucencyData Out;
+	if (bNeedFrontLayerData)
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "LumenFrontLayerTranslucencyReflections");
+
+		// Allocate resources for all views
+		{
+			EPixelFormat NormalFormat = PF_FloatRGBA; // Need more precision than PF_A2B10G10R10 for mirror reflections
+			FRDGTextureDesc NormalDesc(FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, NormalFormat, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_RenderTargetable));
+			Out.Normal = GraphBuilder.CreateTexture(NormalDesc, TEXT("Lumen.TranslucencyReflections.Normal"));
+			Out.SceneDepth = GraphBuilder.CreateTexture(SceneTextures.Depth.Target->Desc, TEXT("Lumen.TranslucencyReflections.SceneDepth"));
+
+			for (const FViewInfo& View : InViews)
+			{
+				if (NeedsFrontLayerData(View))
+				{
+					FLumenFrontLayerTranslucencyClearGBufferPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenFrontLayerTranslucencyClearGBufferPS::FParameters>();
+					PassParameters->RenderTargets[0] = FRenderTargetBinding(Out.Normal, ERenderTargetLoadAction::ENoAction, 0);
+					PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Out.SceneDepth, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
+					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+	
+					TShaderMapRef<FLumenFrontLayerTranslucencyClearGBufferPS> PixelShader(View.ShaderMap);
+					FPixelShaderUtils::AddFullscreenPass<FLumenFrontLayerTranslucencyClearGBufferPS>(
+						GraphBuilder,
+						View.ShaderMap,
+						RDG_EVENT_NAME("ClearTranslucencyGBuffer"),
+						PixelShader,
+						PassParameters,
+						View.ViewRect,
+						TStaticBlendState<>::GetRHI(),
+						TStaticRasterizerState<FM_Solid, CM_None>::GetRHI(),
+						TStaticDepthStencilState<true, CF_Always>::GetRHI());
+				}
+			}
+		}
+
+		// Render front layer data for each view
+		for (FViewInfo& View : InViews)
+		{
+			if (NeedsFrontLayerData(View))
+			{
+				RenderFrontLayerTranslucencyGBuffer(GraphBuilder, *this, View, SceneTextures, Out);
+			}
+		}
+	}
+	return Out;
+}
+
 void FDeferredShadingSceneRenderer::RenderLumenFrontLayerTranslucencyReflections(
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View,
 	const FSceneTextures& SceneTextures,
-	const FLumenSceneFrameTemporaries& LumenFrameTemporaries)
+	const FLumenSceneFrameTemporaries& LumenFrameTemporaries, 
+	const FFrontLayerTranslucencyData& FrontLayerTranslucencyData)
 {
 	if (Lumen::UseLumenFrontLayerTranslucencyReflections(View) && View.bTranslucentSurfaceLighting)
 	{
+		check(FrontLayerTranslucencyData.IsValid());
+
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenFrontLayerTranslucencyReflections");
-
-		FLumenFrontLayerTranslucencyGBufferParameters ReflectionGBuffer;
-
-		EPixelFormat NormalFormat = PF_FloatRGBA; // Need more precision than PF_A2B10G10R10 for mirror reflections
-		FRDGTextureDesc NormalDesc(FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, NormalFormat, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_RenderTargetable));
-		ReflectionGBuffer.FrontLayerTranslucencyNormal = GraphBuilder.CreateTexture(NormalDesc, TEXT("Lumen.TranslucencyReflections.Normal"));
-
-		ReflectionGBuffer.FrontLayerTranslucencySceneDepth = GraphBuilder.CreateTexture(SceneTextures.Depth.Target->Desc, TEXT("Lumen.TranslucencyReflections.SceneDepth"));
-
-		{
-			FLumenFrontLayerTranslucencyClearGBufferPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenFrontLayerTranslucencyClearGBufferPS::FParameters>();
-
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(ReflectionGBuffer.FrontLayerTranslucencyNormal, ERenderTargetLoadAction::ENoAction, 0);
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(ReflectionGBuffer.FrontLayerTranslucencySceneDepth, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
-
-			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-
-			TShaderMapRef<FLumenFrontLayerTranslucencyClearGBufferPS> PixelShader(View.ShaderMap);
-
-			FPixelShaderUtils::AddFullscreenPass<FLumenFrontLayerTranslucencyClearGBufferPS>(
-				GraphBuilder, 
-				View.ShaderMap, 
-				RDG_EVENT_NAME("ClearTranslucencyGBuffer"),
-				PixelShader, 
-				PassParameters, 
-				View.ViewRect,
-				TStaticBlendState<>::GetRHI(),
-				TStaticRasterizerState<FM_Solid, CM_None>::GetRHI(),
-				TStaticDepthStencilState<true, CF_Always>::GetRHI());
-		}
-
-		RenderFrontLayerTranslucencyGBuffer(GraphBuilder, *this, View, SceneTextures, ReflectionGBuffer);
 
 		FLumenMeshSDFGridParameters MeshSDFGridParameters;
 		LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+
+		FLumenFrontLayerTranslucencyGBufferParameters ReflectionGBuffer;
+		ReflectionGBuffer.FrontLayerTranslucencyNormal = FrontLayerTranslucencyData.Normal;
+		ReflectionGBuffer.FrontLayerTranslucencySceneDepth = FrontLayerTranslucencyData.SceneDepth;
 
 		FRDGTextureRef ReflectionTexture = RenderLumenReflections(
 			GraphBuilder,

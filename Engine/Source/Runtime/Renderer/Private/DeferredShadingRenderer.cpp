@@ -3597,6 +3597,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	GraphBuilder.FlushSetupQueue();
 
 	// Shadows, lumen and fog after base pass
+	FFrontLayerTranslucencyData FrontLayerTranslucencyData;
 	if (!bHasRayTracedOverlay)
 	{
 #if RHI_RAYTRACING
@@ -3617,6 +3618,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			bHasLumenLights,
 			AsyncLumenIndirectLightingOutputs);
 
+		// Lumen/VSM translucent front layer
+		FrontLayerTranslucencyData = RenderFrontLayerTranslucency(GraphBuilder, Views, SceneTextures);
+
 		// If forward shading is enabled, we rendered shadow maps earlier already
 		if (!IsForwardShadingEnabled(ShaderPlatform))
 		{
@@ -3629,7 +3633,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 				// TODO: propagate config in some other way (along with shadowing lights flowing from persistent setup to the VSM setup)
 				auto GetLightMobilityFactor = [this](int32 LightId)->float { return Scene->ShadowScene->GetLightMobilityFactor(LightId); };
-				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, GetActiveSceneTextures(), Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, GetLightMobilityFactor, SingleLayerWaterPrePassResult);
+				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, GetActiveSceneTextures(), Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, GetLightMobilityFactor, SingleLayerWaterPrePassResult, FrontLayerTranslucencyData);
 			}
 
 			RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
@@ -3998,7 +4002,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			if (GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen)
 			{
-				RenderLumenFrontLayerTranslucencyReflections(GraphBuilder, View, SceneTextures, LumenFrameTemporaries);
+				RenderLumenFrontLayerTranslucencyReflections(GraphBuilder, View, SceneTextures, LumenFrameTemporaries, FrontLayerTranslucencyData);
 			}
 		}
 

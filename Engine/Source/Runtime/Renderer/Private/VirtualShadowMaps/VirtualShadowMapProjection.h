@@ -44,8 +44,7 @@ struct FTiledVSMProjection
 enum class EVirtualShadowMapProjectionInputType
 {
 	GBuffer = 0,
-	HairStrands = 1,
-	GBufferAndSingleLayerWaterDepth = 2
+	HairStrands = 1
 };
 const TCHAR* ToString(EVirtualShadowMapProjectionInputType In);
 
