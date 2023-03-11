@@ -23,7 +23,7 @@ namespace FOodleCompressedArray
 
 		// We compress in to the buffer past our header, then write the header below.
 		void* CompPtr = OutCompressed.GetData() + HeaderSizeNeeded;
-		int32 CompressedSize = IntCastChecked<int32>(FOodleDataCompression::Compress(CompPtr, CompSizeNeeded, InData, InDataSize, InCompressor, InLevel));
+		int32 CompressedSize = IntCastChecked<int32>(FOodleDataCompression::CompressParallel(CompPtr, CompSizeNeeded, InData, InDataSize, InCompressor, InLevel));
 		if ( CompressedSize <= 0 )
 		{
 			// Probably a bad parameter.
@@ -65,7 +65,7 @@ namespace FOodleCompressedArray
 
 		// We compress in to the buffer past our header, then write the header below.
 		void* CompPtr = OutCompressed.GetData() + HeaderSizeNeeded;
-		int64 CompressedSize = FOodleDataCompression::Compress(CompPtr, WorkingSizeNeeded, InData, InDataSize, InCompressor, InLevel);
+		int64 CompressedSize = FOodleDataCompression::CompressParallel(CompPtr, WorkingSizeNeeded, InData, InDataSize, InCompressor, InLevel);
 		if (CompressedSize <= 0)
 		{
 			// Probably a bad parameter.
@@ -129,7 +129,7 @@ namespace FOodleCompressedArray
 			return false;
 		}
 
-		return FOodleDataCompression::Decompress(InDestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize);
+		return FOodleDataCompression::DecompressParallel(InDestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize);
 	}
 	bool CORE_API DecompressToExistingBuffer64(void* InDestinationBuffer, int64 InDestinationBufferSize, TArray64<uint8> const& InCompressed)
 	{
@@ -151,7 +151,7 @@ namespace FOodleCompressedArray
 			return false;
 		}
 
-		return FOodleDataCompression::Decompress(InDestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize);
+		return FOodleDataCompression::DecompressParallel(InDestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize);
 	}
 
 	bool CORE_API DecompressToAllocatedBuffer(void*& OutDestinationBuffer, int32& OutDestinationBufferSize, TArray<uint8> const& InCompressed)
@@ -175,7 +175,7 @@ namespace FOodleCompressedArray
 		OutDestinationBufferSize = DecompressedSize;
 		OutDestinationBuffer = DestinationBuffer;
 
-		if (FOodleDataCompression::Decompress(DestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize) == false)
+		if (FOodleDataCompression::DecompressParallel(DestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize) == false)
 		{
 			FMemory::Free(DestinationBuffer);
 			OutDestinationBuffer = 0;
@@ -205,7 +205,7 @@ namespace FOodleCompressedArray
 		OutDestinationBufferSize = DecompressedSize;
 		OutDestinationBuffer = DestinationBuffer;
 
-		if (FOodleDataCompression::Decompress(DestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize) == false)
+		if (FOodleDataCompression::DecompressParallel(DestinationBuffer, DecompressedSize, InCompressed.GetData() + OffsetToCompressedData, CompressedSize) == false)
 		{
 			FMemory::Free(DestinationBuffer);
 			OutDestinationBuffer = 0;

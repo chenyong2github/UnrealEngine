@@ -1488,7 +1488,7 @@ struct FTileCacheCompressor : public dtTileCacheCompressor
 
 		if (GNavmeshUseOodleCompression)
 		{
-			const int64 CompressedSize = FOodleDataCompression::Compress((void*)DataPtr, DataSize, (const void*)buffer, bufferSize, GNavmeshTileCacheCompressor, GNavmeshTileCacheCompressionLevel);
+			const int64 CompressedSize = FOodleDataCompression::CompressParallel((void*)DataPtr, DataSize, (const void*)buffer, bufferSize, GNavmeshTileCacheCompressor, GNavmeshTileCacheCompressionLevel);
 			if (CompressedSize > 0)
 			{
 				*outCompressedSize = IntCastChecked<int32>(CompressedSize + HeaderSize);

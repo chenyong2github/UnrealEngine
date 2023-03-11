@@ -13,6 +13,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Templates/UnrealTemplate.h"
+#include "Async/ParallelFor.h"
 #include "oodle2.h"
 #include "oodle2base.h"
 
@@ -426,7 +427,9 @@ struct OodleScratchBuffers
 	int64 OodleEncode( void * OutCompressedData, int64 InCompressedBufferSize,
 								const void * InUncompressedData, int64 InUncompressedSize,
 								ECompressor Compressor,
-								ECompressionLevel Level)
+								ECompressionLevel Level,
+								bool CompressIndependentChunks,
+								int64 DictionaryBackup)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Oodle.Encode);
 
@@ -444,7 +447,18 @@ struct OodleScratchBuffers
 			return OODLELZ_FAILED;
 		}
 		
-		// try to take a mutex for one of the pre-allocated decode buffers
+		OodleLZ_CompressOptions LZOptions = * OodleLZ_CompressOptions_GetDefault(LZCompressor,LZLevel);
+		if ( CompressIndependentChunks )
+		{
+			LZOptions.seekChunkReset = true;
+			LZOptions.seekChunkLen = OODLELZ_BLOCK_LEN;
+
+			check( DictionaryBackup == 0 ); // seek chunk and DictionaryBackup are mutually exclusive
+		}
+
+		const uint8 * DictionaryStart = (const uint8 *)InUncompressedData - DictionaryBackup;
+
+		// try to take a mutex for one of the pre-allocated scratch buffers
 		for (int i = 0; i < OodleScratchBufferCount; ++i)
 		{
 			if (OodleScratches[i].OodleScratchMemoryMutex.TryLock()) 
@@ -465,7 +479,7 @@ struct OodleScratchBuffers
 				OO_SINTa scratchSize = OodleScratchMemorySize;
 
 				OO_SINTa Result = OodleLZ_Compress(LZCompressor,InUncompressedData,InUncompressedSize,OutCompressedData,LZLevel,
-															NULL,NULL,NULL,
+															&LZOptions,DictionaryStart,nullptr,
 															scratchMem,scratchSize);
 
 				OodleScratches[i].OodleScratchMemoryMutex.Unlock();
@@ -484,7 +498,7 @@ struct OodleScratchBuffers
 		OO_SINTa scratchSize = 0;
 
 		OO_SINTa Result = OodleLZ_Compress(LZCompressor,InUncompressedData,InUncompressedSize,OutCompressedData,LZLevel,
-													NULL,NULL,NULL,
+													&LZOptions,DictionaryStart,nullptr,
 													scratchMem,scratchSize);
 													
 		UE_LOG(OodleDataCompression, VeryVerbose, TEXT("OodleEncode: %s (%s): %lld -> %lld"), \
@@ -519,13 +533,15 @@ int64 CORE_API Compress(
 							void * OutCompressedData, int64 InCompressedBufferSize,
 							const void * InUncompressedData, int64 InUncompressedSize,
 							ECompressor Compressor,
-							ECompressionLevel Level)
+							ECompressionLevel Level,
+							bool CompressIndependentChunks,
+							int64 DictionaryBackup)
 {
 	OodleScratchBuffers * Scratches = GetGlobalOodleScratchBuffers();
 
 	int64 EncodedSize = Scratches->OodleEncode(OutCompressedData,InCompressedBufferSize,
 							InUncompressedData,InUncompressedSize,
-							Compressor,Level);
+							Compressor,Level,CompressIndependentChunks,DictionaryBackup);
 						
 	return EncodedSize;
 }
@@ -576,4 +592,236 @@ void CORE_API StartupPreInit(void)
 	OodleCore_Plugins_SetAllocators(OodleAlloc, OodleFree);
 }
 
-};
+
+
+int64 CompressParallelSub(
+							TArray64< TArray64<uint8> > & OutChunkCompressedData,
+							const void * InUncompressedData, int64 UncompressedSize,
+							ECompressor Compressor,	ECompressionLevel Level,
+							bool CompressIndependentChunks)
+{
+	int32 NumWorkers = FTaskGraphInterface::Get().GetNumWorkerThreads();
+	int64 ChunkLen = OodleLZ_MakeSeekChunkLen(UncompressedSize,NumWorkers);
+	int64 NumChunks = (UncompressedSize + ChunkLen-1)/ChunkLen;
+
+	OutChunkCompressedData.SetNum( NumChunks );
+	
+	// heuristic; don't backup more than chunklen ,or 16 MB max :
+	//	this does hurt ratio in some cases (vs non-parallel encoding, or unlimited dictionary backup)
+	const int64 MaxDictionaryBackup = FMath::Min( 16*1024*1024 , ChunkLen );
+
+	// ParallelFor will run one of the chunks on the calling thread
+	//	and will also fast path for NumChunks == 1
+
+	ParallelFor( TEXT("OodleCompressParallel.PF"),(int32)NumChunks,1, [&](int32 Index)
+	{
+		TArray64<uint8> & OutCompressedArray = OutChunkCompressedData[Index];
+		int64 ChunkStartPos = Index * ChunkLen;
+		int64 ChunkUncompressedSize = FMath::Min( ChunkLen, (UncompressedSize - ChunkStartPos) );
+		
+		int64 Reserve = CompressedBufferSizeNeeded(ChunkUncompressedSize);
+		OutCompressedArray.SetNum( Reserve );
+
+		// if ! CompressIndependentChunks, do dictionary backup
+		int64 DictionaryBackup = CompressIndependentChunks ? 0 : FMath::Min( ChunkStartPos , MaxDictionaryBackup );
+
+		const uint8 * ChunkUncompressedData = (const uint8 *)InUncompressedData + ChunkStartPos;
+
+		int64 Ret = Compress(&OutCompressedArray[0],Reserve,
+			ChunkUncompressedData,ChunkUncompressedSize,
+			Compressor,Level,CompressIndependentChunks,DictionaryBackup);
+
+		// zero size for error
+		check( OODLELZ_FAILED == 0 );
+		check( Ret >= 0 );
+
+		OutCompressedArray.SetNum(Ret,false);
+	} );
+
+	int64 Total = 0;
+	for(int64 i=0;i<NumChunks;i++)
+	{
+		int64 Len = OutChunkCompressedData[i].Num();
+		if ( Len == 0 )
+		{
+			return OODLELZ_FAILED;
+		}
+		Total += Len;
+	}
+
+	return Total;
+}
+
+int64 CompressParallel(
+							void * OutCompressedData, int64 CompressedBufferSize,
+							const void * InUncompressedData, int64 UncompressedSize,
+							ECompressor Compressor,	ECompressionLevel Level,
+							bool CompressIndependentChunks)
+{
+	if ( UncompressedSize <= OODLELZ_BLOCK_LEN )
+	{
+		return Compress(OutCompressedData,CompressedBufferSize,
+			InUncompressedData,UncompressedSize,Compressor,Level,CompressIndependentChunks);
+	}
+
+	TArray64< TArray64<uint8> > Chunks;
+	int64 TotalCompLen = CompressParallelSub(Chunks,InUncompressedData,UncompressedSize,Compressor,Level,CompressIndependentChunks);
+	if ( TotalCompLen <= 0 )
+	{
+		UE_LOG(OodleDataCompression,Error,TEXT("CompressParallelSub failed\n"));
+
+		return TotalCompLen;
+	}
+
+	if ( TotalCompLen > CompressedBufferSize )
+	{
+		UE_LOG(OodleDataCompression,Error,TEXT("CompressParallel buffer size insufficient\n"));
+		return OODLELZ_FAILED;
+	}
+
+	uint8 * StartPtr = (uint8 *)OutCompressedData;
+	uint8 * OutPtr = StartPtr; 
+	for(int64 i=0;i<Chunks.Num();i++)
+	{
+		memcpy(OutPtr, &Chunks[i][0] , Chunks[i].Num() );
+		OutPtr += Chunks[i].Num();
+	}
+	check( (OutPtr - StartPtr) == TotalCompLen );
+
+	#if 0
+	// for testing : verify decode
+	{
+		TArray64<uint8> Decomp;
+		Decomp.SetNum(UncompressedSize);
+		DecompressParallel(&Decomp[0],Decomp.Num(),OutCompressedData,TotalCompLen);
+
+		check( memcmp(InUncompressedData,&Decomp[0],UncompressedSize) == 0 );
+	}
+	#endif
+
+	return TotalCompLen;
+}
+							
+int64 CompressParallel(
+							TArray64<uint8> & OutCompressedArray,
+							const void * InUncompressedData, int64 UncompressedSize,
+							ECompressor Compressor,	ECompressionLevel Level,
+							bool CompressIndependentChunks)
+{
+	// appends to OutCompressedArray
+	int64 StartNum = OutCompressedArray.Num();
+
+	if ( UncompressedSize <= OODLELZ_BLOCK_LEN )
+	{
+		int64 Reserve = CompressedBufferSizeNeeded(UncompressedSize);
+		OutCompressedArray.SetNum( StartNum + Reserve );
+
+		int64 TotalCompLen =  Compress(&OutCompressedArray[StartNum],Reserve,
+			InUncompressedData,UncompressedSize,Compressor,Level,CompressIndependentChunks);
+
+		if ( TotalCompLen <= 0 )
+		{
+			return TotalCompLen;
+		}
+	
+		check( TotalCompLen <= Reserve );
+		OutCompressedArray.SetNum( StartNum + TotalCompLen , false);
+		return TotalCompLen;
+	}
+
+	TArray64< TArray64<uint8> > Chunks;
+	int64 TotalCompLen = CompressParallelSub(Chunks,InUncompressedData,UncompressedSize,Compressor,Level,CompressIndependentChunks);
+	if ( TotalCompLen <= 0 )
+	{
+		UE_LOG(OodleDataCompression,Error,TEXT("CompressParallelSub failed\n"));
+
+		return TotalCompLen;
+	}
+
+	OutCompressedArray.SetNum( StartNum + TotalCompLen );
+
+	uint8 * StartPtr = &OutCompressedArray[StartNum];
+	uint8 * OutPtr = StartPtr; 
+	for(int64 i=0;i<Chunks.Num();i++)
+	{
+		memcpy(OutPtr, &Chunks[i][0] , Chunks[i].Num() );
+		OutPtr += Chunks[i].Num();
+	}
+	check( (OutPtr - StartPtr) == TotalCompLen );
+
+	return TotalCompLen;
+}
+
+bool DecompressParallel(
+						void * OutUncompressedData, int64 UncompressedSize,
+						const void * InCompressedData, int64 CompressedSize
+						)
+{
+	if ( UncompressedSize <= 2*OODLELZ_BLOCK_LEN )
+	{
+		// small buffer, just early out to a synchronous decode
+
+		return Decompress(OutUncompressedData,UncompressedSize,InCompressedData,CompressedSize);
+	}
+	
+	// this function assumes you either have no  seek resets at all
+	//	or seek resets at every OODLELZ_BLOCK_LEN
+	// therefore we are free to choose our decode seek chunk len here freely
+	// if that was no the case
+	//	(eg. say if you did seek resets at OODLELZ_BLOCK_LEN*4)
+	// then we would have to change this logic to instead scan the comp data
+	//	and find the seek resets, using OodleLZ_GetCompressedStepForRawStep
+
+	int32 NumWorkers = FTaskGraphInterface::Get().GetNumWorkerThreads();
+	int32 ChunkLen = OodleLZ_MakeSeekChunkLen(UncompressedSize,NumWorkers*4);
+	int64 NumChunks = (UncompressedSize + ChunkLen-1)/ChunkLen;
+
+	int64 SeekTableMemSize = OodleLZ_GetSeekTableMemorySizeNeeded((int32)NumChunks,OodleLZSeekTable_Flags_None);
+	void * SeekTableMem = FMemory::Malloc(SeekTableMemSize);
+	OodleLZ_SeekTable * SeekTable = (OodleLZ_SeekTable *) SeekTableMem;
+
+	if ( ! OodleLZ_FillSeekTable(SeekTable,OodleLZSeekTable_Flags_None,ChunkLen,OutUncompressedData,UncompressedSize,InCompressedData,CompressedSize) )
+	{
+		UE_LOG(OodleDataCompression,Error,TEXT("OodleLZ_FillSeekTable failed\n"));
+		return false;
+	}
+
+	if ( ! SeekTable->seekChunksIndependent )
+	{
+		// CompressIndependentChunks was not used in the encoder, cannot decode in parallel
+		
+		FMemory::Free(SeekTableMem);
+
+		return Decompress(OutUncompressedData,UncompressedSize,InCompressedData,CompressedSize);
+	}
+
+	TArray64<int64> SeekCompressedPos;
+	SeekCompressedPos.SetNum(NumChunks+1);
+	SeekCompressedPos[0] = 0;
+	for(int64 i=0;i<NumChunks;i++)
+	{
+		SeekCompressedPos[i+1] = SeekCompressedPos[i] + SeekTable->seekChunkCompLens[i];
+	}
+	
+	bool AnyFailed = false;
+
+	ParallelFor( TEXT("OodleDecompressParallel.PF"),(int32)NumChunks,1, [&](int32 Index)
+	{
+		int64 RawPos = Index * ChunkLen;
+		int64 RawLen = FMath::Min( ChunkLen, (UncompressedSize - RawPos) );
+		int64 CompPos = SeekCompressedPos[Index];
+		int64 CompLen = SeekTable->seekChunkCompLens[Index];
+
+		if ( ! Decompress( (uint8 *)OutUncompressedData + RawPos,RawLen,(const uint8 *)InCompressedData + CompPos,CompLen) )
+		{
+			// no need for atomics :
+			AnyFailed = true;
+		}
+	} );
+
+	FMemory::Free(SeekTableMem);
+
+	return !AnyFailed;
+}
+
+}; // FOodleDataCompression

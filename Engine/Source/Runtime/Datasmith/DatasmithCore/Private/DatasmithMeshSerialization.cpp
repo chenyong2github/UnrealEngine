@@ -82,7 +82,7 @@ bool CompressInline(TArray<uint8>& UncompressedData, ECompressionMethod Method)
 	{
 		auto Compressor = FOodleDataCompression::ECompressor::Kraken;
 		auto Level = FOodleDataCompression::ECompressionLevel::VeryFast;
-		if (int64 ActualCompressedSize = FOodleDataCompression::Compress(CompressedData.GetData() + HeaderSize, CompressedSize, UncompressedData.GetData(), UncompressedSize, Compressor, Level))
+		if (int64 ActualCompressedSize = FOodleDataCompression::CompressParallel(CompressedData.GetData() + HeaderSize, CompressedSize, UncompressedData.GetData(), UncompressedSize, Compressor, Level))
 		{
 			CompressedData.SetNum(ActualCompressedSize + HeaderSize, true);
 			UncompressedData = MoveTemp(CompressedData);

@@ -1724,7 +1724,7 @@ static void EstimateOnDiskCompressionForTextureData(
 			CopyBytes == InCompressionBlockSize) // we can fit in this chunk
 		{
 			// Direct.
-			Compressed.Empty();
+			Compressed.SetNum(0,false);
 			FOodleCompressedArray::CompressData(
 				Compressed,
 				CurrentContainer.GetData() + CurrentOffsetInContainer,
@@ -1748,7 +1748,7 @@ static void EstimateOnDiskCompressionForTextureData(
 			if (ContinuousMemory.Num() == InCompressionBlockSize)
 			{
 				// Filled a block - kick.
-				Compressed.Empty();
+				Compressed.SetNum(0,false);
 				FOodleCompressedArray::CompressData(
 					Compressed,
 					ContinuousMemory.GetData(),
@@ -1787,7 +1787,7 @@ static void EstimateOnDiskCompressionForTextureData(
 	if (ContinuousMemory.Num())
 	{
 		// If we ran out of source data before we completely filled, kick here.
-		Compressed.Empty();
+		Compressed.SetNum(0,false);
 		FOodleCompressedArray::CompressData(
 			Compressed,
 			ContinuousMemory.GetData(),
