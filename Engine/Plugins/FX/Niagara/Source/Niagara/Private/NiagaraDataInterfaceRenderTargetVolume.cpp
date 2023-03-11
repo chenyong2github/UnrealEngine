@@ -752,7 +752,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 					{
 						if (FRenderTargetVolumeRWInstanceData_RenderThread* InstanceData_RT = RT_Proxy->SystemInstancesToProxyData_RT.Find(RT_InstanceID))
 						{
-							RT_VolumeCacheData->Fill3DTexture(RT_FrameIndex, InstanceData_RT->RenderTarget->GetRHI());
+							RT_VolumeCacheData->Fill3DTexture_RenderThread(RT_FrameIndex, InstanceData_RT->RenderTarget->GetRHI(), RHICmdList);
 						}
 					});
 		}

@@ -125,6 +125,8 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 	// When in rendering only mode ask all renderers which attributes we need to capture
 	if ( CreateParameters.AttributeCaptureMode == ENiagaraSimCacheAttributeCaptureMode::RenderingOnly )
 	{
+		FNameBuilder NameBuilder;
+
 	#if WITH_EDITORONLY_DATA
 		for ( const FNiagaraEmitterHandle& EmitterHandle : Helper.NiagaraSystem->GetEmitterHandles() )
 		{
@@ -133,7 +135,7 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 				{
 					for (FNiagaraVariableBase BoundAttribute : RenderProperties->GetBoundAttributes())
 					{
-						FNameBuilder NameBuilder;
+						NameBuilder.Reset();
 						NameBuilder.Append(EmitterHandle.GetUniqueInstanceName());
 						NameBuilder.AppendChar(TEXT('.'));
 						BoundAttribute.GetName().AppendString(NameBuilder);
@@ -144,6 +146,10 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 			);
 		}
 	#endif
+		static const FName NAME_ExecutionState("ExecutionState");
+		static const FName NAME_SystemExecutionState("System.ExecutionState");
+		CreateParameters.ExplicitCaptureAttributes.AddUnique(NAME_SystemExecutionState);
+
 		for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : Helper.SystemInstance->GetEmitters())
 		{
 			const FNiagaraParameterStore& RendererBindings = EmitterInstance->GetRendererBoundVariables();
@@ -151,6 +157,12 @@ bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 			{
 				CreateParameters.ExplicitCaptureAttributes.AddUnique(Variable.GetName());
 			}
+
+			NameBuilder.Reset();
+			NameBuilder.Append(EmitterInstance->GetEmitterHandle().GetUniqueInstanceName());
+			NameBuilder.AppendChar(TEXT('.'));
+			NAME_ExecutionState.AppendString(NameBuilder);
+			CreateParameters.ExplicitCaptureAttributes.AddUnique(NameBuilder.ToString());
 		}
 
 		FNiagaraDataInterfaceUtilities::ForEachDataInterface(
