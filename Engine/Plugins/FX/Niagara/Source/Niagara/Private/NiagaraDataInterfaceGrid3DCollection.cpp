@@ -2147,7 +2147,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 			RGBAHlsl.Appendf(TEXT("    val = 0;\n"));
 			RGBAHlsl.Appendf(TEXT("    [branch] if (In_AttributeIndex == 0)\n"));
 			RGBAHlsl.Appendf(TEXT("    {\n"));
-			RGBAHlsl.Appendf(TEXT("		   float{GridChannels} TmpVal = {OutputGrid}.Load(int4(In_IndexX, In_IndexY, In_IndexZ, 0));\n"));
+			RGBAHlsl.Appendf(TEXT("		   float{GridChannels} TmpVal = {OutputGrid}[int3(In_IndexX, In_IndexY, In_IndexZ)];\n"));
 			RGBAHlsl.Appendf(TEXT("        TmpVal.r = In_Value;\n"));
 			RGBAHlsl.Appendf(TEXT("        {OutputGrid}[int3(In_IndexX, In_IndexY, In_IndexZ)] = TmpVal;\n"));
 			RGBAHlsl.Appendf(TEXT("    }\n"));
@@ -2156,7 +2156,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 			{
 				RGBAHlsl.Appendf(TEXT("    else if (In_AttributeIndex == %d)\n"), i + 1);
 				RGBAHlsl.Appendf(TEXT("    {\n"));
-				RGBAHlsl.Appendf(TEXT("		   float{GridChannels} TmpVal = {OutputGrid}.Load(int4(In_IndexX, In_IndexY, In_IndexZ, 0));\n"));
+				RGBAHlsl.Appendf(TEXT("		   float{GridChannels} TmpVal = {OutputGrid}[int3(In_IndexX, In_IndexY, In_IndexZ)];\n"));
 				RGBAHlsl.Appendf(TEXT("        TmpVal.%s = In_Value;\n"), *FGrid3DCollectionAttributeHlslWriter::Channels[i + 1]);
 				RGBAHlsl.Appendf(TEXT("        {OutputGrid}[int3(In_IndexX, In_IndexY, In_IndexZ)] = TmpVal;\n"));
 				RGBAHlsl.Appendf(TEXT("    }\n"));
