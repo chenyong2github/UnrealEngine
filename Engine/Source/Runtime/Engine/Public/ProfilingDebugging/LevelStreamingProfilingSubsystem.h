@@ -34,14 +34,12 @@ class ULevelStreamingProfilingSubsystem : public UWorldSubsystem
 public:
 	// WorldSubsystem interface
 	ENGINE_API virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
-#if !UE_BUILD_SHIPPING
 	ENGINE_API virtual void PostInitialize() override;
-#endif
+	ENGINE_API virtual void Deinitialize() override;
 
 	ENGINE_API ULevelStreamingProfilingSubsystem(const FObjectInitializer&);
 	ENGINE_API ~ULevelStreamingProfilingSubsystem();
 
-#if !UE_BUILD_SHIPPING
 	// Begin recording timings for level streaming events.
 	ENGINE_API void StartTracking();
 	// Top recording timings for level streaming events and output a .tsv (tab separated values) file to the Profiling directory.
@@ -51,7 +49,6 @@ public:
 
 	// Gives child classes an opportunity to clean up after a report is produced.
 	ENGINE_API virtual void PostReport() { }
-#endif
 
 	// Access to tuning values set by cvars for other systems
 	/* Returns the squared distance (e.g. from world partition cell bounds) at which a level is considered to have streamed in too late. */
@@ -61,7 +58,6 @@ protected:
 	// WorldSubsystem interface
 	ENGINE_API virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const;
 
-#if !UE_BUILD_SHIPPING
 	enum class ELevelState;
 	struct FLevelStats;
 
@@ -99,7 +95,7 @@ protected:
 	ENGINE_API static const TCHAR* EnumToString(ULevelStreamingProfilingSubsystem::ELevelState State);
 
 	ENGINE_API TConstArrayView<FLevelStats> GetLevelStats() const;
-
+	
 	enum class ELevelState
 	{
 		None,
@@ -155,6 +151,8 @@ protected:
 		// Location of streaming source (e.g. player) when level was fully streamed in 
 		TOptional<FVector> FinalStreamInLocation;
 
+		// Is this level a hierarchical LOD representation of more detailed content
+		bool bIsHLOD = false;
 		// If a level is tracked but never starts loading before being removed, we don't include it in the results 
 		bool bValid = false;
 	};
@@ -198,7 +196,6 @@ private:
 
 	// Possibly-executing task dependend on our recorded stats. Cannot start recording again until this task is complete.
 	UE::Tasks::TTask<void> ReportWritingTask;
-#endif // !UE_BUILD_SHIPPING 
 };
 
 
