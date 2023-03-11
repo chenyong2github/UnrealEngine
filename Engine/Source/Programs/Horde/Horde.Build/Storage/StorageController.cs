@@ -286,11 +286,21 @@ namespace Horde.Build.Storage
 		internal static async Task<ActionResult> ReadBlobInternalAsync(StorageService storageService, NamespaceId namespaceId, BlobLocator locator, int? offset, int? length, CancellationToken cancellationToken)
 		{
 			IStorageClientImpl client = await storageService.GetClientAsync(namespaceId, cancellationToken);
+			return await ReadBlobInternalAsync(client, locator, offset, length, cancellationToken);
+		}
 
-			Uri? redirectUrl = await client.GetReadRedirectAsync(locator, cancellationToken);
-			if (redirectUrl != null)
+		/// <summary>
+		/// Reads a blob from storage, without performing namespace access checks.
+		/// </summary>
+		internal static async Task<ActionResult> ReadBlobInternalAsync(IStorageClient storageClient, BlobLocator locator, int? offset, int? length, CancellationToken cancellationToken)
+		{
+			if (storageClient is IStorageClientImpl storageClientImpl)
 			{
-				return new RedirectResult(redirectUrl.ToString());
+				Uri? redirectUrl = await storageClientImpl.GetReadRedirectAsync(locator, cancellationToken);
+				if (redirectUrl != null)
+				{
+					return new RedirectResult(redirectUrl.ToString());
+				}
 			}
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
@@ -298,11 +308,11 @@ namespace Horde.Build.Storage
 			Stream stream;
 			if (offset == null && length == null)
 			{
-				stream = await client.ReadBlobAsync(locator, cancellationToken);
+				stream = await storageClient.ReadBlobAsync(locator, cancellationToken);
 			}
 			else if (offset != null && length != null)
 			{
-				stream = await client.ReadBlobRangeAsync(locator, offset.Value, length.Value, cancellationToken);
+				stream = await storageClient.ReadBlobRangeAsync(locator, offset.Value, length.Value, cancellationToken);
 			}
 			else
 			{

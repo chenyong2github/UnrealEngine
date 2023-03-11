@@ -3,6 +3,7 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Storage;
 using Horde.Build.Server;
 
 namespace Horde.Build.Tools
@@ -39,6 +40,14 @@ namespace Horde.Build.Tools
 		/// <param name="action">New state of the deployment</param>
 		/// <returns></returns>
 		Task<ITool?> UpdateDeploymentAsync(ITool tool, ToolDeploymentId deploymentId, ToolDeploymentState action);
+
+		/// <summary>
+		/// Gets the storage client for a particular tool
+		/// </summary>
+		/// <param name="tool">The tool to get a storage client for</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Instance of the storage client</returns>
+		Task<IStorageClient> GetStorageClientAsync(ITool tool, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Opens a stream to the data for a particular deployment

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
 using Horde.Build.Perforce;
 using Horde.Build.Storage;
@@ -25,6 +26,9 @@ namespace Horde.Build.Commands.Bundles
 		[CommandLine("-InputDir=", Required = true)]
 		public DirectoryReference InputDir { get; set; } = null!;
 
+		[CommandLine("-OutputDir=")]
+		public DirectoryReference? OutputDir { get; set; }
+
 		readonly IConfiguration _configuration;
 		readonly ILoggerProvider _loggerProvider;
 
@@ -38,9 +42,18 @@ namespace Horde.Build.Commands.Bundles
 		{
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
-			StorageService storageService = serviceProvider.GetRequiredService<StorageService>();
-			IStorageClient storageClient = await storageService.GetClientAsync(NamespaceId, CancellationToken.None);			
-			
+			IStorageClient storageClient;
+			if (OutputDir == null)
+			{
+				StorageService storageService = serviceProvider.GetRequiredService<StorageService>();
+				storageClient = await storageService.GetClientAsync(NamespaceId, CancellationToken.None);
+			}
+			else
+			{
+				FileStorageClient fileStorageClient = new FileStorageClient(OutputDir, logger);
+				storageClient = fileStorageClient;
+			}
+		
 			using TreeWriter writer = new TreeWriter(storageClient, prefix: RefName.Text);
 
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
@@ -15,6 +16,7 @@ using Horde.Build.Agents.Fleet;
 using Horde.Build.Server;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Telemetry;
+using Horde.Build.Tools;
 using Horde.Build.Utilities;
 using Serilog.Events;
 
@@ -238,6 +240,35 @@ namespace Horde.Build
 		/// Options for how objects are sliced
 		/// </summary>
 		public ChunkingOptions Chunking { get; set; } = new ChunkingOptions();
+	}
+
+	/// <summary>
+	/// Configuration for a tool bundled alongsize the server
+	/// </summary>
+	public class BundledToolConfig : ToolConfig
+	{
+		/// <summary>
+		/// Version string for the current tool data
+		/// </summary>
+		public string Version { get; set; } = "1.0";
+
+		/// <summary>
+		/// Ref name in the tools directory
+		/// </summary>
+		public RefName RefName { get; set; } = new RefName("default-ref");
+
+		/// <summary>
+		/// Directory containing blob data for this tool. If empty, the tools/{id} folder next to the server will be used.
+		/// </summary>
+		public string? DataDir { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BundledToolConfig()
+		{
+			Public = true;
+		}
 	}
 
 	/// <summary>
@@ -672,6 +703,11 @@ namespace Horde.Build
 		public TelemetryConfig Telemetry { get; set; } = new TelemetryConfig();
 
 		/// <summary>
+		/// Tools bundled along with the server. Data for each tool can be produced using the 'bundle create' command, and should be stored in the /tools/{id} directory.
+		/// </summary>
+		public List<BundledToolConfig> BundledTools { get; set; } = new List<BundledToolConfig>();
+
+		/// <summary>
 		/// Default pre-baked ACL for authentication of well-known roles
 		/// </summary>
 		[JsonIgnore]
@@ -735,6 +771,18 @@ namespace Horde.Build
 			{
 				throw new ArgumentException($"Settings key '{nameof(RunModes)}' contains one or more invalid entries");
 			}
+		}
+
+		/// <summary>
+		/// Attempts to get a bundled tool with the given id
+		/// </summary>
+		/// <param name="toolId">The tool id</param>
+		/// <param name="bundledToolConfig">Configuration for the bundled tool</param>
+		/// <returns>True if the tool was found</returns>
+		public bool TryGetBundledTool(ToolId toolId, [NotNullWhen(true)] out BundledToolConfig? bundledToolConfig)
+		{
+			bundledToolConfig = BundledTools.FirstOrDefault(x => x.Id == toolId);
+			return bundledToolConfig != null;
 		}
 	}
 

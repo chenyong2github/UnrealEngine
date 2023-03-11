@@ -289,8 +289,18 @@ namespace Horde.Build.Tools
 		{
 			GlobalConfig globalConfig = _globalConfig.Value;
 
+			Dictionary<ToolId, ToolConfig> tools = new Dictionary<ToolId, ToolConfig>();
+			foreach (BundledToolConfig bundledToolConfig in globalConfig.ServerSettings.BundledTools)
+			{
+				tools[bundledToolConfig.Id] = bundledToolConfig;
+			}
+			foreach (ToolConfig toolConfig in globalConfig.Tools)
+			{
+				tools[toolConfig.Id] = toolConfig;
+			}
+
 			GetToolsSummaryResponse response = new GetToolsSummaryResponse();
-			foreach (ToolConfig toolConfig in globalConfig.Tools.OrderBy(x => x.Name, StringComparer.Ordinal))
+			foreach (ToolConfig toolConfig in tools.Values.OrderBy(x => x.Name, StringComparer.Ordinal))
 			{
 				if(AuthorizeDownload(toolConfig))
 				{
@@ -328,7 +338,7 @@ namespace Horde.Build.Tools
 				List<GetToolDeploymentResponse> deploymentResponses = new List<GetToolDeploymentResponse>();
 				foreach (IToolDeployment deployment in tool.Deployments)
 				{
-					GetToolDeploymentResponse deploymentResponse = await GetDeploymentInfoResponseAsync(deployment, cancellationToken);
+					GetToolDeploymentResponse deploymentResponse = await GetDeploymentInfoResponseAsync(tool, deployment, cancellationToken);
 					deploymentResponses.Add(deploymentResponse);
 				}
 				return Ok(new GetToolResponse(tool, deploymentResponses));
@@ -406,7 +416,7 @@ namespace Horde.Build.Tools
 		{
 			if (action == GetToolAction.Info)
 			{
-				GetToolDeploymentResponse response = await GetDeploymentInfoResponseAsync(deployment, cancellationToken);
+				GetToolDeploymentResponse response = await GetDeploymentInfoResponseAsync(tool, deployment, cancellationToken);
 				return Ok(response);
 			}
 			else
@@ -416,9 +426,9 @@ namespace Horde.Build.Tools
 			}
 		}
 
-		private async Task<GetToolDeploymentResponse> GetDeploymentInfoResponseAsync(IToolDeployment deployment, CancellationToken cancellationToken)
+		private async Task<GetToolDeploymentResponse> GetDeploymentInfoResponseAsync(ITool tool, IToolDeployment deployment, CancellationToken cancellationToken)
 		{
-			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
+			IStorageClient client = await _toolCollection.GetStorageClientAsync(tool, cancellationToken);
 			NodeHandle rootHandle = await client.ReadRefTargetAsync(deployment.RefName, cancellationToken: cancellationToken);
 
 			return new GetToolDeploymentResponse(deployment, rootHandle);
@@ -452,7 +462,8 @@ namespace Horde.Build.Tools
 				return BadRequest("Invalid blob id for tool");
 			}
 
-			return StorageController.ReadBlobInternalAsync(_storageService, Namespace.Tools, locator, offset, length, cancellationToken);
+			IStorageClient storageClient = await _toolCollection.GetStorageClientAsync(tool, cancellationToken);
+			return StorageController.ReadBlobInternalAsync(storageClient, locator, offset, length, cancellationToken);
 		}
 
 		bool AuthorizeDownload(ToolConfig toolConfig)

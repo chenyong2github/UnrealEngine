@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Serialization;
 using Horde.Build.Server;
@@ -209,15 +211,29 @@ namespace Horde.Build.Tools
 		async Task<Tool?> GetInternalAsync(ToolId toolId, GlobalConfig globalConfig)
 		{
 			ToolConfig? toolConfig;
-			if (!globalConfig.TryGetTool(toolId, out toolConfig))
+			if (globalConfig.TryGetTool(toolId, out toolConfig))
 			{
-				return null;
+				Tool tool = await _tools.FindOrAddAsync(toolId, () => new Tool(toolId));
+				tool.Config = toolConfig;
+				tool.UpdateTemporalState(_clock.UtcNow);
+				return tool;
 			}
 
-			Tool tool = await _tools.FindOrAddAsync(toolId, () => new Tool(toolId));
-			tool.Config = toolConfig;
-			tool.UpdateTemporalState(_clock.UtcNow);
-			return tool;
+			BundledToolConfig? bundledToolConfig;
+			if (globalConfig.ServerSettings.TryGetBundledTool(toolId, out bundledToolConfig))
+			{
+				Tool tool = new Tool(bundledToolConfig);
+
+				ToolDeployment deployment = new ToolDeployment(default);
+				deployment.Version = bundledToolConfig.Version;
+				deployment.State = ToolDeploymentState.Complete;
+				deployment.RefName = bundledToolConfig.RefName;
+				tool.Deployments.Add(deployment);
+
+				return tool;
+			}
+
+			return null;
 		}
 
 		/// <summary>
@@ -231,6 +247,11 @@ namespace Horde.Build.Tools
 		/// <returns>Updated tool document, or null if it does not exist</returns>
 		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, Stream stream, GlobalConfig globalConfig, CancellationToken cancellationToken)
 		{
+			if (tool.Config is BundledToolConfig)
+			{
+				throw new InvalidOperationException("Cannot update the state of bundled tools.");
+			}
+
 			ToolDeploymentId deploymentId = ToolDeploymentId.GenerateNewId();
 			RefName refName = new RefName($"{tool.Id}/{deploymentId}");
 
@@ -308,6 +329,11 @@ namespace Horde.Build.Tools
 		/// <returns></returns>
 		public async Task<ITool?> UpdateDeploymentAsync(ITool tool, ToolDeploymentId deploymentId, ToolDeploymentState action)
 		{
+			if (tool.Config is BundledToolConfig)
+			{
+				throw new InvalidOperationException("Cannot update the state of bundled tools.");
+			}
+
 			return await UpdateDeploymentInternalAsync((Tool)tool, deploymentId, action);
 		}
 
@@ -355,6 +381,24 @@ namespace Horde.Build.Tools
 		}
 
 		/// <summary>
+		/// Gets the storage client containing data for a particular tool
+		/// </summary>
+		/// <param name="tool">Identifier for the tool</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Storage client for the data</returns>
+		public async Task<IStorageClient> GetStorageClientAsync(ITool tool, CancellationToken cancellationToken)
+		{
+			if (tool.Config is BundledToolConfig bundledConfig)
+			{
+				return new FileStorageClient(DirectoryReference.Combine(Program.AppDir, bundledConfig.DataDir ?? $"tools/{tool.Id}"), _logger);
+			}
+			else
+			{
+				return await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
+			}
+		}
+
+		/// <summary>
 		/// Opens a stream to the data for a particular deployment
 		/// </summary>
 		/// <param name="tool">Identifier for the tool</param>
@@ -363,9 +407,8 @@ namespace Horde.Build.Tools
 		/// <returns>Stream for the data</returns>
 		public async Task<Stream> GetDeploymentZipAsync(ITool tool, IToolDeployment deployment, CancellationToken cancellationToken)
 		{
-			_ = tool;
+			IStorageClient client = await GetStorageClientAsync(tool, cancellationToken);
 
-			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
 			TreeReader reader = new TreeReader(client, _cache, _logger);
 			DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
 
