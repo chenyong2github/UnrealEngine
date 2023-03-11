@@ -29,7 +29,7 @@ UENUM()
 enum ESequencerZoomPosition : int
 {
 	/** Playhead. */
-	SZP_Playhead UMETA(DisplayName="Playhead"),
+	SZP_CurrentTime UMETA(DisplayName="Playhead"),
 
 	/** Mouse Position. */
 	SZP_MousePosition UMETA(DisplayName="Mouse Position"),
