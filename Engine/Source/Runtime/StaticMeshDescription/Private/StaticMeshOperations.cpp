@@ -253,7 +253,7 @@ void FStaticMeshOperations::ComputeTriangleTangentsAndNormals(FMeshDescription& 
 
 	// Check that the mesh description is compact
 	const int32 NumTriangles = MeshDescription.Triangles().Num();
-	if (MeshDescription.Triangles().GetArraySize() != NumTriangles)
+	if (MeshDescription.NeedsCompact())
 	{
 		FElementIDRemappings Remappings;
 		MeshDescription.Compact(Remappings);
@@ -1745,7 +1745,7 @@ void FStaticMeshOperations::ComputeMikktTangents(FMeshDescription& MeshDescripti
 
 	// The Mikkt interface does not handle properly polygon array with 'holes'
 	// Compact mesh description if this is the case
-	if (MeshDescription.Triangles().Num() != MeshDescription.Triangles().GetArraySize())
+	if (MeshDescription.NeedsCompact())
 	{
 		FElementIDRemappings Remappings;
 		MeshDescription.Compact(Remappings);

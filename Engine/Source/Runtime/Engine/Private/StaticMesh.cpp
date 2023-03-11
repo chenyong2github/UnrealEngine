@@ -3198,6 +3198,12 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 		return;
 	}
 
+	if (Owner->IsNaniteLandscape())
+	{
+		// Do not launch any distance field or mesh card representation tasks for this mesh
+		return;
+	}
+
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
 	if (CVar->GetValueOnAnyThread(true) != 0 || Owner->bGenerateMeshDistanceField)

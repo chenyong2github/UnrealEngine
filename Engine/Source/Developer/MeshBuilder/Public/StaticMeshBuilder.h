@@ -63,7 +63,9 @@ namespace UE::Private::StaticMeshBuilder
 		TArray<FStaticMeshBuildVertex>& StaticMeshBuildVertices,
 		const FOverlappingCorners& OverlappingCorners,
 		TArray<int32>& RemapVerts,
-		bool bNeedTangents
+		FBoxSphereBounds& MeshBounds,
+		bool bNeedTangents,
+		bool bNeedWedgeMap
 	);
 
 	MESHBUILDER_API void BuildCombinedSectionIndices(

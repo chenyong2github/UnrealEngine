@@ -398,6 +398,8 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	PerSectionIndices.AddDefaulted(MeshDescription.PolygonGroups().Num());
 	InputMeshData.Sections.Empty(MeshDescription.PolygonGroups().Num());
 
+	FBoxSphereBounds MeshBounds;
+
 	UE::Private::StaticMeshBuilder::BuildVertexBuffer(
 		BaseMesh,
 		MeshDescription,
@@ -408,7 +410,9 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		InputMeshData.Vertices,
 		MeshDescriptionHelper.GetOverlappingCorners(),
 		RemapVerts,
-		false
+		MeshBounds,
+		false /* bNeedTangents */,
+		false /* bNeedWedgeMap */
 	);
 
 	if (Owner.IsCanceled())
@@ -417,9 +421,6 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	}
 
 	const uint32 NumTextureCoord = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate).GetNumChannels();
-
-	// Make sure to not keep the large WedgeMap from the input mesh around.
-	WedgeMap.Empty();
 
 	// Only the render data and vertex buffers will be used from now on unless we have more than one source models
 	// This will help with memory usage for Nanite Mesh by releasing memory before doing the build

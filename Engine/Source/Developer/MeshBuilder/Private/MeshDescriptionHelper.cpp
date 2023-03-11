@@ -40,8 +40,7 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 	float ComparisonThreshold = (BuildSettings->bRemoveDegenerates && !bForNanite) ? THRESH_POINTS_ARE_SAME : 0.0f;
 	
 	// Compact the mesh description prior to performing operations
-	if (RenderMeshDescription.Triangles().GetArraySize() != RenderMeshDescription.Triangles().Num() ||
-		RenderMeshDescription.Vertices().GetArraySize() != RenderMeshDescription.Vertices().Num())
+	if (RenderMeshDescription.NeedsCompact())
 	{
 		FElementIDRemappings Remappings;
 		RenderMeshDescription.Compact(Remappings);

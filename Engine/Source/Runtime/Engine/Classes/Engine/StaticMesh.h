@@ -876,6 +876,12 @@ public:
 	ENGINE_API bool IsNaniteForceEnabled() const;
 #endif
 
+	// TODO: Temp/deprecated hack - Do not call
+	inline bool IsNaniteLandscape() const
+	{
+		return GetName() == TEXT("LandscapeNaniteMesh");
+	}
+
 private:
 	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(BlueprintGetter = GetStaticMaterials, BlueprintSetter = SetStaticMaterials, Category = StaticMesh)

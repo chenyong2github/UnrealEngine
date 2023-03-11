@@ -1199,6 +1199,9 @@ public:
 	//////////////////////////////////////////////////////////////////////
 	// Whole mesh operations
 
+	/** Determines if calling Compact() would perform actual compaction or not. */
+	bool NeedsCompact() const;
+
 	/** Compacts the data held in the mesh description, and returns an object describing how the IDs have been remapped. */
 	void Compact( FElementIDRemappings& OutRemappings );
 

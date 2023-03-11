@@ -27,6 +27,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshCompiler.h"
 #include "LandscapePrivate.h"
+#include "MeshDescriptionHelper.h"
 #endif
 
 ULandscapeNaniteComponent::ULandscapeNaniteComponent(const FObjectInitializer& ObjectInitializer)
@@ -130,7 +131,7 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 	// Use the package as the outer, to avoid duplicating the mesh when entering PIE and duplicating all objects : 
 	UStaticMesh* NaniteStaticMesh = NewObject<UStaticMesh>(/*Outer = */GetPackage(), TEXT("LandscapeNaniteMesh"), RF_Transactional);
 
-	FMeshDescription* MeshDescription = nullptr;
+	FMeshDescription* NaniteMeshDescription = nullptr;
 
 	// Mesh
 	{
@@ -148,9 +149,9 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 		NaniteSettings.FallbackPercentTriangles = 0.01f; // Keep effectively no fallback mesh triangles
 		NaniteSettings.FallbackRelativeError = 1.0f;
 
-		const int32 LOD = Landscape->GetLandscapeActor()->NaniteLODIndex;
+		const int32 LOD = Landscape->GetLandscapeActor()->NaniteLODIndex; // TODO: Needed?
 
-		MeshDescription = NaniteStaticMesh->CreateMeshDescription(LOD);
+		NaniteMeshDescription = NaniteStaticMesh->CreateMeshDescription(0u);
 		{
 			TArray<UMaterialInterface*, TInlineAllocator<4>> InputMaterials;
 			TArray<FName, TInlineAllocator<4>> InputMaterialSlotNames;
@@ -183,7 +184,7 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 			ALandscapeProxy::FRawMeshExportParams ExportParams;
 			ExportParams.ComponentsToExport = MakeArrayView(InputComponents.GetData(), InputComponents.Num());
 			ExportParams.ComponentsMaterialSlotName = MakeArrayView(InputMaterialSlotNames.GetData(), InputMaterialSlotNames.Num());
-			ExportParams.ExportLOD = LOD;
+			ExportParams.ExportLOD = 0u;
 			ExportParams.ExportCoordinatesType = ALandscapeProxy::FRawMeshExportParams::EExportCoordinatesType::RelativeToProxy;
 			ExportParams.UVConfiguration.ExportUVMappingTypes.SetNumZeroed(4);
 			ExportParams.UVConfiguration.ExportUVMappingTypes[0] = ALandscapeProxy::FRawMeshExportParams::EUVMappingType::TerrainCoordMapping_XY; // In LandscapeVertexFactory, Texcoords0 = ETerrainCoordMappingType::TCMT_XY (or ELandscapeCustomizedCoordType::LCCT_CustomUV0)
@@ -194,13 +195,20 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 			//ExportParams.UVConfiguration.ExportUVMappingTypes[4] = ALandscapeProxy::FRawMeshExportParams::EUVMappingType::LightmapUV; // In LandscapeVertexFactory, Texcoords4 = lightmap UV
 			//ExportParams.UVConfiguration.ExportUVMappingTypes[5] = ALandscapeProxy::FRawMeshExportParams::EUVMappingType::HeightmapUV; // // In LandscapeVertexFactory, Texcoords5 = heightmap UV
 
-			bool bSuccess = Landscape->ExportToRawMesh(ExportParams, *MeshDescription);
+			bool bSuccess = Landscape->ExportToRawMesh(ExportParams, *NaniteMeshDescription);
 
-			const FPolygonGroupArray& PolygonGroups = MeshDescription->PolygonGroups();
+			// Apply the mesh description cleanup/optimization here instead of during DDC build (avoids expensive large mesh copies)
+			{
+				FMeshDescriptionHelper MeshDescriptionHelper(&SrcModel.BuildSettings);
+				MeshDescriptionHelper.SetupRenderMeshDescription(NaniteStaticMesh, *NaniteMeshDescription, true /* Is Nanite */, false /* bNeedTangents */);
+				check(!MeshDescriptionHelper.GetOverlappingCorners().HasOverlapping());
+			}
+
+			const FPolygonGroupArray& PolygonGroups = NaniteMeshDescription->PolygonGroups();
 			checkf(bSuccess && (PolygonGroups.Num() == InputComponents.Num()), TEXT("Invalid landscape static mesh raw mesh export for actor %s (%i components)"), *GetOwner()->GetName(), InputComponents.Num());
 
 			check(InputMaterials.Num() == InputComponents.Num());
-			FStaticMeshAttributes MeshAttributes(*MeshDescription);
+			FStaticMeshAttributes MeshAttributes(*NaniteMeshDescription);
 			TPolygonGroupAttributesRef<FName> PolygonGroupMaterialSlotNames = MeshAttributes.GetPolygonGroupMaterialSlotNames();
 			int32 ComponentIndex = 0;
 			for (UMaterialInterface* Material : InputMaterials)
@@ -215,6 +223,8 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 		}
 
 		NaniteStaticMesh->CommitMeshDescription(0);
+		NaniteStaticMesh->ClearMeshDescription(0u); // Evict LOD0 mesh description from cache without dropping the bulk data
+
 		NaniteStaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 	}
 

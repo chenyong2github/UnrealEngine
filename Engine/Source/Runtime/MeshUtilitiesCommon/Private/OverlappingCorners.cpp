@@ -132,6 +132,8 @@ void FOverlappingCorners::FinishAdding()
 {
 	check(bFinishedAdding == false);
 
+	bHasOverlapping = false;
+
 	for (TArray<int32>& Array : Arrays)
 	{
 		// Turn sets back into arrays for easier iteration code
@@ -144,6 +146,8 @@ void FOverlappingCorners::FinishAdding()
 			{
 				Array.Add(i);
 			}
+
+			bHasOverlapping |= Set.Num() > 0;
 		}
 
 		// Sort arrays now to avoid sort multiple times
@@ -174,3 +178,8 @@ uint32 FOverlappingCorners::GetAllocatedSize(void) const
 	return BaseMemoryAllocated + ArraysMemory + SetsMemory;
 }
 
+bool FOverlappingCorners::HasOverlapping() const
+{
+	check(bFinishedAdding);
+	return bHasOverlapping;
+}

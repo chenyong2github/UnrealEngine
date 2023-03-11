@@ -625,6 +625,18 @@ bool FMeshDescription::IsEmpty() const
 		   PolygonGroupElements->IsEmpty();
 }
 
+bool FMeshDescription::NeedsCompact() const
+{
+	return
+	(
+		VertexElements->Get().GetArraySize()			!= VertexElements->Get().Num()			||
+		VertexInstanceElements->Get().GetArraySize()	!= VertexInstanceElements->Get().Num()	||
+		EdgeElements->Get().GetArraySize()				!= EdgeElements->Get().Num()			||
+		TriangleElements->Get().GetArraySize()			!= TriangleElements->Get().Num()		||
+		PolygonElements->Get().GetArraySize()			!= PolygonElements->Get().Num()			||
+		PolygonGroupElements->Get().GetArraySize()		!= PolygonGroupElements->Get().Num()
+	);
+}
 
 void FMeshDescription::Compact(FElementIDRemappings& OutRemappings)
 {

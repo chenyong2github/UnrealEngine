@@ -31,6 +31,9 @@ struct MESHUTILITIESCOMMON_API FOverlappingCorners
 	/* Estimate memory allocated */
 	uint32 GetAllocatedSize(void) const;
 
+	/* Returns true if there are overlapping indices */
+	bool HasOverlapping() const;
+
 	/**
 	* @return array of sorted overlapping indices including input 'Key', empty array for indices that have no overlaps.
 	*/
@@ -47,4 +50,5 @@ private:
 	TArray< TSet<int32> > Sets;
 	TArray<int32> EmptyArray;
 	bool bFinishedAdding = false;
+	bool bHasOverlapping = false;
 };
