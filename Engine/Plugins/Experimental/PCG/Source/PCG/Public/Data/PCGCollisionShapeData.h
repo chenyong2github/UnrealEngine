@@ -5,6 +5,7 @@
 #include "PCGSpatialData.h"
 
 #include "CollisionShape.h"
+#include "Chaos/ChaosEngineInterface.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 
 #include "PCGCollisionShapeData.generated.h"
