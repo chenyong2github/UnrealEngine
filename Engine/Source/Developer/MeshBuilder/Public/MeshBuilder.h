@@ -14,6 +14,7 @@ class UStaticMesh;
 struct FSkeletalMeshBuildParameters;
 struct FStaticMeshBuildVertex;
 struct FStaticMeshSection;
+struct FMeshBuildVertexData;
 
 /**
  * Abstract class which is the base class of all builder.
