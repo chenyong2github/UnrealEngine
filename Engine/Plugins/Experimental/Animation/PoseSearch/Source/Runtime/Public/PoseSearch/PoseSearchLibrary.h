@@ -28,41 +28,37 @@ struct POSESEARCH_API FMotionMatchingSettings
 {
 	GENERATED_BODY()
 
-	// Time in seconds to blend out to the new pose. Uses either inertial blending, requiring an Inertialization node after this node, or the internal blend stack, if MaxActiveBlends is greter than zero
+	// Time in seconds to blend out to the new pose. Uses either inertial blending, requiring an Inertialization node after this node, or the internal blend stack, if MaxActiveBlends is greater than zero.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float BlendTime = 0.2f;
 
-	// Number of max active blendin animation in the blend stack. If MaxActiveBlends is zero then blend stack is disabled
+	// Number of max active animation segments being blended together in the blend stack. If MaxActiveBlends is zero then the blend stack is disabled.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	int32 MaxActiveBlends = 4;
 
+	// Set Blend Profiles (editable in the skeleton) to determine how the blending is distributed among your character's bones. It could be used to differentiate between upper body and lower body to blend timing.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(UseAsBlendProfile = true))
 	TObjectPtr<UBlendProfile> BlendProfile;
 
+	// How the blend is applied over time to the bones. Common selections are linear, ease in, ease out, and ease in and out.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	EAlphaBlendOption BlendOption = EAlphaBlendOption::Linear;
 
-	// If the pose jump requires a mirroring change and this value is greater than 0, it will be used instead of BlendTime
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0", DislayAfter="BlendTime"))
-	float MirrorChangeBlendTime = 0.0f;
-	
-	// Don't jump to poses that are less than this many seconds away
+	// Don't jump to poses of the same segment that are less than this many seconds away.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float PoseJumpThresholdTime = 0.f;
 
-	// Don't jump to poses that has been selected previously within this many seconds in the past
+	// Prevent re-selection of poses that have been selected previously within this much time (in seconds) in the past. This is across all animation segments that have been selected within this time range.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0"))
 	float PoseReselectHistory = 0.3f;
 
-	// Minimum amount of time to wait between pose search queries
+	// Minimum amount of time to wait between searching for a new pose segment. It allows users to define how often the system searches, default for locomotion is searching every update, but you may only want to search once for other situations, like jump.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float SearchThrottleTime = 0.f;
 
+	// Effective range of play rate that can be applied to the animations to account for discrepancies in estimated velocity between the movement modeland the animation.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.5", ClampMax = "1.0", UIMin = "0.5", UIMax = "1.0"))
-	float PlayRateMin = 1.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "1.0", ClampMax = "2.0", UIMin = "1.0", UIMax = "2.0"))
-	float PlayRateMax = 1.f;
+	FFloatInterval PlayRate = FFloatInterval(1.f, 1.f);
 };
 
 USTRUCT(BlueprintType, Category="Animation|Pose Search")
@@ -84,8 +80,6 @@ struct POSESEARCH_API FMotionMatchingState
 	// Internally stores the 'jump' to a new pose/sequence index and asset time for evaluation
 	void JumpToPose(const FAnimationUpdateContext& Context, const FMotionMatchingSettings& Settings, const UE::PoseSearch::FSearchResult& Result);
 
-	float ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const;
-
 	void UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FMotionMatchingSettings& Settings);
 
 	UE::PoseSearch::FSearchResult CurrentSearchResult;
@@ -94,7 +88,7 @@ struct POSESEARCH_API FMotionMatchingState
 	UPROPERTY(Transient)
 	float ElapsedPoseSearchTime = 0.f;
 
-	// wanted PlayRate to have the selected animation playing at the estimated requested speed from the query
+	// wanted PlayRate to have the selected animation playing at the estimated requested speed from the query.
 	UPROPERTY(Transient)
 	float WantedPlayRate = 1.f;
 
@@ -102,8 +96,7 @@ struct POSESEARCH_API FMotionMatchingState
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=State)
 	bool bJumpedToPose = false;
 
-	// Root motion delta for currently playing animation. Only required
-	// when UE_POSE_SEARCH_TRACE_ENABLED is active
+	// Root motion delta for currently playing animation. Only required when UE_POSE_SEARCH_TRACE_ENABLED is active.
 	UPROPERTY(Transient)
 	FTransform RootMotionTransformDelta = FTransform::Identity;
 

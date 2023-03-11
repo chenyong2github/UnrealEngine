@@ -137,8 +137,7 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 	// requesting inertial blending only if blendstack is disabled
 	if (Settings.MaxActiveBlends <= 0)
 	{
-		const float JumpBlendTime = ComputeJumpBlendTime(Result, Settings);
-		RequestInertialBlend(Context, JumpBlendTime);
+		RequestInertialBlend(Context, Settings.BlendTime);
 	}
 
 	// Remember which pose and sequence we're playing from the database
@@ -151,7 +150,7 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 {
 	if (CurrentSearchResult.IsValid())
 	{
-		if (!FMath::IsNearlyEqual(Settings.PlayRateMin, 1.f, UE_KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(Settings.PlayRateMax, 1.f, UE_KINDA_SMALL_NUMBER))
+		if (!FMath::IsNearlyEqual(Settings.PlayRate.Min, 1.f, UE_KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(Settings.PlayRate.Max, 1.f, UE_KINDA_SMALL_NUMBER))
 		{
 			if (const FPoseSearchFeatureVectorBuilder* PoseSearchFeatureVectorBuilder = SearchContext.GetCachedQuery(CurrentSearchResult.Database->Schema))
 			{
@@ -160,8 +159,8 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 					TConstArrayView<float> QueryData = PoseSearchFeatureVectorBuilder->GetValues();
 					TConstArrayView<float> ResultData = CurrentSearchResult.Database->GetSearchIndex().GetPoseValues(CurrentSearchResult.PoseIdx);
 					const float EstimatedSpeedRatio = TrajectoryChannel->GetEstimatedSpeedRatio(QueryData, ResultData);
-					check(Settings.PlayRateMin <= Settings.PlayRateMax);
-					WantedPlayRate = FMath::Clamp(EstimatedSpeedRatio, Settings.PlayRateMin, Settings.PlayRateMax);
+					check(Settings.PlayRate.Min <= Settings.PlayRate.Max);
+					WantedPlayRate = FMath::Clamp(EstimatedSpeedRatio, Settings.PlayRate.Min, Settings.PlayRate.Max);
 				}
 				else
 				{
@@ -172,23 +171,6 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 			}
 		}
 	}
-}
-
-float FMotionMatchingState::ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const
-{
-	const FPoseSearchIndexAsset* SearchIndexAsset = CurrentSearchResult.GetSearchIndexAsset();
-
-	// Use alternate blend time when changing between mirrored and unmirrored
-	float JumpBlendTime = Settings.BlendTime;
-	if (SearchIndexAsset && Settings.MirrorChangeBlendTime > 0.0f)
-	{
-		if (Result.GetSearchIndexAsset(true)->bMirrored != SearchIndexAsset->bMirrored)
-		{
-			JumpBlendTime = Settings.MirrorChangeBlendTime;
-		}
-	}
-
-	return JumpBlendTime;
 }
 
 void UPoseSearchLibrary::TraceMotionMatchingState(

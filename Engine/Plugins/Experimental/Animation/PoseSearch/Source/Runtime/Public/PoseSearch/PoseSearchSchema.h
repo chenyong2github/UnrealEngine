@@ -14,8 +14,13 @@ class UMirrorDataTable;
 UENUM()
 enum class EPoseSearchDataPreprocessor : int32
 {
+	// The data will be left untouched.
 	None,
+
+	// The data will be normalized against its deviation, and the user weights will be normalized to be a unitary vector.
 	Normalize,
+
+	// The data will be normalized against its deviation
 	NormalizeOnlyByDeviation,
 
 	Num UMETA(Hidden),
@@ -31,23 +36,27 @@ class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenc
 	GENERATED_BODY()
 
 public:
+	// Skeleton Reference for Motion Matching Database assets. Must be set to a compatible skeleton to the animation data in the database.
 	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 0))
 	TObjectPtr<USkeleton> Skeleton;
 
+	// The update rate at which we sample the animation data in the database. The higher the SampleRate the more refined your searches will be, but the more memory will be required
 	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 3, ClampMin = "1", ClampMax = "240"))
 	int32 SampleRate = 30;
 
+	// Channels itemize the cost breakdown of the config in simpler parts such as position or velocity of a bones, or phase of limbs. The total cost of a query against an indexed database pose will be the sum of the combined channel costs
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Schema")
 	TArray<TObjectPtr<UPoseSearchFeatureChannel>> Channels;
 
-	// FinalizedChannels gets populated with UPoseSearchFeatureChannel(s) from Channels and additional injected ones during the Finalize
+	// FinalizedChannels gets populated with UPoseSearchFeatureChannel(s) from Channels and additional injected ones during the Finalize.
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPoseSearchFeatureChannel>> FinalizedChannels;
 
-	// If set, this schema will support mirroring pose search databases
+	// Setting up and assigning a mirror data table will allow all your assets in your database to access the mirrored version of the data. This is required for mirroring to work with Motion Matching.
 	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 1))
 	TObjectPtr<UMirrorDataTable> MirrorDataTable;
 
+	// Type of operation performed to the full pose features dataset
 	UPROPERTY(EditAnywhere, Category = "Schema", meta = (DisplayPriority = 2))
 	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Normalize;
 
@@ -60,39 +69,43 @@ public:
 	UPROPERTY(Transient)
 	TArray<uint16> BoneIndicesWithParents;
 
-	// cost added to the continuing pose from databases that uses this schema
+	// Cost added to the continuing pose from databases that uses this config. This allows users to apply a cost bias (positive or negative) to the continuing pose.
+	// This is useful to help the system stay in one animation segment longer, or shorter depending on how you set this bias.
+	// Negative values make it more likely to be picked, or stayed in, positive values make it less likely to be picked or stay in.
 	UPROPERTY(EditAnywhere, Category = "Bias")
 	float ContinuingPoseCostBias = 0.f;
 
-	// base cost added to all poses from databases that uses this schema. it can be overridden by UAnimNotifyState_PoseSearchModifyCost
+	// Base Cost added or removed to all poses from databases that use this config. It can be overridden by Anim Notify: Pose Search Modify Cost at the frame level of animation data.
+	// Negative values make it more likely to be picked, or stayed in, Positive values make it less likely to be picked or stay in.
 	UPROPERTY(EditAnywhere, Category = "Bias")
 	float BaseCostBias = 0.f;
 
-	// If there's a mirroring mismatch between the currently playing asset and a search candidate, this cost will be 
-	// added to the candidate, making it less likely to be selected
+	// If there’s a mirroring mismatch between the currently playing asset and a search candidate, this cost will be added or removed to the candidate,
+	// making it more or less likely to be selected. Negative values make it more likely to be picked, or stayed in, Positive values make it less likely to be picked or stay in.
 	UPROPERTY(EditAnywhere, Category = "Bias")
 	float MirrorMismatchCostBias = 0.f;
 
-	// cost added to all poses from looping assets of databases that uses this schema
+	// Cost added to all looping animation assets in a database that uses this config. This allows users to make it more or less likely to pick the looping animation segments.
+	// Negative values make it more likely to be picked, or stayed in, Positive values make it less likely to be picked or stay in.
 	UPROPERTY(EditAnywhere, Category = "Bias")
-	float LoopingCostBias = 0.01f;
+	float LoopingCostBias = -0.005f;
 
-	// how many times the animation assets of the database using this schema will be indexed
+	// How many times the animation assets of the database using this schema will be indexed.
 	UPROPERTY(EditAnywhere, Category = "Permutations", meta = (ClampMin = "1"))
 	int32 NumberOfPermutations = 1;
 
-	// delta time between every permutation indexing
+	// Delta time between every permutation indexing.
 	UPROPERTY(EditAnywhere, Category = "Permutations", meta = (ClampMin = "1", ClampMax = "240", EditCondition = "NumberOfPermutations > 1", EditConditionHides))
 	int32 PermutationsSampleRate = 30;
 
-	// starting offset of the "PermutationTime" from the "SamplingTime" of the first permutation.
-	// subsequent permutations will have PermutationTime = SamplingTime + PermutationsTimeOffset + PermutationIndex / PermutationsSampleRate
+	// Starting offset of the "PermutationTime" from the "SamplingTime" of the first permutation.
+	// subsequent permutations will have PermutationTime = SamplingTime + PermutationsTimeOffset + PermutationIndex / PermutationsSampleRate.
 	UPROPERTY(EditAnywhere, Category = "Permutations")
 	float PermutationsTimeOffset = 0.f;
 
-	// if bInjectAdditionalDebugChannels is true, channels will be asked to injecting additional channels into this schema.
+	// If bInjectAdditionalDebugChannels is true, channels will be asked to inject additional channels into this schema.
 	// the original intent is to add UPoseSearchFeatureChannel_Position(s) to help with the complexity of the debug drawing
-	// (the database will have all the necessary positions to draw lines at the right location and time)
+	// (the database will have all the necessary positions to draw lines at the right location and time).
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool bInjectAdditionalDebugChannels;
 

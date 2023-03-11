@@ -14,26 +14,26 @@ struct FPoseSearchFeatureVectorBuilder;
 UENUM()
 enum class EComponentStrippingVector : uint8
 {
-	// no component stripping
+	// No component stripping.
 	None,
 
-	// stripping X and Y components (matching only on the horizontal plane) 
+	// Stripping X and Y components (matching only on the horizontal plane).
 	StripXY,
 
-	// stripping Z (matching only vertically - caring only about the height of the feature) 
+	// Stripping Z (matching only vertically - caring only about the height of the feature).
 	StripZ,
 };
 
 UENUM()
 enum class EInputQueryPose : uint8
 {
-	// use character pose to compose the query
+	// Use character pose to compose the query.
 	UseCharacterPose,
 
-	// if available reuse continuing pose from the database to compose the query or else UseCharacterPose
+	// If available reuse continuing pose from the database to compose the query, or else UseCharacterPose.
 	UseContinuingPose,
 
-	// if available reuse and interpolate continuing pose from the database to compose the query or else UseCharacterPose
+	// If available reuse and interpolate continuing pose from the database to compose the query, or else UseCharacterPose.
 	UseInterpolatedContinuingPose,
 };
 
@@ -43,16 +43,16 @@ enum class EInputQueryPose : uint8
 UENUM()
 enum class EPermutationTimeType : uint8
 {
-	// bone and origin bone are sampled at the same sample time (plus eventual SampleTimeOffset for the bone):
-	// it's defined as the current animation evaluation time
+	// Bone and origin bone are sampled at the same sample time (plus eventual SampleTimeOffset for the bone):
+	// it's defined as the current animation evaluation time.
 	UseSampleTime,
 
-	// bone and origin bone are sampled at the same permutation time (plus eventual SampleTimeOffset for the bone):
+	// Bone and origin bone are sampled at the same permutation time (plus eventual SampleTimeOffset for the bone):
 	// it's defined as SamplingTime (as UseSampleTime) + Schema->PermutationsTimeOffset + PermutationIndex / Schema->PermutationsSampleRate
-	// where PermutationIndex is in range [0, Schema->NumberOfPermutations)
+	// where PermutationIndex is in range [0, Schema->NumberOfPermutations).
 	UsePermutationTime,
 
-	// bone is evaluated at sample time (and plus eventual SampleTimeOffset) and origin bone is evaluated at permutation time
+	// Bone is evaluated at sample time (and plus eventual SampleTimeOffset) and origin bone is evaluated at permutation time.
 	UseSampleToPermutationTime,
 };
 

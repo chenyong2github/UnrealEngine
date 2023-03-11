@@ -17,10 +17,17 @@ class UPoseSearchNormalizationSet;
 UENUM()
 enum class EPoseSearchMode : int32
 {
+	// Database searches will be evaluated extensively. the system will evaluate all the indexed poses to search for the best one.
 	BruteForce,
+
+	// Optimized search mode: the database projects the poses into a PCA space using only the most significant "NumberOfPrincipalComponents" dimensions, and construct a kdtree to facilitate the search.
 	PCAKDTree,
-	PCAKDTree_Validate,	// runs PCAKDTree and performs validation tests
-	PCAKDTree_Compare,	// compares BruteForce vs PCAKDTree
+
+	// Debug functionality performing diagnostics and validation during searches using PCAKDTree.
+	PCAKDTree_Validate,
+	
+	// Debug functionality to compare BruteForce vs PCAKDTree.
+	PCAKDTree_Compare,
 
 	Num UMETA(Hidden),
 	Invalid = Num UMETA(Hidden)
@@ -42,13 +49,15 @@ struct FPoseSearchExcludeFromDatabaseParameters
 {
 	GENERATED_BODY()
 
-	// Excluding the beginning of sequences can help ensure an exact past trajectory is used when building the features
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	// Determines how much of the start of an animation segment is preserved for blending in seconds.
+	// Excluding the beginning of animation segments can help ensure an exact past trajectory is used when building the channels.
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (DisplayName = "Anim Start Interval"))
 	float SequenceStartInterval = 0.0f;
 
-	// Excluding the end of sequences help ensure an exact future trajectory, and also prevents the selection of
-	// a sequence which will end too soon to be worth selecting.
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	// Determines how much of the end of an animation segment is preserved for blending in seconds.
+	// Excluding the end of animation segments helps ensure an exact future trajectory,
+	// and also prevents the selection of a anim segment which will end too soon to be worth selecting.
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (DisplayName = "Anim End Interval"))
 	float SequenceEndInterval = 0.3f;
 };
 
@@ -78,12 +87,18 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	UPROPERTY(EditAnywhere, Category="Sequence", meta = (DisplayPriority = 0))
 	TObjectPtr<UAnimSequence> Sequence;
 
+	// This allows users to enable or exclude animations from this database. Useful for debugging.
 	UPROPERTY(EditAnywhere, Category = "Sequence", meta = (DisplayPriority = 3))
 	bool bEnabled = true;
 
+	// It allows users to set a time range to an individual animation sequence in the database. 
+	// This is effectively trimming the beginning and end of the animation in the database (not in the original sequence).
+	// If set to [0, 0] it will be the entire frame range of the original sequence.
 	UPROPERTY(EditAnywhere, Category="Sequence", meta = (DisplayPriority = 1))
 	FFloatInterval SamplingRange = FFloatInterval(0.f, 0.f);
 
+	// This allows users to set if this animation is original only (no mirrored data), original and mirrored, or only the mirrored version of this animation.
+	// It requires the mirror table to be set up in the config file.
 	UPROPERTY(EditAnywhere, Category = "Sequence", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
@@ -107,20 +122,24 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 0))
 	TObjectPtr<UBlendSpace> BlendSpace;
 
+	// This allows users to enable or exclude animations from this database. Useful for debugging.
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 5))
 	bool bEnabled = true;
 
+	// This allows users to set if this animation is original only (no mirrored data), original and mirrored, or only the mirrored version of this animation.
+	// It requires the mirror table to be set up in the config file.
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 1))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
-	// If to use the blendspace grid locations as parameter sample locations.
-	// When enabled, NumberOfHorizontalSamples and NumberOfVerticalSamples are ignored.
+	// When turned on, this will use the set grid samples of the blend space asset for sampling. This will override the Number of Horizontal/Vertical Samples.
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 4))
 	bool bUseGridForSampling = false;
 
+	// Sets the number of horizontal samples in the blend space to pull the animation data coverage from. The larger the samples the more the data, but also the more memory and performance it takes.
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25", DisplayPriority = 2))
 	int32 NumberOfHorizontalSamples = 9;
 
+	// Sets the number of vertical samples in the blend space to pull the animation data coverage from.The larger the samples the more the data, but also the more memory and performance it takes.
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25", DisplayPriority = 3))
 	int32 NumberOfVerticalSamples = 2;
 
@@ -147,12 +166,18 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimComposite : public FPoseSearchDatab
 	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 0))
 	TObjectPtr<UAnimComposite> AnimComposite;
 
+	// This allows users to enable or exclude animations from this database. Useful for debugging.
 	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 3))
 	bool bEnabled = true;
 
+	// It allows users to set a time range to an individual animation sequence in the database. 
+	// This is effectively trimming the beginning and end of the animation in the database (not in the original sequence).
+	// If set to [0, 0] it will be the entire frame range of the original sequence.
 	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 1))
 	FFloatInterval SamplingRange = FFloatInterval(0.f, 0.f);
 
+	// This allows users to set if this animation is original only (no mirrored data), original and mirrored, or only the mirrored version of this animation.
+	// It requires the mirror table to be set up in the config file.
 	UPROPERTY(EditAnywhere, Category = "AnimComposite", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
@@ -176,12 +201,18 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimMontage : public FPoseSearchDatabas
 	UPROPERTY(EditAnywhere, Category="AnimMontage", meta = (DisplayPriority = 0))
 	TObjectPtr<UAnimMontage> AnimMontage;
 
+	// This allows users to enable or exclude animations from this database. Useful for debugging.
 	UPROPERTY(EditAnywhere, Category = "AnimMontage", meta = (DisplayPriority = 3))
 	bool bEnabled = true;
 
+	// It allows users to set a time range to an individual animation sequence in the database. 
+	// This is effectively trimming the beginning and end of the animation in the database (not in the original sequence).
+	// If set to [0, 0] it will be the entire frame range of the original sequence.
 	UPROPERTY(EditAnywhere, Category="AnimMontage", meta = (DisplayPriority = 1))
 	FFloatInterval SamplingRange = FFloatInterval(0.f, 0.f);
 
+	// This allows users to set if this animation is original only (no mirrored data), original and mirrored, or only the mirrored version of this animation.
+	// It requires the mirror table to be set up in the config file.
 	UPROPERTY(EditAnywhere, Category = "AnimMontage", meta = (DisplayPriority = 2))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
@@ -201,10 +232,12 @@ class POSESEARCH_API UPoseSearchDatabase : public UPoseSearchSearchableAsset
 {
 	GENERATED_BODY()
 public:
-	// Motion Database Config asset to use with this database.
+
+	// The Motion Database Config sets what channels this database will use to match against (bones, trajectory and what properties of those you’re interested in, such as position and velocity).
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Database", DisplayName="Config")
 	TObjectPtr<const UPoseSearchSchema> Schema;
 
+	// These settings allow users to trim the start and end of animations in the database to preserve start/end frames for blending, and prevent the system from selecting the very last frames before it blends out.
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchExcludeFromDatabaseParameters ExcludeFromDatabaseParameters;
 
@@ -220,28 +253,35 @@ public:
 	UPROPERTY(EditAnywhere, Category="Database")
 	TArray<FInstancedStruct> AnimationAssets;
 
+	// This dictates how the database will perform the search.
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	EPoseSearchMode PoseSearchMode = EPoseSearchMode::PCAKDTree;
 
+	// Number of dimensions used to create the kdtree. More dimensions allows a better explanation of the variance of the dataset that usually translates in better search results, but will imply more memory usage and worse performances.
 	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "64", UIMin = "1", UIMax = "64"))
 	int32 NumberOfPrincipalComponents = 4;
 
 	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "256", UIMin = "1", UIMax = "256"))
 	int32 KDTreeMaxLeafSize = 16;
 	
+	// Out of a kdtree search, results will have only an approximate cost, so the database search will select the best “KDTree Query Num Neighbors” poses to perform the full cost analysis, and be able to elect the best pose.
 	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "600", UIMin = "1", UIMax = "600"))
 	int32 KDTreeQueryNumNeighbors = 200;
 
-	// if true, this database search will be skipped if cannot decrease the pose cost, and poses will not be listed into the PoseSearchDebugger
+	// When evaluating multiple searches, including the continuing pose search, the system keeps track of the best pose and associated cost.
+	// if the current database cannot possibly improve the current cost, the database search will be skipped entirely.
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	bool bSkipSearchIfPossible = true;
 
+	// This optional asset defines a list of databases you want to normalize together. Without it, it would be difficult to compare costs from separately normalized databases containing different types of animation,
+	// like only idles versus only runs animations, given that the range of movement would be dramatically different.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Database")
 	TObjectPtr<const UPoseSearchNormalizationSet> NormalizationSet;
 
 private:
+	// Do not use it directly. Use GetSearchIndex / SetSearchIndex interact with it and validate that is ok to do so.
 	UPROPERTY(Transient, meta = (ExcludeFromHash))
-	FPoseSearchIndex SearchIndexPrivate; // do not use it directly. use GetSearchIndex / SetSearchIndex interact with it and validate that is ok to do so
+	FPoseSearchIndex SearchIndexPrivate;
 
 public:
 	virtual ~UPoseSearchDatabase();

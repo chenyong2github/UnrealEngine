@@ -20,24 +20,23 @@ public:
 	UPROPERTY()
 	FPoseLink Source;
 
-	// Collection of animations for motion matching
+	// Collection of animations for motion matching.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	TObjectPtr<const UPoseSearchSearchableAsset> Searchable = nullptr;
 
-	// Motion trajectory samples for pose search queries. Expected to be in the space of the SkeletalMeshComponent.
+	// Motion Trajectory samples for pose search queries in Motion Matching.These are expected to be in the space of the SkeletalMeshComponent.This is provided with the CharacterMovementTrajectory Component output.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	FTrajectorySampleRange Trajectory;
 
-	// Settings for the core motion matching algorithm evaluation
+	// Settings for the core motion matching node.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
 	FMotionMatchingSettings Settings;
 
-	// Reset the motion matching state if we have become relevant to the graph
-	// after not being ticked on the previous frame(s)
+	// Reset the motion matching selection state if it has become relevant to the graph after not being updated on previous frames.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
 	bool bResetOnBecomingRelevant = true;
 
-	// if true the continuing pose will be invalidated
+	// If set to true, the continuing pose will be invalidated. This is useful if you want to force a re-selection of the animation segment instead of continuing with the previous segment, even if it has a better score.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
 	bool bForceInterrupt = false;
 
