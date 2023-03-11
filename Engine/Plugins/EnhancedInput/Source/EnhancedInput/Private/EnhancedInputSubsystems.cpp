@@ -55,9 +55,11 @@ UEnhancedInputUserSettings* UEnhancedInputLocalPlayerSubsystem::GetUserSettings(
 
 void UEnhancedInputLocalPlayerSubsystem::InitalizeUserSettings()
 {
-	// We don't want to be re-creating any user settings, they should share the lifetime with the player input object
-	if (!ensureMsgf(!UserSettings, TEXT("Attempting to initalize the User Settings, but they have already been created!")))
+	// If the user settings are already created then we just want to update it's pointer to the 
+	// player input object, as that may have changed with a new player controller.
+	if (UserSettings)
 	{
+		UserSettings->Initialize(GetPlayerInput());
 		return;
 	}
 

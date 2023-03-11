@@ -656,7 +656,7 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 
 UEnhancedPlayerInput* UEnhancedInputUserSettings::GetPlayerInput() const
 {
-	return OwningPlayerInput;
+	return OwningPlayerInput.Get();
 }
 
 APlayerController* UEnhancedInputUserSettings::GetPlayerController() const

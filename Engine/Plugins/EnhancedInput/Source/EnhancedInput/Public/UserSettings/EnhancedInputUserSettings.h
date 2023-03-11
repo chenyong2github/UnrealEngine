@@ -544,7 +544,7 @@ protected:
 	
 	/** The owning Player Input object of these settings */
 	UPROPERTY(Transient)
-	TObjectPtr<UEnhancedPlayerInput> OwningPlayerInput;
+	TWeakObjectPtr<UEnhancedPlayerInput> OwningPlayerInput;
 	
 	/**
 	 * Set of currently registered input mapping contexts that may not be currently
