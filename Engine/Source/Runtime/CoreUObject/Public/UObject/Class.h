@@ -1999,6 +1999,9 @@ public:
 	/** Returns the short name matching the enum Value, returns empty string if invalid */
 	COREUOBJECT_API FString GetNameStringByValue(int64 InValue) const;
 
+	/** If the enumeration is declared as UENUM(Flags), returns a string of the form A | B | C representing set bits A, B, and C. If it is not a bitfield, the result is the same as calling GetNameStringByValue*/
+	FString GetValueOrBitfieldAsString(int64 InValue) const;
+
 	/** Looks for a name with a given value and returns true and writes the name to Out if one was found */
 	COREUOBJECT_API bool FindNameStringByValue(FString& Out, int64 InValue) const;
 
@@ -2261,6 +2264,25 @@ public:
 		out_StringValue = GetValueAsString( EnumPath, EnumeratorValue );
 	}
 
+	template <typename T>
+	FORCEINLINE static FString GetValueOrBitfieldAsString(const TCHAR* EnumPath, const T EnumeratorValue)
+	{
+		// For the C++ enum.
+		static_assert(TIsEnum<T>::Value, "Should only call this with enum types");
+		return GetValueOrBitfieldAsString_Internal(EnumPath, (int64)EnumeratorValue);
+	}
+
+	template <typename T>
+	FORCEINLINE static FString GetValueOrBitfieldAsString(const TCHAR* EnumPath, const TEnumAsByte<T> EnumeratorValue)
+	{
+		return GetValueOrBitfieldAsString_Internal(EnumPath, (int64)EnumeratorValue.GetValue());
+	}
+
+	template< class T >
+	FORCEINLINE static void GetValueOrBitfieldAsString(const TCHAR* EnumPath, const T EnumeratorValue, FString& out_StringValue)
+	{
+		out_StringValue = GetValueOrBitfieldAsString( EnumPath, EnumeratorValue );
+	}
 	/**
 	 * @param EnumPath         Full enum path.
 	 * @param EnumeratorValue  Enumerator Value.
@@ -2420,6 +2442,13 @@ private:
 		UEnum* EnumClass = FindObject<UEnum>( nullptr, EnumPath );
 		UE_CLOG( !EnumClass, LogClass, Fatal, TEXT("Couldn't find enum '%s'"), EnumPath );
 		return EnumClass->GetNameStringByValue(EnumeratorValue);
+	}
+
+	FORCEINLINE static FString GetValueOrBitfieldAsString_Internal(const TCHAR* EnumPath, const int64 EnumeratorValue)
+	{
+		UEnum* EnumClass = FindObject<UEnum>(nullptr, EnumPath);
+		UE_CLOG(!EnumClass, LogClass, Fatal, TEXT("Couldn't find enum '%s'"), EnumPath);
+		return EnumClass->GetValueOrBitfieldAsString(EnumeratorValue);
 	}
 
 	FORCEINLINE static FText GetDisplayValueAsText_Internal( const TCHAR* EnumPath, const int64 EnumeratorValue )

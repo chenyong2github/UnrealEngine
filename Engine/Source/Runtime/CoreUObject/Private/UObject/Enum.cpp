@@ -499,6 +499,36 @@ FString UEnum::GetNameStringByValue(int64 Value) const
 	return GetNameStringByIndex(Index);
 }
 
+FString UEnum::GetValueOrBitfieldAsString(int64 InValue) const
+{
+	if (!HasAnyEnumFlags(EEnumFlags::Flags) || InValue == 0)
+	{
+		return GetNameStringByValue(InValue);
+	}
+	else
+	{
+		FString BitfieldString;
+		bool WroteFirstFlag = false;
+		while (InValue != 0)
+		{
+			int64 NextValue = 1ll << FMath::CountTrailingZeros64(InValue);
+			InValue = InValue & ~NextValue;
+			if (WroteFirstFlag)
+			{
+				// We don't just want to use the NameValuePair.Key because we want to strip enum class prefixes
+				BitfieldString.Appendf(TEXT(" | %s"), *GetNameStringByValue(NextValue));
+			}
+			else
+			{
+				// We don't just want to use the NameValuePair.Key because we want to strip enum class prefixes
+				BitfieldString.Appendf(TEXT("%s"), *GetNameStringByValue(NextValue));
+				WroteFirstFlag = true;
+			}
+		}
+		return BitfieldString;
+	}
+}
+
 bool UEnum::FindNameStringByValue(FString& Out, int64 InValue) const
 {
 	int32 Index = GetIndexByValue(InValue);
@@ -927,3 +957,77 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UEnum, UField,
 	{
 	}
 );
+
+#if WITH_DEV_AUTOMATION_TESTS 
+
+#include "Misc/AutomationTest.h"
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnumBitfieldTest, "System.CoreUObject.EnumBitfields", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FEnumBitfieldTest::RunTest(const FString& Parameters)
+{
+	UPackage* NativePackage = CreatePackage(TEXT("/Script/TestEnumBitfieldsPackage"));
+	NativePackage->SetPackageFlags(PKG_CompiledIn);
+
+	{
+		const FName BitfieldTestEnumName(TEXT("EBitfieldTestEnum"));
+		TArray<TPair<FName, int64>> BitfieldTestEnumValueNames =
+		{
+		 { TEXT("EBitfieldTestEnum::TestValue0"), 0 },
+		 { TEXT("EBitfieldTestEnum::TestValue1"), 1 << 0 },
+		 { TEXT("EBitfieldTestEnum::TestValue2"), 1 << 1 },
+		 { TEXT("EBitfieldTestEnum::TestValue4"), 1 << 2 },
+		 { TEXT("EBitfieldTestEnum::TestValue2to63"), 1ll << 63 },
+		};
+
+		UEnum* NativeEnum = NewObject<UEnum>(NativePackage, BitfieldTestEnumName);
+		NativeEnum->SetEnums(BitfieldTestEnumValueNames, UEnum::ECppForm::EnumClass);
+		NativeEnum->SetEnumFlags(EEnumFlags::Flags);
+
+		FString BitfieldTestValueOf3 = NativeEnum->GetValueOrBitfieldAsString(3);
+		TestEqual(TEXT("Test bitfield with value 3"), BitfieldTestValueOf3, FString(TEXT("TestValue1 | TestValue2")));
+
+		FString BitfieldTestValueOf1 = NativeEnum->GetValueOrBitfieldAsString(1);
+		TestEqual(TEXT("Test bitfield with value 1"), BitfieldTestValueOf1, FString(TEXT("TestValue1")));
+
+		FString BitfieldTestValueOf0 = NativeEnum->GetValueOrBitfieldAsString(0);
+		TestEqual(TEXT("Test bitfield with value 0"), BitfieldTestValueOf0, FString(TEXT("TestValue0")));
+
+		FString BitfieldTestValueOf2to63 = NativeEnum->GetValueOrBitfieldAsString(1ll << 63);
+		TestEqual(TEXT("Test bitfield with value 2^63"), BitfieldTestValueOf2to63, FString(TEXT("TestValue2to63")));
+
+		FString BitfieldTestValueOf8 = NativeEnum->GetValueOrBitfieldAsString(1ll << 3);
+		TestEqual(TEXT("Test bitfield with invalid value 8"), BitfieldTestValueOf8, FString(TEXT("")));
+	}
+
+	{
+		const FName BitfieldTestStandardEnumName(TEXT("EBitfieldTestStandardEnum"));
+		TArray<TPair<FName, int64>> BitfieldTestStandardEnumValueNames =
+		{
+		 { TEXT("EBitfieldTestStandardEnum::TestValue0"), 0 },
+		 { TEXT("EBitfieldTestStandardEnum::TestValue1"), 1 },
+		 { TEXT("EBitfieldTestStandardEnum::TestValue2"), 2 },
+		 { TEXT("EBitfieldTestStandardEnum::TestValue3"), 3 },
+		 { TEXT("EBitfieldTestStandardEnum::TestValue2to63"), 1ll << 63 },
+		};
+
+		UEnum* NativeEnum = NewObject<UEnum>(NativePackage, BitfieldTestStandardEnumName);
+		NativeEnum->SetEnums(BitfieldTestStandardEnumValueNames, UEnum::ECppForm::EnumClass);
+
+		FString BitfieldTestValueOf3 = NativeEnum->GetValueOrBitfieldAsString(3);
+		TestEqual(TEXT("Test non bitfield with value 3"), BitfieldTestValueOf3, FString(TEXT("TestValue3")));
+
+		FString BitfieldTestValueOf1 = NativeEnum->GetValueOrBitfieldAsString(1);
+		TestEqual(TEXT("Test non bitfield with value 1"), BitfieldTestValueOf1, FString(TEXT("TestValue1")));
+
+		FString BitfieldTestValueOf0 = NativeEnum->GetValueOrBitfieldAsString(0);
+		TestEqual(TEXT("Test non bitfield with value 0"), BitfieldTestValueOf0, FString(TEXT("TestValue0")));
+
+		FString BitfieldTestValueOf2to63 = NativeEnum->GetValueOrBitfieldAsString(1ll << 63);
+		TestEqual(TEXT("Test non bitfield with value 2^63"), BitfieldTestValueOf2to63, FString(TEXT("TestValue2to63")));
+
+		FString BitfieldTestValueOf8 = NativeEnum->GetValueOrBitfieldAsString(8);
+		TestEqual(TEXT("Test non bitfield with bad value"), BitfieldTestValueOf8, FString(TEXT("")));
+	}
+	return true;
+}
+
+#endif // WITH_DEV_AUTOMATION_TESTS
