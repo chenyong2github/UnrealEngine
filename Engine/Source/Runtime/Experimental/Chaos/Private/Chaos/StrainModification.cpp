@@ -11,6 +11,11 @@ const FGeometryCollectionPhysicsProxy* Chaos::FStrainedProxyModifier::GetProxy()
 	return Proxy;
 }
 
+const Chaos::FPBDRigidParticleHandle* Chaos::FStrainedProxyModifier::GetRootHandle() const
+{
+	return RootHandle;
+}
+
 int32 Chaos::FStrainedProxyModifier::GetNumRestBreakables() const
 {
 	if (RestChildren)
@@ -76,6 +81,21 @@ void Chaos::FStrainedProxyModifier::ClearStrains()
 			RigidClustering.SetExternalStrain(ChildHandle, FReal(0));
 		}
 	}
+}
+
+Chaos::FPBDRigidClusteredParticleHandle* Chaos::FStrainedProxyModifier::InitRootHandle(FGeometryCollectionPhysicsProxy* Proxy)
+{
+	if (Proxy == nullptr) { return nullptr; }
+
+	// Get the root index of the proxy
+	FSimulationParameters& Parameters = Proxy->GetSimParameters();
+	const int32 RootIndex = Parameters.InitialRootIndex;
+	if (RootIndex == INDEX_NONE) { return nullptr; }
+
+	// Return the particle handle corresponding to the root index
+	TArray<Chaos::FPBDRigidClusteredParticleHandle*>& ParticleHandles = Proxy->GetSolverParticleHandles();
+	if (!ParticleHandles.IsValidIndex(RootIndex)) { return nullptr; }
+	return ParticleHandles[RootIndex];
 }
 
 const TSet<int32>* Chaos::FStrainedProxyModifier::InitRestChildren(FGeometryCollectionPhysicsProxy* Proxy)

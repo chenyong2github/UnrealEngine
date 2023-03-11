@@ -26,6 +26,7 @@ namespace Chaos
 		FStrainedProxyModifier(FRigidClustering& InRigidClustering, FGeometryCollectionPhysicsProxy* InProxy)
 			: RigidClustering(InRigidClustering)
 			, Proxy(InProxy)
+			, RootHandle(InitRootHandle(InProxy))
 			, RestChildren(InitRestChildren(InProxy))
 		{ }
 
@@ -37,6 +38,9 @@ namespace Chaos
 
 		// Get the proxy that owns the strained cluster or clusters
 		const FGeometryCollectionPhysicsProxy* GetProxy() const;
+
+		// Get the physics handle for the strained parent cluster
+		const Chaos::FPBDRigidParticleHandle* GetRootHandle() const;
 
 		// Get the number of level-1 strainable entities (number of rest-children in the per-particle
 		// strain model, or number of rest-connections in the edge/area model).
@@ -50,10 +54,13 @@ namespace Chaos
 
 	private:
 
+		static Chaos::FPBDRigidClusteredParticleHandle* InitRootHandle(FGeometryCollectionPhysicsProxy* Proxy);
+
 		static const TSet<int32>* InitRestChildren(FGeometryCollectionPhysicsProxy* Proxy);
 
 		FRigidClustering& RigidClustering;
 		FGeometryCollectionPhysicsProxy* Proxy;
+		Chaos::FPBDRigidClusteredParticleHandle* RootHandle;
 		const TSet<int32>* RestChildren;
 	};
 
