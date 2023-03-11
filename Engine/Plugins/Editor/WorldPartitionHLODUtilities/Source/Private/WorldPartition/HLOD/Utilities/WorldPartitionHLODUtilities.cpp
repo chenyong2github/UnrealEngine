@@ -125,6 +125,15 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<AAc
 	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLOD Min Visible Distance (%.02f) = %x"), InHLODActor->GetMinVisibleDistance(), HLODMinVisibleDistanceHash);
 	Ar << HLODMinVisibleDistanceHash;
 
+	// ISM Component Class
+	TSubclassOf<UInstancedStaticMeshComponent> HLODISMComponentClass = UHLODBuilder::GetInstancedStaticMeshComponentClass();
+	if (HLODISMComponentClass != UInstancedStaticMeshComponent::StaticClass())
+	{
+		uint32 HLODISMComponentClassHash = GetTypeHash(HLODISMComponentClass);
+		UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLOD ISM Component Class (%s) = %x"), *HLODISMComponentClass->GetName(), HLODISMComponentClassHash);
+		Ar << HLODISMComponentClassHash;
+	}
+
 	// Append all components CRCs
 	uint32 HLODComponentsHash = UHLODBuilder::ComputeHLODHash(InActors);
 	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLOD Source Components = %x"), HLODComponentsHash);

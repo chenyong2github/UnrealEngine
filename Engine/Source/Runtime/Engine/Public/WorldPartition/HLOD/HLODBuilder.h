@@ -10,6 +10,7 @@
 
 class AActor;
 class UActorComponent;
+class UInstancedStaticMeshComponent;
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogHLODBuilder, Log, All);
 
@@ -61,7 +62,7 @@ struct FHLODBuildContext
  * Base class for all HLOD builders
  * This class takes as input a group of components, and should return component(s) that will be included in the HLOD actor.
  */
-UCLASS(Abstract)
+UCLASS(Abstract, Config = Editor)
 class ENGINE_API UHLODBuilder : public UObject
 {
 	 GENERATED_UCLASS_BODY()
@@ -114,6 +115,14 @@ public:
 	 */
 	static uint32 ComputeHLODHash(const TArray<AActor*>& InSourceActors);
 
+	/** 
+	 * Get the InstancedStaticMeshComponent subclass that should be used when creating instanced HLODs.
+	 */
+	static TSubclassOf<UInstancedStaticMeshComponent> GetInstancedStaticMeshComponentClass()
+	{
+		return StaticClass()->GetDefaultObject<UHLODBuilder>()->HLODInstancedStaticMeshComponentClass;
+	}
+
 protected:
 	virtual bool ShouldIgnoreBatchingPolicy() const { return false; }
 
@@ -131,13 +140,15 @@ protected:
 		}
 		return FilteredComponents;
 	}
-
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 protected:
 	UPROPERTY()
 	TObjectPtr<const UHLODBuilderSettings> HLODBuilderSettings;
+
+	UPROPERTY(Config)
+	TSubclassOf<UInstancedStaticMeshComponent> HLODInstancedStaticMeshComponentClass;
 #endif
 };
 
