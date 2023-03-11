@@ -475,8 +475,6 @@ namespace Horde.Build
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollectionV1>());
 
-			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
-
 			if (settings.WithAws)
 			{
 				AWSOptions awsOptions = Configuration.GetAWSOptions();
@@ -881,21 +879,6 @@ namespace Horde.Build
 			}
 		}
 
-		public sealed class RefIdBsonSerializer : SerializerBase<RefId>
-		{
-			/// <inheritdoc/>
-			public override RefId Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
-			{
-				return new RefId(IoHash.Parse(context.Reader.ReadString()));
-			}
-
-			/// <inheritdoc/>
-			public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, RefId value)
-			{
-				context.Writer.WriteString(value.ToString());
-			}
-		}
-
 		public sealed class RefNameBsonSerializer : SerializerBase<RefName>
 		{
 			/// <inheritdoc/>
@@ -957,7 +940,6 @@ namespace Horde.Build
 				BsonSerializer.RegisterSerializer(new HostIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new BlobIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new BlobLocatorBsonSerializer());
-				BsonSerializer.RegisterSerializer(new RefIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new RefNameBsonSerializer());
 				BsonSerializer.RegisterSerializer(new IoHashBsonSerializer());
 				BsonSerializer.RegisterSerializer(new NamespaceIdBsonSerializer());

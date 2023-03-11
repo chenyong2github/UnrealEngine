@@ -25,7 +25,6 @@ using Horde.Build.Logs.Builder;
 using Horde.Build.Notifications;
 using Horde.Build.Server;
 using Horde.Build.Storage;
-using Horde.Build.Storage.Services;
 using Horde.Build.Tests.Stubs.Collections;
 using Horde.Build.Tests.Stubs.Services;
 using Horde.Build.Tools;
@@ -266,9 +265,6 @@ namespace Horde.Build.Tests
 
 			services.AddSingleton<IStorageBackend<PersistentLogStorage>>(sp => new MemoryStorageBackend().ForType<PersistentLogStorage>());
 			services.AddSingleton<IStorageBackend<ArtifactCollectionV1>>(sp => new MemoryStorageBackend().ForType<ArtifactCollectionV1>());
-			services.AddSingleton<IStorageBackend<BasicStorageClient>>(sp => new MemoryStorageBackend().ForType<BasicStorageClient>());
-
-			services.AddSingleton<ILegacyStorageClient, BasicStorageClient>();
 
 			services.AddSingleton<StorageService>();
 

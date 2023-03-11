@@ -8,14 +8,10 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
-using System.Xml.Linq;
 using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Storage.Backends
@@ -150,7 +146,7 @@ namespace EpicGames.Horde.Storage.Backends
 							if (!uploadResponse.IsSuccessStatusCode)
 							{
 								string body = await uploadResponse.Content.ReadAsStringAsync(cancellationToken);
-								throw new StorageException($"Unable to upload data to redirected URL: {body}", null);
+								throw new StorageException($"Unable to upload data to redirected URL: {body}");
 							}
 						}
 						_logger.LogDebug("Written {Locator} (using redirect)", redirectResponse.Blob);
@@ -254,7 +250,7 @@ namespace EpicGames.Horde.Storage.Backends
 						else if (!response.IsSuccessStatusCode)
 						{
 							_logger.LogError("Unable to read ref {RefName} (status: {StatusCode}, body: {Body})", name, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
-							throw new StorageException($"Unable to read ref '{name}'", null);
+							throw new StorageException($"Unable to read ref '{name}'");
 						}
 						else
 						{

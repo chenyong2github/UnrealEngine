@@ -65,11 +65,6 @@ namespace Horde.Agent
 		public List<string> Thumbprints { get; } = new List<string>();
 
 		/// <summary>
-		/// Storage settings for using this server
-		/// </summary>
-		public StorageOptions Storage { get; set; } = new StorageOptions();
-
-		/// <summary>
 		/// Checks whether the given certificate thumbprint should be trusted
 		/// </summary>
 		/// <param name="certificateThumbprint">The cert thumbprint</param>

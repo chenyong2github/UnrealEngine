@@ -655,11 +655,6 @@ namespace Horde.Build
 		public List<PerforceConnectionSettings> Perforce { get; set; } = new List<PerforceConnectionSettings>();
 
 		/// <summary>
-		/// Settings for the storage service
-		/// </summary>
-		public StorageOptions? Storage { get; set; }
-
-		/// <summary>
 		/// Whether to use the local Perforce environment
 		/// </summary>
 		public bool UseLocalPerforceEnv { get; set; }

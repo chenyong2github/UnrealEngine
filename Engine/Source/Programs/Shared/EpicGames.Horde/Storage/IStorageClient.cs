@@ -16,9 +16,31 @@ using EpicGames.Core;
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
+	/// Base exception for the storage service
+	/// </summary>
+	public class StorageException : Exception
+	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public StorageException(string message)
+			: base(message)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public StorageException(string message, Exception? innerException)
+			: base(message, innerException)
+		{
+		}
+	}
+
+	/// <summary>
 	/// Exception for a ref not existing
 	/// </summary>
-	public sealed class RefNameNotFoundException : Exception
+	public sealed class RefNameNotFoundException : StorageException
 	{
 		/// <summary>
 		/// Name of the missing ref
