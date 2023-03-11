@@ -663,9 +663,9 @@ bool FNiagaraSystemScriptExecutionContext::Tick(class FNiagaraSystemInstance* In
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
 
 			const int32 FunctionCount = ScriptExecutableData.CalledVMExternalFunctions.Num();
-			FunctionTable.Reset();
-			FunctionTable.SetNum(FunctionCount);
-			ExtFunctionInfo.AddDefaulted(FunctionCount);
+
+			FunctionTable.Init(nullptr, FunctionCount);
+			ExtFunctionInfo.Init(FExternalFuncInfo(), FunctionCount);
 
 			const FNiagaraScriptExecutionParameterStore* ScriptParameterStore = Script->GetExecutionReadyParameterStore(ENiagaraSimTarget::CPUSim);
 			check(ScriptParameterStore != nullptr);
