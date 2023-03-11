@@ -15,12 +15,16 @@ FVoronoiPartitioner::FVoronoiPartitioner(const FGeometryCollection* GeometryColl
 	GenerateCentroids(GeometryCollection);
 }
 
-void FVoronoiPartitioner::KMeansPartition(int32 InPartitionCount)
+void FVoronoiPartitioner::KMeansPartition(int32 InPartitionCount, int32 MaxIterations, TArrayView<const FVector> InitialCenters)
 {
 	PartitionCount = InPartitionCount;
+	if (InitialCenters.Num())
+	{
+		PartitionCount = InitialCenters.Num();
+	}
 
-	InitializePartitions();
-	for (int32 Iteration = 0; Iteration < MaxKMeansIterations; Iteration++)
+	InitializePartitions(InitialCenters);
+	for (int32 Iteration = 0; Iteration < MaxIterations; Iteration++)
 	{
 		// Refinement is complete when no nodes change partition.
 		if (!Refine())
@@ -64,6 +68,93 @@ void FVoronoiPartitioner::MergeSingleElementPartitions(FGeometryCollection* Geom
 				Partitions[ElIdx] = SmallestNbrPartition;
 				PartitionSize[Partition]--;
 				PartitionSize[SmallestNbrPartition]++;
+			}
+		}
+	}
+}
+
+void FVoronoiPartitioner::MergeSmallPartitions(FGeometryCollection* GeometryCollection, float SizeThreshold)
+{
+	if (Connectivity.IsEmpty())
+	{
+		GenerateConnectivity(GeometryCollection);
+	}
+	if (!GeometryCollection->HasAttribute("Volume", FTransformCollection::TransformGroup))
+	{
+		FGeometryCollectionConvexUtility::SetVolumeAttributes(GeometryCollection);
+	}
+	const TManagedArray<float>& Volumes = GeometryCollection->GetAttribute<float>("Volume", FTransformCollection::TransformGroup);
+
+	float VolumeThreshold = SizeThreshold * SizeThreshold * SizeThreshold;
+	TArray<float> PartitionVolumes;
+	PartitionVolumes.Init(0, PartitionSize.Num());
+	
+	int32 NonEmptyPartitions = GetNonEmptyPartitionCount();
+
+	for (int32 ElIdx = 0; ElIdx < TransformIndices.Num(); ElIdx++)
+	{
+		int32 Partition = Partitions[ElIdx];
+		PartitionVolumes[Partition] += Volumes[TransformIndices[ElIdx]];
+	}
+
+	TArray<int32> ToConsider;
+	ToConsider.Reserve(Partitions.Num());
+	for (int32 Partition = 0; Partition < PartitionVolumes.Num(); ++Partition)
+	{
+		if (PartitionVolumes[Partition] < VolumeThreshold)
+		{
+			ToConsider.Emplace(Partition);
+		}
+	}
+	while (!ToConsider.IsEmpty())
+	{
+		int32 Partition = ToConsider.Pop(false);
+		if (NonEmptyPartitions < 3)
+		{
+			break; // if we only have two partitions, stop merging
+		}
+		if (PartitionVolumes[Partition] < VolumeThreshold)
+		{
+			int32 SmallestNbrPartition = INDEX_NONE;
+			float SmallestNbrVolume = FMathf::MaxReal;
+			for (int32 ElIdx = 0; ElIdx < TransformIndices.Num(); ++ElIdx)
+			{
+				if (Partitions[ElIdx] == Partition)
+				{
+					for (int32 NbrEl : Connectivity[ElIdx])
+					{
+						int32 NbrPartition = Partitions[NbrEl];
+						if (NbrPartition != Partition)
+						{
+							if (SmallestNbrPartition == INDEX_NONE || PartitionVolumes[NbrPartition] < SmallestNbrVolume)
+							{
+								SmallestNbrVolume = PartitionVolumes[NbrPartition];
+								SmallestNbrPartition = NbrPartition;
+							}
+						}
+					}
+				}
+			}
+			if (SmallestNbrPartition != INDEX_NONE)
+			{
+				PartitionVolumes[SmallestNbrPartition] += PartitionVolumes[Partition];
+				PartitionVolumes[Partition] = 0;
+				float CombinedSize = PartitionSize[SmallestNbrPartition] + PartitionSize[Partition];
+				PartitionSize[SmallestNbrPartition] = CombinedSize;
+				if (CombinedSize < VolumeThreshold)
+				{
+					ToConsider.Push(SmallestNbrPartition);
+					Swap(ToConsider.Last(), ToConsider[0]); // make sure we don't always merge to the same cluster
+				}
+				PartitionSize[Partition] = 0;
+				NonEmptyPartitions--;
+				for (int32 ElIdx = 0; ElIdx < TransformIndices.Num(); ++ElIdx)
+				{
+					if (Partitions[ElIdx] == Partition)
+					{
+						Partitions[ElIdx] = SmallestNbrPartition;
+					}
+				}
 			}
 		}
 	}
@@ -195,7 +286,7 @@ FVector FVoronoiPartitioner::GenerateCentroid(const FGeometryCollection* Geometr
 	return Bounds.GetCenter();
 }
 
-FBox FVoronoiPartitioner::GenerateBounds(const FGeometryCollection* GeometryCollection, int32 TransformIndex) const
+FBox FVoronoiPartitioner::GenerateBounds(const FGeometryCollection* GeometryCollection, int32 TransformIndex)
 {
 	check(GeometryCollection->IsRigid(TransformIndex) || GeometryCollection->IsClustered(TransformIndex));
 
@@ -241,18 +332,26 @@ FBox FVoronoiPartitioner::GenerateBounds(const FGeometryCollection* GeometryColl
 	}
 }
 
-void FVoronoiPartitioner::InitializePartitions()
+void FVoronoiPartitioner::InitializePartitions(TArrayView<const FVector> InitialCenters)
 {
 	check(PartitionCount > 0);
 
-	PartitionCount = FMath::Min(PartitionCount, TransformIndices.Num());
-
-	// Set initial partition centers as selects from the vertex set
-	PartitionCenters.SetNum(PartitionCount);
-	int32 TransformStride = FMath::Max(1,FMath::FloorToInt(float(TransformIndices.Num()) / float(PartitionCount)));
-	for (int32 PartitionIndex = 0; PartitionIndex < PartitionCount; ++PartitionIndex)
+	if (InitialCenters.Num() > 0)
 	{
-		PartitionCenters[PartitionIndex] = Centroids[TransformStride * PartitionIndex];
+		PartitionCenters.Reset();
+		PartitionCenters.Append(InitialCenters);
+	}
+	else
+	{
+		PartitionCount = FMath::Min(PartitionCount, TransformIndices.Num());
+
+		// Set initial partition centers as selects from the vertex set
+		PartitionCenters.SetNum(PartitionCount);
+		int32 TransformStride = FMath::Max(1, FMath::FloorToInt(float(TransformIndices.Num()) / float(PartitionCount)));
+		for (int32 PartitionIndex = 0; PartitionIndex < PartitionCount; ++PartitionIndex)
+		{
+			PartitionCenters[PartitionIndex] = Centroids[TransformStride * PartitionIndex];
+		}
 	}
 
 	// At beginning, all nodes belong to first partition.
@@ -437,7 +536,12 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 	const float SiteSize,
 	const bool bEnforceConnectivity,
 	const bool bAvoidIsolated,
-	const bool bEnforceSiteParameters)
+	const bool bEnforceSiteParameters,
+	const int32 GridX,
+	const int32 GridY,
+	const int32 GridZ,
+	const float MinimumClusterSize,
+	const int32 KMeansIterations)
 {
 	FFractureEngineBoneSelection Selection(GeometryCollection, BoneIndices);
 
@@ -445,7 +549,8 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 
 	for (const int32 ClusterIndex : Selection.GetSelectedBones())
 	{
-		AutoCluster(GeometryCollection, ClusterIndex, ClusterSizeMethod, SiteCount, SiteCountFraction, SiteSize, bEnforceConnectivity, bAvoidIsolated, bEnforceSiteParameters);
+		AutoCluster(GeometryCollection, ClusterIndex, ClusterSizeMethod, SiteCount, SiteCountFraction, SiteSize, 
+			bEnforceConnectivity, bAvoidIsolated, bEnforceSiteParameters, GridX, GridY, GridZ, MinimumClusterSize, KMeansIterations);
 	}
 }
 
@@ -457,12 +562,21 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 	const float SiteSize,
 	const bool bEnforceConnectivity,
 	const bool bAvoidIsolated,
-	const bool bEnforceSiteParameters)
+	const bool bEnforceSiteParameters,
+	const int32 InGridX,
+	const int32 InGridY,
+	const int32 InGridZ,
+	const float MinimumClusterSize,
+	const int32 KMeansIterations)
 {
 	FVoronoiPartitioner VoronoiPartition(&GeometryCollection, ClusterIndex);
 	int32 NumChildren = GeometryCollection.Children[ClusterIndex].Num();
 
+	// Used by the ByGrid method, which manually distributes initial positions
+	TArray<FVector> PartitionPositions;
+
 	int32 DesiredSiteCountToUse = 1;
+	int32 IterationsToUse = KMeansIterations;
 	if (ClusterSizeMethod == EFractureEngineClusterSizeMethod::ByNumber)
 	{
 		DesiredSiteCountToUse = SiteCount;
@@ -477,13 +591,38 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 		float DesiredVolume = FMath::Pow(SiteSize, 3);
 		DesiredSiteCountToUse = FMath::Max(1, TotalVolume / DesiredVolume);
 	}
+	else if (ClusterSizeMethod == EFractureEngineClusterSizeMethod::ByGrid)
+	{
+		FBox Bounds = FVoronoiPartitioner::GenerateBounds(&GeometryCollection, ClusterIndex);
+		int32 GridX = FMath::Max(1, InGridX);
+		int32 GridY = FMath::Max(1, InGridY);
+		int32 GridZ = FMath::Max(1, InGridZ);
+		PartitionPositions.Reserve(GridX * GridY * GridZ);
+
+		for (int32 StepX = 0; StepX < GridX; ++StepX)
+		{
+			double Xt = GridX == 1 ? .5f : double(StepX) / double(GridX - 1);
+			double X = FMath::Lerp(Bounds.Min.X, Bounds.Max.X, Xt);
+			for (int32 StepY = 0; StepY < GridY; ++StepY)
+			{
+				double Yt = GridY == 1 ? .5f : double(StepY) / double(GridY - 1);
+				double Y = FMath::Lerp(Bounds.Min.Y, Bounds.Max.Y, Yt);
+				for (int32 StepZ = 0; StepZ < GridZ; ++StepZ)
+				{
+					double Zt = GridZ == 1 ? .5f : double(StepZ) / double(GridZ - 1);
+					double Z = FMath::Lerp(Bounds.Min.Z, Bounds.Max.Z, Zt);
+					PartitionPositions.Emplace(X, Y, Z);
+				}
+			}
+		}
+	}
 
 	int32 SiteCountToUse = DesiredSiteCountToUse;
 	int32 PreviousPartitionCount = TNumericLimits<int32>::Max();
 	bool bIterate = false;
 	do
 	{
-		VoronoiPartition.KMeansPartition(SiteCountToUse);
+		VoronoiPartition.KMeansPartition(SiteCountToUse, IterationsToUse, PartitionPositions);
 		if (VoronoiPartition.GetPartitionCount() == 0)
 		{
 			return;
@@ -506,9 +645,16 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 			// attempt to remove isolated via merging (may not succeed, as it only merges if there is a cluster in proximity)
 			VoronoiPartition.MergeSingleElementPartitions(&GeometryCollection);
 		}
+
+		if (MinimumClusterSize > 0)
+		{
+			// attempt to remove isolated via cluster merging (may not succeed, as it only merges if there is a cluster in proximity)
+			VoronoiPartition.MergeSmallPartitions(&GeometryCollection, MinimumClusterSize);
+		}
 		const int32 IsolatedPartitionToIgnore = bAvoidIsolated ? VoronoiPartition.GetIsolatedPartitionCount() : 0;
 		const int32 PartitionCount = VoronoiPartition.GetNonEmptyPartitionCount() - IsolatedPartitionToIgnore;
 		bIterate = bEnforceSiteParameters				 // Is the feature enabled?
+			&& PartitionPositions.IsEmpty()				 // Is the explicit position array empty? (otherwise, site count is ignored)
 			&& (PartitionCount > DesiredSiteCountToUse)  // Have we reached the desired outcome
 			&& (SiteCountToUse > 1)						 // Is SiteCount large enough ?
 			&& (PartitionCount < PreviousPartitionCount);// Are we progressing ?

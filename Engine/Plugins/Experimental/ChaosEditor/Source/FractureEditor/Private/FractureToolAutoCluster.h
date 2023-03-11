@@ -32,6 +32,8 @@ enum class EClusterSizeMethod : uint8
 	ByFractionOfInput,
 	// Cluster by specifying the density of the input bones
 	BySize,
+	// Cluster by a grid layout
+	ByGrid,
 };
 
 
@@ -43,7 +45,6 @@ public:
 
 	UFractureAutoClusterSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
-		, SiteCount(10)
 	{}
 
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Simplified interface now only supports Voronoi clustering."))
@@ -54,23 +55,43 @@ public:
 	EClusterSizeMethod ClusterSizeMethod = EClusterSizeMethod::ByNumber;
 
 	/** Use a Voronoi diagram with this many Voronoi sites as a guide for deciding cluster boundaries */
-	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Sites", UIMin = "2", UIMax = "5000", ClampMin = "1", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByNumber"))
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Sites", UIMin = "2", UIMax = "5000", ClampMin = "1", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByNumber", EditConditionHides))
 	uint32 SiteCount=10;
 
 	/** Choose the number of Voronoi sites used for clustering as a fraction of the number of child bones to process */
-	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Fraction", ClampMin = "0", ClampMax = ".5", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByFractionOfInput"))
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Fraction", ClampMin = "0", ClampMax = ".5", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByFractionOfInput", EditConditionHides))
 	float SiteCountFraction = .25;
 	
 	/** Choose the Edge-Size of the cube used to groups bones under a cluster (in cm). */
-	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Size", UIMin = ".01", UIMax = "100", ClampMin = ".0001", ClampMax = "10000", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::BySize"))
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Size", UIMin = ".01", UIMax = "100", ClampMin = ".0001", ClampMax = "10000", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::BySize", EditConditionHides))
 	float SiteSize = 1;
+
+	/** Choose the number of cluster sites to distribute along the X axis */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (ClampMin = "1", UIMax = "20", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByGrid", EditConditionHides))
+	int ClusterGridWidth = 2;
+
+	/** Choose the number of cluster sites to distribute along the Y axis */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (ClampMin = "1", UIMax = "20", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByGrid", EditConditionHides))
+	int ClusterGridDepth = 2;
+	
+	/** Choose the number of cluster sites to distribute along the Z axis */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (ClampMin = "1", UIMax = "20", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByGrid", EditConditionHides))
+	int ClusterGridHeight = 2;
+
+	/** If a cluster has volume less than this value (in cm) cubed, then the auto-cluster process will attempt to merge it into a neighboring cluster. */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (ClampMin = "0"))
+	float MinimumSize = 0;
+
+	/** The maximum number of K-Means iterations to apply, balancing the shape and distribution of the clusters */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "K-Means Iteration Max", ClampMin = "1", UIMax = "500"))
+	int KMeansIterations = 500;
 
 	/** If true, bones will only be added to the same cluster if they are physically connected (either directly, or via other bones in the same cluster) */
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Enforce Cluster Connectivity"))
 	bool bEnforceConnectivity=true;
 
 	/** If true, make sure the site parameters are matched as close as possible ( bEnforceConnectivity can make the number of site larger than the requested input may produce without it ) */
-	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (EditCondition = "bEnforceConnectivity == true"))
+	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (EditCondition = "bEnforceConnectivity == true && ClusterSizeMethod != EClusterSizeMethod::ByGrid"))
 	bool bEnforceSiteParameters = true;
 
 	/** If true, prevent the creation of clusters with only a single child. Either by merging into a neighboring cluster, or not creating the cluster. */
