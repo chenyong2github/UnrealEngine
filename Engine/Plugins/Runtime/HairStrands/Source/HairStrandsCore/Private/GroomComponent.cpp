@@ -2481,6 +2481,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.LODSelectionTypeForDebug = LODSelectionType;
 		HairGroupInstance->DeformedComponent = DeformedMeshComponent;
 		HairGroupInstance->DeformedSection = GroomAsset->DeformedGroupSections.IsValidIndex(GroupIt) ? GroomAsset->DeformedGroupSections[GroupIt] : INDEX_NONE; 
+		HairGroupInstance->Debug.MeshComponentId = ValidatedMeshComponent ? ValidatedMeshComponent->ComponentId : FPrimitiveComponentId();
+		HairGroupInstance->Debug.CachedMeshPersistentPrimitiveIndex = FPersistentPrimitiveIndex();
 
 		if (RegisteredMeshComponent)
 		{

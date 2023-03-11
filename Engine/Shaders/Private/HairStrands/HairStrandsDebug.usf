@@ -1437,9 +1437,9 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Print(Context, TEXT(" "));
 
 		// Binding
-		if (Info.BindingType == 0)		{ Print(Context, TEXT("Skinned "), FontTurquoise); }
+		if (Info.BindingType == 0)		{ Print(Context, TEXT("None    "), FontTurquoise); }
 		else if (Info.BindingType == 1)	{ Print(Context, TEXT("Rigid   "), FontTurquoise); }
-		else if (Info.BindingType == 2)	{ Print(Context, TEXT("None    "), FontTurquoise); }
+		else if (Info.BindingType == 2)	{ Print(Context, TEXT("Skinned "), FontTurquoise); }
 
 		// Cache
 		if (Info.CacheRen)      { Print(Context, TEXT("Ren  "), FontOrange); }

@@ -18,6 +18,7 @@
 #include "HairStrandsDefinitions.h"
 
 class UTexture2D;
+class FSceneInterface;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Utils buffers for importing/exporting hair resources
@@ -439,6 +440,7 @@ struct FHairStrandsBookmarkParameters
 	FHairStrandsInstances VisibleInstances;
 	FHairStrandsInstances* Instances = nullptr;
 	const FSceneView* View = nullptr;// // View 0
+	FSceneInterface* Scene = nullptr;
 	TArray<const FSceneView*> AllViews;
 	FRDGTextureRef SceneColorTexture = nullptr;
 	FRDGTextureRef SceneDepthTexture = nullptr; 

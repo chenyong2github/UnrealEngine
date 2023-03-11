@@ -266,7 +266,8 @@ ENUM_CLASS_FLAGS(EUpdateStaticMeshFlags);
  */
 struct FPersistentPrimitiveIndex
 {
-	int32 Index;
+	bool IsValid() const { return Index != INDEX_NONE; }
+	int32 Index = INDEX_NONE;
 };
 
 /**

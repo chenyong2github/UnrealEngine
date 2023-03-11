@@ -3452,7 +3452,7 @@ public:
 
 	FORCEINLINE int32 GetPrimitiveIndex(const FPersistentPrimitiveIndex& PersistentPrimitiveIndex) const
 	{ 
-		if (PersistentPrimitiveIndex.Index < PersistentPrimitiveIdToIndexMap.Num())
+		if (PersistentPrimitiveIndex.IsValid() && PersistentPrimitiveIndex.Index < PersistentPrimitiveIdToIndexMap.Num())
 		{
 			return PersistentPrimitiveIdToIndexMap[PersistentPrimitiveIndex.Index];
 		}

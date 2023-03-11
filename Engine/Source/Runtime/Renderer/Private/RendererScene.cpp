@@ -2527,6 +2527,12 @@ FPrimitiveSceneInfo* FScene::GetPrimitiveSceneInfo(FPrimitiveComponentId Primiti
 	return GetPrimitiveSceneInfo(PrimitiveComponentIds.Find(PrimitiveId));
 }
 
+FPrimitiveSceneInfo* FScene::GetPrimitiveSceneInfo(const FPersistentPrimitiveIndex& PersistentPrimitiveIndex)
+{
+	int32 PrimitiveIndex = GetPrimitiveIndex(PersistentPrimitiveIndex);
+	return GetPrimitiveSceneInfo(PrimitiveIndex);
+}
+
 void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* PrimitiveSceneInfo)
 {
 	check(IsInRenderingThread());
@@ -6673,6 +6679,7 @@ public:
 	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None) override {}
 	virtual FPrimitiveSceneInfo* GetPrimitiveSceneInfo(int32 PrimiteIndex) const final { return nullptr; }
 	virtual FPrimitiveSceneInfo* GetPrimitiveSceneInfo(FPrimitiveComponentId PrimitiveId) const final { return nullptr; }
+	virtual FPrimitiveSceneInfo* GetPrimitiveSceneInfo(const FPersistentPrimitiveIndex& PersistentPrimitiveIndex) override { return nullptr; }
 
 	/** Updates the transform of a primitive which has already been added to the scene. */
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override {}
@@ -6965,7 +6972,6 @@ void FScene::IncrementFrameNumber()
 		SceneFrameNumberRenderThread = NewNumber;
 	});
 }
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 void FScene::DebugRender(TArrayView<FViewInfo> Views)
 {

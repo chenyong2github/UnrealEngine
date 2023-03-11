@@ -63,6 +63,7 @@ namespace ERHIFeatureLevel { enum Type : int; }
 struct FDeferredDecalUpdateParams;
 struct FHairStrandsInstance;
 struct FLightRenderParameters;
+struct FPersistentPrimitiveIndex;
 template<int32 MaxSHOrder> class TSHVectorRGB;
 using FSHVectorRGB3 = TSHVectorRGB<3>;
 
@@ -157,6 +158,7 @@ public:
 
 	/** Finds the  primitive with the associated component id. */
 	virtual FPrimitiveSceneInfo* GetPrimitiveSceneInfo(FPrimitiveComponentId PrimitiveId) const = 0;
+	virtual FPrimitiveSceneInfo* GetPrimitiveSceneInfo(const FPersistentPrimitiveIndex& PersistentPrimitiveIndex) = 0;
 
 	/** Get the primitive previous local to world (used for motion blur). Returns true if the matrix was set. */
 	virtual bool GetPreviousLocalToWorld(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix& OutPreviousLocalToWorld) const { return false; }

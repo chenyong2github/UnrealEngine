@@ -365,7 +365,7 @@ void FVirtualShadowMapClipmap::OnPrimitiveRendered(const FPrimitiveSceneInfo* Pr
 	if (PerLightCacheEntry.IsValid())
 	{
 		FPersistentPrimitiveIndex PersistentPrimitiveId = PrimitiveSceneInfo->GetPersistentIndex();
-		check(PersistentPrimitiveId.Index >= 0);
+		check(PersistentPrimitiveId.IsValid());
 		check(PersistentPrimitiveId.Index < PerLightCacheEntry->RenderedPrimitives.Num());
 
 		// Check previous-frame state to detect transition from hidden->visible

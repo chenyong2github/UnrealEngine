@@ -10,6 +10,7 @@
 #include "GroomDesc.h"
 #include "HairStrandsInterface.h"
 #include "HairStrandsDefinitions.h"
+#include "PrimitiveSceneInfo.h"
 
 class UMeshComponent;
 class UGroomComponent;
@@ -256,6 +257,8 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		FPrimitiveSceneProxy*	Proxy = nullptr;
 		UMeshComponent*			MeshComponent = nullptr;
 		FString					MeshComponentName;
+		FPrimitiveComponentId	MeshComponentId;
+		FPersistentPrimitiveIndex CachedMeshPersistentPrimitiveIndex;
 		const UGroomComponent*	GroomComponentForDebug = nullptr; // For debug only, shouldn't be deferred on the rendering thread
 		FTransform				RigidCurrentLocalToWorld = FTransform::Identity;
 		FTransform				SkinningCurrentLocalToWorld = FTransform::Identity;
