@@ -997,6 +997,8 @@ public:
 	UPROPERTY(transient, duplicatetransient)
 	uint32 UsageFlagWarnings;
 
+	mutable std::atomic<uint32> UsageFlagCacheMiss{0u};
+
 	/** This is the refraction depth bias, larger values offset distortion to prevent closer objects from rendering into the distorted surface at acute viewing angles but increases the disconnect between surface and where the refraction starts. */
 	UPROPERTY(EditAnywhere, Category=Refraction)
 	float RefractionDepthBias;

@@ -1672,6 +1672,8 @@ bool UMaterial::CheckMaterialUsage(EMaterialUsage Usage)
 
 bool UMaterial::CheckMaterialUsage_Concurrent(EMaterialUsage Usage) const 
 {
+	const uint32 UsageFlagBit = (1u << (uint32)Usage);
+
 	bool bUsageSetSuccessfully = false;
 	if (NeedsSetMaterialUsage_Concurrent(bUsageSetSuccessfully, Usage))
 	{
@@ -1681,37 +1683,45 @@ bool UMaterial::CheckMaterialUsage_Concurrent(EMaterialUsage Usage) const
 		}	
 		else
 		{
-			struct FCallSMU
+			const uint32 PrevCacheMissMask = std::atomic_fetch_or(&UsageFlagCacheMiss, UsageFlagBit);
+			if ((PrevCacheMissMask & UsageFlagBit) == 0u)
 			{
-				UMaterial* Material;
-				EMaterialUsage Usage;
-
-				FCallSMU(UMaterial* InMaterial, EMaterialUsage InUsage)
-					: Material(InMaterial)
-					, Usage(InUsage)
+				struct FCallSMU
 				{
-				}
+					UMaterial* Material;
+					EMaterialUsage Usage;
 
-				void Task()
-				{
-					Material->CheckMaterialUsage(Usage);
-				}
-			};
-			UE_LOG(LogMaterial, Log, TEXT("Had to pass SMU back to game thread. Please ensure correct material usage flags."));
+					FCallSMU(UMaterial* InMaterial, EMaterialUsage InUsage)
+						: Material(InMaterial)
+						, Usage(InUsage)
+					{
+					}
 
-			TSharedRef<FCallSMU, ESPMode::ThreadSafe> CallSMU = MakeShareable(new FCallSMU(const_cast<UMaterial*>(this), Usage));
-			bUsageSetSuccessfully = false;
+					void Task()
+					{
+						Material->CheckMaterialUsage(Usage);
+					}
+				};
+				UE_LOG(LogMaterial, Log, TEXT("Had to pass SMU back to game thread. Please ensure correct material usage flags."));
 
-			DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.CheckMaterialUsage"),
-				STAT_FSimpleDelegateGraphTask_CheckMaterialUsage,
-				STATGROUP_TaskGraphTasks);
+				TSharedRef<FCallSMU, ESPMode::ThreadSafe> CallSMU = MakeShareable(new FCallSMU(const_cast<UMaterial*>(this), Usage));
 
-			FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-				FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(CallSMU, &FCallSMU::Task),
-				GET_STATID(STAT_FSimpleDelegateGraphTask_CheckMaterialUsage), NULL, ENamedThreads::GameThread_Local
-			);
+				DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.CheckMaterialUsage"),
+					STAT_FSimpleDelegateGraphTask_CheckMaterialUsage,
+					STATGROUP_TaskGraphTasks);
+
+				FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+					FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(CallSMU, &FCallSMU::Task),
+					GET_STATID(STAT_FSimpleDelegateGraphTask_CheckMaterialUsage), NULL, ENamedThreads::GameThread_Local
+				);
+			}
 		}
 	}
+	else if ((UsageFlagCacheMiss.load(std::memory_order_relaxed) & UsageFlagBit) != 0u)
+	{
+		std::atomic_fetch_and(&UsageFlagCacheMiss, ~UsageFlagBit);
+	}
+
 	return bUsageSetSuccessfully;
 }
 
