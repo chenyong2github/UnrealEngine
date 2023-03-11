@@ -187,6 +187,7 @@ void ComputeHeterogeneousVolumeBakeMaterial(
 
 					ShaderBindings.Finalize(&PassShaders);
 				}
+				SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 				ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader.GetComputeShader());
 
 				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
