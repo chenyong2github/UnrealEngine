@@ -4,8 +4,6 @@
 
 #include "Async/ParkingLot.h"
 
-#define UE_API CORE_API
-
 namespace UE
 {
 
