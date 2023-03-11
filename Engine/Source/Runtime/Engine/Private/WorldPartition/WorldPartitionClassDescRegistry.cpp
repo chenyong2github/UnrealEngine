@@ -335,7 +335,7 @@ void FWorldPartitionClassDescRegistry::OnObjectPreSave(UObject* InObject, FObjec
 	{
 		ValidateInternalState();
 
-		if (AActor* Actor = Actor = Cast<AActor>(InObject))
+		if (AActor* Actor = Cast<AActor>(InObject))
 		{
 			if (!Actor->HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 			{
