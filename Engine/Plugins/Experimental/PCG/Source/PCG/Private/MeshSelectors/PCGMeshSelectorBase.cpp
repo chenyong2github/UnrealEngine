@@ -1,37 +1,48 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshSelectors/PCGMeshSelectorBase.h"
+
 #include "PCGElement.h"
+#include "Elements/PCGStaticMeshSpawnerContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorBase)
 
-FPCGMeshMaterialOverrideHelper::FPCGMeshMaterialOverrideHelper(
+void FPCGMeshMaterialOverrideHelper::Initialize(
 	FPCGContext& InContext,
 	bool bInUseMaterialOverrideAttributes,
 	const TArray<TSoftObjectPtr<UMaterialInterface>>& InStaticMaterialOverrides,
 	const TArray<FName>& InMaterialOverrideAttributeNames,
 	const UPCGMetadata* InMetadata
 )
-	: bUseMaterialOverrideAttributes(bInUseMaterialOverrideAttributes)
-	, StaticMaterialOverrides(InStaticMaterialOverrides)
-	, MaterialOverrideAttributeNames(InMaterialOverrideAttributeNames)
-	, Metadata(InMetadata)
 {
+	check(!bIsInitialized);
+
+	bUseMaterialOverrideAttributes = bInUseMaterialOverrideAttributes;
+	StaticMaterialOverrides = InStaticMaterialOverrides;
+	MaterialOverrideAttributeNames = InMaterialOverrideAttributeNames;
+	Metadata = InMetadata;
+
 	Initialize(InContext);
+
+	bIsInitialized = true;
 }
 
-FPCGMeshMaterialOverrideHelper::FPCGMeshMaterialOverrideHelper(
+void FPCGMeshMaterialOverrideHelper::Initialize(
 	FPCGContext& InContext,
 	bool bInByAttributeOverride,
 	const TArray<FName>& InMaterialOverrideAttributeNames,
 	const UPCGMetadata* InMetadata
 )
-	: bUseMaterialOverrideAttributes(bInByAttributeOverride)
-	, StaticMaterialOverrides(EmptyArray)
-	, MaterialOverrideAttributeNames(InMaterialOverrideAttributeNames)
-	, Metadata(InMetadata)
 {
+	check(!bIsInitialized);
+
+	bUseMaterialOverrideAttributes = bInByAttributeOverride;
+	MaterialOverrideAttributeNames = InMaterialOverrideAttributeNames;
+	Metadata = InMetadata;
+
 	Initialize(InContext);
+
+	bIsInitialized = true;
 }
 
 void FPCGMeshMaterialOverrideHelper::Initialize(FPCGContext& InContext)
@@ -70,6 +81,19 @@ void FPCGMeshMaterialOverrideHelper::Initialize(FPCGContext& InContext)
 	}
 
 	bIsValid = true;
+}
+
+void FPCGMeshMaterialOverrideHelper::Reset()
+{
+	MaterialAttributes.Reset();
+	ValueKeyToOverrideMaterials.Reset();
+	WorkingMaterialOverrides.Reset();
+	bIsInitialized = false;
+	bIsValid = false;
+	bUseMaterialOverrideAttributes = false;
+	StaticMaterialOverrides.Reset();
+	MaterialOverrideAttributeNames.Reset();
+	Metadata = nullptr;
 }
 
 const TArray<TSoftObjectPtr<UMaterialInterface>>& FPCGMeshMaterialOverrideHelper::GetMaterialOverrides(PCGMetadataEntryKey EntryKey)

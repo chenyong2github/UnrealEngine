@@ -38,8 +38,8 @@ class PCG_API UPCGMeshSelectorWeightedByCategory : public UPCGMeshSelectorBase
 	GENERATED_BODY()
 
 public:
-	virtual void SelectInstances_Implementation(
-		UPARAM(ref) FPCGContext& Context,
+	virtual bool SelectInstances(
+		FPCGStaticMeshSpawnerContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGPointData* InPointData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,

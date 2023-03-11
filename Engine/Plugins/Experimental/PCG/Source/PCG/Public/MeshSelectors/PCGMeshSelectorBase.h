@@ -14,6 +14,7 @@ class UPCGPointData;
 class UPCGSpatialData;
 class UStaticMesh;
 struct FPCGContext;
+struct FPCGStaticMeshSpawnerContext;
 
 class UPCGStaticMeshSpawnerSettings;
 class UMaterialInterface;
@@ -50,8 +51,10 @@ enum class EPCGMeshSelectorMaterialOverrideMode : uint8
 /** Struct used to efficiently gather overrides and cache them during instance packing */
 struct FPCGMeshMaterialOverrideHelper
 {
+	FPCGMeshMaterialOverrideHelper() = default;
+
 	// Use this constructor when you have a 1:1 mapping between attributes or static overrides
-	FPCGMeshMaterialOverrideHelper(
+	void Initialize(
 		FPCGContext& InContext,
 		bool bUseMaterialOverrideAttributes,
 		const TArray<TSoftObjectPtr<UMaterialInterface>>& InStaticMaterialOverrides,
@@ -59,54 +62,49 @@ struct FPCGMeshMaterialOverrideHelper
 		const UPCGMetadata* InMetadata);
 
 	// Use this constructor when you have common attribute usage or separate static overrides
-	FPCGMeshMaterialOverrideHelper(
+	void Initialize(
 		FPCGContext& InContext,
 		bool bInByAttributeOverride,
 		const TArray<FName>& InMaterialOverrideAttributeNames,
 		const UPCGMetadata* InMetadata);
 
+	void Reset();
+
+	bool IsInitialized() const { return bIsInitialized; }
 	bool IsValid() const { return bIsValid; }
 	bool OverridesMaterials() const { return bUseMaterialOverrideAttributes; }
 	const TArray<TSoftObjectPtr<UMaterialInterface>>& GetMaterialOverrides(PCGMetadataEntryKey EntryKey);
 
+private:
 	// Cached data
 	TArray<const FPCGMetadataAttribute<FString>*> MaterialAttributes;
 	TArray<TMap<PCGMetadataValueKey, TSoftObjectPtr<UMaterialInterface>>> ValueKeyToOverrideMaterials;
 	TArray<TSoftObjectPtr<UMaterialInterface>> WorkingMaterialOverrides;
-	TArray<TSoftObjectPtr<UMaterialInterface>> EmptyArray;
 
 	// Data needed to perform operations
+	bool bIsInitialized = false;
 	bool bIsValid = false;
 	bool bUseMaterialOverrideAttributes = false;
 
-	const TArray<TSoftObjectPtr<UMaterialInterface>>& StaticMaterialOverrides;
-	const TArray<FName>& MaterialOverrideAttributeNames;
+	TArray<TSoftObjectPtr<UMaterialInterface>> StaticMaterialOverrides;
+	TArray<FName> MaterialOverrideAttributeNames;
 	const UPCGMetadata* Metadata = nullptr;
 
-private:
 	void Initialize(FPCGContext& InContext);
 };
 
-UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (Procedural))
+UCLASS(Abstract, BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGMeshSelectorBase : public UObject 
 {
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintNativeEvent, Category = MeshSelection)
-	void SelectInstances(
-		FPCGContext& Context,
+	virtual bool SelectInstances(
+		FPCGStaticMeshSpawnerContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGPointData* InPointData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,
-		UPCGPointData* OutPointData) const;
-
-	virtual void SelectInstances_Implementation(
-		FPCGContext& Context,
-		const UPCGStaticMeshSpawnerSettings* Settings,
-		const UPCGPointData* InPointData,
-		TArray<FPCGMeshInstanceList>& OutMeshInstances,
-		UPCGPointData* OutPointData) const PURE_VIRTUAL(UPCGMeshSelectorBase::SelectInstances_Implementation);
+		UPCGPointData* OutPointData) const PURE_VIRTUAL(UPCGMeshSelectorBase::SelectInstances, return true;);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

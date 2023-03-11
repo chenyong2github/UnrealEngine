@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "PCGContext.h"
 #include "PCGSettings.h"
 
 #include "Engine/CollisionProfile.h"
@@ -13,6 +12,7 @@
 class UPCGInstancePackerBase;
 class UPCGMeshSelectorBase;
 class UPCGSpatialData;
+struct FPCGContext;
 struct FPCGMeshInstanceList;
 struct FPCGPackedCustomData;
 
@@ -96,28 +96,6 @@ public:
 protected:
 	void RefreshMeshSelector();
 	void RefreshInstancePacker();
-};
-
-USTRUCT()
-struct FPCGStaticMeshSpawnerContext : public FPCGContext
-{
-	GENERATED_BODY()
-
-	struct FPackedInstanceListData
-	{
-		FPackedInstanceListData();
-		~FPackedInstanceListData();
-		AActor* TargetActor = nullptr;
-		const UPCGSpatialData* SpatialData = nullptr;
-		TArray<FPCGMeshInstanceList> MeshInstances;
-		TArray<FPCGPackedCustomData> PackedCustomData;
-	};
-
-	TArray<FPackedInstanceListData> MeshInstancesData;
-	// Index of input in the context (for selection)
-	int32 CurrentInputIndex = 0;
-	// Index of MeshInstances/PackedCustomData in last MeshInstancesData element
-	int32 CurrentDataIndex = 0;
 };
 
 class FPCGStaticMeshSpawnerElement : public IPCGElement

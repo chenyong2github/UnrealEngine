@@ -4,6 +4,7 @@
 
 #include "Data/PCGPointData.h"
 #include "Elements/PCGStaticMeshSpawner.h"
+#include "Elements/PCGStaticMeshSpawnerContext.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 
@@ -111,55 +112,62 @@ void UPCGMeshSelectorWeighted::PostLoad()
 #endif
 }
 
-void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
-	FPCGContext& Context, 
+bool UPCGMeshSelectorWeighted::SelectInstances(
+	FPCGStaticMeshSpawnerContext& Context,
 	const UPCGStaticMeshSpawnerSettings* Settings, 
 	const UPCGPointData* InPointData,
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
 	UPCGPointData* OutPointData) const
 {
-	TArray<TArray<FPCGMeshInstanceList>> MeshInstances;
-	TArray<int> CumulativeWeights;
-
-	int TotalWeight = 0;
-
-	// Prepare common mesh setups which we will use as a kind of map
-	for (const FPCGMeshSelectorWeightedEntry& Entry : MeshEntries)
-	{
-		if (Entry.Weight <= 0)
-		{
-			PCGE_LOG_C(Verbose, &Context, "Entry found with weight <= 0");
-			continue;
-		}
-
-		TArray<FPCGMeshInstanceList>& PickEntry = MeshInstances.Emplace_GetRef();
-		PickEntry.Emplace_GetRef(Entry.Descriptor);
-
-		TotalWeight += Entry.Weight;
-		CumulativeWeights.Add(TotalWeight);
-	}
-
-	if (TotalWeight <= 0)
-	{
-		return;
-	}
-
 	if (!InPointData)
 	{
 		PCGE_LOG_C(Error, &Context, "Missing input data");
-		return;
+		return true;
+	}
+
+	TArray<TArray<FPCGMeshInstanceList>>& MeshInstances = Context.WeightedMeshInstances;
+	TArray<int>& CumulativeWeights = Context.CumulativeWeights;
+
+	// Setup
+	if (Context.CurrentPointIndex == 0)
+	{
+		int TotalWeight = 0;
+
+		// Prepare common mesh setups which we will use as a kind of map
+		for (const FPCGMeshSelectorWeightedEntry& Entry : MeshEntries)
+		{
+			if (Entry.Weight <= 0)
+			{
+				PCGE_LOG_C(Verbose, &Context, "Entry found with weight <= 0");
+				continue;
+			}
+
+			TArray<FPCGMeshInstanceList>& PickEntry = MeshInstances.Emplace_GetRef();
+			PickEntry.Emplace_GetRef(Entry.Descriptor);
+
+			TotalWeight += Entry.Weight;
+			CumulativeWeights.Add(TotalWeight);
+		}
+
+		if (TotalWeight <= 0)
+		{
+			return true;
+		}
+	}
+
+	FPCGMeshMaterialOverrideHelper& MaterialOverrideHelper = Context.MaterialOverrideHelper;
+	if (!MaterialOverrideHelper.IsInitialized())
+	{
+		MaterialOverrideHelper.Initialize(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, InPointData->Metadata);
+	}
+
+	if (!MaterialOverrideHelper.IsValid())
+	{
+		return true;
 	}
 
 	TArray<FPCGPoint>* OutPoints = nullptr;
 	FPCGMetadataAttribute<FString>* OutAttribute = nullptr;
-	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey> MeshToValueKey;
-
-	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, InPointData->Metadata);
-
-	if (!MaterialOverrideHelper.IsValid())
-	{
-		return;
-	}
 
 	if (OutPointData)
 	{
@@ -190,8 +198,17 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
 
-		for (const FPCGPoint& Point : InPointData->GetPoints())
+		int32 CurrentPointIndex = Context.CurrentPointIndex;
+		int32 LastCheckpointIndex = CurrentPointIndex;
+		constexpr int32 TimeSlicingCheckFrequency = 1024;
+		TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey>& MeshToValueKey = Context.MeshToValueKey;
+		const int32 TotalWeight = CumulativeWeights.Last();
+
+		const TArray<FPCGPoint>& Points = InPointData->GetPoints();
+		while(CurrentPointIndex < Points.Num())
 		{
+			const FPCGPoint& Point = Points[CurrentPointIndex++];
+
 			if (Point.Density <= 0.0f)
 			{
 				continue;
@@ -231,16 +248,40 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 					OutAttribute->SetValueFromValueKey(OutPoint.MetadataEntry, *OutValueKey);
 				}
 			}
+
+			// Check if we should stop here and continue in a subsequent call
+			if (CurrentPointIndex - LastCheckpointIndex >= TimeSlicingCheckFrequency)
+			{
+				if (Context.ShouldStop())
+				{
+					break;
+				}
+				else
+				{
+					LastCheckpointIndex = CurrentPointIndex;
+				}
+			}
 		}
+
+		Context.CurrentPointIndex = CurrentPointIndex;
 	}
 
-	// Collapse to OutMeshInstances
-	for (TArray<FPCGMeshInstanceList>& PickedMeshInstances : MeshInstances)
+	if (Context.CurrentPointIndex == InPointData->GetPoints().Num())
 	{
-		for (FPCGMeshInstanceList& PickedMeshInstanceEntry : PickedMeshInstances)
+		// Finally, collapse to OutMeshInstances
+		for (TArray<FPCGMeshInstanceList>& PickedMeshInstances : MeshInstances)
 		{
-			OutMeshInstances.Emplace(MoveTemp(PickedMeshInstanceEntry));
+			for (FPCGMeshInstanceList& PickedMeshInstanceEntry : PickedMeshInstances)
+			{
+				OutMeshInstances.Emplace(MoveTemp(PickedMeshInstanceEntry));
+			}
 		}
+
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 

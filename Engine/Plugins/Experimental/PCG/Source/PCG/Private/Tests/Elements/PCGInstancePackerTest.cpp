@@ -8,6 +8,7 @@
 #include "PCGManagedResource.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGStaticMeshSpawner.h"
+#include "Elements/PCGStaticMeshSpawnerContext.h"
 #include "InstancePackers/PCGInstancePackerBase.h"
 #include "InstancePackers/PCGInstancePackerByAttribute.h"
 #include "InstancePackers/PCGInstancePackerByRegex.h"

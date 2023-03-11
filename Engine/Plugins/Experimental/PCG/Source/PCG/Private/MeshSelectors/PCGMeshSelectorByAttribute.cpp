@@ -4,6 +4,7 @@
 
 #include "Data/PCGPointData.h"
 #include "Elements/PCGStaticMeshSpawner.h"
+#include "Elements/PCGStaticMeshSpawnerContext.h"
 #include "Data/PCGSpatialData.h"
 #include "MeshSelectors/PCGMeshSelectorBase.h"
 
@@ -89,29 +90,31 @@ void UPCGMeshSelectorByAttribute::PostLoad()
 #endif
 }
 
-void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
-	FPCGContext& Context, 
+bool UPCGMeshSelectorByAttribute::SelectInstances(
+	FPCGStaticMeshSpawnerContext& Context,
 	const UPCGStaticMeshSpawnerSettings* Settings, 
 	const UPCGPointData* InPointData,
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
 	UPCGPointData* OutPointData) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGMeshSelectorByAttribute::SelectInstances);
+
 	if (!InPointData)
 	{
 		PCGE_LOG_C(Error, &Context, "Missing input data");
-		return;
+		return true;
 	}
 
 	if (!InPointData->Metadata)
 	{
 		PCGE_LOG_C(Error, &Context, "Unable to get metadata from input");
-		return;
+		return true;
 	}
 
 	if (!InPointData->Metadata->HasAttribute(AttributeName))
 	{
 		PCGE_LOG_C(Error, &Context, "Attribute %s is not in the metadata", *AttributeName.ToString());
-		return;
+		return true;
 	}
 
 	const FPCGMetadataAttributeBase* AttributeBase = InPointData->Metadata->GetConstAttribute(AttributeName);
@@ -120,33 +123,44 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	if (AttributeBase->GetTypeId() != PCG::Private::MetadataTypes<FString>::Id)
 	{
 		PCGE_LOG_C(Error, &Context, "Attribute is not of valid type FString");
-		return;
+		return true;
 	}
 
 	const FPCGMetadataAttribute<FString>* Attribute = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase);
 
-	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, TemplateDescriptor.OverrideMaterials, MaterialOverrideAttributes, InPointData->Metadata);
+	FPCGMeshMaterialOverrideHelper& MaterialOverrideHelper = Context.MaterialOverrideHelper;
+	if (!MaterialOverrideHelper.IsInitialized())
+	{
+		MaterialOverrideHelper.Initialize(Context, bUseAttributeMaterialOverrides, TemplateDescriptor.OverrideMaterials, MaterialOverrideAttributes, InPointData->Metadata);
+	}
 
 	if (!MaterialOverrideHelper.IsValid())
 	{
-		return;
+		return true;
 	}
 
-	TMap<PCGMetadataValueKey, TSoftObjectPtr<UStaticMesh>> ValueKeyToMesh;
-
 	// ByAttribute takes in SoftObjectPaths per point in the metadata, so we can pass those directly into the outgoing pin if it exists
-	if (OutPointData)
+	if (Context.CurrentPointIndex == 0 && OutPointData)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UPCGMeshSelectorByAttribute::SetupOutPointData);
 		OutPointData->SetPoints(InPointData->GetPoints());
 		OutPointData->Metadata->DeleteAttribute(Settings->OutAttributeName);
 		OutPointData->Metadata->CopyAttribute(InPointData->Metadata, AttributeName, Settings->OutAttributeName);
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGMeshSelectorByAttribute::SelectEntries);
 
 	// Assign points to entries
-	for (const FPCGPoint& Point : InPointData->GetPoints())
+	int32 CurrentPointIndex = Context.CurrentPointIndex;
+	int32 LastCheckpointIndex = CurrentPointIndex;
+	constexpr int32 TimeSlicingCheckFrequency = 1024;
+	TMap<PCGMetadataValueKey, TSoftObjectPtr<UStaticMesh>>& ValueKeyToMesh = Context.ValueKeyToMesh;
+
+	const TArray<FPCGPoint>& Points = InPointData->GetPoints();
+	while(CurrentPointIndex < Points.Num())
 	{
+		const FPCGPoint& Point = Points[CurrentPointIndex++];
+
 		if (Point.Density <= 0.0f)
 		{
 			continue;
@@ -192,5 +206,22 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 		FPCGMeshInstanceList& InstanceList = PCGMeshSelectorAttribute::GetInstanceList(OutMeshInstances, TemplateDescriptor, Mesh, MaterialOverrideHelper.GetMaterialOverrides(Point.MetadataEntry), bReverseTransform);
 		InstanceList.Instances.Emplace(Point.Transform);
 		InstanceList.InstancesMetadataEntry.Emplace(Point.MetadataEntry);
+
+		// Check if we should stop here and continue in a subsequent call
+		if(CurrentPointIndex - LastCheckpointIndex >= TimeSlicingCheckFrequency)
+		{
+			if (Context.ShouldStop())
+			{
+				break;
+			}
+			else
+			{
+				LastCheckpointIndex = CurrentPointIndex;
+			}
+		}
 	}
+
+	Context.CurrentPointIndex = CurrentPointIndex;
+
+	return (CurrentPointIndex == Points.Num());
 }

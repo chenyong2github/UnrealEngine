@@ -3,20 +3,15 @@
 #include "MeshSelectors/PCGMeshSelectorWeightedByCategory.h"
 
 #include "Data/PCGPointData.h"
-#include "Elements/PCGStaticMeshSpawner.h"
 #include "Data/PCGSpatialData.h"
+#include "Elements/PCGStaticMeshSpawner.h"
+#include "Elements/PCGStaticMeshSpawnerContext.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 
 #include "Math/RandomStream.h"
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeightedByCategory)
-
-struct FPCGInstancesAndWeights
-{
-	TArray<TArray<FPCGMeshInstanceList>> MeshInstances;
-	TArray<int> CumulativeWeights;
-};
 
 #if WITH_EDITOR
 void FPCGWeightedByCategoryEntryList::ApplyDeprecation()
@@ -40,8 +35,8 @@ void UPCGMeshSelectorWeightedByCategory::PostLoad()
 #endif
 }
 
-void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
-	FPCGContext& Context,
+bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
+	FPCGStaticMeshSpawnerContext& Context,
 	const UPCGStaticMeshSpawnerSettings* Settings,
 	const UPCGPointData* InPointData,
 	TArray<FPCGMeshInstanceList>& OutMeshInstances,
@@ -50,19 +45,19 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	if (!InPointData)
 	{
 		PCGE_LOG_C(Error, &Context, "Missing input data");
-		return;
+		return true;
 	}
 
 	if (!InPointData->Metadata)
 	{
 		PCGE_LOG_C(Error, &Context, "Unable to get metadata from input");
-		return;
+		return true;
 	}
 
 	if (!InPointData->Metadata->HasAttribute(CategoryAttribute))
 	{
 		PCGE_LOG_C(Error, &Context, "Attribute %s is not in the metadata", *CategoryAttribute.ToString());
-		return;
+		return true;
 	}
 
 	const FPCGMetadataAttributeBase* AttributeBase = InPointData->Metadata->GetConstAttribute(CategoryAttribute);
@@ -72,89 +67,96 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	if (AttributeBase->GetTypeId() != PCG::Private::MetadataTypes<FString>::Id)
 	{
 		PCGE_LOG_C(Error, &Context, "Attribute is not of valid type FString");
-		return;
+		return true;
 	}
 
 	const FPCGMetadataAttribute<FString>* Attribute = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase);
 
 	// maps a CategoryEntry ValueKey to the meshes and precomputed weight data 
-	TMap<PCGMetadataValueKey, FPCGInstancesAndWeights> CategoryEntryToInstancesAndWeights;
+	TMap<PCGMetadataValueKey, FPCGInstancesAndWeights>& CategoryEntryToInstancesAndWeights = Context.CategoryEntryToInstancesAndWeights;
 
 	// unmarked points will fallback to the MeshEntries associated with the DefaultValueKey
 	PCGMetadataValueKey DefaultValueKey = PCGDefaultValueKey;
 
-	for (const FPCGWeightedByCategoryEntryList& Entry : Entries)
+	// Setup
+	if (Context.CurrentPointIndex == 0)
 	{
-		if (Entry.WeightedMeshEntries.Num() == 0)
+		for (const FPCGWeightedByCategoryEntryList& Entry : Entries)
 		{
-			PCGE_LOG_C(Verbose, &Context, "Empty entry found in category %s", *Entry.CategoryEntry);
-			continue;
-		}
-
-		PCGMetadataValueKey ValueKey = Attribute->FindValue<FString>(Entry.CategoryEntry);
-
-		if (ValueKey == PCGDefaultValueKey)
-		{
-			PCGE_LOG_C(Verbose, &Context, "Invalid category %s", *Entry.CategoryEntry);
-			continue;
-		}
-
-		FPCGInstancesAndWeights* InstancesAndWeights = CategoryEntryToInstancesAndWeights.Find(ValueKey);
-
-		if (InstancesAndWeights)
-		{
-			PCGE_LOG_C(Warning, &Context, "Duplicate entry found in category %s. Subsequent entries are ignored.", *Entry.CategoryEntry);
-			continue;
-		}
-
-		if (Entry.IsDefault)
-		{
-			if (DefaultValueKey == PCGDefaultValueKey)
+			if (Entry.WeightedMeshEntries.Num() == 0)
 			{
-				DefaultValueKey = ValueKey;
-			}
-			else
-			{
-				PCGE_LOG_C(Warning, &Context, "Duplicate default entry found. Subsequent default entries are ignored.");
-			}
-		}
-
-		InstancesAndWeights = &CategoryEntryToInstancesAndWeights.Add(ValueKey, FPCGInstancesAndWeights());
-
-		int TotalWeight = 0;
-		for (const FPCGMeshSelectorWeightedEntry& WeightedEntry : Entry.WeightedMeshEntries)
-		{
-			if (WeightedEntry.Weight <= 0)
-			{
-				PCGE_LOG_C(Verbose, &Context, "Entry found with weight <= 0 in category %s", *Entry.CategoryEntry);
+				PCGE_LOG_C(Verbose, &Context, "Empty entry found in category %s", *Entry.CategoryEntry);
 				continue;
 			}
-			
-			TArray<FPCGMeshInstanceList>& PickEntry = InstancesAndWeights->MeshInstances.Emplace_GetRef();
-			PickEntry.Emplace_GetRef(WeightedEntry.Descriptor);
 
-			// precompute the weights
-			TotalWeight += WeightedEntry.Weight;
-			InstancesAndWeights->CumulativeWeights.Add(TotalWeight);
-		}
+			PCGMetadataValueKey ValueKey = Attribute->FindValue<FString>(Entry.CategoryEntry);
 
-		// if no weighted entries were collected, discard this InstancesAndWeights
-		if (InstancesAndWeights->CumulativeWeights.Num() == 0)
-		{
-			CategoryEntryToInstancesAndWeights.Remove(ValueKey);
+			if (ValueKey == PCGDefaultValueKey)
+			{
+				PCGE_LOG_C(Verbose, &Context, "Invalid category %s", *Entry.CategoryEntry);
+				continue;
+			}
+
+			FPCGInstancesAndWeights* InstancesAndWeights = CategoryEntryToInstancesAndWeights.Find(ValueKey);
+
+			if (InstancesAndWeights)
+			{
+				PCGE_LOG_C(Warning, &Context, "Duplicate entry found in category %s. Subsequent entries are ignored.", *Entry.CategoryEntry);
+				continue;
+			}
+
+			if (Entry.IsDefault)
+			{
+				if (DefaultValueKey == PCGDefaultValueKey)
+				{
+					DefaultValueKey = ValueKey;
+				}
+				else
+				{
+					PCGE_LOG_C(Warning, &Context, "Duplicate default entry found. Subsequent default entries are ignored.");
+				}
+			}
+
+			InstancesAndWeights = &CategoryEntryToInstancesAndWeights.Add(ValueKey, FPCGInstancesAndWeights());
+
+			int TotalWeight = 0;
+			for (const FPCGMeshSelectorWeightedEntry& WeightedEntry : Entry.WeightedMeshEntries)
+			{
+				if (WeightedEntry.Weight <= 0)
+				{
+					PCGE_LOG_C(Verbose, &Context, "Entry found with weight <= 0 in category %s", *Entry.CategoryEntry);
+					continue;
+				}
+
+				TArray<FPCGMeshInstanceList>& PickEntry = InstancesAndWeights->MeshInstances.Emplace_GetRef();
+				PickEntry.Emplace_GetRef(WeightedEntry.Descriptor);
+
+				// precompute the weights
+				TotalWeight += WeightedEntry.Weight;
+				InstancesAndWeights->CumulativeWeights.Add(TotalWeight);
+			}
+
+			// if no weighted entries were collected, discard this InstancesAndWeights
+			if (InstancesAndWeights->CumulativeWeights.Num() == 0)
+			{
+				CategoryEntryToInstancesAndWeights.Remove(ValueKey);
+			}
 		}
+	}
+
+	FPCGMeshMaterialOverrideHelper& MaterialOverrideHelper = Context.MaterialOverrideHelper;
+	if (!MaterialOverrideHelper.IsInitialized())
+	{
+		MaterialOverrideHelper.Initialize(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, InPointData->Metadata);
+	}
+
+	if (!MaterialOverrideHelper.IsValid())
+	{
+		return true;
 	}
 
 	TArray<FPCGPoint>* OutPoints = nullptr;
 	FPCGMetadataAttribute<FString>* OutAttribute = nullptr;
-	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey> MeshToValueKey;
-
-	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper(Context, bUseAttributeMaterialOverrides, MaterialOverrideAttributes, InPointData->Metadata);
-
-	if (!MaterialOverrideHelper.IsValid())
-	{
-		return;
-	}
 
 	if (OutPointData)
 	{
@@ -183,9 +185,17 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
 
+	int32 CurrentPointIndex = Context.CurrentPointIndex;
+	int32 LastCheckpointIndex = CurrentPointIndex;
+	constexpr int32 TimeSlicingCheckFrequency = 1024;
+	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey>& MeshToValueKey = Context.MeshToValueKey;
+
 	// Assign points to entries
-	for (const FPCGPoint& Point : InPointData->GetPoints())
+	const TArray<FPCGPoint>& Points = InPointData->GetPoints();
+	while(CurrentPointIndex < Points.Num())
 	{
+		const FPCGPoint& Point = Points[CurrentPointIndex++];
+
 		if (Point.Density <= 0.0f)
 		{
 			continue;
@@ -244,17 +254,41 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 				OutAttribute->SetValueFromValueKey(OutPoint.MetadataEntry, *OutValueKey);
 			}
 		}
-	}
 
-	// Collapse to OutMeshInstances
-	for (TPair<PCGMetadataValueKey, FPCGInstancesAndWeights>& Entry : CategoryEntryToInstancesAndWeights)
-	{
-		for (TArray<FPCGMeshInstanceList>& PickedMeshInstances : Entry.Value.MeshInstances)
+		// Check if we should stop here and continue in a subsequent call
+		if (CurrentPointIndex - LastCheckpointIndex >= TimeSlicingCheckFrequency)
 		{
-			for (FPCGMeshInstanceList& PickedMeshInstanceEntry : PickedMeshInstances)
+			if (Context.ShouldStop())
 			{
-				OutMeshInstances.Emplace(MoveTemp(PickedMeshInstanceEntry));
+				break;
+			}
+			else
+			{
+				LastCheckpointIndex = CurrentPointIndex;
 			}
 		}
+	}
+
+	Context.CurrentPointIndex = CurrentPointIndex;
+
+	if (CurrentPointIndex == Points.Num())
+	{
+		// Collapse to OutMeshInstances
+		for (TPair<PCGMetadataValueKey, FPCGInstancesAndWeights>& Entry : CategoryEntryToInstancesAndWeights)
+		{
+			for (TArray<FPCGMeshInstanceList>& PickedMeshInstances : Entry.Value.MeshInstances)
+			{
+				for (FPCGMeshInstanceList& PickedMeshInstanceEntry : PickedMeshInstances)
+				{
+					OutMeshInstances.Emplace(MoveTemp(PickedMeshInstanceEntry));
+				}
+			}
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }

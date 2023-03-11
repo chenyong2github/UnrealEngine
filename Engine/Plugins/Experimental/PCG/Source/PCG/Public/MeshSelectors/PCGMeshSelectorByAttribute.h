@@ -4,7 +4,6 @@
 
 #include "PCGMeshSelectorBase.h"
 
-
 #include "PCGMeshSelectorByAttribute.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -17,8 +16,8 @@ public:
 	void PostLoad() override;
 	// ~End UObject interface
 
-	virtual void SelectInstances_Implementation(
-		UPARAM(ref) FPCGContext& Context,
+	virtual bool SelectInstances(
+		FPCGStaticMeshSpawnerContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGPointData* InPointData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,

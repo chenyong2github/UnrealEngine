@@ -6,8 +6,8 @@
 #include "PCGManagedResource.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
+#include "Elements/PCGStaticMeshSpawnerContext.h"
 #include "Helpers/PCGActorHelpers.h"
-
 #include "InstancePackers/PCGInstancePackerBase.h"
 #include "MeshSelectors/PCGMeshSelectorBase.h"
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
@@ -70,7 +70,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 #endif
 
 	// Check if we can reuse existing resources
-	bool bSkippedDueToReuse = false;
+	bool& bSkippedDueToReuse = Context->bSkippedDueToReuse;
 
 	if (Context->CurrentInputIndex == 0 && CVarAllowISMReuse.GetValueOnAnyThread())
 	{
@@ -118,76 +118,103 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 
 	while(Context->CurrentInputIndex < Inputs.Num())
 	{
-		const FPCGTaggedData& Input = Inputs[Context->CurrentInputIndex];
-		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
+		if (!Context->bCurrentInputSetup)
+		{
+			const FPCGTaggedData& Input = Inputs[Context->CurrentInputIndex];
+			const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
 
-		// Preincrement so we can have all paths continue properly - note that this works because none of this is internally time-sliced
+			if (!SpatialData)
+			{
+				PCGE_LOG(Error, "Invalid input data");
+				++Context->CurrentInputIndex;
+				continue;
+			}
+
+			const UPCGPointData* PointData = SpatialData->ToPointData(Context);
+			if (!PointData)
+			{
+				PCGE_LOG(Error, "Unable to get point data from input");
+				++Context->CurrentInputIndex;
+				continue;
+			}
+
+			AActor* TargetActor = Context->GetTargetActor(PointData);
+			if (!TargetActor)
+			{
+				PCGE_LOG(Error, "Invalid target actor");
+				++Context->CurrentInputIndex;
+				continue;
+			}
+
+			if (bGenerateOutput)
+			{
+				FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
+
+				UPCGPointData* OutputPointData = NewObject<UPCGPointData>();
+				OutputPointData->InitializeFromData(PointData);
+
+				if (OutputPointData->Metadata->HasAttribute(Settings->OutAttributeName))
+				{
+					OutputPointData->Metadata->DeleteAttribute(Settings->OutAttributeName);
+					PCGE_LOG(Verbose, "Metadata attribute %s is being overwritten in the output data", *Settings->OutAttributeName.ToString());
+				}
+
+				OutputPointData->Metadata->CreateStringAttribute(Settings->OutAttributeName, FName(NAME_None).ToString(), /*bAllowsInterpolation=*/false);
+
+				Output.Data = OutputPointData;
+				check(!Context->CurrentOutputPointData);
+				Context->CurrentOutputPointData = OutputPointData;
+
+				// Create an entry in the MeshInstancesData if we're going to keep it
+				if (!bSkippedDueToReuse)
+				{
+					FPCGStaticMeshSpawnerContext::FPackedInstanceListData& InstanceListData = Context->MeshInstancesData.Emplace_GetRef();
+					InstanceListData.TargetActor = TargetActor;
+					InstanceListData.SpatialData = PointData;
+				}
+			}
+
+			Context->CurrentPointData = PointData;
+			Context->bCurrentInputSetup = true;
+		}
+
+		if (!Context->bSelectionDone)
+		{
+			TArray<FPCGMeshInstanceList> DummyMeshInstances;
+			TArray<FPCGMeshInstanceList>& MeshInstances = (bSkippedDueToReuse ? DummyMeshInstances : Context->MeshInstancesData.Last().MeshInstances);
+
+			check(Context->CurrentPointData);
+			Context->bSelectionDone = Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, Context->CurrentPointData, MeshInstances, Context->CurrentOutputPointData);
+		}
+
+		if (!Context->bSelectionDone)
+		{
+			return false;
+		}
+
+		// If we need the output but would otherwise skip the resource creation, we don't need to run the instance packing part of the processing
+		if (!bSkippedDueToReuse)
+		{
+			TArray<FPCGPackedCustomData>& PackedCustomData = Context->MeshInstancesData.Last().PackedCustomData;
+			const TArray<FPCGMeshInstanceList>& MeshInstances = Context->MeshInstancesData.Last().MeshInstances;
+
+			if (PackedCustomData.Num() != MeshInstances.Num())
+			{
+				PackedCustomData.SetNum(MeshInstances.Num());
+			}
+
+			if (Settings->InstancePackerInstance)
+			{
+				for (int32 InstanceListIndex = 0; InstanceListIndex < MeshInstances.Num(); ++InstanceListIndex)
+				{
+					Settings->InstancePackerInstance->PackInstances(*Context, Context->CurrentPointData, MeshInstances[InstanceListIndex], PackedCustomData[InstanceListIndex]);
+				}
+			}
+		}
+
+		// We're done - cleanup for next iteration if we still have time
 		++Context->CurrentInputIndex;
-
-		if (!SpatialData)
-		{
-			PCGE_LOG(Error, "Invalid input data");
-			continue;
-		}
-
-		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
-		if (!PointData)
-		{
-			PCGE_LOG(Error, "Unable to get point data from input");
-			continue;
-		}
-
-		AActor* TargetActor = Context->GetTargetActor(PointData);
-		if (!TargetActor)
-		{
-			PCGE_LOG(Error, "Invalid target actor");
-			continue;
-		}
-
-		UPCGPointData* OutputPointData = nullptr;
-
-		if (bGenerateOutput)
-		{
-			FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
-
-			OutputPointData = NewObject<UPCGPointData>();
-			OutputPointData->InitializeFromData(PointData);
-
-			if (OutputPointData->Metadata->HasAttribute(Settings->OutAttributeName))
-			{
-				OutputPointData->Metadata->DeleteAttribute(Settings->OutAttributeName);
-				PCGE_LOG(Verbose, "Metadata attribute %s is being overwritten in the output data", *Settings->OutAttributeName.ToString());
-			}
-
-			OutputPointData->Metadata->CreateStringAttribute(Settings->OutAttributeName, FName(NAME_None).ToString(), /*bAllowsInterpolation=*/false);
-
-			Output.Data = OutputPointData;
-		}
-
-		TArray<FPCGMeshInstanceList> MeshInstances;
-		Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, PointData, MeshInstances, OutputPointData);
-
-		// If we need the output but would otherwise skip the resource creation, just don't push them to the MeshInstancesData array
-		if (bSkippedDueToReuse)
-		{
-			continue;
-		}
-
-		TArray<FPCGPackedCustomData> PackedCustomData;
-		PackedCustomData.SetNum(MeshInstances.Num());
-		if (Settings->InstancePackerInstance)
-		{
-			for(int32 InstanceListIndex = 0; InstanceListIndex < MeshInstances.Num(); ++InstanceListIndex)
-			{
-				Settings->InstancePackerInstance->PackInstances(*Context, PointData, MeshInstances[InstanceListIndex], PackedCustomData[InstanceListIndex]);
-			}
-		}
-
-		FPCGStaticMeshSpawnerContext::FPackedInstanceListData& InstanceListData = Context->MeshInstancesData.Emplace_GetRef();
-		InstanceListData.TargetActor = TargetActor;
-		InstanceListData.SpatialData = PointData;
-		InstanceListData.MeshInstances = MoveTemp(MeshInstances);
-		InstanceListData.PackedCustomData = MoveTemp(PackedCustomData);
+		Context->ResetInputIterationData();
 
 		// Continue on to next iteration if there is time left, otherwise, exit here
 		if (Context->AsyncState.ShouldStop() && Context->CurrentInputIndex < Inputs.Num())
