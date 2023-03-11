@@ -1706,7 +1706,7 @@ namespace UnrealBuildTool
 
 			WorkspaceFile.EndRootObject();
 
-			string? WorkspaceName = bForeignProject ? GameProjectName : "UE5";
+			string? WorkspaceName = bForeignProject ? GameProjectName : PrimaryProjectName;
 			WorkspaceFile.Write(FileReference.Combine(PrimaryProjectPath, WorkspaceName + ".code-workspace"));
 		}
 
