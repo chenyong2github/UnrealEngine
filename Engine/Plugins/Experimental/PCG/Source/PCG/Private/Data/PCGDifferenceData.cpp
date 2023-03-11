@@ -6,6 +6,8 @@
 #include "Data/PCGUnionData.h"
 #include "Helpers/PCGAsync.h"
 
+#include "Serialization/ArchiveCrc32.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDifferenceData)
 
 namespace PCGDifferenceDataUtils
@@ -120,6 +122,42 @@ void UPCGDifferenceData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Ac
 	{
 		GetDifference()->VisitDataNetwork(Action);
 	}
+}
+
+FPCGCrc UPCGDifferenceData::ComputeCrc() const
+{
+	FArchiveCrc32 Ar;
+
+	if (PropagateCrcThroughBooleanData())
+	{
+		AddToCrc(Ar);
+
+		// Chain together CRCs of operands
+		check(GetSource());
+		uint32 SourceCrc = GetSource()->GetOrComputeCrc().GetValue();
+		Ar << SourceCrc;
+
+		if (GetDifference())
+		{
+			uint32 DifferenceCrc = GetDifference()->GetOrComputeCrc().GetValue();
+			Ar << DifferenceCrc;
+		}
+	}
+	else
+	{
+		UPCGData::AddToCrc(Ar);
+	}
+
+	return FPCGCrc(Ar.GetCrc());
+}
+
+void UPCGDifferenceData::AddToCrc(FArchiveCrc32& Ar) const
+{
+	uint32 UniqueTypeID = StaticClass()->GetDefaultObject()->GetUniqueID();
+	Ar << UniqueTypeID;
+
+	uint32 DensityFunctionValue = static_cast<uint32>(DensityFunction);
+	Ar << DensityFunctionValue;
 }
 
 int UPCGDifferenceData::GetDimension() const

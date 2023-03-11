@@ -9,10 +9,16 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 
+#include "HAL/IConsoleManager.h"
 #include "Serialization/ArchiveCrc32.h"
 #include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGData)
+
+static TAutoConsoleVariable<bool> CVarCacheDebugging(
+	TEXT("pcg.Cache.PropagateCrcThroughBooleanData"),
+	false,
+	TEXT("Whether intersection, union, difference combine Crc values from operands. If false they fall back to using data UID."));
 
 void FPCGRootSet::Clear()
 {
@@ -89,12 +95,17 @@ FPCGCrc UPCGData::GetOrComputeCrc() const
 		return Crc;
 	}
 
+	Crc = ComputeCrc();
+
+	return Crc;
+}
+
+FPCGCrc UPCGData::ComputeCrc() const
+{
 	FArchiveCrc32 Ar;
 	AddToCrc(Ar);
 
-	Crc = FPCGCrc(Ar.GetCrc());
-
-	return Crc;
+	return FPCGCrc(Ar.GetCrc());
 }
 
 void UPCGData::AddToCrc(FArchiveCrc32& Ar) const
@@ -102,6 +113,11 @@ void UPCGData::AddToCrc(FArchiveCrc32& Ar) const
 	// Fallback implementation uses UID to ensure every object returns a different Crc.
 	uint64 UIDValue = UID;
 	Ar << UIDValue;
+}
+
+bool UPCGData::PropagateCrcThroughBooleanData() const
+{
+	return CVarCacheDebugging.GetValueOnAnyThread();
 }
 
 void UPCGData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const

@@ -29,11 +29,8 @@ public:
 	UPCGData(const FObjectInitializer& ObjectInitializer);
 	virtual EPCGDataType GetDataType() const { return EPCGDataType::None; }
 
-	/** Computes a Crc for this data. */
+	/** Returns a Crc for this and any connected data. */
 	FPCGCrc GetOrComputeCrc() const;
-
-	/** Contributes to Crc. Fallback implementation that writes object instance UID. */
-	virtual void AddToCrc(FArchiveCrc32& Ar) const;
 
 	/** Executes a lambda over all connected data objects. */
 	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const;
@@ -44,6 +41,16 @@ public:
 
 	/** CRC for this object instance. */
 	mutable FPCGCrc Crc;
+
+protected:
+	/** Computes Crc for this and any connected data. */
+	virtual FPCGCrc ComputeCrc() const;
+
+	/** Adds this data to Crc. Fallback implementation writes object instance UID. */
+	virtual void AddToCrc(FArchiveCrc32& Ar) const;
+
+	/** Whether intersection, union, difference combine Crc values from operands. If false they fall back to using data UID. */
+	bool PropagateCrcThroughBooleanData() const;
 
 private:
 	/** Serves unique ID values to instances of this object. */

@@ -6,6 +6,8 @@
 #include "Helpers/PCGAsync.h"
 #include "PCGHelpers.h"
 
+#include "Serialization/ArchiveCrc32.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGIntersectionData)
 
 namespace PCGIntersectionDataMaths
@@ -67,6 +69,38 @@ void UPCGIntersectionData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> 
 	check(GetA() && GetB());
 	GetA()->VisitDataNetwork(Action);
 	GetB()->VisitDataNetwork(Action);
+}
+
+FPCGCrc UPCGIntersectionData::ComputeCrc() const
+{
+	FArchiveCrc32 Ar;
+
+	if (PropagateCrcThroughBooleanData())
+	{
+		AddToCrc(Ar);
+
+		// Chain together CRCs of operands
+		check(GetA() && GetB());
+		uint32 CrcA = GetA()->GetOrComputeCrc().GetValue();
+		uint32 CrcB = GetB()->GetOrComputeCrc().GetValue();
+		Ar << CrcA;
+		Ar << CrcB;
+	}
+	else
+	{
+		UPCGData::AddToCrc(Ar);
+	}
+
+	return FPCGCrc(Ar.GetCrc());
+}
+
+void UPCGIntersectionData::AddToCrc(FArchiveCrc32& Ar) const
+{
+	uint32 UniqueTypeID = StaticClass()->GetDefaultObject()->GetUniqueID();
+	Ar << UniqueTypeID;
+
+	uint32 DensityFunctionValue = static_cast<uint32>(DensityFunction);
+	Ar << DensityFunctionValue;
 }
 
 int UPCGIntersectionData::GetDimension() const
