@@ -175,6 +175,12 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	TThreadParticle<Id>* FReadPhysicsObjectInterface<Id>::GetParticle(const FConstPhysicsObjectHandle Object)
+	{
+		return Object->GetParticle<Id>();
+	}
+
+	template<EThreadContext Id>
 	TArray<TThreadParticle<Id>*> FReadPhysicsObjectInterface<Id>::GetAllParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects)
 	{
 		TArray<TThreadParticle<Id>*> Particles;

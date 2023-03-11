@@ -3,6 +3,8 @@
 #pragma once
 
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Chaos/PhysicsObject.h"
+#include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include "ChaosUserDataPTStats.h"
 
 /*
@@ -88,8 +90,9 @@ namespace Chaos
 
 		virtual ~TUserDataManagerPT() { }
 
-		// Add or update user data associated with this particle handle
-		bool SetData_GT(const FRigidBodyHandle_External& Handle, const TUserData& UserData)
+		// Add or update user data associated with a particle handle
+		template <typename TParticleHandle>
+		bool SetData_GT(const TParticleHandle& Handle, const TUserData& UserData)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_UserDataPT_SetData_GT);
 
@@ -119,8 +122,9 @@ namespace Chaos
 			return false;
 		}
 
-		// Remove user data associated with this particle handle
-		bool RemoveData_GT(const FRigidBodyHandle_External& Handle)
+		// Remove user data associated with a particle handle
+		template <typename TParticleHandle>
+		bool RemoveData_GT(const TParticleHandle& Handle)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_UserDataPT_RemoveData_GT);
 
@@ -145,6 +149,32 @@ namespace Chaos
 			}
 
 			// Failed to queue for removal
+			return false;
+		}
+
+		template <>
+		bool SetData_GT<Chaos::FPhysicsObjectHandle>(const Chaos::FPhysicsObjectHandle& Object, const TUserData& UserData)
+		{
+			// Get the game thread particle handle and set UserData on that
+			FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(Object);
+			if (const Chaos::FGeometryParticle* Particle = Interface->GetParticle(Object))
+			{
+				return SetData_GT(*Particle, UserData);
+			}
+
+			return false;
+		}
+
+		template <>
+		bool RemoveData_GT<Chaos::FPhysicsObjectHandle>(const Chaos::FPhysicsObjectHandle& Object)
+		{
+			// Get the game thread particle handle and remove UserData from it
+			FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(TArray<Chaos::FConstPhysicsObjectHandle>{ Object });
+			if (const Chaos::FGeometryParticle* Particle = Interface->GetParticle(Object))
+			{
+				return RemoveData_GT(*Particle);
+			}
+
 			return false;
 		}
 
