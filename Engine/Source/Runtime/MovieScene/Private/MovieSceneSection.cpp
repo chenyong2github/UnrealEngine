@@ -829,6 +829,19 @@ void UMovieSceneSection::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 }
 
+
+void UMovieSceneSection::PostPaste()
+{
+	if (UObject* DefaultEaseIn = Easing.EaseIn.GetObject())
+	{
+		DefaultEaseIn->ClearFlags(RF_Transient);
+	}
+	if (UObject* DefaultEaseOut = Easing.EaseOut.GetObject())
+	{
+		DefaultEaseOut->ClearFlags(RF_Transient);
+	}
+}
+
 ECookOptimizationFlags UMovieSceneSection::GetCookOptimizationFlags() const
 {
 	UMovieSceneTrack* Track = GetTypedOuter<UMovieSceneTrack>();

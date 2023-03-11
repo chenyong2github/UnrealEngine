@@ -668,7 +668,7 @@ public:
 #if WITH_EDITOR
 	MOVIESCENE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	MOVIESCENE_API virtual void PostPaste() {}
+	MOVIESCENE_API virtual void PostPaste();
 #endif
 
 #if WITH_EDITOR
