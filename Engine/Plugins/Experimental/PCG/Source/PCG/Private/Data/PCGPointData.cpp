@@ -15,8 +15,8 @@
 
 static TAutoConsoleVariable<bool> CVarCacheFullPointDataCrc(
 	TEXT("pcg.Cache.FullPointDataCrc"),
-	false,
-	TEXT("Enable fine-grained CRC of point data for change tracking, rather than using data UID."));
+	true,
+	TEXT("Enable fine-grained CRC of point data for change tracking on elements that request it, rather than using data UID."));
 
 namespace PCGPointHelpers
 {
@@ -265,13 +265,13 @@ const UPCGPointData::PointOctree& UPCGPointData::GetOctree() const
 	return Octree;
 }
 
-void UPCGPointData::AddToCrc(FArchiveCrc32& Ar) const
+void UPCGPointData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
 {
 	// The code below has non-trivial cost, and can be disabled from console.
-	if (!CVarCacheFullPointDataCrc.GetValueOnAnyThread())
+	if (!bFullDataCrc || !CVarCacheFullPointDataCrc.GetValueOnAnyThread())
 	{
 		// Fallback to UID
-		Super::AddToCrc(Ar);
+		Super::AddToCrc(Ar, bFullDataCrc);
 		return;
 	}
 

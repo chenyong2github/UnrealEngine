@@ -83,13 +83,13 @@ void UPCGUnionData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action)
 	}
 }
 
-FPCGCrc UPCGUnionData::ComputeCrc() const
+FPCGCrc UPCGUnionData::ComputeCrc(bool bFullDataCrc) const
 {
 	FArchiveCrc32 Ar;
 
 	if (PropagateCrcThroughBooleanData())
 	{
-		AddToCrc(Ar);
+		AddToCrc(Ar, bFullDataCrc);
 
 		// Chain together CRCs of operands
 		int32 NumOperands = Data.Num();
@@ -99,20 +99,20 @@ FPCGCrc UPCGUnionData::ComputeCrc() const
 		{
 			if (Datum)
 			{
-				uint32 DatumCrc = Datum->GetOrComputeCrc().GetValue();
+				uint32 DatumCrc = Datum->GetOrComputeCrc(bFullDataCrc).GetValue();
 				Ar << DatumCrc;
 			}
 		}
 	}
 	else
 	{
-		UPCGData::AddToCrc(Ar);
+		UPCGData::AddToCrc(Ar, bFullDataCrc);
 	}
 
 	return FPCGCrc(Ar.GetCrc());
 }
 
-void UPCGUnionData::AddToCrc(FArchiveCrc32& Ar) const
+void UPCGUnionData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
 {
 	uint32 UniqueTypeID = StaticClass()->GetDefaultObject()->GetUniqueID();
 	Ar << UniqueTypeID;

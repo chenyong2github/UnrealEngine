@@ -2,12 +2,61 @@
 
 #include "PCGParamData.h"
 
+#include "Metadata/PCGAttributePropertySelector.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+
+#include "Serialization/ArchiveCrc32.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGParamData)
 
 UPCGParamData::UPCGParamData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	Metadata = ObjectInitializer.CreateDefaultSubobject<UPCGMetadata>(this, TEXT("Metadata"));
+}
+
+void UPCGParamData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
+{
+	if (!Metadata)
+	{
+		// Nothing to contribute
+		return;
+	}
+
+	// Get attribute names. Preserve order as attribute order matters.
+	TArray<FName> AttributeNames;
+	{
+		TArray<EPCGMetadataTypes> AttributeTypes;
+		Metadata->GetAttributes(AttributeNames, AttributeTypes);
+	}
+
+	// Add all attribute values
+	for (FName AttributeName : AttributeNames)
+	{
+		FPCGAttributePropertySelector InputSource;
+		InputSource.SetAttributeName(AttributeName);
+
+		TUniquePtr<const IPCGAttributeAccessor> InputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(this, InputSource);
+		TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys = PCGAttributeAccessorHelpers::CreateConstKeys(this, InputSource);
+
+		auto Callback = [&InputAccessor, &InputKeys, &Ar](auto && Dummy)
+		{
+			using AttributeType = std::decay_t<decltype(Dummy)>;
+			TArray<AttributeType> Values;
+			Values.SetNum(InputKeys->GetNum());
+			InputAccessor->GetRange<AttributeType>(Values, 0, *InputKeys);
+
+			for (AttributeType Value : Values)
+			{
+				// Add value to Crc
+				Ar << Value;
+			}
+		};
+
+		PCGMetadataAttribute::CallbackWithRightType(InputAccessor->GetUnderlyingType(), Callback);
+	}
 }
 
 int64 UPCGParamData::FindMetadataKey(const FName& InName) const

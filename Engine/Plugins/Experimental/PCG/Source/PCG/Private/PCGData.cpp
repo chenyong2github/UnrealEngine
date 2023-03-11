@@ -88,27 +88,27 @@ UPCGData::UPCGData(const FObjectInitializer& ObjectInitializer)
 	}
 }
 
-FPCGCrc UPCGData::GetOrComputeCrc() const
+FPCGCrc UPCGData::GetOrComputeCrc(bool bFullDataCrc) const
 {
 	if (Crc.IsValid())
 	{
 		return Crc;
 	}
 
-	Crc = ComputeCrc();
+	Crc = ComputeCrc(bFullDataCrc);
 
 	return Crc;
 }
 
-FPCGCrc UPCGData::ComputeCrc() const
+FPCGCrc UPCGData::ComputeCrc(bool bFullDataCrc) const
 {
 	FArchiveCrc32 Ar;
-	AddToCrc(Ar);
+	AddToCrc(Ar, bFullDataCrc);
 
 	return FPCGCrc(Ar.GetCrc());
 }
 
-void UPCGData::AddToCrc(FArchiveCrc32& Ar) const
+void UPCGData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
 {
 	// Fallback implementation uses UID to ensure every object returns a different Crc.
 	uint64 UIDValue = UID;
@@ -351,7 +351,7 @@ void FPCGDataCollection::RemoveFromRootSet(FPCGRootSet& RootSet) const
 	}
 }
 
-FPCGCrc FPCGDataCollection::ComputeCrc()
+FPCGCrc FPCGDataCollection::ComputeCrc(bool bFullDataCrc)
 {
 	// If there is no data, will return valid Crc==0 which is fine. No such thing as an invalid FPCGDataCollection
 	FArchiveCrc32 Ar;
@@ -362,7 +362,7 @@ FPCGCrc FPCGDataCollection::ComputeCrc()
 
 		if (Data.Data)
 		{
-			const FPCGCrc DataCrc = Data.Data->GetOrComputeCrc();
+			const FPCGCrc DataCrc = Data.Data->GetOrComputeCrc(bFullDataCrc);
 			uint32 Result = DataCrc.GetValue();
 			Ar << Result;
 		}

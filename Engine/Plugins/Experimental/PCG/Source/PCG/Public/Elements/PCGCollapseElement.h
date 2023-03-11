@@ -29,6 +29,10 @@ protected:
 
 class FPCGCollapseElement : public FSimplePCGElement
 {
+public:
+	// Might be sampling spline/landscape or other external data, worth computing a full CRC in case we can halt change propagation/re-executions
+	virtual bool ShouldComputeFullOutputDataCrc() const override { return true; }
+
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;
 };

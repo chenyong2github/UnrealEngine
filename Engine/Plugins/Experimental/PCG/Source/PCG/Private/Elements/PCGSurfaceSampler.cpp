@@ -547,7 +547,7 @@ void FPCGSurfaceSamplerElement::GetDependenciesCrc(const FPCGDataCollection& InI
 		{
 			if (const UPCGData* Data = InComponent->GetActorPCGData())
 			{
-				Crc.Combine(Data->GetOrComputeCrc());
+				Crc.Combine(Data->GetOrComputeCrc(/*bFullDataCrc=*/false));
 			}
 		}
 	}

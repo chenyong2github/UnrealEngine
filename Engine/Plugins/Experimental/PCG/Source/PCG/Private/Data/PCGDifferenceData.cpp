@@ -124,34 +124,34 @@ void UPCGDifferenceData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Ac
 	}
 }
 
-FPCGCrc UPCGDifferenceData::ComputeCrc() const
+FPCGCrc UPCGDifferenceData::ComputeCrc(bool bFullDataCrc) const
 {
 	FArchiveCrc32 Ar;
 
 	if (PropagateCrcThroughBooleanData())
 	{
-		AddToCrc(Ar);
+		AddToCrc(Ar, bFullDataCrc);
 
 		// Chain together CRCs of operands
 		check(GetSource());
-		uint32 SourceCrc = GetSource()->GetOrComputeCrc().GetValue();
+		uint32 SourceCrc = GetSource()->GetOrComputeCrc(bFullDataCrc).GetValue();
 		Ar << SourceCrc;
 
 		if (GetDifference())
 		{
-			uint32 DifferenceCrc = GetDifference()->GetOrComputeCrc().GetValue();
+			uint32 DifferenceCrc = GetDifference()->GetOrComputeCrc(bFullDataCrc).GetValue();
 			Ar << DifferenceCrc;
 		}
 	}
 	else
 	{
-		UPCGData::AddToCrc(Ar);
+		UPCGData::AddToCrc(Ar, bFullDataCrc);
 	}
 
 	return FPCGCrc(Ar.GetCrc());
 }
 
-void UPCGDifferenceData::AddToCrc(FArchiveCrc32& Ar) const
+void UPCGDifferenceData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
 {
 	uint32 UniqueTypeID = StaticClass()->GetDefaultObject()->GetUniqueID();
 	Ar << UniqueTypeID;

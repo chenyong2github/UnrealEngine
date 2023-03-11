@@ -139,6 +139,9 @@ class FPCGSurfaceSamplerElement : public IPCGElement
 public:
 	virtual void GetDependenciesCrc(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, UPCGComponent* InComponent, FPCGCrc& OutCrc) const override;
 	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) override;
+	// Might be sampling landscape or other external data, worth computing a full CRC in case we can halt change propagation/re-executions
+	virtual bool ShouldComputeFullOutputDataCrc() const override { return true; }
+
 protected:
 	virtual bool PrepareDataInternal(FPCGContext* InContext) const override;
 	virtual bool ExecuteInternal(FPCGContext* InContext) const override;

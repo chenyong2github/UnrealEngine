@@ -71,30 +71,30 @@ void UPCGIntersectionData::VisitDataNetwork(TFunctionRef<void(const UPCGData*)> 
 	GetB()->VisitDataNetwork(Action);
 }
 
-FPCGCrc UPCGIntersectionData::ComputeCrc() const
+FPCGCrc UPCGIntersectionData::ComputeCrc(bool bFullDataCrc) const
 {
 	FArchiveCrc32 Ar;
 
 	if (PropagateCrcThroughBooleanData())
 	{
-		AddToCrc(Ar);
+		AddToCrc(Ar, bFullDataCrc);
 
 		// Chain together CRCs of operands
 		check(GetA() && GetB());
-		uint32 CrcA = GetA()->GetOrComputeCrc().GetValue();
-		uint32 CrcB = GetB()->GetOrComputeCrc().GetValue();
+		uint32 CrcA = GetA()->GetOrComputeCrc(bFullDataCrc).GetValue();
+		uint32 CrcB = GetB()->GetOrComputeCrc(bFullDataCrc).GetValue();
 		Ar << CrcA;
 		Ar << CrcB;
 	}
 	else
 	{
-		UPCGData::AddToCrc(Ar);
+		UPCGData::AddToCrc(Ar, bFullDataCrc);
 	}
 
 	return FPCGCrc(Ar.GetCrc());
 }
 
-void UPCGIntersectionData::AddToCrc(FArchiveCrc32& Ar) const
+void UPCGIntersectionData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
 {
 	uint32 UniqueTypeID = StaticClass()->GetDefaultObject()->GetUniqueID();
 	Ar << UniqueTypeID;

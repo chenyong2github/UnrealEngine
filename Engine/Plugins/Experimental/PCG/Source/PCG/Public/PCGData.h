@@ -30,7 +30,7 @@ public:
 	virtual EPCGDataType GetDataType() const { return EPCGDataType::None; }
 
 	/** Returns a Crc for this and any connected data. */
-	FPCGCrc GetOrComputeCrc() const;
+	FPCGCrc GetOrComputeCrc(bool bFullDataCrc) const;
 
 	/** Executes a lambda over all connected data objects. */
 	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const;
@@ -44,10 +44,10 @@ public:
 
 protected:
 	/** Computes Crc for this and any connected data. */
-	virtual FPCGCrc ComputeCrc() const;
+	virtual FPCGCrc ComputeCrc(bool bFullDataCrc) const;
 
 	/** Adds this data to Crc. Fallback implementation writes object instance UID. */
-	virtual void AddToCrc(FArchiveCrc32& Ar) const;
+	virtual void AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const;
 
 	/** Whether intersection, union, difference combine Crc values from operands. If false they fall back to using data UID. */
 	bool PropagateCrcThroughBooleanData() const;
@@ -136,7 +136,7 @@ struct PCG_API FPCGDataCollection
 	void RemoveFromRootSet(FPCGRootSet& RootSet) const;
 
 	/** Computes Crc for this data. */
-	FPCGCrc ComputeCrc();
+	FPCGCrc ComputeCrc(bool bFullDataCrc);
 
 	/** Cleans up the collection, but does not unroot any previously rooted data. */
 	void Reset();

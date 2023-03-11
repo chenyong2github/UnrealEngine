@@ -58,8 +58,8 @@ public:
 	virtual void VisitDataNetwork(TFunctionRef<void(const UPCGData*)> Action) const override;
 
 protected:
-	virtual FPCGCrc ComputeCrc() const override;
-	virtual void AddToCrc(FArchiveCrc32& Ar) const override;
+	virtual FPCGCrc ComputeCrc(bool bFullDataCrc) const override;
+	virtual void AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const override;
 	// ~End UPCGData interface
 
 public:

@@ -17,11 +17,6 @@ static TAutoConsoleVariable<bool> CVarPCGValidatePointMetadata(
 	true,
 	TEXT("Controls whether we validate that the metadata entry keys on the output point data are consistent"));
 
-static TAutoConsoleVariable<bool> CVarCacheUseDependenciesCrc(
-	TEXT("pcg.Cache.UseDependenciesCrc"),
-	false,
-	TEXT("If element is cacheable, use dependencies crc instead of calculating crc from output data."));
-
 bool IPCGElement::Execute(FPCGContext* Context) const
 {
 	check(Context && Context->AsyncState.NumAvailableTasks > 0 && Context->CurrentPhase < EPCGExecutionPhase::Done);
@@ -186,23 +181,17 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 		}
 	}
 	
-	// Output data crc.
+	// Output data Crc
 	{
-		if (CVarCacheUseDependenciesCrc.GetValueOnAnyThread() && IsCacheableInstance(SettingsInterface))
-		{
-			// If cacheable, then assume that the dependencies Crc is a good Crc to use from the output data - assumes changes
-			// in inputs and settings are 1:1 with changes in output. In general this is not the case as some settings changes will
-			// have no impact on the output. And since we are unlikely to do full Crc's of landscapes, a landscape data may produce
-			// a different Crc on each regenerate, triggering unnecessary executions.
-			Context->OutputData.Crc = Context->DependenciesCrc;
-		}
-		else
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::PostExecute::CRC);
+		TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::PostExecute::CRC);
 
-			// Compute Crc from output data
-			Context->OutputData.Crc = Context->OutputData.ComputeCrc();
-		}
+		// Some nodes benefit from computing an actual CRC from the data. This can halt the propagation of change/executions through the graph. For
+		// data like landscapes we will never have a full accurate data crc for it so we'll tend to assume changed which triggers downstream
+		// execution. Performing a detailed CRC of output data can detect real change in the data and halt the cascade of execution.
+		const bool bShouldComputeFullOutputDataCrc = ShouldComputeFullOutputDataCrc();
+
+		// Compute Crc from output data
+		Context->OutputData.Crc = Context->OutputData.ComputeCrc(bShouldComputeFullOutputDataCrc);
 	}
 
 	// Additional debug things (check for duplicates),

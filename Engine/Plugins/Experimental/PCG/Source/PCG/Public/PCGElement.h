@@ -51,6 +51,9 @@ public:
 	/** Returns true if the node can be cached (e.g. does not create artifacts & does not depend on untracked data */
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
 
+	/** Whether to do a 'deep' fine-grained CRC of the output data to pass to downstream nodes. Can be expensive so should be used sparingly. */
+	virtual bool ShouldComputeFullOutputDataCrc() const { return false; }
+
 	/**
 	 * Calculate a Crc that provides a receipt for the input data that can be paired with output data from the cache. If any dependency (setting, node input or
 	 * external data) changes then this value should change. For some elements it is inefficient or not possible to output a Crc here. These can return an invalid
