@@ -343,7 +343,7 @@ bool FRenderAssetStreamingManager::StreamOutRenderAssetData( int64 RequiredMemor
 	{
 		FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[Idx];
 		// Only texture for which we can drop mips.
-		if (StreamingRenderAsset.IsMaxResolutionAffectedByGlobalBias())
+		if (StreamingRenderAsset.IsMaxResolutionAffectedByGlobalBias() && (!Settings.bFullyLoadMeshes || !StreamingRenderAsset.IsMesh()))
 		{
 			PrioritizedRenderAssets.Add(Idx);
 		}

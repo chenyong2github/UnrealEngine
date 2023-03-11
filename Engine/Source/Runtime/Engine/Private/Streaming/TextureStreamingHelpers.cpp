@@ -193,6 +193,12 @@ TAutoConsoleVariable<int32> CVarStreamingFullyLoadUsedTextures(
 	TEXT("If non-zero, all used texture will be fully streamed in as fast as possible"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarStreamingFullyLoadMeshes(
+	TEXT("r.Streaming.FullyLoadMeshes"),
+	0,
+	TEXT("If non-zero, stream in all mesh LODs. This allows semi-disabling mesh LOD streaming without recook."),
+	ECVF_Default);
+
 TAutoConsoleVariable<int32> CVarStreamingUseAllMips(
 	TEXT("r.Streaming.UseAllMips"),
 	0,
@@ -305,6 +311,7 @@ void FRenderAssetStreamingSettings::Update()
 	bUseNewMetrics = CVarStreamingUseNewMetrics.GetValueOnAnyThread() != 0;
 	bLimitPoolSizeToVRAM = !GIsEditor && CVarStreamingLimitPoolSizeToVRAM.GetValueOnAnyThread() != 0;
 	bFullyLoadUsedTextures = CVarStreamingFullyLoadUsedTextures.GetValueOnAnyThread() != 0;
+	bFullyLoadMeshes = CVarStreamingFullyLoadMeshes.GetValueOnAnyThread() != 0;
 	bUseAllMips = CVarStreamingUseAllMips.GetValueOnAnyThread() != 0;
 	MinMipForSplitRequest = CVarStreamingMinMipForSplitRequest.GetValueOnAnyThread();
 	PerTextureBiasViewBoostThreshold = CVarStreamingPerTextureBiasViewBoostThreshold.GetValueOnAnyThread();

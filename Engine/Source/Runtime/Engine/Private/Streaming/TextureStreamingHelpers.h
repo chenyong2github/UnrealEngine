@@ -91,6 +91,7 @@ struct FRenderAssetStreamingSettings
 	bool bLimitPoolSizeToVRAM;
 	bool bUseNewMetrics;
 	bool bFullyLoadUsedTextures;
+	bool bFullyLoadMeshes;
 	bool bUseAllMips;
 	bool bUsePerTextureBias;
 	bool bUseMaterialData;

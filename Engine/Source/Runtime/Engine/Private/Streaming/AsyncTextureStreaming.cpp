@@ -131,7 +131,11 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 	}
 	else
 #endif
-	if (Settings.bFullyLoadUsedTextures)
+	if (Settings.bFullyLoadMeshes && StreamingRenderAsset.IsMesh())
+	{
+		MaxSize_VisibleOnly = MaxSize = FLT_MAX;
+	}
+	else if (Settings.bFullyLoadUsedTextures)
 	{
 		if (StreamingRenderAsset.LastRenderTime < 300 || StreamingRenderAsset.bForceFullyLoad)
 		{
@@ -630,6 +634,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async()
 
 			if (StreamingRenderAsset.BudgetMipBias > 0
 				&& (bResetMipBias
+					|| (Settings.bFullyLoadMeshes && StreamingRenderAsset.IsMesh())
 					|| FMath::Max<int32>(
 						StreamingRenderAsset.VisibleWantedMips,
 						StreamingRenderAsset.HiddenWantedMips + StreamingRenderAsset.NumMissingMips) < StreamingRenderAsset.MaxAllowedMips))
@@ -660,7 +665,10 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async()
 			if (!StreamingRenderAsset.RenderAsset) continue;
 
 			// Ignore textures/meshes for which we are not allowed to reduce resolution.
-			if (!StreamingRenderAsset.IsMaxResolutionAffectedByGlobalBias()) continue;
+			if (!StreamingRenderAsset.IsMaxResolutionAffectedByGlobalBias() || (Settings.bFullyLoadMeshes && StreamingRenderAsset.IsMesh()))
+			{
+				continue;
+			}
 
 			// Ignore texture/mesh that can't drop any mips
 			const int32 MinAllowedMips = FMath::Max(StreamingRenderAsset.MinAllowedMips, StreamingRenderAsset.NumForcedMips);
