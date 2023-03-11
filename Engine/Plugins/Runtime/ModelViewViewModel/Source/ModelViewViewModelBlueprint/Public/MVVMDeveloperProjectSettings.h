@@ -90,6 +90,14 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	bool bAllowBindingFromDetailView = true;
 
+	/** When generating a source from the Viewmodel editor, allow the compiler to generate a setter function. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	bool bAllowGeneratedViewModelSetter = true;
+	
+	/** For the binding list widget, allow the user to edit the binding in the detail view. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	bool bShowDetailViewOptionInBindingPanel = true;
+
 	/** Permission list for filtering which execution mode is allowed. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	EMVVMDeveloperConversionFunctionFilterType ConversionFunctionFilter = EMVVMDeveloperConversionFunctionFilterType::BlueprintActionRegistry;

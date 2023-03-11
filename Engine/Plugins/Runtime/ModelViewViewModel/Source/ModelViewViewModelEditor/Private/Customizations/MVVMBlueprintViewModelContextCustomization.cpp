@@ -8,6 +8,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyAccessEditor.h"
 #include "IPropertyTypeCustomization.h"
+#include "MVVMDeveloperProjectSettings.h"
 #include "MVVMEditorSubsystem.h"
 #include "PropertyHandle.h"
 
@@ -130,6 +131,7 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 	FName Name_ViewModelName = GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewModelContext, ViewModelName);
 	FName Name_ViewModelPropertyPath = GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewModelContext, ViewModelPropertyPath);
 	FName Name_CreationType = GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewModelContext, CreationType);
+	FName Name_CreateSetterFunction = GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewModelContext, bCreateSetterFunction);
 
 	FGuid ViewModelContextId;
 	FName ViewModelPropertyName;
@@ -275,6 +277,13 @@ void FBlueprintViewModelContextDetailCustomization::CustomizeChildren(TSharedRef
 							.ToolTipText(this, &FBlueprintViewModelContextDetailCustomization::GetExecutionTypeValueToolTip)
 						]
 					];
+			}
+			else if (PropertyName == Name_CreateSetterFunction)
+			{
+				if (GetDefault<UMVVMDeveloperProjectSettings>()->bAllowGeneratedViewModelSetter)
+				{
+					ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+				}
 			}
 			else
 			{

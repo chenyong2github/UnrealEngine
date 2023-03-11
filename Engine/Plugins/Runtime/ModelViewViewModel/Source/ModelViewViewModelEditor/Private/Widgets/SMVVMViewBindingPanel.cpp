@@ -7,6 +7,7 @@
 #include "IDetailsView.h"
 #include "WidgetBlueprintToolMenuContext.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMDeveloperProjectSettings.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "Customizations/MVVMConversionPathCustomization.h"
 #include "Customizations/MVVMPropertyPathCustomization.h"
@@ -297,18 +298,22 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 
 		ToolbarBuilderGlobal.BeginSection("Options");
 
-		ToolbarBuilderGlobal.AddToolBarButton(
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SBindingsPanel::ToggleDetailsVisibility),
-				FCanExecuteAction(),
-				FGetActionCheckState::CreateSP(this, &SBindingsPanel::GetDetailsVisibleCheckState)
-			),
-			"ToggleDetails",
-			LOCTEXT("Details", "Details"),
-			LOCTEXT("DetailsToolTip", "Open Details View"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "WorldBrowser.DetailsButtonBrush"),
-			EUserInterfaceActionType::ToggleButton
-		);
+		if (GetDefault<UMVVMDeveloperProjectSettings>()->bShowDetailViewOptionInBindingPanel)
+		{
+			ToolbarBuilderGlobal.AddToolBarButton(
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SBindingsPanel::ToggleDetailsVisibility),
+					FCanExecuteAction(),
+					FGetActionCheckState::CreateSP(this, &SBindingsPanel::GetDetailsVisibleCheckState)
+				),
+				"ToggleDetails",
+				LOCTEXT("Details", "Details"),
+				LOCTEXT("DetailsToolTip", "Open Details View"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "WorldBrowser.DetailsButtonBrush"),
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+
 		ToolbarBuilderGlobal.EndSection();
 	}
 
