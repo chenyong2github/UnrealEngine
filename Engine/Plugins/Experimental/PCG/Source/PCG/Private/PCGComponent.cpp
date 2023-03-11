@@ -10,6 +10,7 @@
 #include "PCGManagedResource.h"
 #include "PCGParamData.h"
 #include "PCGSubsystem.h"
+#include "Data/PCGCollisionShapeData.h"
 #include "Data/PCGDifferenceData.h"
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGLandscapeData.h"
@@ -2254,11 +2255,24 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 		{
 			for (UShapeComponent* ShapeComponent : Shapes)
 			{
-				UPCGPrimitiveData* ShapeData = NewObject<UPCGPrimitiveData>();
-				ShapeData->Initialize(ShapeComponent);
+				UPCGSpatialData* Data = nullptr;
+				if (UPCGCollisionShapeData::IsSupported(ShapeComponent))
+				{
+					UPCGCollisionShapeData* ShapeData = NewObject<UPCGCollisionShapeData>();
+					ShapeData->Initialize(ShapeComponent);
+
+					Data = ShapeData;
+				}
+				else
+				{
+					UPCGPrimitiveData* ShapeData = NewObject<UPCGPrimitiveData>();
+					ShapeData->Initialize(ShapeComponent);
+
+					Data = ShapeData;
+				}
 
 				FPCGTaggedData& TaggedData = Collection.TaggedData.Emplace_GetRef();
-				TaggedData.Data = ShapeData;
+				TaggedData.Data = Data;
 				Algo::Transform(ShapeComponent->ComponentTags, TaggedData.Tags, NameTagsToStringTags);
 				TaggedData.Tags.Append(ActorTags);
 			}

@@ -10,11 +10,13 @@ namespace UnrealBuildTool.Rules
 
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
+					"Chaos",
 					"Core",
 					"CoreUObject",
 					"Engine",
 					"Landscape",
 					"Foliage",
+					"PhysicsCore",
 					"Projects",
 					"RenderCore",
 					"RHI",
