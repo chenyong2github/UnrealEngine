@@ -6,6 +6,7 @@
 #include "RHI.h"
 
 struct FStaticMeshBuildVertex;
+struct FConstMeshBuildVertexView;
 
 /** A vertex that stores just position. */
 struct FPositionVertex

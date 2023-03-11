@@ -989,7 +989,7 @@ void BuildVertexBuffer(
 
 			FPendingVertex PendingVertex;
 
-			PendingVertex.Position = FVector3f(VertexPosition * BuildSettings.BuildScale3D);
+			PendingVertex.Position = VertexPosition * BuildScale;
 			if (bNeedTangents)
 			{
 				PendingVertex.TangentX = VertexInstanceTangent / BuildScale;

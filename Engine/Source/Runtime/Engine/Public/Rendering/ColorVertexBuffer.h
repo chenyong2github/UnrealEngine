@@ -7,6 +7,7 @@
 #include "RHI.h"
 
 struct FStaticMeshBuildVertex;
+struct FConstMeshBuildVertexView;
 
 /**
 * A vertex buffer of colors.

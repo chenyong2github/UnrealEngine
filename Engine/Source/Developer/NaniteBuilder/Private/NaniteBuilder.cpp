@@ -489,7 +489,7 @@ static void CalculateCompressedNaniteDiskSize(FResources& Resources, int32& OutU
 #endif
 
 void TessellateAndDisplace(
-	TArray< FStaticMeshBuildVertex >& Verts,
+	FMeshBuildVertexData& Verts,
 	TArray< uint32 >& Indexes,
 	TArray< int32 >& MaterialIndexes,
 	const FBounds3f& MeshBounds,
