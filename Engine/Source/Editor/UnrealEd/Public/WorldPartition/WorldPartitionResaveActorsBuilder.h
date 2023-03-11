@@ -46,6 +46,9 @@ private:
 	bool bEnableActorFolders;
 
 	UPROPERTY()
+	bool bResaveBlueprints;
+
+	UPROPERTY()
 	TSet<FName> ActorTags;
 
 	UPROPERTY()
