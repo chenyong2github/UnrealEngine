@@ -1350,6 +1350,10 @@ namespace UnrealBuildTool
 				// The CPU has more logical cores than physical ones, aka uses hyper-threading. 
 				// Use multiplier if provided
 				MaxActionsToExecuteInParallel = (int)(NumPhysicalCores * ProcessorCountMultiplier);
+
+				// make sure we don't try to run more actions than cores we have
+				MaxActionsToExecuteInParallel = Math.Min(MaxActionsToExecuteInParallel, Math.Max(NumLogicalCores, NumPhysicalCores));
+
 				Log.TraceInformationOnce($"  Requested {ProcessorCountMultiplier} process count multiplier: limiting max parallel actions to {MaxActionsToExecuteInParallel}");
 			}
 			else if (ConsiderLogicalCores && NumLogicalCores > NumPhysicalCores)
