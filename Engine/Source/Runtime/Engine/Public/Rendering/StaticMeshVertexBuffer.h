@@ -170,18 +170,27 @@ public:
 	* @param Flags - Options for Init ; FStaticMeshVertexBufferFlags can be default constructed for default options
 	*/
 	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, const FStaticMeshVertexBufferFlags & InInitFlags );
-	
+	ENGINE_API void Init(const FConstMeshBuildVertexView& InVertices, const FStaticMeshVertexBufferFlags& InInitFlags);
+
 	/**
 	* Initializes the buffer with the given vertices.
 	* @param InVertices - The vertices to initialize the buffer with.
 	* @param InNumTexCoords - The number of texture coordinate to store in the buffer.
 	* @param bNeedsCPUAccess - Whether the vertex data needs to be accessed by the CPU after creation (default true)
 	*/
-	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, bool bNeedsCPUAccess = true)
+	ENGINE_API void Init(const FConstMeshBuildVertexView& InVertices, bool bNeedsCPUAccess = true)
 	{
 		FStaticMeshVertexBufferFlags Flags;
 		Flags.bNeedsCPUAccess = bNeedsCPUAccess;
-		Init(InVertices,InNumTexCoords,Flags);
+		Init(InVertices, Flags);
+	}
+
+	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, bool bNeedsCPUAccess = true)
+	{
+		FConstMeshBuildVertexView VertexView = MakeConstMeshBuildVertexView(InVertices);
+		FStaticMeshVertexBufferFlags Flags;
+		Flags.bNeedsCPUAccess = bNeedsCPUAccess;
+		Init(VertexView, Flags);
 	}
 
 	/**

@@ -147,7 +147,7 @@ struct FGeometryCollectionBuiltMeshData
 {
 	uint32 NumTexCoords = 0;
 	TArray<uint32> Indices;
-	TArray<FStaticMeshBuildVertex> Vertices;
+	FMeshBuildVertexData Vertices;
 	TArray<uint16> BonesPerVertex;
 	TArray<int32> MaterialsPerTriangle;
 	TArray<bool> InternalPerTriangle;
@@ -179,11 +179,13 @@ void BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 	const TManagedArray<int32>& FaceStartArray = InCollection.FaceStart;
 	const TManagedArray<int32>& FaceCountArray = InCollection.FaceCount;
 
-	const uint32 NumTexCoords = InCollection.NumUVLayers();
+	const int32 NumTexCoords = InCollection.NumUVLayers();
 	const bool bHasColors = ColorArray.Num() > 0;
 
 	// Iterate geometry groups and collect vertices.
-	TArray<FStaticMeshBuildVertex> BuildVertices;
+	FMeshBuildVertexData BuildVertexData;
+	BuildVertexData.UVs.SetNum(NumTexCoords);
+
 	TArray<uint16> BonesPerVertex;
 	TArray<int32> DestVertexStarts;
 
@@ -199,7 +201,21 @@ void BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 			NumBuildVertices += VertexCountArray[GeometryGroupIndex];
 		}
 
-		BuildVertices.AddUninitialized(NumBuildVertices);
+		BuildVertexData.Position.AddUninitialized(NumBuildVertices);
+		BuildVertexData.TangentX.AddUninitialized(NumBuildVertices);
+		BuildVertexData.TangentY.AddUninitialized(NumBuildVertices);
+		BuildVertexData.TangentZ.AddUninitialized(NumBuildVertices);
+
+		for (int32 TexCoord = 0; TexCoord < NumTexCoords; ++TexCoord)
+		{
+			BuildVertexData.UVs[TexCoord].AddUninitialized(NumBuildVertices);
+		}
+
+		if (bHasColors)
+		{
+			BuildVertexData.Color.AddUninitialized(NumBuildVertices);
+		}
+
 		BonesPerVertex.AddUninitialized(NumBuildVertices);
 
 		ParallelFor(NumGeometry, [&](int32 GeometryGroupIndex)
@@ -210,25 +226,45 @@ void BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 
 			ParallelFor(TEXT("GC:BuildVertices"), VertexCount, 500, [&](int32 VertexIndex)
 			{
-				FStaticMeshBuildVertex& Vertex = BuildVertices[DestVertexStart + VertexIndex];
-				Vertex.Position = VertexArray[VertexStart + VertexIndex];
-				Vertex.Color = bHasColors ? ColorArray[VertexStart + VertexIndex].ToFColor(false /* sRGB */) : FColor::White;
-				Vertex.TangentX = FVector3f::ZeroVector;
-				Vertex.TangentY = FVector3f::ZeroVector;
-				Vertex.TangentZ = NormalArray[VertexStart + VertexIndex];
-				for (int32 UVIdx = 0; UVIdx < UVsLayers.Num(); ++UVIdx)
+				BuildVertexData.Position[DestVertexStart + VertexIndex] = VertexArray[VertexStart + VertexIndex];
+				BuildVertexData.TangentX[DestVertexStart + VertexIndex] = FVector3f::ZeroVector;
+				BuildVertexData.TangentY[DestVertexStart + VertexIndex] = FVector3f::ZeroVector;
+				BuildVertexData.TangentZ[DestVertexStart + VertexIndex] = NormalArray[VertexStart + VertexIndex];
+
+				if (bHasColors)
 				{
-					Vertex.UVs[UVIdx] = UVsLayers[UVIdx][VertexStart + VertexIndex];
-					if (Vertex.UVs[UVIdx].ContainsNaN())
+					BuildVertexData.Color[DestVertexStart + VertexIndex] = ColorArray[VertexStart + VertexIndex].ToFColor(false /* sRGB */);
+				}
+
+				for (int32 TexCoord = 0; TexCoord < NumTexCoords; ++TexCoord)
+				{
+					FVector2f UV = UVsLayers[TexCoord][VertexStart + VertexIndex];
+					if (UV.ContainsNaN())
 					{
-						Vertex.UVs[UVIdx] = FVector2f::ZeroVector;
+						UV = FVector2f::ZeroVector;
 					}
+					BuildVertexData.UVs[TexCoord].Emplace(UV);
 				}
 
 				const int32 BoneIndex = BoneMapArray[VertexStart + VertexIndex];
 				BonesPerVertex[DestVertexStart + VertexIndex] = (uint16)BoneIndex;
 			});
 		});
+	}
+
+	bool bAllOpaqueWhite = true;
+	for (const FColor& Color : BuildVertexData.Color)
+	{
+		if (Color != FColor::White)
+		{
+			bAllOpaqueWhite = false;
+			break;
+		}
+	}
+
+	if (bAllOpaqueWhite)
+	{
+		BuildVertexData.Color.Empty();
 	}
 
 	// Iterate geometry groups and collect indices.
@@ -265,9 +301,9 @@ void BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 				FaceIndices = FaceIndices + FIntVector(DestVertexOffset);
 
 				// Remove degenerates.
-				if (BuildVertices[FaceIndices[0]].Position == BuildVertices[FaceIndices[1]].Position ||
-					BuildVertices[FaceIndices[1]].Position == BuildVertices[FaceIndices[2]].Position ||
-					BuildVertices[FaceIndices[2]].Position == BuildVertices[FaceIndices[0]].Position)
+				if (BuildVertexData.Position[FaceIndices[0]] == BuildVertexData.Position[FaceIndices[1]] ||
+					BuildVertexData.Position[FaceIndices[1]] == BuildVertexData.Position[FaceIndices[2]] ||
+					BuildVertexData.Position[FaceIndices[2]] == BuildVertexData.Position[FaceIndices[0]])
 				{
 					continue;
 				}
@@ -288,7 +324,7 @@ void BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 
 	OutMeshData.NumTexCoords = NumTexCoords;
 	OutMeshData.Indices = MoveTemp(BuildIndices);
-	OutMeshData.Vertices = MoveTemp(BuildVertices);
+	OutMeshData.Vertices = MoveTemp(BuildVertexData);
 	OutMeshData.BonesPerVertex = MoveTemp(BonesPerVertex);
 	OutMeshData.MaterialsPerTriangle = MoveTemp(MaterialsPerFace);
 	OutMeshData.InternalPerTriangle = MoveTemp(InternalPerFace);
@@ -554,15 +590,17 @@ void CreateMeshData(FGeometryCollection& InCollection, FGeometryCollectionBuiltM
 
 	OutRenderData.bHasMeshData = true;
 
-	OutRenderData.MeshDescription.NumVertices = InMeshData.Vertices.Num();
+	OutRenderData.MeshDescription.NumVertices = InMeshData.Vertices.Position.Num();
 	OutRenderData.MeshDescription.NumTriangles = InMeshData.Indices.Num() / 3;
+
+	const FConstMeshBuildVertexView VertexView = MakeConstMeshBuildVertexView(InMeshData.Vertices);
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FGeometryCollectionRenderData::BufferInit);
-		OutRenderData.MeshResource.PositionVertexBuffer.Init(InMeshData.Vertices);
+		OutRenderData.MeshResource.PositionVertexBuffer.Init(VertexView);
 		OutRenderData.MeshResource.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(bInUseFullPrecisionUVs);
-		OutRenderData.MeshResource.StaticMeshVertexBuffer.Init(InMeshData.Vertices, InMeshData.NumTexCoords);
-		OutRenderData.MeshResource.ColorVertexBuffer.Init(InMeshData.Vertices);
+		OutRenderData.MeshResource.StaticMeshVertexBuffer.Init(VertexView);
+		OutRenderData.MeshResource.ColorVertexBuffer.Init(VertexView);
 		OutRenderData.MeshResource.BoneMapVertexBuffer.Init(InMeshData.BonesPerVertex);
 	}
 
@@ -598,14 +636,33 @@ void CreateNaniteData(FGeometryCollectionBuiltMeshData& InMeshData, FGeometryCol
 
 	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
 
+	// Sections are left empty because they are not used (not building a coarse representation)
+
+	Nanite::IBuilderModule::FInputMeshData InputMeshData;
+	InputMeshData.Vertices = MoveTemp(InMeshData.Vertices);
+	InputMeshData.TriangleIndices = MoveTemp(InMeshData.Indices);
+	InputMeshData.MaterialIndices = MoveTemp(InMeshData.MaterialsPerTriangle);
+	InputMeshData.TriangleCounts = MoveTemp(InMeshData.MeshTriangleCounts);
+	InputMeshData.NumTexCoords = InMeshData.NumTexCoords;
+
+	auto OnFreeInputMeshData = Nanite::IBuilderModule::FOnFreeInputMeshData::CreateLambda([&InputMeshData](bool bFallbackIsReduced)
+	{
+		if (bFallbackIsReduced)
+		{
+			InputMeshData.Vertices.Empty();
+			InputMeshData.TriangleIndices.Empty();
+		}
+
+		InputMeshData.MaterialIndices.Empty();
+	});
+
+	TArrayView<Nanite::IBuilderModule::FOutputMeshData> OutputLODMeshData;
 	if (!NaniteBuilderModule.Build(
 		OutRenderData.NaniteResource,
-		InMeshData.Vertices,
-		InMeshData.Indices,
-		InMeshData.MaterialsPerTriangle,
-		InMeshData.MeshTriangleCounts,
-		InMeshData.NumTexCoords,
-		NaniteSettings))
+		InputMeshData,
+		OutputLODMeshData,
+		NaniteSettings,
+		OnFreeInputMeshData))
 	{
 		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for geometry collection. See previous line(s) for details."));
 	}

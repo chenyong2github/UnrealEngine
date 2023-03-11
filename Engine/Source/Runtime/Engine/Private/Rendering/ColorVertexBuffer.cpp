@@ -85,38 +85,17 @@ void FColorVertexBuffer::Init(uint32 InNumVertices, bool bNeedsCPUAccess)
 */
 void FColorVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertices, bool bNeedsCPUAccess)
 {
-	// First, make sure that there is at least one non-default vertex color in the original data.
-	const int32 InVertexCount = InVertices.Num();
+	const FConstMeshBuildVertexView VertexView = MakeConstMeshBuildVertexView(InVertices);
+	Init(VertexView, bNeedsCPUAccess);
+}
+
+void FColorVertexBuffer::Init(const FConstMeshBuildVertexView& InVertices, bool bNeedsCPUAccess)
+{
 	NeedsCPUAccess = bNeedsCPUAccess;
-	bool bAllColorsAreOpaqueWhite = true;
-	bool bAllColorsAreEqual = true;
 
-	if( InVertexCount > 0 )
-	{
-		const FColor FirstColor = InVertices[ 0 ].Color;
+	const int32 ColorCount = InVertices.Color.Num();
 
-		for( int32 CurVertexIndex = 0; CurVertexIndex < InVertexCount; ++CurVertexIndex )
-		{
-			const FColor CurColor = InVertices[ CurVertexIndex ].Color;
-
-			if( CurColor.R != 255 || CurColor.G != 255 || CurColor.B != 255 || CurColor.A != 255 )
-			{
-				bAllColorsAreOpaqueWhite = false;
-			}
-
-			if( CurColor.R != FirstColor.R || CurColor.G != FirstColor.G || CurColor.B != FirstColor.B || CurColor.A != FirstColor.A )
-			{
-				bAllColorsAreEqual = false;
-			}
-
-			if( !bAllColorsAreEqual && !bAllColorsAreOpaqueWhite )
-			{
-				break;
-			}
-		}
-	}
-
-	if( bAllColorsAreOpaqueWhite )
+	if (ColorCount == 0)
 	{
 		// Ensure no vertex data is allocated.
 		CleanUp();
@@ -127,14 +106,12 @@ void FColorVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertices, 
 	}
 	else
 	{
-		Init(InVertexCount, bNeedsCPUAccess);
+		Init(ColorCount, bNeedsCPUAccess);
 
-		// Copy the vertices into the buffer.
-		for(int32 VertexIndex = 0;VertexIndex < InVertices.Num();VertexIndex++)
+		// Copy the vertex colors into the buffer.
+		for (int32 VertexIndex = 0;VertexIndex < ColorCount; ++VertexIndex)
 		{
-			const FStaticMeshBuildVertex& SourceVertex = InVertices[VertexIndex];
-			const uint32 DestVertexIndex = VertexIndex;
-			VertexColor(DestVertexIndex) = SourceVertex.Color;
+			VertexColor(VertexIndex) = InVertices.Color[VertexIndex];
 		}
 	}
 }

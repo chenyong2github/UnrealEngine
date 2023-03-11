@@ -47,9 +47,9 @@ class FCluster
 public:
 	FCluster() {}
 	FCluster(
-		const TArray< FStaticMeshBuildVertex >& InVerts,
-		const TArrayView< const uint32 >& InIndexes,
-		const TArrayView< const int32 >& InMaterialIndexes,
+		const FConstMeshBuildVertexView& InVerts,
+		const TConstArrayView< const uint32 >& InIndexes,
+		const TConstArrayView< const int32 >& InMaterialIndexes,
 		uint32 InNumTexCoords, bool bInHasColors, bool bInPreserveArea,
 		uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency );
 

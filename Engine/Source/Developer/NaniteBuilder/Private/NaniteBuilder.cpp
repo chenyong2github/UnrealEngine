@@ -60,19 +60,15 @@ public:
 
 	virtual bool Build(
 		FResources& Resources,
-		TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
-		TArray<uint32>& TriangleIndices,
-		TArray<int32>& MaterialIndices,
-		TArray<uint32>& MeshTriangleCounts,
-		uint32 NumTexCoords,
-		const FMeshNaniteSettings& Settings) override;
+		FInputMeshData& InputMeshData,
+		TArrayView<FOutputMeshData> OutputLODMeshData,
+		const FMeshNaniteSettings& Settings,
+		FOnFreeInputMeshData OnFreeInputMeshData) override;
 
-	virtual bool Build(
-		FResources& Resources,
-		FVertexMeshData& InputMeshData,
-		TArrayView< FVertexMeshData > OutputLODMeshData,
-		uint32 NumTexCoords,
-		const FMeshNaniteSettings& Settings) override;
+	virtual bool BuildMaterialIndices(
+		const FStaticMeshSectionArray& SectionArray,
+		const uint32 TriangleCount,
+		TArray<int32>& OutMaterialIndices) override;
 };
 
 const FString& FBuilderModule::GetVersionString() const
@@ -114,8 +110,8 @@ namespace Nanite
 
 struct FMeshData
 {
-	TArray< FStaticMeshBuildVertex >&	Verts;
-	TArray< uint32 >&					Indexes;
+	FMeshBuildVertexView Verts;
+	TArray<uint32>& Indexes;
 };
 
 static int MikkGetNumFaces( const SMikkTSpaceContext* Context )
@@ -131,41 +127,42 @@ static int MikkGetNumVertsOfFace( const SMikkTSpaceContext* Context, const int F
 
 static void MikkGetPosition( const SMikkTSpaceContext* Context, float Position[3], const int FaceIdx, const int VertIdx )
 {
-	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
+	FMeshData* UserData = (FMeshData*)Context->m_pUserData;
 	for( int32 i = 0; i < 3; i++ )
-		Position[i] = UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].Position[i];
+		Position[i] = UserData->Verts.Position[UserData->Indexes[FaceIdx * 3 + VertIdx]][i];
 }
 
 static void MikkGetNormal( const SMikkTSpaceContext* Context, float Normal[3], const int FaceIdx, const int VertIdx )
 {
-	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
+	FMeshData* UserData = (FMeshData*)Context->m_pUserData;
 	for( int32 i = 0; i < 3; i++ )
-		Normal[i] = UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentZ[i];
+		Normal[i] = UserData->Verts.TangentZ[UserData->Indexes[FaceIdx * 3 + VertIdx]][i];
 }
 
 static void MikkSetTSpaceBasic( const SMikkTSpaceContext* Context, const float Tangent[3], const float BitangentSign, const int FaceIdx, const int VertIdx )
 {
-	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
+	FMeshData* UserData = (FMeshData*)Context->m_pUserData;
 	for( int32 i = 0; i < 3; i++ )
-		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentX[i] = Tangent[i];
+		UserData->Verts.TangentX[ UserData->Indexes[FaceIdx * 3 + VertIdx]][i] = Tangent[i];
 
 	FVector3f Bitangent = BitangentSign * FVector3f::CrossProduct(
-		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentZ,
-		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentX );
+		UserData->Verts.TangentZ[UserData->Indexes[FaceIdx * 3 + VertIdx]],
+		UserData->Verts.TangentX[UserData->Indexes[FaceIdx * 3 + VertIdx]]
+	);
 
 	for( int32 i = 0; i < 3; i++ )
-		UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].TangentY[i] = -Bitangent[i];
+		UserData->Verts.TangentY[UserData->Indexes[FaceIdx * 3 + VertIdx]][i] = -Bitangent[i];
 }
 
 static void MikkGetTexCoord( const SMikkTSpaceContext* Context, float UV[2], const int FaceIdx, const int VertIdx )
 {
 	FMeshData *UserData = (FMeshData*)Context->m_pUserData;
 	for( int32 i = 0; i < 2; i++ )
-		UV[i] = UserData->Verts[ UserData->Indexes[ FaceIdx * 3 + VertIdx ] ].UVs[0][i];
+		UV[i] = UserData->Verts.UVs[0][UserData->Indexes[ FaceIdx * 3 + VertIdx ]][i];
 }
 
 void CalcTangents(
-	TArray< FStaticMeshBuildVertex >& Verts,
+	FMeshBuildVertexView& Verts,
 	TArray< uint32 >& Indexes )
 {
 #if WITH_MIKKTSPACE
@@ -193,7 +190,7 @@ void CalcTangents(
 static float BuildCoarseRepresentation(
 	const TArray<FClusterGroup>& Groups,
 	const TArray<FCluster>& Clusters,
-	TArray<FStaticMeshBuildVertex>& Verts,
+	FMeshBuildVertexData& Verts,
 	TArray<uint32>& Indexes,
 	TArray<FStaticMeshSection, TInlineAllocator<1>>& Sections,
 	uint32& NumTexCoords,
@@ -231,24 +228,25 @@ static float BuildCoarseRepresentation(
 	NumTexCoords = CoarseRepresentation.NumTexCoords;
 
 	// Rebuild vertex data
-	Verts.Empty(CoarseRepresentation.NumVerts);
+	Verts.Empty(CoarseRepresentation.NumVerts, NumTexCoords);
+
 	for (uint32 Iter = 0, Num = CoarseRepresentation.NumVerts; Iter < Num; ++Iter)
 	{
-		FStaticMeshBuildVertex Vertex = {};
-		Vertex.Position = CoarseRepresentation.GetPosition(Iter);
-		Vertex.TangentX = FVector3f::ZeroVector;
-		Vertex.TangentY = FVector3f::ZeroVector;
-		Vertex.TangentZ = CoarseRepresentation.GetNormal(Iter);
+		Verts.Position.Emplace(CoarseRepresentation.GetPosition(Iter));
+		Verts.TangentX.Emplace(FVector3f::ZeroVector);
+		Verts.TangentY.Emplace(FVector3f::ZeroVector);
+		Verts.TangentZ.Emplace(CoarseRepresentation.GetNormal(Iter));
 
 		const FVector2f* UVs = CoarseRepresentation.GetUVs(Iter);
 		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; ++UVIndex)
 		{
-			Vertex.UVs[UVIndex] = UVs[UVIndex].ContainsNaN() ? FVector2f::ZeroVector : UVs[UVIndex];
+			Verts.UVs[UVIndex].Emplace(UVs[UVIndex].ContainsNaN() ? FVector2f::ZeroVector : UVs[UVIndex]);
 		}
-
-		Vertex.Color = CoarseRepresentation.bHasColors ? CoarseRepresentation.GetColor(Iter).ToFColor(false /* sRGB */) : FColor::White;
 		
-		Verts.Add(Vertex);
+		if (CoarseRepresentation.bHasColors)
+		{
+			Verts.Color.Emplace(CoarseRepresentation.GetColor(Iter).ToFColor(false /* sRGB */));
+		}
 	}
 
 	TArray<FMaterialTriangle, TInlineAllocator<128>> CoarseMaterialTris;
@@ -310,15 +308,16 @@ static float BuildCoarseRepresentation(
 		Indexes.Add(Triangle.Index2);
 	}
 
-	CalcTangents(Verts, Indexes);
+	FMeshBuildVertexView VertexView = MakeMeshBuildVertexView(Verts);
+	CalcTangents(VertexView, Indexes);
 
 	return OutError;
 }
 
 static void ClusterTriangles(
-	const TArray< FStaticMeshBuildVertex >& Verts,
-	const TArrayView< const uint32 >& Indexes,
-	const TArrayView< const int32 >& MaterialIndexes,
+	const FConstMeshBuildVertexView& Verts,
+	const TConstArrayView< const uint32 >& Indexes,
+	const TConstArrayView< const int32 >& MaterialIndexes,
 	TArray< FCluster >& Clusters,	// Append
 	const FBounds3f& MeshBounds,
 	uint32 NumTexCoords,
@@ -339,7 +338,7 @@ static void ClusterTriangles(
 
 	auto GetPosition = [ &Verts, &Indexes ]( uint32 EdgeIndex )
 	{
-		return Verts[ Indexes[ EdgeIndex ] ].Position;
+		return Verts.Position[ Indexes[ EdgeIndex ] ];
 	};
 
 	ParallelFor( TEXT("Nanite.ClusterTriangles.PF"), Indexes.Num(), 4096,
@@ -408,9 +407,9 @@ static void ClusterTriangles(
 		auto GetCenter = [ &Verts, &Indexes ]( uint32 TriIndex )
 		{
 			FVector3f Center;
-			Center  = Verts[ Indexes[ TriIndex * 3 + 0 ] ].Position;
-			Center += Verts[ Indexes[ TriIndex * 3 + 1 ] ].Position;
-			Center += Verts[ Indexes[ TriIndex * 3 + 2 ] ].Position;
+			Center  = Verts.Position[ Indexes[ TriIndex * 3 + 0 ] ];
+			Center += Verts.Position[ Indexes[ TriIndex * 3 + 1 ] ];
+			Center += Verts.Position[ Indexes[ TriIndex * 3 + 2 ] ];
 			return Center * (1.0f / 3.0f);
 		};
 		Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, MaterialIndexes, GetCenter );
@@ -496,56 +495,46 @@ void TessellateAndDisplace(
 	const FBounds3f& MeshBounds,
 	const FMeshNaniteSettings& Settings );
 
-static bool BuildNaniteData(
+bool FBuilderModule::Build(
 	FResources& Resources,
-	IBuilderModule::FVertexMeshData& InputMeshData,
-	TArray< int32 >& MaterialIndexes,
-	TArray< uint32 >& MeshTriangleCounts,
-	TArrayView< IBuilderModule::FVertexMeshData >& OutputLODMeshData,
-	uint32 NumTexCoords,
-	const FMeshNaniteSettings& Settings
+	IBuilderModule::FInputMeshData& InputMeshData,
+	TArrayView<IBuilderModule::FOutputMeshData> OutputLODMeshData,
+	const FMeshNaniteSettings& Settings,
+	IBuilderModule::FOnFreeInputMeshData OnFreeInputMeshData
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::BuildData);
 
-	if (NumTexCoords > NANITE_MAX_UVS)
+	if (InputMeshData.NumTexCoords > NANITE_MAX_UVS)
 	{
-		NumTexCoords = NANITE_MAX_UVS;
+		InputMeshData.NumTexCoords = NANITE_MAX_UVS;
 	}
 
-	FBounds3f	VertexBounds;
-	uint32 Channel = 255;
-	for( auto& Vert : InputMeshData.Vertices )
+	FBounds3f VertexBounds
 	{
-		VertexBounds += Vert.Position;
+		FVector3f(InputMeshData.VertexBounds.Origin - InputMeshData.VertexBounds.BoxExtent),
+		FVector3f(InputMeshData.VertexBounds.Origin + InputMeshData.VertexBounds.BoxExtent)
+	};
 
-		Channel &= Vert.Color.R;
-		Channel &= Vert.Color.G;
-		Channel &= Vert.Color.B;
-		Channel &= Vert.Color.A;
-	}
-	
-	if( MeshTriangleCounts.Num() == 1 && Settings.TrimRelativeError != 0.0f )
+	if( InputMeshData.TriangleCounts.Num() == 1 && Settings.TrimRelativeError != 0.0f )
 	{
 		uint32 Time0 = FPlatformTime::Cycles();
 
-		TessellateAndDisplace( InputMeshData.Vertices, InputMeshData.TriangleIndices, MaterialIndexes, VertexBounds, Settings );
-		MeshTriangleCounts[0] = InputMeshData.TriangleIndices.Num() / 3;
+		TessellateAndDisplace( InputMeshData.Vertices, InputMeshData.TriangleIndices, InputMeshData.MaterialIndices, VertexBounds, Settings );
+		InputMeshData.TriangleCounts[0] = InputMeshData.TriangleIndices.Num() / 3;
 
 		uint32 Time1 = FPlatformTime::Cycles();
-		UE_LOG( LogStaticMesh, Log, TEXT("Adaptive tessellate [%.2fs], tris: %i"), FPlatformTime::ToMilliseconds( Time1 - Time0 ) / 1000.0f, MeshTriangleCounts[0] );
+		UE_LOG( LogStaticMesh, Log, TEXT("Adaptive tessellate [%.2fs], tris: %i"), FPlatformTime::ToMilliseconds( Time1 - Time0 ) / 1000.0f, InputMeshData.TriangleCounts[0] );
 	}
 
 	Resources.NumInputTriangles	= InputMeshData.TriangleIndices.Num() / 3;
-	Resources.NumInputVertices	= InputMeshData.Vertices.Num();
-	Resources.NumInputMeshes	= MeshTriangleCounts.Num();
-	Resources.NumInputTexCoords = NumTexCoords;
-
-	// Don't trust any input. We only have color if it isn't all white.
-	const bool bHasVertexColor = Channel != 255;
+	Resources.NumInputVertices	= InputMeshData.Vertices.Position.Num();
+	Resources.NumInputMeshes	= InputMeshData.TriangleCounts.Num();
+	Resources.NumInputTexCoords = InputMeshData.NumTexCoords;
 
 	Resources.ResourceFlags = 0x0;
 
+	const bool bHasVertexColor = InputMeshData.Vertices.Color.Num() == InputMeshData.Vertices.Position.Num();
 	if (bHasVertexColor)
 	{
 		Resources.ResourceFlags |= NANITE_RESOURCE_FLAG_HAS_VERTEX_COLOR;
@@ -569,17 +558,19 @@ static bool BuildNaniteData(
 	TArray< uint32 > ClusterCountPerMesh;
 	TArray< FCluster > Clusters;
 	{
+		FConstMeshBuildVertexView VertexView = MakeConstMeshBuildVertexView(InputMeshData.Vertices);
+
 		uint32 BaseTriangle = 0;
-		for (uint32 NumTriangles : MeshTriangleCounts)
+		for (uint32 NumTriangles : InputMeshData.TriangleCounts)
 		{
 			uint32 NumClustersBefore = Clusters.Num();
 			if (NumTriangles)
 			{
 				ClusterTriangles(
-					InputMeshData.Vertices,
-					TArrayView< const uint32 >( &InputMeshData.TriangleIndices[BaseTriangle * 3], NumTriangles * 3 ),
-					TArrayView< const int32 >( &MaterialIndexes[BaseTriangle], NumTriangles ),
-					Clusters, VertexBounds, NumTexCoords, bHasVertexColor, Settings.bPreserveArea );
+					VertexView,
+					TConstArrayView<const uint32>( &InputMeshData.TriangleIndices[BaseTriangle * 3], NumTriangles * 3 ),
+					TConstArrayView<const int32>( &InputMeshData.MaterialIndices[BaseTriangle], NumTriangles ),
+					Clusters, VertexBounds, InputMeshData.NumTexCoords, bHasVertexColor, Settings.bPreserveArea );
 			}
 			ClusterCountPerMesh.Add(Clusters.Num() - NumClustersBefore);
 			BaseTriangle += NumTriangles;
@@ -598,12 +589,7 @@ static bool BuildNaniteData(
 	// If we're going to replace the original vertex buffer with a coarse representation, get rid of the old copies
 	// now that we copied it into the cluster representation. We do it before the longer DAG reduce phase to shorten peak memory duration.
 	// This is especially important when building multiple huge Nanite meshes in parallel.
-	if( bFallbackIsReduced )
-	{
-		InputMeshData.Vertices.Empty();
-		InputMeshData.TriangleIndices.Empty();
-	}
-	MaterialIndexes.Empty();
+	OnFreeInputMeshData.ExecuteIfBound(bFallbackIsReduced);
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
@@ -674,14 +660,24 @@ static bool BuildNaniteData(
 
 		if( !bFallbackIsReduced && FallbackLODIndex == 0 )
 		{
-			Swap( FallbackLODMeshData.Vertices,			InputMeshData.Vertices );
-			Swap( FallbackLODMeshData.TriangleIndices,	InputMeshData.TriangleIndices );
+			Swap(FallbackLODMeshData.Vertices, InputMeshData.Vertices);
+			Swap(FallbackLODMeshData.TriangleIndices, InputMeshData.TriangleIndices);
 			FallbackLODMeshData.MaxDeviation = 0.f;
 		}
 		else
 		{
 			TArray<FStaticMeshSection, TInlineAllocator<1>> FallbackSections = InputMeshData.Sections;
-			const float ReductionError = BuildCoarseRepresentation(Groups, Clusters, FallbackLODMeshData.Vertices, FallbackLODMeshData.TriangleIndices, FallbackSections, NumTexCoords, FallbackTargetNumTris, FallbackTargetError, FallbackLODIndex);
+			const float ReductionError = BuildCoarseRepresentation(
+				Groups,
+				Clusters,
+				FallbackLODMeshData.Vertices,
+				FallbackLODMeshData.TriangleIndices,
+				FallbackSections,
+				InputMeshData.NumTexCoords,
+				FallbackTargetNumTris,
+				FallbackTargetError,
+				FallbackLODIndex
+			);
 
 			FallbackLODMeshData.MaxDeviation = FallbackLODIndex == 0 ? 0.f : ReductionError / 8.f;
 
@@ -722,7 +718,7 @@ static bool BuildNaniteData(
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
 
-	Encode( Resources, Settings, Clusters, Groups, MeshBounds, Resources.NumInputMeshes, NumTexCoords, bHasVertexColor);
+	Encode( Resources, Settings, Clusters, Groups, MeshBounds, Resources.NumInputMeshes, InputMeshData.NumTexCoords, bHasVertexColor);
 
 	uint32 EncodeTime1 = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime1 - EncodeTime0 ) / 1000.0f );
@@ -778,85 +774,33 @@ static bool BuildNaniteData(
 	return true;
 }
 
-bool FBuilderModule::Build(
-	FResources& Resources,
-	TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
-	TArray<uint32>& TriangleIndices,
-	TArray<int32>&  MaterialIndices,
-	TArray<uint32>& MeshTriangleCounts,
-	uint32 NumTexCoords,
-	const FMeshNaniteSettings& Settings)
+bool FBuilderModule::BuildMaterialIndices(const FStaticMeshSectionArray& SectionArray, const uint32 TriangleCount, TArray<int32>& OutMaterialIndices)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build);
-
-	check(Settings.FallbackPercentTriangles == 1.0f); // No coarse representation used by this path
-
-	FVertexMeshData InputMeshData;
-	InputMeshData.Vertices = Vertices;
-	InputMeshData.TriangleIndices = TriangleIndices;
-	// Section are left empty because they are not touched anyway (not building a coarse representation)
-	
-	TArrayView< FVertexMeshData > EmptyOutputLODMeshData;
-	
-	return BuildNaniteData(
-		Resources,
-		InputMeshData,
-		MaterialIndices,
-		MeshTriangleCounts,
-		EmptyOutputLODMeshData,
-		NumTexCoords,
-		Settings
-	);
-}
-
-bool FBuilderModule::Build(
-	FResources& Resources,
-	FVertexMeshData& InputMeshData,
-	TArrayView< FVertexMeshData > OutputLODMeshData,
-	uint32 NumTexCoords,
-	const FMeshNaniteSettings& Settings)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build);
-
-	if (InputMeshData.Sections.IsEmpty() || InputMeshData.Sections.Num() > 64)
+	if (SectionArray.IsEmpty() || SectionArray.Num() > 64)
 	{
-		UE_LOG(LogStaticMesh, Log, TEXT("Unable to build Nanite data. Unsupported number of sections: %d."), InputMeshData.Sections.Num());
+		UE_LOG(LogStaticMesh, Log, TEXT("Unable to build Nanite data. Unsupported number of sections: %d."), SectionArray.Num());
 		return false;
 	}
 
 	// Build associated array of triangle index and material index.
-	TArray<int32> MaterialIndices;
+	OutMaterialIndices.Reset(TriangleCount);
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::BuildSections);
-		MaterialIndices.Reserve(InputMeshData.TriangleIndices.Num() / 3);
-		for (int32 SectionIndex = 0; SectionIndex < InputMeshData.Sections.Num(); SectionIndex++)
+		for (int32 SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
 		{
-			FStaticMeshSection& Section = InputMeshData.Sections[SectionIndex];
-
-			// TODO: Safe to enforce valid materials always?
-			check(Section.MaterialIndex != INDEX_NONE);
-			for (uint32 i = 0; i < Section.NumTriangles; ++i)
+			const FStaticMeshSection& Section = SectionArray[SectionIndex];
+			checkSlow(Section.MaterialIndex != INDEX_NONE);
+			for (uint32 Tri = 0; Tri < Section.NumTriangles; ++Tri)
 			{
-				MaterialIndices.Add(Section.MaterialIndex);
+				OutMaterialIndices.Add(Section.MaterialIndex);
 			}
 		}
 	}
 
-	TArray<uint32> MeshTriangleCounts;
-	MeshTriangleCounts.Add(InputMeshData.TriangleIndices.Num() / 3);
-
 	// Make sure there is 1 material index per triangle.
-	check(MaterialIndices.Num() * 3 == InputMeshData.TriangleIndices.Num());
+	check(OutMaterialIndices.Num() == TriangleCount);
 
-	return BuildNaniteData(
-		Resources,
-		InputMeshData,
-		MaterialIndices,
-		MeshTriangleCounts,
-		OutputLODMeshData,
-		NumTexCoords,
-		Settings
-	);
+	return true;
 }
 
 } // namespace Nanite

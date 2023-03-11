@@ -26,7 +26,7 @@ void BuildAllBufferOptimizations(
 	const struct FMeshBuildSettings& LODBuildSettings,
 	TArray< uint32 >& IndexBuffer,
 	bool bNeeds32BitIndices,
-	TArray< FStaticMeshBuildVertex >& StaticMeshBuildVertices
+	const FConstMeshBuildVertexView& BuildVertices
 );
 
 FStaticMeshBuilder::FStaticMeshBuilder()
@@ -174,7 +174,7 @@ static bool BuildNanite(
 	const FMeshDescription* MeshDescription = bMutableDescription ? &MutableMeshDescription : CachedMeshDescription;
 
 	// Build new vertex buffers
-	TArray<FStaticMeshBuildVertex> StaticMeshBuildVertices;
+	Nanite::IBuilderModule::FInputMeshData InputMeshData;
 
 	TArray<int32>& WedgeMap = StaticMeshLOD.WedgeMap;
 	WedgeMap.Reset();
@@ -196,7 +196,7 @@ static bool BuildNanite(
 		WedgeMap,
 		StaticMeshLOD.Sections,
 		PerSectionIndices,
-		StaticMeshBuildVertices,
+		InputMeshData.Vertices,
 		bMutableDescription ? MutableMeshDescriptionHelper.GetOverlappingCorners() : OverlappingCorners,
 		RemapVerts, 
 		BoundsOut,
@@ -213,9 +213,8 @@ static bool BuildNanite(
 	MutableMeshDescription.Empty(); // Clear the mutable copy (if allocated).
 
 	// Concatenate the per-section index buffers.
-	TArray<uint32> CombinedIndices;
 	bool bNeeds32BitIndices = false;
-	UE::Private::StaticMeshBuilder::BuildCombinedSectionIndices(PerSectionIndices, StaticMeshLOD.Sections, CombinedIndices, bNeeds32BitIndices);
+	UE::Private::StaticMeshBuilder::BuildCombinedSectionIndices(PerSectionIndices, StaticMeshLOD.Sections, InputMeshData.TriangleIndices, bNeeds32BitIndices);
 
 	// Nanite build requires the section material indices to have already been resolved from the SectionInfoMap
 	// as the indices are baked into the FMaterialTriangles.
@@ -227,21 +226,42 @@ static bool BuildNanite(
 	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
 
 	// Setup the input data
-	Nanite::IBuilderModule::FVertexMeshData InputMeshData;
-	Swap( InputMeshData.Vertices, StaticMeshBuildVertices );
-	Swap( InputMeshData.TriangleIndices, CombinedIndices );
 	InputMeshData.Sections = StaticMeshLOD.Sections;
+	InputMeshData.NumTexCoords = NumTextureCoord;
+	InputMeshData.VertexBounds = BoundsOut;
 									
 	// Request output LODs for each LOD resource
-	TArray< Nanite::IBuilderModule::FVertexMeshData, TInlineAllocator<4> > OutputLODMeshData;
+	TArray< Nanite::IBuilderModule::FOutputMeshData, TInlineAllocator<4> > OutputLODMeshData;
 	OutputLODMeshData.SetNum( PercentTriangles.Num() );
 
-	for( int32 LodIndex = 0; LodIndex < OutputLODMeshData.Num(); LodIndex++ )
+	const uint32 TriangleCount = InputMeshData.TriangleIndices.Num() / 3;
+
+	if (!NaniteBuilderModule.BuildMaterialIndices(InputMeshData.Sections, TriangleCount, InputMeshData.MaterialIndices))
 	{
-		OutputLODMeshData[ LodIndex ].PercentTriangles = PercentTriangles[ LodIndex ];
+		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite from static mesh. See previous line(s) for details."));
+		return false;
 	}
 
-	if( !NaniteBuilderModule.Build( NaniteResources, InputMeshData, OutputLODMeshData, NumTextureCoord, NaniteSettings ) )
+	InputMeshData.TriangleCounts.Add(TriangleCount);
+
+	auto OnFreeInputMeshData = Nanite::IBuilderModule::FOnFreeInputMeshData::CreateLambda([&InputMeshData](bool bFallbackIsReduced)
+	{
+		if (bFallbackIsReduced)
+		{
+			InputMeshData.Vertices.Empty();
+			InputMeshData.TriangleIndices.Empty();
+		}
+
+		InputMeshData.MaterialIndices.Empty();
+	});
+
+	if (!NaniteBuilderModule.Build(
+			NaniteResources,
+			InputMeshData,
+			OutputLODMeshData,
+			NaniteSettings,
+			OnFreeInputMeshData
+	))
 	{
 		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for HiRes static mesh. See previous line(s) for details."));
 		return false;
@@ -249,13 +269,13 @@ static bool BuildNanite(
 
 	// Copy over the output data to the static mesh LOD data
 	// Certain output LODs might be empty if the builder decided it wasn't needed (then remove these LODs again)
-	int ValidLODCount = 0;
+	int32 ValidLODCount = 0;
 	for (int32 LodIndex = 0; LodIndex < OutputLODMeshData.Num(); ++LodIndex)
 	{
-		Nanite::IBuilderModule::FVertexMeshData& ProxyMeshData = OutputLODMeshData[LodIndex];
-				
+		Nanite::IBuilderModule::FOutputMeshData& OutputMeshData = OutputLODMeshData[LodIndex];
+
 		bool bHasValidSections = false;
-		for (FStaticMeshSection& Section : ProxyMeshData.Sections)
+		for (FStaticMeshSection& Section : OutputMeshData.Sections)
 		{
 			if (Section.NumTriangles > 0)
 			{
@@ -264,7 +284,7 @@ static bool BuildNanite(
 			}
 		}
 
-		// Valid valid sections then copy over data to the LODResource
+		// If there are valid sections then copy over data to the LODResource
 		if (bHasValidSections)
 		{
 			// Add new LOD resource if not created yet
@@ -274,30 +294,33 @@ static bool BuildNanite(
 				new (LODVertexFactories) FStaticMeshVertexFactories(GMaxRHIFeatureLevel);
 			}
 
-			FStaticMeshLODResources& ProxyLOD = LODResources[ValidLODCount];
-			ProxyLOD.Sections.Empty(ProxyMeshData.Sections.Num());
-			for (FStaticMeshSection& Section : ProxyMeshData.Sections)
+			FStaticMeshLODResources& OutputLOD = LODResources[ValidLODCount];
+			OutputLOD.Sections.Empty(OutputMeshData.Sections.Num());
+			for (FStaticMeshSection& Section : OutputMeshData.Sections)
 			{
-				ProxyLOD.Sections.Add(Section);
+				OutputLOD.Sections.Add(Section);
 			}
 
 			TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::BufferInit);
-			ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(BuildSettings.bUseHighPrecisionTangentBasis);
-			ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(BuildSettings.bUseFullPrecisionUVs);
+
 			FStaticMeshVertexBufferFlags StaticMeshVertexBufferFlags;
 			StaticMeshVertexBufferFlags.bNeedsCPUAccess = true;
 			StaticMeshVertexBufferFlags.bUseBackwardsCompatibleF16TruncUVs = BuildSettings.bUseBackwardsCompatibleF16TruncUVs;
-			ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.Init(ProxyMeshData.Vertices, NumTextureCoord, StaticMeshVertexBufferFlags);
-			ProxyLOD.VertexBuffers.PositionVertexBuffer.Init(ProxyMeshData.Vertices);
-			ProxyLOD.VertexBuffers.ColorVertexBuffer.Init(ProxyMeshData.Vertices);
+
+			const FConstMeshBuildVertexView OutputMeshVertices = MakeConstMeshBuildVertexView(OutputMeshData.Vertices);
+			OutputLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(BuildSettings.bUseHighPrecisionTangentBasis);
+			OutputLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(BuildSettings.bUseFullPrecisionUVs);
+			OutputLOD.VertexBuffers.StaticMeshVertexBuffer.Init(OutputMeshVertices, StaticMeshVertexBufferFlags);
+			OutputLOD.VertexBuffers.PositionVertexBuffer.Init(OutputMeshVertices);
+			OutputLOD.VertexBuffers.ColorVertexBuffer.Init(OutputMeshVertices);
 
 			// Why is the 'bNeeds32BitIndices' used from the original index buffer? Is that needed?
 			const EIndexBufferStride::Type IndexBufferStride = bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit;
-			ProxyLOD.IndexBuffer.SetIndices(ProxyMeshData.TriangleIndices, IndexBufferStride);
+			OutputLOD.IndexBuffer.SetIndices(OutputMeshData.TriangleIndices, IndexBufferStride);
 
-			BuildAllBufferOptimizations(ProxyLOD, BuildSettings, ProxyMeshData.TriangleIndices, bNeeds32BitIndices, ProxyMeshData.Vertices);
+			BuildAllBufferOptimizations(OutputLOD, BuildSettings, OutputMeshData.TriangleIndices, bNeeds32BitIndices, OutputMeshVertices);
 
-			ProxyLOD.MaxDeviation = ProxyMeshData.MaxDeviation;
+			OutputLOD.MaxDeviation = OutputMeshData.MaxDeviation;
 
 			ValidLODCount++;
 		}
@@ -628,7 +651,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		StaticMeshLOD.MaxDeviation = MaxDeviation;
 
 		// Build new vertex buffers
-		TArray< FStaticMeshBuildVertex > StaticMeshBuildVertices;
+		FMeshBuildVertexData BuildVertexData;
 
 		StaticMeshLOD.Sections.Empty(PolygonGroups.Num());
 		TArray<int32> RemapVerts; //Because we will remove MeshVertex that are redundant, we need a remap
@@ -649,7 +672,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			WedgeMap,
 			StaticMeshLOD.Sections,
 			PerSectionIndices,
-			StaticMeshBuildVertices,
+			BuildVertexData,
 			MeshDescriptionHelper.GetOverlappingCorners(),
 			RemapVerts,
 			MeshBounds[LodIndex],
@@ -674,21 +697,24 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::BufferInit);
+
+			FConstMeshBuildVertexView ConstVertexView = MakeConstMeshBuildVertexView(BuildVertexData);
+
 			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(LODBuildSettings.bUseHighPrecisionTangentBasis);
 			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(LODBuildSettings.bUseFullPrecisionUVs);
 			FStaticMeshVertexBufferFlags StaticMeshVertexBufferFlags;
 			StaticMeshVertexBufferFlags.bNeedsCPUAccess = true;
 			StaticMeshVertexBufferFlags.bUseBackwardsCompatibleF16TruncUVs = LODBuildSettings.bUseBackwardsCompatibleF16TruncUVs;
-			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, NumTextureCoord, StaticMeshVertexBufferFlags);
-			StaticMeshLOD.VertexBuffers.PositionVertexBuffer.Init(StaticMeshBuildVertices);
-			StaticMeshLOD.VertexBuffers.ColorVertexBuffer.Init(StaticMeshBuildVertices);
+			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.Init(ConstVertexView, StaticMeshVertexBufferFlags);
+			StaticMeshLOD.VertexBuffers.PositionVertexBuffer.Init(ConstVertexView);
+			StaticMeshLOD.VertexBuffers.ColorVertexBuffer.Init(ConstVertexView);
 
 			const EIndexBufferStride::Type IndexBufferStride = bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit;
 			StaticMeshLOD.IndexBuffer.SetIndices(CombinedIndices, IndexBufferStride);
 
 			// post-process the index buffer
 			BuildLODSlowTask.EnterProgressFrame(1);
-			BuildAllBufferOptimizations(StaticMeshLOD, LODBuildSettings, CombinedIndices, bNeeds32BitIndices, StaticMeshBuildVertices);
+			BuildAllBufferOptimizations(StaticMeshLOD, LODBuildSettings, CombinedIndices, bNeeds32BitIndices, ConstVertexView);
 		}
 
 	} //End of LOD for loop
@@ -785,21 +811,54 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 	return true;
 }
 
-bool AreVerticesEqual(FStaticMeshBuildVertex const& A, FStaticMeshBuildVertex const& B, float ComparisonThreshold)
+namespace UE::Private::StaticMeshBuilder
 {
-	if (   !A.Position.Equals(B.Position, ComparisonThreshold)
-		|| !NormalsEqual(A.TangentX, B.TangentX)
-		|| !NormalsEqual(A.TangentY, B.TangentY)
-		|| !NormalsEqual(A.TangentZ, B.TangentZ)
-		|| A.Color != B.Color)
+
+struct FPendingVertex
+{
+	FVector3f Position;
+	FVector3f TangentX;
+	FVector3f TangentY;
+	FVector3f TangentZ;
+	FColor Color;
+	TStaticArray<FVector2f, MAX_STATIC_TEXCOORDS> UVs;
+};
+
+bool AreVerticesEqual(const FPendingVertex& Vertex, const FMeshBuildVertexData& VertexData, int32 CompareVertex, float ComparisonThreshold)
+{
+	if (!Vertex.Position.Equals(VertexData.Position[CompareVertex], ComparisonThreshold))
 	{
 		return false;
 	}
 
-	// UVs
-	for (int32 UVIndex = 0; UVIndex < MAX_STATIC_TEXCOORDS; UVIndex++)
+	// Test TangentZ first, often X and Y are zero
+	if (!NormalsEqual(Vertex.TangentZ, VertexData.TangentZ[CompareVertex]))
 	{
-		if (!UVsEqual(A.UVs[UVIndex], B.UVs[UVIndex]))
+		return false;
+	}
+
+	if (!NormalsEqual(Vertex.TangentX, VertexData.TangentX[CompareVertex]))
+	{
+		return false;
+	}
+
+	if (!NormalsEqual(Vertex.TangentY, VertexData.TangentY[CompareVertex]))
+	{
+		return false;
+	}
+
+	if (VertexData.Color.Num() > 0)
+	{
+		if (Vertex.Color != VertexData.Color[CompareVertex])
+		{
+			return false;
+		}
+	}
+
+	// UVs
+	for (int32 UVIndex = 0; UVIndex < VertexData.UVs.Num(); UVIndex++)
+	{
+		if (!UVsEqual(Vertex.UVs[UVIndex], VertexData.UVs[UVIndex][CompareVertex]))
 		{
 			return false;
 		}
@@ -808,9 +867,6 @@ bool AreVerticesEqual(FStaticMeshBuildVertex const& A, FStaticMeshBuildVertex co
 	return true;
 }
 
-namespace UE::Private::StaticMeshBuilder
-{
-
 void BuildVertexBuffer(
 	UStaticMesh* StaticMesh,
 	const FMeshDescription& MeshDescription,
@@ -818,7 +874,7 @@ void BuildVertexBuffer(
 	TArray<int32>& OutWedgeMap,
 	FStaticMeshSectionArray& OutSections,
 	TArray<TArray<uint32>>& OutPerSectionIndices,
-	TArray< FStaticMeshBuildVertex>& StaticMeshBuildVertices,
+	FMeshBuildVertexData& BuildVertexData,
 	const FOverlappingCorners& OverlappingCorners,
 	TArray<int32>& RemapVerts,
 	FBoxSphereBounds& MeshBounds,
@@ -827,11 +883,8 @@ void BuildVertexBuffer(
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildVertexBuffer);
-	
-	// set up vertex buffer elements
-	const int32 NumVertexInstances = MeshDescription.VertexInstances().GetArraySize();
-	StaticMeshBuildVertices.Reserve(NumVertexInstances);
 
+	const int32 NumVertexInstances = MeshDescription.VertexInstances().GetArraySize();
 	const bool bCacheOptimize = (NumVertexInstances < 100000 * 3);
 
 	// Skip all the allocations and lookups if we know that the mesh has no overlapping corners
@@ -850,9 +903,20 @@ void BuildVertexBuffer(
 	TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	const bool bHasColors = VertexInstanceColors.IsValid();
-
-	const uint32 NumTextureCoord = VertexInstanceUVs.IsValid() ? VertexInstanceUVs.GetNumChannels() : 0;
+	bool bValidColors = false;
+	const int32 NumTextureCoord = VertexInstanceUVs.IsValid() ? VertexInstanceUVs.GetNumChannels() : 0;
 	const FVector3f BuildScale(BuildSettings.BuildScale3D);
+
+	// set up vertex buffer elements
+	BuildVertexData.Position.Reserve(NumVertexInstances);
+	BuildVertexData.TangentX.Reserve(NumVertexInstances);
+	BuildVertexData.TangentY.Reserve(NumVertexInstances);
+	BuildVertexData.TangentZ.Reserve(NumVertexInstances);
+	BuildVertexData.UVs.SetNum(NumTextureCoord);
+	for (int32 TexCoord = 0; TexCoord < NumTextureCoord; ++TexCoord)
+	{
+		BuildVertexData.UVs[TexCoord].Reserve(NumVertexInstances);
+	}
 
 	TMap<FPolygonGroupID, int32> PolygonGroupToSectionIndex;
 
@@ -923,46 +987,37 @@ void BuildVertexBuffer(
 			const FVector3f& VertexInstanceTangent = VertexInstanceTangents[VertexInstanceID];
 			const float VertexInstanceBinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
 
-			FStaticMeshBuildVertex StaticMeshVertex;
+			FPendingVertex PendingVertex;
 
-			StaticMeshVertex.Position = VertexPosition * BuildScale;
+			PendingVertex.Position = FVector3f(VertexPosition * BuildSettings.BuildScale3D);
 			if (bNeedTangents)
 			{
-				StaticMeshVertex.TangentX = VertexInstanceTangent / BuildScale;
-				StaticMeshVertex.TangentY = ( (VertexInstanceNormal ^ VertexInstanceTangent) * VertexInstanceBinormalSign ) / BuildScale;
-				StaticMeshVertex.TangentX.Normalize();
-				StaticMeshVertex.TangentY.Normalize();
+				PendingVertex.TangentX = VertexInstanceTangent / BuildScale;
+				PendingVertex.TangentY = ( (VertexInstanceNormal ^ VertexInstanceTangent) * VertexInstanceBinormalSign ) / BuildScale;
+				PendingVertex.TangentX.Normalize();
+				PendingVertex.TangentY.Normalize();
 			}
 			else
 			{
-				StaticMeshVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
-				StaticMeshVertex.TangentY = FVector3f(0.0f, 1.0f, 0.0f);
+				PendingVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
+				PendingVertex.TangentY = FVector3f(0.0f, 1.0f, 0.0f);
 			}
-			StaticMeshVertex.TangentZ = VertexInstanceNormal / BuildScale;
-			StaticMeshVertex.TangentZ.Normalize();
+			PendingVertex.TangentZ = VertexInstanceNormal / BuildScale;
+			PendingVertex.TangentZ.Normalize();
 
+			FColor VertexColor = FColor::White;
 			if (bHasColors)
 			{
 				const FVector4f& VertexInstanceColor = VertexInstanceColors[VertexInstanceID];
 				const FLinearColor LinearColor(VertexInstanceColor);
-				StaticMeshVertex.Color = LinearColor.ToFColor(true);
-			}
-			else
-			{
-				StaticMeshVertex.Color = FColor::White;
+				VertexColor = LinearColor.ToFColor(true);
 			}
 
-			const uint32 MaxNumTexCoords = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, MAX_STATIC_TEXCOORDS);
-			for (uint32 UVIndex = 0; UVIndex < MaxNumTexCoords; ++UVIndex)
+			PendingVertex.Color = VertexColor;
+
+			for (int32 UVIndex = 0; UVIndex < NumTextureCoord; ++UVIndex)
 			{
-				if (UVIndex < NumTextureCoord)
-				{
-					StaticMeshVertex.UVs[UVIndex] = VertexInstanceUVs.Get(VertexInstanceID, UVIndex);
-				}
-				else
-				{
-					StaticMeshVertex.UVs[UVIndex] = FVector2f(0.0f, 0.0f);
-				}
+				PendingVertex.UVs[UVIndex] = VertexInstanceUVs.Get(VertexInstanceID, UVIndex);
 			}
 
 			int32 Index = INDEX_NONE;
@@ -979,7 +1034,7 @@ void BuildVertexBuffer(
 						break;
 					}
 					int32 Location = RemapVerts.IsValidIndex(DupVerts[k]) ? RemapVerts[DupVerts[k]] : INDEX_NONE;
-					if (Location != INDEX_NONE && AreVerticesEqual(StaticMeshVertex, StaticMeshBuildVertices[Location], VertexComparisonThreshold))
+					if (Location != INDEX_NONE && AreVerticesEqual(PendingVertex, BuildVertexData, Location, VertexComparisonThreshold))
 					{
 						Index = Location;
 						break;
@@ -989,11 +1044,45 @@ void BuildVertexBuffer(
 
 			if (Index == INDEX_NONE)
 			{
-				Index = StaticMeshBuildVertices.Add(StaticMeshVertex);
+				Index = BuildVertexData.Position.Emplace(PendingVertex.Position);
 				
+				BuildVertexData.TangentX.Emplace(PendingVertex.TangentX);
+				BuildVertexData.TangentY.Emplace(PendingVertex.TangentY);
+				BuildVertexData.TangentZ.Emplace(PendingVertex.TangentZ);
+				
+				if (bHasColors)
+				{
+					if (PendingVertex.Color != FColor::White)
+					{
+						bValidColors = true;
+					}
+
+					if (BuildVertexData.Color.Num() == 0 && bValidColors)
+					{
+						// First occurrence of a non fully opaque white color means we allocate output space,
+						// and then set all previously encountered vertex colors to be opaque white.
+						BuildVertexData.Color.Reserve(NumVertexInstances);
+						BuildVertexData.Color.SetNumUninitialized(BuildVertexData.Position.Num() - 1);
+						for (int32 ColorIndex = 0; ColorIndex < BuildVertexData.Color.Num(); ++ColorIndex)
+						{
+							BuildVertexData.Color[ColorIndex] = FColor::White;
+						}
+					}
+
+					if (bValidColors)
+					{
+						BuildVertexData.Color.Emplace(PendingVertex.Color);
+					}
+				}
+
+				for (int32 UVIndex = 0; UVIndex < NumTextureCoord; ++UVIndex)
+				{
+					BuildVertexData.UVs[UVIndex].Emplace(VertexInstanceUVs.Get(VertexInstanceID, UVIndex));
+				}
+
 				// We are already processing all vertices, so we may as well compute the bounding box here
 				// instead of yet another loop over the vertices at a later point.
-				Bounds += StaticMeshVertex.Position;
+				Bounds += PendingVertex.Position;
 			}
 
 			if (bHasOverlappingCorners)
@@ -1013,9 +1102,9 @@ void BuildVertexBuffer(
 	// Calculate the bounding sphere, using the center of the bounding box as the origin.
 	FVector3f Center = Bounds.GetCenter();
 	float RadiusSqr = 0.0f;
-	for (int32 VertexIndex = 0; VertexIndex < StaticMeshBuildVertices.Num(); VertexIndex++)
+	for (int32 VertexIndex = 0; VertexIndex < BuildVertexData.Position.Num(); VertexIndex++)
 	{
-		RadiusSqr = FMath::Max(RadiusSqr, (StaticMeshBuildVertices[VertexIndex].Position - Center).SizeSquared());
+		RadiusSqr = FMath::Max(RadiusSqr, (BuildVertexData.Position[VertexIndex] - Center).SizeSquared());
 	}
 
 	MeshBounds.Origin = FVector(Center);
@@ -1025,7 +1114,7 @@ void BuildVertexBuffer(
 	// Optimize before setting the buffer
 	if (bCacheOptimize)
 	{
-		BuildOptimizationHelper::CacheOptimizeVertexAndIndexBuffer(StaticMeshBuildVertices, OutPerSectionIndices, OutWedgeMap);
+		BuildOptimizationHelper::CacheOptimizeVertexAndIndexBuffer(BuildVertexData, OutPerSectionIndices, OutWedgeMap);
 		//check(OutWedgeMap.Num() == MeshDescription->VertexInstances().Num());
 	}
 
@@ -1081,7 +1170,7 @@ void BuildCombinedSectionIndices(
 
 } // namespace UE::Private::StaticMeshBuilder
 
-void BuildAllBufferOptimizations(FStaticMeshLODResources& StaticMeshLOD, const FMeshBuildSettings& LODBuildSettings, TArray< uint32 >& IndexBuffer, bool bNeeds32BitIndices, TArray< FStaticMeshBuildVertex >& StaticMeshBuildVertices)
+void BuildAllBufferOptimizations(FStaticMeshLODResources& StaticMeshLOD, const FMeshBuildSettings& LODBuildSettings, TArray< uint32 >& IndexBuffer, bool bNeeds32BitIndices, const FConstMeshBuildVertexView& BuildVertices)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildAllBufferOptimizations);
 
@@ -1117,7 +1206,7 @@ void BuildAllBufferOptimizations(FStaticMeshLODResources& StaticMeshLOD, const F
 	{
 		BuildOptimizationHelper::BuildDepthOnlyIndexBuffer(
 			DepthOnlyIndices,
-			StaticMeshBuildVertices,
+			BuildVertices,
 			IndexBuffer,
 			StaticMeshLOD.Sections
 		);
@@ -1148,7 +1237,7 @@ void BuildAllBufferOptimizations(FStaticMeshLODResources& StaticMeshLOD, const F
 		TArray<BuildOptimizationHelper::FMeshEdge> Edges;
 		TArray<uint32> WireframeIndices;
 
-		BuildOptimizationHelper::FStaticMeshEdgeBuilder(IndexBuffer, StaticMeshBuildVertices, Edges).FindEdges();
+		BuildOptimizationHelper::FMeshEdgeBuilder(IndexBuffer, BuildVertices, Edges).FindEdges();
 		WireframeIndices.Empty(2 * Edges.Num());
 		for (int32 EdgeIndex = 0; EdgeIndex < Edges.Num(); EdgeIndex++)
 		{

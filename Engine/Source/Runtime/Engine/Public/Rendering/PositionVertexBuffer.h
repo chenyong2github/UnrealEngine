@@ -40,7 +40,8 @@ public:
 	* @param InVertices - The vertices to initialize the buffer with.
 	*/
 	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, bool bInNeedsCPUAccess = true);
-
+	ENGINE_API void Init(const FConstMeshBuildVertexView& InVertices, bool bInNeedsCPUAccess = true);
+	
 	/**
 	* Initializes this vertex buffer with the contents of the given vertex buffer.
 	* @param InVertexBuffer - The vertex buffer to initialize from.

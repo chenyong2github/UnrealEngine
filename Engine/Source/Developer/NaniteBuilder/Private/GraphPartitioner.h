@@ -42,7 +42,7 @@ public:
 	void		AddLocalityLinks( FGraphData* Graph, uint32 Index, idx_t Cost );
 
 	template< typename FGetCenter >
-	void		BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds3f& Bounds, TArrayView< const int32 > GroupIndexes, FGetCenter& GetCenter );
+	void		BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds3f& Bounds, TConstArrayView< const int32 > GroupIndexes, FGetCenter& GetCenter );
 
 	void		Partition( FGraphData* Graph, int32 InMinPartitionSize, int32 InMaxPartitionSize );
 	void		PartitionStrict( FGraphData* Graph, int32 InMinPartitionSize, int32 InMaxPartitionSize, bool bThreaded );
@@ -80,7 +80,7 @@ FORCEINLINE void FGraphPartitioner::AddLocalityLinks( FGraphData* Graph, uint32 
 }
 
 template< typename FGetCenter >
-void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds3f& Bounds, TArrayView< const int32 > GroupIndexes, FGetCenter& GetCenter )
+void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds3f& Bounds, TConstArrayView< const int32 > GroupIndexes, FGetCenter& GetCenter )
 {
 	TArray< uint32 > SortKeys;
 	SortKeys.AddUninitialized( NumElements );

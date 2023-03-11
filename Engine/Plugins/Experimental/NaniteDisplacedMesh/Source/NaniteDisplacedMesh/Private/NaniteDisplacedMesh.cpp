@@ -389,7 +389,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	TArray<FMeshDescription> MeshDescriptions;
 	MeshDescriptions.SetNum(NumSourceModels);
 
-	Nanite::IBuilderModule::FVertexMeshData InputMeshData;
+	Nanite::IBuilderModule::FInputMeshData InputMeshData;
 
 	TArray<int32> RemapVerts;
 	TArray<int32> WedgeMap;
@@ -425,6 +425,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	// Only the render data and vertex buffers will be used from now on unless we have more than one source models
 	// This will help with memory usage for Nanite Mesh by releasing memory before doing the build
 	MeshDescription.Empty();
+	SourceModel.ClearMeshDescription();
 
 	TArray<uint32> CombinedIndices;
 	bool bNeeds32BitIndices = false;
@@ -447,9 +448,8 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		InputMeshData.Sections[SectionIndex].MaterialIndex = BaseMesh->GetSectionInfoMap().Get(0, SectionIndex).MaterialIndex;
 	}
 	
-	TArray< int32 > MaterialIndexes;
 	{
-		MaterialIndexes.Reserve( InputMeshData.TriangleIndices.Num() / 3 );
+		InputMeshData.MaterialIndices.Reserve( InputMeshData.TriangleIndices.Num() / 3 );
 
 		for (FStaticMeshSection& Section : InputMeshData.Sections)
 		{
@@ -459,7 +459,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 			}
 
 			for( uint32 i = 0; i < Section.NumTriangles; i++ )
-				MaterialIndexes.Add( Section.MaterialIndex );
+				InputMeshData.MaterialIndices.Add( Section.MaterialIndex );
 		}
 	}
 
@@ -469,7 +469,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 			NumTextureCoord,
 			InputMeshData.Vertices,
 			InputMeshData.TriangleIndices,
-			MaterialIndexes )
+			InputMeshData.MaterialIndices)
 		)
 	{
 		UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Failed to build perform displacement mapping for Nanite displaced mesh asset."));
@@ -481,23 +481,29 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		return false;
 	}
 
-	// Compute mesh bounds after displacement has run
-	// TODO: Do we need this? The base mesh bounds will not exactly match the displaced mesh bounds (but cluster bounds will be correct).
-	//FBoxSphereBounds MeshBounds;
-	//ComputeBoundsFromVertexList(InputMeshData.Vertices, MeshBounds);
+	InputMeshData.TriangleCounts.Add(InputMeshData.TriangleIndices.Num() / 3);
+	InputMeshData.NumTexCoords = NumTextureCoord;
 
-	TArray<uint32> MeshTriangleCounts;
-	MeshTriangleCounts.Add(InputMeshData.TriangleIndices.Num() / 3);
+	auto OnFreeInputMeshData = Nanite::IBuilderModule::FOnFreeInputMeshData::CreateLambda([&InputMeshData](bool bFallbackIsReduced)
+	{
+		if (bFallbackIsReduced)
+		{
+			InputMeshData.Vertices.Empty();
+			InputMeshData.TriangleIndices.Empty();
+		}
+
+		InputMeshData.MaterialIndices.Empty();
+	});
+
+	TArrayView<Nanite::IBuilderModule::FOutputMeshData> OutputLODMeshData;
 
 	// Pass displaced mesh over to Nanite to build the bulk data
 	if (!NaniteBuilderModule.Build(
 			Data->Resources,
-			InputMeshData.Vertices,
-			InputMeshData.TriangleIndices,
-			MaterialIndexes,
-			MeshTriangleCounts,
-			NumTextureCoord,
-			NaniteSettings)
+			InputMeshData,
+			OutputLODMeshData,
+			NaniteSettings,
+			OnFreeInputMeshData)
 		)
 	{
 		UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Failed to build Nanite for displaced mesh asset."));

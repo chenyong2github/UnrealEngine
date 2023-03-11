@@ -42,10 +42,9 @@ public:
 	/**
 	* This helper class builds the edge list for a mesh. It uses a hash of vertex
 	* positions to edges sharing that vertex to remove the n^2 searching of all
-	* previously added edges. This class is templatized so it can be used with
-	* either static mesh or skeletal mesh vertices
+	* previously added edges. 
 	*/
-	template <class VertexClass> class TEdgeBuilder
+	class FMeshEdgeBuilder
 	{
 	protected:
 		/**
@@ -55,7 +54,7 @@ public:
 		/**
 		* The array of verts for vertex position comparison
 		*/
-		const TArray<VertexClass>& Vertices;
+		const FConstMeshBuildVertexView& Vertices;
 		/**
 		* The array of edges to create
 		*/
@@ -66,40 +65,28 @@ public:
 		TMultiMap<FVector, FMeshEdge*> VertexToEdgeList;
 
 		/**
-		* This function determines whether a given edge matches or not. It must be
-		* provided by derived classes since they have the specific information that
-		* this class doesn't know about (vertex info, influences, etc)
-		*
-		* @param Index1 The first index of the edge being checked
-		* @param Index2 The second index of the edge
-		* @param OtherEdge The edge to compare. Was found via the map
-		*
-		* @return true if the edge is a match, false otherwise
-		*/
-		virtual bool DoesEdgeMatch(int32 Index1, int32 Index2, FMeshEdge* OtherEdge) = 0;
-
-		/**
 		* Searches the list of edges to see if this one matches an existing and
 		* returns a pointer to it if it does
 		*
 		* @param Index1 the first index to check for
 		* @param Index2 the second index to check for
 		*
-		* @return NULL if no edge was found, otherwise the edge that was found
+		* @return nullptr if no edge was found, otherwise the edge that was found
 		*/
 		inline FMeshEdge* FindOppositeEdge(int32 Index1, int32 Index2)
 		{
-			FMeshEdge* Edge = NULL;
+			FMeshEdge* Edge = nullptr;
 			TArray<FMeshEdge*> EdgeList;
+			
 			// Search the hash for a corresponding vertex
-			VertexToEdgeList.MultiFind((FVector)Vertices[Index2].Position, EdgeList);
+			VertexToEdgeList.MultiFind((FVector)Vertices.Position[Index2], EdgeList);
+			
 			// Now search through the array for a match or not
-			for (int32 EdgeIndex = 0; EdgeIndex < EdgeList.Num() && Edge == NULL;
-				EdgeIndex++)
+			for (int32 EdgeIndex = 0; EdgeIndex < EdgeList.Num() && Edge == nullptr; ++EdgeIndex)
 			{
 				FMeshEdge* OtherEdge = EdgeList[EdgeIndex];
 				// See if this edge matches the passed in edge
-				if (OtherEdge != NULL && DoesEdgeMatch(Index1, Index2, OtherEdge))
+				if (OtherEdge != nullptr && DoesEdgeMatch(Index1, Index2, OtherEdge))
 				{
 					// We have a match
 					Edge = OtherEdge;
@@ -120,17 +107,17 @@ public:
 			// If this edge matches another then just fill the other triangle
 			// otherwise add it
 			FMeshEdge* OtherEdge = FindOppositeEdge(Index1, Index2);
-			if (OtherEdge == NULL)
+			if (OtherEdge == nullptr)
 			{
 				// Add a new edge to the array
 				int32 EdgeIndex = Edges.AddZeroed();
 				Edges[EdgeIndex].Vertices[0] = Index1;
 				Edges[EdgeIndex].Vertices[1] = Index2;
 				Edges[EdgeIndex].Faces[0] = Triangle;
-				Edges[EdgeIndex].Faces[1] = -1;
+				Edges[EdgeIndex].Faces[1] = INDEX_NONE;
 				// Also add this edge to the hash for faster searches
 				// NOTE: This relies on the array never being realloced!
-				VertexToEdgeList.Add((FVector)Vertices[Index1].Position, &Edges[EdgeIndex]);
+				VertexToEdgeList.Add((FVector)Vertices.Position[Index1], &Edges[EdgeIndex]);
 			}
 			else
 			{
@@ -142,10 +129,11 @@ public:
 		/**
 		* Initializes the values for the code that will build the mesh edge list
 		*/
-		TEdgeBuilder(const TArray<uint32>& InIndices,
-			const TArray<VertexClass>& InVertices,
-			TArray<FMeshEdge>& OutEdges) :
-			Indices(InIndices), Vertices(InVertices), Edges(OutEdges)
+		FMeshEdgeBuilder(
+			const TArray<uint32>& InIndices,
+			const FConstMeshBuildVertexView& InVertices,
+			TArray<FMeshEdge>& OutEdges
+		) : Indices(InIndices), Vertices(InVertices), Edges(OutEdges)
 		{
 			// Presize the array so that there are no extra copies being done
 			// when adding edges to it
@@ -155,8 +143,7 @@ public:
 		/**
 		* Virtual dtor
 		*/
-		virtual ~TEdgeBuilder() {}
-
+		virtual ~FMeshEdgeBuilder() {}
 
 		/**
 		* Uses a hash of indices to edge lists so that it can avoid the n^2 search
@@ -184,24 +171,6 @@ public:
 				AddEdge(Index3, Index1, Triangle);
 			}
 		}
-	};
-
-
-	/**
-	* This is the static mesh specific version for finding edges
-	*/
-	class FStaticMeshEdgeBuilder : public TEdgeBuilder<FStaticMeshBuildVertex>
-	{
-	public:
-		/**
-		* Constructor that passes all work to the parent class
-		*/
-		FStaticMeshEdgeBuilder(const TArray<uint32>& InIndices,
-			const TArray<FStaticMeshBuildVertex>& InVertices,
-			TArray<FMeshEdge>& OutEdges) :
-			TEdgeBuilder<FStaticMeshBuildVertex>(InIndices, InVertices, OutEdges)
-		{
-		}
 
 		/**
 		* This function determines whether a given edge matches or not for a static mesh
@@ -214,19 +183,19 @@ public:
 		*/
 		inline bool DoesEdgeMatch(int32 Index1, int32 Index2, FMeshEdge* OtherEdge)
 		{
-			return Vertices[OtherEdge->Vertices[1]].Position == Vertices[Index1].Position &&
-				OtherEdge->Faces[1] == -1;
+			return Vertices.Position[OtherEdge->Vertices[1]] == Vertices.Position[Index1] &&
+				OtherEdge->Faces[1] == INDEX_NONE;
 		}
 	};
 
 	static void BuildDepthOnlyIndexBuffer(
 		TArray<uint32>& OutDepthIndices,
-		const TArray<FStaticMeshBuildVertex>& InVertices,
+		const FConstMeshBuildVertexView& InVertices,
 		const TArray<uint32>& InIndices,
 		const TArrayView<FStaticMeshSection>& InSections
 	)
 	{
-		int32 NumVertices = InVertices.Num();
+		int32 NumVertices = InVertices.Position.Num();
 		if (InIndices.Num() <= 0 || NumVertices <= 0)
 		{
 			OutDepthIndices.Empty();
@@ -238,7 +207,7 @@ public:
 		VertIndexAndZ.Empty(NumVertices);
 		for (int32 VertIndex = 0; VertIndex < NumVertices; VertIndex++)
 		{
-			new(VertIndexAndZ)FIndexAndZ(VertIndex, FVector(InVertices[VertIndex].Position));
+			new(VertIndexAndZ)FIndexAndZ(VertIndex, FVector(InVertices.Position[VertIndex]));
 		}
 		VertIndexAndZ.Sort(FCompareIndexAndZ());
 
@@ -261,7 +230,7 @@ public:
 					break; // can't be any more dups
 
 				uint32 OtherIndex = VertIndexAndZ[j].Index;
-				if (InVertices[SrcIndex].Position.Equals(InVertices[OtherIndex].Position, 0.0f))
+				if (InVertices.Position[SrcIndex].Equals(InVertices.Position[OtherIndex], 0.0f))
 				{
 					IndexMap[SrcIndex] = FMath::Min(IndexMap[SrcIndex], OtherIndex);
 					IndexMap[OtherIndex] = FMath::Min(IndexMap[OtherIndex], SrcIndex);
@@ -286,22 +255,28 @@ public:
 	}
 
 	static void CacheOptimizeVertexAndIndexBuffer(
-		TArray<FStaticMeshBuildVertex>& Vertices,
+		FMeshBuildVertexData& Vertices,
 		TArray<TArray<uint32> >& PerSectionIndices,
 		TArray<int32>& WedgeMap
 	)
 	{
-		if (Vertices.Num() <= 0)
+		if (Vertices.Position.Num() <= 0)
 		{
 			return;
 		}
 
 		// Copy the vertices since we will be reordering them
-		TArray<FStaticMeshBuildVertex> OriginalVertices = Vertices;
+		FMeshBuildVertexData OriginalVertices;
+		OriginalVertices.Position = Vertices.Position;
+		OriginalVertices.TangentX = Vertices.TangentX;
+		OriginalVertices.TangentY = Vertices.TangentY;
+		OriginalVertices.TangentZ = Vertices.TangentZ;
+		OriginalVertices.Color = Vertices.Color;
+		OriginalVertices.UVs = Vertices.UVs;
 
 		// Initialize a cache that stores which indices have been assigned
 		TArray<int32> IndexCache;
-		IndexCache.AddUninitialized(Vertices.Num());
+		IndexCache.AddUninitialized(Vertices.Position.Num());
 		FMemory::Memset(IndexCache.GetData(), INDEX_NONE, IndexCache.Num() * IndexCache.GetTypeSize());
 		int32 NextAvailableIndex = 0;
 
@@ -338,18 +313,30 @@ public:
 						// Reuse an existing index assignment
 						Indices[Index] = CachedIndex;
 					}
+
 					// Reorder the vertices based on the new index assignment
-					Vertices[Indices[Index]] = OriginalVertices[OriginalIndices[Index]];
+					Vertices.Position[Indices[Index]] = OriginalVertices.Position[OriginalIndices[Index]];
+					Vertices.TangentX[Indices[Index]] = OriginalVertices.TangentX[OriginalIndices[Index]];
+					Vertices.TangentY[Indices[Index]] = OriginalVertices.TangentY[OriginalIndices[Index]];
+					Vertices.TangentZ[Indices[Index]] = OriginalVertices.TangentZ[OriginalIndices[Index]];
+					if (Vertices.Color.Num() > 0)
+					{
+						Vertices.Color[Indices[Index]] = OriginalVertices.Color[OriginalIndices[Index]];
+					}
+					for (int32 TexCoord = 0; TexCoord < Vertices.UVs.Num(); ++TexCoord)
+					{
+						Vertices.UVs[TexCoord][Indices[Index]] = OriginalVertices.UVs[TexCoord][OriginalIndices[Index]];
+					}
 				}
 			}
 		}
 
-		for (int32 i = 0; i < WedgeMap.Num(); i++)
+		for (int32 WedgeIndex = 0; WedgeIndex < WedgeMap.Num(); ++WedgeIndex)
 		{
-			int32 MappedIndex = WedgeMap[i];
+			const int32 MappedIndex = WedgeMap[WedgeIndex];
 			if (MappedIndex != INDEX_NONE)
 			{
-				WedgeMap[i] = IndexCache[MappedIndex];
+				WedgeMap[WedgeIndex] = IndexCache[MappedIndex];
 			}
 		}
 	}

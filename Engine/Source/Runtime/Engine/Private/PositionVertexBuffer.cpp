@@ -65,14 +65,18 @@ void FPositionVertexBuffer::Init(uint32 InNumVertices, bool bInNeedsCPUAccess)
 */
 void FPositionVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertices, bool bInNeedsCPUAccess)
 {
-	Init(InVertices.Num(), bInNeedsCPUAccess);
+	const FConstMeshBuildVertexView VertexView = MakeConstMeshBuildVertexView(InVertices);
+	Init(VertexView, bInNeedsCPUAccess);
+}
 
-	// Copy the vertices into the buffer.
-	for(int32 VertexIndex = 0;VertexIndex < InVertices.Num();VertexIndex++)
+void FPositionVertexBuffer::Init(const FConstMeshBuildVertexView& InVertices, bool bInNeedsCPUAccess)
+{
+	Init(InVertices.Position.Num(), bInNeedsCPUAccess);
+
+	// Copy the vertex positions into the buffer.
+	for (int32 VertexIndex = 0; VertexIndex < InVertices.Position.Num(); VertexIndex++)
 	{
-		const FStaticMeshBuildVertex& SourceVertex = InVertices[VertexIndex];
-		const uint32 DestVertexIndex = VertexIndex;
-		VertexPosition(DestVertexIndex) = SourceVertex.Position;
+		VertexPosition(VertexIndex) = InVertices.Position[VertexIndex];
 	}
 }
 

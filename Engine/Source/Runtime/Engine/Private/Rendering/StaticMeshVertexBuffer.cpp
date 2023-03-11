@@ -65,18 +65,28 @@ void FStaticMeshVertexBuffer::Init(uint32 InNumVertices, uint32 InNumTexCoords, 
 */
 void FStaticMeshVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, const FStaticMeshVertexBufferFlags & InInitFlags)
 {
-	Init(InVertices.Num(), InNumTexCoords, InInitFlags.bNeedsCPUAccess);
+	FConstMeshBuildVertexView VertexView = MakeConstMeshBuildVertexView(InVertices);
+	Init(VertexView, InInitFlags);
+}
+
+/**
+* Initializes the buffer with the given vertex view.
+* @param InVertices - The vertices to initialize the buffer with.
+* @param InNumTexCoords - The number of texture coordinate to store in the buffer.
+*/
+void FStaticMeshVertexBuffer::Init(const FConstMeshBuildVertexView& InVertices, const FStaticMeshVertexBufferFlags& InInitFlags)
+{
+	Init(InVertices.Position.Num(), InVertices.UVs.Num(), InInitFlags.bNeedsCPUAccess);
 
 	// Copy the vertices into the buffer.
-	for (int32 VertexIndex = 0; VertexIndex < InVertices.Num(); VertexIndex++)
+	for (int32 VertexIndex = 0; VertexIndex < InVertices.Position.Num(); VertexIndex++)
 	{
-		const FStaticMeshBuildVertex& SourceVertex = InVertices[VertexIndex];
 		const uint32 DestVertexIndex = VertexIndex;
-		SetVertexTangents(DestVertexIndex, SourceVertex.TangentX, SourceVertex.TangentY, SourceVertex.TangentZ);
+		SetVertexTangents(DestVertexIndex, InVertices.TangentX[VertexIndex], InVertices.TangentY[VertexIndex], InVertices.TangentZ[VertexIndex]);
 
-		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
+		for (int32 UVIndex = 0; UVIndex < InVertices.UVs.Num(); UVIndex++)
 		{
-			SetVertexUV(DestVertexIndex, UVIndex, SourceVertex.UVs[UVIndex], InInitFlags.bUseBackwardsCompatibleF16TruncUVs);
+			SetVertexUV(DestVertexIndex, UVIndex, InVertices.UVs[UVIndex][VertexIndex], InInitFlags.bUseBackwardsCompatibleF16TruncUVs);
 		}
 	}
 }

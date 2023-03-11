@@ -20,11 +20,10 @@ void CorrectAttributesColor( float* Attributes )
 	Color = Color.GetClamped();
 }
 
-
 FCluster::FCluster(
-	const TArray< FStaticMeshBuildVertex >& InVerts,
-	const TArrayView< const uint32 >& InIndexes,
-	const TArrayView< const int32 >& InMaterialIndexes,
+	const FConstMeshBuildVertexView& InVerts,
+	const TConstArrayView< const uint32 >& InIndexes,
+	const TConstArrayView< const int32 >& InMaterialIndexes,
 	uint32 InNumTexCoords, bool bInHasColors, bool bInPreserveArea,
 	uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency )
 {
@@ -63,21 +62,19 @@ FCluster::FCluster(
 				Verts.AddUninitialized( GetVertSize() );
 				NewIndex = NumVerts++;
 				OldToNewIndex.Add( OldIndex, NewIndex );
-				
-				const FStaticMeshBuildVertex& InVert = InVerts[ OldIndex ];
 
-				GetPosition( NewIndex ) = InVert.Position;
-				GetNormal( NewIndex ) = InVert.TangentZ;
+				GetPosition( NewIndex ) = InVerts.Position[OldIndex];
+				GetNormal( NewIndex ) = InVerts.TangentZ[OldIndex];
 	
 				if( bHasColors )
 				{
-					GetColor( NewIndex ) = InVert.Color.ReinterpretAsLinear();
+					GetColor( NewIndex ) = InVerts.Color[OldIndex].ReinterpretAsLinear();
 				}
 
 				FVector2f* UVs = GetUVs( NewIndex );
 				for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 				{
-					UVs[ UVIndex ] = InVert.UVs[ UVIndex ];
+					UVs[ UVIndex ] = InVerts.UVs[UVIndex][OldIndex];
 				}
 			}
 

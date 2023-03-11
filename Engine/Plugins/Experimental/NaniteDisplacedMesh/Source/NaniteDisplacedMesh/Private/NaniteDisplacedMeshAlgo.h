@@ -13,7 +13,7 @@ struct FNaniteDisplacedMeshParams;
 bool DisplaceNaniteMesh(
 	const FNaniteDisplacedMeshParams& Parameters,
 	const uint32 NumTextureCoord,
-	TArray< FStaticMeshBuildVertex >& Verts,
+	FMeshBuildVertexData& Verts,
 	TArray< uint32 >& Indexes,
 	TArray< int32 >& MaterialIndexes
 );
