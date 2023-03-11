@@ -6,8 +6,7 @@
 
 #include "Containers/Array.h"
 
-struct FStaticMeshBuildVertex;
-
+struct FMeshBuildVertexData;
 struct FNaniteDisplacedMeshParams;
 
 bool DisplaceNaniteMesh(
