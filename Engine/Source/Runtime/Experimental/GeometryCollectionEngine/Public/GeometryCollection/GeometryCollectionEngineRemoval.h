@@ -153,10 +153,13 @@ public:
 	/** Add the necessary attributes if they are missing and initialize them if necessary */
 	void AddAttributes();
 
-	/** state of decay ([0-1] range) */
-	// @todo(chaos) this should eventually move to a common removal facade when break and sleep removal are consolidated
-	TManagedArrayAccessor<float> DecayAttribute;
+	/** Get decay value for a specific transform index */
+	float GetDecay(int32 TransformIndex) const;
 
-	/** scale transform used to shrink the geometry collection piece */
-	TManagedArrayAccessor<FTransform> UniformScaleAttribute;
+	/** Set decay value for a specific transform index */
+	void SetDecay(int32 TransformIndex, float DecayValue);
+
+private:
+	/** state of decay ([0-1] range) */
+	TManagedArrayAccessor<float> DecayAttribute;
 };

@@ -1277,6 +1277,7 @@ private:
 	
 	void UpdateRenderSystemsIfNeeded(bool bDynamicCollectionDirty);
 	void UpdateNavigationDataIfNeeded(bool bDynamicCollectionDirty);
+	void UpdateRemovalIfNeeded();
 
 	void BuildInitialFilterData();
 

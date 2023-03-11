@@ -108,6 +108,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MinimumMassClamp(0.1f)
 	, bImportCollisionFromSource(false)
 	, bRemoveOnMaxSleep(false)
+	, bScaleOnRemoval(true)
 	, MaximumSleepTime(5.0, 10.0)
 	, RemovalDuration(2.5, 5.0)
 	, bSlowMovingAsSleeping(true)

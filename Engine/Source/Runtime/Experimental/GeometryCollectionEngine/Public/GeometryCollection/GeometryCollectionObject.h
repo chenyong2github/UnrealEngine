@@ -631,6 +631,10 @@ public:
 	int32 MaximumCollisionParticles_DEPRECATED;
 #endif
 
+	/** When enabled, particle will scale down (shrink) when using being removed ( using both remove on sleep or remove on break ) - Enabled by default */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal)
+	bool bScaleOnRemoval;
+
 	/** Remove particle from simulation and dissolve rendered geometry once sleep threshold has been exceeded. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "Remove on Sleep"))
 	bool bRemoveOnMaxSleep;

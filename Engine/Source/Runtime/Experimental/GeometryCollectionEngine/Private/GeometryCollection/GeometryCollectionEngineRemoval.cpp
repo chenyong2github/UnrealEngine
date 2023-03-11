@@ -203,19 +203,26 @@ float FGeometryCollectionRemoveOnSleepDynamicFacade::ComputeDecay(int32 Transfor
 
 FGeometryCollectionDecayDynamicFacade::FGeometryCollectionDecayDynamicFacade(FManagedArrayCollection& InCollection)
 	: DecayAttribute(InCollection, "Decay", FGeometryCollection::TransformGroup)
-	, UniformScaleAttribute(InCollection, "UniformScale", FGeometryCollection::TransformGroup)
 {
 }
 
 bool FGeometryCollectionDecayDynamicFacade::IsValid() const
 {
-	return DecayAttribute.IsValid()
-		&& UniformScaleAttribute.IsValid()
-	;
+	// on check the decay since the uniform attribute is optional ( see bScaleOnRemoval )
+	return DecayAttribute.IsValid();
 }
 
 void FGeometryCollectionDecayDynamicFacade::AddAttributes()
 {
 	DecayAttribute.AddAndFill(0.0f);
-	UniformScaleAttribute.AddAndFill(FTransform::Identity);
+}
+
+float FGeometryCollectionDecayDynamicFacade::GetDecay(int32 TransformIndex) const
+{
+	return DecayAttribute[TransformIndex];
+}
+
+void FGeometryCollectionDecayDynamicFacade::SetDecay(int32 TransformIndex, float DecayValue)
+{
+	DecayAttribute.ModifyAt(TransformIndex, DecayValue);
 }

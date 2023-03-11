@@ -2822,6 +2822,8 @@ void UGeometryCollectionComponent::UpdateRenderSystemsIfNeeded(bool bDynamicColl
 
 	if (bDynamicCollectionDirty)
 	{
+		UpdateRemovalIfNeeded();
+
 		// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
 		RefreshEmbeddedGeometry();
 
@@ -2854,6 +2856,68 @@ void UGeometryCollectionComponent::UpdateNavigationDataIfNeeded(bool bDynamicCol
 			{
 				UpdateNavigationData();
 			}
+		}
+	}
+}
+
+void UGeometryCollectionComponent::UpdateRemovalIfNeeded()
+{
+	// if removal is enabled, update the dynamic collection transform based on the decay 
+	// todo: we could optimize this using a list of transform to update from when we update the decay values
+	if (DynamicCollection && bAllowRemovalOnBreak && bAllowRemovalOnSleep)
+	{
+		FGeometryCollectionDecayDynamicFacade DecayFacade(*DynamicCollection);
+		if (DecayFacade.IsValid())
+		{
+			const FTransform ZeroScaleTransform(FQuat::Identity, FVector::Zero(), FVector(0, 0, 0));
+
+			if (RestCollection->bScaleOnRemoval)
+			{
+				const FTransform InverseComponentTransform = GetComponentTransform().Inverse();
+				for (int32 Idx = 0; Idx < GetTransformArray().Num(); ++Idx)
+				{
+					// only update values if the decay has changed 
+					const float Decay = DecayFacade.GetDecay(Idx);
+					if (Decay > 0.f && Decay <= 1.f)
+					{
+						const float Scale = 1.0 - Decay;
+						if (Scale < UE_SMALL_NUMBER)
+						{
+							DynamicCollection->Transform[Idx].SetScale3D(FVector::ZeroVector);
+						}
+						else
+						{
+							float ShrinkRadius = 0.0f;
+							UE::Math::TSphere<double> AccumulatedSphere;
+							// todo(chaos) : find a faster way to do that ( precompute the data ? )
+							if (CalculateInnerSphere(Idx, AccumulatedSphere))
+							{
+								ShrinkRadius = -AccumulatedSphere.W;
+							}
+
+							const FQuat LocalRotation = (InverseComponentTransform * FTransform(GlobalMatrices[Idx]).Inverse()).GetRotation();
+							const FVector LocalDown = LocalRotation.RotateVector(FVector(0.f, 0.f, ShrinkRadius));
+							const FVector CenterOfMass = DynamicCollection->MassToLocal[Idx].GetTranslation();
+							const FVector ScaleCenter = LocalDown + CenterOfMass;
+							const FTransform ScaleTransform(FQuat::Identity, ScaleCenter * FVector::FReal(1.f - Scale), FVector(Scale));
+							DynamicCollection->Transform[Idx].SetScale3D(FVector::ZeroVector);
+						}
+					}
+				}
+			}
+			else
+			{
+				// if we do not use scale we still need to make the piece to disappear when decay has reached 1
+				for (int32 Idx = 0; Idx < GetTransformArray().Num(); ++Idx)
+				{
+					const float Scale = (1.0 - DecayFacade.GetDecay(Idx));
+					if (Scale < UE_SMALL_NUMBER)
+					{
+						DynamicCollection->Transform[Idx].SetScale3D(FVector::ZeroVector);
+					}
+				}
+			}
+
 		}
 	}
 }
@@ -4024,51 +4088,7 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 		}
 		else
 		{
-			// Have to fully rebuild
-			if (DynamicCollection 
-				&& DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup)
-				&& DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup))
-			{
-				const TManagedArray<float>& Decay = DynamicCollection->GetAttribute<float>("Decay", FGeometryCollection::TransformGroup);
-				TManagedArray<FTransform>& UniformScale = DynamicCollection->ModifyAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
-
-				const FTransform InverseComponentTransform = GetComponentTransform().Inverse();
-				const FTransform ZeroScaleTransform(FQuat::Identity, FVector::Zero(), FVector(0, 0, 0));
-				for (int32 Idx = 0; Idx < GetTransformArray().Num(); ++Idx)
-				{
-					// only update values if the decay has changed 
-					if (Decay[Idx] > 0.f && Decay[Idx] <= 1.f)
-					{
-						const float Scale = 1.0 - Decay[Idx];
-						if (Scale < UE_SMALL_NUMBER)
-						{
-							UniformScale[Idx] = ZeroScaleTransform;
-						}
-						else
-						{
-							float ShrinkRadius = 0.0f;
-							UE::Math::TSphere<double> AccumulatedSphere;
-							// todo(chaos) : find a faster way to do that ( precompute the data ? )
-							if (CalculateInnerSphere(Idx, AccumulatedSphere))
-							{
-								ShrinkRadius = -AccumulatedSphere.W;
-							}
-						
-							const FQuat LocalRotation = (InverseComponentTransform * FTransform(GlobalMatrices[Idx]).Inverse()).GetRotation();
-							const FVector LocalDown = LocalRotation.RotateVector(FVector(0.f, 0.f, ShrinkRadius));
-							const FVector CenterOfMass = DynamicCollection->MassToLocal[Idx].GetTranslation();
-							const FVector ScaleCenter = LocalDown + CenterOfMass;
-							UniformScale[Idx] = FTransform(FQuat::Identity, ScaleCenter * (FVector::FReal)(1.f - Scale), FVector(Scale));
-						}
-					}
-				}
-				
-				GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), UniformScale, GlobalMatrices);
-			}
-			else
-			{ 
-				GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);		
-			}
+			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
 		}
 	}
 	
@@ -4586,11 +4606,11 @@ struct FGeometryCollectionDecayContext
 
 void UGeometryCollectionComponent::UpdateDecay(int32 TransformIdx, float UpdatedDecay, bool bUseClusterCrumbling, bool bHasDynamicInternalClusterParent, FGeometryCollectionDecayContext& ContextInOut)
 {
-	TManagedArray<float>& Decay = ContextInOut.DecayFacade.DecayAttribute.Modify();
-	if (UpdatedDecay > Decay[TransformIdx])
+	float Decay = ContextInOut.DecayFacade.GetDecay(TransformIdx);
+	if (UpdatedDecay > Decay)
 	{
 		ContextInOut.DirtyDynamicCollection = true;
-		Decay[TransformIdx] = UpdatedDecay;
+		Decay = UpdatedDecay;
 
 		if (bUseClusterCrumbling)
 		{
@@ -4600,21 +4620,24 @@ void UGeometryCollectionComponent::UpdateDecay(int32 TransformIdx, float Updated
 				if (InternalClusterItemindex.IsValid())
 				{
 					ContextInOut.ToCrumble.AddUnique(InternalClusterItemindex);
-					Decay[TransformIdx] = 0.0f;
+					Decay = 0.0f;
 				}
 			}
 			else
 			{
 				ContextInOut.ToCrumble.AddUnique(FGeometryCollectionItemIndex::CreateTransformItemIndex(TransformIdx));
-				Decay[TransformIdx] = 0.0f;
+				Decay = 0.0f;
 			}
 		}
-		else if (Decay[TransformIdx] >= 1.0f)
+		else if (Decay >= 1.0f)
 		{
 			// Disable the particle if it has decayed the requisite time
-			Decay[TransformIdx] = 1.0f;
+			Decay = 1.0f;
 			ContextInOut.ToDisable.Add(TransformIdx);
 		}
+
+		// push back Decay in the attribute
+		ContextInOut.DecayFacade.SetDecay(TransformIdx, Decay);
 	}
 }
 
@@ -4640,8 +4663,8 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 
 			const TManagedArray<int32>& OriginalParents = RestCollection->GetGeometryCollection()->Parent;
 
-			TManagedArray<float>& Decay = DecayFacade.DecayAttribute.Modify();
-			for (int32 TransformIdx = 0; TransformIdx < Decay.Num(); ++TransformIdx)
+			const int32 NumTransforms = OriginalParents.Num();
+			for (int32 TransformIdx = 0; TransformIdx < NumTransforms; ++TransformIdx)
 			{
 				const bool HasInternalClusterParent = DynamicStateFacade.HasInternalClusterParent(TransformIdx);
 				if (HasInternalClusterParent)
@@ -4662,7 +4685,7 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 					if (OriginalParents[TransformIdx] > INDEX_NONE)
 					{
 						// if decay has started we do not need to check slow moving or sleeping state anymore  
-						bool ShouldUpdateTimer = (Decay[TransformIdx] > 0);
+						bool ShouldUpdateTimer = (DecayFacade.GetDecay(TransformIdx) > 0);
 						if (!ShouldUpdateTimer && RestCollection->bSlowMovingAsSleeping)
 						{
 							const FVector CurrentPosition = DynamicCollection->Transform[TransformIdx].GetTranslation();
@@ -4710,8 +4733,8 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 
 			const TManagedArray<int32>* InitialLevels = PhysicsProxy->GetPhysicsCollection().FindAttribute<int32>("InitialLevel", FGeometryCollection::TransformGroup);
 
-			TManagedArray<float>& Decay = DecayFacade.DecayAttribute.Modify();
-			for (int32 TransformIdx = 0; TransformIdx < Decay.Num(); ++TransformIdx)
+			const int32 NumTransforms = OriginalParents.Num();
+			for (int32 TransformIdx = 0; TransformIdx < NumTransforms; ++TransformIdx)
 			{
 				const bool HasInternalClusterParent = DynamicStateFacade.HasInternalClusterParent(TransformIdx);
 				if (HasInternalClusterParent)
