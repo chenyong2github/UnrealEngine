@@ -10,17 +10,30 @@ FMultiUserVCamCameraFocusData::FMultiUserVCamCameraFocusData(const UCineCameraCo
 	: ManualFocusDistance(CineCamera->CurrentFocusDistance)
 	, FocusSmoothingInterpSpeed(CineCamera->FocusSettings.FocusSmoothingInterpSpeed)
 	, bSmoothFocusChanges(CineCamera->FocusSettings.bSmoothFocusChanges)
+	, ActorToTrack(CineCamera->FocusSettings.TrackingFocusSettings.ActorToTrack.ToSoftObjectPath())
+	, RelativeOffset(CineCamera->FocusSettings.TrackingFocusSettings.RelativeOffset)
+	, FocusMethod(CineCamera->FocusSettings.FocusMethod)
+#if WITH_EDITORONLY_DATA
+	, bDrawDebugFocusPlane(CineCamera->FocusSettings.bDrawDebugFocusPlane)
+#endif
 {}
 
 
 FCameraFocusSettings FMultiUserVCamCameraFocusData::ToCameraFocusSettings() const
 {
 	FCameraFocusSettings Result;
-	Result.FocusMethod = ECameraFocusMethod::Manual;
+	Result.FocusMethod = FocusMethod;
 	Result.ManualFocusDistance = ManualFocusDistance;
 	Result.bSmoothFocusChanges = bSmoothFocusChanges;
 	Result.FocusSmoothingInterpSpeed = FocusSmoothingInterpSpeed;
 	Result.FocusOffset = 0.f;
+
+	Result.TrackingFocusSettings.ActorToTrack = ActorToTrack;
+	Result.TrackingFocusSettings.RelativeOffset = RelativeOffset;
+
+#if WITH_EDITORONLY_DATA
+	Result.bDrawDebugFocusPlane = bDrawDebugFocusPlane;
+#endif
 	return Result;
 }
 

@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "CineCameraComponent.h"
+#include "CineCameraSettings.h"
+
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -31,6 +33,20 @@ public:
 	float FocusSmoothingInterpSpeed = 8.f;
 	UPROPERTY()
 	bool bSmoothFocusChanges = false;
+
+	UPROPERTY()
+	FSoftObjectPath ActorToTrack;
+
+	UPROPERTY()
+	FVector RelativeOffset;
+
+	UPROPERTY()
+	ECameraFocusMethod FocusMethod = ECameraFocusMethod::DoNotOverride;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	uint8 bDrawDebugFocusPlane : 1;
+#endif
 };
 
 USTRUCT()
