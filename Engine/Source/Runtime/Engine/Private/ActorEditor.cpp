@@ -1079,8 +1079,6 @@ TUniquePtr<FWorldPartitionActorDesc> AActor::CreateClassActorDesc() const
 
 TUniquePtr<FWorldPartitionActorDesc> AActor::CreateActorDesc() const
 {
-	check(!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject));
-	
 	TUniquePtr<FWorldPartitionActorDesc> ActorDesc(CreateClassActorDesc());
 		
 	ActorDesc->Init(this);

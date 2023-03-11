@@ -178,7 +178,7 @@ bool FContentBundleEditor::ContainsActor(const AActor* InActor) const
 {
 	if (InActor != nullptr)
 	{
-		return ActorDescContainer->GetActorDesc(InActor) != nullptr || UnsavedActorMonitor->IsMonitoring(InActor);
+		return ActorDescContainer->GetActorDesc(InActor->GetActorGuid()) != nullptr || UnsavedActorMonitor->IsMonitoring(InActor);
 	}
 
 	return false;

@@ -2,10 +2,11 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "Misc/Paths.h"
 #include "WorldPartition/WorldPartitionActorDescArchive.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
 
+#include "Misc/Paths.h"
+#include "Misc/ArchiveMD5.h"
 #include "UObject/MetaData.h"
 #include "AssetRegistry/AssetData.h"
 #include "Serialization/MemoryReader.h"
@@ -37,16 +38,13 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	, HardRefCount(0)
 	, Container(nullptr)
 	, bIsForcedNonSpatiallyLoaded(false)
+	, bIsDefaultActorDesc(false)
 	, UnloadedReason(nullptr)
 {}
 
 void FWorldPartitionActorDesc::Init(const AActor* InActor)
 {	
 	check(IsValid(InActor));
-	check(InActor->IsPackageExternal());
-
-	Guid = InActor->GetActorGuid();
-	check(Guid.IsValid());
 
 	UClass* ActorClass = InActor->GetClass();
 
@@ -59,6 +57,31 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	{
 		BaseClass = *InActor->GetClass()->GetPathName();
 	}
+
+	if (InActor->HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		check(!InActor->IsPackageExternal());
+		check(!InActor->GetActorGuid().IsValid());
+
+		FArchiveMD5 MD5Ar;
+		FString ClassPath = BaseClass.IsValid() ? BaseClass.ToString() : NativeClass.ToString();
+		MD5Ar << ClassPath;
+		
+		FMD5Hash MD5Hash;
+		MD5Ar.GetHash(MD5Hash);
+
+		Guid = MD5HashToGuid(MD5Hash);
+
+		bIsDefaultActorDesc = true;
+	}
+	else
+	{
+		check(InActor->IsPackageExternal());
+		check(InActor->GetActorGuid().IsValid());
+		Guid = InActor->GetActorGuid();
+	}
+
+	check(Guid.IsValid());
 
 	const FBox StreamingBounds = InActor->GetStreamingBounds();
 	StreamingBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
@@ -138,30 +161,34 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	InActor->GetActorDescProperties(Properties);
 
 	ActorPackage = InActor->GetPackage()->GetFName();
-	ActorPath = *InActor->GetPathName();
-	FolderPath = InActor->GetFolderPath();
-	FolderGuid = InActor->GetFolderGuid();
-
-	const AActor* AttachParentActor = InActor->GetAttachParentActor();
-	if (AttachParentActor)
-	{
-		ParentActor = AttachParentActor->GetActorGuid();
-	}
+	ActorPath = bIsDefaultActorDesc ? *InActor->GetClass()->GetPathName() : *InActor->GetPathName();
 
 	ContentBundleGuid = InActor->GetContentBundleGuid();
-	
-	TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences(const_cast<AActor*>(InActor));
 
-	if (ActorReferences.Num())
+	if (!bIsDefaultActorDesc)
 	{
-		References.Empty(ActorReferences.Num());
-		for(AActor* ActorReference: ActorReferences)
-		{
-			References.Add(ActorReference->GetActorGuid());
-		}
-	}
+		FolderPath = InActor->GetFolderPath();
+		FolderGuid = InActor->GetFolderGuid();
 
-	ActorLabel = *InActor->GetActorLabel(false);
+		const AActor* AttachParentActor = InActor->GetAttachParentActor();
+		if (AttachParentActor)
+		{
+			ParentActor = AttachParentActor->GetActorGuid();
+		}
+
+		TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences(const_cast<AActor*>(InActor));
+
+		if (ActorReferences.Num())
+		{
+			References.Empty(ActorReferences.Num());
+			for(AActor* ActorReference: ActorReferences)
+			{
+				References.Add(ActorReference->GetActorGuid());
+			}
+		}
+
+		ActorLabel = *InActor->GetActorLabel(false);
+	}
 
 	Container = nullptr;
 	ActorPtr = const_cast<AActor*>(InActor);
@@ -183,7 +210,7 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 	MetadataAr.SetCustomVersions(CustomVersions);
 	
 	// Serialize metadata payload
-	FActorDescArchive ActorDescAr(MetadataAr);
+	FActorDescArchive ActorDescAr(MetadataAr, this);
 	Serialize(ActorDescAr);
 
 	// Call registered deprecator
@@ -232,16 +259,14 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 	// Serialize to archive and gather custom versions
 	TArray<uint8> PayloadData;
 	FMemoryWriter PayloadAr(PayloadData, true);
-	FActorDescArchive ActorDescAr(PayloadAr);
-
-	// Serialize actor descriptor
+	FActorDescArchive ActorDescAr(PayloadAr, this);
 	Serialize(ActorDescAr);
 
 	// Serialize custom versions
 	TArray<uint8> HeaderData;
 	FMemoryWriter HeaderAr(HeaderData);
 	FCustomVersionContainer CustomVersions = ActorDescAr.GetCustomVersions();
-	CustomVersions.Serialize(HeaderAr);
+	CustomVersions.Serialize(HeaderAr); 
 
 	// Append data
 	OutData = MoveTemp(HeaderData);
@@ -372,35 +397,6 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescNativeBaseClassSerialization)
-	{
-		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescActorAndClassPaths)
-		{
-			FName BaseClassPathName;
-			Ar << BaseClassPathName;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			BaseClass = FAssetData::TryConvertShortClassNameToPathName(BaseClassPathName, ELogVerbosity::NoLogging);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-		else
-		{
-			Ar << BaseClass;
-		}
-	}
-
-	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescActorAndClassPaths)
-	{
-		FName NativeClassPathName;
-		Ar << NativeClassPathName;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		NativeClass = FAssetData::TryConvertShortClassNameToPathName(NativeClassPathName, ELogVerbosity::NoLogging);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	else
-	{
-		Ar << NativeClass;
-	}
-
 	Ar << Guid;
 
 	if(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LargeWorldCoordinates)
@@ -410,7 +406,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		BoundsLocation = FVector(BoundsLocationFlt);
 		BoundsExtent = FVector(BoundsExtentFlt);
 	}
-	else
+	else if (!bIsDefaultActorDesc)
 	{
 		Ar << BoundsLocation << BoundsExtent;
 	}
@@ -425,14 +421,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
-		Ar << bIsSpatiallyLoaded;
+		Ar << TDeltaSerialize<bool>(bIsSpatiallyLoaded);
 	}
-		
-	Ar << RuntimeGrid << bActorIsEditorOnly;
+
+	Ar << TDeltaSerialize<FName>(RuntimeGrid);
+	Ar << TDeltaSerialize<bool>(bActorIsEditorOnly);
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeActorIsRuntimeOnly)
 	{
-		Ar << bActorIsRuntimeOnly;
+		Ar << TDeltaSerialize<bool>(bActorIsRuntimeOnly);
 	}
 	else
 	{
@@ -455,7 +452,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescTagsSerialization)
 	{
-		Ar << Tags;
+		Ar << TDeltaSerialize<TArray<FName>>(Tags);
 	}
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeArchivePersistent)
@@ -477,24 +474,24 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeDataLayers)
 	{
-		Ar << DataLayers;
+		Ar << TDeltaSerialize<TArray<FName>>(DataLayers);
 	}
 
 	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescSerializeDataLayerAssets)
 	{
-		Ar << bIsUsingDataLayerAsset;
+		Ar << TDeltaSerialize<bool>(bIsUsingDataLayerAsset);
 	}
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeActorLabel)
 	{
-		Ar << ActorLabel;
+		Ar << TDeltaSerialize<FName>(ActorLabel);
 	}
 
 	if ((Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeHLODInfo) ||
 		(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeHLODInfo))
 	{
-		Ar << bActorIsHLODRelevant;
-		Ar << HLODLayer;
+		Ar << TDeltaSerialize<bool>(bActorIsHLODRelevant);
+		Ar << TDeltaSerialize<FName>(HLODLayer);
 	}
 	else
 	{
@@ -502,24 +499,27 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		HLODLayer = FName();
 	}
 
-	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeActorFolderPath)
+	if (!bIsDefaultActorDesc)
 	{
-		Ar << FolderPath;
-	}
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeActorFolderPath)
+		{
+			Ar << FolderPath;
+		}
 
-	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeAttachParent)
-	{
-		Ar << ParentActor;
-	}
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeAttachParent)
+		{
+			Ar << ParentActor;
+		}
 
-	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::AddLevelActorFolders)
-	{
-		Ar << FolderGuid;
-	}
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::AddLevelActorFolders)
+		{
+			Ar << FolderGuid;
+		}
 
-	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescPropertyMapSerialization)
-	{
-		Ar << Properties;
+		if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescPropertyMapSerialization)
+		{
+			Ar << Properties;
+		}
 	}
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeContentBundleGuid)
@@ -528,7 +528,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
-		Ar << ContentBundleGuid;
+		Ar << TDeltaSerialize<FGuid>(ContentBundleGuid);
+
 		// @todo_ow: remove once we find why some actors end up with invalid ContentBundleGuids
 		if (Ar.IsLoading())
 		{

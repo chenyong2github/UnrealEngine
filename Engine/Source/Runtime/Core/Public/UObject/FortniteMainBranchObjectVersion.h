@@ -277,6 +277,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Change the non-spatialized radius to blend to a pure 2D spatialized sound vs omnidirectional
 		AudioAttenuationNonSpatializedRadiusBlend,
 
+		// Serialize actor class descriptors
+		WorldPartitionActorClassDescSerialize,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

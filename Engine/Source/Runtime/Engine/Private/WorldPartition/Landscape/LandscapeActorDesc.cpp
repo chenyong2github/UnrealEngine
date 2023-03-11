@@ -17,10 +17,13 @@ void FLandscapeActorDesc::Init(const AActor* InActor)
 	GridIndexY = LandscapeProxy->LandscapeSectionOffset.Y / (int32)LandscapeProxy->GridSize;
 	GridIndexZ = 0;
 
-	const ALandscape* LandscapeActor = LandscapeProxy->GetLandscapeActor();
-	if (LandscapeActor)
+	if (!bIsDefaultActorDesc)
 	{
-		LandscapeActorGuid = LandscapeActor->GetActorGuid();
+		const ALandscape* LandscapeActor = LandscapeProxy->GetLandscapeActor();
+		if (LandscapeActor)
+		{
+			LandscapeActorGuid = LandscapeActor->GetActorGuid();
+		}
 	}
 }
 
@@ -31,15 +34,18 @@ void FLandscapeActorDesc::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
-	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::FLandscapeActorDescFixupGridIndices)
+	if (!bIsDefaultActorDesc)
 	{
-		GridIndexX = (int32)(GridIndexX * GridSize) / (int32)GridSize;
-		GridIndexY = (int32)(GridIndexY * GridSize) / (int32)GridSize;
-	}
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::FLandscapeActorDescFixupGridIndices)
+		{
+			GridIndexX = (int32)(GridIndexX * GridSize) / (int32)GridSize;
+			GridIndexY = (int32)(GridIndexY * GridSize) / (int32)GridSize;
+		}
 
-	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionLandscapeActorDescSerializeLandscapeActorGuid)
-	{
-		Ar << LandscapeActorGuid;
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionLandscapeActorDescSerializeLandscapeActorGuid)
+		{
+			Ar << LandscapeActorGuid;
+		}
 	}
 }
 

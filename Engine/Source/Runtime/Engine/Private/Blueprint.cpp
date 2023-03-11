@@ -32,6 +32,7 @@
 #include "UObject/MetaData.h"
 #include "Blueprint/BlueprintExtension.h"
 #include "UObject/TextProperty.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
 #endif
 
 #include "Engine/InheritableComponentHandler.h"
@@ -1067,6 +1068,11 @@ void UBlueprint::GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* Targ
 			
 			OutTags.Add( FAssetRegistryTag(FBlueprintTags::FindInBlueprintsData, Value, FAssetRegistryTag::TT_Hidden) );
 		}
+	}
+
+	if (AActor* BlueprintCDO = GeneratedClass ? Cast<AActor>(GeneratedClass->ClassDefaultObject) : nullptr)
+	{
+		FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(BlueprintCDO, OutTags);
 	}
 }
 #endif

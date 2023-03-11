@@ -2087,6 +2087,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		FModuleManager::Get().LoadModuleChecked("MovieSceneTracks");
 		FModuleManager::Get().LoadModule("LevelSequence");
 #if WITH_EDITOR
+		FModuleManager::Get().LoadModule("WorldPartitionEditor");
 		// The SparseVolumeTexture module containing the importer is only loaded and used in the editor.
 		FModuleManager::Get().LoadModuleChecked("SparseVolumeTexture");
 #endif

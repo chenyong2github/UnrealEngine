@@ -185,10 +185,13 @@ void FWorldDataLayersActorDesc::Serialize(FArchive& Ar)
 
 	FWorldPartitionActorDesc::Serialize(Ar);
 
-	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::AddedWorldDataLayersActorDesc)
+	if (!bIsDefaultActorDesc)
 	{
-		Ar << DataLayerInstances;
-		bIsValid = true;
+		if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::AddedWorldDataLayersActorDesc)
+		{
+			Ar << DataLayerInstances;
+			bIsValid = true;
+		}
 	}
 }
 

@@ -53,6 +53,10 @@ UClass* FWorldPartitionActorDescUtils::GetActorNativeClassFromAssetData(const FA
 	FString ActorMetaDataClass;
 	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorMetaDataClass))
 	{
+		// Avoid an assert when calling StaticFindObject during save to retrieve the actor's class.
+		// Since we are only looking for a native class, the call to StaticFindObject is legit.
+		TGuardValue<bool> GIsSavingPackageGuard(GIsSavingPackage, false);
+
 		// Look for a class redirectors
 		const FString ActorNativeClassName = ResolveClassRedirector(ActorMetaDataClass);
 		
@@ -96,31 +100,32 @@ TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDesc
 
 void FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(const AActor* InActor, TArray<UObject::FAssetRegistryTag>& OutTags)
 {
-	check(InActor->IsPackageExternal());
-	
 	TUniquePtr<FWorldPartitionActorDesc> ActorDesc(InActor->CreateActorDesc());
 
-	// If the actor is not added to a world, we can't retrieve its bounding volume, so try to get the existing one
-	if (ULevel* Level = InActor->GetLevel(); !Level || !Level->Actors.Contains(InActor))
+	if (!InActor->HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
-		// Avoid an assert when calling StaticFindObject during save to retrieve the actor's class.
-		// Since we are only looking for a native class, the call to StaticFindObject is legit.
-		TGuardValue<bool> GIsSavingPackageGuard(GIsSavingPackage, false);
-
-		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-
-		FARFilter Filter;
-		Filter.bIncludeOnlyOnDiskAssets = true;
-		Filter.PackageNames.Add(InActor->GetPackage()->GetFName());
-
-		TArray<FAssetData> Assets;
-		AssetRegistry.GetAssets(Filter, Assets);
-
-		if (Assets.Num() == 1)
+		// If the actor is not added to a world, we can't retrieve its bounding volume, so try to get the existing one
+		if (ULevel* Level = InActor->GetLevel(); !Level || !Level->Actors.Contains(InActor))
 		{
-			if (TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Assets[0]))
+			// Avoid an assert when calling StaticFindObject during save to retrieve the actor's class.
+			// Since we are only looking for a native class, the call to StaticFindObject is legit.
+			TGuardValue<bool> GIsSavingPackageGuard(GIsSavingPackage, false);
+
+			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+
+			FARFilter Filter;
+			Filter.bIncludeOnlyOnDiskAssets = true;
+			Filter.PackageNames.Add(InActor->GetPackage()->GetFName());
+
+			TArray<FAssetData> Assets;
+			AssetRegistry.GetAssets(Filter, Assets);
+
+			if (Assets.Num() == 1)
 			{
-				ActorDesc->TransferWorldData(NewActorDesc.Get());
+				if (TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Assets[0]))
+				{
+					ActorDesc->TransferWorldData(NewActorDesc.Get());
+				}
 			}
 		}
 	}
@@ -147,6 +152,9 @@ void FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActor(const AActor*
 
 void FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActorDescriptor(TUniquePtr<FWorldPartitionActorDesc>& InActorDesc, TUniquePtr<FWorldPartitionActorDesc>& OutActorDesc)
 {
+	check(InActorDesc->GetActorPackage() == OutActorDesc->GetActorPackage());
+	check(InActorDesc->GetActorSoftPath() == OutActorDesc->GetActorSoftPath());
+	check(InActorDesc->GetGuid() == OutActorDesc->GetGuid());
 	InActorDesc->TransferFrom(OutActorDesc.Get());
 	OutActorDesc = MoveTemp(InActorDesc);
 }
@@ -157,84 +165,6 @@ void FWorldPartitionActorDescUtils::ReplaceActorDescriptorPointerFromActor(const
 	check(!InNewActor || (InNewActor->GetActorGuid() == InActorDesc->GetGuid()));
 	check(!InActorDesc->ActorPtr.IsValid() || (InActorDesc->ActorPtr == InOldActor));
 	InActorDesc->ActorPtr = InNewActor;
-}
-
-bool FWorldPartitionActorDescUtils::ValidateActorDescClass(FWorldPartitionActorDesc* InActorDesc)
-{
-	// If the native class in invalid (potentially deleted), it means we parsed the actor descriptor with AActor::StaticClass and explicitly
-	// marked the class as invalid.
-	if (!InActorDesc->GetNativeClass().IsValid())
-	{
-		UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find native class for actor '%s"), *InActorDesc->GetActorSoftPath().ToString());
-		return false;
-	}
-
-	// If the base class is invalid, it means the actor is from a native class.
-	if (!InActorDesc->GetBaseClass().IsValid())
-	{
-		return true;
-	}
-
-	// Lookup the Bp class, if it's already loaded we don't need to validate anything.
-	if (UClass* BaseClass = FindObject<UClass>(InActorDesc->GetBaseClass()))
-	{
-		return true;
-	}
-
-	// The actor is from a BP class which isn't loaded. To avoid loading the class, go through the asset registry to validate the class.
-	const FAssetData* ClassData;
-	FString ActorDescBaseClass = InActorDesc->GetBaseClass().ToString();
-
-	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-
-	for (;;)
-	{
-		// Look for a class redirectors
-		const FString ActorClassName = ResolveClassRedirector(ActorDescBaseClass);
-		FTopLevelAssetPath AssetClassPath(*ActorClassName);
-		
-		ActorDescBaseClass.RemoveFromEnd(TEXT("_C"), ESearchCase::CaseSensitive);
-		const FString ActorClassNameAlt = ResolveClassRedirector(ActorDescBaseClass);
-		FTopLevelAssetPath AssetClassPathAlt(*ActorClassNameAlt);
-
-		TArray<FAssetData> BlueprintAssets;							
-		AssetRegistry.ScanFilesSynchronous({ AssetClassPath.GetPackageName().ToString() }, /*bForceRescan*/false);
-		AssetRegistry.GetAssetsByPackageName(AssetClassPath.GetPackageName(), BlueprintAssets, /*bIncludeOnlyOnDiskAssets*/true);
-
-		if (!BlueprintAssets.Num())
-		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find assets for class '%s' for actor '%s"), *AssetClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString());
-			return false;
-		}
-
-		ClassData = BlueprintAssets.FindByPredicate([&AssetClassPath, &AssetClassPathAlt](const FAssetData& AssetData)
-		{ 
-			return (AssetData.ToSoftObjectPath().GetAssetPath() == AssetClassPath) || (AssetData.ToSoftObjectPath().GetAssetPath() == AssetClassPathAlt);
-		});
-
-		if (!ClassData)
-		{
-			UE_LOG(LogWorldPartition, Display, TEXT("Failed to find class asset '%s' for actor '%s"), *AssetClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString());
-			return false;
-		}
-
-		if (!ClassData->IsRedirector())
-		{
-			break;
-		}
-
-		FString DestinationObjectPath;
-		if (!ClassData->GetTagValue(TEXT("DestinationObject"), DestinationObjectPath))
-		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to follow class redirector for '%s' for actor '%s"), *AssetClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString());
-			return false;
-		}
-
-		// Cleanup the destination object path from prefixed class type, if any
-		ActorDescBaseClass = FTopLevelAssetPath(DestinationObjectPath).ToString();
-	}
-
-	return true;
 }
 
 bool FWorldPartitionActorDescUtils::FixupRedirectedAssetPath(FName& InOutAssetPath)

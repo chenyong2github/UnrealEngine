@@ -71,6 +71,7 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend struct FWorldPartitionActorDescUtils;
 	friend struct FWorldPartitionActorDescUnitTestAcccessor;
 	friend class FAssetRootPackagePatcher;
+	friend class FActorDescArchive;
 
 public:
 	struct FContainerInstance
@@ -308,6 +309,7 @@ protected:
 	UActorDescContainer*			Container;
 	TOptional<TArray<FName>>		ResolvedDataLayerInstanceNames; // Can only resolve in ActorDesc if Container is not used as a template
 	bool							bIsForcedNonSpatiallyLoaded;
+	bool							bIsDefaultActorDesc;
 	mutable FText*					UnloadedReason;
 
 	static TMap<TSubclassOf<AActor>, FActorDescDeprecator> Deprecators;

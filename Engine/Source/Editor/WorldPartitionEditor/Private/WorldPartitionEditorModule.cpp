@@ -16,6 +16,7 @@
 #include "WorldPartition/WorldPartitionConvertOptions.h"
 #include "WorldPartition/WorldPartitionEditorSettings.h"
 #include "WorldPartition/HLOD/SWorldPartitionBuildHLODsDialog.h"
+#include "WorldPartition/WorldPartitionClassDescRegistry.h"
 
 #include "LevelEditor.h"
 #include "Framework/Application/SlateApplication.h"
@@ -144,10 +145,14 @@ void FWorldPartitionEditorModule::StartupModule()
 	PropertyEditor.RegisterCustomClassLayout("WorldPartition", FOnGetDetailCustomizationInstance::CreateStatic(&FWorldPartitionDetails::MakeInstance));
 	PropertyEditor.RegisterCustomClassLayout("WorldPartitionRuntimeSpatialHash", FOnGetDetailCustomizationInstance::CreateStatic(&FWorldPartitionRuntimeSpatialHashDetails::MakeInstance));
 	PropertyEditor.RegisterCustomClassLayout("WorldPartitionHLOD", FOnGetDetailCustomizationInstance::CreateStatic(&FWorldPartitionHLODDetailsCustomization::MakeInstance));
+
+	FWorldPartitionClassDescRegistry().Get().Initialize();
 }
 
 void FWorldPartitionEditorModule::ShutdownModule()
 {
+	FWorldPartitionClassDescRegistry().Get().Uninitialize();
+
 	if (!IsRunningGame())
 	{
 		if (FLevelEditorModule* LevelEditorModule = FModuleManager::Get().GetModulePtr<FLevelEditorModule>("LevelEditor"))

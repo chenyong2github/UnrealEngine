@@ -22,6 +22,8 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 	friend struct FWorldPartitionHandleUtils;
 	friend class FWorldPartitionActorDesc;
 
+	using TNameActorDescMap = TMap<FName, TUniquePtr<FWorldPartitionActorDesc>*>;
+
 public:
 	/* Struct of parameters passed to Initialize function. */
 	struct ENGINE_API FInitializeParams
@@ -88,10 +90,8 @@ public:
 	const TArray<TUniquePtr<FWorldPartitionActorDesc>>& GetInvalidActors() const { return InvalidActors; }
 	void ClearInvalidActors() { InvalidActors.Empty(); }
 
-	//~ Begin FActorDescList Interface
-	virtual void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext) override;
-	virtual void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc) override;
-	//~ End FActorDescList Interface
+	void RegisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext);
+	void UnregisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
 
 	void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc);
 	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
@@ -99,6 +99,9 @@ public:
 	void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc);
 
 	bool ShouldHandleActorEvent(const AActor* Actor);
+
+	const FWorldPartitionActorDesc* GetActorDescByName(const FString& ActorPath) const;
+	const FWorldPartitionActorDesc* GetActorDescByName(const FSoftObjectPath& InActorPath) const;
 
 	bool bContainerInitialized;
 
@@ -108,6 +111,8 @@ public:
 	TArray<TUniquePtr<FWorldPartitionActorDesc>> InvalidActors;
 
 protected:
+	TNameActorDescMap ActorsByName;
+
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface

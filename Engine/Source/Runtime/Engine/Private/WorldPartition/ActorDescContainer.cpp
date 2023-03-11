@@ -13,6 +13,7 @@
 #include "Modules/ModuleManager.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
+#include "WorldPartition/WorldPartitionClassDescRegistry.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 
 UActorDescContainer::FActorDescContainerInitializeDelegate UActorDescContainer::OnActorDescContainerInitialized;
@@ -35,7 +36,7 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Initialize);
 
-	// @todo_ow: We need to pass the world context to AddActorDescriptor for FLevelInstanceActorDesc::RegisterContainerInstance to resolve the ULevelInstanceSubsystem.
+	// @todo_ow: We need to pass the world context to RegisterActorDescriptor for FLevelInstanceActorDesc::RegisterContainerInstance to resolve the ULevelInstanceSubsystem.
 	// A better solution would be for ActorDescContainers to always be outered to an OwningWorldPartition (with the downside of not sharing between 2 instanced WorldPartition).
 	// With this, we could always find the owning WorldPartition and of course the owning world (GetOwningWorldPartition()->GetWorld()).
 	UWorld* OwningWorld = InitParams.World;
@@ -64,19 +65,36 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 		AssetRegistry.GetAssets(Filter, Assets);
 	}
 
+	FWorldPartitionClassDescRegistry& ClassDescRegistry = FWorldPartitionClassDescRegistry::Get();
+	//{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GatherDescriptorsClass);
+		
+		TSet<FTopLevelAssetPath> ClassPaths;
+		for (const FAssetData& Asset : Assets)
+		{
+			ClassPaths.Add(Asset.AssetClassPath);
+		}
+
+		ClassDescRegistry.PrefetchClassDescs(ClassPaths.Array());
+	//}
+
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(RegisterDescriptors);
 		for (const FAssetData& Asset : Assets)
 		{
 			TUniquePtr<FWorldPartitionActorDesc> ActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Asset);
 
-			if (!ActorDesc.IsValid() || !FWorldPartitionActorDescUtils::ValidateActorDescClass(ActorDesc.Get()) || (InitParams.FilterActorDesc && !InitParams.FilterActorDesc(ActorDesc.Get())))
+			if (!ActorDesc.IsValid() || 
+				!ActorDesc->GetNativeClass().IsValid() || 
+				(ActorDesc->GetBaseClass().IsValid() && !ClassDescRegistry.IsRegisteredClass(ActorDesc->GetBaseClass())) || 
+				FActorDescList::GetActorDesc(ActorDesc->GetGuid()) ||
+				(InitParams.FilterActorDesc && !InitParams.FilterActorDesc(ActorDesc.Get())))
 			{
 				InvalidActors.Emplace(MoveTemp(ActorDesc));
 				continue;
 			}
 
-			AddActorDescriptor(ActorDesc.Release(), OwningWorld);
+			RegisterActorDescriptor(ActorDesc.Release(), OwningWorld);
 		}
 	}
 
@@ -132,7 +150,7 @@ void UActorDescContainer::Update()
 			else
 			{
 				FWorldPartitionActorDesc* ActorDescPtr = NewActorDesc.Release();
-				AddActorDescriptor(ActorDescPtr, OwningWorld);
+				RegisterActorDescriptor(ActorDescPtr, OwningWorld);
 				OnActorDescAdded(ActorDescPtr);
 			}
 		}
@@ -168,7 +186,7 @@ void UActorDescContainer::Uninitialize()
 	{
 		if (FWorldPartitionActorDesc* ActorDesc = ActorDescPtr.Get())
 		{
-			RemoveActorDescriptor(ActorDesc);
+			UnregisterActorDescriptor(ActorDesc);
 		}
 		ActorDescPtr.Reset();
 	}
@@ -216,30 +234,53 @@ UWorldPartition* UActorDescContainer::GetWorldPartition() const
 	return OuterWorldPartition;
 }
 
-void UActorDescContainer::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext)
+void UActorDescContainer::RegisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext)
 {
-	FActorDescList::AddActorDescriptor(ActorDesc, InWorldContext);
+	FActorDescList::AddActorDescriptor(ActorDesc);
+
 	ActorDesc->SetContainer(this, InWorldContext);
+		
+	//@odo_ow get rid of this with a delegate
 	if (const UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(InWorldContext))
 	{
 		DataLayerManager->ResolveActorDescDataLayers(ActorDesc);
 	}
+
+	ActorsByName.Add(ActorDesc->GetActorName(), ActorsByGuid.FindChecked(ActorDesc->GetGuid()));
 }
 
-void UActorDescContainer::RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
+void UActorDescContainer::UnregisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
 {
-	ActorDesc->SetContainer(nullptr, nullptr);
 	FActorDescList::RemoveActorDescriptor(ActorDesc);
+	ActorDesc->SetContainer(nullptr, nullptr);
+	verify(ActorsByName.Remove(ActorDesc->GetActorName()));	
 }
 
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 {
-	if (Actor != nullptr)
+	return Actor && IsActorDescHandled(Actor) && Actor->IsMainPackageActor() && Actor->GetLevel();
+}
+
+const FWorldPartitionActorDesc* UActorDescContainer::GetActorDescByName(const FString& ActorPath) const
+{
+	FString ActorName;
+	FString ActorContext;
+	if (!ActorPath.Split(TEXT("."), &ActorContext, &ActorName, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
 	{
-		return IsActorDescHandled(Actor) && Actor->IsMainPackageActor() && (Actor->GetLevel() != nullptr);
+		ActorName = ActorPath;
 	}
-	
-	return false;
+
+	if (const TUniquePtr<FWorldPartitionActorDesc>* const* ActorDesc = ActorsByName.Find(*ActorName))
+	{
+		return (*ActorDesc)->Get();
+	}
+
+	return nullptr;
+}
+
+const FWorldPartitionActorDesc* UActorDescContainer::GetActorDescByName(const FSoftObjectPath& ActorPath) const
+{
+	return GetActorDescByName(ActorPath.ToString());
 }
 
 void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext)
@@ -261,7 +302,8 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 				else
 				{
 					// New actor
-					FWorldPartitionActorDesc* const AddedActorDesc = AddActor(Actor);
+					FWorldPartitionActorDesc* AddedActorDesc = Actor->CreateActorDesc().Release();
+					RegisterActorDescriptor(AddedActorDesc, Actor->GetWorld());
 					OnActorDescAdded(AddedActorDesc);
 				}
 			}
@@ -303,7 +345,7 @@ bool UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 	if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(ActorGuid))
 	{
 		OnActorDescRemoved(ExistingActorDesc->Get());
-		RemoveActorDescriptor(ExistingActorDesc->Get());
+		UnregisterActorDescriptor(ExistingActorDesc->Get());
 		ExistingActorDesc->Reset();
 		return true;
 	}

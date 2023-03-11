@@ -208,10 +208,8 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 
 		for (const FAssetData& ActorData : ActorsData)
 		{
-			// Get the FWorldPartitionActor			
-			const FWorldPartitionActorDesc* ActorDesc = ContainersToValidate.GetActorDesc(ActorData.AssetName.ToString());
-
-			if (ActorDesc != nullptr)
+			// Get the actor descriptor
+			if (const FWorldPartitionActorDesc* ActorDesc = ContainersToValidate.GetActorDescByName(ActorData.AssetName.ToString()))
 			{
 				RelevantActorGuids.Add(ActorDesc->GetGuid());
 			}

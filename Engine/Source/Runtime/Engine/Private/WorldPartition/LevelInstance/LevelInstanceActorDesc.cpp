@@ -12,6 +12,7 @@
 #include "Misc/PackageName.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
+#include "WorldPartition/WorldPartitionActorDescArchive.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -286,26 +287,30 @@ void FLevelInstanceActorDesc::TransferFrom(const FWorldPartitionActorDesc* From)
 void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 {
 	FWorldPartitionActorDesc::Serialize(Ar);
+
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-	Ar << LevelPackage;
+	Ar << TDeltaSerialize<FName>(LevelPackage);
 
-	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LargeWorldCoordinates)
+	if (!bIsDefaultActorDesc)
 	{
-		FTransform3f LevelInstanceTransformFlt;
-		Ar << LevelInstanceTransformFlt;
-		LevelInstanceTransform = FTransform(LevelInstanceTransformFlt);
-	}
-	else
-	{
-		Ar << LevelInstanceTransform;
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LargeWorldCoordinates)
+		{
+			FTransform3f LevelInstanceTransformFlt;
+			Ar << LevelInstanceTransformFlt;
+			LevelInstanceTransform = FTransform(LevelInstanceTransformFlt);
+		}
+		else
+		{
+			Ar << LevelInstanceTransform;
+		}
 	}
 
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::LevelInstanceSerializeRuntimeBehavior)
 	{
-		Ar << DesiredRuntimeBehavior;
+		Ar << TDeltaSerialize<ELevelInstanceRuntimeBehavior>(DesiredRuntimeBehavior);
 
 		if (Ar.IsLoading() && DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Embedded_Deprecated)
 		{
@@ -313,21 +318,24 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.IsLoading())
+	if (!bIsDefaultActorDesc)
 	{
-		const bool bFixupOldVersion = (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::PackedLevelInstanceBoundsFix) && 
-									  (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::PackedLevelInstanceBoundsFix);
-
-		const AActor* CDO = GetActorNativeClass()->GetDefaultObject<AActor>();
-		const ILevelInstanceInterface* LevelInstanceCDO = CastChecked<ILevelInstanceInterface>(CDO);
-		if (!LevelPackage.IsNone() && (LevelInstanceCDO->IsLoadingEnabled() || bFixupOldVersion))
+		if (Ar.IsLoading())
 		{
-			if (!IsContainerInstance())
+			const bool bFixupOldVersion = (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::PackedLevelInstanceBoundsFix) && 
+										  (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::PackedLevelInstanceBoundsFix);
+
+			const AActor* CDO = GetActorNativeClass()->GetDefaultObject<AActor>();
+			const ILevelInstanceInterface* LevelInstanceCDO = CastChecked<ILevelInstanceInterface>(CDO);
+			if (!LevelPackage.IsNone() && (LevelInstanceCDO->IsLoadingEnabled() || bFixupOldVersion))
 			{
-				FBox OutBounds;
-				if (ULevelInstanceSubsystem::GetLevelInstanceBoundsFromPackage(LevelInstanceTransform, LevelPackage, OutBounds))
+				if (!IsContainerInstance())
 				{
-					OutBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+					FBox OutBounds;
+					if (ULevelInstanceSubsystem::GetLevelInstanceBoundsFromPackage(LevelInstanceTransform, LevelPackage, OutBounds))
+					{
+						OutBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+					}
 				}
 			}
 		}

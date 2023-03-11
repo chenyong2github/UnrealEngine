@@ -88,24 +88,24 @@ FWorldPartitionActorDesc& FActorDescContainerCollection::GetActorDescChecked(con
 	return const_cast<FWorldPartitionActorDesc&>(const_cast<const FActorDescContainerCollection*>(this)->GetActorDescChecked(Guid));
 }
 
-const FWorldPartitionActorDesc* FActorDescContainerCollection::GetActorDesc(const FString& ActorPath) const
+const FWorldPartitionActorDesc* FActorDescContainerCollection::GetActorDescByName(const FString& ActorPath) const
 {
 	const FWorldPartitionActorDesc* ActorDesc = nullptr;
 	ForEachActorDescContainerBreakable([&ActorPath, &ActorDesc](const UActorDescContainer* ActorDescContainer)
 	{
-		ActorDesc = ActorDescContainer->GetActorDesc(ActorPath);
+		ActorDesc = ActorDescContainer->GetActorDescByName(ActorPath);
 		return ActorDesc == nullptr;
 	});
 
 	return ActorDesc;
 }
 
-const FWorldPartitionActorDesc* FActorDescContainerCollection::GetActorDesc(const FSoftObjectPath& InActorPath) const
+const FWorldPartitionActorDesc* FActorDescContainerCollection::GetActorDescByName(const FSoftObjectPath& ActorPath) const
 {
 	const FWorldPartitionActorDesc* ActorDesc = nullptr;
-	ForEachActorDescContainerBreakable([&InActorPath, &ActorDesc](const UActorDescContainer* ActorDescContainer)
+	ForEachActorDescContainerBreakable([&ActorPath, &ActorDesc](const UActorDescContainer* ActorDescContainer)
 	{
-		ActorDesc = ActorDescContainer->GetActorDesc(InActorPath);
+		ActorDesc = ActorDescContainer->GetActorDescByName(ActorPath);
 		return ActorDesc == nullptr;
 	});
 

@@ -1,0 +1,557 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "WorldPartition/WorldPartitionClassDescRegistry.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Algo/ForEach.h"
+#include "Algo/RemoveIf.h"
+#include "Algo/Transform.h"
+#include "UObject/CoreRedirects.h"
+#include "UObject/ObjectSaveContext.h"
+#include "UObject/UObjectIterator.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Interfaces/IPluginManager.h"
+#include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "ProfilingDebugging/ScopedTimers.h"
+#include "WorldPartition/WorldPartitionLog.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
+
+void FWorldPartitionClassDescRegistry::Initialize()
+{
+	UE_SCOPED_TIMER(TEXT("FWorldPartitionClassDescRegistry::Initialize"), LogWorldPartition, Display);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FWorldPartitionClassDescRegistry::Initialize);
+
+	check(!IsInitialized());
+
+	RegisterClasses();
+
+	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FWorldPartitionClassDescRegistry::OnAssetLoaded);
+	FCoreUObjectDelegates::OnObjectPreSave.AddRaw(this, &FWorldPartitionClassDescRegistry::OnObjectPreSave);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FWorldPartitionClassDescRegistry::OnObjectPropertyChanged);
+
+	IPluginManager& PluginManager = IPluginManager::Get();
+	ELoadingPhase::Type LoadingPhase = PluginManager.GetLastCompletedLoadingPhase();
+	if (LoadingPhase == ELoadingPhase::None || LoadingPhase < ELoadingPhase::PostEngineInit)
+	{
+		PluginManager.OnLoadingPhaseComplete().AddRaw(this, &FWorldPartitionClassDescRegistry::OnPluginLoadingPhaseComplete);
+	}
+
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	AssetRegistry.OnInMemoryAssetCreated().AddRaw(this, &FWorldPartitionClassDescRegistry::OnAssetCreated);
+	AssetRegistry.OnAssetRemoved().AddRaw(this, &FWorldPartitionClassDescRegistry::OnAssetRemoved);
+	AssetRegistry.OnAssetRenamed().AddRaw(this, &FWorldPartitionClassDescRegistry::OnAssetRenamed);
+
+	check(IsInitialized());
+}
+
+void FWorldPartitionClassDescRegistry::Uninitialize()
+{
+	check(IsInitialized());
+	FActorDescList::Empty();
+
+	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+	
+	if (!IsEngineExitRequested())
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.OnInMemoryAssetCreated().RemoveAll(this);
+		AssetRegistry.OnAssetRemoved().RemoveAll(this);
+		AssetRegistry.OnAssetRenamed().RemoveAll(this);
+	}
+
+	ClassByPath.Empty();
+	ParentClassMap.Empty();
+
+	check(!IsInitialized());
+}
+
+bool FWorldPartitionClassDescRegistry::IsInitialized() const
+{
+	return !FActorDescList::IsEmpty();
+}
+
+void FWorldPartitionClassDescRegistry::PrefetchClassDescs(const TArray<FTopLevelAssetPath>& InClassPaths)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FWorldPartitionClassDescRegistry::PrefetchClassDescs);
+
+	check(IsInitialized());
+
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+
+	// First, remap classes and remove already known ones.
+	TArray<FTopLevelAssetPath> ClassPaths;
+	ClassPaths.Reserve(InClassPaths.Num());
+	Algo::Transform(InClassPaths, ClassPaths, [this](const FTopLevelAssetPath& ClassPath) { return RedirectClassPath(ClassPath); });
+	ClassPaths.SetNum(Algo::RemoveIf(ClassPaths, [this](const FTopLevelAssetPath& ClassPath) { return ClassByPath.Contains(ClassPath) || ClassPath.ToString().StartsWith(TEXT("/Script/")); }));
+
+	if (ClassPaths.IsEmpty())
+	{
+		return;
+	}
+
+	// Make sure the asset registry has all paths scanned
+	TArray<FString> FilePaths;
+	FilePaths.Reserve(ClassPaths.Num());
+	Algo::Transform(ClassPaths, FilePaths, [this](const FTopLevelAssetPath& ClassPath) { return ClassPath.GetPackageName().ToString(); });
+
+	// In the editor, the asset registry will not return blueprint generated classes or their default object but will during cooks (see AssetRegistry::FFiltering::ShouldSkipAsset),
+	// so we must filter our results by UBlueprint and UObjectRedirector. For redirectors, they will show up for the blueprint, generated class and default objects in both situations,
+	// so we must take special care to filter out everything except blueprint objects. The current way to find the blueprint asset redirector is based on finding the redirector with
+	// the shortest name.
+	auto SortBlueprintAssetsByNameLength = [](const FAssetData& Lhs, const FAssetData& Rhs) { return Lhs.AssetName.GetStringLength() < Rhs.AssetName.GetStringLength(); };
+
+	auto GetBlueprintAssets = [&AssetRegistry](const TArray<FString>& FilePaths, TArray<FAssetData>& Assets)
+	{
+		FARFilter Filter;
+		Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+		Filter.ClassPaths.Add(UObjectRedirector::StaticClass()->GetClassPathName());
+		Filter.bRecursiveClasses = true;
+		Filter.PackageNames.Reserve(FilePaths.Num());
+		Algo::Transform(FilePaths, Filter.PackageNames, [](const FString& ClassPath) { return *ClassPath; });
+	
+		AssetRegistry.ScanFilesSynchronous(FilePaths, /*bForceRescan*/false);
+		AssetRegistry.GetAssets(Filter, Assets);
+	};
+
+	TArray<FAssetData> Assets;
+	GetBlueprintAssets(FilePaths, Assets);
+
+	// We are only interested in redirectors for blueprint objects, not their generated class (ClassName_C) or their default object (Default__ClassName_C), as per previous comment.
+	{
+		TMap<FName, TArray<FAssetData*>> PackageRedirectors;
+		Algo::ForEach(Assets, [&PackageRedirectors](FAssetData& AssetData) { PackageRedirectors.FindOrAdd(AssetData.PackageName).Add(&AssetData); });
+		Algo::ForEach(PackageRedirectors, [&SortBlueprintAssetsByNameLength](TPair<FName, TArray<FAssetData*>>& Pair)
+		{
+			// Find the blueprint asset or the proper blueprint redirector
+			Pair.Value.Sort(SortBlueprintAssetsByNameLength);
+			for (int32 AssetIndex = 1; AssetIndex < Pair.Value.Num(); AssetIndex++)	{ *Pair.Value[AssetIndex] = FAssetData(); }
+		});
+		Assets.SetNum(Algo::RemoveIf(Assets, [](const FAssetData& AssetData) { return !AssetData.IsValid(); }));
+	}	
+
+	TMap<FTopLevelAssetPath, FTopLevelAssetPath> ParentClassPathsMap;
+	Algo::ForEach(Assets, [this, &AssetRegistry, &ParentClassPathsMap, &SortBlueprintAssetsByNameLength, &GetBlueprintAssets](FAssetData& AssetData)
+	{
+		check(AssetData.IsValid());
+
+		TArray<FTopLevelAssetPath> ClassRedirects;
+		while (AssetData.IsRedirector())
+		{
+			// Folow the redirector to the destination object
+			FString DestinationObjectPath;
+			if (!AssetData.GetTagValue(TEXT("DestinationObject"), DestinationObjectPath))
+			{
+				AssetData = FAssetData();
+				UE_LOG(LogWorldPartition, Warning, TEXT("Failed to follow class redirector for '%s'"), *AssetData.ToSoftObjectPath().ToString());
+				break;
+			}
+
+			const FTopLevelAssetPath AssetClassPath = FTopLevelAssetPath(DestinationObjectPath);
+
+			TArray<FAssetData> RedirectAssets;
+			GetBlueprintAssets({ AssetClassPath.GetPackageName().ToString() }, RedirectAssets);
+
+			if (RedirectAssets.IsEmpty())
+			{
+				AssetData = FAssetData();
+				UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find redirected assets for '%s'"), *AssetData.ToSoftObjectPath().ToString());
+				break;
+			}
+
+			ClassRedirects.Add(FTopLevelAssetPath(AssetData.ToSoftObjectPath().ToString()));
+
+			// Find the blueprint asset or the proper blueprint redirector
+			RedirectAssets.Sort(SortBlueprintAssetsByNameLength);
+			AssetData = MoveTemp(RedirectAssets[0]);
+		}
+
+		// Register redirects
+		for (const FTopLevelAssetPath& ClassRedirect : ClassRedirects)
+		{
+			FTopLevelAssetPath SourceClassPath(ClassRedirect.ToString() + TEXT("_C"));
+			FTopLevelAssetPath RedirectedClassPath(AssetData.ToSoftObjectPath().ToString() + TEXT("_C"));
+			RedirectClassMap.Add(SourceClassPath, RedirectedClassPath);
+		}
+
+		if (AssetData.IsValid())
+		{
+			FString ParentClassName;
+			if (AssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassName))
+			{
+				ParentClassPathsMap.Add(FTopLevelAssetPath(AssetData.ToSoftObjectPath().ToString() + TEXT("_C")), FTopLevelAssetPath(ParentClassName));
+			}
+		}
+	});
+
+	// Register parent class descriptors
+	if (!ParentClassPathsMap.IsEmpty())
+	{
+		TArray<FTopLevelAssetPath> ParentClassPaths;
+		ParentClassPathsMap.GenerateValueArray(ParentClassPaths);
+		PrefetchClassDescs(ParentClassPaths);
+
+		for (auto& [ClassPath, ParentClassPath] : ParentClassPathsMap)
+		{
+			ParentClassMap.Add(ClassPath, RedirectClassPath(ParentClassPath));
+		}
+	}
+
+	// Register current class descriptors
+	Algo::ForEach(Assets, [this](FAssetData& AssetData)
+	{
+		// Create the class descriptor
+		AssetData.AssetName = *FString(AssetData.AssetName.ToString() + TEXT("_C"));
+
+		// Lookup for an already registered class
+		if (!ClassByPath.Contains(FTopLevelAssetPath(AssetData.ToSoftObjectPath().ToString())))
+		{
+			if (TUniquePtr<FWorldPartitionActorDesc> ClassDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(AssetData); ClassDesc.IsValid())
+			{
+				FWorldPartitionActorDesc* Result = ClassDesc.Release();
+				RegisterClassDescriptor(Result);
+			}
+			else
+			{
+				// For missing class descriptors, register a null entry so we won't be trying to register them again for future objects
+				ClassByPath.Add(FTopLevelAssetPath(FTopLevelAssetPath(AssetData.ToSoftObjectPath().ToString())), nullptr);
+			}
+		}
+	});
+
+	ValidateInternalState();
+}
+
+bool FWorldPartitionClassDescRegistry::IsRegisteredClass(const FTopLevelAssetPath& InClassPath) const
+{
+	check(IsInitialized());
+	const FTopLevelAssetPath ClassPath = RedirectClassPath(InClassPath);
+	return ClassByPath.Contains(ClassPath);
+}
+
+const FWorldPartitionActorDesc* FWorldPartitionClassDescRegistry::GetClassDescDefault(const FTopLevelAssetPath& InClassPath) const
+{
+	check(IsInitialized());
+
+	const FWorldPartitionActorDesc* Result = nullptr;
+	FTopLevelAssetPath ClassPath = InClassPath;
+
+	while (ClassPath.IsValid())
+	{
+		// Lookup for an already registered class
+		if (const TUniquePtr<FWorldPartitionActorDesc>* const* ClassDesc = ClassByPath.Find(ClassPath); ClassDesc && *ClassDesc)
+		{
+			Result = (*ClassDesc)->Get();
+			break;
+		}
+
+		ClassPath = ParentClassMap.FindRef(ClassPath);
+	}
+
+	return Result;
+}
+
+const FWorldPartitionActorDesc* FWorldPartitionClassDescRegistry::GetClassDescDefaultForActor(const FTopLevelAssetPath& InClassPath) const
+{
+	return GetClassDescDefault(RedirectClassPath(InClassPath));
+}
+
+const FWorldPartitionActorDesc* FWorldPartitionClassDescRegistry::GetClassDescDefaultForClass(const FTopLevelAssetPath& InClassPath) const
+{
+	const FTopLevelAssetPath ParentClassPath = ParentClassMap.FindRef(RedirectClassPath(InClassPath));
+	return GetClassDescDefault(ParentClassPath);
+}
+
+void FWorldPartitionClassDescRegistry::RegisterClassDescriptor(FWorldPartitionActorDesc* InClassDesc)
+{
+	FActorDescList::AddActorDescriptor(InClassDesc);
+
+	// Validate that the class isn't registered yet
+	const FTopLevelAssetPath ClassPath(InClassDesc->GetActorSoftPath().ToString());
+	if (TUniquePtr<FWorldPartitionActorDesc>** ExistingClassDesc = ClassByPath.Find(ClassPath))
+	{
+		check(!(*ExistingClassDesc));
+	}
+
+	ClassByPath.Add(ClassPath, ActorsByGuid.FindChecked(InClassDesc->GetGuid()));
+}
+
+void FWorldPartitionClassDescRegistry::UnregisterClassDescriptor(FWorldPartitionActorDesc* InClassDesc)
+{
+	verify(ClassByPath.Remove(FTopLevelAssetPath(InClassDesc->GetActorSoftPath().ToString())));
+	FActorDescList::RemoveActorDescriptor(InClassDesc);
+}
+
+void FWorldPartitionClassDescRegistry::RegisterClassDescriptorFromAssetData(const FAssetData& InAssetData)
+{
+	const FTopLevelAssetPath ClassPath = FTopLevelAssetPath(InAssetData.ToSoftObjectPath().ToString() + TEXT("_C"));
+	check(!ClassByPath.Contains(ClassPath));
+
+	UBlueprint* Blueprint = CastChecked<UBlueprint>(InAssetData.GetAsset());
+	RegisterClassDescriptorFromActorClass(Blueprint->GeneratedClass);
+}
+
+void FWorldPartitionClassDescRegistry::RegisterClassDescriptorFromActorClass(const UClass* InActorClass)
+{
+	ParentClassMap.Add(FTopLevelAssetPath(InActorClass->GetPathName()), FTopLevelAssetPath(InActorClass->GetSuperClass()->GetPathName()));
+
+	const AActor* ActorCDO = CastChecked<AActor>(InActorClass->GetDefaultObject());
+	FWorldPartitionActorDesc* NewActorDesc = ActorCDO->CreateActorDesc().Release();
+	RegisterClassDescriptor(NewActorDesc);
+}
+
+void FWorldPartitionClassDescRegistry::OnAssetCreated(UObject* InAssetCreated)
+{
+	OnAssetLoaded(InAssetCreated);
+}
+
+void FWorldPartitionClassDescRegistry::OnAssetLoaded(UObject* InAssetLoaded)
+{
+	check(IsInitialized());
+
+	if (UBlueprint* Blueprint = Cast<UBlueprint>(InAssetLoaded))
+	{
+		if (Blueprint->GeneratedClass && Blueprint->GeneratedClass->IsChildOf<AActor>())
+		{
+			if (!ClassByPath.Contains(FTopLevelAssetPath(Blueprint->GeneratedClass->GetPathName())))
+			{
+				ValidateInternalState();
+				RegisterClassDescriptorFromActorClass(Blueprint->GeneratedClass);
+				ValidateInternalState();
+			}
+		}		
+	}
+}
+
+void FWorldPartitionClassDescRegistry::OnObjectPreSave(UObject* InObject, FObjectPreSaveContext InSaveContext)
+{
+	if (!InSaveContext.IsProceduralSave() && !(InSaveContext.GetSaveFlags() & SAVE_FromAutosave))
+	{
+		ValidateInternalState();
+
+		if (AActor* Actor = Actor = Cast<AActor>(InObject))
+		{
+			if (!Actor->HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+			{
+				// We are saving an actor
+				if (UBlueprintGeneratedClass* BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(Actor->GetClass()))
+				{
+					if (UBlueprint* Blueprint = Cast<UBlueprint>(BlueprintGeneratedClass->ClassGeneratedBy))
+					{
+						UpdateClassDescriptor(Blueprint);
+					}
+				}
+			}
+		}
+		else if (UBlueprint* Blueprint = Cast<UBlueprint>(InObject))
+		{
+			// We are saving a blueprint
+			if (UBlueprintGeneratedClass* BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass))
+			{
+				if (BlueprintGeneratedClass->IsChildOf<AActor>())
+				{
+					UpdateClassDescriptor(Blueprint);
+				}
+			}
+		}
+
+		ValidateInternalState();
+	}
+}
+
+void FWorldPartitionClassDescRegistry::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent)
+{
+	if (UBlueprint* Blueprint = Cast<UBlueprint>(InObject))
+	{
+		// The generated class is invalid in some situations, like renaming a blueprint, etc.
+		if (Blueprint->GeneratedClass && Blueprint->GeneratedClass->IsChildOf<AActor>())
+		{
+			ValidateInternalState();
+			UpdateClassDescriptor(InObject);
+			ValidateInternalState();
+		}
+	}
+}
+
+void FWorldPartitionClassDescRegistry::OnPluginLoadingPhaseComplete(ELoadingPhase::Type InLoadingPhase, bool bInPhaseSuccessful)
+{
+	if (InLoadingPhase == ELoadingPhase::PostEngineInit)
+	{
+		RegisterClasses();
+		IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
+	}
+}
+
+void FWorldPartitionClassDescRegistry::OnAssetRemoved(const FAssetData& InAssetData)
+{
+	check(IsInitialized());
+
+	if (InAssetData.GetClass() && InAssetData.GetClass()->IsChildOf(UBlueprint::StaticClass()))
+	{
+		const FTopLevelAssetPath ClassPath = FTopLevelAssetPath(InAssetData.ToSoftObjectPath().ToString() + TEXT("_C"));
+
+		if (TUniquePtr<FWorldPartitionActorDesc>** ExistingClassDesc = ClassByPath.Find(ClassPath))
+		{
+			ValidateInternalState();
+			if (*ExistingClassDesc)
+			{
+				UnregisterClassDescriptor((*ExistingClassDesc)->Get());
+			}
+			else
+			{
+				ClassByPath.Remove(ClassPath);
+			}
+			ValidateInternalState();
+		}
+	}
+}
+
+void FWorldPartitionClassDescRegistry::OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldObjectPath)
+{
+	check(IsInitialized());
+
+	if (InAssetData.GetClass() && InAssetData.GetClass()->IsChildOf(UBlueprint::StaticClass()))
+	{
+		ValidateInternalState();
+
+		const FTopLevelAssetPath OldClassPath = FTopLevelAssetPath(InOldObjectPath + TEXT("_C"));
+		const FTopLevelAssetPath NewClassPath = FTopLevelAssetPath(InAssetData.ToSoftObjectPath().ToString() + TEXT("_C"));
+
+		if (TUniquePtr<FWorldPartitionActorDesc>** ExistingClassDesc = ClassByPath.Find(OldClassPath))
+		{
+			if (*ExistingClassDesc)
+			{
+				UnregisterClassDescriptor((*ExistingClassDesc)->Get());
+				RegisterClassDescriptorFromAssetData(InAssetData);
+			}
+			else
+			{
+				ClassByPath.Remove(OldClassPath);
+				ClassByPath.Add(NewClassPath, nullptr);
+			}
+		
+			// Update renamed class parent
+			const FTopLevelAssetPath ParentClassPath = ParentClassMap.FindAndRemoveChecked(OldClassPath);
+			ParentClassMap.Add(NewClassPath, ParentClassPath);
+
+			// Update renamed class child classes
+			TArray<FTopLevelAssetPath> ChildsToUpdate;
+			for (auto& [ChildClassPath, ChildParentClassPath] : ParentClassMap)
+			{
+				if (ChildParentClassPath == OldClassPath)
+				{
+					ChildsToUpdate.Add(ChildClassPath);
+				}
+			}
+
+			for (const FTopLevelAssetPath& ChildClassPath : ChildsToUpdate)
+			{
+				ParentClassMap.FindChecked(ChildClassPath) = NewClassPath;
+			}
+		}
+
+		ValidateInternalState();
+	}
+}
+
+void FWorldPartitionClassDescRegistry::RegisterClass(UClass* Class)
+{
+	if (!ClassByPath.Contains(FTopLevelAssetPath(Class->GetPathName())))
+	{
+		if (Class != AActor::StaticClass())
+		{
+			RegisterClass(Class->GetSuperClass());
+		}
+
+		RegisterClassDescriptorFromActorClass(Class);
+	}
+}
+
+void FWorldPartitionClassDescRegistry::RegisterClasses()
+{
+	ValidateInternalState();
+
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		UClass* Class = *It;
+		if (Class->IsChildOf<AActor>() && (Class->GetPackage() != GetTransientPackage()))
+		{
+			RegisterClass(Class);
+		}
+	}
+
+	ValidateInternalState();
+}
+
+void FWorldPartitionClassDescRegistry::UpdateClassDescriptor(UObject* InObject)
+{
+	check(IsInitialized());
+
+	UBlueprint* Blueprint = CastChecked<UBlueprint>(InObject);
+	check(Blueprint->GeneratedClass);
+
+	AActor* ActorCDO = CastChecked<AActor>(Blueprint->GeneratedClass->GetDefaultObject());
+
+	const FTopLevelAssetPath ClassPath(ActorCDO->GetClass()->GetPathName());
+	const FTopLevelAssetPath CurrentParentClassPath = FTopLevelAssetPath(ActorCDO->GetClass()->GetSuperClass()->GetPathName());
+
+	if (TUniquePtr<FWorldPartitionActorDesc>** ExistingClassDesc = ClassByPath.Find(ClassPath))
+	{
+		const FTopLevelAssetPath PreviousParentClassPath = ParentClassMap.FindChecked(ClassPath);
+
+		if (!*ExistingClassDesc)
+		{
+			FWorldPartitionActorDesc* NewActorDesc = ActorCDO->CreateActorDesc().Release();
+			RegisterClassDescriptor(NewActorDesc);
+		}
+		else
+		{
+			FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActor(ActorCDO, **ExistingClassDesc);
+		}
+
+		if (PreviousParentClassPath != CurrentParentClassPath)
+		{
+			// We are reparenting a blueprint, update our parent map
+			ParentClassMap.Add(ClassPath, CurrentParentClassPath);
+		}
+	}
+}
+
+void FWorldPartitionClassDescRegistry::ValidateInternalState()
+{
+#if DO_GUARD_SLOW
+	for (auto& [ClassPath, ParentClassPath] : ParentClassMap)
+	{
+		// Validate that the class parents chain is valid
+		static const FTopLevelAssetPath ActorClassPath(TEXT("/Script/Engine.Actor"));
+		for (FTopLevelAssetPath CurrentClassPath = ClassPath; CurrentClassPath != ActorClassPath; CurrentClassPath = ParentClassMap.FindChecked(CurrentClassPath))
+		{
+			check(CurrentClassPath.IsValid());
+			ClassByPath.FindChecked(CurrentClassPath);
+		}
+	}
+#endif
+}
+
+FTopLevelAssetPath FWorldPartitionClassDescRegistry::RedirectClassPath(const FTopLevelAssetPath& InClassPath) const
+{
+	// Resolve native class redirectors
+	const FCoreRedirectObjectName OldClassName = FCoreRedirectObjectName(InClassPath.GetAssetName(), NAME_None, InClassPath.GetPackageName());
+	const FCoreRedirectObjectName NewClassName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, OldClassName);
+	const FTopLevelAssetPath ResolvedClassPath = FTopLevelAssetPath(NewClassName.ToString());
+
+	// Resolve blueprint object redirectors
+	if (const FTopLevelAssetPath* RedirectedClass = RedirectClassMap.Find(ResolvedClassPath))
+	{
+		return *RedirectedClass;
+	}
+
+	return ResolvedClassPath;
+}
+#endif
