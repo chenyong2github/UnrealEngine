@@ -32,11 +32,21 @@ struct FMVVMViewSource
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	FName SourceName;
 
+	// Number of bindings connected to the source.
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	int32 RegisteredCout = 0;
 
+	// The source is defined in the ClassExtension.
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	bool bCreatedSource = false;
+
+	// The source was set manually via SetViewModel.
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
+	bool bSetManually = false;
+
+	// The source was set to a UserWidget property.
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
+	bool bAssignedToUserWidgetProperty = false;
 };
 
 /**
