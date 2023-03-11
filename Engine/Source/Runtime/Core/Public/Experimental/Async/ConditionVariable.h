@@ -22,9 +22,9 @@ public:
     {
         if (bHasWaiters)
         {
-            FParkingLot::WakeOne(
+            ParkingLot::WakeOne(
                 &bHasWaiters,
-                [this] (FParkingLotWakeState WakeState) -> uint64
+                [this] (ParkingLot::FWakeState WakeState) -> uint64
                 {
                     if (!WakeState.bHasWaitingThreads)
                         bHasWaiters = false;
@@ -38,16 +38,16 @@ public:
         if (bHasWaiters)
         {
             bHasWaiters = false;
-            FParkingLot::WakeAll(&bHasWaiters);
+            ParkingLot::WakeAll(&bHasWaiters);
         }
     }
 
     template<typename TLock>
     void Wait(TLock& Lock)
     {
-        FParkingLot::Wait(
+        ParkingLot::Wait(
             &bHasWaiters,
-            [] () -> bool
+            [this] () -> bool
             {
                 bHasWaiters = true;
                 return true;
