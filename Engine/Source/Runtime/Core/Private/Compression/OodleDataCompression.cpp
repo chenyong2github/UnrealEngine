@@ -600,6 +600,8 @@ int64 CompressParallelSub(
 							ECompressor Compressor,	ECompressionLevel Level,
 							bool CompressIndependentChunks)
 {
+	// beware: doing the split based on NumWorkers means that compressed output depends on the machine
+
 	int32 NumWorkers = FTaskGraphInterface::Get().GetNumWorkerThreads();
 	int64 ChunkLen = OodleLZ_MakeSeekChunkLen(UncompressedSize,NumWorkers);
 	int64 NumChunks = (UncompressedSize + ChunkLen-1)/ChunkLen;
