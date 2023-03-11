@@ -96,17 +96,6 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 	}
 #endif
 	GetWorld()->OnLevelsChanged().RemoveAll(this);
-	for (AColorCorrectRegion* Region : RegionsPriorityBased)
-	{
-		Region->Cleanup();
-	}
-	RegionsPriorityBased.Reset();	
-	
-	for (AColorCorrectRegion* Region : RegionsDistanceBased)
-	{
-		Region->Cleanup();
-	}
-	RegionsDistanceBased.Reset();
 
 	// Prevent this SVE from being gathered, in case it is kept alive by a strong reference somewhere else.
 	{
@@ -122,21 +111,8 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 		PostProcessSceneViewExtension->IsActiveThisFrameFunctions.Add(IsActiveFunctor);
 	}
 
-
 	ENQUEUE_RENDER_COMMAND(ReleaseSVE)([this](FRHICommandListImmediate& RHICmdList)
 	{
-		for (AColorCorrectRegion* Region : RegionsPriorityBased)
-		{
-			Region->Cleanup();
-		}
-		RegionsPriorityBased.Reset();
-
-		for (AColorCorrectRegion* Region : RegionsDistanceBased)
-		{
-			Region->Cleanup();
-		}
-		RegionsDistanceBased.Reset();
-
 		// Prevent this SVE from being gathered, in case it is kept alive by a strong reference somewhere else.
 		{
 			PostProcessSceneViewExtension->IsActiveThisFrameFunctions.Empty();
@@ -155,7 +131,12 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 		PostProcessSceneViewExtension.Reset();
 		PostProcessSceneViewExtension = nullptr;
 	});
+
+	// Finish all rendering commands before cleaning up actors.
 	FlushRenderingCommands();
+
+	RegionsPriorityBased.Reset();
+	RegionsDistanceBased.Reset();
 }
 
 void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)
@@ -202,8 +183,6 @@ void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
 		)
 #endif
 	{
-		AsRegion->Cleanup();
-
 #if WITH_EDITOR
 		FColorCorrectRegionsStencilManager::OnCCRRemoved(GetWorld(), AsRegion);
 #endif

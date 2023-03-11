@@ -211,12 +211,6 @@ public:
 	virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction);
 	virtual bool ShouldTickIfViewportsOnly() const;
 
-	/** 
-	* We have to manage the lifetime of the region ourselves, because EndPlay is not guaranteed to be called 
-	* and BeginDestroy could be called from GC when it is too late.
-	*/
-	void Cleanup();
-
 	/**
 	* Gets a full state for rendering. 
 	*/
@@ -245,7 +239,7 @@ private:
 	void TransferState();
 
 private:
-	UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem;
+	TWeakObjectPtr<UColorCorrectRegionsSubsystem> ColorCorrectRegionsSubsystem;
 
 	/** A copy of all properties required by render thread to process this CCR. */
 	FColorCorrectRenderProxyPtr ColorCorrectRenderProxy;

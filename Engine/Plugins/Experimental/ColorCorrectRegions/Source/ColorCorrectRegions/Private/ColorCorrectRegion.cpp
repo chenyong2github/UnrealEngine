@@ -62,7 +62,7 @@ void AColorCorrectRegion::BeginPlay()
 		ColorCorrectRegionsSubsystem = World->GetSubsystem<UColorCorrectRegionsSubsystem>();
 	}
 
-	if (ColorCorrectRegionsSubsystem)
+	if (ColorCorrectRegionsSubsystem.IsValid())
 	{
 		ColorCorrectRegionsSubsystem->OnActorSpawned(this);
 	}
@@ -70,7 +70,7 @@ void AColorCorrectRegion::BeginPlay()
 
 void AColorCorrectRegion::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (ColorCorrectRegionsSubsystem)
+	if (ColorCorrectRegionsSubsystem.IsValid())
 	{
 		ColorCorrectRegionsSubsystem->OnActorDeleted(this);
 		ColorCorrectRegionsSubsystem = nullptr;
@@ -80,7 +80,7 @@ void AColorCorrectRegion::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AColorCorrectRegion::BeginDestroy()
 {
-	if (ColorCorrectRegionsSubsystem)
+	if (ColorCorrectRegionsSubsystem.IsValid())
 	{
 		ColorCorrectRegionsSubsystem->OnActorDeleted(this);
 		ColorCorrectRegionsSubsystem = nullptr;
@@ -109,7 +109,7 @@ void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActor
 		TimeWaited += DeltaTime;
 		const float WaitTimeInSecs = 1.0;
 
-		if (!ColorCorrectRegionsSubsystem)
+		if (!ColorCorrectRegionsSubsystem.IsValid())
 		{
 			if (const UWorld* World = GetWorld())
 			{
@@ -117,18 +117,13 @@ void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActor
 			}
 		}
 		
-		if (ColorCorrectRegionsSubsystem && TimeWaited >= WaitTimeInSecs)
+		if (ColorCorrectRegionsSubsystem.IsValid() && TimeWaited >= WaitTimeInSecs)
 		{
 			ColorCorrectRegionsSubsystem->CheckAssignedActorsValidity(this);
 			TimeWaited = 0;
 		}
 
 	}
-}
-
-void AColorCorrectRegion::Cleanup()
-{
-	ColorCorrectRegionsSubsystem = nullptr;
 }
 
 void AColorCorrectRegion::TransferState()
@@ -246,7 +241,7 @@ void AColorCorrectRegion::HandleAffectedActorsPropertyChange()
 				}
 			}
 			bEventHandled = true;
-			if (ColorCorrectRegionsSubsystem)
+			if (ColorCorrectRegionsSubsystem.IsValid())
 			{
 				ColorCorrectRegionsSubsystem->AssignStencilIdsToPerActorCC(this);
 			}
@@ -257,7 +252,7 @@ void AColorCorrectRegion::HandleAffectedActorsPropertyChange()
 			|| ActorListChangeType == EPropertyChangeType::ValueSet)
 		{
 			bEventHandled = true;
-			if (ColorCorrectRegionsSubsystem)
+			if (ColorCorrectRegionsSubsystem.IsValid())
 			{
 				ColorCorrectRegionsSubsystem->ClearStencilIdsToPerActorCC(this);
 			}
@@ -315,7 +310,7 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
-	if (!ColorCorrectRegionsSubsystem)
+	if (!ColorCorrectRegionsSubsystem.IsValid())
 	{
 		if (const UWorld* World = GetWorld())
 		{
@@ -335,14 +330,14 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	// Therefore we need to refresh priority if PropertyChangedEvent.Property is nullptr. 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Priority) || PropertyChangedEvent.Property == nullptr)
 	{
-		if (ColorCorrectRegionsSubsystem)
+		if (ColorCorrectRegionsSubsystem.IsValid())
 		{
 			ColorCorrectRegionsSubsystem->SortRegionsByPriority();
 		}
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Type) || PropertyChangedEvent.Property == nullptr)
 	{
-		if (ColorCorrectRegionsSubsystem)
+		if (ColorCorrectRegionsSubsystem.IsValid())
 		{
 			ColorCorrectRegionsSubsystem->OnLevelsChanged();
 		}
