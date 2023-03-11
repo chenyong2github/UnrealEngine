@@ -36,7 +36,7 @@ namespace UE::VCamCoreEditor::Private
 			[
 				SNew(SButton)
 				.PressMethod(EButtonPressMethod::DownAndUp)
-				.ToolTipText(LOCTEXT("KeySelector", "Press a button on an input device to select device ID"))
+				.ToolTipText(LOCTEXT("KeySelector", "Press a button on an input device to select device ID.\nAnalog is ignored by default and is enabled with the cog wheel on the right."))
 				.OnClicked(this, &SInputDeviceSelector::ListenForInput)
 				[
 					SNew(SHorizontalBox)
