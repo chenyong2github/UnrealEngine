@@ -234,6 +234,9 @@ groupshared uint SharedGlobalTraceTexelStartOffset;
 #define DIM_CLIP_RAY 0
 #endif // DIM_CLIP_RAY
 
+#if COMPILER_SUPPORTS_WAVE_SIZE && WAVE_OPS
+	WAVESIZE(32)
+#endif
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void ReflectionCompactTracesCS(
 	uint GroupId : SV_GroupID,
@@ -322,23 +325,23 @@ void ReflectionCompactTracesCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint PayloadGroupOffset = SharedWaveSums[WaveIndex] + WavePrefixSum(Value);
+	uint PayloadGroupSize = SharedWaveSums[WaveIndex] + WavePrefixSum(Value) + Value;
 
 	uint WaveLaneCount = WaveGetLaneCount();
 	uint LastWaveIndex = (THREADGROUP_SIZE - 1) / WaveLaneCount;
 
 	// Last lane of last wave has the max index used by the group
 	// Allocate this group's compacted traces from the global allocator
-	if (WaveIndex == LastWaveIndex && LaneIndex == WaveLaneCount - 1)
+	if (WaveIndex == LastWaveIndex && LaneIndex == WaveLaneCount - 1 && PayloadGroupSize > 0)
 	{
-		InterlockedAdd(RWCompactedTraceTexelAllocator[0], PayloadGroupOffset + 1, SharedGlobalTraceTexelStartOffset);
+		InterlockedAdd(RWCompactedTraceTexelAllocator[0], PayloadGroupSize, SharedGlobalTraceTexelStartOffset);
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
 	if (bTraceValid)
 	{
-		RWCompactedTraceTexelData[SharedGlobalTraceTexelStartOffset + PayloadGroupOffset] = TraceTexelForThisThread;
+		RWCompactedTraceTexelData[SharedGlobalTraceTexelStartOffset + PayloadGroupSize - 1] = TraceTexelForThisThread;
 	}
 
 #else // !ORDERED_COMPACTION
