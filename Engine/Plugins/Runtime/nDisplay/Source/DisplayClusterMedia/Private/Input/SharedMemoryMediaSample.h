@@ -38,6 +38,12 @@ public:
 	/** Texture dimensions */
 	FIntPoint Dim = FIntPoint::ZeroValue;
 
+	/** Whether the sample is sRGB encoded or not */
+	bool bSrgb = false;
+
+	/** Sample format */
+	EMediaTextureSampleFormat Format = EMediaTextureSampleFormat::CharBGR10A2;
+
 private:
 
 	/** Used in case the Texture is not valid, so we can provide pixels to the Media Framework */
@@ -78,8 +84,7 @@ public:
 
 	EMediaTextureSampleFormat GetFormat() const override
 	{
-		// All output types go through buffer conversion
-		return EMediaTextureSampleFormat::CharBGR10A2;
+		return Format;
 	}
 
 	FIntPoint GetOutputDim() const override
@@ -104,7 +109,7 @@ public:
 
 	bool IsOutputSrgb() const override
 	{
-		return true;
+		return bSrgb;
 	}
 
 public:

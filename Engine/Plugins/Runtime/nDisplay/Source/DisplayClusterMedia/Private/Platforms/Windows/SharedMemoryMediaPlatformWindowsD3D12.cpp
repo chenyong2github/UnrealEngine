@@ -220,6 +220,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 		OutTextureDescription.Height = SharedGpuTextureDesc.Height;
 		OutTextureDescription.Width = SharedGpuTextureDesc.Width;
 		OutTextureDescription.Format = EPixelFormat::PF_Unknown;
+		OutTextureDescription.bSrgb = false;
 
 		// Find EPixelFormat from platform format
 		for (int32 FormatIdx = 0; FormatIdx < PF_MAX; FormatIdx++)
@@ -235,6 +236,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 					OutTextureDescription.Format = EPixelFormat(FormatIdx);
 					OutTextureDescription.BytesPerPixel = GPixelFormats[FormatIdx].BlockBytes;
 					OutTextureDescription.Stride = OutTextureDescription.Width * OutTextureDescription.BytesPerPixel;
+					OutTextureDescription.bSrgb = bSrgb;
 					break;
 				}
 			}
@@ -257,9 +259,16 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 		}
 	}
 
+	ETextureCreateFlags Flags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
+	
+	if (OutTextureDescription.bSrgb)
+	{
+		Flags |= TexCreate_SRGB;
+	}
+
 	return GetID3D12DynamicRHI()->RHICreateTexture2DFromResource(
 		OutTextureDescription.Format,
-		TexCreate_Dynamic | TexCreate_DisableSRVCreation,
+		Flags,
 		FClearValueBinding::None,
 		SharedCrossGpuTexture
 	);

@@ -50,6 +50,7 @@ struct FSharedMemoryMediaTextureDescription
 	uint32 Stride = 0;
 	EPixelFormat Format = EPixelFormat::PF_Unknown;
 	FGuid Guid = UE::SharedMemoryMedia::ZeroGuid;
+	bool bSrgb = false;
 
 	bool IsEquivalentTo(const FSharedMemoryMediaTextureDescription& Other) const
 	{
@@ -57,7 +58,9 @@ struct FSharedMemoryMediaTextureDescription
 			&& Height == Other.Height
 			&& BytesPerPixel == Other.BytesPerPixel
 			&& Stride == Other.Stride
-			&& Format == Other.Format;
+			&& Format == Other.Format
+			&& bSrgb == Other.bSrgb
+			;
 	}
 };
 

@@ -389,6 +389,8 @@ void FSharedMemoryMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode
 			MakeUniqueObjectName(nullptr, UTexture2D::StaticClass(), FName(*FString::Printf(TEXT("SampleCommonTexture_%s"), *UniqueName)))
 		));
 
+		SampleCommonTexture->SRGB = SharedCrossGpuTextureDescriptions[0].bSrgb;
+
 		SampleCommonTexture->UpdateResource();
 	}
 
@@ -417,6 +419,18 @@ void FSharedMemoryMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode
 		Samples->CurrentSample->Texture = SampleCommonTexture->GetResource()->GetTextureRHI();
 		Samples->CurrentSample->Dim = FIntPoint(SharedCrossGpuTextureDescriptions[0].Width, SharedCrossGpuTextureDescriptions[0].Height);
 		Samples->CurrentSample->Stride = SharedCrossGpuTextureDescriptions[0].Stride;
+		Samples->CurrentSample->bSrgb = SharedCrossGpuTextureDescriptions[0].bSrgb;
+		
+		// Try to preserve the common input formats when specifying EMediaTextureSampleFormat
+
+		switch (SharedCrossGpuTextureDescriptions[0].Format)
+		{
+		case PF_FloatRGB   : Samples->CurrentSample->Format = EMediaTextureSampleFormat::FloatRGB;    break;
+		case PF_FloatRGBA  : Samples->CurrentSample->Format = EMediaTextureSampleFormat::FloatRGBA;   break;
+		case PF_B8G8R8A8   : Samples->CurrentSample->Format = EMediaTextureSampleFormat::CharBGRA;    break;
+		case PF_A2B10G10R10: Samples->CurrentSample->Format = EMediaTextureSampleFormat::CharBGR10A2; break;
+		default            : Samples->CurrentSample->Format = EMediaTextureSampleFormat::CharBGR10A2; break;
+		}
 
 		// Ticks are "frames" in our player. W/o constraining the sample timing, it would be possible for the
 		// render thread to purge the sample of the next frame, in particular when the game thread stalls.
