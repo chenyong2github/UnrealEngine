@@ -160,8 +160,8 @@ void FWorldPartitionClassDescRegistry::PrefetchClassDescs(const TArray<FTopLevel
 
 			if (RedirectAssets.IsEmpty())
 			{
-				AssetData = FAssetData();
 				UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find redirected assets for '%s'"), *AssetData.ToSoftObjectPath().ToString());
+				AssetData = FAssetData();
 				break;
 			}
 
