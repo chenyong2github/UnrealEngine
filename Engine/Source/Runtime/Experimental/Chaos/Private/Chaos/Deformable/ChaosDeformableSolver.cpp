@@ -655,6 +655,17 @@ namespace Chaos::Softs
 							Proxy.CollisionBodies.Remove(KeyToRemove);
 						}
 					}
+
+					// Do updates
+					for (auto& UpdateBody : CollisionsInputBuffer->Updated)
+					{
+						if (Proxy.CollisionBodies.Contains(UpdateBody.Key))
+						{
+							FCollisionObjectParticleHandel* ParticleHandle = Proxy.CollisionBodies.Find(UpdateBody.Key);
+							Evolution->CollisionParticles().X(ParticleHandle->ParticleIndex) = UpdateBody.Transform.GetTranslation();
+							Evolution->CollisionParticles().R(ParticleHandle->ParticleIndex) = UpdateBody.Transform.GetRotation();
+						}
+					}
 				}
 			}
 		}
@@ -1375,7 +1386,7 @@ namespace Chaos::Softs
 									const FSphere& SphereGeometry = Geometry->GetObjectChecked<FSphere>();
 									FVector Center = ToFVector(CollisionParticles.X(Index)) + SphereGeometry.GetCenter();
 									FReal Radius = SphereGeometry.GetRadius();
-									Chaos::FDebugDrawQueue::GetInstance().DrawDebugSphere(Center, Radius, 12, FColor::Red, false, -1.0f, 1, 5.f);
+									Chaos::FDebugDrawQueue::GetInstance().DrawDebugSphere(Center, Radius, 12, FColor::Red, false, -1.0f, 0, 1.f);
 								}
 								else if (GeomType == ImplicitObjectType::Box)
 								{
@@ -1383,7 +1394,7 @@ namespace Chaos::Softs
 									FVector Extent = 0.5 * (BoxGeometry.Max() - BoxGeometry.Min());
 									FVector Center = ToFVector(CollisionParticles.X(Index)) + BoxGeometry.GetCenter();
 									const FQuat& Rotation = ToFQuat(CollisionParticles.R(Index));
-									Chaos::FDebugDrawQueue::GetInstance().DrawDebugBox(Center, Extent, Rotation, FColor::Red, false, -1.0f, 1, 5.f);
+									Chaos::FDebugDrawQueue::GetInstance().DrawDebugBox(Center, Extent, Rotation, FColor::Red, false, -1.0f, 0, 1.f);
 								}
 								else if (GeomType == ImplicitObjectType::Convex)
 								{
@@ -1395,7 +1406,7 @@ namespace Chaos::Softs
 										int32 Index1 = ConvexGeometry.GetEdgeVertex(EdgeIndex, 1);
 										const  TArray<FConvex::FVec3Type>& Verts = ConvexGeometry.GetVertices();
 										Chaos::FDebugDrawQueue::GetInstance().DrawDebugLine(
-											M.TransformPosition(ToFVector(Verts[Index0])), M.TransformPosition(ToFVector(Verts[Index1])), FColor::Red, false, -1.0f, 1, 5.f);
+											M.TransformPosition(ToFVector(Verts[Index0])), M.TransformPosition(ToFVector(Verts[Index1])), FColor::Red, false, -1.0f, 0, 1.f);
 									}
 								}
 							}

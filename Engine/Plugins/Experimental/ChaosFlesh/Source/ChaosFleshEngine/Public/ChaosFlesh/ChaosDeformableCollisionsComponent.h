@@ -31,23 +31,19 @@ public:
 	virtual FThreadingProxy* NewProxy() override;
 	virtual FDataMapValue NewDeformableData() override;
 
-
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void AddStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent);
-	//void AddStaticMeshComponents(const TArray<TObjectPtr<UStaticMeshComponent>>& StaticMeshComponents);
 	
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void RemoveStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent);
-	//void RemoveStaticMeshComponents(const TArray<TObjectPtr<UStaticMeshComponent>>& StaticMeshComponents);
 
 	UPROPERTY(BlueprintReadOnly, Category = "Chaos Deformable")
-	TArray< TObjectPtr<UStaticMeshComponent> >  CollisionBodies;
+	TArray<TObjectPtr<UStaticMeshComponent>>  CollisionBodies;
 
 protected:
-	
-	TArray< UStaticMeshComponent* >  RemovedBodies;
-	TArray< UStaticMeshComponent* >  AddedBodies;
+	TArray<UStaticMeshComponent*> RemovedBodies;
+	TArray<UStaticMeshComponent*> AddedBodies;
 
-	
 	TMap<TObjectPtr<UObject>, FThreadingProxy*> CollisionsMap;
+	TMap<TObjectPtr<UStaticMeshComponent>, TArray<FTransform>> CollisionBodiesPrevXf;
 };
