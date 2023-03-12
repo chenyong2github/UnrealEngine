@@ -161,10 +161,7 @@ UDeformableCollisionsComponent::NewDeformableData()
 		if (RemovedBody)
 		{
 			RemovedBodiesData.Add({  {RemovedBody, Chaos::Softs::ERigidCollisionShapeType::Unknown, INDEX_NONE} });
-			if (CollisionBodiesPrevXf.Contains(RemovedBody))
-			{
-				CollisionBodiesPrevXf.Remove(RemovedBody);
-			}
+			CollisionBodiesPrevXf.Remove(RemovedBody);
 		}
 	}
 	AddedBodies.Empty();

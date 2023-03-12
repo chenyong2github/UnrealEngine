@@ -75,7 +75,7 @@ public:
 	USimulationAsset* GetSimulationCollection() { return SimulationCollection; }
 	const USimulationAsset* GetSimulationCollection() const { return SimulationCollection; }
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "ChaosPhysics")
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 
 	/** @deprecated Use GetSkeletalMeshEmbeddedPositions() instead. */

@@ -1456,6 +1456,38 @@ public:
 
 };
 
+/**
+ *
+ *
+ *
+ */
+USTRUCT()
+struct FSelectionToVertexListDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+		DATAFLOW_NODE_DEFINE_INTERNAL(FSelectionToVertexListDataflowNode, "SelectionToVertexList", "Selection|Utility", "")
+
+public:
+
+	/**  */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "VertexSelection", DataflowIntrinsic))
+	FDataflowVertexSelection VertexSelection;
+
+	/**  */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "VertexList"))
+	TArray<int32> VertexList;
+
+
+	FSelectionToVertexListDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&VertexSelection);
+		RegisterOutputConnection(&VertexList);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
 
 /**
  *
