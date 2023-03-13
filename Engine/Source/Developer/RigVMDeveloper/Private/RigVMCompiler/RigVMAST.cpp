@@ -1220,6 +1220,7 @@ FRigVMExprAST* FRigVMParserAST::TraverseLink(int32 InLinkIndex, FRigVMExprAST* I
 			bRequiresCopy = true;
 		}
 	}
+
 	if (!bRequiresCopy)
 	{
 		// Connections between entry and return in a function requires a copy
@@ -1229,6 +1230,14 @@ FRigVMExprAST* FRigVMParserAST::TraverseLink(int32 InLinkIndex, FRigVMExprAST* I
 			{
 				bRequiresCopy = true;
 			}
+		}
+	}
+
+	if (!bRequiresCopy)
+	{
+		if (SourcePin->GetTypeIndex() != TargetPin->GetTypeIndex())
+		{
+			bRequiresCopy = true;
 		}
 	}
 
