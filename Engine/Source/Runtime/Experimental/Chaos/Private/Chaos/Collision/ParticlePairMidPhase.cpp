@@ -13,6 +13,8 @@
 #include "Chaos/ChaosDebugDraw.h"
 #include "ChaosStats.h"
 
+//UE_DISABLE_OPTIMIZATION
+
 extern bool Chaos_Collision_NarrowPhase_AABBBoundsCheck;
 
 namespace Chaos
@@ -415,8 +417,8 @@ namespace Chaos
 
 			// We need the previous transform for the swept collision detector. It assumes that the current
 			// transform has been set on the constraint. 
-			// We assume that the particle's center of mass moved in a stright line and that it's rotation has 
-			// not changed so we calculate the previous transform from the current one and the velocity.
+			// We assume that the particle's center of mass moved in a straight line and that it's rotation has 
+			// not changed so we calculate sthe previous transform from the current one and the velocity.
 			// NOTE: These are actor transforms, not CoM transforms
 			// @todo(chaos): Pass both start and end transforms to the collision detector
 			const FRigidTransform3 CCDParticleWorldTransform0 = FRigidTransform3(P0->P() - P0->V() * Dt, P0->Q());
@@ -441,15 +443,13 @@ namespace Chaos
 			}
 #endif
 
-			// If we did get a hit but it's at TOI = 1, treat this constraint as a regular non-swept constraint (skip the rewind)
-			if ((!bDidSweep) || Constraint->GetCCDTimeOfImpact() == FReal(1))
+			// If we did not get a sweep hit (TOI > 1) or did not sweep (bDidSweep = false), we need to run standard collision detection at T=1.
+			// Likewise, if we did get a sweep hit but it's at TOI = 1, treat this constraint as a regular non-swept constraint and skip the rewind.
+			// NOTE: The sweep will report TOI==1 for "shallow" sweep hits below the CCD thresholds in the constraint.
+			if ((!bDidSweep) || (Constraint->GetCCDTimeOfImpact() >= FReal(1)))
 			{
+				// @todo(chaos): should we use a reduced cull distance if we get here? The cull distance will have been set based on movement speed...
 				Collisions::UpdateConstraint(*Constraint.Get(), Constraint->GetShapeWorldTransform0(), Constraint->GetShapeWorldTransform1(), Dt);
-			}
-
-			// If the sweep did not find a hit, or we are treating it like a regular contact, we will skip the CCD rewind step for this contact
-			if (Constraint->GetCCDTimeOfImpact() >= FReal(1))
-			{
 				Constraint->SetCCDSweepEnabled(false);
 			}
 
@@ -1092,10 +1092,11 @@ namespace Chaos
 			FConstGenericParticleHandle ConstParticle0 = FConstGenericParticleHandle(Particle0);
 			FConstGenericParticleHandle ConstParticle1 = FConstGenericParticleHandle(Particle1);
 
+			// See comments in FSingleShapePairCollisionDetector::GenerateCollisionCCDImpl for why we use V() here
 			FReal LengthCCD = 0;
 			FVec3 DirCCD = FVec3(0);
-			const FVec3 DeltaX0 = (ConstParticle0->ObjectState() == EObjectStateType::Kinematic) ? (ConstParticle0->V() * Dt) : (ConstParticle0->P() - ConstParticle0->X());
-			const FVec3 DeltaX1 = (ConstParticle1->ObjectState() == EObjectStateType::Kinematic) ? (ConstParticle1->V() * Dt) : (ConstParticle1->P() - ConstParticle1->X());
+			const FVec3 DeltaX0 = ConstParticle0->V() * Dt;
+			const FVec3 DeltaX1 = ConstParticle1->V() * Dt;
 			const bool bUseCCD = Collisions::ShouldUseCCD(Particle0, DeltaX0, Particle1, DeltaX1, DirCCD, LengthCCD);
 
 			return bUseCCD;

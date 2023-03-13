@@ -13,7 +13,7 @@
 #include "Chaos/PBDCollisionConstraints.h"
 
 
-//PRAGMA_DISABLE_OPTIMIZATION
+//UE_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
@@ -399,8 +399,18 @@ namespace Chaos
 		const FRealSingle MinBounds0 = FConstGenericParticleHandle(Particle[0])->CCDEnabled() ? FRealSingle(Implicit[0]->BoundingBox().Extents().GetAbsMin()) : FRealSingle(0);
 		const FRealSingle MinBounds1 = FConstGenericParticleHandle(Particle[1])->CCDEnabled() ? FRealSingle(Implicit[1]->BoundingBox().Extents().GetAbsMin()) : FRealSingle(0);
 		const FRealSingle MinBounds = FMath::Max(MinBounds0, MinBounds1);
+
+		// If we perform a CCD sweep and it finds a hit, but the the penetration depth at the end of
+		// the sweep (T=1) is less than this, we ignore the sweep result (no rewind) and just run
+		// regular collision detection at T=1 (i.e., as if CCD is not enabled for this tick).
+		// If this is zero, then we will always perform CCD rewind when we get a sweep hit.
 		CCDEnablePenetration = MinBounds * CVars::CCDEnableThresholdBoundsScale;
-		CCDTargetPenetration = FMath::Min(MinBounds * CVars::CCDAllowedDepthBoundsScale, CCDEnablePenetration);
+		
+		// If we have a CCD sweep hit above the enable penetration, we will rewind the body so
+		// that the penetration depth CCDTargetPenetration (or less). A new contact manifold is then calculated.
+		// NOTE: this can be zero but if it is we will get very poor behaviour because there will be
+		// nothing for the contact resolution to do since we fully depenetrated in the CCD rewind.
+		CCDTargetPenetration = MinBounds * CVars::CCDAllowedDepthBoundsScale;
 	}
 
 	void FPBDCollisionConstraint::Activate()

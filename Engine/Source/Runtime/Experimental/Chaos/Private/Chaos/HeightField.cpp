@@ -19,7 +19,7 @@
 #include "Chaos/Triangle.h"
 #include "Chaos/TriangleRegister.h"
 
-//PRAGMA_DISABLE_OPTIMIZATION
+//UE_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
@@ -450,7 +450,7 @@ namespace Chaos
 	{
 	public:
 
-		THeightfieldSweepVisitorCCD(const typename FHeightField::FDataType* InData, const GeomQueryType& InQueryGeom, const FRigidTransform3& InStartTM, const FVec3& InDir, const FReal Length, const FReal InIgnorePenetration, const FReal InTargetPenetration)
+		THeightfieldSweepVisitorCCD(const typename FHeightField::FDataType* InData, const GeomQueryType& InQueryGeom, const FAABB3& RotatedQueryBounds, const FRigidTransform3& InStartTM, const FVec3& InDir, const FReal Length, const FReal InIgnorePenetration, const FReal InTargetPenetration)
 			: OutDistance(TNumericLimits<FReal>::Max())
 			, OutPhi(TNumericLimits<FReal>::Max())
 			, OutPosition(0)
@@ -462,10 +462,9 @@ namespace Chaos
 			, IgnorePenetration(InIgnorePenetration)
 			, TargetPenetration(InTargetPenetration)
 		{
-			const FAABB3 QueryBounds = InQueryGeom.BoundingBox();
-			const FVec3 BoundsStartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 			const FVec3 StartPoint = StartTM.GetTranslation();
-			const FVec3 Inflation3D = QueryBounds.Extents() * FReal(0.5);
+			const FVec3 BoundsStartPoint = StartPoint + RotatedQueryBounds.Center();
+			const FVec3 Inflation3D = RotatedQueryBounds.Extents() * FReal(0.5);
 
 			const VectorRegister4Float LengthSimd = MakeVectorRegisterFloatFromDouble(VectorSetFloat1(Length));
 			BoundsStartPointSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(BoundsStartPoint.X, BoundsStartPoint.Y, BoundsStartPoint.Z, 0.0));
@@ -2205,9 +2204,10 @@ namespace Chaos
 		const FReal IgnorePenetration = CVars::bCCDNewTargetDepthMode ? InIgnorePenetration : 0;
 		const FReal TargetPenetration = CVars::bCCDNewTargetDepthMode ? InTargetPenetration : 0;
 
+		const FAABB3 QueryBounds = QueryGeom.BoundingBox().TransformedAABB(FRigidTransform3(FVec3(0), StartTM.GetRotation()));
+
 		bool bHit = false;
-		THeightfieldSweepVisitorCCD<QueryGeomType> SQVisitor(&GeomData, QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration);
-		const FAABB3 QueryBounds = QueryGeom.BoundingBox();
+		THeightfieldSweepVisitorCCD<QueryGeomType> SQVisitor(&GeomData, QueryGeom, QueryBounds, StartTM, Dir, Length, IgnorePenetration, TargetPenetration);
 		const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 
 		const FVec3 Inflation3D = QueryBounds.Extents() * FReal(0.5);
