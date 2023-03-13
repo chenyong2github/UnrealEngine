@@ -155,7 +155,7 @@ namespace UE::RivermaxCore::Private
 	bool FRivermaxInputStream::Initialize(const FRivermaxInputStreamOptions& InOptions, IRivermaxInputStreamListener& InListener)
 	{
 		IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
-		if (RivermaxModule.GetRivermaxManager()->IsInitialized() == false)
+		if (RivermaxModule.GetRivermaxManager()->IsLibraryInitialized() == false)
 		{
 			UE_LOG(LogRivermax, Warning, TEXT("Can't create Rivermax Input Stream. Library isn't initialized."));
 			return false;

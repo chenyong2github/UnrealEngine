@@ -16,7 +16,9 @@ namespace UE::RivermaxCore::Private
 
 	public:
 		//~ Begin IRivermaxManager interface
-		virtual bool IsInitialized() const override;
+		virtual bool IsManagerInitialized() const override;
+		virtual bool IsLibraryInitialized() const override;
+		virtual FOnPostRivermaxManagerInit& OnPostRivermaxManagerInit() override;
 		virtual uint64 GetTime() const override;
 		virtual ERivermaxTimeSource GetTimeSource() const override;
 		virtual TConstArrayView<FRivermaxDeviceInfo> GetDevices() const override;
@@ -33,8 +35,11 @@ namespace UE::RivermaxCore::Private
 
 	private:
 
-		/** Whether the library has been initialized and is usable */
+		/** True when manager has been initialized */
 		bool bIsInitialized = false;
+
+		/** True when library is usable */
+		bool bIsLibraryInitialized = false;
 
 		/** Whether library was initialized but failed along the way and needs to be cleaned up on exit */
 		bool bIsCleanupRequired = false;
@@ -48,7 +53,11 @@ namespace UE::RivermaxCore::Private
 		/** Current time source */
 		ERivermaxTimeSource TimeSource = ERivermaxTimeSource::PTP;
 
+		/** Rivermax device finder listing all usable interfaces */
 		TUniquePtr<FRivermaxDeviceFinder> DeviceFinder;
+
+		/** Delegate triggered when initialization has completed */
+		FOnPostRivermaxManagerInit PostInitDelegate;
 	};
 }
 

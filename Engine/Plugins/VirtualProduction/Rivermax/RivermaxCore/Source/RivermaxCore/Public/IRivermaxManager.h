@@ -14,6 +14,9 @@ namespace UE::RivermaxCore
 		FString InterfaceAddress;
 	};
 
+	/** Delegate called when rivermax manager has been initialized and library tried to be loaded */
+	DECLARE_MULTICAST_DELEGATE(FOnPostRivermaxManagerInit)
+
 	/**
 	 * Not doing much at the moment but should be used as a central point to register every stream created
 	 * and keep track of stats. Also manages initialization of the library.
@@ -25,8 +28,14 @@ namespace UE::RivermaxCore
 
 	public:
 		
-		/** Returns true if Rivermax has been initialized and is usable */
-		virtual bool IsInitialized() const = 0;
+		/** Returns true if RivermaxManager has been initialized */
+		virtual bool IsManagerInitialized() const = 0;
+
+		/** Returns true if Rivermax library has been initialized and is usable */
+		virtual bool IsLibraryInitialized() const = 0;
+
+		/** Delegate triggered after manager has been initialized and library tried to be loaded */
+		virtual FOnPostRivermaxManagerInit& OnPostRivermaxManagerInit() = 0;
 
 		/** 
 		 * Returns current time in nanoseconds for Rivermax

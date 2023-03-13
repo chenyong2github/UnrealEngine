@@ -113,7 +113,7 @@ namespace UE::RivermaxCore::Private
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::Initialize);
 
 		RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>(TEXT("RivermaxCore"));
-		if (RivermaxModule->GetRivermaxManager()->IsInitialized() == false)
+		if (RivermaxModule->GetRivermaxManager()->IsLibraryInitialized() == false)
 		{
 			UE_LOG(LogRivermax, Warning, TEXT("Can't create Rivermax Output Stream. Library isn't initialized."));
 			return false;

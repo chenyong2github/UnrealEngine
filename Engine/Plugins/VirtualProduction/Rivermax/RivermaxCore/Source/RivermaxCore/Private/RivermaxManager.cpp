@@ -54,16 +54,8 @@ namespace UE::RivermaxCore::Private
 			FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA");
 		}
 
-		const bool bIsLibraryLoaded = LoadRivermaxLibrary();
-		if (bIsLibraryLoaded && FApp::CanEverRender())
-		{
-			//Postpone initialization after all modules have been loaded
-			FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddRaw(this, &FRivermaxManager::InitializeLibrary);
-		}
-		else
-		{
-			UE_LOG(LogRivermax, Log, TEXT("Skipping Rivermax initialization. Library won't be usable."));
-		}
+		//Postpone initialization after all modules have been loaded
+		FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddRaw(this, &FRivermaxManager::InitializeLibrary);
 	}
 
 	FRivermaxManager::~FRivermaxManager()
@@ -73,7 +65,7 @@ namespace UE::RivermaxCore::Private
 			rmax_status_t Status = rmax_cleanup();
 			if (Status != RMAX_OK)
 			{
-				UE_LOG(LogRivermax, Log, TEXT("Failed to cleanup Rivermax Library. Status: %d"), Status);
+				UE_LOG(LogRivermax, Warning, TEXT("Failed to cleanup Rivermax Library. Status: %d"), Status);
 			}
 			UE_LOG(LogRivermax, Log, TEXT("Rivermax Library has shutdown."));
 		}
@@ -85,7 +77,7 @@ namespace UE::RivermaxCore::Private
 		}
 	}
 
-	bool FRivermaxManager::IsInitialized() const
+	bool FRivermaxManager::IsManagerInitialized() const
 	{
 		return bIsInitialized;
 	}
@@ -152,57 +144,68 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxManager::InitializeLibrary()
 	{
-		rmax_init_config Config;
-		memset(&Config, 0, sizeof(Config));
-
-		rmax_status_t Status = rmax_init(&Config);
-		if (Status == RMAX_OK)
+		const bool bIsLibraryLoaded = LoadRivermaxLibrary();
+		if (bIsLibraryLoaded && FApp::CanEverRender())
 		{
-			bIsCleanupRequired = true;
+			rmax_init_config Config;
+			memset(&Config, 0, sizeof(Config));
 
-			const URivermaxSettings* Settings = GetDefault<URivermaxSettings>();
-			TimeSource = Settings->TimeSource;
-			bool bIsClockConfigured = InitializeClock(TimeSource);
-
-			if(!bIsClockConfigured && TimeSource == ERivermaxTimeSource::PTP)
+			rmax_status_t Status = rmax_init(&Config);
+			if (Status == RMAX_OK)
 			{
-				TimeSource = ERivermaxTimeSource::System;
-				bIsClockConfigured = InitializeClock(TimeSource);
-			}
+				bIsCleanupRequired = true;
 
-			if (bIsClockConfigured)
-			{
-				uint32 Major = 0;
-				uint32 Minor = 0;
-				uint32 Release = 0;
-				uint32 Build = 0;
-				Status = rmax_get_version(&Major, &Minor, &Release, &Build);
-				if (Status == RMAX_OK)
+				const URivermaxSettings* Settings = GetDefault<URivermaxSettings>();
+				TimeSource = Settings->TimeSource;
+				bool bIsClockConfigured = InitializeClock(TimeSource);
+
+				if (!bIsClockConfigured && TimeSource == ERivermaxTimeSource::PTP)
 				{
-					if (CVarRivermaxEnableGPUDirectCapability.GetValueOnGameThread())
+					TimeSource = ERivermaxTimeSource::System;
+					bIsClockConfigured = InitializeClock(TimeSource);
+				}
+
+				if (bIsClockConfigured)
+				{
+					uint32 Major = 0;
+					uint32 Minor = 0;
+					uint32 Release = 0;
+					uint32 Build = 0;
+					Status = rmax_get_version(&Major, &Minor, &Release, &Build);
+					if (Status == RMAX_OK)
 					{
-						VerifyGPUDirectCapability();
-					}
+						if (CVarRivermaxEnableGPUDirectCapability.GetValueOnGameThread())
+						{
+							VerifyGPUDirectCapability();
+						}
 
-					bIsInitialized = true;
-					const TCHAR* GPUDirectSupport = bIsGPUDirectSupported ? TEXT("with GPUDirect support.") : TEXT("without GPUDirect support.");
-					UE_LOG(LogRivermax, Log, TEXT("Rivermax library version %d.%d.%d.%d succesfully initialized, %s"), Major, Minor, Release, Build, GPUDirectSupport);
-				}
-				else
-				{
-					UE_LOG(LogRivermax, Log, TEXT("Failed to retrieve Rivermax library version. Status: %d"), Status);
+						bIsLibraryInitialized = true;
+						const TCHAR* GPUDirectSupport = bIsGPUDirectSupported ? TEXT("with GPUDirect support.") : TEXT("without GPUDirect support.");
+						UE_LOG(LogRivermax, Log, TEXT("Rivermax library version %d.%d.%d.%d succesfully initialized, %s"), Major, Minor, Release, Build, GPUDirectSupport);
+					}
+					else
+					{
+						UE_LOG(LogRivermax, Log, TEXT("Failed to retrieve Rivermax library version. Status: %d"), Status);
+					}
 				}
 			}
+			else if (Status == RMAX_ERR_LICENSE_ISSUE)
+			{
+				UE_LOG(LogRivermax, Warning, TEXT("Rivermax License could not be found. Have you configured RIVERMAX_LICENSE_PATH environment variable?"));
+			}
+
+			if (bIsLibraryInitialized == false)
+			{
+				UE_LOG(LogRivermax, Error, TEXT("Rivermax library failed to initialize. Status: %d"), Status);
+			}
 		}
-		else if (Status == RMAX_ERR_LICENSE_ISSUE)
+		else
 		{
-			UE_LOG(LogRivermax, Log, TEXT("Rivermax License could not be found. Have you configured RIVERMAX_LICENSE_PATH environment variable?"));
+			UE_LOG(LogRivermax, Log, TEXT("Skipping Rivermax initialization. Library won't be usable."));
 		}
 
-		if (bIsInitialized == false)
-		{
-			UE_LOG(LogRivermax, Log, TEXT("Rivermax library failed to initialize. Status: %d"), Status);
-		}
+		bIsInitialized = true;
+		PostInitDelegate.Broadcast();
 	}
 
 	TConstArrayView<UE::RivermaxCore::FRivermaxDeviceInfo> FRivermaxManager::GetDevices() const
@@ -361,6 +364,17 @@ namespace UE::RivermaxCore::Private
 			}
 		}
 	}
+
+	bool FRivermaxManager::IsLibraryInitialized() const
+	{
+		return bIsLibraryInitialized;
+	}
+
+	FOnPostRivermaxManagerInit& FRivermaxManager::OnPostRivermaxManagerInit()
+	{
+		return PostInitDelegate;
+	}
+
 }
 
 

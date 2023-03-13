@@ -21,25 +21,20 @@ bool URivermaxCustomTimeStep::Initialize(UEngine* InEngine)
 		State = ECustomTimeStepSynchronizationState::Error;
 		return false;
 	}
+	
+	State = ECustomTimeStepSynchronizationState::Synchronizing;
 
-	if (RivermaxModule->GetRivermaxManager()->IsInitialized() == false)
+	if (RivermaxModule->GetRivermaxManager()->IsManagerInitialized() == false)
 	{
-		UE_LOG(LogRivermaxMedia, Warning, TEXT("Can't initialize Rivermax custom timestep. Library isn't available."))
-		State = ECustomTimeStepSynchronizationState::Error;
-		return false;
+		RivermaxModule->GetRivermaxManager()->OnPostRivermaxManagerInit().AddUObject(this, &URivermaxCustomTimeStep::OnRivermaxManagerInitialized);
+	}
+	else
+	{
+		OnRivermaxManagerInitialized();
 	}
 
-	if (RivermaxModule->GetRivermaxManager()->GetDevices().Num() <= 0)
-	{
-		UE_LOG(LogRivermaxMedia, Warning, TEXT("Can't initialize Rivermax custom timestep. No devices were found."))
-		State = ECustomTimeStepSynchronizationState::Error;
-		return false;
-	}
-
-	State = ECustomTimeStepSynchronizationState::Synchronized;
 	return true;
 }
-
 
 void URivermaxCustomTimeStep::Shutdown(UEngine* InEngine)
 {
@@ -49,6 +44,11 @@ void URivermaxCustomTimeStep::Shutdown(UEngine* InEngine)
 
 	State = ECustomTimeStepSynchronizationState::Closed;
 
+	IRivermaxCoreModule* RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore");
+	if (RivermaxModule)
+	{
+		RivermaxModule->GetRivermaxManager()->OnPostRivermaxManagerInit().RemoveAll(this);
+	}
 }
 
 bool URivermaxCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
@@ -59,7 +59,7 @@ bool URivermaxCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 		State = ECustomTimeStepSynchronizationState::Error;
 	}
 
-	if (State == ECustomTimeStepSynchronizationState::Closed)
+	if (State == ECustomTimeStepSynchronizationState::Closed || State == ECustomTimeStepSynchronizationState::Synchronizing)
 	{
 		return true;
 	}
@@ -81,7 +81,6 @@ bool URivermaxCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 
 	if (!bWaitedForSync)
 	{
-		State = ECustomTimeStepSynchronizationState::Error;
 		return true;
 	}
 
@@ -211,6 +210,31 @@ bool URivermaxCustomTimeStep::WaitForNextFrame()
 	TRACE_BOOKMARK(TEXT("PTP genlock at %llu"), TargetTimeNanosec);
 
 	return ActualWaitTime < TimeoutSec;
+}
+
+void URivermaxCustomTimeStep::OnRivermaxManagerInitialized()
+{
+	if (State == ECustomTimeStepSynchronizationState::Synchronizing)
+	{
+		IRivermaxCoreModule& RivermaxModule = FModuleManager::GetModuleChecked<IRivermaxCoreModule>("RivermaxCore");
+
+		if (RivermaxModule.GetRivermaxManager()->IsLibraryInitialized() == false)
+		{
+			UE_LOG(LogRivermaxMedia, Warning, TEXT("Can't initialize Rivermax custom timestep. Library isn't available."));
+			
+			State = ECustomTimeStepSynchronizationState::Error;
+			return;
+		}
+
+		if (RivermaxModule.GetRivermaxManager()->GetDevices().Num() <= 0)
+		{
+			UE_LOG(LogRivermaxMedia, Warning, TEXT("Can't initialize Rivermax custom timestep. No devices were found."))
+			State = ECustomTimeStepSynchronizationState::Error;
+			return;
+		}
+
+		State = ECustomTimeStepSynchronizationState::Synchronized;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

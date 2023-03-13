@@ -39,7 +39,12 @@ public:
 
 
 private:
+
+	/** Waits for the next frame based on frame rate settings */
 	bool WaitForNextFrame();
+
+	/** We wait for Rivermax Manager to be initialized to do final verification before going to Synchronized state` */
+	void OnRivermaxManagerInitialized();
 
 public:
 
