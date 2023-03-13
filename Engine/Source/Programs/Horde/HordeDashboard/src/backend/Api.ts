@@ -4458,3 +4458,19 @@ export type GetTestDataRefResponse = {
 	/// The number of suite tests swith errors
 	suiteErrorCount?: number;
 }
+
+/** Summary for a particular tool */
+export type GetToolSummaryResponse = {
+
+	/** Unique id of tool */
+	id: string;
+
+	/** Name of tool */
+	name: string;
+
+	/** Description of tool */
+	description: string;
+
+	/** Version of tool */
+	version?: string;
+}

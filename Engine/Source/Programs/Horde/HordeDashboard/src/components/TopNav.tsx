@@ -6,6 +6,7 @@ import React, { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import backend, { useBackend } from '../backend';
 import { ProjectData } from "../backend/Api";
+import { getSiteConfig } from '../backend/Config';
 import dashboard from '../backend/Dashboard';
 import { ProjectStore } from '../backend/ProjectStore';
 import { modeColors } from '../styles/Styles';
@@ -376,6 +377,14 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
          link: `/perforce/servers`
       });
 
+      if (getSiteConfig().environment !== "production") {
+         resourceItems.push({
+            key: "admin_tools",
+            text: "Tools",
+            link: `/tools`
+         });   
+      }
+
       subItems.push({
          itemType: ContextualMenuItemType.Section,
          key: `admin_resources`,
@@ -447,7 +456,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
 
       subItems.push({
          itemType: ContextualMenuItemType.Section,
-         key: `admin_config`,
+         key: `admin_version`,
          sectionProps: {
             title: "Version",
             items: versionItems,
@@ -541,7 +550,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
       <div style={{ backgroundColor: modeColors.header }}>
          {showVersion && <VersionModal show={true} onClose={() => { setShowVersion(false) }} />}
          {showPreviewChanges && <PreviewChangesModal onClose={() => { setShowPreviewChanges(false) }} />}
-         <Stack tokens={{ maxWidth: 1800, childrenGap: 0 }} disableShrink={true} styles={{ root: { backgroundColor: modeColors.header, margin: "auto", width: "100%" } }}>
+         <Stack tokens={{ maxWidth: 1464, childrenGap: 0 }} disableShrink={true} styles={{ root: { backgroundColor: modeColors.header, margin: "auto", width: "100%" } }}>
             <Stack horizontal verticalAlign='center' styles={{ root: { height: "60px" } }} >
 
                <Link to="/index"><Stack horizontal styles={{ root: { paddingLeft: 8, cursor: 'pointer' } }}>

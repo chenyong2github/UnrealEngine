@@ -122,10 +122,10 @@ const JobViewAllInner: React.FC<{ filter: JobFilterSimple }> = observer(({ filte
     let columns: IColumn[] = [
         { key: 'jobview_column1', name: 'Status', minWidth: 16, maxWidth: 16 },
         { key: 'jobview_column2', name: 'Change', minWidth: 64, maxWidth: 64 },
-        { key: 'jobview_column3', name: 'Job', minWidth: 420, maxWidth: 420 },
-        { key: 'jobview_column4', name: 'Labels', minWidth: 380, maxWidth: 380 },
-        { key: 'jobview_column5', name: 'Steps', minWidth: 504, maxWidth: 504 },
-        { key: 'jobview_column6', name: 'StartedBy', minWidth: 160, maxWidth: 160 },
+        { key: 'jobview_column3', name: 'Job', minWidth: 220, maxWidth: 220 },
+        { key: 'jobview_column4', name: 'Labels', minWidth: 300, maxWidth: 300 },
+        { key: 'jobview_column5', name: 'Steps', minWidth: 324, maxWidth: 324 },
+        { key: 'jobview_column6', name: 'StartedBy', minWidth: 290, maxWidth: 290 },
         { key: 'jobview_column7', name: 'Time', minWidth: 50, maxWidth: 50 },
 
     ];
@@ -527,7 +527,7 @@ const JobViewAllInner: React.FC<{ filter: JobFilterSimple }> = observer(({ filte
     return (
         <Stack>
             <Stack tokens={{ childrenGap: 0 }} style={{}}>
-                <Stack horizontalAlign="center" style={{ backgroundColor: "#FFFFFF", width: 1800, marginLeft: 4, boxShadow: "0 3px 3.6px 0 rgba(0,0,0,0.132), 0 0.3px 0.9px 0 rgba(0,0,0,0.108)" }}>
+                <Stack horizontalAlign="center" style={{ backgroundColor: "#FFFFFF", width: 1440, marginLeft: 4, boxShadow: "0 3px 3.6px 0 rgba(0,0,0,0.132), 0 0.3px 0.9px 0 rgba(0,0,0,0.108)" }}>
                     <Stack style={{ paddingTop: 18, paddingBottom: 24 }}>
                         <JobFilterPanel />
                     </Stack>
@@ -537,7 +537,7 @@ const JobViewAllInner: React.FC<{ filter: JobFilterSimple }> = observer(({ filte
                 <FocusZone direction={FocusZoneDirection.vertical}>
                     <div className={detailClasses.container} style={{ height: 'calc(100vh - 352px)', position: 'relative', marginTop: 0 }} data-is-scrollable={true}>
                         {<ScrollablePane scrollbarVisibility={ScrollbarVisibility.always} style={{ overflow: "visible" }}>
-                            <Stack style={{ width: 1800, marginLeft: 4, boxShadow: "0 1.6px 3.6px 0 rgba(0,0,0,0.132), 0 0.3px 0.9px 0 rgba(0,0,0,0.108)", backgroundColor: "#FFFFFF" }}>
+                            <Stack style={{ width: 1440, marginLeft: 4, boxShadow: "0 1.6px 3.6px 0 rgba(0,0,0,0.132), 0 0.3px 0.9px 0 rgba(0,0,0,0.108)", backgroundColor: "#FFFFFF" }}>
                                 <Stack>
                                     <DetailsList
                                         styles={{ root: { paddingLeft: 8, paddingRight: 8 } }}
@@ -565,7 +565,7 @@ const JobViewAllInner: React.FC<{ filter: JobFilterSimple }> = observer(({ filte
                             }
 
                             {!nojobs && !jobItems.length && <Stack styles={{ root: { paddingTop: 20, paddingBottom: 20 } }}>
-                                <Stack style={{ width: 1800 }}><Spinner size={SpinnerSize.large} /></Stack>
+                                <Stack style={{ width: 1440 }}><Spinner size={SpinnerSize.large} /></Stack>
                             </Stack>
                             }
 

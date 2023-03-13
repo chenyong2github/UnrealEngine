@@ -61,7 +61,7 @@ const buildColumns = (jobTab: JobsTabData): IColumn[] => {
    if (jobTab.columns) {
       let total = 0;
       jobTab.columns.forEach(c => total += c.relativeWidth ?? 1);
-      const w = (jobTab.showNames ? 1000 : 800) / total;
+      const w = (jobTab.showNames ? 950 - 300 : 750 - 300) / total;
 
       jobTab.columns.forEach(c => { minWidths[c.heading] = w * (c.relativeWidth ?? 1); cnames.push(c.heading); });
    } else {
@@ -562,7 +562,7 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
 
    let nojobs = !jobHandler.initial && !jobs.length;
 
-   const width = 1800;
+   const width = 1440;
 
    // main header
    const onRenderDetailsHeader: IDetailsListProps['onRenderDetailsHeader'] = (props) => {

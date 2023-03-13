@@ -534,7 +534,7 @@ export const AutomationView: React.FC = observer(() => {
          <Breadcrumbs items={[{ text: 'Automation' }]} />
          <ErrorBoundary>
             <Stack horizontalAlign="center" grow styles={{ root: { width: "100%", padding: 12, backgroundColor: modeColors.background } }}>
-               <Stack styles={{ root: { width: 1774 } }}>
+               <Stack styles={{ root: { width: 1440 } }}>
                   {!handler.loaded && <Stack>
                   </Stack>}
                   {handler.loaded && <Stack style={{ paddingTop: 8 }}>
@@ -745,7 +745,7 @@ class AutomationGraph {
 
       const handler = this.handler;
       const refs = this.refs.sort((a, b) => handler.metaNames.get(a.metaId)!.localeCompare(handler.metaNames.get(b.metaId)!));
-      const width = 1328
+      const width = 1000
 
       const scolors = dashboard.getStatusColors();
       const colors: Record<string, string> = {

@@ -834,6 +834,11 @@ const AutoScalerPanel: React.FC = () => {
                   <ComboBox styles={{ root: { width: 180 } }} disabled={disabled} label="Strategy" selectedKey={state.strategy} options={stratItems} onChange={(ev, option, index, value) => {
                      setState({ ...state, modified: true, strategy: option!.data })
                   }} />
+                  <SpinButton styles={{ root: { width: 180 } }} label={`Conform Interval${state.conformInterval === 0 ? " (Disabled)" : " (Hours)"}`} min={0} max={24 * 7} value={state.conformInterval?.toString() ?? "24"} labelPosition={Position.top} onChange={(ev, value) => {
+                     setState({ ...state, modified: true, conformInterval: parseInt(value ?? "24") })
+                  }} />
+               </Stack>
+               <Stack horizontal tokens={{ childrenGap: 18 }}>
                   <SpinButton styles={{ root: { width: 128 } }} disabled={disabled} label="Minimum Agents" value={state.minAgents?.toString() ?? UNSET_VALUE} labelPosition={Position.top} onChange={(ev, value) => {
                      setState({ ...state, modified: true, minAgents: value === UNSET_VALUE ? undefined : parseInt(value ?? "0") })
                   }} />
@@ -841,15 +846,11 @@ const AutoScalerPanel: React.FC = () => {
                      setState({ ...state, modified: true, reserveAgents: value === UNSET_VALUE ? undefined : parseInt(value ?? "0") })
                   }} />
                </Stack>
-               <Stack>
-                  <SpinButton styles={{ root: { width: 180 } }} label={`Conform Interval${state.conformInterval === 0 ? " (Disabled)" : " (Hours)"}`} min={0} max={24 * 7} value={state.conformInterval?.toString() ?? "24"} labelPosition={Position.top} onChange={(ev, value) => {
-                     setState({ ...state, modified: true, conformInterval: parseInt(value ?? "24") })
-                  }} />
-               </Stack>
             </Stack>
          </Stack>
       </Stack>
    </Stack>
+   
 }
 
 
@@ -905,7 +906,7 @@ const PoolPanel: React.FC = () => {
    }
 
    const summaryColumns = [
-      { key: 'column1', name: 'Name', minWidth: 100, maxWidth: 100 },
+      { key: 'column1', name: 'Name', minWidth: 64, maxWidth: 64 },
       { key: 'column2', name: 'Value', minWidth: 100, maxWidth: 200 },
    ];
 
@@ -953,7 +954,7 @@ const PoolPanel: React.FC = () => {
    return (<Stack>
       <Stack styles={{ root: { paddingTop: 18, paddingLeft: 12, paddingRight: 12, width: "100%" } }} >
          <Stack tokens={{ childrenGap: 12 }}>
-            <Stack horizontal tokens={{ childrenGap: 118 }}>
+            <Stack horizontal tokens={{ childrenGap: 48 }}>
                <Stack style={{ minWidth: 224 }}>
                   <Stack style={{ paddingBottom: 8 }}>
                      <PrimaryButton text={pool.name} href={`/agents?agent=${encodeURI(pool.id)}&exact=true`} target="_blank" style={{ color: "#FFFFFF", backgroundColor: linearInterpolate(color), border: "unset", flexShrink: 1 }} />
@@ -1071,14 +1072,14 @@ export const PoolView: React.FC = observer(() => {
       <TopNav />
       <Breadcrumbs items={[{ text: "Agents", link: "/agents" }, { text: breadText }]} />
       <Stack horizontal>
-         <div key={`windowsize_poolview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - 896, flexShrink: 0, backgroundColor: modeColors.background }} />
+         <div key={`windowsize_poolview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440 / 2), flexShrink: 0, backgroundColor: modeColors.background }} />
          <Stack tokens={{ childrenGap: 0 }} styles={{ root: { backgroundColor: modeColors.background, width: "100%" } }}>
-            <Stack style={{ maxWidth: 1778, paddingTop: 6, marginLeft: 4, height: 'calc(100vh - 8px)' }}>
+            <Stack style={{ maxWidth: 1440, paddingTop: 6, marginLeft: 4, height: 'calc(100vh - 8px)' }}>
                <Stack horizontal style={{ paddingTop: 8, paddingBottom: 16 }}>
                   <Stack grow />
-                  <Stack style={{width: 320}}>
+                  <Stack style={{ width: 320 }}>
                      <TagPicker inputProps={{ placeholder: "Select a pool" }}
-                        defaultSelectedItems={ defaultItems}
+                        defaultSelectedItems={defaultItems}
                         onResolveSuggestions={filterSuggestedTags}
                         getTextFromItem={getTextFromItem}
                         onEmptyResolveSuggestions={(selected) => {
@@ -1101,7 +1102,7 @@ export const PoolView: React.FC = observer(() => {
                   </Stack>
                </Stack>
                {!!pool && <Stack className={hordeClasses.raised}>
-                  <Stack style={{ position: "relative", width: "100%", height: 'calc(100vh - 228px)' }}>
+                  <Stack style={{ position: "relative", width: "1390px", height: 'calc(100vh - 228px)' }}>
                      <ScrollablePane scrollbarVisibility={ScrollbarVisibility.always}>
                         <Stack tokens={{ childrenGap: 18 }}>
                            <PoolPanel />

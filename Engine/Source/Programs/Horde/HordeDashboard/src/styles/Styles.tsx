@@ -259,8 +259,8 @@ export const hordeClasses = mergeStyleSets({
             minWidth: 0,
             paddingTop: 6,
             paddingBottom: 6,
-            paddingLeft: 3,
-            paddingRight: 3,
+            paddingLeft: 1,
+            paddingRight: 1,
             height: 18
          },
          '.ms-Button:hover': {
@@ -268,7 +268,7 @@ export const hordeClasses = mergeStyleSets({
             filter: "brightness(1.15)"
          },
          '.ms-Button-label': {
-            fontSize: '10px',
+            fontSize: '9px',
             fontFamily: "Horde Open Sans SemiBold",
             whiteSpace: "nowrap"
          }

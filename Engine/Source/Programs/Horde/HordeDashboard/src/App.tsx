@@ -25,6 +25,7 @@ import { PreflightRedirector } from './components/Preflight';
 import { ProjectHome } from './components/ProjectHome';
 import { StreamView } from './components/StreamView';
 import { TestReportView } from './components/TestReportView';
+import { ToolView } from './components/ToolView';
 import { UserHomeView } from './components/UserHome';
 import { UtilizationReportView } from './components/UtilizationReportView';
 import hordePlugins from './Plugins';
@@ -144,6 +145,7 @@ const Main: React.FC = () => {
                { path: "audit/agent/:agentId", element: <AuditLogView /> },
                { path: "audit/issue/:issueId", element: <AuditLogView /> },
                { path: "automation", element: <AutomationView /> },
+               { path: "tools", element: <ToolView /> },
                { path: "debug/lease/:leaseId", element: <DebugView /> }
             ]
          }

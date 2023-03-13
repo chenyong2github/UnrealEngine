@@ -118,9 +118,9 @@ export const ProjectHome: React.FC = observer(() => {
             <TopNav />
             <Breadcrumbs items={crumbs} />
             <Stack horizontal>
-                <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - 850, flexShrink: 0, backgroundColor: 'rgb(250, 249, 249)' }} />
+                <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440/2), flexShrink: 0, backgroundColor: 'rgb(250, 249, 249)' }} />
                 <Stack tokens={{ childrenGap: 0 }} styles={{ root: { backgroundColor: 'rgb(250, 249, 249)', width: "100%" } }}>
-                    <Stack style={{ maxWidth: 1800, paddingTop: 6, marginLeft: 4 }}>
+                    <Stack style={{ maxWidth: 1440, paddingTop: 6, marginLeft: 4 }}>
                         <FocusZone direction={FocusZoneDirection.vertical} style={{ padding: 0 }}>
                             <div className={detailClasses.container} style={{ width: "100%", height: 'calc(100vh - 208px)', position: 'relative' }} data-is-scrollable={true}>
                                 <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto} onScroll={() => { }}>

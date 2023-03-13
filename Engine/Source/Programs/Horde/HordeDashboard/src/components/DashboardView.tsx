@@ -410,9 +410,9 @@ export const DashboardView: React.FC = () => {
       <TopNav />
       <Breadcrumbs items={[{ text: 'Preferences' }]} />
       <Stack horizontal>
-         <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - 900, flexShrink: 0, backgroundColor: modeColors.background }} />
+         <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440/2), flexShrink: 0, backgroundColor: modeColors.background }} />
          <Stack tokens={{ childrenGap: 0 }} styles={{ root: { backgroundColor: modeColors.background, width: "100%" } }}>
-            <Stack style={{ maxWidth: 1800, paddingTop: 16, marginLeft: 4 }}>
+            <Stack style={{ maxWidth: 1440, paddingTop: 16, marginLeft: 4 }}>
                <Stack horizontal className={hordeClasses.raised}>
                   <Stack style={{ width: "100%" }} tokens={{ childrenGap: 18 }}>
                      {dashboard.available && <GeneralPanel />}

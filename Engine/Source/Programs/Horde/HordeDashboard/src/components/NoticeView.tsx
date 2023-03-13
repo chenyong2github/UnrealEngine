@@ -23,10 +23,10 @@ const NoticePanel: React.FC = observer(() => {
    if (notices.updated) { };
 
    const columns = [
-      { key: 'column_message', name: 'Message', minWidth: 1024, maxWidth: 1024, isResizable: false },
+      { key: 'column_message', name: 'Message', minWidth: 740, maxWidth: 740, isResizable: false },
       { key: 'column_starttime', name: 'Start Time', minWidth: 160, maxWidth: 160, isResizable: false },
       { key: 'column_finishtime', name: 'Finish Time', minWidth: 160, maxWidth: 160, isResizable: false },
-      { key: 'column_createdby', name: 'Created By', minWidth: 240, maxWidth: 240, isResizable: false },
+      { key: 'column_createdby', name: 'Created By', minWidth: 200, maxWidth: 200, isResizable: false },
    ];
 
    let allNotices = [...notices.allNotices];
@@ -118,9 +118,9 @@ export const NoticeView: React.FC = () => {
       <TopNav />
       <Breadcrumbs items={[{ text: 'Server Notices' }]} />
       <Stack horizontal>
-         <div key={`windowsize_noticeview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - 896, flexShrink: 0, backgroundColor: modeColors.background }} />
+         <div key={`windowsize_noticeview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440/2), flexShrink: 0, backgroundColor: modeColors.background }} />
          <Stack tokens={{ childrenGap: 0 }} styles={{ root: { backgroundColor: modeColors.background, width: "100%" } }}>
-            <Stack style={{ maxWidth: 1778, paddingTop: 6, marginLeft: 4, height: 'calc(100vh - 8px)' }}>
+            <Stack style={{ maxWidth: 1440, paddingTop: 6, marginLeft: 4, height: 'calc(100vh - 8px)' }}>
                <Stack horizontal className={hordeClasses.raised}>
                   <Stack style={{ width: "100%", height: 'calc(100vh - 228px)' }} tokens={{ childrenGap: 18 }}>
                      <NoticePanel />

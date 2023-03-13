@@ -742,7 +742,7 @@ const StreamCanvas: React.FC = () => {
             const maxColumns = 5;
             const totalDays = Math.ceil(moment.duration(moment(maxTime * 1000).diff(minTime * 1000)).asDays());
 
-            const spanWidth = 1180;
+            const spanWidth = 980;
             const columnWidth = spanWidth / maxColumns;
 
             for (let i = 0; i < maxColumns; i++) {
@@ -807,7 +807,7 @@ const StreamCanvas: React.FC = () => {
          }
 
 
-         context.font = "14px Horde Open Sans SemiBold";
+         context.font = "12px Horde Open Sans SemiBold";
          context.fillStyle = color2;
          context.textAlign = 'left';
          context.textBaseline = 'middle';
@@ -833,7 +833,7 @@ const StreamCanvas: React.FC = () => {
                gotone = true;
 
                if (drawTemplateText) {
-                  context.font = "13px Horde Open Sans SemiBold";
+                  context.font = "11px Horde Open Sans SemiBold";
                   context.fillStyle = color0;
                   context.textAlign = 'left';
                   context.textBaseline = 'middle';
@@ -847,7 +847,7 @@ const StreamCanvas: React.FC = () => {
                   return timeA.getTime() - timeB.getTime();
                });
 
-               context.font = "13px Horde Open Sans Regular";
+               context.font = "11px Horde Open Sans Regular";
                context.fillStyle = color0;
                context.textAlign = 'left';
                context.textBaseline = 'middle';
@@ -861,8 +861,8 @@ const StreamCanvas: React.FC = () => {
 
                   const step = jobStep.step;
 
-                  const width = 1180;
-                  const startX = 300;
+                  const width = 980;
+                  const startX = 280;
 
                   let color = color1;
                   if (step.severity === IssueSeverity.Warning) {
@@ -912,12 +912,12 @@ const StreamCanvas: React.FC = () => {
 
                   }
 
-                  let size = 5;
+                  let size = 4;
                   if (chosenOne === 1) {
-                     size = 7;
+                     size = 6;
                   }
                   if (chosenOne === 2) {
-                     size = 10;
+                     size = 8;
                   }
 
 
@@ -1017,12 +1017,13 @@ const StreamCanvas: React.FC = () => {
             const metrics = context.measureText(change);
 
             context.fillStyle = "#F3F2F1";
-            context.fillRect(drawCL.minX - metrics.width / 2 - 6, drawCL.minY - 28, metrics.width + 24, 25);
+            const minx = Math.min(drawCL.minX, 1200);
+            context.fillRect(minx - metrics.width / 2 - 3, drawCL.minY - 28, metrics.width + 21, 25);
 
 
 
             context.fillStyle = "#2D3F5F";
-            context.fillText(change, drawCL.minX + 6, drawCL.minY - 21);
+            context.fillText(change, minx + 6, drawCL.minY - 21);
 
          }
       });
@@ -1111,7 +1112,7 @@ const StreamCanvas: React.FC = () => {
    }
 
    // Blurry text render fix
-   const canvasBaseWidth = 1560;
+   const canvasBaseWidth = 1280;
    const ratio = Math.ceil(window.devicePixelRatio);
    const canvasWidth = canvasBaseWidth * ratio;
    const canvasHeight = height * ratio;
@@ -1127,7 +1128,7 @@ const StreamCanvas: React.FC = () => {
          <Stack className="horde-no-darktheme" style={{ position: "relative", height: "100%" }}>
             <div ref={scrollRef} style={{ overflowX: "hidden", overflowY: "auto" }}>
                <Stack>
-                  <canvas ref={newRef => setCanvas(newRef)} width={canvasWidth} height={canvasHeight} onWheel={onChartScroll} style={{ width: canvasStyleWidth, height: canvasStyleHeight }} onClick={(ev) => onCanvasClick(ev)} onMouseLeave={(ev => onCanvasMouseLeave(ev))} onMouseMove={(ev) => onCanvasMouseMove(ev)}></canvas>
+                  <canvas ref={newRef => setCanvas(newRef)} width={canvasWidth} height={canvasHeight} onWheel={onChartScroll} style={{ width: canvasStyleWidth, height: canvasStyleHeight, overflowX: "visible" }} onClick={(ev) => onCanvasClick(ev)} onMouseLeave={(ev => onCanvasMouseLeave(ev))} onMouseMove={(ev) => onCanvasMouseMove(ev)}></canvas>
                </Stack>
             </div>
          </Stack>
@@ -1344,7 +1345,7 @@ export const ErrorPane: React.FC<{ events?: GetLogEventResponse[]; onClose?: () 
 
       const url = `/log/${item.logId}?lineindex=${item.lineIndex}`;
 
-      const lines = item.lines.filter(line => line.message?.trim().length).map(line => <Stack key={`errorpane_line_${item.lineIndex}_${lineKey++}`} styles={{ root: { paddingLeft: 8, paddingRight: 8, lineBreak: "anywhere", whiteSpace: "pre-wrap", lineHeight: 18, fontSize: 10, fontFamily: "Horde Cousine Regular, monospace, monospace" } }}> <Link className="log-link" to={url}>{renderLine(line, undefined, {})}</Link></Stack>);
+      const lines = item.lines.filter(line => line.message?.trim().length).map(line => <Stack key={`errorpane_line_${item.lineIndex}_${lineKey++}`} styles={{ root: { paddingLeft: 8, paddingRight: 8, lineBreak: "normal", whiteSpace: "pre-wrap", lineHeight: 18, fontSize: 10, fontFamily: "Horde Cousine Regular, monospace, monospace" } }}> <Link className="log-link" to={url}>{renderLine(line, undefined, {})}</Link></Stack>);
 
       return (<Stack className={errorStyles.itemCell} style={{ padding: 8 }}><Stack className={item.severity === EventSeverity.Warning ? errorStyles.gutterWarning : errorStyles.gutter} styles={{ root: { padding: 0, margin: 0 } }}>
          <Stack styles={{ root: { paddingLeft: 14 } }}>
@@ -1860,15 +1861,15 @@ export const IssueModalV2: React.FC<{ popHistoryOnClose: boolean, issueId?: stri
       </Modal>
    }
 
-   return <Modal isOpen={true} isBlocking={true} topOffsetFixed={true} styles={{ main: { padding: 8, width: 1700, backgroundColor: modeColors.background, hasBeenOpened: false, top: "24px", position: "absolute", height: "95vh" } }} className={hordeClasses.modal} onDismiss={() => { if (onCloseExternal) { onCloseExternal() } else { onClose() } }}>
+   return <Modal isOpen={true} isBlocking={true} topOffsetFixed={true} styles={{ main: { padding: 8, width: 1420, backgroundColor: modeColors.background, hasBeenOpened: false, top: "24px", position: "absolute", height: "95vh" } }} className={hordeClasses.modal} onDismiss={() => { if (onCloseExternal) { onCloseExternal() } else { onClose() } }}>
       {editShown && <EditIssueModal onClose={() => { setEditShown(false) }} />}
       <Stack style={{ height: "93vh" }}>
          <Stack style={{ height: "100%" }}>
             <Stack style={{ flexBasis: "70px", flexShrink: 0 }}>
                <Stack horizontal styles={{ root: { padding: 8 } }} style={{ padding: 20, paddingBottom: 8 }}>
                   <Stack horizontal style={{ width: 1024 }} tokens={{ childrenGap: 24 }} verticalAlign="center" verticalFill={true}>
-                     <Stack style={{ maxWidth: 880, lineBreak: "anywhere" }} >
-                        <Text styles={{ root: { fontWeight: "unset", fontFamily: "Horde Open Sans SemiBold", fontSize: "15px", color: "#087BC4", textDecoration: details.issue?.resolvedAt ? "line-through" : undefined } }}>{title}</Text>
+                     <Stack style={{ maxWidth: 880, lineBreak: "normal" }} >
+                        <Text styles={{ root: { fontWeight: "unset", fontFamily: "Horde Open Sans SemiBold", fontSize: "14px", color: "#087BC4", textDecoration: details.issue?.resolvedAt ? "line-through" : undefined } }}>{title}</Text>
                      </Stack>
 
                      <Stack onClick={() => { setEditShown(true) }} style={{ cursor: "pointer" }}>

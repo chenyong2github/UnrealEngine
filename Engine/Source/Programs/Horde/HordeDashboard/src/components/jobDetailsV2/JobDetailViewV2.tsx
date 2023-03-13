@@ -314,7 +314,7 @@ const DetailsViewOverview: React.FC<{ jobDetails: JobDetailsV2 }> = ({ jobDetail
    </Stack>
 };
 
-const rootWidth = 1776;
+const rootWidth = 1440;
 
 const ScrollRestore: React.FC<{ jobDetails: JobDetailsV2, scrollRef: React.RefObject<HTMLDivElement> }> = ({ jobDetails, scrollRef }) => {
 
@@ -345,7 +345,8 @@ const DetailsView: React.FC<{ jobDetails: JobDetailsV2 }> = ({ jobDetails }) => 
 
    const details = jobDetails;
 
-   const centerAlign = vw / 2 - 890;
+
+   const centerAlign = vw / 2 - 720 /*890*/;
    const key = `windowsize_jobdetail_view_${windowSize.width}_${windowSize.height}`;
 
    return <Stack id="rail_job_overview">

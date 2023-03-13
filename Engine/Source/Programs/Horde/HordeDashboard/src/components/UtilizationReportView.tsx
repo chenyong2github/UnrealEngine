@@ -708,9 +708,9 @@ export const UtilizationReportView: React.FC = observer(() => {
 			<TopNav />
 			<Breadcrumbs items={[{ text: 'Utilization Report' }]} />
 			<Stack horizontal>
-				<div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - 900, flexShrink: 0, backgroundColor: modeColors.background }} />
+				<div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440/2), flexShrink: 0, backgroundColor: modeColors.background }} />
 				<Stack tokens={{ childrenGap: 0 }} styles={{ root: { backgroundColor: modeColors.background, width: "100%" } }}>
-					<Stack style={{ width: 1800, paddingTop: 6, marginLeft: 4, height: 'calc(100vh - 8px)' }}>
+					<Stack style={{ width: 1440, paddingTop: 6, marginLeft: 4, height: 'calc(100vh - 8px)' }}>
 						<Stack styles={{ root: { paddingTop: 18, paddingLeft: 12, paddingRight: 12, width: "100%" } }} >
 							<Stack className={hordeClasses.raised}>
 								<div style={{ overflowY: 'auto', overflowX: 'hidden', maxHeight: "calc(100vh - 250px)" }} data-is-scrollable={true}>

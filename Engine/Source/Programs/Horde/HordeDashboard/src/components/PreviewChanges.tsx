@@ -15,19 +15,10 @@ const changeItems: ChangeItem[] = [];
 
 let item = {
    id: "1",
-   summary: "Improved horizontal space on job detail views to better support various desktop resolutions and scaling",
+   summary: "Improved horizontal space to better support various desktop resolutions and scaling",
    link: "/job/63f7c145d436940d3e099365", 
    slack: "https://epicgames.slack.com/archives/C044JG73ARY/p1677529747047259"
 }
-changeItems.push(item);
-
-item = {
-   id: "2",
-   summary: "Timeline navigation for steps, agents, pools, and batches.  Click a span in the timeline to pin the tooltip, allowing navigation",
-   link: "/job/63f7c145d436940d3e099365",
-   slack: "https://epicgames.slack.com/archives/C044JG73ARY/p1677530063797479"
-}
-
 changeItems.push(item);
 
 const columns = [

@@ -74,8 +74,10 @@ const agentStyles = mergeStyleSets({
    },
    buttonFont: {
       height: '26px',
-      font: '8pt Horde Open Sans SemiBold !important',
+      font: '7pt Horde Open Sans SemiBold !important',
       flexShrink: '0 !important',
+      paddingLeft: 6,
+      paddingRight: 6,
       selectors: {
          '.ms-Icon': {
             width: 0,
@@ -619,7 +621,7 @@ class LocalState {
          {
             key: 'name',
             displayText: 'Name',
-            colSize: 175,
+            colSize: 145,
             isChecked: true,
             isCheckable: false,
             isSorted: true,
@@ -629,7 +631,7 @@ class LocalState {
          {
             key: 'pools',
             displayText: 'Pools',
-            colSize: 840,
+            colSize: 540,
             isChecked: true,
             isCheckable: false,
             isSorted: false,
@@ -1751,7 +1753,7 @@ export const AgentView: React.FC = observer(() => {
          <Breadcrumbs items={[{ text: 'Admin' }, { text: 'Agents' }]} />
          <Stack horizontal>
             <Stack grow styles={{ root: { backgroundColor: 'rgb(250, 249, 249)' } }} />
-            <Stack tokens={{ maxWidth: 1800, childrenGap: 4 }} styles={{ root: { width: 1800, height: '100vh', backgroundColor: 'rgb(250, 249, 249)', paddingTop: 18, paddingLeft: 12 } }}>
+            <Stack tokens={{ maxWidth: 1440, childrenGap: 4 }} styles={{ root: { width: 1440, height: '100vh', backgroundColor: 'rgb(250, 249, 249)', paddingTop: 18, paddingLeft: 12 } }}>
                <Stack className={hordeClasses.raised} styles={{ root: { paddingRight: '40px' } }}>
                   <Stack style={{ position: "relative", height: "calc(100vh - 240px)" }} horizontalAlign="center">
                      <Stack horizontal tokens={{ childrenGap: 24 }}>
@@ -2102,7 +2104,7 @@ export const AgentView: React.FC = observer(() => {
          <Breadcrumbs items={[{ text: 'Admin' }, { text: 'Agents' }]} />
          <Stack horizontal>
             <Stack grow styles={{ root: { backgroundColor: 'rgb(250, 249, 249)' } }} />
-            <Stack tokens={{ maxWidth: 1800, childrenGap: 4 }} styles={{ root: { width: 1800, height: '100vh', backgroundColor: 'rgb(250, 249, 249)', paddingTop: 18, paddingLeft: 12 } }}>
+            <Stack tokens={{ maxWidth: 1440, childrenGap: 4 }} styles={{ root: { width: 1440, height: '100vh', backgroundColor: 'rgb(250, 249, 249)', paddingTop: 18, paddingLeft: 12 } }}>
                <Stack className={hordeClasses.raised} styles={{ root: { paddingRight: '40px' } }}>
                   <SearchUpdate />
                   <Stack.Item>
@@ -2398,7 +2400,7 @@ export const AgentView: React.FC = observer(() => {
                let subtitle = "";
                if (!agent.online) {
                   title = `Offline - ${agent.lastShutdownReason}`;
-                  subtitle = `(Last online at ${getShortNiceTime(agent.updateTime, true, true, true)}`;
+                  subtitle = `Last online at ${getShortNiceTime(agent.updateTime, true, true, true)}`;
                }
                else if (agent.pendingShutdown) {
                   title = `Pending Shutdown`;
@@ -2428,7 +2430,7 @@ export const AgentView: React.FC = observer(() => {
                leaseSearchItems.push(title);
                if (subtitle !== "") {
                   leases.push(<Stack.Item key={"itemSubtitleStatus_" + agent.id} align={"center"} className={agentStyles.ellipsesStackItem}>
-                     <Text key={"statusSubtitleText_" + agent.id}>{subtitle}</Text>
+                     <Text variant="small" key={"statusSubtitleText_" + agent.id}>{subtitle}</Text>
                   </Stack.Item>);
                   leaseSearchItems.push(subtitle);
                }

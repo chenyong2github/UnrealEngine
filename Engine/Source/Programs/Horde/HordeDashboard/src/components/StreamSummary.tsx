@@ -436,17 +436,21 @@ const HealthPanelIssues: React.FC<{ desktopAlerts?: boolean }> = observer(({ des
    const [items, groups] = sortIssueGroups(issues.map(i => { return { issue: i } }), projectStore);
 
    // 508
-   const columns = [
-      { key: 'health_column1', name: 'Summary', minWidth: 690, maxWidth: 690, isResizable: false },
+   const columns:IColumn[] = [
+      { key: 'health_column1', name: 'Summary', minWidth: 370, maxWidth: 370, isResizable: false }, // see summary render for px setting needed by ellipsis
       { key: 'health_column2', name: 'Quarantine', minWidth: 80, maxWidth: 80, isResizable: false },
       { key: 'health_column3', name: 'Jira', minWidth: 80, maxWidth: 80, isResizable: false },
       { key: 'health_column4', name: 'JiraPriority', minWidth: 64, maxWidth: 64, isResizable: false },
-      { key: 'health_column5', name: 'JiraAssignee', minWidth: 240, maxWidth: 240, isResizable: false },
+      { key: 'health_column5', name: 'JiraAssignee', minWidth: 200, maxWidth: 200, isResizable: false },
       { key: 'health_column6', name: 'JiraStatus', minWidth: 64, maxWidth: 64, isResizable: false },
       { key: 'health_column7', name: 'Status', minWidth: 160, maxWidth: 160, isResizable: false },
-      { key: 'health_column8', name: 'Opened', minWidth: 150, maxWidth: 150, isResizable: false },
+      { key: 'health_column8', name: 'Opened', minWidth: 140, maxWidth: 140, isResizable: false },
 
    ];
+
+   columns.forEach(c => {
+      c.isPadded = false;
+   })
 
    const renderItem = (item: HealthItem, index?: number, column?: IColumn) => {
 
@@ -477,11 +481,8 @@ const HealthPanelIssues: React.FC<{ desktopAlerts?: boolean }> = observer(({ des
       if (column.name === "Summary") {
 
          let summary = issue.summary;
-         if (summary.length > 100) {
-            summary = summary.slice(0, 100) + "...";
-         }
 
-         return <Stack horizontal disableShrink={true}>{<IssueStatusIconV2 issue={issue} />}<Text variant={textSize}>{`Issue ${issue.id} - ${summary}`}</Text></Stack>;
+         return <Stack horizontal>{<IssueStatusIconV2 issue={issue} />}<Text style={{width: "370px", display: "block", textAlign: "left", overflow: "hidden", "textOverflow" : "ellipsis"}} variant={textSize}>{`${issue.id} - ${summary}`}</Text></Stack>;
       }
 
       if (column.name === "Quarantine") {
@@ -573,7 +574,7 @@ const HealthPanelIssues: React.FC<{ desktopAlerts?: boolean }> = observer(({ des
       detailsRow: {
          selectors: {
             '.ms-DetailsRow-cell': {
-               padding: 8,
+               padding: 4,
                overflow: "hidden",
                whiteSpace: "nowrap"
             }
@@ -651,7 +652,7 @@ const HealthPanelIssues: React.FC<{ desktopAlerts?: boolean }> = observer(({ des
       pivotItems.push(<PivotItem headerText={`${config.summaryTab ?? config.id} (${workflowIssues.length})`} itemKey={`issue_pivot_item_key_${config.id}`} key={`issue_pivot_key_${config.id}`} headerButtonProps={{ onClick: () => { setCurrentPivot(config.id) } }} />);
    });
 
-   return <Stack style={{ width: 1720, marginLeft: 4 }}>
+   return <Stack style={{ width: 1324, marginLeft: 4 }}>
       <IssueModalV2 issueId={query.get("issue")} streamId={handler.streamId!} popHistoryOnClose={issueHistory} />
       <Stack styles={{ root: { paddingLeft: 4, paddingRight: 0, paddingTop: 4, paddingBottom: 4 } }}>
          <Stack>
@@ -711,7 +712,7 @@ const HealthPanel: React.FC<{ desktopAlerts?: boolean }> = observer(({ desktopAl
 
    if (handler.update) { }
 
-   return <Stack style={{ width: 1760, marginLeft: 4 }}>
+   return <Stack style={{ width: 1384, marginLeft: 4 }}>
       <Stack className={hordeClasses.raised}>
          <Stack tokens={{ childrenGap: 12 }}>
             <Stack>
@@ -741,7 +742,7 @@ const SchedulePanel: React.FC = observer(() => {
       return null;
    }
 
-   return (<Stack style={{ width: 1760, marginLeft: 4 }}>
+   return (<Stack style={{ width: 1384, marginLeft: 4 }}>
       <Stack className={hordeClasses.raised}>
          <Stack tokens={{ childrenGap: 12 }}>
             <Text variant="mediumPlus" styles={{ root: { fontFamily: "Horde Open Sans SemiBold" } }}>Schedule</Text>
@@ -765,7 +766,7 @@ const StreamSummaryInner: React.FC = observer(() => {
    // subscribe
    if (handler.update) { }
 
-   return <Stack tokens={{ childrenGap: 0 }} styles={{ root: { width: 1800, backgroundColor: "#fffffff", margin: 0, paddingTop: 8 } }}>
+   return <Stack tokens={{ childrenGap: 0 }} styles={{ root: { width: 1440, backgroundColor: "#fffffff", margin: 0, paddingTop: 8 } }}>
       <Stack style={{ padding: 0 }} className={detailClasses.detailsRow}>
          <FocusZone direction={FocusZoneDirection.vertical} style={{ padding: 0 }}>
             <div className={detailClasses.container} style={{ width: "100%", height: 'calc(100vh - 278px)', position: 'relative' }} data-is-scrollable={true}>

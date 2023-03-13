@@ -140,20 +140,21 @@ const DevicePanel: React.FC = observer(() => {
    const platforms = handler.platforms;
 
    const poolWidth = automationTab ? 80 : 140;
-   const detailsWidth = automationTab ? 180 : 120;
+   const detailsWidth = automationTab ? 160 : 100;
 
    const columns: IColumn[] = [
-      { key: 'column_platform', name: 'Platform', fieldName: 'platformId', minWidth: 80, maxWidth: 80, isResizable: false },
+      { key: 'column_platform', name: 'Platform', fieldName: 'platformId', minWidth: 72, maxWidth: 72, isResizable: false },
       { key: 'column_pool', name: 'Pool', fieldName: 'poolId', minWidth: poolWidth, maxWidth: poolWidth, isResizable: false },
       { key: 'column_model', name: 'Model', fieldName: 'modelId', minWidth: 80, maxWidth: 80, isResizable: false },
-      { key: 'column_name', name: 'Name', fieldName: 'name', minWidth: 160, maxWidth: 160, isResizable: false },
+      { key: 'column_name', name: 'Name', fieldName: 'name', minWidth: 120, maxWidth: 120, isResizable: false },
       { key: 'column_address', name: 'Address', fieldName: 'address', minWidth: 120, maxWidth: 120, isResizable: false },
       { key: 'column_status', name: 'Status', fieldName: 'status', minWidth: 120, maxWidth: 120, isResizable: false },
       { key: 'column_details', name: 'Details', fieldName: 'details', minWidth: detailsWidth, maxWidth: detailsWidth, isResizable: false },
-      { key: 'column_notes', name: 'Notes', fieldName: 'notes', minWidth: 312, maxWidth: 312, isResizable: false },
+      { key: 'column_notes', name: 'Notes', fieldName: 'notes', minWidth: 240, maxWidth: 240, isResizable: false },
    ];
 
    columns.forEach(c => {
+      c.isPadded = false;
       c.onRender = ((item: DeviceItem, index, column) => {
          return <Stack verticalFill={true} verticalAlign="center">
             <Text>{(item.device as any)[column?.fieldName!]}</Text>
@@ -543,7 +544,7 @@ const DevicePanel: React.FC = observer(() => {
                <div className={customStyles.details} style={{ height: "calc(100vh - 280px)", position: 'relative' }} data-is-scrollable>
                   <ScrollablePane scrollbarVisibility={ScrollbarVisibility.always} onScroll={() => { }}>
                      <DetailsList
-                        styles={{ root: { overflowX: "hidden", width: 1676 } }}
+                        styles={{ root: { overflowX: "hidden", width: 1312 } }}
                         items={devices}
                         groups={groups}
                         columns={columns}
@@ -665,9 +666,9 @@ export const DeviceView: React.FC = () => {
       <TopNav />
       <Breadcrumbs items={[{ text: 'Devices' }]} />
       <Stack horizontal>
-         <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - 900, flexShrink: 0, backgroundColor: modeColors.background }} />
+         <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440/2), flexShrink: 0, backgroundColor: modeColors.background }} />
          <Stack tokens={{ childrenGap: 0 }} styles={{ root: { backgroundColor: modeColors.background, width: "100%" } }}>
-            <Stack style={{ maxWidth: 1800, paddingTop: 6, marginLeft: 4, height: 'calc(100vh - 8px)' }}>
+            <Stack style={{ maxWidth: 1440, paddingTop: 6, marginLeft: 4, height: 'calc(100vh - 8px)' }}>
                <Stack horizontal className={hordeClasses.raised}>
                   <Stack style={{ width: "100%", height: 'calc(100vh - 228px)' }} tokens={{ childrenGap: 18 }}>
                      <DevicePanel />

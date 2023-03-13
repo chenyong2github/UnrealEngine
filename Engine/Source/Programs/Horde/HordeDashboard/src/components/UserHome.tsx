@@ -65,7 +65,7 @@ const customStyles = mergeStyleSets({
 
 });
 
-const homeWidth = 1750;
+const homeWidth = 1400;
 
 /// Projects
 
@@ -224,8 +224,8 @@ const HealthPanel: React.FC = observer(() => {
    const items = issues?.map(i => { return { issue: i } });
 
    const columns = [
-      { key: 'health_column1', name: 'Summary', minWidth: 600, maxWidth: 600, isResizable: false },
-      { key: 'health_column3', name: 'Status', minWidth: 420, maxWidth: 420, isResizable: false },
+      { key: 'health_column1', name: 'Summary', minWidth: 500, maxWidth: 500, isResizable: false },
+      { key: 'health_column3', name: 'Status', minWidth: 320, maxWidth: 320, isResizable: false },
       { key: 'health_column4', name: 'Opened', minWidth: 100, maxWidth: 100, isResizable: false },
 
    ];
@@ -584,10 +584,10 @@ const JobsPanel: React.FC<{ includeOtherPreflights: boolean }> = observer(({ inc
 
    let columns: IColumn[] = [
       { key: 'jobview_column1', name: 'Status', minWidth: 16, maxWidth: 16 },
-      { key: 'jobview_column2', name: 'Change', minWidth: 220, maxWidth: 220 },
-      { key: 'jobview_column3', name: 'Submit', minWidth: 140, maxWidth: 140 },
-      { key: 'jobview_column4', name: 'Labels', minWidth: 420, maxWidth: 420 },
-      { key: 'jobview_column5', name: 'Steps', minWidth: 380, maxWidth: 380 },
+      { key: 'jobview_column2', name: 'Change', minWidth: 114, maxWidth: 114 },
+      { key: 'jobview_column3', name: 'Submit', minWidth: 130, maxWidth: 130 },
+      { key: 'jobview_column4', name: 'Labels', minWidth: 320, maxWidth: 320 },
+      { key: 'jobview_column5', name: 'Steps', minWidth: 260, maxWidth: 260 },
       { key: 'jobview_column6', name: 'StartedBy', minWidth: 140, maxWidth: 140 },
       { key: 'jobview_column7', name: 'Time', minWidth: 130, maxWidth: 130 },
       { key: 'jobview_column8', name: 'Dismiss', minWidth: 32, maxWidth: 32 },
@@ -1030,7 +1030,6 @@ const JobsPanel: React.FC<{ includeOtherPreflights: boolean }> = observer(({ inc
                   </Stack>
                </Stack>
                <Stack styles={{ root: { paddingLeft: 4, paddingRight: 0, paddingTop: 8, paddingBottom: 4 } }}>
-                  <div style={{ overflowY: 'auto', overflowX: 'hidden', maxHeight: "800px" }} data-is-scrollable={true}>
                      {!!jobItems.length && <DetailsList
                         styles={{ root: { paddingLeft: 8, paddingRight: 8, marginBottom: 18 } }}
                         compact={true}
@@ -1047,7 +1046,6 @@ const JobsPanel: React.FC<{ includeOtherPreflights: boolean }> = observer(({ inc
                         onShouldVirtualize={() => true}
                      />}
                      {!dashboard.pinnedJobsIds.length && <Stack style={{ paddingBottom: 12 }}><Text variant="medium">No jobs are pinned</Text></Stack>}
-                  </div>
                </Stack>
             </Stack>
          </Stack>
@@ -1097,9 +1095,9 @@ export const UserHomeView: React.FC = () => {
          <TopNav />
          <Breadcrumbs items={[{ text: 'Home' }]} />
          <Stack horizontal>
-            <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - 900, flexShrink: 0, backgroundColor: modeColors.background }} />
+            <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440/2), flexShrink: 0, backgroundColor: modeColors.background }} />
             <Stack tokens={{ childrenGap: 0 }} styles={{ root: { backgroundColor: modeColors.background, width: "100%" } }}>
-               <Stack style={{ maxWidth: 1800, paddingTop: 6, marginLeft: 4 }}>
+               <Stack style={{ maxWidth: 1440, paddingTop: 6, marginLeft: 4 }}>
                   <UserHomeViewInner />
                </Stack>
             </Stack>

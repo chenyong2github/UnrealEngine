@@ -61,7 +61,7 @@ const buildColumns = (jobTab: JobsTabData, streamId: string): IColumn[] => {
 
       let total = 0;
       jobTab.columns.forEach(c => total += c.relativeWidth ?? 1);
-      const w = (1350) / total;
+      const w = (980) / total;
 
       jobTab.columns.forEach(c => { minWidths[c.heading] = w * (c.relativeWidth ?? 1); cnames.push(c.heading); });
    } else {
@@ -304,7 +304,7 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
 
    };
 
-   const width = 1800;
+   const width = 1440;
 
    // main header
    const onRenderDetailsHeader: IDetailsListProps['onRenderDetailsHeader'] = (props) => {
@@ -460,7 +460,7 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
 
       return (
          <Stack horizontalAlign="center" onMouseMove={() => controller.setState(undefined)}>
-            <Stack wrap horizontal horizontalAlign="center" tokens={{ childrenGap: 4 }} styles={{ root: { paddingTop: 2, width: column?.maxWidth } }}>
+            <Stack horizontal horizontalAlign="center" tokens={{ childrenGap: 4 }} styles={{ root: { paddingTop: 2, width: column?.maxWidth } }}>
                {buttons}
             </Stack>
          </Stack>
@@ -607,7 +607,7 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
                         <DetailsList
                            styles={{
                               headerWrapper: { overflow: "hidden" }, root: {
-                                 paddingBottom: 32, 
+                                 paddingBottom: 32,
                                  selectors: {
                                     '.ms-List-cell': {
                                        minHeight: lineHeight
