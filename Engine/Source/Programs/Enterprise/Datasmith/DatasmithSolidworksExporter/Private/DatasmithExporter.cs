@@ -148,7 +148,7 @@ namespace DatasmithSolidworks
 		public FActorName Name;
 		public FActorName ParentName;
 		public FMeshName MeshName;
-		public float[] Transform;
+		public FConvertedTransform Transform;
 		public bool bVisible;
 
 		public override string ToString()
@@ -660,7 +660,7 @@ namespace DatasmithSolidworks
 					FDatasmithFacadeActorBinding Binding = GetActorBinding(TransformMap.Key, Variant);
 					if (Binding != null)
 					{
-						Binding.AddRelativeTransformCapture(TransformMap.Value);
+						Binding.AddRelativeTransformCapture(TransformMap.Value.Matrix);
 					}
 				}
 			}
@@ -1118,14 +1118,13 @@ namespace DatasmithSolidworks
 			return Result;
 		}
 
-		private FMatrix4 AdjustTransformForDatasmith(float[] InXForm)
+		private FMatrix4 AdjustTransformForDatasmith(FConvertedTransform InXForm)
 		{
 			FMatrix4 RotMatrix = FMatrix4.FromRotationX(-90f);
-			if (InXForm != null)
+			if (InXForm.IsValid())
 			{
-				FMatrix4 Mat = new FMatrix4(InXForm);
-				Mat = Mat * RotMatrix;
-				return Mat;
+				FMatrix4 Mat = new FMatrix4(InXForm.Matrix);
+				return Mat * RotMatrix;
 			}
 			return RotMatrix;
 		}

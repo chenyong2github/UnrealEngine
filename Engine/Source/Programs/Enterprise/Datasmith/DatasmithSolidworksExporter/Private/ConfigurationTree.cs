@@ -9,6 +9,37 @@ using DatasmithSolidworks.Names;
 
 namespace DatasmithSolidworks
 {
+	public struct FConvertedTransform
+	{
+		public float[] Matrix;
+
+		public FConvertedTransform(float[] Floats)
+		{
+			Matrix = Floats;
+		}
+
+		public bool IsValid()
+		{
+			return Matrix != null;
+		}
+
+		public override string ToString()
+		{
+			return (Matrix==null ? "null" : string.Join(", ", Matrix));
+		}
+
+		public static FConvertedTransform Identity()
+		{
+			return new FConvertedTransform(new[]
+			{
+				1.0f, 0.0f, 0.0f, 0.0f,
+				0.0f, 1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 1.0f, 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
+			});
+		}
+	}
+
 	public class FConfigurationTree
 	{
 		// Component state for a single configuration
@@ -21,8 +52,8 @@ namespace DatasmithSolidworks
 			public bool bSuppressed = false;
 			
 			// Node transform. Null value if transform is not changed in this configuration.
-			public float[] Transform = null;
-			public float[] RelativeTransform = null;
+			public FConvertedTransform Transform;
+			public FConvertedTransform RelativeTransform;
 
 			// Null value if configuration doesn't override the material.
 			public FObjectMaterials Materials = null;
@@ -255,15 +286,15 @@ namespace DatasmithSolidworks
 			if (InNode.Configurations != null && InNode.Configurations.Count > 0)
 			{
 				// Check transform
-				float[] Transform = InNode.Configurations[0].Transform;
-				float[] RelativeTransform = InNode.Configurations[0].RelativeTransform;
+				FConvertedTransform Transform = InNode.Configurations[0].Transform;
+				FConvertedTransform RelativeTransform = InNode.Configurations[0].RelativeTransform;
 				bool bAllTransformsAreSame = true;
-				if (RelativeTransform != null)
+				if (RelativeTransform.IsValid())
 				{
 					// There could be components without a transform, so we're checking if for null
 					for (int Idx = 1; Idx < InNode.Configurations.Count; Idx++)
 					{
-						if (!InNode.Configurations[Idx].RelativeTransform.SequenceEqual(RelativeTransform))
+						if (!MathUtils.TransformsAreEqual(InNode.Configurations[Idx].RelativeTransform, RelativeTransform))
 						{
 							bAllTransformsAreSame = false;
 							break;
@@ -275,8 +306,8 @@ namespace DatasmithSolidworks
 						InNode.CommonConfig.RelativeTransform = RelativeTransform;
 						foreach (FComponentConfig Config in InNode.Configurations)
 						{
-							Config.RelativeTransform = null;
-							Config.Transform = null;
+							Config.RelativeTransform = new FConvertedTransform();
+							Config.Transform = new FConvertedTransform();
 						}
 					}
 				}
@@ -392,7 +423,7 @@ namespace DatasmithSolidworks
 			if (NodeConfig != null)
 			{
 				// Only add variant information if attribute is not the same in all configurations
-				if (NodeConfig.RelativeTransform != null)
+				if (NodeConfig.RelativeTransform.IsValid())
 				{
 					OutData.ComponentTransform.Add(InNode.ComponentName, NodeConfig.RelativeTransform);
 				}

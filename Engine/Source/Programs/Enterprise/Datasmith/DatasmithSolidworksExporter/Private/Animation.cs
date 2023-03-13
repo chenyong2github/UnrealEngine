@@ -40,7 +40,7 @@ namespace DatasmithSolidworks
 				Key.Step = InStep;
 				Key.Time = InTime;
 				Key.Owner = this;
-				Key.LocalMatrix = new FMatrix4(MathUtils.ConvertFromSolidworksTransform(InLocalTransform, 100f /*GeomScale*/));
+				Key.LocalMatrix = new FMatrix4(MathUtils.ConvertFromSolidworksTransform(InLocalTransform, 100f /*GeomScale*/).Matrix);
 
 				Keyframes.Add(Key);
 				Id2Key.Add(Key.Step, Key);

@@ -52,7 +52,7 @@ namespace DatasmithSolidworks
 		// 1 5 9  13 (ty)
 		// 2 6 10 14 (tz)
 		// 3(0.0) 7(0.0) 11(0.0) 15(1.0)
-		public static float[] ConvertFromSolidworksTransform(MathTransform InSwTransform, float InGeomScale)
+		public static FConvertedTransform ConvertFromSolidworksTransform(MathTransform InSwTransform, float InGeomScale)
 		{
 			float[] Result = new float[16];
 			double[] InputMatrix = (double[])InSwTransform.ArrayData;
@@ -74,21 +74,10 @@ namespace DatasmithSolidworks
 			Result[13] = (float)InputMatrix[10] * InGeomScale;
 			Result[14] = (float)InputMatrix[11] * InGeomScale;
 
-			return Result;
+			return new FConvertedTransform(Result);
 		}
 
-		public static float[] TransformIdentity()
-		{
-			return new[]
-			{
-				1.0f, 0.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f, 0.0f,
-				0.0f, 0.0f, 1.0f, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			};
-		}
-
-		public static float[] LookAt(FVec3 InDirection, FVec3 InFromPoint, float InGeomScale)
+		public static FConvertedTransform LookAt(FVec3 InDirection, FVec3 InFromPoint, float InGeomScale)
 		{
 			float[] Ret = new float[16];
 
@@ -123,10 +112,10 @@ namespace DatasmithSolidworks
 				}
 			}
 
-			return Ret;
+			return new FConvertedTransform(Ret);
 		}
 
-		public static float[] Translation(FVec3 InTranslation, float InGeomScale)
+		public static FConvertedTransform Translation(FVec3 InTranslation, float InGeomScale)
 		{
 			float[] Ret = new float[16];
 
@@ -151,16 +140,16 @@ namespace DatasmithSolidworks
 			Ret[13] = InTranslation.Y * InGeomScale;
 			Ret[14] = InTranslation.Z * InGeomScale;
 
-			return Ret;
+			return new FConvertedTransform(Ret);
 		}
 
-		public static bool TransformsAreEqual(float[] InTransformA, float[] InTransformB)
+		public static bool TransformsAreEqual(FConvertedTransform InTransformA, FConvertedTransform InTransformB)
 		{
-			Debug.Assert(InTransformA.Length == 16 && InTransformA.Length == InTransformB.Length);
+			Debug.Assert(InTransformA.Matrix.Length == 16 && InTransformA.Matrix.Length == InTransformB.Matrix.Length);
 
 			for (int Idx = 0; Idx < 16; ++Idx)
 			{
-				if (!Equals(InTransformA[Idx], InTransformB[Idx]))
+				if (!Equals(InTransformA.Matrix[Idx], InTransformB.Matrix[Idx]))
 				{
 					return false;
 				}

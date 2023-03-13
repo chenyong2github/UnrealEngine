@@ -32,8 +32,8 @@ namespace DatasmithSolidworks
 
 			public Dictionary<FComponentName, string> ComponentToPartMap = new Dictionary<FComponentName, string>();
 
-			public Dictionary<FComponentName, float[]> ComponentsTransformsMap =
-				new Dictionary<FComponentName, float[]>();
+			public Dictionary<FComponentName, FConvertedTransform> ComponentsTransformsMap =
+				new Dictionary<FComponentName, FConvertedTransform>();
 
 			/// All updated(not dirty) components. Updated component will be removed from dirty on export end
 			public HashSet<FComponentName> CleanComponents = new HashSet<FComponentName>();
@@ -185,8 +185,8 @@ namespace DatasmithSolidworks
 
 		public override void AddMeshForComponent(FComponentName ComponentName, FMeshName MeshName)
 		{
-			FindOrAdd(SyncState.ComponentNameToMeshNameMap, ComponentName).Add(MeshName);
-			FindOrAdd(SyncState.ComponentsForMesh, MeshName).Add(ComponentName);
+			SyncState.ComponentNameToMeshNameMap.FindOrAdd(ComponentName).Add(MeshName);
+			SyncState.ComponentsForMesh.FindOrAdd(MeshName).Add(ComponentName);
 		}
 
 		public override FObjectMaterials GetComponentMaterials(Component2 Comp)
@@ -269,7 +269,7 @@ namespace DatasmithSolidworks
 			return bHasDirtyComponents || bHasDirtyMaterials;
 		}
 
-		public float[] GetComponentDatasmithTransform(Component2 InComponent)
+		public FConvertedTransform GetComponentDatasmithTransform(Component2 InComponent)
 		{
 			MathTransform ComponentTransform = InComponent.GetTotalTransform(true);
 			if (ComponentTransform == null)
@@ -277,24 +277,34 @@ namespace DatasmithSolidworks
 				ComponentTransform = InComponent.Transform2;
 			}
 
-			float[] DatasmithTransform = null;
+			FConvertedTransform DatasmithTransform;
 			if (ComponentTransform != null)
 			{
 				DatasmithTransform = MathUtils.ConvertFromSolidworksTransform(ComponentTransform, 100f /*GeomScale*/);
 			}
 			else
 			{
-				DatasmithTransform = MathUtils.TransformIdentity();
+				DatasmithTransform = FConvertedTransform.Identity();
 			}
 
 			return DatasmithTransform;
 		}
 
 		// Get component transform in specified configuration
-		private float[] GetComponentDatasmithTransform(FConfigurationTree.FComponentTreeNode InNode,
+		private FConvertedTransform GetComponentDatasmithTransform(FConfigurationTree.FComponentTreeNode InNode,
 			FConfigurationTree.FComponentConfig ComponentConfig)
 		{
-			return ComponentConfig?.Transform ?? InNode.CommonConfig.Transform ?? MathUtils.TransformIdentity();
+			if (ComponentConfig != null && ComponentConfig.Transform.IsValid())
+			{
+				return ComponentConfig.Transform;
+			}
+
+			if (InNode.CommonConfig != null && InNode.CommonConfig.Transform.IsValid())
+			{
+				return InNode.CommonConfig.Transform;
+			}
+
+			return FConvertedTransform.Identity();
 		}
 
 		private void ExportComponentRecursive(string ActiveConfigName,
@@ -304,7 +314,7 @@ namespace DatasmithSolidworks
 			SetExportStatus(InNode.ComponentName.GetString());
 
 			FConfigurationTree.FComponentConfig ActiveConfig = InNode.Configurations?.Find(Config => Config.ConfigName == ActiveConfigName);
-			float[] Transform = GetComponentDatasmithTransform(InNode, ActiveConfig);
+			FConvertedTransform Transform = GetComponentDatasmithTransform(InNode, ActiveConfig);
 			SyncState.ComponentsTransformsMap[InNode.ComponentName] = Transform;
 
 			if (InNode.bGeometrySame)
@@ -416,7 +426,7 @@ namespace DatasmithSolidworks
 			bool bHasDirtyTransform = false;
 			if (SyncState.ComponentsTransformsMap.ContainsKey(InComponent.ComponentName))
 			{
-				float[] ComponentTm = GetComponentDatasmithTransform(InComponent, ActiveComponentConfig);
+				FConvertedTransform ComponentTm = GetComponentDatasmithTransform(InComponent, ActiveComponentConfig);
 				bHasDirtyTransform =
 					!MathUtils.TransformsAreEqual(SyncState.ComponentsTransformsMap[InComponent.ComponentName],
 						ComponentTm);
@@ -687,10 +697,10 @@ namespace DatasmithSolidworks
 			foreach (var KVP in AsmDocumentTracker.SyncState.ExportedComponentsMap)
 			{
 				Component2 Comp = KVP.Value;
-				float[] PrevCompTransform = null;
+				FConvertedTransform PrevCompTransform;
 				if (AsmDocumentTracker.SyncState.ComponentsTransformsMap.TryGetValue(new FComponentName(Comp), out PrevCompTransform))
 				{
-					float[] CompTransform = AsmDocumentTracker.GetComponentDatasmithTransform(Comp);
+					FConvertedTransform CompTransform = AsmDocumentTracker.GetComponentDatasmithTransform(Comp);
 
 					if (!MathUtils.TransformsAreEqual(CompTransform, PrevCompTransform))
 					{

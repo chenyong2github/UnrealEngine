@@ -18,7 +18,7 @@ namespace DatasmithSolidworks
 	{
 		public string Name;
 		public bool bIsDisplayStateConfiguration = false;
-		public Dictionary<FComponentName, float[]> ComponentTransform = new Dictionary<FComponentName, float[]>();  // Relative(to parent) transform
+		public Dictionary<FComponentName, FConvertedTransform> ComponentTransform = new Dictionary<FComponentName, FConvertedTransform>();  // Relative(to parent) transform
 		public Dictionary<FComponentName, bool> ComponentVisibility = new Dictionary<FComponentName, bool>();
 		public Dictionary<FComponentName, FObjectMaterials> ComponentMaterials = new Dictionary<FComponentName, FObjectMaterials>();
 
@@ -683,19 +683,23 @@ namespace DatasmithSolidworks
 			if (ComponentTransform != null)
 			{
 				NewNode.CommonConfig.Transform = MathUtils.ConvertFromSolidworksTransform(ComponentTransform, 100f /*GeomScale*/);
+				LogDebug($" Transform: {NewNode.CommonConfig.Transform}");
 
-				if (InParentNode.CommonConfig.Transform != null)
+				if (InParentNode.CommonConfig.Transform.IsValid())
 				{
 					// Convert transform to parent space (original transform value fetched from Solidworks
 					// is in the root component's space). Datasmith wants relative transform for variants.
-					FMatrix4 ParentTransform = new FMatrix4(InParentNode.CommonConfig.Transform);
+					FMatrix4 ParentTransform = new FMatrix4(InParentNode.CommonConfig.Transform.Matrix);
 					FMatrix4 InverseParentTransform = ParentTransform.Inverse();
-					NewNode.CommonConfig.RelativeTransform = FMatrix4.FMatrix4x4Multiply(InverseParentTransform, NewNode.CommonConfig.Transform);
+					NewNode.CommonConfig.RelativeTransform = new FConvertedTransform(FMatrix4.FMatrix4x4Multiply(NewNode.CommonConfig.Transform.Matrix, InverseParentTransform));
+
 				}
 				else
 				{
 					NewNode.CommonConfig.RelativeTransform = NewNode.CommonConfig.Transform;
 				}
+				LogDebug($"   ParentTransform: {InParentNode.CommonConfig.Transform}");
+				LogDebug($"   RelativeTransform: {NewNode.CommonConfig.RelativeTransform}");
 			}
 
 			// Process children components
@@ -776,8 +780,8 @@ namespace DatasmithSolidworks
 				return;
 			}
 
-			FindOrAdd(ActorsForMesh, MeshName).Add(ActorName);
-			FindOrAdd(MeshesForComponent, ComponentName).Add(MeshName);
+			ActorsForMesh.FindOrAdd(MeshName).Add(ActorName);
+			MeshesForComponent.FindOrAdd(ComponentName).Add(MeshName);
 		}
 	}
 }

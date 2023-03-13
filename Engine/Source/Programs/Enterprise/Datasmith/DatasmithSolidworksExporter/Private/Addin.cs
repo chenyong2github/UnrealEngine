@@ -652,7 +652,11 @@ namespace DatasmithSolidworks
 
 		#endregion
 
-		public static V FindOrAdd<K, V>(Dictionary<K, V> Map, K Key) 
+	}
+
+	public static class DictionaryExtensions
+	{
+		public static V FindOrAdd<K, V>(this Dictionary<K, V> Map, K Key) 
 			where V : new()
 		{
 			if (!Map.TryGetValue(Key, out V Value))
@@ -662,6 +666,5 @@ namespace DatasmithSolidworks
 			}
 			return Value;
 		}
-
 	}
 }
