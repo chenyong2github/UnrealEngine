@@ -272,13 +272,13 @@ struct WORLDCONDITIONS_API FWorldConditionResultInvalidationHandle
 	FWorldConditionResultInvalidationHandle() = default;
 
 	/** @return True if the handle is valid. */
-	bool IsValid() const { return CachedResult != nullptr && Item != nullptr; }
+	bool IsValid() const { return WeakStateMemory.IsValid(); }
 
 	/** Resets the handle. */
 	void Reset()
 	{
-		CachedResult = nullptr;
-		Item = nullptr;
+		WeakStateMemory = nullptr;
+		ItemOffset = 0;
 	}
 
 	/**
@@ -288,14 +288,14 @@ struct WORLDCONDITIONS_API FWorldConditionResultInvalidationHandle
 	
 protected:
 
-	explicit FWorldConditionResultInvalidationHandle(EWorldConditionResultValue* InCachedResult, FWorldConditionItem* InItem)
-		: CachedResult(InCachedResult)
-		, Item(InItem)
+	explicit FWorldConditionResultInvalidationHandle(const TWeakPtr<uint8> InStateMemory, const int32 InItemOffset)
+		: WeakStateMemory(InStateMemory)
+		, ItemOffset(InItemOffset)
 	{
 	}
 
-	EWorldConditionResultValue* CachedResult = nullptr;
-	FWorldConditionItem* Item = nullptr;
+	TWeakPtr<uint8> WeakStateMemory = nullptr;
+	int32 ItemOffset = 0;
 
 	friend struct FWorldConditionQueryState;
 };
@@ -353,15 +353,15 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	{
 		check(bIsInitialized);
 		// If Memory is null, and the query is initialized, it's empty query, which evaluates to true. 
-		return Memory ? *reinterpret_cast<EWorldConditionResultValue*>(Memory + CachedResultOffset) : EWorldConditionResultValue::IsTrue;
+		return Memory.IsValid() ? *reinterpret_cast<EWorldConditionResultValue*>(Memory.Get() + CachedResultOffset) : EWorldConditionResultValue::IsTrue;
 	}
 
 	/** @return Condition item at specific index */
 	FWorldConditionItem& GetItem(const int32 Index) const
 	{
 		check(bIsInitialized);
-		check(Memory && Index >= 0 && Index < (int32)NumConditions);
-		return *reinterpret_cast<FWorldConditionItem*>(Memory + ItemsOffset + Index * sizeof(FWorldConditionItem));
+		check(Memory.IsValid() && Index >= 0 && Index < (int32)NumConditions);
+		return *reinterpret_cast<FWorldConditionItem*>(Memory.Get() + ItemsOffset + Index * sizeof(FWorldConditionItem));
 	}
 
 	/** @return Object describing the state of a specified condition. */
@@ -370,7 +370,8 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 		check(bIsInitialized);
 		check(Condition.GetStateDataOffset() > 0);
 		check(Condition.IsStateObject());
-		const FWorldConditionStateObject& StateObject = *reinterpret_cast<FWorldConditionStateObject*>(Memory + Condition.GetStateDataOffset());
+		check(Memory.IsValid());
+		const FWorldConditionStateObject& StateObject = *reinterpret_cast<FWorldConditionStateObject*>(Memory.Get() + Condition.GetStateDataOffset());
 		return StateObject.Object;
 	}
 
@@ -382,7 +383,8 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 		check (!Condition.IsStateObject());
 		const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType());
 		check(ScriptStruct);
-		return FStructView(Cast<UScriptStruct>(Condition.GetRuntimeStateType()), Memory + Condition.GetStateDataOffset());
+		check(Memory.IsValid());
+		return FStructView(Cast<UScriptStruct>(Condition.GetRuntimeStateType()), Memory.Get() + Condition.GetStateDataOffset());
 	}
 
 	/** @return The number of conditions in the state data. */
@@ -409,9 +411,9 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	void SetCachedResult(const EWorldConditionResultValue InResult) const
 	{
 		check(bIsInitialized);
-		if (Memory)
+		if (Memory.IsValid())
 		{
-			EWorldConditionResultValue& CachedResult = *reinterpret_cast<EWorldConditionResultValue*>(Memory + CachedResultOffset); 
+			EWorldConditionResultValue& CachedResult = *reinterpret_cast<EWorldConditionResultValue*>(Memory.Get() + CachedResultOffset); 
 			CachedResult = InResult;
 		}
 	}
@@ -428,8 +430,7 @@ private:
 
 	uint8 NumConditions = 0;
 	uint8 bIsInitialized : 1;
-	uint8* Memory = nullptr;
-
+	TSharedPtr<uint8> Memory = nullptr;
 	TSharedPtr<FWorldConditionQuerySharedDefinition> SharedDefinition = nullptr;
 
 	UPROPERTY(Transient)
