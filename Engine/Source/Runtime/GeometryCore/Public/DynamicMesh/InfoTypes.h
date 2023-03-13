@@ -203,6 +203,10 @@ struct FMergeEdgesInfo
 
 	FIndex2i ExtraRemovedEdges; // extra removed edges, see description below. Either may be or InvalidID
 	FIndex2i ExtraKeptEdges;	// extra kept edges, paired with ExtraRemovedEdges
+
+	// Even more Removed and Kept edges, in cases where there were multiple such edges on one or both sides of the merged edge
+	// Only possible if the pre-merge mesh had non-manifold vertices (aka bowties), in almost all meshes these arrays will be empty
+	TArray<int, TInlineAllocator<4>> BowtiesRemovedEdges, BowtiesKeptEdges;
 };
 
 /** Information about mesh elements modified/created by PokeTriangle() */

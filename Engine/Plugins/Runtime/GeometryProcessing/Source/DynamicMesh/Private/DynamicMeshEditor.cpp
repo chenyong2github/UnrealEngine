@@ -233,6 +233,10 @@ bool FDynamicMeshEditor::WeldVertexLoops(const TArray<int32>& Loop1, const TArra
 			{
 				SkipEdges.Add(MergeInfo.ExtraRemovedEdges.B);
 			}
+			for (int RemovedEID : MergeInfo.BowtiesRemovedEdges)
+			{
+				SkipEdges.Add(RemovedEID);
+			}
 		}
 	}
 
