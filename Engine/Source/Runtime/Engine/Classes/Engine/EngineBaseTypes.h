@@ -14,6 +14,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/CoreMisc.h"
 #include "Net/Core/Connection/NetEnums.h"
+#include <atomic>
 
 #include "EngineBaseTypes.generated.h"
 
@@ -261,8 +262,8 @@ private:
 		/** Internal data to track if we have started visiting this tick function yet this frame **/
 		int32 TickVisitedGFrameCounter;
 
-		/** Internal data to track if we have finshed visiting this tick function yet this frame **/
-		int32 TickQueuedGFrameCounter;
+		/** Internal data to track if we have finished visiting this tick function yet this frame **/
+		std::atomic<int32> TickQueuedGFrameCounter;
 
 		/** Pointer to the task, only used during setup. This is often stale. **/
 		FBaseGraphTask* TaskPointer;
