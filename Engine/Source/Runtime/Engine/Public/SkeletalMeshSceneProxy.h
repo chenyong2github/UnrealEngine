@@ -110,6 +110,8 @@ public:
 
 	bool GetCachedGeometry(struct FCachedGeometry& OutCachedGeometry) const;
 
+	const FSkeletalMeshObject* GetMeshObject() const { return MeshObject; }
+
 protected:
 	AActor* Owner;
 	class FSkeletalMeshObject* MeshObject;

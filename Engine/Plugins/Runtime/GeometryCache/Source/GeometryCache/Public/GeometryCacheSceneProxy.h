@@ -318,7 +318,7 @@ public:
 	virtual bool HasRayTracingRepresentation() const override { return true; }
 #endif
 
-	const TArray<FGeomCacheTrackProxy*>& GetTracks() { return Tracks; }
+	const TArray<FGeomCacheTrackProxy*>& GetTracks() const { return Tracks; }
 
 private:
 	void FrameUpdate() const;

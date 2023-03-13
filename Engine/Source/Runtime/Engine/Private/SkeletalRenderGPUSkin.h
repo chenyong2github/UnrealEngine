@@ -411,7 +411,7 @@ public:
 		}
 	}
 
-	virtual bool HaveValidDynamicData() override
+	virtual bool HaveValidDynamicData() const override
 	{ 
 		return ( DynamicData!=NULL ); 
 	}

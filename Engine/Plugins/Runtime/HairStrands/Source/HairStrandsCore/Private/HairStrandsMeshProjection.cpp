@@ -108,8 +108,7 @@ void AddSkinUpdatePass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	uint32 SectionIndex,
-	uint32 BonesOffset,
-	FSkinWeightVertexBuffer* SkinWeight,
+	uint32 BonesOffset,	
 	FSkeletalMeshLODRenderData& RenderData,
 	FRHIShaderResourceView* BoneMatrices,
 	FRHIShaderResourceView* PrevBoneMatrices,
@@ -118,6 +117,7 @@ void AddSkinUpdatePass(
 {
 	check(BoneMatrices);
 
+	FSkinWeightVertexBuffer* SkinWeight = &RenderData.SkinWeightVertexBuffer;
 	const FSkelMeshRenderSection& Section = RenderData.RenderSections[SectionIndex];
 	const uint32 NumVertexToProcess = Section.NumVertices;
 	const uint32 SectionVertexBaseIndex = Section.BaseVertexIndex;

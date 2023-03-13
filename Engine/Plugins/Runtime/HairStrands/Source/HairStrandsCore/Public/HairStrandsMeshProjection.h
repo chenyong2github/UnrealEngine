@@ -120,7 +120,6 @@ void AddSkinUpdatePass(
 	FGlobalShaderMap* ShaderMap,
 	uint32 SectionIndex,
 	uint32 BonesOffset, 
-	class FSkinWeightVertexBuffer* SkinWeight,
 	class FSkeletalMeshLODRenderData& RenderData,
 	FRHIShaderResourceView* BoneMatrices,
 	FRHIShaderResourceView* PrevBoneMatrices,

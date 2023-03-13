@@ -43,9 +43,6 @@ static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable
 static int32 GHairStrands_ContinousLOD = 0;
 static FAutoConsoleVariableRef CVarHairStrands_ContinousLOD(TEXT("r.HairStrands.ContinuousLOD"), GHairStrands_ContinousLOD, TEXT("Continuous LODing toggle."));
 
-static int32 GHairStrands_UseSkelMeshPersistentPrimitiveIndex = 1;
-static FAutoConsoleVariableRef CVarHairStrands_UseSkelMeshPersistentPrimitiveIndex(TEXT("r.HairStrands.UseSkelMeshPersistentPrimitiveIndex"), GHairStrands_UseSkelMeshPersistentPrimitiveIndex, TEXT("Use persistent primitive index for skel. mesh lookup (experimental)."), ECVF_RenderThreadSafe);
-
 EHairBufferSwapType GetHairSwapBufferType()
 {
 	switch (GHairStrands_SwapBufferType)
@@ -88,7 +85,7 @@ static bool IsSkeletalMeshEvaluationEnabled()
 }
 
 // Retrive the skel. mesh scene info
-static FPrimitiveSceneInfo* GetMeshSceneInfo(FSceneInterface* Scene, FHairGroupInstance* Instance)
+static const FPrimitiveSceneInfo* GetMeshSceneInfo(FSceneInterface* Scene, FHairGroupInstance* Instance)
 {
 	if (!Instance->Debug.MeshComponentId.IsValid())
 	{
@@ -96,7 +93,7 @@ static FPrimitiveSceneInfo* GetMeshSceneInfo(FSceneInterface* Scene, FHairGroupI
 	}
 
 	// Try to use the cached persistent primitive index (fast)
-	FPrimitiveSceneInfo* PrimitiveSceneInfo = nullptr;
+	const FPrimitiveSceneInfo* PrimitiveSceneInfo = nullptr;
 	if (Instance->Debug.CachedMeshPersistentPrimitiveIndex.IsValid())
 	{
 		PrimitiveSceneInfo = Scene->GetPrimitiveSceneInfo(Instance->Debug.CachedMeshPersistentPrimitiveIndex);
@@ -127,32 +124,17 @@ FCachedGeometry GetCacheGeometryForHair(
 	{
 		if (IsSkeletalMeshEvaluationEnabled())
 		{
-			if (GHairStrands_UseSkelMeshPersistentPrimitiveIndex)
+			if (const FPrimitiveSceneInfo* PrimitiveSceneInfo = GetMeshSceneInfo(Scene, Instance))
 			{
-				if (const FPrimitiveSceneInfo* PrimitiveSceneInfo = GetMeshSceneInfo(Scene, Instance))
-				{
-					if (const FSkeletalMeshSceneProxy* SceneProxy = static_cast<const FSkeletalMeshSceneProxy*>(PrimitiveSceneInfo->Proxy))
-					{
-					
-						SceneProxy->GetCachedGeometry(Out);
-					}
-				}
-			}
-			else
-			{
-				//todo: It's unsafe to be accessing the component directly here. This can be solved when we have persistent ids available on the render thread.
-				if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
-				{
-					if (FSkeletalMeshSceneProxy* SceneProxy = static_cast<FSkeletalMeshSceneProxy*>(SkeletalMeshComponent->SceneProxy))
-					{
-						SceneProxy->GetCachedGeometry(Out);
-					}
+				if (const FSkeletalMeshSceneProxy* SceneProxy = reinterpret_cast<const FSkeletalMeshSceneProxy*>(PrimitiveSceneInfo->Proxy))
+				{				
+					SceneProxy->GetCachedGeometry(Out);
 
 					if (GHairStrands_ManualSkinCache > 0 && Out.Sections.Num() == 0)
 					{
 						//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
 						// Actual populate the cache with only the needed part based on the groom projection data. At the moment it recompute everything ...
-						BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, bOutputTriangleData, Out);
+						BuildCacheGeometry(GraphBuilder, ShaderMap, SceneProxy, bOutputTriangleData, Out);
 					}
 				}
 			}
@@ -160,9 +142,12 @@ FCachedGeometry GetCacheGeometryForHair(
 	}
 	else if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::GeometryCache)
 	{
-		if (const UGeometryCacheComponent* GeometryCacheComponent = Cast<const UGeometryCacheComponent>(Instance->Debug.MeshComponent))
+		if (const FPrimitiveSceneInfo* PrimitiveSceneInfo = GetMeshSceneInfo(Scene, Instance))
 		{
-			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, bOutputTriangleData, Out);
+			if (const FGeometryCacheSceneProxy* SceneProxy = reinterpret_cast<const FGeometryCacheSceneProxy*>(PrimitiveSceneInfo->Proxy))
+			{
+				BuildCacheGeometry(GraphBuilder, ShaderMap, SceneProxy, bOutputTriangleData, Out);
+			}
 		}
 	}
 	return Out;

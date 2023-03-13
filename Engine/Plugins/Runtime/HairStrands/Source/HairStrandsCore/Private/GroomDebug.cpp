@@ -82,7 +82,7 @@ static void GetGroomInterpolationData(
 	{
 		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 
-		if (!Instance || !Instance->Debug.MeshComponent)
+		if (!Instance)
 			continue;
 
 		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Scene, Instance, ShaderMap, true);

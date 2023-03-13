@@ -51,24 +51,18 @@ ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceTo
  void BuildCacheGeometry(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap, 
-	const USkeletalMeshComponent* SkeletalMeshComponent, 
+	const FSkeletalMeshSceneProxy* Proxy,
 	const bool bOutputTriangleData,
 	FCachedGeometry& Out)
 {
-	if (SkeletalMeshComponent == nullptr)
+	if (Proxy == nullptr)
 	{
 		return;
 	}
+	
+	Out.LocalToWorld = FTransform(Proxy->GetLocalToWorld());
 
-	FSkeletalMeshSceneProxy* SceneProxy = static_cast<FSkeletalMeshSceneProxy*>(SkeletalMeshComponent->SceneProxy);
-	if (SceneProxy == nullptr)
-	{
-		return;
-	}
-
-	Out.LocalToWorld = FTransform(SceneProxy->GetLocalToWorld());
-
-	FSkeletalMeshObject* SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
+	const FSkeletalMeshObject* SkeletalMeshObject = Proxy->GetMeshObject();
 	if (SkeletalMeshObject == nullptr)
 	{
 		return;
@@ -108,7 +102,7 @@ ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceTo
 		{
 			FRHIShaderResourceView * BoneBuffer		= FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LODIndex, SectionIdx, false);
 			FRHIShaderResourceView * BonePrevBuffer	= FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LODIndex, SectionIdx, true);
-			AddSkinUpdatePass(GraphBuilder, ShaderMap, SectionIdx, BonesOffset, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneBuffer, BonePrevBuffer, DeformedPositionsBuffer, DeformedPreviousPositionsBuffer);
+			AddSkinUpdatePass(GraphBuilder, ShaderMap, SectionIdx, BonesOffset, LODData, BoneBuffer, BonePrevBuffer, DeformedPositionsBuffer, DeformedPreviousPositionsBuffer);
 
 			FCachedGeometry::Section& OutSection = Out.Sections.AddDefaulted_GetRef();
 			OutSection.RDGPositionBuffer = DeformedPositionSRV;
@@ -135,56 +129,53 @@ ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceTo
  void BuildCacheGeometry(
 	 FRDGBuilder& GraphBuilder,
 	 FGlobalShaderMap* ShaderMap, 
-	 const UGeometryCacheComponent* GeometryCacheComponent, 
+	 const FGeometryCacheSceneProxy* SceneProxy,
 	 const bool bOutputTriangleData,
 	 FCachedGeometry& Out)
  {
-	 if (GeometryCacheComponent)
-	 {
-		 if (FGeometryCacheSceneProxy* SceneProxy = static_cast<FGeometryCacheSceneProxy*>(GeometryCacheComponent->SceneProxy))
-		 {
-			 Out.LocalToWorld = FTransform(SceneProxy->GetLocalToWorld());
-			 Out.LODIndex = 0;
-			 if (bOutputTriangleData)
-			 {
-				 // Prior to getting here, the GeometryCache has been validated to be flattened (ie. has only one track)
-				 check(SceneProxy->GetTracks().Num() > 0);
-				 const FGeomCacheTrackProxy* TrackProxy = SceneProxy->GetTracks()[0];
+	if (SceneProxy)
+	{
+		Out.LocalToWorld = FTransform(SceneProxy->GetLocalToWorld());
+		Out.LODIndex = 0;
+		if (bOutputTriangleData)
+		{
+			// Prior to getting here, the GeometryCache has been validated to be flattened (ie. has only one track)
+			check(SceneProxy->GetTracks().Num() > 0);
+			const FGeomCacheTrackProxy* TrackProxy = SceneProxy->GetTracks()[0];
 
-				 check(TrackProxy->MeshData && TrackProxy->NextFrameMeshData);
-				 const bool bHasMotionVectors = (
-					 TrackProxy->MeshData->VertexInfo.bHasMotionVectors &&
-					 TrackProxy->NextFrameMeshData->VertexInfo.bHasMotionVectors &&
-					 TrackProxy->MeshData->Positions.Num() == TrackProxy->MeshData->MotionVectors.Num())
-					 && (TrackProxy->NextFrameMeshData->Positions.Num() == TrackProxy->NextFrameMeshData->MotionVectors.Num());
+			check(TrackProxy->MeshData && TrackProxy->NextFrameMeshData);
+			const bool bHasMotionVectors = (
+				TrackProxy->MeshData->VertexInfo.bHasMotionVectors &&
+				TrackProxy->NextFrameMeshData->VertexInfo.bHasMotionVectors &&
+				TrackProxy->MeshData->Positions.Num() == TrackProxy->MeshData->MotionVectors.Num())
+				&& (TrackProxy->NextFrameMeshData->Positions.Num() == TrackProxy->NextFrameMeshData->MotionVectors.Num());
 
-				 // PositionBuffer depends on CurrentPositionBufferIndex and on if the cache has motion vectors
-				 const uint32 PositionIndex = (TrackProxy->CurrentPositionBufferIndex == -1 || bHasMotionVectors) ? 0 : TrackProxy->CurrentPositionBufferIndex % 2;
-				 for (int32 SectionIdx = 0; SectionIdx < TrackProxy->MeshData->BatchesInfo.Num(); ++SectionIdx)
-				 {
-					const FGeometryCacheMeshBatchInfo& BatchInfo = TrackProxy->MeshData->BatchesInfo[SectionIdx];
-				
-					FCachedGeometry::Section OutSection;
-					OutSection.PositionBuffer = TrackProxy->PositionBuffers[PositionIndex].GetBufferSRV();
-					OutSection.UVsBuffer = TrackProxy->TextureCoordinatesBuffer.GetBufferSRV();
-					OutSection.TotalVertexCount = TrackProxy->MeshData->Positions.Num();
-					OutSection.IndexBuffer = TrackProxy->IndexBuffer.GetBufferSRV();
-					OutSection.TotalIndexCount = TrackProxy->IndexBuffer.NumValidIndices;
-					OutSection.UVsChannelCount = 1;
-					OutSection.NumPrimitives = BatchInfo.NumTriangles;
-					OutSection.NumVertices = TrackProxy->MeshData->Positions.Num();
-					OutSection.IndexBaseIndex = BatchInfo.StartIndex;
-					OutSection.VertexBaseIndex = 0;
-					OutSection.SectionIndex = SectionIdx;
-					OutSection.LODIndex = 0;
-					OutSection.UVsChannelOffset = 0;
-				
-					if (OutSection.PositionBuffer && OutSection.IndexBuffer)
-					{
-						Out.Sections.Add(OutSection);
-					}
-				 }
-			 }
-		 }
-	 }
+			// PositionBuffer depends on CurrentPositionBufferIndex and on if the cache has motion vectors
+			const uint32 PositionIndex = (TrackProxy->CurrentPositionBufferIndex == -1 || bHasMotionVectors) ? 0 : TrackProxy->CurrentPositionBufferIndex % 2;
+			for (int32 SectionIdx = 0; SectionIdx < TrackProxy->MeshData->BatchesInfo.Num(); ++SectionIdx)
+			{
+				const FGeometryCacheMeshBatchInfo& BatchInfo = TrackProxy->MeshData->BatchesInfo[SectionIdx];
+			
+				FCachedGeometry::Section OutSection;
+				OutSection.PositionBuffer = TrackProxy->PositionBuffers[PositionIndex].GetBufferSRV();
+				OutSection.UVsBuffer = TrackProxy->TextureCoordinatesBuffer.GetBufferSRV();
+				OutSection.TotalVertexCount = TrackProxy->MeshData->Positions.Num();
+				OutSection.IndexBuffer = TrackProxy->IndexBuffer.GetBufferSRV();
+				OutSection.TotalIndexCount = TrackProxy->IndexBuffer.NumValidIndices;
+				OutSection.UVsChannelCount = 1;
+				OutSection.NumPrimitives = BatchInfo.NumTriangles;
+				OutSection.NumVertices = TrackProxy->MeshData->Positions.Num();
+				OutSection.IndexBaseIndex = BatchInfo.StartIndex;
+				OutSection.VertexBaseIndex = 0;
+				OutSection.SectionIndex = SectionIdx;
+				OutSection.LODIndex = 0;
+				OutSection.UVsChannelOffset = 0;
+			
+				if (OutSection.PositionBuffer && OutSection.IndexBuffer)
+				{
+					Out.Sections.Add(OutSection);
+				}
+			}
+		}
+	}
  }

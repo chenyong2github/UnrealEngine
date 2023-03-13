@@ -2467,11 +2467,10 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		FHairGroupInstance* HairGroupInstance = new FHairGroupInstance();
 		HairGroupInstance->AddRef();
 		HairGroupInstances.Add(HairGroupInstance);
-		HairGroupInstance->Debug.ComponentId = ComponentId.PrimIDValue;
 		HairGroupInstance->Debug.GroupIndex = GroupIt;
 		HairGroupInstance->Debug.GroupCount = GroupCount;
 		HairGroupInstance->Debug.GroomAssetName = GroomAsset->GetName();
-		HairGroupInstance->Debug.MeshComponent = RegisteredMeshComponent;
+		HairGroupInstance->Debug.MeshComponentForDebug = RegisteredMeshComponent;
 		HairGroupInstance->Debug.GroomComponentForDebug = this;
 		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GroomBindingType : EGroomBindingMeshType::SkeletalMesh;
 		HairGroupInstance->Debug.GroomCacheType = GetEffectiveGroomCacheType(GroomCache, GroomAsset);

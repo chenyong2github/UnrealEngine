@@ -241,7 +241,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	struct FDebug
 	{
 		// Data
-		uint32					ComponentId = ~0;
 		uint32					GroupIndex = ~0;
 		uint32					GroupCount = 0;
 		FString					GroomAssetName;
@@ -255,10 +254,10 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		EGroomBindingMeshType	GroomBindingType;
 		EGroomCacheType			GroomCacheType;
 		FPrimitiveSceneProxy*	Proxy = nullptr;
-		UMeshComponent*			MeshComponent = nullptr;
 		FString					MeshComponentName;
 		FPrimitiveComponentId	MeshComponentId;
 		FPersistentPrimitiveIndex CachedMeshPersistentPrimitiveIndex;
+		const UMeshComponent*	MeshComponentForDebug = nullptr;
 		const UGroomComponent*	GroomComponentForDebug = nullptr; // For debug only, shouldn't be deferred on the rendering thread
 		FTransform				RigidCurrentLocalToWorld = FTransform::Identity;
 		FTransform				SkinningCurrentLocalToWorld = FTransform::Identity;

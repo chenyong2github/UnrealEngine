@@ -6,23 +6,23 @@
 #include "HairStrandsMeshProjection.h"
 
 struct FCachedGeometry;
-class UGeometryCacheComponent;
+class FSkeletalMeshSceneProxy;
 class FGlobalShaderMap;
 class FRDGBuilder;
-class USkeletalMeshComponent;
+class FGeometryCacheSceneProxy;
 
 FHairStrandsProjectionMeshData::Section ConvertMeshSection(FCachedGeometry const& InCachedGeometry, int32 InSectionIndex);
 
 void BuildCacheGeometry(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap, 
-	const USkeletalMeshComponent* SkeletalMeshComponent, 
+	const FSkeletalMeshSceneProxy* Proxy,
 	const bool bOutputTriangleData,
 	FCachedGeometry& OutCachedGeometry);
 
 void BuildCacheGeometry(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap, 
-	const UGeometryCacheComponent* GeometryCacheComponent,
+	const FGeometryCacheSceneProxy* Proxy,
 	const bool bOutputTriangleData,
 	FCachedGeometry& OutCachedGeometry);

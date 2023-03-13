@@ -179,7 +179,7 @@ public:
 	/**
 	 *	Return true if this does have valid dynamic data to render
 	 */
-	virtual bool HaveValidDynamicData() = 0;
+	virtual bool HaveValidDynamicData() const = 0;
 
 	// allow access to mesh component
 	friend class FDynamicSkelMeshObjectDataCPUSkin;
