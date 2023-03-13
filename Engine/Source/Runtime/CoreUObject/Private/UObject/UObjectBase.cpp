@@ -284,11 +284,11 @@ void UObjectBase::SetExternalPackage(UPackage* InPackage)
 	HashObjectExternalPackage(this, InPackage);
 	if (InPackage)
 	{
-		SetFlagsTo(GetFlags() | RF_HasExternalPackage);
+		AtomicallySetFlags(RF_HasExternalPackage);
 	}
 	else
 	{
-		SetFlagsTo(GetFlags() & ~RF_HasExternalPackage);
+		AtomicallyClearFlags(RF_HasExternalPackage);
 	}
 }
 
@@ -354,7 +354,7 @@ bool UObjectBase::IsValidLowLevelFast(bool bRecursive /*= true*/) const
 	}
 
 	// These should all be 0.
-	const UPTRINT CheckZero = (ObjectFlags & ~RF_AllFlags) | ((UPTRINT)ClassPrivate & AlignmentCheck) | ((UPTRINT)OuterPrivate & AlignmentCheck);
+	const UPTRINT CheckZero = (GetFlagsInternal() & ~RF_AllFlags) | ((UPTRINT)ClassPrivate & AlignmentCheck) | ((UPTRINT)OuterPrivate & AlignmentCheck);
 	if (!!CheckZero)
 	{
 		UE_LOG(LogUObjectBase, Error, TEXT("Object flags are invalid or either Class or Outer is misaligned"));

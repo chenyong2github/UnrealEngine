@@ -58,22 +58,22 @@ class COREUOBJECT_API UObjectBaseUtility : public UObjectBase
 {
 	FORCEINLINE void MarkPendingKillOnlyInternal()
 	{
-		SetFlagsTo(GetFlags() | RF_InternalPendingKill);
+		AtomicallySetFlags(RF_InternalPendingKill);
 		GUObjectArray.IndexToObject(InternalIndex)->SetPendingKill();
 	}
 	FORCEINLINE void ClearPendingKillOnlyInternal()
 	{
-		SetFlagsTo(GetFlags() & ~RF_InternalPendingKill);
+		AtomicallyClearFlags(RF_InternalPendingKill);
 		GUObjectArray.IndexToObject(InternalIndex)->ClearPendingKill();
 	}
 	FORCEINLINE void MarkAsGarbageOnlyInternal()
 	{
-		SetFlagsTo(GetFlags() | RF_InternalGarbage);
+		AtomicallySetFlags(RF_InternalGarbage);
 		GUObjectArray.IndexToObject(InternalIndex)->ThisThreadAtomicallySetFlag(EInternalObjectFlags::Garbage);
 	}
 	FORCEINLINE void ClearGarbageOnlyInternal()
 	{
-		SetFlagsTo(GetFlags() & ~RF_InternalGarbage);
+		AtomicallyClearFlags(RF_InternalGarbage);
 		GUObjectArray.IndexToObject(InternalIndex)->ThisThreadAtomicallyClearedFlag(EInternalObjectFlags::Garbage);
 	}
 
@@ -101,15 +101,15 @@ public:
 	{
 		checkSlow(!(NewFlags & (RF_MarkAsNative | RF_MarkAsRootSet | RF_InternalPendingKill | RF_InternalGarbage))); // These flags can't be used outside of constructors / internal code
 		checkf(!(NewFlags & RF_InternalMirroredFlags) || (GetFlags() & (NewFlags & RF_InternalMirroredFlags)) == (NewFlags & RF_InternalMirroredFlags), TEXT("RF_PendingKill and RF_garbage can not be set through SetFlags function. Use MarkAsGarbage() instead"));
-		SetFlagsTo(GetFlags() | NewFlags);
+		AtomicallySetFlags(NewFlags);
 	}
 
 	/** Clears subset of flags for a specific object */
-	FORCEINLINE void ClearFlags( EObjectFlags NewFlags )
+	FORCEINLINE void ClearFlags( EObjectFlags FlagsToClear )
 	{
-		checkSlow(!(NewFlags & (RF_MarkAsNative | RF_MarkAsRootSet | RF_InternalPendingKill | RF_InternalGarbage)) || NewFlags == RF_AllFlags); // These flags can't be used outside of constructors / internal code
-		checkf(!(NewFlags & RF_InternalMirroredFlags) || (GetFlags() & (NewFlags & RF_InternalMirroredFlags)) == RF_NoFlags, TEXT("RF_PendingKill and RF_garbage can not be cleared through ClearFlags function. Use ClearGarbage() instead"));
-		SetFlagsTo(GetFlags() & ~NewFlags);
+		checkSlow(!(FlagsToClear & (RF_MarkAsNative | RF_MarkAsRootSet | RF_InternalPendingKill | RF_InternalGarbage)) || FlagsToClear == RF_AllFlags); // These flags can't be used outside of constructors / internal code
+		checkf(!(FlagsToClear & RF_InternalMirroredFlags) || (GetFlags() & (FlagsToClear & RF_InternalMirroredFlags)) == RF_NoFlags, TEXT("RF_PendingKill and RF_garbage can not be cleared through ClearFlags function. Use ClearGarbage() instead"));
+		AtomicallyClearFlags(FlagsToClear);
 	}
 
 	/**

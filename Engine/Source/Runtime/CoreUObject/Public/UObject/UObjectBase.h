@@ -184,6 +184,7 @@ protected:
 	 * Set the object flags directly
 	 *
 	 **/
+	UE_DEPRECATED(5.3, "This function is not thread-safe. Use AtomicallySetFlags or AtomicallyClearFlags instead.")
 	FORCEINLINE void SetFlagsTo( EObjectFlags NewFlags )
 	{
 		checkfSlow((NewFlags & ~RF_AllFlags) == 0, TEXT("%s flagged as 0x%x but is trying to set flags to RF_AllFlags"), *GetFName().ToString(), (int)ObjectFlags);
@@ -198,48 +199,54 @@ public:
 	 **/
 	FORCEINLINE EObjectFlags GetFlags() const
 	{
-		checkfSlow((ObjectFlags & ~RF_AllFlags) == 0, TEXT("%s flagged as RF_AllFlags"), *GetFName().ToString());
-		return ObjectFlags;
+		EObjectFlags Flags = (EObjectFlags)GetFlagsInternal();
+		checkfSlow((Flags & ~RF_AllFlags) == 0, TEXT("%s flagged as RF_AllFlags"), *GetFName().ToString());
+		return Flags;
 	}
 
 	/**
 	 *	Atomically adds the specified flags.
-	 *	Do not use unless you know what you are doing.
-	 *	Designed to be used only by parallel GC and UObject loading thread.
 	 */
 	FORCENOINLINE void AtomicallySetFlags( EObjectFlags FlagsToAdd )
 	{
-		int32 OldFlags = 0;
-		int32 NewFlags = 0;
-		do 
+		int32 OldFlags = GetFlagsInternal();
+		int32 NewFlags = OldFlags | FlagsToAdd;
+
+		// Fast path without atomics if already set
+		if (NewFlags == OldFlags)
 		{
-			OldFlags = ObjectFlags;
-			NewFlags = OldFlags | FlagsToAdd;
+			return;
 		}
-		while( FPlatformAtomics::InterlockedCompareExchange( (int32*)&ObjectFlags, NewFlags, OldFlags) != OldFlags );
+
+		FPlatformAtomics::InterlockedOr((int32*)&ObjectFlags, FlagsToAdd);
 	}
 
 	/**
 	 *	Atomically clears the specified flags.
-	 *	Do not use unless you know what you are doing.
-	 *	Designed to be used only by parallel GC and UObject loading thread.
 	 */
 	FORCENOINLINE void AtomicallyClearFlags( EObjectFlags FlagsToClear )
 	{
-		int32 OldFlags = 0;
-		int32 NewFlags = 0;
-		do 
+		int32 OldFlags = GetFlagsInternal();
+		int32 NewFlags = OldFlags & ~FlagsToClear;
+
+		// Fast path without atomics if already cleared
+		if (NewFlags == OldFlags)
 		{
-			OldFlags = ObjectFlags;
-			NewFlags = OldFlags & ~FlagsToClear;
+			return;
 		}
-		while( FPlatformAtomics::InterlockedCompareExchange( (int32*)&ObjectFlags, NewFlags, OldFlags) != OldFlags );
+
+		FPlatformAtomics::InterlockedAnd((int32*)&ObjectFlags, ~FlagsToClear);
 	}
 
 	static void PrefetchClass(UObject* Object) { FPlatformMisc::Prefetch(Object, offsetof(UObjectBase, ClassPrivate)); }
 	static void PrefetchOuter(UObject* Object) { FPlatformMisc::Prefetch(Object, offsetof(UObjectBase, OuterPrivate)); }
 
 private:
+	FORCEINLINE int32 GetFlagsInternal() const
+	{
+		static_assert(sizeof(int32) == sizeof(ObjectFlags), "Flags must be 32-bit for atomics.");
+		return FPlatformAtomics::AtomicRead_Relaxed((int32*)&ObjectFlags);
+	}
 
 	/** Flags used to track and report various object states. This needs to be 8 byte aligned on 32-bit
 	    platforms to reduce memory waste */
