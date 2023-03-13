@@ -26,7 +26,7 @@ UStereoLayerComponent::UStereoLayerComponent(const FObjectInitializer& ObjectIni
 	, Priority(0)
 	, bIsDirty(true)
 	, bTextureNeedsUpdate(false)
-	, LayerId(0)
+	, LayerId(IStereoLayers::FLayerDesc::INVALID_LAYER_ID)
 	, LastTransform(FTransform::Identity)
 	, bLastVisible(false)
 	, bNeedsPostLoadFixup(false)
@@ -37,15 +37,15 @@ UStereoLayerComponent::UStereoLayerComponent(const FObjectInitializer& ObjectIni
 	//Shape = ObjectInitializer.CreateDefaultSubobject<UStereoLayerShapeQuad>(this, TEXT("Shape"));
 }
 
-void UStereoLayerComponent::BeginDestroy()
+void UStereoLayerComponent::OnUnregister()
 {
-	Super::BeginDestroy();
+	Super::OnUnregister();
 
 	IStereoLayers* StereoLayers;
 	if (LayerId && GEngine->StereoRenderingDevice.IsValid() && (StereoLayers = GEngine->StereoRenderingDevice->GetStereoLayers()) != nullptr)
 	{
 		StereoLayers->DestroyLayer(LayerId);
-		LayerId = 0;
+		LayerId = IStereoLayers::FLayerDesc::INVALID_LAYER_ID;
 	}
 }
 

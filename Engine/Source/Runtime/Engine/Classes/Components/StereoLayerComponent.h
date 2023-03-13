@@ -249,7 +249,7 @@ class ENGINE_API UStereoLayerComponent : public USceneComponent
 public:
 
 	//~ Begin UObject Interface
-	void BeginDestroy() override;
+	virtual void OnUnregister() override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	//~ End UObject Interface
