@@ -179,6 +179,28 @@ private:
 	FSemaphore* Semaphore;
 };
 
+/**
+ * This utility can be used to try and find the P4PORT (server address) that the provider 
+ * is using. The source control api doesn't actually have a way to do this at the moment, 
+ * but we can get a general status text of the connection from which we can attempt to 
+ * parse the port.
+ */
+[[nodiscard]] FString GetPortFromProvider(ISourceControlProvider* SCCProvider)
+{
+	if (SCCProvider != nullptr)
+	{
+		const FString Status = SCCProvider->GetStatusText().ToString();
+
+		FString Port;
+		if (FParse::Value(*Status, TEXT("Port:"), Port))
+		{
+			return Port;
+		}		
+	}
+
+	return FString(TEXT("Unknown"));
+}
+
 /** Utility function to create a directory to submit payloads from. */
 [[nodiscard]] static bool TryCreateSubmissionSessionDirectory(FStringView SessionDirectoryPath, FStringView IgnoreFileName)
 {
@@ -330,62 +352,41 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 		return IVirtualizationBackend::EConnectionStatus::Error;
 	}
 
+	// Will attempt to make initial connection to the server, it doesn't return any error values we can check against but
+	// it will output problems to the log file.
 	SCCProvider->Init(true);
 
-	if (IsInGameThread())
+	if (!SCCProvider->IsAvailable())
 	{
-		// Note that if the connect is failing then we expect it to fail here rather than in the subsequent attempts to get the meta info file
-		TSharedRef<FConnect, ESPMode::ThreadSafe> ConnectCommand = ISourceControlOperation::Create<FConnect>();
-		if (SCCProvider->Execute(ConnectCommand, FString(), EConcurrency::Synchronous) != ECommandResult::Succeeded)
-		{
-			FTextBuilder Errors;
-			for (const FText& Msg : ConnectCommand->GetResultInfo().ErrorMessages)
-			{
-				Errors.AppendLine(Msg);
-			}
+		OnConnectionError(FText(LOCTEXT("FailedSourceControlConnection", "Failed to connect to revision control backend, see the Message Log 'Revision Control' errors for details.\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?")));
 
-			FText Message = FText::Format(LOCTEXT("FailedSourceControlConnection", "Failed to connect to revision control backend with the following errors:\n{0}\nThe revision control backend had trouble connecting!\nTrying logging in with the 'p4 login' command or by using p4vs/UnrealGameSync."),
-				Errors.ToText());
-
-			OnConnectionError(MoveTemp(Message));
-
-			return IVirtualizationBackend::EConnectionStatus::Error;
-		}
+		return IVirtualizationBackend::EConnectionStatus::Error;
 	}
 
 	// When a source control depot is set up a file named 'payload_metainfo.txt' should be submitted to it's root.
 	// This allows us to check for the existence of the file to confirm that the depot root is indeed valid.
 	const FString PayloadMetaInfoPath = WriteToString<512>(DepotRoot, TEXT("payload_metainfo.txt")).ToString();
 
+	FSharedBuffer MetaInfoBuffer;
+
 #if IS_SOURCE_CONTROL_THREAD_SAFE
 	TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>();
 	if (SCCProvider->Execute(DownloadCommand, PayloadMetaInfoPath, EConcurrency::Synchronous) != ECommandResult::Succeeded)
 	{
-		FText Msg = FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?"),
-			FText::FromString(DepotRoot));
-
-		OnConnectionError(MoveTemp(Msg));
-
-		return IVirtualizationBackend::EConnectionStatus::Error;
-}
 #else
 	TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>();
-	if (!SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, PayloadMetaInfoPath))
+	if (SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, PayloadMetaInfoPath))
 	{
-		FText Msg = FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?"),
-			FText::FromString(DepotRoot));
-
-		OnConnectionError(MoveTemp(Msg));
-
-		return IVirtualizationBackend::EConnectionStatus::Error;
-	}
 #endif //IS_SOURCE_CONTROL_THREAD_SAFE
 
-	FSharedBuffer MetaInfoBuffer = DownloadCommand->GetFileData(PayloadMetaInfoPath);
+		MetaInfoBuffer = DownloadCommand->GetFileData(PayloadMetaInfoPath);
+	}
+
 	if (MetaInfoBuffer.IsNull())
 	{
-		FText Msg = FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?"),
-			FText::FromString(DepotRoot));
+		FText Msg = FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find '{0}' on server '{1}'\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?"),
+			FText::FromString(PayloadMetaInfoPath),
+			FText::FromString(GetPortFromProvider(SCCProvider.Get())));
 
 		OnConnectionError(MoveTemp(Msg));
 
