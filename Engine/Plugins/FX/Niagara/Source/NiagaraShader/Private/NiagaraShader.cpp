@@ -262,6 +262,9 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 		KeyString.AppendChar('_');
 	}
 
+	// include the LayoutParams to differentiate between the frozen memory layout differences between platforms
+	LayoutParams.AppendKeyString(KeyString);
+
 	FName FeatureLevelName;
 	GetFeatureLevelName(FeatureLevel, FeatureLevelName);
 
