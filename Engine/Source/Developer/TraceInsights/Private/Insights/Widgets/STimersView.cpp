@@ -2546,7 +2546,7 @@ void STimersView::ContextMenu_ExportTimingEventsSelection_Execute() const
 	// Filter by thread (visible Gpu/Cpu tracks in TimingView).
 
 	// These variables needs to be in the same scope with the call to Exporter.ExportTimingEventsAsText()
-	// (becasue they are referenced in the ThreadFilter lambda function).
+	// (because they are referenced in the ThreadFilter lambda function).
 	TSet<uint32> IncludedThreads;
 	TSet<uint32> ExcludedThreads;
 
@@ -2596,7 +2596,7 @@ void STimersView::ContextMenu_ExportTimingEventsSelection_Execute() const
 	// Filter by timing event (e.g.: by timer, by duration, by depth).
 
 	// This variable needs to be in the same scope with the call to Exporter.ExportTimingEventsAsText()
-	// (becasue it is referenced in the TimingEventFilter lambda function).
+	// (because it is referenced in the TimingEventFilter lambda function).
 	TSet<uint32> IncludedTimers;
 
 	TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
