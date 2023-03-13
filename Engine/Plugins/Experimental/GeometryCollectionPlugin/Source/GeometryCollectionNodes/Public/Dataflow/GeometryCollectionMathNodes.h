@@ -135,6 +135,18 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FDivideDataflowNode : public FSafeDivideDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FDivideDataflowNode, "Divide", "Math|Float", "")
+
+public:
+	FDivideDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FSafeDivideDataflowNode(InParam, InGuid)
+	{}
+};
+
 /**
 *
 *
@@ -1220,6 +1232,38 @@ public:
 		RegisterInputConnection(&RangeMin);
 		RegisterInputConnection(&RangeMax);
 		RegisterOutputConnection(&ReturnValue);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
+/**
+*
+*
+*
+*/
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FScaleVectorDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FScaleVectorDataflowNode, "ScaleVector", "Math|Vector", "")
+
+public:
+	UPROPERTY(EditAnywhere, Category = "ScaleVector", meta = (DataflowInput));
+	FVector Vector = FVector(0.f);
+
+	UPROPERTY(EditAnywhere, Category = "ScaleVector", meta = (DataflowInput));
+	float Scale = 1.f;
+
+	UPROPERTY(meta = (DataflowOutput))
+	FVector ScaledVector = FVector(0.f);
+
+	FScaleVectorDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Vector);
+		RegisterInputConnection(&Scale);
+		RegisterOutputConnection(&ScaledVector);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

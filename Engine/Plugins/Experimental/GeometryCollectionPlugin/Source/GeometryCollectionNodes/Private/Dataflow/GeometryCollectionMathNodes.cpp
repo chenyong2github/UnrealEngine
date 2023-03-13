@@ -17,6 +17,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSubtractDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMultiplyDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSafeDivideDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FDivideDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FDivisionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSafeReciprocalDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSquareDataflowNode);
@@ -52,6 +53,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FArcTanDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FArcTan2DataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FNormalizeToRangeDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FScaleVectorDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FDotProductDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCrossProductDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FNormalizeDataflowNode);
@@ -601,6 +603,19 @@ void FNormalizeToRangeDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 		Result = (InFloat - IRangeMin) / (InRangeMax - IRangeMin);
 
 		SetValue<float>(Context, Result, &ReturnValue);
+	}
+}
+
+
+void FScaleVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&ScaledVector))
+	{
+		const FVector InVector = GetValue(Context, &Vector, Vector);
+		const float InScale = GetValue(Context, &Scale, Scale);
+
+		const FVector Result = InVector * InScale;
+		SetValue(Context, Result, &ScaledVector);
 	}
 }
 
