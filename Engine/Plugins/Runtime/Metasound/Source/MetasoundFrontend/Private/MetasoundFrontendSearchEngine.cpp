@@ -5,7 +5,7 @@
 #include "MetasoundFrontendSearchEngineEditorOnly.h"
 
 #include "Algo/MaxElement.h"
-#include "MetasoundFrontendArchetypeRegistry.h"
+#include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistryTransaction.h"

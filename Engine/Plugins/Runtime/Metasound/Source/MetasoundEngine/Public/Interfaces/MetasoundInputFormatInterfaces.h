@@ -17,7 +17,7 @@ namespace Metasound::Engine
 
 		METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
 		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
-		METASOUNDENGINE_API TArray<FMetasoundFrontendInterfaceBinding> CreateOutputBindings();
+		METASOUNDENGINE_API TArray<FMetasoundFrontendInterfaceBinding> CreateBindings();
 	} // namespace InputFormatMonoInterface
 
 	namespace InputFormatStereoInterface
@@ -30,6 +30,6 @@ namespace Metasound::Engine
 
 		METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
 		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
-		METASOUNDENGINE_API TArray<FMetasoundFrontendInterfaceBinding> CreateOutputBindings();
+		METASOUNDENGINE_API TArray<FMetasoundFrontendInterfaceBinding> CreateBindings();
 	} // namespace InputFormatStereoInterface
 } // namespace Metasound::Engine

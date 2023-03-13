@@ -4,7 +4,7 @@
 #include "MetasoundFrontendSearchEngineEditorOnly.h"
 
 #include "Containers/Array.h"
-#include "MetasoundFrontendArchetypeRegistry.h"
+#include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"

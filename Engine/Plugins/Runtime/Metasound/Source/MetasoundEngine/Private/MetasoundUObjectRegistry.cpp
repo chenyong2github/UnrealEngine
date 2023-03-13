@@ -10,13 +10,13 @@
 #include "Engine/AssetManager.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
-#include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSettings.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "UObject/Object.h"
+
 
 namespace Metasound
 {
@@ -115,5 +115,4 @@ namespace Metasound
 		static FMetasoundUObjectRegistry Registry;
 		return Registry;
 	}
-}
-
+} // namespace Metasound

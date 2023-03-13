@@ -2,12 +2,13 @@
 #include "MetasoundEngineModule.h"
 
 #include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
+#include "Interfaces/MetasoundDeprecatedInterfaces.h"
+#include "Interfaces/MetasoundInterface.h"
+#include "Interfaces/MetasoundInterfaceBindingsPrivate.h"
 #include "Metasound.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
-#include "MetasoundEngineArchetypes.h"
 #include "MetasoundFrontendDataTypeTraits.h"
-#include "MetasoundInterface.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "MetasoundUObjectRegistry.h"
@@ -30,6 +31,9 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 {
 	virtual void StartupModule() override
 	{
+		using namespace Metasound;
+		using namespace Metasound::Engine;
+
 		METASOUND_LLM_SCOPE;
 		FModuleManager::Get().LoadModuleChecked("MetasoundGraphCore");
 		FModuleManager::Get().LoadModuleChecked("MetasoundFrontend");
@@ -44,9 +48,12 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		check(AudioSettings);
 		AudioSettings->RegisterParameterInterfaces();
 
-		// Register supported MetaSound UClasses & interfaces
-		Metasound::Engine::RegisterUClasses();
-		Metasound::Engine::RegisterInterfaces();
+		IMetasoundUObjectRegistry::Get().RegisterUClass(MakeUnique<TMetasoundUObjectRegistryEntry<UMetaSoundPatch>>());
+		IMetasoundUObjectRegistry::Get().RegisterUClass(MakeUnique<TMetasoundUObjectRegistryEntry<UMetaSoundSource>>());
+
+		Engine::RegisterDeprecatedInterfaces();
+		Engine::RegisterInterfaces();
+		Engine::RegisterInternalInterfaceBindings();
 
 		// Flush node registration queue
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();

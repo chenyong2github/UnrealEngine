@@ -52,13 +52,14 @@ namespace Metasound::Engine
 			return CreateInterface();
 		}
 
-		TArray<FMetasoundFrontendInterfaceBinding> CreateOutputBindings()
+		TArray<FMetasoundFrontendInterfaceBinding> CreateBindings()
 		{
 			return TArray<FMetasoundFrontendInterfaceBinding>
 			{
 				{
-					OutputFormatMonoInterface::GetVersion(), // Mono-to-mono takes priority
-					0,
+					OutputFormatMonoInterface::GetVersion(),
+					InputFormatMonoInterface::GetVersion(),
+					0, // Mono-to-mono takes priority
 					{
 						{
 							OutputFormatMonoInterface::Outputs::MonoOut, InputFormatMonoInterface::Inputs::MonoIn,
@@ -67,6 +68,7 @@ namespace Metasound::Engine
 				},
 				{
 					OutputFormatStereoInterface::GetVersion(),
+					InputFormatMonoInterface::GetVersion(),
 					10,
 					{
 						{
@@ -76,6 +78,7 @@ namespace Metasound::Engine
 				},
 				{
 					OutputFormatQuadInterface::GetVersion(),
+					InputFormatMonoInterface::GetVersion(),
 					20,
 					{
 						{
@@ -85,6 +88,7 @@ namespace Metasound::Engine
 				},
 				{
 					OutputFormatFiveDotOneInterface::GetVersion(),
+					InputFormatMonoInterface::GetVersion(),
 					30,
 					{
 						{
@@ -94,6 +98,7 @@ namespace Metasound::Engine
 				},
 				{
 					OutputFormatSevenDotOneInterface::GetVersion(),
+					InputFormatMonoInterface::GetVersion(),
 					40,
 					{
 						{
@@ -158,12 +163,13 @@ namespace Metasound::Engine
 			return CreateInterface();
 		}
 
-		TArray<FMetasoundFrontendInterfaceBinding> CreateOutputBindings()
+		TArray<FMetasoundFrontendInterfaceBinding> CreateBindings()
 		{
 			return TArray<FMetasoundFrontendInterfaceBinding>
 			{
 				{
 					OutputFormatMonoInterface::GetVersion(),
+					InputFormatStereoInterface::GetVersion(),
 					10,
 					{
 						{
@@ -173,6 +179,7 @@ namespace Metasound::Engine
 				},
 				{
 					OutputFormatStereoInterface::GetVersion(),
+					InputFormatStereoInterface::GetVersion(),
 					0,	// Stereo to stereo takes priority
 					{
 						{
@@ -185,6 +192,7 @@ namespace Metasound::Engine
 				},
 				{
 					OutputFormatQuadInterface::GetVersion(),
+					InputFormatStereoInterface::GetVersion(),
 					30,
 					{
 						{
@@ -197,6 +205,7 @@ namespace Metasound::Engine
 				},
 				{
 					OutputFormatFiveDotOneInterface::GetVersion(),
+					InputFormatStereoInterface::GetVersion(),
 					40,
 					{
 						{
@@ -209,6 +218,7 @@ namespace Metasound::Engine
 				},
 				{
 					OutputFormatSevenDotOneInterface::GetVersion(),
+					InputFormatStereoInterface::GetVersion(),
 					50,
 					{
 						{

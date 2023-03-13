@@ -3,8 +3,8 @@
 
 #include "Algo/Transform.h"
 #include "Interfaces/MetasoundFrontendInterface.h"
+#include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "MetasoundAccessPtr.h"
-#include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendDocumentController.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"

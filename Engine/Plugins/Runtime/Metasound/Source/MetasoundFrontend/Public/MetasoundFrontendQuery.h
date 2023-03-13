@@ -4,10 +4,10 @@
 
 #include "Containers/Array.h"
 #include "Containers/SortedMap.h"
+#include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "Math/NumericLimits.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
-#include "MetasoundFrontendArchetypeRegistry.h"
 #include "Misc/TVariant.h"
 
 /** MetaSound Frontend Query

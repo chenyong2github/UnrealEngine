@@ -4,8 +4,8 @@
 
 #include "Containers/Array.h"
 #include "HAL/CriticalSection.h"
-#include "MetasoundFrontendArchetypeRegistry.h"
-#include "MetasoundFrontendInterfaceRegistryPrivate.h"
+#include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
+#include "Interfaces/MetasoundFrontendInterfaceRegistryPrivate.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistries.h"

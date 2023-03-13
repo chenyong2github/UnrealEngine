@@ -91,7 +91,7 @@ namespace Metasound
 			TArray<TSharedPtr<const INode>> NodeStorage;
 	};
 
-	/** FFrontendGraphBuilder builds a FFrontendGraph from a FMetasoundDoucment
+	/** FFrontendGraphBuilder builds a FFrontendGraph from a FMetasoundDocument
 	 * or FMetasoundFrontendClass.
 	 */
 	class METASOUNDFRONTEND_API FFrontendGraphBuilder

@@ -4,11 +4,13 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Find.h"
 #include "Algo/NoneOf.h"
+#include "Algo/Sort.h"
 #include "Algo/Transform.h"
+#include "Interfaces/MetasoundFrontendInterfaceBindingRegistry.h"
+#include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAssetManager.h"
 #include "MetasoundDocumentInterface.h"
-#include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendDocumentCache.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
@@ -23,6 +25,51 @@ namespace Metasound::Frontend
 {
 	namespace DocumentBuilderPrivate
 	{
+		bool TryGetInterfaceBoundEdges(
+			const FGuid& InFromNodeID,
+			const FMetasoundFrontendDocument& InFromNodeDocument,
+			const FGuid& InToNodeID,
+			const FMetasoundFrontendDocument& InToNodeDocument,
+			TSet<FNamedEdge>& OutNamedEdges)
+		{
+			OutNamedEdges.Reset();
+			TSet<FName> InputNames;
+			const TSet<FMetasoundFrontendVersion>& OutputInterfaceVersions = InFromNodeDocument.Interfaces;
+			for (const FMetasoundFrontendVersion& InputInterfaceVersion : InToNodeDocument.Interfaces)
+			{
+				TArray<const FInterfaceBindingRegistryEntry*> BindingEntries;
+				if (IInterfaceBindingRegistry::Get().FindInterfaceBindingEntries(InputInterfaceVersion, BindingEntries))
+				{
+					Algo::Sort(BindingEntries, [](const FInterfaceBindingRegistryEntry* A, const FInterfaceBindingRegistryEntry* B)
+					{
+						check(A);
+						check(B);
+						return A->GetBindingPriority() < B->GetBindingPriority();
+					});
+
+					// Bindings are sorted in registry with earlier entries being higher priority to apply connections,
+					// so earlier listed connections are selected over potential collisions with later entries.
+					for (const FInterfaceBindingRegistryEntry* BindingEntry : BindingEntries)
+					{
+						check(BindingEntry);
+						if (OutputInterfaceVersions.Contains(BindingEntry->GetOutputInterfaceVersion()))
+						{
+							for (const FMetasoundFrontendInterfaceVertexBinding& VertexBinding : BindingEntry->GetVertexBindings())
+							{
+								if (!InputNames.Contains(VertexBinding.InputName))
+								{
+									InputNames.Add(VertexBinding.InputName);
+									OutNamedEdges.Add(FNamedEdge { InFromNodeID, VertexBinding.OutputName, InToNodeID, VertexBinding.InputName });
+								}
+							}
+						}
+					}
+				}
+			};
+
+			return true;
+		}
+
 		void FinalizeGraphVertexNode(FMetasoundFrontendNode& InOutNode, const FMetasoundFrontendClassVertex& InVertex)
 		{
 			InOutNode.Name = InVertex.Name;
@@ -156,7 +203,7 @@ const FMetasoundFrontendEdge* FMetaSoundFrontendDocumentBuilder::AddEdge(FMetaso
 	return nullptr;
 }
 
-bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNamedConnections(const TSet<Metasound::Frontend::FNamedEdge>& ConnectionsToMake, TArray<const FMetasoundFrontendEdge*>* OutNewEdges)
+bool FMetaSoundFrontendDocumentBuilder::AddNamedEdges(const TSet<Metasound::Frontend::FNamedEdge>& EdgesToMake, TArray<const FMetasoundFrontendEdge*>* OutNewEdges)
 {
 	using namespace Metasound::Frontend;
 
@@ -171,15 +218,15 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNamedConnections(const TSet<Me
 	bool bSuccess = true;
 
 	TArray<FMetasoundFrontendEdge> EdgesToAdd;
-	for (const FNamedEdge& Connection : ConnectionsToMake)
+	for (const FNamedEdge& Edge : EdgesToMake)
 	{
 		const FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
-		const FMetasoundFrontendVertex* OutputVertex = NodeCache.FindOutputVertex(Connection.OutputNodeID, Connection.OutputName);
-		const FMetasoundFrontendVertex* InputVertex = NodeCache.FindInputVertex(Connection.InputNodeID, Connection.InputName);
+		const FMetasoundFrontendVertex* OutputVertex = NodeCache.FindOutputVertex(Edge.OutputNodeID, Edge.OutputName);
+		const FMetasoundFrontendVertex* InputVertex = NodeCache.FindInputVertex(Edge.InputNodeID, Edge.InputName);
 
 		if (OutputVertex && InputVertex)
 		{
-			FMetasoundFrontendEdge NewEdge = { Connection.OutputNodeID, OutputVertex->VertexID, Connection.InputNodeID, InputVertex->VertexID };
+			FMetasoundFrontendEdge NewEdge = { Edge.OutputNodeID, OutputVertex->VertexID, Edge.InputNodeID, InputVertex->VertexID };
 			if (CanAddEdge(NewEdge))
 			{
 				EdgesToAdd.Add(MoveTemp(NewEdge));
@@ -187,7 +234,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNamedConnections(const TSet<Me
 			else
 			{
 				bSuccess = false;
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to add connections between MetaSound output '%s' and input '%s': Vertex types either incompatable (eg. construction pin to non-construction pin) or input already connected."), *Connection.OutputName.ToString(), *Connection.InputName.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to add connections between MetaSound output '%s' and input '%s': Vertex types either incompatable (eg. construction pin to non-construction pin) or input already connected."), *Edge.OutputName.ToString(), *Edge.InputName.ToString());
 			}
 		}
 	}
@@ -216,56 +263,19 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesByNodeClassInterfaceBindings(con
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	auto FindNodeClassDoc = [this](const FGuid & InNodeID) -> const FMetasoundFrontendDocument*
+	const FMetasoundFrontendDocument* FromNodeDocument = FindOrLoadNodeClassDocument(InFromNodeID);
+	const FMetasoundFrontendDocument* ToNodeDocument = FindOrLoadNodeClassDocument(InToNodeID);
+	if (FromNodeDocument && ToNodeDocument)
 	{
-		const TScriptInterface<IMetaSoundDocumentInterface> NodeDocumentUInterface = FindOrLoadNodeClassDocument(InNodeID);
-		if (NodeDocumentUInterface)
+		TSet<FNamedEdge> NamedEdges;
+		if (DocumentBuilderPrivate::TryGetInterfaceBoundEdges(InFromNodeID, *FromNodeDocument, InToNodeID, *ToNodeDocument, NamedEdges))
 		{
-			return &NodeDocumentUInterface->GetDocument();
-		}
-
-		return nullptr;
-	};
-
-	const FMetasoundFrontendDocument* OutputNodeDocument = FindNodeClassDoc(InFromNodeID);
-	const FMetasoundFrontendDocument* InputNodeDocument = FindNodeClassDoc(InToNodeID);
-
-	if (!InputNodeDocument || !OutputNodeDocument)
-	{
-		return false;
-	}
-
-	const TSet<FMetasoundFrontendVersion>& OutputInterfaceVersions = OutputNodeDocument->Interfaces;
-
-	TArray<const IInterfaceRegistryEntry*> InputNodeInterfaces;
-	FindDeclaredInterfaces(*InputNodeDocument, InputNodeInterfaces);
-
-	TSet<FNamedEdge> ConnectionsToMake;
-	TSet<FName> InputsToConnect;
-	for (const IInterfaceRegistryEntry* InputInterfaceEntry : InputNodeInterfaces)
-	{
-		const FMetasoundFrontendInterface& InputInterface = InputInterfaceEntry->GetInterface();
-		const TArray<FMetasoundFrontendInterfaceBinding>& OutputBindings = InputInterfaceEntry->GetOutputBindings();
-
-		// Bindings are sorted in registry with earlier entries being higher priority to apply connections,
-		// so earlier listed connections are selected over potential collisions with later entries.
-		for (const FMetasoundFrontendInterfaceBinding& OutputBinding : OutputBindings)
-		{
-			if (OutputInterfaceVersions.Contains(OutputBinding.Version))
-			{
-				for (const FMetasoundFrontendInterfaceBindingConnection& Connection : OutputBinding.Connections)
-				{
-					if (!InputsToConnect.Contains(Connection.InputName))
-					{
-						InputsToConnect.Add(Connection.InputName);
-						ConnectionsToMake.Add(FNamedEdge { InFromNodeID, Connection.OutputName, InToNodeID, Connection.InputName });
-					}
-				}
-			}
+			return AddNamedEdges(NamedEdges);
 		}
 	}
 
-	return AddEdgesByNamedConnections(ConnectionsToMake);
+	return false;
+
 }
 
 bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeOutputsToGraphOutputs(const FGuid& InNodeID, TArray<const FMetasoundFrontendEdge*>& OutEdgesCreated)
@@ -276,24 +286,24 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeOutputs
 
 	OutEdgesCreated.Reset();
 
-	const TScriptInterface<IMetaSoundDocumentInterface> NodeDocumentInterface = FindOrLoadNodeClassDocument(InNodeID);
-	if (!NodeDocumentInterface)
+	const FMetasoundFrontendDocument* NodeDocument = FindOrLoadNodeClassDocument(InNodeID);
+	if (!NodeDocument)
 	{
 		return false;
 	}
 
 	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
 
-	const TSet<FMetasoundFrontendVersion>& NodeInterfaces = NodeDocumentInterface->GetDocument().Interfaces;
+	const TSet<FMetasoundFrontendVersion>& NodeInterfaces = NodeDocument->Interfaces;
 	const TSet<FMetasoundFrontendVersion> CommonInterfaces = NodeInterfaces.Intersect(GetDocument().Interfaces);
 
-	TSet<FNamedEdge> ConnectionsToMake;
+	TSet<FNamedEdge> EdgesToMake;
 	for (const FMetasoundFrontendVersion& Version : CommonInterfaces)
 	{
 		const FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(Version);
 		if (const IInterfaceRegistryEntry* RegistryEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(InterfaceKey))
 		{
-			Algo::Transform(RegistryEntry->GetInterface().Outputs, ConnectionsToMake, [this, &NodeCache, InNodeID](const FMetasoundFrontendClassOutput& Output)
+			Algo::Transform(RegistryEntry->GetInterface().Outputs, EdgesToMake, [this, &NodeCache, InNodeID](const FMetasoundFrontendClassOutput& Output)
 			{
 				const FMetasoundFrontendGraph& Graph = GetDocument().RootGraph.Graph;
 				const FMetasoundFrontendVertex* NodeVertex = NodeCache.FindOutputVertex(InNodeID, Output.Name);
@@ -307,7 +317,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeOutputs
 		}
 	}
 
-	return AddEdgesByNamedConnections(ConnectionsToMake, &OutEdgesCreated);
+	return AddNamedEdges(EdgesToMake, &OutEdgesCreated);
 }
 
 bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsToGraphInputs(const FGuid& InNodeID, TArray<const FMetasoundFrontendEdge*>& OutEdgesCreated)
@@ -318,24 +328,24 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsT
 
 	OutEdgesCreated.Reset();
 
-	const TScriptInterface<IMetaSoundDocumentInterface> NodeDocumentInterface = FindOrLoadNodeClassDocument(InNodeID);
-	if (!NodeDocumentInterface)
+	const FMetasoundFrontendDocument* NodeDocument = FindOrLoadNodeClassDocument(InNodeID);
+	if (!NodeDocument)
 	{
 		return false;
 	}
 
 	const IDocumentGraphNodeCache& NodeCache = DocumentCache->GetNodeCache();
 
-	const TSet<FMetasoundFrontendVersion>& NodeInterfaces = NodeDocumentInterface->GetDocument().Interfaces;
+	const TSet<FMetasoundFrontendVersion>& NodeInterfaces = NodeDocument->Interfaces;
 	const TSet<FMetasoundFrontendVersion> CommonInterfaces = NodeInterfaces.Intersect(GetDocument().Interfaces);
 
-	TSet<FNamedEdge> ConnectionsToMake;
+	TSet<FNamedEdge> EdgesToMake;
 	for (const FMetasoundFrontendVersion& Version : CommonInterfaces)
 	{
 		const FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(Version);
 		if (const IInterfaceRegistryEntry* RegistryEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(InterfaceKey))
 		{
-			Algo::Transform(RegistryEntry->GetInterface().Inputs, ConnectionsToMake, [this, &NodeCache, InNodeID](const FMetasoundFrontendClassInput& Input)
+			Algo::Transform(RegistryEntry->GetInterface().Inputs, EdgesToMake, [this, &NodeCache, InNodeID](const FMetasoundFrontendClassInput& Input)
 			{
 				const FMetasoundFrontendGraph& Graph = GetDocument().RootGraph.Graph;
 				const FMetasoundFrontendVertex* NodeVertex = NodeCache.FindOutputVertex(InNodeID, Input.Name);
@@ -349,7 +359,7 @@ bool FMetaSoundFrontendDocumentBuilder::AddEdgesFromMatchingInterfaceNodeInputsT
 		}
 	}
 
-	return AddEdgesByNamedConnections(ConnectionsToMake, &OutEdgesCreated);
+	return AddNamedEdges(EdgesToMake, &OutEdgesCreated);
 }
 
 const FMetasoundFrontendNode* FMetaSoundFrontendDocumentBuilder::AddGraphInput(const FMetasoundFrontendClassInput& InClassInput)
@@ -853,7 +863,7 @@ TArray<const FMetasoundFrontendVertex*> FMetaSoundFrontendDocumentBuilder::FindN
 	return DocumentCache->GetNodeCache().FindNodeOutputs(InNodeID, TypeName);
 }
 
-const TScriptInterface<IMetaSoundDocumentInterface> FMetaSoundFrontendDocumentBuilder::FindOrLoadNodeClassDocument(const FGuid& InNodeID) const
+const FMetasoundFrontendDocument* FMetaSoundFrontendDocumentBuilder::FindOrLoadNodeClassDocument(const FGuid& InNodeID) const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -868,8 +878,9 @@ const TScriptInterface<IMetaSoundDocumentInterface> FMetaSoundFrontendDocumentBu
 			if (FMetasoundAssetBase* Asset = IMetaSoundAssetManager::GetChecked().TryLoadAssetFromKey(NodeClassRegistryKey))
 			{
 				UObject* Object = Asset->GetOwningAsset();
-				check(Object);
-				return Object;
+				TScriptInterface<IMetaSoundDocumentInterface> Interface = Object;
+				check(Interface);
+				return &Interface->GetDocument();
 			}
 		}
 	}
@@ -1076,7 +1087,7 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveEdge(const FMetasoundFrontendEdge&
 	return false;
 }
 
-bool FMetaSoundFrontendDocumentBuilder::RemoveEdgesByNamedConnections(const TSet<Metasound::Frontend::FNamedEdge>& ConnectionsToRemove, TArray<FMetasoundFrontendEdge>* OutRemovedEdges)
+bool FMetaSoundFrontendDocumentBuilder::RemoveNamedEdges(const TSet<Metasound::Frontend::FNamedEdge>& InNamedEdgesToRemove, TArray<FMetasoundFrontendEdge>* OutRemovedEdges)
 {
 	using namespace Metasound::Frontend;
 
@@ -1091,15 +1102,15 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveEdgesByNamedConnections(const TSet
 	bool bSuccess = true;
 
 	TArray<FMetasoundFrontendEdge> EdgesToRemove;
-	for (const FNamedEdge& Connection : ConnectionsToRemove)
+	for (const FNamedEdge& NamedEdge : InNamedEdgesToRemove)
 	{
 		const FMetasoundFrontendGraph& Graph = Document.RootGraph.Graph;
-		const FMetasoundFrontendVertex* OutputVertex = NodeCache.FindOutputVertex(Connection.OutputNodeID, Connection.OutputName);
-		const FMetasoundFrontendVertex* InputVertex = NodeCache.FindInputVertex(Connection.InputNodeID, Connection.InputName);
+		const FMetasoundFrontendVertex* OutputVertex = NodeCache.FindOutputVertex(NamedEdge.OutputNodeID, NamedEdge.OutputName);
+		const FMetasoundFrontendVertex* InputVertex = NodeCache.FindInputVertex(NamedEdge.InputNodeID, NamedEdge.InputName);
 
 		if (OutputVertex && InputVertex)
 		{
-			FMetasoundFrontendEdge NewEdge = { Connection.OutputNodeID, OutputVertex->VertexID, Connection.InputNodeID, InputVertex->VertexID };
+			FMetasoundFrontendEdge NewEdge = { NamedEdge.OutputNodeID, OutputVertex->VertexID, NamedEdge.InputNodeID, InputVertex->VertexID };
 			if (ContainsEdge(NewEdge))
 			{
 				EdgesToRemove.Add(MoveTemp(NewEdge));
@@ -1107,7 +1118,7 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveEdgesByNamedConnections(const TSet
 			else
 			{
 				bSuccess = false;
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to remove connection between MetaSound node output '%s' and input '%s': No connection found."), *Connection.OutputName.ToString(), *Connection.InputName.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to remove connection between MetaSound node output '%s' and input '%s': No connection found."), *NamedEdge.OutputName.ToString(), *NamedEdge.InputName.ToString());
 			}
 		}
 	}
@@ -1136,58 +1147,18 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveEdgesByNodeClassInterfaceBindings(
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	auto FindNodeClassDoc = [this](const FGuid& InNodeID) -> const FMetasoundFrontendDocument*
+	const FMetasoundFrontendDocument* FromNodeDocument = FindOrLoadNodeClassDocument(InFromNodeID);
+	const FMetasoundFrontendDocument* ToNodeDocument = FindOrLoadNodeClassDocument(InToNodeID);
+	if (FromNodeDocument && ToNodeDocument)
 	{
-		const TScriptInterface<IMetaSoundDocumentInterface> NodeDocumentUInterface = FindOrLoadNodeClassDocument(InNodeID);
-		if (NodeDocumentUInterface)
+		TSet<FNamedEdge> NamedEdges;
+		if (DocumentBuilderPrivate::TryGetInterfaceBoundEdges(InFromNodeID, *FromNodeDocument, InToNodeID, *ToNodeDocument, NamedEdges))
 		{
-			return &NodeDocumentUInterface->GetDocument();
-		}
-
-		return nullptr;
-	};
-
-	const FMetasoundFrontendDocument* OutputNodeDocument = FindNodeClassDoc(InFromNodeID);
-	const FMetasoundFrontendDocument* InputNodeDocument = FindNodeClassDoc(InToNodeID);
-
-	if (!InputNodeDocument || !OutputNodeDocument)
-	{
-		return false;
-	}
-
-	const TSet<FMetasoundFrontendVersion>& OutputInterfaceVersions = OutputNodeDocument->Interfaces;
-
-	TArray<const IInterfaceRegistryEntry*> InputNodeInterfaces;
-	FindDeclaredInterfaces(*InputNodeDocument, InputNodeInterfaces);
-
-	bool bSuccess = true;
-
-	TSet<FNamedEdge> ConnectionsToRemove;
-	TSet<FName> InputsToDisconnect;
-	for (const IInterfaceRegistryEntry* InputInterfaceEntry : InputNodeInterfaces)
-	{
-		const FMetasoundFrontendInterface& InputInterface = InputInterfaceEntry->GetInterface();
-		const TArray<FMetasoundFrontendInterfaceBinding>& OutputBindings = InputInterfaceEntry->GetOutputBindings();
-
-		// Bindings are sorted in registry with earlier entries being higher priority to apply connections,
-		// so earlier listed connections are selected over potential collisions with later entries.
-		for (const FMetasoundFrontendInterfaceBinding& OutputBinding : OutputBindings)
-		{
-			if (OutputInterfaceVersions.Contains(OutputBinding.Version))
-			{
-				for (const FMetasoundFrontendInterfaceBindingConnection& Connection : OutputBinding.Connections)
-				{
-					if (!InputsToDisconnect.Contains(Connection.InputName))
-					{
-						InputsToDisconnect.Add(Connection.InputName);
-						ConnectionsToRemove.Add(FNamedEdge{ InFromNodeID, Connection.OutputName, InToNodeID, Connection.InputName });
-					}
-				}
-			}
+			return RemoveNamedEdges(NamedEdges);
 		}
 	}
 
-	return RemoveEdgesByNamedConnections(ConnectionsToRemove);
+	return false;
 }
 
 bool FMetaSoundFrontendDocumentBuilder::RemoveEdgesFromNodeOutput(const FGuid& InNodeID, const FGuid& InVertexID)

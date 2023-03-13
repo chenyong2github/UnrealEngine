@@ -1089,7 +1089,7 @@ public:
 };
 
 USTRUCT()
-struct METASOUNDFRONTEND_API FMetasoundFrontendInterfaceBindingConnection
+struct METASOUNDFRONTEND_API FMetasoundFrontendInterfaceVertexBinding
 {
 	GENERATED_BODY()
 
@@ -1099,12 +1099,12 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendInterfaceBindingConnection
 	UPROPERTY()
 	FName InputName;
 
-	friend bool operator==(const FMetasoundFrontendInterfaceBindingConnection& InLHS, const FMetasoundFrontendInterfaceBindingConnection& InRHS)
+	friend bool operator==(const FMetasoundFrontendInterfaceVertexBinding& InLHS, const FMetasoundFrontendInterfaceVertexBinding& InRHS)
 	{
 		return InLHS.OutputName == InRHS.OutputName && InLHS.InputName == InRHS.InputName;
 	}
 
-	friend bool operator!=(const FMetasoundFrontendInterfaceBindingConnection& InLHS, const FMetasoundFrontendInterfaceBindingConnection& InRHS)
+	friend bool operator!=(const FMetasoundFrontendInterfaceVertexBinding& InLHS, const FMetasoundFrontendInterfaceVertexBinding& InRHS)
 	{
 		return InLHS.OutputName != InRHS.OutputName || InLHS.InputName != InRHS.InputName;
 	}
@@ -1114,7 +1114,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendInterfaceBindingConnection
 		return FString::Format(TEXT("{0}->{1}"), { OutputName.ToString(), InputName.ToString() });
 	}
 
-	friend FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendInterfaceBindingConnection& InBinding)
+	friend FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendInterfaceVertexBinding& InBinding)
 	{
 		return HashCombineFast(GetTypeHash(InBinding.OutputName), GetTypeHash(InBinding.InputName));
 	}
@@ -1126,16 +1126,23 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendInterfaceBinding
 {
 	GENERATED_BODY()
 
+	// Version of interface to bind from (the corresponding output vertices)
 	UPROPERTY()
-	FMetasoundFrontendVersion Version;
+	FMetasoundFrontendVersion OutputInterfaceVersion;
 
-	// Priority to determine if binding connections are higher or lower than another interface
-	// that may be shared between nodes attempting to be connected via shared interfaces.
+	// Version of interface to bind to (the corresponding input vertices)
 	UPROPERTY()
-	int32 ConnectionPriority = 0;
+	FMetasoundFrontendVersion InputInterfaceVersion;
 
+	// Value describing if interface binding priority is higher or lower than another interface
+	// binding that may be shared between vertices attempting to be connected via binding functionality.
 	UPROPERTY()
-	TArray<FMetasoundFrontendInterfaceBindingConnection> Connections;
+	int32 BindingPriority = 0;
+
+	// Array of named pairs (output & input names) that describe what edges to create if binding functionality
+	// is executed between two nodes.
+	UPROPERTY()
+	TArray<FMetasoundFrontendInterfaceVertexBinding> VertexBindings;
 };
 
 
