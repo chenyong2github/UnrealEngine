@@ -133,8 +133,6 @@ private:
 
 	void ConditionalInitializeEntityStorage(bool bOverrideWantsRestoreState);
 
-	void AddSourceMetaData(const UE::MovieScene::FPreAnimatedStateEntry& Entry);
-
 private:
 
 	friend struct FScopedPreAnimatedCaptureSource;

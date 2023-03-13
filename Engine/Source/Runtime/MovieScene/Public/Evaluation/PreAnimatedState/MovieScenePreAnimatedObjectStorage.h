@@ -116,6 +116,15 @@ public:
 		}
 	}
 
+	FPreAnimatedStateEntry MakeEntry(UObject* BoundObject)
+	{
+		FObjectKey Key{ BoundObject };
+	
+		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
+		FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
+		return FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
+	}
+
 	void BeginTrackingEntity(FMovieSceneEntityID EntityID, bool bWantsRestoreState, FRootInstanceHandle RootInstanceHandle, UObject* BoundObject) override
 	{
 		if (!this->ParentExtension->IsCapturingGlobalState() && !bWantsRestoreState)
@@ -125,12 +134,7 @@ public:
 
 		FPreAnimatedEntityCaptureSource* EntityMetaData = this->ParentExtension->GetOrCreateEntityMetaData();
 
-		FObjectKey Key{ BoundObject };
-
-		FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
-		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
-
-		FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
+		FPreAnimatedStateEntry Entry = MakeEntry(BoundObject);
 		EntityMetaData->BeginTrackingEntity(Entry, EntityID, RootInstanceHandle, bWantsRestoreState);
 	}
 
@@ -145,29 +149,19 @@ public:
 		}
 	}
 
-	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, UObject* BoundObject)
+	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, UObject* BoundObject, EPreAnimatedCaptureSourceTracking TrackingMode = EPreAnimatedCaptureSourceTracking::CacheIfTracked)
 	{
-		FObjectKey Key{ BoundObject };
-	
-		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
-		FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
-		FPreAnimatedStateEntry         Entry        = FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
-	
-		if (this->ParentExtension->IsCapturingGlobalState())
+		FPreAnimatedStateEntry Entry = MakeEntry(BoundObject);
+
+		if (this->TrackCaptureSource(Entry, TrackingMode))
 		{
-			this->ParentExtension->EnsureMetaData(Entry);
+			CachePreAnimatedValue(Params, Entry, BoundObject);
 		}
-		else if (!this->ParentExtension->MetaDataExists(Entry))
-		{
-			return;
-		}
-	
-		CachePreAnimatedValue(Params, Entry, BoundObject);
 	}
 	
 	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, const FPreAnimatedStateEntry& Entry, UObject* BoundObject)
 	{
-		FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
+		const FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
 	
 		EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
 		if (!this->IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
@@ -183,33 +177,26 @@ public:
 	}
 
 	template<typename OnCacheValue /* StorageType(const KeyType&) */>
-	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, UObject* BoundObject, OnCacheValue&& CacheCallback)
+	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, UObject* BoundObject, OnCacheValue&& CacheCallback, EPreAnimatedCaptureSourceTracking TrackingMode = EPreAnimatedCaptureSourceTracking::CacheIfTracked)
 	{
-		FObjectKey Key{ BoundObject };
+		FPreAnimatedStateEntry Entry = MakeEntry(BoundObject);
 
-		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
-		FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
-		FPreAnimatedStateEntry         Entry        = FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
+		if (this->TrackCaptureSource(Entry, TrackingMode))
+		{
+			const FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
 
-		if (this->ParentExtension->IsCapturingGlobalState())
-		{
-			this->ParentExtension->EnsureMetaData(Entry);
-		}
-		else if (!this->ParentExtension->MetaDataExists(Entry))
-		{
-			return;
-		}
+			EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
+			if (!this->IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
+			{
+				KeyType Key { BoundObject };
+				StorageType NewValue = CacheCallback(Key);
+				this->AssignPreAnimatedValue(StorageIndex, StorageRequirement, MoveTemp(NewValue));
+			}
 
-		EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
-		if (!this->IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
-		{
-			StorageType NewValue = CacheCallback(Key);
-			this->AssignPreAnimatedValue(StorageIndex, StorageRequirement, MoveTemp(NewValue));
-		}
-
-		if (Params.bForcePersist)
-		{
-			this->ForciblyPersistStorage(StorageIndex);
+			if (Params.bForcePersist)
+			{
+				this->ForciblyPersistStorage(StorageIndex);
+			}
 		}
 	}
 };

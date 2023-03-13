@@ -92,6 +92,8 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 					InputMetaData->StopTrackingCaptureSource(Inputs[OldIndex]);
 				}
 
+				FScopedPreAnimatedCaptureSource CaptureSource(PrivateLinker, InNewInputs[NewIndex]);
+
 				InNewInputs[NewIndex].bInputHasBeenProcessed = true;
 				OnInputAdded(InNewInputs[NewIndex]);
 			}
@@ -139,6 +141,8 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 		else if (ensure(NewIndex < NewNum))
 		{
 			// and in with the new
+			FScopedPreAnimatedCaptureSource CaptureSource(PrivateLinker, InNewInputs[NewIndex]);
+
 			InNewInputs[NewIndex].bInputHasBeenProcessed = true;
 			OnInputAdded(InNewInputs[NewIndex]);
 			++NewIndex;

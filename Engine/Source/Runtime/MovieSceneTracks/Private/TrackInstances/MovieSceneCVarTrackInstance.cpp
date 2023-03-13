@@ -32,7 +32,7 @@ struct FPreAnimatedCVarTraits : FPreAnimatedStateTraits
 		IConsoleVariable* ConsoleVariable = ConsoleManager.FindConsoleVariable(*InKey);
 		if (ConsoleVariable)
 		{
-			ConsoleVariable->Set(*CachedValue);
+			ConsoleVariable->SetWithCurrentPriority(*CachedValue);
 		}
 	}
 
@@ -90,7 +90,7 @@ void UMovieSceneCVarTrackInstance::OnInputAdded(const FMovieSceneTrackInstanceIn
 
 		for (const TPair<FString, FString>& Pair : CommandsAndValues)
 		{
-			CVarStorage->CachePreAnimatedValue(UngroupedHandle, Pair.Key, FPreAnimatedCVarTraits::CachePreAnimatedValue);
+			CVarStorage->CachePreAnimatedValue(UngroupedHandle, Pair.Key, FPreAnimatedCVarTraits::CachePreAnimatedValue, EPreAnimatedCaptureSourceTracking::AlwaysCache);
 		}
 	}
 
@@ -174,7 +174,7 @@ void UMovieSceneCVarTrackInstance::OnEndUpdateInputs()
 		IConsoleVariable* ConsoleVariable = ConsoleManager.FindConsoleVariable(*Pair.Key);
 		if (ConsoleVariable)
 		{
-			ConsoleVariable->Set(*Pair.Value.Value);
+			ConsoleVariable->SetWithCurrentPriority(*Pair.Value.Value);
 		}
 		else
 		{
