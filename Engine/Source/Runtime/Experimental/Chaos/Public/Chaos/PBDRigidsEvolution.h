@@ -537,6 +537,17 @@ public:
 							return;
 						}
 					}
+					else
+					{
+						// There's probably no way we get here since if we're clustering the parent should always be a clustered.
+						ensure(false);
+						return;
+					}
+				}
+				else
+				{
+					// Disabled cluster particle that doesn't have a parent cluster. MUST BE IGNORED.
+					return;
 				}
 			}
 			else

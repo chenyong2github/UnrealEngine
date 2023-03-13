@@ -677,6 +677,14 @@ namespace Chaos
 
 		EnqueueCommandImmediate([InProxy, this]()
 			{
+				for (FPBDRigidClusteredParticleHandle* Handle : InProxy->GetSolverParticleHandles())
+				{
+					if (Handle)
+					{
+						MEvolution->DisableParticle(Handle);
+					}
+				}
+
 				GeometryCollectionPhysicsProxies_Internal.RemoveSingle(InProxy);
 				InProxy->SyncBeforeDestroy();
 				InProxy->ResetDirtyIdx();
@@ -720,9 +728,18 @@ namespace Chaos
 		Proxy->MarkDeleted();
 		RemoveDirtyProxy(Proxy);
 
+		if (FPBDRigidParticle* GTParticle = Proxy->GetParticle_External())
+		{
+			GTParticle->SetProxy(nullptr);
+		}
+
 		EnqueueCommandImmediate(
 			[Proxy, this]()
 			{
+				if (Proxy->GetParticle_Internal())
+				{
+					MEvolution->DisableParticle(Proxy->GetParticle_Internal());
+				}
 				ClusterUnionPhysicsProxies_Internal.RemoveSingle(Proxy);
 				Proxy->SyncBeforeDestroy();
 				Proxy->ResetDirtyIdx();
