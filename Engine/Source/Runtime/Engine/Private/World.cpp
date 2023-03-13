@@ -8468,20 +8468,34 @@ void UWorld::DuplicateRequestedLevels(const FName MapName)
 		DuplicateLevels.SetPersistentLevel(DuplicatePersistentLevel);
 		DuplicateLevels.AddLevel(DuplicatePersistentLevel);
 
-		for (ULevelStreaming* StreamingLevel : StreamingLevels)
+		if (!IsPartitionedWorld())
 		{
-			if (StreamingLevel && !StreamingLevel->bIsStatic)
+			for (ULevelStreaming* StreamingLevel : StreamingLevels)
 			{
-				ULevel* DuplicatedLevel = DuplicateLevelWithPrefix(StreamingLevel->GetLoadedLevel(), 1);
-				if (!DuplicatedLevel)
+				if (StreamingLevel && !StreamingLevel->bIsStatic)
 				{
-					UE_LOG(LogWorld, Warning, TEXT("UWorld::DuplicateRequestedLevels: failed to duplicate streaming level %s. No duplicate level collection will be created."),
-						*GetFullNameSafe(StreamingLevel->GetLoadedLevel()));
-					return;
+					ULevel* DuplicatedLevel = DuplicateLevelWithPrefix(StreamingLevel->GetLoadedLevel(), 1);
+					if (!DuplicatedLevel)
+					{
+						UE_LOG(LogWorld, Warning, TEXT("UWorld::DuplicateRequestedLevels: failed to duplicate streaming level %s. No duplicate level collection will be created."),
+							*GetFullNameSafe(StreamingLevel->GetLoadedLevel()));
+						return;
+					}
+					// Don't tell the server about these levels
+					DuplicatedLevel->bClientOnlyVisible = true;
+					DuplicateLevels.AddLevel(DuplicatedLevel);
 				}
-				// Don't tell the server about these levels
-				DuplicatedLevel->bClientOnlyVisible = true;
-				DuplicateLevels.AddLevel(DuplicatedLevel);
+			}
+		}
+		else
+		{
+			UE_LOG(LogWorld, Log, TEXT("UWorld::DuplicateRequestedLevels: Attempting to duplicate levels for partitioned world. The persistent Level will be duplicated, but all streaming cells will be considered static."));
+
+			// If duplicating a partitioned world, remove and destroy the duplicated persistent level's UWorldPartition
+			UWorldPartition* DuplicateWP = DuplicatePersistentLevel->GetWorldPartition();
+			if (DuplicateWP)
+			{
+				DuplicateWP->MarkAsGarbage();
 			}
 		}
 

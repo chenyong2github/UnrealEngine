@@ -50,6 +50,10 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
 	StreamingPriority = 0;
 
+	// Default WP streaming levels to static, so they're not hidden during instant replay playback
+	// This means only the persistent level will be duplicated/hidden
+	bIsStatic = true;
+
 	UWorld* CellOuterWorld = InCell.GetOuterWorld();
 #if WITH_EDITOR
 	check(ChildPackages.Num() == 0);
