@@ -512,8 +512,8 @@ void ReflectionResolveCS(
 				float CenterTraceHitDistance = ClosestHitDepth;
 
 				{
-					bool bUnused;
-					CenterTraceHitDistance = DecodeRayDistance(TraceHit[ReflectionScreenCoord_Flatten].x, bUnused);
+					bool bHit;
+					CenterTraceHitDistance = DecodeRayDistance(TraceHit[ReflectionScreenCoord_Flatten].x, bHit);
 					ClosestHitDepth = CenterTraceHitDistance;
 
 					const bool bUseCenterSample = ReflectionDownsampleFactor == 1;

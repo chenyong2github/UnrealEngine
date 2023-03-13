@@ -414,7 +414,8 @@ class FLumenVisualizeHardwareRayTracing : public FLumenHardwareRayTracingShaderB
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
-		SHADER_PARAMETER(float, FarFieldDitheredStartDistanceFactor)
+		SHADER_PARAMETER(float, NearFieldMaxTraceDistanceDitherScale)
+		SHADER_PARAMETER(float, NearFieldSceneRadius)
 		SHADER_PARAMETER(uint32, ApplySkylightStage)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
 
@@ -545,7 +546,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 
 	// Cache near-field and far-field trace distances
 	const float FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
-	const float MaxTraceDistance = (GetRayTracingCulling() != 0) ? GetRayTracingCullingRadius() : IndirectTracingParameters.MaxTraceDistance;
+	const float MaxTraceDistance = IndirectTracingParameters.MaxTraceDistance;
 
 	// Generate tiles
 	FRDGBufferRef TileAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Visualize.TileAllocator"));
@@ -639,7 +640,8 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
-			PassParameters->FarFieldDitheredStartDistanceFactor = bTraceFarField ? Lumen::GetFarFieldDitheredStartDistanceFactor() : 1.0f;
+			PassParameters->NearFieldMaxTraceDistanceDitherScale = Lumen::GetNearFieldMaxTraceDistanceDitherScale(bTraceFarField, MaxTraceDistance);
+			PassParameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(bTraceFarField);
 			PassParameters->ApplySkylightStage = 1;
 
 			if (bNeedTraceHairVoxel)
@@ -823,7 +825,8 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
-			PassParameters->FarFieldDitheredStartDistanceFactor = 1.0;
+			PassParameters->NearFieldMaxTraceDistanceDitherScale = Lumen::GetNearFieldMaxTraceDistanceDitherScale(bTraceFarField, MaxTraceDistance);
+			PassParameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(bTraceFarField);
 			// Even though the retrace should only be processing hits, which don't need skylight, the retrace may miss as it uses a different FRayTracingPipelineState
 			PassParameters->ApplySkylightStage = 1;
 

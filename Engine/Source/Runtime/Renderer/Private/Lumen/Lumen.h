@@ -133,7 +133,8 @@ namespace Lumen
 
 	bool UseFarField(const FSceneViewFamily& ViewFamily);
 	float GetFarFieldMaxTraceDistance();
-	float GetFarFieldDitheredStartDistanceFactor();
+	float GetNearFieldMaxTraceDistanceDitherScale(bool bUseFarField, float NearFieldMaxTraceDistance);
+	float GetNearFieldSceneRadius(bool bUseFarField);
 	FVector GetFarFieldReferencePos();
 
 	float GetHeightfieldReceiverBias();

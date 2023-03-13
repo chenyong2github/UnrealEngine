@@ -127,8 +127,8 @@ static TAutoConsoleVariable<float> CVarLumenFarFieldMaxTraceDistance(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarLumenFarFieldDitheredStartDistanceFactor(
-	TEXT("r.LumenScene.FarField.DitheredStartDistanceFactor"), 0.66f,
-	TEXT("Starting distance for far-field dithered t-min, as a percentage of near-field t-max (Default = 0.66f)."),
+	TEXT("r.LumenScene.FarField.DitheredStartDistanceFactor"), 0.9f,
+	TEXT("Starting distance for far-field dithered t-min, as a percentage of near-field t-max (Default = 0.9)."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarLumenFarFieldReferencePosZ(
@@ -151,9 +151,28 @@ namespace Lumen
 		return CVarLumenFarFieldMaxTraceDistance.GetValueOnRenderThread();
 	}
 
-	float GetFarFieldDitheredStartDistanceFactor()
+	float GetNearFieldMaxTraceDistanceDitherScale(bool bUseFarField, float NearFieldMaxTraceDistance)
 	{
-		return FMath::Clamp(CVarLumenFarFieldDitheredStartDistanceFactor.GetValueOnRenderThread(), 0.0f, 1.0f);
+		float DitherScale = 0.0f;
+
+		if (bUseFarField)
+		{
+			DitherScale = FMath::Clamp(1.0f - CVarLumenFarFieldDitheredStartDistanceFactor.GetValueOnRenderThread(), 0.0f, 1.0f) * NearFieldMaxTraceDistance;
+		}
+
+		return DitherScale;
+	}
+
+	float GetNearFieldSceneRadius(bool bUseFarField)
+	{
+		float SceneRadius = FLT_MAX;
+
+		if (bUseFarField && GetRayTracingCulling() != 0)
+		{
+			return GetRayTracingCullingRadius();
+		}
+
+		return SceneRadius;
 	}
 
 	FVector GetFarFieldReferencePos()

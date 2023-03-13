@@ -6,7 +6,7 @@
 
 struct FLumenRayHitBookmark
 {
-	uint PackedData[2];
+	uint2 PackedData;
 };
 
 /**
@@ -59,8 +59,8 @@ FTraceDataPacked PackTraceData(FTraceData TraceData)
 		| (TraceData.bIsHit & 0x01)
 		| ((TraceData.bIsRadianceCompleted & 0x01) << 1)
 		| ((TraceData.bIsFarField & 0x01) << 2);
-	TraceDataPacked.PackedData[3] = TraceData.Bookmark.PackedData[0];
-	TraceDataPacked.PackedData[4] = TraceData.Bookmark.PackedData[1];
+	TraceDataPacked.PackedData[3] = TraceData.Bookmark.PackedData.x;
+	TraceDataPacked.PackedData[4] = TraceData.Bookmark.PackedData.y;
 
 	return TraceDataPacked;
 }
@@ -74,8 +74,8 @@ FTraceData UnpackTraceData(FTraceDataPacked TraceDataPacked)
 	TraceData.bIsHit = (TraceDataPacked.PackedData[2] & 0x01) != 0;
 	TraceData.bIsRadianceCompleted = (TraceDataPacked.PackedData[2] & 0x02) != 0;
 	TraceData.bIsFarField = (TraceDataPacked.PackedData[2] & 0x04) != 0;
-	TraceData.Bookmark.PackedData[0] = TraceDataPacked.PackedData[3];
-	TraceData.Bookmark.PackedData[1] = TraceDataPacked.PackedData[4];
+	TraceData.Bookmark.PackedData.x = TraceDataPacked.PackedData[3];
+	TraceData.Bookmark.PackedData.y = TraceDataPacked.PackedData[4];
 
 	return TraceData;
 }

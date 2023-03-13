@@ -426,7 +426,8 @@ uint LightingMode;
 uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 float3 FarFieldReferencePos;
-float FarFieldDitheredStartDistanceFactor;
+float NearFieldMaxTraceDistanceDitherScale;
+float NearFieldSceneRadius;
 uint ApplySkylightStage;
 uint MaxReflectionBounces;
 
@@ -459,14 +460,20 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		HitLightingMode = LightingMode;
 #endif // DIM_TRACE_MODE
 
-		float DitheredStartDistance = FarFieldDitheredStartDistanceFactor * MaxTraceDistance;
-		float DitheredMaxTraceDistance = CalcDitheredDistance(TraceCoord, DitheredStartDistance, MaxTraceDistance);
-
 		// We are rendering after TAAU, remove jitter
 		BufferUV += View.TemporalAAJitter.xy * View.ScreenPositionScaleBias.xy;
 
 		FRayDesc Ray = CreatePrimaryRay(BufferUV);
-		Ray.TMax = min(Ray.TMax, DitheredMaxTraceDistance);
+
+		float ClippedNearFieldMaxTraceDistance = ClipAndDitherNearFieldMaxTraceDistance(
+			Ray.Origin,
+			Ray.Direction,
+			TraceCoord,
+			NearFieldSceneRadius,
+			MaxTraceDistance,
+			NearFieldMaxTraceDistanceDitherScale);
+
+		Ray.TMax = min(Ray.TMax, ClippedNearFieldMaxTraceDistance);
 #if DIM_HIT_LIGHTING
 		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 		if (TraceData.bIsValidMeshCardIndex)

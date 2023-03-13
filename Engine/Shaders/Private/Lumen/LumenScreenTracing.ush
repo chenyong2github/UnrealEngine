@@ -305,7 +305,10 @@ float PrevSceneColorPreExposureCorrection;
 
 float SampleSceneColorNormalTreshold;
 
-void SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, float3 HitGeometryWorldNormal, uint2 SvPosition, float RelativeDepthThickness, inout float3 Lighting)
+/**
+ * Try to sample scene color at hit and return whether it was successfull
+ */
+bool SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, float3 HitGeometryWorldNormal, uint2 SvPosition, float RelativeDepthThickness, inout float3 Lighting)
 {
 	float4 HitClipPosition = mul(float4(HitTranslatedWorldPosition, 1.0f), View.TranslatedWorldToClip);
 
@@ -357,10 +360,13 @@ void SampleSceneColorAtHit(float3 HitTranslatedWorldPosition, float3 HitGeometry
 					float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
 					HitHistoryScreenUV = clamp(HitHistoryScreenUV, PrevSceneColorBilinearUVMin, PrevSceneColorBilinearUVMax);
 					Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection * View.OneOverPreExposure;
+					return true;
 				}
 			}
 		}
 	}
+
+	return false;
 }
 
 float DistantScreenTraceSlopeCompareTolerance;

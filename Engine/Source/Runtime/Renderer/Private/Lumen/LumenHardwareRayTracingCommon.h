@@ -203,17 +203,6 @@ void LumenHWRTCompactRays(
 	ERDGPassFlags ComputePassFlags
 );
 
-void LumenHWRTBucketRaysByMaterialID(
-	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FViewInfo& View,
-	int32 RayCount,
-	FRDGBufferRef& RayAllocatorBuffer,
-	FRDGBufferRef& TraceDataPackedBuffer,
-	ERDGPassFlags ComputePassFlags
-);
-
-
 // Pass helpers
 template<typename TShaderClass>
 static void AddLumenRayTraceDispatchPass(

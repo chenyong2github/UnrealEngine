@@ -16,7 +16,7 @@ static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingAsyncCompute(
 	TEXT("r.Lumen.HardwareRayTracing.AsyncCompute"),
 	0,
 	TEXT("Whether Lumen when using Hardware Ray Tracing should use async compute if supported (default = 0)."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarLumenThreadGroupSize32(

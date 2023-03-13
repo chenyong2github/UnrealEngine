@@ -266,14 +266,14 @@ float GLumenReflectionsSpecularScale = 1.f;
 FAutoConsoleVariableRef GVarLumenReflectionsSpecularScale(
 	TEXT("r.Lumen.Reflections.SpecularScale"),
 	GLumenReflectionsSpecularScale,
-	TEXT("Scale Lumen specular reflection."),
+	TEXT("Non-physically correct Lumen specular reflection scale. Recommended to keep at 1."),
 	ECVF_RenderThreadSafe);
 
 float GLumenReflectionsContrast = 1.f;
 FAutoConsoleVariableRef GVarLumenReflectionsContrast(
 	TEXT("r.Lumen.Reflections.Contrast"),
 	GLumenReflectionsContrast,
-	TEXT("Scale Lumen reflection contrast."),
+	TEXT("Non-physically correct Lumen reflection contrast. Recommended to keep at 1."),
 	ECVF_RenderThreadSafe);
 
 float GetLumenReflectionSpecularScale()
@@ -1068,6 +1068,9 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		BufferSize = Strata::GetStrataTextureResolution(View, BufferSize);
 	}
 
+	const bool bUseFarField = LumenReflections::UseFarField(*View.Family);
+	const float NearFieldMaxTraceDistance = Lumen::GetMaxTraceDistance(View);
+
 	ReflectionTracingParameters.ReflectionTracingViewSize = ViewSize;
 	ReflectionTracingParameters.ReflectionTracingBufferSize = BufferSize;
 	ReflectionTracingParameters.MaxRayIntensity = GLumenReflectionMaxRayIntensity;
@@ -1076,6 +1079,10 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.UseJitter = bDenoise && GLumenReflectionTemporalFilter ? 1 : 0;
 	ReflectionTracingParameters.UseHighResSurface = CVarLumenReflectionsHiResSurface.GetValueOnRenderThread() != 0 ? 1 : 0;
 	ReflectionTracingParameters.MaxReflectionBounces = LumenReflections::GetMaxReflectionBounces(View);
+	ReflectionTracingParameters.NearFieldMaxTraceDistance = NearFieldMaxTraceDistance;
+	ReflectionTracingParameters.FarFieldMaxTraceDistance = bUseFarField ? Lumen::GetFarFieldMaxTraceDistance() : NearFieldMaxTraceDistance;
+	ReflectionTracingParameters.NearFieldMaxTraceDistanceDitherScale = Lumen::GetNearFieldMaxTraceDistanceDitherScale(bUseFarField, NearFieldMaxTraceDistance);
+	ReflectionTracingParameters.NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(bUseFarField);
 
 	FRDGTextureDesc RayBufferDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ReflectionTracingParameters.RayBuffer = GraphBuilder.CreateTexture(RayBufferDesc, TEXT("Lumen.Reflections.ReflectionRayBuffer"));
@@ -1148,12 +1155,24 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	}
 
 	FRDGTextureDesc TraceRadianceDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-	ReflectionTracingParameters.TraceRadiance = GraphBuilder.CreateTexture(TraceRadianceDesc, TEXT("Lumen.Reflections.ReflectionTraceRadiance"));
+	ReflectionTracingParameters.TraceRadiance = GraphBuilder.CreateTexture(TraceRadianceDesc, TEXT("Lumen.Reflections.TraceRadiance"));
 	ReflectionTracingParameters.RWTraceRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.TraceRadiance));
 
 	FRDGTextureDesc TraceHitDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-	ReflectionTracingParameters.TraceHit = GraphBuilder.CreateTexture(TraceHitDesc, TEXT("Lumen.Reflections.ReflectionTraceHit"));
+	ReflectionTracingParameters.TraceHit = GraphBuilder.CreateTexture(TraceHitDesc, TEXT("Lumen.Reflections.TraceHit"));
 	ReflectionTracingParameters.RWTraceHit = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.TraceHit));
+
+	// Hit lighting requires a few optional buffers
+	if (LumenReflections::UseHitLighting(View))
+	{
+		FRDGTextureDesc TraceMaterialIdDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ReflectionTracingParameters.TraceMaterialId = GraphBuilder.CreateTexture(TraceMaterialIdDesc, TEXT("Lumen.Reflections.TraceMaterialId"));
+		ReflectionTracingParameters.RWTraceMaterialId = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.TraceMaterialId));
+
+		FRDGTextureDesc TraceBookmarkDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ReflectionTracingParameters.TraceBookmark = GraphBuilder.CreateTexture(TraceBookmarkDesc, TEXT("Lumen.Reflections.TraceBookmark"));
+		ReflectionTracingParameters.RWTraceBookmark = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.TraceBookmark));
+	}
 
 	const bool bTraceMeshObjects = GLumenReflectionTraceMeshSDFs != 0 
 		&& Lumen::UseMeshSDFTracing(ViewFamily)

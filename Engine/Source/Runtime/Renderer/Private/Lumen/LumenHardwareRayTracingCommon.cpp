@@ -345,72 +345,6 @@ class FLumenHWRTCompactRaysCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenHWRTCompactRaysCS, "/Engine/Private/Lumen/LumenHardwareRayTracingPipeline.usf", "FLumenHWRTCompactRaysCS", SF_Compute);
 
-
-class FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS)
-	SHADER_USE_PARAMETER_STRUCT(FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS, FGlobalShader)
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWBucketRaysByMaterialIdIndirectArgs)
-		END_SHADER_PARAMETER_STRUCT()
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_2D"), GetThreadGroupSize2D());
-	}
-
-	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize2D() * GetThreadGroupSize2D(); }
-	static int32 GetThreadGroupSize2D() { return 16; }
-};
-
-IMPLEMENT_GLOBAL_SHADER(FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS, "/Engine/Private/Lumen/LumenHardwareRayTracingPipeline.usf", "FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS", SF_Compute);
-
-class FLumenHWRTBucketRaysByMaterialIdCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FLumenHWRTBucketRaysByMaterialIdCS)
-	SHADER_USE_PARAMETER_STRUCT(FLumenHWRTBucketRaysByMaterialIdCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		// Input
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, TraceDataPacked)
-
-		SHADER_PARAMETER(int, MaxRayAllocationCount)
-
-		// Output
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, RWTraceDataPacked)
-
-		// Indirect args
-		RDG_BUFFER_ACCESS(BucketRaysByMaterialIdIndirectArgs, ERHIAccess::IndirectArgs)
-		END_SHADER_PARAMETER_STRUCT()
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_2D"), GetThreadGroupSize2D());
-	}
-
-	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize2D() * GetThreadGroupSize2D(); }
-	static int32 GetThreadGroupSize2D() { return 16; }
-};
-
-IMPLEMENT_GLOBAL_SHADER(FLumenHWRTBucketRaysByMaterialIdCS, "/Engine/Private/Lumen/LumenHardwareRayTracingPipeline.usf", "FLumenHWRTBucketRaysByMaterialIdCS", SF_Compute);
-
 void LumenHWRTCompactRays(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -468,65 +402,6 @@ void LumenHWRTCompactRays(
 			PassParameters,
 			PassParameters->CompactRaysIndirectArgs,
 			0);
-	}
-}
-
-void LumenHWRTBucketRaysByMaterialID(
-	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FViewInfo& View,
-	int32 RayCount,
-	FRDGBufferRef& RayAllocatorBuffer,
-	FRDGBufferRef& TraceDataPackedBuffer,
-	ERDGPassFlags ComputePassFlags
-)
-{
-	FRDGBufferRef BucketRaysByMaterialIdIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.HWRT.BucketRaysByMaterialIdIndirectArgsBuffer"));
-	{
-		FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS::FParameters>();
-		{
-			PassParameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);
-			PassParameters->RWBucketRaysByMaterialIdIndirectArgs = GraphBuilder.CreateUAV(BucketRaysByMaterialIdIndirectArgsBuffer, PF_R32_UINT);
-		}
-
-		TShaderRef<FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS> ComputeShader = View.ShaderMap->GetShader<FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS>();
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("BucketRaysByMaterialIdIndirectArgs"),
-			ComputePassFlags,
-			ComputeShader,
-			PassParameters,
-			FIntVector(1, 1, 1));
-	}
-
-	FRDGBufferRef BucketedTexelTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.HWRT.BucketedTexelTraceDataPackedBuffer"));
-	FRDGBufferRef BucketedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), RayCount), TEXT("Lumen.HWRT.BucketedTraceDataPacked"));
-	{
-		FLumenHWRTBucketRaysByMaterialIdCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenHWRTBucketRaysByMaterialIdCS::FParameters>();
-		{
-			// Input
-			PassParameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);
-			PassParameters->TraceDataPacked = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TraceDataPackedBuffer));
-			PassParameters->MaxRayAllocationCount = RayCount;
-
-			// Output
-			PassParameters->RWTraceDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(BucketedTraceDataPackedBuffer));
-
-			// Indirect args
-			PassParameters->BucketRaysByMaterialIdIndirectArgs = BucketRaysByMaterialIdIndirectArgsBuffer;
-		}
-
-		TShaderRef<FLumenHWRTBucketRaysByMaterialIdCS> ComputeShader = View.ShaderMap->GetShader<FLumenHWRTBucketRaysByMaterialIdCS>();
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("BucketRaysByMaterialId"),
-			ComputePassFlags,
-			ComputeShader,
-			PassParameters,
-			PassParameters->BucketRaysByMaterialIdIndirectArgs,
-			0);
-
-		TraceDataPackedBuffer = BucketedTraceDataPackedBuffer;
 	}
 }
 

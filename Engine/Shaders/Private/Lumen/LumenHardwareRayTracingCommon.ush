@@ -76,11 +76,26 @@ void name##_INTERNAL(uint3 DispatchThreadIndex, uint3 DispatchGroupId, uint Disp
 #define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING 2
 #define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING 3
 
-float CalcDitheredDistance(uint2 TraceCoord, float StartDistance, float EndDistance)
+/**
+ * Clip near field ray to ray tracing culling radius, and apply dithering to hide transition region between nead and far field.
+ */
+float ClipAndDitherNearFieldMaxTraceDistance(
+	float3 TranslatedWorldRayOrigin,
+	float3 RayDirection,
+	uint2 NoiseCoord,
+	float NearFieldSceneRadius,
+	float NearFieldMaxTraceDistance,
+	float NearFieldMaxTraceDistanceDitherScale)
 {
-	const float Dither = InterleavedGradientNoise(TraceCoord, View.StateFrameIndexMod8);
-	float DitheredDistance = lerp(StartDistance, EndDistance, Dither);
-	return DitheredDistance;
+	float ClippedNearFieldMaxTraceDistance = 0.0f;
+
+	float2 RaySphereHit = RayIntersectSphere(TranslatedWorldRayOrigin, RayDirection, float4(PrimaryView.TranslatedWorldCameraOrigin, NearFieldSceneRadius));
+	if (RaySphereHit.x < 0.0f && RaySphereHit.y > 0.0f)
+	{
+		ClippedNearFieldMaxTraceDistance = min(RaySphereHit.y, NearFieldMaxTraceDistance) - InterleavedGradientNoise(NoiseCoord, View.StateFrameIndexMod8) * NearFieldMaxTraceDistanceDitherScale;
+	}
+
+	return ClippedNearFieldMaxTraceDistance;
 }
 
 struct FHitGroupRootConstants
