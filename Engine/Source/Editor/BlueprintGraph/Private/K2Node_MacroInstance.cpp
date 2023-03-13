@@ -336,7 +336,6 @@ void UK2Node_MacroInstance::NodeConnectionListChanged()
 		if (Blueprint && !Blueprint->bBeingCompiled)
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-			Blueprint->BroadcastChanged();
 		}
 	}
 }

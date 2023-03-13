@@ -2725,8 +2725,6 @@ void UK2Node_MathExpression::RebuildExpression(FString InExpression)
 		// finally, recompile
 		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(this);
 		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-		// The UI needs a refresh, so notify any interested parties that the blueprint has changed
-		Blueprint->BroadcastChanged();
 	}
 }
 

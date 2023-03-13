@@ -18,6 +18,9 @@ enum EEdGraphActionType
 
 	/** A node was removed from the graph at the user's request */
 	GRAPHACTION_RemoveNode = 0x1 << 2,
+
+	/** A node was edited in the graph by a user */
+	GRAPHACTION_EditNode = 0x1 << 3,
 };
 
 

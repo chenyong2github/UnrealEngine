@@ -136,7 +136,6 @@ void UK2Node_ExecutePythonScript::SynchronizeArgumentPinTypeImpl(UEdGraphPin* Pi
 		if (!Blueprint->bBeingCompiled)
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-			Blueprint->BroadcastChanged();
 		}
 	}
 }

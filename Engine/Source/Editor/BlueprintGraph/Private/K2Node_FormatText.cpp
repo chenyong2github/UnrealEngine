@@ -115,7 +115,6 @@ void UK2Node_FormatText::SynchronizeArgumentPinType(UEdGraphPin* Pin)
 			if (!Blueprint->bBeingCompiled)
 			{
 				FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-				Blueprint->BroadcastChanged();
 			}
 		}
 	}

@@ -714,7 +714,6 @@ void UK2Node_Select::NodeConnectionListChanged()
 		if(!Blueprint->bBeingCompiled)
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-			Blueprint->BroadcastChanged();
 		}
 	}
 }
@@ -764,7 +763,6 @@ void UK2Node_Select::ChangePinType(UEdGraphPin* Pin)
 	if (!Blueprint->bBeingCompiled)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-		Blueprint->BroadcastChanged();
 	}
 }
 

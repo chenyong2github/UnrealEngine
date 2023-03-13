@@ -192,12 +192,13 @@ void SGraphEditorImpl::OnGraphChanged(const FEdGraphEditAction& InAction)
 		const bool bWasAddAction = (InAction.Action & GRAPHACTION_AddNode) != 0;
 		const bool bWasSelectAction = (InAction.Action & GRAPHACTION_SelectNode) != 0;
 		const bool bWasRemoveAction = (InAction.Action & GRAPHACTION_RemoveNode) != 0;
+		const bool bWasEditAction = (InAction.Action & GRAPHACTION_EditNode) != 0;
 
 		// If we did a 'default action' (or some other action not handled by SGraphPanel::OnGraphChanged
 		// or if we're using a schema that always needs a full refresh, then purge the current nodes
 		// and queue an update:
 		if (bSchemaRequiresFullRefresh || 
-			(!bWasAddAction && !bWasSelectAction && !bWasRemoveAction) )
+			(!bWasAddAction && !bWasSelectAction && !bWasRemoveAction && !bWasEditAction) )
 		{
 			GraphPanel->PurgeVisualRepresentation();
 			// Trigger the refresh
@@ -208,6 +209,13 @@ void SGraphEditorImpl::OnGraphChanged(const FEdGraphEditAction& InAction)
 		if (bWasAddAction)
 		{
 			NumNodesAddedSinceLastPointerPosition++;
+		}
+		else if (bWasEditAction && !bSchemaRequiresFullRefresh)
+		{
+			for (const UEdGraphNode* Node : InAction.Nodes)
+			{
+				RefreshNode(const_cast<UEdGraphNode&>(*Node));
+			}
 		}
 	}
 }
