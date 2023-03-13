@@ -3,8 +3,10 @@
 #pragma once
 
 #include "Chaos/Interface/SQTypes.h"
+#include "Chaos/GeometryQueries.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PhysicsObject.h"
+#include "Chaos/ShapeInstanceFwd.h"
 #include "Chaos/ISpatialAcceleration.h"
 #include "Framework/Threading.h"
 #include "Containers/ArrayView.h"
@@ -68,10 +70,14 @@ namespace Chaos
 		TThreadParticle<Id>* GetParticle(const FConstPhysicsObjectHandle Object);
 		TArray<TThreadParticle<Id>*> GetAllParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 		TArray<TThreadRigidParticle<Id>*> GetAllRigidParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+
+		UE_DEPRECATED(5.3, "GetAllShapes has been deprecated. Please use GetAllThreadShapes instead.")
 		TArray<FPerShapeData*> GetAllShapes(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 
+		TArray<TThreadShapeInstance<Id>*> GetAllThreadShapes(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+
 		// Returns true if a shape is found and we can stop iterating.
-		void VisitEveryShape(TArrayView<const FConstPhysicsObjectHandle> InObjects, TFunctionRef<bool(const FConstPhysicsObjectHandle, FPerShapeData*)> Lambda);
+		void VisitEveryShape(TArrayView<const FConstPhysicsObjectHandle> InObjects, TFunctionRef<bool(const FConstPhysicsObjectHandle, TThreadShapeInstance<Id>*)> Lambda);
 
 		UE_DEPRECATED(5.3, "GetPhysicsObjectOverlap has been deprecated. Please use the function for the specific overlap metric you wish to compute instead.")
 		bool GetPhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FConstPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
@@ -102,9 +108,192 @@ namespace Chaos
 		FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<const FConstPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
 		FAccelerationStructureHandle CreateAccelerationStructureHandle(const FConstPhysicsObjectHandle Handle);
 
-		bool LineTrace(TArrayView<const FConstPhysicsObjectHandle> InObjects, const FVector& WorldStart, const FVector& WorldEnd, bool bTraceComplex, ChaosInterface::FRaycastHit& OutBestHit);
-		bool ShapeOverlap(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, TArray<ChaosInterface::FOverlapHit>& OutOverlaps);
-		bool ShapeSweep(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& StartTM, const FVector& EndPos, bool bSweepComplex, ChaosInterface::FSweepHit& OutBestHit);
+		template<typename TRaycastHit>
+		bool LineTrace(TArrayView<const FConstPhysicsObjectHandle> InObjects, const FVector& WorldStart, const FVector& WorldEnd, bool bTraceComplex, TRaycastHit& OutBestHit)
+		{
+			static_assert(std::is_same_v<TRaycastHit, ChaosInterface::TThreadRaycastHit<Id>>);
+			bool bHit = false;
+			OutBestHit.Distance = TNumericLimits<float>::Max();
+
+			const FVector Delta = WorldEnd - WorldStart;
+			const FReal DeltaMag = Delta.Size();
+			if (DeltaMag < UE_KINDA_SMALL_NUMBER)
+			{
+				return false;
+			}
+
+			FTransform BestWorldTM = FTransform::Identity;
+
+			for (const FConstPhysicsObjectHandle Object : InObjects)
+			{
+				const FTransform WorldTM = GetTransform(Object);
+				const FVector LocalStart = WorldTM.InverseTransformPositionNoScale(WorldStart);
+				const FVector LocalDelta = WorldTM.InverseTransformVectorNoScale(Delta);
+
+				VisitEveryShape(
+					{ &Object, 1 },
+					[this, &bHit, &WorldTM, &LocalStart, &LocalDelta, &Delta, DeltaMag, &BestWorldTM, bTraceComplex, &OutBestHit](const FConstPhysicsObjectHandle IterObject, TThreadShapeInstance<Id>* Shape)
+					{
+						check(Shape);
+
+						FCollisionFilterData ShapeFilter = Shape->GetQueryData();
+						const bool bShapeIsComplex = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::ComplexCollision)) != 0;
+						const bool bShapeIsSimple = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::SimpleCollision)) != 0;
+						if ((bTraceComplex && bShapeIsComplex) || (!bTraceComplex && bShapeIsSimple))
+						{
+							FReal Distance;
+							FVec3 LocalPosition;
+							FVec3 LocalNormal;
+							int32 FaceIndex;
+
+							const bool bRaycastHit = Shape->GetGeometry()->Raycast(
+								LocalStart,
+								LocalDelta / DeltaMag,
+								DeltaMag,
+								0,
+								Distance,
+								LocalPosition,
+								LocalNormal,
+								FaceIndex
+							);
+
+							if (bRaycastHit)
+							{
+								if (Distance < OutBestHit.Distance)
+								{
+									bHit = true;
+									BestWorldTM = WorldTM;
+									OutBestHit.Distance = static_cast<float>(Distance);
+									OutBestHit.WorldNormal = LocalNormal;
+									OutBestHit.WorldPosition = LocalPosition;
+									OutBestHit.Shape = Shape;
+									OutBestHit.Actor = GetParticle(IterObject);
+									OutBestHit.FaceIndex = FaceIndex;
+								}
+							}
+						}
+						return false;
+					}
+				);
+			}
+
+			if (bHit)
+			{
+				OutBestHit.WorldNormal = BestWorldTM.TransformVectorNoScale(OutBestHit.WorldNormal);
+				OutBestHit.WorldPosition = BestWorldTM.TransformPositionNoScale(OutBestHit.WorldPosition);
+			}
+
+			return bHit;
+		}
+
+		template<typename TOverlapHit>
+		bool ShapeOverlap(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, TArray<TOverlapHit>& OutOverlaps)
+		{
+			static_assert(std::is_same_v<TOverlapHit, ChaosInterface::TThreadOverlapHit<Id>>);
+			bool bHasOverlap = false;
+			for (const FConstPhysicsObjectHandle Object : InObjects)
+			{
+				const FTransform WorldTM = GetTransform(Object);
+
+				VisitEveryShape(
+					{ &Object, 1 },
+					[this, &bHasOverlap, &WorldTM, &InGeom, &GeomTransform, &OutOverlaps](const FConstPhysicsObjectHandle IterObject, TThreadShapeInstance<Id>* Shape)
+					{
+						check(Shape);
+						const bool bOverlap = Chaos::Utilities::CastHelper(
+							InGeom,
+							GeomTransform,
+							[Shape, &WorldTM](const auto& Downcast, const auto& FullTransformB)
+							{
+								return Chaos::OverlapQuery(*Shape->GetGeometry(), WorldTM, Downcast, FullTransformB, 0, nullptr);
+							}
+						);
+
+						if (bOverlap)
+						{
+							bHasOverlap = true;
+
+							ChaosInterface::FOverlapHit Overlap;
+							Overlap.Shape = Shape;
+							Overlap.Actor = GetParticle(IterObject);
+							OutOverlaps.Add(Overlap);
+						}
+						return false;
+					}
+				);
+			}
+			return bHasOverlap;
+		}
+
+		template<typename TSweepHit>
+		bool ShapeSweep(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& StartTM, const FVector& EndPos, bool bSweepComplex, TSweepHit& OutBestHit)
+		{
+			static_assert(std::is_same_v<TSweepHit, ChaosInterface::TThreadSweepHit<Id>>);
+			bool bHit = false;
+			const FVector StartPos = StartTM.GetTranslation();
+			const FVector Delta = EndPos - StartPos;
+			const FReal DeltaMag = Delta.Size();
+			if (DeltaMag < UE_KINDA_SMALL_NUMBER)
+			{
+				return false;
+			}
+			const FVec3 Dir = Delta / DeltaMag;
+
+			for (const FConstPhysicsObjectHandle Object : InObjects)
+			{
+				const FTransform WorldTM = GetTransform(Object);
+
+				VisitEveryShape(
+					{ &Object, 1 },
+					[this, &WorldTM, &InGeom, &StartTM, &bHit, &Delta, DeltaMag, &Dir, &OutBestHit, bSweepComplex](const FConstPhysicsObjectHandle IterObject, TThreadShapeInstance<Id>* Shape)
+					{
+						check(Shape);
+
+						FCollisionFilterData ShapeFilter = Shape->GetQueryData();
+						const bool bShapeIsComplex = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::ComplexCollision)) != 0;
+						const bool bShapeIsSimple = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::SimpleCollision)) != 0;
+						if ((bSweepComplex && bShapeIsComplex) || (!bSweepComplex && bShapeIsSimple))
+						{
+							FVec3 WorldPosition;
+							FVec3 WorldNormal;
+							FReal Distance;
+							int32 FaceIdx;
+							FVec3 FaceNormal;
+
+							const bool bShapeHit = Chaos::Utilities::CastHelper(
+								InGeom,
+								StartTM,
+								[Shape, &WorldTM, &Dir, DeltaMag, &Distance, &WorldPosition, &WorldNormal, &FaceIdx, &FaceNormal](const auto& Downcast, const auto& FullTransformB)
+								{
+									return Chaos::SweepQuery(*Shape->GetGeometry(), WorldTM, Downcast, FullTransformB, Dir, DeltaMag, Distance, WorldPosition, WorldNormal, FaceIdx, FaceNormal, 0.f, false);
+								}
+							);
+
+							if (bShapeHit)
+							{
+								bHit = true;
+
+								OutBestHit.Shape = Shape;
+								OutBestHit.WorldPosition = WorldPosition;
+								OutBestHit.WorldNormal = WorldNormal;
+								OutBestHit.Distance = static_cast<float>(Distance);
+								OutBestHit.FaceIndex = FaceIdx;
+								if (OutBestHit.Distance > 0.f)
+								{
+									const FVector LocalPosition = WorldTM.InverseTransformPositionNoScale(OutBestHit.WorldPosition);
+									const FVector LocalUnitDir = WorldTM.InverseTransformVectorNoScale(Dir);
+									OutBestHit.FaceIndex = Shape->GetGeometry()->FindMostOpposingFace(LocalPosition, LocalUnitDir, OutBestHit.FaceIndex, 1);
+								}
+								OutBestHit.Actor = GetParticle(IterObject);
+							}
+						}
+						return false;
+					}
+				);
+
+			}
+			return bHit;
+		}
 
 		friend class FPhysicsObjectInterface;
 	protected:
@@ -113,7 +302,7 @@ namespace Chaos
 	private:
 		struct FShapeOverlapData
 		{
-			FPerShapeData* Shape;
+			TThreadShapeInstance<Id>* Shape;
 			FAABB3 BoundingBox;
 		};
 

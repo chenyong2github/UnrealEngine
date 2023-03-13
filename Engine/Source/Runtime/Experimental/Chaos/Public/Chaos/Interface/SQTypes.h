@@ -8,9 +8,12 @@
 #include "Containers/Array.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
+#include "Framework/ThreadContextEnum.h"
 #include "HAL/PlatformCrt.h"
 #include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
+
+#include <type_traits>
 
 namespace Chaos
 {
@@ -148,6 +151,15 @@ namespace ChaosInterface
 	struct CHAOS_API FPTSweepHit : public FPTLocationHit
 	{
 	};
+
+	template<Chaos::EThreadContext Id>
+	using TThreadRaycastHit = std::conditional_t<Id == Chaos::EThreadContext::External, FRaycastHit, FPTRaycastHit>;
+
+	template<Chaos::EThreadContext Id>
+	using TThreadOverlapHit = std::conditional_t<Id == Chaos::EThreadContext::External, FOverlapHit, FPTOverlapHit>;
+
+	template<Chaos::EThreadContext Id>
+	using TThreadSweepHit = std::conditional_t<Id == Chaos::EThreadContext::External, FSweepHit, FPTSweepHit>;
 
 #ifndef CHAOS_HIT_BUFFER_SIZE
 #define CHAOS_HIT_BUFFER_SIZE 512 // Preallocated hit buffer size for traces and sweeps.

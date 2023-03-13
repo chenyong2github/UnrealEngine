@@ -369,13 +369,13 @@ bool UWorld::ComponentOverlapMultiByChannel(TArray<struct FOverlapResult>& OutOv
 	TArray<struct FOverlapResult> TempOverlaps;
 	for (Chaos::FPhysicsObjectHandle Object : PhysicsObjects)
 	{
-		TArray<Chaos::FPerShapeData*> Shapes = Interface->GetAllShapes({&Object, 1});
+		TArray<Chaos::FShapeInstanceProxy*> Shapes = Interface->GetAllThreadShapes({&Object, 1});
 
 		// Determine how to convert the local space of this body instance to the test space
 		const FTransform ObjectToWorld = Interface->GetTransform(Object);
 		const FTransform ObjectToTest = ComponentToTest * WorldToComponent * ObjectToWorld;
 
-		for (Chaos::FPerShapeData* Shape : Shapes)
+		for (Chaos::FShapeInstanceProxy* Shape : Shapes)
 		{
 			FPhysicsShapeHandle ShapeRef{ Shape, nullptr };
 
@@ -471,8 +471,8 @@ bool UWorld::ComponentSweepMultiByChannel(TArray<struct FHitResult>& OutHits, cl
 		}		
 		ParamsCopy.ClearIgnoredActors(); // This will be populated a bit later
 		// All actors pointed to by shapes should be ignored (This deals with welded Actors)
-		TArray<Chaos::FPerShapeData*> Shapes = Interface->GetAllShapes({ &Object, 1 });
-		for (Chaos::FPerShapeData* Shape : Shapes)
+		TArray<Chaos::FShapeInstanceProxy*> Shapes = Interface->GetAllThreadShapes({ &Object, 1 });
+		for (Chaos::FShapeInstanceProxy* Shape : Shapes)
 		{
 			FCollisionFilterData ShapeFilter = ChaosInterface::GetQueryFilterData(*Shape);
 			uint32 ShapeActorID = ShapeFilter.Word0; // Unique Actor ID is saved in word 0
@@ -484,7 +484,7 @@ bool UWorld::ComponentSweepMultiByChannel(TArray<struct FHitResult>& OutHits, cl
 			ParamsCopy.AddIgnoredActor(ActorID);
 		}
 
-		for (Chaos::FPerShapeData* Shape : Shapes)
+		for (Chaos::FShapeInstanceProxy* Shape : Shapes)
 		{
 			FPhysicsShapeHandle ShapeHandle{ Shape, nullptr };
 

@@ -2,6 +2,7 @@
 #pragma once
 #include "Chaos/PhysicsObject.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/ShapeInstanceFwd.h"
 #include "Containers/Set.h"
 #include "Framework/Threading.h"
 

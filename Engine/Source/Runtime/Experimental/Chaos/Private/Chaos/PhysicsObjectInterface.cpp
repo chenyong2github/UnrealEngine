@@ -3,7 +3,6 @@
 
 #include "Chaos/CastingUtilities.h"
 #include "Chaos/CollisionFilterData.h"
-#include "Chaos/GeometryQueries.h"
 #include "Chaos/PhysicsObjectInternal.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Math/Transform.h"
@@ -175,9 +174,13 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
-	TThreadParticle<Id>* FReadPhysicsObjectInterface<Id>::GetParticle(const FConstPhysicsObjectHandle Object)
+	TThreadParticle<Id>* FReadPhysicsObjectInterface<Id>::GetParticle(const FConstPhysicsObjectHandle Handle)
 	{
-		return Object->GetParticle<Id>();
+		if (!Handle)
+		{
+			return nullptr;
+		}
+		return Handle->GetParticle<Id>();
 	}
 
 	template<EThreadContext Id>
@@ -248,7 +251,31 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
-	void FReadPhysicsObjectInterface<Id>::VisitEveryShape(TArrayView<const FConstPhysicsObjectHandle> InObjects, TFunctionRef<bool(const FConstPhysicsObjectHandle, FPerShapeData*)> Lambda)
+	TArray<TThreadShapeInstance<Id>*> FReadPhysicsObjectInterface<Id>::GetAllThreadShapes(TArrayView<const FConstPhysicsObjectHandle> InObjects)
+	{
+		TArray<TThreadShapeInstance<Id>*> AllShapes;
+
+		for (const FConstPhysicsObjectHandle Object : InObjects)
+		{
+			if (!Object)
+			{
+				continue;
+			}
+
+			if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
+			{
+				for (const TUniquePtr<TThreadShapeInstance<Id>>& Shape : Particle->ShapeInstances())
+				{
+					AllShapes.Add(Shape.Get());
+				}
+			}
+		}
+
+		return AllShapes;
+	}
+
+	template<EThreadContext Id>
+	void FReadPhysicsObjectInterface<Id>::VisitEveryShape(TArrayView<const FConstPhysicsObjectHandle> InObjects, TFunctionRef<bool(const FConstPhysicsObjectHandle, TThreadShapeInstance<Id>*)> Lambda)
 	{
 		for (const FConstPhysicsObjectHandle Object : InObjects)
 		{
@@ -259,8 +286,7 @@ namespace Chaos
 
 			if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
 			{
-				const Chaos::FShapesArray& ShapesArray = Particle->ShapesArray();
-				for (const TUniquePtr<Chaos::FPerShapeData>& Shape : ShapesArray)
+				for (const TUniquePtr<TThreadShapeInstance<Id>>& Shape : Particle->ShapeInstances())
 				{
 					if (Lambda(Object, Shape.Get()))
 					{
@@ -384,11 +410,11 @@ namespace Chaos
 	template<EThreadContext Id>
 	bool FReadPhysicsObjectInterface<Id>::PairwiseShapeOverlapHelper(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, bool bComputeMTD, const FVector& Tolerance, const TFunction<bool(const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&)>& Lambda)
 	{
-		TArray<FPerShapeData*> ShapesA = GetAllShapes({ &ObjectA, 1 });
+		TArray<TThreadShapeInstance<Id>*> ShapesA = GetAllThreadShapes({ &ObjectA, 1 });
 		const FTransform TransformA = FTransform{ GetR(ObjectA), GetX(ObjectA) } *InTransformA;
 		const FBox BoxA = GetWorldBounds({ &ObjectA, 1 }).TransformBy(InTransformA);
 
-		TArray<FPerShapeData*> ShapesB = GetAllShapes({ &ObjectB, 1 });
+		TArray<TThreadShapeInstance<Id>*> ShapesB = GetAllThreadShapes({ &ObjectB, 1 });
 		const FTransform TransformB = FTransform{ GetR(ObjectB), GetX(ObjectB) } *InTransformB;
 		const FBox BoxB = GetWorldBounds({ &ObjectB, 1 }).TransformBy(InTransformB);
 
@@ -398,7 +424,7 @@ namespace Chaos
 		}
 
 		bool bFoundOverlap = false;
-		for (FPerShapeData* B : ShapesB)
+		for (TThreadShapeInstance<Id>* B : ShapesB)
 		{
 			if (!B)
 			{
@@ -415,7 +441,7 @@ namespace Chaos
 			// At this point on, this function should be mirror the Overlap_GeomInternal function in PhysInterface_Chaos.cpp.
 			// ShapeA is equivalent to InInstance and GeomB is equivalent to InGeom.
 
-			for (FPerShapeData* A : ShapesA)
+			for (TThreadShapeInstance<Id>* A : ShapesA)
 			{
 				if (!A)
 				{
@@ -700,199 +726,6 @@ namespace Chaos
 	FAccelerationStructureHandle FReadPhysicsObjectInterface<Id>::CreateAccelerationStructureHandle(const FConstPhysicsObjectHandle InObject)
 	{
 		return FAccelerationStructureHandle{InObject->GetParticle<Id>()};
-	}
-
-	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::LineTrace(TArrayView<const FConstPhysicsObjectHandle> InObjects, const FVector& WorldStart, const FVector& WorldEnd, bool bTraceComplex, ChaosInterface::FRaycastHit& OutBestHit)
-	{
-		bool bHit = false;
-		OutBestHit.Distance = TNumericLimits<float>::Max();
-
-		const FVector Delta = WorldEnd - WorldStart;
-		const FReal DeltaMag = Delta.Size();
-		if (DeltaMag < UE_KINDA_SMALL_NUMBER)
-		{
-			return false;
-		}
-
-		FTransform BestWorldTM = FTransform::Identity;
-
-		for (const FConstPhysicsObjectHandle Object : InObjects)
-		{
-			const FTransform WorldTM = GetTransform(Object);
-			const FVector LocalStart = WorldTM.InverseTransformPositionNoScale(WorldStart);
-			const FVector LocalDelta = WorldTM.InverseTransformVectorNoScale(Delta);
-
-			VisitEveryShape(
-				{ &Object, 1 },
-				[this, &bHit, &WorldTM, &LocalStart, &LocalDelta, &Delta, DeltaMag, &BestWorldTM, bTraceComplex, &OutBestHit](const FConstPhysicsObjectHandle IterObject, FPerShapeData* Shape)
-				{
-					check(Shape);
-
-					FCollisionFilterData ShapeFilter = Shape->GetQueryData();
-					const bool bShapeIsComplex = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::ComplexCollision)) != 0;
-					const bool bShapeIsSimple = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::SimpleCollision)) != 0;
-					if ((bTraceComplex && bShapeIsComplex) || (!bTraceComplex && bShapeIsSimple))
-					{
-						FReal Distance;
-						FVec3 LocalPosition;
-						FVec3 LocalNormal;
-						int32 FaceIndex;
-
-						const bool bRaycastHit = Shape->GetGeometry()->Raycast(
-							LocalStart,
-							LocalDelta / DeltaMag,
-							DeltaMag,
-							0,
-							Distance,
-							LocalPosition,
-							LocalNormal,
-							FaceIndex
-						);
-
-						if (bRaycastHit)
-						{
-							if (Distance < OutBestHit.Distance)
-							{
-								bHit = true;
-								BestWorldTM = WorldTM;
-								OutBestHit.Distance = static_cast<float>(Distance);
-								OutBestHit.WorldNormal = LocalNormal;
-								OutBestHit.WorldPosition = LocalPosition;
-								OutBestHit.Shape = Shape;
-								if constexpr (Id == EThreadContext::External)
-								{
-									OutBestHit.Actor = IterObject->GetParticle<Id>();
-								}
-								OutBestHit.FaceIndex = FaceIndex;
-							}
-						}
-					}
-					return false;
-				}
-			);
-		}
-
-		if (bHit)
-		{
-			OutBestHit.WorldNormal = BestWorldTM.TransformVectorNoScale(OutBestHit.WorldNormal);
-			OutBestHit.WorldPosition = BestWorldTM.TransformPositionNoScale(OutBestHit.WorldPosition);
-		}
-
-		return bHit;
-	}
-
-	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::ShapeOverlap(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, TArray<ChaosInterface::FOverlapHit>& OutOverlaps)
-	{
-		bool bHasOverlap = false;
-		for (const FConstPhysicsObjectHandle Object : InObjects)
-		{
-			const FTransform WorldTM = GetTransform(Object);
-
-			VisitEveryShape(
-				{ &Object, 1 },
-				[this, &bHasOverlap, &WorldTM, &InGeom, &GeomTransform, &OutOverlaps](const FConstPhysicsObjectHandle IterObject, FPerShapeData* Shape)
-				{
-					check(Shape);
-					const bool bOverlap = Chaos::Utilities::CastHelper(
-						InGeom,
-						GeomTransform,
-						[Shape, &WorldTM](const auto& Downcast, const auto& FullTransformB)
-						{
-							return Chaos::OverlapQuery(*Shape->GetGeometry(), WorldTM, Downcast, FullTransformB, 0, nullptr);
-						}
-					);
-
-					if (bOverlap)
-					{
-						bHasOverlap = true;
-
-						ChaosInterface::FOverlapHit Overlap;
-						Overlap.Shape = Shape;
-						if constexpr (Id == EThreadContext::External)
-						{
-							Overlap.Actor = IterObject->GetParticle<Id>();
-						}
-						OutOverlaps.Add(Overlap);
-					}
-					return false;
-				}
-			);
-		}
-		return bHasOverlap;
-	}
-
-	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::ShapeSweep(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& StartTM, const FVector& EndPos, bool bSweepComplex, ChaosInterface::FSweepHit& OutBestHit)
-	{
-		bool bHit = false;
-		const FVector StartPos = StartTM.GetTranslation();
-		const FVector Delta = EndPos - StartPos;
-		const FReal DeltaMag = Delta.Size();
-		if (DeltaMag < UE_KINDA_SMALL_NUMBER)
-		{
-			return false;
-		}
-		const FVec3 Dir = Delta / DeltaMag;
-
-		for (const FConstPhysicsObjectHandle Object : InObjects)
-		{
-			const FTransform WorldTM = GetTransform(Object);
-
-			VisitEveryShape(
-				{ &Object, 1 },
-				[&WorldTM, &InGeom, &StartTM, &bHit, &Delta, DeltaMag, &Dir, &OutBestHit, bSweepComplex](const FConstPhysicsObjectHandle IterObject, FPerShapeData* Shape)
-				{
-					check(Shape);
-
-					FCollisionFilterData ShapeFilter = Shape->GetQueryData();
-					const bool bShapeIsComplex = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::ComplexCollision)) != 0;
-					const bool bShapeIsSimple = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::SimpleCollision)) != 0;
-					if ((bSweepComplex && bShapeIsComplex) || (!bSweepComplex && bShapeIsSimple))
-					{
-						FVec3 WorldPosition;
-						FVec3 WorldNormal;
-						FReal Distance;
-						int32 FaceIdx;
-						FVec3 FaceNormal;
-
-						const bool bShapeHit = Chaos::Utilities::CastHelper(
-							InGeom,
-							StartTM,
-							[Shape, &WorldTM, &Dir, DeltaMag, &Distance, &WorldPosition, &WorldNormal, &FaceIdx, &FaceNormal](const auto& Downcast, const auto& FullTransformB)
-							{
-								return Chaos::SweepQuery(*Shape->GetGeometry(), WorldTM, Downcast, FullTransformB, Dir, DeltaMag, Distance, WorldPosition, WorldNormal, FaceIdx, FaceNormal, 0.f, false);
-							}
-						);
-
-						if (bShapeHit)
-						{
-							bHit = true;
-
-							OutBestHit.Shape = Shape;
-							OutBestHit.WorldPosition = WorldPosition;
-							OutBestHit.WorldNormal = WorldNormal;
-							OutBestHit.Distance = static_cast<float>(Distance);
-							OutBestHit.FaceIndex = FaceIdx;
-							if (OutBestHit.Distance > 0.f)
-							{
-								const FVector LocalPosition = WorldTM.InverseTransformPositionNoScale(OutBestHit.WorldPosition);
-								const FVector LocalUnitDir = WorldTM.InverseTransformVectorNoScale(Dir);
-								OutBestHit.FaceIndex = Shape->GetGeometry()->FindMostOpposingFace(LocalPosition, LocalUnitDir, OutBestHit.FaceIndex, 1);
-							}
-							if constexpr (Id == EThreadContext::External)
-							{
-								OutBestHit.Actor = IterObject->GetParticle<Id>();
-							}
-						}
-					}
-					return false;
-				}
-			);
-
-		}
-		return bHit;
 	}
 
 	template<EThreadContext Id>
