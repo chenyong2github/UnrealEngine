@@ -313,5 +313,32 @@ protected:
 	mutable FText*					UnloadedReason;
 
 	static TMap<TSubclassOf<AActor>, FActorDescDeprecator> Deprecators;
+
+#if DO_CHECK
+public:
+	struct FRegisteringUnregisteringGuard
+	{
+		FRegisteringUnregisteringGuard(FWorldPartitionActorDesc* InActorDesc)
+			:ActorDesc(InActorDesc)
+		{
+			check(!ActorDesc->bIsRegisteringOrUnregistering);
+			ActorDesc->bIsRegisteringOrUnregistering = true;
+		}
+
+		~FRegisteringUnregisteringGuard()
+		{
+			check(ActorDesc->bIsRegisteringOrUnregistering);
+			ActorDesc->bIsRegisteringOrUnregistering = false;
+		}
+
+		FRegisteringUnregisteringGuard(const FRegisteringUnregisteringGuard&) = delete;
+		FRegisteringUnregisteringGuard& operator=(const FRegisteringUnregisteringGuard&) = delete;
+
+	private:
+		FWorldPartitionActorDesc* ActorDesc;
+	};
+private:
+	bool bIsRegisteringOrUnregistering = false;
+#endif
 };
 #endif

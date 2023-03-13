@@ -42,11 +42,19 @@ FWorldPartitionLoadingContext::IContext* FWorldPartitionLoadingContext::ActiveCo
 
 void FWorldPartitionLoadingContext::LoadAndRegisterActor(FWorldPartitionActorDesc* ActorDesc)
 {
+#if DO_CHECK
+	FWorldPartitionActorDesc::FRegisteringUnregisteringGuard Guard(ActorDesc);
+#endif
+
 	ActiveContext->RegisterActor(ActorDesc);
 }
 
 void FWorldPartitionLoadingContext::UnloadAndUnregisterActor(FWorldPartitionActorDesc* ActorDesc)
 {
+#if DO_CHECK
+	FWorldPartitionActorDesc::FRegisteringUnregisteringGuard Guard(ActorDesc);
+#endif
+
 	ActiveContext->UnregisterActor(ActorDesc);
 }
 
