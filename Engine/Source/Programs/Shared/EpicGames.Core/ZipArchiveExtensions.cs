@@ -46,11 +46,6 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Internal field storing information about the platform that created a ZipArchiveEntry. Cannot interpret how to treat the attribute bits without reading this.
-		/// </summary>
-		static readonly FieldInfo s_versionMadeByPlatformField = typeof(ZipArchiveEntry).GetField("_versionMadeByPlatform", BindingFlags.NonPublic | BindingFlags.Instance)!;
-
-		/// <summary>
 		/// Extract a zip archive entry, preserving platform mode bits
 		/// </summary>
 		/// <param name="entry"></param>
@@ -70,18 +65,18 @@ namespace EpicGames.Core
 
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
-				int madeByPlatform = Convert.ToInt32(s_versionMadeByPlatformField.GetValue(entry)!);
-				if (madeByPlatform == 3 || madeByPlatform == 19) // Unix or OSX
+				int mode = entry.ExternalAttributes >> 16;
+				if(mode != 0)
 				{
-					FileUtils.SetFileMode_Linux(targetFileName, (ushort)(entry.ExternalAttributes >> 16));
+					FileUtils.SetFileMode_Linux(targetFileName, (ushort)mode);
 				}
 			}
 			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 			{
-				int madeByPlatform = Convert.ToInt32(s_versionMadeByPlatformField.GetValue(entry)!);
-				if (madeByPlatform == 3 || madeByPlatform == 19) // Unix or OSX
+				int mode = entry.ExternalAttributes >> 16;
+				if (mode != 0)
 				{
-					FileUtils.SetFileMode_Mac(targetFileName, (ushort)(entry.ExternalAttributes >> 16));
+					FileUtils.SetFileMode_Mac(targetFileName, (ushort)mode);
 				}
 			}
 		}
