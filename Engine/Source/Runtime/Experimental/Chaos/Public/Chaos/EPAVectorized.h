@@ -431,7 +431,7 @@ FORCEINLINE_DEBUGGABLE void VectorComputeEPAResults(const VectorRegister4Float* 
 template <typename TSupportA, typename TSupportB>
 EEPAResult VectorEPA(TArray<VectorRegister4Float>& VertsABuffer, TArray<VectorRegister4Float>& VertsBBuffer, const TSupportA& SupportA, const TSupportB& SupportB, VectorRegister4Float& OutPenetration, VectorRegister4Float& OutDir, VectorRegister4Float& WitnessA, VectorRegister4Float& WitnessB)
 {
-	constexpr VectorRegister4Float Eps = MakeVectorRegisterFloatConstant(1.e-2f, 1.e-2f, 1.e-2f, 1.e-2f);
+	constexpr VectorRegister4Float EpsRel = MakeVectorRegisterFloatConstant(1.e-2f, 1.e-2f, 1.e-2f, 1.e-2f);
 	const VectorRegister4Float OriginInsideEps = VectorZero();
 
 	TEPAWorkingArray<VectorTEPAEntry> Entries;
@@ -518,13 +518,11 @@ EEPAResult VectorEPA(TArray<VectorRegister4Float>& VertsABuffer, TArray<VectorRe
 		UpperBound = VectorMin(DistanceToSupportPlane, UpperBound);
 		LowerBound = Entry.Distance;
 
-		
-		const VectorRegister4Float DiffUpLow = VectorAbs(VectorSubtract(UpperBound, LowerBound));
-		const VectorRegister4Float EpsIsGEAbsBounds = VectorCompareGE(Eps, DiffUpLow);
-
-
-		//It's possible the origin is not contained by the CSO. In this case the upper bound will be negative, at which point we should just exit. Maybe return a different enum value?
-		if (VectorMaskBits(EpsIsGEAbsBounds))
+		// It's possible the origin is not contained by the CSO, probably because of numerical error. 
+		// In this case the upper bound will be negative, at which point we should just exit. 
+		const VectorRegister4Float UpperBoundTolerance = VectorMultiply(VectorAdd(VectorOneFloat(), EpsRel), VectorAbs(LowerBound));
+		const VectorRegister4Float UpperBoundLEUpperBoundTolerance = VectorCompareLE(UpperBound, UpperBoundTolerance);
+		if (VectorMaskBits(UpperBoundLEUpperBoundTolerance))
 		{
 			ResultStatus = EEPAResult::Ok;
 			LastEntry = Entry;

@@ -426,6 +426,7 @@ enum class EEPAResult
 	NoValidContact,             // No valid contact have been found, no contacts will be returned
 };
 
+UE_DEPRECATED(5.3, "Not used")
 inline const bool IsEPASuccess(EEPAResult EPAResult)
 {
 	return (EPAResult == EEPAResult::Ok) || (EPAResult == EEPAResult::MaxIterations);
@@ -448,7 +449,7 @@ EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, c
 
 template <typename T>
 EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, const TFunctionRef<TVector<T, 3>(const TVec3<T>& V)>& SupportA,
-	const TFunctionRef<TVector<T, 3>(const TVec3<T>& V)>& SupportB, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& WitnessA, TVec3<T>& WitnessB, const FReal Eps = 1.e-2f)
+	const TFunctionRef<TVector<T, 3>(const TVec3<T>& V)>& SupportB, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& WitnessA, TVec3<T>& WitnessB, const FReal EpsRel = 1.e-2f)
 {
 	struct FEPAEntryWrapper
 	{
@@ -547,8 +548,10 @@ EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, c
 
 		LowerBound = Entry.Distance;
 
-		//It's possible the origin is not contained by the CSO. In this case the upper bound will be negative, at which point we should just exit. Maybe return a different enum value?
-		if (FMath::Abs(UpperBound - LowerBound) <= Eps)
+		// It's possible the origin is not contained by the CSO, probably because of numerical error. 
+		// In this case the upper bound will be negative, at which point we should just exit. 
+		const T UpperBoundTolerance = (T(1) + EpsRel) * FMath::Abs(LowerBound);
+		if (UpperBound <= UpperBoundTolerance)
 		{
 			ResultStatus = EEPAResult::Ok;
 			LastEntry = Entry;

@@ -1197,128 +1197,170 @@ namespace ChaosTest
 
 	}
 
+	//
+	// Performs the same initially overlapping sweep twice, with slightly different rotations, gives different normals.
+	// this is convex box slightly penetrating surface of triangle mesh. Trimesh normals point up.
+	//
+	GTEST_TEST(EPATests, EPARealFailures_ConvexTrimeshRotationalDifferencesBreakNormal)
+	{
+		using namespace Chaos;
+		TArray<FConvex::FVec3Type> ConvexBoxSurfaceParticles(
+			{
+			{50.0999985, -50.1124992, -50.1250000},
+			{-50.0999985, 50.1250000, -50.1250000},
+			{50.0999985, 50.1250000, -50.0999985},
+			{50.0999985, 50.1250000, 50.1250000},
+			{-50.0999985, -50.1124992, -50.0999985},
+			{-50.0999985, -50.1124992, 50.1250000},
+			{50.0999985, -50.1124992, 50.1250000},
+			{-50.0999985, 50.1250000, 50.1250000},
+			});
 
-		//
-		// Performs the same initially overlapping sweep twice, with slightly different rotations, gives different normals.
-		// this is convex box slightly penetrating surface of triangle mesh. Trimesh normals point up.
-		//
-		GTEST_TEST(EPATests, EPARealFailures_ConvexTrimeshRotationalDifferencesBreakNormal)
-		{
-			using namespace Chaos;
-			TArray<FConvex::FVec3Type> ConvexBoxSurfaceParticles(
-				{
-				{50.0999985, -50.1124992, -50.1250000},
-				{-50.0999985, 50.1250000, -50.1250000},
-				{50.0999985, 50.1250000, -50.0999985},
-				{50.0999985, 50.1250000, 50.1250000},
-				{-50.0999985, -50.1124992, -50.0999985},
-				{-50.0999985, -50.1124992, 50.1250000},
-				{50.0999985, -50.1124992, 50.1250000},
-				{-50.0999985, 50.1250000, 50.1250000},
-				});
+		FConvex ConvexBox(MoveTemp(ConvexBoxSurfaceParticles), 0.0f);
 
-			FConvex ConvexBox(MoveTemp(ConvexBoxSurfaceParticles), 0.0f);
+		FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
+			{
+				{50.0000000, 50.0000000, -8.04061356e-15},
+				{50.0000000, -50.0000000, 8.04061356e-15},
+				{-50.0000000, 50.0000000, -8.04061356e-15},
+				{-50.0000000, -50.0000000, 8.04061356e-15}
+			});
 
-			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
-				{
-					{50.0000000, 50.0000000, -8.04061356e-15},
-					{50.0000000, -50.0000000, 8.04061356e-15},
-					{-50.0000000, 50.0000000, -8.04061356e-15},
-					{-50.0000000, -50.0000000, 8.04061356e-15}
-				});
+		TArray<TVec3<int32>> Indices;
+		Indices.Emplace(1, 0, 2);
+		Indices.Emplace(1, 2, 3);
 
-			TArray<TVec3<int32>> Indices;
-			Indices.Emplace(1, 0, 2);
-			Indices.Emplace(1, 2, 3);
+		TArray<uint16> Materials;
+		Materials.Emplace(0);
+		Materials.Emplace(0);
+		TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
+		TImplicitObjectScaled<FTriangleMeshImplicitObject> ScaledTriangleMesh = TImplicitObjectScaled<FTriangleMeshImplicitObject>(MakeSerializable(TriangleMesh), nullptr, FVec3(11.5, 11.5, 11.5));
 
-			TArray<uint16> Materials;
-			Materials.Emplace(0);
-			Materials.Emplace(0);
-			TUniquePtr<FTriangleMeshImplicitObject> TriangleMesh = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(TrimeshParticles), MoveTemp(Indices), MoveTemp(Materials));
-			TImplicitObjectScaled<FTriangleMeshImplicitObject> ScaledTriangleMesh = TImplicitObjectScaled<FTriangleMeshImplicitObject>(MakeSerializable(TriangleMesh), nullptr, FVec3(11.5, 11.5, 11.5));
+		FQuat Rotation0(0.00488796039, 0.00569311855, -0.000786740216, 0.999971569);
+		FQuat Rotation1(0.0117356628, -0.0108017093, -0.000888462295, 0.999872327);
 
-			FQuat Rotation0(0.00488796039, 0.00569311855, -0.000786740216, 0.999971569);
-			FQuat Rotation1(0.0117356628, -0.0108017093, -0.000888462295, 0.999872327);
+		FVec3 Translation(309.365723, -69.4132690, 51.2289352);
 
-			FVec3 Translation(309.365723, -69.4132690, 51.2289352);
+		TRigidTransform<FReal, 3> Transform0(Translation, Rotation0);
+		TRigidTransform<FReal, 3> Transform1(Translation, Rotation1);
 
-			TRigidTransform<FReal, 3> Transform0(Translation, Rotation0);
-			TRigidTransform<FReal, 3> Transform1(Translation, Rotation1);
+		FVec3 Dir(-0.00339674903, 5.76980747e-05, -0.999994159);
+		FReal Length = 1.83530724;
 
-			FVec3 Dir(-0.00339674903, 5.76980747e-05, -0.999994159);
-			FReal Length = 1.83530724;
+		FReal OutTime = -1;
+		FVec3 Normal(0.0f);
+		FVec3 Position(0.0f);
+		int32 FaceIndex = -1;
+		FVec3 FaceNormal(0.0);
+		bool bResult = ScaledTriangleMesh.LowLevelSweepGeom(ConvexBox, Transform0, Dir, Length, OutTime, Position, Normal, FaceIndex, FaceNormal, 0.0f, true);
 
-			FReal OutTime = -1;
-			FVec3 Normal(0.0f);
-			FVec3 Position(0.0f);
-			int32 FaceIndex = -1;
-			FVec3 FaceNormal(0.0);
-			bool bResult = ScaledTriangleMesh.LowLevelSweepGeom(ConvexBox, Transform0, Dir, Length, OutTime, Position, Normal, FaceIndex, FaceNormal, 0.0f, true);
-
-			bResult = ScaledTriangleMesh.LowLevelSweepGeom(ConvexBox, Transform1, Dir, Length, OutTime, Position, Normal, FaceIndex, FaceNormal, 0.0f, true);
+		bResult = ScaledTriangleMesh.LowLevelSweepGeom(ConvexBox, Transform1, Dir, Length, OutTime, Position, Normal, FaceIndex, FaceNormal, 0.0f, true);
 			
-			// Observe that normals are in opposite direction, while rotations are very similar.
+		// Observe that normals are in opposite direction, while rotations are very similar.
 
-		}
+	}
 
-		//
-		// Player can clip through RockWall trimesh, this repros a failure, MTD seems wrong.
-		// This is failing GJKRaycast2 call.
-		// Fixed: (11457046) ClosestB computation was transformed wrong messing up normal.
-		//
-		GTEST_TEST(EPATests, EPARealFailures_CapsuleVsTrimeshRockWallWrongNormalGJKRaycast2)
-		{
-			using namespace Chaos;
-			// Triangle w/ world scale
-			FTriangle Triangle({
-				{-306.119476, 1674.38647, 117.138489},
-				{-491.015747, 1526.35803, 116.067123},
-				{-91.0660172, 839.028320, 118.413063}
-				});
+	//
+	// Player can clip through RockWall trimesh, this repros a failure, MTD seems wrong.
+	// This is failing GJKRaycast2 call.
+	// Fixed: (11457046) ClosestB computation was transformed wrong messing up normal.
+	//
+	GTEST_TEST(EPATests, EPARealFailures_CapsuleVsTrimeshRockWallWrongNormalGJKRaycast2)
+	{
+		using namespace Chaos;
+		// Triangle w/ world scale
+		FTriangle Triangle({
+			{-306.119476, 1674.38647, 117.138489},
+			{-491.015747, 1526.35803, 116.067123},
+			{-91.0660172, 839.028320, 118.413063}
+			});
 
-			FTriangleRegister TriangleReg({
-				MakeVectorRegisterFloat(-306.119476f, 1674.38647f, 117.138489f, 0.0f),
-				MakeVectorRegisterFloat(-491.015747f, 1526.35803f, 116.067123f, 0.0f),
-				MakeVectorRegisterFloat(-91.0660172f, 839.028320f, 118.413063f, 0.0f)
-				});
-
-
-			FVec3 ExpectedNormal = FVec3::CrossProduct(Triangle[1] - Triangle[0], Triangle[2] - Triangle[0]);
-			ExpectedNormal.Normalize();
-
-			TRigidTransform<FReal, 3> StartTM(FVec3(-344.031799, 1210.37158, 134.252747), FQuat(-0.255716801, -0.714108050, 0.0788889676, -0.646866322), FVec3(1));
-
-			// Wrapping in 1,1,1 scale is unnecessary, but this is technically what is happening when sweeping against scaled trimesh.
-			TUniquePtr<FCapsule> Capsule = MakeUnique<FCapsule>(FVec3(0, 0, -33), FVec3(0, 0, 33), 42);
-			TImplicitObjectScaled<FCapsule> ScaledCapsule = TImplicitObjectScaled<FCapsule>(MakeSerializable(Capsule), nullptr, FVec3(1));
+		FTriangleRegister TriangleReg({
+			MakeVectorRegisterFloat(-306.119476f, 1674.38647f, 117.138489f, 0.0f),
+			MakeVectorRegisterFloat(-491.015747f, 1526.35803f, 116.067123f, 0.0f),
+			MakeVectorRegisterFloat(-91.0660172f, 839.028320f, 118.413063f, 0.0f)
+			});
 
 
-			const FVec3 Dir(-0.102473199, 0.130887285, -0.986087084);
-			const FReal LengthScale = 9.31486130;
-			const FReal  CurrentLength = 2.14465737;
-			const FReal Length = LengthScale * CurrentLength;
-			const bool bComputeMTD = true;
-			const FReal Thickness = 0;
+		FVec3 ExpectedNormal = FVec3::CrossProduct(Triangle[1] - Triangle[0], Triangle[2] - Triangle[0]);
+		ExpectedNormal.Normalize();
 
-			FReal OutTime = -1.0f;
-			FVec3 Normal(0.0f);
-			FVec3 Position(0.0f);
-			int32 FaceIndex = -1;
+		TRigidTransform<FReal, 3> StartTM(FVec3(-344.031799, 1210.37158, 134.252747), FQuat(-0.255716801, -0.714108050, 0.0788889676, -0.646866322), FVec3(1));
 
-			// This is local to trimesh, world scale.
-			bool bResult = GJKRaycast2<FReal>(TriangleReg, ScaledCapsule, StartTM, Dir, Length, OutTime, Position, Normal, Thickness, bComputeMTD);
-
-			// Compare results against GJKPenetration, sweep is initial overlap, so this should be the same.
-			FVec3 Normal2, ClosestA, ClosestB;
-			int32 ClosestVertexIndexA, ClosestVertexIndexB;
-			FReal OutTime2;
-			bool bResult2 = GJKPenetration(Triangle, ScaledCapsule, StartTM, OutTime2, ClosestA, ClosestB, Normal2, ClosestVertexIndexA, ClosestVertexIndexB);
+		// Wrapping in 1,1,1 scale is unnecessary, but this is technically what is happening when sweeping against scaled trimesh.
+		TUniquePtr<FCapsule> Capsule = MakeUnique<FCapsule>(FVec3(0, 0, -33), FVec3(0, 0, 33), 42);
+		TImplicitObjectScaled<FCapsule> ScaledCapsule = TImplicitObjectScaled<FCapsule>(MakeSerializable(Capsule), nullptr, FVec3(1));
 
 
-			EXPECT_VECTOR_NEAR(Normal, Normal2, KINDA_SMALL_NUMBER);
-			EXPECT_NEAR(OutTime, -OutTime2, KINDA_SMALL_NUMBER);
+		const FVec3 Dir(-0.102473199, 0.130887285, -0.986087084);
+		const FReal LengthScale = 9.31486130;
+		const FReal  CurrentLength = 2.14465737;
+		const FReal Length = LengthScale * CurrentLength;
+		const bool bComputeMTD = true;
+		const FReal Thickness = 0;
 
-			const FVec3 ClosestBShouldBe{ -287.344025, 1211.66296, 101.851364 };
-			EXPECT_VECTOR_NEAR(ClosestB, ClosestBShouldBe, KINDA_SMALL_NUMBER);
-		}
+		FReal OutTime = -1.0f;
+		FVec3 Normal(0.0f);
+		FVec3 Position(0.0f);
+		int32 FaceIndex = -1;
+
+		// This is local to trimesh, world scale.
+		bool bResult = GJKRaycast2<FReal>(TriangleReg, ScaledCapsule, StartTM, Dir, Length, OutTime, Position, Normal, Thickness, bComputeMTD);
+
+		// Compare results against GJKPenetration, sweep is initial overlap, so this should be the same.
+		FVec3 Normal2, ClosestA, ClosestB;
+		int32 ClosestVertexIndexA, ClosestVertexIndexB;
+		FReal OutTime2;
+		bool bResult2 = GJKPenetration(Triangle, ScaledCapsule, StartTM, OutTime2, ClosestA, ClosestB, Normal2, ClosestVertexIndexA, ClosestVertexIndexB);
+
+
+		EXPECT_VECTOR_NEAR(Normal, Normal2, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(OutTime, -OutTime2, KINDA_SMALL_NUMBER);
+
+		const FVec3 ClosestBShouldBe{ -287.344025, 1211.66296, 101.851364 };
+		EXPECT_VECTOR_NEAR(ClosestB, ClosestBShouldBe, KINDA_SMALL_NUMBER);
+	}
+
+	//
+	// A real failure case where EPA was terminating too early and returning an incorrect normal
+	// because the UpperBound-LowerBound tolerance check was an absolute rather than relative value
+	// and had an incorrect use of Abs()
+	//
+	GTEST_TEST(EPATests, EPARealFailures_ConvexVsTriangleWrongNormalGJKRaycast2)
+	{
+		using namespace Chaos;
+
+		FTriangleRegister Triangle({
+			MakeVectorRegisterFloat(0.00000000f, 0.00000000f, 0.00000000f, 0.00000000f),
+			MakeVectorRegisterFloat(100.000000f, 100.000000f, 0.00000000f, 0.00000000f),
+			MakeVectorRegisterFloat(0.00000000f, 100.000000f, 0.00000000f, 0.00000000f)
+			});
+
+		TArray<FVec3f> ConvexVerts = {
+			{1.64776051, 0.976988614, 8.85045052},
+			{1.64776051, -0.976994812, 8.85045052},
+			{-1.64776051, -0.976994812, 8.85045052},
+			{-1.64776051, 0.976988614, 8.85045052},
+			{1.64776051, -0.976994812, -0.191102192},
+			{1.64776051, 0.976988614, -0.191102192},
+			{-1.64776051, -0.976994812, -0.191102028},
+			{-1.64776051, 0.976988614, -0.191102028},
+		};
+
+		FImplicitConvex3 Convex(ConvexVerts, 0.0f);
+
+		VectorRegister4Float TranslationSimd = MakeVectorRegisterFloat(13.7357206f, 81.0178833f, 0.975698411f, 0.00000000f);
+		VectorRegister4Float RotationSimd = MakeVectorRegisterFloat(-0.349331319f, -0.614945233f, 0.615562916f, 0.347695649f);
+		VectorRegister4Float DirSimd = MakeVectorRegisterFloat(0.00133391307f, -0.00691976305f, -0.999975145f, 0.00000000f);
+		FReal CurrentLength = 1.0890472489398730;
+
+		FRealSingle Distance;
+		VectorRegister4Float PositionSimd, NormalSimd;
+		bool bHit = GJKRaycast2ImplSimd(Triangle, Convex, RotationSimd, TranslationSimd, DirSimd, FRealSingle(CurrentLength), Distance, PositionSimd, NormalSimd, true, GlobalVectorConstants::Float1000);
+		EXPECT_TRUE(bHit);
+
+		// We should get a hit with a normal pointing upwards but we were getting a normal facing downwards
+		EXPECT_NEAR(NormalSimd.m128_f32[2], 1.0f, UE_KINDA_SMALL_NUMBER);
+	}
+
 }
