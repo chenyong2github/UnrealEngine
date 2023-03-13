@@ -196,6 +196,11 @@ FString UPoseSearchFeatureChannel::GetLabel() const
 
 bool UPoseSearchFeatureChannel::CanBeNormalizedWith(const UPoseSearchFeatureChannel* Other) const
 {
+	if (this == Other)
+	{
+		return true;
+	}
+
 	if (ChannelCardinality != Other->ChannelCardinality)
 	{
 		return false;
