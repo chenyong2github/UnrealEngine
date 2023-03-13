@@ -2227,10 +2227,11 @@ namespace AutomationTool
 		/// <summary>
 		/// Creates a zip file containing the given input files
 		/// </summary>
-		/// <param name="ZipFile">Filename for the zip</param>
+		/// <param name="OutputFile">Filename for the zip</param>
 		/// <param name="BaseDirectory">Base directory to store relative paths in the zip file to</param>
 		/// <param name="Files">Files to include in the archive</param>
-		public static void ZipFiles(FileReference OutputFile, DirectoryReference BaseDirectory, IEnumerable<FileReference> Files)
+		/// <param name="ExecutableFiles">Files to flag with the executable attribute</param>
+		public static void ZipFiles(FileReference OutputFile, DirectoryReference BaseDirectory, IEnumerable<FileReference> Files, HashSet<FileReference> ExecutableFiles = null)
 		{
 			if (!DirectoryReference.Exists(OutputFile.Directory))
 			{
@@ -2251,7 +2252,19 @@ namespace AutomationTool
 					{
 						Name = Name.Replace(Path.DirectorySeparatorChar, '/');
 					}
-					ZipArchive.CreateEntryFromFile_CrossPlatform(File.FullName, Name, CompressionLevel.Fastest);
+
+					ZipArchiveEntry entry = ZipArchive.CreateEntryFromFile_CrossPlatform(File.FullName, Name, CompressionLevel.Fastest);
+					if (ExecutableFiles != null)
+					{
+						if (ExecutableFiles.Contains(File))
+						{
+							entry.ExternalAttributes |= 0b_111_111_101 << 16; // rwx rwx r-x
+						}
+						else
+						{
+							entry.ExternalAttributes |= 0b_110_110_100 << 16; // rw- rw- r--
+						}
+					}
 				}
 			}
 		}
