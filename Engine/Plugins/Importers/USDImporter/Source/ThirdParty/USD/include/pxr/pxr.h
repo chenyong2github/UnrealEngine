@@ -27,17 +27,17 @@
 /// \file pxr/pxr.h
 
 #define PXR_MAJOR_VERSION 0
-#define PXR_MINOR_VERSION 22
-#define PXR_PATCH_VERSION 11
+#define PXR_MINOR_VERSION 23
+#define PXR_PATCH_VERSION 02
 
-#define PXR_VERSION 2211
+#define PXR_VERSION 2302
 
 #define PXR_USE_NAMESPACES 1
 
 #if PXR_USE_NAMESPACES
 
 #define PXR_NS pxr
-#define PXR_INTERNAL_NS pxrInternal_v0_22__pxrReserved__
+#define PXR_INTERNAL_NS pxrInternal_v0_23__pxrReserved__
 #define PXR_NS_GLOBAL ::PXR_NS
 
 namespace PXR_INTERNAL_NS { }

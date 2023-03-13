@@ -2,21 +2,21 @@
 
 set -e
 
-USD_VERSION=22.11
+USD_VERSION=23.02
 
 # This path may be adjusted to point to wherever the USD source is located.
 # It is typically obtained by either downloading a zip/tarball of the source
 # code, or more commonly by cloning the GitHub repository, e.g. for the
 # current engine USD version:
-#     git clone --branch v22.11 https://github.com/PixarAnimationStudios/USD.git USD_src
+#     git clone --branch v23.02 https://github.com/PixarAnimationStudios/USD.git USD_src
 # We apply a patch for the usdMtlx plugin to ensure that we do not
 # bake a hard-coded path to the MaterialX standard data libraries into the
 # built plugin:
-#     git apply USD_v2211_usdMtlx_undef_stdlib_dir.patch
+#     git apply USD_v2302_usdMtlx_undef_stdlib_dir.patch
 # Specifically for Linux when building with clang, an additional patch is
 # needed to ensure that type comparisons work correctly across shared library
 # boundaries:
-#     git apply USD_v2211_Linux_clang_TfSafeTypeCompare.patch
+#     git apply USD_v2302_Linux_clang_TfSafeTypeCompare.patch
 # Note also that this path may be emitted as part of USD error messages, so
 # it is suggested that it not reveal any sensitive information.
 SOURCE_LOCATION="/tmp/USD_src"
@@ -93,9 +93,9 @@ CMAKE_ARGS=(
     -DBOOST_INCLUDEDIR="$BOOST_INCLUDE_LOCATION"
     -DBOOST_LIBRARYDIR="$BOOST_LIB_LOCATION"
     -DPXR_USE_PYTHON_3=ON
-    -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE_LOCATION"
-    -DPYTHON_INCLUDE_DIR="$PYTHON_INCLUDE_LOCATION"
-    -DPYTHON_LIBRARY="$PYTHON_LIBRARY_LOCATION"
+    -DPython3_EXECUTABLE="$PYTHON_EXECUTABLE_LOCATION"
+    -DPython3_INCLUDE_DIR="$PYTHON_INCLUDE_LOCATION"
+    -DPython3_LIBRARY="$PYTHON_LIBRARY_LOCATION"
     -DPXR_BUILD_ALEMBIC_PLUGIN=ON
     -DPXR_ENABLE_HDF5_SUPPORT=OFF
     -DALEMBIC_INCLUDE_DIR="$ALEMBIC_INCLUDE_LOCATION"

@@ -2739,6 +2739,7 @@ pxr::UsdSkelSkinningQuery UsdUtils::CreateSkinningQuery( const pxr::UsdGeomMesh&
 		AnimQuery ? AnimQuery.GetBlendShapeOrder() : pxr::VtTokenArray(),
 		SkelBindingAPI.GetJointIndicesAttr(),
 		SkelBindingAPI.GetJointWeightsAttr(),
+		SkelBindingAPI.GetSkinningMethodAttr(),
 		SkelBindingAPI.GetGeomBindTransformAttr(),
 		SkelBindingAPI.GetJointsAttr(),
 		SkelBindingAPI.GetBlendShapesAttr(),
