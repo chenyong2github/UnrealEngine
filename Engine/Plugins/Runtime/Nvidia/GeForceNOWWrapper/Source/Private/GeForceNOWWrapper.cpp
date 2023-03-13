@@ -107,11 +107,6 @@ GfnRuntimeError GeForceNOWWrapper::Initialize()
 	const GfnRuntimeError ErrorCode = GfnInitializeSdkFromPath(gfnDefaultLanguage, *GFNDllFullPath);
 	bIsInitialized = ErrorCode == gfnSuccess || ErrorCode == gfnInitSuccessClientOnly;
 
-	if (bIsInitialized)
-	{
-		FGenericCrashContext::SetEngineData(TEXT("RHI.CloudInstance"), TEXT("GeForceNow"));
-	}
-
 	return ErrorCode;
 }
 

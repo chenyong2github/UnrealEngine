@@ -42,7 +42,6 @@ public:
 				{
 					CVar->Set(true);
 				}
-				FGenericCrashContext::SetEngineData(TEXT("RHI.CloudInstance"), TEXT("GeForceNow"));
 			}
 		}
 		else
