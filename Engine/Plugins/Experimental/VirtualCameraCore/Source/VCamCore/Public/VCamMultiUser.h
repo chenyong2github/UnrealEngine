@@ -38,7 +38,7 @@ public:
 	FSoftObjectPath ActorToTrack;
 
 	UPROPERTY()
-	FVector RelativeOffset;
+	FVector RelativeOffset = FVector::ZeroVector;
 
 	UPROPERTY()
 	ECameraFocusMethod FocusMethod = ECameraFocusMethod::DoNotOverride;
