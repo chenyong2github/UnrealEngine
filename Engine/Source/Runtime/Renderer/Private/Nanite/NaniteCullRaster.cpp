@@ -854,7 +854,8 @@ class FPatchSplitCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
 		SHADER_PARAMETER_STRUCT( FGlobalWorkQueueParameters, SplitWorkQueue )
 
-		SHADER_PARAMETER( FIntVector4,	PageConstants )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, ClusterPageData )
 
@@ -864,10 +865,9 @@ class FPatchSplitCS : public FNaniteGlobalShader
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FPackedView >,	InViews )
-		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,					VisibleClustersSWHW )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,		VisibleClustersSWHW )
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InClusterOffsetSWHW )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >,		InClusterOffsetSWHW )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,	RWVisiblePatches )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >,		RWVisiblePatchesArgs )
@@ -4022,11 +4022,11 @@ void CullRasterize(
 
 		PassParameters->View = SceneView.ViewUniformBuffer;
 		PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-		PassParameters->GPUSceneParameters = GPUSceneParameters;
-		PassParameters->SplitWorkQueue = SplitWorkQueue;
-		PassParameters->PageConstants = CullingContext.PageConstants;
+		PassParameters->GPUSceneParameters	= GPUSceneParameters;
+		PassParameters->CullingParameters	= CullingParameters;
+		PassParameters->SplitWorkQueue		= SplitWorkQueue;
+
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV( CullingContext.VisibleClustersSWHW );
-		PassParameters->InViews = CullingContext.ViewsBuffer != nullptr ? GraphBuilder.CreateSRV( CullingContext.ViewsBuffer ) : nullptr;
 
 		PassParameters->TessellationTable_Offsets	= GTessellationTable.Offsets.SRV;
 		PassParameters->TessellationTable_Verts		= GTessellationTable.Verts.SRV;
@@ -4035,6 +4035,9 @@ void CullRasterize(
 		PassParameters->RWVisiblePatches		= GraphBuilder.CreateUAV( VisiblePatches );
 		PassParameters->RWVisiblePatchesArgs	= GraphBuilder.CreateUAV( VisiblePatchesArgs );
 		PassParameters->VisiblePatchesSize		= MaxVisiblePatches;
+
+		if( VirtualShadowMapArray )
+			PassParameters->VirtualShadowMap = VirtualTargetParameters;
 
 		FPatchSplitCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FPatchSplitCS::FMultiViewDim >( bMultiView );

@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define CULLING_PASS CULLING_PASS_OCCLUSION_MAIN
+
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "NaniteAttributeDecode.ush"
 #include "NaniteTessellation.ush"
 #include "NaniteHZBCull.ush"
+#include "NaniteCullingCommon.ush"
+#if VIRTUAL_TEXTURE_TARGET
+#include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
+#endif
 
 #if NANITE_TESSELLATION
 
@@ -139,22 +145,6 @@ uint FSplitTask::Run()
 		return 0;
 #endif
 
-#if 1
-
-#if 0
-	float3 A = ConeCos * AvgNormal;
-	float3 B = sqrt( 1 - Pow2( ConeCos ) ) * sqrt( 1 - Pow2( AvgNormal ) );	
-
-	float3 ConeMax = select( +AvgNormal >= ConeCos, 1, max( +A - B, +A + B ) );
-	float3 ConeMin = select( -AvgNormal >= ConeCos, 1, max( -A - B, -A + B ) );
-	//float3 ConeMax = max( cos( acos( +AvgNormal ) + acos( ConeCos ) ), cos( acos( +AvgNormal ) - acos( ConeCos ) ) );
-	//float3 ConeMin = max( cos( acos( -AvgNormal ) + acos( ConeCos ) ), cos( acos( -AvgNormal ) - acos( ConeCos ) ) );
-	//ConeMax = select( +AvgNormal >= ConeCos, 1, ConeMax );
-	//ConeMin = select( -AvgNormal >= ConeCos, 1, ConeMin );
-
-	BoundsMax += max( DisplacementMax * ConeMax, -DisplacementMin * ConeMin );
-	BoundsMin -= max( DisplacementMax * ConeMin, -DisplacementMin * ConeMax );
-#else
 	// A (-/+) B == cos( acos(AvgNormal) (+/-) acos(ConeCos) )
 	float3 A = ConeCos * abs( AvgNormal );
 	float3 B = sqrt( ( 1 - Pow2( ConeCos ) ) * ( 1 - Pow2( AvgNormal ) ) );
@@ -169,63 +159,33 @@ uint FSplitTask::Run()
 
 	BoundsMin += select( AvgNormal >= 0, DisplaceMin3, -DisplaceMax3 );
 	BoundsMax += select( AvgNormal >= 0, DisplaceMax3, -DisplaceMin3 );
-#endif
 
 	float3 BoundsCenter = 0.5 * ( BoundsMax + BoundsMin );
 	float3 BoundsExtent = 0.5 * ( BoundsMax - BoundsMin );
 
-	const bool bIsOrtho = IsOrthoProjection( NaniteView.ViewToClip );
-	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0;
+	FBoxCull Cull;
+	Cull.Init( NaniteView, BoundsCenter, BoundsExtent, InstanceData.NonUniformScale.xyz, InstanceDynamicData.LocalToTranslatedWorld, InstanceDynamicData.PrevLocalToTranslatedWorld );
+	Cull.Distance();
+	Cull.GlobalClipPlane();
 
-	FFrustumCullData Cull = BoxCullFrustum( BoundsCenter, BoundsExtent, InstanceDynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, false );
+#if VIRTUAL_TEXTURE_TARGET
+	const bool bMaterialInvalidates = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
+	const bool bHasMoved = InstanceDynamicData.bHasMoved || bMaterialInvalidates;
+
+	Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
+#endif
+
+	Cull.FrustumHZB( true );
 
 	if( !Cull.bIsVisible )
 		return 0;
-#else
-	int NumInFrontOfNearPlane = 0;
-
-	bool2 SignMin = true;
-	bool2 SignMax = true;
-
-	// Screen rect from bounds
-	float3 RectMin = float3( 1, 1, 1 );
-	float3 RectMax = float3( -1, -1, -1 );
-	for( int i = 0; i < 3; i++ )
-	{
-		float4 PointClip = mul( float4( PointView[i], 1 ), NaniteView.ViewToClip );
-		float3 PointScreen = PointClip.xyz / PointClip.w;
-
-		RectMin = min( RectMin, PointScreen );
-		RectMax = max( RectMax, PointScreen );
-
-		SignMin &= PointClip.w - PointClip.xy < 0;
-		SignMax &= PointClip.w + PointClip.xy < 0;
-
-		NumInFrontOfNearPlane += PointClip.w < NaniteView.NearPlane;
-	}
-	
-	bool bCrossesFarPlane = RectMin.z < 0;
-	bool bIsVisible       = RectMax.z > 0;
-
-	bool bCrossesNearPlane	= NumInFrontOfNearPlane != 0;
-	bIsVisible			= NumInFrontOfNearPlane != 8 && bIsVisible;
-
-	bool bFrustumCull = any( SignMin | SignMax );
-	bIsVisible = bIsVisible && !bFrustumCull;
-
-
-	if( !bIsVisible )
-		return 0;
-#endif
-
 
 	float3 TessFactors = GetTessFactors( NaniteView, PointView );
 
 	uint NumVerts = 0;
 	uint NumTris = 0;
 	
-	bool bWasOccluded = false;
-	if( bWasOccluded )
+	if( Cull.bWasOccluded )
 	{
 		/*uint WriteOffset = OccludedPatches.Add();
 		if( WriteOffset < OccludedPatches.Size )
@@ -235,7 +195,7 @@ uint FSplitTask::Run()
 	}
 	else if( all( TessFactors <= TessellationTable_Size ) )
 	{
-		if( Cull.bCrossesNearPlane )
+		if( Cull.bNeedsClipping )
 			return 0;
 
 		uint WriteOffset;
@@ -312,7 +272,6 @@ void FSplitTask::RunChild( uint LocalItemIndex )
 
 	//WorkQueue.ReleaseTask();
 }
-
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void PatchSplit() 

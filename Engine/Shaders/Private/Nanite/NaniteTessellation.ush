@@ -278,10 +278,9 @@ struct FSplitPatch
 #define THREADGROUP_SIZE	32
 #include "../WorkDistribution.ush"
 
-RWCoherentByteAddressBuffer				SplitWorkQueue_DataBuffer;
-//RWStructuredBuffer< FWorkQueueState >	SplitWorkQueue_StateBuffer;
+RWCoherentByteAddressBuffer						SplitWorkQueue_DataBuffer;
 RWCoherentStructuredBuffer( FWorkQueueState )	SplitWorkQueue_StateBuffer;
-uint									SplitWorkQueue_Size;
+uint											SplitWorkQueue_Size;
 
 static const FGlobalWorkQueue SplitWorkQueue = { SplitWorkQueue_DataBuffer, SplitWorkQueue_StateBuffer, 0, SplitWorkQueue_Size };
 FOutputQueue OccludedPatches;
