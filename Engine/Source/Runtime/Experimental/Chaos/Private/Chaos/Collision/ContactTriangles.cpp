@@ -158,7 +158,7 @@ namespace Chaos
 		// NOTE: relies on the sort above, and retains order
 		if (TriangleContactPoints.Num() > 4)
 		{
-			PruneUnnecessaryContactPoints(FReal(0.1), FReal(0.1));
+			PruneUnnecessaryContactPoints();
 		}
 
 		DebugDrawContactPoints(FColor::Yellow, 0.5);
@@ -370,7 +370,7 @@ namespace Chaos
 	// NOTE: ContactPoints must be sorted on Phi on entry, and will be sorted on exit
 	// @todo(chaos): we should only remove shallow contacts that are hidden by nearby deeper contacts. It should be ok to have shallow contacts
 	// far from the deeper ones. E.g., a box landing on plane at an angle.
-	void FContactTriangleCollector::PruneUnnecessaryContactPoints(const FReal PhiTolerance, const FReal DistanceTolerance)
+	void FContactTriangleCollector::PruneUnnecessaryContactPoints()
 	{
 		// Remove all points except for the deepest one, and ones with phis similar to it
 		int32 NewContactPointCount = TriangleContactPoints.Num() > 0 ? 1 : 0;

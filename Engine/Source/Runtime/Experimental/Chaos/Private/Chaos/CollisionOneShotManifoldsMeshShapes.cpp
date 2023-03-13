@@ -20,18 +20,25 @@
 #include "Chaos/Utilities.h"
 #include "ChaosStats.h"
 
-//PRAGMA_DISABLE_OPTIMIZATION
+//UE_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
 	extern bool bChaos_Collision_OneSidedTriangleMesh;
 	extern bool bChaos_Collision_OneSidedHeightField;
+	extern FRealSingle Chaos_Collision_TriMeshDistanceTolerance;
+	extern FRealSingle Chaos_Collision_TriMeshPhiToleranceScale;
 
 	extern bool bChaos_Collision_UseCapsuleTriMesh2;
 	extern bool bChaos_Collision_UseConvexTriMesh2;
 
 	namespace Collisions
 	{
+
+		inline FReal CalculateTriMeshPhiTolerance(const FReal CullDistance)
+		{
+			return Chaos_Collision_TriMeshPhiToleranceScale * CullDistance;
+		}
 
 		template <typename TriMeshType>
 		void ConstructSphereTriangleMeshOneShotManifold(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereWorldTransform, const TriMeshType& TriangleMesh, const FRigidTransform3& TriMeshWorldTransform, const FReal Dt, FPBDCollisionConstraint& Constraint)
@@ -164,8 +171,10 @@ namespace Chaos
 			const FTriangleMeshImplicitObject* Mesh = UnwrapImplicit<FTriangleMeshImplicitObject>(InMesh, MeshScale, MeshMargin);
 			check(Mesh != nullptr);
 
-			FContactTriangleCollector MeshContacts(bChaos_Collision_OneSidedTriangleMesh, QuadraticTransform);
 			const FReal CullDistance = Constraint.GetCullDistance();
+			const FReal PhiTolerance = CalculateTriMeshPhiTolerance(CullDistance);
+			const FReal DistanceTolerance = Chaos_Collision_TriMeshDistanceTolerance;
+			FContactTriangleCollector MeshContacts(bChaos_Collision_OneSidedTriangleMesh, PhiTolerance, DistanceTolerance, QuadraticTransform);
 
 			if (const FImplicitSphere3* Sphere = Quadratic.template GetObject<FImplicitSphere3>())
 			{
@@ -190,8 +199,10 @@ namespace Chaos
 			ensure(QuadraticTransform.GetScale3D() == FVec3(1));
 			ensure(MeshTransform.GetScale3D() == FVec3(1));
 
-			FContactTriangleCollector MeshContacts(bChaos_Collision_OneSidedHeightField, QuadraticTransform);
 			const FReal CullDistance = Constraint.GetCullDistance();
+			const FReal PhiTolerance = CalculateTriMeshPhiTolerance(CullDistance);
+			const FReal DistanceTolerance = Chaos_Collision_TriMeshDistanceTolerance;
+			FContactTriangleCollector MeshContacts(bChaos_Collision_OneSidedHeightField, PhiTolerance, DistanceTolerance, QuadraticTransform);
 
 			if (const FImplicitSphere3* Sphere = Quadratic.template GetObject<FImplicitSphere3>())
 			{
@@ -226,8 +237,10 @@ namespace Chaos
 			const FTriangleMeshImplicitObject* Mesh = UnwrapImplicit<FTriangleMeshImplicitObject>(InMesh, MeshScale, MeshMargin);
 			check(Mesh != nullptr);
 
-			FContactTriangleCollector MeshContacts(bChaos_Collision_OneSidedTriangleMesh, ConvexTransform);
 			const FReal CullDistance = Constraint.GetCullDistance();
+			const FReal PhiTolerance = CalculateTriMeshPhiTolerance(CullDistance);
+			const FReal DistanceTolerance = Chaos_Collision_TriMeshDistanceTolerance;
+			FContactTriangleCollector MeshContacts(bChaos_Collision_OneSidedTriangleMesh, PhiTolerance, DistanceTolerance, ConvexTransform);
 
 			if (const FImplicitBox3* RawBox = Convex.template GetObject<FImplicitBox3>())
 			{
@@ -263,9 +276,12 @@ namespace Chaos
 			ensure(ConvexTransform.GetScale3D() == FVec3(1));
 			ensure(MeshTransform.GetScale3D() == FVec3(1));
 
-			FContactTriangleCollector MeshContacts(bChaos_Collision_OneSidedHeightField, ConvexTransform);
-			const FReal CullDistance = Constraint.GetCullDistance();
 			const FVec3 MeshScale = FVec3(1);	// Scale is built into heightfield
+
+			const FReal CullDistance = Constraint.GetCullDistance();
+			const FReal PhiTolerance = CalculateTriMeshPhiTolerance(CullDistance);
+			const FReal DistanceTolerance = Chaos_Collision_TriMeshDistanceTolerance;
+			FContactTriangleCollector MeshContacts(bChaos_Collision_OneSidedHeightField, PhiTolerance, DistanceTolerance, ConvexTransform);
 
 			if (const FImplicitBox3* RawBox = Convex.template GetObject<FImplicitBox3>())
 			{

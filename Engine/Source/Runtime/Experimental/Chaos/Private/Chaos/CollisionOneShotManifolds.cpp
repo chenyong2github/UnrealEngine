@@ -89,6 +89,12 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedTriangleMesh(TEXT("p.Chaos.Collision.OneSidedTriangleMesh"), bChaos_Collision_OneSidedTriangleMesh, TEXT(""));
 	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedHeightfield(TEXT("p.Chaos.Collision.OneSidedHeightField"), bChaos_Collision_OneSidedHeightField, TEXT(""));
 
+	// Ueed to reject contacts against tri meshes
+	FRealSingle Chaos_Collision_TriMeshPhiToleranceScale = 1.0f;	// A multipler on cull distance. Points farther than this from the deepest point are ignored
+	FRealSingle Chaos_Collision_TriMeshDistanceTolerance = 0.1f;	// Points closer than this to a deeper point are ignored
+	FAutoConsoleVariableRef CVarChaos_Collision_TriMeshDistanceolerance(TEXT("p.Chaos.Collision.TriangeMeshDistanceTolerance"), Chaos_Collision_TriMeshDistanceTolerance, TEXT(""));
+	FAutoConsoleVariableRef CVarChaos_Collision_TriMeshPhiToleranceScale(TEXT("p.Chaos.Collision.TriangeMeshPhiToleranceScale"), Chaos_Collision_TriMeshPhiToleranceScale, TEXT(""));
+
 	bool bChaos_Collision_UseCapsuleTriMesh2 = true;
 	FAutoConsoleVariableRef CVarChaos_Collision_UseCapsuleTriMesh2(TEXT("p.Chaos.Collision.UseCapsuleTriMesh2"), bChaos_Collision_UseCapsuleTriMesh2, TEXT(""));
 

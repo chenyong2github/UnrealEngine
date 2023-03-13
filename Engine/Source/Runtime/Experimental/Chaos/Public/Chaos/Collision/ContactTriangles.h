@@ -223,8 +223,23 @@ namespace Chaos
 	class FContactTriangleCollector
 	{
 	public:
+		UE_DEPRECATED(5.3, "Use the constructor below which take PhiTolerance etc")
 		FContactTriangleCollector(const bool bInOneSided, const FRigidTransform3& InConvexTransform)
-			: bOneSidedCollision(bInOneSided)
+			: PhiTolerance(0.1)
+			, DistanceTolerance(0.1)
+			, bOneSidedCollision(bInOneSided)
+			, ConvexTransform(InConvexTransform)
+		{
+		}
+
+		FContactTriangleCollector(
+			const bool bInOneSided,
+			const FReal InPhiTolerance,
+			const FReal InDistanceTolerance,
+			const FRigidTransform3& InConvexTransform)
+			: PhiTolerance(InPhiTolerance)
+			, DistanceTolerance(InDistanceTolerance)
+			, bOneSidedCollision(bInOneSided)
 			, ConvexTransform(InConvexTransform)
 		{
 		}
@@ -268,7 +283,7 @@ namespace Chaos
 		void PruneEdgeContactPoints();
 		void FixInvalidNormalContactPoints();
 		void PruneInfacingContactPoints();
-		void PruneUnnecessaryContactPoints(const FReal PhiTolerance, const FReal DistanceTolerance);
+		void PruneUnnecessaryContactPoints();
 		void ReduceManifoldContactPointsTriangeMesh();
 		void FinalizeContacts(const FRigidTransform3& MeshToConvexTransform);
 
@@ -293,6 +308,12 @@ namespace Chaos
 
 		// A list of all the vertices of contacts with faces and edges. Used to prune vertex contacts
 		TSet<FContactVertexID> ContactVertices;
+
+		// We remove contacts that are shallower by this much compared to the deepest contact (negative to disable this functionality)
+		FReal PhiTolerance;
+
+		// We remove contacts that are closer than this to any other contact (negative to disable this functionality)
+		FReal DistanceTolerance;
 
 		bool bOneSidedCollision;
 
