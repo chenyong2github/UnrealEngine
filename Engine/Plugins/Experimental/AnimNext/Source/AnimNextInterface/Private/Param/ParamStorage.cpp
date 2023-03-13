@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimNextInterfaceParamStorage.h"
+#include "Param/ParamStorage.h"
 #include "HAL/UnrealMemory.h"
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
-
 
 FParamStorage::FParamStorage(int32 InMaxParams, int32 InAllocatedMemorySize, int32 InMaxBlocks, bool InAllowGrowing)
 	: AllowGrowing(InAllowGrowing)
@@ -161,4 +160,4 @@ bool FParamStorage::CheckNumBlocks(int32 BlockIndex)
 	return ValidIndex;
 }
 
-} // end namespace UE::AnimNext::Interface
+} // end namespace UE::AnimNext

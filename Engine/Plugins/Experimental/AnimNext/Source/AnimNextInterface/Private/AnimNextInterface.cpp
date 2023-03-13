@@ -4,20 +4,20 @@
 #include "IAnimNextInterface.h"
 #include "AnimNextInterfaceContext.h"
 
-namespace UE::AnimNext::Interface::Private
+namespace UE::AnimNext::Private
 {
 
-static bool CheckCompatibility(const IAnimNextInterface* InAnimNextInterface, const UE::AnimNext::Interface::FContext& InContext)
+static bool CheckCompatibility(const IAnimNextInterface* InAnimNextInterface, const UE::AnimNext::FContext& InContext)
 {
 	check(InAnimNextInterface);
-	return InContext.GetResultParam().GetType().GetName() == InAnimNextInterface->GetReturnTypeName();
+	return InContext.GetResultParam().GetTypeHandle() == InAnimNextInterface->GetReturnTypeHandle();
 }
 
 }
 
-bool IAnimNextInterface::GetDataIfCompatibleInternal(const UE::AnimNext::Interface::FContext& InContext) const
+bool IAnimNextInterface::GetDataIfCompatibleInternal(const UE::AnimNext::FContext& InContext) const
 {
-	if(UE::AnimNext::Interface::Private::CheckCompatibility(this, InContext))
+	if(UE::AnimNext::Private::CheckCompatibility(this, InContext))
 	{
 		return GetDataRawInternal(InContext);
 	}
@@ -25,34 +25,39 @@ bool IAnimNextInterface::GetDataIfCompatibleInternal(const UE::AnimNext::Interfa
 	return false;
 }
 
-bool IAnimNextInterface::GetData(const UE::AnimNext::Interface::FContext& Context) const
+bool IAnimNextInterface::GetData(const UE::AnimNext::FContext& Context) const
 {
 	return GetDataIfCompatibleInternal(Context);
 }
 
-bool IAnimNextInterface::GetDataChecked(const UE::AnimNext::Interface::FContext& Context) const
+bool IAnimNextInterface::GetDataChecked(const UE::AnimNext::FContext& Context) const
 {
-	check(UE::AnimNext::Interface::Private::CheckCompatibility(this, Context));
+	check(UE::AnimNext::Private::CheckCompatibility(this, Context));
 	return GetDataRawInternal(Context);
 }
 
-bool IAnimNextInterface::GetData(const UE::AnimNext::Interface::FContext& Context, UE::AnimNext::Interface::FParam& OutResult) const
+bool IAnimNextInterface::GetData(const UE::AnimNext::FContext& Context, UE::AnimNext::FParam& OutResult) const
 {
-	const UE::AnimNext::Interface::FContext CallingContext = Context.WithResult(OutResult);
+	const UE::AnimNext::FContext CallingContext = Context.WithResult(OutResult);
 	return GetDataIfCompatibleInternal(CallingContext);
 }
 
-bool IAnimNextInterface::GetDataChecked(const UE::AnimNext::Interface::FContext& Context, UE::AnimNext::Interface::FParam& OutResult) const
+bool IAnimNextInterface::GetDataChecked(const UE::AnimNext::FContext& Context, UE::AnimNext::FParam& OutResult) const
 {
-	const UE::AnimNext::Interface::FContext CallingContext = Context.WithResult(OutResult);
-	check(UE::AnimNext::Interface::Private::CheckCompatibility(this, CallingContext));
+	const UE::AnimNext::FContext CallingContext = Context.WithResult(OutResult);
+	check(UE::AnimNext::Private::CheckCompatibility(this, CallingContext));
 	return GetDataRawInternal(CallingContext);
 }
 
-bool IAnimNextInterface::GetDataRawInternal(const UE::AnimNext::Interface::FContext& InContext) const
+bool IAnimNextInterface::GetDataRawInternal(const UE::AnimNext::FContext& InContext) const
 {
 	// TODO: debug recording here on context
 
-	const UE::AnimNext::Interface::FContext CallContext = InContext.WithCallRaw(this);
+	const UE::AnimNext::FContext CallContext = InContext.WithCallRaw(this);
 	return GetDataImpl(CallContext);
+}
+
+UE::AnimNext::FParamTypeHandle IAnimNextInterface::GetReturnTypeHandle() const
+{
+	return GetReturnTypeHandleImpl();
 }

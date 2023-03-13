@@ -23,7 +23,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogAnimGenerationTools, Log, All)
 
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 struct FCompareBoneIndexType
@@ -39,7 +39,7 @@ struct FCompareBoneIndexType
 	, const USkeletalMesh* SkeletalMesh
 	, FAnimationReferencePose& OutAnimationReferencePose)
 {
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 
 	bool ReferencePoseGenerated = false;
 
@@ -104,7 +104,7 @@ struct FCompareBoneIndexType
 
 			if (bCanGenerateSingleBonesList)
 			{
-				OutAnimationReferencePose.GenerationFlags = FAnimationReferencePose::EGenerationFlags::FastPath;
+				OutAnimationReferencePose.GenerationFlags = EReferencePoseGenerationFlags::FastPath;
 				OutAnimationReferencePose.SkeletalMesh = SkeletalMesh;
 				OutAnimationReferencePose.Skeleton = SkeletalMesh->GetSkeleton();
 
@@ -431,7 +431,7 @@ struct FCompareBoneIndexType
 	}
 }
 
-} // end namespace UE::AnimNext::Interface
+} // end namespace UE::AnimNext
 
 
 
@@ -443,14 +443,14 @@ namespace AnimNext::Tools::ConsoleCommands
 		{
 			TArray<FBoneIndexType> ExcludedBones;
 
-			UE::AnimNext::Interface::FGenerationTools::DifferenceBoneIndexArrays(LODRequiredBones, NextLODRequiredBones, ExcludedBones);
+			UE::AnimNext::FGenerationTools::DifferenceBoneIndexArrays(LODRequiredBones, NextLODRequiredBones, ExcludedBones);
 
 			return ExcludedBones;
 		}
 
 		static void CheckSkeletalMeshesLODs()
 		{
-			using namespace UE::AnimNext::Interface;
+			using namespace UE::AnimNext;
 
 			TArray<FAssetData> Assets;
 			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
@@ -462,7 +462,7 @@ namespace AnimNext::Tools::ConsoleCommands
 				const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Assets[Idx].GetAsset());
 				if (SkeletalMesh != nullptr)
 				{
-					UE::AnimNext::Interface::FAnimationReferencePose OutAnimationReferencePose;
+					FAnimationReferencePose OutAnimationReferencePose;
 
 					if (FGenerationTools::GenerateReferencePose(nullptr, SkeletalMesh, OutAnimationReferencePose))
 					{

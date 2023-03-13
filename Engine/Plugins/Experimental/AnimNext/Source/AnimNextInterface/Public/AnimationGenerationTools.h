@@ -12,7 +12,7 @@ class FSkeletalMeshLODRenderData;
 struct FPoseContext;
 class UPhysicsAsset;
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 struct FGenerationLODData
@@ -98,4 +98,4 @@ public:
 		, FPoseContext& TargetPose); // TODO : see how to deal with heap and stack variants without duplicating functions (and if possible without templating the function)
 };
 
-} // namespace UE::AnimNext::Interface
+} // namespace UE::AnimNext

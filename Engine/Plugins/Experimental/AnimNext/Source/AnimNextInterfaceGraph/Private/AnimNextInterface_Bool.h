@@ -15,7 +15,7 @@ class UAnimNextInterface_Bool_Literal : public UObject, public IAnimNextInterfac
 	ANIM_NEXT_INTERFACE_RETURN_TYPE(bool)
 
 	// IAnimNextInterface interface
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override
 	{
 		Context.SetResult(Value);
 		return true;
@@ -32,7 +32,7 @@ class UAnimNextInterface_Bool_And : public UObject, public IAnimNextInterface
 	ANIM_NEXT_INTERFACE_RETURN_TYPE(bool)
 
 	// IAnimNextInterface interface
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override;
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
 
 	UPROPERTY(EditAnywhere, Meta=(AnimNextInterfaceType="bool"), Category = "Parameters")
 	TArray<TScriptInterface<IAnimNextInterface>> Inputs;
@@ -46,7 +46,7 @@ class UAnimNextInterface_Bool_Not : public UObject, public IAnimNextInterface
 	ANIM_NEXT_INTERFACE_RETURN_TYPE(bool)
 
 	// IAnimNextInterface interface
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override;
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
 
 	UPROPERTY(EditAnywhere, Meta=(AnimNextInterfaceType="bool"), Category = "Parameters")
 	TScriptInterface<IAnimNextInterface> Input;

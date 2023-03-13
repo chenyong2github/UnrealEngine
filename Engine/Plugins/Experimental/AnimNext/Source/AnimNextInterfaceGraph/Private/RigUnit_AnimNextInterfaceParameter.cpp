@@ -5,7 +5,6 @@
 #include "AnimNextInterfaceExecuteContext.h"
 #include "AnimNextInterface.h"
 #include "AnimNextInterfaceTypes.h"
-#include "AnimNextInterfaceKernel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_AnimNextInterfaceParameter)
 
@@ -21,7 +20,7 @@ FRigUnit_AnimNextInterfaceParameter_Float_Execute()
 
 FRigUnit_AnimNextInterfaceParameter_GraphLODPose_Execute()
 {
-	const UE::AnimNext::Interface::FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
+	const UE::AnimNext::FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
 
 	Result = AnimNextInterfaceContext.GetParameterChecked<FAnimNextGraphLODPose>(Parameter);
 
@@ -30,7 +29,7 @@ FRigUnit_AnimNextInterfaceParameter_GraphLODPose_Execute()
 
 FRigUnit_AnimNextInterfaceParameter_AnimSequence_Execute()
 {
-	const UE::AnimNext::Interface::FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
+	const UE::AnimNext::FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
 
 	Result = AnimNextInterfaceContext.GetParameterChecked<FAnimNextGraph_AnimSequence>(Parameter);
 
@@ -45,7 +44,7 @@ FRigUnit_AnimNextInterfaceParameter_AnimNextInterface_Execute()
 
 FRigUnit_AnimNextInterface_Float_Execute()
 {
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 
 	// @TODO: ensure that context arg is always present to avoid these checks here
 	const FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
@@ -59,7 +58,7 @@ FRigUnit_AnimNextInterface_Float_Execute()
 /*
 FRigUnit_AnimNextInterface_Pose_Execute()
 {
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 
 	// @TODO: ensure that context arg is always present to avoid these checks here
 	if(Context.State == EControlRigState::Update && ExecuteContext.OpaqueArguments.Num() > 1 && ExecuteContext.OpaqueArguments[1] != nullptr)
@@ -85,41 +84,26 @@ FRigUnit_AnimNextInterface_SequencePlayer_Execute()
 {
 }
 
-struct FSpringDamperState
-{
-	float Value = 0.0f;
-	float ValueRate = 0.0f;
-};
 
-IMPLEMENT_ANIM_NEXT_INTERFACE_STATE_TYPE(FSpringDamperState, SpringDamperState);
 
 FRigUnit_TestFloatState_Execute()
 {
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 
 	// @TODO: ensure that context arg is always present to avoid these checks here
 	const FContext& AnimNextInterfaceContext = ExecuteContext.GetContext();
 
-	const TParam<FSpringDamperState> State = AnimNextInterfaceContext.GetState<FSpringDamperState>(ExecuteContext.GetInterface(), 0);
+	FRigUnit_TestFloatState_SpringDamperState& State = AnimNextInterfaceContext.GetState<FRigUnit_TestFloatState_SpringDamperState>(ExecuteContext.GetInterface(), 0);
 	const float DeltaTime = AnimNextInterfaceContext.GetDeltaTime();
 
-	FKernel::Run(AnimNextInterfaceContext,
-		[DeltaTime, &Result](FSpringDamperState& InOutState,
-					float InTargetValue,
-					float InTargetValueRate,
-					float InSmoothingTime,
-					float InDampingRatio)
-			{
-				FMath::SpringDamperSmoothing(
-					InOutState.Value,
-					InOutState.ValueRate,
-					InTargetValue,
-					InTargetValueRate,
-					DeltaTime,
-					InSmoothingTime,
-					InDampingRatio);
+	FMath::SpringDamperSmoothing(
+		State.Value,
+		State.ValueRate,
+		TargetValue,
+		TargetValueRate,
+		DeltaTime,
+		SmoothingTime,
+		DampingRatio);
 
-				Result = InOutState.Value;
-			},
-			State, TargetValue, TargetValueRate, SmoothingTime, DampingRatio);
+	Result = State.Value;
 }

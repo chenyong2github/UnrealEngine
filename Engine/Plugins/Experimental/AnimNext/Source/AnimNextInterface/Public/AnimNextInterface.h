@@ -20,38 +20,6 @@ static bool GetDataSafe(const TScriptInterface<InterfaceType> AnimNextInterface,
 	return false;
 }
 
-//// Set the Result into the context and call the interface
-//template<typename InterfaceType, typename ValueType>
-//static bool GetDataSafe(const TScriptInterface<InterfaceType> AnimNextInterface, FContext& InContext, ValueType& Result)
-//{
-//	if (AnimNextInterface.GetInterface() != nullptr)
-//	{
-//		if constexpr (TIsDerivedFrom<ValueType, FParam>::Value)
-//		{
-//			const FContext ResultHolder = InContext.WithResult(Result);
-//			return AnimNextInterface.GetInterface()->GetData(ResultHolder);
-//		}
-//		else
-//		{
-//			// Support containers with Num() and GetData()
-//			if constexpr (TModels_V<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>)
-//			{
-//				TWrapParam<ValueType::ElementType> WrappedResult(Result.GetData(), Result.Num());
-//				const FContext ResultHolder = InContext.WithResult(WrappedResult);
-//				return AnimNextInterface.GetInterface()->GetData(ResultHolder);
-//			}
-//			else
-//			{
-//				TWrapParam<ValueType> WrappedResult(&Result);
-//				const FContext ResultHolder = InContext.WithResult(WrappedResult);
-//				return AnimNextInterface.GetInterface()->GetData(ResultHolder);
-//			}
-//		}
-//	}
-//
-//	return false;
-//}
-
 // This version accepts a const Context, but it crates a sub context in order to be able to pass the Result
 // Using the non const version is a better option if possible
 template<typename InterfaceType, typename ValueType>

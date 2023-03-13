@@ -3,14 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AnimNextInterfaceParam.h"
+#include "Param/Param.h"
 #include "AnimNextInterfaceKey.h"
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 struct FContext;
-struct FParamType;
 
 enum class EStatePersistence : uint8
 {
@@ -22,12 +21,6 @@ enum class EStatePersistence : uint8
 // Container for anim interface state
 struct ANIMNEXTINTERFACE_API FState
 {
-	FState(int32 InNumElements = 1)
-		: NumElements(InNumElements)
-	{
-		check(InNumElements > 0);
-	}
-	
 private:
 	friend struct FContext;
 
@@ -45,7 +38,7 @@ private:
 		else
 		{
 			// Allocate new state
-			FParam* NewState = AllocateState(CombinedKey, InContext, Private::TParamType<ValueType>::GetType(), Persistence);
+			FParam* NewState = AllocateState(CombinedKey, InContext, FParamTypeHandle::GetHandle<ValueType>(), Persistence);
 
 			// Construct
 			new (NewState->Data) ValueType();
@@ -66,13 +59,13 @@ private:
 private:
 	FParam* FindStateRaw(const FInterfaceKeyWithIdAndStack& InKey, const FContext& InContext, EStatePersistence InPersistence);
 
-	FParam* AllocateState(const FInterfaceKeyWithIdAndStack& InKey, const FContext& InContext, const FParamType& InType, EStatePersistence InPersistence);
+	FParam* AllocateState(const FInterfaceKeyWithIdAndStack& InKey, const FContext& InContext, const FParamTypeHandle& InTypeHandle, EStatePersistence InPersistence);
 
 private:
 	struct FRelevancyParam : FParam
 	{
-		FRelevancyParam(const FParamType& InType, void* InData, EFlags InFlags, uint32 InUpdateCounter)
-			: FParam(InType, InData, InFlags)
+		FRelevancyParam(const FParamTypeHandle& InTypeHandle, TArrayView<uint8> InData, EFlags InFlags, uint32 InUpdateCounter)
+			: FParam(InTypeHandle, InData, InFlags)
 			, UpdateCounter(InUpdateCounter)
 		{}
 	
@@ -81,7 +74,6 @@ private:
 	
 	TMap<FInterfaceKeyWithIdAndStack, FRelevancyParam> RelevancyValueMap;
 	TMap<FInterfaceKeyWithIdAndStack, FParam> PermanentValueMap;
-	int32 NumElements = 0;
 };
 
 }

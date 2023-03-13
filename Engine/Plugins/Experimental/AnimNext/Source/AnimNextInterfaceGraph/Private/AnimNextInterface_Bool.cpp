@@ -2,51 +2,46 @@
 
 #include "AnimNextInterface_Bool.h"
 #include "AnimNextInterface.h"
-#include "AnimNextInterfaceTypes.h"
-#include "AnimNextInterfaceKernel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNextInterface_Bool)
 
-bool UAnimNextInterface_Bool_And::GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const
+bool UAnimNextInterface_Bool_And::GetDataImpl(const UE::AnimNext::FContext& Context) const
 {
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 	
 	check(Inputs.Num() > 0);
 
-	bool bResult = true;
-	TAllocParam<bool> IntermediateParam(Context);
-	TParam<bool> Result = Context.GetResult<bool>();
+	bool bInterfaceResult = true;
+	bool bIntermediateResult = false;
+
+	// Get result to write to
+	bool& bOutResult = Context.GetResult<bool>();
 	
 	for(const TScriptInterface<IAnimNextInterface>& Input : Inputs)
 	{
-		bResult &= UE::AnimNext::Interface::GetDataSafe(Input, Context, IntermediateParam);
+		// Get any inputs we may have
+		bInterfaceResult &= Interface::GetDataSafe(Input, Context, bIntermediateResult);
 
-		FKernel::Run(Context,
-			[](bool& OutResult, bool InIntermediate)
-			{
-				OutResult = OutResult && InIntermediate;
-			},
-			Result, IntermediateParam);
+		// AND the inputs
+		bOutResult = bOutResult && bIntermediateResult;
 	}
 
-	return bResult;
+	return bInterfaceResult;
 }
 
-bool UAnimNextInterface_Bool_Not::GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const
+bool UAnimNextInterface_Bool_Not::GetDataImpl(const UE::AnimNext::FContext& Context) const
 {
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 
-	TParam<bool> Result = Context.GetResult<bool>();
+	// Get result to write to
+	bool& bOutResult = Context.GetResult<bool>();
 	
-	TAllocParam<bool> CurrentValue(Context);
-	bool bResult = UE::AnimNext::Interface::GetDataSafe(Input, Context, CurrentValue);
+	// Get any input we may have
+	bool bInputResult = false;
+	const bool bInterfaceResult = Interface::GetDataSafe(Input, Context, bInputResult);
 
-	FKernel::Run(Context,
-		[](bool& OutResult, bool InCurrent)
-		{
-			OutResult = !InCurrent;
-		},
-		Result, CurrentValue);
+	// NOT the input, write to output
+	bOutResult = !bInputResult;
 
-	return bResult;
+	return bInterfaceResult;
 }

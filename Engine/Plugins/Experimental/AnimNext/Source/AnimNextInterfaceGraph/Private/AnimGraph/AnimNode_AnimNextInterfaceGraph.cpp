@@ -10,7 +10,6 @@
 #include "GameFramework/Actor.h"
 #include "Animation/NodeMappingContainer.h"
 #include "AnimationRuntime.h"
-#include "AnimNextInterfaceTypes.h"
 #include "AnimNextInterface.h"
 #include "AnimationDataRegistry.h"
 #include "AnimationGenerationTools.h"
@@ -18,6 +17,7 @@
 #include "AnimNextInterface_LODPose.h"
 #include "RigUnit_AnimNextAnimSequence.h" // TEST
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimSequence.h" // TEST
 #include "Engine/SkeletalMesh.h"
 #include "BoneContainer.h"
 
@@ -31,7 +31,6 @@ FAnimNode_AnimNextInterfaceGraph::FAnimNode_AnimNextInterfaceGraph()
 	: FAnimNode_CustomProperty()
 	, AnimNextInterfaceGraph(nullptr)
 	, LODThreshold(INDEX_NONE)
-	, RootState(1) // TODO : Get rid of num elements ? Let the param itself have it
 {
 }
 
@@ -97,7 +96,7 @@ void FAnimNode_AnimNextInterfaceGraph::Evaluate_AnyThread(FPoseContext & Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 
 	FPoseContext SourcePose(Output);
 
@@ -120,11 +119,11 @@ void FAnimNode_AnimNextInterfaceGraph::Evaluate_AnyThread(FPoseContext & Output)
 
 	// TODO : In a normal graph, FState/FParamStorage/FContext would come from FAnimationUpdateContext, here I have to create one the fly for the AnimNext graph
 	//UE::AnimNext::Interface::FState RootState; // moved to .h as I need state persistence in the AnimNext graph
-	UE::AnimNext::Interface::FParamStorage ParamStorage(5, 0, 0);	// TODO : see if we can have state and params together and optional. Also, default size
+	UE::AnimNext::FParamStorage ParamStorage(5, 0, 0);	// TODO : see if we can have state and params together and optional. Also, default size
 	
 	// TODO : Using AnimInstanceProxy->GetDeltaSeconds() makes the preview to advance  multiple times when debug options are activated (i.e. ShowUncompressedAnim)
 	// See where to get / how to calculate the correct delta value
-	UE::AnimNext::Interface::FContext RootContext(GraphDeltaTime, RootState, ParamStorage);
+	UE::AnimNext::FContext RootContext(GraphDeltaTime, RootState, ParamStorage);
 	GraphDeltaTime = 0.f; // Reset for the case that we receive multiple calls to Evaluate (debug options)
 
 	FAnimNextGraphReferencePose GraphReferencePose(&RefPose);

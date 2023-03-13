@@ -15,7 +15,7 @@ struct FAnimNextInterfaceUnitContext : public FRigUnitContext
 		, bResult(nullptr)
 	{}
 
-	FAnimNextInterfaceUnitContext(const IAnimNextInterface* InInterface, const UE::AnimNext::Interface::FContext& InAnimNextInterfaceContext, bool& bInResult)
+	FAnimNextInterfaceUnitContext(const IAnimNextInterface* InInterface, const UE::AnimNext::FContext& InAnimNextInterfaceContext, bool& bInResult)
 		: FRigUnitContext()
 		, Interface(InInterface)
 		, AnimNextInterfaceContext(&InAnimNextInterfaceContext)
@@ -23,6 +23,6 @@ struct FAnimNextInterfaceUnitContext : public FRigUnitContext
 	{}
 
 	const IAnimNextInterface* Interface;
-	const UE::AnimNext::Interface::FContext* AnimNextInterfaceContext;
+	const UE::AnimNext::FContext* AnimNextInterfaceContext;
 	bool* bResult;
 };

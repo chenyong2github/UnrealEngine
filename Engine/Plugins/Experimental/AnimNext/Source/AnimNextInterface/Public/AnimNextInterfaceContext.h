@@ -4,18 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
-#include "AnimNextInterfaceParam.h"
+#include "Param/Param.h"
 #include "AnimNextInterfaceState.h"
-#include "AnimNextInterfaceParamStorage.h"
+#include "Param/ParamStorage.h"
 #include "AnimNextInterfaceKey.h"
+#include "Param/ParamType.h"
 #include "Misc/MemStack.h"
 
 class IAnimNextInterface;
-class IAnimNextInterfaceParameters;
+class IAnimNextParamInterface;
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
+struct FContext;
 struct FState;
 enum class EStatePersistence : uint8;
 
@@ -38,10 +40,8 @@ private:
 	friend struct FState;
 
 public:
-	static constexpr int32 MAX_BATCH_ELEMENTS = 64;
-
 	// Root public constructor. Constructs a context given a state.
-	FContext(float InDeltaTime, FState& InState, FParamStorage& InParamStorage, IAnimNextInterfaceParameters* InParameters = nullptr);
+	FContext(float InDeltaTime, FState& InState, FParamStorage& InParamStorage, IAnimNextParamInterface* InParameters = nullptr);
 	
 	FContext(const FContext& other) = delete;
 	FContext& operator=(const FContext&) = delete;
@@ -76,7 +76,7 @@ public:
 	FContext WithResultAndParameters(FParam& InResult, TArrayView<const TPair<FName, FParam>> InParameters) const;
 
 	// Create a sub context from this one that includes the provided interface parameter
-	FContext WithParameters(IAnimNextInterfaceParameters* InParameters) const;
+	FContext WithParameters(IAnimNextParamInterface* InParameters) const;
 
 public:
 
@@ -93,7 +93,7 @@ public:
 
 	// Add an Input parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddInputValue(FName ParameterId, ValueType& Value)
+	FParamHandle AddInputValue(FName ParameterId, ValueType& Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -103,7 +103,7 @@ public:
 
 	// Add an Input parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddInputValue(FName ParameterId, ValueType&& Value)
+	FParamHandle AddInputValue(FName ParameterId, ValueType&& Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -113,7 +113,7 @@ public:
 
 	// Add an Input parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddInputValue(FName ParameterId, ValueType* Value)
+	FParamHandle AddInputValue(FName ParameterId, ValueType* Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -123,7 +123,7 @@ public:
 
 	// Add an Output parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddOutputValue(FName ParameterId, ValueType& Value)
+	FParamHandle AddOutputValue(FName ParameterId, ValueType& Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -133,7 +133,7 @@ public:
 
 	// Add an Output parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddOutputValue(FName ParameterId, ValueType&& Value)
+	FParamHandle AddOutputValue(FName ParameterId, ValueType&& Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -143,7 +143,7 @@ public:
 
 	// Add an Output parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddOutputValue(FName ParameterId, ValueType* Value)
+	FParamHandle AddOutputValue(FName ParameterId, ValueType* Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -153,7 +153,7 @@ public:
 
 	// Add a parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddValue(EParamType InParamType, FName ParameterId, ValueType &Value)
+	FParamHandle AddValue(EParamType InParamType, FName ParameterId, ValueType &Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -163,7 +163,7 @@ public:
 
 	// Add a parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddValue(EParamType InParamType, FName ParameterId, ValueType&& Value)
+	FParamHandle AddValue(EParamType InParamType, FName ParameterId, ValueType&& Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -173,7 +173,7 @@ public:
 
 	// Add a parameter by value, copying it to the shared storage
 	template<typename ValueType>
-	FHParam AddValue(EParamType InParamType, FName ParameterId, ValueType* Value)
+	FParamHandle AddValue(EParamType InParamType, FName ParameterId, ValueType* Value)
 	{
 		// Values are added mutable even if source is const
 		const FParam::EFlags Flags = FParam::EFlags::Value | FParam::EFlags::Mutable;
@@ -185,7 +185,7 @@ public:
 
 	// Add an Input parameter by reference, adding just a pointer to the shared storage
 	template<typename ValueType>
-	FHParam AddInputReference(FName ParameterId, ValueType& Value)
+	FParamHandle AddInputReference(FName ParameterId, ValueType& Value)
 	{
 		const FParam::EFlags Flags = FParam::EFlags::Reference;
 
@@ -194,7 +194,7 @@ public:
 
 	// Add an Input parameter by reference, adding just a pointer to the shared storage
 	template<typename ValueType>
-	FHParam AddInputReference(FName ParameterId, ValueType* Value)
+	FParamHandle AddInputReference(FName ParameterId, ValueType* Value)
 	{
 		FParam::EFlags Flags = FParam::EFlags::Reference;
 
@@ -203,7 +203,7 @@ public:
 
 	// Add an Output parameter by reference, adding just a pointer to the shared storage
 	template<typename ValueType>
-	FHParam AddOutputReference(FName ParameterId, ValueType& Value)
+	FParamHandle AddOutputReference(FName ParameterId, ValueType& Value)
 	{
 		const FParam::EFlags Flags = FParam::EFlags::Reference;
 
@@ -212,7 +212,7 @@ public:
 
 	// Add an Output parameter by reference, adding just a pointer to the shared storage
 	template<typename ValueType>
-	FHParam AddOutputReference(FName ParameterId, ValueType* Value)
+	FParamHandle AddOutputReference(FName ParameterId, ValueType* Value)
 	{
 		FParam::EFlags Flags = FParam::EFlags::Reference;
 
@@ -221,7 +221,7 @@ public:
 
 	// Add a parameter by reference, adding just a pointer to the shared storage
 	template<typename ValueType>
-	FHParam AddReference(EParamType InParamType, FName ParameterId, ValueType& Value)
+	FParamHandle AddReference(EParamType InParamType, FName ParameterId, ValueType& Value)
 	{
 		const FParam::EFlags Flags = FParam::EFlags::Reference;
 
@@ -230,7 +230,7 @@ public:
 
 	// Add a parameter by reference, adding just a pointer to the shared storage
 	template<typename ValueType>
-	FHParam AddReference(EParamType InParamType, FName ParameterId, ValueType *Value)
+	FParamHandle AddReference(EParamType InParamType, FName ParameterId, ValueType *Value)
 	{
 		FParam::EFlags Flags = FParam::EFlags::Reference;
 
@@ -238,15 +238,15 @@ public:
 	}
 
 	template<typename ValueType>
-	FHParam AddParameter(EParamType InParamType, FName ParameterId, FParam::EFlags Flags, ValueType* Value)
+	FParamHandle AddParameter(EParamType InParamType, FName ParameterId, FParam::EFlags Flags, ValueType* Value)
 	{
-		FHParam ParamHandle;
+		FParamHandle ParamHandle;
 
 		check(InParamType == EParamType::Input || InParamType == EParamType::Output);
 		check(EnumHasAnyFlags(Flags, FParam::EFlags::Value) || EnumHasAnyFlags(Flags, FParam::EFlags::Reference));
 
-		// check if it is a simple FHParam copy
-		if constexpr (TIsDerivedFrom<ValueType, FHParam>::Value)
+		// check if it is a simple FParamHandle copy
+		if constexpr (TIsDerivedFrom<ValueType, FParamHandle>::Value)
 		{
 			const FParam* ExistingParam = ParamStorage->GetParam(Value->ParamHandle);
 			check(ExistingParam != nullptr);
@@ -269,21 +269,9 @@ public:
 				EnumAddFlags(Flags, FParam::EFlags::Mutable);
 			}
 
-			// deal with containers
-			if constexpr (TModels_V<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>)
-			{
-				MutableValueType* ParamData = const_cast<MutableValueType>(static_cast<ValueType*>(Value->GetData()));
-				ParamHandle = EnumHasAnyFlags(Flags, FParam::EFlags::Value) 
-					? ParamHandle = ParamStorage->AddValue(ParamData, Value->Num(), Flags)
-					: ParamStorage->AddReference(ParamData, Value->Num(), Flags);
-			}
-			// and finally with single params
-			else
-			{
-				ParamHandle = EnumHasAnyFlags(Flags, FParam::EFlags::Value)
-					? ParamHandle = ParamStorage->AddValue(const_cast<MutableValueType*>(Value), 1, Flags)
-					: ParamStorage->AddReference(const_cast<MutableValueType*>(Value), 1, Flags);
-			}
+			ParamHandle = EnumHasAnyFlags(Flags, FParam::EFlags::Value)
+				? ParamStorage->AddValue(const_cast<MutableValueType*>(Value), Flags)
+				: ParamStorage->AddReference(const_cast<MutableValueType*>(Value), Flags);
 		}
 
 		AdditionalParameterHandles.Add(ParameterId, ParamHandle);
@@ -293,7 +281,7 @@ public:
 
 	// Get a TParam from a handle
 	template<typename ValueType>
-	TParam<ValueType> GetParameterChecked(const FHParam &InParamHandle) const
+	TParam<ValueType> GetParameterChecked(const FParamHandle &InParamHandle) const
 	{
 		const FParam* Param = ParamStorage->GetParam(InParamHandle.ParamHandle);
 
@@ -307,12 +295,12 @@ public:
 
 	// Get a parameter from a handle as a specified type
 	template <typename ValueType>
-	ValueType& GetParameterAs(const FHParam& InParamHandle, int32* OutNumElems = nullptr)
+	ValueType& GetParameterAs(const FParamHandle& InParamHandle)
 	{
 		const FParam* Param = ParamStorage->GetParam(InParamHandle.ParamHandle);
 
 		check(Param != nullptr);
-		check(Param->GetType().GetTypeId() == Private::TParamType<ValueType>::GetType().GetTypeId());
+		check(Param->GetTypeHandle() == FParamTypeHandle::GetHandle<ValueType>());
 
 		// If a non cost is requested, check the param has mutable flag
 		if constexpr (TIsConst<ValueType>::Value == false)
@@ -323,11 +311,6 @@ public:
 		ValueType* ValueData = EnumHasAnyFlags(Param->Flags, FParam::EFlags::Embedded)
 			? static_cast<ValueType*>((void*)&Param->Data)
 			: static_cast<ValueType*>(Param->Data);
-
-		if (OutNumElems != nullptr)
-		{
-			*OutNumElems = Param->GetNumElements();
-		}
 
 		return *ValueData;
 	}
@@ -341,7 +324,7 @@ public:
 	template<typename ValueType>
 	TParam<ValueType> GetParameterChecked(FName InKey) const
 	{
-		TParam<ValueType> RetVal(GetBatchedFlags());
+		TParam<ValueType> RetVal;
 
 		GetParameter(InKey, RetVal);
 
@@ -357,7 +340,7 @@ public:
 	{
 		TOptional<TParam<ValueType>> RetVal;
 
-		TParam<ValueType> Param(FParam::EFlags::Mutable | GetBatchedFlags());
+		TParam<ValueType> Param(FParam::EFlags::Mutable);
 		if (GetParameter(InKey, Param))
 		{
 			checkSlow(Private::CheckParam<ValueType>(Param));
@@ -386,7 +369,7 @@ public:
 	}
 
 	// Set a HParam as a result (for compatibility reasons)
-	void SetHParamAsResult(const FHParam& InHParam)
+	void SetHParamAsResult(const FParamHandle& InHParam)
 	{
 		Result = ParamStorage->GetParam(InHParam.ParamHandle);
 	}
@@ -396,48 +379,35 @@ public:
 	template<typename ValueType>
 	void SetResult(const ValueType& InValue) const
 	{
-		// Support containers with Num() and GetData()
-		if constexpr (TModels_V<Private::CSizedContainerWithAccessibleDataAsRawPtr, ValueType>)
-		{
-			checkSlow(Private::CheckParam<ValueType>(*Result));
-			checkSlow(InValue.Num() == Result->NumElements);
-
-			TArrayView<ValueType> Results(*static_cast<ValueType*>(Result->Data), Result->NumElements);
-			const ValueType* Data = InValue.GetData();
-			for(int32 ResultIndex = 0; ResultIndex < Result->NumElements; ++ResultIndex)
-			{
-				Results[ResultIndex] = Data[ResultIndex];
-			}
-		}
-		else
-		{
-			checkSlow(Private::CheckParam<ValueType>(*Result));
-			checkSlow(Result->NumElements == 1);
-
-			TArrayView<ValueType> Results(static_cast<ValueType*>(Result->Data), Result->NumElements);
-			for(ValueType& ResultElement : Results)
-			{
-				ResultElement = InValue;
-			}
-		}
+		check(Result != nullptr);
+		TParam<ValueType> TypedResult(*Result);
+		*TypedResult = InValue;
 	}
 
 	// Get the current result as a TParam
 	template<typename ValueType>
-	TParam<ValueType> GetResult() const
+	TParam<ValueType> GetResultParam() const
 	{
-		// Types must match
-		checkSlow(Private::CheckParam<ValueType>(*Result));
-		return TParam<ValueType>(*Result, GetBatchedFlags());
+		check(Result != nullptr);
+		return TParam<ValueType>(*Result);
 	}
 
-	// Get the current result as a specified raw type pointer
+	// Get the current result as a mutable reference
 	template<typename ValueType>
-	ValueType* GetResultChecked() const
+	ValueType& GetResult() const
 	{
-		// Types must match
-		checkSlow(Private::CheckParam<ValueType>(*Result));
-		return static_cast<ValueType*>(Result->Data);
+		check(Result != nullptr);
+		TParam<ValueType> TypedResult(*Result);
+		return *TypedResult;
+	}
+
+	// Get the current result as a mutable ptr
+	template<typename ValueType>
+	ValueType* GetResultPtr() const
+	{
+		check(Result != nullptr);
+		TParam<ValueType> TypedResult(*Result);
+		return &*TypedResult;
 	}
 
 public:
@@ -445,26 +415,36 @@ public:
 
 	// Gets (and allocates, if necessary) state for the specified node given this calling context
 	template<typename ValueType, EStatePersistence Persistence = EStatePersistence::Relevancy>
-	TParam<ValueType> GetState(const FInterfaceKeyWithId& InKey) const
+	TParam<ValueType> GetStateParam(const FInterfaceKeyWithId& InKey) const
 	{
 		return State->GetState<ValueType, Persistence>(InKey, *this, CallstackHash);
 	}
 
 	// Gets (and allocates, if necessary) state for the specified node given this calling context
 	template<typename ValueType, EStatePersistence Persistence = EStatePersistence::Relevancy>
-	TParam<ValueType> GetState(const IAnimNextInterface* InAnimNextInterface, uint32 InId) const
+	TParam<ValueType> GetStateParam(const IAnimNextInterface* InAnimNextInterface, uint32 InId) const
 	{
 		return State->GetState<ValueType, Persistence>(InAnimNextInterface, InId, *this, CallstackHash);
 	}
 
+	// Gets (and allocates, if necessary) state for the specified node given this calling context
+	template<typename ValueType, EStatePersistence Persistence = EStatePersistence::Relevancy>
+	ValueType& GetState(const FInterfaceKeyWithId& InKey) const
+	{
+		TParam<ValueType> Param = State->GetState<ValueType, Persistence>(InKey, *this, CallstackHash); 
+		return *Param;
+	}
+
+	// Gets (and allocates, if necessary) state for the specified node given this calling context
+	template<typename ValueType, EStatePersistence Persistence = EStatePersistence::Relevancy>
+	ValueType& GetState(const IAnimNextInterface* InAnimNextInterface, uint32 InId) const
+	{
+		TParam<ValueType> Param = State->GetState<ValueType, Persistence>(InAnimNextInterface, InId, *this, CallstackHash);
+		return *Param;
+	}
+	
 public:
 	// --- Mix Context Utils ---
-
-	// Number of elements that this context represents
-	int32 GetNum() const
-	{
-		return State->NumElements;
-	}
 
 	// Access delta time as a param
 	TParam<const float> GetDeltaTimeParam() const;
@@ -472,50 +452,12 @@ public:
 	// Raw access to delta time
 	float GetDeltaTime() const { return DeltaTime; }
 
-	// --- Batching management ---
-
-	// Get parameter flags for batching
-	FParam::EFlags GetBatchedFlags() const
-	{
-		return State->NumElements > 1 ? FParam::EFlags::Batched : FParam::EFlags::None;
-	}
-
-	FORCEINLINE_DEBUGGABLE bool ShouldProcessThisElement(int32 ElementIndex) const
-	{
-		check(ElementIndex < MAX_BATCH_ELEMENTS);
-		return (BranchingMask & (1ull << ElementIndex)) != 0;
-	}
-
-	FORCEINLINE_DEBUGGABLE const uint64 GetBranchingMask() const
-	{
-		return BranchingMask;
-	}
-
-	void SetBranchingMask(const TArrayView<int32> InEnabledElementIndexes)
-	{
-		check(InEnabledElementIndexes.Num() <= GetNum());
-
-		BranchingMask = 0;
-		for (int32 ElementIndex : InEnabledElementIndexes)
-		{
-			check(ElementIndex < MAX_BATCH_ELEMENTS);
-
-			BranchingMask |= (1ull << ElementIndex);
-		}
-	}
-
-	void SetBranchingMask(uint64 InBranchingMask)
-	{
-		BranchingMask = InBranchingMask;
-	}
-
 private:
 	FContext(float InDeltaTime, FState& InState, FParamStorage& InParamStorage, FParam& InResult)
 		: State(&InState)
 		, ParamStorage(&InParamStorage)
 		, Result(&InResult)
 		, DeltaTime(InDeltaTime)
-		, BranchingMask(MAX_uint64)
 	{}
 
 	FContext() = default;
@@ -529,62 +471,17 @@ private:
 
 private:
 	TMap<FName, FParam> AdditionalParameters;
-	TMap<FName, FHParam> AdditionalParameterHandles;  // Temp param storage prototype
+	TMap<FName, FParamHandle> AdditionalParameterHandles;  // Temp param storage prototype
 	const FContext* Parent = nullptr;
 	const FContext* Root = nullptr;
 	FState* State = nullptr;
 	FParamStorage* ParamStorage = nullptr;
 	FParamStorageHandle BlockHandle = InvalidBlockHandle;
 	FParam* Result = nullptr;
-	IAnimNextInterfaceParameters* Parameters = nullptr;
+	IAnimNextParamInterface* Parameters = nullptr;
 	float DeltaTime = 0.0f;
 	uint32 CallstackHash = 0;
 	uint32 UpdateCounter = 0;
-	uint64 BranchingMask = MAX_uint64;
 };
-
-// A typed param that owns it's own memory
-template<typename ValueType, typename AllocatorType = TMemStackAllocator<>>
-struct TAllocParam : public TParam<ValueType>
-{
-public:
-	TAllocParam(const FContext& InContext)
-		: TParam<ValueType>(InContext.GetBatchedFlags())
-	{
-		TParam<ValueType>::Data = GetDataForConstructor(InContext);
-	}
-
-	TAllocParam(const FContext& InContext, FParam::EFlags InFlags)
-		: TParam<ValueType>(InFlags)
-	{
-		TParam<ValueType>::Data = GetDataForConstructor(InContext);
-	}
-
-
-private:
-	void* GetDataForConstructor(const FContext& InContext)
-	{
-		ValueArray.SetNum(InContext.GetNum());
-		return ValueArray.GetData();
-	}
-
-	TArray<ValueType, AllocatorType> ValueArray;
-};
-
-
-// --- Batching helper macros ---
-
-#define SKIP_CONTEXT_ELEMENT_IF_MASKED(Context) \
-		if (!Context.ShouldProcessThisElement(i)) \
-			continue;
-
-// Helper macros to allow processing context element batches
-#define PROCESS_BATCH_ELEMENTS_START(Context)  \
-	const int32 ContextNumElements = Context.GetNum(); \
-	for (int32 i = 0; i < ContextNumElements; i++) \
-	{ \
-		SKIP_CONTEXT_ELEMENT_IF_MASKED(Context)
-
-#define PROCESS_BATCH_ELEMENTS_END }
 
 }

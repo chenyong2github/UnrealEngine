@@ -22,13 +22,13 @@
 namespace // Private
 {
 
-UE::AnimNext::Interface::FAnimationDataRegistry* GAnimationDataRegistry = nullptr;
+UE::AnimNext::FAnimationDataRegistry* GAnimationDataRegistry = nullptr;
 constexpr int32 BASIC_TYPE_ALLOCK_BLOCK = 1000;
 FDelegateHandle PostGarbageCollectHandle;
 
 } // end namespace
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 /*static*/ void FAnimationDataRegistry::Init()
@@ -84,9 +84,9 @@ FAnimationDataRegistry* FAnimationDataRegistry::Get()
 
 FAnimationDataHandle FAnimationDataRegistry::RegisterReferencePose(USkeletalMeshComponent* SkeletalMeshComponent)
 {
-	FAnimationDataHandle Handle = AllocateData<FAnimationReferencePose>(1);
+	FAnimationDataHandle Handle = AllocateData<FAnimNextReferencePose>(1);
 
-	FAnimationReferencePose& AnimationReferencePose = Handle.GetRef<FAnimationReferencePose>();
+	FAnimNextReferencePose& AnimationReferencePose = Handle.GetRef<FAnimNextReferencePose>();
 
 	FGenerationTools::GenerateReferencePose(SkeletalMeshComponent, SkeletalMeshComponent->GetSkeletalMeshAsset(), AnimationReferencePose);
 
@@ -182,10 +182,10 @@ void FAnimationDataRegistry::FreeAllocatedBlock(Private::FAllocatedBlock* Alloca
 		{
 			void* Memory = AllocatedBlock->Memory;
 
-			FDataTypeDef* TypeDef = DataTypeDefs.Find(AllocatedBlock->TypeId);
+			FDataTypeDef* TypeDef = DataTypeDefs.Find(AllocatedBlock->TypeHandle);
 			if (ensure(TypeDef != nullptr))
 			{
-				TypeDef->DestrooyTypeFn((uint8*)AllocatedBlock->Memory, AllocatedBlock->NumElem);
+				TypeDef->DestroyTypeFn((uint8*)AllocatedBlock->Memory, AllocatedBlock->NumElem);
 
 				FMemory::Free(AllocatedBlock->Memory); // TODO : This should come from preallocated chunks, use malloc / free for now
 				AllocatedBlock->Memory = nullptr;
@@ -216,4 +216,4 @@ void FAnimationDataRegistry::ReleaseReferencePoseData()
 	SkeletalMeshReferencePoses.Empty();
 }
 
-} // end namespace UE::AnimNext::Interface
+} // end namespace UE::AnimNext

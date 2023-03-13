@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IAnimNextInterface.h"
 #include "RigVMCore/RigVM.h"
+#include "Param/ParamType.h"
 #include "AnimNextInterfaceGraph.generated.h"
 
 class UEdGraph;
@@ -26,7 +27,7 @@ namespace UE::AnimNext::InterfaceGraph
 }
 
 // A user-created graph of logic used to supply data
-UCLASS()
+UCLASS(BlueprintType)
 class ANIMNEXTINTERFACEGRAPH_API UAnimNextInterfaceGraph : public UObject, public IAnimNextInterface
 {
 	GENERATED_BODY()
@@ -36,9 +37,11 @@ class ANIMNEXTINTERFACEGRAPH_API UAnimNextInterfaceGraph : public UObject, publi
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 
 	// IAnimAnimNextInterface interface
-	virtual FName GetReturnTypeNameImpl() const final override;
-	virtual const UScriptStruct* GetReturnTypeStructImpl() const final override;
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override;
+	virtual UE::AnimNext::FParamTypeHandle GetReturnTypeHandleImpl() const final override;
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
+
+	/** Set the return type of this graph */
+	void SetReturnTypeHandle(UE::AnimNext::FParamTypeHandle InHandle);
 
 	// Support rig VM execution
 	TArray<FRigVMExternalVariable> GetRigVMExternalVariables();
@@ -55,12 +58,10 @@ class ANIMNEXTINTERFACEGRAPH_API UAnimNextInterfaceGraph : public UObject, publi
 
 	UPROPERTY()
 	FRigVMRuntimeSettings VMRuntimeSettings;
-	
-	UPROPERTY()
-	FName ReturnTypeName;
 
+	/** Serialized return type handle as uint32 */
 	UPROPERTY()
-	TObjectPtr<UScriptStruct> ReturnTypeStruct;
+	FAnimNextParamType ReturnType;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Graph", meta = (ShowInnerProperties))

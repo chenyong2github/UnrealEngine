@@ -13,9 +13,8 @@ class UAnimNextInterface_Wrapper : public UObject, public IAnimNextInterface
 
 private:
 	// IAnimAnimNextInterface interface
-	virtual FName GetReturnTypeNameImpl() const final override;
-	virtual const UScriptStruct* GetReturnTypeStructImpl() const final override;
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override;
+	virtual UE::AnimNext::FParamTypeHandle GetReturnTypeHandleImpl() const final override;
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
 
 //	UPROPERTY(EditAnywhere, Category = "Parameters")
 //	TArray<FAnimNextInterfaceParameter> Inputs;

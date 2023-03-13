@@ -294,6 +294,18 @@ protected:
 	FAnimNextInterfaceExecuteContext Result;
 };
 
+USTRUCT()
+struct FRigUnit_TestFloatState_SpringDamperState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float Value = 0.0f;
+
+	UPROPERTY()
+	float ValueRate = 0.0f;
+};
+
 /** Unit for getting a pose via an anim interface */
 USTRUCT(meta = (DisplayName = "Test Float State - Spring Damper Smoothing", Varying, Category = "Animation", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_TestFloatState : public FRigUnit_AnimNextInterfaceBase

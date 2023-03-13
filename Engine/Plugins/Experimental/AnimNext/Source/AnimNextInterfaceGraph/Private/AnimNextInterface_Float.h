@@ -13,13 +13,9 @@ class UAnimNextInterfaceFloat : public UObject, public IAnimNextInterface
 {
 	GENERATED_BODY()
 
-	virtual FName GetReturnTypeNameImpl() const final override
-	{
-		static const FName Name = TNameOf<float>::GetName();
-		return Name;
-	}
+	ANIM_NEXT_INTERFACE_RETURN_TYPE(float)
 
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const override
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const override
 	{
 		checkf(false, TEXT("UAnimNextInterfaceFloat::GetDataImpl must be overridden"));
 		return false;
@@ -32,7 +28,7 @@ class UAnimNextInterface_Float_Literal : public UAnimNextInterfaceFloat
 	GENERATED_BODY()
 
 	// IAnimNextInterface interface
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override
 	{
 		Context.SetResult(Value);
 		return true;
@@ -48,7 +44,7 @@ class UAnimNextInterface_Float_Multiply : public UAnimNextInterfaceFloat
 	GENERATED_BODY()
 
 	// IAnimNextInterface interface
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override;
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
 
 	UPROPERTY(EditAnywhere, Category = "Parameters")
 	TArray<TScriptInterface<IAnimNextInterface>> Inputs;
@@ -60,7 +56,7 @@ class UAnimNextInterface_Float_InterpTo : public UAnimNextInterfaceFloat
 	GENERATED_BODY()
 
 	// IAnimNextInterface interface
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override;
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
 
 	UPROPERTY(EditAnywhere, Category = "Parameters")
 	TScriptInterface<IAnimNextInterface> Current;
@@ -78,11 +74,23 @@ class UAnimNextInterface_Float_DeltaTime : public UAnimNextInterfaceFloat
 	GENERATED_BODY()
 
 	// IAnimNextInterface interface
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override
 	{
 		Context.SetResult(Context.GetDeltaTime());
 		return true;
 	}
+};
+
+USTRUCT()
+struct FAnimNextInterface_Float_SpringInterpState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float Value = 0.0f;
+
+	UPROPERTY()
+	float ValueRate = 0.0f;
 };
 
 UCLASS()
@@ -91,13 +99,13 @@ class UAnimNextInterface_Float_SpringInterp : public UAnimNextInterfaceFloat
 	GENERATED_BODY()
 
 	// IAnimNextInterface interface
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override;
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
 
 	UPROPERTY(EditAnywhere, Category = "Parameters")
-	TScriptInterface<IAnimNextInterface> TargetValue;
+	TScriptInterface<IAnimNextInterface> Target;
 
 	UPROPERTY(EditAnywhere, Category = "Parameters")
-	TScriptInterface<IAnimNextInterface> TargetValueRate;
+	TScriptInterface<IAnimNextInterface> TargetRate;
 	
 	UPROPERTY(EditAnywhere, Category = "Parameters")
 	TScriptInterface<IAnimNextInterface> SmoothingTime;

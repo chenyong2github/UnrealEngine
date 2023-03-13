@@ -5,31 +5,29 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include <algorithm>
+
+#include "Param/ParamTypeHandle.h"
 #include "Animation/AnimTypes.h"
 #include "ReferenceSkeleton.h"
 #include "BoneIndices.h"
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
-
 
 namespace Private
 {
 
-using AnimDataTypeId = uint16;
-static constexpr AnimDataTypeId InvalidTypeId = MAX_uint16;
-
 struct FAllocatedBlock
 {
-	mutable int32 NumRefs = 0;
 	void* Memory = nullptr;
 	int32 NumElem = 0;
-	AnimDataTypeId TypeId = InvalidTypeId;
+	mutable int32 NumRefs = 0;
+	FParamTypeHandle TypeHandle;
 
-	FAllocatedBlock(void* InMemory, int32 InNumElem, AnimDataTypeId InTypeId)
+	FAllocatedBlock(void* InMemory, int32 InNumElem, FParamTypeHandle InTypeHandle)
 		: Memory(InMemory)
 		, NumElem(InNumElem)
-		, TypeId(InTypeId)
+		, TypeHandle(InTypeHandle)
 	{
 	}
 
@@ -156,9 +154,9 @@ struct ANIMNEXTINTERFACE_API FAnimationDataHandle
 		return *Data;
 	}
 
-	inline Private::AnimDataTypeId GetTypeId() const
+	inline FParamTypeHandle GetTypeHandle() const
 	{
-		return AllocatedBlock != nullptr ? AllocatedBlock->TypeId : Private::InvalidTypeId;
+		return AllocatedBlock != nullptr ? AllocatedBlock->TypeHandle : FParamTypeHandle();
 	}
 
 private:
@@ -172,4 +170,4 @@ enum class ETransformFlags : uint8
 };
 
 
-} // namespace UE::AnimNext::Interface
+} // namespace UE::AnimNext

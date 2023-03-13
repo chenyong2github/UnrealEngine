@@ -10,7 +10,7 @@
 
 class IAnimNextInterface;
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 	struct FContext;
 }
@@ -29,7 +29,7 @@ struct FAnimNextInterfaceExecuteContext : public FRigVMExecuteContext
 	{
 	}
 
-	const UE::AnimNext::Interface::FContext& GetContext() const
+	const UE::AnimNext::FContext& GetContext() const
 	{
 		check(AnimNextInterfaceContext);
 		return *AnimNextInterfaceContext;
@@ -40,7 +40,7 @@ struct FAnimNextInterfaceExecuteContext : public FRigVMExecuteContext
 		return UnitContext;
 	}
 
-	void SetContextData(const IAnimNextInterface* InInterface, const UE::AnimNext::Interface::FContext& InAnimNextInterfaceContext, bool& bInResult)
+	void SetContextData(const IAnimNextInterface* InInterface, const UE::AnimNext::FContext& InAnimNextInterfaceContext, bool& bInResult)
 	{
 		Interface = InInterface;
 		AnimNextInterfaceContext = &InAnimNextInterfaceContext;
@@ -71,7 +71,7 @@ struct FAnimNextInterfaceExecuteContext : public FRigVMExecuteContext
 
 
 private:
-	const UE::AnimNext::Interface::FContext* AnimNextInterfaceContext;
+	const UE::AnimNext::FContext* AnimNextInterfaceContext;
 	const IAnimNextInterface* Interface;
 	bool* ResultPtr;
 	FRigUnitContext UnitContext;

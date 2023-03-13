@@ -15,17 +15,12 @@ const FName EntryPointName("GetData");
 const FName ResultName("Result");
 }
 
-FName UAnimNextInterfaceGraph::GetReturnTypeNameImpl() const
+UE::AnimNext::FParamTypeHandle UAnimNextInterfaceGraph::GetReturnTypeHandleImpl() const
 {
-	return ReturnTypeName;
+	return ReturnType.GetHandle();
 }
 
-const UScriptStruct* UAnimNextInterfaceGraph::GetReturnTypeStructImpl() const
-{
-	return ReturnTypeStruct;
-}
-
-bool UAnimNextInterfaceGraph::GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const
+bool UAnimNextInterfaceGraph::GetDataImpl(const UE::AnimNext::FContext& Context) const
 {
 	bool bResult = true;
 	
@@ -39,6 +34,11 @@ bool UAnimNextInterfaceGraph::GetDataImpl(const UE::AnimNext::Interface::FContex
 	}
 	
 	return bResult;
+}
+
+void UAnimNextInterfaceGraph::SetReturnTypeHandle(UE::AnimNext::FParamTypeHandle InHandle)
+{
+	ReturnType = InHandle.GetType();
 }
 
 TArray<FRigVMExternalVariable> UAnimNextInterfaceGraph::GetRigVMExternalVariables()

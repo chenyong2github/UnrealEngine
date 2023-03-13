@@ -1,19 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Param/ParamTypeHandle.h"
 #include "ClassViewerFilter.h"
 #include "IAnimNextInterface.h"
 
 namespace UE::AnimNext::InterfaceGraphEditor
 {
-	// Filter class for things which implement IChooserColumn
+	// Filter class for things which implement IAnimNextInterface
 	class FAnimNextInterfaceClassFilter : public IClassViewerFilter
 	{
 	public:
-		FAnimNextInterfaceClassFilter(FName InTypeName, const UScriptStruct* InStructType) : TypeName(InTypeName), StructType(InStructType) { };
+		FAnimNextInterfaceClassFilter(FParamTypeHandle InTypeHandle) : TypeHandle(InTypeHandle) {};
 		virtual ~FAnimNextInterfaceClassFilter() override {};
 	
-		virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< class FClassViewerFilterFuncs > InFilterFuncs ) override
+		virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
 		{
 			if (InClass->ImplementsInterface(UAnimNextInterface::StaticClass()))
 			{
@@ -23,28 +24,21 @@ namespace UE::AnimNext::InterfaceGraphEditor
 				// for Object type, check type hierarchy. (todo)
 			
 				IAnimNextInterface* Object = static_cast<IAnimNextInterface*>(InClass->GetDefaultObject()->GetInterfaceAddress(UAnimNextInterface::StaticClass()));
-				if (Object->GetReturnTypeName() == TypeName || Object->GetReturnTypeName() == "" || TypeName == "")
+				if (Object->GetReturnTypeHandle() == TypeHandle || !Object->GetReturnTypeHandle().IsValid() || !TypeHandle.IsValid())
 				{
-					if (const UScriptStruct* ReturnStructType = Object->GetReturnTypeStruct())
-					{
-						return true; // kytodo: compare the struct types to see if they are compatible
-					}
-					else
-					{
-						return true;
-					}
+					// @TODO: deal with inheritance directionality here
+					return true;
 				}
 			}
 
 			return false;
 		}
 
-		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const class IUnloadedBlueprintData > InUnloadedClassData, TSharedRef< class FClassViewerFilterFuncs > InFilterFuncs) override
+		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef<const IUnloadedBlueprintData> InUnloadedClassData, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
 		{
 			return false;
 		}
 	private:
-		FName TypeName;
-		const UScriptStruct* StructType;
+		FParamTypeHandle TypeHandle;
 	};
 }

@@ -4,11 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
-#include "AnimNextInterfaceParam.h"
 
 class IAnimNextInterface;
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 // Key value for cached anim interface state

@@ -10,12 +10,12 @@
 #include "Animation/AnimTypes.h"
 #include "ReferenceSkeleton.h"
 #include "BoneIndices.h"
-#include "AnimNextInterfaceTypes.h"
+#include "AnimationReferencePose.generated.h"
 
 class USkeletalMesh;
 class USkeleton;
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 #define ANIM_ENABLE_POINTER_ITERATION 1
@@ -682,15 +682,17 @@ using FAnimTransformArray = FAnimTransformArrayAoSHeap;
 
 //****************************************************************************
 
+enum class EReferencePoseGenerationFlags : uint8
+{
+	None = 0,
+	FastPath = 1 << 0
+};
+
+ENUM_CLASS_FLAGS(EReferencePoseGenerationFlags);
+
 template <typename AllocatorType>
 struct TAnimationReferencePose
 {
-	enum EGenerationFlags : uint8
-	{
-		None = 0,
-		FastPath = 1 << 0
-	};
-
 	TAnimTransformArray<AllocatorType> ReferenceLocalTransforms;
 	TArray<TArray<FBoneIndexType, AllocatorType>, AllocatorType> LODBoneIndexes;
 	TArray<TArray<FBoneIndexType, AllocatorType>, AllocatorType> SkeletonToLODBoneIndexes;
@@ -698,7 +700,7 @@ struct TAnimationReferencePose
 
 	TWeakObjectPtr<const USkeletalMesh> SkeletalMesh = nullptr;
 	TWeakObjectPtr<const USkeleton> Skeleton = nullptr;
-	EGenerationFlags GenerationFlags = EGenerationFlags::None;
+	EReferencePoseGenerationFlags GenerationFlags = EReferencePoseGenerationFlags::None;
 
 	TAnimationReferencePose() = default;
 
@@ -716,7 +718,7 @@ struct TAnimationReferencePose
 
 	bool IsFastPath() const
 	{
-		return (GenerationFlags & EGenerationFlags::FastPath) != 0;
+		return (GenerationFlags & EReferencePoseGenerationFlags::FastPath) != EReferencePoseGenerationFlags::None;
 	}
 
 	void Initialize(const FReferenceSkeleton& RefSkeleton
@@ -740,7 +742,7 @@ struct TAnimationReferencePose
 			ReferenceLocalTransforms[i] = RefBonePose[InBoneIndexes[i]]; // TODO : For SoA this is un-optimal, as we are using a TransformAdapter. Evaluate using a specific SoA iterator
 		}
 
-		GenerationFlags = bFastPath ? EGenerationFlags::FastPath : EGenerationFlags::None;
+		GenerationFlags = bFastPath ? EReferencePoseGenerationFlags::FastPath : EReferencePoseGenerationFlags::None;
 	}
 
 	const TArrayView<const FBoneIndexType> GetLODBoneIndexes(int32 LODLevel) const
@@ -839,7 +841,7 @@ struct TAnimationReferencePose
 using FAnimationReferencePose = TAnimationReferencePose<FDefaultAllocator>;
 
 
-enum EAnimationPoseFlags : uint8
+enum class EAnimationPoseFlags : uint8
 {
 	None				= 0,
 	Additive			= 1 << 0,
@@ -847,6 +849,8 @@ enum EAnimationPoseFlags : uint8
 	UseRawData			= 1 << 2,
 	UseSourceData		= 1 << 3
 };
+
+ENUM_CLASS_FLAGS(EAnimationPoseFlags);
 
 template <typename AllocatorType>
 struct TAnimationLODPose
@@ -954,7 +958,7 @@ struct TAnimationLODPose
 	/** True if retargeting is disabled */
 	bool GetDisableRetargeting() const
 	{
-		return (Flags & EAnimationPoseFlags::DisableRetargeting) != 0;
+		return (Flags & EAnimationPoseFlags::DisableRetargeting) != EAnimationPoseFlags::None;
 	}
 
 	/** Ignore compressed data and use RAW data instead, for debugging. */
@@ -966,7 +970,7 @@ struct TAnimationLODPose
 	/** True if we're requesting RAW data instead of compressed data. For debugging. */
 	bool ShouldUseRawData() const
 	{
-		return (Flags & EAnimationPoseFlags::UseRawData) != 0;
+		return (Flags & EAnimationPoseFlags::UseRawData) != EAnimationPoseFlags::None;
 	}
 
 	/** Use Source data instead.*/
@@ -978,7 +982,7 @@ struct TAnimationLODPose
 	/** True if we're requesting Source data instead of RawAnimationData. For debugging. */
 	bool ShouldUseSourceData() const
 	{
-		return (Flags & EAnimationPoseFlags::UseSourceData) != 0;
+		return (Flags & EAnimationPoseFlags::UseSourceData) != EAnimationPoseFlags::None;
 	}
 
 };
@@ -988,8 +992,24 @@ using FAnimationLODPoseStack = TAnimationLODPose<FAnimStackAllocator>;
 
 using FAnimationLODPose = FAnimationLODPoseHeap;
 
-DECLARE_BUILTIN_ANIM_NEXT_INTERFACE_PARAM_TYPE(FAnimationReferencePose, AnimationReferencePose);
-//DECLARE_BUILTIN_ANIM_NEXT_INTERFACE_PARAM_TYPE(FAnimationLODPose, AnimationLODPose);
-//DECLARE_BUILTIN_ANIM_NEXT_INTERFACE_PARAM_TYPE(FAnimationLODPoseStack, AnimationLODPoseStack);
+} // namespace UE::AnimNext
 
-} // namespace UE::AnimNext::Interface
+// USTRUCT wrapper for reference pose
+USTRUCT()
+struct FAnimNextReferencePose
+#if CPP
+	: UE::AnimNext::FAnimationReferencePose
+#endif
+{
+	GENERATED_BODY()
+};
+
+// USTRUCT wrapper for LOD pose
+USTRUCT()
+struct FAnimNextLODPose
+#if CPP
+	: UE::AnimNext::FAnimationLODPose
+#endif
+{
+	GENERATED_BODY()
+};

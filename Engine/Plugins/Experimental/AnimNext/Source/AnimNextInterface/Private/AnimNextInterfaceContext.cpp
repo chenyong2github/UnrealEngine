@@ -2,10 +2,11 @@
 
 #include "AnimNextInterfaceContext.h"
 #include "IAnimNextInterface.h"
-#include "IAnimNextInterfaceParameters.h"
-#include "AnimNextInterfaceTypes.h"
+#include "Param/IAnimNextParamInterface.h"
+#include "Param/ParamType.h"
+#include "Param/ParamHelpers.h"
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 struct FThreadContextData : TThreadSingleton<FThreadContextData>
@@ -34,12 +35,11 @@ const FContext& FThreadContext::Get()
 	return *ContextData.ContextStack.Top();
 }
 
-FContext::FContext(float InDeltaTime, FState& InState, FParamStorage& InParamStorage, IAnimNextInterfaceParameters* InParameters)
+FContext::FContext(float InDeltaTime, FState& InState, FParamStorage& InParamStorage, IAnimNextParamInterface* InParameters)
 	: State(&InState)
 	, ParamStorage(&InParamStorage)
 	, Parameters(InParameters)
 	, DeltaTime(InDeltaTime)
-	, BranchingMask(MAX_uint64)
 {
 }
 
@@ -60,7 +60,6 @@ FContext FContext::WithResult(FParam& InResult) const
 	NewContext.Parent = this;
 	NewContext.Root = (Root == nullptr) ? this : Root;
 	NewContext.CallstackHash = CallstackHash;
-	NewContext.BranchingMask = BranchingMask;
 
 	return NewContext;
 }
@@ -71,7 +70,6 @@ FContext FContext::WithParameter(FName ParameterId, const FParam& InParameter) c
 	NewContext.Parent = this;
 	NewContext.Root = (Root == nullptr) ? this : Root;
 	NewContext.CallstackHash = CallstackHash;
-	NewContext.BranchingMask = BranchingMask;
 	NewContext.AddParameters({ TPairInitializer(ParameterId, InParameter) });
 	return NewContext;
 }
@@ -82,7 +80,6 @@ FContext FContext::WithParameters(TArrayView<const TPair<FName, FParam>> InParam
 	NewContext.Parent = this;
 	NewContext.Root = (Root == nullptr) ? this : Root;
 	NewContext.CallstackHash = CallstackHash;
-	NewContext.BranchingMask = BranchingMask;
 	NewContext.AddParameters(InParameters);
 
 	return NewContext;
@@ -94,7 +91,6 @@ FContext FContext::WithResultAndParameters(FParam& InResult, TArrayView<const TP
 	NewContext.Parent = this;
 	NewContext.Root = (Root == nullptr) ? this : Root;
 	NewContext.CallstackHash = CallstackHash;
-	NewContext.BranchingMask = BranchingMask;
 	NewContext.AddParameters(InParameters);
 
 	return NewContext;
@@ -113,13 +109,12 @@ int32 FContext::GetParametersSize(TArrayView<const TPair<FName, FParam>> InParam
 
 		if (EnumHasAnyFlags(SourceParam.GetFlags(), FParam::EFlags::Stored))
 		{
-			const FParamType& ParamType = SourceParam.GetType();
+			const FParamTypeHandle ParamTypeHandle = SourceParam.GetTypeHandle();
 
-			const int32 NumElem = SourceParam.GetNumElements();
-			const int32 ParamAlignment = ParamType.GetAlignment();
-			const int32 ParamSize = ParamType.GetSize();
+			const int32 ParamAlignment = ParamTypeHandle.GetAlignment();
+			const int32 ParamSize = ParamTypeHandle.GetSize();
 
-			const int32 ParamAllocSize = NumElem * Align(ParamSize, ParamAlignment);
+			const int32 ParamAllocSize = Align(ParamSize, ParamAlignment);
 
 			ParamAllocSizes[i] = ParamAllocSize;
 			TotalParamAllocSize += ParamAllocSize;
@@ -160,11 +155,10 @@ void FContext::AddParameters(TArrayView<const TPair<FName, FParam>> InParameters
 
 		if (ParamAllocatedSize > 0 && EnumHasAnyFlags(SourceParam.GetFlags(), FParam::EFlags::Stored))
 		{
-			const FParamType& ParamType = ParamPair.Value.GetType();
+			const FParamTypeHandle ParamTypeHandle = ParamPair.Value.GetTypeHandle();
 
-			const FParamType::ParamCopyFunction ParamCopyFunction = ParamType.GetParamCopyFunction();
-
-			FParam ClonedParam = ParamCopyFunction(SourceParam, TargetMemory, ParamAllocatedSize);
+			TArrayView<uint8> ClonedParamMemory(TargetMemory, ParamTypeHandle.GetSize());
+			FParam ClonedParam = FParam::DuplicateParam(ParamPair.Value, ClonedParamMemory);
 
 			TargetMemory += ParamAllocatedSize;
 
@@ -177,14 +171,13 @@ void FContext::AddParameters(TArrayView<const TPair<FName, FParam>> InParameters
 	}
 }
 
-FContext FContext::WithParameters(IAnimNextInterfaceParameters* InParameters) const
+FContext FContext::WithParameters(IAnimNextParamInterface* InParameters) const
 {
 	FContext NewContext(DeltaTime, *State, *ParamStorage, *Result);
 	NewContext.Parameters = InParameters;
 	NewContext.Parent = this;
 	NewContext.Root = (Root == nullptr) ? this : Root;
 	NewContext.CallstackHash = CallstackHash;
-	NewContext.BranchingMask = BranchingMask;
 
 	return NewContext;
 }
@@ -195,7 +188,6 @@ FContext FContext::CreateSubContext() const
 	NewContext.Parent = this;
 	NewContext.Root = (Root == nullptr) ? this : Root;
 	NewContext.CallstackHash = CallstackHash;
-	NewContext.BranchingMask = BranchingMask;
 
 	return NewContext;
 }
@@ -235,7 +227,7 @@ bool FContext::GetParameter(FName InKey, FParam& OutParam) const
 		else if (!CurrentContext->AdditionalParameterHandles.IsEmpty())
 		{
 			// Find the parameter
-			if (const FHParam* HParam = CurrentContext->AdditionalParameterHandles.Find(InKey))
+			if (const FParamHandle* HParam = CurrentContext->AdditionalParameterHandles.Find(InKey))
 			{
 				const FParam* Param = ParamStorage->GetParam(HParam->ParamHandle);
 				if (Param != nullptr && Param->CanAssignTo(OutParam))
@@ -262,7 +254,6 @@ FContext FContext::WithCallRaw(const IAnimNextInterface* InAnimNextInterface) co
 	NewContext.Parent = this;
 	NewContext.Root = (Root == nullptr) ? this : Root;
 	NewContext.CallstackHash = HashCombineFast(CallstackHash, GetTypeHash(InAnimNextInterface));
-	NewContext.BranchingMask = BranchingMask;
 	return NewContext;
 }
 

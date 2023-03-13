@@ -2,108 +2,79 @@
 
 #include "AnimNextInterface_Float.h"
 #include "AnimNextInterface.h"
-#include "AnimNextInterfaceTypes.h"
-#include "AnimNextInterfaceKernel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNextInterface_Float)
 
 #define LOCTEXT_NAMESPACE "AnimNextInterface"
 
-bool UAnimNextInterface_Float_Multiply::GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const
+bool UAnimNextInterface_Float_Multiply::GetDataImpl(const UE::AnimNext::FContext& Context) const
 {
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 	
 	check(Inputs.Num() > 0);
 
 	bool bResult = true;
-	TAllocParam<float> IntermediateParam(Context);
-	TParam<float> Result = Context.GetResult<float>();
+	float Intermediate = 0.0f;
+	float& OutResult = Context.GetResult<float>();
 	
 	for(const TScriptInterface<IAnimNextInterface>& Input : Inputs)
 	{
-		bResult &= UE::AnimNext::Interface::GetDataSafe(Input, Context, IntermediateParam);
+		bResult &= Interface::GetDataSafe(Input, Context, Intermediate);
 
-		FKernel::Run(Context,
-			[](float& OutResult, float InIntermediate)
-			{
-				OutResult *= InIntermediate;
-			},
-			Result, IntermediateParam);
+		OutResult *= Intermediate;
 	}
 
 	return bResult;
 }
 
-bool UAnimNextInterface_Float_InterpTo::GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const
+bool UAnimNextInterface_Float_InterpTo::GetDataImpl(const UE::AnimNext::FContext& Context) const
 {
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 
-	TParam<float> Result = Context.GetResult<float>();
+	float& OutResult = Context.GetResult<float>();
 	const float DeltaTime = Context.GetDeltaTime();
 	
-	TAllocParam<float> CurrentValue(Context);
-	bool bResult = UE::AnimNext::Interface::GetDataSafe(Current, Context, CurrentValue);
+	float CurrentValue = 0.0f;
+	bool bResult = Interface::GetDataSafe(Current, Context, CurrentValue);
 
-	TAllocParam<float> TargetValue(Context);
-	bResult &= UE::AnimNext::Interface::GetDataSafe(Target, Context, TargetValue);
+	float TargetValue = 0.0f;
+	bResult &= Interface::GetDataSafe(Target, Context, TargetValue);
 
-	TAllocParam<float> SpeedValue(Context);
-	bResult &= UE::AnimNext::Interface::GetDataSafe(Speed, Context, SpeedValue);
+	float SpeedValue = 0.0f;
+	bResult &= Interface::GetDataSafe(Speed, Context, SpeedValue);
 
-	FKernel::Run(Context,
-		[DeltaTime](float& OutResult, float InCurrent, float InTarget, float InSpeed)
-		{
-			OutResult = FMath::FInterpConstantTo(InCurrent, InTarget, DeltaTime, InSpeed);
-		},
-		Result, CurrentValue, TargetValue, SpeedValue);
+	OutResult = FMath::FInterpConstantTo(CurrentValue, TargetValue, DeltaTime, SpeedValue);
 
 	return bResult;
 }
 
-struct FSpringInterpState
+bool UAnimNextInterface_Float_SpringInterp::GetDataImpl(const UE::AnimNext::FContext& Context) const
 {
-	float Value;
-	float ValueRate;
-};
-
-IMPLEMENT_ANIM_NEXT_INTERFACE_STATE_TYPE(FSpringInterpState, SpringInterpState);
-
-bool UAnimNextInterface_Float_SpringInterp::GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const
-{
-	using namespace UE::AnimNext::Interface;
+	using namespace UE::AnimNext;
 	
-	const TParam<FSpringInterpState> State = Context.GetState<FSpringInterpState>(this, 0);
+	FAnimNextInterface_Float_SpringInterpState& State = Context.GetState<FAnimNextInterface_Float_SpringInterpState>(this, 0);
 	const float DeltaTime = Context.GetDeltaTime();
 
-	TAllocParam<float> TargetValueParam(Context);
-	bool bResult = UE::AnimNext::Interface::GetDataSafe(TargetValue, Context, TargetValueParam);
+	float TargetValue = 0.0f;
+	bool bResult = Interface::GetDataSafe(Target, Context, TargetValue);
 
-	TAllocParam<float> TargetValueRateParam(Context);
-	bResult &= UE::AnimNext::Interface::GetDataSafe(TargetValueRate, Context, TargetValueRateParam);
+	float TargetRateValue = 0.0f;
+	bResult &= Interface::GetDataSafe(TargetRate, Context, TargetRateValue);
 
-	TAllocParam<float> SmoothingTimeParam(Context);
-	bResult &= UE::AnimNext::Interface::GetDataSafe(SmoothingTime, Context, SmoothingTimeParam);
+	float SmoothingTimeValue = 0.0f;
+	bResult &= Interface::GetDataSafe(SmoothingTime, Context, SmoothingTimeValue);
 
-	TAllocParam<float> DampingRatioParam(Context);
-	bResult &= UE::AnimNext::Interface::GetDataSafe(DampingRatio, Context, DampingRatioParam);
+	float DampingRatioValue = 0.0f;
+	bResult &= Interface::GetDataSafe(DampingRatio, Context, DampingRatioValue);
 
-	FKernel::Run(Context,
-	[DeltaTime](FSpringInterpState& InOutState,
-					float InTargetValue,
-					float InTargetValueRate,
-					float InSmoothingTime,
-					float InDampingRatio)
-		{
-			FMath::SpringDamperSmoothing(
-				InOutState.Value,
-				InOutState.ValueRate,
-				InTargetValue,
-				InTargetValueRate,
-				DeltaTime,
-				InSmoothingTime,
-				InDampingRatio);
-		},
-		State, TargetValueParam, TargetValueRateParam, SmoothingTimeParam, DampingRatioParam);
+	FMath::SpringDamperSmoothing(
+		State.Value,
+		State.ValueRate,
+		TargetValue,
+		TargetRateValue,
+		DeltaTime,
+		SmoothingTimeValue,
+		DampingRatioValue);
 
 	return bResult;
 }

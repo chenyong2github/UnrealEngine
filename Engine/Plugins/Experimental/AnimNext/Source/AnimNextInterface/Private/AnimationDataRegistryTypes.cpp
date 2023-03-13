@@ -2,9 +2,8 @@
 
 #include "AnimationDataRegistryTypes.h"
 #include "AnimationDataRegistry.h"
-#include "AnimationReferencePose.h"
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 FAnimationDataHandle::~FAnimationDataHandle()
@@ -23,4 +22,4 @@ FAnimationDataHandle::~FAnimationDataHandle()
 	}
 }
 
-} // namespace UE::AnimNext::Interface
+} // namespace UE::AnimNext

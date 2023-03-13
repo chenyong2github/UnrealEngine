@@ -5,7 +5,6 @@
 #include "Units/RigUnit.h"
 #include "AnimNextInterfaceExecuteContext.h"
 #include "AnimNextInterfaceUnitContext.h"
-#include "AnimNextInterfaceTypes.h"
 #include "AnimNextInterface_LODPose.h"
 // --- ---
 #include "RigUnit_AnimNextInterfaceEndExecution.generated.h"

@@ -88,4 +88,108 @@ UAnimNextInterfaceGraph_EditorData* FUtils::GetEditorData(const UAnimNextInterfa
 	return CastChecked<UAnimNextInterfaceGraph_EditorData>(InAnimNextInterfaceGraph->EditorData);
 }
 
+FParamTypeHandle FUtils::GetParameterHandleFromPin(const FEdGraphPinType& InPinType)
+{
+	FAnimNextParamType::EValueType ValueType = FAnimNextParamType::EValueType::None;
+	FAnimNextParamType::EContainerType ContainerType = FAnimNextParamType::EContainerType::None;
+	UObject* ValueTypeObject = nullptr;
+
+	if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
+	{
+		ValueType = FAnimNextParamType::EValueType::Bool;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
+	{
+		ValueType = FAnimNextParamType::EValueType::Byte;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Int)
+	{
+		ValueType = FAnimNextParamType::EValueType::Int32;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Int64)
+	{
+		ValueType = FAnimNextParamType::EValueType::Int64;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+	{
+		if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
+		{
+			ValueType = FAnimNextParamType::EValueType::Float;
+		}
+		else if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
+		{
+			ValueType = FAnimNextParamType::EValueType::Double;
+		}
+		else
+		{
+			ensure(false);	// Reals should be either floats or doubles
+		}
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Float)
+	{
+		ValueType = FAnimNextParamType::EValueType::Float;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Double)
+	{
+		ValueType = FAnimNextParamType::EValueType::Double;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Name)
+	{
+		ValueType = FAnimNextParamType::EValueType::Name;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_String)
+	{
+		ValueType = FAnimNextParamType::EValueType::String;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Text)
+	{
+		ValueType = FAnimNextParamType::EValueType::Text;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum)
+	{
+		ValueType = FAnimNextParamType::EValueType::Enum;
+		ValueTypeObject = InPinType.PinSubCategoryObject.Get();
+		ensure(ValueTypeObject);
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+	{
+		ValueType = FAnimNextParamType::EValueType::Struct;
+		ValueTypeObject = Cast<UScriptStruct>(InPinType.PinSubCategoryObject.Get());
+		ensure(ValueTypeObject);
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Object)
+	{
+		ValueType = FAnimNextParamType::EValueType::Object;
+		ValueTypeObject = Cast<UClass>(InPinType.PinSubCategoryObject.Get());
+		ensure(ValueTypeObject);
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject)
+	{
+		ValueType = FAnimNextParamType::EValueType::SoftObject;
+		ValueTypeObject = Cast<UClass>(InPinType.PinSubCategoryObject.Get());
+		ensure(ValueTypeObject);
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass)
+	{
+		ValueType = FAnimNextParamType::EValueType::SoftClass;
+		ValueTypeObject = Cast<UClass>(InPinType.PinSubCategoryObject.Get());
+		ensure(ValueTypeObject);
+	}
+
+	if(InPinType.ContainerType == EPinContainerType::Array)
+	{
+		ContainerType = FAnimNextParamType::EContainerType::Array;
+	}
+	else if(InPinType.ContainerType == EPinContainerType::Set)
+	{
+		ensureMsgf(false, TEXT("Set pins are not yet supported"));
+	}
+	if(InPinType.ContainerType == EPinContainerType::Map)
+	{
+		ensureMsgf(false, TEXT("Map pins are not yet supported"));
+	}
+	
+	return FAnimNextParamType(ValueType, ContainerType, ValueTypeObject).GetHandle();
+}
+
 }

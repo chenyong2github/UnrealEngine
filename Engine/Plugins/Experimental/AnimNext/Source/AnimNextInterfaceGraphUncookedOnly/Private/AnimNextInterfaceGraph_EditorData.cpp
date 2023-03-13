@@ -552,61 +552,11 @@ void UAnimNextInterfaceGraph_EditorData::UpdateGraphReturnType()
 	if (UAnimNextInterfaceGraph* Graph = GetTypedOuter<UAnimNextInterfaceGraph>())
 	{
 		FEdGraphPinType GraphReturnPinType = FindGraphReturnPinType();
-		const FName PinTypeName = GetPinTypeName(GraphReturnPinType);
-		if (Graph->ReturnTypeName != PinTypeName || Graph->ReturnTypeStruct != GraphReturnPinType.PinSubCategoryObject)
+		UE::AnimNext::FParamTypeHandle Handle = UE::AnimNext::InterfaceGraphUncookedOnly::FUtils::GetParameterHandleFromPin(GraphReturnPinType);
+		if (Handle.IsValid() && Graph->GetReturnTypeHandle() != Handle)
 		{
 			Graph->Modify();
-			Graph->ReturnTypeName = PinTypeName;
-			Graph->ReturnTypeStruct = TObjectPtr<UScriptStruct>(Cast<UScriptStruct>(GraphReturnPinType.PinSubCategoryObject));
+			Graph->SetReturnTypeHandle(Handle);
 		}
 	}
-}
-
-FName UAnimNextInterfaceGraph_EditorData::GetPinTypeName(const FEdGraphPinType& EdGraphPinType)
-{
-	FName DataType = EdGraphPinType.PinCategory;
-
-	if (EdGraphPinType.PinCategory == UEdGraphSchema_K2::PC_Real)
-	{
-		if (EdGraphPinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
-		{
-			DataType = TNameOf<float>::GetName();
-		}
-		else if (EdGraphPinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
-		{
-			DataType = TNameOf<double>::GetName();
-		}
-		else
-		{
-			ensure(false);
-		}
-	}
-	else if (DataType != NAME_None)
-	{
-		if (DataType == UEdGraphSchema_K2::PC_Struct)
-		{
-			UObject* DataTypeObject = nullptr;
-			DataType = NAME_None;
-			if (UScriptStruct* DataStruct = Cast<UScriptStruct>(EdGraphPinType.PinSubCategoryObject))
-			{
-				DataTypeObject = DataStruct;
-				DataType = *DataStruct->GetStructCPPName();
-			}
-		}
-
-		if (DataType == TEXT("int"))
-		{
-			DataType = TNameOf<int32>::GetName();
-		}
-		else if (DataType == TEXT("name"))
-		{
-			DataType = TNameOf<FName>::GetName();
-		}
-		else if (DataType == TEXT("string"))
-		{
-			DataType = TNameOf<FString>::GetName();;
-		}
-	}
-
-	return DataType;
 }

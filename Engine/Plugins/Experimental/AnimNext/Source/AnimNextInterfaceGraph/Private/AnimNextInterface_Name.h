@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IAnimNextInterface.h"
 #include "AnimNextInterfaceContext.h"
+#include "AnimNextInterfaceTypes.h"
 #include "AnimNextInterface_Name.generated.h"
 
 UCLASS()
@@ -12,12 +13,9 @@ class UAnimNextInterface_Name_Literal : public UObject, public IAnimNextInterfac
 {
 	GENERATED_BODY()
 
-	virtual FName GetReturnTypeNameImpl() const final override
-	{
-		return NAME_Name;
-	}
+	ANIM_NEXT_INTERFACE_RETURN_TYPE(FName)
 
-	virtual bool GetDataImpl(const UE::AnimNext::Interface::FContext& Context) const final override
+	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override
 	{
 		Context.SetResult(Value);
 		return true;

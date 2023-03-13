@@ -13,6 +13,8 @@
 #include "PropertyHandle.h"
 #include "SClassViewer.h"
 #include "Widgets/Text/STextBlock.h"
+#include "AnimNextInterfaceEditorUtils.h"
+#include "Param/ParamTypeHandle.h"
 
 #define LOCTEXT_NAMESPACE "AnimNextInterfacePropertyTypeCustomization"
 
@@ -26,45 +28,47 @@ bool FPropertyTypeIdentifier::IsPropertyTypeCustomized(const IPropertyHandle& Pr
 
 void FAnimNextInterfacePropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	FString TypeName = PropertyHandle->GetMetaData("AnimNextInterfaceType");
-	FName AnimNextInterfaceTypeName(TypeName);
-
-	void* ValuePtr;
-	PropertyHandle->GetValueData(ValuePtr);
-	FScriptInterface* PropertyValue = reinterpret_cast<FScriptInterface*>(ValuePtr);
-	
-	TSharedPtr<SWidget> Widget = FAnimNextInterfaceWidgetFactories::CreateAnimNextInterfaceWidget(AnimNextInterfaceTypeName, PropertyValue->GetObject(),
-			FOnClassPicked::CreateLambda([this, PropertyHandle](UClass* ChosenClass)
-			{
-				TArray<void*> RawData;
-				PropertyHandle->AccessRawData(RawData);
-				TArray<UPackage*> OuterObjects;
-				PropertyHandle->GetOuterPackages(OuterObjects);
-
-				for(int i=0;i<RawData.Num();i++)
+	const FString TypeName = PropertyHandle->GetMetaData("AnimNextInterfaceType");
+	const FAnimNextParamType AnimNextType = FUtils::GetParameterTypeFromMetaData(TypeName);
+	if(AnimNextType.IsValid())
+	{
+		void* ValuePtr;
+		PropertyHandle->GetValueData(ValuePtr);
+		FScriptInterface* PropertyValue = reinterpret_cast<FScriptInterface*>(ValuePtr);
+		
+		TSharedPtr<SWidget> Widget = FWidgetFactories::CreateAnimNextInterfaceWidget(AnimNextType.GetHandle(), PropertyValue->GetObject(),
+				FOnClassPicked::CreateLambda([this, PropertyHandle](UClass* ChosenClass)
 				{
-					UObject* NewValue = NewObject<UObject>(OuterObjects[i], ChosenClass);
-				
-					PropertyHandle->NotifyPreChange();
-					PropertyHandle->SetValue(NewValue);
-					PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-					PropertyHandle->GetPropertyNode()->GetParentNode()->RequestRebuildChildren();
-				}
-			}),
-			nullptr
-	);
+					TArray<void*> RawData;
+					PropertyHandle->AccessRawData(RawData);
+					TArray<UPackage*> OuterObjects;
+					PropertyHandle->GetOuterPackages(OuterObjects);
 
-	HeaderRow
-	.NameContent()
-	[
-		PropertyHandle->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	[
-		Widget.ToSharedRef()
-	];
+					for(int i=0;i<RawData.Num();i++)
+					{
+						UObject* NewValue = NewObject<UObject>(OuterObjects[i], ChosenClass);
+					
+						PropertyHandle->NotifyPreChange();
+						PropertyHandle->SetValue(NewValue);
+						PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+						PropertyHandle->GetPropertyNode()->GetParentNode()->RequestRebuildChildren();
+					}
+				}),
+				nullptr
+		);
+
+		HeaderRow
+		.NameContent()
+		[
+			PropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		[
+			Widget.ToSharedRef()
+		];
+	}
 }
-	
+
 void FAnimNextInterfacePropertyTypeCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	// todo: make this work correctly for multiselect

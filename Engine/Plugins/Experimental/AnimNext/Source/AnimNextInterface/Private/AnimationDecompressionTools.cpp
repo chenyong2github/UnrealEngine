@@ -22,7 +22,7 @@ DECLARE_CYCLE_STAT(TEXT("Extract Pose From Anim Data"), STAT_ExtractPoseFromAnim
 DECLARE_CYCLE_STAT(TEXT("AnimSeq GetBonePose"), STAT_AnimSeq_GetBonePose, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("AnimSeq EvalCurveData"), STAT_AnimSeq_EvalCurveData, STATGROUP_Anim);
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 static IConsoleVariable* CVarForceEvalRawData = IConsoleManager::Get().FindConsoleVariable(TEXT("a.ForceEvalRawData"));
@@ -660,4 +660,4 @@ void FDecompressionTools::RetargetBoneTransform(const FAnimationReferencePose& R
 	}
 }
 
-} // end namespace UE::AnimNext::Interface
+} // end namespace UE::AnimNext

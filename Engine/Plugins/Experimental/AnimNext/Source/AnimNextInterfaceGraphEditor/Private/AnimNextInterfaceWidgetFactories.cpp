@@ -2,12 +2,8 @@
 
 #include "AnimNextInterfaceWidgetFactories.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Input/SHyperlink.h"
-#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "SClassViewer.h"
-#include "DetailCategoryBuilder.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "AnimNextInterfaceClassFilter.h"
 
 #define LOCTEXT_NAMESPACE "AnimNextInterfaceEditor"
@@ -20,7 +16,7 @@ void ConvertToText(UObject* Object, FText& OutText)
 	UClass* Class = Object->GetClass();
 	while (Class)
 	{
-		if (auto TextConverter = FAnimNextInterfaceWidgetFactories::AnimNextInterfaceTextConverter.Find(Class))
+		if (auto TextConverter = FWidgetFactories::AnimNextInterfaceTextConverter.Find(Class))
 		{
 			(*TextConverter)(Object, OutText);
 			break;
@@ -29,7 +25,7 @@ void ConvertToText(UObject* Object, FText& OutText)
 	}
 }
 
-TSharedPtr<SWidget> FAnimNextInterfaceWidgetFactories::CreateAnimNextInterfaceWidget(FName AnimNextInterfaceTypeName, UObject* Value, const FOnClassPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget)
+TSharedPtr<SWidget> FWidgetFactories::CreateAnimNextInterfaceWidget(FParamTypeHandle TypeHandle, UObject* Value, const FOnClassPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget)
 {
 	TSharedPtr<SWidget> LeftWidget;
 
@@ -38,7 +34,7 @@ TSharedPtr<SWidget> FAnimNextInterfaceWidgetFactories::CreateAnimNextInterfaceWi
 		UClass* Class = Value->GetClass();
 		while (Class && !LeftWidget.IsValid())
 		{
-			if (auto Creator = FAnimNextInterfaceWidgetFactories::AnimNextInterfaceWidgetCreators.Find(Class))
+			if (auto Creator = FWidgetFactories::AnimNextInterfaceWidgetCreators.Find(Class))
 			{
 				LeftWidget = (*Creator)(Value);
 				break;
@@ -57,10 +53,10 @@ TSharedPtr<SWidget> FAnimNextInterfaceWidgetFactories::CreateAnimNextInterfaceWi
 	TSharedPtr<SComboButton> Button = SNew(SComboButton)
 			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton");
 	
-	Button->SetOnGetMenuContent(FOnGetContent::CreateLambda([AnimNextInterfaceTypeName, Button, CreateClassCallback]()
+	Button->SetOnGetMenuContent(FOnGetContent::CreateLambda([TypeHandle, Button, CreateClassCallback]()
 	{
 		FClassViewerInitializationOptions Options;
-		Options.ClassFilters.Add(MakeShared<FAnimNextInterfaceClassFilter>(AnimNextInterfaceTypeName, nullptr));
+		Options.ClassFilters.Add(MakeShared<FAnimNextInterfaceClassFilter>(TypeHandle));
 		
 		// Add class filter for columns here
 		TSharedRef<SWidget>  ClassMenu = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").
@@ -104,15 +100,15 @@ TSharedPtr<SWidget> FAnimNextInterfaceWidgetFactories::CreateAnimNextInterfaceWi
 	return Widget;
 }
 
-TMap<const UClass*, TFunction<void (const UObject* Object, FText& OutText)>> FAnimNextInterfaceWidgetFactories::AnimNextInterfaceTextConverter;
-TMap<const UClass*, TFunction<TSharedRef<SWidget> (UObject* Object)>> FAnimNextInterfaceWidgetFactories::AnimNextInterfaceWidgetCreators;
+TMap<const UClass*, TFunction<void (const UObject* Object, FText& OutText)>> FWidgetFactories::AnimNextInterfaceTextConverter;
+TMap<const UClass*, TFunction<TSharedRef<SWidget> (UObject* Object)>> FWidgetFactories::AnimNextInterfaceWidgetCreators;
 
 void ConvertToText_Base(const UObject* Object, FText& OutText)
 {
 	OutText = FText::FromString(Object->GetName());
 }
 
-void FAnimNextInterfaceWidgetFactories::RegisterWidgets()
+void FWidgetFactories::RegisterWidgets()
 {
 	AnimNextInterfaceTextConverter.Add(UObject::StaticClass(), ConvertToText_Base);
 }

@@ -3,11 +3,8 @@
 #pragma once
 
 #include "Animation/AnimNode_CustomProperty.h"
-#include "Animation/InputScaleBias.h"
 #include "AnimNextInterfaceGraph.h"
 #include "AnimNextInterfaceContext.h"
-#include "AnimNextInterfaceParamStorage.h"
-// --- ---
 #include "AnimNode_AnimNextInterfaceGraph.generated.h"
 
 
@@ -62,7 +59,7 @@ private:
 	int32 LODThreshold;
 
 	// This should come from the FPoseContext, but as I need persistence, I store the state here
-	UE::AnimNext::Interface::FState RootState; // TODO : Get rid of num elements ? Let the param itself have it
+	UE::AnimNext::FState RootState; // TODO : Get rid of num elements ? Let the param itself have it
 
 	// Delta time received accumulated in update and used at Evaluate (so we can receive multiple calls to Evaluate)
 	float GraphDeltaTime = 0.f;

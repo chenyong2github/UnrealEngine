@@ -6,6 +6,7 @@
 
 class UAnimNextInterfaceGraph;
 class UAnimNextInterfaceGraph_EditorData;
+struct FAnimNextParamType;
 
 namespace UE::AnimNext::InterfaceGraphEditor
 {
@@ -15,6 +16,8 @@ struct FUtils
 	static FName ValidateName(const UAnimNextInterfaceGraph_EditorData* InEditorData, const FString& InName);
 
 	static void GetAllGraphNames(const UAnimNextInterfaceGraph_EditorData* InEditorData, TSet<FName>& OutNames);
+
+	static FAnimNextParamType GetParameterTypeFromMetaData(const FStringView& InStringView);
 };
 
 }

@@ -5,9 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/ScriptInterface.h"
-#include "AnimNextInterfaceParam.h"
+#include "Param/Param.h"
+#include "Param/ParamType.h"
+#include "Param/ParamHelpers.h"
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 typedef int32 FParamStorageHandle;
@@ -20,7 +22,6 @@ public:
 
 	FParamStorage(int32 InMaxParams, int32 InAllocatedMemorySize, int32 InMaxBlocks, bool InAllowGrowing = false);
 	~FParamStorage();
-
 
 	// *** Interface for param arena ***
 	// This prototype allows storing parameters into the storage using pre-allocated blocks of memory
@@ -50,23 +51,23 @@ public:
 	// If the total allocation size is <= than size of a void *, the value is stored directly in the FParam Data
 	// If not, additional memory is requested (TODO : better memory management)
 	template<typename ValueType>
-	FHParam AddValue(ValueType* Data, int32 NumElem, FParam::EFlags Flags)
+	FParamHandle AddValue(ValueType* Data, FParam::EFlags Flags)
 	{
 		check(ParamFreeIndex < (Parameters.Num())); // TODO : Growing ?
 
 		const int32 ParameterIndex = ParamFreeIndex;
 		ParamFreeIndex++;
 
-		const FParamType& ParamType = Private::TParamType<ValueType>::GetType();
-		const int32 ParamAllocSize = GetParamAllocSize(ParamType, NumElem);
+		const int32 ParamAllocSize = GetParamAllocSize<ValueType>(1);
 
 		FParam& Param = Parameters[ParameterIndex];
 
 		// Prepare the Param for the copy
-		Param.TypeId = ParamType.GetTypeId();
+		const FParamTypeHandle TypeHandle = FParamTypeHandle::GetHandle<ValueType>();
+		Param.TypeHandle = TypeHandle;
 		Param.Flags = Flags;
-		Param.NumElements = NumElem;
 		Param.Data = Data;
+		Param.Size = ParamAllocSize;
 
 		// If size is <= sizeof(void*), put the value directly at the pointer
 		if (ParamAllocSize <= sizeof(void*)) // TODO : see if we can get this constexpr
@@ -74,54 +75,56 @@ public:
 			ParamMemoryHandles[ParameterIndex] = InvalidBlockHandle;
 
 			// Set target memory directly at Param.Data memory
-			ParamType.GetParamCopyFunction()(Param, static_cast<ValueType*>((void*)&Param.Data), ParamAllocSize);
+			TArrayView<uint8> SourceData(reinterpret_cast<uint8*>(Data), ParamAllocSize);
+			TArrayView<uint8> TargetData(static_cast<uint8*>((void*)&Param.Data), ParamAllocSize);
+			FParamHelpers::Copy(TypeHandle, TypeHandle, SourceData, TargetData);
 
 			Param.Flags |= FParam::EFlags::Embedded; // Added so it can be checked when retrieving (TODO : see if it can be done constexpr by type)
 		}
 		else
 		{
 			TBlockDataPair BlockData = RequestBlock(ParamAllocSize);
-			
+
 			ParamMemoryHandles[ParameterIndex] = BlockData.Key;
 
 			// Set target memory directly at BlockData memory
-			ParamType.GetParamCopyFunction()(Param, BlockData.Value, ParamAllocSize);
+			TArrayView<uint8> SourceData(reinterpret_cast<uint8*>(Data), ParamAllocSize);
+			TArrayView<uint8> TargetData(BlockData.Value, ParamAllocSize);
+			FParamHelpers::Copy(TypeHandle, TypeHandle, SourceData, TargetData);
 			// Once the copy is done, update the Param
 			Param.Data = BlockData.Value;
 		}
 
 		RefCounts[ParameterIndex] = 1;
 
-		return FHParam(this, static_cast<FParamHandle>(ParameterIndex));
+		return FParamHandle(this, static_cast<FParamHandle::FInternalHandle>(ParameterIndex));
 	}
 
-	// Adds a reference (pointer) to the storage, returning a HParam
+	// Adds a reference (pointer) to the storage, returning a FParamHandle
 	template<typename ValueType>
-	FHParam AddReference(ValueType* Data, int32 NumElem, FParam::EFlags Flags)
+	FParamHandle AddReference(ValueType* Data, FParam::EFlags Flags)
 	{
 		check(ParamFreeIndex < (Parameters.Num())); // TODO : Growing ?
 
 		const int32 ParameterIndex = ParamFreeIndex;
 		ParamFreeIndex++;
 
-		const FParamType& ParamType = Private::TParamType<ValueType>::GetType();
-
 		FParam& Param = Parameters[ParameterIndex];
 
-		Param.TypeId = ParamType.GetTypeId();
+		Param.TypeHandle = FParamTypeHandle::GetHandle<ValueType>();
 		Param.Flags = Flags;
-		Param.NumElements = NumElem;
 		Param.Data = Data;
+		Param.Size = sizeof(ValueType);
 
 		ParamMemoryHandles[ParameterIndex] = InvalidBlockHandle;
 
 		RefCounts[ParameterIndex] = 1;
 
-		return FHParam(this, static_cast<FParamHandle>(ParameterIndex));
+		return FParamHandle(this, static_cast<FParamHandle::FInternalHandle>(ParameterIndex));
 	}
 
-	// Obtains the Param associated to the HParam
-	FParam* GetParam(FParamHandle InParamHandle)
+	// Obtains the Param associated to the FParamHandle
+	FParam* GetParam(FParamHandle::FInternalHandle InParamHandle)
 	{
 		FParam* RetVal = nullptr;
 
@@ -136,10 +139,10 @@ public:
 	}
 
 protected:
-	friend struct FHParam;
+	friend struct FParamHandle;
 
 	// Adds a reference count to a param, using the passed param handle
-	void IncRefCount(const FParamHandle InParamHandle)
+	void IncRefCount(const FParamHandle::FInternalHandle InParamHandle)
 	{
 		const int32 ParameterIndex = InParamHandle;
 		check(ParameterIndex < ParamFreeIndex);
@@ -153,7 +156,7 @@ protected:
 	// If the count reaches 0:
 	// - If it is the last param of the stack, it releases it and all the previous params with ref count == 0
 	// - If it is not the last one, returns without releasing (it will be done later)
-	void DecRefCount(const FParamHandle InParamHandle)
+	void DecRefCount(const FParamHandle::FInternalHandle InParamHandle)
 	{
 		int32 ParameterIndex = InParamHandle;
 		check(ParameterIndex < ParamFreeIndex);
@@ -187,11 +190,22 @@ protected:
 		}
 	}
 
-	// Calculates the required size for a param, inclusing allignment
-	int32 GetParamAllocSize(const FParamType& ParamType, const int32 NumElem) const
+	// Calculates the required size for a param, including alignment
+	static int32 GetParamAllocSize(const FAnimNextParamType& ParamType, const int32 NumElem)
 	{
 		const int32 ParamAlignment = ParamType.GetAlignment();
 		const int32 ParamSize = ParamType.GetSize();
+		const int32 ParamAllocSize = NumElem * Align(ParamSize, ParamAlignment);
+
+		return ParamAllocSize;
+	}
+
+	// Calculates the required size for a param, including alignment
+	template<typename ValueType>
+	static int32 GetParamAllocSize(const int32 NumElem)
+	{
+		const int32 ParamAlignment = alignof(ValueType);
+		const int32 ParamSize = sizeof(ValueType);
 		const int32 ParamAllocSize = NumElem * Align(ParamSize, ParamAlignment);
 
 		return ParamAllocSize;
@@ -219,4 +233,4 @@ private:
 	bool CheckNumBlocks(int32 BlockIndex);
 };
 
-} // end namespace UE::AnimNext::Interface
+} // end namespace UE::AnimNext

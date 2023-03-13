@@ -11,6 +11,18 @@
 
 class UAnimSequenceBase;
 
+USTRUCT()
+struct FAnimSequencePlayerState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float InternalTimeAccumulator = 0.0f;
+
+	UPROPERTY()
+	float PrevInternalTimeAccumulator = 0.0f;
+};
+
 USTRUCT(BlueprintType, meta = (DisplayName = "AnimSequence"))
 struct FAnimNextGraph_AnimSequence
 {
@@ -25,10 +37,6 @@ struct FAnimNextGraph_AnimSequence
 
 	const UAnimSequenceBase* AnimSequence = nullptr;
 };
-
-DECLARE_ANIM_NEXT_INTERFACE_PARAM_TYPE(ANIMNEXTINTERFACEGRAPH_API, FAnimNextGraph_AnimSequence, FAnimNextGraph_AnimSequence);
-
-
 
 struct FAnimNextInterfaceUnitContext;
 class UAnimNextInterfaceGraph;

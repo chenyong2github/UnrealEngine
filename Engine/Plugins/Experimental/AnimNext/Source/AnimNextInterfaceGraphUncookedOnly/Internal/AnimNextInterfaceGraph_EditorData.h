@@ -85,8 +85,6 @@ class UAnimNextInterfaceGraph_EditorData : public UObject, public IRigVMClientHo
 
 	bool IsNodeExecConnected(const UEdGraphNode* Node) const;
 
-	FName GetPinTypeName(const FEdGraphPinType& EdGraphPinType);
-
 	UPROPERTY()
 	TObjectPtr<UAnimNextInterfaceGraph_EdGraph> RootGraph;
 

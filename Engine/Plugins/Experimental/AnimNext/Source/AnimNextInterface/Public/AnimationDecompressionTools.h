@@ -12,7 +12,7 @@ struct FAnimSequenceDecompressionContext;
 struct FRootMotionReset;
 class UAnimSequence;
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 class ANIMNEXTINTERFACE_API FDecompressionTools
@@ -72,4 +72,4 @@ public:
 		, const bool bDisableRetargeting);
 };
 
-} // end namespace UE::AnimNext::Interface
+} // end namespace UE::AnimNext

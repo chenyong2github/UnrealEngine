@@ -5,12 +5,12 @@
 #include "CoreMinimal.h"
 #include "AnimationDataRegistryTypes.h"
 #include "UObject/WeakObjectPtr.h"
-#include "AnimNextInterfaceParam.h"
+#include "Param/Param.h"
 
 class USkeletalMeshComponent;
 struct FReferenceSkeleton;
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 class FModule;
@@ -75,12 +75,12 @@ public:
 	template<typename DataType>
 	FAnimationDataHandle PreAllocateMemory(const int32 NumElements)
 	{
-		const FParamType& ParamType = Private::TParamType<DataType>::GetType();
+		FParamTypeHandle ParamTypeHandle = FParamTypeHandle::GetHandle<DataType>();
 
 		const FDataTypeDef* TypeDef = nullptr;
 		{
 			FRWScopeLock Lock(DataTypeDefsLock, SLT_ReadOnly);
-			TypeDef = DataTypeDefs.Find(ParamType.GetTypeId());
+			TypeDef = DataTypeDefs.Find(ParamTypeHandle);
 		}
 
 		if (TypeDef == nullptr)
@@ -89,7 +89,7 @@ public:
 			// TODO : Log if we allocate more than DEFAULT_BLOCK_SIZE elements of that type
 		}
 
-		if (ensure(TypeDef != nullptr && TypeDef->TypeId != MAX_uint16))
+		if (ensure(TypeDef != nullptr && TypeDef->ParamTypeHandle.IsValid()))
 		{
 			const int32 ElementSize = TypeDef->ElementSize;
 			const int32 ElementAlign = TypeDef->ElementAlign;
@@ -99,7 +99,7 @@ public:
 
 			uint8* Memory = (uint8*)FMemory::Malloc(BufferSize, TypeDef->ElementAlign);    // TODO : This should come from preallocated chunks, use malloc / free for now
 
-			Private::FAllocatedBlock* AllocatedBlock = new Private::FAllocatedBlock(Memory, NumElements, TypeDef->TypeId); // TODO : avoid memory fragmentation
+			Private::FAllocatedBlock* AllocatedBlock = new Private::FAllocatedBlock(Memory, NumElements, ParamTypeHandle); // TODO : avoid memory fragmentation
 			AllocatedBlock->AddRef();
 			AllocatedBlocks.Add(AllocatedBlock);
 			return FAnimationDataHandle(AllocatedBlock);
@@ -134,8 +134,8 @@ private:
 	// structure holding each registered type information
 	struct FDataTypeDef
 	{
-		Private::AnimDataTypeId TypeId = Private::InvalidTypeId;
-		DestroyFnSignature DestrooyTypeFn = nullptr;
+		FParamTypeHandle ParamTypeHandle;
+		DestroyFnSignature DestroyTypeFn = nullptr;
 		int32 ElementSize = 0;
 		int32 ElementAlign = 0;
 		int32 AllocationBlockSize = 0;
@@ -162,7 +162,7 @@ private:
 	};
 
 	// Map holding registered types
-	TMap<Private::AnimDataTypeId, FDataTypeDef> DataTypeDefs;
+	TMap<FParamTypeHandle, FDataTypeDef> DataTypeDefs;
 	// Lock for registered types map
 	FRWLock DataTypeDefsLock;
 
@@ -182,12 +182,11 @@ private:
 	template<typename DataType>
 	FDataTypeDef* RegisterDataType_Impl(int32 AllocationBlockSize)
 	{
-		const FParamType& ParamType = Private::TParamType<DataType>::GetType();
-		const Private::AnimDataTypeId TypeId = ParamType.GetTypeId();
-		check(TypeId != MAX_uint16); // Missing IMPLEMENT_ANIM_NEXT_INTERFACE_STATE_TYPE(Type, Name);
+		FParamTypeHandle ParamTypeHandle = FParamTypeHandle::GetHandle<DataType>();
+		check(ParamTypeHandle.IsValid());
 
-		const int32 ElementSize = ParamType.GetSize();
-		const int32 ElementAlign = ParamType.GetAlignment();
+		const int32 ElementSize = ParamTypeHandle.GetSize();
+		const int32 ElementAlign = ParamTypeHandle.GetAlignment();
 
 		// If we use raw types, I need a per element destructor
 		DestroyFnSignature DestroyFn = [](uint8* TargetBuffer, int32 NumElem)->void
@@ -203,8 +202,8 @@ private:
 		{
 			FRWScopeLock WriteLock(DataTypeDefsLock, SLT_Write);
 
-			AddedDef = &DataTypeDefs.FindOrAdd(TypeId, { TypeId, DestroyFn, ElementSize, ElementAlign, AllocationBlockSize });
-			check(AddedDef->TypeId == TypeId); // check we have not added two different types with the same ID
+			AddedDef = &DataTypeDefs.FindOrAdd(ParamTypeHandle, { ParamTypeHandle, DestroyFn, ElementSize, ElementAlign, AllocationBlockSize });
+			check(AddedDef->ParamTypeHandle == ParamTypeHandle); // check we have not added two different types with the same ID
 		}
 
 		return AddedDef;
@@ -234,4 +233,4 @@ private:
 	static void HandlePostGarbageCollect();
 };
 
-} // namespace UE::AnimNext::Interface
+} // namespace UE::AnimNext

@@ -3,13 +3,11 @@
 #include "AnimNextInterfaceState.h"
 #include "AnimNextInterfaceContext.h"
 
-namespace UE::AnimNext::Interface
+namespace UE::AnimNext
 {
 
 FParam* FState::FindStateRaw(const FInterfaceKeyWithIdAndStack& InKey, const FContext& InContext, EStatePersistence InPersistence)
 {
-	check(NumElements == InContext.GetNum())
-
 	FParam* ExistingValue = nullptr;
 	TMap<FInterfaceKeyWithIdAndStack, FParam>* ValueMap = nullptr; 
 
@@ -34,18 +32,18 @@ FParam* FState::FindStateRaw(const FInterfaceKeyWithIdAndStack& InKey, const FCo
 	return ExistingValue;
 }
 
-FParam* FState::AllocateState(const FInterfaceKeyWithIdAndStack& InKey, const FContext& InContext, const FParamType& InType, EStatePersistence InPersistence)
+FParam* FState::AllocateState(const FInterfaceKeyWithIdAndStack& InKey, const FContext& InContext, const FParamTypeHandle& InTypeHandle, EStatePersistence InPersistence)
 {
-	void* Data = FMemory::Malloc(InType.GetSize() * NumElements, InType.GetAlignment());
-	
+	const TArrayView<uint8> Data(static_cast<uint8*>(FMemory::Malloc(InTypeHandle.GetSize(), InTypeHandle.GetAlignment())), InTypeHandle.GetSize());
+
 	switch(InPersistence)
 	{
 	case EStatePersistence::Relevancy:
 		// TODO: chunked allocator for relevancy-based stuff?
-		return &RelevancyValueMap.Add(InKey, FRelevancyParam(InType, Data, InContext.GetBatchedFlags(), InContext.UpdateCounter));
+		return &RelevancyValueMap.Add(InKey, FRelevancyParam(InTypeHandle, Data, FParam::EFlags::Mutable, InContext.UpdateCounter));
 		break;
 	case EStatePersistence::Permanent:
-		return &PermanentValueMap.Add(InKey, FParam(InType, Data, InContext.GetBatchedFlags()));
+		return &PermanentValueMap.Add(InKey, FParam(InTypeHandle, Data, FParam::EFlags::Mutable));
 		break;
 	default:
 		check(false);
