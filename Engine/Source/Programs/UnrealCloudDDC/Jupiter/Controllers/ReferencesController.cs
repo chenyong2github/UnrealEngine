@@ -162,7 +162,7 @@ namespace Jupiter.Controllers
                 }
 
                 string responseType = _formatResolver.GetResponseType(Request, format, CustomMediaTypeNames.UnrealCompactBinary);
-
+                Tracer.CurrentSpan.SetAttribute("response-type", responseType);
                 switch (responseType)
                 {
                     case CustomMediaTypeNames.UnrealCompactBinary:
