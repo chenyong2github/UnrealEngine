@@ -419,7 +419,7 @@ private:
 	/** Draw Bones for non retargeted animation. */
 	void DrawMeshBonesBakedAnimation(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const;
 	/** Draw Bones from skeleton reference pose. */
-	void DrawBonesFromSkeleton(const USkeleton* Skeleton, FPrimitiveDrawInterface* PDI) const;
+	void DrawBonesFromSkeleton(const USkeleton* Skeleton, const TArray<int32>& InSelectedBones, FPrimitiveDrawInterface* PDI) const;
 	/** Draws Bones for RequiredBones with WorldTransform **/
 	void DrawBones(
 		const FVector& ComponentOrigin,

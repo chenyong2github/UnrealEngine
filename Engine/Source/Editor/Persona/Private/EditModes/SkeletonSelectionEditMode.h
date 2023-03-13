@@ -11,9 +11,12 @@ class FEditorViewportClient;
 class FPrimitiveDrawInterface;
 class FSceneView;
 class FViewport;
+class USkeletalMeshSocket;
+class USkeletalMeshComponent;
 struct FViewportClick;
 struct FSelectedSocketInfo;
 class FViewportClient;
+struct FReferenceSkeleton;
 
 class FSkeletonSelectionEditMode : public IPersonaEditMode
 {
@@ -39,6 +42,12 @@ public:
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click) override;
 	virtual bool CanCycleWidgetMode() const override;
+
+protected:
+	FTransform GetBoneTransform(const int32 BoneIndex) const;
+	FTransform GetSocketTransform(const USkeletalMeshSocket* Socket) const;
+	FTransform GetWorldSpaceBoneTransform(const FReferenceSkeleton& ReferenceSkeleton, const int32 BoneIndex) const;
+	const FReferenceSkeleton& GetReferenceSkeletonForComponent(const USkeletalMeshComponent* Component) const;
 
 private:
 	/** Duplicates and selects a socket when we alt-drag */

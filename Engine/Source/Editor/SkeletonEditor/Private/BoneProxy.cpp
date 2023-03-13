@@ -4,6 +4,7 @@
 #include "IPersonaPreviewScene.h"
 #include "BoneControllers/AnimNode_ModifyBone.h"
 #include "AnimPreviewInstance.h"
+#include "IPersonaToolkit.h"
 #include "SAdvancedTransformInputBox.h"
 #include "ScopedTransaction.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -22,6 +23,28 @@ UBoneProxy::UBoneProxy()
 {
 }
 
+FTransform GetWorldSpaceBoneTransform(const FReferenceSkeleton& ReferenceSkeleton, const int32 BoneIndex)
+{
+	const TArray<FTransform>& BonePoses = ReferenceSkeleton.GetRefBonePose();
+
+	if (BonePoses.IsValidIndex(BoneIndex))
+	{
+		FTransform WorldSpacePose = BonePoses[BoneIndex];
+
+		int32 ParentIndex = ReferenceSkeleton.GetParentIndex(BoneIndex);
+
+		while(ParentIndex != INDEX_NONE)
+		{
+			WorldSpacePose = WorldSpacePose * BonePoses[ParentIndex];
+			ParentIndex = ReferenceSkeleton.GetParentIndex(ParentIndex);
+		}
+
+		return WorldSpacePose;		
+	}
+
+	return FTransform::Identity;
+}
+
 void UBoneProxy::Tick(float DeltaTime)
 {
 	if (!bManipulating)
@@ -34,55 +57,101 @@ void UBoneProxy::Tick(float DeltaTime)
 				return;
 			}
 
-			TArray<FTransform> LocalBoneTransforms = Component->GetBoneSpaceTransforms();
-
-			int32 BoneIndex = Component->GetBoneIndex(BoneName);
-			if (LocalBoneTransforms.IsValidIndex(BoneIndex))
+			if (Component->GetSkeletalMeshAsset())
 			{
-				FTransform LocalTransform = LocalBoneTransforms[BoneIndex];
-				FTransform BoneTransform = Component->GetBoneTransform(BoneIndex);
+				TArray<FTransform> LocalBoneTransforms = Component->GetBoneSpaceTransforms();
 
-				if (bLocalLocation)
+				const int32 BoneIndex = Component->GetBoneIndex(BoneName);
+				if (LocalBoneTransforms.IsValidIndex(BoneIndex))
 				{
-					Location = LocalTransform.GetLocation();
-				}
-				else
-				{
-					Location = BoneTransform.GetLocation();
+					const FTransform& LocalTransform = LocalBoneTransforms[BoneIndex];
+					const FTransform BoneTransform = Component->GetBoneTransform(BoneIndex);
+
+					if (bLocalLocation)
+					{
+						Location = LocalTransform.GetLocation();
+					}
+					else
+					{
+						Location = BoneTransform.GetLocation();
+					}
+
+					if (bLocalRotation)
+					{
+						Rotation = LocalTransform.GetRotation().Rotator();
+					}
+					else
+					{
+						Rotation = BoneTransform.GetRotation().Rotator();
+					}
+
+					if(bLocalScale)
+					{
+						Scale = LocalTransform.GetScale3D();
+					}
+					else
+					{
+						Scale = BoneTransform.GetScale3D();
+					}
+
+					const FTransform ReferenceTransform = Component->GetSkeletalMeshAsset()->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+					ReferenceLocation = ReferenceTransform.GetLocation();
+					ReferenceRotation = ReferenceTransform.GetRotation().Rotator();
+					ReferenceScale = ReferenceTransform.GetScale3D();
 				}
 
-				if (bLocalRotation)
-				{
-					Rotation = LocalTransform.GetRotation().Rotator();
-				}
-				else
-				{
-					Rotation = BoneTransform.GetRotation().Rotator();
-				}
-
-				if(bLocalScale)
-				{
-					Scale = LocalTransform.GetScale3D();
-				}
-				else
-				{
-					Scale = BoneTransform.GetScale3D();
-				}
-
-				FTransform ReferenceTransform = Component->GetSkeletalMeshAsset()->GetRefSkeleton().GetRefBonePose()[BoneIndex];
-				ReferenceLocation = ReferenceTransform.GetLocation();
-				ReferenceRotation = ReferenceTransform.GetRotation().Rotator();
-				ReferenceScale = ReferenceTransform.GetScale3D();
+				// Show mesh relative transform on the details panel so we have a way to visualize the root transform when processing root motion
+				// Note that this doesn't always represent the actual transform of the root in the animation at current time but where root motion has taken us so far
+				// It will not match the root transform at the current time in the animation after lopping multiple times if we are using ProcessRootMotion::Loop
+				// or if we are visualizing a complex section from a montage, for example
+				const FTransform MeshRelativeTransform = Component->GetRelativeTransform();
+				MeshLocation = MeshRelativeTransform.GetLocation();
+				MeshRotation = MeshRelativeTransform.GetRotation().Rotator();
+				MeshScale = MeshRelativeTransform.GetScale3D();
 			}
+			else if (const TSharedPtr<IPersonaPreviewScene> PreviewScene = WeakPreviewScene.Pin())
+			{
+				if (USkeleton* Skeleton = PreviewScene->GetPersonaToolkit()->GetSkeleton())
+				{
+					const int32 BoneIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
+					if (BoneIndex != INDEX_NONE)
+					{
+						const FTransform& ReferenceTransform = Skeleton->GetReferenceSkeleton().GetRefBonePose()[BoneIndex];
+						const FTransform WorldReferenceTransform = GetWorldSpaceBoneTransform(Skeleton->GetReferenceSkeleton(), BoneIndex);
+					
+						if (bLocalLocation)
+						{
+							Location = ReferenceTransform.GetLocation();
+						}
+						else
+						{
+							Location = WorldReferenceTransform.GetLocation();
+						}
 
-			// Show mesh relative transform on the details panel so we have a way to visualize the root transform when processing root motion
-			// Note that this doesn't always represent the actual transform of the root in the animation at current time but where root motion has taken us so far
-			// It will not match the root transform at the current time in the animation after lopping multiple times if we are using ProcessRootMotion::Loop
-			// or if we are visualizing a complex section from a montage, for example
-			const FTransform MeshRelativeTransform = Component->GetRelativeTransform();
-			MeshLocation = MeshRelativeTransform.GetLocation();
-			MeshRotation = MeshRelativeTransform.GetRotation().Rotator();
-			MeshScale = MeshRelativeTransform.GetScale3D();
+						if (bLocalRotation)
+						{
+							Rotation = ReferenceTransform.GetRotation().Rotator();
+						}
+						else
+						{
+							Rotation = WorldReferenceTransform.GetRotation().Rotator();
+						}
+
+						if(bLocalScale)
+						{
+							Scale = ReferenceTransform.GetScale3D();
+						}
+						else
+						{
+							Scale = WorldReferenceTransform.GetScale3D();
+						}
+
+						ReferenceLocation = ReferenceTransform.GetLocation();
+						ReferenceRotation = ReferenceTransform.GetRotation().Rotator();
+						ReferenceScale = ReferenceTransform.GetScale3D();
+					}
+				}
+			}
 		}
 	}
 }
