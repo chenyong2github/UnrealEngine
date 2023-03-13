@@ -41,7 +41,7 @@ FDisplayClusterViewportLightCardManager::~FDisplayClusterViewportLightCardManage
 void FDisplayClusterViewportLightCardManager::Release()
 {
 	// The destructor is usually called from the rendering thread, so Release() must be called first from the game thread.
-	check(!IsInRenderingThread());
+	check(IsInGameThread());
 
 	// Release UVLightCard
 	ReleaseUVLightCardData();
