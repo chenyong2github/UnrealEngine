@@ -1750,6 +1750,10 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 	FRHITextureCreateDesc& SetBulkData(FResourceBulkDataInterface* InBulkData) { BulkData = InBulkData;                    return *this; }
 	FRHITextureCreateDesc& DetermineInititialState()                           { if (InitialState == ERHIAccess::Unknown) InitialState = RHIGetDefaultResourceState(Flags, BulkData != nullptr); return *this; }
 	FRHITextureCreateDesc& SetFastVRAMPercentage(float In)                     { FastVRAMPercentage = uint8(FMath::Clamp(In, 0.f, 1.0f) * 0xFF); return *this; }
+	FRHITextureCreateDesc& SetClassName(const TCHAR* InClassName)			   { ClassName = FName(InClassName);           return *this; }
+	FRHITextureCreateDesc& SetAssetName(const FName& InAssetName)			   { AssetName = InAssetName;                  return *this; }
+	FName GetTraceClassName() const											   { return ClassName == NAME_None ? FName(TEXT("FRHITexture")) : ClassName; }
+	FName GetTraceAssetName() const											   { return AssetName == NAME_None ? FName(DebugName) : AssetName; }
 
 	/* The RHI access state that the resource will be created in. */
 	ERHIAccess InitialState = ERHIAccess::Unknown;
@@ -1759,6 +1763,10 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 
 	/* Optional initial data to fill the resource with. */
 	FResourceBulkDataInterface* BulkData = nullptr;
+
+private:
+	FName ClassName = NAME_None;	// The owner class of FRHITexture used for Insight asset metadata tracing
+	FName AssetName = NAME_None;	// The owner asset name used for Insight asset metadata tracing
 };
 
 class FRHITexture : public FRHIViewableResource

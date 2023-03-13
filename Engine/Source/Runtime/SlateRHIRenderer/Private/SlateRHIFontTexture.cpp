@@ -25,7 +25,8 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 
 		FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("FSlateFontTextureRHIResource"), Width, Height, PixelFormat)
-			.SetFlags(ETextureCreateFlags::Dynamic);
+			.SetFlags(ETextureCreateFlags::Dynamic)
+			.SetClassName(TEXT("FSlateFontTextureRHIResource"));
 
 		if (!bIsGrayscale)
 		{

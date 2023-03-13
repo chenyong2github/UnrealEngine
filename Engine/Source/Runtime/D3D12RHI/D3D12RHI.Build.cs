@@ -18,6 +18,7 @@ public class D3D12RHI : ModuleRules
 				"RHI",
 				"RHICore",
 				"RenderCore",
+				"TraceLog",
 				}
 			);
 

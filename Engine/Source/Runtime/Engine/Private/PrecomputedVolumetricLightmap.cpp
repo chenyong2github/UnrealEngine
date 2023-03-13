@@ -25,7 +25,8 @@ void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create3D(TEXT("VolumetricLightmap"), Dimensions, Format)
 		.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV)
-		.SetBulkData(this);
+		.SetBulkData(this)
+		.SetClassName(TEXT("FVolumetricLightmapDataLayer"));
 
 	Texture = RHICreateTexture(Desc);
 }
@@ -34,7 +35,8 @@ void FVolumetricLightmapDataLayer::CreateTargetTexture(FIntVector Dimensions)
 {
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create3D(TEXT("VolumetricLightmap"), Dimensions, Format)
-		.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+		.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV)
+		.SetClassName(TEXT("FVolumetricLightmapDataLayer"));
 
 	Texture = RHICreateTexture(Desc);
 }

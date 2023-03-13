@@ -54,7 +54,8 @@ public:
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("ColoredTexture"), 1, 1, PF_R8G8B8A8)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetBulkData(&BulkData);
+			.SetBulkData(&BulkData)
+			.SetClassName(TEXT("FColoredTexture"));
 
 		TextureRHI = RHICreateTexture(Desc);
 
@@ -186,7 +187,8 @@ public:
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::Create3D(TEXT("BlackVolumeTexture3D"), 1, 1, 1, PixelFormat)
 				.SetFlags(ETextureCreateFlags::ShaderResource)
-				.SetBulkData(&BulkData);
+				.SetBulkData(&BulkData)
+				.SetClassName(TEXT("FBlackVolumeTexture"));
 
 			TextureRHI = RHICreateTexture(Desc);
 		}
@@ -230,7 +232,8 @@ public:
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2DArray(TEXT("BlackArrayTexture"), 1, 1, 1, PF_B8G8R8A8)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetBulkData(&BulkData);
+			.SetBulkData(&BulkData)
+			.SetClassName(TEXT("FBlackArrayTexture"));
 
 		TextureRHI = RHICreateTexture(Desc);
 
@@ -270,7 +273,8 @@ public:
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("FMipColorTexture"), TextureSize, TextureSize, PF_B8G8R8A8)
 			.SetNumMips(NumMips)
-			.SetFlags(ETextureCreateFlags::ShaderResource);
+			.SetFlags(ETextureCreateFlags::ShaderResource)
+			.SetClassName(TEXT("FMipColorTexture"));
 
 		TextureRHI = RHICreateTexture(Desc);
 
@@ -358,7 +362,8 @@ public:
 		// Create the texture RHI.
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::CreateCube(TEXT("SolidColorCube"), 1, PixelFormat)
-			.SetFlags(ETextureCreateFlags::ShaderResource);
+			.SetFlags(ETextureCreateFlags::ShaderResource)
+			.SetClassName(TEXT("FSolidColorTextureCube"));
 
 		FTextureCubeRHIRef TextureCube = RHICreateTexture(Desc);
 		TextureRHI = TextureCube;
@@ -414,7 +419,8 @@ public:
 
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::CreateCubeArray(TEXT("BlackCubeArray"), 1, 1, PF_B8G8R8A8)
-				.SetFlags(ETextureCreateFlags::ShaderResource);
+				.SetFlags(ETextureCreateFlags::ShaderResource)
+				.SetClassName(TEXT("FBlackCubeArrayTexture"));
 
 			// Create the texture RHI.
 			TextureRHI = RHICreateTexture(Desc);
@@ -451,7 +457,8 @@ public:
 	{
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("UintTexture"), 1, 1, Format)
-			.SetFlags(ETextureCreateFlags::ShaderResource);
+			.SetFlags(ETextureCreateFlags::ShaderResource)
+			.SetClassName(TEXT("FUintTexture"));
 
 		TextureRHI = RHICreateTexture(Desc);
 

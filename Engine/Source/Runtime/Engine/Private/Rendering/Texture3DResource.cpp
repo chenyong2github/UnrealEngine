@@ -124,7 +124,9 @@ void FTexture3DResource::CreateTexture()
 			FRHITextureCreateDesc::Create3D(TEXT("FTexture3DResource"), FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat)
 			.SetNumMips(State.NumRequestedLODs)
 			.SetFlags(CreationFlags)
-			.SetExtData(PlatformData->GetExtData());
+			.SetExtData(PlatformData->GetExtData())
+			.SetClassName(TEXT("FTexture3DResource"))
+			.SetAssetName(GetOwnerName());
 
 		if (GUseTexture3DBulkDataRHI)
 		{

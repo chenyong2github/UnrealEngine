@@ -514,7 +514,8 @@ void FParticleCurveTexture::InitRHI()
 		.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoFastClear)
 		.SetFormat(PF_B8G8R8A8)
 		.SetClearValue(FClearValueBinding(FLinearColor::Blue))
-		.SetInitialState(ERHIAccess::SRVMask);
+		.SetInitialState(ERHIAccess::SRVMask)
+		.SetClassName(TEXT("FParticleCurveTexture"));
 
 	CurveTextureRHI = RHICreateTexture(Desc);
 }

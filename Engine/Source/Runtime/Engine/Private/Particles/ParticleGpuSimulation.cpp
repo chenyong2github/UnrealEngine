@@ -235,7 +235,8 @@ public:
 				.SetFormat(PF_A32B32G32R32F)
 				.SetClearValue(FClearValueBinding::Transparent)
 				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
-				.SetInitialState(ERHIAccess::SRVMask);
+				.SetInitialState(ERHIAccess::SRVMask)
+				.SetClassName(TEXT("FParticleStateTextures"));
 
 			PositionTextureRHI = RHICreateTexture(Desc);
 		}
@@ -250,7 +251,8 @@ public:
 				.SetFormat(PF_FloatRGBA)
 				.SetClearValue(FClearValueBinding::Transparent)
 				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
-				.SetInitialState(ERHIAccess::SRVMask);
+				.SetInitialState(ERHIAccess::SRVMask)
+				.SetClassName(TEXT("FParticleStateTextures"));
 
 			VelocityTextureRHI = RHICreateTexture(Desc);
 		}
@@ -304,7 +306,8 @@ public:
 			.SetFormat(PF_B8G8R8A8)
 			.SetClearValue(FClearValueBinding::Transparent)
 			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoFastClear)
-			.SetInitialState(ERHIAccess::RTV);
+			.SetInitialState(ERHIAccess::RTV)
+			.SetClassName(TEXT("FParticleAttributesTexture"));
 
 		TextureRHI = RHICreateTexture(Desc);
 

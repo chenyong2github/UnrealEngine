@@ -454,7 +454,9 @@ public:
 			.SetFormat(Owner->GetPixelFormat())
 			.SetNumMips(Owner->GetNumMips())
 			.SetFlags(TexCreateFlags)
-			.SetExtData(Owner->GetPlatformData() ? Owner->GetPlatformData()->GetExtData() : 0);
+			.SetExtData(Owner->GetPlatformData() ? Owner->GetPlatformData()->GetExtData() : 0)
+			.SetClassName(TEXT("FTextureCubeResource"))
+			.SetAssetName(GetOwnerName());
 
 		TextureCubeRHI = RHICreateTexture(Desc);
 

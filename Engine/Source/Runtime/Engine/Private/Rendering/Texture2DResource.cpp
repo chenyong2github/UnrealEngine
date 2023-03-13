@@ -112,7 +112,9 @@ void FTexture2DResource::CreateTexture()
 		.SetNumMips(State.NumRequestedLODs)
 		.SetFlags(CreationFlags)
 		.SetExtData(PlatformData->GetExtData())
-		.SetBulkData(ResourceMem);
+		.SetBulkData(ResourceMem)
+		.SetClassName(TEXT("FTexture2DResource"))
+		.SetAssetName(GetOwnerName());
 
 	TextureRHI = RHICreateTexture(Desc);
 
@@ -155,7 +157,9 @@ void FTexture2DResource::CreatePartiallyResidentTexture()
 		.SetNumMips(State.MaxNumLODs)
 		.SetFlags(CreationFlags | ETextureCreateFlags::Virtual)
 		.SetExtData(PlatformData->GetExtData())
-		.SetBulkData(ResourceMem);
+		.SetBulkData(ResourceMem)
+		.SetClassName(TEXT("FTexture2DResource"))
+		.SetAssetName(GetOwnerName());
 
 	TextureRHI = RHICreateTexture(Desc);
 

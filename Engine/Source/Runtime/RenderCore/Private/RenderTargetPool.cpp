@@ -111,6 +111,7 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(FRHITexture
 
 		const ERHIAccess AccessInitial = ERHIAccess::SRVMask;
 		FRHITextureCreateDesc CreateDesc(Desc, AccessInitial, Name);
+		CreateDesc.SetClassName(TEXT("FPooledRenderTarget"));
 
 		Found = new FPooledRenderTarget(
 			RHICreateTexture(CreateDesc),

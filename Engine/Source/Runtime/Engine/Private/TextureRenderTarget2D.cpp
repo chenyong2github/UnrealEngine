@@ -629,7 +629,9 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 			.SetNumMips(Owner->GetNumMips())
 			.SetFlags(TexCreateFlags)
 			.SetInitialState(ERHIAccess::SRVMask)
-			.SetClearValue(FClearValueBinding(ClearColor));
+			.SetClearValue(FClearValueBinding(ClearColor))
+			.SetClassName(TEXT("FTextureRenderTarget2DResource"))
+			.SetAssetName(GetOwnerName());
 
 		TextureRHI = RenderTargetTextureRHI = RHICreateTexture(Desc);
 
@@ -647,6 +649,8 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 
 		SetGPUMask(FRHIGPUMask::All());
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
+
+		TextureRHI->SetOwnerName(GetOwnerName());
 
 		AddToDeferredUpdateList(true);
 	}

@@ -53,7 +53,8 @@ void FSlateTexture2DRHIRef::InitDynamicRHI()
 
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::Create2D(TEXT("FSlateTexture2DRHIRef"), Width, Height, PixelFormat)
-				.SetFlags(TexCreateFlags);
+				.SetFlags(TexCreateFlags)
+				.SetClassName(TEXT("FSlateTexture2DRHIRef"));
 
 			ShaderResource = RHICreateTexture(Desc);
 			check( IsValidRef( ShaderResource ) );
@@ -329,7 +330,8 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 			.SetFormat((EPixelFormat)Format)
 			.SetClearValue(FClearValueBinding(ClearColor))
 			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
-			.SetInitialState(ERHIAccess::SRVMask);
+			.SetInitialState(ERHIAccess::SRVMask)
+			.SetClassName(TEXT("FSlateTextureRenderTarget2DResource"));
 
 		RenderTargetTextureRHI = TextureRHI = RHICreateTexture(Desc);
 	}

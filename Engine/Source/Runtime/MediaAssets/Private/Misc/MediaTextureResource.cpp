@@ -1319,11 +1319,14 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 			.SetNumMips(InNumMips)
 			.SetFlags(OutputCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 			.SetInitialState(ERHIAccess::SRVMask)
-			.SetClearValue(FClearValueBinding(InClearColor));
+			.SetClearValue(FClearValueBinding(InClearColor))
+			.SetClassName(TEXT("FMediaTextureResource"))
+			.SetAssetName(GetOwnerName());
 
 		OutputTarget = RHICreateTexture(Desc);
 
 		OutputTarget->SetName(TEXT("MediaTextureResourceOutput"));
+		OutputTarget->SetOwnerName(GetOwnerName());
 
 		CurrentClearColor = InClearColor;
 		CurrentNumMips = InNumMips;

@@ -35,8 +35,11 @@ UE_TRACE_METADATA_EVENT_END()
  *		 is added.
  */
 #define UE_TRACE_METADATA_SCOPE_ASSET(Object, ObjClass) \
-	auto MetaNameRef = UE_TRACE_CHANNELEXPR_IS_ENABLED(MetadataChannel) ? FStringTrace::GetNameRef(Object->GetFName()) : UE::Trace::FEventRef32(0,0);\
-	auto ClassNameRef = UE_TRACE_CHANNELEXPR_IS_ENABLED(MetadataChannel) ? FStringTrace::GetNameRef(ObjClass->GetFName()) : UE::Trace::FEventRef32(0,0);\
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(Object->GetFName(), ObjClass->GetFName())
+
+#define UE_TRACE_METADATA_SCOPE_ASSET_FNAME(ObjectName, ObjClassName) \
+	auto MetaNameRef = UE_TRACE_CHANNELEXPR_IS_ENABLED(MetadataChannel) ? FStringTrace::GetNameRef(ObjectName) : UE::Trace::FEventRef32(0,0);\
+	auto ClassNameRef = UE_TRACE_CHANNELEXPR_IS_ENABLED(MetadataChannel) ? FStringTrace::GetNameRef(ObjClassName) : UE::Trace::FEventRef32(0,0);\
 	UE_TRACE_METADATA_SCOPE(Asset, AssetMetadataChannel)\
 		<< Asset.Name(MetaNameRef)\
 		<< Asset.Class(ClassNameRef);
@@ -44,5 +47,6 @@ UE_TRACE_METADATA_EVENT_END()
 #else
 
 #define UE_TRACE_METADATA_SCOPE_ASSET(...)
+#define UE_TRACE_METADATA_SCOPE_ASSET_FNAME(...)
 
 #endif // UE_TRACE_ASSET_METADATA_ENABLED
