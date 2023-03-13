@@ -39,6 +39,7 @@ struct FPCGStaticMeshSpawnerContext : public FPCGContext
 	int32 CurrentDataIndex = 0;
 
 	// Whole-execution variables
+	bool bReuseCheckDone = false;
 	bool bSkippedDueToReuse = false;
 
 	// Per-input context variables

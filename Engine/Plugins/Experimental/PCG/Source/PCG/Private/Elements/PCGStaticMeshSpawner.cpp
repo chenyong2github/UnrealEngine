@@ -72,7 +72,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 	// Check if we can reuse existing resources
 	bool& bSkippedDueToReuse = Context->bSkippedDueToReuse;
 
-	if (Context->CurrentInputIndex == 0 && CVarAllowISMReuse.GetValueOnAnyThread())
+	if (!Context->bReuseCheckDone && CVarAllowISMReuse.GetValueOnAnyThread())
 	{
 		// Compute CRC if it has not been computed (it likely isn't, but this is to futureproof this)
 		if (!Context->DependenciesCrc.IsValid())
@@ -104,6 +104,8 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 				bSkippedDueToReuse = true;
 			}
 		}
+
+		Context->bReuseCheckDone = true;
 	}
 
 	// Early out - if we've established we could reuse resources and there is no need to generate an output, quit now
