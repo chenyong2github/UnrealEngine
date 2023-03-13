@@ -266,7 +266,6 @@ protected: // overridable handlers
 private:
 	static TArray<ESocialSubsystem> DefaultSubsystems;
 	static TArray<FSocialInteractionHandle> RegisteredInteractions;
-	static TMap<TWeakObjectPtr<UGameInstance>, TWeakObjectPtr<USocialManager>> AllManagersByGameInstance;
 
 	UPROPERTY()
 	TArray<TObjectPtr<USocialToolkit>> SocialToolkits;
