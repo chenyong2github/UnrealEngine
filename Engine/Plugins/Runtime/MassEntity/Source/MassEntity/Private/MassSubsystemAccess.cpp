@@ -58,21 +58,19 @@ USubsystem* FMassSubsystemAccess::FetchSubsystemInstance(UWorld* World, TSubclas
 
 bool FMassSubsystemAccess::CacheSubsystemRequirements(const FMassSubsystemRequirements& SubsystemRequirements)
 {
-	if (SubsystemRequirements.IsEmpty())
-	{
-		return true;
-	}
-
 	bool bResult = true;
 
-	for (FMassExternalSubsystemBitSet::FIndexIterator It = SubsystemRequirements.GetRequiredConstSubsystems().GetIndexIterator(); It && bResult; ++It)
+	if (SubsystemRequirements.IsEmpty() == false)
 	{
-		bResult = bResult && CacheSubsystem(*It);
-	}
+		for (FMassExternalSubsystemBitSet::FIndexIterator It = SubsystemRequirements.GetRequiredConstSubsystems().GetIndexIterator(); It && bResult; ++It)
+		{
+			bResult = bResult && CacheSubsystem(*It);
+		}
 
-	for (FMassExternalSubsystemBitSet::FIndexIterator It = SubsystemRequirements.GetRequiredMutableSubsystems().GetIndexIterator(); It && bResult; ++It)
-	{
-		bResult = bResult && CacheSubsystem(*It);
+		for (FMassExternalSubsystemBitSet::FIndexIterator It = SubsystemRequirements.GetRequiredMutableSubsystems().GetIndexIterator(); It && bResult; ++It)
+		{
+			bResult = bResult && CacheSubsystem(*It);
+		}
 	}
 
 	if (bResult)

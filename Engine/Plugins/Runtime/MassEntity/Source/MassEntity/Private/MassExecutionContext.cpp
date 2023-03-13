@@ -33,9 +33,8 @@ void FMassExecutionContext::ClearExecutionData()
 	ChunkSerialModificationNumber = -1;
 }
 
-bool FMassExecutionContext::CacheSubsystemRequirements(const UWorld* World, const FMassSubsystemRequirements& SubsystemRequirements)
+bool FMassExecutionContext::CacheSubsystemRequirements(const FMassSubsystemRequirements& SubsystemRequirements)
 {
-	check(EntityManager->GetWorld() == World);
 	return SubsystemAccess.CacheSubsystemRequirements(SubsystemRequirements);
 }
 

@@ -176,50 +176,58 @@ void FMassEntityQuery::ForEachEntityChunk(FMassEntityManager& EntityManager, FMa
 	};
 	FScopedSubsystemRequirementsRestore SubsystemRestore(ExecutionContext);
 
-	ExecutionContext.SetSubsystemRequirements(*this);
-	if (ExecutionContext.CacheSubsystemRequirements(EntityManager.GetWorld(), *this))
+	if (ExecutionContext.CacheSubsystemRequirements(*this) == false)
 	{
-		// if there's a chunk collection set by the external code - use that
-		if (ExecutionContext.GetEntityCollection().IsSet())
+		// required subsystems are not available, bail out.
+		return;
+	}
+
+	// if there's a chunk collection set by the external code - use that
+	if (ExecutionContext.GetEntityCollection().IsSet())
+	{
+		const FMassArchetypeHandle& ArchetypeHandle = ExecutionContext.GetEntityCollection().GetArchetype();
+		// verify the archetype matches requirements
+		if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
 		{
-			const FMassArchetypeHandle& ArchetypeHandle = ExecutionContext.GetEntityCollection().GetArchetype();
-			// verify the archetype matches requirements
-			if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
-			{
-				UE_VLOG_UELOG(EntityManager.GetOwner(), LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
-					, *FMassDebugger::GetArchetypeRequirementCompatibilityDescription(*this, ArchetypeHandle));
+			UE_VLOG_UELOG(EntityManager.GetOwner(), LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
+				, *FMassDebugger::GetArchetypeRequirementCompatibilityDescription(*this, ArchetypeHandle));
 
 #if WITH_MASSENTITY_DEBUG
-				EntityManager.GetRequirementAccessDetector().ReleaseAccess(*this);
+			EntityManager.GetRequirementAccessDetector().ReleaseAccess(*this);
 #endif // WITH_MASSENTITY_DEBUG
-				return;
-			}
-			ExecutionContext.SetFragmentRequirements(*this);
-
-			FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
-			ArchetypeData.ExecuteFunction(ExecutionContext, ExecuteFunction
-				, GetFragmentMappingForArchetype(ArchetypeHandle)
-				, ExecutionContext.GetEntityCollection().GetRanges());
-#if WITH_MASSENTITY_DEBUG
-			NumEntitiesToProcess = ExecutionContext.GetNumEntities();
-#endif
+			return;
 		}
-		else
-		{
-			CacheArchetypes(EntityManager);
-			// it's important to set requirements after caching archetypes due to that call potentially sorting the requirements and the order is relevant here.
-			ExecutionContext.SetFragmentRequirements(*this);
+		
+		// note that the following function will only resort to verifying that the data is up to date by
+		// checking the version number. In rare cases when it would result in non trivial cost we actually
+		// do need those calculations.
+		CacheArchetypes(EntityManager);
 
-			for (int i = 0; i < ValidArchetypes.Num(); ++i)
-			{
-				const FMassArchetypeHandle& ArchetypeHandle = ValidArchetypes[i];
-				FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
-				ArchetypeData.ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeFragmentMapping[i], ChunkCondition);
-				ExecutionContext.ClearFragmentViews();
+		ExecutionContext.SetFragmentRequirements(*this);
+		
+		FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
+		ArchetypeData.ExecuteFunction(ExecutionContext, ExecuteFunction
+			, GetRequirementsMappingForArchetype(ArchetypeHandle)
+			, ExecutionContext.GetEntityCollection().GetRanges());
 #if WITH_MASSENTITY_DEBUG
-				NumEntitiesToProcess += ExecutionContext.GetNumEntities();
+		NumEntitiesToProcess = ExecutionContext.GetNumEntities();
 #endif
-			}
+	}
+	else
+	{
+		CacheArchetypes(EntityManager);
+		// it's important to set requirements after caching archetypes due to that call potentially sorting the requirements and the order is relevant here.
+		ExecutionContext.SetFragmentRequirements(*this);
+
+		for (int i = 0; i < ValidArchetypes.Num(); ++i)
+		{
+			const FMassArchetypeHandle& ArchetypeHandle = ValidArchetypes[i];
+			FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
+			ArchetypeData.ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeFragmentMapping[i], ChunkCondition);
+			ExecutionContext.ClearFragmentViews();
+#if WITH_MASSENTITY_DEBUG
+			NumEntitiesToProcess += ExecutionContext.GetNumEntities();
+#endif
 		}
 	}
 
@@ -264,9 +272,10 @@ bool FMassEntityQuery::HasMatchingEntities(FMassEntityManager& InEntityManager)
 	return false;
 }
 
-const FMassQueryRequirementIndicesMapping& FMassEntityQuery::GetFragmentMappingForArchetype(const FMassArchetypeHandle ArchetypeHandle) const
+const FMassQueryRequirementIndicesMapping& FMassEntityQuery::GetRequirementsMappingForArchetype(const FMassArchetypeHandle ArchetypeHandle) const
 {
 	static const FMassQueryRequirementIndicesMapping FallbackEmptyMapping;
+	checkf(IncrementalChangesCount == 0, TEXT("Fetching cached fragments mapping while the query's cached data is out of sync!"));
 	const int32 ArchetypeIndex = ValidArchetypes.Find(ArchetypeHandle);
 	return ArchetypeIndex != INDEX_NONE ? ArchetypeFragmentMapping[ArchetypeIndex] : FallbackEmptyMapping;
 }

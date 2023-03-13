@@ -102,7 +102,7 @@ public:
 	 * If ArchetypeHandle is among ValidArchetypes then the function retrieves requirements mapping cached for it,
 	 * otherwise an empty mapping will be returned (and the requirements binding will be done the slow way).
 	 */
-	const FMassQueryRequirementIndicesMapping& GetFragmentMappingForArchetype(const FMassArchetypeHandle ArchetypeHandle) const;
+	const FMassQueryRequirementIndicesMapping& GetRequirementsMappingForArchetype(const FMassArchetypeHandle ArchetypeHandle) const;
 
 	void ExportRequirements(FMassExecutionRequirements& OutRequirements) const;
 

@@ -208,7 +208,7 @@ void UMassProcessor::CallExecute(FMassEntityManager& EntityManager, FMassExecuti
 	// meaning if it fails there's no point in calling Execute.
 	// Note that we're not testing individual queries in OwnedQueries - processors can function just fine with some 
 	// of their queries not having anything to do.
-	if (Context.CacheSubsystemRequirements(GetWorld(), ProcessorRequirements))
+	if (Context.CacheSubsystemRequirements(ProcessorRequirements))
 	{
 		Execute(EntityManager, Context);
 	}

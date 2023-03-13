@@ -323,16 +323,15 @@ public:
 	}
 
 	/** 
-	 * Processes SubsystemRequirements to fetch and process all the indicated subsystems. 
-	 * 
-	 * @param World used to fetch any UWorld-related subsystems. Note that it's perfectly fine to pass a Null World. 
-	 *	The worst case scenario is that any of the UWorldSubsystem subclasses requirements won't be met.
-	 * @oaram SubsystemRequirements indicates all the subsystems that are expected to be accessed. Requesting a subsystem 
+	 * Processes SubsystemRequirements to fetch and cache all the indicated subsystems. If a UWorld is required to fetch
+	 * a specific subsystem then the one associated with the stored EntityManager will be used.
+	 *
+	 * @param SubsystemRequirements indicates all the subsystems that are expected to be accessed. Requesting a subsystem 
 	 *	not indicated by the SubsystemRequirements will result in a failure.
 	 * 
-	 * @return `true` if all required subsystems have been found, `false` otherwise
+	 * @return `true` if all required subsystems have been found, `false` otherwise.
 	 */
-	bool CacheSubsystemRequirements(const UWorld* World, const FMassSubsystemRequirements& SubsystemRequirements);
+	bool CacheSubsystemRequirements(const FMassSubsystemRequirements& SubsystemRequirements);
 
 protected:
 	void SetSubsystemRequirements(const FMassSubsystemRequirements& SubsystemRequirements)
@@ -420,5 +419,11 @@ public:
 	const T& GetSubsystemChecked(const UWorld* World, const TSubclassOf<USubsystem> SubsystemClass)
 	{
 		return SubsystemAccess.GetSubsystemChecked<T>(SubsystemClass);
+	}
+
+	UE_DEPRECATED(5.2, "This version of CacheSubsystemRequirements is deprecated. Use the one without the UWorld parameter")
+	bool CacheSubsystemRequirements(const UWorld*, const FMassSubsystemRequirements& SubsystemRequirements)
+	{
+		return CacheSubsystemRequirements(SubsystemRequirements);
 	}
 };
