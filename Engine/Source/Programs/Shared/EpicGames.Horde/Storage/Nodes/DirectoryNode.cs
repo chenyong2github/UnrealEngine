@@ -1096,9 +1096,13 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				ZipArchiveEntry entry = archive.CreateEntry($"{prefix}{fileEntry}");
 
-				if((fileEntry.Flags & FileEntryFlags.Executable) != 0)
+				if ((fileEntry.Flags & FileEntryFlags.Executable) != 0)
 				{
 					entry.ExternalAttributes |= 0b_111_111_101 << 16; // rwx rwx r-x
+				}
+				else
+				{
+					entry.ExternalAttributes |= 0b_110_110_100 << 16; // rw- rw- r--
 				}
 
 				using Stream entryStream = entry.Open();
