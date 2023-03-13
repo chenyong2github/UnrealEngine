@@ -62,6 +62,11 @@ void FAutoClusterDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 			bool InAutoCluster = AutoCluster;
 			bool InEnforceSiteParameters = EnforceSiteParameters;
 			bool InAvoidIsolated = AvoidIsolated;
+			int32 InGridX = GetValue<int32>(Context, &ClusterGridWidth);
+			int32 InGridY = GetValue<int32>(Context, &ClusterGridDepth);
+			int32 InGridZ = GetValue<int32>(Context, &ClusterGridHeight);
+			float InMinimumClusterSize = GetValue<float>(Context, &MinimumSize);
+			int32 InKMeansIterations = ClusterSizeMethod == EClusterSizeMethodEnum::Dataflow_ClusterSizeMethod_ByGrid ? DriftIterations : 500;
 
 			TArray<int32> SelectedBones;
 			InTransformSelection.AsArray(SelectedBones);
@@ -74,7 +79,8 @@ void FAutoClusterDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 				InSiteSize,
 				InAutoCluster,
 				InAvoidIsolated, 
-				InEnforceSiteParameters);
+				InEnforceSiteParameters,
+				InGridX, InGridY, InGridZ, InMinimumClusterSize, InKMeansIterations);
 
 			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
 		}
