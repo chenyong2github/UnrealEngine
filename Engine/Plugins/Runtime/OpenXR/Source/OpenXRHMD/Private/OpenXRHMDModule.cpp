@@ -49,6 +49,11 @@ FOpenXRHMDModule::~FOpenXRHMDModule()
 
 TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FOpenXRHMDModule::CreateTrackingSystem()
 {
+	if (!InitInstance())
+	{
+		return nullptr;
+	}
+
 	if (!RenderBridge && !FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly")))
 	{
 		if (!InitRenderBridge())

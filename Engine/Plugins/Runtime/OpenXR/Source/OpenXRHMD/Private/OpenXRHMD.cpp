@@ -807,6 +807,11 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 		return true;
 	}
 
+	if (bIsTrackingOnlySession)
+	{
+		return false;
+	}
+
 	bStereoEnabled = stereo;
 	if (stereo)
 	{
@@ -1256,6 +1261,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsMobileMultiViewEnabled(false)
 	, bSupportsHandTracking(false)
 	, bIsStandaloneStereoOnlyDevice(false)
+	, bIsTrackingOnlySession(false)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
 	, EnabledExtensions(std::move(InEnabledExtensions))
 	, InputModule(nullptr)
@@ -1305,6 +1311,8 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 		}
 	}
 #endif
+
+	bIsTrackingOnlySession = FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly"));
 
 	// Add a device space for the HMD without an action handle and ensure it has the correct index
 	XrPath UserHead = XR_NULL_PATH;
@@ -1678,8 +1686,12 @@ bool FOpenXRHMD::OnStereoStartup()
 {
 	FWriteScopeLock Lock(SessionHandleMutex);
 
-	check(Session == XR_NULL_HANDLE);
 	bIsExitingSessionByxrRequestExitSession = false;  // clear in case we requested exit for a previous session, but it ended in some other way before that happened.
+
+	if (Session)
+	{
+		return false;
+	}
 
 	System = IOpenXRHMDModule::Get().GetSystemId();
 	if (!System)
@@ -2930,7 +2942,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 	// XR hardware can only be running with one of them.
 	if (GIsEditor && GEditor && GEditor->GetPIEWorldContext() != nullptr)
 	{
-		if (!WorldContext.bIsPrimaryPIEInstance)
+		if (!WorldContext.bIsPrimaryPIEInstance && !bIsTrackingOnlySession)
 		{
 			return false;
 		}
@@ -2951,6 +2963,14 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 		if (System)
 		{
 			FCoreDelegates::VRHeadsetReconnected.Broadcast();
+		}
+	}
+
+	if (bIsTrackingOnlySession)
+	{
+		if (OnStereoStartup())
+		{
+			StartSession();
 		}
 	}
 
