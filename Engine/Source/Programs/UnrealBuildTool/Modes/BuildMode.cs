@@ -799,6 +799,12 @@ namespace UnrealBuildTool
 			{
 				FileItem SourceFile = FileItem.GetItemByFileReference(FileRef);
 
+				// Ensure the file requested exists on disk
+				if (!SourceFile.Exists)
+				{
+					continue;
+				}
+
 				ISpecificFileAction? SpecificFileAction = null;
 
 				// Traverse upwards from file directory to try to find a SpecificFileAction.
