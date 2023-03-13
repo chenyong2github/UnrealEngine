@@ -543,7 +543,7 @@ FPrimitiveViewRelevance FPrimitiveSceneProxy::GetViewRelevance(const FSceneView*
 
 void FPrimitiveSceneProxy::CreateUniformBuffer()
 {
-	if (DoesVFRequirePrimitiveUniformBuffer())
+	if (!UniformBuffer && DoesVFRequirePrimitiveUniformBuffer())
 	{
 		UniformBuffer = TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateEmptyUniformBufferImmediate(UniformBuffer_MultiFrame);
 	}

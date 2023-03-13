@@ -2110,8 +2110,6 @@ void FScene::BatchAddPrimitives(TArrayView<UPrimitiveComponent*> InPrimitives)
 			continue;
 		}
 
-		PrimitiveSceneProxy->CreateUniformBuffer();
-
 		// Create the primitive scene info.
 		FPrimitiveSceneInfo* PrimitiveSceneInfo = new FPrimitiveSceneInfo(Primitive, this);
 		PrimitiveSceneProxy->PrimitiveSceneInfo = PrimitiveSceneInfo;
@@ -6367,7 +6365,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			PrimitivesNeedingStaticMeshUpdate[PrimitiveSceneInfo->PackedIndex] = false;
 		}
 
-		for (TConstSetBitIterator<FDefaultBitArrayAllocator> BitIt(PrimitivesNeedingStaticMeshUpdate); BitIt; ++BitIt)
+		for (TConstSetBitIterator<> BitIt(PrimitivesNeedingStaticMeshUpdate); BitIt; ++BitIt)
 		{
 			const int32 Index = BitIt.GetIndex();
 			FPrimitiveSceneInfo* Primitive = Primitives[Index];
@@ -6386,10 +6384,11 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		SCOPED_NAMED_EVENT(UpdateUniformBuffers, FColor::Emerald);
 		TArray<FPrimitiveSceneProxy*, SceneRenderingAllocator> ProxiesToUpdate;
 
-		for (TConstSetBitIterator<FDefaultBitArrayAllocator> BitIt(PrimitivesNeedingUniformBufferUpdate); BitIt; ++BitIt)
+		for (TConstSetBitIterator<> BitIt(PrimitivesNeedingUniformBufferUpdate); BitIt; ++BitIt)
 		{
 			const int32 Index = BitIt.GetIndex();
 			FPrimitiveSceneInfo* Primitive = Primitives[Index];
+			Primitive->Proxy->CreateUniformBuffer();
 			PrimitivesNeedingUniformBufferUpdate[Index] = false;
 			ProxiesToUpdate.Emplace(Primitive->Proxy);
 			GPUScene.AddPrimitiveToUpdate(Index, EPrimitiveDirtyState::ChangedAll);
