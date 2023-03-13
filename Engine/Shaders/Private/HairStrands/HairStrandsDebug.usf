@@ -361,6 +361,15 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const float4 Color = float4(UVs, 0, 1);
 		//Color = float4(N* 0.5f + 0.5f, 1);
 		AddLineWS(P0, P1, Color);
+
+		// Add triangle
+		const float4 TriColor = ColorWhite;
+		const float3 WP0 = mul(float4(Tri.P0, 1), RootLocalToWorld).xyz;
+		const float3 WP1 = mul(float4(Tri.P1, 1), RootLocalToWorld).xyz;
+		const float3 WP2 = mul(float4(Tri.P2, 1), RootLocalToWorld).xyz;
+		AddLineWS(WP0, WP1, TriColor);
+		AddLineWS(WP1, WP2, TriColor);
+		AddLineWS(WP2, WP0, TriColor);
 	}
 #endif // INPUT_ROOT_FRAME
 

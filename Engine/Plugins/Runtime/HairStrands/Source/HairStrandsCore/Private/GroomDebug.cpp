@@ -312,8 +312,8 @@ static void AddDebugProjectionHairPass(
 		return;
 	}
 
-	ShaderPrint::RequestSpaceForLines(PrimitiveCount);
-	ShaderPrint::RequestSpaceForTriangles(PrimitiveCount);
+	ShaderPrint::RequestSpaceForLines(PrimitiveCount * 4 /* 1 hair root + 3 triangles */);
+	ShaderPrint::RequestSpaceForTriangles(PrimitiveCount * 3);
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType &&
 		!RestRootResources->LODs[MeshLODIndex].RootBarycentricBuffer.Buffer)
