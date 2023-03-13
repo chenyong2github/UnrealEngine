@@ -592,11 +592,11 @@ void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterf
 				DrawAttributes(PreviewMeshComponent, PDI);
 			}
 		}
-		else if (bValidComponent && !bValidSkeletalMesh)
+		else if (bValidComponent && !bValidSkeletalMesh && GetBoneDrawMode() == EBoneDrawMode::All)
 		{
 			if (const USkeleton* Skeleton = GetPreviewScene()->GetPersonaToolkit()->GetSkeleton())
 			{
-				DrawBonesFromSkeleton(Skeleton, PreviewMeshComponent->BonesOfInterest, PDI);
+				DrawBonesFromSkeleton(Skeleton, PDI);
 			}
 		}
 	}
@@ -1652,7 +1652,7 @@ void FAnimationViewportClient::DrawMeshBonesBakedAnimation(UDebugSkelMeshCompone
 	}
 }
 
-void FAnimationViewportClient::DrawBonesFromSkeleton(const USkeleton* Skeleton, const TArray<int32>& InSelectedBones,FPrimitiveDrawInterface* PDI) const
+void FAnimationViewportClient::DrawBonesFromSkeleton(const USkeleton* Skeleton, FPrimitiveDrawInterface* PDI) const
 {
 	check(Skeleton);
 
@@ -1688,20 +1688,15 @@ void FAnimationViewportClient::DrawBonesFromSkeleton(const USkeleton* Skeleton, 
 		BoneColours[BoneIndex] = PersonaOptions->DefaultBoneColor;
 	}
 
-	// color virtual bones
-	for (const int16 VirtualBoneIndex : RefSkeleton.GetRequiredVirtualBones())
-	{
-		BoneColours[VirtualBoneIndex] = PersonaOptions->VirtualBoneColor;
-	}
-
-	constexpr bool bForceDraw = false;
-	constexpr bool bAddHitProxy = true;
+	constexpr bool bForceDraw = true;
+	constexpr bool bAddHitProxy = false;
+	const TArray<int32> BonesOfInterest;
 	DrawBones(
 		FVector::ZeroVector,
 		RequiredBones,
 		RefSkeleton,
 		WorldTransforms,
-		InSelectedBones,
+		BonesOfInterest,
 		BoneColours,
 		PDI,
 		bForceDraw,

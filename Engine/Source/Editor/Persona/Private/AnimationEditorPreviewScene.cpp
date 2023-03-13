@@ -858,15 +858,23 @@ void FAnimationEditorPreviewScene::SetSelectedBone(const FName& BoneName, ESelec
 		ClearSelectedSocket();
 		ClearSelectedActor();
 
-		// need to get mesh bone base since BonesOfInterest is saved in SkeletalMeshComponent
-		// and it is used by renderer. It is not Skeleton base
-		const int32 MeshBoneIndex = SkeletalMeshComponent->GetBoneIndex(BoneName);
-		SelectedBoneIndex = MeshBoneIndex != INDEX_NONE ? MeshBoneIndex : BoneIndex;
-		SkeletalMeshComponent->BonesOfInterest.Add(SelectedBoneIndex);
+		// Add in bone of interest only if we have a preview instance set-up
+		if (SkeletalMeshComponent->PreviewInstance != nullptr)
+		{
+			// need to get mesh bone base since BonesOfInterest is saved in SkeletalMeshComponent
+			// and it is used by renderer. It is not Skeleton base
+			const int32 MeshBoneIndex = SkeletalMeshComponent->GetBoneIndex(BoneName);
 
-		InvalidateViews();
+			if (MeshBoneIndex != INDEX_NONE)
+			{
+				SelectedBoneIndex = MeshBoneIndex;
+				SkeletalMeshComponent->BonesOfInterest.Add(SelectedBoneIndex);
+			}
 
-		OnSelectedBoneChanged.Broadcast(BoneName, InSelectInfo);
+			InvalidateViews();
+
+			OnSelectedBoneChanged.Broadcast(BoneName, InSelectInfo);
+		}
 	}
 }
 

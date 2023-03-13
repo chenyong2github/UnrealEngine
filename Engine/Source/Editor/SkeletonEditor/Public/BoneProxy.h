@@ -7,7 +7,6 @@
 #include "TickableEditorObject.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
-#include "IPersonaPreviewScene.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "SAdvancedTransformInputBox.h"
 #endif
@@ -92,8 +91,6 @@ public:
 	/** The skeletal mesh component we glean our transform data from */
 	UPROPERTY()
 	TWeakObjectPtr<UDebugSkelMeshComponent> SkelMeshComponent;
-
-	TWeakPtr<IPersonaPreviewScene> WeakPreviewScene;
 
 	/** Whether to use local or world location */
 	bool bLocalLocation;
