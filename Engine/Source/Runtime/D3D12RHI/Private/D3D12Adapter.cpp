@@ -81,6 +81,14 @@ static TAutoConsoleVariable<int32> CVarD3D12TrackAllAllocations(
 	TEXT("Controls whether D3D12 RHI should track all allocation information (default = off)."),
 	ECVF_ReadOnly
 );
+
+bool GD3D12EvictAllResidentResourcesInBackground = false;
+static FAutoConsoleVariableRef CVarD3D12EvictAllResidentResourcesInBackground(
+	TEXT("D3D12.EvictAllResidentResourcesInBackground"),
+	GD3D12EvictAllResidentResourcesInBackground,
+	TEXT("Force D3D12 resource residency manager to evict all tracked unused resources when the application is not focused\n"),
+	ECVF_Default);
+
 #endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 #if D3D12_SUPPORTS_INFO_QUEUE
@@ -1527,6 +1535,20 @@ void FD3D12Adapter::UpdateMemoryInfo()
 
 	VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &MemoryInfo.LocalMemoryInfo));
 	VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &MemoryInfo.NonLocalMemoryInfo));
+
+#if ENABLE_RESIDENCY_MANAGEMENT
+	// D3D12 residency manager will only evict resources when the resident set is larger than DXGI reported budget.
+	// However, the DXGI reports high budget even when multiple applications use large amounts of VRAM.
+	// This casuses VidMm to automatically page out allocations out of VRAM based on its own heuristics, which can cause significant 
+	// performance degradation when paged-out resources are used for rendering before VidMm pages them back in (which can take a long time).
+	// By overriding the budget to 0 and stopping rendering at the high-level, we can immediately free VRAM and avoid VidMm paging.
+	const bool bEvictResidentResources = GEnableResidencyManagement && GD3D12EvictAllResidentResourcesInBackground && !FApp::HasFocus();
+	const uint64 LocalMemoryBudgetLimit = bEvictResidentResources ? 0 : MemoryInfo.LocalMemoryInfo.Budget;
+	for (uint32 GPUIndex : FRHIGPUMask::All())
+	{
+		GetDevice(GPUIndex)->GetResidencyManager().SetLocalMemoryBudgetLimit(LocalMemoryBudgetLimit);
+	}
+#endif // ENABLE_RESIDENCY_MANAGEMENT
 
 	// Over budget?
 	if (MemoryInfo.LocalMemoryInfo.CurrentUsage > MemoryInfo.LocalMemoryInfo.Budget)

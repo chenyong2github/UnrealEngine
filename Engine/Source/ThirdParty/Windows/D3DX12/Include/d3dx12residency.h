@@ -906,6 +906,10 @@ namespace D3DX12Residency
 				return hr;
 			}
 
+			// BEGIN EPIC MOD
+			UINT64 LocalMemoryBudgetLimit = ~0ull;
+			// END EPIC MOD
+
 		private:
 			HRESULT GetFence(ID3D12CommandQueue *Queue, Internal::Fence *&QueueFence)
 			{
@@ -1208,6 +1212,12 @@ namespace D3DX12Residency
 					GetCurrentBudget(&LocalMemory, DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
 
 					UINT64 EvictionGracePeriod = GetCurrentEvictionGracePeriod(&LocalMemory);
+					// BEGIN EPIC MOD
+					if (LocalMemoryBudgetLimit == 0)
+					{
+						EvictionGracePeriod = 0;
+					}
+					// END EPIC MOD
 					LRU.TrimAgedAllocations(FirstUncompletedSyncPoint, pEvictionList, NumObjectsToEvict, CurrentTime.QuadPart, EvictionGracePeriod);
 
 					if (NumObjectsToEvict)
@@ -1339,7 +1349,11 @@ namespace D3DX12Residency
 								// Wait until the GPU is done
 								WaitForSyncPoint(GenerationToWaitFor);
 
-								LRU.TrimToSyncPointInclusive(TotalUsage + INT64(SizeToMakeResident), TotalBudget, pEvictionList, NumObjectsToEvict, GenerationToWaitFor);
+								// BEGIN EPIC MOD
+								LRU.TrimToSyncPointInclusive(TotalUsage + INT64(SizeToMakeResident),
+									LocalMemoryBudgetLimit == 0 ? 0 : TotalBudget,
+									pEvictionList, NumObjectsToEvict, GenerationToWaitFor);
+								// END EPIC MOD
 
 								RESIDENCY_CHECK_RESULT(Device->Evict(NumObjectsToEvict, pEvictionList));
 							}
@@ -1416,6 +1430,12 @@ namespace D3DX12Residency
 					RESIDENCY_CHECK_RESULT(DeviceDownlevel->QueryVideoMemoryInfo(NodeIndex, Segment, InfoOut));
 				}
 #endif
+				// BEGIN EPIC MOD
+				if (Segment == DXGI_MEMORY_SEGMENT_GROUP_LOCAL)
+				{
+					InfoOut->Budget = RESIDENCY_MIN(LocalMemoryBudgetLimit, InfoOut->Budget);
+				}
+				// END EPIC MOD
 			}
 
 			HRESULT EnqueueSyncPoint()
@@ -1622,6 +1642,13 @@ namespace D3DX12Residency
 		{
 			delete(pSet);
 		}
+
+		// BEGIN EPIC MOD
+		void SetLocalMemoryBudgetLimit(UINT64 InLocalMemoryBudgetLimit)
+		{
+			Manager.LocalMemoryBudgetLimit = InLocalMemoryBudgetLimit;
+		}
+		// END EPIC MOD
 
 	private:
 		Internal::ResidencyManagerInternal Manager;
