@@ -1325,7 +1325,8 @@ namespace Chaos
 		};
 
 		//need to create new particle handles
-		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT, Manager](int32 DataIdx,FDirtyProxy& Dirty)
+		int32 NumInitializedGCProxies = 0;
+		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT, Manager, &NumInitializedGCProxies](int32 DataIdx,FDirtyProxy& Dirty)
 		{
 			if(Dirty.Proxy->GetIgnoreDataOnStep_Internal() != CurrentFrame)
 			{
@@ -1354,6 +1355,8 @@ namespace Chaos
 						{
 							// Finish registration on the physics thread...
 							Proxy->InitializeBodiesPT(this, GetParticles());
+							++NumInitializedGCProxies;
+
 							GeometryCollectionPhysicsProxies_Internal.Add(Proxy);
 						}
 						Proxy->PushToPhysicsState();
@@ -1390,6 +1393,11 @@ namespace Chaos
 				}
 			}
 		});
+
+		if(NumInitializedGCProxies > 0)
+		{
+			GetParticles().UpdateGeometryCollectionViews(true);
+		}
 
 		//need to create new constraint handles
 		DirtyProxiesData->ForEachProxy([this, Manager, RewindData](int32 DataIdx, FDirtyProxy& Dirty)
