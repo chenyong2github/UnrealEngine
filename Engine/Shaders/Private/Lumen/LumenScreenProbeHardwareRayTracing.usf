@@ -60,8 +60,6 @@ StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-uint ThreadCount;
-uint GroupCount;
 int NearFieldLightingMode;
 float MaxTraceDistance;
 float FarFieldBias;
@@ -119,22 +117,10 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 {
 	uint ThreadIndex = DispatchThreadIndex.x;
 	uint GroupIndex = DispatchThreadIndex.y;
+	uint RayIndex = GroupIndex * THREADGROUP_SIZE_1D + ThreadIndex;
 
-#if DIM_INDIRECT_DISPATCH
-	uint Iteration = 0;
-	uint DispatchedThreads = RayAllocator[0];
-#else
-	uint DispatchedThreads = ThreadCount * GroupCount;
-	uint IterationCount = (RayAllocator[0] + DispatchedThreads - 1) / DispatchedThreads;
-	for (uint Iteration = 0; Iteration < IterationCount; ++Iteration)
-#endif
+	if (RayIndex < RayAllocator[0])
 	{
-		uint RayIndex = Iteration * DispatchedThreads + GroupIndex * ThreadCount + ThreadIndex;
-		if (RayIndex >= RayAllocator[0])
-		{
-			return;
-		}
-
 #if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
 		FTraceData TraceData = UnpackTraceData(RWRetraceDataPackedBuffer[RayIndex]);
 		uint RayId = TraceData.RayId;

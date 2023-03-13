@@ -42,13 +42,6 @@ static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracingInline(
 	ECVF_RenderThreadSafe | ECVF_Scalability
 );
 
-static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracingIndirect(
-	TEXT("r.Lumen.HardwareRayTracing.Indirect"),
-	1,
-	TEXT("Enables indirect dispatch for hardware ray tracing (Default = 1)"),
-	ECVF_RenderThreadSafe | ECVF_Scalability
-);
-
 static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingPullbackBias(
 	TEXT("r.Lumen.HardwareRayTracing.PullbackBias"),
 	8.0,
@@ -84,8 +77,10 @@ bool Lumen::UseHardwareRayTracing(const FSceneViewFamily& ViewFamily)
 #if RHI_RAYTRACING
 	return IsRayTracingEnabled()
 		&& (GRHISupportsRayTracingShaders || GRHISupportsInlineRayTracing)
+		// Lumen HWRT requires indirect dispatch for various passes
+		&& GRHISupportsRayTracingDispatchIndirect
 		&& CVarLumenUseHardwareRayTracing.GetValueOnAnyThread() != 0
-		// Ray Tracing does not support split screen yet, but stereo views can be allowed
+		// Lumen HWRT does not support split screen yet, but stereo views can be allowed
 		&& (ViewFamily.Views.Num() == 1 || (ViewFamily.Views.Num() == 2 && IStereoRendering::IsStereoEyeView(*ViewFamily.Views[0])));
 #else
 	return false;
@@ -142,15 +137,6 @@ bool Lumen::UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
 	return (Lumen::UseHardwareRayTracing(ViewFamily) && CVarLumenUseHardwareRayTracingInline.GetValueOnRenderThread() != 0 && GRHISupportsInlineRayTracing);
-#else
-	return false;
-#endif
-}
-
-bool Lumen::UseHardwareIndirectRayTracing()
-{
-#if RHI_RAYTRACING
-	return GRHISupportsRayTracingDispatchIndirect && CVarLumenUseHardwareRayTracingIndirect.GetValueOnRenderThread() != 0;
 #else
 	return false;
 #endif

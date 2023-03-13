@@ -107,7 +107,6 @@ namespace Lumen
 
 	int32 GetMaxTranslucentSkipCount();
 	bool UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily);
-	bool UseHardwareIndirectRayTracing();
 
 	enum class EHardwareRayTracingLightingMode
 	{

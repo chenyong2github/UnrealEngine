@@ -130,7 +130,6 @@ StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 RWStructuredBuffer<FTraceTileResultPacked> RWTraceTileResultPackedBuffer;
 RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
 
-uint PersistentTracingGroupCount;
 float FarFieldBias;
 float FarFieldMaxTraceDistance;
 float RayTracingCullingRadius;
@@ -144,19 +143,11 @@ float3 FarFieldReferencePos;
 void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 {
 	uint TexelLinearCoord = ThreadIndex % RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
-	uint LocalGroupIndex = ThreadIndex / RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
+	uint GlobalGroupIndex = ThreadIndex / RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
+	uint RayIndex = GlobalGroupIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelLinearCoord;
 
-#if DIM_INDIRECT_DISPATCH
-	uint Iteration = 0;
-#else
-	uint TileCount = RayAllocatorBuffer[0] / RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
-	uint IterationCount = (TileCount + PersistentTracingGroupCount - 1) / PersistentTracingGroupCount;
-	for (uint Iteration = 0; Iteration < IterationCount; ++Iteration)
-#endif
+	if (RayIndex < RayAllocatorBuffer[0])
 	{
-		uint GlobalGroupIndex = Iteration * PersistentTracingGroupCount + LocalGroupIndex;
-		uint RayIndex = GlobalGroupIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelLinearCoord;
-
 #if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
 		FTraceData TraceData = UnpackTraceData(RWRetraceDataPackedBuffer[RayIndex]);
 		FRayIdPacked RayIdPacked;
@@ -170,10 +161,6 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 		uint TraceTileIndex = GlobalGroupIndex;
 		uint2 TexelCoord = uint2(TexelLinearCoord % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, TexelLinearCoord / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
 #endif
-		if (RayIndex >= RayAllocatorBuffer[0])
-		{
-			return;
-		}
 
 		uint2 TraceTileCoord;
 		uint TraceTileLevel;
@@ -286,12 +273,7 @@ void LumenRadianceCacheHardwareRayTracingCS(
 	uint GroupIndex : SV_GroupIndex
 )
 {
-#if DIM_INDIRECT_DISPATCH
 	uint GroupLinearIndex = GetUnWrappedRayTracingDispatchThreadId(GroupId, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
-#else
-	uint GroupCountX = RADIANCE_CACHE_TRACE_TILE_SIZE_1D / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
-	uint GroupLinearIndex = GroupId.y * GroupCountX + GroupId.x;
-#endif
 	LumenRadianceCacheHardwareRayTracingCommon(GroupLinearIndex * INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X + GroupIndex);
 }
 
@@ -299,11 +281,7 @@ void LumenRadianceCacheHardwareRayTracingCS(
 
 RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 {
-#if DIM_INDIRECT_DISPATCH
 	uint ThreadIndex = GetUnWrappedRayTracingDispatchThreadId(DispatchRaysIndex(), RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
-#else
-	uint ThreadIndex = DispatchRaysIndex().y * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + DispatchRaysIndex().x;
-#endif
 	LumenRadianceCacheHardwareRayTracingCommon(ThreadIndex);
 }
 

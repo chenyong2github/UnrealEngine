@@ -53,7 +53,6 @@ Buffer<int> VirtualShadowMapIds;
 
 uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
-uint GroupCount;
 uint ViewIndex;
 
 uint LumenLightType;
@@ -84,23 +83,14 @@ StructuredBuffer<uint> ShadowTraces;
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 {
 	uint ShadowTraceIndexOffset = DispatchThreadIndex.x % 64;
-
-#if DIM_INDIRECT_DISPATCH
 	uint ShadowTraceGroup = DispatchThreadIndex.y;
-#else
-	for (uint ShadowTraceGroup = DispatchThreadIndex.y; ShadowTraceGroup * 64 < ShadowTraceAllocator[0]; ShadowTraceGroup += GroupCount)
-#endif
+	uint ShadowTraceIndex = ShadowTraceGroup * 64 + ShadowTraceIndexOffset;
+	FShadowTrace ShadowTrace = UnpackShadowTrace(ShadowTraces[ShadowTraceIndex]);
+	uint2 CoordInCardTile = ShadowTrace.LightTileCoord;	
+	const FLightTileForShadowMaskPass LightTile = UnpackLightTileForShadowMaskPass(LightTiles[ShadowTrace.LightTileIndex]);
+
+	if (LightTile.ViewIndex == ViewIndex)
 	{
-		uint ShadowTraceIndex = ShadowTraceGroup * 64 + ShadowTraceIndexOffset;
-		FShadowTrace ShadowTrace = UnpackShadowTrace(ShadowTraces[ShadowTraceIndex]);
-		uint2 CoordInCardTile = ShadowTrace.LightTileCoord;	
-		const FLightTileForShadowMaskPass LightTile = UnpackLightTileForShadowMaskPass(LightTiles[ShadowTrace.LightTileIndex]);
-
-		if (LightTile.ViewIndex != ViewIndex)
-		{
-			return;
-		}
-
 		uint2 TexelInCardPageCoord = LightTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
 		const FLumenLight LumenLight = LoadLumenLight(LightTile.LightIndex, LWCHackToFloat(PrimaryView.PreViewTranslation));
