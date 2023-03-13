@@ -666,13 +666,14 @@ void SContentBrowser::ToggleFolderFavorite(const TArray<FString>& FolderPaths)
 	bool bAddedFavorite = false;
 	for (const FString& FolderPath : FolderPaths)
 	{
-		if (ContentBrowserUtils::IsFavoriteFolder(FolderPath))
+		const FContentBrowserItemPath ItemPath(FolderPath, EContentBrowserPathType::Virtual);
+		if (ContentBrowserUtils::IsFavoriteFolder(ItemPath))
 		{
-			ContentBrowserUtils::RemoveFavoriteFolder(FolderPath);
+			ContentBrowserUtils::RemoveFavoriteFolder(ItemPath);
 		}
 		else
 		{
-			ContentBrowserUtils::AddFavoriteFolder(FolderPath);
+			ContentBrowserUtils::AddFavoriteFolder(ItemPath);
 			bAddedFavorite = true;
 		}
 	}

@@ -701,12 +701,32 @@ bool ContentBrowserUtils::CanRenameFromPathView(TWeakPtr<SPathView> PathView, FT
 
 bool ContentBrowserUtils::IsFavoriteFolder(const FString& FolderPath)
 {
-	return FContentBrowserSingleton::Get().FavoriteFolderPaths.Contains(ConvertVirtualPathToInvariantPathString(FolderPath));
+	return IsFavoriteFolder(FContentBrowserItemPath(FolderPath, EContentBrowserPathType::Virtual));
 }
 
-void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath)
+bool ContentBrowserUtils::IsFavoriteFolder(const FContentBrowserItemPath& FolderPath)
 {
-	const FString InvariantFolder = ConvertVirtualPathToInvariantPathString(FolderPath);
+	if (ensure(FolderPath.HasInternalPath()))
+	{
+		return FContentBrowserSingleton::Get().FavoriteFolderPaths.Contains(FolderPath.GetInternalPathString());
+	}
+
+	return false;
+}
+
+void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig /*= true*/)
+{
+	AddFavoriteFolder(FContentBrowserItemPath(FolderPath, EContentBrowserPathType::Virtual));
+}
+
+void ContentBrowserUtils::AddFavoriteFolder(const FContentBrowserItemPath& FolderPath)
+{
+	if (!ensure(FolderPath.HasInternalPath()))
+	{
+		return;
+	}
+
+	const FString InvariantFolder = FolderPath.GetInternalPathString();
 
 	FContentBrowserSingleton::Get().FavoriteFolderPaths.AddUnique(InvariantFolder);
 
@@ -719,15 +739,15 @@ void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath)
 
 	FContentBrowserSingleton::Get().BroadcastFavoritesChanged();
 }
-	
-void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig)
-{
-	AddFavoriteFolder(FolderPath);
-}
 
-void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath)
+void ContentBrowserUtils::RemoveFavoriteFolder(const FContentBrowserItemPath& FolderPath)
 {
-	const FString InvariantFolder = ConvertVirtualPathToInvariantPathString(FolderPath);
+	if (!FolderPath.HasInternalPath())
+	{
+		return;
+	}
+
+	const FString InvariantFolder = FolderPath.GetInternalPathString();
 
 	FContentBrowserSingleton::Get().FavoriteFolderPaths.Remove(InvariantFolder);
 
@@ -743,7 +763,7 @@ void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath)
 
 void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig)
 {
-	RemoveFavoriteFolder(FolderPath);
+	RemoveFavoriteFolder(FContentBrowserItemPath(FolderPath, EContentBrowserPathType::Virtual));
 }
 
 const TArray<FString>& ContentBrowserUtils::GetFavoriteFolders()

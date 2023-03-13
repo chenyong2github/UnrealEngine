@@ -24,6 +24,7 @@ struct FARFilter;
 struct FAssetData;
 struct FContentBrowserDataFilter;
 struct FContentBrowserItem;
+struct FContentBrowserItemPath;
 
 namespace ContentBrowserUtils
 {
@@ -95,19 +96,17 @@ namespace ContentBrowserUtils
 	bool CanRenameFromPathView(TWeakPtr<SPathView> PathView, FText* OutErrorMsg = nullptr);
 
 	/** Returns if this folder has been marked as a favorite folder */
+	UE_DEPRECATED(5.3, "Use function that takes FContentBrowserItemPath instead.")
 	bool IsFavoriteFolder(const FString& FolderPath);
+	bool IsFavoriteFolder(const FContentBrowserItemPath& FolderPath);
 
-	/** Add a favorite folder. This should be a full virtual path. */
-	void AddFavoriteFolder(const FString& FolderPath);
+	UE_DEPRECATED(5.3, "Use function that takes FContentBrowserItemPath instead.")
+	void AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig = true);
+	void AddFavoriteFolder(const FContentBrowserItemPath& FolderPath);
 
-	UE_DEPRECATED(5.2, "The bFlushConfig parameter is ignored, since this function does not persist the favorites to config.")
-	void AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig);
-
-	/** Remove a favorite folder. This should be a full virtual path. */
-	void RemoveFavoriteFolder(const FString& FolderPath);
-
-	UE_DEPRECATED(5.2, "The bFlushConfig parameter is ignored, since this function does not persist the favorites to config.")
-	void RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig);
+	UE_DEPRECATED(5.3, "Use function that takes FContentBrowserItemPath instead.")
+	void RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig = true);
+	void RemoveFavoriteFolder(const FContentBrowserItemPath& FolderPath);
 
 	const TArray<FString>& GetFavoriteFolders();
 

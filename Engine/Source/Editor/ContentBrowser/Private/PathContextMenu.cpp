@@ -194,8 +194,9 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 			}			
 
 			FString SelectedFolderPath = SelectedFolders[0].GetVirtualPath().ToString();
+			FContentBrowserItemPath SelectedFolderItemPath(SelectedFolders[0].GetVirtualPath(), EContentBrowserPathType::Virtual);
 			// If this folder is already favorited, show the option to remove from favorites
-			if (ContentBrowserUtils::IsFavoriteFolder(SelectedFolderPath))
+			if (ContentBrowserUtils::IsFavoriteFolder(SelectedFolderItemPath))
 			{
 				// Remove from favorites
 				Section.AddMenuEntry(

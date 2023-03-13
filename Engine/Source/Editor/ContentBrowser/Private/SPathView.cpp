@@ -2401,13 +2401,15 @@ void SFavoritePathView::LoadSettings(const FString& IniFilename, const FString& 
 		{
 			// If the selected paths is empty, the path was "All assets"
 			// This should handle that case properly
-			for (int32 PathIdx = 0; PathIdx < NewFavoritePaths.Num(); ++PathIdx)
+			for (const FString& InvariantPath : NewFavoritePaths)
 			{
-				const FString& InvariantPath = NewFavoritePaths[PathIdx];
-				FName VirtualPath;
-				IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(FStringView(InvariantPath), VirtualPath);
-				ContentBrowserUtils::AddFavoriteFolder(VirtualPath.ToString());
-				bAddedAtLeastOnePath = true;
+				FStringView InvariantPathView(InvariantPath);
+				InvariantPathView.TrimStartAndEndInline();
+				if (!InvariantPathView.IsEmpty() && InvariantPathView != TEXT("None"))
+				{
+					ContentBrowserUtils::AddFavoriteFolder(FContentBrowserItemPath(InvariantPathView, EContentBrowserPathType::Internal));
+					bAddedAtLeastOnePath = true;
+				}
 			}
 		}
 
@@ -2582,13 +2584,13 @@ void SFavoritePathView::HandleItemDataUpdated(TArrayView<const FContentBrowserIt
 				AddFolderItem(MoveTemp(ItemData));
 			}
 
-			ContentBrowserUtils::RemoveFavoriteFolder(ItemDataUpdate.GetPreviousVirtualPath().ToString());
+			ContentBrowserUtils::RemoveFavoriteFolder(FContentBrowserItemPath(ItemDataUpdate.GetPreviousVirtualPath(), EContentBrowserPathType::Virtual));
 		}
 		break;
 
 		case EContentBrowserItemUpdateType::Removed:
 			RemoveFolderItem(ItemData);
-			ContentBrowserUtils::RemoveFavoriteFolder(ItemData.GetVirtualPath().ToString());
+			ContentBrowserUtils::RemoveFavoriteFolder(FContentBrowserItemPath(ItemData.GetVirtualPath(), EContentBrowserPathType::Virtual));
 			break;
 
 		default:
@@ -2603,22 +2605,23 @@ void SFavoritePathView::HandleItemDataUpdated(TArrayView<const FContentBrowserIt
 bool SFavoritePathView::PathIsFilteredFromViewBySearch(const FString& InPath) const
 {
 	return SPathView::PathIsFilteredFromViewBySearch(InPath)
-		&& ContentBrowserUtils::IsFavoriteFolder(InPath);
+		&& ContentBrowserUtils::IsFavoriteFolder(FContentBrowserItemPath(InPath, EContentBrowserPathType::Virtual));
 }
 
 void SFavoritePathView::FixupFavoritesFromExternalChange(TArrayView<const AssetViewUtils::FMovedContentFolder> MovedFolders)
 {
 	for (const AssetViewUtils::FMovedContentFolder& MovedFolder : MovedFolders)
 	{
-		const bool bWasFavorite = ContentBrowserUtils::IsFavoriteFolder(MovedFolder.Key);
+		FContentBrowserItemPath ItemPath(MovedFolder.Key, EContentBrowserPathType::Virtual);
+		const bool bWasFavorite = ContentBrowserUtils::IsFavoriteFolder(ItemPath);
 		if (bWasFavorite)
 		{
 			// Remove the original path
-			ContentBrowserUtils::RemoveFavoriteFolder(MovedFolder.Key);
+			ContentBrowserUtils::RemoveFavoriteFolder(ItemPath);
 
 			// Add the new path to favorites instead
 			const FString& NewPath = MovedFolder.Value;
-			ContentBrowserUtils::AddFavoriteFolder(NewPath);
+			ContentBrowserUtils::AddFavoriteFolder(FContentBrowserItemPath(NewPath, EContentBrowserPathType::Virtual));
 			TSharedPtr<FTreeItem> Item = FindTreeItem(*NewPath);
 			if (Item.IsValid())
 			{
