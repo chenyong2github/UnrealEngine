@@ -115,6 +115,20 @@ public:
 		const int32 GridZ = 2,
 		const float MinimumClusterSize = 0,
 		const int32 KMeansIterations = 500);
+
+	static TArray<FVector> GenerateGridSites(
+		const FGeometryCollection& GeometryCollection,
+		const TArray<int32>& BoneIndices,
+		const int32 GridX,
+		const int32 GridY,
+		const int32 GridZ);
+
+	static TArray<FVector> GenerateGridSites(
+		const FGeometryCollection& GeometryCollection,
+		const int32 ClusterIndex,
+		const int32 GridX,
+		const int32 GridY,
+		const int32 GridZ);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -24,7 +24,8 @@ void FVoronoiPartitioner::KMeansPartition(int32 InPartitionCount, int32 MaxItera
 	}
 
 	InitializePartitions(InitialCenters);
-	for (int32 Iteration = 0; Iteration < MaxIterations; Iteration++)
+	// Note: We run max iterations + 1 here because the first iteration just applies the initial cluster assignment
+	for (int32 Iteration = 0; Iteration < MaxIterations + 1; Iteration++)
 	{
 		// Refinement is complete when no nodes change partition.
 		if (!Refine())
@@ -593,28 +594,7 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 	}
 	else if (ClusterSizeMethod == EFractureEngineClusterSizeMethod::ByGrid)
 	{
-		FBox Bounds = FVoronoiPartitioner::GenerateBounds(&GeometryCollection, ClusterIndex);
-		int32 GridX = FMath::Max(1, InGridX);
-		int32 GridY = FMath::Max(1, InGridY);
-		int32 GridZ = FMath::Max(1, InGridZ);
-		PartitionPositions.Reserve(GridX * GridY * GridZ);
-
-		for (int32 StepX = 0; StepX < GridX; ++StepX)
-		{
-			double Xt = GridX == 1 ? .5f : double(StepX) / double(GridX - 1);
-			double X = FMath::Lerp(Bounds.Min.X, Bounds.Max.X, Xt);
-			for (int32 StepY = 0; StepY < GridY; ++StepY)
-			{
-				double Yt = GridY == 1 ? .5f : double(StepY) / double(GridY - 1);
-				double Y = FMath::Lerp(Bounds.Min.Y, Bounds.Max.Y, Yt);
-				for (int32 StepZ = 0; StepZ < GridZ; ++StepZ)
-				{
-					double Zt = GridZ == 1 ? .5f : double(StepZ) / double(GridZ - 1);
-					double Z = FMath::Lerp(Bounds.Min.Z, Bounds.Max.Z, Zt);
-					PartitionPositions.Emplace(X, Y, Z);
-				}
-			}
-		}
+		PartitionPositions = GenerateGridSites(GeometryCollection, ClusterIndex, InGridX, InGridY, InGridZ);
 	}
 
 	int32 SiteCountToUse = DesiredSiteCountToUse;
@@ -702,4 +682,62 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 	FGeometryCollectionClusteringUtility::ValidateResults(&GeometryCollection);
 }
 
+TArray<FVector> FFractureEngineClustering::GenerateGridSites(
+	const FGeometryCollection& GeometryCollection,
+	const TArray<int32>& BoneIndices,
+	const int32 GridX,
+	const int32 GridY,
+	const int32 GridZ)
+{
+	TArray<FVector> AllPoints;
+	FFractureEngineBoneSelection Selection(GeometryCollection, BoneIndices);
+
+	Selection.ConvertSelectionToClusterNodes();
+
+	for (const int32 ClusterIndex : Selection.GetSelectedBones())
+	{
+		AllPoints.Append(GenerateGridSites(GeometryCollection, ClusterIndex, GridX, GridY, GridZ));
+	}
+	return AllPoints;
+}
+
+TArray<FVector> FFractureEngineClustering::GenerateGridSites(
+	const FGeometryCollection& GeometryCollection,
+	const int32 ClusterIndex,
+	const int32 InGridX,
+	const int32 InGridY,
+	const int32 InGridZ)
+{
+	TArray<FVector> PartitionPositions;
+
+	FBox Bounds = FVoronoiPartitioner::GenerateBounds(&GeometryCollection, ClusterIndex);
+	int32 GridX = FMath::Max(1, InGridX);
+	int32 GridY = FMath::Max(1, InGridY);
+	int32 GridZ = FMath::Max(1, InGridZ);
+	PartitionPositions.Reserve(GridX * GridY * GridZ);
+
+	auto StepToParam = [](int32 Step, int32 NumSteps) -> double
+	{
+		return (double(Step) + .5) / double(NumSteps);
+	};
+
+	for (int32 StepX = 0; StepX < GridX; ++StepX)
+	{
+		double Xt = StepToParam(StepX, GridX);
+		double X = FMath::Lerp(Bounds.Min.X, Bounds.Max.X, Xt);
+		for (int32 StepY = 0; StepY < GridY; ++StepY)
+		{
+			double Yt = StepToParam(StepY, GridY);
+			double Y = FMath::Lerp(Bounds.Min.Y, Bounds.Max.Y, Yt);
+			for (int32 StepZ = 0; StepZ < GridZ; ++StepZ)
+			{
+				double Zt = StepToParam(StepZ, GridZ);
+				double Z = FMath::Lerp(Bounds.Min.Z, Bounds.Max.Z, Zt);
+				PartitionPositions.Emplace(X, Y, Z);
+			}
+		}
+	}
+
+	return PartitionPositions;
+}
 

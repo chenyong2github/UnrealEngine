@@ -82,9 +82,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (ClampMin = "0"))
 	float MinimumSize = 0;
 
-	/** The maximum number of K-Means iterations to apply, balancing the shape and distribution of the clusters */
-	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "K-Means Iteration Max", ClampMin = "1", UIMax = "500"))
-	int KMeansIterations = 500;
+	/** For a grid distribution, optionally iteratively recenter the grid points to the center of the cluster geometry (technically: applying K-Means iterations) to balance the shape and distribution of the clusters */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Drift Iterations", ClampMin = "0", UIMax = "5", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByGrid", EditConditionHides))
+	int DriftIterations = 0;
 
 	/** If true, bones will only be added to the same cluster if they are physically connected (either directly, or via other bones in the same cluster) */
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Enforce Cluster Connectivity"))
@@ -118,9 +118,24 @@ public:
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 	void DrawBox(FPrimitiveDrawInterface* PDI, FVector Center, float SideLength);
 
+	virtual void FractureContextChanged() override;
+
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 
 	UPROPERTY(EditAnywhere, Category = AutoCluster)
 	TObjectPtr<UFractureAutoClusterSettings> AutoClusterSettings;
+
+protected:
+	virtual void ClearVisualizations() override
+	{
+		Super::ClearVisualizations();
+		ShowGridPoints.Empty();
+		GridPointsMappings.Empty();
+	}
+
+private:
+
+	TArray<FVector> ShowGridPoints;
+	FVisualizationMappings GridPointsMappings;
 };
 

@@ -89,16 +89,56 @@ void UFractureToolAutoCluster::DrawBox(FPrimitiveDrawInterface* PDI, FVector Cen
 
 void UFractureToolAutoCluster::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	if (AutoClusterSettings->ClusterSizeMethod != EClusterSizeMethod::BySize)
+	if (AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::ByGrid)
 	{
-		return;
+		EnumerateVisualizationMapping(GridPointsMappings, ShowGridPoints.Num(),
+			[&](int32 Idx, FVector ExplodedVector)
+			{
+				FVector Pt = ShowGridPoints[Idx];
+				PDI->DrawPoint(Pt, FLinearColor(1.f, 0.f, 1.f), 5, SDPG_Foreground);
+			});
 	}
 
-	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
-
-	for (FFractureToolContext& FractureContext : FractureContexts)
+	if (AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::BySize)
 	{
-		DrawBox(PDI, FractureContext.GetTransform().GetTranslation(), AutoClusterSettings->SiteSize);
+		TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& FractureContext : FractureContexts)
+		{
+			DrawBox(PDI, FractureContext.GetTransform().GetTranslation(), AutoClusterSettings->SiteSize);
+		}
+	}
+}
+
+void UFractureToolAutoCluster::FractureContextChanged()
+{
+	ClearVisualizations();
+
+	TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+	for (FFractureToolContext& Context : Contexts)
+	{
+		Context.ConvertSelectionToClusterNodes();
+
+		if (const FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get())
+		{
+			int CollectionIdx = VisualizedCollections.Emplace(Context.GetGeometryCollectionComponent());
+			FTransform ContextTransform = Context.GetTransform();
+
+			for (const int32 ClusterIndex : Context.GetSelection())
+			{
+				GridPointsMappings.AddMapping(CollectionIdx, ClusterIndex, ShowGridPoints.Num());
+				TArray<FVector> LocalGridPoints = FFractureEngineClustering::GenerateGridSites(
+					*GeometryCollection, ClusterIndex,
+					AutoClusterSettings->ClusterGridWidth,
+					AutoClusterSettings->ClusterGridDepth,
+					AutoClusterSettings->ClusterGridHeight);
+				for (FVector LocalPt : LocalGridPoints)
+				{
+					ShowGridPoints.Add(ContextTransform.TransformPosition(LocalPt));
+				}
+			}
+		}
 	}
 }
 
@@ -127,6 +167,7 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 
 				for (const int32 ClusterIndex : Context.GetSelection())
 				{
+					int32 KMeansIterations = AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::ByGrid ? AutoClusterSettings->DriftIterations : 500;
 					FFractureEngineClustering::AutoCluster(*GeometryCollection,
 						ClusterIndex,
 						(EFractureEngineClusterSizeMethod)AutoClusterSettings->ClusterSizeMethod,
@@ -140,7 +181,7 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 						AutoClusterSettings->ClusterGridDepth,
 						AutoClusterSettings->ClusterGridHeight,
 						AutoClusterSettings->MinimumSize,
-						AutoClusterSettings->KMeansIterations);
+						KMeansIterations);
 				}
 
 				Context.GenerateGuids(StartTransformCount);
