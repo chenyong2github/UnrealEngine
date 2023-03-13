@@ -77,6 +77,7 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<FNiagaraSimCacheViewModel>, SimCacheViewModel)
 	SLATE_END_ARGS()
 
+	void OnSimCacheChanged();
 	void Construct(const FArguments& InArgs);
 
 	TSharedRef<ITableRow> OnGenerateRowForItem(TSharedRef<FNiagaraSimCacheOverviewItem> Item, const TSharedRef<STableViewBase>& Owner);

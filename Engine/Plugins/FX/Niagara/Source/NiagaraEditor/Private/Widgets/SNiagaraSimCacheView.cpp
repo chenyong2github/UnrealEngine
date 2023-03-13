@@ -47,17 +47,23 @@ public:
 
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override
 	{
+		
+		if(!SimCacheViewModel.Get()->IsCacheValid())
+		{
+			return SNullWidget::NullWidget;
+		}
+
 		const int32 InstanceIndex = *RowIndexPtr;
+		
 		if (InColumnName == NAME_Instance)
 		{
 			return SNew(STextBlock)
 				.Text(FText::AsNumber(InstanceIndex));
 		}
-		else
-		{
-			return SNew(STextBlock)
-				.Text(SimCacheViewModel->GetComponentText(InColumnName, InstanceIndex));
-		}
+		
+		return SNew(STextBlock)
+			.Text(SimCacheViewModel->GetComponentText(InColumnName, InstanceIndex));
+		
 	}
 
 	TSharedPtr<int32>						RowIndexPtr;
@@ -199,7 +205,7 @@ void SNiagaraSimCacheView::GenerateColumns()
 	//  Give columns a width to prevent them from being shrunk when filtering. 
 	constexpr float ManualWidth = 125.0f;
 	HeaderRowWidget->ClearColumns();
-
+	
 	// Generate instance count column
 	HeaderRowWidget->AddColumn(
 		SHeaderRow::Column(NAME_Instance)
@@ -211,7 +217,7 @@ void SNiagaraSimCacheView::GenerateColumns()
 		.ManualWidth(ManualWidth)
 		.SortMode(EColumnSortMode::None)
 	);
-		
+	
 	// Generate a column for each component
 	for (const FNiagaraSimCacheViewModel::FComponentInfo& ComponentInfo : SimCacheViewModel->GetCurrentComponentInfos())
 	{
@@ -224,9 +230,11 @@ void SNiagaraSimCacheView::GenerateColumns()
 			.VAlignCell(EVerticalAlignment::VAlign_Fill)
 			.FillWidth(1.0f)
 			.ManualWidth(ManualWidth)
+			.ShouldGenerateWidget(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraSimCacheView::GetShouldGenerateWidget, ComponentInfo.Name)))
 			.SortMode(EColumnSortMode::None)
 		);
 	}
+
 }
 
 void SNiagaraSimCacheView::UpdateColumns(const bool bReset)
@@ -251,39 +259,9 @@ void SNiagaraSimCacheView::UpdateColumns(const bool bReset)
 	const bool bColumnsUpToDate = bReset && !bApplyFilter;
 
 	FString ColumnName;
-
-	auto ComponentFilterPred = [&ColumnName](const FString& ComponentFilter)
-	{
-		return ColumnName.Equals(ComponentFilter);
-	};
-
-	auto StringFilterPred = [&ColumnName](const FString& StringFilter)
-	{
-		return ColumnName.Contains(StringFilter);
-	};
 	
 	if(!bColumnsUpToDate)
 	{
-		for (SHeaderRow::FColumn Column : HeaderRowWidget->GetColumns())
-		{
-			ColumnName = Column.DefaultText.Get().ToString();
-
-			// Never filter instance count column.
-			if(ColumnName.Equals(NAME_Instance.ToString()))
-			{
-				continue;
-			}
-
-			bool bPassedFilter = true;
-
-			if(bApplyFilter)
-			{
-				bPassedFilter = bUseComponentFilter ? FilterArray.ContainsByPredicate(ComponentFilterPred) : FilterArray.ContainsByPredicate(StringFilterPred);
-			}
-			
-			HeaderRowWidget->SetShowGeneratedColumn(Column.ColumnId, bPassedFilter);
-		}
-
 		HeaderRowWidget->RefreshColumns();
 	}
 }
@@ -378,6 +356,53 @@ void SNiagaraSimCacheView::OnBufferChanged()
 {
 	UpdateRows(true);
 	UpdateColumns(true);
+}
+
+bool SNiagaraSimCacheView::GetShouldGenerateWidget(FName Name)
+{
+	TArray<FString> FilterArray;
+
+	// There are two filtering methods, from the tree view and from the spreadsheet view.
+	// The spreadsheet view uses a filter string input by the user. The tree view uses component item selection.
+	const bool bUseComponentFilter = SimCacheViewModel->IsComponentFilterActive();
+
+	FilterArray = bUseComponentFilter ? SimCacheViewModel->GetComponentFilters() : StringFilterArray;
+
+	// If the component filter is active, always apply the filter. If using the string filter, only apply it if it's not empty.
+	const bool bApplyFilter = bUseComponentFilter || !FilterArray.IsEmpty();
+
+	// If no filter to apply, all columns are visible.
+	if(!bApplyFilter)
+	{
+		return true;
+	}
+
+	FString ColumnName = Name.ToString();
+
+	// Always display the instance column
+	if(ColumnName.Equals(NAME_Instance.ToString()))
+	{
+		return true;
+	}
+
+	auto ComponentFilterPred = [&ColumnName](const FString& ComponentFilter)
+	{
+		return ColumnName.Equals(ComponentFilter);
+	};
+
+	auto StringFilterPred = [&ColumnName](const FString& StringFilter)
+	{
+		return ColumnName.Contains(StringFilter);
+	};
+
+	bool bPassedFilter = true;
+
+	if(bApplyFilter)
+	{
+		bPassedFilter = bUseComponentFilter ? FilterArray.ContainsByPredicate(ComponentFilterPred) : FilterArray.ContainsByPredicate(StringFilterPred);
+	}
+
+	return bPassedFilter;
 }
 
 #undef LOCTEXT_NAMESPACE

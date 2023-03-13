@@ -85,9 +85,25 @@ void FNiagaraSimCacheViewModel::SetupPreviewComponentAndInstance()
 	
 }
 
+TConstArrayView<FNiagaraSimCacheViewModel::FComponentInfo> FNiagaraSimCacheViewModel::GetComponentInfos(
+	int32 InEmitterIndex) const
+{
+	if( InEmitterIndex == INDEX_NONE)
+	{
+		return SystemComponentInfos;
+	}
+
+	if(EmitterComponentInfos.IsValidIndex(InEmitterIndex))
+	{
+		return EmitterComponentInfos[InEmitterIndex];
+	}
+	
+	return TConstArrayView<FComponentInfo>();
+}
+
 FText FNiagaraSimCacheViewModel::GetComponentText(const FName ComponentName, const int32 InstanceIndex) const
 {
-	const FComponentInfo* ComponentInfo = ComponentInfos->FindByPredicate([ComponentName](const FComponentInfo& FoundInfo) { return FoundInfo.Name == ComponentName; });
+	const FComponentInfo* ComponentInfo = GetCurrentComponentInfos().FindByPredicate([ComponentName](const FComponentInfo& FoundInfo) { return FoundInfo.Name == ComponentName; });
 
 	if (ComponentInfo)
 	{
@@ -207,6 +223,7 @@ void FNiagaraSimCacheViewModel::OnCacheModified(UNiagaraSimCache* SimCache)
 	{
 		if ( ThisSimCache == SimCache )
 		{
+			SetFrameIndex(0);
 			UpdateComponentInfos();
 			UpdateCachedFrame();
 			OnSimCacheChangedDelegate.Broadcast();
@@ -241,8 +258,6 @@ void FNiagaraSimCacheViewModel::UpdateCachedFrame()
 
 	NumInstances = EmitterIndex == INDEX_NONE ? 1 : SimCache->GetEmitterNumInstances(EmitterIndex, FrameIndex);
 	const FName EmitterName = EmitterIndex == INDEX_NONE ? NAME_None : SimCache->GetEmitterName(EmitterIndex);
-	// Cached frame data needs to match the component info being viewed. Update here so they match.
-	ComponentInfos = EmitterIndex == INDEX_NONE ? &SystemComponentInfos : &EmitterComponentInfos[EmitterIndex];
 
 	SimCache->ForEachEmitterAttribute(EmitterIndex,
 		[&](const FNiagaraSimCacheVariable& Variable)
@@ -413,11 +428,25 @@ void FNiagaraSimCacheViewModel::BuildEntries(TWeakPtr<SNiagaraSimCacheTreeView> 
 	const TSharedRef<FNiagaraSimCacheTreeItem> SharedSystemTreeItem = MakeShared<FNiagaraSimCacheTreeItem>(OwningTreeView);
 	const TSharedRef<FNiagaraSimCacheOverviewSystemItem> SharedSystemBufferItem = MakeShared<FNiagaraSimCacheOverviewSystemItem>();
 
-	SharedSystemTreeItem->SetDisplayName(LOCTEXT("SystemInstance", "System Instance"));
-	SharedSystemBufferItem->SetDisplayName(LOCTEXT("SystemInstance", "System Instance"));
+	if(IsCacheValid())
+	{
+		SharedSystemTreeItem->SetDisplayName(LOCTEXT("SystemInstance", "System Instance"));
+		SharedSystemBufferItem->SetDisplayName(LOCTEXT("SystemInstance", "System Instance"));
+	}
+	else
+	{
+		SharedSystemTreeItem->SetDisplayName(LOCTEXT("InvalidCache", "Invalid Cache"));
+		SharedSystemBufferItem->SetDisplayName(LOCTEXT("InvalidCache", "Invalid Cache"));
+	}
 
 	RootEntries.Add(SharedSystemTreeItem);
 	BufferEntries.Add(SharedSystemBufferItem);
+
+	if(!IsCacheValid())
+	{
+		UpdateCurrentEntries();
+		return;
+	}
 		
 	BuildTreeItemChildren(SharedSystemTreeItem, OwningTreeView);
 		

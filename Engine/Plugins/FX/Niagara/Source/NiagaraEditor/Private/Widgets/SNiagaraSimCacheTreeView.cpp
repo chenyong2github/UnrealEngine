@@ -227,6 +227,17 @@ bool SSimCacheTreeViewVisibilityWidget::IsItemSelected() const
 
 ///// Tree View Widget
 
+
+void SNiagaraSimCacheTreeView::SetupRootEntries()
+{
+	TArray<TSharedRef<FNiagaraSimCacheTreeItem>>* RootEntries = ViewModel->GetCurrentRootEntries();
+
+	if(RootEntries && !RootEntries->IsEmpty())
+	{
+		TreeView->SetItemExpansion((*RootEntries)[0], true);
+	}
+}
+
 void SNiagaraSimCacheTreeView::Construct(const FArguments& InArgs)
 {
 	constexpr float ItemHeight = 50.0f;
@@ -234,11 +245,9 @@ void SNiagaraSimCacheTreeView::Construct(const FArguments& InArgs)
 	ViewModel = InArgs._SimCacheViewModel;
 
 	ViewModel->OnBufferChanged().AddSP(this, &SNiagaraSimCacheTreeView::OnBufferChanged);
+	ViewModel->OnSimCacheChanged().AddSP(this, &SNiagaraSimCacheTreeView::OnSimCacheChanged);
 
 	ViewModel->BuildEntries(SharedThis(this));
-
-	TArray<TSharedRef<FNiagaraSimCacheTreeItem>>* RootEntries = ViewModel->GetCurrentRootEntries();
-
 	
 	TreeView = SNew(STreeView<TSharedRef<FNiagaraSimCacheTreeItem>>)
 	.ItemHeight(ItemHeight)
@@ -247,11 +256,7 @@ void SNiagaraSimCacheTreeView::Construct(const FArguments& InArgs)
 	.OnGenerateRow(this, &SNiagaraSimCacheTreeView::OnGenerateRow)
 	.OnGetChildren(this, &SNiagaraSimCacheTreeView::OnGetChildren);
 
-	if(RootEntries && !RootEntries->IsEmpty())
-	{
-		TreeView->SetItemExpansion((*RootEntries)[0], true);
-	}
-
+	SetupRootEntries();
 
 	ChildSlot
 	[
@@ -293,6 +298,12 @@ void SNiagaraSimCacheTreeView::OnBufferChanged()
 	SelectionForFilter.Empty();
 	ViewModel->SetComponentFilters(TArray<FString>());
 	TreeView->SetItemExpansion((*ViewModel->GetCurrentRootEntries())[0], true);
+}
+
+void SNiagaraSimCacheTreeView::OnSimCacheChanged()
+{
+	ViewModel->BuildEntries(SharedThis(this));
+	SetupRootEntries();
 }
 
 void SNiagaraSimCacheTreeView::RecursiveAddToSelectionFilter(TArray<TSharedRef<FNiagaraSimCacheTreeItem>>& ArrayToAdd)

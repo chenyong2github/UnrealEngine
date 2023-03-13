@@ -281,6 +281,9 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	BakerViewModel = MakeShared<FNiagaraBakerViewModel>();
 	BakerViewModel->Initialize(SystemViewModel);
 
+	SimCacheViewModel = MakeShared<FNiagaraSimCacheViewModel>();
+	SimCacheViewModel->Initialize(nullptr);
+
 	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
@@ -824,6 +827,11 @@ void FNiagaraSystemToolkit::CompileSystem(bool bFullRebuild)
 TSharedPtr<FNiagaraSystemViewModel> FNiagaraSystemToolkit::GetSystemViewModel()
 {
 	return SystemViewModel;
+}
+
+TSharedPtr<FNiagaraSimCacheViewModel> FNiagaraSystemToolkit::GetSimCacheViewModel()
+{
+	return SimCacheViewModel;
 }
 
 TSharedPtr<FNiagaraSystemGraphSelectionViewModel> FNiagaraSystemToolkit::GetSystemGraphSelectionViewModel()

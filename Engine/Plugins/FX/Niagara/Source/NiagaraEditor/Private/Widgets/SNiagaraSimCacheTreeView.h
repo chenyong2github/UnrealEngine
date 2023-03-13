@@ -68,6 +68,8 @@ public:
 	SLATE_ARGUMENT(TSharedPtr<FNiagaraSimCacheViewModel>, SimCacheViewModel)
 SLATE_END_ARGS()
 
+	void OnSimCacheChanged();
+	void SetupRootEntries();
 	void Construct(const FArguments& InArgs);
 	bool HasSelectionFilter() const {return !SelectionForFilter.IsEmpty();}
 	bool IsFilterActive() const;

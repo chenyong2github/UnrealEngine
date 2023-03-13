@@ -33,6 +33,14 @@ public:
 };
 
 
+void SNiagaraSimCacheOverview::OnSimCacheChanged()
+{
+	if(BufferListView.IsValid())
+	{
+		BufferListView->RebuildList();
+	}
+}
+
 void SNiagaraSimCacheOverview::Construct(const FArguments& InArgs)
 {
 	ViewModel = InArgs._SimCacheViewModel;
@@ -44,6 +52,8 @@ void SNiagaraSimCacheOverview::Construct(const FArguments& InArgs)
 	.ListItemsSource(ViewModel->GetBufferEntries())
 	.OnGenerateRow(this, &SNiagaraSimCacheOverview::OnGenerateRowForItem)
 	.OnSelectionChanged(this, &SNiagaraSimCacheOverview::OnListSelectionChanged);
+
+	ViewModel.Get()->OnSimCacheChanged().AddSP(this, &SNiagaraSimCacheOverview::OnSimCacheChanged);
 
 	const float MinSplitterSlotSize = 30.0f; 
 

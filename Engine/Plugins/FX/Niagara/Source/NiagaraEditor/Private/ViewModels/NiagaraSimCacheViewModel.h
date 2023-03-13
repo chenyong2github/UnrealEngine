@@ -41,9 +41,9 @@ public:
 
 	void SetupPreviewComponentAndInstance();
 
-	TConstArrayView<FComponentInfo> GetCurrentComponentInfos() const { return *ComponentInfos; }
+	TConstArrayView<FComponentInfo> GetCurrentComponentInfos() const { return GetComponentInfos(EmitterIndex); }
 
-	TConstArrayView<FComponentInfo> GetComponentInfos(int32 InEmitterIndex) const { return  InEmitterIndex == INDEX_NONE ? SystemComponentInfos : EmitterComponentInfos[InEmitterIndex]; }
+	TConstArrayView<FComponentInfo> GetComponentInfos(int32 InEmitterIndex) const;
 
 	TConstArrayView<FString> GetComponentFilters() const { return ComponentFilterArray; }
 
@@ -125,9 +125,6 @@ private:
 
 	// Number of particles in the given frame
 	int32 NumInstances = 0;
-
-	// Info about the variables in the cache that are currently being viewed in the spreadsheet
-	TArray<FComponentInfo>* ComponentInfos = &SystemComponentInfos;
 
 	// Cached Component infos for this system
 	TArray<FComponentInfo>				SystemComponentInfos;

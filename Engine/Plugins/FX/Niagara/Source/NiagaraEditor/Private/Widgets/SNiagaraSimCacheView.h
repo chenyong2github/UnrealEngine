@@ -46,6 +46,7 @@ public:
 	void OnBufferChanged();
 
 private:
+	bool GetShouldGenerateWidget(FName Name);
 	void GenerateColumns();
 
 	TArray<TSharedPtr<int32>>					RowItems;

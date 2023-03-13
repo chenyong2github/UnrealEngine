@@ -31,6 +31,7 @@ void FNiagaraSimCacheCapture::CaptureNiagaraSimCache(UNiagaraSimCache* SimCache,
 	WeakCaptureSimCache = SimCache;
 	WeakCaptureComponent = NiagaraComponent;
 	CaptureParameters = InCaptureParameters;
+	CaptureFrameCounter = 0;
 
 	if(SimCache == nullptr || NiagaraComponent == nullptr)
 	{

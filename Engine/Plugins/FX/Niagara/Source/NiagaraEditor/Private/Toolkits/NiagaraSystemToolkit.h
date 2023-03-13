@@ -10,6 +10,7 @@
 
 #include "ISequencer.h"
 #include "ISequencerTrackEditor.h"
+#include "ViewModels/NiagaraSimCacheViewModel.h"
 
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "Widgets/SItemSelector.h"
@@ -96,6 +97,8 @@ public:
 
 	TSharedPtr<FNiagaraSystemViewModel> GetSystemViewModel();
 	TSharedPtr<FNiagaraSystemGraphSelectionViewModel> GetSystemGraphSelectionViewModel();
+
+	TSharedPtr<FNiagaraSimCacheViewModel> GetSimCacheViewModel();
 	
 	// @todo This is a hack for now until we reconcile the default toolbar with application modes [duplicated from counterpart in Blueprint Editor]
 	void RegisterToolbarTab(const TSharedRef<class FTabManager>& TabManager);
@@ -248,6 +251,9 @@ private:
 	TSharedPtr<FNiagaraSystemToolkitParameterPanelViewModel> ParameterPanelViewModel;
 	TSharedPtr<FNiagaraSystemToolkitParameterDefinitionsPanelViewModel> ParameterDefinitionsPanelViewModel;
 	TSharedPtr<class SNiagaraParameterPanel> ParameterPanel;
+
+	/** Sim Cache editor view model**/
+	TSharedPtr<FNiagaraSimCacheViewModel> SimCacheViewModel;
 
 	TSharedPtr<FNiagaraObjectSelection> ObjectSelectionForParameterMapView;
 
