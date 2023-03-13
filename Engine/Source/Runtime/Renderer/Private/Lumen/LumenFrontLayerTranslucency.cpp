@@ -410,10 +410,10 @@ FFrontLayerTranslucencyData FDeferredShadingSceneRenderer::RenderFrontLayerTrans
 {
 	// For now allocate & render both depth, normal, and roughness. 
 	// If only VSM resquest front layer data, we could render only the front layer depth.
+	// IsVSMTranslucentHighQualityEnabled();
 	auto NeedsFrontLayerData = [&](const FViewInfo& View) 
 	{ 
-		return View.bTranslucentSurfaceLighting && 
-			((GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen && Lumen::UseLumenFrontLayerTranslucencyReflections(View)) || IsVSMTranslucentHighQualityEnabled());
+		return View.bTranslucentSurfaceLighting && GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen && Lumen::UseLumenFrontLayerTranslucencyReflections(View);
 	};
 
 	// Check if any view require translucent front layer data
