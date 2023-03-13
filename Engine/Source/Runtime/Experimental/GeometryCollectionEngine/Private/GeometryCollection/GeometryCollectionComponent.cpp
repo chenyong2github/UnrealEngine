@@ -5049,7 +5049,7 @@ void UGeometryCollectionComponent::PostLoad()
 	}
 }
 
-Chaos::FPhysicsObject* UGeometryCollectionComponent::GetPhysicsObjectById(int32 Id) const
+Chaos::FPhysicsObject* UGeometryCollectionComponent::GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const
 {
 	if (!PhysicsProxy)
 	{
@@ -5100,7 +5100,7 @@ TArray<Chaos::FPhysicsObject*> UGeometryCollectionComponent::GetAllPhysicsObject
 	return Objects;
 }
 
-int32 UGeometryCollectionComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
+Chaos::FPhysicsObjectId UGeometryCollectionComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
 {
 	if (!PhysicsProxy || !Particle)
 	{

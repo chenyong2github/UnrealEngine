@@ -261,7 +261,7 @@ bool UClusterUnionComponent::HasValidPhysicsState() const
 	return PhysicsProxy != nullptr;
 }
 
-Chaos::FPhysicsObject* UClusterUnionComponent::GetPhysicsObjectById(int32 Id) const
+Chaos::FPhysicsObject* UClusterUnionComponent::GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const
 {
 	if (!PhysicsProxy)
 	{
@@ -280,7 +280,7 @@ TArray<Chaos::FPhysicsObject*> UClusterUnionComponent::GetAllPhysicsObjects() co
 	return { GetPhysicsObjectById(0) };
 }
 
-int32 UClusterUnionComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
+Chaos::FPhysicsObjectId UClusterUnionComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
 {
 	return 0;
 }

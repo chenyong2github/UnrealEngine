@@ -1196,7 +1196,7 @@ void UPrimitiveComponent::UpdatePhysicsToRBChannels()
 	}
 }
 
-Chaos::FPhysicsObject* UPrimitiveComponent::GetPhysicsObjectById(int32 Id) const
+Chaos::FPhysicsObject* UPrimitiveComponent::GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const
 {
 	if (!BodyInstance.IsValidBodyInstance())
 	{
@@ -1217,7 +1217,7 @@ TArray<Chaos::FPhysicsObject*> UPrimitiveComponent::GetAllPhysicsObjects() const
 	return Bodies;
 }
 
-int32 UPrimitiveComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
+Chaos::FPhysicsObjectId UPrimitiveComponent::GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const
 {
 	return 0;
 }

@@ -20,9 +20,9 @@ class IPhysicsComponent
 	GENERATED_BODY()
 
 public:
-	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(int32 Id) const = 0;
+	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const = 0;
 	virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const = 0;
 	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const = 0;
 	
-	virtual int32 GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const = 0;
+	virtual Chaos::FPhysicsObjectId GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const = 0;
 };

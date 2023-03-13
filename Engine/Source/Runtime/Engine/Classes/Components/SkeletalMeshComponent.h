@@ -2644,7 +2644,7 @@ public:
 	bool IsPostEvaluatingAnimation() const { return bPostEvaluatingAnimation; }
 
 	//~ Begin IPhysicsComponent Interface.
-	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(int32 Id) const override;
+	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const override;
 	virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const override;
 	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
 	//~ End IPhysicsComponent Interface.

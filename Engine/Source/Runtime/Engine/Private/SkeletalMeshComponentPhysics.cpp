@@ -4046,7 +4046,7 @@ FTransform USkeletalMeshComponent::GetComponentTransformFromBodyInstance(FBodyIn
 }
 
 
-Chaos::FPhysicsObject* USkeletalMeshComponent::GetPhysicsObjectById(int32 Id) const
+Chaos::FPhysicsObject* USkeletalMeshComponent::GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const
 {
 	if (!Bodies.IsValidIndex(Id) || !Bodies[Id] || !Bodies[Id]->ActorHandle)
 	{
