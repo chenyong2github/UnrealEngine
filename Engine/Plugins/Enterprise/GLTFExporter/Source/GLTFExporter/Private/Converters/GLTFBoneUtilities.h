@@ -5,15 +5,16 @@
 #include "CoreMinimal.h"
 #include "BoneIndices.h"
 
-struct FMovieSceneDoubleChannel;
-struct FReferenceSkeleton;
 class UAnimSequence;
-class UMovieScene3DTransformSection;
+class USkeletalMesh;
 class USkeleton;
+struct FReferenceSkeleton;
 
 struct FGLTFBoneUtilities
 {
-	static FTransform GetBindTransform(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex);
+	static const FReferenceSkeleton& GetReferenceSkeleton(const USkeletalMesh* SkeletalMesh);
+
+	static FTransform GetBindTransform(const FReferenceSkeleton& ReferenceSkeleton, int32 BoneIndex);
 
 	static void GetFrameTimestamps(const UAnimSequence* AnimSequence, TArray<float>& OutFrameTimestamps);
 

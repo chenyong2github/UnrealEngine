@@ -1,17 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFBoneUtilities.h"
-#include "BonePose.h"
-#include "Sections/MovieScene3DTransformSection.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AttributesRuntime.h"
+#include "Engine/SkeletalMesh.h"
 #include "ReferenceSkeleton.h"
+#include "BonePose.h"
 
-FTransform FGLTFBoneUtilities::GetBindTransform(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex)
+const FReferenceSkeleton& FGLTFBoneUtilities::GetReferenceSkeleton(const USkeletalMesh* SkeletalMesh)
 {
-	const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
-	const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
+	const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
+	return Skeleton != nullptr ? Skeleton->GetReferenceSkeleton() : SkeletalMesh->GetRefSkeleton();
+}
+
+FTransform FGLTFBoneUtilities::GetBindTransform(const FReferenceSkeleton& ReferenceSkeleton, int32 BoneIndex)
+{
+	const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton.GetRefBoneInfo();
+	const TArray<FTransform>& BonePoses = ReferenceSkeleton.GetRefBonePose();
 
 	int32 CurBoneIndex = BoneIndex;
 	FTransform BindTransform = FTransform::Identity;

@@ -23,7 +23,6 @@ FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, co
 	}
 
 	const USkeleton* MeshSkeleton = SkeletalMesh->GetSkeleton();
-
 	if (AnimSkeleton != MeshSkeleton)
 	{
 		// TODO: report error
