@@ -203,6 +203,41 @@ struct ENHANCEDINPUT_API FKeyMappingRow
 	bool HasAnyMappings() const;
 };
 
+/** 
+* Options when querying what keys are mapped to a specific action on the player mappable
+* key profile. 
+*/
+USTRUCT(BlueprintType)
+struct ENHANCEDINPUT_API FPlayerMappableKeyQueryOptions
+{
+	GENERATED_BODY()
+
+	FPlayerMappableKeyQueryOptions();
+
+	/** The mapping name to search for */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Query Options")
+	FName MappingName;
+	
+	/** If specified, then this key will be used to match against when checking if the key types and axis are the same. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Query Options")
+	FKey KeyToMatch;
+	
+	/** If true, then only keys that have the same value for IsGamepadKey, IsTouch, and IsGesture will be included in the results of this query */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Query Options")
+	uint8 bMatchBasicKeyTypes : 1;
+
+	/** If true, then only keys that have the same value of IsAxis1D, IsAxis2D, and IsAxis3D will be included in the results of this query */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Query Options")
+	uint8 bMatchKeyAxisType : 1;
+	
+	/** If set, then only player mappings whose hardware device identifier that has the same primary input device type will be included in the results of this query */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Query Options")
+	EHardwareDevicePrimaryType RequiredDeviceType;
+
+	/** If set, then only player mappings whose Hardware Device Identifier that has the same flags as this will be included in the results */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Query Options", meta=(Bitmask, BitmaskEnum="/Script/Engine.EHardwareDeviceSupportedFeatures"))
+	int32 RequiredDeviceFlags;
+};
 
 /** Represents one "Profile" that a user can have for their player mappable keys */
 UCLASS(BlueprintType)
@@ -269,6 +304,27 @@ public:
 	virtual int32 GetMappedKeysInRow(const FName MappingName, /*OUT*/ TArray<FKey>& OutKeys) const;
 
 	/**
+	 * Called during IEnhancedInputSubsystemInterface::RebuildControlMappings, this provides your user settings
+	 * the oppurtunity to decide what key mappings get added for a given FEnhancedActionKeyMapping, and applied to the player.
+	 *
+	 * Override this to change what query options are being used during the controls being rebuilt of enhanced input.
+	 *
+	 * If the given Out Array is empty, then the Default Mapping will be applied to the player, but no player mapped keys will be.
+	 */
+	virtual int32 GetPlayerMappedKeysForRebuildControlMappings(const FEnhancedActionKeyMapping& DefaultMapping, /*OUT*/ TArray<FKey>& OutKeys) const;
+
+	/** 
+	* Populates the OutKeys array with any player mapped FKeys for the given default mapping. 
+	* 
+	* This is what IEnhancedInputSubsystemInterface::RebuildControlMappings calls to determine
+	* what keys should actually be applied when building the control mappings.
+	*
+	* Returns the number of player mapped keys to the given Default Mapping
+	*/
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (ReturnDisplayName = "Number of mappings"))
+	virtual int32 QueryPlayerMappedKeys(const FPlayerMappableKeyQueryOptions& Options, /*OUT*/ TArray<FKey>& OutKeys) const;
+
+	/**
 	 * Populates the OutMappedMappingNames with every mapping on this profile that has a mapping to the given key.
 	 *
 	 * Returns the number of mappings to this key
@@ -289,6 +345,11 @@ public:
 	virtual void ResetToDefault();
 	
 protected:
+
+	/**
+	 * Returns true if the given player key mapping passes the query filter provided. 
+	 */
+	virtual bool DoesMappingPassQueryOptions(const FPlayerKeyMapping& PlayerMapping, const FPlayerMappableKeyQueryOptions& Options) const;
 
 	/**
 	 * Equips the current key profile. This will always be called after the previous key profile's UnEquip function.

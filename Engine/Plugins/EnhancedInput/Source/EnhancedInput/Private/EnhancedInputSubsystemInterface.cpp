@@ -803,9 +803,6 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 		{
 			// Clear out mappings from the previous iteration
 			MappedKeysToActionName.Reset();
-
-			// True if there were any player mapped keys to this mapping and we are using those instead.
-			bool bIsPlayerMapping = false;
 			
 			const UPlayerMappableKeySettings* KeySettings = Mapping.GetPlayerMappableKeySettings();
 
@@ -818,14 +815,15 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 			// See if there are any player mapped keys to this action
 			if (PlayerKeyProfile && GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
 			{
-				PlayerKeyProfile->GetMappedKeysInRow(Mapping.GetMappingName(), MappedKeysToActionName);
-				bIsPlayerMapping = !MappedKeysToActionName.IsEmpty();
+				PlayerKeyProfile->GetPlayerMappedKeysForRebuildControlMappings(Mapping, MappedKeysToActionName);
 			}
 			else if (const TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(Mapping.GetMappingName()))
 			{
 				PlayerMappedKeySlots->GenerateValueArray(MappedKeysToActionName);
-				bIsPlayerMapping = !MappedKeysToActionName.IsEmpty();
 			}
+
+			// True if there were any player mapped keys to this mapping and we are using those instead.
+			const bool bIsPlayerMapping = !MappedKeysToActionName.IsEmpty();
 
 			// If there aren't, then just use the default mapping for this action
 			if (!bIsPlayerMapping)

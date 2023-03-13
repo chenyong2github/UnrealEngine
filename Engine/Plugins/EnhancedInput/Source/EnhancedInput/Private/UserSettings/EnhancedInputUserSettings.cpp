@@ -341,9 +341,107 @@ int32 UEnhancedPlayerMappableKeyProfile::GetMappedKeysInRow(const FName MappingN
 	}
 	else
 	{
-		UE_LOG(LogEnhancedInput, Warning, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for action '%s'"), *ProfileIdentifier.ToString(), *MappingName.ToString());
+		UE_LOG(LogEnhancedInput, Warning, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for '%s'"), *ProfileIdentifier.ToString(), *MappingName.ToString());
 	}
 	return OutKeys.Num();
+}
+
+int32 UEnhancedPlayerMappableKeyProfile::GetPlayerMappedKeysForRebuildControlMappings(const FEnhancedActionKeyMapping& DefaultMapping, TArray<FKey>& OutKeys) const
+{
+	FPlayerMappableKeyQueryOptions QueryOptions = {};
+
+	QueryOptions.MappingName = DefaultMapping.GetMappingName();
+	QueryOptions.KeyToMatch = DefaultMapping.Key;
+	QueryOptions.bMatchBasicKeyTypes = true;
+	QueryOptions.bMatchKeyAxisType = false;
+
+	// Note for subclasses, if you want to filter based on the current input device then you can
+	// do this!
+	// if (const UInputDeviceSubsystem* DeviceSubsystem = UInputDeviceSubsystem::Get())
+	// {
+	// 	FHardwareDeviceIdentifier MostRecentDevice = DeviceSubsystem->GetMostRecentlyUsedHardwareDevice(OwningUserId);
+	// 	QueryOptions.RequiredDeviceType = MostRecentDevice.PrimaryDeviceType;
+	// 	QueryOptions.RequiredDeviceFlags = MostRecentDevice.SupportedFeaturesMask;
+	// }
+	
+	return QueryPlayerMappedKeys(QueryOptions, OutKeys);
+}
+
+int32 UEnhancedPlayerMappableKeyProfile::QueryPlayerMappedKeys(const FPlayerMappableKeyQueryOptions& Options, TArray<FKey>& OutKeys) const
+{
+	OutKeys.Reset();
+
+	if (const FKeyMappingRow* MappingRow = FindKeyMappingRow(Options.MappingName))
+	{
+		for (const FPlayerKeyMapping& PlayerMapping : MappingRow->Mappings)
+		{
+			if (DoesMappingPassQueryOptions(PlayerMapping, Options))
+			{
+				OutKeys.Add(PlayerMapping.GetCurrentKey());
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogEnhancedInput, Warning, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for '%s'"), *ProfileIdentifier.ToString(), *Options.MappingName.ToString());
+	}
+
+	return OutKeys.Num();
+}
+
+bool UEnhancedPlayerMappableKeyProfile::DoesMappingPassQueryOptions(const FPlayerKeyMapping& PlayerMapping, const FPlayerMappableKeyQueryOptions& Options) const
+{
+	if (Options.KeyToMatch.IsValid())
+	{
+		const FKey& A = Options.KeyToMatch;
+		const FKey& B = PlayerMapping.GetCurrentKey();
+	
+		// Ensure that the player mapped key matches the one set in the key profile
+		if (Options.bMatchBasicKeyTypes)
+		{
+			const bool bKeyTypesMatch = 
+				A.IsGamepadKey() == B.IsGamepadKey() &&
+				A.IsTouch() == B.IsTouch() &&
+				A.IsGesture() == B.IsGesture();
+
+			if (!bKeyTypesMatch)
+			{
+				return false;
+			}
+		}
+
+		if (Options.bMatchKeyAxisType)
+		{
+			const bool bKeyAxisMatch =
+				A.IsAxis1D() == B.IsAxis1D() &&
+				A.IsAxis2D() == B.IsAxis2D() &&
+				A.IsAxis3D() == B.IsAxis3D();
+
+			if (!bKeyAxisMatch)
+			{
+				return false;
+			}
+		}
+	}
+
+	// Match hardware device info per mapping
+	const FHardwareDeviceIdentifier& PlayerMappingDevice = PlayerMapping.GetHardwareDeviceId();
+	
+	// Filter mappings based on their primary hardware device type
+	if (Options.RequiredDeviceType != EHardwareDevicePrimaryType::Unspecified &&
+		Options.RequiredDeviceType != PlayerMappingDevice.PrimaryDeviceType)
+	{
+		return false;
+	}
+
+	// Filter mappings based on their hardware device's supported features
+	if (Options.RequiredDeviceFlags != EHardwareDeviceSupportedFeatures::Type::Unspecified &&
+		!PlayerMappingDevice.HasAllSupportedFeatures(static_cast<EHardwareDeviceSupportedFeatures::Type>(Options.RequiredDeviceFlags)))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 int32 UEnhancedPlayerMappableKeyProfile::GetMappingNamesForKey(const FKey& InKey, TArray<FName>& OutMappingNames) const
@@ -1069,5 +1167,14 @@ bool UEnhancedInputUserSettings::IsMappingContextRegistered(const UInputMappingC
 {
 	return RegisteredMappingContexts.Contains(IMC);
 }
+
+FPlayerMappableKeyQueryOptions::FPlayerMappableKeyQueryOptions()
+	: MappingName(NAME_None)
+	, KeyToMatch(EKeys::Invalid)
+	, bMatchBasicKeyTypes(true)
+	, bMatchKeyAxisType(false)
+	, RequiredDeviceType(EHardwareDevicePrimaryType::Unspecified)
+	, RequiredDeviceFlags(EHardwareDeviceSupportedFeatures::Type::Unspecified)
+{ }
 
 #undef LOCTEXT_NAMESPACE
