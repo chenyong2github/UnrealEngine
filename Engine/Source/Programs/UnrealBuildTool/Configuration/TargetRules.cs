@@ -1647,6 +1647,7 @@ namespace UnrealBuildTool
 		/// Whether PDB files should be used for Visual C++ builds.
 		/// </summary>
 		[CommandLine("-NoPDB", Value = "false")]
+		[CommandLine("-UsePDB", Value = "true")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bUsePDBFiles = false;
 
