@@ -21,6 +21,7 @@
 #include "Misc/EngineVersion.h"
 #include "GlobalShader.h"
 #include "RHIValidation.h"
+#include "RHIUtilities.h"
 #include "IHeadMountedDisplayModule.h"
 #include "VulkanRenderpass.h"
 #include "VulkanTransientResourceAllocator.h"
@@ -508,27 +509,6 @@ void FVulkanDynamicRHI::CreateInstance()
 #endif
 }
 
-//#todo-rco: Common RHI should handle this...
-static inline int32 PreferAdapterVendor()
-{
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferAMD")))
-	{
-		return 0x1002;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferIntel")))
-	{
-		return 0x8086;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferNvidia")))
-	{
-		return 0x10DE;
-	}
-
-	return -1;
-}
-
 void FVulkanDynamicRHI::SelectDevice()
 {
 	uint32 GpuCount = 0;
@@ -639,13 +619,13 @@ void FVulkanDynamicRHI::SelectDevice()
 			}
 			else if (DiscreteDevices.Num() > 0 && CVarExplicitAdapterValue == -1)
 			{
-				int32 PreferredVendor = PreferAdapterVendor();
-				if (DiscreteDevices.Num() > 1 && PreferredVendor != -1)
+				const EGpuVendorId PreferredVendor = RHIGetPreferredAdapterVendor();
+				if (DiscreteDevices.Num() > 1 && (PreferredVendor != EGpuVendorId::Unknown))
 				{
 					// Check for preferred
 					for (int32 Index = 0; Index < DiscreteDevices.Num(); ++Index)
 					{
-						if (DiscreteDevices[Index].Device->GpuProps.vendorID == PreferredVendor)
+						if (RHIConvertToGpuVendorId(DiscreteDevices[Index].Device->GpuProps.vendorID) == PreferredVendor)
 						{
 							DeviceIndex = DiscreteDevices[Index].DeviceIndex;
 							Device = DiscreteDevices[Index].Device;

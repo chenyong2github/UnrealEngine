@@ -24,6 +24,7 @@
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "RHIValidation.h"
+#include "RHIUtilities.h"
 #include "HAL/ExceptionHandling.h"
 #include "HDRHelper.h"
 #include "GlobalShader.h"
@@ -42,31 +43,6 @@ FD3D11DynamicRHI*	GD3D11RHI = nullptr;
 
 extern bool D3D11RHI_ShouldCreateWithD3DDebug();
 extern bool D3D11RHI_ShouldAllowAsyncResourceCreation();
-
-static int D3D11RHI_PreferAdapterVendor()
-{
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferAMD")))
-	{
-		return 0x1002;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferIntel")))
-	{
-		return 0x8086;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferNvidia")))
-	{
-		return 0x10DE;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferMS")))
-	{
-		return 0x1414;
-	}
-
-	return -1;
-}
 
 static bool D3D11RHI_AllowSoftwareFallback()
 {
@@ -1020,7 +996,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	UE_LOG(LogD3D11RHI, Log, TEXT("D3D11 adapters:"));
 
-	int PreferredVendor = D3D11RHI_PreferAdapterVendor();
+	const EGpuVendorId PreferredVendor = RHIGetPreferredAdapterVendor();
 	bool bAllowSoftwareFallback = D3D11RHI_AllowSoftwareFallback();
 
 
@@ -1132,7 +1108,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 					{
 						FirstWithoutIntegratedAdapter = CurrentAdapter;
 					}
-					else if (PreferredVendor == AdapterDesc.VendorId && FirstWithoutIntegratedAdapter.IsValid())
+					else if ((PreferredVendor != EGpuVendorId::Unknown) && (PreferredVendor == RHIConvertToGpuVendorId(AdapterDesc.VendorId)) && FirstWithoutIntegratedAdapter.IsValid())
 					{
 						FirstWithoutIntegratedAdapter = CurrentAdapter;
 					}
@@ -1141,7 +1117,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 					{
 						FirstAdapter = CurrentAdapter;
 					}
-					else if (PreferredVendor == AdapterDesc.VendorId && FirstAdapter.IsValid())
+					else if ((PreferredVendor != EGpuVendorId::Unknown) && (PreferredVendor == RHIConvertToGpuVendorId(AdapterDesc.VendorId)) && FirstAdapter.IsValid())
 					{
 						FirstAdapter = CurrentAdapter;
 					}

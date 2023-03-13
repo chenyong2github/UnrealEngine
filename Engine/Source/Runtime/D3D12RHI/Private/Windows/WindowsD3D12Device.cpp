@@ -37,6 +37,7 @@
 #include "IHeadMountedDisplayModule.h"
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 #include "RHIValidation.h"
+#include "RHIUtilities.h"
 
 #include "ShaderCompiler.h"
 
@@ -141,26 +142,6 @@ static FAutoConsoleVariableRef CVarAutoAttachPIX(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 #endif // D3D12RHI_SUPPORTS_WIN_PIX
-
-static inline int D3D12RHI_PreferAdapterVendor()
-{
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferAMD")))
-	{
-		return 0x1002;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferIntel")))
-	{
-		return 0x8086;
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("preferNvidia")))
-	{
-		return 0x10DE;
-	}
-
-	return -1;
-}
 
 using namespace D3D12RHI;
 
@@ -402,7 +383,7 @@ static bool CheckDeviceForEmulatedAtomic64Support(IDXGIAdapter* Adapter, ID3D12D
 	DXGI_ADAPTER_DESC AdapterDesc{};
 	Adapter->GetDesc(&AdapterDesc);
 
-	if (AdapterDesc.VendorId == 0x8086 && !FParse::Param(FCommandLine::Get(), TEXT("novendordevice")))
+	if ((RHIConvertToGpuVendorId(AdapterDesc.VendorId) == EGpuVendorId::Intel) && !FParse::Param(FCommandLine::Get(), TEXT("novendordevice")))
 	{
 		INTCExtensionInfo INTCExtensionInfo{};
 		if (INTCExtensionContext* IntelExtensionContext = CreateIntelExtensionsContext(Device, INTCExtensionInfo))
@@ -866,7 +847,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 	default: GpuPreference = DXGI_GPU_PREFERENCE_UNSPECIFIED; break;
 	}
 
-	int PreferredVendor = D3D12RHI_PreferAdapterVendor();
+	const EGpuVendorId PreferredVendor = RHIGetPreferredAdapterVendor();
 
 	// Enumerate the DXGIFactory's adapters.
 	for (uint32 AdapterIndex = 0; FD3D12AdapterDesc::EnumAdapters(AdapterIndex, GpuPreference, DXGIFactory4, DXGIFactory6, TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
@@ -908,7 +889,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 					OutputCount
 				);
 
-				const bool bIsWARP = AdapterDesc.VendorId == 0x1414;
+				const bool bIsWARP = (RHIConvertToGpuVendorId(AdapterDesc.VendorId) == EGpuVendorId::Microsoft);
 
 #if !PLATFORM_HOLOLENS
 				if (!bIsWARP)
@@ -944,7 +925,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 
 				if (!bSkipAdapter)
 				{
-					if (PreferredVendor == AdapterDesc.VendorId && FirstDiscreteAdapter.IsValid())
+					if ((PreferredVendor != EGpuVendorId::Unknown) && (PreferredVendor == RHIConvertToGpuVendorId(AdapterDesc.VendorId)) && FirstDiscreteAdapter.IsValid())
 					{
 						FirstDiscreteAdapter = CurrentAdapter;
 					}
@@ -965,7 +946,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 					{
 						FirstAdapter = CurrentAdapter;
 					}
-					else if (PreferredVendor == AdapterDesc.VendorId && FirstAdapter.IsValid())
+					else if ((PreferredVendor != EGpuVendorId::Unknown) && (PreferredVendor == RHIConvertToGpuVendorId(AdapterDesc.VendorId)) && FirstAdapter.IsValid())
 					{
 						FirstAdapter = CurrentAdapter;
 					}
