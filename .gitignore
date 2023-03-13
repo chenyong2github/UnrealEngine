@@ -279,3 +279,4 @@ Engine/Extras/ThirdPartyNotUE/SDKs/HostLinux/**
 # Ignore test json data files in NeuralNetworkInterface
 /Engine/Plugins/Experimental/NNI/Source/ThirdParty/Deps/json/**
 /Engine/Plugins/Experimental/NNE/Source/ThirdParty/Deps/json/**
+/Engine/Source/ThirdParty/Vulkan/share/vulkan/registry/**
