@@ -314,7 +314,7 @@ void DrawBonesInternal(
 	{
 		for (int32 BoneIndex : InSelectedBones)
 		{
-			if (BoneIndex != INDEX_NONE)
+			if (BoneIndex != INDEX_NONE && BonesToDraw.IsValidIndex(BoneIndex))
 			{
 				BonesToDraw[BoneIndex] = true;
 			}

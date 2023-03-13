@@ -31,6 +31,7 @@ FSkeletonTreeVirtualBoneItem::FSkeletonTreeVirtualBoneItem(const FName& InBoneNa
 	if (PreviewScene.IsValid())
 	{
 		BoneProxy->SkelMeshComponent = PreviewScene->GetPreviewMeshComponent();
+		BoneProxy->WeakPreviewScene = PreviewScene.ToWeakPtr();
 	}
 }
 

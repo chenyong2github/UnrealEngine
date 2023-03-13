@@ -38,10 +38,11 @@ FSkeletonTreeBoneItem::FSkeletonTreeBoneItem(const FName& InBoneName, const TSha
 	BoneProxy = NewObject<UBoneProxy>(GetTransientPackage(), *(BoneProxyPrefix + FString::Printf(TEXT("%p"), &InSkeletonTree.Get()) + InBoneName.ToString()));
 	BoneProxy->SetFlags(RF_Transactional);
 	BoneProxy->BoneName = InBoneName;
-	TSharedPtr<IPersonaPreviewScene> PreviewScene = InSkeletonTree->GetPreviewScene();
+	const TSharedPtr<IPersonaPreviewScene> PreviewScene = InSkeletonTree->GetPreviewScene();
 	if (PreviewScene.IsValid())
 	{
 		BoneProxy->SkelMeshComponent = PreviewScene->GetPreviewMeshComponent();
+		BoneProxy->WeakPreviewScene = PreviewScene.ToWeakPtr();
 	}
 }
 
@@ -337,7 +338,7 @@ FText FSkeletonTreeBoneItem::GetBoneToolTip()
 	{
 		UDebugSkelMeshComponent* PreviewComponent = GetSkeletonTree()->GetPreviewScene()->GetPreviewMeshComponent();
 
-		if (PreviewComponent)
+		if (PreviewComponent && PreviewComponent->GetSkeletalMeshAsset())
 		{
 			bMeshExists = true;
 
