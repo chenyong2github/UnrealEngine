@@ -133,9 +133,10 @@ FIOSLocalNotificationService::FIOSLocalNotificationService()
 void FIOSLocalNotificationService::ClearAllLocalNotifications()
 {
 #if !PLATFORM_TVOS
-	UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
-	
-	[Center removeAllPendingNotificationRequests];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
+		[Center removeAllPendingNotificationRequests];
+	});
 #endif
 }
 
