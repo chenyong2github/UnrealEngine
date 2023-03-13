@@ -2452,9 +2452,10 @@ void FMediaPlayerFacade::PreSampleProcessingTimeHandling()
 
 	UpdateSeekStatus();
 
-	if (!SeekTargetTime.IsValid())
+	// No seeking and not paused either?
+	if (!SeekTargetTime.IsValid() && CurrentRate != 0.0f)
 	{
-		// No seek pending. Can we / Do we need to prime a non-audio clock?
+		// No seek pending & not paused. Can we / Do we need to prime a non-audio clock?
 		if (!bHaveActiveAudio && !BlockOnRange.IsSet() && !NextEstVideoTimeAtFrameStart.IsValid())
 		{
 			FMediaTimeStamp VideoTimeStamp;
