@@ -50,7 +50,6 @@ protected:
 
 class CHAOS_API FGeometryDynamicCollection : public FTransformDynamicCollection
 {
-
 public:
 	FGeometryDynamicCollection();
 	FGeometryDynamicCollection(FGeometryDynamicCollection&) = delete;
@@ -79,13 +78,29 @@ public:
 	TManagedArray<int32> CollisionStructureID;
 	TManagedArray<int32> DynamicState;
 	TManagedArray<FSharedImplicit> Implicits;
-	TManagedArray<FVector3f> InitialAngularVelocity;
-	TManagedArray<FVector3f> InitialLinearVelocity;
 	TManagedArray<FTransform> MassToLocal;
-	//TManagedArray<TArray<FCollisionFilterData>> ShapeQueryData;
-	//TManagedArray<TArray<FCollisionFilterData>> ShapeSimData;
 	TManagedArray<TUniquePtr<FCollisionStructureManager::FSimplicial>> Simplicials;
 	TManagedArray<bool> SimulatableParticles;
+
+public:
+	struct FInitialVelocityFacade
+	{
+		FInitialVelocityFacade(FGeometryDynamicCollection& DynamicCollection);
+		FInitialVelocityFacade(const FGeometryDynamicCollection& DynamicCollection);
+
+		bool IsValid() const;
+		void DefineSchema();
+		void Fill(const FVector3f& InitialLinearVelocity, const FVector3f& InitialAngularVelocity);
+		void CopyFrom(const FGeometryDynamicCollection& SourceCollection);
+
+		TManagedArrayAccessor<FVector3f> InitialLinearVelocityAttribute;
+		TManagedArrayAccessor<FVector3f> InitialAngularVelocityAttribute;
+	};
+
+	FInitialVelocityFacade GetInitialVelocityFacade() { return FInitialVelocityFacade(*this); }
+	FInitialVelocityFacade GetInitialVelocityFacade() const { return FInitialVelocityFacade(*this); }
+
+	void CopyInitialVelocityAttributesFrom(const FGeometryDynamicCollection& SourceCollection);
 };
 
 /**

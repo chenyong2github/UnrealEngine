@@ -56,14 +56,55 @@ FGeometryDynamicCollection::FGeometryDynamicCollection()
 	AddExternalAttribute("CollisionStructureID", FTransformCollection::TransformGroup, CollisionStructureID);
 	AddExternalAttribute<int32>(FGeometryDynamicCollection::DynamicStateAttribute, FTransformCollection::TransformGroup, DynamicState);
 	AddExternalAttribute(ImplicitsAttribute, FTransformCollection::TransformGroup, Implicits);
-	AddExternalAttribute("InitialAngularVelocity", FTransformCollection::TransformGroup, InitialAngularVelocity);
-	AddExternalAttribute("InitialLinearVelocity", FTransformCollection::TransformGroup, InitialLinearVelocity);
 	AddExternalAttribute("MassToLocal", FTransformCollection::TransformGroup, MassToLocal);
-	//AddExternalAttribute(ShapesQueryDataAttribute, FTransformCollection::TransformGroup, ShapeQueryData);
-	//AddExternalAttribute(ShapesSimDataAttribute, FTransformCollection::TransformGroup, ShapeSimData);
 	AddExternalAttribute(SimplicialsAttribute, FTransformCollection::TransformGroup, Simplicials);
 	AddExternalAttribute(SimulatableParticlesAttribute, FGeometryCollection::TransformGroup, SimulatableParticles);
 
+}
+
+void FGeometryDynamicCollection::CopyInitialVelocityAttributesFrom(const FGeometryDynamicCollection& SourceCollection)
+{
+	FInitialVelocityFacade InitialVelocityFacade(*this);
+	InitialVelocityFacade.CopyFrom(SourceCollection);
+}
+
+FGeometryDynamicCollection::FInitialVelocityFacade::FInitialVelocityFacade(FGeometryDynamicCollection& DynamicCollection)
+	: InitialLinearVelocityAttribute(DynamicCollection, "InitialLinearVelocity", FTransformCollection::TransformGroup)
+	, InitialAngularVelocityAttribute(DynamicCollection, "InitialAngularVelocity", FTransformCollection::TransformGroup)
+{}
+
+FGeometryDynamicCollection::FInitialVelocityFacade::FInitialVelocityFacade(const FGeometryDynamicCollection& DynamicCollection)
+	: InitialLinearVelocityAttribute(DynamicCollection, "InitialLinearVelocity", FTransformCollection::TransformGroup)
+	, InitialAngularVelocityAttribute(DynamicCollection, "InitialAngularVelocity", FTransformCollection::TransformGroup)
+{}
+
+bool FGeometryDynamicCollection::FInitialVelocityFacade::IsValid() const
+{
+	return InitialLinearVelocityAttribute.IsValid() && InitialAngularVelocityAttribute.IsValid();
+}
+
+void FGeometryDynamicCollection::FInitialVelocityFacade::DefineSchema()
+{
+	InitialLinearVelocityAttribute.Add();
+	InitialAngularVelocityAttribute.Add();
+}
+
+void FGeometryDynamicCollection::FInitialVelocityFacade::Fill(const FVector3f& InitialLinearVelocity, const FVector3f& InitialAngularVelocity)
+{
+	check(IsValid());
+	InitialLinearVelocityAttribute.Fill(InitialLinearVelocity);
+	InitialAngularVelocityAttribute.Fill(InitialAngularVelocity);
+}
+
+void FGeometryDynamicCollection::FInitialVelocityFacade::CopyFrom(const FGeometryDynamicCollection& SourceCollection)
+{
+	FInitialVelocityFacade SourceInitialVelocityFacade(SourceCollection);
+	if (SourceInitialVelocityFacade.IsValid())
+	{
+		DefineSchema();
+		InitialLinearVelocityAttribute.Copy(SourceInitialVelocityFacade.InitialLinearVelocityAttribute);
+		InitialAngularVelocityAttribute.Copy(SourceInitialVelocityFacade.InitialAngularVelocityAttribute);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
