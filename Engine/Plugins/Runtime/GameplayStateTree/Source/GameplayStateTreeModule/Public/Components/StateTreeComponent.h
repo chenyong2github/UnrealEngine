@@ -51,7 +51,11 @@ public:
 	virtual void OnGameplayTaskInitialized(UGameplayTask& Task) override;
 	// END IGameplayTaskOwnerInterface
 
-	/** Sets whether the State Tree is started automatically on being play. */
+	/**
+	 * Sets whether the State Tree is started automatically on being play.
+	 * This function sets the bStartLogicAutomatically property, and should be used mostly from constructions sscripts.
+	 * If you wish to start the logic manually, call StartLogic(). 
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Gameplay|StateTree")
 	void SetStartLogicAutomatically(const bool bInStartLogicAutomatically);
 
