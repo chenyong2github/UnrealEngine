@@ -768,6 +768,11 @@ namespace Horde.Build.Issues
 		public DateTime? QuarantineTimeUtc { get; set; }
 
 		/// <summary>
+		/// The workflow thread url for this issue
+		/// </summary>
+		public Uri? WorkflowThreadUrl { get; set; }
+
+		/// <summary>
 		/// Workflows for which this issue is open
 		/// </summary>
 		public List<WorkflowId> OpenWorkflows { get; set; }
@@ -817,6 +822,7 @@ namespace Horde.Build.Issues
 				QuarantinedBy = new GetThinUserInfoResponse(quarantinedBy);
 				QuarantineTimeUtc = issue.QuarantineTimeUtc;
 			}
+			WorkflowThreadUrl = issue.WorkflowThreadUrl;
 			OpenWorkflows = openWorkflows;
 		}
 	}
