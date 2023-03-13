@@ -130,9 +130,14 @@ bool FImageWriteTask::EnsureWritableFile()
 		return true;
 	}
 	// We can't write to the file
+	else if (bOverwriteFile)
+	{
+		UE_LOG(LogImageWriteQueue, Error, TEXT("Failed to write image to '%s'. Should have overwritten the file, but we failed to delete it."), *Filename);
+		return false;
+	}
 	else
 	{
-		UE_LOG(LogImageWriteQueue, Error, TEXT("Failed to write image to '%s'. Should Overwrite: %d - If we should have overwritten the file, we failed to delete the file. If we shouldn't have overwritten the file the file already exists so we can't replace it."), *Filename, bOverwriteFile);
+		UE_LOG(LogImageWriteQueue, Error, TEXT("Failed to write image to '%s'. Shouldn't overwrite the file and it already exists so we can't replace it."), *Filename);
 		return false;
 	}
 }
