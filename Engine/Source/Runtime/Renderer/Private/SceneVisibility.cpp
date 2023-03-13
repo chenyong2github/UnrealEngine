@@ -1341,7 +1341,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 					View.PrimitiveVisibilityMap.AccessCorrespondingBit(BitIt) = false;
 					continue;
 				}
-				SubIsOccluded.Reserve(NumSubQueries);
+				SubIsOccluded.Reserve(SubIsOccluded.Num() + NumSubQueries);
 			}
 
 			bool bAllSubOcclusionStateIsDefinite = true;
