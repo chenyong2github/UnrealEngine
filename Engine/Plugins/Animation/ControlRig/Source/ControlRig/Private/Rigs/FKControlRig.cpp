@@ -284,21 +284,19 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 
 	Super::Initialize(bInitRigUnits);
 
-	if (GetObjectBinding() == nullptr)
+	if(const TSharedPtr<IControlRigObjectBinding> Binding = GetObjectBinding())
 	{
-		return;
-	}
-
-	// we do this after Initialize because Initialize will copy from CDO. 
-	// create hierarchy from the incoming skeleton
-	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetObjectBinding()->GetBoundObject()))
-	{
-		CreateRigElements(SkeletalMeshComponent->GetSkeletalMeshAsset());
-	}
-	else if (USkeleton* Skeleton = Cast<USkeleton>(GetObjectBinding()->GetBoundObject()))
-	{
-		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
-		CreateRigElements(RefSkeleton, Skeleton);
+		// we do this after Initialize because Initialize will copy from CDO. 
+		// create hierarchy from the incoming skeleton
+		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Binding->GetBoundObject()))
+		{
+			CreateRigElements(SkeletalMeshComponent->GetSkeletalMeshAsset());
+		}
+		else if (USkeleton* Skeleton = Cast<USkeleton>(Binding->GetBoundObject()))
+		{
+			const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+			CreateRigElements(RefSkeleton, Skeleton);
+		}
 	}
 }
 
