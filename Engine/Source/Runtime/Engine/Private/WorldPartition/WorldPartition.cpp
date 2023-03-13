@@ -992,6 +992,7 @@ bool UWorldPartition::RemoveWorldPartition(AWorldSettings* WorldSettings)
 
 			WorldPartition->Uninitialize();
 			WorldSettings->SetWorldPartition(nullptr);
+			PersistentLevel->bIsPartitioned = false;
 
 			if (WorldPartition->WorldPartitionEditor)
 			{
