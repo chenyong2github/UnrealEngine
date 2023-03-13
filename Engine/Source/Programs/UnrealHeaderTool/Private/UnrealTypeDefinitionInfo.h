@@ -95,6 +95,7 @@ struct FDeclaration
 {
 	uint32 CurrentCompilerDirective;
 	TArray<FToken> Tokens;
+	bool bIsUFunction;
 };
 
 /**
@@ -2020,9 +2021,9 @@ public:
 	/**
 	 * Add a declaration to the struct
 	 */
-	void AddDeclaration(uint32 CurrentCompilerDirective, TArray<FToken>&& Tokens)
+	void AddDeclaration(uint32 CurrentCompilerDirective, TArray<FToken>&& Tokens, bool bIsUFunction)
 	{
-		Declarations.Emplace(FDeclaration{ CurrentCompilerDirective, MoveTemp(Tokens) });
+		Declarations.Emplace(FDeclaration{ CurrentCompilerDirective, MoveTemp(Tokens), bIsUFunction });
 	}
 
 	/** 

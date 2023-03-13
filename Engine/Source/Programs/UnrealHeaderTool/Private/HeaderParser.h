@@ -706,12 +706,13 @@ public:
 class FRecordTokens
 {
 public:
-	explicit FRecordTokens(FHeaderParser& InParser, FUnrealStructDefinitionInfo* InStructDef, FToken* InToken);
+	explicit FRecordTokens(FHeaderParser& InParser, FUnrealStructDefinitionInfo* InStructDef, bool bInIsUFunction, FToken* InToken);
 	~FRecordTokens();
 	bool Stop();
 
 private:
 	FHeaderParser& Parser;
 	FUnrealStructDefinitionInfo* StructDef;
+	bool bIsUFunction;
 	uint32 CurrentCompilerDirective = 0;
 };
