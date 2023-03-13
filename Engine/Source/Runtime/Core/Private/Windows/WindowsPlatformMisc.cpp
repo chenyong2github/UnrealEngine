@@ -27,6 +27,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
+#include "Misc/ScopeExit.h"
 #include "HAL/ExceptionHandling.h"
 #include "Misc/SecureHash.h"
 #include "HAL/IConsoleManager.h"
@@ -981,6 +982,13 @@ void FWindowsPlatformMisc::LocalPrint( const TCHAR *Message )
 #if USE_DEBUG_LOGGING
 	OutputDebugString(Message);
 #endif
+}
+
+bool FWindowsPlatformMisc::IsLowLevelOutputDebugStringStructured()
+{
+	HANDLE Mutex = OpenMutexW(SYNCHRONIZE, /*bInheritHandle*/ false, LR"--(Global\UE_LOG_JSON)--");
+	ON_SCOPE_EXIT { CloseHandle(Mutex); };
+	return !!Mutex || FGenericPlatformMisc::IsLowLevelOutputDebugStringStructured();
 }
 
 void FWindowsPlatformMisc::RequestExit( bool Force )

@@ -911,6 +911,16 @@ void FGenericPlatformMisc::LowLevelOutputDebugStringf(const TCHAR *Fmt, ... )
 	);
 }
 
+bool FGenericPlatformMisc::IsLowLevelOutputDebugStringStructured()
+{
+	if (!FCommandLine::IsInitialized())
+	{
+		return false;
+	}
+	static bool bJsonDebugOutput = FParse::Param(FCommandLine::Get(), TEXT("JsonDebugOutput"));
+	return bJsonDebugOutput;
+}
+
 void FGenericPlatformMisc::SetUTF8Output()
 {
 	// assume that UTF-8 is possible by default anyway

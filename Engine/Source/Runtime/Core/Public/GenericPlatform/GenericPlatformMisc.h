@@ -975,6 +975,9 @@ public:
 	static void LowLevelOutputDebugString(const TCHAR *Message);
 	static void VARARGS LowLevelOutputDebugStringf(const TCHAR *Format, ... );
 
+	/** Whether LowLevelOutputDebugString[f] can receive structured output as lines of JSON. */
+	static bool IsLowLevelOutputDebugStringStructured();
+
 	/** Sets the default output to UTF8 */
 	static void SetUTF8Output();
 
