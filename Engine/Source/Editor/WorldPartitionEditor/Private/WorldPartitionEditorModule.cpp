@@ -152,6 +152,7 @@ void FWorldPartitionEditorModule::StartupModule()
 void FWorldPartitionEditorModule::ShutdownModule()
 {
 	FWorldPartitionClassDescRegistry().Get().Uninitialize();
+	FWorldPartitionClassDescRegistry().Get().TearDown();
 
 	if (!IsRunningGame())
 	{

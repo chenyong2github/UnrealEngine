@@ -17,10 +17,8 @@ class ENGINE_API FWorldPartitionClassDescRegistry : FActorDescList
 	using TRedirectClassMap = TMap<FTopLevelAssetPath, FTopLevelAssetPath>;
 
 public:
-	static FWorldPartitionClassDescRegistry& Get()
-	{
-		return TLazySingleton<FWorldPartitionClassDescRegistry>::Get();
-	}
+	static FWorldPartitionClassDescRegistry& Get();
+	static void TearDown();
 
 	void Initialize();
 	void Uninitialize();

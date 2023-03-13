@@ -21,6 +21,16 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
 
+FWorldPartitionClassDescRegistry& FWorldPartitionClassDescRegistry::Get()
+{
+	return TLazySingleton<FWorldPartitionClassDescRegistry>::Get();
+}
+
+void FWorldPartitionClassDescRegistry::TearDown()
+{
+	TLazySingleton<FWorldPartitionClassDescRegistry>::TearDown();
+}
+
 void FWorldPartitionClassDescRegistry::Initialize()
 {
 	UE_SCOPED_TIMER(TEXT("FWorldPartitionClassDescRegistry::Initialize"), LogWorldPartition, Display);
@@ -299,6 +309,14 @@ void FWorldPartitionClassDescRegistry::RegisterClassDescriptorFromAssetData(cons
 
 void FWorldPartitionClassDescRegistry::RegisterClassDescriptorFromActorClass(const UClass* InActorClass)
 {
+	if (UClass* ParentClass = InActorClass->GetSuperClass(); ParentClass && ParentClass->IsChildOf<AActor>())
+	{
+		if (!ClassByPath.Contains(FTopLevelAssetPath(ParentClass->GetPathName())))
+		{
+			RegisterClassDescriptorFromActorClass(ParentClass);
+		}
+	}
+
 	ParentClassMap.Add(FTopLevelAssetPath(InActorClass->GetPathName()), FTopLevelAssetPath(InActorClass->GetSuperClass()->GetPathName()));
 
 	const AActor* ActorCDO = CastChecked<AActor>(InActorClass->GetDefaultObject());
