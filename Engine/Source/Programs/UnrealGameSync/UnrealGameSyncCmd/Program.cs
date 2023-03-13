@@ -255,10 +255,12 @@ namespace UnrealGameSyncCmd
 					return 1;
 				}
 
-				if (command.Type != typeof(UpgradeCommand))
+				if (command.Type != typeof(InstallCommand) && command.Type != typeof(UpgradeCommand))
 				{
+					string version = GetVersion();
+
 					DateTime utcNow = DateTime.UtcNow;
-					if (settings.Global.LastVersionCheck < utcNow - TimeSpan.FromDays(1.0))
+					if (settings.Global.LastVersionCheck < utcNow - TimeSpan.FromDays(1.0) || IsUpgradeAvailable(settings, version))
 					{
 						using (CancellationTokenSource cancellationSource = new CancellationTokenSource(TimeSpan.FromSeconds(10.0)))
 						{
@@ -290,10 +292,9 @@ namespace UnrealGameSyncCmd
 						settings.Save(logger);
 					}
 
-					string version = GetVersion();
-					if (settings.Global.LatestVersion != null && !settings.Global.LatestVersion.Equals(version, StringComparison.OrdinalIgnoreCase))
+					if (IsUpgradeAvailable(settings, version))
 					{
-						logger.LogWarning("A newer version of UGS is available ({LatestVersion}). Run {Command} to update.", settings.Global.LatestVersion, "ugs upgrade");
+						logger.LogWarning("A newer version of UGS is available ({LatestVersion} > {Version}). Run {Command} to update.", settings.Global.LatestVersion, version, "ugs upgrade");
 						logger.LogInformation("");
 					}
 				}
@@ -317,6 +318,11 @@ namespace UnrealGameSyncCmd
 				logger.LogError(ex, "Unhandled exception.\n{Str}", ex);
 				return 1;
 			}
+		}
+
+		static bool IsUpgradeAvailable(GlobalSettingsFile settings, string version)
+		{
+			return settings.Global.LatestVersion != null && !settings.Global.LatestVersion.Equals(version, StringComparison.OrdinalIgnoreCase);
 		}
 
 		static void PrintHelp()
@@ -1513,6 +1519,9 @@ namespace UnrealGameSyncCmd
 		{
 			[CommandLine("-Check")]
 			public bool Check { get; set; }
+
+			[CommandLine("-Force")]
+			public bool Force { get; set; }
 		}
 
 		class UpgradeCommand : Command
@@ -1533,7 +1542,7 @@ namespace UnrealGameSyncCmd
 				{
 					return;
 				}
-				if (latestVersion.Equals(currentVersion, StringComparison.OrdinalIgnoreCase))
+				if (latestVersion.Equals(currentVersion, StringComparison.OrdinalIgnoreCase) && !options.Force)
 				{
 					logger.LogInformation("You are running the latest version ({Version})", currentVersion);
 					return;
