@@ -954,7 +954,8 @@ void FGetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 					if (TypeStr == FString("Bool"))
 					{
 						const TManagedArray<bool>& AttributeArr = InCollection.GetAttribute<bool>(FName(*AttrName), GroupNameToUse);
-						SetValue<TArray<bool>>(Context, AttributeArr.GetConstArray(), &BoolAttributeData);
+						TArray<bool> BoolArray = AttributeArr.GetAsBoolArray();
+						SetValue<TArray<bool>>(Context, MoveTemp(BoolArray), &BoolAttributeData);
 					}
 					else if (TypeStr == FString("Float"))
 					{
