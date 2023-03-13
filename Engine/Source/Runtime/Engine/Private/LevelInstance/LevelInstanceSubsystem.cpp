@@ -2479,6 +2479,7 @@ FWorldPartitionActorFilter ULevelInstanceSubsystem::GetLevelInstanceFilter(const
 	return GetLevelInstanceFilterInternal(LevelPackage, VisitedPackages);
 }
 
+// @todo_ow: Move this code out of ULevelInstanceSubsystem into UWorldPartitionSubsystem now that it is generic (not relying on LevelInstances)
 FWorldPartitionActorFilter ULevelInstanceSubsystem::GetLevelInstanceFilterInternal(const FString& LevelPackage, TSet<FString>& VisitedPackages) const
 {
 	if (VisitedPackages.Contains(LevelPackage))
@@ -2495,7 +2496,7 @@ FWorldPartitionActorFilter ULevelInstanceSubsystem::GetLevelInstanceFilterIntern
 	ON_SCOPE_EXIT{ ActorDescContainerInstanceManager.UnregisterContainer(LevelContainer); };
 
 	// Lazy create filter for now
-	TArray<const FLevelInstanceActorDesc*> LevelInstanceActorDescs;
+	TArray<const FWorldPartitionActorDesc*> ContainerActorDescs;
 	const FWorldDataLayersActorDesc* WorldDataLayersActorDesc = nullptr;
 
 	for (FActorDescList::TConstIterator<> ActorDescIt(LevelContainer); ActorDescIt; ++ActorDescIt)
@@ -2505,9 +2506,9 @@ FWorldPartitionActorFilter ULevelInstanceSubsystem::GetLevelInstanceFilterIntern
 			check(!WorldDataLayersActorDesc);
 			WorldDataLayersActorDesc = static_cast<const FWorldDataLayersActorDesc*>(*ActorDescIt);
 		}
-		else if (ActorDescIt->GetActorNativeClass()->ImplementsInterface(ULevelInstanceInterface::StaticClass()))
+		else if (ActorDescIt->IsContainerInstance())
 		{
-			LevelInstanceActorDescs.Add(static_cast<const FLevelInstanceActorDesc*>(*ActorDescIt));
+			ContainerActorDescs.Add(*ActorDescIt);
 		}
 	}
 	
@@ -2525,18 +2526,21 @@ FWorldPartitionActorFilter ULevelInstanceSubsystem::GetLevelInstanceFilterIntern
 		}
 	}
 
-	for (const FLevelInstanceActorDesc* LevelInstanceActorDesc : LevelInstanceActorDescs)
+	for (const FWorldPartitionActorDesc* ContainerActorDesc : ContainerActorDescs)
 	{
 		TSet<FString> VisitedPackagesCopy(VisitedPackages);
 
 		// Get World Default Filter
-		FWorldPartitionActorFilter* ChildFilter = new FWorldPartitionActorFilter(GetLevelInstanceFilterInternal(LevelInstanceActorDesc->GetLevelPackage().ToString(), VisitedPackagesCopy));
-		ChildFilter->DisplayName = LevelInstanceActorDesc->GetActorLabelOrName().ToString();
+		FWorldPartitionActorFilter* ChildFilter = new FWorldPartitionActorFilter(GetLevelInstanceFilterInternal(ContainerActorDesc->GetLevelPackage().ToString(), VisitedPackagesCopy));
+		ChildFilter->DisplayName = ContainerActorDesc->GetActorLabelOrName().ToString();
 
-		// Apply LevelInstanceActorDesc Filter to Default
-		ChildFilter->Override(LevelInstanceActorDesc->GetFilter());
+		// Apply Filter to Default
+		if (const FWorldPartitionActorFilter* ContainerFilter = ContainerActorDesc->GetContainerFilter())
+		{
+			ChildFilter->Override(*ContainerFilter);
+		}
 
-		Filter.AddChildFilter(LevelInstanceActorDesc->GetGuid(), ChildFilter);
+		Filter.AddChildFilter(ContainerActorDesc->GetGuid(), ChildFilter);
 	}
 
 	return Filter;

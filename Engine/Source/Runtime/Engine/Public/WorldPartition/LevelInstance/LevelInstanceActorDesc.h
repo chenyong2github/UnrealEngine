@@ -28,8 +28,8 @@ public:
 	virtual bool IsContainerInstance() const override;
 	virtual FName GetLevelPackage() const override { return LevelPackage; }
 	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance, bool bInBuildFilter) const override;
+	virtual const FWorldPartitionActorFilter* GetContainerFilter() const override { return &Filter; }
 	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const override;
-	const FWorldPartitionActorFilter& GetFilter() const { return Filter; }
 
 protected:
 	virtual void Init(const AActor* InActor) override;

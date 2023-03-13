@@ -26,6 +26,7 @@ struct FWorldPartitionActorDescInitData
 class AActor;
 class UActorDescContainer;
 class IStreamingGenerationErrorHandler;
+struct FWorldPartitionActorFilter;
 
 enum class EContainerClusterMode : uint8
 {
@@ -154,6 +155,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual bool IsContainerInstance() const { return false; }
 	virtual FName GetLevelPackage() const { return NAME_None; }
+	virtual const FWorldPartitionActorFilter* GetContainerFilter() const { return nullptr; }
 	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance, bool bInBuildFilter = false) const { return false; }
 
 	FGuid GetContentBundleGuid() const;
