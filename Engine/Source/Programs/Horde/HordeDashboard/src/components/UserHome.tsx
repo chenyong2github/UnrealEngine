@@ -223,11 +223,11 @@ const HealthPanel: React.FC = observer(() => {
 
    const items = issues?.map(i => { return { issue: i } });
 
-   const columns = [
-      { key: 'health_column1', name: 'Summary', minWidth: 500, maxWidth: 500, isResizable: false },
+   const columns: IColumn[] = [
+      { key: 'health_column1', name: 'Summary', minWidth: 600, maxWidth: 600, isResizable: false },
+      { key: 'health_column2', name: 'Workflow', minWidth: 100, maxWidth: 100, isResizable: false},
       { key: 'health_column3', name: 'Status', minWidth: 320, maxWidth: 320, isResizable: false },
       { key: 'health_column4', name: 'Opened', minWidth: 100, maxWidth: 100, isResizable: false },
-
    ];
 
    const renderItem = (item: HealthItem, index?: number, column?: IColumn) => {
@@ -261,7 +261,7 @@ const HealthPanel: React.FC = observer(() => {
             summary = summary.slice(0, 100) + "...";
          }
 
-         return <Stack horizontal disableShrink={true}>{<IssueStatusIcon issue={issue} />}<Text>{`Issue ${issue.id} - ${summary}`}</Text></Stack>;
+         return <Stack style={{padding: 8}} horizontal disableShrink={true}>{<IssueStatusIcon issue={issue} />}<Text>{`Issue ${issue.id} - ${summary}`}</Text></Stack>;
       }
 
       if (column.name === "Status") {
@@ -270,17 +270,20 @@ const HealthPanel: React.FC = observer(() => {
             status += ` (${ack})`;
          }
 
-         return <Stack horizontalAlign="end" disableShrink={true}><Text>{status}</Text></Stack>;
+         return <Stack style={{padding: 8}} horizontalAlign="end" disableShrink={true}><Text>{status}</Text></Stack>;
       }
 
-      if (column.name === "Ack") {
-         return <Text>{ack}</Text>;
-      }
+      if (column.name === "Workflow") {
+         if (!issue.workflowThreadUrl) {
+            return null;
+         }
 
+         return <a onClick={(e) => e.stopPropagation()} style={{ fontSize: "13px" }} href={issue.workflowThreadUrl} target="_blank" rel="noreferrer"><Stack style={{padding: 8}} horizontalAlign="start" disableShrink={true}>Slack Thread</Stack></a>;
+      }
 
       if (column.name === "Opened") {
          const openSince = `${getShortNiceTime(issue.createdAt)} (${getElapsedString(moment(issue.createdAt), moment.utc(), false).trim()})`;
-         return <Stack style={{ paddingRight: 8 }} horizontalAlign="end"><Text>{openSince}</Text></Stack>;
+         return <Stack style={{ padding: 8 }} horizontalAlign="end"><Text>{openSince}</Text></Stack>;
       }
 
       return <Stack />;
@@ -289,8 +292,7 @@ const HealthPanel: React.FC = observer(() => {
    const classes = mergeStyleSets({
       detailsRow: {
          selectors: {
-            '.ms-DetailsRow-cell': {
-               padding: 8,
+            '.ms-DetailsRow-cell': {               
                overflow: "hidden",
                whiteSpace: "nowrap"
             }
@@ -1030,22 +1032,22 @@ const JobsPanel: React.FC<{ includeOtherPreflights: boolean }> = observer(({ inc
                   </Stack>
                </Stack>
                <Stack styles={{ root: { paddingLeft: 4, paddingRight: 0, paddingTop: 8, paddingBottom: 4 } }}>
-                     {!!jobItems.length && <DetailsList
-                        styles={{ root: { paddingLeft: 8, paddingRight: 8, marginBottom: 18 } }}
-                        compact={true}
-                        isHeaderVisible={false}
-                        indentWidth={0}
-                        items={jobItems}
-                        columns={columns}
-                        setKey="set"
-                        selectionMode={SelectionMode.none}
-                        layoutMode={DetailsListLayoutMode.fixedColumns}
-                        onRenderDetailsHeader={onRenderDetailsHeader}
-                        onRenderItemColumn={renderItem}
-                        onRenderRow={renderRow}
-                        onShouldVirtualize={() => true}
-                     />}
-                     {!dashboard.pinnedJobsIds.length && <Stack style={{ paddingBottom: 12 }}><Text variant="medium">No jobs are pinned</Text></Stack>}
+                  {!!jobItems.length && <DetailsList
+                     styles={{ root: { paddingLeft: 8, paddingRight: 8, marginBottom: 18 } }}
+                     compact={true}
+                     isHeaderVisible={false}
+                     indentWidth={0}
+                     items={jobItems}
+                     columns={columns}
+                     setKey="set"
+                     selectionMode={SelectionMode.none}
+                     layoutMode={DetailsListLayoutMode.fixedColumns}
+                     onRenderDetailsHeader={onRenderDetailsHeader}
+                     onRenderItemColumn={renderItem}
+                     onRenderRow={renderRow}
+                     onShouldVirtualize={() => true}
+                  />}
+                  {!dashboard.pinnedJobsIds.length && <Stack style={{ paddingBottom: 12 }}><Text variant="medium">No jobs are pinned</Text></Stack>}
                </Stack>
             </Stack>
          </Stack>
@@ -1095,7 +1097,7 @@ export const UserHomeView: React.FC = () => {
          <TopNav />
          <Breadcrumbs items={[{ text: 'Home' }]} />
          <Stack horizontal>
-            <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440/2), flexShrink: 0, backgroundColor: modeColors.background }} />
+            <div key={`windowsize_streamview_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440 / 2), flexShrink: 0, backgroundColor: modeColors.background }} />
             <Stack tokens={{ childrenGap: 0 }} styles={{ root: { backgroundColor: modeColors.background, width: "100%" } }}>
                <Stack style={{ maxWidth: 1440, paddingTop: 6, marginLeft: 4 }}>
                   <UserHomeViewInner />
