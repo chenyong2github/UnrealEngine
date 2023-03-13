@@ -177,6 +177,7 @@ class SummaryHandler {
         <td>Issue</td>
         <td>Summary</td>
         <td>Status</td>
+        <td>Workflow</td>
         <td>Open Since</td>
         <td>Promoted</td>
         <td>Jira</td>
@@ -214,18 +215,23 @@ class SummaryHandler {
 
             let jiraTag = "";
 
-            if (issue.externalIssueKey) {      
-               
+            if (issue.externalIssueKey) {                     
                const url = `${dashboard.externalIssueService?.url}/browse/${issue.externalIssueKey}`;      
                jiraTag = `<a href="${url}" target="_blank">${issue.externalIssueKey}</a>`;
             }
 
+            let workflowTag = "";
+            if (issue.workflowThreadUrl) {                     
+               workflowTag = `<a href="${issue.workflowThreadUrl}" target="_blank">Slack Thread</a>`;
+            }
 
             html += `<tr>
                 <td>${g.name}</td>
                 <td><a href="${href}" target="_blank">${issue.id}</a></td>
                 <td style="text-align:left"><a href="${href}" target="_blank">${summary}</a></td>
                 <td>${status}</td>
+                <td>${workflowTag}</td>
+
                 <td>${openSince}</td>
                 <td>${issue.promoted ? "Yes" : "No"}</td>
                 <td>${jiraTag}</td>
@@ -487,8 +493,12 @@ const HealthPanelIssues: React.FC<{ desktopAlerts?: boolean }> = observer(({ des
 
       if (column.name === "Quarantine") {
 
-         if (!issue.quarantinedBy) {
+         if (!issue.quarantinedBy && !issue.workflowThreadUrl) {
             return null;
+         }
+
+         if (issue.workflowThreadUrl) {
+            return <a href={issue.workflowThreadUrl} target="_blank"  rel="noreferrer">Slack Thread</a>
          }
 
          return <Stack horizontalAlign="start" disableShrink={true} verticalAlign="center" ><Text variant={textSize}>Quarantined</Text></Stack>;

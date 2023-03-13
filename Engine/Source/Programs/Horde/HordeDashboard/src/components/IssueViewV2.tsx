@@ -1167,8 +1167,8 @@ const IssueHeader: React.FC<{ items?: SummaryItem[] }> = ({ items }) => {
             <Label style={{ padding: 0, minWidth: 110 }}>{`${title}:`}</Label>
          </Stack>
          <Stack>
-            {!!link && <a href={link} target="_blank" rel="noreferrer">
-               <Text style={{ textDecoration: strike ? "line-through" : undefined }} variant="small">{text}</Text>
+            {!!link && <a href={link} target="_blank" rel="noreferrer" style={{ fontSize: "12px", textDecoration: strike ? "line-through" : undefined }}>
+               {text}
             </a>
             }
             {!link && <Text style={{ textDecoration: strike ? "line-through" : undefined }} variant="small">{text}</Text>}
@@ -1203,6 +1203,15 @@ const IssueSummaryPanel: React.FC = () => {
    }
 
    const items: SummaryItem[] = [];
+
+   if (issue.workflowThreadUrl) {
+      items.push({
+         title: "Workflow",
+         text: "Slack Thread",
+         link: issue.workflowThreadUrl
+      })
+   }
+
 
    if (!!issue.quarantineTimeUtc && !!issue.quarantinedByUserInfo) {
       items.push({

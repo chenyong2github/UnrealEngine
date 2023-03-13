@@ -2918,6 +2918,8 @@ export type GetIssueResponse = {
 	/** User info for who force closed the issue */
 	forceClosedByUserInfo?: GetThinUserInfoResponse;
 
+	/** Workflow thread url (Slack, etc) */
+	workflowThreadUrl?: string;
 }
 
 /**Request an issue to be updated */
@@ -4038,6 +4040,8 @@ export type FindIssueResponse = {
 	/** Workflows for which this issue is open */
 	openWorkflows: string[];
 
+	/** Workflow thread url (Slack, etc) */
+	workflowThreadUrl?: string;
 }
 
 export type GetAgentSoftwareChannelResponse = {
