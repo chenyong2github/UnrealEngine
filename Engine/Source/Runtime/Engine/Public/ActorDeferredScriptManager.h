@@ -26,7 +26,10 @@ public:
 	/**
 	 * empty implementation since deferred actor scripts are not actually async
 	 */
-	ENGINE_API void FinishAllCompilation() override {}
+	ENGINE_API void FinishAllCompilation() override
+	{
+		ProcessAsyncTasks(false);
+	}
 
 	/** 
 	 * Add an actor for the manager to run the construction of once dependent asset compilation are done (i.e Static Mesh)
