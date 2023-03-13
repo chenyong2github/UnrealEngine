@@ -414,7 +414,11 @@ void IPCGElement::GetDependenciesCrc(const FPCGDataCollection& InInput, const UP
 
 	if (InSettings)
 	{
-		Crc.Combine(InSettings->GetCrc32());
+		const FPCGCrc& SettingsCrc = InSettings->GetCachedCrc();
+		if (ensure(SettingsCrc.IsValid()))
+		{
+			Crc.Combine(SettingsCrc);
+		}
 	}
 
 	if (InComponent)

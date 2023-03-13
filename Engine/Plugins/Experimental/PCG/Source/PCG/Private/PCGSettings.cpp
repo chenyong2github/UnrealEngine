@@ -95,12 +95,6 @@ bool UPCGSettings::operator==(const UPCGSettings& Other) const
 	}
 }
 
-uint32 UPCGSettings::GetCrc32() const
-{
-	FPCGSettingsObjectCrc32 Ar;
-	return Ar.Crc32(const_cast<UPCGSettings*>(this));
-}
-
 #if WITH_EDITOR
 void UPCGSettings::ApplyDeprecation(UPCGNode* InOutNode)
 {
@@ -137,6 +131,8 @@ void UPCGSettings::PostLoad()
 		ExecutionMode_DEPRECATED = EPCGSettingsExecutionMode::Enabled;
 	}
 #endif
+
+	CacheCrc();
 }
 
 void UPCGSettings::PostInitProperties()
@@ -146,6 +142,8 @@ void UPCGSettings::PostInitProperties()
 #if WITH_EDITOR
 	InitializeCachedOverridableParams();
 #endif //WITH_EDITOR
+
+	CacheCrc();
 }
 
 void UPCGSettings::Serialize(FArchive& Ar)
@@ -409,6 +407,8 @@ void UPCGSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	{
 		OnSettingsChangedDelegate.Broadcast(this, IsStructuralProperty(PropertyChangedEvent.GetPropertyName()) ? EPCGChangeType::Structural : EPCGChangeType::Settings);
 	}
+
+	CacheCrc();
 }
 
 void UPCGSettings::DirtyCache()
@@ -560,6 +560,13 @@ void UPCGSettings::FixingOverridableParamPropertyClass(FPCGSettingsOverridablePa
 	{
 		Param.PropertyClass = GetClass();
 	}
+}
+
+void UPCGSettings::CacheCrc()
+{
+	FPCGSettingsObjectCrc32 Ar;
+	const uint32 CrcValue = Ar.Crc32(const_cast<UPCGSettings*>(this));
+	CachedCrc = FPCGCrc(CrcValue);
 }
 
 TArray<FPCGPinProperties> UPCGSettings::DefaultPointInputPinProperties() const

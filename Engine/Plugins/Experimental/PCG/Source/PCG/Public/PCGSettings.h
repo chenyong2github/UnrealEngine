@@ -152,11 +152,14 @@ public:
 	virtual TArray<FPCGPinProperties> DefaultOutputPinProperties() const;
 
 	bool operator==(const UPCGSettings& Other) const;
-	uint32 GetCrc32() const;
+	
 	bool UseSeed() const { return bUseSeed; }
 
 	// Get the seed, combined with optional PCGComponent seed
 	int GetSeed(const UPCGComponent* InSourceComponent = nullptr) const;
+
+	/** Get the Crc value precomputed for these settings. */
+	const FPCGCrc& GetCachedCrc() const { return CachedCrc; }
 
 #if WITH_EDITOR
 	/** UpdatePins will kick off invalid edges, so this is useful for moving edges around in case of pin changes. */
@@ -292,6 +295,13 @@ protected:
 	/** Needs to be serialized since property metadata (used to populate this array) is not available at runtime. */
 	UPROPERTY()
 	TArray<FPCGSettingsOverridableParam> CachedOverridableParams;
+
+private:
+	/** Calculate Crc for these settings and save it. */
+	void CacheCrc();
+
+	/** The cached Crc for these settings. */
+	FPCGCrc CachedCrc;
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
