@@ -39,7 +39,4 @@ private:
 
 	FIntPoint GetGridSize() const;
 	TArray<FIntRect> GetBlocks() const;
-
-	// Widget to create the runtime parameters view
-	TSharedPtr< class SCustomizableObjectNodeObjectSatesView > StatesViewWidget;
 };

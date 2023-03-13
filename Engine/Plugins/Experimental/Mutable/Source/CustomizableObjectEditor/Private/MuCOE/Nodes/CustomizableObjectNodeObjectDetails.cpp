@@ -8,7 +8,6 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObjectGroup.h"
 #include "MuCOE/SCustomizableObjectNodeObjectRTMorphTargetOverride.h"
-#include "MuCOE/SCustomizableObjectNodeObjectStatesView.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -44,20 +43,6 @@ void FCustomizableObjectNodeObjectDetails::CustomizeDetails( IDetailLayoutBuilde
 	{
 		TSharedRef<IPropertyHandle> StatesProperty = DetailBuilder.GetProperty("States");
 		StatesProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FCustomizableObjectNodeObjectDetails::OnStatesPropertyChanged));
-		
-		// Hinding all the runtime parameters arrays
-		for (int i = 0; i < Node->States.Num(); ++i)
-		{
-			FString VariablePath = FString::Printf(TEXT("States[%d].RuntimeParameters"), i);
-			DetailBuilder.HideProperty(*VariablePath);
-		}
-
-		//Adding StetesView Widget
-		RuntimeParameters.AddCustomRow(LOCTEXT("StatesRuntimeParameters", "Runtime Parameters"))
-		[
-			SAssignNew(StatesViewWidget,SCustomizableObjectNodeObjectSatesView)
-			.Node(Node)
-		];
 
 		TSharedRef<IPropertyHandle> ParentObjectProperty = DetailBuilder.GetProperty("ParentObject");
 

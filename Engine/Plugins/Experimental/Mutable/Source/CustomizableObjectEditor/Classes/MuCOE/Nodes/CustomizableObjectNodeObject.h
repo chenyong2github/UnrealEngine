@@ -131,7 +131,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = CustomizableObject, meta = (ClampMin = "1"))
 	int32 NumMeshComponents = 1;
 
-	UPROPERTY(EditAnywhere, Category=CustomizableObject)
+	UPROPERTY(EditAnywhere, Category=CustomizableObject ,meta = (TitleProperty = "Name"))
 	TArray<FCustomizableObjectState> States;
 
 	UPROPERTY(EditAnywhere, Category = AttachedToExternalObject)
@@ -143,7 +143,7 @@ public:
 	UPROPERTY()
 	FGuid Identifier;
 
-    // Soft references SkeletalMeshes found in the provoius compilation.
+    // Soft references SkeletalMeshes found in the previous compilation.
     // Only populated if the node is the root.
     UPROPERTY()
     TArray<FSoftObjectPath> ReferencedSkeletalMeshes;
