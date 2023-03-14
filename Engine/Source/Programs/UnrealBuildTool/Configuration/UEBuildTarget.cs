@@ -4426,7 +4426,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.CStandard = Rules.CStandard;
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments ?? String.Empty;
-			GlobalCompileEnvironment.bDeterministic = Rules.bForceDeterministic;
+			GlobalCompileEnvironment.bDeterministic = Rules.bDeterministic;
 			GlobalCompileEnvironment.CrashDiagnosticDirectory = Rules.CrashDiagnosticDirectory;
 
 			GlobalLinkEnvironment.bUseDebugCRT = bUseDebugCRT;
@@ -4448,7 +4448,7 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.bPGOProfile = Rules.bPGOProfile;
 			GlobalLinkEnvironment.bUseIncrementalLinking = Rules.bUseIncrementalLinking;
 			GlobalLinkEnvironment.bUseFastPDBLinking = Rules.bUseFastPDBLinking ?? false;
-			GlobalLinkEnvironment.bDeterministic = Rules.bDeterministic || Rules.bForceDeterministic;
+			GlobalLinkEnvironment.bDeterministic = Rules.bDeterministic;
 			GlobalLinkEnvironment.bPrintTimingInfo = Rules.bPrintToolChainTimingInfo;
 			GlobalLinkEnvironment.bUsePIE = Rules.bEnablePIE;
 			GlobalLinkEnvironment.AdditionalArguments = Rules.AdditionalLinkerArguments ?? String.Empty;

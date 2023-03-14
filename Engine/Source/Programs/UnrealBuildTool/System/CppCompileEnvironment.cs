@@ -618,6 +618,11 @@ namespace UnrealBuildTool
 		public bool bDeterministic = false;
 
 		/// <summary>
+		/// Set flags for determinstic warnings (experimental).
+		/// </summary>
+		public WarningLevel DeterministicWarningLevel = WarningLevel.Off;
+
+		/// <summary>
 		/// Directory where to put crash report files for platforms that support it
 		/// </summary>
 		public string? CrashDiagnosticDirectory;
@@ -722,6 +727,7 @@ namespace UnrealBuildTool
 			bEnableCoroutines = Other.bEnableCoroutines;
 			IncludeOrderVersion = Other.IncludeOrderVersion;
 			bDeterministic = Other.bDeterministic;
+			DeterministicWarningLevel = Other.DeterministicWarningLevel;
 			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;
 		}
 

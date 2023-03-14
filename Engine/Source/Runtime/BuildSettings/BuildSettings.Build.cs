@@ -8,6 +8,7 @@ public class BuildSettings : ModuleRules
 {
 	public BuildSettings(ReadOnlyTargetRules Target) : base(Target)
 	{
+		DeterministicWarningLevel = WarningLevel.Off; // This module intentionally uses __DATE__ and __TIME__ macros
 		PrivateIncludePathModuleNames.Add("Core");
 
 		bRequiresImplementModule = false;

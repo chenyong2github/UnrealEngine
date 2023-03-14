@@ -542,6 +542,19 @@ namespace UnrealBuildTool
 				if (Target.WindowsPlatform.Compiler.IsMSVC())
 				{
 					Arguments.Add("/experimental:deterministic");
+
+					if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Error)
+					{
+						Arguments.Add("/we5048");
+					}
+					else if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Warning)
+					{
+						Arguments.Add("/w5048");
+					}
+					else
+					{
+						Arguments.Add("/wd5048");
+					}
 				}
 				else if (Target.WindowsPlatform.Compiler.IsClang())
 				{
@@ -1021,7 +1034,14 @@ namespace UnrealBuildTool
 				// Warn if __DATE__ or __TIME__ are used as they prevent reproducible builds
 				if (CompileEnvironment.bDeterministic)
 				{
-					Arguments.Add("-Wdate-time -Wno-error=date-time");
+					if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Error)
+					{
+						Arguments.Add("-Wdate-time");
+					}
+					else if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Warning)
+					{
+						Arguments.Add("-Wdate-time -Wno-error=date-time");
+					}
 				}
 
 				// This is disabled because clang explicitly warns about changing pack alignment in a header and not

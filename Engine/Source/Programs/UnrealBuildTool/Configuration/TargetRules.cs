@@ -1659,21 +1659,12 @@ namespace UnrealBuildTool
 		public bool bUsePCHFiles = true;
 
 		/// <summary>
-		/// Set flags require for deterministic linking (experimental, may not be fully supported).
-		/// Deterministic compiling is controlled via ModuleRules.
-		/// </summary>
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bDeterministic = false;
-
-		/// <summary>
-		/// Force set flags require for deterministic compiling and linking (experimental, may not be fully supported).
-		/// This setting is only recommended for testing, instead:
-		/// * Set bDeterministic on a per module basis in ModuleRules to control deterministic compiling.
-		/// * Set bDeterministic on a per target basis in TargetRules to control deterministic linking.
+		/// Set flags require for deterministic compiling and linking (experimental).
 		/// </summary>
 		[CommandLine("-Deterministic")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bForceDeterministic = false;
+		[RequiresUniqueBuildEnvironment]
+		public bool bDeterministic = false;
 
 		/// <summary>
 		/// Whether PCHs should be chained when compiling with clang.
@@ -3500,12 +3491,6 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bDeterministic; }
 		}
-
-		public bool bForceDeterministic
-		{
-			get { return Inner.bForceDeterministic; }
-		}
-
 		public bool bChainPCHs
 		{
 			get { return Inner.bChainPCHs; }

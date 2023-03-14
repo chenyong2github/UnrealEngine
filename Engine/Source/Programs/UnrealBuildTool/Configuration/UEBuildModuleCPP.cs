@@ -1689,7 +1689,7 @@ namespace UnrealBuildTool
 			Result.StaticAnalyzerAdditionalCheckers = Rules.StaticAnalyzerAdditionalCheckers;
 			Result.bEnableUndefinedIdentifierWarnings = Rules.bEnableUndefinedIdentifierWarnings;
 			Result.IncludeOrderVersion = Rules.IncludeOrderVersion;
-			Result.bDeterministic |= Rules.bDeterministic;
+			Result.DeterministicWarningLevel = Rules.DeterministicWarningLevel;
 
 			if (Result.OptimizationLevel != Rules.OptimizationLevel)
 			{

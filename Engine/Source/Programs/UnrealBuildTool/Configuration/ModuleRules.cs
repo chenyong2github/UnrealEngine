@@ -758,11 +758,6 @@ namespace UnrealBuildTool
 		private EngineIncludeOrderVersion? IncludeOrderVersionPrivate;
 
 		/// <summary>
-		/// Set flags for determinstic compiles (experimental, may not be fully supported). Deterministic linking is controlled via TargetRules.
-		/// </summary>
-		public bool bDeterministic = false;
-
-		/// <summary>
 		/// Use run time type information
 		/// </summary>
 		public bool bUseRTTI = false;
@@ -794,6 +789,18 @@ namespace UnrealBuildTool
 		/// Not doing this will result in a compile errors because shared PCHs were compiled with different flags than consumer
 		/// </summary>
 		public bool bEnableObjCAutomaticReferenceCounting = false;
+
+		/// <summary>
+		/// How to treat deterministic warnings (experimental).
+		/// </summary>
+		public WarningLevel DeterministicWarningLevel
+		{
+			get { return (DeterministicWarningLevelPrivate == WarningLevel.Default) ? (Target.bDeterministic ? WarningLevel.Warning : WarningLevel.Off) : DeterministicWarningLevelPrivate; }
+			set { DeterministicWarningLevelPrivate = value; }
+		}
+
+		/// <inheritdoc cref="DeterministicWarningLevelPrivate"/>
+		private WarningLevel DeterministicWarningLevelPrivate;
 		
 		/// <summary>
 		/// How to treat shadow variable warnings
