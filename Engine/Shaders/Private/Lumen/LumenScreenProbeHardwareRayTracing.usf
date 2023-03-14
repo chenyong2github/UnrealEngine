@@ -3,7 +3,6 @@
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
 #include "../SceneTextureParameters.ush"
-
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
@@ -14,36 +13,20 @@
 #include "LumenFog.ush"
 
 #ifndef THREADGROUP_SIZE_2D
-#define THREADGROUP_SIZE_2D 8
+	#define THREADGROUP_SIZE_2D 8
 #endif
 
 #ifndef THREADGROUP_SIZE_1D
-#define THREADGROUP_SIZE_1D THREADGROUP_SIZE_2D * THREADGROUP_SIZE_2D
+	#define THREADGROUP_SIZE_1D THREADGROUP_SIZE_2D * THREADGROUP_SIZE_2D
 #endif
 
-#ifndef DIM_LIGHTING_MODE
-#define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
-#endif
-
-#define LIGHTING_MODE_SURFACE_CACHE 0
-#define LIGHTING_MODE_HIT_LIGHTING 1
-
-StructuredBuffer<uint> Allocator;
-RWBuffer<uint> RWRayAllocator;
-[numthreads(1, 1, 1)]
-void FConvertRayAllocatorCS()
-{
-	RWRayAllocator[0] = Allocator[0];
-}
-
-Buffer<uint> RayAllocator;
 RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
 uint2 OutputThreadGroupSize;
 
 [numthreads(1, 1, 1)]
 void FLumenScreenProbeHardwareRayTracingIndirectArgsCS()
 {
-	WriteDispatchIndirectArgs(RWHardwareRayTracingIndirectArgs, 0, (RayAllocator[0] + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x, 1, 1);
+	WriteDispatchIndirectArgs(RWHardwareRayTracingIndirectArgs, 0, (CompactedTraceTexelAllocator[0] + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x, 1, 1);
 }
 
 
@@ -60,8 +43,9 @@ StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-int NearFieldLightingMode;
 float MaxTraceDistance;
+float NearFieldSceneRadius;
+float NearFieldMaxTraceDistance;
 float FarFieldBias;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
@@ -70,45 +54,36 @@ float AvoidSelfIntersectionTraceDistance;
 float SkipFirstTwoSidedHitDistance;
 int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
-int ApplySkyLight;
-
-RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
 
 FRayTracedLightingResult EpsilonTrace(in RaytracingAccelerationStructure TLAS, FRayDesc Ray, inout FRayTracedLightingContext Context, out float RemainingTraceTMin)
 {
 	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
 	RemainingTraceTMin = AvoidSelfIntersectionTraceDistance;
 
-#if ENABLE_NEAR_FIELD_TRACING
-	uint OriginalCullingMode = Context.CullingMode;
-	Context.CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-	Ray.TMax = AvoidSelfIntersectionTraceDistance;
-
-	if (Ray.TMax > Ray.TMin)
+	#if ENABLE_NEAR_FIELD_TRACING
 	{
-		// First trace - short distance with backface culling enabled to avoid self intersecting in cases where the traced geometry doesn't match what's in the GBuffer (Nanite, Ray Tracing LODs, etc)
-#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
+		uint OriginalCullingMode = Context.CullingMode;
+		Context.CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+		Ray.TMax = AvoidSelfIntersectionTraceDistance;
+
+		if (Ray.TMax > Ray.TMin)
 		{
+			// First trace - short distance with backface culling enabled to avoid self intersecting in cases where the traced geometry doesn't match what's in the GBuffer (Nanite, Ray Tracing LODs, etc)
 			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 		}
-#else
+
+		// RAY_FLAG_CULL_BACK_FACING_TRIANGLES doesn't work on two sided geometry, but we still need to avoid self-intersections with the Nanite fallback mesh
+		// Skip the first two sided material we hit within a short distance
+		if (Result.bHitTwoSided && Result.TraceHitDistance < SkipFirstTwoSidedHitDistance)
 		{
-			Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, DIM_LIGHTING_MODE);
+			float Epsilon = 0.01;
+			RemainingTraceTMin = Result.TraceHitDistance + Epsilon;
+			Result.bIsHit = false;
 		}
-#endif // DIM_LIGHTING_MODE
-	}
 
-	// RAY_FLAG_CULL_BACK_FACING_TRIANGLES doesn't work on two sided geometry, but we still need to avoid self-intersections with the Nanite fallback mesh
-	// Skip the first two sided material we hit within a short distance
-	if (Result.bHitTwoSided && Result.TraceHitDistance < SkipFirstTwoSidedHitDistance)
-	{
-		float Epsilon = 0.01;
-		RemainingTraceTMin = Result.TraceHitDistance + Epsilon;
-		Result.bIsHit = false;
+		Context.CullingMode = OriginalCullingMode;
 	}
-
-	Context.CullingMode = OriginalCullingMode;
-#endif // ENABLE_NEAR_FIELD_TRACING
+	#endif
 
 	return Result;
 }
@@ -117,21 +92,13 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 {
 	uint ThreadIndex = DispatchThreadIndex.x;
 	uint GroupIndex = DispatchThreadIndex.y;
-	uint RayIndex = GroupIndex * THREADGROUP_SIZE_1D + ThreadIndex;
+	uint CompactedTraceIndex = GroupIndex * THREADGROUP_SIZE_1D + ThreadIndex;
 
-	if (RayIndex < RayAllocator[0])
+	if (CompactedTraceIndex < CompactedTraceTexelAllocator[0])
 	{
-#if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
-		FTraceData TraceData = UnpackTraceData(RWRetraceDataPackedBuffer[RayIndex]);
-		uint RayId = TraceData.RayId;
-#else
-		uint RayId = RayIndex;
-#endif // DIM_LIGHTING_MODE
-
 		uint ScreenProbeIndex;
 		uint2 TraceTexelCoord;
-		float TraceHitDistance;
-		DecodeTraceTexel(CompactedTraceTexelData[RayId], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+		DecodeTraceTexel(CompactedTraceTexelData[CompactedTraceIndex], ScreenProbeIndex, TraceTexelCoord);
 
 		uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 		uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
@@ -140,6 +107,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
 		uint2 ScreenProbeTraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+
+		float TraceHitDistance = DecodeProbeRayDistance(RWTraceHit[ScreenProbeTraceCoord]).HitDistance;
 
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
@@ -152,9 +121,13 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		Ray.Origin = TranslatedWorldPosition;
 		Ray.Direction = EquiAreaSphericalMapping(ProbeUV);
 		Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
-#if ENABLE_FAR_FIELD_TRACING
-		Ray.TMin = max(Ray.TMin, FarFieldBias);
-#endif
+
+		#if ENABLE_FAR_FIELD_TRACING
+		{
+			Ray.TMin = max(Ray.TMin, FarFieldBias);
+		}
+		#endif
+
 		bool bBackfaceRay;
 		float3 ProbeWorldNormalForBiasing = GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, Ray.Direction, bBackfaceRay);
 		Ray.Origin += NormalBias * ProbeWorldNormalForBiasing;
@@ -172,10 +145,14 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 			MaxTraversalIterations);
 		Context.bCalculateHitVelocity = true;
 
-#if LUMEN_HARDWARE_INLINE_RAYTRACING
-		Context.HitGroupData = HitGroupData;
-		Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
-#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+		#if LUMEN_HARDWARE_INLINE_RAYTRACING
+		{
+			Context.HitGroupData = HitGroupData;
+			Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
+		}
+		#endif
+
+		bool bReachedRadianceCache = false;
 
 		// Initialize by testing against a small epsilon
 		float RemainingTraceTMin;
@@ -183,17 +160,18 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 
 		if (!Result.bIsHit)
 		{
-			Ray.TMin = max(Ray.TMin, RemainingTraceTMin);
-			Ray.TMax = Ray.TMin;
-			// Cull TMax by the bounding sphere of the near-field
-			if (length(Ray.Origin - PrimaryView.TranslatedWorldCameraOrigin) < MaxTraceDistance)
-			{
-				float2 Hit = RayIntersectSphere(Ray.Origin, Ray.Direction, float4(PrimaryView.TranslatedWorldCameraOrigin, MaxTraceDistance));
-				Ray.TMax = (Hit.x > 0) ? Hit.x : ((Hit.y > 0) ? Hit.y : Ray.TMin);
-			}
+			float ClippedNearFieldMaxTraceDistance = ClipAndDitherNearFieldMaxTraceDistance(
+				Ray.Origin,
+				Ray.Direction,
+				ScreenTileCoord,
+				NearFieldSceneRadius,
+				NearFieldMaxTraceDistance,
+				/*NearFieldMaxTraceDistanceDitherScale*/ 0.0f);
 
-			bool bIsRadianceCacheHit = false;
-#if DIM_RADIANCE_CACHE
+			Ray.TMin = max(Ray.TMin, RemainingTraceTMin);
+			Ray.TMax = max(ClippedNearFieldMaxTraceDistance, Ray.TMin);
+
+			#if DIM_RADIANCE_CACHE
 			{
 				float ClipmapDitherRandom = InterleavedGradientNoise(ScreenTileCoord, View.StateFrameIndexMod8);
 				float3 RayOriginWorldPos = Ray.Origin - LWCHackToFloat(PrimaryView.PreViewTranslation);
@@ -201,36 +179,18 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 				if (Coverage.bValid)
 				{
 					Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
-					bIsRadianceCacheHit = true;
+					bReachedRadianceCache = true;
 				}
 			}
-#endif
+			#endif
 
 			// Set far-field context specialization
 			Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 			Context.FarFieldReferencePos = FarFieldReferencePos;
 
-#if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
 			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
-
-#if DIM_PACK_TRACE_DATA
-			RWRetraceDataPackedBuffer[RayIndex] = PackTraceData(CreateTraceData(
-				RayId,
-				Result.MaterialShaderIndex,
-				Result.Bookmark,
-				Result.TraceHitDistance,
-				Result.bIsHit || bIsRadianceCacheHit,
-				Result.bIsRadianceCompleted,
-				Result.bIsFarField));
-#endif // DIM_PACK_TRACE_DATA
-
-#else // DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
-			// TODO: Hit lighting
-
-#endif // DIM_LIGHTING_MODE
 		}
 
-#if DIM_WRITE_FINAL_LIGHTING
 		bool bMoving = false;
 		if (Result.bIsHit)
 		{
@@ -249,8 +209,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		}
 
 		RWTraceRadiance[ScreenProbeTraceCoord] = Result.Radiance;
-		RWTraceHit[ScreenProbeTraceCoord] = EncodeProbeRayDistance(min(Result.TraceHitDistance, MaxTraceDistance), Result.bIsHit, bMoving);
-#endif // DIM_WRITE_FINAL_LIGHTING
+		RWTraceHit[ScreenProbeTraceCoord] = EncodeProbeRayDistance(min(Result.TraceHitDistance, MaxTraceDistance), Result.bIsHit, bMoving, bReachedRadianceCache);
 	}
 }
 

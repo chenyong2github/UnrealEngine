@@ -186,29 +186,29 @@ float3 GetScreenProbeNormalForBiasing(uint2 ScreenProbeAtlasCoord, float3 RayWor
 	return GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, RayWorldDirection, bBackfaceRay);
 }
 
-void WriteTraceHit(uint2 TraceBufferCoord, float HitDistance, bool bHit, bool bFastMoving)
+void WriteTraceHit(uint2 TraceBufferCoord, float HitDistance, bool bHit, bool bFastMoving, bool bReachedRadianceCache)
 {
 #if TRACE_LIGHT_SAMPLES
-	RWLightSampleTraceHit[TraceBufferCoord] = EncodeProbeRayDistance(HitDistance, bHit, bFastMoving);
+	RWLightSampleTraceHit[TraceBufferCoord] = EncodeProbeRayDistance(HitDistance, bHit, bFastMoving, bReachedRadianceCache);
 #else
-	RWTraceHit[TraceBufferCoord] = EncodeProbeRayDistance(HitDistance, bHit, bFastMoving);
+	RWTraceHit[TraceBufferCoord] = EncodeProbeRayDistance(HitDistance, bHit, bFastMoving, bReachedRadianceCache);
 #endif
 }
 
-void ReadTraceHit(uint2 TraceBufferCoord, out bool bHit, out float TraceHitDistance)
+FProbeRayDistance ReadTraceHit(uint2 TraceBufferCoord)
 {
 #if TRACE_LIGHT_SAMPLES
-	TraceHitDistance = DecodeProbeRayDistance(LightSampleTraceHit[TraceBufferCoord].x, bHit);
+	return DecodeProbeRayDistance(LightSampleTraceHit[TraceBufferCoord].x);
 #else
-	TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceBufferCoord].x, bHit);
+	return DecodeProbeRayDistance(TraceHit[TraceBufferCoord].x);
 #endif
 }
 
-void ReadTraceTexel(uint DispatchThreadId, out uint ScreenProbeIndex, out uint2 TraceTexelCoord, out float TraceHitDistance)
+void ReadTraceTexel(uint DispatchThreadId, out uint ScreenProbeIndex, out uint2 TraceTexelCoord)
 {
 #if TRACE_LIGHT_SAMPLES
-	DecodeTraceTexel(CompactedLightSampleTraceTexelData[DispatchThreadId], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+	DecodeTraceTexel(CompactedLightSampleTraceTexelData[DispatchThreadId], ScreenProbeIndex, TraceTexelCoord);
 #else
-	DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+	DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ScreenProbeIndex, TraceTexelCoord);
 #endif
 }

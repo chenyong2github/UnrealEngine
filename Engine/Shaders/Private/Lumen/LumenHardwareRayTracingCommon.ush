@@ -686,7 +686,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 					else
 					{
 						// Blend between rough reflections approximation and a single reflection ray
-						if (ReflectionBounceIndex + 1 < MaxReflectionBounces)
+						if (ReflectionBounceIndex + 1 < Context.MaxReflectionBounces)
 						{
 							NextReflectionRayAlpha = LumenCombineReflectionsAlpha(PathRoughness, /*bHasBackfaceDiffuse*/ false);
 						}

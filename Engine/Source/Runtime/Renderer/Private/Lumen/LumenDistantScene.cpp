@@ -122,20 +122,22 @@ static TAutoConsoleVariable<int32> CVarLumenFarField(
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarLumenFarFieldMaxTraceDistance(
-	TEXT("r.LumenScene.FarField.MaxTraceDistance"), 1.0e6f,
+	TEXT("r.LumenScene.FarField.MaxTraceDistance"),
+	1.0e6f,
 	TEXT("Maximum hit-distance for Lumen far-field ray tracing (Default = 1.0e6)."),
-	ECVF_RenderThreadSafe);
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarLumenFarFieldDitheredStartDistanceFactor(
-	TEXT("r.LumenScene.FarField.DitheredStartDistanceFactor"), 0.9f,
-	TEXT("Starting distance for far-field dithered t-min, as a percentage of near-field t-max (Default = 0.9)."),
-	ECVF_RenderThreadSafe);
+static TAutoConsoleVariable<float> CVarLumenFarFieldDitherScale(
+	TEXT("r.LumenScene.FarField.FarFieldDitherScale"),
+	200.0f,
+	TEXT("Dither region between near and far field in world space units."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarLumenFarFieldReferencePosZ(
 	TEXT("r.LumenScene.FarField.ReferencePos.Z"),
 	100000.0f,
 	TEXT("Far-field reference position in Z (default = 100000.0)"),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 namespace Lumen
@@ -151,16 +153,9 @@ namespace Lumen
 		return CVarLumenFarFieldMaxTraceDistance.GetValueOnRenderThread();
 	}
 
-	float GetNearFieldMaxTraceDistanceDitherScale(bool bUseFarField, float NearFieldMaxTraceDistance)
+	float GetNearFieldMaxTraceDistanceDitherScale(bool bUseFarField)
 	{
-		float DitherScale = 0.0f;
-
-		if (bUseFarField)
-		{
-			DitherScale = FMath::Clamp(1.0f - CVarLumenFarFieldDitheredStartDistanceFactor.GetValueOnRenderThread(), 0.0f, 1.0f) * NearFieldMaxTraceDistance;
-		}
-
-		return DitherScale;
+		return bUseFarField ? CVarLumenFarFieldDitherScale.GetValueOnRenderThread() : 0.0f;
 	}
 
 	float GetNearFieldSceneRadius(bool bUseFarField)

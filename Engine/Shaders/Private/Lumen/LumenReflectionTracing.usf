@@ -290,7 +290,7 @@ void ReflectionCompactTracesCS(
 			}
 			#elif TRACE_COMPACTION_MODE == TRACE_COMPACTION_MODE_FAR_FIELD
 			{
-				bAcceptTrace = !bHit && ReflectionTracingCoord.CoordFlatten.x > View.GeneralPurposeTweak;
+				bAcceptTrace = !bHit;
 			}
 			#else
 			{

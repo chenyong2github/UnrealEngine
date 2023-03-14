@@ -30,7 +30,7 @@ void ClearTracesCS(
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	RWTraceRadiance[DispatchThreadId.xy] = 0.0f;
-	RWTraceHit[DispatchThreadId.xy] = EncodeProbeRayDistance(0.0f, false, false);
+	RWTraceHit[DispatchThreadId.xy] = EncodeProbeRayDistance(0.0f, false, false, /*bReachedRadianceCache*/ false);
 }
 
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
@@ -39,7 +39,7 @@ void ClearLightSampleTracesCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	RWLightSampleTraceHit[DispatchThreadId.xy] = EncodeProbeRayDistance(0.0f, false, false);
+	RWLightSampleTraceHit[DispatchThreadId.xy] = EncodeProbeRayDistance(0.0f, false, false, /*bReachedRadianceCache*/ false);
 }
 
 float MaxTraceDistance;
@@ -346,7 +346,7 @@ void ScreenProbeTraceScreenTexturesCS(
 
 				if (bHit || bWriteDepthOnMiss)
 				{
-					WriteTraceHit(TraceBufferCoord, HitDistance, bHit, bFastMoving);
+					WriteTraceHit(TraceBufferCoord, HitDistance, bHit, bFastMoving, /*bReachedRadianceCache*/ false);
 				}
 			}
 		}
@@ -354,15 +354,16 @@ void ScreenProbeTraceScreenTexturesCS(
 }
 
 RWStructuredBuffer<uint> RWCompactedTraceTexelAllocator;
-RWStructuredBuffer<uint2> RWCompactedTraceTexelData;
+RWStructuredBuffer<uint> RWCompactedTraceTexelData;
 
 uint CullByDistanceFromCamera;
 float CompactionTracingEndDistanceFromCamera;
 float CompactionMaxTraceDistance;
+uint CompactForFarField;
 
 groupshared uint SharedTraceTexelAllocator;
 groupshared uint SharedGlobalTraceTexelStartOffset;
-groupshared uint2 SharedTraceTexels[PROBE_THREADGROUP_SIZE_2D * PROBE_THREADGROUP_SIZE_2D];
+groupshared uint SharedTraceTexels[PROBE_THREADGROUP_SIZE_2D * PROBE_THREADGROUP_SIZE_2D];
 
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
 void ScreenProbeCompactTracesCS(
@@ -387,18 +388,26 @@ void ScreenProbeCompactTracesCS(
 
 		uint2 TraceBufferCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
 
-		bool bHit;
-		float TraceHitDistance;
-		ReadTraceHit(TraceBufferCoord, bHit, TraceHitDistance);
+		FProbeRayDistance ProbeRayDistance = ReadTraceHit(TraceBufferCoord);
+
+		bool bAcceptTrace = false;
+		if (CompactForFarField != 0)
+		{
+			bAcceptTrace = !(ProbeRayDistance.bHit || ProbeRayDistance.bReachedRadianceCache);
+		}
+		else
+		{
+			bAcceptTrace = !ProbeRayDistance.bHit;
+		}
 
 		if (ShouldTraceScreenProbeTexel(TraceBufferCoord, SceneDepth)
-			&& !bHit
+			&& bAcceptTrace
 			&& (CullByDistanceFromCamera == 0 || SceneDepth < CompactionTracingEndDistanceFromCamera)
-			&& TraceHitDistance < CompactionMaxTraceDistance)
+			&& ProbeRayDistance.HitDistance < CompactionMaxTraceDistance)
 		{
 			uint SharedTexelOffset;
 			InterlockedAdd(SharedTraceTexelAllocator, 1, SharedTexelOffset);
-			SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+			SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(ScreenProbeIndex, TraceTexelCoord);
 		}
 	}
 
@@ -465,8 +474,7 @@ float MaxMeshSDFTraceDistance;
 void TraceMeshSDFs(
 	uint2 ScreenProbeAtlasCoord,
 	uint2 TraceTexelCoord,
-	uint ScreenProbeIndex,
-	float TraceHitDistance)
+	uint ScreenProbeIndex)
 {
 	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 	uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
@@ -479,6 +487,8 @@ void TraceMeshSDFs(
 		uint2 TraceBufferCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+
+		float TraceHitDistance = DecodeProbeRayDistance(RWTraceHit[TraceBufferCoord]).HitDistance;
 
 		bool bHit = false;
 		bool bMoving = false;
@@ -597,7 +607,7 @@ void TraceMeshSDFs(
 		}
 
 		//@todo - set bMoving based on hit object velocity
-		WriteTraceHit(TraceBufferCoord, min(TraceHitDistance, MaxTraceDistance), bHit, bMoving);
+		WriteTraceHit(TraceBufferCoord, min(TraceHitDistance, MaxTraceDistance), bHit, bMoving, /*bReachedRadianceCache*/ false);
 	}
 }
 
@@ -619,25 +629,25 @@ void ScreenProbeTraceMeshSDFsCS(
 	{
 		uint ScreenProbeIndex;
 		uint2 TraceTexelCoord;
-		float TraceHitDistance;
-		ReadTraceTexel(DispatchThreadId.x, ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+		ReadTraceTexel(DispatchThreadId.x, ScreenProbeIndex, TraceTexelCoord);
 
 		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
-		TraceMeshSDFs(ScreenProbeAtlasCoord, TraceTexelCoord, ScreenProbeIndex, TraceHitDistance);
+		TraceMeshSDFs(ScreenProbeAtlasCoord, TraceTexelCoord, ScreenProbeIndex);
 	}
 }
 
 void TraceVoxels(
 	uint2 ScreenProbeAtlasCoord,
 	uint2 TraceTexelCoord,
-	uint ScreenProbeIndex,
-	float TraceHitDistance)
+	uint ScreenProbeIndex)
 {
 	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 	uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
 	uint ProbeTracingResolution = TRACE_LIGHT_SAMPLES ? ScreenProbeLightSampleResolutionXY : ScreenProbeTracingOctahedronResolution;
 	uint2 TraceBufferCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
-	
+
+	float TraceHitDistance = DecodeProbeRayDistance(RWTraceHit[TraceBufferCoord]).HitDistance;
+
 	{
 		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
@@ -790,7 +800,7 @@ void TraceVoxels(
 #endif
 		}
 
-		WriteTraceHit(TraceBufferCoord, TraceHitDistance, bHit, false);
+		WriteTraceHit(TraceBufferCoord, TraceHitDistance, bHit, false, /*bReachedRadianceCache*/ false);
 	}
 }
 
@@ -806,11 +816,10 @@ void ScreenProbeTraceVoxelsCS(
 	{
 		uint ScreenProbeIndex;
 		uint2 TraceTexelCoord;
-		float TraceHitDistance;
-		ReadTraceTexel(DispatchThreadId.x, ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+		ReadTraceTexel(DispatchThreadId.x, ScreenProbeIndex, TraceTexelCoord);
 
 		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
-		TraceVoxels(ScreenProbeAtlasCoord, TraceTexelCoord, ScreenProbeIndex, TraceHitDistance);
+		TraceVoxels(ScreenProbeAtlasCoord, TraceTexelCoord, ScreenProbeIndex);
 	}
 }
 
@@ -943,9 +952,9 @@ void ScreenProbeSetupVisualizeTraces(
 	{
 		uint2 TraceBufferCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
 		
-		bool bHit;
-		bool bMoving;
-		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceBufferCoord].x, bHit, bMoving);
+		FProbeRayDistance ProbeRayDistance = DecodeProbeRayDistance(TraceHit[TraceBufferCoord].x);
+		bool bHit = ProbeRayDistance.bHit;
+		float TraceHitDistance = ProbeRayDistance.HitDistance;
 
 		float3 RayWorldDirection = 0;
 		float RefinementRay = 0;
@@ -960,7 +969,6 @@ void ScreenProbeSetupVisualizeTraces(
 
 			float BaseAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
 			RefinementRay = 1 - ConeHalfAngle / BaseAngle;
-
 		}
 
 		uint TraceIndex = TraceTexelCoord.y * ScreenProbeTracingOctahedronResolution + TraceTexelCoord.x;

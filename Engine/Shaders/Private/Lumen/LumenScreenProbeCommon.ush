@@ -242,22 +242,19 @@ float GetScreenProbeMoving(uint2 ScreenProbeAtlasCoord)
 }
 
 StructuredBuffer<uint> CompactedTraceTexelAllocator;
-StructuredBuffer<uint2> CompactedTraceTexelData;
-StructuredBuffer<uint2> CompactedLightSampleTraceTexelData;
+StructuredBuffer<uint> CompactedTraceTexelData;
+StructuredBuffer<uint> CompactedLightSampleTraceTexelData;
 
-uint2 EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord, float TraceHitDistance)
+uint EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord)
 {
-	return uint2(
-		(ScreenProbeIndex & 0xFFFFF) | ((TraceTexelCoord.x & 0x1F) << 20) | ((TraceTexelCoord.y & 0x1F) << 25),
-		asuint(TraceHitDistance));
+	return (ScreenProbeIndex & 0xFFFFF) | ((TraceTexelCoord.x & 0x1F) << 20) | ((TraceTexelCoord.y & 0x1F) << 25);
 }
 
-void DecodeTraceTexel(uint2 TraceTexelData, inout uint ScreenProbeIndex, inout uint2 TraceTexelCoord, inout float TraceHitDistance)
+void DecodeTraceTexel(uint TraceTexelData, inout uint ScreenProbeIndex, inout uint2 TraceTexelCoord)
 {
-	ScreenProbeIndex = TraceTexelData.x & 0xFFFFF;
-	TraceTexelCoord.x = (TraceTexelData.x >> 20) & 0x1F;
-	TraceTexelCoord.y = (TraceTexelData.x >> 25) & 0x1F;
-	TraceHitDistance = asfloat(TraceTexelData.y);
+	ScreenProbeIndex = TraceTexelData & 0xFFFFF;
+	TraceTexelCoord.x = (TraceTexelData >> 20) & 0x1F;
+	TraceTexelCoord.y = (TraceTexelData >> 25) & 0x1F;
 }
 
 Texture2D<uint> LightingChannelsTexture;
@@ -276,40 +273,38 @@ Texture2D<uint> LightSampleTraceHit;
 float GetProbeMaxHitDistance()
 {
 	return MaxHalfFloat;
-
 }
 
 #define PROBE_RAY_DISTANCE_ENCODE_SCALE 0.1f
 
-uint EncodeProbeRayDistance(float HitDistance, bool bHit, bool bMoving)
+uint EncodeProbeRayDistance(float HitDistance, bool bHit, bool bMoving, bool bReachedRadianceCache)
 {
 	HitDistance = max(HitDistance, 0.0f);
 
 	uint EncodedRay = 0;
-	EncodedRay = clamp(uint(HitDistance * PROBE_RAY_DISTANCE_ENCODE_SCALE + 0.5f), 0, 0x3FFFFFFF);
-	EncodedRay |= bHit ? (1 << 30) : 0;
-	EncodedRay |= bMoving ? (1 << 31) : 0;
+	EncodedRay = clamp(uint(HitDistance * PROBE_RAY_DISTANCE_ENCODE_SCALE + 0.5f), 0, 0x1FFFFFFF);
+	EncodedRay |= bHit ? (1 << 29) : 0;
+	EncodedRay |= bMoving ? (1 << 30) : 0;
+	EncodedRay |= bReachedRadianceCache ? (1 << 31) : 0;
 	return EncodedRay;
 }
 
-float DecodeProbeRayDistance(uint Encoded, out bool bHit, out bool bMoving)
+struct FProbeRayDistance
 {
-	bHit = (Encoded & (1 << 30)) != 0;
-	bMoving = (Encoded & (1 << 31)) != 0;
-	return (Encoded & 0x3FFFFFFF) / PROBE_RAY_DISTANCE_ENCODE_SCALE;
-}
-
-float DecodeProbeRayDistance(uint Encoded, out bool bHit)
-{
-	bool bMoving;
-	return DecodeProbeRayDistance(Encoded, bHit, bMoving);
-}
-
-float DecodeProbeRayDistance(uint Encoded)
-{
+	float HitDistance;
 	bool bHit;
 	bool bMoving;
-	return DecodeProbeRayDistance(Encoded, bHit, bMoving);
+	bool bReachedRadianceCache;
+};
+
+FProbeRayDistance DecodeProbeRayDistance(uint Encoded)
+{
+	FProbeRayDistance ProbeRayDistance;
+	ProbeRayDistance.bHit = (Encoded & (1 << 29)) != 0;
+	ProbeRayDistance.bMoving = (Encoded & (1 << 30)) != 0;
+	ProbeRayDistance.bReachedRadianceCache = (Encoded & (1 << 31)) != 0;
+	ProbeRayDistance.HitDistance = (Encoded & 0x1FFFFFFF) / PROBE_RAY_DISTANCE_ENCODE_SCALE;
+	return ProbeRayDistance;
 }
 
 uint EncodeLightSampleFlags(bool bValid, bool bCastShadow)

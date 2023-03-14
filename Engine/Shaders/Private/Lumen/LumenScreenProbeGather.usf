@@ -1052,8 +1052,7 @@ void AddScreenProbeDirectLighting(
 {
 	uint2 LightSampleBufferCoord = ScreenProbeAtlasCoord * ScreenProbeLightSampleResolutionXY + LightSampleCoord;
 
-	bool bHit;
-	DecodeProbeRayDistance(LightSampleTraceHit[LightSampleBufferCoord].x, bHit);
+	bool bHit = DecodeProbeRayDistance(LightSampleTraceHit[LightSampleBufferCoord].x).bHit;
 
 	bool bValidLightSample;
 	bool bCastShadow;

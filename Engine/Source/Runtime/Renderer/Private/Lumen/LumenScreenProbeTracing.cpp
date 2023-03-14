@@ -40,7 +40,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesFullRe
 );
 
 int32 GLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits = 1;
-FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits(
+FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits( 
 	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.SkipFoliageHits"),
 	GLumenScreenProbeGatherHierarchicalScreenTracesSkipFoliageHits,
 	TEXT("Whether to allow screen traces to hit Subsurface and TwoSided Foliage shading models.  Can be used to work around aliasing from high frequency grass geometry."),
@@ -242,6 +242,7 @@ class FScreenProbeCompactTracesCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, CullByDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionTracingEndDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionMaxTraceDistance)
+		SHADER_PARAMETER(uint32, CompactForFarField)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCompactedTraceTexelAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCompactedTraceTexelData)
 	END_SHADER_PARAMETER_STRUCT()
@@ -517,7 +518,7 @@ enum class ECompactedTracingIndirectArgs
 	MAX = 4,
 };
 
-FCompactedTraceParameters CompactTraces(
+FCompactedTraceParameters LumenScreenProbeGather::CompactTraces(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	const FScreenProbeParameters& ScreenProbeParameters,
@@ -525,7 +526,8 @@ FCompactedTraceParameters CompactTraces(
 	float CompactionTracingEndDistanceFromCamera,
 	float CompactionMaxTraceDistance,
 	bool bRenderDirectLighting,
-	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute)
+	bool bCompactForFarField,
+	ERDGPassFlags ComputePassFlags)
 {
 	FRDGBufferRef CompactedTraceTexelAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2), TEXT("Lumen.ScreenProbeGather.CompactedTraceTexelAllocator"));
 	FRDGBufferUAVRef CompactedTraceTexelAllocatorUAV = GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
@@ -534,20 +536,21 @@ FCompactedTraceParameters CompactTraces(
 
 	const FIntPoint ScreenProbeTraceBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
 	const int32 NumCompactedTraceTexelDataElements = ScreenProbeTraceBufferSize.X * ScreenProbeTraceBufferSize.Y;
-	FRDGBufferRef CompactedTraceTexelData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 2, NumCompactedTraceTexelDataElements), TEXT("Lumen.ScreenProbeGather.CompactedTraceTexelData"));
+	FRDGBufferRef CompactedTraceTexelData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumCompactedTraceTexelDataElements), TEXT("Lumen.ScreenProbeGather.CompactedTraceTexelData"));
 
 	const FIntPoint ScreenProbeLightSampleBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeLightSampleResolutionXY;
 	const int32 NumCompactedLightSampleTraceTexelDataElements = ScreenProbeLightSampleBufferSize.X * ScreenProbeLightSampleBufferSize.Y;
-	FRDGBufferRef CompactedLightSampleTraceTexelData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 2, NumCompactedLightSampleTraceTexelDataElements), TEXT("Lumen.ScreenProbeGather.CompactedLightSampleTraceTexelData"));
+	FRDGBufferRef CompactedLightSampleTraceTexelData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumCompactedLightSampleTraceTexelDataElements), TEXT("Lumen.ScreenProbeGather.CompactedLightSampleTraceTexelData"));
 
 	{
 		FScreenProbeCompactTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeCompactTracesCS::FParameters>();
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->RWCompactedTraceTexelAllocator = CompactedTraceTexelAllocatorUAV;
-		PassParameters->RWCompactedTraceTexelData = GraphBuilder.CreateUAV(CompactedTraceTexelData, PF_R32G32_UINT);
+		PassParameters->RWCompactedTraceTexelData = GraphBuilder.CreateUAV(CompactedTraceTexelData, PF_R32_UINT);
 		PassParameters->CullByDistanceFromCamera = bCullByDistanceFromCamera ? 1 : 0;
 		PassParameters->CompactionTracingEndDistanceFromCamera = CompactionTracingEndDistanceFromCamera;
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
+		PassParameters->CompactForFarField = bCompactForFarField ? 1 : 0;
 
 		FScreenProbeCompactTracesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeCompactTracesCS::FTraceLightSamples>(false);
@@ -568,10 +571,11 @@ FCompactedTraceParameters CompactTraces(
 		FScreenProbeCompactTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeCompactTracesCS::FParameters>();
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->RWCompactedTraceTexelAllocator = CompactedTraceTexelAllocatorUAV;
-		PassParameters->RWCompactedTraceTexelData = GraphBuilder.CreateUAV(CompactedLightSampleTraceTexelData, PF_R32G32_UINT);
+		PassParameters->RWCompactedTraceTexelData = GraphBuilder.CreateUAV(CompactedLightSampleTraceTexelData, PF_R32_UINT);
 		PassParameters->CullByDistanceFromCamera = bCullByDistanceFromCamera ? 1 : 0;
 		PassParameters->CompactionTracingEndDistanceFromCamera = CompactionTracingEndDistanceFromCamera;
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
+		PassParameters->CompactForFarField = bCompactForFarField ? 1 : 0;
 
 		FScreenProbeCompactTracesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeCompactTracesCS::FTraceLightSamples>(true);
@@ -608,8 +612,8 @@ FCompactedTraceParameters CompactTraces(
 	}
 
 	CompactedTraceParameters.CompactedTraceTexelAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CompactedTraceTexelAllocator, PF_R32_UINT));
-	CompactedTraceParameters.CompactedTraceTexelData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CompactedTraceTexelData, PF_R32G32_UINT));
-	CompactedTraceParameters.CompactedLightSampleTraceTexelData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CompactedLightSampleTraceTexelData, PF_R32G32_UINT));
+	CompactedTraceParameters.CompactedTraceTexelData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CompactedTraceTexelData, PF_R32_UINT));
+	CompactedTraceParameters.CompactedLightSampleTraceTexelData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CompactedLightSampleTraceTexelData, PF_R32_UINT));
 
 	return CompactedTraceParameters;
 }
@@ -746,16 +750,6 @@ void TraceScreenProbes(
 
 	if (bUseHardwareRayTracing)
 	{
-		FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
-			GraphBuilder,
-			View,
-			ScreenProbeParameters,
-			false,
-			0.0f,
-			IndirectTracingParameters.MaxTraceDistance,
-			bRenderDirectLighting,
-			ComputePassFlags);
-
 		RenderHardwareRayTracingScreenProbe(
 			GraphBuilder,
 			Scene,
@@ -765,7 +759,7 @@ void TraceScreenProbes(
 			TracingParameters,
 			IndirectTracingParameters,
 			RadianceCacheParameters,
-			CompactedTraceParameters,
+			bRenderDirectLighting,
 			ComputePassFlags);
 	}
 	else if (bTraceMeshObjects)
@@ -784,7 +778,7 @@ void TraceScreenProbes(
 
 		if (bTraceMeshSDFs || bTraceHeightfields)
 		{
-			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
+			FCompactedTraceParameters CompactedTraceParameters = LumenScreenProbeGather::CompactTraces(
 				GraphBuilder,
 				View,
 				ScreenProbeParameters,
@@ -792,6 +786,7 @@ void TraceScreenProbes(
 				IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 				IndirectTracingParameters.MaxMeshSDFTraceDistance,
 				bRenderDirectLighting,
+				/*bCompactForFarField*/ false,
 				ComputePassFlags);
 
 			auto TraceMeshSDFs = [&](bool bTraceLightSamples)
@@ -848,15 +843,15 @@ void TraceScreenProbes(
 		}
 	}
 
-	FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
+	FCompactedTraceParameters CompactedTraceParameters = LumenScreenProbeGather::CompactTraces(
 		GraphBuilder,
 		View,
 		ScreenProbeParameters,
 		false,
 		0.0f,
-		// Make sure the shader runs on all misses to apply radiance cache + skylight
-		IndirectTracingParameters.MaxTraceDistance * 2,
+		FLT_MAX, // Make sure the shader runs on all misses to apply radiance cache + skylight
 		bRenderDirectLighting,
+		/*bCompactForFarField*/ false,
 		ComputePassFlags);
 
 	auto TraceVoxels = [&](bool bTraceLightSamples)

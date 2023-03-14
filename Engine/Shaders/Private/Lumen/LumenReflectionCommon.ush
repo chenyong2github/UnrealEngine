@@ -82,6 +82,7 @@ float GetMaxHitDistance()
 
 float EncodeRayDistance(float HitDistance, bool bHit)
 {
+	HitDistance = max(HitDistance, 0.0f);
 	return HitDistance * (bHit ? -1.0f : 1.0f);
 }
 

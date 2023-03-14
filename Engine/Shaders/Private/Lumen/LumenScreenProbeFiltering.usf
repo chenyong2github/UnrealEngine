@@ -116,13 +116,11 @@ void ScreenProbeCompositeTracesWithScatterCS(
 				// Flag that we have at least 1 valid sample
 				SharedAccumulators[ThreadIndex][3] = 1;
 
-				bool bHit;
-				bool bMoving;
-				float HitDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceBufferCoord, 0)).x, bHit, bMoving);
+				FProbeRayDistance ProbeRayDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceBufferCoord, 0)).x);
 
 				float WeightQuantizeScale = MaxValuePerThread;
-				InterlockedAdd(SharedAccumulators[ThreadIndex][4], (uint)((bMoving ? 1 : 0) * SampleWeight * WeightQuantizeScale));
-				InterlockedMin(SharedAccumulators[ThreadIndex][5], asuint(HitDistance));
+				InterlockedAdd(SharedAccumulators[ThreadIndex][4], (uint)((ProbeRayDistance.bMoving ? 1 : 0) * SampleWeight * WeightQuantizeScale));
+				InterlockedMin(SharedAccumulators[ThreadIndex][5], asuint(ProbeRayDistance.HitDistance));
 			}
 
 			GroupMemoryBarrierWithGroupSync();
@@ -470,10 +468,9 @@ void ScreenProbeInjectLightSamplesCS(
 				bool bCastShadow;
 				DecodeLightSampleFlags(ScreenProbeLightSampleFlags[LightSampleBufferCoord], bValidLightSample, bCastShadow);
 
-				bool bHit;
-				DecodeProbeRayDistance(LightSampleTraceHit[LightSampleBufferCoord].x, bHit);
+				FProbeRayDistance ProbeRayDistance = DecodeProbeRayDistance(LightSampleTraceHit[LightSampleBufferCoord].x);
 
-				if (bValidLightSample && !bHit)
+				if (bValidLightSample && !ProbeRayDistance.bHit)
 				{
 					float3 LightDirection = ScreenProbeLightSampleDirection[LightSampleBufferCoord].xyz;
 

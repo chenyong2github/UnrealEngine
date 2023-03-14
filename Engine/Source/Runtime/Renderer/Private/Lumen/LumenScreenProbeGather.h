@@ -10,6 +10,7 @@
 class FLumenScreenSpaceBentNormalParameters;
 class FViewInfo;
 struct FEngineShowFlags;
+enum class ERDGPassFlags : uint16;
 
 namespace LumenRadianceCache
 {
@@ -132,10 +133,24 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCompactedTraceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CompactedTraceTexelAllocator)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, CompactedTraceTexelData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, CompactedLightSampleTraceTexelData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CompactedTraceTexelData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CompactedLightSampleTraceTexelData)
 	RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
+
+namespace LumenScreenProbeGather
+{
+	FCompactedTraceParameters CompactTraces(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FScreenProbeParameters& ScreenProbeParameters,
+		bool bCullByDistanceFromCamera,
+		float CompactionTracingEndDistanceFromCamera,
+		float CompactionMaxTraceDistance,
+		bool bRenderDirectLighting,
+		bool bCompactForFarField,
+		ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
+}
 
 extern void GenerateBRDF_PDF(
 	FRDGBuilder& GraphBuilder, 
@@ -179,7 +194,7 @@ void RenderHardwareRayTracingScreenProbe(
 	const FLumenCardTracingParameters& TracingParameters,
 	FLumenIndirectTracingParameters& DiffuseTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	const FCompactedTraceParameters& CompactedTraceParameters,
+	bool bRenderDirectLighting,
 	ERDGPassFlags ComputePassFlags);
 
 extern void RenderHardwareRayTracingShortRangeAO(
