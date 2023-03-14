@@ -3477,16 +3477,27 @@ public:
 	void WaitForCacheMeshDrawCommandsTask()
 	{
 		CacheMeshDrawCommandsTask.Wait();
+	}
 
-#if RHI_RAYTRACING
-		CacheRayTracingPrimitivesTask.Wait();
-#endif
+	UE::Tasks::FTask GetCacheMeshDrawCommandsTask() const
+	{
+		return CacheMeshDrawCommandsTask;
+	}
+
+	void WaitForCacheNaniteDrawCommandsTask()
+	{
+		CacheNaniteDrawCommandsTask.Wait();
 	}
 
 #if RHI_RAYTRACING
 	void WaitForCacheRayTracingPrimitivesTask()
 	{
 		CacheRayTracingPrimitivesTask.Wait();
+	}
+
+	UE::Tasks::FTask GetCacheRayTracingPrimitivesTask()
+	{
+		return CacheRayTracingPrimitivesTask;
 	}
 #endif
 
@@ -3665,6 +3676,7 @@ private:
 
 	UE::Tasks::FTask CreateLightPrimitiveInteractionsTask;
 	UE::Tasks::FTask CacheMeshDrawCommandsTask;
+	UE::Tasks::FTask CacheNaniteDrawCommandsTask;
 #if RHI_RAYTRACING
 	UE::Tasks::FTask CacheRayTracingPrimitivesTask;
 #endif

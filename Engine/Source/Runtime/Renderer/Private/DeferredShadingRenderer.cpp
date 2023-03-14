@@ -2361,6 +2361,8 @@ void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FRDGBuilder& Gr
 		const int32 ReferenceViewIndex = 0;
 		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
 
+		Scene->WaitForCacheRayTracingPrimitivesTask();
+
 		TaskDatas.RayTracingRelevantPrimitives = Allocator.Create<FRayTracingRelevantPrimitiveTaskData>();
 		TaskDatas.RayTracingRelevantPrimitives->Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
 			[Scene = Scene, &ReferenceView, &RayTracingRelevantPrimitiveList = TaskDatas.RayTracingRelevantPrimitives->List]()
@@ -2502,6 +2504,27 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Compute & commit the final state of the entire dependency topology of the renderer.
 	CommitFinalPipelineState();
+	
+	FRDGExternalAccessQueue ExternalAccessQueue;
+	FVisibilityTaskData* VisibilityTaskData = nullptr;
+
+	{
+		EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None;
+
+		if (GAsyncCreateLightPrimitiveInteractions > 0)
+		{
+			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions;
+		}
+
+		if (GAsyncCacheMeshDrawCommands > 0)
+		{
+			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands;
+		}
+
+		VisibilityTaskData = UpdateScene(GraphBuilder, AsyncOps);
+
+		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
+	}
 
 	ShaderPrint::BeginViews(GraphBuilder, Views);
 
@@ -2518,25 +2541,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ShadingEnergyConservation::Init(GraphBuilder, View);
 	}
 
-	FRDGExternalAccessQueue ExternalAccessQueue;
-
-	{
-		EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None;
-
-		if (GAsyncCreateLightPrimitiveInteractions > 0)
-		{
-			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions;
-		}
-
-		if (GAsyncCacheMeshDrawCommands > 0)
-		{
-			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands;
-		}
-
-		UpdateScene(GraphBuilder, AsyncOps);
-
-		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
-	}
 	// kick off dependent scene updates 
 	Scene->ShadowScene->UpdateForRenderedFrame(GraphBuilder);
 
@@ -2562,7 +2566,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged || bNaniteRayTracingModeChanged || bHasRayTracingEnableChanged)
 		{
-			Scene->WaitForCacheMeshDrawCommandsTask();
+			Scene->WaitForCacheRayTracingPrimitivesTask();
 
 			// In some situations, we need to refresh the cached ray tracing mesh commands because they contain data about the currently bound shader. 
 			// This operation is a bit expensive but only happens once as we transition between modes which should be rare.
@@ -2573,7 +2577,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (bRefreshRayTracingInstances)
 		{
-			Scene->WaitForCacheMeshDrawCommandsTask();
+			Scene->WaitForCacheRayTracingPrimitivesTask();
 
 			// In some situations, we need to refresh the cached ray tracing instance.
 			// eg: Need to update PrimitiveRayTracingFlags
@@ -2628,9 +2632,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
 
-	// Setups the final FViewInfo::ViewRect.
-	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
-
 	const bool bPathTracedAtmosphere = ViewFamily.EngineShowFlags.PathTracing && Views.Num() > 0 && Views[0].FinalPostProcessSettings.PathTracingEnableReferenceAtmosphere;
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags) && !bPathTracedAtmosphere)
 	{
@@ -2681,10 +2682,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		IESAtlas::UpdateAtlasTexture(GraphBuilder, FeatureLevel);
 	}
 
-	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
-	FSceneTexturesConfig::Set(SceneTexturesConfig);
-
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Create(GraphBuilder);
 
 	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
@@ -2732,7 +2730,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FLumenSceneFrameTemporaries LumenFrameTemporaries;
 
-	FInitViewTaskDatas InitViewTaskDatas;
+	FInitViewTaskDatas InitViewTaskDatas(VisibilityTaskData);
 	InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
 
 	::Strata::PreInitViews(*Scene);

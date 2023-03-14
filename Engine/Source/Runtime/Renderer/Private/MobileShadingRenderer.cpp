@@ -381,7 +381,7 @@ void FMobileSceneRenderer::PrepareViewVisibilityLists()
 	}
 }
 
-void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, FInstanceCullingManager& InstanceCullingManager)
+void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, TArrayView<FViewCommands> ViewCommandsPerView, FInstanceCullingManager& InstanceCullingManager)
 {
 	// Sort front to back on all platforms, even HSR benefits from it
 	//const bool bWantsFrontToBackSorting = (GHardwareHiddenSurfaceRemoval == false);
@@ -459,12 +459,10 @@ void FMobileSceneRenderer::InitViews(
 
 	FILCUpdatePrimTaskData* ILCTaskData = nullptr;
 	FComputeViewVisibilityCallbacks ComputeViewVisibilityCallbacks;
-	FViewVisibleCommandsPerView ViewCommandsPerView;
-	ViewCommandsPerView.SetNum(Views.Num());
 
 	const FExclusiveDepthStencil::Type BasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
-	PreVisibilityFrameSetup(GraphBuilder, SceneTexturesConfig);
+	PreVisibilityFrameSetup(GraphBuilder);
 	if (FXSystem && FXSystem->RequiresEarlyViewUniformBuffer() && Views.IsValidIndex(0))
 	{
 		// This is to init the ViewUniformBuffer before rendering for the Niagara compute shader.
@@ -472,7 +470,7 @@ void FMobileSceneRenderer::InitViews(
 		Views[0].InitRHIResources();
 		FXSystem->PostInitViews(GraphBuilder, GetSceneViews(), !ViewFamily.EngineShowFlags.HitProxies);
 	}
-	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager, VirtualTextureUpdater, ComputeViewVisibilityCallbacks);
+	ComputeViewVisibility(RHICmdList, TaskDatas.VisibilityTaskData, BasePassDepthStencilAccess, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager, VirtualTextureUpdater, ComputeViewVisibilityCallbacks);
 	PostVisibilityFrameSetup(ILCTaskData);
 
 	FIntPoint RenderTargetSize = ViewFamily.RenderTarget->GetSizeXY();
@@ -679,7 +677,7 @@ void FMobileSceneRenderer::InitViews(
 		PrepareViewVisibilityLists();
 	}
 
-	SetupMobileBasePassAfterShadowInit(BasePassDepthStencilAccess, ViewCommandsPerView, InstanceCullingManager);
+	SetupMobileBasePassAfterShadowInit(BasePassDepthStencilAccess, GetViewCommandsPerView(TaskDatas.VisibilityTaskData), InstanceCullingManager);
 
 	// if we kicked off ILC update via task, wait and finalize.
 	if (ILCTaskData)
@@ -835,7 +833,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	RDG_RHI_EVENT_SCOPE(GraphBuilder, MobileSceneRender);
 	RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, MobileSceneRender);
 
-	UpdateScene(GraphBuilder);
+	FVisibilityTaskData* VisibilityTaskData = UpdateScene(GraphBuilder);
 
 	FRDGExternalAccessQueue ExternalAccessQueue;
 
@@ -850,8 +848,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Establish scene primitive count (must be done after UpdateAllPrimitiveSceneInfos)
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
-
-	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
@@ -878,9 +874,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	WaitOcclusionTests(GraphBuilder.RHICmdList);
 
-	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
-	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
@@ -924,7 +918,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// TODO: This doesn't take into account the potential for split screen views with separate shadow caches
 	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), UseVirtualShadowMaps(ShaderPlatform, FeatureLevel), Views[0].bIsSceneCapture);
 
-	FInitViewTaskDatas InitViewTaskDatas;
+	FInitViewTaskDatas InitViewTaskDatas(VisibilityTaskData);
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_InitViews));
 

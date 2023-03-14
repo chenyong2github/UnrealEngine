@@ -2718,7 +2718,7 @@ FIntPoint FSceneRenderer::GetDesiredInternalBufferSize(const FSceneViewFamily& V
 	return DesiredBufferSize;
 }
 
-void FSceneRenderer::UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps)
+FVisibilityTaskData* FSceneRenderer::UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps)
 {
 	/**
 	  * UpdateStaticMeshes removes and re-creates cached FMeshDrawCommands.  If there are multiple scene renderers being run together,
@@ -2742,6 +2742,15 @@ void FSceneRenderer::UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveS
 	{
 		FGraphicsMinimalPipelineStateId::FreezeIdTable(false);
 	}
+
+	// Setups the final FViewInfo::ViewRect.
+	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
+
+	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
+	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
+	FSceneTexturesConfig::Set(SceneTexturesConfig);
+
+	return BeginInitVisibility(GraphBuilder, SceneTexturesConfig);
 }
 
 void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList)

@@ -60,6 +60,8 @@ struct FDBufferTextures;
 struct FILCUpdatePrimTaskData;
 struct FLumenDirectLightingTaskData;
 
+struct FVisibilityTaskData;
+
 #if RHI_RAYTRACING
 struct FRayTracingRelevantPrimitiveTaskData;
 #endif
@@ -535,6 +537,11 @@ private:
 
 	struct FInitViewTaskDatas
 	{
+		FInitViewTaskDatas(FVisibilityTaskData* InVisibilityTaskData)
+			: VisibilityTaskData(InVisibilityTaskData)
+		{}
+
+		FVisibilityTaskData* VisibilityTaskData;
 		FILCUpdatePrimTaskData* ILCUpdatePrim = nullptr;
 	#if RHI_RAYTRACING
 		FRayTracingRelevantPrimitiveTaskData* RayTracingRelevantPrimitives = nullptr;
@@ -546,7 +553,7 @@ private:
 
 	void PreGatherDynamicMeshElements(FRDGBuilder& GraphBuilder, FInitViewTaskDatas& TaskDatas);
 
-	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
+	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder);
 
 	void FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynamicShadowsTaskData*& TaskData, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 

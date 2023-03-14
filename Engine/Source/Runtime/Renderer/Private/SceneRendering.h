@@ -83,6 +83,7 @@ class FTexture2DResource;
 class FSimpleLightArray;
 struct FNaniteMaterialPassCommand;
 struct FScreenMessageWriter;
+struct FVisibilityTaskData;
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
 
@@ -2291,7 +2292,7 @@ protected:
 
 	// Shared functionality between all scene renderers
 
-	void UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None);
+	FVisibilityTaskData* UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None);
 
 	FDynamicShadowsTaskData* BeginInitDynamicShadows(bool bRunningEarly);
 	void FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynamicShadowsTaskData* TaskData, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
@@ -2413,7 +2414,7 @@ protected:
 	void GatherShadowDynamicMeshElements(FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager);
 
 	/** Performs once per frame setup prior to visibility determination. */
-	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
+	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder);
 
 	struct FComputeViewVisibilityCallbacks
 	{
@@ -2423,8 +2424,8 @@ protected:
 	/** Computes which primitives are visible and relevant for each view. */
 	void ComputeViewVisibility(
 		FRHICommandListImmediate& RHICmdList,
+		FVisibilityTaskData* TaskData,
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
-		FViewVisibleCommandsPerView& ViewCommandsPerView, 
 		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
 		FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
 		FGlobalDynamicReadBuffer& DynamicReadBuffer,
@@ -2542,6 +2543,10 @@ protected:
 private:
 	void ComputeFamilySize();
 
+	FVisibilityTaskData* BeginInitVisibility(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
+
+	void PrepareViewStateForVisibility(const FSceneTexturesConfig& SceneTexturesConfig);
+
 #if !UE_BUILD_SHIPPING
 	/** Collect the draw data of all visible UPrimitiveComponents in the Scene */
 	void ProcessPrimitives(const FViewInfo& View, const FViewCommands& ViewCommands) const;
@@ -2553,17 +2558,35 @@ private:
 	friend class FRendererModule;
 };
 
-template <typename LambdaType>
-UE::Tasks::FTask LaunchSceneRenderTask(const TCHAR* DebugName, LambdaType&& Lambda, bool bExecuteInParallelCondition = true, LowLevelTasks::ETaskPriority TaskPriority = LowLevelTasks::ETaskPriority::Normal)
+template <typename LambdaType, typename PrerequisiteTaskCollectionType>
+UE::Tasks::FTask LaunchSceneRenderTask(const TCHAR* DebugName, LambdaType&& Lambda, PrerequisiteTaskCollectionType&& Prerequisites, bool bExecuteInParallelCondition = true, UE::Tasks::ETaskPriority TaskPriority = UE::Tasks::ETaskPriority::High)
 {
 	const bool bExecuteInParallel = bExecuteInParallelCondition && FApp::ShouldUseThreadingForPerformance() && GIsThreadedRendering;
 
-	return UE::Tasks::Launch(DebugName, [Lambda = MoveTemp(Lambda)]
-	{
-		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-		Lambda();
-	},
-	TaskPriority, bExecuteInParallel ? UE::Tasks::EExtendedTaskPriority::None : UE::Tasks::EExtendedTaskPriority::Inline);
+	return UE::Tasks::Launch(DebugName, [Lambda = Forward<LambdaType&&>(Lambda)] () mutable
+		{
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+			Lambda();
+		}, 
+		Forward<PrerequisiteTaskCollectionType&&>(Prerequisites),
+		TaskPriority,
+		bExecuteInParallel ? UE::Tasks::EExtendedTaskPriority::None : UE::Tasks::EExtendedTaskPriority::Inline
+	);
+}
+
+template <typename LambdaType>
+UE::Tasks::FTask LaunchSceneRenderTask(const TCHAR* DebugName, LambdaType&& Lambda, bool bExecuteInParallelCondition = true, UE::Tasks::ETaskPriority TaskPriority = UE::Tasks::ETaskPriority::High)
+{
+	const bool bExecuteInParallel = bExecuteInParallelCondition && FApp::ShouldUseThreadingForPerformance() && GIsThreadedRendering;
+
+	return UE::Tasks::Launch(DebugName, [Lambda = Forward<LambdaType&&>(Lambda)] () mutable
+		{
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+			Lambda();
+		},
+		TaskPriority,
+		bExecuteInParallel ? UE::Tasks::EExtendedTaskPriority::None : UE::Tasks::EExtendedTaskPriority::Inline
+	);
 }
 
 struct FForwardScreenSpaceShadowMaskTextureMobileOutputs
@@ -2615,6 +2638,11 @@ protected:
 
 	struct FInitViewTaskDatas
 	{
+		FInitViewTaskDatas(FVisibilityTaskData* InVisibilityTaskData)
+			: VisibilityTaskData(InVisibilityTaskData)
+		{}
+
+		FVisibilityTaskData* VisibilityTaskData;
 		FDynamicShadowsTaskData* DynamicShadows = nullptr;
 	};
 
@@ -2670,8 +2698,7 @@ protected:
 	/** On chip pre-tonemap before scene color MSAA resolve (iOS only) */
 	void PreTonemapMSAA(FRHICommandListImmediate& RHICmdList, const FMinimalSceneTextures& SceneTextures);
 
-	void SortMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView);
-	void SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, FInstanceCullingManager& InstanceCullingManager);
+	void SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, TArrayView<FViewCommands> ViewCommandsPerView, FInstanceCullingManager& InstanceCullingManager);
 
 	void UpdateDirectionalLightUniformBuffers(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 	void UpdateSkyReflectionUniformBuffer();
@@ -2806,6 +2833,9 @@ extern FFastVramConfig GFastVRamConfig;
  * after launching the shadow initialization tasks. It will sync the shadow creation task.
  */
 extern bool HasRayTracedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData);
+
+/** Returns the array of view commands associated with the view visibility tasks. */
+extern TArrayView<FViewCommands> GetViewCommandsPerView(FVisibilityTaskData* TaskData);
 
 /** Returns the array of shadows with distance fields. Call only after finishing shadow initialization. */
 extern TConstArrayView<FProjectedShadowInfo*> GetProjectedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData);
