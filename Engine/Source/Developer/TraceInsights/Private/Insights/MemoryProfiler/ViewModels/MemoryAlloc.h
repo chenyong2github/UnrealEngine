@@ -33,6 +33,8 @@ public:
 	const TCHAR* GetTag() const { return Tag; }
 	const TCHAR* GetAsset() const { return Asset; }
 	const TCHAR* GetClassName() const { return ClassName; }
+	uint32 GetCallstackId() const { return CallstackId; }
+	uint32 GetFreeCallstackId() const { return FreeCallstackId; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }
 	const TraceServices::FCallstack* GetFreeCallstack() const { return FreeCallstack; }
 	FText GetFullCallstack() const;
@@ -50,6 +52,8 @@ private:
 	const TCHAR* Tag;
 	const TCHAR* Asset;
 	const TCHAR* ClassName;
+	uint32 CallstackId;
+	uint32 FreeCallstackId;
 	const TraceServices::FCallstack* Callstack;
 	const TraceServices::FCallstack* FreeCallstack;
 	HeapId RootHeap;

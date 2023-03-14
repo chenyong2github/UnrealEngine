@@ -14,9 +14,16 @@ INSIGHTS_IMPLEMENT_RTTI(FMemAllocNode)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint64 FMemAllocNode::GetCallstackId() const
+uint32 FMemAllocNode::GetCallstackId() const
 {
-	return IsValidMemAlloc() ? uint64(GetMemAllocChecked().GetCallstack()) : 0ull;
+	return IsValidMemAlloc() ? GetMemAllocChecked().GetCallstackId() : 0u;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32 FMemAllocNode::GetFreeCallstackId() const
+{
+	return IsValidMemAlloc() ? GetMemAllocChecked().GetFreeCallstackId() : 0u;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

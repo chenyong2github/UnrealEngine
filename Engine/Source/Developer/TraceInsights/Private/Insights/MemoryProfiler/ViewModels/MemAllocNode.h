@@ -61,7 +61,9 @@ public:
 	const FMemoryAlloc* GetMemAlloc() const { return GetMemTableChecked().GetMemAlloc(GetRowIndex()); }
 	const FMemoryAlloc& GetMemAllocChecked() const { return GetMemTableChecked().GetMemAllocChecked(GetRowIndex()); }
 
-	uint64 GetCallstackId() const;
+	uint32 GetCallstackId() const;
+	uint32 GetFreeCallstackId() const;
+
 	FText GetFullCallstack() const;
 	FText GetFullCallstackSourceFiles() const;
 	FText GetTopFunction() const;

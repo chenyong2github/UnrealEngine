@@ -434,6 +434,9 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 							});
 					}
 
+					Alloc.CallstackId = Allocation->GetCallstackId();
+					Alloc.FreeCallstackId = Allocation->GetFreeCallstackId();
+
 					if (CallstacksProvider)
 					{
 						Alloc.Callstack = CallstacksProvider->GetCallstack(Allocation->GetCallstackId());
