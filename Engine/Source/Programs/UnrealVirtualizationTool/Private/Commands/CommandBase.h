@@ -134,8 +134,6 @@ protected: // Common SourceControl Code
 		return TryConnectToSourceControl(FStringView());
 	}
 
-	bool TryCheckOutFilesForProject(FStringView ClientSpecName, FStringView ProjectRoot, const TArray<FString>& ProjectPackages);
-	
 	bool TryParseChangelist(FStringView ClientSpecName, FStringView ChangelistNumber, TArray<FString>& OutPackages, FSourceControlChangelistPtr* OutChangelist);
 
 	FString FindClientSpecForChangelist(FStringView ChangelistNumber);

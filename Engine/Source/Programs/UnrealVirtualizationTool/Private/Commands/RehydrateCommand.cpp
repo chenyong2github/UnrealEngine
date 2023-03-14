@@ -104,15 +104,9 @@ bool FRehydrateCommand::ProcessProject(const FProject& Project, TUniquePtr<FComm
 		UE::Virtualization::Shutdown();
 	};
 
-	const TArray<FString> ProjectPackages = Project.GetAllPackages();
-
-	if (!TryCheckOutFilesForProject(ClientSpecName, Project.GetProjectRoot(), ProjectPackages))
-	{
-		return false;
-	}
-
 	UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tAttempting to rehydrate packages..."), ProjectName.ToString());
 
+	const TArray<FString> ProjectPackages = Project.GetAllPackages();
 
 	ERehydrationOptions Options = ERehydrationOptions::None;
 	if (bShouldCheckout)
