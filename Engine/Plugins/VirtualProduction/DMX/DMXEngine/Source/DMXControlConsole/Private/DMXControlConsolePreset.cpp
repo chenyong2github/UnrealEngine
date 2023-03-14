@@ -7,6 +7,11 @@
 
 #define LOCTEXT_NAMESPACE "DMXControlConsolePreset"
 
+UDMXControlConsolePreset::UDMXControlConsolePreset()
+{
+	ControlConsole = CreateDefaultSubobject<UDMXControlConsole>(TEXT("ControlConsole"));
+}
+
 void UDMXControlConsolePreset::CopyControlConsole(UDMXControlConsole* InControlConsole)
 {
 	if (!InControlConsole)
@@ -14,7 +19,7 @@ void UDMXControlConsolePreset::CopyControlConsole(UDMXControlConsole* InControlC
 		return;
 	}
 
-	// Before the first save Control Console is in the Transient Package
+	// Unsaved Control Consoles live in the Transient Package
 	if (InControlConsole->GetPackage() == GetTransientPackage())
 	{
 		ControlConsole = InControlConsole;

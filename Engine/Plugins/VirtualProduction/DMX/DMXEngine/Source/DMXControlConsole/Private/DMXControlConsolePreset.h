@@ -18,9 +18,8 @@ class DMXCONTROLCONSOLE_API UDMXControlConsolePreset
 	GENERATED_BODY()
 
 public:
-#if WITH_EDITOR
-	DECLARE_EVENT_OneParam(UDMXControlConsolePreset, FDMXControlConsolePresetEvent, const UDMXControlConsolePreset*)
-#endif // WITH_EDITOR
+	/** Constructor */
+	UDMXControlConsolePreset();
 
 	/** Gets the Preset's Control Console reference */
 	UDMXControlConsole* GetControlConsole() const { return ControlConsole; }
@@ -28,8 +27,9 @@ public:
 	/** Copies the Control Console into this preset */
 	void CopyControlConsole(UDMXControlConsole* InControlConsole);
 
-	/** Gets a reference to OnControlConsolePresetSaved delegate */
+	/** Returns an event that is broadcast when the control console asset is saved */
 #if WITH_EDITOR
+	DECLARE_EVENT_OneParam(UDMXControlConsolePreset, FDMXControlConsolePresetEvent, const UDMXControlConsolePreset*)
 	FDMXControlConsolePresetEvent& GetOnControlConsolePresetSaved() { return OnControlConsolePresetSaved; }
 #endif // WITH_EDITOR
 

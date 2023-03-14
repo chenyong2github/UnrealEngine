@@ -15,8 +15,8 @@ class UDMXControlConsoleRawFader;
 class FDMXControlConsoleEditorFromLegacyUpgradeHandler
 {
 public:
-	/** Tries to upgrade configuration settings from previous DMXControlConsole versions */
-	static void TryUpgradePathFromLegacy();
+	/** Tries to upgrade configuration settings from previous DMXControlConsole versions. Returns true if the upgrade path was taken. */
+	static bool TryUpgradePathFromLegacy();
 
 private:
 	/** Creates Fader Groups based on FaderDescriptor array. Used only for compatibility with DMXControlConsole previous versions */

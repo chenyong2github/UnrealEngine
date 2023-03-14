@@ -21,7 +21,7 @@ public:
 
 private:
 	/** Registers Control Console actions in Level Editor Commands */
-	static void RegisterControlConsoleActions();
+	void RegisterControlConsoleActions();
 
 	/** Registers an extender for the Level Editor Toolbar DMX Menu */
 	static void RegisterDMXMenuExtender();

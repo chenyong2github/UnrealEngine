@@ -13,6 +13,7 @@ class SDMXControlConsoleEditorPresetWidget;
 class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsole;
 
+class FUICommandList;
 class IDetailsView;
 class SDockTab;
 class SVerticalBox;
@@ -43,11 +44,11 @@ protected:
 	//~ End of SWidget interface
 
 private:
-	/** Generates the toolbar for this DMX Control Console View */
-	TSharedRef<SWidget> GenerateToolbar();
+	/** Registers commands for this view */
+	void RegisterCommands();
 
-	/** Generates a widget that displays the currently loaded widget */
-	TSharedRef<SWidget> GenerateLoadedPresetWidget();
+	/** Generates the toolbar for this view */
+	TSharedRef<SWidget> GenerateToolbar();
 
 	/** Requests to update the Details Views on the next tick */
 	void RequestUpdateDetailsViews();
@@ -114,4 +115,7 @@ private:
 
 	/** Timer handle in use while updating details views is requested but not carried out yet */
 	FTimerHandle UpdateDetailsViewTimerHandle;
+
+	/** Command list for the Control Console Editor View */
+	TSharedPtr<FUICommandList> CommandList;
 };

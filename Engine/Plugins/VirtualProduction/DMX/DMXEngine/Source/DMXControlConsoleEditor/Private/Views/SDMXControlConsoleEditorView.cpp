@@ -13,18 +13,21 @@
 #include "Customizations/DMXControlConsoleDetails.h"
 #include "Customizations/DMXControlConsoleFaderGroupDetails.h"
 #include "Library/DMXEntityReference.h"
+#include "Models/DMXControlConsoleEditorPresetModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupRowView.h"
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
+#include "Widgets/SDMXControlConsoleEditorAssetPicker.h"
 #include "Widgets/SDMXControlConsoleEditorFixturePatchVerticalBox.h"
 
+#include "Editor.h"
 #include "IDetailsView.h"
-#include "LevelEditor.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "TimerManager.h"
 #include "Application/ThrottleManager.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "Layout/Visibility.h"
@@ -50,11 +53,15 @@ SDMXControlConsoleEditorView::~SDMXControlConsoleEditorView()
 
 void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 {
-	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
-	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
-	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowRemoved);
-	ControlConsoleManager.GetOnControlConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowAdded);
+	RegisterCommands();
 
+	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
+
+	PresetModel->GetOnPresetLoaded().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
+	PresetModel->GetOnPresetLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowAdded);
+	PresetModel->GetOnPresetLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowRemoved);
+
+	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = ControlConsoleManager.GetSelectionHandler();
 	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
 
@@ -262,62 +269,95 @@ void SDMXControlConsoleEditorView::Tick(const FGeometry& AllottedGeometry, const
 	}
 }
 
+void SDMXControlConsoleEditorView::RegisterCommands()
+{
+	CommandList = MakeShared<FUICommandList>();
+
+	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().CreateNewPreset,
+		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::CreateNewPreset)
+	);
+
+	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().SendDMX,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::SendDMX),
+		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanSendDMX),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanSendDMX)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().StopDMX,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::StopDMX),
+		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanStopDMX),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanStopDMX)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().ClearAll,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::ClearAll)
+	);
+}
+
 TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	const TSharedPtr<FUICommandList> CommandList = LevelEditorModule.GetGlobalLevelEditorActions();
+	ensureMsgf(CommandList.IsValid(), TEXT("Invalid command list for control console editor view."));
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder = FSlimHorizontalToolBarBuilder(CommandList, FMultiBoxCustomization::None);
 
-	ToolbarBuilder.BeginSection("Save");
-	{
-		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().Save,
+	ToolbarBuilder.BeginSection("AssetActions");
+	{		
+		ToolbarBuilder.AddToolBarButton(
+			FDMXControlConsoleEditorCommands::Get().CreateNewPreset,
 			NAME_None,
 			FText::GetEmpty(),
 			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveAsset"));
-
-		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().SaveAs,
-			NAME_None,
-			FText::GetEmpty(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.SaveAssetAs"));
-	}
-	ToolbarBuilder.EndSection();
-
-	ToolbarBuilder.BeginSection("Load");
-	{
-		ToolbarBuilder.AddWidget(GenerateLoadedPresetWidget());
-
-		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().Load,
-			NAME_None,
-			FText::GetEmpty(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"));
-
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.PlusCircle")
+		);
+		
+		ToolbarBuilder.AddWidget(SNew(SDMXControlConsoleEditorAssetPicker));
 	}
 	ToolbarBuilder.EndSection();
 
 	ToolbarBuilder.BeginSection("Clear");
 	{
-		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().ClearAll,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+		ToolbarBuilder.AddToolBarButton(
+			FDMXControlConsoleEditorCommands::Get().ClearAll,
+			NAME_None, 
+			TAttribute<FText>(),
+			TAttribute<FText>(),
 			FSlateIcon(),
-			FName(TEXT("Clear All")));
+			FName(TEXT("Clear All"))
+		);
 	}
 	ToolbarBuilder.EndSection();
 
 	ToolbarBuilder.BeginSection("SendDMX");
 	{
-		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().SendDMX,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+		ToolbarBuilder.AddToolBarButton(
+			FDMXControlConsoleEditorCommands::Get().SendDMX,
+			NAME_None, 
+			TAttribute<FText>(), 
+			TAttribute<FText>(),
 			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.PlayDMX"),
-			FName(TEXT("Send DMX")));
+			FName(TEXT("Send DMX"))
+		);
 
-		ToolbarBuilder.AddToolBarButton(FDMXControlConsoleEditorCommands::Get().StopDMX,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+		ToolbarBuilder.AddToolBarButton(
+			FDMXControlConsoleEditorCommands::Get().StopDMX,
+			NAME_None, 
+			TAttribute<FText>(), 
+			TAttribute<FText>(),
 			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.StopPlayingDMX"),
-			FName(TEXT("Stop Sending DMX")));
+			FName(TEXT("Stop Sending DMX"))
+		);
 	}
 	ToolbarBuilder.EndSection();
 
@@ -334,46 +374,6 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	ToolbarBuilder.EndSection();
 
 	return ToolbarBuilder.MakeWidget();
-}
-
-TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateLoadedPresetWidget()
-{
-	const TSharedRef<SWidget> BrowseToPresetButton = PropertyCustomizationHelpers::MakeBrowseButton(
-		FSimpleDelegate::CreateSP(this, &SDMXControlConsoleEditorView::OnBrowseToPresetClicked),
-		LOCTEXT("BrowseToPresetTooltip", "Browses to the loaded Preset"),
-		TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SDMXControlConsoleEditorView::IsAnyPresetLoaded)));
-
-	const TSharedRef<SWidget> LoadedPresetWidget = 
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.Padding(4.f)
-		[
-			SNew(SBorder)
-			.BorderImage(FDMXEditorStyle::Get().GetBrush("DMXEditor.RoundedPropertyBorder"))
-			[
-				SNew(STextBlock)
-				.Margin(FMargin(4.f, 2.f, 14.f, 2.f))
-				.Text_Lambda([]()
-					{
-						UDMXControlConsolePreset* LastLoadedPreset = FDMXControlConsoleEditorManager::Get().GetPreset();
-						return LastLoadedPreset ? FText::FromString(LastLoadedPreset->GetName()) : LOCTEXT("NoPresetLoadedText", "No Preset Loaded");
-					})
-			]
-		]
-
-	+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.Padding(4.f)
-		[
-			BrowseToPresetButton
-		];
-
-	return LoadedPresetWidget;
 }
 
 void SDMXControlConsoleEditorView::RequestUpdateDetailsViews()
@@ -452,17 +452,32 @@ void SDMXControlConsoleEditorView::AddFaderGroupRow(UDMXControlConsoleFaderGroup
 		return;
 	}
 
-	const int32 RowIndex = FaderGroupRow->GetRowIndex();
 	const TSharedRef<SDMXControlConsoleEditorFaderGroupRowView> FaderGroupRowWidget = SNew(SDMXControlConsoleEditorFaderGroupRowView, FaderGroupRow);
-	FaderGroupRowViews.Insert(FaderGroupRowWidget, RowIndex);
+	const int32 RowIndex = FaderGroupRow->GetRowIndex();
+	if (ensureMsgf(RowIndex == 0 || FaderGroupRowViews.IsValidIndex(RowIndex - 1), TEXT("Unexpected, invalid row index when trying to add control console row.")))
+	{
+		FaderGroupRowViews.Insert(FaderGroupRowWidget, RowIndex);
 
-	FaderGroupRowsVerticalBox->InsertSlot(RowIndex)
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		.Padding(0.f, 8.f)
-		[
-			FaderGroupRowWidget
-		];
+		FaderGroupRowsVerticalBox->InsertSlot(RowIndex)
+			.AutoHeight()
+			.VAlign(VAlign_Top)
+			.Padding(0.f, 8.f)
+			[
+				FaderGroupRowWidget
+			];
+	}
+	else
+	{
+		FaderGroupRowViews.Add(FaderGroupRowWidget);
+
+		FaderGroupRowsVerticalBox->AddSlot()
+			.AutoHeight()
+			.VAlign(VAlign_Top)
+			.Padding(0.f, 8.f)
+			[
+				FaderGroupRowWidget
+			];
+	}
 }
 
 void SDMXControlConsoleEditorView::OnFaderGroupRowRemoved()

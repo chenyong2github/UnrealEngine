@@ -3,12 +3,12 @@
 #include "DMXControlConsoleEditorFromLegacyUpgradeHandler.h"
 
 #include "DMXControlConsole.h"
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXControlConsolePreset.h"
 #include "DMXControlConsoleRawFader.h"
 #include "DMXEditorSettings.h"
+#include "Models/DMXControlConsoleEditorPresetModel.h"
 
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -22,12 +22,12 @@
 
 TWeakObjectPtr<UDMXControlConsolePreset> FDMXControlConsoleEditorFromLegacyUpgradeHandler::UpgradePathControlConsolePreset;
 
-void FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy()
+bool FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy()
 {
 	const UDMXEditorSettings* DMXEditorSettings = GetDefault<UDMXEditorSettings>();
 	if (!DMXEditorSettings)
 	{
-		return;
+		return false;
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -35,7 +35,7 @@ void FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy(
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (FaderDescriptorArray.IsEmpty())
 	{
-		return;
+		return false;
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -43,17 +43,22 @@ void FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy(
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!ControlConsole)
 	{
-		return;
+		return false;
 	}
 
 	const FString AssetPath = TEXT("/Game");
 	const FString AssetName = TEXT("DefaultControlConsolePreset");
 
-	UpgradePathControlConsolePreset = FDMXControlConsoleEditorManager::Get().CreateNewPresetAsset(AssetPath / AssetName, ControlConsole);
+	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
+	UpgradePathControlConsolePreset = PresetModel->CreateNewPresetAsset(AssetPath, AssetName, ControlConsole);
 	if (UpgradePathControlConsolePreset.IsValid())
 	{
 		UpgradePathControlConsolePreset->GetOnControlConsolePresetSaved().AddStatic(&FDMXControlConsoleEditorFromLegacyUpgradeHandler::OnUpgradePathControlConsolePresetSaved);
+
+		return true;
 	}
+
+	return false;
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

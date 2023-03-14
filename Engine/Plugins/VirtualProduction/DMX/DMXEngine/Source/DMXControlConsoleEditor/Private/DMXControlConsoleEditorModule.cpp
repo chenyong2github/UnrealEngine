@@ -2,10 +2,10 @@
 
 #include "DMXControlConsoleEditorModule.h"
 
-#include "DMXControlConsoleEditorFromLegacyUpgradeHandler.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXEditorModule.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
+#include "Models/DMXControlConsoleEditorPresetModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorView.h"
 
@@ -24,9 +24,6 @@ void FDMXControlConsoleEditorModule::StartupModule()
 {
 	FDMXControlConsoleEditorCommands::Register();
 	RegisterControlConsoleActions();
-
-	// Try UpgradePath if configurations settings have data from previous Control Console versions
-	FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy();
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 		ControlConsoleTabName, 
@@ -50,50 +47,6 @@ void FDMXControlConsoleEditorModule::RegisterControlConsoleActions()
 	CommandList->MapAction(
 		FDMXControlConsoleEditorCommands::Get().OpenControlConsole,
 		FExecuteAction::CreateStatic(&FDMXControlConsoleEditorModule::OpenControlConsole)
-	);
-
-	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
-
-	CommandList->MapAction
-	(
-		FDMXControlConsoleEditorCommands::Get().Save,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::Save)
-	);
-
-	CommandList->MapAction
-	(
-		FDMXControlConsoleEditorCommands::Get().SaveAs,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::SaveAs)
-	);
-
-	CommandList->MapAction
-	(
-		FDMXControlConsoleEditorCommands::Get().Load,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::Load)
-	);
-
-	CommandList->MapAction
-	(
-		FDMXControlConsoleEditorCommands::Get().SendDMX,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::SendDMX),
-		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanSendDMX),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanSendDMX)
-	);
-
-	CommandList->MapAction
-	(
-		FDMXControlConsoleEditorCommands::Get().StopDMX,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::StopDMX),
-		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanStopDMX),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanStopDMX)
-	);
-
-	CommandList->MapAction
-	(
-		FDMXControlConsoleEditorCommands::Get().ClearAll,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::ClearAll)
 	);
 }
 
