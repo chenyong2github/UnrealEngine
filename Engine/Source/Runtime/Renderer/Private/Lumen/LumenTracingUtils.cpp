@@ -16,8 +16,8 @@ FAutoConsoleVariableRef CVarLumenSkylightLeakingRoughness(
 
 static TAutoConsoleVariable<int32> CVarLumenSampleFog(
 	TEXT("r.Lumen.SampleFog"),
-	1,
-	TEXT("Sample the fog contribution in Lumen tracing. Enabled by default."),
+	0,
+	TEXT("Sample the fog contribution in Lumen tracing. Disabled by default."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
