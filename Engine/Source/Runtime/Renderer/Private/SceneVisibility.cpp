@@ -4769,6 +4769,7 @@ void FSceneRenderer::ComputeViewVisibility(
 	}
 
 	Scene->WaitForCacheNaniteDrawCommandsTask();
+	Scene->WaitForCreateLightPrimitiveInteractionsTask();
 
 	if (Callbacks.PreGatherDynamicMeshElements)
 	{
@@ -5138,8 +5139,6 @@ void FDeferredShadingSceneRenderer::BeginInitViews(
 	{
 		InitSkyAtmosphereForViews(RHICmdList);
 	}
-
-	Scene->WaitForCreateLightPrimitiveInteractionsTask();
 
 	PostVisibilityFrameSetup(TaskDatas.ILCUpdatePrim);
 
