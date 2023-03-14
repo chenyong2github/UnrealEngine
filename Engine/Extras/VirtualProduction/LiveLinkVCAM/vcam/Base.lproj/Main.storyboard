@@ -43,7 +43,7 @@
                                             <constraint firstAttribute="width" secondItem="YGc-yc-qej" secondAttribute="height" multiplier="1.33" id="29s-8n-bDA"/>
                                         </constraints>
                                     </imageView>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Please enter the IP address of your workstation." textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="kBr-PF-dqV">
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Please enter the IP address of your workstation." textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="kBr-PF-dqV">
                                         <rect key="frame" x="250" y="0.0" width="250" height="41"/>
                                         <fontDescription key="fontDescription" type="system" pointSize="17"/>
                                         <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
@@ -96,6 +96,7 @@
                                     <constraint firstAttribute="trailing" secondItem="qlg-Dp-yNU" secondAttribute="trailing" id="nTY-Aq-jin"/>
                                     <constraint firstAttribute="bottom" secondItem="qlg-Dp-yNU" secondAttribute="bottom" id="vTk-2A-xdK"/>
                                     <constraint firstItem="YGc-yc-qej" firstAttribute="width" secondItem="sz7-lq-PDh" secondAttribute="width" multiplier="0.45" id="xs1-BJ-IF3"/>
+                                    <constraint firstAttribute="height" constant="169" id="ywD-KA-oCX"/>
                                 </constraints>
                             </view>
                             <button opaque="NO" alpha="0.90000000000000002" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="2wR-8t-LOY" userLabel="Settings Button">
@@ -123,7 +124,7 @@
                                 <rect key="frame" x="477" y="32" width="240" height="290.5"/>
                                 <subviews>
                                     <view contentMode="scaleToFill" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="qB4-zW-lZY">
-                                        <rect key="frame" x="-4" y="121" width="247" height="48"/>
+                                        <rect key="frame" x="-4" y="121.5" width="247" height="48"/>
                                         <subviews>
                                             <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="exclamationmark.circle.fill" catalog="system" translatesAutoresizingMaskIntoConstraints="NO" id="Lc0-A5-5Gh">
                                                 <rect key="frame" x="8" y="8.5" width="32" height="31"/>
@@ -300,10 +301,10 @@
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <prototypes>
                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="default" indentationWidth="10" reuseIdentifier="logItemCell" id="gbH-X5-dMc" customClass="LogItemCell" customModule="VCAM" customModuleProvider="target">
-                                <rect key="frame" x="0.0" y="50" width="704" height="34.5"/>
+                                <rect key="frame" x="0.0" y="50" width="704" height="34"/>
                                 <autoresizingMask key="autoresizingMask"/>
                                 <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" preservesSuperviewLayoutMargins="YES" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="gbH-X5-dMc" id="LkY-3b-5rq">
-                                    <rect key="frame" x="0.0" y="0.0" width="704" height="34.5"/>
+                                    <rect key="frame" x="0.0" y="0.0" width="704" height="34"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                     <subviews>
                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="252" verticalHuggingPriority="251" text="●" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="eQH-qx-1Av">
@@ -316,13 +317,13 @@
                                             <nil key="highlightedColor"/>
                                         </label>
                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="YYYY-MM-DD " textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="hvX-mA-Ptb">
-                                            <rect key="frame" x="35" y="0.0" width="649" height="17.5"/>
+                                            <rect key="frame" x="35" y="0.0" width="649" height="17"/>
                                             <fontDescription key="fontDescription" name="Menlo-Bold" family="Menlo" pointSize="14"/>
                                             <nil key="textColor"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="252" text="PLACEHOLDER" textAlignment="natural" lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jwF-DI-LCx">
-                                            <rect key="frame" x="35" y="18.5" width="649" height="15.5"/>
+                                            <rect key="frame" x="35" y="18" width="649" height="15.5"/>
                                             <fontDescription key="fontDescription" name="Menlo-Regular" family="Menlo" pointSize="13"/>
                                             <nil key="textColor"/>
                                             <nil key="highlightedColor"/>

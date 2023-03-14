@@ -201,7 +201,7 @@ class StartViewController : BaseViewController {
         let connectButtonFrame = self.view.convert(connect.frame, from: connect.superview)
         
         if keyboardFrame.minY < connectButtonFrame.maxY {
-            self.entryViewYConstraint.constant = -keyboardFrame.size.height / 2.0
+            self.entryViewYConstraint.constant = -(keyboardFrame.size.height - self.headerView.frame.height) / 2.0
         } else {
             self.entryViewYConstraint.constant = 0
         }
