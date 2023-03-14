@@ -649,7 +649,7 @@ public:
 #endif
 
 	/** When enabled, particle will scale down (shrink) when using being removed ( using both remove on sleep or remove on break ) - Enabled by default */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Removal)
 	bool bScaleOnRemoval;
 
 	/** Remove particle from simulation and dissolve rendered geometry once sleep threshold has been exceeded. */
