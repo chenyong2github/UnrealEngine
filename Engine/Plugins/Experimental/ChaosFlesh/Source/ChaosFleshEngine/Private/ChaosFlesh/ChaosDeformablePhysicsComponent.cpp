@@ -31,6 +31,7 @@ void UDeformablePhysicsComponent::OnDestroyPhysicsState()
 			RemoveProxy(GameThreadSolver);
 		}
 	}
+	PhysicsProxy = nullptr;
 }
 
 bool UDeformablePhysicsComponent::ShouldCreatePhysicsState() const
