@@ -236,6 +236,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 		if (bIsSlimHorizontalUniformToolBar)
 		{
 			TextBlock->SetOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+			TextBlock->SetVisibility(EVisibility::Visible);
 		}
 
 		IconWidget->SetDesiredSizeOverride(FVector2D(IconSize));
