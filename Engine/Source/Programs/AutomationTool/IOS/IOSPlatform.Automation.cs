@@ -1593,20 +1593,6 @@ public class IOSPlatform : ApplePlatform
 				CopyFile_NoExceptions(dSYMSrcPath, dSYMDstPath);
 			}
 
-			// copy in the bitcode symbol maps if found
-			string[] bcmapfiles = Directory.GetFiles(SC.ProjectBinariesFolder.FullName, "*.bcsymbolmap");
-			if (bcmapfiles.Length > 0)
-			{
-				// Create the dsyms archive folder
-				CreateDirectory(Path.Combine(ArchiveName, "BCSymbolMaps"));
-				foreach (string symbolSrcFilePath in bcmapfiles)
-				{
-					string symbolLeafFileName = Path.GetFileName(symbolSrcFilePath);
-					string bcDstFilePath = Path.Combine(ArchiveName, "BCSymbolMaps", symbolLeafFileName);
-					CopyFile_NoExceptions(symbolSrcFilePath, bcDstFilePath);
-				}
-			}
-
 			// get the settings from the app plist file
 			string AppPlist = Path.Combine(ArchiveName, "Products", "Applications", AppName, "Info.plist");
 			string OldPListData = File.Exists(AppPlist) ? File.ReadAllText(AppPlist) : "";

@@ -176,11 +176,6 @@ namespace UnrealBuildTool
 			get { return Inner.bStripSymbols; }
 		}
 			
-		public bool bShipForBitcode
-		{
-			get { return Inner.ProjectSettings!.bShipForBitcode; }
-		}
-
 		public bool bGenerateFrameworkWrapperProject
 		{
 			get { return Inner.bGenerateFrameworkWrapperProject; }
@@ -334,13 +329,6 @@ namespace UnrealBuildTool
         /// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SigningCertificate")]
         public readonly string SigningCertificate = "";
-
-
-		/// <summary>
-		/// true if bit code should be embedded
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bShipForBitcode")]
-		public readonly bool bShipForBitcode = false;
 
         /// <summary>
         /// true if notifications are enabled
