@@ -22,16 +22,34 @@ struct FPackageData
 	const TCHAR* AssetClass;
 };
 
-class ICookProfilerProvider
-	: public IProvider
+class ICookProfilerProvider : public IProvider
 {
 public:
 	typedef TFunctionRef<bool(const FPackageData& /*Package*/)> EnumeratePackagesCallback;
 
 	virtual ~ICookProfilerProvider() = default;
-	virtual void EnumeratePackages(double StartTime, double EndTime, EnumeratePackagesCallback Callback) const = 0;
+
+	virtual void BeginRead() const = 0;
+	virtual void EndRead() const = 0;
+	virtual void ReadAccessCheck() const = 0;
+
 	virtual uint32 GetNumPackages() const = 0;
+	virtual void EnumeratePackages(double StartTime, double EndTime, EnumeratePackagesCallback Callback) const = 0;
+};
+
+class IEditableCookProfilerProvider : public IEditableProvider
+{
+public:
+	virtual ~IEditableCookProfilerProvider() = default;
+
+	virtual void BeginEdit() const = 0;
+	virtual void EndEdit() const = 0;
+	virtual void EditAccessCheck() const = 0;
+
+	virtual FPackageData* EditPackage(uint64 Id) = 0;
 };
 
 TRACESERVICES_API const ICookProfilerProvider* ReadCookProfilerProvider(const IAnalysisSession& Session);
+TRACESERVICES_API IEditableCookProfilerProvider* EditCookProfilerProvider(IAnalysisSession& Session);
+
 } // namespace TraceServices

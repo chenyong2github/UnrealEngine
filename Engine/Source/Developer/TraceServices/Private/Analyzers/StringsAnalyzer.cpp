@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StringsAnalyzer.h"
+#include "Common/ProviderLock.h"
 #include "Common/Utils.h"
 #include "TraceServices/Model/Definitions.h"
 #include "TraceServices/Model/Strings.h"
@@ -27,7 +28,7 @@ bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventConte
 	case RouteId_FName:
 		{
 			const FEventData& EventData = Context.EventData;
-			IDefinitionProvider* DefinitionProvider = GetDefinitionProvider(Session);
+			IDefinitionProvider* DefinitionProvider = EditDefinitionProvider(Session);
 			check(DefinitionProvider != nullptr);
 
 			FWideStringView DisplayWide;
@@ -48,7 +49,7 @@ bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventConte
 				return true;
 			}
 
-			IDefinitionProvider::FEditScopeLock Lock(*DefinitionProvider);
+			FProviderEditScopeLock Lock(*DefinitionProvider);
 			FStringDefinition* Instance = DefinitionProvider->Create<FStringDefinition>();
 			Instance->Display = Display;
 

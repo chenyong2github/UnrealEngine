@@ -20,7 +20,7 @@ void FCookProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 void FCookProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
 	TSharedPtr<FCookProfilerProvider> CookProfilerProvider = MakeShared<FCookProfilerProvider>(Session);
-	Session.AddProvider(CookProfilerProviderName, CookProfilerProvider);
+	Session.AddProvider(CookProfilerProviderName, CookProfilerProvider, CookProfilerProvider);
 	Session.AddAnalyzer(new FCookAnalyzer(Session, *CookProfilerProvider));
 }
 
@@ -32,6 +32,11 @@ void FCookProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 const ICookProfilerProvider* ReadCookProfilerProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<ICookProfilerProvider>(CookProfilerProviderName);
+}
+
+IEditableCookProfilerProvider* EditCookProfilerProvider(IAnalysisSession& Session)
+{
+	return Session.EditProvider<IEditableCookProfilerProvider>(CookProfilerProviderName);
 }
 
 } // namespace TraceServices

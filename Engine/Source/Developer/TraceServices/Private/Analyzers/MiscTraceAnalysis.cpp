@@ -60,7 +60,7 @@ void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_ChannelToggle, "Trace", "ChannelToggle");
 	Builder.RouteEvent(RouteId_ScreenshotHeader, "Misc", "ScreenshotHeader");
 	Builder.RouteEvent(RouteId_ScreenshotChunk, "Misc", "ScreenshotChunk");
-	
+
 	Builder.RouteEvent(RouteId_RegionBegin, "Misc", "RegionBegin");
 	Builder.RouteEvent(RouteId_RegionEnd, "Misc", "RegionEnd");
 }
@@ -161,7 +161,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		Screenshot->Id = Id;
 
 		EventData.GetString("Name", Screenshot->Name);
-		
+
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		Screenshot->Timestamp = Context.EventTime.AsSeconds(Cycle);
 
@@ -194,6 +194,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 
 		break;
 	}
+
 	// Begin retired events
 	//
 	case RouteId_RegisterGameThread:
@@ -242,31 +243,30 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		ThreadState->ThreadGroupStack.Pop();
 		break;
 	}
-	
+	//
+	// End retired events
+
 	case RouteId_RegionBegin:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		FString Name;
 		EventData.GetString("RegionName", Name);
 
-		FProviderEditScopeLock RegionProviderScopedLock(static_cast<const IRegionProvider&>(RegionProvider));
+		FProviderEditScopeLock RegionProviderScopedLock(RegionProvider);
 		RegionProvider.AppendRegionBegin(*Name, Context.EventTime.AsSeconds(Cycle));
 		break;
 	}
-	
+
 	case RouteId_RegionEnd:
 	{
-		uint64 EndCycle = EventData.GetValue<uint64>("Cycle");
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		FString Name = TEXT("Invalid");
 		EventData.GetString("RegionName", Name);
 
-		FProviderEditScopeLock RegionProviderScopedLock(static_cast<const IRegionProvider&>(RegionProvider));
-		RegionProvider.AppendRegionEnd(*Name, Context.EventTime.AsSeconds(EndCycle));
+		FProviderEditScopeLock RegionProviderScopedLock(RegionProvider);
+		RegionProvider.AppendRegionEnd(*Name, Context.EventTime.AsSeconds(Cycle));
 		break;
 	}
-		
-	//
-	// End retired events
 	}
 
 	return true;

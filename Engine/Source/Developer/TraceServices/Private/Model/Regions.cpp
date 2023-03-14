@@ -1,12 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/Model/Regions.h"
-#include "Common/FormatArgs.h"
-#include "Model/RegionsPrivate.h"
+
 #include "AnalysisServicePrivate.h"
+#include "Common/FormatArgs.h"
 #include "Common/Utils.h"
-#include "Logging/MessageLog.h"
 #include "Internationalization/Internationalization.h"
+#include "Logging/MessageLog.h"
+#include "Model/RegionsPrivate.h"
 
 #define LOCTEXT_NAMESPACE "RegionProvider"
 
@@ -14,14 +15,12 @@ namespace TraceServices
 {
 
 thread_local FProviderLock::FThreadLocalState GRegionsProviderLockState;
-	
-const FName FRegionProvider::ProviderName("RegionProvider");
 
 FRegionProvider::FRegionProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 {
 }
-	
+
 uint64 FRegionProvider::GetRegionCount() const
 {
 	ReadAccessCheck();
@@ -37,6 +36,7 @@ uint64 FRegionProvider::GetRegionCount() const
 const FRegionLane* FRegionProvider::GetLane(int32 index) const
 {
 	ReadAccessCheck();
+
 	if (index < Lanes.Num())
 	{
 		return &(Lanes[index]);
@@ -47,27 +47,46 @@ const FRegionLane* FRegionProvider::GetLane(int32 index) const
 void FRegionProvider::AppendRegionBegin(const TCHAR* Name, double Time)
 {
 	EditAccessCheck();
-	
-	FTimeRegion Region;
-	Region.BeginTime = Time;
-	Region.Text = Session.StoreString(Name);
-	Region.Depth = CalculateRegionDepth(Region);
 
-	if (Region.Depth == Lanes.Num())
+	if (FTimeRegion** OpenRegion = OpenRegions.Find(Name))
 	{
-		Lanes.Emplace(Session.GetLinearAllocator());
+		++NumWarnings;
+		if (NumWarnings <= MaxWarningMessages)
+		{
+			if (FMessageLog* Log = Session.GetLog())
+			{
+				Log->Warning(FText::Format(LOCTEXT("DoubleRegionBegin", "A region begin event ({0}) was encountered while a region with same name is already open."), FText::FromString(FString(Name))));
+			}
+			else
+			{
+				UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region begin event (%s) was encountered while a region with same name is already open."), Name)
+			}
+		}
 	}
-	
-	Lanes[Region.Depth].Regions.EmplaceBack(Region);
-	FTimeRegion* OpenRegion = &(Lanes[Region.Depth].Regions.Last());
-	OpenRegions.Add(Region.Text, OpenRegion);
+	else
+	{
+		FTimeRegion Region;
+		Region.BeginTime = Time;
+		Region.Text = Session.StoreString(Name);
+		Region.Depth = CalculateRegionDepth(Region);
 
+		if (Region.Depth == Lanes.Num())
+		{
+			Lanes.Emplace(Session.GetLinearAllocator());
+		}
+
+		Lanes[Region.Depth].Regions.EmplaceBack(Region);
+		FTimeRegion* NewOpenRegion = &(Lanes[Region.Depth].Regions.Last());
+
+		OpenRegions.Add(Region.Text, NewOpenRegion);
+		UpdateCounter++;
+	}
+
+	// Update session time
 	{
 		FAnalysisSessionEditScope _(Session);
 		Session.UpdateDurationSeconds(Time);
 	}
-	
-	UpdateCounter++;
 }
 
 void FRegionProvider::AppendRegionEnd(const TCHAR* Name, double Time)
@@ -77,42 +96,62 @@ void FRegionProvider::AppendRegionEnd(const TCHAR* Name, double Time)
 	if (FTimeRegion** OpenRegion = OpenRegions.Find(Name))
 	{
 		(*OpenRegion)->EndTime = Time;
+
 		OpenRegions.Remove(Name);
-		{
-			FAnalysisSessionEditScope _(Session);
-			Session.UpdateDurationSeconds(Time);
-		}
 		UpdateCounter++;
 	}
 	else
 	{
-		if (FMessageLog* Log = Session.GetLog())
+		++NumWarnings;
+		if (NumWarnings <= MaxWarningMessages)
 		{
-			Log->Warning(LOCTEXT("StrayRegionEnd","A region end event was encountered without having seen a matching region start event first."));
+			if (FMessageLog* Log = Session.GetLog())
+			{
+				Log->Warning(FText::Format(LOCTEXT("StrayRegionEnd", "A region end event ({0}) was encountered without having seen a matching region start event first."), FText::FromString(FString(Name))));
+			}
+			else
+			{
+				UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region end event (%s) was encountered without having seen a matching region start event first."), Name)
+			}
 		}
-		else
-		{
-			UE_LOG(LogTraceServices, Warning, TEXT("A region end event (%s) was encountered without having seen a matching region start event first."), Name)
-		}
+	}
+
+	// Update session time
+	{
+		FAnalysisSessionEditScope _(Session);
+		Session.UpdateDurationSeconds(Time);
 	}
 }
 
 void FRegionProvider::OnAnalysisSessionEnded()
 {
 	EditAccessCheck();
-	
+
 	for (const auto& KV : OpenRegions)
 	{
 		const FTimeRegion* Region = KV.Value;
-		if (FMessageLog* Log = Session.GetLog())
+
+		++NumWarnings;
+		if (NumWarnings <= MaxWarningMessages)
 		{
-			Log->Warning(LOCTEXT("StrayRegionBegin","A region begin event was never closed."));
+			if (FMessageLog* Log = Session.GetLog())
+			{
+				Log->Warning(FText::Format(LOCTEXT("StrayRegionBegin", "A region begin event ({0}) was never closed."), FText::FromString(FString(Region->Text))));
+			}
+			else
+			{
+				UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region begin event (%s) was never closed."), Region->Text)
+			}
 		}
-		else
-		{
-			UE_LOG(LogTraceServices, Warning, TEXT("A region begin event (%s) was never closed."), Region->Text)
-		}		
 	}
+
+	if (NumWarnings > 0 || NumErrors > 0)
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[Regions] %u warnings; %u errors"), NumWarnings, NumErrors);
+	}
+
+	uint64 TotalRegionCount = GetRegionCount();
+	UE_LOG(LogTraceServices, Log, TEXT("[Regions] Analysis completed (%llu regions, %d lanes)."), TotalRegionCount, Lanes.Num());
 }
 
 int32 FRegionProvider::CalculateRegionDepth(const FTimeRegion& Region) const
@@ -128,7 +167,7 @@ int32 FRegionProvider::CalculateRegionDepth(const FTimeRegion& Region) const
 		{
 			break;
 		}
-		
+
 		const FTimeRegion& LastRegion = Lanes[NewDepth].Regions.Last();
 		if (LastRegion.EndTime <= Region.BeginTime)
 		{
@@ -141,19 +180,21 @@ int32 FRegionProvider::CalculateRegionDepth(const FTimeRegion& Region) const
 
 	return NewDepth;
 }
-	
+
 void FRegionProvider::EnumerateLanes(TFunctionRef<void(const FRegionLane&, int32)> Callback) const
 {
-	for (int i = 0 ; i < Lanes.Num(); ++i)
+	ReadAccessCheck();
+
+	for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
 	{
-		Callback(Lanes[i], i);
+		Callback(Lanes[LaneIndex], LaneIndex);
 	}
 }
-	
-bool FRegionProvider::EnumerateRegions(double IntervalStart, double IntervalEnd, TFunctionRef<bool(const FTimeRegion &)> Callback) const
+
+bool FRegionProvider::EnumerateRegions(double IntervalStart, double IntervalEnd, TFunctionRef<bool(const FTimeRegion&)> Callback) const
 {
 	ReadAccessCheck();
-	
+
 	if (IntervalStart > IntervalEnd)
 	{
 		return false;
@@ -162,7 +203,9 @@ bool FRegionProvider::EnumerateRegions(double IntervalStart, double IntervalEnd,
 	for (const FRegionLane& Lane : Lanes)
 	{
 		if (!Lane.EnumerateRegions(IntervalStart, IntervalEnd, Callback))
+		{
 			return false;
+		}
 	}
 
 	return true;
@@ -171,14 +214,14 @@ bool FRegionProvider::EnumerateRegions(double IntervalStart, double IntervalEnd,
 bool FRegionLane::EnumerateRegions(double IntervalStart, double IntervalEnd, TFunctionRef<bool(const FTimeRegion&)> Callback) const
 {
 	const FInt32Interval OverlapRange = GetElementRangeOverlappingGivenRange<FTimeRegion>(Regions, IntervalStart, IntervalEnd,
-		[](const FTimeRegion& r){return r.BeginTime;},
-		[](const FTimeRegion& r){return r.EndTime;});
-	
-	if (OverlapRange.Min == -1 )
+		[](const FTimeRegion& r) { return r.BeginTime; },
+		[](const FTimeRegion& r) { return r.EndTime; });
+
+	if (OverlapRange.Min == -1)
 	{
 		return true;
 	}
-	
+
 	for (int32 Index = OverlapRange.Min; Index <= OverlapRange.Max; ++Index)
 	{
 		if (!Callback(Regions[Index]))
@@ -189,15 +232,21 @@ bool FRegionLane::EnumerateRegions(double IntervalStart, double IntervalEnd, TFu
 
 	return true;
 }
-	
+
+FName GetRegionProviderName()
+{
+	static FName Name(TEXT("RegionProvider"));
+	return Name;
+}
+
 const IRegionProvider& ReadRegionProvider(const IAnalysisSession& Session)
 {
-	return *Session.ReadProvider<IRegionProvider>(FRegionProvider::ProviderName);
+	return *Session.ReadProvider<IRegionProvider>(GetRegionProviderName());
 }
 
 IEditableRegionProvider& EditRegionProvider(IAnalysisSession& Session)
 {
-	return *Session.EditProvider<IEditableRegionProvider>(FRegionProvider::ProviderName);
+	return *Session.EditProvider<IEditableRegionProvider>(GetRegionProviderName());
 }
 
 } // namespace TraceServices

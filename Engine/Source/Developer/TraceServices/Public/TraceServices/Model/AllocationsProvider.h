@@ -12,13 +12,9 @@
 namespace TraceServices
 {
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 // Id type for tags
 typedef uint32 TagIdType;
 	
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class IAllocationsProvider : public IProvider
 {
 public:
@@ -116,10 +112,9 @@ public:
 public:
 	virtual ~IAllocationsProvider() = default;
 
-	virtual void BeginEdit() const = 0;
-	virtual void EndEdit() const = 0;
 	virtual void BeginRead() const = 0;
 	virtual void EndRead() const = 0;
+	virtual void ReadAccessCheck() const = 0;
 
 	virtual bool IsInitialized() const = 0;
 

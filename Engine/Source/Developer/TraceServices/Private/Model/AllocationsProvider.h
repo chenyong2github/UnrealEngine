@@ -261,7 +261,9 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FAllocationsProvider : public IAllocationsProvider
+class FAllocationsProvider
+	: public IAllocationsProvider
+	, public IEditableProvider
 {
 private:
 	static constexpr double DefaultTimelineSampleGranularity = 0.0001; // 0.1ms
@@ -281,15 +283,12 @@ public:
 	explicit FAllocationsProvider(IAnalysisSession& InSession, FMetadataProvider& InMetadataProvider);
 	virtual ~FAllocationsProvider();
 
-	virtual void BeginEdit() const override       { Lock.BeginWrite(GAllocationsProviderLockState); }
-	virtual void EndEdit() const override         { Lock.EndWrite(GAllocationsProviderLockState); }
-	virtual void EditAccessCheck() const override { Lock.WriteAccessCheck(GAllocationsProviderLockState); }
+	//////////////////////////////////////////////////
+	// Read operations
+
 	virtual void BeginRead() const override       { Lock.BeginRead(GAllocationsProviderLockState); }
 	virtual void EndRead() const override         { Lock.EndRead(GAllocationsProviderLockState); }
 	virtual void ReadAccessCheck() const override { Lock.ReadAccessCheck(GAllocationsProviderLockState); }
-
-	//////////////////////////////////////////////////
-	// Read operations
 
 	virtual bool IsInitialized() const override { ReadAccessCheck(); return bInitialized; }
 
@@ -324,6 +323,10 @@ public:
 
 	//////////////////////////////////////////////////
 	// Edit operations
+
+	virtual void BeginEdit() const override       { Lock.BeginWrite(GAllocationsProviderLockState); }
+	virtual void EndEdit() const override         { Lock.EndWrite(GAllocationsProviderLockState); }
+	virtual void EditAccessCheck() const override { Lock.WriteAccessCheck(GAllocationsProviderLockState); }
 
 	void EditInit(double Time, uint8 MinAlignment);
 

@@ -28,7 +28,7 @@ void FTimingProfilerModule::OnAnalysisBegin(IAnalysisSession& InSession)
 
 	// see comment in FAnalysisService::StartAnalysis for details
 	TSharedPtr<FTimingProfilerProvider> TimingProfilerProvider = MakeShared<FTimingProfilerProvider>(Session);
-	Session.AddProvider(TimingProfilerProviderName, TSharedPtr<ITimingProfilerProvider>(TimingProfilerProvider), TSharedPtr<IEditableTimingProfilerProvider>(TimingProfilerProvider));
+	Session.AddProvider(TimingProfilerProviderName, TimingProfilerProvider, TimingProfilerProvider);
 	Session.AddAnalyzer(new FCpuProfilerAnalyzer(Session, *TimingProfilerProvider, *EditableThreadProvider));
 	Session.AddAnalyzer(new FGpuProfilerAnalyzer(Session, *TimingProfilerProvider));
 }

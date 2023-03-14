@@ -414,7 +414,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 							{
 								if (Type == AssetMetadataType)
 								{
-									TraceServices::IDefinitionProvider::FReadScopeLock DefinitionProviderReadLock(*DefinitionProvider);
+									TraceServices::FProviderReadScopeLock DefinitionProviderReadLock(*DefinitionProvider);
 									const auto Reader = Schema->Reader();
 									const auto AssetNameRef = Reader.GetValueAs<UE::Trace::FEventRef32>((uint8*)Data, 0);
 									const auto AssetName = DefinitionProvider->Get<TraceServices::FStringDefinition>(*AssetNameRef);
@@ -1298,19 +1298,21 @@ void SMemAllocTableTreeView::PopulateLLMTagSuggestionList(const FString& Text, T
 		return;
 	}
 
-	TraceServices::FProviderReadScopeLock _(*AllocationsProvider);
-
 	// Use a Set to avoid duplicate tag names.
 	TSet<FString> Suggestions;
-	AllocationsProvider->EnumerateTags([&Suggestions, &Text](const TCHAR* Display, const TCHAR* FullPath, TraceServices::TagIdType CurrentTag, TraceServices::TagIdType ParentTag)
-	{
-		if (Text.IsEmpty() || FCString::Stristr(FullPath, *Text))
-		{
-			Suggestions.Add(FullPath);
-		}
 
-		return true;
-	});
+	{
+		TraceServices::FProviderReadScopeLock _(*AllocationsProvider);
+		AllocationsProvider->EnumerateTags([&Suggestions, &Text](const TCHAR* Display, const TCHAR* FullPath, TraceServices::TagIdType CurrentTag, TraceServices::TagIdType ParentTag)
+		{
+			if (Text.IsEmpty() || FCString::Stristr(FullPath, *Text))
+			{
+				Suggestions.Add(FullPath);
+			}
+
+			return true;
+		});
+	}
 
 	OutSuggestions = Suggestions.Array();
 	OutSuggestions.Sort();
@@ -1716,10 +1718,10 @@ void SMemAllocTableTreeView::ExportMemorySnapshot() const
 		ReportMessageLog.Notify();
 		return;
 	}
-	
+
 	UTF16CHAR BOM = UNICODE_BOM;
 	ExportFileHandle->Write((uint8*)&BOM, sizeof(UTF16CHAR));
-	
+
 	static constexpr TCHAR LineEnd = TEXT('\n');
 	static constexpr TCHAR QuotationMarkBegin = TEXT('\"');
 	static constexpr TCHAR QuotationMarkEnd = TEXT('\"');
@@ -1776,7 +1778,7 @@ void SMemAllocTableTreeView::ExportMemorySnapshot() const
 					OutData << QuotationMarkEnd;
 					return;
 				}
-				
+
 				const uint32 NumCallstackFrames = Alloc->Callstack->Num();
 				check(NumCallstackFrames <= 256);
 				OutData << QuotationMarkBegin;

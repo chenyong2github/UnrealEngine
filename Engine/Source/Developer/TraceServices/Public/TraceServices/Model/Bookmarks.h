@@ -65,6 +65,7 @@ public:
 	virtual void AppendBookmark(uint64 BookmarkPoint, double Time, const TCHAR* Text) = 0;
 };
 
+TRACESERVICES_API FName GetBookmarkProviderName();
 TRACESERVICES_API const IBookmarkProvider& ReadBookmarkProvider(const IAnalysisSession& Session);
 TRACESERVICES_API IEditableBookmarkProvider& EditBookmarkProvider(IAnalysisSession& Session);
 

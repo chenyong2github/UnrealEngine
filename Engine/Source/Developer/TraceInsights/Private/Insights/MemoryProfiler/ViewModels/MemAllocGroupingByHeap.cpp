@@ -1,12 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemAllocGroupingByHeap.h"
-#include "CallstackFormatting.h"
+
 #include "Common/ProviderLock.h" // TraceServices
 #include "Internationalization/Internationalization.h"
 
 // Insights
 #include "Insights/Common/AsyncOperationProgress.h"
+#include "Insights/MemoryProfiler/ViewModels/CallstackFormatting.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 
 #define LOCTEXT_NAMESPACE "Insights::FMemAllocGroupingByHeap"

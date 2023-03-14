@@ -70,7 +70,7 @@ public:
 
 private:
 	virtual const IProvider* ReadProviderPrivate(const FName& Name) const override;
-	virtual IProvider* EditProviderPrivate(const FName& Name) override;
+	virtual IEditableProvider* EditProviderPrivate(const FName& Name) override;
 
 	mutable FAnalysisSessionLock Lock;
 

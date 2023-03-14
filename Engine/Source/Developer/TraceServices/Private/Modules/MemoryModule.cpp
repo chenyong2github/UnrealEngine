@@ -40,12 +40,12 @@ void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 
 	// Metadata
 	TSharedPtr<FMetadataProvider> MetadataProvider = MakeShared<FMetadataProvider>(Session);
-	Session.AddProvider(GetMetadataProviderName(), MetadataProvider);
+	Session.AddProvider(GetMetadataProviderName(), MetadataProvider, MetadataProvider);
 	Session.AddAnalyzer(new FMetadataAnalysis(Session, MetadataProvider.Get()));
 
 	// Allocations
 	TSharedPtr<FAllocationsProvider> AllocationsProvider = MakeShared<FAllocationsProvider>(Session, *MetadataProvider);
-	Session.AddProvider(GetAllocationsProviderName(), AllocationsProvider);
+	Session.AddProvider(GetAllocationsProviderName(), AllocationsProvider, AllocationsProvider);
 	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider, *MetadataProvider));
 }
 

@@ -11,7 +11,7 @@ namespace TraceServices
 
 struct TRACESERVICES_API FProviderEditScopeLock
 {
-	FProviderEditScopeLock(const IProvider& InProvider)
+	FProviderEditScopeLock(const IEditableProvider& InProvider)
 		: Provider(InProvider)
 	{
 		Provider.BeginEdit();
@@ -22,7 +22,7 @@ struct TRACESERVICES_API FProviderEditScopeLock
 		Provider.EndEdit();
 	}
 
-	const IProvider& Provider;
+	const IEditableProvider& Provider;
 };
 
 struct TRACESERVICES_API FProviderReadScopeLock

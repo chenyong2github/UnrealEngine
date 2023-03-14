@@ -672,6 +672,13 @@ const IMetadataProvider* ReadMetadataProvider(const IAnalysisSession& Session)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+IEditableMetadataProvider* EditMetadataProvider(IAnalysisSession& Session)
+{
+	return Session.EditProvider<IEditableMetadataProvider>(GetMetadataProviderName());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace TraceServices
 
 #undef METADATA_PROVIDER_ERROR

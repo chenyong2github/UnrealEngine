@@ -158,7 +158,7 @@ const IProvider* FAnalysisSession::ReadProviderPrivate(const FName& InName) cons
 	}
 }
 
-IProvider* FAnalysisSession::EditProviderPrivate(const FName& InName)
+IEditableProvider* FAnalysisSession::EditProviderPrivate(const FName& InName)
 {
 	const auto* FindIt = Providers.Find(InName);
 	if (FindIt)
@@ -235,27 +235,23 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(uint32 TraceI
 
 	FAnalysisSessionEditScope _(*Session);
 
-	// Note that we upcast to the interface we wish to register in cases where a provider implements multiple interfaces
-	// We aren't using virtual inheritance since we don't care about the vtable complexity, and there is no state to worry about
-	// We follow the single data inheritance but multiple interface inheritance idiom, and this necessitates the upcast via TSharedPtr<IInterface>
-
 	TSharedPtr<FBookmarkProvider> BookmarkProvider = MakeShared<FBookmarkProvider>(*Session);
-	Session->AddProvider(FBookmarkProvider::ProviderName, TSharedPtr<IBookmarkProvider>(BookmarkProvider), TSharedPtr<IEditableBookmarkProvider>(BookmarkProvider));
+	Session->AddProvider(GetBookmarkProviderName(), BookmarkProvider, BookmarkProvider);
 
 	TSharedPtr<FRegionProvider> RegionProvider = MakeShared<FRegionProvider>(*Session);
-	Session->AddProvider(FRegionProvider::ProviderName, TSharedPtr<IRegionProvider>(RegionProvider), TSharedPtr<IEditableRegionProvider>(RegionProvider));
+	Session->AddProvider(GetRegionProviderName(), RegionProvider, RegionProvider);
 
 	TSharedPtr<FLogProvider> LogProvider = MakeShared<FLogProvider>(*Session);
-	Session->AddProvider(FLogProvider::ProviderName, TSharedPtr<ILogProvider>(LogProvider), TSharedPtr<IEditableLogProvider>(LogProvider));
+	Session->AddProvider(FLogProvider::ProviderName, LogProvider, LogProvider);
 
 	TSharedPtr<FThreadProvider> ThreadProvider = MakeShared<FThreadProvider>(*Session);
-	Session->AddProvider(FThreadProvider::ProviderName, TSharedPtr<IThreadProvider>(ThreadProvider), TSharedPtr<IEditableThreadProvider>(ThreadProvider));
+	Session->AddProvider(FThreadProvider::ProviderName, ThreadProvider, ThreadProvider);
 
 	TSharedPtr<FFrameProvider> FrameProvider = MakeShared<FFrameProvider>(*Session);
 	Session->AddProvider(FFrameProvider::ProviderName, FrameProvider);
 
 	TSharedPtr<FCounterProvider> CounterProvider = MakeShared<FCounterProvider>(*Session, *FrameProvider);
-	Session->AddProvider(FCounterProvider::ProviderName, TSharedPtr<ICounterProvider>(CounterProvider), TSharedPtr<IEditableCounterProvider>(CounterProvider));
+	Session->AddProvider(FCounterProvider::ProviderName, CounterProvider, CounterProvider);
 
 	TSharedPtr<FChannelProvider> ChannelProvider = MakeShared<FChannelProvider>();
 	Session->AddProvider(FChannelProvider::ProviderName, ChannelProvider);
@@ -263,14 +259,13 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(uint32 TraceI
 	TSharedPtr<FScreenshotProvider> ScreenshotProvider = MakeShared<FScreenshotProvider>(*Session);
 	Session->AddProvider(FScreenshotProvider::ProviderName, ScreenshotProvider);
 
+	TSharedPtr<FDefinitionProvider> DefProvider = MakeShared<FDefinitionProvider>(&Session.Get());
+	Session->AddProvider(FDefinitionProvider::ProviderName, DefProvider, DefProvider);
+
 	Session->AddAnalyzer(new FMiscTraceAnalyzer(*Session, *ThreadProvider, *LogProvider, *FrameProvider, *ChannelProvider, *ScreenshotProvider, *RegionProvider));
 	Session->AddAnalyzer(new FBookmarksAnalyzer(*Session, *BookmarkProvider, LogProvider.Get()));
 	Session->AddAnalyzer(new FLogTraceAnalyzer(*Session, *LogProvider));
-
 	Session->AddAnalyzer(new FStringsAnalyzer(*Session));
-
-	TSharedPtr<FDefinitionProvider> DefProvider = MakeShared<FDefinitionProvider>(&Session.Get());
-	Session->AddProvider(FDefinitionProvider::ProviderName, DefProvider, DefProvider);
 
 	ModuleService.OnAnalysisBegin(*Session);
 

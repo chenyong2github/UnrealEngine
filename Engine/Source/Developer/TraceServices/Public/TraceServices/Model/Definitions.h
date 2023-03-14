@@ -12,7 +12,7 @@ namespace TraceServices
  * Allows users to publish "definitions", structs representing a definition event. This data can then be queried when
  * resolving a reference field in another event.
  *
- * \note If your definition type in turn references other definitions it encouraged to resolve those during analysis to
+ * \note If your definition type reference other definitions it is encouraged to resolve those during analysis to
  * avoid having to resolve complex chains on every lookup.
  *
  * Example usage:
@@ -28,41 +28,10 @@ namespace TraceServices
  *		DefinitionProvider->Register<FMyDefinitionClass>(Instance, Id);
  * \endcode
  */
-class IDefinitionProvider : public IEditableProvider
+class IDefinitionProvider
+	: public IProvider
+	, public IEditableProvider
 {
-public:
-	struct TRACESERVICES_API FEditScopeLock
-	{
-		FEditScopeLock(const IDefinitionProvider& InMetadataProvider)
-			: MetadataProvider(InMetadataProvider)
-		{
-			MetadataProvider.BeginEdit();
-		}
-
-		~FEditScopeLock()
-		{
-			MetadataProvider.EndEdit();
-		}
-
-		const IDefinitionProvider& MetadataProvider;
-	};
-
-	struct TRACESERVICES_API FReadScopeLock
-	{
-		FReadScopeLock(const IDefinitionProvider& InMetadataProvider)
-			: MetadataProvider(InMetadataProvider)
-		{
-			MetadataProvider.BeginRead();
-		}
-
-		~FReadScopeLock()
-		{
-			MetadataProvider.EndRead();
-		}
-
-		const IDefinitionProvider& MetadataProvider;
-	};
-
 public:
 	virtual ~IDefinitionProvider() = default;
 
@@ -137,7 +106,7 @@ protected:
 	TMap<uint32, StringifierFn> Stringifiers;
 };
 
-TRACESERVICES_API IDefinitionProvider* GetDefinitionProvider(IAnalysisSession& Session);
 TRACESERVICES_API const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session);
+TRACESERVICES_API IDefinitionProvider* EditDefinitionProvider(IAnalysisSession& Session);
 
 } // namespace TraceServices

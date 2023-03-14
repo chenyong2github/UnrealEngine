@@ -1,8 +1,12 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
-#include "MemAllocGroupingByTag.h"
-#include "MemAllocNode.h"
 
+#include "MemAllocGroupingByTag.h"
+
+#include "Common/ProviderLock.h" // TraceServices
+
+// Insights
 #include "Insights/Common/AsyncOperationProgress.h"
+#include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 
 #define LOCTEXT_NAMESPACE "Insights::FMemAllocGroupingByTag"
 
@@ -14,7 +18,7 @@ namespace Insights
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 INSIGHTS_IMPLEMENT_RTTI(FMemAllocGroupingByTag);
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FMemAllocGroupingByTag::FMemAllocGroupingByTag(const TraceServices::IAllocationsProvider& InTagProvider)
@@ -35,7 +39,7 @@ void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
                                         IAsyncOperationProgress& InAsyncOperationProgress) const
 {
 	using namespace TraceServices;
-	
+
 	ParentGroup.ClearChildren();
 
 	constexpr TagIdType InvalidTagId = ~0u;
@@ -111,19 +115,22 @@ void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 	FScopedMemory _(TagNodes);
 
 	// Create tag nodes.
-	TagProvider.EnumerateTags([&](const TCHAR* Name, const TCHAR* FullName, TagIdType Id, TagIdType ParentId)
 	{
-		const FName NodeName(Name);
+		TraceServices::FProviderReadScopeLock TagProviderReadScopeLock(TagProvider);
+		TagProvider.EnumerateTags([&](const TCHAR* Name, const TCHAR* FullName, TagIdType Id, TagIdType ParentId)
+			{
+				const FName NodeName(Name);
 #if INSIGHTS_MERGE_MEM_TAGS_BY_NAME
-		FTableTreeNodePtr TreeNode = MakeShared<FTableTreeNode>(NodeName, InParentTable);
+				FTableTreeNodePtr TreeNode = MakeShared<FTableTreeNode>(NodeName, InParentTable);
 #else
-		const FName NodeNameEx(Name, int32(Id));
-		FTableTreeNodePtr TreeNode = MakeShared<FTableTreeNode>(NodeNameEx, InParentTable);
+				const FName NodeNameEx(Name, int32(Id));
+				FTableTreeNodePtr TreeNode = MakeShared<FTableTreeNode>(NodeNameEx, InParentTable);
 #endif
-		FTagNode* TagNode = new FTagNode(NodeName, Id, ParentId, TreeNode);
-		TagNodes.Add(TagNode);
-		IdToNodeMap.Add(Id, TagNode);
-	});
+				FTagNode* TagNode = new FTagNode(NodeName, Id, ParentId, TreeNode);
+				TagNodes.Add(TagNode);
+				IdToNodeMap.Add(Id, TagNode);
+			});
+	}
 
 	// Create the Untagged node (if not already present).
 	constexpr TagIdType UntaggedNodeId = 0;
@@ -250,7 +257,7 @@ void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 		}
 	}
 }
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef INSIGHTS_MERGE_MEM_TAGS_BY_NAME

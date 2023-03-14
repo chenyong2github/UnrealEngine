@@ -7,7 +7,8 @@
 #include "Templates/UnrealTemplate.h"
 #include <atomic>
 
-namespace TraceServices {
+namespace TraceServices
+{
 
 ////////////////////////////////////////////////////////////////////////////////
 /**
@@ -154,7 +155,9 @@ struct FModule
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-class IModuleProvider : public IEditableProvider
+class IModuleProvider
+	: public IProvider
+	, public IEditableProvider
 {
 public:
 	struct FStats

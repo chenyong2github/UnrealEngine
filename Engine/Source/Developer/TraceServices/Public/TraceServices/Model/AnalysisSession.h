@@ -29,18 +29,19 @@ class IProvider
 public:
 	virtual ~IProvider() = default;
 
-	virtual void BeginEdit() const { unimplemented(); }
-	virtual void EndEdit() const { unimplemented(); }
-	virtual void EditAccessCheck() const { unimplemented(); }
-
 	virtual void BeginRead() const { unimplemented(); }
 	virtual void EndRead() const { unimplemented(); }
 	virtual void ReadAccessCheck() const { unimplemented(); }
 };
 
 class IEditableProvider
-	: public IProvider
 {
+public:
+	virtual ~IEditableProvider() = default;
+
+	virtual void BeginEdit() const { unimplemented(); }
+	virtual void EndEdit() const { unimplemented(); }
+	virtual void EditAccessCheck() const { unimplemented(); }
 };
 
 class IAnalysisSession
@@ -78,14 +79,14 @@ public:
 	
 	virtual void AddAnalyzer(UE::Trace::IAnalyzer* Analyzer) = 0;
 
-	UE_DEPRECATED(5.1, "Please use the TSharedPtr overload for registering Provider objects")
-	virtual void AddProvider(const FName& Name, IProvider* Provider) { AddProvider(Name, TSharedPtr<IProvider>(Provider), nullptr); }
 	virtual void AddProvider(const FName& Name, TSharedPtr<IProvider> Provider, TSharedPtr<IEditableProvider> EditableProvider = nullptr) = 0;
+
 	template<typename ProviderType>
 	const ProviderType* ReadProvider(const FName& Name) const
 	{
 		return static_cast<const ProviderType*>(ReadProviderPrivate(Name));
 	}
+
 	template<typename ProviderType>
 	ProviderType* EditProvider(const FName& Name)
 	{
@@ -94,7 +95,7 @@ public:
 
 private:
 	virtual const IProvider* ReadProviderPrivate(const FName& Name) const = 0;
-	virtual IProvider* EditProviderPrivate(const FName& Name) = 0;
+	virtual IEditableProvider* EditProviderPrivate(const FName& Name) = 0;
 };
 
 struct FAnalysisSessionReadScope

@@ -56,16 +56,16 @@ void* FDefinitionProvider::Allocate(uint32 Size, uint32 Alignment)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IDefinitionProvider* GetDefinitionProvider(IAnalysisSession& Session)
+const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session)
 {
-	return Session.EditProvider<IDefinitionProvider>(FDefinitionProvider::ProviderName);
+	return Session.ReadProvider<IDefinitionProvider>(FDefinitionProvider::ProviderName);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session)
+IDefinitionProvider* EditDefinitionProvider(IAnalysisSession& Session)
 {
-	return Session.ReadProvider<IDefinitionProvider>(FDefinitionProvider::ProviderName);
+	return Session.EditProvider<IDefinitionProvider>(FDefinitionProvider::ProviderName);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

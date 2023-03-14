@@ -29,8 +29,6 @@ class FBookmarkProvider
 	, public IEditableBookmarkProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FBookmarkProvider(IAnalysisSession& Session);
 	virtual ~FBookmarkProvider() {}
 

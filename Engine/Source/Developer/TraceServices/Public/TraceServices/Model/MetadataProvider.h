@@ -11,7 +11,6 @@
 namespace TraceServices
 {
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
 class FMetadataSchema
 {
 public:
@@ -266,8 +265,6 @@ private:
 	TArray<FField> Fields;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class IMetadataProvider : public IProvider
 {
 public:
@@ -276,10 +273,9 @@ public:
 
 	virtual ~IMetadataProvider() = default;
 
-	virtual void BeginEdit() const = 0;
-	virtual void EndEdit() const = 0;
 	virtual void BeginRead() const = 0;
 	virtual void EndRead() const = 0;
+	virtual void ReadAccessCheck() const = 0;
 
 	virtual uint16 GetRegisteredMetadataType(FName Name) const = 0;
 	virtual FName GetRegisteredMetadataName(uint16 Type) const = 0;
@@ -290,7 +286,35 @@ public:
 	virtual void EnumerateMetadata(uint32 InThreadId, uint32 InMetadataId, TFunctionRef<bool(uint32 StackDepth, uint16 Type, const void* Data, uint32 Size)> Callback) const = 0;
 };
 
+class IEditableMetadataProvider : public IEditableProvider
+{
+public:
+	virtual ~IEditableMetadataProvider() = default;
+
+	virtual void BeginEdit() const = 0;
+	virtual void EndEdit() const = 0;
+	virtual void EditAccessCheck() const = 0;
+
+	virtual uint16 RegisterMetadataType(const TCHAR* InName, const FMetadataSchema& InSchema) = 0;
+
+	virtual void PushScopedMetadata(uint32 InThreadId, uint16 InType, const void* InData, uint32 InSize) = 0;
+	virtual void PopScopedMetadata(uint32 InThreadId, uint16 InType) = 0;
+
+	virtual void BeginClearStackScope(uint32 InThreadId) = 0;
+	virtual void EndClearStackScope(uint32 InThreadId) = 0;
+
+	virtual void SaveStack(uint32 InThreadId, uint32 InSavedStackId) = 0;
+	virtual void BeginRestoreSavedStackScope(uint32 InThreadId, uint32 InSavedStackId) = 0;
+	virtual void EndRestoreSavedStackScope(uint32 InThreadId) = 0;
+
+	// Pins the metadata stack and returns an id for it.
+	virtual uint32 PinAndGetId(uint32 InThreadId) = 0;
+
+	virtual void OnAnalysisCompleted() { }
+};
+
 TRACESERVICES_API FName GetMetadataProviderName();
 TRACESERVICES_API const IMetadataProvider* ReadMetadataProvider(const IAnalysisSession& Session);
+TRACESERVICES_API IEditableMetadataProvider* EditMetadataProvider(IAnalysisSession& Session);
 
 } // namespace TraceServices
