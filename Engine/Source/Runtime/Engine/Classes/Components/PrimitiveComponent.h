@@ -681,11 +681,8 @@ protected:
 	/** Graph event used to track all the PSO precache events */
 	FGraphEventRef PSOPrecacheCompileEvent;
 
-protected:
-
-#if WITH_EDITOR
 	uint8 bIgnoreBoundsForEditorFocus : 1;
-
+#if WITH_EDITOR
 public:
 	uint8 bAlwaysAllowTranslucentSelect : 1;
 #endif
@@ -1246,17 +1243,22 @@ public:
 	virtual bool UpdateOverlapsImpl(const TOverlapArrayView* NewPendingOverlaps=nullptr, bool bDoNotifies=true, const TOverlapArrayView* OverlapsAtEndLocation=nullptr) override;
 
 #if WITH_EDITOR
+	UE_DEPRECATED(5.2, "Use GetIgnoreBoundsForEditorFocus instead")
+	virtual bool IgnoreBoundsForEditorFocus() const { return bIgnoreBoundsForEditorFocus; }
+#endif	
+
 	/**
 	 * Whether or not the bounds of this component should be considered when focusing the editor camera to an actor with this component in it.
 	 * Useful for debug components which need a bounds for rendering but don't contribute to the visible part of the mesh in a meaningful way
 	 */
-	virtual bool IgnoreBoundsForEditorFocus() const { return bIgnoreBoundsForEditorFocus; }
+	UFUNCTION(BlueprintCallable, Category = "Editor")
+	virtual bool GetIgnoreBoundsForEditorFocus() const { return bIgnoreBoundsForEditorFocus; }
 	
 	/**
 	 * Set if we should ignore bounds when focusing the editor camera.
-	*/
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor")
 	void SetIgnoreBoundsForEditorFocus(bool bIgnore) { bIgnoreBoundsForEditorFocus = bIgnore; }
-#endif
 
 	/** Update current physics volume for this component, if bShouldUpdatePhysicsVolume is true. Overridden to use the overlaps to find the physics volume. */
 	virtual void UpdatePhysicsVolume( bool bTriggerNotifiers ) override;

@@ -372,7 +372,6 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bReceiveMobileCSMShadows = true;
 
 #if WITH_EDITOR
-	bIgnoreBoundsForEditorFocus = false;
 	bAlwaysAllowTranslucentSelect = false;
 #endif
 
@@ -380,6 +379,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	HitProxyPriority = HPP_World;
 #endif // WITH_EDITORONLY_DATA
 
+	bIgnoreBoundsForEditorFocus = false;
 	bVisibleInSceneCaptureOnly = false;
 	bHiddenInSceneCapture = false;
 }

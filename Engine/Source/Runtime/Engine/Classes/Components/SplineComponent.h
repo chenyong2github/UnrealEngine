@@ -300,8 +300,8 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
+	virtual bool GetIgnoreBoundsForEditorFocus() const override;
 #if WITH_EDITOR
-	virtual bool IgnoreBoundsForEditorFocus() const override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface

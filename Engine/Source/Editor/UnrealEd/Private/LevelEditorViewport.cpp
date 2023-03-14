@@ -5168,7 +5168,7 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 			{
 				UPrimitiveComponent* PrimitiveComponent = PrimitiveComponents[ComponentIndex];
 
-				if (PrimitiveComponent->IsRegistered() && !PrimitiveComponent->IgnoreBoundsForEditorFocus())
+				if (PrimitiveComponent->IsRegistered() && !PrimitiveComponent->GetIgnoreBoundsForEditorFocus())
 				{
 					TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(PrimitiveComponent->GetClass());
 					FBox FocusOnSelectionBBox;

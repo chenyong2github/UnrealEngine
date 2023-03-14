@@ -110,13 +110,13 @@ public:
 
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
+	virtual bool GetIgnoreBoundsForEditorFocus() const override { return true; }
 #if WITH_EDITORONLY_DATA
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool IgnoreBoundsForEditorFocus() const override { return true; }
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 

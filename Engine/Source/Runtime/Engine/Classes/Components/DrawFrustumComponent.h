@@ -54,9 +54,7 @@ class UDrawFrustumComponent : public UPrimitiveComponent
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End UPrimitiveComponent Interface.
 
-#if WITH_EDITOR
-	virtual bool IgnoreBoundsForEditorFocus() const override { return true; }
-#endif
+	virtual bool GetIgnoreBoundsForEditorFocus() const override { return true; }
 };
 
 

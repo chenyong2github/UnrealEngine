@@ -102,7 +102,7 @@ bool FActorElementEditorViewportInteractionCustomization::GetFocusBounds( const 
 			if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
 			{
 				// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
-				const bool bIgnore = AllSceneComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+				const bool bIgnore = AllSceneComponents.Num() > 1 && PrimitiveComponent->GetIgnoreBoundsForEditorFocus();
 
 				if (!bIgnore)
 				{

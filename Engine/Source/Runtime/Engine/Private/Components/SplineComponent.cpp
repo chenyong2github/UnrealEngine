@@ -1964,13 +1964,11 @@ FBoxSphereBounds USplineComponent::CalcBounds(const FTransform& LocalToWorld) co
 #endif
 }
 
-#if WITH_EDITOR
-bool USplineComponent::IgnoreBoundsForEditorFocus() const
+bool USplineComponent::GetIgnoreBoundsForEditorFocus() const
 {
 	// Cannot compute proper bounds when there's no point so don't participate to editor focus if that's the case : 
-	return Super::IgnoreBoundsForEditorFocus() || SplineCurves.Position.Points.Num() == 0;
+	return Super::GetIgnoreBoundsForEditorFocus() || SplineCurves.Position.Points.Num() == 0;
 }
-#endif // WITH_EDITOR
 
 TStructOnScope<FActorComponentInstanceData> USplineComponent::GetComponentInstanceData() const
 {

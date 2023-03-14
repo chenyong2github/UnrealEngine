@@ -4839,7 +4839,7 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 				}
 
 				// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
-				const bool bIgnore = Components.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+				const bool bIgnore = Components.Num() > 1 && PrimitiveComponent->GetIgnoreBoundsForEditorFocus();
 
 				if(!bIgnore && PrimitiveComponent->IsRegistered())
 				{
@@ -4890,7 +4890,7 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 							if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
 							{
 								// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
-								const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+								const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->GetIgnoreBoundsForEditorFocus();
 
 								if (!bIgnore)
 								{

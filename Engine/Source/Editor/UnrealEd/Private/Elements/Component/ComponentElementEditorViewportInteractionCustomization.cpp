@@ -71,7 +71,7 @@ bool FComponentElementEditorViewportInteractionCustomization::GetFocusBounds(con
 				RootComponent->GetChildrenComponents(true, SceneComponents);
 				SceneComponents.Add(RootComponent);
 				// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
-				const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+				const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->GetIgnoreBoundsForEditorFocus();
 
 				if (!bIgnore)
 				{
