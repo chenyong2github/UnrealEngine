@@ -511,9 +511,9 @@ bool FPakFileCacheStore::LoadCache(const TCHAR* InFilename)
 		while (Loader.Tell() < SizeIndex)
 		{
 			FString Key;
-			int64 Offset;
-			int64 Size;
-			uint32 Crc;
+			int64 Offset = 0;
+			int64 Size = 0;
+			uint32 Crc = 0;
 			Loader << Key;
 			Loader << Offset;
 			Loader << Size;
