@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FixedFoveationImageGenerator.h"
+#include "FoveatedImageGenerator.h"
 #include "SystemTextures.h"
 #include "GlobalShader.h"
 #include "IXRTrackingSystem.h"
@@ -9,13 +9,17 @@
 #include "UnrealClient.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "SceneTexturesConfig.h"
+#include "IEyeTracker.h"
+#include "IHeadMountedDisplay.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
+#include "SceneRendering.h"
 
 /* CVar values used to control generator behavior */
 
-static TAutoConsoleVariable<int> CVarFixedFoveationLevel(
-	TEXT("vr.VRS.HMDFixedFoveationLevel"),
+static TAutoConsoleVariable<int> CVarFoveationLevel(
+	TEXT("r.VRS.HMDFoveationLevel"),
 	0,
-	TEXT("Level of fixed-foveation VRS to apply (when Variable Rate Shading is available)\n")
+	TEXT("Level of foveated VRS to apply (when Variable Rate Shading is available)\n")
 	TEXT(" 0: Disabled (default);\n")
 	TEXT(" 1: Low;\n")
 	TEXT(" 2: Medium;\n")
@@ -23,34 +27,33 @@ static TAutoConsoleVariable<int> CVarFixedFoveationLevel(
 	TEXT(" 4: High Top;\n"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarFixedFoveationDynamic(
-	TEXT("vr.VRS.HMDFixedFoveationDynamic"),
+static TAutoConsoleVariable<int32> CVarDynamicFoveation(
+	TEXT("r.VRS.HMDDynamicFoveation"),
 	0,
-	TEXT("Whether fixed-foveation level should adjust based on GPU utilization\n")
+	TEXT("Whether foveation level should adjust based on GPU utilization\n")
 	TEXT(" 0: Disabled (default);\n")
 	TEXT(" 1: Enabled\n"),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarFoveatedPreview(
-	TEXT("vr.VRS.HMDFixedFoveationPreview"),
+static TAutoConsoleVariable<int32> CVarFoveationPreview(
+	TEXT("r.VRS.HMDFoveationPreview"),
 	1,
 	TEXT("Include foveated VRS in the VRS debug overlay.")
 	TEXT(" 0: Disabled;\n")
 	TEXT(" 1: Enabled (default)\n"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarGazeTrackedFoveation(
+	TEXT("r.VRS.HMDGazeTrackedFoveation"),
+	0,
+	TEXT("Enable gaze-tracking for foveated VRS\n")
+	TEXT(" 0: Disabled (default);\n")
+	TEXT(" 1: Enabled\n"),
+	ECVF_RenderThreadSafe);
+
 
 /* Image generation parameters, set up by Prepare() */
-
 FVector2f HMDFieldOfView = FVector2f(90.0f, 90.0f);
-
-float FixedFoveationFullRateCutoff = 1.0f;
-float FixedFoveationHalfRateCutoff = 1.0f;
-
-float FixedFoveationCenterX = 0.5f;
-float FixedFoveationCenterY = 0.5f;
-
-bool bGenerateFixedFoveation = false;
 
 
 /* Shader parameters and parameter structs */
@@ -63,8 +66,6 @@ enum class EVRSGenerationFlags : uint32
 	None = 0x0,
 	StereoRendering = 0x1,
 	SideBySideStereo = 0x2,
-	HMDFixedFoveation = 0x4,
-	HMDEyeTrackedFoveation = 0x8,
 };
 
 ENUM_CLASS_FLAGS(EVRSGenerationFlags);
@@ -80,14 +81,12 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWOutputTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, CombineSourceIn, [kMaxCombinedSources])
 		SHADER_PARAMETER(FVector2f, HMDFieldOfView)
 		SHADER_PARAMETER(FVector2f, LeftEyeCenterPixelXY)
 		SHADER_PARAMETER(FVector2f, RightEyeCenterPixelXY)
 		SHADER_PARAMETER(float, ViewDiagonalSquaredInPixels)
-		SHADER_PARAMETER(float, FixedFoveationFullRateCutoffSquared)
-		SHADER_PARAMETER(float, FixedFoveationHalfRateCutoffSquared)
-		SHADER_PARAMETER(uint32, CombineSourceCount)
+		SHADER_PARAMETER(float, FoveationFullRateCutoffSquared)
+		SHADER_PARAMETER(float, FoveationHalfRateCutoffSquared)
 		SHADER_PARAMETER(uint32, ShadingRateAttachmentGenerationFlags)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -117,50 +116,85 @@ public:
 
 		OutEnvironment.SetDefine(TEXT("STEREO_RENDERING"), (uint32)EVRSGenerationFlags::StereoRendering);
 		OutEnvironment.SetDefine(TEXT("SIDE_BY_SIDE_STEREO"), (uint32)EVRSGenerationFlags::SideBySideStereo);
-		OutEnvironment.SetDefine(TEXT("HMD_FIXED_FOVEATION"), (uint32)EVRSGenerationFlags::HMDFixedFoveation);
-		OutEnvironment.SetDefine(TEXT("HMD_EYETRACKED_FOVEATION"), (uint32)EVRSGenerationFlags::HMDEyeTrackedFoveation);
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FComputeVariableRateShadingImageGeneration, "/Engine/Private/VariableRateShading/FixedFoveationVariableRateShading.usf", "GenerateShadingRateTexture", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FComputeVariableRateShadingImageGeneration, "/Engine/Private/VariableRateShading/VRSShadingRateFoveated.usf", "GenerateShadingRateTexture", SF_Compute);
 
-FRDGTextureRef FFixedFoveationImageGenerator::GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType)
+FRDGTextureRef FFoveatedImageGenerator::GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType)
 {
+	// Generator only supports up to two side-by-side views
+	if (ViewInfo.StereoViewIndex > 1)
+	{
+		return nullptr;
+	}
+
 	return CachedImage;
 }
 
-void FFixedFoveationImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures)
+void FFoveatedImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures)
 {
-	// TODO: Skip some portion of this update if the CVars haven't changed at all
 
 	// VRS level parameters - pretty arbitrary right now, later should depend on device characteristics
-	static const float kFixedFoveationFullRateCutoffs[] = { 1.0f, 0.7f, 0.50f, 0.35f, 0.35f };
-	static const float kFixedFoveationHalfRateCutofffs[] = { 1.0f, 0.9f, 0.75f, 0.55f, 0.55f };
+	static const float kFoveationFullRateCutoffs[] = { 1.0f, 0.7f, 0.50f, 0.35f, 0.35f };
+	static const float kFoveationHalfRateCutofffs[] = { 1.0f, 0.9f, 0.75f, 0.55f, 0.55f };
 	static const float kFixedFoveationCenterX[] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
 	static const float kFixedFoveationCenterY[] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.42f };
 
-	const int VRSMaxLevel = FMath::Clamp(CVarFixedFoveationLevel.GetValueOnAnyThread(), 0, 4);
+	const int VRSMaxLevel = FMath::Clamp(CVarFoveationLevel.GetValueOnAnyThread(), 0, 4);
 
+	// Set up dynamic VRS amount based on target framerate, default to 1.0
 	float VRSAmount = 1.0f;
-
-	if (CVarFixedFoveationDynamic.GetValueOnAnyThread() && VRSMaxLevel > 0)
+	if (CVarDynamicFoveation.GetValueOnAnyThread() && VRSMaxLevel > 0)
 	{
-		VRSAmount = GetDynamicVRSAmount();
+		VRSAmount = UpdateDynamicVRSAmount();
 	}
 
-	bGenerateFixedFoveation = (VRSMaxLevel > 0 && VRSAmount > 0.0f);
-	FixedFoveationFullRateCutoff = FMath::Lerp(kFixedFoveationFullRateCutoffs[0], kFixedFoveationFullRateCutoffs[VRSMaxLevel], VRSAmount);
-	FixedFoveationHalfRateCutoff = FMath::Lerp(kFixedFoveationHalfRateCutofffs[0], kFixedFoveationHalfRateCutofffs[VRSMaxLevel], VRSAmount);
-	FixedFoveationCenterX = FMath::Lerp(kFixedFoveationCenterX[0], kFixedFoveationCenterX[VRSMaxLevel], VRSAmount);
-	FixedFoveationCenterY = FMath::Lerp(kFixedFoveationCenterY[0], kFixedFoveationCenterY[VRSMaxLevel], VRSAmount);
+	if (!VRSMaxLevel || !VRSAmount)
+	{
+		CachedImage = nullptr;
+		return;
+	}
 
-	FIntPoint Size = FSceneTexturesConfig::Get().Extent;
-	bool bStereoRendering = IStereoRendering::IsStereoEyeView(*ViewFamily.Views[0]) && GEngine->XRSystem.IsValid();
+	const float FoveationFullRateCutoff = FMath::Lerp(kFoveationFullRateCutoffs[0], kFoveationFullRateCutoffs[VRSMaxLevel], VRSAmount);
+	const float FoveationHalfRateCutoff = FMath::Lerp(kFoveationHalfRateCutofffs[0], kFoveationHalfRateCutofffs[VRSMaxLevel], VRSAmount);
+
+	// Default to fixed center point
+	float FoveationCenterX = kFixedFoveationCenterX[VRSMaxLevel];
+	float FoveationCenterY = kFixedFoveationCenterY[VRSMaxLevel];
+
+	// If gaze data is available and gaze-tracking is enabled, adjust foveation center point
+	if (IsGazeTrackingEnabled())
+	{
+		TSharedPtr<IEyeTracker> EyeTracker = GEngine->EyeTrackingDevice;
+		FEyeTrackerGazeData GazeData = FEyeTrackerGazeData();
+
+		// Only use gaze if we have confident gaze data, otherwise stick with fixed
+		if (EyeTracker->GetEyeTrackerGazeData(GazeData) && GazeData.ConfidenceValue > 0.5f)
+		{
+			// Get gaze orientation relative to HMD view
+			FQuat ViewOrientation;
+			FVector ViewPosition;
+			GEngine->XRSystem->GetCurrentPose(0, ViewOrientation, ViewPosition);
+			const FVector RelativeGazeDirection = ViewOrientation.UnrotateVector(GazeData.GazeDirection);
+
+			// Switch from Unreal coordinate system to X right, Y up, Z forward before projecting
+			const FMatrix StereoProjectionMatrix = GEngine->StereoRenderingDevice->GetStereoProjectionMatrix(0);
+			const FVector4 GazePoint = StereoProjectionMatrix.GetTransposed().TransformVector(FVector(RelativeGazeDirection.Y, RelativeGazeDirection.Z, RelativeGazeDirection.X));
+
+			// Transform into 0-1 screen coordinates. 0,0 is top left.  
+			FoveationCenterX = 0.5f + GazePoint.X / 2.0f;
+			FoveationCenterY = 0.5f - GazePoint.Y / 2.0f;
+
+		}
+	}
 
 	// Sanity check VRS tile size.
 	check(GRHIVariableRateShadingImageTileMinWidth >= 8 && GRHIVariableRateShadingImageTileMinWidth <= 64 && GRHIVariableRateShadingImageTileMinHeight >= 8 && GRHIVariableRateShadingImageTileMaxHeight <= 64);
 
-	FIntPoint TextureSize(Size.X / GRHIVariableRateShadingImageTileMinWidth, Size.Y / GRHIVariableRateShadingImageTileMinHeight);
+	// Calculate texture size
+	const FIntPoint Size = FSceneTexturesConfig::Get().Extent;
+	const FIntPoint TextureSize(Size.X / GRHIVariableRateShadingImageTileMinWidth, Size.Y / GRHIVariableRateShadingImageTileMinHeight);
 
 	// Create texture to hold shading rate image
 	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
@@ -169,42 +203,42 @@ void FFixedFoveationImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, con
 		FClearValueBinding::None,
 		TexCreate_Foveation | TexCreate_UAV);
 
-	FRDGTextureRef ShadingRateTexture = GraphBuilder.CreateTexture(Desc, TEXT("FixedFoveationShadingRateTexture"));
+	FRDGTextureRef ShadingRateTexture = GraphBuilder.CreateTexture(Desc, TEXT("FoveatedShadingRateTexture"));
 
-	// Setup shader parameters
+	// Setup shader parameters and flags
 	FComputeVariableRateShadingImageGeneration::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeVariableRateShadingImageGeneration::FParameters>();
 	PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(ShadingRateTexture);
 
 	PassParameters->HMDFieldOfView = HMDFieldOfView;
 
-	PassParameters->FixedFoveationFullRateCutoffSquared = FixedFoveationFullRateCutoff * FixedFoveationFullRateCutoff;
-	PassParameters->FixedFoveationHalfRateCutoffSquared = FixedFoveationHalfRateCutoff * FixedFoveationHalfRateCutoff;
+	PassParameters->FoveationFullRateCutoffSquared = FoveationFullRateCutoff * FoveationFullRateCutoff;
+	PassParameters->FoveationHalfRateCutoffSquared = FoveationHalfRateCutoff * FoveationHalfRateCutoff;
 
-	PassParameters->LeftEyeCenterPixelXY = FVector2f(TextureSize.X * FixedFoveationCenterX, TextureSize.Y * FixedFoveationCenterY);
+	PassParameters->LeftEyeCenterPixelXY = FVector2f(TextureSize.X * FoveationCenterX, TextureSize.Y * FoveationCenterY);
 	PassParameters->RightEyeCenterPixelXY = PassParameters->LeftEyeCenterPixelXY;
 
-	// Set up flags - can later allow eye-tracking here since the shader theoretically supports it
-	EVRSGenerationFlags GenFlags = EVRSGenerationFlags::HMDFixedFoveation;
-	if (bStereoRendering)
+	EVRSGenerationFlags GenFlags = EVRSGenerationFlags::None;
+
+	// If stereo is enabled, side-by-side is assumed for now, may need to change this if we add support for mobile multi-view
+	if (IStereoRendering::IsStereoEyeView(*ViewFamily.Views[0]) && GEngine->XRSystem.IsValid())
 	{
 		EnumAddFlags(GenFlags, EVRSGenerationFlags::StereoRendering);
-		EnumAddFlags(GenFlags, EVRSGenerationFlags::SideBySideStereo); // May need to change this if we add support for mobile multi-view
+		EnumAddFlags(GenFlags, EVRSGenerationFlags::SideBySideStereo); 
 
-		// Adjust eyes for side-by-side stereo
-		PassParameters->LeftEyeCenterPixelXY.X /= 2;
-		PassParameters->RightEyeCenterPixelXY.X = PassParameters->LeftEyeCenterPixelXY.X + TextureSize.X / 2;
+		// Adjust eyes for side-by-side stereo and/or quadview
+		PassParameters->LeftEyeCenterPixelXY.X /= ViewFamily.Views.Num();;
+		PassParameters->RightEyeCenterPixelXY.X = PassParameters->LeftEyeCenterPixelXY.X + TextureSize.X / ViewFamily.Views.Num();
 	}
 
-	PassParameters->ViewDiagonalSquaredInPixels = FVector2f::DotProduct(PassParameters->LeftEyeCenterPixelXY, PassParameters->LeftEyeCenterPixelXY);
-	PassParameters->CombineSourceCount = 0;
+	// Set up remaining parameters
+	const FVector2f ViewCenterPoint = FVector2f(TextureSize.X / ViewFamily.Views.Num() * 0.5f, TextureSize.Y * 0.5f);
+	PassParameters->ViewDiagonalSquaredInPixels = FVector2f::DotProduct(ViewCenterPoint, ViewCenterPoint);
 	PassParameters->ShadingRateAttachmentGenerationFlags = (uint32)GenFlags;
 
-	TShaderMapRef<FComputeVariableRateShadingImageGeneration> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-
+	TShaderMapRef<FComputeVariableRateShadingImageGeneration> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel)); // If in stereo, shader sets up a single side-by-side image for both eyes at once
 	FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(TextureSize, FComputeShaderUtils::kGolden2DGroupSize);
-
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("GenerateFixedFoveationVRSImage"),
+		RDG_EVENT_NAME("GenerateFoveatedVRSImage"),
 		PassParameters,
 		ERDGPassFlags::Compute,
 		[PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
@@ -215,19 +249,24 @@ void FFixedFoveationImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, con
 	CachedImage = ShadingRateTexture;
 }
 
-bool FFixedFoveationImageGenerator::IsEnabledForView(const FSceneView& View) const
+bool FFoveatedImageGenerator::IsEnabledForView(const FSceneView& View) const
 {
 	// Only enabled if we are in XR
 	bool bStereoRendering = IStereoRendering::IsStereoEyeView(View) && GEngine->XRSystem.IsValid();
-	return bStereoRendering && CVarFixedFoveationLevel.GetValueOnRenderThread() > 0;
+	return bStereoRendering && CVarFoveationLevel.GetValueOnRenderThread() > 0;
 }
 
-FRDGTextureRef FFixedFoveationImageGenerator::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo)
+FVariableRateShadingImageManager::EVRSSourceType FFoveatedImageGenerator::GetType() const
+{
+	return IsGazeTrackingEnabled() ? FVariableRateShadingImageManager::EVRSSourceType::FixedFoveation : FVariableRateShadingImageManager::EVRSSourceType::EyeTrackedFoveation;
+}
+
+FRDGTextureRef FFoveatedImageGenerator::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo)
 {
 	return CachedImage;
 }
 
-float FFixedFoveationImageGenerator::GetDynamicVRSAmount()
+float FFoveatedImageGenerator::UpdateDynamicVRSAmount()
 {
 	const float		kUpdateIncrement = 0.1f;
 	const int		kNumFramesToAverage = 10;
@@ -275,4 +314,11 @@ float FFixedFoveationImageGenerator::GetDynamicVRSAmount()
 	}
 
 	return DynamicVRSData.VRSAmount;
+}
+
+bool FFoveatedImageGenerator::IsGazeTrackingEnabled() const
+{
+	return CVarGazeTrackedFoveation.GetValueOnAnyThread()
+		&& GEngine->EyeTrackingDevice.IsValid()
+		&& GEngine->StereoRenderingDevice.IsValid();
 }

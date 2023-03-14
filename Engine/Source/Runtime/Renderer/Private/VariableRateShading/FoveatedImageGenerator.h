@@ -9,17 +9,14 @@
 #include "VariableRateShadingImageManager.h"
 #include "Engine/Engine.h"
 
-class FFixedFoveationImageGenerator : public IVariableRateShadingImageGenerator
+class FFoveatedImageGenerator : public IVariableRateShadingImageGenerator
 {
 public:
-	virtual ~FFixedFoveationImageGenerator() override {};
+	virtual ~FFoveatedImageGenerator() override {};
 	virtual FRDGTextureRef GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType) override;
 	virtual void PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures) override;
 	virtual bool IsEnabledForView(const FSceneView& View) const override;
-	virtual FVariableRateShadingImageManager::EVRSSourceType GetType() const override
-	{
-		return FVariableRateShadingImageManager::EVRSSourceType::FixedFoveation;
-	}
+	virtual FVariableRateShadingImageManager::EVRSSourceType GetType() const override;
 	virtual FRDGTextureRef GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo) override;
 private:
 	FRDGTextureRef CachedImage = nullptr;
@@ -30,5 +27,6 @@ private:
 		int		NumFramesStored = 0;
 		uint32	LastUpdateFrame = 0;
 	} DynamicVRSData;
-	float GetDynamicVRSAmount();
+	float UpdateDynamicVRSAmount();
+	bool IsGazeTrackingEnabled() const;
 };

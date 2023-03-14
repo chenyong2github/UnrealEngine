@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VariableRateShadingImageManager.h"
-#include "FixedFoveationImageGenerator.h"
+#include "FoveatedImageGenerator.h"
 #include "ContrastAdaptiveImageGenerator.h"
 #include "StereoRenderTargetManager.h"
 #include "GlobalShader.h"
@@ -163,7 +163,7 @@ IMPLEMENT_GLOBAL_SHADER(FDebugVariableRateShadingPS, "/Engine/Private/VariableRa
 FVariableRateShadingImageManager::FVariableRateShadingImageManager()
 	: FRenderResource()
 {
-	ImageGenerators.Add(MakeUnique<FFixedFoveationImageGenerator>());
+	ImageGenerators.Add(MakeUnique<FFoveatedImageGenerator>());
 	ImageGenerators.Add(MakeUnique<FContrastAdaptiveImageGenerator>());
 
 	// TODO: Add more generators or allow registration from plugins
