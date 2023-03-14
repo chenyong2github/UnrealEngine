@@ -136,7 +136,9 @@ public:
 
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
-	NIAGARAEDITOR_API void ChangeScriptVersion(FGuid NewScriptVersion, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, bool bShowNotesInStack = false);
+	/** if bDeferOverridePinUpdate is true then it is the caller's responsibility to call UpdateOverridePins() */
+	NIAGARAEDITOR_API void ChangeScriptVersion(FGuid NewScriptVersion, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, bool bShowNotesInStack = false, bool bDeferOverridePinUpdate = false);
+	NIAGARAEDITOR_API void UpdateOverridePins(const FNiagaraScriptVersionUpgradeContext& UpgradeContext);
 
 	FString GetFunctionName() const { return FunctionDisplayName; }
 	NIAGARAEDITOR_API UNiagaraGraph* GetCalledGraph() const;

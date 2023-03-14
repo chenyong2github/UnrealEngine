@@ -2925,7 +2925,7 @@ void UNiagaraSystem::PrepareRapidIterationParametersForCompilation()
 
 const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& UNiagaraSystem::GetCachedTraversalData() const
 {
-	if (CachedTraversalData.IsValid())
+	if (CachedTraversalData.IsValid() && CachedTraversalData->IsValidForSystem(this))
 		return CachedTraversalData;
 
 	INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));

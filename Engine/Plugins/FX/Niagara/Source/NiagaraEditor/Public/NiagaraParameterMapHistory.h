@@ -115,6 +115,16 @@ private:
 	TArray<FString> FriendlyPath;
 };
 
+struct FNiagaraStaticVariableSearchContext
+{
+	/** Whether we are running a limited history run where we only care about collecting static variables */
+	bool bCollectingStaticVariablesOnly = false;
+
+	bool bIncludeReferencedGraphs = true;
+
+	using FGraphKey = TTuple<TObjectKey<UNiagaraGraph>, FGuid>;
+	TMap<FGraphKey, bool> CachedResults;
+};
 
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 
 * 	This class is meant to aid in UI and compilation of the graph. There are several main script types and each one interacts
@@ -539,6 +549,14 @@ public:
 		if (ContextuallyVisitedNodes.Num() > 0)
 			OutVistedNodes.Append(ContextuallyVisitedNodes.Last());
 	}
+
+	void IncludeStaticVariablesOnly()
+	{
+		StaticVariableSearchContext.bCollectingStaticVariablesOnly = true;
+	}
+
+	bool ShouldProcessDepthTraversal(const UNiagaraGraph* Graph);
+
 protected:
 	/** Internal helper function to decide whether or not we should use this static variable when merging with other
 		graph traversal static variables, like Emitter graphs merging with System graphs. */
@@ -599,6 +617,8 @@ protected:
 	bool bIgnoreStaticRapidIterationParameters = false;
 
 	TArray<FNiagaraVariable> EncounterableExternalVariables;
+
+	FNiagaraStaticVariableSearchContext StaticVariableSearchContext;
 };
 
 class FNiagaraParameterMapHistoryWithMetaDataBuilder : public FNiagaraParameterMapHistoryBuilder
@@ -615,8 +635,15 @@ public:
 
 struct FNiagaraGraphCachedBuiltHistory : public FNiagaraGraphCachedDataBase
 {
-	virtual ~FNiagaraGraphCachedBuiltHistory() {};
-	virtual void GetStaticVariables(TArray<FNiagaraVariable>& OutVars) { OutVars = StaticVariables; }
+	virtual ~FNiagaraGraphCachedBuiltHistory() = default;
+	virtual void GetStaticVariables(TArray<FNiagaraVariable>& OutVars) override { OutVars = StaticVariables; }
+
+	virtual bool IsValidForSystem(const UNiagaraSystem* InSystem) const override;
+	virtual void SetSourceSystem(const UNiagaraSystem* InSystem) override;
+
+	virtual bool IsValidForEmitter(const FVersionedNiagaraEmitterData* InEmitterData) const override;
+	virtual void SetSourceEmitter(const FVersionedNiagaraEmitterData* InEmitterData) override;
 
 	TArray<FNiagaraVariable> StaticVariables;
+	TArray<FGuid> SourceAssetChangeIds;
 };

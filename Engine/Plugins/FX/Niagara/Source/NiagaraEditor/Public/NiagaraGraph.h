@@ -13,6 +13,7 @@ class UNiagaraParameterDefinitions;
 class UNiagaraScriptVariable;
 struct FSynchronizeWithParameterDefinitionsArgs;
 struct FNiagaraScriptVariableData;
+struct FNiagaraStaticVariableSearchContext;
 
 /** This is the type of action that occurred on a given Niagara graph. Note that this should follow from EEdGraphActionType, leaving some slop for growth. */
 enum ENiagaraGraphActionType
@@ -429,6 +430,8 @@ class UNiagaraGraph : public UEdGraph
 	bool HasVariable(const FNiagaraVariable& Variable) const;
 
 	void SetIsStaticSwitch(const FNiagaraVariable& Variable, bool InValue);
+
+	bool ReferencesStaticVariable(FNiagaraStaticVariableSearchContext& SearchContext) const;
 
 protected:
 	void RebuildNumericCache();

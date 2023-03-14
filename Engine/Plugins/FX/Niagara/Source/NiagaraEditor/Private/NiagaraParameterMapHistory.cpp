@@ -5,6 +5,7 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemImpl.h"
 #include "NiagaraGraph.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraNode.h"
@@ -2128,6 +2129,23 @@ int32 FNiagaraParameterMapHistoryBuilder::FindStaticVariable(const FNiagaraVaria
 	return FoundOverrideIdx;
 }
 
+bool FNiagaraParameterMapHistoryBuilder::ShouldProcessDepthTraversal(const UNiagaraGraph* Graph)
+{
+	// first check if there are limits setup for how deep we should look
+	if (MaxGraphDepthTraversal == INDEX_NONE || CurrentGraphDepth < MaxGraphDepthTraversal)
+	{
+		// next, if we only care about static variables, check if the graph we're going to go into actually includes any
+		if (StaticVariableSearchContext.bCollectingStaticVariablesOnly)
+		{
+			return Graph->ReferencesStaticVariable(StaticVariableSearchContext);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 void FNiagaraParameterMapHistoryBuilder::SetConstantByStaticVariable(int32& OutValue, const FNiagaraVariable& Var)
 {
 	
@@ -2455,6 +2473,67 @@ int32 FNiagaraParameterMapHistoryWithMetaDataBuilder::AddVariableToHistory(FNiag
 	}
 	TOptional<FNiagaraVariableMetaData> BlankMetaData = FNiagaraVariableMetaData();
 	return History.AddVariable(InVar, InAliasedVar, ModuleName, InPin, BlankMetaData);
+}
+
+namespace NiagaraGraphCachedBuiltHistoryImpl
+{
+
+template<typename T>
+static void CollectScriptChangeIds(const T* InObject, TArray<FGuid>& ChangeIds)
+{
+	if (InObject)
+	{
+		InObject->ForEachScript([&ChangeIds](const UNiagaraScript* Script)
+		{
+			ChangeIds.Add(Script->GetBaseChangeID());
+		});
+	}
+}
+
+};
+
+bool FNiagaraGraphCachedBuiltHistory::IsValidForSystem(const UNiagaraSystem* InSystem) const
+{
+	if (!InSystem)
+	{
+		return false;
+	}
+
+	TArray<FGuid> TestChangeIds;
+	NiagaraGraphCachedBuiltHistoryImpl::CollectScriptChangeIds(InSystem, TestChangeIds);
+	return TestChangeIds == SourceAssetChangeIds;
+}
+
+void FNiagaraGraphCachedBuiltHistory::SetSourceSystem(const UNiagaraSystem* InSystem)
+{
+	SourceAssetChangeIds.Reset();
+
+	if (InSystem)
+	{
+		NiagaraGraphCachedBuiltHistoryImpl::CollectScriptChangeIds(InSystem, SourceAssetChangeIds);
+	}
+}
+
+bool FNiagaraGraphCachedBuiltHistory::IsValidForEmitter(const FVersionedNiagaraEmitterData* InEmitterData) const
+{
+	if (!InEmitterData)
+	{
+		return false;
+	}
+
+	TArray<FGuid> TestChangeIds;
+	NiagaraGraphCachedBuiltHistoryImpl::CollectScriptChangeIds(InEmitterData, TestChangeIds);
+	return TestChangeIds == SourceAssetChangeIds;
+}
+
+void FNiagaraGraphCachedBuiltHistory::SetSourceEmitter(const FVersionedNiagaraEmitterData* InEmitterData)
+{
+	SourceAssetChangeIds.Reset();
+
+	if (InEmitterData)
+	{
+		NiagaraGraphCachedBuiltHistoryImpl::CollectScriptChangeIds(InEmitterData, SourceAssetChangeIds);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

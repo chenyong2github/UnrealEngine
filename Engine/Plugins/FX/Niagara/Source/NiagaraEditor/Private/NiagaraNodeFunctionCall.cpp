@@ -1287,9 +1287,9 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 			NodeIdx = OutHistory.BeginNodeVisitation(ParamMapIdx, this);
 		}
 
-		// check if we should be recursing deeper into the graph
-		const bool DoDepthTraversal = (OutHistory.MaxGraphDepthTraversal == INDEX_NONE || OutHistory.CurrentGraphDepth < OutHistory.MaxGraphDepthTraversal);
+		const bool DoDepthTraversal = OutHistory.ShouldProcessDepthTraversal(FunctionGraph);
 
+		// check if we should be recursing deeper into the graph
 		if (DoDepthTraversal)
 		{
 			++OutHistory.CurrentGraphDepth;
@@ -1394,7 +1394,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 	}
 }
 
-void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, bool bShowNotesInStack)
+void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, bool bShowNotesInStack, bool bDeferOverridePinUpdate)
 {
 	bool bPreviousVersionValid = !InvalidScriptVersionReference.IsValid();
 	if (NewScriptVersion == SelectedScriptVersion && bPreviousVersionValid)
@@ -1424,6 +1424,16 @@ void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const
 	PreviousScriptVersion = bShowNotesInStack ? SelectedScriptVersion : NewScriptVersion;
 	SelectedScriptVersion = NewScriptVersion;
 
+	if (!bDeferOverridePinUpdate)
+	{
+		UpdateOverridePins(UpgradeContext);
+	}
+
+	MarkNodeRequiresSynchronization(__FUNCTION__, true);
+}
+
+void UNiagaraNodeFunctionCall::UpdateOverridePins(const FNiagaraScriptVersionUpgradeContext& UpgradeContext)
+{
 	if (FunctionScript)
 	{
 		// Automatically remove old inputs so it does not show a bunch of warnings to the user
@@ -1434,40 +1444,42 @@ void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const
 		{
 			OverrideNode->Modify();
 			OverrideNode->GetInputPins(OverridePins);
-			
-			TArray<FNiagaraVariable> ModuleInputVariables;
-			FNiagaraStackGraphUtilities::GetStackFunctionInputs(*this, ModuleInputVariables, UpgradeContext.ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
-			for (const FNiagaraVariable& InputVariable : ModuleInputVariables)
+
+			if (!OverridePins.IsEmpty())
 			{
-				FunctionInputNames.Add(FNiagaraParameterHandle(InputVariable.GetName()).GetName(), InputVariable.GetType());
-			}
-		}
-		for (UEdGraphPin* OverridePin : OverridePins)
-		{
-			if (!FNiagaraStackGraphUtilities::IsOverridePinForFunction(*OverridePin, *this))
-			{
-				continue;
-			}
-			FName InputName = FNiagaraParameterHandle(OverridePin->PinName).GetName();
-			FNiagaraTypeDefinition* InputType = FunctionInputNames.Find(InputName);
-			FNiagaraTypeDefinition OverridePinType = UEdGraphSchema_Niagara::PinTypeToTypeDefinition(OverridePin->PinType);
-			if (InputType != nullptr && *InputType != OverridePinType)
-			{
-				// looks like the type of the module input changed - we'll change the override pin type as well
-				OverridePin->Modify();
-				OverridePin->PinType = UEdGraphSchema_Niagara::TypeDefinitionToPinType(*InputType);
-			}
-			else if (InputType == nullptr)
-			{
-				// the input doesn't exist any more, delete the override pin
-				TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
-				FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(*OverridePin, RemovedDataObjects);
-				OverrideNode->RemovePin(OverridePin);
+				TArray<FNiagaraVariable> ModuleInputVariables;
+				FNiagaraStackGraphUtilities::GetStackFunctionInputs(*this, ModuleInputVariables, UpgradeContext.ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+				for (const FNiagaraVariable& InputVariable : ModuleInputVariables)
+				{
+					FunctionInputNames.Add(FNiagaraParameterHandle(InputVariable.GetName()).GetName(), InputVariable.GetType());
+				}
+
+				for (UEdGraphPin* OverridePin : OverridePins)
+				{
+					if (!FNiagaraStackGraphUtilities::IsOverridePinForFunction(*OverridePin, *this))
+					{
+						continue;
+					}
+					FName InputName = FNiagaraParameterHandle(OverridePin->PinName).GetName();
+					FNiagaraTypeDefinition* InputType = FunctionInputNames.Find(InputName);
+					FNiagaraTypeDefinition OverridePinType = UEdGraphSchema_Niagara::PinTypeToTypeDefinition(OverridePin->PinType);
+					if (InputType != nullptr && *InputType != OverridePinType)
+					{
+						// looks like the type of the module input changed - we'll change the override pin type as well
+						OverridePin->Modify();
+						OverridePin->PinType = UEdGraphSchema_Niagara::TypeDefinitionToPinType(*InputType);
+					}
+					else if (InputType == nullptr)
+					{
+						// the input doesn't exist any more, delete the override pin
+						TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
+						FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(*OverridePin, RemovedDataObjects);
+						OverrideNode->RemovePin(OverridePin);
+					}
+				}
 			}
 		}
 	}
-
-	MarkNodeRequiresSynchronization(__FUNCTION__, true);
 }
 
 UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FName VariableName, ENiagaraScriptUsage InParentUsage, FCompileConstantResolver ConstantResolver) const

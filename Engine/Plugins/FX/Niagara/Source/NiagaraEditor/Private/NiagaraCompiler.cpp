@@ -1475,6 +1475,7 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 
 	if (System)
 	{
+		CachedPtr->SetSourceSystem(System);
 		ScriptSource = CastChecked<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetLatestSource());
 		ConstantResolver = FCompileConstantResolver(System, ENiagaraScriptUsage::SystemSpawnScript);
 		System->GatherStaticVariables(StaticVariablesFromSystem, StaticVariablesFromSystemAndEmitters);
@@ -1486,6 +1487,9 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 	}
 	else if (Emitter)
 	{
+		const FVersionedNiagaraEmitterData* EmitterData = Emitter->GetEmitterData(Version);
+
+		CachedPtr->SetSourceEmitter(EmitterData);
 		UNiagaraSystem* SysParent = Cast<UNiagaraSystem>(Emitter->GetOuter());
 		if (SysParent)
 		{
@@ -1504,7 +1508,6 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 			}*/
 		}
 		SrcUniqueEmitterName = Emitter->GetUniqueEmitterName();
-		const FVersionedNiagaraEmitterData* EmitterData = Emitter->GetEmitterData(Version);
 		EmitterData->GatherStaticVariables(SrcStaticVariables);
 
 		ScriptSource = CastChecked<UNiagaraScriptSource>(EmitterData->GraphSource);
@@ -1572,6 +1575,7 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 			Builder.BeginTranslation(TranslationName);
 			Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
 			Builder.EnableScriptAllowList(true, FoundOutputNode->GetUsage());
+			Builder.IncludeStaticVariablesOnly();
 			Builder.BuildParameterMaps(FoundOutputNode, true);
 			Builder.EndUsage();
 

@@ -4133,6 +4133,44 @@ void UNiagaraGraph::SetIsStaticSwitch(const FNiagaraVariable& Variable, bool InV
 	}
 }
 
+bool UNiagaraGraph::ReferencesStaticVariable(FNiagaraStaticVariableSearchContext& SearchContext) const
+{
+	FNiagaraStaticVariableSearchContext::FGraphKey GraphKey(this, ChangeId);
+	if (const bool* bHasReferencePtr = SearchContext.CachedResults.Find(GraphKey))
+	{
+		return *bHasReferencePtr;
+	}
+
+	for (const auto& ScriptVariableEntry : VariableToScriptVariable)
+	{
+		if (ScriptVariableEntry.Key.GetType().IsStatic())
+		{
+			SearchContext.CachedResults.Add(GraphKey, true);
+			return true;
+		}
+	}
+
+	if (SearchContext.bIncludeReferencedGraphs)
+	{
+		for (const UEdGraphNode* GraphNode : Nodes)
+		{
+			if (const UNiagaraNodeFunctionCall* FunctionCall = Cast<const UNiagaraNodeFunctionCall>(GraphNode))
+			{
+				if (const UNiagaraGraph* CalledGraph = FunctionCall->GetCalledGraph())
+				{
+					if (CalledGraph->ReferencesStaticVariable(SearchContext))
+					{
+						SearchContext.CachedResults.Add(GraphKey, true);
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	SearchContext.CachedResults.Add(GraphKey, false);
+	return false;
+}
 
 #undef NIAGARA_SCOPE_CYCLE_COUNTER
 #undef LOCTEXT_NAMESPACE

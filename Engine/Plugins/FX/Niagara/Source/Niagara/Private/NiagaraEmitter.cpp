@@ -1395,7 +1395,7 @@ TArray<UNiagaraEditorParametersAdapterBase*> UNiagaraEmitter::GetEditorOnlyParam
 const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& UNiagaraEmitter::GetCachedTraversalData(const FGuid& EmitterVersion) const
 {
 	const FVersionedNiagaraEmitterData* EmitterData = GetEmitterData(EmitterVersion);
-	if (EmitterData->CachedTraversalData.IsValid())
+	if (EmitterData->CachedTraversalData.IsValid() && EmitterData->CachedTraversalData->IsValidForEmitter(EmitterData))
 	{
 		return EmitterData->CachedTraversalData;
 	}

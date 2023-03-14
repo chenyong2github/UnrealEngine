@@ -585,8 +585,14 @@ struct TStructOpsTypeTraits<FNiagaraVMExecutableData> : public TStructOpsTypeTra
 
 struct NIAGARA_API FNiagaraGraphCachedDataBase
 {
-	virtual ~FNiagaraGraphCachedDataBase() {}
+	virtual ~FNiagaraGraphCachedDataBase() = default;
 	virtual void GetStaticVariables(TArray<FNiagaraVariable>& OutVars) {}
+
+	virtual bool IsValidForSystem(const UNiagaraSystem* InSystem) const { return false; };
+	virtual void SetSourceSystem(const UNiagaraSystem* InSystem) {};
+
+	virtual bool IsValidForEmitter(const FVersionedNiagaraEmitterData* InEmitterData) const { return false; };
+	virtual void SetSourceEmitter(const FVersionedNiagaraEmitterData* InEmitterData) {};
 };
 
 /** Struct containing all of the data that can be different between different script versions.*/

@@ -1487,8 +1487,18 @@ void FNiagaraScriptMergeManager::UpdateModuleVersions(const FVersionedNiagaraEmi
 				};
 				UpgradeContext.ApplyClipboardCallback = [ModuleItem](UNiagaraClipboardContent* ClipboardContent, FText& OutWarning) { ModuleItem->Paste(ClipboardContent, OutWarning); };
 			}
-			ChangedModule->GetFunctionCallNode()->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
+			ChangedModule->GetFunctionCallNode()->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true /*bShowNotesInStack*/, true /*bDeferOverridePinUpdate*/);
 			ChangedModule->GetFunctionCallNode()->RefreshFromExternalChanges();
+		}
+
+		// now that we've applied the changes to all of the changed modules we go back through them and ensure their override nodes are up to date
+		// this is done after the fact to avoid constantly regenerating the static variables that may be at play
+		for (TSharedRef<FNiagaraStackFunctionMergeAdapter>& ChangedModule : ChangedVersionOtherModules)
+		{
+			FNiagaraScriptVersionUpgradeContext UpgradeContext;
+			UpgradeContext.ConstantResolver = FCompileConstantResolver(Instance, FNiagaraStackGraphUtilities::GetOutputNodeUsage(*ChangedModule->GetFunctionCallNode()));
+
+			ChangedModule->GetFunctionCallNode()->UpdateOverridePins(UpgradeContext);
 		}
 	}
 
