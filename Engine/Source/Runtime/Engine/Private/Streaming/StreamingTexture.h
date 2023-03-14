@@ -116,7 +116,7 @@ struct FStreamingRenderAsset
 	float GetNormalizedScreenSize(int32 NumMips) const
 	{
 		check(IsMesh());
-		check(NumMips > 0 && (uint32)NumMips < UE_ARRAY_COUNT(LODScreenSizes));
+		check(NumMips > 0 && (uint32)NumMips <= UE_ARRAY_COUNT(LODScreenSizes));
 		return LODScreenSizes[NumMips - 1];
 	}
 
