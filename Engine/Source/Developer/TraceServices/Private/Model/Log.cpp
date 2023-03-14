@@ -102,7 +102,7 @@ void FLogProvider::UpdateMessageFile(uint64 LogPoint, const TCHAR* InFile, int32
 	LogMessageSpec.Line = InLine;
 }
 
-void FLogProvider::UpdateMessageVebosity(uint64 LogPoint, ELogVerbosity::Type InVerbosity)
+void FLogProvider::UpdateMessageVerbosity(uint64 LogPoint, ELogVerbosity::Type InVerbosity)
 {
 	Session.WriteAccessCheck();
 	FLogMessageSpec& LogMessageSpec = GetMessageSpec(LogPoint);

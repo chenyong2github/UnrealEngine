@@ -63,13 +63,13 @@ public:
 	*
 	* @param CategoryPointer	The unique identity (memory address) of the category instrumentation.
 	*
-	* @return A reference to the category stucture.
+	* @return A reference to the category structure.
 	*/
 	virtual FLogCategoryInfo& GetCategory(uint64 CategoryPointer) = 0;
-	
+
 	/*
 	* Update a log message's Category information.
-	* 
+	*
 	* @param LogPoint			The log message to update.
 	* @param InCategoryPointer	The category.
 	*/
@@ -98,7 +98,7 @@ public:
 	* @param LogPoint		The log message to update.
 	* @param InVerbosity	The verbosity of the message.
 	*/
-	virtual void UpdateMessageVebosity(uint64 LogPoint, ELogVerbosity::Type InVerbosity) = 0;
+	virtual void UpdateMessageVerbosity(uint64 LogPoint, ELogVerbosity::Type InVerbosity) = 0;
 
 	/*
 	* Update a log message's information.
