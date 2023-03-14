@@ -96,22 +96,8 @@ public class FilesToStage
 
 public class PackageStoreManifest
 {
-	public class ZenServerInfo
-	{
-		public string HostName { get; set; }
-		public int Port { get; set; }
-		public string ProjectId { get; set; }
-		public string OplogId { get; set; }
-	}
-	public class FileInfo
-	{
-		public string Path { get; set; }
-	}
-
 	public string FullPath { get; set; }
-
-	public ZenServerInfo ZenServer { get; set; }
-	public IList<FileInfo> Files { get; set; }
+	public IList<string> ZenCookedFiles { get; set; }
 }
 
 public class DeploymentContext //: ProjectParams

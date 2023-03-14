@@ -55,6 +55,8 @@
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 
+LLM_DEFINE_TAG(Cooker_PackageStoreManifest);
+
 FLooseCookedPackageWriter::FLooseCookedPackageWriter(const FString& InOutputPath,
 	const FString& InMetadataDirectoryPath, const ITargetPlatform* InTargetPlatform, FAsyncIODelete& InAsyncIODelete,
 	UE::Cook::FPackageDatas& InPackageDatas, const TArray<TSharedRef<IPlugin>>& InPluginsToRemap)
@@ -62,7 +64,6 @@ FLooseCookedPackageWriter::FLooseCookedPackageWriter(const FString& InOutputPath
 	, MetadataDirectoryPath(InMetadataDirectoryPath)
 	, TargetPlatform(*InTargetPlatform)
 	, PackageDatas(InPackageDatas)
-	, PackageStoreManifest(InOutputPath)
 	, PluginsToRemap(InPluginsToRemap)
 	, AsyncIODelete(InAsyncIODelete)
 {
@@ -75,7 +76,12 @@ FLooseCookedPackageWriter::~FLooseCookedPackageWriter()
 void FLooseCookedPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
 	Super::BeginPackage(Info);
-	PackageStoreManifest.BeginPackage(Info.PackageName);
+	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
+	FScopeLock Lock(&OplogLock);
+	FOplogPackageInfo& PackageInfo = Oplog.FindOrAdd(Info.PackageName);
+	PackageInfo.PackageName = Info.PackageName;
+	PackageInfo.PackageDataChunks.Reset();
+	PackageInfo.BulkDataChunks.Reset();
 }
 
 void FLooseCookedPackageWriter::CommitPackageInternal(FPackageWriterRecords::FPackage&& BaseRecord,
@@ -489,13 +495,28 @@ void FLooseCookedPackageWriter::FWriteFileData::HashAndWrite(FMD5& AccumulatedHa
 
 void FLooseCookedPackageWriter::UpdateManifest(FRecord& Record)
 {
+	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
+	FScopeLock Lock(&OplogLock);
 	for (const FPackageWriterRecords::FWritePackage& Package : Record.Packages)
 	{
-		PackageStoreManifest.AddPackageData(Package.Info.PackageName, Package.Info.LooseFilePath, Package.Info.ChunkId);
+		FOplogPackageInfo* PackageInfo = Oplog.Find(Package.Info.PackageName);
+		check(PackageInfo);
+		FOplogChunkInfo& ChunkInfo = PackageInfo->PackageDataChunks.AddDefaulted_GetRef();
+		ChunkInfo.ChunkId = Package.Info.ChunkId;
+		FStringView RelativePathView;
+		FPathViews::TryMakeChildPathRelativeTo(Package.Info.LooseFilePath, OutputPath, RelativePathView);
+		ChunkInfo.RelativeFileName = RelativePathView;
+
 	}
 	for (const FPackageWriterRecords::FBulkData& BulkData : Record.BulkDatas)
 	{
-		PackageStoreManifest.AddBulkData(BulkData.Info.PackageName, BulkData.Info.LooseFilePath, BulkData.Info.ChunkId);
+		FOplogPackageInfo* PackageInfo = Oplog.Find(BulkData.Info.PackageName);
+		check(PackageInfo);
+		FOplogChunkInfo& ChunkInfo = PackageInfo->BulkDataChunks.AddDefaulted_GetRef();
+		ChunkInfo.ChunkId = BulkData.Info.ChunkId;
+		FStringView RelativePathView;
+		FPathViews::TryMakeChildPathRelativeTo(BulkData.Info.LooseFilePath, OutputPath, RelativePathView);
+		ChunkInfo.RelativeFileName = RelativePathView;
 	}
 }
 
@@ -534,15 +555,96 @@ void FLooseCookedPackageWriter::Initialize(const FCookInfo& Info)
 	}
 }
 
+void FLooseCookedPackageWriter::WriteOplogEntry(FCbWriter& Writer, const FOplogPackageInfo& PackageInfo)
+{
+	Writer.BeginObject();
+
+	Writer.BeginObject("packagestoreentry");
+	Writer << "packagename" << PackageInfo.PackageName;
+	Writer.EndObject();
+
+	Writer.BeginArray("packagedata");
+	for (const FOplogChunkInfo& ChunkInfo : PackageInfo.PackageDataChunks)
+	{
+		Writer.BeginObject();
+		Writer << "id" << ChunkInfo.ChunkId;
+		Writer << "filename" << ChunkInfo.RelativeFileName;
+		Writer.EndObject();
+	}
+	Writer.EndArray();
+
+	Writer.BeginArray("bulkdata");
+	for (const FOplogChunkInfo& ChunkInfo : PackageInfo.BulkDataChunks)
+	{
+		Writer.BeginObject();
+		Writer << "id" << ChunkInfo.ChunkId;
+		Writer << "filename" << ChunkInfo.RelativeFileName;
+		Writer.EndObject();
+	}
+	Writer.EndArray();
+
+	Writer.EndObject();
+}
+
+bool FLooseCookedPackageWriter::ReadOplogEntry(FOplogPackageInfo& PackageInfo, const FCbFieldView& Field)
+{
+	FCbObjectView PackageStoreEntryObjectView = Field["packagestoreentry"].AsObjectView();
+	if (!PackageStoreEntryObjectView)
+	{
+		return false;
+	}
+	PackageInfo.PackageName = FName(PackageStoreEntryObjectView["packagename"].AsString());
+
+	FCbArrayView PackageDataView = Field["packagedata"].AsArrayView();
+	PackageInfo.PackageDataChunks.Reset();
+	PackageInfo.PackageDataChunks.Reserve(PackageDataView.Num());
+	for (const FCbFieldView& ChunkEntry : PackageDataView)
+	{
+		FOplogChunkInfo& ChunkInfo = PackageInfo.PackageDataChunks.AddDefaulted_GetRef();
+		ChunkInfo.ChunkId.Set(ChunkEntry["id"].AsObjectId().GetView());
+		ChunkInfo.RelativeFileName = FString(ChunkEntry["filename"].AsString());
+	}
+
+	FCbArrayView BulkDataView = Field["bulkdata"].AsArrayView();
+	PackageInfo.BulkDataChunks.Reset();
+	PackageInfo.BulkDataChunks.Reserve(BulkDataView.Num());
+	for (const FCbFieldView& ChunkEntry : BulkDataView)
+	{
+		FOplogChunkInfo& ChunkInfo = PackageInfo.BulkDataChunks.AddDefaulted_GetRef();
+		ChunkInfo.ChunkId.Set(ChunkEntry["id"].AsObjectId().GetView());
+		ChunkInfo.RelativeFileName = FString(ChunkEntry["filename"].AsString());
+	}
+
+	return true;
+}
+
 void FLooseCookedPackageWriter::BeginCook(const FCookInfo& Info)
 {
 	if (!Info.bWorkerOnSharedSandbox)
 	{
-		PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+		TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreManifest);
+		FString PackageStoreManifestFilePath = FPaths::Combine(MetadataDirectoryPath, TEXT("packagestore.manifest"));
+		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*PackageStoreManifestFilePath));
+		if (Ar)
+		{
+			FCbField ManifestField = LoadCompactBinary(*Ar);
+			FCbField OplogField = ManifestField["oplog"];
+			if (OplogField)
+			{
+				FCbArray EntriesArray = OplogField["entries"].AsArray();
+				FScopeLock Lock(&OplogLock);
+				Oplog.Reserve(EntriesArray.Num());
+				for (const FCbField& EntryField : EntriesArray)
+				{
+					FOplogPackageInfo PackageInfo;
+					ReadOplogEntry(PackageInfo, EntryField);
+					Oplog.Add(PackageInfo.PackageName, MoveTemp(PackageInfo));
+				}
+			}
+		}
 	}
 	else
 	{
-		PackageStoreManifest.SetTrackPackageData(true);
 		bProvidePerPackageResults = true;
 	}
 	AllPackageHashes.Empty();
@@ -552,7 +654,41 @@ void FLooseCookedPackageWriter::EndCook(const FCookInfo& Info)
 {
 	if (!Info.bWorkerOnSharedSandbox)
 	{
-		PackageStoreManifest.Save(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+		TRACE_CPUPROFILER_EVENT_SCOPE(SavePackageStoreManifest);
+		FScopeLock Lock(&OplogLock);
+		// Sort packages for determinism
+		TArray<const FOplogPackageInfo*> SortedPackages;
+		SortedPackages.Reserve(Oplog.Num());
+		for (const auto& KV : Oplog)
+		{
+			SortedPackages.Add(&KV.Value);
+		}
+		Algo::Sort(SortedPackages, [](const FOplogPackageInfo* A, const FOplogPackageInfo* B)
+			{
+				return A->PackageName.LexicalLess(B->PackageName);
+			});
+		FCbWriter ManifestWriter;
+		ManifestWriter.BeginObject();
+		ManifestWriter.BeginObject("oplog");
+		ManifestWriter.BeginArray("entries");
+		for (const FOplogPackageInfo* Package : SortedPackages)
+		{
+			WriteOplogEntry(ManifestWriter, *Package);
+		}
+		ManifestWriter.EndArray();
+		ManifestWriter.EndObject();
+		ManifestWriter.EndObject();
+
+		FString PackageStoreManifestFilePath = FPaths::Combine(MetadataDirectoryPath, TEXT("packagestore.manifest"));
+		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*PackageStoreManifestFilePath));
+		if (Ar)
+		{
+			SaveCompactBinary(*Ar, ManifestWriter.Save());
+		}
+		else
+		{
+			UE_LOG(LogSavePackage, Error, TEXT("Failed saving package store manifest file '%s'"), *PackageStoreManifestFilePath);
+		}
 	}
 }
 
@@ -706,9 +842,22 @@ void FLooseCookedPackageWriter::MarkPackagesUpToDate(TArrayView<const FName> UpT
 
 TFuture<FCbObject> FLooseCookedPackageWriter::WriteMPCookMessageForPackage(FName PackageName)
 {
-	FCbWriter ManifestWriter;
-	PackageStoreManifest.WritePackage(ManifestWriter, PackageName);
-	FCbFieldIterator ManifestField = ManifestWriter.Save();
+	FCbFieldIterator OplogEntryField;
+	{
+		FOplogPackageInfo PackageInfo;
+		bool bValid = false;
+		{
+			FScopeLock Lock(&OplogLock);
+			bValid = Oplog.RemoveAndCopyValue(PackageName, PackageInfo);
+		}
+		if (bValid)
+		{
+			check(PackageName == PackageInfo.PackageName);
+			FCbWriter OplogEntryWriter;
+			WriteOplogEntry(OplogEntryWriter, PackageInfo);
+			OplogEntryField = OplogEntryWriter.Save();
+		}
+	}
 
 	TRefCountPtr<FPackageHashes> PackageHashes;
 	{
@@ -716,11 +865,14 @@ TFuture<FCbObject> FLooseCookedPackageWriter::WriteMPCookMessageForPackage(FName
 		AllPackageHashes.RemoveAndCopyValue(PackageName, PackageHashes);
 	}
 
-	auto ComposeMessage = [ManifestField = MoveTemp(ManifestField)](FPackageHashes* PackageHashes)
+	auto ComposeMessage = [OplogEntryField = MoveTemp(OplogEntryField)](FPackageHashes* PackageHashes)
 	{
 		FCbWriter Writer;
 		Writer.BeginObject();
-		Writer << "Manifest" << ManifestField;
+		if (OplogEntryField.HasValue())
+		{
+			Writer << "OplogEntry" << OplogEntryField;
+		}
 		if (PackageHashes)
 		{
 			Writer << "PackageHash" << PackageHashes->PackageHash;
@@ -752,9 +904,13 @@ TFuture<FCbObject> FLooseCookedPackageWriter::WriteMPCookMessageForPackage(FName
 
 bool FLooseCookedPackageWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message)
 {
-	if (!PackageStoreManifest.TryReadPackage(Message["Manifest"], PackageName))
+	FOplogPackageInfo PackageInfo;
+	FCbFieldView OplogEntryField(Message["OplogEntry"]);
+	if (ReadOplogEntry(PackageInfo, OplogEntryField))
 	{
-		return false;
+		check(PackageName == PackageInfo.PackageName);
+		FScopeLock Lock(&OplogLock);
+		Oplog.Add(PackageName, MoveTemp(PackageInfo));
 	}
 
 	bool bOk = true;

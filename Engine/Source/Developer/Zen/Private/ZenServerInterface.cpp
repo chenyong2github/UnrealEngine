@@ -31,6 +31,7 @@
 #include "Serialization/JsonWriter.h"
 #include "String/LexFromString.h"
 #include "ZenVersion.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 #if PLATFORM_WINDOWS
 #	include "Windows/AllowWindowsPlatformTypes.h"
@@ -593,43 +594,35 @@ FServiceSettings::ReadFromConfig()
 }
 
 void
-FServiceSettings::ReadFromJson(FJsonObject& JsonObject)
+FServiceSettings::ReadFromCompactBinary(FCbFieldView Field)
 {
-	if (TSharedPtr<FJsonValue> bAutoLaunchValue = JsonObject.Values.FindRef(TEXT("bAutoLaunch")))
+	if (bool bAutoLaunchValue = Field["bAutoLaunch"].AsBool())
 	{
-		if (bAutoLaunchValue->AsBool())
+		if (!TryApplyAutoLaunchOverride())
 		{
-			if (!TryApplyAutoLaunchOverride())
-			{
-				SettingsVariant.Emplace<FServiceAutoLaunchSettings>();
-				FServiceAutoLaunchSettings& AutoLaunchSettings = SettingsVariant.Get<FServiceAutoLaunchSettings>();
+			SettingsVariant.Emplace<FServiceAutoLaunchSettings>();
+			FServiceAutoLaunchSettings& AutoLaunchSettings = SettingsVariant.Get<FServiceAutoLaunchSettings>();
 
-				TSharedPtr<FJsonValue> AutoLaunchSettingsValue = JsonObject.Values.FindRef(TEXT("AutoLaunchSettings"));
-				if (AutoLaunchSettingsValue)
-				{
-					TSharedPtr<FJsonObject> AutoLaunchSettingsObject = AutoLaunchSettingsValue->AsObject();
-					AutoLaunchSettings.DataPath = AutoLaunchSettingsObject->Values.FindRef(TEXT("DataPath"))->AsString();
-					AutoLaunchSettings.ExtraArgs = AutoLaunchSettingsObject->Values.FindRef(TEXT("ExtraArgs"))->AsString();
-					AutoLaunchSettingsObject->Values.FindRef(TEXT("DesiredPort"))->TryGetNumber(AutoLaunchSettings.DesiredPort);
-					AutoLaunchSettingsObject->Values.FindRef(TEXT("ShowConsole"))->TryGetBool(AutoLaunchSettings.bShowConsole);
-					AutoLaunchSettingsObject->Values.FindRef(TEXT("LimitProcessLifetime"))->TryGetBool(AutoLaunchSettings.bLimitProcessLifetime);
-				}
+			if (FCbObjectView AutoLaunchSettingsObject = Field["AutoLaunchSettings"].AsObjectView())
+			{
+				AutoLaunchSettings.DataPath = FString(AutoLaunchSettingsObject["DataPath"].AsString());
+				AutoLaunchSettings.ExtraArgs = FString(AutoLaunchSettingsObject["ExtraArgs"].AsString());
+				AutoLaunchSettings.DesiredPort = AutoLaunchSettingsObject["DesiredPort"].AsInt16();
+				AutoLaunchSettings.bShowConsole = AutoLaunchSettingsObject["ShowConsole"].AsBool();
+				AutoLaunchSettings.bLimitProcessLifetime = AutoLaunchSettingsObject["LimitProcessLifetime"].AsBool();
 			}
 		}
-		else
+	}
+	else
+	{
+		SettingsVariant.Emplace<FServiceConnectSettings>();
+		FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
+
+		if (FCbObjectView ConnectExistingSettingsObject = Field["ConnectExistingSettings"].AsObjectView())
 		{
-			SettingsVariant.Emplace<FServiceConnectSettings>();
-			FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
-
-			TSharedPtr<FJsonValue> ConnectExistingSettingsValue = JsonObject.Values.FindRef(TEXT("ConnectExistingSettings"));
-			if (ConnectExistingSettingsValue)
-			{
-				TSharedPtr<FJsonObject> ConnectExistingSettingsObject = ConnectExistingSettingsValue->AsObject();
-				ConnectExistingSettings.HostName = ConnectExistingSettingsObject->Values.FindRef(TEXT("HostName"))->AsString();
-				ConnectExistingSettingsObject->Values.FindRef(TEXT("Port"))->TryGetNumber(ConnectExistingSettings.Port);
-			}
+			ConnectExistingSettings.HostName = FString(ConnectExistingSettingsObject["HostName"].AsString());
+			ConnectExistingSettings.Port = ConnectExistingSettingsObject["Port"].AsInt16();
 		}
-
 	}
 }
 
@@ -659,28 +652,28 @@ FServiceSettings::ReadFromURL(FStringView InstanceURL)
 }
 
 void
-FServiceSettings::WriteToJson(TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>& Writer) const
+FServiceSettings::WriteToCompactBinary(FCbWriter& Writer) const
 {
 	bool bAutoLaunch = IsAutoLaunch();
-	Writer.WriteValue(TEXT("bAutoLaunch"), bAutoLaunch);
+	Writer << "bAutoLaunch" << bAutoLaunch;
 	if (bAutoLaunch)
 	{
 		const FServiceAutoLaunchSettings& AutoLaunchSettings = SettingsVariant.Get<FServiceAutoLaunchSettings>();
-		Writer.WriteObjectStart(TEXT("AutoLaunchSettings"));
-		Writer.WriteValue(TEXT("DataPath"), AutoLaunchSettings.DataPath);
-		Writer.WriteValue(TEXT("ExtraArgs"), AutoLaunchSettings.ExtraArgs);
-		Writer.WriteValue(TEXT("DesiredPort"), AutoLaunchSettings.DesiredPort);
-		Writer.WriteValue(TEXT("ShowConsole"), AutoLaunchSettings.bShowConsole);
-		Writer.WriteValue(TEXT("LimitProcessLifetime"), AutoLaunchSettings.bLimitProcessLifetime);
-		Writer.WriteObjectEnd();
+		Writer.BeginObject("AutoLaunchSettings");
+		Writer << "DataPath" << AutoLaunchSettings.DataPath;
+		Writer << "ExtraArgs" <<AutoLaunchSettings.ExtraArgs;
+		Writer << "DesiredPort" << AutoLaunchSettings.DesiredPort;
+		Writer << "ShowConsole" << AutoLaunchSettings.bShowConsole;
+		Writer << "LimitProcessLifetime" << AutoLaunchSettings.bLimitProcessLifetime;
+		Writer.EndObject();
 	}
 	else
 	{
 		const FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
-		Writer.WriteObjectStart(TEXT("ConnectExistingSettings"));
-		Writer.WriteValue(TEXT("HostName"), ConnectExistingSettings.HostName);
-		Writer.WriteValue(TEXT("Port"), ConnectExistingSettings.Port);
-		Writer.WriteObjectEnd();
+		Writer.BeginObject("ConnectExistingSettings");
+		Writer << "HostName" << ConnectExistingSettings.HostName;
+		Writer << "Port" << ConnectExistingSettings.Port;
+		Writer.EndObject();
 	}
 }
 

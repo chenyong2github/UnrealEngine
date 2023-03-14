@@ -20,7 +20,6 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
-#include "PackageStoreManifest.h"
 #include "PackageStoreWriter.h"
 #include "Serialization/AsyncLoading2.h"
 #include "Serialization/CompactBinary.h"
@@ -191,7 +190,6 @@ private:
 	FString								MetadataDirectoryPath;
 	TMap<FName, TRefCountPtr<FPackageHashes>> AllPackageHashes;
 
-	FPackageStoreManifest				PackageStoreManifest;
 	TUniquePtr<FPackageStoreOptimizer>	PackageStoreOptimizer;
 	
 	FRWLock								EntriesLock;

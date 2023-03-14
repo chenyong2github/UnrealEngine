@@ -70,6 +70,7 @@
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/PathViews.h"
 #include "HAL/FileManagerGeneric.h"
+#include "Serialization/CompactBinarySerialization.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -646,78 +647,78 @@ class FCookedPackageStore
 {
 public:
 	FCookedPackageStore(const FString& InCookedDir)
-		: PackageStoreManifest(InCookedDir)
-		, CookedDir(InCookedDir)
+		: CookedDir(InCookedDir)
 	{
 	}
 
 	FIoStatus Load(const TCHAR* ManifestFilename)
 	{
 		IOSTORE_CPU_SCOPE(LoadCookedPackageStore);
-		FIoStatus Status = PackageStoreManifest.Load(ManifestFilename);
-		if (!Status.IsOk())
+
+		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(ManifestFilename));
+		if (!Ar)
 		{
-			return Status;
+			return FIoStatus(EIoErrorCode::NotFound);
+		}
+		FCbObject ManifestObject = LoadCompactBinary(*Ar).AsObject();
+		FCbObject OplogObject;
+		if (FCbFieldView ZenServerField = ManifestObject["zenserver"])
+		{
+			UE::Zen::FServiceSettings ZenServiceSettings;
+			ZenServiceSettings.ReadFromCompactBinary(ZenServerField["settings"]);
+			FString ProjectId = FString(ZenServerField["projectid"].AsString());
+			FString OplogId = FString(ZenServerField["oplogid"].AsString());
+
+			ZenStoreClient = MakeUnique<UE::FZenStoreHttpClient>(MoveTemp(ZenServiceSettings));
+			ZenStoreClient->InitializeReadOnly(ProjectId, OplogId);
+
+			TIoStatusOr<FCbObject> OplogStatus = ZenStoreClient->GetOplog().Get();
+			if (!OplogStatus.IsOk())
+			{
+				return OplogStatus.Status();
+			}
+			
+			OplogObject = OplogStatus.ConsumeValueOrDie();
+		}
+		else
+		{
+			OplogObject = ManifestObject["oplog"].AsObject();
 		}
 
-		if (const FPackageStoreManifest::FZenServerInfo* ZenServerInfo = PackageStoreManifest.ReadZenServerInfo())
+		for (FCbField& OplogEntry : OplogObject["entries"].AsArray())
 		{
-			ZenStoreClient = MakeUnique<UE::FZenStoreHttpClient>(UE::Zen::FServiceSettings(ZenServerInfo->Settings));
-			ZenStoreClient->InitializeReadOnly(ZenServerInfo->ProjectId, ZenServerInfo->OplogId);
-		}
-		
-		if (ZenStoreClient)
-		{
-			TFuture<FIoStatus> FutureOplogStatus = ZenStoreClient->GetOplog().Next([this](TIoStatusOr<FCbObject> OplogStatus)
+			FCbObject OplogObj = OplogEntry.AsObject();
+			FPackageStoreEntryResource PackageStoreEntry = FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
+
+			auto AddChunksFromOplog = [this, &OplogEntry, &PackageStoreEntry](const char* Field)
+			{
+				for (FCbField& ChunkEntry : OplogEntry[Field].AsArray())
 				{
-					if (!OplogStatus.IsOk())
+					FCbObject ChunkObj = ChunkEntry.AsObject();
+					FIoChunkId ChunkId;
+					ChunkId.Set(ChunkObj["id"].AsObjectId().GetView());
+					ChunkIdToPackageNameMap.Add(ChunkId, PackageStoreEntry.PackageName);
+					if (ChunkObj["filename"])
 					{
-						return OplogStatus.Status();
+						TStringBuilder<1024> RelativeFilename;
+						RelativeFilename.Append(ChunkObj["filename"].AsString());
+						ChunkIdToRelativeFileNameMap.Add(ChunkId, *RelativeFilename);
+						TStringBuilder<1024> PathBuilder;
+						FPathViews::AppendPath(PathBuilder, CookedDir);
+						FPathViews::AppendPath(PathBuilder, RelativeFilename);
+						FPathViews::NormalizeFilename(PathBuilder);
+						FilenameToChunkIdMap.Add(*PathBuilder, ChunkId);
+						FString FilenameWithoutExtension = FPathViews::ChangeExtension(PathBuilder, FStringView());
+						FilenameToPackageNameMap.Add(MoveTemp(FilenameWithoutExtension), PackageStoreEntry.PackageName);
 					}
-					FCbObject Oplog = OplogStatus.ConsumeValueOrDie();
-					for (FCbField& OplogEntry : Oplog["entries"].AsArray())
-					{
-						FCbObject OplogObj = OplogEntry.AsObject();
-						FPackageStoreEntryResource Entry = FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
-						FPackageId PackageId = Entry.GetPackageId();
-						PackageIdToEntry.Add(PackageId, MoveTemp(Entry));
-					}
-					return FIoStatus::Ok;
-				});
+				}
+			};
 
-			if (!FutureOplogStatus.Get().IsOk())
-			{
-				return FutureOplogStatus.Get();
-			}
-		}
-		
-		ManifestPackageInfos = PackageStoreManifest.GetPackages();
-		for (const FPackageStoreManifest::FPackageInfo& PackageInfo : ManifestPackageInfos)
-		{
-			FName PackageName = FName(PackageInfo.PackageName);
-			PackageNameToPackageInfoMap.Add(PackageName, &PackageInfo);
-			for (const FIoChunkId& ChunkId : PackageInfo.ExportBundleChunkIds)
-			{
-				ChunkIdToPackageNameMap.Add(ChunkId, PackageName);
-			}
-			for (const FIoChunkId& ChunkId : PackageInfo.BulkDataChunkIds)
-			{
-				ChunkIdToPackageNameMap.Add(ChunkId, PackageName);
-			}
-		}
+			AddChunksFromOplog("packagedata");
+			AddChunksFromOplog("bulkdata");
 
-		for (const FPackageStoreManifest::FFileInfo& FileInfo : PackageStoreManifest.GetFiles())
-		{
-			FilenameToChunkIdMap.Add(FileInfo.FileName, FileInfo.ChunkId);
-			ChunkIdToFileNameMap.Add(FileInfo.ChunkId, FileInfo.FileName.RightChop(CookedDir.Len() + 1));
-			FName* FindPackageName = ChunkIdToPackageNameMap.Find(FileInfo.ChunkId);
-			if (FindPackageName)
-			{
-				FString FilenameWithoutExtension = FPaths::ChangeExtension(FileInfo.FileName, FString());
-				FilenameToPackageNameMap.Add(MoveTemp(FilenameWithoutExtension), *FindPackageName);
-			}
+			PackageIdToEntry.Add(PackageStoreEntry.GetPackageId(), MoveTemp(PackageStoreEntry));
 		}
-
 		return FIoStatus::Ok;
 	}
 
@@ -726,9 +727,9 @@ public:
 		return FilenameToChunkIdMap.FindRef(*Filename);
 	}
 
-	FString GetFilenameFromChunkId(const FIoChunkId& ChunkId) const
+	FString GetRelativeFilenameFromChunkId(const FIoChunkId& ChunkId) const
 	{
-		return ChunkIdToFileNameMap.FindRef(ChunkId);
+		return ChunkIdToRelativeFileNameMap.FindRef(ChunkId);
 	}
 
 	FName GetPackageNameFromChunkId(const FIoChunkId& ChunkId) const
@@ -740,11 +741,6 @@ public:
 	{
 		FString FilenameWithoutExtension = FPaths::ChangeExtension(Filename, FString());
 		return FilenameToPackageNameMap.FindRef(FilenameWithoutExtension);
-	}
-
-	const FPackageStoreManifest::FPackageInfo* GetPackageInfoFromPackageName(FName PackageName)
-	{
-		return PackageNameToPackageInfoMap.FindRef(PackageName);
 	}
 
 	const FPackageStoreEntryResource* GetPackageStoreEntry(FPackageId PackageId) const
@@ -836,15 +832,12 @@ public:
 
 private:
 	TUniquePtr<UE::FZenStoreHttpClient> ZenStoreClient;
-	FPackageStoreManifest PackageStoreManifest;
 	FString CookedDir;
-	TArray<FPackageStoreManifest::FPackageInfo> ManifestPackageInfos;
 	TMap<FPackageId, FPackageStoreEntryResource> PackageIdToEntry;
 	TMap<FString, FIoChunkId> FilenameToChunkIdMap;
-	TMap<FIoChunkId, FString> ChunkIdToFileNameMap;
+	TMap<FIoChunkId, FString> ChunkIdToRelativeFileNameMap;
 	TMap<FIoChunkId, FName> ChunkIdToPackageNameMap;
 	TMap<FString, FName> FilenameToPackageNameMap;
-	TMap<FName, const FPackageStoreManifest::FPackageInfo*> PackageNameToPackageInfoMap;
 };
 
 struct FFileOrderMap
@@ -3908,7 +3901,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 						FPackageId PackageId;
 						if (!ChunkInfo.bHasValidFileName)
 						{
-							FString FileName = Arguments.PackageStore->GetFilenameFromChunkId(ChunkInfo.Id);
+							FString FileName = Arguments.PackageStore->GetRelativeFilenameFromChunkId(ChunkInfo.Id);
 							if (FileName.Len() > 0)
 							{
 								ChunkInfo.FileName = MoveTemp(FileName);
@@ -7371,6 +7364,39 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			return -11;
 		}
 		return GenerateZenFileSystemManifest(TargetPlatform);
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("StartZenServerForStage")))
+	{
+		FString ManifestFilename;
+		if (!FParse::Value(FCommandLine::Get(), TEXT("PackageStoreManifest="), ManifestFilename))
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Expected -PackageStoreManifest=<path to package store manifest>"));
+			return -1;
+		}
+
+		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*ManifestFilename));
+		if (!Ar)
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed reading package store manifest"));
+			return -1;
+		}
+
+		FCbObject ManifestObject = LoadCompactBinary(*Ar).AsObject();
+		FCbObject OplogObject;
+		FCbField ZenServerField = ManifestObject["zenserver"];
+		if (ZenServerField)
+		{
+			UE::Zen::FServiceSettings ZenServiceSettings;
+			ZenServiceSettings.ReadFromCompactBinary(ZenServerField["settings"]);
+			FString ProjectId = FString(ZenServerField["projectid"].AsString());
+			FString OplogId = FString(ZenServerField["oplogid"].AsString());
+
+			// We just want the auto launch functionality
+			UE::FZenStoreHttpClient ZenStoreClient(MoveTemp(ZenServiceSettings));
+			ZenStoreClient.InitializeReadOnly(ProjectId, OplogId);
+		}
+
+		return 0;
 	}
 	else if (FParse::Value(FCommandLine::Get(), TEXT("CreateDLCContainer="), Arguments.DLCPluginPath))
 	{

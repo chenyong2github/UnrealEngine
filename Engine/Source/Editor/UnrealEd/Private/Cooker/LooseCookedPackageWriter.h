@@ -14,7 +14,6 @@
 #include "Memory/SharedBuffer.h"
 #include "Misc/DateTime.h"
 #include "Misc/PackagePath.h"
-#include "PackageStoreManifest.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/FileRegions.h"
 #include "Serialization/PackageWriter.h"
@@ -114,6 +113,19 @@ private:
 		TArray<FWriteFileData> OutputFiles;
 	};
 
+	struct FOplogChunkInfo
+	{
+		FString RelativeFileName;
+		FIoChunkId ChunkId;
+	};
+
+	struct FOplogPackageInfo
+	{
+		FName PackageName;
+		TArray<FOplogChunkInfo, TInlineAllocator<1>> PackageDataChunks;
+		TArray<FOplogChunkInfo> BulkDataChunks;
+	};
+
 	/* Delete the sandbox directory (asynchronously) in preparation for a clean cook */
 	void DeleteSandboxDirectory();
 	/** Searches the disk for all the cooked files in the sandbox. Stores results in PackageNameToCookedFiles. */
@@ -141,6 +153,8 @@ private:
 	void CollectForSaveExportsBuffers(FRecord& Record, FCommitContext& Context);
 	void AsyncSaveOutputFiles(FRecord& Record, FCommitContext& Context);
 	void UpdateManifest(FRecord& Record);
+	void WriteOplogEntry(FCbWriter& Writer, const FOplogPackageInfo& PackageInfo);
+	bool ReadOplogEntry(FOplogPackageInfo& PackageInfo, const FCbFieldView& Field);
 
 	TMap<FName, TRefCountPtr<FPackageHashes>>& GetPackageHashes() override
 	{
@@ -153,11 +167,12 @@ private:
 	TMap<FName, TArray<FString>> PackageNameToCookedFiles;
 	/** CommitPackage can be called in parallel if using recursive save, so we need a lock for shared containers used during CommitPackage */
 	FCriticalSection PackageHashesLock;
+	FCriticalSection OplogLock;
 	FString OutputPath;
 	FString MetadataDirectoryPath;
 	const ITargetPlatform& TargetPlatform;
 	UE::Cook::FPackageDatas& PackageDatas;
-	FPackageStoreManifest PackageStoreManifest;
+	TMap<FName, FOplogPackageInfo> Oplog;
 	const TArray<TSharedRef<IPlugin>>& PluginsToRemap;
 	FAsyncIODelete& AsyncIODelete;
 	bool bIterateSharedBuild = false;

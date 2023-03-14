@@ -27,6 +27,7 @@
 #include "Misc/Paths.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "UObject/SavePackage.h"
+#include "Misc/PathViews.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogZenStoreWriter, Log, All);
 
@@ -157,7 +158,6 @@ FZenStoreWriter::FZenStoreWriter(
 	, TargetPlatformFName(*InTargetPlatform->PlatformName())
 	, OutputPath(InOutputPath)
 	, MetadataDirectoryPath(InMetadataDirectoryPath)
-	, PackageStoreManifest(InOutputPath)
 	, PackageStoreOptimizer(new FPackageStoreOptimizer())
 	, CookMode(ICookedPackageWriter::FCookInfo::CookByTheBookMode)
 	, bInitialized(false)
@@ -195,15 +195,6 @@ FZenStoreWriter::FZenStoreWriter(
 	HttpClient->TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir, IsLocalConnection ? ProjectFilePath : FStringView());
 
 	PackageStoreOptimizer->Initialize();
-
-	FPackageStoreManifest::FZenServerInfo& ZenServerInfo = PackageStoreManifest.EditZenServerInfo();
-
-#if UE_WITH_ZEN
-	const UE::Zen::FZenServiceInstance& ZenServiceInstance = HttpClient->GetZenServiceInstance();
-	ZenServerInfo.Settings = ZenServiceInstance.GetServiceSettings();
-#endif
-	ZenServerInfo.ProjectId = ProjectId;
-	ZenServerInfo.OplogId = OplogId;
 
 	ZenFileSystemManifest = MakeUnique<FZenFileSystemManifest>(TargetPlatform, OutputPath);
 	
@@ -245,7 +236,6 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 		Region.Offset -= Info.HeaderSize;
 	}
 	FIoBuffer PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(Entry.OptimizedPackage.Get(), CookedExportsBuffer, &FileRegionsCopy);
-	PackageStoreManifest.AddPackageData(Info.PackageName, Info.LooseFilePath, Info.ChunkId);
 	for (FFileRegion& Region : FileRegionsCopy)
 	{
 		// Adjust regions once more so they are relative to the exports bundle buffer
@@ -273,7 +263,6 @@ void FZenStoreWriter::WriteIoStorePackageData(const FPackageInfo& Info, const FI
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(WriteIoStorePackageData);
 
-	PackageStoreManifest.AddPackageData(Info.PackageName, Info.LooseFilePath, Info.ChunkId);
 	//WriteFileRegions(*FPaths::ChangeExtension(Info.LooseFilePath, FString(".uexp") + FFileRegion::RegionsFileExtension), FileRegionsCopy);
 
 	FCbObjectId ChunkOid = ToObjectId(Info.ChunkId);
@@ -314,8 +303,6 @@ void FZenStoreWriter::WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& 
 	BulkEntry.Info		= Info;
 	BulkEntry.ChunkId	= ChunkOid;
 	BulkEntry.IsValid	= true;
-
-	PackageStoreManifest.AddBulkData(Info.PackageName, Info.LooseFilePath, Info.ChunkId);
 
 	//	WriteFileRegions(*(Info.LooseFilePath + FFileRegion::RegionsFileExtension), FileRegions);
 }
@@ -517,13 +504,8 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 
 void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 {
-	if (!Info.bWorkerOnSharedSandbox)
+	if (Info.bWorkerOnSharedSandbox)
 	{
-		PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
-	}
-	else
-	{
-		PackageStoreManifest.SetTrackPackageData(true);
 		bProvidePerPackageResults = true;
 	}
 	AllPackageHashes.Empty();
@@ -591,7 +573,30 @@ void FZenStoreWriter::EndCook(const FCookInfo& Info)
 		TIoStatusOr<uint64> Status = HttpClient->EndBuildPass(Pkg);
 		UE_CLOG(!Status.IsOk(), LogZenStoreWriter, Fatal, TEXT("Failed to append OpLog and end the build pass"));
 
-		PackageStoreManifest.Save(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+		FCbWriter ManifestWriter;
+		ManifestWriter.BeginObject();
+		ManifestWriter.BeginObject("zenserver");
+#if UE_WITH_ZEN
+		ManifestWriter.BeginObject("settings");
+		const UE::Zen::FZenServiceInstance& ZenServiceInstance = HttpClient->GetZenServiceInstance();
+		ZenServiceInstance.GetServiceSettings().WriteToCompactBinary(ManifestWriter);
+		ManifestWriter.EndObject();
+#endif
+		ManifestWriter << "projectid" << ProjectId;
+		ManifestWriter << "oplogid" << OplogId;
+		ManifestWriter.EndObject();
+		ManifestWriter.EndObject();
+
+		FString PackageStoreManifestFilePath = FPaths::Combine(MetadataDirectoryPath, TEXT("packagestore.manifest"));
+		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*PackageStoreManifestFilePath));
+		if (Ar)
+		{
+			SaveCompactBinary(*Ar, ManifestWriter.Save());
+		}
+		else
+		{
+			UE_LOG(LogSavePackage, Error, TEXT("Failed saving package store manifest file '%s'"), *PackageStoreManifestFilePath);
+		}
 	}
 
 	UE_LOG(LogZenStoreWriter, Display, TEXT("Input:\t%d Packages"), PackageStoreOptimizer->GetTotalPackageCount());
@@ -606,8 +611,6 @@ void FZenStoreWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
 	FPendingPackageState& State = AddPendingPackage(Info.PackageName);
 	State.PackageName = Info.PackageName;
-
-	PackageStoreManifest.BeginPackage(Info.PackageName);
 }
 
 bool FZenStoreWriter::IsReservedOplogKey(FUtf8StringView Key)
@@ -798,6 +801,11 @@ void FZenStoreWriter::CommitPackageInternal(FZenCommitInfo&& ZenCommitInfo)
 			OplogEntryDesc.BeginObject();
 			OplogEntryDesc << "id" << PkgData.ChunkId;
 			OplogEntryDesc << "data" << PkgDataAttachment;
+			FStringView RelativePathView;
+			if (FPathViews::TryMakeChildPathRelativeTo(PkgData.Info.LooseFilePath, OutputPath, RelativePathView))
+			{
+				OplogEntryDesc << "filename" << RelativePathView;
+			}
 			OplogEntryDesc.EndObject();
 		}
 
@@ -822,6 +830,11 @@ void FZenStoreWriter::CommitPackageInternal(FZenCommitInfo&& ZenCommitInfo)
 				OplogEntryDesc << "id" << Bulk.ChunkId;
 				OplogEntryDesc << "type" << LexToString(Bulk.Info.BulkDataType);
 				OplogEntryDesc << "data" << BulkAttachment;
+				FStringView RelativePathView;
+				if (FPathViews::TryMakeChildPathRelativeTo(Bulk.Info.LooseFilePath, OutputPath, RelativePathView))
+				{
+					OplogEntryDesc << "filename" << RelativePathView;
+				}
 				OplogEntryDesc.EndObject();
 			}
 
@@ -1107,10 +1120,6 @@ void FZenStoreWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePacka
 
 TFuture<FCbObject> FZenStoreWriter::WriteMPCookMessageForPackage(FName PackageName)
 {
-	FCbWriter ManifestWriter;
-	PackageStoreManifest.WritePackage(ManifestWriter, PackageName);
-	FCbFieldIterator ManifestField = ManifestWriter.Save();
-
 	TArray<FString> AdditionalFiles;
 	PackageAdditionalFiles.RemoveAndCopyValue(PackageName, AdditionalFiles);
 
@@ -1118,11 +1127,10 @@ TFuture<FCbObject> FZenStoreWriter::WriteMPCookMessageForPackage(FName PackageNa
 	AllPackageHashes.RemoveAndCopyValue(PackageName, PackageHashes);
 
 	auto ComposeMessage =
-	[ManifestField = MoveTemp(ManifestField), AdditionalFiles=MoveTemp(AdditionalFiles)](FPackageHashes* PackageHashes)
+	[AdditionalFiles=MoveTemp(AdditionalFiles)](FPackageHashes* PackageHashes)
 	{
 		FCbWriter Writer;
 		Writer.BeginObject();
-		Writer << "Manifest" << ManifestField;
 		if (!AdditionalFiles.IsEmpty())
 		{
 			Writer << "AdditionalFiles" << AdditionalFiles;
@@ -1157,12 +1165,6 @@ TFuture<FCbObject> FZenStoreWriter::WriteMPCookMessageForPackage(FName PackageNa
 
 bool FZenStoreWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message)
 {
-	bool bOk = PackageStoreManifest.TryReadPackage(Message["Manifest"], PackageName);
-	if (!bOk)
-	{
-		return false;
-	}
-
 	TArray<FString> AdditionalFiles;
 	if (LoadFromCompactBinary(Message["AdditionalFiles"], AdditionalFiles))
 	{
@@ -1172,6 +1174,7 @@ bool FZenStoreWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjec
 		}
 	}
 
+	bool bOk = true;
 	TRefCountPtr<FPackageHashes> ThisPackageHashes(new FPackageHashes());
 	if (LoadFromCompactBinary(Message["PackageHash"], ThisPackageHashes->PackageHash))
 	{

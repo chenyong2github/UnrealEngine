@@ -24,6 +24,7 @@
 #define UE_API ZEN_API
 
 struct FAnalyticsEventAttribute;
+class FCbFieldView;
 
 namespace UE::Zen
 {
@@ -51,10 +52,10 @@ struct FServiceSettings
 	inline bool IsConnectExisting() const { return SettingsVariant.IsType<FServiceConnectSettings>(); }
 
 	UE_API void ReadFromConfig();
-	UE_API void ReadFromJson(FJsonObject& JsonObject);
+	UE_API void ReadFromCompactBinary(FCbFieldView Field);
 	UE_API void ReadFromURL(FStringView InstanceURL);
 
-	UE_API void WriteToJson(TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>& Writer) const;
+	UE_API void WriteToCompactBinary(FCbWriter& Writer) const;
 
 private:
 	bool TryApplyAutoLaunchOverride();
