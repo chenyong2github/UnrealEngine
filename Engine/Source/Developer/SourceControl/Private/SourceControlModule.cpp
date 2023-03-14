@@ -7,6 +7,7 @@
 #include "SourceControlHelpers.h"
 #include "SourceControlAssetDataCache.h"
 #include "SourceControlFileStatusMonitor.h"
+#include "SourceControlCVars.h"
 #include "Misc/Paths.h"
 
 #if SOURCE_CONTROL_WITH_SLATE
@@ -109,8 +110,15 @@ void FSourceControlModule::ShowLoginDialog(const FSourceControlLoginClosed& InOn
 	// Get Active Provider Name
 	ActiveProviderName = GetProvider().GetName().ToString();
 
+	// if we are forcing a modal dialog, change the preference now
+	ELoginWindowMode::Type LoginWindowMode = InLoginWindowMode;
+	if(SourceControlCVars::CVarSourceControlEnableLoginDialogModal.GetValueOnAnyThread())
+	{
+		LoginWindowMode = ELoginWindowMode::Modal;
+	}
+
 	// if we are showing a modal version of the dialog & a modeless version already exists, we must destroy the modeless dialog first
-	if(InLoginWindowMode == ELoginWindowMode::Modal && SourceControlLoginPtr.IsValid())
+	if(LoginWindowMode == ELoginWindowMode::Modal && SourceControlLoginPtr.IsValid())
 	{
 		// unhook the delegate so it doesn't fire in this case
 		SourceControlLoginWindowPtr->SetOnWindowClosed(FOnWindowClosed());
@@ -157,7 +165,7 @@ void FSourceControlModule::ShowLoginDialog(const FSourceControlLoginClosed& InOn
 		TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
 		if(RootWindow.IsValid())
 		{
-			if(InLoginWindowMode == ELoginWindowMode::Modal)
+			if(LoginWindowMode == ELoginWindowMode::Modal)
 			{
 				FSlateApplication::Get().AddModalWindow(SourceControlLoginWindowPtr.ToSharedRef(), RootWindow);
 			}
@@ -168,7 +176,7 @@ void FSourceControlModule::ShowLoginDialog(const FSourceControlLoginClosed& InOn
 		}
 		else
 		{
-			if(InLoginWindowMode == ELoginWindowMode::Modal)
+			if(LoginWindowMode == ELoginWindowMode::Modal)
 			{
 				FSlateApplication::Get().AddModalWindow(SourceControlLoginWindowPtr.ToSharedRef(), RootWindow);
 			}

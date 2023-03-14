@@ -15,4 +15,10 @@ namespace SourceControlCVars
 		false,
 		TEXT("Allows a SourceControl 'Revert' operation to be triggered from the SubmitWidget."),
 		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarSourceControlEnableLoginDialogModal(
+		TEXT("SourceControl.LoginDialog.ForceModal"),
+		false,
+		TEXT("Forces the SourceControl 'Login Dialog' to always be a modal dialog."),
+		ECVF_Default);
 }
