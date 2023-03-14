@@ -9,6 +9,7 @@
 #include "StateTreeTestTypes.h"
 #include "Engine/World.h"
 #include "Async/ParallelFor.h"
+#include "GameplayTagsManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeTest)
 
@@ -30,6 +31,27 @@ namespace UE::StateTree::Tests
 		EditorData->Schema = NewObject<UStateTreeTestSchema>();
 		return *StateTree;
 	}
+
+	// Helper struct to define some test tags
+	struct FNativeGameplayTags : public FGameplayTagNativeAdder
+	{
+		virtual ~FNativeGameplayTags() {}
+		
+		FGameplayTag TestTag;
+
+		virtual void AddTags() override
+		{
+			UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+			TestTag = Manager.AddNativeGameplayTag(TEXT("Test.StateTree.Tag"));
+		}
+
+		FORCEINLINE static const FNativeGameplayTags& Get()
+		{
+			return StaticInstance;
+		}
+		static FNativeGameplayTags StaticInstance;
+	};
+	FNativeGameplayTags FNativeGameplayTags::StaticInstance;
 
 }
 
@@ -691,6 +713,145 @@ struct FStateTreeTest_TransitionGlobalDataView : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_TransitionGlobalDataView, "System.StateTree.Transition.GlobalDataView");
+
+struct FStateTreeTest_TransitionDelay : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+		const FGameplayTag Tag = UE::StateTree::Tests::FNativeGameplayTags::Get().TestTag;
+
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& StateA = Root.AddChildState(FName(TEXT("A")));
+		UStateTreeState& StateB = Root.AddChildState(FName(TEXT("B")));
+
+		// State A
+		auto& Task0 = StateA.AddTask<FTestTask_Stand>(FName(TEXT("Task0")));
+		Task0.GetNode().TicksToCompletion = 100;
+		
+		FStateTreeTransition& Transition = StateA.AddTransition(EStateTreeTransitionTrigger::OnEvent, EStateTreeTransitionType::GotoState, &StateB);
+		Transition.bDelayTransition = true;
+		Transition.DelayDuration = 0.15f;
+		Transition.DelayRandomVariance = 0.0f;
+		Transition.EventTag = Tag;
+
+		// State B
+		auto& Task1 = StateB.AddTask<FTestTask_Stand>(FName(TEXT("Task1")));
+		Task1.GetNode().TicksToCompletion = 100;
+
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+		const FString StateCompletedStr(TEXT("StateCompleted"));
+
+		// Start and enter state
+		Status = Exec.Start();
+		AITEST_TRUE("StateTree Task0 should enter state", Exec.Expect(Task0.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		// This should cause delayed transition.
+		Exec.SendEvent(Tag);
+		
+		Status = Exec.Tick(0.1f);
+		AITEST_TRUE("StateTree Task0 should tick", Exec.Expect(Task0.GetName(), TickStr));
+		Exec.LogClear();
+
+		// Should have delayed transitions
+		const int32 NumDelayedTransitions0 = InstanceData.GetStruct(0).Get<const FStateTreeExecutionState>().DelayedTransitions.Num();
+		AITEST_EQUAL("Should have a delayed transition", NumDelayedTransitions0, 1);
+
+		// Tick and expect a delayed transition. 
+		Status = Exec.Tick(0.1f);
+		AITEST_TRUE("StateTree Task0 should tick", Exec.Expect(Task0.GetName(), TickStr));
+		Exec.LogClear();
+
+		const int32 NumDelayedTransitions1 = InstanceData.GetStruct(0).Get<const FStateTreeExecutionState>().DelayedTransitions.Num();
+		AITEST_EQUAL("Should have a delayed transition", NumDelayedTransitions1, 1);
+
+		// Should complete delayed transition.
+		Status = Exec.Tick(0.1f);
+		AITEST_TRUE("StateTree Task0 should exit state", Exec.Expect(Task0.GetName(), ExitStateStr));
+		AITEST_TRUE("StateTree Task1 should enter state", Exec.Expect(Task1.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_TransitionDelay, "System.StateTree.TransitionDelay");
+
+struct FStateTreeTest_TransitionDelayZero : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+		const FGameplayTag Tag = UE::StateTree::Tests::FNativeGameplayTags::Get().TestTag;
+
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& StateA = Root.AddChildState(FName(TEXT("A")));
+		UStateTreeState& StateB = Root.AddChildState(FName(TEXT("B")));
+
+		// State A
+		auto& Task0 = StateA.AddTask<FTestTask_Stand>(FName(TEXT("Task0")));
+		Task0.GetNode().TicksToCompletion = 100;
+		
+		FStateTreeTransition& Transition = StateA.AddTransition(EStateTreeTransitionTrigger::OnEvent, EStateTreeTransitionType::GotoState, &StateB);
+		Transition.bDelayTransition = true;
+		Transition.DelayDuration = 0.0f;
+		Transition.DelayRandomVariance = 0.0f;
+		Transition.EventTag = Tag;
+
+		// State B
+		auto& Task1 = StateB.AddTask<FTestTask_Stand>(FName(TEXT("Task1")));
+		Task1.GetNode().TicksToCompletion = 100;
+
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+		const FString StateCompletedStr(TEXT("StateCompleted"));
+
+		// Start and enter state
+		Status = Exec.Start();
+		AITEST_TRUE("StateTree Task0 should enter state", Exec.Expect(Task0.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		// This should cause delayed transition. Because the time is 0, it should happen immediately.
+		Exec.SendEvent(Tag);
+		
+		Status = Exec.Tick(0.1f);
+		AITEST_TRUE("StateTree Task0 should exit state", Exec.Expect(Task0.GetName(), ExitStateStr));
+		AITEST_TRUE("StateTree Task1 should enter state", Exec.Expect(Task1.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_TransitionDelayZero, "System.StateTree.TransitionDelayZero");
 
 struct FStateTreeTest_PropertyPathOffset : FAITestBase
 {

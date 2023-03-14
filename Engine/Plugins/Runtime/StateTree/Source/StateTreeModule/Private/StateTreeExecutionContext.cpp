@@ -1415,51 +1415,70 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 			{
 				continue;
 			}
-			
-			if (Transition.Trigger == EStateTreeTransitionTrigger::OnTick
-				|| (Transition.Trigger == EStateTreeTransitionTrigger::OnEvent && HasEventToProcess(Transition.EventTag)))
-			{
-				// If delay has passed, allow to trigger the transition even if conditions do not pass.
-				FStateTreeTransitionDelayedState* DelayedState = Transition.HasDelay() ? Exec.FindDelayedTransition(FStateTreeIndex16(TransitionIndex)) : nullptr;
-				const bool bDelayCompleted = DelayedState != nullptr && DelayedState->TimeLeft <= 0.0f;
 
-				if (bDelayCompleted || TestAllConditions(Transition.ConditionsBegin, Transition.ConditionsNum))
+			// Skip completion transitions
+			if (EnumHasAnyFlags(Transition.Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
+			{
+				continue;
+			}
+
+			// If a delayed transition has passed the delay, and remove it from the queue, and try trigger it.
+			FStateTreeTransitionDelayedState* DelayedState = nullptr;
+			if (Transition.HasDelay())
+			{
+				DelayedState = Exec.FindDelayedTransition(FStateTreeIndex16(TransitionIndex));
+				if (DelayedState != nullptr && DelayedState->TimeLeft <= 0.0f)
 				{
-					// If the transitions is delayed, set up the delay. 
-					if (Transition.HasDelay())
+					STATETREE_LOG(Verbose, TEXT("Passed delayed transition from '%s' (%s) -> '%s'"),
+						*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State));
+
+					Exec.DelayedTransitions.RemoveAllSwap([TransitionIndex](const FStateTreeTransitionDelayedState& DelayedState)
+						{
+							return DelayedState.TransitionIndex.Get() == TransitionIndex;
+						});
+
+					// Trigger Delayed Transition when the delay has passed.
+					RequestTransition(Transition.State, Transition.Priority);
+					continue;
+				}
+			}
+
+			const bool bShouldTrigger = Transition.Trigger == EStateTreeTransitionTrigger::OnTick
+										|| (Transition.Trigger == EStateTreeTransitionTrigger::OnEvent
+											&& HasEventToProcess(Transition.EventTag));
+				
+			if (bShouldTrigger
+				&& TestAllConditions(Transition.ConditionsBegin, Transition.ConditionsNum))
+			{
+				// If the transitions is delayed, set up the delay. 
+				if (Transition.HasDelay())
+				{
+					if (DelayedState == nullptr)
 					{
-						if (DelayedState == nullptr)
+						// Initialize new delayed transition.
+						const float DelayDuration = Transition.Delay.GetRandomDuration();
+						if (DelayDuration > 0.0f)
 						{
 							DelayedState = &Exec.DelayedTransitions.AddDefaulted_GetRef();
-							
 							DelayedState->TransitionIndex = FStateTreeIndex16(TransitionIndex);
-							DelayedState->TimeLeft = Transition.Delay.GetRandomDuration();
+							DelayedState->TimeLeft = DelayDuration;
 							BeginDelayedTransition(*DelayedState);
 							STATETREE_LOG(Verbose, TEXT("Delayed transition triggered from '%s' (%s) -> '%s' %.1fs"),
 								*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State), DelayedState->TimeLeft);
-							// Fall through to handle 0 delay.
-						}
-						check(DelayedState);
-
-						// We get here if the transitions re-triggers, or delay has completed.
-						// In case of re-trigger, we will just ignore it during the delay. 
-						if (DelayedState->TimeLeft > 0.0f)
-						{
+							
+							// Delay state added, skip requesting the transition.
 							continue;
 						}
-
-						STATETREE_LOG(Verbose, TEXT("Passed delayed transition from '%s' (%s) -> '%s'"),
-							*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State));
-
-						// The transition passed the delay, and remove it from the queue, and try trigger it.
-						Exec.DelayedTransitions.RemoveAllSwap([TransitionIndex](const FStateTreeTransitionDelayedState& DelayedState)
-							{
-								return DelayedState.TransitionIndex.Get() == TransitionIndex;
-							});
+						// Fallthrough to request transition if duration was zero. 
 					}
-
-					RequestTransition(Transition.State, Transition.Priority);
+					else
+					{
+						// We get here if the transitions re-triggers during the delay, on which case we'll just ignore it.
+						continue;
+					}
 				}
+
+				RequestTransition(Transition.State, Transition.Priority);
 			}
 		}
 	}
