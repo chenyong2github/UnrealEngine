@@ -139,6 +139,34 @@ namespace Audio
 		TSharedPtr<FQuartzClock> OwningClockPtr{ nullptr };
 		FName NameOfClockToStart;
 
-	}; // class FQuantizedOtherClockStart 
+	}; // class FQuantizedOtherClockStart
+
+
+	// QuartzQuantizedCommand that basically no-ops, so the game thread can get notified on a musical boundary
+	class AUDIOMIXER_API FQuantizedNotify : public IQuartzQuantizedCommand
+	{
+	public:
+		// ctor
+		FQuantizedNotify() = default;
+
+		// dtor
+		virtual ~FQuantizedNotify() override = default;
+
+		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
+
+		virtual bool RequiresAudioDevice() const override { return true; }
+
+		virtual FName GetCommandName() const override;
+
+		virtual EQuartzCommandType GetCommandType() const override { return EQuartzCommandType::Notify; };
+
+	protected:
+		TSharedPtr<FQuartzClock> OwningClockPtr{ nullptr };
+
+		int32 SourceID{ -1 };
+
+		bool bIsCanceled = false;
+
+	}; // class FQuantizedNotify
 
 } // namespace Audio

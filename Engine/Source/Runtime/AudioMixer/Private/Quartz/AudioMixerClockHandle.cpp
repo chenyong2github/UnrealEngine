@@ -92,6 +92,12 @@ bool UQuartzClockHandle::IsClockRunning(const UObject* WorldContextObject)
 	return RawHandle.IsClockRunning();
 }
 
+void UQuartzClockHandle::NotifyOnQuantizationBoundary(const UObject* WorldContextObject, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	Audio::FQuartzQuantizedCommandInitInfo Data(UQuartzSubsystem::CreateRequestDataForQuantizedNotify(this, InQuantizationBoundary, InDelegate));
+	RawHandle.SendCommandToClock([Data](Audio::FQuartzClock* InClock) mutable { InClock->AddQuantizedCommand(Data); });
+}
+
 float UQuartzClockHandle::GetDurationOfQuantizationTypeInSeconds(const UObject* WorldContextObject, const EQuartzCommandQuantization& QuantizationType, float Multiplier)
 {
 	return RawHandle.GetDurationOfQuantizationTypeInSeconds(QuantizationType, Multiplier);
@@ -119,7 +125,7 @@ void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FNam
 	RawHandle.SendCommandToClock([Data](Audio::FQuartzClock* InClock) mutable { InClock->AddQuantizedCommand(Data); });
 }
 
-// todo: Move the bulk of these functions to FQuartzTcikableObject once lightweight clock handles are spun up.
+// todo: Move the bulk of these functions to FQuartzTickableObject once lightweight clock handles are spun up.
 void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent, UQuartzClockHandle*& ClockHandle)
 {
 	ClockHandle = this;

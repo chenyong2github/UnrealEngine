@@ -247,4 +247,17 @@ namespace Audio
 		return StartOtherClockName;
 	}
 
+
+
+	TSharedPtr<IQuartzQuantizedCommand> FQuantizedNotify::GetDeepCopyOfDerivedObject() const
+	{
+		return MakeShared<FQuantizedNotify>();
+	}
+
+	static const FName FQuantizedNotifyName("Notify Command");
+	FName FQuantizedNotify::GetCommandName() const
+	{
+		return FQuantizedNotifyName;
+	}
+
 } // namespace Audio

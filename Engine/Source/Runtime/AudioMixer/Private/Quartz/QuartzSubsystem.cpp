@@ -387,6 +387,31 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateRequestDataForStartOt
 	return CommandInitInfo;
 }
 
+Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateRequestDataForQuantizedNotify(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	if (!ensure(InClockHandle))
+	{
+		return { };
+	}
+
+	const TSharedPtr<Audio::FQuantizedNotify> NotifyCommandPtr = MakeShared<Audio::FQuantizedNotify>();
+
+	Audio::FQuartzQuantizedRequestData CommandInitInfo;
+
+	CommandInitInfo.ClockName = InClockHandle->GetClockName();
+	CommandInitInfo.QuantizationBoundary = InQuantizationBoundary;
+	CommandInitInfo.QuantizedCommandPtr = NotifyCommandPtr;
+	CommandInitInfo.GameThreadSubscribers.Append(InQuantizationBoundary.GameThreadSubscribers);
+	CommandInitInfo.GameThreadSubscribers.Add(InClockHandle->GetQuartzSubscriber());
+
+	if (InDelegate.IsBound())
+	{
+		CommandInitInfo.GameThreadDelegateID = InClockHandle->AddCommandDelegate(InDelegate);
+	}
+
+	return CommandInitInfo;
+}
+
 Audio::FQuartzClockManager* UQuartzSubsystem::GetClockManager(const UObject* WorldContextObject, bool bUseAudioEngineClockManager)
 {
 	// decide if the clock should be managed by the AudioDevice (audio engine) or the Subsystem (this object)

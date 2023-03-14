@@ -211,6 +211,7 @@ enum class EQuartzCommandType : uint8
 	TickRateChange UMETA(DisplayName = "Tick Rate Change", ToolTip = "Quantized change of the tick-rate (i.e. BPM change)"),
 	TransportReset UMETA(DisplayName = "Transport Reset", ToolTip = "Quantized reset of the clocks transport (back to time = 0 on the boundary)"),
 	StartOtherClock UMETA(DisplayName = "Start Other Clock", ToolTip = "Quantized start of another clock. Useful for sample accurate synchronization of clocks (i.e. to handle time signature changes)"),
+	Notify UMETA(DisplayName = "Quantized Notify", ToolTip = "Command used only to get delegates for timing information (basically an empty command)"),
 	Custom UMETA(DisplayName = "Custom", ToolTip = "Quantized custom command")
 }; // EQuartzCommandType
 
