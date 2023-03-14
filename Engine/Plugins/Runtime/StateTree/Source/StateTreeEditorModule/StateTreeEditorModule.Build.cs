@@ -58,7 +58,14 @@ namespace UnrealBuildTool.Rules
 				System.IO.Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
 			});
 		
-			PublicDefinitions.Add("WITH_STATETREE_DEBUGGER=1");
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				PublicDefinitions.Add("WITH_STATETREE_DEBUGGER=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_STATETREE_DEBUGGER=0");
+			}
 		}
 	}
 }
