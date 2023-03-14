@@ -46,5 +46,4 @@ public:
 	virtual TSharedRef<SWidget> CreateDataprepProducersWidget(UDataprepAssetProducers* AssetProducers) = 0;
 	virtual TSharedRef<SWidget> CreateDataprepDetailsView(UObject* ObjectToDetail) = 0;
 
-	static EAssetTypeCategories::Type DataprepCategoryBit;
 };

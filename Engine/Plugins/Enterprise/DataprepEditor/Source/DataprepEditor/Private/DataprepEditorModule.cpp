@@ -2,7 +2,6 @@
 
 #include "DataprepEditorModule.h"
 
-#include "AssetTypeActions_DataprepAsset.h"
 #include "DataprepEditorUtils.h"
 #include "DataprepEditorStyle.h"
 #include "ToolMenu.h"
@@ -21,8 +20,6 @@
 
 const FName DataprepEditorAppIdentifier = FName(TEXT("DataprepEditorApp"));
 
-EAssetTypeCategories::Type IDataprepEditorModule::DataprepCategoryBit;
-
 #define LOCTEXT_NAMESPACE "DataprepEditorModule"
 
 class FDataprepEditorModule : public IDataprepEditorModule
@@ -35,24 +32,6 @@ public:
 
 		MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 		ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
-
-		// Register asset type actions for DataPrepRecipe class
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-		// Register Dataprep category to group together asset type actions related to Dataprep
-		DataprepCategoryBit = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Dataprep")), LOCTEXT("DataprepAssetCategory", "Dataprep"));
-
-		TSharedPtr<FAssetTypeActions_DataprepAssetInterface> DataprepAssetInterfaceTypeAction = MakeShared<FAssetTypeActions_DataprepAssetInterface>();
-		AssetTools.RegisterAssetTypeActions(DataprepAssetInterfaceTypeAction.ToSharedRef());
-		AssetTypeActionsArray.Add(DataprepAssetInterfaceTypeAction);
-
-		TSharedPtr<FAssetTypeActions_DataprepAsset> DataprepAssetTypeAction = MakeShareable(new FAssetTypeActions_DataprepAsset);
-		AssetTools.RegisterAssetTypeActions(DataprepAssetTypeAction.ToSharedRef());
-		AssetTypeActionsArray.Add(DataprepAssetTypeAction);
-
-		TSharedPtr<FAssetTypeActions_DataprepAssetInstance> DataprepAssetInstanceTypeAction = MakeShareable(new FAssetTypeActions_DataprepAssetInstance);
-		AssetTools.RegisterAssetTypeActions(DataprepAssetInstanceTypeAction.ToSharedRef());
-		AssetTypeActionsArray.Add(DataprepAssetInstanceTypeAction);
 
 		// Register the details customizer
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
@@ -81,17 +60,6 @@ public:
 
 		MenuExtensibilityManager.Reset();
 		ToolBarExtensibilityManager.Reset();
-
-		// Unregister asset type actions
-		if (FModuleManager::Get().IsModuleLoaded(TEXT("AssetTools")))
-		{
-			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			for (TSharedPtr<FAssetTypeActions_Base>& AssetTypeActions : AssetTypeActionsArray)
-			{
-				AssetTools.UnregisterAssetTypeActions(AssetTypeActions.ToSharedRef());
-			}
-		}
-		AssetTypeActionsArray.Empty();
 
 		FDataprepEditorStyle::Shutdown();
 
@@ -136,7 +104,6 @@ public:
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
-	TArray<TSharedPtr<FAssetTypeActions_Base>> AssetTypeActionsArray;
 };
 
 IMPLEMENT_MODULE(FDataprepEditorModule, DataprepEditor)
