@@ -25,8 +25,14 @@ namespace UE::MovieScene
 
 FWidgetMaterialAccessor::FWidgetMaterialAccessor(const FWidgetMaterialKey& InKey)
 	: Widget(CastChecked<UWidget>(InKey.Object.ResolveObjectPtr()))
-	, WidgetMaterialHandle(InKey.WidgetMaterialHandle)
-{}
+{
+	// Only assign the material handle if the widget itself is still valid
+	// otherwise accessors constructed with the material handle will consider it valid
+	if (Widget)
+	{
+		WidgetMaterialHandle = InKey.WidgetMaterialHandle;
+	}
+}
 
 FWidgetMaterialAccessor::FWidgetMaterialAccessor(UObject* InObject, FWidgetMaterialHandle InWidgetMaterialHandle)
 	: Widget(Cast<UWidget>(InObject))
