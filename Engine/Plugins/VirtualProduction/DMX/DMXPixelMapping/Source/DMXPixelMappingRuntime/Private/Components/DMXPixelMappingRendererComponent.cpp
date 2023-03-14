@@ -108,20 +108,13 @@ void UDMXPixelMappingRendererComponent::Serialize(FArchive& Ar)
 	}
 }
 
-void UDMXPixelMappingRendererComponent::PostLoad()
-{
-	Super::PostLoad();
-	Initialize();
-}
-
 void UDMXPixelMappingRendererComponent::PostInitProperties()
 {
 	Super::PostInitProperties();
-
-	const TSharedPtr<IDMXPixelMappingRenderer>& Renderer = GetRenderer();
-	if (Renderer.IsValid())
+	
+	if (!IsTemplate())
 	{
-		Renderer->SetBrightness(Brightness);
+		Initialize();
 	}
 }
 
@@ -492,6 +485,7 @@ void UDMXPixelMappingRendererComponent::Initialize()
 	if (!PixelMappingRenderer.IsValid())
 	{
 		PixelMappingRenderer = IDMXPixelMappingRendererModule::Get().CreateRenderer();
+		PixelMappingRenderer->SetBrightness(Brightness);
 	}
 
 #if WITH_EDITOR

@@ -83,8 +83,9 @@ OutputPS DMXPixelMappingPS(OutputVS IN)
 		}
 		
 		OUT.Color /= (NUM_CELLS + 1);
-		
 #endif
+
+		OUT.Color *= Brightness;
 	}
 			
 	return OUT;

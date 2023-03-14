@@ -40,7 +40,6 @@ public:
 
 	//~ Begin UObject implementation
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
