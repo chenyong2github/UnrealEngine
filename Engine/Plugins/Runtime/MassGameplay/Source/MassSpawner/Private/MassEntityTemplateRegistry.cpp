@@ -15,42 +15,6 @@
 
 #define LOCTEXT_NAMESPACE "Mass"
 
-namespace FTemplateRegistryHelpers
-{
-	uint32 CalcHash(const FConstStructView StructInstance)
-	{
-		const UScriptStruct* Type = StructInstance.GetScriptStruct();
-		const uint8* Memory = StructInstance.GetMemory();
-		return Type && Memory ? Type->GetStructTypeHash(Memory) : 0;
-	}
-
-	void FragmentInstancesToTypes(TArrayView<const FInstancedStruct> FragmentList, TArray<const UScriptStruct*>& OutFragmentTypes)
-	{
-		for (const FInstancedStruct& Instance : FragmentList)
-		{
-			// at this point FragmentList is assumed to have no duplicates nor nulls
-			OutFragmentTypes.Add(Instance.GetScriptStruct());
-		}
-	}
-
-	void ResetEntityTemplates(const TArray<FString>& Args, UWorld* InWorld)
-	{
-		UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(InWorld);
-		if (ensure(SpawnerSystem))
-		{
-			FMassEntityTemplateRegistry& Registry = SpawnerSystem->GetMutableTemplateRegistryInstance();
-			Registry.DebugReset();
-		}
-	}
-
-	FAutoConsoleCommandWithWorldAndArgs EnableCategoryNameCmd(
-		TEXT("ai.mass.reset_entity_templates"),
-		TEXT("Clears all the runtime information cached by MassEntityTemplateRegistry. Will result in lazily building all entity templates again."),
-		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ResetEntityTemplates)
-	);
-} // namespace FTemplateRegistryHelpers
-
-
 //----------------------------------------------------------------------//
 // FMassEntityTemplateRegistry 
 //----------------------------------------------------------------------//
@@ -77,7 +41,7 @@ FMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate& FMassEntityTempla
 	return StructBasedBuilders.FindOrAdd(&DataType);
 }
 
-void FMassEntityTemplateRegistry::StoreEntityManager(const TSharedPtr<FMassEntityManager>& InEntityManager)
+void FMassEntityTemplateRegistry::Initialize(const TSharedPtr<FMassEntityManager>& InEntityManager)
 {
 	if (EntityManager)
 	{
@@ -100,7 +64,7 @@ const TSharedRef<FMassEntityTemplate>* FMassEntityTemplateRegistry::FindTemplate
 	return TemplateIDToTemplateMap.Find(TemplateID);
 }
 
-const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::AddTemplate(FMassEntityTemplateID TemplateID, FMassEntityTemplateData&& TemplateData)
+const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::FindOrAddTemplate(FMassEntityTemplateID TemplateID, FMassEntityTemplateData&& TemplateData)
 {
 	check(EntityManager);
 	const TSharedRef<FMassEntityTemplate>* ExistingTemplate = FindTemplateFromTemplateID(TemplateID);
@@ -112,7 +76,7 @@ const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::AddTemplate(
 	return TemplateIDToTemplateMap.Add(TemplateID, FMassEntityTemplate::MakeFinalTemplate(*EntityManager, MoveTemp(TemplateData), TemplateID));
 }
 
-const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::AddTemplate(FMassEntityTemplateData&& TemplateData)
+const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::FindOrAddTemplate(FMassEntityTemplateData&& TemplateData)
 {
 	const FMassEntityTemplateID NewTemplateID = FMassEntityTemplateIDFactory::Make(TemplateData);
 

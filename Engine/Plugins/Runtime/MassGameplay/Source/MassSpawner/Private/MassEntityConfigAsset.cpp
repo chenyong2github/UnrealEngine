@@ -68,13 +68,13 @@ const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UW
 	// Dependency should add a fragment with default values (which later can be overridden),
 	// while setup would override values and should be run just once.
 
-	FMassEntityTemplate Template;
-	FMassEntityTemplateBuildContext BuildContext(Template, TemplateID);
+	FMassEntityTemplateData TemplateData;
+	FMassEntityTemplateBuildContext BuildContext(TemplateData, TemplateID);
 
 	BuildContext.BuildFromTraits(CombinedTraits, World);
 	BuildContext.SetTemplateName(GetNameSafe(ConfigOwner));
 
-	return TemplateRegistry.AddTemplate(TemplateID, MoveTemp(Template)).Get();
+	return TemplateRegistry.FindOrAddTemplate(TemplateID, MoveTemp(TemplateData)).Get();
 }
 
 void FMassEntityConfig::DestroyEntityTemplate(const UWorld& World) const
@@ -184,7 +184,7 @@ bool FMassEntityConfig::ValidateEntityTemplate(const UWorld& World)
 	Visited.Add(ConfigOwner);
 	GetCombinedTraits(CombinedTraits, Visited);
 
-	FMassEntityTemplate Template;
+	FMassEntityTemplateData Template;
 	FMassEntityTemplateBuildContext BuildContext(Template);
 
 	return BuildContext.BuildFromTraits(CombinedTraits, World);

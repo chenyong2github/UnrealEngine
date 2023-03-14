@@ -71,7 +71,11 @@ protected:
 };
 
 
-/** @todo document	*/
+/** 
+ * Serves as data used to define and build finalized FMassEntityTemplate instances. Describes composition and initial
+ * values of fragments for entities created with this data, and lets users modify and extend the data. Once finalized as 
+ * FMassEntityTemplate the data will become immutable. 
+ */
 USTRUCT()
 struct MASSSPAWNER_API FMassEntityTemplateData
 {
@@ -240,7 +244,6 @@ struct MASSSPAWNER_API FMassEntityTemplateData
 
 	friend uint32 GetTypeHash(const FMassEntityTemplateData& Template);
 
-protected:
 	void Sort()
 	{
 		SharedFragmentValues.Sort();
@@ -259,10 +262,13 @@ protected:
 	FString TemplateName;
 };
 
-
-struct MASSSPAWNER_API FMassEntityTemplate final : public FMassEntityTemplateData, public TSharedFromThis<FMassEntityTemplate> 
+/**
+ * A finalized and const wrapper for FMassEntityTemplateData, associated with a Mass archetype and template ID. 
+ * Designed to never be changed. If a change is needed a copy of the hosted FMassEntityTemplateData needs to be made and 
+ * used to create another finalized FMassEntityTemplate (via FMassEntityTemplateManager).
+ */
+struct MASSSPAWNER_API FMassEntityTemplate final : public TSharedFromThis<FMassEntityTemplate> 
 {
-	using Super = FMassEntityTemplateData;
 	friend TSharedFromThis<FMassEntityTemplate>;
 
 	FMassEntityTemplate() = default;
@@ -283,7 +289,17 @@ struct MASSSPAWNER_API FMassEntityTemplate final : public FMassEntityTemplateDat
 
 	static TSharedRef<FMassEntityTemplate> MakeFinalTemplate(FMassEntityManager& EntityManager, FMassEntityTemplateData&& TempTemplateData, FMassEntityTemplateID InTemplateID);
 
+	//-----------------------------------------------------------------------------
+	// FMassEntityTemplateData getters
+	//-----------------------------------------------------------------------------
+	FORCEINLINE TConstArrayView<FMassEntityTemplateData::FObjectFragmentInitializerFunction> GetObjectFragmentInitializers() const { return TemplateData.GetObjectFragmentInitializers(); }
+	FORCEINLINE const FString& GetTemplateName() const { return TemplateData.GetTemplateName(); }
+	FORCEINLINE const FMassArchetypeCompositionDescriptor& GetCompositionDescriptor() const { return TemplateData.GetCompositionDescriptor(); }
+	FORCEINLINE const FMassArchetypeSharedFragmentValues& GetSharedFragmentValues() const { return TemplateData.GetSharedFragmentValues(); }
+	FORCEINLINE TConstArrayView<FInstancedStruct> GetInitialFragmentValues() const { return TemplateData.GetInitialFragmentValues(); }
+
 private:
+	FMassEntityTemplateData TemplateData;
 	FMassArchetypeHandle Archetype;
 	FMassEntityTemplateID TemplateID;
 };

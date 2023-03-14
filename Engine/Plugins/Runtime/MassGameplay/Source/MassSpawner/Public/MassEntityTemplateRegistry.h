@@ -212,6 +212,11 @@ struct MASSSPAWNER_API FMassEntityTemplateRegistry
 
 	explicit FMassEntityTemplateRegistry(UObject* InOwner = nullptr);
 
+	/** Initializes and stores the EntityManager the templates will be associated with. Needs to be called before any template operations.
+	 *  Note that the function will only let users set the EntityManager once. Once it's set the subsequent calls will
+	 *  have no effect. If attempting to set a different EntityManaget an ensure will trigger. */
+	void Initialize(const TSharedPtr<FMassEntityManager>& InEntityManager);
+
 	void ShutDown();
 
 	UWorld* GetWorld() const;
@@ -226,9 +231,9 @@ struct MASSSPAWNER_API FMassEntityTemplateRegistry
 	/**
 	 * Adds a template based on TemplateData
 	 */
-	const TSharedRef<FMassEntityTemplate>& AddTemplate(FMassEntityTemplateID TemplateID, FMassEntityTemplateData&& TemplateData);
+	const TSharedRef<FMassEntityTemplate>& FindOrAddTemplate(FMassEntityTemplateID TemplateID, FMassEntityTemplateData&& TemplateData);
 
-	const TSharedRef<FMassEntityTemplate>& AddTemplate(FMassEntityTemplateData&& TemplateData);
+	const TSharedRef<FMassEntityTemplate>& FindOrAddTemplate(FMassEntityTemplateData&& TemplateData);
 
 	UE_DEPRECATED(5.3, "We no longer support fething mutable templates from the TemplateRegistry. Stored templates are considered const.")
 	FMassEntityTemplate* FindMutableTemplateFromTemplateID(FMassEntityTemplateID TemplateID);
@@ -241,10 +246,6 @@ struct MASSSPAWNER_API FMassEntityTemplateRegistry
 	UE_DEPRECATED(5.3, "InitializeEntityTemplate is no longer available. Use AddTemplate instead.")
 	void InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const;
 
-	/** Stores the EntityManager the templates will be associated with. 
-	 *  Note that the function will only let users set the EntityManager once. Once it's set the subsequent calls will 
-	 *  have no effect. If attempting to set a different EntityManaget an ensure will trigger. */
-	void StoreEntityManager(const TSharedPtr<FMassEntityManager>& InEntityManager);
 	FMassEntityManager& GetEntityManagerChecked() { check(EntityManager); return *EntityManager; }
 
 protected:

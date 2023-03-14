@@ -36,7 +36,7 @@ void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UWorld* World = GetWorld();
 	check(World);
 	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World).AsShared();
-	TemplateRegistryInstance.StoreEntityManager(EntityManager);
+	TemplateRegistryInstance.Initialize(EntityManager);
 }
 
 void UMassSpawnerSubsystem::Deinitialize() 
