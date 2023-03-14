@@ -565,7 +565,7 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 					}
 				}
 
-				UE_LOG(LogTemp, Log, TEXT("Distance: %.2f, NonSpatializedRadiusStart: %.2f, NonSpatializedRadiusEnd: %.2f, NonSpatializedAmount: %.2f"), Params.Distance, WaveInstance->NonSpatializedRadiusStart, WaveInstance->NonSpatializedRadiusEnd, Params.NonSpatializedAmount);
+				//UE_LOG(LogTemp, Log, TEXT("Distance: %.2f, NonSpatializedRadiusStart: %.2f, NonSpatializedRadiusEnd: %.2f, NonSpatializedAmount: %.2f"), Params.Distance, WaveInstance->NonSpatializedRadiusStart, WaveInstance->NonSpatializedRadiusEnd, Params.NonSpatializedAmount);
 
 			}
 		}
