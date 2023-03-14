@@ -5395,7 +5395,10 @@ void UEditorEngine::BroadcastPostUndoRedo(const FTransactionContext& UndoContext
 	// functions have been fixed. For the time being it improves editor stability, though:
 	UEdGraphPin::SanitizePinsPostUndoRedo();
 
-	for (auto UndoIt = UndoClients.CreateIterator(); UndoIt; ++UndoIt)
+	// Note that we use a copy here as clients can register/unregister with the undo system while in PostUndo()/PostRedo()
+	// which modifies UndoClients during the loop. This can cause an infinite loop where the iterator never finishes.
+	const TSet<FEditorUndoClient*> UndoClientsCopy = UndoClients;
+	for (auto UndoIt = UndoClientsCopy.CreateConstIterator(); UndoIt; ++UndoIt)
 	{
 		FEditorUndoClient* Client = *UndoIt;
 		if (Client && Client->MatchesContext(UndoContext, CurrentUndoRedoContext->TransactionObjects))
