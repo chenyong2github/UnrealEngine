@@ -574,8 +574,7 @@ void SSourceControlSubmitWidget::OnRevert()
 	TArray<FString> FilesToRevert;
 	for (const auto& SelectedItem : SelectedItems)
 	{
-		FString PackageName;
-		if (FPackageName::TryConvertFilenameToLongPackageName(SelectedItem->GetFileName().ToString(), PackageName))
+		if (FPackageName::IsPackageFilename(SelectedItem->GetFileName().ToString()))
 		{
 			PackagesToRevert.Add(SelectedItem->GetFileName().ToString());
 		}
