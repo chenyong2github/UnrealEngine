@@ -3,6 +3,7 @@
 #include "USDInfoCache.h"
 
 #include "USDGeomMeshConversion.h"
+#include "USDGeomXformableTranslator.h"
 #include "USDLog.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
@@ -24,6 +25,12 @@
 	#include "pxr/usd/usdGeom/subset.h"
 #include "USDIncludesEnd.h"
 #endif // USE_USD_SDK
+
+static int32 GMaxNumVerticesCollapsedMesh = 5000000;
+static FAutoConsoleVariableRef CVarMaxNumVerticesCollapsedMesh(
+	TEXT("USD.MaxNumVerticesCollapsedMesh"),
+	GMaxNumVerticesCollapsedMesh,
+	TEXT("Maximum number of vertices that a combined Mesh can have for us to collapse it into a single StaticMesh"));
 
 namespace UE::UsdInfoCache::Private
 {
@@ -287,7 +294,7 @@ namespace UE::USDInfoCacheImpl::Private
 		}
 	}
 
-	void RecursiveRebuildCache(
+	void RecursivePropagateVertexAndMaterialSlotCounts(
 		const pxr::UsdPrim& UsdPrim,
 		FUsdSchemaTranslationContext& Context,
 		const pxr::TfToken& MaterialPurposeToken,
@@ -296,12 +303,10 @@ namespace UE::USDInfoCacheImpl::Private
 		TMap< UE::FSdfPath, TArray<UsdUtils::FUsdPrimMaterialSlot>>& InOutSubtreeToMaterialSlots,
 		TArray< FString >& InOutPointInstancerPaths,
 		uint64& OutSubtreeVertexCount,
-		TArray<UsdUtils::FUsdPrimMaterialSlot>& OutSubtreeSlots,
-		const pxr::SdfPath& AssetCollapsedRoot = pxr::SdfPath::EmptyPath(),
-		const pxr::SdfPath& ComponentCollapsedRoot = pxr::SdfPath::EmptyPath()
+		TArray<UsdUtils::FUsdPrimMaterialSlot>& OutSubtreeSlots
 	)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE( UE::USDInfoCacheImpl::Private::RecursiveRebuildCache );
+		TRACE_CPUPROFILER_EVENT_SCOPE( UE::USDInfoCacheImpl::Private::RecursivePropagateVertexAndMaterialSlotCounts );
 
 		if (!UsdPrim)
 		{
@@ -311,35 +316,7 @@ namespace UE::USDInfoCacheImpl::Private
 		FScopedUsdAllocs Allocs;
 
 		pxr::SdfPath UsdPrimPath = UsdPrim.GetPrimPath();
-
-		// Prevents allocation by referencing instead of copying
-		const pxr::SdfPath* AssetCollapsedRootOverride = &AssetCollapsedRoot;
-		const pxr::SdfPath* ComponentCollapsedRootOverride = &ComponentCollapsedRoot;
-
-		bool bIsAssetCollapsed = !AssetCollapsedRoot.IsEmpty();
-		bool bIsComponentCollapsed = !ComponentCollapsedRoot.IsEmpty();
-
-		if ( !bIsAssetCollapsed || !bIsComponentCollapsed )
-		{
-			if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = Registry.CreateTranslatorForSchema( Context.AsShared(), UE::FUsdTyped( UsdPrim ) ) )
-			{
-				if ( !bIsAssetCollapsed )
-				{
-					if ( SchemaTranslator->CollapsesChildren( ECollapsingType::Assets ) )
-					{
-						AssetCollapsedRootOverride = &UsdPrimPath;
-					}
-				}
-
-				if ( !bIsComponentCollapsed )
-				{
-					if ( SchemaTranslator->CollapsesChildren( ECollapsingType::Components ) )
-					{
-						ComponentCollapsedRootOverride = &UsdPrimPath;
-					}
-				}
-			}
-		}
+		UE::FSdfPath PrimPath{UsdPrimPath};
 
 		if (!UsdPrim.IsPseudoRoot())
 		{
@@ -389,10 +366,10 @@ namespace UE::USDInfoCacheImpl::Private
 
 		const int32 MinBatchSize = 1;
 
-		ParallelFor( TEXT( "RecursiveRebuildCache" ), Prims.Num(), MinBatchSize,
+		ParallelFor( TEXT( "RecursivePropagateVertexAndMaterialSlotCounts" ), Prims.Num(), MinBatchSize,
 			[&]( int32 Index )
 			{
-				RecursiveRebuildCache(
+				RecursivePropagateVertexAndMaterialSlotCounts(
 					Prims[ Index ],
 					Context,
 					MaterialPurposeToken,
@@ -401,9 +378,7 @@ namespace UE::USDInfoCacheImpl::Private
 					InOutSubtreeToMaterialSlots,
 					InOutPointInstancerPaths,
 					ChildSubtreeVertexCounts[ Index ],
-					ChildSubtreeMaterialSlots[ Index ],
-					*AssetCollapsedRootOverride,
-					*ComponentCollapsedRootOverride
+					ChildSubtreeMaterialSlots[ Index ]
 				);
 			}
 		);
@@ -454,12 +429,6 @@ namespace UE::USDInfoCacheImpl::Private
 				Info.ExpectedVertexCountForSubtree = OutSubtreeVertexCount;
 				InOutSubtreeToMaterialSlots.Emplace( UsdPrimPath, OutSubtreeSlots );
 			}
-
-			// These paths will be still empty in case nothing has collapsed yet, hold UsdPrimPath in case UsdPrim
-			// collapses that type, or hold the path to the collapsed root passed in via our caller, in case we're
-			// collapsed
-			Info.AssetCollapsedRoot = *AssetCollapsedRootOverride;
-			Info.ComponentCollapsedRoot = *ComponentCollapsedRootOverride;
 		}
 	}
 
@@ -610,6 +579,121 @@ namespace UE::USDInfoCacheImpl::Private
 				UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd( Pair.Key );
 				Info.ExpectedMaterialSlotCountForSubtree = Pair.Value.Num();
 			}
+		}
+	}
+
+	bool CanMeshSubtreeBeCollapsed(
+		const pxr::UsdPrim& UsdPrim,
+		FUsdSchemaTranslationContext& Context,
+		FUsdInfoCache::FUsdInfoCacheImpl& Impl,
+		const TSharedPtr< FUsdSchemaTranslator >& Translator
+	)
+	{
+		if (!UsdPrim)
+		{
+			return false;
+		}
+
+		// Only care about collapsing into a StaticMesh: We should always collapse into a SkeletalMesh as we have
+		// no real alternative for handling them
+		TSharedPtr<FUsdGeomXformableTranslator> XformableTranslator = StaticCastSharedPtr<FUsdGeomXformableTranslator>(Translator);
+		if (!XformableTranslator.IsValid())
+		{
+			return false;
+		}
+
+		pxr::SdfPath UsdPrimPath = UsdPrim.GetPrimPath();
+
+		UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd(UE::FSdfPath{UsdPrimPath});
+
+		if (Info.ExpectedVertexCountForSubtree > GMaxNumVerticesCollapsedMesh)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	void RecursiveQueryCollapsesChildren(
+		const pxr::UsdPrim& UsdPrim,
+		FUsdSchemaTranslationContext& Context,
+		FUsdInfoCache::FUsdInfoCacheImpl& Impl,
+		FUsdSchemaTranslatorRegistry& Registry,
+		const pxr::SdfPath& AssetCollapsedRoot = pxr::SdfPath::EmptyPath(),
+		const pxr::SdfPath& ComponentCollapsedRoot = pxr::SdfPath::EmptyPath()
+	)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UE::USDInfoCacheImpl::Private::RecursiveQueryCollapsesChildren);
+		FScopedUsdAllocs Allocs;
+
+		pxr::SdfPath UsdPrimPath = UsdPrim.GetPrimPath();
+		UE::FSdfPath PrimPath{UsdPrimPath};
+
+		// Prevents allocation by referencing instead of copying
+		const pxr::SdfPath* AssetCollapsedRootOverride = &AssetCollapsedRoot;
+		const pxr::SdfPath* ComponentCollapsedRootOverride = &ComponentCollapsedRoot;
+
+		bool bIsAssetCollapsed = !AssetCollapsedRoot.IsEmpty();
+		bool bIsComponentCollapsed = !ComponentCollapsedRoot.IsEmpty();
+
+		if (!bIsAssetCollapsed || !bIsComponentCollapsed)
+		{
+			if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = Registry.CreateTranslatorForSchema(Context.AsShared(), UE::FUsdTyped(UsdPrim)))
+			{
+				const bool bCanMeshSubtreeBeCollapsed = CanMeshSubtreeBeCollapsed(UsdPrim, Context, Impl, SchemaTranslator);
+
+				if (!bIsAssetCollapsed)
+				{
+					if (SchemaTranslator->CollapsesChildren(ECollapsingType::Assets) && bCanMeshSubtreeBeCollapsed)
+					{
+						AssetCollapsedRootOverride = &UsdPrimPath;
+					}
+				}
+
+				if (!bIsComponentCollapsed)
+				{
+					if (SchemaTranslator->CollapsesChildren(ECollapsingType::Components) && bCanMeshSubtreeBeCollapsed)
+					{
+						ComponentCollapsedRootOverride = &UsdPrimPath;
+					}
+				}
+			}
+		}
+
+		pxr::UsdPrimSiblingRange PrimChildren = UsdPrim.GetFilteredChildren(pxr::UsdTraverseInstanceProxies(pxr::UsdPrimAllPrimsPredicate));
+
+		TArray<pxr::UsdPrim> Prims;
+		for (pxr::UsdPrim Child : PrimChildren)
+		{
+			Prims.Emplace(Child);
+		}
+
+		const int32 MinBatchSize = 1;
+
+		ParallelFor(TEXT("RecursiveQueryCollapsesChildren"), Prims.Num(), MinBatchSize,
+			[&](int32 Index)
+			{
+				RecursiveQueryCollapsesChildren(
+					Prims[Index],
+					Context,
+					Impl,
+					Registry,
+					*AssetCollapsedRootOverride,
+					*ComponentCollapsedRootOverride
+				);
+			}
+		);
+
+		{
+			FWriteScopeLock ScopeLock(Impl.InfoMapLock);
+
+			UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd(UE::FSdfPath{UsdPrimPath});
+
+			// These paths will be still empty in case nothing has collapsed yet, hold UsdPrimPath in case UsdPrim
+			// collapses that type, or hold the path to the collapsed root passed in via our caller, in case we're
+			// collapsed
+			Info.AssetCollapsedRoot = *AssetCollapsedRootOverride;
+			Info.ComponentCollapsedRoot = *ComponentCollapsedRootOverride;
 		}
 	}
 #endif // USE_USD_SDK
@@ -783,9 +867,11 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 			MaterialPurposeToken = UnrealToUsd::ConvertToken(*Context.MaterialPurpose.ToString()).Get();
 		}
 
+		// Propagate vertex and material slot counts before we query CollapsesChildren because the Xformable
+		// translator needs to know when it would generate too large a static mesh
 		uint64 SubtreeVertexCount = 0;
 		TArray<UsdUtils::FUsdPrimMaterialSlot> SubtreeSlots;
-		UE::USDInfoCacheImpl::Private::RecursiveRebuildCache(
+		UE::USDInfoCacheImpl::Private::RecursivePropagateVertexAndMaterialSlotCounts(
 			UsdPrim,
 			Context,
 			MaterialPurposeToken,
@@ -809,6 +895,13 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 			*ImplPtr,
 			TempSubtreeSlots,
 			Context.bMergeIdenticalMaterialSlots
+		);
+
+		UE::USDInfoCacheImpl::Private::RecursiveQueryCollapsesChildren(
+			UsdPrim,
+			Context,
+			*ImplPtr,
+			Registry
 		);
 	}
 #endif // USE_USD_SDK

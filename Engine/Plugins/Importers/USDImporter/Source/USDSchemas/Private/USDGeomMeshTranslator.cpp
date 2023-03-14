@@ -98,6 +98,8 @@ namespace UsdGeomMeshTranslatorImpl
 
 		FScopedUsdAllocs UsdAllocs;
 
+		UE::FSdfPath PrimPath = Prim.GetPrimPath();
+
 		pxr::UsdPrim UsdPrim{Prim};
 		if (!UsdPrim)
 		{
@@ -116,7 +118,7 @@ namespace UsdGeomMeshTranslatorImpl
 				{
 					bHasNaniteOverrideEnabled = true;
 					UE_LOG(LogUsd, Log, TEXT("Trying to enable Nanite for mesh generated for prim '%s' as the '%s' attribute is set to '%s'"),
-						*Prim.GetPrimPath().GetString(),
+						*PrimPath.GetString(),
 						*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealNaniteOverride),
 						*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealNaniteOverrideEnable)
 					);
@@ -125,7 +127,7 @@ namespace UsdGeomMeshTranslatorImpl
 				else if (OverrideValue == UnrealIdentifiers::UnrealNaniteOverrideDisable)
 				{
 					UE_LOG(LogUsd, Log, TEXT("Not enabling Nanite for mesh generated for prim '%s' as the '%s' attribute is set to '%s'"),
-						*Prim.GetPrimPath().GetString(),
+						*PrimPath.GetString(),
 						*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealNaniteOverride),
 						*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealNaniteOverrideDisable)
 					);
@@ -135,13 +137,13 @@ namespace UsdGeomMeshTranslatorImpl
 		}
 
 		// We want Nanite because the mesh is large enough for the threshold, which is set to something valid
-		if (!bHasNaniteOverrideEnabled)
+		if (!bHasNaniteOverrideEnabled && Context.InfoCache.IsValid())
 		{
-			const int32 NumTriangles = LODIndexToMeshDescription[0].Triangles().Num();
+			uint64 NumTriangles = Context.InfoCache->GetSubtreeVertexCount(PrimPath).Get(0);
 			if (NumTriangles >= Context.NaniteTriangleThreshold)
 			{
 				UE_LOG(LogUsd, Verbose, TEXT("Trying to enable Nanite for mesh generated for prim '%s' as it has '%d' triangles, and the threshold is '%d'"),
-					*Prim.GetPrimPath().GetString(),
+					*PrimPath.GetString(),
 					NumTriangles,
 					Context.NaniteTriangleThreshold
 				);
@@ -149,7 +151,7 @@ namespace UsdGeomMeshTranslatorImpl
 			else
 			{
 				UE_LOG(LogUsd, Verbose, TEXT("Not enabling Nanite for mesh generated for prim '%s' as it has '%d' triangles, and the threshold is '%d'"),
-					*Prim.GetPrimPath().GetString(),
+					*PrimPath.GetString(),
 					NumTriangles,
 					Context.NaniteTriangleThreshold
 				);
@@ -165,21 +167,21 @@ namespace UsdGeomMeshTranslatorImpl
 		if (LODIndexToMeshDescription.Num() > 1)
 		{
 			UE_LOG(LogUsd, Warning, TEXT("Not enabling Nanite for mesh generated for prim '%s' as it has more than one generated LOD (and so came from a LOD variant set setup)"),
-				*Prim.GetPrimPath().GetString()
+				*PrimPath.GetString()
 			);
 			return false;
 		}
 
-		// We cannot enable Nanite here due to a limit on the number of material slots
-		if (LODIndexToMaterialInfo.Num() > 0)
+		if (Context.InfoCache.IsValid())
 		{
-			const int32 NumSections = LODIndexToMaterialInfo[0].Slots.Num();
+			TOptional<uint64> SubtreeSectionCount = Context.InfoCache->GetSubtreeMaterialSlotCount(PrimPath);
+
 			const int32 MaxNumSections = 64; // There is no define for this, but it's checked for on NaniteBuilder.cpp, FBuilderModule::Build
-			if (NumSections > MaxNumSections)
+			if (!SubtreeSectionCount.IsSet() || SubtreeSectionCount.GetValue() > MaxNumSections)
 			{
 				UE_LOG(LogUsd, Warning, TEXT("Not enabling Nanite for mesh generated for prim '%s' as LOD0 has '%d' material slots, which is above the Nanite limit of '%d'"),
-					*Prim.GetPrimPath().GetString(),
-					NumSections,
+					*PrimPath.GetString(),
+					SubtreeSectionCount.GetValue(),
 					MaxNumSections
 				);
 				return false;
@@ -188,12 +190,12 @@ namespace UsdGeomMeshTranslatorImpl
 
 #if !WITH_EDITOR
 		UE_LOG(LogUsd, Warning, TEXT("Not enabling Nanite for mesh generated for prim '%s' as we can't setup Nanite during runtime"),
-			*Prim.GetPrimPath().GetString()
+			*PrimPath.GetString()
 		);
 		return false;
-#endif
-
+#else
 		return true;
+#endif
 	}
 
 	bool IsAnimated(const pxr::UsdPrim& Prim)

@@ -55,12 +55,6 @@ static FAutoConsoleVariableRef CVarCollapsePrimsWithoutKind(
 	GCollapsePrimsWithoutKind,
 	TEXT( "Allow collapsing prims that have no authored 'Kind' value" ) );
 
-static int32 GMaxNumVerticesCollapsedMesh = 5000000;
-static FAutoConsoleVariableRef CVarMaxNumVerticesCollapsedMesh(
-	TEXT( "USD.MaxNumVerticesCollapsedMesh" ),
-	GMaxNumVerticesCollapsedMesh,
-	TEXT( "Maximum number of vertices that a combined Mesh can have for us to collapse it into a single StaticMesh" ) );
-
 static bool GEnableCollision = true;
 static FAutoConsoleVariableRef CVarEnableCollision(
 	TEXT( "USD.EnableCollision" ),
@@ -678,80 +672,6 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 					{
 						return false;
 					}
-				}
-			}
-		}
-	}
-
-	if ( bCollapsesChildren )
-	{
-		TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshes = UsdUtils::GetAllPrimsOfType( Prim, pxr::TfType::Find< pxr::UsdGeomMesh >() );
-
-		// Don't collapse children if they have different Nanite override values
-		bool bChildrenWantNanite = false;
-		bool bOtherChildHasNaniteOpinion = false;
-		for ( const TUsdStore< pxr::UsdPrim >& StoredPrim : ChildGeomMeshes )
-		{
-			pxr::UsdPrim ChildGeomMeshPrim = StoredPrim.Get();
-			if ( !pxr::UsdGeomMesh{ ChildGeomMeshPrim } )
-			{
-				continue;
-			}
-
-			if ( pxr::UsdAttribute NaniteOverride = ChildGeomMeshPrim.GetAttribute( UnrealIdentifiers::UnrealNaniteOverride ) )
-			{
-				pxr::TfToken OverrideValue;
-				if ( NaniteOverride.Get( &OverrideValue ) )
-				{
-					const bool bChildWantsNanite = ( OverrideValue == UnrealIdentifiers::UnrealNaniteOverrideEnable );
-
-					if ( bOtherChildHasNaniteOpinion && ( bChildWantsNanite != bChildrenWantNanite ) )
-					{
-						UE_LOG( LogUsd, Log, TEXT( "Not collapsing down from prim '%s' as child meshes have different values for the '%s' attribute" ),
-							*PrimPath.GetString(),
-							*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealNaniteOverride )
-						);
-						return false;
-					}
-					else if ( !bOtherChildHasNaniteOpinion )
-					{
-						bChildrenWantNanite = bChildWantsNanite;
-						bOtherChildHasNaniteOpinion = true;
-					}
-				}
-			}
-		}
-
-		if ( Context->InfoCache.IsValid() )
-		{
-			TOptional<uint64> NumExpectedVertices = Context->InfoCache->GetSubtreeVertexCount( PrimPath );
-			if ( !NumExpectedVertices.IsSet() || NumExpectedVertices.GetValue() > GMaxNumVerticesCollapsedMesh )
-			{
-				bCollapsesChildren = false;
-			}
-
-			if ( bChildrenWantNanite )
-			{
-				TOptional<uint64> NumExpectedMaterialSlots = Context->InfoCache->GetSubtreeMaterialSlotCount( PrimPath ).Get( 0 );
-
-				// Note that we wont try to prevent collapsing in general if the combined mesh would have a triangle count above the threshold but too many material slots:
-				// We'll just disable Nanite with a message on the log instead.
-				// This because not only is it difficult to estimate the total number of UE triangles we'll get from the combined USD Mesh prims, but also because
-				// it doesn't really work very well: Imagine we have the Kitchen Set scene (that collapses to like 500 material slots) and we put the threshold just under
-				// the combined number of triangles. This means we can't collapse then, as the combined mesh would want Nanite (as it has more triangles than the threshold)
-				// but has too many material slots. If we prevent if from collapsing, what do we do with the uncollapsed meshes then?
-				//  - If we enable Nanite for them its a bit unexpected because now we'll have a bunch of tiny meshes that for some reason have Nanite enabled;
-				//  - If we don't enable Nanite for them, then what is the benefit? Now the mesh hasn't collapsed but we don't have Nanite anywhere anyway...
-				// At least for the case below (with the explicit overrides) we would end up with some meshes having Nanite, according to how the user set them.
-				// In the future we could expose the collapsing controls on the stage actor to let the user control this a bit better
-				const int32 MaxNumSections = 64; // There is no define for this, but it's checked for on NaniteBuilder.cpp, FBuilderModule::Build
-				if ( !NumExpectedMaterialSlots.IsSet() || NumExpectedMaterialSlots.GetValue() > MaxNumSections )
-				{
-					UE_LOG( LogUsd, Log, TEXT( "Not collapsing down from prim '%s' as child meshes want Nanite to be abled but the generated static mesh would have more than '%d' material slots" ),
-						*PrimPath.GetString(),
-						MaxNumSections
-					);
-					bCollapsesChildren = false;
 				}
 			}
 		}
