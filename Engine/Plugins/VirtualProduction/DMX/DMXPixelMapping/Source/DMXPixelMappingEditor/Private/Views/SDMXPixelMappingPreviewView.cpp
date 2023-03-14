@@ -384,7 +384,7 @@ FText SDMXPixelMappingPreviewView::GetSelectedComponentNameText() const
 	UDMXPixelMappingBaseComponent* BaseComponent = SelectedComponentRef.GetComponent();
 	if (BaseComponent)
 	{
-		return FText::FromString(BaseComponent->GetName());
+		return FText::FromString(BaseComponent->GetUserFriendlyName());
 	}
 
 	return FText();
