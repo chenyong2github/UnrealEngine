@@ -2396,10 +2396,14 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		// Check if any of the presubmit hooks fail. (This might also update the changelist description)
 		if (GetOnPresubmitResult(ChangelistState, Description))
 		{
-			// If the description was modified, add it to the operation to update the changelist
+			// If the user modified the description, ensure the 'validation tag' wasn't removed if validation is enabled.
 			if (!ChangelistDescriptionToSubmit.EqualTo(Description.Description))
 			{
 				SubmitChangelistOperation->SetDescription(UpdateChangelistDescriptionToSubmitIfNeeded(bValidationResult, Description.Description));
+			}
+			else
+			{
+				SubmitChangelistOperation->SetDescription(Description.Description);
 			}
 
 			Execute(LOCTEXT("Submitting_Changelist", "Submitting changelist..."), SubmitChangelistOperation, ChangelistState->GetChangelist(), EConcurrency::Synchronous, FSourceControlOperationComplete::CreateLambda(
