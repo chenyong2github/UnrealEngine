@@ -217,6 +217,9 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, BloomThreshold)
+		SHADER_PARAMETER(FVector2f, TemporalJitterPixels)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
+		SHADER_PARAMETER_SCALAR_ARRAY(float, PlusWeights, [5])
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
@@ -320,7 +323,8 @@ FMobileBloomSetupOutputs AddMobileBloomSetupPass(FRDGBuilder& GraphBuilder, cons
 	FMobileBloomSetupVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	FVector4f BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	VSShaderParameters.BufferSizeAndInvSize = BufferSizeAndInvSize;
 
 	auto ShaderPermutationVector = FMobileBloomSetupPS::BuildPermutationVector(Inputs.bUseBloom, Inputs.bUseSun, Inputs.bUseDof, Inputs.bUseEyeAdaptation, Inputs.bUseMetalMSAAHDRDecode);
 
@@ -333,15 +337,48 @@ FMobileBloomSetupOutputs AddMobileBloomSetupPass(FRDGBuilder& GraphBuilder, cons
 		PSShaderParameters->RenderTargets[i] = DestRenderTargets[i].GetRenderTargetBinding();
 	}
 
+	PSShaderParameters->BufferSizeAndInvSize = BufferSizeAndInvSize;
 	PSShaderParameters->EyeAdaptation = EyeAdaptationParameters;
 	PSShaderParameters->BloomThreshold = View.FinalPostProcessSettings.BloomThreshold;
 	PSShaderParameters->View = View.ViewUniformBuffer;
 
 	PSShaderParameters->SceneColorTexture = Inputs.SceneColor.Texture;
-	PSShaderParameters->SceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PSShaderParameters->SceneColorSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	PSShaderParameters->SunShaftAndDofTexture = Inputs.SunShaftAndDof.Texture;
 	PSShaderParameters->SunShaftAndDofSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	// Compute PlusWeights. Referenced from SetupSampleWeightParameters in TemporalAA.cpp
+	{
+		static const float SampleOffsets[5][2] =
+		{
+			{  0.0f, -1.0f },
+			{ -1.0f,  0.0f },
+			{  1.0f,  0.0f },
+			{  0.0f,  1.0f },
+			{  0.0f,  0.0f },
+		};
+
+		FVector2f TemporalJitterPixels = FVector2f(View.TemporalJitterPixels);
+		float TotalWeight = 0.0f;
+		for (int32 i = 0; i < 5; i++)
+		{
+			float PixelOffsetX = SampleOffsets[i][0] - TemporalJitterPixels.X;
+			float PixelOffsetY = SampleOffsets[i][1] - TemporalJitterPixels.Y;
+
+			// Normal distribution, Sigma = 0.47
+			const float CurrWeight = FMath::Exp(-2.29f * (PixelOffsetX * PixelOffsetX + PixelOffsetY * PixelOffsetY));
+			GET_SCALAR_ARRAY_ELEMENT(PSShaderParameters->PlusWeights, i) = CurrWeight;
+			TotalWeight += CurrWeight;
+		}
+
+		for (int32 i = 0; i < 5; i++)
+		{
+			GET_SCALAR_ARRAY_ELEMENT(PSShaderParameters->PlusWeights, i) /= TotalWeight;
+		}
+
+		PSShaderParameters->TemporalJitterPixels = TemporalJitterPixels;
+	}
 
 	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
 	const FScreenPassTextureViewport OutputViewport(DestRenderTargets[0]);

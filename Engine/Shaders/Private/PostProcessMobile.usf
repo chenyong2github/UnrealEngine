@@ -233,8 +233,33 @@ void BloomVS_Mobile(
 	OutTexCoords[3] = TransformedUV + BufferSizeAndInvSize.zw * float2( 1,  1);
 }
 
+// Temporal jitter at the pixel scale.
+float2 TemporalJitterPixels;
+
+static const float2 kOffsets[5] =
+{
+	int2( 0, -1),
+	int2(-1,  0),
+	int2( 1,  0),
+	int2( 0,  1),
+	int2( 0,  0), // K
+};
+
+DECLARE_SCALAR_ARRAY(float, PlusWeights, 5);
+
+half Luma4(half3 Color)
+{
+	return (Color.g * 2.0) + (Color.r + Color.b);
+}
+
+half HdrWeight4(half3 Color)
+{
+	return rcp(Luma4(Color) + 4.0);
+}
+
 void BloomPS_Mobile(
-	float2 InUVs[4] : TEXCOORD0
+	float2 InUVs[4] : TEXCOORD0,
+	in float4 SvPosition : SV_POSITION
 #if MOBILE_USEBLOOM
 
 	, out HALF4_TYPE OutColor : SV_Target0
@@ -280,13 +305,27 @@ void BloomPS_Mobile(
 	half3 AverageColor = 0.0f;
 
 #if MOBILE_USEBLOOM || MOBILE_USESUN || MOBILE_USEEYEADAPTATION
-	half4 C0 = SceneColorTexture.Sample(SceneColorSampler, InUVs[0]);
-	half4 C1 = SceneColorTexture.Sample(SceneColorSampler, InUVs[1]);
-	half4 C2 = SceneColorTexture.Sample(SceneColorSampler, InUVs[2]);
-	half4 C3 = SceneColorTexture.Sample(SceneColorSampler, InUVs[3]);
+
+	half NeighborsFinalWeight = 0;
+	float3 NeighborsColor = 0;
+
+	// Filter input pixels. Referenced from the FilterCurrentFrameInputSamples in TemporalAA.usf
+	for (uint i = 0; i < 5; i++)
+	{
+ 		float2 PPCk = SvPosition.xy + TemporalJitterPixels;
+ 
+		float2 TexCoords = BufferSizeAndInvSize.zw * (kOffsets[i] + PPCk);
+		half3 SampleColor = SceneColorTexture.Sample(SceneColorSampler, TexCoords).rgb;
+		half SampleHdrWeight = HdrWeight4(SampleColor);
+		half SampleSpatialWeight = GET_SCALAR_ARRAY_ELEMENT(PlusWeights, i);
+		half SampleFinalWeight = SampleSpatialWeight * SampleHdrWeight;
+
+		NeighborsColor += SampleFinalWeight * SampleColor;
+		NeighborsFinalWeight += SampleFinalWeight;
+	}
 
 	// Output color is average.
-	AverageColor.rgb = (C0.rgb * 0.25) + (C1.rgb * 0.25) + (C2.rgb * 0.25) + (C3.rgb * 0.25);
+	AverageColor.rgb = NeighborsColor * rcp(NeighborsFinalWeight);
 
 	#if METAL_MSAA_HDR_DECODE
 		// This should really happen before the average, instead doing after average as optimization.
