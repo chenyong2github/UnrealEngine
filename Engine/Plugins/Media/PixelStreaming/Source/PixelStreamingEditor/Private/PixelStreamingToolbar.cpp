@@ -72,7 +72,7 @@ namespace UE::EditorPixelStreaming
 				IPixelStreamingEditorModule::Get().StartStreaming(EStreamTypes::LevelEditorViewport);
 			}),
 			FCanExecuteAction::CreateLambda([] {
-				if (TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().GetStreamer("Editor"))
+				if (TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().FindStreamer("Editor"))
 				{
 					return !Streamer->IsStreaming();
 				}
@@ -85,7 +85,7 @@ namespace UE::EditorPixelStreaming
 				IPixelStreamingEditorModule::Get().StartStreaming(EStreamTypes::Editor);
 			}),
 			FCanExecuteAction::CreateLambda([] {
-				if (TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().GetStreamer("Editor"))
+				if (TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().FindStreamer("Editor"))
 				{
 					return !Streamer->IsStreaming();
 				}
@@ -318,7 +318,7 @@ namespace UE::EditorPixelStreaming
 					  .AutoWidth()
 						  [SNew(SEditableTextBox)
 								  .Text_Lambda([]() {
-									  TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().GetStreamer("Editor");
+									  TSharedPtr<IPixelStreamingStreamer> Streamer = IPixelStreamingModule::Get().FindStreamer("Editor");
 									  return FText::FromString(Streamer->GetSignallingServerURL());
 								  })
 								  .OnTextChanged_Lambda([](const FText& InText) {

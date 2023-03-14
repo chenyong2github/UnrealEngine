@@ -34,6 +34,7 @@ namespace UE::PixelStreaming
 		virtual TSharedPtr<IPixelStreamingStreamer> CreateStreamer(const FString& StreamerId) override;
 		virtual TArray<FString> GetStreamerIds() override;
 		virtual TSharedPtr<IPixelStreamingStreamer> GetStreamer(const FString& StreamerId) override;
+		virtual TSharedPtr<IPixelStreamingStreamer> FindStreamer(const FString& StreamerId) override;
 		virtual TSharedPtr<IPixelStreamingStreamer> DeleteStreamer(const FString& StreamerId) override;
 		void DeleteStreamer(TSharedPtr<IPixelStreamingStreamer> ToBeDeleted) override;
 		virtual FString GetDefaultStreamerID() override;
@@ -80,7 +81,7 @@ namespace UE::PixelStreaming
 		TArray<UPixelStreamingInput*> InputComponents;
 		TSharedPtr<FVideoSourceGroup> ExternalVideoSourceGroup;
 		mutable FCriticalSection StreamersCS;
-		TMap<FString, TSharedPtr<IPixelStreamingStreamer>> Streamers;
+		TMap<FString, TWeakPtr<IPixelStreamingStreamer>> Streamers;
 		TSharedPtr<IPixelStreamingStreamer> DefaultStreamer;
 	};
 } // namespace UE::PixelStreaming

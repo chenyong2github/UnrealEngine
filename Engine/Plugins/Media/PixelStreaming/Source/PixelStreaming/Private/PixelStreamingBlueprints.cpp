@@ -11,12 +11,12 @@
 void UPixelStreamingBlueprints::SendFileAsByteArray(TArray<uint8> ByteArray, FString MimeType, FString FileExtension)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID());
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(Module->GetDefaultStreamerID());
+	if (!Streamer)
 	{
 		return;
 	}
@@ -27,12 +27,12 @@ void UPixelStreamingBlueprints::SendFileAsByteArray(TArray<uint8> ByteArray, FSt
 void UPixelStreamingBlueprints::StreamerSendFileAsByteArray(FString StreamerId, TArray<uint8> ByteArray, FString MimeType, FString FileExtension)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(StreamerId);
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(StreamerId);
+	if (!Streamer)
 	{
 		return;
 	}
@@ -43,62 +43,62 @@ void UPixelStreamingBlueprints::StreamerSendFileAsByteArray(FString StreamerId, 
 void UPixelStreamingBlueprints::SendFile(FString FilePath, FString MimeType, FString FileExtension)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID());
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(Module->GetDefaultStreamerID());
+	if (!Streamer)
 	{
 		return;
 	}
-	
+
 	TArray64<uint8> ByteData;
 	bool bSuccess = FFileHelper::LoadFileToArray(ByteData, *FilePath);
-	if(bSuccess)
+	if (bSuccess)
 	{
 		Streamer->SendFileData(ByteData, MimeType, FileExtension);
 	}
 	else
 	{
 		UE_LOG(LogPixelStreaming, Error, TEXT("FileHelper failed to load file data"));
-	}	
+	}
 }
 
 void UPixelStreamingBlueprints::StreamerSendFile(FString StreamerId, FString FilePath, FString MimeType, FString FileExtension)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(StreamerId);
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(StreamerId);
+	if (!Streamer)
 	{
 		return;
 	}
-	
+
 	TArray64<uint8> ByteData;
 	bool bSuccess = FFileHelper::LoadFileToArray(ByteData, *FilePath);
-	if(bSuccess)
+	if (bSuccess)
 	{
 		Streamer->SendFileData(ByteData, MimeType, FileExtension);
 	}
 	else
 	{
 		UE_LOG(LogPixelStreaming, Error, TEXT("FileHelper failed to load file data"));
-	}	
+	}
 }
 
 void UPixelStreamingBlueprints::ForceKeyFrame()
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID());
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(Module->GetDefaultStreamerID());
+	if (!Streamer)
 	{
 		return;
 	}
@@ -108,42 +108,42 @@ void UPixelStreamingBlueprints::ForceKeyFrame()
 void UPixelStreamingBlueprints::FreezeFrame(UTexture2D* Texture)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID());
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(Module->GetDefaultStreamerID());
+	if (!Streamer)
 	{
 		return;
 	}
-	Streamer->FreezeStream(Texture);	
+	Streamer->FreezeStream(Texture);
 }
 
 void UPixelStreamingBlueprints::StreamerFreezeStream(FString StreamerId, UTexture2D* Texture)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(StreamerId);
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(StreamerId);
+	if (!Streamer)
 	{
 		return;
 	}
-	Streamer->FreezeStream(Texture);	
+	Streamer->FreezeStream(Texture);
 }
 
 void UPixelStreamingBlueprints::UnfreezeFrame()
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID());
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(Module->GetDefaultStreamerID());
+	if (!Streamer)
 	{
 		return;
 	}
@@ -153,12 +153,12 @@ void UPixelStreamingBlueprints::UnfreezeFrame()
 void UPixelStreamingBlueprints::StreamerUnfreezeStream(FString StreamerId)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(StreamerId);
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(StreamerId);
+	if (!Streamer)
 	{
 		return;
 	}
@@ -168,12 +168,12 @@ void UPixelStreamingBlueprints::StreamerUnfreezeStream(FString StreamerId)
 void UPixelStreamingBlueprints::KickPlayer(FString PlayerId)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID());
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(Module->GetDefaultStreamerID());
+	if (!Streamer)
 	{
 		return;
 	}
@@ -183,12 +183,12 @@ void UPixelStreamingBlueprints::KickPlayer(FString PlayerId)
 void UPixelStreamingBlueprints::StreamerKickPlayer(FString StreamerId, FString PlayerId)
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		return;
 	}
-	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(StreamerId);
-	if(!Streamer)
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->FindStreamer(StreamerId);
+	if (!Streamer)
 	{
 		return;
 	}
@@ -198,7 +198,7 @@ void UPixelStreamingBlueprints::StreamerKickPlayer(FString StreamerId, FString P
 FString UPixelStreamingBlueprints::GetDefaultStreamerID()
 {
 	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
-	if(!Module)
+	if (!Module)
 	{
 		FString();
 	}

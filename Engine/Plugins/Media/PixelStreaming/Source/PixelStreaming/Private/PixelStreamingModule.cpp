@@ -240,7 +240,7 @@ namespace UE::PixelStreaming
 
 	TSharedPtr<IPixelStreamingStreamer> FPixelStreamingModule::CreateStreamer(const FString& StreamerId)
 	{
-		TSharedPtr<IPixelStreamingStreamer> ExistingStreamer = GetStreamer(StreamerId);
+		TSharedPtr<IPixelStreamingStreamer> ExistingStreamer = FindStreamer(StreamerId);
 		if (ExistingStreamer)
 		{
 			return ExistingStreamer;
@@ -284,10 +284,15 @@ namespace UE::PixelStreaming
 
 	TSharedPtr<IPixelStreamingStreamer> FPixelStreamingModule::GetStreamer(const FString& StreamerId)
 	{
+		return FindStreamer(StreamerId);
+	}
+
+	TSharedPtr<IPixelStreamingStreamer> FPixelStreamingModule::FindStreamer(const FString& StreamerId)
+	{
 		FScopeLock Lock(&StreamersCS);
 		if (Streamers.Contains(StreamerId))
 		{
-			return Streamers[StreamerId];
+			return Streamers[StreamerId].Pin();
 		}
 		return nullptr;
 	}
@@ -298,7 +303,7 @@ namespace UE::PixelStreaming
 		FScopeLock Lock(&StreamersCS);
 		if (Streamers.Contains(StreamerId))
 		{
-			ToBeDeleted = Streamers[StreamerId];
+			ToBeDeleted = Streamers[StreamerId].Pin();
 			Streamers.Remove(StreamerId);
 		}
 		return ToBeDeleted;
@@ -382,7 +387,7 @@ namespace UE::PixelStreaming
 		}
 		for (auto&& StreamerId : KeySet)
 		{
-			if (TSharedPtr<IPixelStreamingStreamer> Streamer = GetStreamer(StreamerId))
+			if (TSharedPtr<IPixelStreamingStreamer> Streamer = FindStreamer(StreamerId))
 			{
 				Func(Streamer);
 			}

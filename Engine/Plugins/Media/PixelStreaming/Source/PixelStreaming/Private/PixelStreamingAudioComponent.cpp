@@ -89,7 +89,7 @@ bool UPixelStreamingAudioComponent::StreamerListenTo(FString StreamerId, FString
 		StreamerToHear = StreamerId;
 	}
 
-	TSharedPtr<IPixelStreamingStreamer> Streamer = PixelStreamingModule.GetStreamer(StreamerToHear);
+	TSharedPtr<IPixelStreamingStreamer> Streamer = PixelStreamingModule.FindStreamer(StreamerToHear);
 	if (!Streamer)
 	{
 		return false;

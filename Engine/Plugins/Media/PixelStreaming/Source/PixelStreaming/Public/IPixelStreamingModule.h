@@ -95,10 +95,18 @@ public:
 	virtual TArray<FString> GetStreamerIds() = 0;
 
 	/**
-	 * Get a streamer by an ID.
+	 * Get a streamer by an ID. 
+	 * // This method has been renamed as the module isn't responsible for a Streamer's lifetime, so renaming to Find as opposed to Get makes this more obvious
 	 * @return A pointer to the interface for a streamer. nullptr if the streamer isn't found
 	 */
+	UE_DEPRECATED(5.2, "GetStreamer() is deprecated. Please use FindStreamer instead.")
 	virtual TSharedPtr<IPixelStreamingStreamer> GetStreamer(const FString& StreamerId) = 0;
+
+	/**
+	 * Find a streamer by an ID.
+	 * @return A pointer to the interface for a streamer. nullptr if the streamer isn't found
+	 */
+	virtual TSharedPtr<IPixelStreamingStreamer> FindStreamer(const FString& StreamerId) = 0;
 
 	/**
 	 * Remove a streamer by an ID
