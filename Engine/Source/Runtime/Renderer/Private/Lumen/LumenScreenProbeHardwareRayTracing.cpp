@@ -83,22 +83,22 @@ namespace LumenScreenProbeGather
 		return false;
 #endif
 	}
+
+	enum class ERayTracingPass
+	{
+		Default,
+		FarField,
+		MAX
+	};
 }
 
 #if RHI_RAYTRACING
-
-enum class ERayTracingPass
-{
-	Default,
-	FarField,
-	MAX
-};
 
 class FLumenScreenProbeGatherHardwareRayTracing : public FLumenHardwareRayTracingShaderBase
 {
 	DECLARE_LUMEN_RAYTRACING_SHADER(FLumenScreenProbeGatherHardwareRayTracing, Lumen::ERayTracingShaderDispatchSize::DispatchSize1D)
 
-	class FRayTracingPass : SHADER_PERMUTATION_ENUM_CLASS("RAY_TRACING_PASS", ERayTracingPass);
+	class FRayTracingPass : SHADER_PERMUTATION_ENUM_CLASS("RAY_TRACING_PASS", LumenScreenProbeGather::ERayTracingPass);
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("DIM_RADIANCE_CACHE");
 	class FStructuredImportanceSamplingDim : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
 	using FPermutationDomain = TShaderPermutationDomain<FRayTracingPass, FRadianceCache, FStructuredImportanceSamplingDim>;
@@ -130,7 +130,7 @@ class FLumenScreenProbeGatherHardwareRayTracing : public FLumenHardwareRayTracin
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::FarField)
+		if (PermutationVector.Get<FRayTracingPass>() == LumenScreenProbeGather::ERayTracingPass::FarField)
 		{
 			PermutationVector.Set<FRadianceCache>(false);
 		}
@@ -155,12 +155,12 @@ class FLumenScreenProbeGatherHardwareRayTracing : public FLumenHardwareRayTracin
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::Default)
+		if (PermutationVector.Get<FRayTracingPass>() == LumenScreenProbeGather::ERayTracingPass::Default)
 		{
 			OutEnvironment.SetDefine(TEXT("ENABLE_NEAR_FIELD_TRACING"), 1);
 		}
 
-		if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::FarField)
+		if (PermutationVector.Get<FRayTracingPass>() == LumenScreenProbeGather::ERayTracingPass::FarField)
 		{
 			OutEnvironment.SetDefine(TEXT("ENABLE_FAR_FIELD_TRACING"), 1);
 		}
@@ -224,7 +224,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 		// Default trace
 		{
 			FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRayTracingPass>(ERayTracingPass::Default);
+			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRayTracingPass>(LumenScreenProbeGather::ERayTracingPass::Default);
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCache>(bUseRadianceCache);
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
 			TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
@@ -236,7 +236,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 		if (bUseFarField)
 		{
 			FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRayTracingPass>(ERayTracingPass::FarField);
+			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRayTracingPass>(LumenScreenProbeGather::ERayTracingPass::FarField);
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCache>(false);
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
 			TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
@@ -340,8 +340,8 @@ void DispatchRayGenOrComputeShader(
 		PassParameters
 	);
 
-	const ERayTracingPass RayTracingPass = PermutationVector.Get<FLumenScreenProbeGatherHardwareRayTracing::FRayTracingPass>();
-	const FString RayTracingPassName = RayTracingPass == ERayTracingPass::FarField ? TEXT("far-field") : TEXT("default");
+	const LumenScreenProbeGather::ERayTracingPass RayTracingPass = PermutationVector.Get<FLumenScreenProbeGatherHardwareRayTracing::FRayTracingPass>();
+	const FString RayTracingPassName = RayTracingPass == LumenScreenProbeGather::ERayTracingPass::FarField ? TEXT("far-field") : TEXT("default");
 
 	if (bInlineRayTracing)
 	{
@@ -413,7 +413,7 @@ void RenderHardwareRayTracingScreenProbe(
 			ComputePassFlags);
 
 		FLumenScreenProbeGatherHardwareRayTracing::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FRayTracingPass>(ERayTracingPass::Default);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FRayTracingPass>(LumenScreenProbeGather::ERayTracingPass::Default);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FRadianceCache>(bUseRadianceCache);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FStructuredImportanceSamplingDim>(bUseImportanceSampling);
 		PermutationVector = FLumenScreenProbeGatherHardwareRayTracing::RemapPermutation(PermutationVector);
@@ -436,7 +436,7 @@ void RenderHardwareRayTracingScreenProbe(
 			ComputePassFlags);
 
 		FLumenScreenProbeGatherHardwareRayTracing::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FRayTracingPass>(ERayTracingPass::FarField);
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FRayTracingPass>(LumenScreenProbeGather::ERayTracingPass::FarField);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FRadianceCache>(false);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracing::FStructuredImportanceSamplingDim>(bUseImportanceSampling);
 		PermutationVector = FLumenScreenProbeGatherHardwareRayTracing::RemapPermutation(PermutationVector);

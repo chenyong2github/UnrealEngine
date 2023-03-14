@@ -89,21 +89,24 @@ bool LumenReflections::UseFarField(const FSceneViewFamily& ViewFamily)
 #endif
 }
 
-#if RHI_RAYTRACING
-
-enum class ERayTracingPass
+namespace LumenReflections
 {
-	Default,
-	FarField,
-	HitLighting,
-	MAX
-};
+	enum class ERayTracingPass
+	{
+		Default,
+		FarField,
+		HitLighting,
+		MAX
+	};
+}
+
+#if RHI_RAYTRACING
 
 class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShaderBase
 {
 	DECLARE_LUMEN_RAYTRACING_SHADER(FLumenReflectionHardwareRayTracing, Lumen::ERayTracingShaderDispatchSize::DispatchSize1D)
 
-	class FRayTracingPass : SHADER_PERMUTATION_ENUM_CLASS("RAY_TRACING_PASS", ERayTracingPass);
+	class FRayTracingPass : SHADER_PERMUTATION_ENUM_CLASS("RAY_TRACING_PASS", LumenReflections::ERayTracingPass);
 	class FWriteDataForHitLightingPass : SHADER_PERMUTATION_BOOL("WRITE_DATA_FOR_HIT_LIGHTING_PASS");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("DIM_RADIANCE_CACHE");
 	class FHairStrandsOcclusionDim : SHADER_PERMUTATION_BOOL("DIM_HAIRSTRANDS_VOXEL");
@@ -139,17 +142,17 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::Default)
+		if (PermutationVector.Get<FRayTracingPass>() == LumenReflections::ERayTracingPass::Default)
 		{
 			PermutationVector.Set<FRecursiveReflectionTraces>(false);
 		}
-		else if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::FarField)
+		else if (PermutationVector.Get<FRayTracingPass>() == LumenReflections::ERayTracingPass::FarField)
 		{
 			PermutationVector.Set<FRecursiveReflectionTraces>(false);
 			PermutationVector.Set<FRadianceCache>(false);
 			PermutationVector.Set<FHairStrandsOcclusionDim>(false);
 		}
-		else if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::HitLighting)
+		else if (PermutationVector.Get<FRayTracingPass>() == LumenReflections::ERayTracingPass::HitLighting)
 		{
 			PermutationVector.Set<FWriteDataForHitLightingPass>(false);
 		}
@@ -166,7 +169,7 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 			return false;
 		}
 
-		if (ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline && PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::HitLighting)
+		if (ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline && PermutationVector.Get<FRayTracingPass>() == LumenReflections::ERayTracingPass::HitLighting)
 		{
 			return false;
 		}
@@ -180,12 +183,12 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::Default)
+		if (PermutationVector.Get<FRayTracingPass>() == LumenReflections::ERayTracingPass::Default)
 		{
 			OutEnvironment.SetDefine(TEXT("ENABLE_NEAR_FIELD_TRACING"), 1);
 		}
 
-		if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::FarField)
+		if (PermutationVector.Get<FRayTracingPass>() == LumenReflections::ERayTracingPass::FarField)
 		{
 			OutEnvironment.SetDefine(TEXT("ENABLE_FAR_FIELD_TRACING"), 1);
 		}
@@ -194,7 +197,7 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
 		FPermutationDomain PermutationVector(PermutationId);
-		if (PermutationVector.Get<FRayTracingPass>() == ERayTracingPass::HitLighting)
+		if (PermutationVector.Get<FRayTracingPass>() == LumenReflections::ERayTracingPass::HitLighting)
 		{
 			return ERayTracingPayloadType::RayTracingMaterial;
 		}
@@ -246,7 +249,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(co
 		for (int32 HairOcclusion = 0; HairOcclusion < 2; HairOcclusion++)
 		{
 			FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>(ERayTracingPass::HitLighting);
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>(LumenReflections::ERayTracingPass::HitLighting);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FWriteDataForHitLightingPass>(false);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRadianceCache>(false);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FHairStrandsOcclusionDim>(HairOcclusion != 0);
@@ -274,7 +277,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 			for (int32 HairOcclusion = 0; HairOcclusion < 2; ++HairOcclusion)
 			{
 				FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>(ERayTracingPass::Default);
+				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>(LumenReflections::ERayTracingPass::Default);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FWriteDataForHitLightingPass>(bUseHitLighting);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRadianceCache>(RadianceCache != 0);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FHairStrandsOcclusionDim>(HairOcclusion != 0);
@@ -288,7 +291,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 		if (bUseFarField)
 		{
 			FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>(ERayTracingPass::FarField);
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>(LumenReflections::ERayTracingPass::FarField);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FWriteDataForHitLightingPass>(bUseHitLighting);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FRadianceCache>(false);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FHairStrandsOcclusionDim>(false);
@@ -428,8 +431,8 @@ void DispatchRayGenOrComputeShader(
 		PassParameters
 	);
 	
-	const ERayTracingPass RayTracingPass = PermutationVector.Get<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>();
-	const FString RayTracingPassName = RayTracingPass == ERayTracingPass::HitLighting ? TEXT("hit-lighting") : (RayTracingPass == ERayTracingPass::FarField ? TEXT("far-field") : TEXT("default"));
+	const LumenReflections::ERayTracingPass RayTracingPass = PermutationVector.Get<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>();
+	const FString RayTracingPassName = RayTracingPass == LumenReflections::ERayTracingPass::HitLighting ? TEXT("hit-lighting") : (RayTracingPass == LumenReflections::ERayTracingPass::FarField ? TEXT("far-field") : TEXT("default"));
 
 	if (bInlineRayTracing)
 	{
@@ -446,7 +449,7 @@ void DispatchRayGenOrComputeShader(
 	}
 	else
 	{
-		const bool bUseMinimalPayload = RayTracingPass != ERayTracingPass::HitLighting;
+		const bool bUseMinimalPayload = RayTracingPass != LumenReflections::ERayTracingPass::HitLighting;
 
 		TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);		
 
@@ -511,7 +514,7 @@ void RenderLumenHardwareRayTracingReflections(
 		const bool bWriteFinalLighting = !bIsHitLightingForceEnabled || !bUseFarFieldForReflections;
 
 		FLumenReflectionHardwareRayTracing::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRayTracingPass>(ERayTracingPass::Default);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRayTracingPass>(LumenReflections::ERayTracingPass::Default);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FWriteDataForHitLightingPass>(bUseHitLighting);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRadianceCache>(bUseRadianceCache);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FHairStrandsOcclusionDim>(bNeedTraceHairVoxel);
@@ -541,7 +544,7 @@ void RenderLumenHardwareRayTracingReflections(
 		bool bHitLightingRetrace = false;
 
 		FLumenReflectionHardwareRayTracing::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRayTracingPass>(ERayTracingPass::FarField);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRayTracingPass>(LumenReflections::ERayTracingPass::FarField);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FWriteDataForHitLightingPass>(bUseHitLighting);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRadianceCache>(false);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FHairStrandsOcclusionDim>(false);
@@ -575,7 +578,7 @@ void RenderLumenHardwareRayTracingReflections(
 			bool bUseInline = false;
 
 			FLumenReflectionHardwareRayTracing::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRayTracingPass>(ERayTracingPass::HitLighting);
+			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRayTracingPass>(LumenReflections::ERayTracingPass::HitLighting);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FWriteDataForHitLightingPass>(false);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRadianceCache>(false);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracing::FHairStrandsOcclusionDim>(bNeedTraceHairVoxel);
