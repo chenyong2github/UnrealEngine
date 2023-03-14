@@ -1713,11 +1713,7 @@ FMatrix FProjectedShadowInfo::GetScreenToShadowMatrix(const FSceneView& View, ui
 		// Z of the position being transformed is actually view space Z, 
 			// Transform it into post projection space by applying the projection matrix,
 			// Which is the required space before applying View.InvTranslatedViewProjectionMatrix
-		FMatrix(
-			FPlane(1,0,0,0),
-			FPlane(0,1,0,0),
-			FPlane(0,0,View.ViewMatrices.GetProjectionMatrix().M[2][2],1),
-			FPlane(0,0,View.ViewMatrices.GetProjectionMatrix().M[3][2],0)) *
+		View.ViewMatrices.GetScreenToClipMatrix() *
 		// Transform the post projection space position into translated world space
 		// Translated world space is normal world space translated to the view's origin, 
 		// Which prevents floating point imprecision far from the world origin.

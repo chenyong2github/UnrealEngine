@@ -1208,9 +1208,16 @@ float ConvertFromDeviceZ(float DeviceZ)
 }
 
 // Returns whether or not the given projection matrix is orthographic
+// Utilises asuint call to reduce compare to 1ALU cost
 bool IsOrthoProjection(float4x4 ViewToClip)
 {
-	return ViewToClip[3][3] >= 1.0f;
+	return asuint(ViewToClip._44);
+}
+
+// Returns whether or not the default view is orthographic
+bool IsOrthoProjection()
+{
+	return IsOrthoProjection(View.ViewToClip);
 }
 
 // inverse operation of ConvertFromDeviceZ()
@@ -1234,6 +1241,21 @@ float ConvertToDeviceZ(float SceneDepth)
 float2 ScreenPositionToBufferUV(float4 ScreenPosition)
 {
 	return float2(ScreenPosition.xy / ScreenPosition.w * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz);
+}
+
+float3 ScreenVectorFromScreenRect(float4 Position)
+{
+	//Screen rect does not include scene depth. Perspective projection requires ScreenToTranslated world matrix
+	//Ortho Screen to View in this context is 1:1 so uses the ViewToTranslatedMatrix only
+	return select(IsOrthoProjection(), mul(Position, View.ViewToTranslatedWorld), mul(Position,View.ScreenToTranslatedWorld)).xyz;
+}
+
+// Returns the screen position for projection matrix calculations depending on the type of projection the view is using
+float2 GetScreenPositionForProjectionType(float2 ScreenPosition, float SceneDepth)
+{
+	// For perspective projection matrix, the scene depth is required as part of the clip to view calculations
+	// For orthogonal projection matrix, scene depth should not be used
+	return select(IsOrthoProjection(), ScreenPosition, ScreenPosition * SceneDepth);
 }
 
 float2 SvPositionToBufferUV(float4 SvPosition)
@@ -1344,7 +1366,7 @@ float3 ScreenToViewPos(float2 ViewportUV, float SceneDepth)
 
 	ProjViewPos.x =  ViewportUV.x * View.ScreenToViewSpace.x  + View.ScreenToViewSpace.z;
 	ProjViewPos.y =  ViewportUV.y * View.ScreenToViewSpace.y  + View.ScreenToViewSpace.w;
-	return float3(ProjViewPos * SceneDepth, SceneDepth);
+	return float3(GetScreenPositionForProjectionType(ProjViewPos, SceneDepth), SceneDepth);
 }
 
 // ----------------------------

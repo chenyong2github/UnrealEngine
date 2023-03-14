@@ -278,6 +278,7 @@ struct FViewMatrices
 		OverriddenInvTranslatedViewMatrix.SetIdentity();
 		TranslatedViewProjectionMatrix.SetIdentity();
 		InvTranslatedViewProjectionMatrix.SetIdentity();
+		ScreenToClipMatrix.SetIdentity();
 		PreViewTranslation = FVector::ZeroVector;
 		ViewOrigin = FVector::ZeroVector;
 		ProjectionScale = FVector2D::ZeroVector;
@@ -320,6 +321,8 @@ private:
 	FMatrix		TranslatedViewProjectionMatrix;
 	/** The inverse view-projection transform, ending with world-space points translated by -ViewOrigin. */
 	FMatrix		InvTranslatedViewProjectionMatrix;
+	/** The screen to clip matrix (defined depending on whether this is a perspective or ortho projection view)*/
+	FMatrix		ScreenToClipMatrix;
 	/** The translation to apply to the world before TranslatedViewProjectionMatrix. Usually it is -ViewOrigin but with rereflections this can differ */
 	FVector		PreViewTranslation;
 	/** To support ortho and other modes this is redundant, in world space */
@@ -421,6 +424,11 @@ public:
 		return InvTranslatedViewProjectionMatrix;
 	}
 
+	inline const FMatrix& GetScreenToClipMatrix() const
+	{
+		return ScreenToClipMatrix;
+	}
+
 	inline const FVector& GetPreViewTranslation() const
 	{
 		return PreViewTranslation;
@@ -446,6 +454,42 @@ public:
 	{
 		return ProjectionMatrix.M[3][3] < 1.0f;
 	}
+
+	inline FVector2f GetInvTanHalfFov(bool YAxis = false) const
+	{
+		//No concept of FOV for orthographic projection so only return perspective related values or 1.0f
+		if (IsPerspectiveProjection())
+		{
+			return FVector2f(static_cast<float>(ProjectionMatrix.M[0][0]), static_cast<float>(ProjectionMatrix.M[1][1]));
+		}
+		return  FVector2f(1.0f, 1.0f);
+	}
+
+	inline FVector2f GetTanHalfFov() const
+	{
+		//No concept of FOV for orthographic projection so only return perspective related values or 1.0f
+		if (IsPerspectiveProjection())
+		{
+			return FVector2f(static_cast<float>(InvProjectionMatrix.M[0][0]), static_cast<float>(InvProjectionMatrix.M[1][1]));
+		}
+		return  FVector2f(1.0f,1.0f);
+	}
+
+	//Used for initializing the View Uniform Buffer TanAndInvTanHalfFOV variable without repeated calls to IsPerspectiveProjection
+	inline FVector4f GetTanAndInvTanHalfFOV() const
+	{
+		//No concept of FOV for orthographic projection so only return perspective related values or 1.0f
+		if (IsPerspectiveProjection())
+		{
+			FVector4f(static_cast<float>(InvProjectionMatrix.M[0][0]), //ClipToView[0][0] - X axis
+					  static_cast<float>(InvProjectionMatrix.M[1][1]), //ClipToView[1][1] - Y axis
+					  static_cast<float>(ProjectionMatrix.M[0][0]), //ViewToClip[0][0] - X axis
+					  static_cast<float>(ProjectionMatrix.M[1][1])); //ViewToClip[1][1] - Y axis
+		}
+		return FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
+	FMatrix ScreenToClipProjectionMatrix() const;
 
 	ENGINE_API void HackOverrideViewMatrixForShadows(const FMatrix& InViewMatrix);
 
@@ -835,6 +879,8 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(uint32, GPUSceneViewId) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, ViewResolutionFraction) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, SubSurfaceColorAsTransmittanceAtDistanceInMeters) \
+	VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FVector4f, TanAndInvTanHalfFOV) \
+	VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FVector4f, PrevTanAndInvTanHalfFOV) \
 
 /** The uniform shader parameters associated with a view. */
 #define VIEW_UNIFORM_BUFFER_MEMBER(type, identifier) \

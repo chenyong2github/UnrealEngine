@@ -574,6 +574,7 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 	// Adjust the projection matrix for the current RHI.
 	ProjectionMatrix = AdjustProjectionMatrixForRHI(Initializer.ProjectionMatrix);
 	InvProjectionMatrix = InvertProjectionMatrix(ProjectionMatrix);
+	ScreenToClipMatrix = ScreenToClipProjectionMatrix();
 
 	// Compute the view projection matrix and its inverse.
 	ViewProjectionMatrix = GetViewMatrix() * GetProjectionMatrix();
@@ -589,6 +590,7 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 	FMatrix LocalTranslatedViewMatrix = ViewRotationMatrix;
 	FMatrix LocalInvTranslatedViewMatrix = LocalTranslatedViewMatrix.GetTransposed();
 
+	//TODO(OrthoRendering) - Review bUseFauxOrthoViewPos paths + possibly deprecate
 	if (!IsPerspectiveProjection() && Initializer.bUseFauxOrthoViewPos)
 	{
 		auto DistanceToViewOrigin = UE_OLD_WORLD_MAX;
@@ -614,8 +616,16 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 	// Stereo renders at half horizontal resolution, but compute shadow resolution based on full resolution.
 	const bool bStereo = IStereoRendering::IsStereoEyePass(Initializer.StereoPass);
 	const float ScreenXScale = bStereo ? 2.0f : 1.0f;
-	ProjectionScale.X = ScreenXScale * FMath::Abs(ProjectionMatrix.M[0][0]);
-	ProjectionScale.Y = FMath::Abs(ProjectionMatrix.M[1][1]);
+	if (IsPerspectiveProjection())
+	{
+		ProjectionScale.X = ScreenXScale * FMath::Abs(ProjectionMatrix.M[0][0]);
+		ProjectionScale.Y = FMath::Abs(ProjectionMatrix.M[1][1]);
+	}
+	else
+	{
+		//No FOV for ortho so do not scale
+		ProjectionScale = FVector2D(ScreenXScale, 1.0f);
+	}
 	ScreenScale = FMath::Max(
 		Initializer.ConstrainedViewRect.Size().X * 0.5f * ProjectionScale.X,
 		Initializer.ConstrainedViewRect.Size().Y * 0.5f * ProjectionScale.Y
@@ -1086,6 +1096,27 @@ void FViewMatrices::UpdateViewMatrix(const FVector& ViewLocation, const FRotator
 	// Compute a transform from view origin centered world-space to clip space.
 	TranslatedViewProjectionMatrix = GetTranslatedViewMatrix() * GetProjectionMatrix();
 	InvTranslatedViewProjectionMatrix = GetInvProjectionMatrix() * GetInvTranslatedViewMatrix();
+}
+
+FMatrix FViewMatrices::ScreenToClipProjectionMatrix() const
+{
+	//Screen to clip matrix should not utilise scene depth for the w component in ortho projections, but is needed for perspective
+	if (IsPerspectiveProjection())
+	{
+		return FMatrix(
+			FPlane(1, 0, 0, 0),
+			FPlane(0, 1, 0, 0),
+			FPlane(0, 0, ProjectionMatrix.M[2][2], 1.0f),
+			FPlane(0, 0, ProjectionMatrix.M[3][2], 0.0f));
+	}
+	else
+	{
+		return FMatrix(
+			FPlane(1, 0, 0, 0),
+			FPlane(0, 1, 0, 0),
+			FPlane(0, 0, ProjectionMatrix.M[2][2], 0.0f),
+			FPlane(0, 0, ProjectionMatrix.M[3][2], 1.0f));
+	}
 }
 
 void FViewMatrices::HackOverrideViewMatrixForShadows(const FMatrix& InViewMatrix)
@@ -2508,19 +2539,26 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 				FPlane(0, 0, 1, 0),
 				FPlane(Ax, Ay, 0, 1)) * InViewMatrices.GetInvTranslatedViewProjectionMatrix());
 	}
+	
+	{
+		/**
+		* Ortho projection does not use FOV calculations, so rather than sourcing the projection matrix values in CommonViewUniformBuffer.ush,
+		* the appropriate values are uploaded in the per view uniform buffer (projection matrix values for perspective, 1.0f for ortho).
+		* Doing this here avoids unnecessarily checking for perspective vs ortho in shaders at runtime.
+		*/
 
-	// Compute coefficients which takes a screen UV and converts to Viewspace.xy / ViewZ
-	float InvTanHalfFov = InViewMatrices.GetProjectionMatrix().M[0][0];
-	float Ratio = UnscaledViewRect.Width() / (float)UnscaledViewRect.Height();
+		ViewUniformShaderParameters.TanAndInvTanHalfFOV = InViewMatrices.GetTanAndInvTanHalfFOV();
+		ViewUniformShaderParameters.PrevTanAndInvTanHalfFOV = InPrevViewMatrices.GetTanAndInvTanHalfFOV();
+	}
+	
+	float FovFixX = ViewUniformShaderParameters.TanAndInvTanHalfFOV.X;
+	float FovFixY = ViewUniformShaderParameters.TanAndInvTanHalfFOV.Y;
 
-	float InvFovFixX = 1.0f / (InvTanHalfFov);
-	float InvFovFixY = 1.0f / (Ratio * InvTanHalfFov);
+	ViewUniformShaderParameters.ScreenToViewSpace.X = BufferSize.X * ViewUniformShaderParameters.ViewSizeAndInvSize.Z * 2 * FovFixX;
+	ViewUniformShaderParameters.ScreenToViewSpace.Y = BufferSize.Y * ViewUniformShaderParameters.ViewSizeAndInvSize.W  * -2 * FovFixY;
 
-	ViewUniformShaderParameters.ScreenToViewSpace.X = BufferSize.X * ViewUniformShaderParameters.ViewSizeAndInvSize.Z * 2 * InvFovFixX;
-	ViewUniformShaderParameters.ScreenToViewSpace.Y = BufferSize.Y * ViewUniformShaderParameters.ViewSizeAndInvSize.W  * -2 * InvFovFixY;
-
-	ViewUniformShaderParameters.ScreenToViewSpace.Z = -((ViewUniformShaderParameters.ViewRectMin.X * ViewUniformShaderParameters.ViewSizeAndInvSize.Z * 2 * InvFovFixX) + InvFovFixX);
-	ViewUniformShaderParameters.ScreenToViewSpace.W = (ViewUniformShaderParameters.ViewRectMin.Y * ViewUniformShaderParameters.ViewSizeAndInvSize.W * 2 * InvFovFixY) + InvFovFixY;
+	ViewUniformShaderParameters.ScreenToViewSpace.Z = -((ViewUniformShaderParameters.ViewRectMin.X * ViewUniformShaderParameters.ViewSizeAndInvSize.Z * 2 * FovFixX) + FovFixX);
+	ViewUniformShaderParameters.ScreenToViewSpace.W = (ViewUniformShaderParameters.ViewRectMin.Y * ViewUniformShaderParameters.ViewSizeAndInvSize.W * 2 * FovFixY) + FovFixY;
 
 	ViewUniformShaderParameters.ViewResolutionFraction = EffectiveViewRect.Width() / (float)UnscaledViewRect.Width();
 
@@ -2637,33 +2675,17 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 
 	ViewUniformShaderParameters.bCheckerboardSubsurfaceProfileRendering = 0;
 
-	const FMatrix44f ScreenToClip(FPlane4f(1, 0, 0, 0),
-		FPlane4f(0, 1, 0, 0),
-		FPlane4f(0, 0, ProjectionMatrixUnadjustedForRHI.M[2][2], 1),
-		FPlane4f(0, 0, ProjectionMatrixUnadjustedForRHI.M[3][2], 0));
-	ViewUniformShaderParameters.ScreenToRelativeWorld = ScreenToClip * ViewUniformShaderParameters.ClipToRelativeWorld;
+	ViewUniformShaderParameters.ScreenToRelativeWorld = 
+		FMatrix44f(InViewMatrices.GetScreenToClipMatrix()) * ViewUniformShaderParameters.ClipToRelativeWorld;
 
-	ViewUniformShaderParameters.ScreenToTranslatedWorld = FMatrix44f(FMatrix(
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, ProjectionMatrixUnadjustedForRHI.M[2][2], 1),
-		FPlane(0, 0, ProjectionMatrixUnadjustedForRHI.M[3][2], 0))
-		* InViewMatrices.GetInvTranslatedViewProjectionMatrix());
+	ViewUniformShaderParameters.ScreenToTranslatedWorld = 
+		FMatrix44f(InViewMatrices.GetScreenToClipMatrix() * InViewMatrices.GetInvTranslatedViewProjectionMatrix());
 
-	ViewUniformShaderParameters.MobileMultiviewShadowTransform = FMatrix44f(FMatrix(
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, InViewMatrices.GetProjectionMatrix().M[2][2], 1),
-		FPlane(0, 0, InViewMatrices.GetProjectionMatrix().M[3][2], 0)) *
-		InViewMatrices.GetInvTranslatedViewProjectionMatrix() *
-		FTranslationMatrix(-InViewMatrices.GetPreViewTranslation()));
+	ViewUniformShaderParameters.MobileMultiviewShadowTransform = 
+		FMatrix44f(InViewMatrices.GetScreenToClipMatrix() * InViewMatrices.GetInvTranslatedViewProjectionMatrix() * FTranslationMatrix(-InViewMatrices.GetPreViewTranslation()));
 
-	ViewUniformShaderParameters.PrevScreenToTranslatedWorld = FMatrix44f(FMatrix(
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, ProjectionMatrixUnadjustedForRHI.M[2][2], 1),
-		FPlane(0, 0, ProjectionMatrixUnadjustedForRHI.M[3][2], 0))
-		* InPrevViewMatrices.GetInvTranslatedViewProjectionMatrix());
+	ViewUniformShaderParameters.PrevScreenToTranslatedWorld = 
+		FMatrix44f(InPrevViewMatrices.GetScreenToClipMatrix() * InPrevViewMatrices.GetInvTranslatedViewProjectionMatrix());
 
 	{
 		FVector DeltaTranslation = InPrevViewMatrices.GetPreViewTranslation() - InViewMatrices.GetPreViewTranslation();

@@ -81,7 +81,7 @@ FDerivedParams GetDerivedParams(in FInputParams Input, in float SceneDepth)
 #if LIGHT_SOURCE_SHAPE > 0
 	// With a perspective projection, the clip space position is NDC * Clip.w
 	// With an orthographic projection, clip space is the same as NDC
-	float2 ClipPosition = Input.ScreenPosition.xy / Input.ScreenPosition.w * (View.ViewToClip[3][3] < 1.0f ? SceneDepth : 1.0f);
+	float2 ClipPosition = GetScreenPositionForProjectionType(Input.ScreenPosition.xy / Input.ScreenPosition.w, SceneDepth);
 	Out.TranslatedWorldPosition = mul(float4(ClipPosition, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 	Out.CameraVector = normalize(Out.TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 #else

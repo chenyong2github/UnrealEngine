@@ -41,7 +41,7 @@ void VertexMain(
 	)
 {	
 	DrawFullScreenRect(float4(InPosition.xy, 0, 1), InUV, OutPosition, OutTexCoord);
-	OutScreenVector = mul(float4(OutPosition.xy, 1, 0), View.ScreenToTranslatedWorld).xyz;
+	OutScreenVector = ScreenVectorFromScreenRect(float4(OutPosition.xy, 1, 0));
 }
 #endif
 

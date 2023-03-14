@@ -122,7 +122,7 @@ float ShadowRayCast(
 void GetShadowTerms(float SceneDepth, half4 PrecomputedShadowFactors, uint ShadingModelID, float ContactShadowOpacity, FDeferredLightData LightData, float3 TranslatedWorldPosition, half3 L, half4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
 {
 	float ContactShadowLength = 0.0f;
-	const float ContactShadowLengthScreenScale = View.ClipToView[1][1] * SceneDepth;
+	const float ContactShadowLengthScreenScale = GetTanHalfFieldOfView().y * SceneDepth;
 
 	BRANCH
 	if (LightData.ShadowedBits)
