@@ -3934,7 +3934,8 @@ private:
 
 			if (BuildSettings.bHasColorSpaceDefinition)
 			{
-				Mip->TransformToWorkingColorSpace(
+				FImageCore::TransformToWorkingColorSpace(
+					*Mip,
 					FVector2d(BuildSettings.RedChromaticityCoordinate),
 					FVector2d(BuildSettings.GreenChromaticityCoordinate),
 					FVector2d(BuildSettings.BlueChromaticityCoordinate),

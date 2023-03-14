@@ -459,16 +459,7 @@ public:
 		Linearize(0,DestImage);
 	}
 
-	/**
-	 * Apply a color space transformation from the source chromaticities to the engine's working color space.
-	 *
-	 * @param SourceRedChromaticity - The red chromaticity coordinate of the source color space.
-	 * @param SourceGreenChromaticity - The green chromaticity coordinate of the source color space.
-	 * @param SourceBlueChromaticity - The blue chromaticity coordinate of the source color space.
-	 * @param SourceWhiteChromaticity - The white chromaticity coordinate of the source color space.
-	 * @param Method - The chromatic adapation method.
-	 * @param EqualityTolerance - The tolerance for the source and working color space chromaticities to be considered equal, bypassing the transform.
-	 */
+	UE_DEPRECATED(5.3, "TransformToWorkingColorSpace is deprecated, please use the function in FImageCore.")
 	IMAGECORE_API void TransformToWorkingColorSpace(const FVector2d& SourceRedChromaticity, const FVector2d& SourceGreenChromaticity, const FVector2d& SourceBlueChromaticity, const FVector2d& SourceWhiteChromaticity, UE::Color::EChromaticAdaptationMethod Method, double EqualityTolerance = 1.e-7);
 
 	/**
@@ -714,12 +705,17 @@ IMAGECORE_API void ResizeTo(const FImageView & SourceImage,FImage& DestImage, in
  */
 IMAGECORE_API void ComputeChannelLinearMinMax(const FImage & InImage, FLinearColor & OutMin, FLinearColor & OutMax);
 
+/**
+ * Apply a color space transformation from the source chromaticities to the engine's working color space.
+ *
+ * @param InLinearImage - The image to convert, which must be linear.
+ * @param SourceRedChromaticity - The red chromaticity coordinate of the source color space.
+ * @param SourceGreenChromaticity - The green chromaticity coordinate of the source color space.
+ * @param SourceBlueChromaticity - The blue chromaticity coordinate of the source color space.
+ * @param SourceWhiteChromaticity - The white chromaticity coordinate of the source color space.
+ * @param Method - The chromatic adapation method.
+ * @param EqualityTolerance - The tolerance for the source and working color space chromaticities to be considered equal, bypassing the transform.
+ */
+IMAGECORE_API void TransformToWorkingColorSpace(const FImageView& InLinearImage, const FVector2d& SourceRedChromaticity, const FVector2d& SourceGreenChromaticity, const FVector2d& SourceBlueChromaticity, const FVector2d& SourceWhiteChromaticity, UE::Color::EChromaticAdaptationMethod Method, double EqualityTolerance = 1.e-7);
+
 };
-
-
-// non-namespaced CopyImage for backwards compatibility
-UE_DEPRECATED(5.1,"Use FImageCore::CopyImage")
-FORCEINLINE void CopyImage(const FImageView & SrcImage,const FImageView & DestImage)
-{
-	return FImageCore::CopyImage(SrcImage,DestImage);
-}

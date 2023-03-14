@@ -741,33 +741,7 @@ FORCEINLINE static FLinearColor SaturateToHalfFloat(const FLinearColor& LinearCo
 
 void FImage::TransformToWorkingColorSpace(const FVector2d& SourceRedChromaticity, const FVector2d& SourceGreenChromaticity, const FVector2d& SourceBlueChromaticity, const FVector2d& SourceWhiteChromaticity, UE::Color::EChromaticAdaptationMethod Method, double EqualityTolerance)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.TransformToWorkingColorSpace);
-
-	check(GammaSpace == EGammaSpace::Linear);
-
-	const UE::Color::FColorSpace Source(SourceRedChromaticity, SourceGreenChromaticity, SourceBlueChromaticity, SourceWhiteChromaticity);
-	const UE::Color::FColorSpace& Target = UE::Color::FColorSpace::GetWorking();
-
-	if (Source.Equals(Target, EqualityTolerance))
-	{
-		UE_LOG(LogImageCore, VeryVerbose, TEXT("Source and working color spaces are equal within tolerance, bypass color space transformation."));
-		return;
-	}
-
-	UE::Color::FColorSpaceTransform Transform(Source, Target, Method);
-
-	FLinearColor* ImageColors = AsRGBA32F().GetData();
-
-	const int64 NumTexels = int64(SizeX) * SizeY * NumSlices;
-	int64 TexelsPerJob;
-	int32 NumJobs = ImageParallelForComputeNumJobsForPixels(TexelsPerJob,NumTexels);
-
-	ParallelLoop(TEXT("Texture.TransformToWorkingColorSpace.PF"), NumJobs, TexelsPerJob, NumTexels, [Transform, ImageColors](int64 TexelIndex)
-	{
-		FLinearColor Color = ImageColors[TexelIndex];
-		Color = Transform.Apply(Color);
-		ImageColors[TexelIndex] = SaturateToHalfFloat(Color);
-	});
+	return FImageCore::TransformToWorkingColorSpace(*this, SourceRedChromaticity, SourceGreenChromaticity, SourceBlueChromaticity, SourceWhiteChromaticity, Method, EqualityTolerance);
 }
 
 static FLinearColor SampleImage(const FLinearColor* Pixels, int Width, int Height, float X, float Y)
@@ -1551,4 +1525,35 @@ void FImageCore::ComputeChannelLinearMinMax(const FImage & InImage, FLinearColor
 
 	VectorStore(VMin,&OutMin.Component(0));
 	VectorStore(VMax,&OutMax.Component(0));
+}
+
+void FImageCore::TransformToWorkingColorSpace(const FImageView& InLinearImage, const FVector2d& SourceRedChromaticity, const FVector2d& SourceGreenChromaticity, const FVector2d& SourceBlueChromaticity, const FVector2d& SourceWhiteChromaticity, UE::Color::EChromaticAdaptationMethod Method, double EqualityTolerance)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.TransformToWorkingColorSpace);
+
+	check(InLinearImage.GammaSpace == EGammaSpace::Linear);
+
+	const UE::Color::FColorSpace Source(SourceRedChromaticity, SourceGreenChromaticity, SourceBlueChromaticity, SourceWhiteChromaticity);
+	const UE::Color::FColorSpace& Target = UE::Color::FColorSpace::GetWorking();
+
+	if (Source.Equals(Target, EqualityTolerance))
+	{
+		UE_LOG(LogImageCore, VeryVerbose, TEXT("Source and working color spaces are equal within tolerance, bypass color space transformation."));
+		return;
+	}
+
+	UE::Color::FColorSpaceTransform Transform(Source, Target, Method);
+
+	FLinearColor* ImageColors = InLinearImage.AsRGBA32F().GetData();
+
+	const int64 NumTexels = int64(InLinearImage.SizeX) * InLinearImage.SizeY * InLinearImage.NumSlices;
+	int64 TexelsPerJob;
+	int32 NumJobs = ImageParallelForComputeNumJobsForPixels(TexelsPerJob, NumTexels);
+
+	ParallelLoop(TEXT("Texture.TransformToWorkingColorSpace.PF"), NumJobs, TexelsPerJob, NumTexels, [Transform, ImageColors](int64 TexelIndex)
+		{
+			FLinearColor Color = ImageColors[TexelIndex];
+			Color = Transform.Apply(Color);
+			ImageColors[TexelIndex] = SaturateToHalfFloat(Color);
+		});
 }
