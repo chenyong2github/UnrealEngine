@@ -36,6 +36,15 @@ public:
 	virtual const FRigVMTemplate* GetTemplate() const override;
 	virtual bool IsSingleton() const override { return false; }
 
+	// Is a dot node with a root pin source connection
+	bool IsPassThrough() const;
+
+	// Has no source connections
+	bool IsLiteral() const;
+
+	// Is not a passthrough or a literal reroute
+	bool IsCompositionNode() const;
+
 private:
 
 	static const FString RerouteName;

@@ -856,7 +856,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 			{
 				if(EntryNode == nullptr)
 				{
-					ReportError(TEXT("Corrupt library node '%s' - Missing entry node."));
+					ReportErrorf(TEXT("Corrupt library node '%s' - Missing entry node."), *CurrentCompilationFunction->GetPathName());
 					return false;
 				}
 				InterfacePin = EntryNode->FindPin(Pin->GetName());
@@ -865,7 +865,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 			{
 				if(ReturnNode == nullptr)
 				{
-					ReportError(TEXT("Corrupt library node '%s' - Missing return node."));
+					ReportErrorf(TEXT("Corrupt library node '%s' - Missing return node."), *CurrentCompilationFunction->GetPathName());
 					return false;
 				}
 				InterfacePin = ReturnNode->FindPin(Pin->GetName());
@@ -873,7 +873,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 
 			if(InterfacePin == nullptr)
 			{
-				ReportError(TEXT("Corrupt library node '%s' - Pin '%s' is not part of the entry / return node."));
+				ReportErrorf(TEXT("Corrupt library node '%s' - Pin '%s' is not part of the entry / return node."), *CurrentCompilationFunction->GetPathName(), *Pin->GetPathName());
 				return false;
 			}
 			

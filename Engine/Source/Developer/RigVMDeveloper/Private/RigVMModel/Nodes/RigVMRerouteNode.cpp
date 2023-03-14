@@ -114,3 +114,23 @@ const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
 	return CachedTemplate;
 }
 
+bool URigVMRerouteNode::IsPassThrough() const
+{
+	return !GetPins()[0]->GetSourceLinks().IsEmpty();
+}
+
+bool URigVMRerouteNode::IsLiteral() const
+{
+	return GetPins()[0]->GetSourceLinks(true).IsEmpty();
+}
+
+bool URigVMRerouteNode::IsCompositionNode() const
+{
+	if (IsPassThrough() || IsLiteral())
+	{
+		return false;
+	}
+	
+	return true;
+}
+
