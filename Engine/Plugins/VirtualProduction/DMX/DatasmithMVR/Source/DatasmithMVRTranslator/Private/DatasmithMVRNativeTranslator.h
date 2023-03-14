@@ -19,7 +19,6 @@ public:
 	virtual FName GetFName() const override { return "DatasmithMVRNativeTranslator"; };
 	virtual bool LoadScene(TSharedRef<IDatasmithScene> InOutScene) override;
 	virtual void GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options) override;
-	virtual void SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options) override;
 	//~ End DatasmithNativeTranslator interface
 
 private:
@@ -30,8 +29,5 @@ private:
 	UDMXLibrary* CreateDMXLibraryFromMVR(const FString& MVRFilePathAndName) const;
 
 	/** Replaces actors in the Datasmith Scene that correspond to the MVR with the MVR Scene Actor */
-	void ReplaceMVRActorsWithMVRSceneActor(TSharedRef<IDatasmithScene>& InOutScene, UDMXLibrary* DMXLibrary) const;
-
-	/** Datasmith MVR Import Options */
-	TStrongObjectPtr<UDatasmithMVRImportOptions> ImportOptions;
+	void ReplaceMVRActorsWithMVRSceneActor(const TSharedRef<IDatasmithScene>& InOutScene, UDMXLibrary* DMXLibrary) const;
 };

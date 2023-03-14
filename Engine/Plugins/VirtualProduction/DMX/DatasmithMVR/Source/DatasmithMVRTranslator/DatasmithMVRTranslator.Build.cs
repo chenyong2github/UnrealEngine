@@ -26,6 +26,7 @@ public class DatasmithMVRTranslator : ModuleRules
 				"DMXEditor",
 				"DMXRuntime",
 				"Engine",
+				"Slate",
 			}
 		);
 	}
