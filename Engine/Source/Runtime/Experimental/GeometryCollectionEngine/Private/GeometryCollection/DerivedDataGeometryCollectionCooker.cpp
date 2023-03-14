@@ -121,7 +121,7 @@ bool FDerivedDataGeometryCollectionRenderDataCooker::Build(TArray<uint8>& OutDat
 
 const TCHAR* FDerivedDataGeometryCollectionRenderDataCooker::GetVersionString() const
 {
-	const TCHAR* VersionString = TEXT("C3F0D73CE6094A1C84E57D75C9131F55");
+	const TCHAR* VersionString = TEXT("043C044F08614AAF8A56BA8070BD0D5A");
 
 	static FString CachedNaniteVersionString;
 	if (CachedNaniteVersionString.IsEmpty())

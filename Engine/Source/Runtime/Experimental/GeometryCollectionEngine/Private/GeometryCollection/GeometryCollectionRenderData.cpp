@@ -243,7 +243,7 @@ void BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 					{
 						UV = FVector2f::ZeroVector;
 					}
-					BuildVertexData.UVs[TexCoord].Emplace(UV);
+					BuildVertexData.UVs[TexCoord][DestVertexStart + VertexIndex] = UV;
 				}
 
 				const int32 BoneIndex = BoneMapArray[VertexStart + VertexIndex];
