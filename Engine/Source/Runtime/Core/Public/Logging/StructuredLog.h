@@ -442,7 +442,7 @@ inline void LogIfActive(const LogCategoryType& Category, const LogRecordType& Lo
 	do \
 	{ \
 		static ::UE::Logging::Private::FStaticLogDynamicData LOG_Dynamic; \
-		static constexpr ::UE::Logging::Private::FStaticLogRecord LOG_Static UE_PRIVATE_LOGFMT_AGGREGATE(TEXT(Format), __FILE__, __LINE__, ::ELogVerbosity::Verbosity, LOG_Dynamic); \
+		static constexpr ::UE::Logging::Private::FStaticLogRecord LOG_Static UE_PRIVATE_LOGFMT_AGGREGATE(TEXT(Format), __FILE__, __builtin_LINE(), ::ELogVerbosity::Verbosity, LOG_Dynamic); \
 		::UE::Logging::Private::LogIfActive<FLogCategory##CategoryName, ::ELogVerbosity::Verbosity>(CategoryName, LOG_Static, ##__VA_ARGS__); \
 	} \
 	while (false)
@@ -451,7 +451,7 @@ inline void LogIfActive(const LogCategoryType& Category, const LogRecordType& Lo
 	do \
 	{ \
 		static ::UE::Logging::Private::FStaticLogDynamicData LOG_Dynamic; \
-		static constexpr ::UE::Logging::Private::FStaticLocalizedLogRecord LOG_Static UE_PRIVATE_LOGFMT_AGGREGATE(TEXT(Namespace), TEXT(Key), TEXT(Format), __FILE__, __LINE__, ::ELogVerbosity::Verbosity, LOG_Dynamic); \
+		static constexpr ::UE::Logging::Private::FStaticLocalizedLogRecord LOG_Static UE_PRIVATE_LOGFMT_AGGREGATE(TEXT(Namespace), TEXT(Key), TEXT(Format), __FILE__, __builtin_LINE(), ::ELogVerbosity::Verbosity, LOG_Dynamic); \
 		::UE::Logging::Private::LogIfActive<FLogCategory##CategoryName, ::ELogVerbosity::Verbosity>(CategoryName, LOG_Static, ##__VA_ARGS__); \
 	} \
 	while (false)
