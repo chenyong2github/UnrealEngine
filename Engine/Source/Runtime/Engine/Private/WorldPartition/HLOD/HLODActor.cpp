@@ -224,7 +224,10 @@ void AWorldPartitionHLOD::SetHLODComponents(const TArray<UActorComponent*>& InHL
 	TArray<UActorComponent*> ComponentsToRemove = GetInstanceComponents();
 	for (UActorComponent* ComponentToRemove : ComponentsToRemove)
 	{
-		ComponentToRemove->DestroyComponent();
+		if (ComponentToRemove)
+		{
+			ComponentToRemove->DestroyComponent();
+		}
 	}
 
 	// We'll turn on replication for this actor only if it contains a replicated component
