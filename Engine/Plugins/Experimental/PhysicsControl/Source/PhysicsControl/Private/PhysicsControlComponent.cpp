@@ -1195,6 +1195,74 @@ void UPhysicsControlComponent::SetControlTargetOrientationsInSet(
 }
 
 //======================================================================================================================
+bool UPhysicsControlComponent::SetControlTargetPositionsFromArray(
+	const TArray<FName>&   Names,
+	const TArray<FVector>& Positions,
+	const float            VelocityDeltaTime,
+	const bool             bEnableControl,
+	const bool             bApplyControlPointToTarget)
+{
+	int32 NumControlNames = Names.Num();
+	int32 NumPositions = Positions.Num();
+	if (NumControlNames != NumPositions)
+	{
+		return false;
+	}
+	for (int32 Index = 0 ; Index != NumControlNames ; ++Index)
+	{
+		SetControlTargetPosition(
+			Names[Index], Positions[Index], VelocityDeltaTime, bEnableControl, bApplyControlPointToTarget);
+	}
+	return true;
+}
+
+//======================================================================================================================
+bool UPhysicsControlComponent::SetControlTargetOrientationsFromArray(
+	const TArray<FName>&    Names,
+	const TArray<FRotator>& Orientations,
+	const float             VelocityDeltaTime,
+	const bool              bEnableControl,
+	const bool              bApplyControlPointToTarget)
+{
+	int32 NumControlNames = Names.Num();
+	int32 NumOrientations = Orientations.Num();
+	if (NumControlNames != NumOrientations)
+	{
+		return false;
+	}
+	for (int32 Index = 0 ; Index != NumControlNames ; ++Index)
+	{
+		SetControlTargetOrientation(
+			Names[Index], Orientations[Index], VelocityDeltaTime, bEnableControl, bApplyControlPointToTarget);
+	}
+	return true;
+}
+
+//======================================================================================================================
+bool UPhysicsControlComponent::SetControlTargetPositionsAndOrientationsFromArray(
+	const TArray<FName>&    Names,
+	const TArray<FVector>&  Positions,
+	const TArray<FRotator>& Orientations,
+	const float             VelocityDeltaTime,
+	const bool              bEnableControl,
+	const bool              bApplyControlPointToTarget)
+{
+	int32 NumControlNames = Names.Num();
+	int32 NumPositions = Positions.Num();
+	int32 NumOrientations = Orientations.Num();
+	if (NumControlNames != NumPositions || NumControlNames != NumOrientations)
+	{
+		return false;
+	}
+	for (int32 Index = 0; Index != NumControlNames; ++Index)
+	{
+		SetControlTargetPositionAndOrientation(
+			Names[Index], Positions[Index], Orientations[Index], VelocityDeltaTime, bEnableControl, bApplyControlPointToTarget);
+	}
+	return true;
+}
+
+//======================================================================================================================
 bool UPhysicsControlComponent::SetControlTargetPoses(
 	const FName    Name,
 	const FVector  ParentPosition, 
@@ -1894,7 +1962,7 @@ TArray<FName> UPhysicsControlComponent::GetSetsContainingBodyModifier(const FNam
 }
 
 //======================================================================================================================
-TArray<FTransform> UPhysicsControlComponent::GetCachedTargetBoneTransforms(
+TArray<FTransform> UPhysicsControlComponent::GetCachedBoneTransforms(
 	const USkeletalMeshComponent* SkeletalMeshComponent, 
 	const TArray<FName>&          BoneNames)
 {
@@ -1914,12 +1982,57 @@ TArray<FTransform> UPhysicsControlComponent::GetCachedTargetBoneTransforms(
 			Result.Add(FTransform::Identity);
 		}
 	}
-
 	return Result;
 }
 
 //======================================================================================================================
-TArray<FVector> UPhysicsControlComponent::GetCachedTargetBoneVelocities(
+TArray<FVector> UPhysicsControlComponent::GetCachedBonePositions(
+	const USkeletalMeshComponent* SkeletalMeshComponent,
+	const TArray<FName>&          BoneNames)
+{
+	TArray<FVector> Result;
+	Result.Reserve(BoneNames.Num());
+	FCachedSkeletalMeshData::FBoneData BoneData;
+
+	for (const FName& BoneName : BoneNames)
+	{
+		if (Implementation->GetBoneData(BoneData, SkeletalMeshComponent, BoneName))
+		{
+			Result.Add(BoneData.Position);
+		}
+		else
+		{
+			Result.Add(FVector::ZeroVector);
+		}
+	}
+	return Result;
+}
+
+//======================================================================================================================
+TArray<FRotator> UPhysicsControlComponent::GetCachedBoneOrientations(
+	const USkeletalMeshComponent* SkeletalMeshComponent,
+	const TArray<FName>&          BoneNames)
+{
+	TArray<FRotator> Result;
+	Result.Reserve(BoneNames.Num());
+	FCachedSkeletalMeshData::FBoneData BoneData;
+
+	for (const FName& BoneName : BoneNames)
+	{
+		if (Implementation->GetBoneData(BoneData, SkeletalMeshComponent, BoneName))
+		{
+			Result.Add(BoneData.Orientation.Rotator());
+		}
+		else
+		{
+			Result.Add(FRotator::ZeroRotator);
+		}
+	}
+	return Result;
+}
+
+//======================================================================================================================
+TArray<FVector> UPhysicsControlComponent::GetCachedBoneVelocities(
 	const USkeletalMeshComponent* SkeletalMeshComponent,
 	const TArray<FName>&          BoneNames)
 {
@@ -1943,7 +2056,7 @@ TArray<FVector> UPhysicsControlComponent::GetCachedTargetBoneVelocities(
 }
 
 //======================================================================================================================
-TArray<FVector> UPhysicsControlComponent::GetCachedTargetBoneAngularVelocities(
+TArray<FVector> UPhysicsControlComponent::GetCachedBoneAngularVelocities(
 	const USkeletalMeshComponent* SkeletalMeshComponent,
 	const TArray<FName>&          BoneNames)
 {
@@ -1967,7 +2080,7 @@ TArray<FVector> UPhysicsControlComponent::GetCachedTargetBoneAngularVelocities(
 }
 
 //======================================================================================================================
-FTransform UPhysicsControlComponent::GetCachedTargetBoneTransform(
+FTransform UPhysicsControlComponent::GetCachedBoneTransform(
 	const USkeletalMeshComponent* SkeletalMeshComponent,
 	const FName                   BoneName)
 {
@@ -1980,7 +2093,33 @@ FTransform UPhysicsControlComponent::GetCachedTargetBoneTransform(
 }
 
 //======================================================================================================================
-FVector UPhysicsControlComponent::GetCachedTargetBoneVelocity(
+FVector UPhysicsControlComponent::GetCachedBonePosition(
+	const USkeletalMeshComponent* SkeletalMeshComponent,
+	const FName                   BoneName)
+{
+	FCachedSkeletalMeshData::FBoneData BoneData;
+	if (Implementation->GetBoneData(BoneData, SkeletalMeshComponent, BoneName))
+	{
+		return BoneData.Position;
+	}
+	return FVector::ZeroVector;
+}
+
+//======================================================================================================================
+FRotator UPhysicsControlComponent::GetCachedBoneOrientation(
+	const USkeletalMeshComponent* SkeletalMeshComponent,
+	const FName                   BoneName)
+{
+	FCachedSkeletalMeshData::FBoneData BoneData;
+	if (Implementation->GetBoneData(BoneData, SkeletalMeshComponent, BoneName))
+	{
+		return BoneData.Orientation.Rotator();
+	}
+	return FRotator::ZeroRotator;
+}
+
+//======================================================================================================================
+FVector UPhysicsControlComponent::GetCachedBoneVelocity(
 	const USkeletalMeshComponent* SkeletalMeshComponent,
 	const FName                   BoneName)
 {
@@ -1993,7 +2132,7 @@ FVector UPhysicsControlComponent::GetCachedTargetBoneVelocity(
 }
 
 //======================================================================================================================
-FVector UPhysicsControlComponent::GetCachedTargetBoneAngularVelocity(
+FVector UPhysicsControlComponent::GetCachedBoneAngularVelocity(
 	const USkeletalMeshComponent* SkeletalMeshComponent,
 	const FName                   BoneName)
 {
@@ -2006,7 +2145,7 @@ FVector UPhysicsControlComponent::GetCachedTargetBoneAngularVelocity(
 }
 
 //======================================================================================================================
-bool UPhysicsControlComponent::SetCachedTargetBoneData(
+bool UPhysicsControlComponent::SetCachedBoneData(
 	const USkeletalMeshComponent* SkeletalMeshComponent,
 	const FName                   BoneName,
 	const FTransform&             TM,
@@ -2026,7 +2165,7 @@ bool UPhysicsControlComponent::SetCachedTargetBoneData(
 }
 
 //======================================================================================================================
-bool UPhysicsControlComponent::ResetBodyModifierToCachedTarget(
+bool UPhysicsControlComponent::ResetBodyModifierToCachedBoneTransform(
 	const FName                        Name,
 	const EResetToCachedTargetBehavior Behavior)
 {
@@ -2048,22 +2187,22 @@ bool UPhysicsControlComponent::ResetBodyModifierToCachedTarget(
 }
 
 //======================================================================================================================
-void UPhysicsControlComponent::ResetBodyModifiersToCachedTargets(
+void UPhysicsControlComponent::ResetBodyModifiersToCachedBoneTransforms(
 	const TArray<FName>&               Names,
 	const EResetToCachedTargetBehavior Behavior)
 {
 	for (FName Name : Names)
 	{
-		ResetBodyModifierToCachedTarget(Name, Behavior);
+		ResetBodyModifierToCachedBoneTransform(Name, Behavior);
 	}
 }
 
 //======================================================================================================================
-void UPhysicsControlComponent::ResetBodyModifiersInSetToCachedTargets(
+void UPhysicsControlComponent::ResetBodyModifiersInSetToCachedBoneTransforms(
 	const FName                        SetName,
 	const EResetToCachedTargetBehavior Behavior)
 {
-	ResetBodyModifiersToCachedTargets(GetBodyModifierNamesInSet(SetName), Behavior);
+	ResetBodyModifiersToCachedBoneTransforms(GetBodyModifierNamesInSet(SetName), Behavior);
 }
 
 
