@@ -90,8 +90,9 @@ class PHYSICSCORE_API UPhysicalMaterial : public UObject
 	float RaiseMassToPower;
 
 	/** How much to scale the damage threshold by on any destructible we are applied to */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Destruction)
-	float DestructibleDamageThresholdScale;
+	UE_DEPRECATED(5.3, "This property is not used anywhere, use Geometry Collection damage threshold related features instead")
+	UPROPERTY()
+	float DestructibleDamageThresholdScale_DEPRECATED;
 
 	UPROPERTY()
 	TObjectPtr<class UDEPRECATED_PhysicalMaterialPropertyBase> PhysicalMaterialProperty_DEPRECATED;
@@ -101,6 +102,25 @@ class PHYSICSCORE_API UPhysicalMaterial : public UObject
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalProperties)
 	TEnumAsByte<EPhysicalSurface> SurfaceType;
+
+	/** 
+	* Tensile strength of the material in MegaPascal ( 10^6 N/m2 )
+	* This amount of tension force per area the material can withstand before it fractures
+	*/
+	float TensileStrength;
+
+	/**
+	* Compression strength of the material in MegaPascal ( 10^6 N/m2 )
+	* This amount of compression force per area the material can withstand before it fractures, crumbles or buckles
+	*/
+	float CompressionStrength;
+
+	/**
+	* Shear strength of the material in MegaPascal ( 10^6 N/m2 )
+	* This amount of shear force per area the material can withstand before it fractures
+	*/
+	float ShearStrength;
+
 
 public:
 

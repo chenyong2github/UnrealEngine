@@ -27,8 +27,12 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	SleepLinearVelocityThreshold = 1.f;
 	SleepAngularVelocityThreshold = 0.05f;
 	SleepCounterThreshold = 4;
-	DestructibleDamageThresholdScale = 1.0f;
 	bOverrideFrictionCombineMode = false;
+	// using concrete as default ( lowest values of it )
+	TensileStrength = 2;
+	CompressionStrength = 20;
+	ShearStrength = 6;
+
 	UserData = FChaosUserData(this);
 }
 
