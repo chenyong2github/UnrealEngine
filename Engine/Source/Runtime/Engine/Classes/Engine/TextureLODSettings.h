@@ -74,18 +74,23 @@ struct ENGINE_API FTextureLODGroup
 	UPROPERTY()
 	TEnumAsByte<TextureMipGenSettings> MipGenSettings;
 
+	/** Prevent LODBias from making the textures smaller than this value. Note that this does _not_ affect the smallest mip level size. */
 	UPROPERTY()
 	int32 MinLODSize;
 
+	/** Cap the number of mips such that the largest mip is this big. Has no effect for textures with no mip chain. Not used for virtual textures. */
 	UPROPERTY()
 	int32 MaxLODSize;
 
+	/** Cap the number of mips such that the largest mip is this big. Has no effect for textures with no mip chain. Used for platforms with the "Smaller" memory bucket. Not used for virtual textures. */
 	UPROPERTY()
 	int32 MaxLODSize_Smaller;
 
+	/** Cap the number of mips such that the largest mip is this big. Has no effect for textures with no mip chain. Used for platforms with the "Smallest" memory bucket. Not used for virtual textures. */
 	UPROPERTY()
 	int32 MaxLODSize_Smallest;
 
+	/** Cap the number of mips such that the largest mip is this big. Has no effect for textures with no mip chain. Used for virtual textures. */
 	UPROPERTY()
 	int32 MaxLODSize_VT;
 

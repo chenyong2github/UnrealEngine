@@ -201,6 +201,10 @@ int32 UTextureLODSettings::CalculateLODBias(int32 Width, int32 Height, int32 Max
 		// -> this looks broken, probably never used
 	}
 
+	// Min/Max LOD Size clamps the *LODBias*, not the actual texture LODs. Meaning:
+	//	MaxLODSize caps the largest mip size.
+	//	MinLODSize prevents LODBias from making the largest mip smaller than the given value. Does *not*
+	//	affect the size of the smallest mip. Almost never used.
 	int32 MinLOD = FMath::CeilLogTwo(LODGroupInfo.MinLODSize);
 	int32 MaxLOD = FMath::CeilLogTwo(LODGroupInfo.MaxLODSize);
 
