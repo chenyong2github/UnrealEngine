@@ -12,6 +12,8 @@ namespace UE::Online {
 
 namespace Private {
 
+#define LOBBIESEOSGS_LOBBY_ID_OVERRIDE_ATTRIBUTE_KEY TEXT("LOBBY_ID_OVERRIDE")
+
 /** Class to handle all callbacks generically using a future to forward callback results */
 template<typename CallbackType>
 class TEOSCallback
