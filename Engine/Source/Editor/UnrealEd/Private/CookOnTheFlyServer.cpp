@@ -10716,6 +10716,8 @@ TArray<FName> UCookOnTheFlyServer::GetNeverCookPackageFileNames(TArrayView<const
 	FString ExternalActorsFolderName = ULevel::GetExternalActorsFolderName();
 	FString FullExternalActorsPath = FPaths::Combine(TEXT("/Game/"), ExternalActorsFolderName);
 	NeverCookDirectories.Add(MoveTemp(FullExternalActorsPath));
+	FullExternalActorsPath = FPaths::Combine(TEXT("/Engine/"), ExternalActorsFolderName);
+	NeverCookDirectories.Add(MoveTemp(FullExternalActorsPath));
 	for (TSharedRef<IPlugin>& Plugin : IPluginManager::Get().GetEnabledPluginsWithContent())
 	{
 		FullExternalActorsPath = FPaths::Combine(Plugin->GetMountedAssetPath(), ExternalActorsFolderName);
