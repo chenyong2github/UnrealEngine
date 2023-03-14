@@ -109,6 +109,13 @@ struct FImgMediaTileSelection
 	bool Contains(const FImgMediaTileSelection& Other) const;
 
 	/**
+	 * Combine the current selection with another (assumes they are the same size).
+	 *
+	 * @param Other Selection to include.
+	 */
+	void Include(const FImgMediaTileSelection& Other);
+
+	/**
 	 * Mark a tile as visible.
 	 *
 	 * @param TileCoordX Horizontal tile coordinate.

@@ -101,6 +101,13 @@ bool FImgMediaTileSelection::Contains(const FImgMediaTileSelection& Other) const
 	return true;
 }
 
+void FImgMediaTileSelection::Include(const FImgMediaTileSelection& Other)
+{
+	ensure(Tiles.Num() == Other.Tiles.Num());
+
+	Tiles = TBitArray<>::BitwiseOR(Tiles, Other.Tiles, EBitwiseOperatorFlags::MaxSize);
+}
+
 void FImgMediaTileSelection::SetVisible(int32 TileCoordX, int32 TileCoordY)
 {
 	int Index = ToIndex(FMath::Min(TileCoordX, Dimensions.X - 1), FMath::Min(TileCoordY, Dimensions.Y - 1), Dimensions);
