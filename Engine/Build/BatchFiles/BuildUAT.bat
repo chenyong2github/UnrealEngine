@@ -20,31 +20,31 @@ rem Check to see if the files in the AutomationTool, EpicGames.Build, EpicGames.
 rem find ".cs" files to only lines that match those names - excludes lines that will change for uninteresting reasons, like free space
 md ..\Intermediate\Build >nul 2>nul
 
-dir /s^
- Programs\Shared\EpicGames.Build\*.cs^
- Programs\Shared\EpicGames.Build\*.csproj^
- Programs\Shared\EpicGames.Core\*.cs^
- Programs\Shared\EpicGames.Core\*.csproj^
- Programs\Shared\EpicGames.IoHash\*.cs^
- Programs\Shared\EpicGames.IoHash\*.csproj^
- Programs\Shared\EpicGames.MsBuild\*.cs^
- Programs\Shared\EpicGames.MsBuild\*.csproj^
- Programs\Shared\EpicGames.Serialization\*.cs^
- Programs\Shared\EpicGames.Serialization\*.csproj^
- Programs\Shared\EpicGames.UHT\*.cs^
- Programs\Shared\EpicGames.UHT\*.csproj^
- Programs\UnrealBuildTool\*.cs^
- Programs\UnrealBuildTool\*.csproj^
+dir /s ^
+ Programs\Shared\EpicGames.Build\*.cs ^
+ Programs\Shared\EpicGames.Build\*.csproj ^
+ Programs\Shared\EpicGames.Core\*.cs ^
+ Programs\Shared\EpicGames.Core\*.csproj ^
+ Programs\Shared\EpicGames.IoHash\*.cs ^
+ Programs\Shared\EpicGames.IoHash\*.csproj ^
+ Programs\Shared\EpicGames.MsBuild\*.cs ^
+ Programs\Shared\EpicGames.MsBuild\*.csproj ^
+ Programs\Shared\EpicGames.Serialization\*.cs ^
+ Programs\Shared\EpicGames.Serialization\*.csproj ^
+ Programs\Shared\EpicGames.UHT\*.cs ^
+ Programs\Shared\EpicGames.UHT\*.csproj ^
+ Programs\UnrealBuildTool\*.cs ^
+ Programs\UnrealBuildTool\*.csproj ^
  | find ".cs" >..\Intermediate\Build\AutomationToolFiles.txt
 
 if not exist ..\Platforms goto NoPlatforms
 for /d %%D in (..\Platforms\*) do (
 	if exist %%D\Source\Programs\UnrealBuildTool (
-		dir /s^
-		 %%D\Source\Programs\AutomationTool\*.cs^
-		 %%D\Source\Programs\AutomationTool\*.csproj^
-		 %%D\Source\Programs\UnrealBuildTool\*.cs^
-		 %%D\Source\Programs\UnrealBuildTool\*.csproj^
+		dir /s ^
+		 %%D\Source\Programs\AutomationTool\*.cs ^
+		 %%D\Source\Programs\AutomationTool\*.csproj ^
+		 %%D\Source\Programs\UnrealBuildTool\*.cs ^
+		 %%D\Source\Programs\UnrealBuildTool\*.csproj ^
 		 | find ".cs" >> ..\Intermediate\Build\AutomationToolFiles.txt
 	)
 )
@@ -53,11 +53,11 @@ for /d %%D in (..\Platforms\*) do (
 if not exist ..\Restricted goto NoRestricted
 for /d %%D in (..\Restricted\*) do (
 	if exist %%D\Source\Programs\UnrealBuildTool (
-		dir /s^
-		 %%D\Source\Programs\AutomationTool\*.cs^
-		 %%D\Source\Programs\AutomationTool\*.csproj^
-		 %%D\Source\Programs\UnrealBuildTool\*.cs^
-		 %%D\Source\Programs\UnrealBuildTool\*.csproj^
+		dir /s ^
+		 %%D\Source\Programs\AutomationTool\*.cs ^
+		 %%D\Source\Programs\AutomationTool\*.csproj ^
+		 %%D\Source\Programs\UnrealBuildTool\*.cs ^
+		 %%D\Source\Programs\UnrealBuildTool\*.csproj ^
 		 | find ".cs" >> ..\Intermediate\Build\AutomationToolFiles.txt
 	)
 )
@@ -65,9 +65,9 @@ for /d %%D in (..\Restricted\*) do (
 
 rem note: no /s
 dir ^
- Programs\Shared\MetaData.cs^
- Programs\AutomationTool\*.cs^
- Programs\AutomationTool\*.csproj^
+ Programs\Shared\MetaData.cs ^
+ Programs\AutomationTool\*.cs ^
+ Programs\AutomationTool\*.csproj ^
  | find ".cs" >>..\Intermediate\Build\AutomationToolFiles.txt
 
 set MSBUILD_LOGLEVEL=%1
