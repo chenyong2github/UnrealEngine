@@ -1,0 +1,172 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Public/Platform.ush"
+
+#define WORK_TYPE float
+#define BUFFER_TYPE float
+#define BUFFER_TO_WORK_TYPE(x) x
+#define WORK_TO_BUFFER_TYPE(x) x
+
+#define LDS_IC 32 //Input channel cached in LDS
+#define TG_OC 32 //Number of output channel covered by a thread group
+#define TG_OP 32 //Number of output pixel covered by a thread group
+
+groupshared WORK_TYPE LDSInputs[LDS_IC][TG_OP]; //1024 WORK_TYPE
+groupshared WORK_TYPE LDSWeights[LDS_IC][TG_OC]; //1024 WORK_TYPE
+
+Buffer<BUFFER_TYPE> Input; // Ni x Ci x Hi x Wi
+Buffer<BUFFER_TYPE> Weight; // Cw x Ci x Hw x Ww
+Buffer<BUFFER_TYPE> Bias; // Cw
+RWBuffer<BUFFER_TYPE> Output; // Ni x Cw x Ho x Wo
+
+int Ci;
+int Hi;
+int Wi;
+int Ho;
+int Wo;
+int Cw;
+int Hw;
+int Ww;
+int PadLeft;
+int PadTop;
+int StrideH;
+int StrideW;
+
+//#define DEBUGVAL(val, pos, thread) {if (thread == GroupThreadIdx) Output[pos] = val;}
+
+[numthreads(8, 8, 1)]
+void ConvMatmul(
+	in const uint3 DispatchThreadID : SV_DispatchThreadID,
+	in const uint3 GroupID : SV_GroupID,
+	in const uint3 GroupThreadID : SV_GroupThreadID,
+	in const uint GroupIndex : SV_GroupIndex)
+{
+	
+	const int DispatchThreadOutputPixelOffset = 4 * DispatchThreadID.x;
+	const int DispatchThreadOutputChannelOffset = 4 * DispatchThreadID.y;
+	const int GroupThreadOutputPixelOffset = 4 * GroupThreadID.x;
+	const int GroupThreadOutputChannelOffset = 4 * GroupThreadID.y;
+	const int GroupThreadIdx = GroupIndex;
+	const int Scalar_GroupOutputPixelOffset = TG_OP * GroupID.x;
+	const int Scalar_GroupOutputChannelOffset = TG_OC * GroupID.y;
+	const int Scalar_BatchOutputOffset = Ho * Wo * Cw * GroupID.z;
+	const int Scalar_BatchInputOffset = Hi * Wi * Cw * GroupID.z;
+	const int Scalar_GroupOutputPixelH = (Scalar_GroupOutputPixelOffset) / Wo * StrideH;
+	const int Scalar_GroupOutputPixelWBase = Scalar_GroupOutputPixelOffset % Wo * StrideW;
+	const int Scalar_GroupInputPixelKernelTopLeftH = Scalar_GroupOutputPixelH - PadTop;
+	const int Scalar_GroupInputPixelKernelTopLeftW = Scalar_GroupOutputPixelWBase - PadLeft;
+
+	const int cw = DispatchThreadOutputChannelOffset;
+	const int pi = DispatchThreadOutputPixelOffset;
+
+	WORK_TYPE BiasC0 = BUFFER_TO_WORK_TYPE(Bias[cw+0]);
+	WORK_TYPE BiasC1 = BUFFER_TO_WORK_TYPE(Bias[cw+1]);
+	WORK_TYPE BiasC2 = BUFFER_TO_WORK_TYPE(Bias[cw+2]);
+	WORK_TYPE BiasC3 = BUFFER_TO_WORK_TYPE(Bias[cw+3]);
+	
+	int i;
+	// First index is thread output channel offset (on cw)
+	// 2nd index is thread pixels offset (on pi)
+	WORK_TYPE Values[4][4];
+	
+	UNROLL
+	for (i = 0; i < 4; ++i)
+	{
+		Values[0][i] = BiasC0;
+		Values[1][i] = BiasC1;
+		Values[2][i] = BiasC2;
+		Values[3][i] = BiasC3;
+	}
+	
+	int Scalar_KernelIdx = 0;
+	const int InputChannelOffset = GroupThreadIdx >= 32 ? 16 : 0;
+	const int OutputPixelOffset = GroupThreadIdx % 32;
+	const int OutputChannelOffset = GroupThreadIdx % 32;
+	
+	for (int hw = 0; hw < Hw; ++hw)
+	{
+		const int Scalar_InputPixelH = Scalar_GroupInputPixelKernelTopLeftH + hw;
+		const bool Scalar_IsValidInputH = (Scalar_InputPixelH >= 0) && (Scalar_InputPixelH < Hi);
+		
+		for (int ww = 0; ww < Ww; ++ww)
+		{
+			const int InputPixelW = Scalar_GroupInputPixelKernelTopLeftW + ww + OutputPixelOffset * StrideW;
+			const bool IsValidInput = Scalar_IsValidInputH && (InputPixelW >= 0) && (InputPixelW < Wi);
+			int InputPixelOffset = Scalar_InputPixelH * Wi + InputPixelW;
+			
+			InputPixelOffset = clamp(InputPixelOffset, 0, Hi * Wi);
+			
+			for (int ci = 0; ci < Ci; ci += LDS_IC)
+			{
+				///— DDR → LDS
+				// We need to load 2048 floats
+				// 1024 weights (32 inputs channel, 32 output channels) and
+				// 1024 inputs (32 inputs channel, 32 inputs pixels)
+				// We have 64 threads thus each will read 16 inputs and 16 weights.
+				// the first 32 read the first 16 channels, while the next 32 read the remaining 16.
+
+				const int ReadOffsetI = Scalar_BatchInputOffset + (ci + InputChannelOffset) * Hi * Wi + InputPixelOffset;
+				const int ReadOffsetW = (Scalar_GroupOutputChannelOffset + OutputChannelOffset) * Ci * Hw * Ww + (ci + InputChannelOffset) * Hw * Ww + Scalar_KernelIdx;
+				
+				UNROLL
+				for (i = 0; i < (LDS_IC / 2); ++i)
+				{
+					WORK_TYPE ValueI = BUFFER_TO_WORK_TYPE(Input[Hi * Wi * i + ReadOffsetI]);
+					ValueI = IsValidInput ? ValueI : 0.0f;
+					LDSInputs[InputChannelOffset + i][OutputPixelOffset] = ValueI;
+
+					// Idea: Try to transpose weights to W[Kw, Ci, Cw] to get coalesced reads.
+					WORK_TYPE ValueW = BUFFER_TO_WORK_TYPE(Weight[Hw * Ww * i + ReadOffsetW]);
+					LDSWeights[InputChannelOffset + i][OutputChannelOffset] = ValueW;
+				}
+				
+				GroupMemoryBarrierWithGroupSync();
+				
+				/// LDS to register + inner loop
+				// Loop on cached input channels
+				#define INNERLOOPUNROLLCOUNT 4
+				for (int cachedCiBase = 0; cachedCiBase < LDS_IC; cachedCiBase += INNERLOOPUNROLLCOUNT)
+				{
+					WORK_TYPE RegWeights[INNERLOOPUNROLLCOUNT][4];
+					WORK_TYPE RegInputs[INNERLOOPUNROLLCOUNT][4];
+					
+					UNROLL
+					for (int unrolledIdx = 0; unrolledIdx < INNERLOOPUNROLLCOUNT; ++unrolledIdx)
+					{
+						// 8 load from LDS
+						UNROLL
+						for (i = 0; i < 4; ++i)
+						{
+							RegWeights[unrolledIdx][i] = LDSWeights[cachedCiBase + unrolledIdx][GroupThreadOutputChannelOffset + i];
+							RegInputs[unrolledIdx][i] = LDSInputs[cachedCiBase + unrolledIdx][GroupThreadOutputPixelOffset + i];
+						}
+
+						// Inner loop (16 mads)
+						UNROLL
+						for (i = 0; i < 4; ++i)
+						{
+							Values[i][0] += RegWeights[unrolledIdx][i] * RegInputs[unrolledIdx][0];
+							Values[i][1] += RegWeights[unrolledIdx][i] * RegInputs[unrolledIdx][1];
+							Values[i][2] += RegWeights[unrolledIdx][i] * RegInputs[unrolledIdx][2];
+							Values[i][3] += RegWeights[unrolledIdx][i] * RegInputs[unrolledIdx][3];
+						}
+					}
+				}
+				
+				GroupMemoryBarrierWithGroupSync();
+			}
+			++Scalar_KernelIdx;
+		}
+	}
+	
+	/// register to DDR
+	UNROLL
+	for (i = 0; i < 4; ++i)
+	{
+		const int WriteOffset = Scalar_BatchOutputOffset + (cw + i) * Ho * Wo + pi;
+		Output[WriteOffset + 0] = Values[i][0];
+		Output[WriteOffset + 1] = Values[i][1];
+		Output[WriteOffset + 2] = Values[i][2];
+		Output[WriteOffset + 3] = Values[i][3];
+	}
+}

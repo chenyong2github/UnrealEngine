@@ -25,45 +25,6 @@ namespace UE::NNEHlslShaders::Internal
 		return Result;
 	}
 
-	TArray<int32> GetPadding(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads)
-	{
-		check(XShape.Num() > 2);
-		check(WShape.Num() == XShape.Num());
-		check(Dilations.Num() == 0 || Dilations.Num() == WShape.Num() - 2);
-		check(Strides.Num() == 0 || Strides.Num() == WShape.Num() - 2);
-		check(AutoPad != EConvAutoPad::NOTSET || Pads.Num() == 2 * (WShape.Num() - 2));
-
-		int32 NumDimensions = XShape.Num() - 2;
-		TArray<int32> Result;
-		Result.Init(0, 2 * NumDimensions);
-
-		if (AutoPad == EConvAutoPad::NOTSET)
-		{
-			return TArray<int32>{Pads};
-		}
-		else if (AutoPad == EConvAutoPad::VALID)
-		{
-			return Result;
-		}
-
-		for (int32 DimensionIndex = 0; DimensionIndex < NumDimensions; DimensionIndex++)
-		{
-			int32 DilatedKernelSize = (DimensionIndex < Dilations.Num() ? Dilations[DimensionIndex] : 1) * (WShape[DimensionIndex + 2] - 1) + 1;
-			int32 TotalPad = ((int32)(((XShape[DimensionIndex + 2] + (DimensionIndex < Strides.Num() ? Strides[DimensionIndex] : 1) - 1) / (DimensionIndex < Strides.Num() ? Strides[DimensionIndex] : 1)) - 1)) * (DimensionIndex < Strides.Num() ? Strides[DimensionIndex] : 1) + DilatedKernelSize - XShape[DimensionIndex + 2];
-			if (AutoPad == EConvAutoPad::SAME_LOWER)
-			{
-				Result[DimensionIndex] = (TotalPad + 1) / 2;
-			}	
-			else
-			{
-				Result[DimensionIndex] = TotalPad / 2;
-			}
-			Result[NumDimensions + DimensionIndex] = TotalPad - Result[DimensionIndex];
-		}
-
-		return Result;
-	}
-
 	int32 GetNumThreadsPerGroup(EConvGroupSize GroupSize)
 	{
 		int32 NumThreadsPerGroup = 128;
@@ -109,6 +70,45 @@ namespace UE::NNEHlslShaders::Internal
 		OutEnvironment.SetDefine(TEXT("MAX_NUM_DIMENSIONS"), FConvConstants::MAX_NUM_DIMENSIONS);
 	}
 
+	TArray<int32> FConvCS::GetPadding(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads)
+	{
+		check(XShape.Num() > 2);
+		check(WShape.Num() == XShape.Num());
+		check(Dilations.Num() == 0 || Dilations.Num() == WShape.Num() - 2);
+		check(Strides.Num() == 0 || Strides.Num() == WShape.Num() - 2);
+		check(AutoPad != EConvAutoPad::NOTSET || Pads.Num() == 2 * (WShape.Num() - 2));
+
+		int32 NumDimensions = XShape.Num() - 2;
+		TArray<int32> Result;
+		Result.Init(0, 2 * NumDimensions);
+
+		if (AutoPad == EConvAutoPad::NOTSET)
+		{
+			return TArray<int32>{Pads};
+		}
+		else if (AutoPad == EConvAutoPad::VALID)
+		{
+			return Result;
+		}
+
+		for (int32 DimensionIndex = 0; DimensionIndex < NumDimensions; DimensionIndex++)
+		{
+			int32 DilatedKernelSize = (DimensionIndex < Dilations.Num() ? Dilations[DimensionIndex] : 1) * (WShape[DimensionIndex + 2] - 1) + 1;
+			int32 TotalPad = ((int32)(((XShape[DimensionIndex + 2] + (DimensionIndex < Strides.Num() ? Strides[DimensionIndex] : 1) - 1) / (DimensionIndex < Strides.Num() ? Strides[DimensionIndex] : 1)) - 1)) * (DimensionIndex < Strides.Num() ? Strides[DimensionIndex] : 1) + DilatedKernelSize - XShape[DimensionIndex + 2];
+			if (AutoPad == EConvAutoPad::SAME_LOWER)
+			{
+				Result[DimensionIndex] = (TotalPad + 1) / 2;
+			}
+			else
+			{
+				Result[DimensionIndex] = TotalPad / 2;
+			}
+			Result[NumDimensions + DimensionIndex] = TotalPad - Result[DimensionIndex];
+		}
+
+		return Result;
+	}
+
 	TArray<int32> FConvCS::GetOutputShape(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads)
 	{
 		check(XShape.Num() > 2);
@@ -117,7 +117,7 @@ namespace UE::NNEHlslShaders::Internal
 		check(Strides.Num() == 0 || Strides.Num() == WShape.Num() - 2);
 		check(Pads.Num() == 0 || Pads.Num() == 2 * (WShape.Num() - 2));
 
-		TArray<int32> Padding = ConvUtils::GetPadding(XShape, WShape, AutoPad, Dilations, Strides, Pads);
+		TArray<int32> Padding = GetPadding(XShape, WShape, AutoPad, Dilations, Strides, Pads);
 
 		TArray<int32> Result;
 		Result.SetNumUninitialized(XShape.Num());
@@ -151,7 +151,7 @@ namespace UE::NNEHlslShaders::Internal
 
 		int32 NumDimensions = XShape.Num() - 2;
 
-		TArray<int32> Padding = ConvUtils::GetPadding(XShape, WShape, AutoPad, Dilations, Strides, Pads);
+		TArray<int32> Padding = GetPadding(XShape, WShape, AutoPad, Dilations, Strides, Pads);
 		TArray<int32> GroupShape = GetGroupShape(GroupSize, NumDimensions);
 		TArray<int32> YShape = GetOutputShape(XShape, WShape, AutoPad, Dilations, Strides, Pads);
 		TArray<int32> GridShape = ConvUtils::GetGridShape(YShape, GroupShape);

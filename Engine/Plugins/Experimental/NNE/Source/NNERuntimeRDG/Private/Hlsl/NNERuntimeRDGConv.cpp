@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGConv.h"
+#include "Algo/AnyOf.h"
 #include "NNEHlslShadersConvCS.h"
+#include "NNEHlslShadersConvMatmulCS.h"
 #include "NNECoreAttributeMap.h"
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNECoreTensor.h"
@@ -9,7 +11,8 @@
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FNNEOperatorConv, TEXT("NNE.Operator.Hlsl.Conv"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorConvDefault, TEXT("NNE.Operator.Hlsl.Conv.Default"));
+	DECLARE_GPU_STAT_NAMED(FNNEOperatorConvMatmul, TEXT("NNE.Operator.Hlsl.Conv.Matmul"));
 
 	using EConvAutoPad = UE::NNEHlslShaders::Internal::EConvAutoPad;
 
@@ -108,36 +111,13 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InputTensors, TConstArrayView<FTensorRDGRef> OutputTensors) override
+		void DispatchConvDefault (FRDGBuilder& GraphBuilder, const FTensorRDG& Input, const FTensorRDG& Weights, const FTensorRDG* Bias, const FTensorRDG& Output)
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
 			constexpr EConvAlgorithm Algorithm = EConvAlgorithm::SharedMemory;
 			constexpr EConvGroupSize GroupSize = EConvGroupSize::Size256;
-
-			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
-			check(OutputTensors.Num() == 1);
-			check(InputTensors[0] != nullptr);
-			check(InputTensors[1] != nullptr);
-			check(OutputTensors[0] != nullptr);
-			
-			const FTensorRDG& Input = *InputTensors[0];
-			const FTensorRDG& Weights = *InputTensors[1];
-			const FTensorRDG& Output = *OutputTensors[0];
-			const FTensorRDG* Bias = nullptr;
-			bool HasBias = false;
-
-			if (InputTensors.Num() == 3) {
-				HasBias = true;
-				check(InputTensors[2] != nullptr);
-				Bias = InputTensors[2];
-			}
-
-			check(Input.GetShape().Rank() > 2);
-			check(Weights.GetShape().Rank() == Input.GetShape().Rank());
-			check(Output.GetShape().Rank() == Input.GetShape().Rank());
-			check(NumDimensions == (Input.GetShape().Rank() - 2));
-
+			bool HasBias = Bias != nullptr;
 			TArray<int32> OutputShape = FConvCS::GetOutputShape(Input.GetShape().GetData(), Weights.GetShape().GetData(), AutoPad, Dilations, Strides, Pads);
 
 			// Set parameters
@@ -159,16 +139,129 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			PermutationVector.Set<FConvCS::FConvHasB>(HasBias);
 			TShaderMapRef<FConvCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Conv");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorConv);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Conv.Default");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorConvDefault);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("NNE.Operator.Hlsl.Conv.Dispatch"),
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.Conv.Default.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,
 				FConvCS::GetGroupCount(OutputShape, FConvCS::GetGroupShape(GroupSize, NumDimensions)));
+		}
+
+		bool DispatchConvMatmul(FRDGBuilder& GraphBuilder, const FTensorRDG& Input, const FTensorRDG& Weights, const FTensorRDG* Bias, const FTensorRDG& Output)
+		{
+			using namespace UE::NNEHlslShaders::Internal;
+
+			if (Group != 1)
+				return false;
+			if (Input.GetShape().Rank() != 4)
+				return false;
+			if (Output.GetShape().Rank() != 4)
+				return false;
+			if (Weights.GetShape().Rank() != 4)
+				return false;
+			if (Bias == nullptr)
+				return false;
+			if (Bias->GetShape().Rank() != 1)
+				return false;
+
+			const bool bHasDilation = Algo::AnyOf(Dilations, [](auto Dim) {return Dim != 1u; });
+			if (bHasDilation)
+				return false;
+
+			int Ni = Input.GetShape().GetData()[0];
+			int Ci = Input.GetShape().GetData()[1];
+			int Hi = Input.GetShape().GetData()[2];
+			int Wi = Input.GetShape().GetData()[3];
+
+			check(Ni == Output.GetShape().GetData()[0]);
+			int Cw = Output.GetShape().GetData()[1];
+			int Ho = Output.GetShape().GetData()[2];
+			int Wo = Output.GetShape().GetData()[3];
+
+			check(Cw == Weights.GetShape().GetData()[0]);
+			check(Ci == Weights.GetShape().GetData()[1]);
+			int Hw = Weights.GetShape().GetData()[2];
+			int Ww = Weights.GetShape().GetData()[3];
+
+			check(Cw == Bias->GetShape().GetData()[0]);
+
+			if (Ci % 32 != 0)
+				return false;
+			if (Cw % 32 != 0)
+				return false;
+			if (Wo % 32 != 0)
+				return false;
+
+			TArray<int32> Padding = FConvCS::GetPadding(Input.GetShape().GetData(), Weights.GetShape().GetData(), AutoPad, Dilations, Strides, Pads);
+
+			// Set parameters
+			FConvMatmulCS::FParameters* Params = GraphBuilder.AllocParameters<FConvMatmulCS::FParameters>();
+			Params->Input = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Input.GetBuffer(), PF_R32_FLOAT));
+			Params->Weight= GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Weights.GetBuffer(), PF_R32_FLOAT));
+			Params->Bias = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Bias->GetBuffer(), PF_R32_FLOAT));
+			Params->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.GetBuffer(), PF_R32_FLOAT));
+			Params->Ci = Ci;
+			Params->Hi = Hi;
+			Params->Wi = Wi;
+			Params->Cw = Cw;
+			Params->Hw = Hw;
+			Params->Ww = Ww;
+			Params->Ho = Ho;
+			Params->Wo = Wo;
+			Params->StrideH = Strides[0];
+			Params->StrideW = Strides[1];
+			Params->PadTop = Padding[0];
+			Params->PadLeft = Padding[1];
+
+			FConvMatmulCS::FPermutationDomain PermutationVector;
+			TShaderMapRef<FConvMatmulCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+
+			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Conv.Matmul");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNEOperatorConvMatmul);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("NNE.Operator.Hlsl.Conv.Matmul.Dispatch"),
+				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+				ComputeShader,
+				Params,
+				FConvMatmulCS::GetGroupCount(Output.GetShape().GetData()));
+
+			return true;
+		}
+
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InputTensors, TConstArrayView<FTensorRDGRef> OutputTensors) override
+		{
+			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
+			check(OutputTensors.Num() == 1);
+			check(InputTensors[0] != nullptr);
+			check(InputTensors[1] != nullptr);
+			check(OutputTensors[0] != nullptr);
+
+			const FTensorRDG& Input = *InputTensors[0];
+			const FTensorRDG& Weights = *InputTensors[1];
+			const FTensorRDG& Output = *OutputTensors[0];
+			const FTensorRDG* Bias = nullptr;
+
+			if (InputTensors.Num() == 3) {
+				check(InputTensors[2] != nullptr);
+				Bias = InputTensors[2];
+			}
+
+			check(Input.GetShape().Rank() > 2);
+			check(Weights.GetShape().Rank() == Input.GetShape().Rank());
+			check(Output.GetShape().Rank() == Input.GetShape().Rank());
+			check(NumDimensions == (Input.GetShape().Rank() - 2));
+
+			if (DispatchConvMatmul(GraphBuilder, Input, Weights, Bias, Output))
+			{
+				return;
+			}
+			DispatchConvDefault(GraphBuilder, Input, Weights, Bias, Output);
 		}
 	};
 

@@ -106,6 +106,8 @@ namespace UE::NNEHlslShaders::Internal
 
 		static EConvGroupSize GetMinimalGroupSize(TArrayView<const int32> WShape);
 
+		static TArray<int32> GetPadding(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads);
+
 		static void LexFromString(EConvAutoPad& OutValue, const TCHAR* StringVal);
 	};
 } // UE::NNEHlslShaders::Internal
