@@ -298,7 +298,7 @@ class NAVIGATIONSYSTEM_API FRecastTileGenerator : public FNoncopyable, public FG
 	friend FRecastNavMeshGenerator;
 
 public:
-	FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenerator, const FIntPoint& Location);
+	FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenerator, const FIntPoint& Location, const double PendingTileCreationTime);
 	virtual ~FRecastTileGenerator();
 		
 	/** Does the work involved with regenerating this tile using time slicing.
@@ -480,6 +480,10 @@ protected:
 	int32 TileX;
 	int32 TileY;
 	uint32 Version;
+
+	/** Time when the tile was requested */
+	double TileCreationTime = 0.;
+	
 	/** Tile's bounding box, Unreal coords */
 	FBox TileBB;
 
@@ -554,16 +558,19 @@ struct FPendingTileElement
 	FIntPoint	Coord;
 	/** distance to seed, used for sorting pending tiles */
 	FVector::FReal SeedDistance;
+	/** time at which the element was first added to the queue */
+	double		CreationTime;
 	/** Whether we need a full rebuild for this tile grid cell */
 	bool		bRebuildGeometry;
 	/** We need to store dirty area bounds to check which cached layers needs to be regenerated
-	 *  In case geometry is changed cached layers data will be fully regenerated without using dirty areas list
+	 *  In case geometry is changed, cached layers data will be fully regenerated without using dirty areas list
 	 */
 	TArray<FBox> DirtyAreas;
 
 	FPendingTileElement()
 		: Coord(FIntPoint::NoneValue)
 		, SeedDistance(TNumericLimits<FVector::FReal>::Max())
+		, CreationTime(-1.)
 		, bRebuildGeometry(false)
 	{
 	}
@@ -581,6 +588,11 @@ struct FPendingTileElement
 	bool operator < (const FPendingTileElement& Other) const
 	{
 		return Other.SeedDistance < SeedDistance;
+	}
+
+	double GetDurationSinceCreation(const double CurrenTimeSeconds) const
+	{
+		return (CreationTime > 0.) ? CurrenTimeSeconds - CreationTime : 0.;
 	}
 
 	friend uint32 GetTypeHash(const FPendingTileElement& Element)
@@ -870,12 +882,19 @@ protected:
 	/** Blocks until build for specified list of tiles is complete and discard results */
 	void DiscardCurrentBuildingTasks();
 
-	virtual TSharedRef<FRecastTileGenerator> CreateTileGenerator(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas);
+	virtual TSharedRef<FRecastTileGenerator> CreateTileGenerator(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas, const double PendingTileCreationTime = 0.);
 
 	template <typename T>
-	TSharedRef<T> ConstuctTileGeneratorImpl(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas)
+	UE_DEPRECATED(5.3, "Use ConstructTileGeneratorImpl instead.")
+	TSharedRef<T> ConstuctTileGeneratorImpl(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas, const double PendingTileCreationTime = 0.)
 	{
-		TSharedRef<T> TileGenerator = MakeShareable(new T(*this, Coord));
+		ConstructTileGeneratorImpl<T>(Coord, DirtyAreas, PendingTileCreationTime);
+	}
+	
+	template <typename T>
+	TSharedRef<T> ConstructTileGeneratorImpl(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas, const double PendingTileCreationTime)
+	{
+		TSharedRef<T> TileGenerator = MakeShareable(new T(*this, Coord, PendingTileCreationTime));
 		TileGenerator->Setup(*this, DirtyAreas);
 		return TileGenerator;
 	}

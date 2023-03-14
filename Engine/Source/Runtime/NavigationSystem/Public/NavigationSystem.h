@@ -193,11 +193,16 @@ public:
 
 	double GetAverageDeltaTime() const { return MovingWindowDeltaTime.GetAverage(); }
 
+	void InitTileWaitTimeArrays(const TArray<TObjectPtr<ANavigationData>>& NavDataSet) { TileWaitTimes.SetNum(NavDataSet.Num()); }
+	void PushTileWaitTime(const int32 NavDataIndex, const double NewTime);
+	double GetAverageTileWaitTime(const int32 NavDataIndex) const;
+	void ResetTileWaitTime(const int32 NavDataIndex);
+
 	bool DoTimeSlicedUpdate() const { return bDoTimeSlicedUpdate; }
 
 	void CalcAverageDeltaTime(uint64 FrameNum);
 
-	void CalcTimeSliceDuration(int32 NumTilesToRegen, const TArray<double>& CurrentTileRegenDurations);
+	void CalcTimeSliceDuration(const TArray<TObjectPtr<ANavigationData>>& NavDataSet, int32 NumTilesToRegen, const TArray<double>& CurrentTileRegenDurations);
 
 	void SetMinTimeSliceDuration(double NewMinTimeSliceDuration);
 
@@ -219,6 +224,9 @@ protected:
 
 	/** Used to calculate the actual moving window delta time */
 	FMovingWindowAverageFast<double, 256> MovingWindowDeltaTime;
+
+	/** Average tile wait time per NavDataIndex */
+	TArray<TArray<double>> TileWaitTimes;
 
 	/** If there are enough tiles to process this in the Min Time Slice Duration */
 	double MinTimeSliceDuration;
@@ -544,7 +552,7 @@ public:
 	UCrowdManagerBase* GetCrowdManager() const { return CrowdManager.Get(); }
 
 protected:
-	void CalcTimeSlicedUpdateData(TArray<double>& OutCurrentTimeSlicedBuildTaskDurations, TArray<bool>& OutIsTimeSlicingArray, bool& bOutAnyNonTimeSlicedGenerators, int32& OutNumTimeSlicedRemainingBuildTasks);
+	void CalcTimeSlicedUpdateData(TArray<double>& OutCurrentTimeSlicedBuildTaskDurations, TArray<bool>& OutIsTimeSlicingArray, bool& bOutAnyNonTimeSlicedGenerators, TArray<int32, TInlineAllocator<8>>& OutNumTimeSlicedRemainingBuildTasksArray);
 
 	/** spawn new crowd manager */
 	virtual void CreateCrowdManager();

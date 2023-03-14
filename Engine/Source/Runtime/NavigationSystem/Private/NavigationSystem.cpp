@@ -155,6 +155,7 @@ DEFINE_STAT(STAT_DetourTileClustersMemory);
 DEFINE_STAT(STAT_DetourTilePolyClustersMemory);
 
 CSV_DEFINE_CATEGORY(NavigationSystem, false);
+CSV_DEFINE_CATEGORY(NavTasksDelays, true);
 CSV_DEFINE_CATEGORY(NavTasks, true);
 
 //----------------------------------------------------------------------//
@@ -311,6 +312,43 @@ bool FNavRegenTimeSlicer::TestTimeSliceFinished() const
 	return bTimeSliceFinishedCached;
 }
 
+void FNavRegenTimeSliceManager::PushTileWaitTime(const int32 NavDataIndex, const double NewTime)
+{
+	if (TileWaitTimes.IsValidIndex(NavDataIndex))
+	{
+		TileWaitTimes[NavDataIndex].Add(NewTime);	
+	}
+}
+
+double FNavRegenTimeSliceManager::GetAverageTileWaitTime(const int32 NavDataIndex) const
+{
+	if (!TileWaitTimes.IsValidIndex(NavDataIndex))
+	{
+		return 0.;
+	}
+	
+	double Total = 0.;
+	const TArray<double>& TimeArray = TileWaitTimes[NavDataIndex];
+	if (TimeArray.Num() == 0)
+	{
+		return 0.;			
+	}
+		
+	for (const double Time : TimeArray)
+	{
+		Total += Time;
+	}
+	return Total / TimeArray.Num();
+}
+
+void FNavRegenTimeSliceManager::ResetTileWaitTime(const int32 NavDataIndex)
+{
+	if (TileWaitTimes.IsValidIndex(NavDataIndex))
+	{
+		TileWaitTimes[NavDataIndex].Reset();			
+	}
+}
+
 FNavRegenTimeSliceManager::FNavRegenTimeSliceManager()
 	: MinTimeSliceDuration(0.00075)
 	, MaxTimeSliceDuration(0.004)
@@ -339,7 +377,7 @@ void FNavRegenTimeSliceManager::CalcAverageDeltaTime(uint64 FrameNum)
 	FrameNumOld = FrameNum;
 }
 
-void FNavRegenTimeSliceManager::CalcTimeSliceDuration(int32 NumTilesToRegen, const TArray<double>& CurrentTileRegenDurations)
+void FNavRegenTimeSliceManager::CalcTimeSliceDuration(const TArray<TObjectPtr<ANavigationData>>& NavDataSet, int32 NumTilesToRegen, const TArray<double>& CurrentTileRegenDurations)
 {
 	const float RawDeltaTimesAverage = FloatCastChecked<float>(MovingWindowDeltaTime.GetAverage(), UE::LWC::DefaultFloatPrecision);
 	const float DeltaTimesAverage = (RawDeltaTimesAverage > 0.f) ? RawDeltaTimesAverage : (1.f / 30.f); //use default 33 ms
@@ -371,7 +409,22 @@ void FNavRegenTimeSliceManager::CalcTimeSliceDuration(int32 NumTilesToRegen, con
 	CSV_CUSTOM_STAT(NavigationSystem, NavTilesToAddForLongCurrentTileRegen, TilesToAddForLongCurrentTileRegen, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(NavigationSystem, NavTileAvRegenTimeMs, static_cast<float>(MovingWindowTileRegenTime.GetAverage() * 1000.), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(NavigationSystem, NavTileAvRegenDeltaTimeMs, static_cast<float>(MovingWindowDeltaTime.GetAverage() * 1000.), ECsvCustomStatOp::Set);
-#endif
+
+	for (int32 NavDataIndex = 0; NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
+	{
+		if (TileWaitTimes.IsValidIndex(NavDataIndex))
+		{
+#if CSV_PROFILER			
+			const float WaitTime = static_cast<float>(GetAverageTileWaitTime(NavDataIndex) * 1000.);
+
+			const FString StatName = FString::Printf(TEXT("NavTileAvTileWaitTimeMs_%s"), *GetNameSafe(NavDataSet[NavDataIndex])); 
+			FCsvProfiler::RecordCustomStat(*StatName, CSV_CATEGORY_INDEX(NavTasksDelays), WaitTime, ECsvCustomStatOp::Set);
+#endif // CSV_PROFILER
+
+			ResetTileWaitTime(NavDataIndex);
+		}
+	}
+#endif // !UE_BUILD_SHIPPING
 }
 
 void FNavRegenTimeSliceManager::SetMinTimeSliceDuration(double NewMinTimeSliceDuration)
@@ -1129,9 +1182,9 @@ void UNavigationSystemV1::SetCrowdManager(UCrowdManagerBase* NewCrowdManager)
 	}
 }
 
-void UNavigationSystemV1::CalcTimeSlicedUpdateData(TArray<double>& OutCurrentTimeSlicedBuildTaskDurations, TArray<bool>& OutIsTimeSlicingArray, bool& bOutAnyNonTimeSlicedGenerators, int32& OutNumTimeSlicedRemainingBuildTasks)
+void UNavigationSystemV1::CalcTimeSlicedUpdateData(TArray<double>& OutCurrentTimeSlicedBuildTaskDurations, TArray<bool>& OutIsTimeSlicingArray, bool& bOutAnyNonTimeSlicedGenerators, TArray<int32, TInlineAllocator<8>>& OutNumTimeSlicedRemainingBuildTasksArray)
 {
-	OutNumTimeSlicedRemainingBuildTasks = 0;
+	OutNumTimeSlicedRemainingBuildTasksArray.SetNumZeroed(NavDataSet.Num());
 	OutIsTimeSlicingArray.SetNumZeroed(NavDataSet.Num());
 	bOutAnyNonTimeSlicedGenerators = false;
 	OutCurrentTimeSlicedBuildTaskDurations.Reset(NavDataSet.Num());
@@ -1148,7 +1201,7 @@ void UNavigationSystemV1::CalcTimeSlicedUpdateData(TArray<double>& OutCurrentTim
 			if (Generator->GetTimeSliceData(NumRemainingBuildTasksTemp, TimeSlicedBuildTaskDuration))
 			{
 				OutIsTimeSlicingArray[NavDataIdx] = true;
-				OutNumTimeSlicedRemainingBuildTasks += NumRemainingBuildTasksTemp;
+				OutNumTimeSlicedRemainingBuildTasksArray[NavDataIdx] += NumRemainingBuildTasksTemp;
 				if (TimeSlicedBuildTaskDuration > 0.)
 				{
 					OutCurrentTimeSlicedBuildTaskDurations.Push(TimeSlicedBuildTaskDuration);
@@ -1221,25 +1274,33 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 
 			if (NavRegenTimeSliceManager.DoTimeSlicedUpdate())
 			{
-				int32 NumTimeSlicedRemainingBuildTasks = 0;
+				TArray<int32, TInlineAllocator<8>> NumTimeSlicedRemainingBuildTasksArray;
+				NumTimeSlicedRemainingBuildTasksArray.SetNumZeroed(NavDataSet.Num());
+				
 				TArray<double> CurrentTimeSlicedBuildTaskDurations;
 				TArray<bool> IsTimeSlicingArray;
 				bool bAnyNonTimeSlicedGenerators = false;
 
 				NavRegenTimeSliceManager.CalcAverageDeltaTime(GFrameCounter);
 
-				CalcTimeSlicedUpdateData(CurrentTimeSlicedBuildTaskDurations, IsTimeSlicingArray, bAnyNonTimeSlicedGenerators, NumTimeSlicedRemainingBuildTasks);
+				CalcTimeSlicedUpdateData(CurrentTimeSlicedBuildTaskDurations, IsTimeSlicingArray, bAnyNonTimeSlicedGenerators, NumTimeSlicedRemainingBuildTasksArray);
 
+				int32 NumTimeSlicedRemainingBuildTasks = 0;
+				for (const int32 NumTasks : NumTimeSlicedRemainingBuildTasksArray)
+				{
+					NumTimeSlicedRemainingBuildTasks += NumTasks;
+				}
+				
 				if (NumTimeSlicedRemainingBuildTasks > 0)
 				{
-					NavRegenTimeSliceManager.CalcTimeSliceDuration(NumTimeSlicedRemainingBuildTasks, CurrentTimeSlicedBuildTaskDurations);
+					NavRegenTimeSliceManager.CalcTimeSliceDuration(NavDataSet, NumTimeSlicedRemainingBuildTasks, CurrentTimeSlicedBuildTaskDurations);
 
 					//The general idea here is to tick any non time sliced generators once per frame. Time sliced generators we aim to tick one per frame and move to the next, next frame. In the
 					//case where one time sliced generator doesn't use the whole time slice we move to the next time sliced generator. That generator will only be considered to have a full frames
 					//processing if either it runs out of work or uses a large % of the time slice. Depending we either tick it again next frame or go to the next time sliced generator (next frame).
 					bool bNavDataIdxSet = false;
 					int32 NavDataIdxTemp = NavRegenTimeSliceManager.GetNavDataIdx();
-					const double RemainingFractionConsideredWholeTick = 0.8;
+					constexpr double RemainingFractionConsideredWholeTick = 0.8;
 					const int32 FirstNavDataIdx = NavDataIdxTemp = NavDataIdxTemp % NavDataSet.Num();
 
 					for (int32 NavDataIter = 0; NavDataIter < NavDataSet.Num(); ++NavDataIter)
@@ -1306,8 +1367,22 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 		}
 	}
 
-	CSV_CUSTOM_STAT(NavTasks, NumRemainingTasks, GetNumRemainingBuildTasks(), ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT(NavTasks, NumRunningTasks, GetNumRunningBuildTasks(), ECsvCustomStatOp::Set);
+#if !UE_BUILD_SHIPPING && CSV_PROFILER
+	for (const TObjectPtr<ANavigationData>& NavigationData : NavDataSet)
+	{
+		if (NavigationData)
+		{
+			if (const FNavDataGenerator* Generator = NavigationData->GetGenerator())
+			{
+				const int32 BuildTaskNum = Generator->GetNumRemaningBuildTasks();
+				const FString StatName = FString::Printf(TEXT("NumRemainingTasks_%s"), *GetNameSafe(NavigationData)); 
+				FCsvProfiler::RecordCustomStat(*StatName, CSV_CATEGORY_INDEX(NavTasks), BuildTaskNum, ECsvCustomStatOp::Set);
+			}
+		}
+	}
+	
+	CSV_CUSTOM_STAT(NavigationSystem, NumRunningTasks, GetNumRunningBuildTasks(), ECsvCustomStatOp::Set);
+#endif // !UE_BUILD_SHIPPING && CSV_PROFILER
 
 	// In multithreaded configuration we can process async pathfinding queries
 	// in dedicated task while dispatching completed queries results on the main thread.
@@ -2452,6 +2527,8 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 	{
 		Result = RegistrationFailed_AgentNotValid;
 	}
+
+	NavRegenTimeSliceManager.InitTileWaitTimeArrays(NavDataSet);
 
 	// @todo else might consider modifying this NavData to implement navigation for one of the supported agents
 	// care needs to be taken to not make it implement navigation for agent who's real implementation has 

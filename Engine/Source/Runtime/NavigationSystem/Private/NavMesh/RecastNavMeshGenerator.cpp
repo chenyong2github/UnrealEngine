@@ -1636,7 +1636,7 @@ uint32 GetTileCacheSizeHelper(TArray<FNavMeshTileData>& CompressedTiles)
 // FRecastTileGenerator
 //----------------------------------------------------------------------//
 
-FRecastTileGenerator::FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenerator, const FIntPoint& Location)
+FRecastTileGenerator::FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenerator, const FIntPoint& Location, const double PendingTileCreationTime)
 	: TimeSliceManager(ParentGenerator.GetTimeSliceManager())
 {
 	bUpdateGeometry = true;
@@ -1644,6 +1644,8 @@ FRecastTileGenerator::FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenera
 
 	TileX = Location.X;
 	TileY = Location.Y;
+
+	TileCreationTime = PendingTileCreationTime;
 
 	// Copy tile config from parent generator
 	TileConfig = ParentGenerator.GetConfig();
@@ -5278,16 +5280,19 @@ void FRecastNavMeshGenerator::ReAddTiles(const TArray<FIntPoint>& Tiles)
 
 	TSet<FPendingTileElement> DirtyTiles;
 
+	const double CurrentTimeSeconds = FPlatformTime::Seconds();
+
 	// @note we act on assumption all items in Tiles are unique
 	for (const FIntPoint& TileCoords : Tiles)
 	{
 		FPendingTileElement Element;
 		Element.Coord = TileCoords;
 		Element.bRebuildGeometry = true;
+		Element.CreationTime = CurrentTimeSeconds;
 		DirtyTiles.Add(Element);
 	}
 
-	int32 NumTilesMarked = DirtyTiles.Num();
+	const int32 NumTilesMarked = DirtyTiles.Num();
 
 	// Merge all pending tiles into one container
 	for (const FPendingTileElement& Element : PendingDirtyTiles)
@@ -5296,6 +5301,7 @@ void FRecastNavMeshGenerator::ReAddTiles(const TArray<FIntPoint>& Tiles)
 		if (ExistingElement)
 		{
 			ExistingElement->bRebuildGeometry |= Element.bRebuildGeometry;
+			ExistingElement->CreationTime = FMath::Min(Element.CreationTime, ExistingElement->CreationTime);
 			// Append area bounds to existing list 
 			if (ExistingElement->bRebuildGeometry == false)
 			{
@@ -5860,6 +5866,8 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 	const FNavigationOctree* const NavOctreeInstance = (bUseVirtualGeometryFilteringAndDirtying && NavSys) ? NavSys->GetNavOctree() : nullptr;
 	const FNavDataConfig* const NavDataConfig = bUseVirtualGeometryFilteringAndDirtying ? &DestNavMesh->GetConfig() : nullptr;
 	// ~
+
+	const double CurrentTimeSeconds = FPlatformTime::Seconds();
 		
 	// find all tiles that need regeneration
 	TSet<FPendingTileElement> DirtyTiles;
@@ -5948,6 +5956,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 				FPendingTileElement Element;
 				Element.Coord = FIntPoint(TileX, TileY);
 				Element.bRebuildGeometry = DirtyArea.HasFlag(ENavigationDirtyFlag::Geometry) || DirtyArea.HasFlag(ENavigationDirtyFlag::NavigationBounds);
+				Element.CreationTime = CurrentTimeSeconds;
 				if (Element.bRebuildGeometry == false)
 				{
 					Element.DirtyAreas.Add(AdjustedAreaBounds);
@@ -5994,6 +6003,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 			const FPendingTileElement& DirtyElement = DirtyTiles[Id];
 
 			ExistingElement.bRebuildGeometry |= DirtyElement.bRebuildGeometry;
+			ExistingElement.CreationTime = FMath::Min(DirtyElement.CreationTime, ExistingElement.CreationTime);
 			// Append area bounds to existing list 
 			if (ExistingElement.bRebuildGeometry == false)
 			{
@@ -6103,11 +6113,11 @@ void FRecastNavMeshGenerator::GetSeedLocations(UWorld& World, TArray<FVector2D>&
 	}
 }
 
-TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGenerator(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas)
+TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGenerator(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas, const double PendingTileCreationTime /*=0.*/)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_CreateTileGenerator);
 
-	return ConstuctTileGeneratorImpl<FRecastTileGenerator>(Coord, DirtyAreas);
+	return ConstructTileGeneratorImpl<FRecastTileGenerator>(Coord, DirtyAreas, PendingTileCreationTime);
 }
 
 // Deprecated
@@ -6181,7 +6191,7 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksAsyncAndGetUpdatedT
 		if (!RunningDirtyTiles.Contains(RunningElement))
 		{
 			// Spawn async task
-			TUniquePtr<FRecastTileGeneratorTask> TileTask = MakeUnique<FRecastTileGeneratorTask>(CreateTileGenerator(PendingElement.Coord, PendingElement.DirtyAreas));
+			TUniquePtr<FRecastTileGeneratorTask> TileTask = MakeUnique<FRecastTileGeneratorTask>(CreateTileGenerator(PendingElement.Coord, PendingElement.DirtyAreas, PendingElement.CreationTime));
 
 			// Start it in background in case it has something to build
 			if (TileTask->GetTask().TileGenerator->HasDataToBuild())
@@ -6275,7 +6285,8 @@ TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGeneratorFro
 	OutTileLocation.X = PendingElement.Coord.X;
 	OutTileLocation.Y = PendingElement.Coord.Y;
 
-	TSharedRef<FRecastTileGenerator> TileGenerator = CreateTileGenerator(PendingElement.Coord, PendingElement.DirtyAreas);
+	TSharedRef<FRecastTileGenerator> TileGenerator = CreateTileGenerator(PendingElement.Coord, PendingElement.DirtyAreas, PendingElement.CreationTime);
+
 	PendingDirtyTiles.RemoveAt(PendingItemIdx, 1, false);
 
 	return TileGenerator;
@@ -6490,6 +6501,17 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 				SyncTimeSlicedData.TimeSliceManager->PushTileRegenTime(SyncTimeSlicedData.CurrentTileRegenDuration);
 
 				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
+
+#if !UE_BUILD_SHIPPING					
+				const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+				if (NavSys)
+				{
+					const TSharedPtr<FRecastTileGenerator>& TileGenerator = SyncTimeSlicedData.TileGeneratorSync;
+					const double WaitTime = (FPlatformTime::Seconds() - TileGenerator->TileCreationTime);
+					const int32 NavDataIndex = NavSys->NavDataSet.Find(DestNavMesh);	
+					SyncTimeSlicedData.TimeSliceManager->PushTileWaitTime(NavDataIndex, WaitTime);
+				}
+#endif // !UE_BUILD_SHIPPING					
 				
 				MARK_TIMESLICE_SECTION_DEBUG(SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer(), FinishTile);
 
