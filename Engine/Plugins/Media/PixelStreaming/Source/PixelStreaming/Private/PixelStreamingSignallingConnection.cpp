@@ -11,6 +11,7 @@
 #include "PixelStreamingDelegates.h"
 #include "Utils.h"
 #include "ToStringExtensions.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
@@ -56,6 +57,18 @@ void FPixelStreamingSignallingConnection::Connect(FString InUrl, bool bIsReconne
 	Disconnect();
 
 	Url = InUrl;
+
+	// add the default port if none is provided
+	TOptional<uint16> MaybePort = FGenericPlatformHttp::GetUrlPort(Url);
+	if (!MaybePort)
+	{
+		const FString Protocol = FGenericPlatformHttp::IsSecureProtocol(Url).Get(false) ? "wss" : "ws";
+		const FString Domain = FGenericPlatformHttp::GetUrlDomain(Url);
+		const uint16 Port = 8888;
+		const FString Path = FGenericPlatformHttp::GetUrlPath(Url);
+		const FString Final = FString::Printf(TEXT("%s://%s:%d%s"), *Protocol, *Domain, Port, *Path);
+		Url = Final;
+	}
 
 	WebSocket = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT(""));
 	verifyf(WebSocket, TEXT("Web Socket Factory failed to return a valid Web Socket."));

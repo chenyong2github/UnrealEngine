@@ -90,6 +90,7 @@ namespace UnrealBuildTool.Rules
 				"PixelStreamingServers",
 				"PixelStreamingHMD",
 				"TraceLog",
+				"HTTP",
 			});
 
 			PrivateDefinitions.Add("PIXELSTREAMING_DUMP_ENCODING=0");
