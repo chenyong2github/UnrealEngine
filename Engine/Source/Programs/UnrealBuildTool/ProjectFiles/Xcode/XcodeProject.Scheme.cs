@@ -217,7 +217,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Content.WriteLine("      buildConfiguration = \"" + DefaultConfiguration + "\">");
 				Content.WriteLine("   </AnalyzeAction>");
 				Content.WriteLine("   <ArchiveAction");
-				Content.WriteLine("      buildConfiguration = \"" + DefaultConfiguration + "\"");
+				Content.WriteLine("      buildConfiguration = \"Shipping\"");
 				Content.WriteLine("      revealArchiveInOrganizer = \"YES\">");
 				Content.WriteLine("   </ArchiveAction>");
 				Content.WriteLine("</Scheme>");

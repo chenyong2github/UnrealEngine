@@ -256,6 +256,12 @@ namespace UnrealBuildTool
 		public readonly FileReference? ProjectFile;
 
 		/// <summary>
+		/// Are we using modern xcode in this project?
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "XcodeConfiguration", "bUseModernXcode")]
+		public bool bUseModernXcode = false;
+
+		/// <summary>
 		/// Whether to build the iOS project as a framework.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bBuildAsFramework")]
@@ -773,17 +779,20 @@ namespace UnrealBuildTool
 			Target.bDeployAfterCompile = true;
 
 			Target.IOSPlatform.ProjectSettings = ((IOSPlatform)GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
-			
-			// always strip in shipping configuration (commandline could have set it also)
-			if (Target.Configuration == UnrealTargetConfiguration.Shipping)
+
+			if (!Target.IOSPlatform.ProjectSettings.bUseModernXcode)
 			{
-				Target.IOSPlatform.bStripSymbols = true;	
-			}
-			
-			// if we are stripping the executable, or if the project requested it, or if it's a buildmachine, generate the dsym
-			if (Target.IOSPlatform.bStripSymbols || Target.IOSPlatform.ProjectSettings.bGeneratedSYMFile || Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
-			{
-				Target.IOSPlatform.bGeneratedSYM = true;
+				// always strip in shipping configuration (commandline could have set it also)
+				if (Target.Configuration == UnrealTargetConfiguration.Shipping)
+				{
+					Target.IOSPlatform.bStripSymbols = true;
+				}
+
+				// if we are stripping the executable, or if the project requested it, or if it's a buildmachine, generate the dsym
+				if (Target.IOSPlatform.bStripSymbols || Target.IOSPlatform.ProjectSettings.bGeneratedSYMFile || Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
+				{
+					Target.IOSPlatform.bGeneratedSYM = true;
+				}
 			}
 
 			// Set bShouldCompileAsDLL when building as a framework

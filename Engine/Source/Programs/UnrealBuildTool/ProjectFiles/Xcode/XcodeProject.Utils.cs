@@ -55,6 +55,12 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 		public static bool ShouldIncludeProjectInWorkspace(ProjectFile Proj, ILogger Logger)
 		{
+			// since IOS/TVOS don't have the UnrealEditor project as valid, force it so that we get the source code
+			// this is likely temporary until we can put source code into UnrealGame
+			if (Proj.ProjectFilePath.GetFileNameWithoutAnyExtensions() == "UnrealEditor")
+			{
+				return true;
+			}
 			foreach (Project ProjectTarget in Proj.ProjectTargets)
 			{
 				foreach (UnrealTargetPlatform Platform in XcodeProjectFileGenerator.XcodePlatforms)
