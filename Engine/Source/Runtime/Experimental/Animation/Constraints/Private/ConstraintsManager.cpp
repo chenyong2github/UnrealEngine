@@ -175,9 +175,12 @@ void UConstraintsManager::OnActorDestroyed(AActor* InActor)
 		if (!IndicesToRemove.IsEmpty())
 		{
 			FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InActor->GetWorld());
-			for (int32 Index = IndicesToRemove.Num()-1; Index >= 0; --Index)
+			if (FConstraintsManagerController::bDoNotRemoveConstraint == false)
 			{
-				Controller.RemoveConstraint(Index,/*do not compensate*/ true);
+				for (int32 Index = IndicesToRemove.Num() - 1; Index >= 0; --Index)
+				{
+					Controller.RemoveConstraint(Index,/*do not compensate*/ true);
+				}
 			}
 		}
 	}
@@ -337,6 +340,13 @@ void UConstraintsManager::Dump() const
 		}
 	}
 }
+
+/**
+ * FConstraintsManagerController
+ **/
+
+
+bool FConstraintsManagerController::bDoNotRemoveConstraint = false;
 
 FConstraintsManagerController& FConstraintsManagerController::Get(UWorld* InWorld)
 {
@@ -514,6 +524,10 @@ int32 FConstraintsManagerController::GetConstraintIndex(const FName& InConstrain
 	
 bool FConstraintsManagerController::RemoveConstraint(UTickableConstraint* InConstraint, bool bDoNotCompensate) const
 {
+	if (FConstraintsManagerController::bDoNotRemoveConstraint == false)
+	{
+		return false;
+	}
 	const UConstraintsManager* Manager = FindManager();
 	if (!Manager)
 	{

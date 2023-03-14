@@ -209,7 +209,10 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FConstraintsManagerNotifyDelegate, EConstra
 class CONSTRAINTS_API FConstraintsManagerController
 {
 public:
-	/** @todo document */
+	/** Static to control if we should remove constraints or not, may not want to do some when
+	compensating since we may be deleting spawnables while doing so*/
+	static bool bDoNotRemoveConstraint;
+	/** Get and Set Controller acive in this world*/
 	static FConstraintsManagerController& Get(UWorld* InWorld);
 
 	/** Allocates a new constraint with the constraints manager as the owner. */

@@ -106,7 +106,8 @@ bool FControlConstraintChannelInterface::SmartConstraintKey(
 			const bool bNeedsCompensation = InConstraint->NeedsCompensation();
 				
 			TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
-				
+			TGuardValue<bool> RemoveConstraintGuard(FConstraintsManagerController::bDoNotRemoveConstraint, true);
+
 			UControlRig* ControlRig = ControlHandle->ControlRig.Get();
 			const FName& ControlName = ControlHandle->ControlName;
 				

@@ -99,6 +99,8 @@ bool FComponentConstraintChannelInterface::SmartConstraintKey(
 			//new for compensation
 
 			TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
+			TGuardValue<bool> RemoveConstraintGuard(FConstraintsManagerController::bDoNotRemoveConstraint, true);
+
 			// store the frames to compensate
 			const TArrayView<FMovieSceneDoubleChannel*> Channels = ComponentHandle->GetDoubleChannels(TransformSection);
 			TArray<FFrameNumber> FramesToCompensate;
