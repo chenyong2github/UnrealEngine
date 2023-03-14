@@ -9,7 +9,7 @@
 #include "WaveformEditorWidgetsSettings.h"
 
 static FLazyName WaveformViewerStyleName("WaveformViewer.Style");
-static FLazyName WaveformViewerOverlayStyleName("WaveformViewerOverlay.Style");
+static FLazyName PlayheadOverlayStyleName("WaveformEditorPlayheadOverlay.Style");
 static FLazyName WaveformEditorRulerStyleName("WaveformEditorRuler.Style");
 
 FName FWaveformEditorStyle::StyleName("WaveformEditorStyle");
@@ -58,9 +58,9 @@ void FWaveformEditorStyle::Init()
 
 	StyleInstance->Set(WaveformViewerStyleName, WaveViewerStyle);
 
-	//Waveform Viewer Overlay style
-	FWaveformViewerOverlayStyle WaveViewerOverlayStyle = FWaveformViewerOverlayStyle().SetPlayheadColor(Settings->PlayheadColor);
-	StyleInstance->Set(WaveformViewerOverlayStyleName, WaveViewerOverlayStyle);
+	//Playhead Overlay style
+	FPlayheadOverlayStyle PlayheadOverlayStyle = FPlayheadOverlayStyle().SetPlayheadColor(Settings->PlayheadColor);
+	StyleInstance->Set(PlayheadOverlayStyleName, PlayheadOverlayStyle);
 
 	//Time Ruler style 
 	FWaveformEditorTimeRulerStyle TimeRulerStyle = FWaveformEditorTimeRulerStyle()
@@ -87,7 +87,7 @@ const UWaveformEditorWidgetsSettings* FWaveformEditorStyle::GetWidgetsSettings()
 void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, const UWaveformEditorWidgetsSettings* Settings)
 {
 	TSharedRef<FSampledSequenceViewerStyle> WaveformViewerStyle = GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>(WaveformViewerStyleName);
-	TSharedRef<FWaveformViewerOverlayStyle> WaveformViewerOverlayStyle = GetRegisteredWidgetStyle<FWaveformViewerOverlayStyle>(WaveformViewerOverlayStyleName);
+	TSharedRef<FPlayheadOverlayStyle> PlayheadOverlayStyle = GetRegisteredWidgetStyle<FPlayheadOverlayStyle>(PlayheadOverlayStyleName);
 	TSharedRef<FWaveformEditorTimeRulerStyle> WaveformEditorTimeRulerStyle = GetRegisteredWidgetStyle<FWaveformEditorTimeRulerStyle>(WaveformEditorRulerStyleName);
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, WaveformColor))
@@ -124,7 +124,7 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, PlayheadColor))
 	{
-		WaveformViewerOverlayStyle->SetPlayheadColor(Settings->PlayheadColor);
+		PlayheadOverlayStyle->SetPlayheadColor(Settings->PlayheadColor);
 		WaveformEditorTimeRulerStyle->SetHandleColor(Settings->PlayheadColor);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, RulerBackgroundColor))

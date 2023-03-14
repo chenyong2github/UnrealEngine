@@ -24,38 +24,6 @@ struct FWaveformEditorWidgetStyleBase : public FSlateWidgetStyle
 };
 
 /**
- * Represents the appearance of a Waveform Viewer Overlay style
- */
-USTRUCT(BlueprintType)
-struct FWaveformViewerOverlayStyle : public FWaveformEditorWidgetStyleBase
-{
-	GENERATED_USTRUCT_BODY()
-
-	FWaveformViewerOverlayStyle();
-
-	static const FWaveformViewerOverlayStyle& GetDefault();
-	virtual const FName GetTypeName() const override { return TypeName; };
-
-	static const FName TypeName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	FSlateColor PlayheadColor;
-	FWaveformViewerOverlayStyle& SetPlayheadColor(const FSlateColor InPlayheadColor) { PlayheadColor = InPlayheadColor; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	float PlayheadWidth;
-	FWaveformViewerOverlayStyle& SetPlayheadWidth(const float InPlayheadWidth) { PlayheadWidth = InPlayheadWidth; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	float DesiredWidth;
-	FWaveformViewerOverlayStyle& SetDesiredWidth(const float InDesiredWidth) { DesiredWidth = InDesiredWidth; BroadcastStyleUpdate(); return *this; }
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
-	float DesiredHeight;
-	FWaveformViewerOverlayStyle& SetDesiredHeight(const float InDesiredHeight) { DesiredHeight = InDesiredHeight; BroadcastStyleUpdate(); return *this; }
-};
-
-/**
  * Represents the appearance of a Waveform Editor Time Ruler
  */
 USTRUCT(BlueprintType)

@@ -5,7 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 
-class FWaveformEditorTransportCoordinator;
+class FSamplesSequenceTransportCoordinator;
 class IWaveformTransformationRenderer;
 class SOverlay;
 class SWaveformTransformationRenderLayer;
@@ -20,7 +20,7 @@ public:
 		SLATE_DEFAULT_SLOT(FArguments, InArgs)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TArrayView< const FTransformationLayerRenderInfo> InTransformationRenderers, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator);
+	void Construct(const FArguments& InArgs, TArrayView< const FTransformationLayerRenderInfo> InTransformationRenderers, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator);
 	void OnLayerChainGenerated(FTransformationLayerRenderInfo* FirstLayerPtr, const int32 NLayers);
 	void UpdateLayerConstraints();
 	void OnNewWaveformDisplayRange(const TRange<float> NewDisplayRange);
@@ -36,13 +36,8 @@ private:
 	void UpdateAnchors();
 	
 	TSharedPtr<SOverlay> MainOverlayPtr;
-	TArray<TSharedPtr<SWaveformTransformationRenderLayer>> TransformationLayers;
+	TArray<TSharedPtr<SWidget>> TransformationLayers;
 	TArray<SConstraintCanvas::FSlot*> LayersSlots;
 	TArrayView<const FTransformationLayerRenderInfo> TransformationRenderers;
-	TSharedPtr<FWaveformEditorTransportCoordinator> TransportCoordinator = nullptr;
-
-	typedef FReply(SWidget::*WidgetMouseInputFunction)(const FGeometry&, const FPointerEvent&);
-	
-	FReply RouteMouseInput(WidgetMouseInputFunction InputFunction, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
-	FCursorReply RouteCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const; 
+	TSharedPtr<FSamplesSequenceTransportCoordinator> TransportCoordinator = nullptr;
 };

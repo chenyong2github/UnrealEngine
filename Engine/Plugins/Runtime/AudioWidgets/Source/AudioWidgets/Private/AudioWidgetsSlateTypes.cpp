@@ -8,6 +8,15 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioWidgetsSlateTypes)
 
+namespace AudioWidgetStylesSharedParams
+{
+	const FLazyName BackgroundBrushName = "WhiteBrush";
+	const FLazyName PlayheadHandleBrushName = "Sequencer.Timeline.VanillaScrubHandleDown";
+	const FLinearColor PlayheadColor = FLinearColor(255.f, 0.1f, 0.2f, 1.f);
+	const float DefaultHeight = 720.f;
+	const float DefaultWidth = 1280.f;
+}
+
 // Audio Text Box Style 
 FAudioTextBoxStyle::FAudioTextBoxStyle()
 	: BackgroundImage(FSlateRoundedBoxBrush(FStyleColors::White, 4.0f, FVector2D(56.0f, 28.0f)))
@@ -84,9 +93,9 @@ FSampledSequenceViewerStyle::FSampledSequenceViewerStyle()
 	, ZeroCrossingLineThickness(1.f)
 	, SampleMarkersSize(2.5f)
 	, SequenceBackgroundColor(FLinearColor(0.02f, 0.02f, 0.02f, 1.f))
-	, BackgroundBrush(*FAppStyle::GetBrush(TEXT("WhiteBrush")))
-	, DesiredWidth(1280.f)
-	, DesiredHeight(720.f)
+	, BackgroundBrush(*FAppStyle::GetBrush(AudioWidgetStylesSharedParams::BackgroundBrushName))
+	, DesiredWidth(AudioWidgetStylesSharedParams::DefaultWidth)
+	, DesiredHeight(AudioWidgetStylesSharedParams::DefaultHeight)
 {
 }
 
@@ -101,3 +110,18 @@ void FSampledSequenceViewerStyle::GetResources(TArray< const FSlateBrush* >& Out
 	OutBrushes.Add(&BackgroundBrush);
 }
 
+const FName FPlayheadOverlayStyle::TypeName("FPlayheadOverlayStyle");
+
+FPlayheadOverlayStyle::FPlayheadOverlayStyle()
+	: PlayheadColor(AudioWidgetStylesSharedParams::PlayheadColor)
+	, PlayheadWidth(1.0f)
+	, DesiredWidth(AudioWidgetStylesSharedParams::DefaultWidth)
+	, DesiredHeight(AudioWidgetStylesSharedParams::DefaultHeight)
+{
+}
+
+const FPlayheadOverlayStyle& FPlayheadOverlayStyle::GetDefault()
+{
+	static FPlayheadOverlayStyle Default;
+	return Default;
+}

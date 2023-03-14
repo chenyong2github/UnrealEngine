@@ -8,25 +8,29 @@
 #include "Math/Range.h"
 #include "Misc/FrameRate.h"
 
+DECLARE_MULTICAST_DELEGATE(FOnWaveformEditorGridUpdated)
+
 struct FSlateFontInfo;
 
 class WAVEFORMEDITORWIDGETS_API FWaveformEditorGridData : public ISampledSequenceGridService
 {
 public: 
-	explicit FWaveformEditorGridData(const uint32 InTotalFrames, const uint32 InSampleRateHz, const FSlateFontInfo* InTicksTimeFont = nullptr);
+	explicit FWaveformEditorGridData(const uint32 InTotalFrames, const uint32 InSampleRateHz, const float InGridSizePixels = 1.f, const FSlateFontInfo* InTicksTimeFont = nullptr);
 
 	void UpdateDisplayRange(const TRange<uint32> InDisplayRange);
-	bool UpdateGridMetrics(const float InGridPixelWidth);
+	bool UpdateGridMetrics(const float InGridSizePixels);
 	virtual const FSampledSequenceGridMetrics GetGridMetrics() const override;
 	void SetTicksTimeFont(const FSlateFontInfo* InNewFont);
 	const float SnapPositionToClosestFrame(const float InPixelPosition) const;
+
+	FOnWaveformEditorGridUpdated OnGridMetricsUpdated;
 
 private:
 	FSampledSequenceGridMetrics GridMetrics;
 	uint32 TotalFrames = 0;
 	TRange<uint32> DisplayRange;
 
-	float GridPixelWidth = 0.f;
+	float GridSizePixels = 0.f;
 	const FSlateFontInfo* TicksTimeFont = nullptr;
 	FFrameRate GridFrameRate;
 };

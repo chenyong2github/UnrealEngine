@@ -2,41 +2,39 @@
 
 #include "SWaveformViewerOverlay.h"
 
-#include "ISampledSequenceGridService.h"
-#include "WaveformEditorTransportCoordinator.h"
-#include "WaveformEditorGridData.h"
+#include "AudioWidgetsUtils.h"
 #include "Widgets/SLeafWidget.h"
 
-void SWaveformViewerOverlay::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<SWaveformTransformationsOverlay> InTransformationsOverlay, TSharedRef<ISampledSequenceGridService> InGridService)
+void SWaveformViewerOverlay::Construct(const FArguments& InArgs, const TArray<TSharedPtr<SWidget>>& InOverlaidWidgets)
 {
-	TransportCoordinator = InTransportCoordinator;
-	TransformationsOverlay = InTransformationsOverlay;
-	GridService = InGridService;
-
-	Style = InArgs._Style;
+	if (InArgs._Style)
+	{
+		Style = InArgs._Style;
+		DesiredWidth = Style->DesiredWidth;
+		DesiredHeight = Style->DesiredHeight;
+	}
 	
-	check(Style);
-	PlayheadColor = Style->PlayheadColor;
-	PlayheadWidth = Style->PlayheadWidth;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
+	OverlaidWidgets = InOverlaidWidgets;
 }
 
 FReply SWaveformViewerOverlay::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	FReply InteractionReply = TransformationsOverlay->OnMouseButtonDown(MyGeometry, MouseEvent);
+	return AudioWidgetsUtils::RouteMouseInput(&SWidget::OnMouseButtonDown, MouseEvent, MakeArrayView(OverlaidWidgets.GetData(), OverlaidWidgets.Num()));
+}
 
-	if (!InteractionReply.IsEventHandled())
-	{
-		InteractionReply = TransportCoordinator->ReceiveMouseButtonDown(*this, MyGeometry, MouseEvent);
-	}
-	
-	return InteractionReply;
+FReply SWaveformViewerOverlay::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return AudioWidgetsUtils::RouteMouseInput(&SWidget::OnMouseButtonUp, MouseEvent, MakeArrayView(OverlaidWidgets.GetData(), OverlaidWidgets.Num()));
+}
+
+FReply SWaveformViewerOverlay::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return AudioWidgetsUtils::RouteMouseInput(&SWidget::OnMouseMove, MouseEvent, MakeArrayView(OverlaidWidgets.GetData(), OverlaidWidgets.Num()));
 }
 
 FReply SWaveformViewerOverlay::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	FReply InteractionReply = TransformationsOverlay->OnMouseWheel(MyGeometry, MouseEvent);
+	FReply InteractionReply = AudioWidgetsUtils::RouteMouseInput(&SWidget::OnMouseWheel, MouseEvent, MakeArrayView(OverlaidWidgets.GetData(), OverlaidWidgets.Num()));
 
 	if (!InteractionReply.IsEventHandled())
 	{
@@ -48,61 +46,13 @@ FReply SWaveformViewerOverlay::OnMouseWheel(const FGeometry& MyGeometry, const F
 
 }
 
-FReply SWaveformViewerOverlay::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	return TransformationsOverlay->OnMouseMove(MyGeometry, MouseEvent);
-}
-
 FCursorReply SWaveformViewerOverlay::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
 {
-	return TransformationsOverlay->OnCursorQuery(MyGeometry, CursorEvent);
-}
-
-void SWaveformViewerOverlay::OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle)
-{
-	check(UpdatedStyle);
-	check(Style);
-
-	if (UpdatedStyle != Style)
-	{
-		return;
-	}
-
-	PlayheadColor = Style->PlayheadColor;
-	PlayheadWidth = Style->PlayheadWidth;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
+	return AudioWidgetsUtils::RouteCursorQuery(CursorEvent, MakeArrayView(OverlaidWidgets.GetData(), OverlaidWidgets.Num()));
 }
 
 int32 SWaveformViewerOverlay::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-	LayerId = DrawPlayhead(AllottedGeometry, OutDrawElements, LayerId);
-
-	return LayerId;
-}
-
-int32 SWaveformViewerOverlay::DrawPlayhead(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
-{
-	const float PlayHeadX = GridService->SnapPositionToClosestFrame(AllottedGeometry.GetLocalSize().X * TransportCoordinator->GetPlayheadPosition());
-
-	TArray<FVector2D> LinePoints;
-	{
-		LinePoints.AddUninitialized(2);
-		LinePoints[0] = FVector2D(PlayHeadX, 0.0f);
-		LinePoints[1] = FVector2D(PlayHeadX, AllottedGeometry.Size.Y);
-	}
-
-	FSlateDrawElement::MakeLines(
-		OutDrawElements,
-		LayerId,
-		AllottedGeometry.ToPaintGeometry(),
-		LinePoints,
-		ESlateDrawEffect::None,
-		PlayheadColor.GetSpecifiedColor(),
-		true, 
-		PlayheadWidth
-	);
-
 	return ++LayerId;
 }
 

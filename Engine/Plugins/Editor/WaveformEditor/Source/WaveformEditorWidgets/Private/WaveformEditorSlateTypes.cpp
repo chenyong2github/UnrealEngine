@@ -15,23 +15,6 @@ namespace WaveformEditorStylesSharedParams
 	const float ViewerWidth = 1280.f;
 }
 
-const FName FWaveformViewerOverlayStyle::TypeName("FWaveformViewerOverlayStyle");
-
-FWaveformViewerOverlayStyle::FWaveformViewerOverlayStyle()
-	: PlayheadColor(WaveformEditorStylesSharedParams::PlayheadColor)
-	, PlayheadWidth(1.0f)
-	, DesiredWidth(WaveformEditorStylesSharedParams::ViewerWidth)
-	, DesiredHeight(WaveformEditorStylesSharedParams::ViewerHeight)
-{
-}
-
-const FWaveformViewerOverlayStyle& FWaveformViewerOverlayStyle::GetDefault()
-{
-	static FWaveformViewerOverlayStyle Default;
-	return Default;
-}
-
-
 const FName FWaveformEditorTimeRulerStyle::TypeName("FWaveformEditorTimeRulerStyle");
 
 FWaveformEditorTimeRulerStyle::FWaveformEditorTimeRulerStyle()

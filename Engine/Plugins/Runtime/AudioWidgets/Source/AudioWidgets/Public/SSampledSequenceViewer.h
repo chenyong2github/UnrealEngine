@@ -31,7 +31,9 @@ public:
 	void Construct(const FArguments& InArgs, TArrayView<const float> InSampleData, const uint8 InNumChannels, TSharedRef<ISampledSequenceGridService> InGridService);
 	void UpdateView(TArrayView<const float> InSampleData, const uint8 InNumChannels);
 	
-	void OnStyleUpdated(const FNotifyingAudioWidgetStyle* UpdatedStyle);
+	void OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle);
+
+	void UpdateGridMetrics();
 
 private:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -39,8 +41,6 @@ private:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	void DrawGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const;
-
-	void UpdateGridMetrics();
 
 	bool bForceRedraw = false;
 

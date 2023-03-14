@@ -7,7 +7,6 @@
 #include "Misc/NotifyHook.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "WaveformEditorTransportController.h"
-#include "WaveformEditorTransportCoordinator.h"
 #include "WaveformEditorZoomController.h"
 
 class IToolkitHost;
@@ -76,7 +75,9 @@ private:
 	/** Playback delegates handlers */
 	void HandlePlaybackPercentageChange(const UAudioComponent* InComponent, const USoundWave* InSoundWave, const float InPlaybackPercentage);
 	void HandleAudioComponentPlayStateChanged(const UAudioComponent* InAudioComponent, EAudioComponentPlayState NewPlayState);
-	void HandlePlayheadScrub(const uint32 SelectedSample, const uint32 TotalSampleLength, const bool bIsMoving);
+	void HandlePlayheadScrub(const float InTargetPlayBackRatio, const bool bIsMoving);
+	
+	void HandleRenderDataUpdate();
 
 	/** FGCObject overrides */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -96,11 +97,14 @@ private:
 	/** Manages render information for waveform transforms */
 	TSharedPtr<class FWaveformTransformationsRenderManager> TransformationsRenderManager = nullptr;
 
+	/** Render Data of the displayed waveform */
+	TSharedPtr<class FWaveformEditorRenderData> WaveformRenderData = nullptr;
+
 	/** Exports the edited waveform to a new asset */
 	TSharedPtr<class FWaveformEditorWaveWriter> WaveWriter = nullptr;
 
 	/** Manages Transport info in waveform panel */
-	TSharedPtr<FWaveformEditorTransportCoordinator> TransportCoordinator = nullptr;
+	TSharedPtr<class FSamplesSequenceTransportCoordinator> TransportCoordinator = nullptr;
 
 	/** Controls Transport of the audio component  */
 	TSharedPtr<FWaveformEditorTransportController> TransportController = nullptr;

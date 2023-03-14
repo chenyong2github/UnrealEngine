@@ -5,13 +5,12 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "WaveformEditorTransportCoordinator.h"
+#include "SamplesSequenceTransportCoordinator.h"
 
 #define LOCTEXT_NAMESPACE "WaveformEditorTimeRuler"
 
-void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<ISampledSequenceGridService> InGridService)
+void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<ISampledSequenceGridService> InGridService)
 {
-	TransportCoordinator = InTransportCoordinator;
 	GridService = InGridService;
 	UpdateGridMetrics();
 
@@ -212,6 +211,11 @@ void SWaveformEditorTimeRuler::UpdateDisplayUnit(const EWaveformEditorDisplayUni
 	DisplayUnit = InDisplayUnit;
 }
 
+void SWaveformEditorTimeRuler::SetPlayheadPosition(const float InNewPosition)
+{
+	PlayheadPosition = InNewPosition;
+}
+
 void SWaveformEditorTimeRuler::OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle)
 {
 	check(UpdatedStyle);
@@ -238,9 +242,10 @@ void SWaveformEditorTimeRuler::OnStyleUpdated(const FWaveformEditorWidgetStyleBa
 void SWaveformEditorTimeRuler::DrawPlayheadHandle(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
 {
 	const float WindowWidth = AllottedGeometry.Size.X;
-	const float SnappedHandleCenter = GridService->SnapPositionToClosestFrame(TransportCoordinator->GetPlayheadPosition() * WindowWidth);
-	const float	HandleStart = SnappedHandleCenter - HandleWidth / 2;
+	const float PlayheadCenter = PlayheadPosition;
+	const float	HandleStart = PlayheadCenter - HandleWidth / 2;
 	const float	HandleEnd = HandleStart + HandleWidth;
+
  	FPaintGeometry HandleGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(HandleEnd - HandleStart, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(HandleStart, 0)));
 
 	FSlateDrawElement::MakeBox(
@@ -253,30 +258,6 @@ void SWaveformEditorTimeRuler::DrawPlayheadHandle(const FGeometry& AllottedGeome
 	);
 
 	++LayerId;
-}
-
-FReply SWaveformEditorTimeRuler::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	return TransportCoordinator->ReceiveMouseButtonDown(*this, MyGeometry, MouseEvent);
-}
-
-FReply SWaveformEditorTimeRuler::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	const bool HandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
-
-	if (HandleRightMouseButton)
-	{
-		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
-		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MakeContextMenu(), FSlateApplication::Get().GetCursorPos(), FPopupTransitionEffect::ContextMenu);
-		return FReply::Handled();
-	}
-
-	return TransportCoordinator->ReceiveMouseButtonUp(*this, MyGeometry, MouseEvent);
-}
-
-FReply SWaveformEditorTimeRuler::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	return TransportCoordinator->ReceiveMouseMove(*this, MyGeometry, MouseEvent);
 }
 
 #undef LOCTEXT_NAMESPACE

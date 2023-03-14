@@ -240,12 +240,11 @@ void SSampledSequenceViewer::UpdateGridMetrics()
 	GridMetrics = GridService->GetGridMetrics();
 }
 
-void SSampledSequenceViewer::OnStyleUpdated(const FNotifyingAudioWidgetStyle* UpdatedStyle)
+void SSampledSequenceViewer::OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle)
 {
-	check(UpdatedStyle);
 	check(Style);
 
-	if (UpdatedStyle != Style)
+	if (&UpdatedStyle != Style)
 	{
 		return;
 	}

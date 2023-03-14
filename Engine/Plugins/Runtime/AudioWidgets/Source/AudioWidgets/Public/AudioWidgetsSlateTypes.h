@@ -7,7 +7,7 @@
 
 #include "AudioWidgetsSlateTypes.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioWidgetStyleUpdated, const FNotifyingAudioWidgetStyle* /*Updated Widget Style*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioWidgetStyleUpdated, const FNotifyingAudioWidgetStyle& /*Updated Widget Style*/);
 
 USTRUCT()
 struct FNotifyingAudioWidgetStyle : public FSlateWidgetStyle
@@ -17,7 +17,7 @@ struct FNotifyingAudioWidgetStyle : public FSlateWidgetStyle
 	FNotifyingAudioWidgetStyle() = default;
 	virtual ~FNotifyingAudioWidgetStyle() = default;
 
-	virtual void BroadcastStyleUpdate() const { OnStyleUpdated.Broadcast(this); }
+	virtual void BroadcastStyleUpdate() const { OnStyleUpdated.Broadcast(*this); }
 
 	FOnAudioWidgetStyleUpdated OnStyleUpdated;
 };
@@ -245,6 +245,38 @@ struct AUDIOWIDGETS_API FSampledSequenceViewerStyle : public FNotifyingAudioWidg
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	float DesiredHeight;
 	FSampledSequenceViewerStyle& SetDesiredHeight(const float InDesiredHeight) { DesiredHeight = InDesiredHeight; BroadcastStyleUpdate(); return *this; }
+};
+
+/**
+ * Represents the appearance of a Waveform Viewer Overlay style
+ */
+USTRUCT(BlueprintType)
+struct AUDIOWIDGETS_API FPlayheadOverlayStyle : public FNotifyingAudioWidgetStyle
+{
+	GENERATED_USTRUCT_BODY()
+
+	FPlayheadOverlayStyle();
+
+	static const FPlayheadOverlayStyle& GetDefault();
+	virtual const FName GetTypeName() const override { return TypeName; };
+
+	static const FName TypeName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateColor PlayheadColor;
+	FPlayheadOverlayStyle& SetPlayheadColor(const FSlateColor InPlayheadColor) { PlayheadColor = InPlayheadColor; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float PlayheadWidth;
+	FPlayheadOverlayStyle& SetPlayheadWidth(const float InPlayheadWidth) { PlayheadWidth = InPlayheadWidth; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float DesiredWidth;
+	FPlayheadOverlayStyle& SetDesiredWidth(const float InDesiredWidth) { DesiredWidth = InDesiredWidth; BroadcastStyleUpdate(); return *this; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	float DesiredHeight;
+	FPlayheadOverlayStyle& SetDesiredHeight(const float InDesiredHeight) { DesiredHeight = InDesiredHeight; BroadcastStyleUpdate(); return *this; }
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

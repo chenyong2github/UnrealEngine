@@ -6,6 +6,7 @@
 #include "Components/AudioComponent.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "PropertyEditorModule.h"
+#include "SamplesSequenceTransportCoordinator.h"
 #include "Sound/SoundWave.h"
 #include "Styling/AppStyle.h"
 #include "SWaveformPanel.h"
@@ -173,7 +174,7 @@ bool FWaveformEditor::BindDelegates()
 
 	AudioComponent->OnAudioPlaybackPercentNative.AddSP(this, &FWaveformEditor::HandlePlaybackPercentageChange);
 	AudioComponent->OnAudioPlayStateChangedNative.AddSP(this, &FWaveformEditor::HandleAudioComponentPlayStateChanged);
-	TransportCoordinator->OnPlayheadScrubUpdate.AddSP(this, &FWaveformEditor::HandlePlayheadScrub);
+	TransportCoordinator->OnFocusPointScrubUpdate.AddSP(this, &FWaveformEditor::HandlePlayheadScrub);
 	return true;
 }
 
@@ -626,10 +627,10 @@ bool FWaveformEditor::SetUpWaveformPanel()
 		return false;
 	}
 
-	TSharedPtr<FWaveformEditorRenderData> RenderData = MakeShared<FWaveformEditorRenderData>();
+	WaveformRenderData = MakeShared<FWaveformEditorRenderData>();
 	
-	TransportCoordinator = MakeShared<FWaveformEditorTransportCoordinator>(RenderData.ToSharedRef());
-	RenderData->OnRenderDataUpdated.AddSP(TransportCoordinator.Get(), &FWaveformEditorTransportCoordinator::HandleRenderDataUpdate);
+	TransportCoordinator = MakeShared<FSamplesSequenceTransportCoordinator>();
+	WaveformRenderData->OnRenderDataUpdated.AddSP(this, &FWaveformEditor::HandleRenderDataUpdate);
 	
 	FOnTransformationsPropertiesRequired OnTransformationPropertiesRequired = FOnTransformationsPropertiesRequired::CreateLambda([this](FTransformationsToPropertiesArray& InObjToPropsMap)
 	{
@@ -653,7 +654,7 @@ bool FWaveformEditor::SetUpWaveformPanel()
 	});
 
 	TransformationsRenderManager = MakeShared<FWaveformTransformationsRenderManager>(SoundWave, OnTransformationPropertiesRequired);
-	TransformationsRenderManager->OnRenderDataGenerated.AddSP(RenderData.Get(), &FWaveformEditorRenderData::UpdateRenderData);
+	TransformationsRenderManager->OnRenderDataGenerated.AddSP(WaveformRenderData.Get(), &FWaveformEditorRenderData::UpdateRenderData);
 
 	TSharedPtr<SWaveformTransformationsOverlay> TransformationsOverlay = SNew(SWaveformTransformationsOverlay, TransformationsRenderManager->GetTransformLayers(), TransportCoordinator.ToSharedRef());
 
@@ -662,7 +663,7 @@ bool FWaveformEditor::SetUpWaveformPanel()
 	TransportCoordinator->OnDisplayRangeUpdated.AddSP(TransformationsOverlay.Get(), &SWaveformTransformationsOverlay::OnNewWaveformDisplayRange);
 	TransformationsRenderManager->UpdateRenderElements();
 
-	WaveformPanel = SNew(SWaveformPanel, RenderData.ToSharedRef(), TransportCoordinator.ToSharedRef(), ZoomManager.ToSharedRef(), TransformationsOverlay);
+	WaveformPanel = SNew(SWaveformPanel, WaveformRenderData.ToSharedRef(), TransportCoordinator.ToSharedRef(), ZoomManager.ToSharedRef(), TransformationsOverlay);
 
 	return WaveformPanel != nullptr;
 }
@@ -678,7 +679,7 @@ void FWaveformEditor::HandlePlaybackPercentageChange(const UAudioComponent* InCo
 		if (TransportCoordinator.IsValid())
 		{
 			const float ClampedPlayBackPercentage = FGenericPlatformMath::Fmod(InPlaybackPercentage, 1.f);
-			TransportCoordinator->ReceivePlayBackRatio(ClampedPlayBackPercentage);
+			TransportCoordinator->SetProgressRatio(ClampedPlayBackPercentage);
 		}
 	}
 }
@@ -707,7 +708,17 @@ void FWaveformEditor::HandleAudioComponentPlayStateChanged(const UAudioComponent
 	}
 }
 
-void FWaveformEditor::HandlePlayheadScrub(const uint32 SelectedSample, const uint32 TotalSampleLength, const bool bIsMoving)
+void FWaveformEditor::HandleRenderDataUpdate()
+{
+	check(WaveformRenderData != nullptr)
+
+	if (TransportCoordinator != nullptr)
+	{
+		TransportCoordinator->UpdatePlaybackRange(WaveformRenderData->GetTransformedWaveformBounds());
+	}
+}
+
+void FWaveformEditor::HandlePlayheadScrub(const float InTargetPlayBackRatio, const bool bIsMoving)
 {
 	if (bIsMoving)
 	{
@@ -719,15 +730,14 @@ void FWaveformEditor::HandlePlayheadScrub(const uint32 SelectedSample, const uin
 	}
 	else
 	{
-		const float PlayBackRatio = SelectedSample / (float)TotalSampleLength;
-		const float NewTime = PlayBackRatio * SoundWave->Duration;
+		const float NewTime = InTargetPlayBackRatio * SoundWave->Duration;
 
 		if (TransportController->IsPlaying())
 		{
 			TransportController->Seek(NewTime);
 			return;
 		}
-			
+
 		if (bWasPlayingBeforeScrubbing)
 		{
 			TransportController->Play(NewTime);
@@ -737,7 +747,7 @@ void FWaveformEditor::HandlePlayheadScrub(const uint32 SelectedSample, const uin
 		{
 			TransportController->CacheStartTime(NewTime);
 		}
-		
+
 	}
 }
 

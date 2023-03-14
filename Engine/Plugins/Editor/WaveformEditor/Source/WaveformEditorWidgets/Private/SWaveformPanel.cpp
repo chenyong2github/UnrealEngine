@@ -2,21 +2,22 @@
 
 #include "SWaveformPanel.h"
 
+#include "SPlayheadOverlay.h"
+#include "SSampledSequenceViewer.h"
 #include "SWaveformEditorTimeRuler.h"
 #include "SWaveformTransformationsOverlay.h"
-#include "SSampledSequenceViewer.h"
 #include "SWaveformViewerOverlay.h"
+#include "SamplesSequenceTransportCoordinator.h"
 #include "WaveformEditorDisplayUnit.h"
 #include "WaveformEditorGridData.h"
 #include "WaveformEditorRenderData.h"
 #include "WaveformEditorStyle.h"
-#include "WaveformEditorTransportCoordinator.h"
 #include "WaveformEditorZoomController.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SOverlay.h"
 
-void SWaveformPanel::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedPtr<SWaveformTransformationsOverlay> InWaveformTransformationsOverlay)
+void SWaveformPanel::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedPtr<SWaveformTransformationsOverlay> InWaveformTransformationsOverlay)
 {
 	DisplayUnit = EWaveformEditorDisplayUnit::Seconds;
 
@@ -39,10 +40,15 @@ void SWaveformPanel::Construct(const FArguments& InArgs, TSharedRef<FWaveformEdi
 		WaveformTransformationsOverlay = InWaveformTransformationsOverlay;
 	}
 	
-	SetUpWaveformViewerOverlay(InTransportCoordinator, InZoomManager);
-	SetUpTimeRuler(InTransportCoordinator, GridData.ToSharedRef());
+	SetupPlayheadOverlay();
+
+	SetUpWaveformViewerOverlay(InZoomManager);
+	SetUpTimeRuler(GridData.ToSharedRef());
 	CreateLayout();
+	
 }
+
+
 
 void SWaveformPanel::CreateLayout()
 {
@@ -66,8 +72,14 @@ void SWaveformPanel::CreateLayout()
 
 	WaveformView->AddSlot()
 	[
+		PlayheadOverlay.ToSharedRef()
+	];
+
+	WaveformView->AddSlot()
+	[
 		WaveformViewerOverlay.ToSharedRef()
 	];
+
 
 	ChildSlot
 	[
@@ -83,24 +95,47 @@ void SWaveformPanel::CreateLayout()
 	];
 }
 
-void SWaveformPanel::SetUpTimeRuler(TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorGridData> InGridData)
+void SWaveformPanel::SetUpTimeRuler(TSharedRef<FWaveformEditorGridData> InGridData)
 {
 	FWaveformEditorTimeRulerStyle* TimeRulerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FWaveformEditorTimeRulerStyle>("WaveformEditorRuler.Style").Get();
 	check(TimeRulerStyle);
 
-	TimeRuler = SNew(SWaveformEditorTimeRuler, InTransportCoordinator, InGridData).DisplayUnit(DisplayUnit).Style(TimeRulerStyle);
+	TimeRuler = SNew(SWaveformEditorTimeRuler, InGridData).DisplayUnit(DisplayUnit).Style(TimeRulerStyle);
+	GridData->OnGridMetricsUpdated.AddSP(TimeRuler.ToSharedRef(), &SWaveformEditorTimeRuler::UpdateGridMetrics);
 	TimeRulerStyle->OnStyleUpdated.AddSP(TimeRuler.ToSharedRef(), &SWaveformEditorTimeRuler::OnStyleUpdated);
 	TimeRuler->OnTimeUnitMenuSelection.AddSP(this, &SWaveformPanel::UpdateDisplayUnit);
+	TimeRuler->SetOnMouseButtonDown(FPointerEventHandler::CreateSP(this, &SWaveformPanel::HandleTimeRulerMouseButtonDown));
+	TimeRuler->SetOnMouseButtonUp(FPointerEventHandler::CreateSP(this, &SWaveformPanel::HandleTimeRulerMouseButtonUp));
+	TimeRuler->SetOnMouseMove(FPointerEventHandler::CreateSP(this, &SWaveformPanel::HandleTimeRulerMouseMove));
 }
 
-void SWaveformPanel::SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager)
+void SWaveformPanel::SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorZoomController> InZoomManager)
 {
-	FWaveformViewerOverlayStyle* OverlayStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FWaveformViewerOverlayStyle>("WaveformViewerOverlay.Style").Get();
-	check(OverlayStyle);
+	FSampledSequenceViewerStyle* ViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
+	check(ViewerStyle);
+	
+	TArray<TSharedPtr<SWidget>> OverlaidWidgets;
 
-	WaveformViewerOverlay = SNew(SWaveformViewerOverlay, InTransportCoordinator, WaveformTransformationsOverlay.ToSharedRef(), GridData.ToSharedRef()).Style(OverlayStyle);
-	OverlayStyle->OnStyleUpdated.AddSP(WaveformViewerOverlay.ToSharedRef(), &SWaveformViewerOverlay::OnStyleUpdated);
+	if (WaveformTransformationsOverlay)
+	{
+		OverlaidWidgets.Add(WaveformTransformationsOverlay);
+	}
+
+	check(PlayheadOverlay)
+	OverlaidWidgets.Add(PlayheadOverlay);
+
+	WaveformViewerOverlay = SNew(SWaveformViewerOverlay, OverlaidWidgets).Style(ViewerStyle);
 	WaveformViewerOverlay->OnNewMouseDelta.BindSP(InZoomManager, &FWaveformEditorZoomController::ZoomByDelta);
+}
+
+void SWaveformPanel::SetupPlayheadOverlay()
+{
+	FPlayheadOverlayStyle* PlayheadOverlayStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FPlayheadOverlayStyle>("WaveformEditorPlayheadOverlay.Style").Get();
+	check(PlayheadOverlayStyle);
+
+	PlayheadOverlay = SNew(SPlayheadOverlay).Style(PlayheadOverlayStyle);
+	PlayheadOverlay->SetOnMouseButtonDown(FPointerEventHandler::CreateSP(this, &SWaveformPanel::HandlePlayheadOverlayMouseButtonUp));
+	PlayheadOverlayStyle->OnStyleUpdated.AddSP(PlayheadOverlay.ToSharedRef(), &SPlayheadOverlay::OnStyleUpdated);
 }
 
 void SWaveformPanel::SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, TSharedRef<FWaveformEditorRenderData> InRenderData)
@@ -108,34 +143,31 @@ void SWaveformPanel::SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InG
 	FSampledSequenceViewerStyle* WaveViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
 	check(WaveViewerStyle);
 	
-	InGridData->UpdateGridMetrics(WaveViewerStyle->DesiredWidth);
 	TimeSeriesDrawingUtils::FSampledSequenceDrawingParams WaveformViewerDrawingParams;
 	WaveformViewerDrawingParams.MaxDisplayedValue = TNumericLimits<int16>::Max();
 
 	WaveformViewer = SNew(SSampledSequenceViewer, MakeArrayView(FloatRenderData.GetData(), FloatRenderData.Num()), InRenderData->GetNumChannels(), InGridData).Style(WaveViewerStyle).SequenceDrawingParams(WaveformViewerDrawingParams);
 	WaveViewerStyle->OnStyleUpdated.AddSP(WaveformViewer.ToSharedRef(), &SSampledSequenceViewer::OnStyleUpdated);
+	GridData->OnGridMetricsUpdated.AddSP(WaveformViewer.ToSharedRef(), &SSampledSequenceViewer::UpdateGridMetrics);
 }
 
 void SWaveformPanel::SetUpGridData(TSharedRef<FWaveformEditorRenderData> InRenderData)
 {
-	GridData = MakeShared<FWaveformEditorGridData>(InRenderData->GetNumSamples() / InRenderData->GetNumChannels(), InRenderData->GetSampleRate());
-
-	const ISlateStyle* WaveEditorStyle = FSlateStyleRegistry::FindSlateStyle("WaveformEditorStyle");
-	if (ensure(WaveEditorStyle))
-	{
-		const FWaveformEditorTimeRulerStyle& RulerStyle = WaveEditorStyle->GetWidgetStyle<FWaveformEditorTimeRulerStyle>("WaveformEditorRuler.Style");
-		GridData->SetTicksTimeFont(&RulerStyle.TicksTextFont);
-	}
+	FWaveformEditorTimeRulerStyle* RulerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FWaveformEditorTimeRulerStyle>("WaveformEditorRuler.Style").Get();
+	check(RulerStyle)
+	
+	GridData = MakeShared<FWaveformEditorGridData>(InRenderData->GetNumSamples() / InRenderData->GetNumChannels(), InRenderData->GetSampleRate(), RulerStyle->DesiredWidth, &RulerStyle->TicksTextFont);
 }
 
-void SWaveformPanel::SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator)
+void SWaveformPanel::SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator)
 {
-	InZoomManager->OnZoomRatioChanged.AddSP(InTransportCoordinator, &FWaveformEditorTransportCoordinator::OnZoomLevelChanged);
+	InZoomManager->OnZoomRatioChanged.AddSP(InTransportCoordinator, &FSamplesSequenceTransportCoordinator::SetZoomRatio);
 }
 
 void SWaveformPanel::OnRenderDataUpdated()
 {
 	check(TransportCoordinator)
+	GenerateFloatRenderData();
 	OnDisplayRangeUpdated(TransportCoordinator->GetDisplayRange());
 }
 
@@ -160,11 +192,6 @@ void SWaveformPanel::OnDisplayRangeUpdated(const TRange<float> NewDisplayRange)
 		GridData->UpdateDisplayRange(TRange<uint32>(FirstRenderedFrame, FirstRenderedFrame + NumFramesToRender));
 	}
 
-	if (TimeRuler)
-	{
-		TimeRuler->UpdateGridMetrics();
-	}
-
 	if (WaveformViewer)
 	{
 		TArrayView<const float> RenderedView = MakeArrayView(FloatRenderData.GetData(), FloatRenderData.Num());
@@ -175,6 +202,8 @@ void SWaveformPanel::OnDisplayRangeUpdated(const TRange<float> NewDisplayRange)
 
 void SWaveformPanel::GenerateFloatRenderData()
 {
+	check(RenderData)
+
 	TArrayView<const int16> SampleData = RenderData->GetSampleData();
 	FloatRenderData.SetNumUninitialized(SampleData.Num());
 
@@ -201,6 +230,101 @@ void SWaveformPanel::Tick(const FGeometry& AllottedGeometry, const double InCurr
 		if (GridData)
 		{
 			GridData->UpdateGridMetrics(PaintedWidth);
-		}	
+		}
 	}
+
+	UpdatePlayheadPosition(PaintedWidth);
+
+}
+
+void SWaveformPanel::UpdatePlayheadPosition(const float PaintedWidth)
+{
+	float PlayheadX = 0.f;
+
+	check(TransportCoordinator)
+	PlayheadX = TransportCoordinator->GetFocusPoint() * PaintedWidth;
+	PlayheadX = GridData ? GridData->SnapPositionToClosestFrame(PlayheadX) : PlayheadX;
+
+
+	if (PlayheadOverlay)
+	{
+		PlayheadOverlay->SetPlayheadPosition(PlayheadX);
+	}
+
+	if (TimeRuler)
+	{
+		TimeRuler->SetPlayheadPosition(PlayheadX);
+	}
+}
+
+FReply SWaveformPanel::HandleTimeRulerMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& MouseEvent)
+{
+	return HandleTimeRulerInteraction(WaveformEditorPanel::EReceivedInteractionType::MouseButtonDown, MouseEvent, Geometry);
+}
+
+FReply SWaveformPanel::HandleTimeRulerMouseButtonUp(const FGeometry& Geometry, const FPointerEvent& MouseEvent)
+{
+	return HandleTimeRulerInteraction(WaveformEditorPanel::EReceivedInteractionType::MouseButtonUp, MouseEvent, Geometry);
+}
+
+FReply SWaveformPanel::HandleTimeRulerMouseMove(const FGeometry& Geometry, const FPointerEvent& MouseEvent)
+{
+	return HandleTimeRulerInteraction(WaveformEditorPanel::EReceivedInteractionType::MouseMove, MouseEvent, Geometry);
+}
+
+FReply SWaveformPanel::HandleTimeRulerInteraction(const WaveformEditorPanel::EReceivedInteractionType MouseInteractionType, const FPointerEvent& MouseEvent, const FGeometry& Geometry)
+{
+	check(TimeRuler)
+	check(TransportCoordinator)
+
+	const float LocalWidth = Geometry.GetLocalSize().X;
+
+	if (LocalWidth > 0.f)
+	{
+		const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
+		const FVector2D CursorPosition = Geometry.AbsoluteToLocal(ScreenSpacePosition);
+		const float CursorXRatio = CursorPosition.X / LocalWidth;
+
+		switch (MouseInteractionType)
+		{
+		default:
+			break;
+		case WaveformEditorPanel::EReceivedInteractionType::MouseButtonDown:
+			if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+			{
+				return FReply::Handled().CaptureMouse(TimeRuler.ToSharedRef()).PreventThrottling();
+			}
+		case WaveformEditorPanel::EReceivedInteractionType::MouseMove:
+			if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+			{
+				TransportCoordinator->ScrubFocusPoint(CursorXRatio, true);
+				return FReply::Handled().CaptureMouse(TimeRuler.ToSharedRef());
+			}
+		case WaveformEditorPanel::EReceivedInteractionType::MouseButtonUp:
+			if (TimeRuler->HasMouseCapture())
+			{
+				TransportCoordinator->ScrubFocusPoint(CursorXRatio, false);
+				return FReply::Handled().ReleaseMouseCapture();
+			}
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply SWaveformPanel::HandlePlayheadOverlayMouseButtonUp(const FGeometry& Geometry, const FPointerEvent& MouseEvent)
+{
+	const bool HandleLeftMouseButton = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
+	if (HandleLeftMouseButton && TransportCoordinator)
+	{
+		const float LocalWidth = Geometry.GetLocalSize().X;
+
+		if (LocalWidth > 0.f)
+		{
+			const float NewPosition = Geometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X / LocalWidth;
+			TransportCoordinator->ScrubFocusPoint(NewPosition, false);
+		}
+	}
+
+	return FReply::Handled();
 }
