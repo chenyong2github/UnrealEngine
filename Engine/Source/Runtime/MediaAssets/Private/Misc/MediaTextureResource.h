@@ -242,6 +242,8 @@ private:
 
 	/** prior samples not yet ready for retirement as GPU may still actively use them */
 	TSharedRef<FPriorSamples, ESPMode::ThreadSafe> PriorSamples;
+	/** prior samples CS */
+	FCriticalSection PriorSamplesCS;
 
 	/** cached params etc. for use with mip generator */
 	TRefCountPtr<IPooledRenderTarget> MipGenerationCache;
