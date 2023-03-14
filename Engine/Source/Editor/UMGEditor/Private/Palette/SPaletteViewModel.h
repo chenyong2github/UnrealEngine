@@ -25,6 +25,11 @@ public:
 
 	virtual bool IsTemplate() const = 0;
 
+	virtual bool IsCategory() const
+	{
+		return false;
+	}
+
 	/** @param OutStrings - Returns an array of strings used for filtering/searching this item. */
 	virtual void GetFilterStrings(TArray<FString>& OutStrings) const = 0;
 
@@ -99,6 +104,11 @@ public:
 	virtual bool IsTemplate() const override
 	{
 		return false;
+	}
+
+	virtual bool IsCategory() const override
+	{
+		return true;
 	}
 
 	virtual void GetFilterStrings(TArray<FString>& OutStrings) const override

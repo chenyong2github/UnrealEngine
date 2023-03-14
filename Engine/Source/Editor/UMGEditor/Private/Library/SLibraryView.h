@@ -82,6 +82,9 @@ public:
 	
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
+	/** On item clicked in palette view */
+	void WidgetLibrary_OnClick(TSharedPtr<FWidgetViewModel> SelectedItem);
+
 private:
 
 	/** Builds settings menu. */

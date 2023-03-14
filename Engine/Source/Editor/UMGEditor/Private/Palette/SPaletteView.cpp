@@ -140,10 +140,11 @@ void SPaletteView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 
 	SAssignNew(WidgetTemplatesView, STreeView< TSharedPtr<FWidgetViewModel> >)
 		.ItemHeight(1.0f)
-		.SelectionMode(ESelectionMode::Single)
+		.SelectionMode(ESelectionMode::SingleToggle)
 		.OnGenerateRow(this, &SPaletteView::OnGenerateWidgetTemplateItem)
 		.OnGetChildren(FilterHandler.ToSharedRef(), &PaletteFilterHandler::OnGetFilteredChildren)
 		.OnSelectionChanged(this, &SPaletteView::WidgetPalette_OnSelectionChanged)
+		.OnMouseButtonClick(this, &SPaletteView::WidgetPalette_OnClick)
 		.TreeItemsSource(&TreeWidgetViewModels);
 		
 
@@ -207,6 +208,27 @@ void SPaletteView::OnSearchChanged(const FText& InFilterText)
 	WidgetFilter->SetRawFilterText(InFilterText);
 	SearchBoxPtr->SetError(WidgetFilter->GetFilterErrorText());
 	PaletteViewModel->SetSearchText(InFilterText);
+}
+
+void SPaletteView::WidgetPalette_OnClick(TSharedPtr<FWidgetViewModel> SelectedItem)
+{
+	if (!SelectedItem.IsValid())
+	{
+		return;
+	}
+
+	// If it's a category, toggle it
+	if (SelectedItem->IsCategory())
+	{
+		if (TSharedPtr<FWidgetHeaderViewModel> CategoryHeader = StaticCastSharedPtr<FWidgetHeaderViewModel>(SelectedItem))
+		{
+			if (TSharedPtr<ITableRow> TableRow = WidgetTemplatesView->WidgetFromItem(CategoryHeader))
+			{
+				TableRow->ToggleExpansion();
+			}
+		}
+		return;
+	}
 }
 
 void SPaletteView::WidgetPalette_OnSelectionChanged(TSharedPtr<FWidgetViewModel> SelectedItem, ESelectInfo::Type SelectInfo)

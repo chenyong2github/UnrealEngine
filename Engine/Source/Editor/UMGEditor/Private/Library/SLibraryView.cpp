@@ -204,9 +204,10 @@ void SLibraryView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 
 	SAssignNew(WidgetTemplatesView, STreeView< TSharedPtr<FWidgetViewModel> >)
 		.ItemHeight(1.0f)
-		.SelectionMode(ESelectionMode::Single)
+		.SelectionMode(ESelectionMode::SingleToggle)
 		.OnGenerateRow(this, &SLibraryView::OnGenerateWidgetTemplateLibrary)
 		.OnGetChildren(FilterHandler.ToSharedRef(), &LibraryFilterHandler::OnGetFilteredChildren)
+		.OnMouseButtonClick(this, &SLibraryView::WidgetLibrary_OnClick)
 		.TreeItemsSource(&TreeWidgetViewModels);
 
 	FilterHandler->SetTreeView(WidgetTemplatesView.Get());
@@ -404,6 +405,27 @@ void SLibraryView::Tick(const FGeometry& AllottedGeometry, const double InCurren
 	{
 		bRefreshRequested = false;
 		FilterHandler->RefreshAndFilterTree();
+	}
+}
+
+void SLibraryView::WidgetLibrary_OnClick(TSharedPtr<FWidgetViewModel> SelectedItem)
+{
+	if (!SelectedItem.IsValid())
+	{
+		return;
+	}
+
+	// If it's a category, toggle it
+	if (SelectedItem->IsCategory())
+	{
+		if (TSharedPtr<FWidgetHeaderViewModel> CategoryHeader = StaticCastSharedPtr<FWidgetHeaderViewModel>(SelectedItem))
+		{
+			if (TSharedPtr<ITableRow> TableRow = WidgetTemplatesView->WidgetFromItem(CategoryHeader))
+			{
+				TableRow->ToggleExpansion();
+			}
+		}
+		return;
 	}
 }
 
