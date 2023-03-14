@@ -118,10 +118,7 @@ public:
 	/** 
 	 * Get the InstancedStaticMeshComponent subclass that should be used when creating instanced HLODs.
 	 */
-	static TSubclassOf<UInstancedStaticMeshComponent> GetInstancedStaticMeshComponentClass()
-	{
-		return StaticClass()->GetDefaultObject<UHLODBuilder>()->HLODInstancedStaticMeshComponentClass;
-	}
+	static TSubclassOf<UInstancedStaticMeshComponent> GetInstancedStaticMeshComponentClass();
 
 protected:
 	virtual bool ShouldIgnoreBatchingPolicy() const { return false; }
@@ -147,6 +144,7 @@ protected:
 	UPROPERTY()
 	TObjectPtr<const UHLODBuilderSettings> HLODBuilderSettings;
 
+private:
 	UPROPERTY(Config)
 	TSubclassOf<UInstancedStaticMeshComponent> HLODInstancedStaticMeshComponentClass;
 #endif

@@ -10,6 +10,7 @@
 #include "ISMPartition/ISMComponentBatcher.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/ConfigCacheIni.h"
 #include "UObject/Package.h"
 #include "WorldPartition/HLOD/HLODTemplatedInstancedStaticMeshComponent.h"
 
@@ -148,6 +149,21 @@ uint32 UHLODBuilder::ComputeHLODHash(const TArray<AActor*>& InSourceActors)
 	ComponentsCRCs.Sort();
 
 	return FCrc::MemCrc32(ComponentsCRCs.GetData(), ComponentsCRCs.Num() * ComponentsCRCs.GetTypeSize());
+}
+
+TSubclassOf<UInstancedStaticMeshComponent> UHLODBuilder::GetInstancedStaticMeshComponentClass()
+{
+	TSubclassOf<UInstancedStaticMeshComponent> ISMClass = StaticClass()->GetDefaultObject<UHLODBuilder>()->HLODInstancedStaticMeshComponentClass;
+	if (!ISMClass)
+	{
+		FString ConfigValue;
+		GConfig->GetString(TEXT("/Script/Engine.HLODBuilder"), TEXT("HLODInstancedStaticMeshComponentClass"), ConfigValue, GEditorIni);
+		UE_LOG(LogHLODBuilder, Error, TEXT("Could not resolve the class specified for HLODInstancedStaticMeshComponentClass. Config value was %s"), *ConfigValue);
+
+		// Fallback to standard ISMC
+		ISMClass = UInstancedStaticMeshComponent::StaticClass();
+	}
+	return ISMClass;
 }
 
 namespace
