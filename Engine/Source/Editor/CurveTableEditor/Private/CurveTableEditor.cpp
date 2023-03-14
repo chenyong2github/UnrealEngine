@@ -544,7 +544,7 @@ void FCurveTableEditor::ExtendToolbar()
 						NAME_None, 
 						FText::GetEmpty(),
 						TAttribute<FText>(), 
-						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.KeyTriangle")
+						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.KeyTriangle20")
 					);
 				}
 			}
