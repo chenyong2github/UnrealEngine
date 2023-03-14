@@ -82,6 +82,18 @@ protected:
 		return true;
 	}
 
+	bool SetPropertyValue(FText& Value, const FText& NewValue, UE::FieldNotification::FFieldId FieldId)
+	{
+		if (Value.EqualTo(NewValue))
+		{
+			return false;
+		}
+
+		Value = NewValue;
+		BroadcastFieldValueChanged(FieldId);
+		return true;
+	}
+
 private:
 	DECLARE_FUNCTION(execK2_SetPropertyValue);
 
