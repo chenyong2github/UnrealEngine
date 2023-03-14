@@ -4,7 +4,7 @@ description: A Helm chart for Kubernetes deploying UnrealCloudDDC
 
 type: application
 
-version: 0.2.0
+version: 0.3.0
 
 icon: https://devtools-misc.s3.amazonaws.com/ue4logo.png
 home: https://unrealengine.com
