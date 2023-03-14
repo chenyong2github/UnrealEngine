@@ -741,6 +741,8 @@ void TraceVoxels(
 
 #if !TRACE_LIGHT_SAMPLES
 
+			float CoverageForFog = bHit ? 1.0f - TraceResult.Transparency : 0.0f;
+
 #if RADIANCE_CACHE
 			if (Coverage.bValid)
 			{
@@ -776,7 +778,6 @@ void TraceVoxels(
 
 			if (SampleHeightFog > 0)
 			{
-				float CoverageForFog = 1.0; // always assuming the closest hit and sky fallback
 				float3 OriginToCollider = RayWorldDirection * TraceHitDistance;
 				TraceResult.Lighting.rgb = GetFogOnLuminance(TraceResult.Lighting.rgb, CoverageForFog, OriginToCollider);
 			}
