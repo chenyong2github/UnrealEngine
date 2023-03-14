@@ -2346,6 +2346,9 @@ public:
 	/** Whether we're allowed to do frame rate smoothing */
 	virtual bool IsAllowedFramerateSmoothing() const;
 
+	/** Whether the application should avoid rendering anything to give GPU resources to other applications */
+	virtual bool IsRenderingSuspended() const { return false; }
+
 	/** Update FApp::Timecode. */
 	void UpdateTimecode();
 
