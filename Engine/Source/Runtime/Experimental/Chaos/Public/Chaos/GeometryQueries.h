@@ -304,6 +304,7 @@ namespace Chaos
 		{
 			OutNormal = ATM.TransformVectorNoScale(LocalNormal);
 			OutPosition = ATM.TransformPositionNoScale(LocalPosition);
+			OutFaceNormal = ATM.TransformVectorNoScale(A.FindGeometryOpposingNormal(Dir, OutFaceIndex, OutNormal));
 		}
 
 		return bResult;

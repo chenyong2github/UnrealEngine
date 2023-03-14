@@ -100,8 +100,11 @@ static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const T
 	// TODO: can we support other shapes here as well?
 	if (QueryGeomType == ECollisionShapeType::Capsule || QueryGeomType == ECollisionShapeType::Sphere)
 	{
-		const FPhysicsShape* Shape = GetShape(Hit);
-		if (Shape)
+		if (!Hit.FaceNormal.IsNearlyZero())
+		{
+			return Hit.FaceNormal;
+		}
+		else if (const FPhysicsShape* Shape = GetShape(Hit))
 		{
 			const FTransform ActorTM(Hit.Actor->R(), Hit.Actor->X());
 			const FVector LocalInNormal = ActorTM.InverseTransformVectorNoScale(InNormal);

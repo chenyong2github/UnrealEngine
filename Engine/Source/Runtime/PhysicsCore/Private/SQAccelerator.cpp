@@ -337,15 +337,14 @@ private:
 					if constexpr(SQ == ESQType::Sweep && std::is_same_v<THitType, ChaosInterface::FSweepHit>)
 					{
 						const THitType* CurrentHit = HitBuffer.GetCurrentHit();
-						if(FaceIdx != INDEX_NONE)
+						if(FaceIdx != INDEX_NONE || !FaceNormal.IsNearlyZero())
 						{
 							if(CurrentHit)
 							{
 								constexpr static FReal CoLocationEpsilon = 1e-6;
 								const FReal DistDelta = FMath::Abs(Distance - CurrentHit->Distance);
-								const int32 OldFace = CurrentHit->FaceIndex;
 
-								if(DistDelta < CoLocationEpsilon && OldFace != INDEX_NONE)
+								if(DistDelta < CoLocationEpsilon && !HitFaceNormal.IsNearlyZero())
 								{
 									// We already have a face hit from another triangle mesh - see if this one is better (more opposing the sweep)
 									const FReal OldDot = FVec3::DotProduct(CurData->Dir, HitFaceNormal);
@@ -375,6 +374,11 @@ private:
 					if(bAcceptHit)
 					{
 						FillHitHelper(Hit, Distance, WorldPosition, WorldNormal, FaceIdx, bComputeMTD);
+
+						if constexpr (std::is_base_of_v<ChaosInterface::FQueryHit, THitType> || std::is_base_of_v<ChaosInterface::FPTQueryHit, THitType>)
+						{
+							Hit.FaceNormal = HitFaceNormal;
+						}
 
 						HitType = QueryFilterData.flags & FChaosQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
 

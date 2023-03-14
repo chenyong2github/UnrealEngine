@@ -46,6 +46,7 @@ namespace ChaosInterface
 		*/
 
 		int32 FaceIndex; // Signed int to match TArray's size type, and so INDEX_NONE/-1 doesn't underflow.
+		FVector FaceNormal{ EForceInit::ForceInitToZero };
 
 		int32 ElementIndex; // Currently used to indicate which shape was hit for a particle with multiple shapes.
 
@@ -124,6 +125,7 @@ namespace ChaosInterface
 		*/
 
 		int32 FaceIndex = -1; // Signed int to match TArray's size type, and so INDEX_NONE/-1 doesn't underflow.
+		FVector FaceNormal{EForceInit::ForceInitToZero};
 
 		int32 ElementIndex = -1; // Currently used to indicate which shape was hit for a particle with multiple shapes.
 	};
