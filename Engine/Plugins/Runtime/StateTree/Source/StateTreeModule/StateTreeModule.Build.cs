@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
+					"DeveloperSettings",
 					"Engine",
 					"AIModule",
 					"GameplayTags",
@@ -39,7 +40,22 @@ namespace UnrealBuildTool.Rules
 				);
 			}
 
+			if (Target.Configuration != UnrealTargetConfiguration.Shipping || Target.bBuildEditor)
+			{
+				PublicDefinitions.Add("WITH_STATETREE_DEBUGGER=1");
+				PublicDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"TraceLog",
+						"TraceServices",
+						"TraceAnalysis"
+					}
+				);
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_STATETREE_DEBUGGER=0");
+			}
 		}
-
 	}
 }

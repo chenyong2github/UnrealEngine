@@ -177,7 +177,13 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 		Log.Reportf(EMessageSeverity::Error, TEXT("Unexpected failure to link the StateTree asset. See log for more info."));
 		return false;
 	}
-	
+
+	// Store mapping between state unique ID and state handle. Used for debugging purposes.
+	for (const TPair<FGuid, int>& ToState : IDToState)
+	{
+		StateTree->IDToStateMappings.Emplace(ToState.Key, FStateTreeStateHandle(ToState.Value));
+	}
+
 	return true;
 }
 

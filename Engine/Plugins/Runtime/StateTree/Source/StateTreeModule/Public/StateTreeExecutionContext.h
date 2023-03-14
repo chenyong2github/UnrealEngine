@@ -14,6 +14,7 @@ struct FStateTreeTaskBase;
 struct FStateTreeConditionBase;
 struct FStateTreeEvent;
 struct FStateTreeTransitionRequest;
+struct FStateTreeInstanceDebugId;
 
 /**
  * StateTree Execution Context is a helper that is used to update and access StateTree instance data.
@@ -160,7 +161,7 @@ public:
 	/** @return Pointer to a State or null if state not found */ 
 	const FCompactStateTreeState* GetStateFromHandle(const FStateTreeStateHandle StateHandle) const
 	{
-		return StateTree.States.IsValidIndex(StateHandle.Index) ? &StateTree.States[StateHandle.Index] : nullptr;
+		return StateTree.GetStateFromHandle(StateHandle);
 	}
 
 	/** @return Array view to external data descriptors associated with this context. Note: Init() must be called before calling this method. */
@@ -266,7 +267,11 @@ public:
 
 protected:
 
-	/** @return Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, empty by default. */
+#if WITH_STATETREE_DEBUGGER
+	FStateTreeInstanceDebugId GetInstanceDebugId() const;
+#endif // WITH_STATETREE_DEBUGGER
+
+	/** @return Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, Owner name by default. */
 	virtual FString GetInstanceDescription() const;
 
 	UE_DEPRECATED(5.2, "Use BeginDelayedTransition() instead.")

@@ -5,9 +5,11 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "SPositiveActionButton.h"
 #include "SStateTreeViewRow.h"
+#include "StateTreeDebuggerCommands.h"
 #include "StateTreeViewModel.h"
 #include "StateTreeState.h"
 #include "StateTreeEditorCommands.h"
+#include "StateTreeSettings.h"
 #include "Framework/Commands/UICommandList.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
@@ -423,6 +425,13 @@ TSharedPtr<SWidget> SStateTreeView::HandleContextMenuOpening()
 	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().DeleteStates);
 	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().RenameState);
 
+#if WITH_STATETREE_DEBUGGER
+	if (UStateTreeSettings::Get().bUseDebugger)
+	{
+		MenuBuilder.AddMenuEntry(FStateTreeDebuggerCommands::Get().ToggleBreakpoint);
+	}
+#endif // WITH_STATETREE_DEBUGGER
+	
 	return MenuBuilder.MakeWidget();
 }
 

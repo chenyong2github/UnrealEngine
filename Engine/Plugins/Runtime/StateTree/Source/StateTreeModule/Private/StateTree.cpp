@@ -21,6 +21,28 @@ bool UStateTree::IsReadyToRun() const
 	return States.Num() > 0 && bIsLinked;
 }
 
+FConstStructView UStateTree::GetNode(const int32 NodeIndex) const
+{
+	return Nodes.IsValidIndex(NodeIndex) ? Nodes[NodeIndex] : FConstStructView();	
+}
+
+const FCompactStateTreeState* UStateTree::GetStateFromHandle(const FStateTreeStateHandle StateHandle) const
+{
+	return States.IsValidIndex(StateHandle.Index) ? &States[StateHandle.Index] : nullptr;
+}
+
+FStateTreeStateHandle UStateTree::GetStateHandleFromId(const FGuid Id) const
+{
+	const FStateTreeStateIdToHandle* Entry = IDToStateMappings.FindByPredicate([Id](const FStateTreeStateIdToHandle& Entry){ return Entry.Id == Id; });
+	return Entry != nullptr ? Entry->Handle : FStateTreeStateHandle::Invalid;
+}
+
+FGuid UStateTree::GetStateIdFromHandle(const FStateTreeStateHandle Handle) const
+{
+	const FStateTreeStateIdToHandle* Entry = IDToStateMappings.FindByPredicate([Handle](const FStateTreeStateIdToHandle& Entry){ return Entry.Handle == Handle; });
+	return Entry != nullptr ? Entry->Id : FGuid();
+}
+
 TSharedPtr<FStateTreeInstanceData> UStateTree::GetSharedInstanceData() const
 {
 	// Create a unique index for each thread.
@@ -73,6 +95,7 @@ void UStateTree::ResetCompiled()
 	ContextDataDescs.Reset();
 	PropertyBindings.Reset();
 	Parameters.Reset();
+	IDToStateMappings.Reset();
 
 	ParametersDataViewIndex = FStateTreeIndex8::Invalid;
 	

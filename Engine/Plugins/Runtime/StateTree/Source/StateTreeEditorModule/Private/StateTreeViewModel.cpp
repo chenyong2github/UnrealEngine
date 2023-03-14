@@ -4,6 +4,7 @@
 #include "StateTree.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeDelegates.h"
+#include "Debugger/StateTreeDebugger.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -229,6 +230,9 @@ namespace UE::StateTree::Editor
 
 FStateTreeViewModel::FStateTreeViewModel()
 	: TreeDataWeak(nullptr)
+#if WITH_STATETREE_DEBUGGER
+	, Debugger(MakeShareable(new FStateTreeDebugger))
+#endif // WITH_STATETREE_DEBUGGER
 {
 }
 
@@ -246,13 +250,23 @@ void FStateTreeViewModel::Init(UStateTreeEditorData* InTreeData)
 	GEditor->RegisterForUndo(this);
 
 	UE::StateTree::Delegates::OnIdentifierChanged.AddSP(this, &FStateTreeViewModel::HandleIdentifierChanged);
+
+	BindToDebuggerDelegates();
+}
+
+const UStateTree* FStateTreeViewModel::GetStateTree() const
+{
+	if (const UStateTreeEditorData* TreeData = TreeDataWeak.Get())
+	{
+		return TreeData->GetTypedOuter<UStateTree>();
+	}
+
+	return nullptr;
 }
 
 void FStateTreeViewModel::HandleIdentifierChanged(const UStateTree& StateTree) const
 {
-	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
-	const UStateTree* OuterStateTree = TreeData ? Cast<UStateTree>(TreeData->GetOuter()) : nullptr;
-	if (OuterStateTree == &StateTree)
+	if (GetStateTree() == &StateTree)
 	{
 		OnAssetChanged.Broadcast();
 	}
@@ -863,5 +877,61 @@ void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, const
 	}
 }
 
+
+void FStateTreeViewModel::BindToDebuggerDelegates()
+{
+#if WITH_STATETREE_DEBUGGER
+	Debugger->OnActiveStatesChanged.BindLambda([this](const TConstArrayView<FStateTreeStateHandle> NewActiveStates)
+	{
+		if (const UStateTree* OuterStateTree = GetStateTree())
+		{
+			ActiveStates.Reset(NewActiveStates.Num());
+
+			for (const FStateTreeStateHandle Handle : NewActiveStates)
+			{
+				ActiveStates.Add(OuterStateTree->GetStateIdFromHandle(Handle));
+			}
+		}
+	});
+
+	Debugger->OnBreakpointsChanged.BindLambda([this](TConstArrayView<FStateTreeStateHandle> NewActiveBreakpoints)
+	{
+		StatesWithBreakpoints.Reset(NewActiveBreakpoints.Num());
+
+		const UStateTreeEditorData* TreeData = TreeDataWeak.Get();
+		if (const UStateTree* OuterStateTree = TreeData ? TreeData->GetTypedOuter<UStateTree>() : nullptr)
+		{
+			TreeData->VisitHierarchy([this, &NewActiveBreakpoints, &OuterStateTree](const UStateTreeState& State, UStateTreeState* /*ParentState*/)
+			{
+				const FStateTreeStateHandle Handle = OuterStateTree->GetStateHandleFromId(State.ID);
+				if (NewActiveBreakpoints.Contains(Handle))
+				{
+					StatesWithBreakpoints.Emplace(&State);
+				}
+
+				return EStateTreeVisitor::Continue;
+			});
+		}
+	});
+#endif // WITH_STATETREE_DEBUGGER
+}
+
+bool FStateTreeViewModel::DoesStateHaveBreakpoint(const UStateTreeState& State) const
+{
+#if WITH_STATETREE_DEBUGGER
+	return StatesWithBreakpoints.Contains(&State);
+#else
+	return false;
+#endif // WITH_STATETREE_DEBUGGER
+}
+
+bool FStateTreeViewModel::IsStateActiveInDebugger(const UStateTreeState& State) const
+{
+#if WITH_STATETREE_DEBUGGER
+	return ActiveStates.Contains(State.ID);
+#else
+	return false;
+#endif // WITH_STATETREE_DEBUGGER
+}
 
 #undef LOCTEXT_NAMESPACE

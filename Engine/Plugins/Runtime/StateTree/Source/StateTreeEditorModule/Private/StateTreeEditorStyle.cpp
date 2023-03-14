@@ -42,10 +42,9 @@ private:
 FStateTreeEditorStyle::FStateTreeEditorStyle()
 	: FSlateStyleSet(TEXT("StateTreeEditorStyle"))
 {
-	const FVector2f Icon8x8(8.0f, 8.0f);
-	
-	const FString EngineEditorSlateDir = FPaths::EngineContentDir() / TEXT("Slate");
-	SetCoreContentRoot(EngineEditorSlateDir);
+	const FString EngineSlateContentDir = FPaths::EngineContentDir() / TEXT("Slate");
+	const FString EngineEditorSlateContentDir = FPaths::EngineContentDir() / TEXT("Editor/Slate");
+	SetCoreContentRoot(EngineSlateContentDir);
 
 	const FString StateTreePluginContentDir = FPaths::EnginePluginsDir() / TEXT("Runtime/StateTree/Resources");
 	SetContentRoot(StateTreePluginContentDir);
@@ -112,11 +111,11 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 	const FTableRowStyle& NormalTableRowStyle = FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	Set("StateTree.Selection",
 		FTableRowStyle(NormalTableRowStyle)
-		.SetActiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-		.SetActiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-		.SetInactiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-		.SetInactiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-		.SetSelectorFocusedBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+		.SetActiveBrush(IMAGE_BRUSH("Common/Selection", CoreStyleConstants::Icon8x8, SelectionColor))
+		.SetActiveHoveredBrush(IMAGE_BRUSH("Common/Selection", CoreStyleConstants::Icon8x8, SelectionColor))
+		.SetInactiveBrush(IMAGE_BRUSH("Common/Selection", CoreStyleConstants::Icon8x8, SelectionColor))
+		.SetInactiveHoveredBrush(IMAGE_BRUSH("Common/Selection", CoreStyleConstants::Icon8x8, SelectionColor))
+		.SetSelectorFocusedBrush(IMAGE_BRUSH("Common/Selection", CoreStyleConstants::Icon8x8, SelectionColor))
 	);
 
 	const FComboButtonStyle& ComboButtonStyle = FCoreStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton");
@@ -167,13 +166,20 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 
 	// Command icons
 	{
-		// From generic
-		UE::StateTree::Editor::FContentRootScope Scope(this, EngineEditorSlateDir);
+		// From generic engine
+		UE::StateTree::Editor::FContentRootScope Scope(this, EngineSlateContentDir);
 		Set("StateTreeEditor.CutStates", new IMAGE_BRUSH_SVG("Starship/Common/Cut", CoreStyleConstants::Icon16x16));
 		Set("StateTreeEditor.CopyStates", new IMAGE_BRUSH_SVG("Starship/Common/Copy", CoreStyleConstants::Icon16x16));
 		Set("StateTreeEditor.DuplicateStates", new IMAGE_BRUSH_SVG("Starship/Common/Duplicate", CoreStyleConstants::Icon16x16));
 		Set("StateTreeEditor.DeleteStates", new IMAGE_BRUSH_SVG("Starship/Common/Delete", CoreStyleConstants::Icon16x16));
 		Set("StateTreeEditor.RenameState", new IMAGE_BRUSH_SVG("Starship/Common/Rename", CoreStyleConstants::Icon16x16));
+	}
+
+	{
+		// From generic engine editor
+		UE::StateTree::Editor::FContentRootScope Scope(this, EngineEditorSlateContentDir);
+		Set("StateTreeEditor.Debugger.Back", new IMAGE_BRUSH_SVG("Starship/Blueprints/diff_prev", CoreStyleConstants::Icon20x20));
+		Set("StateTreeEditor.Debugger.Forward", new IMAGE_BRUSH_SVG("Starship/Blueprints/diff_next", CoreStyleConstants::Icon20x20));
 	}
 
 	{

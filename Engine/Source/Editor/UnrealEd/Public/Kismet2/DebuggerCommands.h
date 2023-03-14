@@ -34,7 +34,7 @@ public:
 //////////////////////////////////////////////////////////////////////////
 // FPlayWorldCommands
 
-class FPlayWorldCommands : public TCommands<FPlayWorldCommands>
+class UNREALED_API FPlayWorldCommands : public TCommands<FPlayWorldCommands>
 {
 private:
 
@@ -54,7 +54,7 @@ public:
 	static void BindGlobalPlayWorldCommands();
 
 	/** Populates a toolbar with the menu commands for play-world control (pause/resume/stop/possess/eject/step/show current loc) */
-	UNREALED_API static void BuildToolbar( FToolMenuSection& InSection, bool bIncludeLaunchButtonAndOptions = false );
+	static void BuildToolbar( FToolMenuSection& InSection, bool bIncludeLaunchButtonAndOptions = false );
 
 	/**
 	* Return the active widget that processes play world actions for PIE
@@ -73,7 +73,7 @@ public:
 	/** 
 	 * A command list that can be passed around and isn't bound to an instance of any tool or editor. 
 	 */
-	UNREALED_API static TSharedPtr<FUICommandList> GlobalPlayWorldActions;
+	static TSharedPtr<FUICommandList> GlobalPlayWorldActions;
 
 public:
 

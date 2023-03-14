@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Widgets/Views/ITableRow.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SListView.h"
 
 class STableViewBase;
 class UStateTreeState;
@@ -30,10 +30,13 @@ public:
 private:
 
 	FSlateColor GetTitleColor() const;
+	FSlateColor GetActiveStateColor() const;
 	FText GetStateDesc() const;
 
 	EVisibility GetConditionVisibility() const;
 	EVisibility GetSelectorVisibility() const;
+	EVisibility GetActiveStateVisibility() const;
+	EVisibility GetBreakpointVisibility() const;
 	FText GetSelectorDesc() const;
 
 	EVisibility GetTasksVisibility() const;

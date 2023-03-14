@@ -16,6 +16,7 @@
 #include "StateTree.h"
 #include "StateTreeCompiler.h"
 #include "StateTreeCompilerLog.h"
+#include "StateTreeDebuggerCommands.h"
 #include "StateTreeDelegates.h"
 #include "StateTreeEditor.h"
 #include "StateTreeEditorCommands.h"
@@ -69,6 +70,10 @@ void FStateTreeEditorModule::StartupModule()
 {
 	UE::StateTree::Delegates::OnRequestCompile.BindStatic(&UE::StateTree::Editor::CompileStateTree);
 
+#if WITH_STATETREE_DEBUGGER
+	FStateTreeDebuggerCommands::Register();
+#endif // WITH_STATETREE_DEBUGGER
+
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 
@@ -92,6 +97,10 @@ void FStateTreeEditorModule::StartupModule()
 void FStateTreeEditorModule::ShutdownModule()
 {
 	UE::StateTree::Delegates::OnRequestCompile.Unbind();
+
+#if WITH_STATETREE_DEBUGGER
+	FStateTreeDebuggerCommands::Unregister();
+#endif // WITH_STATETREE_DEBUGGER
 	
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();

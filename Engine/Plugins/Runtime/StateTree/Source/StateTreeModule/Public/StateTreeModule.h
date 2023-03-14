@@ -4,6 +4,11 @@
 
 #include "Modules/ModuleManager.h"
 
+namespace UE::Trace
+{
+	class FStoreClient;
+}
+
 /**
 * The public interface to this module
 */
@@ -18,7 +23,7 @@ public:
 	*
 	* @return Returns singleton instance, loading the module on demand if needed
 	*/
-	static inline IStateTreeModule& Get()
+	static IStateTreeModule& Get()
 	{
 		return FModuleManager::LoadModuleChecked<IStateTreeModule>("StateTreeModule");
 	}
@@ -28,10 +33,17 @@ public:
 	*
 	* @return True if the module is loaded and ready to use
 	*/
-	static inline bool IsAvailable()
+	static bool IsAvailable()
 	{
 		return FModuleManager::Get().IsModuleLoaded("StateTreeModule");
 	}
+
+#if WITH_STATETREE_DEBUGGER
+	/**
+	 * Gets the store client.
+	 */
+	virtual UE::Trace::FStoreClient* GetStoreClient() = 0;
+#endif // WITH_STATETREE_DEBUGGER
 };
 
 

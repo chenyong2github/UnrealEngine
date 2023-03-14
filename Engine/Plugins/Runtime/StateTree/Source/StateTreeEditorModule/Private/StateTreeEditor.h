@@ -110,6 +110,13 @@ private:
 	
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 
+#if WITH_STATETREE_DEBUGGER
+	TSharedRef<SDockTab> SpawnTab_Debugger(const FSpawnTabArgs& Args);
+
+	TSharedPtr<class SStateTreeDebuggerView> DebuggerView;
+	static const FName DebuggerTabId;
+#endif // WITH_STATETREE_DEBUGGER
+
 	static const FName StateTreeViewTabId;
 	static const FName SelectionDetailsTabId;
 	static const FName AssetDetailsTabId;

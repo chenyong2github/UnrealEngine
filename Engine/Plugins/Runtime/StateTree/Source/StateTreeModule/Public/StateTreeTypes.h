@@ -175,6 +175,7 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 	explicit FStateTreeStateHandle(uint16 InIndex) : Index(InIndex) {}
 
 	bool IsValid() const { return Index != InvalidIndex; }
+	void Invalidate() { Index = InvalidIndex; }
 	bool IsCompletionState() const { return Index == SucceededIndex || Index == FailedIndex; }
 	EStateTreeRunStatus ToCompletionStatus() const
 	{
@@ -811,6 +812,27 @@ enum class EStateTreePropertyUsage : uint8
 	Output,
 };
 
+/**
+ * Pair of state guid and its associated state handle created at compilation.
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeStateIdToHandle
+{
+	GENERATED_BODY()
+
+	FStateTreeStateIdToHandle() = default;
+	explicit FStateTreeStateIdToHandle(const FGuid& Id, const FStateTreeStateHandle Handle)
+		: Id(Id)
+		, Handle(Handle)
+	{
+	}
+
+	UPROPERTY();
+	FGuid Id;
+
+	UPROPERTY();
+	FStateTreeStateHandle Handle;
+};
 
 /**
  * Describes an external data. The data can point to a struct or object.
@@ -1085,6 +1107,46 @@ struct STATETREEMODULE_API FStateTreeTransitionDelayedState
 	float TimeLeft = 0.0f;
 };
 
+#if WITH_STATETREE_DEBUGGER
+struct FStateTreeInstanceDebugId
+{
+	FStateTreeInstanceDebugId() = default;
+	FStateTreeInstanceDebugId(const uint32 InstanceId, const uint32 SerialNumber)
+		: Id(InstanceId), SerialNumber(SerialNumber)
+	{
+	}
+	
+	bool IsValid() const { return Id != INDEX_NONE && SerialNumber != INDEX_NONE; }
+	bool IsInvalid() const { return !IsValid(); }
+	void Invalidate() { *this = Invalid; }
+
+	bool operator==(const FStateTreeInstanceDebugId& Other) const
+	{
+		return Id == Other.Id && SerialNumber == Other.SerialNumber;
+	}
+
+	bool operator!=(const FStateTreeInstanceDebugId& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	friend uint32 GetTypeHash(const FStateTreeInstanceDebugId InstanceDebugId)
+	{
+		return HashCombine(InstanceDebugId.Id, InstanceDebugId.SerialNumber);
+	}
+
+	friend FString LexToString(const FStateTreeInstanceDebugId InstanceDebugId)
+	{
+		return FString::Printf(TEXT("0x%x | %d"), InstanceDebugId.Id, InstanceDebugId.SerialNumber);
+	}
+
+	static const FStateTreeInstanceDebugId Invalid;
+	
+	uint32 Id = INDEX_NONE;
+	uint32 SerialNumber = INDEX_NONE;
+};
+#endif // WITH_STATETREE_DEBUGGER
+
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeExecutionState
 {
@@ -1098,6 +1160,11 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 
 	/** Currently active states */
 	FStateTreeActiveStates ActiveStates;
+
+#if WITH_STATETREE_DEBUGGER
+	/** Id for the active instance used for debugging. */
+	mutable FStateTreeInstanceDebugId InstanceDebugId;
+#endif
 
 	/** Index of the first task struct in the currently initialized instance data. */
 	FStateTreeIndex16 FirstTaskStructIndex = FStateTreeIndex16::Invalid;

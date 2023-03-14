@@ -103,6 +103,21 @@ public:
 	/** @return schema that was used to compile the StateTree. */
 	const UStateTreeSchema* GetSchema() const { return Schema; }
 
+	/** @return Pointer to a state or null if state not found */ 
+	const FCompactStateTreeState* GetStateFromHandle(const FStateTreeStateHandle StateHandle) const;
+
+	/** @return State handle matching a given Id; invalid handle if state not found. */
+	FStateTreeStateHandle GetStateHandleFromId(const FGuid Id) const;
+
+	/** @return Id of the state matching a given state handle; invalid Id if state not found. */
+	FGuid GetStateIdFromHandle(FStateTreeStateHandle Handle) const;
+
+	/** @return Struct view of the node matching a given state index; invalid view if state not found. */
+	FConstStructView GetNode(int32 NodeIndex) const;
+
+	/** @return View of all states. */
+	TConstArrayView<FCompactStateTreeState> GetStates() const { return States; }
+
 #if WITH_EDITOR
 	/** Resets the compiled data to empty. */
 	void ResetCompiled();
@@ -115,11 +130,11 @@ public:
 	/** Edit time data for the StateTree, instance of UStateTreeEditorData */
 	UPROPERTY()
 	TObjectPtr<UObject> EditorData;
+#endif
 
-	/** Hash of the editor data from last compile. */
+	/** Hash of the editor data from last compile. Also used to detect mismatching events from recorded traces. */
 	UPROPERTY()
 	uint32 LastCompiledEditorDataHash = 0;
-#endif
 
 protected:
 	
@@ -186,6 +201,10 @@ private:
 	UPROPERTY()
 	FStateTreePropertyBindings PropertyBindings;
 
+	/** Mapping of state guid for the Editor and state handles, created at compilation. */
+	UPROPERTY()
+	TArray<FStateTreeStateIdToHandle> IDToStateMappings;
+	
 	/**
 	 * Parameters that could be used for bindings within the Tree.
 	 * Default values are stored within the asset but StateTreeReference can be used to parameterized the tree.

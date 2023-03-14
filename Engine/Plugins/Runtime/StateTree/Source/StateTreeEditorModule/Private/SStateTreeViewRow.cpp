@@ -23,12 +23,12 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 	WeakState = InState;
 
 	STableRow<TWeakObjectPtr<UStateTreeState>>::ConstructInternal(STableRow::FArguments()
-        .Padding(5.0f)
-        .OnDragDetected(this, &SStateTreeViewRow::HandleDragDetected)
-        .OnCanAcceptDrop(this, &SStateTreeViewRow::HandleCanAcceptDrop)
-        .OnAcceptDrop(this, &SStateTreeViewRow::HandleAcceptDrop)
-        .Style(&FStateTreeEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("StateTree.Selection"))
-    , InOwnerTableView);
+		.Padding(5.0f)
+		.OnDragDetected(this, &SStateTreeViewRow::HandleDragDetected)
+		.OnCanAcceptDrop(this, &SStateTreeViewRow::HandleCanAcceptDrop)
+		.OnAcceptDrop(this, &SStateTreeViewRow::HandleAcceptDrop)
+		.Style(&FStateTreeEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("StateTree.Selection"))
+		, InOwnerTableView);
 
 	static const FLinearColor TasksBackground = FLinearColor(FColor(17, 117, 131));
 	static const FLinearColor LinkBackground = FLinearColor(FColor(84, 84, 84));
@@ -37,6 +37,12 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 	.HAlign(HAlign_Fill)
 	[
 		SNew(SBox)
+	    .MinDesiredWidth_Lambda([ViewBox]()
+			{
+    			// Make the row at least as wide as the view.
+	    		// The -1 is needed or we'll see a scrollbar. 
+				return ViewBox->GetTickSpaceGeometry().GetLocalSize().X - 1;
+			})
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -50,9 +56,9 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.BaseIndentLevel(0)
 			]
 
-			// State Box
 			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Left)
 			.Padding(FMargin(0.0f, 4.0f))
 			.AutoWidth()
 			[
@@ -62,100 +68,133 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 				[
 					SNew(SBorder)
 					.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
-					.BorderBackgroundColor(this, &SStateTreeViewRow::GetTitleColor)
-					.Padding(FMargin(16.0f, 0.0f, 16.0f, 0.0f))
+					.BorderBackgroundColor(this, &SStateTreeViewRow::GetActiveStateColor)
+					.Visibility(this, &SStateTreeViewRow::GetActiveStateVisibility)
 					[
-						// Conditions icon
+						// State Box
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
 						.AutoWidth()
 						[
 							SNew(SBox)
-							.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-							.Visibility(this, &SStateTreeViewRow::GetConditionVisibility)
+							.HeightOverride(28.0f)
+							.VAlign(VAlign_Fill)
 							[
-								SNew(SImage)
-								.Image(FAppStyle::Get().GetBrush("Icons.Help"))
+								SNew(SBorder)
+								.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
+								.BorderBackgroundColor(this, &SStateTreeViewRow::GetTitleColor)
+								.Padding(FMargin(16.0f, 0.0f, 16.0f, 0.0f))
+								[
+									// Breakpoint box
+									SNew(SHorizontalBox)
+									+ SHorizontalBox::Slot()
+									.VAlign(VAlign_Top)
+									.HAlign(HAlign_Left)
+									.AutoWidth()
+									[
+										SNew(SBox)
+										.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+										[
+											SNew(SImage)
+											.DesiredSizeOverride(FVector2D(12.f, 12.f))
+											.Image(FAppStyle::GetBrush(TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid")))
+											.Visibility(this, &SStateTreeViewRow::GetBreakpointVisibility)
+										]
+									]
+
+									// Conditions icon
+									+ SHorizontalBox::Slot()
+									.VAlign(VAlign_Center)
+									.AutoWidth()
+									[
+										SNew(SBox)
+										.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+										.Visibility(this, &SStateTreeViewRow::GetConditionVisibility)
+										[
+											SNew(SImage)
+											.Image(FAppStyle::Get().GetBrush("Icons.Help"))
+										]
+									]
+
+									// Selector icon
+									+ SHorizontalBox::Slot()
+									.VAlign(VAlign_Center)
+									.AutoWidth()
+									[
+										SNew(SBox)
+										.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+										.Visibility(this, &SStateTreeViewRow::GetSelectorVisibility)
+										[
+											SNew(STextBlock)
+											.Text(this, &SStateTreeViewRow::GetSelectorDesc)
+											.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
+										]
+									]
+
+									// State Name
+									+ SHorizontalBox::Slot()
+									.VAlign(VAlign_Center)
+									.AutoWidth()
+									[
+										SAssignNew(NameTextBlock, SInlineEditableTextBlock)
+										.Style(FStateTreeEditorStyle::Get(), "StateTree.State.TitleInlineEditableText")
+										.OnVerifyTextChanged_Lambda([](const FText& NewLabel, FText& OutErrorMessage)
+										{
+											return !NewLabel.IsEmptyOrWhitespace();
+										})
+										.OnTextCommitted(this, &SStateTreeViewRow::HandleNodeLabelTextCommitted)
+										.Text(this, &SStateTreeViewRow::GetStateDesc)
+										.Clipping(EWidgetClipping::ClipToBounds)
+										.IsSelected(this, &SStateTreeViewRow::IsStateSelected)
+									]
+								]
 							]
 						]
 
-						// Selector icon
+						// Tasks Box
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
 						.AutoWidth()
 						[
 							SNew(SBox)
-							.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-							.Visibility(this, &SStateTreeViewRow::GetSelectorVisibility)
+							.HeightOverride(28.0f)
+							.VAlign(VAlign_Fill)
+							.Visibility(this, &SStateTreeViewRow::GetTasksVisibility)
 							[
-								SNew(STextBlock)
-								.Text(this, &SStateTreeViewRow::GetSelectorDesc)
-								.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
+								SNew(SBorder)
+								.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
+								.BorderBackgroundColor(TasksBackground)
+								.Padding(FMargin(12.0f, 0.0f, 16.0f, 0.0f))
+								[
+									// Task icon
+									SNew(SHorizontalBox)
+									+ SHorizontalBox::Slot()
+									.VAlign(VAlign_Center)
+									.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+									.AutoWidth()
+									[
+										SNew(STextBlock)
+										.Text(FEditorFontGlyphs::Paper_Plane)
+										.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.DetailsIcon")
+									]
+
+									// Tasks list
+									+ SHorizontalBox::Slot()
+									.VAlign(VAlign_Center)
+									.AutoWidth()
+									[
+										SNew(STextBlock)
+										.Text(this, &SStateTreeViewRow::GetTasksDesc)
+										.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Details")
+									]
+								]
 							]
 						]
-
-						// State Name
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							SAssignNew(NameTextBlock, SInlineEditableTextBlock)
-							.Style(FStateTreeEditorStyle::Get(), "StateTree.State.TitleInlineEditableText")
-							.OnVerifyTextChanged_Lambda([](const FText& NewLabel, FText& OutErrorMessage)
-							{
-								return !NewLabel.IsEmptyOrWhitespace();
-							})
-							.OnTextCommitted(this, &SStateTreeViewRow::HandleNodeLabelTextCommitted)
-							.Text(this, &SStateTreeViewRow::GetStateDesc)
-							.Clipping(EWidgetClipping::ClipToBounds)
-							.IsSelected(this, &SStateTreeViewRow::IsStateSelected)
-						]
 					]
 				]
 			]
 
-			// Tasks Box
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(0.0f, 4.0f))
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.HeightOverride(28.0f)
-				.VAlign(VAlign_Fill)
-				.Visibility(this, &SStateTreeViewRow::GetTasksVisibility)
-				[
-					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
-					.BorderBackgroundColor(TasksBackground)
-					.Padding(FMargin(12.0f, 0.0f, 16.0f, 0.0f))
-					[
-						// Task icon
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(FEditorFontGlyphs::Paper_Plane)
-							.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.DetailsIcon")
-						]
-
-						// Tasks list
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(this, &SStateTreeViewRow::GetTasksDesc)
-							.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Details")
-						]
-					]
-				]
-			]
-			
 			// Linked State box
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -196,7 +235,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 					]
 				]
 			]
-			
+
 			// Completed transitions
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -368,6 +407,19 @@ FSlateColor SStateTreeViewRow::GetTitleColor() const
 	return FLinearColor(FColor(31, 151, 167));
 }
 
+FSlateColor SStateTreeViewRow::GetActiveStateColor() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		if (StateTreeViewModel && StateTreeViewModel->IsStateActiveInDebugger(*State))
+		{
+			return FLinearColor::Yellow;
+		}
+	}
+
+	return GetTitleColor();
+}
+
 FText SStateTreeViewRow::GetStateDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
@@ -407,6 +459,31 @@ EVisibility SStateTreeViewRow::GetSelectorVisibility() const
 	return EVisibility::Collapsed;
 }
 
+EVisibility SStateTreeViewRow::GetActiveStateVisibility() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		if (StateTreeViewModel && StateTreeViewModel->IsStateActiveInDebugger(*State))
+		{
+			return EVisibility::Visible;
+		}
+	}
+
+	return EVisibility::Visible;
+}
+
+EVisibility SStateTreeViewRow::GetBreakpointVisibility() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		if (StateTreeViewModel && StateTreeViewModel->DoesStateHaveBreakpoint(*State))
+		{
+			return EVisibility::Visible;
+		}
+	}
+
+	return EVisibility::Hidden;
+}
 
 FText SStateTreeViewRow::GetSelectorDesc() const
 {
@@ -436,7 +513,7 @@ EVisibility SStateTreeViewRow::GetTasksVisibility() const
 		int32 ValidCount = 0;
 		for (int32 i = 0; i < State->Tasks.Num(); i++)
 		{
-			if (const FStateTreeTaskBase* Task = State->Tasks[i].Node.GetPtr<FStateTreeTaskBase>())
+			if (State->Tasks[i].Node.GetPtr<FStateTreeTaskBase>())
 			{
 				ValidCount++;
 			}
@@ -559,11 +636,11 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 	enum EIconType
 	{
 		IconNone = 0,
-        IconRightArrow =	1 << 0,
-        IconDownArrow =		1 << 1,
-        IconLevelUp =		1 << 2,
-        IconWarning =		1 << 3,
-    };
+		IconRightArrow =	1 << 0,
+		IconDownArrow =		1 << 1,
+		IconLevelUp =		1 << 2,
+		IconWarning =		1 << 3,
+	};
 	uint8 IconType = IconNone;
 	
 	for (const FStateTreeTransition& Transition : State.Transitions)
@@ -604,8 +681,8 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 	
 	if (State.Children.Num() == 0
 		&& State.Type == EStateTreeStateType::State
-        && IconType == IconNone
-        && EnumHasAnyFlags(Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
+		&& IconType == IconNone
+		&& EnumHasAnyFlags(Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
 	{
 		if (HasParentTransitionForTrigger(State, Trigger))
 		{

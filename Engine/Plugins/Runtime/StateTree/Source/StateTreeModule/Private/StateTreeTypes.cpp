@@ -17,6 +17,9 @@ const FStateTreeIndex8 FStateTreeIndex8::Invalid = FStateTreeIndex8();
 
 const FStateTreeExternalDataHandle FStateTreeExternalDataHandle::Invalid = FStateTreeExternalDataHandle();
 
+#if WITH_STATETREE_DEBUGGER
+const FStateTreeInstanceDebugId FStateTreeInstanceDebugId::Invalid = FStateTreeInstanceDebugId();
+#endif // WITH_STATETREE_DEBUGGER
 
 bool FStateTreeIndex16::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {

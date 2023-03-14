@@ -6,6 +6,7 @@
 #include "EditorUndoClient.h"
 #include "StateTreeViewModel.generated.h"
 
+struct FStateTreeDebugger;
 struct FPropertyChangedEvent;
 
 class UStateTreeEditorData;
@@ -54,6 +55,9 @@ public:
 	void GetSelectedStates(TArray<TWeakObjectPtr<UStateTreeState>>& OutSelectedStates);
 	bool HasSelection() const;
 
+	// Returns associated state tree asset.
+	const UStateTree* GetStateTree() const;
+	
 	// Returns array of subtrees to edit.
 	TArray<UStateTreeState*>* GetSubTrees() const;
 	int32 GetSubTreeCount() const;
@@ -80,6 +84,14 @@ public:
 	void NotifyAssetChangedExternally() const;
 	void NotifyStatesChangedExternally(const TSet<UStateTreeState*>& ChangedStates, const FPropertyChangedEvent& PropertyChangedEvent) const;
 
+	// Debugging
+#if WITH_STATETREE_DEBUGGER
+	TSharedRef<FStateTreeDebugger> GetDebugger() const { return Debugger; }
+#endif // WITH_STATETREE_DEBUGGER
+
+	bool IsStateActiveInDebugger(const UStateTreeState& State) const;
+	bool DoesStateHaveBreakpoint(const UStateTreeState& State) const;
+
 	// Called when the whole asset is updated (i.e. undo/redo).
 	FOnAssetChanged& GetOnAssetChanged() { return OnAssetChanged; }
 	
@@ -104,8 +116,17 @@ protected:
 
 	void HandleIdentifierChanged(const UStateTree& StateTree) const;
 
+	void BindToDebuggerDelegates();
+	
 	TWeakObjectPtr<UStateTreeEditorData> TreeDataWeak;
 	TSet<TWeakObjectPtr<UStateTreeState>> SelectedStates;
+
+#if WITH_STATETREE_DEBUGGER
+	TSharedRef<FStateTreeDebugger> Debugger;
+	TArray<TWeakObjectPtr<const UStateTreeState>> StatesWithBreakpoints;
+	TArray<FGuid> ActiveStates;
+#endif // WITH_STATETREE_DEBUGGER
+	
 	FOnAssetChanged OnAssetChanged;
 	FOnStatesChanged OnStatesChanged;
 	FOnStateAdded OnStateAdded;
