@@ -25,6 +25,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RenderOnPhase = true;
 	RenderOnInvalidation = false;
 	TextureParameter = DefaultTextureParameterName;
+#if WITH_EDITOR
+	bShowEffectsInDesigner = true;
+#endif // WITH_EDITOR
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -151,6 +154,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		.StatId( FName( *FString::Printf(TEXT("%s [%s]"), *GetFName().ToString(), *GetClass()->GetName() ) ) )
 #endif//STATS
 	;
+
+#if WITH_EDITOR
+	MyRetainerWidget->SetIsDesignTime(IsDesignTime());
+	MyRetainerWidget->SetShowEffectsInDesigner(bShowEffectsInDesigner);
+#endif // WITH_EDITOR
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if ( GetChildrenCount() > 0 )
 	{
@@ -170,7 +179,11 @@ void URetainerBox::SynchronizeProperties()
 	}
 	
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	MyRetainerWidget->SetRetainedRendering(IsDesignTime() ? false : bRetainRender);
+#if WITH_EDITOR
+	MyRetainerWidget->SetIsDesignTime(IsDesignTime());
+	MyRetainerWidget->SetShowEffectsInDesigner(bShowEffectsInDesigner);
+#endif // WITH_EDITOR
+	MyRetainerWidget->SetRetainedRendering(bRetainRender);
 	MyRetainerWidget->SetEffectMaterial(EffectMaterial);
 	MyRetainerWidget->SetTextureParameter(TextureParameter);
 	MyRetainerWidget->SetWorld(GetWorld());

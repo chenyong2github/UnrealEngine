@@ -71,6 +71,11 @@ public:
 	/** Requests that the retainer redraw the hosted content next time it's painted. */
 	void RequestRender();
 
+#if WITH_EDITOR
+	void SetIsDesignTime(bool bInIsDesignTime);
+	void SetShowEffectsInDesigner(bool bInShowEffectsInDesigner);
+#endif
+
 	void SetRetainedRendering(bool bRetainRendering);
 
 	void SetContent(const TSharedRef< SWidget >& InContent);
@@ -147,6 +152,14 @@ private:
 	bool bEnableRetainedRenderingDesire;
 	bool bEnableRetainedRendering;
 	bool bEnableRenderWithLocalTransform;
+
+#if WITH_EDITOR
+	/** True if widget is used in design time */
+	bool bIsDesignTime;
+
+	/** True if we should retain rendering in designer */
+	bool bShowEffectsInDesigner;
+#endif
 
 	bool RenderOnPhase;
 	bool RenderOnInvalidation;

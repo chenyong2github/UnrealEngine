@@ -163,6 +163,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetTextureParameter", Category="Effect")
 	FName TextureParameter;
 
+#if WITH_EDITORONLY_DATA
+	/**
+	 * If true, retained rendering occurs in designer
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Effect", meta = (EditCondition = bRetainRender))
+	bool bShowEffectsInDesigner;
+#endif
+
 	//~ Begin UPanelWidget interface
 	virtual void OnSlotAdded(UPanelSlot* Slot) override;
 	virtual void OnSlotRemoved(UPanelSlot* Slot) override;

@@ -19,6 +19,20 @@ DECLARE_CYCLE_STAT(TEXT("Retainer Widget Paint"), STAT_SlateRetainerWidgetPaint,
 FOnRetainedModeChanged SRetainerWidget::OnRetainerModeChangedDelegate;
 #endif
 
+static void HandleDesignerRetainedRenderingToggled(IConsoleVariable* CVar)
+{
+	FSlateApplication::Get().InvalidateAllWidgets(false);
+}
+
+/** True if we should do retained rendering in designer. */
+bool GEnableDesignerRetainedRendering = true;
+FAutoConsoleVariableRef EnableDesignerRetainedRendering(
+	TEXT("Slate.EnableDesignerRetainedRendering"),
+	GEnableDesignerRetainedRendering,
+	TEXT("Controls if retainer renders in designer; 0 - Never; 1 - Per Widget Properties"),
+	FConsoleVariableDelegate::CreateStatic(&HandleDesignerRetainedRenderingToggled)
+);
+
 /** True if we should allow widgets to be cached in the UI at all. */
 int32 GEnableRetainedRendering = 1;
 FAutoConsoleVariableRef EnableRetainedRendering(
@@ -200,6 +214,11 @@ void SRetainerWidget::Construct(const FArguments& InArgs)
 	bEnableRenderWithLocalTransform = InArgs._RenderWithLocalTransform;
 	SetVolatilePrepass(bEnableRetainedRendering);
 
+#if WITH_EDITOR
+	bIsDesignTime = false;
+	bShowEffectsInDesigner = true;
+#endif // WITH_EDITOR
+
 	RefreshRenderingMode();
 	bRenderRequested = true;
 	bInvalidSizeLogged = false;
@@ -368,6 +387,18 @@ void SRetainerWidget::RequestRender()
 	bRenderRequested = true;
 	InvalidateRootChildOrder();
 }
+
+#if WITH_EDITOR
+void SRetainerWidget::SetIsDesignTime(bool bInIsDesignTime)
+{
+	bIsDesignTime = bInIsDesignTime;
+}
+
+void SRetainerWidget::SetShowEffectsInDesigner(bool bInShowEffectsInDesigner)
+{
+	bShowEffectsInDesigner = bInShowEffectsInDesigner;
+}
+#endif // WITH_EDITOR
 
 SRetainerWidget::EPaintRetainedContentResult SRetainerWidget::PaintRetainedContentImpl(const FSlateInvalidationContext& Context, const FGeometry& AllottedGeometry, int32 LayerId)
 {
@@ -540,7 +571,14 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 
 	SRetainerWidget* MutableThis = const_cast<SRetainerWidget*>(this);
 
-	if (bEnableRetainedRendering && IsAnythingVisibleToRender())
+	bool bShouldRetainRendering = bEnableRetainedRendering;
+
+#if WITH_EDITOR
+	bool bShouldSkipDesignerRendering = bIsDesignTime && (!bShowEffectsInDesigner || !GEnableDesignerRetainedRendering);
+	bShouldRetainRendering = bEnableRetainedRendering && !bShouldSkipDesignerRendering;
+#endif // WITH_EDITOR
+
+	if (bShouldRetainRendering && IsAnythingVisibleToRender())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateRetainerWidgetPaint);
 
