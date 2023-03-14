@@ -2,6 +2,7 @@
 
 #include "TestNetSerializerFixture.h"
 #include "Iris/Serialization/PackedIntNetSerializers.h"
+#include <limits>
 
 namespace UE::Net::Private
 {
@@ -70,7 +71,7 @@ UE_NET_IMPLEMENT_PACKEDUINT_NETSERIALIZER_TEST(FTestPackedUint32NetSerializer, F
 //
 template<typename SourceType> const SourceType TTestPackedUintNetSerializer<SourceType>::Values[] =
 {
-	TNumericLimits<SourceType>::Lowest(), TNumericLimits<SourceType>::Max(), SourceType(0), (TNumericLimits<SourceType>::Max() + TNumericLimits<SourceType>::Lowest())/SourceType(2) - SourceType(15), SourceType(2048458 % TNumericLimits<SourceType>::Max())
+	std::numeric_limits<SourceType>::min(), std::numeric_limits<SourceType>::max(), SourceType(0), (std::numeric_limits<SourceType>::max() + std::numeric_limits<SourceType>::min())/SourceType(2) - SourceType(15), SourceType(2048458 % std::numeric_limits<SourceType>::max())
 };
 template<typename SourceType> const SIZE_T TTestPackedUintNetSerializer<SourceType>::ValueCount = sizeof(Values)/sizeof(Values[0]);
 
@@ -133,7 +134,7 @@ template<typename SourceType>
 void TTestPackedUintNetSerializer<SourceType>::TestSmallValuesArePacked()
 {
 	constexpr SourceType SmallValue = SourceType(0);
-	constexpr SourceType LargeValue = TNumericLimits<SourceType>::Max();
+	constexpr SourceType LargeValue = std::numeric_limits<SourceType>::max();
 
 	const bool bSerializedSmallValue = this->Serialize(Config, NetSerializerValuePointer(&SmallValue));
 	UE_NET_ASSERT_TRUE_MSG(bSerializedSmallValue, "Failed serializing " << SmallValue);

@@ -5,6 +5,7 @@
 #include "Iris/Serialization/BitPacking.h"
 #include "Iris/Serialization/NetBitStreamReader.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
+#include <limits>
 
 namespace UE::Net::Private
 {
@@ -46,9 +47,9 @@ template<typename SourceType, uint8 BitCount> const uint32 TTestBitPacking<Sourc
 
 template<typename SourceType, uint8 BitCount> const SourceType TTestBitPacking<SourceType, BitCount>::Values[] =
 {
-	TIsSigned<SourceType>::Value ? (SourceType(-(typename TSignedIntType<sizeof(SourceType)>::Type)(TNumericLimits<SourceType>::Max() >> (sizeof(SourceType)*8U - BitCount)) - SourceType(1))) : SourceType(0), // MinValue
+	TIsSigned<SourceType>::Value ? (SourceType(-(typename TSignedIntType<sizeof(SourceType)>::Type)(std::numeric_limits<SourceType>::max() >> (sizeof(SourceType)*8U - BitCount)) - SourceType(1))) : SourceType(0), // MinValue
 	SourceType(Values[0] + SourceType(1)),
-	TNumericLimits<SourceType>::Max() >> (sizeof(SourceType)*8U - BitCount), // Max value for desired bitcount
+	std::numeric_limits<SourceType>::max() >> (sizeof(SourceType)*8U - BitCount), // Max value for desired bitcount
 	SourceType(SourceType(Values[0] + Values[2])/SourceType(2)),
 };
 template<typename SourceType, uint8 BitCount> const SIZE_T TTestBitPacking<SourceType, BitCount>::ValueCount = sizeof(Values)/sizeof(Values[0]);

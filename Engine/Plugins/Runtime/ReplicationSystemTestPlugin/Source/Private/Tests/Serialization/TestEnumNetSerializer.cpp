@@ -3,8 +3,8 @@
 #include "TestNetSerializerFixture.h"
 #include "Iris/Core/BitTwiddling.h"
 #include "Iris/Serialization/EnumNetSerializers.h"
-#include "Math/NumericLimits.h"
 #include "EnumTestTypes.h"
+#include <limits>
 
 namespace UE::Net::Private
 {
@@ -124,8 +124,8 @@ void FTestEnumIntNetSerializer<SerializerConfig, SourceType, EnumType>::SetUp()
 		else
 		{
 			// N.B. This code is designed to also work with all uint64 enums, which UEnum doesn't handle perfectly.
-			LargeIntegerType SmallestValue = TNumericLimits<LargeIntegerType>::Max();
-			LargeIntegerType LargestValue = TNumericLimits<LargeIntegerType>::Min();
+			LargeIntegerType SmallestValue = std::numeric_limits<LargeIntegerType>::max();
+			LargeIntegerType LargestValue = std::numeric_limits<LargeIntegerType>::min();
 			for (int32 EnumIt = 0, EnumEndIt = EnumValueCount; EnumIt != EnumEndIt; ++EnumIt)
 			{
 				const LargeIntegerType Value = static_cast<LargeIntegerType>(Enum->GetValueByIndex(EnumIt));
@@ -155,12 +155,12 @@ void FTestEnumIntNetSerializer<SerializerConfig, SourceType, EnumType>::SetUp()
 		// Invalid values
 		TArray<SourceType> TempInvalidValues;
 		TempInvalidValues.Reserve(3);
-		if (Config.LowerBound > TNumericLimits<SourceType>::Min())
+		if (Config.LowerBound > std::numeric_limits<SourceType>::min())
 		{
 			TempInvalidValues.Add(Config.LowerBound - SourceType(1));
 		}
 
-		if (Config.UpperBound < TNumericLimits<SourceType>::Max())
+		if (Config.UpperBound < std::numeric_limits<SourceType>::max())
 		{
 			TempInvalidValues.Add(Config.UpperBound + SourceType(1));
 		}

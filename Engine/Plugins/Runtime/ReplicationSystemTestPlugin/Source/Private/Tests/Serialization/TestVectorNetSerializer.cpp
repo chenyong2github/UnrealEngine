@@ -2,6 +2,7 @@
 
 #include "TestNetSerializerFixture.h"
 #include "Iris/Serialization/VectorNetSerializers.h"
+#include <limits>
 
 namespace UE::Net::Private
 {
@@ -54,8 +55,8 @@ const FVector FTestVectorNetSerializer::Values[] =
 	*(const FVector*)(&BadVectorValues[3]),
 	FVector(-0.0f),
 	FVector(0.0f),
-	FVector(TNumericLimits<float>::Max()),
-	FVector(TNumericLimits<float>::Lowest()),
+	FVector(std::numeric_limits<FVector::FReal>::max()),
+	FVector(std::numeric_limits<FVector::FReal>::lowest()),
 	FVector(47.11f),
 	FVector(1.26698556E-23)
 };

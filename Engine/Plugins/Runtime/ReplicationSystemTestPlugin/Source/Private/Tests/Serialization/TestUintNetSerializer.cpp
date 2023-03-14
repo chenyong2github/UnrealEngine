@@ -2,6 +2,7 @@
 
 #include "TestNetSerializerFixture.h"
 #include "Iris/Serialization/UintNetSerializers.h"
+#include <limits>
 
 namespace UE::Net::Private
 {
@@ -78,7 +79,7 @@ UE_NET_IMPLEMENT_UINT_NETSERIALIZER_TEST(FTestUint8NetSerializer, FUint8NetSeria
 //
 template<typename SourceType> const SourceType FTestUintNetSerializer<SourceType>::Values[] =
 {
-	TNumericLimits<SourceType>::Lowest(), TNumericLimits<SourceType>::Max(), SourceType(0), SourceType(16), SourceType(2048458 % TNumericLimits<SourceType>::Max())
+	std::numeric_limits<SourceType>::min(), std::numeric_limits<SourceType>::max(), SourceType(0), SourceType(16), SourceType(2048458 % std::numeric_limits<SourceType>::max())
 };
 template<typename SourceType> const SIZE_T FTestUintNetSerializer<SourceType>::ValueCount = sizeof(Values)/sizeof(Values[0]);
 
@@ -129,7 +130,7 @@ void FTestUintNetSerializer<SourceType>::TestValidate()
 	bool ExpectedResults[sizeof(Values)/sizeof(Values[0])];
 	for (uint8 BitCount = MinBitCount; BitCount <= MaxBitCount; ++BitCount)
 	{
-		const SourceType MaxValue = TNumericLimits<SourceType>::Max() >> (MaxBitCount - BitCount);
+		const SourceType MaxValue = std::numeric_limits<SourceType>::max() >> (MaxBitCount - BitCount);
 		for (SIZE_T ValueIt = 0; ValueIt < ValueCount; ++ValueIt)
 		{
 			const SourceType Value = Values[ValueIt];
