@@ -766,7 +766,7 @@ namespace AutomationScripts
 				CbObject ZenServerObject = ManifestObject["zenserver"].AsObject();
 				if (ZenServerObject != CbObject.Empty)
 				{
-					CommandUtils.LogInformation("Reading oplog from Zen...");
+					Logger.LogInformation("Reading oplog from Zen...");
 					string Host = "localhost";
 					int Port = 1337;
 					string ProjectId = ZenServerObject["projectid"].AsString();
