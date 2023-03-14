@@ -330,10 +330,11 @@ namespace UnrealBuildTool
 		/// <param name="bSkipCompile">Whether to skip compilation for this assembly</param>
 		/// <param name="bForceCompile">Whether to always compile this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
-        /// <param name="bContainsEngineModules">Whether the plugin contains engine modules. Used to initialize the default value for ModuleRules.bTreatAsEngineModule.</param>
+		/// <param name="bBuildPluginAsLocal">Whether the plugin should be built as though it is a local plugin.</param>
+		/// <param name="bContainsEngineModules">Whether the plugin contains engine modules. Used to initialize the default value for ModuleRules.bTreatAsEngineModule.</param>
 		/// <param name="Logger">Logger for ouptut</param>
 		/// <returns>The new rules assembly</returns>
-        public static RulesAssembly CreatePluginRulesAssembly(FileReference PluginFileName, bool bSkipCompile, bool bForceCompile, RulesAssembly Parent, bool bContainsEngineModules, ILogger Logger)
+		public static RulesAssembly CreatePluginRulesAssembly(FileReference PluginFileName, bool bSkipCompile, bool bForceCompile, RulesAssembly Parent, bool bBuildPluginAsLocal, bool bContainsEngineModules, ILogger Logger)
 		{
 			// Check if there's an existing assembly for this project
 			RulesAssembly? PluginRulesAssembly;
@@ -366,6 +367,13 @@ namespace UnrealBuildTool
 				// Find all the modules
 				ModuleRulesContext PluginModuleContext = new ModuleRulesContext(Scope, PluginFileName.Directory);
 				PluginModuleContext.bClassifyAsGameModuleForUHT = !bContainsEngineModules;
+				if(bBuildPluginAsLocal)
+				{
+					PluginModuleContext.bCanBuildDebugGame = true;
+					PluginModuleContext.bCanHotReload = true;
+					PluginModuleContext.bClassifyAsGameModuleForUHT = true;
+					PluginModuleContext.bCanUseForSharedPCH = false;
+				}
 				FindModuleRulesForPlugins(ForeignPlugins, PluginModuleContext, ModuleFiles);
 
 				Logger.LogTrace(" Found {Count} Modules:", ModuleFiles.Count);
@@ -391,9 +399,10 @@ namespace UnrealBuildTool
 		/// <param name="bForceRulesCompile">Whether to always compile all rules assemblies</param>
 		/// <param name="bUsePrecompiled">Whether to use a precompiled engine build</param>
 		/// <param name="ForeignPlugin">Foreign plugin to be compiled</param>
+		/// <param name="bBuildPluginAsLocal">Whether the plugin should be built as though it is a local plugin</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>The compiled rules assembly</returns>
-		public static RulesAssembly CreateTargetRulesAssembly(FileReference? ProjectFile, string TargetName, bool bSkipRulesCompile, bool bForceRulesCompile, bool bUsePrecompiled, FileReference? ForeignPlugin, ILogger Logger)
+		public static RulesAssembly CreateTargetRulesAssembly(FileReference? ProjectFile, string TargetName, bool bSkipRulesCompile, bool bForceRulesCompile, bool bUsePrecompiled, FileReference? ForeignPlugin, bool bBuildPluginAsLocal, ILogger Logger)
 		{
 			RulesAssembly RulesAssembly;
 			if (ProjectFile != null)
@@ -406,7 +415,7 @@ namespace UnrealBuildTool
 			}
 			if (ForeignPlugin != null)
 			{
-				RulesAssembly = CreatePluginRulesAssembly(ForeignPlugin, bSkipRulesCompile, bForceRulesCompile, RulesAssembly, true, Logger);
+				RulesAssembly = CreatePluginRulesAssembly(ForeignPlugin, bSkipRulesCompile, bForceRulesCompile, RulesAssembly, bBuildPluginAsLocal, true, Logger);
 			}
 			return RulesAssembly;
 		}

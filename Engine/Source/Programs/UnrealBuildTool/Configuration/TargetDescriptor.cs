@@ -43,6 +43,12 @@ namespace UnrealBuildTool
 		public FileReference? ForeignPlugin = null;
 
 		/// <summary>
+		/// Whether we should treat the ForeignPlugin argument as a local plugin for building purposes
+		/// </summary>
+		[CommandLine("-BuildPluginAsLocal")]
+		public bool bBuildPluginAsLocal = false;
+
+		/// <summary>
 		/// Set of module names to compile.
 		/// </summary>
 		[CommandLine("-Module=")]
