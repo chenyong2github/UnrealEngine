@@ -121,7 +121,7 @@ protected:
 			: FChunkModifier(Allocator)
 			, InfoIndex(INDEX_NONE)
 		{
-			FreeRanges.Add(FRange(0, ChunkSize / MinAlignment));
+			FreeRanges.Add(FRange(0, Allocator.ChunkSize / MinAlignment));
 		}
 
 		SIZE_T Alloc(uint32 InSize, uint32 InAlignment, uint16& InOutMaxFreeRangeSize, uint16& OutOffset, uint16& OutSize)
