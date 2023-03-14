@@ -309,6 +309,23 @@ const TCHAR* FUnixPlatformProcess::ApplicationSettingsDir()
 	return Result;
 }
 
+FString FUnixPlatformProcess::GetApplicationSettingsDir(const ApplicationSettingsContext& Settings)
+{
+	// The ApplicationSettingsDir is where the engine stores settings and configuration
+	// data.  On linux this corresponds to $HOME/.config/Epic
+	TCHAR Result[UNIX_MAX_PATH] = TEXT("");
+	FCString::Strncpy(Result, FPlatformProcess::UserHomeDir(), UE_ARRAY_COUNT(Result));
+	if (Settings.bIsEpic)
+	{
+		FCString::Strncat(Result, TEXT("/.config/Epic/"), UE_ARRAY_COUNT(Result));
+	}
+	else
+	{
+		FCString::Strncat(Result, TEXT("/.config/"), UE_ARRAY_COUNT(Result));
+	}
+	return FString(Result);
+}
+
 bool FUnixPlatformProcess::SetProcessLimits(EProcessResource::Type Resource, uint64 Limit)
 {
 	rlimit NativeLimit;

@@ -114,6 +114,13 @@ const TCHAR* FGenericPlatformProcess::ApplicationSettingsDir()
 	return FPlatformMisc::RootDir();
 }
 
+FString FGenericPlatformProcess::GetApplicationSettingsDir(const ApplicationSettingsContext& Settings)
+{
+	// Default to returning the original `ApplicationSettingsDir` if it's unimplemented.
+	return ApplicationSettingsDir();
+}
+
+
 const TCHAR* FGenericPlatformProcess::ComputerName()
 {
 	return TEXT("GenericComputer");

@@ -289,8 +289,29 @@ struct CORE_API FGenericPlatformProcess
 	/** Get the user home directory.  NOTE: Only one return value is valid at a time! **/
 	static const TCHAR *UserHomeDir();
 
+	struct ApplicationSettingsContext
+	{
+		enum class Context : int8_t
+		{
+			LocalUser,
+			RoamingUser,
+			ApplicationSpecific
+		};
+		Context Location;
+		bool bIsEpic;
+	};
+
 	/** Get application settings directory.  NOTE: Only one return value is valid at a time! **/
 	static const TCHAR* ApplicationSettingsDir();
+	
+	/** 
+	 * Get application settings directory for a given context.
+	 * 
+	 * @param Settings 	The context in which the application settings should be stored for.
+	 * 
+	 * @return 			A string to the appropriate directory.
+	 */
+	static FString GetApplicationSettingsDir(const ApplicationSettingsContext& Settings);
 
 	/** Get computer name.  NOTE: Only one return value is valid at a time! **/
 	static const TCHAR* ComputerName();

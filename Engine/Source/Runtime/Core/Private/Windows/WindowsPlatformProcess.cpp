@@ -1184,6 +1184,64 @@ const TCHAR* FWindowsPlatformProcess::ApplicationSettingsDir()
 	return *WindowsApplicationSettingsDir;
 }
 
+FString FWindowsPlatformProcess::GetApplicationSettingsDir(const ApplicationSettingsContext& Settings)
+{
+	FString WindowsApplicationSettingsDir;
+	TCHAR* ApplicationSettingsPath;
+	switch (Settings.Location)
+	{
+		case ApplicationSettingsContext::Context::ApplicationSpecific:
+		{
+			const HRESULT Ret = SHGetKnownFolderPath(FOLDERID_ProgramData, 0, NULL, &ApplicationSettingsPath);
+			if (SUCCEEDED(Ret))
+			{
+				WindowsApplicationSettingsDir = FString(ApplicationSettingsPath);
+				break;
+			}
+			else
+			{
+				return "";
+			}
+		}
+		case ApplicationSettingsContext::Context::LocalUser:
+		{
+			const HRESULT Ret = SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &ApplicationSettingsPath);
+			if (SUCCEEDED(Ret))
+			{
+				WindowsApplicationSettingsDir = FString(ApplicationSettingsPath);
+				break;
+			}
+			else
+			{
+				return "";
+			}
+		}
+		case ApplicationSettingsContext::Context::RoamingUser:
+		{
+			const HRESULT Ret = SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &ApplicationSettingsPath);
+			if (SUCCEEDED(Ret))
+			{
+				WindowsApplicationSettingsDir = FString(ApplicationSettingsPath);
+				break;
+			}
+			else
+			{
+				return "";
+			}
+		}
+		default:
+			checkf(false, TEXT("Attempting to call `ApplicationSettingsDir` with an invalid context!"));
+			return "";
+	}
+	WindowsApplicationSettingsDir = WindowsApplicationSettingsDir.Replace(TEXT("\\"), TEXT("/")) + TEXT("/");
+	CoTaskMemFree(ApplicationSettingsPath);
+	if (Settings.bIsEpic)
+	{
+		WindowsApplicationSettingsDir += TEXT("Epic/");
+	}
+	return WindowsApplicationSettingsDir;
+}
+
 const TCHAR* FWindowsPlatformProcess::ComputerName()
 {
 	static TCHAR Result[256] = {};

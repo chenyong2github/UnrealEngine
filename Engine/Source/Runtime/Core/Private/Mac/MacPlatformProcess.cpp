@@ -1153,6 +1153,24 @@ const TCHAR* FMacPlatformProcess::ApplicationSettingsDir()
 	return Result;
 }
 
+FString FMacPlatformProcess::GetApplicationSettingsDir(const ApplicationSettingsContext& Settings)
+{
+	TCHAR Result[MAC_MAX_PATH] = TEXT("");
+	SCOPED_AUTORELEASE_POOL;
+	NSString* ApplicationSupportFolder = [NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+	FPlatformString::CFStringToTCHAR((CFStringRef) ApplicationSupportFolder, Result);
+	if (Settings.bIsEpic)
+	{
+		// @todo rocket this folder should be based on your company name, not just be hard coded to /Epic/
+		FCString::Strcat(Result, TEXT("/Epic/"));
+	}
+	else
+	{
+		FCString::Strcat(Result, TEXT("/"));
+	}
+	return FString(Result);
+}
+
 const TCHAR* FMacPlatformProcess::ComputerName()
 {
 	static TCHAR Result[256]=TEXT("");

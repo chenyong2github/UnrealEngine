@@ -273,6 +273,7 @@ struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
 	static const TCHAR* UserDir();
 	static const TCHAR* UserSettingsDir();
 	static const TCHAR* ApplicationSettingsDir();
+	static FString GetApplicationSettingsDir(const ApplicationSettingsContext& Settings);
 	static void SetCurrentWorkingDirectoryToBaseDir();
 	static FString GetCurrentWorkingDirectory();
 	static FString GenerateApplicationPath(const FString& AppName, EBuildConfiguration BuildConfiguration);
