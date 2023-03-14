@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionUnpremult.h"
+#include "MaterialExpressionUnpremult.h"
 #include "MaterialCompiler.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionUnpremult)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionUnpremult"
 
@@ -12,9 +14,9 @@ UMaterialExpressionUnpremult::UMaterialExpressionUnpremult(const FObjectInitiali
 	{
 		FText NAME_MaterialX;
 		FText NAME_Compositing;
-		FConstructorStatics() :
-			NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX")),
-			NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
+		FConstructorStatics()
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;

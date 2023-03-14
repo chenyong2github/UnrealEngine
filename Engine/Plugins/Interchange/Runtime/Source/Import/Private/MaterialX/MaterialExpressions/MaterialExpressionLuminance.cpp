@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MaterialX/MaterialExpressionLuminance.h"
+#include "MaterialExpressionLuminance.h"
 #include "MaterialCompiler.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLuminance)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionLuminance"
 
@@ -13,18 +15,18 @@ UMaterialExpressionLuminance::UMaterialExpressionLuminance(const FObjectInitiali
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_Color;
-		FText NAME_Utility;
+		FText NAME_MaterialX;
+		FText NAME_Adjustment;
 		FConstructorStatics()
-			: NAME_Color(LOCTEXT("Color", "Color"))
-			, NAME_Utility(LOCTEXT("Utility", "Utility"))
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Adjustment(LOCTEXT("Image Adjustment", "Image Adjustment"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Color);
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
+	MenuCategories.Add(ConstructorStatics.NAME_Adjustment);
 #endif
 }
 

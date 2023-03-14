@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MaterialX/MaterialExpressionRgbToHsv.h"
+#include "MaterialExpressionRgbToHsv.h"
 #include "MaterialCompiler.h"
 #include "Materials/MaterialExpressionCustom.h"
 
@@ -13,13 +13,16 @@ UMaterialExpressionRgbToHsv::UMaterialExpressionRgbToHsv(const FObjectInitialize
 	struct FConstructorStatics
 	{
 		FText NAME_ImageAdjustment;
+		FText NAME_MaterialX;
 		FConstructorStatics()
 			: NAME_ImageAdjustment(LOCTEXT("Image Adjustment", "Image Adjustment"))
+			, NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
 	MenuCategories.Add(ConstructorStatics.NAME_ImageAdjustment);
 #endif
 }

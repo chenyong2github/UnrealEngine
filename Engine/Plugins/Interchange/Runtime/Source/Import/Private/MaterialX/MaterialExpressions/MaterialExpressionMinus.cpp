@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionDifference.h"
+#include "MaterialExpressionMinus.h"
 #include "MaterialCompiler.h"
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionDifference"
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionMinus)
 
-UMaterialExpressionDifference::UMaterialExpressionDifference(const FObjectInitializer& ObjectInitializer)
+#define LOCTEXT_NAMESPACE "MaterialExpressionMinus"
+
+UMaterialExpressionMinus::UMaterialExpressionMinus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
@@ -12,9 +14,9 @@ UMaterialExpressionDifference::UMaterialExpressionDifference(const FObjectInitia
 	{
 		FText NAME_MaterialX;
 		FText NAME_Compositing;
-		FConstructorStatics() :
-			NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX")),
-			NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
+		FConstructorStatics()
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
@@ -26,7 +28,7 @@ UMaterialExpressionDifference::UMaterialExpressionDifference(const FObjectInitia
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionDifference::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMinus::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
@@ -41,13 +43,13 @@ int32 UMaterialExpressionDifference::Compile(FMaterialCompiler* Compiler, int32 
 	int32 IndexAlpha = Alpha.GetTracedInput().Expression ? Alpha.Compile(Compiler) : Compiler->Constant(ConstAlpha);
 
 	int32 IndexB = B.Compile(Compiler);
-	int32 Diff = Compiler->Abs(Compiler->Sub(A.Compile(Compiler), IndexB));
-	return Compiler->Lerp(IndexB, Diff, IndexAlpha);
+	int32 Sub = Compiler->Sub(A.Compile(Compiler), IndexB);
+	return Compiler->Lerp(IndexB, Sub, IndexAlpha);
 }
 
-void UMaterialExpressionDifference::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMinus::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Difference"));
+	OutCaptions.Add(TEXT("Minus"));
 }
 #endif
 

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionPremult.h"
+#include "MaterialExpressionPremult.h"
 #include "MaterialCompiler.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionPremult)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionPremult"
 
@@ -10,15 +12,18 @@ UMaterialExpressionPremult::UMaterialExpressionPremult(const FObjectInitializer&
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_Utility;
+		FText NAME_MaterialX;
+		FText NAME_Compositing;
 		FConstructorStatics()
-			: NAME_Utility(LOCTEXT("Compositing", "Compositing"))
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
+	MenuCategories.Add(ConstructorStatics.NAME_Compositing);
 #endif
 }
 

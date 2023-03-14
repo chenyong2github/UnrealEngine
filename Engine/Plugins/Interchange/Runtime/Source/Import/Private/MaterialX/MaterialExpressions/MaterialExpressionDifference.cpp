@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionBurn.h"
+#include "MaterialExpressionDifference.h"
 #include "MaterialCompiler.h"
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionBurn"
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionDifference)
 
-UMaterialExpressionBurn::UMaterialExpressionBurn(const FObjectInitializer& ObjectInitializer)
+#define LOCTEXT_NAMESPACE "MaterialExpressionDifference"
+
+UMaterialExpressionDifference::UMaterialExpressionDifference(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
@@ -12,9 +14,9 @@ UMaterialExpressionBurn::UMaterialExpressionBurn(const FObjectInitializer& Objec
 	{
 		FText NAME_MaterialX;
 		FText NAME_Compositing;
-		FConstructorStatics() :
-			NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX")),
-			NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
+		FConstructorStatics()
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
@@ -26,7 +28,7 @@ UMaterialExpressionBurn::UMaterialExpressionBurn(const FObjectInitializer& Objec
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionBurn::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionDifference::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
@@ -40,21 +42,14 @@ int32 UMaterialExpressionBurn::Compile(FMaterialCompiler* Compiler, int32 Output
 
 	int32 IndexAlpha = Alpha.GetTracedInput().Expression ? Alpha.Compile(Compiler) : Compiler->Constant(ConstAlpha);
 
-	int32 OneIndex = Compiler->Constant(1.f);
-	auto OneMinus = [&](int32 index)
-	{
-		return Compiler->Sub(OneIndex, index);
-	};
-
 	int32 IndexB = B.Compile(Compiler);
-	int32 Burn = OneMinus(Compiler->Div(OneMinus(IndexB), A.Compile(Compiler)));
-
-	return Compiler->Lerp(IndexB, Burn, IndexAlpha);
+	int32 Diff = Compiler->Abs(Compiler->Sub(A.Compile(Compiler), IndexB));
+	return Compiler->Lerp(IndexB, Diff, IndexAlpha);
 }
 
-void UMaterialExpressionBurn::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionDifference::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Burn"));
+	OutCaptions.Add(TEXT("Difference"));
 }
 #endif
 

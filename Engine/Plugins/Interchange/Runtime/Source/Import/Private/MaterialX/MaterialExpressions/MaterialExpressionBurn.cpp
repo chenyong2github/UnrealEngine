@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionPlus.h"
+#include "MaterialExpressionBurn.h"
 #include "MaterialCompiler.h"
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionPlus"
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionBurn)
 
-UMaterialExpressionPlus::UMaterialExpressionPlus(const FObjectInitializer& ObjectInitializer)
+#define LOCTEXT_NAMESPACE "MaterialExpressionBurn"
+
+UMaterialExpressionBurn::UMaterialExpressionBurn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
@@ -12,9 +14,9 @@ UMaterialExpressionPlus::UMaterialExpressionPlus(const FObjectInitializer& Objec
 	{
 		FText NAME_MaterialX;
 		FText NAME_Compositing;
-		FConstructorStatics() :
-			NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX")),
-			NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
+		FConstructorStatics() 
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
@@ -26,7 +28,7 @@ UMaterialExpressionPlus::UMaterialExpressionPlus(const FObjectInitializer& Objec
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionPlus::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionBurn::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
@@ -40,14 +42,21 @@ int32 UMaterialExpressionPlus::Compile(FMaterialCompiler* Compiler, int32 Output
 
 	int32 IndexAlpha = Alpha.GetTracedInput().Expression ? Alpha.Compile(Compiler) : Compiler->Constant(ConstAlpha);
 
+	int32 OneIndex = Compiler->Constant(1.f);
+	auto OneMinus = [&](int32 index)
+	{
+		return Compiler->Sub(OneIndex, index);
+	};
+
 	int32 IndexB = B.Compile(Compiler);
-	int32 Add = Compiler->Add(A.Compile(Compiler), IndexB);
-	return Compiler->Lerp(IndexB, Add, IndexAlpha);
+	int32 Burn = OneMinus(Compiler->Div(OneMinus(IndexB), A.Compile(Compiler)));
+
+	return Compiler->Lerp(IndexB, Burn, IndexAlpha);
 }
 
-void UMaterialExpressionPlus::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionBurn::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Plus"));
+	OutCaptions.Add(TEXT("Burn"));
 }
 #endif
 

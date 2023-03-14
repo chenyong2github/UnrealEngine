@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionOverlay.h"
+#include "MaterialExpressionOverlay.h"
 #include "MaterialCompiler.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionOverlay)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionOverlay"
 
@@ -12,9 +14,9 @@ UMaterialExpressionOverlay::UMaterialExpressionOverlay(const FObjectInitializer&
 	{
 		FText NAME_MaterialX;
 		FText NAME_Compositing;
-		FConstructorStatics() :
-			NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX")),
-			NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
+		FConstructorStatics()
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;

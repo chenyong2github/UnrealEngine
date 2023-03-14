@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionSplitLeftRight.h"
+#include "MaterialExpressionSplitLeftRight.h"
 #include "MaterialCompiler.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionSplitLeftRight)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionSplitLeftRight"
 
@@ -12,15 +14,18 @@ UMaterialExpressionSplitLeftRight::UMaterialExpressionSplitLeftRight(const FObje
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_Utility;
+		FText NAME_MaterialX;
+		FText NAME_Procedural;
 		FConstructorStatics()
-			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Procedural(LOCTEXT("Procedural", "Procedural"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
+	MenuCategories.Add(ConstructorStatics.NAME_Procedural);
 #endif
 }
 

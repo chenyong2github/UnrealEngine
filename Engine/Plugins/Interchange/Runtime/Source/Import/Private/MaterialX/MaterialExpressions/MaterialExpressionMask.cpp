@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionOut.h"
+#include "MaterialExpressionMask.h"
 #include "MaterialCompiler.h"
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionOut"
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionMask)
 
-UMaterialExpressionOut::UMaterialExpressionOut(const FObjectInitializer& ObjectInitializer)
+#define LOCTEXT_NAMESPACE "MaterialExpressionMask"
+
+UMaterialExpressionMask::UMaterialExpressionMask(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
@@ -12,9 +14,9 @@ UMaterialExpressionOut::UMaterialExpressionOut(const FObjectInitializer& ObjectI
 	{
 		FText NAME_MaterialX;
 		FText NAME_Compositing;
-		FConstructorStatics() :
-			NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX")),
-			NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
+		FConstructorStatics()
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
@@ -26,7 +28,7 @@ UMaterialExpressionOut::UMaterialExpressionOut(const FObjectInitializer& ObjectI
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionOut::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMask::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
@@ -43,17 +45,14 @@ int32 UMaterialExpressionOut::Compile(FMaterialCompiler* Compiler, int32 OutputI
 	int32 IndexA = A.Compile(Compiler);
 	int32 IndexB = B.Compile(Compiler);
 
-	int32 IndexAlphaB = Compiler->ComponentMask(IndexB, false, false, false, true);
+	int32 Mask = Compiler->Mul(IndexB, Compiler->ComponentMask(IndexA, false, false, false, true));
 
-	int32 IndexOneMinusAlphaB = Compiler->Sub(Compiler->Constant(1.f), IndexAlphaB);
-	int32 Out = Compiler->Mul(IndexA, IndexOneMinusAlphaB);
-
-	return Compiler->Lerp(IndexB, Out, IndexAlpha);
+	return Compiler->Lerp(IndexB, Mask, IndexAlpha);
 }
 
-void UMaterialExpressionOut::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMask::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Out"));
+	OutCaptions.Add(TEXT("Mask"));
 }
 #endif
 

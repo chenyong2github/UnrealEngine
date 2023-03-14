@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MaterialX/MaterialExpressionFractal3D.h"
+#include "MaterialExpressionFractal3D.h"
 #include "MaterialCompiler.h"
 #include "Materials/MaterialExpressionCustom.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionFractal3D)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionFractal3D"
 
@@ -14,9 +16,9 @@ UMaterialExpressionFractal3D::UMaterialExpressionFractal3D(const FObjectInitiali
 	{
 		FText NAME_MaterialX;
 		FText NAME_Procedural;
-		FConstructorStatics() :
-			NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX")),
-			NAME_Procedural(LOCTEXT("Procedural", "Procedural"))
+		FConstructorStatics()
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Procedural(LOCTEXT("Procedural", "Procedural"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;

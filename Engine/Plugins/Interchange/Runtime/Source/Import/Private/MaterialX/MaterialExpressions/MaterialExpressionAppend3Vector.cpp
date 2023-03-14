@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MaterialX/MaterialExpressionAppend3Vector.h"
+#include "MaterialExpressionAppend3Vector.h"
 #include "MaterialCompiler.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionAppend3Vector)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionAppend3Vector"
 
@@ -11,16 +13,19 @@ UMaterialExpressionAppend3Vector::UMaterialExpressionAppend3Vector(const FObject
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
+		FText NAME_MaterialX;
 		FText NAME_Math;
 		FText NAME_VectorOps;
 		FConstructorStatics()
-			: NAME_Math(LOCTEXT("Math", "Math"))
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Math(LOCTEXT("Math", "Math"))
 			, NAME_VectorOps(LOCTEXT("VectorOps", "VectorOps"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
 	MenuCategories.Add(ConstructorStatics.NAME_Math);
 	MenuCategories.Add(ConstructorStatics.NAME_VectorOps);
 #endif

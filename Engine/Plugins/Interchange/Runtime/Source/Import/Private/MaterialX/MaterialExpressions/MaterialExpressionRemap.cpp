@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionRemap.h"
+#include "MaterialExpressionRemap.h"
 #include "MaterialCompiler.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionRemap)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionRemap"
 
@@ -10,9 +12,11 @@ UMaterialExpressionRemap::UMaterialExpressionRemap(const FObjectInitializer& Obj
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_Math;
+		FText NAME_MaterialX;
+		FText NAME_Adjustment;
 		FConstructorStatics()
-			: NAME_Math(LOCTEXT("Math", "Math"))
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Adjustment(LOCTEXT("Image Adjustment", "Image Adjustment"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
@@ -23,7 +27,8 @@ UMaterialExpressionRemap::UMaterialExpressionRemap(const FObjectInitializer& Obj
 	TargetHighDefault = 1.0f;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Math);
+	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
+	MenuCategories.Add(ConstructorStatics.NAME_Adjustment);
 #endif
 }
 

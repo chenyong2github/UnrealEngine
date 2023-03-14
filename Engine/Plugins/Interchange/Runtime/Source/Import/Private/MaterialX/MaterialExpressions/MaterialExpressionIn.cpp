@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionMinus.h"
+#include "MaterialExpressionIn.h"
 #include "MaterialCompiler.h"
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionMinus"
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionIn)
 
-UMaterialExpressionMinus::UMaterialExpressionMinus(const FObjectInitializer& ObjectInitializer)
+#define LOCTEXT_NAMESPACE "MaterialExpressionIn"
+
+UMaterialExpressionIn::UMaterialExpressionIn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
@@ -12,9 +14,9 @@ UMaterialExpressionMinus::UMaterialExpressionMinus(const FObjectInitializer& Obj
 	{
 		FText NAME_MaterialX;
 		FText NAME_Compositing;
-		FConstructorStatics() :
-			NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX")),
-			NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
+		FConstructorStatics()
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
@@ -26,7 +28,7 @@ UMaterialExpressionMinus::UMaterialExpressionMinus(const FObjectInitializer& Obj
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionMinus::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionIn::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
@@ -40,14 +42,17 @@ int32 UMaterialExpressionMinus::Compile(FMaterialCompiler* Compiler, int32 Outpu
 
 	int32 IndexAlpha = Alpha.GetTracedInput().Expression ? Alpha.Compile(Compiler) : Compiler->Constant(ConstAlpha);
 
+	int32 IndexA = A.Compile(Compiler);
 	int32 IndexB = B.Compile(Compiler);
-	int32 Sub = Compiler->Sub(A.Compile(Compiler), IndexB);
-	return Compiler->Lerp(IndexB, Sub, IndexAlpha);
+
+	int32 IndexIn = Compiler->Mul(IndexA, Compiler->ComponentMask(IndexB, false, false, false, true));
+
+	return Compiler->Lerp(IndexB, IndexIn, IndexAlpha);
 }
 
-void UMaterialExpressionMinus::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionIn::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Minus"));
+	OutCaptions.Add(TEXT("In"));
 }
 #endif
 

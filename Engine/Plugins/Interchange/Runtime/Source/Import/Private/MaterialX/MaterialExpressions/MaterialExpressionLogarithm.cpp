@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionLogarithm.h"
 
+#include "MaterialExpressionLogarithm.h"
 #include "MaterialCompiler.h"
 #include "MaterialHLSLGenerator.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLogarithm)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionLogarithm"
 
@@ -12,14 +14,18 @@ UMaterialExpressionLogarithm::UMaterialExpressionLogarithm(const FObjectInitiali
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
+
+		FText NAME_MaterialX;
 		FText NAME_Math;
 		FConstructorStatics()
-			: NAME_Math(LOCTEXT("Math", "Math"))
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Math(LOCTEXT("Math", "Math"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
 	MenuCategories.Add(ConstructorStatics.NAME_Math);
 #endif
 }

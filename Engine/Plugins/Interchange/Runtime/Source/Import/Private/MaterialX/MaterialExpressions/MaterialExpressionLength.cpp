@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MaterialX/MaterialExpressionLength.h"
+#include "MaterialExpressionLength.h"
 #include "MaterialCompiler.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLength)
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionLength"
 
@@ -10,15 +12,21 @@ UMaterialExpressionLength::UMaterialExpressionLength(const FObjectInitializer& O
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_Utility;
+		FText NAME_MaterialX;
+		FText NAME_Math;
+		FText NAME_VectorOps;
 		FConstructorStatics()
-			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			, NAME_Math(LOCTEXT("Math", "Math"))
+			, NAME_VectorOps(LOCTEXT("VectorOps", "VectorOps"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+	MenuCategories.Add(ConstructorStatics.NAME_VectorOps);
 #endif
 }
 
