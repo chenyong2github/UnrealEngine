@@ -163,7 +163,7 @@ uint2 GetReflectionTracingScreenCoordZOrder(uint TileIndex, uint ThreadIndex)
 Buffer<uint> CompactedTraceTexelAllocator;
 Buffer<uint> CompactedTraceTexelData;
 
-uint2 EncodeTraceTexel(uint2 ReflectionTracingCoord)
+uint EncodeTraceTexel(uint2 ReflectionTracingCoord)
 {
 	return (ReflectionTracingCoord.x & 0xFFFF) | ((ReflectionTracingCoord.y & 0xFFFF) << 16);
 }

@@ -81,7 +81,7 @@ void CopyTexture3D(
 	uint3 Index = DispatchThreadId;
 	if (all(Index < TextureResolution))
 	{
-		RWOutputTexture[Index] = InputTexture[Index];
+		RWOutputTexture[Index] = InputTexture[Index].xyz;
 	}
 }
 
@@ -105,7 +105,7 @@ void GenerateMips3D(
 		{
 			uint3 BaseIndex = Index * 2 + float3((i & 4u) >> 2, (i & 2u) >> 1, (i & 1u));
 			BaseIndex = min(BaseIndex, TextureResolution * 2);
-			Value += InputTexture[BaseIndex];
+			Value += InputTexture[BaseIndex].xyz;
 		}
 		Value *= 0.125;
 
@@ -128,7 +128,7 @@ void GenerateMin3D(
 		{
 			int3 BaseIndex = Index * 2 + float3((i & 4u) >> 2, (i & 2u) >> 1, (i & 1u));
 			BaseIndex = min(BaseIndex, TextureResolution * 2);
-			Value = min(Value, Luminance(InputTexture[BaseIndex]));
+			Value = min(Value, Luminance(InputTexture[BaseIndex].xyz));
 		}
 
 		RWOutputTexture[Index] = Value;

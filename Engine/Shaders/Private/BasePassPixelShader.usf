@@ -1249,7 +1249,7 @@ void FPixelShaderInOut_MainPS(
 					#endif
 
 					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(
-						In.SvPosition,
+						In.SvPosition.xy,
 						GridIndex, MaterialParameters.WorldPosition_CamRelative, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, 
 						DirectionalLightCloudShadow, DirectionalLightAtmosphereTransmittance, DirectionalLightShadow,
 						bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance,

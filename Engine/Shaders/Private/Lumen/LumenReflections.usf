@@ -1004,7 +1004,7 @@ void ReflectionTemporalReprojectionCS(
 	const float2 ScreenUV = (Coord.SvPosition + .5f) * View.BufferSizeAndInvSize.zw;
 	const float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-	const float3 NewSpecular = ResolvedReflections[Coord.SvPositionFlatten];
+	const float3 NewSpecular = ResolvedReflections[Coord.SvPositionFlatten].xyz;
 	const float ReflectionHitDeviceZ = ResolvedReflectionsDepth[Coord.SvPositionFlatten].x;
 
 #if FRONT_LAYER_TRANSLUCENCY

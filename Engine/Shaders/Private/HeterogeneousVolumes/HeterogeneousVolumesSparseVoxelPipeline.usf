@@ -48,7 +48,7 @@ void AllocateSparseVoxels(
 	uint3 VoxelIndex = DispatchThreadId;
 	if (all(VoxelIndex < VoxelMinResolution))
 	{
-		float3 Value = VoxelMinTexture.Load(int4(VoxelIndex, 0));
+		float3 Value = VoxelMinTexture.Load(int4(VoxelIndex, 0)).xyz;
 		if (dot(Value, Value) > 0.0)
 		{
 			// Allocate
@@ -82,7 +82,7 @@ void AllocateSparseVoxelsToRefine(
 		for (uint i = 0; i < 8; ++i)
 		{
 			uint3 Offset = uint3((i & 0x04) >> 2, (i & 0x02) >> 1, i & 0x01);
-			float3 Value = VoxelMinTexture.Load(int4(VoxelIndex + Offset, 0));
+			float3 Value = VoxelMinTexture.Load(int4(VoxelIndex + Offset, 0)).xyz;
 			if (dot(Value, Value) > 0.0)
 			{
 				ValidCount++;
@@ -105,7 +105,7 @@ void AllocateSparseVoxelsToRefine(
 			for (uint i = 0; i < 8; ++i)
 			{
 				uint3 Offset = uint3((i & 0x04) >> 2, (i & 0x02) >> 1, i & 0x01);
-				float3 Value = VoxelMinTexture.Load(int4(VoxelIndex + Offset, 0));
+				float3 Value = VoxelMinTexture.Load(int4(VoxelIndex + Offset, 0)).xyz;
 				if (dot(Value, Value) > 0.0)
 				{
 					RWVoxelBuffer[EntryIndex + SiblingIndex++] = EncodeVoxelData(VoxelIndex + Offset, MipLevel, VoxelMinResolution);
@@ -141,7 +141,7 @@ void RefineSparseVoxels(
 		for (uint i = 0; i < 8; ++i)
 		{
 			uint3 Offset = uint3((i & 0x04) >> 2, (i & 0x02) >> 1, i & 0x01);
-			float3 Value = VoxelMinTexture.Load(int4(AlignedVoxelIndex + Offset, 0));
+			float3 Value = VoxelMinTexture.Load(int4(AlignedVoxelIndex + Offset, 0)).xyz;
 			if (dot(Value, Value) <= 0.0)
 			{
 				bAllValid = false;

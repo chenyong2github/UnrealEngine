@@ -21,7 +21,7 @@ float3 SampleLightingCache(float3 UVW, float MipLevel)
 		LightingCacheTexture,
 		View.SharedTrilinearClampedSampler,
 		UVW,
-		MipLevel);
+		MipLevel).xyz;
 
 	return Transmittance;
 }
