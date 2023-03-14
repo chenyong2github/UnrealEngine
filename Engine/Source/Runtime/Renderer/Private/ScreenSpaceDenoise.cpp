@@ -1114,7 +1114,7 @@ class FSSDSpatialAccumulationCS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		// TODO: UECON-464 - force optimizations to workaround shader compiler issue on DXC until fixed by MS
+		// Dead code stripping required or else we have an unrolled loop with a non-compile time specified iteration count.
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 	}
 
@@ -1167,7 +1167,7 @@ class FSSDTemporalAccumulationCS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		// TODO: UECON-464 - force optimizations to workaround shader compiler issue on DXC until fixed by MS
+		// Dead code stripping required or else we have an unrolled loop with a non-compile time specified iteration count.
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 	}
 
