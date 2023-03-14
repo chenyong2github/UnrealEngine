@@ -179,6 +179,7 @@ private:
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
 	UE::CompactBinaryTCP::FReceiveBuffer ReceiveBuffer;
 	TRingBuffer<UE::CompactBinaryTCP::FMarshalledMessage> ReceiveMessages;
+	FString CrashDiagnosticsError;
 	FCookDirector& Director;
 	UCookOnTheFlyServer& COTFS;
 	FSocket* Socket = nullptr;

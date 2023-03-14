@@ -1230,7 +1230,8 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 				Token.StartsWith(TEXT("-CoreLimit")) ||
 				Token.StartsWith(TEXT("-PhysicalCoreLimit")) ||
 				Token.StartsWith(TEXT("-CookProcessCount=")) ||
-				Token.StartsWith(TEXT("-abslog="))
+				Token.StartsWith(TEXT("-abslog=")) ||
+				Token.StartsWith(TEXT("-unattended"))
 				)
 			{
 				return;
@@ -1255,6 +1256,7 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 	Tokens.Add(FString::Printf(TEXT("-CookDirectorHost=%s"), *WorkerConnectAuthority));
 	Tokens.Add(FString::Printf(TEXT("-MultiprocessId=%d"), WorkerId.GetRemoteIndex() + 1));
 	Tokens.Add(FString::Printf(TEXT("-CookProfileId=%d"), ProfileId));
+	Tokens.Add(TEXT("-unattended"));
 	Tokens.Add(FString::Printf(TEXT("-abslog=%s"), *GetWorkerLogFileName(ProfileId)));
 	if (CoreLimit > 0)
 	{
