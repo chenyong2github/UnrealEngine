@@ -523,7 +523,7 @@ namespace UE
 
 						TransformAnimTrackNode->SetCustomActorDependencyUid(*UnrealNode->GetUniqueID());
 
-						TransformAnimTrackNode->SetCustomAnimationPayloadKey(PayloadKey.GetValue());
+						TransformAnimTrackNode->SetCustomAnimationPayloadKey(PayloadKey.GetValue(), EInterchangeAnimationPayLoadType::CURVE);
 
 						TransformAnimTrackNode->SetCustomUsedChannels(UsedChannels);
 

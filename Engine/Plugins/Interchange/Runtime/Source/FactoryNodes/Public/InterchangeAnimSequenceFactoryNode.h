@@ -21,10 +21,14 @@ namespace UE::Interchange
 		static const FAttributeKey& GetAnimatedAttributeCurveNamesKey();
 		static const FAttributeKey& GetAnimatedAttributeStepCurveNamesKey();
 		static const FAttributeKey& GetAnimatedMaterialCurveSuffixesKey();
-		static const FAttributeKey& GetSceneNodeAnimationPayloadKeyMapKey();
-		static const FAttributeKey& GetMorphTargetNodePayloadKeyMapKey();
+		static const FAttributeKey& GetSceneNodeAnimationPayloadKeyUidMapKey();
+		static const FAttributeKey& GetSceneNodeAnimationPayloadKeyTypeMapKey();
+		static const FAttributeKey& GetMorphTargetNodePayloadKeyUidMapKey();
+		static const FAttributeKey& GetMorphTargetNodePayloadKeyTypeMapKey();
 	};
 }//ns UE::Interchange
+
+struct FInterchangeAnimationPayLoadKey;
 
 UCLASS(BlueprintType)
 class INTERCHANGEFACTORYNODES_API UInterchangeAnimSequenceFactoryNode : public UInterchangeFactoryBaseNode
@@ -51,8 +55,11 @@ public:
 
 		if (Ar.IsLoading() && bIsInitialized)
 		{
-			SceneNodeAnimationPayloadKeyMap.RebuildCache();
-			MorphTargetNodePayloadKeyMap.RebuildCache();
+			SceneNodeAnimationPayLoadKeyUidMap.RebuildCache();
+			SceneNodeAnimationPayLoadKeyTypeMap.RebuildCache();
+
+			MorphTargetNodePayloadKeyUidMap.RebuildCache();
+			MorphTargetNodePayloadKeyTypeMap.RebuildCache();
 		}
 	}
 
@@ -386,28 +393,16 @@ public:
 	bool SetCustomSkeletonSoftObjectPath(const FSoftObjectPath& AttributeValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	void GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloads) const;
+	void GetSceneNodeAnimationPayloadKeys(TMap<FString, FInterchangeAnimationPayLoadKey>& OutSceneNodeAnimationPayloadKeys) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	bool GetAnimationPayloadKeyFromSceneNodeUid(const FString& SceneNodeUid, FString& OutPayloadKey) const;
+	void SetAnimationPayloadKeysForSceneNodeUids(const TMap<FString, FString>& SceneNodeAnimationPayloadKeyUids, const TMap<FString, uint8>& SceneNodeAnimationPayloadKeyTypes);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	bool SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& PayloadKey);
+	void GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FInterchangeAnimationPayLoadKey>& OutMorphTargetNodeAnimationPayloads) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	bool RemoveAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid);
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	void GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetNodeAnimationPayloads) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	bool GetAnimationPayloadKeyFromMorphTargetNodeUid(const FString& MorphTargetNodeUid, FString& OutPayloadKey) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	bool SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& PayloadKey);
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
-	bool RemoveAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid);
+	void SetAnimationPayloadKeysForMorphTargetNodeUids(const TMap<FString, FString>& MorphTargetAnimationPayloadKeyUids, const TMap<FString, uint8>& MorphTargetAnimationPayloadKeyTypes);
 
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomSkeletonFactoryNodeUidKey = UE::Interchange::FAttributeKey(TEXT("SkeletonFactoryNodeUid"));
@@ -434,6 +429,9 @@ private:
 	UE::Interchange::TArrayAttributeHelper<FString> AnimatedAttributeStepCurveNames;
 	UE::Interchange::TArrayAttributeHelper<FString> AnimatedMaterialCurveSuffixes;
 
-	UE::Interchange::TMapAttributeHelper<FString, FString> SceneNodeAnimationPayloadKeyMap;
-	UE::Interchange::TMapAttributeHelper<FString, FString> MorphTargetNodePayloadKeyMap;
+	UE::Interchange::TMapAttributeHelper<FString, FString>	SceneNodeAnimationPayLoadKeyUidMap;
+	UE::Interchange::TMapAttributeHelper<FString, uint8>	SceneNodeAnimationPayLoadKeyTypeMap;
+
+	UE::Interchange::TMapAttributeHelper<FString, FString>	MorphTargetNodePayloadKeyUidMap;
+	UE::Interchange::TMapAttributeHelper<FString, uint8>	MorphTargetNodePayloadKeyTypeMap;
 };

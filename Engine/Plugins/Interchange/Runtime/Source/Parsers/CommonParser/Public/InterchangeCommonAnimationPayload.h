@@ -7,6 +7,7 @@
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "InterchangeAnimationTrackSetNode.h"
 
 #if WITH_ENGINE
 #include "Curves/RichCurve.h"
@@ -16,18 +17,39 @@
 
 namespace UE::Interchange
 {
-	/**
-	 * This payload class is use to get a scene node bake transform payload
-	 * The translator should bake the scene node transform using the bake settings provide by the factory.
-	 */
-	struct INTERCHANGECOMMONPARSER_API FAnimationBakeTransformPayloadData
+	struct INTERCHANGECOMMONPARSER_API FAnimationPayloadData
 	{
+#if WITH_ENGINE
+		//CURVE
+		TArray<FRichCurve> Curves;
+#endif
+		//STEP CURVE
+		TArray<FInterchangeStepCurve> StepCurves;
+
+		//BAKED TRANSFORMS
+		/**
+		 * This payload class part is used to get a scene node bake transform payload
+		 * The translator should bake the scene node transform using the bake settings provided by the factory.
+		 */
 		double BakeFrequency = 30.0;
 		double RangeStartTime = 0.0;
 		double RangeEndTime = 1.0 / BakeFrequency;
 		TArray<FTransform> Transforms;
 
-		void Serialize(FArchive& Ar);
+		//TYPE
+		EInterchangeAnimationPayLoadType Type = EInterchangeAnimationPayLoadType::NONE; //Original
+		EInterchangeAnimationPayLoadType AdditionalSupportedType = EInterchangeAnimationPayLoadType::NONE;
+
+		//
+		FAnimationPayloadData(const EInterchangeAnimationPayLoadType& InType)
+			: Type(InType)
+		{
+		}
+
+		void SerializeBaked(FArchive& Ar);
+
+		//Conversions:
+		void CalculateDataFor(const EInterchangeAnimationPayLoadType& ToType, const FTransform& DefaultTransform = FTransform());
 	};
 }
 

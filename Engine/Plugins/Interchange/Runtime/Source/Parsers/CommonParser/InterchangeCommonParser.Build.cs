@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"InterchangeCore",
+					"InterchangeNodes",
 				}
 			);
 

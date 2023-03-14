@@ -45,8 +45,8 @@ namespace UE::DatasmithImporter
 namespace UE::DatasmithInterchange::AnimUtils
 {
 	typedef TPair<float, TSharedPtr<IDatasmithBaseAnimationElement>> FAnimationPayloadDesc;
-	extern bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FrameRate, UE::Interchange::FAnimationCurvePayloadData& PayLoadData);
-	extern bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FrameRate, UE::Interchange::FAnimationStepCurvePayloadData& PayLoadData);
+	extern bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FrameRate, TArray<FRichCurve>& Curves);
+	extern bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FrameRate, TArray<FInterchangeStepCurve>& StepCurves);
 }
 
 UCLASS(BlueprintType, Experimental)
@@ -83,9 +83,7 @@ public:
 	/* IInterchangeStaticMeshPayloadInterface End */
 
 	/* IInterchangeAnimationPayloadInterface Begin */
-	virtual TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> GetAnimationCurvePayloadData(const FString& PayLoadKey) const override;
-	virtual TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> GetAnimationStepCurvePayloadData(const FString& PayLoadKey) const override;
-	virtual TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const override;
+	virtual TFuture<TOptional<UE::Interchange::FAnimationPayloadData>> GetAnimationPayloadData(const FInterchangeAnimationPayLoadKey& PayLoadKey, const double BakeFrequency = 0, const double RangeStartSecond = 0, const double RangeStopSecond = 0) const override;
 	/* IInterchangeAnimationPayloadInterface End */
 
 	/* IInterchangeVariantSetPayloadInterface Begin */
@@ -104,48 +102,6 @@ private:
 	UInterchangeBaseLightNode* AddLightNode(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithLightActorElement>& LightActor) const;
 
 	TSharedPtr<UE::DatasmithImporter::FExternalSource> LoadedExternalSource;
-
-	template<typename T>
-	TFuture<TOptional<T>> GetAnimationPayloadDataAsCurve(const FString& PayLoadKey) const
-	{
-		using namespace UE::DatasmithInterchange::AnimUtils;
-
-		TPromise<TOptional<T>> EmptyPromise;
-		EmptyPromise.SetValue(TOptional<T>());
-
-		if (!LoadedExternalSource || !LoadedExternalSource->GetDatasmithScene())
-		{
-			return EmptyPromise.GetFuture();
-		}
-
-		TSharedPtr<IDatasmithBaseAnimationElement> AnimationElement;
-		float FrameRate = 0.f;
-		if (FAnimationPayloadDesc* PayloadDescPtr = AnimationPayLoadMapping.Find(PayLoadKey))
-		{
-			AnimationElement = PayloadDescPtr->Value;
-			if (!ensure(AnimationElement))
-			{
-				// #ueent_logwarning:
-				return EmptyPromise.GetFuture();
-			}
-
-			FrameRate = PayloadDescPtr->Key;
-		}
-
-		return Async(EAsyncExecution::TaskGraph, [this, AnimationElement = MoveTemp(AnimationElement), FrameRate]
-			{
-				T TransformPayloadData;
-				TOptional<T> Result;
-
-				if (GetAnimationPayloadData(*AnimationElement, FrameRate, TransformPayloadData))
-				{
-					Result.Emplace(MoveTemp(TransformPayloadData));
-				}
-
-				return Result;
-			}
-		);
-	}
 
 	mutable uint64 StartTime = 0;
 	mutable FString FileName;

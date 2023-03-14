@@ -4,6 +4,37 @@
 
 // UInterchangeAnimationTrackSetNode
 
+//Interchange namespace
+namespace UE
+{
+	namespace Interchange
+	{
+		const FAttributeKey& FAnimationStaticData::AnimationPayLoadUidKey()
+		{
+			static FAttributeKey AttributeKey(TEXT("__AnimationPayloadUidKey__"));
+			return AttributeKey;
+		}
+
+		const FAttributeKey& FAnimationStaticData::AnimationPayLoadTypeKey()
+		{
+			static FAttributeKey AttributeKey(TEXT("__AnimationPayloadTypeKey__"));
+			return AttributeKey;
+		}
+
+		const FAttributeKey& FAnimationStaticData::MorphTargetAnimationPayLoadUidKey()
+		{
+			static FAttributeKey AttributeKey(TEXT("__MorphTargetAnimationPayloadUidKey__"));
+			return AttributeKey;
+		}
+
+		const FAttributeKey& FAnimationStaticData::MorphTargetAnimationPayLoadTypeKey()
+		{
+			static FAttributeKey AttributeKey(TEXT("__MorphTargetAnimationPayloadTypeKey__"));
+			return AttributeKey;
+		}
+	}
+}
+
 UInterchangeAnimationTrackSetNode::UInterchangeAnimationTrackSetNode()
 {
 	CustomAnimationTrackUids.Initialize(Attributes, TEXT("AnimationTrackUids"));
@@ -69,14 +100,75 @@ bool UInterchangeAnimationTrackNode::SetCustomActorDependencyUid(const FString& 
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ActorDependency, FString);
 }
 
-bool UInterchangeAnimationTrackNode::GetCustomAnimationPayloadKey(FString& AttributeValue) const
+bool UInterchangeAnimationTrackNode::GetCustomAnimationPayloadKey(FInterchangeAnimationPayLoadKey& AnimationPayLoadKey) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(AnimationPayload, FString);
+	FString UniqueId;
+	EInterchangeAnimationPayLoadType PayLoadType;
+
+	//PayLoadKey
+	{
+		if (!Attributes->ContainAttribute(UE::Interchange::FAnimationStaticData::AnimationPayLoadUidKey()))
+		{
+			return false;
+		}
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FString> AttributeHandle = Attributes->GetAttributeHandle<FString>(UE::Interchange::FAnimationStaticData::AnimationPayLoadUidKey());
+		if (!AttributeHandle.IsValid())
+		{
+			return false;
+		}
+		UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(UniqueId);
+		if (!IsAttributeStorageResultSuccess(Result))
+		{
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetPayLoadKey"), UE::Interchange::FAnimationStaticData::AnimationPayLoadUidKey());
+			return false;
+		}
+	}
+
+	//PayLoadType
+	{
+		if (!Attributes->ContainAttribute(UE::Interchange::FAnimationStaticData::AnimationPayLoadTypeKey()))
+		{
+			return false;
+		}
+		UE::Interchange::FAttributeStorage::TAttributeHandle<EInterchangeAnimationPayLoadType> AttributeHandle = Attributes->GetAttributeHandle<EInterchangeAnimationPayLoadType>(UE::Interchange::FAnimationStaticData::AnimationPayLoadTypeKey());
+		if (!AttributeHandle.IsValid())
+		{
+			return false;
+		}
+
+		UE::Interchange::EAttributeStorageResult Result = AttributeHandle.Get(PayLoadType);
+		if (!IsAttributeStorageResultSuccess(Result))
+		{
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeMeshNode.GetPayLoadTypeKey"), UE::Interchange::FAnimationStaticData::AnimationPayLoadTypeKey());
+			return false;
+		}
+	}
+	
+	AnimationPayLoadKey.UniqueId = UniqueId;
+	AnimationPayLoadKey.Type = PayLoadType;
+
+	return true;
 }
 
-bool UInterchangeAnimationTrackNode::SetCustomAnimationPayloadKey(const FString& AttributeValue)
+bool UInterchangeAnimationTrackNode::SetCustomAnimationPayloadKey(const FString& InUniqueId, const EInterchangeAnimationPayLoadType& InType)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AnimationPayload, FString);
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FAnimationStaticData::AnimationPayLoadUidKey(), InUniqueId);
+	if (!IsAttributeStorageResultSuccess(Result))
+	{
+		LogAttributeStorageErrors(Result, TEXT("UInterchangeAnimationTrackNode.SetPayLoadKey"), UE::Interchange::FAnimationStaticData::AnimationPayLoadUidKey());
+		return false;
+	}
+	else
+	{
+		Result = Attributes->RegisterAttribute(UE::Interchange::FAnimationStaticData::AnimationPayLoadTypeKey(), InType);
+		if (!IsAttributeStorageResultSuccess(Result))
+		{
+			LogAttributeStorageErrors(Result, TEXT("UInterchangeAnimationTrackNode.SetPayLoadTypeKey"), UE::Interchange::FAnimationStaticData::AnimationPayLoadTypeKey());
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool UInterchangeAnimationTrackNode::GetCustomFrameCount(int32& AttributeValue) const
@@ -157,8 +249,11 @@ bool UInterchangeTransformAnimationTrackNode::GetCustomUsedChannels(int32& Attri
 
 UInterchangeSkeletalAnimationTrackNode::UInterchangeSkeletalAnimationTrackNode()
 {
-	SceneNodeAnimationPayloadKeyMap.Initialize(Attributes.ToSharedRef(), TEXT("__SceneNodeAnimationPayloadKeyMap__"));
-	MorphTargetPayloadKeyMap.Initialize(Attributes.ToSharedRef(), TEXT("__MorphTargetPayloadKeyMap__"));
+	SceneNodeAnimationPayloadKeyUidMap.Initialize(Attributes.ToSharedRef(), TEXT("__SceneNodeAnimationPayloadKeyUidMap__"));
+	SceneNodeAnimationPayloadKeyTypeMap.Initialize(Attributes.ToSharedRef(), TEXT("__SceneNodeAnimationPayloadKeyTypeMap__"));
+
+	MorphTargetPayloadKeyUidMap.Initialize(Attributes.ToSharedRef(), TEXT("__MorphTargetPayloadKeyUidMap__"));
+	MorphTargetPayloadKeyTypeMap.Initialize(Attributes.ToSharedRef(), TEXT("__MorphTargetPayloadKeyTypeMap__"));
 }
 
 bool UInterchangeSkeletalAnimationTrackNode::GetCustomSkeletonNodeUid(FString& AttributeValue) const
@@ -201,42 +296,28 @@ bool UInterchangeSkeletalAnimationTrackNode::SetCustomAnimationStopTime(const do
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AnimationStopTime, double);
 }
 
-void UInterchangeSkeletalAnimationTrackNode::GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloads) const
+void UInterchangeSkeletalAnimationTrackNode::GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloadKeyUids, TMap<FString, uint8>& OutSceneNodeAnimationPayloadKeyTypes) const
 {
-	OutSceneNodeAnimationPayloads = SceneNodeAnimationPayloadKeyMap.ToMap();
+	OutSceneNodeAnimationPayloadKeyUids = SceneNodeAnimationPayloadKeyUidMap.ToMap();
+	OutSceneNodeAnimationPayloadKeyTypes = SceneNodeAnimationPayloadKeyTypeMap.ToMap();
 }
 
-bool UInterchangeSkeletalAnimationTrackNode::GetAnimationPayloadKeyFromSceneNodeUid(const FString& SceneNodeUid, FString& OutPayloadKey) const
+bool UInterchangeSkeletalAnimationTrackNode::SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& InUniqueId, const EInterchangeAnimationPayLoadType& InType)
 {
-	return SceneNodeAnimationPayloadKeyMap.GetValue(SceneNodeUid, OutPayloadKey);
+	bool bSuccess = SceneNodeAnimationPayloadKeyUidMap.SetKeyValue(SceneNodeUid, InUniqueId);
+	bSuccess &= SceneNodeAnimationPayloadKeyTypeMap.SetKeyValue(SceneNodeUid, (uint8)InType);
+	return bSuccess;
 }
 
-bool UInterchangeSkeletalAnimationTrackNode::SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& PayloadKey)
+void UInterchangeSkeletalAnimationTrackNode::GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetNodeAnimationPayloadKeyUids, TMap<FString, uint8>& OutMorphTargetNodeAnimationPayloadKeyTypes) const
 {
-	return SceneNodeAnimationPayloadKeyMap.SetKeyValue(SceneNodeUid, PayloadKey);
+	OutMorphTargetNodeAnimationPayloadKeyUids = MorphTargetPayloadKeyUidMap.ToMap();
+	OutMorphTargetNodeAnimationPayloadKeyTypes = MorphTargetPayloadKeyTypeMap.ToMap();
 }
 
-bool UInterchangeSkeletalAnimationTrackNode::RemoveAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid)
+bool UInterchangeSkeletalAnimationTrackNode::SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& InUniqueId, const EInterchangeAnimationPayLoadType& InType)
 {
-	return SceneNodeAnimationPayloadKeyMap.RemoveKey(SceneNodeUid);
-}
-
-void UInterchangeSkeletalAnimationTrackNode::GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetNodeAnimationPayloads) const
-{
-	OutMorphTargetNodeAnimationPayloads = MorphTargetPayloadKeyMap.ToMap();
-}
-
-bool UInterchangeSkeletalAnimationTrackNode::GetAnimationPayloadKeyFromMorphTargetNodeUid(const FString& MorphTargetNodeUid, FString& OutPayloadKey) const
-{
-	return MorphTargetPayloadKeyMap.GetValue(MorphTargetNodeUid, OutPayloadKey);
-}
-
-bool UInterchangeSkeletalAnimationTrackNode::SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& PayloadKey)
-{
-	return MorphTargetPayloadKeyMap.SetKeyValue(MorphTargetNodeUid, PayloadKey);
-}
-
-bool UInterchangeSkeletalAnimationTrackNode::RemoveAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid)
-{
-	return MorphTargetPayloadKeyMap.RemoveKey(MorphTargetNodeUid);
+	bool bSuccess = MorphTargetPayloadKeyUidMap.SetKeyValue(MorphTargetNodeUid, InUniqueId);
+	bSuccess &= MorphTargetPayloadKeyTypeMap.SetKeyValue(MorphTargetNodeUid, (uint8)InType);
+	return bSuccess;
 }

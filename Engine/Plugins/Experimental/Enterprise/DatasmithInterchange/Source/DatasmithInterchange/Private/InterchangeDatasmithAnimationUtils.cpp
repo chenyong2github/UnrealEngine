@@ -5,7 +5,7 @@
 
 #include "DatasmithAnimationElements.h"
 
-#include "Animation/InterchangeAnimationPayload.h"
+#include "InterchangeCommonAnimationPayload.h"
 #include "InterchangeAnimationTrackSetNode.h"
 #include "InterchangeAnimSequenceFactoryNode.h"
 
@@ -138,7 +138,7 @@ namespace UE::DatasmithInterchange::AnimUtils
 		TrackNode->SetCustomActorDependencyUid(ActorNodeUid);
 
 		TrackNode->SetCustomTargetedProperty((int32)EInterchangeAnimatedProperty::Visibility);
-		TrackNode->SetCustomAnimationPayloadKey(TrackNode->GetUniqueID());
+		TrackNode->SetCustomAnimationPayloadKey(TrackNode->GetUniqueID(), EInterchangeAnimationPayLoadType::STEPCURVE);
 
 		LevelSequenceNode->AddCustomAnimationTrackUid(TrackNode->GetUniqueID());
 
@@ -159,7 +159,7 @@ namespace UE::DatasmithInterchange::AnimUtils
 
 		TrackNode->SetCustomCompletionMode((int32)TransformAnimation.GetCompletionMode());
 		TrackNode->SetCustomUsedChannels((int32)TransformAnimation.GetEnabledTransformChannels());
-		TrackNode->SetCustomAnimationPayloadKey(TrackNode->GetUniqueID());
+		TrackNode->SetCustomAnimationPayloadKey(TrackNode->GetUniqueID(), EInterchangeAnimationPayLoadType::CURVE);
 
 		LevelSequenceNode->AddCustomAnimationTrackUid(TrackNode->GetUniqueID());
 
@@ -334,7 +334,7 @@ namespace UE::DatasmithInterchange::AnimUtils
 		TArray<FRichCurve>& Curves;
 	};
 
-	bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FrameRate, UE::Interchange::FAnimationCurvePayloadData& PayLoadData)
+	bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FrameRate, TArray<FRichCurve>& Curves)
 	{
 		using namespace UE::Interchange::Animation;
 
@@ -342,7 +342,6 @@ namespace UE::DatasmithInterchange::AnimUtils
 		{
 			const IDatasmithTransformAnimationElement& TransformAnimation = static_cast<const IDatasmithTransformAnimationElement&>(AnimationElement);
 
-			TArray<FRichCurve>& Curves = PayLoadData.Curves;
 			Curves.SetNum(9);
 
 			FAnimationCurvesHelper Helper(TransformAnimation, ConvertSampleRatetoFrameRate(FrameRate), Curves);
@@ -357,7 +356,7 @@ namespace UE::DatasmithInterchange::AnimUtils
 		return false;
 	}
 
-	bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FloatFrameRate, UE::Interchange::FAnimationStepCurvePayloadData& PayLoadData)
+	bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FloatFrameRate, TArray<FInterchangeStepCurve>& StepCurves)
 	{
 		using namespace UE::Interchange::Animation;
 
@@ -366,7 +365,7 @@ namespace UE::DatasmithInterchange::AnimUtils
 			const IDatasmithVisibilityAnimationElement& VisibilityAnimation = static_cast<const IDatasmithVisibilityAnimationElement&>(AnimationElement);
 			const FFrameRate FrameRate = ConvertSampleRatetoFrameRate(FloatFrameRate);
 
-			FInterchangeStepCurve& Curve = PayLoadData.StepCurves.AddDefaulted_GetRef();
+			FInterchangeStepCurve& Curve = StepCurves.AddDefaulted_GetRef();
 
 			const int32 NumFrames = VisibilityAnimation.GetFramesCount();
 

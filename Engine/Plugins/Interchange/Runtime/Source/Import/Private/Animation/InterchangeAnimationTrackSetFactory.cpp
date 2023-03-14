@@ -2,7 +2,6 @@
 
 #include "Animation/InterchangeAnimationTrackSetFactory.h"
 
-#include "Animation/InterchangeAnimationPayload.h"
 #include "Animation/InterchangeAnimationPayloadInterface.h"
 #include "InterchangeAnimationTrackSetFactoryNode.h"
 #include "InterchangeAnimationTrackSetNode.h"
@@ -258,15 +257,15 @@ namespace UE::Interchange::Private
 		}
 
 		// Get payload
-		FString PayloadKey;
+		FInterchangeAnimationPayLoadKey PayloadKey;
 		if (!TransformTrackNode.GetCustomAnimationPayloadKey(PayloadKey))
 		{
 			UE_LOG(LogInterchangeImport, Warning, TEXT("No payload key for animation track %s on actor %s"), *TransformTrackNode.GetDisplayLabel(), *Actor->GetActorLabel());
 			return;
 		}
 
-		TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> Result = PayloadInterface.GetAnimationCurvePayloadData(PayloadKey);
-		const TOptional<UE::Interchange::FAnimationCurvePayloadData>& PayloadData = Result.Get();
+		TFuture<TOptional<UE::Interchange::FAnimationPayloadData>> Result = PayloadInterface.GetAnimationPayloadData(PayloadKey);
+		const TOptional<UE::Interchange::FAnimationPayloadData>& PayloadData = Result.Get();
 		if (!PayloadData.IsSet() || PayloadData->Curves.Num() != 9)
 		{
 			UE_LOG(LogInterchangeImport, Warning, TEXT("No payload for animation track %s on actor %s"), *TransformTrackNode.GetDisplayLabel(), *Actor->GetActorLabel());
@@ -467,15 +466,15 @@ namespace UE::Interchange::Private
 		}
 
 		// Get payload
-		FString PayloadKey;
+		FInterchangeAnimationPayLoadKey PayloadKey;
 		if (!AnimationTrackNode.GetCustomAnimationPayloadKey(PayloadKey))
 		{
 			UE_LOG(LogInterchangeImport, Warning, TEXT("No payload key for animation track %s on actor %s"), *AnimationTrackNode.GetDisplayLabel(), *Actor->GetActorLabel());
 			return;
 		}
 
-		TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> Result = PayloadInterface.GetAnimationStepCurvePayloadData(PayloadKey);
-		const TOptional<UE::Interchange::FAnimationStepCurvePayloadData>& PayloadData = Result.Get();
+		TFuture<TOptional<UE::Interchange::FAnimationPayloadData>> Result = PayloadInterface.GetAnimationPayloadData(PayloadKey);
+		const TOptional<UE::Interchange::FAnimationPayloadData>& PayloadData = Result.Get();
 		if (!PayloadData.IsSet() || PayloadData->StepCurves.Num() != 1)
 		{
 			UE_LOG(LogInterchangeImport, Warning, TEXT("No payload for animation track %s on actor %s"), *AnimationTrackNode.GetDisplayLabel(), *Actor->GetActorLabel());

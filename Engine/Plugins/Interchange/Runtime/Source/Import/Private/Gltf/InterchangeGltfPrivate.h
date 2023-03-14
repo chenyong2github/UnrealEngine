@@ -12,8 +12,7 @@ namespace GLTF
 
 namespace UE::Interchange
 {
-	struct FAnimationCurvePayloadData;
-	struct FAnimationBakeTransformPayloadData;
+	struct FAnimationPayloadData;
 	struct FMeshPayloadData;
 
 	namespace Gltf::Private
@@ -21,8 +20,9 @@ namespace UE::Interchange
 		static float GltfUnitConversionMultiplier = 100.f;
 
 		// Animation related functions
-		bool GetAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData);
-		bool GetBakedAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationBakeTransformPayloadData& PayloadData);
+		bool GetTransformAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationPayloadData& OutPayloadData);
+		bool GetMorphTargetAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationPayloadData& OutPayloadData);
+		bool GetBakedAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationPayloadData& PayloadData);
 		// 
 
 		// Mesh related functions

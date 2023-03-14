@@ -41,6 +41,10 @@ public:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties> CommonSkeletalMeshesAndAnimationsProperties;
 
+	//Common Meshes Properties Settings Pointer
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UInterchangeGenericCommonMeshesProperties> CommonMeshesProperties;
+
 	//////	ANIMATION_CATEGORY Properties //////
 	/** If enable, import all animation assets find in the sources. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")

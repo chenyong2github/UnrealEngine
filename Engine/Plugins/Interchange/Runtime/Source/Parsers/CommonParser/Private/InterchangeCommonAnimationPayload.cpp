@@ -6,18 +6,114 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeCommonAnimationPayload)
 
-#if WITH_ENGINE
-#include "Curves/RichCurve.h"
-#endif //WITH_ENGINE
-
 namespace UE::Interchange
 {
-	void FAnimationBakeTransformPayloadData::Serialize(FArchive& Ar)
+	void FAnimationPayloadData::SerializeBaked(FArchive& Ar)
 	{
 		Ar << BakeFrequency;
 		Ar << RangeStartTime;
 		Ar << RangeEndTime;
 		Ar << Transforms;
+	}
+
+	void FAnimationPayloadData::CalculateDataFor(const EInterchangeAnimationPayLoadType& ToType, const FTransform& DefaultTransform)
+	{
+#if WITH_ENGINE
+		if (Type == EInterchangeAnimationPayLoadType::CURVE
+			&& ToType == EInterchangeAnimationPayLoadType::STEPCURVE)
+		{
+
+			StepCurves.Reserve(Curves.Num());
+			for (const FRichCurve& RichCurve : Curves)
+			{
+				FInterchangeStepCurve& StepCurve = StepCurves.AddDefaulted_GetRef();
+				const int32 KeyCount = RichCurve.GetNumKeys();
+				StepCurve.KeyTimes.AddZeroed(KeyCount);
+				TArray<float> KeyValues;
+				KeyValues.AddZeroed(KeyCount);
+				int32 KeyIndex = 0;
+				for (FKeyHandle KeyHandle = RichCurve.GetFirstKeyHandle(); KeyHandle != FKeyHandle::Invalid(); KeyHandle = RichCurve.GetNextKey(KeyHandle), ++KeyIndex)
+				{
+					StepCurve.KeyTimes[KeyIndex] = RichCurve.GetKeyTime(KeyHandle);
+					KeyValues[KeyIndex] = RichCurve.GetKeyValue(KeyHandle);
+				}
+				StepCurve.FloatKeyValues = MoveTemp(KeyValues);
+			}
+			AdditionalSupportedType = ToType;
+		}
+		else if (Type == EInterchangeAnimationPayLoadType::CURVE
+				 && ToType == EInterchangeAnimationPayLoadType::BAKED)
+		{
+			if (Curves.Num() != 9)
+			{
+				return;
+			}
+
+			//calculate RangeEnd -> 'BakeKeyCount'
+			RangeEndTime = -FLT_MAX;
+			for (const FRichCurve& Curve : Curves)
+			{
+				const TArray<FRichCurveKey>& CurveKeys = Curve.GetConstRefOfKeys();
+				for (const FRichCurveKey& CurveKey : CurveKeys)
+				{
+					if (RangeEndTime < CurveKey.Time)
+					{
+						RangeEndTime = CurveKey.Time;
+					}
+				}
+			}
+			if (RangeEndTime < 0)
+			{
+				return;
+			}
+
+			const double BakeInterval = 1.0 / BakeFrequency;
+			const double SequenceLength = FMath::Max<double>(RangeEndTime - RangeStartTime, BakeInterval);
+			int32 BakeKeyCount = FMath::RoundToInt32(SequenceLength * BakeFrequency) + 1;
+			const FFrameRate ResampleFrameRate(BakeFrequency, 1);
+
+			auto EvaluateCurve = [=](const int32& CurveIndex, double CurrentTime, float DefaultValue)
+			{
+				if (Curves[CurveIndex].IsEmpty())
+				{
+					return DefaultValue;
+				}
+				else
+				{
+					return Curves[CurveIndex].Eval(CurrentTime);
+				}
+			};
+
+			FVector DefaultTranslation = DefaultTransform.GetTranslation();
+			FVector DefaultEuler = DefaultTransform.GetRotation().Euler();
+			FVector DefaultScale = DefaultTransform.GetScale3D();
+
+			double CurrentTime = 0;
+			for (int32 BakeIndex = 0; BakeIndex < BakeKeyCount; BakeIndex++, CurrentTime += BakeInterval)
+			{
+				FVector Translation;
+				Translation.X = EvaluateCurve(0, CurrentTime, DefaultTranslation.X);
+				Translation.Y = EvaluateCurve(1, CurrentTime, DefaultTranslation.Y);
+				Translation.Z = EvaluateCurve(2, CurrentTime, DefaultTranslation.Z);
+
+				FVector RotationEuler;
+				RotationEuler.X = EvaluateCurve(3, CurrentTime, DefaultEuler.X);
+				RotationEuler.Y = EvaluateCurve(4, CurrentTime, DefaultEuler.Y);
+				RotationEuler.Z = EvaluateCurve(5, CurrentTime, DefaultEuler.Z);
+
+				FVector Scale3d;
+				Scale3d.X = EvaluateCurve(6, CurrentTime, DefaultScale.X);
+				Scale3d.Y = EvaluateCurve(7, CurrentTime, DefaultScale.Y);
+				Scale3d.Z = EvaluateCurve(8, CurrentTime, DefaultScale.Z);
+
+				FTransform AnimKeyTransform(FRotator::MakeFromEuler(RotationEuler), Translation, Scale3d);
+
+				Transforms.Add(AnimKeyTransform);
+			}
+
+			AdditionalSupportedType = ToType;
+		}
+#endif
 	}
 }
 

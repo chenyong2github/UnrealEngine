@@ -384,7 +384,7 @@ namespace UE::Interchange::Private
 		DestinationCurve.StringKeyValues = StepCurveValues;
 	}
 
-	bool ImportBakeTransforms(FNodeTransformFetchPayloadData& FetchPayloadData, FAnimationBakeTransformPayloadData& AnimationBakeTransformPayloadData, FbxScene* SDKScene)
+	bool ImportBakeTransforms(FNodeTransformFetchPayloadData& FetchPayloadData, FAnimationPayloadData& AnimationBakeTransformPayloadData, FbxScene* SDKScene)
 	{
 		if (!ensure(!FMath::IsNearlyZero(AnimationBakeTransformPayloadData.BakeFrequency)))
 		{
@@ -540,7 +540,13 @@ namespace UE::Interchange::Private
 		}
 
 		bool bBakeTransform = false;
-		FAnimationBakeTransformPayloadData AnimationBakeTransformPayloadData;
+
+		//At the Moment the Interchange Worker does not transfer the PayLoadType
+		//FBX parser does not need it however because the existing systems identify the appropriate fetch mechanism required in a different manner
+		//For that reason we pass PayLoadType here instead of receiving it and passing it through.
+		//FAnimationPayloadData is used here only for the Baked properties which then gets Serialized via SerializeBaked() function
+		//Resulting in the FAnimatinoPayloadData.Type to be inconsequential here.
+		FAnimationPayloadData AnimationBakeTransformPayloadData(EInterchangeAnimationPayLoadType::BAKED);
 		AnimationBakeTransformPayloadData.BakeFrequency = BakeFrequency;
 		AnimationBakeTransformPayloadData.RangeStartTime = RangeStartTime;
 		AnimationBakeTransformPayloadData.RangeEndTime = RangeEndTime;
@@ -548,7 +554,7 @@ namespace UE::Interchange::Private
 		ImportBakeTransforms(FetchPayloadData, AnimationBakeTransformPayloadData, Parser.GetSDKScene());
 		{
 			FLargeMemoryWriter Ar;
-			AnimationBakeTransformPayloadData.Serialize(Ar);
+			AnimationBakeTransformPayloadData.SerializeBaked(Ar);
 			uint8* ArchiveData = Ar.GetData();
 			int64 ArchiveSize = Ar.TotalSize();
 			TArray64<uint8> Buffer(ArchiveData, ArchiveSize);
@@ -771,7 +777,7 @@ namespace UE::Interchange::Private
 				AnimPayload->NodeTransformFetchPayloadData = FetchPayloadData;
 				PayloadContexts.Add(PayLoadKey, AnimPayload);
 			}
-			SkeletalAnimationTrackNode->SetAnimationPayloadKeyForSceneNodeUid(SceneNode->GetUniqueID(), PayLoadKey);
+			SkeletalAnimationTrackNode->SetAnimationPayloadKeyForSceneNodeUid(SceneNode->GetUniqueID(), PayLoadKey, EInterchangeAnimationPayLoadType::BAKED);
 		}
 
 		return Parameters.IsNodeAnimated;
@@ -853,7 +859,7 @@ namespace UE::Interchange::Private
 			PayloadContexts.Add(PayLoadKey, AnimPayload);
 		}
 
-		SkeletalAnimationTrackNode->SetAnimationPayloadKeyForMorphTargetNodeUid(MorphTargetAnimationBuildingData.MorphTargetNodeUid, PayLoadKey);
+		SkeletalAnimationTrackNode->SetAnimationPayloadKeyForMorphTargetNodeUid(MorphTargetAnimationBuildingData.MorphTargetNodeUid, PayLoadKey, EInterchangeAnimationPayLoadType::MORPHTARGETCURVE);
 	}
 
 	bool FFbxAnimation::IsFbxPropertyTypeSupported(EFbxType PropertyType)

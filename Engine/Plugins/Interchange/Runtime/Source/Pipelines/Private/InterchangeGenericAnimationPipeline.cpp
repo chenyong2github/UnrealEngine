@@ -82,11 +82,81 @@ void UInterchangeGenericAnimationPipeline::ExecutePipeline(UInterchangeBaseNodeC
 			TrackSetNodes.Add(Node);
 		});
 
-	for (UInterchangeAnimationTrackSetNode* TrackSetNode : TrackSetNodes)
+	if (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh)
 	{
-		if (TrackSetNode)
+		for (UInterchangeAnimationTrackSetNode* TrackSetNode : TrackSetNodes)
 		{
-			CreateAnimationTrackSetFactoryNode(*TrackSetNode);
+			if (!TrackSetNode) continue;
+
+			UInterchangeSkeletalAnimationTrackNode* SkeletalAnimationNode = NewObject< UInterchangeSkeletalAnimationTrackNode >(BaseNodeContainer);
+			FString SkeletalAnimationNodeUid = "\\SkeletalAnimation\\ConvertedFromRigidAnimation\\" + TrackSetNode->GetUniqueID();
+			SkeletalAnimationNode->InitializeNode(SkeletalAnimationNodeUid, TrackSetNode->GetDisplayLabel(), EInterchangeNodeContainerType::TranslatedAsset);
+
+			bool bCustomSkeletonNodeUidSet = false;
+
+			TArray<FString> AnimationTrackUids;
+			TrackSetNode->GetCustomAnimationTrackUids(AnimationTrackUids);
+			float CustomFrameRate;
+			if (!TrackSetNode->GetCustomFrameRate(CustomFrameRate))
+			{
+				CustomFrameRate = 30.0f;
+			}
+			SkeletalAnimationNode->SetCustomAnimationSampleRate(CustomFrameRate);
+			SkeletalAnimationNode->SetCustomAnimationStartTime(0);
+			//stop time will be calculated once we get the curves from the Translators.
+			SkeletalAnimationNode->SetCustomAnimationStopTime(0);
+
+			for (const FString& AnimationTrackUid : AnimationTrackUids)
+			{
+				if (const UInterchangeTransformAnimationTrackNode* TransformTrackNode = Cast<UInterchangeTransformAnimationTrackNode>(BaseNodeContainer->GetNode(AnimationTrackUid)))
+				{
+					FString ActorNodeUid;
+					if (TransformTrackNode->GetCustomActorDependencyUid(ActorNodeUid))
+					{
+						if (const UInterchangeSceneNode* ActorNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ActorNodeUid)))
+						{
+							FInterchangeAnimationPayLoadKey AnimationPayLoadKey;
+							if (TransformTrackNode->GetCustomAnimationPayloadKey(AnimationPayLoadKey))
+							{
+								if (!bCustomSkeletonNodeUidSet)
+								{
+									FString SkeletonRootUid;
+									if (const UInterchangeSceneNode* SceneNode = ActorNode)
+									{
+										FString ParentUid = SceneNode->GetParentUid();
+										while (!ParentUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+										{
+											if (const UInterchangeSceneNode* ParentNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentUid)))
+											{
+												SkeletonRootUid = ParentUid;
+												ParentUid = ParentNode->GetParentUid();
+											}
+										}
+									}
+
+									SkeletalAnimationNode->SetCustomSkeletonNodeUid(SkeletonRootUid);
+									bCustomSkeletonNodeUidSet = true;
+								}
+
+								//add the payload key:
+								SkeletalAnimationNode->SetAnimationPayloadKeyForSceneNodeUid(ActorNode->GetUniqueID(), AnimationPayLoadKey.UniqueId, AnimationPayLoadKey.Type);
+							}
+						}
+					}
+				}
+			}
+
+			BaseNodeContainer->AddNode(SkeletalAnimationNode);
+		}
+	}
+	else
+	{
+		for (UInterchangeAnimationTrackSetNode* TrackSetNode : TrackSetNodes)
+		{
+			if (TrackSetNode)
+			{
+				CreateAnimationTrackSetFactoryNode(*TrackSetNode);
+			}
 		}
 	}
 
@@ -447,21 +517,17 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 	}
 
 	{
-		TMap<FString, FString> SceneNodeAnimationPayloadKeys;
-		TrackNode.GetSceneNodeAnimationPayloadKeys(SceneNodeAnimationPayloadKeys);
-		for (const TPair<FString, FString>& Entry : SceneNodeAnimationPayloadKeys)
-		{
-			AnimSequenceFactoryNode->SetAnimationPayloadKeyForSceneNodeUid(Entry.Key, Entry.Value);
-		}
+		TMap<FString, FString> SceneNodeAnimationPayloadKeyUids;
+		TMap<FString, uint8> SceneNodeAnimationPayloadKeyTypes;
+		TrackNode.GetSceneNodeAnimationPayloadKeys(SceneNodeAnimationPayloadKeyUids, SceneNodeAnimationPayloadKeyTypes);
+		AnimSequenceFactoryNode->SetAnimationPayloadKeysForSceneNodeUids(SceneNodeAnimationPayloadKeyUids, SceneNodeAnimationPayloadKeyTypes);
 	}
 
 	{
-		TMap<FString, FString> MorphTargetNodeAnimationPayloads;
-		TrackNode.GetMorphTargetNodeAnimationPayloadKeys(MorphTargetNodeAnimationPayloads);
-		for (const TPair<FString, FString>& Entry : MorphTargetNodeAnimationPayloads)
-		{
-			AnimSequenceFactoryNode->SetAnimationPayloadKeyForMorphTargetNodeUid(Entry.Key, Entry.Value);
-		}
+		TMap<FString, FString> MorphTargetNodeAnimationPayloadKeyUids;
+		TMap<FString, uint8> MorphTargetNodeAnimationPayloadKeyTypes;
+		TrackNode.GetMorphTargetNodeAnimationPayloadKeys(MorphTargetNodeAnimationPayloadKeyUids, MorphTargetNodeAnimationPayloadKeyTypes);
+		AnimSequenceFactoryNode->SetAnimationPayloadKeysForMorphTargetNodeUids(MorphTargetNodeAnimationPayloadKeyUids, MorphTargetNodeAnimationPayloadKeyTypes);
 	}
 
 	UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(&TrackNode, AnimSequenceFactoryNode, false);

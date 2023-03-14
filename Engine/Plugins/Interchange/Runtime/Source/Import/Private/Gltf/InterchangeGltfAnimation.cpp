@@ -2,7 +2,7 @@
 
 #include "Gltf/InterchangeGltfPrivate.h"
 
-#include "Animation/InterchangeAnimationPayload.h"
+#include "InterchangeCommonAnimationPayload.h"
 #include "GLTFAccessor.h"
 #include "GLTFAnimation.h"
 #include "GLTFAsset.h"
@@ -201,7 +201,7 @@ namespace UE::Interchange::Gltf::Private
 		return ChannelIndices.Num() != 0;
 	}
 
-	bool GetTransformAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData)
+	bool GetTransformAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationPayloadData& OutPayloadData)
 	{
 		//translation, rotation, scale time 3 channels:
 		OutPayloadData.Curves.SetNum(9);
@@ -368,7 +368,7 @@ namespace UE::Interchange::Gltf::Private
 		return true;
 	}
 
-	bool GetMorphTargetAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData)
+	bool GetMorphTargetAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationPayloadData& OutPayloadData)
 	{
 		OutPayloadData.Curves.SetNum(1);
 
@@ -449,22 +449,7 @@ namespace UE::Interchange::Gltf::Private
 		return true;
 	}
 
-	bool GetAnimationPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationCurvePayloadData& OutPayloadData)
-	{
-		TArray<FString> MorphTargetCheckPayLoadKeys;
-		PayLoadKey.ParseIntoArray(MorphTargetCheckPayLoadKeys, TEXT("~"));
-
-		if (MorphTargetCheckPayLoadKeys.Num() == 2)
-		{
-			return GetMorphTargetAnimationPayloadData(MorphTargetCheckPayLoadKeys[1], GltfAsset, OutPayloadData);
-		}
-		else
-		{
-			return GetTransformAnimationPayloadData(PayLoadKey, GltfAsset, OutPayloadData);
-		}
-	}
-
-	bool GetBakedAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationBakeTransformPayloadData& PayloadData)
+	bool GetBakedAnimationTransformPayloadData(const FString& PayLoadKey, const GLTF::FAsset& GltfAsset, FAnimationPayloadData& PayloadData)
 	{
 		TArray<int32> ChannelIndices;
 		int32 AnimationIndex;

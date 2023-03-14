@@ -593,20 +593,75 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeDatasmithTrans
 	);
 }
 
-TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeDatasmithTranslator::GetAnimationCurvePayloadData(const FString& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FAnimationPayloadData>> UInterchangeDatasmithTranslator::GetAnimationPayloadData(const FInterchangeAnimationPayLoadKey& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
 {
-	return GetAnimationPayloadDataAsCurve<UE::Interchange::FAnimationCurvePayloadData>(PayLoadKey);
-}
+	UE::Interchange::FAnimationPayloadData TransformPayloadData(PayLoadKey.Type);
 
-TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> UInterchangeDatasmithTranslator::GetAnimationStepCurvePayloadData(const FString& PayLoadKey) const
-{
-	return GetAnimationPayloadDataAsCurve<UE::Interchange::FAnimationStepCurvePayloadData>(PayLoadKey);
-}
+	TPromise<TOptional<UE::Interchange::FAnimationPayloadData>> EmptyPromise;
+	EmptyPromise.SetValue(TOptional<UE::Interchange::FAnimationPayloadData>());
+	
 
-TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterchangeDatasmithTranslator::GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
-{
-	TPromise<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> EmptyPromise;
-	EmptyPromise.SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
+	if (!LoadedExternalSource || !LoadedExternalSource->GetDatasmithScene())
+	{
+		return EmptyPromise.GetFuture();
+	}
+
+	TSharedPtr<IDatasmithBaseAnimationElement> AnimationElement;
+	float FrameRate = 0.f;
+	if (UE::DatasmithInterchange::AnimUtils::FAnimationPayloadDesc* PayloadDescPtr = AnimationPayLoadMapping.Find(PayLoadKey.UniqueId))
+	{
+		AnimationElement = PayloadDescPtr->Value;
+		if (!ensure(AnimationElement))
+		{
+			// #ueent_logwarning:
+			return EmptyPromise.GetFuture();
+		}
+
+		FrameRate = PayloadDescPtr->Key;
+	}
+
+	switch (PayLoadKey.Type)
+	{
+	case EInterchangeAnimationPayLoadType::CURVE:
+	case EInterchangeAnimationPayLoadType::MORPHTARGETCURVE:
+		{
+			return Async(EAsyncExecution::TaskGraph, [this, AnimationElement = MoveTemp(AnimationElement), FrameRate, &TransformPayloadData]
+				{
+					
+					TOptional<UE::Interchange::FAnimationPayloadData> Result;
+
+					if (UE::DatasmithInterchange::AnimUtils::GetAnimationPayloadData(*AnimationElement, FrameRate, TransformPayloadData.Curves))
+					{
+						Result.Emplace(MoveTemp(TransformPayloadData));
+					}
+
+					return Result;
+					}
+				);
+		}
+		break;
+	case EInterchangeAnimationPayLoadType::STEPCURVE:
+		{
+			return Async(EAsyncExecution::TaskGraph, [this, AnimationElement = MoveTemp(AnimationElement), FrameRate, &TransformPayloadData]
+				{
+					TOptional<UE::Interchange::FAnimationPayloadData> Result;
+
+					if (UE::DatasmithInterchange::AnimUtils::GetAnimationPayloadData(*AnimationElement, FrameRate, TransformPayloadData.StepCurves))
+					{
+						Result.Emplace(MoveTemp(TransformPayloadData));
+					}
+
+					return Result;
+				}
+			);
+		}
+		break;
+	case EInterchangeAnimationPayLoadType::BAKED:
+	case EInterchangeAnimationPayLoadType::NONE:
+	default:
+		break;
+	}
+
 	return EmptyPromise.GetFuture();
 }
 

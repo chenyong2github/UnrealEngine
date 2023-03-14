@@ -284,19 +284,23 @@ TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator:
 	return Promise->GetFuture();
 }
 
-TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeFbxTranslator::GetAnimationCurvePayloadData(const FString& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FAnimationPayloadData>> UInterchangeFbxTranslator::GetAnimationPayloadData(const FInterchangeAnimationPayLoadKey& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
 {
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationCurvePayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationCurvePayloadData>>>();
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationPayloadData>>>();
 
 	if (!Dispatcher.IsValid())
 	{
-		Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationPayloadData>());
 		return Promise->GetFuture();
 	}
 
 	// Create a json command to read the fbx file
-	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
+	FString JsonCommand = 
+		(PayLoadKey.Type == EInterchangeAnimationPayLoadType::BAKED)
+		? CreateFetchAnimationBakeTransformPayloadFbxCommand(PayLoadKey.UniqueId, BakeFrequency, RangeStartSecond, RangeStopSecond)
+		: CreateFetchPayloadFbxCommand(PayLoadKey.UniqueId);
+
+	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise, PayLoadKey](const int32 TaskIndex)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetAnimationCurvePayloadData::Dispatcher->AddTaskDone")
 			UE::Interchange::ETaskState TaskState;
@@ -312,7 +316,7 @@ TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeFbxT
 
 			if (TaskState != UE::Interchange::ETaskState::ProcessOk)
 			{
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationPayloadData>());
 				return;
 			}
 
@@ -324,11 +328,11 @@ TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeFbxT
 			if (!ensure(FPaths::FileExists(AnimationTransformPayloadFilename)))
 			{
 				// TODO log an error saying the payload file does not exist even if the get payload command succeeded
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationPayloadData>());
 				return;
 			}
 
-			UE::Interchange::FAnimationCurvePayloadData AnimationTransformPayload;
+			UE::Interchange::FAnimationPayloadData AnimationTransformPayload(PayLoadKey.Type);
 
 			// All sub object should be gone with the reset
 			TArray64<uint8> Buffer;
@@ -338,174 +342,48 @@ TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeFbxT
 			if (FileDataSize < 1)
 			{
 				// Nothing to load from this file
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationPayloadData>());
 				return;
 			}
 
 			// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
 			FLargeMemoryReader Ar(FileData, FileDataSize);
-			TArray<FInterchangeCurve> InterchangeCurves;
-			Ar << InterchangeCurves;
-			AnimationTransformPayload.Curves.AddDefaulted(InterchangeCurves.Num());
-			for (int32 CurveIndex = 0; CurveIndex < InterchangeCurves.Num(); ++CurveIndex)
+
+			switch (PayLoadKey.Type)
 			{
-				const FInterchangeCurve& InterchangeCurve = InterchangeCurves[CurveIndex];
-				InterchangeCurve.ToRichCurve(AnimationTransformPayload.Curves[CurveIndex]);
+			case EInterchangeAnimationPayLoadType::CURVE:
+			case EInterchangeAnimationPayLoadType::MORPHTARGETCURVE:
+				{
+					TArray<FInterchangeCurve> InterchangeCurves;
+					Ar << InterchangeCurves;
+					AnimationTransformPayload.Curves.AddDefaulted(InterchangeCurves.Num());
+					for (int32 CurveIndex = 0; CurveIndex < InterchangeCurves.Num(); ++CurveIndex)
+					{
+						const FInterchangeCurve& InterchangeCurve = InterchangeCurves[CurveIndex];
+						InterchangeCurve.ToRichCurve(AnimationTransformPayload.Curves[CurveIndex]);
+					}
+				}
+				break;
+			case EInterchangeAnimationPayLoadType::STEPCURVE:
+				{
+					Ar << AnimationTransformPayload.StepCurves;
+				}
+				break;
+			case EInterchangeAnimationPayLoadType::BAKED:
+				AnimationTransformPayload.SerializeBaked(Ar);
+				break;
+			case EInterchangeAnimationPayLoadType::NONE:
+			default:
+				break;
 			}
+
 			Promise->SetValue(MoveTemp(AnimationTransformPayload));
 		}));
 
 	// The task was not added to the dispatcher
 	if (CreatedTaskIndex == INDEX_NONE)
 	{
-		Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>{});
-	}
-
-	return Promise->GetFuture();
-}
-
-TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> UInterchangeFbxTranslator::GetAnimationStepCurvePayloadData(const FString& PayLoadKey) const
-{
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>>>();
-
-	if (!Dispatcher.IsValid())
-	{
-		Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>());
-		return Promise->GetFuture();
-	}
-
-	// Create a json command to read the fbx file
-	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
-	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetAnimationStepCurvePayloadData::Dispatcher->AddTaskDone")
-			UE::Interchange::ETaskState TaskState;
-			FString JsonResult;
-			TArray<FString> JsonMessages;
-			Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
-
-			// Parse the Json messages into UInterchangeResults
-			for (const FString& JsonMessage : JsonMessages)
-			{
-				AddMessage(UInterchangeResult::FromJson(JsonMessage));
-			}
-
-			if (TaskState != UE::Interchange::ETaskState::ProcessOk)
-			{
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>());
-				return;
-			}
-
-			// Grab the result file and fill the BaseNodeContainer
-			UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
-			ResultParser.FromJson(JsonResult);
-			FString AnimationTransformPayloadFilename = ResultParser.GetResultFilename();
-
-			if (!ensure(FPaths::FileExists(AnimationTransformPayloadFilename)))
-			{
-				// TODO log an error saying the payload file does not exist even if the get payload command succeeded
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>());
-				return;
-			}
-
-			UE::Interchange::FAnimationStepCurvePayloadData AnimationTransformPayload;
-
-			// All sub object should be gone with the reset
-			TArray64<uint8> Buffer;
-			FFileHelper::LoadFileToArray(Buffer, *AnimationTransformPayloadFilename);
-			uint8* FileData = Buffer.GetData();
-			int64 FileDataSize = Buffer.Num();
-			if (FileDataSize < 1)
-			{
-				// Nothing to load from this file
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>());
-				return;
-			}
-
-			// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
-			FLargeMemoryReader Ar(FileData, FileDataSize);
-			Ar << AnimationTransformPayload.StepCurves;
-			Promise->SetValue(MoveTemp(AnimationTransformPayload));
-		}));
-
-	// The task was not added to the dispatcher
-	if (CreatedTaskIndex == INDEX_NONE)
-	{
-		Promise->SetValue(TOptional<UE::Interchange::FAnimationStepCurvePayloadData>{});
-	}
-
-	return Promise->GetFuture();
-}
-
-TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterchangeFbxTranslator::GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
-{
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>>();
-
-	if (!Dispatcher.IsValid())
-	{
-		Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
-		return Promise->GetFuture();
-	}
-
-
-	// Create a json command to read the fbx file
-	FString JsonCommand = CreateFetchAnimationBakeTransformPayloadFbxCommand(PayLoadKey, BakeFrequency, RangeStartSecond, RangeStopSecond);
-	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetAnimationBakeTransformPayloadData::Dispatcher->AddTaskDone")
-			UE::Interchange::ETaskState TaskState;
-			FString JsonResult;
-			TArray<FString> JsonMessages;
-			Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
-
-			// Parse the Json messages into UInterchangeResults
-			for (const FString& JsonMessage : JsonMessages)
-			{
-				AddMessage(UInterchangeResult::FromJson(JsonMessage));
-			}
-
-			if (TaskState != UE::Interchange::ETaskState::ProcessOk)
-			{
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
-				return;
-			}
-
-			// Grab the result file and fill the BaseNodeContainer
-			UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
-			ResultParser.FromJson(JsonResult);
-			FString AnimationTransformPayloadFilename = ResultParser.GetResultFilename();
-
-			if (!ensure(FPaths::FileExists(AnimationTransformPayloadFilename)))
-			{
-				// TODO log an error saying the payload file does not exist even if the get payload command succeeded
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
-				return;
-			}
-
-			UE::Interchange::FAnimationBakeTransformPayloadData AnimationTransformPayload;
-
-			// All sub object should be gone with the reset
-			TArray64<uint8> Buffer;
-			FFileHelper::LoadFileToArray(Buffer, *AnimationTransformPayloadFilename);
-			uint8* FileData = Buffer.GetData();
-			int64 FileDataSize = Buffer.Num();
-			if (FileDataSize < 1)
-			{
-				// Nothing to load from this file
-				Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
-				return;
-			}
-
-			// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
-			FLargeMemoryReader Ar(FileData, FileDataSize);
-			AnimationTransformPayload.Serialize(Ar);
-			Promise->SetValue(MoveTemp(AnimationTransformPayload));
-		}));
-
-	// The task was not added to the dispatcher
-	if (CreatedTaskIndex == INDEX_NONE)
-	{
-		Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>{});
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationPayloadData>{});
 	}
 
 	return Promise->GetFuture();

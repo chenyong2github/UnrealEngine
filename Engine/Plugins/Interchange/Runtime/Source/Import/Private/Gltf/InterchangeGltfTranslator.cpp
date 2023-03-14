@@ -1321,52 +1321,46 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTextur
 	}
 }
 
-TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeGltfTranslator::GetAnimationCurvePayloadData(const FString& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FAnimationPayloadData>> UInterchangeGltfTranslator::GetAnimationPayloadData(const FInterchangeAnimationPayLoadKey& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
 {
-	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
+	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey, BakeFrequency, RangeStartSecond, RangeStopSecond]
 		{
 
-			TOptional<UE::Interchange::FAnimationCurvePayloadData> Result;
-			UE::Interchange::FAnimationCurvePayloadData AnimationCurvePayloadData;
+			TOptional<UE::Interchange::FAnimationPayloadData> Result;
+			UE::Interchange::FAnimationPayloadData AnimationPayLoadData(PayLoadKey.Type);
 
-			if (UE::Interchange::Gltf::Private::GetAnimationPayloadData(PayLoadKey, GltfAsset, AnimationCurvePayloadData))
+			switch (PayLoadKey.Type)
 			{
-				Result.Emplace(AnimationCurvePayloadData);
+			case EInterchangeAnimationPayLoadType::CURVE:
+				if (UE::Interchange::Gltf::Private::GetTransformAnimationPayloadData(PayLoadKey.UniqueId, GltfAsset, AnimationPayLoadData))
+				{
+					Result.Emplace(AnimationPayLoadData);
+				}
+				break;
+			case EInterchangeAnimationPayLoadType::MORPHTARGETCURVE:
+				if (UE::Interchange::Gltf::Private::GetMorphTargetAnimationPayloadData(PayLoadKey.UniqueId, GltfAsset, AnimationPayLoadData))
+				{
+					Result.Emplace(AnimationPayLoadData);
+				}
+				break;
+			case EInterchangeAnimationPayLoadType::BAKED:
+				AnimationPayLoadData.BakeFrequency = BakeFrequency;
+				AnimationPayLoadData.RangeStartTime = RangeStartSecond;
+				AnimationPayLoadData.RangeEndTime = RangeStopSecond;
+				if (UE::Interchange::Gltf::Private::GetBakedAnimationTransformPayloadData(PayLoadKey.UniqueId, GltfAsset, AnimationPayLoadData))
+				{
+					Result.Emplace(AnimationPayLoadData);
+				}
+				break;
+			case EInterchangeAnimationPayLoadType::STEPCURVE:
+			case EInterchangeAnimationPayLoadType::NONE:
+			default:
+				break;
 			}
 
 			return Result;
 		}
 	);
-}
-
-TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> UInterchangeGltfTranslator::GetAnimationStepCurvePayloadData(const FString& PayLoadKey) const
-{
-	using namespace UE::Interchange;
-
-	TSharedPtr<TPromise<TOptional<FAnimationStepCurvePayloadData>>> Promise = MakeShared<TPromise<TOptional<FAnimationStepCurvePayloadData>>>();
-	Promise->SetValue(TOptional<FAnimationStepCurvePayloadData>());
-	return Promise->GetFuture();
-}
-
-TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterchangeGltfTranslator::GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
-{
-	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey, BakeFrequency, RangeStartSecond, RangeStopSecond]
-		{
-			TOptional<UE::Interchange::FAnimationBakeTransformPayloadData> Result;
-
-			UE::Interchange::FAnimationBakeTransformPayloadData PayloadData;
-
-			PayloadData.BakeFrequency = BakeFrequency;
-			PayloadData.RangeStartTime = RangeStartSecond;
-			PayloadData.RangeEndTime = RangeStopSecond;
-
-			if (UE::Interchange::Gltf::Private::GetBakedAnimationTransformPayloadData(PayLoadKey, GltfAsset, PayloadData))
-			{
-				Result.Emplace(PayloadData);
-			}
-
-			return Result;
-		});
 }
 
 void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, int32 AnimationIndex) const
@@ -1414,7 +1408,7 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 
 				for (const TPair<FString, FString>& AnimationPayloadKeyForMorphTargetNodeUid : AnimationPayloadKeyForMorphTargetNodeUids)
 				{
-					TrackNode->SetAnimationPayloadKeyForMorphTargetNodeUid(AnimationPayloadKeyForMorphTargetNodeUid.Key, AnimationPayloadKeyForMorphTargetNodeUid.Value);
+					TrackNode->SetAnimationPayloadKeyForMorphTargetNodeUid(AnimationPayloadKeyForMorphTargetNodeUid.Key, AnimationPayloadKeyForMorphTargetNodeUid.Value, EInterchangeAnimationPayLoadType::MORPHTARGETCURVE);
 				}
 
 				TMap<FString, TArray<int32>>& JointUidWithChannelsUsedMap = TrackNodeToJointUidWithChannelsUsedMap.FindOrAdd(TrackNode);
@@ -1458,7 +1452,7 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 								if (MorphTargetNodeConst->GetPayLoadKey().IsSet())
 								{
 									FInterchangeMeshPayLoadKey PayLoadKey = MorphTargetNodeConst->GetPayLoadKey().GetValue();
-									FString PayLoadKeyUniqueId = TEXT("MorphTargetAnimation~") + LexToString(AnimationIndex) + TEXT(":") + LexToString(ChannelIndex) + TEXT(":") + PayLoadKey.UniqueId;
+									FString PayLoadKeyUniqueId = LexToString(AnimationIndex) + TEXT(":") + LexToString(ChannelIndex) + TEXT(":") + PayLoadKey.UniqueId;
 
 									AnimationPayloadKeyForMorphTargetNodeUids.Add(MorphTargetDependencyUid, PayLoadKeyUniqueId);
 								}
@@ -1570,7 +1564,7 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 				{
 					if (bHasNonWeightAnimationChannel)
 					{
-						TrackNodeAndJointNodeChannels.Key->SetAnimationPayloadKeyForSceneNodeUid(JointNodeUidAndChannelsUsedPair.Key, Payload);
+						TrackNodeAndJointNodeChannels.Key->SetAnimationPayloadKeyForSceneNodeUid(JointNodeUidAndChannelsUsedPair.Key, Payload, EInterchangeAnimationPayLoadType::BAKED);
 					}
 					
 					bHasAnimationPayloadSet = true;
@@ -1659,7 +1653,7 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 			}
 		}
 
-		TransformAnimTrackNode->SetCustomAnimationPayloadKey(PayloadKey);
+		TransformAnimTrackNode->SetCustomAnimationPayloadKey(PayloadKey, EInterchangeAnimationPayLoadType::CURVE);
 		TransformAnimTrackNode->SetCustomUsedChannels(UsedChannels);
 
 		NodeContainer.AddNode(TransformAnimTrackNode);
