@@ -1057,9 +1057,16 @@ ULevelSequence* FUsdLevelSequenceHelperImpl::FindOrAddSequenceForAttribute(const
 	{
 		if (UE::FSdfLayer AttributeLayer = UsdUtils::FindLayerForAttribute(Attribute, 0.0))
 		{
-			const FString SequenceIdentifier = Attribute.GetPrim().GetPrimPath().GetString();
-
-			Sequence = FindOrAddSequenceForLayer(AttributeLayer, SequenceIdentifier, SequenceIdentifier);
+			if (UsdStage)
+			{
+				// Only create level sequences for layers in the local layer stack: Our current approach is that only
+				// those layers can be written to, so there is no point in doing otherwise
+				if (UsdStage.HasLocalLayer(AttributeLayer))
+				{
+					const FString SequenceIdentifier = AttributeLayer.GetIdentifier();
+					Sequence = FindOrAddSequenceForLayer(AttributeLayer, SequenceIdentifier, SequenceIdentifier);
+				}
+			}
 		}
 	}
 

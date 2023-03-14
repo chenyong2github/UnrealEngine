@@ -375,15 +375,9 @@ void FUsdListenerImpl::HandleLayersChangedNotice( const pxr::SdfNotice::LayersDi
 			const pxr::SdfChangeList::EntryList& ChangeList = ChangeVecItem.second.GetEntryList();
 			for (const std::pair<pxr::SdfPath, pxr::SdfChangeList::Entry>& Change : ChangeList)
 			{
-				for (const pxr::SdfChangeList::Entry::SubLayerChange& SubLayerChange : Change.second.subLayerChanges)
-				{
-					const pxr::SdfChangeList::SubLayerChangeType ChangeType = SubLayerChange.second;
-					if (ChangeType == pxr::SdfChangeList::SubLayerChangeType::SubLayerAdded ||
-						ChangeType == pxr::SdfChangeList::SubLayerChangeType::SubLayerRemoved)
-					{
-						LayersNames.Add( ANSI_TO_TCHAR( SubLayerChange.first.c_str() ) );
-					}
-				}
+				// Sadly we can't do much with these notices as USD doesn't provide information of which layer the
+				// layer was added *to*. Since this is a global notice not even tied to a particular stage,
+				// it doesn't help us know when to update what
 
 				const pxr::SdfChangeList::Entry::_Flags& Flags = Change.second.flags;
 				if (Flags.didReloadContent)

@@ -742,7 +742,7 @@ AUsdStageActor::AUsdStageActor()
 		UsdListener.GetOnLayersChanged().AddLambda(
 			[&, this](const TArray< FString >& ChangedLayerIdentifiers)
 			{
-				if (!IsListeningToUsdNotices())
+				if (!IsListeningToUsdNotices() || ChangedLayerIdentifiers.Num() == 0)
 				{
 					return;
 				}
@@ -961,6 +961,8 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 
 	bool bHasResync = ResyncChanges.Num() > 0;
 
+	bool bNeedsAnimationReload = false;
+
 	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
 	TMap< FString, bool > SortedPrimsChangedList;
 	for (const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& InfoChange : InfoChanges)
@@ -995,6 +997,14 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 					bHasResync = true;
 					break;
 				}
+			}
+
+			// Any sublayer change (even offsets) means we need to regenerate our LevelSequence to add (or shift)
+			// the corresponding subsequences
+			if (PrimPath.IsAbsoluteRootPath() && ObjectChange.SubLayerChanges.Num() > 0)
+			{
+				bNeedsAnimationReload = true;
+				break;
 			}
 		}
 
@@ -1204,6 +1214,12 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		{
 			OnPrimChanged.Broadcast(PrimChangedInfo.Key, PrimChangedInfo.Value);
 		}
+	}
+
+	if (bNeedsAnimationReload)
+	{
+		ReloadAnimations();
+		PrimsToAnimate.Reset();
 	}
 
 	if (bHasResync && UsdAssetCache)
