@@ -23,6 +23,7 @@
 #include "EngineUtils.h"
 #include "SceneManagement.h"
 #include "SceneView.h"
+#include "UnrealClient.h"
 
 #include "DisplayClusterSceneViewExtensions.h"
 
@@ -738,4 +739,26 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 	}
 
 	return true;
+}
+
+// Currently, some data like EngineShowFlags and EngineGamma get updated on PostRenderViewFamily.
+// Since the viewports that have media input assigned never gets rendered in normal way, the PostRenderViewFamily
+// callback never gets called, therefore the data mentioned above never gets updated. This workaround initializes
+// those settings for all viewports. The viewports with no media input assigned will override the data
+// in PostRenderViewFamily like it was previously so nothing should be broken.
+void FDisplayClusterViewport::UpdateMediaDependencies(FViewport* InViewport)
+{
+	if (InViewport && InViewport->GetClient())
+	{
+		if (const FEngineShowFlags* const EngineShowFlags = InViewport->GetClient()->GetEngineShowFlags())
+		{
+			const float DisplayGamma = GEngine ? GEngine->DisplayGamma : 2.2f;
+
+			for (FDisplayClusterViewport_Context& Context : Contexts)
+			{
+				Context.RenderThreadData.EngineDisplayGamma = DisplayGamma;
+				Context.RenderThreadData.EngineShowFlags = *EngineShowFlags;
+			}
+		}
+	}
 }

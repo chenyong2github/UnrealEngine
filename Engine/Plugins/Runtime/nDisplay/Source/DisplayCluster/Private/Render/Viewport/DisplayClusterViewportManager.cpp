@@ -532,6 +532,12 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 		}
 	}
 
+	/* Some media dependent data can (and needs to) be initialized in advance */
+	for (FDisplayClusterViewport* const Viewport : ClusterNodeViewports)
+	{
+		Viewport->UpdateMediaDependencies(InViewport);
+	}
+
 	// Handle scene RTT resize
 	UpdateSceneRenderTargetSize();
 

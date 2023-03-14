@@ -197,6 +197,9 @@ public:
 	 */
 	bool UpdateFrameContexts(const uint32 InStereoViewIndex, const FDisplayClusterRenderFrameSettings& InFrameSettings);
 
+	/* Update media dependent data */
+	void UpdateMediaDependencies(class FViewport* InViewport);
+
 	/** Reset viewport contexts and resources. */
 	void ResetFrameContexts();
 
