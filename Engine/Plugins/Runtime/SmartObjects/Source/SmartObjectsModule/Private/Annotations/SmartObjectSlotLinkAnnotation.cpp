@@ -10,6 +10,9 @@
 
 void FSmartObjectSlotLinkAnnotation::DrawVisualization(FSmartObjectVisualizationContext& VisContext) const
 {
+	constexpr float DepthBias = 2.0f;
+	constexpr bool Screenspace = true;
+
 	if (!LinkedSlot.IsValid() || !VisContext.Definition.IsValidSlotIndex(LinkedSlot.GetIndex()))
 	{
 		return;
@@ -27,7 +30,7 @@ void FSmartObjectSlotLinkAnnotation::DrawVisualization(FSmartObjectVisualization
 		{
 			Color = VisContext.SelectedColor;
 		}
-		VisContext.DrawArrow(Transform.GetValue().GetLocation(), TargetTransform.GetValue().GetLocation(), Color, 15.0f, 15.0f, /*DepthPrioGroup*/0, /*Thickness*/1.0f, /*DepthBias*/2.0);
+		VisContext.DrawArrow(Transform.GetValue().GetLocation(), TargetTransform.GetValue().GetLocation(), Color, 5.0f, 5.0f, /*DepthPrioGroup*/0, /*Thickness*/1.0f, DepthBias, Screenspace);
 	}
 }
 

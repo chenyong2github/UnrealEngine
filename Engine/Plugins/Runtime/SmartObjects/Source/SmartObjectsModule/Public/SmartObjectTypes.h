@@ -9,6 +9,7 @@
 #include "SmartObjectTypes.generated.h"
 
 class FDebugRenderSceneProxy;
+class UNavigationQueryFilter;
 
 #define WITH_SMARTOBJECT_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)
 
@@ -291,6 +292,107 @@ private:
 #endif // WITH_EDITORONLY_DATA
 
 	friend class FSmartObjectSlotReferenceDetails;
+};
+
+
+
+/** Indicates how TagQueries from slots and parent object will be processed against Tags from a find request. */
+UENUM()
+enum class ESmartObjectTraceType : uint8
+{
+	ByChannel,
+	ByProfile,
+	ByObjectTypes,
+};
+
+/** Struct used to define how traces should be handled. */
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectTraceParams
+{
+	GENERATED_BODY()
+
+	FSmartObjectTraceParams() = default;
+	
+	explicit FSmartObjectTraceParams(const ETraceTypeQuery InTraceChanel)
+		: Type(ESmartObjectTraceType::ByChannel)
+		, TraceChannel(InTraceChanel)
+	{
+	}
+
+	explicit FSmartObjectTraceParams(TConstArrayView<EObjectTypeQuery> InObjectTypes)
+		: Type(ESmartObjectTraceType::ByObjectTypes)
+	{
+		for (const EObjectTypeQuery ObjectType : InObjectTypes)
+		{
+			ObjectTypes.Add(ObjectType);
+		}
+	}
+
+	explicit FSmartObjectTraceParams(const FCollisionProfileName InCollisionProfileName)
+		: Type(ESmartObjectTraceType::ByProfile)
+		, CollisionProfile(InCollisionProfileName)
+	{
+	}
+
+	/** Type of trace to use. */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	ESmartObjectTraceType Type = ESmartObjectTraceType::ByChannel;
+
+	/** Trace channel to use to determine collisions. */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (EditCondition = "Type == ESmartObjectTraceType::ByChannel", EditConditionHides))
+	TEnumAsByte<ETraceTypeQuery> TraceChannel = ETraceTypeQuery::TraceTypeQuery1;
+
+	/** Object types to use to determine collisions. */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (EditCondition = "Type == ESmartObjectTraceType::ByObjectTypes", EditConditionHides))
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+
+	/** Collision profile to use to determine collisions. */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (EditCondition = "Type == ESmartObjectTraceType::ByProfile", EditConditionHides))
+	FCollisionProfileName CollisionProfile;
+
+	/** Whether we should trace against complex collision */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	bool bTraceComplex = false;
+};
+
+/**
+ * Class used to define settings for Smart Object navigation and collision validation. 
+ * The values of the CDO are used, the users are expected to derive from this class to create custom settings. 
+ */
+UCLASS(Blueprintable, Abstract)
+class SMARTOBJECTSMODULE_API USmartObjectSlotValidationFilter : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** @return navigation filter class to be used for navigation checks. */
+	TSubclassOf<UNavigationQueryFilter> GetNavigationFilter() const { return NavigationFilter; }
+
+	/** @return search extents used to define how far the validation can move the points. */
+	FVector GetSearchExtents() const { return SearchExtents; }
+
+	/** @return trace parameters for finding ground location. */
+	const FSmartObjectTraceParams& GetGroundTraceParameters() const { return GroundTraceParameters; }
+
+	/** @return trace parameters for testing if there are collision transitioning from navigation location to slot location. */
+	const FSmartObjectTraceParams& GetTransitionTraceParameters() const { return TransitionTraceParameters; }
+	
+protected:
+	/** Navigation filter used to  */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	const TSubclassOf<UNavigationQueryFilter> NavigationFilter;
+
+	/** How far we allow the validated location to be from the specified navigation location. */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FVector SearchExtents = FVector(5.0f, 5.0f, 40.0f);
+
+	/** Trace parameters used for finding navigation location on ground. */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FSmartObjectTraceParams GroundTraceParameters;
+
+	/** Trace parameters user for checking if the transition between navigation location and slot is unblocked. */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FSmartObjectTraceParams TransitionTraceParameters;
 };
 
 /**

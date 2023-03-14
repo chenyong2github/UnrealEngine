@@ -15,14 +15,18 @@ IMPLEMENT_HIT_PROXY(HSmartObjectSlotProxy, HComponentVisProxy);
 namespace UE::SmartObjects::Editor
 {
 
-void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FPrimitiveDrawInterface& PDI, const UWorld& World)
+void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FPrimitiveDrawInterface& PDI, const UWorld& World, const AActor* PreviewActor)
 {
+	constexpr float DepthBias = 2.0f;
+	constexpr bool Screenspace = true;
+
 	FSmartObjectVisualizationContext VisContext(Definition, World);
 	VisContext.OwnerLocalToWorld = OwnerLocalToWorld;
 	VisContext.View = &View;
 	VisContext.PDI = &PDI;
 	VisContext.Font = GEngine->GetSmallFont();
 	VisContext.SelectedColor = GetDefault<UEditorStyleSettings>()->SelectionColor;
+	VisContext.PreviewActor = PreviewActor;
 
 	if (!VisContext.IsValidForDraw())
 	{
@@ -69,17 +73,17 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 			const FVector AxisY = Transform->GetUnitAxis(EAxis::Y);
 
 			// Arrow with tick at base.
-			VisContext.DrawArrow(Location - AxisX * TickSize, Location + AxisX * SlotSize * 2.0, Color, /*ArrowHeadLength*/ 20.0f, /*EndLocationInset*/ 0.0f, SDPG_World);
-			PDI.DrawTranslucentLine(Location - AxisY * TickSize, Location + AxisY * TickSize, Color, SDPG_World, 1.0f);
+			VisContext.DrawArrow(Location - AxisX * TickSize, Location + AxisX * SlotSize * 2.0, Color, /*ArrowHeadLength*/ 10.0f, /*EndLocationInset*/ 0.0f, SDPG_World, 2.0f, DepthBias, Screenspace);
+			PDI.DrawTranslucentLine(Location - AxisY * TickSize, Location + AxisY * TickSize, Color, SDPG_World, 1.0f, DepthBias, Screenspace);
 
 			// Circle and direction arrow.
 			if (SlotShape == ESmartObjectSlotShape::Circle)
 			{
-				DrawCircle(&PDI, Location, AxisX, AxisY, Color, SlotSize, /*NumSides*/64, SDPG_World, /*Thickness*/2.f);
+				DrawCircle(&PDI, Location, AxisX, AxisY, Color, SlotSize, /*NumSides*/64, SDPG_World, /*Thickness*/4.f, DepthBias, Screenspace);
 			}
 			else if (SlotShape == ESmartObjectSlotShape::Rectangle)
 			{
-				DrawRectangle(&PDI, Location, AxisX, AxisY, Color.ToFColor(/*bSRGB*/true), SlotSize * 2.0f, SlotSize * 2.0f, SDPG_World, /*Thickness*/2.f);
+				DrawRectangle(&PDI, Location, AxisX, AxisY, Color.ToFColor(/*bSRGB*/true), SlotSize * 2.0f, SlotSize * 2.0f, SDPG_World, /*Thickness*/4.f, DepthBias, Screenspace);
 			}
 		}
 			
@@ -92,6 +96,7 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 				PDI.SetHitProxy(new HSmartObjectSlotProxy(/*Component*/nullptr, SlotID, Data.GetIndex()));
 
 				VisContext.SlotIndex = FSmartObjectSlotIndex(Slot.GetIndex());
+				VisContext.AnnotationIndex = Data.GetIndex();
 				VisContext.bIsSlotSelected = bIsSelected;
 				VisContext.bIsAnnotationSelected = Selection.Contains(FSelectedItem(Slot->ID, Data.GetIndex()));
 
@@ -102,7 +107,7 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedIte
 	}
 }
 
-void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FCanvas& Canvas, const UWorld& World)
+void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelectedItem> Selection, const FTransform& OwnerLocalToWorld, const FSceneView& View, FCanvas& Canvas, const UWorld& World, const AActor* PreviewActor)
 {
 	FSmartObjectVisualizationContext VisContext(Definition, World);
 	VisContext.OwnerLocalToWorld = OwnerLocalToWorld;
@@ -110,6 +115,7 @@ void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelec
 	VisContext.Canvas = &Canvas;
 	VisContext.Font = GEngine->GetSmallFont();
 	VisContext.SelectedColor = GetDefault<UEditorStyleSettings>()->SelectionColor;
+	VisContext.PreviewActor = PreviewActor;
 
 	if (!VisContext.IsValidForDrawHUD())
 	{
@@ -149,6 +155,7 @@ void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FSelec
 			if (const FSmartObjectSlotAnnotation* Annotation = Data->GetPtr<FSmartObjectSlotAnnotation>())
 			{
 				VisContext.SlotIndex = FSmartObjectSlotIndex(Slot.GetIndex());
+				VisContext.AnnotationIndex = Data.GetIndex();
 				VisContext.bIsSlotSelected = bIsSelected;
 				VisContext.bIsAnnotationSelected = Selection.Contains(FSelectedItem(Slot->ID, Data.GetIndex()));
 				
@@ -181,7 +188,7 @@ void FSmartObjectComponentVisualizer::DrawVisualization( const UActorComponent* 
 
 	const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
 
-	UE::SmartObjects::Editor::Draw(*Definition, {}, OwnerLocalToWorld, *View, *PDI, *Component->GetWorld());
+	UE::SmartObjects::Editor::Draw(*Definition, {}, OwnerLocalToWorld, *View, *PDI, *Component->GetWorld(), Component->GetOwner());
 }
 
 
@@ -206,5 +213,5 @@ void FSmartObjectComponentVisualizer::DrawVisualizationHUD(const UActorComponent
 
 	const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
 
-	UE::SmartObjects::Editor::DrawCanvas(*Definition, {}, OwnerLocalToWorld, *View, *Canvas, *Component->GetWorld());
+	UE::SmartObjects::Editor::DrawCanvas(*Definition, {}, OwnerLocalToWorld, *View, *Canvas, *Component->GetWorld(), Component->GetOwner());
 }

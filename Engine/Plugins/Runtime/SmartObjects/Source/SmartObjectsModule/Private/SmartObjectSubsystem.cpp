@@ -3,6 +3,7 @@
 #include "SmartObjectSubsystem.h"
 #include "Math/ColorList.h"
 #include "SmartObjectComponent.h"
+#include "SmartObjectTypes.h"
 #include "EngineUtils.h"
 #include "MassCommandBuffer.h"
 #include "MassEntitySubsystem.h"
@@ -11,9 +12,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "Engine/LevelStreaming.h"
 #include "NavigationSystem.h"
-#include "AI/Navigation/NavAgentInterface.h"
 #include "AI/Navigation/NavigationTypes.h"
-#include "Annotations/SmartObjectSlotEntryAnnotation.h"
+#include "Annotations/SmartObjectSlotEntranceAnnotation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSubsystem)
 
@@ -32,7 +32,6 @@
 #if WITH_EDITORONLY_DATA
 #include "SmartObjectCollection.h"
 #endif // WITH_EDITORONLY_DATA
-
 
 namespace UE::SmartObject
 {
@@ -76,35 +75,6 @@ namespace UE::SmartObject
 	} // UE::SmartObject::Debug
 #endif // WITH_SMARTOBJECT_DEBUG
 
-	namespace Helpers
-	{
-		/**
-		 * @returns navigation data for a specific actor. Similar to FNavigationSystem::GetNavDataForActor() but allows to pass custom world.
-		 */
-		ANavigationData* GetNavDataForActor(const UWorld& World, const AActor* UserActor)
-		{
-			if (const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(&World))
-			{
-				const INavAgentInterface* NavAgent = Cast<INavAgentInterface>(UserActor);
-				if (NavAgent)
-				{
-					const FNavAgentProperties& NavAgentProps = NavAgent->GetNavAgentPropertiesRef();
-					return NavSys->GetNavDataForProps(NavAgentProps, NavAgent->GetNavAgentLocation());
-				}
-				return NavSys->GetDefaultNavDataInstance();
-			}
-				
-			return nullptr;
-		}
-
-		/** @return true if the given point is inside the box defined by center and extents. */
-		inline bool IsPointInBox(const FVector Point, const FVector BoxCenter, const FVector BoxExtents)
-		{
-			const FVector AbsDiff = (Point - BoxCenter).GetAbs();
-			return AbsDiff.X <= BoxExtents.X && AbsDiff.Y <= BoxExtents.Y && AbsDiff.Z <= BoxExtents.Z; 
-		}
-	} // Helpers
-
 } // UE::SmartObject
 
 
@@ -112,32 +82,38 @@ namespace UE::SmartObject
 // FSmartObjectSlotEntryRequest
 //----------------------------------------------------------------------//
 
-const FVector3f FSmartObjectSlotEntryRequest::DefaultValidationExtents(5.0f, 5.0f, 25.0f);
-
-bool FSmartObjectSlotEntryRequest::SetNavigationDataFromActor(const AActor& InActor, const TSubclassOf<UNavigationQueryFilter> InNavigationFilter)
+bool FSmartObjectSlotEntranceLocationRequest::SetNavigationDataFromActor(const AActor& InRequesterActor, const TSubclassOf<USmartObjectSlotValidationFilter> InValidationFilter)
 {
 	SearchLocation = FVector::ZeroVector;
-	NavigationQuerier = nullptr;
+	InstigatorActor = nullptr;
 	NavigationData = nullptr;
 	NavigationFilter = nullptr;
 
-	const UWorld* World = InActor.GetWorld();
+	const UWorld* World = InRequesterActor.GetWorld();
 	if (!World)
 	{
 		return false;
 	}
 	
-	NavigationData = UE::SmartObject::Helpers::GetNavDataForActor(*World, &InActor);
+	NavigationData = UE::SmartObject::Annotations::GetNavDataForActor(*World, &InRequesterActor);
 	if (!NavigationData)
 	{
 		return false;
 	}
 
-	NavigationFilter = UNavigationQueryFilter::GetQueryFilter(*NavigationData, &InActor, InNavigationFilter);
-	if (InNavigationFilter && !NavigationFilter)
+	const USmartObjectSlotValidationFilter* Filter = InValidationFilter.GetDefaultObject();
+	if (Filter)
 	{
-		return false;
+		NavigationFilter = UNavigationQueryFilter::GetQueryFilter(*NavigationData, &InRequesterActor, Filter->GetNavigationFilter());
+		if (Filter->GetNavigationFilter().Get() && !NavigationFilter)
+		{
+			return false;
+		}
 	}
+	
+	InstigatorActor = &InRequesterActor;
+	
+	ValidationFilter = InValidationFilter;
 
 	return true;
 }
@@ -1550,12 +1526,17 @@ bool USmartObjectSubsystem::EvaluateSelectionConditions(const FSmartObjectSlotHa
 	return EvaluateConditionsForFiltering(SlotHandle, ContextData, UserData, LastEvaluatedSmartObjectRuntime);
 }
 
-bool USmartObjectSubsystem::FindEntryLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntryRequest& Request, FSmartObjectSlotEntryLocationResult& Result) const
+bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotNavigationLocationResult& Result) const
 {
 	Result = {};
+
+	UWorld* World = GetWorld();
+
+	const USmartObjectSlotValidationFilter* ValidationFilter = Request.ValidationFilter ? Request.ValidationFilter.GetDefaultObject() : GetDefault<USmartObjectSlotValidationFilter>();
+
 	
 	// Navdata must be valid when checking testing for navigable. 
-	if (Request.bRequireResultInNavigableSpace && !Request.NavigationData)
+	if (Request.bProjectNavigationLocation && !Request.NavigationData)
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Error,
 			TEXT("Can't find entry location for slot handle %s since request's NavigationData is not set."), *LexToString(SlotHandle));
@@ -1575,29 +1556,37 @@ bool USmartObjectSubsystem::FindEntryLocationForSlot(const FSmartObjectSlotHandl
 	{
 		FVector Location;
 		FRotator Rotation;
-		FGameplayTag Tag;
 		NavNodeRef NodeRef;
 		FVector::FReal DistanceSqr = 0.0;
+		const FSmartObjectSlotEntranceAnnotation* EntranceAnnotation = nullptr;
+		bool bTraceGroundLocation = false;
+		bool bCheckTransitionTrajectory = false;
 	};
 
 	TArray<FSlotEntryCandidate, TInlineAllocator<8>> Candidates;
 	const FTransform& SlotTransform = SlotView.GetStateData<FSmartObjectSlotTransform>().GetTransform();
 
+	const bool bIncludeEntries = Request.LocationType == ESmartObjectSlotNavigationLocationType::Entry;
+	const bool bIncludeExits = Request.LocationType == ESmartObjectSlotNavigationLocationType::Exit;
+
 	const FSmartObjectSlotDefinition& Definition = SlotView.GetDefinition();
 	for (const FInstancedStruct& Data : Definition.Data)
 	{
-		if (const FSmartObjectSlotEntryAnnotation* Entry = Data.GetPtr<FSmartObjectSlotEntryAnnotation>())
+		if (const FSmartObjectSlotEntranceAnnotation* EntranceAnnotation = Data.GetPtr<FSmartObjectSlotEntranceAnnotation>())
 		{
-			if (Entry->bIsEntry == Request.bIncludeEntriesAsCandidates
-				|| Entry->bIsExit == Request.bIncludeExistsAsCandidates)
+			if (EntranceAnnotation->bIsEntry == bIncludeEntries
+				|| EntranceAnnotation->bIsExit == bIncludeExits)
 			{
-				const FVector EntryLocation = Entry->GetWorldLocation(SlotTransform);
-				const FRotator EntryRotation = Entry->GetWorldRotation(SlotTransform);
-
-				FSlotEntryCandidate& Candidate = Candidates.AddDefaulted_GetRef();
-				Candidate.Tag = Entry->Tag;
-				Candidate.Location = EntryLocation;
-				Candidate.Rotation = EntryRotation;
+				TOptional<FTransform> EntryTransform = EntranceAnnotation->GetWorldTransform(SlotTransform);
+				if (EntryTransform.IsSet())
+				{
+					FSlotEntryCandidate& Candidate = Candidates.AddDefaulted_GetRef();
+					Candidate.Location = EntryTransform->GetLocation();
+					Candidate.Rotation = EntryTransform->GetRotation().Rotator();
+					Candidate.EntranceAnnotation = EntranceAnnotation;
+					Candidate.bTraceGroundLocation = EntranceAnnotation->bTraceGroundLocation;
+					Candidate.bCheckTransitionTrajectory = EntranceAnnotation->bCheckTransitionTrajectory;
+				}
 			}
 		}
 	}
@@ -1615,6 +1604,7 @@ bool USmartObjectSubsystem::FindEntryLocationForSlot(const FSmartObjectSlotHandl
 		return false;
 	}
 
+	// Sort candidates so that the best candidate is first.
 	if (Request.SelectMethod == FSmartObjectSlotEntrySelectionMethod::NearestToSearchLocation)
 	{
 		for (FSlotEntryCandidate& Candidate : Candidates)
@@ -1628,33 +1618,99 @@ bool USmartObjectSubsystem::FindEntryLocationForSlot(const FSmartObjectSlotHandl
 		});
 	}
 
+
 	check(Candidates.Num() > 0);
 
-	if (Request.bRequireResultInNavigableSpace)
+	const FSmartObjectTraceParams& GroundTraceParameters = ValidationFilter->GetGroundTraceParameters();
+	const FSmartObjectTraceParams& TransitionTraceParameters = ValidationFilter->GetTransitionTraceParameters();
+	const FVector SearchExtents = FVector(ValidationFilter->GetSearchExtents());
+
+	FCollisionQueryParams GroundTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), GroundTraceParameters.bTraceComplex);
+	FCollisionQueryParams TransitionTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), TransitionTraceParameters.bTraceComplex);
+
+	const AActor* SmartObjectActor = nullptr;
+	if (const FSmartObjectRuntime* Runtime = GetRuntimeInstance(SlotView.GetOwnerRuntimeObject()))
 	{
-		for (FSlotEntryCandidate& Candidate : Candidates)
-		{
-			FNavLocation NavLocation;
-			if (Request.NavigationData->ProjectPoint(Candidate.Location, NavLocation, FVector(Request.NavigationValidationExtents), Request.NavigationFilter, Request.NavigationQuerier)
-				&& NavLocation.HasNodeRef()
-				&& UE::SmartObject::Helpers::IsPointInBox(NavLocation.Location, Candidate.Location, FVector(Request.NavigationValidationExtents)))
-			{
-				Result.Location = NavLocation.Location;
-				Result.Rotation = Candidate.Rotation;
-				Result.NodeRef = NavLocation.NodeRef;
-				Result.Tag = Candidate.Tag;
-				return true;
-			}
-		}
-		return false;
+		SmartObjectActor = Runtime->GetOwnerActor();
+	}
+	if (SmartObjectActor)
+	{
+		GroundTraceQueryParams.AddIgnoredActor(SmartObjectActor);
+		TransitionTraceQueryParams.AddIgnoredActor(SmartObjectActor);
 	}
 	
-	Result.Location = Candidates[0].Location;
-	Result.Rotation = Candidates[0].Rotation;
-	Result.NodeRef = INVALID_NAVNODEREF;
-	Result.Tag = Candidates[0].Tag;
+	bool bHasResult = false;
 
-	return true;
+	// Candidates are now in order of preference. Test each for hard requirements and pick the first that passes all checks. 
+	for (FSlotEntryCandidate& Candidate : Candidates)
+	{
+		const FBox SearchBounds(Candidate.Location - SearchExtents, Candidate.Location + SearchExtents);
+
+		// Check and adjust the location on navigable space.
+		if (Request.bProjectNavigationLocation)
+		{
+			FNavLocation NavLocation;
+			if (!UE::SmartObject::Annotations::ProjectNavigationLocation(*Request.NavigationData, Candidate.Location, SearchBounds, Request.NavigationFilter, Request.InstigatorActor, NavLocation))
+			{
+				// If no navigable area found, skip the candidate. 
+				continue;
+			}
+			Candidate.Location = NavLocation.Location;
+			Candidate.NodeRef = NavLocation.NodeRef;
+		}
+
+		// Check and adjust the location on ground.
+		if (Request.bTraceGroundLocation
+			&& Candidate.bTraceGroundLocation)
+		{
+			FVector GroundLocation;
+			if (!UE::SmartObject::Annotations::TraceGroundLocation(*World, Candidate.Location, SearchBounds, GroundTraceParameters, GroundTraceQueryParams, GroundLocation))
+			{
+				// If not ground location found, skip the candidate.
+				continue;
+			}
+
+			Candidate.Location = GroundLocation;
+		}
+
+		// Check that there's no collision during transition to slot location.
+ 		if (Request.bCheckTransitionTrajectory
+ 			&& Candidate.bCheckTransitionTrajectory
+			&& Candidate.EntranceAnnotation)
+		{
+ 			// @todo: we're currently not using the adjusted location (Candidate.Location), consider if we should.
+			TArray<FSmartObjectAnnotationCollider> Colliders;
+			Candidate.EntranceAnnotation->GetTrajectoryColliders(SlotTransform, Colliders);
+
+ 			if (UE::SmartObject::Annotations::TestCollidersOverlap(*World, Colliders, TransitionTraceParameters, TransitionTraceQueryParams))
+ 			{
+	 			// If the colliders overlap, skip the candidate.
+ 				continue;
+ 			}
+		}
+
+		// Passed all validation, use it as the result.
+
+		Result.Location = Candidate.Location;
+		Result.Rotation = Candidate.Rotation;
+		Result.NodeRef = INVALID_NAVNODEREF;
+		if (Candidate.EntranceAnnotation)
+		{
+			Result.Tag = Candidate.EntranceAnnotation->Tag;
+		}
+
+		if (Request.LocationType == ESmartObjectSlotNavigationLocationType::Exit)
+		{
+			// Reverse direction for exits.
+			Result.Rotation = Result.Rotation.Add(0.0, 180.0, 0.0).Clamp();
+		}
+		
+		bHasResult = true;
+		
+		break;
+	}
+
+	return bHasResult;
 }
 
 void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults, const FConstStructView UserData) const

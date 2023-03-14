@@ -44,7 +44,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotAnnotation : public FSmartObjectSl
 	virtual TOptional<FTransform> GetWorldTransform(const FTransform& SlotTransform) const { return TOptional<FTransform>(); }
 	
 #if WITH_GAMEPLAY_DEBUGGER
-	virtual void CollectDataForGameplayDebugger(FGameplayDebuggerCategory& Category, const FTransform& SlotTransform, const FVector ViewLocation, const FVector ViewDirection, AActor* DebugActor) const {}
+	virtual void CollectDataForGameplayDebugger(FGameplayDebuggerCategory& Category, const FTransform& SlotTransform, const AActor* SmartObjectOwnerActor, const FVector ViewLocation, const FVector ViewDirection, const AActor* DebugActor) const {}
 #endif // WITH_GAMEPLAY_DEBUGGER	
 	
 };

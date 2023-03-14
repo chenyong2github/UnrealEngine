@@ -27,7 +27,8 @@ public:
 	void SetPreviewMesh(UStaticMesh* InStaticMesh);
 	void SetPreviewActor(AActor* InActor);
 	void SetPreviewActorClass(const UClass* ActorClass);
-
+	void ResetPreviewActor();
+	
 	USmartObjectDefinition* GetSmartObjectDefinition() const { return SmartObjectDefinition.Get(); }
 	
 protected:
@@ -56,15 +57,9 @@ private:
 
 	/** Weak pointer to the Smart Object definition that is edited */
 	TWeakObjectPtr<USmartObjectDefinition> SmartObjectDefinition = nullptr;
-	
-	/** Weak pointer to the preview Mesh component added to the preview scene */
-	TWeakObjectPtr<UStaticMeshComponent> PreviewMeshComponent = nullptr;
 
 	/** Weak pointer to the preview actor added to the preview scene */
 	TWeakObjectPtr<AActor> PreviewActor = nullptr;
-
-	/** Weak pointer to the preview actor added to the preview scene */
-	TWeakObjectPtr<AActor> PreviewActorFromClass = nullptr;
 
 	/** Weak pointer back to asset editor we are embedded in */
 	TWeakPtr<const FSmartObjectAssetToolkit> AssetEditorToolkit;

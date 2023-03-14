@@ -31,4 +31,8 @@ public:
 	/** Base world condition class for all new Smart Object definitions. */
 	UPROPERTY(EditAnywhere, config, Category = "SmartObject")
 	TSubclassOf<USmartObjectWorldConditionSchema> DefaultWorldConditionSchemaClass = USmartObjectWorldConditionSchema::StaticClass();
+
+	/** Validation filter used for previewing collisions in editors. */
+	UPROPERTY(EditAnywhere, config, Category = "SmartObject")
+	TSubclassOf<USmartObjectSlotValidationFilter> PreviewValidationFilter;
 };

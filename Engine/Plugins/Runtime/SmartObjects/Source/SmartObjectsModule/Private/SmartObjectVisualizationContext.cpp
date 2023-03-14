@@ -42,6 +42,15 @@ bool FSmartObjectVisualizationContext::IsLocationVisible(const FVector& Location
 	return View != nullptr && View->ViewFrustum.IntersectPoint(Location);
 }
 
+FVector::FReal FSmartObjectVisualizationContext::GetDistanceToCamera(const FVector& Location) const
+{
+	if (View)
+	{
+		return FVector::Distance(Location, View->ViewLocation);
+	}
+	return UE_DOUBLE_BIG_NUMBER;
+}
+
 void FSmartObjectVisualizationContext::DrawString(const float StartX, const float StartY, const TCHAR* Text, const FLinearColor& Color, const FLinearColor& ShadowColor) const
 {
 	if (Canvas && Font)

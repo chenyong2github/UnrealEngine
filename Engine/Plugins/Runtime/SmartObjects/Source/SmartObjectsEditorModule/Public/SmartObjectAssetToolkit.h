@@ -29,6 +29,9 @@ protected:
 	}
 
 private:
+
+	void UpdatePreviewActor();
+	
 	/** Callback to detect changes in number of slot to keep gizmos in sync. */
 	void OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent) const;
 
@@ -46,13 +49,4 @@ private:
 
     /** Typed pointer to the custom ViewportClient created by the toolkit. */
 	mutable TSharedPtr<class FSmartObjectAssetEditorViewportClient> SmartObjectViewportClient;
-
-	/** Object path of an actor picked from the current level Editor to spawn a preview in the scene. */
-	FString PreviewActorObjectPath;
-
-	/** Object path of a mesh selected from the content to spawn a preview in the scene. */
-	FString PreviewMeshObjectPath;
-
-	/** Class of the template actor to spawn a preview in the scene. */
-	TWeakObjectPtr<const UClass> PreviewActorClass;
 };

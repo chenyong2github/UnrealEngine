@@ -41,7 +41,7 @@ void FSmartObjectAssetEditorViewportClient::Draw(const FSceneView* View, FPrimit
 		// Draw slots and annotations.
 		if (const USmartObjectDefinition* Definition = SmartObjectDefinition.Get())
 		{
-			UE::SmartObjects::Editor::Draw(*Definition, Selection, FTransform::Identity, *View, *PDI, *PreviewScene->GetWorld());
+			UE::SmartObjects::Editor::Draw(*Definition, Selection, FTransform::Identity, *View, *PDI, *PreviewScene->GetWorld(), PreviewActor.Get());
 		}
 
 		// Draw the object origin.
@@ -57,7 +57,7 @@ void FSmartObjectAssetEditorViewportClient::DrawCanvas(FViewport& InViewport, FS
 	// Draw slots and annotations.
 	if (const USmartObjectDefinition* Definition = SmartObjectDefinition.Get())
 	{
-		UE::SmartObjects::Editor::DrawCanvas(*Definition, Selection, FTransform::Identity, View, Canvas, *PreviewScene->GetWorld());
+		UE::SmartObjects::Editor::DrawCanvas(*Definition, Selection, FTransform::Identity, View, Canvas, *PreviewScene->GetWorld(), PreviewActor.Get());
 	}
 }
 
@@ -393,25 +393,34 @@ void FSmartObjectAssetEditorViewportClient::SetSmartObjectDefinition(USmartObjec
 	}
 }
 
-void FSmartObjectAssetEditorViewportClient::SetPreviewMesh(UStaticMesh* InStaticMesh)
-{
-	if (PreviewMeshComponent == nullptr)
-	{
-		PreviewMeshComponent = NewObject<UStaticMeshComponent>();
-		ON_SCOPE_EXIT { PreviewScene->AddComponent(PreviewMeshComponent.Get(),FTransform::Identity); };
-	}
-
-	PreviewMeshComponent->SetStaticMesh(InStaticMesh);
-	FocusViewportOnBox(GetPreviewBounds());
-}
-
-void FSmartObjectAssetEditorViewportClient::SetPreviewActor(AActor* InActor)
+void FSmartObjectAssetEditorViewportClient::ResetPreviewActor()
 {
 	if (AActor* Actor = PreviewActor.Get())
 	{
 		PreviewScene->GetWorld()->DestroyActor(Actor);
 		PreviewActor.Reset();
 	}
+}
+
+void FSmartObjectAssetEditorViewportClient::SetPreviewMesh(UStaticMesh* InStaticMesh)
+{
+	ResetPreviewActor();
+	
+	AActor* Actor = PreviewScene->GetWorld()->SpawnActor<AActor>();
+	UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(Actor->AddComponentByClass(UStaticMeshComponent::StaticClass(), true, FTransform::Identity, false));
+	if (MeshComponent)
+	{
+		MeshComponent->SetStaticMesh(InStaticMesh);
+	}
+	
+	PreviewActor = Actor;
+
+	FocusViewportOnBox(GetPreviewBounds());
+}
+
+void FSmartObjectAssetEditorViewportClient::SetPreviewActor(AActor* InActor)
+{
+	ResetPreviewActor();
 
 	if (InActor != nullptr)
 	{
@@ -423,15 +432,11 @@ void FSmartObjectAssetEditorViewportClient::SetPreviewActor(AActor* InActor)
 
 void FSmartObjectAssetEditorViewportClient::SetPreviewActorClass(const UClass* ActorClass)
 {
-	if (AActor* Actor = PreviewActorFromClass.Get())
-	{
-		PreviewScene->GetWorld()->DestroyActor(Actor);
-		PreviewActorFromClass.Reset();
-	}
+	ResetPreviewActor();
 
 	if (ActorClass != nullptr)
 	{
-		PreviewActorFromClass = PreviewScene->GetWorld()->SpawnActor(const_cast<UClass*>(ActorClass));
+		PreviewActor = PreviewScene->GetWorld()->SpawnActor(const_cast<UClass*>(ActorClass));
 	}
 
 	FocusViewportOnBox(GetPreviewBounds());
@@ -443,16 +448,6 @@ FBox FSmartObjectAssetEditorViewportClient::GetPreviewBounds() const
 	if (const AActor* Actor = PreviewActor.Get())
 	{
 		Bounds = Bounds+ Actor->GetComponentsBoundingBox();
-	}
-
-	if (const AActor* Actor = PreviewActorFromClass.Get())
-	{
-		Bounds = Bounds+ Actor->GetComponentsBoundingBox();
-	}
-
-	if (const UStaticMeshComponent* Component = PreviewMeshComponent.Get())
-	{
-		Bounds = Bounds + Component->CalcBounds(FTransform::Identity);
 	}
 
 	const TSharedRef<const FSmartObjectAssetToolkit> Toolkit = AssetEditorToolkit.Pin().ToSharedRef();

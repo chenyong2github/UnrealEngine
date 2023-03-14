@@ -155,57 +155,78 @@ enum class FSmartObjectSlotEntrySelectionMethod : uint8
 };
 
 /**
- * Struct used to request 
+ * Enum indicating if we're looking for a location to enter or exit the Smart Object slot.
+ */
+UENUM()
+enum class ESmartObjectSlotNavigationLocationType : uint8
+{
+	/** Find a location to enter the slot. */
+	Entry,
+	
+	/** Find a location to exit the slot. */
+	Exit,
+};
+
+/**
+ * Struct used to request slot entry or exit location.
+ *
+ * The location validation is done in following order:
+ *  - navigation projection
+ *  - trace ground location (uses altered location from navigation test if applicable)
+ *  - check transition trajectory (test between unmodified navigation location and slow location)
  */
 USTRUCT()
-struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntryRequest
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationRequest
 {
 	GENERATED_BODY()
 
-	static const FVector3f DefaultValidationExtents;
-	
 	/**
-	 * Sets the NavigationData, NavigationFilter, and UserActor from the specified actor and navigation filter.
+	 * Sets the NavigationData, NavigationFilter, NavigationValidationExtents, ValidationFilter, and RequesterActor from the specified actor and navigation filter.
 	 * @return true if navigation data was set successfully.
 	 */
-	bool SetNavigationDataFromActor(const AActor& InActor, const TSubclassOf<UNavigationQueryFilter> InNavigationFilter);
-
-	/** Search location that may be used to select an entry from multiple candidates. (e.g. actor location). */
-	FVector SearchLocation = FVector::ZeroVector;
+	bool SetNavigationDataFromActor(const AActor& InRequesterActor, const TSubclassOf<USmartObjectSlotValidationFilter> InValidationFilter);
 
 	/** Actor that is passed to the navigation queries. (Optional) */
-	TObjectPtr<AActor> NavigationQuerier = nullptr;
+	TObjectPtr<const AActor> InstigatorActor = nullptr;
 
 	/** Navigation data to use for the navigation queries (must exists, if bMustBeNavigable is true). */
-	TObjectPtr<ANavigationData> NavigationData = nullptr;
+	TObjectPtr<const ANavigationData> NavigationData = nullptr;
 	
 	/** Navigation query filter to use for the navigation queries. (Optional)*/
 	FSharedConstNavQueryFilter NavigationFilter;
 
-	/** Defines how far from entry annotation location can be from a navigable location to still considered valid. */
-	FVector3f NavigationValidationExtents = DefaultValidationExtents;
+	/** Filter to use for the validation. */
+	TSubclassOf<USmartObjectSlotValidationFilter> ValidationFilter = nullptr;
+
+	/** Search location that may be used to select an entry from multiple candidates. (e.g. actor location). */
+	FVector SearchLocation = FVector::ZeroVector;
 
 	/** How to select an entry when a slot has multiple entries. */
 	FSmartObjectSlotEntrySelectionMethod SelectMethod = FSmartObjectSlotEntrySelectionMethod::First;
 
-	/** If true, the result is required to be in or close to a navigable space. */
-	bool bRequireResultInNavigableSpace = true;
+	/** Enum indicating if we're looking for a location to enter or exit the Smart Object slot. */
+	ESmartObjectSlotNavigationLocationType LocationType = ESmartObjectSlotNavigationLocationType::Entry;
 
-	/** If true, include slot location as a candidate if no entry annotation is present. */
+	/** If true, try to project the location on navigable area. If projection fails, an entry is discarded. */
+	bool bProjectNavigationLocation = true;
+
+	/** If true, try to trace the location on ground. If trace fails, an entry is discarded. */
+	bool bTraceGroundLocation = true;
+
+	/** If true, check collisions between navigation location and slot location. If collisions are found, an entry is discarded. */
+	bool bCheckTransitionTrajectory = true;
+
+	/** If true, include slot location as a candidate if no navigation annotation is present. */
 	bool bUseSlotLocationAsFallback = false;
 
-	/** Include entry annotations which are marked as entry as a candidates. */
-	bool bIncludeEntriesAsCandidates = true;
-
-	/** Include entry annotations which are marked as exit as a candidates. */
-	bool bIncludeExistsAsCandidates = true;
+	friend class USmartObjectSubsystem;
 };
 
 /**
  *
  */
 USTRUCT()
-struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntryLocationResult
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotNavigationLocationResult
 {
 	GENERATED_BODY()
 
@@ -215,10 +236,10 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntryLocationResult
 	/** @returns true if the result contains valid navigation node reference. */
 	bool HasNodeRef() const { return NodeRef != INVALID_NAVNODEREF; }
 
-	/** Location of the entry. */
+	/** The location to enter the slot. */
 	FVector Location = FVector::ZeroVector;
 
-	/** Rotation of the entry. */
+	/** The expected direction to enter the slot. */
 	FRotator Rotation = FRotator::ZeroRotator;
 	
 	/** Node reference in navigation data (if requested with bMustBeNavigable). */
@@ -460,14 +481,14 @@ public:
 	[[nodiscard]] bool EvaluateSelectionConditions(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData) const;
 
 	/**
-	 * Finds entry location for a specific slot. Each slot can be annotated with multiple entry locations, and the request can be configured to also consider the slot location.
-	 * Additionally the entry locations can be checked to be on navigable surface (does not check that the point is reachable, though).
+	 * Finds navigable entry location for a specific slot. Each slot can be annotated with multiple navigation locations, and the request can be configured to also consider the slot location as one entry.
+	 * Additionally the navigation locations can be checked to be on navigable surface (does not check that the point is reachable, though), traced on ground, and without of collisions.
 	 * @param SlotHandle Handle to the smart object slot.
 	 * @param Request Request describing how to select the entry.
 	 * @param Result Entry location result (in world space).
 	 * @return True if valid entry found.
 	 */
-	bool FindEntryLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntryRequest& Request, FSmartObjectSlotEntryLocationResult& Result) const;
+	bool FindNavigationLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotNavigationLocationResult& Result) const;
 	
 	/**
 	 * Claims smart object from a request result.

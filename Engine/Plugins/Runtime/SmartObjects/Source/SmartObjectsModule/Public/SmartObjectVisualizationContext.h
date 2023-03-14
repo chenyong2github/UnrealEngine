@@ -11,6 +11,7 @@ class FPrimitiveDrawInterface;
 class USmartObjectDefinition;
 class UFont;
 class USmartObjectSubsystem;
+class AActor;
 
 #if WITH_EDITOR
 
@@ -53,14 +54,23 @@ struct SMARTOBJECTSMODULE_API FSmartObjectVisualizationContext
 	/** @return true of the location is in view frustum. */
 	bool IsLocationVisible(const FVector& Location) const;
 
+	/** @return distance from location in world space, to the camera. */
+	FVector::FReal GetDistanceToCamera(const FVector& Location) const;
+	
 	/** Pointer to the visualized Smart Object definition. */
 	const USmartObjectDefinition& Definition;
 
 	/** World associated with the drawing. */
 	const UWorld& World;
+
+	/** Actor used for previewing the Smart Object. */
+	const AActor* PreviewActor = nullptr;
 	
-	/** Index of the visualized, or invalid of the annotation is on the object.  */
-	int32 SlotIndex = 0;
+	/** Index of the visualized slot, or invalid of the annotation is on the object.  */
+	int32 SlotIndex = INDEX_NONE;
+
+	/** Index of the visualized annotation. */
+	int32 AnnotationIndex = INDEX_NONE;
 
 	/** Transform of the owner object. */
 	FTransform OwnerLocalToWorld;
