@@ -33,6 +33,8 @@ class VideoViewController : BaseViewController {
     var headerPullDownGestureRecognizer : UIScreenEdgePanGestureRecognizer!
     
     var streamingConnection : StreamingConnection?
+    var pickerData: [String] = [String]()
+    var selectedStreamer: String = ""
 
     weak var liveLink : LiveLinkProvider?
     var dismissOnDisconnect = false
@@ -401,3 +403,22 @@ extension VideoViewController : HeaderViewDelegate {
 }
 
 
+extension VideoViewController: UIPickerViewDelegate, UIPickerViewDataSource {
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        // Number of columns
+        return 1
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        // Number of rows
+        return pickerData.count
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return pickerData[row]
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        selectedStreamer = pickerData[row]
+    }
+}

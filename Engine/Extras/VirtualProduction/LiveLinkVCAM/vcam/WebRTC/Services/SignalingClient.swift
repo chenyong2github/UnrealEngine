@@ -34,7 +34,6 @@ final class SignalingClient {
     func connect() {
         self.webSocket.delegate = self
         self.webSocket.connect()
-        self.sendRequestStreamerList()
     }
     
     func close() {

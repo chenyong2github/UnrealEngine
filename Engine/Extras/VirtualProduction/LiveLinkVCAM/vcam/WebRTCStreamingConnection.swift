@@ -364,6 +364,7 @@ extension WebRTCStreamingConnection: SignalClientDelegate {
     func signalClientDidConnect(_ signalClient: SignalingClient) {
         self.signalingConnected = true
         Log.info("Connected to signaling server")
+        signalClient.sendRequestStreamerList();
     }
     
     func signalClientDidDisconnect(_ signalClient: SignalingClient, error: Error?) {
