@@ -879,7 +879,7 @@ public:
 	// TODO: Temp/deprecated hack - Do not call
 	inline bool IsNaniteLandscape() const
 	{
-		return GetName() == TEXT("LandscapeNaniteMesh");
+		return GetName().StartsWith(TEXT("LandscapeNaniteMesh"));
 	}
 
 private:
