@@ -337,6 +337,45 @@ public:
 		return GetAtIndexNoCheck(AddUninitialized());
 	}
 
+	/**
+	 * Append elements from a range onto the back pointer of the RingBuffer, resizing if necessary.
+	 * Each element is move-constructed into the RingBuffer; source elements may therefore be modified.
+	 */
+	void MoveAppendRange(ElementType* OtherData, SizeType OtherNum)
+	{
+		if (OtherNum == 0)
+		{
+			return;
+		}
+		check(OtherData);
+		const SizeType OldNum = static_cast<SizeType>(Num());
+		const SizeType NewNum = OldNum + OtherNum;
+		checkf(NewNum > OldNum, TEXT("Overflow: Num() == %d, OtherNum == %d, NewNum == %d"), OldNum, OtherNum, NewNum);
+		Reserve(NewNum);
+		const SizeType LocalIndexMask = IndexMask;
+
+		const SizeType MoveRangeStart = AfterBack;
+		const SizeType MoveRangeEnd = AfterBack + OtherNum;
+		const StorageModuloType MaskedMoveRangeStart = MoveRangeStart & LocalIndexMask;
+		const StorageModuloType MaskedMoveRangeEnd = MoveRangeEnd & LocalIndexMask;
+		ElementType* const Data = GetStorage();
+		if (MaskedMoveRangeStart >= MaskedMoveRangeEnd)
+		{
+			// We should not be reaching capacity and overwriting front
+			check(MaskedMoveRangeEnd <= (Front & LocalIndexMask) && (Front & LocalIndexMask) <= MaskedMoveRangeStart);
+			const SizeType FirstMoveCount = (LocalIndexMask + 1 - MaskedMoveRangeStart);
+			MoveConstructItems(Data + MaskedMoveRangeStart, OtherData, FirstMoveCount);
+			MoveConstructItems(Data, OtherData + FirstMoveCount, MaskedMoveRangeEnd);
+		}
+		else
+		{
+			// We should not be reaching capacity and overwriting front
+			check((Front & LocalIndexMask) <= MaskedMoveRangeStart || MaskedMoveRangeEnd <= (Front & LocalIndexMask));
+			MoveConstructItems(Data + MaskedMoveRangeStart, OtherData, OtherNum);
+		}
+		AfterBack += OtherNum;
+	}
+
 	/** Add a new element before the front pointer of the RingBuffer, resizing if necessary.  The new element is move constructed from the argument. Returns the index of the added element. */
 	IndexType AddFront(ElementType&& Element)
 	{
@@ -923,7 +962,6 @@ private:
 		}
 	}
 
-
 	friend class FRingBufferTest;
 
 	/**
@@ -945,7 +983,7 @@ private:
 	 */
 	StorageModuloType Front;
 	/**
-	 * Pointer to the first location after the back poointer of the RingBuffer; when the RingBuffer is non-empty, one element before this index is the back of the RingBuffer
+	 * Pointer to the first location after the back pointer of the RingBuffer; when the RingBuffer is non-empty, one element before this index is the back of the RingBuffer
 	 * AfterBack is in StorageModulo space.
 	 * Like all values in StorageModulo space, AfterBack is allowed to underflow or overflow its StorageModuloType; it might be 0 and then subtract 1 to wrap around to 0xffffffff, but
 	 * it is always true that (AfterBack - Front) <= capacity.

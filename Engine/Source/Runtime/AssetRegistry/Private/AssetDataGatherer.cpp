@@ -3760,11 +3760,7 @@ void FAssetDataGatherer::GetAndTrimSearchResults(FResults& InOutResults, FResult
 
 	auto MoveAppendRangeToRingBuffer = [](auto& InOutRingBuffer, auto& InArray)
 	{
-		InOutRingBuffer.Reserve(InOutRingBuffer.Num() + InArray.Num());
-		for (auto& Element : InArray)
-		{
-			InOutRingBuffer.Add(MoveTemp(Element));
-		}
+		InOutRingBuffer.MoveAppendRange(InArray.GetData(), InArray.Num());
 		InArray.Reset();
 	};
 

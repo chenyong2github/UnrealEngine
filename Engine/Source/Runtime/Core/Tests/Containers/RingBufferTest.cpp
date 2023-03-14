@@ -6,7 +6,6 @@
 
 #include "Tests/TestHarnessAdapter.h"
 
-
 class FRingBufferTest
 {
 public:
@@ -50,6 +49,18 @@ public:
 		~Counter()
 		{
 			++NumDestruct;
+		}
+		Counter& operator=(const Counter& Other)
+		{
+			Value = Other.Value;
+			++NumCopy;
+			return *this;
+		}
+		Counter& operator=(Counter&& Other)
+		{
+			Value = Other.Value;
+			++NumMove;
+			return *this;
 		}
 
 		operator uint32() const
@@ -730,6 +741,125 @@ public:
 				TestDirCounts(TEXT("Uninitialized Add"), 0, 0, 0, 1, false);
 				if (bAddBack) Q.AddUninitialized_GetRef(); else Q.AddFrontUninitialized_GetRef();
 				TestDirCounts(TEXT("Uninitialized GetRef Add"), 0, 0, 0, 1, false);
+			}
+		}
+
+		// Test MoveAppendRange
+		{
+			constexpr uint32 MarkerValue = 0x54321;
+			constexpr int32 SourceNum = 4;
+			Counter SourceRange[SourceNum];
+			auto Clear = [MarkerValue, &SourceRange]()
+			{
+				int32 Index = 0;
+				for (Counter& Element : SourceRange)
+				{
+					Element = Counter(MarkerValue + Index++);
+				}
+				Counter::Clear();
+			};
+			auto TestResults = [this](const TCHAR* HeaderMessage, TRingBuffer<Counter>& Q, TArrayView<Counter> Prefix,
+				int32 NumVoid, int32 NumCopy, int32 NumMove, int32 NumDestruct)
+			{
+				if (!(NumVoid == Counter::NumVoid && NumCopy == Counter::NumCopy && NumMove == Counter::NumMove && NumDestruct == Counter::NumDestruct))
+				{
+					CHECK_MESSAGE(*FString::Printf(TEXT("%s: Constructor/destructor callcounts do not match"), HeaderMessage), false);
+				}
+
+				int32 SourceStart = Prefix.Num();
+				int32 ExpectedNum = SourceNum + SourceStart;
+				if (Q.Num() != ExpectedNum)
+				{
+					CHECK_MESSAGE(*FString::Printf(TEXT("%s: Length does not match"), HeaderMessage), false);
+				}
+				else
+				{
+					for (int32 Index = 0; Index < ExpectedNum; ++Index)
+					{
+						if ((Index < SourceStart && Q[Index] != Prefix[Index]) ||
+							(Index >= SourceStart && Q[Index] != MarkerValue + Index - SourceStart))
+						{
+							CHECK_MESSAGE(*FString::Printf(TEXT("%s: Element does not match"), HeaderMessage), false);
+							break;
+						}
+					}
+				}
+			};
+
+			{
+				Clear();
+				TRingBuffer<Counter> Q;
+				Q.MoveAppendRange(SourceRange, SourceNum);
+				TestResults(TEXT("MoveAppendRange from empty"),
+					Q, TArrayView<Counter>(), 0, 0, SourceNum, 0);
+			}
+
+			{
+				Clear();
+				TRingBuffer<Counter> Q;
+				Q.Reserve(SourceNum*2);
+				Q.Front = Q.IndexMask + 1 - SourceNum/2;
+				Q.AfterBack = Q.Front;
+				Q.MoveAppendRange(SourceRange, SourceNum);
+				TestResults(TEXT("MoveAppendRange from empty with wraparound"),
+					Q, TArrayView<Counter>(), 0, 0, SourceNum, 0);
+			}
+
+			{
+				Clear();
+				TRingBuffer<Counter> Q;
+				Q.Reserve(SourceNum*2);
+				Q.Front = Q.IndexMask + 1 - SourceNum;
+				Q.AfterBack = Q.Front;
+				Q.MoveAppendRange(SourceRange, SourceNum);
+				TestResults(TEXT("MoveAppendRange from empty with AfterBack + OtherNum at end"),
+					Q, TArrayView<Counter>(), 0, 0, SourceNum, 0);
+			}
+
+			{
+				TRingBuffer<Counter> Q;
+				Counter Prefix[] = { 1,2,3 };
+				Q.Reserve(UE_ARRAY_COUNT(Prefix) + SourceNum);
+				for (Counter& C : Prefix)
+				{
+					Q.Add(C);
+				}
+				Clear();
+				Q.MoveAppendRange(SourceRange, SourceNum);
+				TestResults(TEXT("MoveAppendRange with existing elements"),
+					Q, Prefix, 0, 0, SourceNum, 0);
+			}
+
+			{
+				TRingBuffer<Counter> Q;
+				Counter Prefix[] = { 1,2,3 };
+				Q.Reserve(SourceNum * 2 + UE_ARRAY_COUNT(Prefix));
+				Q.Front = Q.IndexMask + 1 - SourceNum / 2 - UE_ARRAY_COUNT(Prefix);
+				Q.AfterBack = Q.Front;
+				for (Counter& C : Prefix)
+				{
+					Q.Add(C);
+				}
+				Clear();
+				Q.MoveAppendRange(SourceRange, SourceNum);
+				TestResults(TEXT("MoveAppendRange with existing elements and wraparound"),
+					Q, Prefix, 0, 0, SourceNum, 0);
+			}
+
+			{
+				TRingBuffer<Counter> Q;
+				Counter Prefix[] = { 1,2,3 };
+				Q.Reserve(UE_ARRAY_COUNT(Prefix) + SourceNum);
+				Q.Front = Q.IndexMask;
+				Q.AfterBack = Q.Front;
+				for (Counter& C : Prefix)
+				{
+					Q.Add(C);
+				}
+				Clear();
+				Q.MoveAppendRange(SourceRange, SourceNum);
+				TestResults(TEXT("MoveAppendRange with existing elements and AfterBackMasked < FrontMasked"),
+					Q, Prefix, 0, 0, SourceNum, 0);
 			}
 		}
 
