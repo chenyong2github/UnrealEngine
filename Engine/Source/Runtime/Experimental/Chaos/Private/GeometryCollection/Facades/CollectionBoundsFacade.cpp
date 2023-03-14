@@ -102,47 +102,26 @@ namespace GeometryCollection::Facades
 		return Centroids;
 	}
 
-	FBox FBoundsFacade::GetBoundingBox() const
-	{
-		FBox BoundingBox;
-
-		if (IsValid())
-		{
-			const TArray<int32>& RootIndices = Chaos::Facades::FCollectionHierarchyFacade::GetRootIndices(ParentAttribute);
-
-			const TManagedArray<FBox>& BoundingBoxArr = BoundingBoxAttribute.Get();
-
-			BoundingBox.Init();
-
-			for (int32 Idx : RootIndices)
-			{
-				BoundingBox += BoundingBoxArr[Idx];
-			}
-		}
-
-		return BoundingBox;
-	}
-
 	FBox FBoundsFacade::GetBoundingBoxInCollectionSpace() const
 	{
 		FBox BoundingBox;
+		BoundingBox.Init();
 
 		if (IsValid())
 		{
-			const TArray<int32>& RootIndices = Chaos::Facades::FCollectionHierarchyFacade::GetRootIndices(ParentAttribute);
-
-			const TManagedArray<FBox>& BoundingBoxArr = BoundingBoxAttribute.Get();
-
 			GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(ConstCollection);
+			TArray<FTransform> CollectionSpaceTransforms = TransformFacade.ComputeCollectionSpaceTransforms();
 
-			BoundingBox.Init();
-
-			for (int32 Idx : RootIndices)
+			for (int32 TransformIndex = 0; TransformIndex < CollectionSpaceTransforms.Num(); ++TransformIndex)
 			{
-				const FTransform CollectionSpaceTransform = TransformFacade.ComputeCollectionSpaceTransform(Idx);
-				const FBox BoundingBoxInCollectionSpace = BoundingBoxArr[Idx].TransformBy(CollectionSpaceTransform);
-
-				BoundingBox += BoundingBoxInCollectionSpace;
+				const int32 GeoIndex = TransformToGeometryIndexAttribute[TransformIndex];
+				if (BoundingBoxAttribute.IsValidIndex(GeoIndex))
+				{
+					const FBox& GeoBoundingBox = BoundingBoxAttribute[GeoIndex];
+					const FTransform CollectionSpaceTransform = CollectionSpaceTransforms[TransformIndex];
+					const FBox BoundingBoxInCollectionSpace = GeoBoundingBox.TransformBy(CollectionSpaceTransform);
+					BoundingBox += BoundingBoxInCollectionSpace;
+				}
 			}
 		}
 

@@ -47,9 +47,6 @@ namespace GeometryCollection::Facades
 		/** Centroids (Centers of BoundingBoxes) access */
 		TArray<FVector> GetCentroids() const;
 
-		/** BoundingBox for the whole collection */
-		FBox GetBoundingBox() const;
-
 		/** BoundingBox for the whole collection in Collection space */
 		FBox GetBoundingBoxInCollectionSpace() const;
 

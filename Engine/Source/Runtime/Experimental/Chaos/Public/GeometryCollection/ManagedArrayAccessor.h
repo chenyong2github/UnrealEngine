@@ -54,6 +54,12 @@ public:
 
 	bool IsPersistent() const { return ConstCollection.IsAttributePersistent(Name, Group); }
 
+	bool IsValidIndex(int32 Index) const 
+	{ 
+		check(IsValid());
+		return (Index >= 0) && (Index < ConstAttributeArray->Num());
+	}
+
 	int32 AddElements(int32 NumElements) const 
 	{ 
 		check(!IsConst());
