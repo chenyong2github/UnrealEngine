@@ -71,7 +71,7 @@ protected:
 		}
 
 		FVertexInputStreamArray VertexStreams;
-		VertexFactory->GetStreams(ERHIFeatureLevel::SM5, EVertexInputStreamType::Default, VertexStreams);
+		VertexFactory->GetStreams(FeatureLevel, EVertexInputStreamType::Default, VertexStreams);
 
 		int32 DataOffset = 0;
 		if (PassShaders.RayTracingShader.IsValid())
