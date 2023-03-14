@@ -252,6 +252,8 @@ class FComputeDistanceFieldAssetWantedMipsCS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, Mip1WorldExtent)
 		SHADER_PARAMETER(FVector3f, Mip2WorldTranslatedCenter)
 		SHADER_PARAMETER(FVector3f, Mip2WorldExtent)
+		SHADER_PARAMETER(FVector3f, PreViewTranslationTile)
+		SHADER_PARAMETER(FVector3f, PreViewTranslationOffset)
 	END_SHADER_PARAMETER_STRUCT()
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
@@ -1125,6 +1127,8 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 		FRDGBufferRef StreamingRequestsBuffer = GraphBuilder.CreateBuffer(StreamingRequestsDesc, TEXT("DistanceFields.DistanceFieldStreamingRequests"));
 
 		{
+			TLargeWorldRenderPosition<float> PreViewTranslation(View.ViewMatrices.GetPreViewTranslation());
+
 			FComputeDistanceFieldAssetWantedMipsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeDistanceFieldAssetWantedMipsCS::FParameters>();
 			PassParameters->View = View.ViewUniformBuffer;
 			checkf(DistanceField::NumMips == 3, TEXT("Shader needs to be updated"));
@@ -1138,6 +1142,8 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 			PassParameters->Mip1WorldExtent = FVector3f(GlobalDistanceField::GetClipmapExtent(GAOGlobalDistanceFieldNumClipmaps - 1, Scene, bLumenEnabled));
 			PassParameters->Mip2WorldTranslatedCenter = FVector3f(View.ViewMatrices.GetViewOrigin() + View.ViewMatrices.GetPreViewTranslation());
 			PassParameters->Mip2WorldExtent = FVector3f(GlobalDistanceField::GetClipmapExtent(FMath::Max<int32>(GAOGlobalDistanceFieldNumClipmaps / 2 - 1, 0), Scene, bLumenEnabled));
+			PassParameters->PreViewTranslationTile = PreViewTranslation.GetTile();
+			PassParameters->PreViewTranslationOffset = PreViewTranslation.GetOffset();
 
 			auto ComputeShader = GlobalShaderMap->GetShader<FComputeDistanceFieldAssetWantedMipsCS>();
 

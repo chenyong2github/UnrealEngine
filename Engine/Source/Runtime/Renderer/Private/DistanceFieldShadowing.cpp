@@ -698,14 +698,14 @@ bool SupportsHeightFieldShadows(ERHIFeatureLevel::Type FeatureLevel, EShaderPlat
 		&& DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform);
 }
 
-bool FSceneRenderer::ShouldPrepareForDistanceFieldShadows(FDynamicShadowsTaskData* TaskData) const
+bool FSceneRenderer::ShouldPrepareForDistanceFieldShadows() const
 {
 	if (!ViewFamily.EngineShowFlags.DynamicShadows || !SupportsDistanceFieldShadows(Scene->GetFeatureLevel(), Scene->GetShaderPlatform()))
 	{
 		return false;
 	}
 
-	return HasRayTracedDistanceFieldShadows(TaskData);
+	return true;
 }
 
 bool FSceneRenderer::ShouldPrepareHeightFieldScene() const

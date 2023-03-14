@@ -94,6 +94,8 @@ void CopyDistanceFieldIndirectionAtlasCS(
 RWStructuredBuffer<uint> RWDistanceFieldAssetWantedNumMips;
 RWStructuredBuffer<uint> RWDistanceFieldAssetStreamingRequests;
 
+float3 PreViewTranslationTile;
+float3 PreViewTranslationOffset;
 float3 Mip1WorldTranslatedCenter;
 float3 Mip1WorldExtent;
 float3 Mip2WorldTranslatedCenter;
@@ -126,7 +128,7 @@ void ComputeDistanceFieldAssetWantedMipsCS(
 		if (DebugForceNumMips == 0)
 		{
 			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
-			const float3 TranslatedCenter = LWCToFloat(LWCAdd(DFObjectBounds.Center, PrimaryView.PreViewTranslation));
+			const float3 TranslatedCenter = LWCToFloat(LWCAdd(DFObjectBounds.Center, MakeLWCVector3(PreViewTranslationTile, PreViewTranslationOffset)));
 
 			float OuterDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip1WorldTranslatedCenter, Mip1WorldExtent, TranslatedCenter, DFObjectBounds.BoxExtent);
  

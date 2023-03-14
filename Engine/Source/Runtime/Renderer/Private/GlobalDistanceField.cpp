@@ -1302,6 +1302,11 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters) const
 {
+	if (GlobalDistanceFieldInfo.bInitialized)
+	{
+		return;
+	}
+
 	// Initialize global distance field members to defaults, because View.GlobalDistanceFieldInfo is not valid yet
 	for (int32 Index = 0; Index < GlobalDistanceField::MaxClipmaps; Index++)
 	{
@@ -2082,9 +2087,13 @@ void UpdateGlobalDistanceFieldVolume(
 		const int32 NumClipmaps = FMath::Clamp<int32>(GlobalDistanceField::GetNumGlobalDistanceFieldClipmaps(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance), 0, GlobalDistanceField::MaxClipmaps);
 		ComputeUpdateRegionsAndUpdateViewState(GraphBuilder.RHICmdList, View, Scene, GlobalDistanceFieldInfo, NumClipmaps, MaxOcclusionDistance, bLumenEnabled);
 
+		if (!View.CachedViewUniformShaderParameters)
+		{
+			View.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
+		}
+
 		// Recreate the view uniform buffer now that we have updated GlobalDistanceFieldInfo
 		View.SetupGlobalDistanceFieldUniformBufferParameters(*View.CachedViewUniformShaderParameters);
-		View.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
 		bool bHasUpdateBounds = false;
 

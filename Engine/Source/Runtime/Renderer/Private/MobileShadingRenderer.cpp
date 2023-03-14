@@ -687,11 +687,6 @@ void FMobileSceneRenderer::InitViews(
 		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, *ILCTaskData);
 	}
 
-	if (bRequiresDistanceField)
-	{
-		PrepareDistanceFieldScene(GraphBuilder, TaskDatas.DynamicShadows, ExternalAccessQueue);
-	}
-
 	ExternalAccessQueue.Submit(GraphBuilder);
 
 	InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
@@ -842,6 +837,15 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	UpdateScene(GraphBuilder);
 
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
+	if (bRequiresDistanceField)
+	{
+		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
+	}
+
+	ExternalAccessQueue.Submit(GraphBuilder);
+
 	GPU_MESSAGE_SCOPE(GraphBuilder);
 
 	// Establish scene primitive count (must be done after UpdateAllPrimitiveSceneInfos)
@@ -985,8 +989,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			GPUSortManager->OnPreRender(GraphBuilder);
 		}
 	}
-
-	FRDGExternalAccessQueue ExternalAccessQueue;
 
 	// Generate the Sky/Atmosphere look up tables
 	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);

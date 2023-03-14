@@ -1976,7 +1976,10 @@ void FViewInfo::InitRHIResources(uint32 OverrideNumMSAASamples)
 
 	check(IsInRenderingThread());
 
-	CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
+	if (!CachedViewUniformShaderParameters)
+	{
+		CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
+	}
 
 	SetupUniformBufferParameters(
 		VolumeBounds,

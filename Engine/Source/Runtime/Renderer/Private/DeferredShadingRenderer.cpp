@@ -2518,6 +2518,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ShadingEnergyConservation::Init(GraphBuilder, View);
 	}
 
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
 	{
 		EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None;
 
@@ -2532,6 +2534,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 
 		UpdateScene(GraphBuilder, AsyncOps);
+
+		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
 	}
 	// kick off dependent scene updates 
 	Scene->ShadowScene->UpdateForRenderedFrame(GraphBuilder);
@@ -2843,8 +2847,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	Scene->DebugRender(Views);
 #endif
 
-	FRDGExternalAccessQueue ExternalAccessQueue;
-
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, UpdateGPUScene);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
@@ -2997,8 +2999,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 #endif
 		}
 	}
-
-	PrepareDistanceFieldScene(GraphBuilder, InitViewTaskDatas.DynamicShadows, ExternalAccessQueue);
 
 	{
 		{
