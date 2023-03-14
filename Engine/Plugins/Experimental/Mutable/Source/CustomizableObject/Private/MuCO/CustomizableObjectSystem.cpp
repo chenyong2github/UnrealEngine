@@ -76,11 +76,14 @@ DECLARE_CYCLE_STAT(TEXT("MutableTask"), STAT_MutableTask, STATGROUP_Game);
 
 UCustomizableObjectSystem* FCustomizableObjectSystemPrivate::SSystem = nullptr;
 
-
 static TAutoConsoleVariable<int32> CVarStreamingMemory(
 	TEXT("mutable.StreamingCacheMemory"),
-	-1,
-	TEXT("If different than 0, limit the amount of memory (in KB) to use to cache streaming data when building characters. 0 means no limit, -1 means use default (40Mb in PC and 20Mb in consoles)."),
+#if !PLATFORM_DESKTOP
+	(3 * 1024),
+#else
+	(12 * 1024),
+#endif
+	TEXT("Limit the amount of memory (in KB) to use to cache streaming data when building characters. More memory reduces the object construction time. Defaults: Desktop = 12288, Others = 3072"),
 	ECVF_Scalability);
 
 
@@ -312,14 +315,15 @@ void UCustomizableObjectSystem::InitSystem()
 	SET_DWORD_STAT(STAT_MutableInstanceBuildTimeAvrg, 0);
 #endif
 
+	Private->LastStreamingMemorySize = CVarClearStreamingCacheOnUpdateEnd.GetValueOnGameThread();
+
 	mu::SettingsPtr pSettings = new mu::Settings;
 	check(pSettings);
 	pSettings->SetProfile(false);
-	pSettings->SetStreamingCache(MUTABLE_STREAMING_CACHE);
+	pSettings->SetStreamingCache(Private->LastStreamingMemorySize);
 	Private->MutableSystem = new mu::System(pSettings);
 	check(Private->MutableSystem);
 
-	Private->LastStreamingMemorySize = MUTABLE_STREAMING_CACHE;
 	Private->Streamer = new FUnrealMutableModelBulkStreamer();
 	check(Private->Streamer != nullptr);
 	Private->MutableSystem->SetStreamingInterface(Private->Streamer);
@@ -1113,8 +1117,7 @@ void FCustomizableObjectSystemPrivate::UpdateStreamingLimit()
 	// This must run on game thread, and when the mutable thread is not running
 	check(IsInGameThread());
 
-	int32 VarValue = CVarStreamingMemory.GetValueOnGameThread();
-	uint64_t MemoryBytes = VarValue < 0 ? MUTABLE_STREAMING_CACHE : uint64_t(VarValue) * 1024;
+	const uint64 MemoryBytes = CVarStreamingMemory.GetValueOnGameThread() * 1024;
 	if (MemoryBytes != LastStreamingMemorySize)
 	{
 		LastStreamingMemorySize = MemoryBytes;

@@ -536,7 +536,7 @@ public:
 	mu::SystemPtr MutableSystem;
 
 	// Store the last streaming memory size in bytes, to change it when it is safe.
-	uint64_t LastStreamingMemorySize = 0;
+	uint64 LastStreamingMemorySize = 0;
 
 	// This object is responsible for streaming data to the MutableSystem.
 	// Non-owned reference

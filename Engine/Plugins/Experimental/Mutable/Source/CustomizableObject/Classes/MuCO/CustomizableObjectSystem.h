@@ -22,16 +22,6 @@ class UTexture2D;
 struct FFrame;
 struct FGuid;
 
-// This sets the amount of memory in bytes used to keep streaming data after using it, to reduce the streaming load.
-// High values use more memory, but save object construction time.
-// Setting it to 0 was the original behaviour, and keeps all the data loaded for a mutable operation until the
-// next operation.
-// This can be overwritten with the console variable b.MutableStreamingMemory
-#if !PLATFORM_DESKTOP
-	#define MUTABLE_STREAMING_CACHE				(3 * 1024 * 1024)
-#else
-	#define MUTABLE_STREAMING_CACHE				(12 * 1024 * 1024)
-#endif
 
 // Split StreamedBulkData into chunks smaller than MUTABLE_STREAMED_DATA_MAXCHUNKSIZE
 #define MUTABLE_STREAMED_DATA_MAXCHUNKSIZE		(512 * 1024 * 1024)
