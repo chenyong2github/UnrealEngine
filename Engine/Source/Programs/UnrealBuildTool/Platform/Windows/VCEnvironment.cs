@@ -214,6 +214,10 @@ namespace UnrealBuildTool
 			{
 				return FileReference.Combine(CompilerDir, "bin", "clang-cl.exe");
 			}
+			else if (Compiler == WindowsCompiler.ClangRTFM)
+			{
+				return FileReference.Combine(CompilerDir, "bin", "verse-clang-cl.exe");
+			}
 			else if (Compiler == WindowsCompiler.Intel)
 			{
 				return FileReference.Combine(CompilerDir, "windows", "bin", "icx.exe");
@@ -226,7 +230,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		FileReference GetLinkerToolPath(WindowsCompiler Compiler, UnrealArch Architecture, DirectoryReference CompilerDir, DirectoryReference ToochainDir)
 		{
-			if (Compiler == WindowsCompiler.Clang && bAllowClangLinker)
+			if ((Compiler == WindowsCompiler.Clang || Compiler == WindowsCompiler.ClangRTFM) && bAllowClangLinker)
 			{
 				return FileReference.Combine(CompilerDir, "bin", "lld-link.exe");
 			}
@@ -243,7 +247,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		FileReference GetLibraryLinkerToolPath(WindowsCompiler Compiler, UnrealArch Architecture, DirectoryReference CompilerDir, DirectoryReference ToochainDir)
 		{
-			if (Compiler == WindowsCompiler.Clang && bAllowClangLinker)
+			if ((Compiler == WindowsCompiler.Clang || Compiler == WindowsCompiler.ClangRTFM) && bAllowClangLinker)
 			{
 				// @todo: lld-link is not currently working for building .lib
 				//return FileReference.Combine(CompilerDir, "bin", "lld-link.exe");

@@ -107,6 +107,11 @@ namespace UnrealBuildTool
 		Clang,
 
 		/// <summary>
+		/// Use the RTFM (Rollback Transactions on Failure Memory) Clang variant for Verse on Windows, using the verse-clang-cl driver.
+		/// </summary>
+		ClangRTFM,
+
+		/// <summary>
 		/// Use the Intel oneAPI C++ compiler
 		/// </summary>
 		Intel,
@@ -135,7 +140,7 @@ namespace UnrealBuildTool
 		/// <returns>true if Clang based</returns>
 		public static bool IsClang(this WindowsCompiler Compiler)
 		{
-			return Compiler == WindowsCompiler.Clang || Compiler == WindowsCompiler.Intel;
+			return Compiler == WindowsCompiler.Clang || Compiler == WindowsCompiler.ClangRTFM || Compiler == WindowsCompiler.Intel;
 		}
 
 		/// <summary>
@@ -602,6 +607,7 @@ namespace UnrealBuildTool
 			switch (Compiler)
 			{
 				case WindowsCompiler.Clang:
+				case WindowsCompiler.ClangRTFM:
 				case WindowsCompiler.Intel:
 				case WindowsCompiler.VisualStudio2019:
 				case WindowsCompiler.VisualStudio2022:
