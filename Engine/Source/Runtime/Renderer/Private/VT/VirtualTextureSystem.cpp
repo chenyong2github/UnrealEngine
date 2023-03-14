@@ -2413,6 +2413,11 @@ void FVirtualTextureSystem::FinalizeRequests(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	for (FVirtualTexturePhysicalSpace* PhysicalSpace : PhysicalSpaces)
+	{
+		PhysicalSpace->FinalizeTextures(GraphBuilder);
+	}
+
 	Frame++;
 }
 

@@ -111,6 +111,8 @@ public:
 		return PooledRenderTarget[Layer];
 	}
 
+	void FinalizeTextures(FRDGBuilder& GraphBuilder);
+
 	/** Update internal tracking of residency. This is used to update stats and to calculate a mip bias to keep within the pool budget. */
 	void UpdateResidencyTracking(uint32 Frame);
 	/** Get dynamic mip bias used to keep within residency budget. */

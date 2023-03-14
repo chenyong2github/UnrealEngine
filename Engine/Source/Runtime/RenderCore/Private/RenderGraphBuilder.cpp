@@ -386,11 +386,6 @@ void FRDGBuilder::TickPoolElements()
 	}
 #endif
 
-#if RDG_EVENTS != RDG_EVENTS_NONE
-	// This is polled once as a workaround for a race condition since the underlying global is not always changed on the render thread.
-	GRDGEmitDrawEvents_RenderThread = GetEmitDrawEvents();
-#endif
-
 #if RDG_STATS
 	CSV_CUSTOM_STAT(RDGCount, Passes, GRDGStatPassCount, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(RDGCount, Buffers, GRDGStatBufferCount, ECsvCustomStatOp::Set);
@@ -572,6 +567,11 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 	, ExtendResourceLifetimeScope(RHICmdList)
 {
 	AddProloguePass();
+
+#if RDG_EVENTS != RDG_EVENTS_NONE
+	// This is polled once as a workaround for a race condition since the underlying global is not always changed on the render thread.
+	GRDGEmitDrawEvents_RenderThread = GetEmitDrawEvents();
+#endif
 
 #if RHI_WANT_BREADCRUMB_EVENTS
 	if (bParallelExecuteEnabled)

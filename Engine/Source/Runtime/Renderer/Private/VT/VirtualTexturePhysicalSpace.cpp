@@ -175,6 +175,18 @@ void FVirtualTexturePhysicalSpace::ReleaseRHI()
 	}
 }
 
+void FVirtualTexturePhysicalSpace::FinalizeTextures(FRDGBuilder& GraphBuilder)
+{
+	for (int32 Layer = 0; Layer < Description.NumLayers; ++Layer)
+	{
+		// It's only necessary to enable external access mode on textures modified by RDG this frame.
+		if (FRDGTexture* Texture = GraphBuilder.FindExternalTexture(PooledRenderTarget[Layer]))
+		{
+			GraphBuilder.UseExternalAccessMode(Texture, ERHIAccess::SRVMask);
+		}
+	}
+}
+
 uint32 FVirtualTexturePhysicalSpace::GetSizeInBytes() const
 {
 	SIZE_T TileSizeBytes = 0;
