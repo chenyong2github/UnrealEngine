@@ -161,6 +161,8 @@ void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& 
 		}
 
 		Player.PreAnimatedState.Initialize(EntitySystemLinker, RootInstanceHandle);
+
+		ResetDirectorInstances();
 	}
 }
 
