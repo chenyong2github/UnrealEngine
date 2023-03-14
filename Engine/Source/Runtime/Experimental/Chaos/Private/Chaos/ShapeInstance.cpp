@@ -27,6 +27,7 @@ namespace Chaos
 			const int32 OldShapeNum = ShapesArray.Num();
 			if (const auto* Union = Geometry->template GetObject<FImplicitObjectUnion>())
 			{
+				ShapesArray.Reserve(Union->GetObjects().Num());
 				ShapesArray.SetNum(Union->GetObjects().Num());
 
 				for (int32 ShapeIndex = 0; ShapeIndex < ShapesArray.Num(); ++ShapeIndex)
@@ -47,6 +48,7 @@ namespace Chaos
 			}
 			else
 			{
+				ShapesArray.Reserve(1);
 				ShapesArray.SetNum(1);
 				if (OldShapeNum == 0)
 				{

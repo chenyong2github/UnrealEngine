@@ -74,6 +74,7 @@ void FImplicitObjectUnion::Combine(TArray<TUniquePtr<FImplicitObject>>& OtherObj
 		MLocalBoundingBox.GrowToInclude(OtherObjects[i]->BoundingBox());
 	}
 
+	MObjects.Reserve(MObjects.Num() + OtherObjects.Num());
 	for (TUniquePtr<FImplicitObject>& ChildObject: OtherObjects)
 	{
 		MObjects.Add(MoveTemp(ChildObject));

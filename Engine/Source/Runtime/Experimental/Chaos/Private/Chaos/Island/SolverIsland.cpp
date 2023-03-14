@@ -8,18 +8,23 @@ namespace Chaos
 	namespace Private
 	{
 	
-	FPBDIsland::FPBDIsland(const int32 MaxConstraintContainers)
-	: IslandIndex(INDEX_NONE)
-	, bIsSleeping(false)
-	, bNeedsResim(false)
-	, bIsPersistent(true)
-	, SleepCounter(0)
-	, IslandParticles()
-	, IslandConstraintsByType()
-	, NumConstraints(0)
-{
-	IslandConstraintsByType.SetNum(MaxConstraintContainers);
-}
+		FPBDIsland::FPBDIsland(const int32 MaxConstraintContainers)
+			: IslandIndex(INDEX_NONE)
+			, bIsSleeping(false)
+			, bNeedsResim(false)
+			, bIsPersistent(true)
+			, SleepCounter(0)
+			, IslandParticles()
+			, IslandConstraintsByType()
+			, NumConstraints(0)
+		{
+			// NOTE: TIinlineAllocator used for IslandConstraintsByType.
+			// We do not expect this to allocate but one day we will have to figure 
+			// out how to allow users to add new constraint types and then we will 
+			// need to do something to avoid many small allocations (e.g., use a pool)
+			IslandConstraintsByType.Reserve(MaxConstraintContainers);
+			IslandConstraintsByType.SetNum(MaxConstraintContainers);
+		}
 
 		void FPBDIsland::Reuse()
 		{
