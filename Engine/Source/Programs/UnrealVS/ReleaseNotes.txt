@@ -1,3 +1,6 @@
+1.84.3.1
+* Bug fix for leaving in debugging code
+
 1.84.3
 * Added command to generate assembly file while compiling single file
 

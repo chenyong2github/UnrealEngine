@@ -69,7 +69,6 @@ namespace Unreal.TestAdapter
 			}
 			else
 			{
-				System.Diagnostics.Debugger.Launch();
 				string tempFile = Path.Combine(Path.GetTempPath(), Path.GetTempFileName());
 				using (Process process = new Process())
 				{
