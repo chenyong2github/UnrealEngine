@@ -32,6 +32,9 @@ struct CORE_API FFortniteReleaseBranchCustomObjectVersion
 
 		// Serialize out UAnimCurveCompressionCodec::InstanceGUID to maintain deterministic DDC key generation in cooked-editor
 		SerializeAnimCurveCompressionCodecGuidOnCook,
+		
+		// Fix the Nanite landscape mesh being reused because of a bad name
+		FixNaniteLandscapeMeshNames,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

@@ -3066,14 +3066,11 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 	if (Ar.IsLoading())
 	{
 		// Fixup Nanite meshes which were using the wrong material and didn't have proper UVs :
-		if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes)
-		{
-			// This will force the Nanite meshes to be properly regenerated during the next save :
-			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
-		}
-
-		// Remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeightfieldCollisionComponent :		
-		if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData)
+		if ((Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes)
+			// Remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeightfieldCollisionComponent :		
+			|| (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData)
+			// Fix the names of the generated Nanite landcape UStaticMesh so that it's unique in a given package : 
+			|| (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixNaniteLandscapeMeshNames))
 		{
 			// This will force the Nanite meshes to be properly regenerated during the next save :
 			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
@@ -3449,7 +3446,7 @@ void ALandscapeProxy::PostLoad()
 	{
 		BodyInstance.FixupData(this);
 	}
-	
+
 #if WITH_EDITOR
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	if (!LandscapeMaterialsOverride_DEPRECATED.IsEmpty())

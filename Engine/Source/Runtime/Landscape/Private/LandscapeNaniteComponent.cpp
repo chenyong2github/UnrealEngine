@@ -129,7 +129,8 @@ void ULandscapeNaniteComponent::SetEnabled(bool bValue)
 bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId)
 {
 	// Use the package as the outer, to avoid duplicating the mesh when entering PIE and duplicating all objects : 
-	UStaticMesh* NaniteStaticMesh = NewObject<UStaticMesh>(/*Outer = */GetPackage(), TEXT("LandscapeNaniteMesh"), RF_Transactional);
+	UObject* Package = GetPackage();
+	UStaticMesh* NaniteStaticMesh = NewObject<UStaticMesh>(/*Outer = */Package, MakeUniqueObjectName(/*Parent = */Package, UStaticMesh::StaticClass(), TEXT("LandscapeNaniteMesh")));
 
 	FMeshDescription* NaniteMeshDescription = nullptr;
 
