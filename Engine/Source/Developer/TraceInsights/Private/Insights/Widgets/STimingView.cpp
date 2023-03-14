@@ -2881,6 +2881,25 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Find"));
+
+		if (HoveredEvent)
+		{
+			double RangeStart = HoveredEvent->GetStartTime();
+			double RangeDuration = HoveredEvent->GetDuration();
+			
+			MenuBuilder.AddMenuEntry(
+				FText::FromString(TEXT("Select Time Range of Event")),
+				FText(),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([this, RangeStart, RangeDuration]()
+					{
+						SelectTimeInterval(RangeStart, RangeDuration);
+					})),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+
 		bHasAnyActions = true;
 	}
 	MenuBuilder.EndSection();

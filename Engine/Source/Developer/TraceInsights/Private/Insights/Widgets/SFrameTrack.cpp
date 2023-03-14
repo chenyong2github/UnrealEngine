@@ -367,7 +367,7 @@ FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(double X, double Y)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SFrameTrack::SelectFrameAtMousePosition(double X, double Y)
+void SFrameTrack::SelectFrameAtMousePosition(double X, double Y, bool JoinCurrentSelection)
 {
 	FFrameTrackSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
 	if (!SampleRef.IsValid())
@@ -387,8 +387,16 @@ void SFrameTrack::SelectFrameAtMousePosition(double X, double Y)
 			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
 			if (TimingView.IsValid())
 			{
-				const double StartTime = SampleRef.Sample->LargestFrameStartTime;
-				const double Duration = SampleRef.Sample->LargestFrameDuration;
+				double StartTime = SampleRef.Sample->LargestFrameStartTime;
+				double Duration = SampleRef.Sample->LargestFrameDuration;
+
+				if (JoinCurrentSelection)
+				{
+					double EndTime = StartTime + Duration;
+					StartTime = FMath::Min(StartTime, TimingView->GetSelectionStartTime());
+					EndTime = FMath::Max(EndTime, TimingView->GetSelectionEndTime());
+					Duration = EndTime - StartTime;
+				}
 
 				if (bZoomTimingViewOnFrameSelection)
 				{
@@ -937,7 +945,12 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsValidForMouseClick)
 			{
-				SelectFrameAtMousePosition(static_cast<float>(MousePositionOnButtonUp.X), static_cast<float>(MousePositionOnButtonUp.Y));
+				const bool JoinCurrentSelection = MouseEvent.IsShiftDown();
+
+				SelectFrameAtMousePosition(
+					static_cast<float>(MousePositionOnButtonUp.X), 
+					static_cast<float>(MousePositionOnButtonUp.Y), 
+					JoinCurrentSelection);
 			}
 
 			bIsLMB_Pressed = false;
