@@ -526,6 +526,10 @@ void UMovieSceneControlRigParameterTrack::PostEditImport()
 	Super::PostEditImport();
 	if (ControlRig)
 	{
+		if (ControlRig->OnInitialized_AnyThread().IsBoundToObject(this) == false)
+		{
+			ControlRig->OnInitialized_AnyThread().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnInitialized);
+		}
 		ControlRig->ClearFlags(RF_Transient); //when copied make sure it's no longer transient, sequencer does this for tracks/sections 
 											  //but not for all objects in them since the control rig itself has transient objects.
 	}
