@@ -21,9 +21,15 @@ enum class EFragmentInitialization : uint8
 
 struct FMassEntityTemplateBuildContext
 {
-	explicit FMassEntityTemplateBuildContext(FMassEntityTemplate& InTemplate)
-		: Template(InTemplate)
+	explicit FMassEntityTemplateBuildContext(FMassEntityTemplateData& InTemplate, FMassEntityTemplateID InTemplateID = FMassEntityTemplateID())
+		: TemplateData(InTemplate)
+		, TemplateID(InTemplateID)
 	{}
+
+	void SetTemplateName(const FString& Name)
+	{
+		TemplateData.SetTemplateName(Name);
+	}
 
 	//----------------------------------------------------------------------//
 	// Fragments 
@@ -32,35 +38,35 @@ struct FMassEntityTemplateBuildContext
 	T& AddFragment_GetRef()
 	{
 		TypeAdded(*T::StaticStruct());
-		return Template.AddFragment_GetRef<T>();
+		return TemplateData.AddFragment_GetRef<T>();
 	}
 
 	template<typename T>
 	void AddFragment()
 	{
 		TypeAdded(*T::StaticStruct());
-		Template.AddFragment<T>();
+		TemplateData.AddFragment<T>();
 	}
 
 	void AddFragment(FConstStructView InFragment)
 	{ 
 		checkf(InFragment.GetScriptStruct(), TEXT("Expecting a valid fragment type"));
 		TypeAdded(*InFragment.GetScriptStruct());
-		Template.AddFragment(InFragment);
+		TemplateData.AddFragment(InFragment);
 	}
 
 	template<typename T>
 	void AddTag()
 	{
 		// Tags can be added by multiple traits, so they do not follow the same rules as fragments
-		Template.AddTag<T>();
+		TemplateData.AddTag<T>();
 		TypeAdded(*T::StaticStruct());
 	}
 
 	void AddTag(const UScriptStruct& TagType)
 	{
 		// Tags can be added by multiple traits, so they do not follow the same rules as fragments
-		Template.AddTag(TagType);
+		TemplateData.AddTag(TagType);
 		TypeAdded(TagType);
 	}
 
@@ -68,60 +74,60 @@ struct FMassEntityTemplateBuildContext
 	void AddChunkFragment()
 	{
 		TypeAdded(*T::StaticStruct());
-		Template.AddChunkFragment<T>();
+		TemplateData.AddChunkFragment<T>();
 	}
 
 	void AddConstSharedFragment(const FConstSharedStruct& InSharedFragment)
 	{
 		checkf(InSharedFragment.GetScriptStruct(), TEXT("Expecting a valide shared fragment type"));
 		TypeAdded(*InSharedFragment.GetScriptStruct());
-		Template.AddConstSharedFragment(InSharedFragment);
+		TemplateData.AddConstSharedFragment(InSharedFragment);
 	}
 
 	void AddSharedFragment(const FSharedStruct& InSharedFragment)
 	{
 		checkf(InSharedFragment.GetScriptStruct(), TEXT("Expecting a valide shared fragment type"));
 		TypeAdded(*InSharedFragment.GetScriptStruct());
-		Template.AddSharedFragment(InSharedFragment);
+		TemplateData.AddSharedFragment(InSharedFragment);
 	}
 
 	template<typename T>
 	bool HasFragment() const
 	{
 		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
-		return Template.HasFragment<T>();
+		return TemplateData.HasFragment<T>();
 	}
 	
 	bool HasFragment(const UScriptStruct& ScriptStruct) const
 	{
 		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
-		return Template.HasFragment(ScriptStruct);
+		return TemplateData.HasFragment(ScriptStruct);
 	}
 
 	template<typename T>
 	bool HasTag() const
 	{
-		return Template.HasTag<T>();
+		return TemplateData.HasTag<T>();
 	}
 
 	template<typename T>
 	bool HasChunkFragment() const
 	{
 		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
-		return Template.HasChunkFragment<T>();
+		return TemplateData.HasChunkFragment<T>();
 	}
 
 	template<typename T>
 	bool HasSharedFragment() const
 	{
 		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
-		return Template.HasSharedFragment<T>();
+		return TemplateData.HasSharedFragment<T>();
 	}
 
 	bool HasSharedFragment(const UScriptStruct& ScriptStruct) const
 	{
 		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
-		return Template.HasSharedFragment(ScriptStruct);
+		return TemplateData.HasSharedFragment(ScriptStruct);
 	}
 
 	//----------------------------------------------------------------------//
@@ -131,7 +137,7 @@ struct FMassEntityTemplateBuildContext
 	void AddTranslator()
 	{
 		TypeAdded(*T::StaticClass());
-		GetDefault<T>()->AppendRequiredTags(Template.GetMutableTags());
+		GetDefault<T>()->AppendRequiredTags(TemplateData.GetMutableTags());
 	}
 
 	//----------------------------------------------------------------------//
@@ -157,8 +163,8 @@ struct FMassEntityTemplateBuildContext
 	//----------------------------------------------------------------------//
 	// Template access
 	//----------------------------------------------------------------------//
-	FMassEntityTemplateID GetTemplateID() const { return Template.GetTemplateID(); }
-	TArray<FMassEntityTemplate::FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return Template.GetMutableObjectFragmentInitializers(); }
+	FMassEntityTemplateID GetTemplateID() const { return TemplateID; }
+	TArray<FMassEntityTemplateData::FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return TemplateData.GetMutableObjectFragmentInitializers(); }
 
 	//----------------------------------------------------------------------//
 	// Build methods
@@ -193,7 +199,8 @@ protected:
 	TMultiMap<const UStruct*, const UMassEntityTraitBase*> TraitAddedTypes;
 	TArray< TTuple<const UStruct*, const UMassEntityTraitBase*> > TraitsDependencies;
 
-	FMassEntityTemplate& Template;
+	FMassEntityTemplateData& TemplateData;
+	FMassEntityTemplateID TemplateID;
 };
 
 /** @todo document 
@@ -204,7 +211,9 @@ struct MASSSPAWNER_API FMassEntityTemplateRegistry
 	DECLARE_DELEGATE_ThreeParams(FStructToTemplateBuilderDelegate, const UWorld* /*World*/, const FConstStructView /*InStructInstance*/, FMassEntityTemplateBuildContext& /*BuildContext*/);
 
 	explicit FMassEntityTemplateRegistry(UObject* InOwner = nullptr);
-	
+
+	void ShutDown();
+
 	UWorld* GetWorld() const;
 
 	static FStructToTemplateBuilderDelegate& FindOrAdd(const UScriptStruct& DataType);
@@ -212,21 +221,42 @@ struct MASSSPAWNER_API FMassEntityTemplateRegistry
 	/** Removes all the cached template instances */
 	void DebugReset();
 
-	const FMassEntityTemplate* FindTemplateFromTemplateID(FMassEntityTemplateID TemplateID) const;
+	const TSharedRef<FMassEntityTemplate>* FindTemplateFromTemplateID(FMassEntityTemplateID TemplateID) const;
+
+	/**
+	 * Adds a template based on TemplateData
+	 */
+	const TSharedRef<FMassEntityTemplate>& AddTemplate(FMassEntityTemplateID TemplateID, FMassEntityTemplateData&& TemplateData);
+
+	const TSharedRef<FMassEntityTemplate>& AddTemplate(FMassEntityTemplateData&& TemplateData);
+
+	UE_DEPRECATED(5.3, "We no longer support fething mutable templates from the TemplateRegistry. Stored templates are considered const.")
 	FMassEntityTemplate* FindMutableTemplateFromTemplateID(FMassEntityTemplateID TemplateID);
 
-	FMassEntityTemplate& CreateTemplate(FMassEntityTemplateID TemplateID);
+	UE_DEPRECATED(5.3, "CreateTemplate is no longer available. Use AddTemplate instead.")
+	FMassEntityTemplate& CreateTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID);
+
 	void DestroyTemplate(FMassEntityTemplateID TemplateID);
+
+	UE_DEPRECATED(5.3, "InitializeEntityTemplate is no longer available. Use AddTemplate instead.")
 	void InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const;
 
-protected:
-	/** @return true if a template has been built, false otherwise */
-	bool BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FConstStructView StructInstance, FMassEntityTemplate& OutTemplate);
+	/** Stores the EntityManager the templates will be associated with. 
+	 *  Note that the function will only let users set the EntityManager once. Once it's set the subsequent calls will 
+	 *  have no effect. If attempting to set a different EntityManaget an ensure will trigger. */
+	void StoreEntityManager(const TSharedPtr<FMassEntityManager>& InEntityManager);
+	FMassEntityManager& GetEntityManagerChecked() { check(EntityManager); return *EntityManager; }
 
 protected:
 	static TMap<const UScriptStruct*, FStructToTemplateBuilderDelegate> StructBasedBuilders;
 
-	TMap<FMassEntityTemplateID, FMassEntityTemplate> TemplateIDToTemplateMap;
+	TMap<FMassEntityTemplateID, TSharedRef<FMassEntityTemplate>> TemplateIDToTemplateMap;
+
+	/** 
+	 * EntityManager the hosted templates are associated with. Storing instead of fetching at runtime to ensure all 
+	 *	templates are tied to the same EntityManager
+	 */
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	TWeakObjectPtr<UObject> Owner;
 };

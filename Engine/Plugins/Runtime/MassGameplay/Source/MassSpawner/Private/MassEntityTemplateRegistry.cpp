@@ -48,8 +48,8 @@ namespace FTemplateRegistryHelpers
 		TEXT("Clears all the runtime information cached by MassEntityTemplateRegistry. Will result in lazily building all entity templates again."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ResetEntityTemplates)
 	);
+} // namespace FTemplateRegistryHelpers
 
-}
 
 //----------------------------------------------------------------------//
 // FMassEntityTemplateRegistry 
@@ -59,6 +59,12 @@ TMap<const UScriptStruct*, FMassEntityTemplateRegistry::FStructToTemplateBuilder
 FMassEntityTemplateRegistry::FMassEntityTemplateRegistry(UObject* InOwner)
 	: Owner(InOwner)
 {
+}
+
+void FMassEntityTemplateRegistry::ShutDown()
+{
+	TemplateIDToTemplateMap.Reset();
+	EntityManager = nullptr;
 }
 
 UWorld* FMassEntityTemplateRegistry::GetWorld() const 
@@ -71,35 +77,15 @@ FMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate& FMassEntityTempla
 	return StructBasedBuilders.FindOrAdd(&DataType);
 }
 
-bool FMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FConstStructView StructInstance, FMassEntityTemplate& OutTemplate)
+void FMassEntityTemplateRegistry::StoreEntityManager(const TSharedPtr<FMassEntityManager>& InEntityManager)
 {
-	UWorld* World = GetWorld();
-	FMassEntityTemplateBuildContext Context(OutTemplate);
-	Builder.Execute(World, StructInstance, Context);
-	if (ensure(!OutTemplate.IsEmpty())) // need at least one fragment to create an Archetype
+	if (EntityManager)
 	{
-		InitializeEntityTemplate(OutTemplate);
-
-		UE_VLOG(Owner.Get(), LogMassSpawner, Log, TEXT("Created entity template for %s:\n%s"), *GetNameSafe(StructInstance.GetScriptStruct())
-			, *OutTemplate.DebugGetDescription(UE::Mass::Utils::GetEntityManager(World)));
-
-		return true;
+		ensureMsgf(EntityManager == InEntityManager, TEXT("Attempting to store a different EntityManager then the previously stored one - this indicated a set up issue, attempting to use multiple EntityManager instances"));
+		return;
 	}
-	return false;
-}
 
-void FMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const
-{
-	UWorld* World = GetWorld();
-	check(World);
-	// find or create template
-	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World);
-
-	// Sort anything there is to sort for later comparison purposes
-	InOutTemplate.Sort();
-
-	const FMassArchetypeHandle ArchetypeHandle = EntityManager.CreateArchetype(InOutTemplate.GetCompositionDescriptor(), FName(InOutTemplate.GetTemplateName()));
-	InOutTemplate.SetArchetype(ArchetypeHandle);
+	EntityManager = InEntityManager;
 }
 
 void FMassEntityTemplateRegistry::DebugReset()
@@ -109,22 +95,36 @@ void FMassEntityTemplateRegistry::DebugReset()
 #endif // WITH_MASSGAMEPLAY_DEBUG
 }
 
-const FMassEntityTemplate* FMassEntityTemplateRegistry::FindTemplateFromTemplateID(FMassEntityTemplateID TemplateID) const 
+const TSharedRef<FMassEntityTemplate>* FMassEntityTemplateRegistry::FindTemplateFromTemplateID(FMassEntityTemplateID TemplateID) const
 {
 	return TemplateIDToTemplateMap.Find(TemplateID);
 }
 
-FMassEntityTemplate* FMassEntityTemplateRegistry::FindMutableTemplateFromTemplateID(FMassEntityTemplateID TemplateID) 
+const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::AddTemplate(FMassEntityTemplateID TemplateID, FMassEntityTemplateData&& TemplateData)
 {
-	return TemplateIDToTemplateMap.Find(TemplateID);
+	check(EntityManager);
+	const TSharedRef<FMassEntityTemplate>* ExistingTemplate = FindTemplateFromTemplateID(TemplateID);
+	if (!ensureMsgf(ExistingTemplate == nullptr, TEXT("")))
+	{
+		return *ExistingTemplate;
+	}
+
+	return TemplateIDToTemplateMap.Add(TemplateID, FMassEntityTemplate::MakeFinalTemplate(*EntityManager, MoveTemp(TemplateData), TemplateID));
 }
 
-FMassEntityTemplate& FMassEntityTemplateRegistry::CreateTemplate(FMassEntityTemplateID TemplateID)
+const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::AddTemplate(FMassEntityTemplateData&& TemplateData)
 {
-	checkSlow(!TemplateIDToTemplateMap.Contains(TemplateID));
-	FMassEntityTemplate& NewTemplate = TemplateIDToTemplateMap.Add(TemplateID);
-	NewTemplate.SetTemplateID(TemplateID);
-	return NewTemplate;
+	const FMassEntityTemplateID NewTemplateID = FMassEntityTemplateIDFactory::Make(TemplateData);
+
+	check(EntityManager);
+	const TSharedRef<FMassEntityTemplate>* ExistingTemplate = FindTemplateFromTemplateID(NewTemplateID);
+
+	if (!ensureMsgf(ExistingTemplate == nullptr, TEXT("")))
+	{
+		return *ExistingTemplate;
+	}
+
+	return TemplateIDToTemplateMap.Add(NewTemplateID, FMassEntityTemplate::MakeFinalTemplate(*EntityManager, MoveTemp(TemplateData), NewTemplateID));
 }
 
 void FMassEntityTemplateRegistry::DestroyTemplate(FMassEntityTemplateID TemplateID)
@@ -229,5 +229,22 @@ bool FMassEntityTemplateBuildContext::ValidateBuildContext(const UWorld& World)
 
 	return !bFragmentHasMultipleOwners && !bMissingFragmentDependencies;
 }
+
+//-----------------------------------------------------------------------------
+// DEPRECATED
+//-----------------------------------------------------------------------------
+FMassEntityTemplate* FMassEntityTemplateRegistry::FindMutableTemplateFromTemplateID(FMassEntityTemplateID TemplateID)
+{
+	return nullptr;
+}
+
+FMassEntityTemplate& FMassEntityTemplateRegistry::CreateTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID)
+{
+	static FMassEntityTemplate Dummy;
+	return Dummy;
+}
+
+void FMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const
+{}
 
 #undef LOCTEXT_NAMESPACE 

@@ -3,7 +3,8 @@
 #include "MassEntityTemplate.h"
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "MassDebugger.h"
-
+#include "MassSpawnerTypes.h"
+#include "StructUtilsTypes.h"
 
 //----------------------------------------------------------------------//
 //  FMassEntityTemplateID
@@ -14,16 +15,80 @@ FString FMassEntityTemplateID::ToString() const
 }
 
 //----------------------------------------------------------------------//
-//  FMassEntityTemplate
+//  FMassEntityTemplateData
 //----------------------------------------------------------------------//
+uint32 GetTypeHash(const FMassEntityTemplateData& Template)
+{
+	const uint32 CompositionHash = Template.Composition.CalculateHash();
+	const uint32 SharedFragmentValuesHash = GetTypeHash(Template.SharedFragmentValues);
+	
+	uint32 InitialValuesHash = 0;
+	// Initial fragment values, this is not part of the archetype as it is the spawner job to set them.
+	for (const FInstancedStruct& Struct : Template.InitialFragmentValues)
+	{
+		InitialValuesHash = UE::StructUtils::GetStructCrc32(Struct, InitialValuesHash);
+	}
+
+	// These functions will be called to initialize entity's UObject-based fragments
+	// @todo this is very bad for hash creation - no way to make this consistent between client server. Might need some "initializer index"
+	uint32 InitializersHash = 0;
+	/* left here on purpose, will address in following CLs
+	for (const FMassEntityTemplateData::FObjectFragmentInitializerFunction& Initializer : Template.ObjectInitializers)
+	{
+		InitializersHash = HashCombine(InitializersHash, GetTypeHash(Initializer));
+	}*/
+
+	// @todo maybe better to have two separate hashes - one for composition and maybe shared fragments, and then the other one for the rest, and use multimap for look up
+	return HashCombine(HashCombine(CompositionHash, SharedFragmentValuesHash), HashCombine(InitialValuesHash, InitializersHash));
+}
+
+//-----------------------------------------------------------------------------
+// FMassEntityTemplate
+//-----------------------------------------------------------------------------
+TSharedRef<FMassEntityTemplate> FMassEntityTemplate::MakeFinalTemplate(FMassEntityManager& EntityManager, FMassEntityTemplateData&& TempTemplateData, FMassEntityTemplateID InTemplateID)
+{
+	return MakeShared<FMassEntityTemplate>(MoveTemp(TempTemplateData), EntityManager, InTemplateID);
+}
+
+FMassEntityTemplate::FMassEntityTemplate(const FMassEntityTemplateData& InData, FMassEntityManager& EntityManager, FMassEntityTemplateID InTemplateID)
+	: Super(InData)
+	, TemplateID(InTemplateID)
+{
+	// Sort anything there is to sort for later comparison purposes
+	Sort();
+
+	const FMassArchetypeHandle ArchetypeHandle = EntityManager.CreateArchetype(GetCompositionDescriptor(), FName(GetTemplateName()));
+	SetArchetype(ArchetypeHandle);
+}
+
+FMassEntityTemplate::FMassEntityTemplate(FMassEntityTemplateData&& InData, FMassEntityManager& EntityManager, FMassEntityTemplateID InTemplateID)
+	: Super(InData)
+	, TemplateID(InTemplateID)
+{
+	// Sort anything there is to sort for later comparison purposes
+	Sort();
+
+	const FMassArchetypeHandle ArchetypeHandle = EntityManager.CreateArchetype(GetCompositionDescriptor(), FName(GetTemplateName()));
+	SetArchetype(ArchetypeHandle);
+}
+
 void FMassEntityTemplate::SetArchetype(const FMassArchetypeHandle& InArchetype)
 {
 	check(InArchetype.IsValid());
 	Archetype = InArchetype;
 }
 
+FString FMassEntityTemplate::DebugGetArchetypeDescription(FMassEntityManager& EntityManager) const
+{
+	FStringOutputDevice OutDescription;
+#if WITH_MASSGAMEPLAY_DEBUG
+	FMassDebugger::OutputArchetypeDescription(OutDescription, Archetype);
+#endif // WITH_MASSGAMEPLAY_DEBUG
+	return MoveTemp(OutDescription);
+}
+
 FString FMassEntityTemplate::DebugGetDescription(FMassEntityManager* EntityManager) const
-{ 
+{
 	FStringOutputDevice Ar;
 #if WITH_MASSGAMEPLAY_DEBUG
 	Ar.SetAutoEmitLineTerminator(true);
@@ -43,11 +108,16 @@ FString FMassEntityTemplate::DebugGetDescription(FMassEntityManager* EntityManag
 	return MoveTemp(Ar);
 }
 
-FString FMassEntityTemplate::DebugGetArchetypeDescription(FMassEntityManager& EntityManager) const
+//-----------------------------------------------------------------------------
+// FMassEntityTemplateIDFactory
+//-----------------------------------------------------------------------------
+FMassEntityTemplateID FMassEntityTemplateIDFactory::Make(const FMassEntityTemplateData& TemplateData)
 {
-	FStringOutputDevice OutDescription;
-#if WITH_MASSGAMEPLAY_DEBUG
-	FMassDebugger::OutputArchetypeDescription(OutDescription, Archetype);
-#endif // WITH_MASSGAMEPLAY_DEBUG
-	return MoveTemp(OutDescription);
+	return FMassEntityTemplateID(GetTypeHash(TemplateData));
+}
+
+FMassEntityTemplateID FMassEntityTemplateIDFactory::Make(TConstArrayView<UMassEntityTraitBase*> Traits)
+{
+	const uint32 HashOut = UE::MassSpawner::HashTraits(Traits);
+	return FMassEntityTemplateID(HashOut);
 }

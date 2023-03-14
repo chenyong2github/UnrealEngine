@@ -7,10 +7,14 @@
 #include "MassEntityManager.h"
 #include "MassCommonTypes.h"
 #include "MassTranslator.h"
+#include "Templates/SharedPointer.h"
 #include "MassEntityTemplate.generated.h"
 
 
+class UMassEntityTraitBase;
 struct FMassEntityView;
+struct FMassEntityTemplateIDFactory;
+
 
 //ID of the template an entity is using
 USTRUCT()
@@ -21,22 +25,21 @@ struct MASSSPAWNER_API FMassEntityTemplateID
 	FMassEntityTemplateID()
 		: bIsSet(false)
 	{}
+
+private:
+	friend FMassEntityTemplateIDFactory;
+	// use FMassEntityTemplateIDFactory to access this constructor flavor
 	explicit FMassEntityTemplateID(uint32 InHash)
 		: Hash(InHash), bIsSet(true)
 	{}
 
+public:
 	uint32 GetHash() const 
 	{
 		checkSlow(bIsSet);
 		return Hash; 
 	}
 	
-	void SetHash(uint32 InHash) 
-	{ 
-		Hash = InHash; 
-		bIsSet = true;
-	}
-
 	void Invalidate(uint32 InHash)
 	{
 		// the exact value we set here doesn't really matter, but just to keep the possible states consistent we set it 
@@ -67,35 +70,29 @@ protected:
 	uint8 bIsSet : 1;
 };
 
+
 /** @todo document	*/
 USTRUCT()
-struct MASSSPAWNER_API FMassEntityTemplate
+struct MASSSPAWNER_API FMassEntityTemplateData
 {
 	GENERATED_BODY()
 
 	typedef TFunction<void(UObject& /*Owner*/, FMassEntityView& /*EntityView*/, const EMassTranslationDirection /*CurrentDirection*/)> FObjectFragmentInitializerFunction;
 
-	FMassEntityTemplate() = default;
-	/** InArchetype is expected to be valid. The function will crash-check it. */
-	void SetArchetype(const FMassArchetypeHandle& InArchetype);
-	const FMassArchetypeHandle& GetArchetype() const { return Archetype; }
+	FMassEntityTemplateData() = default;
 
-	TConstArrayView<FObjectFragmentInitializerFunction> GetObjectFragmentInitializers() const { return ObjectInitializers; }
-	TArray<FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return ObjectInitializers; }
-
-	bool IsValid() const { return Archetype.IsValid(); }
 	bool IsEmpty() const { return Composition.IsEmpty(); }
 
-	void SetTemplateID(FMassEntityTemplateID InTemplateID) { TemplateID = InTemplateID; }
-	FMassEntityTemplateID GetTemplateID() const { return TemplateID; }
-
-	void SetTemplateName(const FString& Name) { TemplateName = Name; }
+	TConstArrayView<FObjectFragmentInitializerFunction> GetObjectFragmentInitializers() const { return ObjectInitializers; }
 	const FString& GetTemplateName() const { return TemplateName; }
-	
 	const FMassArchetypeCompositionDescriptor& GetCompositionDescriptor() const { return Composition; }
 	const FMassArchetypeSharedFragmentValues& GetSharedFragmentValues() const { return SharedFragmentValues; }
 	TConstArrayView<FInstancedStruct> GetInitialFragmentValues() const { return InitialFragmentValues; }
 
+	TArray<FMassEntityTemplateData::FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return ObjectInitializers; }
+
+	void SetTemplateName(const FString& Name) { TemplateName = Name; }
+	
 	template<typename T>
 	void AddFragment()
 	{
@@ -109,6 +106,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		Composition.Fragments.Add(FragmentType);
 	}
 
+	// @todo this function is doing nothing if a given fragment's initial value has already been created. This seems inconsistent with the other AddFragment functions (especially AddFragment_GetRef).
 	void AddFragment(FConstStructView Fragment)
 	{
 		const UScriptStruct* FragmentType = Fragment.GetScriptStruct();
@@ -206,9 +204,6 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		}
 	}
 
-	FString DebugGetDescription(FMassEntityManager* EntityManager = nullptr) const;
-	FString DebugGetArchetypeDescription(FMassEntityManager& EntityManager) const;
-
 	template<typename T>
 	bool HasFragment() const
 	{
@@ -243,24 +238,59 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		return Composition.SharedFragments.Contains(ScriptStruct);
 	}
 
+	friend uint32 GetTypeHash(const FMassEntityTemplateData& Template);
+
+protected:
 	void Sort()
 	{
 		SharedFragmentValues.Sort();
 	}
 
-private:
-	FMassArchetypeHandle Archetype;
-
+protected:
 	FMassArchetypeCompositionDescriptor Composition;
 	FMassArchetypeSharedFragmentValues SharedFragmentValues;
-	
+
 	// Initial fragment values, this is not part of the archetype as it is the spawner job to set them.
 	TArray<FInstancedStruct> InitialFragmentValues;
 
 	// These functions will be called to initialize entity's UObject-based fragments
 	TArray<FObjectFragmentInitializerFunction> ObjectInitializers;
 
-	FMassEntityTemplateID TemplateID;
-
 	FString TemplateName;
+};
+
+
+struct MASSSPAWNER_API FMassEntityTemplate final : public FMassEntityTemplateData, public TSharedFromThis<FMassEntityTemplate> 
+{
+	using Super = FMassEntityTemplateData;
+	friend TSharedFromThis<FMassEntityTemplate>;
+
+	FMassEntityTemplate() = default;
+	FMassEntityTemplate(const FMassEntityTemplateData& InData, FMassEntityManager& EntityManager, FMassEntityTemplateID InTemplateID);
+	FMassEntityTemplate(FMassEntityTemplateData&& InData, FMassEntityManager& EntityManager, FMassEntityTemplateID InTemplateID);
+
+	/** InArchetype is expected to be valid. The function will crash-check it. */
+	void SetArchetype(const FMassArchetypeHandle& InArchetype);
+	const FMassArchetypeHandle& GetArchetype() const { return Archetype; }
+
+	bool IsValid() const { return Archetype.IsValid(); }
+
+	void SetTemplateID(FMassEntityTemplateID InTemplateID) { TemplateID = InTemplateID; }
+	FMassEntityTemplateID GetTemplateID() const { return TemplateID; }
+
+	FString DebugGetDescription(FMassEntityManager* EntityManager = nullptr) const;
+	FString DebugGetArchetypeDescription(FMassEntityManager& EntityManager) const;
+
+	static TSharedRef<FMassEntityTemplate> MakeFinalTemplate(FMassEntityManager& EntityManager, FMassEntityTemplateData&& TempTemplateData, FMassEntityTemplateID InTemplateID);
+
+private:
+	FMassArchetypeHandle Archetype;
+	FMassEntityTemplateID TemplateID;
+};
+
+
+struct FMassEntityTemplateIDFactory
+{
+	static FMassEntityTemplateID Make(const FMassEntityTemplateData& TemplateData);
+	static FMassEntityTemplateID Make(TConstArrayView<UMassEntityTraitBase*> Traits);
 };

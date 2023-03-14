@@ -36,11 +36,13 @@ void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UWorld* World = GetWorld();
 	check(World);
 	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World).AsShared();
+	TemplateRegistryInstance.StoreEntityManager(EntityManager);
 }
 
 void UMassSpawnerSubsystem::Deinitialize() 
 {
 	EntityManager.Reset();
+	TemplateRegistryInstance.ShutDown();
 }
 
 void UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTemplate, const uint32 NumberToSpawn, TArray<FMassEntityHandle>& OutEntities)
@@ -61,10 +63,10 @@ void UMassSpawnerSubsystem::SpawnEntities(FMassEntityTemplateID TemplateID, cons
 {
 	check(TemplateID.IsValid());
 
-	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance.FindTemplateFromTemplateID(TemplateID);
-	checkf(EntityTemplate && EntityTemplate->IsValid(), TEXT("SpawnEntities: TemplateID must have been registered!"));
+	const TSharedRef<FMassEntityTemplate>* EntityTemplate = TemplateRegistryInstance.FindTemplateFromTemplateID(TemplateID);
+	checkf(EntityTemplate, TEXT("SpawnEntities: TemplateID must have been registered!"));
 
-	DoSpawning(*EntityTemplate, NumberToSpawn, SpawnData, InitializerClass, OutEntities);
+	DoSpawning(EntityTemplate->Get(), NumberToSpawn, SpawnData, InitializerClass, OutEntities);
 }
 
 void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID TemplateID, TConstArrayView<FMassEntityHandle> Entities)
@@ -153,5 +155,6 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 const FMassEntityTemplate* UMassSpawnerSubsystem::GetMassEntityTemplate(FMassEntityTemplateID TemplateID) const
 {
 	check(TemplateID.IsValid());
-	return TemplateRegistryInstance.FindTemplateFromTemplateID(TemplateID);
+	const TSharedRef<FMassEntityTemplate>* TemplateFound = TemplateRegistryInstance.FindTemplateFromTemplateID(TemplateID);
+	return TemplateFound ? &TemplateFound->Get() : nullptr;
 }

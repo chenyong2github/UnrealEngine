@@ -20,11 +20,12 @@
 namespace FMassAgentSubsystemHelper
 {
 
-inline void InitializeAgentComponentFragments(const UMassAgentComponent& AgentComp, FMassEntityView& EntityView, const EMassTranslationDirection Direction, TConstArrayView<FMassEntityTemplate::FObjectFragmentInitializerFunction> ObjectFragmentInitializers)
+inline void InitializeAgentComponentFragments(const UMassAgentComponent& AgentComp, FMassEntityView& EntityView, const EMassTranslationDirection Direction
+	, TConstArrayView<FMassEntityTemplateData::FObjectFragmentInitializerFunction> ObjectFragmentInitializers)
 {
 	AActor* Owner = AgentComp.GetOwner();
 	check(Owner);
-	for (const FMassEntityTemplate::FObjectFragmentInitializerFunction& Initializer : ObjectFragmentInitializers)
+	for (const FMassEntityTemplateData::FObjectFragmentInitializerFunction& Initializer : ObjectFragmentInitializers)
 	{
 		Initializer(*Owner, EntityView, Direction);
 	}
@@ -306,8 +307,9 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 	for (TTuple<FMassEntityTemplateID, FMassAgentInitializationQueue>& Data : PendingAgentEntities)
 	{
 		const FMassEntityTemplateID EntityTemplateID = Data.Get<0>();
-		const FMassEntityTemplate* EntityTemplate = SpawnerSystem->GetTemplateRegistryInstance().FindTemplateFromTemplateID(EntityTemplateID);
-		check(EntityTemplate);
+		const TSharedRef<FMassEntityTemplate>* EntityTemplatePtr = SpawnerSystem->GetTemplateRegistryInstance().FindTemplateFromTemplateID(EntityTemplateID);
+		check(EntityTemplatePtr);
+		const FMassEntityTemplate& EntityTemplate = EntityTemplatePtr->Get();
 		
 		TArray<UMassAgentComponent*>& AgentComponents = Data.Get<1>().AgentComponents;
 		const int32 NewEntityCount = AgentComponents.Num();
@@ -319,16 +321,16 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 		}
 		
 		TArray<FMassEntityHandle> Entities;
-		SpawnerSystem->SpawnEntities(*EntityTemplate, NewEntityCount, Entities);
+		SpawnerSystem->SpawnEntities(EntityTemplate, NewEntityCount, Entities);
 		check(Entities.Num() == NewEntityCount);
 
-		if (EntityTemplate->GetObjectFragmentInitializers().Num())
+		if (EntityTemplate.GetObjectFragmentInitializers().Num())
 		{
-			const TConstArrayView<FMassEntityTemplate::FObjectFragmentInitializerFunction> ObjectFragmentInitializers = EntityTemplate->GetObjectFragmentInitializers();
+			const TConstArrayView<FMassEntityTemplateData::FObjectFragmentInitializerFunction> ObjectFragmentInitializers = EntityTemplate.GetObjectFragmentInitializers();
 
 			for (int AgentIndex = 0; AgentIndex < Entities.Num(); ++AgentIndex)
 			{
-				FMassEntityView EntityView(EntityTemplate->GetArchetype(), Entities[AgentIndex]);
+				FMassEntityView EntityView(EntityTemplate.GetArchetype(), Entities[AgentIndex]);
 				FMassAgentSubsystemHelper::InitializeAgentComponentFragments(*AgentComponents[AgentIndex], EntityView, EMassTranslationDirection::ActorToMass, ObjectFragmentInitializers);
 			}
 		}
@@ -344,14 +346,16 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 	for (TTuple<FMassEntityTemplateID, FMassAgentInitializationQueue>& Data : PendingPuppets)
 	{
 		const FMassEntityTemplateID EntityTemplateID = Data.Get<0>();
-		const FMassEntityTemplate* EntityTemplate = SpawnerSystem->GetTemplateRegistryInstance().FindTemplateFromTemplateID(EntityTemplateID);
-		if (!ensure(EntityTemplate))
+		const TSharedRef<FMassEntityTemplate>* EntityTemplatePtr = SpawnerSystem->GetTemplateRegistryInstance().FindTemplateFromTemplateID(EntityTemplateID);
+
+		if (!ensure(EntityTemplatePtr))
 		{
 			// note that this condition is temporary, we'll be switched to a `check` once we set up characters
 			continue;
 		}
+		const FMassEntityTemplate& EntityTemplate = EntityTemplatePtr->Get();
 
-		const FMassArchetypeCompositionDescriptor TemplateDescriptor = EntityTemplate->GetCompositionDescriptor();
+		const FMassArchetypeCompositionDescriptor TemplateDescriptor = EntityTemplate.GetCompositionDescriptor();
 
 		TArray<UMassAgentComponent*>& AgentComponents = Data.Get<1>().AgentComponents;
 
@@ -367,11 +371,11 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 			PuppetDescriptor = TemplateDescriptor;
 			EntityManager->AddCompositionToEntity_GetDelta(PuppetEntity, PuppetDescriptor);
 			
-			if (EntityTemplate->GetObjectFragmentInitializers().Num())
+			if (EntityTemplate.GetObjectFragmentInitializers().Num())
 			{
 				const FMassArchetypeHandle ArchetypeHandle = EntityManager->GetArchetypeForEntity(PuppetEntity);
 				FMassEntityView EntityView(ArchetypeHandle, PuppetEntity);
-				FMassAgentSubsystemHelper::InitializeAgentComponentFragments(*AgentComp, EntityView, EMassTranslationDirection::MassToActor, EntityTemplate->GetObjectFragmentInitializers());
+				FMassAgentSubsystemHelper::InitializeAgentComponentFragments(*AgentComp, EntityView, EMassTranslationDirection::MassToActor, EntityTemplate.GetObjectFragmentInitializers());
 			}
 
 			AgentComp->PuppetInitializationDone();

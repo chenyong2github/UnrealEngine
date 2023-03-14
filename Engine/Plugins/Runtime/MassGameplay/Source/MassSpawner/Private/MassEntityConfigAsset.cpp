@@ -67,18 +67,14 @@ const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UW
 	// TODO: Add methods to FMassEntityTemplateBuildContext to indicate dependency vs setup.
 	// Dependency should add a fragment with default values (which later can be overridden),
 	// while setup would override values and should be run just once.
-	FMassEntityTemplate& Template = TemplateRegistry.CreateTemplate(TemplateID);
-	FMassEntityTemplateBuildContext BuildContext(Template);
+
+	FMassEntityTemplate Template;
+	FMassEntityTemplateBuildContext BuildContext(Template, TemplateID);
 
 	BuildContext.BuildFromTraits(CombinedTraits, World);
-	Template.SetTemplateName(GetNameSafe(ConfigOwner));
+	BuildContext.SetTemplateName(GetNameSafe(ConfigOwner));
 
-	// It is ok to have an empty template, 
-    // but be aware there will be an error if you try to create an entity with it
-    // as there will be no archetype associated with this template...
-	TemplateRegistry.InitializeEntityTemplate(Template);
-
-	return Template;
+	return TemplateRegistry.AddTemplate(TemplateID, MoveTemp(Template)).Get();
 }
 
 void FMassEntityConfig::DestroyEntityTemplate(const UWorld& World) const
@@ -115,7 +111,7 @@ const FMassEntityTemplate& FMassEntityConfig::GetEntityTemplateChecked(const UWo
 	return *ExistingTemplate;
 }
 
-const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UWorld& World, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const
+const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UWorld& World, FMassEntityTemplateID& OutTemplateID, TArray<UMassEntityTraitBase*>& OutCombinedTraits) const
 {
 	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(&World);
 	check(SpawnerSystem);
@@ -124,15 +120,15 @@ const FMassEntityTemplate* FMassEntityConfig::GetEntityTemplateInternal(const UW
 	// Combine all the features into one array
 	// @todo this is an inefficient way assuming given template is expected to have already been created. Figure out a way to cache it.
 	TArray<const UObject*> Visited;
-	CombinedTraitsOut.Reset();
+	OutCombinedTraits.Reset();
 	Visited.Add(ConfigOwner);
-	GetCombinedTraits(CombinedTraitsOut, Visited);
+	GetCombinedTraits(OutCombinedTraits, Visited);
 
 	// Return existing template if found.
 	// TODO: cache the hash.
-	const uint32 HashOut = UE::MassSpawner::HashTraits(CombinedTraitsOut);
-	TemplateIDOut = FMassEntityTemplateID(HashOut);
-	return TemplateRegistry.FindTemplateFromTemplateID(TemplateIDOut);
+	OutTemplateID = FMassEntityTemplateIDFactory::Make(OutCombinedTraits);
+	const TSharedRef<FMassEntityTemplate>* TemplateFound = TemplateRegistry.FindTemplateFromTemplateID(OutTemplateID);
+	return TemplateFound ? &TemplateFound->Get() : nullptr;
 }
 
 void FMassEntityConfig::GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited) const
