@@ -25,9 +25,12 @@ UCLASS(MinimalAPI)
 class UK2Node_EvaluateChooser : public UK2Node
 {
 	GENERATED_UCLASS_BODY()
-
+	~UK2Node_EvaluateChooser();
+	
 	//~ Begin UObject Interface
+	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
 	//~ End UObject Interface
 
 	//~ Begin UEdGraphNode Interface.
@@ -52,10 +55,17 @@ class UK2Node_EvaluateChooser : public UK2Node
 	virtual FText GetMenuCategory() const override;
 	virtual int32 GetNodeRefreshPriority() const override { return EBaseNodeRefreshPriority::Low_UsesDependentWildcard; }
 	virtual void PreloadRequiredAssets() override;
+
+	virtual void DestroyNode() override;
     
 	//~ End UK2Node Interface.
 
 private:
+	void ChooserChanged();
+	void ResultTypeChanged(const UClass*);
+	void UnregisterChooserCallback();
+	UChooserTable* CurrentCallbackChooser = nullptr;
+	
 	UPROPERTY(EditAnywhere, Category = "Chooser")
 	TObjectPtr<UChooserTable> Chooser;
 	

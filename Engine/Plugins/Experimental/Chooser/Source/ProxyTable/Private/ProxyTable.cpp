@@ -1,6 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProxyTable.h"
 #include "ProxyTableFunctionLibrary.h"
+#if WITH_EDITOR
+void UProxyAsset::PostEditUndo()
+{
+	UObject::PostEditUndo();
+
+	if (CachedPreviousType != Type)
+	{
+		OnTypeChanged.Broadcast(Type);
+		CachedPreviousType = Type;
+	}
+}
+
+void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	UObject::PostEditChangeProperty(PropertyChangedEvent);
+	
+	static FName TypeName = "Type";
+	if (PropertyChangedEvent.Property->GetName() == TypeName)
+	{
+		if (CachedPreviousType != Type)
+		{
+			OnTypeChanged.Broadcast(Type);
+		}
+		CachedPreviousType = Type;
+	}
+}
+
+void UProxyAsset::PostLoad()
+{
+	Super::PostLoad();
+	CachedPreviousType = Type;
+}
+#endif
+
 
 FLookupProxy::FLookupProxy()
 {

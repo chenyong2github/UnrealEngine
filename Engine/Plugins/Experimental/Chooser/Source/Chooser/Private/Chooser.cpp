@@ -12,9 +12,37 @@ UChooserTable::UChooserTable(const FObjectInitializer& Initializer)
 }
 
 #if WITH_EDITOR
+void UChooserTable::PostEditUndo()
+{
+	UObject::PostEditUndo();
+
+	if (CachedPreviousOutputObjectType != OutputObjectType)
+	{
+		OnOutputObjectTypeChanged.Broadcast(OutputObjectType);
+		CachedPreviousOutputObjectType = OutputObjectType;
+	}
+}
+
+void UChooserTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	UObject::PostEditChangeProperty(PropertyChangedEvent);
+	
+	static FName OutputObjectTypeName = "OutputObjectType";
+	if (PropertyChangedEvent.Property->GetName() == OutputObjectTypeName)
+	{
+		if (CachedPreviousOutputObjectType != OutputObjectType)
+		{
+			OnOutputObjectTypeChanged.Broadcast(OutputObjectType);
+		}
+		CachedPreviousOutputObjectType = OutputObjectType;
+	}
+}
+
 void UChooserTable::PostLoad()
 {
 	Super::PostLoad();
+
+	CachedPreviousOutputObjectType = OutputObjectType;
 
 	// convert old data if it exists
 

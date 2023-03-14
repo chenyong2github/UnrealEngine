@@ -10,6 +10,7 @@
 
 #include "Chooser.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FChooserOutputObjectTypeChanged, const UClass* OutputObjectType);
 
 UCLASS(MinimalAPI, BlueprintType)
 class UChooserTable : public UObject, public IHasContextClass
@@ -17,7 +18,18 @@ class UChooserTable : public UObject, public IHasContextClass
 	GENERATED_UCLASS_BODY()
 public:
 	UChooserTable() {}
+
+#if WITH_EDITOR
+	FChooserOutputObjectTypeChanged OnOutputObjectTypeChanged;
+	virtual void PostEditUndo() override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
+
+	// caching the OutputObjectType so that on Undo, we can tell if we should fire the changed delegate
+	UClass* CachedPreviousOutputObjectType;
+#endif
 	
+#if WITH_EDITORONLY_DATA
 	// deprecated UObject Results
 	UPROPERTY()
 	TArray<TScriptInterface<IObjectChooser>> Results_DEPRECATED;
@@ -25,6 +37,7 @@ public:
 	// deprecated UObject Columns
 	UPROPERTY()
 	TArray<TScriptInterface<IChooserColumn>> Columns_DEPRECATED;
+#endif
 
 	// Each possible Result (Rows of chooser table)
 	UPROPERTY(EditAnywhere, DisplayName = "Results", Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ObjectChooserBase"), Category = "Hidden")
@@ -39,10 +52,6 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category="Output", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> OutputObjectType;
-
-#if WITH_EDITOR
-	virtual void PostLoad() override;
-#endif
 
 	virtual UClass* GetContextClass() override { return ContextObjectType; }
 };

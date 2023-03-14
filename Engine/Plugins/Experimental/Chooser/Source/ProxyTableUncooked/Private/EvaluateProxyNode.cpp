@@ -38,18 +38,56 @@ UK2Node_EvaluateProxy::UK2Node_EvaluateProxy(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 {
 	NodeTooltip = LOCTEXT("NodeTooltip", "Evaluates an Proxy Table, and returns the resulting Object or Objects.");
-
-	// need to unregister this somewhere - also this is pretty excessive
-	/*
-	FCoreUObjectDelegates::OnObjectPropertyChanged.AddLambda([this](UObject* Object, struct FPropertyChangedEvent& Event)
-	{
-		if (Object == Proxy)
-		{
-			AllocateDefaultPins();
-		}
-	});
-	*/
 }
+
+void UK2Node_EvaluateProxy::UnregisterProxyCallback()
+{
+	if(CurrentCallbackProxy)
+	{
+		CurrentCallbackProxy->OnTypeChanged.RemoveAll(this);
+		CurrentCallbackProxy = nullptr;
+	}
+}
+
+UK2Node_EvaluateProxy::~UK2Node_EvaluateProxy()
+{
+	UnregisterProxyCallback();
+}
+
+void UK2Node_EvaluateProxy::PostEditUndo()
+{
+	Super::PostEditUndo();
+	ProxyChanged();
+}
+
+void UK2Node_EvaluateProxy::DestroyNode()
+{
+	UnregisterProxyCallback();
+	Super::DestroyNode();
+}
+
+void UK2Node_EvaluateProxy::ProxyChanged()
+{
+	if (Proxy != CurrentCallbackProxy)
+	{
+		UnregisterProxyCallback();
+	
+		if (Proxy)
+		{
+			Proxy->OnTypeChanged.AddUObject(this, &UK2Node_EvaluateProxy::TypeChanged);
+		}
+	
+		CurrentCallbackProxy = Proxy;
+
+		AllocateDefaultPins();
+	}
+}
+
+void UK2Node_EvaluateProxy::TypeChanged(const UClass*)
+{
+	AllocateDefaultPins();
+}
+
 
 void UK2Node_EvaluateProxy::PreloadRequiredAssets()
 {
@@ -106,9 +144,19 @@ void UK2Node_EvaluateProxy::PostEditChangeProperty(struct FPropertyChangedEvent&
 {
 	if (PropertyChangedEvent.Property->GetName() == "Proxy")
 	{
+		ProxyChanged();
+	}
+	if (PropertyChangedEvent.Property->GetName() == "Mode")
+	{
 		AllocateDefaultPins();
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UK2Node_EvaluateProxy::PostLoad()
+{
+	Super::PostLoad();
+	ProxyChanged();
 }
 
 void UK2Node_EvaluateProxy::PinConnectionListChanged(UEdGraphPin* Pin)
@@ -125,7 +173,6 @@ void UK2Node_EvaluateProxy::PinDefaultValueChanged(UEdGraphPin* Pin)
 
 void UK2Node_EvaluateProxy::PinTypeChanged(UEdGraphPin* Pin)
 {
-
 	Super::PinTypeChanged(Pin);
 }
 

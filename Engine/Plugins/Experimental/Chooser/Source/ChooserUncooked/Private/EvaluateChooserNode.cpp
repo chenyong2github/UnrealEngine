@@ -38,17 +38,55 @@ UK2Node_EvaluateChooser::UK2Node_EvaluateChooser(const FObjectInitializer& Objec
 	: Super(ObjectInitializer)
 {
 	NodeTooltip = LOCTEXT("NodeTooltip", "Evaluates an Chooser Table, and returns the resulting Object or Objects.");
+}
 
-	// need to unregister this somewhere - also this is pretty excessive
-	/*
-	FCoreUObjectDelegates::OnObjectPropertyChanged.AddLambda([this](UObject* Object, struct FPropertyChangedEvent& Event)
+void UK2Node_EvaluateChooser::UnregisterChooserCallback()
+{
+	if(CurrentCallbackChooser)
 	{
-		if (Object == Chooser)
+		CurrentCallbackChooser->OnOutputObjectTypeChanged.RemoveAll(this);
+		CurrentCallbackChooser = nullptr;
+	}
+}
+
+UK2Node_EvaluateChooser::~UK2Node_EvaluateChooser()
+{
+	UnregisterChooserCallback();
+}
+
+void UK2Node_EvaluateChooser::PostEditUndo()
+{
+	Super::PostEditUndo();
+	ChooserChanged();
+}
+
+void UK2Node_EvaluateChooser::DestroyNode()
+{
+	UnregisterChooserCallback();
+	Super::DestroyNode();
+}
+
+
+void UK2Node_EvaluateChooser::ChooserChanged()
+{
+	if (Chooser != CurrentCallbackChooser)
+	{
+		UnregisterChooserCallback();
+	
+		if (Chooser)
 		{
-			AllocateDefaultPins();
+			Chooser->OnOutputObjectTypeChanged.AddUObject(this, &UK2Node_EvaluateChooser::ResultTypeChanged);
 		}
-	});
-	*/
+	
+		CurrentCallbackChooser = Chooser;
+
+		AllocateDefaultPins();
+	}
+}
+
+void UK2Node_EvaluateChooser::ResultTypeChanged(const UClass*)
+{
+	AllocateDefaultPins();
 }
 
 void UK2Node_EvaluateChooser::PreloadRequiredAssets()
@@ -109,11 +147,21 @@ FText UK2Node_EvaluateChooser::GetPinDisplayName(const UEdGraphPin* Pin) const
 
 void UK2Node_EvaluateChooser::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.Property->GetName() == "Chooser" || PropertyChangedEvent.Property->GetName() == "Mode")
+	if (PropertyChangedEvent.Property->GetName() == "Chooser")
+	{
+		ChooserChanged();
+	}
+	if (PropertyChangedEvent.Property->GetName() == "Mode")
 	{
 		AllocateDefaultPins();
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UK2Node_EvaluateChooser::PostLoad()
+{
+	Super::PostLoad();
+	ChooserChanged();
 }
 
 void UK2Node_EvaluateChooser::PinConnectionListChanged(UEdGraphPin* Pin)
@@ -131,7 +179,6 @@ void UK2Node_EvaluateChooser::PinDefaultValueChanged(UEdGraphPin* Pin)
 
 void UK2Node_EvaluateChooser::PinTypeChanged(UEdGraphPin* Pin)
 {
-
 	Super::PinTypeChanged(Pin);
 }
 

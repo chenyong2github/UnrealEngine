@@ -9,12 +9,25 @@
 #include "InstancedStruct.h"
 #include "ProxyTable.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FProxyTypeChanged, const UClass* OutputObjectType);
+
 UCLASS(MinimalAPI,BlueprintType)
 class UProxyAsset : public UObject, public IHasContextClass
 {
 	GENERATED_UCLASS_BODY()
 public:
 	UProxyAsset() {}
+
+#if WITH_EDITOR
+	FProxyTypeChanged OnTypeChanged;
+	virtual void PostEditUndo() override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
+
+	// caching the type so that on Undo, we can tell if we should fire the changed delegate
+	UClass* CachedPreviousType = nullptr;
+#endif
+	
 
 	UPROPERTY(EditAnywhere, Category = "Proxy", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> Type;
