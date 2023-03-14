@@ -28,22 +28,22 @@
 	"Modules" :
 	[
 		{
-			"Name" : "AnimNextInterface",
+			"Name" : "AnimNext",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PreDefault"
 		},
 		{
-			"Name" : "AnimNextInterfaceGraph",
+			"Name" : "AnimNextGraph",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"
 		},
 		{
-			"Name" : "AnimNextInterfaceGraphEditor",
+			"Name" : "AnimNextGraphEditor",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default"
 		},
 		{
-			"Name" : "AnimNextInterfaceGraphUncookedOnly",
+			"Name" : "AnimNextGraphUncookedOnly",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "Default"
 		}
