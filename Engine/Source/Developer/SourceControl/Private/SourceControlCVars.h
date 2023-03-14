@@ -9,5 +9,6 @@ namespace SourceControlCVars
 {
 	extern TAutoConsoleVariable<bool> CVarSourceControlEnableRevertFromSceneOutliner;
 	extern TAutoConsoleVariable<bool> CVarSourceControlEnableRevertFromSubmitWidget;
+	extern TAutoConsoleVariable<bool> CVarSourceControlEnableRevertUnsaved;
 	extern TAutoConsoleVariable<bool> CVarSourceControlEnableLoginDialogModal;
 }

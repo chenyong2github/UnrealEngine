@@ -33,6 +33,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "UObject/Linker.h"
+#include "FileHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SSourceControlRevert"
 
@@ -82,6 +83,19 @@ struct FRevertCheckBoxListViewItem
 	bool IsModified;
 	FString Text;
 };
+
+/** Returns whether revert unsaved is enabled */
+static bool IsRevertUnsavedEnabled()
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("SourceControl.RevertUnsaved.Enable")))
+	{
+		return CVar->GetBool();
+	}
+	else
+	{
+		return false;
+	}
+}
 
 /**
  * Source control panel for reverting files. Allows the user to select which files should be reverted, as well as
@@ -360,6 +374,7 @@ private:
 
 		ModifiedPackages.Empty();
 
+		const bool bRevertUnsaved = IsRevertUnsavedEnabled();
 		for( const auto& ControlState : SourceControlStates )
 		{
 			FString PackageName;
@@ -369,6 +384,15 @@ private:
 				if (CurItem->Text == PackageName)
 				{
 					CurItem->IsModified = ControlState->IsModified();
+
+					if (bRevertUnsaved)
+					{
+						if (UPackage* Package = FindPackage(NULL, *PackageName))
+						{
+							// If the package contains unsaved changes, it's considered modified as well.
+							CurItem->IsModified |= Package->IsDirty();
+						}
+					}
 				}
 			}
 		}
@@ -412,10 +436,20 @@ bool FSourceControlWindows::PromptForRevert( const TArray<FString>& InPackageNam
 		{
 			InitialPackagesToRevert.Add( *PackageIter );
 		}
+		else if ( IsRevertUnsavedEnabled() )
+		{
+			if (UPackage* Package = FindPackage(NULL, **PackageIter))
+			{
+				if (Package->IsDirty())
+				{
+					InitialPackagesToRevert.Add(*PackageIter);
+				}
+			}
+		}
 	}
 
 	// If any of the packages can be reverted, provide the revert prompt
-	if (InitialPackagesToRevert.Num() > 0 )
+	if (InitialPackagesToRevert.Num() > 0)
 	{
 		TSharedRef<SWindow> NewWindow = SNew(SWindow)
 			.Title( NSLOCTEXT("SourceControl.RevertWindow", "Title", "Revert Files") )
@@ -438,6 +472,28 @@ bool FSourceControlWindows::PromptForRevert( const TArray<FString>& InPackageNam
 			TArray<FString> FinalPackagesToRevert;
 			SourceControlWidget->GetPackagesToRevert(FinalPackagesToRevert);
 			
+			if ( IsRevertUnsavedEnabled() )
+			{
+				// Unsaved changes need to be saved to disk so SourceControl realizes that there's something to revert.
+
+				TArray<UPackage*> FinalPackagesToSave;
+				for (const FString& PackageName : FinalPackagesToRevert)
+				{
+					if (UPackage* Package = FindPackage(NULL, *PackageName))
+					{
+						if (Package->IsDirty())
+						{
+							FinalPackagesToSave.Add(Package);
+						}
+					}
+				}
+
+				if (FinalPackagesToSave.Num() > 0)
+				{
+					UEditorLoadingAndSavingUtils::SavePackages(FinalPackagesToSave, /*bOnlyDirty=*/false);
+				}
+			}
+
 			if (FinalPackagesToRevert.Num() > 0)
 			{
 				SourceControlHelpers::RevertAndReloadPackages(FinalPackagesToRevert, /*bRevertAll=*/false, /*bReloadWorld=*/bInReloadWorld);

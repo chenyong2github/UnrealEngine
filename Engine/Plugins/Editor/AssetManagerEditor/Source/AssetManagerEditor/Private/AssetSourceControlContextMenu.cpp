@@ -12,6 +12,7 @@
 #include "ContentBrowserDataMenuContexts.h"
 #include "ContentBrowserMenuContexts.h"
 #include "FileHelpers.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "IAssetTools.h"
@@ -154,6 +155,8 @@ private:
 	bool CanExecuteSCCSync() const;
 	bool CanExecuteSCCDiffAgainstDepot() const;
 	bool CanExecuteDiffSelected() const;
+
+	bool AllowExecuteSCCRevertUnsaved() const;
 
 	/** Helper function to gather the package names of all selected assets */
 	void GetSelectedPackageNames(TArray<FString>& OutPackageNames) const;
@@ -963,6 +966,18 @@ bool FAssetSourceControlContextMenuState::CanExecuteDiffSelected() const
 	return bCanDiffSelected;
 }
 
+bool FAssetSourceControlContextMenuState::AllowExecuteSCCRevertUnsaved() const
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("SourceControl.RevertUnsaved.Enable")))
+	{
+		return CVar->GetBool();
+	}
+	else
+	{
+		return false;
+	}
+}
+
 bool FAssetSourceControlContextMenuState::IsActionEnabled(bool bEnabled) const
 {
 	return bEnabled && !IsStillScanning(bEnabled);
@@ -1047,6 +1062,25 @@ void FAssetSourceControlContextMenuState::TryCacheCanExecuteVars(const TArray<FS
 
 	const bool bUsesCheckout = SourceControlProvider.UsesCheckout();
 	const bool bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
+
+	// If a package is dirty, allow a revert of the in-memory changes that have not yet been saved to disk.
+	if (AllowExecuteSCCRevertUnsaved())
+	{
+		for (const FString& SelectedPath : InSelectedPaths)
+		{
+			FString PackageName;
+			if (FPackageName::TryConvertFilenameToLongPackageName(SelectedPath, PackageName))
+			{
+				if (UPackage* Package = FindPackage(NULL, *PackageName))
+				{
+					if (Package->IsDirty())
+					{
+						bCanExecuteSCCRevert = true;
+					}
+				}
+			}
+		}
+	}
 
 	// Check the SCC state for each package in the selected paths
 	TArray<FSourceControlStateRef> SelectedStates;

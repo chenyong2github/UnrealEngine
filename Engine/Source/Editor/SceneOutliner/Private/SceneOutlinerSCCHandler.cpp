@@ -76,13 +76,7 @@ bool FSceneOutlinerSCCHandler::AddSourceControlMenuOptions(UToolMenu* Menu, TArr
 	return false;
 }
 
-
-bool FSceneOutlinerSCCHandler::CanExecuteSourceControlActions() const
-{
-	return SelectedItems.Num() > 0;
-}
-
-bool FSceneOutlinerSCCHandler::CanExecuteSourceControlRevert() const
+bool FSceneOutlinerSCCHandler::AllowExecuteSourceControlRevert() const
 {
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("SourceControl.Revert.EnableFromSceneOutliner")))
 	{
@@ -94,6 +88,23 @@ bool FSceneOutlinerSCCHandler::CanExecuteSourceControlRevert() const
 	}
 }
 
+bool FSceneOutlinerSCCHandler::AllowExecuteSourceControlRevertUnsaved() const
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("SourceControl.RevertUnsaved.Enable")))
+	{
+		return CVar->GetBool();
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool FSceneOutlinerSCCHandler::CanExecuteSourceControlActions() const
+{
+	return SelectedItems.Num() > 0;
+}
+
 void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 {
 	bCanExecuteSCC = true;
@@ -103,6 +114,9 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 	bCanExecuteSCCHistory = false;
 	bUsesFileRevisions = false;
 	bUsesChangelists = false;
+
+	const bool bAllowRevert = AllowExecuteSourceControlRevert();
+	const bool bAllowRevertUnsaved = AllowExecuteSourceControlRevertUnsaved();
 
 	if ( ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
 	{
@@ -145,19 +159,21 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 					bCanExecuteSCCCheckIn = true;
 				}
 
-				bool bAllowRevert = CanExecuteSourceControlRevert();
-				if ( SourceControlState->CanRevert() && bAllowRevert )
+				if ( bAllowRevert )
 				{
-					bCanExecuteSCCRevert = true;
-				}
-				else
-				{
-					// If the package is dirty, allow a revert of the in-memory changes that have not yet been saved to disk.
-					if (UPackage* Package = SourceControl->GetPackage())
+					if ( SourceControlState->CanRevert() )
 					{
-						if (Package->IsDirty())
+						bCanExecuteSCCRevert = true;
+					}
+					else if ( bAllowRevertUnsaved )
+					{
+						// If the package is dirty, allow a revert of the in-memory changes that have not yet been saved to disk.
+						if (UPackage* Package = SourceControl->GetPackage())
 						{
-							bCanExecuteSCCRevert = true;
+							if (Package->IsDirty())
+							{
+								bCanExecuteSCCRevert = true;
+							}
 						}
 					}
 				}

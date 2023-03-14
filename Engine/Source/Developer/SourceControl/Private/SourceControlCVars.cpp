@@ -16,6 +16,12 @@ namespace SourceControlCVars
 		TEXT("Allows a SourceControl 'Revert' operation to be triggered from the SubmitWidget."),
 		ECVF_Default);
 
+	TAutoConsoleVariable<bool> CVarSourceControlEnableRevertUnsaved(
+		TEXT("SourceControl.RevertUnsaved.Enable"),
+		false,
+		TEXT("Allows a SourceControl 'Revert' operation to be triggered on an unsaved asset."),
+		ECVF_Default);
+
 	TAutoConsoleVariable<bool> CVarSourceControlEnableLoginDialogModal(
 		TEXT("SourceControl.LoginDialog.ForceModal"),
 		false,
