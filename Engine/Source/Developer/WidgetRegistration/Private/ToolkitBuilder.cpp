@@ -20,15 +20,71 @@ bool FEditablePalette::IsInPalette(const FName CommandName) const
 	return this->PaletteCommandNameArray.Contains(CommandName.ToString());
 }
 
+TArray<FString> FEditablePalette::GetPaletteCommandNames() const
+{
+	return PaletteCommandNameArray;
+}
+
+void FEditablePalette::AddCommandToPalette(const FString CommandNameString)
+{
+	PaletteCommandNameArray.Add(CommandNameString);
+
+	SaveToConfig();
+	
+	OnPaletteEdited.ExecuteIfBound();
+}
+
+void FEditablePalette::RemoveCommandFromPalette(const FString CommandNameString)
+{
+	PaletteCommandNameArray.Remove(CommandNameString);
+
+	SaveToConfig();
+	
+	OnPaletteEdited.ExecuteIfBound();
+}
+
+void FEditablePalette::SaveToConfig()
+{
+	if(GetConfigManager.IsBound())
+	{
+		IEditableToolPaletteConfigManager* ConfigManager = GetConfigManager.Execute();
+		if(ConfigManager)
+		{
+			if(FEditableToolPaletteSettings* Config = ConfigManager->GetMutablePaletteConfig(EditablePaletteName))
+			{
+				Config->PaletteCommandNames = PaletteCommandNameArray;
+				ConfigManager->SavePaletteConfig(EditablePaletteName);
+			}
+		}
+	}
+}
+
+void FEditablePalette::LoadFromConfig()
+{
+	if(GetConfigManager.IsBound())
+	{
+		if(IEditableToolPaletteConfigManager* ConfigManager = GetConfigManager.Execute())
+		{
+			if(FEditableToolPaletteSettings* Config = ConfigManager->GetMutablePaletteConfig(EditablePaletteName))
+			{
+				PaletteCommandNameArray = Config->PaletteCommandNames;
+			}
+		}
+	}
+}
+
 FEditablePalette::FEditablePalette(TSharedPtr<FUICommandInfo> InLoadToolPaletteAction,
-	TArray<FString>& InPaletteCommandNameArray,
 	TSharedPtr<FUICommandInfo> InAddToPaletteAction,
-	TSharedPtr<FUICommandInfo> InRemoveFromPaletteAction) :
+	TSharedPtr<FUICommandInfo> InRemoveFromPaletteAction,
+	FName InEditablePaletteName,
+	FGetEditableToolPaletteConfigManager InGetConfigManager) :
 	FToolPalette(InLoadToolPaletteAction, {}),
 	AddToPaletteAction(InAddToPaletteAction),
 	RemoveFromPaletteAction(InRemoveFromPaletteAction),
-	PaletteCommandNameArray(InPaletteCommandNameArray)
+	EditablePaletteName(InEditablePaletteName),
+	GetConfigManager(InGetConfigManager)
 {
+	LoadFromConfig();
 }
 
 FToolkitBuilder::FToolkitBuilder(
@@ -53,8 +109,29 @@ TSharedRef<SWidget> FToolkitBuilder::CreateToolbarWidget() const
 	return ToolRegistry.GenerateWidget(VerticalToolbarElement.ToSharedRef());
 }
 
+void FToolkitBuilder::GetCommandsForEditablePalette(TSharedRef<FEditablePalette> EditablePalette, TArray<TSharedPtr<const FUICommandInfo>>& OutCommands)
+{
+	TArray<FString> CommandNames = EditablePalette->GetPaletteCommandNames();
+
+	for(const FString& CommandName : CommandNames)
+	{
+		if(TSharedPtr<const FUICommandInfo>* FoundCommand = PaletteCommandInfos.Find(CommandName))
+		{
+			if(*FoundCommand)
+			{
+				OutCommands.Add(*FoundCommand);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Display, TEXT("%s: Could not find Favorited Tool %s"), *ToolbarCustomizationName.ToString(), *CommandName);
+			}
+		}
+	}
+}
+
 void FToolkitBuilder::AddPalette(TSharedPtr<FEditablePalette> Palette)
 {
+	Palette->OnPaletteEdited.BindSP(this, &FToolkitBuilder::OnEditablePaletteEdited, Palette.ToSharedRef());
 	EditablePalettesArray.Add(Palette.ToSharedRef());
 	AddPalette(StaticCastSharedRef<FToolPalette>(Palette.ToSharedRef()) );
 }
@@ -64,6 +141,7 @@ void FToolkitBuilder::AddPalette(TSharedPtr<FToolPalette> Palette)
 	for (TSharedRef<FButtonArgs> Button : Palette->PaletteActions)
 	{
 		PaletteCommandNameToButtonArgsMap.Add(Button->Command->GetCommandName().ToString(), Button);
+		PaletteCommandInfos.Add(Button->Command->GetCommandName().ToString(), Button->Command);
 	}
 	LoadCommandNameToToolPaletteMap.Add(Palette->LoadToolPaletteAction->GetCommandName().ToString(), Palette);
 
@@ -87,17 +165,31 @@ ECheckBoxState FToolkitBuilder::IsActiveToolPalette(FName CommandName) const
 				ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void FToolkitBuilder::UpdateEditablePalette(FEditablePalette& Palette)
+void FToolkitBuilder::UpdateEditablePalette(TSharedRef<FEditablePalette> Palette)
 {
-	Palette.PaletteActions.Empty();
+	Palette->PaletteActions.Empty();
 
-	for (const FString& Key : Palette.PaletteCommandNameArray)
+	TArray<FString> PaletteComandNameArray = Palette->GetPaletteCommandNames();
+
+	for (const FString& Key : PaletteComandNameArray)
 	{
 		if (const TSharedPtr<FButtonArgs>* FoundButton = PaletteCommandNameToButtonArgsMap.Find(Key))
 		{
 			const TSharedRef<FButtonArgs> Button = (*FoundButton).ToSharedRef();
-			Palette.PaletteActions.Add(Button);
+			Palette->PaletteActions.Add(Button);
 		}
+	}
+}
+
+void FToolkitBuilder::OnEditablePaletteEdited(TSharedRef<FEditablePalette> EditablePalette)
+{
+	UpdateEditablePalette(EditablePalette);
+
+	// if the active Palette is the Palette to which we are toggling an action,
+	// recreate it to load the new state after the toggle
+	if ( ActivePalette == EditablePalette )
+	{
+		CreatePalette(EditablePalette);
 	}
 }
 
@@ -105,29 +197,20 @@ void FToolkitBuilder::UpdateWidget()
 {
 	for (const TSharedRef<FEditablePalette>& EditablePalette : EditablePalettesArray)
 	{
-		UpdateEditablePalette(*EditablePalette);		
+		UpdateEditablePalette(EditablePalette);		
 	}
 	
 }
 
 void FToolkitBuilder::ToggleCommandInPalette(TSharedRef<FEditablePalette> Palette, FString CommandNameString)
 {
-	if (!Palette->PaletteCommandNameArray.Contains(CommandNameString))
+	if (!Palette->IsInPalette(FName(CommandNameString)))
 	{	
-		Palette->PaletteCommandNameArray.Add(CommandNameString);
+		Palette->AddCommandToPalette(CommandNameString);
 	}
 	else
 	{
-		Palette->PaletteCommandNameArray.Remove(CommandNameString);		
-	}
-
-	UpdateEditablePalette(*Palette);
-
-	// if the active Palette is the Palette to which we are toggling an action,
-	// recreate it to load the new state after the toggle
-	if ( ActivePalette == Palette )
-	{
-		CreatePalette(Palette);
+		Palette->RemoveCommandFromPalette(CommandNameString);		
 	}
 }
 

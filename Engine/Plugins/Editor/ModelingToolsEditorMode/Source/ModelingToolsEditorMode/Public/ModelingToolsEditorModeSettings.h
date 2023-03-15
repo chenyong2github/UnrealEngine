@@ -313,9 +313,9 @@ public:
 	TArray<FString> ToolSectionOrder;
 
 	/** Tool Names listed in the array below will appear in a Favorites section at the top of the Modeling Mode Tool Palette */
-	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
+	UE_DEPRECATED(5.3, "Modeling Mode favorites are now set through FEditablePalette or the Mode UI itself")
 	TArray<FString> ToolFavorites;
-
+	
 	/** Custom Section Header Colors for listed Sections in the Modeling Mode Tool Palette */
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
 	TArray<FModelingModeCustomSectionColor> SectionColors;

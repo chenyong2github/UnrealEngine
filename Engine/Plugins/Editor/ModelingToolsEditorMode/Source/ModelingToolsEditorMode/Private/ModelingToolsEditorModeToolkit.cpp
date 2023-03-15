@@ -39,6 +39,7 @@
 #include "SPrimaryButton.h"
 #include "Dialogs/DlgPickPath.h"
 #include "ModelingModeAssetUtils.h"
+#include "ModelingToolsEditablePaletteConfig.h"
 
 // for presets
 #include "PresetAsset.h"
@@ -102,6 +103,9 @@ namespace FModelingToolsEditorModeToolkitLocals
 
 FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 {
+	UModelingModeEditableToolPaletteConfig::Initialize();
+	UModelingModeEditableToolPaletteConfig::Get()->LoadEditorConfig();
+
 	PresetSettings = NewObject<UPresetSettingsProperties>();
 }
 
@@ -161,15 +165,18 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 				GetToolkitCommands(),
 				ToolkitSections);
 
-	
-	const TSharedPtr<FEditablePalette> FavoritesPalette =
+	// We need to specify the modeling mode specific config instance because this cannot exist at the base toolkit level due to dependency issues currently
+	FGetEditableToolPaletteConfigManager GetConfigManager = FGetEditableToolPaletteConfigManager::CreateStatic(&UModelingModeEditableToolPaletteConfig::GetAsConfigManager);
+
+	FavoritesPalette =
 		MakeShareable(new FEditablePalette(
 			Commands.LoadFavoritesTools.ToSharedRef(),
-			UISettings->ToolFavorites,
 			Commands.AddToFavorites.ToSharedRef(),
-			Commands.RemoveFromFavorites.ToSharedRef()));
-	ToolkitBuilder->AddPalette(StaticCastSharedPtr<FEditablePalette>(FavoritesPalette));
+			Commands.RemoveFromFavorites.ToSharedRef(),
+			"ModelingToolsEditorModeFavoritesPalette",
+			GetConfigManager));
 	
+	ToolkitBuilder->AddPalette(StaticCastSharedPtr<FEditablePalette>(FavoritesPalette));
 
 	TArray<TSharedPtr<FUICommandInfo>> ShapesPaletteItems({
 		Commands.BeginAddBoxPrimitiveTool,
@@ -1374,7 +1381,7 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palette
 	}
 
 	// if user has provided a list of favorite tools, add that palette to the list
-	if (UISettings->ToolFavorites.Num() > 0)
+	if (FavoritesPalette && FavoritesPalette->GetPaletteCommandNames().Num() > 0)
 	{
 		PaletteNames.Insert(ModelingFavoritesTabName, 0);
 	}
@@ -1401,18 +1408,12 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 	if (PaletteIndex == ModelingFavoritesTabName)
 	{
 		// build Favorites tool palette
-		for (FString ToolName : UISettings->ToolFavorites)
+		TArray<TSharedPtr<const FUICommandInfo>> FavoriteCommands;
+		ToolkitBuilder->GetCommandsForEditablePalette(FavoritesPalette.ToSharedRef(), FavoriteCommands);
+		
+		for (const TSharedPtr<const FUICommandInfo>& ToolCommand : FavoriteCommands)
 		{
-			bool bFound = false;
-			TSharedPtr<FUICommandInfo> FoundToolCommand = Commands.FindToolByName(ToolName, bFound);
-			if ( bFound )
-			{ 
-				ToolbarBuilder.AddToolBarButton(FoundToolCommand);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Display, TEXT("ModelingMode: could not find Favorited Tool %s"), *ToolName);
-			}
+			ToolbarBuilder.AddToolBarButton(ToolCommand);
 		}
 	}
 	else if (PaletteIndex == SelectionActionsTabName)

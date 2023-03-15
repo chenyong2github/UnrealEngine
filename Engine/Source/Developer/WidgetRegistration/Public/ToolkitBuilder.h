@@ -8,6 +8,7 @@
 #include "Framework/Commands/UICommandInfo.h"
 #include "InteractiveToolManager.h"
 #include "ToolElementRegistry.h"
+#include "ToolkitBuilderConfig.h"
 #include "ToolMenus.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -46,32 +47,55 @@ struct WIDGETREGISTRATION_API FToolPalette : TSharedFromThis<FToolPalette>
 	TArray<TSharedRef<FButtonArgs>> PaletteActions;
 
 	/** The FUICommandList associated with this Palette */
-	TSharedPtr<FUICommandList>PaletteActionsCommandList;
+	TSharedPtr<FUICommandList> PaletteActionsCommandList;
 };
 
 /** An FToolPalette to which you can add and remove actions */
 struct WIDGETREGISTRATION_API FEditablePalette : public FToolPalette
 {
 	FEditablePalette(TSharedPtr<FUICommandInfo> InLoadToolPaletteAction,
-		TArray<FString>& InPaletteCommandNameArray,
 		TSharedPtr<FUICommandInfo> InAddToPaletteAction,
-		TSharedPtr<FUICommandInfo> InRemoveFromPaletteAction);
+		TSharedPtr<FUICommandInfo> InRemoveFromPaletteAction,
+		FName InEditablePaletteName = FName(),
+		FGetEditableToolPaletteConfigManager InGetConfigManager = FGetEditableToolPaletteConfigManager());
 
 	/** The FUICommandInfo which adds an action to this palette */
 	const TSharedPtr<FUICommandInfo> AddToPaletteAction;
 	
 	/** The FUICommandInfo which removes an action to this palette */
 	const TSharedPtr<FUICommandInfo> RemoveFromPaletteAction;
-	
-	/** The TArray of Command names that are the current FuiCommandInfo actions in this Palette */
-	TArray<FString>& PaletteCommandNameArray;
 
+	/** Delegate used by FToolkitBuilder that is called when an item is added/removed from the palette */
+	FSimpleDelegate OnPaletteEdited;
+	
 	/**
 	 * Given a reference to a FUICommandInfo, returns whether it is in the current Palette
 	 *
 	 * @param CommandName the name of the FUICommandInfo queried as to whether it is in the Palette
 	 */
 	bool IsInPalette(const FName CommandName) const;
+
+	TArray<FString> GetPaletteCommandNames() const;
+
+	void AddCommandToPalette(const FString CommandNameString);
+
+	void RemoveCommandFromPalette(const FString CommandNameString);
+
+protected:
+
+	void SaveToConfig();
+
+	void LoadFromConfig();
+	
+protected:
+	/** The TArray of Command names that are the current FuiCommandInfo actions in this Palette */
+	TArray<FString> PaletteCommandNameArray;
+
+	/** The (unique) name attached to this palette, enables saving the palette contents into config if provided */
+	FName EditablePaletteName;
+
+	/** Delegate used to check if we have a config manager and get it */
+	FGetEditableToolPaletteConfigManager GetConfigManager;
 };
 
 
@@ -147,6 +171,7 @@ public:
 
 	FText GetActiveToolDisplayName() const;
 
+	void GetCommandsForEditablePalette(TSharedRef<FEditablePalette> EditablePalette, TArray<TSharedPtr<const FUICommandInfo>>& OutCommands);
 	
 private:
 
@@ -164,6 +189,9 @@ private:
 
 	/** The map of the command name to the ButtonArgs for it  */
 	TMap<FString, TSharedPtr<FToolPalette>> LoadCommandNameToToolPaletteMap;
+
+	/** Map of command name to the actual command for all commands belonging to this palette */
+	TMap<FString, TSharedPtr<const FUICommandInfo>> PaletteCommandInfos;
 
 	/** A TSharedPointer to the FUICommandList for the FUICommandInfos which load a tool palette */
 	TSharedPtr<FUICommandList> LoadToolPaletteCommandList;
@@ -187,7 +215,9 @@ private:
 	TMap<FName, TSharedPtr<FToolBarBuilder>> LoadCommandNameToPaletteToolbarBuilderMap;
 
 	/** Updates the Editable Palette with any commands that are on it */
-	void UpdateEditablePalette(FEditablePalette& EditablePalette);
+	void UpdateEditablePalette(TSharedRef<FEditablePalette> EditablePalette);
+
+	void OnEditablePaletteEdited(TSharedRef<FEditablePalette> EditablePalette);
 
 	/** Resets the tool palette widget, on which the buttons for the currently chosen toolset are shown */
 	void ResetToolPaletteWidget();

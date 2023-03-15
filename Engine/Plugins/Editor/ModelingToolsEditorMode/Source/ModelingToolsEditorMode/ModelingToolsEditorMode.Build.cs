@@ -51,6 +51,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"DeveloperSettings",
 				"PropertyEditor",
 				"ToolMenus",
+				"EditorConfig",
 				"PresetAsset"
 				// ... add private dependencies that you statically link with here ...	
 			}
