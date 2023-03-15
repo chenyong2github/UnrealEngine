@@ -198,6 +198,8 @@ void FTargetDeviceProxyManager::AddProxyFromPongMessage(const FTargetDeviceServi
 
 bool FTargetDeviceProxyManager::HandleTicker(float DeltaTime)
 {
+	LLM_SCOPE_BYTAG(TargetDeviceProxyManager);
+
 	RemoveDeadProxies();
 	SendPing();
 

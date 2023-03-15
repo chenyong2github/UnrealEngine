@@ -4,6 +4,7 @@
 
 #include "HAL/PlatformProcess.h"
 #include "HAL/FileManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "IMessageBus.h"
 #include "Interfaces/ITargetDevice.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -15,6 +16,8 @@
 #include "Serialization/Archive.h"
 
 #include "TargetDeviceServiceMessages.h"
+
+LLM_DECLARE_TAG(TargetDeviceProxyManager);
 
 
 /* Local helpers
@@ -405,6 +408,8 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 	{
 		return;
 	}
+
+	LLM_SCOPE_BYTAG(TargetDeviceProxyManager);
 
 	ITargetDevicePtr DefaultDevice = GetDevice(); // Default Device is needed here!
 

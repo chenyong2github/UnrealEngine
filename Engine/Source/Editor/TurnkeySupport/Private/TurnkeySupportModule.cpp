@@ -2457,6 +2457,7 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 
 		AsyncTask(ENamedThreads::GameThread, [this, ReportFilename, PlatformDeviceIds, ExitCode, TurnkeyProcess]()
 		{
+			LLM_SCOPE(ELLMTag::EngineMisc);
 			FScopeLock Lock(&GTurnkeySection);
 
 			if (!IsEngineExitRequested() && (ExitCode == 0 || ExitCode == 10))
