@@ -45,7 +45,7 @@ public:
 			TStringBuilder<64> DurationText;
 			const int32 Hours = Duration.GetHours();
 			const int32 Minutes = Duration.GetMinutes();
-			const double Seconds = Duration.GetTotalSeconds();
+			const double Seconds = Duration.GetSeconds();
 			if (Hours > 0)
 			{
 				DurationText << Hours << TEXTVIEW("h ");

@@ -643,6 +643,10 @@ namespace LowLevelTests
 				{
 					CachedConfig.CommandLineParams.AddRawCommandline("--attach-to-debugger");
 				}
+				if (Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
+				{
+					CachedConfig.CommandLineParams.AddRawCommandline("--buildmachine");
+				}
 				if (LowLevelTestsExtension != null)
 				{
 					string ExtraCmd = LowLevelTestsExtension.ExtraCommandLine(Platform, TestApp, BuildPath);

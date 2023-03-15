@@ -247,7 +247,7 @@ namespace UE { namespace ConcurrentQueuesTests
 		check(Produced == NumConcumed);
 	}
 
-	TEST_CASE_NAMED(FConcurrentQueuesTest, "System::Core::Async::ConcurrentQueuesTest", "[.][ApplicationContextMask][EngineFilter]")
+	TEST_CASE_NAMED(FConcurrentQueuesTest, "System::Core::Async::ConcurrentQueuesTest", "[.][ApplicationContextMask][EngineFilter][Perf]")
 	{
 		{	// test for support of not default constructible types
 			struct FNonDefaultConstructable
@@ -723,7 +723,7 @@ namespace ClosableMpscQueueTests
 		UE_LOG(LogTemp, Display, TEXT("items queued %d"), NumProduced);
 	}
 
-	TEST_CASE_NAMED(FClosableMpscQueueTest, "System::Core::Async::ClosableMpscQueueTest", "[.][ApplicationContextMask][EngineFilter]")
+	TEST_CASE_NAMED(FClosableMpscQueueTest, "System::Core::Async::ClosableMpscQueueTest", "[.][ApplicationContextMask][EngineFilter][Perf]")
 	{
 		{
 			TClosableMpscQueue<int> Q;
@@ -1046,7 +1046,7 @@ namespace DepletableMpscQueueTests
 		Queue.Deplete([](void*) { checkNoEntry(); }); // empty
 	}
 
-	TEST_CASE_NAMED(FDepletableMpscQueueTest, "System::Core::Async::DepletableMpscQueueTest", "[.][ApplicationContextMask][EngineFilter]")
+	TEST_CASE_NAMED(FDepletableMpscQueueTest, "System::Core::Async::DepletableMpscQueueTest", "[.][ApplicationContextMask][EngineFilter][Perf]")
 	{
 		{
 			TDepletableMpmcQueue<int> Q;
