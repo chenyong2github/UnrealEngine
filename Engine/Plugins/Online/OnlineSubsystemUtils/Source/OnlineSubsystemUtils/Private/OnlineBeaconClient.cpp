@@ -90,6 +90,55 @@ void AOnlineBeaconClient::SetConnectionState(EBeaconConnectionState NewConnectio
 	ConnectionState = NewConnectionState;
 }
 
+FString AOnlineBeaconClient::GetLoginOptions(const FUniqueNetIdRepl& PlayerId)
+{
+	const FString& AuthTicket = GetAuthTicketInternal(*PlayerId);
+
+	FURL URL(nullptr, TEXT(""), TRAVEL_Absolute);
+	if (!AuthTicket.IsEmpty())
+	{
+		URL.AddOption(*FString::Printf(TEXT("AuthTicket=%s"), *AuthTicket));
+	}
+	return URL.ToString();
+}
+
+namespace
+{
+FUniqueNetIdRepl GetDedicatedServerAccountId(UWorld* World)
+{
+	FUniqueNetIdRepl AccountId;
+	IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(World);
+	if (IdentityPtr.IsValid())
+	{
+		AccountId = IdentityPtr->GetUniquePlayerId(DEDICATED_SERVER_USER_INDEX);
+	}
+	return AccountId;
+}
+
+FUniqueNetIdRepl GetFirstPlayerAccountId(UWorld* World)
+{
+	FUniqueNetIdRepl AccountId;
+	// Prefer local player's preferred id
+	if (ULocalPlayer* LocalPlayer = GEngine->GetFirstGamePlayer(World))
+	{
+		AccountId = LocalPlayer->GetPreferredUniqueNetId();
+	}
+	else
+	{
+		// Fall back to querying the identity interface.
+		if (IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(World))
+		{
+			TArray<TSharedPtr<FUserOnlineAccount> > UserAccounts = IdentityPtr->GetAllUserAccounts();
+			if (!UserAccounts.IsEmpty())
+			{
+				AccountId = UserAccounts[0]->GetUserId();
+			}
+		}
+	}
+	return AccountId;
+}
+}
+
 bool AOnlineBeaconClient::InitClient(FURL& URL)
 {
 	bool bSuccess = false;
@@ -109,32 +158,12 @@ bool AOnlineBeaconClient::InitClient(FURL& URL)
 
 					if (IsRunningDedicatedServer())
 					{
-						IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(World);
-						if (IdentityPtr.IsValid())
-						{
-							BeaconConnection->PlayerId = IdentityPtr->GetUniquePlayerId(DEDICATED_SERVER_USER_INDEX);
-						}
+						BeaconConnection->PlayerId = GetDedicatedServerAccountId(World);
 					}
 					else
 					{
-						ULocalPlayer* LocalPlayer = GEngine->GetFirstGamePlayer(World);
-						if (LocalPlayer)
-						{
-							// Send the player unique Id at login
-							BeaconConnection->PlayerId = LocalPlayer->GetPreferredUniqueNetId();
-						}
-						else
-						{
-							// Fall back to querying the identity interface.
-							if (IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(World))
-							{
-								TArray<TSharedPtr<FUserOnlineAccount> > UserAccounts = IdentityPtr->GetAllUserAccounts();
-								if (!UserAccounts.IsEmpty())
-								{
-									BeaconConnection->PlayerId = UserAccounts[0]->GetUserId();
-								}
-							}
-						}
+						// Send the player unique Id at login
+						BeaconConnection->PlayerId = GetFirstPlayerAccountId(World);
 					}
 
 #if NETCONNECTION_HAS_SETENCRYPTIONKEY
@@ -391,10 +420,10 @@ void AOnlineBeaconClient::NotifyControlMessage(UNetConnection* Connection, uint8
 			{
 				// build a URL
 				FURL URL(nullptr, TEXT(""), TRAVEL_Absolute);
-				FString AuthTicket = GetAuthTicket(*Connection->PlayerId);
-				if (!AuthTicket.IsEmpty())
+				const FString& LoginOptions = GetLoginOptions(Connection->PlayerId);
+				if (!LoginOptions.IsEmpty())
 				{
-					URL.AddOption(*FString::Printf(TEXT("AuthTicket=%s"), *AuthTicket));
+					URL.AddOption(*LoginOptions);
 				}
 				FString URLString = URL.ToString();
 
@@ -518,7 +547,15 @@ void AOnlineBeaconClient::NotifyControlMessage(UNetConnection* Connection, uint8
 	}	
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FString AOnlineBeaconClient::GetAuthTicket(const FUniqueNetIdRepl& PlayerId)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+{
+	return GetAuthTicketInternal(PlayerId);
+}
+
+
+FString AOnlineBeaconClient::GetAuthTicketInternal(const FUniqueNetIdRepl& PlayerId)
 {
 	FString AuthTicket;
 

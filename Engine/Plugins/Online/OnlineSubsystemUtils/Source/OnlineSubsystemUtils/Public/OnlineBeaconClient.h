@@ -115,13 +115,23 @@ class ONLINESUBSYSTEMUTILS_API AOnlineBeaconClient : public AOnlineBeacon
 	const FUniqueNetIdRepl& GetUniqueId() const;
 
 	/**
-	* Get the authentication ticket to send when the server requires auth.
-	* 
-	* @param PlayerId unique id of the user on this connection
-	* 
-	* @return AuthTicket value to send to server
-	*/
+	 * Get the authentication ticket to send when the server requires auth.
+	 * 
+	 * @param PlayerId unique id of the user on this connection
+	 * 
+	 * @return AuthTicket value to send to server
+	 */
+	UE_DEPRECATED(5.3, "GetAuthTicket is deprecated. Override the login options by overriding GetLoginOptions and specifying AuthTicket=%s with the resulting string")
 	virtual FString GetAuthTicket(const FUniqueNetIdRepl& PlayerId);
+
+	/**
+	 * Get the login options to send the server during login.
+	 * Typically this is expected to be in the format that UGameplayStatics::ParseOption can parse, i.e. Key1=Value1?Key2=Value2?Key3=Value3
+	 *
+	 * @param PlayerId unique id of the user on this connection
+	 * @return Login options value to send to server
+	 */
+	virtual FString GetLoginOptions(const FUniqueNetIdRepl& PlayerId);
 
 	/**
 	 * Get the connection state
@@ -178,6 +188,9 @@ protected:
 	FTimerHandle TimerHandle_OnFailure;
 
 private:
+
+	/** Get the auth ticket from OnlineSubsystem for the specified player id */
+	FString GetAuthTicketInternal(const FUniqueNetIdRepl& PlayerId);
 
 	/** Encryption data used when connecting to servers. */
 	FEncryptionData EncryptionData;
