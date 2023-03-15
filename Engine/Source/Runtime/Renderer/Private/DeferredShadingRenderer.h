@@ -968,44 +968,6 @@ private:
 		FRDGTextureSRVRef SceneStencilTexture,
 		const TArrayView<FRDGTextureRef> NaniteResolveTextures);
 
-	bool ShouldRenderVolumetricFog() const;
-
-	void SetupVolumetricFog();
-
-	void RenderLocalLightsForVolumetricFog(
-		FRDGBuilder& GraphBuilder,
-		FViewInfo& View,
-		bool bUseTemporalReprojection,
-		const struct FVolumetricFogIntegrationParameterData& IntegrationData,
-		const FExponentialHeightFogSceneInfo& FogInfo,
-		FIntVector VolumetricFogGridSize,
-		FVector GridZParams,
-		const FRDGTextureDesc& VolumeDesc,
-		FRDGTexture*& OutLocalShadowedLightScattering,
-		FRDGTextureRef ConservativeDepthTexture);
-
-	void RenderLightFunctionForVolumetricFog(
-		FRDGBuilder& GraphBuilder,
-		FViewInfo& View,
-		const FSceneTextures& SceneTextures,
-		FIntVector VolumetricFogGridSize,
-		float VolumetricFogMaxDistance,
-		FMatrix44f& OutLightFunctionTranslatedWorldToShadow,
-		FRDGTexture*& OutLightFunctionTexture,
-		bool& bOutUseDirectionalLightShadowing);
-
-	void VoxelizeFogVolumePrimitives(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FVolumetricFogIntegrationParameterData& IntegrationData,
-		FIntVector VolumetricFogGridSize,
-		FVector GridZParams,
-		float VolumetricFogDistance,
-		bool bVoxelizeEmissive);
-
-	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder,
-		const FSceneTextures& SceneTextures);
-
 	void RenderHeterogeneousVolumes(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 	void CompositeHeterogeneousVolumes(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
@@ -1016,8 +978,7 @@ private:
 
 	bool HasDeferredPlanarReflections(const FViewInfo& View) const;
 	void RenderDeferredPlanarReflections(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, const FViewInfo& View, FRDGTextureRef& ReflectionsOutput);
-	
-	bool ShouldRenderDistanceFieldAO() const;
+
 
 	bool IsNaniteEnabled() const;
 

@@ -39,16 +39,26 @@ void MobileFogPS(
 	half4 FinalFog = half4(0,0,0,1);
 	float SceneDepth = CalcSceneDepth(TexCoord);
 	float3 WorldPositionRelativeToCamera = ScreenVector.xyz * SceneDepth;
+	float3 WorldPosition = WorldPositionRelativeToCamera + ResolvedView.TranslatedWorldCameraOrigin - LWCHackToFloat(ResolvedView.PreViewTranslation);
 
 // at least one of these is active
 #if PERMUTATION_SUPPORT_HEIGHT_FOG
 	FinalFog = CalculateHeightFog(WorldPositionRelativeToCamera);
 #endif
 
+#if PERMUTATION_SUPPORT_VOLUMETRIC_FOG
+	if (FogStruct.ApplyVolumetricFog > 0) 
+		{
+			const uint EyeIndex = 0;
+			float3 VolumeUV = ComputeVolumeUV(LWCPromote(WorldPosition), ResolvedView.WorldToClip);
+			FinalFog = CombineVolumetricFog(FinalFog, VolumeUV, EyeIndex, SceneDepth);
+		}
+#endif
+
 #if PERMUTATION_SUPPORT_AERIAL_PERSPECTIVE
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
-		float3 WorldPosition = WorldPositionRelativeToCamera + ResolvedView.TranslatedWorldCameraOrigin - LWCHackToFloat(ResolvedView.PreViewTranslation);
+		
 
 	//	float4 NDCPosition = LWCMultiply(MakeLWCVector4(WorldPosition, 1.0f), PrimaryView.WorldToClip);		// LWC_TODO: MakeLWCVector4 seems broken
 		float4 NDCPosition = LWCMultiply(LWCPromote(float4(WorldPosition, 1.0f)), PrimaryView.WorldToClip);	// Using LWCPromote make the math work as expected.

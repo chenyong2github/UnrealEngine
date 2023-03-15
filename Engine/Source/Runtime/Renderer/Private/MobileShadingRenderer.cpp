@@ -471,6 +471,11 @@ void FMobileSceneRenderer::InitViews(
 		FXSystem->PostInitViews(GraphBuilder, GetSceneViews(), !ViewFamily.EngineShowFlags.HitProxies);
 	}
 	ComputeViewVisibility(RHICmdList, TaskDatas.VisibilityTaskData, BasePassDepthStencilAccess, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager, VirtualTextureUpdater, ComputeViewVisibilityCallbacks);
+	
+	if(ShouldRenderVolumetricFog())
+	{
+		SetupVolumetricFog();
+	}
 	PostVisibilityFrameSetup(ILCTaskData);
 
 	FIntPoint RenderTargetSize = ViewFamily.RenderTarget->GetSizeXY();
@@ -993,6 +998,11 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Shadows));
 	RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
+
+	if(ShouldRenderVolumetricFog())
+	{
+		ComputeVolumetricFog(GraphBuilder, SceneTextures);
+	}
 	ExternalAccessQueue.Submit(GraphBuilder);
 	
 	PollOcclusionQueriesPass(GraphBuilder);

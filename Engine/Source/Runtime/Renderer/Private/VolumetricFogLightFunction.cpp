@@ -81,7 +81,7 @@ class FVolumetricFogLightFunctionPS : public FMaterialShader
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.MaterialParameters.MaterialDomain == MD_LightFunction && DoesPlatformSupportVolumetricFog(Parameters.Platform);
+		return Parameters.MaterialParameters.MaterialDomain == MD_LightFunction;
 	}
 
 	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FSceneView& View, const FMaterialRenderProxy* MaterialProxy)
@@ -132,7 +132,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 
 
-void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
+void FSceneRenderer::RenderLightFunctionForVolumetricFog(
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View,
 	const FSceneTextures& SceneTextures,

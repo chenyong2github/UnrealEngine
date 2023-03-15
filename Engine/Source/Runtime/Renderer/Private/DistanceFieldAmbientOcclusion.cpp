@@ -879,7 +879,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 	OutDynamicBentNormalAO = BentNormalOutput;
 }
 
-bool FDeferredShadingSceneRenderer::ShouldRenderDistanceFieldAO() const
+bool FSceneRenderer::ShouldRenderDistanceFieldAO() const
 {
 	bool bShouldRenderRTAO = false;
 	for (int ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)

@@ -36,7 +36,6 @@ class FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsRGBColorBuffer : 1;
 	uint32 bSupportsCapsuleShadows : 1;
 	uint32 bSupportsPercentageCloserShadows : 1;
-	uint32 bSupportsVolumetricFog : 1; // also used for FVVoxelization
 	uint32 bSupportsIndexBufferUAVs : 1;
 	uint32 bSupportsInstancedStereo : 1;
 	uint32 SupportsMultiViewport : int32(ERHIFeatureSupport::NumBits);
@@ -277,12 +276,6 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].bSupportsPercentageCloserShadows;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsVolumetricFog(const FStaticShaderPlatform Platform)
-	{
-		check(IsValid(Platform));
-		return Infos[Platform].bSupportsVolumetricFog;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)

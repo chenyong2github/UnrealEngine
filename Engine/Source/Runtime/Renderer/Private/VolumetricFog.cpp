@@ -228,11 +228,6 @@ class FVolumetricFogMaterialSetupCS : public FGlobalShader
 
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportVolumetricFog(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -255,11 +250,6 @@ class FWriteToBoundingSphereVS : public FGlobalShader
 		SHADER_PARAMETER(FVector4f, ViewSpaceBoundingSphere)
 		SHADER_PARAMETER(int32, MinZ)
 	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportVolumetricFog(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -313,11 +303,6 @@ class FInjectShadowedLocalLightPS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportVolumetricFog(Parameters.Platform);
 	}
 };
 
@@ -459,7 +444,7 @@ public:
 
 TGlobalResource<FCircleRasterizeIndexBuffer> GCircleRasterizeIndexBuffer;
 
-void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
+void FSceneRenderer::RenderLocalLightsForVolumetricFog(
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View,
 	bool bUseTemporalReprojection,
@@ -695,11 +680,6 @@ class FVolumetricFogLightScatteringCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, UseEmissive)
 	END_SHADER_PARAMETER_STRUCT()
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportVolumetricFog(Parameters.Platform);
-	}
-
 	static FIntVector GetGroupSize()
 	{
 		return FIntVector(4, 4, 4);
@@ -721,6 +701,33 @@ class FVolumetricFogLightScatteringCS : public FGlobalShader
 		}
 		
 		return 16;
+	}
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector, EShaderPlatform ShaderPlatform)
+	{
+		if (IsMobilePlatform(ShaderPlatform))
+		{
+			PermutationVector.Set<FDistanceFieldSkyOcclusion>(false);
+			PermutationVector.Set<FCloudTransmittance>(false);
+			PermutationVector.Set<FTemporalReprojection>(false);
+		}
+
+		if (!FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(ShaderPlatform))
+		{
+			PermutationVector.Set<FLumenGI>(false);
+		}
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (RemapPermutation(PermutationVector, Parameters.Platform) != PermutationVector)
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -751,11 +758,6 @@ class FVolumetricFogFinalIntegrationCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricFogIntegrationParameters, VolumetricFogParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportVolumetricFog(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -765,22 +767,14 @@ class FVolumetricFogFinalIntegrationCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FVolumetricFogFinalIntegrationCS, "/Engine/Private/VolumetricFog.usf", "FinalIntegrationCS", SF_Compute);
 
-bool DoesPlatformSupportVolumetricFog(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsVolumetricFog(Platform);
-}
-
 bool DoesPlatformSupportVolumetricFogVoxelization(const FStaticShaderPlatform Platform)
 {
-	return DoesPlatformSupportVolumetricFog(Platform);
+	return !IsMobilePlatform(Platform);
 }
-
 bool ShouldRenderVolumetricFog(const FScene* Scene, const FSceneViewFamily& ViewFamily)
 {
 	return ShouldRenderFog(ViewFamily)
 		&& Scene
-		&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5
-		&& DoesPlatformSupportVolumetricFog(Scene->GetShaderPlatform())
 		&& GVolumetricFog
 		&& ViewFamily.EngineShowFlags.VolumetricFog
 		&& Scene->ExponentialFogs.Num() > 0
@@ -920,12 +914,12 @@ void FViewInfo::SetupVolumetricFogUniformBufferParameters(FViewUniformShaderPara
 	}
 }
 
-bool FDeferredShadingSceneRenderer::ShouldRenderVolumetricFog() const
+bool FSceneRenderer::ShouldRenderVolumetricFog() const
 {
 	return ::ShouldRenderVolumetricFog(Scene, ViewFamily);
 }
 
-void FDeferredShadingSceneRenderer::SetupVolumetricFog()
+void FSceneRenderer::SetupVolumetricFog()
 {
 	if (ShouldRenderVolumetricFog())
 	{
@@ -959,7 +953,7 @@ void FDeferredShadingSceneRenderer::SetupVolumetricFog()
 	}
 }
 
-void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuilder,
+void FSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures)
 {
 	if (!ShouldRenderVolumetricFog())
@@ -969,7 +963,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 
 	const FExponentialHeightFogSceneInfo& FogInfo = Scene->ExponentialFogs[0];
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::ComputeVolumetricFog);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::ComputeVolumetricFog);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_VolumetricFog);
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, VolumetricFog);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, VolumetricFog);
@@ -995,7 +989,8 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 
 		const bool bUseTemporalReprojection =
 			GVolumetricFogTemporalReprojection
-			&& View.ViewState;
+			&& View.ViewState
+			&& !IsMobilePlatform(View.GetShaderPlatform());
 
 		IntegrationData.bTemporalHistoryIsValid =
 			bUseTemporalReprojection
@@ -1252,7 +1247,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			PassParameters->CloudShadowmapStrength = CloudShadowmap_Strength;
 			PassParameters->CloudShadowmapTranslatedWorldToLightClipMatrix = CloudWorldToLightClipShadowMatrix;
 
-			const bool bUseLumenGI = View.LumenTranslucencyGIVolume.Texture0 != nullptr;
+			const bool bUseLumenGI = View.LumenTranslucencyGIVolume.Texture0 != nullptr && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(View.GetShaderPlatform());
 			const bool bUseGlobalDistanceField = UseGlobalDistanceField() && Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
 
 			const bool bUseDistanceFieldSkyOcclusion =
@@ -1265,7 +1260,8 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 				&& SupportsDistanceFieldAO(View.GetFeatureLevel(), View.GetShaderPlatform())
 				&& bUseGlobalDistanceField
 				&& Views.Num() == 1
-				&& View.IsPerspectiveProjection();
+				&& View.IsPerspectiveProjection()
+				&& !IsMobilePlatform(View.GetShaderPlatform());
 
 			const int32 SuperSampleCount = FVolumetricFogLightScatteringCS::GetSuperSampleCount(GVolumetricFogHistoryMissSupersampleCount);
 

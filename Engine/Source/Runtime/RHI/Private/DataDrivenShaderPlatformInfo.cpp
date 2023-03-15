@@ -134,6 +134,7 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 	bSupportsManualVertexFetch = true;
 	bSupportsVolumeTextureAtomics = true;
 	bSupportsClipDistance = true;
+	bSupportsDistanceFields = true;
 	PreviewShaderPlatformParent = EShaderPlatform::SP_NumPlatforms;
 }
 
@@ -195,7 +196,6 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bSupportsRGBColorBuffer);
 	GET_SECTION_BOOL_HELPER(bSupportsCapsuleShadows);
 	GET_SECTION_BOOL_HELPER(bSupportsPercentageCloserShadows);
-	GET_SECTION_BOOL_HELPER(bSupportsVolumetricFog);
 	GET_SECTION_BOOL_HELPER(bSupportsIndexBufferUAVs);
 	GET_SECTION_BOOL_HELPER(bSupportsInstancedStereo);
 	GET_SECTION_SUPPORT_HELPER(SupportsMultiViewport);

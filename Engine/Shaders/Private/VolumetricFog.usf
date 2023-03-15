@@ -9,15 +9,19 @@
 #include "LightGridCommon.ush"
 #include "HeightFogCommon.ush"
 #include "SHCommon.ush"
+#if DISTANCE_FIELD_SKY_OCCLUSION
 #include "DistanceFieldAOShared.ush"
 #include "DistanceField/GlobalDistanceFieldShared.ush"
+#endif
 #include "VolumeLightingCommon.ush"
 #include "VolumetricLightmapShared.ush"
 #include "ForwardShadowingCommon.ush"
 #include "ParticipatingMediaCommon.ush"
 #include "LightDataUniforms.ush"
+#if LUMEN_GI
 #define FrontLayerTranslucencyReflectionsStruct LumenGIVolumeStruct
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
+#endif
 #include "Random.ush"
 
 #if VIRTUAL_SHADOW_MAP
@@ -385,6 +389,8 @@ Texture3D<float4> LocalShadowedLightScattering;
 
 RWTexture3D<float4> RWLightScattering;
 
+#if DISTANCE_FIELD_SKY_OCCLUSION
+
 float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	uniform uint ClipmapIndex,
 	float3 TranslatedWorldShadingPosition,
@@ -442,6 +448,8 @@ float HemisphereConeTraceAgainstGlobalDistanceField(float3 TranslatedWorldShadin
 
 	return MinVisibility;
 }
+
+#endif
 
 float SkyLightUseStaticShadowing;
 

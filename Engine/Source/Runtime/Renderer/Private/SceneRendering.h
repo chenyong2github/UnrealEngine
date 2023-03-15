@@ -64,7 +64,7 @@ class FLumenSceneData;
 class FShadowSceneRenderer;
 class FGlobalShaderMap;
 class FVirtualTextureUpdater;
-
+class FExponentialHeightFogSceneInfo;
 struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
 struct FHairStrandsVisibilityViews;
@@ -84,6 +84,7 @@ class FSimpleLightArray;
 struct FNaniteMaterialPassCommand;
 struct FScreenMessageWriter;
 struct FVisibilityTaskData;
+struct FVolumetricFogIntegrationParameterData;
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
 
@@ -2232,10 +2233,47 @@ public:
 	bool ShouldPrepareGlobalDistanceField() const;
 	bool ShouldPrepareHeightFieldScene() const;
 
+	bool ShouldRenderDistanceFieldAO() const;
 	void UpdateGlobalDistanceFieldObjectBuffers(FRDGBuilder& GraphBuilder);
 	void UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuilder, const TArray<uint32>& IndicesToUpdateInHeightFieldObjectBuffers);
 	void ProcessPendingHeightFieldPrimitiveAddAndRemoveOps(TArray<uint32>& IndicesToUpdateInHeightFieldObjectBuffers);
 	void PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, FRDGExternalAccessQueue& ExternalAccessQueue);
+
+	void VoxelizeFogVolumePrimitives(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FVolumetricFogIntegrationParameterData& IntegrationData,
+		FIntVector VolumetricFogGridSize,
+		FVector GridZParams,
+		float VolumetricFogDistance,
+		bool bVoxelizeEmissive);
+
+	void RenderLightFunctionForVolumetricFog(
+		FRDGBuilder& GraphBuilder,
+		FViewInfo& View,
+		const FSceneTextures& SceneTextures,
+		FIntVector VolumetricFogGridSize,
+		float VolumetricFogMaxDistance,
+		FMatrix44f& OutLightFunctionTranslatedWorldToShadow,
+		FRDGTexture*& OutLightFunctionTexture,
+		bool& bOutUseDirectionalLightShadowing);
+
+	void RenderLocalLightsForVolumetricFog(
+		FRDGBuilder& GraphBuilder,
+		FViewInfo& View,
+		bool bUseTemporalReprojection,
+		const struct FVolumetricFogIntegrationParameterData& IntegrationData,
+		const FExponentialHeightFogSceneInfo& FogInfo,
+		FIntVector VolumetricFogGridSize,
+		FVector GridZParams,
+		const FRDGTextureDesc& VolumeDesc,
+		FRDGTexture*& OutLocalShadowedLightScattering,
+		FRDGTextureRef ConservativeDepthTexture);
+
+	void SetupVolumetricFog();
+
+	bool ShouldRenderVolumetricFog() const;
+	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
 	void DrawGPUSkinCacheVisualizationInfoText();
 

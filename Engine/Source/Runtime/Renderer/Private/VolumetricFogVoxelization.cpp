@@ -186,8 +186,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) 
-			&& DoesPlatformSupportVolumetricFogVoxelization(Parameters.Platform)
+		return DoesPlatformSupportVolumetricFogVoxelization(Parameters.Platform)
 			&& Parameters.MaterialParameters.MaterialDomain == MD_Volume;
 	}
 
@@ -271,8 +270,8 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) 
-			&& RHISupportsGeometryShaders(Parameters.Platform)
+		return
+			RHISupportsGeometryShaders(Parameters.Platform)
 			&& DoesPlatformSupportVolumetricFogVoxelization(Parameters.Platform)
 			&& Parameters.MaterialParameters.MaterialDomain == MD_Volume;
 	}
@@ -344,8 +343,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) 
-			&& DoesPlatformSupportVolumetricFogVoxelization(Parameters.Platform)
+		return DoesPlatformSupportVolumetricFogVoxelization(Parameters.Platform)
 			&& Parameters.MaterialParameters.MaterialDomain == MD_Volume;
 	}
 };
@@ -599,7 +597,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVoxelizeVolumePassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void FDeferredShadingSceneRenderer::VoxelizeFogVolumePrimitives(
+void FSceneRenderer::VoxelizeFogVolumePrimitives(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FVolumetricFogIntegrationParameterData& IntegrationData,

@@ -62,6 +62,7 @@ class FMobileFogPS : public FGlobalShader
 	class FSupportFogSecondTerm						: SHADER_PERMUTATION_BOOL("PERMUTATION_SUPPORT_FOG_SECOND_TERM");
 	class FSupportFogDirectionalLightInScattering	: SHADER_PERMUTATION_BOOL("PERMUTATION_SUPPORT_FOG_DIRECTIONAL_LIGHT_INSCATTERING");
 	class FSupportAerialPerspective					: SHADER_PERMUTATION_BOOL("PERMUTATION_SUPPORT_AERIAL_PERSPECTIVE");
+	class FSupportVolumetricFog						: SHADER_PERMUTATION_BOOL("PERMUTATION_SUPPORT_VOLUMETRIC_FOG");
 	
 	using FPermutationDomain = TShaderPermutationDomain< 
 		FSupportHeightFog, 
@@ -69,7 +70,8 @@ class FMobileFogPS : public FGlobalShader
 		FSupportFogInScatteringTexture, 
 		FSupportFogSecondTerm,
 		FSupportFogDirectionalLightInScattering,
-		FSupportAerialPerspective 
+		FSupportAerialPerspective,
+		FSupportVolumetricFog
 	>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -179,6 +181,7 @@ void FMobileSceneRenderer::RenderFog(FRHICommandListImmediate& RHICmdList, const
 	PsPermutationVector.Set<FMobileFogPS::FSupportFogSecondTerm>(bUseFogSecondTerm);
 	PsPermutationVector.Set<FMobileFogPS::FSupportAerialPerspective>(bUseAerialPerspective);
 	PsPermutationVector.Set<FMobileFogPS::FSupportFogDirectionalLightInScattering>(bUseFogDirectionalInscatering);
+	PsPermutationVector.Set<FMobileFogPS::FSupportVolumetricFog>(ShouldRenderVolumetricFog());
 	
 	TShaderMapRef<FMobileFogPS> PixelShader(View.ShaderMap, PsPermutationVector);
 		
