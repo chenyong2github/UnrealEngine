@@ -161,6 +161,12 @@ namespace UE::Net
 	static bool GMetAsyncDemoNameDebugChance = false;
 #endif
 
+	static bool bSkipDestroyNetStartupActorsOnChannelCloseDueToLevelUnloaded = true;
+	static FAutoConsoleVariableRef CVarSkipDestroyNetStartupActorsOnChannelCloseDueToLevelUnloaded(
+		TEXT("net.SkipDestroyNetStartupActorsOnChannelCloseDueToLevelUnloaded"),
+		bSkipDestroyNetStartupActorsOnChannelCloseDueToLevelUnloaded,
+		TEXT("Controls if Actor that is a NetStartUpActor assosciated with the channel is destroyed or not when we receive a channel close with ECloseReason::LevelUnloaded."), ECVF_Default);
+
 	// bTearOff is private but we still might need to adjust the flag on clients based on the channel close reason
 	class FTearOffSetter final
 	{
@@ -2473,6 +2479,10 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 				Connection->Driver->ClientSetActorDormant(Actor);
 				Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 				bWasDormant = true;
+			}
+			else if (UE::Net::bSkipDestroyNetStartupActorsOnChannelCloseDueToLevelUnloaded && (CloseReason == EChannelCloseReason::LevelUnloaded) && Actor->IsNetStartupActor())
+			{
+				UE_LOG(LogNetTraffic, Verbose, TEXT("UActorChannel::CleanUp: Skipped Destroying NetStartupActor %s due to EChannelCloseReason::LevelUnloaded"), *Describe());
 			}
 			else if (!Actor->bNetTemporary && Actor->GetWorld() != NULL && !IsEngineExitRequested() && Connection->Driver->ShouldClientDestroyActor(Actor))
 			{
