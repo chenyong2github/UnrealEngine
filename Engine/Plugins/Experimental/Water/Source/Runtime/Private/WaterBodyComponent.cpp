@@ -208,6 +208,17 @@ FBox UWaterBodyComponent::GetCollisionComponentBounds() const
 	return Box;
 }
 
+void UWaterBodyComponent::SetWaterMeshOverride(UStaticMesh* InMesh)
+{
+	WaterMeshOverride = InMesh;
+
+	FOnWaterBodyChangedParams Params;
+	Params.bShapeOrPositionChanged = true;
+	Params.bUserTriggered = true;
+	Params.bWeightmapSettingsChanged = false;
+	OnWaterBodyChanged(Params);
+}
+
 AWaterBody* UWaterBodyComponent::GetWaterBodyActor() const
 {
 	// If we have an Owner, it must be an AWaterBody
