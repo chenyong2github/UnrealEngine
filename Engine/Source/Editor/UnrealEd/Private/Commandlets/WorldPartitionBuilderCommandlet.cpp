@@ -14,6 +14,11 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "Trace/Trace.h"
 
+#include "CollectionManagerModule.h"
+#include "ICollectionManager.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilderCommandlet, All, All);
 
 UWorldPartitionBuilderCommandlet::UWorldPartitionBuilderCommandlet(const FObjectInitializer& ObjectInitializer)
@@ -48,11 +53,41 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		FastExit = true;		// Faster exit which avoids crash during shutdown. The engine isn't shutdown cleanly.
 	}
 
-	// This will convert incomplete package name to a fully qualified path
-	FString WorldFilename;
-	if (!FPackageName::SearchForPackageOnDisk(Tokens[0], &Tokens[0], &WorldFilename))
+	ICollectionManager& CollectionManager = FModuleManager::LoadModuleChecked<FCollectionManagerModule>("CollectionManager").Get();
+	TArray<FString> MapPackagesNames;
+
+	FAssetRegistryModule* AssetRegistryModule = &FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	// Parse map name or maps collection
+	if (FPackageName::SearchForPackageOnDisk(Tokens[0]))
 	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown world '%s'"), *Tokens[0]);
+		MapPackagesNames = { Tokens[0] };
+	}	
+	else if (CollectionManager.CollectionExists(FName(Tokens[0]), ECollectionShareType::CST_All))
+	{
+		TArray<FSoftObjectPath> AssetsPaths;
+		CollectionManager.GetAssetsInCollection(FName(Tokens[0]), ECollectionShareType::CST_All, AssetsPaths, ECollectionRecursionFlags::SelfAndChildren);
+
+		for (const auto& AssetPath : AssetsPaths)
+		{
+			const bool bIncludeOnlyOnDiskAssets = true;
+			FAssetData AssetData = AssetRegistryModule->Get().GetAssetByObjectPath(AssetPath, bIncludeOnlyOnDiskAssets);
+			const bool bIsWorldAsset = AssetData.IsValid() && (AssetData.AssetClassPath == UWorld::StaticClass()->GetClassPathName());
+			if (bIsWorldAsset)
+			{
+				MapPackagesNames.Add(AssetPath.GetAssetPathString());
+			}
+		}
+
+		if (MapPackagesNames.IsEmpty())
+		{
+			UE_LOG(LogWorldPartitionBuilderCommandlet, Warning, TEXT("Found no maps to process in collection %s), exiting"), *Tokens[0]);
+			return 0;
+		}
+	}
+	else
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Missing world(s) as the first argument to the commandlet. Either supply the world name directly (WorldName or /Path/To/WorldName), or provide a collection name to have the builder operate on a set of maps."));
 		return 1;
 	}
 
@@ -65,27 +100,50 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	}
 
 	// Find builder class
-	UClass* BuilderClass = FindFirstObject<UClass>(*BuilderClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
+	TSubclassOf<UWorldPartitionBuilder> BuilderClass = FindFirstObject<UClass>(*BuilderClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 	if (!BuilderClass)
 	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown builder %s."), *BuilderClassName);
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown/invalid world partition builder class: %s."), *BuilderClassName);
 		return 1;
+	}	
+
+	// Run the builder on the provided map(s)
+	for (const FString& MapPackageName : MapPackagesNames)
+	{
+		if (!RunBuilder(BuilderClass, MapPackageName))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UWorldPartitionBuilderCommandlet::RunBuilder(TSubclassOf<UWorldPartitionBuilder> InBuilderClass, const FString& InWorldPackageName)
+{
+	// This will convert incomplete package name to a fully qualified path
+	FString WorldLongPackageName;
+	FString WorldFilename;
+	if (!FPackageName::SearchForPackageOnDisk(InWorldPackageName, &WorldLongPackageName, &WorldFilename))
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Package '%s' not found"), *InWorldPackageName);
+		return false;
 	}
 
 	// Load the world package
-	UPackage* WorldPackage = LoadWorldPackageForEditor(Tokens[0]);
+	UPackage* WorldPackage = LoadWorldPackageForEditor(WorldLongPackageName);
 	if (!WorldPackage)
 	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Couldn't load package %s."), *Tokens[0]);
-		return 1;
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Couldn't load package %s."), *WorldLongPackageName);
+		return false;
 	}
 
 	// Find the world in the given package
 	UWorld* World = UWorld::FindWorldInPackage(WorldPackage);
 	if (!World)
 	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("No world in specified package %s."), *Tokens[0]);
-		return 1;
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("No world in specified package %s."), *WorldLongPackageName);
+		return false;
 	}
 
 	// Load configuration file
@@ -96,7 +154,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	}
 
 	// Create builder instance
-	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(GetTransientPackage(), BuilderClass);
+	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(GetTransientPackage(), InBuilderClass);
 	if (!Builder)
 	{
 		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Failed to create builder."));
@@ -114,7 +172,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		!FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*WorldConfigFilename))
 	{
 		SaveConfig(CPF_Config, *WorldConfigFilename);
-	}	
+	}
 
-	return bResult ? 0 : 1;
+	return bResult;
 }

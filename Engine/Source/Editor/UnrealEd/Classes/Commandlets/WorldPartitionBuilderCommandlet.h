@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Commandlets/Commandlet.h"
+#include "Templates/SubclassOf.h"
 #include "PackageSourceControlHelper.h"
 #include "WorldPartitionBuilderCommandlet.generated.h"
 
@@ -17,5 +18,6 @@ class UWorldPartitionBuilderCommandlet : public UCommandlet
 	virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 
-	UWorldPartitionBuilder* CreateBuilder(const FString& WorldConfigFilename);
+private:
+	bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> InBuilderClass, const FString& InWorldPackageName);
 };

@@ -4,14 +4,14 @@
 	<!-- Options -->
 	<Option Name="ProjectName" DefaultValue="" Description="Name of the project."/>
 	<Option Name="EditorTarget" DefaultValue="" Description="Name of the editor target to use."/>
-	<Option Name="MapName" DefaultValue="" Description="The map for which HLODs will be generated."/>
+	<Option Name="MapName" DefaultValue="" Description="The map (or collection) for which HLODs will be generated."/>
 	<Option Name="BuilderCount" DefaultValue="10" Description="Number of machines to use"/>
 	<Option Name="SubmitHLODs" Restrict="true|false" DefaultValue="false" Description="Submit generated HLODs"/>
 	<Option Name="ShelveHLODs" Restrict="true|false" DefaultValue="false" Description="Shelve generated HLODs"/>
 	<Option Name="ShelveUser" DefaultValue="" Description="Shelve result to the provided user workspace"/>
 	<Option Name="ShelveWorkspace" DefaultValue="" Description="Shelve result to the provided user workspace"/>
 	
-	<Error Message="Missing map name. You must provide a map name using -MapName=..." If="'$(MapName)' == ''"/>
+	<Error Message="Missing map name. You must provide a map (or collection) name using -MapName=..." If="'$(MapName)' == ''"/>
 	<Error Message="Missing project name. You must provide the project name using -ProjectName=..." If="'$(ProjectName)' == ''"/>
 	<Error Message="Missing editor target. You must provide the target name using -EditorTarget=..." If="'$(EditorTarget)' == ''"/>
 	<Error Message="Conflicting options found: -SubmitHLODs and -ShelveHLODs" If="$(SubmitHLODs) And $(ShelveHLODs)"/>
