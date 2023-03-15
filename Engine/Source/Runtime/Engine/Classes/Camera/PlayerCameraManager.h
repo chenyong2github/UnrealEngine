@@ -42,6 +42,13 @@ enum EViewTargetBlendFunction : int
 	VTBlend_MAX,
 };
 
+UENUM()
+enum EViewTargetBlendOrder : int
+{
+	VTBlendOrder_Base,
+	VTBlendOrder_Override
+};
+
 /** 
  * Cached camera POV info, stored as optimization so we only
  * need to do a full camera update once per tick.
@@ -368,17 +375,23 @@ protected:
 	/** Internal list of weights for active post process effects. Parallel array to PostProcessBlendCache. */
 	TArray<float> PostProcessBlendCacheWeights;
 
+	/** Internal list of how to blend post process effects. */
+	TArray<EViewTargetBlendOrder> PostProcessBlendCacheOrders;
+
 public:
 	/** Adds a postprocess effect at the given weight. */
-	void AddCachedPPBlend(struct FPostProcessSettings& PPSettings, float BlendWeight);
+	void AddCachedPPBlend(struct FPostProcessSettings& PPSettings, float BlendWeight, EViewTargetBlendOrder BlendOrder = VTBlendOrder_Base);
+
+	/** Returns active post process info. */
+	void GetCachedPostProcessBlends(TArray<struct FPostProcessSettings> const*& OutPPSettings, TArray<float> const*& OutBlendWeights) const;
+
+	/** Returns active post process info. */
+	void GetCachedPostProcessBlends(TArray<struct FPostProcessSettings> const*& OutPPSettings, TArray<float> const*& OutBlendWeights, TArray<EViewTargetBlendOrder> const*& OutBlendOrders) const;
+
 protected:
 	/** Removes all postprocess effects. */
 	void ClearCachedPPBlends();
 
-public:
-	/** Returns active post process info. */
-	void GetCachedPostProcessBlends(TArray<struct FPostProcessSettings> const*& OutPPSettings, TArray<float> const*& OutBlendWeigthts) const;
-	
 protected:
 	/** Internal. Receives the output of individual camera animations. */
 	UPROPERTY(transient)

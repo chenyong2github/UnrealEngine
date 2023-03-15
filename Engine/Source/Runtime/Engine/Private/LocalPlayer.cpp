@@ -878,24 +878,38 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 	{
 		View->StartFinalPostprocessSettings(ViewInfo.Location);
 
-		// CameraAnim override
+		TArray<FPostProcessSettings> const* CameraAnimPPSettings = nullptr;
+		TArray<float> const* CameraAnimPPBlendWeights = nullptr;
+		TArray<EViewTargetBlendOrder> const* CameraAnimPPBlendOrders = nullptr;
+
+		// Base overrides (post process volumes, etc)
 		if (PlayerController->PlayerCameraManager)
 		{
-			TArray<FPostProcessSettings> const* CameraAnimPPSettings;
-			TArray<float> const* CameraAnimPPBlendWeights;
-			PlayerController->PlayerCameraManager->GetCachedPostProcessBlends(CameraAnimPPSettings, CameraAnimPPBlendWeights);
+			PlayerController->PlayerCameraManager->GetCachedPostProcessBlends(CameraAnimPPSettings, CameraAnimPPBlendWeights, CameraAnimPPBlendOrders);
 
 			for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
 			{
-				View->OverridePostProcessSettings( (*CameraAnimPPSettings)[PPIdx], (*CameraAnimPPBlendWeights)[PPIdx]);
+				if ((*CameraAnimPPBlendOrders)[PPIdx] == VTBlendOrder_Base)
+				{
+					View->OverridePostProcessSettings( (*CameraAnimPPSettings)[PPIdx], (*CameraAnimPPBlendWeights)[PPIdx]);
+				}
 			}
 		}
 
-		//	CAMERA OVERRIDE
+		// Main camera
 		View->OverridePostProcessSettings(ViewInfo.PostProcessSettings, ViewInfo.PostProcessBlendWeight);
 
+		// Camera overrides (cameras blending in, camera modifiers, etc)
 		if (PlayerController->PlayerCameraManager)
 		{
+			for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
+			{
+				if ((*CameraAnimPPBlendOrders)[PPIdx] == VTBlendOrder_Override)
+				{
+					View->OverridePostProcessSettings( (*CameraAnimPPSettings)[PPIdx], (*CameraAnimPPBlendWeights)[PPIdx]);
+				}
+			}
+
 			PlayerController->PlayerCameraManager->UpdatePhotographyPostProcessing(View->FinalPostProcessSettings);
 		}
 
