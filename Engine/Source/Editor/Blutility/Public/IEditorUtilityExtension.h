@@ -9,12 +9,12 @@
 #include "IEditorUtilityExtension.generated.h"
 
 UINTERFACE(BlueprintType)
-class UEditorUtilityExtension : public UInterface
+class BLUTILITY_API UEditorUtilityExtension : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class IEditorUtilityExtension
+class BLUTILITY_API IEditorUtilityExtension
 {
 	GENERATED_IINTERFACE_BODY()
 };
