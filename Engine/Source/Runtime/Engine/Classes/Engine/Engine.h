@@ -2649,10 +2649,10 @@ private:
 	*/
 	void OnExternalUIChange(bool bInIsOpening);
 
-	/** Returns GetTimeBetweenGarbageCollectionPasses but tweaked if its an idle server or not */
-	float GetTimeBetweenGarbageCollectionPasses(bool bHasPlayersConnected) const;
-
 protected:
+
+	/** Returns GetTimeBetweenGarbageCollectionPasses but tweaked if its an idle server or not */
+	virtual float GetTimeBetweenGarbageCollectionPasses(bool bHasPlayersConnected) const;
 
 	/**
 	 * Handles freezing/unfreezing of rendering 
