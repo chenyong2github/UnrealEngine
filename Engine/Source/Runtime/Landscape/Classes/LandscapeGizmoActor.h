@@ -45,13 +45,10 @@ public:
 
 
 #if WITH_EDITOR
+	virtual bool ShouldExport() override { return false; } // Prevent copy-pasting
 	virtual void Duplicate(ALandscapeGizmoActor* Gizmo); 
-	//virtual void EditorApplyTranslation(const FVector& DeltaTranslation, bool bAltDown, bool bShiftDown, bool bCtrlDown);
 
-	bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const override
-	{
-		return false;
-	}
+	bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const override	{ return false;	}
 #endif
 
 	/** 

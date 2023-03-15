@@ -1933,6 +1933,13 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 				}
 				return true;
 			}
+
+			if (CurrentGizmoActor.IsValid() && CurrentGizmoActor->IsSelected() && (GLandscapeEditRenderMode & ELandscapeEditRenderMode::Gizmo) && IsAltDown(Viewport))
+			{ 
+				// When manipulating the gizmo with Alt down, don't do anything but return true to indicate it's on purpose and prevent the editor from doing the usual thing
+				//  (alt-drag is usually "duplicate actor" and we want to prevent duplicating the gizmo actor) 
+				return true; 
+			}
 		}
 
 		if (Key == EKeys::LeftMouseButton ||

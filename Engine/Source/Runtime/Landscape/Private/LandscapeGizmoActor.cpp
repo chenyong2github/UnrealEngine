@@ -566,42 +566,44 @@ void ALandscapeGizmoActiveActor::PostEditMove(bool bFinished)
 
 FVector ALandscapeGizmoActiveActor::SnapToLandscapeGrid(const FVector& GizmoLocation) const
 {
-	check(TargetLandscapeInfo);
-	const ALandscapeProxy* LandscapeProxy = TargetLandscapeInfo->GetLandscapeProxy();
+	FVector ResultLocation = GizmoLocation;
+	if (TargetLandscapeInfo != nullptr)
+	{
+		const ALandscapeProxy* LandscapeProxy = TargetLandscapeInfo->GetLandscapeProxy();
 
-	const FTransform LToW = LandscapeProxy->LandscapeActorToWorld();
-	const FVector LandscapeSpaceLocation = LToW.InverseTransformPosition(GizmoLocation);
-	float SnapDimension;
-	switch(SnapType)
-	{
-	case ELandscapeGizmoSnapType::Component:
-		SnapDimension = LandscapeProxy->ComponentSizeQuads;
-		break;
-	case ELandscapeGizmoSnapType::Texel:
-		SnapDimension = 1.0f;
-		break;
-	case ELandscapeGizmoSnapType::None:
-		SnapDimension = 0.0f; 
-		break;
-	default:
-		SnapDimension = 0.0f;
-		break;
-	}
+		const FTransform LToW = LandscapeProxy->LandscapeActorToWorld();
+		const FVector LandscapeSpaceLocation = LToW.InverseTransformPosition(GizmoLocation);
+		float SnapDimension;
+		switch (SnapType)
+		{
+		case ELandscapeGizmoSnapType::Component:
+			SnapDimension = LandscapeProxy->ComponentSizeQuads;
+			break;
+		case ELandscapeGizmoSnapType::Texel:
+			SnapDimension = 1.0f;
+			break;
+		case ELandscapeGizmoSnapType::None:
+			SnapDimension = 0.0f;
+			break;
+		default:
+			SnapDimension = 0.0f;
+			break;
+		}
 
-	FVector ResultLocation;
-	if (SnapDimension > 0.0f)
-	{
-		const FVector SnappedLandscapeSpaceLocation = LandscapeSpaceLocation.GridSnap(SnapDimension);
-		ResultLocation = LToW.TransformPosition(SnappedLandscapeSpaceLocation);	
-	}
-	else
-	{
-		ResultLocation = GizmoLocation;
-	}
+		if (SnapDimension > 0.0f)
+		{
+			const FVector SnappedLandscapeSpaceLocation = LandscapeSpaceLocation.GridSnap(SnapDimension);
+			ResultLocation = LToW.TransformPosition(SnappedLandscapeSpaceLocation);
+		}
+		else
+		{
+			ResultLocation = GizmoLocation;
+		}
 
-	if (bFollowTerrainHeight)
-	{
-		ResultLocation.Z = LandscapeProxy->GetHeightAtLocation(ResultLocation, EHeightfieldSource::Editor).Get(GizmoLocation.Z);
+		if (bFollowTerrainHeight)
+		{
+			ResultLocation.Z = LandscapeProxy->GetHeightAtLocation(ResultLocation, EHeightfieldSource::Editor).Get(GizmoLocation.Z);
+		}
 	}
 	
 	return ResultLocation;
