@@ -215,21 +215,8 @@ public:
 		return *this;
 	}
 
-	template <
-		typename AppendedCharType,
-		std::enable_if_t<TIsCharType<AppendedCharType>::Value>* = nullptr
-	>
-	UE_DEPRECATED(5.0, "Use AppendChar instead of Append.")
-	inline BuilderType& Append(AppendedCharType Char)
-	{
-		return AppendChar(Char);
-	}
-
+	UE_DEPRECATED(5.3, "Use Append instead of AppendAnsi.")
 	inline BuilderType& AppendAnsi(const FAnsiStringView String) { return Append(String); }
-	UE_DEPRECATED(5.0, "Use Append instead of AppendAnsi.")
-	inline BuilderType& AppendAnsi(const ANSICHAR* const String) { return Append(String); }
-	UE_DEPRECATED(5.0, "Use Append instead of AppendAnsi.")
-	inline BuilderType& AppendAnsi(const ANSICHAR* const String, const int32 Length) { return Append(String, Length); }
 
 	/** Replace characters at given position and length with substring */
 	void ReplaceAt(int32 Pos, int32 RemoveLen, ViewType Str)

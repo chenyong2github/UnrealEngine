@@ -196,7 +196,6 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 	#define DEFINE_LOG_CATEGORY_STATIC(...)
 	#define DECLARE_LOG_CATEGORY_CLASS(...)
 	#define DEFINE_LOG_CATEGORY_CLASS(...)
-	#define UE_SECURITY_LOG(...) DEPRECATED_MACRO(5.1, "UE_SECURITY_LOG has been deprecated in favor of UE_LOG")
 
 #else
 
@@ -260,26 +259,6 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 
 	// DO NOT USE. Use UE_LOG because this will be deprecated in a future release.
 	#define UE_LOG_CLINKAGE UE_LOG
-
-	/**
-	* A  macro that outputs a formatted message to the log specifically used for security events
-	* @param NetConnection, a valid UNetConnection
-	* @param SecurityEventType, a security event type (ESecurityEvent::Type)
-	* @param Format, format text
-	***/
-	#define UE_SECURITY_LOG(NetConnection, SecurityEventType, Format, ...) \
-	{ \
-		DEPRECATED_MACRO(5.1, "UE_SECURITY_LOG has been deprecated in favor of UE_LOG") \
-		static_assert(TIsArrayOrRefOfTypeByPredicate<decltype(Format), TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array."); \
-		check(NetConnection != nullptr); \
-		CA_CONSTANT_IF((ELogVerbosity::Warning & ELogVerbosity::VerbosityMask) <= ELogVerbosity::COMPILED_IN_MINIMUM_VERBOSITY && (ELogVerbosity::Warning & ELogVerbosity::VerbosityMask) <= FLogCategoryLogSecurity::CompileTimeVerbosity) \
-		{ \
-			if (!LogSecurity.IsSuppressed(ELogVerbosity::Warning)) \
-			{ \
-				FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, LogSecurity.GetCategoryName(), ELogVerbosity::Warning, TEXT("%s: %s: %s"), *(NetConnection->RemoteAddressToString()), ToString(SecurityEventType), *FString::Printf(Format, ##__VA_ARGS__)); \
-			} \
-		} \
-	}
 
 	/**
 	 * A macro that conditionally logs a formatted message if the log category is active at the requested verbosity level.
@@ -401,31 +380,6 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 #define NOTIFY_CLIENT_OF_SECURITY_EVENT_IF_NOT_SHIPPING(NetConnection, SecurityPrint) \
 	FNetControlMessage<NMT_SecurityViolation>::Send(NetConnection, SecurityPrint); \
 	NetConnection->FlushNet(true)
-#endif
-
-/**
-	* A  macro that closes the connection and logs the security event on the server and the client
-	* @param NetConnection, a valid UNetConnection
-	* @param SecurityEventType, a security event type (ESecurityEvent::Type)
-	* @param Format, format text
-***/
-#define CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION_INNER(NetConnection, SecurityEventType, Format, ...) \
-{ \
-	DEPRECATED_MACRO(5.1, "CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION has been deprecated") \
-	static_assert(TIsArrayOrRefOfTypeByPredicate<decltype(Format), TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array."); \
-	check(NetConnection != nullptr); \
-	FString SecurityPrint = FString::Printf(Format, ##__VA_ARGS__); \
-	UE_LOG(LogSecurity, Warning, TEXT("%s: %s: %s"), *(NetConnection)->RemoteAddressToString(), ToString(SecurityEventType), SecurityEventType, *SecurityPrint); \
-	UE_LOG(LogSecurity, Warning, TEXT("%s: Closed: Connection closed"), *(NetConnection)->RemoteAddressToString()); \
-	NetConnection->Close({FromSecurityEvent(SecurityEventType), SecurityPrint}); \
-}
-#if USE_SERVER_PERF_COUNTERS
-#define CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(NetConnection, SecurityEventType, Format, ...) \
-	CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION_INNER(NetConnection, SecurityEventType, Format, ##__VA_ARGS__) \
-	PerfCountersIncrement(TEXT("ClosedConnectionsDueToSecurityViolations"));
-#else
-#define CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(NetConnection, SecurityEventType, Format, ...) \
-	CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION_INNER(NetConnection, SecurityEventType, Format, ##__VA_ARGS__)
 #endif
 
 extern CORE_API int32 GEnsureOnNANDiagnostic;

@@ -71,9 +71,6 @@ ENUM_CLASS_FLAGS(EOutputDeviceRedirectorFlushOptions);
 class CORE_API FOutputDeviceRedirector final : public FOutputDevice
 {
 public:
-	UE_DEPRECATED(5.1, "TLocalOutputDevicesArray is being removed. Use TArray<FOutputDevice*, TInlineAllocator<16>>.")
-	typedef TArray<FOutputDevice*, TInlineAllocator<16>> TLocalOutputDevicesArray;
-
 	/** Initialization constructor. */
 	FOutputDeviceRedirector();
 
@@ -105,10 +102,6 @@ public:
 	/** Flushes lines buffered by secondary threads. */
 	void FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions Options = EOutputDeviceRedirectorFlushOptions::None);
 
-	/** See Panic. */
-	UE_DEPRECATED(5.1, "Use Panic() when the caller is handling a crash, otherwise use FlushThreadedLogs().")
-	void PanicFlushThreadedLogs() { Panic(); }
-
 	/**
 	 * Serializes the current backlog to the specified output device.
 	 * @param OutputDevice   Output device that will receive the current backlog.
@@ -130,9 +123,6 @@ public:
 	 * will not be redirected unless the current thread periodically flushes threaded logs.
 	 */
 	void SetCurrentThreadAsPrimaryThread();
-
-	UE_DEPRECATED(5.1, "Use SetCurrentThreadAsPrimaryThread().")
-	inline void SetCurrentThreadAsMasterThread() { SetCurrentThreadAsPrimaryThread(); }
 
 	/**
 	 * Starts a dedicated primary thread that redirects logs to buffered output devices.

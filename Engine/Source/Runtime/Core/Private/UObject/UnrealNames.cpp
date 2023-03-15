@@ -3192,39 +3192,6 @@ FName::FName(int32 Len, const UTF8CHAR* Name, EFindName FindType)
 	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
 {}
 
-FName::FName(const WIDECHAR* Name, int32 InNumber, EFindName FindType)
-	: FName(FNameHelper::MakeWithNumber(MakeUnconvertedView(Name), FindType, InNumber))
-{}
-
-FName::FName(const ANSICHAR* Name, int32 InNumber, EFindName FindType)
-	: FName(FNameHelper::MakeWithNumber(MakeUnconvertedView(Name), FindType, InNumber))
-{}
-
-FName::FName(const UTF8CHAR* Name, int32 InNumber, EFindName FindType)
-	: FName(FNameHelper::MakeWithNumber(MakeUnconvertedView(Name), FindType, InNumber))
-{}
-
-FName::FName(int32 Len, const WIDECHAR* Name, int32 InNumber, EFindName FindType)
-	: FName(InNumber != NAME_NO_NUMBER_INTERNAL ? FNameHelper::MakeWithNumber(MakeUnconvertedView(Name, Len), FindType, InNumber)
-		: FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
-{}
-
-FName::FName(int32 Len, const ANSICHAR* Name, int32 InNumber, EFindName FindType)
-	: FName(InNumber != NAME_NO_NUMBER_INTERNAL ? FNameHelper::MakeWithNumber(MakeUnconvertedView(Name, Len), FindType, InNumber)
-		: FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
-{}
-
-FName::FName(int32 Len, const UTF8CHAR* Name, int32 InNumber, EFindName FindType)
-	: FName(InNumber != NAME_NO_NUMBER_INTERNAL ? FNameHelper::MakeWithNumber(MakeUnconvertedView(Name, Len), FindType, InNumber)
-		: FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
-{}
-
-FName::FName(const TCHAR* Name, int32 InNumber, EFindName FindType, bool bSplitName)
-	: FName(InNumber == NAME_NO_NUMBER_INTERNAL && bSplitName
-		? FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name), FindType)
-		: FNameHelper::MakeWithNumber(MakeUnconvertedView(Name), FindType, InNumber))
-{}
-
 FName::FName(const WIDECHAR* Name, int32 InNumber)
 	: FName(FNameHelper::MakeWithNumber(MakeUnconvertedView(Name), FNAME_Add, InNumber))
 {}
@@ -3810,12 +3777,6 @@ void FName::AutoTest()
 	check(FName("_2147483646").IsNone());
 	check(!FName("_2147483647").IsNone()); // invalid number
 
-	// Find existing numbered none 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	check(FName("None_7", FNAME_Find) == None_7);
-	check(FName("None", NAME_EXTERNAL_TO_INTERNAL(7), FNAME_Find) == None_7);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	const FName Cylinder(NAME_Cylinder);
 	check(Cylinder == FName("Cylinder"));
 	check(Cylinder.ToEName());
@@ -3861,22 +3822,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (Once)
 	{
 		check(FName("UniqueUnicorn!!", FNAME_Find) == FName());
-#if UE_FNAME_OUTLINE_NUMBER
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		check(FName("UniqueUnicorn!!", 17, FNAME_Find) == FName());			// We can't find the suffix version either
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#else
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		check(FName("UniqueUnicorn!!", 17, FNAME_Find) == FName(FNameEntryId(), FNameEntryId(), 17));	 // We fail to find the string part so we make the name "None_16"
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-
-#if UE_FNAME_OUTLINE_NUMBER
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		const FName NumberedNone = FName("None", 17, FNAME_Add);
-		check(FName("UniqueUnicorn!!", 17, FNAME_Find) == FName());		// Still can't find a numbered name just because we added a None with the same number
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
 
 		// Check that FNAME_Find can find entries
 		const FName UniqueName("UniqueUnicorn!!", FNAME_Add);
@@ -3886,14 +3831,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		check(FName(TEXT("UNIQUEUNICORN!!"), FNAME_Find) == UniqueName);
 		check(FName("uniqueunicorn!!", FNAME_Find) == UniqueName);
 
-#if UE_FNAME_OUTLINE_NUMBER
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		check(FName("UniqueUnicorn!!", 17, FNAME_Find) == FName());		// Still can't find a numbered name just because we made the base version and a None with the same number
-		check(FName("UniqueUnicorn!!", 17, FNAME_Add) != FName());		// Explicitly add it
-		check(FName("UniqueUnicorn!!", 17, FNAME_Find) != FName());		// Now we can find it
-		check(FName("UniqueUnicorn!!", 127, FNAME_Find) == FName());	// But we can't find one with a different number
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif	
 		Once = false;
 	}
 

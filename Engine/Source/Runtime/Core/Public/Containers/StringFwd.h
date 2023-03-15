@@ -31,11 +31,6 @@ template <int32 BufferSize> using TWideStringBuilder = TStringBuilderWithBuffer<
 /** An extendable string builder for UTF8CHAR. */
 template <int32 BufferSize> using TUtf8StringBuilder = TStringBuilderWithBuffer<UTF8CHAR, BufferSize>;
 
-/** A fixed-size string builder for TCHAR. */
-template <int32 BufferSize> using TFixedStringBuilder UE_DEPRECATED(4.25, "'TFixedStringBuilder' is deprecated. Please use 'TStringBuilder' instead!") = TStringBuilderWithBuffer<TCHAR, BufferSize>;
-/** A fixed-size string builder for ANSICHAR. */
-template <int32 BufferSize> using TFixedAnsiStringBuilder UE_DEPRECATED(4.25, "'TFixedAnsiStringBuilder' is deprecated. Please use 'TAnsiStringBuilder' instead!") = TStringBuilderWithBuffer<ANSICHAR, BufferSize>;
-
 // String View
 
 template <typename CharType> class TStringView;

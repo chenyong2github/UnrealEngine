@@ -77,11 +77,6 @@ struct FNameEntryId
 	// Returns true if this FNameEntryId is not equivalent to NAME_None
 	explicit operator bool() const { return Value != 0; }
 
-	UE_DEPRECATED(4.23, "NAME_INDEX is replaced by FNameEntryId, which is no longer a contiguous integer. "
-						"Please use 'GetTypeHash(MyId)' instead of 'MyId' for hash functions. "
-						"ToUnstableInt() can be used in other advanced cases.")
-	operator int32() const;
-
 	/** Get process specific integer */
 	uint32 ToUnstableInt() const { return Value; }
 
@@ -710,20 +705,6 @@ public:
 		return !(*this == Other);
 	}
 
-
-	UE_DEPRECATED(4.23, "Please use FastLess() / FNameFastLess or LexicalLess() / FNameLexicalLess instead. "
-		"Default lexical sort order is deprecated to avoid unintended expensive sorting. ")
-	FORCEINLINE bool operator<( const FName& Other ) const
-	{
-		return LexicalLess(Other);
-	}
-
-	UE_DEPRECATED(4.23, "Please use B.FastLess(A) or B.LexicalLess(A) instead of A > B.")
-	FORCEINLINE bool operator>(const FName& Other) const
-	{
-		return Other.LexicalLess(*this);
-	}
-
 	/** Fast non-alphabetical order that is only stable during this process' lifetime. */
 	FORCEINLINE bool FastLess(const FName& Other) const
 	{
@@ -990,49 +971,12 @@ public:
 	 * @param Name Value for the string portion of the name
 	 * @param Number Value for the number portion of the name
 	 */
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	CORE_API FName(const WIDECHAR* Name, int32 Number, EFindName FindType);
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	CORE_API FName(const ANSICHAR* Name, int32 Number, EFindName FindType);
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	CORE_API FName(const UTF8CHAR* Name, int32 Number, EFindName FindType);
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	CORE_API FName(int32 Len, const WIDECHAR* Name, int32 Number, EFindName FindType);
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	CORE_API FName(int32 Len, const ANSICHAR* Name, int32 Number, EFindName FindType);
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	CORE_API FName(int32 Len, const UTF8CHAR* Name, int32 Number, EFindName FindType);
 	CORE_API FName(const WIDECHAR* Name, int32 Number);
 	CORE_API FName(const ANSICHAR* Name, int32 Number);
 	CORE_API FName(const UTF8CHAR* Name, int32 Number);
 	CORE_API FName(int32 Len, const WIDECHAR* Name, int32 Number);
 	CORE_API FName(int32 Len, const ANSICHAR* Name, int32 Number);
 	CORE_API FName(int32 Len, const UTF8CHAR* Name, int32 Number);
-
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	inline FName(TStringView<ANSICHAR> View, int32 InNumber, EFindName FindType)
-		: FName(NoInit)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		*this = FName(View.Len(), View.GetData(), InNumber, FindType);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	inline FName(TStringView<WIDECHAR> View, int32 InNumber, EFindName FindType)
-		: FName(NoInit)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		*this = FName(View.Len(), View.GetData(), InNumber, FindType);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	inline FName(TStringView<UTF8CHAR> View, int32 InNumber, EFindName FindType)
-		: FName(NoInit)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		*this = FName(View.Len(), View.GetData(), InNumber, FindType);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 
 	inline FName(TStringView<ANSICHAR> View, int32 InNumber)
 		: FName(NoInit)
@@ -1059,8 +1003,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * @param FindType Action to take (see EFindName)
 	 * @param bSplitName true if the trailing number should be split from the name when Number == NAME_NO_NUMBER_INTERNAL, or false to always use the name as-is
 	 */
-	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
-	CORE_API FName(const TCHAR* Name, int32 InNumber, EFindName FindType, bool bSplitName);
 	CORE_API FName(const TCHAR* Name, int32 InNumber, bool bSplitName);
 
 	/**
@@ -1599,9 +1541,6 @@ struct FNameFastLess
 		return A.FastLess(B);
 	}
 };
-
-UE_DEPRECATED(4.23, "Please use FNameFastLess instead.")
-typedef FNameFastLess FNameSortIndexes;
 
 /** Slow alphabetical order that is stable / deterministic over process runs */
 struct FNameLexicalLess

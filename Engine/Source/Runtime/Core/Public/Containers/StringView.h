@@ -79,7 +79,6 @@ class TStringView
 {
 public:
 	using ElementType = CharType;
-	using SizeType UE_DEPRECATED(5.0, "Use int32 instead.") = int32;
 	using ViewType = TStringView<CharType>;
 
 public:
@@ -470,40 +469,6 @@ constexpr inline auto MakeStringView(CharPtrType&& CharPtr UE_LIFETIMEBOUND, int
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-#if PLATFORM_TCHAR_IS_UTF8CHAR
-UE_DEPRECATED(5.1, "The _SV literal is deprecated. Use TEXTVIEW.")
-inline FStringView operator "" _SV(const ANSICHAR* String, size_t Size)
-{
-	return FStringView((const UTF8CHAR*)String, Size);
-}
-#else
-UE_DEPRECATED(5.1, "The _SV literal is deprecated. Use TEXTVIEW.")
-constexpr inline FStringView operator "" _SV(const TCHAR* String, size_t Size)
-{
-	return FStringView(String, Size);
-}
-#endif
-
-UE_DEPRECATED(5.1, "The _ASV literal is deprecated. Use ANSITEXTVIEW.")
-constexpr inline FAnsiStringView operator "" _ASV(const ANSICHAR* String, size_t Size)
-{
-	return FAnsiStringView(String, Size);
-}
-
-UE_DEPRECATED(5.1, "The _WSV literal is deprecated. Use WIDETEXTVIEW.")
-constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t Size)
-{
-	return FWideStringView(String, Size);
-}
-
-UE_DEPRECATED(5.1, "The _U8SV literal is deprecated. Use UTF8TEXTVIEW.")
-/*constexpr*/ inline FUtf8StringView operator "" _U8SV(const ANSICHAR* String, size_t Size)
-{
-	// Would like this operator to be constexpr, but cannot be until after this operator can take a UTF8CHAR*
-	// rather than an ANSICHAR*, which won't be until we have C++20 char8_t string literals.
-	return FUtf8StringView(reinterpret_cast<const UTF8CHAR*>(String), Size);
-}
 
 #if PLATFORM_TCHAR_IS_UTF8CHAR
 inline FStringView operator "" _PrivateSV(const ANSICHAR* String, size_t Size)
