@@ -437,6 +437,14 @@ bool UEnhancedPlayerMappableKeyProfile::DoesMappingPassQueryOptions(const FPlaye
 		}
 	}
 
+	// If you have requested a specific key slot, then filter down by that.
+	// Do not filter if the slot to match is Unspecified.
+	if (Options.SlotToMatch != EPlayerMappableKeySlot::Unspecified &&
+		Options.SlotToMatch != PlayerMapping.GetSlot())
+	{
+		return false;
+	}
+
 	// Match hardware device info per mapping
 	const FHardwareDeviceIdentifier& PlayerMappingDevice = PlayerMapping.GetHardwareDeviceId();
 	
@@ -1184,6 +1192,7 @@ bool UEnhancedInputUserSettings::IsMappingContextRegistered(const UInputMappingC
 FPlayerMappableKeyQueryOptions::FPlayerMappableKeyQueryOptions()
 	: MappingName(NAME_None)
 	, KeyToMatch(EKeys::Invalid)
+	, SlotToMatch(EPlayerMappableKeySlot::Unspecified)
 	, bMatchBasicKeyTypes(true)
 	, bMatchKeyAxisType(false)
 	, RequiredDeviceType(EHardwareDevicePrimaryType::Unspecified)

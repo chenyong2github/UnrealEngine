@@ -229,6 +229,10 @@ struct ENHANCEDINPUT_API FPlayerMappableKeyQueryOptions
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Query Options")
 	FKey KeyToMatch;
 	
+	/** The key slot that will be required to match if set. By default this is EPlayerMappableKeySlot::Unspecified, which will not filter by the slot at all. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Query Options")
+	EPlayerMappableKeySlot SlotToMatch;
+
 	/** If true, then only keys that have the same value for IsGamepadKey, IsTouch, and IsGesture will be included in the results of this query */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Query Options")
 	uint8 bMatchBasicKeyTypes : 1;
