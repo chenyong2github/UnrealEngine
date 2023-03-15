@@ -477,8 +477,9 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 {
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
-	bool bEnableDepthOnlyIndexBuffer = (CVarSupportDepthOnlyIndexBuffers.GetValueOnAnyThread() == 1);
-	bool bEnableReversedIndexBuffer = (CVarSupportReversedIndexBuffers.GetValueOnAnyThread() == 1);
+	// If the index buffers have already been initialized, do not change the behavior since the RHI resource pointer may have been cached somewhere already.
+	const bool bEnableDepthOnlyIndexBuffer = bHasDepthOnlyIndices || (CVarSupportDepthOnlyIndexBuffers.GetValueOnAnyThread() == 1);
+	const bool bEnableReversedIndexBuffer = bHasReversedIndices || bHasReversedDepthOnlyIndices || (CVarSupportReversedIndexBuffers.GetValueOnAnyThread() == 1);
 
 	// See if the mesh wants to keep resources CPU accessible
 	bool bMeshCPUAcces = OwnerStaticMesh ? OwnerStaticMesh->bAllowCPUAccess : false;
