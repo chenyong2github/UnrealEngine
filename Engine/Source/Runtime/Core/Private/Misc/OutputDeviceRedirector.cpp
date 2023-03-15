@@ -48,15 +48,16 @@ struct FOutputDeviceBlockAllocationTag : FDefaultBlockAllocationTag
 	struct Allocator
 	{
 		static constexpr bool SupportsAlignment = false;
+		static constexpr bool UsesFMalloc       = true;
 
 		FORCEINLINE static void* Malloc(SIZE_T Size, uint32 Alignment)
 		{
-			return FMemory::Malloc(Size, DEFAULT_ALIGNMENT);
+			return FPlatformMemory::BaseAllocator()->Malloc(Size, DEFAULT_ALIGNMENT);
 		}
 
 		FORCEINLINE static void Free(void* Pointer, SIZE_T Size)
 		{
-			return FMemory::Free(Pointer);
+			return FPlatformMemory::BaseAllocator()->Free(Pointer);
 		}
 	};
 };
