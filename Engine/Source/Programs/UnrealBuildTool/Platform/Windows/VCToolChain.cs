@@ -542,16 +542,11 @@ namespace UnrealBuildTool
 				if (Target.WindowsPlatform.Compiler.IsMSVC())
 				{
 					Arguments.Add("/experimental:deterministic");
-
 					if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Error)
 					{
 						Arguments.Add("/we5048");
 					}
-					else if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Warning)
-					{
-						Arguments.Add("/w5048");
-					}
-					else
+					else if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Off)
 					{
 						Arguments.Add("/wd5048");
 					}
@@ -1537,6 +1532,8 @@ namespace UnrealBuildTool
 					}
 				}
 
+				CompileAction.bCanCache = CompileEnvironment.bDeterministic;
+
 				// Don't farm out creation of precompiled headers as it is the critical path task.
 				CompileAction.bCanExecuteRemotely =
 					CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create ||
@@ -1666,6 +1663,8 @@ namespace UnrealBuildTool
 				{
 					CompileAction.WriteResponseFile(Graph, Logger);
 				}
+
+				CompileAction.bCanCache = CompileEnvironment.bDeterministic;
 
 				// When compiling with SN-DBS, modules that contain a #import must be built locally
 				CompileAction.bCanExecuteRemotelyWithSNDBS = CompileAction.bCanExecuteRemotely;

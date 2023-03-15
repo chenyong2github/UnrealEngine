@@ -104,6 +104,11 @@ namespace UnrealBuildTool
 		bool bCanExecuteRemotely { get; }
 
 		/// <summary>
+		/// True if this action can be cached. Cache will store all touched inputs and store outputs
+		/// </summary>
+		bool bCanCache { get; }
+
+		/// <summary>
 		/// True if this action is allowed to be run on a remote machine with SNDBS. Files with #import directives must be compiled locally. Also requires bCanExecuteRemotely = true.
 		/// </summary>
 		bool bCanExecuteRemotelyWithSNDBS { get; }
@@ -204,6 +209,11 @@ namespace UnrealBuildTool
 		/// Human-readable description of this action that may be displayed as status while invoking the action.  This is often the name of the file being compiled, or an executable file name being linked.  Displayed by some executors.
 		/// </summary>
 		public string StatusDescription { get; set; } = "...";
+
+		/// <summary>
+		/// True if this action's result can be cached based on its inputs
+		/// </summary>
+		public bool bCanCache { get; set; }
 
 		/// <summary>
 		/// True if this action is allowed to be run on a remote machine when a distributed build system is being used, such as XGE
@@ -597,6 +607,7 @@ namespace UnrealBuildTool
 		public string CommandVersion => Inner.CommandVersion;
 		public string CommandDescription => Inner.CommandDescription;
 		public string StatusDescription => Inner.StatusDescription;
+		public bool bCanCache => Inner.bCanCache;
 		public bool bCanExecuteRemotely => Inner.bCanExecuteRemotely;
 		public bool bCanExecuteRemotelyWithSNDBS => Inner.bCanExecuteRemotelyWithSNDBS;
 		public bool bIsGCCCompiler => Inner.bIsGCCCompiler;

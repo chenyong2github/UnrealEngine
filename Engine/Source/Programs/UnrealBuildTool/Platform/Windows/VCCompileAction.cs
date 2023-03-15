@@ -157,6 +157,9 @@ namespace UnrealBuildTool
 		public List<FileItem> DeleteItems { get; } = new List<FileItem>();
 
 		/// <inheritdoc/>
+		public bool bCanCache { get; set; }
+
+		/// <inheritdoc/>
 		public bool bCanExecuteRemotely { get; set; }
 
 		/// <inheritdoc/>
