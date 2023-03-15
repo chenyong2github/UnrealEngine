@@ -605,6 +605,9 @@ protected:
 public:
 	virtual bool HasBundleSource(EInstallBundleSourceType SourceType) const override;
 
+	virtual const TSharedPtr<IInstallBundleSource> GetBundleSource(EInstallBundleSourceType SourceType) const override;
+
+
 	virtual FDelegateHandle PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) override;
 	virtual void PopInitErrorCallback() override;
 	virtual void PopInitErrorCallback(FDelegateHandle Handle) override;
