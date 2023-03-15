@@ -272,7 +272,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 				SMRTRayLengthScale,
 				Noise,
 				bBackfaceCull,
-				WorldNormal,
+				half3(WorldNormal),
 				SMRTTexelDitherScale,
 				SMRTExtrapolateSlope,
 				SMRTAdaptiveRayCount);

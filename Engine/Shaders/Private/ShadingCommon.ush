@@ -112,7 +112,7 @@ float F0RGBToDielectricSpecular(float3 F0)
 
 half DielectricSpecularToF0(half Specular)
 {
-	return 0.08f * Specular;
+	return half(0.08f * Specular);
 }
 
 // [Burley, "Extending the Disney BRDF to a BSDF with Integrated Subsurface Scattering"]

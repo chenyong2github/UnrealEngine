@@ -50,7 +50,7 @@ FRectLightData UnpackRectLightData(uint In0, uint In1, uint In2)
 	Out.AtlasData.AtlasUVScale	= half2(f16tof32(In1 & 0xFFFF), f16tof32(In1 >> 16));
 	Out.BarnLength				= f16tof32(In2 & 0xFFFF);			// 16 bits
 	Out.BarnCosAngle			= ((In2 >> 16) & 0x3FF) / 1024.f;	// 10 bits
-	Out.AtlasData.AtlasMaxLevel =  (In2 >> 26);						//  6 bits
+	Out.AtlasData.AtlasMaxLevel = half(In2 >> 26);					//  6 bits
 	return Out;
 }
 
