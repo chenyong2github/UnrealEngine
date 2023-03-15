@@ -77,7 +77,7 @@ public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override;
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::Custom; }
-	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool PreWorldInitialization(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 protected:
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
@@ -120,8 +120,8 @@ private:
 	FName HLODLayerToBuild;
 	FName HLODActorToBuild;
 
-	const FString DistributedBuildWorkingDir;
-	const FString DistributedBuildManifest;
+	FString DistributedBuildWorkingDir;
+	FString DistributedBuildManifest;
 	
 	FHLODModifiedFiles ModifiedFiles;
 };

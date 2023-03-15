@@ -163,8 +163,6 @@ UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitialize
 	: Super(ObjectInitializer)
 	, BuilderIdx(INDEX_NONE)
 	, BuilderCount(INDEX_NONE)
-	, DistributedBuildWorkingDir(FPaths::RootDir() / DistributedBuildWorkingDirName)
-	, DistributedBuildManifest(DistributedBuildWorkingDir / DistributedBuildManifestName)
 {
 	BuildOptions = FParse::Param(FCommandLine::Get(), TEXT("SetupHLODs")) ? EHLODBuildStep::HLOD_Setup : EHLODBuildStep::None;
 	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("BuildHLODs")) ? EHLODBuildStep::HLOD_Build : EHLODBuildStep::None;
@@ -194,16 +192,6 @@ UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitialize
 	if (BuildOptions == EHLODBuildStep::None)
 	{
 		BuildOptions = EHLODBuildStep::HLOD_Setup | EHLODBuildStep::HLOD_Build;
-	}
-
-	if (bDistributedBuild)
-	{
-		if (!BuildManifest.IsEmpty())
-		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Warning, TEXT("Ignoring parameter -BuildManifest when a distributed build is performed"));
-		}
-
-		BuildManifest = DistributedBuildManifest;
 	}
 }
 
@@ -274,8 +262,22 @@ bool UWorldPartitionHLODsBuilder::ValidateParams() const
 	return true;
 }
 
-bool UWorldPartitionHLODsBuilder::PreWorldInitialization(FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionHLODsBuilder::PreWorldInitialization(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
+	if (bDistributedBuild)
+	{
+		uint32 WorldPackageHash = GetTypeHash(World->GetPackage()->GetFullName());
+		DistributedBuildWorkingDir = FString::Printf(TEXT("%s/%s/%08x"), *FPaths::RootDir(), *DistributedBuildWorkingDirName, WorldPackageHash);
+		DistributedBuildManifest = DistributedBuildWorkingDir / DistributedBuildManifestName;
+
+		if (!BuildManifest.IsEmpty())
+		{
+			UE_LOG(LogWorldPartitionHLODsBuilder, Warning, TEXT("Ignoring parameter -BuildManifest when a distributed build is performed"));
+		}
+
+		BuildManifest = DistributedBuildManifest;
+	}
+
 	if (!ValidateParams())
 	{
 		return false;

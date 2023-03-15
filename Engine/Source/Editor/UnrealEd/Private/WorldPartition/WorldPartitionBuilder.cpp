@@ -92,7 +92,7 @@ bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
 	FPackageSourceControlHelper SCCHelper;
 
 	// Perform builder pre world initialisation
-	if (!PreWorldInitialization(SCCHelper))
+	if (!PreWorldInitialization(World, SCCHelper))
 	{
 		UE_LOG(LogWorldPartitionBuilder, Error, TEXT("PreWorldInitialization failed"));
 		return false;

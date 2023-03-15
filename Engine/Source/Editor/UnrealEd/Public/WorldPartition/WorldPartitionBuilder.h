@@ -55,7 +55,7 @@ public:
 	
 	bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper);
 
-	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) { return true; }
+	virtual bool PreWorldInitialization(UWorld* World, FPackageSourceControlHelper& PackageHelper) { return true; }
 
 	static bool SavePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
 	static bool DeletePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
@@ -90,6 +90,9 @@ protected:
 	bool AutoSubmitPackages(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
 
 	virtual UWorld::InitializationValues GetWorldInitializationValues() const;
+
+	UE_DEPRECATED(5.3, "You must override the version that takes a World parameter")
+	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) final { return true; }
 
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;
