@@ -63,9 +63,9 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 			UE_LOG(LogMassRepresentation, Error, TEXT("No associated meshes for this intanced static mesh type"));
 			continue;
 		}
-		for (const FStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Info.Desc.Meshes)
+		for (const FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Info.Desc.Meshes)
 		{			
-			FISMCSharedData* SharedData = ISMCSharedData.Find(MeshDesc);
+			FMassISMCSharedData* SharedData = ISMCSharedData.Find(MeshDesc);
 			UInstancedStaticMeshComponent* ISMC = SharedData ? SharedData->ISMC : nullptr;
 			if (SharedData)
 			{
@@ -91,7 +91,7 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 				ISMC->SetReceivesDecals(false);
 				ISMC->RegisterComponent();
 
-				ISMCSharedData.Emplace(MeshDesc, FISMCSharedData(ISMC));
+				ISMCSharedData.Emplace(MeshDesc, FMassISMCSharedData(ISMC));
 			}
 
 			Info.InstancedStaticMeshComponents.Add(ISMC);
@@ -116,7 +116,7 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 			}
 			AllLODSignificances.Insert(Significance, i);
 		};
-		for (const FStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Info.Desc.Meshes)
+		for (const FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Info.Desc.Meshes)
 		{
 			UniqueInsertOrdered(MeshDesc.MinLODSignificance);
 			UniqueInsertOrdered(MeshDesc.MaxLODSignificance);
@@ -131,7 +131,7 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 
 			for (int j = 0; j < Info.Desc.Meshes.Num(); ++j)
 			{
-				const FStaticMeshInstanceVisualizationMeshDesc& MeshDesc = Info.Desc.Meshes[j];
+				const FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc = Info.Desc.Meshes[j];
 				const bool bAddMeshInRange = (Range.MinSignificance >= MeshDesc.MinLODSignificance && Range.MinSignificance < MeshDesc.MaxLODSignificance);
 				if (bAddMeshInRange)
 				{
@@ -191,7 +191,7 @@ void UMassVisualizationComponent::BeginVisualChanges()
 	// Reset instance transform scratch buffers
 	for (auto It = ISMCSharedData.CreateIterator(); It; ++It)
 	{
-		FISMCSharedData& SharedData = It.Value();
+		FMassISMCSharedData& SharedData = It.Value();
 		SharedData.UpdateInstanceIds.Reset();
 		SharedData.StaticMeshInstanceCustomFloats.Reset();
 		SharedData.StaticMeshInstanceTransforms.Reset();
@@ -207,7 +207,7 @@ void UMassVisualizationComponent::EndVisualChanges()
 	// Batch update gathered instance transforms
 	for (auto It = ISMCSharedData.CreateIterator(); It; ++It)
 	{
-		FISMCSharedData& SharedData = It.Value();
+		FMassISMCSharedData& SharedData = It.Value();
 		if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = SharedData.ISMC)
 		{
 			const int32 NumCustomDataFloats = SharedData.StaticMeshInstanceCustomFloats.Num() / (FMath::Max(1, SharedData.UpdateInstanceIds.Num()));
@@ -271,11 +271,11 @@ void UMassVisualizationComponent::EndVisualChanges()
 // FMassInstancedStaticMeshInfo
 //---------------------------------------------------------------
 
-void FMassInstancedStaticMeshInfo::ClearVisualInstance(FISMCSharedDataMap& ISMCSharedData)
+void FMassInstancedStaticMeshInfo::ClearVisualInstance(FMassISMCSharedDataMap& ISMCSharedData)
 {
 	for (int i = 0; i < Desc.Meshes.Num(); i++)
 	{
-		FISMCSharedData* SharedData = ISMCSharedData.Find(Desc.Meshes[i]);
+		FMassISMCSharedData* SharedData = ISMCSharedData.Find(Desc.Meshes[i]);
 		if (SharedData)
 		{
 			SharedData->RefCount -= 1;
@@ -306,7 +306,7 @@ void FMassLODSignificanceRange::AddBatchedTransform(const int32 InstanceId, cons
 			continue;
 		}
 
-		FISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
+		FMassISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
 
 		SharedData.UpdateInstanceIds.Add(InstanceId);
 		SharedData.StaticMeshInstanceTransforms.Add(Transform);
@@ -324,7 +324,7 @@ void FMassLODSignificanceRange::AddBatchedCustomDataFloats(const TArray<float>& 
 			continue;
 		}
 
-		FISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
+		FMassISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
 		SharedData.StaticMeshInstanceCustomFloats.Append(CustomFloats);
 	}
 }
@@ -339,7 +339,7 @@ void FMassLODSignificanceRange::WriteCustomDataFloatsAtStartIndex(int32 StaticMe
 			return;
 		}
 
-		FISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[StaticMeshIndex]];
+		FMassISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[StaticMeshIndex]];
 
 		int32 StartIndex = FloatsPerInstance * SharedData.WriteIterator + StartFloatIndex;
 

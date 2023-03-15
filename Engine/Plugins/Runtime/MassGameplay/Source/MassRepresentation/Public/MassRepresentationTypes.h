@@ -35,7 +35,7 @@ enum class EMassActorEnabledType : uint8
 };
 
 USTRUCT()
-struct FStaticMeshInstanceVisualizationMeshDesc
+struct FMassStaticMeshInstanceVisualizationMeshDesc
 {
 	GENERATED_BODY()
 	
@@ -67,7 +67,7 @@ struct FStaticMeshInstanceVisualizationMeshDesc
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	TEnumAsByte<EComponentMobility::Type> Mobility = EComponentMobility::Movable;
 
-	bool operator==(const FStaticMeshInstanceVisualizationMeshDesc& Other) const
+	bool operator==(const FMassStaticMeshInstanceVisualizationMeshDesc& Other) const
 	{
 		return Mesh == Other.Mesh && 
 			MaterialOverrides == Other.MaterialOverrides && 
@@ -77,7 +77,7 @@ struct FStaticMeshInstanceVisualizationMeshDesc
 			Mobility == Other.Mobility;
 	}
 	
-	friend FORCEINLINE uint32 GetTypeHash(const FStaticMeshInstanceVisualizationMeshDesc& MeshDesc)
+	friend FORCEINLINE uint32 GetTypeHash(const FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc)
 	{
 		uint32 Hash = 0x0;
 		Hash = PointerHash(MeshDesc.Mesh, Hash);
@@ -109,7 +109,7 @@ struct FStaticMeshInstanceVisualizationDesc : public FTableRowBase
 	 * visualize the given agent.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
-	TArray<FStaticMeshInstanceVisualizationMeshDesc> Meshes;
+	TArray<FMassStaticMeshInstanceVisualizationMeshDesc> Meshes;
 
 	/** Boolean to enable code to transform the static meshes if not align the mass agent transform */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
@@ -128,13 +128,13 @@ struct FStaticMeshInstanceVisualizationDesc : public FTableRowBase
 class UInstancedStaticMeshComponent;
 
 USTRUCT()
-struct MASSREPRESENTATION_API FISMCSharedData
+struct MASSREPRESENTATION_API FMassISMCSharedData
 {
 	GENERATED_BODY()
 
-	FISMCSharedData() = default;
+	FMassISMCSharedData() = default;
 
-	FISMCSharedData(UInstancedStaticMeshComponent* InISMC)
+	FMassISMCSharedData(UInstancedStaticMeshComponent* InISMC)
 		: ISMC(InISMC),
 		RefCount(1)
 	{
@@ -157,7 +157,16 @@ struct MASSREPRESENTATION_API FISMCSharedData
 	int32 WriteIterator = 0;
 };
 
-typedef TMap<uint32, FISMCSharedData> FISMCSharedDataMap;
+using FMassISMCSharedDataMap = TMap<uint32, FMassISMCSharedData>;
+
+//struct FISMCSharedDataMap : public TMap<uint32, FMassISMCSharedData>
+//{
+//	FISMCSharedDataMap()
+//	{
+//		ensureMsgf(false, "FISMCSharedDataMap has been renamed to FMassISMCSharedDataMap, use that instead"));
+//	}
+//};
+
 
 USTRUCT()
 struct MASSREPRESENTATION_API FMassLODSignificanceRange
@@ -183,7 +192,7 @@ public:
 				continue;
 			}
 
-			FISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
+			FMassISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
 			const int32 StartIndex = SharedData.StaticMeshInstanceCustomFloats.AddDefaulted(StructSizeInFloats + NumFloatsToPad);
 			InCustomDataType* CustomData = reinterpret_cast<InCustomDataType*>(&SharedData.StaticMeshInstanceCustomFloats[StartIndex]);
 			*CustomData = InCustomData;
@@ -202,7 +211,7 @@ public:
 	UPROPERTY()
 	TArray<uint32> StaticMeshRefs;
 
-	FISMCSharedDataMap* ISMCSharedDataPtr = nullptr;
+	FMassISMCSharedDataMap* ISMCSharedDataPtr = nullptr;
 };
 
 USTRUCT()
@@ -314,7 +323,7 @@ public:
 protected:
 
 	/** Destroy the visual instance */
-	void ClearVisualInstance(FISMCSharedDataMap& ISMCSharedData);
+	void ClearVisualInstance(FMassISMCSharedDataMap& ISMCSharedData);
 
 	/** Information about this static mesh which will represent all instances */
 	UPROPERTY()

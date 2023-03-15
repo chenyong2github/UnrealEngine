@@ -12,7 +12,6 @@
 
 class UMassVisualizationComponent;
 class AMassVisualizer;
-class UHierarchicalInstancedStaticMeshComponent;
 struct FStaticMeshInstanceVisualizationDesc;
 struct FMassInstancedStaticMeshInfo;
 struct FMassActorSpawnRequestHandle;
