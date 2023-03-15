@@ -434,10 +434,8 @@ public:
 		VkImageCreateInfo ImageCreateInfo;
 		//only used when HasImageFormatListKHR is supported. Otherise VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT is used.
 		VkImageFormatListCreateInfoKHR ImageFormatListCreateInfo;
-#if VULKAN_SUPPORTS_EXTERNAL_MEMORY
 		//used when TexCreate_External is given
 		VkExternalMemoryImageCreateInfoKHR ExternalMemImageCreateInfo;
-#endif // VULKAN_SUPPORTS_EXTERNAL_MEMORY
 		VkFormat FormatsUsed[2];
 	};
 

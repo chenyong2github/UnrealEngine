@@ -859,7 +859,6 @@ namespace VulkanRHI
 		}
 #endif
 
-#if VULKAN_SUPPORTS_EXTERNAL_MEMORY
 		VkExportMemoryAllocateInfoKHR VulkanExportMemoryAllocateInfoKHR = {};
 #if PLATFORM_WINDOWS
 		VkExportMemoryWin32HandleInfoKHR VulkanExportMemoryWin32HandleInfoKHR = {};
@@ -881,7 +880,6 @@ namespace VulkanRHI
 #endif // PLATFORM_WINDOWS
 			Info.pNext = &VulkanExportMemoryAllocateInfoKHR;
 		}
-#endif // VULKAN_SUPPORTS_EXTERNAL_MEMORY
 
 #if VULKAN_RHI_RAYTRACING
 		VkMemoryAllocateFlagsInfo MemoryAllocateFlagsInfo;

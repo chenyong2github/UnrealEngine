@@ -198,14 +198,6 @@ struct VkAllocationCallbacks;
 	#endif
 #endif
 
-#ifndef VULKAN_SUPPORTS_EXTERNAL_MEMORY
-	#ifdef VK_KHR_external_memory_capabilities
-		#define VULKAN_SUPPORTS_EXTERNAL_MEMORY					1
-	#else
-		#define VULKAN_SUPPORTS_EXTERNAL_MEMORY					0
-	#endif
-#endif
-
 #ifndef VULKAN_SUPPORTS_DRIVER_PROPERTIES
 	#ifdef VK_KHR_driver_properties
 		#define VULKAN_SUPPORTS_DRIVER_PROPERTIES				1

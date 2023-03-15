@@ -20,7 +20,11 @@ struct FOptionalVulkanInstanceExtensions
 	{
 		struct
 		{
+			UE_DEPRECATED(5.3, "Vulkan 1.1 is now a requirement so there is no need to check these capabilities.")
 			uint32 HasKHRExternalMemoryCapabilities : 1;
+
+			UE_DEPRECATED(5.3, "Vulkan 1.1 is now a requirement so there is no need to check these capabilities.")
+			uint32 HasKHRGetPhysicalDeviceProperties2 : 1;
 		};
 		uint32 Packed;
 	};
