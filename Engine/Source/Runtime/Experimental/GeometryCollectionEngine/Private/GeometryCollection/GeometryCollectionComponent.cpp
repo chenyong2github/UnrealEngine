@@ -502,6 +502,11 @@ namespace
 		FBox BoundingBox(ForceInit);
 		if (bChaos_BoxCalcBounds_ISPC_Enabled && !bGeometryCollectionSingleThreadedBoundsCalculation)
 		{
+			ensure(BoundingBoxes.Num() > 0);
+			ensure(TransformIndices.Num() == TransformIndices.Num());
+			ensure(TransformToGeometryIndex.Num() > 0);
+			ensure(TransformToGeometryIndex.Num() == GlobalMatrices.Num());
+			
 #if INTEL_ISPC
 			ispc::BoxCalcBoundsFromGeometryGroup(
 				(int32*)&TransformToGeometryIndex[0],
@@ -2484,6 +2489,9 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 			RemoveOnBreakDynamicFacade.SetAttributeValues(RemoveOnBreakFacade);
 		}
 
+		DynamicCollection->MakeDirty();
+		MarkRenderStateDirty();
+		MarkRenderDynamicDataDirty();
 		SetRenderStateDirty();
 	}
 
@@ -3184,31 +3192,29 @@ void UGeometryCollectionComponent::BuildInitialFilterData()
 	}
 }
 
-void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* RestCollectionIn)
+void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* RestCollectionIn, bool bApplyAssetDefaults)
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::SetRestCollection()"), this);
 	if (RestCollectionIn)
 	{
 		RestCollection = RestCollectionIn;
 
-		RestTransforms = RestCollection->GetGeometryCollection()->Transform.GetConstArray();
-
-		CalculateGlobalMatrices();
-		CalculateLocalBounds();
+		ResetDynamicCollection();
 
 		if (!IsEmbeddedGeometryValid())
 		{
 			InitializeEmbeddedGeometry();
 		}
 
-		// initialize the component per level damage threshold from the asset defaults 
-		DamageThreshold = RestCollection->DamageThreshold;
-		bUseSizeSpecificDamageThreshold = RestCollection->bUseSizeSpecificDamageThreshold;
+		if (bApplyAssetDefaults)
+		{
+			// initialize the component per level damage threshold from the asset defaults 
+			DamageThreshold = RestCollection->DamageThreshold;
+			bUseSizeSpecificDamageThreshold = RestCollection->bUseSizeSpecificDamageThreshold;
 
-		// initialize the component damage progataion data from the asset defaults 
-		DamagePropagationData = RestCollection->DamagePropagationData;
-		
-		ResetDynamicCollection();
+			// initialize the component damage progataion data from the asset defaults 
+			DamagePropagationData = RestCollection->DamagePropagationData;
+		}
 	}
 }
 

@@ -638,7 +638,7 @@ public:
 
 	/** RestCollection */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetRestCollection(const UGeometryCollection * RestCollectionIn);
+	void SetRestCollection(const UGeometryCollection * RestCollectionIn, bool bApplyAssetDefaults = true);
 
 	/** RestCollection */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")

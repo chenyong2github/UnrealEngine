@@ -1141,6 +1141,19 @@ void UGeometryCollection::PropagateMarkDirtyToComponents() const
 	}
 }
 
+void  UGeometryCollection::PropagateTransformUpdateToComponents() const
+{
+	for (TObjectIterator<UGeometryCollectionComponent> It(RF_ClassDefaultObject, false, EInternalObjectFlags::Garbage); It; ++It)
+	{
+		if (It->RestCollection == this)
+		{
+			// make sure to reset the rest collection to make sure the internal state of the components is up to date 
+			// but we do not apply asset default to avoid overriding the existing overrides
+			It->SetRestCollection(this, false /* bApplyAssetDefaults */);
+		}
+	}
+}
+
 TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::GenerateMinimalGeometryCollection() const
 {
 	TMap<FName, TSet<FName>> SkipList;

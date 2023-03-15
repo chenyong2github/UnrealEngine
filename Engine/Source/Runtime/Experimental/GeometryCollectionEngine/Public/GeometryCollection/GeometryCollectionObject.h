@@ -458,6 +458,9 @@ public:
 
 	/** Propogate render state dirty to components */
 	void PropagateMarkDirtyToComponents() const;
+
+	/** Propogate the fact that transform have been updated to all components */
+	void PropagateTransformUpdateToComponents() const;
 #endif
 
 	void InitResources();
