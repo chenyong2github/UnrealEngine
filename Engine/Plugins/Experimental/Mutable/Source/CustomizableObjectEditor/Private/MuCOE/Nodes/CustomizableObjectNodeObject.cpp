@@ -34,18 +34,23 @@ UCustomizableObjectNodeObject::UCustomizableObjectNodeObject()
 }
 
 
-void UCustomizableObjectNodeObject::PostLoad()
+void UCustomizableObjectNodeObject::BackwardsCompatibleFixup()
 {
-	Super::PostLoad();
+	Super::BackwardsCompatibleFixup();
 
-	for (FCustomizableObjectState& State : States)
+	const int32 CustomizableObjectCustomVersion = GetLinkerCustomVersion(FCustomizableObjectCustomVersion::GUID);
+	
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::StateTextureCompressionStrategyEnum)
 	{
-		if (State.TextureCompressionStrategy== ETextureCompressionStrategy::None
-			&&
-			State.bDontCompressRuntimeTextures_DEPRECATED)
+		for (FCustomizableObjectState& State : States)
 		{
-			State.bDontCompressRuntimeTextures_DEPRECATED = false;
-			State.TextureCompressionStrategy = ETextureCompressionStrategy::DontCompressRuntime;
+			if (State.TextureCompressionStrategy== ETextureCompressionStrategy::None
+				&&
+				State.bDontCompressRuntimeTextures_DEPRECATED)
+			{
+				State.bDontCompressRuntimeTextures_DEPRECATED = false;
+				State.TextureCompressionStrategy = ETextureCompressionStrategy::DontCompressRuntime;
+			}
 		}
 	}
 }

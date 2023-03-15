@@ -258,10 +258,6 @@ struct FParameterUIData
 	UPROPERTY(BlueprintReadWrite, Category = UI)
 	ECustomizableObjectGroupType IntegerParameterGroupType;
 
-	/** Replaced by TextureCompressionStrategy */
-	UPROPERTY()
-	bool bDontCompressRuntimeTextures_DEPRECATED = false; // Only useful for state metadata
-
 	/** Not really relevant for UI, but apparently bDontCompressRuntimeTextures_DEPRECATED was used to decided some texture properties at runtime.
 	* TODO: Try to handle the NeverStream without going through this. */
 	UPROPERTY()

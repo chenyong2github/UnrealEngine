@@ -28,10 +28,6 @@ struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectState
 	UPROPERTY(EditAnywhere, Category=CustomizableObject)
 	TArray<FString> RuntimeParameters;
 
-	/** This is now TextureCompressionStrategy.  */
-	UPROPERTY()
-	bool bDontCompressRuntimeTextures_DEPRECATED = false;
-		
 	/** Special treatment of texture compression for this state. */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	ETextureCompressionStrategy TextureCompressionStrategy = ETextureCompressionStrategy::None;
@@ -58,6 +54,12 @@ struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectState
 
 	UPROPERTY(EditAnywhere, Category = UI, meta = (DisplayName = "State UI Metadata"))
 	FMutableParamUIMetadata StateUIMetadata;
+
+	// Deprecated
+	
+	/** This is now TextureCompressionStrategy.  */
+	UPROPERTY()
+	bool bDontCompressRuntimeTextures_DEPRECATED = false;
 };
 
 
@@ -159,7 +161,7 @@ public:
 
 	// UObject interface.
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void PostLoad() override;
+	void BackwardsCompatibleFixup() override;
 
 	// EdGraphNode interface
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
