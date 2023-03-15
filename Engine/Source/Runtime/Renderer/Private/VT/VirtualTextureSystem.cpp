@@ -2415,7 +2415,10 @@ void FVirtualTextureSystem::FinalizeRequests(FRDGBuilder& GraphBuilder)
 
 	for (FVirtualTexturePhysicalSpace* PhysicalSpace : PhysicalSpaces)
 	{
-		PhysicalSpace->FinalizeTextures(GraphBuilder);
+		if (PhysicalSpace != nullptr)
+		{
+			PhysicalSpace->FinalizeTextures(GraphBuilder);
+		}
 	}
 
 	Frame++;
