@@ -505,7 +505,7 @@ void FOutputDeviceRedirectorState::AddToBacklog(const FLogRecord& Record)
 {
 	TStringBuilder<512> Text;
 	Record.FormatMessageTo(Text);
-	AddToBacklog(*Text, Record.GetVerbosity(), Record.GetCategory(), FPlatformTime::ToSeconds64(Record.GetTime().GetCycles()));
+	AddToBacklog(*Text, Record.GetVerbosity(), Record.GetCategory(), FPlatformTime::Seconds() - GStartTime);
 }
 
 void FOutputDeviceRedirectorState::AddToBacklog(

@@ -18,17 +18,14 @@
 /** Seconds between calls to FOutputDeviceDebug::TickAsync. */
 constexpr static double GOutputDeviceDebugTickPeriod = 1.0;
 
-void FOutputDeviceDebug::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category, const double Time)
+void FOutputDeviceDebug::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category, double Time)
 {
 	if (Verbosity == ELogVerbosity::SetColor)
 	{
 		return;
 	}
 
-	if (Time > 0)
-	{
-		ConditionalTickAsync(Time);
-	}
+	ConditionalTickAsync(Time >= 0.0 ? Time : FPlatformTime::Seconds() - GStartTime);
 
 	if (bSerializeAsJson.load(std::memory_order_relaxed))
 	{
@@ -69,8 +66,7 @@ void FOutputDeviceDebug::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbos
 
 void FOutputDeviceDebug::SerializeRecord(const UE::FLogRecord& Record)
 {
-	const double Time = FPlatformTime::ToSeconds64(Record.GetTime().GetCycles());
-	ConditionalTickAsync(Time);
+	ConditionalTickAsync(FPlatformTime::Seconds() - GStartTime);
 
 	if (bSerializeAsJson.load(std::memory_order_relaxed))
 	{
@@ -120,7 +116,7 @@ void FOutputDeviceDebug::SerializeRecord(const UE::FLogRecord& Record)
 	else
 	{
 		TStringBuilder<512> Line;
-		FOutputDeviceHelper::AppendFormatLogLine(Line, Record.GetVerbosity(), Record.GetCategory(), nullptr, GPrintLogTimes, Time);
+		FOutputDeviceHelper::AppendFormatLogLine(Line, Record.GetVerbosity(), Record.GetCategory(), nullptr, GPrintLogTimes);
 		Record.FormatMessageTo(Line);
 		Line.Append(LINE_TERMINATOR);
 		FPlatformMisc::LowLevelOutputDebugString(*Line);

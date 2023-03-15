@@ -74,7 +74,7 @@ void FOutputDevice::SerializeRecord(const UE::FLogRecord& Record)
 {
 	TStringBuilder<512> Text;
 	Record.FormatMessageTo(Text);
-	Serialize(*Text, Record.GetVerbosity(), Record.GetCategory(), FPlatformTime::ToSeconds64(Record.GetTime().GetCycles()));
+	Serialize(*Text, Record.GetVerbosity(), Record.GetCategory());
 }
 
 /** Critical errors. */
