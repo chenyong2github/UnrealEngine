@@ -482,7 +482,7 @@ EVisibility SStateTreeViewRow::GetBreakpointVisibility() const
 		}
 	}
 
-	return EVisibility::Hidden;
+	return EVisibility::Collapsed;
 }
 
 FText SStateTreeViewRow::GetSelectorDesc() const
