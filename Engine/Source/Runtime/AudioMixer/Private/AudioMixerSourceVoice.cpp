@@ -333,6 +333,15 @@ namespace Audio
 		return SourceManager->GetEnvelopeValue(SourceId);
 	}
 
+#if ENABLE_AUDIO_DEBUG
+	double FMixerSourceVoice::GetCPUCoreUtilization() const
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		return SourceManager->GetCPUCoreUtilization(SourceId);
+	}
+#endif // ENABLE_AUDIO_DEBUG
+
 	void FMixerSourceVoice::MixOutputBuffers(int32 InNumOutputChannels, const float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, FAlignedFloatBuffer& OutWetBuffer) const
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);

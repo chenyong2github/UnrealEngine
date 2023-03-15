@@ -113,6 +113,9 @@ namespace Audio
 
 		// Returns whether or not generator is finished (returns false if generator is invalid)
 		bool IsGeneratorFinished() const;
+#if ENABLE_AUDIO_DEBUG
+		double GetCPUCoreUtilization() const;
+#endif // ENABLE_AUDIO_DEBUG
 
 	private:
 		FMixerSourceBuffer(FMixerSourceBufferInitArgs& InArgs, TArray<FAudioParameter>&& InDefaultParams);
@@ -142,6 +145,11 @@ namespace Audio
 		int32 NumPrecacheFrames;
 		Audio::FDeviceId AuioDeviceID;
 		TArray<uint8> CachedRealtimeFirstBuffer;
+#if ENABLE_AUDIO_DEBUG
+		int32 SampleRate = 0;
+		std::atomic<double> CPUCoreUtilization = 0.0;
+		void UpdateCPUCoreUtilization(double InCPUTime, double InAudioTime);
+#endif // ENABLE_AUDIO_DEBUG
 
 		mutable FCriticalSection SoundWaveCritSec;
 		mutable FCriticalSection DecodeTaskCritSec;

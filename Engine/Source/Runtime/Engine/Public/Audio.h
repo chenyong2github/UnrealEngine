@@ -844,6 +844,9 @@ public:
 		/** Reason why this sound is mute/soloed. */
 		FString MuteSoloReason;
 
+		/** Fraction of a single CPU core used to render audio. */
+		double CPUCoreUtilization = 0;
+
 		/** Basic CS so we can pass this around safely. */
 		FCriticalSection CS;
 	};

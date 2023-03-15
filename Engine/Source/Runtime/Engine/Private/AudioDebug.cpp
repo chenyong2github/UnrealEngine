@@ -2107,9 +2107,17 @@ namespace Audio
 			UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(WaveInstanceInfo.Value->AudioComponentID);
 			AActor* SoundOwner = AudioComponent ? AudioComponent->GetOwner() : nullptr;
 
-			FString TheString = *FString::Printf(TEXT("%4i.    %6.2f  %s   Owner: %s   SoundClass: %s"),
+			double CPUPercent = 0.;
+			if (WaveInstanceInfo.Key->DebugInfo.IsValid())
+			{
+				FScopeLock Lock(&WaveInstanceInfo.Key->DebugInfo->CS);
+				CPUPercent = 100. * WaveInstanceInfo.Key->DebugInfo->CPUCoreUtilization;
+			}
+			
+			FString TheString = *FString::Printf(TEXT("%4i.    %6.2f  CPU:%5.2f%% %s   Owner: %s   SoundClass: %s"),
 				WaveInstanceInfo.Key->InstanceIndex,
 				WaveInstanceInfo.Key->Volume,
+				CPUPercent,
 				*WaveInstanceInfo.Key->WaveInstanceName.ToString(),
 				SoundOwner ? *SoundOwner->GetName() : TEXT("None"),
 				*WaveInstanceInfo.Key->SoundClassName.ToString());

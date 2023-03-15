@@ -1037,6 +1037,8 @@ namespace Audio
 		UpdateChannelMaps();
 
 #if ENABLE_AUDIO_DEBUG
+		UpdateCPUCoreUtilization();
+
 		Audio::FAudioDebugger::DrawDebugInfo(*this);
 #endif // ENABLE_AUDIO_DEBUG
 	}
@@ -1925,6 +1927,20 @@ namespace Audio
 
 		bPrevAllowedSpatializationSetting = IsSpatializationCVarEnabled();
 	}
+
+#if ENABLE_AUDIO_DEBUG
+	void FMixerSource::UpdateCPUCoreUtilization()
+	{
+		if (MixerSourceVoice)
+		{
+			if (DebugInfo.IsValid())
+			{
+				FScopeLock DebugInfoLock(&DebugInfo->CS);
+				DebugInfo->CPUCoreUtilization = MixerSourceVoice->GetCPUCoreUtilization();
+			}
+		}
+	}
+#endif // if ENABLE_AUDIO_DEBUG
 
 	bool FMixerSource::ComputeMonoChannelMap(Audio::FAlignedFloatBuffer& OutChannelMap)
 	{

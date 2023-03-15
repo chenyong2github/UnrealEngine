@@ -32,6 +32,29 @@ namespace Audio
 
 class FAsyncDecodeWorker : public FNonAbandonableTask
 {
+#if ENABLE_AUDIO_DEBUG
+	struct FScopeDecodeTimer
+	{
+		FScopeDecodeTimer(double* OutResultSeconds)
+		: Result(OutResultSeconds)
+		{
+			StartCycle = FPlatformTime::Cycles64();
+		}
+		~FScopeDecodeTimer()
+		{
+			uint64 EndCycle = FPlatformTime::Cycles64();
+			if (Result)
+			{
+				*Result = static_cast<double>(EndCycle - StartCycle) * FPlatformTime::GetSecondsPerCycle64();
+			}
+		}
+
+		double* Result = nullptr;
+		uint64 StartCycle = 0;
+	};
+
+#endif // if ENABLE_AUDIO_DEBUG
+
 public:
 	FAsyncDecodeWorker(const FHeaderParseAudioTaskData& InTaskData)
 		: HeaderParseAudioData(InTaskData)
@@ -64,6 +87,9 @@ public:
 		{
 			case EAudioTaskType::Procedural:
 			{
+#if ENABLE_AUDIO_DEBUG
+				FScopeDecodeTimer Timer(&ProceduralResult.CPUDuration);
+#endif // if ENABLE_AUDIO_DEBUG
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FAsyncDecodeWorker_Procedural);
 				if (ProceduralTaskData.SoundGenerator.IsValid())
 				{
@@ -126,6 +152,9 @@ public:
 
 			case EAudioTaskType::Decode:
 			{
+#if ENABLE_AUDIO_DEBUG
+				FScopeDecodeTimer Timer(&DecodeResult.CPUDuration);
+#endif // if ENABLE_AUDIO_DEBUG
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FAsyncDecodeWorker_Decode);
 				int32 NumChannels = DecodeTaskData.NumChannels;
 				int32 ByteSize = NumChannels * DecodeTaskData.NumFramesToDecode * sizeof(int16);

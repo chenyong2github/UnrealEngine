@@ -231,6 +231,9 @@ namespace Audio
 
 		int64 GetNumFramesPlayed(const int32 SourceId) const;
 		float GetEnvelopeValue(const int32 SourceId) const;
+#if ENABLE_AUDIO_DEBUG
+		double GetCPUCoreUtilization(const int32 SourceId) const;
+#endif // ENABLE_AUDIO_DEBUG
 		bool IsUsingHRTFSpatializer(const int32 SourceId) const;
 		bool NeedsSpeakerMap(const int32 SourceId) const;
 		void ComputeNextBlockOfSamples();
@@ -571,6 +574,9 @@ namespace Audio
 			TArray<bool> bNeedsSpeakerMap;
 			TArray<bool> bIsDebugMode;
 			TArray<bool> bIsUsingHRTFSpatializer;
+#if ENABLE_AUDIO_DEBUG
+			TArray<double> CPUCoreUtilization;
+#endif // #if ENABLE_AUDIO_DEBUG
 		} GameThreadInfo;
 
 		int32 NumActiveSources;

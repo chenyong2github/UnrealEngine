@@ -88,6 +88,10 @@ namespace Audio
 		/** Updates the channel map of the sound if its a 3d sound.*/
 		void UpdateChannelMaps();
 
+#if ENABLE_AUDIO_DEBUG
+		void UpdateCPUCoreUtilization();
+#endif // ENABLE_AUDIO_DEBUG
+
 		/** Computes the mono-channel map. */
 		bool ComputeMonoChannelMap(Audio::FAlignedFloatBuffer& OutChannelMap);
 

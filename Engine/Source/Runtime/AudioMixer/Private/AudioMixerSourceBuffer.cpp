@@ -83,6 +83,9 @@ namespace Audio
 		, BufferType(InArgs.Buffer->GetType())
 		, NumPrecacheFrames(InArgs.SoundWave->NumPrecacheFrames)
 		, AuioDeviceID(InArgs.AudioDeviceID)
+#if ENABLE_AUDIO_DEBUG
+		, SampleRate(InArgs.SampleRate)
+#endif // ENABLE_AUDIO_DEBUG
 		, bInitialized(false)
 		, bBufferFinished(false)
 		, bPlayedCachedBuffer(false)
@@ -455,6 +458,10 @@ namespace Audio
 					FDecodeAudioTaskResults TaskResult;
 					AsyncRealtimeAudioTask->GetResult(TaskResult);
 					bIsFinishedOrLooped = TaskResult.bIsFinishedOrLooped;
+#if ENABLE_AUDIO_DEBUG
+					double AudioDuration = static_cast<double>(MONO_PCM_BUFFER_SAMPLES) / FMath::Max(1., static_cast<double>(SampleRate));
+					UpdateCPUCoreUtilization(TaskResult.CPUDuration, AudioDuration);
+#endif // ENABLE_AUDIO_DEBUG
 				}
 				break;
 
@@ -465,6 +472,10 @@ namespace Audio
 
 					SourceVoiceBuffers[CurrentBuffer]->AudioData.SetNum(TaskResult.NumSamplesWritten);
 					bIsFinishedOrLooped = TaskResult.bIsFinished;
+#if ENABLE_AUDIO_DEBUG
+					double AudioDuration = static_cast<double>(TaskResult.NumSamplesWritten) / static_cast<double>(FMath::Max(1, NumChannels * SampleRate));
+					UpdateCPUCoreUtilization(TaskResult.CPUDuration, AudioDuration);
+#endif // ENABLE_AUDIO_DEBUG
 				}
 				break;
 			}
@@ -579,6 +590,36 @@ namespace Audio
 	{
 		return bProcedural && SoundGenerator.IsValid() && SoundGenerator->IsFinished();
 	}
+
+#if ENABLE_AUDIO_DEBUG
+	double FMixerSourceBuffer::GetCPUCoreUtilization() const
+	{
+		return CPUCoreUtilization.load(std::memory_order_relaxed);
+	}
+
+	void FMixerSourceBuffer::UpdateCPUCoreUtilization(double InCPUTime, double InAudioTime) 
+	{
+		constexpr double AnalysisTime = 1.0;
+
+		if (InAudioTime > 0.0)
+		{
+			double NewUtilization = InCPUTime / InAudioTime;
+			
+			// Determine smoothing coefficients based upon duration of audio being rendered.
+			const double DigitalCutoff = 1.0 / FMath::Max(1., AnalysisTime / InAudioTime);
+			const double SmoothingBeta = FMath::Clamp(FMath::Exp(-UE_PI * DigitalCutoff), 0.0, 1.0 - UE_DOUBLE_SMALL_NUMBER);
+
+			double PriorUtilization = CPUCoreUtilization.load(std::memory_order_relaxed);
+			
+			// Smooth value if utilization has been initialized.
+			if (PriorUtilization > 0.0)
+			{
+				NewUtilization = (1.0 - SmoothingBeta) * NewUtilization + SmoothingBeta * PriorUtilization;
+			}
+			CPUCoreUtilization.store(NewUtilization, std::memory_order_relaxed);
+		}
+	}
+#endif // ENABLE_AUDIO_DEBUG
 
 	void FMixerSourceBuffer::EnsureAsyncTaskFinishes()
 	{

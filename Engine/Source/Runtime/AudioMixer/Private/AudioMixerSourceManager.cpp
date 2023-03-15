@@ -358,6 +358,9 @@ namespace Audio
 		GameThreadInfo.bNeedsSpeakerMap.AddDefaulted(NumTotalSources);
 		GameThreadInfo.bIsDebugMode.AddDefaulted(NumTotalSources);
 		GameThreadInfo.bIsUsingHRTFSpatializer.AddDefaulted(NumTotalSources);
+#if ENABLE_AUDIO_DEBUG
+		GameThreadInfo.CPUCoreUtilization.AddZeroed(NumTotalSources);
+#endif // if ENABLE_AUDIO_DEBUG
 		GameThreadInfo.FreeSourceIndices.Reset(NumTotalSources);
 		for (int32 i = NumTotalSources - 1; i >= 0; --i)
 		{
@@ -1896,6 +1899,15 @@ namespace Audio
 		return SourceInfos[SourceId].SourceEnvelopeValue;
 	}
 
+#if ENABLE_AUDIO_DEBUG
+	double FMixerSourceManager::GetCPUCoreUtilization(const int32 SourceId) const
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		return GameThreadInfo.CPUCoreUtilization[SourceId];
+	}
+#endif // if ENABLE_AUDIO_DEBUG
+
 	bool FMixerSourceManager::IsUsingHRTFSpatializer(const int32 SourceId) const
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
@@ -1952,6 +1964,11 @@ namespace Audio
 
 				if (ensure(SourceInfo.MixerSourceBuffer.IsValid()))
 				{
+#if ENABLE_AUDIO_DEBUG
+					// Writing to this value is a read/write race condition on the CPUCoreUtilization value. Calling this
+					// out as an acceptable race condition given that it is utilized for debug purposes only. 
+					GameThreadInfo.CPUCoreUtilization[SourceId] = SourceInfo.MixerSourceBuffer->GetCPUCoreUtilization();
+#endif // if ENABLE_AUDIO_DEBUG
 					SourceInfo.MixerSourceBuffer->OnBufferEnd();
 				}
 			}

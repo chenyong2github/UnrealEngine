@@ -111,6 +111,10 @@ namespace Audio
 		int32 NumSamplesWritten;
 		bool bIsFinished;
 
+#if ENABLE_AUDIO_DEBUG
+		double CPUDuration = 0.0;
+#endif // if ENABLE_AUDIO_DEBUG
+
 		FProceduralAudioTaskResults()
 			: NumSamplesWritten(0)
 			, bIsFinished(false)
@@ -120,8 +124,13 @@ namespace Audio
 	// Results from decode audio task
 	struct FDecodeAudioTaskResults
 	{
+
 		// Whether or not the audio buffer looped
 		bool bIsFinishedOrLooped;
+
+#if ENABLE_AUDIO_DEBUG
+		double CPUDuration = 0;
+#endif // if ENABLE_AUDIO_DEBUG
 
 		FDecodeAudioTaskResults()
 			: bIsFinishedOrLooped(false)

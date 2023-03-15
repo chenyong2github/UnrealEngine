@@ -117,6 +117,10 @@ namespace Audio
 		// Retrieves the envelope value of the source.
 		float GetEnvelopeValue() const;
 
+#if ENABLE_AUDIO_DEBUG
+		double GetCPUCoreUtilization() const;
+#endif // ENABLE_AUDIO_DEBUG
+
 		// Mixes the dry and wet buffer audio into the given buffers.
 		void MixOutputBuffers(int32 InNumChannels, const float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, FAlignedFloatBuffer& OutWetBuffer) const;
 
