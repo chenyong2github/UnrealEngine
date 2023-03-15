@@ -26,6 +26,8 @@ public:
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual bool ShowPaletteIconOnNode() const override;
+	virtual void OnUpdateCommentText(const FString& NewComment) override;
+	virtual void OnCommentBubbleToggled(bool bInCommentBubbleVisible) override;
 	//~ End UEdGraphNode Interface
 	
 	//~ Begin UObject interface
@@ -42,7 +44,14 @@ protected:
 	/** Recreate the pins on this node, discarding all existing pins. */
 	void ReconstructPins();
 
-	void UpdatePosition();
+	/** Update the position of the underlying runtime node to match the editor node. */
+	void UpdatePosition() const;
+
+	/**
+	 * Update the comment bubble pin state on the underlying runtime node to match the editor node. Note that
+	 * comment bubble visibility state and comment text are handled by UEdGraphNode overrides.
+	 */
+	void UpdateCommentBubblePinned() const;
 
 protected:
 	/** The runtime node that this editor node represents. */

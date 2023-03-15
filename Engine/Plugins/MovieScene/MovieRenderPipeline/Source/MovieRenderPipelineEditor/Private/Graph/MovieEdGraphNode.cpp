@@ -23,9 +23,10 @@ void UMoviePipelineEdGraphNodeBase::Construct(UMovieGraphNode* InRuntimeNode)
 	
 	NodePosX = InRuntimeNode->GetNodePosX();
 	NodePosY = InRuntimeNode->GetNodePosY();
-	// NodeComment = InRuntimeNode->NodeComment;
-	// bCommentBubblePinned = InRuntimeNode->bCommentBubblePinned;
-	// bCommentBubbleVisible = InRuntimeNode->bCommentBubbleVisible;
+	
+	NodeComment = InRuntimeNode->GetNodeComment();
+	bCommentBubblePinned = InRuntimeNode->IsCommentBubblePinned();
+	bCommentBubbleVisible = InRuntimeNode->IsCommentBubbleVisible();
 }
 
 void UMoviePipelineEdGraphNodeBase::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
@@ -36,6 +37,11 @@ void UMoviePipelineEdGraphNodeBase::PostTransacted(const FTransactionObjectEvent
 		ChangedProperties.Contains(GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosY)))
 	{
 		UpdatePosition();
+	}
+
+	if (ChangedProperties.Contains(GET_MEMBER_NAME_CHECKED(UEdGraphNode, bCommentBubblePinned)))
+	{
+		UpdateCommentBubblePinned();
 	}
 }
 
@@ -75,13 +81,22 @@ FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* 
 	return EdPinType;
 }
 
-void UMoviePipelineEdGraphNodeBase::UpdatePosition()
+void UMoviePipelineEdGraphNodeBase::UpdatePosition() const
 {
 	if (RuntimeNode)
 	{
 		RuntimeNode->Modify();
 		RuntimeNode->SetNodePosX(NodePosX);
 		RuntimeNode->SetNodePosY(NodePosY);
+	}
+}
+
+void UMoviePipelineEdGraphNodeBase::UpdateCommentBubblePinned() const
+{
+	if (RuntimeNode)
+	{
+		RuntimeNode->Modify();
+		RuntimeNode->SetIsCommentBubblePinned(bCommentBubblePinned);
 	}
 }
 
@@ -292,6 +307,26 @@ bool UMoviePipelineEdGraphNodeBase::ShowPaletteIconOnNode() const
 {
 	// Reveals the icon set by GetIconAndTint() in the top-left corner of the node
 	return true;
+}
+
+void UMoviePipelineEdGraphNodeBase::OnUpdateCommentText(const FString& NewComment)
+{
+	Super::OnUpdateCommentText(NewComment);
+
+	if (RuntimeNode && (RuntimeNode->GetNodeComment() != NewComment))
+	{
+		RuntimeNode->SetNodeComment(NewComment);
+	}
+}
+
+void UMoviePipelineEdGraphNodeBase::OnCommentBubbleToggled(bool bInCommentBubbleVisible)
+{
+	Super::OnCommentBubbleToggled(bInCommentBubbleVisible);
+
+	if (RuntimeNode && (RuntimeNode->IsCommentBubbleVisible() != bInCommentBubbleVisible))
+	{
+		RuntimeNode->SetIsCommentBubbleVisible(bInCommentBubbleVisible);
+	}
 }
 
 void UMoviePipelineEdGraphNodeBase::OnRuntimeNodeChanged(const UMovieGraphNode* InChangedNode)

@@ -89,6 +89,15 @@ public:
 
 	/** Gets the node's icon and icon tint, as visible in the graph. */
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const;
+
+	FString GetNodeComment() const { return NodeComment; }
+	void SetNodeComment(const FString& InNodeComment) { NodeComment = InNodeComment; }
+
+	bool IsCommentBubblePinned() const { return bIsCommentBubblePinned; }
+	void SetIsCommentBubblePinned(const uint8 bIsPinned) { bIsCommentBubblePinned = bIsPinned; }
+
+	bool IsCommentBubbleVisible() const { return bIsCommentBubbleVisible; }
+	void SetIsCommentBubbleVisible(uint8 bIsVisible) { bIsCommentBubbleVisible = bIsVisible; }
 #endif
 
 	//~ Begin UObject Interface
@@ -136,6 +145,15 @@ protected:
 
 	UPROPERTY()
 	int32 NodePosY = 0;
+
+	UPROPERTY()
+	FString NodeComment;
+
+	UPROPERTY()
+	uint8 bIsCommentBubblePinned : 1;
+
+	UPROPERTY()
+	uint8 bIsCommentBubbleVisible : 1;
 #endif
 
 	/** A GUID which uniquely identifies this node. */
