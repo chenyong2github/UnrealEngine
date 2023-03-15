@@ -774,7 +774,7 @@ void PackStrataOut(
 
 							if (BSDF_GETHASTRANSABOVE(BSDF))
 							{
-								STRATA_STORE_UINT1(PackR11G11B10F(BSDF.TransmittanceAboveAlongN));
+								STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(BSDF.TransmittanceAboveAlongN, BSDF.CoverageAboveAlongN)));
 							}
 
 							// 8-24 bytes

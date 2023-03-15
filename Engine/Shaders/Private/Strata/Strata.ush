@@ -123,8 +123,8 @@ struct FStrataBSDF
 	int					OperatorIndex;
 	float3				LuminanceWeightV;
 
-	float3				TransmittanceAboveAlongN;	// The transmittance towards the top of the material along the normal and ignoring this BSDF, e.g. only accumulating matter above it.
-	float3				TransmittanceBelowAlongN;	// The transmittance towards the bottom of the material along the normal and ignoring this BSDF, e.g. only accumulating matter below it.
+	float				CoverageAboveAlongN;
+	float3				TransmittanceAboveAlongN;	// The "pre-coverage" transmittance towards the top of the material along the normal and ignoring this BSDF, e.g. only accumulating matter above it.
 
 	int					bIsBottom;
 	int					bIsTop;
@@ -1163,8 +1163,8 @@ void StrataPackOutStrataTree(
 		WRITE_UINT(StrataTree.BSDFs[i].State);
 		WRITE_INT(StrataTree.BSDFs[i].OperatorIndex);
 		WRITE_FLOAT3(StrataTree.BSDFs[i].LuminanceWeightV);
+		WRITE_FLOAT(StrataTree.BSDFs[i].CoverageAboveAlongN);
 		WRITE_FLOAT3(StrataTree.BSDFs[i].TransmittanceAboveAlongN);
-		WRITE_FLOAT3(StrataTree.BSDFs[i].TransmittanceBelowAlongN);
 		WRITE_UINT(StrataTree.BSDFs[i].bIsBottom);
 		WRITE_UINT(StrataTree.BSDFs[i].bIsTop);
 
@@ -1260,8 +1260,8 @@ FStrataBSDF StrataUnpackInStrataTreeBSDF(
 	READ_UINT(BSDF.State);
 	READ_INT(BSDF.OperatorIndex);
 	READ_FLOAT3(BSDF.LuminanceWeightV);
+	READ_FLOAT(BSDF.CoverageAboveAlongN);
 	READ_FLOAT3(BSDF.TransmittanceAboveAlongN);
-	READ_FLOAT3(BSDF.TransmittanceBelowAlongN);
 	READ_UINT(BSDF.bIsBottom);
 	READ_UINT(BSDF.bIsTop);
 
@@ -3732,6 +3732,7 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 	uint Data1 = StrataLoadUint1(StrataBuffer, StrataAddressing);
 	OutBSDF.State = 0;
 	OutBSDF.LuminanceWeightV = 1.0f;
+	OutBSDF.CoverageAboveAlongN = 0.0f;
 	OutBSDF.TransmittanceAboveAlongN = 1.0f;
 
 	const uint PackedRoughness8bits = 0xFF    & (Data0 >>  HEADER_FASTENCODING_BIT_COUNT);
@@ -3775,6 +3776,7 @@ FStrataBSDF UnpackFastWaterPathStrataBSDFIn(FStrataMaterialContainer StrataBuffe
 	uint Data1 = StrataLoadUint1(StrataBuffer, StrataAddressing);
 	OutBSDF.State = 0;
 	OutBSDF.LuminanceWeightV = 1.0f;
+	OutBSDF.CoverageAboveAlongN = 0.0f;
 	OutBSDF.TransmittanceAboveAlongN = 1.0f;
 
 	const uint PackedBaseColor8Bits					= 0xFF   & (Data0 >> (HEADER_FASTENCODING_BIT_COUNT + 8));
@@ -3827,6 +3829,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 	}
 
 	FStrataBSDF OutBSDF = (FStrataBSDF)0;
+	OutBSDF.CoverageAboveAlongN = 0.0f;
 	OutBSDF.TransmittanceAboveAlongN = 1.0f;
 
 	float DummyFloat = 0.0f;
@@ -3858,6 +3861,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		{
 			OutBSDF.State = 0;
 			OutBSDF.LuminanceWeightV = 1.0f;
+			OutBSDF.CoverageAboveAlongN = 0.0f;
 			OutBSDF.TransmittanceAboveAlongN = 1.0f;
 			SLAB_F90(OutBSDF) = 1.0f;
 
@@ -4126,7 +4130,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 
 		if (BSDF_GETHASTRANSABOVE(OutBSDF))
 		{
-			StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, OutBSDF.TransmittanceAboveAlongN);
+			StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, OutBSDF.TransmittanceAboveAlongN, OutBSDF.CoverageAboveAlongN);
 		}
 	}
 	break;

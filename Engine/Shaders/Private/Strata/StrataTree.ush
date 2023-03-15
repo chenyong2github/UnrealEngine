@@ -111,7 +111,9 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	//  - When coming from non parameter blending, this is equal identity 1 and the operator parsing will continue to correctly weight the BSDF according to the tree.
 	CurrentBSDF.LuminanceWeightV = float3(1.0f, 1.0f, 1.0f) * CurrentBSDFCoverage;
 
-	CurrentBSDF.TransmittanceAboveAlongN = float3(1.0f, 1.0f, 1.0f); // Initialise to "no matter above"
+	// Initialise to "no matter above"
+	CurrentBSDF.CoverageAboveAlongN = 0.0f;
+	CurrentBSDF.TransmittanceAboveAlongN = float3(1.0f, 1.0f, 1.0f);
 
 	// All BSDF are considered for contribution as the top BSDF can have their coverage dip to 0 and then another BSDF need to be considered for the top layer representation.
 	CurrentBSDF.TopLayerDataWeight = 1.0f;
@@ -147,6 +149,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 #else // STRATA_COMPLEXPATH
 
 	CurrentBSDF.LuminanceWeightV		= CurrentBSDFCoverage;
+	CurrentBSDF.CoverageAboveAlongN		= 0.0f;
 	CurrentBSDF.TransmittanceAboveAlongN= float3(1.0f, 1.0f, 1.0f);
 	CurrentBSDF.TopLayerDataWeight		= 1.0f;
 
@@ -237,12 +240,12 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 		Op.Coverage				= Info.Coverage;
 		Op.ThroughputAlongV		= Info.TransmittanceOnlyTop * TopThroughputAlongV +		Info.TransmittanceOnlyBottom * BotThroughputAlongV +	Info.TransmittanceTopAndBottom * TopThroughputAlongV * BotThroughputAlongV;
-		Op.TransmittanceAlongN	= Info.TransmittanceOnlyTop * TopTransmittanceAlongN +	Info.TransmittanceOnlyBottom * BotTransmittanceAlongN + Info.TransmittanceTopAndBottom * TopTransmittanceAlongN * BotTransmittanceAlongN;
+		Op.TransmittanceAlongN  = Info.TransmittanceOnlyTop* TopTransmittanceAlongN + Info.TransmittanceOnlyBottom * BotTransmittanceAlongN + Info.TransmittanceTopAndBottom * TopTransmittanceAlongN * BotTransmittanceAlongN;
 #endif
 
 		Op.VerticalTop_Coverage				= OpA.Coverage;
 		Op.VerticalTop_ThroughputAlongV		= OpA.ThroughputAlongV;
-		Op.VerticalTop_TransmittanceAlongN	= OpA.TransmittanceAlongN;
+		Op.VerticalTop_TransmittanceAlongN  = OpA.TransmittanceAlongN;
 
 		Op.VerticalBot_Coverage				= OpB.Coverage;
 		Op.VerticalBot_ThroughputAlongV		= OpB.ThroughputAlongV;
@@ -383,9 +386,18 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 
 	// PreviousIsInputA > 0 means it is a BSDF affecting the top layer so we do not affect it by anything for this vertical layering.
 	// Otherise, the BSDF comes from the bottom part so we affect it weights from the gathered top layer coverage/transmittance
-	CurrentBSDF.LuminanceWeightV		*= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_ThroughputAlongV;
-	CurrentBSDF.TransmittanceAboveAlongN*= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_TransmittanceAlongN;
-	CurrentBSDF.TransmittanceBelowAlongN*= PreviousIsInputA ==0 ? 1.0f : saturate(1.0f - Op.VerticalBot_Coverage) + saturate(Op.VerticalBot_Coverage) * Op.VerticalBot_TransmittanceAlongN;
+	CurrentBSDF.LuminanceWeightV		 *= PreviousIsInputA > 0  ? 1.0f : saturate(1.0f - Op.VerticalTop_Coverage) + saturate(Op.VerticalTop_Coverage) * Op.VerticalTop_ThroughputAlongV;
+
+	// Now we are going to combine the coverage/transmittance above this slab into a new one according to the vertical operator we traverse now, if PreviousIsInputA > 0
+	const float BotCover  = CurrentBSDF.CoverageAboveAlongN;
+	const float TopCover  = Op.VerticalTop_Coverage;
+	const float3 BotTrans = CurrentBSDF.TransmittanceAboveAlongN;
+	const float3 TopTrans = Op.VerticalTop_TransmittanceAlongN;
+	FVerticalLayeringInfo Info = GetVerticalLayeringInfo(Op.VerticalTop_Coverage, CurrentBSDF.CoverageAboveAlongN);
+	// Pre coverage transmittance is the surface transmitance as if coverage=1, so the final combined transmittance is renormalized accordingly.
+	const float3 PreCoverageTransmittance = saturate((Info.TransmittanceOnlyTop * TopTrans + Info.TransmittanceOnlyBottom * BotTrans + Info.TransmittanceTopAndBottom * (TopTrans * BotTrans)) / max(STRATA_EPSILON, Info.Coverage));
+	CurrentBSDF.CoverageAboveAlongN		  = PreviousIsInputA  > 0 ? CurrentBSDF.CoverageAboveAlongN : Info.Coverage;
+	CurrentBSDF.TransmittanceAboveAlongN *= PreviousIsInputA  > 0 ? 1.0f							: PreCoverageTransmittance;
 
 	// If the BSDF is from the bottom, we reduce its contribution according to the top layer coverage only.
 	CurrentBSDF.TopLayerDataWeight *= PreviousIsInputA ? 1.0 : saturate(1.0f - Op.VerticalTop_Coverage);

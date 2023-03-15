@@ -200,7 +200,7 @@ float3 LuminanceWeight(in float SatNoL, in FStrataBSDF InBSDF)
 	// TransmittanceAboveAlongL	= pow(TransmittanceAboveAlongN, 1/NoL)
 	const float DistanceL = rcp(max(SatNoL, 0.001f));
 	const float3 TransmittanceAboveAlongL = any(InBSDF.TransmittanceAboveAlongN < 1.f) ? pow(max(InBSDF.TransmittanceAboveAlongN, 0.0001f), DistanceL) : InBSDF.TransmittanceAboveAlongN;
-	return InBSDF.LuminanceWeightV * TransmittanceAboveAlongL;
+	return InBSDF.LuminanceWeightV * lerp(1.0f, TransmittanceAboveAlongL, InBSDF.CoverageAboveAlongN);
 #else
 	return InBSDF.LuminanceWeightV;
 #endif
