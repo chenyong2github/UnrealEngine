@@ -2046,62 +2046,70 @@ namespace UnrealBuildTool
 
 			FileItem InputFile = Graph.CreateIntermediateTextFile(OutputFile.ChangeExtension(".cpp"), Contents.ToString());
 
-			// Build the argument list
+			// Build the argument list for the compiler
 			FileItem ObjectFile = FileItem.GetItemByFileReference(OutputFile.ChangeExtension(".obj"));
 
-			List<string> Arguments = new List<string>();
-			Arguments.Add($"\"{InputFile.Location}\"");
-			Arguments.Add("/c");
-			Arguments.Add("/nologo");
-			Arguments.Add($"/Fo\"{ObjectFile.Location}\"");
+			List<string> Arguments = new List<string>
+			{
+				$"\"{InputFile.Location}\"",
+				"/c",
+				"/nologo",
+				$"/Fo\"{ObjectFile.Location}\""
+			};
 
 			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 			{
-				AddIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler);
+				AddIncludePath(Arguments, IncludePath, EnvVars.ToolChain);
 			}
 
 			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
 			{
-				AddSystemIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler);
+				AddSystemIncludePath(Arguments, IncludePath, EnvVars.ToolChain);
 			}
 
 			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
 			{
-				AddSystemIncludePath(Arguments, IncludePath, Target.WindowsPlatform.Compiler);
+				AddSystemIncludePath(Arguments, IncludePath, EnvVars.ToolChain);
 			}
 
-			// Create the compile action. Only mark the object file as an output, because we need to touch the generated header afterwards.
-			Action CompileAction = Graph.CreateAction(ActionType.Compile);
-			CompileAction.CommandDescription = "GenerateTLH";
-			CompileAction.PrerequisiteItems.Add(InputFile);
-			CompileAction.ProducedItems.Add(ObjectFile);
-			CompileAction.DeleteItems.Add(FileItem.GetItemByFileReference(OutputFile));
-			CompileAction.StatusDescription = TypeLibrary.Header;
-			CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-			CompileAction.CommandPath = EnvVars.CompilerPath;
-			CompileAction.CommandArguments = String.Join(" ", Arguments);
-			CompileAction.bShouldOutputStatusDescription = Target.WindowsPlatform.Compiler.IsClang();
-			CompileAction.bCanExecuteRemotely = false; // Incompatible with SN-DBS
+			FileItem ResponseFile = Graph.CreateIntermediateTextFile(OutputFile.ChangeExtension(ResponseExt), String.Join(" ", Arguments));
 
-			// Touch the output header
-			Action TouchAction = Graph.CreateAction(ActionType.BuildProject);
-			TouchAction.CommandDescription = "Touch";
-			TouchAction.CommandPath = BuildHostPlatform.Current.Shell;
-			TouchAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-			TouchAction.PrerequisiteItems.Add(ObjectFile);
-			TouchAction.ProducedItems.Add(FileItem.GetItemByFileReference(OutputFile));
-			TouchAction.StatusDescription = OutputFile.GetFileName();
-			TouchAction.bCanExecuteRemotely = false;
-
-			// Wine has an issue with copy /b <file>+,, <file> and does not correctly touch the file, and instead makes a copy of the file at the CWD
+			// Build the command for touching the output file to update the time stamp
+			string TouchActionCommand;
 			if (BuildHostPlatform.Current.IsRunningOnWine())
 			{
-				TouchAction.CommandArguments = $"/C \"copy /Y \"{OutputFile.FullName}\" \"%TMP%/{OutputFile.GetFileName()}\" && type \"%TMP%/{OutputFile.GetFileName()}\" > \"{OutputFile.FullName}\"\"";
+				TouchActionCommand = $"copy /Y \"{OutputFile.FullName}\" \"%TMP%/{OutputFile.GetFileName()}\" && type \"%TMP%/{OutputFile.GetFileName()}\" > \"{OutputFile.FullName}\"";
 			}
 			else
 			{
-				TouchAction.CommandArguments = $"/C \"copy /b \"{OutputFile.FullName}\"+,, \"{OutputFile.FullName}\"\"";
+				TouchActionCommand = $"copy /b \"{OutputFile.FullName}\"+,, \"{OutputFile.FullName}\"";
 			}
+
+			// Build the batch file
+			StringBuilder BatchFileContents = new();
+			BatchFileContents.AppendLine("@echo off");
+			BatchFileContents.AppendLine($"\"{EnvVars.ToolchainCompilerPath}\" @\"{ResponseFile.FullName}\"");
+			BatchFileContents.AppendLine(TouchActionCommand);
+
+			FileItem BatchFile = Graph.CreateIntermediateTextFile(OutputFile.ChangeExtension(".bat"), BatchFileContents.ToString());
+
+			// Create the batch file action that will compile then touch the output file
+			Action CompileAction = Graph.CreateAction(ActionType.Compile);
+			CompileAction.CommandDescription = "GenerateTLH";
+			CompileAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(EnvVars.ToolchainCompilerPath));
+			CompileAction.PrerequisiteItems.Add(InputFile);
+			CompileAction.PrerequisiteItems.Add(ResponseFile);
+			CompileAction.PrerequisiteItems.Add(BatchFile);
+			CompileAction.ProducedItems.Add(ObjectFile);
+			CompileAction.ProducedItems.Add(FileItem.GetItemByFileReference(OutputFile));
+			CompileAction.DeleteItems.Add(FileItem.GetItemByFileReference(OutputFile));
+			CompileAction.StatusDescription = TypeLibrary.Header;
+			CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+			CompileAction.CommandPath = BuildHostPlatform.Current.Shell;
+			CompileAction.CommandArguments = $"/C \"{BatchFile}\"";
+			CompileAction.CommandVersion = EnvVars.ToolChainVersion.ToString();
+			CompileAction.bShouldOutputStatusDescription = false;
+			CompileAction.bCanExecuteRemotely = false; // Incompatible with remote distribution
 		}
 
 		public override CppCompileEnvironment CreateSharedResponseFile(CppCompileEnvironment CompileEnvironment, FileReference OutResponseFile, IActionGraphBuilder Graph)

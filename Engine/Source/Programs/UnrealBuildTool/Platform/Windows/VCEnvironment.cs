@@ -76,7 +76,7 @@ namespace UnrealBuildTool
 		public readonly bool bAllowClangLinker;
 
 		/// <summary>
-		/// The path to the linker for linking executables
+		/// The path to the compiler for compiling code
 		/// </summary>
 		public readonly FileReference CompilerPath;
 
@@ -94,6 +94,11 @@ namespace UnrealBuildTool
 		/// Path to the resource compiler from the Windows SDK
 		/// </summary>
 		public readonly FileReference ResourceCompilerPath;
+
+		/// <summary>
+		/// The path to the toolchain compiler for compiling code
+		/// </summary>
+		public readonly FileReference ToolchainCompilerPath;
 
 		/// <summary>
 		/// Optional directory containing redistributable items (DLLs etc)
@@ -135,6 +140,7 @@ namespace UnrealBuildTool
 			CompilerPath = GetCompilerToolPath(Compiler, Architecture, CompilerDir);
 			LinkerPath = GetLinkerToolPath(Compiler, Architecture, CompilerDir, ToolChainDir);
 			LibraryManagerPath = GetLibraryLinkerToolPath(Compiler, Architecture, CompilerDir, ToolChainDir);
+			ToolchainCompilerPath = GetCompilerToolPath(ToolChain, Architecture, ToolChainDir);
 
 			// Get the resource compiler path from the Windows SDK
 			ResourceCompilerPath = GetResourceCompilerToolPath(WindowsSdkDir, WindowsSdkVersion, Logger);
