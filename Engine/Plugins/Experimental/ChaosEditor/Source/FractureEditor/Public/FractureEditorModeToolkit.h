@@ -10,7 +10,8 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "IDetailCustomization.h"
-#include "SGeometryCollectionOutliner.h"
+
+#include "FractureEditorModeToolkit.generated.h"
 
 class IDetailsView;
 class IPropertyHandle;
@@ -84,6 +85,16 @@ struct FTextAndSlateColor
 	{}
 	FText Text;
 	FSlateColor Color;
+};
+
+UENUM(BlueprintType)
+enum class EOutlinerColumnMode : uint8
+{
+	State = 0				UMETA(DisplayName = "State"),
+	Damage = 1				UMETA(DisplayName = "Damage"),
+	Removal = 2				UMETA(DisplayName = "Removal"),
+	Collision = 3			UMETA(DisplayName = "Collision"),
+	Size = 4				UMETA(DisplayName = "Size"),
 };
 
 class FRACTUREEDITOR_API FFractureEditorModeToolkit : public FModeToolkit, public FGCObject

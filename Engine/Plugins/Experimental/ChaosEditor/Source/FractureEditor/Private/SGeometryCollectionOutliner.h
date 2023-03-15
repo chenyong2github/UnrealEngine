@@ -18,6 +18,8 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
 
+#include "FractureEditorModeToolkit.h"
+
 #include "SGeometryCollectionOutliner.generated.h"
 
 class FGeometryCollection;
@@ -35,16 +37,6 @@ enum class EOutlinerItemNameEnum : uint8
 {
 	BoneName = 0					UMETA(DisplayName = "Bone Name"),
 	BoneIndex = 1					UMETA(DisplayName = "Bone Index"),
-};
-
-UENUM(BlueprintType)
-enum class EOutlinerColumnMode : uint8
-{
-	State = 0				UMETA(DisplayName = "State"),
-	Damage = 1				UMETA(DisplayName = "Damage"),
-	Removal = 2				UMETA(DisplayName = "Removal"),
-	Collision = 3			UMETA(DisplayName = "Collision"),
-	Size = 4				UMETA(DisplayName = "Size"),
 };
 
 /** Settings for Outliner configuration. **/
