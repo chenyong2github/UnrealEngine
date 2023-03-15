@@ -24,6 +24,7 @@ namespace Metasound
 		class TVertexAnalyzerForwardValue : public FVertexAnalyzerBase
 		{
 			DataType LastValue;
+			bool HasExecuted = false;
 
 		public:
 			static const FName& GetDataType()
@@ -67,11 +68,23 @@ namespace Metasound
 			virtual void Execute() override
 			{
 				const DataType& Value = GetVertexData<DataType>();
-				if (LastValue != Value)
+
+				if (!HasExecuted)
 				{
-					LastValue = Value;
-					MarkOutputDirty();
+					HasExecuted = true;
+					UpdateValue(Value);
 				}
+				else if (LastValue != Value)
+				{
+					UpdateValue(Value);
+				}
+			}
+
+		private:
+			void UpdateValue(const DataType& Value)
+			{
+				LastValue = Value;
+				MarkOutputDirty();
 			}
 		};
 
