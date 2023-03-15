@@ -1,0 +1,383 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#if WITH_EDITOR
+#include "InterchangeShaderGraphNode.h"
+#include "InterchangeTranslatorBase.h"
+#include "InterchangeTextureNode.h"
+#include "MaterialXBase.h"
+
+class FMaterialXSurfaceShaderAbstract : public FMaterialXBase
+{
+protected:
+
+	DECLARE_DELEGATE_ThreeParams(FOnConnectNodeOutputToInput, MaterialX::NodePtr, UInterchangeShaderNode*, const FString&);
+
+	FMaterialXSurfaceShaderAbstract(UInterchangeBaseNodeContainer & BaseNodeContainer);
+
+	/**
+	 * Add an attribute to a shader node from the given MaterialX input, only floats and linear colors are supported for the moment
+	 *
+	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
+	 * @param InputChannelName - The name of the shader node's input to add the attribute
+	 * @param ShaderNode - The shader node to which we want to add the attribute
+	 *
+	 * @return true if the attribute was successfully added
+	 */
+	bool AddAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode) const;
+
+	/**
+	 * Add an attribute to a shader node from the given MaterialX input if that input has either a value or an interface name
+	 *
+	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
+	 * @param InputChannelName - The name of the shader node's input to add the attribute
+	 * @param ShaderNode - The shader node to which we want to add the attribute
+	 *
+	 * @return true if the attribute was successfully added
+	 */
+	bool AddAttributeFromValueOrInterface(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode) const;
+
+	/**
+	 * Add a float attribute to a shader node only if its value taken from the input is not equal to its default value. Return false if the attribute does not exist or if we cannot add it
+	 *
+	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
+	 * @param InputChannelName - The name of the shader node's input to add the attribute
+	 * @param ShaderNode - The shader node to which we want to add the attribute
+	 * @param DefaultValue - the default value to test the input against
+	 *
+	 * @return true if the attribute was successfully added
+	 */
+	bool AddFloatAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode, float DefaultValue) const;
+
+	/**
+	 * Add a FLinearColor attribute to a shader node only if its value taken from the input is not equal to its default value. Return false if the attribute does not exist or if we cannot add it
+	 *
+	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
+	 * @param InputChannelName - The name of the shader node's input to add the attribute
+	 * @param ShaderNode - The shader node to which we want to add the attribute
+	 * @param DefaultValue - the default value to test the input against
+	 *
+	 * @return true if the attribute was successfully added
+	 */
+	bool AddLinearColorAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode, const FLinearColor& DefaultValue) const;
+
+	/**
+	 * Connect an output either from a node name or a node graph from a MaterialX input to the ShaderNode
+	 * 
+	 * @param InputName - The name of the input of the SurfaceShaderNode to retrieve
+	 * @param ShaderNode - The Interchange shader node to connect the MaterialX's node or node graph to
+	 * @param InputShaderName - The name of the input of the shader node to connect to
+	 * @param DefaultValue - The default value of the MaterialX input
+	 */
+	template<typename T>
+	void ConnectNodeOutputToInput(const char* InputName, UInterchangeShaderNode* ShaderNode, const FString& InputShaderName, T DefaultValue)
+	{
+		MaterialX::DocumentPtr Document = SurfaceShaderNode->getDocument();
+		MaterialX::InputPtr Input = GetInput(SurfaceShaderNode, InputName);
+
+		if(!ConnectNodeGraphOutputToInput(Input, ShaderNode, InputShaderName))
+		{
+			if(!ConnectNodeNameOutputToInput(Input, ShaderNode, InputShaderName))
+			{
+				//the different inputs from a standard surface are either float, linear color, or no attribute at all
+				if constexpr(std::is_same_v<decltype(DefaultValue), float>)
+				{
+					AddFloatAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
+				}
+				else if constexpr(std::is_same_v<decltype(DefaultValue), FLinearColor>)
+				{
+					AddLinearColorAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
+				}
+			}
+		}
+	};
+
+	/**
+	 * Connect an ouput in the NodeGraph to the ShaderGraph
+	 *
+	 * @param InputToNodeGraph - The input from the standard surface to retrieve the output in the NodeGraph
+	 * @param ShaderNode - The Interchange shader node to connect the MaterialX's node graph to
+	 * @param ParentInputName - The name of the input of the shader node to which we want the node graph to be connected to
+	 *
+	 * @return true if the given input is attached to one of the outputs of a node graph
+	 */
+	bool ConnectNodeGraphOutputToInput(MaterialX::InputPtr InputToNodeGraph, UInterchangeShaderNode* ShaderNode, const FString& ParentInputName);
+
+	/**
+	 * Create and Connect the output of a MaterialX node that has already a matching in UE to a shader node,
+	 * If not search for a registered delegate
+	 *
+	 * @param Node - The MaterialX node of a given type used to create the appropriate shader node
+	 * @param ParentShaderNode - The shader node to connect to
+	 * @param InputChannelName - The input of the ParentShaderNode to connect to
+	 *
+	 * @return true if a shader node has been successfully created and is connected to the given input
+	 */
+	bool ConnectMatchingNodeOutputToInput(MaterialX::NodePtr Node, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/**
+	 * Create and Connect manually the output of a MaterialX node to a shader node
+	 *
+	 * @param Edge - The MaterialX edge that has the current node, its parent and the input bridge between the two
+	 * @param ParentShaderNode - The shader node to connect to
+	 * @param InputChannelName - The input of the ParentShaderNode to connect to
+	 *
+	 * @return true if a shader node has been successfully created and is connected to the given input
+	 */
+	void ConnectNodeCategoryOutputToInput(const MaterialX::Edge& Edge, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/**
+	 * Create and Connect a node name directly connected from an input to a shader node
+	 *
+	 * @param Node - The MaterialX node of a given type used to create the appropriate shader node
+	 * @param ParentShaderNode - The shader node to connect to
+	 * @param InputChannelName - The input of the ParentShaderNode to connect to
+	 *
+	 * @return true if a shader node has been successfully created and is connected to the given input
+	 */
+	bool ConnectNodeNameOutputToInput(MaterialX::InputPtr Input, UInterchangeShaderNode* ShaderNode, const FString& ParentInputName);
+
+	/** Begin Connect MaterialX nodes*/
+
+	/** <constant> */
+	void ConnectConstantInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <extract> */
+	void ConnectExtractInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <dot> */
+	void ConnectDotInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <transformpoint> */
+	void ConnectTransformPositionInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <transformvector> */
+	void ConnectTransformVectorInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <rotate2d> */
+	void ConnectRotate2DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <rotate3d> */
+	void ConnectRotate3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <image> */
+	void ConnectImageInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <convert> */
+	void ConnectConvertInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <ifgreater> */
+	void ConnectIfGreaterInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <ifgreatereq> */
+	void ConnectIfGreaterEqInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <ifequal> */
+	void ConnectIfEqualInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <outside> */
+	void ConnectOutsideInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <position> */
+	void ConnectPositionInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <normal> */
+	void ConnectNormalInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <tangent> */
+	void ConnectTangentInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <bitangent> */
+	void ConnectBitangentInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <time> */
+	void ConnectTimeInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <noise3d> */
+	void ConnectNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <cellnoise3d> */
+	void ConnectCellNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <worleynoise3d> */
+	void ConnectWorleyNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <heighttonormal> */
+	void ConnectHeightToNormalInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** <blur> */
+	void ConnectBlurInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+
+	/** End Connect MaterialX nodes*/
+
+	/**
+	 * Create a ComponentMask shader node.
+	 *
+	 * @param RGBA - The mask component, e.g: 0b1011 -> Only RBA are toggled
+	 * @param NodeName - the name of the shader node
+	 *
+	 * @return The ComponentMask node
+	 */
+	UInterchangeShaderNode* CreateMaskShaderNode(uint8 RGBA, const FString& NodeName);
+
+	/**
+	 * Helper template function to create an InterchangeShaderNode
+	 *
+	 * @param NodeName - The name of the shader node
+	 * @param ShaderType - The shader node's type we want to create
+	 *
+	 * @return The shader node that was created
+	 */
+	template<typename ShaderNodeType>
+	ShaderNodeType* CreateShaderNode(const FString& NodeName, const FString& ShaderType)
+	{
+		static_assert(std::is_convertible_v<ShaderNodeType*, UInterchangeShaderNode*>, "CreateShaderNode only accepts type that derived from UInterchangeShaderNode");
+
+		ShaderNodeType* Node;
+
+		const FString NodeUID = UInterchangeShaderNode::MakeNodeUid(NodeName, FStringView{});
+
+		//Test directly in the NodeContainer, because the ShaderNodes can be altered during the node graph either by the parent (dot/normalmap),
+		//or by putting an intermediary node between the child and the parent (tiledimage)
+		if(Node = const_cast<ShaderNodeType*>(Cast<ShaderNodeType>(NodeContainer.GetNode(NodeUID))); !Node)
+		{
+			Node = NewObject<ShaderNodeType>(&NodeContainer);
+			Node->InitializeNode(NodeUID, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
+			NodeContainer.AddNode(Node);
+			if constexpr(std::is_same_v<ShaderNodeType, UInterchangeShaderGraphNode>)
+			{
+				NodeContainer.SetNodeParentUid(NodeUID, FString{});
+			}
+			Node->SetCustomShaderType(ShaderType);
+
+			ShaderNodes.Add(NodeName, Node);
+		}
+
+		return Node;
+	}
+
+	/**
+	 * Helper function to create an InterchangeTextureNode
+	 *
+	 * @param Node - The MaterialX node, it should be of the category <image> no test is done on it
+	 *
+	 * @return The texture node that was created
+	 */
+	template<typename TextureTypeNode>
+	UInterchangeTextureNode* CreateTextureNode(MaterialX::NodePtr Node) const
+	{
+		static_assert(std::is_convertible_v<TextureTypeNode*, UInterchangeTextureNode*>, "CreateTextureNode only accepts type that derived from UInterchangeTextureNode");
+		UInterchangeTextureNode* TextureNode = nullptr;
+
+		//A node image should have an input file otherwise the user should check its default value
+		if(Node)
+		{
+			if(MaterialX::InputPtr InputFile = Node->getInput("file"); InputFile && InputFile->hasValue())
+			{
+				FString Filepath{ InputFile->getValueString().c_str() };
+				const FString FilePrefix = GetFilePrefix(InputFile);
+				Filepath = FPaths::Combine(FilePrefix, Filepath);
+				const FString Filename = FPaths::GetCleanFilename(Filepath);
+				const FString TextureNodeUID = TEXT("\\Texture\\") + Filename;
+
+				//Only add the TextureNode once
+				TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureNodeUID)));
+				if(TextureNode == nullptr)
+				{
+					TextureNode = NewObject<TextureTypeNode>(&NodeContainer);
+					TextureNode->InitializeNode(TextureNodeUID, Filename, EInterchangeNodeContainerType::TranslatedAsset);
+					NodeContainer.AddNode(TextureNode);
+
+					if(FPaths::IsRelative(Filepath))
+					{
+						Filepath = FPaths::ConvertRelativePathToFull(FPaths::GetPath(Node->getActiveSourceUri().c_str()), Filepath);
+					}
+
+					TextureNode->SetPayLoadKey(Filepath);
+
+					const FString ColorSpace = GetColorSpace(InputFile);
+					const bool bIsSRGB = ColorSpace == TEXT("srgb_texture");
+					TextureNode->SetCustomSRGB(bIsSRGB);
+				}
+			}
+		}
+
+		return TextureNode;
+	}
+
+	/**
+	 * Get the UE corresponding name of a MaterialX Node category and input for a material
+	 *
+	 * @param Input - MaterialX input
+	 *
+	 * @return The matched name of the Node/Input else empty string
+	 */
+	const FString& GetMatchedInputName(MaterialX::NodePtr Node, MaterialX::InputPtr Input) const;
+
+	/**
+	 * Get the input name, use this function instead of getName, because a renaming may have occured and we ensure to have the proper name that will be used by UE inputs
+	 *
+	 * @param Input - The input to retrieve the name from
+	 *
+	 * @return The input name
+	 */
+	FString GetInputName(MaterialX::InputPtr Input) const;
+
+	/**
+	 * Return the innermost file prefix of an element in the current scope, if it has none, it will take the one from its parents
+	 *
+	 * @param Element - the Element to retrieve the file prefix from (can be anything, an input, a node, a nodegraph, etc.)
+	 *
+	 * @return a file prefix or an empty string
+	 *
+	 */
+	FString GetFilePrefix(MaterialX::ElementPtr Element) const;
+
+	/**
+	 * Helper function that returns a vector, the function makes no assumption on the input, and it should have a value of vectorN type
+	 *
+	 * @param Input - The input that has a vectorN value in it
+	 *
+	 * @return The vector
+	 */
+	FLinearColor GetVector(MaterialX::InputPtr Input) const;
+
+	/**
+	 * Retrieve the interchange parent name of a MaterialX node, useful when a node is a combination of several nodes connected to different inputs (look for example Noise3D)
+	 *
+	 * @param Node - The node to retrieve the parent name
+	 * @return The node of the parent
+	 */
+	FString GetAttributeParentName(MaterialX::NodePtr Node) const;
+
+	virtual void RegisterConnectNodeOutputToInputDelegates();
+
+	/**
+	 * Set the matching inputs names of a node to correspond to the one used by UE, the matching name is stored under the attribute UE::NewName
+	 *
+	 * @param Node - Look up to all inputs of Node and set the matching name attribute
+	 */
+	void SetMatchingInputsNames(MaterialX::NodePtr Node) const;
+
+	/**
+	 * Add the input new name under the attribute UE::NewName.
+	 *
+	 * @param Input - The input to add the proper attribute
+	 * @param NewName - the new name of the input
+	 */
+	void SetAttributeNewName(MaterialX::InputPtr Input, const char* NewName) const;
+
+
+protected:
+
+	/** Store the shader nodes only when we create the shader graph node*/
+	TMap<FString, UInterchangeShaderNode*> ShaderNodes;
+
+	/** The surface shader node processed during the Translate, up to the derived class to initialize it*/
+	MaterialX::NodePtr SurfaceShaderNode;
+
+	/** Matching MaterialX category and Connect function*/
+	TMap<FString, FOnConnectNodeOutputToInput> MatchingConnectNodeDelegates;
+};
+#endif

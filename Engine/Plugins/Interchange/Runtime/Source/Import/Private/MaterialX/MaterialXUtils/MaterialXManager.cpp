@@ -1,0 +1,229 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#if WITH_EDITOR
+#include "MaterialX/MaterialXUtils/MaterialXManager.h"
+#include "MaterialX/InterchangeMaterialXDefinitions.h"
+#include "InterchangeMaterialDefinitions.h"
+#include "InterchangeShaderGraphNode.h"
+#include "MaterialX/MaterialXUtils/MaterialXSurfaceShaderAbstract.h"
+#include "MaterialX/MaterialXUtils/MaterialXStandardSurfaceShader.h"
+#include "MaterialX/MaterialXUtils/MaterialXSurfaceUnlitShader.h"
+#include "MaterialX/MaterialXUtils/MaterialXPointLightShader.h"
+#include "MaterialX/MaterialXUtils/MaterialXDirectionalLightShader.h"
+#include "MaterialX/MaterialXUtils/MaterialXSpotLightShader.h"
+#include "MaterialX/MaterialXUtils/MaterialXSurfaceMaterial.h"
+
+namespace mx = MaterialX;
+
+FMaterialXManager::FMaterialXManager()
+	: MatchingInputNames {
+		{{TEXT(""),                            TEXT("amplitude")}, TEXT("Amplitude")},
+		{{TEXT(""),                            TEXT("bg")},        TEXT("B")},
+		{{TEXT(""),                            TEXT("center")},    TEXT("Center")},
+		{{TEXT(""),                            TEXT("diminish")},  TEXT("Diminish")},
+		{{TEXT(""),                            TEXT("fg")},        TEXT("A")},
+		{{TEXT(""),                            TEXT("high")},      TEXT("Max")},
+		{{TEXT(""),                            TEXT("in")},        TEXT("Input")},
+		{{TEXT(""),                            TEXT("in1")},       TEXT("A")},
+		{{TEXT(""),                            TEXT("in2")},       TEXT("B")},
+		{{TEXT(""),                            TEXT("in3")},       TEXT("C")},
+		{{TEXT(""),                            TEXT("in4")},       TEXT("D")},
+		{{TEXT(""),                            TEXT("inlow")},     TEXT("InputLow")},
+		{{TEXT(""),                            TEXT("inhigh")},    TEXT("InputHigh")},
+		{{TEXT(""),                            TEXT("lacunarity")},TEXT("Lacunarity")},
+		{{TEXT(""),                            TEXT("low")},       TEXT("Min")},
+		{{TEXT(""),                            TEXT("lumacoeffs")},TEXT("LuminanceFactors")}, // for the moment not yet handled by Interchange, because of the attribute being an advanced pin
+		{{TEXT(""),                            TEXT("mix")},       TEXT("Alpha")},
+		{{TEXT(""),                            TEXT("position")},  TEXT("Position")},
+		{{TEXT(""),                            TEXT("texcoord")},  TEXT("Coordinates")},
+		{{TEXT(""),                            TEXT("octaves")},   TEXT("Octaves")},
+		{{TEXT(""),                            TEXT("outlow")},    TEXT("TargetLow")},
+		{{TEXT(""),                            TEXT("outhigh")},   TEXT("TargetHigh")},
+		{{TEXT(""),                            TEXT("valuel")},    TEXT("A")},
+		{{TEXT(""),                            TEXT("valuer")},    TEXT("B")},
+		{{MaterialX::Category::Atan2,          TEXT("in1")},       TEXT("Y")},
+		{{MaterialX::Category::Atan2,          TEXT("in2")},       TEXT("X")},
+		{{MaterialX::Category::HeightToNormal, TEXT("scale")},     UE::Interchange::Materials::Standard::Nodes::NormalFromHeightMap::Inputs::Intensity.ToString()},
+		{{MaterialX::Category::IfGreater,      TEXT("value1")},    TEXT("A")},
+		{{MaterialX::Category::IfGreater,      TEXT("value2")},    TEXT("B")},
+		{{MaterialX::Category::IfGreater,      TEXT("in1")},       TEXT("AGreaterThanB")},
+		{{MaterialX::Category::IfGreater,      TEXT("in2")},       TEXT("ALessThanB")}, //another input is added for the case equal see ConnectIfGreater
+		{{MaterialX::Category::IfGreaterEq,    TEXT("value1")},    TEXT("A")},
+		{{MaterialX::Category::IfGreaterEq,    TEXT("value2")},    TEXT("B")},
+		{{MaterialX::Category::IfGreaterEq,    TEXT("in1")},       TEXT("AGreaterThanB")}, //another is added for the case equal see ConnectIfGreaterEq
+		{{MaterialX::Category::IfGreaterEq,    TEXT("in2")},       TEXT("ALessThanB")},
+		{{MaterialX::Category::IfEqual,        TEXT("value1")},    TEXT("A")},
+		{{MaterialX::Category::IfEqual,        TEXT("value2")},    TEXT("B")},
+		{{MaterialX::Category::IfEqual,        TEXT("in1")},       TEXT("AEqualsB")},
+		{{MaterialX::Category::IfEqual,        TEXT("in2")},       TEXT("ALessThanB")},  // another input is added for the case greater see ConnectIfEqual
+		{{MaterialX::Category::Inside,         TEXT("in")},        TEXT("A")},			  // Inside is treated as a Multiply node
+		{{MaterialX::Category::Inside,         TEXT("mask")},      TEXT("B")},			  // Inside is treated as a Multiply node
+		{{MaterialX::Category::Invert,         TEXT("amount")},    TEXT("A")},
+		{{MaterialX::Category::Invert,         TEXT("in")},        TEXT("B")},
+		{{MaterialX::Category::Magnitude,      TEXT("in")},        TEXT("A")},
+		{{MaterialX::Category::Mix,            TEXT("fg")},        TEXT("B")},
+		{{MaterialX::Category::Mix,            TEXT("bg")},        TEXT("A")},
+		{{MaterialX::Category::Mix,            TEXT("mix")},		TEXT("Factor")},
+		{{MaterialX::Category::Noise3D,        TEXT("amplitude")}, TEXT("B")},            // The amplitude of the noise is connected to a multiply node
+		{{MaterialX::Category::Noise3D,        TEXT("pivot")},     TEXT("B")},            // The pivot of the noise is connected to a add node
+		{{MaterialX::Category::Normalize,      TEXT("in")},        TEXT("VectorInput")},
+		{{MaterialX::Category::Outside,        TEXT("in")},        TEXT("A")},				// Outside is treated as Multiply node
+		{{MaterialX::Category::Outside,        TEXT("mask")},      TEXT("B")},				// Outside is treated as Multiply node
+		{{MaterialX::Category::Power,          TEXT("in1")},       TEXT("Base")},
+		{{MaterialX::Category::Power,	       TEXT("in2")},       TEXT("Exponent")},
+		{{MaterialX::Category::Rotate2D,       TEXT("amount")},    TEXT("RotationAngle")},
+		{{MaterialX::Category::Rotate2D,       TEXT("in")},        TEXT("Position")},
+		{{MaterialX::Category::Rotate3D,       TEXT("amount")},    TEXT("RotationAngle")},
+		{{MaterialX::Category::Rotate3D,       TEXT("axis")},		TEXT("NormalizedRotationAxis")},
+		{{MaterialX::Category::Rotate3D,       TEXT("in")},        TEXT("Position")},
+		{{MaterialX::Category::Saturate,       TEXT("amount")},    TEXT("Fraction")},
+		{{MaterialX::Category::Smoothstep,     TEXT("in")},        TEXT("Value")},
+}
+	, MatchingMaterialExpressions {
+		// Math nodes
+		{MaterialX::Category::Absval,       TEXT("Abs")},
+		{MaterialX::Category::Add,          TEXT("Add")},
+		{MaterialX::Category::Acos,         TEXT("Arccosine")},
+		{MaterialX::Category::Asin,         TEXT("Arcsine")},
+		{MaterialX::Category::Atan2,        TEXT("Arctangent2")},
+		{MaterialX::Category::Ceil,         TEXT("Ceil")},
+		{MaterialX::Category::Clamp,        TEXT("Clamp")},
+		{MaterialX::Category::Cos,          TEXT("Cosine")},
+		{MaterialX::Category::CrossProduct, TEXT("Crossproduct")},
+		{MaterialX::Category::Divide,       TEXT("Divide")},
+		{MaterialX::Category::DotProduct,   TEXT("Dotproduct")},
+		{MaterialX::Category::Exp,          TEXT("Exponential")},
+		{MaterialX::Category::Floor,        TEXT("Floor")},
+		{MaterialX::Category::Invert,       TEXT("Subtract")},
+		{MaterialX::Category::Ln,           TEXT("Logarithm")},
+		{MaterialX::Category::Magnitude,    TEXT("Length")},
+		{MaterialX::Category::Max,          TEXT("Max")},
+		{MaterialX::Category::Min,          TEXT("Min")},
+		{MaterialX::Category::Modulo,       TEXT("Fmod")},
+		{MaterialX::Category::Multiply,     TEXT("Multiply")},
+		{MaterialX::Category::Normalize,    TEXT("Normalize")},
+		{MaterialX::Category::Power,        TEXT("Power")},
+		{MaterialX::Category::RampLR,       TEXT("RampLeftRight")},
+		{MaterialX::Category::RampTB,       TEXT("RampTopBottom")},
+		{MaterialX::Category::Sign,         TEXT("Sign")},
+		{MaterialX::Category::Sin,          TEXT("Sine")},
+		{MaterialX::Category::SplitLR,      TEXT("SplitLeftRight")},
+		{MaterialX::Category::SplitTB,      TEXT("SplitTopBottom")},
+		{MaterialX::Category::Sqrt,         TEXT("SquareRoot")},
+		{MaterialX::Category::Sub,          TEXT("Subtract")},
+		{MaterialX::Category::Tan,          TEXT("Tangent")},
+		// Compositing nodes
+		{MaterialX::Category::Burn,         TEXT("Burn")},
+		{MaterialX::Category::Difference,   TEXT("Difference")},
+		{MaterialX::Category::Disjointover, TEXT("Disjointover")},
+		{MaterialX::Category::Dodge,        TEXT("Dodge")},
+		{MaterialX::Category::In,           TEXT("In")},
+		{MaterialX::Category::Inside,       TEXT("Multiply")},
+		{MaterialX::Category::Mask,         TEXT("Mask")},
+		{MaterialX::Category::Matte,        TEXT("Matte")},
+		{MaterialX::Category::Minus,        TEXT("Minus")},
+		{MaterialX::Category::Mix,          TEXT("Lerp")},
+		{MaterialX::Category::Out,          TEXT("Out")},
+		{MaterialX::Category::Over,         TEXT("Over")},
+		{MaterialX::Category::Overlay,      TEXT("Overlay")},
+		{MaterialX::Category::Plus,         TEXT("Plus")},
+		{MaterialX::Category::Premult,      TEXT("Premult")},
+		{MaterialX::Category::Screen,       TEXT("Screen")},
+		{MaterialX::Category::Unpremult,    TEXT("Unpremult")},
+		// Channel nodes
+		{MaterialX::Category::Combine2,     TEXT("AppendVector")},
+		{MaterialX::Category::Combine3,     TEXT("Append3Vector")},
+		{MaterialX::Category::Combine4,     TEXT("Append4Vector")},
+		// Procedural3D nodes
+		{MaterialX::Category::Fractal3D,    TEXT("Fractal3D")},
+		// Geometric nodes 
+		{MaterialX::Category::GeomColor,	TEXT("VertexColor")},
+		{MaterialX::Category::TexCoord,		TEXT("TextureCoordinate")},
+		// Adjustment nodes,
+		{MaterialX::Category::HsvToRgb,		TEXT("HsvToRgb")},
+		{MaterialX::Category::Luminance,    TEXT("Luminance")},
+		{MaterialX::Category::Remap,        TEXT("Remap")},
+		{MaterialX::Category::RgbToHsv,		TEXT("RgbToHsv")},
+		{MaterialX::Category::Saturate,		TEXT("Desaturation")},
+		{MaterialX::Category::Smoothstep,   TEXT("SmoothStep")}
+	}
+	, MaterialExpressionInputs {
+		TEXT("A"),
+		TEXT("Alpha"),
+		TEXT("Amplitude"),
+		TEXT("B"),
+		TEXT("Base"),
+		TEXT("C"),
+		TEXT("Center"),
+		TEXT("D"),
+		TEXT("Exponent"),
+		TEXT("Factor"),
+		TEXT("Fraction"),
+		TEXT("Input"),
+		TEXT("InputLow"),
+		TEXT("InputHigh"),
+		TEXT("Lacunarity"),
+		TEXT("LuminanceFactors"),
+		TEXT("Max"),
+		TEXT("Min"),
+		TEXT("Octaves"),
+		TEXT("Position"),
+		TEXT("TargetLow"),
+		TEXT("TargetHigh"),
+		TEXT("Value"),
+		TEXT("VectorInput"),
+		TEXT("X"),
+		TEXT("Y")
+}
+	, MaterialXContainerDelegates{
+		{mx::Category::SurfaceUnlit, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXSurfaceUnlitShader::MakeInstance)},
+		{mx::Category::StandardSurface, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXStandardSurfaceShader::MakeInstance)},
+		{mx::Category::PointLight, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXPointLightShader::MakeInstance)},
+		{mx::Category::DirectionalLight, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXDirectionalLightShader::MakeInstance)},
+		{mx::Category::SpotLight, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXSpotLightShader::MakeInstance)},
+		{mx::SURFACE_MATERIAL_NODE_STRING.c_str(), FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXSurfaceMaterial::MakeInstance)}
+	}
+{}
+
+FMaterialXManager& FMaterialXManager::GetInstance()
+{
+	static FMaterialXManager Instance;
+	return Instance;
+}
+
+const FString* FMaterialXManager::FindMatchingInput(const TPair<FString, FString>& CategoryInputKey) const
+{
+	return MatchingInputNames.Find(CategoryInputKey);
+}
+
+const FString* FMaterialXManager::FindMaterialExpressionInput(const FString& InputKey) const
+{
+	return MaterialExpressionInputs.Find(InputKey);
+}
+
+const FString* FMaterialXManager::FindMatchingMaterialExpression(const FString& InputKey) const
+{
+	return MatchingMaterialExpressions.Find(InputKey);
+}
+
+TSharedPtr<FMaterialXBase> FMaterialXManager::GetShaderTranslator(const FString& CategoryShader, UInterchangeBaseNodeContainer & NodeContainer)
+{
+	if(FOnGetMaterialXInstance* InstanceDelegate = MaterialXContainerDelegates.Find(CategoryShader))
+	{
+		if(InstanceDelegate->IsBound())
+		{
+			return InstanceDelegate->Execute(NodeContainer);
+		}
+	}
+
+	return nullptr;
+}
+
+void FMaterialXManager::RegisterMaterialXInstance(const FString& Category, FOnGetMaterialXInstance MaterialXInstanceDelegate)
+{
+	if(!Category.IsEmpty())
+	{
+		MaterialXContainerDelegates.Add(Category, MaterialXInstanceDelegate);
+	}
+}
+#endif
