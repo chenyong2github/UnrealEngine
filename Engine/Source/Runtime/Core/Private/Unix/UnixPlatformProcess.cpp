@@ -47,6 +47,14 @@ __thread uint32 FUnixTLS::ThreadIdTLS = 0;
 uint32 FUnixTLS::ThreadIdTLSKey = FUnixTLS::AllocTlsSlot();
 #endif
 
+#if UE_CHECK_LARGE_ALLOCATIONS
+static TAutoConsoleVariable<int32> CVarEnableLargeAllocationChecksAfterFork(
+	TEXT("memory.EnableLargeAllocationChecksAfterFork"),
+	false,
+	TEXT("After forking, Turn on ensure which checks no single allocation is greater than 'LargeAllocationThreshold'"),
+	ECVF_Default);
+#endif
+
 void* FUnixPlatformProcess::GetDllHandle( const TCHAR* Filename )
 {
 	check( Filename );
@@ -1618,6 +1626,13 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 
 				OnEndFrameHandle = FCoreDelegates::OnEndFrame.AddStatic(FUnixPlatformProcess::OnChildEndFramePostFork);
 				FCoreDelegates::OnPostFork.Broadcast(EForkProcessRole::Child);
+
+#if UE_CHECK_LARGE_ALLOCATIONS
+				if (CVarEnableLargeAllocationChecksAfterFork.GetValueOnAnyThread())
+				{
+					UE::Memory::Private::CVarEnableLargeAllocationChecks->Set(true);
+				}
+#endif
 
 				// Children break out of the loop and return
 				RetVal = EWaitAndForkResult::Child;

@@ -416,6 +416,14 @@ bool FWindowsPlatformMemory::PageProtect(void* const Ptr, const SIZE_T Size, con
 }
 void* FWindowsPlatformMemory::BinnedAllocFromOS( SIZE_T Size )
 {
+#if UE_CHECK_LARGE_ALLOCATIONS
+	if (UE::Memory::Private::GEnableLargeAllocationChecks)
+	{
+		// catch possibly erroneous large allocations
+		ensureMsgf(Size <= UE::Memory::Private::GLargeAllocationThreshold,
+			TEXT("Single allocation exceeded large allocation threshold"));
+	}
+#endif
 	void* Ptr = VirtualAlloc( NULL, Size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE );
 	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Ptr, Size));
 	return Ptr;

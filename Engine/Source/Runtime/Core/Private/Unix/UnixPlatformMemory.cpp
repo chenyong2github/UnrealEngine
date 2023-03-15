@@ -424,6 +424,15 @@ struct FOSAllocationDescriptor
 
 void* FUnixPlatformMemory::BinnedAllocFromOS(SIZE_T Size)
 {
+#if UE_CHECK_LARGE_ALLOCATIONS
+	if (UE::Memory::Private::GEnableLargeAllocationChecks)
+	{
+		// catch possibly erroneous large allocations
+		ensureMsgf(Size <= UE::Memory::Private::GLargeAllocationThreshold,
+			TEXT("Single allocation exceeded large allocation threshold"));
+	}
+#endif
+
 	static SIZE_T OSPageSize = FPlatformMemory::GetConstants().PageSize;
 	// guard against someone not passing size in whole pages
 	SIZE_T SizeInWholePages = (Size % OSPageSize) ? (Size + OSPageSize - (Size % OSPageSize)) : Size;

@@ -21,6 +21,20 @@ class FString;
 struct FGenericMemoryStats;
 struct FPlatformMemoryStats;
 
+#ifndef UE_CHECK_LARGE_ALLOCATIONS
+#define UE_CHECK_LARGE_ALLOCATIONS 0
+#endif
+
+#if UE_CHECK_LARGE_ALLOCATIONS
+class FAutoConsoleVariableRef;
+namespace UE::Memory::Private
+{
+	extern bool GEnableLargeAllocationChecks;
+	extern int32 GLargeAllocationThreshold;
+	extern FAutoConsoleVariableRef CVarEnableLargeAllocationChecks;
+}
+#endif
+
 /**
 * Platform-dependent "bucket" for memory size, where Default is the normal, or possibly the largest.
 * This is generally used for texture LOD settings for how to fit in smaller memory devices

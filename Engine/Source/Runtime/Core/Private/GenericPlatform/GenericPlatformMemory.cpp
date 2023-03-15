@@ -57,10 +57,30 @@ namespace GenericPlatformMemory
 		TEXT("memory.MemoryPressureCriticalThresholdMB"),
 		GMemoryPressureCriticalThresholdMB,
 		TEXT("When the available physical memory drops below this threshold memory stats will consider this to be at critical pressure.\n"
-		     "Where a platform can specifically state it's memory pressure this test maybe ignored.\n"
-		     "0 (default) critical pressure will not use the threshold."),
+			"Where a platform can specifically state it's memory pressure this test maybe ignored.\n"
+			"0 (default) critical pressure will not use the threshold."),
 		ECVF_Default);
 }
+
+#if UE_CHECK_LARGE_ALLOCATIONS
+namespace UE::Memory::Private
+{
+	// this is a console variable ref rather than auto console variable as it's used before the
+	// console manager has been set up
+	bool GEnableLargeAllocationChecks = false;
+	FAutoConsoleVariableRef CVarEnableLargeAllocationChecks(
+		TEXT("memory.EnableLargeAllocationChecks"),
+		GEnableLargeAllocationChecks,
+		TEXT("Turn on ensure which checks no single allocation is greater than 'LargeAllocationThreshold'"),
+		ECVF_Default);
+	int32 GLargeAllocationThreshold = 1 * 1024 * 1024 * 1024;
+	FAutoConsoleVariableRef CVarLargeAllocationThreshold(
+		TEXT("memory.LargeAllocationThreshold"),
+		GLargeAllocationThreshold,
+		TEXT("Maximum size a single allocation can be before setting off the ensure enabled by 'EnableLargeAllocationChecks'"),
+		ECVF_Default);
+}
+#endif
 
 struct TUnalignedTester
 {
