@@ -548,7 +548,8 @@ FGuid UAnimDataModel::GenerateGuid() const
 
     for (const FTransformCurve& Curve : CurveData.TransformCurves)
     {
-    	UpdateWithString(Curve.GetName().ToString());
+    	const FString CurveName = Curve.GetName().ToString();
+    	UpdateSHAWithArray(CurveName.GetCharArray());
 
     	auto UpdateWithComponent = [&UpdateWithFloatCurve](const FVectorCurve& VectorCurve)
     	{
@@ -565,8 +566,11 @@ FGuid UAnimDataModel::GenerateGuid() const
 	
 	for (const FAnimatedBoneAttribute& Attribute : AnimatedBoneAttributes)
 	{
-		UpdateWithData(Attribute.Identifier);
-		const uint32 StructSize = Attribute.Identifier.GetType()->GetStructureSize();
+		UpdateSHAWithArray(Attribute.Identifier.GetName().ToString().GetCharArray());
+		UpdateSHAWithArray(Attribute.Identifier.GetBoneName().ToString().GetCharArray());
+		UpdateWithData(Attribute.Identifier.GetBoneIndex());
+		UpdateSHAWithArray(Attribute.Identifier.GetType()->GetFName().ToString().GetCharArray());
+		const uint32 StructSize = Attribute.Identifier.GetType()->GetPropertiesSize();
 		for (const FAttributeKey& Key : Attribute.Curve.GetConstRefOfKeys())
 		{
 			UpdateWithData(Key.Time);
