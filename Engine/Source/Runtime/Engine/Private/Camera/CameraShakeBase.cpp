@@ -13,6 +13,11 @@
 DECLARE_CYCLE_STAT(TEXT("CameraShakeStartShake"), STAT_StartShake, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("CameraShakeUpdateShake"), STAT_UpdateShake, STATGROUP_Game);
 
+TAutoConsoleVariable<bool> GCameraShakeLegacyPostProcessBlending(
+	TEXT("r.CameraShake.LegacyPostProcessBlending"),
+	false,
+	TEXT("Blend camera shake post process settings under the main camera instead of over it"));
+
 UCameraShakeBase::UCameraShakeBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bSingleInstance(false)
@@ -404,7 +409,8 @@ void UCameraShakeBase::ApplyResult(const FCameraShakeApplyResultParams& ApplyPar
 	// It's weird but the post-process settings go directly on the camera manager, not on the view info.
 	if (ApplyParams.CameraManager.IsValid() && TempResult.PostProcessBlendWeight > 0.f)
 	{
-		ApplyParams.CameraManager->AddCachedPPBlend(TempResult.PostProcessSettings, TempResult.PostProcessBlendWeight);
+		EViewTargetBlendOrder CameraShakeBlendOrder = GCameraShakeLegacyPostProcessBlending.GetValueOnGameThread() ? VTBlendOrder_Base : VTBlendOrder_Override;
+		ApplyParams.CameraManager->AddCachedPPBlend(TempResult.PostProcessSettings, TempResult.PostProcessBlendWeight, CameraShakeBlendOrder);
 	}
 }
 

@@ -14,6 +14,11 @@
 
 DECLARE_CYCLE_STAT(TEXT("Camera Animation Eval"), CameraAnimationEval_Total, STATGROUP_CameraAnimation);
 
+TAutoConsoleVariable<bool> GCameraAnimationLegacyPostProcessBlending(
+	TEXT("r.CameraAnimation.LegacyPostProcessBlending"),
+	false,
+	TEXT("Blend camera animation post process settings under the main camera instead of over it"));
+
 FCameraAnimationHandle FCameraAnimationHandle::Invalid(MAX_uint16, 0);
 
 FActiveCameraAnimationInfo::FActiveCameraAnimationInfo()
@@ -427,7 +432,8 @@ void UCameraAnimationCameraModifier::TickAnimation(FActiveCameraAnimationInfo& C
 	// Add the post-process settings.
 	if (CameraOwner != nullptr && CameraStandIn->PostProcessBlendWeight > 0.f)
 	{
-		CameraOwner->AddCachedPPBlend(CameraStandIn->PostProcessSettings, CameraStandIn->PostProcessBlendWeight);
+		EViewTargetBlendOrder CameraShakeBlendOrder = GCameraAnimationLegacyPostProcessBlending.GetValueOnGameThread() ? VTBlendOrder_Base : VTBlendOrder_Override;
+		CameraOwner->AddCachedPPBlend(CameraStandIn->PostProcessSettings, CameraStandIn->PostProcessBlendWeight, CameraShakeBlendOrder);
 	}
 }
 
