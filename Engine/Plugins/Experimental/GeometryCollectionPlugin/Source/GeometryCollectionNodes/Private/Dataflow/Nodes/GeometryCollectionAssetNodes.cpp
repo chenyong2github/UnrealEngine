@@ -44,6 +44,12 @@ void FGeometryCollectionTerminalDataflowNode::SetAssetValue(TObjectPtr<UObject> 
 			const FMaterialArray& InMaterials = GetValue<FMaterialArray>(Context, &Materials);
 			const FInstancedMeshesArray& InInstancedMeshes = GetValue<FInstancedMeshesArray>(Context, &InstancedMeshes);
 
+			if (InCollection.NumElements(FGeometryCollection::TransformGroup) == 0)
+			{
+				UE_LOG(LogChaos, Warning, TEXT("Cannot set Geometry Collection asset: Geometry Collection must have at least one transform."));
+				return;
+			}
+
 			const bool bHasInternalMaterial = false; // with data flow there's no assumption of internal materials
 			CollectionAsset->ResetFrom(InCollection, InMaterials, false);
 			CollectionAsset->AutoInstanceMeshes = InInstancedMeshes;

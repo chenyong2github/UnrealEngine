@@ -7,6 +7,7 @@
 class FGeometryCollection;
 struct FDataflowTransformSelection;
 struct FManagedArrayCollection;
+class FName;
 
 class FRACTUREENGINE_API FFractureEngineSelection
 {
@@ -43,6 +44,9 @@ public:
 
 	static void SelectByVolume(FGeometryCollection& GeometryCollection, TArray<int32>& SelectedBones, const float VolumeMin, const float VolumeMax);
 	static void SelectByVolume(FGeometryCollection& GeometryCollection, FDataflowTransformSelection& TransformSelection, const float VolumeMin, const float VolumeMax);
+
+	static bool IsBoneSelectionValid(const FManagedArrayCollection& Collection, const TArray<int32>& SelectedBones);
+	static bool IsSelectionValid(const FManagedArrayCollection& Collection, const TArray<int32>& SelectedItems, const FName ItemGroup);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -9,12 +9,31 @@
 
 static void ConvertSelectionSetToSelectionArr(const TSet<int32>& SelectionSet, TArray<int32>& SelectionArr)
 {
-	SelectionArr.Empty();
+	SelectionArr.Empty(SelectionSet.Num());
 
 	for (auto& BoneIdx : SelectionSet)
 	{
 		SelectionArr.Add(BoneIdx);
 	}
+}
+
+
+bool FFractureEngineSelection::IsBoneSelectionValid(const FManagedArrayCollection& Collection, const TArray<int32>& SelectedBones)
+{
+	return IsSelectionValid(Collection, SelectedBones, FGeometryCollection::TransformGroup);
+}
+
+bool FFractureEngineSelection::IsSelectionValid(const FManagedArrayCollection& Collection, const TArray<int32>& SelectedItems, const FName ItemGroup)
+{
+	int32 NumItems = Collection.NumElements(ItemGroup);
+	for (int32 Idx : SelectedItems)
+	{
+		if (Idx < 0 || Idx >= NumItems)
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 void FFractureEngineSelection::GetRootBones(const FManagedArrayCollection& Collection, TArray<int32>& RootBonesOut)

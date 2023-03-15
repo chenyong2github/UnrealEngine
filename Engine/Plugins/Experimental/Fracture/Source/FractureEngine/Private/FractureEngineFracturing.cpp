@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FractureEngineFracturing.h"
+#include "FractureEngineSelection.h"
 #include "Dataflow/DataflowSelection.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
@@ -245,6 +246,10 @@ void FFractureEngineFracturing::VoronoiFracture(FManagedArrayCollection& InOutCo
 				VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 
 				TArray<int32> TransformSelectionArr = InTransformSelection.AsArray();
+				if (!FFractureEngineSelection::IsBoneSelectionValid(InOutCollection, TransformSelectionArr))
+				{
+					return;
+				}
 				
 				int ResultGeometryIndex = CutMultipleWithPlanarCells(VoronoiPlanarCells, *GeomCollection, TransformSelectionArr, InGrout, InCollisionSampleSpacing, InRandomSeed, FTransform().Identity);
 
@@ -312,6 +317,10 @@ void FFractureEngineFracturing::PlaneCutter(FManagedArrayCollection& InOutCollec
 		float GroutVal = InGrout;
 
 		TArray<int32> TransformSelectionArr = InTransformSelection.AsArray();
+		if (!FFractureEngineSelection::IsBoneSelectionValid(InOutCollection, TransformSelectionArr))
+		{
+			return;
+		}
 
 		int ResultGeometryIndex = CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *GeomCollection, TransformSelectionArr, GroutVal, CollisionSampleSpacingVal, InRandomSeed, FTransform().Identity);
 
