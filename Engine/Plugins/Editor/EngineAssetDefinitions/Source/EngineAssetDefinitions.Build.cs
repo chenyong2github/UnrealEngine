@@ -36,7 +36,8 @@ public class EngineAssetDefinitions : ModuleRules
 				"PhysicsCore",
 				"Kismet",
 				"GameProjectGeneration",
-				"AnimationBlueprintEditor"
+				"AnimationBlueprintEditor",
+				"ToolWidgets"
 			}
 		);
 		
