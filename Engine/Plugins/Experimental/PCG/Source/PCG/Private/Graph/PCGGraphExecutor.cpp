@@ -442,6 +442,7 @@ void FPCGGraphExecutor::Execute()
 
 	// TODO: change this if we support tasks that are not framebound
 	bool bAnyTaskEnded = false;
+	bool bHasAlreadyCheckedSleepingTasks = false;
 
 	const double StartTime = FPlatformTime::Seconds();
 
@@ -464,8 +465,12 @@ void FPCGGraphExecutor::Execute()
 	UpdateGenerationNotification();
 #endif
 
-	while(ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0 || SleepingTasks.Num() > 0)
+	while(ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0 || (!bHasAlreadyCheckedSleepingTasks && SleepingTasks.Num() > 0))
 	{
+		// If we only have sleeping tasks, we will go through this loop only once. If all tasks are still sleeping after one iteration,
+		// we will wake them up only at next tick. It will avoid spinning for our whole frametime budget.
+		bHasAlreadyCheckedSleepingTasks = ReadyTasks.Num() == 0 && ActiveTasks.Num() == 0 && SleepingTasks.Num() > 0;
+
 		// First: if we have free resources, move ready tasks to the active tasks
 		bool bMainThreadAvailable = (ActiveTasks.Num() == 0 || !ActiveTasks[0].Element->CanExecuteOnlyOnMainThread(ActiveTasks[0].Context.Get()));
 		int32 NumAvailableThreads = FMath::Max(0, MaxNumThreads - CurrentlyUsedThreads);

@@ -17,10 +17,10 @@ struct FPCGPoint;
 
 namespace FPCGAsync
 {
-	struct ConsoleVar
+	namespace ConsoleVar
 	{
-		static TAutoConsoleVariable<bool> CVarDisableAsyncTimeSlicing;
-		static TAutoConsoleVariable<int32> CVarAsyncOverrideChunkSize;
+		extern PCG_API TAutoConsoleVariable<bool> CVarDisableAsyncTimeSlicing;
+		extern PCG_API TAutoConsoleVariable<int32> CVarAsyncOverrideChunkSize;
 	};
 
 	/** 

@@ -26,5 +26,5 @@ struct FPCGAsyncState
 	bool bIsRunningAsyncCall = false;
 
 	/** Returns true if we reached end time. */
-	bool ShouldStop() const;
+	PCG_API bool ShouldStop() const;
 };
