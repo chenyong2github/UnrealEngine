@@ -254,6 +254,9 @@ public:
 	/** Find or add runtime customization settings for a menu */
 	FCustomizedToolMenu* AddRuntimeMenuCustomization(const FName InName);
 
+	/** Unregister runtime customization settings for a specific owner name */
+	void UnregisterRuntimeMenuCustomizationOwner(const FName InOwnerName);
+
 	/** Generates sub menu by entry name in the given generated menu parent */
 	UToolMenu* GenerateSubMenu(const UToolMenu* InGeneratedParent, const FName InBlockName);
 
