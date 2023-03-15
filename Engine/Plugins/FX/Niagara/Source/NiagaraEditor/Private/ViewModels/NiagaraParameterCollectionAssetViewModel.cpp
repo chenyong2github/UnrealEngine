@@ -164,6 +164,29 @@ void FNiagaraParameterCollectionAssetViewModel::UpdateOpenInstances()
 	}
 }
 
+void FNiagaraParameterCollectionAssetViewModel::UpdateParameterSelectionFromSearch(const FText& InSearchText)
+{
+	GetSelection().ClearSelectedObjects();
+
+	SearchText = InSearchText;
+
+	RefreshParameterViewModels();
+	
+	if(!SearchText.IsEmpty())
+	{
+		TArray<TSharedRef<INiagaraParameterViewModel>> MatchingParameters;
+		for(TSharedRef<INiagaraParameterViewModel> Parameter : ParameterViewModels)
+		{
+			if(Parameter->GetName().ToString().Contains(SearchText.ToString()))
+			{
+				MatchingParameters.Add(Parameter);
+			}
+		}
+
+		GetSelection().SetSelectedObjects(MatchingParameters);
+	}
+}
+
 void FNiagaraParameterCollectionAssetViewModel::RemoveParameter(FNiagaraVariable& Parameter)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("RemoveNPCParameter", "Remove Parameter"));
@@ -264,10 +287,35 @@ void FNiagaraParameterCollectionAssetViewModel::RefreshParameterViewModels()
 
 	ParameterViewModels.Empty();
 
+	bool bSearchTextIsEmpty = SearchText.IsEmpty();
+
+	TArray<FString> SearchTerms;
+	if(bSearchTextIsEmpty == false)
+	{
+		SearchText.ToString().ParseIntoArray(SearchTerms, TEXT(" "));
+	}
 	for (int32 i = 0; i < Collection->GetParameters().Num(); ++i)
 	{
 		FNiagaraVariable& Var = Collection->GetParameters()[i];
 
+		if(bSearchTextIsEmpty == false)
+		{
+			bool bMatchFound = false;
+			for(const FString& SearchTerm : SearchTerms)
+			{
+				if(Var.GetName().ToString().Contains(SearchTerm))
+				{
+					bMatchFound = true;
+					break;
+				}
+			}
+
+			if(!bMatchFound)
+			{
+				continue;
+			}
+		}
+		
 		TSharedPtr<FNiagaraCollectionParameterViewModel> ParameterViewModel = MakeShareable(new FNiagaraCollectionParameterViewModel(Var, Instance, ParameterEditMode));
 
 		ParameterViewModel->OnNameChanged().AddRaw(this, &FNiagaraParameterCollectionAssetViewModel::OnParameterNameChanged, Var);

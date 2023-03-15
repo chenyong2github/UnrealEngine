@@ -36,6 +36,8 @@ public:
 
 	void UpdateOpenInstances();
 
+	void UpdateParameterSelectionFromSearch(const FText& SearchText);
+	
 	//~ FNotifyHook interface
 	virtual void NotifyPreChange(FProperty* PropertyAboutToChange)override;
 	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)override;
@@ -53,7 +55,7 @@ public:
 
 	/** Sets the tooltip overrides on all parameters.*/
 	void SetAllParametersTooltipOverrides(const FText& Override);
-
+	
 	//~ FEditorUndoClient
 	void PostUndo(bool bSuccess);
 	void PostRedo(bool bSuccess) { PostUndo(bSuccess); }
@@ -62,7 +64,7 @@ protected:
 	//~ FNiagaraParameterCollectionViewModel interface.
 	virtual bool SupportsType(const FNiagaraTypeDefinition& Type) const override;
 
-private:
+private:	
 	/** Handles when the name on a parameter changes. */
 	void OnParameterNameChanged(FName OldName, FName NewName, FNiagaraVariable ParameterVariable);
 
@@ -89,6 +91,8 @@ private:
 	UNiagaraParameterCollection* Collection;
 	UNiagaraParameterCollectionInstance* Instance;
 
+	FText SearchText;
+	
 	TNiagaraViewModelManager<UNiagaraParameterCollection, FNiagaraParameterCollectionAssetViewModel>::Handle RegisteredHandle;
 
 	FDelegateHandle ExternalChangeHandle;

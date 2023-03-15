@@ -46,6 +46,8 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_Main(const FSpawnTabArgs& Args);
 
+	void OnSearchTextChanged(const FText& InSearchText);
+	
 	/** Builds the toolbar widget */
 	void ExtendToolbar();
 	void SetupCommands();

@@ -27,6 +27,7 @@
 
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
+#include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterCollectionEditor"
 
@@ -156,17 +157,15 @@ TSharedRef<SDockTab> FNiagaraParameterCollectionToolkit::SpawnTab_Main(const FSp
 
 	TSharedRef<SVerticalBox> Contents = SNew(SVerticalBox);
 
-
-	FDetailsViewArgs DetailArgs;
-	DetailArgs.bAllowSearch = false;
-
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.NotifyHook = ParameterCollectionViewModel.Get();
+	DetailsViewArgs.bAllowSearch = false;
+	
 	TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-
+	
 	if (Instance->IsDefaultInstance())
 	{
 		DetailsView->SetObject(Collection);
@@ -177,26 +176,38 @@ TSharedRef<SDockTab> FNiagaraParameterCollectionToolkit::SpawnTab_Main(const FSp
 	}
 
 	Contents->AddSlot()
-		.AutoHeight()
-		.Padding(FMargin(0.0f, 2.0f))
-		[
-			DetailsView
-		];
+	.AutoHeight()
+	.Padding(FMargin(0.0f, 2.0f))
+	[
+		SNew(SSearchBox)
+		.OnTextChanged(this, &FNiagaraParameterCollectionToolkit::OnSearchTextChanged)
+	];
+	
+	Contents->AddSlot()
+	.AutoHeight()
+	.Padding(FMargin(0.0f, 2.0f))
+	[
+		DetailsView
+	];
 
 	Contents->AddSlot()
-		.AutoHeight()
-		.Padding(FMargin(0.0f, 2.0f))
-		[
-			ParameterCollection.ToSharedRef()
-		];
+	.Padding(FMargin(0.0f, 2.0f))
+	[
+		ParameterCollection.ToSharedRef()
+	];
 	
 	TSharedRef<SDockTab> SpawnedTab =
-		SNew(SDockTab)
-		[
-			Contents
-		];
+	SNew(SDockTab)
+	[
+		Contents
+	];
 
 	return SpawnedTab;
+}
+
+void FNiagaraParameterCollectionToolkit::OnSearchTextChanged(const FText& InSearchText)
+{
+	ParameterCollectionViewModel->UpdateParameterSelectionFromSearch(InSearchText);
 }
 
 void FNiagaraParameterCollectionToolkit::SetupCommands()
