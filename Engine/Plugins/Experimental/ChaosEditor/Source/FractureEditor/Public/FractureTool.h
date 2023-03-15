@@ -186,7 +186,7 @@ public:
 	virtual void SelectedBonesChanged() {}
 
 	// Called when the modal tool is entered
-	virtual void Setup()
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 	{
 		GEngine->OnComponentTransformChanged().AddUObject(this, &UFractureModalTool::OnComponentTransformChangedInternal);
 	}

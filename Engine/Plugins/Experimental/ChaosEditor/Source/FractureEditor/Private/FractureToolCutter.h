@@ -226,9 +226,9 @@ public:
 		UpdateDefaultRandomSeed();
 	}
 
-	virtual void Setup() override
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override
 	{
-		Super::Setup();
+		Super::Setup(InToolkit);
 		CutterSettings->UpdateActiveMaterialNames(GetSelectedComponentMaterialNames(true));
 	}
 

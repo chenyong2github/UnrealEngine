@@ -129,7 +129,7 @@ public:
 	void PromoteChildren();
 	void ClearCustomConvex();
 
-	virtual void Setup() override;
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 
 
 	UPROPERTY(EditAnywhere, Category = Convex)

@@ -877,6 +877,21 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateStatisticsTab(const FSpaw
 	return CreatedTab.ToSharedRef();
 }
 
+void FFractureEditorModeToolkit::SetOutlinerColumnMode(EOutlinerColumnMode ColumnMode)
+{
+	UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
+	OutlinerSettings->ColumnMode = ColumnMode;
+	UpdateOutlinerHeader();
+}
+
+void FFractureEditorModeToolkit::UpdateOutlinerHeader()
+{
+	OutlinerView->RegenerateHeader();
+	FGeometryCollectionStatistics Stats;
+	GetStatisticsSummary(Stats);
+	StatisticsView->SetStatistics(Stats);
+}
+
 void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPropertyChangedEvent& PropertyChangedEvent )
 {
 	if (PropertyChangedEvent.Property)
@@ -911,17 +926,11 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ColorByLevel))
 		{
-			OutlinerView->RegenerateItems();
-			FGeometryCollectionStatistics Stats;
-			GetStatisticsSummary(Stats);
-			StatisticsView->SetStatistics(Stats);
+			UpdateOutlinerHeader();
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ColumnMode))
 		{
-			OutlinerView->RegenerateHeader();
-			FGeometryCollectionStatistics Stats;
-			GetStatisticsSummary(Stats);
-			StatisticsView->SetStatistics(Stats);
+			UpdateOutlinerHeader();
 		}
 	}
 }
@@ -1582,7 +1591,7 @@ void FFractureEditorModeToolkit::SetActiveTool(UFractureModalTool* InActiveTool)
 	{
 		ActiveTool->OnPropertyModifiedDirectlyByTool.AddSP(this, &FFractureEditorModeToolkit::InvalidateCachedDetailPanelState);
 
-		ActiveTool->Setup();
+		ActiveTool->Setup(StaticCastSharedRef<FFractureEditorModeToolkit>(AsShared()));
 
 		Settings.Append(ActiveTool->GetSettingsObjects());
 

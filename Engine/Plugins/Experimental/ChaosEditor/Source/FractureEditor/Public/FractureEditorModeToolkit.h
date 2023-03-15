@@ -10,6 +10,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "IDetailCustomization.h"
+#include "SGeometryCollectionOutliner.h"
 
 class IDetailsView;
 class IPropertyHandle;
@@ -188,6 +189,8 @@ public:
 	TSharedPtr<SWidget> LevelViewWidget;
 	TSharedPtr<SWidget> ShowBoneColorsWidget;
 
+	void SetOutlinerColumnMode(EOutlinerColumnMode ColumnMode);
+
 protected:
 	/** FModeToolkit interface */
 	virtual void RequestModeUITabs() override;
@@ -221,6 +224,8 @@ private:
 	void UpdateAssetLocationMode(TSharedPtr<FString> NewString);
 	void UpdateAssetPanelFromSettings();
 	void OnProjectSettingsModified();
+
+	void UpdateOutlinerHeader();
 	
 private:
 	UFractureModalTool* ActiveTool;

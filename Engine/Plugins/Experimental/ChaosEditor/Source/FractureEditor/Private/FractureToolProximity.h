@@ -126,7 +126,7 @@ public:
 
 	virtual TArray<FFractureToolContext> GetFractureToolContexts() const override;
 
-	virtual void Setup() override;
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 
 	UPROPERTY(EditAnywhere, Category = Proximity)
 	TObjectPtr<UFractureProximitySettings> ProximitySettings;

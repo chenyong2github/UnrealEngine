@@ -139,7 +139,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Uniform)
 	TObjectPtr<UFractureTransformGizmoSettings> GizmoSettings;
 
-	virtual void Setup() override;
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual void Shutdown() override;
 
 	// Clear "live" voronoi sites (sites that are being edited by current settings / gizmo) -- they will repopulate on next call to GenerateVoronoiSites()

@@ -54,6 +54,7 @@ public:
 
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
 
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 
 	UPROPERTY(EditAnywhere, Category = InitialDynamicState)
@@ -116,6 +117,8 @@ public:
 	virtual TArray<UObject*> GetSettingsObjects() const override;
 
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 

@@ -57,7 +57,7 @@ public:
 	virtual void FractureContextChanged() override;
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
-	virtual void Setup() override;
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual void Shutdown() override;
 
 	// IDynamicMeshOperatorFactory API, for generating noise preview meshes

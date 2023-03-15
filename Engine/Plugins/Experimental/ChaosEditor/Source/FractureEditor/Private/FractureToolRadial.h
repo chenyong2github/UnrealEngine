@@ -103,7 +103,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Uniform)
 	TObjectPtr<UFractureTransformGizmoSettings> GizmoSettings;
 
-	virtual void Setup() override;
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual void Shutdown() override;
 
 	virtual void UpdateUseGizmo(bool bUseGizmo) override

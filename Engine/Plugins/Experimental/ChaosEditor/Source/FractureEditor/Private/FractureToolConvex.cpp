@@ -2,6 +2,7 @@
 
 #include "FractureToolConvex.h"
 
+#include "SGeometryCollectionOutliner.h"
 #include "FractureToolContext.h"
 #include "FractureModeSettings.h"
 
@@ -372,9 +373,13 @@ int32 UFractureToolConvex::ExecuteFracture(const FFractureToolContext& FractureC
 	return INDEX_NONE;
 }
 
-void UFractureToolConvex::Setup()
+void UFractureToolConvex::Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	Super::Setup();
+	Super::Setup(InToolkit);
+	if (InToolkit.IsValid())
+	{
+		InToolkit.Pin()->SetOutlinerColumnMode(EOutlinerColumnMode::Collision);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

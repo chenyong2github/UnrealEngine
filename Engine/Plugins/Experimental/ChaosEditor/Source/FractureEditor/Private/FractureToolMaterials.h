@@ -128,9 +128,9 @@ public:
 	virtual void SelectedBonesChanged() override;
 
 	// Called when the modal tool is entered
-	virtual void Setup() override
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override
 	{
-		Super::Setup();
+		Super::Setup(InToolkit);
 		UpdateActiveMaterialsInfo();
 	}
 

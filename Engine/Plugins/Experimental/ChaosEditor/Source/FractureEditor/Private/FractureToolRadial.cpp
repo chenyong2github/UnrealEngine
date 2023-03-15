@@ -19,9 +19,9 @@ UFractureToolRadial::UFractureToolRadial(const FObjectInitializer& ObjInit)
 	GizmoSettings->OwnerTool = this;
 }
 
-void UFractureToolRadial::Setup()
+void UFractureToolRadial::Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	Super::Setup();
+	Super::Setup(InToolkit);
 	GizmoSettings->Setup(this);
 }
 

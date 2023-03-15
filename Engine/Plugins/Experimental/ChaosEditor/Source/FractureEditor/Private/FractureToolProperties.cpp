@@ -2,6 +2,8 @@
 
 #include "FractureToolProperties.h"
 
+#include "SGeometryCollectionOutliner.h"
+
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionEngineRemoval.h"
@@ -56,6 +58,15 @@ void UFractureToolSetInitialDynamicState::RegisterUICommand(FFractureEditorComma
 		"Override initial dynamic state for selected bones. If the component's Object Type is set to Dynamic, the solver will use this override state instead. Setting a bone to Kinematic will have the effect of anchoring the bone to world space, for instance.", \
 		EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->SetInitialDynamicState = UICommandInfo;
+}
+
+void UFractureToolSetInitialDynamicState::Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	Super::Setup(InToolkit);
+	if (InToolkit.IsValid())
+	{
+		InToolkit.Pin()->SetOutlinerColumnMode(EOutlinerColumnMode::State);
+	}
 }
 
 void UFractureToolSetInitialDynamicState::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
@@ -129,6 +140,15 @@ void UFractureToolSetRemoveOnBreak::RegisterUICommand(FFractureEditorCommands* B
 {
 	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SetRemoveOnBreak", "Set Remove On Break", "Set removal-on-break parameters.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->SetRemoveOnBreak = UICommandInfo;
+}
+
+void UFractureToolSetRemoveOnBreak::Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	Super::Setup(InToolkit);
+	if (InToolkit.IsValid())
+	{
+		InToolkit.Pin()->SetOutlinerColumnMode(EOutlinerColumnMode::Removal);
+	}
 }
 
 void UFractureToolSetRemoveOnBreak::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)

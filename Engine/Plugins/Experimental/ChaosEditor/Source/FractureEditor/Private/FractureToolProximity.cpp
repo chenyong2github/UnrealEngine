@@ -242,9 +242,9 @@ int32 UFractureToolProximity::ExecuteFracture(const FFractureToolContext& Fractu
 	return INDEX_NONE;
 }
 
-void UFractureToolProximity::Setup()
+void UFractureToolProximity::Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	Super::Setup();
+	Super::Setup(InToolkit);
 }
 
 #undef LOCTEXT_NAMESPACE
