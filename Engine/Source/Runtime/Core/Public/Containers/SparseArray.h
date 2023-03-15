@@ -1293,6 +1293,11 @@ public:
 		return AllocationFlags.IsValidIndex(Index) && AllocationFlags[Index];
 	}
 
+	bool IsAllocated(int32 Index) const
+	{
+		return AllocationFlags[Index];
+	}
+
 	bool IsEmpty() const
 	{
 		return Data.Num() == NumFreeIndices;
@@ -1306,6 +1311,11 @@ public:
 	int32 GetMaxIndex() const
 	{
 		return Data.Num();
+	}
+
+	bool IsCompact() const
+	{
+		return NumFreeIndices == 0;
 	}
 
 	void* GetData(int32 Index, const FScriptSparseArrayLayout& Layout)
