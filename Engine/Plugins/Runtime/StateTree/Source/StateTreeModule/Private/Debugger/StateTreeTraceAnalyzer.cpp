@@ -43,7 +43,7 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 			const FTopLevelAssetPath Path((FName)ObjectPathName, (FName)ObjectName);
 			TWeakObjectPtr<const UStateTree> WeakStateTree;
 			{
-				// This might not work when using a debugger on a client but should be fine in Editor as lock as
+				// This might not work when using a debugger on a client but should be fine in Editor as long as
 				// we are not trying to find the object during GC. We might not currently be in the game thread.  
 				// @todo STDBG: eventually errors should be reported in the UI
 				FGCScopeGuard Guard;

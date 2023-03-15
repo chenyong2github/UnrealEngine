@@ -123,7 +123,7 @@ protected:
 
 #if WITH_STATETREE_DEBUGGER
 	TSharedRef<FStateTreeDebugger> Debugger;
-	TArray<TWeakObjectPtr<const UStateTreeState>> StatesWithBreakpoints;
+	TArray<FGuid> StatesWithBreakpoints;
 	TArray<FGuid> ActiveStates;
 #endif // WITH_STATETREE_DEBUGGER
 	

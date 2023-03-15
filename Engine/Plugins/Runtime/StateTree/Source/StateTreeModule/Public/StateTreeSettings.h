@@ -15,7 +15,8 @@ class STATETREEMODULE_API UStateTreeSettings : public UDeveloperSettings
 
 public:
 	static UStateTreeSettings& Get() { return *CastChecked<UStateTreeSettings>(UStateTreeSettings::StaticClass()->GetDefaultObject()); }
-	
+
+	/** The debugger is still an experimental feature, hence not active by default. */
 	UPROPERTY(EditDefaultsOnly, Category = StateTree, config)
 	bool bUseDebugger = false;
 };

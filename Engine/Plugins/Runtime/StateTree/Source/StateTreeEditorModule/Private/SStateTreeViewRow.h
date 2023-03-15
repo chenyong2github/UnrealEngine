@@ -35,7 +35,6 @@ private:
 
 	EVisibility GetConditionVisibility() const;
 	EVisibility GetSelectorVisibility() const;
-	EVisibility GetActiveStateVisibility() const;
 	EVisibility GetBreakpointVisibility() const;
 	FText GetSelectorDesc() const;
 

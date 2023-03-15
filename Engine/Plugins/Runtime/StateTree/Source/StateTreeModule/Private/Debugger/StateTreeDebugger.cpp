@@ -487,7 +487,7 @@ void FStateTreeDebugger::ResetAnalysisData()
 {
 	Events.Reset();
 	HitBreakpointStateIndex = INDEX_NONE;
-	HitBreakpointInstanceId.Invalidate();
+	HitBreakpointInstanceId.Reset();
 	LastTraceReadTime = UnsetTime;
 	CurrentScrubTime = UnsetTime;
 	CurrentFrameIndex = INDEX_NONE;
@@ -558,7 +558,7 @@ void FStateTreeDebugger::ReadTrace(
 				OnBreakpointHit.ExecuteIfBound(HitBreakpointInstanceId, StatesWithBreakpoint[HitBreakpointStateIndex]);
 
 				HitBreakpointStateIndex = INDEX_NONE;
-				HitBreakpointInstanceId.Invalidate();
+				HitBreakpointInstanceId.Reset();
 			}
 		}
 	}

@@ -110,10 +110,10 @@ public:
 	FStateTreeStateHandle GetStateHandleFromId(const FGuid Id) const;
 
 	/** @return Id of the state matching a given state handle; invalid Id if state not found. */
-	FGuid GetStateIdFromHandle(FStateTreeStateHandle Handle) const;
+	FGuid GetStateIdFromHandle(const FStateTreeStateHandle Handle) const;
 
-	/** @return Struct view of the node matching a given state index; invalid view if state not found. */
-	FConstStructView GetNode(int32 NodeIndex) const;
+	/** @return Struct view of the node matching a given node index; invalid view if state not found. */
+	FConstStructView GetNode(const int32 NodeIndex) const;
 
 	/** @return View of all states. */
 	TConstArrayView<FCompactStateTreeState> GetStates() const { return States; }

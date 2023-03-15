@@ -906,7 +906,7 @@ void FStateTreeViewModel::BindToDebuggerDelegates()
 				const FStateTreeStateHandle Handle = OuterStateTree->GetStateHandleFromId(State.ID);
 				if (NewActiveBreakpoints.Contains(Handle))
 				{
-					StatesWithBreakpoints.Emplace(&State);
+					StatesWithBreakpoints.Emplace(State.ID);
 				}
 
 				return EStateTreeVisitor::Continue;
@@ -919,7 +919,7 @@ void FStateTreeViewModel::BindToDebuggerDelegates()
 bool FStateTreeViewModel::DoesStateHaveBreakpoint(const UStateTreeState& State) const
 {
 #if WITH_STATETREE_DEBUGGER
-	return StatesWithBreakpoints.Contains(&State);
+	return StatesWithBreakpoints.Contains(State.ID);
 #else
 	return false;
 #endif // WITH_STATETREE_DEBUGGER

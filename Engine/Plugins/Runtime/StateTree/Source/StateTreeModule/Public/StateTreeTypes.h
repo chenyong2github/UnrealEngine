@@ -1118,7 +1118,7 @@ struct STATETREEMODULE_API FStateTreeInstanceDebugId
 	
 	bool IsValid() const { return Id != INDEX_NONE && SerialNumber != INDEX_NONE; }
 	bool IsInvalid() const { return !IsValid(); }
-	void Invalidate() { *this = Invalid; }
+	void Reset() { *this = Invalid; }
 
 	bool operator==(const FStateTreeInstanceDebugId& Other) const
 	{

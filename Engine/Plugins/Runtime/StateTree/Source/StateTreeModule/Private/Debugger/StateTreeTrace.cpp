@@ -51,7 +51,7 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, ActiveStatesEvent)
 	UE_TRACE_EVENT_FIELD(uint16[], ActiveStates)
 UE_TRACE_EVENT_END()
 
-void FStateTreeTrace::OutputInstanceLifetimeEvent(
+void UE::StateTreeTrace::OutputInstanceLifetimeEvent(
 	const FStateTreeInstanceDebugId InstanceId,
 	const UStateTree* StateTree,
 	const TCHAR* InstanceName,
@@ -75,7 +75,7 @@ void FStateTreeTrace::OutputInstanceLifetimeEvent(
 		<< InstanceEvent.EventType(static_cast<uint8>(EventType));
 }
 
-void FStateTreeTrace::OutputLogEventTrace(const FStateTreeInstanceDebugId InstanceId, const TCHAR* Fmt, ...)
+void UE::StateTreeTrace::OutputLogEventTrace(const FStateTreeInstanceDebugId InstanceId, const TCHAR* Fmt, ...)
 {
 	static TCHAR TraceStaticBuffer[8192];
 	GET_VARARGS(TraceStaticBuffer, UE_ARRAY_COUNT(TraceStaticBuffer), UE_ARRAY_COUNT(TraceStaticBuffer) - 1, Fmt, Fmt);
@@ -87,7 +87,7 @@ void FStateTreeTrace::OutputLogEventTrace(const FStateTreeInstanceDebugId Instan
 		<< LogEvent.Message(TraceStaticBuffer);
 }
 
-void FStateTreeTrace::OutputStateEventTrace(const FStateTreeInstanceDebugId InstanceId, const uint16 StateIdx, const EStateTreeTraceNodeEventType EventType)
+void UE::StateTreeTrace::OutputStateEventTrace(const FStateTreeInstanceDebugId InstanceId, const uint16 StateIdx, const EStateTreeTraceNodeEventType EventType)
 {
 	UE_TRACE_LOG(StateTreeDebugger, StateEvent, StateTreeDebugChannel)
 		<< StateEvent.Cycle(FPlatformTime::Cycles64())
@@ -97,7 +97,7 @@ void FStateTreeTrace::OutputStateEventTrace(const FStateTreeInstanceDebugId Inst
 		<< StateEvent.EventType(static_cast<uint8>(EventType));
 }
 
-void FStateTreeTrace::OutputTaskEventTrace(const FStateTreeInstanceDebugId InstanceId, const uint16 TaskIdx, const EStateTreeTraceNodeEventType EventType)
+void UE::StateTreeTrace::OutputTaskEventTrace(const FStateTreeInstanceDebugId InstanceId, const uint16 TaskIdx, const EStateTreeTraceNodeEventType EventType)
 {
 	UE_TRACE_LOG(StateTreeDebugger, TaskEvent, StateTreeDebugChannel)
 		<< TaskEvent.Cycle(FPlatformTime::Cycles64())
@@ -107,7 +107,7 @@ void FStateTreeTrace::OutputTaskEventTrace(const FStateTreeInstanceDebugId Insta
 		<< TaskEvent.EventType(static_cast<uint8>(EventType));
 }
 
-void FStateTreeTrace::OutputActiveStatesEventTrace(const FStateTreeInstanceDebugId InstanceId, const FStateTreeActiveStates& ActiveStates)
+void UE::StateTreeTrace::OutputActiveStatesEventTrace(const FStateTreeInstanceDebugId InstanceId, const FStateTreeActiveStates& ActiveStates)
 {
 	TArray<uint16, TInlineAllocator<FStateTreeActiveStates::MaxStates>> StatesIndices;
 	for (int32 i = 0; i < ActiveStates.Num(); i++)

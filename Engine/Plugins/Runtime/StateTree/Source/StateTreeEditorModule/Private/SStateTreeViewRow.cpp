@@ -69,7 +69,6 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 					SNew(SBorder)
 					.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 					.BorderBackgroundColor(this, &SStateTreeViewRow::GetActiveStateColor)
-					.Visibility(this, &SStateTreeViewRow::GetActiveStateVisibility)
 					[
 						// State Box
 						SNew(SHorizontalBox)
@@ -457,19 +456,6 @@ EVisibility SStateTreeViewRow::GetSelectorVisibility() const
 	}
 	
 	return EVisibility::Collapsed;
-}
-
-EVisibility SStateTreeViewRow::GetActiveStateVisibility() const
-{
-	if (const UStateTreeState* State = WeakState.Get())
-	{
-		if (StateTreeViewModel && StateTreeViewModel->IsStateActiveInDebugger(*State))
-		{
-			return EVisibility::Visible;
-		}
-	}
-
-	return EVisibility::Visible;
 }
 
 EVisibility SStateTreeViewRow::GetBreakpointVisibility() const
