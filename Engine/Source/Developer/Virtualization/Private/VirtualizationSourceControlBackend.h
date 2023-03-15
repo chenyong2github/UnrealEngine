@@ -55,6 +55,9 @@ class FSemaphore;
  * SuppressNotifications[bool]:	When true the system will not display a pop up notification when a 
  *								connection error occurs, allowing the user to stay unaware of the error
  *								unless it actually causes some sort of problem. [Default=false]
+ * UseLocalIniFileSettings[bool]When true the revision control provider will be allowed to load connection 
+ *								settings from the users locally saved 'SourceControlSettings.ini' file, if 
+ *								false then the settings in this file (if any) will be ignored. [Default=true]
  * IgnoreFile [string]:			Sets the name of the p4 ignore file to use. When submitting payloads we 
  *								create a custom p4 ignore file to override any ignore settings for a project
  *								which allows us to submit from the saved directory which is normally prevented
@@ -148,6 +151,9 @@ private:
 
 	/** The length of time (in milliseconds) to wait after each pull attempt before retrying. */
 	int32 RetryWaitTimeMS = 100;
+
+	/** When true we allow the revision control provider to read settings from the users local SourceControlSettings.ini file */
+	bool bUseLocalIniFileSettings = true;
 };
 
 } // namespace UE::Virtualization

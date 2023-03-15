@@ -337,7 +337,10 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 
 	// We do not want the connection to have a client workspace so explicitly set it to empty
 	FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideExisting);
-	SCCSettings.SetConfigBehavior(FSourceControlInitSettings::EConfigBehavior::ReadOnly);
+
+	const FSourceControlInitSettings::EConfigBehavior IniBehavior = bUseLocalIniFileSettings ?	FSourceControlInitSettings::EConfigBehavior::ReadOnly :
+																								FSourceControlInitSettings::EConfigBehavior::None;
+	SCCSettings.SetConfigBehavior(IniBehavior);
 
 	if (!ServerAddress.IsEmpty())
 	{
@@ -965,6 +968,11 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 		{
 			UE_LOG(LogVirtualization, Log, TEXT("[%s] Connection pop up warnings will be shown"), *GetDebugName());
 		}
+	}
+
+	{
+		FParse::Bool(*ConfigEntry, TEXT("UseLocalIniFileSettings="), bUseLocalIniFileSettings);
+		UE_LOG(LogVirtualization, Log, TEXT("[%s] Reading settings from local SourceControlSettings.ini is %s"), *GetDebugName(), bUseLocalIniFileSettings ? TEXT("enabled") : TEXT("disabled"));	
 	}
 
 	{
