@@ -1,12 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "CoreMinimal.h"
 #include "MovieGraphPin.h"
 #include "InstancedStruct.h"
 #include "PropertyBag.h"
-#include "MovieGraphNode.generated.h"
 
+#if WITH_EDITOR
+#include "Textures/SlateIcon.h"
+#include "Math/Color.h"
+#endif
+
+#include "MovieGraphNode.generated.h"
 
 // Forward Declares
 class UMovieGraphInput;
@@ -77,6 +83,12 @@ public:
 
 	void SetNodePosX(const int32 InNodePosX) { NodePosX = InNodePosX; }
 	void SetNodePosY(const int32 InNodePosY) { NodePosY = InNodePosY; }
+
+	/** Gets the node's title color, as visible in the graph. */
+	virtual FLinearColor GetNodeTitleColor() const;
+
+	/** Gets the node's icon and icon tint, as visible in the graph. */
+	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const;
 #endif
 
 	//~ Begin UObject Interface
@@ -129,145 +141,4 @@ protected:
 	/** A GUID which uniquely identifies this node. */
 	UPROPERTY()
 	FGuid Guid;
-};
-
-// Dummy test nodes
-UCLASS()
-class UMoviePipelineCollectionNode : public UMovieGraphNode
-{
-	GENERATED_BODY()
-public:
-	UMoviePipelineCollectionNode()
-	{
-	}
-
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override
-	{
-		TArray<FMovieGraphPinProperties> Properties;
-		Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
-		return Properties;
-	}
-
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override
-	{
-		TArray<FMovieGraphPinProperties> Properties;
-		Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
-		return Properties;
-	}
-
-	virtual TArray<FPropertyBagPropertyDesc> GetDynamicPropertyDescriptions() const
-	{
-		TArray<FPropertyBagPropertyDesc> Properties;
-		FPropertyBagPropertyDesc FloatEditConProperty = FPropertyBagPropertyDesc("bOverride_TestPropName", EPropertyBagPropertyType::Bool);
-		FPropertyBagPropertyDesc FloatProperty = FPropertyBagPropertyDesc("TestPropName", EPropertyBagPropertyType::Float);
-#if WITH_EDITOR
-		FloatEditConProperty.MetaData.Add(FPropertyBagPropertyDescMetaData("InlineEditConditionToggle", "true"));
-		FloatProperty.MetaData.Add(FPropertyBagPropertyDescMetaData("EditCondition", "bOverride_TestPropName"));
-#endif
-		
-		Properties.Add(FloatEditConProperty);
-		Properties.Add(FloatProperty);
-		return Properties;
-	}
-#if WITH_EDITOR
-	virtual FText GetMenuDescription() const override
-	{
-		return NSLOCTEXT("debug", "collection nodename", "Component Collection");
-	}
-	
-	virtual FText GetMenuCategory() const override
-	{
-		return NSLOCTEXT("debug", "collection cat", "Rendering");
-	}
-#endif
-};
-
-/** A graph node which displays all output members available in the graph. */
-UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphOutputNode : public UMovieGraphNode
-{
-	GENERATED_BODY()
-
-public:
-	UMovieGraphOutputNode();
-	
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-
-#if WITH_EDITOR
-	virtual FText GetMenuDescription() const override { return NSLOCTEXT("MovieGraphNodes", "OutputNode_Description", "Output"); }
-	virtual FText GetMenuCategory() const override { return NSLOCTEXT("MovieGraphNodes", "OutputNode_Category", "Input/Output"); }
-#endif
-
-private:
-	virtual void RegisterDelegates() const override;
-
-	/** Register delegates for the provided output member. */
-	void RegisterDelegates(UMovieGraphOutput* Output) const;
-
-	/** Update data (name, etc) on all existing input pins on this node to reflect the output members on the graph. */
-	void UpdateExistingPins(UMovieGraphMember* ChangedVariable) const;
-};
-
-/** A graph node which displays all input members available in the graph. */
-UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphInputNode : public UMovieGraphNode
-{
-	GENERATED_BODY()
-
-public:
-	UMovieGraphInputNode();
-	
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
-
-#if WITH_EDITOR
-	virtual FText GetMenuDescription() const override { return NSLOCTEXT("MovieGraphNodes", "InputNode_Description", "Input"); }
-	virtual FText GetMenuCategory() const override { return NSLOCTEXT("MovieGraphNodes", "InputNode_Category", "Input/Output"); }
-#endif
-
-private:
-	virtual void RegisterDelegates() const override;
-
-	/** Register delegates for the provided input member. */
-	void RegisterDelegates(UMovieGraphInput* Input) const;
-
-	/** Update data (name, etc) on all existing output pins on this node to reflect the input members on the graph. */
-	void UpdateExistingPins(UMovieGraphMember* ChangedVariable) const;
-};
-
-/** A node which gets the value of a variable which has been defined on the graph. */
-UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphVariableNode : public UMovieGraphNode
-{
-	GENERATED_BODY()
-
-public:
-	UMovieGraphVariableNode();
-
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
-
-	/** Gets the variable that this node represents. */
-	UMovieGraphVariable* GetVariable() const { return GraphVariable; }
-
-	/** Sets the variable that this node represents. */
-	void SetVariable(UMovieGraphVariable* InVariable);
-
-#if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
-	virtual FText GetMenuCategory() const override;
-#endif
-
-private:
-	virtual void RegisterDelegates() const override;
-	
-	/** Updates the output pin on the node to match the provided variable. */
-	void UpdateOutputPin(UMovieGraphMember* ChangedVariable) const;
-
-private:
-	/** The underlying graph variable this node represents. */
-	UPROPERTY()
-	TObjectPtr<UMovieGraphVariable> GraphVariable = nullptr;
-
-	/** The properties for the output pin on this node. */
-	UPROPERTY(Transient)
-	FMovieGraphPinProperties OutputPin;
 };

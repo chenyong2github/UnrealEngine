@@ -51,6 +51,7 @@
 #include "Misc/FileHelper.h"
 
 #include "Graph/MovieGraphConfig.h"
+#include "Graph/Nodes/MovieGraphVariableNode.h"
 #include "Graph/MovieEdGraph.h"
 #include "Graph/MovieEdGraphNode.h"
 #include "Graph/MovieGraphSchema.h"

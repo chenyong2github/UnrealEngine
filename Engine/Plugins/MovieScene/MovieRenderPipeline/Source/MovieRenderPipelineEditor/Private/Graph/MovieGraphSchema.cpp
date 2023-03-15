@@ -2,6 +2,9 @@
 
 #include "MovieGraphSchema.h"
 #include "Graph/MovieGraphConfig.h"
+#include "Graph/Nodes/MovieGraphInputNode.h"
+#include "Graph/Nodes/MovieGraphOutputNode.h"
+#include "Graph/Nodes/MovieGraphVariableNode.h"
 #include "Graph/MovieGraphNode.h"
 #include "Graph/MovieEdGraph.h"
 #include "Graph/MovieEdGraphConnectionPolicy.h"

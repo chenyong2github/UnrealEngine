@@ -23,6 +23,9 @@ public:
 	//~ Begin UEdGraphNode Interface
 	virtual void ReconstructNode() override;
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
+	virtual bool ShowPaletteIconOnNode() const override;
 	//~ End UEdGraphNode Interface
 	
 	//~ Begin UObject interface

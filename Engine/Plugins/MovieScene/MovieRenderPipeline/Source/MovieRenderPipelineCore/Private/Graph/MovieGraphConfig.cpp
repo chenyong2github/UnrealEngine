@@ -4,6 +4,9 @@
 
 #include "Algo/Transform.h"
 #include "Graph/MovieGraphEdge.h"
+#include "Graph/Nodes/MovieGraphInputNode.h"
+#include "Graph/Nodes/MovieGraphOutputNode.h"
+#include "Graph/Nodes/MovieGraphVariableNode.h"
 #include "MovieGraphUtils.h"
 #include "MovieRenderPipelineCoreModule.h"
 

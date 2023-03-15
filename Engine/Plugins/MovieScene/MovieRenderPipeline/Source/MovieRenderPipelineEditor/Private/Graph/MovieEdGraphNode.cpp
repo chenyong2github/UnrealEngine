@@ -267,6 +267,33 @@ void UMoviePipelineEdGraphNodeBase::AutowireNewNode(UEdGraphPin* FromPin)
 	}
 }
 
+FLinearColor UMoviePipelineEdGraphNodeBase::GetNodeTitleColor() const
+{
+	if (RuntimeNode)
+	{
+		return RuntimeNode->GetNodeTitleColor();
+	}
+
+	return FLinearColor::Black;
+}
+
+FSlateIcon UMoviePipelineEdGraphNodeBase::GetIconAndTint(FLinearColor& OutColor) const
+{
+	if (RuntimeNode)
+	{
+		return RuntimeNode->GetIconAndTint(OutColor);
+	}
+
+	OutColor = FLinearColor::White;
+	return FSlateIcon();
+}
+
+bool UMoviePipelineEdGraphNodeBase::ShowPaletteIconOnNode() const
+{
+	// Reveals the icon set by GetIconAndTint() in the top-left corner of the node
+	return true;
+}
+
 void UMoviePipelineEdGraphNodeBase::OnRuntimeNodeChanged(const UMovieGraphNode* InChangedNode)
 {
 	if (InChangedNode == GetRuntimeNode())

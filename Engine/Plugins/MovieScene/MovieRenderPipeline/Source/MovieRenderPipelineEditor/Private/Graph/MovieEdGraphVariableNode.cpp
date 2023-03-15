@@ -4,6 +4,7 @@
 
 #include "EdGraph/EdGraphPin.h"
 #include "Graph/MovieGraphConfig.h"
+#include "Graph/Nodes/MovieGraphVariableNode.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineGraph"
 
