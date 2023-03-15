@@ -610,6 +610,7 @@ static bool CheckUnicodeStatus(ClientApi& P4Client, bool& bIsUnicodeServer, TArr
 FPerforceConnection::FPerforceConnection(const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& InSCCProvider)
 	: bEstablishedConnection(false)
 	, bIsUnicode(false)
+	, LatestCommunicateTime(0.0)
 	, SCCProvider(InSCCProvider)
 {
 	EstablishConnection(InConnectionInfo);
@@ -979,9 +980,14 @@ void FPerforceConnection::Disconnect()
 	}
 }
 
+double FPerforceConnection::GetLatestCommuncationTime() const
+{
+	return LatestCommunicateTime;
+}
+
 bool FPerforceConnection::RunCommand(	const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, 
-										TArray<FSharedBuffer>* OutData, TArray<FText>& OutErrorMessage, 
-										FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, ERunCommandFlags RunFlags)
+                                        TArray<FSharedBuffer>* OutData, TArray<FText>& OutErrorMessage, 
+                                        FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, ERunCommandFlags RunFlags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FPerforceConnection::RunCommand_%s"), *InCommand));
 
@@ -1079,6 +1085,11 @@ bool FPerforceConnection::RunCommand(	const FString& InCommand, const TArray<FSt
 		{
 			UE_LOG(LogSourceControl, VeryVerbose, TEXT("P4 execution time: %0.4f seconds. Command: %s"), ExecutionTime, *FullCommand);
 		}
+	}
+
+	if (!OutConnectionDropped)
+	{
+		LatestCommunicateTime = FPlatformTime::Seconds();
 	}
 
 	return OutRecordSet.Num() > 0;

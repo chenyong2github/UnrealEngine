@@ -102,6 +102,9 @@ public:
 	/** If the connection is valid, disconnect from the server */
 	void Disconnect();
 
+	/** Returns the platform time of the last time the connection successfully communicated with the server */
+	double GetLatestCommuncationTime() const;
+
 	/**
 	 * Runs internal perforce command, catches exceptions, returns results
 	 */
@@ -169,6 +172,9 @@ public:
 
 	/** Is this a connection to a unicode server? */ 
 	bool bIsUnicode;
+
+	/** A record of the last time the connection was used */
+	double LatestCommunicateTime;
 
 private:
 	/** The source control provider that the connection is working from */

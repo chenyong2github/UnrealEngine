@@ -25,6 +25,15 @@ static FName ProviderName("Perforce");
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl"
 
+namespace 
+{
+	/** Amount of seconds an idle persistent connection can remain open before the provider closes it.
+	 * This lowers the number of open connections to a perforce server across a studio
+	 * to conserve memory usage of the server.
+	 */
+	constexpr double IdleConnectionDisconnectSeconds = 60 * 60.0; // 1 hour
+}
+
 FPerforceSourceControlProvider::FPerforceSourceControlProvider()
 	: PerforceSCCSettings(*this, FStringView())
 	, InitialSettings(FSourceControlInitSettings::EBehavior::OverrideExisting)
@@ -606,11 +615,27 @@ void FPerforceSourceControlProvider::Tick()
 			break;
 		}
 	}
-
+	
 	if(bStatesUpdated)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceSourceControlProvider::Tick::BroadcastStateUpdate);
 		OnSourceControlStateChanged.Broadcast();
+	}
+
+	if (PersistentConnection)
+	{
+		const double Now = FPlatformTime::Seconds();
+
+		const double ElapsedSinceLastComm = Now - PersistentConnection->GetLatestCommuncationTime();
+
+		if (ElapsedSinceLastComm > IdleConnectionDisconnectSeconds)
+		{
+			UE_LOG(LogSourceControl, Display,
+				TEXT("Persisent perforce connection has not been used in %0.f seconds. Dropping connection"),
+				ElapsedSinceLastComm);
+
+			Close();
+		}
 	}
 }
 
