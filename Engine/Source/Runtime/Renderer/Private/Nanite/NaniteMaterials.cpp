@@ -3185,7 +3185,10 @@ static FORCEINLINE bool IsVisibilityTestNeeded(
 
 	for (const FNaniteVisibility::FPrimitiveBins& RasterBins : References.RasterBins)
 	{
-		if (!Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBins.Primary))]) // Raster bin reference is not marked visible
+		const bool bPrimaryVisible = Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBins.Primary))];
+		const bool bSecondaryVisible = RasterBins.Secondary != 0xFFFFu ? (bool)(Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBins.Secondary))]) : true;
+
+		if (!bPrimaryVisible || !bSecondaryVisible) // Raster bin reference is not marked visible
 		{
 			bShouldTest = true;
 			break;
