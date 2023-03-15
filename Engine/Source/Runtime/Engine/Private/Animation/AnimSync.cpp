@@ -158,7 +158,8 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 				// (maintains sync during inertialization or zero-length blends where the previous sync leader is no longer active)
 				const bool bGroupLeaderWasActive = (PreviousGroup && PreviousGroup->ActivePlayers.ContainsByPredicate(TickRecordMatchesGroupLeader)) ||
 					(PreviousUngroupedActivePlayers.ContainsByPredicate(TickRecordMatchesGroupLeader));
-				TickContext.SetResyncToSyncGroup(!bGroupLeaderWasActive);
+				const bool bGroupWasActive = PreviousGroup && !PreviousGroup->ActivePlayers.IsEmpty();
+				TickContext.SetResyncToSyncGroup(!bGroupLeaderWasActive && bGroupWasActive);
 
 				TickContext.MarkerTickContext.MarkersPassedThisTick.Reset();
 				TickContext.RootMotionMovementParams.Clear();
