@@ -17,8 +17,8 @@
 #include "DSP/FloatArrayMath.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
 
-#ifndef METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING 
-#define METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING !UE_BUILD_SHIPPING
+#ifndef ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING 
+#define ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING !UE_BUILD_SHIPPING
 #endif
 
 namespace Metasound
@@ -26,16 +26,16 @@ namespace Metasound
 	namespace ConsoleVariables
 	{
 		static bool bEnableAsyncMetaSoundGeneratorBuilder = true;
-#if METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING
+#if ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING
 		static bool bEnableMetaSoundGeneratorNonFiniteLogging = false;
 		static bool bEnableMetaSoundGeneratorInvalidSampleValueLogging = false;
 		static float MetasoundGeneratorSampleValueThreshold = 2.f;
-#endif // #if METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING
+#endif // if ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING
 	}
 
-#if METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING
 	namespace MetasoundGeneratorPrivate
 	{
+#if ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING
 		void LogInvalidAudioSampleValues(const FString& InMetaSoundName, const TArray<FAudioBufferReadRef>& InAudioBuffers)
 		{
 			if (ConsoleVariables::bEnableMetaSoundGeneratorNonFiniteLogging || ConsoleVariables::bEnableMetaSoundGeneratorInvalidSampleValueLogging)
@@ -72,8 +72,73 @@ namespace Metasound
 				}
 			}
 		}
+#endif // if ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING
+
+#if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+		struct FRenderTimer
+		{
+			FRenderTimer(const FOperatorSettings& InSettings, double InAnalysisDuration)
+			{
+				// Use single pole IIR filter to smooth data.
+				
+				const double AnalysisAudioFrameCount = FMath::Max(1.0, InAnalysisDuration * InSettings.GetSampleRate());
+				const double AnalysisRenderBlockCount = FMath::Max(1.0, AnalysisAudioFrameCount / FMath::Max(1, InSettings.GetNumFramesPerBlock()));
+				const double DigitalCutoff = 1. / AnalysisRenderBlockCount;
+
+				SmoothingAlpha = 1. - FMath::Exp(-UE_PI * DigitalCutoff);
+				SmoothingAlpha = FMath::Clamp(SmoothingAlpha, 0.0, 1.0 - UE_DOUBLE_SMALL_NUMBER);
+				SecondsOfAudioProducedPerBlock = static_cast<double>(InSettings.GetNumFramesPerBlock()) / FMath::Max(1., static_cast<double>(InSettings.GetSampleRate()));
+			}
+
+			double GetCPUCoreUtilization() const
+			{
+				return CPUCoreUtilization;
+			}
+
+			void UpdateCPUCoreUtilization(double InCPUSecondsToRenderBlock)
+			{
+				if (InCPUSecondsToRenderBlock > 0.0)
+				{
+					double NewCPUUtil = InCPUSecondsToRenderBlock / SecondsOfAudioProducedPerBlock;
+					if (CPUCoreUtilization >= 0.0)
+					{
+						CPUCoreUtilization = SmoothingAlpha * NewCPUUtil + (1. - SmoothingAlpha) * CPUCoreUtilization;
+					}
+					else
+					{
+						CPUCoreUtilization = NewCPUUtil;
+					}
+				}
+			}
+
+		private:
+			double CPUCoreUtilization = -1.0;
+			double SmoothingAlpha = 1.0;
+			double SecondsOfAudioProducedPerBlock = 0.0;
+		};
+
+		struct FBlockRenderScope
+		{
+			FBlockRenderScope(FRenderTimer& InTimer)
+			: Timer(&InTimer)
+			{
+				StartCycle = FPlatformTime::Cycles64();
+			}
+
+			~FBlockRenderScope()
+			{
+				uint64 EndCycle = FPlatformTime::Cycles64();
+				if (EndCycle > StartCycle)
+				{
+					Timer->UpdateCPUCoreUtilization(FPlatformTime::ToSeconds64(EndCycle - StartCycle));
+				}
+			}
+		private:
+			uint64 StartCycle = 0;
+			FRenderTimer* Timer = nullptr;
+		};
+#endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 	}
-#endif // #if METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING
 }
 
 FAutoConsoleVariableRef CVarMetaSoundEnableAsyncGeneratorBuilder(
@@ -83,7 +148,7 @@ FAutoConsoleVariableRef CVarMetaSoundEnableAsyncGeneratorBuilder(
 	TEXT("Default: true"),
 	ECVF_Default);
 
-#if !UE_BUILD_SHIPPING
+#if ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING
 
 FAutoConsoleVariableRef CVarMetaSoundEnableGeneratorNonFiniteLogging(
 	TEXT("au.MetaSound.EnableGeneratorNonFiniteLogging"),
@@ -106,7 +171,7 @@ FAutoConsoleVariableRef CVarMetaSoundGeneratorSampleValueThrehshold(
 	TEXT("Default: 2.0"),
 	ECVF_Default);
 
-#endif // #if !UE_BUILD_SHIPPING
+#endif // if !UE_BUILD_SHIPPING
 
 namespace Metasound
 {
@@ -318,6 +383,10 @@ namespace Metasound
 		, bPendingGraphTrigger(true)
 		, bIsNewGraphPending(false)
 		, bIsWaitingForFirstGraph(true)
+#if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+		, RenderTimer(MakeUnique<MetasoundGeneratorPrivate::FRenderTimer>(InParams.OperatorSettings, 1. /* AnalysisPeriod */))
+#endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+
 	{
 		NumChannels = InParams.AudioOutputNames.Num();
 		NumFramesPerExecute = InParams.OperatorSettings.GetNumFramesPerBlock();
@@ -560,8 +629,15 @@ namespace Metasound
 		{
 			UnpackAndTransmitUpdatedParameters();
 
-			// Call metasound graph operator.
-			RootExecuter.Execute();
+			{
+#if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+				// Time how long the root executer takes.
+				MetasoundGeneratorPrivate::FBlockRenderScope BlockRenderScope(*RenderTimer);
+#endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+
+				// Call metasound graph operator.
+				RootExecuter.Execute();
+			}
 
 			if (GraphAnalyzer.IsValid())
 			{
@@ -616,6 +692,13 @@ namespace Metasound
 		return bIsFinished;
 	}
 
+#if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+	double FMetasoundGenerator::GetCPUCoreUtilization() const
+	{
+		return RenderTimer->GetCPUCoreUtilization();
+	}
+#endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+
 	int32 FMetasoundGenerator::FillWithBuffer(const Audio::FAlignedFloatBuffer& InBuffer, float* OutAudio, int32 MaxNumOutputSamples)
 	{
 		int32 InNum = InBuffer.Num();
@@ -651,10 +734,9 @@ namespace Metasound
 			InterleavedAudioBuffer.AddUninitialized(NumSamplesPerExecute);
 		}
 
-#if METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING
+#if ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING
 		MetasoundGeneratorPrivate::LogInvalidAudioSampleValues(MetasoundName, GraphOutputAudio);
-#endif // #if METASOUNDGENERATOR_ENABLE_INVALID_SAMPLE_VALUE_LOGGING
-		
+#endif // if ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING
 
 		// Iterate over channels
 		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)

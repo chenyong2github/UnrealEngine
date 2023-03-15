@@ -46,7 +46,9 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendTransform.h"
+#include "MetasoundGenerator.h"
 #include "MetasoundLog.h"
+#include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
 #include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
@@ -604,7 +606,7 @@ namespace Metasound
 
 			FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
-			InTabManager->RegisterTabSpawner(TabFactory::Names::GraphCanvas, FOnSpawnTab::CreateLambda([InPlayTimeWidget = PlayTimeWidget, InMetasoundGraphEditor = MetasoundGraphEditor](const FSpawnTabArgs& Args)
+			InTabManager->RegisterTabSpawner(TabFactory::Names::GraphCanvas, FOnSpawnTab::CreateLambda([InPlayTimeWidget = PlayTimeWidget, InCPUCoreUtilizationWidget = CPUCoreUtilizationWidget, InMetasoundGraphEditor = MetasoundGraphEditor](const FSpawnTabArgs& Args)
 			{
 				return TabFactory::CreateGraphCanvasTab(SNew(SOverlay)
 					+ SOverlay::Slot()
@@ -614,6 +616,11 @@ namespace Metasound
 					+ SOverlay::Slot()
 					[
 						InPlayTimeWidget.ToSharedRef()
+					]
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Bottom)
+					[
+						InCPUCoreUtilizationWidget.ToSharedRef()
 					]
 					.Padding(5.0f, 5.0f)
 				, Args);
@@ -1564,6 +1571,33 @@ namespace Metasound
 								PlayTimeString.ReplaceInline(TEXT("+"), TEXT(""));
 								PlayTimeWidget->SetText(FText::FromString(PlayTimeString));
 							}
+							if (CPUCoreUtilizationWidget.IsValid())
+							{
+								// TODO: Need to protect against shipping builds of editor
+								check(IsInGameThread());
+								double CPUCoreUtilization = 0;
+								if (UMetaSoundSource* Source = Cast<UMetaSoundSource>(Metasound))
+								{
+									if (const UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
+									{
+										TSharedPtr<FMetasoundGenerator> Generator = Source->GetGeneratorForAudioComponent(PreviewComponent->GetAudioComponentID()).Pin();
+										if (Generator.IsValid())
+										{
+											CPUCoreUtilization = Generator->GetCPUCoreUtilization();
+										}
+									}
+								}
+								if (CPUCoreUtilization > 0)
+								{
+									FString CPUCoreUtilizationString = FString::Printf(TEXT("%5.2f %% CPU Core"), 100. * CPUCoreUtilization);
+									CPUCoreUtilizationWidget->SetText(FText::FromString(CPUCoreUtilizationString));
+								}
+								else
+								{
+									CPUCoreUtilizationWidget->SetText(FText::GetEmpty());
+								}
+							}
+
 							return EActiveTimerReturnType::Continue;
 						}
 						else
@@ -1571,6 +1605,10 @@ namespace Metasound
 							SetPreviewID(INDEX_NONE);
 							PlayTime = 0.0;
 							PlayTimeWidget->SetText(FText::GetEmpty());
+							if (CPUCoreUtilizationWidget.IsValid())
+							{
+								CPUCoreUtilizationWidget->SetText(FText::GetEmpty());
+							}
 							GraphConnectionManager = MakeUnique<FGraphConnectionManager>();
 
 							return EActiveTimerReturnType::Stop;
@@ -1909,6 +1947,11 @@ namespace Metasound
 				.ShowGraphStateOverlay(false);
 
 			SAssignNew(PlayTimeWidget, STextBlock)
+				.Visibility(EVisibility::HitTestInvisible)
+				.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
+				.ColorAndOpacity(FLinearColor(1, 1, 1, 0.30f));
+
+			SAssignNew(CPUCoreUtilizationWidget, STextBlock)
 				.Visibility(EVisibility::HitTestInvisible)
 				.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
 				.ColorAndOpacity(FLinearColor(1, 1, 1, 0.30f));

@@ -15,8 +15,19 @@
 #include "Containers/MpscQueue.h"
 #include "Sound/SoundGenerator.h"
 
+#ifndef ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+#define ENABLE_METASOUND_GENERATOR_RENDER_TIMING !UE_BUILD_SHIPPING && WITH_EDITOR
+#endif // ifndef ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+
 namespace Metasound
 {
+	namespace MetasoundGeneratorPrivate
+	{
+#if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+		struct FRenderTimer;
+#endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+	}
+
 	// Struct needed for building the metasound graph
 	struct METASOUNDGENERATOR_API FMetasoundGeneratorInitParams
 	{
@@ -204,6 +215,12 @@ namespace Metasound
 		int32 GetDesiredNumSamplesToRenderPerCallback() const override;
 		bool IsFinished() const override;
 		//~ End FSoundGenerator
+
+#if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+		/** Fraction of a single CPU core used to render audio on a scale of 0.0 to 1.0 */
+		double GetCPUCoreUtilization() const;
+
+#endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 		
 		/** Update the current graph operator with a new graph operator. The number of channels
 		 * of InGraphOutputAudioRef must match the existing number of channels reported by
@@ -216,6 +233,7 @@ namespace Metasound
 		void SetPendingGraphBuildFailed();
 
 	private:
+
 		bool UpdateGraphIfPending();
 
 		// Internal set graph after checking compatibility.
@@ -282,5 +300,8 @@ namespace Metasound
 
 		TMpscQueue<TUniqueFunction<void()>> OutputAnalyzerModificationQueue;
 		TMap<FName, TUniquePtr<Frontend::IVertexAnalyzer>> OutputAnalyzers;
+#if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+		TUniquePtr<MetasoundGeneratorPrivate::FRenderTimer> RenderTimer;
+#endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 	};
 }

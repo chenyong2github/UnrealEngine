@@ -427,6 +427,9 @@ namespace Metasound
 			TSharedPtr<STextBlock> PlayTimeWidget;
 			double PlayTime = 0.0;
 
+			/** Widget showing render speed that overlays the graph when previewing */
+			TSharedPtr<STextBlock> CPUCoreUtilizationWidget;
+
 			TUniquePtr<FGraphConnectionManager> GraphConnectionManager;
 
 			/** Command list for this editor */
