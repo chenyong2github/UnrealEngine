@@ -714,6 +714,11 @@ public:
 	 * Pops a node node of the Strata tree being walked. Used when walking up the tree back to its root level.
 	 */
 	virtual void StrataTreeStackPop() = 0;
+	/**
+	 * This can be used to know if the strata tree we are trying to build is too deep and we should stop the compilation.
+	 * This can be used by all nodes taking as input StrataData in order to detect node re-entry leading to cyclic graph we cannot handle and compile internally: we must fail the compilation.
+	 */
+	virtual bool GetStrataTreeOutOfStackDepthOccurred() = 0;
 
 	virtual int32 StrataThicknessStackGetThicknessIndex() = 0;
 	virtual int32 StrataThicknessStackGetThicknessCode(int32 Index) = 0;
@@ -1421,6 +1426,10 @@ public:
 	virtual void StrataTreeStackPop() override
 	{
 		Compiler->StrataTreeStackPop();
+	}
+	virtual bool GetStrataTreeOutOfStackDepthOccurred() override
+	{
+		return Compiler->GetStrataTreeOutOfStackDepthOccurred();
 	}
 
 	virtual int32 StrataThicknessStackGetThicknessIndex() override

@@ -692,6 +692,9 @@ enum EStrataShadingModel : int
 };
 static_assert(SSM_NUM <= 16, "Do not exceed 16 shading models without expanding FStrataMaterialShadingModelField to support uint32 instead of uint16!");
 
+// This used to track cyclic graph which we do not support. We only support acyclic graph and a depth of 128 is already too high for a realistic use case.
+#define STRATA_TREE_MAX_DEPTH 48
+
 /** Gather information from the Substrate material graph to setup material for runtime. */
 USTRUCT()
 struct ENGINE_API FStrataMaterialInfo
@@ -728,6 +731,23 @@ public:
 	bool operator==(const FStrataMaterialInfo& Other) const { return ShadingModelField == Other.GetShadingModelField(); }
 	bool operator!=(const FStrataMaterialInfo& Other) const { return ShadingModelField != Other.GetShadingModelField(); }
 
+#if WITH_EDITOR
+	bool PushStrataTreeStack()
+	{
+		bOutOfStackDepthWhenParsing = bOutOfStackDepthWhenParsing || (++ParsingStackDepth > STRATA_TREE_MAX_DEPTH);
+		return bOutOfStackDepthWhenParsing;
+	}
+	void PopStrataTreeStack()
+	{
+		ParsingStackDepth--;
+		check(ParsingStackDepth >= 0);
+	}
+	bool GetStrataTreeOutOfStackDepthOccurred() 
+	{
+		return bOutOfStackDepthWhenParsing;
+	}
+#endif
+
 private:
 	UPROPERTY()
 	uint16 ShadingModelField = 0;
@@ -742,6 +762,12 @@ private:
 	
 	UPROPERTY()
 	TArray<TObjectPtr<USubsurfaceProfile>> SubsurfaceProfiles;
+
+#if WITH_EDITOR
+	// A simple way to detect and prevent node re-entry due to cycling graph; stop the compilation and avoid crashing.
+	bool bOutOfStackDepthWhenParsing = false;
+	int32 ParsingStackDepth = 0;
+#endif
 };
 
 /** Describes how textures are sampled for materials */

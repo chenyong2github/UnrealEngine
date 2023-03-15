@@ -4805,6 +4805,13 @@ void UMaterial::RebuildShadingModelField()
 		{
 			EditorOnly->FrontMaterial.Expression->GatherStrataMaterialInfo(StrataMaterialInfo, EditorOnly->FrontMaterial.OutputIndex);
 			this->CachedConnectedInputs = StrataMaterialInfo.GetPropertyConnected();
+
+			if (StrataMaterialInfo.GetStrataTreeOutOfStackDepthOccurred())
+			{
+				CancelOutstandingCompilation();
+				UE_LOG(LogMaterial, Error, TEXT("%s: Substrate - Cyclic graph detected when we only support acyclic graph."), *GetName());
+				return;
+			}
 		}
 
 		bool bSanitizeMaterial = false;

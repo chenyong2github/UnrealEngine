@@ -390,6 +390,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 
 	// Default value used as the root of the tree for the first path (when a node parent==nullptr).
 	StrataNodeIdentifierStack.Push(FGuid(0x7AEE, 0xBAD, 0xDEAD, 0xBEEF));
+	bStrataTreeOutOfStackDepthOccurred = false;
 
 	if (InStrataCompilationConfig)
 	{
@@ -814,6 +815,10 @@ bool FHLSLMaterialTranslator::Translate()
 				check(StrataThicknessStack.Num() == 0);
 			}
 
+			if (bStrataTreeOutOfStackDepthOccurred)
+			{
+				Errorf(TEXT(" %s [%s]: Substrate - Cyclic graph detected when we only support acyclic graph."), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+			}
 			if (!StrataGenerateDerivedMaterialOperatorData())
 			{
 				Errorf(TEXT("Substrate material errors encountered."));
@@ -11747,6 +11752,8 @@ FGuid FHLSLMaterialTranslator::StrataTreeStackPush(UMaterialExpression* Expressi
 	UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: %s."), *GuidStack);
 #endif
 
+	bStrataTreeOutOfStackDepthOccurred = bStrataTreeOutOfStackDepthOccurred || (StrataNodeIdentifierStack.Num() > STRATA_TREE_MAX_DEPTH);
+
 	return StrataNodeIdentifierStack.Top();
 }
 
@@ -11780,6 +11787,11 @@ void FHLSLMaterialTranslator::StrataTreeStackPop()
 	}
 	UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: Pop %s."), *GuidStack);
 #endif
+}
+
+bool FHLSLMaterialTranslator::GetStrataTreeOutOfStackDepthOccurred()
+{
+	return bStrataTreeOutOfStackDepthOccurred;
 }
 
 int32 FHLSLMaterialTranslator::StrataThicknessStackGetThicknessIndex()

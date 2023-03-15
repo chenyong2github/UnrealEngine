@@ -452,6 +452,12 @@ protected:
 	*/
 	TArray<FGuid> StrataNodeIdentifierStack;
 
+	/**
+	 * This can be used to know if the strata tree we are trying to build is too deep and we should stop the compilation.
+	 * True means that we have likely encountered node re-entry leading to cyclic graph we cannot handle and compile internally: we must fail the compilation.
+	 */
+	bool bStrataTreeOutOfStackDepthOccurred;
+
 	/** Stack of thickness input used for propagating thickness information from root node and vertical operation
 	* This is transient and updated when calling StrataGenerateMaterialTopologyTree. The information is then stored into the FStratOperator
 	*/
@@ -1138,6 +1144,7 @@ protected:
 	virtual FGuid StrataTreeStackGetPathUniqueId() override;
 	virtual FGuid StrataTreeStackGetParentPathUniqueId() override;
 	virtual void StrataTreeStackPop() override;
+	virtual bool GetStrataTreeOutOfStackDepthOccurred() override;
 	
 	virtual int32 StrataThicknessStackGetThicknessIndex() override;
 	virtual int32 StrataThicknessStackGetThicknessCode(int32 Index) override;
