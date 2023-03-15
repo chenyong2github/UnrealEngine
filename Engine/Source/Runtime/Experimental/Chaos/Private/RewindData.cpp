@@ -322,8 +322,7 @@ bool FRewindData::RewindToFrame(int32 Frame)
 
 	CurFrame = Frame;
 	bNeedsSave = false;
-	FramesSaved = 0; //can't rewind before this point. This simplifies saving the state at head
-
+	
 	return true;
 }
 
