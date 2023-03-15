@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TraceServices/Model/Frames.h"
 #include "Model/FramesPrivate.h"
-#include "AnalysisServicePrivate.h"
-#include <limits>
+
 #include "Algo/BinarySearch.h"
+#include "AnalysisServicePrivate.h"
+
+#include <limits>
 
 namespace TraceServices
 {
@@ -23,6 +24,7 @@ FFrameProvider::FFrameProvider(IAnalysisSession& InSession)
 uint64 FFrameProvider::GetFrameCount(ETraceFrameType FrameType) const
 {
 	Session.ReadAccessCheck();
+
 	return Frames[FrameType].Num();
 }
 
@@ -43,14 +45,16 @@ void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 Start, ui
 
 bool FFrameProvider::GetFrameFromTime(ETraceFrameType FrameType, double Time, FFrame& OutFrame) const
 {
-	int64 LowerBound = Algo::LowerBound(FrameStartTimes[FrameType], Time);
-	if (LowerBound > 0 && LowerBound - 1 < (int64)Frames[FrameType].Num())
-	{
-		OutFrame = Frames[FrameType][LowerBound - 1];
-		return true;
-	}
+	Session.ReadAccessCheck();
 
-	return false;
+	int64 LowerBound = Algo::LowerBound(FrameStartTimes[FrameType], Time);
+	if (LowerBound <= 0)
+	{
+		return false;
+	}
+	check(LowerBound <= (int64)Frames[FrameType].Num());
+	OutFrame = Frames[FrameType][LowerBound - 1];
+	return true;
 }
 
 const FFrame* FFrameProvider::GetFrame(ETraceFrameType FrameType, uint64 Index) const
@@ -78,7 +82,6 @@ void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 	Frame.EndTime = std::numeric_limits<double>::infinity();
 	Frame.Index = Index;
 	Frame.FrameType = FrameType;
-
 	FrameStartTimes[FrameType].Add(Time);
 
 	Session.UpdateDurationSeconds(Time);
@@ -87,31 +90,28 @@ void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 void FFrameProvider::EndFrame(ETraceFrameType FrameType, double Time)
 {
 	Session.WriteAccessCheck();
-	// If the EndFrame event is the first event that comes through
-	if (Frames[FrameType].Num() == 0)
+
+	// Ignores the EndFrame event if it is the first event that comes through.
+	if (Frames[FrameType].Num() > 0)
 	{
-		return;
+		FFrame& Frame = Frames[FrameType][Frames[FrameType].Num() - 1];
+		Frame.EndTime = Time;
 	}
-	FFrame& Frame = Frames[FrameType][Frames[FrameType].Num() - 1];
-	Frame.EndTime = Time;
+
 	Session.UpdateDurationSeconds(Time);
 }
 
 uint32 FFrameProvider::GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const
 {
-	if (FrameStartTimes[FrameType].Num() == 0 || Timestamp < FrameStartTimes[FrameType][0])
+	Session.ReadAccessCheck();
+
+	int64 LowerBound = Algo::LowerBound(FrameStartTimes[FrameType], Timestamp);
+	if (LowerBound <= 0)
 	{
 		return 0;
 	}
-	else if (Timestamp >= FrameStartTimes[FrameType].Last())
-	{
-		return static_cast<uint32>(FrameStartTimes[FrameType].Num());
-	}
-	else
-	{
-		uint32 Index = static_cast<uint32>(Algo::LowerBound(FrameStartTimes[FrameType], Timestamp));
-		return Index + 1;
-	}
+	check(LowerBound <= (int64)Frames[FrameType].Num());
+	return uint32(LowerBound - 1);
 }
 
 const IFrameProvider& ReadFrameProvider(const IAnalysisSession& Session)
