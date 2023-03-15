@@ -396,7 +396,7 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 
 			// Make a temporary ViewInfo
 			//-TODO: We could gather some more information here perhaps?
-			FSceneViewFamily ViewFamily(
+			FSceneViewFamilyContext ViewFamily(
 				FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
 				.SetTime(CachedViewInitOptions.GameTime)
 				.SetGammaCorrection(CachedViewInitOptions.GammaCorrection)
