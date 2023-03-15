@@ -42,6 +42,7 @@ public class CineCameraRigs : ModuleRules
 				"MovieSceneTracks",
 				"Slate",
 				"SlateCore",
+				"ConcertSyncCore",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

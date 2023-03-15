@@ -88,6 +88,7 @@ void FCineSplineMetadataDetails::Update(USplineComponent* InSplineComponent, con
 template<class T>
 void SetValues(FCineSplineMetadataDetails& Details, TArray<FInterpCurvePoint<T>>& Points, const T& NewValue)
 {
+	const FScopedTransaction Transaction(LOCTEXT("EditSplinePointsMetadata", "Edit spline point metadata"), (Details.SliderEnterCount == 0) );
 	Details.SplineComp->GetSplinePointsMetadata()->Modify();
 	for (int32 Index : Details.SelectedKeys)
 	{
@@ -108,12 +109,22 @@ void SetValues(FCineSplineMetadataDetails& Details, TArray<FInterpCurvePoint<T>>
 
 void FCineSplineMetadataDetails::OnBeginSliderMovement()
 {
-	EditSliderValueTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("EditCineSplineProperty", "Edit CineSpline Property"));
+	if (SliderEnterCount == 0)
+	{
+		GEditor->BeginTransaction(LOCTEXT("EditCineSplineProperty", "Edit CineSpline Property"));
+	}
+	SliderEnterCount++;
+	SplineComp->Modify();
 }
 
 void FCineSplineMetadataDetails::OnEndSliderMovement(float NewValue)
 {
-	EditSliderValueTransaction.Reset();
+	SliderEnterCount--;
+	check(SliderEnterCount >= 0);
+	if (SliderEnterCount == 0)
+	{
+		GEditor->EndTransaction();
+	}
 }
 
 UCineSplineMetadata* FCineSplineMetadataDetails::GetMetadata() const
@@ -125,7 +136,6 @@ void FCineSplineMetadataDetails::OnSetAbsolutePosition(float NewValue, ETextComm
 {
 	if (UCineSplineMetadata* Metadata = GetMetadata())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetAbsolutePosition", "Set spline point custom position data"));
 		SetValues<float>(*this, Metadata->AbsolutePosition.Points, NewValue);
 	}
 }
@@ -134,7 +144,6 @@ void FCineSplineMetadataDetails::OnSetFocalLength(float NewValue, ETextCommit::T
 {
 	if (UCineSplineMetadata* Metadata = GetMetadata())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetFocalLength", "Set spline point focal length data"));
 		SetValues<float>(*this, Metadata->FocalLength.Points, NewValue);
 	}
 }
@@ -143,7 +152,6 @@ void FCineSplineMetadataDetails::OnSetAperture(float NewValue, ETextCommit::Type
 {
 	if (UCineSplineMetadata* Metadata = GetMetadata())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetAperture", "Set spline point aperture data"));
 		SetValues<float>(*this, Metadata->Aperture.Points, NewValue);
 	}
 }
@@ -152,7 +160,6 @@ void FCineSplineMetadataDetails::OnSetFocusDistance(float NewValue, ETextCommit:
 {
 	if (UCineSplineMetadata* Metadata = GetMetadata())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetFocusDistance", "Set spline point focus distance data"));
 		SetValues<float>(*this, Metadata->FocusDistance.Points, NewValue);
 	}
 }
@@ -165,7 +172,6 @@ void FCineSplineMetadataDetails::OnSetRotation(float NewValue, ETextCommit::Type
 {
 	if (UCineSplineMetadata* Metadata = GetMetadata())
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetPointRotation", "Set spline point camera rotation data"));
 		FRotator CurrentRotator(PointRotationValue.Get(FQuat::Identity));
 		switch (Axis)
 		{

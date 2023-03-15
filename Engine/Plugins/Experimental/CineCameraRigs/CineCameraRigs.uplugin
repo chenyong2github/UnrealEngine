@@ -31,5 +31,9 @@
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
 		},
+		{
+			"Name": "ConcertSyncCore",
+			"Enabled": true
+		}
 	]
 }

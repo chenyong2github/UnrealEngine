@@ -41,6 +41,7 @@ public:
 
 	USplineComponent* SplineComp = nullptr;
 	TSet<int32> SelectedKeys;
+	int32 SliderEnterCount = 0;
 
 private:
 	void OnBeginSliderMovement();
