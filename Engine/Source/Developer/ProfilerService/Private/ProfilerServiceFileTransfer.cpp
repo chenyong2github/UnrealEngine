@@ -54,6 +54,7 @@ bool FFileTransferRunnable::Init()
 
 uint32 FFileTransferRunnable::Run()
 {
+	LLM_SCOPE_BYNAME(TEXT("SessionProfiler"));
 	while (!ShouldStop())
 	{
 		if (WorkEvent->Wait(250))

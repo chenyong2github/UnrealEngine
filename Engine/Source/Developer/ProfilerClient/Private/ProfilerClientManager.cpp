@@ -526,6 +526,8 @@ bool FProfilerClientManager::CheckHashAndWrite(const FProfilerServiceFileChunk& 
 void FProfilerClientManager::HandleServiceFileChunk(const FProfilerServiceFileChunk& FileChunk, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 #if STATS
+	LLM_SCOPE_BYNAME(TEXT("SessionProfiler"));
+
 	const TCHAR* StrTmp = TEXT(".tmp");
 
 	// Read file chunk header.
@@ -773,6 +775,8 @@ void FProfilerClientManager::HandleProfilerServiceData2Message(const FProfilerSe
 	SCOPE_CYCLE_COUNTER(STAT_PC_HandleDataReceived);
 	if (ActiveSessionId.IsValid() && Connections.Find(Message.InstanceId) != nullptr)
 	{
+		LLM_SCOPE_BYNAME(TEXT("SessionProfiler"));
+
 		// Create a temporary profiler data and prepare all data.
 		FProfilerServiceData2* ToProcess = new FProfilerServiceData2(Message.InstanceId, Message.Frame, Message.HexData, Message.CompressedSize, Message.UncompressedSize);
 

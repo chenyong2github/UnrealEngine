@@ -55,6 +55,7 @@ IMPLEMENT_MODULE( FProfilerModule, Profiler );
 TSharedRef<SWidget> FProfilerModule::CreateProfilerWindow( const TSharedRef<ISessionManager>& InSessionManager, const TSharedRef<SDockTab>& ConstructUnderMajorTab )
 {
 #if STATS
+	LLM_SCOPE_BYNAME(TEXT("SessionProfiler"));
 	FProfilerManager::Initialize( InSessionManager );
 	TSharedRef<SProfilerWindow> ProfilerWindow = SNew( SProfilerWindow );
 	FProfilerManager::Get()->AssignProfilerWindow( ProfilerWindow );
