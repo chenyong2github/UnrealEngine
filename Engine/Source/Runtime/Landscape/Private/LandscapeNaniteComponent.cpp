@@ -202,7 +202,6 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 			{
 				FMeshDescriptionHelper MeshDescriptionHelper(&SrcModel.BuildSettings);
 				MeshDescriptionHelper.SetupRenderMeshDescription(NaniteStaticMesh, *NaniteMeshDescription, true /* Is Nanite */, false /* bNeedTangents */);
-				check(!MeshDescriptionHelper.GetOverlappingCorners().HasOverlapping());
 			}
 
 			const FPolygonGroupArray& PolygonGroups = NaniteMeshDescription->PolygonGroups();

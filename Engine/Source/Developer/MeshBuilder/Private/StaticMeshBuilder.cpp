@@ -136,12 +136,12 @@ static bool BuildNanite(
 		return false;
 	}
 
-	const FMeshDescription* CachedMeshDescription = SourceModel.GetOrCacheMeshDescription();
+	FMeshDescription MeshDescription = *SourceModel.GetOrCacheMeshDescription();
 
 	FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
 	FStaticMeshLODResources& StaticMeshLOD = LODResources[0];
 
-	CorrectFallbackSettings(NaniteSettings, CachedMeshDescription->Triangles().Num());
+	CorrectFallbackSettings(NaniteSettings, MeshDescription.Triangles().Num());
 
 	// compute tangents, lightmap UVs, etc
 
@@ -151,27 +151,8 @@ static bool BuildNanite(
 	// Nanite does not need the wedge map returned (mainly used by non-Nanite mesh painting).
 	const bool bNeedWedgeMap = false;
 
-	FMeshDescription MutableMeshDescription;
-	FMeshDescriptionHelper MutableMeshDescriptionHelper(&BuildSettings);
-
-	// Find overlapping corners to accelerate adjacency.
-	FOverlappingCorners OverlappingCorners;
-
-	const bool bMutableDescription = !StaticMesh->IsNaniteLandscape(); // Currently, Nanite landscape exclusively guarantees the mesh description is fully built and optimized.
-	if (bMutableDescription)
-	{
-		// The mesh description may not be compacted, fully computed, and/or optimized yet.
-		// Need to take a temporary mutable copy and have the helper finish processing it.
-		MutableMeshDescription = *CachedMeshDescription;
-		MutableMeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MutableMeshDescription, true, bNeedTangents);
-	}
-	else
-	{
-		// We call finish on this dummy overlapping corners helper so that HasOverlapping() is false during BuildVertexBuffer()
-		OverlappingCorners.FinishAdding();
-	}
-
-	const FMeshDescription* MeshDescription = bMutableDescription ? &MutableMeshDescription : CachedMeshDescription;
+	FMeshDescriptionHelper MeshDescriptionHelper(&BuildSettings);
+	MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescription, true, bNeedTangents);
 
 	// Build new vertex buffers
 	Nanite::IBuilderModule::FInputMeshData InputMeshData;
@@ -181,8 +162,8 @@ static bool BuildNanite(
 
 	//Prepare the PerSectionIndices array so we can optimize the index buffer for the GPU
 	TArray<TArray<uint32> > PerSectionIndices;
-	PerSectionIndices.AddDefaulted(MeshDescription->PolygonGroups().Num());
-	StaticMeshLOD.Sections.Empty(MeshDescription->PolygonGroups().Num());
+	PerSectionIndices.AddDefaulted(MeshDescription.PolygonGroups().Num());
+	StaticMeshLOD.Sections.Empty(MeshDescription.PolygonGroups().Num());
 
 	// We only need this to de-duplicate vertices inside of BuildVertexBuffer
 	// (And only if there are overlapping corners in the mesh description).
@@ -191,26 +172,26 @@ static bool BuildNanite(
 	// Build the vertex and index buffer
 	UE::Private::StaticMeshBuilder::BuildVertexBuffer(
 		StaticMesh,
-		*MeshDescription,
+		MeshDescription,
 		BuildSettings,
 		WedgeMap,
 		StaticMeshLOD.Sections,
 		PerSectionIndices,
 		InputMeshData.Vertices,
-		bMutableDescription ? MutableMeshDescriptionHelper.GetOverlappingCorners() : OverlappingCorners,
+		MeshDescriptionHelper.GetOverlappingCorners(),
 		RemapVerts, 
 		BoundsOut,
 		bNeedTangents,
 		bNeedWedgeMap
 	);
 
-	TVertexInstanceAttributesRef<FVector2f const> VertexInstanceUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
+	TVertexInstanceAttributesRef<FVector2f const> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 	const uint32 NumTextureCoord = VertexInstanceUVs.IsValid() ? VertexInstanceUVs.GetNumChannels() : 0;
 
 	// Only the render data and vertex buffers will be used from now on unless we have more than one source models
 	// This will help with memory usage for Nanite Mesh by releasing memory before doing the build
 	//SourceModel.ClearMeshDescription(); // Clear original cached mesh description in memory
-	MutableMeshDescription.Empty(); // Clear the mutable copy (if allocated).
+	MeshDescription.Empty(); // Clear the mutable copy (if allocated).
 
 	// Concatenate the per-section index buffers.
 	bool bNeeds32BitIndices = false;
@@ -887,9 +868,6 @@ void BuildVertexBuffer(
 	const int32 NumVertexInstances = MeshDescription.VertexInstances().GetArraySize();
 	const bool bCacheOptimize = (NumVertexInstances < 100000 * 3);
 
-	// Skip all the allocations and lookups if we know that the mesh has no overlapping corners
-	const bool bHasOverlappingCorners = OverlappingCorners.HasOverlapping();
-
 	FBounds3f Bounds;
 
 	FStaticMeshConstAttributes Attributes(MeshDescription);
@@ -935,7 +913,6 @@ void BuildVertexBuffer(
 	int32 ReserveIndicesCount = MeshDescription.Triangles().Num() * 3;
 
 	// Fill the remap array
-	if (bHasOverlappingCorners)
 	{
 		RemapVerts.AddZeroed(ReserveIndicesCount);
 		for (int32& RemapIndex : RemapVerts)
@@ -1024,7 +1001,6 @@ void BuildVertexBuffer(
 
 			// Never add duplicated vertex instance
 			// Use WedgeIndex since OverlappingCorners has been built based on that
-			if (bHasOverlappingCorners)
 			{
 				const TArray<int32>& DupVerts = OverlappingCorners.FindIfOverlapping(WedgeIndex);
 				for (int32 k = 0; k < DupVerts.Num(); k++)
@@ -1085,10 +1061,7 @@ void BuildVertexBuffer(
 				Bounds += PendingVertex.Position;
 			}
 
-			if (bHasOverlappingCorners)
-			{
-				RemapVerts[WedgeIndex] = Index;
-			}
+			RemapVerts[WedgeIndex] = Index;
 
 			if (bNeedWedgeMap)
 			{
