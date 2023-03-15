@@ -1108,7 +1108,7 @@ struct STATETREEMODULE_API FStateTreeTransitionDelayedState
 };
 
 #if WITH_STATETREE_DEBUGGER
-struct FStateTreeInstanceDebugId
+struct STATETREEMODULE_API FStateTreeInstanceDebugId
 {
 	FStateTreeInstanceDebugId() = default;
 	FStateTreeInstanceDebugId(const uint32 InstanceId, const uint32 SerialNumber)
