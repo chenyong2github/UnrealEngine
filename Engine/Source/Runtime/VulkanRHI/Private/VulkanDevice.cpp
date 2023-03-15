@@ -226,22 +226,14 @@ FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 
 	ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
 	ZeroVulkanStruct(GpuSubgroupProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES);
-	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+
 	{
 		VkPhysicalDeviceProperties2KHR PhysicalDeviceProperties2;
 		ZeroVulkanStruct(PhysicalDeviceProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
 		PhysicalDeviceProperties2.pNext = &GpuIdProps;
-		if (UE_VK_API_VERSION >= VK_API_VERSION_1_1)
-		{
-			// Only consider wave ops on platforms creating a Vulkan 1.1 instance (or greater)
-			GpuIdProps.pNext = &GpuSubgroupProps;
-		}
-		VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &PhysicalDeviceProperties2);
+		GpuIdProps.pNext = &GpuSubgroupProps;
+		VulkanRHI::vkGetPhysicalDeviceProperties2(Gpu, &PhysicalDeviceProperties2);
 		GpuProps = PhysicalDeviceProperties2.properties;
-	}
-	else
-	{
-		VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
 	}
 
 	// First get the VendorId. We'll have to get properties again after finding out which extensions we want to use
@@ -1090,55 +1082,52 @@ void FVulkanDevice::InitGPU()
 	FVulkanDeviceExtensionArray UEExtensions = FVulkanDeviceExtension::GetUESupportedDeviceExtensions(this);
 	TArray<const ANSICHAR*> DeviceLayers = FVulkanDevice::SetupDeviceLayers(Gpu, UEExtensions);
 
-	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+	// Query advanced features
 	{
-		// Query advanced features
+		VkPhysicalDeviceFeatures2 PhysicalDeviceFeatures2;
+		ZeroVulkanStruct(PhysicalDeviceFeatures2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+
+		for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
 		{
-			VkPhysicalDeviceFeatures2 PhysicalDeviceFeatures2;
-			ZeroVulkanStruct(PhysicalDeviceFeatures2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
-
-			for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+			if (UEExtension->InUse())
 			{
-				if (UEExtension->InUse())
-				{
-					UEExtension->PrePhysicalDeviceFeatures(PhysicalDeviceFeatures2);
-				}
-			}
-
-			VulkanRHI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &PhysicalDeviceFeatures2);
-
-			for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
-			{
-				if (UEExtension->InUse())
-				{
-					UEExtension->PostPhysicalDeviceFeatures(OptionalDeviceExtensions);
-				}
+				UEExtension->PrePhysicalDeviceFeatures(PhysicalDeviceFeatures2);
 			}
 		}
 
-		// Query advances properties
+		VulkanRHI::vkGetPhysicalDeviceFeatures2(Gpu, &PhysicalDeviceFeatures2);
+
+		for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
 		{
-			VkPhysicalDeviceProperties2KHR PhysicalDeviceProperties2;
-			ZeroVulkanStruct(PhysicalDeviceProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
-			PhysicalDeviceProperties2.pNext = &GpuIdProps;
-			ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
-
-			for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+			if (UEExtension->InUse())
 			{
-				if (UEExtension->InUse())
-				{
-					UEExtension->PrePhysicalDeviceProperties(PhysicalDeviceProperties2);
-				}
+				UEExtension->PostPhysicalDeviceFeatures(OptionalDeviceExtensions);
 			}
+		}
+	}
 
-			VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &PhysicalDeviceProperties2);
+	// Query advances properties
+	{
+		VkPhysicalDeviceProperties2 PhysicalDeviceProperties2;
+		ZeroVulkanStruct(PhysicalDeviceProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2);
+		PhysicalDeviceProperties2.pNext = &GpuIdProps;
+		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES);
 
-			for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+		for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+		{
+			if (UEExtension->InUse())
 			{
-				if (UEExtension->InUse())
-				{
-					UEExtension->PostPhysicalDeviceProperties();
-				}
+				UEExtension->PrePhysicalDeviceProperties(PhysicalDeviceProperties2);
+			}
+		}
+
+		VulkanRHI::vkGetPhysicalDeviceProperties2(Gpu, &PhysicalDeviceProperties2);
+
+		for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
+		{
+			if (UEExtension->InUse())
+			{
+				UEExtension->PostPhysicalDeviceProperties();
 			}
 		}
 	}

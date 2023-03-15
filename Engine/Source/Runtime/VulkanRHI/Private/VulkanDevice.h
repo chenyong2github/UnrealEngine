@@ -296,13 +296,11 @@ public:
 
 	inline const VkPhysicalDeviceIDPropertiesKHR& GetDeviceIdProperties() const
 	{
-		check(RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2);
 		return GpuIdProps;
 	}
 
 	inline const VkPhysicalDeviceSubgroupProperties& GetDeviceSubgroupProperties() const
 	{
-		check(RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2);
 		return GpuSubgroupProps;
 	}
 

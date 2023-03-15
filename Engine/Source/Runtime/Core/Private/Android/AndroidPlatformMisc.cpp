@@ -2114,7 +2114,7 @@ typedef VkResult(VKAPI_PTR *PFN_vkEnumerateDeviceExtensionProperties)(VkPhysical
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define UE_VK_API_VERSION	VK_MAKE_VERSION(1, 0, 1)
+#define UE_VK_API_VERSION	VK_MAKE_VERSION(1, 1, 0)
 
 enum class EDeviceVulkanSupportStatus
 {

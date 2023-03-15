@@ -94,7 +94,6 @@ public:
 	static FVulkanDeviceExtensionArray GetUESupportedDeviceExtensions(FVulkanDevice* InDevice);
 	static TArray<VkExtensionProperties> GetDriverSupportedDeviceExtensions(VkPhysicalDevice Gpu, const ANSICHAR* LayerName = nullptr);
 
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) {}
 	virtual void PostPhysicalDeviceProperties() {}
 
@@ -108,7 +107,6 @@ public:
 	}
 
 	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceInfo) {}
-#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 	// Holds extensions requested externally (eg plugins)
 	static TArray<const ANSICHAR*> ExternalExtensions;

@@ -556,7 +556,6 @@ void FVulkanDynamicRHI::SelectDevice()
 
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 		if (!HmdDevice && HmdGraphicsAdapterLuid != 0 &&
-			GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2 &&
 			FMemory::Memcmp(&HmdGraphicsAdapterLuid, &NewDevice->GetDeviceIdProperties().deviceLUID, VK_LUID_SIZE_KHR) == 0)
 		{
 			HmdDevice = NewDevice;
@@ -1193,18 +1192,18 @@ uint64 FVulkanDynamicRHI::RHIGetGraphicsAdapterLUID(VkPhysicalDevice InPhysicalD
 {
 	uint64 AdapterLUID = 0;
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-	if (GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
-	{
-		VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
-		VkPhysicalDeviceProperties2KHR GpuProps2;
-		ZeroVulkanStruct(GpuProps2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
-		GpuProps2.pNext = &GpuIdProps;
-		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
 
-		VulkanRHI::vkGetPhysicalDeviceProperties2KHR(InPhysicalDevice, &GpuProps2);
-		check(GpuIdProps.deviceLUIDValid);
-		AdapterLUID = reinterpret_cast<const uint64&>(GpuIdProps.deviceLUID);
-	}
+	VkPhysicalDeviceProperties2KHR GpuProps2;
+	ZeroVulkanStruct(GpuProps2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2);
+
+	VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
+	ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES);
+
+	GpuProps2.pNext = &GpuIdProps;
+
+	VulkanRHI::vkGetPhysicalDeviceProperties2(InPhysicalDevice, &GpuProps2);
+	check(GpuIdProps.deviceLUIDValid);
+	AdapterLUID = reinterpret_cast<const uint64&>(GpuIdProps.deviceLUID);
 #endif
 	return AdapterLUID;
 }
@@ -1212,13 +1211,10 @@ uint64 FVulkanDynamicRHI::RHIGetGraphicsAdapterLUID(VkPhysicalDevice InPhysicalD
 bool FVulkanDynamicRHI::RHIDoesAdapterMatchDevice(const void* InAdapterId) const
 {
 #if PLATFORM_WINDOWS
-	if (GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+	const VkPhysicalDeviceIDPropertiesKHR& vkPhysicalDeviceIDProperties = GetDevice()->GetDeviceIdProperties();
+	if (vkPhysicalDeviceIDProperties.deviceLUIDValid)
 	{
-		const VkPhysicalDeviceIDPropertiesKHR& vkPhysicalDeviceIDProperties = GetDevice()->GetDeviceIdProperties();
-		if (vkPhysicalDeviceIDProperties.deviceLUIDValid)
-		{
-			return FMemory::Memcmp(InAdapterId, &vkPhysicalDeviceIDProperties.deviceLUID, sizeof(LUID)) == 0;
-		}
+		return FMemory::Memcmp(InAdapterId, &vkPhysicalDeviceIDProperties.deviceLUID, sizeof(LUID)) == 0;
 	}
 #endif
 

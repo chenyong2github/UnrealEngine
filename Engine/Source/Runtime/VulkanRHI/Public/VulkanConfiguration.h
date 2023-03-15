@@ -15,7 +15,7 @@ struct VkAllocationCallbacks;
 
 // API version we want to target.
 #ifndef UE_VK_API_VERSION
-	#define UE_VK_API_VERSION									VK_API_VERSION_1_0
+	#define UE_VK_API_VERSION									VK_API_VERSION_1_1
 #endif
 
 // by default, we enable debugging in Development builds, unless the platform says not to
@@ -198,17 +198,9 @@ struct VkAllocationCallbacks;
 	#endif
 #endif
 
-#ifndef VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
-	#ifdef VK_KHR_get_physical_device_properties2
-		#define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2		1
-	#else
-		#define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2		0
-	#endif
-#endif
-
 #ifndef VULKAN_SUPPORTS_EXTERNAL_MEMORY
 	#ifdef VK_KHR_external_memory_capabilities
-		#define VULKAN_SUPPORTS_EXTERNAL_MEMORY					(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
+		#define VULKAN_SUPPORTS_EXTERNAL_MEMORY					1
 	#else
 		#define VULKAN_SUPPORTS_EXTERNAL_MEMORY					0
 	#endif
@@ -284,22 +276,10 @@ struct VkAllocationCallbacks;
 
 #ifndef VULKAN_SUPPORTS_ASTC_DECODE_MODE
 	#ifdef VK_EXT_astc_decode_mode
-		#define VULKAN_SUPPORTS_ASTC_DECODE_MODE				(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
+		#define VULKAN_SUPPORTS_ASTC_DECODE_MODE				1
 	#else
 		#define VULKAN_SUPPORTS_ASTC_DECODE_MODE				0
 	#endif
-#endif
-
-#ifdef VK_KHR_shader_atomic_int64
-	#define VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS	(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
-#else
-	#define VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS	0
-#endif
-
-#ifdef VK_EXT_shader_image_atomic_int64
-	#define VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS		(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
-#else
-	#define VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS		0
 #endif
 
 #ifdef VK_EXT_shader_viewport_index_layer
@@ -310,7 +290,7 @@ struct VkAllocationCallbacks;
 
 #ifndef VULKAN_SUPPORTS_DESCRIPTOR_INDEXING
 	#ifdef VK_EXT_descriptor_indexing
-		#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
+		#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	1
 	#else
 		#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	0
 	#endif

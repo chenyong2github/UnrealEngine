@@ -3858,27 +3858,25 @@ void FWrapLayer::GetPhysicalDeviceMemoryProperties2(VkResult Result, VkPhysicalD
 }
 
 
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
-void FWrapLayer::GetPhysicalDeviceProperties2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2KHR* Properties)
+void FWrapLayer::GetPhysicalDeviceProperties2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2* Properties)
 {
 	if (Result == VK_RESULT_MAX_ENUM)
 	{
 #if VULKAN_ENABLE_DUMP_LAYER
-		PrintfBegin(FString::Printf(TEXT("vkGetPhysicalDeviceProperties2KHR(PhysicalDevice=0x%p, Properties=0x%p)[...]"), PhysicalDevice, Properties));
+		PrintfBegin(FString::Printf(TEXT("vkGetPhysicalDeviceProperties2(PhysicalDevice=0x%p, Properties=0x%p)[...]"), PhysicalDevice, Properties));
 #endif
 	}
 }
 
-void FWrapLayer::GetPhysicalDeviceFeatures2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2KHR* Features)
+void FWrapLayer::GetPhysicalDeviceFeatures2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2* Features)
 {
 	if (Result == VK_RESULT_MAX_ENUM)
 	{
 #if VULKAN_ENABLE_DUMP_LAYER
-		PrintfBegin(FString::Printf(TEXT("vkGetPhysicalDeviceFeatures2KHR(PhysicalDevice=0x%p, Features=0x%p)[...]"), PhysicalDevice, Features));
+		PrintfBegin(FString::Printf(TEXT("vkGetPhysicalDeviceFeatures2(PhysicalDevice=0x%p, Features=0x%p)[...]"), PhysicalDevice, Features));
 #endif
 	}
 }
-#endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 void FWrapLayer::GetPhysicalDeviceFragmentShadingRatesKHR(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32* FragmentShadingRateCount, VkPhysicalDeviceFragmentShadingRateKHR* FragmentShadingRates)

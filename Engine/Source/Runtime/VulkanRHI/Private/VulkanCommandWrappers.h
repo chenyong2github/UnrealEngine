@@ -168,11 +168,9 @@ struct FWrapLayer
 	static void GetImageMemoryRequirements2KHR(VkResult Result, VkDevice Device, const VkImageMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements) VULKAN_LAYER_BODY
 	static void GetBufferMemoryRequirements2KHR(VkResult Result, VkDevice Device, const VkBufferMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements) VULKAN_LAYER_BODY
 
-		VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceMemoryProperties2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceMemoryProperties2* MemoryProperties) VULKAN_LAYER_BODY 
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
-	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceProperties2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2KHR* Properties) VULKAN_LAYER_BODY
-	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceFeatures2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2KHR* Features) VULKAN_LAYER_BODY
-#endif
+	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceMemoryProperties2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceMemoryProperties2* MemoryProperties) VULKAN_LAYER_BODY 
+	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceProperties2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2* Properties) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceFeatures2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2* Features) VULKAN_LAYER_BODY
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceFragmentShadingRatesKHR(VkResult, VkPhysicalDevice PhysicalDevice, uint32* FragmentShadingRateCount, VkPhysicalDeviceFragmentShadingRateKHR* FragmentShadingRates) VULKAN_LAYER_BODY
 #endif
@@ -283,21 +281,19 @@ namespace VulkanRHI
 		FWrapLayer::GetPhysicalDeviceMemoryProperties2(VK_SUCCESS, PhysicalDevice, pMemoryProperties);
 	}
 
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
-	static FORCEINLINE_DEBUGGABLE void  vkGetPhysicalDeviceProperties2KHR(VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2KHR* Properties)
+	static FORCEINLINE_DEBUGGABLE void vkGetPhysicalDeviceProperties2(VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2* Properties)
 	{
-		FWrapLayer::GetPhysicalDeviceProperties2KHR(VK_RESULT_MAX_ENUM, PhysicalDevice, Properties);
-		VULKANAPINAMESPACE::vkGetPhysicalDeviceProperties2KHR(PhysicalDevice, Properties);
-		FWrapLayer::GetPhysicalDeviceProperties2KHR(VK_SUCCESS, PhysicalDevice, Properties);
+		FWrapLayer::GetPhysicalDeviceProperties2(VK_RESULT_MAX_ENUM, PhysicalDevice, Properties);
+		VULKANAPINAMESPACE::vkGetPhysicalDeviceProperties2(PhysicalDevice, Properties);
+		FWrapLayer::GetPhysicalDeviceProperties2(VK_SUCCESS, PhysicalDevice, Properties);
 	}
 
-	static FORCEINLINE_DEBUGGABLE void  vkGetPhysicalDeviceFeatures2KHR(VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2KHR* Features)
+	static FORCEINLINE_DEBUGGABLE void vkGetPhysicalDeviceFeatures2(VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures2* Features)
 	{
-		FWrapLayer::GetPhysicalDeviceFeatures2KHR(VK_RESULT_MAX_ENUM, PhysicalDevice, Features);
-		VULKANAPINAMESPACE::vkGetPhysicalDeviceFeatures2KHR(PhysicalDevice, Features);
-		FWrapLayer::GetPhysicalDeviceFeatures2KHR(VK_SUCCESS, PhysicalDevice, Features);
+		FWrapLayer::GetPhysicalDeviceFeatures2(VK_RESULT_MAX_ENUM, PhysicalDevice, Features);
+		VULKANAPINAMESPACE::vkGetPhysicalDeviceFeatures2(PhysicalDevice, Features);
+		FWrapLayer::GetPhysicalDeviceFeatures2(VK_SUCCESS, PhysicalDevice, Features);
 	}
-#endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	static FORCEINLINE_DEBUGGABLE void vkGetPhysicalDeviceFragmentShadingRatesKHR(VkPhysicalDevice PhysicalDevice, uint32* FragmentShadingRateCount, VkPhysicalDeviceFragmentShadingRateKHR* FragmentShadingRates)

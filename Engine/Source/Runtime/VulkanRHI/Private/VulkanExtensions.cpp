@@ -198,12 +198,11 @@ class FVulkanShaderAtomicInt64Extension : public FVulkanDeviceExtension
 public:
 
 	FVulkanShaderAtomicInt64Extension(FVulkanDevice* InDevice)
-		: FVulkanDeviceExtension(InDevice, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME, VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS, VK_API_VERSION_1_2)
+		: FVulkanDeviceExtension(InDevice, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VK_API_VERSION_1_2)
 	{
 		bEnabledInCode = bEnabledInCode && (GRHIAllow64bitShaderAtomicsCvar.GetValueOnAnyThread() != 0);
 	}
 
-#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
 	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
 	{
 		ZeroVulkanStruct(BufferAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
@@ -225,7 +224,6 @@ public:
 	}
 
 	VkPhysicalDeviceShaderAtomicInt64Features BufferAtomicFeatures;
-#endif // VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
 };
 
 
@@ -236,12 +234,11 @@ class FVulkanShaderImageAtomicInt64Extension : public FVulkanDeviceExtension
 public:
 
 	FVulkanShaderImageAtomicInt64Extension(FVulkanDevice* InDevice)
-		: FVulkanDeviceExtension(InDevice, VK_EXT_SHADER_IMAGE_ATOMIC_INT64_EXTENSION_NAME, VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS)
+		: FVulkanDeviceExtension(InDevice, VK_EXT_SHADER_IMAGE_ATOMIC_INT64_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
 	{
 		bEnabledInCode = bEnabledInCode && (GRHIAllow64bitShaderAtomicsCvar.GetValueOnAnyThread() != 0);
 	}
 
-#if VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
 	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
 	{
 		ZeroVulkanStruct(ImageAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_ATOMIC_INT64_FEATURES_EXT);
@@ -267,7 +264,6 @@ public:
 	}
 
 	VkPhysicalDeviceShaderImageAtomicInt64FeaturesEXT ImageAtomicFeatures;
-#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 };
 
 
@@ -1337,7 +1333,6 @@ FVulkanInstanceExtensionArray FVulkanInstanceExtension::GetUESupportedInstanceEx
 	FVulkanInstanceExtensionArray OutUEInstanceExtensions;
 
 	// Generic simple extensions :
-	OutUEInstanceExtensions.Add(MakeUnique<FVulkanInstanceExtension>(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2, VK_API_VERSION_1_1, INSTANCE_EXT_FLAG_SETTER(HasKHRGetPhysicalDeviceProperties2)));
 	OutUEInstanceExtensions.Add(MakeUnique<FVulkanInstanceExtension>(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, VULKAN_SUPPORTS_EXTERNAL_MEMORY, VK_API_VERSION_1_1, INSTANCE_EXT_FLAG_SETTER(HasKHRExternalMemoryCapabilities)));
 	OutUEInstanceExtensions.Add(MakeUnique<FVulkanInstanceExtension>(VK_KHR_SURFACE_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));
 	OutUEInstanceExtensions.Add(MakeUnique<FVulkanInstanceExtension>(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED));

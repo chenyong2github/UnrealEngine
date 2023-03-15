@@ -21,7 +21,6 @@ struct FOptionalVulkanInstanceExtensions
 		struct
 		{
 			uint32 HasKHRExternalMemoryCapabilities : 1;
-			uint32 HasKHRGetPhysicalDeviceProperties2 : 1;
 		};
 		uint32 Packed;
 	};
