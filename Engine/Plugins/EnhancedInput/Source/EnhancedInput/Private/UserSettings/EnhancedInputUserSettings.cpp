@@ -90,6 +90,7 @@ FMapPlayerKeyArgs::FMapPlayerKeyArgs()
 FPlayerKeyMapping::FPlayerKeyMapping()
 	: MappingName(NAME_None)
 	, DisplayName(FText::GetEmpty())
+	, DisplayCategory(FText::GetEmpty())
 	, Slot(EPlayerMappableKeySlot::Unspecified)
 	, DefaultKey(EKeys::Invalid)
 	, CurrentKey(EKeys::Invalid)
@@ -101,6 +102,7 @@ FPlayerKeyMapping::FPlayerKeyMapping()
 FPlayerKeyMapping::FPlayerKeyMapping(const FEnhancedActionKeyMapping& OriginalMapping, EPlayerMappableKeySlot InSlot /* = EPlayerMappableKeySlot::Unspecified */)
 	: MappingName(OriginalMapping.GetMappingName())
 	, DisplayName(OriginalMapping.GetDisplayName())
+	, DisplayCategory(OriginalMapping.GetDisplayCategory())
 	, Slot(InSlot)
 	, DefaultKey(OriginalMapping.Key)
 	, CurrentKey(EKeys::Invalid)
@@ -155,6 +157,11 @@ const FName FPlayerKeyMapping::GetMappingName() const
 const FText& FPlayerKeyMapping::GetDisplayName() const
 {
 	return DisplayName;
+}
+
+const FText& FPlayerKeyMapping::GetDisplayCategory() const
+{
+	return DisplayCategory;
 }
 
 EPlayerMappableKeySlot FPlayerKeyMapping::GetSlot() const
@@ -348,6 +355,12 @@ int32 UEnhancedPlayerMappableKeyProfile::GetMappedKeysInRow(const FName MappingN
 
 int32 UEnhancedPlayerMappableKeyProfile::GetPlayerMappedKeysForRebuildControlMappings(const FEnhancedActionKeyMapping& DefaultMapping, TArray<FKey>& OutKeys) const
 {
+	// Don't bother trying to query for keys on a non-player mappable action mapping
+	if (!DefaultMapping.IsPlayerMappable())
+	{
+		return 0;
+	}
+	
 	FPlayerMappableKeyQueryOptions QueryOptions = {};
 
 	QueryOptions.MappingName = DefaultMapping.GetMappingName();

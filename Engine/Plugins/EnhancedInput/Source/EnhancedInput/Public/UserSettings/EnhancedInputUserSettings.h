@@ -121,6 +121,9 @@ public:
 	/** The localized display name to use for this mapping */
 	const FText& GetDisplayName() const;
 
+	/** The localized display name for the category to use for this mapping */
+	const FText& GetDisplayCategory() const;
+
 	/** Returns what player mappable slot this mapping is in */
 	EPlayerMappableKeySlot GetSlot() const;
 
@@ -159,6 +162,10 @@ protected:
 	/** Localized display name of this mapping */
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
 	FText DisplayName;
+
+	/** Localized display category of this mapping */
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")
+	FText DisplayCategory;
 
 	/** What slot this key is mapped to */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enhanced Input|User Settings")

@@ -98,7 +98,11 @@ struct ENHANCEDINPUT_API FEnhancedActionKeyMapping
 	 */
 	FName GetMappingName() const;
 
+	/** The localized display name of this key mapping */
 	const FText& GetDisplayName() const;
+
+	/** The localized display category of this key mapping */
+	const FText& GetDisplayCategory() const;
 
 	/**
 	* Returns true if this Action Key Mapping either holds a Player Mappable Key Settings or is set bIsPlayerMappable.

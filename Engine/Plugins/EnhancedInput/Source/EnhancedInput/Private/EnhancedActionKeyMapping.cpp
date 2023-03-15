@@ -66,6 +66,15 @@ const FText& FEnhancedActionKeyMapping::GetDisplayName() const
 	return FText::GetEmpty();
 }
 
+const FText& FEnhancedActionKeyMapping::GetDisplayCategory() const
+{
+	if (UPlayerMappableKeySettings* MappableKeySettings = GetPlayerMappableKeySettings())
+	{
+		return MappableKeySettings->DisplayCategory;
+	}
+	return FText::GetEmpty();
+}
+
 bool FEnhancedActionKeyMapping::IsPlayerMappable() const
 {
 	return GetPlayerMappableKeySettings() != nullptr;
