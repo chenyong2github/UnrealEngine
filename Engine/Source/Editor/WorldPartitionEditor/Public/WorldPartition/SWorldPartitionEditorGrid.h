@@ -66,12 +66,18 @@ public:
 	void Refresh();
 	virtual void FocusBox(const FBox& Box) const {}
 
-	UWorld* World = nullptr;
-	UWorldPartition* WorldPartition = nullptr;
+	inline UWorld* GetWorld() { return World.Get(); }
+	inline const UWorld* GetWorld() const { return World.Get(); }
+	
+	inline UWorldPartition* GetWorldPartition() { return WorldPartition.Get(); }
+	inline const UWorldPartition* GetWorldPartition() const { return WorldPartition.Get(); }
 
 protected:
 	static TMap<FName, PartitionEditorGridCreateInstanceFunc> PartitionEditorGridCreateInstanceFactory;
 
 private:
 	bool IsDisabled() const;
+
+	TWeakObjectPtr<UWorld> World;
+	TWeakObjectPtr<UWorldPartition> WorldPartition;
 };

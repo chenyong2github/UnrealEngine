@@ -28,7 +28,7 @@ int64 SWorldPartitionEditorGridSpatialHash::GetSelectionSnap() const
 
 int64 SWorldPartitionEditorGridSpatialHash::GetSelectionSnap(float& FadeRatio, float& CellScreenSize) const
 {
-	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
+	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)GetWorldPartition()->EditorHash;
 	
 	int64 EffectiveCellSize = EditorSpatialHash->CellSize;
 	for (;;)
@@ -50,7 +50,7 @@ int64 SWorldPartitionEditorGridSpatialHash::GetSelectionSnap(float& FadeRatio, f
 
 int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
+	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)GetWorldPartition()->EditorHash;
 
 	// Found the best cell size depending on the current zoom
 	float FadeRatio;

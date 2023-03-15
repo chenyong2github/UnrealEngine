@@ -17,7 +17,7 @@ TMap<FName, SWorldPartitionEditorGrid::PartitionEditorGridCreateInstanceFunc> SW
 void SWorldPartitionEditorGrid::Construct(const FArguments& InArgs)
 {
 	World = InArgs._InWorld;
-	WorldPartition = World ? World->GetWorldPartition() : nullptr;
+	WorldPartition = World.IsValid() ? World->GetWorldPartition() : nullptr;
 
 	if (IsDisabled())
 	{
@@ -109,7 +109,7 @@ void SWorldPartitionEditorGrid::Refresh()
 
 bool SWorldPartitionEditorGrid::IsDisabled() const
 {
-	return !WorldPartition;
+	return !WorldPartition.IsValid();
 }
 
 #undef LOCTEXT_NAMESPACE
