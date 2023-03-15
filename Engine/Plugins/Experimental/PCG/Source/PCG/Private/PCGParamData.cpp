@@ -19,6 +19,9 @@ UPCGParamData::UPCGParamData(const FObjectInitializer& ObjectInitializer)
 
 void UPCGParamData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
 {
+	uint32 UniqueTypeID = StaticClass()->GetDefaultObject()->GetUniqueID();
+	Ar << UniqueTypeID;
+
 	if (!Metadata)
 	{
 		// Nothing to contribute

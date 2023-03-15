@@ -277,8 +277,8 @@ void UPCGPointData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGPointData::AddToCrc);
 
-	uint32 ThisType = static_cast<uint32>(GetDataType());
-	Ar << ThisType;
+	uint32 UniqueTypeID = StaticClass()->GetDefaultObject()->GetUniqueID();
+	Ar << UniqueTypeID;
 
 	if (Points.Num() == 0)
 	{
