@@ -691,7 +691,8 @@ public:
 		bHasRuntimeVirtualTextureOutputNode(false),
 		bUsesAnisotropy(false),
 		StrataMaterialType(0),
-		StrataBSDFCount(0)
+		StrataBSDFCount(0),
+		StrataUintPerPixel(0)
 	{}
 
 	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
@@ -804,11 +805,15 @@ public:
 	/** true if the material uses non 0 anisotropy value */
 	LAYOUT_BITFIELD(uint8, bUsesAnisotropy, 1);
 
-	/** Strata material type, at compile type (0:simple, 1:single, 2: complex) */
+	/** Strata material type, at compile time (0:simple, 1:single, 2: complex) */
 	LAYOUT_BITFIELD(uint8, StrataMaterialType, 2);
 
-	/** Strata BSDF count, at compile type (0-7) */
+	/** Strata BSDF count, at compile time (0-7) */
 	LAYOUT_BITFIELD(uint8, StrataBSDFCount, 3);
+
+	/** Strata uint per pixel, at compile time (0-7) */
+	LAYOUT_BITFIELD(uint8, StrataUintPerPixel, 8);
+	
 };
 
 struct FDebugShaderPipelineInfo
@@ -1370,6 +1375,7 @@ public:
 	bool UsesAnisotropy() const { return GetContent()->MaterialCompilationOutput.bUsesAnisotropy; }
 	uint8 GetStrataMaterialType() const { return GetContent()->MaterialCompilationOutput.StrataMaterialType; }
 	uint8 GetStrataBSDFCount() const { return GetContent()->MaterialCompilationOutput.StrataBSDFCount; }
+	uint8 GetStrataUintPerPixel() const { return GetContent()->MaterialCompilationOutput.StrataUintPerPixel; }
 	
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedUVScalars; }
@@ -2117,6 +2123,10 @@ public:
 	/** Get Strata material BSDF count. */
 	ENGINE_API uint8 MaterialGetStrataBSDFCount_GameThread() const;
 	ENGINE_API uint8 MaterialGetStrataBSDFCount_RenderThread() const;
+
+	/** Get Strata material uint count oer pixel. */
+	ENGINE_API uint8 MaterialGetStrataUintPerPixel_GameThread() const;
+	ENGINE_API uint8 MaterialGetStrataUintPerPixel_RenderThread() const;
 
 	class FMaterialShaderMap* GetGameThreadShaderMap() const 
 	{ 

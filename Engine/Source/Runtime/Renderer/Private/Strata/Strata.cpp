@@ -69,8 +69,10 @@ void FStrataViewData::Reset()
 {
 	// Preserve old max BSDF count which is set prior to the reset operation
 	const uint32 OldMaxBSDFCount = MaxBSDFCount;
+	const uint32 OldMaxBytePerPixel = MaxBytePerPixel;
 	*this = FStrataViewData();
 	MaxBSDFCount = OldMaxBSDFCount;
+	MaxBytePerPixel = OldMaxBytePerPixel;
 	for (uint32 i = 0; i < EStrataTileType::ECount; ++i)
 	{
 		ClassificationTileListBuffer[i] = nullptr;
@@ -334,11 +336,14 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 
 	bool bNeedBSDFOffsets = false;
 	bool bNeedUAV = false;
+	uint32 MaxBytePerPixel = 0;
 	for (const FViewInfo& View : SceneRenderer.Views)
 	{
 		bNeedBSDFOffsets = bNeedBSDFOffsets || NeedBSDFOffsets(SceneRenderer.Scene, View);
 		bNeedUAV = bNeedUAV || IsDBufferPassEnabled(View.GetShaderPlatform());
+		MaxBytePerPixel = FMath::Max(MaxBytePerPixel, View.StrataViewData.MaxBytePerPixel);
 	}
+	MaxBytePerPixel = FMath::Clamp(MaxBytePerPixel, 4u * STRATA_BASE_PASS_MRT_OUTPUT_COUNT, GetBytePerPixel(SceneRenderer.ShaderPlatform));
 
 	FIntPoint MaterialBufferSizeXY;
 	UpdateMaterialBufferToTiledResolution(FIntPoint(1, 1), MaterialBufferSizeXY);
@@ -358,7 +363,7 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 		UpdateMaterialBufferToTiledResolution(SceneTextureExtent, MaterialBufferSizeXY);
 
 		const uint32 RoundToValue = 4u;
-		Out.MaxBytesPerPixel = FMath::DivideAndRoundUp(GetBytePerPixel(SceneRenderer.ShaderPlatform), RoundToValue) * RoundToValue;
+		Out.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaxBytePerPixel, RoundToValue) * RoundToValue;
 
 		// Top layer texture
 		{

@@ -134,6 +134,7 @@ struct FStrataViewData
 {
 	// Max BSDF count among all visible materials
 	uint32 MaxBSDFCount = 0;
+	uint32 MaxBytePerPixel = 0;
 
 	FIntPoint TileCount  = FIntPoint(0, 0);
 	FIntPoint TileOffset = FIntPoint(0, 0);

@@ -10971,8 +10971,12 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			}
 			StrataSimplificationStatus.bRunFullSimplification = !StrataSimplificationStatus.bMaterialFitsInMemoryBudget;
 
+			const uint32 RequestedSizeInUint = FMath::DivideAndRoundUp(StrataMaterialRequestedSizeByte, 4u);
+			check(RequestedSizeInUint < 256u);
+
 			MaterialCompilationOutput.StrataMaterialType = bStrataMaterialIsSimple ? 0 : bStrataMaterialIsSingle? 1 : 2;
 			MaterialCompilationOutput.StrataBSDFCount = StrataMaterialBSDFCount;
+			MaterialCompilationOutput.StrataUintPerPixel = uint8(FMath::Clamp(RequestedSizeInUint, 0u, 0xFF));
 		}
 	}
 	while (!StrataSimplificationStatus.bMaterialFitsInMemoryBudget);

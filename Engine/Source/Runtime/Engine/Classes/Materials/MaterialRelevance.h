@@ -17,6 +17,7 @@ struct ENGINE_API FMaterialRelevance
 		struct
 		{
 			uint16 ShadingModelMask;
+			uint8 StrataUintPerPixel;
 			uint8 StrataBSDFCountMask;
 			uint8 bOpaque : 1;
 			uint8 bMasked : 1;
@@ -55,7 +56,9 @@ struct ENGINE_API FMaterialRelevance
 	/** Bitwise OR operator.  Sets any relevance bits which are present in either. */
 	FMaterialRelevance& operator|=(const FMaterialRelevance& B)
 	{
+		const uint8 LocalStrataUintPerPixel = StrataUintPerPixel;
 		Raw |= B.Raw;
+		StrataUintPerPixel = FMath::Max(LocalStrataUintPerPixel, B.StrataUintPerPixel);
 		return *this;
 	}
 
