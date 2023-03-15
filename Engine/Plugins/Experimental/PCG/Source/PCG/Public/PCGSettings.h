@@ -90,7 +90,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 	bool bEnabled = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Debug)
 	bool bDebug = false;
 
 #if WITH_EDITORONLY_DATA
@@ -192,16 +192,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(EditCondition=bUseSeed, EditConditionHides, PCG_Overridable))
 	int Seed = 0xC35A9631; // random prime number
 
-	/** TODO: Remove this - Placeholder feature until we have a nodegraph */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Tags")
+	/** Warning - this is deprecated and will be removed soon since we have a Filter By Tag node for this specific purpose */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tags")
 	TSet<FString> FilterOnTags;
 
-	/** TODO: Remove this - Placeholder feature until we have a nodegraph */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Tags")
+	/** Warning - this is deprecated and will be removed soon since we have a Filter By Tag node for this specific purpose */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tags")
 	bool bPassThroughFilteredOutInputs = true;
 
-	/** TODO: Remove this - Placeholder feature until we have a nodegraph */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Tags")
+	/** Applies the specified tags on the output data. Note - this might be replaced by a dedicated Tagging node */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tags")
 	TSet<FString> TagsAppliedOnOutput;
 
 #if WITH_EDITORONLY_DATA

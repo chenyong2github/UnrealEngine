@@ -1407,7 +1407,6 @@ void FPCGEditor::OnToggleDebug()
 
 			if (PCGSettingsInterface->bDebug != bNewCheckState)
 			{
-				PCGSettingsInterface->Modify();
 				PCGSettingsInterface->bDebug = bNewCheckState;
 				PCGNode->OnNodeChangedDelegate.Broadcast(PCGNode, EPCGChangeType::Settings);
 			}
