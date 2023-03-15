@@ -61,12 +61,12 @@ export class Api {
 
   @Put('proxy')
   private proxy(req: Request, res: Response) {
-    this.send(res, UnrealEngine.proxy(req.body?.method, req.body?.url, req.body?.body));
+    this.send(res, UnrealEngine.proxy(req.body?.method, req.body?.url, req.body?.body, req.socket.remoteAddress.replace(/^.*:/, '')));
   }
 
   @Get('thumbnail')
   private thumbnail(req: Request, res: Response) {
-    this.send(res, UnrealEngine.thumbnail(req.query.asset.toString()));
+    this.send(res, UnrealEngine.thumbnail(req.query.asset.toString(), req.socket.remoteAddress.replace(/^.*:/, '')));
   }
 
   @Get('shutdown')

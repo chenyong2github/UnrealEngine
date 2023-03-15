@@ -11,14 +11,15 @@ export namespace Notify {
     io.attach(server);
 
     io.sockets.on('connection', (socket: socketio.Socket) => {
+      const ip = socket.handshake.address.replace(/^.*:/, '');
       socket
         .on('client', onPing)
-        .on('view', onViewChange)
-        .on('value', UnrealEngine.setPayloadValue)
-        .on('execute', UnrealEngine.executeFunction)
-        .on('metadata', UnrealEngine.setPresetPropertyMetadata)
-        .on('rebind', UnrealEngine.rebindProperties)
-        .on('search', UnrealEngine.search);
+        .on('view', (preset, view, supressUnrealNotification) => onViewChange(preset, view, supressUnrealNotification, ip))
+        .on('value', (preset, property, value) => UnrealEngine.setPayloadValue(preset, property, value, ip))
+        .on('execute', (preset, func, args) => UnrealEngine.executeFunction(preset, func, args, ip))
+        .on('metadata', (preset, property, metadata, value) => UnrealEngine.setPresetPropertyMetadata(preset, property, metadata, value, ip))
+        .on('rebind', (preset, properties, target) => UnrealEngine.rebindProperties(preset, properties, target, ip))
+        .on('search', (query, types, prefix, filterArgs, count, callback) => UnrealEngine.search(query, types, prefix, filterArgs, count, callback, ip));
 
       if (UnrealEngine.isConnected())
         socket.emit('connected', true);
@@ -34,9 +35,9 @@ export namespace Notify {
     io.emit(what, ...args);
   }
 
-  export function onViewChange(preset: string, view: IView, supressUnrealNotification?: boolean) {
+  export function onViewChange(preset: string, view: IView, supressUnrealNotification: boolean, ip: string) {
     if (!supressUnrealNotification)
-      UnrealEngine.setView(preset, view);
+      UnrealEngine.setView(preset, view, ip);
     io.emit('view', preset, view);
   }
 
