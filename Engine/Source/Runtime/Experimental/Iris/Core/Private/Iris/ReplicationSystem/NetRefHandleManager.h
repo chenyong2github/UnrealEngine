@@ -120,8 +120,8 @@ public:
 	// Return true if this is a scopable index
 	bool IsScopableIndex(FInternalNetRefIndex InternalIndex) const { return ScopableInternalIndices.GetBit(InternalIndex); }
 
-	static FNetRefHandle MakeNetRefHandle(uint32 Id, uint32 ReplicationSystemId);
-	static FNetRefHandle MakeNetRefHandleFromId(uint32 Id);
+	static FNetRefHandle MakeNetRefHandle(uint64 Id, uint32 ReplicationSystemId);
+	static FNetRefHandle MakeNetRefHandleFromId(uint64 Id);
 
 	// Returns a valid handle if the wanted handle can be allocated
 	FNetRefHandle AllocateNetRefHandle(bool bIsStatic);
@@ -270,8 +270,8 @@ private:
 	FInternalNetRefIndex InternalCreateNetObject(const FNetRefHandle NetRefHandle, const FNetHandle GlobalHandle, const FReplicationProtocol* ReplicationProtocol);
 	void InternalDestroyNetObject(FInternalNetRefIndex InternalIndex);
 
-	static uint32 MakeNetRefHandleId(uint32 Seed, bool bIsStatic);
-	uint32 GetNextNetRefHandleId(uint32 HandleIndex) const;
+	static uint64 MakeNetRefHandleId(uint64 Seed, bool bIsStatic);
+	uint64 GetNextNetRefHandleId(uint64 HandleIndex) const;
 
 	// Get the next free internal index, returns InvalidInternalIndex if a free one cannot be found
 	FInternalNetRefIndex GetNextFreeInternalIndex() const;
@@ -344,8 +344,8 @@ private:
 	TArray<UObject*> ReplicatedInstances;
 
 	// Assign handles
-	uint32 NextStaticHandleIndex;
-	uint32 NextDynamicHandleIndex;
+	uint64 NextStaticHandleIndex;
+	uint64 NextDynamicHandleIndex;
 
 	FNetDependencyData SubObjects;
 

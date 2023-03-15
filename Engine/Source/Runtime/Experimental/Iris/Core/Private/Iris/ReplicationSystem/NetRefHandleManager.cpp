@@ -28,8 +28,8 @@ FNetRefHandleManager::FNetRefHandleManager(FReplicationProtocolManager& InReplic
 , ObjectsWithDependentObjectsInternalIndices(MaxActiveObjectCount)
 , DestroyedStartupObjectInternalIndices(MaxActiveObjectCount)
 , WantToBeDormantInternalIndices(MaxActiveObjectCount)
-, NextStaticHandleIndex(1U) // Index 0 is always reserved, for both static and dynamic handles
-, NextDynamicHandleIndex(1U)
+, NextStaticHandleIndex(1) // Index 0 is always reserved, for both static and dynamic handles
+, NextDynamicHandleIndex(1)
 , ReplicationProtocolManager(InReplicationProtocolManager)
 {
 	static_assert(InvalidInternalIndex == 0, "FNetRefHandleManager::InvalidInternalIndex has an unexpected value");
@@ -46,12 +46,12 @@ FNetRefHandleManager::FNetRefHandleManager(FReplicationProtocolManager& InReplic
 	ReplicatedObjectData[InvalidInternalIndex] = FReplicatedObjectData();
 }
 
-uint32 FNetRefHandleManager::GetNextNetRefHandleId(uint32 HandleId) const
+uint64 FNetRefHandleManager::GetNextNetRefHandleId(uint64 HandleId) const
 {
-	// Since we use the lowest bit in the index to indicate if the handle is static or dynamic we can not use all bits as the index
-	constexpr uint32 NetHandleIdIndexBitMask = (1U << (FNetRefHandle::IdBits - 1U)) - 1U;
+	// Since we use the lowest bit in the index to indicate if the handle is static or dynamic we cannot use all bits as the index
+	constexpr uint64 NetHandleIdIndexBitMask = (1ULL << (FNetRefHandle::IdBits - 1)) - 1;
 
-	uint32 NextHandleId = (HandleId + 1) & NetHandleIdIndexBitMask;
+	uint64 NextHandleId = (HandleId + 1) & NetHandleIdIndexBitMask;
 	if (NextHandleId == 0)
 	{
 		++NextHandleId;
@@ -150,9 +150,9 @@ const FReplicationInstanceProtocol* FNetRefHandleManager::DetachInstanceProtocol
 
 FNetRefHandle FNetRefHandleManager::AllocateNetRefHandle(bool bIsStatic)
 {
-	uint32& NextHandleId = bIsStatic ? NextStaticHandleIndex : NextDynamicHandleIndex;
+	uint64& NextHandleId = bIsStatic ? NextStaticHandleIndex : NextDynamicHandleIndex;
 
-	const uint32 NewHandleId = MakeNetRefHandleId(NextHandleId, bIsStatic);
+	const uint64 NewHandleId = MakeNetRefHandleId(NextHandleId, bIsStatic);
 	FNetRefHandle NewHandle = MakeNetRefHandle(NewHandleId, ReplicationSystemId);
 
 	// Verify that the handle is free
@@ -745,12 +745,12 @@ void FNetRefHandleManager::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObjects(ReplicatedInstances);
 }
 
-uint32 FNetRefHandleManager::MakeNetRefHandleId(uint32 Id, bool bIsStatic)
+uint64 FNetRefHandleManager::MakeNetRefHandleId(uint64 Id, bool bIsStatic)
 {
 	return (Id << 1U) | (bIsStatic ? 1U : 0U);
 }
 
-FNetRefHandle FNetRefHandleManager::MakeNetRefHandle(uint32 Id, uint32 ReplicationSystemId)
+FNetRefHandle FNetRefHandleManager::MakeNetRefHandle(uint64 Id, uint32 ReplicationSystemId)
 {
 	check((Id & FNetRefHandle::IdMask) == Id);
 	check(ReplicationSystemId < FNetRefHandle::MaxReplicationSystemId);
@@ -763,7 +763,7 @@ FNetRefHandle FNetRefHandleManager::MakeNetRefHandle(uint32 Id, uint32 Replicati
 	return Handle;
 }
 
-FNetRefHandle FNetRefHandleManager::MakeNetRefHandleFromId(uint32 Id)
+FNetRefHandle FNetRefHandleManager::MakeNetRefHandleFromId(uint64 Id)
 {
 	check((Id & FNetRefHandle::IdMask) == Id);
 

@@ -181,7 +181,7 @@ void FReplicationReader::Deinit()
 // Read incomplete handle
 FNetRefHandle FReplicationReader::ReadNetRefHandleId(FNetBitStreamReader& Reader) const
 {
-	const uint32 NetId = Reader.ReadBits(FNetRefHandle::IdBits);
+	const uint64 NetId = ReadPackedUint64(&Reader);
 	return FNetRefHandleManager::MakeNetRefHandleFromId(NetId);
 }
 	

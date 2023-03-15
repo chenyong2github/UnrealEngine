@@ -22,7 +22,7 @@ void WriteNetRefHandle(FNetSerializationContext& Context, const FNetRefHandle Ha
 	if (Handle.IsValid())
 	{
 		Writer->WriteBool(true);
-		WritePackedUint32(Writer, Handle.GetId());
+		WritePackedUint64(Writer, Handle.GetId());
 	}
 	else
 	{
@@ -36,7 +36,7 @@ FNetRefHandle ReadNetRefHandle(FNetSerializationContext& Context)
 
 	if (Reader->ReadBool())
 	{
-		const uint32 NetId = ReadPackedUint32(Reader);
+		const uint64 NetId = ReadPackedUint64(Reader);
 		if (!Reader->IsOverflown())
 		{
 			return Private::FNetRefHandleManager::MakeNetRefHandleFromId(NetId);

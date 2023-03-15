@@ -512,7 +512,7 @@ const FReplicationWriter::FReplicationInfo& FReplicationWriter::GetReplicationIn
 
 void FReplicationWriter::WriteNetRefHandleId(FNetBitStreamWriter& Writer, FNetRefHandle Handle)
 {
-	Writer.WriteBits(Handle.GetId(), FNetRefHandle::IdBits);
+	WritePackedUint64(&Writer, Handle.GetId());
 }
 
 uint32 FReplicationWriter::GetDefaultFlushFlags() const

@@ -25,14 +25,14 @@ class FNetRefHandle
 {
 public:
 	enum { Invalid = 0 };
-	enum { IdBits = 32 };
+	enum { IdBits = 60 };
 	enum { ReplicationSystemIdBits = 4 };
 
 public:
 	FNetRefHandle() : Value(Invalid) {}
 
-	uint32 GetId() const { return Id; }
-	uint32 GetReplicationSystemId() const { check(ReplicationSystemId != 0U); return ReplicationSystemId - 1U; }
+	uint64 GetId() const { return Id; }
+	uint32 GetReplicationSystemId() const { check(ReplicationSystemId != 0); return (uint32)(ReplicationSystemId - 1); }
 	bool IsValid() const { return Value != Invalid; }
 
 	bool IsCompleteHandle() const { return Value != Invalid && ReplicationSystemId != 0U; }
@@ -52,16 +52,16 @@ private:
 	friend uint32 GetTypeHash(const FNetRefHandle& Handle);
 	friend Private::FNetRefHandleManager;
 
-	static constexpr uint32 StaticIdMask = 1U;
-	static constexpr uint32 IdMask = ~0U;
-	static constexpr uint32 MaxReplicationSystemId = (1 << ReplicationSystemIdBits) - 1;
+	static constexpr uint64 StaticIdMask = 1;
+	static constexpr uint64 IdMask = (1ULL << IdBits) - 1;
+	static constexpr uint64 MaxReplicationSystemId = (1ULL << ReplicationSystemIdBits) - 1;
 
 	union 
 	{
 		struct
 		{
-			uint32 Id : IdBits;										// Id, lowest bit indicates if the handle is static or dynamic
-			uint32 ReplicationSystemId : ReplicationSystemIdBits;	// ReplicationSystemId, when running in pie, we track the owning instance
+			uint64 Id : IdBits;										// Id, lowest bit indicates if the handle is static or dynamic
+			uint64 ReplicationSystemId : ReplicationSystemIdBits;	// ReplicationSystemId, when running in pie, we track the owning instance
 		};
 		uint64 Value;
 	};
@@ -74,7 +74,8 @@ FORCEINLINE uint32 GetTypeHash(const FNetRefHandle& Handle)
 
 FORCEINLINE uint32 GetObjectIdForNetTrace(const FNetRefHandle& Handle)
 {
-	return Handle.GetId();
+	// Until NetTrace is fixed: https://jira.it.epicgames.com/browse/UE-179190
+	return (uint32)Handle.GetId();
 }
 
 }
