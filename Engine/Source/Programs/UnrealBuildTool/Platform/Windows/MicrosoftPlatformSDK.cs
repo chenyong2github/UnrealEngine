@@ -842,8 +842,7 @@ namespace UnrealBuildTool
 				}
 				catch (Exception Ex)
 				{
-					Logger.LogWarning("Unable to enumerate Visual Studio installations");
-					Logger.LogDebug(Ex.ToString());
+					Logger.LogDebug(Ex, "Unable to enumerate Visual Studio installations");
 				}
 			}
 			CachedVisualStudioInstallations = Installations;
