@@ -67,6 +67,12 @@ FCandidateNode UnpackCandidateNode(uint4 RawData, bool bHasEnabledMask)
 	return Node;
 }
 
+#ifndef ALLOW_TEMPLATES
+#define ALLOW_TEMPLATES 1
+#endif
+
+#if ALLOW_TEMPLATES
+
 // Load/Store/Clear are templated to also support globally coherent buffers
 template<typename BufferType>
 void StoreCandidateClusterNoCheck(BufferType CandidateClusters, uint ClusterIndex, FVisibleCluster VisibleCluster)
@@ -136,3 +142,5 @@ void ClearClusterBatch(BufferType NodesAndClusterBatches, uint BatchIndex, bool 
 	checkSlow(BatchIndex < GetMaxClusterBatches());
 	NodesAndClusterBatches.Store(GetNodesAndBatchesOffset(bPostPass) + GetClusterBatchesOffset() + BatchIndex * 4, 0);
 }
+
+#endif // ALLOW_TEMPLATES

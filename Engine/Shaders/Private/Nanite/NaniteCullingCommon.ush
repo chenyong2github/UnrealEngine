@@ -194,15 +194,15 @@ struct FBoxCull
 	{
 		// Frustum test against current frame
 		FFrustumCullData FrustumCull = BoxCullFrustum( LocalBoxCenter, LocalBoxExtent, LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, NaniteView.ViewToClip, bIsOrtho, bNearClip, bSkipCullFrustum );
-		bIsVisible		&= FrustumCull.bIsVisible;
-		bNeedsClipping	|= FrustumCull.bCrossesNearPlane || FrustumCull.bCrossesFarPlane;
+		bIsVisible		= bIsVisible && FrustumCull.bIsVisible;
+		bNeedsClipping	= bNeedsClipping || FrustumCull.bCrossesNearPlane || FrustumCull.bCrossesFarPlane;
 		return FrustumCull;
 	}
 
 	void HZB( FFrustumCullData FrustumCull, bool bClampToPageLevel )
 	{
 		FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, FrustumCull, 4 );
-		bIsVisible &= Rect.bOverlapsPixelCenter;
+		bIsVisible = bIsVisible && Rect.bOverlapsPixelCenter;
 
 	#if VIRTUAL_TEXTURE_TARGET
 		BRANCH

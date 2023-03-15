@@ -10,6 +10,10 @@
 	#define ENABLE_EXTENDED_INSTANCE_CULLING_PAYLOADS 1
 #endif
 
+// Disable the declaration of any templated types so we can use this shader without HLSL 2021. This is necessary because
+// cross-compilation creates bugs with ENABLE_INSTANCE_COMPACTION
+#define ALLOW_TEMPLATES 0
+
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../LightmapData.ush"
@@ -170,7 +174,7 @@ void WriteInstanceForCompaction(uint Offset, bool bVisible, uint InstanceId, FIn
 {
 	checkSlow(InstanceId < GPUSceneNumInstances);
 
-	uint PackedId = bVisible ? InstanceId | (ViewIdIndex << 28U) : 0xFFFFFFFFU;
+	uint PackedId = bVisible ? PackInstanceCullingOutput(InstanceId, ViewIdIndex, CullingFlags) : 0xFFFFFFFFU;
 	checkStructuredBufferAccessSlow(CompactInstanceIdsBufferOut, Offset);
 	CompactInstanceIdsBufferOut[Offset] = PackedId;	
 }
