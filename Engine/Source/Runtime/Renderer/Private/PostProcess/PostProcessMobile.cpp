@@ -217,7 +217,6 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, BloomThreshold)
-		SHADER_PARAMETER(FVector2f, TemporalJitterPixels)
 		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
 		SHADER_PARAMETER_SCALAR_ARRAY(float, PlusWeights, [5])
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -376,8 +375,6 @@ FMobileBloomSetupOutputs AddMobileBloomSetupPass(FRDGBuilder& GraphBuilder, cons
 		{
 			GET_SCALAR_ARRAY_ELEMENT(PSShaderParameters->PlusWeights, i) /= TotalWeight;
 		}
-
-		PSShaderParameters->TemporalJitterPixels = TemporalJitterPixels;
 	}
 
 	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
