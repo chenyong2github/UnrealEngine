@@ -47,6 +47,8 @@ FAutoConsoleVariableRef CVarLumenFrontLayerRelativeDepthThreshold(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+bool IsVSMTranslucentHighQualityEnabled();
+
 namespace Lumen
 {
 	bool UseLumenFrontLayerTranslucencyReflections(const FViewInfo& View)
@@ -399,36 +401,77 @@ void RenderFrontLayerTranslucencyGBuffer(
 		FSceneRenderer::SetStereoViewport(RHICmdList, View, ViewportScale);
 		View.ParallelMeshDrawCommandPasses[MeshPass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 	});
+
+	// Extract front layer depth depth (only needed when VSM high quality shadow on translucency is enabled)
+	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly && IsVSMTranslucentHighQualityEnabled())
+	{
+		// Queue updating the view state's render target reference with the new values
+		GraphBuilder.QueueTextureExtraction(FrontLayerTranslucencyData.SceneDepth, &View.ViewState->Lumen.TranslucentReflectionState.DepthHistoryRT);
+		GraphBuilder.QueueTextureExtraction(FrontLayerTranslucencyData.Normal, &View.ViewState->Lumen.TranslucentReflectionState.NormalHistoryRT);
+	}
 }
 
-bool IsVSMTranslucentHighQualityEnabled();
+bool FDeferredShadingSceneRenderer::IsLumenFrontLayerTranslucencyEnabled(const FViewInfo& View) const
+{ 
+	return View.bTranslucentSurfaceLighting && GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen && Lumen::UseLumenFrontLayerTranslucencyReflections(View);
+}
+
+bool IsLumenFrontLayerHistoryValid(const FViewInfo& View)
+{ 
+	return View.ViewState && 
+		View.ViewState->PrevFrameNumber == View.ViewState->Lumen.TranslucentReflectionState.HistoryFrameIndex && 
+		View.ViewState->Lumen.TranslucentReflectionState.DepthHistoryRT != nullptr && 
+		View.ViewState->Lumen.TranslucentReflectionState.NormalHistoryRT != nullptr;
+}
 
 FFrontLayerTranslucencyData FDeferredShadingSceneRenderer::RenderFrontLayerTranslucency(
 	FRDGBuilder& GraphBuilder,
 	TArray<FViewInfo>& InViews,
-	const FSceneTextures& SceneTextures)
+	const FSceneTextures& SceneTextures, 
+	bool bRenderOnlyForVSMPageMarking)
 {
-	// For now allocate & render both depth, normal, and roughness. 
-	// If only VSM resquest front layer data, we could render only the front layer depth.
-	// IsVSMTranslucentHighQualityEnabled();
-	auto NeedsFrontLayerData = [&](const FViewInfo& View) 
-	{ 
-		return View.bTranslucentSurfaceLighting && GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen && Lumen::UseLumenFrontLayerTranslucencyReflections(View);
-	};
-
-	// Check if any view require translucent front layer data
-	bool bNeedFrontLayerData = false;
-	for (const FViewInfo& View : InViews)
+	// bNeedFrontLayerData:
+	// 0 : No front layer
+	// 1 : Front layer data requested by Lumen reflection
+	// 2 : Front layer data requested by VSM page marking
+	uint32 bNeedFrontLayerData = 0;
+	if (bRenderOnlyForVSMPageMarking)
 	{
-		if (NeedsFrontLayerData(View))
+		if (IsVSMTranslucentHighQualityEnabled())
 		{
-			bNeedFrontLayerData = true;
-			break;
-		}	
+			// Front layer translucency data can be used from different sources (in priority order):
+			// * Lumen front layer History data
+			// * Skipped if Lumen will render front layer the same frame (as Translucent 'after opaque' might be rendered, e.g. particle, and if we render the front layer here, they won't be present)
+			// * Render local front layer data here
+			bool bValidHistory = false;
+			bool bRenderLumenFrontLayer = false;
+			for (FViewInfo& View : InViews)
+			{
+				bValidHistory = bValidHistory || IsLumenFrontLayerHistoryValid(View);
+				bRenderLumenFrontLayer = bRenderLumenFrontLayer || IsLumenFrontLayerTranslucencyEnabled(View);
+			}
+
+			if (!bValidHistory && !bRenderLumenFrontLayer)
+			{
+				bNeedFrontLayerData = 2;
+			}
+		}
+	}
+	else
+	{
+		// Check if any view require translucent front layer data
+		for (const FViewInfo& View : InViews)
+		{
+			if (IsLumenFrontLayerTranslucencyEnabled(View))
+			{
+				bNeedFrontLayerData = 1;
+				break;
+			}	
+		}
 	}
 
 	FFrontLayerTranslucencyData Out;
-	if (bNeedFrontLayerData)
+	if (bNeedFrontLayerData > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenFrontLayerTranslucencyReflections");
 
@@ -441,7 +484,7 @@ FFrontLayerTranslucencyData FDeferredShadingSceneRenderer::RenderFrontLayerTrans
 
 			for (const FViewInfo& View : InViews)
 			{
-				if (NeedsFrontLayerData(View))
+				if (bNeedFrontLayerData > 1 || IsLumenFrontLayerTranslucencyEnabled(View))
 				{
 					FLumenFrontLayerTranslucencyClearGBufferPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenFrontLayerTranslucencyClearGBufferPS::FParameters>();
 					PassParameters->RenderTargets[0] = FRenderTargetBinding(Out.Normal, ERenderTargetLoadAction::ENoAction, 0);
@@ -466,7 +509,7 @@ FFrontLayerTranslucencyData FDeferredShadingSceneRenderer::RenderFrontLayerTrans
 		// Render front layer data for each view
 		for (FViewInfo& View : InViews)
 		{
-			if (NeedsFrontLayerData(View))
+			if (bNeedFrontLayerData > 1 || IsLumenFrontLayerTranslucencyEnabled(View))
 			{
 				RenderFrontLayerTranslucencyGBuffer(GraphBuilder, *this, View, SceneTextures, Out);
 			}

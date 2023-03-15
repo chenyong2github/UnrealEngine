@@ -991,6 +991,7 @@ void UpdateHistoryReflections(
 	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
 	{
 		FReflectionTemporalState& ReflectionTemporalState = *ReflectionState;
+		ReflectionTemporalState.HistoryFrameIndex = View.ViewState->PendingPrevFrameNumber;
 		ReflectionTemporalState.HistoryViewRect = View.ViewRect;
 		ReflectionTemporalState.HistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 		ReflectionTemporalState.HistoryEffectiveResolution = EffectiveResolution;

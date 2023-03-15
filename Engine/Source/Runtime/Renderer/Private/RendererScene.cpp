@@ -1073,7 +1073,9 @@ uint64 FReflectionTemporalState::GetGPUSizeBytes(bool bLogSizes) const
 		GetRenderTargetGPUSizeBytes(SpecularIndirectHistoryRT, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(NumFramesAccumulatedRT, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(ResolveVarianceHistoryRT, bLogSizes) +
-		GetRenderTargetGPUSizeBytes(BSDFTileHistoryRT, bLogSizes);
+		GetRenderTargetGPUSizeBytes(BSDFTileHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(DepthHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(NormalHistoryRT, bLogSizes);
 }
 
 uint64 FRadianceCacheState::GetGPUSizeBytes(bool bLogSizes) const

@@ -116,6 +116,7 @@ public:
 class FReflectionTemporalState
 {
 public:
+	uint32 HistoryFrameIndex;
 	FIntRect HistoryViewRect;
 	FVector4f HistoryScreenPositionScaleBias;
 	FIntPoint HistorySceneTexturesExtent;
@@ -128,9 +129,12 @@ public:
 	TRefCountPtr<IPooledRenderTarget> NumFramesAccumulatedRT;
 	TRefCountPtr<IPooledRenderTarget> ResolveVarianceHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> BSDFTileHistoryRT;
+	TRefCountPtr<IPooledRenderTarget> DepthHistoryRT;
+	TRefCountPtr<IPooledRenderTarget> NormalHistoryRT;
 
 	FReflectionTemporalState()
 	{
+		HistoryFrameIndex = 0;
 		HistoryViewRect = FIntRect(0, 0, 0, 0);
 		HistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
 		HistorySceneTexturesExtent = FIntPoint(0,0);
@@ -146,6 +150,8 @@ public:
 		NumFramesAccumulatedRT.SafeRelease();
 		ResolveVarianceHistoryRT.SafeRelease();
 		BSDFTileHistoryRT.SafeRelease();
+		DepthHistoryRT.SafeRelease();
+		NormalHistoryRT.SafeRelease();
 	}
 
 #if WITH_MGPU
@@ -158,6 +164,8 @@ public:
 		TRANSFER_LUMEN_RESOURCE(NumFramesAccumulatedRT);
 		TRANSFER_LUMEN_RESOURCE(ResolveVarianceHistoryRT);
 		TRANSFER_LUMEN_RESOURCE(BSDFTileHistoryRT);
+		TRANSFER_LUMEN_RESOURCE(DepthHistoryRT);
+		TRANSFER_LUMEN_RESOURCE(NormalHistoryRT);
 
 		#undef TRANSFER_LUMEN_RESOURCE
 	}

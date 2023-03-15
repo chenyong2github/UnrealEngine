@@ -351,6 +351,7 @@ namespace Nanite
 }
 
 bool IsVSMTranslucentHighQualityEnabled();
+bool IsLumenFrontLayerHistoryValid(const FViewInfo& View);
 extern bool LightGridUses16BitBuffers(EShaderPlatform Platform);
 
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
@@ -737,7 +738,12 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SingleLayerWaterDepthTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, SingleLayerWaterTileMask)
 		SHADER_PARAMETER(FIntPoint, SingleLayerWaterTileViewRes)
+		SHADER_PARAMETER(uint32, FrontLayerMode)
+		SHADER_PARAMETER(FVector4f, FrontLayerHistoryUVMinMax)
+		SHADER_PARAMETER(FVector4f, FrontLayerHistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f, FrontLayerHistoryBufferSizeAndInvSize)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, FrontLayerTranslucencyDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, FrontLayerTranslucencyNormalTexture)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		RDG_BUFFER_ACCESS(IndirectBufferArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER(uint32, InputType)
@@ -1512,7 +1518,35 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						FMath::Clamp(CVarVirtualShadowMapPageMarkingPixelStrideX.GetValueOnRenderThread(), 1, 128),
 						FMath::Clamp(CVarVirtualShadowMapPageMarkingPixelStrideY.GetValueOnRenderThread(), 1, 128));
 					
-					const bool bFrontLayerEnabled = IsVSMTranslucentHighQualityEnabled() && FrontLayerTranslucencyData.IsValid();
+					// If Lumen has valid front layer history data use it, otherwise use same frame front layer depth
+					bool bFrontLayerEnabled = false;
+					if (IsVSMTranslucentHighQualityEnabled())
+					{
+						if (FrontLayerTranslucencyData.IsValid())
+						{
+							PassParameters->FrontLayerMode = 0;
+							PassParameters->FrontLayerTranslucencyDepthTexture = FrontLayerTranslucencyData.SceneDepth;
+							PassParameters->FrontLayerTranslucencyNormalTexture = FrontLayerTranslucencyData.Normal;
+							bFrontLayerEnabled = true;
+						}
+						else if (IsLumenFrontLayerHistoryValid(View))
+						{
+							const FReflectionTemporalState& State = View.ViewState->Lumen.TranslucentReflectionState;
+							const FIntPoint HistoryResolution = State.DepthHistoryRT->GetDesc().Extent;
+							const FVector2f InvBufferSize(1.0f / SceneTextures.Config.Extent.X, 1.0f / SceneTextures.Config.Extent.Y);
+							PassParameters->FrontLayerMode = 1;
+							PassParameters->FrontLayerHistoryUVMinMax = FVector4f(
+								(State.HistoryViewRect.Min.X + 0.5f) * InvBufferSize.X,
+								(State.HistoryViewRect.Min.Y + 0.5f) * InvBufferSize.Y,
+								(State.HistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,
+								(State.HistoryViewRect.Max.Y - 0.5f) * InvBufferSize.Y);
+							PassParameters->FrontLayerHistoryScreenPositionScaleBias = State.HistoryScreenPositionScaleBias;
+							PassParameters->FrontLayerHistoryBufferSizeAndInvSize = FVector4f(HistoryResolution.X, HistoryResolution.Y, 1.f/HistoryResolution.X, 1.f/HistoryResolution.Y);
+							PassParameters->FrontLayerTranslucencyDepthTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.TranslucentReflectionState.DepthHistoryRT, TEXT("VSM.FrontLayerHistoryDepth"));
+							PassParameters->FrontLayerTranslucencyNormalTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.TranslucentReflectionState.NormalHistoryRT, TEXT("VSM.FrontLayerHistoryNormal"));
+							bFrontLayerEnabled = true;
+						}
+					}
 
 					PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 					PassParameters->View = View.ViewUniformBuffer;
@@ -1521,6 +1555,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					PassParameters->DirectionalLightIds = GraphBuilder.CreateSRV(DirectionalLightIdsRDG);
 					PassParameters->PrunedLightGridData = GraphBuilder.CreateSRV(PrunedLightGridDataRDG);
 					PassParameters->PrunedNumCulledLightsGrid = GraphBuilder.CreateSRV(PrunedNumCulledLightsGridRDG);
+					bool bWaterEnabled = false;
 					if (SingleLayerWaterPrePassResult && InputType == EVirtualShadowMapProjectionInputType::GBuffer)
 					{
 						PassParameters->SingleLayerWaterDepthTexture = SingleLayerWaterPrePassResult->DepthPrepassTexture.Resolve;
@@ -1528,10 +1563,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 							SingleLayerWaterPrePassResult->ViewTileClassification[ViewIndex].TileMaskBuffer :
 							GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(uint32), 0xFFFFFFFF));
 						PassParameters->SingleLayerWaterTileViewRes = SingleLayerWaterPrePassResult->ViewTileClassification[ViewIndex].TiledViewRes;
-					}
-					if (bFrontLayerEnabled)
-					{
-						PassParameters->FrontLayerTranslucencyDepthTexture = FrontLayerTranslucencyData.SceneDepth;
+						bWaterEnabled = true;
 					}
 					PassParameters->NumDirectionalLightSmInds = uint32(DirectionalLightIds.Num());
 					PassParameters->PageDilationBorderSizeLocal = CVarPageDilationBorderSizeLocal.GetValueOnRenderThread();
@@ -1564,12 +1596,12 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					{						
 						FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
 						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FInputType>(static_cast<uint32>(InputType));
-						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FWaterDepth>(SingleLayerWaterPrePassResult != nullptr);
+						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FWaterDepth>(bWaterEnabled);
 						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FTranslucencyDepth>(bFrontLayerEnabled);
 						auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 						FComputeShaderUtils::AddPass(
 							GraphBuilder,
-							RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s,NumShadowMaps=%d,{%d,%d})", ToString(InputType), GetNumFullShadowMaps(), GridSize.X, GridSize.Y),
+							RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s,%s%sNumShadowMaps=%d,{%d,%d})", ToString(InputType), (bWaterEnabled ? TEXT("Water,") : TEXT("")), (bFrontLayerEnabled ? TEXT("FrontLayer,") : TEXT("")), GetNumFullShadowMaps(), GridSize.X, GridSize.Y),
 							ComputeShader,
 							PassParameters,
 							FIntVector(GridSize.X, GridSize.Y, 1));

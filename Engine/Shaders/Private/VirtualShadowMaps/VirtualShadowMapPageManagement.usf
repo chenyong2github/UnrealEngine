@@ -192,7 +192,12 @@ int2 SingleLayerWaterTileViewRes;
 #endif
 
 #if PERMUTATION_TRANSLUCENCY_DEPTH
+uint FrontLayerMode;
+float4 FrontLayerHistoryUVMinMax;
+float4 FrontLayerHistoryScreenPositionScaleBias;
+float4 FrontLayerHistoryBufferSizeAndInvSize;
 Texture2D<float> FrontLayerTranslucencyDepthTexture;
+Texture2D<float4> FrontLayerTranslucencyNormalTexture;
 #endif
 
 struct FPositionData
@@ -321,12 +326,46 @@ void GeneratePageFlagsFromPixels(
 	#endif // PERMUTATION_WATER_DEPTH
 
 	#if PERMUTATION_TRANSLUCENCY_DEPTH
-		DeviceZTranslucency = FrontLayerTranslucencyDepthTexture.Load(uint3(PixelPos, 0)).x;
-		bIsTranslucencyDepthValid = DeviceZTranslucency > 0;
-	#endif
+		// Same frame front layer depth
+		if (FrontLayerMode == 0)
+		{
+			DeviceZTranslucency = FrontLayerTranslucencyDepthTexture.Load(uint3(PixelPos, 0)).x;
+			const float4 EncodedData = FrontLayerTranslucencyNormalTexture.Load(uint3(PixelPos, 0));
+			bIsTranslucencyDepthValid = EncodedData.w > 0 && DeviceZTranslucency > 0;
+		}
+		// Previous frame Front layer depth reprojection
+		else
+		{
+			const float2 ScreenPosition = SvPositionToScreenPosition(float4(PixelPos, 0, 1)).xy;
 
+			float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
+			const float4 ThisClip = float4(HistoryScreenPosition, 1);
+			//float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); //<=== doesn't contain AA offsets
+			const float4 PrevClip = mul(ThisClip, View.ClipToPrevClipWithAA);
+			const float3 PrevScreen = PrevClip.xyz / PrevClip.w;
+			const float3 Velocity = HistoryScreenPosition - PrevScreen;
+			// TODO handle dynamic object by using velocity buffer?
+			HistoryScreenPosition -= Velocity;
+
+			const float2 HistoryUV = HistoryScreenPosition.xy * FrontLayerHistoryScreenPositionScaleBias.xy + FrontLayerHistoryScreenPositionScaleBias.wz;
+			bool bHistoryValid = true;
+			FLATTEN
+			if (any(HistoryUV > FrontLayerHistoryUVMinMax.zw) || any(HistoryUV < FrontLayerHistoryUVMinMax.xy))
+			{
+				bHistoryValid = false;
+			}
+
+			if (bHistoryValid)
+			{
+				const float2 HistoryPixelPos = HistoryUV * FrontLayerHistoryBufferSizeAndInvSize.xy;
+				DeviceZTranslucency = FrontLayerTranslucencyDepthTexture.Load(uint3(HistoryPixelPos, 0)).x;
+				const float4 EncodedData = FrontLayerTranslucencyNormalTexture.Load(uint3(PixelPos, 0));
+				bIsTranslucencyDepthValid = EncodedData.w > 0 && DeviceZTranslucency > 0;
+			}
+		}
+	#endif
 	}
-#endif // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER || PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+#endif // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER
 	
 	if (!bIsValid && !bIsWaterDepthValid && !bIsTranslucencyDepthValid)
 	{

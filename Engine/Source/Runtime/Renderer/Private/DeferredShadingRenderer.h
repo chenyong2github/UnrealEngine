@@ -777,7 +777,10 @@ private:
 	FFrontLayerTranslucencyData RenderFrontLayerTranslucency(
 		FRDGBuilder& GraphBuilder,
 		TArray<FViewInfo>& Views,
-		const FSceneTextures& SceneTextures);
+		const FSceneTextures& SceneTextures,
+		bool bRenderOnlyForVSMPageMarking);
+
+	bool IsLumenFrontLayerTranslucencyEnabled(const FViewInfo& View) const;
 
 	void RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FLumenSceneFrameTemporaries& FrameTemporaries);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
