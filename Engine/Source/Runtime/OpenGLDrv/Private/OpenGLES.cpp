@@ -55,6 +55,7 @@ namespace GLFuncPointers
 	PFNGLBLENDFUNCIEXTPROC					glBlendFunciEXT = nullptr;
 	PFNGLBLENDFUNCSEPARATEIEXTPROC			glBlendFuncSeparateiEXT = nullptr;
 	PFNGLCOLORMASKIEXTPROC					glColorMaskiEXT = nullptr;
+	PFNGLFRAMEBUFFERTEXTUREPROC				glFramebufferTexture = nullptr;
 
 	PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC				glFramebufferTextureMultiviewOVR = NULL;
 	PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC	glFramebufferTextureMultisampleMultiviewOVR = NULL;
@@ -305,6 +306,7 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 		glBlendFunciEXT = (PFNGLBLENDFUNCIEXTPROC)((void*)eglGetProcAddress("glBlendFunci"));
 		glBlendFuncSeparateiEXT = (PFNGLBLENDFUNCSEPARATEIEXTPROC)((void*)eglGetProcAddress("glBlendFuncSeparatei"));
 		glColorMaskiEXT = (PFNGLCOLORMASKIEXTPROC)((void*)eglGetProcAddress("glColorMaski"));
+		glFramebufferTexture = (PFNGLFRAMEBUFFERTEXTUREPROC)((void*)eglGetProcAddress("glFramebufferTexture"));
 	}
 	
 	if (!glEnableiEXT && ExtensionsString.Contains(TEXT("GL_EXT_draw_buffers_indexed")))
