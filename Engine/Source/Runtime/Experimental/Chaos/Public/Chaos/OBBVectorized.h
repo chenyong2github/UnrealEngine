@@ -13,7 +13,7 @@ namespace Chaos
 		class FOBBVectorized
 		{
 		public:
-			FOBBVectorized(const FRigidTransform3& Transform, const FVec3f& HalfExtentsIn);
+			FOBBVectorized(const FRigidTransform3& Transform, const FVec3f& HalfExtentsIn, const FVec3f& InvScale);
 			bool IntersectAABB(const FAABBVectorized& Bounds) const;
 
 		private:
@@ -25,6 +25,7 @@ namespace Chaos
 
 			VectorRegister4Float MaxObb;
 			VectorRegister4Float MinObb;
+			VectorRegister4Float InvScale;
 		};
 	}
 }

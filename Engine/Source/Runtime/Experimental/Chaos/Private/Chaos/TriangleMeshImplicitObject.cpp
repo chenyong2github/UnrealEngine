@@ -1056,12 +1056,11 @@ bool FTriangleMeshImplicitObject::Overlap(const FVec3& Point, const FReal Thickn
 template <bool IsSpherical, typename QueryGeomType>
 bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD, FVec3 TriMeshScale) const
 {
-
+	const FVec3 InvTriMeshScale = FVec3(FReal(1) / TriMeshScale.X, FReal(1) / TriMeshScale.Y, FReal(1) / TriMeshScale.Z);
 	const QueryGeomType& WorldScaleQueryGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
 
 	if (OutMTD)
 	{
-		const FVec3 InvTriMeshScale = FVec3(FReal(1) / TriMeshScale.X, FReal(1) / TriMeshScale.Y, FReal(1) / TriMeshScale.Z);
 		// IMPORTANT QueryTM comes with a invscaled translation so we need a version of the TM with world space translation to properly compute the bounds
 		FRigidTransform3 TriMeshToGeomNoScale{ QueryTM };
 		TriMeshToGeomNoScale.SetTranslation(TriMeshToGeomNoScale.GetTranslation() * TriMeshScale);
@@ -1120,14 +1119,13 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 	}
 	else
 	{
-		// Disabled optimization due to a bug UE-176682, TODO Re-enabled it 
-		// if (IsSpherical || FMath::Abs(QueryTM.GetRotation().W) > 0.9)
+		
+		FRigidTransform3 TriMeshToGeomNoScale{ QueryTM };
+		TriMeshToGeomNoScale.SetTranslation(TriMeshToGeomNoScale.GetTranslation() * TriMeshScale);
+		// If the query shape is axis aligned, meaning has no rotation or a 90 degree rotation use a middle phase AABB query
+		if (IsSpherical || FMath::Abs(QueryTM.GetRotation().W) > 0.9 || FMath::IsNearlyEqual(QueryTM.GetRotation().W, UE_HALF_SQRT_2, 0.01))
 		{
-			const FVec3 InvTriMeshScale = FVec3(FReal(1) / TriMeshScale.X, FReal(1) / TriMeshScale.Y, FReal(1) / TriMeshScale.Z);
 			// IMPORTANT QueryTM comes with a invscaled translation so we need a version of the TM with world space translation to properly compute the bounds
-			FRigidTransform3 TriMeshToGeomNoScale{ QueryTM };
-			TriMeshToGeomNoScale.SetTranslation(TriMeshToGeomNoScale.GetTranslation() * TriMeshScale);
-
 			// NOTE: BVH test is done in tri-mesh local space (whereas collision detection is done in world space because you can't non-uniformly scale all shapes)
 			FAABB3 QueryBounds = WorldScaleQueryGeom.CalculateTransformedBounds(TriMeshToGeomNoScale);
 			QueryBounds.ThickenSymmetrically(FVec3(Thickness));
@@ -1136,15 +1134,17 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 			ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
 			return FastBVH.FindAllIntersectionsNoMTD(QueryBounds, WorldScaleQueryTM, WorldScaleQueryGeom, Thickness, TriMeshScale, this);
 		}
-		//else
-		//{
-		//	FAABB3 GeometryAABB = QueryGeom.BoundingBox();
-		//	GeometryAABB.ThickenSymmetrically(FVec3(Thickness));
-		//	Private::FOBBVectorized QueryObb(QueryTM, (GeometryAABB.Max() - GeometryAABB.Min()) * 0.5);
-		//	TRigidTransform<FReal, 3> WorldScaleQueryTM;
-		//	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
-		//	return FastBVH.FindAllIntersectionsNoMTD(QueryObb, WorldScaleQueryTM, WorldScaleQueryGeom, Thickness, TriMeshScale, this);
-		//}
+		else
+		{
+			FAABB3 GeometryAABB = WorldScaleQueryGeom.BoundingBox();
+			GeometryAABB.ThickenSymmetrically(FVec3(Thickness));
+			// The geometry is not necessarily in the center of its translation. (cf: a capsule can be create with two points away from its own transform)
+			TriMeshToGeomNoScale.SetTranslation(TriMeshToGeomNoScale.GetTranslation() + GeometryAABB.Center());
+			Private::FOBBVectorized QueryObb(TriMeshToGeomNoScale, (GeometryAABB.Max() - GeometryAABB.Min()) * 0.5, InvTriMeshScale);
+			TRigidTransform<FReal, 3> WorldScaleQueryTM;
+			ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
+			return FastBVH.FindAllIntersectionsNoMTD(QueryObb, WorldScaleQueryTM, WorldScaleQueryGeom, Thickness, TriMeshScale, this);
+		}
 	}
 }
 
