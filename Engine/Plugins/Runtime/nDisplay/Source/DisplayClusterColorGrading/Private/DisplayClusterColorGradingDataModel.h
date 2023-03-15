@@ -88,6 +88,12 @@ public:
 
 		/** A list of categories of properties to display in the detail view of the color grading panel */
 		TArray<FName> DetailsViewCategories;
+
+		/** Indicates that the color grading group can be deleted by the user */
+		bool bCanBeDeleted = false;
+
+		/** Indicates that the color grading group can be renamed by the user */
+		bool bCanBeRenamed = false;
 	};
 
 	/** Stores data used to generate a details subsection, which is a selectable element in a details section that modifies which properties are displayed in the section */
@@ -124,6 +130,8 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FOnDataModelGenerated);
 	DECLARE_MULTICAST_DELEGATE(FOnColorGradingSelectionChanged);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnColorGradingGroupDeleted, int32);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnColorGradingGroupRenamed, int32, const FText&);
 
 public:
 	FDisplayClusterColorGradingDataModel();
@@ -176,6 +184,12 @@ public:
 	/** Gets the delegate that is raised when the selected color grading element has changed */
 	FOnColorGradingSelectionChanged& OnColorGradingElementSelectionChanged() { return OnColorGradingElementSelectionChangedDelegate; }
 
+	/** Gets the delegate that is raised when a color grading group is deleted by the user */
+	FOnColorGradingGroupDeleted& OnColorGradingGroupDeleted() { return OnColorGradingGroupDeletedDelegate; }
+
+	/** Gets the delegate that is raised when a color grading group is renamed by the user */
+	FOnColorGradingGroupRenamed& OnColorGradingGroupRenamed() { return OnColorGradingGroupRenamedDelegate; }
+
 private:
 	/** Initializes any needed data model generators for the specified class */
 	void InitializeDataModelGenerator(UClass* InClass);
@@ -220,4 +234,10 @@ private:
 
 	/** Delegate that is raised when the selected color grading element has been changed */
 	FOnColorGradingSelectionChanged OnColorGradingElementSelectionChangedDelegate;
+
+	/** Delegate that is raised when a color grading group is being deleted */
+	FOnColorGradingGroupDeleted OnColorGradingGroupDeletedDelegate;
+
+	/** Delegate that is raised when a color grading group is being renamed */
+	FOnColorGradingGroupRenamed OnColorGradingGroupRenamedDelegate;
 };

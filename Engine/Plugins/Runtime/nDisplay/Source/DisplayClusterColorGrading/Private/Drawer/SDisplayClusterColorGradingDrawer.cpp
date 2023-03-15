@@ -20,8 +20,10 @@
 #include "ColorCorrectRegion.h"
 #include "ColorCorrectWindow.h"
 #include "Engine/PostProcessVolume.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
@@ -32,6 +34,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterColorGrading"
 
@@ -233,7 +236,7 @@ void SDisplayClusterColorGradingDrawer::Construct(const FArguments& InArgs, bool
 					.BorderImage(bIsInDrawer ? FStyleDefaults::GetNoBrush() : FAppStyle::Get().GetBrush("Brushes.Panel"))
 					[
 						SNew(SBox)
-						.HeightOverride(24.0f)
+						.HeightOverride(28.0f)
 						[
 							SNew(SHorizontalBox)
 
@@ -836,10 +839,12 @@ void SDisplayClusterColorGradingDrawer::FillColorGradingGroupToolBar()
 	if (ColorGradingGroupToolBarBox.IsValid())
 	{
 		ColorGradingGroupToolBarBox->ClearChildren();
+		ColorGradingGroupTextBlocks.Empty(ColorGradingDataModel->ColorGradingGroups.Num());
 
 		for (int32 Index = 0; Index < ColorGradingDataModel->ColorGradingGroups.Num(); ++Index)
 		{
-			const FDisplayClusterColorGradingDataModel::FColorGradingGroup& Group = ColorGradingDataModel->ColorGradingGroups[Index];
+			TSharedPtr<SInlineEditableTextBlock> TextBlock = nullptr;
+
 			ColorGradingGroupToolBarBox->AddSlot()
 			.AutoWidth()
 			.Padding(2.0f, 0.0f, 2.0f, 0.0f)
@@ -848,12 +853,20 @@ void SDisplayClusterColorGradingDrawer::FillColorGradingGroupToolBar()
 				.Style(FAppStyle::Get(), "DetailsView.SectionButton")
 				.OnCheckStateChanged(this, &SDisplayClusterColorGradingDrawer::OnColorGradingGroupCheckedChanged, Index)
 				.IsChecked(this, &SDisplayClusterColorGradingDrawer::IsColorGradingGroupSelected, Index)
+				.OnGetMenuContent(this, &SDisplayClusterColorGradingDrawer::GetColorGradingGroupMenuContent, Index)
 				[
-					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "SmallText")
-					.Text(Group.DisplayName)
+					SNew(SBox)
+					.HeightOverride(20.0)
+					[
+						SAssignNew(TextBlock, SInlineEditableTextBlock)
+						.Text(this, &SDisplayClusterColorGradingDrawer::GetColorGradingGroupDisplayName, Index)
+						.Font(this, &SDisplayClusterColorGradingDrawer::GetColorGradingGroupDisplayNameFont, Index)
+						.OnTextCommitted(this, &SDisplayClusterColorGradingDrawer::OnColorGradingGroupRenamed, Index)
+					]
 				]
 			];
+
+			ColorGradingGroupTextBlocks.Add(TextBlock);
 		}
 
 		if (ColorGradingDataModel->ColorGradingGroupToolBarWidget.IsValid())
@@ -907,6 +920,99 @@ void SDisplayClusterColorGradingDrawer::OnColorGradingGroupCheckedChanged(ECheck
 	{
 		ColorGradingDataModel->SetSelectedColorGradingGroup(GroupIndex);
 	}
+}
+
+FText SDisplayClusterColorGradingDrawer::GetColorGradingGroupDisplayName(int32 GroupIndex) const
+{
+	if (ColorGradingDataModel->ColorGradingGroups.IsValidIndex(GroupIndex))
+	{
+		FText DisplayName = ColorGradingDataModel->ColorGradingGroups[GroupIndex].DisplayName;
+		if (DisplayName.IsEmpty())
+		{
+			return LOCTEXT("ColorGradingGroupEmptyNameLabel", "Unnamed");
+		}
+
+		return DisplayName;
+	}
+
+	return FText::GetEmpty();
+}
+
+FSlateFontInfo SDisplayClusterColorGradingDrawer::GetColorGradingGroupDisplayNameFont(int32 GroupIndex) const
+{
+	if (ColorGradingDataModel->ColorGradingGroups.IsValidIndex(GroupIndex))
+	{
+		FText DisplayName = ColorGradingDataModel->ColorGradingGroups[GroupIndex].DisplayName;
+		if (DisplayName.IsEmpty())
+		{
+			return FAppStyle::Get().GetFontStyle("NormalFontItalic");
+		}
+	}
+
+	return FAppStyle::Get().GetFontStyle("NormalFont");
+}
+
+TSharedRef<SWidget> SDisplayClusterColorGradingDrawer::GetColorGradingGroupMenuContent(int32 GroupIndex)
+{
+	if (ColorGradingDataModel->ColorGradingGroups.IsValidIndex(GroupIndex))
+	{
+		const FDisplayClusterColorGradingDataModel::FColorGradingGroup& Group = ColorGradingDataModel->ColorGradingGroups[GroupIndex];
+
+		FMenuBuilder MenuBuilder(true, nullptr);
+
+		const FGenericCommands& GenericCommands = FGenericCommands::Get();
+
+		if (Group.bCanBeRenamed)
+		{
+			MenuBuilder.AddMenuEntry(
+				GenericCommands.Rename->GetLabel(),
+				GenericCommands.Rename->GetDescription(),
+				GenericCommands.Rename->GetIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterColorGradingDrawer::OnColorGradingGroupRequestRename, GroupIndex))
+			);
+		}
+
+		if (Group.bCanBeDeleted)
+		{
+			MenuBuilder.AddMenuEntry(
+				GenericCommands.Delete->GetLabel(),
+				GenericCommands.Delete->GetDescription(),
+				GenericCommands.Delete->GetIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SDisplayClusterColorGradingDrawer::OnColorGradingGroupDeleted, GroupIndex))
+			);
+		}
+
+		return MenuBuilder.MakeWidget();
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+void SDisplayClusterColorGradingDrawer::OnColorGradingGroupDeleted(int32 GroupIndex)
+{
+	// If the group being deleted is in front of the currently selected one, we want to make sure
+	// that the same group is selected even after the deletion, so preemptively adjust the
+	// currently selected group index
+	int32 SelectedGroupIndex = ColorGradingDataModel->GetSelectedColorGradingGroupIndex();
+	if (SelectedGroupIndex > GroupIndex)
+	{
+		ColorGradingDataModel->SetSelectedColorGradingGroup(SelectedGroupIndex - 1);
+	}
+
+	ColorGradingDataModel->OnColorGradingGroupDeleted().Broadcast(GroupIndex);
+}
+
+void SDisplayClusterColorGradingDrawer::OnColorGradingGroupRequestRename(int32 GroupIndex)
+{
+	if (ColorGradingGroupTextBlocks.IsValidIndex(GroupIndex) && ColorGradingGroupTextBlocks[GroupIndex].IsValid())
+	{
+		ColorGradingGroupTextBlocks[GroupIndex]->EnterEditingMode();
+	}
+}
+
+void SDisplayClusterColorGradingDrawer::OnColorGradingGroupRenamed(const FText& InText, ETextCommit::Type TextCommitType, int32 GroupIndex)
+{
+	ColorGradingDataModel->OnColorGradingGroupRenamed().Broadcast(GroupIndex, InText);
 }
 
 void SDisplayClusterColorGradingDrawer::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)

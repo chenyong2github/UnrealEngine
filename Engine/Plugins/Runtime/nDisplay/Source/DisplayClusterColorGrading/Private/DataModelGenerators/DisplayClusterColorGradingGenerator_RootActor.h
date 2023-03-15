@@ -48,6 +48,12 @@ private:
 	/** OnClick delegate handler for the "+" button that is added to the color grading group toolbar */
 	FReply AddColorGradingGroup();
 
+	/** Raised when a color grading group is being deleted */
+	void DeleteColorGradingGroup(int32 GroupIndex);
+
+	/** Raised when a color grading group is being renamed */
+	void RenameColorGradingGroup(int32 GroupIndex, const FText& NewName);
+
 	/** Creates the combo box used to display which viewports are part of the specified color grading group */
 	TSharedRef<SWidget> CreateViewportComboBox(int32 PerViewportColorGradingIndex) const;
 
@@ -77,6 +83,12 @@ public:
 private:
 	/** OnClick delegate handler for the "+" button that is added to the color grading group toolbar */
 	FReply AddColorGradingGroup();
+
+	/** Raised when a color grading group is being deleted */
+	void DeleteColorGradingGroup(int32 GroupIndex);
+
+	/** Raised when a color grading group is being renamed */
+	void RenameColorGradingGroup(int32 GroupIndex, const FText& NewName);
 
 	/** Creates the combo box used to display which nodes are part of the specified color grading group */
 	TSharedRef<SWidget> CreateNodeComboBox(int32 PerNodeColorGradingIndex) const;

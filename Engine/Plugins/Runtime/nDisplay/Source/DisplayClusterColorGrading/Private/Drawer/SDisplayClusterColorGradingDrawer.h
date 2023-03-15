@@ -12,6 +12,7 @@
 #include "SDisplayClusterColorGradingObjectList.h"
 #include "SDisplayClusterColorGradingColorWheel.h"
 
+class SInlineEditableTextBlock;
 class ADisplayClusterRootActor;
 class FDisplayClusterOperatorStatusBarExtender;
 class FDisplayClusterColorGradingDataModel;
@@ -112,6 +113,24 @@ private:
 	/** Raised when the user has selected the specified color grading group */
 	void OnColorGradingGroupCheckedChanged(ECheckBoxState State, int32 GroupIndex);
 
+	/** Gets the display name of the specified color grading group */
+	FText GetColorGradingGroupDisplayName(int32 GroupIndex) const;
+
+	/** Gets the font of the display name label of the specified color grading group */
+	FSlateFontInfo GetColorGradingGroupDisplayNameFont(int32 GroupIndex) const;
+
+	/** Gets the content for the right click menu for the color grading group */
+	TSharedRef<SWidget> GetColorGradingGroupMenuContent(int32 GroupIndex);
+
+	/** Raised when a color grading group has been deleted by the user */
+	void OnColorGradingGroupDeleted(int32 GroupIndex);
+
+	/** Raised when a rename has been requested on a color grading group */
+	void OnColorGradingGroupRequestRename(int32 GroupIndex);
+
+	/** Raised when a rename has been committed on a color grading group */
+	void OnColorGradingGroupRenamed(const FText& InText, ETextCommit::Type TextCommitType, int32 GroupIndex);
+
 	/** Raised when the editor replaces any UObjects with new instantiations, usually when actors have been recompiled from blueprints */
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 
@@ -127,7 +146,7 @@ private:
 	/** Raised when the user has changed the active root actor selected in the nDisplay operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
 	
-	/** Raised when the obejcts being displayed in the operator's details panel have changed */
+	/** Raised when the objects being displayed in the operator's details panel have changed */
 	void OnDetailObjectsChanged(const TArray<UObject*>& Objects);
 
 	/** Raised when the color grading data model has been generated */
@@ -152,12 +171,13 @@ private:
 	TSharedPtr<SHorizontalBox> ColorGradingGroupToolBarBox;
 	TSharedPtr<SDisplayClusterColorGradingColorWheelPanel> ColorWheelPanel;
 	TSharedPtr<SDisplayClusterColorGradingDetailsPanel> DetailsPanel;
+	TArray<TSharedPtr<SInlineEditableTextBlock>> ColorGradingGroupTextBlocks;
 
 	/** The color grading data model for the currently selected objects */
 	TSharedPtr<FDisplayClusterColorGradingDataModel> ColorGradingDataModel;
 
 	/** The current mode that the drawer is in */
-	EDisplayClusterColorGradingDrawerMode CurrentDrawerMode;
+	EDisplayClusterColorGradingDrawerMode CurrentDrawerMode = EDisplayClusterColorGradingDrawerMode::ColorGrading;
 
 	/** Gets whether this widget is in a drawer or docked in a tab */
 	bool bIsInDrawer = false;

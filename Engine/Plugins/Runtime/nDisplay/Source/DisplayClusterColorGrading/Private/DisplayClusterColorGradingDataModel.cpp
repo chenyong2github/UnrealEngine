@@ -149,6 +149,9 @@ void FDisplayClusterColorGradingDataModel::Reset()
 		PropertyRowGenerator->UnregisterInstancedCustomPropertyLayout(GeneratorInstance.Key.Get());
 	}
 
+	OnColorGradingGroupDeletedDelegate.Clear();
+	OnColorGradingGroupRenamedDelegate.Clear();
+
 	DataModelGeneratorInstances.Empty();
 	ColorGradingGroups.Empty();
 	DetailsSections.Empty();
@@ -191,6 +194,13 @@ void FDisplayClusterColorGradingDataModel::SetDrawerState(const FDisplayClusterC
 	if (PropertyRowGenerator.IsValid())
 	{
 		PropertyRowGenerator->SetObjects(ObjectsToSelect);
+	}
+
+	// After the data model has been created as part of the SetObjects call, check that the saved selected color grading group is still valid,
+	// and if not, set the selected group to 0
+	if (SelectedColorGradingGroupIndex >= ColorGradingGroups.Num())
+	{
+		SelectedColorGradingGroupIndex = 0;
 	}
 }
 
