@@ -166,48 +166,50 @@ bool DisplaceNaniteMesh(
 	// TODO: Make the mesh prepare and displacement logic extensible, and not hardcoded within this plugin
 
 	// START - MESH PREPARE
-
-	TArray<uint32> VertSamples;
-	VertSamples.SetNumZeroed(Verts.Position.Num());
-
-	ParallelFor(TEXT("Nanite.Displace.Guide"), Verts.Position.Num(), 1024,
-	[&](int32 VertIndex)
+	if (Verts.UVs.Num() > 1)
 	{
-		Verts.TangentX[VertIndex] = FVector3f::ZeroVector;
+		TArray<uint32> VertSamples;
+		VertSamples.SetNumZeroed(Verts.Position.Num());
 
-		for (int32 GuideVertIndex = 0; GuideVertIndex < Verts.Position.Num(); ++GuideVertIndex)
+		ParallelFor(TEXT("Nanite.Displace.Guide"), Verts.Position.Num(), 1024,
+		[&](int32 VertIndex)
 		{
-			if (Verts.UVs[1][GuideVertIndex].Y >= 0.0f)
+			Verts.TangentX[VertIndex] = FVector3f::ZeroVector;
+
+			for (int32 GuideVertIndex = 0; GuideVertIndex < Verts.Position.Num(); ++GuideVertIndex)
 			{
-				continue;
+				if (Verts.UVs[1][GuideVertIndex].Y >= 0.0f)
+				{
+					continue;
+				}
+
+				FVector3f GuideVertPos = Verts.Position[GuideVertIndex];
+
+				// Matches the geoscript prototype (TODO: Remove)
+				const bool bApplyTolerance = true;
+				if (bApplyTolerance)
+				{
+					float Tolerance = 0.01f;
+					GuideVertPos /= Tolerance;
+					GuideVertPos.X = float(FMath::CeilToInt(GuideVertPos.X)) * Tolerance;
+					GuideVertPos.Y = float(FMath::CeilToInt(GuideVertPos.Y)) * Tolerance;
+					GuideVertPos.Z = float(FMath::CeilToInt(GuideVertPos.Z)) * Tolerance;
+				}
+
+				if (FVector3f::Distance(Verts.Position[VertIndex], GuideVertPos) < 0.1f)
+				{
+					++VertSamples[VertIndex];
+					Verts.TangentX[VertIndex] += Verts.TangentZ[GuideVertIndex];
+				}
 			}
 
-			FVector3f GuideVertPos = Verts.Position[GuideVertIndex];
-
-			// Matches the geoscript prototype (TODO: Remove)
-			const bool bApplyTolerance = true;
-			if (bApplyTolerance)
+			if (VertSamples[VertIndex] > 0)
 			{
-				float Tolerance = 0.01f;
-				GuideVertPos /= Tolerance;
-				GuideVertPos.X = float(FMath::CeilToInt(GuideVertPos.X)) * Tolerance;
-				GuideVertPos.Y = float(FMath::CeilToInt(GuideVertPos.Y)) * Tolerance;
-				GuideVertPos.Z = float(FMath::CeilToInt(GuideVertPos.Z)) * Tolerance;
+				Verts.TangentX[VertIndex] /= VertSamples[VertIndex];
+				Verts.TangentX[VertIndex].Normalize();
 			}
-
-			if (FVector3f::Distance(Verts.Position[VertIndex], GuideVertPos) < 0.1f)
-			{
-				++VertSamples[VertIndex];
-				Verts.TangentX[VertIndex] += Verts.TangentZ[GuideVertIndex];
-			}
-		}
-
-		if (VertSamples[VertIndex] > 0)
-		{
-			Verts.TangentX[VertIndex] /= VertSamples[VertIndex];
-			Verts.TangentX[VertIndex].Normalize();
-		}
-	});
+		});
+	}
 	// END - MESH PREPARE
 
 	FBounds3f Bounds;
