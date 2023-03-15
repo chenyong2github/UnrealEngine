@@ -81,8 +81,19 @@ enum class EMemberPropertyTraits : uint32
 	HasConnectionSpecificSerialization	= IsInvalidFastArray << 1U,
 	HasPushBasedDirtiness				= HasConnectionSpecificSerialization << 1U,
 	UseSerializerIsEqual				= HasPushBasedDirtiness << 1U,
+	IsBaseStruct						= UseSerializerIsEqual << 1U,
 };
 ENUM_CLASS_FLAGS(EMemberPropertyTraits);
+
+enum class EStructNetSerializerType : unsigned
+{
+	// Struct should use StructNetSerializer
+	Struct,
+	// Struct has a custom NetSerializer
+	Custom,
+	// Struct has a parent struct in the hiearchy which has a custom NetSerializer
+	DerivedFromCustom,
+};
 
 struct FLazyGetPathNameHelper
 {
@@ -141,8 +152,9 @@ public:
 	};
 	static bool IsSupportedProperty(FMemberProperty& OutMemberProperty, const FProperty* Property, const FIsSupportedPropertyParams& Params);
 	static bool IsSupportedProperty(FMemberProperty& OutMemberProperty, const FProperty* Property) { FIsSupportedPropertyParams Params; return IsSupportedProperty(OutMemberProperty, Property, Params); }
-	static bool IsSupportedStructWithCustomSerializer(FMemberProperty& OutMemberProperty, const UStruct* InStruct);	
+	static EStructNetSerializerType IsSupportedStructWithCustomSerializer(FMemberProperty& OutMemberProperty, const UStruct* InStruct);
 	static bool IsStructWithCustomSerializer(const UStruct* InStruct);
+	static const UStruct* FindSuperStructWithCustomSerializer(const UStruct* Struct);
 
 	static bool CanStructUseStructNetSerializer(FName StructName);
 	
@@ -154,7 +166,7 @@ public:
 	static void GetIrisPropertyTraits(FMemberProperty& OutMemberProperty, const FProperty* Property, const TArray<FLifetimeProperty>* LifeTimeProperties, UClass* ObjectClass);
 
 public:
-	enum class EDescriptorType : uint32
+	enum class EDescriptorType : unsigned
 	{
 		Class,
 		Struct,
@@ -176,7 +188,9 @@ public:
 	void AddMemberProperty(const FMemberProperty& Info) { Members.Add(Info); }
 	void AddMemberFunction(const FMemberFunction& Info) { Functions.Add(Info); }
 
-	void SetStructSizeAndAlignment(SIZE_T Size, SIZE_T Alignment) { StructInfo.SizeAndAlignment.Size = Size; StructInfo.SizeAndAlignment.Alignment = Alignment; } 
+	void SetStructSizeAndAlignment(SIZE_T Size, SIZE_T Alignment) { StructInfo.SizeAndAlignment.Size = Size; StructInfo.SizeAndAlignment.Alignment = Alignment; }
+	void SetStruct(const UStruct* Struct) { StructInfo.Struct = Struct; }
+
 	bool HasDataToBuild() const { return (Members.Num() > 0) || (Functions.Num() > 0U); }
 	TRefCountPtr<const FReplicationStateDescriptor> Build(const FString& StateName, FReplicationStateDescriptorRegistry* DescriptorRegistry, const FBuildParameters& BuildParams);
 
@@ -277,6 +291,7 @@ private:
 	struct FStructInfo
 	{
 		FSizeAndAlignment SizeAndAlignment = {};
+		const UStruct* Struct = nullptr;
 	};
 
 	void AddSerializerConfigMemoryBlockToLayout(FMemoryLayoutUtil::FLayout& Layout, FOffsetAndSize& OutOffsetAndSize, const FMemberCache& MemberCache) const;
@@ -331,7 +346,7 @@ private:
 TRefCountPtr<const FReplicationStateDescriptor> FPropertyReplicationStateDescriptorBuilder::GetDescriptorForStructProperty(const FMemberProperty& MemberProperty, FReplicationStateDescriptorRegistry* DescriptorRegistry) const
 {
 	const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(MemberProperty.Property);
-	const UStruct* Struct = StructProp->Struct;
+	const UScriptStruct* Struct = StructProp->Struct;
 
 	FReplicationStateDescriptorBuilder::FParameters Params;
 	Params.DescriptorRegistry = DescriptorRegistry;
@@ -352,7 +367,7 @@ bool FPropertyReplicationStateDescriptorBuilder::ValidateStructPropertyDescripto
 	}
 
 	const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(MemberProperty.Property);
-	const UStruct* Struct = StructProp->Struct;
+	const UScriptStruct* Struct = StructProp->Struct;
 
 	if (FPropertyReplicationStateDescriptorBuilder::IsStructWithCustomSerializer(Struct))
 	{
@@ -478,7 +493,7 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberCache(FBuilderContex
 	MemberCache.SetNum(Members.Num());
 	FMemberCacheEntry* CurrentCacheEntry = MemberCache.GetData();
 
-	bool bAreAllMembersProperties = true;
+	bool bSomeMembersAreProperties = false;
 	for (FMemberProperty& Member : Members)
 	{
 		const FNetSerializer* Serializer = Member.SerializerInfo->GetNetSerializer(Member.Property);
@@ -487,6 +502,8 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberCache(FBuilderContex
 		// This is a property based struct, make sure we have a descriptor for it.
 		if (IsStructNetSerializer(Serializer))
 		{
+			bSomeMembersAreProperties = true;
+
 			// Build descriptor for struct
 			CurrentCacheEntry->Descriptor = GetDescriptorForStructProperty(Member, DescriptorRegistry);
 
@@ -545,6 +562,8 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberCache(FBuilderContex
 		}
 		else if (IsArrayPropertyNetSerializer(Serializer))
 		{
+			bSomeMembersAreProperties = true;
+
 			// Build descriptor for inner property
 			CurrentCacheEntry->Descriptor = GetDescriptorForArrayProperty(Member.Property, DescriptorRegistry);
 
@@ -576,6 +595,8 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberCache(FBuilderContex
 		}
 		else if (Member.Property)
 		{
+			bSomeMembersAreProperties = true;
+
 			CurrentCacheEntry->ExternalSizeAndAlignment = { (SIZE_T)Member.Property->ElementSize, (SIZE_T)Member.Property->GetMinAlignment() };
 			CurrentCacheEntry->InternalSizeAndAlignment = { Serializer->QuantizedTypeSize, Serializer->QuantizedTypeAlignment };
 		}
@@ -583,7 +604,6 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberCache(FBuilderContex
 		{
 			CurrentCacheEntry->ExternalSizeAndAlignment = Member.ExternalSizeAndAlignment;
 			CurrentCacheEntry->InternalSizeAndAlignment = { Serializer->QuantizedTypeSize, Serializer->QuantizedTypeAlignment };
-			bAreAllMembersProperties = false;
 		}
 
 		CurrentCacheEntry->SerializerConfigSizeAndAlignment = { Serializer->ConfigTypeSize, Serializer->ConfigTypeAlignment };
@@ -599,12 +619,8 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberCache(FBuilderContex
 	Context.CombinedPropertyTraits = PropertyTraits;
 	Context.SharedPropertyTraits = SharedPropertyTraits;
 
-	// Either all members should be property based or we have a single member that is not a property
-	if (!bAreAllMembersProperties)
-	{
-		check(Members.Num() <= 1);
-		Context.bGeneratePropertyDescriptors = false; 
-	}
+	// If some members are property based we generate the property descriptor.
+	Context.bGeneratePropertyDescriptors = bSomeMembersAreProperties;
 }
 
 void FPropertyReplicationStateDescriptorBuilder::BuildMemberTagCache(FMemberTagCache& MemberTagCache, const FMemberCache& MemberCache) const
@@ -724,9 +740,7 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberFunctionCache(FBuild
 void FPropertyReplicationStateDescriptorBuilder::AllocateAndInitializeDefaultInternalStateBuffer(const uint8* RESTRICT SrcBuffer, const FReplicationStateDescriptor* Descriptor, const uint8*& OutDefaultStateBuffer) const
 {
 	// Allocate storage for incoming data, it will be freed when we destroy the descriptor
-	uint8* DstStateBuffer = (uint8*)FMemory::Malloc(Descriptor->InternalSize, Descriptor->InternalAlignment);
-	// Initialize to zero
-	FMemory::Memzero(DstStateBuffer, Descriptor->InternalSize);
+	uint8* DstStateBuffer = static_cast<uint8*>(FMemory::MallocZeroed(Descriptor->InternalSize, Descriptor->InternalAlignment));
 
 	// We setup a default context, we can however not capture object references as they need to resolve to the same value
 	// on both server and client
@@ -796,7 +810,7 @@ bool FPropertyReplicationStateDescriptorBuilder::CalculateDefaultStateChecksum(c
 	}
 
 	// State is too large, we cannot calculate a default hash for it
-	if (Writer.IsOverflown())
+	if (Context.HasErrorOrOverflow())
 	{
 		return false;
 	}
@@ -1166,7 +1180,7 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberPropertyDescriptors(
 	uint16 ArrayIndex = 0;
 	for (const FMemberProperty& Info : Members)
 	{
-		ArrayIndex = (Info.Property == LastProperty ? uint16(ArrayIndex + 1) : uint16(0));
+		ArrayIndex = (LastProperty && Info.Property == LastProperty ? uint16(ArrayIndex + 1) : uint16(0));
 		LastProperty = Info.Property;
 
 		CurrentMemberPropertyDescriptor->RepNotifyFunction = Info.PropertyRepNotifyFunction;
@@ -1221,21 +1235,24 @@ void FPropertyReplicationStateDescriptorBuilder::BuildMemberRepIndexToMemberDesc
 void FPropertyReplicationStateDescriptorBuilder::BuildMemberDebugDescriptors(FReplicationStateMemberDebugDescriptor* MemberDebugDescriptors, FReplicationStateDescriptor* Descriptor, const FBuilderContext& Context) const
 {
 	FReplicationStateMemberDebugDescriptor* CurrentMemberDebugDescriptor = MemberDebugDescriptors;
-	if (Context.bGeneratePropertyDescriptors)
+
+	TCHAR StringBuffer[1024];
+	// Structs derived from a struct with a custom NetSerializer can contain some replicated properties.
+	for (const FMemberProperty& Info : Members)
 	{
-		TCHAR StringBuffer[1024];
-		for (const FMemberProperty& Info : Members)
+		if (const FProperty* Property = Info.Property)
 		{
-			Info.Property->GetFName().ToString(StringBuffer, 1024);
+			Property->GetFName().ToString(StringBuffer, 1024);
 			CurrentMemberDebugDescriptor->DebugName = CreatePersistentNetDebugName(StringBuffer);
-		
-			++CurrentMemberDebugDescriptor;
 		}
-	}
-	else
-	{
-		// If we dont have any property descriptor we just use the debugname of the descriptor
-		CurrentMemberDebugDescriptor->DebugName = Descriptor->DebugName;
+		else
+		{
+			// If we dont have a property tied to the member we use the debugname of the descriptor
+			CurrentMemberDebugDescriptor->DebugName = Descriptor->DebugName;
+
+		}
+
+		++CurrentMemberDebugDescriptor;
 	}
 
 	// Fill in descriptor
@@ -1416,6 +1433,12 @@ EReplicationStateTraits FPropertyReplicationStateDescriptorBuilder::BuildReplica
 	if (EnumHasAnyFlags(PropertyTraits, EMemberPropertyTraits::UseSerializerIsEqual))
 	{
 		Traits |= EReplicationStateTraits::UseSerializerIsEqual;
+	}
+
+	// If one of the members have the IsBaseStruct trait we're building a descriptor for a derived struct.
+	if (EnumHasAnyFlags(PropertyTraits, EMemberPropertyTraits::IsBaseStruct))
+	{
+		Traits |= EReplicationStateTraits::IsDerivedStruct;
 	}
 
 	// Only set the PushBasedDirtiness trait if all properties are push based. An alternative could be to split into multiple states.
@@ -1671,6 +1694,14 @@ FPropertyReplicationStateDescriptorBuilder::Build(const FString& StateName, FRep
 			BuildMemberRepIndexToMemberDescriptors(reinterpret_cast<FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(Buffer + LayoutData.MemberRepIndexToMemberIndexDescriptorsSizeAndOffset.Offset), Descriptor);
 		}
 
+		// BaseStruct
+		if (EnumHasAnyFlags(Traits, EReplicationStateTraits::IsDerivedStruct))
+		{
+			const UScriptStruct* BaseStruct = Cast<const UScriptStruct>(FPropertyReplicationStateDescriptorBuilder::FindSuperStructWithCustomSerializer(StructInfo.Struct));
+			ensure(BaseStruct != nullptr);
+			Descriptor->BaseStruct = BaseStruct;
+		}
+
 		Descriptor->DebugName = CreatePersistentNetDebugName(StateName.GetCharArray().GetData());
 		if (LayoutData.MemberDebugDescriptorsSizeAndOffset.Size > 0)
 		{
@@ -1913,24 +1944,45 @@ bool FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(FMemberProp
 	return true;
 }
 
-bool FPropertyReplicationStateDescriptorBuilder::IsSupportedStructWithCustomSerializer(FMemberProperty& OutMemberProperty, const UStruct* InStruct)
+const UStruct* FPropertyReplicationStateDescriptorBuilder::FindSuperStructWithCustomSerializer(const UStruct* Struct)
+{
+	for (const UStruct* SuperStruct = Struct->GetSuperStruct(); SuperStruct != nullptr; SuperStruct = SuperStruct->GetSuperStruct())
+	{
+		if (const FPropertyNetSerializerInfo* NetSerializerInfo = FPropertyNetSerializerInfoRegistry::FindStructSerializerInfo(SuperStruct->GetFName()))
+		{
+			return SuperStruct;
+		}
+	}
+
+	return nullptr;
+}
+
+EStructNetSerializerType FPropertyReplicationStateDescriptorBuilder::IsSupportedStructWithCustomSerializer(FMemberProperty& OutMemberProperty, const UStruct* InStruct)
 {
 	// See if we got a matching custom serializer for the entire struct
+	EStructNetSerializerType SerializerType = EStructNetSerializerType::Struct;
 	const FPropertyNetSerializerInfo* NetSerializerInfo = FPropertyNetSerializerInfoRegistry::FindStructSerializerInfo(InStruct->GetFName());
+	if (NetSerializerInfo)
+	{
+		SerializerType = EStructNetSerializerType::Custom;
+	}
+	else
+	{
+		// Find closest parent with custom serializer.
+		for (const UStruct* SuperStruct = InStruct->GetSuperStruct(); SuperStruct != nullptr; SuperStruct = SuperStruct->GetSuperStruct())
+		{
+			NetSerializerInfo = FPropertyNetSerializerInfoRegistry::FindStructSerializerInfo(SuperStruct->GetFName());
+			if (NetSerializerInfo != nullptr)
+			{
+				SerializerType = EStructNetSerializerType::DerivedFromCustom;
+				break;
+			}
+		}
+	}
+
 	if (!NetSerializerInfo)
 	{
-		if (InStruct->GetSuperStruct())
-		{
-			const bool bSuperHasCustomNetSerializer = IsSupportedStructWithCustomSerializer(OutMemberProperty, InStruct->GetSuperStruct());
-
-			// Warn if one of our supers have a CustomNetSerializer, if that is the case user must be made aware and either declare an explicit forwarding NetSerializer
-			// or implement a custom NetSerializer
-			const bool bIsAllowedToWarn = ShouldUseIrisReplication() || FApp::IsGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
-			UE_CLOG(bSuperHasCustomNetSerializer && bIsAllowedToWarn && bWarnAboutStructsWithCustomSerialization, LogIris, Warning, TEXT("Detected derived struct %s which do not have a custom NetSerializer while Super %s has a custom NetSerializer. Silence warning by declaring an explicit forwarding serializer or implement a custom NetSerialzier for the derived struct"), ToCStr(InStruct->GetName()), ToCStr(InStruct->GetSuperStruct()->GetName()));
-
-			return bSuperHasCustomNetSerializer;
-		}
-		return false;
+		return EStructNetSerializerType::Struct;
 	}
 
 	OutMemberProperty.Property = nullptr;
@@ -1943,9 +1995,13 @@ bool FPropertyReplicationStateDescriptorBuilder::IsSupportedStructWithCustomSeri
 	
 	// Init traits
 	OutMemberProperty.Traits = EMemberPropertyTraits::None;
+	if (SerializerType == EStructNetSerializerType::DerivedFromCustom)
+	{
+		OutMemberProperty.Traits |= EMemberPropertyTraits::IsBaseStruct;
+	}
 	GetSerializerTraits(OutMemberProperty, nullptr, NetSerializerInfo);
 
-	return true;
+	return SerializerType;
 }
 
 bool FPropertyReplicationStateDescriptorBuilder::IsStructWithCustomSerializer(const UStruct* InStruct)
@@ -2242,9 +2298,48 @@ TRefCountPtr<const FReplicationStateDescriptor> FReplicationStateDescriptorBuild
 	bool bAllMembersAreReplicated = true;
 
 	// We have a special case for structs with custom serializers
-	if (!Parameters.SkipCheckForCustomNetSerializerForStruct && FPropertyReplicationStateDescriptorBuilder::IsSupportedStructWithCustomSerializer(MemberProperty, InStruct))
+	EStructNetSerializerType SerializerType = EStructNetSerializerType::Struct;
+	if (!Parameters.SkipCheckForCustomNetSerializerForStruct)
+	{
+		SerializerType = FPropertyReplicationStateDescriptorBuilder::IsSupportedStructWithCustomSerializer(MemberProperty, InStruct);
+	}
+
+	if (SerializerType != EStructNetSerializerType::Struct)
 	{
 		Builder.AddMemberProperty(MemberProperty);
+		if (SerializerType == EStructNetSerializerType::DerivedFromCustom)
+		{
+			// Add properties introduced after parent struct with custom serializer
+			const UStruct* StructWithCustomSerializer = FPropertyReplicationStateDescriptorBuilder::FindSuperStructWithCustomSerializer(InStruct);
+			TArray<const UStruct*, TInlineAllocator<32>> Structs;
+			for (const UStruct* Struct = InStruct; Struct != StructWithCustomSerializer; Struct = Struct->GetSuperStruct())
+			{
+				// Insert struct first to traverse them in natural order when looking for replicated properties.
+				constexpr int32 InsertAtIndex = 0;
+				Structs.Insert(Struct, InsertAtIndex);
+			}
+
+			for (const UStruct* Struct : Structs)
+			{
+				for (TFieldIterator<FProperty> It(Struct, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+				{
+					const FProperty* Property = *It;
+					if (EnumHasAnyFlags(Property->PropertyFlags, EPropertyFlags::CPF_RepSkip))
+					{
+						bAllMembersAreReplicated = false;
+						continue;
+					}
+
+					if (FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(MemberProperty, Property))
+					{
+						for (uint32 ArrayIt = 0, ArrayEndIt = Property->ArrayDim; ArrayIt < ArrayEndIt; ++ArrayIt)
+						{
+							Builder.AddMemberProperty(MemberProperty);
+						}
+					}
+				}
+			}
+		}
 	}
 	else
 	{
@@ -2313,6 +2408,7 @@ TRefCountPtr<const FReplicationStateDescriptor> FReplicationStateDescriptorBuild
 	}
 
 	Builder.SetStructSizeAndAlignment(InStruct->GetStructureSize(), InStruct->GetMinAlignment());
+	Builder.SetStruct(InStruct);
 
 	FLazyGetPathNameHelper LazyPathHelper;
 	FPropertyReplicationStateDescriptorBuilder::FBuildParameters BuildParameters = {};

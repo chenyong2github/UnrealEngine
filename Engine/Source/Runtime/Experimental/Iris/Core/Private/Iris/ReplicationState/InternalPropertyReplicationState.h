@@ -25,7 +25,7 @@ IRISCORE_API void InternalCopyPropertyValue(const FReplicationStateDescriptor* D
 IRISCORE_API void InternalCopyStructProperty(const FReplicationStateDescriptor* StructDescriptor, void* RESTRICT Dst, const void* RESTRICT Src);
 
 /** Compare struct members using InternalCompareMember, this function will only compare replicated members of the struct */
-IRISCORE_API bool InternalCompareStructProperty(const FReplicationStateDescriptor* StructDescriptor, void* RESTRICT Dst, const void* RESTRICT Src);
+IRISCORE_API bool InternalCompareStructProperty(const FReplicationStateDescriptor* StructDescriptor, const void* RESTRICT ValueA, const void* RESTRICT ValueB);
 
 /** CompareMembers, if data is not fully replicated we will use per member compare for structs and arrays */
 IRISCORE_API bool InternalCompareMember(const FReplicationStateDescriptor* Descriptor, uint32 MemberIndex, const void* RESTRICT ValueA, const void* RESTRICT ValueB);

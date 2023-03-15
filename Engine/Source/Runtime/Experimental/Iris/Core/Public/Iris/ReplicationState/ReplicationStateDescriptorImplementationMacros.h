@@ -131,6 +131,7 @@ const UE::Net::FReplicationStateDescriptor StateName::sReplicationStateDescripto
 	static_cast<const UE::Net::FReplicationStateMemberPropertyDescriptor*>(nullptr), \
 	static_cast<const UE::Net::FReplicationStateMemberLifetimeConditionDescriptor*>(nullptr), \
 	static_cast<const UE::Net::FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(nullptr), \
+	static_cast<const UScriptStruct*>(nullptr), \
 	UE::Net::CreatePersistentNetDebugName(TEXT(#StateName)), \
 	&sReplicationStateDescriptorMemberDebugDescriptors[0],\
 	sizeof(StateName), \

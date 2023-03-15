@@ -177,17 +177,18 @@ static FReplicationStateMemberTraitsDescriptor TestStructMemberTraitsDescriptors
 
 static const FReplicationStateDescriptor TestStructReplictionStateDescriptor =
 {
-	TestStructMemberDescriptors,			//FReplicationStateMemberDescriptor* MemberDescriptors;
-	static_cast<const FReplicationStateMemberChangeMaskDescriptor*>(nullptr),	//FReplicationStateMemberChangeMaskDescriptor* MemberChangeMaskDescriptors;
-	TestStructMemberSerializerDescriptors,	//FReplicationStateMemberSerializerDescriptor* MemberSerializerDescriptors;
-	TestStructMemberTraitsDescriptors, // MemberTraitsDescriptors;
+	TestStructMemberDescriptors,			// MemberDescriptors
+	static_cast<const FReplicationStateMemberChangeMaskDescriptor*>(nullptr),	// MemberChangeMaskDescriptors
+	TestStructMemberSerializerDescriptors,	// MemberSerializerDescriptors
+	TestStructMemberTraitsDescriptors, // MemberTraitsDescriptors
 	static_cast<const FReplicationStateMemberFunctionDescriptor*>(nullptr),
-	static_cast<const FReplicationStateMemberTagDescriptor*>(nullptr),	// MemberTagDescriptors;
-	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr),	// MemberReferenceDescriptors;
-	static_cast<const FProperty**>(nullptr),	// FProperty** MemberProperties;
+	static_cast<const FReplicationStateMemberTagDescriptor*>(nullptr),	// MemberTagDescriptors
+	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr),	// MemberReferenceDescriptors
+	static_cast<const FProperty**>(nullptr),	// MemberProperties
 	static_cast<const FReplicationStateMemberPropertyDescriptor*>(nullptr), // MemberPropertyDescriptors
 	static_cast<const FReplicationStateMemberLifetimeConditionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(nullptr),
+	static_cast<const UScriptStruct*>(nullptr), // BaseStruct
 	static_cast<const FNetDebugName*>(nullptr), // DebugName
 	static_cast<const FReplicationStateMemberDebugDescriptor*>(nullptr), // MemberDebugDescriptors
 	24,			//uint32 ExternalSize;
@@ -257,17 +258,18 @@ static FReplicationStateMemberChangeMaskDescriptor TestClassMemberChangeMaskDesc
 // Should be the same
 static const FReplicationStateDescriptor TestClassReplictionStateDescriptor
 {
-	TestClassMemberDescriptors,			//FReplicationStateMemberDescriptor* MemberDescriptors;
-	TestClassMemberChangeMaskDescriptors,	//FReplicationStateMemberChangeMaskDescriptor* MemberChangeMaskDescriptors;
-	TestClassMemberSerializerDescriptors,	//FReplicationStateMemberSerializerDescriptor* MemberSerializerDescriptors;
-	TestClassMemberTraitsDescriptors, // MemberTraitsDescriptors;
+	TestClassMemberDescriptors,			// MemberDescriptors
+	TestClassMemberChangeMaskDescriptors,	// MemberChangeMaskDescriptors
+	TestClassMemberSerializerDescriptors,	// MemberSerializerDescriptors
+	TestClassMemberTraitsDescriptors, // MemberTraitsDescriptors
 	static_cast<const FReplicationStateMemberFunctionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberTagDescriptor*>(nullptr), // MemberTagDescriptors
-	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors;
-	static_cast<const FProperty**>(nullptr), // FProperty** MemberProperties;
+	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors
+	static_cast<const FProperty**>(nullptr), // MemberProperties
 	static_cast<const FReplicationStateMemberPropertyDescriptor*>(nullptr), // MemberPropertyDescriptors
 	static_cast<const FReplicationStateMemberLifetimeConditionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(nullptr),
+	static_cast<const UScriptStruct*>(nullptr), // BaseStruct
 	static_cast<const FNetDebugName*>(nullptr), // DebugName
 	static_cast<const FReplicationStateMemberDebugDescriptor*>(nullptr), // MemberDebugDescriptors
 	32,			//uint32 ExternalSize;
@@ -292,17 +294,18 @@ static const FReplicationStateDescriptor TestClassReplictionStateDescriptor
 // Should be the same
 static const FReplicationStateDescriptor TestClassReplictionStateDescriptorNotReferenceCounted
 {
-	TestClassMemberDescriptors,			//FReplicationStateMemberDescriptor* MemberDescriptors;
-	TestClassMemberChangeMaskDescriptors,	//FReplicationStateMemberChangeMaskDescriptor* MemberChangeMaskDescriptors;
-	TestClassMemberSerializerDescriptors,	//FReplicationStateMemberSerializerDescriptor* MemberSerializerDescriptors;
-	TestClassMemberTraitsDescriptors, // MemberTraitsDescriptors;
+	TestClassMemberDescriptors,			// MemberDescriptors
+	TestClassMemberChangeMaskDescriptors,	// MemberChangeMaskDescriptors
+	TestClassMemberSerializerDescriptors,	// MemberSerializerDescriptors
+	TestClassMemberTraitsDescriptors, // MemberTraitsDescriptors
 	static_cast<const FReplicationStateMemberFunctionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberTagDescriptor*>(nullptr), // MemberTagDescriptors
-	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors;
-	static_cast<const FProperty**>(nullptr), // FProperty** MemberProperties;
+	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors
+	static_cast<const FProperty**>(nullptr), // MemberProperties
 	static_cast<const FReplicationStateMemberPropertyDescriptor*>(nullptr), // MemberPropertyDescriptors
 	static_cast<const FReplicationStateMemberLifetimeConditionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(nullptr),
+	static_cast<const UScriptStruct*>(nullptr), // BaseStruct
 	static_cast<const FNetDebugName*>(nullptr), // DebugName
 	static_cast<const FReplicationStateMemberDebugDescriptor*>(nullptr), // MemberDebugDescriptors
 	32,			//uint32 ExternalSize;
@@ -327,17 +330,18 @@ static const FReplicationStateDescriptor TestClassReplictionStateDescriptorNotRe
 // Should be the same
 static const FReplicationStateDescriptor TestClassWithNonReplicatedDataReplicationStateDescriptor =
 {
-	TestClassMemberDescriptors,			//FReplicationStateMemberDescriptor* MemberDescriptors;
-	TestClassMemberChangeMaskDescriptors,	//FReplicationStateMemberChangeMaskDescriptor* MemberChangeMaskDescriptors;
-	TestClassMemberSerializerDescriptors,	//FReplicationStateMemberSerializerDescriptor* MemberSerializerDescriptors;
+	TestClassMemberDescriptors,			// MemberDescriptors
+	TestClassMemberChangeMaskDescriptors,	// MemberChangeMaskDescriptors
+	TestClassMemberSerializerDescriptors,	// MemberSerializerDescriptors
 	TestClassMemberTraitsDescriptors,
 	static_cast<const FReplicationStateMemberFunctionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberTagDescriptor*>(nullptr), // MemberTagDescriptors
-	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors;
-	static_cast<const FProperty**>(nullptr), // FProperty** MemberProperties;
+	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors
+	static_cast<const FProperty**>(nullptr), // MemberProperties
 	static_cast<const FReplicationStateMemberPropertyDescriptor*>(nullptr), // MemberPropertyDescriptors
 	static_cast<const FReplicationStateMemberLifetimeConditionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(nullptr),
+	static_cast<const UScriptStruct*>(nullptr), // BaseStruct
 	static_cast<const FNetDebugName*>(nullptr), // DebugName
 	static_cast<const FReplicationStateMemberDebugDescriptor*>(nullptr), // MemberDebugDescriptors
 	32,			//uint32 ExternalSize;
@@ -480,11 +484,12 @@ static FReplicationStateDescriptor TestClassWithInheritanceReplictionStateDescri
 	TestClassWithInheritanceMemberTraitsDescriptors,
 	static_cast<const FReplicationStateMemberFunctionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberTagDescriptor*>(nullptr), // MemberTagDescriptors
-	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors;
-	static_cast<const FProperty**>(nullptr), // MemberProperties;
+	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors
+	static_cast<const FProperty**>(nullptr), // MemberProperties
 	static_cast<const FReplicationStateMemberPropertyDescriptor*>(nullptr), // MemberPropertyDescriptors
 	static_cast<const FReplicationStateMemberLifetimeConditionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(nullptr),
+	static_cast<const UScriptStruct*>(nullptr), // BaseStruct
 	static_cast<const FNetDebugName*>(nullptr), // DebugName
 	static_cast<const FReplicationStateMemberDebugDescriptor*>(nullptr), // MemberDebugDescriptors
 	32, // ExternalSize (rounded up since it also contains statemask)
@@ -552,11 +557,12 @@ static FReplicationStateDescriptor TestClassWithInheritanceNoSuperReplictionStat
 	TestClassWithInheritanceNoSuperMemberTraitsDescriptors,
 	static_cast<const FReplicationStateMemberFunctionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberTagDescriptor*>(nullptr), // MemberTagDescriptors
-	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors;
-	static_cast<const FProperty**>(nullptr), // MemberProperties;
+	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors
+	static_cast<const FProperty**>(nullptr), // MemberProperties
 	static_cast<const FReplicationStateMemberPropertyDescriptor*>(nullptr), // MemberPropertyDescriptors
 	static_cast<const FReplicationStateMemberLifetimeConditionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(nullptr),
+	static_cast<const UScriptStruct*>(nullptr), // BaseStruct
 	static_cast<const FNetDebugName*>(nullptr), // DebugName
 	static_cast<const FReplicationStateMemberDebugDescriptor*>(nullptr), // MemberDebugDescriptors
 	12, // ExternalSize (rounded up since it also contains statemask)
@@ -617,13 +623,14 @@ static FReplicationStateDescriptor TestClassWithReplicatedStructReplictionStateD
 	TestClassWithReplicatedStructMemberChangeMaskDescriptors,
 	TestClassWithReplicatedStructMemberSerializerDescriptors,
 	TestClassWithReplicatedStructMemberTraitsDescriptors,
-	static_cast<const FReplicationStateMemberFunctionDescriptor*>(nullptr), // MemberTagDescriptors;
+	static_cast<const FReplicationStateMemberFunctionDescriptor*>(nullptr), // MemberTagDescriptors
 	static_cast<const FReplicationStateMemberTagDescriptor*>(nullptr), // MemberTagDescriptors
-	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors;
-	static_cast<const FProperty**>(nullptr), // MemberProperties;
+	static_cast<const FReplicationStateMemberReferenceDescriptor*>(nullptr), // MemberReferenceDescriptors
+	static_cast<const FProperty**>(nullptr), // MemberProperties
 	static_cast<const FReplicationStateMemberPropertyDescriptor*>(nullptr), // MemberPropertyDescriptors
 	static_cast<const FReplicationStateMemberLifetimeConditionDescriptor*>(nullptr),
 	static_cast<const FReplicationStateMemberRepIndexToMemberIndexDescriptor*>(nullptr),
+	static_cast<const UScriptStruct*>(nullptr), // BaseStruct
 	static_cast<const FNetDebugName*>(nullptr), // DebugName
 	static_cast<const FReplicationStateMemberDebugDescriptor*>(nullptr), // MemberDebugDescriptors
 	32, // ExternalSize (rounded up since it also contains statemask)

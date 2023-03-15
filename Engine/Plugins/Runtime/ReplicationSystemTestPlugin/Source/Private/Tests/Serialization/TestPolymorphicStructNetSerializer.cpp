@@ -43,10 +43,8 @@ struct FTestPolymorphicStructNetSerializer : public TPolymorphicStructNetSeriali
 	}
 
 	static const uint32 Version = 0;
-	static const ConfigType DefaultConfig;
+	static inline const ConfigType DefaultConfig;
 };
-
-const FTestPolymorphicStructNetSerializer::ConfigType FTestPolymorphicStructNetSerializer::DefaultConfig;
 
 UE_NET_IMPLEMENT_SERIALIZER(FTestPolymorphicStructNetSerializer);
 
@@ -101,6 +99,7 @@ protected:
 	FExamplePolymorphicStructB* StructB;
 	FExamplePolymorphicStructC* StructC;
 	FExamplePolymorphicStructD* StructD;
+	FExamplePolymorphicStructD_Derived* StructD_Derived;
 
 	alignas(8) uint8 QuantizedBuffer[2][2048];
 	alignas(8) uint8 ClonedQuantizedBuffer[2][2048];
@@ -153,7 +152,7 @@ struct FExamplePolymorphicStructDNetSerializer
 	typedef uint32 QuantizedType;
 	typedef FExamplePolymorphicStructDNetSerializerConfig ConfigType;
 
-	static const ConfigType DefaultConfig;
+	static inline const ConfigType DefaultConfig;
 
 	static void Serialize(FNetSerializationContext&, const FNetSerializeArgs& Args);
 	static void Deserialize(FNetSerializationContext&, const FNetDeserializeArgs& Args);
@@ -163,8 +162,6 @@ struct FExamplePolymorphicStructDNetSerializer
 
 	static bool IsEqual(FNetSerializationContext& Context, const FNetIsEqualArgs& Args);
 };
-
-const FExamplePolymorphicStructDNetSerializer::ConfigType FExamplePolymorphicStructDNetSerializer::DefaultConfig;
 
 void FExamplePolymorphicStructDNetSerializer::Serialize(FNetSerializationContext& Context, const FNetSerializeArgs& Args)
 {
@@ -415,11 +412,16 @@ void FTestPolymorphicArrayStructNetSerializerFixture::SetExpectedState(FExampleP
 	StructD = new FExamplePolymorphicStructD;
 	StructD->SomeValue = 0x7E577E57;
 	
+	StructD_Derived = new FExamplePolymorphicStructD_Derived;
+	StructD_Derived->SomeValue = 0xC0DEC0DE;
+	StructD_Derived->FloatInD_Derived = 4711.0f;
+
 	// Add some data, we need some structs to send as well
 	Target.Add(StructA);
 	Target.Add(StructB);
 	Target.Add(StructC);
 	Target.Add(StructD);
+	Target.Add(StructD_Derived);
 }
 
 
@@ -470,12 +472,14 @@ void FTestPolymorphicArrayStructNetSerializerFixture::ValidateExpectedState(cons
 	auto BInstance = static_cast<const FExamplePolymorphicStructB*>(StructInstance.Get(1));
 	auto CInstance = static_cast<const FExamplePolymorphicStructC*>(StructInstance.Get(2));
 	auto DInstance = static_cast<const FExamplePolymorphicStructD*>(StructInstance.Get(3));
+	auto D_DerivedInstance = static_cast<const FExamplePolymorphicStructD_Derived*>(StructInstance.Get(4));
 
 	// Validate types
 	UE_NET_ASSERT_TRUE(AInstance->GetScriptStruct() == FExamplePolymorphicStructA::StaticStruct());
 	UE_NET_ASSERT_TRUE(BInstance->GetScriptStruct() == FExamplePolymorphicStructB::StaticStruct());
 	UE_NET_ASSERT_TRUE(CInstance->GetScriptStruct() == FExamplePolymorphicStructC::StaticStruct());
 	UE_NET_ASSERT_TRUE(DInstance->GetScriptStruct() == FExamplePolymorphicStructD::StaticStruct());
+	UE_NET_ASSERT_TRUE(D_DerivedInstance->GetScriptStruct() == FExamplePolymorphicStructD_Derived::StaticStruct());
 
 	// Validate actual data	
 	UE_NET_ASSERT_EQ(StructA->SomeInt, AInstance->SomeInt);
@@ -483,6 +487,8 @@ void FTestPolymorphicArrayStructNetSerializerFixture::ValidateExpectedState(cons
 	UE_NET_ASSERT_EQ(StructC->SomeBool, CInstance->SomeBool);
 	UE_NET_ASSERT_EQ(ToRawPtr(StructC->SomeObjectRef), ToRawPtr(CInstance->SomeObjectRef));
 	UE_NET_ASSERT_EQ(StructD->SomeValue, DInstance->SomeValue);
+	UE_NET_ASSERT_EQ(StructD_Derived->SomeValue, D_DerivedInstance->SomeValue);
+	UE_NET_ASSERT_EQ(StructD_Derived->FloatInD_Derived, D_DerivedInstance->FloatInD_Derived);
 }
 
 void FTestPolymorphicArrayStructNetSerializerFixture::TearDown()
@@ -862,10 +868,15 @@ void FTestPolymorphicArrayStructNetSerializerDeltaSerializationFixture::SetArbit
 	FExamplePolymorphicStructD* StructD = new FExamplePolymorphicStructD;
 	StructD->SomeValue = 0xBEEEEEEF;
 
+	FExamplePolymorphicStructD_Derived* StructD_Derived = new FExamplePolymorphicStructD_Derived;
+	StructD_Derived->SomeValue = 0xDEEDDEED;
+	StructD_Derived->FloatInD_Derived = 12345.0f;
+
 	// Add values to target
 	Target.Add(StructA);
 	Target.Add(StructB);
 	Target.Add(StructC);
+	Target.Add(StructD_Derived);
 	Target.Add(StructD);
 }
 

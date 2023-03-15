@@ -455,6 +455,21 @@ struct TStructOpsTypeTraits<FExamplePolymorphicStructD> : public TStructOpsTypeT
 	};
 };
 
+// Derives from a struct with custom NetSerializer and extra properties
+USTRUCT()
+struct FExamplePolymorphicStructD_Derived : public FExamplePolymorphicStructD
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float FloatInD_Derived = 0.0f;
+
+	virtual UScriptStruct* GetScriptStruct() const override
+	{
+		return FExamplePolymorphicStructD_Derived::StaticStruct();
+	}
+};
+
 namespace UE::Net
 {
 

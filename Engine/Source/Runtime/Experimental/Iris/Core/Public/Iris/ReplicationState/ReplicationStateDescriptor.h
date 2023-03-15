@@ -178,7 +178,9 @@ enum class EReplicationStateTraits : uint32
 	HasPushBasedDirtiness				= HasConnectionSpecificSerialization << 1U,
 	// Whether delta compression is supported or not
 	SupportsDeltaCompression			= HasPushBasedDirtiness << 1U,
-	UseSerializerIsEqual				= SupportsDeltaCompression << 1U,	
+	UseSerializerIsEqual				= SupportsDeltaCompression << 1U,
+	// Whether this is a descriptor for a struct derived from something with a NetSerializer.
+	IsDerivedStruct						= UseSerializerIsEqual << 1U,
 };
 ENUM_CLASS_FLAGS(EReplicationStateTraits);
 
@@ -227,7 +229,10 @@ struct FReplicationStateDescriptor
 	// Non-null if RepIndexCount > 0
 	const FReplicationStateMemberRepIndexToMemberIndexDescriptor* MemberRepIndexToMemberIndexDescriptors;
 
-	// optional, 
+	// Non-null for derived struct descriptors.
+	const UScriptStruct* BaseStruct;
+
+	// Optional debug info
 	const FNetDebugName* DebugName;
 	const FReplicationStateMemberDebugDescriptor* MemberDebugDescriptors;
 
