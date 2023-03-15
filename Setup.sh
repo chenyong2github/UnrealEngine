@@ -1,6 +1,13 @@
 #!/bin/bash
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+if [ -z $GIT_DIR ]; then
+	GIT_DIR=$(git rev-parse --git-common-dir);
+	if [ $? -ne 0 ]; then
+		GIT_DIR=.git
+	fi
+fi
+
 set -e
 
 cd "`dirname "$0"`"
@@ -40,27 +47,27 @@ GitDepsArgs+=("$@")
 
 if [ "$(uname)" = "Darwin" ]; then
 	# Setup the git hooks
-	if [ -d .git/hooks ]; then
+	if [ -d "$GIT_DIR/hooks" ]; then
 		echo "Registering git hooks... (this will override existing ones!)"
-		rm -f .git/hooks/post-checkout
-		rm -f .git/hooks/post-merge
-		ln -s ../../Engine/Build/BatchFiles/Mac/GitDependenciesHook.sh .git/hooks/post-checkout
-		ln -s ../../Engine/Build/BatchFiles/Mac/GitDependenciesHook.sh .git/hooks/post-merge
+		rm -f "$GIT_DIR/hooks/post-checkout"
+		rm -f "$GIT_DIR/hooks/post-merge"
+		ln -s ../../Engine/Build/BatchFiles/Mac/GitDependenciesHook.sh "$GIT_DIR/hooks/post-checkout"
+		ln -s ../../Engine/Build/BatchFiles/Mac/GitDependenciesHook.sh "$GIT_DIR/hooks/post-merge"
 	fi
 
 	# Get the dependencies for the first time
 	Engine/Build/BatchFiles/Mac/GitDependencies.sh "${GitDepsArgs[@]}"
 else
 	# Setup the git hooks
-	if [ -d .git/hooks ]; then
+	if [ -d "$GIT_DIR/hooks" ]; then
 		echo "Registering git hooks... (this will override existing ones!)"
-		echo \#!/bin/sh >.git/hooks/post-checkout
-		echo Engine/Build/BatchFiles/Linux/GitDependencies.sh >>.git/hooks/post-checkout
-		chmod +x .git/hooks/post-checkout
+		echo \#!/bin/sh > "$GIT_DIR/hooks/post-checkout"
+		echo Engine/Build/BatchFiles/Linux/GitDependencies.sh >> "$GIT_DIR/hooks/post-checkout"
+		chmod +x "$GIT_DIR/hooks/post-checkout"
 
-		echo \#!/bin/sh >.git/hooks/post-merge
-		echo Engine/Build/BatchFiles/Linux/GitDependencies.sh >>.git/hooks/post-merge
-		chmod +x .git/hooks/post-merge
+		echo \#!/bin/sh > "$GIT_DIR/hooks/post-merge"
+		echo Engine/Build/BatchFiles/Linux/GitDependencies.sh >> "$GIT_DIR/hooks/post-merge"
+		chmod +x "$GIT_DIR/hooks/post-merge"
 	fi
 
 	# Get the dependencies for the first time

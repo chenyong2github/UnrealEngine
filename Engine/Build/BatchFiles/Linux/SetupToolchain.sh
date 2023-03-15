@@ -4,12 +4,19 @@
 # put ourselves into Engine directory (two up from location of this script)
 pushd "`dirname "$0"`/../../.." > /dev/null
 
+if [ -z $GIT_DIR ]; then
+	GIT_DIR=$(git rev-parse --git-common-dir);
+	if [ $? -ne 0 ]; then
+		GIT_DIR=../.git
+	fi
+fi
+
 TOOLCHAIN_VERSION=v21_clang-15.0.1-centos7
 TOOLCHAIN_ARCHIVE=$TOOLCHAIN_VERSION.tar.gz
 
 TOOLCHAIN_URL=http://cdn.unrealengine.com/Toolchain_Linux/native-linux-$TOOLCHAIN_ARCHIVE
 TOOLCHAIN_ROOT=Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/
-TOOLCHAIN_CACHE=../.git/ue4-sdks/
+TOOLCHAIN_CACHE="$GIT_DIR/ue4-sdks/"
 
 if [ -z $UE_SDK_CACHE_SIZE ]; then
 TOOLCHAIN_CACHE_SIZE=2
