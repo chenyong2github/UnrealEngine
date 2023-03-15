@@ -43,7 +43,7 @@ struct FMovieGraphTraversalContext
 #endif
 
 UCLASS(Abstract)
-class UMovieGraphMember : public UObject
+class MOVIERENDERPIPELINECORE_API UMovieGraphMember : public UObject
 {
 	GENERATED_BODY()
 
@@ -55,6 +55,9 @@ public:
 
 	/** Sets the GUID that uniquely identifies this member. */
 	void SetGuid(const FGuid& InGuid) { Guid = InGuid; }
+
+	/** Determines if this member can be deleted. */
+	virtual bool IsDeletable() const { return true; }
 
 public:
 	/** The type of data associated with this member. */
@@ -87,7 +90,7 @@ private:
  * the job level.
  */
 UCLASS(BlueprintType)
-class UMovieGraphVariable : public UMovieGraphMember
+class MOVIERENDERPIPELINECORE_API UMovieGraphVariable : public UMovieGraphMember
 {
 	GENERATED_BODY()
 
@@ -108,12 +111,14 @@ public:
  * An input exposed on the graph that will be available for nodes to connect to.
  */
 UCLASS(BlueprintType)
-class UMovieGraphInput : public UMovieGraphMember
+class MOVIERENDERPIPELINECORE_API UMovieGraphInput : public UMovieGraphMember
 {
 	GENERATED_BODY()
 
 public:
 	UMovieGraphInput() = default;
+
+	virtual bool IsDeletable() const override;
 
 public:
 #if WITH_EDITOR
@@ -129,12 +134,14 @@ public:
  * An output exposed on the graph that will be available for nodes to connect to.
  */
 UCLASS(BlueprintType)
-class UMovieGraphOutput : public UMovieGraphMember
+class MOVIERENDERPIPELINECORE_API UMovieGraphOutput : public UMovieGraphMember
 {
 	GENERATED_BODY()
 
 public:
 	UMovieGraphOutput() = default;
+
+	virtual bool IsDeletable() const override;
 
 public:
 #if WITH_EDITOR
@@ -166,6 +173,10 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphConfig : public UObject
 
 public:
 	UMovieGraphConfig();
+
+	//~ UObject interface
+	virtual void PostInitProperties() override;
+	//~ End UObject interface
 
 	bool AddLabeledEdge(UMovieGraphNode* FromNode, const FName& FromPinLabel, UMovieGraphNode* ToNode, const FName& ToPinLabel);
 	bool RemoveEdge(UMovieGraphNode* FromNode, const FName& FromPinName, UMovieGraphNode* ToNode, const FName& ToPinName);
@@ -204,10 +215,7 @@ public:
 	TArray<UMovieGraphOutput*> GetOutputs() const;
 
 	/** Remove the specified member (input, output, variable) from the graph. */
-	void DeleteMember(UObject* MemberToDelete);
-
-	/** Remove the specified variable member from the graph. */
-	void DeleteVariableMember(UMovieGraphVariable* VariableMemberToDelete);
+	bool DeleteMember(UMovieGraphMember* MemberToDelete);
 
 	/** Returns only the names of the root branches in the Output Node, with no depth information. */
 	TArray<FMovieGraphBranch> GetOutputBranches() const;
@@ -237,12 +245,6 @@ public:
 	}
 
 	TArray<UMovieGraphNode*> TraverseGraph(TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext) const;
-
-	/** Remove the specified input member from the graph. */
-	void DeleteInputMember(UMovieGraphInput* InputMemberToDelete);
-
-	/** Remove the specified output member from the graph. */
-	void DeleteOutputMember(UMovieGraphOutput* OutputMemberToDelete);
 
 protected:
 	void TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext, TArray<UMovieGraphNode*>& OutNodes) const;
@@ -289,9 +291,21 @@ public:
 	}
 
 private:
+	/** Remove the specified variable member from the graph. */
+	bool DeleteVariableMember(UMovieGraphVariable* VariableMemberToDelete);
+	
+	/** Remove the specified input member from the graph. */
+	bool DeleteInputMember(UMovieGraphInput* InputMemberToDelete);
+
+	/** Remove the specified output member from the graph. */
+	bool DeleteOutputMember(UMovieGraphOutput* OutputMemberToDelete);
+	
 	/** Add a new member of type T to MemberArray, with a unique name that includes BaseName in it. */
 	template<typename T>
 	T* AddMember(TArray<TObjectPtr<T>>& MemberArray, const FText& BaseName);
+
+	/** Adds members to the graph that should always be available. */
+	void AddDefaultMembers();
 
 private:
 	/** All variables which have been defined on the graph. */

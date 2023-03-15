@@ -61,7 +61,8 @@ void SMovieGraphMembersTabContent::DeleteSelectedMembers() const
 	{
 		if (const FMovieGraphSchemaAction* MovieGraphAction = static_cast<FMovieGraphSchemaAction*>(SelectedAction.Get()))
 		{
-			CurrentGraph->DeleteMember(MovieGraphAction->ActionTarget.Get());
+			UMovieGraphMember* GraphMember = Cast<UMovieGraphMember>(MovieGraphAction->ActionTarget.Get());
+			CurrentGraph->DeleteMember(GraphMember);
 		}
 	}
 
@@ -103,7 +104,7 @@ void SMovieGraphMembersTabContent::CollectAllActions(FGraphActionListBuilderBase
 
 	for (UMovieGraphInput* Input : CurrentGraph->GetInputs())
 	{
-		if (Input)
+		if (Input && Input->IsDeletable())
 		{
 			AddToActionMenu(Input, EActionSection::Inputs);
             
@@ -114,7 +115,7 @@ void SMovieGraphMembersTabContent::CollectAllActions(FGraphActionListBuilderBase
 
 	for (UMovieGraphOutput* Output : CurrentGraph->GetOutputs())
 	{
-		if (Output)
+		if (Output && Output->IsDeletable())
 		{
 			AddToActionMenu(Output, EActionSection::Outputs);
 

@@ -12,6 +12,8 @@
 
 #define LOCTEXT_NAMESPACE "MovieGraphConfig"
 
+static const FName MovieGraphGlobalsMemberName("Globals");
+
 #if WITH_EDITOR
 void UMovieGraphVariable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -20,11 +22,23 @@ void UMovieGraphVariable::PostEditChangeProperty(FPropertyChangedEvent& Property
 	OnMovieGraphVariableChangedDelegate.Broadcast(this);
 }
 
+bool UMovieGraphInput::IsDeletable() const
+{
+	// The input is deletable as long as it's not the Globals input
+	return Name != MovieGraphGlobalsMemberName;
+}
+
 void UMovieGraphInput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	
 	OnMovieGraphInputChangedDelegate.Broadcast(this);
+}
+
+bool UMovieGraphOutput::IsDeletable() const
+{
+	// The output is deletable as long as it's not the Globals output
+	return Name != MovieGraphGlobalsMemberName;
 }
 
 void UMovieGraphOutput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -44,6 +58,16 @@ UMovieGraphConfig::UMovieGraphConfig()
 	{
 		InputNode->UpdatePins();
 		OutputNode->UpdatePins();
+	}
+}
+
+void UMovieGraphConfig::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		AddDefaultMembers();
 	}
 }
 
@@ -89,6 +113,37 @@ void UMovieGraphConfig::TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclas
 		}
 	}
 
+}
+
+void UMovieGraphConfig::AddDefaultMembers()
+{
+	const bool InputGlobalsExists = Inputs.ContainsByPredicate([](const UMovieGraphMember* Member)
+	{
+		return Member && (Member->Name == MovieGraphGlobalsMemberName);
+	});
+
+	const bool OutputGlobalsExists = Outputs.ContainsByPredicate([](const UMovieGraphMember* Member)
+	{
+		return Member && (Member->Name == MovieGraphGlobalsMemberName);
+	});
+
+	// Ensure there is a Globals input member
+	if (!InputGlobalsExists)
+	{
+		UMovieGraphInput* NewInput = AddInput();
+		NewInput->Name = MovieGraphGlobalsMemberName.ToString();
+
+		InputNode->UpdatePins();
+	}
+
+	// Ensure there is a Globals output member
+	if (!OutputGlobalsExists)
+	{
+		UMovieGraphOutput* NewOutput = AddOutput();
+		NewOutput->Name = MovieGraphGlobalsMemberName.ToString();
+
+		OutputNode->UpdatePins();
+	}
 }
 
 TArray<UMovieGraphNode*> UMovieGraphConfig::TraverseGraph(TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext) const
@@ -384,29 +439,44 @@ TArray<UMovieGraphOutput*> UMovieGraphConfig::GetOutputs() const
 	return Outputs;
 }
 
-void UMovieGraphConfig::DeleteMember(UObject* MemberToDelete)
+bool UMovieGraphConfig::DeleteMember(UMovieGraphMember* MemberToDelete)
 {
 	if (!MemberToDelete)
 	{
-		return;
+		return false;
+	}
+
+	if (!MemberToDelete->IsDeletable())
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("DeleteMember: The member '%s' cannot be deleted because it is flagged as non-deletable."), *MemberToDelete->Name);
+		return false;
 	}
 
 	if (UMovieGraphVariable* GraphVariableToDelete = Cast<UMovieGraphVariable>(MemberToDelete))
 	{
-		DeleteVariableMember(GraphVariableToDelete);
+		return DeleteVariableMember(GraphVariableToDelete);
 	}
-	else if (UMovieGraphInput* GraphInputToDelete = Cast<UMovieGraphInput>(MemberToDelete))
+
+	if (UMovieGraphInput* GraphInputToDelete = Cast<UMovieGraphInput>(MemberToDelete))
 	{
-		DeleteInputMember(GraphInputToDelete);
+		return DeleteInputMember(GraphInputToDelete);
 	}
-	else if (UMovieGraphOutput* GraphOutputToDelete = Cast<UMovieGraphOutput>(MemberToDelete))
+
+	if (UMovieGraphOutput* GraphOutputToDelete = Cast<UMovieGraphOutput>(MemberToDelete))
 	{
-		DeleteOutputMember(GraphOutputToDelete);
+		return DeleteOutputMember(GraphOutputToDelete);
 	}
+
+	return false;
 }
 
-void UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMemberToDelete)
+bool UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMemberToDelete)
 {
+	if (!VariableMemberToDelete)
+	{
+		return false;
+	}
+	
 	// Find all accessor nodes using this graph variable
 	TArray<TObjectPtr<UMovieGraphNode>> NodesToRemove =
 		AllNodes.FilterByPredicate([VariableMemberToDelete](const TObjectPtr<UMovieGraphNode>& GraphNode)
@@ -439,6 +509,8 @@ void UMovieGraphConfig::DeleteVariableMember(UMovieGraphVariable* VariableMember
 #if WITH_EDITOR
 	OnGraphVariablesChangedDelegate.Broadcast();
 #endif
+
+	return true;
 }
 
 TArray<FMovieGraphBranch> UMovieGraphConfig::GetOutputBranches() const
@@ -456,7 +528,7 @@ TArray<FMovieGraphBranch> UMovieGraphConfig::GetOutputBranches() const
 	return Branches;
 }
 
-void UMovieGraphConfig::DeleteInputMember(UMovieGraphInput* InputMemberToDelete)
+bool UMovieGraphConfig::DeleteInputMember(UMovieGraphInput* InputMemberToDelete)
 {
 	if (InputMemberToDelete)
 	{
@@ -465,10 +537,14 @@ void UMovieGraphConfig::DeleteInputMember(UMovieGraphInput* InputMemberToDelete)
 
 		// This calls OnNodeChangedDelegate to update the graph
 		InputNode->UpdatePins();
+
+		return true;
 	}
+
+	return false;
 }
 
-void UMovieGraphConfig::DeleteOutputMember(UMovieGraphOutput* OutputMemberToDelete)
+bool UMovieGraphConfig::DeleteOutputMember(UMovieGraphOutput* OutputMemberToDelete)
 {
 	if (OutputMemberToDelete)
 	{
@@ -477,7 +553,11 @@ void UMovieGraphConfig::DeleteOutputMember(UMovieGraphOutput* OutputMemberToDele
 
 		// This calls OnNodeChangedDelegate to update the graph
 		OutputNode->UpdatePins();
+
+		return true;
 	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE
