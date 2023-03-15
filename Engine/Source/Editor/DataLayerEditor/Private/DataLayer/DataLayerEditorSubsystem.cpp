@@ -430,13 +430,14 @@ bool UDataLayerEditorSubsystem::IsActorValidForDataLayer(AActor* Actor)
 
 void UDataLayerEditorSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartition)
 {
-	InWorldPartition->GetTypedOuter<UWorld>()->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddUObject(this, &UDataLayerEditorSubsystem::OnLoadedActorAddedToLevel);
-	UpdateAllActorsVisibility(true, true);
+	ULevel* WorldPartitionLevel = InWorldPartition->GetTypedOuter<ULevel>();
+	WorldPartitionLevel->OnLoadedActorAddedToLevelEvent.AddUObject(this, &UDataLayerEditorSubsystem::OnLoadedActorAddedToLevel);
+	UpdateAllActorsVisibility(true, true, WorldPartitionLevel);
 }
 
 void UDataLayerEditorSubsystem::OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition)
 {
-	InWorldPartition->GetTypedOuter<UWorld>()->PersistentLevel->OnLoadedActorAddedToLevelEvent.RemoveAll(this);
+	InWorldPartition->GetTypedOuter<ULevel>()->OnLoadedActorAddedToLevelEvent.RemoveAll(this);
 }
 
 void UDataLayerEditorSubsystem::OnLoadedActorAddedToLevel(AActor& InActor)
@@ -840,19 +841,39 @@ bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutS
 
 bool UDataLayerEditorSubsystem::UpdateAllActorsVisibility(const bool bNotifySelectionChange, const bool bRedrawViewports)
 {
+	return UpdateAllActorsVisibility(bNotifySelectionChange, bRedrawViewports, nullptr);
+}
+
+bool UDataLayerEditorSubsystem::UpdateAllActorsVisibility(const bool bNotifySelectionChange, const bool bRedrawViewports, ULevel* InLevel)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(UDataLayerEditorSubsystem::UpdateAllActorsVisibility);
 
 	bool bSelectionChanged = false;
 	bool bChangesOccurred = false;
 
-	if (UWorld* World = GetWorld())
+	auto UpdateActorVisibilityLambda = [this, &bSelectionChanged, &bChangesOccurred](AActor* Actor)
 	{
-		for (AActor* Actor : FActorRange(World))
+		if (Actor)
 		{
 			bool bActorModified = false;
 			bool bActorSelectionChanged = false;
 			bChangesOccurred |= UpdateActorVisibility(Actor, bActorSelectionChanged, bActorModified, /*bActorNotifySelectionChange*/false, /*bActorRedrawViewports*/false);
 			bSelectionChanged |= bActorSelectionChanged;
+		}
+	};
+
+	if (InLevel)
+	{
+		for (AActor* Actor : InLevel->Actors)
+		{
+			UpdateActorVisibilityLambda(Actor);
+		}
+	}
+	else if (UWorld* World = GetWorld())
+	{
+		for (AActor* Actor : FActorRange(World))
+		{
+			UpdateActorVisibilityLambda(Actor);
 		}
 	}
 
