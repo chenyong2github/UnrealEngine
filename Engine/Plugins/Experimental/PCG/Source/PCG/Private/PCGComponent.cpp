@@ -209,7 +209,7 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 
 	InputType = NewInputType;
 	Seed = Original->Seed;
-	GraphInstance->SetGraph(Original->GraphInstance);
+	GraphInstance->SetGraph(Original->GraphInstance ? Original->GraphInstance->GetGraph() : nullptr);
 	GenerationTrigger = Original->GenerationTrigger;
 
 #if WITH_EDITOR
