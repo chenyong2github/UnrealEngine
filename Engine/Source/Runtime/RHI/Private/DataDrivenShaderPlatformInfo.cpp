@@ -134,7 +134,6 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 	bSupportsManualVertexFetch = true;
 	bSupportsVolumeTextureAtomics = true;
 	bSupportsClipDistance = true;
-	bSupportsDistanceFields = true;
 	PreviewShaderPlatformParent = EShaderPlatform::SP_NumPlatforms;
 }
 
