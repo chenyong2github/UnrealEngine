@@ -445,8 +445,8 @@ namespace PCGSplineSampler
 			FBox& OutBox = OutResult.Box;
 			OutTransform = LineData->GetTransformAtDistance(CurrentSegmentIndex, CurrentDistance, /*bWorldSpace=*/false, &OutBox);
 
-			OutBox.Min.X *= DistanceIncrement / OutTransform.GetScale3D().X;
-			OutBox.Max.X *= DistanceIncrement / OutTransform.GetScale3D().X;
+			OutBox.Min.X *= 0.5 * DistanceIncrement / OutTransform.GetScale3D().X;
+			OutBox.Max.X *= 0.5 * DistanceIncrement / OutTransform.GetScale3D().X;
 
 			if (bComputeCurvature)
 			{
@@ -576,10 +576,6 @@ namespace PCGSplineSampler
 			FPCGPoint SeedPoint;
 			if (SpatialData->SamplePoint(TransformWS, InBox, SeedPoint, nullptr))
 			{
-				// Assuming the the normal to the curve is on the Y axis
-				const FVector YAxis = TransformLS.GetScaledAxis(EAxis::Y);
-				const FVector ZAxis = TransformLS.GetScaledAxis(EAxis::Z);
-
 				// TODO: we can optimize this if we are in the "edges only case" to pick only values that
 				FVector::FReal CurrentZ = (InBox.Min.Z + ZHalfStep);
 				while(CurrentZ <= InBox.Max.Z - ZHalfStep + KINDA_SMALL_NUMBER)
@@ -614,7 +610,7 @@ namespace PCGSplineSampler
 
 						if (bTestPoint)
 						{
-							FVector TentativeLocationLS = TransformLS.GetLocation() + YAxis * CurrentY + ZAxis * CurrentZ;
+							FVector TentativeLocationLS = FVector(0.0, CurrentY, CurrentZ);
 
 							FTransform TentativeTransform = TransformWS;
 							TentativeTransform.SetLocation(TransformWS.TransformPosition(TentativeLocationLS));
@@ -698,12 +694,12 @@ namespace PCGSplineSampler
 	{
 		check(Context && LineData && OutPointData);
 
-		TSoftObjectPtr<USplineComponent> Spline;
+		const FPCGSplineStruct* Spline = nullptr;
 
 		// TODO: handle projected splines
 		if (const UPCGSplineData* SplineData = Cast<UPCGSplineData>(LineData))
 		{
-			Spline = SplineData->Spline;
+			Spline = &SplineData->SplineStruct;
 		}
 		else if (const UPCGLandscapeSplineData* LandscapeSplineData = Cast<UPCGLandscapeSplineData>(LineData))
 		{
@@ -724,7 +720,7 @@ namespace PCGSplineSampler
 			return;
 		}
 
-		const FBoxSphereBounds SplineLocalBounds = Spline->CalcLocalBounds();
+		const FBoxSphereBounds SplineLocalBounds = Spline->LocalBounds;
 		const FVector MinPoint = SplineLocalBounds.Origin - SplineLocalBounds.BoxExtent;
 		const FVector MaxPoint = SplineLocalBounds.Origin + SplineLocalBounds.BoxExtent;
 

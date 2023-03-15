@@ -5,7 +5,8 @@
 #include "Math/InterpCurve.h"
 #include "PCGPolyLineData.h"
 #include "PCGProjectionData.h"
-
+#include "PCGSplineStruct.h"
+#include "Elements/PCGProjectionParams.h"
 
 #include "PCGSplineData.generated.h"
 
@@ -21,6 +22,8 @@ class PCG_API UPCGSplineData : public UPCGPolyLineData
 
 public:
 	void Initialize(USplineComponent* InSpline);
+	void Initialize(const TArray<FSplinePoint>& InSplinePoints, bool bInClosedLoop, AActor* InTargetActor, const FTransform& InTransform);
+	void ApplyTo(USplineComponent* InSpline);
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spline; }
@@ -48,8 +51,9 @@ protected:
 	//~End UPCGSpatialData interface
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
-	TSoftObjectPtr<USplineComponent> Spline;
+	// Minimal data needed to replicate the behavior from USplineComponent
+	UPROPERTY()
+	FPCGSplineStruct SplineStruct;
 
 protected:
 	UPROPERTY()

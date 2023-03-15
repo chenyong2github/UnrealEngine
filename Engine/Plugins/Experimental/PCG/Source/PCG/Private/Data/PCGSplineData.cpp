@@ -2,29 +2,30 @@
 
 #include "Data/PCGSplineData.h"
 
-#include "Data/PCGPolyLineData.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGPolyLineData.h"
 #include "Data/PCGProjectionData.h"
+#include "Data/PCGSpatialData.h"
 #include "Elements/PCGSplineSampler.h"
 
 #include "Components/SplineComponent.h"
-#include "Data/PCGSpatialData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSplineData)
 
 void UPCGSplineData::Initialize(USplineComponent* InSpline)
 {
 	check(InSpline);
-	Spline = InSpline;
 	TargetActor = InSpline->GetOwner();
 
-	CachedBounds = PCGHelpers::GetActorBounds(Spline->GetOwner());
+	SplineStruct.Initialize(InSpline);
+
+	CachedBounds = PCGHelpers::GetActorBounds(InSpline->GetOwner());
 
 	// Expand bounds by the radius of points, otherwise sections of the curve that are close
 	// to the bounds will report an invalid density.
 	FVector SplinePointsRadius = FVector::ZeroVector;
-	const FInterpCurveVector& SplineScales = Spline->GetSplinePointsScale();
+	const FInterpCurveVector& SplineScales = SplineStruct.GetSplinePointsScale();
 	for (const FInterpCurvePoint<FVector>& SplineScale : SplineScales.Points)
 	{
 		SplinePointsRadius = FVector::Max(SplinePointsRadius, SplineScale.OutVal.GetAbs());
@@ -33,24 +34,51 @@ void UPCGSplineData::Initialize(USplineComponent* InSpline)
 	CachedBounds = CachedBounds.ExpandBy(SplinePointsRadius, SplinePointsRadius);
 }
 
+void UPCGSplineData::Initialize(const TArray<FSplinePoint>& InSplinePoints, bool bIsClosedLoop, AActor* InTargetActor, const FTransform& InTransform)
+{
+	check(InTargetActor);
+	TargetActor = InTargetActor;
+
+	SplineStruct.Initialize(InSplinePoints, bIsClosedLoop, InTransform);
+
+	CachedBounds = SplineStruct.GetBounds();
+
+	// Expand bounds by the radius of points, otherwise sections of the curve that are close
+	// to the bounds will report an invalid density.
+	FVector SplinePointsRadius = FVector::ZeroVector;
+	const FInterpCurveVector& SplineScales = SplineStruct.GetSplinePointsScale();
+	for (const FInterpCurvePoint<FVector>& SplineScale : SplineScales.Points)
+	{
+		SplinePointsRadius = FVector::Max(SplinePointsRadius, SplineScale.OutVal.GetAbs());
+	}
+
+	CachedBounds = CachedBounds.ExpandBy(SplinePointsRadius, SplinePointsRadius);
+	CachedBounds = CachedBounds.TransformBy(InTransform);
+}
+
+void UPCGSplineData::ApplyTo(USplineComponent* InSplineComponent)
+{
+	SplineStruct.ApplyTo(InSplineComponent);
+}
+
 FTransform UPCGSplineData::GetTransform() const
 {
-	return Spline ? Spline->GetComponentTransform() : FTransform::Identity;
+	return SplineStruct.GetTransform();
 }
 
 int UPCGSplineData::GetNumSegments() const
 {
-	return Spline ? Spline->GetNumberOfSplineSegments() : 0;
+	return SplineStruct.GetNumberOfSplineSegments();
 }
 
 FVector::FReal UPCGSplineData::GetSegmentLength(int SegmentIndex) const
 {
-	return Spline ? Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex + 1) - Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) : 0;
+	return SplineStruct.GetDistanceAlongSplineAtSplinePoint(SegmentIndex + 1) - SplineStruct.GetDistanceAlongSplineAtSplinePoint(SegmentIndex);
 }
 
 FVector UPCGSplineData::GetLocationAtDistance(int SegmentIndex, FVector::FReal Distance, bool bWorldSpace) const
 {
-	return Spline ? Spline->GetLocationAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, bWorldSpace ? ESplineCoordinateSpace::World : ESplineCoordinateSpace::Local) : FVector::ZeroVector;
+	return SplineStruct.GetLocationAtDistanceAlongSpline(SplineStruct.GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, bWorldSpace ? ESplineCoordinateSpace::World : ESplineCoordinateSpace::Local);
 }
 
 FTransform UPCGSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FReal Distance, bool bWorldSpace, FBox* OutBounds) const
@@ -60,24 +88,19 @@ FTransform UPCGSplineData::GetTransformAtDistance(int SegmentIndex, FVector::FRe
 		*OutBounds = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector);
 	}
 
-	return Spline ? Spline->GetTransformAtDistanceAlongSpline(Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, bWorldSpace ? ESplineCoordinateSpace::World : ESplineCoordinateSpace::Local, /*bUseScale=*/true) : FTransform::Identity;
+	return SplineStruct.GetTransformAtDistanceAlongSpline(SplineStruct.GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance, bWorldSpace ? ESplineCoordinateSpace::World : ESplineCoordinateSpace::Local, /*bUseScale=*/true);
 }
 
 FVector::FReal UPCGSplineData::GetCurvatureAtDistance(int SegmentIndex, FVector::FReal Distance) const
 {
-	if (!Spline)
-	{
-		return 0;
-	}
-
-	const float FullDistance = Spline->GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance;
-	const float Param = Spline->SplineCurves.ReparamTable.Eval(FullDistance, 0.0f);
+	const float FullDistance = SplineStruct.GetDistanceAlongSplineAtSplinePoint(SegmentIndex) + Distance;
+	const float Param = SplineStruct.SplineCurves.ReparamTable.Eval(FullDistance, 0.0f);
 
 	// Since we need the first derivative (e.g. very similar to direction) to have its norm, we'll get the value directly
-	const FVector FirstDerivative = Spline->SplineCurves.Position.EvalDerivative(Param, FVector::ZeroVector);
+	const FVector FirstDerivative = SplineStruct.SplineCurves.Position.EvalDerivative(Param, FVector::ZeroVector);
 	const FVector::FReal FirstDerivativeLength = FMath::Max(FirstDerivative.Length(), UE_DOUBLE_SMALL_NUMBER);
 	const FVector ForwardVector = FirstDerivative / FirstDerivativeLength;
-	const FVector SecondDerivative = Spline->SplineCurves.Position.EvalSecondDerivative(Param, FVector::ZeroVector);
+	const FVector SecondDerivative = SplineStruct.SplineCurves.Position.EvalSecondDerivative(Param, FVector::ZeroVector);
 	// Orthogonalize the second derivative and obtain the curvature vector
 	const FVector CurvatureVector = SecondDerivative - (SecondDerivative | ForwardVector) * ForwardVector;
 	
@@ -85,7 +108,7 @@ FVector::FReal UPCGSplineData::GetCurvatureAtDistance(int SegmentIndex, FVector:
 	const FVector::FReal Curvature = CurvatureVector.Length() / FirstDerivativeLength;
 
 	// Compute sign based on sign of curvature vs. right axis
-	const FVector RightVector = Spline->GetRightVectorAtSplineInputKey(Param, ESplineCoordinateSpace::Local);
+	const FVector RightVector = SplineStruct.GetRightVectorAtSplineInputKey(Param, ESplineCoordinateSpace::Local);
 	return FMath::Sign(RightVector | CurvatureVector) * Curvature;
 }
 
@@ -99,11 +122,7 @@ const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
 	SamplerParams.Mode = EPCGSplineSamplingMode::Distance;
 
 	PCGSplineSampler::SampleLineData(this, this, nullptr, SamplerParams, Data);
-
-	if (Spline)
-	{
-		UE_LOG(LogPCG, Verbose, TEXT("Spline %s generated %d points"), *Spline->GetFName().ToString(), Data->GetPoints().Num());
-	}
+	UE_LOG(LogPCG, Verbose, TEXT("Spline generated %d points"), Data->GetPoints().Num());
 
 	return Data;
 }
@@ -115,11 +134,6 @@ FBox UPCGSplineData::GetBounds() const
 
 bool UPCGSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	if (!Spline)
-	{
-		return false;
-	}
-
 	// TODO: support metadata
 	// TODO: support proper bounds
 
@@ -127,8 +141,8 @@ bool UPCGSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	
 	// Find nearest point on spline
 	const FVector InPosition = InTransform.GetLocation();
-	float NearestPointKey = Spline->FindInputKeyClosestToWorldLocation(InPosition);
-	FTransform NearestTransform = Spline->GetTransformAtSplineInputKey(NearestPointKey, ESplineCoordinateSpace::World, true);
+	float NearestPointKey = SplineStruct.FindInputKeyClosestToWorldLocation(InPosition);
+	FTransform NearestTransform = SplineStruct.GetTransformAtSplineInputKey(NearestPointKey, ESplineCoordinateSpace::World, true);
 	FVector LocalPoint = NearestTransform.InverseTransformPosition(InPosition);
 	
 	// Linear fall off based on the distance to the nearest point
@@ -167,7 +181,7 @@ UPCGSpatialData* UPCGSplineData::CopyInternal() const
 {
 	UPCGSplineData* NewSplineData = NewObject<UPCGSplineData>();
 
-	NewSplineData->Spline = Spline;
+	NewSplineData->SplineStruct = SplineStruct;
 	NewSplineData->CachedBounds = CachedBounds;
 
 	return NewSplineData;
@@ -185,22 +199,17 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 		return Super::SamplePoint(InTransform, InBounds, OutPoint, OutMetadata);
 	}
 
-	check(GetSpline());
-	if (!GetSpline()->Spline)
-	{
-		return false;
-	}
-
 	// Find nearest point on projected spline by lifting point along projection direction to closest position on spline. This way
 	// when we sample the spline we get a similar result to if the spline had been projected onto the surface.
 
 	const FVector InPosition = InTransform.GetLocation();
-	const USplineComponent* Spline = GetSpline()->Spline.Get();
+	check(GetSpline());
+	const FPCGSplineStruct& Spline = GetSpline()->SplineStruct;
 	check(GetSurface());
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
 
 	// Project to 2D space
-	const FTransform LocalTransform = InTransform * Spline->GetComponentTransform().Inverse();
+	const FTransform LocalTransform = InTransform * Spline.GetTransform().Inverse();
 	FVector2D LocalPosition2D = Project(LocalTransform.GetLocation());
 	float Dummy;
 	// Find nearest key on 2D spline
@@ -210,7 +219,7 @@ bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const 
 	// we are changing the curve length. Also, to support surface orientations that are not axis aligned, the project function
 	// probably needs to construct into a coordinate space and project onto it rather than discarding an axis, otherwise project
 	// coordinates may be non-uniformly scaled.
-	const FVector NearestPointOnSpline = Spline->GetLocationAtSplineInputKey(NearestInputKey, ESplineCoordinateSpace::World);
+	const FVector NearestPointOnSpline = Spline.GetLocationAtSplineInputKey(NearestInputKey, ESplineCoordinateSpace::World);
 	const FVector PointOnLine = FMath::ClosestPointOnInfiniteLine(InPosition, InPosition + SurfaceNormal, NearestPointOnSpline);
 
 	// TODO: this is super inefficient, could be done in 2D if we duplicate the sampling code
@@ -281,15 +290,12 @@ void UPCGSplineProjectionData::Initialize(const UPCGSplineData* InSourceSpline, 
 {
 	Super::Initialize(InSourceSpline, InTargetSurface, InParams);
 
-	check(GetSpline());
-	const USplineComponent* Spline = GetSpline()->Spline.Get();
-
 	check(GetSurface());
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
 
-	if (Spline)
+	if (GetSpline())
 	{
-		const FInterpCurveVector& SplinePosition = Spline->GetSplinePointsPosition();
+		const FInterpCurveVector& SplinePosition = GetSpline()->SplineStruct.GetSplinePointsPosition();
 
 		// Build projected spline data
 		ProjectedPosition.bIsLooped = SplinePosition.bIsLooped;
