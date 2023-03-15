@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimTypes.h"
+#include <algorithm>
 
 #define ANIM_ENABLE_POINTER_ITERATION 1
 
