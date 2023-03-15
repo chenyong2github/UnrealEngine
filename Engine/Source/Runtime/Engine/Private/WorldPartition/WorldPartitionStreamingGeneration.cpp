@@ -475,9 +475,14 @@ class FWorldPartitionStreamingGenerator
 		for (const FWorldPartitionActorDescView& ContainerInstanceView : ContainerInstanceViews)
 		{
 			const FGuid ActorGuid = ContainerInstanceView.GetGuid();
-			FWorldPartitionActorDesc::FContainerInstance SubContainerInstance(FActorContainerID(InContainerInstanceDescriptor.ID, ActorGuid));
-			bool bBuildFilter = InContainerInstanceDescriptor.ID.IsMainContainer(); // Build filter on top level child containers
-			if (!ContainerInstanceView.GetContainerInstance(SubContainerInstance, bBuildFilter))
+			const FActorContainerID ContainerID(InContainerInstanceDescriptor.ID, ActorGuid);
+
+			FWorldPartitionActorDesc::FGetContainerInstanceParams GetContainerInstanceParams = FWorldPartitionActorDesc::FGetContainerInstanceParams()
+				.SetContainerID(ContainerID)
+				.SetBuildFilter(InContainerInstanceDescriptor.ID.IsMainContainer()); // Build filter on top level child containers
+
+			FWorldPartitionActorDesc::FContainerInstance SubContainerInstance;
+			if (!ContainerInstanceView.GetContainerInstance(GetContainerInstanceParams, SubContainerInstance))
 			{
 				ErrorHandler->OnLevelInstanceInvalidWorldAsset(ContainerInstanceView, ContainerInstanceView.GetLevelPackage(), IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetHasInvalidContainer);
 				continue;
@@ -495,7 +500,7 @@ class FWorldPartitionStreamingGenerator
 			FContainerInstanceDescriptor SubContainerInstanceDescriptor;
 
 			// Inherit fields from FContainerInstance
-			SubContainerInstanceDescriptor.ID = SubContainerInstance.GetID();
+			SubContainerInstanceDescriptor.ID = ContainerID;
 			SubContainerInstanceDescriptor.Container = SubContainerInstance.Container;
 			SubContainerInstanceDescriptor.Transform = SubContainerInstance.Transform * InContainerInstanceDescriptor.Transform;
 			SubContainerInstanceDescriptor.FilteredActors = SubContainerInstance.FilteredActors;

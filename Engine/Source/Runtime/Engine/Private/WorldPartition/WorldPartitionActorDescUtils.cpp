@@ -73,10 +73,10 @@ TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDesc
 {
 	if (IsValidActorDescriptorFromAssetData(InAssetData))
 	{
-		FWorldPartitionActorDescInitData ActorDescInitData;
-		ActorDescInitData.NativeClass = GetActorNativeClassFromAssetData(InAssetData);
-		ActorDescInitData.PackageName = InAssetData.PackageName;
-		ActorDescInitData.ActorPath = InAssetData.GetSoftObjectPath();
+		FWorldPartitionActorDescInitData ActorDescInitData = FWorldPartitionActorDescInitData()
+			.SetNativeClass(GetActorNativeClassFromAssetData(InAssetData))
+			.SetPackageName(InAssetData.PackageName)
+			.SetActorPath(InAssetData.GetSoftObjectPath());
 
 		FString ActorMetaDataStr;
 		verify(InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr));

@@ -163,7 +163,7 @@ bool FLevelInstanceActorDesc::IsContainerInstance() const
 	return ULevelInstanceSubsystem::CanUsePackage(LevelPackage);
 }
 
-bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContainerInstance, bool bInBuildFilter) const
+bool FLevelInstanceActorDesc::GetContainerInstance(const FGetContainerInstanceParams& InParams, FContainerInstance& OutContainerInstance) const
 {
 	if (LevelInstanceContainer.IsValid())
 	{
@@ -174,7 +174,7 @@ bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContai
 		FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelInstanceContainer->GetContainerPackage()));
 		OutContainerInstance.Transform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
 
-		if (bInBuildFilter)
+		if (InParams.bBuildFilter)
 		{
 			// Fill Container Instance Filter
 			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(LevelInstanceContainerWorldContext.Get());
@@ -204,9 +204,9 @@ bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContai
 				}
 			};
 
-			ProcessFilter(OutContainerInstance.GetID(), ContainerFilter);
+			ProcessFilter(InParams.ContainerID, ContainerFilter);
 
-			TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&FilteredOutDataLayersPerContainer, &OutContainerInstance, &ProcessContainers](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
+			TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&FilteredOutDataLayersPerContainer, &OutContainerInstance, &ProcessContainers, &InParams](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
 			{
 				const TSet<FSoftObjectPath>& Filtered = FilteredOutDataLayersPerContainer.FindChecked(InContainerID);
 				for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
@@ -227,8 +227,7 @@ bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContai
 					if (ActorDescIt->IsContainerInstance())
 					{
 						FWorldPartitionActorDesc::FContainerInstance ChildContainerInstance;
-						const bool bBuildFilter = false;
-						if (ActorDescIt->GetContainerInstance(ChildContainerInstance, bBuildFilter))
+						if (ActorDescIt->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ChildContainerInstance))
 						{
 							ProcessContainers(FActorContainerID(InContainerID, ActorDescIt->GetGuid()), ChildContainerInstance.Container);
 						}
@@ -236,7 +235,7 @@ bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContai
 				}
 			};
 
-			ProcessContainers(OutContainerInstance.GetID(), OutContainerInstance.Container);
+			ProcessContainers(InParams.ContainerID, OutContainerInstance.Container);
 		}
 		return true;
 	}

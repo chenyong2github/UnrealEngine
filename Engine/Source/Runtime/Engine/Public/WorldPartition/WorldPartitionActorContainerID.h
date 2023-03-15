@@ -17,7 +17,7 @@ struct FActorContainerID
 	: ID(InOther.ID)
 	{}
 
-	FActorContainerID(const FActorContainerID& InParent, FGuid InActorGuid)
+	FActorContainerID(const FActorContainerID& InParent, const FGuid& InActorGuid)
 	: ID(CityHash64WithSeed((const char*)&InActorGuid, sizeof(InActorGuid), InParent.ID))
 	{}
 

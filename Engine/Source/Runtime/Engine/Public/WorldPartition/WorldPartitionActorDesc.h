@@ -21,6 +21,10 @@ struct FWorldPartitionActorDescInitData
 	FName PackageName;
 	FSoftObjectPath ActorPath;
 	TArray<uint8> SerializedData;
+
+	FWorldPartitionActorDescInitData& SetNativeClass(UClass* InNativeClass) { NativeClass = InNativeClass; return *this; }
+	FWorldPartitionActorDescInitData& SetPackageName(FName InPackageName) { PackageName = InPackageName; return *this; }
+	FWorldPartitionActorDescInitData& SetActorPath(const FSoftObjectPath& InActorPath) { ActorPath = InActorPath; return *this; }
 };
 
 class AActor;
@@ -77,31 +81,25 @@ class ENGINE_API FWorldPartitionActorDesc
 public:
 	struct FContainerInstance
 	{
-		FContainerInstance() {}
-		FContainerInstance(const FActorContainerID& InContainerID)
-			: ContainerID(InContainerID) {}
-	public:
-		const FActorContainerID& GetID() const { return ContainerID; }
-
 		const UActorDescContainer* Container = nullptr;
 		FTransform Transform = FTransform::Identity;
 		EContainerClusterMode ClusterMode;
 		TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
-	private:
+	};
+
+	struct FGetContainerInstanceParams
+	{
 		FActorContainerID ContainerID;
+		bool bBuildFilter = false;
+
+		FGetContainerInstanceParams& SetContainerID(FActorContainerID InContainerID) { ContainerID = InContainerID; return *this; }
+		FGetContainerInstanceParams& SetBuildFilter(bool bInBuildFilter) { bBuildFilter = bInBuildFilter; return *this; }
 	};
 
 	virtual ~FWorldPartitionActorDesc() {}
 
 	inline const FGuid& GetGuid() const { return Guid; }
 	
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.1, "GetClass is deprecated, GetBaseClass or GetNativeClass should be used instead.")
-	inline FName GetClass() const { return GetNativeClass().ToFName(); }
-	UE_DEPRECATED(5.1, "GetActorPath is deprecated, GetActorSoftPath should be used instead.")
-	inline FName GetActorPath() const { return ActorPath.ToFName(); }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	inline FTopLevelAssetPath GetBaseClass() const { return BaseClass; }
 	inline FTopLevelAssetPath GetNativeClass() const { return NativeClass; }
 	inline UClass* GetActorNativeClass() const { return ActorNativeClass; }
@@ -119,9 +117,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UE_DEPRECATED(5.1, "SetIsSpatiallyLoadedRaw is deprecated and should not be used.")
 	inline void SetIsSpatiallyLoadedRaw(bool bNewIsSpatiallyLoaded) { bIsSpatiallyLoaded = bNewIsSpatiallyLoaded; }
-
-	UE_DEPRECATED(5.1, "GetLevelBoundsRelevant is deprecated.")
-	inline bool GetLevelBoundsRelevant() const { return false; }
 
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
 	inline FName GetHLODLayer() const { return HLODLayer; }
@@ -156,7 +151,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool IsContainerInstance() const { return false; }
 	virtual FName GetLevelPackage() const { return NAME_None; }
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const { return nullptr; }
-	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance, bool bInBuildFilter = false) const { return false; }
+	virtual bool GetContainerInstance(const FGetContainerInstanceParams& InParams, FContainerInstance& OutContainerInstance) const { return false; }
 
 	FGuid GetContentBundleGuid() const;
 
@@ -249,9 +244,6 @@ public:
 	AActor* GetActor(bool bEvenIfPendingKill=true, bool bEvenIfUnreachable=false) const;
 	AActor* Load() const;
 	virtual void Unload();
-
-	UE_DEPRECATED(5.1, "ShouldBeLoadedByEditorCells is deprecated, IsEditorRelevant should be used instead.")
-	bool ShouldBeLoadedByEditorCells() const { return IsEditorRelevant(); }
 
 	virtual void Init(const AActor* InActor);
 	virtual void Init(const FWorldPartitionActorDescInitData& DescData);

@@ -323,10 +323,10 @@ namespace WorldPartitionTests
 			{
 				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::StaticCreateClassActorDesc(ActorNativeClass));
 
-				FWorldPartitionActorDescInitData ActorDescInitData;
-				ActorDescInitData.NativeClass = ActorNativeClass;
-				ActorDescInitData.PackageName = ActorDescIterator->GetActorPackage();
-				ActorDescInitData.ActorPath = ActorDescIterator->GetActorSoftPath();
+				FWorldPartitionActorDescInitData ActorDescInitData = FWorldPartitionActorDescInitData()
+					.SetNativeClass(ActorNativeClass)
+					.SetPackageName(ActorDescIterator->GetActorPackage())
+					.SetActorPath(ActorDescIterator->GetActorSoftPath());
 			
 				ActorDescIterator->SerializeTo(ActorDescInitData.SerializedData);
 				NewActorDesc->Init(ActorDescInitData);
