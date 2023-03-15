@@ -391,6 +391,9 @@ struct FRHIResourceCreateInfo
 		ExtData = InExtData;
 	}
 
+	FName GetTraceClassName() const									{ return ClassName == NAME_None ? FName(TEXT("FRHIBuffer")) : ClassName; }
+	FName GetTraceAssetName() const									{ return AssetName == NAME_None ? FName(DebugName) : AssetName; }
+
 	// for CreateTexture calls
 	FResourceBulkDataInterface* BulkData;
 
@@ -409,6 +412,9 @@ struct FRHIResourceCreateInfo
 
 	// optional data that would have come from an offline cooker or whatever - general purpose
 	uint32 ExtData;
+
+	FName ClassName = NAME_None;	// The owner class of FRHIBuffer used for Insight asset metadata tracing
+	FName AssetName = NAME_None;	// The owner asset name used for Insight asset metadata tracing
 };
 
 class FExclusiveDepthStencil

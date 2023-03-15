@@ -334,6 +334,8 @@ FBufferRHIRef FRenderResource::CreateRHIBufferInternal(
 {
 	const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
 	FRHIResourceCreateInfo CreateInfo(InDebugName, ResourceArray);
+	CreateInfo.ClassName = FName(InDebugName);
+	CreateInfo.AssetName = InOwnerName;
 	CreateInfo.bWithoutNativeResource = bWithoutNativeResource;
 
 	FBufferRHIRef Buffer;

@@ -10,6 +10,7 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/WindowsPlatformCrashContext.h"
 #include "HAL/FileManager.h"
+#include "ProfilingDebugging/AssetMetadataTrace.h"
 #include <delayimp.h>
 
 #if WITH_AMD_AGS
@@ -1968,6 +1969,8 @@ void FWindowsD3D12Adapter::CreateCommandSignatures()
 
 TUniquePtr<FD3D12DiagnosticBuffer> FD3D12Device::CreateDiagnosticBuffer(const D3D12_RESOURCE_DESC& Desc, const TCHAR* Name)
 {
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(TEXT("FD3D12DiagnosticBuffer")), FName(TEXT("FD3D12Device::CreateDiagnosticBuffer")));
+
 	TRefCountPtr<ID3D12Device3> D3D12Device3;
 	HRESULT hr = GetDevice()->QueryInterface(IID_PPV_ARGS(D3D12Device3.GetInitReference()));
 	if (SUCCEEDED(hr))

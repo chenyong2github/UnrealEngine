@@ -353,7 +353,9 @@ public:
 		bool bHasInitialData,
 		const FRHIGPUMask& InGPUMask,
 		ID3D12ResourceAllocator* ResourceAllocator,
-		const TCHAR* InDebugName);
+		const TCHAR* InDebugName,
+		const FName& InAssetName = NAME_None,
+		const FName& InClassName = NAME_None);
 
 	void CreateUAVAliasResource(
 		D3D12_CLEAR_VALUE* ClearValuePtr,

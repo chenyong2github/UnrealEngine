@@ -8,6 +8,7 @@ D3D12Resources.cpp: D3D RHI utility implementation.
 #include "EngineModule.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "ProfilingDebugging/AssetMetadataTrace.h"
 
 #if INTEL_EXTENSIONS
 	#define INTC_IGDEXT_D3D12 1
@@ -1100,6 +1101,8 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 	// Get the resource and the actual new allocator
 	FD3D12Resource* CurrentResource = GetResource();
 	FD3D12PoolAllocator* NewAllocator = GetPoolAllocator();
+
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(CurrentResource->GetName(), FName(TEXT("FD3D12ResourceLocation::OnAllocationMoved")));
 
 	// If sub allocated and not placed only update the internal data
 	if (NewAllocator->GetAllocationStrategy() == EResourceAllocationStrategy::kManualSubAllocation)

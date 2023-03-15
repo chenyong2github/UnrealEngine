@@ -673,6 +673,7 @@ void FLandscapeRenderSystem::UpdateBuffers()
 		if (!SectionLODBiasBuffer.IsValid())
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("SectionLODBiasBuffer"), &SectionLODBiases);
+			CreateInfo.ClassName = TEXT("FLandscapeRenderSystem");
 			SectionLODBiasBuffer = RHICreateVertexBuffer(SectionLODBiases.GetResourceDataSize(), BUF_ShaderResource | BUF_Dynamic, CreateInfo);
 			SectionLODBiasSRV = RHICreateShaderResourceView(SectionLODBiasBuffer, sizeof(float), PF_R32_FLOAT);
 			bUpdateUB = true;
@@ -1180,7 +1181,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	if (SharedBuffers == nullptr)
 	{
 		SharedBuffers = new FLandscapeSharedBuffers(
-			SharedBuffersKey, SubsectionSizeQuads, NumSubsections, FeatureLevel);
+			SharedBuffersKey, SubsectionSizeQuads, NumSubsections, FeatureLevel, FName(LandscapeComponent->GetPathName()));
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
 
@@ -2592,6 +2593,8 @@ void FLandscapeVertexBuffer::InitRHI()
 
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeVertexBuffer"));
+	CreateInfo.ClassName = FName(TEXT("FLandscapeVertexBuffer"));
+	CreateInfo.AssetName = GetOwnerName();
 	VertexBufferRHI = RHICreateBuffer(NumVertices * sizeof(FLandscapeVertex), BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 	FLandscapeVertex* Vertex = (FLandscapeVertex*)RHILockBuffer(VertexBufferRHI, 0, NumVertices * sizeof(FLandscapeVertex), RLM_WriteOnly);
 	int32 VertexIndex = 0;
@@ -2622,7 +2625,7 @@ void FLandscapeVertexBuffer::InitRHI()
 //
 
 template <typename INDEX_TYPE>
-void FLandscapeSharedBuffers::CreateIndexBuffers()
+void FLandscapeSharedBuffers::CreateIndexBuffers(const FName& InOwnerName)
 {
 	TArray<INDEX_TYPE> VertexToIndexMap;
 	VertexToIndexMap.AddUninitialized(FMath::Square(SubsectionSizeVerts * NumSubsections));
@@ -2704,7 +2707,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers()
 			IndexBuffer = new FRawStaticIndexBuffer16or32<INDEX_TYPE>(false);
 		}
 		IndexBuffer->AssignNewBuffer(NewIndices);
-
+		IndexBuffer->SetOwnerName(InOwnerName);
 		IndexBuffer->InitResource();
 
 		IndexBuffers[Mip] = IndexBuffer;
@@ -2744,7 +2747,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers()
 
 #if WITH_EDITOR
 template <typename INDEX_TYPE>
-void FLandscapeSharedBuffers::CreateGrassIndexBuffer()
+void FLandscapeSharedBuffers::CreateGrassIndexBuffer(const FName& InOwnerName)
 {
 	TArray<INDEX_TYPE> NewIndices;
 
@@ -2784,12 +2787,13 @@ void FLandscapeSharedBuffers::CreateGrassIndexBuffer()
 	// Create and init new index buffer with index data
 	FRawStaticIndexBuffer16or32<INDEX_TYPE>* IndexBuffer = new FRawStaticIndexBuffer16or32<INDEX_TYPE>(false);
 	IndexBuffer->AssignNewBuffer(NewIndices);
+	IndexBuffer->SetOwnerName(InOwnerName);
 	IndexBuffer->InitResource();
 	GrassIndexBuffer = IndexBuffer;
 }
 #endif
 
-FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel)
+FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel, const FName& InOwnerName)
 	: SharedBuffersKey(InSharedBuffersKey)
 	, NumIndexBuffers(FMath::CeilLogTwo(InSubsectionSizeQuads + 1))
 	, SubsectionSizeVerts(InSubsectionSizeQuads + 1)
@@ -2805,7 +2809,7 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 {
 	NumVertices = FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections);
 	
-	VertexBuffer = new FLandscapeVertexBuffer(InFeatureLevel, NumVertices, SubsectionSizeVerts, NumSubsections);
+	VertexBuffer = new FLandscapeVertexBuffer(InFeatureLevel, NumVertices, SubsectionSizeVerts, NumSubsections, InOwnerName);
 
 	IndexBuffers = new FIndexBuffer * [NumIndexBuffers];
 	FMemory::Memzero(IndexBuffers, sizeof(FIndexBuffer*) * NumIndexBuffers);
@@ -2822,21 +2826,21 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	if (NumVertices > 65535)
 	{
 		bUse32BitIndices = true;
-		CreateIndexBuffers<uint32>();
+		CreateIndexBuffers<uint32>(InOwnerName);
 #if WITH_EDITOR
 		if (InFeatureLevel > ERHIFeatureLevel::ES3_1)
 		{
-			CreateGrassIndexBuffer<uint32>();
+			CreateGrassIndexBuffer<uint32>(InOwnerName);
 		}
 #endif
 	}
 	else
 	{
-		CreateIndexBuffers<uint16>();
+		CreateIndexBuffers<uint16>(InOwnerName);
 #if WITH_EDITOR
 		if (InFeatureLevel > ERHIFeatureLevel::ES3_1)
 		{
-			CreateGrassIndexBuffer<uint16>();
+			CreateGrassIndexBuffer<uint16>(InOwnerName);
 		}
 #endif
 	}

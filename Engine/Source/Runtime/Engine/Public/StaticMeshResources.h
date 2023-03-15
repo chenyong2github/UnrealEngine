@@ -325,6 +325,8 @@ struct FStaticMeshVertexBuffers
 
 	/* This is a temporary function to refactor and convert old code, do not copy this as is and try to build your data as SoA from the beginning.*/
 	void ENGINE_API InitModelVF(FLocalVertexFactory* VertexFactory);
+
+	void SetOwnerName(const FName& OwnerName);
 };
 
 struct FAdditionalStaticMeshIndexBuffers

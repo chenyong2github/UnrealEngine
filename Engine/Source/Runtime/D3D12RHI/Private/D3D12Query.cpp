@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "ProfilingDebugging/AssetMetadataTrace.h"
 
 namespace D3D12RHI
 {
@@ -73,6 +74,8 @@ FD3D12QueryHeap::FD3D12QueryHeap(FD3D12Device* Device, D3D12_QUERY_TYPE QueryTyp
 		ResultBufferName = TEXT("Timestamp Query Heap Result Buffer (Copy)");
 		break;
 	}
+
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(ResultBufferName), FName(TEXT("FD3D12QueryHeap")));
 
 	// Create the query heap
 #if D3D12RHI_PLATFORM_USES_TIMESTAMP_QUERIES == 0

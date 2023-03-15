@@ -20,6 +20,8 @@ void FMorphTargetVertexInfoBuffers::InitRHI()
 
 	const uint32 BufferSize = MorphData.Num() * sizeof(uint32);
 	FRHIResourceCreateInfo CreateInfo(TEXT("MorphData"));
+	CreateInfo.ClassName = TEXT("FMorphTargetVertexInfoBuffers");
+	CreateInfo.AssetName = GetOwnerName();
 	MorphDataBuffer = RHICreateStructuredBuffer(sizeof(uint32), BufferSize, BUF_Static | BUF_ByteAddressBuffer | BUF_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
 	MorphDataBuffer->SetOwnerName(GetOwnerName());
 	

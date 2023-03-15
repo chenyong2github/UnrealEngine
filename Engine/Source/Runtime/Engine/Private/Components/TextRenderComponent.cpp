@@ -699,6 +699,11 @@ void FTextRenderSceneProxy::CreateRenderThreadResources()
 	TArray<FDynamicMeshVertex> OutVertices;
 	if(BuildStringMesh(OutVertices, IndexBuffer.Indices))
 	{
+#if RHI_ENABLE_RESOURCE_INFO
+		FName Name = FName(TEXT("FTextRenderSceneProxy ") + GetOwnerName().ToString());
+		VertexBuffers.SetOwnerName(Name);
+		IndexBuffer.SetOwnerName(Name);
+#endif
 		VertexBuffers.InitFromDynamicVertex(&VertexFactory, OutVertices);
 		// Enqueue initialization of render resources
 		BeginInitResource(&IndexBuffer);

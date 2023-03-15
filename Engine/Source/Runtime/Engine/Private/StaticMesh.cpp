@@ -1228,6 +1228,13 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 		});
 };
 
+void FStaticMeshVertexBuffers::SetOwnerName(const FName& OwnerName)
+{
+	PositionVertexBuffer.SetOwnerName(OwnerName);
+	StaticMeshVertexBuffer.SetOwnerName(OwnerName);
+	ColorVertexBuffer.SetOwnerName(OwnerName);
+}
+
 FStaticMeshLODResources::FStaticMeshLODResources(bool bAddRef)
 	: CardRepresentationData(nullptr)
 	, MaxDeviation(0.0f)

@@ -287,12 +287,13 @@ class FLandscapeVertexBuffer final : public FVertexBuffer
 public:
 
 	/** Constructor. */
-	FLandscapeVertexBuffer(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumVertices, int32 InSubsectionSizeVerts, int32 InNumSubsections)
+	FLandscapeVertexBuffer(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumVertices, int32 InSubsectionSizeVerts, int32 InNumSubsections, const FName& InOwnerName)
 		: FeatureLevel(InFeatureLevel)
 		, NumVertices(InNumVertices)
 		, SubsectionSizeVerts(InSubsectionSizeVerts)
 		, NumSubsections(InNumSubsections)
 	{
+		SetOwnerName(InOwnerName);
 		InitResource();
 	}
 
@@ -343,14 +344,14 @@ public:
 	TArray<FIndexBuffer*> ZeroOffsetIndexBuffers;
 #endif
 
-	FLandscapeSharedBuffers(int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel);
+	FLandscapeSharedBuffers(int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel, const FName& OwnerName = NAME_None);
 
 	template <typename INDEX_TYPE>
-	void CreateIndexBuffers();
+	void CreateIndexBuffers(const FName& OwnerName);
 	
 #if WITH_EDITOR
 	template <typename INDEX_TYPE>
-	void CreateGrassIndexBuffer();
+	void CreateGrassIndexBuffer(const FName& InOwnerName);
 #endif
 
 	virtual ~FLandscapeSharedBuffers();

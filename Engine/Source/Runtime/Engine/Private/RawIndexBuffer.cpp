@@ -341,6 +341,8 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 		// Create the index buffer.
 		FBufferRHIRef Ret;
 		FRHIResourceCreateInfo CreateInfo(Is32Bit() ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"), &IndexStorage);
+		CreateInfo.ClassName = CreateInfo.DebugName;
+		CreateInfo.AssetName = GetOwnerName();
 		CreateInfo.bWithoutNativeResource = !SizeInBytes;
 		if (bRenderThread)
 		{
@@ -510,6 +512,8 @@ FBufferRHIRef FRawStaticIndexBuffer16or32Interface::CreateRHIIndexBufferInternal
 {
 	// Create the index buffer.
 	FRHIResourceCreateInfo CreateInfo(InDebugName, ResourceArray);
+	CreateInfo.ClassName = InDebugName;
+	CreateInfo.AssetName = InOwnerName;
 	EBufferUsageFlags Flags = EBufferUsageFlags::Static;
 
 	if (bNeedSRV)

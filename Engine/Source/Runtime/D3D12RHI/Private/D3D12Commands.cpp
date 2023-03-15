@@ -18,6 +18,7 @@ D3D12Commands.cpp: D3D RHI commands implementation.
 #include "RenderUtils.h"
 #include "GlobalRenderResources.h"
 #include "RHIShaderParametersShared.h"
+#include "ProfilingDebugging/AssetMetadataTrace.h"
 
 static int32 GD3D12TransientAllocatorFullAliasingBarrier = 0;
 static FAutoConsoleVariableRef CVarD3D12TransientAllocatorFullAliasingBarrier(
@@ -674,6 +675,9 @@ void FD3D12CommandContext::RHISetStaticUniformBuffers(const FUniformBufferStatic
 void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CopyToStagingBufferTime);
+
+	FName AssetName = SourceBufferRHI->GetOwnerName() == NAME_None ? SourceBufferRHI->GetName() : SourceBufferRHI->GetOwnerName();
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(AssetName, FName(TEXT("FRHIStagingBuffer")));
 
 	FD3D12StagingBuffer* StagingBuffer = FD3D12DynamicRHI::ResourceCast(StagingBufferRHI);
 	check(StagingBuffer);
