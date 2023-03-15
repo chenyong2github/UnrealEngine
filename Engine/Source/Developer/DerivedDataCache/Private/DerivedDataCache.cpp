@@ -62,9 +62,9 @@ namespace UE::DerivedData::CookStats
 	// See https://developercommunity.visualstudio.com/content/problem/576913/c6244-regression-in-new-lambda-processorpermissive.html
 	static void AddCookStats(FCookStatsManager::AddStatFuncRef AddStat)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TSharedRef<FDerivedDataCacheStatsNode> RootNode = GetDerivedDataCacheRef().GatherUsageStats();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		{
 			const FString StatName(TEXT("DDC.Usage"));
@@ -388,14 +388,6 @@ class FDerivedDataCache final
 	class FBuildAsyncWorker : public FNonAbandonableTask
 	{
 	public:
-		enum EWorkerState : uint32
-		{
-			WorkerStateNone			= 0,
-			WorkerStateRunning		= 1 << 0,
-			WorkerStateFinished		= 1 << 1,
-			WorkerStateDestroyed	= 1 << 2,
-		};
-
 		/** 
 		 * Constructor for async task 
 		 * @param	InDataDeriver	plugin to produce cache key and in the event of a miss, return the data.
@@ -412,27 +404,9 @@ class FDerivedDataCache final
 		{
 		}
 
-		virtual ~FBuildAsyncWorker()
-		{
-			// Record that the task is destroyed and check that it was not running or destroyed previously.
-			{
-				const uint32 PreviousState = WorkerState.fetch_or(WorkerStateDestroyed, std::memory_order_relaxed);
-				checkf(!(PreviousState & WorkerStateRunning), TEXT("Destroying DDC worker that is still running! Key: %s"), *CacheKey);
-				checkf(!(PreviousState & WorkerStateDestroyed), TEXT("Destroying DDC worker that has been destroyed previously! Key: %s"), *CacheKey);
-			}
-		}
-
 		/** Async worker that checks the cache backend and if that fails, calls the deriver to build the data and then puts the results to the cache **/
 		void DoWork()
 		{
-			// Record that the task is running and check that it was not running, finished, or destroyed previously.
-			{
-				const uint32 PreviousState = WorkerState.fetch_or(WorkerStateRunning, std::memory_order_relaxed);
-				checkf(!(PreviousState & WorkerStateRunning), TEXT("Starting DDC worker that is already running! Key: %s"), *CacheKey);
-				checkf(!(PreviousState & WorkerStateFinished), TEXT("Starting DDC worker that is already finished! Key: %s"), *CacheKey);
-				checkf(!(PreviousState & WorkerStateDestroyed), TEXT("Starting DDC worker that has been destroyed! Key: %s"), *CacheKey);
-			}
-
 			TRACE_CPUPROFILER_EVENT_SCOPE(DDC_DoWork);
 
 			const int64 NumBeforeDDC = Data.Num();
@@ -554,14 +528,6 @@ class FDerivedDataCache final
 				Data.Empty();
 			}
 			Backend->AddToAsyncCompletionCounter(-1);
-
-			// Record that the task is finished and check that it was running and not finished or destroyed previously.
-			{
-				const uint32 PreviousState = WorkerState.fetch_xor(WorkerStateRunning | WorkerStateFinished, std::memory_order_relaxed);
-				checkf((PreviousState & WorkerStateRunning), TEXT("Finishing DDC worker that was not running! Key: %s"), *CacheKey);
-				checkf(!(PreviousState & WorkerStateFinished), TEXT("Finishing DDC worker that is already finished! Key: %s"), *CacheKey);
-				checkf(!(PreviousState & WorkerStateDestroyed), TEXT("Finishing DDC worker that has been destroyed! Key: %s"), *CacheKey);
-			}
 		}
 
 		FORCEINLINE TStatId GetStatId() const
@@ -569,7 +535,6 @@ class FDerivedDataCache final
 			RETURN_QUICK_DECLARE_CYCLE_STAT(FBuildAsyncWorker, STATGROUP_ThreadPoolAsyncTasks);
 		}
 
-		std::atomic<uint32>				WorkerState{WorkerStateNone};
 		/** true in the case of a cache hit, otherwise the result of the deriver build call **/
 		bool							bSuccess;
 		/** true if we should record the timing **/
@@ -942,13 +907,6 @@ public:
 	{
 		Backend->GetDirectories(OutResults);
 	}
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual IDDCCleanup* GetCleanup() const override
-	{
-		return const_cast<IDDCCleanup*>(static_cast<const IDDCCleanup*>(this));
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual bool IsFinished() const override
 	{

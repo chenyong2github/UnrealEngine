@@ -110,10 +110,6 @@ UE_API FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, ECach
 UE_API bool TryLexFromString(ECachePolicy& OutPolicy, FUtf8StringView String);
 UE_API bool TryLexFromString(ECachePolicy& OutPolicy, FWideStringView String);
 
-UE_DEPRECATED(5.1, "Replace ParseCachePolicy with TryLexFromString.") UE_API ECachePolicy ParseCachePolicy(FAnsiStringView Text);
-UE_DEPRECATED(5.1, "Replace ParseCachePolicy with TryLexFromString.") UE_API ECachePolicy ParseCachePolicy(FWideStringView Text);
-UE_DEPRECATED(5.1, "Replace ParseCachePolicy with TryLexFromString.") UE_API ECachePolicy ParseCachePolicy(FUtf8StringView Text);
-
 UE_API FCbWriter& operator<<(FCbWriter& Writer, ECachePolicy Policy);
 UE_API bool LoadFromCompactBinary(FCbFieldView Field, ECachePolicy& OutPolicy, ECachePolicy Default = ECachePolicy::Default);
 
@@ -189,14 +185,6 @@ public:
 
 	/** Returns a copy of this policy transformed by an operation. */
 	UE_API FCacheRecordPolicy Transform(TFunctionRef<ECachePolicy (ECachePolicy)> Op) const;
-
-	/** Saves the cache record policy to a compact binary object. */
-	UE_DEPRECATED(5.1, "Replace Policy.Save(Writer) with Writer << Policy.")
-	UE_API void Save(FCbWriter& Writer) const;
-
-	/** Loads a cache record policy from an object. */
-	UE_DEPRECATED(5.1, "Replace Load(Object) with LoadFromCompactBinary(Field, Policy).")
-	UE_API static FOptionalCacheRecordPolicy Load(FCbObjectView Object);
 
 private:
 	friend class FCacheRecordPolicyBuilder;

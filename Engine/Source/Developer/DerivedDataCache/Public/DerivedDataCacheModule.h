@@ -13,10 +13,6 @@ class FDerivedDataCacheInterface;
 class IDerivedDataCacheModule : public IModuleInterface
 {
 public:
-	/** Return the DDC interface **/
-	UE_DEPRECATED(4.27, "GetDDC has been replaced by CreateOrGetCache.")
-	virtual FDerivedDataCacheInterface& GetDDC() = 0;
-
 	/**
 	 * Returns the cache, which is created by the first call to this function.
 	 *

@@ -19,16 +19,9 @@ static FDerivedDataCacheInterface* GDerivedDataLegacyCache;
 static ICache* GDerivedDataCache;
 static IBuild* GDerivedDataBuild;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
 class FDerivedDataCacheModule final : public IDerivedDataCacheModule
 {
 public:
-	FDerivedDataCacheInterface& GetDDC() final
-	{
-		return **CreateOrGetCache();
-	}
-
 	FDerivedDataCacheInterface* const* CreateOrGetCache() final
 	{
 		CreateCacheOnce();
@@ -80,8 +73,6 @@ public:
 private:
 	FCriticalSection CreateLock;
 };
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 static FDerivedDataCacheModule* GetModule()
 {

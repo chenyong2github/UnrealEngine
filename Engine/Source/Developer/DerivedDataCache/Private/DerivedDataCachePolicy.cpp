@@ -231,21 +231,6 @@ FCacheRecordPolicy FCacheRecordPolicy::Transform(const TFunctionRef<ECachePolicy
 	return Builder.Build();
 }
 
-void FCacheRecordPolicy::Save(FCbWriter& Writer) const
-{
-	Writer << *this;
-}
-
-FOptionalCacheRecordPolicy FCacheRecordPolicy::Load(const FCbObjectView Object)
-{
-	FCacheRecordPolicy Policy;
-	if (LoadFromCompactBinary(Object.AsFieldView(), Policy))
-	{
-		return Policy;
-	}
-	return {};
-}
-
 void FCacheRecordPolicyBuilder::AddValuePolicy(const FCacheValuePolicy& Value)
 {
 	checkf(!EnumHasAnyFlags(Value.Policy, ~Value.PolicyMask),

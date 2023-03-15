@@ -140,30 +140,6 @@ public:
 	//--------------------
 
 	/** 
-	 * Synchronously checks the cache and if the item is present, it returns the cached results, otherwise it returns false
-	 * @param	CacheKey	Key to identify the data
-	 * @return	true if the data was retrieved from the cache
-	**/
-	UE_DEPRECATED(4.25, "'GetSynchronous' without a DebugContext is deprecated. Please provide a DebugContext!")
-	bool GetSynchronous(const TCHAR* CacheKey, TArray<uint8>& OutData) { return GetSynchronous(CacheKey, OutData, TEXT("Unknown Context")); }
-
-	/** 
-	 * Starts the async process of checking the cache and if the item is present, retrieving the cached results
-	 * @param	CacheKey		Key to identify the data
-	 * @return	a handle that can be used for PollAsynchronousCompletion, WaitAsynchronousCompletion and GetAsynchronousResults
-	**/
-	UE_DEPRECATED(4.25, "'GetAsynchronous' without a DebugContext is deprecated. Please provide a DebugContext!")
-	uint32 GetAsynchronous(const TCHAR* CacheKey) { return GetAsynchronous(CacheKey, TEXT("Unknown Context")); }
-
-	/** 
-	 * Puts data into the cache. This is fire-and-forget and typically asynchronous.
-	 * @param	CacheKey	Key to identify the data
-	 * @param	Data		Data to put in the cache under this key
-	**/
-	UE_DEPRECATED(4.25, "'Put' without a DebugContext is deprecated. Please provide a DebugContext!")
-	void Put(const TCHAR* CacheKey, TArray<uint8>& Data, bool bPutEvenIfExists = false) { Put(CacheKey, Data, TEXT("Unknown Context"), bPutEvenIfExists); }
-
-	/** 
 	 * Synchronously checks the cache and if the item is present, it returns the cached results, otherwise it returns false.
 	 *
 	 * Prefer to use a FDerivedDataPluginInterface instead of generating the key directly.
@@ -282,12 +258,6 @@ public:
 	 * Are we currently using the default graph configuration?
 	 */
 	bool IsDefaultGraph() const { return TStringView<TCHAR>(GetGraphName()).Equals(GetDefaultGraphName()); }
-
-	/**
-	 * Retrieve the interface to the background cache cleanup.
-	 */
-	UE_DEPRECATED(5.0, "This has been replaced by UE::DerivedData::GetCache().GetMaintainer().")
-	virtual IDDCCleanup* GetCleanup() const = 0;
 
 	//--------------------
 	// UsageStats Interface
