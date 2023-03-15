@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "MuR/Parameters.h"
+#include "Misc/TVariant.h"
+#include "Math/MathFwd.h"
 
+#include "MuR/Parameters.h"
 #include "MuR/SerialisationPrivate.h"
 #include "MuR/Operations.h"
 #include "MuR/ImagePrivate.h"
@@ -265,40 +267,38 @@ namespace mu
             arch >> defaultValue;
         }
 	};
+	
+
+	using ParamBoolType = bool;
+	using ParamIntType = int32;
+	using ParamFloatType = float;
+	using ParamColorType = FVector3f;
+	using ParamProjectorType = FProjector;
+	using ParamImageType = EXTERNAL_IMAGE_ID;
+	using ParamStringType = string;
+
+	
+	using PARAMETER_VALUE = TVariant<ParamBoolType, ParamIntType, ParamFloatType, ParamColorType, ParamProjectorType, ParamImageType, ParamStringType>;
 
 
-    union PARAMETER_VALUE
-    {
-        PARAMETER_VALUE()
-			: m_projector()
-        {
-            memset( this, 0, sizeof(PARAMETER_VALUE) );
-        }
+	// TVariant currently does not support this operator. Once supported remove it.
+	inline bool operator==(const PARAMETER_VALUE& ValueA, const PARAMETER_VALUE& ValueB)
+	{
+		const int32 IndexA = ValueA.GetIndex();
+		const int32 IndexB = ValueB.GetIndex();
 
-        bool m_bool;
+		if (IndexA != IndexB)
+		{
+			return false;
+		}
 
-        int m_int;
-
-        float m_float;
-
-        float m_colour[3];
-
-        FProjector m_projector;
-
-        EXTERNAL_IMAGE_ID m_image;
-
-        char m_text[MUTABLE_MAX_STRING_PARAM_LENGTH+1];
-
-        //!
-        bool operator==( const PARAMETER_VALUE& other ) const
-        {
-            return FMemory::Memcmp(this, &other, sizeof(PARAMETER_VALUE))==0;
-        }
-
-    };
-
-    MUTABLE_DEFINE_POD_SERIALISABLE( PARAMETER_VALUE )
-
+		return Visit([&ValueB](const auto& StoredValueA)
+		{
+			using Type = typename TDecay<decltype(StoredValueA)>::Type;
+			return StoredValueA == ValueB.Get<Type>();
+		}, ValueA);
+	}
+	
 
     struct FParameterDesc
     {
@@ -364,7 +364,7 @@ namespace mu
         //!
         void Serialise( OutputArchive& arch ) const
         {
-            const int32 ver = 5;
+            const int32 ver = 6;
             arch << ver;
 
 			arch << m_name;
@@ -381,7 +381,7 @@ namespace mu
         {
             int32 ver;
             arch >> ver;
-            check( ver == 5 );
+            check( ver == 6 );
 
 			arch >> m_name;
             arch >> m_uid;
@@ -476,7 +476,7 @@ namespace mu
         //!
         void Serialise( OutputArchive& arch ) const
         {
-            const uint32 ver = 1;
+            const uint32 ver = 2;
             arch << ver;
 
             arch << m_values;
@@ -488,10 +488,10 @@ namespace mu
         {
             uint32 ver;
             arch >> ver;
-            check( ver == 1 );
-
-            arch >> m_values;
-            arch >> m_multiValues;
+			check(ver == 2);
+        	
+			arch >> m_values;
+			arch >> m_multiValues;
         }
 
         //!

@@ -529,7 +529,7 @@ namespace mu
             op->parameter.m_name = node.m_name;
             op->parameter.m_uid = node.m_uid;
             op->parameter.m_type = PARAMETER_TYPE::T_INT;
-            op->parameter.m_defaultValue.m_int = -1;
+            op->parameter.m_defaultValue.Set<ParamIntType>(-1);
 
             if ( node.m_type==NodeObjectGroup::CS_ONE_OR_NONE )
             {
@@ -537,7 +537,7 @@ namespace mu
                 nullValue.m_value = -1;
                 nullValue.m_name = "None";
                 op->parameter.m_possibleValues.Add( nullValue );
-                op->parameter.m_defaultValue.m_int = nullValue.m_value;
+                op->parameter.m_defaultValue.Set<ParamIntType>(nullValue.m_value);
             }
 
             enumOp = op;
@@ -562,7 +562,7 @@ namespace mu
                         op->parameter.m_name = pChildNode->GetName();
                         op->parameter.m_uid = pChildNode->GetUid();
                         op->parameter.m_type = PARAMETER_TYPE::T_BOOL;
-                        op->parameter.m_defaultValue.m_bool = false;
+                        op->parameter.m_defaultValue.Set<ParamBoolType>(false);
 
                         paramOp = op;
                         break;
@@ -588,9 +588,9 @@ namespace mu
                         enumOp->parameter.m_possibleValues.Add( value );
 
                         // Set as default if none has been set.
-                        if ( enumOp->parameter.m_defaultValue.m_int == -1 )
+                        if ( enumOp->parameter.m_defaultValue.Get<ParamIntType>() == -1 )
                         {
-                            enumOp->parameter.m_defaultValue.m_int = (int)t;
+                            enumOp->parameter.m_defaultValue.Set<ParamIntType>(t);
                         }
 
                         check(enumOp);

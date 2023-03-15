@@ -148,10 +148,14 @@ namespace mu
 			param.m_name = node.m_name;
 			param.m_uid = node.m_uid;
 			param.m_type = PARAMETER_TYPE::T_COLOUR;
-			param.m_defaultValue.m_colour[0] = node.m_defaultValue[0];
-			param.m_defaultValue.m_colour[1] = node.m_defaultValue[1];
-			param.m_defaultValue.m_colour[2] = node.m_defaultValue[2];
 
+			ParamColorType Value;
+			Value[0] =  node.m_defaultValue[0];
+			Value[1] = node.m_defaultValue[1];
+			Value[2] = node.m_defaultValue[2];
+
+			param.m_defaultValue.Set<ParamColorType>(Value);
+			
 			op = new ASTOpParameter();
 			op->type = OP_TYPE::CO_PARAMETER;
 			op->parameter = param;

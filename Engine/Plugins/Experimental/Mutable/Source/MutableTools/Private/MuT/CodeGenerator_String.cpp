@@ -93,11 +93,7 @@ namespace mu
 			param.m_uid = node.m_uid;
 			param.m_type = PARAMETER_TYPE::T_FLOAT;
 			param.m_detailedType = node.m_detailedType;
-			// param.m_defaultValue.m_text = node.m_defaultValue;
-			int len = FMath::Min(MUTABLE_MAX_STRING_PARAM_LENGTH, int(node.m_defaultValue.size()));
-			FMemory::Memcpy(param.m_defaultValue.m_text, node.m_defaultValue.c_str(), len);
-			param.m_defaultValue.m_text[len] = 0;
-
+			param.m_defaultValue.Set<ParamStringType>(node.m_defaultValue);
 
 			op = new ASTOpParameter();
 			op->type = OP_TYPE::ST_PARAMETER;

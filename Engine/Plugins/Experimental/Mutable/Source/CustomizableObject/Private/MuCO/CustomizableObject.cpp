@@ -23,6 +23,7 @@
 #include "MuCO/MutableProjectorTypeUtils.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
 #include "MuR/ModelPrivate.h"
+#include "MuR/ParametersPrivate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -1462,7 +1463,7 @@ float UCustomizableObject::GetFloatParameterDefaultValue(const FString& InParame
 	}
 
 	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
-	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_float;
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamFloatType>();
 	return Value;
 }
 
@@ -1478,7 +1479,7 @@ int32 UCustomizableObject::GetIntParameterDefaultValue(const FString& InParamete
 	}
 
 	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
-	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_int;
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamIntType>();
 	return Value;
 }
 
@@ -1494,7 +1495,7 @@ bool UCustomizableObject::GetBoolParameterDefaultValue(const FString& InParamete
 	}
 	
 	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
-	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_bool;
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamBoolType>();
 	return Value;
 }
 
@@ -1510,9 +1511,9 @@ FLinearColor UCustomizableObject::GetColorParameterDefaultValue(const FString& I
 	}
 	
 	const mu::Model::Private* ModelPrivate = PrivateData->GetModel()->GetPrivate();
-	Value.R = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.m_colour[0];
-	Value.G = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.m_colour[1];
-	Value.B = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.m_colour[2];
+	Value.R = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamColorType>()[0];
+	Value.G = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamColorType>()[1];
+	Value.B = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamColorType>()[2];
 	Value.A = 1.0f;
 	
 	return Value;
@@ -1531,7 +1532,7 @@ void UCustomizableObject::GetProjectorParameterDefaultValue(const FString& InPar
 	
 	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
 	
-	mu::FProjector MutableProjector = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_projector;
+	mu::FProjector MutableProjector = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamProjectorType>();
 	OutType = ProjectorUtils::GetEquivalentProjectorType(MutableProjector.type);
 	OutPos = MutableProjector.position;
 	OutDirection = MutableProjector.direction;
@@ -1539,6 +1540,7 @@ void UCustomizableObject::GetProjectorParameterDefaultValue(const FString& InPar
 	OutScale = MutableProjector.scale;
 	OutAngle = MutableProjector.projectionAngle;
 }
+
 
 FCustomizableObjectProjector UCustomizableObject::GetProjectorParameterDefaultValue(const FString& InParameterName) const 
 {
@@ -1552,7 +1554,7 @@ FCustomizableObjectProjector UCustomizableObject::GetProjectorParameterDefaultVa
 	
 	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
 
-	mu::FProjector MutableProjector = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_projector;
+	mu::FProjector MutableProjector = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamProjectorType>();
 	Value.Angle = MutableProjector.projectionAngle;
 	Value.Direction = MutableProjector.direction;
 	Value.Position = MutableProjector.position;
@@ -1575,7 +1577,7 @@ uint64 UCustomizableObject::GetTextureParameterDefaultValue(const FString& InPar
 	}
 	
 	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
-	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.m_image;
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamImageType>();
 	return Value;
 }
 

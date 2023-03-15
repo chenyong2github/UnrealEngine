@@ -338,7 +338,7 @@ namespace mu
         if (!pos)
         {
             // Return the single value
-            return m_pD->m_values[index].m_bool;
+            return m_pD->m_values[index].Get<ParamBoolType>();
         }
 
         // Multivalue case
@@ -350,12 +350,12 @@ namespace mu
 			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
             if (it)
             {
-                return it->m_bool;
+                return it->Get<ParamBoolType>();
             }
         }
 
         // Multivalue parameter, but no multivalue set. Return single value.
-        return m_pD->m_values[index].m_bool;
+        return m_pD->m_values[index].Get<ParamBoolType>();
 	}
 
 
@@ -385,7 +385,7 @@ namespace mu
                 m_pD->m_multiValues[index].Empty();
             }
 
-            m_pD->m_values[index].m_bool = value;
+            m_pD->m_values[index].Set<ParamBoolType>(value);
         }
 
         // Multivalue case
@@ -400,7 +400,7 @@ namespace mu
 
 			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
 			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
-            it.m_bool = value;
+            it.Set<ParamBoolType>(value);
         }
 	}
 
@@ -499,7 +499,7 @@ namespace mu
         if (!pos)
         {
             // Return the single value
-            return m_pD->m_values[index].m_int;
+            return m_pD->m_values[index].Get<ParamIntType>();
         }
 
         // Multivalue case
@@ -511,12 +511,12 @@ namespace mu
 			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
             if (it)
             {
-                return it->m_int;
+                return it->Get<ParamIntType>();
             }
         }
 
         // Multivalue parameter, but no multivalue set. Return single value.
-        return m_pD->m_values[index].m_int;
+        return m_pD->m_values[index].Get<ParamIntType>();
     }
 
 
@@ -546,7 +546,7 @@ namespace mu
                 m_pD->m_multiValues[index].Empty();
             }
 
-            m_pD->m_values[index].m_int = value;
+            m_pD->m_values[index].Set<ParamIntType>(value);
         }
 
         // Multivalue case
@@ -561,7 +561,7 @@ namespace mu
 
 			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
 			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
-            it.m_int = value;
+            it.Set<ParamIntType>(value);
         }
     }
 
@@ -587,7 +587,7 @@ namespace mu
         if (!pos)
         {
             // Return the single value
-            return m_pD->m_values[index].m_float;
+            return m_pD->m_values[index].Get<ParamFloatType>();
         }
 
         // Multivalue case
@@ -599,12 +599,12 @@ namespace mu
 			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
             if (it)
             {
-                return it->m_float;
+                return it->Get<ParamFloatType>();
             }
         }
 
         // Multivalue parameter, but no multivalue set. Return single value.
-        return m_pD->m_values[index].m_float;
+        return m_pD->m_values[index].Get<ParamFloatType>();
     }
 
 
@@ -634,7 +634,7 @@ namespace mu
                 m_pD->m_multiValues[index].Empty();
             }
 
-            m_pD->m_values[index].m_float = value;
+            m_pD->m_values[index].Set<ParamFloatType>(value);
         }
 
         // Multivalue case
@@ -649,7 +649,7 @@ namespace mu
 
 			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
 			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
-            it.m_float = value;
+            it.Set<ParamFloatType>(value);
         }
     }
 
@@ -675,9 +675,9 @@ namespace mu
         if (!pos)
         {
             // Return the single value
-            if (pR) *pR = m_pD->m_values[index].m_colour[0];
-            if (pG) *pG = m_pD->m_values[index].m_colour[1];
-            if (pB) *pB = m_pD->m_values[index].m_colour[2];
+            if (pR) *pR = m_pD->m_values[index].Get<ParamColorType>()[0];
+            if (pG) *pG = m_pD->m_values[index].Get<ParamColorType>()[1];
+            if (pB) *pB = m_pD->m_values[index].Get<ParamColorType>()[2];
             return;
         }
 
@@ -690,17 +690,17 @@ namespace mu
 			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
             if (it)
             {
-                if (pR) *pR = it->m_colour[0];
-                if (pG) *pG = it->m_colour[1];
-                if (pB) *pB = it->m_colour[2];
+                if (pR) *pR = it->Get<ParamColorType>()[0];
+                if (pG) *pG = it->Get<ParamColorType>()[1];
+                if (pB) *pB = it->Get<ParamColorType>()[2];
                 return;
             }
         }
 
         // Multivalue parameter, but no multivalue set. Return single value.
-        if (pR) *pR = m_pD->m_values[index].m_colour[0];
-        if (pG) *pG = m_pD->m_values[index].m_colour[1];
-        if (pB) *pB = m_pD->m_values[index].m_colour[2];
+        if (pR) *pR = m_pD->m_values[index].Get<ParamColorType>()[0];
+        if (pG) *pG = m_pD->m_values[index].Get<ParamColorType>()[1];
+        if (pB) *pB = m_pD->m_values[index].Get<ParamColorType>()[2];
         return;
     }
 
@@ -731,9 +731,12 @@ namespace mu
                 m_pD->m_multiValues[index].Empty();
             }
 
-            m_pD->m_values[index].m_colour[0] = r;
-            m_pD->m_values[index].m_colour[1] = g;
-            m_pD->m_values[index].m_colour[2] = b;
+        	ParamColorType Value;
+            Value[0] = r;
+            Value[1] = g;
+            Value[2] = b;
+        	
+        	m_pD->m_values[index].Set<ParamColorType>(Value);
         }
 
         // Multivalue case
@@ -748,9 +751,13 @@ namespace mu
 
 			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
 			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
-            it.m_colour[0] = r;
-            it.m_colour[1] = g;
-            it.m_colour[2] = b;
+
+        	ParamColorType Value;
+            Value[0] = r;
+            Value[1] = g;
+            Value[2] = b;
+
+        	it.Set<ParamColorType>(Value);
         }
     }
 
@@ -764,7 +771,7 @@ namespace mu
 		// Single value case
 		if (!pos)
 		{
-			return m_pD->m_values[index].m_image;
+			return m_pD->m_values[index].Get<ParamImageType>();
 		}
 
 		// Multivalue case
@@ -776,12 +783,12 @@ namespace mu
 			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
 			if (it)
 			{
-				return it->m_image;
+				return it->Get<ParamImageType>();
 			}
 		}
 
 		// Multivalue parameter, but no multivalue set. Return single value.
-		return m_pD->m_values[index].m_image;
+		return m_pD->m_values[index].Get<ParamImageType>();
 
     }
 
@@ -795,7 +802,7 @@ namespace mu
 		// Single value case
 		if (!pos)
 		{
-			m_pD->m_values[index].m_image = id;
+			m_pD->m_values[index].Set<ParamImageType>(id);
 		}
 
 		// Multivalue case
@@ -810,7 +817,7 @@ namespace mu
 
 			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
 			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
-			it.m_image = id;
+			it.Set<ParamImageType>(id);
 		}
     }
 
@@ -832,7 +839,7 @@ namespace mu
         if ( !pos )
         {
             // Return the single value
-            return m_pD->m_values[index].m_text;
+            return m_pD->m_values[index].Get<ParamStringType>().c_str();
         }
 
         // Multivalue case
@@ -844,12 +851,12 @@ namespace mu
 			const PARAMETER_VALUE* it = m.Find( pos->m_pD->m_values );
             if ( it )
             {
-                return it->m_text;
+                return it->Get<ParamStringType>().c_str();
             }
         }
 
         // Multivalue parameter, but no multivalue set. Return single value.
-        return m_pD->m_values[index].m_text;
+        return m_pD->m_values[index].Get<ParamStringType>().c_str();
     }
 
 
@@ -868,8 +875,6 @@ namespace mu
             return;
         }
 
-        int32 len = FMath::Min( MUTABLE_MAX_STRING_PARAM_LENGTH, int32( strnlen( value, MUTABLE_MAX_STRING_PARAM_LENGTH ) ) );
-
         // Single value case
         if ( !pos )
         {
@@ -879,8 +884,7 @@ namespace mu
                 m_pD->m_multiValues[index].Empty();
             }
 
-			FMemory::Memcpy( m_pD->m_values[index].m_text, value, len );
-            m_pD->m_values[index].m_text[len] = 0;
+        	m_pD->m_values[index].Set<ParamStringType>(value);
         }
 
         // Multivalue case
@@ -895,8 +899,7 @@ namespace mu
 
 			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
 			PARAMETER_VALUE& it = m.FindOrAdd( pos->m_pD->m_values );
-			FMemory::Memcpy( it.m_text, value, len );
-            it.m_text[len] = 0;
+        	it.Set<ParamStringType>(value);
         }
     }
 
@@ -927,7 +930,7 @@ namespace mu
         if (!pos)
         {
             // Return the single value
-            result = &m_values[index].m_projector;
+            result = &m_values[index].Get<ParamProjectorType>();
         }
 
         // Multivalue case
@@ -940,7 +943,7 @@ namespace mu
                 const PARAMETER_VALUE* it = m_multiValues[index].Find(pos->m_pD->m_values);
                 if (it)
                 {
-                    result = &it->m_projector;
+                    result = &it->Get<ParamProjectorType>();
                 }
             }
         }
@@ -948,7 +951,7 @@ namespace mu
         // Multivalue parameter, but no multivalue set. Return single value.
         if (!result)
         {
-            result = &m_values[index].m_projector;
+            result = &m_values[index].Get<ParamProjectorType>();
         }
 
         return *result;
@@ -1025,7 +1028,7 @@ namespace mu
                 m_pD->m_multiValues[ParameterIndex].Empty();
             }
 
-            result = &m_pD->m_values[ParameterIndex].m_projector;
+            result = &m_pD->m_values[ParameterIndex].Get<ParamProjectorType>();
         }
 
         // Multivalue case
@@ -1040,7 +1043,7 @@ namespace mu
 
 			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[ParameterIndex];
 			PARAMETER_VALUE& it = m.FindOrAdd(RangePosition->m_pD->m_values);
-            result = &it.m_projector;
+            result = &it.Get<ParamProjectorType>();
         }
 
         check( result );
@@ -1050,7 +1053,7 @@ namespace mu
         if (m_pD->m_pModel)
         {
             const FProgram& program = m_pD->m_pModel->GetPrivate()->m_program;
-            result->type = program.m_parameters[ParameterIndex].m_defaultValue.m_projector.type;
+            result->type = program.m_parameters[ParameterIndex].m_defaultValue.Get<ParamProjectorType>().type;
         }
 
         result->position = pos;

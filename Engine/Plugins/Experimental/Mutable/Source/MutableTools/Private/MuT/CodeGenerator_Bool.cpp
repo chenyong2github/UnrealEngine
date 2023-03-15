@@ -100,7 +100,7 @@ namespace mu
 			param.m_name = node.m_name;
 			param.m_uid = node.m_uid;
 			param.m_type = PARAMETER_TYPE::T_BOOL;
-			param.m_defaultValue.m_bool = node.m_defaultValue;
+			param.m_defaultValue.Set<ParamBoolType>(node.m_defaultValue);
 
 			op = new ASTOpParameter();
 			op->type = OP_TYPE::BO_PARAMETER;

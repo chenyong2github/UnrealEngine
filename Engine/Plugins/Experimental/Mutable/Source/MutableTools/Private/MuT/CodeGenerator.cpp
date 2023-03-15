@@ -324,7 +324,7 @@ namespace mu
             param.m_name = pTable->GetName();
         }
         param.m_type = PARAMETER_TYPE::T_INT;
-        param.m_defaultValue.m_int = 0;
+        param.m_defaultValue.Set<ParamIntType>(0);
 
         // Add the possible values
         {
@@ -346,7 +346,7 @@ namespace mu
 				nullValue.m_value = -1;
 				nullValue.m_name = "None";
 				param.m_possibleValues.Add(nullValue);
-				param.m_defaultValue.m_int = nullValue.m_value;
+				param.m_defaultValue.Set<ParamIntType>(nullValue.m_value);
 			}
 
             // Add every row
@@ -366,7 +366,7 @@ namespace mu
                 // The first row is the default one
                 if (i==0)
                 {
-                    param.m_defaultValue.m_int = value.m_value;
+                    param.m_defaultValue.Set<ParamIntType>(value.m_value);
                 }
             }
         }

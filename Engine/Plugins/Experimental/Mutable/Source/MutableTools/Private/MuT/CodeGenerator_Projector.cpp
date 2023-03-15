@@ -119,7 +119,7 @@ namespace mu
 			param.m_type = PARAMETER_TYPE::T_PROJECTOR;
 
 			FProjector p = ProjectorFromNode(node);
-			param.m_defaultValue.m_projector = p;
+			param.m_defaultValue.Set<ParamProjectorType>(p);
 
 			op = new ASTOpParameter();
 			op->type = OP_TYPE::PR_PARAMETER;
@@ -140,7 +140,7 @@ namespace mu
 			op = it->second;
 		}
 
-		result.type = op->parameter.m_defaultValue.m_projector.type;
+		result.type = op->parameter.m_defaultValue.Get<ParamProjectorType>().type;
 		result.op = op;
 	}
 

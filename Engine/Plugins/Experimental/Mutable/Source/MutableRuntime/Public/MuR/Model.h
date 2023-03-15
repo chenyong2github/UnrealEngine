@@ -13,8 +13,8 @@
 //! data structures. Compiled models are not necessarily compatible when the runtime is updated,
 //! so this version number can be used externally to verify this. It is not used internally, and
 //! serializing models from different versions than this runtime will probably result in a crash.
-#define MUTABLE_COMPILED_MODEL_CODE_VERSION		uint32( 59 )
-#define MUTABLE_PARAMETERS_VERSION              uint32( 1 )
+#define MUTABLE_COMPILED_MODEL_CODE_VERSION		uint32( 60 )
+#define MUTABLE_PARAMETERS_VERSION              uint32( 2 )
 
 
 namespace mu

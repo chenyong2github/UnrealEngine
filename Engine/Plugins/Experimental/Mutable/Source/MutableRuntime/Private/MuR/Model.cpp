@@ -391,8 +391,7 @@ namespace mu
                         {
 //							float m[16];
 //							pOld->GetProjectorValue( p, m );
-                            pRes->GetPrivate()->m_values[thisP].m_projector =
-                                    pOld->GetPrivate()->m_values[p].m_projector;
+                            pRes->GetPrivate()->m_values[thisP].Set<ParamProjectorType>(pOld->GetPrivate()->m_values[p].Get<ParamProjectorType>());
                             break;
                         }
 
@@ -538,7 +537,7 @@ namespace mu
             {
             case PARAMETER_TYPE::T_BOOL:
                 dataSize = 1;
-                parameterValuesBlob.Add( pParams->GetPrivate()->m_values[param].m_bool ? 1 : 0 );
+                parameterValuesBlob.Add( pParams->GetPrivate()->m_values[param].Get<ParamBoolType>() ? 1 : 0 );
                 pos += dataSize;
 
                 // Multi-values
@@ -548,7 +547,7 @@ namespace mu
                     pos = AddMultiValueKeys( parameterValuesBlob, pos, multi );
                     for(const auto& v: multi)
                     {
-                        parameterValuesBlob.Add( v.Value.m_bool ? 1 : 0 );
+                        parameterValuesBlob.Add( v.Value.Get<ParamBoolType>() ? 1 : 0 );
                         pos += dataSize;
                     }
                 }
@@ -557,7 +556,7 @@ namespace mu
             case PARAMETER_TYPE::T_INT:
                 dataSize = sizeof(int32);
                 parameterValuesBlob.SetNum( pos+dataSize );
-                FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].m_int, dataSize );
+                FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].Get<ParamIntType>(), dataSize );
                 pos += dataSize;
 
                 // Multi-values
@@ -568,7 +567,7 @@ namespace mu
                     parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_int, dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.Get<ParamIntType>(), dataSize );
                         pos += dataSize;
                     }
                 }
@@ -578,7 +577,7 @@ namespace mu
             case PARAMETER_TYPE::T_FLOAT:
                 dataSize = sizeof(float);
                 parameterValuesBlob.SetNum( pos+dataSize );
-				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].m_float, dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].Get<ParamFloatType>(), dataSize );
                 pos += dataSize;
 
                 // Multi-values
@@ -589,7 +588,7 @@ namespace mu
                     parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_float,dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.Get<ParamFloatType>(),dataSize );
                         pos += dataSize;
                     }
                 }
@@ -599,7 +598,7 @@ namespace mu
             case PARAMETER_TYPE::T_COLOUR:
                 dataSize = 3*sizeof(float);
                 parameterValuesBlob.SetNum( pos+dataSize );
-				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].m_colour, dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].Get<ParamFloatType>(), dataSize );
                 pos += dataSize;
 
                 // Multi-values
@@ -610,7 +609,7 @@ namespace mu
                     parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_colour,dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.Get<ParamColorType>(),dataSize );
                         pos += dataSize;
                     }
                 }
@@ -623,7 +622,7 @@ namespace mu
 
                 // \todo: padding will be random?
                 parameterValuesBlob.SetNum( pos+dataSize );
-				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].m_projector, dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos], &pParams->GetPrivate()->m_values[param].Get<ParamProjectorType>(), dataSize );
 				pos += dataSize;
 
                 // Multi-values
@@ -634,7 +633,7 @@ namespace mu
                     parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_projector,dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.Get<ParamProjectorType>(),dataSize );
                         pos += dataSize;
                     }
                 }
@@ -644,7 +643,7 @@ namespace mu
                 dataSize = sizeof(EXTERNAL_IMAGE_ID);
                 parameterValuesBlob.SetNum( pos+dataSize );
 				FMemory::Memcpy( &parameterValuesBlob[pos],
-                        &pParams->GetPrivate()->m_values[param].m_image,
+                        &pParams->GetPrivate()->m_values[param].Get<ParamImageType>(),
                         dataSize );
 				pos += dataSize;
 
@@ -656,7 +655,7 @@ namespace mu
                     parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_image,dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.Get<ParamImageType>(),dataSize );
                         pos += dataSize;
                     }
                 }

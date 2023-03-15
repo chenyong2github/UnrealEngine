@@ -5065,7 +5065,7 @@ namespace mu
             pResult->m_value = pParams->GetPrivate()->GetProjectorValue(args.variable,index);
 
             // The type cannot be changed, take it from the default value
-            const FProjector& def = program.m_parameters[args.variable].m_defaultValue.m_projector;
+            const FProjector& def = program.m_parameters[args.variable].m_defaultValue.Get<ParamProjectorType>();
             pResult->m_value.type = def.type;
 
             GetMemory().SetProjector( item, pResult );

@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Containers/StaticArray.h"
 #include "MuR/Serialisation.h"
 
+#include "Misc/TVariant.h"
 #include "Math/Quat.h"
 #include "Math/Vector.h"
 #include "Math/IntVector.h"
@@ -181,6 +183,61 @@ namespace mu
     MUTABLE_DEFINE_POD_SERIALISABLE( uint64 );
 
 	//---------------------------------------------------------------------------------------------
+	// TVariant custom serialize. Based on the default serialization.
+	//---------------------------------------------------------------------------------------------
+	template <typename... Ts>
+	void operator<<(OutputArchive& Ar, const TVariant<Ts...>& Variant)
+	{
+		const uint8 Index = static_cast<uint8>(Variant.GetIndex());
+		Ar << Index;
+		
+		Visit([&Ar](auto& StoredValue)
+		{
+			Ar << StoredValue;
+		}, Variant);
+	}
+
+
+	template <typename T, typename VariantType>
+	struct TVariantLoadFromInputArchiveCaller
+	{
+		/** Default construct the type and load it from the FArchive */
+		static void Load(InputArchive& Ar, VariantType& OutVariant)
+		{
+			OutVariant.template Emplace<T>();
+			Ar >> OutVariant.template Get<T>();
+		}
+	};
+
+	
+	template <typename... Ts>
+	struct TVariantLoadFromInputArchiveLookup
+	{
+		using VariantType = TVariant<Ts...>;
+		static_assert((std::is_default_constructible<Ts>::value && ...), "Each type in TVariant template parameter pack must be default constructible in order to use FArchive serialization");
+
+		/** Load the type at the specified index from the FArchive and emplace it into the TVariant */
+		static void Load(SIZE_T TypeIndex, InputArchive& Ar, VariantType& OutVariant)
+		{
+			static constexpr void(*Loaders[])(InputArchive&, VariantType&) = { &TVariantLoadFromInputArchiveCaller<Ts, VariantType>::Load... };
+			check(TypeIndex < UE_ARRAY_COUNT(Loaders));
+			Loaders[TypeIndex](Ar, OutVariant);
+		}
+	};
+
+	
+	template <typename... Ts>
+	void operator>>(InputArchive& Ar, TVariant<Ts...>& Variant)
+	{
+		uint8 Index;
+		Ar >> Index;
+		check(Index < sizeof...(Ts));
+
+		TVariantLoadFromInputArchiveLookup<Ts...>::Load(static_cast<SIZE_T>(Index), Ar, Variant);
+	}
+	
+
+	//---------------------------------------------------------------------------------------------
 	// Bool size is not a standard
 	//---------------------------------------------------------------------------------------------
 	template<>														
@@ -256,6 +313,25 @@ namespace mu
 			arch >> v[i];
 		}
 	}
+
+	
+	//---------------------------------------------------------------------------------------------
+	template<typename T, uint32 Size> void operator<<(OutputArchive& arch, const TStaticArray<T, Size>& v)
+	{
+		for (uint32 i = 0; i < Size; ++i)
+		{
+			arch << v[i];
+		}
+	}
+
+	template<typename T, uint32 Size> void operator>>(InputArchive& arch, TStaticArray<T, Size>& v)
+	{
+		for (uint32 i = 0; i < Size; ++i)
+		{
+			arch >> v[i];
+		}
+	}
+	
 
 	//---------------------------------------------------------------------------------------------
 	template< typename K, typename T >

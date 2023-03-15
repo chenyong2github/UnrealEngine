@@ -9,8 +9,6 @@
 #include "Templates/SharedPointer.h"
 
 
-#define MUTABLE_MAX_STRING_PARAM_LENGTH     40
-
 namespace mu
 {
 
