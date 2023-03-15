@@ -267,7 +267,15 @@ void FGenericPlatformMemory::OnOutOfMemory(uint64 Size, uint32 Alignment)
 
 FMalloc* FGenericPlatformMemory::BaseAllocator()
 {
-	return new FMallocAnsi();
+	static FMalloc* Instance = nullptr;
+	if (Instance != nullptr)
+	{
+		return Instance;
+	}
+
+	Instance = new FMallocAnsi();
+
+	return Instance;
 }
 
 FPlatformMemoryStats FGenericPlatformMemory::GetStats()

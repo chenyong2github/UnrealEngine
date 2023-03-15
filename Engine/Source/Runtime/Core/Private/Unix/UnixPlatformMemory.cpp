@@ -132,6 +132,12 @@ bool FUnixPlatformMemory::HasForkPageProtectorEnabled()
 
 class FMalloc* FUnixPlatformMemory::BaseAllocator()
 {
+	static FMalloc* Allocator = nullptr;
+	if (Allocator != nullptr)
+	{
+		return Allocator;
+	}
+
 #if UE4_DO_ROOT_PRIVILEGE_CHECK && !IS_PROGRAM
 	// This function gets executed very early, way before main() (because global constructors will allocate memory).
 	// This makes it ideal, if unobvious, place for a root privilege check.
@@ -303,8 +309,6 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
 	}
-
-	FMalloc * Allocator = NULL;
 
 	switch (AllocatorToUse)
 	{

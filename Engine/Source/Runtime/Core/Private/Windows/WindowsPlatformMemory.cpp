@@ -114,6 +114,12 @@ void FWindowsPlatformMemory::Init()
 
 FMalloc* FWindowsPlatformMemory::BaseAllocator()
 {
+	static FMalloc* Instance = nullptr;
+	if (Instance != nullptr)
+	{
+		return Instance;
+	}
+
 #if ENABLE_WIN_ALLOC_TRACKING
 	// This allows tracking of allocations that don't happen within the engine's wrappers.
 	// This actually won't be compiled unless bDebugBuildsActuallyUseDebugCRT is set in the
@@ -212,29 +218,38 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 	switch (AllocatorToUse)
 	{
 	case EMemoryAllocatorToUse::Ansi:
-		return new FMallocAnsi();
+		Instance = new FMallocAnsi();
+		break;
 #if WITH_MALLOC_STOMP
 	case EMemoryAllocatorToUse::Stomp:
-		return new FMallocStomp();
+		Instance = new FMallocStomp();
+		break;
 #endif
 #if TBBMALLOC_ENABLED
 	case EMemoryAllocatorToUse::TBB:
-		return new FMallocTBB();
+		Instance = new FMallocTBB();
+		break;
 #endif
 #if MIMALLOC_ENABLED
 	case EMemoryAllocatorToUse::Mimalloc:
-		return new FMallocMimalloc();
+		Instance = new FMallocMimalloc();
+		break;
 #endif
 	case EMemoryAllocatorToUse::Binned2:
-		return new FMallocBinned2();
+		Instance = new FMallocBinned2();
+		break;
 #if PLATFORM_64BITS
 	case EMemoryAllocatorToUse::Binned3:
-		return new FMallocBinned3();
+		Instance = new FMallocBinned3();
+		break;
 #endif
 	default:	// intentional fall-through
 	case EMemoryAllocatorToUse::Binned:
-		return new FMallocBinned((uint32)(GetConstants().BinnedPageSize&MAX_uint32), (uint64)MAX_uint32 + 1);
+		Instance = new FMallocBinned((uint32)(GetConstants().BinnedPageSize&MAX_uint32), (uint64)MAX_uint32 + 1);
+		break;
 	}
+
+	return Instance;
 }
 
 FPlatformMemoryStats FWindowsPlatformMemory::GetStats()

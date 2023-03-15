@@ -67,12 +67,18 @@ void FHoloLensPlatformMemory::Init()
 
 FMalloc* FHoloLensPlatformMemory::BaseAllocator()
 {
+	static FMalloc* Instance = nullptr;
+	if (Instance != nullptr)
+	{
+		return Instance;
+	}
+
 #if FORCE_ANSI_ALLOCATOR
-	return new FMallocAnsi();
+	return (Instance = new FMallocAnsi());
 #elif (WITH_EDITORONLY_DATA || IS_PROGRAM) && TBBMALLOC_ENABLED
-	return new FMallocTBB();
+	return (Instance = new FMallocTBB());
 #else
-	return new FMallocBinned3();
+	return (Instance = new FMallocBinned3());
 #endif
 
 	//	_CrtSetAllocHook(HoloLensAllocHook); // Enable to track down windows allocs not handled by our wrapper

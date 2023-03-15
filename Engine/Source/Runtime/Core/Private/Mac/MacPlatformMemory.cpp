@@ -64,6 +64,12 @@ static bool HasArg(const char *Arg)
 
 FMalloc* FMacPlatformMemory::BaseAllocator()
 {
+	static FMalloc* Instance = nullptr;
+	if (Instance != nullptr)
+	{
+		return Instance;
+	}
+
 	if (FORCE_ANSI_ALLOCATOR || IS_PROGRAM)
 	{
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
@@ -109,28 +115,35 @@ FMalloc* FMacPlatformMemory::BaseAllocator()
 	switch (AllocatorToUse)
 	{
 	case EMemoryAllocatorToUse::Ansi:
-		return new FMallocAnsi();
+		Instance = new FMallocAnsi();
+		break;
 #if WITH_MALLOC_STOMP
 	case EMemoryAllocatorToUse::Stomp:
-		return new FMallocStomp();
+		Instance = new FMallocStomp();
+		break;
 #endif
 #if TBBMALLOC_ENABLED
 	case EMemoryAllocatorToUse::TBB:
-		return new FMallocTBB();
+		Instance = new FMallocTBB();
+		break;
 #endif
 #if MIMALLOC_ENABLED
 	case EMemoryAllocatorToUse::Mimalloc:
-		return new FMallocMimalloc();
+		Instance = new FMallocMimalloc();
+		break;
 #endif
 	case EMemoryAllocatorToUse::Binned2:
-		return new FMallocBinned2();
+		Instance = new FMallocBinned2();
+		break;
 
 	default:	// intentional fall-through
 	case EMemoryAllocatorToUse::Binned:
 		// [RCL] 2017-03-06 FIXME: perhaps BinnedPageSize should be used here, but leaving this change to the Mac platform owner.
-		return new FMallocBinned((uint32)(GetConstants().PageSize&MAX_uint32), 0x100000000);
+		Instance = new FMallocBinned((uint32)(GetConstants().PageSize&MAX_uint32), 0x100000000);
+		break;
 	}
 
+	return Instance;
 }
 
 FPlatformMemoryStats FMacPlatformMemory::GetStats()

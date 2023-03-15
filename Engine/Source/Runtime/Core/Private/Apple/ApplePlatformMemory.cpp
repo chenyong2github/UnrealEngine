@@ -291,6 +291,12 @@ void FApplePlatformMemory::Init()
 
 FMalloc* FApplePlatformMemory::BaseAllocator()
 {
+	static FMalloc* Instance = nullptr;
+	if (Instance != nullptr)
+	{
+		return Instance;
+	}
+
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 	FPlatformMemoryStats MemStats = FApplePlatformMemory::GetStats();
 	FLowLevelMemTracker::Get().SetProgramSize(MemStats.UsedPhysical);
@@ -318,10 +324,12 @@ FMalloc* FApplePlatformMemory::BaseAllocator()
 	switch (AllocatorToUse)
 	{
 		case EMemoryAllocatorToUse::Ansi:
-			return new FMallocAnsi();
+			Instance = new FMallocAnsi();
+			break;
 
 		case EMemoryAllocatorToUse::Binned2:
-			return new FMallocBinned2();
+			Instance = new FMallocBinned2();
+			break;
 			
 		default:	// intentional fall-through
 		case EMemoryAllocatorToUse::Binned:
@@ -336,10 +344,12 @@ FMalloc* FApplePlatformMemory::BaseAllocator()
 			uint64 MemoryLimit = FMath::Min<uint64>( uint64(1) << FMath::CeilLogTwo((Stats.free_count + Stats.inactive_count) * GetConstants().PageSize), 0x100000000);
 			
 			// [RCL] 2017-03-06 FIXME: perhaps BinnedPageSize should be used here, but leaving this change to the Mac platform owner.
-			return new FMallocBinned((uint32)(GetConstants().PageSize&MAX_uint32), MemoryLimit);
+			Instance = new FMallocBinned((uint32)(GetConstants().PageSize&MAX_uint32), MemoryLimit);
+			break;
 		}
 	}
 	
+	return Instance;
 }
 
 FPlatformMemoryStats FApplePlatformMemory::GetStats()

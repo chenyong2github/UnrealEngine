@@ -535,6 +535,12 @@ EPlatformMemorySizeBucket FAndroidPlatformMemory::GetMemorySizeBucket()
 
 FMalloc* FAndroidPlatformMemory::BaseAllocator()
 {
+	static FMalloc* Instance = nullptr;
+	if (Instance != nullptr)
+	{
+		return Instance;
+	}
+
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 	// make sure LLM is using UsedPhysical for program size, instead of Available-Free
 	FPlatformMemoryStats Stats = FAndroidPlatformMemory::GetStats();
@@ -542,7 +548,7 @@ FMalloc* FAndroidPlatformMemory::BaseAllocator()
 #endif
 
 #if RUNNING_WITH_ASAN
-	return new FMallocAnsi();
+	return (Instance = new FMallocAnsi());
 #endif
 
 	const bool bHeapProfilingSupported = AndroidHeapProfiling::Init();
@@ -550,15 +556,15 @@ FMalloc* FAndroidPlatformMemory::BaseAllocator()
 #if USE_MALLOC_BINNED3 && PLATFORM_ANDROID_ARM64
 	if (bHeapProfilingSupported)
 	{
-		return new FMallocProfilingProxy<FMallocBinned3>();
+		return (Instance = new FMallocProfilingProxy<FMallocBinned3>());
 	}
-	return new FMallocBinned3();
+	return (Instance = new FMallocBinned3());
 #elif USE_MALLOC_BINNED2
 	if (bHeapProfilingSupported)
 	{
-		return new FMallocProfilingProxy<FMallocBinned2>();
+		return (Instance = new FMallocProfilingProxy<FMallocBinned2>());
 	}
-	return new FMallocBinned2();
+	return (Instance = new FMallocBinned2());
 #else
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 	// 1 << FMath::CeilLogTwo(MemoryConstants.TotalPhysical) should really be FMath::RoundUpToPowerOfTwo,
@@ -568,7 +574,7 @@ FMalloc* FAndroidPlatformMemory::BaseAllocator()
 
 	// todo: Verify MallocBinned2 on 32bit
 	// [RCL] 2017-03-06 FIXME: perhaps BinnedPageSize should be used here, but leaving this change to the Android platform owner.
-	return new FMallocBinned(MemoryConstants.PageSize, MemoryLimit);
+	return (Instance = new FMallocBinned(MemoryConstants.PageSize, MemoryLimit));
 #endif
 }
 
