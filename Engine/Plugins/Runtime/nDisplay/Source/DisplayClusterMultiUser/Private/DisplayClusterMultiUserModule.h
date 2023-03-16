@@ -7,6 +7,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Templates/UniquePtr.h"
 
+class FMediaAssetMultiUserManager;
 
 class FDisplayClusterMultiUserModule :
 	public IModuleInterface
@@ -19,4 +20,8 @@ public:
 private:
 	// Manager for multi user connections.
 	TUniquePtr<FDisplayClusterMultiUserManager> MultiUserManager;
+
+#if WITH_EDITOR
+	TUniquePtr<FMediaAssetMultiUserManager> MediaAssetMUManager;
+#endif
 };
