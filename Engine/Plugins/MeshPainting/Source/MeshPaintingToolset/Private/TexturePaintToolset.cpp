@@ -393,7 +393,7 @@ void UTexturePaintToolset::SetupInitialRenderTargetData(UTexture2D* InTextureSou
 			check(TempSourceArtTexture != nullptr);
 
 			// Copy the texture to the render target using the GPU
-			CopyTextureToRenderTargetTexture(TempSourceArtTexture, InRenderTarget, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+			CopyTextureToRenderTargetTexture(TempSourceArtTexture, InRenderTarget, GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 
 			// NOTE: TempSourceArtTexture is no longer needed (will be GC'd)
 		}
@@ -403,7 +403,7 @@ void UTexturePaintToolset::SetupInitialRenderTargetData(UTexture2D* InTextureSou
 		// Just copy (render) the texture in GPU memory to our render target.  Hopefully it's not
 		// compressed already!
 		check(InTextureSource->IsFullyStreamedIn());
-		CopyTextureToRenderTargetTexture(InTextureSource, InRenderTarget, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+		CopyTextureToRenderTargetTexture(InTextureSource, InRenderTarget, GEditor->GetEditorWorldContext().World()->GetFeatureLevel());
 	}
 }
 

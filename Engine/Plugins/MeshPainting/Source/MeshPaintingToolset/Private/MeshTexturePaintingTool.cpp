@@ -1074,7 +1074,7 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 	}
 
 	check(GEditor && GEditor->GetEditorWorldContext().World());
-	const auto FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
+	const auto FeatureLevel = GEditor->GetEditorWorldContext().World()->GetFeatureLevel();
 
 
 	FPaintTexture2DData* TextureData = GetPaintTargetData(PaintingTexture2D);
@@ -1706,7 +1706,7 @@ void UMeshTexturePaintingTool::ClearAllTextureOverrides()
 	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
 		check(GEditor && GEditor->GetEditorWorldContext().World());
-		const auto FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
+		const auto FeatureLevel = GEditor->GetEditorWorldContext().World()->GetFeatureLevel();
 		/** Remove all texture overrides which are currently stored and active */
 		for (decltype(PaintTargetData)::TIterator It(PaintTargetData); It; ++It)
 		{
