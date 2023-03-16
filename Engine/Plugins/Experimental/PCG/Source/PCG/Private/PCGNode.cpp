@@ -740,6 +740,7 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 
 					const int32 InsertIndex = FMath::Min(PinProperties.IndexOfByKey(UnmatchedProperty), Pins.Num());
 					UPCGPin* NewPin = PinAllocator(this);
+					NewPin->Modify();
 					NewPin->Node = this;
 					NewPin->Properties = UnmatchedProperty;
 					Pins.Insert(NewPin, InsertIndex);
