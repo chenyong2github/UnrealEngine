@@ -16,6 +16,7 @@ class FMenuBuilder;
 class SWidget;
 class UMediaPlateComponent;
 class UMediaPlayer;
+enum class EMediaPlateEventState : uint8;
 
 /**
  * Implements a details view customization for the UMediaPlateComponent class.
@@ -212,6 +213,11 @@ private:
 	void OnMediaSourceChanged(const FAssetData& AssetData);
 
 	/**
+	* Changes the state of selected media plates and broadcasts the even to the remote endpoints.
+	*/
+	void OnButtonEvent(EMediaPlateEventState State);
+
+	/**
 	 * Updates MediaPath from the current MediaSource.
 	 */
 	void UpdateMediaPath();
@@ -235,15 +241,5 @@ private:
 	 * Call this to stop all playback.
 	 */
 	void StopMediaPlates();
-
-	/**
-	 * Get the rate to use when we press the forward button.
-	 */
-	float GetForwardRate(UMediaPlayer* MediaPlayer) const;
-
-	/**
-	 * Get the rate to use when we press the reverse button.
-	 */
-	float GetReverseRate(UMediaPlayer* MediaPlayer) const;
 };
 

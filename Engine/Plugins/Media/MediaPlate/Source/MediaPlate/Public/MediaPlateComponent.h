@@ -25,6 +25,19 @@ namespace UE::MediaPlateComponent
 	enum class ESetUpTexturesFlags;
 }
 
+UENUM()
+enum class EMediaPlateEventState : uint8
+{
+	Play,
+	Open,
+	Close,
+	Pause,
+	Reverse,
+	Forward,
+	Rewind,
+	MAX
+};
+
 /**
  * This is a component for AMediaPlate that can play and show media in the world.
  */
@@ -242,6 +255,11 @@ public:
 	 * Call this to set the mip tile calculations mesh mode. (Note: restarts playback to apply changes.)
 	 */
 	void SetVisibleMipsTilesCalculations(EMediaTextureVisibleMipsTiles InVisibleMipsTilesCalculations);
+
+	/**
+	* Called whenever a button was pressed locally or on a remote endpoint.
+	*/
+	void SwitchStates(EMediaPlateEventState State);
 #endif
 
 	/**
@@ -259,6 +277,19 @@ public:
 	virtual void ProxyReleaseMediaTexture(int32 LayerIndex, int32 TextureIndex) override;
 	virtual bool ProxySetAspectRatio(UMediaPlayer* InMediaPlayer) override;
 	virtual void ProxySetTextureBlend(int32 LayerIndex, int32 TextureIndex, float Blend) override;
+
+#if WITH_EDITOR
+public:
+	/**
+	 * Get the rate to use when we press the forward button.
+	 */
+	static float GetForwardRate(UMediaPlayer* MediaPlayer);
+
+	/**
+	 * Get the rate to use when we press the reverse button.
+	 */
+	static float GetReverseRate(UMediaPlayer* MediaPlayer);
+#endif
 
 private:
 	/**

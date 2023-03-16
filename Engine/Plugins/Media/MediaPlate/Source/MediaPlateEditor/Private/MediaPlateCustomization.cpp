@@ -9,6 +9,7 @@
 #include "DetailWidgetRow.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailGroup.h"
+#include "IMediaAssetsModule.h"
 #include "LevelEditorViewport.h"
 #include "MediaPlate.h"
 #include "MediaPlateComponent.h"
@@ -218,18 +219,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						})
 						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
-							{
-								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-								if (MediaPlate != nullptr)
-								{
-									UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
-									if (MediaPlayer != nullptr)
-									{
-										MediaPlayer->Rewind();
-									}
-								}
-							}
+							OnButtonEvent(EMediaPlateEventState::Rewind);
 							return FReply::Handled();
 						})
 						[
@@ -256,7 +246,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 									UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
 									if (MediaPlayer != nullptr)
 									{
-										return MediaPlayer->IsReady() && MediaPlayer->SupportsRate(GetReverseRate(MediaPlayer), false);
+										return MediaPlayer->IsReady() && MediaPlayer->SupportsRate(UMediaPlateComponent::GetReverseRate(MediaPlayer), false);
 									}
 								}
 							}
@@ -264,18 +254,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						})
 						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
-							{
-								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-								if (MediaPlate != nullptr)
-								{
-									UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
-									if (MediaPlayer != nullptr)
-									{
-										MediaPlayer->SetRate(GetReverseRate(MediaPlayer));
-									}
-								}
-							}
+							OnButtonEvent(EMediaPlateEventState::Reverse);
 							return FReply::Handled();
 						})
 						[
@@ -311,14 +290,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						})
 						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
-							{
-								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-								if (MediaPlate != nullptr)
-								{
-									MediaPlate->Play();
-								}
-							}
+							OnButtonEvent(EMediaPlateEventState::Play);
 							return FReply::Handled();
 						})
 						[
@@ -354,14 +326,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						})
 						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
-							{
-								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-								if (MediaPlate != nullptr)
-								{							
-									MediaPlate->Pause();
-								}
-							}
+							OnButtonEvent(EMediaPlateEventState::Pause);
 							return FReply::Handled();
 						})
 						[
@@ -388,7 +353,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 								UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
 								if (MediaPlayer != nullptr)
 								{
-									return MediaPlayer->IsReady() && MediaPlayer->SupportsRate(GetForwardRate(MediaPlayer), false);
+									return MediaPlayer->IsReady() && MediaPlayer->SupportsRate(UMediaPlateComponent::GetForwardRate(MediaPlayer), false);
 								}
 							}
 						}
@@ -396,18 +361,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 					})
 					.OnClicked_Lambda([this]() -> FReply
 					{
-						for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
-						{
-							UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-							if (MediaPlate != nullptr)
-							{
-								UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
-								if (MediaPlayer != nullptr)
-								{
-									MediaPlayer->SetRate(GetForwardRate(MediaPlayer));
-								}
-							}
-						}
+						OnButtonEvent(EMediaPlateEventState::Forward);
 						return FReply::Handled();
 					})
 					[
@@ -427,22 +381,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						.VAlign(VAlign_Center)
 						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
-							{
-								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-								if (MediaPlate != nullptr)
-								{
-									// Tell the editor module that this media plate is playing.
-									FMediaPlateEditorModule* EditorModule = FModuleManager::LoadModulePtr<FMediaPlateEditorModule>("MediaPlateEditor");
-									if (EditorModule != nullptr)
-									{
-										EditorModule->MediaPlateStartedPlayback(MediaPlate);
-									}
-
-									// Play the media.
-									MediaPlate->Open();
-								}
-							}
+							OnButtonEvent(EMediaPlateEventState::Open);
 							return FReply::Handled();
 						})
 						[
@@ -478,14 +417,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						})
 						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
-							{
-								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-								if (MediaPlate != nullptr)
-								{
-									MediaPlate->Close();
-								}
-							}
+							OnButtonEvent(EMediaPlateEventState::Close);
 							return FReply::Handled();
 						})
 						[
@@ -1232,6 +1164,35 @@ void FMediaPlateCustomization::OnMediaSourceChanged(const FAssetData& AssetData)
 	UpdateMediaPath();
 }
 
+void FMediaPlateCustomization::OnButtonEvent(EMediaPlateEventState State)
+{
+	IMediaAssetsModule* MediaAssets = FModuleManager::LoadModulePtr<IMediaAssetsModule>("MediaAssets");
+	TArray<FString> ActorsPathNames;
+	ActorsPathNames.Reserve(MediaPlatesList.Num());
+	for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		if (!MediaPlatePtr.IsValid())
+		{
+			continue;
+		}
+
+		ActorsPathNames.Add(MediaPlatePtr->GetOwner()->GetPathName());
+			
+		if (State == EMediaPlateEventState::Open)
+		{
+			// Tell the editor module that this media plate is playing.
+			FMediaPlateEditorModule* EditorModule = FModuleManager::LoadModulePtr<FMediaPlateEditorModule>("MediaPlateEditor");
+			if (EditorModule != nullptr)
+			{
+				EditorModule->MediaPlateStartedPlayback(MediaPlatePtr.Get());
+			}
+		}
+
+		MediaPlatePtr->SwitchStates(State);
+	}
+	MediaAssets->BroadcastOnMediaStateChangedEvent(ActorsPathNames, (uint8)State);
+}
+
 void FMediaPlateCustomization::UpdateMediaPath()
 {
 	MediaPath.Empty();
@@ -1347,38 +1308,7 @@ FReply FMediaPlateCustomization::OnOpenMediaPlate()
 
 void FMediaPlateCustomization::StopMediaPlates()
 {
-	for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
-	{
-		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
-		if (MediaPlate != nullptr)
-		{
-			MediaPlate->Close();
-		}
-	}
-}
-
-float FMediaPlateCustomization::GetForwardRate(UMediaPlayer* MediaPlayer) const
-{
-	float Rate = MediaPlayer->GetRate();
-
-	if (Rate < 1.0f)
-	{
-		Rate = 1.0f;
-	}
-
-	return 2.0f * Rate;
-}
-
-float FMediaPlateCustomization::GetReverseRate(UMediaPlayer* MediaPlayer) const
-{
-	float Rate = MediaPlayer->GetRate();
-
-	if (Rate > -1.0f)
-	{
-		return -1.0f;
-	}
-
-	return 2.0f * Rate;
+	OnButtonEvent(EMediaPlateEventState::Close);
 }
 
 

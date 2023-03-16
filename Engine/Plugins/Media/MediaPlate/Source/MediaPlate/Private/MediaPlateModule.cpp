@@ -33,7 +33,12 @@ void FMediaPlateModule::StartupModule()
 	if (MediaAssetsModule != nullptr)
 	{
 		GetPlayerFromObjectID = MediaAssetsModule->RegisterGetPlayerFromObject(IMediaAssetsModule::FOnGetPlayerFromObject::CreateRaw(this, &FMediaPlateModule::GetMediaPlayer));
+
+#if WITH_EDITOR
+		OnMediaPlateStateChangedHandle = MediaAssetsModule->RegisterOnMediaStateChangedEvent(IMediaAssetsModule::FMediaStateChangedDelegate::FDelegate::CreateRaw(this, &FMediaPlateModule::OnMediaPlateStateChanged));
+#endif
 	}
+
 }
 
 void FMediaPlateModule::ShutdownModule()
@@ -45,8 +50,36 @@ void FMediaPlateModule::ShutdownModule()
 		{
 			MediaAssetsModule->UnregisterGetPlayerFromObject(GetPlayerFromObjectID);
 			GetPlayerFromObjectID = INDEX_NONE;
+
+#if WITH_EDITOR
+			MediaAssetsModule->UnregisterOnMediaStateChangedEvent(OnMediaPlateStateChangedHandle);
+#endif
 		}
 	}
 }
+
+#if WITH_EDITOR
+void FMediaPlateModule::OnMediaPlateStateChanged(const TArray<FString>& InActorsPathNames, uint8 InEnumState, bool bRemoteBroadcast)
+{
+	// Button was pressed locally. This event will be handled in FMediaPlateCustomization.
+	if (!bRemoteBroadcast)
+	{
+		return;
+	}
+	for (const FString& ActorPathName : InActorsPathNames)
+	{
+		AActor* MediaPlateActor = Cast<AActor>(StaticFindObject(AActor::StaticClass(), nullptr, *ActorPathName, false));
+		if (MediaPlateActor)
+		{
+			TArray<UMediaPlateComponent*> MediaPlateComponents;
+			MediaPlateActor->GetComponents<UMediaPlateComponent>(MediaPlateComponents);
+			for (UMediaPlateComponent* MediaPlateComponent : MediaPlateComponents)
+			{
+				MediaPlateComponent->SwitchStates((EMediaPlateEventState)InEnumState);
+			}
+		}
+	}
+}
+#endif
 
 IMPLEMENT_MODULE(FMediaPlateModule, MediaPlate)

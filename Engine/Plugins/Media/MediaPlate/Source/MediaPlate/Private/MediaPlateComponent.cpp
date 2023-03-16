@@ -752,6 +752,32 @@ void UMediaPlateComponent::ProxySetTextureBlend(int32 LayerIndex, int32 TextureI
 	}
 }
 
+#if WITH_EDITOR
+float UMediaPlateComponent::GetForwardRate(UMediaPlayer* MediaPlayer)
+{
+	float Rate = MediaPlayer->GetRate();
+
+	if (Rate < 1.0f)
+	{
+		Rate = 1.0f;
+	}
+
+	return 2.0f * Rate;
+}
+
+float UMediaPlateComponent::GetReverseRate(UMediaPlayer* MediaPlayer)
+{
+	float Rate = MediaPlayer->GetRate();
+
+	if (Rate > -1.0f)
+	{
+		return -1.0f;
+	}
+
+	return 2.0f * Rate;
+}
+#endif
+
 void UMediaPlateComponent::RestartPlayer()
 {
 	if (MediaPlayer != nullptr)
@@ -1186,6 +1212,60 @@ void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	}
 }
 
+void UMediaPlateComponent::SwitchStates(EMediaPlateEventState State)
+{
+	switch (State)
+	{
+	case EMediaPlateEventState::Play:
+		{
+			Play();
+		}
+		break;
+	case EMediaPlateEventState::Open:
+		{
+			Open();
+		}
+		break;
+	case EMediaPlateEventState::Close:
+		{
+			Close();
+		}
+		break;
+	case EMediaPlateEventState::Pause:
+		{
+			Pause();
+		}
+		break;
+	case EMediaPlateEventState::Reverse:
+		{
+			if (MediaPlayer != nullptr)
+			{
+				MediaPlayer->SetRate(GetReverseRate(MediaPlayer));
+			}
+		}
+		break;
+	case EMediaPlateEventState::Forward:
+		{
+			if (MediaPlayer != nullptr)
+			{
+				MediaPlayer->SetRate(GetForwardRate(MediaPlayer));
+			}
+		}
+		break;
+	case EMediaPlateEventState::Rewind:
+		{
+			if (MediaPlayer != nullptr)
+			{
+				MediaPlayer->Rewind();
+			}
+		}
+		break;
+	case EMediaPlateEventState::MAX:
+	default:
+		checkNoEntry();
+		break;
+	}
+}
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

@@ -37,7 +37,18 @@ public:
 	/** Add to this if you want a callback when a media plate applies a material to itself. */
 	FOnMediaPlateApplyMaterial OnMediaPlateApplyMaterial;
 
+#if WITH_EDITOR
+	/**
+	* Called when Media playback state changed.
+	*/
+	void OnMediaPlateStateChanged(const TArray<FString>& InActorsPathNames, uint8 InEnumState, bool bRemoteBroadcast);
+#endif
 private:
 	/** ID for our delegate. */
 	int32 GetPlayerFromObjectID = INDEX_NONE;
+
+#if WITH_EDITOR
+	/** Handle for the subscribed event */
+	FDelegateHandle OnMediaPlateStateChangedHandle;
+#endif
 };

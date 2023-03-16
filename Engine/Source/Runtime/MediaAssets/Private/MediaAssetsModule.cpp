@@ -102,6 +102,21 @@ public:
 		CreateMediaSourceRendererDelegate.Unbind();
 	}
 
+	virtual FDelegateHandle RegisterOnMediaStateChangedEvent(FMediaStateChangedDelegate::FDelegate InStateChangedDelegate) override 
+	{ 
+		return OnMediaStateChanged.Add(InStateChangedDelegate);
+	}
+
+	virtual void UnregisterOnMediaStateChangedEvent(FDelegateHandle InHandle) override 
+	{
+		OnMediaStateChanged.Remove(InHandle);
+	}
+
+	virtual void BroadcastOnMediaStateChangedEvent(const TArray<FString>& InActorsPathNames, uint8 EnumState, bool bRemoteBroadcast = false) override
+	{
+		OnMediaStateChanged.Broadcast(InActorsPathNames, EnumState, bRemoteBroadcast);
+	}
+
 	virtual UObject* CreateMediaSourceRenderer() override
 	{
 		UObject* Renderer = nullptr;
@@ -168,6 +183,9 @@ private:
 
 	/** Delegate to create an object that implements IMediaSourceRendererInterface. */
 	FOnCreateMediaSourceRenderer CreateMediaSourceRendererDelegate;
+
+	/** Delegate that reacts to change in Media state (Play, Stop, Pause etc.) */
+	FMediaStateChangedDelegate OnMediaStateChanged;
 };
 
 
