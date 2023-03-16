@@ -17,6 +17,7 @@ namespace Chaos
 		FCollisionDetectorSettings()
 			: BoundsExpansion(0)
 			, BoundsVelocityInflation(0)
+			, MaxVelocityBoundsExpansion(0)
 			, bFilteringEnabled(true)
 			, bDeferNarrowPhase(false)
 			, bAllowManifolds(true)
@@ -30,6 +31,9 @@ namespace Chaos
 		
 		// Shape bounds in the broadphase are expanded by this multiple of velocity
 		FReal BoundsVelocityInflation;
+
+		// We only allow the bounds to grow from velocity by this much
+		FReal MaxVelocityBoundsExpansion;
 
 		// Whether to check the shape query flags in the narrow phase (e.g., Rigid Body nodes have already performed filtering prior to collision detection)
 		bool bFilteringEnabled;

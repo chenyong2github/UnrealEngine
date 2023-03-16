@@ -267,6 +267,12 @@ namespace Chaos
 		Chaos::FRealSingle ChaosSolverCullDistance = -1.0f;
 		FAutoConsoleVariableRef CVarChaosSolverCullDistance(TEXT("p.Chaos.Solver.Collision.CullDistance"), ChaosSolverCullDistance, TEXT("Override cull distance (if >= 0)"));
 
+		// @todo(chaos): move to physics project settings and set these to -1 when we are settled on values...
+		Chaos::FRealSingle ChaosSolverVelocityBoundsMultiplier = 1.0f;
+		Chaos::FRealSingle ChaosSolverMaxVelocityBoundsExpansion = 3.0f;
+		FAutoConsoleVariableRef CVarChaosSolverVelocityBoundsMultiplier(TEXT("p.Chaos.Solver.Collision.VelocityBoundsMultiplier"), ChaosSolverVelocityBoundsMultiplier, TEXT("Override velocity bounds multiplier (if >= 0)"));
+		FAutoConsoleVariableRef CVarChaosSolverMaxVelocityBoundsExpansion(TEXT("p.Chaos.Solver.Collision.MaxVelocityBoundsExpansion"), ChaosSolverMaxVelocityBoundsExpansion, TEXT("Override max velocity bounds expansion (if >= 0)"));
+
 		Chaos::FRealSingle ChaosSolverMaxPushOutVelocity = -1.0f;
 		FAutoConsoleVariableRef CVarChaosSolverMaxPushOutVelocity(TEXT("p.Chaos.Solver.Collision.MaxPushOutVelocity"), ChaosSolverMaxPushOutVelocity, TEXT("Override max pushout velocity (if >= 0)"));
 
@@ -1075,6 +1081,10 @@ namespace Chaos
 			if (ChaosSolverCullDistance >= 0.0f)
 			{
 				SetCollisionCullDistance(ChaosSolverCullDistance);
+			}
+			if ((ChaosSolverVelocityBoundsMultiplier > 0.0f) && (ChaosSolverMaxVelocityBoundsExpansion > 0.0f))
+			{
+				SetVelocityBoundsExpansion(ChaosSolverVelocityBoundsMultiplier, ChaosSolverMaxVelocityBoundsExpansion);
 			}
 			if (ChaosSolverMaxPushOutVelocity >= 0.0f)
 			{

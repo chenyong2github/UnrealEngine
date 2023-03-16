@@ -293,6 +293,12 @@ public:
 		DetectorSettings.BoundsExpansion = InCullDistance;
 	}
 
+	void SetVelocityBoundsExpansion(const FReal BoundsVelocityMultiplier, const FReal MaxVelocityBoundsExpansion)
+	{
+		DetectorSettings.BoundsVelocityInflation = BoundsVelocityMultiplier;
+		DetectorSettings.MaxVelocityBoundsExpansion = MaxVelocityBoundsExpansion;
+	}
+
 protected:
 	FPBDCollisionConstraint& GetConstraint(int32 Index);
 

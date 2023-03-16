@@ -194,6 +194,8 @@ namespace Chaos
 			CHAOS_SCOPED_TIMER(Integrate);
 
 			const FReal BoundsThickness = GetCollisionConstraints().GetDetectorSettings().BoundsExpansion;
+			const FReal VelocityBoundsMultiplier = GetCollisionConstraints().GetDetectorSettings().BoundsVelocityInflation;
+			const FReal MaxVelocityBoundsExpansion = GetCollisionConstraints().GetDetectorSettings().MaxVelocityBoundsExpansion;
 			const FReal MaxAngularSpeedSq = CVars::HackMaxAngularVelocity * CVars::HackMaxAngularVelocity;
 			const FReal MaxSpeedSq = CVars::HackMaxVelocity * CVars::HackMaxVelocity;
 			InParticles.ParallelFor([&](auto& GeomParticle, int32 Index) 
@@ -276,11 +278,23 @@ namespace Chaos
 
 					Particle.SetTransformPQCom(PCoM, QCoM);
 
+					// We need to expand the bounds back along velocity otherwise we can miss collisions when a box
+					// lands on another box, imparting velocity to the lower box and causing the boxes to be
+					// separated by more than Cull Distance at collision detection time.
+					FVec3 VelocityBoundsDelta = FVec3(0);
+					if ((VelocityBoundsMultiplier > 0) && (MaxVelocityBoundsExpansion > 0))
+					{
+						VelocityBoundsDelta = (-VelocityBoundsMultiplier * Dt) * Particle.V();
+						
+						// Box clamp to avoid sqrt
+						VelocityBoundsDelta.BoundToCube(MaxVelocityBoundsExpansion);
+					}
+
 					if (!Particle.CCDEnabled())
 					{
 						// Expand bounds about P/Q by a small amount. This can still result in missed collisions, especially
 						// when we have joints that pull the body back to X/R, if P-X is greater than the BoundsThickness
-						Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness));
+						Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness), VelocityBoundsDelta);
 					}
 					else
 					{
@@ -307,7 +321,7 @@ namespace Chaos
 						}
 						else
 						{
-							Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness));
+							Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness), VelocityBoundsDelta);
 						}
 					}
 				}

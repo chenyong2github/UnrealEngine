@@ -315,6 +315,8 @@ namespace Chaos
 			// pointer because of Unions - see FMultiShapePairCollisionDetector)
 			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
+			Constraint->SetCullDistance(CullDistance);
+
 			// If the constraint was not used last frame, it needs to be reset, otherwise we will try to reuse
 			if (!bWasUpdatedLastTick || (Constraint->GetManifoldPoints().Num() == 0))
 			{
@@ -685,12 +687,6 @@ namespace Chaos
 		// CCD may be temporarily disabled by the user or because we are moving slowly.
 		Constraint->SetCCDSweepEnabled(MidPhase.IsCCD() && bEnableSweep);
 
-		const FRigidTransform3 ParticleTransform0 = FConstGenericParticleHandle(InParticle0)->GetTransformPQ();
-		const FRigidTransform3 ParticleTransform1 = FConstGenericParticleHandle(InParticle1)->GetTransformPQ();
-		const FRigidTransform3 ShapeWorldTransform0 = InShapeRelativeTransform0 * ParticleTransform0;
-		const FRigidTransform3 ShapeWorldTransform1 = InShapeRelativeTransform1 * ParticleTransform1;
-		Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
-
 		NewConstraints.Add(Constraint);
 		return Constraint;
 	}
@@ -788,6 +784,8 @@ namespace Chaos
 		// Update the world shape transforms on the constraint (we cannot just give it the PerShapeData 
 		// pointer because of Unions - see FMultiShapePairCollisionDetector)
 		Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
+		Constraint->SetCullDistance(CullDistance);
 
 		// If the constraint was not used last frame, it needs to be reset, otherwise we will try to reuse
 		if (!bWasUpdatedLastTick || (Constraint->GetManifoldPoints().Num() == 0))
@@ -1144,12 +1142,26 @@ namespace Chaos
 			// CullDistance is scaled by the size of the dynamic objects.
 			FReal CullDistance = InCullDistance * CullDistanceScale;
 
-			// Extend cull distance for sweep-enabled CCD collision
+			// If CCD is enabled, did we move far enough to require a sweep?
 			const bool bUseSweep = Flags.bIsCCD && ShouldEnableCCD(Dt);
-			if (bUseSweep)
+
+			// Extend cull distance based on velocity
+			const FReal VMaxDt = (FConstGenericParticleHandle(GetParticle0())->V() - FConstGenericParticleHandle(GetParticle1())->V()).GetAbsMax() * Dt;
+			if (!bUseSweep)
 			{
-				const FReal VMax = (FConstGenericParticleHandle(GetParticle0())->V() - FConstGenericParticleHandle(GetParticle1())->V()).GetAbsMax();
-				CullDistance += VMax * Dt;
+				// Normal (non sweep) mode: we increase CullDistance based on velocity up to a limit
+				// NOTE: This somewhat matches the bounds expansion in FPBDRigidsEvolutionGBF::Integrate
+				const FReal VelocityBoundsMultiplier = Context.GetSettings().BoundsVelocityInflation;
+				const FReal MaxVelocityBoundsExpansion = Context.GetSettings().MaxVelocityBoundsExpansion;
+				if ((VelocityBoundsMultiplier > 0) && (MaxVelocityBoundsExpansion > 0))
+				{
+					CullDistance += FMath::Min(VelocityBoundsMultiplier * VMaxDt, MaxVelocityBoundsExpansion);
+				}
+			}
+			else
+			{
+				// CCD (sweept) mode: we increase CullDistance based on velocity, with no limits
+				CullDistance += VMaxDt;
 			}
 
 			// Run collision detection on all potentially colliding shape pairs
