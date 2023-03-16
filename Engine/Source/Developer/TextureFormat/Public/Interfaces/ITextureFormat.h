@@ -359,10 +359,12 @@ public:
 	 * Gets an optional derived data key string, so that the compressor can
 	 * rely upon the number of mips, size of texture, etc, when compressing the image
 	 *
-	 * @param BuildSettings Reference to the build settings we are compressing with.
+	 * @param InBuildSettings Reference to the build settings we are compressing with.
+	 * @param InMipCount Mip count of the physical texture that will be built - 0 for virtual textures.
+ 	 * @param InMip0Dimensions Mip width/height/slices of the physical texture that will be built - 0s for virtual textures.
 	 * @return A string that will be used with the DDC, the string should be in the format "<DATA>_"
 	 */
-	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const
 	{
 		return TEXT("");
 	}

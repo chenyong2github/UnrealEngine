@@ -3303,6 +3303,116 @@ static bool GetPowerOfTwoTargetTextureSize(int32 InMip0SizeX, int32 InMip0SizeY,
 }
 
 
+int32 ITextureCompressorModule::GetMipCountForBuildSettings(
+	int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices,
+	int32 InExistingMipCount,
+	const FTextureBuildSettings& BuildSettings,
+	int32& OutMip0SizeX, int32& OutMip0SizeY, int32& OutMip0NumSlices)
+{
+	// AFAICT LatLongCubeMaps don't do any of this - pow2 is broken with them but it runs, and max texture stuff
+	// is handled internally in the extents function.
+	int32 BaseSizeX = InMip0SizeX;
+	int32 BaseSizeY = InMip0SizeY;
+	int32 BaseSizeZ = BuildSettings.bVolume ? InMip0NumSlices : 1; // Volume textures are the only type that mip their Z, arrays and cubes are fixed.
+
+	// LatLong sources are clamped in ComputeLongLatCubemapExtents
+	if (BuildSettings.bLongLatSource == false)
+	{
+		ETexturePowerOfTwoSetting::Type PowerOfTwoMode = (ETexturePowerOfTwoSetting::Type)BuildSettings.PowerOfTwoMode;
+		if (BuildSettings.MipGenSettings != TMGS_LeaveExistingMips &&
+			PowerOfTwoMode != ETexturePowerOfTwoSetting::None)
+		{
+			int32 TargetSizeX, TargetSizeY, TargetSizeZ;
+			bool NeedsAdjustment = GetPowerOfTwoTargetTextureSize(BaseSizeX, BaseSizeY, BaseSizeY, BuildSettings.bVolume, PowerOfTwoMode, TargetSizeX, TargetSizeY, TargetSizeZ);
+			if (NeedsAdjustment)
+			{
+				// In this case we are regenerating the entire mip chain.
+				InExistingMipCount = 1;
+				BaseSizeX = TargetSizeX;
+				BaseSizeY = TargetSizeY;
+				BaseSizeZ = TargetSizeZ; // volume textures already accounted for
+			}
+			// Otherwise we have valid pow2 so we can reuse any existing mips and regenerate
+			// any missing tail mips.
+		}
+
+		// Max texture resolution strips off mips that are above the limit.
+		int64 MaxTextureResolution = BuildSettings.MaxTextureResolution;
+		int32 GeneratedMipCount = FImageCoreUtils::GetMipCountFromDimensions(BaseSizeX, BaseSizeY, BaseSizeZ, BuildSettings.bVolume);
+		int32 i = 0;
+		for (; i < GeneratedMipCount; i++)
+		{
+			// The code in BuildTextureMips doesn't worry about fitting Z in volume textures...
+			// \todo volume texture MaxTextureSize. The old code ignored size Z, so we do too. I'm not sure
+			// there's ever a case where volume textures have a Z that's bigger than X/Y.
+			int32 MipSizeX = FMath::Max<uint32>(1, BaseSizeX >> i);
+			int32 MipSizeY = FMath::Max<uint32>(1, BaseSizeY >> i);
+			int32 MipSizeZ = BuildSettings.bVolume ? FMath::Max<uint32>(1, BaseSizeZ >> i) : BaseSizeZ;
+
+			if (MipSizeX <= MaxTextureResolution &&
+				MipSizeY <= MaxTextureResolution)
+			{
+				BaseSizeX = MipSizeX;
+				BaseSizeY = MipSizeY;
+				BaseSizeZ = MipSizeZ;
+				break;
+			}
+		}
+
+		if (BuildSettings.Downscale > 1.0f)
+		{
+			int32 DownscaledSizeX = 0, DownscaledSizeY = 0;
+			GetDownscaleFinalSizeAndClampedDownscale(BaseSizeX, BaseSizeY, FTextureDownscaleSettings(BuildSettings), DownscaledSizeX, DownscaledSizeY);
+
+			if (BuildSettings.bVolume)
+			{
+				UE_LOG(LogTextureCompressor, Error, TEXT("Downscaling volumes not yet supported - should have been handled in GetTextureBuildSettings!"));
+			}
+			check(BuildSettings.bVolume == false);
+
+			BaseSizeX = DownscaledSizeX;
+			BaseSizeY = DownscaledSizeY;
+		}
+
+		// Volumes are the only thing where num slices changes.
+		if (BuildSettings.bVolume == false)
+		{
+			OutMip0NumSlices = InMip0NumSlices;
+		}
+		else
+		{
+			OutMip0NumSlices = BaseSizeZ;
+		}
+	}
+	else
+	{
+		uint32 LongLatCubemapExtents = ComputeLongLatCubemapExtents(BaseSizeX, BuildSettings.MaxTextureResolution);
+		BaseSizeX = LongLatCubemapExtents;
+		BaseSizeY = LongLatCubemapExtents;
+		OutMip0NumSlices = 6 * InMip0NumSlices;
+	}
+
+	// At this point we have a base mip size that is valid.
+	OutMip0SizeX = BaseSizeX;
+	OutMip0SizeY = BaseSizeY;
+
+	if (BuildSettings.MipGenSettings == TMGS_NoMipmaps)
+	{
+		return 1;
+	}
+
+	// LeaveExisting is often unintentionally used as "NoMipmaps", so if they bring in 1 mip, leave it as 1 mip.
+	if (BuildSettings.MipGenSettings == TMGS_LeaveExistingMips &&
+		InExistingMipCount == 1)
+	{
+		return 1;
+	}
+
+	// NumOutputMips is the number of mips that would be made if you made a full mip chain
+	//  eg. 256 makes 9 mips , 300 also makes 9 mips
+	return FImageCoreUtils::GetMipCountFromDimensions(BaseSizeX, BaseSizeY, BaseSizeZ, BuildSettings.bVolume);
+}
+
 
 /**
  * Texture compression module
@@ -3312,116 +3422,6 @@ class FTextureCompressorModule : public ITextureCompressorModule
 public:
 	FTextureCompressorModule()
 	{
-	}
-
-	virtual int32 GetMipCountForBuildSettings(
-		int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, 
-		int32 InExistingMipCount, 
-		const FTextureBuildSettings& BuildSettings, 
-		int32& OutMip0SizeX, int32& OutMip0SizeY, int32& OutMip0NumSlices) const override
-	{
-		// AFAICT LatLongCubeMaps don't do any of this - pow2 is broken with them but it runs, and max texture stuff
-		// is handled internally in the extents function.
-		int32 BaseSizeX = InMip0SizeX;
-		int32 BaseSizeY = InMip0SizeY;
-		int32 BaseSizeZ = BuildSettings.bVolume ? InMip0NumSlices : 1; // Volume textures are the only type that mip their Z, arrays and cubes are fixed.
-
-		// LatLong sources are clamped in ComputeLongLatCubemapExtents
-		if (BuildSettings.bLongLatSource == false)
-		{
-			ETexturePowerOfTwoSetting::Type PowerOfTwoMode = (ETexturePowerOfTwoSetting::Type)BuildSettings.PowerOfTwoMode;
-			if (BuildSettings.MipGenSettings != TMGS_LeaveExistingMips &&
-				PowerOfTwoMode != ETexturePowerOfTwoSetting::None)
-			{
-				int32 TargetSizeX, TargetSizeY, TargetSizeZ;
-				bool NeedsAdjustment = GetPowerOfTwoTargetTextureSize(BaseSizeX, BaseSizeY, BaseSizeY, BuildSettings.bVolume, PowerOfTwoMode, TargetSizeX, TargetSizeY, TargetSizeZ);
-				if (NeedsAdjustment)
-				{
-					// In this case we are regenerating the entire mip chain.
-					InExistingMipCount = 1;
-					BaseSizeX = TargetSizeX;
-					BaseSizeY = TargetSizeY;
-					BaseSizeZ = TargetSizeZ; // volume textures already accounted for
-				}
-				// Otherwise we have valid pow2 so we can reuse any existing mips and regenerate
-				// any missing tail mips.
-			}
-
-			// Max texture resolution strips off mips that are above the limit.
-			int64 MaxTextureResolution = BuildSettings.MaxTextureResolution;
-			int32 GeneratedMipCount = FImageCoreUtils::GetMipCountFromDimensions(BaseSizeX, BaseSizeY, BaseSizeZ, BuildSettings.bVolume);
-			int32 i = 0;
-			for (; i < GeneratedMipCount; i++)
-			{
-				// The code in BuildTextureMips doesn't worry about fitting Z in volume textures...
-				// \todo volume texture MaxTextureSize. The old code ignored size Z, so we do to. I'm not sure
-				// there's ever a case where volume textures have a Z that's bigger than X/Y.
-				int32 MipSizeX = FMath::Max<uint32>(1, BaseSizeX >> i);
-				int32 MipSizeY = FMath::Max<uint32>(1, BaseSizeY >> i);
-				int32 MipSizeZ = BuildSettings.bVolume ? FMath::Max<uint32>(1, BaseSizeZ >> i) : BaseSizeZ;
-
-				if (MipSizeX <= MaxTextureResolution &&
-					MipSizeY <= MaxTextureResolution)
-				{
-					BaseSizeX = MipSizeX;
-					BaseSizeY = MipSizeY;
-					BaseSizeZ = MipSizeZ;
-					break;
-				}
-			}
-
-			if (BuildSettings.Downscale > 1.0f)
-			{
-				int32 DownscaledSizeX = 0, DownscaledSizeY = 0;
-				GetDownscaleFinalSizeAndClampedDownscale(BaseSizeX, BaseSizeY, FTextureDownscaleSettings(BuildSettings), DownscaledSizeX, DownscaledSizeY);
-
-				if (BuildSettings.bVolume)
-				{
-					UE_LOG(LogTextureCompressor, Error, TEXT("Downscaling volumes not yet supported - should have been handled in GetTextureBuildSettings!"));
-				}
-				check(BuildSettings.bVolume == false);
-
-				BaseSizeX = DownscaledSizeX;
-				BaseSizeY = DownscaledSizeY;
-			}
-
-			// Volumes are the only thing where num slices changes.
-			if (BuildSettings.bVolume == false)
-			{
-				OutMip0NumSlices = InMip0NumSlices;
-			}
-			else
-			{
-				OutMip0NumSlices = BaseSizeZ;
-			}
-		}
-		else
-		{
-			uint32 LongLatCubemapExtents = ComputeLongLatCubemapExtents(BaseSizeX, BuildSettings.MaxTextureResolution);
-			BaseSizeX = LongLatCubemapExtents;
-			BaseSizeY = LongLatCubemapExtents;
-			OutMip0NumSlices = 6 * InMip0NumSlices;
-		}
-
-		// At this point we have a base mip size that is valid.
-		OutMip0SizeX = BaseSizeX;
-		OutMip0SizeY = BaseSizeY;
-
-		if (BuildSettings.MipGenSettings == TMGS_NoMipmaps)
-		{
-			return 1;
-		}
-
-		// LeaveExisting is often unintentionally used as "NoMipmaps", so if they bring in 1 mip, leave it as 1 mip.
-		if (BuildSettings.MipGenSettings == TMGS_LeaveExistingMips &&
-			InExistingMipCount == 1)
-		{
-			return 1;
-		}
-
-		// NumOutputMips is the number of mips that would be made if you made a full mip chain
-		//  eg. 256 makes 9 mips , 300 also makes 9 mips
-		return FImageCoreUtils::GetMipCountFromDimensions(BaseSizeX, BaseSizeY, BaseSizeZ, BuildSettings.bVolume);
 	}
 
 	virtual bool BuildTexture(
