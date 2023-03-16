@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -129,6 +130,12 @@ namespace UnrealBuildTool
 		public void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
 		{
 			Makefile.DirectoryToSourceFiles[SourceDir] = SourceFiles.Select(fi => new TargetMakefileSourceFileInfo(fi)).ToArray();
+		}
+
+		/// <inheritdoc/>
+		public virtual void AddHeaderFiles(FileItem[] HeaderFiles)
+		{
+			Makefile.HeaderFiles.UnionWith(HeaderFiles);
 		}
 
 		/// <inheritdoc/>
@@ -306,6 +313,11 @@ namespace UnrealBuildTool
 		public Dictionary<DirectoryItem, TargetMakefileSourceFileInfo[]> DirectoryToSourceFiles;
 
 		/// <summary>
+		/// Set of all known header files, changes will not invalidate the makefile but are used to determine if a header is included in the target.
+		/// </summary>
+		public HashSet<FileItem> HeaderFiles;
+
+		/// <summary>
 		/// The set of source files that UnrealBuildTool determined to be part of the programmer's "working set". Used for adaptive non-unity builds.
 		/// </summary>
 		public HashSet<FileItem> WorkingSet = new HashSet<FileItem>();
@@ -358,6 +370,28 @@ namespace UnrealBuildTool
 		public double MemoryPerActionGB = 0.0;
 
 		/// <summary>
+		/// Enumerable of all source and header files tracked by this makefile.
+		/// </summary>
+		public IEnumerable<FileItem> SourceAndHeaderFiles
+		{
+			get
+			{
+				foreach (KeyValuePair<DirectoryItem, TargetMakefileSourceFileInfo[]> Item in DirectoryToSourceFiles)
+				{
+					foreach (TargetMakefileSourceFileInfo File in Item.Value.Where(x => x.SourceFileItem != null))
+					{
+						yield return File.SourceFileItem!;
+					}
+				}
+
+				foreach (FileItem File in HeaderFiles)
+				{
+					yield return File;
+				}
+			}
+		}
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ExternalMetadata">External build metadata from the platform</param>
@@ -396,6 +430,7 @@ namespace UnrealBuildTool
 			this.HotReloadModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			this.SourceDirectories = new List<DirectoryItem>();
 			this.DirectoryToSourceFiles = new();
+			this.HeaderFiles = new();
 			this.WorkingSet = new HashSet<FileItem>();
 			this.CandidatesForWorkingSet = new HashSet<FileItem>();
 			this.UObjectModules = new List<UHTModuleInfo>();
@@ -441,6 +476,7 @@ namespace UnrealBuildTool
 			HotReloadModuleNames = Reader.ReadHashSet(() => Reader.ReadString(), StringComparer.OrdinalIgnoreCase)!;
 			SourceDirectories = Reader.ReadList(() => Reader.ReadDirectoryItem())!;
 			DirectoryToSourceFiles = Reader.ReadDictionary(() => Reader.ReadDirectoryItem()!, () => Reader.ReadArray(() =>  new TargetMakefileSourceFileInfo(Reader)))!;
+			HeaderFiles = Reader.ReadHashSet(() => Reader.ReadFileItem())!;
 			WorkingSet = Reader.ReadHashSet(() => Reader.ReadFileItem())!;
 			CandidatesForWorkingSet = Reader.ReadHashSet(() => Reader.ReadFileItem())!;
 			UObjectModules = Reader.ReadList(() => new UHTModuleInfo(Reader))!;
@@ -485,6 +521,7 @@ namespace UnrealBuildTool
 			Writer.WriteHashSet(HotReloadModuleNames, x => Writer.WriteString(x));
 			Writer.WriteList(SourceDirectories, x => Writer.WriteDirectoryItem(x));
 			Writer.WriteDictionary(DirectoryToSourceFiles, k => Writer.WriteDirectoryItem(k), v => Writer.WriteArray(v, e => e.Write(Writer)));
+			Writer.WriteHashSet(HeaderFiles, x => Writer.WriteFileItem(x));
 			Writer.WriteHashSet(WorkingSet, x => Writer.WriteFileItem(x));
 			Writer.WriteHashSet(CandidatesForWorkingSet, x => Writer.WriteFileItem(x));
 			Writer.WriteList(UObjectModules, e => e.Write(Writer));

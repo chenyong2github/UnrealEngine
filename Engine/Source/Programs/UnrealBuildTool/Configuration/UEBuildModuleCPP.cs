@@ -388,6 +388,9 @@ namespace UnrealBuildTool
 				Graph.AddSourceFiles(Pair.Key, Pair.Value);
 			}
 
+			Graph.AddHeaderFiles(InputFiles.HeaderFiles.ToArray());
+			Graph.AddHeaderFiles(InputFiles.ISPCHeaderFiles.ToArray());
+
 			// We are building with IWYU and thismodule does not support it, early out
 			if (Target.bIWYU && Rules.IWYUSupport == IWYUSupport.None)
 			{

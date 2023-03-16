@@ -67,6 +67,12 @@ namespace UnrealBuildTool
 		void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles);
 
 		/// <summary>
+		/// Adds a list of known header files
+		/// </summary>
+		/// <param name="HeaderFiles">List of header files to track</param>
+		void AddHeaderFiles(FileItem[] HeaderFiles);
+
+		/// <summary>
 		/// Sets the output items which belong to a particular module
 		/// </summary>
 		/// <param name="ModuleName">Name of the module</param>
@@ -120,6 +126,11 @@ namespace UnrealBuildTool
 
 		/// <inheritdoc/>
 		public void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
+		{
+		}
+
+		/// <inheritdoc/>
+		public void AddHeaderFiles(FileItem[] HeaderFiles)
 		{
 		}
 
@@ -191,6 +202,12 @@ namespace UnrealBuildTool
 		public virtual void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
 		{
 			Inner.AddSourceFiles(SourceDir, SourceFiles);
+		}
+
+		/// <inheritdoc/>
+		public virtual void AddHeaderFiles(FileItem[] HeaderFiles)
+		{
+			Inner.AddHeaderFiles(HeaderFiles);
 		}
 
 		/// <inheritdoc/>

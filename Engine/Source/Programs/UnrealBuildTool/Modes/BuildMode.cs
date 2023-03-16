@@ -449,22 +449,31 @@ namespace UnrealBuildTool
 				for (int Idx = 0; Idx < Makefiles.Length; Idx++)
 				{
 					TargetDescriptor TargetDescriptor = TargetDescriptors[Idx];
-					List<FileReference> FilesToBuild = TargetDescriptor.SpecificFilesToCompile;
+					TargetMakefile Makefile = Makefiles[Idx];
 
-					QueuedActions[Idx] = Makefiles[Idx].Actions.ConvertAll(x => new LinkedAction(x, TargetDescriptors[Idx]));
+					QueuedActions[Idx] = Makefile.Actions.ConvertAll(x => new LinkedAction(x, TargetDescriptors[Idx]));
 
-					// If we have specific files to build we need to put those as MergedOutputItems (and create special single file actions if needed)
-					if (FilesToBuild.Count != 0)
+					if (TargetDescriptor.SpecificFilesToCompile.Count != 0)
 					{
-						// If there are headers in the list, expand the FilesToBuild to also include all files that include those headers
-						if (TargetDescriptor.bSingleFileBuildDependents)
-						{
-							FilesToBuild = GetAllSourceFilesIncludingHeader(FilesToBuild, TargetDescriptor.ProjectFile, Makefiles[Idx].Actions, Logger);
-						}
+						// Filter out SpecificFilesToCompile so only source files and headers included in the target are considered
+						HashSet<FileReference> TargetFiles = Makefile.SourceAndHeaderFiles.Select(x => x.Location).ToHashSet();
+						List<FileReference> FilesToBuild = TargetDescriptor.SpecificFilesToCompile
+							.Where(x => TargetFiles.Contains(x))
+							.ToList();
 
-						// We have specific files to compile so we will only queue up those files.
-						List<FileItem> ProducedItems = CreateLinkedActionsFromFileList(TargetDescriptor, BuildConfiguration, FilesToBuild, QueuedActions[Idx], Logger);
-						MergedOutputItems.UnionWith(ProducedItems);
+						// If we have specific files to build we need to put those as MergedOutputItems (and create special single file actions if needed)
+						if (FilesToBuild.Count != 0)
+						{
+							// If there are headers in the list, expand the FilesToBuild to also include all files that include those headers
+							if (TargetDescriptor.bSingleFileBuildDependents)
+							{
+								FilesToBuild = GetAllSourceFilesIncludingHeader(FilesToBuild, TargetDescriptor.ProjectFile, Makefile.Actions, Logger);
+							}
+
+							// We have specific files to compile so we will only queue up those files.
+							List<FileItem> ProducedItems = CreateLinkedActionsFromFileList(TargetDescriptor, BuildConfiguration, FilesToBuild, QueuedActions[Idx], Logger);
+							MergedOutputItems.UnionWith(ProducedItems);
+						}
 					}
 				}
 

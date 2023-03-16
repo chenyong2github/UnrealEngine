@@ -79,6 +79,11 @@ namespace UnrealBuildTool
 			}
 
 			/// <inheritdoc/>
+			public void AddHeaderFiles(FileItem[] HeaderFiles)
+			{
+			}
+
+			/// <inheritdoc/>
 			public void AddFileToWorkingSet(FileItem File)
 			{
 			}
