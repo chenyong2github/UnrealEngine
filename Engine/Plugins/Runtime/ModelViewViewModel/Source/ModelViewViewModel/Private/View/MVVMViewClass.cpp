@@ -222,6 +222,8 @@ FString FMVVMViewClass_CompiledBinding::ToString() const
 {
 #if WITH_EDITOR
 	return EditorId.ToString();
+#else
+	return FString();
 #endif
 }
 
