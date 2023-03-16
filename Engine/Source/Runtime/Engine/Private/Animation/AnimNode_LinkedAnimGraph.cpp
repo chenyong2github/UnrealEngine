@@ -475,10 +475,26 @@ void FAnimNode_LinkedAnimGraph::HandleObjectsReinstanced_Impl(UObject* InSourceO
 	if(UseLegacyAnimInstanceReinstancingBehavior == nullptr || !UseLegacyAnimInstanceReinstancingBehavior->GetBool())
 	{
 		UAnimInstance* SourceAnimInstance = CastChecked<UAnimInstance>(InSourceObject);
-	
+		FAnimInstanceProxy& SourceProxy = SourceAnimInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+
+		// Call Initialize here to ensure any custom proxies are initialized (as they may have been re-created during
+		// re-instancing, and they dont call the constructor that takes a UAnimInstance*)
+		SourceProxy.Initialize(SourceAnimInstance);
+
 		InitializeProperties(SourceAnimInstance, GetTargetClass());
 		DynamicUnlink(SourceAnimInstance);
 		DynamicLink(SourceAnimInstance);
+
+		SourceProxy.InitializeCachedClassData();
+
+		// Ensure we have a valid mesh at this point, as calling into the graph without one can result in crashes
+		// as we assume a valid bone container/reference skeleton is present
+		USkeletalMeshComponent* MeshComponent = SourceAnimInstance->GetSkelMeshComponent();
+		if(MeshComponent && MeshComponent->GetSkeletalMeshAsset())
+		{
+			FAnimationInitializeContext Context(&SourceProxy);
+			InitializeSubGraph_AnyThread(Context);
+		}
 	}
 }
 #endif

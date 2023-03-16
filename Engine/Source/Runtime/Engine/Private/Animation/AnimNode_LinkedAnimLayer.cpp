@@ -229,9 +229,15 @@ void FAnimNode_LinkedAnimLayer::HandleObjectsReinstanced_Impl(UObject* InSourceO
 		DynamicLink(SourceAnimInstance);
 
 		SourceProxy.InitializeCachedClassData();
-		
-		FAnimationInitializeContext Context(&SourceProxy);
-		InitializeSubGraph_AnyThread(Context);
+
+		// Ensure we have a valid mesh at this point, as calling into the graph without one can result in crashes
+		// as we assume a valid bone container/reference skeleton is present
+		USkeletalMeshComponent* MeshComponent = SourceAnimInstance->GetSkelMeshComponent();
+		if(MeshComponent && MeshComponent->GetSkeletalMeshAsset())
+		{
+			FAnimationInitializeContext Context(&SourceProxy);
+			InitializeSubGraph_AnyThread(Context);
+		}
 	}
 }
 
