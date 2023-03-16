@@ -4,10 +4,12 @@
 
 #include "PCGPin.h"
 #include "PCGSettings.h"
+
 #include "Curves/CurveFloat.h"
 
 #include "PCGSplineSampler.generated.h"
 
+struct FPCGProjectionParams;
 class UPCGPolyLineData;
 class UPCGSpatialData;
 class UPCGPointData;
@@ -125,9 +127,9 @@ namespace PCGSplineSamplerHelpers
 
 namespace PCGSplineSampler
 {
-	void SampleLineData(const UPCGPolyLineData* LineData, const UPCGSpatialData* SpatialData, const UPCGSpatialData* InBoundingShape, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData);
+	void SampleLineData(const UPCGPolyLineData* LineData, const UPCGSpatialData* InBoundingShape, const UPCGSpatialData* InProjectionTarget, const FPCGProjectionParams& InProjectionParams, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData);
 
-	void SampleInteriorData(const UPCGPolyLineData* LineData, const UPCGSpatialData* SpatialData, const UPCGSpatialData* InBoundingShape, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData);
+	void SampleInteriorData(const UPCGPolyLineData* LineData, const UPCGSpatialData* InBoundingShape, const UPCGSpatialData* InProjectionTarget, const FPCGProjectionParams& InProjectionParams, const FPCGSplineSamplerParams& Params, UPCGPointData* OutPointData);
 	const UPCGPolyLineData* GetPolyLineData(const UPCGSpatialData* InSpatialData);
 }
 

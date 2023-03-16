@@ -121,7 +121,15 @@ const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContext* Context) const
 	FPCGSplineSamplerParams SamplerParams;
 	SamplerParams.Mode = EPCGSplineSamplingMode::Distance;
 
-	PCGSplineSampler::SampleLineData(this, this, nullptr, SamplerParams, Data);
+	const UPCGSpatialData* ProjectionTarget = nullptr;
+	FPCGProjectionParams ProjectionParams;
+	if (const UPCGSplineProjectionData* SplineProjection = Cast<const UPCGSplineProjectionData>(this))
+	{
+		ProjectionTarget = SplineProjection->GetSurface();
+		ProjectionParams = SplineProjection->GetProjectionParams();
+	}
+
+	PCGSplineSampler::SampleLineData(this, nullptr, ProjectionTarget, ProjectionParams, SamplerParams, Data);
 	UE_LOG(LogPCG, Verbose, TEXT("Spline generated %d points"), Data->GetPoints().Num());
 
 	return Data;
@@ -154,8 +162,7 @@ bool UPCGSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	}
 	else
 	{
-		OutPoint.Transform = NearestTransform;
-		OutPoint.Transform.SetLocation(InPosition);
+		OutPoint.Transform = InTransform;
 		OutPoint.SetLocalBounds(InBounds);
 		OutPoint.Density = 1.0f - Distance;
 

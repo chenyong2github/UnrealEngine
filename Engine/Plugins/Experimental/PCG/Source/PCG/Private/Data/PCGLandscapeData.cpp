@@ -180,6 +180,13 @@ bool UPCGLandscapeData::ProjectPoint(const FTransform& InTransform, const FBox& 
 	{
 		OutPoint.Transform.SetRotation(InTransform.GetRotation());
 	}
+	else
+	{
+		// Take landscape transform, but respect initial point yaw (don't spin points around Z axis).
+		FVector RotVector = InTransform.GetRotation().ToRotationVector();
+		RotVector.X = RotVector.Y = 0;
+		OutPoint.Transform.SetRotation(OutPoint.Transform.GetRotation() * FQuat::MakeFromRotationVector(RotVector));
+	}
 
 	if (!InParams.bProjectScales)
 	{
