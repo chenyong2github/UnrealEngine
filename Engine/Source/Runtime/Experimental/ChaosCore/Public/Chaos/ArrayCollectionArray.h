@@ -19,6 +19,8 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 	using TArray<T>::Emplace;
 
 public:
+	constexpr static bool bAllowShrinkOnRemove = false;
+
 	using TArray<T>::Num;
 
 	TArrayCollectionArray()
@@ -56,17 +58,17 @@ public:
 
 	void Resize(const int Num) override
 	{
-		SetNum(Num);
+		SetNum(Num, bAllowShrinkOnRemove);
 	}
 
 	FORCEINLINE void RemoveAt(const int Idx, const int Count) override
 	{
-		TArray<T>::RemoveAt(Idx, Count);
+		TArray<T>::RemoveAt(Idx, Count, bAllowShrinkOnRemove);
 	}
 
 	FORCEINLINE void RemoveAtSwap(const int Idx) override
 	{
-		TArray<T>::RemoveAtSwap(Idx);
+		TArray<T>::RemoveAtSwap(Idx, 1, bAllowShrinkOnRemove);
 	}
 
 	FORCEINLINE void MoveToOtherArray(const int Idx, TArrayCollectionArrayBase& Other)
@@ -74,7 +76,7 @@ public:
 		//todo: add developer check to make sure this is ok?
 		auto& OtherTArray = static_cast<TArrayCollectionArray<T>&>(Other);
 		OtherTArray.Emplace(MoveTemp(TArray<T>::operator [](Idx)));
-		TArray<T>::RemoveAtSwap(Idx);
+		TArray<T>::RemoveAtSwap(Idx, 1, bAllowShrinkOnRemove);
 	}
 
 	FORCEINLINE uint64 SizeOfElem() const override
