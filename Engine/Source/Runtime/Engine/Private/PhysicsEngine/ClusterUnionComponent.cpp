@@ -113,7 +113,7 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 
 void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InComponent)
 {
-	if (!InComponent || !PhysicsProxy || !ensure(InComponent->HasValidPhysicsState()))
+	if (!InComponent || !PhysicsProxy)
 	{
 		return;
 	}
@@ -181,9 +181,16 @@ void UClusterUnionComponent::OnCreatePhysicsState()
 	// TODO: Expose these parameters via the component.
 	Chaos::FClusterCreationParameters Parameters{ 0.3f, 100, false, false };
 	Parameters.ConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
+	Parameters.bUseExistingChildToParent = !GetOwner()->HasAuthority();
 
 	FChaosUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
-	PhysicsProxy = new Chaos::FClusterUnionPhysicsProxy{this, Parameters, static_cast<void*>(&PhysicsUserData), GetOwner()->GetUniqueID(), GetUniqueID()};
+
+	Chaos::FClusterUnionInitData InitData;
+	InitData.UserData = static_cast<void*>(&PhysicsUserData);
+	InitData.ActorId = GetOwner()->GetUniqueID();
+	InitData.ComponentId = GetUniqueID();
+	InitData.bNeedsClusterXRInitialization = GetOwner()->HasAuthority();
+	PhysicsProxy = new Chaos::FClusterUnionPhysicsProxy{ this, Parameters, InitData };
 	PhysicsProxy->Initialize_External();
 	if (FPhysScene_Chaos* Scene = GetChaosScene())
 	{

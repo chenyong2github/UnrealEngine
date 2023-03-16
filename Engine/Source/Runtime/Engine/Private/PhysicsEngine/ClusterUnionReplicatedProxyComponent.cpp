@@ -106,16 +106,17 @@ void UClusterUnionReplicatedProxyComponent::PostRepNotifies()
 {
 	UActorComponent::PostRepNotifies();
 
+	const bool bIsValid = ParentClusterUnion && ChildClusteredComponent && !ParticleBoneIds.IsEmpty();
+	if (!bIsValid)
+	{
+		return;
+	}
+
 	// These three properties should only get set once when the component is created.
 	const bool bIsInitialReplication = bNetUpdateParentClusterUnion || bNetUpdateChildClusteredComponent || bNetUpdateParticleBoneIds;
-	const bool bIsValid = ParentClusterUnion && ChildClusteredComponent && !ParticleBoneIds.IsEmpty();
 	if (bIsInitialReplication)
 	{
-		if (bIsValid)
-		{
-			ParentClusterUnion->AddComponentToCluster(ChildClusteredComponent, ParticleBoneIds);
-		}
-
+		ParentClusterUnion->AddComponentToCluster(ChildClusteredComponent, ParticleBoneIds);
 		bNetUpdateParentClusterUnion = false;
 		bNetUpdateChildClusteredComponent = false;
 		bNetUpdateParticleBoneIds = false;

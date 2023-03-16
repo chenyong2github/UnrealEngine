@@ -101,8 +101,18 @@ namespace Chaos
 
 		for (FPBDRigidParticleHandle* Child : Union.ChildParticles)
 		{
-			const FRigidTransform3 ChildWorldTM(Child->X(), Child->R());
-			FRigidTransform3 Frame = ChildWorldTM.GetRelativeTransform(ClusterWorldTM);
+			FRigidTransform3 Frame = FRigidTransform3::Identity;
+			
+			if (FPBDRigidClusteredParticleHandle* ClusterChild = Child->CastToClustered(); ClusterChild && Union.Parameters.bUseExistingChildToParent)
+			{
+				Frame = ClusterChild->ChildToParent();
+			}
+			else
+			{
+				const FRigidTransform3 ChildWorldTM(Child->X(), Child->R());
+				Frame = ChildWorldTM.GetRelativeTransform(ClusterWorldTM);
+			}
+
 			if (Child->Geometry())
 			{
 				Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame)));
@@ -317,6 +327,7 @@ namespace Chaos
 			}
 
 			MEvolution.SetPhysicsMaterial(Cluster->InternalCluster, MEvolution.GetPhysicsMaterial(FinalParticlesToAdd[0]));
+			Cluster->bNeedsXRInitialization = false;
 		}
 
 		if (Cluster->InternalCluster->Disabled())
@@ -426,9 +437,10 @@ namespace Chaos
 		TSet<FPBDRigidParticleHandle*> FullChildrenSet(ClusterUnion.ChildParticles);
 
 		const FRigidTransform3 ForceMassOrientation{ ClusterUnion.InternalCluster->X(), ClusterUnion.InternalCluster->R() };
-		UpdateClusterMassProperties(ClusterUnion.InternalCluster, FullChildrenSet, ClusterInertia, bRecomputeMassOrientation ? nullptr : &ForceMassOrientation);
+		UpdateClusterMassProperties(ClusterUnion.InternalCluster, FullChildrenSet, ClusterInertia, (bRecomputeMassOrientation || ClusterUnion.bNeedsXRInitialization) ? nullptr : &ForceMassOrientation);
 		UpdateKinematicProperties(ClusterUnion.InternalCluster, MClustering.GetChildrenMap(), MEvolution);
 
+		MEvolution.InvalidateParticle(ClusterUnion.InternalCluster);
 		// The recreation of the geometry must happen after the call to UpdateClusterMassProperties.
 		// Creating the geometry requires knowing the relative frame between the parent cluster and the child clusters. The
 		// parent transform is not set properly for a new empty cluster until UpdateClusterMassProperties is called for the first time.

@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 
 #include "Chaos/ClusterUnionManager.h"
@@ -69,12 +68,10 @@ namespace Chaos
 		}
 	}
 
-	FClusterUnionPhysicsProxy::FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, void* InUserData, uint32 InActorId, uint32 InComponentId)
+	FClusterUnionPhysicsProxy::FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, const FClusterUnionInitData& InInitData)
 		: Base(InOwner)
 		, ClusterParameters(InParameters)
-		, UserData(InUserData)
-		, ActorId(InActorId)
-		, ComponentId(InComponentId)
+		, InitData(InInitData)
 	{
 	}
 
@@ -85,7 +82,7 @@ namespace Chaos
 		check(Particle_External != nullptr);
 
 		Particle_External->SetProxy(this);
-		Particle_External->SetUserData(UserData);
+		Particle_External->SetUserData(InitData.UserData);
 
 		// NO DIRTY FLAGS ALLOWED. We must strictly manage the dirty flags on the particle.
 		// Setting the particle's XR on the particle will set the XR dirty flag but that isn't
@@ -116,8 +113,8 @@ namespace Chaos
 
 		FClusterUnionCreationParameters ClusterUnionParameters;
 		ClusterUnionParameters.UniqueIndex = &UniqueIndex;
-		ClusterUnionParameters.ActorId = ActorId;
-		ClusterUnionParameters.ComponentId = ComponentId;
+		ClusterUnionParameters.ActorId = InitData.ActorId;
+		ClusterUnionParameters.ComponentId = InitData.ComponentId;
 
 		ClusterUnionIndex = ClusterUnionManager.CreateNewClusterUnion(ClusterParameters, ClusterUnionParameters);
 		if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnion(ClusterUnionIndex); ensure(ClusterUnion != nullptr))
@@ -125,6 +122,13 @@ namespace Chaos
 			Particle_Internal = ClusterUnion->InternalCluster;
 			Particle_Internal->SetPhysicsProxy(this);
 			Particle_Internal->GTGeometryParticle() = Particle_External.Get();
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			Particle_Internal->SetDebugName(MakeShared<FString, ESPMode::ThreadSafe>(FString::Printf(TEXT("%s"), *GetOwner()->GetName())));
+#endif
+
+			// On the client, we'd rather wait for the server to initialize the particle properly.
+			ClusterUnion->bNeedsXRInitialization = InitData.bNeedsClusterXRInitialization;
 		}
 	}
 
@@ -250,11 +254,19 @@ namespace Chaos
 		}
 
 		FPBDRigidsEvolutionGBF& Evolution = *RigidsSolver.GetEvolution();
-		FClusterUnionManager& ClusterUnionManager = Evolution.GetRigidClustering().GetClusterUnionManager();
 
 		if (const FParticlePositionRotation* NewXR = ParticleData.FindClusterXR(Manager, DataIdx))
 		{
 			Evolution.SetParticleTransform(Particle_Internal, NewXR->X(), NewXR->R(), true);
+
+			// Particle needs to actually be marked dirty! Less so to pull state from the PT back to the GT for the cluster union
+			// but this is primarily for proxies within the cluster union. They (i.e. GCs) need to see this change to the particle's transform.
+			Evolution.GetParticles().MarkTransientDirtyParticle(Particle_Internal);
+
+			const FRigidTransform3 WorldTransform{ Particle_Internal->X(), Particle_Internal->R() };
+			Particle_Internal->UpdateWorldSpaceState(WorldTransform, FVec3(0));
+
+			Evolution.DirtyParticle(*Particle_Internal);
 		}
 
 		if (const FParticleVelocities* NewVelocities = ParticleData.FindClusterVelocities(Manager, DataIdx))
@@ -534,13 +546,14 @@ namespace Chaos
 					}
 
 					const int32 ParticleIndex = ClusterUnion->ChildParticles.Find(Particle->CastToRigidParticle());
-					if (ParticleIndex != INDEX_NONE)
+					if (ParticleIndex != INDEX_NONE && ClusterUnion->InternalCluster)
 					{
 						if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ParticleIndex]->CastToClustered())
 						{
 							ChildHandle->SetChildToParent(RelativeTransform);
-							Evolution.GetParticles().MarkTransientDirtyParticle(ChildHandle);
-							Evolution.GetParticles().MarkTransientDirtyParticle(Particle);
+							ClusterUnionManager.UpdateAllClusterUnionProperties(*ClusterUnion, false);
+							Evolution.GetParticles().MarkTransientDirtyParticle(ClusterUnion->InternalCluster);
+							Evolution.DirtyParticle(*ClusterUnion->InternalCluster);
 						}
 					}
 				}

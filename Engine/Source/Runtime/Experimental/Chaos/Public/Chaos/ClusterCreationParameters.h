@@ -34,6 +34,7 @@ namespace Chaos
 			, Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal,3>* ClusterParticleHandleIn = nullptr
 			, const FVec3& ScaleIn = FVec3::OneVector
 			, bool bIsAnchoredIn = false
+			, bool bInUseExistingChildToParent = false
 		)
 			: CoillisionThicknessPercent(CoillisionThicknessPercentIn)
 			, MaxNumConnections(MaxNumConnectionsIn)
@@ -46,6 +47,7 @@ namespace Chaos
 			, ClusterParticleHandle(ClusterParticleHandleIn)
 			, Scale(ScaleIn)
 			, bIsAnchored(bIsAnchoredIn)
+			, bUseExistingChildToParent(bInUseExistingChildToParent)
 		{}
 
 		FReal CoillisionThicknessPercent;
@@ -59,5 +61,7 @@ namespace Chaos
 		Chaos::FPBDRigidClusteredParticleHandle* ClusterParticleHandle;
 		FVec3 Scale;
 		bool bIsAnchored;
+		// Whether or not to use the particle's existing child to parent transform instead of trying to recompute it.
+		bool bUseExistingChildToParent;
 	};
 }

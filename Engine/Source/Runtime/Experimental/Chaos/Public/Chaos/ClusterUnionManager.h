@@ -51,6 +51,9 @@ namespace Chaos
 
 		// Other parameters that aren't related to clusters generally but are related to info we need about the cluster union.
 		FClusterUnionCreationParameters ClusterUnionParameters;
+
+		// Whether or not the position/rotation needs to be computed the first time a particle is added.
+		bool bNeedsXRInitialization = true;
 	};
 
 	
@@ -93,6 +96,11 @@ namespace Chaos
 
 		FClusterUnionIndex FindClusterUnionIndexFromParticle(FPBDRigidParticleHandle* Particle);
 
+		// Update the cluster union's properties after its set of particle changes.
+		void UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, bool bRecomputeMassOrientation);
+
+		// Returns all cluster unions. Really meant only to be used for debugging.
+		const TMap<FClusterUnionIndex, FClusterUnion>& GetAllClusterUnions() const { return ClusterUnions; }
 	private:
 		FRigidClustering& MClustering;
 		FPBDRigidsEvolutionGBF& MEvolution;
@@ -140,9 +148,6 @@ namespace Chaos
 
 		// Forcefully recreate the shared geometry on a cluster. Potentially expensive so ideally should be used rarely.
 		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> ForceRecreateClusterUnionSharedGeometry(const FClusterUnion& Union);
-
-		// Update the cluster union's properties after its set of particle changes.
-		void UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, bool bRecomputeMassOrientation);
 	};
 
 }

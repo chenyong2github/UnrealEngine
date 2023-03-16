@@ -23,6 +23,14 @@ namespace Chaos
 		FTransform ChildToParent;
 	};
 
+	struct FClusterUnionInitData
+	{
+		void* UserData;
+		uint32 ActorId = INDEX_NONE;
+		uint32 ComponentId = INDEX_NONE;
+		bool bNeedsClusterXRInitialization = true;
+	};
+
 	/**
 	 * Extra data that needs to be synced between the PT and GT for cluster unions.
 	 */
@@ -34,7 +42,7 @@ namespace Chaos
 		// Data on every child particle in the cluster union.
 		TArray<FClusterUnionChildData> ChildParticles;
 	};
-
+	
 
 	class CHAOS_API FClusterUnionPhysicsProxy : public TPhysicsProxy<FClusterUnionPhysicsProxy, void, FClusterUnionProxyTimestamp>
 	{
@@ -45,7 +53,7 @@ namespace Chaos
 		using FInternalParticle = TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>;
 
 		FClusterUnionPhysicsProxy() = delete;
-		FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, void* InUserData, uint32 InActorId, uint32 InComponentId);
+		FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, const FClusterUnionInitData& InInitData);
 
 		// Add physics objects to the cluster union. Should only be called from the game thread.
 		void AddPhysicsObjects_External(const TArray<FPhysicsObjectHandle>& Objects);
@@ -106,9 +114,7 @@ namespace Chaos
 	private:
 		bool bIsInitializedOnPhysicsThread = false;
 		FClusterCreationParameters ClusterParameters;
-		void* UserData = nullptr;
-		uint32 ActorId;
-		uint32 ComponentId;
+		const FClusterUnionInitData InitData;
 
 		FPhysicsObjectUniquePtr PhysicsObject;
 		TUniquePtr<FExternalParticle> Particle_External;

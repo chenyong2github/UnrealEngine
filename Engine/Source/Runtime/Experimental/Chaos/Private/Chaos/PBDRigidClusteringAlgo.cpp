@@ -333,8 +333,18 @@ namespace Chaos
 
 			for (FPBDRigidParticleHandle* Child : Children)
 			{
-				const FRigidTransform3 ChildWorldTM(Child->X(), Child->R());
-				FRigidTransform3 Frame = ChildWorldTM.GetRelativeTransform(ClusterWorldTM);
+				FRigidTransform3 Frame = FRigidTransform3::Identity;
+
+				if (FPBDRigidClusteredParticleHandle* ClusterChild = Child->CastToClustered(); ClusterChild && Parameters.bUseExistingChildToParent)
+				{
+					Frame = ClusterChild->ChildToParent();
+				}
+				else
+				{
+					const FRigidTransform3 ChildWorldTM(Child->X(), Child->R());
+					Frame = ChildWorldTM.GetRelativeTransform(ClusterWorldTM);
+				}
+
 				FPBDRigidParticleHandle* UsedGeomChild = Child;
 				if (Child->Geometry())
 				{
