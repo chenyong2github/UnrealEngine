@@ -5301,9 +5301,11 @@ bool FAsyncPackage2::ProcessLinkerLoadPackageImports(FAsyncLoadingThreadState2& 
 			}
 #endif
 			FObjectImport& LinkerImport = LinkerLoadState->Linker->ImportMap[ImportIndex];
-			if (!LinkerImport.XObject)
+			if (!LinkerImport.XObject && FromImportStore)
 			{
 				LinkerImport.XObject = FromImportStore;
+				LinkerImport.SourceIndex = FromImportStore->GetLinkerIndex();
+				LinkerImport.SourceLinker = FromImportStore->GetLinker();
 			}
 		}
 	}
