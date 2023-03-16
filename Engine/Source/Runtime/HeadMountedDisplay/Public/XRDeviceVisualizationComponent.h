@@ -66,6 +66,7 @@ class HEADMOUNTEDDISPLAY_API UXRDeviceVisualizationComponent : public UStaticMes
 	FXRDeviceId DisplayDeviceId;
 
 	void BeginPlay() override;
+	virtual void OnUnregister() override;
 	void RefreshMesh();
 	UMotionControllerComponent* FindParentMotionController();
 	void SetMaterials(int32 MatCount);
@@ -81,4 +82,9 @@ public:
 
 	UFUNCTION(BlueprintSetter, Category="MotionController")
 	void SetIsRenderingActive(bool bRenderingIsActive);
+
+private:
+	void OnInteractionProfileChanged();
+
+	bool bInteractionProfilePresent = false;
 };

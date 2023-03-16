@@ -7,6 +7,7 @@
 #include "IXRTrackingSystem.h"
 #include "Misc/Attribute.h"
 #include "MotionControllerComponent.h"
+#include "XRTrackingSystemBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(XRDeviceVisualizationComponent)
 
@@ -36,12 +37,26 @@ void UXRDeviceVisualizationComponent::BeginPlay() {
 		MotionSource = ParentController->GetTrackingMotionSource();
 		// Wait for controller to activate the rendering for this component.
 		bIsRenderingActive = false;
+		FXRTrackingSystemDelegates::OnXRInteractionProfileChanged.AddUObject(this, &UXRDeviceVisualizationComponent::OnInteractionProfileChanged);
 	}
 	else 
 	{
 		UE_LOG(LogXRDeviceVisualizationComponent, Error, TEXT("No parent UMotionControllerComponent for %s was found in the hierarchy. This component will not render anything."), *GetName());
 	}
+}
+
+//=============================================================================
+void UXRDeviceVisualizationComponent::OnInteractionProfileChanged()
+{
+	bInteractionProfilePresent = true;
 	RefreshMesh();
+}
+
+//=============================================================================
+void UXRDeviceVisualizationComponent::OnUnregister()
+{
+	Super::OnUnregister();
+	FXRTrackingSystemDelegates::OnXRInteractionProfileChanged.RemoveAll(this);
 }
 
 //=============================================================================
@@ -65,8 +80,8 @@ void UXRDeviceVisualizationComponent::SetIsVisualizationActive(bool bNewVisualiz
 	if (bNewVisualizationState != bIsVisualizationActive) 
 	{
 		bIsVisualizationActive = bNewVisualizationState;
-		RefreshMesh();
 	}
+	RefreshMesh();
 }
 
 //=============================================================================
@@ -165,7 +180,6 @@ void UXRDeviceVisualizationComponent::RefreshMesh()
 
 				const EObjectFlags SubObjFlags = RF_Transactional | RF_TextExportTransient;
 				UPrimitiveComponent* RenderComponent = AssetSys->CreateRenderComponent(DeviceId, GetOwner(), SubObjFlags, /*bForceSynchronous=*/false, LoadCompleteDelegate);
-				
 				if (RenderComponent != nullptr) 
 				{
 					StaticMeshComponent = Cast<UStaticMeshComponent>(RenderComponent);
@@ -189,7 +203,14 @@ void UXRDeviceVisualizationComponent::RefreshMesh()
 				{
 					DisplayModelLoadState = EModelLoadStatus::Unloaded;
 					SetStaticMesh(nullptr);
-					UE_LOG(LogXRDeviceVisualizationComponent, Error, TEXT("CreateRenderComponent returned a NULL UPrimitiveComponent*. Setting a NULL StaticMesh."));
+					// xrGetCurrentInteractionProfile returns 0 for the first bunch of frames.
+					// There is a race condition between the MotionController starting the rendering on this component and the interaction profile becoming available.
+					// If the MotionController starts the rendering before an interaction profile has been found, the RenderComponent will be null and we don't want
+					// to fire an error for this.
+					if (bInteractionProfilePresent)
+					{
+						UE_LOG(LogXRDeviceVisualizationComponent, Error, TEXT("CreateRenderComponent returned a NULL UPrimitiveComponent*. Setting a NULL StaticMesh."));
+					}
 				}
 			}
 		}
