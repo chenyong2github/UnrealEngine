@@ -3756,14 +3756,16 @@ void UTexture::SetMinTextureResidentMipCount(int32 InMinTextureResidentMipCount)
 #if WITH_EDITOR
 bool UTexture::DownsizeImageUsingTextureSettings(const ITargetPlatform* TargetPlatform, FImage& InOutImage, int32 TargetSize, int32 LayerIndex)
 {
+	// resize so that the largest dimension is <= TargetSize
+
 	if (TargetSize >= InOutImage.SizeX && TargetSize >= InOutImage.SizeY)
 	{
+		// both dimensions already small enough, early out
 		return false;
 	}
 
 	// Ideally this code wouldn't live here but at the moment of writing this code the coupling between the texture and the texture compressor make it hard to move that logic elsewhere
 	TArray<FTextureBuildSettings> SettingPerLayer;
-	TArray<FTexturePlatformData::FTextureEncodeResultMetadata>* ResultMetadataPerLayer = nullptr;
 	GetBuildSettingsForTargetPlatform(*this, TargetPlatform, ETextureEncodeSpeed::Final, SettingPerLayer, nullptr);
 
 	// Teak the build setting to generate a mip for our image
@@ -3777,6 +3779,13 @@ bool UTexture::DownsizeImageUsingTextureSettings(const ITargetPlatform* TargetPl
 	// convert to RGBA32F linear for the compressor
 	InOutImage.CopyTo(Temp, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 
+	if ( InOutImage.GetGammaSpace() == EGammaSpace::Pow22 )
+	{
+		// Pow22 is read only; now that we have converted to Linear, we will write output as sRGB
+		// caller must also change Texture->bUseLegacyGamma
+		InOutImage.GammaSpace = EGammaSpace::sRGB;
+	}
+
 	TArray<FImage> BuildSourceImageMips;
 	// make sure BuildSourceImageMips doesn't reallocate :
 	constexpr int BuildSourceImageMipsMaxCount = 20; // plenty
@@ -3784,28 +3793,16 @@ bool UTexture::DownsizeImageUsingTextureSettings(const ITargetPlatform* TargetPl
 
 	ITextureCompressorModule::GenerateMipChain(BuildSettings, Temp, BuildSourceImageMips, 1);
 
+	// keep halving while larger size is > Target
 	while (BuildSourceImageMips.Last().SizeX > TargetSize ||
 		BuildSourceImageMips.Last().SizeY > TargetSize)
 	{
 		ITextureCompressorModule::GenerateMipChain(BuildSettings, BuildSourceImageMips.Last(), BuildSourceImageMips, 1);
 	}
 
-	FImage* SelectedOutput = nullptr;
-	if (BuildSourceImageMips.Last().SizeX < TargetSize ||
-		BuildSourceImageMips.Last().SizeY < TargetSize)
-	{
-		if (BuildSourceImageMips.Num() == 1)
-		{
-			return false;
-		}
+	// now larger size must be <= TargetSize
 
-		SelectedOutput = &BuildSourceImageMips[BuildSourceImageMips.Num() - 2];
-	}
-	else
-	{
-		SelectedOutput = &BuildSourceImageMips.Last();
-	}
-
+	FImage* SelectedOutput = &BuildSourceImageMips.Last();
 
 	if (SelectedOutput->Format == InOutImage.Format && SelectedOutput->GammaSpace == InOutImage.GammaSpace)
 	{

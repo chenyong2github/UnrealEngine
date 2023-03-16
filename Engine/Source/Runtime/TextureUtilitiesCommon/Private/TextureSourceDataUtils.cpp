@@ -7,6 +7,7 @@
 #include "ImageCoreUtils.h"
 #include "Engine/Texture.h"
 #include "HAL/UnrealMemory.h"
+#include "EngineLogs.h"
 
 namespace UE::TextureUtilitiesCommon::Experimental
 {
@@ -27,7 +28,10 @@ namespace Private
 		}
 
 		const int32 LayerIndex = 0;
-		Texture->DownsizeImageUsingTextureSettings(TargetPlatform, SourceMip0, MaxSize, LayerIndex);
+		if ( ! Texture->DownsizeImageUsingTextureSettings(TargetPlatform, SourceMip0, MaxSize, LayerIndex) )
+		{
+			return false;
+		}
 		FImage ResizedImage = MoveTemp(SourceMip0);
 
 		UE::Serialization::FEditorBulkData::FSharedBufferWithID ResizedImageBufferWithID = MakeSharedBufferFromArray(MoveTemp(ResizedImage.RawData));
@@ -39,6 +43,11 @@ namespace Private
 			, NumMips
 			, FImageCoreUtils::ConvertToTextureSourceFormat(ResizedImage.Format)
 			, MoveTemp(ResizedImageBufferWithID));
+
+		// if gamma was Pow22 it is now sRGB
+		Texture->bUseLegacyGamma = false;
+
+		// PostEditChange is called outside by our caller
 
 		return true;
 	}
@@ -188,6 +197,8 @@ namespace Private
 
 bool DownsizeTextureSourceData(UTexture* Texture, int32 TargetSizeInGame, const ITargetPlatform* TargetPlatform)
 {
+	check( Texture->Source.IsValid() );
+
 	// Check if we don't know how to resize that texture
 	if (Texture->Source.GetNumLayers() != 1)
 	{
@@ -262,17 +273,35 @@ bool DownsizeTextureSourceData(UTexture* Texture, int32 TargetSizeInGame, const 
 
 bool DownsizeTexureSourceDataNearRenderingSize(UTexture* Texture, const ITargetPlatform* TargetPlatform)
 {
-	int32 SizeX;
-	int32 SizeY;
-	Texture->GetBuiltTextureSize(TargetPlatform, SizeX, SizeY);
-
-	int32 TargetSize =  FMath::Max(SizeX, SizeY);
-	if (DownsizeTextureSourceData(Texture, FMath::Max(SizeX, SizeY), TargetPlatform))
+	if ( ! Texture->Source.IsValid() )
 	{
-		int32 BiggestSize = FMath::Max(SizeX, SizeY);
-		const int32 Bias = FMath::CeilLogTwo(BiggestSize) - FMath::CeilLogTwo(TargetSize);
-		Texture->LODBias = FMath::Max(Bias , 0);
+		return false;
+	}
+
+	int32 BeforeSizeX;
+	int32 BeforeSizeY;
+	Texture->GetBuiltTextureSize(TargetPlatform, BeforeSizeX, BeforeSizeY);
+
+	int32 TargetSize = FMath::Max(BeforeSizeX, BeforeSizeY);
+	if (DownsizeTextureSourceData(Texture, TargetSize, TargetPlatform))
+	{
+		Texture->LODBias = 0;
 		Texture->PostEditChange();
+		
+		// check that GetBuiltTextureSize was preserved :
+		int32 AfterSizeX;
+		int32 AfterSizeY;
+		Texture->GetBuiltTextureSize(TargetPlatform, AfterSizeX, AfterSizeY);
+
+		if ( BeforeSizeX != AfterSizeX ||
+			 BeforeSizeY != AfterSizeY )
+		{
+			UE_LOG(LogTexture,Warning,TEXT("DownsizeTexureSourceDataNearRenderingSize failed to preserve built size; was: %dx%d now: %dx%d on [%s]"),
+				BeforeSizeX,BeforeSizeY,
+				AfterSizeX,AfterSizeY,
+				*Texture->GetFullName());
+		}
+
 		return true;
 	}
 
