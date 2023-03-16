@@ -267,9 +267,14 @@ namespace mu
 				negSurf,
 				posTag,
 				negTag);
+
+			if (!tagCondition)
+			{
+				// This tag is unconditionally activated, so there's no condition logic to add
+				continue;
+			}
+
 			// TODO: Optimise the tag condition here
-
-
 
 			// If the tag is a constant ...
 			bool isConstant = false;
