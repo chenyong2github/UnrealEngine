@@ -14,13 +14,6 @@ FPCGElementPtr UPCGBoundsModifierSettings::CreateElement() const
 	return MakeShared<FPCGBoundsModifier>();
 }
 
-TArray<FPCGPinProperties> UPCGBoundsModifierSettings::InputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-	return PinProperties;
-}
-
 #if WITH_EDITOR
 FText UPCGBoundsModifierSettings::GetNodeTooltipText() const
 {

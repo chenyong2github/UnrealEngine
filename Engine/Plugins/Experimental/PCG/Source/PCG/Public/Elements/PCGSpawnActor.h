@@ -97,7 +97,6 @@ public:
 protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return DefaultPointInputPinProperties(); }
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return DefaultPointOutputPinProperties(); }
-
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 

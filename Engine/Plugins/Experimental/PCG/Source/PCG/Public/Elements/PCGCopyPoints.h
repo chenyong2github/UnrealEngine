@@ -47,7 +47,6 @@ public:
 protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return Super::DefaultPointOutputPinProperties(); }
-
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 

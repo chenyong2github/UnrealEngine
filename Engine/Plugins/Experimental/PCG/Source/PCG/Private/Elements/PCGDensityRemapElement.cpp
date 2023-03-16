@@ -9,15 +9,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityRemapElement)
 
-TArray<FPCGPinProperties> UPCGDensityRemapSettings::InputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-
-	return PinProperties;
-}
-
 FPCGElementPtr UPCGDensityRemapSettings::CreateElement() const
 {
 	return MakeShared<FPCGDensityRemapElement>();

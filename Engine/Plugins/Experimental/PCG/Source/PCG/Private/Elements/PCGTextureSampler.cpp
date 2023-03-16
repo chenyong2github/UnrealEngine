@@ -19,11 +19,6 @@ FPCGElementPtr UPCGTextureSamplerSettings::CreateElement() const
 	return MakeShared<FPCGTextureSamplerElement>();
 }
 
-TArray<FPCGPinProperties> UPCGTextureSamplerSettings::InputPinProperties() const
-{
-	return TArray<FPCGPinProperties>();
-}
-
 bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGTextureSamplerElement::Execute);

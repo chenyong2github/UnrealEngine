@@ -16,15 +16,6 @@ UPCGDensityNoiseSettings::UPCGDensityNoiseSettings()
 	bUseSeed = true;
 }
 
-TArray<FPCGPinProperties> UPCGDensityNoiseSettings::InputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
-
-	return PinProperties;
-}
-
 FPCGElementPtr UPCGDensityNoiseSettings::CreateElement() const
 {
 	return MakeShared<FPCGDensityNoiseElement>();

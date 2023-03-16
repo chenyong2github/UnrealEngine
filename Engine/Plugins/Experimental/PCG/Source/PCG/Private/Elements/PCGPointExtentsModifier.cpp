@@ -12,13 +12,6 @@ FPCGElementPtr UPCGPointExtentsModifierSettings::CreateElement() const
 	return MakeShared<FPCGPointExtentsModifier>();
 }
 
-TArray<FPCGPinProperties> UPCGPointExtentsModifierSettings::InputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);	
-	return PinProperties;
-}
-
 bool FPCGPointExtentsModifier::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointExtentsModifier::Execute);
