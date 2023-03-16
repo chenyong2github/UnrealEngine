@@ -25,6 +25,7 @@
 #include "UnrealEdMisc.h"
 #include "Settings/EditorStyleSettings.h"
 #include "VREditorInteractor.h"
+#include "SLevelViewport.h"
 
 #define LOCTEXT_NAMESPACE "VREditor"
 
@@ -145,6 +146,13 @@ bool FVREditorModeManager::IsVREditorAvailable() const
 	}
 
 	if (!GEngine->XRSystem.IsValid())
+	{
+		return false;
+	}
+
+	const TSharedRef<ILevelEditor>& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor").GetFirstLevelEditor().ToSharedRef();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
+	if (!ActiveLevelViewport.IsValid())
 	{
 		return false;
 	}
