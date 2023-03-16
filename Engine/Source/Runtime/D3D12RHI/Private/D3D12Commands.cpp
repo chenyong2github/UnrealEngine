@@ -676,8 +676,7 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, F
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CopyToStagingBufferTime);
 
-	FName AssetName = SourceBufferRHI->GetOwnerName() == NAME_None ? SourceBufferRHI->GetName() : SourceBufferRHI->GetOwnerName();
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(AssetName, FName(TEXT("FRHIStagingBuffer")));
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(SourceBufferRHI->GetName(), FName(TEXT("FRHIStagingBuffer")), SourceBufferRHI->GetOwnerName());
 
 	FD3D12StagingBuffer* StagingBuffer = FD3D12DynamicRHI::ResourceCast(StagingBufferRHI);
 	check(StagingBuffer);

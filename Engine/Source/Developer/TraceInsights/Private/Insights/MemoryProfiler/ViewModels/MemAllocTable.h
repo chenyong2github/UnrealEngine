@@ -30,6 +30,7 @@ struct FMemAllocTableColumns
 	static const FName SizeColumnId;
 	static const FName TagColumnId;
 	static const FName AssetColumnId;
+	static const FName PackageColumnId;
 	static const FName ClassNameColumnId;
 	static const FName FunctionColumnId;
 	static const FName SourceFileColumnId;

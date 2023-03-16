@@ -405,6 +405,8 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 
 					Alloc.Asset = nullptr;
 					Alloc.ClassName = nullptr;
+					Alloc.Package = nullptr;
+					
 					const uint32 MetadataId = Allocation->GetMetadataId();
 					if (MetadataId != TraceServices::IMetadataProvider::InvalidMetadataId && MetadataProvider && DefinitionProvider)
 					{
@@ -427,6 +429,12 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 									if (ClassName)
 									{
 										Alloc.ClassName = ClassName->Display;
+									}
+									const auto PackageNameRef = Reader.GetValueAs<UE::Trace::FEventRef32>((uint8*)Data, 2);
+									const auto PackageName = DefinitionProvider->Get<TraceServices::FStringDefinition>(*PackageNameRef);
+									if (PackageName)
+									{
+										Alloc.Package = PackageName->Display;
 									}
 									return false;
 								}

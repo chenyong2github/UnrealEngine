@@ -29,7 +29,7 @@ D3D12_RESOURCE_STATES GetInitialResourceState(const D3D12_RESOURCE_DESC& InDesc)
 FD3D12TransientHeap::FD3D12TransientHeap(const FInitializer& Initializer, FD3D12Adapter* Adapter, FD3D12Device* Device, FRHIGPUMask VisibleNodeMask)
 	: FRHITransientHeap(Initializer)
 {
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(TEXT("FD3D12TransientHeap")), FName(TEXT("FD3D12TransientHeap")));
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(TEXT("FD3D12TransientHeap")), FName(TEXT("FD3D12TransientHeap")), NAME_None);
 
 	D3D12_HEAP_FLAGS HeapFlags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
 

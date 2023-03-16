@@ -72,7 +72,7 @@ struct FRHICommandRenameUploadBuffer final : public FRHICommand<FRHICommandRenam
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		UE_TRACE_METADATA_SCOPE_ASSET_FNAME(ChooseMetadataName(Resource->GetOwnerName(), Resource->GetName()), FName(TEXT("FRHICommandRenameUploadBuffer::Execute")));
+		UE_TRACE_METADATA_SCOPE_ASSET_FNAME(Resource->GetName(), FName(TEXT("FRHICommandRenameUploadBuffer::Execute")), Resource->GetOwnerName());
 
 		// Make sure we have an active pipeline when running at the top of the pipe, so the lambda below can obtain a context.
 		TOptional<ERHIPipeline> PreviousPipeline;
@@ -200,9 +200,9 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 };
 
 
-void FD3D12Buffer::UploadResourceData(FRHICommandListBase& RHICmdList, FResourceArrayInterface* InResourceArray, D3D12_RESOURCE_STATES InDestinationState, const FName& AssetName, const FName& ClassName)
+void FD3D12Buffer::UploadResourceData(FRHICommandListBase& RHICmdList, FResourceArrayInterface* InResourceArray, D3D12_RESOURCE_STATES InDestinationState, const FName& AssetName, const FName& ClassName, const FName& PackageName)
 {
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(AssetName, ClassName);
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(AssetName, ClassName, PackageName);
 
 	check(InResourceArray);
 	check(ResourceLocation.IsValid());
@@ -354,7 +354,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::CreateRHIBuffer);
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBufferTime);
 
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(ChooseMetadataName(AssetName, InDebugName), ChooseMetadataName(ClassName, TEXT("FRHIBuffer")));
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(InDebugName), ChooseMetadataName(ClassName, TEXT("FRHIBuffer")), AssetName);
 
 	check(InDesc.Width == Size);
 
@@ -539,8 +539,9 @@ FBufferRHIRef FD3D12DynamicRHI::CreateBuffer(FRHICommandListBase& RHICmdList, ui
 
 FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListBase* RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, ID3D12ResourceAllocator* ResourceAllocator)
 {
-	FName TraceAssetName = ChooseMetadataName(CreateInfo.GetTraceAssetName(), CreateInfo.DebugName);
+	FName TraceAssetName = CreateInfo.DebugName;
 	FName TraceClassName = ChooseMetadataName(CreateInfo.GetTraceClassName(), TEXT("FRHIBuffer"));
+	FName TracePackageName = CreateInfo.GetTraceAssetName();
 
 	D3D12_RESOURCE_DESC Desc;
 	uint32 Alignment;
@@ -572,7 +573,7 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListBase* RHI
 	if (bHasInitialData)
 	{
 		check(RHICmdList);
-		Buffer->UploadResourceData(*RHICmdList, CreateInfo.ResourceArray, DesiredState, TraceAssetName, TraceClassName);
+		Buffer->UploadResourceData(*RHICmdList, CreateInfo.ResourceArray, DesiredState, TraceAssetName, TraceClassName, TracePackageName);
 	}
 
 	return Buffer;
@@ -587,7 +588,7 @@ FRHIBuffer* FD3D12DynamicRHI::CreateBuffer(const FRHIBufferCreateInfo& CreateInf
 void* FD3D12DynamicRHI::LockBuffer(FRHICommandListBase& RHICmdList, FD3D12Buffer* Buffer, uint32 BufferSize, EBufferUsageFlags BufferUsage, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12LockBufferTime);
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(ChooseMetadataName(Buffer->GetOwnerName(), Buffer->GetName()), Buffer->GetName());
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(Buffer->GetName(), Buffer->GetName(), Buffer->GetOwnerName());
 
 	checkf(Size <= BufferSize, TEXT("Requested lock size %u is larger than the total size %u for buffer '%s'."), Size, BufferSize, *Buffer->GetName().ToString());
 

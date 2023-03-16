@@ -880,7 +880,7 @@ FD3D12Texture* FD3D12DynamicRHI::CreateD3D12Texture(const FRHITextureCreateDesc&
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::CreateD3D12Texture);
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(InCreateDesc.GetTraceAssetName(), InCreateDesc.GetTraceClassName());
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(InCreateDesc.DebugName), InCreateDesc.GetTraceClassName(), InCreateDesc.GetTraceAssetName());
 
 	// Make local copy of create desc because certain flags might be removed before actual texture creation
 	FRHITextureCreateDesc CreateDesc = InCreateDesc;
@@ -1068,7 +1068,7 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 {	
 	check(GRHISupportsAsyncTextureCreation);
 	
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(TEXT("RHIAsyncCreateTexture2D")), FName(TEXT("FRHITexture")));
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(TEXT("RHIAsyncCreateTexture2D")), FName(TEXT("FRHITexture")), NAME_None);
 
 	const ETextureCreateFlags InvalidFlags = TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_GenerateMipCapable | TexCreate_UAV | TexCreate_Presentable | TexCreate_CPUReadback;
 	check(!EnumHasAnyFlags(Flags, InvalidFlags));
@@ -1791,8 +1791,7 @@ void* FD3D12Texture::Lock(class FRHICommandListImmediate* RHICmdList, uint32 Mip
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12LockTextureTime);
 
-	FName AssetName = GetOwnerName() == NAME_None ? GetName() : GetOwnerName();
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(AssetName, FName(TEXT("FRHITexture Lock")));
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(GetName(), FName(TEXT("FRHITexture Lock")), GetOwnerName());
 
 	FD3D12Device* Device = GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();

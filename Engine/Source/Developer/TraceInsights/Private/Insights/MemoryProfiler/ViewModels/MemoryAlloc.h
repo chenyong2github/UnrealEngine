@@ -32,6 +32,7 @@ public:
 	TraceServices::TagIdType GetTagId() const { return TagId; }
 	const TCHAR* GetTag() const { return Tag; }
 	const TCHAR* GetAsset() const { return Asset; }
+	const TCHAR* GetPackage() const { return Package; }
 	const TCHAR* GetClassName() const { return ClassName; }
 	uint32 GetCallstackId() const { return CallstackId; }
 	uint32 GetFreeCallstackId() const { return FreeCallstackId; }
@@ -51,6 +52,7 @@ private:
 	TraceServices::TagIdType TagId;
 	const TCHAR* Tag;
 	const TCHAR* Asset;
+	const TCHAR* Package;
 	const TCHAR* ClassName;
 	uint32 CallstackId;
 	uint32 FreeCallstackId;
