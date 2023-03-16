@@ -6,8 +6,6 @@
 #include "/Platform/Private/LumenHardwareRayTracingPlatformCommon.ush"
 #else
 
-#include "LumenHardwareRayTracingPipelineCommon.ush"
-
 #define TraceLumenRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, InOutPayload, OutBookmark){\
 	TraceRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, InOutPayload);\
 }

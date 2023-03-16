@@ -4,65 +4,72 @@
 #include "../MonteCarlo.ush"
 #include "../MortonCode.ush"
 #include "../SceneTextureParameters.ush"
-
 #include "../RayTracing/RayGenUtils.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenRadianceCacheTracingCommon.ush"
 #include "LumenCardCommon.ush"
 #include "LumenCardTile.ush"
 #include "LumenTracingCommon.ush"
-#include "LumenReflectionCommon.ush"
 
 #define TEMP_ATLAS_TRACE_TILE_STRIDE 1024
 
-struct FTraceTileResult
+#define RAY_TRACING_PASS_DEFAULT		0
+#define RAY_TRACING_PASS_FAR_FIELD		1
+#define RAY_TRACING_PASS_HIT_LIGHTING	2
+
+// Index into temporary compacted atlas of probe traces
+uint2 GetTraceTileAtlasCoord(uint TraceTileIndex, uint2 CoordInTraceTile)
 {
-	float3 Radiance;
+	uint2 TraceAtlasCoord = (RADIANCE_CACHE_TRACE_TILE_SIZE_2D * uint2(TraceTileIndex % TEMP_ATLAS_TRACE_TILE_STRIDE, TraceTileIndex / TEMP_ATLAS_TRACE_TILE_STRIDE)) + CoordInTraceTile;
+	return TraceAtlasCoord;
+}
+
+float EncodeRayDistance(float HitDistance, bool bHit)
+{
+	HitDistance = max(HitDistance, 0.0f);
+	return HitDistance * (bHit ? -1.0f : 1.0f);
+}
+
+struct FRayDistance
+{
 	float HitDistance;
+	bool bHit;
 };
 
-struct FTraceTileResultPacked
+FRayDistance DecodeRayDistance(float Encoded)
 {
-	uint PackedData[2];
-};
-
-FTraceTileResult CreateTraceTileResult(float3 Radiance, float HitDistance)
-{
-	FTraceTileResult TraceTileResult;
-	TraceTileResult.Radiance = Radiance;
-	TraceTileResult.HitDistance = HitDistance;
-
-	return TraceTileResult;
+	FRayDistance RayDistance;
+	RayDistance.bHit = asuint(Encoded) & 0x80000000;
+	RayDistance.HitDistance = abs(Encoded);
+	return RayDistance;
 }
 
-FTraceTileResultPacked PackTraceTileResult(FTraceTileResult TraceTileResult)
+uint EncodeTraceTexel(uint TraceTileIndex, uint2 TraceTexelCoord)
 {
-	FTraceTileResultPacked TraceTileResultPacked;
-	TraceTileResultPacked.PackedData[0] = f32tof16(TraceTileResult.Radiance.x) | (f32tof16(TraceTileResult.Radiance.y) << 16);
-	TraceTileResultPacked.PackedData[1] = f32tof16(TraceTileResult.Radiance.z) | (f32tof16(TraceTileResult.HitDistance) << 16);
-
-	return TraceTileResultPacked;
+	uint Encoded = TraceTileIndex & 0xFFFFFF;
+	Encoded |= (TraceTexelCoord.x << 24);
+	Encoded |= (TraceTexelCoord.y << 28);
+	return Encoded;
 }
 
-FTraceTileResult UnpackTraceTileResult(FTraceTileResultPacked TraceTileResultPacked)
+void DecodeTraceTexel(uint Encoded, inout uint TraceTileIndex, inout uint2 TraceTexelCoord)
 {
-	FTraceTileResult TraceTileResult;
-	TraceTileResult.Radiance.x = f16tof32(TraceTileResultPacked.PackedData[0]);
-	TraceTileResult.Radiance.y = f16tof32(TraceTileResultPacked.PackedData[0] >> 16);
-	TraceTileResult.Radiance.z = f16tof32(TraceTileResultPacked.PackedData[1]);
-	TraceTileResult.HitDistance = f16tof32(TraceTileResultPacked.PackedData[1] >> 16);
-
-	return TraceTileResult;
+	TraceTileIndex = Encoded & 0xFFFFFF;
+	TraceTexelCoord.x = (Encoded >> 24) & 0xF;
+	TraceTexelCoord.y = (Encoded >> 28) & 0xF;
 }
 
-Buffer<uint> RayAllocatorBuffer;
+StructuredBuffer<uint> CompactedTraceTexelData;
+StructuredBuffer<uint> CompactedTraceTexelAllocator;
+
 RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
 uint2 OutputThreadGroupSize;
+uint TempAtlasNumTraceTiles;
 
 [numthreads(1, 1, 1)]
 void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 {
-	uint NumRays = RayAllocatorBuffer[0];
+	uint NumRays = CompactedTraceTexelAllocator[0];
 	uint NumGroups = (NumRays + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x;
 
 	int3 IndirectArgs = GetRayTracingThreadCountWrapped(NumGroups, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
@@ -73,94 +80,47 @@ void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 
 #include "LumenHardwareRayTracingCommon.ush"
 
-#ifndef DIM_LIGHTING_MODE
-#define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
-#endif
-
-#define LIGHTING_MODE_SURFACE_CACHE 0
-#define LIGHTING_MODE_HIT_LIGHTING 1
-
-struct FRayId
-{
-	uint TraceTileIndex;
-	uint2 TexelCoord;
-};
-
-struct FRayIdPacked
-{
-	uint PackedData;
-};
-
-FRayId CreateRayId(uint TraceTileIndex, uint2 TexelCoord)
-{
-	FRayId RayId;
-	RayId.TraceTileIndex = TraceTileIndex;
-	RayId.TexelCoord = TexelCoord;
-
-	return RayId;
-}
-
-FRayIdPacked PackRayId(FRayId RayId)
-{
-	FRayIdPacked RayIdPacked;
-	RayIdPacked.PackedData = ((RayId.TraceTileIndex & 0x3FFFFFF) << 6)
-		| ((RayId.TexelCoord.x & 0x7) << 3)
-		| (RayId.TexelCoord.y & 0x7);
-
-	return RayIdPacked;
-}
-
-FRayId UnpackRayId(FRayIdPacked RayIdPacked)
-{
-	FRayId RayId;
-	RayId.TraceTileIndex = (RayIdPacked.PackedData >> 6) & 0x3FFFFFF;
-	RayId.TexelCoord.x = (RayIdPacked.PackedData >> 3) & 0x7;
-	RayId.TexelCoord.y = RayIdPacked.PackedData & 0x7;
-
-	return RayId;
-}
-
 RaytracingAccelerationStructure TLAS;
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
-StructuredBuffer<FHitGroupRootConstants> HitGroupData;
-StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
+	StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+	StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-RWStructuredBuffer<FTraceTileResultPacked> RWTraceTileResultPackedBuffer;
-RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
-
+float NearFieldSceneRadius;
+float NearFieldMaxTraceDistance;
 float FarFieldBias;
 float FarFieldMaxTraceDistance;
-float RayTracingCullingRadius;
 float PullbackBias;
 int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
-int ApplySkyLight;
 
 float3 FarFieldReferencePos;
+
+RWTexture2D<float3> RWTraceRadianceTexture;
+RWTexture2D<float> RWTraceHitTexture;
 
 void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 {
 	uint TexelLinearCoord = ThreadIndex % RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
 	uint GlobalGroupIndex = ThreadIndex / RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
-	uint RayIndex = GlobalGroupIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelLinearCoord;
+	uint GlobalRayIndex = GlobalGroupIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelLinearCoord;
 
-	if (RayIndex < RayAllocatorBuffer[0])
+	if (GlobalRayIndex < CompactedTraceTexelAllocator[0])
 	{
-#if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
-		FTraceData TraceData = UnpackTraceData(RWRetraceDataPackedBuffer[RayIndex]);
-		FRayIdPacked RayIdPacked;
-		RayIdPacked.PackedData = TraceData.RayId;
-
-		FRayId RayId = UnpackRayId(RayIdPacked);
-		uint TraceTileIndex = RayId.TraceTileIndex;
-		uint2 TexelCoord = RayId.TexelCoord;
-
-#else
 		uint TraceTileIndex = GlobalGroupIndex;
 		uint2 TexelCoord = uint2(TexelLinearCoord % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, TexelLinearCoord / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
-#endif
+
+		// Subsequent passes are based on the compacted list of traces
+		float TraceHitDistance = 0.0f;
+		#if RAY_TRACING_PASS != RAY_TRACING_PASS_DEFAULT
+		{
+			DecodeTraceTexel(CompactedTraceTexelData[GlobalRayIndex], TraceTileIndex, TexelCoord);
+
+			uint2 TraceAtlasCoord = GetTraceTileAtlasCoord(TraceTileIndex, TexelCoord);
+			TraceHitDistance = DecodeRayDistance(RWTraceHitTexture[TraceAtlasCoord].x).HitDistance;
+		}
+		#endif
 
 		uint2 TraceTileCoord;
 		uint TraceTileLevel;
@@ -181,27 +141,28 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(TraceResolution);
 			float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 
-			float FinalMinTraceDistance = max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex));
-			float FinalMaxTraceDistance = MaxTraceDistance;
-
 			// Evenly distributing the sphere solid angle among all cones instead of based on Octahedron distortion
 			float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(TraceResolution * TraceResolution));
 
 			FRayDesc Ray;
 			Ray.Origin = ProbeWorldCenter + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 			Ray.Direction = WorldConeDirection;
-			Ray.TMin = FinalMinTraceDistance;
-			Ray.TMax = FinalMaxTraceDistance;
-#if ENABLE_FAR_FIELD_TRACING
-			Ray.TMin = max(Ray.TMin, FarFieldBias);
-#endif
 
-#if DIM_CLIP_RAY
-			// Cull TMax by the bounding sphere of the near-field
-			float2 RaySphereHit = RayIntersectSphere(Ray.Origin, Ray.Direction, float4(PrimaryView.TranslatedWorldCameraOrigin, RayTracingCullingRadius));
-			bool bInsideCullingSphere = RaySphereHit.x < 0 && RaySphereHit.y > 0;
-			Ray.TMax = bInsideCullingSphere ? RaySphereHit.y : Ray.TMin;
-#endif // DIM_CULL_RAY
+			float ClippedNearFieldMaxTraceDistance = ClipAndDitherNearFieldMaxTraceDistance(
+				Ray.Origin,
+				Ray.Direction,
+				ProbeTexelCoord,
+				NearFieldSceneRadius,
+				NearFieldMaxTraceDistance,
+				/*NearFieldMaxTraceDistanceDitherScale*/ 0.0f);
+
+			Ray.TMin = max(max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex)), TraceHitDistance - PullbackBias);
+			Ray.TMax = max(ClippedNearFieldMaxTraceDistance - PullbackBias, 0.0f);
+			#if ENABLE_FAR_FIELD_TRACING
+			{
+				Ray.TMin = max(Ray.TMin, FarFieldBias);
+			}
+			#endif
 
 			FRayCone RayCone = (FRayCone)0;
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
@@ -213,54 +174,29 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			// Set far-field context specialization
 			Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 			Context.FarFieldReferencePos = FarFieldReferencePos;
-#if DIM_SPECULAR_OCCLUSION
-			Context.bAcceptFirstHitAndEndSearch = true;
-			Context.bSkipClosestHitShader = true;
-#endif // DIM_SPECULAR_OCCLUSION
-
-			FRayTracedLightingResult Result;
-#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
+			#if LUMEN_HARDWARE_INLINE_RAYTRACING
 			{
-#if LUMEN_HARDWARE_INLINE_RAYTRACING
 				Context.HitGroupData = HitGroupData;
 				Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
-#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
-
-				Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 			}
-#else
-			{
-				Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, DIM_LIGHTING_MODE);
-			}
-#endif
+			#endif
 
-			if ((ApplySkyLight != 0) && !Result.bIsHit)
+			FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
+
+			if (!Result.bIsHit)
 			{
 				FConeTraceResult TraceResult = (FConeTraceResult)0;
 				TraceResult.Transparency = 1;
 				ApplySkylightToTraceResult(Ray.Direction, TraceResult);
 				Result.Radiance = TraceResult.Lighting;
-				Result.TraceHitDistance = MaxTraceDistance;
 			}
 
-			float SampleHitDistance = Result.TraceHitDistance;
-			float3 SampleRadiance = Result.Radiance;
-
-			// Write continuation data
-#if DIM_PACK_TRACE_DATA
-			FRayIdPacked RayIdPacked = PackRayId(CreateRayId(TraceTileIndex, TexelCoord));
-			RWRetraceDataPackedBuffer[RayIndex] = PackTraceData(CreateTraceData(
-				RayIdPacked.PackedData,
-				Result.MaterialShaderIndex,
-				Result.Bookmark,
-				Result.TraceHitDistance,
-				Result.bIsHit,
-				Result.bIsRadianceCompleted,
-				Result.bIsFarField));
-#endif // DIM_PACK_TRACE_DATA
-
-			uint OutputIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + TexelCoord.x;
-			RWTraceTileResultPackedBuffer[OutputIndex] = PackTraceTileResult(CreateTraceTileResult(SampleRadiance, min(SampleHitDistance, MaxHalfFloat)));
+			if (TraceTileIndex < TempAtlasNumTraceTiles)
+			{
+				uint2 TraceAtlasCoord = GetTraceTileAtlasCoord(TraceTileIndex, TexelCoord);
+				RWTraceRadianceTexture[TraceAtlasCoord] = Result.Radiance;
+				RWTraceHitTexture[TraceAtlasCoord] = EncodeRayDistance(min(Result.TraceHitDistance, MaxHalfFloat), Result.bIsHit);
+			}
 		}
 	}
 }
@@ -289,9 +225,71 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 
 #endif // LUMEN_HARDWARE_RAYTRACING
 
-uint TraceTileResultPackedBufferElementCount;
-StructuredBuffer<FTraceTileResultPacked> TraceTileResultPackedBuffer;
+Texture2D<float3> TraceRadianceTexture;
+Texture2D<float> TraceHitTexture;
 
+RWStructuredBuffer<uint> RWCompactedTraceTexelAllocator;
+RWStructuredBuffer<uint> RWCompactedTraceTexelData;
+
+groupshared uint SharedTraceTexelAllocator;
+groupshared uint SharedGlobalTraceTexelStartOffset;
+groupshared uint SharedTraceTexels[RADIANCE_CACHE_TRACE_TILE_SIZE_2D * RADIANCE_CACHE_TRACE_TILE_SIZE_2D];
+
+/**
+ * Compact all unfinished traces for the subsequent far field pass.
+ */
+[numthreads(RADIANCE_CACHE_TRACE_TILE_SIZE_2D, RADIANCE_CACHE_TRACE_TILE_SIZE_2D, 1)]
+void RadianceCacheCompactTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	SharedTraceTexelAllocator = 0;
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint TraceTileIndex = GroupId.y * TRACE_TILE_GROUP_STRIDE + GroupId.x;
+
+	if (TraceTileIndex < ProbeTraceTileAllocator[0] && TraceTileIndex < TempAtlasNumTraceTiles)
+	{
+		uint2 TraceTileCoord;
+		uint TraceTileLevel;
+		uint ProbeTraceIndex;
+		UnpackTraceTileInfo(ProbeTraceTileData[TraceTileIndex], TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
+
+		uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
+		uint2 ProbeTexelCoord = TraceTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.xy;
+
+		if (all(ProbeTexelCoord < TraceResolution))
+		{
+			const uint2 RadianceTextureCoord = GetTraceTileAtlasCoord(TraceTileIndex, GroupThreadId.xy);
+			const bool bHit = DecodeRayDistance(TraceHitTexture[RadianceTextureCoord].x).bHit;
+
+			if (!bHit)
+			{
+				uint SharedTexelOffset;
+				InterlockedAdd(SharedTraceTexelAllocator, 1, SharedTexelOffset);
+				SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(TraceTileIndex, GroupThreadId.xy);
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint ThreadIndex = GroupThreadId.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.x;
+
+	if (ThreadIndex == 0)
+	{
+		InterlockedAdd(RWCompactedTraceTexelAllocator[0], SharedTraceTexelAllocator, SharedGlobalTraceTexelStartOffset);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < SharedTraceTexelAllocator)
+	{
+		RWCompactedTraceTexelData[SharedGlobalTraceTexelStartOffset + ThreadIndex] = SharedTraceTexels[ThreadIndex];
+	}
+}
 
 [numthreads(RADIANCE_CACHE_TRACE_TILE_SIZE_2D, RADIANCE_CACHE_TRACE_TILE_SIZE_2D, 1)]
 void SplatRadianceCacheIntoAtlasCS(
@@ -311,7 +309,6 @@ void SplatRadianceCacheIntoAtlasCS(
 	UnpackTraceTileInfo(ProbeTraceTileData[TraceTileIndex], TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
 
 	uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
-	uint2 WrappedTileCoord = uint2(TraceTileIndex % TEMP_ATLAS_TRACE_TILE_STRIDE, TraceTileIndex / TEMP_ATLAS_TRACE_TILE_STRIDE);
 
 	float3 ProbeWorldCenter;
 	uint ClipmapIndex;
@@ -325,18 +322,15 @@ void SplatRadianceCacheIntoAtlasCS(
 		uint UpsampleFactor = RadianceProbeResolution / TraceResolution;
 		ProbeAtlasBaseCoord += (RADIANCE_CACHE_TRACE_TILE_SIZE_2D * TraceTileCoord + GroupThreadId.xy) * UpsampleFactor;
 
-		uint TraceTileResultIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + GroupThreadId.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.x;
-		FTraceTileResult TraceTileResult = UnpackTraceTileResult(TraceTileResultPackedBuffer[TraceTileResultIndex]);
-		float3 Lighting = TraceTileResult.Radiance;
+		float3 Lighting = 0.0f;
+		float HitDistance = MaxHalfFloat;
 
-		if (TraceTileResultIndex >= TraceTileResultPackedBufferElementCount)
+		if (TraceTileIndex < TempAtlasNumTraceTiles)
 		{
-			// r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor overflow
-			Lighting = 0.0f;
-			//Lighting = float3(0, 10000, 0) * View.PreExposure;
+			const uint2 RadianceTextureCoord = GetTraceTileAtlasCoord(TraceTileIndex, GroupThreadId.xy);
+			Lighting = TraceRadianceTexture[RadianceTextureCoord].xyz;
+			HitDistance = DecodeRayDistance(TraceHitTexture[RadianceTextureCoord].x).HitDistance;
 		}
-		
-		float HitDistance = TraceTileResult.HitDistance;
 
 		for (uint Y = 0; Y < UpsampleFactor; Y++)
 		{
@@ -361,16 +355,11 @@ void SplatRadianceCacheIntoAtlasCS(
 			{
 				for (uint X = 0; X < DownsampleFactor; X++)
 				{
-					uint TraceTileResultIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + (GroupThreadId.y * DownsampleFactor + Y) * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + (GroupThreadId.x * DownsampleFactor + X);
-					FTraceTileResult TraceTileResult = UnpackTraceTileResult(TraceTileResultPackedBuffer[TraceTileResultIndex]);
-					Lighting += TraceTileResult.Radiance;
-					HitDistance = min(HitDistance, TraceTileResult.HitDistance);
-
-					if (TraceTileResultIndex >= TraceTileResultPackedBufferElementCount)
+					if (TraceTileIndex < TempAtlasNumTraceTiles)
 					{
-						// r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor overflow
-						Lighting = 0.0f;
-						//Lighting = float3(0, 10000, 0) * View.PreExposure;
+						const uint2 RadianceTextureCoord = GetTraceTileAtlasCoord(TraceTileIndex, uint2(GroupThreadId.x * DownsampleFactor + X, GroupThreadId.y * DownsampleFactor + Y));
+						Lighting += TraceRadianceTexture[RadianceTextureCoord].xyz;
+						HitDistance = min(HitDistance, DecodeRayDistance(TraceHitTexture[RadianceTextureCoord].x).HitDistance);
 					}
 				}
 			}

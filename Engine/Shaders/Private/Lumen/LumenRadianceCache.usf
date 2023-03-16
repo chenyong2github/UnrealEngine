@@ -517,7 +517,7 @@ void GenerateProbeTraceTilesCS(
 RWBuffer<uint> RWTraceProbesIndirectArgs;
 RWBuffer<uint> RWSortProbeTraceTilesIndirectArgs;
 RWBuffer<uint> RWRadianceCacheHardwareRayTracingIndirectArgs;
-RWBuffer<uint> RWHardwareRayTracingRayAllocatorBuffer;
+RWStructuredBuffer<uint> RWHardwareRayTracingRayAllocatorBuffer;
 uint SortTraceTilesGroupSize;
 
 [numthreads(1, 1, 1)]

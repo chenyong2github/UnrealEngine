@@ -4,6 +4,13 @@
 
 #include "../RayTracing/RayTracingCommon.ush"
 
+struct FLumenRayHitBookmark
+{
+	uint2 PackedData;
+};
+
+#define LUMEN_RAYHIT_BOOKMARK_MISS 0xFFFFFFFF
+
 #define PRIMITIVE_INDEX 2
 #define INSTANCE_INDEX 3
 #define NORMAL_INDEX 1

@@ -117,7 +117,6 @@ namespace Lumen
 		MAX
 	};
 	EHardwareRayTracingLightingMode GetHardwareRayTracingLightingMode(const FViewInfo& View);
-	EHardwareRayTracingLightingMode GetRadianceCacheHardwareRayTracingLightingMode();
 
 	enum class ESurfaceCacheSampling
 	{
@@ -126,8 +125,6 @@ namespace Lumen
 		HighResPages,
 	};
 
-	const TCHAR* GetRayTracedLightingModeName(EHardwareRayTracingLightingMode LightingMode);
-	const TCHAR* GetRayTracedNormalModeName(int NormalMode);
 	float GetHardwareRayTracingPullbackBias();
 
 	bool UseFarField(const FSceneViewFamily& ViewFamily);

@@ -124,7 +124,6 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 		SHADER_PARAMETER(int32, SampleSceneColor)
 
 		SHADER_PARAMETER(int, NearFieldLightingMode)
-		SHADER_PARAMETER(float, RayTracingCullingRadius)
 		SHADER_PARAMETER(float, FarFieldBias)
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
@@ -302,69 +301,6 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 	}
 }
 
-void SetLumenHardwareRayTracingReflectionParameters(
-	FRDGBuilder& GraphBuilder,
-	const FSceneTextures& SceneTextures,
-	const FSceneTextureParameters& SceneTextureParameters,
-	const FViewInfo& View,
-	const FLumenCardTracingParameters& TracingParameters,
-	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
-	const FLumenReflectionTileParameters& ReflectionTileParameters,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	bool bApplySkyLight,
-	bool bIsHitLightingForceEnabled,
-	bool bSampleSceneColorAtHit,
-	bool bNeedTraceHairVoxel,
-	FRDGBufferRef HardwareRayTracingIndirectArgsBuffer,
-	FRDGBufferRef CompactedTraceTexelAllocator,
-	FRDGBufferRef CompactedTraceTexelData,
-	FLumenReflectionHardwareRayTracing::FParameters* Parameters
-)
-{
-	SetLumenHardwareRayTracingSharedParameters(
-		GraphBuilder,
-		SceneTextureParameters,
-		View,
-		TracingParameters,
-		&Parameters->SharedParameters
-	);
-	Parameters->HardwareRayTracingIndirectArgs = HardwareRayTracingIndirectArgsBuffer;
-	Parameters->CompactedTraceTexelAllocator = GraphBuilder.CreateSRV(CompactedTraceTexelAllocator, PF_R32_UINT);
-	Parameters->CompactedTraceTexelData = GraphBuilder.CreateSRV(CompactedTraceTexelData, PF_R32_UINT);
-
-	Parameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
-
-	if (Parameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !Parameters->SharedParameters.SceneTextures.GBufferVelocityTexture)
-	{
-		Parameters->SharedParameters.SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
-	}
-
-	extern float GLumenReflectionSampleSceneColorRelativeDepthThreshold;
-	Parameters->RelativeDepthThickness = GLumenReflectionSampleSceneColorRelativeDepthThreshold;
-	Parameters->SampleSceneColorNormalTreshold = LumenReflections::GetSampleSceneColorNormalTreshold();
-	Parameters->SampleSceneColor = bSampleSceneColorAtHit ? 1 : 0;
-
-	Parameters->NearFieldLightingMode = static_cast<int32>(Lumen::GetHardwareRayTracingLightingMode(View));
-	Parameters->RayTracingCullingRadius = GetRayTracingCulling() != 0 ? GetRayTracingCullingRadius() : FLT_MAX;
-	Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
-	Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
-	Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
-	Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
-	Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
-	Parameters->ApplySkyLight = bApplySkyLight;
-	Parameters->HitLightingForceEnabled = bIsHitLightingForceEnabled;
-		
-	// Reflection-specific
-	Parameters->ReflectionTracingParameters = ReflectionTracingParameters;
-	Parameters->ReflectionTileParameters = ReflectionTileParameters;
-	Parameters->RadianceCacheParameters = RadianceCacheParameters;
-
-	if (bNeedTraceHairVoxel)
-	{
-		Parameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
-	}
-}
-
 void DispatchLumenReflectionHardwareRayTracingIndirectArgs(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGBufferRef HardwareRayTracingIndirectArgsBuffer, FRDGBufferRef CompactedTraceTexelAllocator, FIntPoint OutputThreadGroupSize, ERDGPassFlags ComputePassFlags)
 {
 	FLumenReflectionHardwareRayTracingIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenReflectionHardwareRayTracingIndirectArgsCS::FParameters>();
@@ -411,25 +347,50 @@ void DispatchRayGenOrComputeShader(
 	FIntPoint OutputThreadGroupSize = bInlineRayTracing ? FLumenReflectionHardwareRayTracingCS::GetThreadGroupSize() : FLumenReflectionHardwareRayTracingRGS::GetThreadGroupSize();
 	DispatchLumenReflectionHardwareRayTracingIndirectArgs(GraphBuilder, View, HardwareRayTracingIndirectArgsBuffer, CompactedTraceTexelAllocator, OutputThreadGroupSize, ComputePassFlags);
 
-	FLumenReflectionHardwareRayTracing::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenReflectionHardwareRayTracing::FParameters>();
-	SetLumenHardwareRayTracingReflectionParameters(
-		GraphBuilder,
-		SceneTextures,
-		SceneTextureParameters,
-		View,
-		TracingParameters,
-		ReflectionTracingParameters,
-		ReflectionTileParameters,
-		RadianceCacheParameters,
-		bApplySkyLight,
-		bIsHitLightingForceEnabled,
-		bSampleSceneColorAtHit,
-		bNeedTraceHairVoxel,
-		HardwareRayTracingIndirectArgsBuffer,
-		CompactedTraceTexelAllocator,
-		CompactedTraceTexelData,
-		PassParameters
-	);
+	FLumenReflectionHardwareRayTracing::FParameters* Parameters = GraphBuilder.AllocParameters<FLumenReflectionHardwareRayTracing::FParameters>();
+	{
+		SetLumenHardwareRayTracingSharedParameters(
+			GraphBuilder,
+			SceneTextureParameters,
+			View,
+			TracingParameters,
+			&Parameters->SharedParameters
+		);
+		Parameters->HardwareRayTracingIndirectArgs = HardwareRayTracingIndirectArgsBuffer;
+		Parameters->CompactedTraceTexelAllocator = GraphBuilder.CreateSRV(CompactedTraceTexelAllocator, PF_R32_UINT);
+		Parameters->CompactedTraceTexelData = GraphBuilder.CreateSRV(CompactedTraceTexelData, PF_R32_UINT);
+
+		Parameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
+
+		if (Parameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !Parameters->SharedParameters.SceneTextures.GBufferVelocityTexture)
+		{
+			Parameters->SharedParameters.SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+		}
+
+		extern float GLumenReflectionSampleSceneColorRelativeDepthThreshold;
+		Parameters->RelativeDepthThickness = GLumenReflectionSampleSceneColorRelativeDepthThreshold;
+		Parameters->SampleSceneColorNormalTreshold = LumenReflections::GetSampleSceneColorNormalTreshold();
+		Parameters->SampleSceneColor = bSampleSceneColorAtHit ? 1 : 0;
+
+		Parameters->NearFieldLightingMode = static_cast<int32>(Lumen::GetHardwareRayTracingLightingMode(View));
+		Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
+		Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
+		Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
+		Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
+		Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
+		Parameters->ApplySkyLight = bApplySkyLight;
+		Parameters->HitLightingForceEnabled = bIsHitLightingForceEnabled;
+		
+		// Reflection-specific
+		Parameters->ReflectionTracingParameters = ReflectionTracingParameters;
+		Parameters->ReflectionTileParameters = ReflectionTileParameters;
+		Parameters->RadianceCacheParameters = RadianceCacheParameters;
+
+		if (bNeedTraceHairVoxel)
+		{
+			Parameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+		}
+	}
 	
 	const LumenReflections::ERayTracingPass RayTracingPass = PermutationVector.Get<FLumenReflectionHardwareRayTracingRGS::FRayTracingPass>();
 	const FString RayTracingPassName = RayTracingPass == LumenReflections::ERayTracingPass::HitLighting ? TEXT("hit-lighting") : (RayTracingPass == LumenReflections::ERayTracingPass::FarField ? TEXT("far-field") : TEXT("default"));
@@ -443,8 +404,8 @@ void DispatchRayGenOrComputeShader(
 			RDG_EVENT_NAME("ReflectionHardwareRayTracingCS %s", *RayTracingPassName),
 			ComputePassFlags,
 			ComputeShader,
-			PassParameters,
-			PassParameters->HardwareRayTracingIndirectArgs,
+			Parameters,
+			Parameters->HardwareRayTracingIndirectArgs,
 			0);		
 	}
 	else
@@ -457,8 +418,8 @@ void DispatchRayGenOrComputeShader(
 			GraphBuilder,
 			RDG_EVENT_NAME("ReflectionHardwareRayTracingRGS %s", *RayTracingPassName),
 			RayGenerationShader,
-			PassParameters,
-			PassParameters->HardwareRayTracingIndirectArgs,
+			Parameters,
+			Parameters->HardwareRayTracingIndirectArgs,
 			0,
 			View,
 			bUseMinimalPayload);

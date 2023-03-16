@@ -11,7 +11,7 @@
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracingPayloadType.h"
 #include "SceneTextureParameters.h"
-#include "Strata/Strata.h"
+#include "Strata/Strata.h" 
 
 namespace Lumen
 {
@@ -158,50 +158,6 @@ void SetLumenHardwareRayTracingSharedParameters(
 	const FViewInfo& View,
 	const FLumenCardTracingParameters& TracingParameters,
 	FLumenHardwareRayTracingShaderBase::FSharedParameters* SharedParameters);
-
-// Hardware ray-tracing pipeline
-namespace LumenHWRTPipeline
-{
-	enum class ELightingMode
-	{
-		// Permutations for tracing modes
-		SurfaceCache,
-		HitLighting,
-		MAX
-	};
-
-	enum class ECompactMode
-	{
-		// Permutations for compaction modes
-		HitLightingRetrace,
-		FarFieldRetrace,
-		ForceHitLighting,
-		AppendRays,
-
-		MAX
-	};
-
-	// Struct definitions much match those in LumenHardwareRayTracingPipelineCommon.ush
-	struct FTraceDataPacked
-	{
-		//uint32 PackedData[4];
-		uint32 PackedData[5];
-	};
-
-} // namespace LumenHWRTPipeline
-
-void LumenHWRTCompactRays(
-	FRDGBuilder& GraphBuilder,
-	const FScene* Scene,
-	const FViewInfo& View,
-	int32 RayCount,
-	LumenHWRTPipeline::ECompactMode CompactMode,
-	const FRDGBufferRef& RayAllocatorBuffer,
-	const FRDGBufferRef& TraceDataPackedBuffer,
-	FRDGBufferRef& OutputRayAllocatorBuffer,
-	FRDGBufferRef& OutputTraceDataPackedBuffer,
-	ERDGPassFlags ComputePassFlags
-);
 
 // Pass helpers
 template<typename TShaderClass>

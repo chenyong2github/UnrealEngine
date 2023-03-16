@@ -9,7 +9,6 @@
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
 #include "LumenScreenProbeTracingCommon.ush"
-#include "LumenHardwareRayTracingPipelineCommon.ush"
 #include "LumenFog.ush"
 
 #ifndef THREADGROUP_SIZE_2D

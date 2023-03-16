@@ -713,12 +713,10 @@ void EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTraceR
 				uint MeshCardsIndex = GetMeshCardsIndexFromSceneInstanceIndex(GridCellIndex.GPUSceneInstanceIndex);
 				if (MeshCardsIndex < LumenCardScene.NumMeshCards)
 				{
-					uint2 ScreenCoord = TraceInput.DitherScreenCoord;
 					float SurfaceCacheBias = DISTANCE_FIELD_OBJECT_GRID_CARD_INTERPOLATION_RANGE_IN_VOXELS * ClipmapVoxelExtent;
 					float SampleRadius = TraceInput.ConeStartRadius + TraceInput.TanConeAngle * SDFTraceResult.HitTime;
 
 					SampleLumenMeshCards(
-						ScreenCoord,
 						MeshCardsIndex,
 						SampleWorldPosition,
 						SampleWorldNormal,

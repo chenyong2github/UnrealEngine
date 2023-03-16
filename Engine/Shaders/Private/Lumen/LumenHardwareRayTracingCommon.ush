@@ -19,7 +19,6 @@
 #include "../RayTracing/RayTracingLightingCommon.ush"
 #endif
 #include "LumenHardwareRayTracingPayloadCommon.ush"
-#include "LumenHardwareRayTracingPipelineCommon.ush"
 
 #if !COMPUTESHADER
 #include "LumenHardwareRayTracingPlatformCommon.ush"

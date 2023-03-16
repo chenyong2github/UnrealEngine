@@ -407,7 +407,6 @@ void SampleLumenCard(
  * Sample surface cads, by accumulating cards samples into CardSampleAccumulator
  */
 void SampleLumenMeshCards(
-	uint2 ScreenCoord,
 	uint MeshCardsIndex, 
 	float3 WorldSpacePosition, 
 	float3 WorldSpaceNormal, 
@@ -604,7 +603,6 @@ FSurfaceCacheSample EvaluateRayHitFromSurfaceCache(
 	InitCardSampleAccumulator(CardSampleAccumulator);
 
 	SampleLumenMeshCards(
-		DitherScreenCoord,
 		MeshCardsIndex,
 		HitWorldPosition,
 		HitWorldNormal,

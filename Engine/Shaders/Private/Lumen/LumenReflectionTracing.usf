@@ -223,7 +223,6 @@ uint CullByDistanceFromCamera;
 float CompactionTracingEndDistanceFromCamera;
 float CompactionMaxTraceDistance;
 float NearFieldMaxTraceDistance;
-float RayTracingCullingRadius;
 float FarFieldDitheredStartDistanceFactor;
 Texture2D<uint> TraceMaterialId;
 

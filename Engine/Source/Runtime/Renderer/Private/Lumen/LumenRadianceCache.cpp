@@ -762,7 +762,7 @@ class FSetupTraceFromProbesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWTraceProbesIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWSortProbeTraceTilesIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWRadianceCacheHardwareRayTracingIndirectArgs)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWHardwareRayTracingRayAllocatorBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWHardwareRayTracingRayAllocatorBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceTileAllocator)
 		SHADER_PARAMETER(uint32, SortTraceTilesGroupSize)
 	END_SHADER_PARAMETER_STRUCT()
@@ -787,7 +787,6 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSetupTraceFromProbesCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "SetupTraceFromProbesCS", SF_Compute);
-
 
 class FSortProbeTraceTilesCS : public FGlobalShader
 {
@@ -1893,7 +1892,7 @@ void UpdateRadianceCaches(
 			TraceProbesIndirectArgs[RadianceCacheIndex] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(4), TEXT("Lumen.RadianceCache.TraceProbesIndirectArgs"));
 			SortProbeTraceTilesIndirectArgs[RadianceCacheIndex] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(5), TEXT("Lumen.RadianceCache.SortProbeTraceTilesIndirectArgs"));
 			RadianceCacheHardwareRayTracingIndirectArgs[RadianceCacheIndex] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(6), TEXT("Lumen.RadianceCache.RadianceCacheHardwareRayTracingIndirectArgs"));
-			HardwareRayTracingRayAllocatorBuffer[RadianceCacheIndex] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.RadianceCache.HardwareRayTracing.RayAllocatorBuffer"));
+			HardwareRayTracingRayAllocatorBuffer[RadianceCacheIndex] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.RadianceCache.HardwareRayTracing.RayAllocatorBuffer"));
 
 			{
 				FSetupTraceFromProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupTraceFromProbesCS::FParameters>();
@@ -1972,12 +1971,10 @@ void UpdateRadianceCaches(
 			FRDGTextureUAVRef RadianceProbeAtlasTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Setup.RadianceProbeAtlasTextureSource));
 			FRDGTextureUAVRef DepthProbeTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Setup.DepthProbeAtlasTexture));
 			const int32 MaxNumProbes = RadianceCacheInputs.ProbeAtlasResolutionInProbes.X * RadianceCacheInputs.ProbeAtlasResolutionInProbes.Y;
+			const int32 MaxProbeTraceTileResolution = RadianceCacheInputs.RadianceProbeResolution / FRadianceCacheTraceFromProbesCS::GetGroupSize() * 2;
 
 			if (Lumen::UseHardwareRayTracedRadianceCache(*View.Family))
 			{
-				const int32 MaxProbeTraceTileResolution = RadianceCacheInputs.RadianceProbeResolution / FRadianceCacheTraceFromProbesCS::GetGroupSize() * 2;
-
-				float DiffuseConeHalfAngle = -1.0f;
 				RenderLumenHardwareRayTracingRadianceCache(
 					GraphBuilder,
 					Scene,
@@ -1986,7 +1983,6 @@ void UpdateRadianceCaches(
 					TracingParameters,
 					RadianceCacheParameters,
 					Inputs.Configuration,
-					DiffuseConeHalfAngle,
 					MaxNumProbes,
 					MaxProbeTraceTileResolution,
 					ProbeTraceData[RadianceCacheIndex],
@@ -1997,8 +1993,7 @@ void UpdateRadianceCaches(
 					RadianceCacheHardwareRayTracingIndirectArgs[RadianceCacheIndex],
 					RadianceProbeAtlasTextureUAV,
 					DepthProbeTextureUAV,
-					ComputePassFlags
-				);
+					ComputePassFlags);
 			}
 			else
 			{

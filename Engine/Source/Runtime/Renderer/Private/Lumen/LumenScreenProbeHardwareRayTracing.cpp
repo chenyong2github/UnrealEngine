@@ -151,7 +151,7 @@ class FLumenScreenProbeGatherHardwareRayTracing : public FLumenHardwareRayTracin
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, Lumen::ERayTracingShaderDispatchType ShaderDispatchType, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FLumenHardwareRayTracingShaderBase::ModifyCompilationEnvironment(Parameters, ShaderDispatchType, Lumen::ESurfaceCacheSampling::AlwaysResidentPages, OutEnvironment);
+		FLumenHardwareRayTracingShaderBase::ModifyCompilationEnvironment(Parameters, ShaderDispatchType, Lumen::ESurfaceCacheSampling::AlwaysResidentPagesWithoutFeedback, OutEnvironment);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
@@ -246,50 +246,6 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 	}
 }
 
-void SetLumenHardwareRayTracingScreenProbeParameters(
-	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
-	FScreenProbeParameters& ScreenProbeParameters,
-	const FViewInfo& View,
-	FRDGBufferRef HardwareRayTracingIndirectArgsBuffer,
-	const FLumenCardTracingParameters& TracingParameters,
-	const FLumenIndirectTracingParameters& IndirectTracingParameters,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	const FCompactedTraceParameters& CompactedTraceParameters,
-	FLumenScreenProbeGatherHardwareRayTracingRGS::FParameters* Parameters
-)
-{
-	SetLumenHardwareRayTracingSharedParameters(
-		GraphBuilder,
-		SceneTextures,
-		View,
-		TracingParameters,
-		&Parameters->SharedParameters
-	);
-
-	Parameters->HardwareRayTracingIndirectArgs = HardwareRayTracingIndirectArgsBuffer;
-	Parameters->IndirectTracingParameters = IndirectTracingParameters;
-	Parameters->ScreenProbeParameters = ScreenProbeParameters;
-	Parameters->RadianceCacheParameters = RadianceCacheParameters;
-	Parameters->CompactedTraceParameters = CompactedTraceParameters;
-
-	const bool bUseFarField = LumenScreenProbeGather::UseFarField(*View.Family);
-	const float NearFieldMaxTraceDistance = Lumen::GetMaxTraceDistance(View);
-
-	Parameters->NearFieldMaxTraceDistance = NearFieldMaxTraceDistance;
-	Parameters->FarFieldMaxTraceDistance = bUseFarField ? Lumen::GetFarFieldMaxTraceDistance() : NearFieldMaxTraceDistance;
-	Parameters->NearFieldMaxTraceDistanceDitherScale = Lumen::GetNearFieldMaxTraceDistanceDitherScale(bUseFarField);
-	Parameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(bUseFarField);	
-	Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
-	Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
-	Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
-	Parameters->NormalBias = CVarLumenHardwareRayTracingNormalBias.GetValueOnRenderThread();
-	Parameters->AvoidSelfIntersectionTraceDistance = FMath::Max(CVarLumenHardwareRayTracingAvoidSelfIntersectionTraceDistance.GetValueOnRenderThread(), 0.0f);
-	Parameters->SkipFirstTwoSidedHitDistance = CVarLumenHardwareRayTracingSkipFirstTwoSidedHitDistance.GetValueOnRenderThread();
-	Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
-	Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
-}
-
 void DispatchLumenScreenProbeGatherHardwareRayTracingIndirectArgs(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGBufferRef HardwareRayTracingIndirectArgsBuffer, const FCompactedTraceParameters& CompactedTraceParameters, FIntPoint OutputThreadGroupSize, ERDGPassFlags ComputePassFlags)
 {
 	FLumenScreenProbeGatherHardwareRayTracingIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenScreenProbeGatherHardwareRayTracingIndirectArgsCS::FParameters>();
@@ -327,18 +283,38 @@ void DispatchRayGenOrComputeShader(
 	FIntPoint OutputThreadGroupSize = bInlineRayTracing ? FLumenScreenProbeGatherHardwareRayTracingCS::GetThreadGroupSize() : FLumenScreenProbeGatherHardwareRayTracingRGS::GetThreadGroupSize();
 	DispatchLumenScreenProbeGatherHardwareRayTracingIndirectArgs(GraphBuilder, View, HardwareRayTracingIndirectArgsBuffer, CompactedTraceParameters, OutputThreadGroupSize, ComputePassFlags);
 
-	FLumenScreenProbeGatherHardwareRayTracing::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenScreenProbeGatherHardwareRayTracing::FParameters>();
-	SetLumenHardwareRayTracingScreenProbeParameters(GraphBuilder,
-		SceneTextures,
-		ScreenProbeParameters,
-		View,
-		HardwareRayTracingIndirectArgsBuffer,
-		TracingParameters,
-		IndirectTracingParameters,
-		RadianceCacheParameters,
-		CompactedTraceParameters,
-		PassParameters
-	);
+	FLumenScreenProbeGatherHardwareRayTracing::FParameters* Parameters = GraphBuilder.AllocParameters<FLumenScreenProbeGatherHardwareRayTracing::FParameters>();
+	{
+		SetLumenHardwareRayTracingSharedParameters(
+			GraphBuilder,
+			SceneTextures,
+			View,
+			TracingParameters,
+			&Parameters->SharedParameters
+		);
+
+		Parameters->HardwareRayTracingIndirectArgs = HardwareRayTracingIndirectArgsBuffer;
+		Parameters->IndirectTracingParameters = IndirectTracingParameters;
+		Parameters->ScreenProbeParameters = ScreenProbeParameters;
+		Parameters->RadianceCacheParameters = RadianceCacheParameters;
+		Parameters->CompactedTraceParameters = CompactedTraceParameters;
+
+		const bool bUseFarField = LumenScreenProbeGather::UseFarField(*View.Family);
+		const float NearFieldMaxTraceDistance = Lumen::GetMaxTraceDistance(View);
+
+		Parameters->NearFieldMaxTraceDistance = NearFieldMaxTraceDistance;
+		Parameters->FarFieldMaxTraceDistance = bUseFarField ? Lumen::GetFarFieldMaxTraceDistance() : NearFieldMaxTraceDistance;
+		Parameters->NearFieldMaxTraceDistanceDitherScale = Lumen::GetNearFieldMaxTraceDistanceDitherScale(bUseFarField);
+		Parameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(bUseFarField);	
+		Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
+		Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
+		Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
+		Parameters->NormalBias = CVarLumenHardwareRayTracingNormalBias.GetValueOnRenderThread();
+		Parameters->AvoidSelfIntersectionTraceDistance = FMath::Max(CVarLumenHardwareRayTracingAvoidSelfIntersectionTraceDistance.GetValueOnRenderThread(), 0.0f);
+		Parameters->SkipFirstTwoSidedHitDistance = CVarLumenHardwareRayTracingSkipFirstTwoSidedHitDistance.GetValueOnRenderThread();
+		Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
+		Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
+	}
 
 	const LumenScreenProbeGather::ERayTracingPass RayTracingPass = PermutationVector.Get<FLumenScreenProbeGatherHardwareRayTracing::FRayTracingPass>();
 	const FString RayTracingPassName = RayTracingPass == LumenScreenProbeGather::ERayTracingPass::FarField ? TEXT("far-field") : TEXT("default");
@@ -352,8 +328,8 @@ void DispatchRayGenOrComputeShader(
 			RDG_EVENT_NAME("HardwareRayTracingCS %s", *RayTracingPassName),
 			ComputePassFlags,
 			ComputeShader,
-			PassParameters,
-			PassParameters->HardwareRayTracingIndirectArgs,
+			Parameters,
+			Parameters->HardwareRayTracingIndirectArgs,
 			0);
 	}
 	else
@@ -364,8 +340,8 @@ void DispatchRayGenOrComputeShader(
 			GraphBuilder,
 			RDG_EVENT_NAME("HardwareRayTracingRGS %s", *RayTracingPassName),
 			RayGenerationShader,
-			PassParameters,
-			PassParameters->HardwareRayTracingIndirectArgs,
+			Parameters,
+			Parameters->HardwareRayTracingIndirectArgs,
 			0,
 			View,
 			/*bUseMinimalPayload*/ true);
