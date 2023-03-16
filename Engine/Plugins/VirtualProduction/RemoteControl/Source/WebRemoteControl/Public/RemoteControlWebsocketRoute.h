@@ -9,7 +9,7 @@ struct FRemoteControlWebSocketMessage
 	FString MessageName;
 	int32 MessageId = -1;
 	FGuid ClientId;
-	TSharedPtr<FInternetAddr> PeerAddress;
+	TSharedPtr<class FInternetAddr> PeerAddress;
 	TArrayView<uint8> RequestPayload;
 	TMap<FString, TArray<FString>> Header;
 };
