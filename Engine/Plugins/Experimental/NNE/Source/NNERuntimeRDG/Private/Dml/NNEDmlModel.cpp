@@ -924,6 +924,14 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
 			return false;
 		}
 
+		// Remap inputs
+		TConstArrayView<int32> OpRemappedInputs = OpDesc.Op->GetRemappedInputs();
+
+		for (int32 InputIdx = 0; InputIdx < OpRemappedInputs.Num(); ++InputIdx)
+		{
+			OpInputIndices[OpDesc.InputStart + InputIdx] = OpRemappedInputs[InputIdx];
+		}
+
 		// Filter out the constant CPU inputs from the graph node inputs
 		TConstArrayView<int32> OpConstantCPUInputs = OpDesc.Op->GetConstantCPUInputs();
 
@@ -1182,9 +1190,9 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 			RDG_EVENT_NAME("FModel_Dispatch_GetInputBuffer"),
 			Params,
 			TransitionBuffFlags,
-			[this, Params](FRHICommandListImmediate& RHICmdList)
+			[this, Idx, Params](FRHICommandListImmediate& RHICmdList)
 			{
-				InputBuffers.Emplace(Params->Buffer->GetRHI());
+				InputBuffers.Insert(Params->Buffer->GetRHI(), Idx);
 			}
 		);
 	}
@@ -1208,15 +1216,15 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 			RDG_EVENT_NAME("FModel_Dispatch_GetOutputBuffer"),
 			Params,
 			TransitionBuffFlags,
-			[this, Params](FRHICommandListImmediate& RHICmdList)
+			[this, Idx, Params](FRHICommandListImmediate& RHICmdList)
 			{
-				OutputBuffers.Emplace(Params->Buffer->GetRHI());
+				OutputBuffers.Insert(Params->Buffer->GetRHI(), Idx);
 			}
 		);
 	}
 	
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("FModel_Dispatch"),
+		RDG_EVENT_NAME("FDmlModel_Dispatch"),
 		ERDGPassFlags::None | ERDGPassFlags::NeverCull,
 		[this, NumWeightTensors](FRHICommandListImmediate& RHICmdList)
 		{
@@ -1228,7 +1236,7 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 
 					for (int32 Idx = 0; Idx < NumWeightTensors; ++Idx)
 					{
-						InputBuffers.Emplace(nullptr);
+						InputBuffers.Add(nullptr);
 					}
 
 					for (FRHIBuffer* Buffer : InputBuffers)

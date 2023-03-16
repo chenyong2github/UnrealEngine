@@ -170,6 +170,8 @@ public:
 
 	virtual TConstArrayView<int32> GetConstantCPUInputs() const;
 
+	virtual TConstArrayView<int32> GetRemappedInputs() const;
+
 	IDMLOperator* GetOperator();
 
 protected:
@@ -181,6 +183,7 @@ protected:
 
 	TComPtr<IDMLOperator>		DmlOp;
 	DmlUtil::FSmallIntArray		ConstantCPUInputs;
+	DmlUtil::FSmallIntArray		RemappedInputs;
 };
 
 /**

@@ -115,4 +115,35 @@ static void ComputeStartEndPaddings(
     }
 }
 
+inline int32 HandleNegativeAxis(int32 Axis, int32 Rank)
+{
+	if (Axis < 0)
+	{
+		Axis += Rank;
+		check(Axis < Rank);
+	}
+
+	return Axis;
+}
+
+inline int32 GetDmlAxis(int32 OnnxAxis, int32 OnnxDim, int32 DmlDim)
+{
+	check(DmlDim >= OnnxDim);
+	OnnxAxis = HandleNegativeAxis(OnnxAxis, OnnxDim);
+	uint32 DmlAxis = OnnxAxis + DmlDim - OnnxDim;
+
+	return DmlAxis;
+}
+
+inline void SetDmlAxesFromOnnx(DmlUtil::FSmallUIntArray& DmlAxes, int32 Rank, TConstArrayView<int32> OnnxAxes)
+{
+	DmlAxes.Reset();
+	DmlAxes.Reserve(Rank);
+
+	for (int32 Axis : OnnxAxes)
+	{
+		DmlAxes.Add(GetDmlAxis(Axis, OnnxAxes.Num(), Rank));
+	}
+}
+
 }

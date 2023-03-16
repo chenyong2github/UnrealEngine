@@ -3,7 +3,7 @@
 #ifdef NNE_USE_DIRECTML
 
 #include "NNEDmlOperator.h"
-#include "NNEDmlPaddingCommon.h"
+#include "NNEDmlOperatorUtils.h"
 
 #include "Algo/AnyOf.h"
 

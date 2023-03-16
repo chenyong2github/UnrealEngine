@@ -2,20 +2,10 @@
 
 #ifdef NNE_USE_DIRECTML
 #include "NNEDmlOperator.h"
+#include "NNEDmlOperatorUtils.h"
 
 namespace UE::NNERuntimeRDG::Private::Dml
 {
-
-inline int32 HandleNegativeAxis(int32 Axis, int32 Rank)
-{
-	if (Axis < 0)
-	{
-		Axis += Rank;
-		check(Axis < Rank);
-	}
-
-	return Axis;
-}
 
 class FOperatorDmlGather : public FOperatorDml
 {

@@ -353,6 +353,11 @@ TConstArrayView<int32> FOperatorDml::GetConstantCPUInputs() const
 	return ConstantCPUInputs;
 }
 
+TConstArrayView<int32> FOperatorDml::GetRemappedInputs() const
+{
+	return RemappedInputs;
+}
+
 IDMLOperator* FOperatorDml::GetOperator()
 {
 	return DmlOp;
