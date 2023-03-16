@@ -535,11 +535,11 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledB
 			return NewBinding.IsSameBinding(Binding);
 		});
 
-	if (FoundSameBindingIndex != INDEX_NONE)
-	{
-		return MakeError(LOCTEXT("BindingAlreadyAdded", "The binding already exist."));
-	}
-	else
+	//if (FoundSameBindingIndex != INDEX_NONE)
+	//{
+	//	return MakeError(LOCTEXT("BindingAlreadyAdded", "The binding already exist."));
+	//}
+	//else
 	{
 		FCompiledBindingLibraryCompiler::FBindingHandle ResultBindingHandle = FBindingHandle::MakeHandle();
 		NewBinding.BindingHandle = ResultBindingHandle;
