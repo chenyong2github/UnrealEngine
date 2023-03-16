@@ -240,6 +240,11 @@ namespace Turnkey.Commands
 
 						// get the min/max versions from PlatformSDK
 						SDKCollection SoftwareInfo = PlatformSDK.GetAllSoftwareInfo(Device.Type, Device.SoftwareVersion);
+						if (!SoftwareInfo.Sdks.Any())
+						{
+							// if we found no supported software versions for the specific device type, query for device type independent versions
+							SoftwareInfo = PlatformSDK.GetAllSoftwareInfo(null, Device.SoftwareVersion);
+						}
 
 						SdkUtils.LocalAvailability DeviceState = SdkUtils.LocalAvailability.None;
 						if (!bArePrerequisitesValid)
