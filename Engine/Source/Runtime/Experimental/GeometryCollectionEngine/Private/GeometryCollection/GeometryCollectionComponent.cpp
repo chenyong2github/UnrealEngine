@@ -4377,7 +4377,7 @@ void UGeometryCollectionComponent::UnregisterFromISMPool()
 
 void UGeometryCollectionComponent::AddAutoInstancesToISMPool()
 {
-	if (ISMPoolAutoInstancesMeshIds.Num() > 0)
+	if (ISMPoolAutoInstancesMeshIds.Num() > 0 || ISMPoolMeshGroupIndex == -1)
 	{
 		return;
 	}
