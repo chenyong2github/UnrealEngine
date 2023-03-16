@@ -3,12 +3,14 @@
 #pragma once
 
 #include "WebSocketNetDriver.h"
-#include "UObject/StrongObjectPtr.h"
+
+#include "Containers/Ticker.h"
 #include "INetworkingWebSocket.h"
 #include "IWebRemoteControlModule.h"
 #include "IWebSocketServer.h"
 #include "RemoteControlRoute.h"
-#include "Containers/Ticker.h"
+#include "SocketSubsystem.h"
+#include "UObject/StrongObjectPtr.h"
 
 /**
  * Router used to dispatch messages received by a WebSocketServer.
@@ -32,6 +34,7 @@ public:
 	/**
 	 * Adds a Preprocessor called before the Dispatch of the Route
 	 * @param WebsocketPreprocessor The Preprocessor Function to register 
+	 * @note: If the predispatch returns false, the actual request will not be executed.
 	 */
 	void AddPreDispatch(TFunction<bool(const struct FRemoteControlWebSocketMessage& Message)> WebsocketPreprocessor);
 
@@ -118,7 +121,7 @@ private:
 	void OnWebSocketClientConnected(INetworkingWebSocket* Socket);
 
 	/** Handles sending the received packet to the message router. */
-	void ReceivedRawPacket(void* Data, int32 Size, FGuid ClientId);
+	void ReceivedRawPacket(void* Data, int32 Size, FGuid ClientId, TSharedPtr<FInternetAddr> PeerAddress);
 
 	void OnSocketClose(INetworkingWebSocket* Socket);
 	
@@ -138,12 +141,18 @@ private:
 			: Socket(InSocket)
 			, Id(FGuid::NewGuid())
 		{
+			constexpr bool bAppendPort = false;
+			if (ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM))
+			{
+				PeerAddress = SocketSubsystem->GetAddressFromString(InSocket->RemoteEndPoint(bAppendPort));
+			}
 		}
 
 		FWebSocketConnection(FWebSocketConnection&& WebSocketConnection)
 			: Id(WebSocketConnection.Id)
 		{
 			Socket = WebSocketConnection.Socket;
+			PeerAddress = WebSocketConnection.PeerAddress;
 			WebSocketConnection.Socket = nullptr;
 		}
 
@@ -165,6 +174,9 @@ private:
 
 		/** Generated ID for this client. */
 		FGuid Id;
+
+		/** IP Address of the client. */
+		TSharedPtr<FInternetAddr> PeerAddress;
 	};
 
 

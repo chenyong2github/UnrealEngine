@@ -53,7 +53,11 @@ namespace RemoteControlWebSocketServer
 			}
 			if (!Request.Passphrase.IsEmpty())
 			{
-				Message.Header.FindOrAdd(WebRemoteControlInternalUtils::PassphraseHeader) = TArray<FString>({Request.Passphrase});
+				Message.Header.FindOrAdd(WebRemoteControlInternalUtils::PassphraseHeader) = { Request.Passphrase };
+			}
+			if (!Request.ForwardedFor.IsEmpty())
+			{
+				Message.Header.FindOrAdd(WebRemoteControlInternalUtils::ForwardedIPHeader) = { Request.ForwardedFor };
 			}
 			Message.MessageName = MoveTemp(Request.MessageName);
 			ParsedMessage = MoveTemp(Message);
@@ -215,7 +219,7 @@ void FRCWebSocketServer::OnWebSocketClientConnected(INetworkingWebSocket* Socket
 		FWebSocketConnection Connection = FWebSocketConnection{ Socket };
 			
 		FWebSocketPacketReceivedCallBack ReceiveCallBack;
-		ReceiveCallBack.BindRaw(this, &FRCWebSocketServer::ReceivedRawPacket, Connection.Id);
+		ReceiveCallBack.BindRaw(this, &FRCWebSocketServer::ReceivedRawPacket, Connection.Id, Connection.PeerAddress);
 		Socket->SetReceiveCallBack(ReceiveCallBack);
 
 		FWebSocketInfoCallBack CloseCallback;
@@ -227,7 +231,7 @@ void FRCWebSocketServer::OnWebSocketClientConnected(INetworkingWebSocket* Socket
 	}
 }
 
-void FRCWebSocketServer::ReceivedRawPacket(void* Data, int32 Size, FGuid ClientId)
+void FRCWebSocketServer::ReceivedRawPacket(void* Data, int32 Size, FGuid ClientId, TSharedPtr<FInternetAddr> PeerAddress)
 {
 	if (!Router)
 	{
@@ -242,6 +246,8 @@ void FRCWebSocketServer::ReceivedRawPacket(void* Data, int32 Size, FGuid ClientI
 	if (TOptional<FRemoteControlWebSocketMessage> Message = RemoteControlWebSocketServer::ParseWebsocketMessage(Payload))
 	{
 		Message->ClientId = ClientId;
+		Message->PeerAddress = PeerAddress;
+	
 		Router->AttemptDispatch(*Message);
 	}
 }
