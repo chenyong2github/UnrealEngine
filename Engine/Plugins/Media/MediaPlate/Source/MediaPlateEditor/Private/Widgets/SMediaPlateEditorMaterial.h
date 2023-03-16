@@ -30,6 +30,11 @@ public:
 
 private:
 	/**
+	 * Callback for when we browse a material.
+	 */
+	FReply OnBrowseMaterial() const;
+
+	/**
 	 * Callback to get a list of media plate materials.
 	 */
 	TSharedRef<SWidget> OnGetMaterials();
