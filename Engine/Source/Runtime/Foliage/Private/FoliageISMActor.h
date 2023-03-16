@@ -68,7 +68,7 @@ struct FFoliageISMActor : public FFoliageImpl, public IISMPartitionInstanceManag
 	virtual void PreEditUndo(UFoliageType* FoliageType) override;
 	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType) override;
 	virtual void NotifyFoliageTypeWillChange(UFoliageType* FoliageType) override;
-	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) override;
+	virtual bool NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) override;
 
 private:
 	void RegisterDelegates();

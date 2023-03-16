@@ -285,20 +285,19 @@ void FFoliageActor::PostMoveInstances(TArrayView<const int32> InInstancesMoved, 
 	}
 }
 
-void FFoliageActor::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
+bool FFoliageActor::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
 {
 	if (!IsInitialized())
 	{
-		return;
+		return false;
 	}
 
 	if (UFoliageType_Actor* FoliageTypeActor = Cast<UFoliageType_Actor>(FoliageType))
 	{
-		// Implementation should change
 		if (FoliageTypeActor->bStaticMeshOnly)
 		{
-			Uninitialize();
-			return;
+			// requires implementation change
+			return true;
 		}
 
 		AInstancedFoliageActor* IFA = GetIFA();
@@ -317,6 +316,8 @@ void FFoliageActor::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSo
 		Reapply(FoliageType);
 		ApplySelection(true, Info->SelectedIndices);
 	}
+
+	return false;
 }
 
 void FFoliageActor::Reapply(const UFoliageType* FoliageType)

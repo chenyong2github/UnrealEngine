@@ -247,7 +247,9 @@ struct FFoliageImpl
 	virtual void PreEditUndo(UFoliageType* FoliageType) {}
 	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType) { Info = InInfo; }
 	virtual void NotifyFoliageTypeWillChange(UFoliageType* FoliageType) {}
-	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) = 0;
+
+	// Return true if implementation needs to change 
+	virtual bool NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) = 0;
 	virtual void EnterEditMode() {}
 	virtual void ExitEditMode() {}
 	virtual bool ShouldAttachToBaseComponent() const { return true; }

@@ -331,20 +331,19 @@ void FFoliageISMActor::NotifyFoliageTypeWillChange(UFoliageType* FoliageType)
 	UnregisterDelegates();
 }
 
-void FFoliageISMActor::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
+bool FFoliageISMActor::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
 {
 	if (!IsInitialized())
 	{
-		return;
+		return false;
 	}
 		
 	if (UFoliageType_Actor* InFoliageTypeActor = Cast<UFoliageType_Actor>(FoliageType))
 	{
-		// Implementation should change
 		if (!InFoliageTypeActor->bStaticMeshOnly)
 		{
-			Uninitialize();
-			return;
+			// requires implementation change
+			return true;
 		}
 	}
 
@@ -377,6 +376,8 @@ void FFoliageISMActor::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool 
 	{
 		RegisterDelegates();
 	}
+
+	return false;
 }
 
 void FFoliageISMActor::SelectAllInstances(bool bSelect)

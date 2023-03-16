@@ -165,7 +165,7 @@ struct FFoliageStaticMesh : public FFoliageImpl, public ISMInstanceManager
 	virtual void PreEditUndo(UFoliageType* FoliageType) override;
 	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType) override;
 	virtual void NotifyFoliageTypeWillChange(UFoliageType* FoliageType) override;
-	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) override;
+	virtual bool NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) override;
 	virtual void EnterEditMode() override;
 	virtual void ExitEditMode() override;
 
@@ -1435,7 +1435,7 @@ void FFoliageStaticMesh::NotifyFoliageTypeWillChange(UFoliageType* FoliageType)
 	}
 }
 
-void FFoliageStaticMesh::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
+bool FFoliageStaticMesh::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
 {
 	UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType);
 	check(FoliageType_InstancedStaticMesh);
@@ -1453,6 +1453,8 @@ void FFoliageStaticMesh::NotifyFoliageTypeChanged(UFoliageType* FoliageType, boo
 			Component->BuildTreeIfOutdated(true, false);
 		}
 	}
+
+	return false;
 }
 
 void FFoliageStaticMesh::EnterEditMode()
@@ -2157,11 +2159,7 @@ void FFoliageInfo::NotifyFoliageTypeWillChange(UFoliageType* FoliageType)
 void FFoliageInfo::NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged)
 {
 	FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
-	// Handle Implementation being uninitialized by FoliageType change
-	bool bWasInitialized = Implementation->IsInitialized();
-	
-	Implementation->NotifyFoliageTypeChanged(FoliageType, bSourceChanged);
-	if (bWasInitialized && !Implementation->IsInitialized())
+	if (Implementation->NotifyFoliageTypeChanged(FoliageType, bSourceChanged))
 	{
 		ReallocateClusters(FoliageType);
 	}
