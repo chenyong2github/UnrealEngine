@@ -10,6 +10,7 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildTool;
 
 namespace AutomationTool
 {
@@ -205,6 +206,13 @@ namespace AutomationTool
 		{
 			// Assume we have the capability co compile.
 			HasCapabilityToCompile = true;
+
+			if (BuildHostPlatform.Current.IsRunningOnWine())
+			{
+				// Just set an empty path as we currently compile .NET Framework/Core dependencies outside Wine
+				FrameworkMsbuildPath = "";
+				return;
+			}
 
 			try
 			{
