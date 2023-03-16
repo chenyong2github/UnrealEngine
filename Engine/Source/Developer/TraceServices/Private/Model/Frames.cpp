@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "TraceServices/Model/Frames.h"
 #include "Model/FramesPrivate.h"
 
 #include "Algo/BinarySearch.h"
