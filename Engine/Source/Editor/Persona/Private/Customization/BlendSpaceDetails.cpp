@@ -22,6 +22,8 @@
 #include "AnimGraphNode_BlendSpaceGraph.h"
 #include "PersonaBlendSpaceAnalysis.h"
 
+#include "DetailBuilderTypes.h"
+
 #define LOCTEXT_NAMESPACE "BlendSpaceDetails"
 
 FBlendSpaceDetails::FBlendSpaceDetails()
@@ -299,7 +301,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 			}
 
 			FText AxisTexts[2] = 
-			{ 
+			{
 				LOCTEXT("HorizontalAxisFunction", "Horizontal Axis Function"), 
 				LOCTEXT("VerticalAxisFunction", "Vertical Axis Function") 
 			};
@@ -348,7 +350,9 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 						AnalysisProperties->Function != TEXT("None") && 
 						AnalysisFunctions.Contains(AnalysisProperties->Function))
 					{
-						AnalysisPropertiesRow = DetailCategoryBuilder.AddExternalObjects( {AnalysisProperties} );
+						FAddPropertyParams Params;
+						Params.UniqueId(FName(TEXT("AnalysisPropertiesCombo")));
+						AnalysisPropertiesRow = DetailCategoryBuilder.AddExternalObjects( {AnalysisProperties}, EPropertyLocation::Default, Params);
 					}
 
 					FDetailWidgetRow *FunctionWidgetRow = nullptr;
@@ -361,7 +365,8 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 					}
 					else
 					{
-						FunctionWidgetRow = &DetailCategoryBuilder.AddCustomRow(LOCTEXT("AnalysisProperties", "Analysis Properties"));
+						IDetailPropertyRow& SourceAnimationRow = DetailCategoryBuilder.AddProperty(AnalysisProperty);
+						FunctionWidgetRow = &SourceAnimationRow.CustomWidget();
 					}
 
 					FunctionWidgetRow->NameContent()
