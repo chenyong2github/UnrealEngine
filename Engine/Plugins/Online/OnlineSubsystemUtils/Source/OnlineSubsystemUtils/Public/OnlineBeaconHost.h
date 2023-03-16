@@ -156,7 +156,19 @@ protected:
 	 * @param PlayerId net id of player to authenticate.
 	 * @param AuthenticationToken token to use for verification.
 	 */
+	UE_DEPRECATED(5.3, "This version of the StartVerifyAuthentication is deprecated. Please use the new StartVerifyAuthentication method instead.")
 	virtual bool StartVerifyAuthentication(const FUniqueNetId& PlayerId, const FString& AuthenticationToken, const FOnAuthenticationVerificationCompleteDelegate& OnComplete);
+
+	/**
+	 * Start verifying an authentication token for a connection.
+	 * OnAuthenticationVerificationComplete must be called to complete authentication verification.
+	 *
+	 * @param PlayerId net id of player to authenticate.
+	 * @Param LoginOptions all options passed as part of the Login request.
+	 * @param AuthenticationToken token to use for verification.
+	 * @Param OnComplete delegate to call once the request for authentication has completed
+	 */
+	virtual bool StartVerifyAuthentication(const FUniqueNetId& PlayerId, const FString& LoginOptions, const FString& AuthenticationToken, const FOnAuthenticationVerificationCompleteDelegate& OnComplete);
 
 private:
 	/**
