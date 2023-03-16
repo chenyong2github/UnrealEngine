@@ -236,9 +236,9 @@ namespace
 	#define MEMPRO_INTERLOCKED_ALIGN __declspec(align(8))
 	#define MEMPRO_INSTRUCTION_BARRIER
 	#define MEMPRO_ENABLE_WARNING_PRAGMAS
-	#define MEMPRO_PUSH_WARNING_DISABLE warning(push)
-	#define MEMPRO_DISABLE_WARNING(w) warning(disable : w)
-	#define MEMPRO_POP_WARNING_DISABLE warning(pop)
+	#define MEMPRO_PUSH_WARNING_DISABLE __pragma(warning(push))
+	#define MEMPRO_DISABLE_WARNING(w) __pragma(warning(disable : w))
+	#define MEMPRO_POP_WARNING_DISABLE __pragma(warning(pop))
 	#define MEMPRO_FORCEINLINE FORCEINLINE
 	#define ENUMERATE_ALL_MODULES // if you are having problems compiling this on your platform undefine ENUMERATE_ALL_MODULES and it send info for just the main module
 	#define THREAD_LOCAL_STORAGE __declspec(thread)

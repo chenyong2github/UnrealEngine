@@ -136,8 +136,8 @@ namespace MemPro
 //------------------------------------------------------------------------
 // disable some warnings we are not interested in so that we can compile at warning level4
 #ifdef MEMPRO_ENABLE_WARNING_PRAGMAS
-	#pragma MEMPRO_PUSH_WARNING_DISABLE
-	#pragma MEMPRO_DISABLE_WARNING(4100)
+	MEMPRO_PUSH_WARNING_DISABLE
+	MEMPRO_DISABLE_WARNING(4100)
 #endif
 
 //------------------------------------------------------------------------
@@ -201,7 +201,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 #ifdef MEMPRO_ENABLE_WARNING_PRAGMAS
-	#pragma MEMPRO_POP_WARNING_DISABLE
+	MEMPRO_POP_WARNING_DISABLE
 #endif
 
 //------------------------------------------------------------------------
@@ -712,8 +712,8 @@ namespace MemPro
 //------------------------------------------------------------------------
 // disable some warnings we are not interested in so that we can compile at warning level4
 #ifdef MEMPRO_ENABLE_WARNING_PRAGMAS
-	#pragma MEMPRO_PUSH_WARNING_DISABLE
-	#pragma MEMPRO_DISABLE_WARNING(4127)
+	MEMPRO_PUSH_WARNING_DISABLE
+	MEMPRO_DISABLE_WARNING(4127)
 #endif
 
 //------------------------------------------------------------------------
@@ -799,7 +799,7 @@ namespace MemPro
 
 //------------------------------------------------------------------------
 #ifdef MEMPRO_ENABLE_WARNING_PRAGMAS
-	#pragma MEMPRO_POP_WARNING_DISABLE
+	MEMPRO_POP_WARNING_DISABLE
 #endif
 
 //------------------------------------------------------------------------
@@ -1173,9 +1173,9 @@ namespace MemPro
 //------------------------------------------------------------------------
 // disable some warnings we are not interested in so that we can compile at warning level4
 #ifdef MEMPRO_ENABLE_WARNING_PRAGMAS
-	#pragma MEMPRO_PUSH_WARNING_DISABLE
-	#pragma MEMPRO_DISABLE_WARNING(4127)
-	#pragma MEMPRO_DISABLE_WARNING(4100)
+	MEMPRO_PUSH_WARNING_DISABLE
+	MEMPRO_DISABLE_WARNING(4127)
+	MEMPRO_DISABLE_WARNING(4100)
 #endif
 
 //------------------------------------------------------------------------
@@ -2657,7 +2657,7 @@ void MemPro::FlushDumpFile()
 
 //------------------------------------------------------------------------
 #ifdef MEMPRO_ENABLE_WARNING_PRAGMAS
-	#pragma MEMPRO_POP_WARNING_DISABLE
+	MEMPRO_POP_WARNING_DISABLE
 #endif
 
 //------------------------------------------------------------------------
