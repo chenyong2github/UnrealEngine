@@ -83,6 +83,10 @@ namespace MeshPaintRendering
 			ChannelFlagsParameter.Bind( Initializer.ParameterMap, TEXT( "c_ChannelFlags") );
 			GenerateMaskFlagParameter.Bind( Initializer.ParameterMap, TEXT( "c_GenerateMaskFlag") );
 			GammaParameter.Bind( Initializer.ParameterMap, TEXT( "c_Gamma" ) );
+			PaintBrushTextureParameter.Bind(Initializer.ParameterMap, TEXT("s_PaintBrushTexture"));
+			PaintBrushTextureParameterSampler.Bind(Initializer.ParameterMap, TEXT("s_PaintBrushTextureSampler"));
+			RotationDirectionParameter.Bind(Initializer.ParameterMap, TEXT("RotationDirection"));
+			RotationOffsetParameter.Bind(Initializer.ParameterMap, TEXT("RotationOffset"));
 		}
 
 		void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const float InGamma, const FMeshPaintShaderParameters& InShaderParams )
@@ -120,7 +124,34 @@ namespace MeshPaintRendering
 
 			// @todo MeshPaint
 			SetShaderValue(BatchedParameters, GammaParameter, InGamma );
+			if (InShaderParams.PaintBrushTexture)
+			{
+				SetTextureParameter(
+					BatchedParameters,
+					PaintBrushTextureParameter,
+					PaintBrushTextureParameterSampler,
+					TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
+					InShaderParams.PaintBrushTexture->GetRenderTargetResource()->TextureRHI);
+				SetShaderValue(BatchedParameters, RotationOffsetParameter, InShaderParams.PaintBrushRotationOffset);
+
+				if (InShaderParams.bRotateBrushTowardsDirection)
+				{
+					SetShaderValue(BatchedParameters, RotationDirectionParameter, InShaderParams.PaintBrushDirectionVector);
+				}
+			}
 		}
+
+		class FMeshPaintUsePaintBrush : SHADER_PERMUTATION_BOOL("MESH_PAINT_USE_PAINTBRUSH");
+		class FMeshPaintUseRotateTowardDirection : SHADER_PERMUTATION_BOOL("MESH_PAINT_ROTATE_TOWARD_DIRECTION");
+		class FMeshPaintUseFillBucket : SHADER_PERMUTATION_BOOL("MESH_PAINT_USE_FILL_BUCKET");
+
+		using FPermutationDomain = TShaderPermutationDomain<FMeshPaintUsePaintBrush, FMeshPaintUseRotateTowardDirection, FMeshPaintUseFillBucket>;
+
+		LAYOUT_FIELD(FShaderResourceParameter, PaintBrushTextureParameter);
+		LAYOUT_FIELD(FShaderResourceParameter, PaintBrushTextureParameterSampler);
+
+		LAYOUT_FIELD(FShaderParameter, RotationDirectionParameter);
+		LAYOUT_FIELD(FShaderParameter, RotationOffsetParameter);
 
 	private:
 		/** Texture that is a clone of the destination render target before we start drawing */
@@ -303,9 +334,14 @@ namespace MeshPaintRendering
 										   const FMeshPaintShaderParameters& InShaderParams )
 	{
 		TShaderMapRef< TMeshPaintVertexShader > VertexShader(GetGlobalShaderMap(InFeatureLevel));
-		TShaderMapRef< TMeshPaintPixelShader > PixelShader(GetGlobalShaderMap(InFeatureLevel));
 
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMeshPaintDilateVertexDeclaration.VertexDeclarationRHI;
+		TMeshPaintPixelShader::FPermutationDomain MeshPaintPermutationVector;
+		MeshPaintPermutationVector.Set<TMeshPaintPixelShader::FMeshPaintUsePaintBrush>(InShaderParams.PaintBrushTexture != nullptr);
+		MeshPaintPermutationVector.Set<TMeshPaintPixelShader::FMeshPaintUseRotateTowardDirection>(InShaderParams.bRotateBrushTowardsDirection);
+		MeshPaintPermutationVector.Set<TMeshPaintPixelShader::FMeshPaintUseFillBucket>(InShaderParams.bUseFillBucket);
+		TShaderMapRef<TMeshPaintPixelShader> PixelShader(GetGlobalShaderMap(InFeatureLevel), MeshPaintPermutationVector);
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMeshPaintVertexDeclaration.VertexDeclarationRHI;
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;

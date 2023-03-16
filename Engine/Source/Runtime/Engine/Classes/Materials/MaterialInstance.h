@@ -712,7 +712,26 @@ private:
 #endif
 	/** Thread-safe flags used to track whether this instance is still in use by the render thread (EMaterialInstanceUsedByRTFlag) */
 	mutable std::atomic<uint32> UsedByRT;
+	
+#if WITH_EDITOR
+	struct FTextureParameterOverride
+	{
+		FTextureParameterOverride(UTexture* InPreviousTexture, UTexture* InOverrideTexture)
+			: PreviousTexture(InPreviousTexture)
+			, OverrideTexture(InOverrideTexture)
+		{}
 
+		TObjectPtr<UTexture> PreviousTexture;
+		TObjectPtr<UTexture> OverrideTexture;
+	};
+
+	TArray<FTextureParameterOverride> TransientTextureParameterOverrides;
+
+	// Helper for setting an override texture
+	void OverrideTextureParameterValue(const UTexture* InTextureToOverride, UTexture* OverrideTexture);
+	TObjectPtr<UTexture> OverrideTextureParameterValueInternal(const UTexture* InTextureToOverride, UTexture* OverrideTexture);
+	void ResetAllTextureParameterOverrides();
+#endif // WITH_EDITOR
 public:
 	virtual ENGINE_API ~UMaterialInstance();
 
@@ -734,6 +753,7 @@ public:
 
 	virtual ENGINE_API void GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQualityLevel::Type QualityLevel, bool bAllQualityLevels, ERHIFeatureLevel::Type FeatureLevel, bool bAllFeatureLevels) const override;
 	virtual ENGINE_API void GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray< TArray<int32> >& OutIndices, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel) const;
+	virtual ENGINE_API bool GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bOveriddenOnly = false) const;
 	virtual ENGINE_API void OverrideTexture(const UTexture* InTextureToOverride, UTexture* OverrideTexture, ERHIFeatureLevel::Type InFeatureLevel) override;
 	virtual ENGINE_API void OverrideNumericParameterDefault(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, const UE::Shader::FValue& Value, bool bOverride, ERHIFeatureLevel::Type FeatureLevel) override;
 	virtual ENGINE_API bool CheckMaterialUsage(const EMaterialUsage Usage) override;

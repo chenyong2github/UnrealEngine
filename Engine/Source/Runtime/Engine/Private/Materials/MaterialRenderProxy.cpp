@@ -759,7 +759,16 @@ bool FColoredTexturedMaterialRenderProxy::GetParameterValue(EMaterialParameterTy
 	}
 	else
 	{
-		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
+		if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == UVChannelParamName)
+		{
+			OutValue = UVChannel;
+			return true;
+		}
+		else
+		{
+			// Call base class to make sure we override the color parameter if needed
+			return FColoredMaterialRenderProxy::GetParameterValue(Type, ParameterInfo, OutValue, Context);
+		}
 	}
 }
 

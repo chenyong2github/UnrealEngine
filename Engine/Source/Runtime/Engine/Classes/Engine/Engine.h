@@ -1130,6 +1130,13 @@ public:
 	TObjectPtr<class UMaterial> DefaultHLODFlattenMaterial;
 	UPROPERTY()
 	TObjectPtr<class UMaterial> DefaultLandscapeFlattenMaterial;
+	/** A material used to render the debug texture painting mask on mesh. */
+	UPROPERTY()
+	TObjectPtr<class UMaterial> TexturePaintingMaskMaterial;
+
+	/** A material used to render the debug texture painting mask on mesh. */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath TexturePaintingMaskMaterialName;
 #endif
 
 	/** A material used to render debug opaque material. Used in various animation editor viewport features. */

@@ -99,6 +99,7 @@ protected:
 	void CommitAllPaintedTextures();
 	int32 GetNumberOfPendingPaintChanges();
 	void OnVertexPaintFinished();
+	void FillWithTextureColor();
 
 protected:
 	UPROPERTY(Transient)

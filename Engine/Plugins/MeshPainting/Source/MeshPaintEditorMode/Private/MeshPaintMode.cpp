@@ -204,15 +204,7 @@ void UMeshPaintMode::CreateToolkit()
 
 void UMeshPaintMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
-	if (ViewportClient->IsPerspective())
-	{
-		// Make sure perspective viewports are still set to real-time
-		GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>()->SetRealtimeViewport(true);
-
-		// Set viewport show flags		
-		GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>()->SetViewportColorMode(ModeSettings->ColorViewMode, ViewportClient);
-	}
-
+	EMeshPaintActiveMode CurrentActiveMode = EMeshPaintActiveMode::Color;
 
 	if (bRecacheVertexDataSize)
 	{
@@ -227,18 +219,29 @@ void UMeshPaintMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime
 	if (ActiveTool == TexturePaintToolName || ActiveTool == TextureSelectToolName)
 	{
 		TargetTab = MeshPaintMode_Texture;
+		CurrentActiveMode = EMeshPaintActiveMode::Texture;
 	}
 	else if (ActiveTool == ColorPaintToolName)
 	{
 		TargetTab = MeshPaintMode_Color;
+		CurrentActiveMode = EMeshPaintActiveMode::Color;
 	}
 	else if (ActiveTool == WeightPaintToolName)
 	{
 		TargetTab = MeshPaintMode_Weights;
+		CurrentActiveMode = EMeshPaintActiveMode::Weights;
 	}
 	if ( TargetTab != ActiveTab)
 	{
 		Toolkit->SetCurrentPalette(TargetTab);
+	}
+	if (ViewportClient->IsPerspective())
+	{
+		// Make sure perspective viewports are still set to real-time
+		GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>()->SetRealtimeViewport(true);
+
+		// Set viewport show flags
+		GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>()->SetViewportColorMode(CurrentActiveMode, ModeSettings->ColorViewMode, ViewportClient);
 	}
 }
 
@@ -335,6 +338,21 @@ void UMeshPaintMode::BindCommands()
 			FExecuteAction::CreateUObject(this, &UMeshPaintMode::CycleTextures, -1),
 			FCanExecuteAction::CreateUObject(this, &UMeshPaintMode::CanCycleTextures)
 		));
+	auto IsInValidTexturePaintMode = [this, MeshPaintingSubsystem]() -> bool {
+		if (MeshPaintingSubsystem)
+		{
+			FString ActiveTool = GetToolManager()->GetActiveToolName(EToolSide::Mouse);
+			if (ActiveTool == TexturePaintToolName)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	};
+	CommandList->MapAction(Commands.TextureFill,
+		FUIAction(FExecuteAction::CreateUObject(this, &UMeshPaintMode::FillWithTextureColor),
+			FCanExecuteAction::CreateLambda(IsInValidTexturePaintMode)));
 	CommandList->MapAction(Commands.SaveTexturePaint, FUIAction(FExecuteAction::CreateUObject(GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>(), &UMeshPaintModeSubsystem::SaveModifiedTextures), FCanExecuteAction::CreateUObject(GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>(), &UMeshPaintModeSubsystem::CanSaveModifiedTextures)));
 
 	auto HasPaintChanges = [this]() -> bool { return GetNumberOfPendingPaintChanges() > 0; };
@@ -949,6 +967,13 @@ void UMeshPaintMode::UpdateOnPaletteChange(FName NewPaletteName)
 	}
 }
 
+void UMeshPaintMode::FillWithTextureColor()
+{
+	if (UMeshTexturePaintingTool* TexturePaintingTool = Cast<UMeshTexturePaintingTool>(GetToolManager()->GetActiveTool(EToolSide::Left)))
+	{
+		TexturePaintingTool->FloodCurrentPaintTexture();
+	}
+}
 
 void UMeshPaintMode::OnResetViewMode()
 {
@@ -960,7 +985,7 @@ void UMeshPaintMode::OnResetViewMode()
 			continue;
 		}
 
-		GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>()->SetViewportColorMode(EMeshPaintDataColorViewMode::Normal, ViewportClient);
+		GEditor->GetEditorSubsystem<UMeshPaintModeSubsystem>()->SetViewportColorMode(EMeshPaintActiveMode::Color, EMeshPaintDataColorViewMode::Normal, ViewportClient);
 	}
 }
 

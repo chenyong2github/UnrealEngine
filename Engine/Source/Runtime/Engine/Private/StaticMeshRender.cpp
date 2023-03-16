@@ -1583,7 +1583,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 	#endif // WITH_EDITOR
 
-										if (!bDebugMaterialRenderProxySet && bProxyIsSelected && EngineShowFlags.VertexColors && AllowDebugViewmodes())
+										if (!bDebugMaterialRenderProxySet && bProxyIsSelected && EngineShowFlags.VertexColors && AllowDebugViewmodes() && ShouldProxyUseVertexColorVisualization(GetOwnerName()))
 										{
 											// Override the mesh's material with our material that draws the vertex colors
 											UMaterial* VertexColorVisualizationMaterial = NULL;
@@ -1610,12 +1610,55 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 												break;
 											}
 											check( VertexColorVisualizationMaterial != NULL );
+											FMaterialRenderProxy* VertexColorVisualizationMaterialInstance = nullptr;
+#if WITH_EDITORONLY_DATA
+											if (!GVertexViewModeOverrideTexture.IsValid())
+#endif
+											{
+												VertexColorVisualizationMaterialInstance = new FColoredMaterialRenderProxy(
+													VertexColorVisualizationMaterial->GetRenderProxy(),
+													GetSelectionColor(FLinearColor::White, bSectionIsSelected, IsHovered()));
+											}
+#if WITH_EDITORONLY_DATA
+											else
+											{
+												FLinearColor MaterialColor = FLinearColor::White;
 
-											auto VertexColorVisualizationMaterialInstance = new FColoredMaterialRenderProxy(
-												VertexColorVisualizationMaterial->GetRenderProxy(),
-												GetSelectionColor( FLinearColor::White, bSectionIsSelected, IsHovered() )
-												);
+												switch (GVertexColorViewMode)
+												{
+												case EVertexColorViewMode::Color:
+													MaterialColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.0f);
+													break;
 
+												case EVertexColorViewMode::Alpha:
+													MaterialColor = FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+													break;
+
+												case EVertexColorViewMode::Red:
+													MaterialColor = FLinearColor(1.0f, 0.0f, 0.0f, 0.0f);
+													break;
+
+												case EVertexColorViewMode::Green:
+													MaterialColor = FLinearColor(0.0f, 1.0f, 0.0f, 0.0f);
+													break;
+
+												case EVertexColorViewMode::Blue:
+													MaterialColor = FLinearColor(0.0f, 0.0f, 1.0f, 0.0f);
+													break;
+												}
+												FColoredTexturedMaterialRenderProxy* NewVertexColorVisualizationMaterialInstance = new FColoredTexturedMaterialRenderProxy(
+													GEngine->TexturePaintingMaskMaterial->GetRenderProxy(),
+													MaterialColor,
+													NAME_Color,
+													GVertexViewModeOverrideTexture.Get(),
+													NAME_LinearColor);
+													
+												NewVertexColorVisualizationMaterialInstance->UVChannel = GVertexViewModeOverrideUVChannel;
+												NewVertexColorVisualizationMaterialInstance->UVChannelParamName = FName(TEXT("UVChannel"));
+
+												VertexColorVisualizationMaterialInstance = NewVertexColorVisualizationMaterialInstance;
+											}
+#endif
 											Collector.RegisterOneFrameMaterialProxy(VertexColorVisualizationMaterialInstance);
 											MeshElement.MaterialRenderProxy = VertexColorVisualizationMaterialInstance;
 

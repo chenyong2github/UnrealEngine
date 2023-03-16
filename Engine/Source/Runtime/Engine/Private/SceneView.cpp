@@ -341,6 +341,14 @@ static TAutoConsoleVariable<float> CVarOverrideTimeMaterialExpressions(
 
 /** Global vertex color view mode setting when SHOW_VertexColors show flag is set */
 EVertexColorViewMode::Type GVertexColorViewMode = EVertexColorViewMode::Color;
+TWeakObjectPtr<UTexture> GVertexViewModeOverrideTexture = nullptr;
+float GVertexViewModeOverrideUVChannel = 0.0f; // Scalar parameter, so keep as float
+FString GVertexViewModeOverrideOwnerName;
+bool ShouldProxyUseVertexColorVisualization(FName OwnerName)
+{
+	bool bUsingTextureOverride = GVertexViewModeOverrideTexture.Get() != nullptr;
+	return !bUsingTextureOverride || OwnerName.ToString().Compare(GVertexViewModeOverrideOwnerName) == 0;
+}
 
 /** Global primitive uniform buffer resource containing identity transformations. */
 ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrimitiveUniformBuffer;

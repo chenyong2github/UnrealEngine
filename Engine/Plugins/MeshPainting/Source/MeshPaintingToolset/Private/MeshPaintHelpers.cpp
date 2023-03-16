@@ -1477,6 +1477,8 @@ void UMeshPaintingSubsystem::Refresh()
 
 void UMeshPaintingSubsystem::CleanUp()
 {
+	LastPaintedComponent = nullptr;
+
 	for (auto& MeshAdapterPair : ComponentToAdapterMap)
 	{
 		MeshAdapterPair.Value->OnRemoved();

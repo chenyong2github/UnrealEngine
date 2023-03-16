@@ -85,6 +85,8 @@ void FMeshPaintEditorModeCommands::RegisterCommands()
 	TextureCommands.Add(TextureSelect);
 	UI_COMMAND(TexturePaint, "Paint", "Paint the mesh", EUserInterfaceActionType::ToggleButton, FInputChord());
 	TextureCommands.Add(TexturePaint);
+	UI_COMMAND(TextureFill, "Fill", "Fills the selected Mesh's texture with the Paint Color", EUserInterfaceActionType::Button, FInputChord());
+	TextureCommands.Add(TextureFill);
 	
 	UI_COMMAND(PreviousTexture, "Previous Texture", "Cycle To Previous Texture", EUserInterfaceActionType::Button, FInputChord(EKeys::Comma));
 	UI_COMMAND(NextTexture, "Next Texture", "Cycle To Next Texture", EUserInterfaceActionType::Button, FInputChord(EKeys::Period));

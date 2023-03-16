@@ -83,6 +83,8 @@ public:
 	int32 PaintWeightIndex;
 	int32 UVChannel;
 	FApplyVertexPaintData ApplyVertexDataDelegate;
+	FVector2f BrushPosition2D;
+	bool bUseFillBucket = false;
 };
 
 /** Structure used to hold per-triangle data for texture painting */
@@ -140,6 +142,10 @@ struct FPaintTexture2DData
 	/** List of component we are painting on */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMeshComponent>> PaintedComponents;
+	
+	/** Optional render target texture used as an input while painting that contains a clone of the texture painting brush */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextureRenderTarget2D> PaintBrushRenderTargetTexture = nullptr;
 
 	FPaintTexture2DData() = default;
 

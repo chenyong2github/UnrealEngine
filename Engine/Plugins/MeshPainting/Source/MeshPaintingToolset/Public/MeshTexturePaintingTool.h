@@ -6,6 +6,7 @@
 #include "MeshPaintHelpers.h"
 #include "MeshPaintInteractions.h"
 #include "MeshPaintingToolsetTypes.h"
+#include "MeshVertexPaintingTool.h"
 #include "Misc/ITransaction.h"
 
 #include "MeshTexturePaintingTool.generated.h"
@@ -84,6 +85,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (DisplayThumbnail = "true", TransientToolProperty))
 	TObjectPtr<UTexture2D> PaintTexture;
 
+	/** Optional Texture Brush to which Painting should use */
+	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (DisplayThumbnail = "true", TransientToolProperty))
+	TObjectPtr<UTexture2D> PaintBrush = nullptr;
+
+	/** Initial Rotation offset to apply to our paint brush */
+	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (TransientToolProperty, UIMin = "0.0", UIMax = "360.0", ClampMin = "0.0", ClampMax = "360.0"))
+	float PaintBrushRotationOffset = 0.0f;
+
+	/** Whether or not to continously rotate the brush towards the painting direction */
+	UPROPERTY(EditAnywhere, Category = TexturePainting, meta = (TransientToolProperty))
+	bool bRotateBrushTowardsDirection = false;
+
 	/** Enables "Flow" painting where paint is continually applied from the brush every tick */
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Enable Brush Flow"))
 	bool bEnableFlow;
@@ -135,6 +148,7 @@ public:
 	/** Returns the number of texture that require a commit. */
 	int32 GetNumberOfPendingPaintChanges() const;
 
+	void FloodCurrentPaintTexture();
 	bool ShouldFilterTextureAsset(const FAssetData& AssetData) const;
 	void PaintTextureChanged(const FAssetData& AssetData);
 	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) const override;
@@ -156,7 +170,7 @@ protected:
 	FPaintTexture2DData* AddPaintTargetData(UTexture2D* InTexture);
 	void GatherTextureTriangles(IMeshPaintComponentAdapter* Adapter, int32 TriangleIndex, const int32 VertexIndices[3], TArray<FTexturePaintTriangleInfo>* TriangleInfo, TArray<FTexturePaintMeshSectionInfo>* SectionInfos, int32 UVChannelIndex);
 	void StartPaintingTexture(UMeshComponent* InMeshComponent, const IMeshPaintComponentAdapter& GeometryInfo);
-	void PaintTexture(FMeshPaintParameters& InParams, TArray<FTexturePaintTriangleInfo>& InInfluencedTriangles, const IMeshPaintComponentAdapter& GeometryInfo);
+	void PaintTexture(FMeshPaintParameters& InParams, TArray<FTexturePaintTriangleInfo>& InInfluencedTriangles, const IMeshPaintComponentAdapter& GeometryInfo, FMeshPaintParameters* LastParams = nullptr);
 	void FinishPaintingTexture();
 	void OnTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState);
 
@@ -184,6 +198,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<const UTexture>> Textures;
+
+	TArray<FPaintRayResults> LastPaintRayResults;
+	bool bRequestPaintBucketFill = false;
 
 	/** Flag for whether or not we are currently painting */
 	bool bArePainting;

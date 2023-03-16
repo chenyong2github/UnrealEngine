@@ -278,6 +278,8 @@ class ENGINE_API FColoredTexturedMaterialRenderProxy : public FColoredMaterialRe
 public:
 	const UTexture* Texture;
 	FName TextureParamName;
+	float UVChannel = 0;
+	FName UVChannelParamName = FName("None");
 
 	/** Initialization constructor. */
 	FColoredTexturedMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InColor, FName InColorParamName, const UTexture* InTexture, FName InTextureParamName);

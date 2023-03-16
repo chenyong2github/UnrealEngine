@@ -3,6 +3,7 @@
 #pragma once
 
 #include "EditorSubsystem.h"
+#include "MeshPaintModeHelpers.generated.h"
 
 class FMeshPaintParameters;
 class UImportVertexColorOptions;
@@ -23,13 +24,21 @@ class FSceneView;
 struct FStaticMeshComponentLODInfo;
 struct FPerComponentVertexColorData;
 
+UENUM()
+enum class EMeshPaintActiveMode : uint8
+{
+	Color UMETA(DisplayName = "Color"),
+	Weights UMETA(DisplayName = "Weights"),
+	Texture UMETA(DisplayName = "Texture"),
+};
+
 enum class EMeshPaintDataColorViewMode : uint8;
 
 class MESHPAINTEDITORMODE_API UMeshPaintModeSubsystem : public UEditorSubsystem
 {
 public:
 	/** Forces the Viewport Client to render using the given Viewport Color ViewMode */
-	void SetViewportColorMode(EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient);
+	void SetViewportColorMode(EMeshPaintActiveMode ActiveMode, EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient);
 
 	/** Sets whether or not the level viewport should be real time rendered move or viewport as parameter? */
 	void SetRealtimeViewport(bool bRealtime);

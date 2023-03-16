@@ -109,7 +109,7 @@ public:
 	virtual bool IsMeshAdapterSupported(TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter) const override;
 	virtual bool AllowsMultiselect() const override
 	{
-		return false;
+		return true;
 	}
 
 };

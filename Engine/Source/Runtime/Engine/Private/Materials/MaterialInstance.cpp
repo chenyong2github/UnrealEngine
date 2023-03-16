@@ -1084,6 +1084,13 @@ void UMaterialInstance::GetTextureExpressionValues(const FMaterialResource* Mate
 			}
 		}
 	}
+#if WITH_EDITOR
+	for (int32 i = 0; i < TransientTextureParameterOverrides.Num(); ++i)
+	{
+		OutTextures.AddUnique(TransientTextureParameterOverrides[i].OverrideTexture);
+		OutTextures.AddUnique(TransientTextureParameterOverrides[i].PreviousTexture);
+	}
+#endif
 }
 
 void UMaterialInstance::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQualityLevel::Type QualityLevel, bool bAllQualityLevels, ERHIFeatureLevel::Type FeatureLevel, bool bAllFeatureLevels) const
@@ -1418,6 +1425,9 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 			RecacheUniformExpressions(false);
 		}
 	}
+
+	// Override texture parameters as well
+	OverrideTextureParameterValue(InTextureToOverride, OverrideTexture);
 #endif // #if WITH_EDITOR
 }
 
@@ -2704,6 +2714,11 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 #endif
 
+#if WITH_EDITOR
+	// Do not serialize the overrides
+	ResetAllTextureParameterOverrides();
+#endif
+
 	Super::Serialize(Ar);
 
 #if WITH_EDITOR
@@ -3717,6 +3732,9 @@ void UMaterialInstance::ClearParameterValuesInternal(EMaterialInstanceClearParam
 
 	if (EnumHasAnyFlags(Flags, EMaterialInstanceClearParameterFlag::Texture))
 	{
+#if WITH_EDITOR
+		ResetAllTextureParameterOverrides();
+#endif
 		TextureParameterValues.Empty();
 		RuntimeVirtualTextureParameterValues.Empty();
 		SparseVolumeTextureParameterValues.Empty();
@@ -4913,4 +4931,123 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 #if WITH_EDITOR
 	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 #endif
+}
+
+#if WITH_EDITOR
+void UMaterialInstance::OverrideTextureParameterValue(const UTexture* InTextureToOverride, UTexture* OverrideTexture)
+{
+	int32 OverrideIndex = -1;
+
+	// Find an existing texture parameter override if it exists
+	// Iterate backwards to match ResetAllTextureParameterOverrides
+	for (int32 i = TransientTextureParameterOverrides.Num() - 1; i >= 0; --i)
+	{
+		FTextureParameterOverride* CurrentOverride = &TransientTextureParameterOverrides[i];
+		if (CurrentOverride->PreviousTexture == InTextureToOverride)
+		{
+			OverrideIndex = i;
+			break;
+		}
+	}
+
+	if (OverrideTexture == nullptr)
+	{
+		// Remove our entry from the overrides
+		if (OverrideIndex != -1)
+		{
+			// Swap with previous
+			OverrideTextureParameterValueInternal(TransientTextureParameterOverrides[OverrideIndex].OverrideTexture, TransientTextureParameterOverrides[OverrideIndex].PreviousTexture);
+			TransientTextureParameterOverrides.RemoveAt(OverrideIndex);
+		}
+	}
+	else
+	{
+		// Only cache if we actually have this texture as a parameter
+		TObjectPtr<UTexture> OldTexture = OverrideTextureParameterValueInternal(InTextureToOverride, OverrideTexture);
+		if (OverrideIndex == -1 && OldTexture != nullptr)
+		{
+			int32 NewArraySize = TransientTextureParameterOverrides.Add(FTextureParameterOverride(OldTexture, OverrideTexture));
+			OverrideIndex = NewArraySize - 1;
+		}
+	}
+
+	UMaterialInstance* ParentInstance = Parent.Get() ? Cast<UMaterialInstance>(Parent) : nullptr;
+	if (ParentInstance)
+	{
+		uint32 OldParentParameterOverrideCount = ParentInstance->TransientTextureParameterOverrides.Num();
+		ParentInstance->OverrideTextureParameterValue(InTextureToOverride, OverrideTexture);
+
+		// Make sure to update ourself since the parent changed
+		if (OldParentParameterOverrideCount != ParentInstance->TransientTextureParameterOverrides.Num())
+		{
+			FMaterialInstanceResource* LocalResource = Resource;
+			if (LocalResource)
+			{
+				ENQUEUE_RENDER_COMMAND(RefreshMIParameterValue)
+					(
+						[LocalResource](FRHICommandListImmediate& RHICmdList)
+						{
+							LocalResource->CacheUniformExpressions(false);
+						}
+				);
+			}
+#if WITH_EDITOR
+			FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
+		}
+
+	}
+}
+
+TObjectPtr<UTexture> UMaterialInstance::OverrideTextureParameterValueInternal(const UTexture* InTextureToOverride, UTexture* OverrideTexture)
+{
+	TObjectPtr<UTexture> OldTexture = nullptr;
+	for (int32 i = 0; i < TextureParameterValues.Num(); ++i)
+	{
+		if (TextureParameterValues[i].ParameterValue == InTextureToOverride)
+		{
+			// Do not break early because there could be multiple references to the same texture
+			TObjectPtr<class UTexture> OldParameterValue = TextureParameterValues[i].ParameterValue;
+			SetTextureParameterValueInternal(TextureParameterValues[i].ParameterInfo, OverrideTexture);
+			OldTexture = OldParameterValue;
+		}
+	}
+
+	return OldTexture;
+}
+
+void UMaterialInstance::ResetAllTextureParameterOverrides()
+{
+	// Iterate backwards as textures are removed and the array is shifted
+	for (int32 i = TransientTextureParameterOverrides.Num() - 1; i >= 0; --i)
+	{
+		OverrideTextureParameterValue(TransientTextureParameterOverrides[i].PreviousTexture, nullptr);
+	}
+
+	UMaterialInstance* ParentInstance = Parent.Get() ? Cast<UMaterialInstance>(Parent) : nullptr;
+	if (ParentInstance)
+	{
+		ParentInstance->ResetAllTextureParameterOverrides();
+	}
+}
+#endif
+
+bool UMaterialInstance::GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, class UTexture*& OutValue, bool bOveriddenOnly) const
+{
+	bool bResult = Super::GetTextureParameterValue(ParameterInfo, OutValue, bOveriddenOnly);
+#if WITH_EDITOR
+	// See if there is an override in place, if there is, replace it with the original
+	if (bResult)
+	{
+		for (int32 i = 0; i < TransientTextureParameterOverrides.Num(); ++i)
+		{
+			if (TransientTextureParameterOverrides[i].OverrideTexture == OutValue)
+			{
+				OutValue = TransientTextureParameterOverrides[i].PreviousTexture.Get();
+			}
+		}
+	}
+#endif
+
+	return bResult;
 }

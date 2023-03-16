@@ -85,6 +85,9 @@ public:
 	/** Makes sure that the render target is ready to paint on */
 	static void SetupInitialRenderTargetData(FPaintTexture2DData& PaintTextureData);
 
+	/** Keep old legacy method of initializing render target data for the paint brush texture; @todo MeshPaint: Migrate to the method with texture re-use */
+	static void SetupInitialRenderTargetData(UTexture2D* InTextureSource, UTextureRenderTarget2D* InRenderTarget);
+
 	/** Update the render target base on scratch texture */
 	static void UpdateRenderTargetData(FPaintTexture2DData& PaintTextureData);
 

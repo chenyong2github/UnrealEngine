@@ -42,7 +42,7 @@
 #include "InterchangePythonPipelineBase.h"
 
 
-void UMeshPaintModeSubsystem::SetViewportColorMode(EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient)
+void UMeshPaintModeSubsystem::SetViewportColorMode(EMeshPaintActiveMode ActiveMode, EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient)
 {
 	if (ViewportClient->IsPerspective())
 	{
@@ -108,6 +108,35 @@ void UMeshPaintModeSubsystem::SetViewportColorMode(EMeshPaintDataColorViewMode C
 				}
 				break;
 				}
+				UTexture* SelectedTexture = nullptr;
+				float UVChannel = 0.0f; // Keep as float since it must be a fed to the material as a scalar parameter
+				if (ActiveMode == EMeshPaintActiveMode::Texture)
+				{
+					UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
+					UMeshTexturePaintingToolProperties* Settings = UMeshPaintMode::GetTextureToolProperties();
+					if (MeshPaintingSubsystem && MeshPaintingSubsystem->OverridePaintTexture.IsValid())
+					{
+						SelectedTexture = MeshPaintingSubsystem->OverridePaintTexture.Get();
+					}
+					
+					if (Settings)
+					{
+						if (!SelectedTexture)
+						{
+							SelectedTexture = Settings->PaintTexture;
+						}
+						UVChannel = Settings->UVChannel;
+					}
+
+					const UMeshComponent* LastPaintedComponent = MeshPaintingSubsystem->LastPaintedComponent;
+					if (LastPaintedComponent)
+					{
+						GVertexViewModeOverrideOwnerName = *LastPaintedComponent->GetOwner()->GetName();
+					}
+				}
+
+				GVertexViewModeOverrideTexture = SelectedTexture;
+				GVertexViewModeOverrideUVChannel = UVChannel;
 			}
 		}
 	}

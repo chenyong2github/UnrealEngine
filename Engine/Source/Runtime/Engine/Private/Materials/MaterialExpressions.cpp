@@ -10480,15 +10480,28 @@ UMaterialExpressionParticleSubUV::UMaterialExpressionParticleSubUV(const FObject
 #if WITH_EDITOR
 int32 UMaterialExpressionParticleSubUV::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (Texture)
+	// Overriding texture with texture parameter
+	TObjectPtr<class UTexture> TextureToCompile = Texture;
+	TEnumAsByte<enum EMaterialSamplerType> SamplerTypeToUse = SamplerType; 
+	if (TextureObject.GetTracedInput().Expression != nullptr)
+	{
+		TObjectPtr<UMaterialExpressionTextureObjectParameter> TextureObjectParameter = Cast<UMaterialExpressionTextureObjectParameter>(TextureObject.GetTracedInput().Expression);
+		if (TextureObjectParameter.Get())
+		{
+			TextureToCompile = TextureObjectParameter->Texture;
+			SamplerTypeToUse = TextureObjectParameter->SamplerType;
+		}
+	}
+
+	if (TextureToCompile)
 	{
 		FString SamplerTypeError;
-		if (!VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), Texture, SamplerType, SamplerTypeError))
+		if (!VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), TextureToCompile, SamplerTypeToUse, SamplerTypeError))
 		{
 			return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 		}
-		int32 TextureCodeIndex = Compiler->Texture(Texture, SamplerType);
-		return ParticleSubUV(Compiler, TextureCodeIndex, SamplerType, CompileMipValue0(Compiler), CompileMipValue1(Compiler), MipValueMode, bBlend);
+		int32 TextureCodeIndex = Compiler->Texture(TextureToCompile, SamplerTypeToUse);
+		return ParticleSubUV(Compiler, TextureCodeIndex, SamplerTypeToUse, CompileMipValue0(Compiler), CompileMipValue1(Compiler), MipValueMode, bBlend);
 	}
 	else
 	{

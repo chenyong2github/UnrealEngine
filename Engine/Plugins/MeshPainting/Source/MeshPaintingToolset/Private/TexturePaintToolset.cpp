@@ -376,6 +376,37 @@ UTexture2D* UTexturePaintToolset::CreateScratchUncompressedTexture(UTexture2D* S
 	return NewTexture2D;
 }
 
+// Keep old legacy method of initializing render target data for the paint brush texture; @todo MeshPaint: Migrate to the method with texture re-use
+void UTexturePaintToolset::SetupInitialRenderTargetData(UTexture2D* InTextureSource, UTextureRenderTarget2D* InRenderTarget)
+{
+	check(InTextureSource != nullptr);
+	check(InRenderTarget != nullptr);
+
+	if (InTextureSource->Source.IsValid())
+	{
+		// Great, we have source data!  We'll use that as our image source.
+
+		// Create a texture in memory from the source art
+		{
+			// @todo MeshPaint: This generates a lot of memory thrash -- try to cache this texture and reuse it?
+			UTexture2D* TempSourceArtTexture = CreateScratchUncompressedTexture(InTextureSource);
+			check(TempSourceArtTexture != nullptr);
+
+			// Copy the texture to the render target using the GPU
+			CopyTextureToRenderTargetTexture(TempSourceArtTexture, InRenderTarget, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+
+			// NOTE: TempSourceArtTexture is no longer needed (will be GC'd)
+		}
+	}
+	else
+	{
+		// Just copy (render) the texture in GPU memory to our render target.  Hopefully it's not
+		// compressed already!
+		check(InTextureSource->IsFullyStreamedIn());
+		CopyTextureToRenderTargetTexture(InTextureSource, InRenderTarget, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+	}
+}
+
 void UTexturePaintToolset::SetupInitialRenderTargetData(FPaintTexture2DData& PaintTextureData)
 {
 	check(PaintTextureData.PaintingTexture2D != nullptr);

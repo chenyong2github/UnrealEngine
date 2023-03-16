@@ -26,22 +26,25 @@ namespace MeshPaintRendering
 
 		// @todo MeshPaint: Should be serialized no?
 		UTextureRenderTarget2D* CloneTexture;
+		UTextureRenderTarget2D* PaintBrushTexture;
 
 		FMatrix WorldToBrushMatrix;
+		FVector2f PaintBrushDirectionVector;
 
 		float BrushRadius;
 		float BrushRadialFalloffRange;
 		float BrushDepth;
 		float BrushDepthFalloffRange;
 		float BrushStrength;
+		float PaintBrushRotationOffset;
 		FLinearColor BrushColor;
 		bool RedChannelFlag;
 		bool BlueChannelFlag;
 		bool GreenChannelFlag;
 		bool AlphaChannelFlag;
 		bool GenerateMaskFlag;
-
-
+		bool bRotateBrushTowardsDirection;
+		bool bUseFillBucket = false;
 	};
 
 
