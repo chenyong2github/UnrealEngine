@@ -144,10 +144,7 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<AAc
 
 void AddSubActor(const FWorldPartitionActorDescView& ActorDescView, const IStreamingGenerationContext::FActorInstance& ActorInstance, TSet<FHLODSubActor>& SubActors)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// Leaving this as deprecated for now until we fix up the serialization format for SubActorsInfo and do proper upgrade/deprecation 
-	FName ActorPath = ActorDescView.GetActorPath();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	const FName ActorPath = *ActorDescView.GetActorSoftPath().ToString();
 
 	// Add the actor
 	bool bIsAlreadyInSet = false;

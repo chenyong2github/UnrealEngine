@@ -42,10 +42,6 @@ public:
 	const TArray<FName>& GetTags() const;
 	FName GetActorPackage() const;
 	
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.1, "GetActorPath is deprecated, GetActorSoftPath should be used instead.")
-	inline FName GetActorPath() const { return GetActorSoftPath().ToFName(); }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FSoftObjectPath GetActorSoftPath() const;
 	FName GetActorLabel() const;
 
