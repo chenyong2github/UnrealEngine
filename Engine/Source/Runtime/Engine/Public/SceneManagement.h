@@ -61,6 +61,7 @@ class USkyAtmosphereComponent;
 class FSkyAtmosphereRenderSceneInfo;
 class USkyLightComponent;
 class UTexture2D;
+class UTexture;
 class UTextureLightProfile;
 struct FDynamicMeshVertex;
 class ULightMapVirtualTexture2D;
