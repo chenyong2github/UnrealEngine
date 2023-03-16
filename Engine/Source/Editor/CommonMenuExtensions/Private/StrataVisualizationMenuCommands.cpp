@@ -49,22 +49,7 @@ void FStrataVisualizationMenuCommands::BuildCommandMap()
 			.UserInterfaceType(EUserInterfaceActionType::RadioButton)
 			.DefaultChord(FInputChord()
 		);
-
-		switch (Entry.Mode)
-		{
-		default:
-		case FStrataVisualizationData::FViewMode::MaterialProperties:
-			Record.Type = FStrataVisualizationType::MaterialProperties;
-			break;
-
-		case FStrataVisualizationData::FViewMode::MaterialCount:
-			Record.Type = FStrataVisualizationType::MaterialCount;
-			break;
-
-		case FStrataVisualizationData::FViewMode::AdvancedMaterialProperties:
-			Record.Type = FStrataVisualizationType::AdvancedMaterialProperties;
-			break;
-		}
+		Record.ViewMode = Entry.ViewMode;
 	}
 }
 
@@ -73,17 +58,29 @@ void FStrataVisualizationMenuCommands::BuildVisualisationSubMenu(FMenuBuilder& M
 	const FStrataVisualizationMenuCommands& Commands = FStrataVisualizationMenuCommands::Get();
 	if (Commands.IsPopulated())
 	{
-		Menu.BeginSection("LevelViewportSubstrateVisualizationMode", LOCTEXT("SubstrateVisualizationHeader", "Substrate Visualization Mode"));
+		// General
+		{
+			Menu.BeginSection("LevelViewportSubstrateVisualizationMode", LOCTEXT("SubstrateVisualizationHeader", "Substrate General View Mode"));
+			Commands.AddCommandTypeToMenu(Menu, FStrataViewMode::MaterialProperties);
+			Commands.AddCommandTypeToMenu(Menu, FStrataViewMode::MaterialCount);
+			Commands.AddCommandTypeToMenu(Menu, FStrataViewMode::MaterialByteCount);
+			Commands.AddCommandTypeToMenu(Menu, FStrataViewMode::StrataInfo);
+			Menu.EndSection();
+		}
 
-		Commands.AddCommandTypeToMenu(Menu, FStrataVisualizationType::MaterialProperties);
-		Commands.AddCommandTypeToMenu(Menu, FStrataVisualizationType::MaterialCount);
-		Commands.AddCommandTypeToMenu(Menu, FStrataVisualizationType::AdvancedMaterialProperties);
-
-		Menu.EndSection();
+		// Advanced
+		{
+			Menu.BeginSection("LevelViewportSubstrateVisualizationMode", LOCTEXT("SubstrateVisualizationHeader", "Substrate Advanced View Mode"));
+			Commands.AddCommandTypeToMenu(Menu, FStrataViewMode::AdvancedMaterialProperties);
+			Commands.AddCommandTypeToMenu(Menu, FStrataViewMode::MaterialClassification);
+			Commands.AddCommandTypeToMenu(Menu, FStrataViewMode::RoughRefractionClassification);
+			Commands.AddCommandTypeToMenu(Menu, FStrataViewMode::DecalClassification);
+			Menu.EndSection();
+		}
 	}
 }
 
-bool FStrataVisualizationMenuCommands::AddCommandTypeToMenu(FMenuBuilder& Menu, const FStrataVisualizationType Type) const
+bool FStrataVisualizationMenuCommands::AddCommandTypeToMenu(FMenuBuilder& Menu, const FStrataViewMode ViewMode) const
 {
 	bool bAddedCommands = false;
 
@@ -91,7 +88,7 @@ bool FStrataVisualizationMenuCommands::AddCommandTypeToMenu(FMenuBuilder& Menu, 
 	for (TCommandConstIterator It = CreateCommandConstIterator(); It; ++It)
 	{
 		const FStrataVisualizationRecord& Record = It.Value();
-		if (Record.Type == Type)
+		if (Record.ViewMode == ViewMode)
 		{
 			Menu.AddMenuEntry(Record.Command, NAME_None, Record.Command->GetLabel());
 			bAddedCommands = true;

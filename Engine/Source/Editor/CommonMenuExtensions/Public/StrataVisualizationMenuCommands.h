@@ -9,6 +9,7 @@
 #include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
+#include "StrataVisualizationData.h"
 
 class FEditorViewportClient;
 class FMenuBuilder;
@@ -18,18 +19,11 @@ class FUICommandList;
 class COMMONMENUEXTENSIONS_API FStrataVisualizationMenuCommands : public TCommands<FStrataVisualizationMenuCommands>
 {
 public:
-	enum class FStrataVisualizationType : uint8
-	{
-		MaterialProperties,
-		MaterialCount,
-		AdvancedMaterialProperties,
-	};
-
 	struct FStrataVisualizationRecord
 	{
 		FName Name;
 		TSharedPtr<FUICommandInfo> Command;
-		FStrataVisualizationType Type = FStrataVisualizationType::MaterialProperties;
+		FStrataViewMode ViewMode = FStrataViewMode::MaterialProperties;
 	};
 
 	typedef TMultiMap<FName, FStrataVisualizationRecord> TStrataVisualizationModeCommandMap;
@@ -52,7 +46,7 @@ public:
 
 private:
 	void BuildCommandMap();
-	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FStrataVisualizationType Type) const;
+	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FStrataViewMode ViewMode) const;
 
 	static void ChangeStrataVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
 	static bool IsStrataVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);

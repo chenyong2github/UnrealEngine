@@ -590,6 +590,28 @@ void MaterialPrintInfoCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 uint ViewMode;
 
+float3 BytePerPixelToColor(uint In)
+{
+	float3 Out = 0;
+	// 16->32  : Blue -> green
+	// 32->64  : Green -> Orange
+	// 64->128 : Orange -> Red
+	if (In < 32)
+	{
+		Out = ColorMapTurbo(saturate((In-16.f) / 32.f) * 0.25f + 0.25f);
+	}
+	else if (In < 64)
+	{
+		Out = ColorMapTurbo(saturate((In-32.f) / 32.f) * 0.25f + 0.5f);
+	}
+	else
+	{
+		Out = ColorMapTurbo(saturate((In-64.f) / 64.f) * 0.25f + 0.75f);
+	}
+
+	return Out;
+}
+
 void VisualizeMaterialPS(
 	float4 SVPos : SV_POSITION,
 	out float4 OutColor : SV_Target0)
@@ -605,28 +627,67 @@ void VisualizeMaterialPS(
 	const float3 V = -normalize(WorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPosDynRes, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	const uint FootPrint_Start = StrataAddressing.ReadBytes;
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	const bool bStrataMaterial = Header.BSDFCount > 0;
 
 	OutColor = 0;
 	OutColor.w = 0.1f;
-
-	// BSDF count
-	const float MaxBSDFCount = 4.f;
-	if (Header.BSDFCount > 0)
+	if (ViewMode == 2)
 	{
-		const float BSDFCost = saturate(float(Header.BSDFCount) / MaxBSDFCount);
-		OutColor.xyz = ColorMapTurbo(BSDFCost);
+		// BSDF count
+		const float MaxBSDFCount = 4.f;
+		if (Header.BSDFCount > 0)
+		{
+			const float BSDFCost = saturate(float(Header.BSDFCount) / MaxBSDFCount);
+			OutColor.xyz = ColorMapTurbo(BSDFCost);
+		}
+	
+		// Print Legend
+		if (all(uint2(SVPos.xy) == uint2(0,0)))
+		{
+			FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50));
+			Print(Context, TEXT("1 BSDF"), InitFontColor(ColorMapTurbo(1 / MaxBSDFCount))); Newline(Context);
+			Print(Context, TEXT("2 BSDF"), InitFontColor(ColorMapTurbo(2 / MaxBSDFCount))); Newline(Context);
+			Print(Context, TEXT("3 BSDF"), InitFontColor(ColorMapTurbo(3 / MaxBSDFCount))); Newline(Context);
+			Print(Context, TEXT("4 BSDF"), InitFontColor(ColorMapTurbo(4 / MaxBSDFCount))); Newline(Context);
+		}
 	}
-
-	// Print Legend
-	if (all(uint2(SVPos.xy) == uint2(0,0)))
+	else if (ViewMode == 3)
 	{
-		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50));
-		Print(Context, TEXT("1 BSDF"), InitFontColor(ColorMapTurbo(1 / MaxBSDFCount))); Newline(Context);
-		Print(Context, TEXT("2 BSDF"), InitFontColor(ColorMapTurbo(2 / MaxBSDFCount))); Newline(Context);
-		Print(Context, TEXT("3 BSDF"), InitFontColor(ColorMapTurbo(3 / MaxBSDFCount))); Newline(Context);
-		Print(Context, TEXT("4 BSDF"), InitFontColor(ColorMapTurbo(4 / MaxBSDFCount))); Newline(Context);
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPosDynRes, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+		FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+
+		uint MaterialBytePerPixel = 0;
+		Strata_for (uint BSDFIndex = 0, BSDFIndex < Header.BSDFCount, ++BSDFIndex)
+		{
+			// Unpack BSDF data
+			FStrataBSDF BSDF = UnpackStrataBSDF(Strata.MaterialTextureArray, StrataAddressing, Header);
+			MaterialBytePerPixel = StrataAddressing.ReadBytes;
+		}
+			
+		OutColor.xyz = BytePerPixelToColor(MaterialBytePerPixel);
+	
+		// Print Legend
+		if (all(uint2(SVPos.xy) == uint2(0,0)))
+		{
+			FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50));
+			Print(Context, TEXT("16  Bytes"), InitFontColor(BytePerPixelToColor(16))); Newline(Context);	
+			Print(Context, TEXT("32  Bytes"), InitFontColor(BytePerPixelToColor(32))); Newline(Context);
+			Print(Context, TEXT("64  Bytes"), InitFontColor(BytePerPixelToColor(64))); Newline(Context);
+			Print(Context, TEXT("96  Bytes"), InitFontColor(BytePerPixelToColor(96))); Newline(Context);
+			Print(Context, TEXT("128 Bytes"), InitFontColor(BytePerPixelToColor(128))); Newline(Context);
+		}
+
+		// Cursor
+		if (all(PixelPosDynRes == ShaderPrintData.CursorCoord))
+		{
+			FShaderPrintContext Context = InitShaderPrintContext(true, uint2(250, 50));
+			Print(Context, MaterialBytePerPixel, InitFontColor(BytePerPixelToColor(MaterialBytePerPixel)), 3, 0); 
+			Print(Context, TEXT("/"), FontWhite); 
+			Print(Context, Strata.MaxBytesPerPixel, FontYellow, 3, 0); 
+			Print(Context, TEXT(" Bytes"), FontWhite); 
+		}
 	}
 }
 #endif // SHADER_MATERIALCOUNT
@@ -1415,6 +1476,7 @@ uint ClassificationAsync;
 uint Classification8bits;
 uint bRoughRefraction;
 uint bTileOverflowUseMaterialData;
+uint ProjectMaxBytePerPixel;
 float TileOverflowRatio;
 Buffer<uint> ClassificationTileDrawIndirectBuffer;
 
@@ -1439,7 +1501,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		Newline(Context);
 
 		Print(Context, TEXT(" Max byte per pixel : "), LegendColor); 
-		Print(Context, Strata.MaxBytesPerPixel, ValueColor);
+		Print(Context, Strata.MaxBytesPerPixel, ValueColor, 3, 0);
+		Print(Context, TEXT(" / "), FontWhite); 
+		Print(Context, ProjectMaxBytePerPixel, ValueColor, 3, 0);
 		Newline(Context);
 
 		Print(Context, TEXT(" Shading quality    : "), LegendColor);

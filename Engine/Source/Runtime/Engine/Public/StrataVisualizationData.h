@@ -4,20 +4,22 @@
 
 #include "CoreMinimal.h"
 
+enum class FStrataViewMode : uint8
+{
+	None,
+	MaterialProperties,
+	MaterialCount,
+	MaterialByteCount,
+	StrataInfo,
+	AdvancedMaterialProperties,
+	MaterialClassification,
+	RoughRefractionClassification,
+	DecalClassification,
+};
+
 class FStrataVisualizationData
 {
 public:
-	enum class FViewMode : uint8
-	{
-		None,
-		MaterialProperties,
-		MaterialCount,
-		AdvancedMaterialProperties,
-		MaterialClassification,
-		DecalClassification,
-		RoughRefractionClassification,
-		StrataInfo,
-	};
 
 	/** Describes a single available visualization mode. */
 	struct FModeRecord
@@ -26,7 +28,7 @@ public:
 		FName     ModeName;
 		FText     ModeText;
 		FText     ModeDesc;
-		FViewMode Mode;
+		FStrataViewMode ViewMode;
 
 		// Whether or not this mode (by default) composites with regular scene depth.
 		bool      bDefaultComposited;
@@ -53,7 +55,7 @@ public:
 	/** Get the display name of a named mode from the available mode map. **/
 	ENGINE_API FText GetModeDisplayName(const FName& InModeName) const;
 
-	ENGINE_API FViewMode GetViewMode(const FName& InModeName) const;
+	ENGINE_API FStrataViewMode GetViewMode(const FName& InModeName) const;
 
 	ENGINE_API bool GetModeDefaultComposited(const FName& InModeName) const;
 
