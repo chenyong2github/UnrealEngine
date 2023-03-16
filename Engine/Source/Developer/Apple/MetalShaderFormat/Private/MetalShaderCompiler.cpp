@@ -685,6 +685,9 @@ void BuildMetalShaderOutput(
 					IFileManager::Get().Delete(*SaveFile);
 				}
 			}
+
+			// For iOS 14.0+ this is required. Version==0 is IOSMetalSLStandard_Minimum
+			const bool bPreserveInvariance = Frequency == SF_Vertex && (Version == 0 || Version > 5);
 			
 			// TODO This is the actual MetalSL -> AIR piece
 			FMetalShaderBytecodeJob Job;
@@ -697,7 +700,7 @@ void BuildMetalShaderOutput(
 			Job.OutputObjectFile = AIRFileName;
 			Job.CompilerVersion = CompilerVersionString;
 			Job.MinOSVersion = MinOSVersion;
-			Job.PreserveInvariance = Frequency == SF_Vertex && Version > 5 ? TEXT("-fpreserve-invariance") : TEXT("");
+			Job.PreserveInvariance = bPreserveInvariance ? TEXT("-fpreserve-invariance") : TEXT("");
 			Job.DebugInfo = DebugInfo;
 			Job.MathMode = MathMode;
 			Job.Standard = Standard;
