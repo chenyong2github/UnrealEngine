@@ -20,7 +20,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 {
 	// CookData should only be nonzero if we are cooking.
 	TOptional<FArchiveCookData> CookData;
-	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown);
+	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown, FArchiveCookContext::ECookingDLCUnknown);
 	if (TargetPlatform != nullptr)
 	{		
 		CookData.Emplace(*TargetPlatform, CookContext);
@@ -45,7 +45,7 @@ bool UPackage::SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLev
 {
 	// CookData should only be nonzero if we are cooking.
 	TOptional<FArchiveCookData> CookData;
-	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown);
+	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown, FArchiveCookContext::ECookingDLCUnknown);
 	if (TargetPlatform != nullptr)
 	{
 		CookData.Emplace(*TargetPlatform, CookContext);

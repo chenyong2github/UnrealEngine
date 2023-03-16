@@ -36,6 +36,7 @@
 #include "ObjectCacheContext.h"
 #include "MaterialCachedData.h"
 #include "Components/DecalComponent.h"
+#include "UObject/ArchiveCookContext.h"
 
 #if WITH_EDITOR
 #include "ObjectCacheEventSink.h"
@@ -165,6 +166,13 @@ UMaterialInterface::UMaterialInterface(const FObjectInitializer& ObjectInitializ
 void UMaterialInterface::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+
+	if (Ar.IsCooking())
+	{
+		// Mark whether this material is part of the base game. This provides information on whether it is safe to be
+		// used as a parent safely in child modules.
+		bIncludedInBaseGame = Ar.GetCookContext()->GetCookingDLC() == FArchiveCookContext::ECookingDLCNo;
+	}
 
 	Super::Serialize(Ar);
 

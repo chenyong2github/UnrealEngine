@@ -956,7 +956,17 @@ bool FMaterialInstanceParameterDetails::OnShouldSetAsset(const FAssetData& Asset
 				EAppMsgType::Ok,
 				FText::Format(LOCTEXT("CannotSetExistingChildAsParent", "Cannot set {0} as a parent as it is already a child of this material instance."), FText::FromName(AssetData.AssetName)));
 		}
-		return !bIsChild;
+
+		if (bIsChild)
+		{
+			return false;
+		}
+	}
+
+	if (!MaterialEditorInstance->SourceInstance->IsSpecificMaterialValidParent(MaterialInstance))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_MaterialEditor_InvalidMaterialInstanceParent", "Only uncooked, user-defined, engine or game Materials/MaterialInstances can be selected as a MaterialInstance parent."));
+		return false;
 	}
 
 	return true;

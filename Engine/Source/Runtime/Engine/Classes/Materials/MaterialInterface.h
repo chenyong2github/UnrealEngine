@@ -275,6 +275,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
 
+	/** Whether this material interface is included in the base game (and not in a DLC) */
+	UPROPERTY()
+	uint8 bIncludedInBaseGame : 1;
+
 	/* -------------------------- */
 
 	/** A fence to track when the primitive is no longer used as a parent */
@@ -340,7 +344,7 @@ public:
 	/** Importing data and options used for this material */
 	UPROPERTY(EditAnywhere, Instanced, Category = ImportSettings)
 	TObjectPtr<class UAssetImportData> AssetImportData;
-
+	
 private:
 	/** Unique ID for this material, used for caching during distributed lighting */
 	UPROPERTY()

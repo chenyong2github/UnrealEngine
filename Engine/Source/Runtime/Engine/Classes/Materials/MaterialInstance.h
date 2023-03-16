@@ -850,6 +850,16 @@ public:
 
 	ENGINE_API void SwapLayerParameterIndices(int32 OriginalIndex, int32 NewIndex);
 	ENGINE_API void RemoveLayerParameterIndex(int32 Index);
+	
+	/**
+	 * Returns whether specified MaterialInterface is a valid parent for this MaterialInstance.
+	 */
+	ENGINE_API bool IsSpecificMaterialValidParent(UMaterialInterface* CandidateParent) const;
+
+	/**
+	 * Ensures that current parent is a valid for this material instance and if not, it resets the parent to null.
+	 */
+	ENGINE_API void ValidateParent();
 
 #endif // WITH_EDITOR
 

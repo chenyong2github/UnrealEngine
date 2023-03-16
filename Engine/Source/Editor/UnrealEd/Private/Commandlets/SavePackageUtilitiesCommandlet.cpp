@@ -37,7 +37,7 @@ int32 USavePackageUtilitiesCommandlet::Main(const FString& Params)
 
 		// CookData should only be nonzero if we are cooking.
 		TOptional<FArchiveCookData> CookData;
-		FArchiveCookContext CookContext(Package, FArchiveCookContext::ECookTypeUnknown);
+		FArchiveCookContext CookContext(Package, FArchiveCookContext::ECookTypeUnknown, FArchiveCookContext::ECookingDLCUnknown);
 		if (TargetPlatform != nullptr)
 		{
 			CookData.Emplace(*TargetPlatform, CookContext);

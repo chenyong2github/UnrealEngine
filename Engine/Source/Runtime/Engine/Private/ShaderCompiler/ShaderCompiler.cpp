@@ -7603,7 +7603,7 @@ FString SaveGlobalShaderFile(EShaderPlatform Platform, FString SavePath, class I
 
 #if WITH_EDITOR
 		TOptional<FArchiveCookData> CookData;
-		FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+		FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown, FArchiveCookContext::ECookingDLCUnknown);
 		if (TargetPlatform != nullptr)
 		{
 			CookData.Emplace(*TargetPlatform, CookContext);
@@ -8218,7 +8218,7 @@ void CompileGlobalShaderMapForRemote(
 	FNameAsStringProxyArchive Ar(MemWriter);
 
 	TOptional<FArchiveCookData> CookData;
-	FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+	FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown, FArchiveCookContext::ECookingDLCUnknown);
 	if (TargetPlatform != nullptr)
 	{
 		CookData.Emplace(*TargetPlatform, CookContext);
@@ -8236,7 +8236,7 @@ void SaveShaderMapsForRemote(ITargetPlatform* TargetPlatform, const TMap<FString
 	FNameAsStringProxyArchive Ar(MemWriter);
 
 	TOptional<FArchiveCookData> CookData;
-	FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+	FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown, FArchiveCookContext::ECookingDLCUnknown);
 	if (TargetPlatform != nullptr)
 	{
 		CookData.Emplace(*TargetPlatform, CookContext);

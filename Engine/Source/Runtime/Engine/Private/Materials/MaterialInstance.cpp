@@ -61,6 +61,10 @@ DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInst
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyUniformParamsInternal"), STAT_MaterialInstance_CopyUniformParamsInternal, STATGROUP_Shaders);
 
+// This flag controls whether MaterialInstances parents should be restricted to be either uncooked, to be
+// user defined, part of the engine or part of the base game.
+bool bEnableRestrictiveMaterialInstanceParents = false;
+
 const FMaterialInstanceCachedData FMaterialInstanceCachedData::EmptyData{};
 
 void UMaterialInstance::StartCacheUniformExpressions() const
@@ -2271,7 +2275,7 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 			{
 				// Load the shader map for this resource, if needed
 				FMaterialResource Tmp;
-				FName PackageFileName = GetOutermost()->FileName;
+				FName PackageFileName = GetPackage()->FileName;
 				UE_CLOG(PackageFileName.IsNone(), LogMaterial, Warning,
 					TEXT("UMaterialInstance::CacheResourceShadersForRendering - Can't reload material resource '%s'. File system based reload is unsupported in this build."),
 					*GetFullName());
@@ -2848,7 +2852,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		else
 		{
-			const bool bLoadedByCookedMaterial = FPlatformProperties::RequiresCookedData() || GetOutermost()->bIsCookedForEditor;
+			const bool bLoadedByCookedMaterial = FPlatformProperties::RequiresCookedData() || GetPackage()->bIsCookedForEditor;
 
 			FMaterialResource LegacyResource;
 			LegacyResource.LegacySerialize(Ar);
@@ -2997,6 +3001,10 @@ void UMaterialInstance::PostLoad()
 		Parent->ConditionalPostLoad();
 	}
 
+#if WITH_EDITOR
+	ValidateParent();
+#endif
+
 	// Add references to the expression object if we do not have one already, and fix up any names that were changed.
 	UpdateParameters();
 
@@ -3132,6 +3140,56 @@ void UMaterialInstance::PostLoad()
 	}
 	//DumpDebugInfo(*GLog);
 }
+
+#if WITH_EDITOR
+
+bool UMaterialInstance::IsSpecificMaterialValidParent(UMaterialInterface* CandidateParent) const
+{
+	// Nothing to do if specified parent is null or if restrictive mode is disabled
+	if (!CandidateParent || !bEnableRestrictiveMaterialInstanceParents)
+	{
+		return true;
+	}
+
+	// Cache this material package
+	UPackage* Package = GetPackage();
+
+	// Controls whether material is allowed.
+	bool bIsMaterialParentValid = false;
+	
+	// Or if this material instance package is cooked
+	bIsMaterialParentValid |= Package->HasAnyPackageFlags(PKG_Cooked);
+	
+	// Or if this material instance is transient
+	bIsMaterialParentValid |= Package == GetTransientPackage();
+	
+	// Or if the candidate material is uncooked
+	bIsMaterialParentValid |= !CandidateParent->GetPackage()->HasAnyPackageFlags(PKG_Cooked);
+	
+	// Or if the candidate parent is a Mateiral and it is flagged to be used as a special engine material
+	if (UMaterial* Material = Cast<UMaterial>(CandidateParent))
+	{
+		bIsMaterialParentValid |= Material->bUsedAsSpecialEngineMaterial;
+	}
+	
+	// Allow candidate material if it is included in base game.
+	bIsMaterialParentValid |= CandidateParent->bIncludedInBaseGame;
+
+	return bIsMaterialParentValid;
+}
+
+void UMaterialInstance::ValidateParent()
+{
+	const UMaterialInterface* PrevParent = Parent;
+	if (!IsSpecificMaterialValidParent(Parent))
+	{
+		// We don't allow Material Instances to parent to cooked materials.
+		UE_LOG(LogMaterial, Warning, TEXT("Can't set material instance '%s' to cooked non-user non-base parent material '%s'. Setting parent to null."), *GetName(), *PrevParent->GetName());
+		SetParentInternal(nullptr, true);
+	}
+}
+
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 void UMaterialInstance::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
@@ -3914,6 +3972,11 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 		// Update primitives that might depend on the nanite override material.
 		FGlobalComponentRecreateRenderStateContext RecreateComponentsRenderState;
+	}
+
+	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterialInstance, Parent))
+	{
+		ValidateParent();
 	}
 
 	// If BLEND_TranslucentColoredTransmittance is selected while Strata is not enabled, force BLEND_Translucent blend mode

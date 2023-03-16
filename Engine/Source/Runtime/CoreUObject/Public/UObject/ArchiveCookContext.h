@@ -17,20 +17,29 @@ public:
 		ECookByTheBook
 	};
 
+	enum ECookingDLC
+	{
+		ECookingDLCUnknown,
+		ECookingDLCYes,
+		ECookingDLCNo,
+	};
+
 private:
 
 	// Only valid for cook by the book.
 	FCookTagList CookTagList;
 	bool bCookTagListEnabled = false;
 	ECookType CookType;
+	ECookingDLC CookingDLC = ECookingDLCUnknown;
 
 public:
 
 
-	FArchiveCookContext(UPackage* InPackage, ECookType InCookType) :
+	FArchiveCookContext(UPackage* InPackage, ECookType InCookType, ECookingDLC CookingDLC) :
 		CookTagList(InPackage),
 		bCookTagListEnabled(InPackage && InCookType == ECookByTheBook),
-		CookType(InCookType)
+		CookType(InCookType),
+		CookingDLC(CookingDLC)
 	{
 		
 	}
@@ -46,4 +55,5 @@ public:
 	bool IsCookOnTheFly() const { return CookType == ECookType::ECookOnTheFly; }
 	bool IsCookTypeUnknown() const { return CookType == ECookType::ECookTypeUnknown; }
 	ECookType GetCookType() const { return CookType; }
+	ECookingDLC GetCookingDLC() const { return CookingDLC; }
 };

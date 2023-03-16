@@ -5669,7 +5669,9 @@ FSaveCookedPackageContext::FSaveCookedPackageContext(UCookOnTheFlyServer& InCOTF
 	, Package(PackageData.GetPackage())
 	, PackageName(Package ? Package->GetName() : FString())
 	, Filename(PackageData.GetFileName().ToString())
-	, ArchiveCookContext(Package, InCOTFS.IsDirectorCookByTheBook() ? FArchiveCookContext::ECookByTheBook : FArchiveCookContext::ECookOnTheFly)
+	, ArchiveCookContext(Package,
+		InCOTFS.IsDirectorCookByTheBook() ? FArchiveCookContext::ECookByTheBook : FArchiveCookContext::ECookOnTheFly,
+		InCOTFS.IsCookingDLC() ? FArchiveCookContext::ECookingDLCYes : FArchiveCookContext::ECookingDLCNo)
 {
 }
 
