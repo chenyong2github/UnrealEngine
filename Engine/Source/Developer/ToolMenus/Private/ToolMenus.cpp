@@ -898,6 +898,11 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 	}
 	FCustomizedToolMenu CustomizedMenu = CustomizationHierarchy.GenerateFlattened();
 
+	if (CustomizedMenu.IsSuppressExtenders())
+	{
+		GeneratedMenu->SetExtendersEnabled(false);
+	}
+
 	TArray<FToolMenuSection> NewSections;
 	NewSections.Reserve(GeneratedMenu->Sections.Num());
 
@@ -2406,6 +2411,11 @@ void UToolMenus::UnregisterRuntimeMenuCustomizationOwner(FName InOwnerName)
 	for (FCustomizedToolMenu& CustomizedToolMenu : RuntimeCustomizedMenus)
 	{
 		if (CustomizedToolMenu.MenuPermissions.UnregisterOwner(InOwnerName))
+		{
+			bNeedsRefresh = true;
+		}
+
+		if (CustomizedToolMenu.SuppressExtenders.Remove(InOwnerName) > 0)
 		{
 			bNeedsRefresh = true;
 		}

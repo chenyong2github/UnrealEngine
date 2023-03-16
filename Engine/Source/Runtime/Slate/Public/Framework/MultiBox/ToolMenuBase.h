@@ -74,6 +74,9 @@ struct SLATE_API FCustomizedToolMenu
 	UPROPERTY()
 	TArray<FName> SectionOrder;
 
+	UPROPERTY()
+	TArray<FName> SuppressExtenders;
+
 	FNamePermissionList MenuPermissions;
 
 	FCustomizedToolMenuEntry* FindEntry(const FName InEntryName);
@@ -88,6 +91,9 @@ struct SLATE_API FCustomizedToolMenu
 	FCustomizedToolMenuSection* AddSection(const FName InSectionName);
 	ECustomizedToolMenuVisibility GetSectionVisiblity(const FName InSectionName) const;
 	bool IsSectionHidden(const FName InSectionName) const;
+
+	void SetSuppressExtenders(const FName InOwnerName, const bool bInSuppress);
+	bool IsSuppressExtenders() const;
 };
 
 struct SLATE_API FCustomizedToolMenuHierarchy
@@ -96,6 +102,8 @@ struct SLATE_API FCustomizedToolMenuHierarchy
 	bool IsEntryHidden(const FName InEntryName) const;
 
 	bool IsSectionHidden(const FName InSectionName) const;
+
+	bool IsSuppressExtenders() const;
 
 	FCustomizedToolMenu GenerateFlattened() const;
 

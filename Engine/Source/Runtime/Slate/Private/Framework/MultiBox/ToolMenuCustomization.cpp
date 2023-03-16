@@ -79,6 +79,23 @@ bool FCustomizedToolMenu::IsSectionHidden(const FName InEntryName) const
 	return GetSectionVisiblity(InEntryName) == ECustomizedToolMenuVisibility::Hidden;
 }
 
+void FCustomizedToolMenu::SetSuppressExtenders(const FName InOwnerName, const bool bInSuppress)
+{
+	if (bInSuppress)
+	{
+		SuppressExtenders.AddUnique(InOwnerName);
+	}
+	else
+	{
+		SuppressExtenders.Remove(InOwnerName);
+	}
+}
+
+bool FCustomizedToolMenu::IsSuppressExtenders() const
+{
+	return !SuppressExtenders.IsEmpty();
+}
+
 FName FCustomizedToolMenuHierarchy::GetEntrySectionName(const FName InEntryName) const
 {
 	for (int32 i = Hierarchy.Num() - 1; i >= 0; --i)
@@ -142,6 +159,22 @@ bool FCustomizedToolMenuHierarchy::IsSectionHidden(const FName InSectionName) co
 	return false;
 }
 
+bool FCustomizedToolMenuHierarchy::IsSuppressExtenders() const
+{
+	for (int32 i = Hierarchy.Num() - 1; i >= 0; --i)
+	{
+		if (Hierarchy[i])
+		{
+			if (Hierarchy[i]->IsSuppressExtenders())
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 FCustomizedToolMenu FCustomizedToolMenuHierarchy::GenerateFlattened() const
 {
 	static auto HandleCustomizedToolMenu = [](FCustomizedToolMenu& Result, const FCustomizedToolMenu* Current)
@@ -149,6 +182,11 @@ FCustomizedToolMenu FCustomizedToolMenuHierarchy::GenerateFlattened() const
 		if (!Current)
 		{
 			return;
+		}
+
+		if (Current->IsSuppressExtenders() && !Result.IsSuppressExtenders())
+		{
+			Result.SuppressExtenders = Current->SuppressExtenders;
 		}
 
 		if (Current->SectionOrder.Num() > 0)
