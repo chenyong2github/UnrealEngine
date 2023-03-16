@@ -42,7 +42,6 @@ namespace GitDependencies
 		class IncomingPack
 		{
 			public string Url;
-			public Uri Proxy;
 			public string Hash;
 			public string CacheFileName;
 			public IncomingFile[] Files;
@@ -89,6 +88,7 @@ namespace GitDependencies
 		const string LegacyManifestFilename = ".ue4dependencies";
 
 		static readonly string InstanceSuffix = Guid.NewGuid().ToString().Replace("-", "");
+		static HttpClient HttpClientInstance = null;
 
 		static int Main(string[] Args)
 		{
@@ -937,7 +937,7 @@ namespace GitDependencies
 
 					if (StatResult == -1)
 					{
-						Log.WriteError("Stat() call for {0} failed", File.Name);
+						Log.WriteError($"Stat() call for {File.Name} failed: errorcode: {Marshal.GetLastSystemError()}");
 						return false;
 					}
 
@@ -1039,7 +1039,6 @@ namespace GitDependencies
 			{
 				IncomingPack Pack = new IncomingPack();
 				Pack.Url = String.Format("{0}/{1}/{2}", RequiredPack.Manifest.BaseUrl, RequiredPack.Pack.RemotePath, RequiredPack.Pack.Hash);
-				Pack.Proxy = RequiredPack.Manifest.IgnoreProxy? null : Proxy;
 				Pack.Hash = RequiredPack.Pack.Hash;
 				Pack.CacheFileName = (CachePath == null)? null : Path.Combine(CachePath, RequiredPack.GetCacheFileName());
 				Pack.Files = GetIncomingFilesForPack(RootPath, RequiredPack.Pack, PackToBlobs, BlobToFiles);
@@ -1052,12 +1051,15 @@ namespace GitDependencies
 			State.NumFiles = RequiredFiles.Count();
 			State.NumBytesTotal = RequiredPacks.Sum(x => x.Pack.CompressedSize);
 
+			// Setup the http connection object..
+			CreateHttpClient(Proxy, RequiredPacks.Max(x => x.Pack.CompressedSize), HttpTimeoutMultiplier);
+
 			// Create all the worker threads
 			CancellationTokenSource CancellationToken = new CancellationTokenSource();
 			Thread[] WorkerThreads = new Thread[NumThreads];
 			for(int Idx = 0; Idx < NumThreads; Idx++)
 			{
-				WorkerThreads[Idx] = new Thread(x => DownloadWorker(DownloadQueue, State, HttpTimeoutMultiplier, MaxRetries, CancellationToken.Token));
+				WorkerThreads[Idx] = new Thread(x => DownloadWorker(DownloadQueue, State, MaxRetries, CancellationToken.Token));
 				WorkerThreads[Idx].Start();
 			}
 
@@ -1139,7 +1141,7 @@ namespace GitDependencies
 			return Files.OrderBy(x => x.MinPackOffset).ToArray();
 		}
 
-		static void DownloadWorker(ConcurrentQueue<IncomingPack> DownloadQueue, AsyncDownloadState State, double HttpTimeoutMultiplier, int MaxRetries, CancellationToken CancellationToken)
+		static void DownloadWorker(ConcurrentQueue<IncomingPack> DownloadQueue, AsyncDownloadState State, int MaxRetries, CancellationToken CancellationToken)
 		{
 			int Retries = 0;
 			for(;;)
@@ -1179,7 +1181,7 @@ namespace GitDependencies
 					}
 					else
 					{
-						DownloadAndExtractFiles(NextPack.Url, NextPack.Proxy, NextPack.CacheFileName, NextPack.CompressedSize, NextPack.Hash, NextPack.Files, HttpTimeoutMultiplier, Size => { RollbackSize += Size; Interlocked.Add(ref State.NumBytesRead, Size); }).Wait();
+						DownloadAndExtractFiles(NextPack.Url, NextPack.CacheFileName, NextPack.CompressedSize, NextPack.Hash, NextPack.Files, Size => { RollbackSize += Size; Interlocked.Add(ref State.NumBytesRead, Size); }).Wait();
 					}
 
 					// Update the stats
@@ -1246,25 +1248,10 @@ namespace GitDependencies
 			return false;
 		}
 
-		static async Task DownloadAndExtractFiles(string Url, Uri Proxy, string CacheFileName, long CompressedSize, string ExpectedHash, IncomingFile[] Files, double HttpTimeoutMultiplier, NotifyReadDelegate NotifyRead)
+		static async Task DownloadAndExtractFiles(string Url, string CacheFileName, long CompressedSize, string ExpectedHash, IncomingFile[] Files, NotifyReadDelegate NotifyRead)
 		{
-			// Create the web request
-			HttpClientHandler Handler = new HttpClientHandler();
-			if(Proxy != null)
-			{
-				Handler.Proxy = new WebProxy(Proxy, true, null, MakeCredentialsFromUri(Proxy));
-			}
-
-			HttpClient Client = new HttpClient(Handler);
-
-			// Estimate and set HttpClient timeout
-			double EstimatedDownloadDurationSecondsAt2MBps = Convert.ToDouble(CompressedSize) / 250000.0;
-			double HttpTimeoutSeconds = Math.Max(Client.Timeout.TotalSeconds, EstimatedDownloadDurationSecondsAt2MBps * HttpTimeoutMultiplier);
-
-			Client.Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds);
-
 			// Read the response and extract the files
-			using (HttpResponseMessage Response = await Client.GetAsync(Url))
+			using (HttpResponseMessage Response = await HttpClientInstance.GetAsync(Url))
 			{
 				using (Stream ResponseStream = new NotifyReadStream(Response.Content.ReadAsStream(), NotifyRead))
 				{
@@ -1278,6 +1265,23 @@ namespace GitDependencies
 					}
 				}
 			}
+		}
+
+		static void CreateHttpClient(Uri Proxy, long LargestPackSize, double HttpTimeoutMultiplier)
+		{
+			// Create the httpclient using a proxy if needed.
+			HttpClientHandler Handler = new HttpClientHandler();
+			if (Proxy != null)
+			{
+				Handler.Proxy = new WebProxy(Proxy, true, null, MakeCredentialsFromUri(Proxy));
+			}
+
+			HttpClientInstance = new HttpClient(Handler);
+
+			// Estimate and set HttpClient timeout based on the largest pack size
+			double EstimatedDownloadDurationSecondsAt2MBps = Convert.ToDouble(LargestPackSize) / 250000.0;
+			TimeSpan HttpTimeout = TimeSpan.FromSeconds(Math.Max(HttpClientInstance.Timeout.TotalSeconds, EstimatedDownloadDurationSecondsAt2MBps * HttpTimeoutMultiplier));
+			HttpClientInstance.Timeout = HttpTimeout;
 		}
 
 		static NetworkCredential MakeCredentialsFromUri(Uri Address)
@@ -1404,7 +1408,7 @@ namespace GitDependencies
 							{
 								throw new CorruptPackFileException(String.Format("Incorrect hash value of {0}: expected {1}, got {2}", CurrentFile.Names[0], CurrentFile.Hash, Hash), null);
 							}
-						
+
 							OutputStreams[Idx].Dispose();
 
 							for(int FileIdx = 1; FileIdx < CurrentFile.Names.Length; FileIdx++)
@@ -1603,13 +1607,34 @@ namespace GitDependencies
 			}
 		}
 
-		public static string FormatExceptionDetails(Exception ex)
+		static void BuildExceptionStack(Exception exception, List<Exception> exceptionStack)
+		{
+			if (exception != null)
+			{
+				exceptionStack.Add(exception);
+
+				AggregateException aggregateException = exception as AggregateException;
+				if (aggregateException != null && aggregateException.InnerExceptions.Count > 0)
+				{
+					for(int idx = 0; idx < 16 && idx < aggregateException.InnerExceptions.Count; idx++) // Cap number of exceptions returned to avoid huge messages
+					{
+						BuildExceptionStack(aggregateException.InnerExceptions[idx], exceptionStack);
+					}
+				}
+				else
+				{
+					if (exception.InnerException != null)
+					{
+						BuildExceptionStack(exception.InnerException, exceptionStack);
+					}
+				}
+			}
+		}
+
+		static string FormatExceptionDetails(Exception ex)
 		{
 			List<Exception> exceptionStack = new List<Exception>();
-			for (Exception currentEx = ex; currentEx != null; currentEx = currentEx.InnerException)
-			{
-				exceptionStack.Add(currentEx);
-			}
+			BuildExceptionStack(ex, exceptionStack);
 
 			StringBuilder message = new StringBuilder();
 			for (int idx = exceptionStack.Count - 1; idx >= 0; idx--)
