@@ -149,6 +149,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual UWorld* GetWorld() const override;
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
+	virtual void BeginDestroy() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface
 

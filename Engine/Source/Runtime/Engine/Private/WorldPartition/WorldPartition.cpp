@@ -1324,6 +1324,12 @@ bool UWorldPartition::ResolveSubobject(const TCHAR* SubObjectPath, UObject*& Out
 	return false;
 }
 
+void UWorldPartition::BeginDestroy()
+{
+	check(InitState == EWorldPartitionInitState::Uninitialized);
+	Super::BeginDestroy();
+}
+
 void UWorldPartition::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
