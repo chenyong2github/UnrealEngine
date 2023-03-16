@@ -6,11 +6,15 @@
 
 void FInstanceCullingMergedContext::MergeBatches()
 {
-	for (const FAsyncBatchItem& AsyncBatchItem : AsyncBatches)
+	for (FBatchItem& AsyncBatchItem : AsyncBatches)
 	{
-		AsyncBatchItem.SyncPrerequisitesFunc();
-		AddBatchItem(AsyncBatchItem.BatchItem);
+		AsyncBatchItem.Context->WaitForSetupTask();
+		check(AsyncBatchItem.Context->DynamicInstanceIdOffset >= 0);
+		check(AsyncBatchItem.Context->DynamicInstanceIdNum >= 0);
+
+		AddBatchItem(AsyncBatchItem);
 	}
+	AsyncBatches.Reset();
 
 	for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
 	{
@@ -25,7 +29,7 @@ void FInstanceCullingMergedContext::MergeBatches()
 	DrawCommandCompactionData.Empty(TotalCompactionDrawCommands);
 	CompactionBlockDataIndices.Empty(TotalCompactionBlocks);
 
-	BatchInfos.AddDefaulted(Batches.Num());
+	BatchInfos.Reserve(Batches.Num());
 	uint32 InstanceIdBufferOffset = 0U;
 	uint32 InstanceDataByteOffset = 0U;
 	uint32 TempCompactionInstanceOffset = 0U;
@@ -37,7 +41,11 @@ void FInstanceCullingMergedContext::MergeBatches()
 		const FBatchItem& BatchItem = Batches[BatchIndex];
 		const FInstanceCullingContext& InstanceCullingContext = *BatchItem.Context;
 
-		FContextBatchInfo& BatchInfo = BatchInfos[BatchIndex];
+		// Empty contexts should never be added to this list!
+		check(InstanceCullingContext.HasCullingCommands());
+
+		int32 BatchInfoIndex = BatchInfos.Num();
+		FContextBatchInfo& BatchInfo = BatchInfos.AddDefaulted_GetRef();
 
 		BatchInfo.IndirectArgsOffset = IndirectArgs.Num();
 		//BatchInfo.NumIndirectArgs = InstanceCullingContext.IndirectArgs.Num();
@@ -62,8 +70,11 @@ void FInstanceCullingMergedContext::MergeBatches()
 		BatchInfo.NumViewIds = InstanceCullingContext.ViewIds.Num();
 		ViewIds.Append(InstanceCullingContext.ViewIds);
 
-		BatchInfo.DynamicInstanceIdOffset = BatchItem.DynamicInstanceIdOffset;
-		BatchInfo.DynamicInstanceIdMax = BatchItem.DynamicInstanceIdOffset + BatchItem.DynamicInstanceIdNum;
+		check(InstanceCullingContext.DynamicInstanceIdOffset >= 0);
+		check(InstanceCullingContext.DynamicInstanceIdNum >= 0);
+
+		BatchInfo.DynamicInstanceIdOffset = InstanceCullingContext.DynamicInstanceIdOffset;
+		BatchInfo.DynamicInstanceIdMax = InstanceCullingContext.DynamicInstanceIdOffset + InstanceCullingContext.DynamicInstanceIdNum;
 
 		for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
 		{
@@ -82,7 +93,7 @@ void FInstanceCullingMergedContext::MergeBatches()
 			MergedLoadBalancer->AppendData(*LoadBalancer);
 			for (int32 Index = StartIndex; Index < BatchInds[Mode].Num(); ++Index)
 			{
-				BatchInds[Mode][Index] = BatchIndex;
+				BatchInds[Mode][Index] = BatchInfoIndex;
 			}
 		}
 		const uint32 BatchTotalInstances = InstanceCullingContext.TotalInstances * InstanceCullingContext.ViewIds.Num();
@@ -117,7 +128,7 @@ void FInstanceCullingMergedContext::MergeBatches()
 	}
 }
 
-void FInstanceCullingMergedContext::AddBatch(FRDGBuilder& GraphBuilder, const FInstanceCullingContext* Context, int32 DynamicInstanceIdOffset,	int32 DynamicInstanceIdNum, FInstanceCullingDrawParams* InstanceCullingDrawParams, TFunction<void()>&& SyncPrerequisitesFunc)
+void FInstanceCullingMergedContext::AddBatch(FRDGBuilder& GraphBuilder, FInstanceCullingContext* Context, FInstanceCullingDrawParams* InstanceCullingDrawParams)
 {
 	checkfSlow(Batches.FindByPredicate([InstanceCullingDrawParams](const FBatchItem& Item) { return Item.Result == InstanceCullingDrawParams; }) == nullptr, TEXT("Output draw paramters registered twice."));
 
@@ -136,43 +147,52 @@ void FInstanceCullingMergedContext::AddBatch(FRDGBuilder& GraphBuilder, const FI
 		}
 	}
 
-	if (SyncPrerequisitesFunc)
+	if (Context->SyncPrerequisitesFunc)
 	{
-		AsyncBatches.Add(FAsyncBatchItem{ FBatchItem{ Context, InstanceCullingDrawParams, DynamicInstanceIdOffset, DynamicInstanceIdNum }, MoveTemp(SyncPrerequisitesFunc) });
+		AsyncBatches.Add(FBatchItem{ Context, InstanceCullingDrawParams });
 
 	}
 	else
 	{
-		AddBatchItem(FBatchItem{ Context, InstanceCullingDrawParams, DynamicInstanceIdOffset, DynamicInstanceIdNum });
+		AddBatchItem(FBatchItem{ Context, InstanceCullingDrawParams });
 	}
 
 }
 
 void FInstanceCullingMergedContext::AddBatchItem(const FBatchItem& BatchItem)
 {
-	Batches.Add(BatchItem);
-
 	const FInstanceCullingContext* Context = BatchItem.Context;
-	// Accumulate the totals so the deferred processing can pre-size the arrays
-	for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
+	if (Context->HasCullingCommands())
 	{
-		Context->LoadBalancers[Mode]->FinalizeBatches();
-		TotalBatches[Mode] += Context->LoadBalancers[Mode]->GetBatches().Max();
-		TotalItems[Mode] += Context->LoadBalancers[Mode]->GetItems().Max();
-	}
+		Batches.Add(BatchItem);
+
+		// Accumulate the totals so the deferred processing can pre-size the arrays
+		for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
+		{
+			Context->LoadBalancers[Mode]->FinalizeBatches();
+			TotalBatches[Mode] += Context->LoadBalancers[Mode]->GetBatches().Max();
+			TotalItems[Mode] += Context->LoadBalancers[Mode]->GetItems().Max();
+		}
 #if DO_CHECK
-	for (int32 ViewId : Context->ViewIds)
-	{
-		checkf(NumCullingViews < 0 || ViewId < NumCullingViews, TEXT("Attempting to defer a culling context that references a view that has not been uploaded yet."));
-	}
+		for (int32 ViewId : Context->ViewIds)
+		{
+			checkf(NumCullingViews < 0 || ViewId < NumCullingViews, TEXT("Attempting to defer a culling context that references a view that has not been uploaded yet."));
+		}
 #endif 
 
-	TotalIndirectArgs += Context->IndirectArgs.Num();
-	TotalPayloads += Context->PayloadData.Num();
-	TotalViewIds += Context->ViewIds.Num();
-	InstanceIdBufferSize += Context->TotalInstances * Context->ViewIds.Num();
-	TotalInstances += Context->TotalInstances;
-	TotalCompactionDrawCommands += Context->DrawCommandCompactionData.Num();
-	TotalCompactionBlocks += Context->CompactionBlockDataIndices.Num();
-	TotalCompactionInstances += Context->NumCompactionInstances;
+		TotalIndirectArgs += Context->IndirectArgs.Num();
+		TotalPayloads += Context->PayloadData.Num();
+		TotalViewIds += Context->ViewIds.Num();
+		InstanceIdBufferSize += Context->TotalInstances * Context->ViewIds.Num();
+		TotalInstances += Context->TotalInstances;
+		TotalCompactionDrawCommands += Context->DrawCommandCompactionData.Num();
+		TotalCompactionBlocks += Context->CompactionBlockDataIndices.Num();
+		TotalCompactionInstances += Context->NumCompactionInstances;
+	}
+#if DO_CHECK
+	else
+	{
+		check(!bMustAddAllContexts);
+	}
+#endif 
 }

@@ -61,8 +61,8 @@ enum class EBatchProcessingMode : uint32
 };
 
 class FInstanceProcessingGPULoadBalancer;
+
 /**
- * Thread-safe context for managing culling for a render pass.
  */
 class FInstanceCullingContext
 {
@@ -130,19 +130,47 @@ public:
 	 */
 	uint32 AllocateIndirectArgs(const FMeshDrawCommand* MeshDrawCommand);
 
+	using SyncPrerequisitesFuncType = TFunction<void (FInstanceCullingContext &InstanceCullingContext)>;
+	
 	/**
-	 * If InstanceCullingDrawParams is not null, this BuildRenderingCommands operation may be deferred and merged into a global pass when possible.
+	 * Set up the context to track an async setup process, or some deferred setup work.
+	 * The supplied function should do two things, apart from any other processing needed.
+	 *   1. wait for the async setup task
+	 *   2. Call SetDynamicPrimitiveInstanceOffsets (unless that is achieved somehow else).
+	 */
+	void BeginAsyncSetup(SyncPrerequisitesFuncType&& InSyncPrerequisitesFunc);
+
+	/**
+	 * Calls the sync function passed tp BeginAsyncSetup to ensure the setup processing is completed.
+	 */
+	void WaitForSetupTask();
+
+	/**
+	 */
+	void SetDynamicPrimitiveInstanceOffsets(int32 InDynamicInstanceIdOffset, int32 InDynamicInstanceIdNum);
+
+	/**
+	 * This version is never deferred, nor async, calling BeginAsyncSetup before this is an error.
 	 */
 	void BuildRenderingCommands(
 		FRDGBuilder& GraphBuilder,
 		const FGPUScene& GPUScene,
-		int32 DynamicInstanceIdOffset,
-		int32 DynamicInstanceIdNum,
-		FInstanceCullingResult& Results,
-		FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr,
-		TFunction<void()>&& SyncPrerequisitesFunc = TFunction<void()>()) const;
+		int32 InDynamicInstanceIdOffset,
+		int32 InDynamicInstanceIdNum,
+		FInstanceCullingResult& Results);
 
-	inline bool HasCullingCommands() const { return TotalInstances > 0; 	}
+	/**
+	 * This BuildRenderingCommands operation may be deferred and merged into a global pass when possible.
+	 * Note: InstanceCullingDrawParams is captured by the deferred culling passes and must therefore have a RDG-lifetime.
+	 * If BeginAsyncSetup has been called prior to this, the WaitForSetupTask is deferred as long as possible. 
+	 * If BeginAsyncSetup was not called, then SetDynamicPrimitiveInstanceOffsets must be called before this.
+	 */
+	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, FInstanceCullingDrawParams* InstanceCullingDrawParams);
+
+	/**
+	 * Returns true if there are any instances in this context needing to be rendered. Must not be called before WaitForSetupTask if BeginAsyncSetup was called.
+	 */
+	bool HasCullingCommands() const;
 
 	EInstanceCullingMode GetInstanceCullingMode() const { return InstanceCullingMode; }
 
@@ -198,7 +226,20 @@ public:
 
 	uint32 TotalInstances = 0U;
 
+	int32 DynamicInstanceIdOffset = -1;
+	int32 DynamicInstanceIdNum = -1;
+
+	SyncPrerequisitesFuncType SyncPrerequisitesFunc;
 public:
+
+	enum class EAsyncProcessingMode
+	{
+		DeferredOrAsync,
+		Synchronous,
+	};
+
+	void BuildRenderingCommandsInternal(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, EAsyncProcessingMode AsyncProcessingMode, FInstanceCullingDrawParams* InstanceCullingDrawParams);
+
 	// Auxiliary info for each mesh draw command that needs submitting.
 	struct FMeshDrawCommandInfo
 	{

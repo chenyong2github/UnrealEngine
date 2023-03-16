@@ -105,7 +105,6 @@ public:
 	int32 MaxInstances;
 
 	FInstanceCullingContext InstanceCullingContext;
-	FInstanceCullingResult InstanceCullingResult;
 };
 
 /**

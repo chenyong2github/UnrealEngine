@@ -9,22 +9,15 @@
 class FInstanceCullingMergedContext
 {
 public:
-	FInstanceCullingMergedContext(ERHIFeatureLevel::Type InFeatureLevel)
+	FInstanceCullingMergedContext(ERHIFeatureLevel::Type InFeatureLevel, bool bInMustAddAllContexts = false)
 		: FeatureLevel(InFeatureLevel)
+		, bMustAddAllContexts(bInMustAddAllContexts)
 	{}
 
 	struct FBatchItem
 	{
-		const FInstanceCullingContext* Context = nullptr;
+		FInstanceCullingContext* Context = nullptr;
 		FInstanceCullingDrawParams* Result = nullptr;
-		int32 DynamicInstanceIdOffset = 0;
-		int32 DynamicInstanceIdNum = 0;
-		TFunction<void()> SyncPrerequisitesFunc;
-	};
-	struct FAsyncBatchItem
-	{
-		FBatchItem BatchItem;
-		TFunction<void()> SyncPrerequisitesFunc;
 	};
 
 	// Info about a batch of culling work produced by a context, when part of a batched job
@@ -46,7 +39,7 @@ public:
 	TArray<FBatchItem, SceneRenderingAllocator> Batches;
 
 	/** Async (and thus added as to the above as late as possible) Batches of GPU instance culling input data. */
-	TArray<FAsyncBatchItem, SceneRenderingAllocator> AsyncBatches;
+	TArray<FBatchItem, SceneRenderingAllocator> AsyncBatches;
 
 	/** 
 	 * Merged data, derived in MergeBatches(), follows.
@@ -65,6 +58,9 @@ public:
 	TArray<FContextBatchInfo, SceneRenderingAllocator> BatchInfos;
 
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+	// if true, the contexts that are supplied through calling AddBatch must all have an 1:1 entry in the resulting merged Batches array
+	// this adds a check to prevent empty contexts from being added (!HasCullingCommands()).
+	bool bMustAddAllContexts = false;
 	// Counters to sum up all sizes to facilitate pre-sizing
 	uint32 InstanceIdBufferSize = 0U;
 	TStaticArray<int32, uint32(EBatchProcessingMode::Num)> TotalBatches = TStaticArray<int32, uint32(EBatchProcessingMode::Num)>(InPlace, 0);
@@ -85,7 +81,7 @@ public:
 	void MergeBatches();
 
 
-	void AddBatch(FRDGBuilder& GraphBuilder, const FInstanceCullingContext* Context, int32 DynamicInstanceIdOffset, int32 DynamicInstanceIdNum, FInstanceCullingDrawParams* InstanceCullingDrawParams, TFunction<void()>&& SyncPrerequisitesFunc = TFunction<void()>());
+	void AddBatch(FRDGBuilder& GraphBuilder, FInstanceCullingContext* Context, FInstanceCullingDrawParams* InstanceCullingDrawParams);
 
 private:
 	void AddBatchItem(const FBatchItem& BatchItem);

@@ -2761,7 +2761,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	uint32 TotalPrimaryViews = 0;
 	uint32 TotalViews = 0;
 
-	FInstanceCullingMergedContext InstanceCullingMergedContext(GPUScene.GetFeatureLevel());
+	FInstanceCullingMergedContext InstanceCullingMergedContext(GPUScene.GetFeatureLevel(), true);
 	// We don't use the registered culling views (this redundancy should probably be addressed at some point), set the number to disable index range checking
 	InstanceCullingMergedContext.NumCullingViews = -1;
 	int32 TotalPreCullInstanceCount = 0;
@@ -2793,9 +2793,9 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		check(Clipmap.IsValid() || ProjectedShadowInfo->HasVirtualShadowMap());
 		{
 			FParallelMeshDrawCommandPass& MeshCommandPass = ProjectedShadowInfo->GetShadowDepthPass();
-			MeshCommandPass.WaitForSetupTask();
-
 			FInstanceCullingContext* InstanceCullingContext = MeshCommandPass.GetInstanceCullingContext();
+			InstanceCullingContext->WaitForSetupTask();
+
 			TotalPreCullInstanceCount += InstanceCullingContext->TotalInstances;
 
 			if (InstanceCullingContext->HasCullingCommands())
@@ -2809,16 +2809,14 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 
 				if (CVarDoNonNaniteBatching.GetValueOnRenderThread() != 0)
 				{
-					FViewInfo* ShadowDepthView = ProjectedShadowInfo->ShadowDepthView;
-					uint32 DynamicInstanceIdOffset = ShadowDepthView->DynamicPrimitiveCollector.GetInstanceSceneDataOffset();
-					uint32 DynamicInstanceIdMax = DynamicInstanceIdOffset + ShadowDepthView->DynamicPrimitiveCollector.NumInstances();
-
+					// NOTE: This array must be 1:1 with the batches inside the InstanceCullingMergedContext, which is guaranteed by checking HasCullingCommands() above (and checked in the merged context)
+					//       If we were to defer/async this process, we need to maintain this property or add some remapping.
 					VSMCullingBatchInfos.Add(VSMCullingBatchInfo);
 
 					// Note: we have to allocate these up front as the context merging machinery writes the offsets directly to the &PassParameters->InstanceCullingDrawParams, 
 					// this is a side-effect from sharing the code with the deferred culling. Should probably be refactored.
 					FVirtualShadowDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowDepthPassParameters>();
-					InstanceCullingMergedContext.AddBatch(GraphBuilder, InstanceCullingContext, DynamicInstanceIdOffset, ShadowDepthView->DynamicPrimitiveCollector.NumInstances(), &PassParameters->InstanceCullingDrawParams);
+					InstanceCullingMergedContext.AddBatch(GraphBuilder, InstanceCullingContext, &PassParameters->InstanceCullingDrawParams);
 					BatchedVirtualSmMeshCommandPasses.Add(ProjectedShadowInfo);
 					BatchedPassParameters.Add(PassParameters);
 				}

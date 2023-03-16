@@ -2799,7 +2799,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				}
 			}
 
-			InstanceCullingResult.SceneUB = GetSceneUniforms().GetBuffer(GraphBuilder);
+			InstanceCullingResult.Parameters.Scene = GetSceneUniforms().GetBuffer(GraphBuilder);
 
 			FRDGBufferRef CardCaptureRectBuffer = nullptr;
 			FRDGBufferSRVRef CardCaptureRectBufferSRV = nullptr;

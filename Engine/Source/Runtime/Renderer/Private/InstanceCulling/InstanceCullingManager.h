@@ -33,46 +33,16 @@ public:
 	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> DummyUniformBuffer;
 };
 
+/**
+ * Only needed for compatibility, used to explicitly opt out of async processing (when there is no capturable pointer to an FInstanceCullingDrawParams).
+ */
 struct FInstanceCullingResult
 {
-	//TRefCountPtr<FRDGPooledBuffer> InstanceIdsBuffer;
-	FRDGBufferRef DrawIndirectArgsBuffer = nullptr;
-	FRDGBufferRef InstanceDataBuffer = nullptr;
-	// Offset for both buffers to start fetching data at, used when batching multiple culling jobs in the same buffer
-	uint32 InstanceDataByteOffset = 0U;
-	uint32 IndirectArgsByteOffset = 0U;
-	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
+	FInstanceCullingDrawParams Parameters;
 
-	TRDGUniformBufferRef<FSceneUniformParameters> SceneUB = nullptr;
-
-	//FRHIBuffer* GetDrawIndirectArgsBufferRHI() const { return DrawIndirectArgsBuffer.IsValid() ? DrawIndirectArgsBuffer->GetVertexBufferRHI() : nullptr; }
-	//FRHIBuffer* GetInstanceIdOffsetBufferRHI() const { return InstanceIdOffsetBuffer.IsValid() ? InstanceIdOffsetBuffer->GetVertexBufferRHI() : nullptr; }
-	void GetDrawParameters(FInstanceCullingDrawParams &OutParams) const
+	inline void GetDrawParameters(FInstanceCullingDrawParams &OutParams) const
 	{
-		// GPUCULL_TODO: Maybe get dummy buffers?
-		OutParams.DrawIndirectArgsBuffer = DrawIndirectArgsBuffer;
-		OutParams.InstanceIdOffsetBuffer = InstanceDataBuffer;
-		OutParams.InstanceDataByteOffset = InstanceDataByteOffset;
-		OutParams.IndirectArgsByteOffset = IndirectArgsByteOffset;
-		OutParams.InstanceCulling = UniformBuffer;
-		OutParams.Scene = SceneUB;
-	}
-
-	static void CondGetDrawParameters(const FInstanceCullingResult* InstanceCullingResult, FInstanceCullingDrawParams& OutParams)
-	{
-		if (InstanceCullingResult)
-		{
-			InstanceCullingResult->GetDrawParameters(OutParams);
-		}
-		else
-		{
-			OutParams.DrawIndirectArgsBuffer = nullptr;
-			OutParams.InstanceIdOffsetBuffer = nullptr;
-			OutParams.InstanceDataByteOffset = 0U;
-			OutParams.IndirectArgsByteOffset = 0U;
-			OutParams.InstanceCulling = nullptr;
-			OutParams.Scene = nullptr;
-		}
+		OutParams = Parameters;
 	}
 };
 

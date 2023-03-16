@@ -33,7 +33,6 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 	// NOTE: Everything up to InstanceCullingContext.BuildRenderingCommands could be peeled off into an async task.
 	ApplyViewOverridesToMeshDrawCommands(View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, bNeedsInitialization);
 
-	FInstanceCullingResult InstanceCullingResult;
 	VisibleMeshDrawCommands.Sort(FCompareFMeshDrawCommands());
 	if (GPUScene.IsEnabled())
 	{
@@ -51,13 +50,12 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 		// 2. Run finalize culling commands pass
 		check(View.bIsViewInfo);
 		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
-		InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, ViewInfo->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), ViewInfo->DynamicPrimitiveCollector.NumInstances(), InstanceCullingResult, &OutInstanceCullingDrawParams);
+		InstanceCullingContext.SetDynamicPrimitiveInstanceOffsets(ViewInfo->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), ViewInfo->DynamicPrimitiveCollector.NumInstances());
+		InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, &OutInstanceCullingDrawParams);
 		
 		// Signal that scene primitives are supported, used for validation, the existence of a valid InstanceCullingResult is the required signal
 		bSupportsScenePrimitives = true;
 	}
-
-	InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
 }
 
 void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FScene& Scene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)

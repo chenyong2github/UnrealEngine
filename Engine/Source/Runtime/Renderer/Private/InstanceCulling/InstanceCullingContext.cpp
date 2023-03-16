@@ -174,6 +174,27 @@ uint32 FInstanceCullingContext::AllocateIndirectArgs(const FMeshDrawCommand *Mes
 	}
 	return 0U;
 }
+
+void FInstanceCullingContext::BeginAsyncSetup(SyncPrerequisitesFuncType&& InSyncPrerequisitesFunc) 
+{ 
+	SyncPrerequisitesFunc = MoveTemp(InSyncPrerequisitesFunc); 
+}
+
+void FInstanceCullingContext::WaitForSetupTask()
+{
+	if (SyncPrerequisitesFunc)
+	{
+		SyncPrerequisitesFunc(*this);
+	}
+	SyncPrerequisitesFunc = SyncPrerequisitesFuncType();
+}
+
+void FInstanceCullingContext::SetDynamicPrimitiveInstanceOffsets(int32 InDynamicInstanceIdOffset, int32 InDynamicInstanceIdNum)
+{
+	DynamicInstanceIdOffset = InDynamicInstanceIdOffset;
+	DynamicInstanceIdNum = InDynamicInstanceIdNum;
+}
+
 // Key things to achieve
 // 1. low-data handling of since ID/Primitive path
 // 2. no redundant alloc upload of indirect cmd if none needed.
@@ -488,47 +509,69 @@ static FRDGBufferDesc CreateInstanceIdsBufferDesc(ERHIFeatureLevel::Type Feature
 void FInstanceCullingContext::BuildRenderingCommands(
 	FRDGBuilder& GraphBuilder,
 	const FGPUScene& GPUScene,
-	int32 DynamicInstanceIdOffset,
-	int32 DynamicInstanceIdNum,
-	FInstanceCullingResult& Results,
-	FInstanceCullingDrawParams* InstanceCullingDrawParams,
-	TFunction<void ()>&& SyncPrerequisitesFunc) const
+	int32 InDynamicInstanceIdOffset,
+	int32 InDynamicInstanceIdNum,
+	FInstanceCullingResult& Results)
 {
+	check(!SyncPrerequisitesFunc);
 	Results = FInstanceCullingResult();
+	SetDynamicPrimitiveInstanceOffsets(InDynamicInstanceIdOffset, InDynamicInstanceIdNum);
+	BuildRenderingCommandsInternal(GraphBuilder, GPUScene, EAsyncProcessingMode::Synchronous, &Results.Parameters);
+}
+
+
+void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, FInstanceCullingDrawParams* InstanceCullingDrawParams)
+{
+	BuildRenderingCommandsInternal(GraphBuilder, GPUScene, EAsyncProcessingMode::DeferredOrAsync, InstanceCullingDrawParams);
+}
+
+bool FInstanceCullingContext::HasCullingCommands() const
+{
+	check(!SyncPrerequisitesFunc);  return TotalInstances > 0;
+}
+
+
+void FInstanceCullingContext::BuildRenderingCommandsInternal(
+	FRDGBuilder& GraphBuilder,
+	const FGPUScene& GPUScene,
+	EAsyncProcessingMode AsyncProcessingMode,
+	FInstanceCullingDrawParams* InstanceCullingDrawParams)
+{
+	check(InstanceCullingDrawParams);
+	FMemory::Memzero(*InstanceCullingDrawParams);
 
 	if (InstanceCullingManager)
 	{
-		Results.SceneUB = InstanceCullingManager->SceneUB.GetBuffer(GraphBuilder);
+		InstanceCullingDrawParams->Scene = InstanceCullingManager->SceneUB.GetBuffer(GraphBuilder);
 	}
 
-	if (!HasCullingCommands())
-	{
-		if (InstanceCullingManager)
-		{
-			Results.UniformBuffer = InstanceCullingManager->GetDummyInstanceCullingUniformBuffer();
-		}
-		return;
-	}
-
-	if (InstanceCullingDrawParams && InstanceCullingManager && InstanceCullingManager->IsDeferredCullingActive() && (InstanceCullingMode == EInstanceCullingMode::Normal))
+	if (AsyncProcessingMode != EAsyncProcessingMode::Synchronous && InstanceCullingDrawParams && InstanceCullingManager && InstanceCullingManager->IsDeferredCullingActive() && (InstanceCullingMode == EInstanceCullingMode::Normal))
 	{
 		FInstanceCullingDeferredContext *DeferredContext = InstanceCullingManager->DeferredContext;
 
 		// If this is true, then RDG Execute or Drain has been called, and no further contexts can be deferred. 
 		if (!DeferredContext->bProcessed)
 		{
-			Results.DrawIndirectArgsBuffer = DeferredContext->DrawIndirectArgsBuffer;
-			Results.InstanceDataBuffer = DeferredContext->InstanceDataBuffer;
-			Results.UniformBuffer = DeferredContext->UniformBuffer;
-			DeferredContext->AddBatch(GraphBuilder, this, DynamicInstanceIdOffset, DynamicInstanceIdNum, InstanceCullingDrawParams, MoveTemp(SyncPrerequisitesFunc));
+			InstanceCullingDrawParams->DrawIndirectArgsBuffer = DeferredContext->DrawIndirectArgsBuffer;
+			InstanceCullingDrawParams->InstanceIdOffsetBuffer = DeferredContext->InstanceDataBuffer;
+			InstanceCullingDrawParams->InstanceCulling = DeferredContext->UniformBuffer;
+			DeferredContext->AddBatch(GraphBuilder, this, InstanceCullingDrawParams);
 		}
 		return;
 	}
-	// If not running with a deferred context, ensure sync happens at once
-	if (SyncPrerequisitesFunc)
+	WaitForSetupTask();
+
+	if (!HasCullingCommands())
 	{
-		SyncPrerequisitesFunc();
+		if (InstanceCullingManager)
+		{
+			InstanceCullingDrawParams->InstanceCulling = InstanceCullingManager->GetDummyInstanceCullingUniformBuffer();
+		}
+		return;
 	}
+
+	check(DynamicInstanceIdOffset >= 0);
+	check(DynamicInstanceIdNum >= 0);
 
 	ensure(InstanceCullingMode == EInstanceCullingMode::Normal || ViewIds.Num() == 2);
 
@@ -742,21 +785,21 @@ void FInstanceCullingContext::BuildRenderingCommands(
 		}
 	}
 
-	Results.DrawIndirectArgsBuffer = DrawIndirectArgsRDG;
+	InstanceCullingDrawParams->DrawIndirectArgsBuffer = DrawIndirectArgsRDG;
 
 	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
-		Results.InstanceDataBuffer = InstanceIdsBuffer;
+		InstanceCullingDrawParams->InstanceIdOffsetBuffer = InstanceIdsBuffer;
 	}
 	else
 	{
-		Results.InstanceDataBuffer = InstanceIdOffsetBufferRDG;
+		InstanceCullingDrawParams->InstanceIdOffsetBuffer = InstanceIdOffsetBufferRDG;
 
 		FInstanceCullingGlobalUniforms* UniformParameters = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
 		UniformParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
 		UniformParameters->PageInfoBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
 		UniformParameters->BufferCapacity = InstanceIdBufferSize;
-		Results.UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+		InstanceCullingDrawParams->InstanceCulling = GraphBuilder.CreateUniformBuffer(UniformParameters);
 	}
 }
 

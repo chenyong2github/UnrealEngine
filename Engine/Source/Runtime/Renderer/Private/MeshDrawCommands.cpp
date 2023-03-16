@@ -39,7 +39,7 @@ static FAutoConsoleVariableRef CVarAllowOnDemandShaderCreation(
 
 static TAutoConsoleVariable<int32> CVarDeferredMeshPassSetupTaskSync(
 	TEXT("r.DeferredMeshPassSetupTaskSync"),
-	0,
+	1,
 	TEXT("If enabled, the sync point of the mesh pass setup task is deferred until RDG execute (from during RDG setup) significantly increasing the overlap possible."),
 	ECVF_RenderThreadSafe);
 
@@ -1288,6 +1288,25 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 				DependentTask.AnyThreadTask();
 			}
 		}
+
+		// This work needs to be deferred until at least BuildRenderingCommands (to ensure the DynamicPrimitiveCollector is uploaded), so we use the async mechanism either way 
+		auto FinalizeInstanceCullingSetup = [this, Scene](FInstanceCullingContext& InstanceCullingContext)
+		{
+			WaitForMeshPassSetupTask();
+
+#if DO_CHECK
+			for (const FVisibleMeshDrawCommand& VisibleMeshDrawCommand : TaskContext.MeshDrawCommands)
+			{
+				if (VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive)
+				{
+					uint32 PrimitiveIndex = VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId & ~GPrimIDDynamicFlag;
+					TaskContext.View->DynamicPrimitiveCollector.CheckPrimitiveProcessed(PrimitiveIndex, Scene->GPUScene);
+				}
+			}
+#endif
+			InstanceCullingContext.SetDynamicPrimitiveInstanceOffsets(TaskContext.View->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), TaskContext.View->DynamicPrimitiveCollector.NumInstances());
+		};
+		TaskContext.InstanceCullingContext.BeginAsyncSetup(FinalizeInstanceCullingSetup);
 	}
 }
 
@@ -1428,36 +1447,17 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(
 	{
 		check(!bHasInstanceCullingDrawParameters);
 
-		auto DoSetupTaskSync = [this, &GPUScene]()
-		{
-			WaitForMeshPassSetupTask();
-
-#if DO_CHECK
-			for (const FVisibleMeshDrawCommand& VisibleMeshDrawCommand : TaskContext.MeshDrawCommands)
-			{
-				if (VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive)
-				{
-					uint32 PrimitiveIndex = VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId & ~GPrimIDDynamicFlag;
-					TaskContext.View->DynamicPrimitiveCollector.CheckPrimitiveProcessed(PrimitiveIndex, GPUScene);
-				}
-			}
-#endif
-		};
-
 		if (CVarDeferredMeshPassSetupTaskSync.GetValueOnRenderThread() != 0)
 		{
-			TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), TaskContext.View->DynamicPrimitiveCollector.NumInstances(), TaskContext.InstanceCullingResult, &OutInstanceCullingDrawParams, DoSetupTaskSync);
+			TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, &OutInstanceCullingDrawParams);
 		}
 		else
 		{
-			DoSetupTaskSync();
-			TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), TaskContext.View->DynamicPrimitiveCollector.NumInstances(), TaskContext.InstanceCullingResult, &OutInstanceCullingDrawParams);
+			TaskContext.InstanceCullingContext.WaitForSetupTask();
+			TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, &OutInstanceCullingDrawParams);
 		}
 
-		// 2. Run or queue finalize culling commands pass
-		TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
 		bHasInstanceCullingDrawParameters = true;
-		check(!TaskContext.InstanceCullingContext.HasCullingCommands() || OutInstanceCullingDrawParams.DrawIndirectArgsBuffer && OutInstanceCullingDrawParams.InstanceIdOffsetBuffer);
 		return;
 	}
 	OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
