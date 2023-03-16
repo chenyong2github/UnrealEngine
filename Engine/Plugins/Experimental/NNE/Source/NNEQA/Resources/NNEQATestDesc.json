@@ -1383,9 +1383,10 @@
 			"name": "InstanceNormalization.Algorithms",
 			"attribute_maps": [
 				{ "attributes": [ { "name": "__UE__algorithm", "value": "Simple1x265", "type": "String" } ] },
-				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory8x32", "type": "String" } ] },
-				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory16x16", "type": "String" } ] },
-				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory32x8", "type": "String" } ] }
+				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory256x1", "type": "String" } ] },
+				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory512x1", "type": "String" } ] },
+				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory768x1", "type": "String" } ] },
+				{ "attributes": [ { "name": "__UE__algorithm", "value": "SharedMemory1024x1", "type": "String" } ] }
 			]
 		},
 		{

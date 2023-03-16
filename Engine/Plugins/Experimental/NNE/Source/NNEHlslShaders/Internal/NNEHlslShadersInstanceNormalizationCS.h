@@ -13,9 +13,10 @@ namespace UE::NNEHlslShaders::Internal
 	enum class EInstanceNormalizationAlgorithm : uint8
 	{
 		Simple1x265 = 0,
-		SharedMemory8x32,
-		SharedMemory16x16,
-		SharedMemory32x8,
+		SharedMemory256x1,
+		SharedMemory512x1,
+		SharedMemory768x1,
+		SharedMemory1024x1,
 		MAX
 	};
 

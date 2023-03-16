@@ -20,20 +20,30 @@ RWBuffer<BUFFER_TYPE> Output;	// Output tensor of the same shape as input
 #if ALGORITHM == 0
 #define GROUP_SIZE_X 1
 #define GROUP_SIZE_Y 256
+
 #elif ALGORITHM == 1
-#define GROUP_SIZE_X 8
-#define GROUP_SIZE_Y 32
+#define GROUP_SIZE_X 256
+#define GROUP_SIZE_Y 1
+
 #elif ALGORITHM == 2
-#define GROUP_SIZE_X 16
-#define GROUP_SIZE_Y 16
+#define GROUP_SIZE_X 512
+#define GROUP_SIZE_Y 1
+
 #elif ALGORITHM == 3
-#define GROUP_SIZE_X 32
-#define GROUP_SIZE_Y 8
+#define GROUP_SIZE_X 768
+#define GROUP_SIZE_Y 1
+
+#elif ALGORITHM == 4
+#define GROUP_SIZE_X 1024
+#define GROUP_SIZE_Y 1
+
 #endif
 
 #if GROUP_SIZE_X > 1
 
-groupshared WORK_TYPE SharedMemory[GROUP_SIZE_X * GROUP_SIZE_Y];
+groupshared WORK_TYPE SharedMemoryMean[GROUP_SIZE_X * GROUP_SIZE_Y];
+groupshared WORK_TYPE SharedMemoryMean2[GROUP_SIZE_X * GROUP_SIZE_Y];
+groupshared int SharedMemoryCount[GROUP_SIZE_X * GROUP_SIZE_Y];
 
 [numthreads(GROUP_SIZE_X, GROUP_SIZE_Y, 1)]
 void InstanceNormalization(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupThreadID : SV_GroupThreadID)
@@ -41,18 +51,29 @@ void InstanceNormalization(in const uint3 DispatchThreadID : SV_DispatchThreadID
 	const int StartIdx = DispatchThreadID.y * W;
 	const int SharedMemoryOffsetY = GroupThreadID.y * GROUP_SIZE_X;
 
-	const WORK_TYPE InvNum = (WORK_TYPE)1 / (WORK_TYPE)W;
-
-	// Calculate mean
+	// Calculate mean and variance using Welford's online algorithm
+	// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 	if (DispatchThreadID.y < NxC)
 	{
-		WORK_TYPE LocalSum = 0;
+		WORK_TYPE Mean = 0;
+		WORK_TYPE Mean2 = 0;
+		int Count = 0;
 		for (int CurrIdx = GroupThreadID.x; CurrIdx < W; CurrIdx += GROUP_SIZE_X)
 		{
-			LocalSum += READ(Input[StartIdx + CurrIdx]);
+			Count += 1;
+
+			WORK_TYPE Value = READ(Input[StartIdx + CurrIdx]);
+
+			WORK_TYPE Delta = Value - Mean;
+			Mean += Delta / (WORK_TYPE)Count;
+
+			WORK_TYPE Delta2 = Value - Mean;
+			Mean2 += Delta * Delta2;
 		}
 
-		SharedMemory[SharedMemoryOffsetY + GroupThreadID.x] = LocalSum;
+		SharedMemoryMean[SharedMemoryOffsetY + GroupThreadID.x] = Mean;
+		SharedMemoryMean2[SharedMemoryOffsetY + GroupThreadID.x] = Mean2;
+		SharedMemoryCount[SharedMemoryOffsetY + GroupThreadID.x] = Count;
 	}
 
 	// Wait until all threads wrote result to shared memory
@@ -61,64 +82,42 @@ void InstanceNormalization(in const uint3 DispatchThreadID : SV_DispatchThreadID
 	// Use one thread to calculate final result
 	if (GroupThreadID.x == 0 && DispatchThreadID.y < NxC)
 	{
-		WORK_TYPE LocalMean = 0;
+		WORK_TYPE Mean = 0;
+		WORK_TYPE Mean2 = 0;
+		int Count = 0;
 
 		UNROLL
 		for (int Idx = 0; Idx < GROUP_SIZE_X; Idx++)
 		{
-			LocalMean += SharedMemory[SharedMemoryOffsetY + Idx];
+			WORK_TYPE CurrMean = SharedMemoryMean[SharedMemoryOffsetY + Idx];
+			WORK_TYPE CurrMean2 = SharedMemoryMean2[SharedMemoryOffsetY + Idx];
+			int CurrCount = SharedMemoryCount[SharedMemoryOffsetY + Idx];
+
+			int NewCount = Count + CurrCount;
+
+			WORK_TYPE Delta = CurrMean - Mean;
+			Mean = (CurrCount * CurrMean + Count * Mean) / NewCount;
+
+			Mean2 += CurrMean2 + Delta * Delta * (WORK_TYPE)Count * (WORK_TYPE)CurrCount / (WORK_TYPE)NewCount;
+
+			Count = NewCount;
 		}
 
-		SharedMemory[SharedMemoryOffsetY] = LocalMean * InvNum;
+		WORK_TYPE Variance = Mean2 / (WORK_TYPE)Count;
+
+		SharedMemoryMean[SharedMemoryOffsetY] = Mean;
+		SharedMemoryMean2[SharedMemoryOffsetY] = (WORK_TYPE)1 / sqrt(Variance + Epsilon);
 	}
 
 	// Wait until first thread wrote result to shared memory
 	GroupMemoryBarrierWithGroupSync();
 
-	WORK_TYPE Mean = 0;
-	if (DispatchThreadID.y < NxC)
-	{
-		Mean = SharedMemory[SharedMemoryOffsetY];
-	
-		// Calculate variance
-		WORK_TYPE LocalSum = 0;
-		WORK_TYPE Tmp = 0;
-		for (int CurrIdx = GroupThreadID.x; CurrIdx < W; CurrIdx += GROUP_SIZE_X)
-		{
-			Tmp = READ(Input[StartIdx + CurrIdx]) - Mean;
-
-			LocalSum += Tmp * Tmp;
-		}
-
-		SharedMemory[SharedMemoryOffsetY + GroupThreadID.x] = LocalSum;
-	}
-
-	// Wait until all threads wrote result to shared memory
-	GroupMemoryBarrierWithGroupSync();
-
-	// Use one thread to calculate final result
-	if (GroupThreadID.x == 0 && DispatchThreadID.y < NxC)
-	{
-		WORK_TYPE LocalVar = 0;
-
-		UNROLL
-		for (int Idx = 0; Idx < GROUP_SIZE_X; Idx++)
-		{
-			LocalVar += SharedMemory[SharedMemoryOffsetY + Idx];
-		}
-
-		SharedMemory[SharedMemoryOffsetY] = (WORK_TYPE)1 / sqrt(LocalVar * InvNum + Epsilon);
-	}
-
-	// Wait until first thread wrote result to shared memory
-	GroupMemoryBarrierWithGroupSync();
-
-	WORK_TYPE Variance = 0;
 	if (DispatchThreadID.y < NxC)
 	{
 		const int ChannelIdx = DispatchThreadID.y % C;
 		
-		WORK_TYPE InvStdev = SharedMemory[SharedMemoryOffsetY];
+		WORK_TYPE Mean = SharedMemoryMean[SharedMemoryOffsetY];
+		WORK_TYPE InvStdev = SharedMemoryMean2[SharedMemoryOffsetY];
 
 		// Carry out instance normalization and write to output
 		for (int CurrIdx = GroupThreadID.x; CurrIdx < W; CurrIdx += GROUP_SIZE_X)
@@ -143,26 +142,24 @@ void InstanceNormalization(in const uint3 DispatchThreadID : SV_DispatchThreadID
 
 	const WORK_TYPE InvNum = (WORK_TYPE)1 / (WORK_TYPE)W;
 
-	// Calculate mean
+	// Calculate mean and variance using Welfor's online algorithm
 	WORK_TYPE Mean = 0;
+	WORK_TYPE Mean2 = 0;
+	int Count = 0;
 	for (int Idx = 0; Idx < W; Idx++)
 	{
-		Mean += READ(Input[StartIdx + Idx]);
+		Count += 1;
+
+		WORK_TYPE Value = READ(Input[StartIdx + Idx]);
+
+		WORK_TYPE Delta = Value - Mean;
+		Mean += Delta / (WORK_TYPE)Count;
+
+		WORK_TYPE Delta2 = Value - Mean;
+		Mean2 += Delta * Delta2;
 	}
 
-	Mean *= InvNum;
-
-	// Calculate variance
-	WORK_TYPE Variance = 0;
-	WORK_TYPE Tmp = 0;
-	for (int Idx = 0; Idx < W; Idx++)
-	{
-		Tmp = READ(Input[StartIdx + Idx]) - Mean;
-
-		Variance += Tmp * Tmp;
-	}
-
-	Variance *= InvNum;
+	WORK_TYPE Variance = Mean2 * InvNum;
 
 	WORK_TYPE InvStdev = (WORK_TYPE)1 / sqrt(Variance + Epsilon);
 
