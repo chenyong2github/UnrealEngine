@@ -17,8 +17,11 @@
 #include "ToolMenuSection.h"
 #include "UnrealEdGlobals.h"
 
-#define LOCTEXT_NAMESPACE "AssetTypeActions"
+#if WITH_VERSE
+#include "VerseClassBase.h"
+#endif
 
+#define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 UThumbnailInfo* UAssetDefinition_Class::LoadThumbnailInfo(const FAssetData& InAssetData) const
 {
@@ -91,6 +94,14 @@ namespace MenuExtension_Class
 					TArray<FModuleContextInfo> ProjectModules = GameProjectGenerationModule.GetCurrentProjectModules();
 					const bool bIsValidBaseCppClass = BaseClass && GameProjectGenerationModule.IsValidBaseClassForCreation(BaseClass, ProjectModules);
 					const bool bIsValidBaseBlueprintClass = BaseClass && FKismetEditorUtilities::CanCreateBlueprintOfClass(BaseClass);
+
+#if WITH_VERSE
+					if (Cast<UVerseClassBase>(BaseClass) != nullptr)
+					{
+						// Verse devices cannot have C++ or blueprint classes created that derive from them
+						return;
+					}
+#endif
 
 					auto CreateCreateDerivedCppClass = [BaseClass](const FToolMenuContext& InContext)
 					{

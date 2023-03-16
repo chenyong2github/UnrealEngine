@@ -40,7 +40,15 @@ public class EngineAssetDefinitions : ModuleRules
 				"ToolWidgets"
 			}
 		);
-		
+
+		if (Target.bUseVerse)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[]
+			{
+				"VerseNative",
+			});
+		}
+
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"VirtualTexturingEditor",
