@@ -161,10 +161,9 @@ struct WORLDCONDITIONS_API FWorldConditionContextData
 		return Views[Ref.GetIndex()].GetType();
 	}
 
-	/** @todo: Add mutable version with const checking. */
 	/** @return Pointer to referenced context data. */
 	template <typename T>
-	const T* GetContextDataPtr(const FWorldConditionContextDataRef& Ref) const
+	T* GetContextDataPtr(const FWorldConditionContextDataRef& Ref) const
 	{
 		check(Ref.IsValid());
 		return Views[Ref.GetIndex()].template GetPtr<T>();
@@ -206,10 +205,9 @@ struct WORLDCONDITIONS_API FWorldConditionContext
 		return ContextData.GetContextDataType(Ref);
 	}
 
-	/** @todo: Add mutable version with const checking. */
 	/** @return Pointer to referenced context data. */
 	template <typename T>
-	const T* GetContextDataPtr(const FWorldConditionContextDataRef& Ref) const
+	T* GetContextDataPtr(const FWorldConditionContextDataRef& Ref) const
 	{
 		return ContextData.template GetContextDataPtr<T>(Ref);
 	}

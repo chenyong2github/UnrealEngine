@@ -33,8 +33,7 @@ bool FSmartObjectWorldConditionSlotTagQuery::Initialize(const UWorldConditionSch
 
 bool FSmartObjectWorldConditionSlotTagQuery::Activate(const FWorldConditionContext& Context) const
 {
-	// @todo SO: replace const_cast by mutable data in the context once supported
-	USmartObjectSubsystem* SmartObjectSubsystem = const_cast<USmartObjectSubsystem*>(Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef));
+	USmartObjectSubsystem* SmartObjectSubsystem = Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef);
 	check(SmartObjectSubsystem);
 
 	// Use a callback to listen changed to persistent data.
@@ -87,8 +86,7 @@ FWorldConditionResult FSmartObjectWorldConditionSlotTagQuery::IsTrue(const FWorl
 
 void FSmartObjectWorldConditionSlotTagQuery::Deactivate(const FWorldConditionContext& Context) const
 {
-	// @todo SO: replace const_cast by mutable data in the context once supported
-	USmartObjectSubsystem* SmartObjectSubsystem = const_cast<USmartObjectSubsystem*>(Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef));
+	USmartObjectSubsystem* SmartObjectSubsystem = Context.GetContextDataPtr<USmartObjectSubsystem>(SubsystemRef);
 	check(SmartObjectSubsystem);
 
 	FStateType& State = Context.GetState(*this);
