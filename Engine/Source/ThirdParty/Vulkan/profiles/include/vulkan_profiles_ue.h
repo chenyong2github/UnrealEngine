@@ -36,6 +36,27 @@
 #define VP_UE_VULKAN_SM5_MIN_API_VERSION VK_MAKE_VERSION(1, 1, 0)
 #endif
 
+#if defined(VK_VERSION_1_1)
+#define VP_UE_Vulkan_SM5_Android 1
+#define VP_UE_VULKAN_SM5_ANDROID_NAME "VP_UE_Vulkan_SM5_Android"
+#define VP_UE_VULKAN_SM5_ANDROID_SPEC_VERSION 1
+#define VP_UE_VULKAN_SM5_ANDROID_MIN_API_VERSION VK_MAKE_VERSION(1, 1, 0)
+#endif
+
+#if defined(VK_VERSION_1_2) && \
+    defined(VK_EXT_scalar_block_layout) && \
+    defined(VK_KHR_acceleration_structure) && \
+    defined(VK_KHR_buffer_device_address) && \
+    defined(VK_KHR_deferred_host_operations) && \
+    defined(VK_KHR_ray_query) && \
+    defined(VK_KHR_shader_float_controls) && \
+    defined(VK_KHR_spirv_1_4)
+#define VP_UE_Vulkan_SM5_Android_RT 1
+#define VP_UE_VULKAN_SM5_ANDROID_RT_NAME "VP_UE_Vulkan_SM5_Android_RT"
+#define VP_UE_VULKAN_SM5_ANDROID_RT_SPEC_VERSION 1
+#define VP_UE_VULKAN_SM5_ANDROID_RT_MIN_API_VERSION VK_MAKE_VERSION(1, 2, 0)
+#endif
+
 #if defined(VK_VERSION_1_2) && \
     defined(VK_EXT_scalar_block_layout) && \
     defined(VK_KHR_acceleration_structure) && \
@@ -409,6 +430,164 @@ static const VpStructChainerDesc chainerDesc = {
 };
 
 } // namespace VP_UE_VULKAN_SM5
+#endif
+
+#ifdef VP_UE_Vulkan_SM5_Android
+namespace VP_UE_VULKAN_SM5_ANDROID {
+
+static const VpFeatureDesc featureDesc = {
+    [](VkBaseOutStructure* p) {
+    },
+    [](VkBaseOutStructure* p) -> bool {
+        bool ret = true;
+        return ret;
+    }
+};
+
+static const VpPropertyDesc propertyDesc = {
+    [](VkBaseOutStructure* p) {
+    },
+    [](VkBaseOutStructure* p) -> bool {
+        bool ret = true;
+        return ret;
+    }
+};
+
+static const VpStructChainerDesc chainerDesc = {
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+};
+
+} // namespace VP_UE_VULKAN_SM5_ANDROID
+#endif
+
+#ifdef VP_UE_Vulkan_SM5_Android_RT
+namespace VP_UE_VULKAN_SM5_ANDROID_RT {
+
+static const VkExtensionProperties deviceExtensions[] = {
+    VkExtensionProperties{ VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME, 1 },
+    VkExtensionProperties{ VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, 1 },
+    VkExtensionProperties{ VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, 1 },
+    VkExtensionProperties{ VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, 1 },
+    VkExtensionProperties{ VK_KHR_RAY_QUERY_EXTENSION_NAME, 1 },
+    VkExtensionProperties{ VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME, 1 },
+    VkExtensionProperties{ VK_KHR_SPIRV_1_4_EXTENSION_NAME, 1 },
+};
+
+static const VkStructureType featureStructTypes[] = {
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
+};
+
+static const VkStructureType propertyStructTypes[] = {
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR,
+};
+
+static const VpFeatureDesc featureDesc = {
+    [](VkBaseOutStructure* p) {
+            switch (p->sType) {
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR: {
+                    VkPhysicalDeviceRayQueryFeaturesKHR* s = static_cast<VkPhysicalDeviceRayQueryFeaturesKHR*>(static_cast<void*>(p));
+                    s->rayQuery = VK_TRUE;
+                } break;
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR: {
+                    VkPhysicalDeviceAccelerationStructureFeaturesKHR* s = static_cast<VkPhysicalDeviceAccelerationStructureFeaturesKHR*>(static_cast<void*>(p));
+                    s->accelerationStructure = VK_TRUE;
+                    s->descriptorBindingAccelerationStructureUpdateAfterBind = VK_TRUE;
+                } break;
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT: {
+                    VkPhysicalDeviceScalarBlockLayoutFeaturesEXT* s = static_cast<VkPhysicalDeviceScalarBlockLayoutFeaturesEXT*>(static_cast<void*>(p));
+                    s->scalarBlockLayout = VK_TRUE;
+                } break;
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR: {
+                    VkPhysicalDeviceFeatures2KHR* s = static_cast<VkPhysicalDeviceFeatures2KHR*>(static_cast<void*>(p));
+                    s->features.fragmentStoresAndAtomics = VK_TRUE;
+                } break;
+                default: break;
+            }
+    },
+    [](VkBaseOutStructure* p) -> bool {
+        bool ret = true;
+            switch (p->sType) {
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR: {
+                    VkPhysicalDeviceRayQueryFeaturesKHR* prettify_VkPhysicalDeviceRayQueryFeaturesKHR = static_cast<VkPhysicalDeviceRayQueryFeaturesKHR*>(static_cast<void*>(p));
+                    ret = ret && (prettify_VkPhysicalDeviceRayQueryFeaturesKHR->rayQuery == VK_TRUE); VP_DEBUG_COND_MSG(!(prettify_VkPhysicalDeviceRayQueryFeaturesKHR->rayQuery == VK_TRUE), "Unsupported feature condition: VkPhysicalDeviceRayQueryFeaturesKHR::rayQuery == VK_TRUE");
+                } break;
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR: {
+                    VkPhysicalDeviceAccelerationStructureFeaturesKHR* prettify_VkPhysicalDeviceAccelerationStructureFeaturesKHR = static_cast<VkPhysicalDeviceAccelerationStructureFeaturesKHR*>(static_cast<void*>(p));
+                    ret = ret && (prettify_VkPhysicalDeviceAccelerationStructureFeaturesKHR->accelerationStructure == VK_TRUE); VP_DEBUG_COND_MSG(!(prettify_VkPhysicalDeviceAccelerationStructureFeaturesKHR->accelerationStructure == VK_TRUE), "Unsupported feature condition: VkPhysicalDeviceAccelerationStructureFeaturesKHR::accelerationStructure == VK_TRUE");
+                    ret = ret && (prettify_VkPhysicalDeviceAccelerationStructureFeaturesKHR->descriptorBindingAccelerationStructureUpdateAfterBind == VK_TRUE); VP_DEBUG_COND_MSG(!(prettify_VkPhysicalDeviceAccelerationStructureFeaturesKHR->descriptorBindingAccelerationStructureUpdateAfterBind == VK_TRUE), "Unsupported feature condition: VkPhysicalDeviceAccelerationStructureFeaturesKHR::descriptorBindingAccelerationStructureUpdateAfterBind == VK_TRUE");
+                } break;
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT: {
+                    VkPhysicalDeviceScalarBlockLayoutFeaturesEXT* prettify_VkPhysicalDeviceScalarBlockLayoutFeaturesEXT = static_cast<VkPhysicalDeviceScalarBlockLayoutFeaturesEXT*>(static_cast<void*>(p));
+                    ret = ret && (prettify_VkPhysicalDeviceScalarBlockLayoutFeaturesEXT->scalarBlockLayout == VK_TRUE); VP_DEBUG_COND_MSG(!(prettify_VkPhysicalDeviceScalarBlockLayoutFeaturesEXT->scalarBlockLayout == VK_TRUE), "Unsupported feature condition: VkPhysicalDeviceScalarBlockLayoutFeaturesEXT::scalarBlockLayout == VK_TRUE");
+                } break;
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR: {
+                    VkPhysicalDeviceFeatures2KHR* prettify_VkPhysicalDeviceFeatures2KHR = static_cast<VkPhysicalDeviceFeatures2KHR*>(static_cast<void*>(p));
+                    ret = ret && (prettify_VkPhysicalDeviceFeatures2KHR->features.fragmentStoresAndAtomics == VK_TRUE); VP_DEBUG_COND_MSG(!(prettify_VkPhysicalDeviceFeatures2KHR->features.fragmentStoresAndAtomics == VK_TRUE), "Unsupported feature condition: VkPhysicalDeviceFeatures2KHR::features.fragmentStoresAndAtomics == VK_TRUE");
+                } break;
+                default: break;
+            }
+        return ret;
+    }
+};
+
+static const VpPropertyDesc propertyDesc = {
+    [](VkBaseOutStructure* p) {
+            switch (p->sType) {
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR: {
+                    VkPhysicalDeviceProperties2KHR* s = static_cast<VkPhysicalDeviceProperties2KHR*>(static_cast<void*>(p));
+                    s->properties.limits.maxBoundDescriptorSets = 7;
+                } break;
+                default: break;
+            }
+    },
+    [](VkBaseOutStructure* p) -> bool {
+        bool ret = true;
+            switch (p->sType) {
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR: {
+                    VkPhysicalDeviceProperties2KHR* prettify_VkPhysicalDeviceProperties2KHR = static_cast<VkPhysicalDeviceProperties2KHR*>(static_cast<void*>(p));
+                    ret = ret && (prettify_VkPhysicalDeviceProperties2KHR->properties.limits.maxBoundDescriptorSets >= 7); VP_DEBUG_COND_MSG(!(prettify_VkPhysicalDeviceProperties2KHR->properties.limits.maxBoundDescriptorSets >= 7), "Unsupported properties condition: VkPhysicalDeviceProperties2KHR::properties.limits.maxBoundDescriptorSets >= 7");
+                } break;
+                default: break;
+            }
+        return ret;
+    }
+};
+
+static const VpStructChainerDesc chainerDesc = {
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        VkPhysicalDeviceRayQueryFeaturesKHR physicalDeviceRayQueryFeaturesKHR{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR, nullptr };
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR physicalDeviceAccelerationStructureFeaturesKHR{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR, &physicalDeviceRayQueryFeaturesKHR };
+        VkPhysicalDeviceScalarBlockLayoutFeaturesEXT physicalDeviceScalarBlockLayoutFeaturesEXT{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT, &physicalDeviceAccelerationStructureFeaturesKHR };
+        p->pNext = static_cast<VkBaseOutStructure*>(static_cast<void*>(&physicalDeviceScalarBlockLayoutFeaturesEXT));
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        p->pNext = static_cast<VkBaseOutStructure*>(static_cast<void*>(nullptr));
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+};
+
+} // namespace VP_UE_VULKAN_SM5_ANDROID_RT
 #endif
 
 #ifdef VP_UE_Vulkan_SM5_RT
@@ -994,6 +1173,42 @@ static const VpProfileDesc vpProfiles[] = {
         VP_UE_VULKAN_SM5::chainerDesc,
     },
 #endif
+#ifdef VP_UE_Vulkan_SM5_Android
+    VpProfileDesc{
+        VpProfileProperties{ VP_UE_VULKAN_SM5_ANDROID_NAME, VP_UE_VULKAN_SM5_ANDROID_SPEC_VERSION },
+        VP_UE_VULKAN_SM5_ANDROID_MIN_API_VERSION,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        VP_UE_VULKAN_SM5_ANDROID::featureDesc,
+        nullptr, 0,
+        VP_UE_VULKAN_SM5_ANDROID::propertyDesc,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        VP_UE_VULKAN_SM5_ANDROID::chainerDesc,
+    },
+#endif
+#ifdef VP_UE_Vulkan_SM5_Android_RT
+    VpProfileDesc{
+        VpProfileProperties{ VP_UE_VULKAN_SM5_ANDROID_RT_NAME, VP_UE_VULKAN_SM5_ANDROID_RT_SPEC_VERSION },
+        VP_UE_VULKAN_SM5_ANDROID_RT_MIN_API_VERSION,
+        nullptr, 0,
+        &VP_UE_VULKAN_SM5_ANDROID_RT::deviceExtensions[0], static_cast<uint32_t>(sizeof(VP_UE_VULKAN_SM5_ANDROID_RT::deviceExtensions) / sizeof(VP_UE_VULKAN_SM5_ANDROID_RT::deviceExtensions[0])),
+        nullptr, 0,
+        &VP_UE_VULKAN_SM5_ANDROID_RT::featureStructTypes[0], static_cast<uint32_t>(sizeof(VP_UE_VULKAN_SM5_ANDROID_RT::featureStructTypes) / sizeof(VP_UE_VULKAN_SM5_ANDROID_RT::featureStructTypes[0])),
+        VP_UE_VULKAN_SM5_ANDROID_RT::featureDesc,
+        &VP_UE_VULKAN_SM5_ANDROID_RT::propertyStructTypes[0], static_cast<uint32_t>(sizeof(VP_UE_VULKAN_SM5_ANDROID_RT::propertyStructTypes) / sizeof(VP_UE_VULKAN_SM5_ANDROID_RT::propertyStructTypes[0])),
+        VP_UE_VULKAN_SM5_ANDROID_RT::propertyDesc,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        VP_UE_VULKAN_SM5_ANDROID_RT::chainerDesc,
+    },
+#endif
 #ifdef VP_UE_Vulkan_SM5_RT
     VpProfileDesc{
         VpProfileProperties{ VP_UE_VULKAN_SM5_RT_NAME, VP_UE_VULKAN_SM5_RT_SPEC_VERSION },
@@ -1380,7 +1595,7 @@ VPAPI_ATTR VkResult vpGetPhysicalDeviceProfileSupport(VkInstance instance, VkPhy
 
     {
         VkPhysicalDeviceProperties props{};
-		VulkanRHI::vkGetPhysicalDeviceProperties(physicalDevice, &props);
+        VulkanRHI::vkGetPhysicalDeviceProperties(physicalDevice, &props);
         if (!detail::vpCheckVersion(props.apiVersion, pDesc->minApiVersion)) {
             VP_DEBUG_MSGF("Unsupported API version: %u.%u.%u", VK_API_VERSION_MAJOR(pDesc->minApiVersion), VK_API_VERSION_MINOR(pDesc->minApiVersion), VK_API_VERSION_PATCH(pDesc->minApiVersion));
             *pSupported = VK_FALSE;

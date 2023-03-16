@@ -1,11 +1,11 @@
 # Use the generated header in the "debug" folder because we want the option to print specific errors
 with open(r'./debug/vulkan_profiles.hpp', 'r') as f:
-    data = file.read()
+    data = f.read()
     
     # Add our namespace in front of functions assumed by the generation scripts
     data = data.replace("vkGetInstanceProcAddr(","VulkanRHI::vkGetInstanceProcAddr(")
     data = data.replace("vkEnumerateInstanceExtensionProperties(","VulkanRHI::vkEnumerateInstanceExtensionProperties(")
-    data = data.replace("vkGetInstanceProcAddr(","VulkanRHI::vkGetInstanceProcAddr(")
+    data = data.replace("vkCreateInstance(","VulkanRHI::vkCreateInstance(")
     data = data.replace("vkEnumerateDeviceExtensionProperties(","VulkanRHI::vkEnumerateDeviceExtensionProperties(")
     data = data.replace("vkGetPhysicalDeviceProperties(","VulkanRHI::vkGetPhysicalDeviceProperties(")
     data = data.replace("vkCreateDevice(","VulkanRHI::vkCreateDevice(")
