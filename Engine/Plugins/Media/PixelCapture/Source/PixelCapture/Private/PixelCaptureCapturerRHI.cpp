@@ -17,6 +17,7 @@ FPixelCaptureCapturerRHI::FPixelCaptureCapturerRHI(float InScale)
 	: Scale(InScale)
 {
 	Fence = GDynamicRHI->RHICreateGPUFence(TEXT("FPixelCaptureCapturerRHI Fence"));
+	RHIType = GDynamicRHI ? RHIGetInterfaceType() : ERHIInterfaceType::Hidden;
 }
 
 IPixelCaptureOutputFrame* FPixelCaptureCapturerRHI::CreateOutputBuffer(int32 InputWidth, int32 InputHeight)
@@ -68,15 +69,34 @@ void FPixelCaptureCapturerRHI::CheckComplete()
 {
 	// in lieu of a proper callback we need to capture a thread to poll the fence
 	// so we know as quickly as possible when we can readback.
-	TSharedRef<FPixelCaptureCapturerRHI> ThisRHIRef = StaticCastSharedRef<FPixelCaptureCapturerRHI>(AsShared());
-	AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [ThisRHIRef]() {
-		while (!ThisRHIRef->Fence->Poll())
+
+	if (RHIType == ERHIInterfaceType::D3D11)
+	{
+		// sometimes on dx11 we end up in a deadlock when we loop here polling the fence
+		// so instead we check and then submit a new check task.
+		if (!Fence->Poll())
 		{
-			// we want to check quickly but we dont want to burn CPU.
-			FPlatformProcess::Sleep(0.0001f);
+			TSharedRef<FPixelCaptureCapturerRHI> ThisRHIRef = StaticCastSharedRef<FPixelCaptureCapturerRHI>(AsShared());
+			AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [ThisRHIRef]() { ThisRHIRef->CheckComplete(); });
 		}
-		ThisRHIRef->OnRHIStageComplete();
-	});
+		else
+		{
+			OnRHIStageComplete();
+		}
+	}
+	else
+	{
+		// we submit a task here to loop poll the fence so that we get notified as quickly as possible about its completion.
+		TSharedRef<FPixelCaptureCapturerRHI> ThisRHIRef = StaticCastSharedRef<FPixelCaptureCapturerRHI>(AsShared());
+		AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [ThisRHIRef]() {
+			while (!ThisRHIRef->Fence->Poll())
+			{
+				// we want to check quickly but we dont want to burn CPU.
+				FPlatformProcess::Sleep(0.0001f);
+			}
+			ThisRHIRef->OnRHIStageComplete();
+		});
+	}
 }
 
 void FPixelCaptureCapturerRHI::OnRHIStageComplete()

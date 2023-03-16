@@ -29,6 +29,7 @@ private:
 	float Scale = 1.0f;
 
 	FGPUFenceRHIRef Fence;
+	ERHIInterfaceType RHIType;
 
 	FPixelCaptureCapturerRHI(float InScale);
 	void CheckComplete();
