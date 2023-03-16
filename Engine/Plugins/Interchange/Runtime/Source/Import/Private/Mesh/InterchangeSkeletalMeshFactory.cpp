@@ -239,9 +239,14 @@ namespace UE
 							MorphTargetData.Points[VertexID.GetValue()] = (FVector3f)GlobalTransform.TransformPosition((FVector)VertexPositions[VertexID]);
 						}
 
-						for (int32 PointIdx = VertexOffset; PointIdx < DestinationVertexIndexMax; ++PointIdx)
+						for (int32 PointIdx = VertexOffset; PointIdx < DestinationSkeletalMeshImportData.Points.Num(); ++PointIdx)
 						{
 							int32 OriginalPointIdx = DestinationSkeletalMeshImportData.PointToRawMap[PointIdx] - VertexOffset;
+							if (!MorphTargetData.Points.IsValidIndex(OriginalPointIdx))
+							{
+								//We break if we get over a valid point it mean we are inspecting a different part of the mesh
+								break;
+							}
 							//Rebuild the data with only the modified point
 							if ((MorphTargetData.Points[OriginalPointIdx] - DestinationSkeletalMeshImportData.Points[PointIdx]).SizeSquared() > FMath::Square(THRESH_POINTS_ARE_SAME))
 							{

@@ -1944,18 +1944,20 @@ FSkeletalMeshImportData FSkeletalMeshImportData::CreateFromMeshDescription(const
 	{
 		//We can use GetValue because the Meshdescription was compacted before the copy
 		SkelMeshImportData.Points[VertexID.GetValue()] = VertexPositions[VertexID];
-
-		FVertexBoneWeightsConst BoneWeights = VertexSkinWeights.Get(VertexID); 
-		const int32 InfluenceCount = BoneWeights.Num();
-		
-		const int32 InfluenceOffsetIndex = SkelMeshImportData.Influences.Num();
-		SkelMeshImportData.Influences.AddDefaulted(InfluenceCount);
-		for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
+		if (VertexSkinWeights.IsValid())
 		{
-			SkeletalMeshImportData::FRawBoneInfluence& BoneInfluence = SkelMeshImportData.Influences[InfluenceOffsetIndex + InfluenceIndex];
-			BoneInfluence.VertexIndex = VertexID.GetValue();
-			BoneInfluence.BoneIndex = BoneWeights[InfluenceIndex].GetBoneIndex();
-			BoneInfluence.Weight = BoneWeights[InfluenceIndex].GetWeight();
+			FVertexBoneWeightsConst BoneWeights = VertexSkinWeights.Get(VertexID);
+			const int32 InfluenceCount = BoneWeights.Num();
+
+			const int32 InfluenceOffsetIndex = SkelMeshImportData.Influences.Num();
+			SkelMeshImportData.Influences.AddDefaulted(InfluenceCount);
+			for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
+			{
+				SkeletalMeshImportData::FRawBoneInfluence& BoneInfluence = SkelMeshImportData.Influences[InfluenceOffsetIndex + InfluenceIndex];
+				BoneInfluence.VertexIndex = VertexID.GetValue();
+				BoneInfluence.BoneIndex = BoneWeights[InfluenceIndex].GetBoneIndex();
+				BoneInfluence.Weight = BoneWeights[InfluenceIndex].GetWeight();
+			}
 		}
 	}
 
