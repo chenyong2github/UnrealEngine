@@ -362,7 +362,7 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 	
 	FString CompositeTextureStr;
 
-	if(IsValid(Texture.CompositeTexture) && Texture.CompositeTextureMode != CTM_Disabled)
+	if(IsValid(Texture.CompositeTexture) && Texture.CompositeTextureMode != CTM_Disabled && Texture.CompositeTexture->Source.IsValid())
 	{
 		// CompositeTextureMode output changed so force a new DDC key value :
 		CompositeTextureStr += TEXT("_Composite090802022_");
@@ -891,8 +891,18 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bSharpenWithoutColorShift = bSharpenWithoutColorShift;
 	OutBuildSettings.bBorderColorBlack = bBorderColorBlack;
 	OutBuildSettings.bFlipGreenChannel = Texture.bFlipGreenChannel;
+	
+	// these are set even if Texture.CompositeTexture == null
+	//	we should not do that, but keep it the same for now to preserve DDC keys
 	OutBuildSettings.CompositeTextureMode = Texture.CompositeTextureMode;
 	OutBuildSettings.CompositePower = Texture.CompositePower;
+
+	if ( Texture.CompositeTexture && ! Texture.CompositeTexture->Source.IsValid() )
+	{
+		// have a CompositeTexture but it has no source, don't use it :
+		OutBuildSettings.CompositeTextureMode = CTM_Disabled;
+	}
+
 	OutBuildSettings.LODBias = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, Texture.NumCinematicMipLevels, Texture.MipGenSettings, bVirtualTextureStreaming);
 	OutBuildSettings.LODBiasWithCinematicMips = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, 0, Texture.MipGenSettings, bVirtualTextureStreaming);
 	OutBuildSettings.bVirtualStreamable = bVirtualTextureStreaming;

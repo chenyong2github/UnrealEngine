@@ -1259,7 +1259,7 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	// All of these settings are fixed across build settings and are derived directly from the texture.
 	// So we can just use layer 0 of whatever we have.
 	TextureData.Init(Texture, (TextureMipGenSettings)BuildSettingsPerLayerFetchOrBuild[0].MipGenSettings, BuildSettingsPerLayerFetchOrBuild[0].bCubemap, BuildSettingsPerLayerFetchOrBuild[0].bTextureArray, BuildSettingsPerLayerFetchOrBuild[0].bVolume, bAllowAsyncLoading);
-	if (Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled)
+	if (Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled && Texture.CompositeTexture->Source.IsValid())
 	{
 		bool bMatchingBlocks = Texture.CompositeTexture->Source.GetNumBlocks() == Texture.Source.GetNumBlocks();
 		
@@ -1625,6 +1625,7 @@ static bool DDC1_LoadAndValidateTextureData(
 	bool bHasCompositeTextureSourceMips = false;
 	if (CompositeTextureData.IsValid() && Texture.CompositeTexture && Texture.CompositeTexture->Source.IsBulkDataLoaded())
 	{
+		check( Texture.CompositeTexture->Source.IsValid() );
 		CompositeTextureData.GetSourceMips(Texture.CompositeTexture->Source, ImageWrapper);
 		bHasCompositeTextureSourceMips = true;
 	}
@@ -1970,7 +1971,7 @@ void FTextureCacheDerivedDataWorker::Finalize()
 		}
 
 		TextureData.GetSourceMips(Texture.Source, ImageWrapper);
-		if (Texture.CompositeTexture)
+		if (Texture.CompositeTexture && Texture.CompositeTexture->Source.IsValid())
 		{
 			CompositeTextureData.GetSourceMips(Texture.CompositeTexture->Source, ImageWrapper);
 		}
@@ -2407,7 +2408,7 @@ public:
 		EPriority OwnerPriority = EnumHasAnyFlags(Flags, ETextureCacheFlags::Async) ? ConvertFromQueuedWorkPriority(Priority) : EPriority::Blocking;
 		Owner.Emplace(OwnerPriority);
 
-		bool bUseCompositeTexture;
+		bool bUseCompositeTexture = false;
 		if (!IsTextureValidForBuilding(Texture, Flags, bUseCompositeTexture))
 		{
 			return;
@@ -2712,6 +2713,8 @@ public:
 
 	static bool IsTextureValidForBuilding(UTexture& Texture, ETextureCacheFlags Flags, bool& bOutUseCompositeTexture)
 	{
+		bOutUseCompositeTexture = false;
+
 		const int32 NumBlocks = Texture.Source.GetNumBlocks();
 		const int32 NumLayers = Texture.Source.GetNumLayers();
 		if (NumBlocks < 1 || NumLayers < 1)
@@ -2762,7 +2765,7 @@ public:
 			}
 		}
 		
-		const bool bCompositeTextureViable = Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled;
+		const bool bCompositeTextureViable = Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled && Texture.CompositeTexture->Source.IsValid();
 		bool bMatchingBlocks = bCompositeTextureViable && (Texture.CompositeTexture->Source.GetNumBlocks() == Texture.Source.GetNumBlocks());
 		
 		if (bCompositeTextureViable)

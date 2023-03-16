@@ -329,6 +329,8 @@ FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildS
 
 	if (bUseCompositeTexture && Texture.CompositeTexture)
 	{
+		check( Texture.CompositeTexture->Source.IsValid() ); // should have been checked to set bUseCompositeTexture
+
 		Writer.SetName("CompositeSource");
 		WriteSource(Writer, *Texture.CompositeTexture, LayerIndex, BuildSettings);
 	}
