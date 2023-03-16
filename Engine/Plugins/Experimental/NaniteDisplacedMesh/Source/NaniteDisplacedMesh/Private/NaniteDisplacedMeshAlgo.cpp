@@ -238,7 +238,7 @@ bool DisplaceNaniteMesh(
 	TArray< Nanite::FDisplacementMap > DisplacementMaps;
 	for( auto& DisplacementMap : Parameters.DisplacementMaps )
 	{
-		if( IsValid( DisplacementMap.Texture ) )
+		if( IsValid( DisplacementMap.Texture ) && DisplacementMap.Texture->Source.IsValid() )
 		{
 			DisplacementMaps.Add( Nanite::FDisplacementMap(
 				DisplacementMap.Texture->Source,

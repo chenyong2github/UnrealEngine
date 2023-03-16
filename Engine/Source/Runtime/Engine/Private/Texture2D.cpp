@@ -875,7 +875,14 @@ bool UTexture2D::GetSourceArtCRC(uint32& OutSourceCRC)
 bool UTexture2D::HasSameSourceArt(UTexture2D* InTexture)
 {
 	bool bResult = false;
+
 #if WITH_EDITOR
+
+	if ( ! Source.IsValid() || ! InTexture->Source.IsValid() )
+	{
+		return false;
+	}
+
 	TArray64<uint8> RawData1;
 	TArray64<uint8> RawData2;
 	int32 SizeX = 0;
@@ -901,6 +908,7 @@ bool UTexture2D::HasSameSourceArt(UTexture2D* InTexture)
 		}
 	}
 #endif // #if WITH_EDITOR
+
 	return bResult;
 }
 

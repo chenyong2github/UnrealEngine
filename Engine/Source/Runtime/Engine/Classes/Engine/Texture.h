@@ -1088,7 +1088,8 @@ class UTexture : public UStreamableRenderAsset, public IInterface_AssetUserData,
 	--------------------------------------------------------------------------*/
 
 #if WITH_EDITORONLY_DATA
-	/* Dynamic textures will have ! Source.IsValid() */
+	/* Dynamic textures will have ! Source.IsValid() ;
+	Also in UEFN , Textures from the cooked-only texture library.  Always check Source.IsValid before using Source. */
 	UPROPERTY()
 	FTextureSource Source;
 #endif

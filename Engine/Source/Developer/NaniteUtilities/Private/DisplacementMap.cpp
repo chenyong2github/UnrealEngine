@@ -26,6 +26,7 @@ FDisplacementMap::FDisplacementMap( FTextureSource& TextureSource, float InMagni
 	, AddressX( InAddressX )
 	, AddressY( InAddressY )
 {
+	check( TextureSource.IsValid() );
 	TextureSource.GetMipData( SourceData, 0 );
 
 	SourceFormat  = TextureSource.GetFormat();

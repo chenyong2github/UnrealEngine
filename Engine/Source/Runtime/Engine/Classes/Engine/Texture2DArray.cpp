@@ -332,7 +332,7 @@ ENGINE_API bool UTexture2DArray::CheckArrayTexturesCompatibility()
 {
 	for (UTexture2D* SourceTexture : SourceTextures)
 	{
-		if (!SourceTexture)
+		if (!SourceTexture || !SourceTexture->Source.IsValid())
 		{
 			// Do not create array till all texture slots are filled.
 			return false;
@@ -583,6 +583,17 @@ ENGINE_API void UTexture2DArray::PostEditChangeProperty(FPropertyChangedEvent & 
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTexture2DArray, SourceTextures))
 	{
+
+		for (int i=0;i<SourceTextures.Num();i++)
+		{
+			UTexture2D * SourceTexture = SourceTextures[i];
+			if (SourceTexture && !SourceTexture->Source.IsValid())
+			{
+				UE_LOG(LogTexture, Warning, TEXT("Texture has no Source, cannot be used [%s]"), *SourceTexture->GetFullName());
+				SourceTextures[i] = nullptr;
+			}
+		}		
+
 		// Empty SourceTextures, remove any resources if present.
 		if (SourceTextures.Num() == 0) 
 		{

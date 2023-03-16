@@ -166,7 +166,7 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 
 	Modify(true);
 
-	if (Source2DTexture && Source2DTileSizeX > 0 && Source2DTileSizeY > 0)
+	if (Source2DTexture && Source2DTileSizeX > 0 && Source2DTileSizeY > 0 && Source2DTexture->Source.IsValid())
 	{
 		FTextureSource& InitialSource = Source2DTexture->Source;
 		const int32 Num2DTileX = InitialSource.GetSizeX() / Source2DTileSizeX;
@@ -565,7 +565,7 @@ void UVolumeTexture::SetDefaultSource2DTileSize()
 	Source2DTileSizeX = 0;
 	Source2DTileSizeY = 0;
 
-	if (Source2DTexture)
+	if (Source2DTexture && Source2DTexture->Source.IsValid())
 	{
 		const int32 SourceSizeX = Source2DTexture->Source.GetSizeX();
 		const int32 SourceSizeY = Source2DTexture->Source.GetSizeY();
