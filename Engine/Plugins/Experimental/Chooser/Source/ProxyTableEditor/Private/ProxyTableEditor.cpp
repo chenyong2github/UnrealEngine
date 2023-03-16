@@ -12,8 +12,7 @@
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SHyperlink.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "SAssetDropTarget.h"
 #include "SClassViewer.h"
@@ -416,6 +415,7 @@ public:
 	{
 		static FName Handles = "Handles";
 		static FName Key = "Key";
+		static FName OldKey = "OldKey";
 		static FName Value = "Value";
 
 		if (Row->RowIndex >=0)
@@ -472,6 +472,20 @@ public:
 						SNew(SSeparator).SeparatorImage(FCoreStyle::Get().GetBrush("FocusRectangle"))
 						.Visibility_Lambda([this]() { return bDragActive && bDropAbove ? EVisibility::Visible : EVisibility::Hidden; })
 					];
+			}
+			else if (ColumnName == OldKey)
+			{
+				bool bReadOnly = Row->ProxyTable != Editor->GetProxyTable();
+				return SNew(SEditableTextBox)
+					.IsEnabled(!bReadOnly)
+					.Text_Lambda([this](){ return Row->ProxyTable->Entries.Num() > Row->RowIndex ?  FText::FromName(Row->ProxyTable->Entries[Row->RowIndex].Key) : FText();})
+					.OnTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
+					{
+						if (Row->ProxyTable->Entries.Num() > Row->RowIndex)
+						{
+							Row->ProxyTable->Entries[Row->RowIndex].Key = FName(Text.ToString());
+						}
+					});	
 			}
 			else if (ColumnName == Key)
 			{
@@ -718,9 +732,27 @@ void FProxyTableEditor::UpdateTableColumns()
 					.DefaultLabel(LOCTEXT("KeyColumnName", "Proxy"))
 					.ManualWidth(500));
 
+
+		if (UProxyTable* Table = GetProxyTable())
+    	{
+    		if (Table->Entries.Num() > 0)
+    		{
+    			// if the first entry has a non-none key, assume this is an old table and make an extra column with the old FName Key property
+    			if (Table->Entries[0].Key != NAME_None)
+    			{
+    					HeaderRow->AddColumn(SHeaderRow::Column("OldKey")
+                    					.DefaultLabel(LOCTEXT("OldKeyColumnName", "Key (Deprecated)"))
+                    					.ManualWidth(500));
+    			}
+    		}
+    	}
+
 	HeaderRow->AddColumn(SHeaderRow::Column("Value")
 					.DefaultLabel(LOCTEXT("ValueColumnName", "Value"))
 					.ManualWidth(500));
+
+	
+
 
 }
 
@@ -838,10 +870,10 @@ void FProxyTableEditor::AddInheritedRows(UProxyTable* ProxyTable)
 	for(int i =0; i<ProxyTable->Entries.Num(); i++)
 	{
 		// check if there's already an entry in TableRows for the same ProxyAsset
-		if (!ReferencedProxyAssets.Find(ProxyTable->Entries[i].Proxy))
+		if (!ReferencedProxyEntries.Find(ProxyTable->Entries[i]))
 		{
 			ParentTableRow->Children.Add(MakeShared<FProxyTableRow>(i, ProxyTable));
-			ReferencedProxyAssets.Add(ProxyTable->Entries[i].Proxy);
+			ReferencedProxyEntries.Add(ProxyTable->Entries[i]);
 		}
 	}
 
@@ -857,14 +889,14 @@ void FProxyTableEditor::UpdateTableRows()
 	UProxyTable* ProxyTable = Cast<UProxyTable>(EditingObjects[0]);
 
 	TableRows.SetNum(0);
-	ReferencedProxyAssets.Empty(ReferencedProxyAssets.Num());
+	ReferencedProxyEntries.Empty(ReferencedProxyEntries.Num());
 	ReferencedProxyTables.Empty(ReferencedProxyTables.Num());
 
 	// add rows from this table
 	for(int i =0; i<ProxyTable->Entries.Num(); i++)
 	{
 		TableRows.Add(MakeShared<FProxyTableRow>(i, ProxyTable));
-		ReferencedProxyAssets.Add(ProxyTable->Entries[i].Proxy);
+		ReferencedProxyEntries.Add(ProxyTable->Entries[i]);
 	}
 
 	// Add 1 at the end, for the "Add Row" control

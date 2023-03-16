@@ -1,6 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProxyTable.h"
 #include "ProxyTableFunctionLibrary.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Logging/LogMacros.h"
+#include "UObject/Package.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogProxyTable,Log,All);
+
 #if WITH_EDITOR
 void UProxyAsset::PostEditUndo()
 {
@@ -28,11 +34,6 @@ void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	}
 }
 
-void UProxyAsset::PostLoad()
-{
-	Super::PostLoad();
-	CachedPreviousType = Type;
-}
 #endif
 
 
@@ -40,29 +41,198 @@ FLookupProxy::FLookupProxy()
 {
 }
 
-static UObject* FindProxyObject(const UProxyTable* Table, const UProxyAsset* Proxy, const UObject* ContextObject)
-{
-	if (Table)
-	{
-		for (const FProxyEntry& Entry : Table->Entries)
-		{
-			if (Entry.Proxy == Proxy && Entry.ValueStruct.IsValid())
-			{
-				const FObjectChooserBase& EntryValue = Entry.ValueStruct.Get<FObjectChooserBase>();
-				return EntryValue.ChooseObject(ContextObject);
-			}
-		}
+#if WITH_EDITORONLY_DATA
 
-		// search parent tables (uncooked data only)
-		for (const TObjectPtr<UProxyTable> ParentTable : Table->InheritEntriesFrom)
+/////////////////////////////////////////////////////////////////////////////////////////
+// Proxy Asset
+
+void UProxyAsset::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	CachedPreviousType = Type;
+#endif
+
+	if (!Guid.IsValid())
+	{
+		// if we load a ProxyAsset that was created before the Guid, assign it a deterministic guid based on the name and path.
+		Guid.A = GetTypeHash(GetName());
+		Guid.B = GetTypeHash(GetPackage()->GetPathName());
+	}
+}
+
+void UProxyAsset::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	UObject::PostDuplicate(DuplicateMode);
+	if (DuplicateMode == EDuplicateMode::Normal)
+	{
+		// create a new guid when duplicating
+		Guid = FGuid::NewGuid();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+/// Proxy Entry
+
+// Gets the uint32 key that will be used as the unique identifier for the Proxy Entry
+const FGuid FProxyEntry::GetGuid() const
+{
+	if (Proxy)
+	{
+		return Proxy->Guid;
+	}
+	else
+	{
+		// fallback for old FName key content
+		FGuid Guid;
+		if (Key != NAME_None)
 		{
-			if (UObject* Value = FindProxyObject(ParentTable, Proxy, ContextObject))
+			Guid.A = GetTypeHash(Key);
+		}
+		return Guid;
+	}
+}
+
+// == operator for TArray::Contains
+bool FProxyEntry::operator== (const FProxyEntry& Other) const
+{
+	return GetGuid() == Other.GetGuid();
+}
+
+// < operator for Algo::BinarySearch, and TArray::StableSort
+bool FProxyEntry::operator< (const FProxyEntry& Other) const
+{
+	return GetGuid() < Other.GetGuid();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+/// Proxy Table
+
+static void BuildRuntimeDataRecursive(UProxyTable* RootTable, UProxyTable* Table, TArray<FProxyEntry>& OutEntriesArray, TArray<TWeakObjectPtr<UProxyTable>>& OutDependencies)
+{
+	if(Table == nullptr)
+	{
+		return;
+	}
+	
+	OutDependencies.Add(Table);
+	
+	for (const FProxyEntry& Entry : Table->Entries)
+	{
+		int32 FoundIndex = OutEntriesArray.Find(Entry);
+		if (FoundIndex == INDEX_NONE)
+		{
+			OutEntriesArray.Add(Entry);
+		}
+		else
+		{
+			// check for Guid collisions
+			if (Entry.Proxy && OutEntriesArray[FoundIndex].Proxy)
 			{
-				return Value;
+				if (Entry.Proxy != OutEntriesArray[FoundIndex].Proxy)
+				{
+					UE_LOG(LogProxyTable, Error, TEXT("Proxy Assets %s, and %s have the same Guid. They may have been duplicated outside the editor."),
+						*Entry.Proxy.GetName(), *OutEntriesArray[FoundIndex].Proxy.GetName());
+				}
+			}
+			else
+			{
+				// fallback for FName based keys
+				if (Entry.Key != OutEntriesArray[FoundIndex].Key)
+				{
+					UE_LOG(LogProxyTable, Error, TEXT("Proxy Key %s, and %s have the same Hash."),
+						Entry.Key, OutEntriesArray[FoundIndex].Key);
+				}
 			}
 		}
 	}
 
+	for (const TObjectPtr<UProxyTable> ParentTable : Table->InheritEntriesFrom)
+	{
+		if (!OutDependencies.Contains(ParentTable))
+		{
+			BuildRuntimeDataRecursive(RootTable, ParentTable, OutEntriesArray, OutDependencies);
+		}
+	}
+}
+
+void UProxyTable::BuildRuntimeData()
+{
+	// Unregister callbacks on current dependencies
+	for (TWeakObjectPtr<UProxyTable> Dependency : TableDependencies)
+	{
+		if (Dependency.IsValid())
+		{
+			Dependency->OnProxyTableChanged.RemoveAll(this);
+		}
+	}
+	TableDependencies.Empty();
+	ProxyDependencies.Empty();
+
+	TArray<FProxyEntry> RuntimeEntries;
+	BuildRuntimeDataRecursive(this, this, RuntimeEntries, TableDependencies);
+
+	// sort by Key
+	RuntimeEntries.StableSort();
+
+	// Copy to Key and Value arrays
+	int EntryCount = RuntimeEntries.Num();
+	
+	Keys.Empty(EntryCount);
+	Values.Empty();
+	
+	TArray<FConstStructView> Views;
+	Views.Reserve(EntryCount);
+	
+	for(const FProxyEntry& Entry : RuntimeEntries) 
+	{
+		Keys.Add(Entry.GetGuid());
+   		Views.Add(Entry.ValueStruct);
+	}
+
+	Values = Views;
+	
+	// register callbacks on updated dependencies
+	for (TWeakObjectPtr<UProxyTable> Dependency : TableDependencies)
+	{
+		Dependency->OnProxyTableChanged.AddUObject(this, &UProxyTable::BuildRuntimeData);
+	}
+
+	// keep a copy of proxy assets just for debugging purposes (indexes match the Key and Value arrays)
+	for(const FProxyEntry& Entry : RuntimeEntries) 
+	{
+		if (Entry.Proxy)
+			{
+			ProxyDependencies.Add(Entry.Proxy);
+			}
+		}
+	}
+
+
+void UProxyTable::PostLoad()
+{
+	Super::PostLoad();
+	BuildRuntimeData();
+}
+
+void UProxyTable::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	UObject::PostTransacted(TransactionEvent);
+	OnProxyTableChanged.Broadcast();
+}
+
+#endif
+
+UObject* UProxyTable::FindProxyObject(const FGuid& Key, const UObject* ContextObject) const
+{
+	const int FoundIndex = Algo::BinarySearch(Keys, Key);
+	if (FoundIndex != INDEX_NONE)
+	{
+		const FObjectChooserBase &EntryValue = Values[FoundIndex].Get<const FObjectChooserBase>();
+		return EntryValue.ChooseObject(ContextObject);
+	}
+	
 	return nullptr;
 }
 
@@ -73,9 +243,12 @@ static UObject* FindProxyObject(const UProxyAsset* Proxy, const UObject* Context
 		const UProxyTable* Table;
 		if (Proxy->ProxyTable.Get<FChooserParameterProxyTableBase>().GetValue(ContextObject, Table))
 		{
-			if (UObject* Value = FindProxyObject(Table, Proxy, ContextObject))
+			if(Table)
 			{
-				return Value;
+				if (UObject* Value = Table->FindProxyObject(Proxy->Guid, ContextObject))
+				{
+					return Value;
+				}
 			}
 		}
 	}
@@ -117,6 +290,9 @@ bool FProxyTableContextProperty::GetValue(const UObject* ContextObject, const UP
 	return false;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////
+// Blueprint Library Functions
+
 UObject* UProxyTableFunctionLibrary::EvaluateProxyAsset(const UObject* ContextObject, const UProxyAsset* Proxy, TSubclassOf<UObject> ObjectClass)
 {
 	UObject* Result = FindProxyObject(Proxy, ContextObject);
@@ -129,34 +305,20 @@ UObject* UProxyTableFunctionLibrary::EvaluateProxyAsset(const UObject* ContextOb
 }
 
 // fallback for FName based Keys:
-
-static UObject* FindProxyObject(const UProxyTable* Table, FName Key, const UObject* ContextObject)
+UObject* UProxyTableFunctionLibrary::EvaluateProxyTable(const UObject* ContextObject, const UProxyTable* ProxyTable, FName Key)
 {
-	if (Table)
+	if (ProxyTable)
 	{
-		for (const FProxyEntry& Entry : Table->Entries)
+		if(ProxyTable)
 		{
-			if (Entry.Key == Key && Entry.ValueStruct.IsValid())
-			{
-				const FObjectChooserBase& EntryValue = Entry.ValueStruct.Get<FObjectChooserBase>();
-				return EntryValue.ChooseObject(ContextObject);
-			}
-		}
-
-		// search parent tables (uncooked data only)
-		for (const TObjectPtr<UProxyTable> ParentTable : Table->InheritEntriesFrom)
-		{
-			if (UObject* Value = FindProxyObject(ParentTable, Key, ContextObject))
+			FGuid Guid;
+			Guid.A = GetTypeHash(Key);
+			if (UObject* Value = ProxyTable->FindProxyObject(Guid, ContextObject))
 			{
 				return Value;
 			}
 		}
 	}
-
+	
 	return nullptr;
-}
-
-UObject* UProxyTableFunctionLibrary::EvaluateProxyTable(const UObject* ContextObject, const UProxyTable* ProxyTable, FName Key)
-{
-	return FindProxyObject(ProxyTable, Key, ContextObject);
 }

@@ -140,7 +140,7 @@ namespace UE::ProxyTableEditor
 		
 	public:
 		TMap<UProxyTable*, bool> ImportedTablesExpansionState;
-		TSet<UProxyAsset*> ReferencedProxyAssets;
+		TSet<FProxyEntry> ReferencedProxyEntries;
 		TSet<UProxyTable*> ReferencedProxyTables;
 		
 		void SelectRow(TSharedPtr<FProxyTableRow> Row)

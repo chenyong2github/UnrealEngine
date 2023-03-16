@@ -7,6 +7,8 @@
 #include "ChooserPropertyAccess.h"
 #include "IChooserParameterProxyTable.h"
 #include "InstancedStruct.h"
+#include "InstancedStructContainer.h"
+#include "Misc/Guid.h"
 #include "ProxyTable.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FProxyTypeChanged, const UClass* OutputObjectType);
@@ -22,7 +24,6 @@ public:
 	FProxyTypeChanged OnTypeChanged;
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostLoad() override;
 
 	// caching the type so that on Undo, we can tell if we should fire the changed delegate
 	UClass* CachedPreviousType = nullptr;
@@ -38,13 +39,24 @@ public:
 	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct ="/Script/ProxyTable.ChooserParameterProxyTableBase"), Category = "Proxy Table Reference")
 	FInstancedStruct ProxyTable;
 
+	UPROPERTY()
+	FGuid Guid;
+
 	virtual UClass* GetContextClass() override { return ContextClass; }
+
+#if WITH_EDITORONLY_DATA
+	virtual void PostLoad() override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+#endif
 };
 
 USTRUCT()
-struct FProxyEntry
+struct PROXYTABLE_API FProxyEntry
 {
 	GENERATED_BODY()
+
+	bool operator== (const FProxyEntry& Other) const;
+	bool operator< (const FProxyEntry& Other) const;
 	
 	UPROPERTY(EditAnywhere, Category = "Data")
 	TObjectPtr<UProxyAsset> Proxy;
@@ -55,7 +67,15 @@ struct FProxyEntry
 	
 	UPROPERTY(DisplayName="Value", EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ObjectChooserBase"), Category = "Data")
 	FInstancedStruct ValueStruct;
+
+	const FGuid GetGuid() const;
 };
+
+#if WITH_EDITORONLY_DATA
+inline uint32 GetTypeHash(const FProxyEntry& Entry) { return GetTypeHash(Entry.GetGuid()); }
+#endif
+
+DECLARE_MULTICAST_DELEGATE(FProxyTableChanged);
 
 UCLASS(MinimalAPI,BlueprintType)
 class UProxyTable : public UObject
@@ -64,11 +84,32 @@ class UProxyTable : public UObject
 public:
 	UProxyTable() {}
 
+	UPROPERTY()
+	TArray<FGuid> Keys;
+
+	UPROPERTY()
+	FInstancedStructContainer Values;
+	
+	UObject* FindProxyObject(const FGuid& Key, const UObject* ContextObject) const;
+
+#if WITH_EDITORONLY_DATA
+public:
+	FProxyTableChanged OnProxyTableChanged;
+	
 	UPROPERTY(EditAnywhere, Category = "Hidden")
 	TArray<FProxyEntry> Entries;
 	
 	UPROPERTY(EditAnywhere, Category = "Inheritance")
 	TArray<TObjectPtr<UProxyTable>> InheritEntriesFrom;
+
+	virtual void PostLoad() override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+private:
+	void BuildRuntimeData();
+	TArray<TWeakObjectPtr<UProxyTable>> TableDependencies;
+	TArray<TWeakObjectPtr<UProxyAsset>> ProxyDependencies;
+#endif
+
 };
 
 
