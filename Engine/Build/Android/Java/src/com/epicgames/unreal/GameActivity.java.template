@@ -5721,63 +5721,69 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public int AndroidThunkJava_GetMetaDataInt(String key)
 	{
-		if (key.equals("unreal.http.proxy.proxyPort"))
-		{
-			if (ANDROID_BUILD_VERSION >= 14)
-			{
-				String ProxyPort = System.getProperty("http.proxyPort");
-				return ProxyPort == null ? -1 : Integer.parseInt(ProxyPort);
-			}
-			else
-			{
-				return android.net.Proxy.getPort(getApplicationContext());
-			}
-		}
-		else
-		if (key.equals("android.hardware.vulkan.version"))
-		{
-			return VulkanVersion;
-		}
-		else
-		if (key.equals("android.hardware.vulkan.level"))
-		{
-			return VulkanLevel;
-		}
-		else
-		if (key.equals("unreal.getUsedMemory"))
-		{
-			int ProcessMemory = 0;
-			synchronized(_activity)
-			{
-				ProcessMemory = _activity.UsedMemory;
-			}
-			return ProcessMemory;
-		}
-		else
-		if (key.equals("audiomanager.framesPerBuffer"))
-		{
-			AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-			String framesPerBuffer = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
-			int framesPerBufferInt = framesPerBuffer == null ? 0 : Integer.parseInt(framesPerBuffer);
-			if (framesPerBufferInt == 0) framesPerBufferInt = 256; // Use default
-			Log.debug("[JAVA] audiomanager.framesPerBuffer = " + framesPerBufferInt);
-			return framesPerBufferInt;
-		}
-		else
-		if (key.equals("audiomanager.optimalSampleRate"))
-		{
-			AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-			String sampleRateStr = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
-			int sampleRateInt = sampleRateStr == null ? 0 : Integer.parseInt(sampleRateStr);
-			if (sampleRateInt == 0) sampleRateInt = 44100; // Use a default value if property not found
-			Log.debug("[JAVA] audiomanager.optimalSampleRate = " + sampleRateInt);
-			return sampleRateInt;
-		}
-		if (_bundle == null || key == null)
+		if (key == null)
 		{
 			return 0;
 		}
-		return _bundle.getInt(key);
+
+		switch(key)
+		{
+			case "unreal.http.proxy.proxyPort":
+			{
+				if (ANDROID_BUILD_VERSION >= 14)
+				{
+					String ProxyPort = System.getProperty("http.proxyPort");
+					return ProxyPort == null ? -1 : Integer.parseInt(ProxyPort);
+				}
+				else
+				{
+					return android.net.Proxy.getPort(getApplicationContext());
+				}
+			}
+			case "android.hardware.vulkan.version":
+			{
+				return VulkanVersion;
+			}
+			case "android.hardware.vulkan.level":
+			{
+				return VulkanLevel;
+			}
+			case "unreal.getUsedMemory":
+			{
+				int ProcessMemory = 0;
+				synchronized(_activity)
+				{
+					ProcessMemory = _activity.UsedMemory;
+				}
+				return ProcessMemory;
+			}
+			case "audiomanager.framesPerBuffer":
+			{
+				AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+				String framesPerBuffer = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
+				int framesPerBufferInt = framesPerBuffer == null ? 0 : Integer.parseInt(framesPerBuffer);
+				if (framesPerBufferInt == 0) framesPerBufferInt = 256; // Use default
+				Log.debug("[JAVA] audiomanager.framesPerBuffer = " + framesPerBufferInt);
+				return framesPerBufferInt;
+			}
+			case "audiomanager.optimalSampleRate":
+			{
+				AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+				String sampleRateStr = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
+				int sampleRateInt = sampleRateStr == null ? 0 : Integer.parseInt(sampleRateStr);
+				if (sampleRateInt == 0) sampleRateInt = 44100; // Use a default value if property not found
+				Log.debug("[JAVA] audiomanager.optimalSampleRate = " + sampleRateInt);
+				return sampleRateInt;
+			}
+			default:
+			{
+				if (_bundle == null)
+				{
+					return 0;
+				}
+				return _bundle.getInt(key);
+			}
+		}
 	}
 
 	public long AndroidThunkJava_GetMetaDataLong(String key)
@@ -5819,56 +5825,183 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return 0.0f;
 	}
 
+	private Display GetDefaultDisplay()
+	{
+		if (android.os.Build.VERSION.SDK_INT >= 31)
+		{
+			return getDisplay();
+		}
+		else
+		{
+			return getWindowManager().getDefaultDisplay();
+		}
+	}
+
+	private DisplayMetrics GetDefaultDisplayMetrics()
+	{
+		DisplayMetrics metrics = new DisplayMetrics();
+		if (android.os.Build.VERSION.SDK_INT >= 31)
+		{
+			metrics = getResources().getDisplayMetrics();
+		}
+		else
+		if (android.os.Build.VERSION.SDK_INT >= 17)
+		{
+			getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+		}
+		else
+		{
+			// note: not available so get what we can
+			getWindowManager().getDefaultDisplay().getMetrics(metrics);
+		}
+		return metrics;
+	}
+
+	private boolean IsPrimitiveOrWrapperOrString(Class<?> type)
+	{
+		return type.isPrimitive()
+				|| type == Byte.class
+				|| type == Short.class
+				|| type == Integer.class
+				|| type == Long.class
+				|| type == Float.class
+				|| type == Double.class
+				|| type == Boolean.class
+				|| type == Character.class
+				|| type == String.class;
+	}
+
+	private String ExtractFieldsToKVString(Object obj, String Delim, boolean invokeParameterlessGetMethods)
+	{
+		String ret = "";
+		Class<?> ObjClass = obj.getClass();
+		try
+		{
+			Field[] fields = ObjClass.getDeclaredFields();
+			boolean bFirst = true;
+			for( Field field : fields)
+			{
+				// examine only public fields, ignore static and final to avoid gathering constants.
+				int fieldmodifiers = field.getModifiers();
+				if(!java.lang.reflect.Modifier.isPublic(fieldmodifiers)
+					|| java.lang.reflect.Modifier.isStatic(fieldmodifiers) 
+					|| java.lang.reflect.Modifier.isFinal(fieldmodifiers) 
+				)
+				{
+					continue;
+				}
+
+				String K,V;
+				try
+				{
+					K = field.getName();
+					V = field.get(obj).toString().replace(Delim, "");
+					ret += bFirst ? "" : Delim;
+					bFirst = false;
+					ret +=  K + Delim + V;
+				}
+				catch(Exception e)
+				{
+				}
+			}
+			if(invokeParameterlessGetMethods)
+			{
+				Method[] methods = ObjClass.getDeclaredMethods();
+				for(Method method : methods)
+				{
+					String K,V;
+					int methodmodifier = method.getModifiers();
+					if( !java.lang.reflect.Modifier.isPublic(methodmodifier) || method.getParameterTypes().length>0 || !(method.getName().startsWith("get")||method.getName().startsWith("is")) || !IsPrimitiveOrWrapperOrString(method.getReturnType()) )
+					{
+						continue;
+					}
+					try
+					{
+						K = method.getName();
+						V = method.invoke(obj).toString().replace(Delim, "");
+						ret += bFirst ? "" : Delim;
+						bFirst = false;
+						ret +=  K + Delim + V;
+					}
+					catch(Exception e)
+					{
+					}
+				}
+			}
+		}
+		catch(SecurityException e)
+		{
+			System.out.println("failed to find fields for obj ("+ObjClass.toString()+"):\n"+ e.toString());
+		}
+
+		return ret;
+	}
+
 	public String AndroidThunkJava_GetMetaDataString(String key)
 	{
-		if (key.startsWith("getprop:"))
-		{
-			return getProp(key.substring(8));
-		}
-		else
-		if (key.equals("unreal.http.proxy.proxyHost"))
-		{
-			if (ANDROID_BUILD_VERSION >= 14)
-			{
-				return System.getProperty("http.proxyHost");
-			}
-			else
-			{
-				return android.net.Proxy.getHost(getApplicationContext());
-			}
-		}
-		else
-		if (key.equals("unreal.displaymetrics.dpi"))
-		{
-			DisplayMetrics metrics = new DisplayMetrics();
-			if (android.os.Build.VERSION.SDK_INT >= 31)
-			{
-				metrics = getResources().getDisplayMetrics();
-			}
-			else
-			if (android.os.Build.VERSION.SDK_INT >= 17)
-			{
-				getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
-			}
-			else
-			{
-				// note: not available so get what we can
-				getWindowManager().getDefaultDisplay().getMetrics(metrics);
-			}
-
-			DecimalFormatSymbols symbols = new DecimalFormatSymbols();
-			symbols.setDecimalSeparator('.');
-			DecimalFormat decimalFormat = new DecimalFormat("###.##", symbols);
-
-			String screenDPI = decimalFormat.format(metrics.xdpi) + "," + decimalFormat.format(metrics.ydpi) + "," + decimalFormat.format(metrics.densityDpi);
-			return screenDPI;
-		}
-		else
-		if (_bundle == null || key == null)
+		if (key == null)
 		{
 			return null;
 		}
-		return _bundle.getString(key);
+
+		switch(key)
+		{
+			case "unreal.http.proxy.proxyHost":
+			{
+				if (ANDROID_BUILD_VERSION >= 14)
+				{
+					return System.getProperty("http.proxyHost");
+				}
+				else
+				{
+					return android.net.Proxy.getHost(getApplicationContext());
+				}
+			}
+			case "unreal.displaymetrics.dpi":
+			{
+				DisplayMetrics metrics = GetDefaultDisplayMetrics();
+
+				DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+				symbols.setDecimalSeparator('.');
+				DecimalFormat decimalFormat = new DecimalFormat("###.##", symbols);
+
+				Display displayobj = GetDefaultDisplay();
+				String Test = ExtractFieldsToKVString(displayobj, ";", true);
+
+
+				String screenDPI = decimalFormat.format(metrics.xdpi) + "," + decimalFormat.format(metrics.ydpi) + "," + decimalFormat.format(metrics.densityDpi);
+				return screenDPI;
+			}
+			case "unreal.displaymetrics.metrics":
+			{
+				DisplayMetrics metrics = GetDefaultDisplayMetrics();
+				return ExtractFieldsToKVString(metrics, ";", false);
+			}
+			case "unreal.display":
+			{
+				Display displayobj = GetDefaultDisplay();
+				String Info = ExtractFieldsToKVString(displayobj, ";", true);
+				if(!Info.isEmpty())
+				{
+					android.graphics.Point displaySize = new android.graphics.Point();
+					displayobj.getRealSize(displaySize);
+					Info += ";realWidth;"+displaySize.x+";realHeight;"+displaySize.y;
+				}
+				return Info;
+			}
+			default:
+			{
+				if (key.startsWith("getprop:"))
+				{
+					return getProp(key.substring(8));
+				}				
+				if (_bundle != null)
+				{
+					return _bundle.getString(key);
+				}
+				return null;
+			}
+		}		
 	}
 
 	public boolean AndroidThunkJava_HasIntentExtrasKey(String key)

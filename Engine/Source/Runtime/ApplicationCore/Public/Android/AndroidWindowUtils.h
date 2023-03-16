@@ -19,10 +19,23 @@ DEFINE_LOG_CATEGORY_STATIC(LogAndroidWindowUtils, Log, All)
 
 namespace AndroidWindowUtils
 {
-	static void ApplyContentScaleFactor(int32& InOutScreenWidth, int32& InOutScreenHeight)
+	FIntVector2 SanitizeAndroidScreenSize(const FIntVector2&& MaxScreenDims, const FIntVector2&& RequestedScreenDims)
+	{
+		FIntVector2 SanitizedDims;
+		// ensure Width and Height is multiple of 8
+		SanitizedDims.X = (RequestedScreenDims.X / 8) * 8;
+		SanitizedDims.Y = (RequestedScreenDims.Y / 8) * 8;
+
+		// clamp to native resolution
+		SanitizedDims.X = FPlatformMath::Min(SanitizedDims.X, MaxScreenDims.X);
+		SanitizedDims.Y = FPlatformMath::Min(SanitizedDims.Y, MaxScreenDims.Y);
+		return SanitizedDims;
+	}
+
+	void ApplyContentScaleFactor(int32& InOutScreenWidth, int32& InOutScreenHeight)
 	{
 		// CSF is a multiplier to 1280x720
-		static IConsoleVariable* CVarScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));		
+		static IConsoleVariable* CVarScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
 		float RequestedContentScaleFactor = CVarScale->GetFloat();
 
 		static IConsoleVariable* CVarResX = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResX"));
@@ -102,16 +115,11 @@ namespace AndroidWindowUtils
 				Width = FMath::TruncToInt32((float)Height * AspectRatio + 0.5f);
 			}
 
-			// ensure Width and Height is multiple of 8
-			Width = (Width / 8) * 8;
-			Height = (Height / 8) * 8;
-
-			// clamp to native resolution
-			InOutScreenWidth = FPlatformMath::Min(Width, InOutScreenWidth);
-			InOutScreenHeight = FPlatformMath::Min(Height, InOutScreenHeight);
+			const FIntVector2 Sanitized = SanitizeAndroidScreenSize(FIntVector2(InOutScreenWidth, InOutScreenHeight), FIntVector2(Width, Height));
+			InOutScreenWidth = Sanitized.X;
+			InOutScreenHeight = Sanitized.Y;
 
 			UE_LOG(LogAndroidWindowUtils, Log, TEXT("Setting Width=%d and Height=%d (requested scale = %f)"), InOutScreenWidth, InOutScreenHeight, RequestedContentScaleFactor);
 		}
 	}
-
 } // end AndroidWindowUtils
