@@ -35,7 +35,6 @@
 class ULightComponent;
 
 extern TAutoConsoleVariable<float> CVarFoliageMinimumScreenSize;
-extern TAutoConsoleVariable<float> CVarFoliageLODDistanceScale;
 extern TAutoConsoleVariable<float> CVarRandomLODRange;
 extern TAutoConsoleVariable<int32> CVarMinLOD;
 
@@ -226,6 +225,8 @@ struct FInstancingUserData
 
 	int32 StartCullDistance;
 	int32 EndCullDistance;
+
+	float LODDistanceScale;
 
 	int32 MinLOD;
 

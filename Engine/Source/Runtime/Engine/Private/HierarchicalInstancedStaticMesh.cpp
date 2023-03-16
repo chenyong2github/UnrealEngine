@@ -93,7 +93,12 @@ TAutoConsoleVariable<int32> CVarFoliageMaxEndCullDistance(
 TAutoConsoleVariable<float> CVarFoliageLODDistanceScale(
 	TEXT("foliage.LODDistanceScale"),
 	1.0f,
-	TEXT("Scale factor for the distance used in computing LOD for foliage."));
+	TEXT("Scale factor for the distance used in computing LOD for foliage."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+		{
+			FGlobalComponentRecreateRenderStateContext Context;
+		})
+	);
 
 TAutoConsoleVariable<float> CVarRandomLODRange(
 	TEXT("foliage.RandomLODRange"),
@@ -856,6 +861,12 @@ FHierarchicalStaticMeshSceneProxy::FHierarchicalStaticMeshSceneProxy(UHierarchic
 
 	bIsHierarchicalInstancedStaticMesh = true;
 	bIsLandscapeGrass = (ViewRelevance == EHISMViewRelevanceType::Grass);
+
+	// Store LODDistanceScale so it can be used in FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings when dither LOD transitions are enabled
+	float LODDistanceScale = InComponent->InstanceLODDistanceScale * CVarFoliageLODDistanceScale.GetValueOnGameThread();
+	UserData_AllInstances.LODDistanceScale = LODDistanceScale;
+	UserData_SelectedInstances.LODDistanceScale = LODDistanceScale;
+	UserData_DeselectedInstances.LODDistanceScale = LODDistanceScale;
 }
 
 void FHierarchicalStaticMeshSceneProxy::SetupOcclusion(UHierarchicalInstancedStaticMeshComponent* InComponent)
@@ -1648,11 +1659,11 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				InstanceParams.ViewOriginInLocalOne = WorldToLocal.TransformPosition(View->GetTemporalLODOrigin(1, bMultipleSections));
 
 				float MinSize = bIsOrtho ? 0.0f : CVarFoliageMinimumScreenSize.GetValueOnRenderThread();
-				float LODScale = CVarFoliageLODDistanceScale.GetValueOnRenderThread();
+				float LODScale = UserData_AllInstances.LODDistanceScale;
 				int MaxEndCullDistance = CVarFoliageMaxEndCullDistance.GetValueOnRenderThread();
 				float LODRandom = CVarRandomLODRange.GetValueOnRenderThread();
 				float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
-				
+								
 				FVector AverageScale(InstanceParams.Tree[0].MinInstanceScale + (InstanceParams.Tree[0].MaxInstanceScale - InstanceParams.Tree[0].MinInstanceScale) / 2.0f);
 				FBoxSphereBounds ScaledBounds = RenderData->Bounds.TransformBy(FTransform(FRotator::ZeroRotator, FVector::ZeroVector, AverageScale));
 				float SphereRadius = ScaledBounds.SphereRadius;
@@ -1846,7 +1857,7 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 
 						const bool bIsOrtho = !View->ViewMatrices.IsPerspectiveProjection();
 						const float MinSize = bIsOrtho ? 0.0f : CVarFoliageMinimumScreenSize.GetValueOnRenderThread();
-						const float LODScale = CVarFoliageLODDistanceScale.GetValueOnRenderThread();
+						const float LODScale = UserData_AllInstances.LODDistanceScale;
 						int MaxEndCullDistance = CVarFoliageMaxEndCullDistance.GetValueOnRenderThread();
 						const float LODRandom = CVarRandomLODRange.GetValueOnRenderThread();
 						const float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
@@ -2025,6 +2036,7 @@ UHierarchicalInstancedStaticMeshComponent::UHierarchicalInstancedStaticMeshCompo
 	, UnbuiltInstanceBounds(ForceInit)
 	, bEnableDensityScaling(false)
 	, CurrentDensityScaling(1.0f)
+	, InstanceLODDistanceScale(1.0f)
 	, OcclusionLayerNumNodes(0)
 	, InstanceCountToRender(0)
 	, bIsAsyncBuilding(false)
@@ -2638,6 +2650,15 @@ void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 	}
 
 	FNavigationSystem::UpdateComponentData(*this);
+}
+
+void UHierarchicalInstancedStaticMeshComponent::SetLODDistanceScale(float InLODDistanceScale)
+{
+	if (InstanceLODDistanceScale != InLODDistanceScale)
+	{
+		InstanceLODDistanceScale = InLODDistanceScale;
+		MarkRenderStateDirty();
+	}
 }
 
 bool UHierarchicalInstancedStaticMeshComponent::ShouldCreatePhysicsState() const

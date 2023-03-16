@@ -117,6 +117,7 @@ void FISMComponentDescriptorBase::InitFrom(const UStaticMeshComponent* Template,
 		if (const UHierarchicalInstancedStaticMeshComponent* HISMTemplate = Cast<UHierarchicalInstancedStaticMeshComponent>(Template))
 		{
 			bEnableDensityScaling = HISMTemplate->bEnableDensityScaling;
+			InstanceLODDistanceScale = HISMTemplate->InstanceLODDistanceScale;
 		}
 	}
 
@@ -314,6 +315,7 @@ void FISMComponentDescriptorBase::InitComponent(UInstancedStaticMeshComponent* I
 	if (UHierarchicalInstancedStaticMeshComponent* HISMComponent = Cast<UHierarchicalInstancedStaticMeshComponent>(ISMComponent))
 	{
 		HISMComponent->bEnableDensityScaling = bEnableDensityScaling;
+		HISMComponent->InstanceLODDistanceScale = InstanceLODDistanceScale;
 	}
 }
 

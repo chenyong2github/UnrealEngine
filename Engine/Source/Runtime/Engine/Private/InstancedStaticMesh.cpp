@@ -1544,6 +1544,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_AllInstances.MeshRenderData = InComponent->GetStaticMesh()->GetRenderData();
 	UserData_AllInstances.StartCullDistance = InComponent->InstanceStartCullDistance;
 	UserData_AllInstances.EndCullDistance = InComponent->InstanceEndCullDistance;
+	UserData_AllInstances.LODDistanceScale = 1.0f;
 	UserData_AllInstances.InstancingOffset = InComponent->GetStaticMesh()->GetBoundingBox().GetCenter();
 	UserData_AllInstances.MinLOD = ClampedMinLOD;
 	UserData_AllInstances.bRenderSelected = true;
@@ -5269,6 +5270,8 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
 		FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
 		InstancingTranslatedWorldViewOriginOne.W = 1.0f;
+
+		// InstancedLODRange is only set for HierarchicalInstancedStaticMeshes
 		if (InstancingUserData && BatchElement.InstancedLODRange)
 		{
 			int32 FirstLOD = InstancingUserData->MinLOD;
@@ -5282,7 +5285,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 			FBoxSphereBounds ScaledBounds = InstancingUserData->MeshRenderData->Bounds.TransformBy(FTransform(FRotator::ZeroRotator, FVector::ZeroVector, InstancingUserData->AverageInstancesScale));
 			float SphereRadius = ScaledBounds.SphereRadius;
 			float MinSize = View->ViewMatrices.IsPerspectiveProjection() ? CVarFoliageMinimumScreenSize.GetValueOnRenderThread() : 0.0f;
-			float LODScale = CVarFoliageLODDistanceScale.GetValueOnRenderThread();
+			float LODScale = InstancingUserData->LODDistanceScale;
 			float LODRandom = CVarRandomLODRange.GetValueOnRenderThread();
 			float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
 

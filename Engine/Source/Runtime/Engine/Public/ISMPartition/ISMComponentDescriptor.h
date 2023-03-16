@@ -70,6 +70,9 @@ public:
 	int32 InstanceEndCullDistance;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
+	float InstanceLODDistanceScale;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 VirtualTextureCullMips;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
