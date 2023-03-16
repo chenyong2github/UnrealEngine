@@ -17,6 +17,7 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 	using TArray<T>::RemoveAt;
 	using TArray<T>::RemoveAtSwap;
 	using TArray<T>::Emplace;
+	using TArray<T>::Shrink;
 
 public:
 	constexpr static bool bAllowShrinkOnRemove = false;
@@ -54,6 +55,11 @@ public:
 		TArrayCollectionArray<T> NewArray;
 		static_cast<TArray<T>>(NewArray) = static_cast<TArray<T>>(*this);
 		return NewArray;
+	}
+
+	void Shrink() override
+	{
+		TArray<T>::Shrink();
 	}
 
 	void Resize(const int Num) override

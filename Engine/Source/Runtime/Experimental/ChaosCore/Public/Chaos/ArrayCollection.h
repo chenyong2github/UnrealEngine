@@ -22,6 +22,17 @@ public:
 		}
 	}
 
+	void ShrinkArrays()
+	{
+		for (int32 Index = 0; Index < MArrays.Num(); Index++)
+		{
+			if (MArrays[Index] != nullptr)
+			{
+				MArrays[Index]->Shrink();
+			}
+		}
+	}
+
 	int32 AddArray(TArrayCollectionArrayBase* Array)
 	{
 		int32 Index = MArrays.Find(nullptr);

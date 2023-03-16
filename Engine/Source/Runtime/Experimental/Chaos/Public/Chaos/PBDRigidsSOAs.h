@@ -230,6 +230,23 @@ public:
 		check(0);
 	}
 
+	void ShrinkArrays()
+	{
+		StaticParticles->ShrinkArrays();
+		StaticDisabledParticles->ShrinkArrays();
+
+		KinematicParticles->ShrinkArrays();;
+		KinematicDisabledParticles->ShrinkArrays();
+
+		DynamicDisabledParticles->ShrinkArrays();
+		DynamicParticles->ShrinkArrays();
+		DynamicKinematicParticles->ShrinkArrays();
+
+		ClusteredParticles->ShrinkArrays();
+
+		GeometryCollectionParticles->ShrinkArrays();
+	}
+
 	void UpdateDirtyViews()
 	{
 		// @todo(chaos): this should only refresh views that may have changed

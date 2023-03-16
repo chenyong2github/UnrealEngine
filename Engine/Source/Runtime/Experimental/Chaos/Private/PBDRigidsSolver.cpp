@@ -224,6 +224,9 @@ namespace Chaos
 		bool bChaosSolverCollisionEnabled = true;
 		FAutoConsoleVariableRef CVarChaosSolverCollisionDisable(TEXT("p.Chaos.Solver.Collision.Enabled"), bChaosSolverCollisionEnabled, TEXT("Enable/Disable collisions in the main scene."));
 
+		// Shrink particle arrays every frame to recove rmemory when a scene changes significantly
+		bool bChaosSolverShrinkArrays = true;
+		FAutoConsoleVariableRef CVarChaosSolverShrinkArrays(TEXT("p.Chaos.Solver.ShrinkArrays"), bChaosSolverShrinkArrays, TEXT("Enable/Disable particle array shrinking in the main scene"));
 
 		// Iteration count cvars
 		// These override the engine config if >= 0
@@ -475,6 +478,13 @@ namespace Chaos
 			// they cannot be right after the presolve callback ( as they were before ) because they will cause geometry collection replicated clients to miss them
 			// Todo(chaos) we should probably move all of the solver event reset here in the future
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllEvents();
+
+			// Recover unused memory from particle arrays, based on the array shrink policy
+			if (bChaosSolverShrinkArrays)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(ShrinkParticleArrays);
+				MSolver->GetParticles().ShrinkArrays();
+			}
 
 			if (FRewindData* RewindData = MSolver->GetRewindData())
 			{
@@ -994,21 +1004,16 @@ namespace Chaos
 			}
 		}
 
-		bool bResetCollisionConstraints=false;
+		MarshallingManager.GetCurrentPullData_Internal()->DirtyGeometryCollections.Reset();
 		for (auto Proxy : PendingDestroyGeometryCollectionPhysicsProxy)
 		{
 			// Removing the geometry collection from the solver a bit delayed. This lets the cluster union do its cleanup first before
 			// the geometry collection if they're all being destroyed at the same time.
 			Proxy->OnRemoveFromSolver(this);
 
-			MarshallingManager.GetCurrentPullData_Internal()->DirtyGeometryCollections.Reset();
-			bResetCollisionConstraints = true;
 			delete Proxy;
 		}
 		PendingDestroyGeometryCollectionPhysicsProxy.Reset();
-
-		if(bResetCollisionConstraints)
-			GetEvolution()->GetCollisionConstraints();
 	}
 
 	void FPBDRigidsSolver::PrepareAdvanceBy(const FReal DeltaTime)
