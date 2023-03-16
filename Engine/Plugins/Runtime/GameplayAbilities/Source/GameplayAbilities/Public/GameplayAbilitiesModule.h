@@ -23,7 +23,6 @@ public:
 	 */
 	static inline IGameplayAbilitiesModule& Get()
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_IGameplayAbilitiesModule_Get);
 		static IGameplayAbilitiesModule& Singleton = FModuleManager::LoadModuleChecked< IGameplayAbilitiesModule >("GameplayAbilities");
 		return Singleton;
 	}
@@ -35,7 +34,6 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_IGameplayAbilitiesModule_IsAvailable);
 		return FModuleManager::Get().IsModuleLoaded( "GameplayAbilities" );
 	}
 
