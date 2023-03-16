@@ -3,6 +3,7 @@
 #include "Linux/LinuxCursor.h"
 
 #include "Misc/App.h"
+#include "Misc/Paths.h"
 #include "Linux/LinuxApplication.h"
 #include "Linux/LinuxPlatformApplicationMisc.h"
 
