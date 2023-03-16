@@ -610,6 +610,24 @@ bool UClusterUnionComponent::OverlapComponentWithResult(const FVector& Pos, cons
 	return bHasOverlap;
 }
 
+bool UClusterUnionComponent::ComponentOverlapComponentWithResultImpl(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FQuat& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const
+{
+	bool bHasOverlap = false;
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	{
+		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr())
+		{
+			TArray<FOverlapResult> SubOverlaps;
+			if (Component->ComponentOverlapComponentWithResult(PrimComp, Pos, Rot, Params, SubOverlaps))
+			{
+				bHasOverlap = true;
+				OutOverlap.Append(SubOverlaps);
+			}
+		}
+	}
+	return bHasOverlap;
+}
+
 void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	UPrimitiveComponent::AddReferencedObjects(InThis, Collector);

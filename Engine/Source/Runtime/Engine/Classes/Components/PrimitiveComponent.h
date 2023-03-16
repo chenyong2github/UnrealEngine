@@ -2776,9 +2776,23 @@ public:
 	bool ComponentOverlapComponent(class UPrimitiveComponent* PrimComp, const FVector Pos, const FQuat& Rot, const FCollisionQueryParams& Params);
 	bool ComponentOverlapComponent(class UPrimitiveComponent* PrimComp, const FVector Pos, const FRotator Rot, const FCollisionQueryParams& Params);
 
+	/**
+	 *  Test the collision of the supplied component at the supplied location/rotation, and determine if it overlaps this component.
+	 *  @note This overload taking rotation as a FQuat is slightly faster than the version using FRotator.
+	 *  @note This simply calls the virtual ComponentOverlapComponentImpl() which can be overridden to implement custom behavior.
+	 *  @param  PrimComp        Component to use geometry from to test against this component. Transform of this component is ignored.
+	 *  @param  Pos             Location to place PrimComp geometry at
+	 *  @param  Rot             Rotation to place PrimComp geometry at
+	 *  @param  Params          Parameter for trace. TraceTag is only used.
+	 *  @param  OutOverlap      Also returns all the sub-overlaps within the component.
+	 *  @return true if PrimComp overlaps this component at the specified location/rotation
+	 */
+	bool ComponentOverlapComponentWithResult(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FQuat& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const;
+	bool ComponentOverlapComponentWithResult(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FRotator& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const;
 protected:
 	/** Override this method for custom behavior for ComponentOverlapComponent() */
 	virtual bool ComponentOverlapComponentImpl(class UPrimitiveComponent* PrimComp, const FVector Pos, const FQuat& Rot, const FCollisionQueryParams& Params);
+	virtual bool ComponentOverlapComponentWithResultImpl(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FQuat& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const;
 
 public:	
 	/** 
@@ -2917,6 +2931,16 @@ FORCEINLINE_DEBUGGABLE bool UPrimitiveComponent::ComponentOverlapComponent(class
 FORCEINLINE_DEBUGGABLE bool UPrimitiveComponent::ComponentOverlapComponent(class UPrimitiveComponent* PrimComp, const FVector Pos, const FRotator Rot, const FCollisionQueryParams& Params)
 {
 	return ComponentOverlapComponentImpl(PrimComp, Pos, Rot.Quaternion(), Params);
+}
+
+FORCEINLINE_DEBUGGABLE bool UPrimitiveComponent::ComponentOverlapComponentWithResult(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FQuat& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const
+{
+	return ComponentOverlapComponentWithResultImpl(PrimComp, Pos, Rot, Params, OutOverlap);
+}
+
+FORCEINLINE_DEBUGGABLE bool UPrimitiveComponent::ComponentOverlapComponentWithResult(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FRotator& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const
+{
+	return ComponentOverlapComponentWithResultImpl(PrimComp, Pos, Rot.Quaternion(), Params, OutOverlap);
 }
 
 FORCEINLINE_DEBUGGABLE const TArray<FOverlapInfo>& UPrimitiveComponent::GetOverlapInfos() const

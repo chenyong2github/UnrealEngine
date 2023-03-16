@@ -3064,6 +3064,50 @@ bool UPrimitiveComponent::ComponentOverlapComponentImpl(class UPrimitiveComponen
 	return false;
 }
 
+bool UPrimitiveComponent::ComponentOverlapComponentWithResultImpl(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FQuat& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const
+{
+	const FTransform InTransform{ Rot, Pos };
+	TArray<Chaos::FPhysicsObjectHandle> InObjects = PrimComp->GetAllPhysicsObjects();
+	TArray<Chaos::FPhysicsObjectHandle> ThisObjects = GetAllPhysicsObjects();
+
+	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(InObjects);
+	InObjects = InObjects.FilterByPredicate(
+		[&Interface](Chaos::FPhysicsObjectHandle Handle)
+		{
+			return !Interface->AreAllDisabled({ &Handle, 1 });
+		}
+	);
+
+	ThisObjects = ThisObjects.FilterByPredicate(
+		[&Interface](Chaos::FPhysicsObjectHandle Handle)
+		{
+			return !Interface->AreAllDisabled({ &Handle, 1 });
+		}
+	);
+
+	for (Chaos::FPhysicsObjectHandle InObject : InObjects)
+	{
+		for (Chaos::FPhysicsObjectHandle ThisObject : ThisObjects)
+		{
+			TArray<ChaosInterface::FOverlapHit> OverlapHits;
+			if (Interface->PhysicsObjectOverlap(ThisObject, FTransform::Identity, InObject, InTransform, Params.bTraceComplex, OverlapHits))
+			{
+				TArray<FOverlapResult> Overlaps;
+
+				FCollisionFilterData QueryFilter;
+				QueryFilter.Word1 = 0xFFFFF;
+				ConvertOverlapResults(OverlapHits.Num(), OverlapHits.GetData(), QueryFilter, Overlaps);
+
+				if (!Overlaps.IsEmpty())
+				{
+					OutOverlap = Overlaps;
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
 
 bool UPrimitiveComponent::OverlapComponent(const FVector& Pos, const FQuat& Rot, const struct FCollisionShape& CollisionShape) const
 {

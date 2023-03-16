@@ -88,6 +88,30 @@ namespace Chaos
 		// This function will not compute any overlap heuristic.
 		bool PhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex);
 
+		// Returns all the overlaps within A given a shape B.
+		template<typename TOverlapHit>
+		bool PhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, TArray<TOverlapHit>& OutOverlaps)
+		{
+			static_assert(std::is_same_v<TOverlapHit, ChaosInterface::TThreadOverlapHit<Id>>);
+			return PairwiseShapeOverlapHelper(
+				ObjectA,
+				InTransformA,
+				ObjectB,
+				InTransformB,
+				bTraceComplex,
+				false,
+				FVector::Zero(),
+				[this, ObjectA, &OutOverlaps](const FShapeOverlapData& A , const FShapeOverlapData& B, const FMTDInfo&)
+				{
+					ChaosInterface::FOverlapHit Overlap;
+					Overlap.Shape = A.Shape;
+					Overlap.Actor = GetParticle(ObjectA);
+					OutOverlaps.Add(Overlap);
+					return false;
+				}
+			);
+		}
+
 		// This function does the same as GetPhysicsObjectOverlap but also computes the MTD metric.
 		bool PhysicsObjectOverlapWithMTD(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, FMTDInfo& OutMTD);
 
