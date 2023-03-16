@@ -29,11 +29,6 @@
 
 #include "swappy_common.h"
 
-/**
- * The longest duration, in refresh periods, represented by the statistics.
- * @see SwappyStats
- */
-#define MAX_FRAME_BUCKETS 6
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,52 +89,6 @@ void SwappyGL_setAutoPipelineMode(bool enabled);
 void SwappyGL_enableStats(bool enabled);
 
 /**
- * @brief Swappy statistics, collected if toggled on with
- * ::SwappyGL_enableStats.
- * @see SwappyGL_getStats
- */
-struct SwappyStats {
-    /** @brief Total frames swapped by swappy */
-    uint64_t totalFrames;
-
-    /** @brief Histogram of the number of screen refreshes a frame waited in the
-     * compositor queue after rendering was completed.
-     *
-     * For example:
-     *     if a frame waited 2 refresh periods in the compositor queue after
-     * rendering was done, the frame will be counted in idleFrames[2]
-     */
-    uint64_t idleFrames[MAX_FRAME_BUCKETS];
-
-    /** @brief Histogram of the number of screen refreshes passed between the
-     * requested presentation time and the actual present time.
-     *
-     * For example:
-     *     if a frame was presented 2 refresh periods after the requested
-     * timestamp swappy set, the frame will be counted in lateFrames[2]
-     */
-    uint64_t lateFrames[MAX_FRAME_BUCKETS];
-
-    /** @brief Histogram of the number of screen refreshes passed between two
-     * consecutive frames
-     *
-     * For example:
-     *     if frame N was presented 2 refresh periods after frame N-1
-     *     frame N will be counted in offsetFromPreviousFrame[2]
-     */
-    uint64_t offsetFromPreviousFrame[MAX_FRAME_BUCKETS];
-
-    /** @brief Histogram of the number of screen refreshes passed between the
-     * call to Swappy_recordFrameStart and the actual present time.
-     *
-     * For example:
-     *     if a frame was presented 2 refresh periods after the call to
-     * `Swappy_recordFrameStart` the frame will be counted in latencyFrames[2]
-     */
-    uint64_t latencyFrames[MAX_FRAME_BUCKETS];
-};
-
-/**
  * @brief Should be called if stats have been enabled with SwappyGL_enableStats.
  *
  * When stats collection is enabled with SwappyGL_enableStats, the app is
@@ -159,6 +108,14 @@ void SwappyGL_recordFrameStart(EGLDisplay display, EGLSurface surface);
  * @see SwappyGL_enableStats
  */
 void SwappyGL_getStats(SwappyStats *swappyStats);
+
+/**
+ * @brief Clears the frame statistics collected so far.
+ *
+ * All the frame statistics collected are reset to 0, frame statistics are
+ * collected normally after this call.
+ */
+void SwappyGL_clearStats();
 
 /** @brief Remove callbacks that were previously added using
  * SwappyGL_injectTracer. */

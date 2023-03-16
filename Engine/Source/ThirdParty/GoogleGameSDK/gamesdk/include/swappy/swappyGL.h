@@ -131,6 +131,16 @@ uint64_t SwappyGL_getFenceTimeoutNS();
  */
 void SwappyGL_setBufferStuffingFixWait(int32_t n_frames);
 
+/**
+ * @brief Get the supported refresh periods of this device. Call once with
+ * out_refreshrates set to nullptr to get the number of supported refresh
+ * periods, then call again passing that number as allocated_entries and
+ * an array of size equal to allocated_entries that will be filled with the
+ * refresh periods.
+ */
+int SwappyGL_getSupportedRefreshPeriodsNS(uint64_t *out_refreshrates,
+                                          int allocated_entries);
+
 #ifdef __cplusplus
 };
 #endif

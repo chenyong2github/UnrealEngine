@@ -36,13 +36,19 @@
 /** @brief Swap interval for 20fps, in nanoseconds. */
 #define SWAPPY_SWAP_20FPS (50000000L)
 
+/**
+ * The longest duration, in refresh periods, represented by the statistics.
+ * @see SwappyStats
+ */
+#define MAX_FRAME_BUCKETS 6
+
 /** @cond INTERNAL */
 
 #define SWAPPY_SYSTEM_PROP_KEY_DISABLE "swappy.disable"
 
 // Internal macros to track Swappy version, do not use directly.
-#define SWAPPY_MAJOR_VERSION 1
-#define SWAPPY_MINOR_VERSION 10
+#define SWAPPY_MAJOR_VERSION 2
+#define SWAPPY_MINOR_VERSION 1
 #define SWAPPY_BUGFIX_VERSION 0
 #define SWAPPY_PACKED_VERSION                                                  \
     ANDROID_GAMESDK_PACKED_VERSION(SWAPPY_MAJOR_VERSION, SWAPPY_MINOR_VERSION, \
@@ -59,6 +65,11 @@
                           SWAPPY_MINOR_VERSION, SWAPPY_BUGFIX_VERSION, \
                           AGDK_GIT_COMMIT)
 
+// Define this to 1 to enable all logging from Swappy, by default it is
+// disabled in a release build and enabled in a debug build.
+#ifndef ENABLE_SWAPPY_LOGGING
+#define ENABLE_SWAPPY_LOGGING 0
+#endif
 /** @endcond */
 
 /** @brief Id of a thread returned by an external thread manager. */
@@ -121,6 +132,52 @@ void Swappy_setThreadFunctions(const SwappyThreadFunctions* thread_functions);
  * "1.9.0_8a85ab7c46"
  */
 const char* Swappy_versionString();
+
+/**
+ * @brief Swappy frame statistics, collected if toggled on with
+ * ::SwappyGL_enableStats or ::SwappyVk_enableStats.
+ */
+typedef struct SwappyStats {
+    /** @brief Total frames swapped by swappy */
+    uint64_t totalFrames;
+
+    /** @brief Histogram of the number of screen refreshes a frame waited in the
+     * compositor queue after rendering was completed.
+     *
+     * For example:
+     *     if a frame waited 2 refresh periods in the compositor queue after
+     * rendering was done, the frame will be counted in idleFrames[2]
+     */
+    uint64_t idleFrames[MAX_FRAME_BUCKETS];
+
+    /** @brief Histogram of the number of screen refreshes passed between the
+     * requested presentation time and the actual present time.
+     *
+     * For example:
+     *     if a frame was presented 2 refresh periods after the requested
+     * timestamp swappy set, the frame will be counted in lateFrames[2]
+     */
+    uint64_t lateFrames[MAX_FRAME_BUCKETS];
+
+    /** @brief Histogram of the number of screen refreshes passed between two
+     * consecutive frames
+     *
+     * For example:
+     *     if frame N was presented 2 refresh periods after frame N-1
+     *     frame N will be counted in offsetFromPreviousFrame[2]
+     */
+    uint64_t offsetFromPreviousFrame[MAX_FRAME_BUCKETS];
+
+    /** @brief Histogram of the number of screen refreshes passed between the
+     * call to Swappy_recordFrameStart and the actual present time.
+     *
+     * For example:
+     *     if a frame was presented 2 refresh periods after the call to
+     * `Swappy_recordFrameStart` the frame will be counted in latencyFrames[2]
+     */
+    uint64_t latencyFrames[MAX_FRAME_BUCKETS];
+} SwappyStats;
+
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -25,7 +25,9 @@
 #include "jni.h"
 #include "swappy_common.h"
 
+#ifndef VK_NO_PROTOTYPES
 #define VK_NO_PROTOTYPES 1
+#endif
 #include <vulkan/vulkan.h>
 
 #ifdef __cplusplus
@@ -261,6 +263,18 @@ uint64_t SwappyVk_getFenceTimeoutNS();
 void SwappyVk_injectTracer(const SwappyTracer* tracer);
 
 /**
+ * @brief Remove callbacks that were previously added using
+ * SwappyVk_injectTracer.
+ *
+ * Only removes callbacks that were previously added using
+ * SwappyVK_injectTracer. If SwappyVK_injectTracker was not called with the
+ * tracer, then there is no effect.
+ *
+ * @param[in]  tracer - Collection of callback functions
+ */
+void SwappyVk_uninjectTracer(const SwappyTracer* tracer);
+
+/**
  * @brief A structure enabling you to provide your own Vulkan function wrappers
  * by calling ::SwappyVk_setFunctionProvider.
  *
@@ -315,6 +329,89 @@ void SwappyVk_setFunctionProvider(
  * @param[in] swapchain - the swapchain to query
  */
 uint64_t SwappyVk_getSwapIntervalNS(VkSwapchainKHR swapchain);
+
+/**
+ * @brief Get the supported refresh periods of this device. Call once with
+ * out_refreshrates set to nullptr to get the number of supported refresh
+ * periods, then call again passing that number as allocated_entries and
+ * an array of size equal to allocated_entries that will be filled with the
+ * refresh periods.
+ */
+int SwappyVk_getSupportedRefreshPeriodsNS(uint64_t* out_refreshrates,
+                                          int allocated_entries,
+                                          VkSwapchainKHR swapchain);
+/**
+ * @brief Check if Swappy is enabled for the specified swapchain.
+ *
+ * @return false if SwappyVk_initAndGetRefreshCycleDuration was not
+ * called for the specified swapchain, true otherwise.
+ */
+bool SwappyVk_isEnabled(VkSwapchainKHR swapchain, bool* isEnabled);
+
+/**
+ * @brief Toggle statistics collection on/off
+ *
+ * By default, stats collection is off and there is no overhead related to
+ * stats. An app can turn on stats collection by calling
+ * `SwappyVk_enableStats(swapchain, true)`. Then, the app is expected to call
+ * ::SwappyVk_recordFrameStart for each frame before starting to do any CPU
+ * related work. Stats will be logged to logcat with a 'FrameStatistics' tag. An
+ * app can get the stats by calling ::SwappyVk_getStats.
+ *
+ * SwappyVk_initAndGetRefreshCycleDuration must have been called successfully
+ * before for this swapchain, otherwise there is no effect in this call. Frame
+ * stats are only available if the platform supports VK_GOOGLE_display_timing
+ * extension.
+ *
+ * @param[in]  swapchain - The swapchain for which frame stat collection is
+ *                           configured.
+ * @param      enabled   - Whether to enable/disable frame stat collection.
+ */
+void SwappyVk_enableStats(VkSwapchainKHR swapchain, bool enabled);
+
+/**
+ * @brief Should be called if stats have been enabled with SwappyVk_enableStats.
+ *
+ * When stats collection is enabled with SwappyVk_enableStats, the app is
+ * expected to call this function for each frame before starting to do any CPU
+ * related work. It is assumed that this function will be called after a
+ * successful call to vkAcquireNextImageKHR. See ::SwappyVk_enableStats for more
+ * conditions.
+ *
+ * @param[in]  queue     - The VkQueue associated with the device and swapchain
+ * @param[in]  swapchain - The swapchain where the frame is presented to.
+ * @param[in]  image     - The image in swapchain that corresponds to the frame.
+
+ * @see SwappyVk_enableStats.
+ */
+void SwappyVk_recordFrameStart(VkQueue queue, VkSwapchainKHR swapchain, uint32_t image);
+
+/**
+ * @brief Returns the stats collected, if statistics collection was toggled on.
+ *
+ * Given that this API uses VkSwapchainKHR and the potential for this call to be
+ * done on different threads, all calls to ::SwappyVk_getStats
+ * must be externally synchronized with other SwappyVk calls. Unsynchronized
+ * calls may lead to undefined behavior. See ::SwappyVk_enableStats for more
+ * conditions.
+ *
+ * @param[in]  swapchain   - The swapchain for which stats are being queried.
+ * @param      swappyStats - Pointer to a SwappyStats that will be populated with
+ *                             the collected stats. Cannot be NULL.
+ * @see SwappyStats
+ */
+void SwappyVk_getStats(VkSwapchainKHR swapchain, SwappyStats *swappyStats);
+
+/**
+ * @brief Clears the frame statistics collected so far.
+ *
+ * All the frame statistics collected are reset to 0, frame statistics are
+ * collected normally after this call. See ::SwappyVk_enableStats for more
+ * conditions.
+ *
+ * @param[in]  swapchain   - The swapchain for which stats are being cleared.
+ */
+void SwappyVk_clearStats(VkSwapchainKHR swapchain);
 
 #ifdef __cplusplus
 }  // extern "C"
