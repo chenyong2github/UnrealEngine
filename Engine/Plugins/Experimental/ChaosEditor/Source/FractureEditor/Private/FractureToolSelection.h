@@ -225,6 +225,7 @@ public:
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	void UpdateSelection(FFractureToolContext& FractureContext);
 
+	virtual void Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual void Shutdown() override;
 
 	// IClickBehaviorTarget implementation

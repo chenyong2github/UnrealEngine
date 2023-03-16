@@ -322,6 +322,15 @@ void URectangleMarqueeManager::DrawHUD(FCanvas* Canvas, bool bThisViewHasFocus)
 }
 
 
+void UFractureToolSelection::Setup(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	Super::Setup(InToolkit);
+	if (InToolkit.IsValid())
+	{
+		InToolkit.Pin()->SetOutlinerColumnMode(EOutlinerColumnMode::Size);
+	}
+}
+
 void UFractureToolSelection::Shutdown()
 {
 	DestroyRectangleSelectionBehavior();
