@@ -105,6 +105,15 @@ void ALandscapeSplineActor::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 	if (!IsPendingKillPending())
 	{
+#if WITH_EDITORONLY_DATA
+		// note that when running PIE or when instancing a level, Landscape might change its GUID (see FixupLandscapeGuidsIfInstanced), so we need to copy it.
+		// (otherwise we would register with the wrong landscape info and our LandscapeActor reference will be stomped)
+		if (LandscapeActor)
+		{
+			LandscapeGuid = LandscapeActor->GetLandscapeGuid();
+		}
+#endif // WITH_EDITORONLY_DATA
+
 		UWorld* World = GetWorld();
 		if (LandscapeGuid.IsValid())
 		{
