@@ -12,5 +12,9 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphLinearTimeStep : public UMovieGraph
 {
 	GENERATED_BODY()
 public:
-	virtual void CalculateTimeStep(FMovieGraphTimeStepData& OutTimeData) override;
+	virtual void TickProducingFrames() override;
+	virtual FMovieGraphTimeStepData GetCalculatedTimeData() const override { return CurrentTimeStepData; }
+
+private:
+	FMovieGraphTimeStepData CurrentTimeStepData;
 };

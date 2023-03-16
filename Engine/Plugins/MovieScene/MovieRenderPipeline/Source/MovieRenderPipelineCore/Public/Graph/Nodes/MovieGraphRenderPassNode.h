@@ -6,6 +6,7 @@
 
 // Forward Declare
 struct FMovieGraphRenderPassSetupData;
+struct FMovieGraphTimeStepData;
 
 UCLASS(Abstract)
 class UMovieGraphRenderPassNode : public UMovieGraphNode
@@ -20,7 +21,7 @@ public:
 	FString GetRendererName() const { return GetRendererNameImpl(); }
 	void Setup(const FMovieGraphRenderPassSetupData& InSetupData) { SetupImpl(InSetupData); }
 	void Teardown() { TeardownImpl(); }
-	void Render() { RenderImpl(); }
+	void Render(const FMovieGraphTimeStepData& InTimeData) { RenderImpl(InTimeData); }
 	// ~UMovieGraphRenderPassNode interface
 
 	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override
@@ -48,5 +49,5 @@ protected:
 	virtual FString GetRendererNameImpl() const { return TEXT("UnnamedRenderPass"); }
 	virtual void SetupImpl(const FMovieGraphRenderPassSetupData& InSetupData) {}
 	virtual void TeardownImpl() {}
-	virtual void RenderImpl() {}
+	virtual void RenderImpl(const FMovieGraphTimeStepData& InTimeData) {}
 };

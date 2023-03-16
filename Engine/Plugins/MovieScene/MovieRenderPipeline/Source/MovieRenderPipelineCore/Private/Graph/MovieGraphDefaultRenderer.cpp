@@ -9,6 +9,7 @@
 #include "RenderingThread.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "UObject/Package.h"
+#include "MoviePipelineSurfaceReader.h"
 
 void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
@@ -91,7 +92,21 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 
 void UMovieGraphDefaultRenderer::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
+	// Ensure the GPU has actually rendered all of the frames
 	FlushRenderingCommands();
+
+	// Make sure all of the data has actually been copied back from the GPU and accumulation tasks started.
+	for (TPair<UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams, FMoviePipelineSurfaceQueuePtr> SurfaceQueueIt : PooledSurfaceQueues)
+	{
+		if (SurfaceQueueIt.Value.IsValid())
+		{
+			SurfaceQueueIt.Value->Shutdown();
+		}
+	}
+	
+	// Stall until the task graph has completed any pending accumulations.
+	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
+	OutstandingTasks.Reset();
 
 	for (TObjectPtr< UMovieGraphRenderPassNode> RenderPass : RenderPassesInUse)
 	{
@@ -102,6 +117,8 @@ void UMovieGraphDefaultRenderer::TeardownRenderingPipelineForShot(UMoviePipeline
 
 	// ToDo: This could probably be preserved across shots to avoid allocations
 	PooledViewRenderTargets.Reset();
+	PooledAccumulators.Reset();
+	PooledSurfaceQueues.Reset();
 }
 
 
@@ -111,27 +128,54 @@ void UMovieGraphDefaultRenderer::AddReferencedObjects(UObject* InThis, FReferenc
 	UMovieGraphDefaultRenderer* This = CastChecked<UMovieGraphDefaultRenderer>(InThis);
 
 	// Can't be a const& due to AddStableReference API
-	for (TPair<FRenderTargetInitParams, TObjectPtr<UTextureRenderTarget2D>>& KVP : This->PooledViewRenderTargets)
+	for (TPair<UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams, TObjectPtr<UTextureRenderTarget2D>>& KVP : This->PooledViewRenderTargets)
 	{
 		Collector.AddStableReference(&KVP.Value);
 	}
 }
 
-
 void UMovieGraphDefaultRenderer::Render(const FMovieGraphTimeStepData& InTimeStepData)
 {
+	// Housekeeping: Clean up any tasks that were completed since the last frame. This lets us have a 
+	// better idea of how much work we're concurrently doing. 
+	{
+		// Don't iterate through the array if someone is actively modifying it.
+		FScopeLock ScopeLock(&OutstandingTasksMutex);
+		for (int32 Index = 0; Index < OutstandingTasks.Num(); Index++)
+		{
+			const FGraphEventRef& Task = OutstandingTasks[Index];
+			if (Task->IsComplete())
+			{
+				Task->Release();
+				OutstandingTasks.RemoveAtSwap(Index);
+
+				// We swapped the end array element into the current spot,
+				// so we need to check this element again, otherwise we skip
+				// checking some things.
+				Index--;
+			}
+		}
+	}
+
 	for (TObjectPtr<UMovieGraphRenderPassNode> RenderPass : RenderPassesInUse)
 	{
-		RenderPass->Render();
+		RenderPass->Render(InTimeStepData);
 	}
 }
 
-
-UTextureRenderTarget2D* UMovieGraphDefaultRenderer::GetOrCreateViewRenderTarget(const FRenderTargetInitParams& InInitParams)
+void UMovieGraphDefaultRenderer::AddOutstandingRenderTask_AnyThread(FGraphEventRef InTask)
 {
-	if (const TObjectPtr<UTextureRenderTarget2D>* ExistViewRenderTarget = PooledViewRenderTargets.Find(InInitParams))
+	// We might be looping through the array to remove previously completed tasks,
+	// so don't modify until that is completed.
+	FScopeLock ScopeLock(&OutstandingTasksMutex);
+	OutstandingTasks.Add(InTask);
+}
+
+UTextureRenderTarget2D* UMovieGraphDefaultRenderer::GetOrCreateViewRenderTarget(const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InInitParams)
+{
+	if (const TObjectPtr<UTextureRenderTarget2D>* ExistingViewRenderTarget = PooledViewRenderTargets.Find(InInitParams))
 	{
-		return *ExistViewRenderTarget;
+		return *ExistingViewRenderTarget;
 	}
 
 	const TObjectPtr<UTextureRenderTarget2D> NewViewRenderTarget = CreateViewRenderTarget(InInitParams);
@@ -140,7 +184,7 @@ UTextureRenderTarget2D* UMovieGraphDefaultRenderer::GetOrCreateViewRenderTarget(
 	return NewViewRenderTarget.Get();
 }
 
-TObjectPtr<UTextureRenderTarget2D> UMovieGraphDefaultRenderer::CreateViewRenderTarget(const FRenderTargetInitParams& InInitParams) const
+TObjectPtr<UTextureRenderTarget2D> UMovieGraphDefaultRenderer::CreateViewRenderTarget(const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InInitParams) const
 {
 	TObjectPtr<UTextureRenderTarget2D> NewTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
 	NewTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -150,4 +194,67 @@ TObjectPtr<UTextureRenderTarget2D> UMovieGraphDefaultRenderer::CreateViewRenderT
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Allocated a View Render Target sized: (%d, %d), Bytes: %d"), InInitParams.Size.X, InInitParams.Size.Y, ResourceSizeBytes);
 
 	return NewTarget;
+}
+
+FMoviePipelineSurfaceQueuePtr UMovieGraphDefaultRenderer::GetOrCreateSurfaceQueue(const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InInitParams)
+{
+	if (const FMoviePipelineSurfaceQueuePtr* ExistingSurfaceQueue = PooledSurfaceQueues.Find(InInitParams))
+	{
+		return *ExistingSurfaceQueue;
+	}
+
+	const FMoviePipelineSurfaceQueuePtr NewSurfaceQueue = CreateSurfaceQueue(InInitParams);
+	PooledSurfaceQueues.Emplace(InInitParams, NewSurfaceQueue);
+
+	return NewSurfaceQueue;
+}
+
+FMoviePipelineSurfaceQueuePtr UMovieGraphDefaultRenderer::CreateSurfaceQueue(const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InInitParams) const
+{
+	// ToDo: Refactor these to be dynamically sized, but also allow putting a cap on them. We need at least enough to submit everything for one render
+	FMoviePipelineSurfaceQueuePtr SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue, ESPMode::ThreadSafe>(InInitParams.Size, InInitParams.PixelFormat, 6, true);
+	
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Allocated a Surface Queue sized: (%d, %d)"), InInitParams.Size.X, InInitParams.Size.Y);
+	return SurfaceQueue;
+}
+
+namespace UE::MovieGraph::DefaultRenderer
+{
+FSurfaceAccumulatorPool::FInstancePtr FSurfaceAccumulatorPool::BlockAndGetAccumulator_GameThread(int32 InFrameNumber, const FMovieGraphRenderDataIdentifier& InPassIdentifier)
+{
+	FScopeLock ScopeLock(&CriticalSection);
+
+	int32 AvailableIndex = INDEX_NONE;
+	while (AvailableIndex == INDEX_NONE)
+	{
+		for (int32 Index = 0; Index < Accumulators.Num(); Index++)
+		{
+			if (InFrameNumber == Accumulators[Index]->ActiveFrameNumber && InPassIdentifier == Accumulators[Index]->ActivePassIdentifier)
+			{
+				AvailableIndex = Index;
+				break;
+			}
+		}
+
+		if (AvailableIndex == INDEX_NONE)
+		{
+			// If we don't have an accumulator already working on it let's look for a free one.
+			for (int32 Index = 0; Index < Accumulators.Num(); Index++)
+			{
+				if (!Accumulators[Index]->IsActive())
+				{
+					// Found a free one, tie it to this output frame.
+					Accumulators[Index]->ActiveFrameNumber = InFrameNumber;
+					Accumulators[Index]->ActivePassIdentifier = InPassIdentifier;
+					Accumulators[Index]->bIsActive = true;
+					Accumulators[Index]->TaskPrereq = nullptr;
+					AvailableIndex = Index;
+					break;
+				}
+			}
+		}
+	}
+
+	return Accumulators[AvailableIndex];
+}
 }

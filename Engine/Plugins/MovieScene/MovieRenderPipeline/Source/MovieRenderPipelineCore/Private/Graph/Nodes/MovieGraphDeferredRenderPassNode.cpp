@@ -13,6 +13,8 @@
 #include "SceneViewExtensionContext.h"
 #include "OpenColorIODisplayExtension.h"
 #include "TextureResource.h"
+#include "MovieRenderOverlappedImage.h"
+#include "MoviePipelineSurfaceReader.h"
 
 void UMovieGraphDeferredRenderPassNode::SetupImpl(const FMovieGraphRenderPassSetupData& InSetupData)
 {
@@ -22,7 +24,7 @@ void UMovieGraphDeferredRenderPassNode::SetupImpl(const FMovieGraphRenderPassSet
 	for (const FMovieGraphRenderPassLayerData& LayerData : InSetupData.Layers)
 	{
 		TUniquePtr<FMovieGraphDeferredRenderPass> RendererInstance = MakeUnique<FMovieGraphDeferredRenderPass>();
-		RendererInstance->Setup(InSetupData.Renderer, LayerData);
+		RendererInstance->Setup(InSetupData.Renderer, this, LayerData);
 		CurrentInstances.Add(MoveTemp(RendererInstance));
 	}
 }
@@ -40,11 +42,11 @@ void UMovieGraphDeferredRenderPassNode::TeardownImpl()
 }
 
 
-void UMovieGraphDeferredRenderPassNode::RenderImpl()
+void UMovieGraphDeferredRenderPassNode::RenderImpl(const FMovieGraphTimeStepData& InTimeData)
 {
 	for (TUniquePtr<FMovieGraphDeferredRenderPass>& Instance : CurrentInstances)
 	{
-		Instance->Render();
+		Instance->Render(InTimeData);
 	}
 }
 
@@ -59,12 +61,12 @@ void UMovieGraphDeferredRenderPassNode::AddReferencedObjects(UObject* InThis, FR
 	}
 }
 
-void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Setup(TWeakObjectPtr<class UMovieGraphDefaultRenderer> InRenderer, const FMovieGraphRenderPassLayerData& InLayer)
+void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Setup(TWeakObjectPtr<UMovieGraphDefaultRenderer> InRenderer, TWeakObjectPtr<UMovieGraphDeferredRenderPassNode> InRenderPassNode, const FMovieGraphRenderPassLayerData& InLayer)
 {
 	LayerData = InLayer;
 	Renderer = InRenderer;
+	RenderPassNode = InRenderPassNode;
 
-	const FIntPoint OutputCameraResolution = FIntPoint(1920, 1080);// Renderer->GetEffectiveOutputResolution(LayerData);
 
 	// Figure out how big each sub-region (tile) is.
 	// const int32 TileSize = Graph->FindSetting(LayerData.LayerName, "highres.tileSize");
@@ -102,15 +104,15 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::AddRefere
 	}
 }
 
-void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render()
+void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(const FMovieGraphTimeStepData& InTimeData)
 {
-
+	// This is the size we actually render at.
+	UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams RenderTargetInitParams;
+	RenderTargetInitParams.Size = FIntPoint(1920, 1080);
+	
 	// OCIO: Since this is a manually created Render target we don't need Gamma to be applied.
 	// We use this render target to render to via a display extension that utilizes Display Gamma
 	// which has a default value of 2.2 (DefaultDisplayGamma), therefore we need to set Gamma on this render target to 2.2 to cancel out any unwanted effects.
-	
-	UMovieGraphDefaultRenderer::FRenderTargetInitParams RenderTargetInitParams;
-	RenderTargetInitParams.Size = FIntPoint(1920, 1080);
 	RenderTargetInitParams.TargetGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
 	RenderTargetInitParams.PixelFormat = EPixelFormat::PF_FloatRGBA;
 
@@ -134,10 +136,7 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render()
 	}
 
 	// ToDo:
-	InitData.TimeData.FrameDeltaTime = 1 / 24.f;
-	InitData.TimeData.TimeDilation = 1.0f;
-	InitData.TimeData.WorldSeconds = 0.f;
-	InitData.TimeData.MotionBlurFraction = 1 / 24.f;
+	InitData.TimeData = InTimeData;
 	InitData.SceneCaptureSource = ESceneCaptureSource::SCS_FinalToneCurveHDR;
 	InitData.bWorldIsPaused = false;
 	InitData.GlobalScreenPercentageFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction();
@@ -166,8 +165,96 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render()
 	// Submit the renderer to be rendered
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.ToSharedPtr().Get());
 
+	// If this was just to contribute to the history buffer, no need to go any further.
+	//if (InSampleState.bDiscardResult)
+	//{
+	//	return;
+	//}
+
+	FMovieGraphRenderDataIdentifier RenderDataIdentifier;
+	RenderDataIdentifier.RenderLayerName = LayerData.LayerName;
+	RenderDataIdentifier.RendererName = RenderPassNode->GetRendererName();
+	RenderDataIdentifier.SubResourceName = TEXT("beauty");
+	RenderDataIdentifier.CameraName = TEXT("Unnamed_Camera");
+	if (InitData.ViewActor)
+	{
+		RenderDataIdentifier.CameraName = InitData.ViewActor->GetName();
+	}
+
+	UE::MovieGraph::FMovieGraphSampleState SampleState;
+	SampleState.RenderDataIdentifier = RenderDataIdentifier;
+	SampleState.Time = InTimeData;
+
 	// Readback + Accumulate.
-	// PostRendererSubmission(InOutSampleState, PassIdentifierForCurrentCamera, GetOutputFileSortingOrder(), Canvas);
+	PostRendererSubmission(SampleState, RenderTargetInitParams, Canvas);
+}
+
+void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::PostRendererSubmission(
+	const UE::MovieGraph::FMovieGraphSampleState& InSampleState,
+	const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InRenderTargetInitParams, FCanvas& InCanvas)
+{
+	// ToDo: Draw Letterboxing
+	
+
+	// We have a pool of accumulators - we multi-thread the accumulation on the task graph, and for each frame,
+	// the task has the previous samples as pre-reqs to keep the accumulation in order. However, each accumulator
+	// can only work on one frame at a time, so we create a pool of them to work concurrently. This needs a limit
+	// as large accumulations (16k) can take a lot of system RAM.
+	FMoviePipelineAccumulatorPoolPtr SampleAccumulatorPool = Renderer->GetOrCreateAccumulatorPool<FImageOverlappedAccumulator>();
+	UE::MovieGraph::DefaultRenderer::FSurfaceAccumulatorPool::FInstancePtr AccumulatorInstance = nullptr;
+	{
+		// SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
+		AccumulatorInstance = SampleAccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.Time.OutputFrameNumber, InSampleState.RenderDataIdentifier);
+	}
+
+	FMoviePipelineSurfaceQueuePtr LocalSurfaceQueue = Renderer->GetOrCreateSurfaceQueue(InRenderTargetInitParams);
+	LocalSurfaceQueue->BlockUntilAnyAvailable();
+
+	UE::MovieGraph::FMovieGraphRenderDataAccumulationArgs AccumulationArgs;
+	{
+		//AccumulationArgs.OutputMerger = Renderer->GetOutputBuilder();
+		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(AccumulatorInstance->Accumulator);
+		AccumulationArgs.bIsFirstSample = true; // FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample()
+		AccumulationArgs.bIsLastSample = true; // FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample()
+		AccumulationArgs.TaskPrerequisite = AccumulatorInstance->TaskPrereq;
+	}
+
+	auto OnSurfaceReadbackFinished = [this, InSampleState, AccumulationArgs, AccumulatorInstance](TUniquePtr<FImagePixelData>&& InPixelData)
+	{
+		UE::MovieGraph::DefaultRenderer::FMovieGraphAccumulationTask Task;
+		// There may be other accumulations for this accumulator which need to be processed first
+		Task.LastCompletionEvent = AccumulationArgs.TaskPrerequisite;
+		// TUniquePtr<FImagePixelData> Foo = MakeUnique<TImagePixelData<FFloat16Color>>(InPixelData->GetSize(), MoveTemp(InPixelData->MoveImageDataToNew))
+
+		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumulationArgs, AccumulatorInstance]() mutable
+			{
+				// Enqueue a encode for this frame onto our worker thread.
+				// UE::MovieGraph::DefaultRenderer::AccumulateSample_TaskThread(MoveTemp(PixelData), AccumulationArgs);
+
+				// We have to defer clearing the accumulator until after sample accumulation has finished
+				if (AccumulationArgs.bIsLastSample)
+				{
+					// Final sample has now been executed, break the pre-req chain and free the accumulator for reuse.
+					AccumulatorInstance->bIsActive = false;
+					AccumulatorInstance->TaskPrereq = nullptr;
+				}
+			});
+		AccumulatorInstance->TaskPrereq = Event;
+
+		this->Renderer->AddOutstandingRenderTask_AnyThread(Event);
+	};
+
+	FRenderTarget* RenderTarget = InCanvas.GetRenderTarget();
+
+	ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
+		[LocalSurfaceQueue, OnSurfaceReadbackFinished, RenderTarget](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			// The legacy surface reader takes the payload just so it can shuffle it into our callback, but we can just include the data
+			// directly in the callback, so this is just a dummy payload.
+			TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
+			LocalSurfaceQueue->OnRenderTargetReady_RenderThread(RenderTarget->GetRenderTargetTexture(), FramePayload, MoveTemp(OnSurfaceReadbackFinished));
+		});
+		
 }
 
 TSharedRef<FSceneViewFamilyContext> UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::AllocateSceneViewFamilyContext(const FViewFamilyContextInitData& InInitData)

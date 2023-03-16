@@ -86,6 +86,12 @@ public:
 	{
 	}
 
+	static FName GetName()
+	{
+		static FName Name = FName("ImageOverlappedAccumulator");
+		return Name;
+	}
+
 	/**
 	 * Allocates memory.
 	 *

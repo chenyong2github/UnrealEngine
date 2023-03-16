@@ -69,7 +69,8 @@ void UMovieGraphPipeline::Initialize(UMoviePipelineExecutorJob* InJob, const FMo
 	
 	CurrentJob = InJob;
 	CurrentShotIndex = 0;
-	
+	GraphInitializationTime = FDateTime::UtcNow();
+
 	// Now that we've created our various systems, we will start using them. First thing we do is cache data about
 	// the world, job, player viewport, etc, before we make any modifications. These will be restored at the end
 	// of the render.
@@ -198,59 +199,7 @@ void UMovieGraphPipeline::TickProducingFrames()
 	//}
 
 
-	FMovieGraphTimeStepData TimeStepData;
-
-	GraphTimeStepInstance->ResetPerTickData();
-
-	UMoviePipelineExecutorShot* CurrentCameraCut = ActiveShotList[CurrentShotIndex];
-	if (CurrentCameraCut->ShotInfo.State == EMovieRenderShotState::Uninitialized)
-	{
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MovieGraph Initializing Camera Cut [%d/%d] in [%s] %s."),
-			CurrentShotIndex + 1, ActiveShotList.Num(), *CurrentCameraCut->OuterName, *CurrentCameraCut->InnerName);
-
-		SetupShot(CurrentCameraCut);
-		GraphTimeStepInstance->InitializeShot(CurrentCameraCut, /*Out*/ TimeStepData);
-		GraphDataCachingInstance->InitializeShot(CurrentCameraCut, /*In*/ TimeStepData);
-
-		// We can safely fall through to the below states as they're OK to process the same frame we set up.
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MovieGraph Finished initializing Camera Cut [%d/%d] in [%s] %s."),
-			CurrentShotIndex + 1, ActiveShotList.Num(), *CurrentCameraCut->OuterName, *CurrentCameraCut->InnerName);
-
-		// Temp...
-		CurrentCameraCut->ShotInfo.State = EMovieRenderShotState::Rendering;
-	}
-
-	if (CurrentCameraCut->ShotInfo.State == EMovieRenderShotState::Rendering)
-	{
-		ULevelSequence* CurrentSequence = Cast<ULevelSequence>(GetCurrentJob()->Sequence.TryLoad());
-		FFrameRate TickResolution = CurrentSequence->GetMovieScene()->GetTickResolution();
-		FFrameRate FrameRate = CurrentSequence->GetMovieScene()->GetDisplayRate();
-		
-		FFrameTime TicksPerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), FrameRate, TickResolution);
-		CurrentCameraCut->ShotInfo.CurrentTickInRoot += TicksPerOutputFrame.GetFrame();
-
-		if (CurrentCameraCut->ShotInfo.CurrentTickInRoot >= CurrentCameraCut->ShotInfo.TotalOutputRangeRoot.GetUpperBoundValue())
-		{
-			CurrentCameraCut->ShotInfo.State = EMovieRenderShotState::Finished;
-			TeardownShot(CurrentCameraCut);
-			return;
-		}
-	}
-
-	// const MoviePipeline::FFrameConstantMetrics FrameMetrics = CalculateShotFrameMetrics(CurrentCameraCut);
-	// CachedOutputState.ResetPerFrameData();
-
-
-	// Public API:
-	// Which Output Frame are we on (overall)
-
-	// Output State needs to know:
-	// ShotIndex
-	// does output state need sto be an interface? stocastic sampling makes
-	// temporal sample count/temporal index not have any meaning. or maybe
-	// we just re-use it and have some fields be dummies? This is used for
-	// the UI (for progress tracking), and filenames, and debug file output names.
-
+	GraphTimeStepInstance->TickProducingFrames();
 }
 
 
@@ -419,7 +368,7 @@ void UMovieGraphPipeline::OnEngineTickEndFrame()
 void UMovieGraphPipeline::RenderFrame()
 {
 	check(GraphRendererInstance);
-	FMovieGraphTimeStepData TimeStepData;
+	const FMovieGraphTimeStepData& TimeStepData = GraphTimeStepInstance->GetCalculatedTimeData();
 
 	GraphRendererInstance->Render(TimeStepData);
 }
@@ -644,6 +593,7 @@ void UMovieGraphPipeline::TransitionToState(const EMovieRenderPipelineState InNe
 			//}
 
 			OnMoviePipelineFinishedImpl();
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Movie Graph Render completed. Duration: %s"), *(FDateTime::UtcNow() - GraphInitializationTime).ToString());
 		}
 		break;
 	}
