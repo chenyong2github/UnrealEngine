@@ -453,6 +453,9 @@ void FSlateRHIRenderer::ConditionalResizeViewport(FViewportInfo* ViewInfo, uint3
 
 		// Prevent the texture update logic to use the RHI while the viewport is resized. 
 		// This could happen if a streaming IO request completes and throws a callback.
+		// @todo : this does not in fact stop texture tasks from using the RHI while the viewport is resized
+		//		because they can be running in other threads, or even in retraction on this thread inside the D3D Wait
+		//		this should be removed and whatever streaming thread safety is needed during a viewport resize should be done correctly
 		SuspendTextureStreamingRenderTasks();
 
 		// cannot resize the viewport while potentially using it.
