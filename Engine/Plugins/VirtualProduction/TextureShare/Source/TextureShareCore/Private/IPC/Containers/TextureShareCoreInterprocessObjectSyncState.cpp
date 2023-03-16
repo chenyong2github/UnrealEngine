@@ -3,20 +3,14 @@
 #include "IPC/Containers/TextureShareCoreInterprocessObjectSyncState.h"
 #include "IPC/Containers/TextureShareCoreInterprocessObjectSync.h"
 
-#include "Core/TextureShareCoreHelpers.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
 #include "Module/TextureShareCoreLog.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-using namespace TextureShareCoreHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreInterprocessObjectSyncState
 //////////////////////////////////////////////////////////////////////////////////////////////
-FString FTextureShareCoreInterprocessObjectSyncState::ToString() const
-{
-	return FString::Printf(TEXT("%s[%s]{%s < %s}"), GetTEXT(Step), GetTEXT(State), GetTEXT(NextStep), GetTEXT(PrevStep));
-}
-
 ETextureShareInterprocessObjectSyncBarrierState FTextureShareCoreInterprocessObjectSyncState::HandleBarrierStateResult(const FTextureShareCoreInterprocessObjectSyncState& InSync, const ETextureShareInterprocessObjectSyncBarrierState InBarrierState) const
 {
 	switch (InBarrierState)
@@ -29,7 +23,7 @@ ETextureShareInterprocessObjectSyncBarrierState FTextureShareCoreInterprocessObj
 
 	default:
 		// Add some log
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("BarrierState=%s  :  %s   ask from %s"), GetTEXT(InBarrierState), *InSync.ToString(), *ToString());
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("BarrierState=%s : %s ask from %s"), GetTEXT(InBarrierState), *ToString(InSync), *ToString(*this));
 		break;
 	}
 

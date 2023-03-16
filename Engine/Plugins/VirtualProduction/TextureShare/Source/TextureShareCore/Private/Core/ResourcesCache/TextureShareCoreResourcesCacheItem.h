@@ -31,6 +31,11 @@ public:
 		return Handle;
 	}
 
+	void SetResourceHandleGPUIndex(const uint32 InGPUIndex)
+	{
+		Handle.GPUIndex = InGPUIndex;
+	}
+
 	bool HandleEquals(const FTextureShareCoreResourceHandle& InResourceHandle) const
 	{
 		return Handle.HandleEquals(InResourceHandle);

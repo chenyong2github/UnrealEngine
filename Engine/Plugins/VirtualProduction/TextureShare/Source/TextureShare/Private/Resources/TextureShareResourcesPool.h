@@ -35,9 +35,9 @@ public:
 	}
 
 private:
-	FTextureShareResource* FindExistTextureShareResource(const FTextureShareCoreResourceDesc& InResourceDesc) const;
-	FTextureShareResource* CreateTextureShareResource(const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe>& InCoreObject, const FTextureShareCoreResourceDesc& InResourceDesc, const FTextureShareResourceSettings& InResourceSettings);
-	void ReleaseTextureShareResource(FTextureShareResource* &InOutResource);
+	FTextureShareResource* FindExistTextureShareResource_RenderThread(const FTextureShareCoreResourceDesc& InResourceDesc) const;
+	FTextureShareResource* CreateTextureShareResource_RenderThread(const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe>& InCoreObject, const FTextureShareCoreResourceDesc& InResourceDesc, const FTextureShareResourceSettings& InResourceSettings);
+	void ReleaseTextureShareResource_RenderThread(FTextureShareResource* &InOutResource);
 
 private:
 	TArray<FTextureShareResource*> TextureResources;

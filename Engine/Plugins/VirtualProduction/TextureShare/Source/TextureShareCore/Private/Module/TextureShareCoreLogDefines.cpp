@@ -4,27 +4,13 @@
 
 #if TEXTURESHARECORE_SDK && TEXTURESHARECORE_DEBUGLOG
 
+#include <windows.h>
 #include "Debugapi.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-namespace LogHelpers
-{
-	void WriteLine(const FString& In)
+void FTextureShareCoreLogHelpers::WriteLine(const FString& In)
 	{
 		OutputDebugStringW(FTCHARToWChar(*FString::Printf(TEXT("%s\n\t"), *In)).Get());
 	}
-
-	void WriteLineOnce(const FString& In)
-	{
-		static FString _PreLogText = TEXT("");
-
-		if (_PreLogText != In)
-		{
-			_PreLogText = In;
-
-			OutputDebugStringW(FTCHARToWChar(*FString::Printf(TEXT("%s\n\t"), *In)).Get());
-		}
-	}
-};
 
 #endif

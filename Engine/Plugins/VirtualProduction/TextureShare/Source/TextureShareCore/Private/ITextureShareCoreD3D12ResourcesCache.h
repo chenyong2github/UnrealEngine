@@ -19,6 +19,21 @@ public:
 
 public:
 	/**
+	 * Create a D3D12 cross-adapter resource
+	 *
+	 * @param InObjectDesc      - A handle to a TextureShare object. This object is the owner of the resource
+	 * @param InD3D12Device     - D3D12 device interface
+	 * @param InWidth           - resource size X
+	 * @param InHeight          - resource size Y
+	 * @param InFormat          - resource format
+	 * @param InResourceDesc    - Resource information for TS core (Eye, type of operation, sync pass, etc)
+	 * @param OutResourceHandle - Output resource handle
+	 *
+	 * @return nullptr if failed
+	 */
+	virtual ID3D12Resource* CreateCrossAdapterResource(const FTextureShareCoreObjectDesc& InObjectDesc, ID3D12Device* InD3D12Device, const int32 InWidth, const int32 InHeight, const DXGI_FORMAT InFormat, const FTextureShareCoreResourceDesc& InResourceDesc, FTextureShareCoreResourceHandle& OutResourceHandle) = 0;
+
+	/**
 	 * Create a handle to a share from a D3D12 resource
 	 *
 	 * @param InObjectDesc      - A handle to a TextureShare object. This object is the owner of the resource
@@ -29,7 +44,7 @@ public:
 	 *
 	 * @return true if success
 	 */
-	virtual bool CreateSharedResource(const FTextureShareCoreObjectDesc& InObjectDesc, ID3D12Device* InD3D12Device, ID3D12Resource* InResourceD3D12, const FTextureShareCoreResourceDesc& InResourceDesc, FTextureShareCoreResourceHandle& OutResourceHandle) = 0;
+	virtual bool CreateSharedResource(const FTextureShareCoreObjectDesc& InObjectDesc, ID3D12Device* InD3D12Device, ID3D12Resource* InResourceD3D12, const uint32 InResourceGPUIndex, const FTextureShareCoreResourceDesc& InResourceDesc, FTextureShareCoreResourceHandle& OutResourceHandle) = 0;
 
 	/**
 	 * Open shared resource from the handle, and return D3D12 resource

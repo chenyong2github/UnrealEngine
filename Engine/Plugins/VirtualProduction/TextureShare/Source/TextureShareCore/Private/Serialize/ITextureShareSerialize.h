@@ -62,6 +62,8 @@ public:
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareSyncState& In) = 0;
 
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareSyncStep& In) = 0;
+	virtual ITextureShareSerializeStream& operator<<(ETextureShareResourceType& In) = 0;
+	
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareTextureOp& In) = 0;
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareEyeType& In) = 0;
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareProcessType& In) = 0;

@@ -120,4 +120,30 @@ public:
 	 * @return True if the success
 	 */
 	virtual bool ShareResource_RenderThread(FRDGBuilder& GraphBuilder, const FTextureShareCoreResourceDesc& InResourceDesc, const FRDGTextureRef& InTextureRef, const int32 InTextureGPUIndex, const FIntRect* InTextureRect = nullptr) const = 0;
+
+	/**
+	 * Share texture resource with ResourceRequest
+	 *
+	 * @param RHICmdList        - RHI cmd list
+	 * @param InResourceRequest - resource information
+	 * @param InTexture         - Texture RHI resource
+	 * @param InTextureGPUIndex - Texture GPU index
+	 * @param InTextureRect     - (optional) Share only region from InTexture
+	 *
+	 * @return True if the success
+	 */
+	virtual bool ShareResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceRequest& InResourceRequest, FRHITexture* InTexture, const int32 InTextureGPUIndex, const FIntRect* InTextureRect = nullptr) const = 0;
+
+	/**
+	 * Share texture resource with ResourceRequest
+	 *
+	 * @param GraphBuilder      - RDG builder
+	 * @param InResourceRequest - resource information
+	 * @param InTextureRef      - RDG Texture ref
+	 * @param InTextureGPUIndex - Texture GPU index
+	 * @param InTextureRect     - (optional) Share only region from InTexture
+	 *
+	 * @return True if the success
+	 */
+	virtual bool ShareResource_RenderThread(FRDGBuilder& GraphBuilder, const FTextureShareCoreResourceRequest& InResourceRequest, const FRDGTextureRef& InTextureRef, const int32 InTextureGPUIndex, const FIntRect* InTextureRect = nullptr) const = 0;
 };

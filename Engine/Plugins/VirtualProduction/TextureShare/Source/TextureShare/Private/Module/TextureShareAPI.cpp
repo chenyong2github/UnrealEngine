@@ -13,31 +13,38 @@
 #include "Framework/Application/SlateApplication.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareAPIHelper
+namespace UE
 {
-	static const FName RendererModuleName(TEXT("Renderer"));
-
-	static ITextureShareCoreAPI& TextureShareCoreAPI()
+	namespace TextureShare
 	{
-		static ITextureShareCoreAPI& TextureShareCoreAPISingleton = ITextureShareCore::Get().GetTextureShareCoreAPI();
-		return TextureShareCoreAPISingleton;
-	}
-
-	static ETextureShareDeviceType GetTextureShareDeviceType()
-	{
-		switch(RHIGetInterfaceType())
+		namespace APIHelpers
 		{
-		case ERHIInterfaceType::D3D11:  return ETextureShareDeviceType::D3D11;
-		case ERHIInterfaceType::D3D12:  return ETextureShareDeviceType::D3D12;
-		case ERHIInterfaceType::Vulkan: return ETextureShareDeviceType::Vulkan;
-		default:
-			break;
-		}
+			static const FName RendererModuleName(TEXT("Renderer"));
 
-		return ETextureShareDeviceType::Undefined;
+			static ITextureShareCoreAPI& TextureShareCoreAPI()
+			{
+				static ITextureShareCoreAPI& TextureShareCoreAPISingleton = ITextureShareCore::Get().GetTextureShareCoreAPI();
+				return TextureShareCoreAPISingleton;
+			}
+
+			static ETextureShareDeviceType GetTextureShareDeviceType()
+			{
+				switch (RHIGetInterfaceType())
+				{
+				case ERHIInterfaceType::D3D11:  return ETextureShareDeviceType::D3D11;
+				case ERHIInterfaceType::D3D12:  return ETextureShareDeviceType::D3D12;
+				case ERHIInterfaceType::Vulkan: return ETextureShareDeviceType::Vulkan;
+		
+				default:
+					break;
+				}
+
+				return ETextureShareDeviceType::Undefined;
+			}
+		}
 	}
 };
-using namespace TextureShareAPIHelper;
+using namespace UE::TextureShare::APIHelpers;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareAPI
@@ -58,7 +65,7 @@ FTextureShareAPI::~FTextureShareAPI()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<ITextureShareObject, ESPMode::ThreadSafe> FTextureShareAPI::GetOrCreateObject(const FString& ShareName)
+TSharedPtr<ITextureShareObject, ESPMode::ThreadSafe> FTextureShareAPI::GetOrCreateObject(const FString& ShareName, const ETextureShareProcessType InProcessType)
 {
 	check(IsInGameThread());
 
@@ -71,7 +78,7 @@ TSharedPtr<ITextureShareObject, ESPMode::ThreadSafe> FTextureShareAPI::GetOrCrea
 	}
 
 	//Create new
-	TSharedPtr<ITextureShareCoreObject, ESPMode::ThreadSafe> CoreObject = TextureShareCoreAPI().GetOrCreateCoreObject(ShareName);
+	TSharedPtr<ITextureShareCoreObject, ESPMode::ThreadSafe> CoreObject = TextureShareCoreAPI().GetOrCreateCoreObject(ShareName, InProcessType);
 	if (CoreObject.IsValid())
 	{
 		// Set current DeviceType
@@ -297,4 +304,27 @@ void FTextureShareAPI::UnregisterCallbacks()
 			FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().Remove(OnBackBufferReadyToPresentHandle);
 		}
 	}
+}
+
+void FTextureShareAPI::DisableWorldSubsystem(const uint8* InObject)
+{
+	check(InObject);
+
+	FScopeLock Lock(&ThreadDataCS);
+	DisableWorldSubsystemCallers.Add(InObject);
+}
+
+void FTextureShareAPI::EnableWorldSubsystem(const uint8* InObject)
+{
+	check(InObject);
+
+	FScopeLock Lock(&ThreadDataCS);
+	DisableWorldSubsystemCallers.Remove(InObject);
+}
+
+bool FTextureShareAPI::IsWorldSubsystemEnabled() const
+{
+	FScopeLock Lock(&ThreadDataCS);
+
+	return DisableWorldSubsystemCallers.IsEmpty();
 }

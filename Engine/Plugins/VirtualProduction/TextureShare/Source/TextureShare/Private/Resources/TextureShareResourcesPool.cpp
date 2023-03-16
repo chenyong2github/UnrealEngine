@@ -28,7 +28,7 @@ FTextureShareResource* FTextureShareResourcesPool::GetSharedResource_RenderThrea
 	const FTextureShareResourceSettings  InResourceSettings(InResourceRequest, InSrcTexture);
 
 	// Search exist resource
-	FTextureShareResource* SharedResource = FindExistTextureShareResource(InResourceDesc);
+	FTextureShareResource* SharedResource = FindExistTextureShareResource_RenderThread(InResourceDesc);
 
 	if (SharedResource)
 	{
@@ -39,14 +39,14 @@ FTextureShareResource* FTextureShareResourcesPool::GetSharedResource_RenderThrea
 		}
 
 		// Resource settings changed, need to recreate: release old resource
-		ReleaseTextureShareResource(SharedResource);
+		ReleaseTextureShareResource_RenderThread(SharedResource);
 	}
 
 	// Create a new one
-	return CreateTextureShareResource(InCoreObject, InResourceDesc, InResourceSettings);
+	return CreateTextureShareResource_RenderThread(InCoreObject, InResourceDesc, InResourceSettings);
 }
 
-FTextureShareResource* FTextureShareResourcesPool::CreateTextureShareResource(const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe>& InCoreObject, const FTextureShareCoreResourceDesc& InResourceDesc, const FTextureShareResourceSettings& InResourceSettings)
+FTextureShareResource* FTextureShareResourcesPool::CreateTextureShareResource_RenderThread(const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe>& InCoreObject, const FTextureShareCoreResourceDesc& InResourceDesc, const FTextureShareResourceSettings& InResourceSettings)
 {
 	if (FTextureShareResource* NewResource = new FTextureShareResource(InCoreObject, InResourceDesc, InResourceSettings))
 	{
@@ -59,7 +59,7 @@ FTextureShareResource* FTextureShareResourcesPool::CreateTextureShareResource(co
 	return nullptr;
 }
 
-FTextureShareResource* FTextureShareResourcesPool::FindExistTextureShareResource(const FTextureShareCoreResourceDesc& InResourceDesc) const
+FTextureShareResource* FTextureShareResourcesPool::FindExistTextureShareResource_RenderThread(const FTextureShareCoreResourceDesc& InResourceDesc) const
 {
 	FTextureShareResource* const* Result = TextureResources.FindByPredicate([InResourceDesc](const FTextureShareResource* It) {
 		return It && It->GetResourceDesc().EqualsFunc(InResourceDesc);
@@ -68,7 +68,7 @@ FTextureShareResource* FTextureShareResourcesPool::FindExistTextureShareResource
 	return Result ? *Result : nullptr;
 }
 
-void FTextureShareResourcesPool::ReleaseTextureShareResource(FTextureShareResource* & InOutResource)
+void FTextureShareResourcesPool::ReleaseTextureShareResource_RenderThread(FTextureShareResource* & InOutResource)
 {
 	if (InOutResource)
 	{
@@ -78,7 +78,7 @@ void FTextureShareResourcesPool::ReleaseTextureShareResource(FTextureShareResour
 			TextureResources.RemoveAt(ResourceIndex);
 		}
 
-		InOutResource->ReleaseTextureShareHandle();
+		InOutResource->ReleaseTextureShareHandle_RenderThread();
 		InOutResource->ReleaseResource();
 
 		delete InOutResource;
@@ -95,7 +95,7 @@ void FTextureShareResourcesPool::Release()
 		{
 			if (ResourceIt)
 			{
-				ResourceIt->ReleaseTextureShareHandle();
+				ResourceIt->ReleaseTextureShareHandle_RenderThread();
 				ResourceIt->ReleaseResource();
 				delete ResourceIt;
 			}

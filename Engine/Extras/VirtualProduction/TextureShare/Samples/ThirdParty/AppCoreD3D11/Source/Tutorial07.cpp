@@ -751,9 +751,12 @@ void Render()
 	// TextureShare
 	if (GTextureShareSample)
 	{
+		// This function implements calls to the game thread and starts the rendering thread
+		// [Single-threaded solution example]
 		GTextureShareSample->BeginFrame(D3D11DeviceContext, InBackBufferTexture);
+		// render thread
 
-		if (GTextureShareSample->IsFrameSyncActive())
+		if (GTextureShareSample->IsFrameSyncActive_RenderThread())
 		{
 			D3D11TextureSRV1 = GTextureShareSample->GetReceiveTextureSRV(0);
 			D3D11TextureSRV2 = GTextureShareSample->GetReceiveTextureSRV(1);

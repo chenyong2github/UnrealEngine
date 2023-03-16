@@ -42,7 +42,7 @@ public:
 	 *
 	 * @return - Ptr to TextureShareCore object
 	 */
-	virtual TSharedPtr<class ITextureShareCoreObject, ESPMode::ThreadSafe> GetOrCreateCoreObject(const FString& ShareName) = 0;
+	virtual TSharedPtr<class ITextureShareCoreObject, ESPMode::ThreadSafe> GetOrCreateCoreObject(const FString& ShareName, const ETextureShareProcessType ProcessType = ETextureShareProcessType::Undefined) = 0;
 
 	/**
 	 * The test for the TextureShareCore object with the specified name exists.

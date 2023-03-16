@@ -43,7 +43,10 @@ public:
 
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareSyncPass& In)     override { return this->SerializeData(&In, sizeof(In)); }
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareSyncState& In)    override { return this->SerializeData(&In, sizeof(In)); }
-	virtual ITextureShareSerializeStream& operator<<(ETextureShareSyncStep& In)    override { return this->SerializeData(&In, sizeof(In)); }
+	
+	virtual ITextureShareSerializeStream& operator<<(ETextureShareSyncStep& In)     override { return this->SerializeData(&In, sizeof(In)); }
+	virtual ITextureShareSerializeStream& operator<<(ETextureShareResourceType& In) override { return this->SerializeData(&In, sizeof(In)); }
+
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareTextureOp& In)   override { return this->SerializeData(&In, sizeof(In)); }
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareEyeType& In)     override { return this->SerializeData(&In, sizeof(In)); }
 	virtual ITextureShareSerializeStream& operator<<(ETextureShareDeviceType& In)  override { return this->SerializeData(&In, sizeof(In)); }

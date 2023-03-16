@@ -7,8 +7,7 @@
 #include "IPC/TextureShareCoreInterprocessMutex.h"
 #include "IPC/TextureShareCoreInterprocessEvent.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
-
-#include "Core/TextureShareCoreHelpers.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
 
 #include "Module/TextureShareCoreModule.h"
 #include "Module/TextureShareCoreLog.h"
@@ -17,119 +16,121 @@
 
 #include "ITextureShareCoreCallbacks.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-using namespace TextureShareCoreHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreObject
+//////////////////////////////////////////////////////////////////////////////////////////////
+bool FTextureShareCoreObject::FindSkippedSyncStep(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep)
+{
+	return FindSkippedSyncStepImpl(InSyncStep, false, OutSkippedSyncStep);
+}
+
+bool FTextureShareCoreObject::FindSkippedSyncStep_RenderThread(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep)
+{
+	return FindSkippedSyncStepImpl(InSyncStep, true, OutSkippedSyncStep);
+}
+
+bool FTextureShareCoreObject::FindSkippedSyncStepImpl(const ETextureShareSyncStep InSyncStep, bool bIsProxyFrame, ETextureShareSyncStep& OutSkippedSyncStep)
+{
+	// Update sync steps on request
+	if (!SyncSettings.FrameSyncSettings.Steps.Contains(InSyncStep))
+	{
+		AddNewSyncStep(InSyncStep);
+	}
+
+	if(const int32 NextStepIndex = SyncSettings.FrameSyncSettings.Steps.Find(CurrentSyncStep) + 1)
+	{
+		const ETextureShareSyncStep FrameEndSyncStep = bIsProxyFrame ? ETextureShareSyncStep::FrameProxyEnd : ETextureShareSyncStep::FrameEnd;
+
+		OutSkippedSyncStep = SyncSettings.FrameSyncSettings.Steps[NextStepIndex];
+		if (OutSkippedSyncStep < InSyncStep && OutSkippedSyncStep < FrameEndSyncStep)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FTextureShareCoreObject::FrameSync(const ETextureShareSyncStep InSyncStep)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TextureShareCore::FrameSync);
 
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT(">>>> %s:FrameSync(%s)"), *GetName(), GetTEXT(InSyncStep));
-
-	if (IsFrameSyncActive() && TryEnterSyncBarrier(InSyncStep))
+	if (!IsFrameSyncActive())
 	{
-		int32 Index = SyncSettings.FrameSyncSettings.Steps.Find(CurrentSyncStep);
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:FrameSync(%s) Index=%d"), *GetName(), GetTEXT(InSyncStep), Index);
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:FrameSync(%s) failed: no sync for this frame"), *GetName(), GetTEXT(InSyncStep));
 
-		if (Index != INDEX_NONE)
-		{
-			// sync all skipped steps
-			for (; Index < SyncSettings.FrameSyncSettings.Steps.Num(); Index++)
-			{
-				const ETextureShareSyncStep SyncStepIt = SyncSettings.FrameSyncSettings.Steps[Index];
-				if (SyncStepIt != CurrentSyncStep)
-				{
-					if (SyncStepIt >= ETextureShareSyncStep::FrameEnd)
-					{
-						return false;
-					}
-
-					if (SyncStepIt == InSyncStep)
-					{
-						break;
-					}
-
-					// Force to call skipped sync steps
-					UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:ForceFrameSync(%s)"), *GetName(), GetTEXT(SyncStepIt));
-					if (!DoFrameSync(SyncStepIt))
-					{
-						return false;
-					}
-				}
-			}
-		}
-
-		return DoFrameSync(InSyncStep);
+		return false;
 	}
 
-	return false;
-};
+	if (CurrentSyncStep == InSyncStep)
+	{
+		return true;
+	}
+
+	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:FrameSync(%s)"), *GetName(), GetTEXT(InSyncStep));
+
+	// Recall all skipped sync steps
+	ETextureShareSyncStep SkippedSyncStep;
+	while (FindSkippedSyncStep(InSyncStep, SkippedSyncStep))
+	{
+		if (!DoFrameSync(SkippedSyncStep))
+		{
+			UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:FrameSync(%s) failed handle skipped syncstep '%s'"), *GetName(), GetTEXT(InSyncStep), GetTEXT(SkippedSyncStep));
+
+			return false;
+		}
+	}
+
+	// Call requested syncstep
+	if (!DoFrameSync(InSyncStep))
+	{
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:FrameSync(%s) failed"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	return true;
+}
 
 bool FTextureShareCoreObject::FrameSync_RenderThread(const ETextureShareSyncStep InSyncStep)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TextureShareCore::FrameSync_RenderThread);
 
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT(">>>> %s:FrameSync_RenderThread(%s)"), *GetName(), GetTEXT(InSyncStep));
-
-	if (IsFrameSyncActive() && TryEnterSyncBarrier(InSyncStep))
+	if (!IsFrameSyncActive_RenderThread())
 	{
-		int32 Index = SyncSettings.FrameSyncSettings.Steps.Find(CurrentSyncStep);
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:FrameSync_RenderThread(%s) Index=%d"), *GetName(), GetTEXT(InSyncStep), Index);
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:FrameSync_RenderThread(%s) failed: no sync for this frame"), *GetName(), GetTEXT(InSyncStep));
 
-		if (Index != INDEX_NONE)
-		{
-			// sync all skipped steps
-			for (Index; Index < SyncSettings.FrameSyncSettings.Steps.Num(); Index++)
-			{
-				const ETextureShareSyncStep SyncStepIt = SyncSettings.FrameSyncSettings.Steps[Index];
-
-				UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:check sync step (%s) Index=%d"), *GetName(), GetTEXT(SyncStepIt), Index);
-
-				if (SyncStepIt != CurrentSyncStep)
-				{
-					if (SyncStepIt >= ETextureShareSyncStep::FrameProxyEnd)
-					{
-						return false;
-					}
-
-					if (SyncStepIt == InSyncStep)
-					{
-						break;
-					}
-
-					// Force to call skipped sync steps
-					UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:ForceFrameSync_RenderThread(%s)"), *GetName(), GetTEXT(SyncStepIt));
-					if (!DoFrameSync_RenderThread(SyncStepIt))
-					{
-						return false;
-					}
-				}
-			}
-		}
-
-		return DoFrameSync_RenderThread(InSyncStep);
+		return false;
 	}
 
-	return false;
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool FTextureShareCoreObject::IsBeginFrameSyncActive() const
-{
-	switch (FrameSyncState)
+	if (CurrentSyncStep == InSyncStep)
 	{
-	case ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin:
-	case ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyEnd:
-	case ETextureShareCoreInterprocessObjectFrameSyncState::FrameEnd:
-	case ETextureShareCoreInterprocessObjectFrameSyncState::Undefined:
-	case ETextureShareCoreInterprocessObjectFrameSyncState::FrameSyncLost:
-		break;
-	default:
-		// logic broken
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:BeginFrameSync() - frame logic broken = %s"), *GetName(), GetTEXT(FrameSyncState));
+		// Skip duplicated calls
+		return true;
+	}
+	
+	UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Log, TEXT("%s:FrameSync_RenderThread(%s)"), *GetName(), GetTEXT(InSyncStep));
+
+	// Recall all skipped sync steps
+	ETextureShareSyncStep SkippedSyncStep;
+	while (FindSkippedSyncStep(InSyncStep, SkippedSyncStep))
+	{
+		if (!DoFrameSync_RenderThread(SkippedSyncStep))
+		{
+			UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:FrameSync_RenderThread(%s) failed handle skipped syncstep '%s'"), *GetName(), GetTEXT(InSyncStep), GetTEXT(SkippedSyncStep));
+
+			return false;
+		}
+	}
+
+	// call requested syncstep
+	if (!DoFrameSync_RenderThread(InSyncStep))
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:FrameSync_RenderThread(%s) failed"), *GetName(), GetTEXT(InSyncStep));
+
 		return false;
 	}
 
@@ -138,6 +139,8 @@ bool FTextureShareCoreObject::IsBeginFrameSyncActive() const
 
 bool FTextureShareCoreObject::BeginFrameSync()
 {
+	UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Log, TEXT("%s:BeginFrameSync()"), *GetName());
+
 	if (!IsBeginFrameSyncActive())
 	{
 		return false;
@@ -146,109 +149,227 @@ bool FTextureShareCoreObject::BeginFrameSync()
 	// Reset prev-frame data
 	Data.ResetData();
 
-	// Update sync frame settings before new frame begin
-	UpdateFrameSyncSetting();
-
 	// And connect new frame processes (updates every frame)
-	if (ConnectFrameProcesses())
+	if (!ConnectFrameProcesses())
 	{
-		SetCurrentSyncStep(ETextureShareSyncStep::FrameBegin);
-		SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameBegin);
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:BeginFrameSync() failed"), *GetName());
 
-		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginFrameSync().IsBound())
-		{
-			ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginFrameSync().Broadcast(*this);
-		}
-
-		return true;
-	}
-
-	return false;
-}
-
-bool FTextureShareCoreObject::EndFrameSync()
-{
-	if (IsFrameSyncActive() && FrameSyncState == ETextureShareCoreInterprocessObjectFrameSyncState::FrameBegin)
-	{
-		SetCurrentSyncStep(ETextureShareSyncStep::FrameEnd);
-		SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameEnd);
-
-
-		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndFrameSync().IsBound())
-		{
-			ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndFrameSync().Broadcast(*this);
-		}
-
-		return true;
-	}
-
-	return false;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool FTextureShareCoreObject::IsBeginFrameSyncActive_RenderThread() const
-{
-	switch (FrameSyncState)
-	{
-	default:
-		break;
-	case ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin:
-	case ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyEnd:
-		// logic broken
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:BeginFrameProxySync() - frame logic broken = %s"), *GetName(), GetTEXT(FrameSyncState));
 		return false;
 	}
+
+	SetCurrentSyncStep(ETextureShareSyncStep::FrameBegin);
+	SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameBegin);
 
 	return true;
 }
 
 bool FTextureShareCoreObject::BeginFrameSync_RenderThread()
 {
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:BeginFrameSync_RenderThread() < in"), *GetName());
+	UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Log, TEXT("%s:BeginFrameSync_RenderThread()"), *GetName());
 
-	if (IsBeginFrameSyncActive_RenderThread())
+	if (!IsBeginFrameSyncActive_RenderThread())
 	{
-		// Reset prev-frame proxy data
-		ProxyData.ResetProxyData();
-
-		SetCurrentSyncStep(ETextureShareSyncStep::FrameProxyBegin);
-		SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin);
-
-		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginFrameSync_RenderThread().IsBound())
-		{
-			ITextureShareCoreCallbacks::Get().OnTextureShareCoreBeginFrameSync_RenderThread().Broadcast(*this);
-		}
-
-		return true;
+		return false;
 	}
 
-	return false;
+	if (!IsFrameSyncActive_RenderThread())
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:BeginFrameSync_RenderThread() failed: no sync for this frame"), *GetName());
+
+		return false;
+	}
+
+	// Reset prev-frame proxy data
+	ProxyData.ResetProxyData();
+
+	SetCurrentSyncStep(ETextureShareSyncStep::FrameProxyBegin);
+	SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin);
+
+	return true;
+}
+
+bool FTextureShareCoreObject::EndFrameSync()
+{
+	if (!IsFrameSyncActive())
+	{
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:EndFrameSync() failed: no sync for this frame"), *GetName());
+
+		return false;
+	}
+
+	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:EndFrameSync()"), *GetName());
+
+	// Always force flush sync
+	if (!FrameSync(ETextureShareSyncStep::FrameFlush) ||
+		FrameSyncState != ETextureShareCoreInterprocessObjectFrameSyncState::FrameBegin)
+	{
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:EndFrameSync() - failed"), *GetName());
+
+		return false;
+	}
+
+	SetCurrentSyncStep(ETextureShareSyncStep::FrameEnd);
+	SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameEnd);
+
+	return true;
 }
 
 bool FTextureShareCoreObject::EndFrameSync_RenderThread()
 {
-	bool bResult = false;
-
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:EndFrameSync_RenderThread() < in"), *GetName());
-
-	// Always force flush sync for render proxy
-	FrameSync_RenderThread(ETextureShareSyncStep::FrameProxyFlush);
-
-	if (IsFrameSyncActive() && FrameSyncState == ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin)
+	if (!IsFrameSyncActive_RenderThread())
 	{
-		// And finally disconnect frame processes
-		bResult = DisconnectFrameProcesses();
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:EndFrameSync_RenderThread() failed: no sync for this frame"), *GetName());
 
-		SetCurrentSyncStep(ETextureShareSyncStep::FrameProxyEnd);
-		SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyEnd);
-
-		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndFrameSync_RenderThread().IsBound())
-		{
-			ITextureShareCoreCallbacks::Get().OnTextureShareCoreEndFrameSync_RenderThread().Broadcast(*this);
-		}
+		return false;
 	}
 
-	return bResult;
+	UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Log, TEXT("%s:EndFrameSync_RenderThread()"), *GetName());
+
+	// Always force flush sync
+	if(!FrameSync_RenderThread(ETextureShareSyncStep::FrameProxyFlush)
+	|| FrameSyncState != ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin)
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:EndFrameSync_RenderThread() - failed"), *GetName());
+
+		return false;
+	}
+
+	// And finally disconnect frame processes
+	if (!DisconnectFrameProcesses())
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:EndFrameSync_RenderThread() DisconnectFrameProcesses failed"), *GetName());
+
+		return false;
+	}
+
+	SetCurrentSyncStep(ETextureShareSyncStep::FrameProxyEnd);
+	SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyEnd);
+
+	return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool FTextureShareCoreObject::DoFrameSync(const ETextureShareSyncStep InSyncStep)
+{
+	if (InSyncStep == ETextureShareSyncStep::FrameFlush)
+	{
+		// Always skip special flush sync pass
+		return true;
+	}
+
+	if (!IsFrameSyncActive())
+	{
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:DoFrameSync(%s) - disabled sync"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	if (!TryEnterSyncBarrier(InSyncStep))
+	{
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:DoFrameSync(%s) - failed entering to barriers"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	if (!PrepareSyncBarrierPass(InSyncStep))
+	{
+		// Skip this sync step - other processes not support
+		SetCurrentSyncStep(InSyncStep);
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:DoFrameSync(%s) - Skipped"), *GetName(), GetTEXT(InSyncStep));
+
+		return true;
+	}
+
+	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:DoFrameSync(%s)"), *GetName(), GetTEXT(InSyncStep));
+
+	// Write local data to the shared memory
+	SendFrameData();
+
+	// Use 2 barriers to exchange data between all processes
+	if (!SyncBarrierPass(InSyncStep, ETextureShareSyncPass::Enter))
+	{
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:DoFrameSync(%s) - Enter barrier failed"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	// Receive frame data from the connected processes
+	ReceiveFrameData();
+
+	// Entering to the new sync step at the moment
+	SetCurrentSyncStep(InSyncStep);
+
+	// Exit from current sync step barrier
+	if(!SyncBarrierPass(InSyncStep, ETextureShareSyncPass::Exit))
+	{
+		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:DoFrameSync(%s) - Exit barrier failed"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	return true;
+}
+
+bool FTextureShareCoreObject::DoFrameSync_RenderThread(const ETextureShareSyncStep InSyncStep)
+{
+	if (InSyncStep == ETextureShareSyncStep::FrameProxyFlush)
+	{
+		// Always skip special flush sync pass
+		return true;
+	}
+
+	if (!IsFrameSyncActive_RenderThread())
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:FrameSync_RenderThread(%s) - disabled sync"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	if (!TryEnterSyncBarrier(InSyncStep))
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:FrameSync_RenderThread(%s)  - failed entering to barriers"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	if (!PrepareSyncBarrierPass_RenderThread(InSyncStep))
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Log, TEXT("%s:FrameSync_RenderThread(%s) - Skipped"), *GetName(), GetTEXT(InSyncStep));
+
+		SetCurrentSyncStep(InSyncStep);
+
+		// Skip this sync step - other processes not support
+		return true;
+	}
+
+	UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Log, TEXT("%s:DoFrameSync_RenderThread(%s)"), *GetName(), GetTEXT(InSyncStep));
+	
+	// Write local frame proxy data to the shared memory
+	SendFrameProxyData_RenderThread();
+
+	// Use 2 barriers to exchange data between all processes
+	if (!SyncBarrierPass_RenderThread(InSyncStep, ETextureShareSyncPass::Enter))
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:DoFrameSync_RenderThread(%s) - Enter barrier failed"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	// Receive proxy frame data from the connected processes
+	ReceiveFrameProxyData_RenderThread();
+
+	// Entering to the new sync step at the moment
+	SetCurrentSyncStep(InSyncStep);
+
+	// Exit from current sync step barrier
+	if (!SyncBarrierPass_RenderThread(InSyncStep, ETextureShareSyncPass::Exit))
+	{
+		UE_TS_LOG(LogTextureShareCoreProxyObjectSync, Error, TEXT("%s:DoFrameSync_RenderThread(%s) - Exit barrier failed"), *GetName(), GetTEXT(InSyncStep));
+
+		return false;
+	}
+
+	return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -279,90 +400,9 @@ void FTextureShareCoreObject::UpdateLastAccessTime() const
 				InterprocessObject->Sync.UpdateLastAccessTime();
 			}
 		}
+
+		Owner.UnlockInterprocessMemory();
 	}
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool FTextureShareCoreObject::DoFrameSync(const ETextureShareSyncStep InSyncStep)
-{
-	if (IsFrameSyncActive() && TryEnterSyncBarrier(InSyncStep))
-	{
-		if (!PrepareSyncBarrierPass(InSyncStep))
-		{
-			UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:FrameSync(%s) - Skipped"), *GetName(), GetTEXT(InSyncStep));
-			SetCurrentSyncStep(InSyncStep);
-
-			// Skip this sync step - other processes not support
-			return true;
-		}
-
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:FrameSync(%s)"), *GetName(), GetTEXT(InSyncStep));
-
-		// Write local data
-		SendFrameData();
-
-		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreFrameSync().IsBound())
-		{
-			ITextureShareCoreCallbacks::Get().OnTextureShareCoreFrameSync().Broadcast(*this, InSyncStep);
-		}
-
-		// add barrier here
-		if (SyncBarrierPass(InSyncStep, ETextureShareSyncPass::Enter))
-		{
-			SetCurrentSyncStep(InSyncStep);
-			ReceiveFrameData();
-
-			return SyncBarrierPass(InSyncStep, ETextureShareSyncPass::Exit);
-		}
-
-		// ?? barrier failed/timeout etc
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:FrameSync(%s) - failed"), *GetName(), GetTEXT(InSyncStep));
-
-		return false;
-	}
-
-	return false;
-}
-
-bool FTextureShareCoreObject::DoFrameSync_RenderThread(const ETextureShareSyncStep InSyncStep)
-{
-	if (IsFrameSyncActive() && TryEnterSyncBarrier(InSyncStep))
-	{
-		if (!PrepareSyncBarrierPass(InSyncStep))
-		{
-			UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:FrameSync_RenderThread(%s) - Skipped"), *GetName(), GetTEXT(InSyncStep));
-			SetCurrentSyncStep(InSyncStep);
-
-			// Skip this sync step - other processes not support
-			return true;
-		}
-
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:FrameSync_RenderThread(%s)"), *GetName(), GetTEXT(InSyncStep));
-
-		// Write local data
-		SendFrameProxyData_RenderThread();
-
-		if (ITextureShareCoreCallbacks::Get().OnTextureShareCoreFrameSync_RenderThread().IsBound())
-		{
-			ITextureShareCoreCallbacks::Get().OnTextureShareCoreFrameSync_RenderThread().Broadcast(*this, InSyncStep);
-		}
-
-		// add barrier here
-		if (SyncBarrierPass(InSyncStep, ETextureShareSyncPass::Enter))
-		{
-			SetCurrentSyncStep(InSyncStep);
-			ReceiveFrameProxyData_RenderThread();
-
-			return SyncBarrierPass(InSyncStep, ETextureShareSyncPass::Exit);
-		}
-
-		// ?? barrier failed/timeout etc
-		UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:FrameSync_RenderThread(%s) - failed"), *GetName(), GetTEXT(InSyncStep));
-
-		return false;
-	}
-
-	return false;
 }
 
 void FTextureShareCoreObject::ReleaseSyncData()

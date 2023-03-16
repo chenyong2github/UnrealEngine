@@ -7,42 +7,47 @@
 #include "IPC/TextureShareCoreInterprocessMutex.h"
 #include "IPC/TextureShareCoreInterprocessEvent.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
 
 #include "Core/TextureShareCore.h"
-#include "Core/TextureShareCoreHelpers.h"
 #include "Module/TextureShareCoreLog.h"
 
 #include "Misc/ScopeLock.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-using namespace TextureShareCoreHelpers;
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareCoreObjectHelpers
+namespace UE
 {
-	static FTextureShareCoreObjectDesc CreateObjectObjectDesc(const FTextureShareCore& InOwner, const FString& InTextureShareName)
+	namespace TextureShareCore
 	{
-		FTextureShareCoreObjectDesc ObjectDesc;
+		static FTextureShareCoreObjectDesc CreateNewObjectDesc(const FTextureShareCore& InOwner, const FString& InTextureShareName, const ETextureShareProcessType InProcessType)
+		{
+			FTextureShareCoreObjectDesc ObjectDesc;
 
-		// The name of this object
-		ObjectDesc.ShareName = InTextureShareName;
+			// The name of this object
+			ObjectDesc.ShareName = InTextureShareName;
 
-		// Generate unique Guid for each object
-		ObjectDesc.ObjectGuid = FGuid::NewGuid();
+			// Generate unique Guid for each object
+			ObjectDesc.ObjectGuid = FGuid::NewGuid();
 
-		// Get value for Owner
-		ObjectDesc.ProcessDesc = InOwner.GetProcessDesc();
+			// Get value for Owner
+			ObjectDesc.ProcessDesc = InOwner.GetProcessDesc();
 
-		return ObjectDesc;
+			// Custom process type
+			if (InProcessType != ETextureShareProcessType::Undefined)
+			{
+				ObjectDesc.ProcessDesc.ProcessType = InProcessType;
+			}
+
+			return ObjectDesc;
+		}
 	}
 };
-using namespace TextureShareCoreObjectHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreObject
 //////////////////////////////////////////////////////////////////////////////////////////////
-FTextureShareCoreObject::FTextureShareCoreObject(FTextureShareCore& InOwner, const FString& InTextureShareName)
-	: ObjectDesc(CreateObjectObjectDesc(InOwner, InTextureShareName))
+FTextureShareCoreObject::FTextureShareCoreObject(FTextureShareCore& InOwner, const FString& InTextureShareName, const ETextureShareProcessType InProcessType)
+	: ObjectDesc(CreateNewObjectDesc(InOwner, InTextureShareName, InProcessType))
 	, Owner(InOwner)
 {
 	NotificationEvent = Owner.CreateInterprocessEvent(ObjectDesc.ObjectGuid);
@@ -63,8 +68,14 @@ void FTextureShareCoreObject::HandleResetSync(FTextureShareCoreInterprocessMemor
 	UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:ResetSync(%s) %s"), *GetName(), *ToString(LocalObject), *ToString(FrameConnections));
 #endif
 
-	// Unlock thread mutexes
-	ResetThreadMutexes();
+	// Unlock multithread thread mutexes
+	if (LockThreadMutex(ETextureShareThreadMutex::InternalLock))
+	{
+		ResetThreadMutex(ETextureShareThreadMutex::GameThread);
+		ResetThreadMutex(ETextureShareThreadMutex::RenderingThread);
+
+		UnlockThreadMutex(ETextureShareThreadMutex::InternalLock);
+	}
 
 	SetCurrentSyncStep(ETextureShareSyncStep::Undefined);
 
@@ -135,7 +146,7 @@ void FTextureShareCoreObject::HandleFrameSkip(FTextureShareCoreInterprocessMemor
 void FTextureShareCoreObject::HandleFrameLost(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject)
 {
 	// Local frame connection lost
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:FrameLost()"), *GetName());
+	UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:HandleFrameLost()"), *GetName());
 
 	// Wake up remote processes anywait, because we change mem object header
 	SendNotificationEvents(false);
@@ -158,7 +169,7 @@ bool FTextureShareCoreObject::TryWaitFrameProcesses(const uint32 InRemainMaxMill
 	// Wait for remote processes data changed
 	NotificationEvent->Wait(InRemainMaxMillisecondsToWait);
 
-	// Try lock shared memoru back
+	// Try to lock shared memory again
 	return Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout);
 }
 

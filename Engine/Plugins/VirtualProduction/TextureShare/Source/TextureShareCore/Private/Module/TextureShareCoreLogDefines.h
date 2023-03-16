@@ -19,22 +19,34 @@
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Enable extra log in VS output window
-namespace LogHelpers
+struct FTextureShareCoreLogHelpers
 {
 	static void WriteLine(const FString& In);
-	static void WriteLineOnce(const FString& In);
 };
 
 #define UE_LOG(CategoryName, Verbosity, Format, ...)\
-	LogHelpers::WriteLine(FString::Printf(Format, ##__VA_ARGS__));
+	FTextureShareCoreLogHelpers::WriteLine(FString::Printf(Format, ##__VA_ARGS__));
 
 #define UE_TS_LOG(CategoryName, Verbosity, Format, ...)\
-	LogHelpers::WriteLineOnce(FString::Printf(Format, ##__VA_ARGS__));
+	FTextureShareCoreLogHelpers::WriteLine(FString::Printf(Format, ##__VA_ARGS__));
+
+// Enable more extra log
+#if TEXTURESHARECORE_BARRIER_DEBUGLOG
+
+#define UE_TS_BARRIER_LOG(CategoryName, Verbosity, Format, ...)\
+	FTextureShareCoreLogHelpers::WriteLine(FString::Printf(Format, ##__VA_ARGS__));
+
+#else
+// Disable extra log
+#define UE_TS_BARRIER_LOG(CategoryName, Verbosity, Format, ...)
+#endif
 
 #else
 // Disable all log
 #define UE_LOG(CategoryName, Verbosity, Format, ...)
 #define UE_TS_LOG(CategoryName, Verbosity, Format, ...)
+#define UE_TS_BARRIER_LOG(CategoryName, Verbosity, Format, ...)
+
 #endif
 
 #endif
@@ -54,6 +66,17 @@ namespace LogHelpers
 #else
 // Disable extra log
 #define UE_TS_LOG(CategoryName, Verbosity, Format, ...)
+#endif
+
+// Enable more extra log
+#if TEXTURESHARECORE_BARRIER_DEBUGLOG
+
+#define UE_TS_BARRIER_LOG(CategoryName, Verbosity, Format, ...)\
+	UE_TS_LOG(CategoryName, Verbosity, Format, ##__VA_ARGS__)
+
+#else
+// Disable extra log
+#define UE_TS_BARRIER_LOG(CategoryName, Verbosity, Format, ...)
 #endif
 
 

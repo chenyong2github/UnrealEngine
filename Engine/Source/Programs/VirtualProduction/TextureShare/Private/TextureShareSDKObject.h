@@ -18,9 +18,18 @@ public:
 public:
 	///////////////////////// State /////////////////////////
 	virtual const wchar_t* GetName() const override;
+
 	virtual void GetObjectDesc(TDataOutput<FTextureShareCoreObjectDesc>& OutObjectDesc) const override;
+	virtual void GetObjectDesc_RenderThread(TDataOutput<FTextureShareCoreObjectDesc>& OutObjectDesc) const override;
+
 	virtual bool IsActive() const override;
+	virtual bool IsActive_RenderThread() const override;
+
 	virtual bool IsFrameSyncActive() const override;
+	virtual bool IsFrameSyncActive_RenderThread() const override;
+
+	virtual bool IsBeginFrameSyncActive() const override;
+	virtual bool IsBeginFrameSyncActive_RenderThread() const override;
 
 public:
 	///////////////////////// Settings /////////////////////////
@@ -30,6 +39,9 @@ public:
 	virtual void GetSyncSetting(TDataOutput<FTextureShareCoreSyncSettings>& OutSyncSettings) const override;
 	virtual void GetFrameSyncSettings(const ETextureShareFrameSyncTemplate InType, TDataOutput<FTextureShareCoreFrameSyncSettings>& OutFrameSyncSettings) const override;
 
+	virtual bool FindSkippedSyncStep(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep) const override;
+	virtual bool FindSkippedSyncStep_RenderThread(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep) const override;
+
 public:
 	///////////////////////// Session /////////////////////////
 	virtual bool BeginSession() override;
@@ -38,10 +50,8 @@ public:
 
 public:
 	///////////////////////// Thread sync support /////////////////////////
-	virtual bool LockThreadMutex(const ETextureShareThreadMutex InThreadMutex) override;
+	virtual bool LockThreadMutex(const ETextureShareThreadMutex InThreadMutex, bool bForceLockNoWait = false) override;
 	virtual bool UnlockThreadMutex(const ETextureShareThreadMutex InThreadMutex) override;
-	virtual bool IsBeginFrameSyncActive() const override;
-	virtual bool IsBeginFrameSyncActive_RenderThread() const override;
 
 public:
 	///////////////////////// Interprocess Synchronization /////////////////////////

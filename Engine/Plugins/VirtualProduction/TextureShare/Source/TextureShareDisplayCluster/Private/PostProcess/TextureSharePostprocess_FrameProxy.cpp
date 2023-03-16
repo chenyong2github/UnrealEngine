@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/TextureSharePostprocess.h"
-
-#include "PostProcess/TextureSharePostprocessStrings.h"
+#include "Module/TextureShareDisplayClusterLog.h"
 #include "Misc/TextureShareDisplayClusterStrings.h"
 
-#include "Module/TextureShareDisplayClusterLog.h"
 #include "Containers/TextureShareCoreEnums.h"
+#include "Core/TextureShareCoreHelpers.h"
 
 #include "ITextureShareObjectProxy.h"
 
@@ -14,26 +13,31 @@
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace DisplayClusterPostProcessTextureShareHelpers
+namespace UE
 {
-	// Support warp blend logic
-	static bool ShouldApplyWarpBlend(IDisplayClusterViewportProxy* ViewportProxy)
+	namespace TextureShare
 	{
-		if (ViewportProxy->GetPostRenderSettings_RenderThread().Replace.IsEnabled())
+		namespace PostProcess_FrameProxy
 		{
-			// When used override texture, disable warp blend
-			return false;
+			// Support warp blend logic
+			static bool ShouldApplyWarpBlend(IDisplayClusterViewportProxy* ViewportProxy)
+			{
+				if (ViewportProxy->GetPostRenderSettings_RenderThread().Replace.IsEnabled())
+				{
+					// When used override texture, disable warp blend
+					return false;
+				}
+
+				const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
+
+				// Projection policy must support warp blend op
+				return PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
+			}
 		}
-
-		const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
-
-		// Projection policy must support warp blend op
-		return PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
 	}
 };
-
-using namespace DisplayClusterPostProcessTextureShareHelpers;
+using namespace UE::TextureShare::PostProcess_FrameProxy;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureSharePostprocess
@@ -69,7 +73,7 @@ void FTextureSharePostprocess::ShareViewport_RenderThread(FRHICommandListImmedia
 				{
 					for (int32 ContextIndex = 0; ContextIndex < ViewportResources.Num(); ContextIndex++)
 					{
-						const int32 InGPUIndex = ViewportProxyIt->GetContexts_RenderThread()[ContextIndex].GPUIndex;
+						const int32 InGPUIndex = ViewportProxyIt->GetContexts_RenderThread()[ContextIndex].RenderThreadData.GPUIndex;
 
 						const ETextureShareEyeType EyeType = bMonoscopic
 							? ETextureShareEyeType::Default
@@ -77,9 +81,10 @@ void FTextureSharePostprocess::ShareViewport_RenderThread(FRHICommandListImmedia
 
 						const FTextureShareCoreViewDesc InViewDesc(ViewportProxyIt->GetId(), EyeType);
 
-						// Send
+						// Execute Send request from the remote process
 						ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(InTextureId, InViewDesc, ETextureShareTextureOp::Read), ViewportResources[ContextIndex], InGPUIndex, &ViewportResourceRects[ContextIndex]);
-						// Delayed Receive
+						
+						// Execute Receive request from the remote process (Delayed)
 						ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(InTextureId, InViewDesc, ETextureShareTextureOp::Write, InReceiveSyncStep), ViewportResources[ContextIndex], InGPUIndex, &ViewportResourceRects[ContextIndex]);
 					}
 				}

@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Projection/TextureShareProjectionPolicy.h"
-#include "Projection/TextureShareProjectionStrings.h"
+#include "Misc/TextureShareDisplayClusterStrings.h"
 
 #include "Module/TextureShareDisplayClusterLog.h"
-
 #include "Game/IDisplayClusterGameManager.h"
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
@@ -27,7 +26,7 @@ FTextureShareProjectionPolicy::~FTextureShareProjectionPolicy()
 //////////////////////////////////////////////////////////////////////////////////////////////
 const FString& FTextureShareProjectionPolicy::GetType() const
 {
-	static const FString Type(TextureShareProjectionStrings::Projection::TextureShare);
+	static const FString Type(UE::TextureShare::DisplayClusterStrings::Projection::TextureShare);
 
 	return Type;
 }

@@ -6,7 +6,7 @@
 
 namespace TextureShareSample
 {
-	static FTextureShareObjectDesc ObjectDesc(ETextureShareDeviceType::D3D11, TextureShareDisplayClusterStrings::Default::ShareName);
+	static FTextureShareObjectDesc ObjectDesc(ETextureShareDeviceType::D3D11, UE::TextureShare::DisplayClusterStrings::DefaultShareName);
 
 	namespace DisplayCluster
 	{
@@ -21,7 +21,7 @@ namespace TextureShareSample
 		namespace Texture1
 		{
 			// Request to read a resource #1 to a remote process
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport3, TextureShareDisplayClusterStrings::Viewport::FinalColor, ETextureShareTextureOp::Read);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport3, UE::TextureShare::DisplayClusterStrings::Viewport::FinalColor, ETextureShareTextureOp::Read);
 
 			// Container for receive: Texture size are not defined on the user side (values on the UE side are used)
 			static FTextureShareResourceD3D11 Resource;
@@ -30,7 +30,7 @@ namespace TextureShareSample
 		namespace Texture2
 		{
 			// Request to read a resource #2 to a remote process
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport3, TextureShareDisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Read);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport3, UE::TextureShare::DisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Read);
 
 			// Container for receive: Texture size are not defined on the user side (values on the UE side are used)
 			static FTextureShareResourceD3D11 Resource;
@@ -42,7 +42,7 @@ namespace TextureShareSample
 		namespace Backbuffer
 		{
 			// Request for write to vp_3
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport4, TextureShareDisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Write);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport4, UE::TextureShare::DisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Write);
 		}
 	}
 };

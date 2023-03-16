@@ -31,15 +31,15 @@ public:
 		return Desc.GetDesc(OutDesc) && Sync.GetDesc(OutDesc);
 	}
 
-	void UpdateSettings(const FTextureShareCoreObjectDesc& InObjectDesc, const FTextureShareCoreSyncSettings& InSyncSettings)
-	{
-		Sync.UpdateSettings(InObjectDesc, InSyncSettings);
-	}
-
-	void Initialize(const FTextureShareCoreObjectDesc& InObjectDesc, const FTextureShareCoreSyncSettings& InSyncSettings)
+	void InitializeInterprocessObject(const FTextureShareCoreObjectDesc& InObjectDesc, const FTextureShareCoreSyncSettings& InSyncSettings)
 	{
 		Desc.Initialize(InObjectDesc);
-		Sync.Initialize(InObjectDesc, InSyncSettings);
+
+		// Initialize sync settings first time
+		Sync.Release();
+		Sync.SyncSettings.UpdateInterprocessObjectSyncSettings(InObjectDesc, InSyncSettings);
+		Sync.UpdateLastAccessTime();
+
 		Data.Initialize();
 	}
 
@@ -48,5 +48,13 @@ public:
 		Desc.Release();
 		Sync.Release();
 		Data.Release();
+	}
+
+	void UpdateInterprocessObject(const FTextureShareCoreObjectDesc& InObjectDesc, const FTextureShareCoreSyncSettings& InSyncSettings)
+	{
+		Desc.Initialize(InObjectDesc);
+
+		Sync.SyncSettings.UpdateInterprocessObjectSyncSettings(InObjectDesc, InSyncSettings);
+		Sync.UpdateLastAccessTime();
 	}
 };

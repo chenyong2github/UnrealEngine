@@ -15,10 +15,27 @@
 #include "Engine/StaticMesh.h"
 #include "ProceduralMeshComponent.h"
 
+#include "Misc/DisplayClusterLog.h"
+
+///////////////////////////////////////////////////////////////////
+// Copied from "TextureShareDisplayCluster/Misc/TextureShareDisplayClusterStrings.h"
+namespace TextureShareDisplayClusterStrings
+{
+	namespace Postprocess
+	{
+		static constexpr auto TextureShare = TEXT("TextureShare");
+	}
+
+	namespace Projection
+	{
+		static constexpr auto TextureShare = TEXT("textureshare");
+	}
+};
 
 ///////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfigurationBase
 ///////////////////////////////////////////////////////////////////
+TArray<FString> FDisplayClusterViewportConfigurationBase::DisabledPostprocessNames;
 
 void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNodeId)
 {
@@ -143,6 +160,14 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InV
 	InOutRenderFrameSettings.ClusterNodeId.Empty();
 }
 
+void FDisplayClusterViewportConfigurationBase::AddInternalPostprocess(const FString& InPostprocessName)
+{
+	if (DisabledPostprocessNames.Find(InPostprocessName) == INDEX_NONE)
+	{
+		InternalPostprocessNames.AddUnique(InPostprocessName);
+	}
+}
+
 void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(const FString& InClusterNodeId, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings)
 {
 	check(!InClusterNodeId.IsEmpty());
@@ -153,12 +178,11 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 		TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PPManager = ViewportManager.GetPostProcessManager();
 		if (PPManager.IsValid())
 		{
-			static const FString TextureShareID(TEXT("TextureShare"));
-			static IConsoleVariable* const CVarTextureShareEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("nDisplay.render.texturesharing"));
-
-			// TextureShare with nDisplay is only supported for PIE and Runtime.
-			// For PIE in nDisplay, the node must be selected in the preview options.
-			const bool bEnableTextureSharePP = (CVarTextureShareEnabled && CVarTextureShareEnabled->GetInt() != 0) && ClusterNode->bEnableTextureShare && !InRenderFrameSettings.bIsPreviewRendering;
+			// Add TextureShare postprocess:
+			if (ClusterNode->bEnableTextureShare && !InRenderFrameSettings.bIsPreviewRendering)
+			{
+				AddInternalPostprocess(TextureShareDisplayClusterStrings::Postprocess::TextureShare);
+			}
 
 			{
 				// Find unused PP:
@@ -168,8 +192,8 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 					// Leave defined postprocess (dynamic reconf)
 					bool IsDefinedPostProcess = ClusterNode->Postprocess.Contains(It);
 
-					// Support TextureShare dynamic reconf
-					if(bEnableTextureSharePP && It == TextureShareID)
+					// Support InternalPostprocess dynamic reconf
+					if (InternalPostprocessNames.Find(It) != INDEX_NONE)
 					{
 						IsDefinedPostProcess = true;
 					}
@@ -184,6 +208,26 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 				for (const FString& It : UnusedPP)
 				{
 					PPManager->RemovePostprocess(It);
+				}
+			}
+
+			// Create InternalPostprocess
+			for (const FString& InternalPostprocessId : InternalPostprocessNames)
+			{
+				TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> ExistPostProcess = PPManager->FindPostProcess(InternalPostprocessId);
+				if (!ExistPostProcess.IsValid())
+				{
+					// Create postprocess instance
+					FDisplayClusterConfigurationPostprocess ConfigurationPostprocess;
+					ConfigurationPostprocess.Type = InternalPostprocessId;
+
+					if (!PPManager->CreatePostprocess(InternalPostprocessId, &ConfigurationPostprocess))
+					{
+						// Can't create... Disable this postprocess
+						DisabledPostprocessNames.AddUnique(InternalPostprocessId);
+
+						UE_LOG(LogDisplayClusterViewport, Error, TEXT("Can't create postprocess '%s' required by cluster node '%s': Disabled"), *InternalPostprocessId, *InClusterNodeId);
+					}
 				}
 			}
 
@@ -203,20 +247,6 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 					PPManager->CreatePostprocess(It.Key, &It.Value);
 				}
 			}
-
-			// Texture sharing is not supported in preview mode.
-			if(bEnableTextureSharePP)
-				{
-					TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> ExistPostProcess = PPManager->FindPostProcess(TextureShareID);
-					if (!ExistPostProcess.IsValid())
-					{
-						// Helper create postprocess entry for TextureShare
-						FDisplayClusterConfigurationPostprocess TextureShareConfiguration;
-						TextureShareConfiguration.Type = TextureShareID;
-
-						PPManager->CreatePostprocess(TextureShareID, &TextureShareConfiguration);
-					}
-				}
 
 			// Update OutputRemap PP
 			{

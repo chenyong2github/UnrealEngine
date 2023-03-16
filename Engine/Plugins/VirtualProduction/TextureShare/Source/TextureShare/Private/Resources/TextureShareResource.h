@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Resources/TextureShareResourceSettings.h"
 #include "Containers/TextureShareCoreContainers_ResourceDesc.h"
+#include "Containers/TextureShareCoreContainers_ResourceHandle.h"
 
 #include "RHI.h"
 #include "RHIResources.h"
@@ -11,6 +12,20 @@
 
 class ITextureShareCoreObject;
 struct FTextureShareCoreResourceRequest;
+
+/**
+ * TextureShare external RHI resource
+ */
+struct FTextureShareExternalTextureRHI
+{
+	FTextureShareExternalTextureRHI(const FTexture2DRHIRef InTextureRHI, const FTextureShareCoreResourceHandle* InResourceHandle, const uint32 InGPUIndex = 0)
+		: TextureRHI(InTextureRHI), ResourceHandle(InResourceHandle), GPUIndex(InGPUIndex)
+	{ }
+
+	const FTexture2DRHIRef TextureRHI;
+	const FTextureShareCoreResourceHandle* ResourceHandle;
+	const uint32 GPUIndex;
+};
 
 /**
  * TextureShare RHI resource
@@ -38,8 +53,20 @@ public:
 		return (const FTexture2DRHIRef&)TextureRHI;
 	}
 
-	bool RegisterResourceHandle(const FTextureShareCoreResourceRequest& InResourceRequest);
-	bool ReleaseTextureShareHandle();
+	const FString& GetCoreObjectName() const;
+
+	bool RegisterResourceHandle_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceRequest& InResourceRequest);
+	bool ReleaseTextureShareHandle_RenderThread();
+
+	/** [experimental]
+	 * Mark all resources in cache as unused. Later, when the resources are used within the frame, this flag is cleared.
+	 */
+	virtual void HandleFrameBegin_RenderThread();
+
+	/** [experimental]
+	 * Release all unused resources from cache.
+	 */
+	virtual void HandleFrameEnd_RenderThread();
 
 public:
 	virtual void InitDynamicRHI() override;
@@ -62,25 +89,30 @@ public:
 	}
 
 protected:
-	void InitDynamicRHI_TextureResource2D(FTexture2DRHIRef& OutTextureRHI);
+	void InitDynamicRHI_Default(FTexture2DRHIRef& OutTextureRHI);
+	void InitDynamicRHI_D3D12(FTexture2DRHIRef& OutTextureRHI);
 
-	bool D3D11RegisterResourceHandle(const FTextureShareCoreResourceRequest& InResourceRequest);
-	bool D3D11ReleaseTextureShareHandle();
+	bool D3D11RegisterResourceHandle_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceRequest& InResourceRequest);
+	bool D3D11ReleaseTextureShareHandle_RenderThread();
 
-	bool D3D12RegisterResourceHandle(const FTextureShareCoreResourceRequest& InResourceRequest);
-	bool D3D12ReleaseTextureShareHandle();
+	bool D3D12RegisterResourceHandle_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceRequest& InResourceRequest);
+	bool D3D12ReleaseTextureShareHandle_RenderThread();
+
 
 #if TEXTURESHARE_VULKAN
-	bool VulkanRegisterResourceHandle(const FTextureShareCoreResourceRequest& InResourceRequest);
-	bool VulkanReleaseTextureShareHandle();
+	bool VulkanRegisterResourceHandle_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceRequest& InResourceRequest);
+	bool VulkanReleaseTextureShareHandle_RenderThread();
 #endif
+
+	bool FindCachedSharedResource_RenderThread(void* InNativeResourcePtr, const uint32 InGPUIndex, FTexture2DRHIRef& OutRHIResource) const;
+	void AddCachedSharedResource_RenderThread(void* InNativeResourcePtr, const uint32 InGPUIndex, const FTexture2DRHIRef& InRHIResource);
+	void CopyToDestResources_RenderThread(FRHICommandListImmediate& RHICmdList, const TArray<FTextureShareExternalTextureRHI>& InDestResources);
 
 private:
 	const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe> CoreObject;
 
 	// Resource description
 	const FTextureShareCoreResourceDesc ResourceDesc;
-
-	// Resource settings
 	const FTextureShareResourceSettings ResourceSettings;
+	TArray<struct FCachedSharedResource> CachedSharedResources;
 };

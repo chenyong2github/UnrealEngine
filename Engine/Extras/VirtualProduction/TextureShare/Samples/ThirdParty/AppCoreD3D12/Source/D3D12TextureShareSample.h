@@ -18,6 +18,11 @@ public:
 		return TextureShareObject && TextureShareObject->IsFrameSyncActive();
 	}
 
+	bool IsFrameSyncActive_RenderThread() const
+	{
+		return TextureShareObject && TextureShareObject->IsFrameSyncActive_RenderThread();
+	}
+
 	int32 GetReceiveTextureSRV(int32 InReceiveTextureIndex) const;
 
 private:

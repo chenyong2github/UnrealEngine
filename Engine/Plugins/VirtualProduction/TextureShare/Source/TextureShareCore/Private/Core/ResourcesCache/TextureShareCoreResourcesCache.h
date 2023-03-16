@@ -23,6 +23,7 @@ protected:
 	{
 		FTextureShareCoreResourcesCacheItem* Find(const FTextureShareCoreResourceHandle& InResourceHandle);
 		FTextureShareCoreResourcesCacheItem* FindByNativeResourcePtr(const void* InNativeResourcePtr);
+		FTextureShareCoreResourcesCacheItem* FindByResourceDesc(const FTextureShareCoreResourceDesc& InResourceDesc);
 
 		bool RemoveByNativeResourcePtr(const void* InNativeResourcePtr);
 

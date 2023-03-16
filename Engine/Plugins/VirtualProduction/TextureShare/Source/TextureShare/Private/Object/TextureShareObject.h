@@ -66,6 +66,12 @@ public:
 private:
 	void UpdateViewExtension(FViewport* InViewport);
 
+	/**
+	 * Implementing the synchronization step (calling a function from TextureShareCore) and handling callbacks
+	 * This function can be called multiple times from FrameSync() to add missing synchronization steps.
+	 */
+	bool DoFrameSync(const ETextureShareSyncStep InSyncStep);
+
 protected:
 	friend class FTextureShareObjectProxy;
 

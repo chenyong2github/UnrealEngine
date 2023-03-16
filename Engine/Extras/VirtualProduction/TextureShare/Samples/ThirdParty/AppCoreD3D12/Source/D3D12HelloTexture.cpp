@@ -554,9 +554,12 @@ void D3D12HelloTexture::PopulateCommandList()
 	// TextureShare
 	if (GTextureShareSample)
 	{
+		// [Single-threaded solution example]
+		// This function implements calls to the game thread and starts the rendering thread (Game + render thread)
 		GTextureShareSample->BeginFrame(D3D12DeviceContext, m_renderTargets[m_frameIndex].Get());
+		// Render thread
 
-		if (GTextureShareSample->IsFrameSyncActive())
+		if (GTextureShareSample->IsFrameSyncActive_RenderThread())
 		{
 			// By default use proc texture
 			SRVIndex0 = GTextureShareSample->GetReceiveTextureSRV(0);

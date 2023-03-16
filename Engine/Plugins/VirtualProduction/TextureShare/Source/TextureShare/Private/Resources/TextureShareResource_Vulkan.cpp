@@ -13,36 +13,39 @@
 
 #include "RHI.h"
 #include "RenderResource.h"
-
-
 #include "VulkanRHIPrivate.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareResourceHelpers
+namespace UE
 {
-	static TSharedPtr<ITextureShareCoreVulkanResourcesCache, ESPMode::ThreadSafe> GetVulkanResourcesCache()
+	namespace TextureShare
 	{
-		static ITextureShareCoreAPI& TextureShareCoreAPI = ITextureShareCore::Get().GetTextureShareCoreAPI();
-
-		return TextureShareCoreAPI.GetVulkanResourcesCache();
-	}
-
-	static FTextureShareDeviceVulkanContext GetDeviceVulkanContext()
-	{
-		if (FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI))
+		namespace Resource_Vulkan
 		{
-			return FTextureShareDeviceVulkanContext(DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle());
+			static TSharedPtr<ITextureShareCoreVulkanResourcesCache, ESPMode::ThreadSafe> GetVulkanResourcesCache()
+			{
+				static ITextureShareCoreAPI& TextureShareCoreAPI = ITextureShareCore::Get().GetTextureShareCoreAPI();
+
+				return TextureShareCoreAPI.GetVulkanResourcesCache();
+			}
+
+			static FTextureShareDeviceVulkanContext GetDeviceVulkanContext()
+			{
+				if (FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI))
+				{
+					return FTextureShareDeviceVulkanContext(DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle());
+				}
+
+				return FTextureShareDeviceVulkanContext();
+			}
 		}
-		
-		return FTextureShareDeviceVulkanContext();
 	}
 };
-using namespace TextureShareResourceHelpers;
+using namespace UE::TextureShare::Resource_Vulkan;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareResource
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FTextureShareResource::VulkanRegisterResourceHandle(const FTextureShareCoreResourceRequest& InResourceRequest)
+bool FTextureShareResource::VulkanRegisterResourceHandle_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceRequest& InResourceRequest)
 {
 	if (TextureRHI.IsValid())
 	{
@@ -57,7 +60,7 @@ bool FTextureShareResource::VulkanRegisterResourceHandle(const FTextureShareCore
 					const FTextureShareDeviceVulkanResource VulkanResource(VulkanTexturePtr->Surface.GetAllocationHandle(), VulkanTexturePtr->Surface.GetAllocationOffset());
 
 					FTextureShareCoreResourceHandle ResourceHandle;
-					if (VulkanResourcesCache->CreateSharedResource(CoreObject->GetObjectDesc(), DeviceVulkanContext, VulkanResource, ResourceDesc, ResourceHandle))
+					if (VulkanResourcesCache->CreateSharedResource(CoreObject->GetObjectDesc_RenderThread(), DeviceVulkanContext, VulkanResource, ResourceDesc, ResourceHandle))
 					{
 						CoreObject->GetProxyData_RenderThread().ResourceHandles.Add(ResourceHandle);
 
@@ -71,7 +74,7 @@ bool FTextureShareResource::VulkanRegisterResourceHandle(const FTextureShareCore
 	return false;
 }
 
-bool FTextureShareResource::VulkanReleaseTextureShareHandle()
+bool FTextureShareResource::VulkanReleaseTextureShareHandle_RenderThread()
 {
 	if (TextureRHI.IsValid())
 	{
@@ -85,7 +88,7 @@ bool FTextureShareResource::VulkanReleaseTextureShareHandle()
 				{
 					const FTextureShareDeviceVulkanResource VulkanResource(VulkanTexturePtr->Surface.GetAllocationHandle(), VulkanTexturePtr->Surface.GetAllocationOffset());
 
-					return VulkanResourcesCache->RemoveSharedResource(CoreObject->GetObjectDesc(), DeviceVulkanContext, VulkanResource);
+					return VulkanResourcesCache->RemoveSharedResource(CoreObject->GetObjectDesc_RenderThread(), DeviceVulkanContext, VulkanResource);
 				}
 			}
 		}

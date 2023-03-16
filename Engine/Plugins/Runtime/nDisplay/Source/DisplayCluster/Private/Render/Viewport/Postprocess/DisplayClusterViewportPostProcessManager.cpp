@@ -34,14 +34,6 @@ static TAutoConsoleVariable<int32> CVarCustomPPEnabled(
 	ECVF_RenderThreadSafe
 );
 
-// Enable new experimental PP features
-static TAutoConsoleVariable<int32> CVarEnableExperimentalTextureSharingAPI(
-	TEXT("nDisplay.render.texturesharing"),
-	0,
-	TEXT("Experimental features (0 = disabled)\n"),
-	ECVF_RenderThreadSafe
-);
-
 // Enable/disable PP round 1
 static TAutoConsoleVariable<int32> CVarPostprocessViewBeforeWarpBlend(
 	TEXT("nDisplay.render.postprocess.ViewBeforeWarpBlend"),
@@ -163,6 +155,8 @@ bool FDisplayClusterViewportPostProcessManager::CreatePostprocess(const FString&
 		TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> PostProcessInstance = PostProcessFactory->Create(InPostprocessId, InConfigurationPostprocess);
 		if (PostProcessInstance.IsValid())
 		{
+			UE_LOG(LogDisplayClusterRender, Log, TEXT("PostProcess '%s', type '%s' : Created"), *InConfigurationPostprocess->Type, *InPostprocessId);
+
 			if (ViewportManager.IsSceneOpened())
 			{
 				PostProcessInstance->HandleStartScene(&ViewportManager);
@@ -204,6 +198,8 @@ bool FDisplayClusterViewportPostProcessManager::RemovePostprocess(const FString&
 	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> DesiredPP = ImplFindPostProcess(InPostprocessId);
 	if (DesiredPP.IsValid())
 	{
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("PostProcess '%s', type '%s' : Removed"), *DesiredPP->GetType(), *DesiredPP->GetId());
+
 		Postprocess.Remove(DesiredPP);
 
 		return true;
@@ -338,28 +334,22 @@ void FDisplayClusterViewportPostProcessManager::Tick()
 
 void FDisplayClusterViewportPostProcessManager::HandleSetupNewFrame()
 {
-	if (CVarEnableExperimentalTextureSharingAPI.GetValueOnGameThread() != 0)
+	if (CVarCustomPPEnabled.GetValueOnGameThread() != 0)
 	{
-		if (CVarCustomPPEnabled.GetValueOnGameThread() != 0)
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : Postprocess)
 		{
-			for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : Postprocess)
-			{
-				It->HandleSetupNewFrame(&ViewportManager);
-			}
+			It->HandleSetupNewFrame(&ViewportManager);
 		}
 	}
 }
 
 void FDisplayClusterViewportPostProcessManager::HandleBeginNewFrame(FDisplayClusterRenderFrame& InOutRenderFrame)
 {
-	if (CVarEnableExperimentalTextureSharingAPI.GetValueOnGameThread() != 0)
+	if (CVarCustomPPEnabled.GetValueOnGameThread() != 0)
 	{
-		if (CVarCustomPPEnabled.GetValueOnGameThread() != 0)
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : Postprocess)
 		{
-			for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : Postprocess)
-			{
-				It->HandleBeginNewFrame(&ViewportManager, InOutRenderFrame);
-			}
+			It->HandleBeginNewFrame(&ViewportManager, InOutRenderFrame);
 		}
 	}
 }
@@ -378,56 +368,44 @@ void FDisplayClusterViewportPostProcessManager::FinalizeNewFrame()
 
 void FDisplayClusterViewportPostProcessManager::HandleRenderFrameSetup_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
-	if (CVarEnableExperimentalTextureSharingAPI.GetValueOnRenderThread() != 0)
+	if (CVarCustomPPEnabled.GetValueOnRenderThread() != 0)
 	{
-		if (CVarCustomPPEnabled.GetValueOnRenderThread() != 0)
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
 		{
-			for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
-			{
-				It->HandleRenderFrameSetup_RenderThread(RHICmdList, InViewportManagerProxy);
-			}
+			It->HandleRenderFrameSetup_RenderThread(RHICmdList, InViewportManagerProxy);
 		}
 	}
 }
 
 void FDisplayClusterViewportPostProcessManager::HandleBeginUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
-	if (CVarEnableExperimentalTextureSharingAPI.GetValueOnRenderThread() != 0)
+	if (CVarCustomPPEnabled.GetValueOnRenderThread() != 0)
 	{
-		if (CVarCustomPPEnabled.GetValueOnRenderThread() != 0)
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
 		{
-			for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
-			{
-				It->HandleBeginUpdateFrameResources_RenderThread(RHICmdList, InViewportManagerProxy);
-			}
+			It->HandleBeginUpdateFrameResources_RenderThread(RHICmdList, InViewportManagerProxy);
 		}
 	}
 }
 
 void FDisplayClusterViewportPostProcessManager::HandleUpdateFrameResourcesAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
-	if (CVarEnableExperimentalTextureSharingAPI.GetValueOnRenderThread() != 0)
+	if (CVarCustomPPEnabled.GetValueOnRenderThread() != 0)
 	{
-		if (CVarCustomPPEnabled.GetValueOnRenderThread() != 0)
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
 		{
-			for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
-			{
-				It->HandleUpdateFrameResourcesAfterWarpBlend_RenderThread(RHICmdList, InViewportManagerProxy);
-			}
+			It->HandleUpdateFrameResourcesAfterWarpBlend_RenderThread(RHICmdList, InViewportManagerProxy);
 		}
 	}
 }
 
 void FDisplayClusterViewportPostProcessManager::HandleEndUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
-	if (CVarEnableExperimentalTextureSharingAPI.GetValueOnRenderThread() != 0)
+	if (CVarCustomPPEnabled.GetValueOnRenderThread() != 0)
 	{
-		if (CVarCustomPPEnabled.GetValueOnRenderThread() != 0)
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
 		{
-			for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
-			{
-				It->HandleEndUpdateFrameResources_RenderThread(RHICmdList, InViewportManagerProxy);
-			}
+			It->HandleEndUpdateFrameResources_RenderThread(RHICmdList, InViewportManagerProxy);
 		}
 	}
 }

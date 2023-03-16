@@ -7,67 +7,71 @@
 
 #include "Module/TextureShareCoreLog.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
 // Platform Windows
-//////////////////////////////////////////////////////////////////////////////////////////////
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 
-namespace TextureShareCoreInterprocessEventHelper
+namespace UE
 {
-	static TSharedPtr<FEvent, ESPMode::ThreadSafe> CreateNamedInterprocessEvent(const FString& EventName, const bool bOpenExistEvent, const void* InSecurityAttributes)
+	namespace TextureShareCore
 	{
-		const FString GlobalEventName = FString::Printf(TEXT("Global\\%s"), *EventName);
-
-		HANDLE EventHandle = NULL;
-
-		if (bOpenExistEvent)
+		namespace InterprocessEvent
 		{
-			const DWORD AccessRights = EVENT_ALL_ACCESS | EVENT_MODIFY_STATE;//SYNCHRONIZE | EVENT_MODIFY_STATE;
-			EventHandle = OpenEventA(AccessRights, false, TCHAR_TO_ANSI(*GlobalEventName));
-			if (NULL == EventHandle)
+			static TSharedPtr<FEvent, ESPMode::ThreadSafe> CreateNamedInterprocessEvent(const FString& EventName, const bool bOpenExistEvent, const void* InSecurityAttributes)
 			{
-				UE_LOG(LogTextureShareCore, Warning, TEXT("OpenEvent(AccessRights=0x%08x, bInherit=false, Name='%s') failed with LastError = %d"), AccessRights, *EventName, GetLastError());
+				const FString GlobalEventName = FString::Printf(TEXT("Global\\%s"), *EventName);
 
-				return nullptr;
+				HANDLE EventHandle = NULL;
+
+				if (bOpenExistEvent)
+				{
+					const DWORD AccessRights = EVENT_ALL_ACCESS | EVENT_MODIFY_STATE;//SYNCHRONIZE | EVENT_MODIFY_STATE;
+					EventHandle = OpenEventA(AccessRights, false, TCHAR_TO_ANSI(*GlobalEventName));
+					if (NULL == EventHandle)
+					{
+						UE_LOG(LogTextureShareCore, Warning, TEXT("OpenEvent(AccessRights=0x%08x, bInherit=false, Name='%s') failed with LastError = %d"), AccessRights, *EventName, GetLastError());
+
+						return nullptr;
+					}
+				}
+				else
+				{
+					// Create new event
+					EventHandle = CreateEventA((SECURITY_ATTRIBUTES*)InSecurityAttributes, true, false, TCHAR_TO_ANSI(*GlobalEventName));
+					if (NULL == EventHandle)
+					{
+						UE_LOG(LogTextureShareCore, Warning, TEXT("CreateEvent(NULL, bInherit=false, Name='%s') failed with LastError = %d"), *EventName, GetLastError());
+
+						return nullptr;
+					}
+				}
+
+				return MakeShared<FTextureShareCoreInterprocessEventWin, ESPMode::ThreadSafe>(EventHandle);
+			}
+
+			static DWORD WaitForSingleInterprocessEvent(const HANDLE EventHandle, DWORD dwMilliseconds)
+			{
+				return WaitForSingleObject(EventHandle, dwMilliseconds);
+			}
+
+			static bool SetInterprocessEvent(const HANDLE EventHandle)
+			{
+				return SetEvent(EventHandle);
+			}
+
+			static bool ResetInterprocessEvent(const HANDLE EventHandle)
+			{
+				return ResetEvent(EventHandle);
+			}
+
+			static bool CloseInterprocessEvent(const HANDLE EventHandle)
+			{
+				return CloseHandle(EventHandle);
 			}
 		}
-		else
-		{
-			// Create new event
-			EventHandle = CreateEventA((SECURITY_ATTRIBUTES*)InSecurityAttributes, true, false, TCHAR_TO_ANSI(*GlobalEventName));
-			if (NULL == EventHandle)
-			{
-				UE_LOG(LogTextureShareCore, Warning, TEXT("CreateEvent(NULL, bInherit=false, Name='%s') failed with LastError = %d"), *EventName, GetLastError());
-
-				return nullptr;
-			}
-		}
-
-		return MakeShared<FTextureShareCoreInterprocessEventWin, ESPMode::ThreadSafe>(EventHandle);
-	}
-
-	static DWORD WaitForSingleInterprocessEvent(const HANDLE EventHandle, DWORD dwMilliseconds)
-	{
-		return WaitForSingleObject(EventHandle, dwMilliseconds);
-	}
-
-	static bool SetInterprocessEvent(const HANDLE EventHandle)
-	{
-		return SetEvent(EventHandle);
-	}
-
-	static bool ResetInterprocessEvent(const HANDLE EventHandle)
-	{
-		return ResetEvent(EventHandle);
-	}
-
-	static bool CloseInterprocessEvent(const HANDLE EventHandle)
-	{
-		return CloseHandle(EventHandle);
 	}
 };
-using namespace TextureShareCoreInterprocessEventHelper;
+using namespace UE::TextureShareCore::InterprocessEvent;
 
 #include "Windows/HideWindowsPlatformTypes.h"
 

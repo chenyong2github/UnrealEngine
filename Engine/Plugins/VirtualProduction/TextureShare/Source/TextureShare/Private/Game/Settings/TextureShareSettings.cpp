@@ -8,27 +8,31 @@
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareSettingsHelpers
+namespace UE
 {
-	static constexpr auto GameConfigCategory = TEXT("/Script/Plugins.TextureShare");
-
-	static const FString GetConfigDefaultGamePath()
+	namespace TextureShare
 	{
-		static FString ConfigDefaultGamePath = FString::Printf(TEXT("%sDefaultGame.ini"), *FPaths::SourceConfigDir());
-		return ConfigDefaultGamePath;
-	}
-
-	static void ClearReadOnlyForConfigDefaultGame()
-	{
-		if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*GetConfigDefaultGamePath()))
+		namespace GameSettings
 		{
-			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*GetConfigDefaultGamePath(), false);
+			static constexpr auto GameConfigCategory = TEXT("/Script/Plugins.TextureShare");
+
+			static const FString GetConfigDefaultGamePath()
+			{
+				static FString ConfigDefaultGamePath = FString::Printf(TEXT("%sDefaultGame.ini"), *FPaths::SourceConfigDir());
+				return ConfigDefaultGamePath;
+			}
+
+			static void ClearReadOnlyForConfigDefaultGame()
+			{
+				if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*GetConfigDefaultGamePath()))
+				{
+					FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*GetConfigDefaultGamePath(), false);
+				}
+			}
 		}
 	}
 };
-
-using namespace TextureShareSettingsHelpers;
+using namespace UE::TextureShare::GameSettings;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 #define SAVE_SETTING_2ARG(SettingType, SettingName, Setting)\

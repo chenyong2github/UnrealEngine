@@ -6,7 +6,7 @@
 
 namespace TextureShareSample
 {
-	static FTextureShareObjectDesc ObjectDesc(ETextureShareDeviceType::D3D11, TextureShareDisplayClusterStrings::Default::ShareName);
+	static FTextureShareObjectDesc ObjectDesc(ETextureShareDeviceType::D3D11, UE::TextureShare::DisplayClusterStrings::DefaultShareName);
 
 	namespace DisplayCluster
 	{
@@ -19,13 +19,13 @@ namespace TextureShareSample
 		namespace Texture1
 		{
 			// Request to read a resource #1 to a remote process
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport1, TextureShareStrings::SceneTextures::FinalColor, ETextureShareTextureOp::Read);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport1, UE::TextureShareStrings::SceneTextures::FinalColor, ETextureShareTextureOp::Read);
 		}
 
 		namespace Texture2
 		{
 			// Request to read a resource #2 to a remote process
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport2, TextureShareDisplayClusterStrings::Output::Backbuffer, ETextureShareTextureOp::Read);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport2, UE::TextureShare::DisplayClusterStrings::Output::Backbuffer, ETextureShareTextureOp::Read);
 		}
 	}
 };

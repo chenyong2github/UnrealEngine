@@ -14,17 +14,25 @@ class FTextureShareCoreObject
 	: public ITextureShareCoreObject
 {
 public:
-	FTextureShareCoreObject(FTextureShareCore& InOwner, const FString& InTextureShareName);
+	FTextureShareCoreObject(FTextureShareCore& InOwner, const FString& InTextureShareName, const ETextureShareProcessType InProcessType);
 	virtual ~FTextureShareCoreObject();
 
 public:
 	///////////////////// State /////////////////////
 
 	virtual const FString& GetName() const override;
+
 	virtual const FTextureShareCoreObjectDesc& GetObjectDesc() const override;
+	virtual const FTextureShareCoreObjectDesc& GetObjectDesc_RenderThread() const override;
 
 	virtual bool IsActive() const override;
+	virtual bool IsActive_RenderThread() const override;
+
 	virtual bool IsFrameSyncActive() const override;
+	virtual bool IsFrameSyncActive_RenderThread() const override;
+
+	virtual bool IsBeginFrameSyncActive() const override;
+	virtual bool IsBeginFrameSyncActive_RenderThread() const override;
 
 private:
 	FTextureShareCoreObjectDesc ObjectDesc;
@@ -35,24 +43,18 @@ public:
 	virtual bool SetProcessId(const FString& InProcessId) override;
 	virtual bool SetDeviceType(const ETextureShareDeviceType InDeviceType) override;
 
-	virtual bool SetSyncSetting(const FTextureShareCoreSyncSettings& InSyncSetting) override;
+	virtual bool SetSyncSetting(const FTextureShareCoreSyncSettings& InSyncSettings) override;
 	virtual const FTextureShareCoreSyncSettings& GetSyncSetting() const override;
 
 	virtual FTextureShareCoreFrameSyncSettings GetFrameSyncSettings(const ETextureShareFrameSyncTemplate InType) const override;
 
 private:
-	// Delayed process id changes
-	FString NextProcessId;
-
-	// Delayed sync settings. Changes are made from BeginFrameSync()
-	TSharedPtr<FTextureShareCoreSyncSettings, ESPMode::ThreadSafe> NewSyncSetting;
-
 	// This settings used for a frame
 	FTextureShareCoreSyncSettings SyncSettings;
 
 protected:
-	void UpdateProcessId(FTextureShareCoreInterprocessObject& InOutObject);
-	void UpdateFrameSyncSetting();
+	void AddNewSyncStep(const ETextureShareSyncStep InSyncStep);
+	void UpdateInterprocessObject();
 
 public:
 	///////////////////// Session /////////////////////
@@ -67,20 +69,18 @@ private:
 public:
 	///////////////////// Thread sync support /////////////////////
 
-	virtual bool LockThreadMutex(const ETextureShareThreadMutex InThreadMutex) override;
+	virtual bool LockThreadMutex(const ETextureShareThreadMutex InThreadMutex, bool bForceLockNoWait = false) override;
 	virtual bool UnlockThreadMutex(const ETextureShareThreadMutex InThreadMutex) override;
-
-	virtual bool IsBeginFrameSyncActive() const override;
-	virtual bool IsBeginFrameSyncActive_RenderThread() const override;
 
 protected:
 	TSharedPtr<FTextureShareCoreInterprocessMutex, ESPMode::ThreadSafe> GetThreadMutex(const ETextureShareThreadMutex InThreadMutex);
+	void ResetThreadMutex(const ETextureShareThreadMutex InThreadMutex);
 
-	void ResetThreadMutexes();
+	void InitializeThreadMutexes();
 	void ReleaseThreadMutexes();
 
 private:
-	TMap<ETextureShareThreadMutex, TSharedPtr<FTextureShareCoreInterprocessMutex, ESPMode::ThreadSafe>> ThreadMutexMap;
+	TArray<TSharedPtr<FTextureShareCoreInterprocessMutex, ESPMode::ThreadSafe>> ThreadMutexes;
 
 public:
 	///////////////////// Interprocess Synchronization /////////////////////
@@ -93,9 +93,13 @@ public:
 	virtual bool FrameSync_RenderThread(const ETextureShareSyncStep InSyncStep) override;
 	virtual bool EndFrameSync_RenderThread() override;
 
+	virtual bool FindSkippedSyncStep(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep) override;
+	virtual bool FindSkippedSyncStep_RenderThread(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep) override;
+
 	virtual const TArraySerializable<FTextureShareCoreObjectDesc>& GetConnectedInterprocessObjects() const override;
 
 protected:
+	bool FindSkippedSyncStepImpl(const ETextureShareSyncStep InSyncStep, bool bIsProxyFrame, ETextureShareSyncStep& OutSkippedSyncStep);
 	void ReleaseSyncData();
 
 private:
@@ -126,13 +130,18 @@ protected:
 	// Barrier
 	bool BeginSyncBarrier(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject, const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass);
 	bool AcceptSyncBarrier(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject, const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass);
+	
 	bool PrepareSyncBarrierPass(const ETextureShareSyncStep InSyncStep);
+	bool PrepareSyncBarrierPass_RenderThread(const ETextureShareSyncStep InSyncStep);
 
 	bool TryEnterSyncBarrier(const ETextureShareSyncStep InSyncStep) const;
 	bool TryFrameProcessesBarrier(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject, const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass);
 
 	// Wait until all connected processes entered to desired sync step
 	bool SyncBarrierPass(const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass);
+	bool SyncBarrierPass_RenderThread(const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass);
+
+	bool SyncBarrierPassImpl(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject, const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass);
 
 	void SetCurrentSyncStep(const ETextureShareSyncStep InSyncStep);
 	void SetFrameSyncState(const ETextureShareCoreInterprocessObjectFrameSyncState InFrameSyncState);

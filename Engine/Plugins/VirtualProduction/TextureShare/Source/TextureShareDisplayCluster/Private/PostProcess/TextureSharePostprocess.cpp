@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/TextureSharePostprocess.h"
-#include "PostProcess/TextureSharePostprocessStrings.h"
 
 #include "Engine/GameViewportClient.h"
-#include "Misc/TextureShareDisplayClusterStrings.h"
-
-#include "Module/TextureShareDisplayClusterLog.h"
-
 #include "Containers/TextureShareCoreEnums.h"
+#include "Misc/TextureShareDisplayClusterStrings.h"
+#include "Module/TextureShareDisplayClusterLog.h"
 
 #include "ITextureShare.h"
 #include "ITextureShareAPI.h"
@@ -16,34 +13,53 @@
 #include "ITextureShareObjectProxy.h"
 #include "ITextureShareDisplayCluster.h"
 
+#include "IDisplayCluster.h"
+#include "Game/IDisplayClusterGameManager.h"
+#include "DisplayClusterRootActor.h"
+#include "Config/IDisplayClusterConfigManager.h"
+
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace DisplayClusterPostProcessTextureShareHelpers
+int32 GTextureShareEnableDisplayCluster = 1;
+static FAutoConsoleVariableRef CVarTextureShareEnableDisplayCluster(
+	TEXT("TextureShare.Enable.nDisplay"),
+	GTextureShareEnableDisplayCluster,
+	TEXT("Enable nDisplay support for TextureShare (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
+);
+
+namespace UE
 {
-	static ITextureShareAPI& TextureShareAPI()
+	namespace TextureShare
 	{
-		static ITextureShareAPI& TextureShareAPISingleton = ITextureShare::Get().GetTextureShareAPI();
-		return TextureShareAPISingleton;
-	}
-
-	static FViewport* GetDisplayViewport(IDisplayClusterViewportManager* InViewportManager)
-	{
-		if (InViewportManager)
+		namespace PostProcess
 		{
-			if (UWorld* CurrentWorld = InViewportManager->GetCurrentWorld())
+			static ITextureShareAPI& TextureShareAPI()
 			{
-				if (UGameViewportClient* GameViewportClientPtr = CurrentWorld->GetGameViewport())
-				{
-					return GameViewportClientPtr->Viewport;
-				}
+				static ITextureShareAPI& TextureShareAPISingleton = ITextureShare::Get().GetTextureShareAPI();
+				return TextureShareAPISingleton;
 			}
-		}
 
-		return nullptr;
-	};
+			static FViewport* GetDisplayViewport(IDisplayClusterViewportManager* InViewportManager)
+			{
+				if (InViewportManager)
+				{
+					if (UWorld* CurrentWorld = InViewportManager->GetCurrentWorld())
+					{
+						if (UGameViewportClient* GameViewportClientPtr = CurrentWorld->GetGameViewport())
+						{
+							return GameViewportClientPtr->Viewport;
+						}
+					}
+				}
+
+				return nullptr;
+			};
+		}
+	}
 };
-using namespace DisplayClusterPostProcessTextureShareHelpers;
+using namespace UE::TextureShare::PostProcess;
+using namespace UE::TextureShare;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureSharePostprocess
@@ -51,19 +67,43 @@ using namespace DisplayClusterPostProcessTextureShareHelpers;
 FTextureSharePostprocess::FTextureSharePostprocess(const FString& PostprocessId, const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess)
 	: FTextureSharePostprocessBase(PostprocessId, InConfigurationPostprocess)
 {
-	if (TextureShareAPI().IsObjectExist(TextureShareDisplayClusterStrings::Default::ShareName))
+	if (TextureShareAPI().IsObjectExist(DisplayClusterStrings::DefaultShareName))
 	{
 		UE_LOG(LogTextureShareDisplayClusterPostProcess, Error, TEXT("TextureShareDisplayCluster: Failed - Already exist"));
 	}
 	else
 	{
-		Object = TextureShareAPI().GetOrCreateObject(TextureShareDisplayClusterStrings::Default::ShareName);
+		Object = TextureShareAPI().GetOrCreateObject(DisplayClusterStrings::DefaultShareName);
 		if (Object.IsValid())
 		{
+			// Set unique process name
+			FString UniqueProcessId;
+			{
+				IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
+				if (ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor())
+				{
+					const FString RootActorName = RootActor->GetName();
+					const FString LocalNodeId = DisplayCluster.GetConfigMgr()->GetLocalNodeId();
+
+					// Generate unique process name
+					UniqueProcessId = FString::Printf(TEXT("%s::%s"), *RootActorName, *LocalNodeId);
+				}
+
+				if (UniqueProcessId.IsEmpty())
+				{
+					// Use process GUID as name
+					UniqueProcessId = Object->GetObjectDesc().ProcessDesc.ProcessGuid.ToString(EGuidFormats::Digits);
+				}
+
+				UE_TS_LOG(LogTextureShareDisplayClusterPostProcess, Log, TEXT("%s:SetProcessName '%s'"), *Object->GetName(), *UniqueProcessId);
+				Object->SetProcessId(UniqueProcessId);
+
+			}
+
 			ObjectProxy = Object->GetProxy();
 		}
 
-		if (IsActive())
+		if (IsEnabled())
 		{
 			// Initialize sync settings for nDisplay
 			FTextureShareCoreSyncSettings SyncSetting;
@@ -74,6 +114,10 @@ FTextureSharePostprocess::FTextureSharePostprocess(const FString& PostprocessId,
 			Object->BeginSession();
 
 			UE_LOG(LogTextureShareDisplayClusterPostProcess, Log, TEXT("TextureShareDisplayCluster: Initialized"));
+
+			// When using this PP, we must disable all other types of TextureShare objects. Because they are incompatible with the nDisplay workflow.
+			const uint8* GenericThis = reinterpret_cast<uint8*>(this);
+			TextureShareAPI().DisableWorldSubsystem(GenericThis);
 		}
 		else
 		{
@@ -86,6 +130,10 @@ FTextureSharePostprocess::FTextureSharePostprocess(const FString& PostprocessId,
 
 FTextureSharePostprocess::~FTextureSharePostprocess()
 {
+	// Enable all other types of TextureShare objects.
+	const uint8* GenericThis = reinterpret_cast<uint8*>(this);
+	TextureShareAPI().EnableWorldSubsystem(GenericThis);
+
 	if (Object.IsValid())
 	{
 		ReleaseDisplayClusterPostProcessTextureShare();
@@ -93,9 +141,14 @@ FTextureSharePostprocess::~FTextureSharePostprocess()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+bool FTextureSharePostprocess::IsEnabled() const
+{
+	return Object.IsValid() && ObjectProxy.IsValid() && GTextureShareEnableDisplayCluster != 0;
+}
+
 const FString& FTextureSharePostprocess::GetType() const
 {
-	static const FString Type(TextureSharePostprocessStrings::Postprocess::TextureShare);
+	static const FString Type(DisplayClusterStrings::Postprocess::TextureShare);
 
 	return Type;
 }
@@ -105,7 +158,7 @@ void FTextureSharePostprocess::ReleaseDisplayClusterPostProcessTextureShare()
 	ObjectProxy.Reset();
 	Object.Reset();
 
-	TextureShareAPI().RemoveObject(TextureShareDisplayClusterStrings::Default::ShareName);
+	TextureShareAPI().RemoveObject(DisplayClusterStrings::DefaultShareName);
 }
 
 bool FTextureSharePostprocess::HandleStartScene(IDisplayClusterViewportManager* InViewportManager)
@@ -120,7 +173,7 @@ void FTextureSharePostprocess::HandleEndScene(IDisplayClusterViewportManager* In
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FTextureSharePostprocess::HandleSetupNewFrame(IDisplayClusterViewportManager* InViewportManager)
 {
-	if (IsActive() && Object->BeginFrameSync() && Object->IsFrameSyncActive())
+	if (IsEnabled() && Object->BeginFrameSync() && Object->IsFrameSyncActive())
 	{
 		// Update frame marker for current frame
 		Object->GetCoreData().FrameMarker.NextFrame();
@@ -139,34 +192,47 @@ void FTextureSharePostprocess::HandleSetupNewFrame(IDisplayClusterViewportManage
 
 void FTextureSharePostprocess::HandleBeginNewFrame(IDisplayClusterViewportManager* InViewportManager, FDisplayClusterRenderFrame& InOutRenderFrame)
 {
-	if (IsActive() && Object->IsFrameSyncActive())
+	if (IsEnabled())
 	{
-		if (Object->FrameSync(ETextureShareSyncStep::FrameSetupBegin) && Object->IsFrameSyncActive())
+		if (Object->IsFrameSyncActive())
 		{
 			// Register viewport mapping
 			UpdateViews(InViewportManager);
 
-			Object->EndFrameSync(GetDisplayViewport(InViewportManager));
-
-			// Immediatelly begin proxy frame
-			ENQUEUE_RENDER_COMMAND(DisplayClusterPostProcessTextureShare_UpdateObjectProxy)(
-				[ObjectProxyRef = ObjectProxy.ToSharedRef()](FRHICommandListImmediate& RHICmdList)
+			if (Object->FrameSync(ETextureShareSyncStep::FrameSetupBegin) && Object->IsFrameSyncActive())
+			{
+				// Immediatelly begin proxy frame
+				ENQUEUE_RENDER_COMMAND(DisplayClusterPostProcessTextureShare_UpdateObjectProxy)(
+				[TextureSharePostprocess = SharedThis(this)](FRHICommandListImmediate& RHICmdList)
 				{
-					ObjectProxyRef->BeginFrameSync_RenderThread(RHICmdList);
+					TextureSharePostprocess->BeginFrameSync_RenderThread(RHICmdList);
 				});
+			}
 		}
+
+		Object->EndFrameSync(GetDisplayViewport(InViewportManager));
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+void FTextureSharePostprocess::BeginFrameSync_RenderThread(FRHICommandListImmediate& RHICmdList)
+{
+	check(IsInRenderingThread());
+
+	if (ObjectProxy.IsValid())
+	{
+		ObjectProxy->BeginFrameSync_RenderThread(RHICmdList);
+	}
+}
+
 void FTextureSharePostprocess::HandleRenderFrameSetup_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
 	check(IsInRenderingThread());
 
-	if (IsActive() && ObjectProxy->IsFrameSyncActive_RenderThread())
+	if (IsEnabled() && ObjectProxy->IsFrameSyncActive_RenderThread())
 	{
 		// Share RTT with remote process
-		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPreRenderEnd, EDisplayClusterViewportResourceType::InternalRenderTargetResource, TextureShareDisplayClusterStrings::Viewport::FinalColor);
+		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPreRenderEnd, EDisplayClusterViewportResourceType::InternalRenderTargetResource, DisplayClusterStrings::Viewport::FinalColor);
 
 		ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameProxyPreRenderEnd);
 	}
@@ -176,11 +242,11 @@ void FTextureSharePostprocess::HandleBeginUpdateFrameResources_RenderThread(FRHI
 {
 	check(IsInRenderingThread());
 
-	if (IsActive() && ObjectProxy->IsFrameSyncActive_RenderThread())
+	if (IsEnabled() && ObjectProxy->IsFrameSyncActive_RenderThread())
 	{
 		// Share RTT with remote process
-		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyRenderEnd, EDisplayClusterViewportResourceType::InputShaderResource, TextureShareDisplayClusterStrings::Viewport::Input);
-		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyRenderEnd, EDisplayClusterViewportResourceType::MipsShaderResource, TextureShareDisplayClusterStrings::Viewport::Mips);
+		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyRenderEnd, EDisplayClusterViewportResourceType::InputShaderResource, DisplayClusterStrings::Viewport::Input);
+		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyRenderEnd, EDisplayClusterViewportResourceType::MipsShaderResource, DisplayClusterStrings::Viewport::Mips);
 
 		ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameProxyRenderEnd);
 	}
@@ -190,10 +256,10 @@ void FTextureSharePostprocess::HandleUpdateFrameResourcesAfterWarpBlend_RenderTh
 {
 	check(IsInRenderingThread());
 
-	if (IsActive() && ObjectProxy->IsFrameSyncActive_RenderThread())
+	if (IsEnabled() && ObjectProxy->IsFrameSyncActive_RenderThread())
 	{
 		// Share RTT with remote process
-		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostWarpEnd, EDisplayClusterViewportResourceType::InputShaderResource, TextureShareDisplayClusterStrings::Viewport::Warped, true);
+		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostWarpEnd, EDisplayClusterViewportResourceType::InputShaderResource, DisplayClusterStrings::Viewport::Warped, true);
 
 		ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameProxyPostWarpEnd);
 	}
@@ -203,15 +269,18 @@ void FTextureSharePostprocess::HandleEndUpdateFrameResources_RenderThread(FRHICo
 {
 	check(IsInRenderingThread());
 
-	if (IsActive() && ObjectProxy->IsFrameSyncActive_RenderThread())
+	if (IsEnabled())
 	{
-		// Share per-viewport
-		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::OutputFrameTargetableResource, TextureShareDisplayClusterStrings::Output::Backbuffer);
-		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::AdditionalFrameTargetableResource, TextureShareDisplayClusterStrings::Output::BackbufferTemp);
+		if (ObjectProxy->IsFrameSyncActive_RenderThread())
+		{
+			// Share per-viewport
+			ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::OutputFrameTargetableResource, DisplayClusterStrings::Output::Backbuffer);
+			ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::AdditionalFrameTargetableResource, DisplayClusterStrings::Output::BackbufferTemp);
 
-		//Share whole backbuffer
-		ShareFrame_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::OutputFrameTargetableResource,     TextureShareDisplayClusterStrings::Output::Backbuffer);
-		ShareFrame_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::AdditionalFrameTargetableResource, TextureShareDisplayClusterStrings::Output::BackbufferTemp);
+			//Share whole backbuffer
+			ShareFrame_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::OutputFrameTargetableResource, DisplayClusterStrings::Output::Backbuffer);
+			ShareFrame_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::AdditionalFrameTargetableResource, DisplayClusterStrings::Output::BackbufferTemp);
+		}
 
 		ObjectProxy->EndFrameSync_RenderThread(RHICmdList);
 	}

@@ -2,6 +2,10 @@
 
 #pragma once
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
+#include "Module/TextureShareCoreLog.h"
+
+using namespace UE::TextureShareCore;
 
 /////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreInterprocessMemory
@@ -33,33 +37,29 @@ int32 FTextureShareCoreInterprocessMemory::FindConnectableObjects(TArraySerializ
 		const FTextureShareCoreInterprocessObject& ObjectIt = Objects[ObjectIndex];
 		const bool bIsInObject = (&InObject) == (&ObjectIt);
 
-		if (!bIsInObject && ObjectIt.IsEnabled())
+		if (!bIsInObject && ObjectIt.Desc.IsConnectable(InObject.Desc))
 		{
-			// The objects will be connect only if ShareName equal
-			if (ObjectIt.Desc.IsShareNameEquals(InObject.Desc.ShareName))
+			// test vs rules:
+			if (ObjectIt.Sync.GetSyncSettings().IsShouldBeConnected(ObjectIt.Desc.ProcessName, InObject.Desc.ProcessName ,InObject.Sync.GetSyncSettings()))
 			{
-				// test vs rules:
-				if (ObjectIt.Sync.GetSyncSettings().IsShouldBeConnected(InObject.Sync.GetSyncSettings()))
+				// collect only ready to connect objects
+				FTextureShareCoreObjectDesc ObjectDesc;
+				if (ObjectIt.GetDesc(ObjectDesc))
 				{
-					// collect only ready to connect objects
-					FTextureShareCoreObjectDesc ObjectDesc;
-					if (ObjectIt.GetDesc(ObjectDesc))
+					OutConnectableObjects.AddUnique(ObjectDesc);
+
+					// Collect ready to connect objects 
+					const ETextureShareInterprocessObjectSyncBarrierState BarrierState = ObjectIt.Sync.GetBarrierState(InObject.Sync);
+					switch (BarrierState)
 					{
-						OutConnectableObjects.AddUnique(ObjectDesc);
+					case ETextureShareInterprocessObjectSyncBarrierState::AcceptConnection:
+						// Count total connectable objects
+						ReadyToConnectObjectsCount++;
+						break;
 
-						// Collect ready to connect objects 
-						const ETextureShareInterprocessObjectSyncBarrierState BarrierState = ObjectIt.Sync.GetBarrierState(InObject.Sync);
-						switch (BarrierState)
-						{
-						case ETextureShareInterprocessObjectSyncBarrierState::AcceptConnection:
-							// Count total connectable objects
-							ReadyToConnectObjectsCount++;
-							break;
-
-						case ETextureShareInterprocessObjectSyncBarrierState::WaitConnection:
-						default:
-							break;
-						}
+					case ETextureShareInterprocessObjectSyncBarrierState::WaitConnection:
+					default:
+						break;
 					}
 				}
 			}
@@ -102,11 +102,22 @@ ETextureShareInterprocessObjectSyncBarrierState FTextureShareCoreInterprocessMem
 		{
 		case ETextureShareInterprocessObjectSyncBarrierState::Accept:
 		case ETextureShareInterprocessObjectSyncBarrierState::UnusedSyncStep:
+			// accept this process
 			TotalAcceptedCnt++;
 			break;
 		case ETextureShareInterprocessObjectSyncBarrierState::Wait:
 			// Wait for this process
 			break;
+		case ETextureShareInterprocessObjectSyncBarrierState::WaitConnection:
+			if (InObject.Sync.SyncState.Step != ETextureShareSyncStep::InterprocessConnection)
+			{
+				// accept this process
+				UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:GetBarrierState: skip sync for process %s"), *InObject.Desc.ShareName.ToString(), *InterprocessObject->Desc.ProcessName.ToString());
+				TotalAcceptedCnt++;
+				break;
+			}
+			return BarrierState;
+
 		default:
 			// Any error break frame sync
 			return BarrierState;
@@ -123,6 +134,8 @@ FTextureShareCoreInterprocessObject* FTextureShareCoreInterprocessMemory::FindEm
 	{
 		if (Objects[ObjectIndex].Desc.IsEnabled() == false)
 		{
+			UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("Found Empty Object slot %d"), ObjectIndex);
+
 			return &Objects[ObjectIndex];
 		}
 	}
@@ -204,13 +217,13 @@ int32 FTextureShareCoreInterprocessMemory::FindObjectEventListeners(TArray<const
 	const FTextureShareCoreSMD5Hash   InHash = FTextureShareCoreSMD5Hash::Create(InObjectDesc.ShareName);
 	const FTextureShareCoreGuid InObjectGuid = FTextureShareCoreGuid::Create(InObjectDesc.ObjectGuid);
 
+	const ETextureShareProcessType ProcessType = InObjectDesc.ProcessDesc.ProcessType;
+
 	// Search key: TextureShare name
 	for (int32 ObjectIndex = 0; ObjectIndex < MaxNumberOfInterprocessObject; ObjectIndex++)
 	{
 		const FTextureShareCoreInterprocessObject& Object = Objects[ObjectIndex];
-		if(Object.Desc.IsEnabled()
-		&& Object.Desc.IsShareNameEquals(InHash)
-		&& Object.Desc.Equals(InObjectGuid) == false)
+		if(!Object.Desc.Equals(InObjectGuid) && Object.Desc.IsConnectable(InHash, ProcessType))
 		{
 			OutObjects.Add(&Object);
 		}
@@ -231,6 +244,8 @@ void FTextureShareCoreInterprocessMemory::ReleaseDirtyObjects(const FTextureShar
 		if (Objects[ObjectIndex].Desc.IsShareNameEquals(InShareNameHash)
 			&& Objects[ObjectIndex].Desc.ProcessName.Equals(InProcessNameHash))
 		{
+			UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("Release lost object at slot %d, Guid='%s'"), ObjectIndex, *Objects[ObjectIndex].Desc.ObjectGuid.ToGuid().ToString(EGuidFormats::DigitsWithHyphens));
+
 			// Release lost objects
 			Objects[ObjectIndex].Release();
 		}

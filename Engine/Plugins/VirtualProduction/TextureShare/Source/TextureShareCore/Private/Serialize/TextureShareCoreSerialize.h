@@ -70,15 +70,21 @@ public:
 	{
 		for (const T& ValueIt : InArrayValues)
 		{
-			if (this->Find(ValueIt) == INDEX_NONE)
+			AddSorted(ValueIt);
+		}
+	}
+
+	// Add value ordered. Value must support compare ops
+	void AddSorted(const T InValue)
+	{
+		if (this->Find(InValue) == INDEX_NONE)
+		{
+			for (int32 Index = this->Num() - 1; Index >= 0; Index--)
 			{
-				for (int32 Index = this->Num() - 1; Index >= 0; Index--)
+				if (this->operator[](Index) < InValue)
 				{
-					if (this->operator[](Index) < ValueIt)
-					{
-						this->Insert(ValueIt, Index + 1);
-						break;
-					}
+					this->Insert(InValue, Index + 1);
+					break;
 				}
 			}
 		}
@@ -91,7 +97,7 @@ public:
 		{
 			for (int32 Index = 0; Index < this->Num(); Index++)
 			{
-				if (this->operator[](Index) != InArrayValues[Index])
+				if (!(this->operator[](Index) == InArrayValues[Index]))
 				{
 					return false;
 				}

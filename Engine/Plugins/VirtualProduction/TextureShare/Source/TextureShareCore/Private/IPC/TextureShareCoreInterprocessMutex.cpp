@@ -75,16 +75,11 @@ bool FTextureShareCoreInterprocessMutex::LockMutex(const uint32 InMaxMillisecond
 		FPlatformProcess::FSemaphore* ProcessMutex = static_cast<FPlatformProcess::FSemaphore*>(PlatformMutex);
 		if (ProcessMutex)
 		{
-			if (!MaxNanosecondsToWait)
+			// InMaxMillisecondsToWait=0 means a lock attempt without waiting.
+			// Now we have never used an infinite lock to prevent deadlocks.
+			if (!ProcessMutex->TryLock(MaxNanosecondsToWait))
 			{
-				ProcessMutex->Lock();
-			}
-			else
-			{
-				if (!ProcessMutex->TryLock(MaxNanosecondsToWait))
-				{
-					return false;
-				}
+				return false;
 			}
 
 			bLocked = true;

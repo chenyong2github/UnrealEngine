@@ -22,15 +22,22 @@ struct FTextureShareCoreResourceDesc
 	// resource sync order for logic (default value '-1'unordered)
 	ETextureShareSyncStep SyncStep = ETextureShareSyncStep::Undefined;
 
+	// Resource type
+	ETextureShareResourceType ResourceType = ETextureShareResourceType::Default;
+
 public:
 	virtual ~FTextureShareCoreResourceDesc() = default;
 
 	virtual ITextureShareSerializeStream& Serialize(ITextureShareSerializeStream & Stream) override
 	{
-		return Stream << ResourceName << ViewDesc << OperationType << SyncStep;
+		return Stream << ResourceName << ViewDesc << OperationType << SyncStep << ResourceType;
 	}
 
 public:
+	FTextureShareCoreResourceDesc(const FString& InResourceName, const FTextureShareCoreViewDesc& InViewDesc, const ETextureShareTextureOp InOperationType, const ETextureShareSyncStep InSyncStep, const ETextureShareResourceType& InResourceType)
+		: ResourceName(InResourceName), ViewDesc(InViewDesc), OperationType(InOperationType), SyncStep(InSyncStep), ResourceType(InResourceType)
+	{ }
+
 	FTextureShareCoreResourceDesc(const FString& InResourceName, const FTextureShareCoreViewDesc& InViewDesc, const ETextureShareTextureOp InOperationType, const ETextureShareSyncStep InSyncStep)
 		: ResourceName(InResourceName), ViewDesc(InViewDesc), OperationType(InOperationType), SyncStep(InSyncStep)
 	{ }
@@ -63,6 +70,7 @@ public:
 	{
 		return ViewDesc.EqualsFunc(InResourceDesc.ViewDesc)
 			&& ResourceName == InResourceDesc.ResourceName
+			&& ResourceType == InResourceDesc.ResourceType
 			&& (OperationType == InResourceDesc.OperationType
 				|| OperationType == ETextureShareTextureOp::Undefined
 				|| InResourceDesc.OperationType == ETextureShareTextureOp::Undefined);
@@ -72,6 +80,7 @@ public:
 	{
 		return ViewDesc == InResourceDesc.ViewDesc
 			&& ResourceName == InResourceDesc.ResourceName
+			&& ResourceType == InResourceDesc.ResourceType
 			&& OperationType == InResourceDesc.OperationType;
 	}
 };

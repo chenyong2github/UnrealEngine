@@ -31,8 +31,7 @@
 
 #include "RenderTargetPool.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareResourcesHelpers
+namespace UE::TextureShare::ResourcesProxy
 {
 	static bool IsSizeResampleRequired(FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect* SrcTextureRect, const FIntRect* DstTextureRect, FIntRect& OutSrcRect, FIntRect& OutDstRect)
 	{
@@ -63,7 +62,7 @@ namespace TextureShareResourcesHelpers
 		FRHICopyTextureInfo Params = {};
 		Params.Size = FIntVector(InRectSize.X, InRectSize.Y, 0);
 		Params.SourcePosition = FIntVector(SrcRect.Min.X, SrcRect.Min.Y, 0);
-		Params.DestPosition= FIntVector(DstRect.Min.X, DstRect.Min.Y, 0);
+		Params.DestPosition = FIntVector(DstRect.Min.X, DstRect.Min.Y, 0);
 
 		RHICmdList.CopyTexture(SrcTexture, DstTexture, Params);
 	}
@@ -123,7 +122,8 @@ namespace TextureShareResourcesHelpers
 		RHICmdList.EndRenderPass();
 	}
 };
-using namespace TextureShareResourcesHelpers;
+
+using namespace UE::TextureShare::ResourcesProxy;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 DECLARE_STATS_GROUP(TEXT("TextureShare"), STATGROUP_TextureShare, STATCAT_Advanced);
@@ -174,6 +174,13 @@ void FTextureShareResourcesProxy::RHIThreadFlush_RenderThread(FRHICommandListImm
 
 	if (bRHIFlushRequired || bRHIThreadChanged || bForceRHIFlush || PooledTempRTTs.Num())
 	{
+		UE_TS_LOG(LogTextureShareResource, Log, TEXT("RHIThreadFlush_RenderThread( %s%s%s%s)"),
+			bRHIFlushRequired ? TEXT("bRHIFlushRequired ") : TEXT(""),
+			bRHIThreadChanged ? TEXT("bRHIThreadChanged ") : TEXT(""),
+			bForceRHIFlush ? TEXT("bForceRHIFlush ") : TEXT(""),
+			PooledTempRTTs.Num() ? TEXT("PooledTempRTTs ") : TEXT("")
+		);
+
 		bRHIThreadChanged = false;
 		bForceRHIFlush = false;
 
@@ -270,6 +277,7 @@ void FTextureShareResourcesProxy::PushReceiveResource_RenderThread(const FTextur
 {
 	if (InSrcSharedResource && InDestTexture)
 	{
+		UE_TS_LOG(LogTextureShareResource, Log, TEXT("%s:PushReceiveResource_RenderThread(%s.%s)"), *InSrcSharedResource->GetCoreObjectName(), *InSrcSharedResource->GetResourceDesc().ViewDesc.Id, *InSrcSharedResource->GetResourceDesc().ResourceName);
 		ReceiveResourceData.AddUnique(FReceiveResourceData(InResourceRequest, InSrcSharedResource, InDestTexture, InDestTextureSubRect));
 	}
 }
@@ -306,13 +314,13 @@ void FTextureShareResourcesProxy::PushRegisterResource_RenderThread(const FTextu
 	}
 }
 
-void FTextureShareResourcesProxy::RunRegisterResourceHandles_RenderThread()
+void FTextureShareResourcesProxy::RunRegisterResourceHandles_RenderThread(FRHICommandListImmediate& RHICmdList)
 {
 	for (FRegisteredResourceData& ResourceIt : RegisteredResources)
 	{
 		if (ResourceIt.SharedResource)
 		{
-			ResourceIt.SharedResource->RegisterResourceHandle(ResourceIt.ResourceRequest);
+			ResourceIt.SharedResource->RegisterResourceHandle_RenderThread(RHICmdList, ResourceIt.ResourceRequest);
 		}
 	};
 
@@ -363,6 +371,8 @@ bool FTextureShareResourcesProxy::WriteToShareTexture_RenderThread(FRHICommandLi
 	{
 		if (FRHITexture* InDestSharedTexture = InDestSharedResource->GetResourceTextureRHI())
 		{
+			UE_TS_LOG(LogTextureShareResource, Log, TEXT("%s:WriteToShareTexture_RenderThread(%s.%s)"), *InDestSharedResource->GetCoreObjectName(), *InDestSharedResource->GetResourceDesc().ViewDesc.Id, *InDestSharedResource->GetResourceDesc().ResourceName);
+
 			const EPixelFormat InDestFormat = InDestSharedTexture->GetFormat();
 			const bool bIsFormatResampleRequired = InSrcTexture->GetFormat() != InDestFormat;
 
@@ -412,6 +422,8 @@ bool FTextureShareResourcesProxy::ReadFromShareTexture_RenderThread(FRHICommandL
 	{
 		if (FRHITexture* InSrcSharedTexture = InSrcSharedResource->GetResourceTextureRHI())
 		{
+			UE_TS_LOG(LogTextureShareResource, Log, TEXT("%s:ReadFromShareTexture_RenderThread(%s.%s)"), *InSrcSharedResource->GetCoreObjectName(), *InSrcSharedResource->GetResourceDesc().ViewDesc.Id, *InSrcSharedResource->GetResourceDesc().ResourceName);
+
 			const EPixelFormat InSrcFormat = InSrcSharedTexture->GetFormat();
 			const EPixelFormat InDestFormat = InDestTexture->GetFormat();
 			const bool bIsFormatResampleRequired = InSrcFormat != InDestFormat;

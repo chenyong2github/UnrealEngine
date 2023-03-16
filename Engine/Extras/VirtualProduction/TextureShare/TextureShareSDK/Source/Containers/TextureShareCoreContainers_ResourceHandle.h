@@ -22,12 +22,15 @@ struct FTextureShareCoreResourceHandle
 	// Unique handle name
 	FGuid SharedHandleGuid;
 
+	// Resource Owner GPU Index
+	uint32 GPUIndex = 0;
+
 public:
 	virtual ~FTextureShareCoreResourceHandle() = default;
 
 	virtual ITextureShareSerializeStream& Serialize(ITextureShareSerializeStream & Stream) override
 	{
-		return Stream << ResourceDesc << NTHandle << SharedHandle << SharedHandleGuid;
+		return Stream << ResourceDesc << NTHandle << SharedHandle << SharedHandleGuid << GPUIndex;
 	}
 
 public:

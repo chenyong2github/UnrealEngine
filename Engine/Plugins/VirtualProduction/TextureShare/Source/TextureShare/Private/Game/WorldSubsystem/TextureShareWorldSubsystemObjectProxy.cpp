@@ -98,7 +98,7 @@ void FTextureShareWorldSubsystemObjectProxy::Update_RenderThread(FRHICommandList
 		if (ViewExtension.IsValid())
 		{
 			// Find any backbuffer resource request
-			const FTextureShareCoreResourceRequest* AnyBackbufferResourceRequest = ObjectProxy->GetData_RenderThread().FindResourceRequest(FTextureShareCoreResourceDesc(TextureShareStrings::SceneTextures::Backbuffer, ETextureShareTextureOp::Undefined));
+			const FTextureShareCoreResourceRequest* AnyBackbufferResourceRequest = ObjectProxy->GetData_RenderThread().FindResourceRequest(FTextureShareCoreResourceDesc(UE::TextureShareStrings::SceneTextures::Backbuffer, ETextureShareTextureOp::Undefined));
 			const bool bBackbufferShared = AnyBackbufferResourceRequest != nullptr;
 
 			TFunctionTextureShareViewExtension PreRenderViewFamilyFunction = [ProxyData](FRHICommandListImmediate& RHICmdList, FTextureShareSceneViewExtension& InViewExtension)
@@ -119,13 +119,12 @@ void FTextureShareWorldSubsystemObjectProxy::Update_RenderThread(FRHICommandList
 				{
 					FTextureShareWorldSubsystemObjectProxy ProxyAPI(ObjectProxy);
 
+					// Share custom textures and sync
 					ProxyAPI.UpdateResources_RenderThread(RHICmdList, ProxyData);
+					ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameProxyPreRenderEnd);
 
-					if (bBackbufferShared)
-					{
-						ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameProxyPreRenderEnd);
-					}
-					else
+					// End frame when no back buffer is used
+					if (!bBackbufferShared)
 					{
 						ObjectProxy->EndFrameSync_RenderThread(RHICmdList);
 					}
@@ -143,8 +142,11 @@ void FTextureShareWorldSubsystemObjectProxy::Update_RenderThread(FRHICommandList
 					{
 						FTextureShareWorldSubsystemObjectProxy ProxyAPI(ObjectProxy);
 
+						// Share backbuffer and sync
 						ProxyAPI.UpdateFrameProxyBackbuffer_RenderThread(RHICmdList, InBackbuffer);
+						ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameProxyBackBufferReadyToPresentEnd);
 
+						// End frame
 						ObjectProxy->EndFrameSync_RenderThread(RHICmdList);
 					}
 				}
@@ -175,6 +177,8 @@ void FTextureShareWorldSubsystemObjectProxy::Update_RenderThread(FRHICommandList
 
 bool FTextureShareWorldSubsystemObjectProxy::UpdateResources_RenderThread(FRHICommandListImmediate& RHICmdList, TSharedPtr<FProxyResourcesData> ProxyData)
 {
+	bool bResult = false;
+
 	if (ObjectProxy.IsValid()
 		&& ProxyData.IsValid()
 		&& ObjectProxy->IsFrameSyncActive_RenderThread())
@@ -188,7 +192,10 @@ bool FTextureShareWorldSubsystemObjectProxy::UpdateResources_RenderThread(FRHICo
 			if (SendIt.Texture)
 			{
 				// Send if remote process request to read this texture
-				ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(SendIt.Name.ToLower(), ETextureShareTextureOp::Read), SendIt.Texture->GetTexture2DRHI(), GPUIndex);
+				if (ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(SendIt.Name.ToLower(), ETextureShareTextureOp::Read), SendIt.Texture->GetTexture2DRHI(), GPUIndex))
+				{
+					bResult = true;
+				}
 			}
 		}
 		// and receive custom textures
@@ -197,14 +204,15 @@ bool FTextureShareWorldSubsystemObjectProxy::UpdateResources_RenderThread(FRHICo
 			if (ReceiveIt.Texture)
 			{
 				// Receive if remote process request to write this texture
-				ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(ReceiveIt.Name.ToLower(), ETextureShareTextureOp::Write, ETextureShareSyncStep::FrameProxyPreRenderEnd), ReceiveIt.Texture->GetTexture2DRHI(), GPUIndex);
+				if(ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(ReceiveIt.Name.ToLower(), ETextureShareTextureOp::Write, ETextureShareSyncStep::FrameProxyPreRenderEnd), ReceiveIt.Texture->GetTexture2DRHI(), GPUIndex))
+				{
+					bResult = true;
+				}
 			}
 		}
-
-		return true;
 	}
 
-	return false;
+	return bResult;
 }
 
 bool FTextureShareWorldSubsystemObjectProxy::UpdateFrameProxyBackbuffer_RenderThread(FRHICommandListImmediate& RHICmdList, const FTexture2DRHIRef& InBackbuffer)
@@ -217,9 +225,9 @@ bool FTextureShareWorldSubsystemObjectProxy::UpdateFrameProxyBackbuffer_RenderTh
 		const int32 GPUIndex = -1;
 
 		// Send if remote process request to read this texture
-		ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(TextureShareStrings::SceneTextures::Backbuffer, ETextureShareTextureOp::Read), InBackbuffer.GetReference(), GPUIndex);
+		ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(UE::TextureShareStrings::SceneTextures::Backbuffer, ETextureShareTextureOp::Read), InBackbuffer.GetReference(), GPUIndex);
 		// Receive if remote process request to write this texture
-		ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(TextureShareStrings::SceneTextures::Backbuffer, ETextureShareTextureOp::Write, ETextureShareSyncStep::FrameProxyBackBufferReadyToPresentEnd), InBackbuffer.GetReference(), GPUIndex);
+		ObjectProxy->ShareResource_RenderThread(RHICmdList, FTextureShareCoreResourceDesc(UE::TextureShareStrings::SceneTextures::Backbuffer, ETextureShareTextureOp::Write, ETextureShareSyncStep::FrameProxyBackBufferReadyToPresentEnd), InBackbuffer.GetReference(), GPUIndex);
 
 		return true;
 	}

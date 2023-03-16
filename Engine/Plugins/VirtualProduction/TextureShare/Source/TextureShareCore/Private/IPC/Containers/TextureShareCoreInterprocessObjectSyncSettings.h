@@ -11,9 +11,6 @@
  */
 struct FTextureShareCoreInterprocessObjectSyncSettings
 {
-	// Process name
-	FTextureShareCoreSMD5Hash ProcessName;
-
 	// Synchronization settings for allowed/forbidden process names
 	FTextureShareCoreSMD5HashList AllowedProcessNames;
 	FTextureShareCoreSMD5HashList BannedProcessNames;
@@ -26,7 +23,7 @@ struct FTextureShareCoreInterprocessObjectSyncSettings
 	int32 ProcessLostStatusTimeOut;
 
 public:
-	void Initialize(const FTextureShareCoreObjectDesc& InObjectDesc, const struct FTextureShareCoreSyncSettings& InSyncSettings);
+	void UpdateInterprocessObjectSyncSettings(const struct FTextureShareCoreObjectDesc& InObjectDesc, const struct FTextureShareCoreSyncSettings& InSyncSettings);
 	void Release();
 
 public:
@@ -37,7 +34,7 @@ public:
 			return true;
 		}
 
-		const int8 BitIndex = (int8)InStep;
+		const uint8 BitIndex = (uint8)InStep;
 		
 		if (BitIndex >= 0 && BitIndex < 64)
 		{
@@ -64,10 +61,10 @@ public:
 	}
 
 	// The rules accepted in both directions
-	bool IsShouldBeConnected(const FTextureShareCoreInterprocessObjectSyncSettings& InProcessSyncSettings) const
+	bool IsShouldBeConnected(const FTextureShareCoreStringHash& LocalProcessName, const FTextureShareCoreStringHash& RemoteProcessName, const FTextureShareCoreInterprocessObjectSyncSettings& RemoteProcessSyncSettings) const
 	{
-		return InProcessSyncSettings.IsProcessNameShouldBeConnected(ProcessName)
-			&& IsProcessNameShouldBeConnected(InProcessSyncSettings.ProcessName);
+		return RemoteProcessSyncSettings.IsProcessNameShouldBeConnected(LocalProcessName.Hash)
+			&& IsProcessNameShouldBeConnected(RemoteProcessName.Hash);
 	}
 
 	uint64 GetData() const

@@ -8,16 +8,14 @@
 #include "IPC/TextureShareCoreInterprocessEvent.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
 #include "IPC/Containers/TextureShareCoreInterprocessObjectContainers.h"
-
-#include "Core/TextureShareCoreHelpers.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
 
 #include "Module/TextureShareCoreModule.h"
 #include "Module/TextureShareCoreLog.h"
 
 #include "Misc/ScopeLock.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-using namespace TextureShareCoreHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreObject
@@ -103,7 +101,7 @@ bool FTextureShareCoreObject::ReceiveFrameData()
 bool FTextureShareCoreObject::SendFrameProxyData_RenderThread()
 {
 	bool bResult = false;
-	if (IsFrameSyncActive() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
+	if (IsFrameSyncActive_RenderThread() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
 	{
 		if (FTextureShareCoreInterprocessMemory* InterprocessMemory = Owner.GetInterprocessMemory())
 		{
@@ -127,7 +125,7 @@ bool FTextureShareCoreObject::ReceiveFrameProxyData_RenderThread()
 	ReceivedObjectsProxyData.Empty();
 
 	bool bResult = false;
-	if (IsFrameSyncActive() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
+	if (IsFrameSyncActive_RenderThread() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
 	{
 		if (FTextureShareCoreInterprocessMemory* InterprocessMemory = Owner.GetInterprocessMemory())
 		{

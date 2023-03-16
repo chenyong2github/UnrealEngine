@@ -4,9 +4,12 @@
 #include "Object/TextureShareObjectProxy.h"
 #include "Module/TextureShareLog.h"
 #include "Misc/TextureShareStrings.h"
+#include "Core/TextureShareCoreHelpers.h"
 
 #include "ITextureShareCallbacks.h"
 #include "ITextureShareCoreObject.h"
+
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareObject
@@ -70,6 +73,8 @@ bool FTextureShareObject::BeginSession()
 	{
 		bSessionActive = true;
 
+		UE_TS_LOG(LogTextureShareObject, Log, TEXT("%s:BeginSession"), *GetName());
+
 		FTextureShareObjectProxy::BeginSession_GameThread(*this);
 
 		if (ITextureShareCallbacks::Get().OnTextureShareBeginSession().IsBound())
@@ -88,6 +93,8 @@ bool FTextureShareObject::EndSession()
 	if (bSessionActive)
 	{
 		bSessionActive = false;
+
+		UE_TS_LOG(LogTextureShareObject, Log, TEXT("%s:EndSession"), *GetName());
 
 		FTextureShareObjectProxy::EndSession_GameThread(*this);
 
@@ -110,29 +117,68 @@ bool FTextureShareObject::IsSessionActive() const
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FTextureShareObject::BeginFrameSync()
 {
-	if (CoreObject->IsBeginFrameSyncActive() && CoreObject->LockThreadMutex(ETextureShareThreadMutex::GameThread))
-	{
-		if (CoreObject->BeginFrameSync())
+	if (!CoreObject->IsBeginFrameSyncActive())
 		{
-			bFrameSyncActive = true;
-
-			if (ITextureShareCallbacks::Get().OnTextureShareBeginFrameSync().IsBound())
-			{
-				ITextureShareCallbacks::Get().OnTextureShareBeginFrameSync().Broadcast(*this);
-			}
-
-			return true;
-		}
+		return false;
 	}
 
-	return false;
+	UE_TS_LOG(LogTextureShareObject, Log, TEXT("%s:BeginFrameSync"), *GetName());
+
+	if (!CoreObject->LockThreadMutex(ETextureShareThreadMutex::GameThread))
+	{
+		return false;
+	}
+
+	if (!CoreObject->BeginFrameSync())
+	{
+		CoreObject->UnlockThreadMutex(ETextureShareThreadMutex::GameThread);
+
+		return false;
+	}
+
+	// TS processes is connected now
+	bFrameSyncActive = true;
+
+	if (ITextureShareCallbacks::Get().OnTextureShareBeginFrameSync().IsBound())
+	{
+		ITextureShareCallbacks::Get().OnTextureShareBeginFrameSync().Broadcast(*this);
+	}
+
+	return true;
 }
 
 bool FTextureShareObject::EndFrameSync(FViewport* InViewport)
 {
+	if (!IsFrameSyncActive())
+	{
+		UE_TS_LOG(LogTextureShareObject, Log, TEXT("%s:EndFrameSync: Canceled"), *GetName());
+
+		bFrameSyncActive = false;
+
+		// Reset ptr to data, now this data used in proxy
+		TextureShareData = MakeShared<FTextureShareData, ESPMode::ThreadSafe>();
+
+		CoreObject->UnlockThreadMutex(ETextureShareThreadMutex::GameThread);
+
+		return false;
+	}
+
 	if (InViewport)
 	{
 		UpdateViewExtension(InViewport);
+	}
+
+	// Always force flush sync at the frame end
+	FrameSync(ETextureShareSyncStep::FrameFlush);
+
+	UE_TS_LOG(LogTextureShareObject, Log, TEXT("%s:EndFrameSync"), *GetName());
+
+	// Game thread data now sent to the proxy.Game-thread data can now be cleared
+	const bool bResult = CoreObject->EndFrameSync();
+
+	if (ITextureShareCallbacks::Get().OnTextureShareEndFrameSync().IsBound())
+	{
+		ITextureShareCallbacks::Get().OnTextureShareEndFrameSync().Broadcast(*this);
 	}
 
 	bFrameSyncActive = false;
@@ -146,14 +192,6 @@ bool FTextureShareObject::EndFrameSync(FViewport* InViewport)
 	// Reset ptr to data, now this data used in proxy
 	TextureShareData = MakeShared<FTextureShareData, ESPMode::ThreadSafe>();
 
-	// Game thread data now sent to the proxy.Game-thread data can now be cleared
-	const bool bResult = CoreObject->EndFrameSync();
-
-	if (ITextureShareCallbacks::Get().OnTextureShareEndFrameSync().IsBound())
-	{
-		ITextureShareCallbacks::Get().OnTextureShareEndFrameSync().Broadcast(*this);
-	}
-
 	CoreObject->UnlockThreadMutex(ETextureShareThreadMutex::RenderingThread);
 
 	return bResult;
@@ -161,9 +199,40 @@ bool FTextureShareObject::EndFrameSync(FViewport* InViewport)
 
 bool FTextureShareObject::FrameSync(const ETextureShareSyncStep InSyncStep)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(TextureShare::FrameSync);
+	if (IsFrameSyncActive())
+	{
+		UE_TS_LOG(LogTextureShareObject, Log, TEXT("%s:FrameSync(%s)"), *GetName(), GetTEXT(InSyncStep));
 
-	if (IsFrameSyncActive() && CoreObject->FrameSync(InSyncStep))
+		// Recall all skipped sync steps
+		ETextureShareSyncStep SkippedSyncStep;
+		while (CoreObject->FindSkippedSyncStep(InSyncStep, SkippedSyncStep))
+	{
+			if (!DoFrameSync(SkippedSyncStep))
+		{
+				break;
+			}
+		}
+
+		// call requested syncstep
+		if (DoFrameSync(InSyncStep))
+		{
+		return true;
+	}
+
+		CoreObject->UnlockThreadMutex(ETextureShareThreadMutex::GameThread);
+	}
+
+	UE_TS_LOG(LogTextureShareObject, Error, TEXT("%s:FrameSync(%s) failed"), *GetName(), GetTEXT(InSyncStep));
+
+	return false;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+bool FTextureShareObject::DoFrameSync(const ETextureShareSyncStep InSyncStep)
+{
+	UE_TS_LOG(LogTextureShareObject, Log, TEXT("%s:DoFrameSync(%s)"), *GetName(), GetTEXT(InSyncStep));
+
+	if(CoreObject->FrameSync(InSyncStep))
 	{
 		if (ITextureShareCallbacks::Get().OnTextureShareFrameSync().IsBound())
 		{

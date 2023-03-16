@@ -7,4 +7,5 @@ DEFINE_LOG_CATEGORY(LogTextureShareCoreD3D);
 DEFINE_LOG_CATEGORY(LogTextureShareCoreWindows);
 DEFINE_LOG_CATEGORY(LogTextureShareCoreObject);
 DEFINE_LOG_CATEGORY(LogTextureShareCoreObjectSync);
+DEFINE_LOG_CATEGORY(LogTextureShareCoreProxyObjectSync);
 

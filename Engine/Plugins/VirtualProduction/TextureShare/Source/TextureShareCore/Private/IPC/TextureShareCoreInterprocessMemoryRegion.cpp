@@ -36,6 +36,8 @@ bool FTextureShareCoreInterprocessMemoryRegion::Initialize()
 	FPlatformMemory::FSharedMemoryRegion* SharedMemoryRegion = FPlatformMemory::MapNamedSharedMemoryRegion(*SharedMemoryRegionName, false, AccessMode, SharedMemorySize);
 	if (SharedMemoryRegion)
 	{
+		UE_TS_LOG(LogTextureShareCore, Log, TEXT("Open exist shared memory region '%s'."), *SharedMemoryRegionName);
+
 		// Use exist shared memory
 		PlatformMemoryRegion = SharedMemoryRegion;
 
@@ -47,6 +49,8 @@ bool FTextureShareCoreInterprocessMemoryRegion::Initialize()
 		SharedMemoryRegion = FPlatformMemory::MapNamedSharedMemoryRegion(*SharedMemoryRegionName, true, AccessMode, SharedMemorySize);
 		if (SharedMemoryRegion)
 		{
+			UE_TS_LOG(LogTextureShareCore, Log, TEXT("Create new shared memory region '%s'. Memory cleared."), *SharedMemoryRegionName);
+
 			// initialize memory with zeroes
 			check(SharedMemoryRegion->GetAddress());
 			FMemory::Memzero(SharedMemoryRegion->GetAddress(), SharedMemoryRegion->GetSize());
@@ -83,6 +87,8 @@ void FTextureShareCoreInterprocessMemoryRegion::ReleaseInterprocessObjects()
 	if (FPlatformMemory::FSharedMemoryRegion* SharedMemoryRegion = static_cast<FPlatformMemory::FSharedMemoryRegion*>(PlatformMemoryRegion))
 	{
 		LOG_SCOPE_VERBOSITY_OVERRIDE(LogHAL, ELogVerbosity::Error);
+
+		UE_TS_LOG(LogTextureShareCore, Log, TEXT("Release shared memory area '%s'"), *SharedMemoryRegionName);
 
 		FPlatformMemory::UnmapNamedSharedMemoryRegion(SharedMemoryRegion);
 		SharedMemoryRegion = nullptr;

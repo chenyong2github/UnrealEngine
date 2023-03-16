@@ -19,25 +19,26 @@
 #include "IPC/TextureShareCoreInterprocessMemoryRegion.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareCoreHelpers
+namespace UE
 {
-	static inline FString GetValidTextureShareProcessName(const FString& InProcessName)
+	namespace TextureShareCore
 	{
-		if (InProcessName.IsEmpty())
+		static inline FString GetValidTextureShareProcessName(const FString& InProcessName)
 		{
+			if (InProcessName.IsEmpty())
+			{
 #if TEXTURESHARECORE_SDK
-			return TextureShareCoreStrings::Default::ProcessName::SDK;
+				return UE::TextureShareCoreStrings::DefaultProcessName::SDK;
 #else
-			return TextureShareCoreStrings::Default::ProcessName::UE;
+				return UE::TextureShareCoreStrings::DefaultProcessName::UE;
 #endif
-		};
+			};
 
-		return InProcessName;
+			return InProcessName;
+		}
 	}
 };
-
-using namespace TextureShareCoreHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCore
@@ -64,9 +65,10 @@ bool FTextureShareCore::BeginSession()
 	if (!bIsSessionActive && InitializeInterprocessMemory())
 	{
 #if TEXTURESHARECORE_SDK
-		// The local process is using the TextureShare SDK
+		// For the SDK, we always use this type of process.
 		ProcessDesc.ProcessType = ETextureShareProcessType::SDK;
 #else
+		// For UnrealEngine, we use the default process type.
 		ProcessDesc.ProcessType = ETextureShareProcessType::UE;
 #endif
 
@@ -83,7 +85,7 @@ bool FTextureShareCore::BeginSession()
 
 		bIsSessionActive = true;
 
-		UE_LOG(LogTextureShareCore, Log, TEXT("Begin session '%s'"), *ProcessDesc.ProcessId);
+		UE_TS_LOG(LogTextureShareCore, Log, TEXT("Begin session '%s'"), *ProcessDesc.ProcessId);
 
 		return true;
 	}
@@ -113,7 +115,7 @@ void FTextureShareCore::EndSession()
 		// Reset this process
 		bIsSessionActive = false;
 
-		UE_LOG(LogTextureShareCore, Log, TEXT("End session '%s'"), *ProcessDesc.ProcessId);
+		UE_TS_LOG(LogTextureShareCore, Log, TEXT("End session '%s'"), *ProcessDesc.ProcessId);
 	}
 }
 
@@ -188,22 +190,7 @@ void FTextureShareCore::UnlockInterprocessMemory() const
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FTextureShareCore::InitializeInterprocessMemory()
 {
-	// Initialize shared memory
-	if (!InterprocessMemoryRegion.IsValid())
-	{
-		InterprocessMemoryRegion = MakeShared<FTextureShareCoreInterprocessMemoryRegion, ESPMode::ThreadSafe>(InterprocessMemoryName);
-
-		if (!InterprocessMemoryRegion.IsValid() || !InterprocessMemoryRegion->Initialize())
-		{
-			UE_LOG(LogTextureShareCore, Error, TEXT("Can't initialize process shared memory"));
-
-			InterprocessMemoryRegion.Reset();
-
-			return false;
-		}
-	}
-
-	// Initialize memory op mutex
+	// An open memory mutex that is used to synchronize all shared memory operations.
 	if (!InterprocessMemoryMutex.IsValid())
 	{
 		InterprocessMemoryMutex = MakeShared<FTextureShareCoreInterprocessMutex, ESPMode::ThreadSafe>(InterprocessMemoryMutexName);
@@ -212,13 +199,44 @@ bool FTextureShareCore::InitializeInterprocessMemory()
 			UE_LOG(LogTextureShareCore, Error, TEXT("Can't initialize process shared memory mutex"));
 
 			InterprocessMemoryMutex.Reset();
+
+			return false;
+		}
+	}
+
+	// Initialize shared memory
+	if (!InterprocessMemoryRegion.IsValid())
+	{
+		InterprocessMemoryRegion = MakeShared<FTextureShareCoreInterprocessMemoryRegion, ESPMode::ThreadSafe>(InterprocessMemoryName);
+		check(InterprocessMemoryRegion.IsValid());
+
+		// Lock the memory mutex to gain exclusive access to the IPC memory handle.
+		// Note: This lock helps to eliminate the use of a shared memory handle by multiple processes at the same time.
+		//       (This happens when the IPC memory tries to be created or opened depending on the state of its handle).
+		//       For example, without this lock, we can catch a rare glitch when interprocess memory is opened twice, and both processes access different areas of memory.
+		if (LockInterprocessMemory(500))
+		{
+			const bool bResult = InterprocessMemoryRegion->Initialize();
+
+			UnlockInterprocessMemory();
+
+			if (!bResult)
+			{
+				UE_LOG(LogTextureShareCore, Error, TEXT("Can't initialize shared memory region"));
+
 			InterprocessMemoryRegion.Reset();
+			InterprocessMemoryMutex.Reset();
 
 			return false;
 		}
 	}
 
 	return true;
+}
+
+	UE_LOG(LogTextureShareCore, Error, TEXT("Can't lock process shared memory mutex"));
+
+	return false;
 }
 
 void FTextureShareCore::ReleaseInterprocessMemory()
@@ -230,7 +248,7 @@ void FTextureShareCore::ReleaseInterprocessMemory()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // ITextureShareCoreAPI
 //////////////////////////////////////////////////////////////////////////////////////////////
-TSharedPtr<ITextureShareCoreObject, ESPMode::ThreadSafe> FTextureShareCore::GetOrCreateCoreObject(const FString& InShareName)
+TSharedPtr<ITextureShareCoreObject, ESPMode::ThreadSafe> FTextureShareCore::GetOrCreateCoreObject(const FString& InShareName, const ETextureShareProcessType InProcessType)
 {
 	if (bIsSessionActive)
 	{
@@ -250,7 +268,7 @@ TSharedPtr<ITextureShareCoreObject, ESPMode::ThreadSafe> FTextureShareCore::GetO
 		}
 
 		// Create new
-		TSharedPtr<FTextureShareCoreObject, ESPMode::ThreadSafe> NewTextureShareCoreObject = MakeShared<FTextureShareCoreObject, ESPMode::ThreadSafe>(*this, ShareNameLwr);
+		TSharedPtr<FTextureShareCoreObject, ESPMode::ThreadSafe> NewTextureShareCoreObject = MakeShared<FTextureShareCoreObject, ESPMode::ThreadSafe>(*this, ShareNameLwr, InProcessType);
 
 		// Is created resource valid (out of max nums, unsupported devices, etc)
 		if (NewTextureShareCoreObject.IsValid() && NewTextureShareCoreObject->IsActive())
@@ -387,7 +405,7 @@ void FTextureShareCore::SetProcessName(const FString& InProcessName)
 
 	ProcessDesc.ProcessId = GetValidTextureShareProcessName(InProcessName);
 
-	UE_TS_LOG(LogTextureShareCore, Log, TEXT("Set process name '%s'"), *InProcessName);
+	UE_TS_LOG(LogTextureShareCore, Log, TEXT("Set global process name '%s'"), *InProcessName);
 }
 
 bool FTextureShareCore::SetProcessDeviceType(const ETextureShareDeviceType InDeviceType)
@@ -396,7 +414,7 @@ bool FTextureShareCore::SetProcessDeviceType(const ETextureShareDeviceType InDev
 
 	ProcessDesc.DeviceType = InDeviceType;
 
-	UE_TS_LOG(LogTextureShareCore, Log, TEXT("Set device type to '%s'"), GetTEXT(InDeviceType));
+	UE_TS_LOG(LogTextureShareCore, Log, TEXT("Set global device type to '%s'"), GetTEXT(InDeviceType));
 
 	return true;
 }

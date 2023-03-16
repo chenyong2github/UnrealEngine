@@ -4,6 +4,17 @@
 
 #include "CoreMinimal.h"
 
+
+#if TEXTURESHAREDISPLAYCLUSTER_DEBUGLOG
+// Enable extra log
+#define UE_TS_LOG(CategoryName, Verbosity, Format, ...)\
+	UE_LOG(CategoryName, Verbosity, Format, ##__VA_ARGS__)
+
+#else
+// Disable extra log
+#define UE_TS_LOG(CategoryName, Verbosity, Format, ...)
+#endif
+
 // Plugin-wide log categories
 #if UE_BUILD_SHIPPING
 DECLARE_LOG_CATEGORY_EXTERN(LogTextureShareDisplayCluster, Warning, Warning);

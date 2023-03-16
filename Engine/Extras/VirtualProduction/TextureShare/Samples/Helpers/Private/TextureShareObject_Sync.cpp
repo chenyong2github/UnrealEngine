@@ -11,6 +11,11 @@ bool FTextureShareObject::IsFrameSyncActive() const
 	return TextureShareSDKObject->IsFrameSyncActive();
 }
 
+bool FTextureShareObject::IsFrameSyncActive_RenderThread() const
+{
+	return TextureShareSDKObject->IsFrameSyncActive_RenderThread();
+}
+
 bool FTextureShareObject::BeginFrame()
 {
 	// Game thread frame sync
@@ -25,11 +30,6 @@ bool FTextureShareObject::BeginFrame()
 		{
 			// Set game thread data
 			TextureShareSDKObject->SetData(TDataInput<FTextureShareCoreData>(Data));
-
-			// Call sync's
-			FrameSync(ETextureShareSyncStep::FramePreSetupBegin);
-			FrameSync(ETextureShareSyncStep::FrameSetupBegin);
-			FrameSync(ETextureShareSyncStep::FramePostSetupBegin);
 
 			// Finish game thread frame
 			if (TextureShareSDKObject->EndFrameSync())
@@ -54,7 +54,7 @@ bool FTextureShareObject::BeginFrame()
 
 bool FTextureShareObject::EndFrame()
 {
-	if (TextureShareSDKObject->IsFrameSyncActive())
+	if (TextureShareSDKObject->IsFrameSyncActive_RenderThread())
 	{
 		return TextureShareSDKObject->EndFrameSync_RenderThread();
 	}
@@ -69,18 +69,13 @@ bool FTextureShareObject::FrameSync(const ETextureShareSyncStep InSyncStep)
 		return true;
 	}
 
-	if (InSyncStep > ETextureShareSyncStep::FrameBegin
-		&& InSyncStep < ETextureShareSyncStep::FrameEnd
-		&& SyncSettings.FrameSyncSettings.Contains(InSyncStep))
+	if (TextureShareSDKObject->FrameSync(InSyncStep))
 	{
-		if (TextureShareSDKObject->FrameSync(InSyncStep))
-		{
-			// Update received data
-			ReceivedCoreObjectData.Empty();
-			TextureShareSDKObject->GetReceivedData(*TDataOutput<TArraySerializable<FTextureShareCoreObjectData>>(ReceivedCoreObjectData));
+		// Update received data
+		ReceivedCoreObjectData.Empty();
+		TextureShareSDKObject->GetReceivedData(*TDataOutput<TArraySerializable<FTextureShareCoreObjectData>>(ReceivedCoreObjectData));
 
-			return true;
-		}
+		return true;
 	}
 
 	return false;
@@ -133,10 +128,7 @@ bool FTextureShareObject::FrameSync_RenderThread(const ETextureShareSyncStep InS
 		return true;
 	}
 
-	if (CurrentFrameProxySyncStep < InSyncStep
-		&& InSyncStep > ETextureShareSyncStep::FrameProxyBegin
-		&& InSyncStep < ETextureShareSyncStep::FrameProxyEnd
-		&& SyncSettings.FrameSyncSettings.Contains(InSyncStep))
+	if (CurrentFrameProxySyncStep < InSyncStep && InSyncStep > ETextureShareSyncStep::FrameProxyBegin && InSyncStep < ETextureShareSyncStep::FrameProxyEnd)
 	{
 		CurrentFrameProxySyncStep = InSyncStep;
 

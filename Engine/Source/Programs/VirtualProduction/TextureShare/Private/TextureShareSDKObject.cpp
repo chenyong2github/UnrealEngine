@@ -50,6 +50,13 @@ void FTextureShareSDKObject::GetObjectDesc(TDataOutput<FTextureShareCoreObjectDe
 	OutObjectDesc = CoreObject->GetObjectDesc();
 }
 
+void FTextureShareSDKObject::GetObjectDesc_RenderThread(TDataOutput<FTextureShareCoreObjectDesc>& OutObjectDesc) const
+{
+	check(CoreObject.IsValid());
+
+	OutObjectDesc = CoreObject->GetObjectDesc_RenderThread();
+}
+
 bool FTextureShareSDKObject::IsActive() const
 {
 	check(CoreObject.IsValid());
@@ -57,11 +64,40 @@ bool FTextureShareSDKObject::IsActive() const
 	return CoreObject->IsActive();
 }
 
+bool FTextureShareSDKObject::IsActive_RenderThread() const
+{
+	check(CoreObject.IsValid());
+
+	return CoreObject->IsActive_RenderThread();
+}
+
 bool FTextureShareSDKObject::IsFrameSyncActive() const
 {
 	check(CoreObject.IsValid());
 
 	return CoreObject->IsFrameSyncActive();
+}
+
+bool FTextureShareSDKObject::IsFrameSyncActive_RenderThread() const
+{
+	check(CoreObject.IsValid());
+
+	return CoreObject->IsFrameSyncActive_RenderThread();
+}
+
+
+bool FTextureShareSDKObject::FindSkippedSyncStep(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep) const
+{
+	check(CoreObject.IsValid());
+
+	return CoreObject->FindSkippedSyncStep(InSyncStep, OutSkippedSyncStep);
+}
+
+bool FTextureShareSDKObject::FindSkippedSyncStep_RenderThread(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep) const
+{
+	check(CoreObject.IsValid());
+
+	return CoreObject->FindSkippedSyncStep_RenderThread(InSyncStep, OutSkippedSyncStep);
 }
 
 //////////////////////////////////////////////////////////
@@ -116,9 +152,9 @@ bool FTextureShareSDKObject::IsSessionActive() const
 //////////////////////////////////////////////////////////
 // FTextureShareSDKObject: Thread sync support
 //////////////////////////////////////////////////////////
-bool FTextureShareSDKObject::LockThreadMutex(const ETextureShareThreadMutex InThreadMutex)
+bool FTextureShareSDKObject::LockThreadMutex(const ETextureShareThreadMutex InThreadMutex, bool bForceLockNoWait)
 {
-	return CoreObject.IsValid() && CoreObject->LockThreadMutex(InThreadMutex);
+	return CoreObject.IsValid() && CoreObject->LockThreadMutex(InThreadMutex, bForceLockNoWait);
 }
 
 bool FTextureShareSDKObject::UnlockThreadMutex(const ETextureShareThreadMutex InThreadMutex)

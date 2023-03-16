@@ -7,23 +7,21 @@
 #include "IPC/TextureShareCoreInterprocessMutex.h"
 #include "IPC/TextureShareCoreInterprocessEvent.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
-
-#include "Core/TextureShareCoreHelpers.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
 
 #include "Module/TextureShareCoreModule.h"
 #include "Module/TextureShareCoreLog.h"
 
 #include "Misc/ScopeLock.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-using namespace TextureShareCoreHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreObject
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FTextureShareCoreObject::BeginSyncBarrier(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject, const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass)
 {
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:BeginSyncBarrier(%s[%s]) %s In << %s >>"), *GetName(), GetTEXT(InSyncStep), GetTEXT(InSyncPass), *ToString(LocalObject), *ToString(FrameConnections));
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:BeginSyncBarrier(%s[%s]) %s In << %s >>"), *GetName(), GetTEXT(InSyncStep), GetTEXT(InSyncPass), *ToString(LocalObject), *ToString(FrameConnections));
 
 	if (LocalObject.Sync.BeginSyncBarrier(InSyncStep, InSyncPass, FindNextSyncStep(InSyncStep)))
 	{
@@ -35,7 +33,7 @@ bool FTextureShareCoreObject::BeginSyncBarrier(FTextureShareCoreInterprocessMemo
 
 bool FTextureShareCoreObject::AcceptSyncBarrier(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject, const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass)
 {
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:AcceptSyncBarrier(%s[%s]) %s In << %s >>"), *GetName(), GetTEXT(InSyncStep), GetTEXT(InSyncPass), *ToString(LocalObject), *ToString(FrameConnections));
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:AcceptSyncBarrier(%s[%s]) %s In << %s >>"), *GetName(), GetTEXT(InSyncStep), GetTEXT(InSyncPass), *ToString(LocalObject), *ToString(FrameConnections));
 
 	if (LocalObject.Sync.AcceptSyncBarrier(InSyncStep, InSyncPass))
 	{
@@ -65,14 +63,35 @@ bool FTextureShareCoreObject::PrepareSyncBarrierPass(const ETextureShareSyncStep
 	return bResult;
 }
 
+bool FTextureShareCoreObject::PrepareSyncBarrierPass_RenderThread(const ETextureShareSyncStep InSyncStep)
+{
+	bool bResult = false;
+
+	// Return objects who support sync pass at this frame
+	if (IsFrameSyncActive_RenderThread() && !FrameConnections.IsEmpty() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
+	{
+		if (FTextureShareCoreInterprocessMemory* InterprocessMemory = Owner.GetInterprocessMemory())
+		{
+			InterprocessMemory->UpdateFrameConnections(FrameConnections);
+			bResult = InterprocessMemory->IsUsedSyncBarrierPass(FrameConnections, InSyncStep);
+		}
+
+		Owner.UnlockInterprocessMemory();
+	}
+
+	return bResult;
+}
+
 bool FTextureShareCoreObject::TryEnterSyncBarrier(const ETextureShareSyncStep InSyncStep) const
 {
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:TryEnterSyncBarrier(%s)"), *GetName(), GetTEXT(InSyncStep));
+
 	switch (FrameSyncState)
 	{
 	case ETextureShareCoreInterprocessObjectFrameSyncState::FrameBegin:
 		if ((InSyncStep > ETextureShareSyncStep::FrameBegin) && (InSyncStep < ETextureShareSyncStep::FrameEnd))
 		{
-			if (GetSyncSetting().FrameSyncSettings.Contains(InSyncStep))
+			if (GetSyncSetting().FrameSyncSettings.Steps.Contains(InSyncStep))
 			{
 				return true;
 			}
@@ -86,7 +105,7 @@ bool FTextureShareCoreObject::TryEnterSyncBarrier(const ETextureShareSyncStep In
 	case ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin:
 		if ((InSyncStep > ETextureShareSyncStep::FrameProxyBegin) && (InSyncStep < ETextureShareSyncStep::FrameProxyEnd))
 		{
-			if (GetSyncSetting().FrameSyncSettings.Contains(InSyncStep))
+			if (GetSyncSetting().FrameSyncSettings.Steps.Contains(InSyncStep))
 			{
 				return true;
 			}
@@ -101,7 +120,7 @@ bool FTextureShareCoreObject::TryEnterSyncBarrier(const ETextureShareSyncStep In
 		break;
 	}
 
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:FrameSync(%s) - Skip sync step - %s"), *GetName(), GetTEXT(InSyncStep), GetTEXT(FrameSyncState));
+	UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:TryEnterSyncBarrier(%s) - Skip sync step - %s"), *GetName(), GetTEXT(InSyncStep), GetTEXT(FrameSyncState));
 
 	return false;
 }
@@ -113,13 +132,16 @@ bool FTextureShareCoreObject::TryFrameProcessesBarrier(FTextureShareCoreInterpro
 
 	if (FrameConnections.IsEmpty())
 	{
+		UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:TryFrameProcessesBarrier(%s) Failed"), *GetName(), *ToString(LocalObject));
+
 		return false;
 	}
 
-#if TEXTURESHARECORE_DEBUGLOG
+#if TEXTURESHARECORE_BARRIER_DEBUGLOG
 	InterprocessMemory.UpdateFrameConnections(FrameConnections);
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:TryBarrier(%s) %s"), *GetName(), *ToString(LocalObject), *ToString(FrameConnections));
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:TryFrameProcessesBarrier(%s) %s"), *GetName(), *ToString(LocalObject), *ToString(FrameConnections));
 #endif
+
 
 	const ETextureShareInterprocessObjectSyncBarrierState BarrierState = InterprocessMemory.GetBarrierState(LocalObject, FrameConnections);
 	switch (BarrierState)
@@ -156,12 +178,16 @@ bool FTextureShareCoreObject::TryFrameProcessesBarrier(FTextureShareCoreInterpro
 
 	HandleFrameLost(InterprocessMemory, LocalObject);
 
+	UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:TryFrameProcessesBarrier(%s) BarrierState Failed"), *GetName(), *ToString(LocalObject));
+
 	// break wait
 	return false;
 }
 
 bool FTextureShareCoreObject::SyncBarrierPass(const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass)
 {
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:SyncBarrierPass(%s, %s)"), *GetName(), GetTEXT(InSyncStep), GetTEXT(InSyncPass));
+
 	bool bBarrierResult = false;
 	if (IsFrameSyncActive() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
 	{
@@ -169,36 +195,8 @@ bool FTextureShareCoreObject::SyncBarrierPass(const ETextureShareSyncStep InSync
 		{
 			if (FTextureShareCoreInterprocessObject* LocalObject = InterprocessMemory->FindObject(GetObjectDesc()))
 			{
-				// Begin barrier
-				BeginSyncBarrier(*InterprocessMemory, *LocalObject, InSyncStep, InSyncPass);
-
-				// Begin processs barrier sync
-				FTextureShareCoreObjectTimeout FrameSyncTimer(SyncSettings.TimeoutSettings.FrameSyncTimeOut, SyncSettings.TimeoutSettings.FrameSyncTimeOutSplit);
-
-				// repeat that barrier, until the connected processes is defined
-				while (TryFrameProcessesBarrier(*InterprocessMemory, *LocalObject, InSyncStep, InSyncPass))
-				{
-					// Event error or timeout
-					if (FrameSyncTimer.IsTimeOut())
-					{
-						HandleFrameLost(*InterprocessMemory, *LocalObject);
-						break;
-					}
-
-					// Wait for remote process data changes
-					if (!TryWaitFrameProcesses(FrameSyncTimer.GetRemainMaxMillisecondsToWait()))
-					{
-						HandleFrameLost(*InterprocessMemory, *LocalObject);
-
-						return false;
-					}
-				}
-
-				if (LocalObject->IsEnabled() && FrameConnections.Num() > 0)
-				{
-					bBarrierResult = true;
-				}
-			}
+				bBarrierResult = SyncBarrierPassImpl(*InterprocessMemory, *LocalObject, InSyncStep, InSyncPass);
+			};
 		}
 
 		// Wake up remote processes anywait, because we change mem object header
@@ -212,9 +210,71 @@ bool FTextureShareCoreObject::SyncBarrierPass(const ETextureShareSyncStep InSync
 		return true;
 	}
 
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:SyncBarrierPass  FAILED"), *GetName());
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:SyncBarrierPass()  FAILED"), *GetName());
 
 	return false;
+}
+
+bool FTextureShareCoreObject::SyncBarrierPass_RenderThread(const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass)
+{
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:SyncBarrierPass_RenderThread(%s, %s)"), *GetName(), GetTEXT(InSyncStep), GetTEXT(InSyncPass));
+
+	bool bBarrierResult = false;
+	if (IsFrameSyncActive_RenderThread() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
+	{
+		if (FTextureShareCoreInterprocessMemory* InterprocessMemory = Owner.GetInterprocessMemory())
+		{
+			if (FTextureShareCoreInterprocessObject* LocalObject = InterprocessMemory->FindObject(GetObjectDesc()))
+			{
+				bBarrierResult = SyncBarrierPassImpl(*InterprocessMemory, *LocalObject, InSyncStep, InSyncPass);
+			};
+		}
+
+		// Wake up remote processes anywait, because we change mem object header
+		SendNotificationEvents(false);
+
+		Owner.UnlockInterprocessMemory();
+	}
+
+	if (bBarrierResult)
+	{
+		return true;
+	}
+
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:SyncBarrierPass_RenderThread()  FAILED"), *GetName());
+
+	return false;
+}
+
+bool FTextureShareCoreObject::SyncBarrierPassImpl(FTextureShareCoreInterprocessMemory& InterprocessMemory, FTextureShareCoreInterprocessObject& LocalObject, const ETextureShareSyncStep InSyncStep, const ETextureShareSyncPass InSyncPass)
+{
+	// Begin barrier
+	BeginSyncBarrier(InterprocessMemory, LocalObject, InSyncStep, InSyncPass);
+
+	// Begin processs barrier sync
+	FTextureShareCoreObjectTimeout FrameSyncTimer(SyncSettings.TimeoutSettings.FrameSyncTimeOut, SyncSettings.TimeoutSettings.FrameSyncTimeOutSplit);
+
+	// repeat that barrier, until the connected processes is defined
+	while (TryFrameProcessesBarrier(InterprocessMemory, LocalObject, InSyncStep, InSyncPass))
+	{
+		// Handle Event error or timeout
+		if (FrameSyncTimer.IsTimeOut())
+		{
+			HandleFrameLost(InterprocessMemory, LocalObject);
+
+			return false;
+		}
+
+		// Wait for remote process data changes
+		if (!TryWaitFrameProcesses(FrameSyncTimer.GetRemainMaxMillisecondsToWait()))
+		{
+			HandleFrameLost(InterprocessMemory, LocalObject);
+
+			return false;
+		}
+	}
+
+	return LocalObject.IsEnabled() && FrameConnections.Num() > 0;
 }
 
 ETextureShareSyncStep FTextureShareCoreObject::FindNextSyncStep(const ETextureShareSyncStep InSyncStep) const

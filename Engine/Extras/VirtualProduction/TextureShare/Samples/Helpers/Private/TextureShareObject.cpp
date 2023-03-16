@@ -46,7 +46,8 @@ FTextureShareObject::FTextureShareObject(ITextureShareSDKObject* InTextureShareS
 		SyncSettings.FrameConnectionSettings.MinValue = ObjectDesc.MinConnectionsCnt;
 
 		// Load template sync template for UE BP-object
-		TextureShareSDKObject->GetFrameSyncSettings(ETextureShareFrameSyncTemplate::SDK, *TDataOutput<FTextureShareCoreFrameSyncSettings>(SyncSettings.FrameSyncSettings));
+		TextureShareSDKObject->GetFrameSyncSettings(ETextureShareFrameSyncTemplate::SDK, *TDataOutput<FTextureShareCoreFrameSyncSettings>(DefaultFrameSyncSettings));
+		SyncSettings.FrameSyncSettings = DefaultFrameSyncSettings;
 
 		// Set sync settings
 		TextureShareSDKObject->SetSyncSetting(TDataInput<FTextureShareCoreSyncSettings>(SyncSettings));
@@ -76,22 +77,32 @@ FTextureShareObject::~FTextureShareObject()
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FTextureShareObject::UpdateSyncSettings()
 {
+	TArraySerializable<ETextureShareSyncStep> UsedSyncSteps;
+
 	// Update sync from  resources request
+	for (const FTextureShareCoreResourceRequest& ResourceRequestIt : Data.ResourceRequests)
 	{
-		TArraySerializable<ETextureShareSyncStep> UsedSyncSteps;
-		for (const FTextureShareCoreResourceRequest& ResourceRequestIt : Data.ResourceRequests)
+		if (ResourceRequestIt.ResourceDesc.SyncStep != ETextureShareSyncStep::Undefined)
 		{
-			if (ResourceRequestIt.ResourceDesc.SyncStep != ETextureShareSyncStep::Undefined)
-			{
-				UsedSyncSteps.AddUnique(ResourceRequestIt.ResourceDesc.SyncStep);
-			}
+			UsedSyncSteps.AddUnique(ResourceRequestIt.ResourceDesc.SyncStep);
 		}
+	}
 
-		FTextureShareCoreFrameSyncSettings NewFrameSyncSettings = SyncSettings.FrameSyncSettings;
-		NewFrameSyncSettings.Append(UsedSyncSteps);
+	// Call sync's
+	if (bEnableGameThreadSync)
+	{
+		UsedSyncSteps.AddUnique(ETextureShareSyncStep::FramePreSetupBegin);
+		UsedSyncSteps.AddUnique(ETextureShareSyncStep::FrameSetupBegin);
+		UsedSyncSteps.AddUnique(ETextureShareSyncStep::FramePostSetupBegin);
+	}
 
-		const bool bSyncStepsEqual = SyncSettings.FrameSyncSettings.EqualsFunc(NewFrameSyncSettings);
-		if (!bSyncStepsEqual)
+	// Update sync settings:
+	{
+		// Append new sync steps to default sync steps
+		FTextureShareCoreFrameSyncSettings NewFrameSyncSettings = DefaultFrameSyncSettings;
+		NewFrameSyncSettings.Steps.AppendSorted(UsedSyncSteps);
+
+		if (!SyncSettings.FrameSyncSettings.EqualsFunc(NewFrameSyncSettings))
 		{
 			// custom sync setting. Auto call required syncs if needed
 			SyncSettings.FrameSyncSettings = NewFrameSyncSettings;

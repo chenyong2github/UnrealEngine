@@ -8,12 +8,22 @@ public class TextureShareDisplayCluster : ModuleRules
 {
 	public TextureShareDisplayCluster(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				Path.Combine(EngineDirectory,"Plugins/VirtualProduction/TextureShare/Source/TextureShare/Private"),
-				Path.Combine(EngineDirectory,"Plugins/VirtualProduction/TextureShare/Source/TextureShareCore/Private"),
-			}
-		);
+		// Internal dependency (debug log purpose)
+		string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+		PrivateIncludePaths.Add(Path.Combine(EngineDir, "Plugins", "VirtualProduction", "TextureShare", "Source", "TextureShareCore", "Private"));
+		PrivateIncludePaths.Add(Path.Combine(EngineDir, "Plugins", "VirtualProduction", "TextureShare", "Source", "TextureShare", "Private"));
+
+		// Show more log for internal sync processes
+		bool bEnableExtraDebugLog = false;
+		if (bEnableExtraDebugLog)
+		{
+			//Show log in SDK-for Debug and DebugGame builds
+			PublicDefinitions.Add("TEXTURESHAREDISPLAYCLUSTER_DEBUGLOG=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("TEXTURESHAREDISPLAYCLUSTER_DEBUGLOG=0");
+		}
 
 		// List of public dependency module names (no path needed) (automatically does the private/public include). These are modules that are required by our public source files.
 		PublicDependencyModuleNames.AddRange(
@@ -21,7 +31,6 @@ public class TextureShareDisplayCluster : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-
 				"DisplayCluster",
 				"DisplayClusterShaders",
 				"DisplayClusterConfiguration",

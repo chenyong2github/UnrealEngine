@@ -30,7 +30,7 @@ public:
 
 public:
 	//~ITextureShareCoreAPI
-	virtual TSharedPtr<class ITextureShareCoreObject, ESPMode::ThreadSafe> GetOrCreateCoreObject(const FString& ShareName) override;
+	virtual TSharedPtr<class ITextureShareCoreObject, ESPMode::ThreadSafe> GetOrCreateCoreObject(const FString& ShareName, const ETextureShareProcessType InProcessType = ETextureShareProcessType::Undefined) override;
 	virtual bool IsCoreObjectExist(const FString& ShareName) const override;
 	virtual bool RemoveCoreObject(const FString& ShareName) override;
 

@@ -52,6 +52,6 @@ protected:
 	bool bCreateDefaults = true;
 
 	UPROPERTY(config, EditAnywhere, Category = Main, meta = (ToolTip = "Process name for this app", ConfigRestartRequired = false))
-	FString ProcessName = TextureShareCoreStrings::Default::ProcessName::UE;
+	FString ProcessName = UE::TextureShareCoreStrings::DefaultProcessName::UE;
 #endif /*WITH_EDITORONLY_DATA*/
 };

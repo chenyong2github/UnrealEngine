@@ -4,6 +4,7 @@
 #include "PostProcess/TextureSharePostprocessBase.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_Enums.h"
 #include "Containers/TextureShareContainers.h"
+#include "Templates/SharedPointer.h"
 
 #include "RHI.h"
 #include "RHICommandList.h"
@@ -19,6 +20,7 @@ class IDisplayClusterViewportManagerProxy;
  */
 class FTextureSharePostprocess
 	: public FTextureSharePostprocessBase
+	, public TSharedFromThis<FTextureSharePostprocess, ESPMode::ThreadSafe>
 {
 public:
 	FTextureSharePostprocess(const FString& PostprocessId, const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess);
@@ -35,6 +37,7 @@ public:
 	virtual void HandleBeginNewFrame(IDisplayClusterViewportManager* InViewportManager, FDisplayClusterRenderFrame& InOutRenderFrame) override;
 
 	// Handle frame on rendering thread
+	virtual void BeginFrameSync_RenderThread(FRHICommandListImmediate& RHICmdList);
 	virtual void HandleRenderFrameSetup_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy) override;
 	virtual void HandleBeginUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy) override;
 	virtual void HandleUpdateFrameResourcesAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy) override;
@@ -47,10 +50,7 @@ public:
 	}
 
 private:
-	bool IsActive() const
-	{
-		return Object.IsValid() && ObjectProxy.IsValid();
-	}
+	bool IsEnabled() const;
 
 	void ReleaseDisplayClusterPostProcessTextureShare();
 

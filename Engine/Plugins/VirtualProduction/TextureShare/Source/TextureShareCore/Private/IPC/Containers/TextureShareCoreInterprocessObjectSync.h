@@ -25,11 +25,8 @@ struct FTextureShareCoreInterprocessObjectSync
 	bool bProcessStuck;
 
 public:
-	void Initialize(const FTextureShareCoreObjectDesc& InObjectDesc, const FTextureShareCoreSyncSettings& InSyncSettings);
 	void Release();
-
-	void UpdateSettings(const FTextureShareCoreObjectDesc& InObjectDesc, const FTextureShareCoreSyncSettings& InSyncSettings);
-	bool GetDesc(struct FTextureShareCoreObjectDesc& OutDesc) const;
+	bool GetDesc(FTextureShareCoreObjectDesc& OutDesc) const;
 
 public:
 	////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,16 +61,26 @@ public:
 		const ETextureShareSyncStep  InStep  = InObjectSync.SyncState.Step;
 		const ETextureShareSyncState InState = InObjectSync.SyncState.State;
 
-		if (!SyncSettings.IsStepEnabled(InStep))
+		switch (SyncState.Step)
 		{
-			// Skip steps unused by this process
-			return ETextureShareInterprocessObjectSyncBarrierState::UnusedSyncStep;
-		}
+		case ETextureShareSyncStep::Undefined:
+		case ETextureShareSyncStep::InterprocessConnection:
+			// Synchronization is invalid for this process
+			break;
 
-		if (!InObjectSync.SyncSettings.IsStepEnabled(SyncState.Step))
-		{
-			// Targer process dont know about current step
-			return ETextureShareInterprocessObjectSyncBarrierState::Wait;
+		default:
+			// When the synchronization is valid for the current process, the following race rules are used:
+			if (!SyncSettings.IsStepEnabled(InStep))
+			{
+				// Skip steps unused by this process
+				return ETextureShareInterprocessObjectSyncBarrierState::UnusedSyncStep;
+			}
+
+			if (!InObjectSync.SyncSettings.IsStepEnabled(SyncState.Step))
+			{
+				// Targer process dont know about current step
+				return ETextureShareInterprocessObjectSyncBarrierState::Wait;
+			}
 		}
 
 		return SyncState.GetBarrierState(InObjectSync.SyncState);

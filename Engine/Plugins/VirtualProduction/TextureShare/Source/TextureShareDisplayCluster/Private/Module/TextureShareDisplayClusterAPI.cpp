@@ -2,30 +2,33 @@
 
 #include "Module/TextureShareDisplayClusterAPI.h"
 #include "Module/TextureShareDisplayClusterLog.h"
+#include "Misc/TextureShareDisplayClusterStrings.h"
 
 #include "Projection/TextureShareProjectionPolicyFactory.h"
 #include "Projection/TextureShareProjectionPolicy.h"
-#include "Projection/TextureShareProjectionStrings.h"
-
-#include "Render/Projection/IDisplayClusterProjectionPolicy.h"
-
 #include "PostProcess/TextureSharePostprocessFactory.h"
-#include "PostProcess/TextureSharePostprocessStrings.h"
 
 #include "IDisplayCluster.h"
 
+#include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/IDisplayClusterRenderManager.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareDisplayClusterAPIHelpers
+namespace UE
 {
-	static IDisplayCluster& DisplayClusterAPI()
+	namespace TextureShare
 	{
-		static IDisplayCluster& DisplayClusterSingleton = IDisplayCluster::Get();
-		return DisplayClusterSingleton;
+		namespace DisplayCluster
+		{
+			static IDisplayCluster& DisplayClusterAPI()
+			{
+				static IDisplayCluster& DisplayClusterSingleton = IDisplayCluster::Get();
+				return DisplayClusterSingleton;
+			}
+		}
 	}
 };
-using namespace TextureShareDisplayClusterAPIHelpers;
+using namespace UE::TextureShare::DisplayCluster;
+using namespace UE::TextureShare;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareDisplayClusterAPI
@@ -36,12 +39,12 @@ FTextureShareDisplayClusterAPI::FTextureShareDisplayClusterAPI()
 
 	// TextureShare projection
 	Factory = MakeShared<FTextureShareProjectionPolicyFactory>();
-	ProjectionPolicyFactories.Emplace(TextureShareProjectionStrings::Projection::TextureShare, Factory);
+	ProjectionPolicyFactories.Emplace(DisplayClusterStrings::Projection::TextureShare, Factory);
 
 	TSharedPtr<IDisplayClusterPostProcessFactory> Postprocess;
 
 	Postprocess = MakeShared<FTextureSharePostprocessFactory>();
-	PostprocessAssets.Emplace(TextureSharePostprocessStrings::Postprocess::TextureShare, Postprocess);
+	PostprocessAssets.Emplace(DisplayClusterStrings::Postprocess::TextureShare, Postprocess);
 }
 
 FTextureShareDisplayClusterAPI::~FTextureShareDisplayClusterAPI()
@@ -52,7 +55,7 @@ bool FTextureShareDisplayClusterAPI::StartupModule()
 {
 	if (!IDisplayCluster::IsAvailable())
 	{
-		UE_LOG(LogTextureShareDisplayCluster, Log, TEXT("nDisplay plugin not found."));
+		UE_LOG(LogTextureShareDisplayCluster, Error, TEXT("nDisplay plugin not found."));
 
 		return false;
 	}
@@ -62,7 +65,7 @@ bool FTextureShareDisplayClusterAPI::StartupModule()
 	{
 		for (auto it = ProjectionPolicyFactories.CreateIterator(); it; ++it)
 		{
-			UE_LOG(LogTextureShareDisplayCluster, Log, TEXT("Registering <%s> projection policy factory..."), *it->Key);
+			UE_LOG(LogTextureShareDisplayCluster, Verbose, TEXT("Registering <%s> projection policy factory..."), *it->Key);
 
 			if (!RenderMgr->RegisterProjectionPolicyFactory(it->Key, it->Value))
 			{
@@ -72,7 +75,7 @@ bool FTextureShareDisplayClusterAPI::StartupModule()
 
 		for (TPair<FString, TSharedPtr<IDisplayClusterPostProcessFactory>>& PPFactoryIt : PostprocessAssets)
 		{
-			UE_LOG(LogTextureShareDisplayCluster, Log, TEXT("Registering <%s> postprocess factory..."), *PPFactoryIt.Key);
+			UE_LOG(LogTextureShareDisplayCluster, Verbose, TEXT("Registering <%s> postprocess factory..."), *PPFactoryIt.Key);
 
 			if (!RenderMgr->RegisterPostProcessFactory(PPFactoryIt.Key, PPFactoryIt.Value))
 			{
@@ -97,7 +100,7 @@ void FTextureShareDisplayClusterAPI::ShutdownModule()
 		{
 			for (auto it = ProjectionPolicyFactories.CreateConstIterator(); it; ++it)
 			{
-				UE_LOG(LogTextureShareDisplayCluster, Log, TEXT("Un-registering <%s> projection factory..."), *it->Key);
+				UE_LOG(LogTextureShareDisplayCluster, Verbose, TEXT("Un-registering <%s> projection factory..."), *it->Key);
 
 				if (!RenderMgr->UnregisterProjectionPolicyFactory(it->Key))
 				{
@@ -107,7 +110,7 @@ void FTextureShareDisplayClusterAPI::ShutdownModule()
 
 			for (TPair<FString, TSharedPtr<IDisplayClusterPostProcessFactory>>& PPFactoryIt : PostprocessAssets)
 			{
-				UE_LOG(LogTextureShareDisplayCluster, Log, TEXT("Un-registering <%s> postprocess factory..."), *PPFactoryIt.Key);
+				UE_LOG(LogTextureShareDisplayCluster, Verbose, TEXT("Un-registering <%s> postprocess factory..."), *PPFactoryIt.Key);
 
 				if (!RenderMgr->UnregisterPostProcessFactory(PPFactoryIt.Key))
 				{

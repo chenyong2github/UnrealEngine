@@ -25,7 +25,7 @@ private:
 		if (InShareName==nullptr || *InShareName == L'\0')
 		{
 			// Use default share name
-			return TextureShareCoreStrings::Default::ShareName;
+			return UE::TextureShareCoreStrings::DefaultShareName;
 		}
 
 		return InShareName;
@@ -35,7 +35,7 @@ private:
 	{
 		if (InProcessName == nullptr || *InProcessName == L'\0')
 		{
-			return TextureShareCoreStrings::Default::ProcessName::SDK;
+			return UE::TextureShareCoreStrings::DefaultProcessName::SDK;
 		}
 
 		return InProcessName;
@@ -46,10 +46,10 @@ public:
 	const ETextureShareDeviceType DeviceType = ETextureShareDeviceType::Undefined;
 
 	// Unique share name. Objects with the same name will interact in IPC
-	const FString ShareName = TextureShareCoreStrings::Default::ShareName;
+	const FString ShareName = UE::TextureShareCoreStrings::DefaultShareName;
 
 	// Process name
-	const FString ProcessName = TextureShareCoreStrings::Default::ProcessName::SDK;
+	const FString ProcessName = UE::TextureShareCoreStrings::DefaultProcessName::SDK;
 
 	// Minimum number of connected processes required to start a connection
 	const int32 MinConnectionsCnt = 0;

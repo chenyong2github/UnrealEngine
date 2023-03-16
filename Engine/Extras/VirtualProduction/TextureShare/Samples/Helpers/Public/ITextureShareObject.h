@@ -19,12 +19,35 @@ public:
 	static ITextureShareObject* CreateInstance(const FTextureShareObjectDesc& InObjectDesc);
 
 public:
+	/**
+	* Return the name of the TextureShare.
+	*/
 	virtual const wchar_t* GetName() const = 0;
-	virtual const FTextureShareObjectDesc& GetObjectDesc() const = 0;
+
+	/**
+	* Return the SDK interface of object
+	*/
 	virtual ITextureShareSDKObject& GetSDKObject() const = 0;
+
+	/**
+	* Return the sync settings of the TextureShare.
+	*/
 	virtual FTextureShareCoreSyncSettings& GetSyncSettings() = 0;
 
+	/**
+	* Returns detailed information about the TextureShare object.
+	*/
+	virtual const FTextureShareObjectDesc& GetObjectDesc() const = 0;
+
+	/**
+	 * Returns true if the TextureShareCore object has started a session and processes are connected for this frame.
+	 */
 	virtual bool IsFrameSyncActive() const = 0;
+
+	/**
+	 * Returns true if the TextureShareCore proxy object has started a session and processes are connected for this frame.
+	 */
+	virtual bool IsFrameSyncActive_RenderThread() const = 0;
 
 public:
 	//////////////////////////////////////////////////////////
@@ -33,7 +56,26 @@ public:
 	virtual bool BeginFrame() = 0;
 	virtual bool EndFrame() = 0;
 
+	/**
+	 * Synchronize connected processes that support this sync step
+	 * Data from remote processes will be read at the time the barrier is synchronized.
+	 * Missed sync steps from the sync settings will also be called.
+	 *
+	 * @param InSyncStep - Sync step value
+	 *
+	 * @return True if the success
+	 */
 	virtual bool FrameSync(const ETextureShareSyncStep InSyncStep) = 0;
+
+	/**
+	 * Synchronize connected processes that support this sync step
+	 * ProxyData from remote processes will be read at the time the barrier is synchronized.
+	 * Missed sync steps from the sync settings will also be called.
+	 *
+	 * @param InSyncStep - Sync step value
+	 *
+	 * @return True if the success
+	 */
 	virtual bool FrameSync_RenderThread(const ETextureShareSyncStep InSyncStep) = 0;
 
 public:

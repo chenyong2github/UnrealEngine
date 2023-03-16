@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Serialize/TextureShareCoreSerialize.h"
+#include "Containers/TextureShareCoreContainers_SyncSettings.h"
 
 /**
  * Process descriptor
@@ -38,11 +39,11 @@ public:
 struct FTextureShareCoreObjectSyncState
 	: public ITextureShareSerialize
 {
-	ETextureShareSyncStep  Step;
-	ETextureShareSyncState State;
+	ETextureShareSyncStep  Step = ETextureShareSyncStep::Undefined;
+	ETextureShareSyncState State = ETextureShareSyncState::Undefined;
 
-	ETextureShareSyncStep NextStep;
-	ETextureShareSyncStep PrevStep;
+	ETextureShareSyncStep NextStep = ETextureShareSyncStep::Undefined;
+	ETextureShareSyncStep PrevStep = ETextureShareSyncStep::Undefined;
 
 public:
 	virtual ~FTextureShareCoreObjectSyncState() = default;
@@ -64,7 +65,7 @@ struct FTextureShareCoreObjectSync
 
 	// Bit-storage for sync steps used by this process
 	// 64 bits. Max steps=64
-	uint64 SyncStepSettings;
+	uint64 SyncStepSettings = 0;
 
 	// Last access time from this object
 	uint64 LastAccessTime = 0;
@@ -84,7 +85,7 @@ public:
 			return true;
 		}
 
-		const int8 BitIndex = (int8)InStep;
+		const uint8 BitIndex = (uint8)InStep;
 
 		if (BitIndex >= 0 && BitIndex < 64)
 		{
@@ -92,6 +93,20 @@ public:
 		}
 
 		return false;
+	}
+
+	void SetSyncStepSettings(const FTextureShareCoreSyncSettings& InSyncSettings)
+	{
+		// Update bit-storage for used steps
+		SyncStepSettings = 0;
+		for (const ETextureShareSyncStep& StepIt : InSyncSettings.FrameSyncSettings.Steps)
+		{
+			const uint8 BitIndex = (uint8)StepIt;
+			if (BitIndex >= 0 && BitIndex < 64)
+			{
+				SyncStepSettings |= (1ULL << BitIndex);
+			}
+		}
 	}
 };
 

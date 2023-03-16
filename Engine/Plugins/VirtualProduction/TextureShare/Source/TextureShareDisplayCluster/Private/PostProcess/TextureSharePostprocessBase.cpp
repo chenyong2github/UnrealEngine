@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/TextureSharePostprocessBase.h"
-#include "PostProcess/TextureSharePostprocessStrings.h"
+#include "Misc/TextureShareDisplayClusterStrings.h"
 #include "Module/TextureShareDisplayClusterLog.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"

@@ -7,17 +7,14 @@
 #include "IPC/TextureShareCoreInterprocessMutex.h"
 #include "IPC/TextureShareCoreInterprocessEvent.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
-
-#include "Core/TextureShareCoreHelpers.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
 
 #include "Module/TextureShareCoreModule.h"
 #include "Module/TextureShareCoreLog.h"
 
 #include "Misc/ScopeLock.h"
 
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-using namespace TextureShareCoreHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreObject
@@ -32,7 +29,7 @@ bool FTextureShareCoreObject::TryFrameProcessesConnection(FTextureShareCoreInter
 	// Collect valid processes to connect
 	const int32 ReadyToConnectObjectsCount = InterprocessMemory.FindConnectableObjects(FrameConnections, LocalObject);
 
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:TryConnect(%s)=%d %s"), *GetName(), *ToString(LocalObject), ReadyToConnectObjectsCount, *ToString(FrameConnections));
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:TryFrameProcessesConnection(%s)=%d %s"), *GetName(), *ToString(LocalObject), ReadyToConnectObjectsCount, *ToString(FrameConnections));
 
 	// Handle sync logic
 	const ETextureShareCoreFrameConnectionsState ConnectionsState = SyncSettings.FrameConnectionSettings.GetConnectionsState(ReadyToConnectObjectsCount, FrameConnections.Num());
@@ -89,7 +86,7 @@ bool FTextureShareCoreObject::TryFrameProcessesConnection(FTextureShareCoreInter
 
 bool FTextureShareCoreObject::ConnectFrameProcesses()
 {
-	UE_TS_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:ConnectFrameProcesses()"), *GetName());
+	UE_TS_BARRIER_LOG(LogTextureShareCoreObjectSync, Log, TEXT("%s:ConnectFrameProcesses()"), *GetName());
 
 	FrameConnections.Reset();
 
@@ -99,8 +96,6 @@ bool FTextureShareCoreObject::ConnectFrameProcesses()
 		{
 			if (FTextureShareCoreInterprocessObject* LocalObject = InterprocessMemory->FindObject(GetObjectDesc()))
 			{
-				UpdateProcessId(*LocalObject);
-
 				SetCurrentSyncStep(ETextureShareSyncStep::InterprocessConnection);
 				SetFrameSyncState(ETextureShareCoreInterprocessObjectFrameSyncState::NewFrame);
 
@@ -124,11 +119,20 @@ bool FTextureShareCoreObject::ConnectFrameProcesses()
 						{
 							HandleFrameLost(*InterprocessMemory, *LocalObject);
 
-							return false;
+							// Break this loop because we need to wake up remote processes and unlock IPC memory.
+							break;
 						}
 					}
 				}
 			}
+			else
+			{
+				UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:ConnectFrameProcesses: cant find local process desriptor in shared memory, GUID='%s'"), *GetName(), *GetObjectDesc().ObjectGuid.ToString(EGuidFormats::DigitsWithHyphens));
+			}
+		}
+		else
+		{
+			UE_TS_LOG(LogTextureShareCoreObjectSync, Error, TEXT("%s:ConnectFrameProcesses Cant open Share memory"), *GetName());
 		}
 
 		// Wake up remote processes anywait, because we change mem object header
@@ -150,6 +154,8 @@ bool FTextureShareCoreObject::ConnectFrameProcesses()
 
 		return false;
 	}
+
+	UE_TS_LOG(LogTextureShareCoreObjectSync, Warning, TEXT("%s:ConnectFrameProcesses - no processes"), *GetName());
 
 	return false;
 }

@@ -6,14 +6,6 @@
 /////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreInterprocessObjectSync
 /////////////////////////////////////////////////////////////////////////////////////
-void FTextureShareCoreInterprocessObjectSync::Initialize(const FTextureShareCoreObjectDesc& InObjectDesc, const FTextureShareCoreSyncSettings& InSyncSettings)
-{
-	Release();
-
-	UpdateSettings(InObjectDesc, InSyncSettings);
-	LastAccessTime.Update();
-}
-
 void FTextureShareCoreInterprocessObjectSync::Release()
 {
 	SyncSettings.Release();
@@ -22,13 +14,6 @@ void FTextureShareCoreInterprocessObjectSync::Release()
 	LastAccessTime.Empty();
 
 	bProcessStuck = false;
-}
-
-void FTextureShareCoreInterprocessObjectSync::UpdateSettings(const FTextureShareCoreObjectDesc& InObjectDesc, const FTextureShareCoreSyncSettings& InSyncSettings)
-{
-	// Update sync settings
-	SyncSettings.Initialize(InObjectDesc, InSyncSettings);
-	UpdateLastAccessTime();
 }
 
 bool FTextureShareCoreInterprocessObjectSync::GetDesc(FTextureShareCoreObjectDesc& OutDesc) const

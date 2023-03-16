@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Projection/TextureShareProjectionPolicyBase.h"
-#include "Projection/TextureShareProjectionStrings.h"
+#include "Misc/TextureShareDisplayClusterStrings.h"
 
 #include "IDisplayCluster.h"
 #include "Game/IDisplayClusterGameManager.h"

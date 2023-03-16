@@ -7,8 +7,7 @@
 #include "IPC/TextureShareCoreInterprocessMutex.h"
 #include "IPC/TextureShareCoreInterprocessEvent.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
-
-#include "Core/TextureShareCoreHelpers.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
 
 #include "Module/TextureShareCoreModule.h"
 #include "Module/TextureShareCoreLog.h"
@@ -17,8 +16,7 @@
 
 #include "Misc/ScopeLock.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-using namespace TextureShareCoreHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreObject
@@ -27,6 +25,9 @@ bool FTextureShareCoreObject::BeginSession()
 {
 	if (!IsSessionActive() && IsActive() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
 	{
+		// Update object desc sync hash value
+		ObjectDesc.Sync.SetSyncStepSettings(SyncSettings);
+
 		if (FTextureShareCoreInterprocessMemory* InterprocessMemory = Owner.GetInterprocessMemory())
 		{
 			// Release dirty data for this share\this process
@@ -35,7 +36,10 @@ bool FTextureShareCoreObject::BeginSession()
 			// Get ptr on a new IPC object memory region
 			if (FTextureShareCoreInterprocessObject* InterprocessObject = InterprocessMemory->FindEmptyObject())
 			{
-				InterprocessObject->Initialize(GetObjectDesc(), SyncSettings);
+				// Initialize IPC object data
+				InterprocessObject->InitializeInterprocessObject(GetObjectDesc(), SyncSettings);
+
+				InitializeThreadMutexes();
 
 				// New IPC object created
 				bSessionActive = true;
@@ -89,7 +93,7 @@ bool FTextureShareCoreObject::EndSession()
 		}
 
 		// Release resources and handles
-		Owner.RemoveCachedResources(ObjectDesc);
+		Owner.RemoveCachedResources(GetObjectDesc());
 
 		// Unlock and release thread mutexes
 		ReleaseThreadMutexes();

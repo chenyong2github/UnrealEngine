@@ -31,6 +31,11 @@ public:
 
 	void TryUnlockMutex();
 
+	bool IsValid() const
+	{
+		return PlatformMutex != nullptr;
+	}
+
 private:
 	bool InitializeInterprocessMutex(bool bGlobalNameSpace);
 	void ReleaseInterprocessMutex();

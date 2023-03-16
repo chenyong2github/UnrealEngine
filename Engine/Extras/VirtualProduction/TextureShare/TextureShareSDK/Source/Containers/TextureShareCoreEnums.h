@@ -20,20 +20,32 @@ enum class ETextureShareDeviceType : uint8
 };
 
 /**
- * Process type
- */
+ * TextureShare Process type.
+ * This type means how processes are visible to each other.
+  */
 enum class ETextureShareProcessType : uint8
 {
+	// Undefined process. Ignored by everyone.
 	Undefined = 0,
 
-	// Unreal Engine base process
-	UE,
-
-	// TextureShare SDK process
+	// External SDK default process type.
+	// Possible connections: [UE], [UE2UE]
 	SDK,
 
-	// Marked as Invalid process
-	Invalid
+	// Unreal Engine default process type.
+	// Possible connections: [SDK]
+	/**
+	* Note: Processes with type [UE] should not be visible to each other.
+	* The reason is that multiple instances of Unreal (i.e. nDisplay nodes) start connecting to each other on the same PC if the TextureShare plugin is used.
+	* This is because any TextureShare object tries to attach to any suitable remote process.
+	* Also, the "invisible" TS object is created by default on startup and starts that sync fight anyway.
+	* Therefore, for the UE+UE connection, we use a new process type [UE2UE].
+	*/
+	UE,
+
+	// Unreal Engine special process type.
+	// Possible connections: [SDK], [UE2UE]
+	UE2UE,
 };
 
 /**
@@ -45,6 +57,8 @@ enum class ETextureShareThreadMutex : uint8
 	GameThread = 0,
 	RenderingThread,
 
+	InternalLock,
+
 	COUNT
 };
 
@@ -53,14 +67,14 @@ enum class ETextureShareThreadMutex : uint8
  */
 enum class ETextureShareTextureOp : uint8
 {
+	// Operation not defined (useful to find any type of operation)
+	Undefined = 0,
+
 	// Send texture to remote process
-	Write = 0,
+	Write,
 
 	// Receive texture
-	Read,
-
-	// Operation not defined (useful to find any type of operation)
-	Undefined,
+	Read
 };
 
 /**
@@ -79,7 +93,7 @@ enum class ETextureShareEyeType : uint8
 /**
  * Sync steps template type
  */
-enum class ETextureShareFrameSyncTemplate : int8
+enum class ETextureShareFrameSyncTemplate : uint8
 {
 	// Sync logic for BP object
 	Default = 0,
@@ -89,14 +103,29 @@ enum class ETextureShareFrameSyncTemplate : int8
 
 	// Sync logic for DC object
 	DisplayCluster,
+
+	// Sync logic between DC nodes
+	DisplayClusterCrossNode
+
+};
+
+/**
+ * Resource type
+ */
+enum class ETextureShareResourceType: uint8
+{
+	Default = 0,
+	CrossAdapter
 };
 
 /**
  * Sync steps values
  */
-enum class ETextureShareSyncStep : int8
+enum class ETextureShareSyncStep : uint8
 {
-	InterprocessConnection = 0,
+	Undefined = 0,
+
+	InterprocessConnection,
 	
 	/**
 	 * Frame sync steps (GameThread)
@@ -112,6 +141,8 @@ enum class ETextureShareSyncStep : int8
 
 	FramePostSetupBegin,
 	FramePostSetupEnd,
+
+	FrameFlush,
 
 	FrameEnd,
 
@@ -142,34 +173,25 @@ enum class ETextureShareSyncStep : int8
 	FrameProxyFlush,
 
 	FrameProxyEnd,
-
-	/**
-	 * Special values
-	 */
-	COUNT,
-	Undefined = -1,
 };
 
 /**
  * Object sync barrier pass
  */
-enum class ETextureShareSyncPass : int8
+enum class ETextureShareSyncPass : uint8
 {
 	Undefined = 0,
 
 	Enter,
 	Exit,
-	Complete,
-
-	COUNT
+	Complete
 };
 
 /**
  * Object sync barrier state
  */
-enum class ETextureShareSyncState : int8
+enum class ETextureShareSyncState : uint8
 {
-	// After sync reset
 	Undefined = 0,
 
 	Enter,

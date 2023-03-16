@@ -47,8 +47,7 @@ public:
 
 	// Collect shared resources
 	void PushRegisterResource_RenderThread(const FTextureShareCoreResourceRequest& InResourceRequest, FTextureShareResource* InSharedResource);
-	void RunRegisterResourceHandles_RenderThread();
-
+	void RunRegisterResourceHandles_RenderThread(FRHICommandListImmediate& RHICmdList);
 
 	// flush RHI thread if needed
 	void RHIThreadFlush_RenderThread(FRHICommandListImmediate& RHICmdList);

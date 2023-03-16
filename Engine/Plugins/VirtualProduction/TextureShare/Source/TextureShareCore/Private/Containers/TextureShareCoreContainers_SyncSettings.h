@@ -6,7 +6,7 @@
 /**
  * Connection state
  */
-enum class ETextureShareCoreFrameConnectionsState : int8
+enum class ETextureShareCoreFrameConnectionsState : uint8
 {
 	SkipFrame = 0,
 	Wait,
@@ -35,6 +35,13 @@ public:
 	virtual ITextureShareSerializeStream& Serialize(ITextureShareSerializeStream& Stream) override
 	{
 		return Stream << MinValue << AllowedProcessNames << BannedProcessNames;
+	}
+
+	bool operator==(const FTextureShareCoreFrameConnectionsSettings& In) const
+	{
+		return MinValue == In.MinValue
+			&& AllowedProcessNames.EqualsFunc(In.AllowedProcessNames)
+			&& BannedProcessNames.EqualsFunc(In.BannedProcessNames);
 	}
 
 public:
@@ -78,16 +85,6 @@ public:
 	}
 
 public:
-	bool Contains(const ETextureShareSyncStep InSyncStep) const
-	{
-		return Steps.Find(InSyncStep) != INDEX_NONE;
-	}
-
-	void Append(const TArray<ETextureShareSyncStep>& InSyncSteps)
-	{
-		Steps.AppendSorted(InSyncSteps);
-	}
-
 	bool EqualsFunc(const FTextureShareCoreFrameSyncSettings& In) const
 	{
 		return Steps.EqualsFunc(In.Steps);
@@ -135,6 +132,17 @@ public:
 			<< ProcessLostStatusTimeOut
 			<< ThreadMutexTimeout;
 	}
+
+	bool operator==(const FTextureShareCoreTimeOutSettings& In) const
+	{
+		return MemoryMutexTimeout == In.MemoryMutexTimeout
+			&& FrameBeginTimeOut == In.FrameBeginTimeOut
+			&& FrameSyncTimeOut == In.FrameSyncTimeOut
+			&& FrameBeginTimeOutSplit == In.FrameBeginTimeOutSplit
+			&& FrameSyncTimeOutSplit == In.FrameSyncTimeOutSplit
+			&& ProcessLostStatusTimeOut == In.ProcessLostStatusTimeOut
+			&& ThreadMutexTimeout == In.ThreadMutexTimeout;
+	}
 };
 
 /**
@@ -160,5 +168,12 @@ public:
 	virtual ITextureShareSerializeStream& Serialize(ITextureShareSerializeStream & Stream) override
 	{
 		return Stream << FrameConnectionSettings << TimeoutSettings << FrameSyncSettings;
+	}
+
+	bool operator==(const FTextureShareCoreSyncSettings& In) const
+	{
+		return FrameConnectionSettings == (In.FrameConnectionSettings)
+			&& TimeoutSettings == In.TimeoutSettings
+			&& FrameSyncSettings.EqualsFunc(In.FrameSyncSettings);
 	}
 };

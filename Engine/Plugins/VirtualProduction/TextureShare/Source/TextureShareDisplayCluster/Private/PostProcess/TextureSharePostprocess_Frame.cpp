@@ -2,11 +2,9 @@
 
 #include "PostProcess/TextureSharePostprocess.h"
 
-#include "PostProcess/TextureSharePostprocessStrings.h"
-#include "Projection/TextureShareProjectionStrings.h"
-#include "Misc/TextureShareDisplayClusterStrings.h"
-
 #include "Module/TextureShareDisplayClusterLog.h"
+#include "Misc/TextureShareDisplayClusterStrings.h"
+#include "Core/TextureShareCoreHelpers.h"
 
 #include "Containers/TextureShareCoreEnums.h"
 
@@ -49,7 +47,7 @@ void FTextureSharePostprocess::UpdateManualProjectionPolicy(IDisplayClusterViewp
 		for (IDisplayClusterViewport* ViewportIt : InViewportManager->GetViewports())
 		{
 			TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> PrjPolicy = ViewportIt->GetProjectionPolicy();
-			if (PrjPolicy.IsValid() && PrjPolicy->GetType() == TextureShareProjectionStrings::Projection::TextureShare)
+			if (PrjPolicy.IsValid() && PrjPolicy->GetType() == UE::TextureShare::DisplayClusterStrings::Projection::TextureShare)
 			{
 				// Search the custom manual projection for viewport with the "TextureShare" projection policy type 
 				TArray<FTextureShareCoreManualProjection> ManualProjections;

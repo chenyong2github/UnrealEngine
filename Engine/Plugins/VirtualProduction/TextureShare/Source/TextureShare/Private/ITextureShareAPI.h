@@ -3,6 +3,8 @@
 #pragma once
 #include "CoreMinimal.h"
 
+#include "Containers/TextureShareCoreEnums.h"
+
 class ITextureShareObject;
 class ITextureShareObjectProxy;
 class UWorld;
@@ -43,7 +45,7 @@ public:
 	 *
 	 * @return - Ptr to TextureShare object
 	 */
-	virtual TSharedPtr<ITextureShareObject, ESPMode::ThreadSafe> GetOrCreateObject(const FString& ShareName) = 0;
+	virtual TSharedPtr<ITextureShareObject, ESPMode::ThreadSafe> GetOrCreateObject(const FString& ShareName, const ETextureShareProcessType InProcessType = ETextureShareProcessType::Undefined) = 0;
 
 	/**
 	 * Remove TextureShare object
@@ -112,4 +114,28 @@ public:
 	* @return Callbacks API
 	*/
 	virtual ITextureShareCallbacks& GetCallbacks() = 0;
+
+public:
+	/**
+	 * Disable the multi-object world subsystem. This disabled state will persist until the EnableWorldSubsystem() pair function is called on all objects.
+	 *
+	 * @param InObject - external object
+	 *
+	 * @return none
+	 */
+	virtual void DisableWorldSubsystem(const uint8* InObject) = 0;
+
+	/**
+	 * Enable WorldSubsystem.
+	 *
+	 * @param InObject - external object
+	 *
+	 * @return none
+	 */
+	virtual void EnableWorldSubsystem(const uint8* InObject) = 0;
+
+	/**
+	 * Return true if WorldSubsystem.can by used
+	 */
+	virtual bool IsWorldSubsystemEnabled() const = 0;
 };

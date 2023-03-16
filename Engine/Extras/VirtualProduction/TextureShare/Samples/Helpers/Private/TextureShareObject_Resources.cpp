@@ -33,12 +33,12 @@ EResourceState FTextureShareObject::SendTexture(const ITextureShareDeviceContext
 		return EResourceState::E_INVALID_DEVICE_TYPE;
 	}
 
-	if (TextureShareSDKObject->IsFrameSyncActive() == false)
+	if (TextureShareSDKObject->IsFrameSyncActive_RenderThread() == false)
 	{
 		return EResourceState::E_FrameSyncLost;
 	}
 
-	if (!(ResourceSync_RenderThread(InResourceDesc) && TextureShareSDKObject->IsFrameSyncActive()))
+	if (!(ResourceSync_RenderThread(InResourceDesc) && TextureShareSDKObject->IsFrameSyncActive_RenderThread()))
 	{
 		return EResourceState::E_ResourceSyncError;
 	}
@@ -67,12 +67,12 @@ EResourceState FTextureShareObject::ReceiveResource(const ITextureShareDeviceCon
 		return EResourceState::E_INVALID_DEVICE_TYPE;
 	}
 
-	if (TextureShareSDKObject->IsFrameSyncActive() == false)
+	if (TextureShareSDKObject->IsFrameSyncActive_RenderThread() == false)
 	{
 		return EResourceState::E_FrameSyncLost;
 	}
 
-	if (!(ResourceSync_RenderThread(InResourceDesc) && TextureShareSDKObject->IsFrameSyncActive()))
+	if (!(ResourceSync_RenderThread(InResourceDesc) && TextureShareSDKObject->IsFrameSyncActive_RenderThread()))
 	{
 		return EResourceState::E_ResourceSyncError;
 	}
@@ -102,12 +102,12 @@ EResourceState FTextureShareObject::ReceiveTexture(const ITextureShareDeviceCont
 		return EResourceState::E_INVALID_DEVICE_TYPE;
 	}
 
-	if (TextureShareSDKObject->IsFrameSyncActive() == false)
+	if (TextureShareSDKObject->IsFrameSyncActive_RenderThread() == false)
 	{
 		return EResourceState::E_FrameSyncLost;
 	}
 
-	if (!(ResourceSync_RenderThread(InResourceDesc) && TextureShareSDKObject->IsFrameSyncActive()))
+	if (!(ResourceSync_RenderThread(InResourceDesc) && TextureShareSDKObject->IsFrameSyncActive_RenderThread()))
 	{
 		return EResourceState::E_ResourceSyncError;
 	}

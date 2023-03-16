@@ -6,7 +6,7 @@
 
 namespace TextureShareSample
 {
-	static FTextureShareObjectDesc ObjectDesc(ETextureShareDeviceType::D3D12, TextureShareDisplayClusterStrings::Default::ShareName);
+	static FTextureShareObjectDesc ObjectDesc(ETextureShareDeviceType::D3D12, UE::TextureShare::DisplayClusterStrings::DefaultShareName);
 
 	namespace DisplayCluster
 	{
@@ -20,7 +20,7 @@ namespace TextureShareSample
 		namespace Texture1
 		{
 			// Request to read a resource #1 to a remote process
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport1, TextureShareDisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Read);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport1, UE::TextureShare::DisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Read);
 
 			// Container for receive: Texture size are not defined on the user side (values on the UE side are used)
 			static FTextureShareResourceD3D12 Resource(EResourceSRV::texture1);
@@ -29,7 +29,7 @@ namespace TextureShareSample
 		namespace Texture2
 		{
 			// Request to read a resource #2 to a remote process
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport2, TextureShareDisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Read);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport2, UE::TextureShare::DisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Read);
 
 			// Container for receive: Texture size are not defined on the user side (values on the UE side are used)
 			static FTextureShareResourceD3D12 Resource(EResourceSRV::texture2);
@@ -41,7 +41,7 @@ namespace TextureShareSample
 		namespace Backbuffer
 		{
 			// Request for write to vp_3
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport3, TextureShareDisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Write);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport3, UE::TextureShare::DisplayClusterStrings::Viewport::Warped, ETextureShareTextureOp::Write);
 		}
 	}
 };

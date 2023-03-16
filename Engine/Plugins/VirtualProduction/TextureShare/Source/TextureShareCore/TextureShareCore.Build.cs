@@ -16,15 +16,23 @@ public class TextureShareCore : ModuleRules
 
 		// Show more log for internal sync processes
 		bool bEnableExtraDebugLog = false;
-
-		if (bEnableExtraDebugLog && (Target.Configuration == UnrealTargetConfiguration.Debug || Target.Configuration == UnrealTargetConfiguration.DebugGame))
+		if (bEnableExtraDebugLog)
 		{
-			//Show log in SDK-for Debug and DebugGame builds
 			PublicDefinitions.Add("TEXTURESHARECORE_DEBUGLOG=1");
 		}
 		else
 		{
 			PublicDefinitions.Add("TEXTURESHARECORE_DEBUGLOG=0");
+		}
+
+		bool bEnableExtraDebugLogForInternalBarriers = false;
+		if (bEnableExtraDebugLogForInternalBarriers && bEnableExtraDebugLog)
+		{
+			PublicDefinitions.Add("TEXTURESHARECORE_BARRIER_DEBUGLOG=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("TEXTURESHARECORE_BARRIER_DEBUGLOG=0");
 		}
 
 		// Allow using Vulkan render device
@@ -57,6 +65,19 @@ public class TextureShareCore : ModuleRules
 		else
 		{
 			PublicDefinitions.Add("TEXTURESHARECORE_SDK=0");
+		}
+
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		{
+			PublicIncludePaths.AddRange(
+				new string[] {
+				Path.Combine(EngineDirectory,"Source/Runtime/Windows/D3D11RHI/Public"),
+				Path.Combine(EngineDirectory,"Source/Runtime/D3D12RHI/Public"),
+				}
+			);
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 		}
 	}
 }

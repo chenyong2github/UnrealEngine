@@ -38,6 +38,7 @@ public:
 	}
 
 	virtual bool IsFrameSyncActive() const override;
+	virtual bool IsFrameSyncActive_RenderThread() const override;
 
 public:
 	// Sync
@@ -105,6 +106,10 @@ protected:
 private:
 	void UpdateSyncSettings();
 
+public:
+	// [experimental] Allow using of game thread synchronizations
+	const bool bEnableGameThreadSync = true;
+
 private:
 	const FTextureShareObjectDesc ObjectDesc;
 	ITextureShareSDKObject* TextureShareSDKObject;
@@ -122,4 +127,6 @@ private:
 
 	bool bUpdateSyncSettings = false;
 	FTextureShareCoreSyncSettings SyncSettings;
+
+	FTextureShareCoreFrameSyncSettings DefaultFrameSyncSettings;
 };

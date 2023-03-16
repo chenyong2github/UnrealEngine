@@ -11,8 +11,11 @@
 struct FTextureShareCoreViewDesc
 	: public ITextureShareSerialize
 {
+	// Source view name (Debug log purpose)
+	FString SrcId;
+
 	// View name
-	FString Id = TextureShareCoreStrings::Default::ViewId;
+	FString Id = UE::TextureShareCoreStrings::DefaultViewId;
 
 	// Eye type of this view (support stereo)
 	ETextureShareEyeType EyeType = ETextureShareEyeType::Default;
@@ -22,14 +25,18 @@ public:
 
 	virtual ITextureShareSerializeStream& Serialize(ITextureShareSerializeStream & Stream) override
 	{
-		return Stream << Id << EyeType;
+		return Stream << SrcId << Id << EyeType;
 	}
 
 public:
 	FTextureShareCoreViewDesc() = default;
 
 	FTextureShareCoreViewDesc(const FTextureShareCoreViewDesc & In)
-		: Id(In.Id), EyeType(In.EyeType)
+		: SrcId(In.SrcId), Id(In.Id), EyeType(In.EyeType)
+	{ }
+
+	FTextureShareCoreViewDesc(const FString& InSrcViewId, const FString& InViewId, const ETextureShareEyeType InEyeType = ETextureShareEyeType::Default)
+		: SrcId(InSrcViewId), Id(InViewId), EyeType(InEyeType)
 	{ }
 
 	FTextureShareCoreViewDesc(const FString & InViewId, const ETextureShareEyeType InEyeType = ETextureShareEyeType::Default)

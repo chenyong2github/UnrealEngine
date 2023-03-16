@@ -56,6 +56,72 @@ public:
 		return ShareName.Equals(InHash);
 	}
 
+	bool IsConnectable(const FTextureShareCoreInterprocessObjectDesc& In) const
+	{
+		return IsConnectable(In.ShareName.Hash, In.ProcessType);
+	}
+
+	bool IsConnectable(const FTextureShareCoreSMD5Hash& InHash, const ETextureShareProcessType InProcessType) const
+	{
+		if (!IsEnabled())
+		{
+			return false;
+		}
+
+		// The objects will be connect only if ShareName equal
+		if (!IsShareNameEquals(InHash))
+		{
+			return false;
+		}
+
+		// Process connection rules by type:
+		switch (ProcessType)
+		{
+		case ETextureShareProcessType::SDK:
+			// Possible connections: [UE], [UE2UE]
+			switch (InProcessType)
+			{
+			case ETextureShareProcessType::UE:
+			case ETextureShareProcessType::UE2UE:
+				break;
+			default:
+				return false;
+			}
+			break;
+
+		case ETextureShareProcessType::UE:
+			// Possible connections: [SDK]
+			switch (InProcessType)
+			{
+			case ETextureShareProcessType::SDK:
+				break;
+			default:
+				return false;
+			}
+			break;
+
+		case ETextureShareProcessType::UE2UE:
+			// Possible connections: [SDK], [UE2UE]
+			switch (InProcessType)
+			{
+			case ETextureShareProcessType::SDK:
+			case ETextureShareProcessType::UE2UE:
+				break;
+			default:
+				return false;
+			}
+			break;
+
+		case ETextureShareProcessType::Undefined:
+			return false;
+
+		default:
+			break;
+		}
+
+		return true;
+	}
+
 public:
 	void Initialize(const FTextureShareCoreObjectDesc& InCoreObjectDesc);
 	void Release();

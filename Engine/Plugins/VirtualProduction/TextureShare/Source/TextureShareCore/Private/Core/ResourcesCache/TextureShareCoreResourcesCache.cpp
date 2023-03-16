@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 FTextureShareCoreResourcesCacheItem* FTextureShareCoreResourcesCache::FObjectCachedResources::Find(const FTextureShareCoreResourceHandle& InResourceHandle)
 {
-	int32 Index = Resources.IndexOfByPredicate([InResourceHandle](const TSharedPtr<FTextureShareCoreResourcesCacheItem>& CachedResourcePtrIt)
+	const int32 Index = Resources.IndexOfByPredicate([InResourceHandle](const TSharedPtr<FTextureShareCoreResourcesCacheItem>& CachedResourcePtrIt)
 	{
 		return CachedResourcePtrIt.IsValid() && CachedResourcePtrIt->HandleEquals(InResourceHandle);
 	});
@@ -25,7 +25,7 @@ FTextureShareCoreResourcesCacheItem* FTextureShareCoreResourcesCache::FObjectCac
 {
 	if (InNativeResourcePtr)
 	{
-		int32 Index = Resources.IndexOfByPredicate([InNativeResourcePtr](const TSharedPtr<FTextureShareCoreResourcesCacheItem>& It)
+		const int32 Index = Resources.IndexOfByPredicate([InNativeResourcePtr](const TSharedPtr<FTextureShareCoreResourcesCacheItem>& It)
 		{
 			return It.IsValid() && It->GetNativeResource() == InNativeResourcePtr;
 		});
@@ -34,6 +34,21 @@ FTextureShareCoreResourcesCacheItem* FTextureShareCoreResourcesCache::FObjectCac
 		{
 			return Resources[Index].Get();
 		}
+	}
+
+	return nullptr;
+}
+
+FTextureShareCoreResourcesCacheItem* FTextureShareCoreResourcesCache::FObjectCachedResources::FindByResourceDesc(const FTextureShareCoreResourceDesc& InResourceDesc)
+{
+	const int32 Index = Resources.IndexOfByPredicate([InResourceDesc](const TSharedPtr<FTextureShareCoreResourcesCacheItem>& It)
+		{
+			return It.IsValid() && It->GetHandle().ResourceDesc.EqualsFunc(InResourceDesc);
+		});
+
+	if (Index != INDEX_NONE)
+	{
+		return Resources[Index].Get();
 	}
 
 	return nullptr;

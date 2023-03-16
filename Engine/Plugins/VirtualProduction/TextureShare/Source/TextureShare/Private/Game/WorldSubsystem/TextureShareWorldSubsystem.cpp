@@ -14,16 +14,29 @@
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/Package.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareWorldSubsystemHelpers
+// This CVar enables/disables the WorldSubsystem TS object type.
+static TAutoConsoleVariable<int32> CVarTextureShareUseWorldSubsystem(
+	TEXT("TextureShare.Enable.WorldSubsystem"),
+	1,
+	TEXT("Enable world subsystems objects (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
+);
+
+namespace UE
 {
-	static ITextureShareAPI& TextureShareAPI()
+	namespace TextureShare
 	{
-		static ITextureShareAPI& TextureShareAPISingletone = ITextureShare::Get().GetTextureShareAPI();
-		return TextureShareAPISingletone;
+		namespace WorldSubsystem
+		{
+			static ITextureShareAPI& TextureShareAPI()
+			{
+				static ITextureShareAPI& TextureShareAPISingletone = ITextureShare::Get().GetTextureShareAPI();
+				return TextureShareAPISingletone;
+			}
+		}
 	}
 };
-using namespace TextureShareWorldSubsystemHelpers;
+using namespace UE::TextureShare::WorldSubsystem;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // UTextureShareWorldSubsystem
@@ -84,7 +97,7 @@ void UTextureShareWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	bWorldPlay = true;
 
-	UE_LOG(LogTextureShareWorldSubsystem, Verbose, TEXT("OnWorldBeginPlay"));
+	UE_TS_LOG(LogTextureShareWorldSubsystem, Verbose, TEXT("OnWorldBeginPlay"));
 
 	FTextureShareSettings PluginSettings = FTextureShareSettings::GetSettings();
 	if (!PluginSettings.ProcessName.IsEmpty())
@@ -101,7 +114,7 @@ void UTextureShareWorldSubsystem::OnWorldEndPlay(UWorld& InWorld)
 {
 	if (bWorldPlay)
 	{
-		UE_LOG(LogTextureShareWorldSubsystem, Verbose, TEXT("OnWorldEndPlay"));
+		UE_TS_LOG(LogTextureShareWorldSubsystem, Verbose, TEXT("OnWorldEndPlay"));
 
 		TextureShareAPI().OnWorldEndPlay(InWorld);
 
@@ -115,42 +128,46 @@ void UTextureShareWorldSubsystem::Tick(float DeltaTime)
 {
 	if (bWorldPlay)
 	{
-		if (TextureShare && TextureShare->IsEnabled())
+		if (TextureShareAPI().IsWorldSubsystemEnabled()
+		&& CVarTextureShareUseWorldSubsystem.GetValueOnGameThread() > 0)
 		{
-			// Update the list of used object names for the current frame
-			// and remove unused objects
-			const TSet<FString> PrevFrameObjectNames(NamesOfExistingObjects);
-			NamesOfExistingObjects = TextureShare->GetTextureShareObjectNames();
-
-
-			for (const FString& ShareNameIt : PrevFrameObjectNames)
+			if (TextureShare && TextureShare->IsEnabled())
 			{
-				if (NamesOfExistingObjects.Contains(ShareNameIt) == false)
+				// Update the list of used object names for the current frame
+				// and remove unused objects
+				const TSet<FString> PrevFrameObjectNames(NamesOfExistingObjects);
+				NamesOfExistingObjects = TextureShare->GetTextureShareObjectNames();
+
+
+				for (const FString& ShareNameIt : PrevFrameObjectNames)
 				{
-					if (!ShareNameIt.IsEmpty())
+					if (NamesOfExistingObjects.Contains(ShareNameIt) == false)
 					{
-						TextureShareAPI().RemoveObject(ShareNameIt);
+						if (!ShareNameIt.IsEmpty())
+						{
+							TextureShareAPI().RemoveObject(ShareNameIt);
+						}
 					}
 				}
 			}
-		}
 
-		// GetOrCreate and Tick existing objects
-		if (UWorld* World = GetWorld())
-		{
-			if (UGameViewportClient* GameViewportClient = World->GetGameViewport())
+			// GetOrCreate and Tick existing objects
+			if (UWorld* World = GetWorld())
 			{
-				if (FViewport* DstViewport = GameViewportClient->Viewport)
+				if (UGameViewportClient* GameViewportClient = World->GetGameViewport())
 				{
-					// Update existing objects
-					for (const FString& ShareNameIt : NamesOfExistingObjects)
+					if (FViewport* DstViewport = GameViewportClient->Viewport)
 					{
-						if (UTextureShareObject* TextureShareObject = TextureShare->GetTextureShareObject(ShareNameIt))
+						// Update existing objects
+						for (const FString& ShareNameIt : NamesOfExistingObjects)
 						{
-							FTextureShareWorldSubsystemObject ObjectAPI(TextureShare->ProcessName, TextureShareObject);
+							if (UTextureShareObject* TextureShareObject = TextureShare->GetTextureShareObject(ShareNameIt))
+							{
+								FTextureShareWorldSubsystemObject ObjectAPI(TextureShare->ProcessName, TextureShareObject);
 
-							// tick game->render thread
-							ObjectAPI.Tick(DstViewport);
+								// tick game->render thread
+								ObjectAPI.Tick(DstViewport);
+							}
 						}
 					}
 				}

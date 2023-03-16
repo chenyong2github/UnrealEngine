@@ -42,8 +42,6 @@ public:
 	void Initialize();
 	void Release();
 
-	FString ToString() const;
-
 private:
 	bool HandleLogicBroken();
 

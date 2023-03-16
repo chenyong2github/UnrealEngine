@@ -27,14 +27,41 @@ public:
 	virtual void GetObjectDesc(TDataOutput<FTextureShareCoreObjectDesc>& OutObjectDesc) const = 0;
 
 	/**
+	* Returns detailed information about the TextureShare proxy object.
+	*/
+	virtual void GetObjectDesc_RenderThread(TDataOutput<FTextureShareCoreObjectDesc>& OutObjectDesc) const = 0;
+
+	/**
 	 * Returns true if the TextureShare object is ready to be used.
 	 */
 	virtual bool IsActive() const = 0;
 
 	/**
+	 * Returns true if the TextureShare object proxy is ready to be used.
+	 */
+	virtual bool IsActive_RenderThread() const = 0;
+
+	/**
 	 * Returns true if the TextureShareCore object has started a session and processes are connected for this frame.
 	 */
 	virtual bool IsFrameSyncActive() const = 0;
+
+	/**
+	 * Returns true if the TextureShareCore object proxy has started a session and processes are connected for this frame.
+	 */
+	virtual bool IsFrameSyncActive_RenderThread() const = 0;
+
+	/**
+	 * Support for multi-threaded implementation.
+	 * Returns true if the BeginFrameSync() function can be called at this moment for object
+	 */
+	virtual bool IsBeginFrameSyncActive() const = 0;
+
+	/**
+	 * Support for multi-threaded implementation.
+	 * Returns true if the BeginFrameSync() function can be called at this moment for object proxy
+	 */
+	virtual bool IsBeginFrameSyncActive_RenderThread() const = 0;
 
 public:
 	///////////////////////// Settings /////////////////////////
@@ -81,6 +108,26 @@ public:
 	 */
 	virtual void GetFrameSyncSettings(const ETextureShareFrameSyncTemplate InType, TDataOutput<FTextureShareCoreFrameSyncSettings>& OutFrameSyncSettings) const = 0;
 
+	/**
+	 * Find skipped frame sync step
+	 *
+	 * @param InSyncStep           - Sync step value
+	 * @param OutSkippedSyncStep   - Skipped sync step value
+	 *
+	 * @return true, if skipped sync step found
+	 */
+	virtual bool FindSkippedSyncStep(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep) const = 0;
+
+	/**
+	 * Find skipped frame sync step for proxy object
+	 *
+	 * @param InSyncStep           - Sync step value
+	 * @param OutSkippedSyncStep   - Skipped sync step value
+	 *
+	 * @return true, if skipped sync step found
+	 */
+	virtual bool FindSkippedSyncStep_RenderThread(const ETextureShareSyncStep InSyncStep, ETextureShareSyncStep& OutSkippedSyncStep) const = 0;
+
 public:
 	///////////////////////// Session /////////////////////////
 
@@ -113,10 +160,11 @@ public:
 	 * The mutex of the specified type will be locked (and created for the first time)
 	 *
 	 * @param InThreadMutex - Mutex type
+	 * @param bForceLockNoWait - lock without waiting for unlock
 	 *
 	 * @return True if the success
 	 */
-	virtual bool LockThreadMutex(const ETextureShareThreadMutex InThreadMutex) = 0;
+	virtual bool LockThreadMutex(const ETextureShareThreadMutex InThreadMutex, bool bForceLockNoWait = false) = 0;
 
 	/**
 	 * Support for multi-threaded implementation.
@@ -127,18 +175,6 @@ public:
 	 * @return True if the success
 	 */
 	virtual bool UnlockThreadMutex(const ETextureShareThreadMutex InThreadMutex) = 0;
-
-	/**
-	 * Support for multi-threaded implementation.
-	 * Returns true if the BeginFrameSync() function can be called at this moment
-	 */
-	virtual bool IsBeginFrameSyncActive() const = 0;
-
-	/**
-	 * Support for multi-threaded implementation.
-	 * Returns true if the BeginFrameSync_RenderThread() function can be called at this moment
-	 */
-	virtual bool IsBeginFrameSyncActive_RenderThread() const = 0;
 
 public:
 	///////////////////////// Interprocess Synchronization /////////////////////////

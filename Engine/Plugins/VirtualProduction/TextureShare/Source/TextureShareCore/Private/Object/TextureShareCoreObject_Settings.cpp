@@ -7,16 +7,14 @@
 #include "IPC/TextureShareCoreInterprocessMutex.h"
 #include "IPC/TextureShareCoreInterprocessEvent.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
-
-#include "Core/TextureShareCoreHelpers.h"
+#include "IPC/TextureShareCoreInterprocessHelpers.h"
 
 #include "Module/TextureShareCoreModule.h"
 #include "Module/TextureShareCoreLog.h"
 
 #include "Misc/ScopeLock.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-using namespace TextureShareCoreHelpers;
+using namespace UE::TextureShareCore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreObject
@@ -36,83 +34,121 @@ bool FTextureShareCoreObject::SetProcessId(const FString& InProcessId)
 	}
 	else
 	{
-		// Deferred update
-		NextProcessId = InProcessId;
+		if (LockThreadMutex(ETextureShareThreadMutex::InternalLock))
+		{
+			ObjectDesc.ProcessDesc.ProcessId = InProcessId;
+
+			// Update IPC
+			UpdateInterprocessObject();
+
+			UnlockThreadMutex(ETextureShareThreadMutex::InternalLock);
+		}
 	}
+
+	UE_TS_LOG(LogTextureShareCoreObject, Log, TEXT("%s:SetProcessId('%s')"), *GetName(), *InProcessId);
 
 	return true;
 }
 
 bool FTextureShareCoreObject::SetDeviceType(const ETextureShareDeviceType InDeviceType)
 {
-	check(IsInGameThread());
-
-	ObjectDesc.ProcessDesc.DeviceType = InDeviceType;
-
-	UE_TS_LOG(LogTextureShareCoreObject, Log, TEXT("%s:Set device type to '%s'"), *GetName(), GetTEXT(InDeviceType));
-
-	return true;
-}
-
-void FTextureShareCoreObject::UpdateProcessId(FTextureShareCoreInterprocessObject& InOutObject)
-{
-	if (!NextProcessId.IsEmpty())
-	{
-		// Support local process name changes on the fly
-		ObjectDesc.ProcessDesc.ProcessId = NextProcessId;
-
-		// Update process name in shared memory at frame begin
-		InOutObject.Desc.ProcessName.Initialize(NextProcessId);
-
-		NextProcessId.Empty();
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-bool FTextureShareCoreObject::SetSyncSetting(const FTextureShareCoreSyncSettings& InSyncSetting)
-{
 	if (!IsSessionActive())
 	{
-		SyncSettings = InSyncSetting;
+		ObjectDesc.ProcessDesc.DeviceType = InDeviceType;
 	}
 	else
 	{
-		if (!NewSyncSetting.IsValid())
+		if (LockThreadMutex(ETextureShareThreadMutex::InternalLock))
 		{
-			NewSyncSetting = MakeShared<FTextureShareCoreSyncSettings, ESPMode::ThreadSafe>(InSyncSetting);
-		}
-		else
-		{
-			*NewSyncSetting = InSyncSetting;
+			ObjectDesc.ProcessDesc.DeviceType = InDeviceType;
+
+			// Update IPC
+			UpdateInterprocessObject();
+
+			UnlockThreadMutex(ETextureShareThreadMutex::InternalLock);
 		}
 	}
+
+	UE_TS_LOG(LogTextureShareCoreObject, Log, TEXT("%s:SetDeviceType(%s)"), *GetName(), GetTEXT(InDeviceType));
 
 	return true;
 }
 
-void FTextureShareCoreObject::UpdateFrameSyncSetting()
+//////////////////////////////////////////////////////////////////////////////////////////////
+bool FTextureShareCoreObject::SetSyncSetting(const FTextureShareCoreSyncSettings& InSyncSettings)
 {
-	if (NewSyncSetting.IsValid())
+	if (!IsSessionActive())
 	{
-		SyncSettings = *NewSyncSetting;
-		NewSyncSetting.Reset();
-
-		// Also update settings exposition for other processes
-		if (IsActive() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
+		SyncSettings = InSyncSettings;
+	}
+	else
+	{
+		if (SyncSettings ==InSyncSettings)
 		{
-			if (FTextureShareCoreInterprocessMemory* InterprocessMemory = Owner.GetInterprocessMemory())
-			{
-				if (FTextureShareCoreInterprocessObject* LocalObject = InterprocessMemory->FindObject(GetObjectDesc()))
-				{
-					LocalObject->UpdateSettings(GetObjectDesc(), SyncSettings);
-				}
-			}
-
-			Owner.UnlockInterprocessMemory();
+			return true;
 		}
 
-		UE_TS_LOG(LogTextureShareCoreObject, Log, TEXT("%s:UpdateFrameSyncSetting()"), *GetName());
+		if (LockThreadMutex(ETextureShareThreadMutex::InternalLock))
+		{
+			// Update sync settings
+			SyncSettings = InSyncSettings;
+
+			// Update object desc sync hash value
+			ObjectDesc.Sync.SetSyncStepSettings(SyncSettings);
+
+			// Update IPC
+			UpdateInterprocessObject();
+
+			UnlockThreadMutex(ETextureShareThreadMutex::InternalLock);
+		}
 	}
+
+	UE_TS_LOG(LogTextureShareCoreObject, Log, TEXT("%s:SetSyncSetting()"), *GetName());
+
+	return true;
+}
+
+void FTextureShareCoreObject::AddNewSyncStep(const ETextureShareSyncStep InSyncStep)
+{
+	if (!IsSessionActive())
+	{
+		SyncSettings.FrameSyncSettings.Steps.AddSorted(InSyncStep);
+	}
+	else
+	{
+		if (LockThreadMutex(ETextureShareThreadMutex::InternalLock))
+		{
+			// Add requested sync step
+			SyncSettings.FrameSyncSettings.Steps.AddSorted(InSyncStep);
+
+			// Update object desc sync hash value
+			ObjectDesc.Sync.SetSyncStepSettings(SyncSettings);
+
+			// Update IPC
+			UpdateInterprocessObject();
+
+			UnlockThreadMutex(ETextureShareThreadMutex::InternalLock);
+		}
+	}
+}
+
+void FTextureShareCoreObject::UpdateInterprocessObject()
+{
+	// Also update settings exposition for other processes
+	if (IsActive() && Owner.LockInterprocessMemory(SyncSettings.TimeoutSettings.MemoryMutexTimeout))
+	{
+		if (FTextureShareCoreInterprocessMemory* InterprocessMemory = Owner.GetInterprocessMemory())
+		{
+			if (FTextureShareCoreInterprocessObject* LocalObject = InterprocessMemory->FindObject(GetObjectDesc()))
+			{
+				LocalObject->UpdateInterprocessObject(GetObjectDesc(), SyncSettings);
+			}
+		}
+
+		Owner.UnlockInterprocessMemory();
+	}
+
+	UE_TS_LOG(LogTextureShareCoreObject, Log, TEXT("%s:UpdateInterprocessObject()"), *GetName());
 }
 
 const FTextureShareCoreSyncSettings& FTextureShareCoreObject::GetSyncSetting() const
@@ -130,19 +166,17 @@ FTextureShareCoreFrameSyncSettings FTextureShareCoreObject::GetFrameSyncSettings
 			Result.Steps.Append({
 				// GameThread logic
 				ETextureShareSyncStep::FrameBegin,
+
 					ETextureShareSyncStep::FramePreSetupBegin,
+
+					ETextureShareSyncStep::FrameFlush,
 				ETextureShareSyncStep::FrameEnd,
 
 				// Proxy object sync settings (RenderingThread)
 				ETextureShareSyncStep::FrameProxyBegin,
 
-					ETextureShareSyncStep::FrameSceneFinalColorBegin,
 					ETextureShareSyncStep::FrameSceneFinalColorEnd,
-
-					ETextureShareSyncStep::FrameProxyPreRenderBegin,
 					ETextureShareSyncStep::FrameProxyPreRenderEnd,
-
-					ETextureShareSyncStep::FrameProxyBackBufferReadyToPresentBegin,
 					ETextureShareSyncStep::FrameProxyBackBufferReadyToPresentEnd,
 
 					ETextureShareSyncStep::FrameProxyFlush,
@@ -154,12 +188,17 @@ FTextureShareCoreFrameSyncSettings FTextureShareCoreObject::GetFrameSyncSettings
 			Result.Steps.Append({
 				// GameThread logic
 				ETextureShareSyncStep::FrameBegin,
-					ETextureShareSyncStep::FramePreSetupBegin,
+
+					// Synchronization steps are added upon request from the SDK
+
+					ETextureShareSyncStep::FrameFlush,
 				ETextureShareSyncStep::FrameEnd,
 
 				// Proxy object sync settings (RenderingThread)
 				ETextureShareSyncStep::FrameProxyBegin,
-					ETextureShareSyncStep::FrameProxyPreRenderBegin,
+
+					// Synchronization steps are added upon request from the SDK
+
 					ETextureShareSyncStep::FrameProxyFlush,
 				ETextureShareSyncStep::FrameProxyEnd
 				});
@@ -169,24 +208,37 @@ FTextureShareCoreFrameSyncSettings FTextureShareCoreObject::GetFrameSyncSettings
 			Result.Steps.Append({
 				// GameThread logic
 				ETextureShareSyncStep::FrameBegin,
+
 					ETextureShareSyncStep::FramePreSetupBegin,
 					ETextureShareSyncStep::FrameSetupBegin,
+
+					ETextureShareSyncStep::FrameFlush,
 				ETextureShareSyncStep::FrameEnd,
 
 				// Proxy object sync settings (RenderingThread)
 				ETextureShareSyncStep::FrameProxyBegin,
-					ETextureShareSyncStep::FrameProxyPreRenderBegin,
+
 					ETextureShareSyncStep::FrameProxyPreRenderEnd,
-
-					ETextureShareSyncStep::FrameProxyRenderBegin,
 					ETextureShareSyncStep::FrameProxyRenderEnd,
-
-					ETextureShareSyncStep::FrameProxyPostWarpBegin,
 					ETextureShareSyncStep::FrameProxyPostWarpEnd,
-
-					ETextureShareSyncStep::FrameProxyPostRenderBegin,
 					ETextureShareSyncStep::FrameProxyPostRenderEnd,
 
+					ETextureShareSyncStep::FrameProxyFlush,
+				ETextureShareSyncStep::FrameProxyEnd
+				});
+			break;
+
+		case ETextureShareFrameSyncTemplate::DisplayClusterCrossNode:
+			Result.Steps.Append({
+				// GameThread logic
+				ETextureShareSyncStep::FrameBegin,
+					// Synchronization steps are added upon request
+					ETextureShareSyncStep::FrameFlush,
+				ETextureShareSyncStep::FrameEnd,
+
+				// Proxy object sync settings (RenderingThread)
+				ETextureShareSyncStep::FrameProxyBegin,
+					// Synchronization steps are added upon request
 					ETextureShareSyncStep::FrameProxyFlush,
 				ETextureShareSyncStep::FrameProxyEnd
 				});

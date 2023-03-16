@@ -26,153 +26,158 @@ __pragma(warning(disable:4191))
 #define VK_USE_PLATFORM_WIN32_KHR 1
 #define VK_LIBRARY_NAME "vulkan-1"
 #define VK_GETFUNC(FuncId)\
-FuncId = (PFN_##FuncId)(::GetProcAddress((Windows::HMODULE)VulkanLibraryPtr, "vkGetInstanceProcAddr"));
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// FTextureShareCoreVulkanLibrary
-//////////////////////////////////////////////////////////////////////////////////////////////
-class FTextureShareCoreVulkanLibrary
-{
-public:
-	FTextureShareCoreVulkanLibrary();
-	~FTextureShareCoreVulkanLibrary();
-
-public:
-	bool IsValid() const
-	{
-		return VulkanLibraryPtr != nullptr && vkGetInstanceProcAddr != nullptr;
-	}
-
-	void* GetInstanceProcAddr(const FTextureShareDeviceVulkanContext& InDeviceContext, LPCSTR InProcName) const;
-	void* GetProcAddr(LPCSTR InProcName) const;
-	void* GetDeviceInstanceProcAddr(const FTextureShareDeviceVulkanContext& InDeviceContext, LPCSTR InProcName) const;
-
-protected:
-	// Load the library
-	bool Load();
-	// Unload the library
-	void Unload();
-
-private:
-	void* VulkanLibraryPtr = nullptr;
-	PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = nullptr;
-};
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-FTextureShareCoreVulkanLibrary::FTextureShareCoreVulkanLibrary()
-{
-	if (!Load())
-	{
-		Unload();
-	}
-}
-
-FTextureShareCoreVulkanLibrary::~FTextureShareCoreVulkanLibrary()
-{
-	Unload();
-}
-
-void* FTextureShareCoreVulkanLibrary::GetInstanceProcAddr(const FTextureShareDeviceVulkanContext& InDeviceContext, LPCSTR InProcName) const
-{
-	if (IsValid() && InProcName && *InProcName)
-	{
-		return vkGetInstanceProcAddr(InDeviceContext.GetInstance(), InProcName);
-	}
-
-	return nullptr;
-}
-
-void* FTextureShareCoreVulkanLibrary::GetProcAddr(LPCSTR InProcName) const
-{
-	if (IsValid() && InProcName && *InProcName)
-	{
-		return vkGetInstanceProcAddr(nullptr, InProcName);
-	}
-
-	return nullptr;
-}
-
-void* FTextureShareCoreVulkanLibrary::GetDeviceInstanceProcAddr(const FTextureShareDeviceVulkanContext& InDeviceContext, LPCSTR InProcName) const
-{
-	const PFN_vkGetDeviceProcAddr GetDeviceProcAddr = (PFN_vkGetDeviceProcAddr)GetInstanceProcAddr(InDeviceContext, "vkGetDeviceProcAddr");
-	if (GetDeviceProcAddr)
-	{
-		return GetDeviceProcAddr(InDeviceContext.GetDevice(), InProcName);
-	}
-
-	return nullptr;
-}
-
-bool FTextureShareCoreVulkanLibrary::Load()
-{
-	VulkanLibraryPtr = ::LoadLibraryA(VK_LIBRARY_NAME);
-	if (VulkanLibraryPtr)
-	{
-		vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)(::GetProcAddress((Windows::HMODULE)VulkanLibraryPtr, "vkGetInstanceProcAddr"));
-
-		if (!vkGetInstanceProcAddr)
-			return false;
-
-		return true;
-	}
-
-	return false;
-}
-
-void FTextureShareCoreVulkanLibrary::Unload()
-{
-	if (VulkanLibraryPtr)
-	{
-		Windows::FreeLibrary((Windows::HMODULE)VulkanLibraryPtr);
-		VulkanLibraryPtr = nullptr;
-	}
-}
+	FuncId = (PFN_##FuncId)(::GetProcAddress((Windows::HMODULE)VulkanLibraryPtr, "vkGetInstanceProcAddr"));
 
 #define GetVulkanDeviceProc(name)\
 	PFN_vk##name name = (PFN_vk##name)GetVulkanLibrary().GetDeviceInstanceProcAddr(InDeviceVulkanContext, "vk"#name)
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-namespace TextureShareCoreVulkanResourcesCacheItemHelpers
+namespace UE
 {
-	static FTextureShareCoreVulkanLibrary& GetVulkanLibrary()
+	namespace TextureShareCore
 	{
-		static FTextureShareCoreVulkanLibrary VulkanLibrary;
-		return VulkanLibrary;
-	}
-
-	static bool VulkanCreateSharedHandle(const FTextureShareDeviceVulkanContext& InDeviceVulkanContext, const FTextureShareDeviceVulkanResource& InVulkanResource, const bool bUseNTHandle, HANDLE& OutSharedHandle)
-	{
-		if (GetVulkanLibrary().IsValid())
+		namespace VulkanResourcesCacheItem
 		{
-			if (InVulkanResource.IsValid() && InDeviceVulkanContext.IsValid())
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			// FTextureShareCoreVulkanLibrary
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			class FTextureShareCoreVulkanLibrary
 			{
-				// Generate VkMemoryGetWin32HandleInfoKHR
-				VkMemoryGetWin32HandleInfoKHR MemoryGetHandleInfoKHR = {};
+			public:
+				FTextureShareCoreVulkanLibrary();
+				~FTextureShareCoreVulkanLibrary();
 
-				MemoryGetHandleInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
-				MemoryGetHandleInfoKHR.pNext = NULL;
-				MemoryGetHandleInfoKHR.memory = InVulkanResource.GetAllocationHandle();
-				MemoryGetHandleInfoKHR.handleType = bUseNTHandle ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+			public:
+				bool IsValid() const
+				{
+					return VulkanLibraryPtr != nullptr && vkGetInstanceProcAddr != nullptr;
+				}
 
-				// While this operation is safe (and unavoidable) C4191 has been enabled and this will trigger an error with warnings as errors
+				void* GetInstanceProcAddr(const FTextureShareDeviceVulkanContext& InDeviceContext, LPCSTR InProcName) const;
+				void* GetProcAddr(LPCSTR InProcName) const;
+				void* GetDeviceInstanceProcAddr(const FTextureShareDeviceVulkanContext& InDeviceContext, LPCSTR InProcName) const;
+
+			protected:
+				// Load the library
+				bool Load();
+				// Unload the library
+				void Unload();
+
+			private:
+				void* VulkanLibraryPtr = nullptr;
+				PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = nullptr;
+			};
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			FTextureShareCoreVulkanLibrary::FTextureShareCoreVulkanLibrary()
+			{
+				if (!Load())
+				{
+					Unload();
+				}
+			}
+
+			FTextureShareCoreVulkanLibrary::~FTextureShareCoreVulkanLibrary()
+			{
+				Unload();
+			}
+
+			void* FTextureShareCoreVulkanLibrary::GetInstanceProcAddr(const FTextureShareDeviceVulkanContext& InDeviceContext, LPCSTR InProcName) const
+			{
+				if (IsValid() && InProcName && *InProcName)
+				{
+					return vkGetInstanceProcAddr(InDeviceContext.GetInstance(), InProcName);
+				}
+
+				return nullptr;
+			}
+
+			void* FTextureShareCoreVulkanLibrary::GetProcAddr(LPCSTR InProcName) const
+			{
+				if (IsValid() && InProcName && *InProcName)
+				{
+					return vkGetInstanceProcAddr(nullptr, InProcName);
+				}
+
+				return nullptr;
+			}
+
+			void* FTextureShareCoreVulkanLibrary::GetDeviceInstanceProcAddr(const FTextureShareDeviceVulkanContext& InDeviceContext, LPCSTR InProcName) const
+			{
+				const PFN_vkGetDeviceProcAddr GetDeviceProcAddr = (PFN_vkGetDeviceProcAddr)GetInstanceProcAddr(InDeviceContext, "vkGetDeviceProcAddr");
+				if (GetDeviceProcAddr)
+				{
+					return GetDeviceProcAddr(InDeviceContext.GetDevice(), InProcName);
+				}
+
+				return nullptr;
+			}
+
+			bool FTextureShareCoreVulkanLibrary::Load()
+			{
+				VulkanLibraryPtr = ::LoadLibraryA(VK_LIBRARY_NAME);
+				if (VulkanLibraryPtr)
+				{
+					vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)(::GetProcAddress((Windows::HMODULE)VulkanLibraryPtr, "vkGetInstanceProcAddr"));
+
+					if (!vkGetInstanceProcAddr)
+						return false;
+
+					return true;
+				}
+
+				return false;
+			}
+
+			void FTextureShareCoreVulkanLibrary::Unload()
+			{
+				if (VulkanLibraryPtr)
+				{
+					Windows::FreeLibrary((Windows::HMODULE)VulkanLibraryPtr);
+					VulkanLibraryPtr = nullptr;
+				}
+			}
+
+			static FTextureShareCoreVulkanLibrary& GetVulkanLibrary()
+			{
+				static FTextureShareCoreVulkanLibrary VulkanLibrary;
+				return VulkanLibrary;
+			}
+
+			static bool VulkanCreateSharedHandle(const FTextureShareDeviceVulkanContext& InDeviceVulkanContext, const FTextureShareDeviceVulkanResource& InVulkanResource, const bool bUseNTHandle, HANDLE& OutSharedHandle)
+			{
+				if (GetVulkanLibrary().IsValid())
+				{
+					if (InVulkanResource.IsValid() && InDeviceVulkanContext.IsValid())
+					{
+						// Generate VkMemoryGetWin32HandleInfoKHR
+						VkMemoryGetWin32HandleInfoKHR MemoryGetHandleInfoKHR = {};
+
+						MemoryGetHandleInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
+						MemoryGetHandleInfoKHR.pNext = NULL;
+						MemoryGetHandleInfoKHR.memory = InVulkanResource.GetAllocationHandle();
+						MemoryGetHandleInfoKHR.handleType = bUseNTHandle ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+
+						// While this operation is safe (and unavoidable) C4191 has been enabled and this will trigger an error with warnings as errors
 #pragma warning(push)
 #pragma warning(disable : 4191)
-				if (GetVulkanDeviceProc(GetMemoryWin32HandleKHR))
-				{
-					const VkResult Result = GetMemoryWin32HandleKHR(InDeviceVulkanContext.GetDevice(), &MemoryGetHandleInfoKHR, &OutSharedHandle);
-					if (Result == VK_SUCCESS)
-					{
-						return OutSharedHandle != 0 && OutSharedHandle != INVALID_HANDLE_VALUE;
+						if (GetVulkanDeviceProc(GetMemoryWin32HandleKHR))
+						{
+							const VkResult Result = GetMemoryWin32HandleKHR(InDeviceVulkanContext.GetDevice(), &MemoryGetHandleInfoKHR, &OutSharedHandle);
+							if (Result == VK_SUCCESS)
+							{
+								return OutSharedHandle != 0 && OutSharedHandle != INVALID_HANDLE_VALUE;
+							}
+						}
+#pragma warning(pop)
 					}
 				}
-#pragma warning(pop)
+
+				return false;
 			}
 		}
-
-		return false;
 	}
 };
-using namespace TextureShareCoreVulkanResourcesCacheItemHelpers;
+using namespace UE::TextureShareCore::VulkanResourcesCacheItem;
 
 #endif
 //////////////////////////////////////////////////////////////////////////////////////////////

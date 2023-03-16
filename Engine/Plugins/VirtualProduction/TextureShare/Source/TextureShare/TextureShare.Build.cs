@@ -8,12 +8,13 @@ public class TextureShare : ModuleRules
 {
 	public TextureShare(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				Path.Combine(GetModuleDirectory("Renderer"), "Private"),
-				Path.Combine(GetModuleDirectory("TextureShareCore"), "Private"),
-			}
-		);
+		// [temporary] We need this to be able to use some private data types. This should
+		// be removed once we move the nD rendering pipeline to RDG (TextureShareSceneViewExtension.h).
+		string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+		PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private"));
+
+		// Internal dependency (debug log purpose)
+		PrivateIncludePaths.Add(Path.Combine(EngineDir, "Plugins", "VirtualProduction", "TextureShare", "Source", "TextureShareCore", "Private"));
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -30,6 +31,7 @@ public class TextureShare : ModuleRules
 				"Core",
 				"Engine",
 				"RHI",
+				"RHICore",
 				"Renderer",
 				"RenderCore",
 				"Slate",
@@ -46,6 +48,18 @@ public class TextureShare : ModuleRules
 					"D3D12RHI"
 				}
 			);
+		}
+
+		// Show more log
+		bool bEnableExtraDebugLog = false;
+		if (bEnableExtraDebugLog)
+		{
+			//Show log in SDK-for Debug and DebugGame builds
+			PublicDefinitions.Add("TEXTURESHARE_DEBUGLOG=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("TEXTURESHARE_DEBUGLOG=0");
 		}
 
 		// Allow using Vulkan render device
@@ -68,10 +82,6 @@ public class TextureShare : ModuleRules
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 
 		if (Target.bBuildEditor == true)
 		{

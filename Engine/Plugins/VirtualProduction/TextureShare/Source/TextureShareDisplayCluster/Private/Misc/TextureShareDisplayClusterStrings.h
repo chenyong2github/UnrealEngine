@@ -10,31 +10,44 @@
 /**
  * Constant names for nDisplay texture resources
  */
-namespace TextureShareDisplayClusterStrings
+namespace UE
 {
-	namespace Viewport
+	namespace TextureShare
 	{
-		// FinalColor, but can be overrided
-		static constexpr auto FinalColor = TEXT("ViewportFinalColor");
+		namespace DisplayClusterStrings
+		{
+			// Default ShareName for nDisplay integration object
+			static constexpr auto DefaultShareName = TEXT("nDisplay");
 
-		// internal resolved shader resources, used as warp&blend source
-		static constexpr auto Input = TEXT("ViewportInput");
-		static constexpr auto Mips = TEXT("ViewportMips");
+			namespace Viewport
+			{
+				// FinalColor, but can be overrided
+				static constexpr auto FinalColor = TEXT("ViewportFinalColor");
 
-		// After warp viewport (before output remap)
-		static constexpr auto Warped = TEXT("ViewportWarpBlend");
-	}
+				// internal resolved shader resources, used as warp&blend source
+				static constexpr auto Input = TEXT("ViewportInput");
+				static constexpr auto Mips = TEXT("ViewportMips");
 
-	namespace Output
-	{
-		// access to nDisplay frame backbuffer
-		static constexpr auto Backbuffer     = TEXT("FrameBackbuffer");
-		static constexpr auto BackbufferTemp = TEXT("FrameBackbufferTemp");
-	}
+				// After warp viewport (before output remap)
+				static constexpr auto Warped = TEXT("ViewportWarpBlend");
+			}
 
-	namespace Default
-	{
-		// Default ShareName for nDisplay integration object
-		static constexpr auto ShareName = TEXT("nDisplay");
+			namespace Output
+			{
+				// access to nDisplay frame backbuffer
+				static constexpr auto Backbuffer = TEXT("FrameBackbuffer");
+				static constexpr auto BackbufferTemp = TEXT("FrameBackbufferTemp");
+			}
+
+			namespace Postprocess
+			{
+				static constexpr auto TextureShare = TEXT("TextureShare");
+			}
+
+			namespace Projection
+			{
+				static constexpr auto TextureShare = TEXT("textureshare");
+			}
+		}
 	}
 };
