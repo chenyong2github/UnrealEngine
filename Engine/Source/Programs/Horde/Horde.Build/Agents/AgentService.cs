@@ -629,34 +629,17 @@ namespace Horde.Build.Agents
 			IAgent? agent = inAgent;
 			while (agent != null)
 			{
-				// If the agent is stopping and doesn't have any leases, we can terminate the current session.
-				if (status == AgentStatus.Stopping && newLeases.Count == 0)
-				{
-					// If we've already decided to terminate the session, this update is redundant but harmless
-					if (agent.SessionId != sessionId)
-					{
-						break;
-					}
-
-					// If the session is valid, we can terminate once the agent leases are also empty
-					if (agent.Leases.Count == 0)
-					{
-						IAgent? terminatedAgent = await TryTerminateSessionAsync(agent);
-						if (terminatedAgent == null)
-						{
-							agent = await GetAgentAsync(agent.Id);
-							continue;
-						}
-
-						agent = terminatedAgent;
-						break;
-					}
-				}
-
 				// Check the session id is correct.
 				if (agent.SessionId != sessionId)
 				{
-					throw new InvalidOperationException($"Invalid agent session {sessionId}");
+					if (status == AgentStatus.Stopping)
+					{
+						break; // Harmless; agent is not doing any work.
+					}
+					else
+					{
+						throw new InvalidOperationException($"Invalid agent session {sessionId}");
+					}
 				}
 
 				// Check the session hasn't expired
@@ -739,6 +722,19 @@ namespace Horde.Build.Agents
 				// Fetch the agent again
 				agent = await GetAgentAsync(agent.Id);
 			}
+
+			// If the agent is stopping, terminate the session
+			while (agent != null && agent.Status == AgentStatus.Stopping && agent.Leases.Count == 0)
+			{
+				IAgent? terminatedAgent = await TryTerminateSessionAsync(agent);
+				if (terminatedAgent != null)
+				{
+					agent = terminatedAgent;
+					break;
+				}
+				agent = await GetAgentAsync(agent.Id);
+			}
+
 			return agent;
 		}
 
