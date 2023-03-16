@@ -315,6 +315,8 @@ void UPCGEditorGraphNodeBase::ReconstructNode()
 		bDeferredReconstruct = true;
 		return;
 	}
+	
+	Modify();
 
 	// Store copy of old pins
 	TArray<UEdGraphPin*> OldPins = MoveTemp(Pins);
