@@ -94,6 +94,15 @@ namespace UE::Interchange::Private::InterchangeDDSTranslator
 			return {};
 		}
 
+		// We require a complete mip chain or a single mip.
+		if (DDS->MipCount > 1)
+		{
+			if (DDS->MipCount != FImageCoreUtils::GetMipCountFromDimensions(DDS->Width, DDS->Height, DDS->Depth, DDS->IsValidTextureVolume()))
+			{
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Imported DDS files must either be a single base mip, or a full mip chain, not a partial mip chain (found %d expected %d)"), DDS->MipCount, FImageCoreUtils::GetMipCountFromDimensions(DDS->Width, DDS->Height, DDS->Depth, DDS->IsValidTextureVolume()));
+			}
+		}
+
 		if (!bHeaderOnly)
 		{
 			// change X8 formats to A8 :	

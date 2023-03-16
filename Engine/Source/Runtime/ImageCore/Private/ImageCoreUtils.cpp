@@ -4,8 +4,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogImageCoreUtils, Log, All);
 
+IMAGECORE_API int32 FImageCoreUtils::GetMipCountFromDimensions(int32 InSizeX, int32 InSizeY, int32 InVolumeZ, bool bInIsVolume)
+{
+	uint32 MaxMipDimension = FMath::Max3(InSizeX, InSizeY, bInIsVolume ? InVolumeZ : 1);
+	return 1 + FMath::FloorLog2(MaxMipDimension);
+}
 
-EPixelFormat FImageCoreUtils::GetPixelFormatForRawImageFormat(ERawImageFormat::Type InFormat, 
+
+IMAGECORE_API EPixelFormat FImageCoreUtils::GetPixelFormatForRawImageFormat(ERawImageFormat::Type InFormat, 
 							ERawImageFormat::Type * pOutEquivalentFormat)
 {
 	ERawImageFormat::Type OutEquivalentFormatDummy;

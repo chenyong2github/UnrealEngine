@@ -20,6 +20,9 @@ ImageCoreUtils.h: Image utility functions.
 
 namespace FImageCoreUtils
 {
+	// Returns the number of mips that constitute a full mip chain for the given top level mip size.
+	// InVolumeZ is ignored unless bInIsVolume is true
+	IMAGECORE_API int32 GetMipCountFromDimensions(int32 InSizeX, int32 InSizeY, int32 InVolumeZ, bool bInIsVolume);
 
 	// ETextureSourceFormat and ERawImageFormat::Type are one-to-one :
 	IMAGECORE_API ERawImageFormat::Type ConvertToRawImageFormat(ETextureSourceFormat Format);
