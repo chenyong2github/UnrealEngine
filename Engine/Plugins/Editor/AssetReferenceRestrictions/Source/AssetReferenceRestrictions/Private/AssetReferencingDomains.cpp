@@ -262,6 +262,8 @@ void FDomainDatabase::RebuildFromScratch()
 
 	// Update any existing filters that have cached now stale domains
 	FDomainAssetReferenceFilter::UpdateAllFilters();
+
+	OnPostDatabaseUpdated.Broadcast();
 }
 
 void FDomainDatabase::Init()

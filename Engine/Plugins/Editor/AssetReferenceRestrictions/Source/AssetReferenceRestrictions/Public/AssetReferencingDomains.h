@@ -51,7 +51,7 @@ struct FDomainData final : public TSharedFromThis<FDomainData>
 	}
 };
 
-struct FDomainDatabase final
+struct ASSETREFERENCERESTRICTIONS_API FDomainDatabase final
 {
 	FDomainDatabase();
 	~FDomainDatabase();
@@ -60,6 +60,9 @@ struct FDomainDatabase final
 
 	void MarkDirty();
 	void UpdateIfNecessary();
+
+	// Delegate that's called whenever the database has been updated to allow people to respond to the change
+	TMulticastDelegate<void()>& PostDatabaseUpdated() { return OnPostDatabaseUpdated; };
 
 	void ValidateAllDomains();
 	void DebugPrintAllDomains();
@@ -72,9 +75,11 @@ struct FDomainDatabase final
 
 	const TArray<FString>& GetDomainsDefinedByPlugins() const { return DomainsDefinedByPlugins; }
 
+	TSharedPtr<FDomainData> FindOrAddDomainByName(const FString& Name);
+
 private:
 	void RebuildFromScratch();
-	TSharedPtr<FDomainData> FindOrAddDomainByName(const FString& Name);
+	
 	void BuildDomainFromPlugin(TSharedRef<IPlugin> Plugin);
 
 	void AddDomainVisibilityList(TSharedPtr<FDomainData> Domain, const TArray<FString>& VisibilityList);
@@ -108,4 +113,6 @@ private:
 	TArray<FString> DomainsDefinedByPlugins;
 
 	bool bDatabaseOutOfDate = false;
+
+	TMulticastDelegate<void()> OnPostDatabaseUpdated;
 };

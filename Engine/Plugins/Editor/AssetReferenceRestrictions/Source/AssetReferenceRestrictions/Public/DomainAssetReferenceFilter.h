@@ -11,7 +11,7 @@ struct FAssetData;
 struct FDomainDatabase;
 struct FDomainData;
 
-class FDomainAssetReferenceFilter : public IAssetReferenceFilter
+class ASSETREFERENCERESTRICTIONS_API FDomainAssetReferenceFilter : public IAssetReferenceFilter
 {
 public:
 	FDomainAssetReferenceFilter(const FAssetReferenceFilterContext& Context, TSharedPtr<FDomainDatabase> InDomainDB);

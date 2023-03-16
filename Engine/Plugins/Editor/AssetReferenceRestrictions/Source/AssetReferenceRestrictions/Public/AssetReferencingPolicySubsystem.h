@@ -12,7 +12,7 @@ struct FDomainDatabase;
 
 /** Subsystem to register the domain-based asset referencing policy restrictions with the editor */
 UCLASS()
-class UAssetReferencingPolicySubsystem : public UEditorSubsystem
+class ASSETREFERENCERESTRICTIONS_API UAssetReferencingPolicySubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
