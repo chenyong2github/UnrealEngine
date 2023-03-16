@@ -172,7 +172,7 @@ struct FStrataOperator
 		bBSDFHasAnisotropy = A.bBSDFHasAnisotropy;
 	}
 
-	bool IsDiscarded()
+	bool IsDiscarded() const
 	{
 		return bUseParameterBlending && !bRootOfParameterBlendingSubTree;
 	}
@@ -740,7 +740,7 @@ public:
 
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk) = 0;
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk, int32 TangentCodeChunk) = 0;
-	FString GetStrataSharedLocalBasisIndexMacro(const FStrataRegisteredSharedLocalBasis& SharedLocalBasis)
+	FString GetStrataSharedLocalBasisIndexMacro(const FStrataRegisteredSharedLocalBasis& SharedLocalBasis) const
 	{
 		return FString::Printf(TEXT("SHAREDLOCALBASIS_INDEX_%u"), SharedLocalBasis.GraphSharedLocalBasisIndex);
 	}
