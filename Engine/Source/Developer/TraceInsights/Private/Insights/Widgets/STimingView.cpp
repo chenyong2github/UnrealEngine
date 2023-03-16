@@ -470,6 +470,7 @@ void STimingView::Reset(bool bIsFirstReset)
 	Tooltip.Reset();
 
 	LastSelectionType = ESelectionType::None;
+	FrameTypeToSnapTo = ETraceFrameType::TraceFrameType_Count;
 
 	//ThisGeometry
 
@@ -2142,7 +2143,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsSelecting)
 			{
-				RaiseSelectionChanged();
+				SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);
 				bIsSelecting = false;
 			}
 			else if (TimeRulerTrack->IsScrubbing())
@@ -3392,11 +3393,90 @@ void STimingView::SelectTimeInterval(double IntervalStartTime, double IntervalDu
 {
 	SelectionStartTime = IntervalStartTime;
 	SelectionEndTime = IntervalStartTime + IntervalDuration;
+
+	if (FrameTypeToSnapTo != ETraceFrameType::TraceFrameType_Count)
+	{
+		SnapToFrameBound(SelectionStartTime, SelectionEndTime);
+	}
+
 	LastSelectionType = ESelectionType::TimeRange;
 	RaiseSelectionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SnapToFrameBound(double& StartTime, double& EndTime)
+{
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+
+	if (!Session.IsValid())
+	{
+		return;
+	}
+
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(*Session.Get());
+
+	uint32 FrameNum = FramesProvider.GetFrameNumberForTimestamp(FrameTypeToSnapTo, StartTime);
+	const TraceServices::FFrame* StartFrame = FramesProvider.GetFrame(FrameTypeToSnapTo, FrameNum);
+
+	if (StartFrame == nullptr)
+	{
+		return;
+	}
+
+	if (StartFrame->EndTime < StartTime)
+	{
+		if (FrameNum + 1 < FramesProvider.GetFrameCount(FrameTypeToSnapTo))
+		{
+			StartFrame = FramesProvider.GetFrame(FrameTypeToSnapTo, FrameNum + 1);
+		}
+	}
+
+	FrameNum = FramesProvider.GetFrameNumberForTimestamp(FrameTypeToSnapTo, EndTime);
+	const TraceServices::FFrame* EndFrame = FramesProvider.GetFrame(FrameTypeToSnapTo, FrameNum);
+
+	if (EndFrame == nullptr)
+	{
+		EndFrame = FramesProvider.GetFrame(FrameTypeToSnapTo, FrameNum - 1);
+		if (EndFrame == nullptr)
+		{
+			return;
+		}
+	}
+
+	// If the interval is before the first frame or after the last frame.
+	if (StartFrame->StartTime > EndTime || EndFrame->EndTime < StartTime)
+	{
+		return;
+	}
+
+	// If the interval is between frames.
+	if (EndFrame->Index < StartFrame->Index)
+	{
+		return;
+	}
+
+	StartTime = StartFrame->StartTime;
+	EndTime = FMath::Min(EndFrame->EndTime, Session->GetDurationSeconds());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SetFrameTypeToSnapTo(ETraceFrameType InFrameType)
+{
+	if (FrameTypeToSnapTo == InFrameType)
+	{
+		return;
+	}
+
+	FrameTypeToSnapTo = InFrameType;
+
+	SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 void STimingView::RaiseSelectionChanging()
 {

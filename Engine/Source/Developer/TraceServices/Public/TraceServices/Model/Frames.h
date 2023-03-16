@@ -43,7 +43,16 @@ public:
 	 * @param Callback  - a callback called for each frame
 	 */
 	virtual void EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const = 0;
-
+	/**
+	* Enumerate frames whose duration intersects [StartTime, EndTime].
+	* 
+	* @param FrameType	The frame type to enumerate.
+	* @param StartTime	The start timestamp in seconds.
+	* @param EndTime	The end timestamp in seconds.
+	* @param Callback	The callback to be called for each frame.
+	*/
+	virtual void EnumerateFrames(ETraceFrameType FrameType, double StartTime, double EndTime, TFunctionRef<void(const FFrame&)> Callback) const = 0;
+	
 	/**
 	 * Gets the array of frame start times, for the specified frame type.
 	 * @param FrameType - type of frames

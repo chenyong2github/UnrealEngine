@@ -29,18 +29,40 @@ uint64 FFrameProvider::GetFrameCount(ETraceFrameType FrameType) const
 	return Frames[FrameType].Num();
 }
 
-void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const
+void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 StartIndex, uint64 EndIndex, TFunctionRef<void(const FFrame&)> Callback) const
 {
 	Session.ReadAccessCheck();
 
-	End = FMath::Min(End, Frames[FrameType].Num());
-	if (Start >= End)
+	EndIndex = FMath::Min(EndIndex, Frames[FrameType].Num());
+	if (StartIndex >= EndIndex)
 	{
 		return;
 	}
-	for (auto Iterator = Frames[FrameType].GetIteratorFromItem(Start); Iterator && Iterator->Index < End; ++Iterator)
+	for (auto Iterator = Frames[FrameType].GetIteratorFromItem(StartIndex); Iterator && Iterator->Index < EndIndex; ++Iterator)
 	{
 		Callback(*Iterator);
+	}
+}
+
+void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, double StartTime, double EndTime, TFunctionRef<void(const FFrame&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	int64 StartIndex = Algo::LowerBound(FrameStartTimes[FrameType], StartTime);
+	if (StartIndex > 0 && Frames[FrameType][StartIndex - 1].EndTime > StartTime)
+	{
+		--StartIndex;
+	}
+
+	for (uint64 Index = StartIndex; Index < Frames[FrameType].Num(); ++Index)
+	{
+		const FFrame& CurrentFrame = Frames[FrameType][Index];
+		if (CurrentFrame.StartTime > EndTime)
+		{
+			break;
+		}
+
+		Callback(CurrentFrame);
 	}
 }
 

@@ -480,7 +480,7 @@ void FTimingGraphTrack::UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, 
 				return;
 			}
 
-			FramesProvider.EnumerateFrames(ETraceFrameType::TraceFrameType_Game, 0, FrameCount, [&Series](const TraceServices::FFrame& Frame)
+			FramesProvider.EnumerateFrames(ETraceFrameType::TraceFrameType_Game, (uint64) 0, (uint64) FrameCount, [&Series](const TraceServices::FFrame& Frame)
 				{
 					FTimingGraphSeries::FAtomicTimingEvent Event;
 					Event.FrameStartTime = Frame.StartTime;

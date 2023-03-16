@@ -17,12 +17,13 @@ namespace Insights
 class FTimerAggregationWorker : public IStatsAggregationWorker
 {
 public:
-	FTimerAggregationWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession, double InStartTime, double InEndTime, const TSet<uint32>& InCpuThreads, bool bInIncludeGpuThread)
+	FTimerAggregationWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession, double InStartTime, double InEndTime, const TSet<uint32>& InCpuThreads, bool bInIncludeGpuThread, ETraceFrameType InFrameType)
 		: Session(InSession)
 		, StartTime(InStartTime)
 		, EndTime(InEndTime)
 		, CpuThreads(InCpuThreads)
 		, bIncludeGpuThread(bInIncludeGpuThread)
+		, FrameType(InFrameType)
 		, ResultTable()
 	{
 	}
@@ -40,6 +41,7 @@ private:
 	double EndTime;
 	TSet<uint32> CpuThreads;
 	bool bIncludeGpuThread;
+	ETraceFrameType FrameType;
 	TUniquePtr<TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>> ResultTable;
 };
 
@@ -60,7 +62,7 @@ void FTimerAggregationWorker::DoWork()
 			return CpuThreads.Contains(ThreadId);
 		};
 
-		ResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, CpuThreadFilter, bIncludeGpuThread));
+		ResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, CpuThreadFilter, bIncludeGpuThread, FrameType));
 	}
 }
 
@@ -89,7 +91,7 @@ IStatsAggregationWorker* FTimerAggregator::CreateWorker(TSharedPtr<const TraceSe
 		}
 	}
 
-	return new FTimerAggregationWorker(InSession, GetIntervalStartTime(), GetIntervalEndTime(), CpuThreads, bIsGpuTrackVisible);
+	return new FTimerAggregationWorker(InSession, GetIntervalStartTime(), GetIntervalEndTime(), CpuThreads, bIsGpuTrackVisible, FrameType);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

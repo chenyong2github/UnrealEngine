@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/Model/TimingProfiler.h"
+
+#include "TraceServices/Model/Frames.h"
 #include "Model/TimingProfilerPrivate.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/StringStore.h"
@@ -263,7 +265,7 @@ void FTimingProfilerProvider::ReadTimers(TFunctionRef<void(const ITimingProfiler
 	Callback(*this);
 }
 
-ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const
+ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu, ETraceFrameType FrameType) const
 {
 	Session.ReadAccessCheck();
 
@@ -287,7 +289,29 @@ ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregati
 	};
 
 	TMap<const FTimingProfilerTimer*, FAggregatedTimingStats> Aggregation;
-	FTimelineStatistics::CreateAggregation(IncludedTimelines, BucketMappingFunc, IntervalStart, IntervalEnd, Aggregation);
+	if (FrameType == ETraceFrameType::TraceFrameType_Count)
+	{
+		FTimelineStatistics::CreateAggregation(IncludedTimelines, BucketMappingFunc, IntervalStart, IntervalEnd, Aggregation);
+	}
+	else
+	{
+		TArray<FFrameData> Frames;
+		const IFrameProvider& FrameProvider = ReadFrameProvider(Session);
+		FrameProvider.EnumerateFrames(FrameType, IntervalStart, IntervalEnd, [&Frames](const FFrame& Frame)
+			{
+				FFrameData NewFrameData;
+				NewFrameData.StartTime = Frame.StartTime;
+				NewFrameData.EndTime = Frame.EndTime;
+
+				Frames.Add(NewFrameData);
+			});
+
+		if (Frames.Num() > 0)
+		{
+			FTimelineStatistics::CreateFrameStatsAggregation(IncludedTimelines, BucketMappingFunc, Frames, Aggregation);
+		}
+	}
+
 	TTable<FTimingProfilerAggregatedStats>* Table = new TTable<FTimingProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : Aggregation)
 	{

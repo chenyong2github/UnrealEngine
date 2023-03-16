@@ -217,6 +217,23 @@ private:
 	FText GroupBy_GetSelectedTooltipText() const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Frame Type
+
+	void CreateFrameTypeOptionsSources();
+
+	void FrameType_OnSelectionChanged(TSharedPtr<ETraceFrameType> NewGroupingMode, ESelectInfo::Type SelectInfo);
+
+	TSharedRef<SWidget> FrameType_OnGenerateWidget(TSharedPtr<ETraceFrameType> InGroupingMode) const;
+
+	FText FrameType_GetSelectedText() const;
+	
+	FText FrameType_GetText(ETraceFrameType InFrameType) const;
+
+	FText FrameType_GetSelectedTooltipText() const;
+
+	FText FrameType_GetTooltipText(ETraceFrameType InFrameType) const;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
 
 	static const FName GetDefaultColumnBeingSorted();
@@ -386,6 +403,15 @@ private:
 
 	/** How we group the timers? */
 	ETimerGroupingMode GroupingMode;
+
+	//////////////////////////////////////////////////
+	// Frame Type
+
+	TArray<TSharedPtr<ETraceFrameType>> FrameTypeOptionsSource;
+
+	TSharedPtr<SComboBox<TSharedPtr<ETraceFrameType>>> FrameTypeComboBox;
+
+	ETraceFrameType FrameType;
 
 	//////////////////////////////////////////////////
 	// Sorting

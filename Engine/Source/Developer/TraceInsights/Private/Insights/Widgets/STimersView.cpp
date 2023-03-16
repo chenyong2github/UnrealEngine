@@ -297,6 +297,43 @@ void STimersView::Construct(const FArguments& InArgs)
 						]
 					]
 				]
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FrameType", "Frame Type"))
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SBox)
+						.MinDesiredWidth(128.0f)
+						[
+							SAssignNew(FrameTypeComboBox, SComboBox<TSharedPtr<ETraceFrameType>>)
+							.ToolTipText(this, &STimersView::FrameType_GetSelectedTooltipText)
+							.OptionsSource(&FrameTypeOptionsSource)
+							.OnSelectionChanged(this, &STimersView::FrameType_OnSelectionChanged)
+							.OnGenerateWidget(this, &STimersView::FrameType_OnGenerateWidget)
+							[
+								SNew(STextBlock)
+								.Text(this, &STimersView::FrameType_GetSelectedText)
+							]
+						]
+					]
+				]
 			]
 		]
 
@@ -383,6 +420,7 @@ void STimersView::Construct(const FArguments& InArgs)
 	Filters->Add(TextFilter);
 
 	CreateGroupByOptionsSources();
+	CreateFrameTypeOptionsSources();
 	CreateSortings();
 
 	InitCommandList();
@@ -1537,6 +1575,113 @@ FText STimersView::GroupBy_GetSelectedTooltipText() const
 	return TimerNodeGroupingHelper::ToDescription(GroupingMode);
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Frame Type
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::CreateFrameTypeOptionsSources()
+{
+	FrameTypeOptionsSource.Reset(3);
+
+	FrameTypeOptionsSource.Add(MakeShared<ETraceFrameType>(ETraceFrameType::TraceFrameType_Count));
+	FrameTypeOptionsSource.Add(MakeShared<ETraceFrameType>(ETraceFrameType::TraceFrameType_Game));
+	FrameTypeOptionsSource.Add(MakeShared<ETraceFrameType>(ETraceFrameType::TraceFrameType_Rendering));
+
+	FrameTypeComboBox->SetSelectedItem(FrameTypeOptionsSource[0]);
+
+	FrameTypeComboBox->RefreshOptions();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::FrameType_OnSelectionChanged(TSharedPtr<ETraceFrameType> NewFrameType, ESelectInfo::Type SelectInfo)
+{
+	if (*NewFrameType == FrameType)
+	{
+		return;
+	}
+
+	FrameType = *NewFrameType;
+
+	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (Window.IsValid())
+	{
+		TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+		if (TimingView.IsValid())
+		{
+			TimingView->SetFrameTypeToSnapTo(FrameType);
+		}
+	}
+
+	Aggregator->SetFrameType(FrameType);
+	Aggregator->Cancel();
+	Aggregator->Start();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STimersView::FrameType_OnGenerateWidget(TSharedPtr<ETraceFrameType> InFrameTypeMode) const
+{
+	return SNew(STextBlock)
+	.Text(FrameType_GetText(*InFrameTypeMode))
+	.ToolTipText(FrameType_GetTooltipText(*InFrameTypeMode));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STimersView::FrameType_GetSelectedText() const
+{
+	return FrameType_GetText(FrameType);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STimersView::FrameType_GetText(ETraceFrameType InFrameType) const
+{
+	switch (InFrameType)
+	{
+	case ETraceFrameType::TraceFrameType_Count:
+		return LOCTEXT("FrameTypeNone", "None");
+		break;
+	case ETraceFrameType::TraceFrameType_Game:
+		return LOCTEXT("FrameTypeGame", "Game");
+		break;
+	case ETraceFrameType::TraceFrameType_Rendering:
+		return LOCTEXT("FrameTypeRendering", "Rendering");
+		break;
+	}
+
+	return FText();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STimersView::FrameType_GetSelectedTooltipText() const
+{
+	return FrameType_GetTooltipText(FrameType);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STimersView::FrameType_GetTooltipText(ETraceFrameType InFrameType) const
+{
+	switch (InFrameType)
+	{
+	case ETraceFrameType::TraceFrameType_Count:
+		return LOCTEXT("FrameTypeNoneTooltip", "Do not calculate the timer stats per frame");
+		break;
+	case ETraceFrameType::TraceFrameType_Game:
+		return LOCTEXT("FrameTypeGameTooltip", "Calculate the timer stats per game frame");
+		break;
+	case ETraceFrameType::TraceFrameType_Rendering:
+		return LOCTEXT("FrameTypeRenderingTooltip", "Calculate the timer stats per rendering frame");
+		break;
+	}
+
+	return FText();
+}
+ 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sorting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2104,9 +2249,12 @@ void STimersView::ResetStats()
 
 void STimersView::UpdateStats(double StartTime, double EndTime)
 {
-	Aggregator->Cancel();
-	Aggregator->SetTimeInterval(StartTime, EndTime);
-	Aggregator->Start();
+	if (Aggregator->GetIntervalStartTime() != StartTime || Aggregator->GetIntervalEndTime() != EndTime)
+	{
+		Aggregator->Cancel();
+		Aggregator->SetTimeInterval(StartTime, EndTime);
+		Aggregator->Start();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

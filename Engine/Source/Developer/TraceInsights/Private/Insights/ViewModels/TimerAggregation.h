@@ -24,8 +24,14 @@ public:
 	TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* GetResultTable() const;
 	void ResetResults();
 
+	ETraceFrameType GetFrameType() { return FrameType; }
+	void SetFrameType(ETraceFrameType InFrameType) { FrameType = InFrameType; }
+
 protected:
 	virtual IStatsAggregationWorker* CreateWorker(TSharedPtr<const TraceServices::IAnalysisSession> InSession) override;
+
+private:
+	ETraceFrameType FrameType = ETraceFrameType::TraceFrameType_Count;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

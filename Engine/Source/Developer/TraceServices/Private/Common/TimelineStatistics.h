@@ -25,6 +25,12 @@ struct FAggregatedTimingStats
 	double MedianExclusiveTime = 0.0;
 };
 
+struct FFrameData
+{
+	double StartTime;
+	double EndTime;
+};
+
 class FTimelineStatistics
 {
 public:
@@ -58,6 +64,68 @@ public:
 		for (auto& KV : InternalResult)
 		{
 			PostProcessTimerStats(KV.Value, ComputeMedian);
+			Result.Add(KV.Key, KV.Value.Stats);
+		}
+	};
+
+	template<typename TimelineType, typename BucketMappingFunc, typename BucketKeyType>
+	static void CreateFrameStatsAggregation(const TArray<const TimelineType*>& Timelines, BucketMappingFunc BucketMapper, TArray<FFrameData> Frames, TMap<BucketKeyType, FAggregatedTimingStats>& Result)
+	{
+		TMap<BucketKeyType, FInternalAggregationEntry> FrameResult;
+		TMap<BucketKeyType, FInternalAggregationEntry> GlobalResult;
+		double StartTime = Frames[0].StartTime;
+		double EndTime = Frames[Frames.Num() - 1].EndTime;
+
+		// Gather the keys for all timers so we have a stable map (no insertions necessary) for the next step.
+		// This is to guarantee that GlobalResult and FrameResult have the same iteration order.
+		for (const TimelineType* Timeline : Timelines)
+		{
+			GatherKeysFromTimeline(Timeline, BucketMapper, StartTime, EndTime, FrameResult);
+		}
+
+		GlobalResult = FrameResult;
+
+		for (int32 Index = 0; Index < Frames.Num(); ++Index)
+		{
+			// Compute instance count and total/min/max inclusive/exclusive times for each timer.
+			for (const TimelineType* Timeline : Timelines)
+			{
+				ProcessTimeline(Timeline, BucketMapper, UpdateTotalMinMaxTimerStats, Frames[Index].StartTime, Frames[Index].EndTime, FrameResult);
+			}
+
+			typename TMap<BucketKeyType, FInternalAggregationEntry>::TIterator FrameResultIterator(FrameResult);
+			typename TMap<BucketKeyType, FInternalAggregationEntry>::TIterator ResultIterator(GlobalResult);
+			while (ResultIterator)
+			{
+				FAggregatedTimingStats& FrameStats = FrameResultIterator->Value.Stats;
+				FAggregatedTimingStats& ResultStats = ResultIterator->Value.Stats;
+
+				// TODO: Add Instance Count per frame column
+				// ResultStats.InstanceCount = (ResultStats.InstanceCount * Index + FrameStats.InstanceCount) / (Index + 1);
+
+				ResultStats.InstanceCount += FrameStats.InstanceCount;
+
+				ResultStats.TotalInclusiveTime += FrameStats.TotalInclusiveTime;
+				ResultStats.MinInclusiveTime = FMath::Min(ResultStats.MinInclusiveTime, FrameStats.TotalInclusiveTime);
+				ResultStats.MaxInclusiveTime = FMath::Max(ResultStats.MaxInclusiveTime, FrameStats.TotalInclusiveTime);
+
+				ResultStats.TotalExclusiveTime += FrameStats.TotalExclusiveTime;
+				ResultStats.MinExclusiveTime = FMath::Min(ResultStats.MinExclusiveTime, FrameStats.TotalExclusiveTime);
+				ResultStats.MaxExclusiveTime = FMath::Max(ResultStats.MaxExclusiveTime, FrameStats.TotalExclusiveTime);
+
+				// Reset the per frame stats.
+				FrameStats = FAggregatedTimingStats();
+
+				++FrameResultIterator;
+				++ResultIterator;
+			}
+		}
+
+		for (auto& KV : GlobalResult)
+		{
+			KV.Value.Stats.AverageInclusiveTime = KV.Value.Stats.TotalInclusiveTime / Frames.Num();
+			KV.Value.Stats.AverageExclusiveTime = KV.Value.Stats.TotalExclusiveTime / Frames.Num();
+
 			Result.Add(KV.Key, KV.Value.Stats);
 		}
 	}
@@ -284,6 +352,25 @@ private:
 				}
 			}
 		}
+	}
+
+	template<typename TimelineType, typename BucketMappingFunc, typename BucketKeyType>
+	static void GatherKeysFromTimeline(const TimelineType* Timeline, BucketMappingFunc BucketMapper, double IntervalStart, double IntervalEnd, TMap<BucketKeyType, FInternalAggregationEntry>& InternalResult)
+	{
+		Timeline->EnumerateEvents(IntervalStart, IntervalEnd, [BucketMapper, IntervalStart, IntervalEnd, &InternalResult](bool IsEnter, double Time, const typename TimelineType::EventType& Event)
+			{
+				BucketKeyType BucketKey = BucketMapper(Event);
+
+				if (IsEnter)
+				{
+					if (!InternalResult.Contains(BucketKey))
+					{
+						InternalResult.Add(BucketKey);
+					}
+				}
+
+				return EEventEnumerate::Continue;
+			});
 	}
 };
 

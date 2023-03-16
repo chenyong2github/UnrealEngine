@@ -345,7 +345,11 @@ public:
 	void ZoomOnTimeInterval(double IntervalStartTime, double IntervalDuration);
 	void BringIntoView(double StartTime, double EndTime);
 	void SelectTimeInterval(double IntervalStartTime, double IntervalDuration);
+	void SnapToFrameBound(double& IntervalStartTime, double& IntervalDuration);
 	void SelectToTimeMarker(double InTimeMarker);
+
+	void SetFrameTypeToSnapTo(ETraceFrameType InFrameType);
+	ETraceFrameType GetFrameTypeToSnapTo() { return FrameTypeToSnapTo; }
 
 	//bool AreTimeMarkersVisible() { return MarkersTrack->IsVisible(); }
 	void SetTimeMarkersVisible(bool bOnOff);
@@ -674,6 +678,8 @@ protected:
 		TimingEvent
 	};
 	ESelectionType LastSelectionType;
+
+	ETraceFrameType FrameTypeToSnapTo;
 
 	/** Throttle flag, allowing tracks to control whether Slate throttle should take place */
 	bool bPreventThrottling;
