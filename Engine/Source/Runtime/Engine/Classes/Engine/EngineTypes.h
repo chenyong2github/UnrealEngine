@@ -732,10 +732,11 @@ public:
 	bool operator!=(const FStrataMaterialInfo& Other) const { return ShadingModelField != Other.GetShadingModelField(); }
 
 #if WITH_EDITOR
+	// Returns true if everything went fine (not out of Substrate tree stack)
 	bool PushStrataTreeStack()
 	{
 		bOutOfStackDepthWhenParsing = bOutOfStackDepthWhenParsing || (++ParsingStackDepth > STRATA_TREE_MAX_DEPTH);
-		return bOutOfStackDepthWhenParsing;
+		return !bOutOfStackDepthWhenParsing;
 	}
 	void PopStrataTreeStack()
 	{

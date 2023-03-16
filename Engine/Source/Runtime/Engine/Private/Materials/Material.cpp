@@ -4808,6 +4808,10 @@ void UMaterial::RebuildShadingModelField()
 
 			if (StrataMaterialInfo.GetStrataTreeOutOfStackDepthOccurred())
 			{
+				StrataMaterialInfo.AddShadingModel(SSM_Unlit);
+				MaterialDomain = EMaterialDomain::MD_Surface;
+				ShadingModel = MSM_Unlit;
+				ShadingModels.AddShadingModel(MSM_Unlit);
 				CancelOutstandingCompilation();
 				UE_LOG(LogMaterial, Error, TEXT("%s: Substrate - Cyclic graph detected when we only support acyclic graph."), *GetName());
 				return;
