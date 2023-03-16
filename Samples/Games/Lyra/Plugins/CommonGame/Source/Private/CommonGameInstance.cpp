@@ -44,6 +44,11 @@ void UCommonGameInstance::HandlePrivilegeChanged(const UCommonUserInfo* UserInfo
 	}
 }
 
+void UCommonGameInstance::HandlerUserInitialized(const UCommonUserInfo* UserInfo, bool bSuccess, FText Error, ECommonUserPrivilege RequestedPrivilege, ECommonUserOnlineContext OnlineContext)
+{
+	// Subclasses can override this
+}
+
 int32 UCommonGameInstance::AddLocalPlayer(ULocalPlayer* NewPlayer, FPlatformUserId UserId)
 {
 	int32 ReturnVal = Super::AddLocalPlayer(NewPlayer, UserId);
@@ -87,6 +92,7 @@ void UCommonGameInstance::Init()
 		UserSubsystem->SetTraitTags(PlatformTraits);
 		UserSubsystem->OnHandleSystemMessage.AddDynamic(this, &UCommonGameInstance::HandleSystemMessage);
 		UserSubsystem->OnUserPrivilegeChanged.AddDynamic(this, &UCommonGameInstance::HandlePrivilegeChanged);
+		UserSubsystem->OnUserInitializeComplete.AddDynamic(this, &UCommonGameInstance::HandlerUserInitialized);
 	}
 
 	UCommonSessionSubsystem* SessionSubsystem = GetSubsystem<UCommonSessionSubsystem>();

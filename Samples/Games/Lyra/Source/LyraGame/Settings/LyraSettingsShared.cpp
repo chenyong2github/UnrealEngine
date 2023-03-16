@@ -40,39 +40,52 @@ ULyraSettingsShared::ULyraSettingsShared()
 	GamepadLookStickDeadZone = LyraSettingsSharedCVars::DefaultGamepadRightStickInnerDeadZone;
 }
 
-void ULyraSettingsShared::Initialize(ULyraLocalPlayer* LocalPlayer)
+int32 ULyraSettingsShared::GetLatestDataVersion() const
 {
-	check(LocalPlayer);
-	
-	OwningPlayer = LocalPlayer;
+	// 0 = before subclassing ULocalPlayerSaveGame
+	// 1 = first proper version
+	return 1;
+}
+
+ULyraSettingsShared* ULyraSettingsShared::CreateTemporarySettings(const ULyraLocalPlayer* LocalPlayer)
+{
+	// This is not loaded from disk but should be set up to save
+	ULyraSettingsShared* SharedSettings = Cast<ULyraSettingsShared>(CreateNewSaveGameForLocalPlayer(ULyraSettingsShared::StaticClass(), LocalPlayer, SHARED_SETTINGS_SLOT_NAME));
+
+	SharedSettings->ApplySettings();
+
+	return SharedSettings;
+}
+
+ULyraSettingsShared* ULyraSettingsShared::LoadOrCreateSettings(const ULyraLocalPlayer* LocalPlayer)
+{
+	// This will stall the main thread while it loads
+	ULyraSettingsShared* SharedSettings = Cast<ULyraSettingsShared>(LoadOrCreateSaveGameForLocalPlayer(ULyraSettingsShared::StaticClass(), LocalPlayer, SHARED_SETTINGS_SLOT_NAME));
+
+	SharedSettings->ApplySettings();
+
+	return SharedSettings;
+}
+
+bool ULyraSettingsShared::AsyncLoadOrCreateSettings(const ULyraLocalPlayer* LocalPlayer, FOnSettingsLoadedEvent Delegate)
+{
+	FOnLocalPlayerSaveGameLoadedNative Lambda = FOnLocalPlayerSaveGameLoadedNative::CreateLambda([Delegate]
+		(ULocalPlayerSaveGame* LoadedSave)
+		{
+			ULyraSettingsShared* LoadedSettings = CastChecked<ULyraSettingsShared>(LoadedSave);
+			
+			LoadedSettings->ApplySettings();
+
+			Delegate.ExecuteIfBound(LoadedSettings);
+		});
+
+	return ULocalPlayerSaveGame::AsyncLoadOrCreateSaveGameForLocalPlayer(ULyraSettingsShared::StaticClass(), LocalPlayer, SHARED_SETTINGS_SLOT_NAME, Lambda);
 }
 
 void ULyraSettingsShared::SaveSettings()
 {
-	check(OwningPlayer);
-	UGameplayStatics::SaveGameToSlot(this, SHARED_SETTINGS_SLOT_NAME, OwningPlayer->GetLocalPlayerIndex());
-}
-
-/*static*/ ULyraSettingsShared* ULyraSettingsShared::LoadOrCreateSettings(const ULyraLocalPlayer* LocalPlayer)
-{
-	ULyraSettingsShared* SharedSettings = nullptr;
-
-	// If the save game exists, load it.
-	if (UGameplayStatics::DoesSaveGameExist(SHARED_SETTINGS_SLOT_NAME, LocalPlayer->GetLocalPlayerIndex()))
-	{
-		USaveGame* Slot = UGameplayStatics::LoadGameFromSlot(SHARED_SETTINGS_SLOT_NAME, LocalPlayer->GetLocalPlayerIndex());
-		SharedSettings = Cast<ULyraSettingsShared>(Slot);
-	}
-	
-	if (SharedSettings == nullptr)
-	{
-		SharedSettings = Cast<ULyraSettingsShared>(UGameplayStatics::CreateSaveGameObject(ULyraSettingsShared::StaticClass()));
-	}
-
-	SharedSettings->Initialize(const_cast<ULyraLocalPlayer*>(LocalPlayer));
-	SharedSettings->ApplySettings();
-
-	return SharedSettings;
+	// Schedule an async save because it's okay if it fails
+	AsyncSaveGameToSlotForLocalPlayer();
 }
 
 void ULyraSettingsShared::ApplySettings()

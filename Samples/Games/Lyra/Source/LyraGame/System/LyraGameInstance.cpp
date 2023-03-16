@@ -3,10 +3,12 @@
 #include "LyraGameInstance.h"
 
 #include "CommonSessionSubsystem.h"
+#include "CommonUserSubsystem.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "HAL/IConsoleManager.h"
 #include "LyraGameplayTags.h"
 #include "Player/LyraPlayerController.h"
+#include "Player/LyraLocalPlayer.h"
 #include "GameFramework/PlayerState.h"
 
 #if UE_WITH_DTLS
@@ -135,6 +137,22 @@ bool ULyraGameInstance::CanJoinRequestedSession() const
 		return false;
 	}
 	return true;
+}
+
+void ULyraGameInstance::HandlerUserInitialized(const UCommonUserInfo* UserInfo, bool bSuccess, FText Error, ECommonUserPrivilege RequestedPrivilege, ECommonUserOnlineContext OnlineContext)
+{
+	Super::HandlerUserInitialized(UserInfo, bSuccess, Error, RequestedPrivilege, OnlineContext);
+
+	// If login succeeded, tell the local player to load their settings
+	if (bSuccess && ensure(UserInfo))
+	{
+		ULyraLocalPlayer* LocalPlayer = Cast<ULyraLocalPlayer>(GetLocalPlayerByIndex(UserInfo->LocalPlayerIndex));
+
+		if (ensure(LocalPlayer))
+		{
+			LocalPlayer->LoadSharedSettingsFromDisk();
+		}
+	}
 }
 
 void ULyraGameInstance::ReceivedNetworkEncryptionToken(const FString& EncryptionToken, const FOnEncryptionKeyResponse& Delegate)

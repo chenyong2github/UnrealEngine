@@ -34,6 +34,9 @@ public:
 	UFUNCTION()
 	virtual void HandlePrivilegeChanged(const UCommonUserInfo* UserInfo, ECommonUserPrivilege Privilege, ECommonUserAvailability OldAvailability, ECommonUserAvailability NewAvailability);
 
+	UFUNCTION()
+	virtual void HandlerUserInitialized(const UCommonUserInfo* UserInfo, bool bSuccess, FText Error, ECommonUserPrivilege RequestedPrivilege, ECommonUserOnlineContext OnlineContext);
+
 	/** Call to reset user and session state, usually because a player has been disconnected */
 	virtual void ResetUserAndSessionState();
 
