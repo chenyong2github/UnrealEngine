@@ -8,6 +8,7 @@
 #include <string.h>
 
 #ifdef _WIN32
+#include <windows.h>
 #include <dbghelp.h>
 #else
 #include <execinfo.h>

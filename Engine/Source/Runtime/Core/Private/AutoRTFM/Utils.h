@@ -8,12 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-#ifdef _WIN32
-#define NOMINMAX 1
-#include <windows.h>
-#else
 #include <malloc.h>
-#endif
 
 #define ASSERT(exp) do { \
     if (!(exp)) { \
