@@ -24,6 +24,7 @@ public:
 	void ConvertSelectionToRigidNodes();
 	void ConvertSelectionToEmbeddedGeometryNodes();
 	void ConvertSelectionToClusterNodes();
+	void ConvertSelectionToLevel(int32 TargetLevel, bool bAllowSelectChildren, bool bAllowSelectParents);
 	void RemoveChildrenOfSelectedNodesFromSelection();
 	void ConvertEmbeddedSelectionToParents();
 	void RemoveRootNodes();

@@ -5,6 +5,7 @@
 #include "SGeometryCollectionOutliner.h"
 #include "FractureToolContext.h"
 #include "FractureModeSettings.h"
+#include "FractureSettings.h"
 
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -296,7 +297,9 @@ void UFractureToolConvex::FractureContextChanged()
 
 	ClearVisualizations();
 
-	for (const FFractureToolContext& FractureContext : FractureContexts)
+	const UFractureSettings* FractureSettings = GetDefault<UFractureSettings>();
+
+	for (FFractureToolContext& FractureContext : FractureContexts)
 	{
 		if (UGeometryCollection* RestCollection = FractureContext.GetFracturedGeometryCollection())
 		{
@@ -306,6 +309,9 @@ void UFractureToolConvex::FractureContextChanged()
 
 			//FTransform OuterTransform = FractureContext.GetTransform();
 			const FTransform OuterTransform = FractureContext.GetGeometryCollectionComponent()->GetComponentTransform();
+
+			FractureContext.ConvertSelectionToLevel(FractureSettings->FractureLevel, 
+				true /*Auto-select children at the target level*/, false /*Don't auto-select parents*/);
 
 			for (int32 TransformIdx : FractureContext.GetSelection())
 			{
