@@ -2877,4 +2877,12 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 	}
 }
 
+void FPCGComponentInstanceData::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(Collector);
+
+	Collector.AddReferencedObject(SourceComponent);
+	Collector.AddReferencedObjects(GeneratedResources);
+}
+
 #undef LOCTEXT_NAMESPACE
