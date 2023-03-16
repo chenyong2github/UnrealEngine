@@ -72,6 +72,7 @@ void InitAll(bool bAllowLogging, bool bMultithreaded)
 #if WITH_COREUOBJECT
 	InitCoreUObject();
 #endif
+	GIsRunning = true;
 }
 
 void CleanupAll()

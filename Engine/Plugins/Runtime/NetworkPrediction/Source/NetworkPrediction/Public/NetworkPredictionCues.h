@@ -31,7 +31,7 @@ Notes on "simulation affecting events" (E.g, *not* NetSimCues)
 -In these cases I would recommend: A) on the handler side, don't write to any non-networked-sim state if non authority or B) just don't handle the event on non authority. (Expect corrections)
 -If the handler side doesn't have state hazards, say a teleporting volume that always does the same thing: there is no reason everyone can't run the event. Its an extension of the simulation.
 
-See "Mock Cue Example" in NetworkedSimulationModelCues.cpp for minimal example of implementing the Cue types and Handler classes.
+See "Mock Cue Example" in NetworkPredictionCueTests.cpp for minimal example of implementing the Cue types and Handler classes.
 
 =============================================================================*/
 

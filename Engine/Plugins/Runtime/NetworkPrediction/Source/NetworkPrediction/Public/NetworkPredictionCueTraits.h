@@ -7,7 +7,7 @@ class FArchive;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //	NetSimCue Traits: compile time settings for NetSimeCue types that determine who can invoke the event and who it replicates to.
-//	See "Mock Cue Example" in NetworkedSimulationModelCues.cpp for minimal examples for using/setting traits.
+//	See "Mock Cue Example" in NetworkPredictionCueTests.cpp for minimal examples for using/setting traits.
 //
 //	There are three traits:
 //
