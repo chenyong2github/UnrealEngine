@@ -243,7 +243,6 @@ struct MODELVIEWVIEWMODEL_API FMVVMCompiledBindingLibrary
 
 public:
 	FMVVMCompiledBindingLibrary();
-	~FMVVMCompiledBindingLibrary();
 
 public:
 	/** */
@@ -256,6 +255,8 @@ public:
 		InvalidCast,
 	};
 
+	static FText LexToText(EExecutionFailingReason Reason);
+
 	/** */
 	enum class EConversionFunctionType
 	{
@@ -267,6 +268,11 @@ public:
 
 	/** Fetch the FProperty and UFunction. */
 	void Load();
+
+#if WITH_EDITOR
+	/** Release the acquired FProperty and UFunction. */
+	void Unload();
+#endif
 
 	/**
 	 * Execute a binding, in one direction.
@@ -288,7 +294,7 @@ public:
 	TValueOrError<UE::FieldNotification::FFieldId, void> GetFieldId(const FMVVMVCompiledFieldId& FieldId) const;
 
 	/** Return a readable version of the FieldPath. */
-	TValueOrError<FString, FString> FieldPathToString(const FMVVMVCompiledFieldPath& FieldPath) const;
+	TValueOrError<FString, FString> FieldPathToString(FMVVMVCompiledFieldPath FieldPath, bool bUseDisplayName) const;
 
 private:
 	TValueOrError<void, EExecutionFailingReason> ExecuteImpl(UObject* ExecutionSource, const FMVVMVCompiledBinding& Binding, UObject* Source, EConversionFunctionType ConversionType) const;

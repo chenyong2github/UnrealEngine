@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMDeveloperProjectSettings.h"
+#include "MVVMMessageLog.h"
 #include "PropertyPermissionList.h"
 #include "MVVMFunctionGraphHelper.h"
 #include "Templates/ValueOrError.h"
@@ -20,6 +21,12 @@
 
 namespace UE::MVVM::Private
 {
+	FAutoConsoleVariable CVarOnCompliedLogBinding(
+		TEXT("MVVM.OnCompliedLogBinding"),
+		false,
+		TEXT("After the view is compiled log the compiled bindings.")
+	);
+
 FString PropertyPathToString(const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& PropertyPath)
 {
 	if (PropertyPath.IsEmpty())
@@ -639,6 +646,20 @@ bool FMVVMViewBlueprintCompiler::Compile(UWidgetBlueprintGeneratedClass* Class, 
 	if (bResult)
 	{
 		ViewExtension->BindingLibrary = MoveTemp(CompileResult.GetValue().Library);
+
+		if (CVarOnCompliedLogBinding->GetBool())
+		{
+			ViewExtension->BindingLibrary.Load();
+			UE_LOG(LogMVVM, Log, TEXT("Compiled Bindings for %s"), *ViewExtension->GetOutermost()->GetName());
+
+			FMVVMViewClass_CompiledBinding::FToStringArgs ToStringArgs = FMVVMViewClass_CompiledBinding::FToStringArgs::All();
+			ToStringArgs.bUseDisplayName = false;
+			for (const FMVVMViewClass_CompiledBinding& Binding : ViewExtension->GetCompiledBindings())
+			{
+				UE_LOG(LogMVVM, Log, TEXT("%s"), *Binding.ToString(ViewExtension->GetBindingLibrary(), ToStringArgs));
+			}
+			ViewExtension->BindingLibrary.Unload();
+		}
 	}
 
 	return bResult;
@@ -1197,18 +1218,19 @@ bool FMVVMViewBlueprintCompiler::CompileBindings(const FCompiledBindingLibraryCo
 					continue;
 				}
 
-				bIsOptional = ModelContext->bOptional;
+				bIsOptional = ModelContext->bOptional || ModelContext->CreationType == EMVVMBlueprintViewModelContextCreationType::Manual;
 			}
 		}
 
 		NewBinding.FieldId = CompiledFieldId  ? *CompiledFieldId : FMVVMVCompiledFieldId();
 		NewBinding.Binding = *CompiledBinding;
 		NewBinding.ExecutionMode = ViewBinding.bOverrideExecutionMode ? ViewBinding.OverrideExecutionMode : (EMVVMExecutionMode)CVarDefaultExecutionMode->GetInt();
+		NewBinding.EditorId = ViewBinding.BindingId;
 
 		NewBinding.Flags = 0;
 		NewBinding.Flags |= (ViewBinding.bEnabled) ? FMVVMViewClass_CompiledBinding::EBindingFlags::EnabledByDefault : 0;
 		NewBinding.Flags |= (IsForwardBinding(ViewBinding.BindingType)) ? FMVVMViewClass_CompiledBinding::EBindingFlags::ForwardBinding : 0;
-		NewBinding.Flags |= (ViewBinding.BindingType == EMVVMBindingMode::TwoWay) ? FMVVMViewClass_CompiledBinding::EBindingFlags::TwoWayBinding : 0;
+		//NewBinding.Flags |= (ViewBinding.BindingType == EMVVMBindingMode::TwoWay) ? FMVVMViewClass_CompiledBinding::EBindingFlags::TwoWayBinding : 0;
 		NewBinding.Flags |= (IsOneTimeBinding(ViewBinding.BindingType)) ? FMVVMViewClass_CompiledBinding::EBindingFlags::OneTime : 0;
 		NewBinding.Flags |= (bIsOptional) ? FMVVMViewClass_CompiledBinding::EBindingFlags::ViewModelOptional : 0;
 		NewBinding.Flags |= (CompileBinding.bIsConversionFunctionComplex) ? FMVVMViewClass_CompiledBinding::EBindingFlags::ConversionFunctionIsComplex : 0;

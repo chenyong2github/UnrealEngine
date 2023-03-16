@@ -530,14 +530,14 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledB
 	NewBinding.SourcePathHandles = InSourceHandles;
 	NewBinding.DestinationPathHandle = InDestinationHandle;
 	NewBinding.ConversionFunctionPathHandle = InConversionFunctionHandle;
-	const int32 FoundIndex = Impl->Bindings.IndexOfByPredicate([&NewBinding](const Private::FRawBinding& Binding)
+	const int32 FoundSameBindingIndex = Impl->Bindings.IndexOfByPredicate([&NewBinding](const Private::FRawBinding& Binding)
 		{
 			return NewBinding.IsSameBinding(Binding);
 		});
 
-	if (FoundIndex != INDEX_NONE)
+	if (FoundSameBindingIndex != INDEX_NONE)
 	{
-		return MakeValue(Impl->Bindings[FoundIndex].BindingHandle);
+		return MakeError(LOCTEXT("BindingAlreadyAdded", "The binding already exist."));
 	}
 	else
 	{

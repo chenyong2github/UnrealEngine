@@ -49,7 +49,6 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeInstance(FName In
 	return Result;
 }
 
-
 FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeFieldPath(FName InName, UClass* InNotifyFieldValueChangedClass, FMVVMVCompiledFieldPath InFieldPath, bool bOptional)
 {
 	FMVVMViewClass_SourceCreator Result;
@@ -65,7 +64,6 @@ FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeFieldPath(FName I
 	}
 	return Result;
 }
-
 
 FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeGlobalContext(FName InName, FMVVMViewModelContext InContext, bool bOptional)
 {
@@ -206,15 +204,167 @@ EMVVMExecutionMode FMVVMViewClass_CompiledBinding::GetExecuteMode() const
 	return (Flags & EBindingFlags::OverrideExecuteMode) == 0 ? DefaultMode : ExecutionMode;
 }
 
+FMVVMViewClass_CompiledBinding::FToStringArgs FMVVMViewClass_CompiledBinding::FToStringArgs::Short()
+{
+	FToStringArgs Result;
+	Result.bUseDisplayName = false;
+	Result.bAddFieldPath = false;
+	Result.bAddFlags = false;
+	return Result;
+}
+
+FMVVMViewClass_CompiledBinding::FToStringArgs FMVVMViewClass_CompiledBinding::FToStringArgs::All()
+{
+	return FToStringArgs();
+}
+
 FString FMVVMViewClass_CompiledBinding::ToString() const
 {
-	return FString::Printf(TEXT("FieldId: '%d', PropertyName: '%s', Mode: '%s', Flags: '%d' \n")
-			TEXT("Binding: '%s'")
-		, TEXT("")
-		, *SourcePropertyName.ToString()
-		, *StaticEnum<EMVVMExecutionMode>()->GetNameByValue((int64)ExecutionMode).ToString()
-		, Flags
-		, TEXT(""));
+	return EditorId.ToString();
+}
+
+FString FMVVMViewClass_CompiledBinding::ToString(const FMVVMCompiledBindingLibrary& BindingLibrary, FToStringArgs Args) const
+{
+	TStringBuilder<1024> StringBuilder;
+
+#if WITH_EDITOR
+	if (Args.bAddBindingId)
+	{
+		StringBuilder << TEXT("BindingId: ");
+		EditorId.AppendString(StringBuilder);
+		StringBuilder << TEXT("\n    ");
+	}
+#endif
+
+	if (Args.bAddFieldPath)
+	{
+		StringBuilder << TEXT("Binding: ");
+		TValueOrError<FString, FString> DestinationString = BindingLibrary.FieldPathToString(GetBinding().GetDestinationFieldPath(), Args.bUseDisplayName);
+		TValueOrError<FString, FString> SourceString = BindingLibrary.FieldPathToString(GetBinding().GetSourceFieldPath(), Args.bUseDisplayName);
+		TValueOrError<FString, FString> ConversionString = MakeValue(FString());
+		if (GetBinding().GetConversionFunctionFieldPath().IsValid())
+		{
+			ConversionString = BindingLibrary.FieldPathToString(GetBinding().GetConversionFunctionFieldPath(), Args.bUseDisplayName);
+		}
+
+		if (DestinationString.HasError() || SourceString.HasError() || ConversionString.HasError())
+		{
+			StringBuilder << TEXT("Error: ");
+		}
+
+		if (Args.bUseDisplayName)
+		{
+			StringBuilder << TEXT('"');
+		}
+		StringBuilder << (DestinationString.HasValue() ? DestinationString.GetValue() : DestinationString.GetError());
+		if (Args.bUseDisplayName)
+		{
+			StringBuilder << TEXT('"');
+		}
+		StringBuilder << TEXT(" = ");
+		if (GetBinding().GetConversionFunctionFieldPath().IsValid())
+		{
+			if (Args.bUseDisplayName)
+			{
+				StringBuilder << TEXT('"');
+			}
+			StringBuilder << (ConversionString.HasValue() ? ConversionString.GetValue() : ConversionString.GetError());
+			if (Args.bUseDisplayName)
+			{
+				StringBuilder << TEXT('"');
+			}
+			StringBuilder << TEXT(" ( ");
+		}
+
+		if (Args.bUseDisplayName)
+		{
+			StringBuilder << TEXT('"');
+		}
+		StringBuilder << (SourceString.HasValue() ? SourceString.GetValue() : SourceString.GetError());
+		if (Args.bUseDisplayName)
+		{
+			StringBuilder << TEXT('"');
+		}
+
+		if (GetBinding().GetConversionFunctionFieldPath().IsValid())
+		{
+			StringBuilder << TEXT(" )");
+		}
+
+		StringBuilder << TEXT("\n    ");
+	}
+
+	StringBuilder << TEXT("PropertyName: '");
+	StringBuilder << SourcePropertyName;
+
+	if (Args.bAddFieldId)
+	{
+		if (GetSourceFieldId().IsValid())
+		{
+			TValueOrError<UE::FieldNotification::FFieldId, void> SourceFieldId = BindingLibrary.GetFieldId(GetSourceFieldId());
+			StringBuilder << TEXT("', FieldId: '");
+			StringBuilder << (SourceFieldId.HasValue() ? SourceFieldId.GetValue().GetName() : FName());
+		}
+		else
+		{
+			ensureMsgf(IsOneTime(), TEXT("The field Id should be valid."));
+		}
+	}
+
+	if (Args.bAddFlags)
+	{
+		StringBuilder << TEXT("`, Mode: '");
+		StringBuilder << StaticEnum<EMVVMExecutionMode>()->GetNameByValue((int64)ExecutionMode);
+		StringBuilder << TEXT("`, Flags: '");
+
+		auto AddPipe = [&StringBuilder]()
+		{
+			StringBuilder << TEXT('|');
+		};
+
+		if ((Flags & EBindingFlags::ForwardBinding) != 0)
+		{
+			StringBuilder << TEXT("Forward");
+		}
+		else
+		{
+			StringBuilder << TEXT("Backward");
+		}
+
+		if ((Flags & EBindingFlags::OneTime) != 0)
+		{
+			AddPipe();
+			StringBuilder << TEXT("OneTime");
+		}
+		if ((Flags & EBindingFlags::EnabledByDefault) != 0)
+		{
+			AddPipe();
+			StringBuilder << TEXT("EnabledByDefault");
+		}
+		if ((Flags & EBindingFlags::ViewModelOptional) != 0)
+		{
+			AddPipe();
+			StringBuilder << TEXT("Optional");
+		}
+		if ((Flags & EBindingFlags::ConversionFunctionIsComplex) != 0)
+		{
+			AddPipe();
+			StringBuilder << TEXT("Complex");
+		}
+		if ((Flags & EBindingFlags::OverrideExecuteMode) != 0)
+		{
+			AddPipe();
+			StringBuilder << TEXT("OverrideExecutionMode");
+		}
+		if ((Flags & EBindingFlags::SourceObjectIsSelf) != 0)
+		{
+			AddPipe();
+			StringBuilder << TEXT("Self");
+		}
+		StringBuilder << TEXT("'");
+	}
+
+	return StringBuilder.ToString();
 }
 
 

@@ -9,8 +9,12 @@
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMFieldContext.h"
 #include "Types/MVVMFunctionContext.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMCompiledBindingLibrary)
+
+
+#define LOCTEXT_NAMESPACE "MVVMCompiledBindingLibrary"
 
 /**
  *
@@ -50,7 +54,19 @@ FMVVMCompiledBindingLibrary::FMVVMCompiledBindingLibrary()
 
 }
 
-FMVVMCompiledBindingLibrary::~FMVVMCompiledBindingLibrary() = default;
+
+FText FMVVMCompiledBindingLibrary::LexToText(EExecutionFailingReason Reason)
+{
+	switch (Reason)
+	{
+	case EExecutionFailingReason::IncompatibleLibrary: return LOCTEXT("FailingReasonIncompatibleLibrary", "Incompatible Library");
+	case EExecutionFailingReason::InvalidSource: return LOCTEXT("FailingReasonInvalidSource", "Invalid Source");
+	case EExecutionFailingReason::InvalidDestination: return LOCTEXT("FailingReasonInvalidDestination", "Invalid Destination");
+	case EExecutionFailingReason::InvalidConversionFunction: return LOCTEXT("FailingReasonInvalidConversionFunction", "Invalid Conversion Function");
+	case EExecutionFailingReason::InvalidCast: return LOCTEXT("FailingReasonInvalidCast", "Invalid Cast");
+	}
+	return FText();
+}
 
 
 void FMVVMCompiledBindingLibrary::Load()
@@ -103,6 +119,16 @@ void FMVVMCompiledBindingLibrary::Load()
 	CompiledFields.Reset();
 #endif
 }
+
+
+#if WITH_EDITOR
+void FMVVMCompiledBindingLibrary::Unload()
+{
+	LoadedProperties.Empty();
+	LoadedFunctions.Empty();
+	LoadedFieldIds.Empty();
+}
+#endif
 
 
 TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMCompiledBindingLibrary::Execute(UObject* InExecutionSource, const FMVVMVCompiledBinding& InBinding, EConversionFunctionType InFunctionType) const
@@ -344,7 +370,7 @@ TValueOrError<UE::MVVM::FFieldContext, void> FMVVMCompiledBindingLibrary::Evalua
 				const FObjectPropertyBase* ReturnObjectProperty = CastFieldChecked<const FObjectPropertyBase>(UE::MVVM::BindingHelper::GetReturnProperty(Function));
 				check(ReturnObjectProperty);
 				check(Function->NumParms == 1);
-				
+
 				if (!CurrentContainer.IsUObject())
 				{
 					return MakeError();
@@ -410,7 +436,7 @@ TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FMVVMCompiledBindingLibrary::Ge
 }
 
 
-TValueOrError<FString, FString> FMVVMCompiledBindingLibrary::FieldPathToString(const FMVVMVCompiledFieldPath& FieldPath) const
+TValueOrError<FString, FString> FMVVMCompiledBindingLibrary::FieldPathToString(FMVVMVCompiledFieldPath FieldPath, bool bUseDisplayName) const
 {
 #if WITH_EDITORONLY_DATA
 	const bool bIsValidBinding = FieldPath.CompiledBindingLibraryId == CompiledBindingLibraryId;
@@ -421,38 +447,88 @@ TValueOrError<FString, FString> FMVVMCompiledBindingLibrary::FieldPathToString(c
 	}
 #endif
 
+	bool bHasError = false;
 	TStringBuilder<512> StringBuilder;
 	const int32 IterationMax = FieldPath.StartIndex + FieldPath.Num;
-	checkf(IterationMax < FieldPaths.Num(), TEXT("The number of field is bigger than the number of field that was compiled."));
+	checkf(IterationMax <= FieldPaths.Num(), TEXT("The number of field is bigger than the number of field that was compiled."));
 	for (int32 Index = FieldPath.StartIndex; Index < IterationMax; ++Index)
 	{
 		if (StringBuilder.Len() > 0)
 		{
-			StringBuilder.AppendChar(TEXT('.'));
+			StringBuilder << TEXT('.');
 		}
 
 		check(FieldPaths.IsValidIndex(Index));
 		FMVVMCompiledLoadedPropertyOrFunctionIndex PathIndex = FieldPaths[Index];
 		if (PathIndex.bIsProperty)
 		{
-			check(LoadedProperties.IsValidIndex(PathIndex.Index));
-			const FProperty* Property = LoadedProperties[PathIndex.Index];
-			if (!Property)
+			if (LoadedProperties.IsValidIndex(PathIndex.Index))
 			{
-				return MakeError<FString>(StringBuilder.ToString());
+				const FProperty* Property = LoadedProperties[PathIndex.Index];
+				if (!Property)
+				{
+					StringBuilder << TEXT("<Invalid>");
+					bHasError = true;
+				}
+
+#if WITH_EDITOR
+				if (bUseDisplayName)
+				{
+					StringBuilder << Property->GetDisplayNameText().ToString();
+				}
+				else
+#endif
+				{
+					StringBuilder << Property->GetFName();
+				}
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("The library is not loaded"));
+				StringBuilder << TEXT("<Invalid>");
+				bHasError = true;
 			}
 		}
 		else
 		{
-			check(LoadedFunctions.IsValidIndex(PathIndex.Index));
-			UFunction* Function = LoadedFunctions[PathIndex.Index];
-			if (!Function)
+			if (LoadedFunctions.IsValidIndex(PathIndex.Index))
 			{
-				return MakeError<FString>(StringBuilder.ToString());
+				const UFunction* Function = LoadedFunctions[PathIndex.Index];
+				if (!Function)
+				{
+					StringBuilder << TEXT("<Invalid>");
+					bHasError = true;
+				}
+
+#if WITH_EDITOR
+				if (bUseDisplayName)
+				{
+					StringBuilder << Function->GetDisplayNameText().ToString();
+				}
+				else
+#endif
+				{
+					StringBuilder << Function->GetFName();
+				}
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("The library is not loaded"));
+				StringBuilder << TEXT("<Invalid>");
+				bHasError = true;
 			}
 		}
 	}
-	return MakeValue<FString>(StringBuilder.ToString());
+
+	if (bHasError)
+	{
+		return MakeError<FString>(StringBuilder.ToString());
+	}
+	else
+	{
+
+		return MakeValue<FString>(StringBuilder.ToString());
+	}
 }
 
 
@@ -471,3 +547,4 @@ TValueOrError<UE::FieldNotification::FFieldId, void> FMVVMCompiledBindingLibrary
 	return MakeValue(LoadedFieldIds[InFieldId.FieldIdIndex]);
 }
 
+#undef LOCTEXT_NAMESPACE

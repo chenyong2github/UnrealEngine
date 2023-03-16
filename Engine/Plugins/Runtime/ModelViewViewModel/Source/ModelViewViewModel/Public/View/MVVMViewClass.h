@@ -165,8 +165,30 @@ public:
 	/** How the binding should be executed. */
 	EMVVMExecutionMode GetExecuteMode() const;
 
-	/** @return a human readable version of the binding that can be use for debugging purposes. */
+	struct FToStringArgs
+	{
+		bool bUseDisplayName = true;
+		bool bAddFieldPath = true;
+		bool bAddFieldId = true;
+		bool bAddFlags = true;
+		bool bAddBindingId = true;
+
+		MODELVIEWVIEWMODEL_API static FToStringArgs Short();
+		MODELVIEWVIEWMODEL_API static FToStringArgs All();
+	};
+
+	UE_DEPRECATED(5.3, "ToString with no argument is deprecated.")
 	FString ToString() const;
+
+	/** @return a human readable version of the binding that can be use for debugging purposes. */
+	FString ToString(const FMVVMCompiledBindingLibrary& CompiledBindingLibrary, FToStringArgs Args) const;
+
+#if WITH_EDITOR
+	FGuid GetEditorId() const
+	{
+		return EditorId;
+	}
+#endif
 
 private:
 	UPROPERTY()
@@ -186,8 +208,6 @@ private:
 		None = 0,
 		/** True when the binding goes from Source to Destination. */
 		ForwardBinding = 1 << 0,
-		/** The binding is one part of a 2 ways binding. */
-		TwoWayBinding = 1 << 1,
 		OneTime = 1 << 2,
 		EnabledByDefault = 1 << 3,
 		/** The source (viewmodel) can be nullptr and the binding could failed and should not log a warning. */
@@ -202,6 +222,11 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	uint8 Flags = EBindingFlags::None;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
+	FGuid EditorId;
+#endif
 };
 
 
