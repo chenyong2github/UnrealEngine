@@ -1,4 +1,7 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using UnrealBuildTool;
+using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
@@ -53,6 +56,12 @@ namespace UnrealBuildTool.Rules
                         "WebBrowserTexture",
                     }
                 );
+
+				if (Target.Platform == UnrealTargetPlatform.Android)
+				{
+					string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+					AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "WebBrowserWidget_UPL.xml"));
+				}
 			}
         }
     }

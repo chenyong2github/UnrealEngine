@@ -1880,7 +1880,7 @@ class WebViewControl
 			{
 				try 
 				{
-					glAttachedCanvas = mSurface.lockCanvas(null);
+					glAttachedCanvas = mSurface.lockHardwareCanvas();
 					//draw the view to provided canvas
 
 					//translate canvas to reflect view scrolling

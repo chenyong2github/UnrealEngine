@@ -114,7 +114,7 @@ void SAndroidWebBrowserWidget::Construct(const FArguments& Args)
 	WebBrowserWindowPtr = Args._WebBrowserWindow;
 	IsAndroid3DBrowser = true;
 
-	bShouldUseBitmapRender = AndroidThunkCpp_IsOculusMobileApplication();
+	bShouldUseBitmapRender = false; //AndroidThunkCpp_IsOculusMobileApplication();
 	bMouseCapture = false;
 
 	HistorySize = 0;
