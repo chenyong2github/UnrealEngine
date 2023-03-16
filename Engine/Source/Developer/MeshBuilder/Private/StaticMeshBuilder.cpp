@@ -136,7 +136,11 @@ static bool BuildNanite(
 		return false;
 	}
 
-	FMeshDescription MeshDescription = *SourceModel.GetOrCacheMeshDescription();
+	FMeshDescription MeshDescription; 
+	if (!SourceModel.CloneMeshDescription(MeshDescription))
+	{
+		return false;
+	}
 
 	FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
 	FStaticMeshLODResources& StaticMeshLOD = LODResources[0];
@@ -190,8 +194,7 @@ static bool BuildNanite(
 
 	// Only the render data and vertex buffers will be used from now on unless we have more than one source models
 	// This will help with memory usage for Nanite Mesh by releasing memory before doing the build
-	//SourceModel.ClearMeshDescription(); // Clear original cached mesh description in memory
-	MeshDescription.Empty(); // Clear the mutable copy (if allocated).
+	MeshDescription.Empty();
 
 	// Concatenate the per-section index buffers.
 	bool bNeeds32BitIndices = false;
@@ -1061,7 +1064,7 @@ void BuildVertexBuffer(
 				Bounds += PendingVertex.Position;
 			}
 
-			RemapVerts[WedgeIndex] = Index;
+				RemapVerts[WedgeIndex] = Index;
 
 			if (bNeedWedgeMap)
 			{

@@ -368,7 +368,12 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 
 	FStaticMeshSourceModel& SourceModel = GetBaseMeshSourceModel(*BaseMesh);
 	
-	FMeshDescription MeshDescription = *SourceModel.GetOrCacheMeshDescription();
+	FMeshDescription MeshDescription; 
+	if (!SourceModel.CloneMeshDescription(MeshDescription))
+	{
+		UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Cannot find a valid mesh description to build the displaced mesh asset."));
+		return false;
+	}
 
 	FMeshBuildSettings& BuildSettings = SourceModel.BuildSettings;
 	FMeshDescriptionHelper MeshDescriptionHelper(&BuildSettings);
@@ -425,7 +430,6 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	// Only the render data and vertex buffers will be used from now on unless we have more than one source models
 	// This will help with memory usage for Nanite Mesh by releasing memory before doing the build
 	MeshDescription.Empty();
-	SourceModel.ClearMeshDescription();
 
 	TArray<uint32> CombinedIndices;
 	bool bNeeds32BitIndices = false;
