@@ -1952,12 +1952,17 @@ static void ReplaceObjectHelper(UObject*& OldObject, UClass* OldClass, UObject*&
 		}
 	}
 
+	OldObject->ClearFlags(RF_Standalone);
 	OldObject->RemoveFromRoot();
 	OldObject->MarkAsGarbage();
-	ForEachObjectWithOuter(OldObject, [](UObject* ObjectInOuter)
-	{
-		ObjectInOuter->MarkAsGarbage();
-	}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
+	ForEachObjectWithOuter(OldObject, 
+		[](UObject* ObjectInOuter)
+		{
+			ObjectInOuter->ClearFlags(RF_Standalone);
+			ObjectInOuter->RemoveFromRoot();
+			ObjectInOuter->MarkAsGarbage();
+		}
+		, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 
 	OldToNewInstanceMap.Add(OldObject, NewUObject);
 
