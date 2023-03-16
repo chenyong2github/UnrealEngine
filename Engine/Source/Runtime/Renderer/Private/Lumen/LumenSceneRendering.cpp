@@ -123,6 +123,12 @@ FAutoConsoleVariableRef CVarLumenSceneCardCaptureFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarLumenSceneSurfaceCacheRemovesPerFrame(
+	TEXT("r.LumenScene.SurfaceCache.RemovesPerFrame"),
+	512,
+	TEXT("How many mesh cards removes can be done per frame."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<float> CVarLumenSceneCardCaptureRefreshFraction(
 	TEXT("r.LumenScene.SurfaceCache.CardCaptureRefreshFraction"),
 	0.125f,
@@ -487,6 +493,14 @@ int32 GetMaxLumenSceneCardCapturesPerFrame()
 int32 GetMaxMeshCardsToAddPerFrame()
 {
 	return 2 * GetMaxLumenSceneCardCapturesPerFrame();
+}
+
+namespace LumenScene
+{
+	int32 GetMaxMeshCardsRemovesPerFrame()
+	{
+		return FMath::Max(CVarLumenSceneSurfaceCacheRemovesPerFrame.GetValueOnRenderThread(), 0);
+	}
 }
 
 int32 GetMaxTileCapturesPerFrame()
@@ -1914,8 +1928,18 @@ void UpdateSurfaceCachePrimitives(
 			}
 		}
 
+		// #lumen_todo: Temporary workaround until we optimized FLumenSurfaceCacheAllocator::Free to use fast batched removes
+		int32 NumMeshCardsRemoves = 0;
+		const int32 MaxMeshCardsRemoves = LumenScene::GetMaxMeshCardsRemovesPerFrame();
+
 		for (const FMeshCardsRemove& MeshCardsRemove : Task.MeshCardsRemoves)
 		{
+			if (NumMeshCardsRemoves >= MaxMeshCardsRemoves)
+			{
+				break;
+			}
+			++NumMeshCardsRemoves;
+
 			FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[MeshCardsRemove.PrimitiveGroupIndex];
 			LumenSceneData.RemoveMeshCards(PrimitiveGroup);
 		}
