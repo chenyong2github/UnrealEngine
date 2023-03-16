@@ -2449,6 +2449,7 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 			Chaos::FUniqueIdx UniqueIdx = Handle->UniqueIdx();
 			Evolution->DestroyParticle(Handle);
 			Evolution->ReleaseUniqueIdx(UniqueIdx);
+			SolverParticleHandles[i] = nullptr;
 		}
 	}
 
