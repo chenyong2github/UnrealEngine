@@ -5,17 +5,11 @@
 #include "Misc/TextureShareCoreStrings.h"
 #include "UObject/Package.h"
 
-namespace UE
+namespace UE::TextureShare::BlueprintContainers
 {
-	namespace TextureShare
+	static FString GetValidTextureShareObjectName(const FString& InShareName)
 	{
-		namespace BlueprintContainers
-		{
-			static FString GetValidTextureShareObjectName(const FString& InShareName)
-			{
-				return InShareName.IsEmpty() ? UE::TextureShareCoreStrings::DefaultShareName : InShareName;
-			}
-		}
+		return InShareName.IsEmpty() ? UE::TextureShareCoreStrings::DefaultShareName : InShareName;
 	}
 };
 using namespace UE::TextureShare::BlueprintContainers;

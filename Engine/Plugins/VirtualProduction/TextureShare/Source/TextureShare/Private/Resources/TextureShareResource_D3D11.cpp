@@ -10,20 +10,13 @@
 
 #include "ID3D11DynamicRHI.h"
 
-namespace UE
+namespace UE::TextureShare::Resource_D3D11
 {
-	namespace TextureShare
+	static TSharedPtr<ITextureShareCoreD3D11ResourcesCache, ESPMode::ThreadSafe> GetD3D11ResourcesCache()
 	{
-		namespace Resource_D3D11
-		{
-			static TSharedPtr<ITextureShareCoreD3D11ResourcesCache, ESPMode::ThreadSafe> GetD3D11ResourcesCache()
-			{
-				static ITextureShareCoreAPI& TextureShareCoreAPI = ITextureShareCore::Get().GetTextureShareCoreAPI();
+		static ITextureShareCoreAPI& TextureShareCoreAPI = ITextureShareCore::Get().GetTextureShareCoreAPI();
 
-				return TextureShareCoreAPI.GetD3D11ResourcesCache();
-			}
-
-		}
+		return TextureShareCoreAPI.GetD3D11ResourcesCache();
 	}
 };
 using namespace UE::TextureShare::Resource_D3D11;

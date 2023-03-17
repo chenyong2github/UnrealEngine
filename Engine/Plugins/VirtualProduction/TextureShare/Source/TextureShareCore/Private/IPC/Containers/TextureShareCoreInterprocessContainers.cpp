@@ -5,20 +5,14 @@
 #include "Misc/SecureHash.h"
 #include "Windows/MinimalWindowsApi.h"
 
-namespace UE
+namespace UE::TextureShareCore::InterprocessContainers
 {
-	namespace TextureShareCore
+	static FTextureShareCoreSMD5Hash CreateEmptySMD5Hash()
 	{
-		namespace InterprocessContainers
-		{
-			static FTextureShareCoreSMD5Hash CreateEmptySMD5Hash()
-			{
-				FTextureShareCoreSMD5Hash Result;
-				Result.Empty();
+		FTextureShareCoreSMD5Hash Result;
+		Result.Empty();
 
-				return Result;
-			}
-		}
+		return Result;
 	}
 };
 using namespace UE::TextureShareCore::InterprocessContainers;

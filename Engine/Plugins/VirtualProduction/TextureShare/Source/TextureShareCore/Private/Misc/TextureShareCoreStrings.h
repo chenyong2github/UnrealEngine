@@ -10,23 +10,20 @@
 /**
  * Default names for TextureShareCore module
  */
-namespace UE
+namespace UE::TextureShareCoreStrings
 {
-	namespace TextureShareCoreStrings
+	static constexpr auto DefaultShareName = TEXT("DefaultShareName");
+
+	static constexpr auto DefaultViewId = TEXT("DefaultView");
+
+	namespace DefaultProcessName
 	{
-		static constexpr auto DefaultShareName = TEXT("DefaultShareName");
-
-		static constexpr auto DefaultViewId = TEXT("DefaultView");
-
-		namespace DefaultProcessName
-		{
 #if defined TEXTURESHARE_PROJECT_NAME
-			// Use TextureShare project name as process name
-			static constexpr auto SDK = TEXT(TEXTURESHARE_PROJECT_NAME);
+		// Use TextureShare project name as process name
+		static constexpr auto SDK = TEXT(TEXTURESHARE_PROJECT_NAME);
 #else
-			static constexpr auto SDK = TEXT("TextureShareSDK");
+		static constexpr auto SDK = TEXT("TextureShareSDK");
 #endif
-			static constexpr auto UE = TEXT("UnrealEngine");
-		}
+		static constexpr auto UE = TEXT("UnrealEngine");
 	}
 };

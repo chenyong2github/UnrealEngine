@@ -28,35 +28,29 @@ static FAutoConsoleVariableRef CVarTextureShareEnableDisplayCluster(
 	ECVF_RenderThreadSafe
 );
 
-namespace UE
+namespace UE::TextureShare::PostProcess
 {
-	namespace TextureShare
+	static ITextureShareAPI& TextureShareAPI()
 	{
-		namespace PostProcess
-		{
-			static ITextureShareAPI& TextureShareAPI()
-			{
-				static ITextureShareAPI& TextureShareAPISingleton = ITextureShare::Get().GetTextureShareAPI();
-				return TextureShareAPISingleton;
-			}
-
-			static FViewport* GetDisplayViewport(IDisplayClusterViewportManager* InViewportManager)
-			{
-				if (InViewportManager)
-				{
-					if (UWorld* CurrentWorld = InViewportManager->GetCurrentWorld())
-					{
-						if (UGameViewportClient* GameViewportClientPtr = CurrentWorld->GetGameViewport())
-						{
-							return GameViewportClientPtr->Viewport;
-						}
-					}
-				}
-
-				return nullptr;
-			};
-		}
+		static ITextureShareAPI& TextureShareAPISingleton = ITextureShare::Get().GetTextureShareAPI();
+		return TextureShareAPISingleton;
 	}
+
+	static FViewport* GetDisplayViewport(IDisplayClusterViewportManager* InViewportManager)
+	{
+		if (InViewportManager)
+		{
+			if (UWorld* CurrentWorld = InViewportManager->GetCurrentWorld())
+			{
+				if (UGameViewportClient* GameViewportClientPtr = CurrentWorld->GetGameViewport())
+				{
+					return GameViewportClientPtr->Viewport;
+				}
+			}
+		}
+
+		return nullptr;
+	};
 };
 using namespace UE::TextureShare::PostProcess;
 using namespace UE::TextureShare;

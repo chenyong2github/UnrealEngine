@@ -8,27 +8,21 @@
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 
-namespace UE
+namespace UE::TextureShare::GameSettings
 {
-	namespace TextureShare
+	static constexpr auto GameConfigCategory = TEXT("/Script/Plugins.TextureShare");
+
+	static const FString GetConfigDefaultGamePath()
 	{
-		namespace GameSettings
+		static FString ConfigDefaultGamePath = FString::Printf(TEXT("%sDefaultGame.ini"), *FPaths::SourceConfigDir());
+		return ConfigDefaultGamePath;
+	}
+
+	static void ClearReadOnlyForConfigDefaultGame()
+	{
+		if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*GetConfigDefaultGamePath()))
 		{
-			static constexpr auto GameConfigCategory = TEXT("/Script/Plugins.TextureShare");
-
-			static const FString GetConfigDefaultGamePath()
-			{
-				static FString ConfigDefaultGamePath = FString::Printf(TEXT("%sDefaultGame.ini"), *FPaths::SourceConfigDir());
-				return ConfigDefaultGamePath;
-			}
-
-			static void ClearReadOnlyForConfigDefaultGame()
-			{
-				if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*GetConfigDefaultGamePath()))
-				{
-					FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*GetConfigDefaultGamePath(), false);
-				}
-			}
+			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*GetConfigDefaultGamePath(), false);
 		}
 	}
 };

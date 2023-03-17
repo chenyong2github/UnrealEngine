@@ -8,69 +8,66 @@
 #include "Module/TextureShareLog.h"
 #include "Misc/TextureShareStrings.h"
 
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
 #include "RHI.h"
 #include "RHICommandList.h"
 #include "RHIResources.h"
+#include "SceneRenderTargetParameters.h"
 #include "SceneView.h"
 #include "SceneRendering.h"
 
-namespace UE
+namespace UE::TextureShare::SceneViewExtension
 {
-	namespace TextureShare
+	static void GetTextureShareCoreSceneViewMatrices(const FViewMatrices& InViewMatrices, FTextureShareCoreSceneViewMatrices& OutViewMatrices)
 	{
-		namespace SceneViewExtension
-		{
-			static void GetTextureShareCoreSceneViewMatrices(const FViewMatrices& InViewMatrices, FTextureShareCoreSceneViewMatrices& OutViewMatrices)
-			{
-				OutViewMatrices.ProjectionMatrix = InViewMatrices.GetProjectionMatrix();
-				OutViewMatrices.ProjectionNoAAMatrix = InViewMatrices.GetProjectionNoAAMatrix();
-				OutViewMatrices.ViewMatrix = InViewMatrices.GetViewMatrix();
-				OutViewMatrices.ViewProjectionMatrix = InViewMatrices.GetViewProjectionMatrix();
-				OutViewMatrices.TranslatedViewProjectionMatrix = InViewMatrices.GetTranslatedViewProjectionMatrix();
-				OutViewMatrices.PreViewTranslation = InViewMatrices.GetPreViewTranslation();
-				OutViewMatrices.ViewOrigin = InViewMatrices.GetViewOrigin();
-				OutViewMatrices.ProjectionScale = InViewMatrices.GetProjectionScale();
-				OutViewMatrices.TemporalAAProjectionJitter = InViewMatrices.GetTemporalAAJitter();
-				OutViewMatrices.ScreenScale = InViewMatrices.GetScreenScale();
-			}
+		OutViewMatrices.ProjectionMatrix = InViewMatrices.GetProjectionMatrix();
+		OutViewMatrices.ProjectionNoAAMatrix = InViewMatrices.GetProjectionNoAAMatrix();
+		OutViewMatrices.ViewMatrix = InViewMatrices.GetViewMatrix();
+		OutViewMatrices.ViewProjectionMatrix = InViewMatrices.GetViewProjectionMatrix();
+		OutViewMatrices.TranslatedViewProjectionMatrix = InViewMatrices.GetTranslatedViewProjectionMatrix();
+		OutViewMatrices.PreViewTranslation = InViewMatrices.GetPreViewTranslation();
+		OutViewMatrices.ViewOrigin = InViewMatrices.GetViewOrigin();
+		OutViewMatrices.ProjectionScale = InViewMatrices.GetProjectionScale();
+		OutViewMatrices.TemporalAAProjectionJitter = InViewMatrices.GetTemporalAAJitter();
+		OutViewMatrices.ScreenScale = InViewMatrices.GetScreenScale();
+	}
 
-			static void GetTextureShareCoreSceneView(const FSceneView& InSceneView, FTextureShareCoreSceneView& OutSceneView)
-			{
-				GetTextureShareCoreSceneViewMatrices(InSceneView.ViewMatrices, OutSceneView.ViewMatrices);
+	static void GetTextureShareCoreSceneView(const FSceneView& InSceneView, FTextureShareCoreSceneView& OutSceneView)
+	{
+		GetTextureShareCoreSceneViewMatrices(InSceneView.ViewMatrices, OutSceneView.ViewMatrices);
 
-				OutSceneView.UnscaledViewRect = InSceneView.UnscaledViewRect;
-				OutSceneView.UnconstrainedViewRect = InSceneView.UnconstrainedViewRect;
-				OutSceneView.ViewLocation = InSceneView.ViewLocation;
-				OutSceneView.ViewRotation = InSceneView.ViewRotation;
-				OutSceneView.BaseHmdOrientation = InSceneView.BaseHmdOrientation;
-				OutSceneView.BaseHmdLocation = InSceneView.BaseHmdLocation;
-				OutSceneView.WorldToMetersScale = InSceneView.WorldToMetersScale;
+		OutSceneView.UnscaledViewRect = InSceneView.UnscaledViewRect;
+		OutSceneView.UnconstrainedViewRect = InSceneView.UnconstrainedViewRect;
+		OutSceneView.ViewLocation = InSceneView.ViewLocation;
+		OutSceneView.ViewRotation = InSceneView.ViewRotation;
+		OutSceneView.BaseHmdOrientation = InSceneView.BaseHmdOrientation;
+		OutSceneView.BaseHmdLocation = InSceneView.BaseHmdLocation;
+		OutSceneView.WorldToMetersScale = InSceneView.WorldToMetersScale;
 
-				OutSceneView.StereoViewIndex = InSceneView.StereoViewIndex;
-				OutSceneView.PrimaryViewIndex = InSceneView.PrimaryViewIndex;
+		OutSceneView.StereoViewIndex = InSceneView.StereoViewIndex;
+		OutSceneView.PrimaryViewIndex = InSceneView.PrimaryViewIndex;
 
-				OutSceneView.FOV = InSceneView.FOV;
-				OutSceneView.DesiredFOV = InSceneView.DesiredFOV;
-			}
+		OutSceneView.FOV = InSceneView.FOV;
+		OutSceneView.DesiredFOV = InSceneView.DesiredFOV;
+	}
 
-			static void GetTextureShareCoreSceneGameTime(const FGameTime& InGameTime, FTextureShareCoreSceneGameTime& OutGameTime)
-			{
-				OutGameTime.RealTimeSeconds = InGameTime.GetRealTimeSeconds();
-				OutGameTime.WorldTimeSeconds = InGameTime.GetWorldTimeSeconds();
-				OutGameTime.DeltaRealTimeSeconds = InGameTime.GetDeltaRealTimeSeconds();
-				OutGameTime.DeltaWorldTimeSeconds = InGameTime.GetDeltaWorldTimeSeconds();
-			}
+	static void GetTextureShareCoreSceneGameTime(const FGameTime& InGameTime, FTextureShareCoreSceneGameTime& OutGameTime)
+	{
+		OutGameTime.RealTimeSeconds = InGameTime.GetRealTimeSeconds();
+		OutGameTime.WorldTimeSeconds = InGameTime.GetWorldTimeSeconds();
+		OutGameTime.DeltaRealTimeSeconds = InGameTime.GetDeltaRealTimeSeconds();
+		OutGameTime.DeltaWorldTimeSeconds = InGameTime.GetDeltaWorldTimeSeconds();
+	}
 
-			static void GetTextureShareCoreSceneViewFamily(const FSceneViewFamily& InViewFamily, FTextureShareCoreSceneViewFamily& OutViewFamily)
-			{
-				GetTextureShareCoreSceneGameTime(InViewFamily.Time, OutViewFamily.GameTime);
+	static void GetTextureShareCoreSceneViewFamily(const FSceneViewFamily& InViewFamily, FTextureShareCoreSceneViewFamily& OutViewFamily)
+	{
+		GetTextureShareCoreSceneGameTime(InViewFamily.Time, OutViewFamily.GameTime);
 
-				OutViewFamily.FrameNumber = InViewFamily.FrameNumber;
-				OutViewFamily.bIsHDR = InViewFamily.bIsHDR;
-				OutViewFamily.GammaCorrection = InViewFamily.GammaCorrection;
-				OutViewFamily.SecondaryViewFraction = InViewFamily.SecondaryViewFraction;
-			}
-		}
+		OutViewFamily.FrameNumber = InViewFamily.FrameNumber;
+		OutViewFamily.bIsHDR = InViewFamily.bIsHDR;
+		OutViewFamily.GammaCorrection = InViewFamily.GammaCorrection;
+		OutViewFamily.SecondaryViewFraction = InViewFamily.SecondaryViewFraction;
 	}
 };
 using namespace UE::TextureShare::SceneViewExtension;

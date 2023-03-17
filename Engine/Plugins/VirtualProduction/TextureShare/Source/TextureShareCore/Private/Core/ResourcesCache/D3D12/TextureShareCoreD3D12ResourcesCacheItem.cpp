@@ -6,37 +6,31 @@
 
 #include "Windows/D3D12ThirdParty.h"
 
-namespace UE
+namespace UE::TextureShareCore::D3D12ResourcesCacheItem
 {
-	namespace TextureShareCore
+	static inline const FString GetD3D12ComErrorDescription(HRESULT Res)
 	{
-		namespace D3D12ResourcesCacheItem
+		const uint32 BufSize = 4096;
+		WIDECHAR buffer[4096];
+		if (::FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM,
+			nullptr,
+			Res,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
+			buffer,
+			sizeof(buffer) / sizeof(*buffer),
+			nullptr))
 		{
-			static inline const FString GetD3D12ComErrorDescription(HRESULT Res)
-			{
-				const uint32 BufSize = 4096;
-				WIDECHAR buffer[4096];
-				if (::FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM,
-					nullptr,
-					Res,
-					MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
-					buffer,
-					sizeof(buffer) / sizeof(*buffer),
-					nullptr))
-				{
-					return buffer;
-				}
-				else
-				{
-					return TEXT("[cannot find d3d12 error description]");
-				}
-			}
-
-			static inline FString GetUniqueD3D12ResourceHandleName(const FGuid& InResourceGuid)
-			{
-				return FString::Printf(TEXT("Global\\%s"), *InResourceGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
-			}
+			return buffer;
 		}
+		else
+		{
+			return TEXT("[cannot find d3d12 error description]");
+		}
+	}
+
+	static inline FString GetUniqueD3D12ResourceHandleName(const FGuid& InResourceGuid)
+	{
+		return FString::Printf(TEXT("Global\\%s"), *InResourceGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 	}
 };
 using namespace UE::TextureShareCore::D3D12ResourcesCacheItem;

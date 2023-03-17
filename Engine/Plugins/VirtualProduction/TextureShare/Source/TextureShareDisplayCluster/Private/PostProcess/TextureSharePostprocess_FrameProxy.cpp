@@ -13,27 +13,21 @@
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
-namespace UE
+namespace UE::TextureShare::PostProcess_FrameProxy
 {
-	namespace TextureShare
+	// Support warp blend logic
+	static bool ShouldApplyWarpBlend(IDisplayClusterViewportProxy* ViewportProxy)
 	{
-		namespace PostProcess_FrameProxy
+		if (ViewportProxy->GetPostRenderSettings_RenderThread().Replace.IsEnabled())
 		{
-			// Support warp blend logic
-			static bool ShouldApplyWarpBlend(IDisplayClusterViewportProxy* ViewportProxy)
-			{
-				if (ViewportProxy->GetPostRenderSettings_RenderThread().Replace.IsEnabled())
-				{
-					// When used override texture, disable warp blend
-					return false;
-				}
-
-				const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
-
-				// Projection policy must support warp blend op
-				return PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
-			}
+			// When used override texture, disable warp blend
+			return false;
 		}
+
+		const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
+
+		// Projection policy must support warp blend op
+		return PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
 	}
 };
 using namespace UE::TextureShare::PostProcess_FrameProxy;

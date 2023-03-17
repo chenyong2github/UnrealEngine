@@ -19,23 +19,20 @@
 #include "IPC/TextureShareCoreInterprocessMemoryRegion.h"
 #include "IPC/Containers/TextureShareCoreInterprocessMemory.h"
 
-namespace UE
+namespace UE::TextureShareCore
 {
-	namespace TextureShareCore
+	static inline FString GetValidTextureShareProcessName(const FString& InProcessName)
 	{
-		static inline FString GetValidTextureShareProcessName(const FString& InProcessName)
+		if (InProcessName.IsEmpty())
 		{
-			if (InProcessName.IsEmpty())
-			{
 #if TEXTURESHARECORE_SDK
-				return UE::TextureShareCoreStrings::DefaultProcessName::SDK;
+			return UE::TextureShareCoreStrings::DefaultProcessName::SDK;
 #else
-				return UE::TextureShareCoreStrings::DefaultProcessName::UE;
+			return UE::TextureShareCoreStrings::DefaultProcessName::UE;
 #endif
-			};
+		};
 
-			return InProcessName;
-		}
+		return InProcessName;
 	}
 };
 using namespace UE::TextureShareCore;

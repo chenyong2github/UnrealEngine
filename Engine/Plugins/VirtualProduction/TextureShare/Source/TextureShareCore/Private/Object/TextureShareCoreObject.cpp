@@ -14,31 +14,28 @@
 
 #include "Misc/ScopeLock.h"
 
-namespace UE
+namespace UE::TextureShareCore
 {
-	namespace TextureShareCore
+	static FTextureShareCoreObjectDesc CreateNewObjectDesc(const FTextureShareCore& InOwner, const FString& InTextureShareName, const ETextureShareProcessType InProcessType)
 	{
-		static FTextureShareCoreObjectDesc CreateNewObjectDesc(const FTextureShareCore& InOwner, const FString& InTextureShareName, const ETextureShareProcessType InProcessType)
+		FTextureShareCoreObjectDesc ObjectDesc;
+
+		// The name of this object
+		ObjectDesc.ShareName = InTextureShareName;
+
+		// Generate unique Guid for each object
+		ObjectDesc.ObjectGuid = FGuid::NewGuid();
+
+		// Get value for Owner
+		ObjectDesc.ProcessDesc = InOwner.GetProcessDesc();
+
+		// Custom process type
+		if (InProcessType != ETextureShareProcessType::Undefined)
 		{
-			FTextureShareCoreObjectDesc ObjectDesc;
-
-			// The name of this object
-			ObjectDesc.ShareName = InTextureShareName;
-
-			// Generate unique Guid for each object
-			ObjectDesc.ObjectGuid = FGuid::NewGuid();
-
-			// Get value for Owner
-			ObjectDesc.ProcessDesc = InOwner.GetProcessDesc();
-
-			// Custom process type
-			if (InProcessType != ETextureShareProcessType::Undefined)
-			{
-				ObjectDesc.ProcessDesc.ProcessType = InProcessType;
-			}
-
-			return ObjectDesc;
+			ObjectDesc.ProcessDesc.ProcessType = InProcessType;
 		}
+
+		return ObjectDesc;
 	}
 };
 using namespace UE::TextureShareCore;

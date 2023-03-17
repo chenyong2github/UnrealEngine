@@ -6,77 +6,74 @@
 /**
  * Enums to text wrappers for logging
  */
-namespace UE
+namespace UE::TextureShareCore
 {
-	namespace TextureShareCore
+	static constexpr auto GetTEXT(const ETextureShareInterprocessObjectSyncBarrierState InBarrierState)
 	{
-		static constexpr auto GetTEXT(const ETextureShareInterprocessObjectSyncBarrierState InBarrierState)
+		switch (InBarrierState)
 		{
-			switch (InBarrierState)
-			{
-			case ETextureShareInterprocessObjectSyncBarrierState::Undefined: return TEXT("Undefined");
-			case ETextureShareInterprocessObjectSyncBarrierState::UnusedSyncStep: return TEXT("UnusedSyncStep");
+		case ETextureShareInterprocessObjectSyncBarrierState::Undefined: return TEXT("Undefined");
+		case ETextureShareInterprocessObjectSyncBarrierState::UnusedSyncStep: return TEXT("UnusedSyncStep");
 
-			case ETextureShareInterprocessObjectSyncBarrierState::WaitConnection: return TEXT("WaitConnection");
-			case ETextureShareInterprocessObjectSyncBarrierState::AcceptConnection: return TEXT("AcceptConnection");
+		case ETextureShareInterprocessObjectSyncBarrierState::WaitConnection: return TEXT("WaitConnection");
+		case ETextureShareInterprocessObjectSyncBarrierState::AcceptConnection: return TEXT("AcceptConnection");
 
-			case ETextureShareInterprocessObjectSyncBarrierState::Wait: return TEXT("Wait");
-			case ETextureShareInterprocessObjectSyncBarrierState::Accept: return TEXT("Accept");
+		case ETextureShareInterprocessObjectSyncBarrierState::Wait: return TEXT("Wait");
+		case ETextureShareInterprocessObjectSyncBarrierState::Accept: return TEXT("Accept");
 
-			case ETextureShareInterprocessObjectSyncBarrierState::ObjectLost: return TEXT("ObjectLost");
-			case ETextureShareInterprocessObjectSyncBarrierState::FrameSyncLost: return TEXT("FrameSyncLost");
+		case ETextureShareInterprocessObjectSyncBarrierState::ObjectLost: return TEXT("ObjectLost");
+		case ETextureShareInterprocessObjectSyncBarrierState::FrameSyncLost: return TEXT("FrameSyncLost");
 
-			case ETextureShareInterprocessObjectSyncBarrierState::InvalidLogic: return TEXT("InvalidLogic");
-			}
-
-			return TEXT("Unknown");
-		};
-
-		static constexpr auto GetTEXT(const ETextureShareCoreInterprocessObjectFrameSyncState InSyncState)
-		{
-			switch (InSyncState)
-			{
-			case  ETextureShareCoreInterprocessObjectFrameSyncState::Undefined: return TEXT("Undefined");
-			case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameSyncLost: return TEXT("FrameSyncLost");
-
-			case  ETextureShareCoreInterprocessObjectFrameSyncState::NewFrame: return TEXT("NewFrame");
-			case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameConnected: return TEXT("FrameConnected");
-			case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameBegin: return TEXT("FrameBegin");
-			case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameEnd: return TEXT("FrameEnd");
-
-			case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin:  return TEXT("FrameProxyBegin");
-			case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyEnd:  return TEXT("FrameProxyEnd");
-			default:
-				break;
-			}
-
-			return TEXT("Unknown");
-		};
-
-		static FString ToString(const FTextureShareCoreInterprocessObjectSyncState& InObjectSyncState)
-		{
-			return FString::Printf(TEXT("%s[%s]{%s < %s}"), GetTEXT(InObjectSyncState.Step), GetTEXT(InObjectSyncState.State), GetTEXT(InObjectSyncState.NextStep), GetTEXT(InObjectSyncState.PrevStep));
+		case ETextureShareInterprocessObjectSyncBarrierState::InvalidLogic: return TEXT("InvalidLogic");
 		}
 
-		static FString ToString(const FTextureShareCoreInterprocessObject& InObject)
+		return TEXT("Unknown");
+	};
+
+	static constexpr auto GetTEXT(const ETextureShareCoreInterprocessObjectFrameSyncState InSyncState)
+	{
+		switch (InSyncState)
 		{
-			return FString::Printf(TEXT("%s(%s)"), *InObject.Desc.ProcessName.ToString(), *ToString(InObject.Sync.GetSyncState()));
+		case  ETextureShareCoreInterprocessObjectFrameSyncState::Undefined: return TEXT("Undefined");
+		case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameSyncLost: return TEXT("FrameSyncLost");
+
+		case  ETextureShareCoreInterprocessObjectFrameSyncState::NewFrame: return TEXT("NewFrame");
+		case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameConnected: return TEXT("FrameConnected");
+		case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameBegin: return TEXT("FrameBegin");
+		case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameEnd: return TEXT("FrameEnd");
+
+		case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyBegin:  return TEXT("FrameProxyBegin");
+		case  ETextureShareCoreInterprocessObjectFrameSyncState::FrameProxyEnd:  return TEXT("FrameProxyEnd");
+		default:
+			break;
 		}
 
-		static FString ToString(const TArray<FTextureShareCoreInterprocessObject*>& InObjects)
-		{
-			FString Result;
-			for (const FTextureShareCoreInterprocessObject* It : InObjects)
-			{
-				if (!Result.IsEmpty())
-				{
-					Result += TEXT(", ");
-				}
+		return TEXT("Unknown");
+	};
 
-				Result += ToString(*It);
+	static FString ToString(const FTextureShareCoreInterprocessObjectSyncState& InObjectSyncState)
+	{
+		return FString::Printf(TEXT("%s[%s]{%s < %s}"), GetTEXT(InObjectSyncState.Step), GetTEXT(InObjectSyncState.State), GetTEXT(InObjectSyncState.NextStep), GetTEXT(InObjectSyncState.PrevStep));
+	}
+
+	static FString ToString(const FTextureShareCoreInterprocessObject& InObject)
+	{
+		return FString::Printf(TEXT("%s(%s)"), *InObject.Desc.ProcessName.ToString(), *ToString(InObject.Sync.GetSyncState()));
+	}
+
+	static FString ToString(const TArray<FTextureShareCoreInterprocessObject*>& InObjects)
+	{
+		FString Result;
+		for (const FTextureShareCoreInterprocessObject* It : InObjects)
+		{
+			if (!Result.IsEmpty())
+			{
+				Result += TEXT(", ");
 			}
 
-			return Result;
+			Result += ToString(*It);
 		}
+
+		return Result;
 	}
 };

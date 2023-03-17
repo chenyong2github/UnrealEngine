@@ -22,18 +22,12 @@ static TAutoConsoleVariable<int32> CVarTextureShareUseWorldSubsystem(
 	ECVF_RenderThreadSafe
 );
 
-namespace UE
+namespace UE::TextureShare::WorldSubsystem
 {
-	namespace TextureShare
+	static ITextureShareAPI& TextureShareAPI()
 	{
-		namespace WorldSubsystem
-		{
-			static ITextureShareAPI& TextureShareAPI()
-			{
-				static ITextureShareAPI& TextureShareAPISingletone = ITextureShare::Get().GetTextureShareAPI();
-				return TextureShareAPISingletone;
-			}
-		}
+		static ITextureShareAPI& TextureShareAPISingletone = ITextureShare::Get().GetTextureShareAPI();
+		return TextureShareAPISingletone;
 	}
 };
 using namespace UE::TextureShare::WorldSubsystem;

@@ -13,35 +13,29 @@
 #include "Framework/Application/SlateApplication.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-namespace UE
+namespace UE::TextureShare::APIHelpers
 {
-	namespace TextureShare
+	static const FName RendererModuleName(TEXT("Renderer"));
+
+	static ITextureShareCoreAPI& TextureShareCoreAPI()
 	{
-		namespace APIHelpers
+		static ITextureShareCoreAPI& TextureShareCoreAPISingleton = ITextureShareCore::Get().GetTextureShareCoreAPI();
+		return TextureShareCoreAPISingleton;
+	}
+
+	static ETextureShareDeviceType GetTextureShareDeviceType()
+	{
+		switch (RHIGetInterfaceType())
 		{
-			static const FName RendererModuleName(TEXT("Renderer"));
-
-			static ITextureShareCoreAPI& TextureShareCoreAPI()
-			{
-				static ITextureShareCoreAPI& TextureShareCoreAPISingleton = ITextureShareCore::Get().GetTextureShareCoreAPI();
-				return TextureShareCoreAPISingleton;
-			}
-
-			static ETextureShareDeviceType GetTextureShareDeviceType()
-			{
-				switch (RHIGetInterfaceType())
-				{
-				case ERHIInterfaceType::D3D11:  return ETextureShareDeviceType::D3D11;
-				case ERHIInterfaceType::D3D12:  return ETextureShareDeviceType::D3D12;
-				case ERHIInterfaceType::Vulkan: return ETextureShareDeviceType::Vulkan;
+		case ERHIInterfaceType::D3D11:  return ETextureShareDeviceType::D3D11;
+		case ERHIInterfaceType::D3D12:  return ETextureShareDeviceType::D3D12;
+		case ERHIInterfaceType::Vulkan: return ETextureShareDeviceType::Vulkan;
 		
-				default:
-					break;
-				}
-
-				return ETextureShareDeviceType::Undefined;
-			}
+		default:
+			break;
 		}
+
+		return ETextureShareDeviceType::Undefined;
 	}
 };
 using namespace UE::TextureShare::APIHelpers;

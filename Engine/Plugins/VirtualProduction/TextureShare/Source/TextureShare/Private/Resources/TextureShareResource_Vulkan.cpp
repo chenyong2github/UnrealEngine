@@ -15,29 +15,23 @@
 #include "RenderResource.h"
 #include "VulkanRHIPrivate.h"
 
-namespace UE
+namespace UE::TextureShare::Resource_Vulkan
 {
-	namespace TextureShare
+	static TSharedPtr<ITextureShareCoreVulkanResourcesCache, ESPMode::ThreadSafe> GetVulkanResourcesCache()
 	{
-		namespace Resource_Vulkan
+		static ITextureShareCoreAPI& TextureShareCoreAPI = ITextureShareCore::Get().GetTextureShareCoreAPI();
+
+		return TextureShareCoreAPI.GetVulkanResourcesCache();
+	}
+
+	static FTextureShareDeviceVulkanContext GetDeviceVulkanContext()
+	{
+		if (FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI))
 		{
-			static TSharedPtr<ITextureShareCoreVulkanResourcesCache, ESPMode::ThreadSafe> GetVulkanResourcesCache()
-			{
-				static ITextureShareCoreAPI& TextureShareCoreAPI = ITextureShareCore::Get().GetTextureShareCoreAPI();
-
-				return TextureShareCoreAPI.GetVulkanResourcesCache();
-			}
-
-			static FTextureShareDeviceVulkanContext GetDeviceVulkanContext()
-			{
-				if (FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI))
-				{
-					return FTextureShareDeviceVulkanContext(DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle());
-				}
-
-				return FTextureShareDeviceVulkanContext();
-			}
+			return FTextureShareDeviceVulkanContext(DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle());
 		}
+
+		return FTextureShareDeviceVulkanContext();
 	}
 };
 using namespace UE::TextureShare::Resource_Vulkan;

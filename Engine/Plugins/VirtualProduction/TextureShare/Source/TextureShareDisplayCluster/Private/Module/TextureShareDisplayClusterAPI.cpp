@@ -13,18 +13,12 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/IDisplayClusterRenderManager.h"
 
-namespace UE
+namespace UE::TextureShare::DisplayCluster
 {
-	namespace TextureShare
+	static IDisplayCluster& DisplayClusterAPI()
 	{
-		namespace DisplayCluster
-		{
-			static IDisplayCluster& DisplayClusterAPI()
-			{
-				static IDisplayCluster& DisplayClusterSingleton = IDisplayCluster::Get();
-				return DisplayClusterSingleton;
-			}
-		}
+		static IDisplayCluster& DisplayClusterSingleton = IDisplayCluster::Get();
+		return DisplayClusterSingleton;
 	}
 };
 using namespace UE::TextureShare::DisplayCluster;
