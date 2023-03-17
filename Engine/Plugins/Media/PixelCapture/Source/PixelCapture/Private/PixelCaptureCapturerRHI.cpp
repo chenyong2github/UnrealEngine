@@ -17,7 +17,7 @@ FPixelCaptureCapturerRHI::FPixelCaptureCapturerRHI(float InScale)
 	: Scale(InScale)
 {
 	Fence = GDynamicRHI->RHICreateGPUFence(TEXT("FPixelCaptureCapturerRHI Fence"));
-	RHIType = GDynamicRHI ? RHIGetInterfaceType() : ERHIInterfaceType::Hidden;
+	RHIType = RHIGetInterfaceType();
 }
 
 IPixelCaptureOutputFrame* FPixelCaptureCapturerRHI::CreateOutputBuffer(int32 InputWidth, int32 InputHeight)
