@@ -12,6 +12,7 @@
 #include "VT/VirtualTextureScalability.h"
 #include "VT/VirtualTextureSystem.h"
 #include "RHIUtilities.h"
+#include "RenderGraphBuilder.h"
 
 CSV_DECLARE_CATEGORY_EXTERN(VirtualTexturing);
 
