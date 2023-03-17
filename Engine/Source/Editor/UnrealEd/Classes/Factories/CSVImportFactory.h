@@ -58,9 +58,14 @@ class UNREALED_API UCSVImportFactory : public UFactory, public IImportSettingsPa
 {
 	GENERATED_UCLASS_BODY()
 
+public:
 	//~ Begin UFactory Interface
 	virtual FText GetDisplayName() const override;
-	virtual UObject* FactoryCreateText(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const TCHAR*& Buffer, const TCHAR* BufferEnd, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
+	virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags,
+		const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
+	virtual UObject* FactoryCreateText(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags,
+		UObject* Context, const TCHAR* Type, const TCHAR*& Buffer, const TCHAR* BufferEnd, FFeedbackContext* Warn,
+		bool& bOutOperationCanceled) override;
 	virtual bool DoesSupportClass(UClass * Class) override;
 	virtual bool FactoryCanImport(const FString& Filename) override;
 	virtual	IImportSettingsParser* GetImportSettingsParser() override;
