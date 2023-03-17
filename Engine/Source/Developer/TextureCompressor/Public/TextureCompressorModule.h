@@ -420,10 +420,9 @@ public:
 
 	/**
 	* Returns the number of mips that the given texture will generate with the given build settings, as well as the size of the top mip.
-	* Used for physical textures - not virtual textures.
 	*/
-	TEXTURECOMPRESSOR_API static int32 GetMipCountForBuildSettings(
+	virtual int32 GetMipCountForBuildSettings(
 		int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, 
 		int32 InExistingMipCount, const FTextureBuildSettings& InBuildSettings, 
-		int32& OutMip0SizeX, int32& OutMip0SizeY, int32& OutMip0NumSlices);
+		int32& OutMip0SizeX, int32& OutMip0SizeY, int32& OutMip0NumSlices) const =0;
 };

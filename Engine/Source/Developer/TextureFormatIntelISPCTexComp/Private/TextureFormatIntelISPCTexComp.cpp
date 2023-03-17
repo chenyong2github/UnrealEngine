@@ -737,10 +737,10 @@ public:
 		return BASE_ISPC_DX11_FORMAT_VERSION;
 	}
 	
-	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const override
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const override
 	{
 		// ASTC block size chosen is in PixelFormat
-		EPixelFormat PixelFormat = GetPixelFormatForBuildSettings(InBuildSettings);
+		EPixelFormat PixelFormat = GetPixelFormatForBuildSettings(BuildSettings);
 		
  		return FString::Printf(TEXT("ISPC_%d"), (int)PixelFormat);
 	}

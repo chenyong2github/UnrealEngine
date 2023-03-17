@@ -86,7 +86,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		return 0;
 	}
 	
-	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const override
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings) const override
 	{
 		if (InBuildSettings.TextureFormatName == GTextureFormatNameRGBA16F)
 		{
