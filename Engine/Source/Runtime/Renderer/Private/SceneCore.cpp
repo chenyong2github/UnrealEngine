@@ -257,10 +257,11 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 				}
 			} 
 
-			if (LightSceneInfo->Proxy->CastsModulatedShadows() && !LightSceneInfo->Proxy->UseCSMForDynamicObjects())
+			if (LightSceneInfo->Proxy->CastsModulatedShadows() && !LightSceneInfo->Proxy->UseCSMForDynamicObjects() && LightSceneInfo->Proxy->HasStaticShadowing())
 			{
 				// Force bCastInsetShadow to be enabled to cast modulated shadow on mobile
 				PrimitiveSceneInfo->Proxy->bCastInsetShadow = true;
+				bHasInsetObjectShadow = true;
 			}
 		}
 	}
