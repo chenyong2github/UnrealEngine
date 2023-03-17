@@ -291,13 +291,13 @@ public:
 	 * Makes a copy of the specified initializer and stores it (mapped under its 
 	 * dependency), so that it can instead be executed later via ResolveArchetypeInstances().
 	 * 
-	 * @param  InitDependecy			The object (usually the initializer's archetype) that this initializer is dependent on. The key 
+	 * @param  InitDependency			The object (usually the initializer's archetype) that this initializer is dependent on. The key 
 	 *									you'll pass to ResolveArchetypeInstances() later to run this initializer.
 	 * @param  DeferringInitializer		The initializer you want to defer.
 	 *
-	 * @raturn A copy of the specified initializer. This should always succeed (only returns null if InitDependecy is null).
+	 * @raturn A copy of the specified initializer. This should always succeed (only returns null if InitDependency is null).
 	 */
-	FObjectInitializer* Add(const UObject* InitDependecy, const FObjectInitializer& DeferringInitializer);
+	FObjectInitializer* Add(const UObject* InitDependency, const FObjectInitializer& DeferringInitializer);
 
 	/** 
 	 * Runs all deferred initializers that were dependent on the specified archetype 
