@@ -117,13 +117,21 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 			NanitePixelVisible = NaniteDepthValue >= SceneDepthValue;
 			if (NanitePixelVisible)
 			{
+				FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+				checkSlow(VisibleCluster.InstanceId < PageConstants.x);
+
 			#if VELOCITY_EXPORT
+			#if INSTANCED_STEREO
+				checkSlow(VisibleCluster.ViewId < 2);					// see INSTANCED_VIEW_COUNT in SceneView.h.  
+																		// Velocity export uses a per-view TemporalAAJitter anyway, so it is a fair assumption that each NaniteView has a backing FViewInfo at this point.
+				FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
+				ResolvedView = ResolveView(VisibleCluster.ViewId);
+			#else
 				FNaniteView NaniteView = GetNaniteView(0);
 				ResolvedView = ResolveView();
 			#endif
+			#endif
 
-				FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-				checkSlow(VisibleCluster.InstanceId < PageConstants.x);
 				const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 				const FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 				const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);

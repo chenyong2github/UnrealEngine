@@ -2030,6 +2030,21 @@ void FViewInfo::CreateViewUniformBuffers(const FViewUniformShaderParameters& Par
 
 extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 
+FIntRect FViewInfo::GetFamilyViewRect() const
+{
+	if (bIsMultiViewportEnabled)
+	{
+		return ViewRectWithSecondaryViews;
+	}
+
+	FIntRect FamilyRect = {};
+	for (uint64 ViewIdx = 0, NumViews = (uint64)Family->Views.Num(); ViewIdx < NumViews; ++ViewIdx)
+	{
+		FamilyRect.Union(static_cast<const FViewInfo*>(Family->Views[ViewIdx])->ViewRect);
+	}
+	return FamilyRect;
+}
+
 void FViewInfo::BeginRenderView() const
 {
 	const bool bShouldWaitForPersistentViewUniformBufferExtensionsJobs = true;
@@ -3220,10 +3235,13 @@ void FSceneRenderer::ComputeFamilySize()
 		MaxFamilyY = FMath::Max(MaxFamilyY, FinalViewMaxY);
 
 		View.ViewRectWithSecondaryViews = View.ViewRect;
-		for (const FSceneView* SecondaryView : View.GetSecondaryViews())
+		if (View.bIsMultiViewportEnabled)
 		{
-			const FViewInfo& InstancedView = static_cast<const FViewInfo&>(*SecondaryView);
-			View.ViewRectWithSecondaryViews.Union(InstancedView.ViewRect);
+			for (const FSceneView* SecondaryView : View.GetSecondaryViews())
+			{
+				const FViewInfo& InstancedView = static_cast<const FViewInfo&>(*SecondaryView);
+				View.ViewRectWithSecondaryViews.Union(InstancedView.ViewRect);
+			}
 		}
 	}
 

@@ -727,7 +727,12 @@ StructuredBuffer< FPackedNaniteView > InViews;
 FNaniteView GetNaniteView( uint ViewIndex )
 {
 #if NANITE_USE_VIEW_UNIFORM_BUFFER
+	#if INSTANCED_STEREO
+	ViewState LocalView = GetInstancedView(ViewIndex);
+	#else
 	ViewState LocalView = GetPrimaryView();
+	#endif
+
 	FNaniteView NaniteView;
 
 	NaniteView.SVPositionToTranslatedWorld  = LocalView.SVPositionToTranslatedWorld;

@@ -129,7 +129,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, RegularMaterialRasterBinCount)
 		SHADER_PARAMETER(FIntPoint, PickingPixelPos)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
@@ -230,7 +230,7 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FSearchBufferCountDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
@@ -671,7 +671,7 @@ void AddVisualizationPasses(
 
 				FNaniteVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeCS::FParameters>();
 
-				PassParameters->View = View.ViewUniformBuffer;
+				PassParameters->View = View.GetShaderParameters();
 				PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 				PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 				PassParameters->VisualizeConfig = GetVisualizeConfig(Visualization.ModeID, Visualization.bCompositeScene, GNaniteVisualizeEdgeDetect != 0);
@@ -811,7 +811,7 @@ void RenderDebugViewMode(
 	const FNaniteMaterialCommands& MaterialCommands = Scene.NaniteMaterials[ENaniteMeshPass::BasePass];
 
 	FExportDebugViewPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FExportDebugViewPS::FParameters>();
-	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->View = View.GetShaderParameters();
 	PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 	PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
 	PassParameters->PageConstants = RasterResults.PageConstants;

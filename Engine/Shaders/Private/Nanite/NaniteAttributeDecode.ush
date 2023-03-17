@@ -630,7 +630,7 @@ FNaniteAttributeData GetAttributeData(
 			if (TexCoordIndex == 0)
 			{
 				// Implicit tangent space
-				// Based on Christian Schlüler's derivation: http://www.thetenthplanet.de/archives/1180
+				// Based on Christian Schüler's derivation: http://www.thetenthplanet.de/archives/1180
 				// The technique derives a tangent space from the interpolated normal and (position,uv) deltas in two not necessarily orthogonal directions.
 				// The described technique uses screen space derivatives as a way to obtain these direction deltas in a pixel shader,
 				// but as we have the triangle vertices explicitly available using the local space corner deltas directly is faster and more convenient.

@@ -689,7 +689,11 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 
 FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
+#if INSTANCED_STEREO
+	const FNaniteView NaniteView = GetNaniteView(Interpolants.EyeIndex);
+#else
 	const FNaniteView NaniteView = GetNaniteView(0);
+#endif
 	return GetMaterialPixelParameters(NaniteView, Interpolants, SvPosition);
 }
 

@@ -121,11 +121,6 @@ void EmitSceneDepthPS(
 	out float  OutDepth				: SV_Depth
 )
 {
-#if VELOCITY_EXPORT
-	FNaniteView NaniteView = GetNaniteView(0);
-	ResolvedView = ResolveView();
-#endif
-
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
 
@@ -139,6 +134,17 @@ void EmitSceneDepthPS(
 	#if VELOCITY_EXPORT || SHADING_MASK_EXPORT
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
+	#if VELOCITY_EXPORT
+	#if INSTANCED_STEREO
+		checkSlow(VisibleCluster.ViewId < 2);					// see INSTANCED_VIEW_COUNT in SceneView.h.  
+																// Velocity export uses a per-view TemporalAAJitter anyway, so it is a fair assumption that each NaniteView has a backing FViewInfo at this point.
+		FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
+		ResolvedView = ResolveView(VisibleCluster.ViewId);
+	#else
+		FNaniteView NaniteView = GetNaniteView(0);
+		ResolvedView = ResolveView();
+	#endif
+	#endif
 	#endif
 
 #if SHADING_MASK_EXPORT
@@ -575,4 +581,9 @@ void FullScreenVS(
 	const uint MaterialBucketId = GetMaterialBucketIdFromDepth(Depth);
 
 	Position = float4(TilePosition.x * 2.0 - 1.0, 1.0 - 2.0 * TilePosition.y, Depth, 1);
+
+#if INSTANCED_STEREO
+	// Nanite fullscreen VS is run for the whole side-by-side RT and the primary (left) view, so the quads can span the line separating views, and we cannot output EyeIndex here
+	// Output.EyeIndex will be calculated in the pixel shader instead based on which view rect it is in.
+#endif
 }

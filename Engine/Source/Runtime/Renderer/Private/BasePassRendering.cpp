@@ -1421,6 +1421,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 		RDG_EVENT_SCOPE(GraphBuilder, "BasePass");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, Basepass);
 
+		const bool bDrawSceneViewsInOneNanitePass = Views.Num() > 1 && Nanite::ShouldDrawSceneViewsInOneNanitePass(Views[0]);
 		if (bParallelBasePass)
 		{
 			RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsBasePassWaitForTasksEnabled());
@@ -1458,9 +1459,10 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						FRDGParallelCommandListSet ParallelCommandListSet(InPass, RHICmdList, GET_STATID(STAT_CLP_BasePass), View, FParallelCommandListBindings(PassParameters));
 						View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 					});
-				}				
+				}
 
-				if (bNaniteEnabled)
+				const bool bShouldRenderViewForNanite = bNaniteEnabled && (!bDrawSceneViewsInOneNanitePass || ViewIndex == 0); // when bDrawSceneViewsInOneNanitePass, the first view should cover all the other atlased ones
+				if (bShouldRenderViewForNanite)
 				{
 					// Should always have a full Z prepass with Nanite
 					check(ShouldRenderPrePass());
@@ -1479,7 +1481,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 					SkyPassPassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 
 					View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, SkyPassPassParameters->InstanceCullingDrawParams);
-					
+
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("SkyPassParallel"),
 						SkyPassPassParameters,
@@ -1530,7 +1532,8 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 					);
 				}
 
-				if (bNaniteEnabled)
+				const bool bShouldRenderViewForNanite = bNaniteEnabled && (!bDrawSceneViewsInOneNanitePass || ViewIndex == 0); // when bDrawSceneViewsInOneNanitePass, the first view should cover all the other atlased ones
+				if (bShouldRenderViewForNanite)
 				{
 					// Should always have a full Z prepass with Nanite
 					check(ShouldRenderPrePass());

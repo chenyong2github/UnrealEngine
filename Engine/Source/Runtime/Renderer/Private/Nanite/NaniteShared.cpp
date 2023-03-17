@@ -224,6 +224,12 @@ FPackedView CreatePackedViewFromViewInfo
 	return CreatePackedView(Params);
 }
 
+bool ShouldDrawSceneViewsInOneNanitePass(const FViewInfo& View)
+{
+	static const TConsoleVariableData<int32>* CVarNaniteMultipleSceneViewsInOnePass = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.MultipleSceneViewsInOnePass"));
+	return View.bIsMultiViewportEnabled && CVarNaniteMultipleSceneViewsInOnePass && (CVarNaniteMultipleSceneViewsInOnePass->GetValueOnRenderThread() > 0);
+}
+
 void FGlobalResources::InitRHI()
 {
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))

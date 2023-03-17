@@ -1796,6 +1796,9 @@ public:
 		}
 	}
 
+	/** Returns view rect for all views in the family (usable for atlased views only). Normally a union of their view rects */
+	FIntRect GetFamilyViewRect() const;
+
 	/** Prepares the view shader parameters for rendering and calls the persistent uniform buffer hooks. */
 	void BeginRenderView() const;
 

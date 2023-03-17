@@ -490,6 +490,7 @@ void EmitDepthTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
+	bool bDrawSceneViewsInOneNanitePass,
 	const FIntVector4& PageConstants,
 	FRDGBufferRef VisibleClustersSWHW,
 	FRDGBufferRef ViewsBuffer,
@@ -556,6 +557,7 @@ FShadeBinning ShadeBinning(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
+	const FIntRect InViewRect,
 	const FRasterResults& RasterResults
 );
 

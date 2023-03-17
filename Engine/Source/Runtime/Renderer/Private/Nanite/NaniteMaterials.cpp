@@ -124,6 +124,13 @@ static TAutoConsoleVariable<int32> CVarParallelBasePassBuild(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarNaniteMultipleSceneViewsInOnePass(
+	TEXT("r.Nanite.MultipleSceneViewsInOnePass"),
+	1,
+	TEXT("Supports rendering multiple views (FSceneView) whenever possible. Currently only ISR stereo rendering is supported."),
+	ECVF_RenderThreadSafe
+	);
+
 int32 GNaniteDecompressDepth = 0;
 static FAutoConsoleVariableRef CVarNaniteDecompressDepth(
 	TEXT("r.Nanite.DecompressDepth"),
@@ -387,7 +394,7 @@ class FDepthExportCS : public FNaniteGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
@@ -893,6 +900,7 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 	const FSceneTextures& SceneTextures,
 	const FDBufferTextures& DBufferTextures,
 	const FViewInfo& View,
+	const FIntRect ViewRect,
 	const FRasterResults& RasterResults,
 	const FIntPoint& TileGridSize,
 	const uint32 TileRemaps,
@@ -919,8 +927,8 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 	{
 		const FIntPoint ScaledSize = TileGridSize * 64;
 		const FVector4f RectScaleOffset(
-			float(ScaledSize.X) / float(View.ViewRect.Max.X - View.ViewRect.Min.X),
-			float(ScaledSize.Y) / float(View.ViewRect.Max.Y - View.ViewRect.Min.Y),
+			float(ScaledSize.X) / float(ViewRect.Max.X - ViewRect.Min.X),
+			float(ScaledSize.Y) / float(ViewRect.Max.Y - ViewRect.Min.Y),
 			0.0f,
 			0.0f
 		);
@@ -1048,6 +1056,7 @@ void DispatchBasePass(
 	const FDBufferTextures& DBufferTextures,
 	const FScene& Scene,
 	const FViewInfo& View,
+	const FIntRect InViewRect,
 	const FRasterResults& RasterResults
 )
 {
@@ -1065,17 +1074,17 @@ void DispatchBasePass(
 		return;
 	}
 
-	FShadeBinning Binning = ShadeBinning(GraphBuilder, Scene, View, RasterResults);
+	FShadeBinning Binning = ShadeBinning(GraphBuilder, Scene, View, InViewRect, RasterResults);
 
-	const int32 ViewWidth = View.ViewRect.Max.X - View.ViewRect.Min.X;
-	const int32 ViewHeight = View.ViewRect.Max.Y - View.ViewRect.Min.Y;
+	const int32 ViewWidth = InViewRect.Max.X - InViewRect.Min.X;
+	const int32 ViewHeight = InViewRect.Max.Y - InViewRect.Min.Y;
 	const FIntPoint ViewSize = FIntPoint(ViewWidth, ViewHeight);
 
 	const FUint32Vector4 ViewRect(
-		(uint32)View.ViewRect.Min.X,
-		(uint32)View.ViewRect.Min.Y,
-		(uint32)View.ViewRect.Max.X,
-		(uint32)View.ViewRect.Max.Y
+		(uint32)InViewRect.Min.X,
+		(uint32)InViewRect.Min.Y,
+		(uint32)InViewRect.Max.X,
+		(uint32)InViewRect.Max.Y
 	);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
@@ -1107,6 +1116,7 @@ void DispatchBasePass(
 		SceneTextures,
 		DBufferTextures,
 		View,
+		InViewRect,
 		RasterResults,
 		FIntPoint::ZeroValue,//TileGridSize,
 		0,//TileRemaps,
@@ -1272,6 +1282,9 @@ void DrawBasePass(
 	const FRasterResults& RasterResults
 )
 {
+	const bool bDrawSceneViewsInOneNanitePass = ShouldDrawSceneViewsInOneNanitePass(View);
+	FIntRect ViewRect = bDrawSceneViewsInOneNanitePass ? View.GetFamilyViewRect() : View.ViewRect;
+
 	if (UseComputeMaterials())
 	{
 		DispatchBasePass(
@@ -1283,6 +1296,7 @@ void DrawBasePass(
 			DBufferTextures,
 			Scene,
 			View,
+			ViewRect,
 			RasterResults
 		);
 
@@ -1296,8 +1310,8 @@ void DrawBasePass(
 
 	FShadeBinning Binning{};
 
-	const int32 ViewWidth		= View.ViewRect.Max.X - View.ViewRect.Min.X;
-	const int32 ViewHeight		= View.ViewRect.Max.Y - View.ViewRect.Min.Y;
+	const int32 ViewWidth		= ViewRect.Max.X - ViewRect.Min.X;
+	const int32 ViewHeight		= ViewRect.Max.Y - ViewRect.Min.Y;
 	const FIntPoint ViewSize	= FIntPoint(ViewWidth, ViewHeight);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
@@ -1321,7 +1335,7 @@ void DrawBasePass(
 	const uint32 HighestMaterialSlot = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHighestMaterialSlot();
 	const uint32 HighestMaterialBin  = FMath::DivideAndRoundUp(HighestMaterialSlot, 32u);
 
-	const FIntPoint	TileGridSize	= FMath::DivideAndRoundUp(View.ViewRect.Max - View.ViewRect.Min, { 64, 64 });
+	const FIntPoint	TileGridSize	= FMath::DivideAndRoundUp(ViewRect.Max - ViewRect.Min, { 64, 64 });
 	const uint32	TileCount		= TileGridSize.X * TileGridSize.Y;
 	const uint32	TileRemaps		= FMath::DivideAndRoundUp(TileCount, 32u);
 
@@ -1378,11 +1392,11 @@ void DrawBasePass(
 
 			uint32 DispatchGroupSize = 0;
 
-			PassParameters->ViewRect = FIntVector4(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y);
+			PassParameters->ViewRect = FIntVector4(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
 			DispatchGroupSize = 64;
-			PassParameters->FetchClamp = View.ViewRect.Max - 1;
+			PassParameters->FetchClamp = ViewRect.Max - 1;
 
-			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max - View.ViewRect.Min, DispatchGroupSize);
+			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(ViewRect.Max - ViewRect.Min, DispatchGroupSize);
 
 			PassParameters->RowTileCount = DispatchDim.X;
 
@@ -1433,6 +1447,7 @@ void DrawBasePass(
 			SceneTextures,
 			DBufferTextures,
 			View,
+			ViewRect,
 			RasterResults,
 			TileGridSize,
 			TileRemaps,
@@ -1521,7 +1536,7 @@ void DrawBasePass(
 					FRDGEventName(PassNames[PassIndex]),
 					&ParamsAndInfo->Params[PassIndex],
 					ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-					[ParamsAndInfo, PassIndex, &SceneRenderer, &View, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandListImmediate& RHICmdList)
+					[ParamsAndInfo, PassIndex, &SceneRenderer, &View, ViewRect, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandListImmediate& RHICmdList)
 				{
 					if (ParamsAndInfo->PassInfo[PassIndex].NumCommands == 0)
 					{
@@ -1532,7 +1547,7 @@ void DrawBasePass(
 					TConstArrayView<FNaniteMaterialPassCommand> PassCommands = MakeArrayView(MaterialPassCommands.GetData() + ParamsAndInfo->PassInfo[PassIndex].CommandOffset, ParamsAndInfo->PassInfo[PassIndex].NumCommands);
 					FRDGParallelCommandListSet ParallelCommandListSet(Pass, RHICmdList, GET_STATID(STAT_CLP_NaniteBasePass), View, CmdListBindings);
 					ParallelCommandListSet.SetHighPriority();
-					DrawNaniteMaterialPass(&ParallelCommandListSet, RHICmdList, View.ViewRect, TileCount, NaniteVertexShader, MaterialIndirectArgs, PassCommands);
+					DrawNaniteMaterialPass(&ParallelCommandListSet, RHICmdList, ViewRect, TileCount, NaniteVertexShader, MaterialIndirectArgs, PassCommands);
 				});
 			}
 		}
@@ -1551,7 +1566,7 @@ void DrawBasePass(
 					FRDGEventName(PassNames[PassIndex]),
 					&ParamsAndInfo->Params[PassIndex],
 					ERDGPassFlags::Raster,
-					[ParamsAndInfo, PassIndex, ViewRect = View.ViewRect, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandList& RHICmdList)
+					[ParamsAndInfo, PassIndex, ViewRect = ViewRect, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandList& RHICmdList)
 				{
 					if (ParamsAndInfo->PassInfo[PassIndex].NumCommands == 0)
 					{
@@ -1572,6 +1587,7 @@ void EmitDepthTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
+	bool bDrawSceneViewsInOneNanitePass,
 	const FIntVector4& PageConstants,
 	FRDGBufferRef VisibleClustersSWHW,
 	FRDGBufferRef ViewsBuffer,
@@ -1657,7 +1673,7 @@ void EmitDepthTargets(
 
 		FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
 
-		PassParameters->View					= View.ViewUniformBuffer;
+		PassParameters->View					= View.GetShaderParameters();
 		PassParameters->Scene					= View.GetSceneUniforms().GetBuffer(GraphBuilder);
 		PassParameters->InViews					= GraphBuilder.CreateSRV(ViewsBuffer);
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
@@ -1729,7 +1745,7 @@ void EmitDepthTargets(
 				RDG_EVENT_NAME("Emit Scene Depth/Resolve/Velocity"),
 				PixelShader,
 				PassParameters,
-				View.ViewRect,
+				bDrawSceneViewsInOneNanitePass ? View.GetFamilyViewRect() : View.ViewRect,
 				TStaticBlendState<>::GetRHI(),
 				TStaticRasterizerState<>::GetRHI(),
 				TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI()
@@ -1800,7 +1816,7 @@ void EmitDepthTargets(
 				RDG_EVENT_NAME("Emit Material Depth"),
 				PixelShader,
 				PassParameters,
-				View.ViewRect,
+				bDrawSceneViewsInOneNanitePass ? View.GetFamilyViewRect() : View.ViewRect,
 				TStaticBlendState<>::GetRHI(),
 				TStaticRasterizerState<>::GetRHI(),
 				TStaticDepthStencilState<true, CF_Always>::GetRHI(),
@@ -1923,7 +1939,7 @@ void EmitCustomDepthStencilTargets(
 
 			FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
 
-			PassParameters->View					= View.ViewUniformBuffer;
+			PassParameters->View					= View.GetShaderParameters();
 			PassParameters->InViews					= GraphBuilder.CreateSRV(ViewsBuffer);
 			PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->PageConstants			= PageConstants;
@@ -2968,6 +2984,7 @@ FShadeBinning ShadeBinning(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
+	const FIntRect InViewRect,
 	const FRasterResults& RasterResults
 )
 {
@@ -3004,12 +3021,12 @@ FShadeBinning ShadeBinning(
 	const bool bGatherStats = GNaniteShowStats != 0;
 	const bool bQuadBinning = GNaniteQuadBinning != 0;
 
-	const FUintVector4 ViewRect = FUintVector4(uint32(View.ViewRect.Min.X), uint32(View.ViewRect.Min.Y), uint32(View.ViewRect.Max.X), uint32(View.ViewRect.Max.Y));
+	const FUintVector4 ViewRect = FUintVector4(uint32(InViewRect.Min.X), uint32(InViewRect.Min.Y), uint32(InViewRect.Max.X), uint32(InViewRect.Max.Y));
 
-	const uint32 PixelCount = View.ViewRect.Width() * View.ViewRect.Height();
+	const uint32 PixelCount = InViewRect.Width() * InViewRect.Height();
 
-	const int32 QuadWidth = FMath::DivideAndRoundUp(View.ViewRect.Width(), 2);
-	const int32 QuadHeight = FMath::DivideAndRoundUp(View.ViewRect.Height(), 2);
+	const int32 QuadWidth = FMath::DivideAndRoundUp(InViewRect.Width(), 2);
+	const int32 QuadHeight = FMath::DivideAndRoundUp(InViewRect.Height(), 2);
 
 	const FIntVector  QuadDispatchDim = FComputeShaderUtils::GetGroupCount(FIntPoint(QuadWidth, QuadHeight), FIntPoint(8u, 8u));
 	const FIntVector   BinDispatchDim = FComputeShaderUtils::GetGroupCount(ShadingBinCount, 64u);

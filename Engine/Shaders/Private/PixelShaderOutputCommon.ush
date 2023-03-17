@@ -115,6 +115,11 @@ void MainPS
 #if IS_NANITE_PASS && (PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS)
 	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 	Interpolants.ViewIndex = NaniteInterpolants.ViewIndex;
+#if INSTANCED_STEREO
+	// Nanite fullscreen VS is run for the whole side-by-side RT and the primary (left) view is View0 so figure out EyeIndex based on that - cannot do it in VS since quads can span views.
+	// Revisit if we need to support > 1 instanced view or non side-by-side views
+	Interpolants.EyeIndex = (SvPosition.x >= (View.ViewRectMin.x + View.ViewSizeAndInvSize.x)) ? 1 : 0;
+#endif
 #endif
 
 	FPixelShaderIn PixelShaderIn = (FPixelShaderIn)0;

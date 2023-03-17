@@ -179,6 +179,9 @@ FPackedView CreatePackedViewFromViewInfo(
 	const FIntRect* InHZBTestViewRect = nullptr
 );
 
+/** Whether to draw multiple FSceneView in one Nanite pass (as opposed to view by view). */
+bool ShouldDrawSceneViewsInOneNanitePass(const FViewInfo& View);
+
 struct FVisualizeResult
 {
 	FRDGTextureRef ModeOutput;
