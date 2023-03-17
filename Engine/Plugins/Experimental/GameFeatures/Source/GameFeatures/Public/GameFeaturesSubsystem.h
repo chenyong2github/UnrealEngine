@@ -113,7 +113,8 @@ public:
 
 	UE_DEPRECATED(5.2, "Use tagged version instead")
 	FGameFeatureDeactivatingContext(FSimpleDelegate&& InCompletionDelegate)
-		: CompletionCallback([CompletionDelegate = MoveTemp(InCompletionDelegate)](FStringView) { CompletionDelegate.ExecuteIfBound(); })
+		: PluginName(TEXTVIEW("Unknown(Deprecated)"))
+		, CompletionCallback([CompletionDelegate = MoveTemp(InCompletionDelegate)](FStringView) { CompletionDelegate.ExecuteIfBound(); })
 	{
 	}
 
