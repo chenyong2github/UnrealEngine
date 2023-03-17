@@ -164,10 +164,19 @@ UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<double(*)(double, double)>(&pow))
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_isnan);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_finite);
 
+extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent(void);
+
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(IsDebuggerPresent);
 
+extern "C" __declspec(dllimport) void EnterCriticalSection(void*);
+
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(EnterCriticalSection);
+
+extern "C" __declspec(dllimport) void LeaveCriticalSection(void*);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(LeaveCriticalSection);
+
+extern "C" __declspec(dllimport) int __stdcall QueryPerformanceCounter(void *);
+extern "C" __declspec(dllimport) int __stdcall QueryPerformanceFrequency(void *);
 
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(QueryPerformanceCounter);
 #endif

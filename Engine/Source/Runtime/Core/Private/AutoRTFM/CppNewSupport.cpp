@@ -10,6 +10,7 @@
 
 namespace AutoRTFM
 {
+#ifdef _WIN32
 	using FCppNew = void* (*)(size_t);
 	using FCppDeleteWithSize = void(*)(void*, size_t);
 	using FCppDelete = void(*)(void*);
@@ -18,6 +19,7 @@ namespace AutoRTFM
 	FCppNew CppNewWithSize;
 	FCppDeleteWithSize CppDeleteWithSize;
 	FCppDelete CppDelete;
+#endif
 
 // These are also exposed as compiler ABI, currently just for the benefit of Windows.
 extern "C" void* autortfm_cpp_new(size_t Size, FContext* Context)

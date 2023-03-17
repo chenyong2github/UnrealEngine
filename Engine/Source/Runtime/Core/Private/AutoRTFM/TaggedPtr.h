@@ -61,11 +61,13 @@ namespace AutoRTFM
 		TTaggedPtr& operator=(TTaggedPtr& Other)
 		{
 			Payload = Other.Payload;
+			return *this;
 		}
 
 		TTaggedPtr& operator=(TTaggedPtr&& Other)
 		{
 			Payload = Other.Payload;
+			return *this;
 		}
 
 		T& operator*() const
@@ -159,11 +161,13 @@ namespace AutoRTFM
 		TTaggedPtr& operator=(TTaggedPtr& Other)
 		{
 			Payload = Other.Payload;
+			return *this;
 		}
 
 		TTaggedPtr& operator=(TTaggedPtr&& Other)
 		{
 			Payload = Other.Payload;
+			return *this;
 		}
 
 		bool operator==(const TTaggedPtr& Other) const

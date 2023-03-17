@@ -203,13 +203,14 @@ void FContext::AbortByLanguageAndThrow()
     CurrentTransaction->AbortAndThrow();
 }
 
+#if _WIN32
+extern "C" __declspec(dllimport) void __stdcall GetCurrentThreadStackLimits(void**, void**);
+#endif
+
 FContext::FContext()
 {
 #if _WIN32
-#if 0
-    GetCurrentThreadStackLimits(reinterpret_cast<PULONG_PTR>(&StackBegin),
-                                reinterpret_cast<PULONG_PTR>(&StackEnd));
-#endif
+    GetCurrentThreadStackLimits(&StackBegin, &StackEnd);
 #else
     pthread_attr_t Attr;
     pthread_getattr_np(pthread_self(), &Attr);
@@ -226,13 +227,6 @@ void FContext::Reset()
     CurrentTransactStackAddress = nullptr;
     CurrentTransaction = nullptr;
     Status = EContextStatus::Idle;
-}
-
-void FContext::StaticAsserts()
-{
-    /*static_assert(PrettyStaticAssert<Constants::Offset_Context_CurrentTransaction, offsetof(FContext, CurrentTransaction)>::_cResult, "Not equal");
-    static_assert(PrettyStaticAssert<Constants::Offset_Context_LineTable, offsetof(FContext, LineTable)>::_cResult, "Not equal");
-    static_assert(PrettyStaticAssert<Constants::Offset_Context_Status, offsetof(FContext, Status)>::_cResult, "Not equal");*/
 }
 
 void FContext::DumpState() const

@@ -49,8 +49,6 @@ private:
     
     // All of this other stuff ought to be private?
     void Reset();
-
-    void StaticAsserts();
     
     FTransaction* CurrentTransaction{nullptr};
     void* StackBegin{nullptr}; // begin as in the smaller of the two
