@@ -50,7 +50,19 @@ static UWorldPartitionLevelStreamingDynamic* CreateLevelStreamingFromHLODActor(A
 	const FName LevelStreamingName = FName(*FString::Printf(TEXT("HLODLevelStreaming_%s"), *InHLODActor->GetName()));
 	TArray<FWorldPartitionRuntimeCellObjectMapping> Mappings;
 	Mappings.Reserve(InHLODActor->GetSubActors().Num());
-	Algo::Transform(InHLODActor->GetSubActors(), Mappings, [World, InHLODActor](const FHLODSubActor& SubActor) { return FWorldPartitionRuntimeCellObjectMapping(SubActor.ActorPackage, SubActor.ActorPath, SubActor.ContainerID, SubActor.ContainerTransform, SubActor.ContainerPackage, World->GetPackage()->GetFName(), InHLODActor->GetContentBundleGuid()); });
+	Algo::Transform(InHLODActor->GetSubActors(), Mappings, [World, InHLODActor](const FHLODSubActor& SubActor)
+	{
+		return FWorldPartitionRuntimeCellObjectMapping(
+			SubActor.ActorPackage, 
+			SubActor.ActorPath, 
+			SubActor.ContainerID, 
+			SubActor.ContainerTransform, 
+			SubActor.ContainerPackage, 
+			World->GetPackage()->GetFName(), 
+			InHLODActor->GetContentBundleGuid(),
+			SubActor.ActorGuid
+		);
+	});
 
 	UWorldPartitionLevelStreamingDynamic* LevelStreaming = UWorldPartitionLevelStreamingDynamic::LoadInEditor(World, LevelStreamingName, Mappings);
 	check(LevelStreaming);

@@ -362,6 +362,13 @@ public:
 	static CORE_API FGuid NewGuid();
 
 	/**
+	 * Returns a GUID which is a combinationof the two provided ones.
+	 *
+	 * @return The combined GUID.
+	 */
+	static CORE_API FGuid Combine(const FGuid& GuidA, const FGuid& GuidB);
+
+	/**
 	 * Converts a string to a GUID.
 	 *
 	 * @param GuidString The string to convert.

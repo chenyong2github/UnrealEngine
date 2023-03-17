@@ -161,6 +161,16 @@ class FWorldPartitionStreamingGenerator
 					ActorSetInstance.ContainerID = ContainerInstanceDescriptor.ID;
 					ActorSetInstance.Transform = ContainerInstanceDescriptor.Transform;
 
+					// Apply the per-container actor guids
+					if (!ContainerID.IsMainContainer())
+					{
+						ActorSetInstance.ActorsSetGuids.Reserve(ActorSet.Actors.Num());
+						for (const FGuid& ActorGuid : ActorSet.Actors)
+						{
+							ActorSetInstance.ActorsSetGuids.Add(ActorGuid, FGuid::Combine(ContainerInstanceDescriptor.Guid, ActorGuid));
+						}
+					}
+
 					// Apply AND logic on spatially loaded flag
 					ActorSetInstance.bIsSpatiallyLoaded = ReferenceActorDescView.GetIsSpatiallyLoaded() && ContainerInstanceDescriptor.bIsSpatiallyLoaded;
 
@@ -263,6 +273,7 @@ class FWorldPartitionStreamingGenerator
 		FString OwnerName;
 		FActorContainerID ID;
 		FActorContainerID ParentID;
+		FGuid Guid;
 		TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
 	};
 
@@ -506,6 +517,11 @@ class FWorldPartitionStreamingGenerator
 			SubContainerInstanceDescriptor.FilteredActors = SubContainerInstance.FilteredActors;
 			SubContainerInstanceDescriptor.ParentID = InContainerInstanceDescriptor.ID;
 			SubContainerInstanceDescriptor.OwnerName = *ContainerInstanceView.GetActorLabelOrName().ToString();
+
+			FContainerInstanceDescriptor& ParentContainer = ContainerInstanceDescriptorsMap.FindChecked(InContainerInstanceDescriptor.ParentID);
+			check(ParentContainer.ID.IsMainContainer() || ParentContainer.Guid.IsValid());
+
+			SubContainerInstanceDescriptor.Guid = FGuid::Combine(ParentContainer.Guid, ActorGuid);
 
 			// Inherit parent container properties
 			FName InheritedRuntimeGrid = InContainerInstanceDescriptor.RuntimeGrid;
@@ -985,7 +1001,9 @@ public:
 				{
 					UE_SCOPED_INDENT_LOG_ARCHIVE(Ar.PrintfIndent(TEXT("%s:"), *ContainerInstanceDescriptor.OwnerName));
 
-					Ar.Printf(TEXT("       ID: 0x%016llx"), ContainerID.ID);
+					Ar.Printf(TEXT("       ID: %s"), *ContainerInstanceDescriptor.ID.ToString());
+					Ar.Printf(TEXT(" ParentID: %s"), *ContainerInstanceDescriptor.ParentID.ToString());
+					Ar.Printf(TEXT("     GUID: %s"), *ContainerInstanceDescriptor.Guid.ToString());
 					Ar.Printf(TEXT("   Bounds: %s"), *ContainerInstanceDescriptor.Bounds.ToString());
 					Ar.Printf(TEXT("Transform: %s"), *ContainerInstanceDescriptor.Transform.ToString());
 					Ar.Printf(TEXT("Container: %s"), *ContainerInstanceDescriptor.Container->GetContainerPackage().ToString());

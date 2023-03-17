@@ -42,7 +42,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 #endif
 	{}
 
-	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage, FName InWorldPackage, const FGuid& InContentBundleGuid)
+	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage, FName InWorldPackage, const FGuid& InContentBundleGuid, const FGuid& InActorGuid)
 #if WITH_EDITORONLY_DATA
 		: Package(InPackage)
 		, Path(InPath)
@@ -51,6 +51,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 		, ContainerPackage(InContainerPackage)
 		, WorldPackage(InWorldPackage)
 		, ContentBundleGuid(InContentBundleGuid)
+		, ActorGuid(InActorGuid)
 		, LoadedPath(InPath)
 #endif
 	{}
@@ -97,6 +98,12 @@ struct FWorldPartitionRuntimeCellObjectMapping
 	 */
 	UPROPERTY()
 	FGuid ContentBundleGuid;
+
+	/**
+	 * GUID of the actor instance
+	 */
+	UPROPERTY()
+	FGuid ActorGuid;
 
 	/**
 	* Loaded actor path (when cooking or pie)
@@ -220,7 +227,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual TSet<FName> GetActorPackageNames() const override { return TSet<FName>(); }
 	//~End IWorldPartitionCell Interface
 
-	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
+	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer, const FGuid& InActorGuid) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
 	// Cook methods

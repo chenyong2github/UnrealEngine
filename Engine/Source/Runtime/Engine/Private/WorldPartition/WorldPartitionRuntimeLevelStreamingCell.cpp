@@ -202,11 +202,19 @@ void UWorldPartitionRuntimeLevelStreamingCell::SetIsAlwaysLoaded(bool bInIsAlway
 }
 
 #if WITH_EDITOR
-void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer)
+void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer, const FGuid& InActorGuid)
 {
 	check(!ActorDescView.GetActorIsEditorOnly());
 
-	Packages.Emplace(ActorDescView.GetActorPackage(), *ActorDescView.GetActorSoftPath().ToString(), InContainerID, InContainerTransform, InContainer->GetContainerPackage(), GetWorld()->GetPackage()->GetFName(), ActorDescView.GetContentBundleGuid());
+	Packages.Emplace(
+		ActorDescView.GetActorPackage(), 
+		*ActorDescView.GetActorSoftPath().ToString(), 
+		InContainerID, InContainerTransform, 
+		InContainer->GetContainerPackage(), 
+		GetWorld()->GetPackage()->GetFName(), 
+		ActorDescView.GetContentBundleGuid(),
+		InActorGuid
+	);
 }
 
 bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages)
@@ -310,8 +318,9 @@ void UWorldPartitionRuntimeLevelStreamingCell::DumpStateLog(FHierarchicalLogArch
 
 	for (const FWorldPartitionRuntimeCellObjectMapping& Mapping : Packages)
 	{
-		Ar.Printf(TEXT("Actor Path: %s"), *Mapping.Path.ToString());
+		Ar.Printf(TEXT("   Actor Path: %s"), *Mapping.Path.ToString());
 		Ar.Printf(TEXT("Actor Package: %s"), *Mapping.Package.ToString());
+		Ar.Printf(TEXT("   Actor Guid: %s"), *Mapping.ActorGuid.ToString());
 	}
 }
 #endif

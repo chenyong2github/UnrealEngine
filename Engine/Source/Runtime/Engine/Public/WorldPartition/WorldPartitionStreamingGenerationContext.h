@@ -43,6 +43,7 @@ public:
 		FActorContainerID ContainerID;
 		FTransform Transform;
 		const FActorSet* ActorSet;
+		TMap<FGuid, FGuid> ActorsSetGuids;
 	};
 
 	struct ENGINE_API FActorInstance
@@ -57,6 +58,7 @@ public:
 
 		const FWorldPartitionActorDescView& GetActorDescView() const;
 		const FActorContainerID& GetContainerID() const;
+		const FGuid& GetActorGuid() const;
 		const FTransform& GetTransform() const;
 		const UActorDescContainer* GetActorDescContainer() const;
 	};

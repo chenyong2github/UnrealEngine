@@ -135,6 +135,13 @@ FLevelInstanceID::FLevelInstanceID(ULevelInstanceSubsystem* LevelInstanceSubsyst
 	}
 	
 	Hash = CityHash64WithSeed((const char*)Guids.GetData(), Guids.Num() * sizeof(FGuid), NameHash);
+
+	// Make sure to start with a zero guid as the top-level container ID is zero.
+	Guid.Invalidate();
+	for (int32 GuidIndex = Guids.Num() - 1; GuidIndex >= 0; GuidIndex--)
+	{
+		Guid = FGuid::Combine(Guid, Guids[GuidIndex]);
+	}
 }
 
 FLevelInstanceID ULevelInstanceSubsystem::RegisterLevelInstance(ILevelInstanceInterface* LevelInstance)

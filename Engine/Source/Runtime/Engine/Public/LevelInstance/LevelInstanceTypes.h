@@ -33,8 +33,11 @@ struct FLevelInstanceID
 
 	inline uint64 GetHash() const { return Hash; }
 
+	inline const FGuid& GetGuid() const { return Guid; }
+
 private:
 	uint64 Hash = 0;
+	FGuid Guid;
 	TArray<FGuid> Guids;
 	FName ActorName;
 };

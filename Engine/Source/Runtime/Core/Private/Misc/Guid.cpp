@@ -235,6 +235,15 @@ FGuid FGuid::NewGuid()
 	return Result;
 }
 
+FGuid FGuid::Combine(const FGuid& GuidA, const FGuid& GuidB)
+{
+	return FGuid(
+		HashCombine(GuidA.A, GuidB.A),
+		HashCombine(GuidA.B, GuidB.B),
+		HashCombine(GuidA.C, GuidB.C),
+		HashCombine(GuidA.D, GuidB.D)
+	);
+}
 
 bool FGuid::Parse(const FString& GuidString, FGuid& OutGuid)
 {

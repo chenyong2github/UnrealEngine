@@ -4209,6 +4209,9 @@ private:
 	friend class UEngine;
 	friend class UExternalActorsCommandlet;
 	friend class UWorldPartitionConvertCommandlet;
+	friend class ULevelStreamingLevelInstance;
+	friend class UWorldPartitionLevelStreamingDynamic;
+	friend class FWorldPartitionLevelHelper;
 };
 
 struct FSetActorContentBundleGuid
