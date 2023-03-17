@@ -170,15 +170,16 @@ public:
 	static FString GenerateNewShotName(const TArray<UMovieSceneSection*>& AllSections, FFrameNumber Time);
 
 	/*
-	 * Create sub sequence
+	 * Create sequence
 	 *
 	 * @param NewSequenceName The new sequence name.
 	 * @param NewSequencePath The new sequence path. 
-	 * @param NewSequenceStartTime The time to start the new sequence at.
-	 * @param SubTrack The track to put the sequence onto.
 	 * @param SectionToDuplicate The section to duplicate.
 	 * @return The new subsequence.
 	 */
+	static UMovieSceneSequence* CreateSequence(FString& NewSequenceName, FString& NewSequencePath, UMovieSceneSubSection* SectionToDuplicate = nullptr);
+
+	UE_DEPRECATED(5.2, "CreateSubSequence has been deprecated in favor of CreateSequence so that asset creation can be invoked outside of a transaction (with the intent that it is undoable) and then adding the sequence to a subtrack can be invoked within a transaction")
 	static UMovieSceneSubSection* CreateSubSequence(FString& NewSequenceName, FString& NewSequencePath, FFrameNumber NewSequenceStartTime, UMovieSceneSubTrack* SubTrack, UMovieSceneSubSection* SectionToDuplicate = nullptr);
 
 	/**
