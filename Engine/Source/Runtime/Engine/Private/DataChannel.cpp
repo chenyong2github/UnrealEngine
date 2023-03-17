@@ -5482,9 +5482,14 @@ static void	FindNetGUID( const TArray<FString>& Args, UWorld* InWorld )
 		}
 		else
 		{
-			uint32 GUIDValue=0;
-			TTypeFromString<uint32>::FromString(GUIDValue, *Args[0]);
-			FNetworkGUID NetGUID(GUIDValue);
+			uint64 GUIDValue=0;
+			TTypeFromString<uint64>::FromString(GUIDValue, *Args[0]);
+
+			uint64 NetIndex = GUIDValue >> 1;
+			bool bStatic = GUIDValue & 1;
+
+			//@todo: add a from string method in dev only
+			FNetworkGUID NetGUID = FNetworkGUID::CreateFromIndex(NetIndex, bStatic);
 
 			// Search
 			FString Str = Driver->GuidCache->History.FindRef(NetGUID);

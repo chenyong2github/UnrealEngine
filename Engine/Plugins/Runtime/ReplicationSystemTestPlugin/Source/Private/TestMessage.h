@@ -131,6 +131,11 @@ inline FTestMessage& operator<<(FTestMessage& Message, const FVector& Vector)
 	return Message << Vector.ToString();
 }
 
+inline FTestMessage& operator<<(FTestMessage& Message, const FVector3f& Vector)
+{
+	return Message << Vector.ToString();
+}
+
 FTestMessage& operator<<(FTestMessage& Message, const FNetHandle& NetHandle);
 
 #if defined(_WIN32) && !defined(_WIN64)

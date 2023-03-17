@@ -5189,19 +5189,19 @@ void UDemoNetDriver::CleanupOutstandingRewindActors()
 					// Destroy the actor before removing entries from the GuidCache so its entries are still valid in NotifyActorDestroyed.
 					World->DestroyActor(Actor, true);
 
-					ensureMsgf(GuidCache->NetGUIDLookup.Remove(CacheObject->Object) > 0, TEXT("CleanupOutstandingRewindActors: No entry found for %d in NetGUIDLookup"), NetGUID.Value);
+					ensureMsgf(GuidCache->NetGUIDLookup.Remove(CacheObject->Object) > 0, TEXT("CleanupOutstandingRewindActors: No entry found for %s in NetGUIDLookup"), *NetGUID.ToString());
 					GuidCache->ObjectLookup.Remove(NetGUID);
 					CacheObject->bNoLoad = false;
 				}
 				else
 				{
-					UE_LOG(LogDemo, Warning, TEXT("CleanupOutstandingRewindActors - Invalid object for %d, skipping."), NetGUID.Value);
+					UE_LOG(LogDemo, Warning, TEXT("CleanupOutstandingRewindActors - Invalid object for %s, skipping."), *NetGUID.ToString());
 					continue;
 				}
 			}	
 			else
 			{
-				UE_LOG(LogDemo, Warning, TEXT("CleanupOutstandingRewindActors - CacheObject not found for %s"), NetGUID.Value);
+				UE_LOG(LogDemo, Warning, TEXT("CleanupOutstandingRewindActors - CacheObject not found for %s"), *NetGUID.ToString());
 			}
 		}
 	}

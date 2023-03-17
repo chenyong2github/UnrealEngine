@@ -1592,6 +1592,7 @@ public:
 
 	/** Packs int value into bytes of 7 bits with 8th bit for 'more' */
 	virtual void SerializeIntPacked(uint32& Value);
+	virtual void SerializeIntPacked64(uint64& Value);
 
 	/** Tells the archive to attempt to preload the specified object so data can be loaded out of it. */
 	virtual void Preload(UObject* Object) { }

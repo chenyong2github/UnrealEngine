@@ -18,6 +18,7 @@
 #include "Net/Core/Trace/NetTrace.h"
 #include "Serialization/MemoryReader.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "Misc/CommandLine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PackageMapClient)
 
@@ -1244,7 +1245,7 @@ bool UPackageMapClient::ExportNetGUIDForReplay(FNetworkGUID& NetGUID, UObject* O
 		// It's possible InternalWriteObject has modified the NetGUIDAckStatus, so
 		// do a quick sanity check to make sure the ID wasn't removed before updating the status.
 		int32* NewPacketIdPtr = OverrideAckState->NetGUIDAckStatus.Find(NetGUID);
-		if (ensureMsgf(NewPacketIdPtr != nullptr, TEXT("ExportNetGUIDForReplay PacketID was removed for %u %s"), NetGUID.Value, *GetPathNameSafe(Object)))
+		if (ensureMsgf(NewPacketIdPtr != nullptr, TEXT("ExportNetGUIDForReplay PacketID was removed for %s %s"), *NetGUID.ToString(), *GetPathNameSafe(Object)))
 		{
 			*NewPacketIdPtr = GUID_PACKET_ACKED;
 		}
@@ -2579,8 +2580,18 @@ FNetGUIDCache::FNetGUIDCache(UNetDriver* InDriver)
 	, IsExportingNetGUIDBunch(false)
 	, DelinquentAsyncLoads(GDelinquencyNumberOfTopOffendersToTrack > 0 ? GDelinquencyNumberOfTopOffendersToTrack : 0)
 {
-	UniqueNetIDs[0] = UniqueNetIDs[1] = 0;
 	UniqueNetFieldExportGroupPathIndex = 0;
+
+	uint64 NetworkGuidSeed = 0;
+
+#if !UE_BUILD_SHIPPING
+	FParse::Value(FCommandLine::Get(), TEXT("NetworkGuidSeed="), NetworkGuidSeed);
+#endif
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UniqueNetIDs[0] = UniqueNetIDs[1] = (int32)NetworkGuidSeed;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	NetworkGuidIndex[0] = NetworkGuidIndex[1] = NetworkGuidSeed;
 }
 
 class FArchiveCountMemGUID : public FArchive
@@ -2639,7 +2650,7 @@ void FNetGUIDCache::CleanReferences()
 
 			// We've seen this static object before, but we're seeing it again with a higher guid.
 			// That means this is our newly assigned GUID and we can safely time out the old one.
-			else if (FoundGuid.Value < Guid.Value)
+			else if (FoundGuid < Guid)
 			{
 				ObjectLookup[FoundGuid].ReadOnlyTimestamp = Time;
 				FoundGuid = Guid;
@@ -2834,9 +2845,6 @@ FNetworkGUID FNetGUIDCache::GetNetGUID(const UObject* Object) const
 	return NetGUID;
 }
 
-#define COMPOSE_NET_GUID( Index, IsStatic )	( ( ( Index ) << 1 ) | ( IsStatic ) )
-#define ALLOC_NEW_NET_GUID( IsStatic )		( COMPOSE_NET_GUID( ++UniqueNetIDs[ IsStatic ], IsStatic ) )
-
 /**
  *	Generate a new NetGUID for this object and assign it.
  */
@@ -2847,7 +2855,7 @@ FNetworkGUID FNetGUIDCache::AssignNewNetGUID_Server( UObject* Object )
 	// Generate new NetGUID and assign it
 	const int32 IsStatic = IsDynamicObject( Object ) ? 0 : 1;
 
-	const FNetworkGUID NewNetGuid( ALLOC_NEW_NET_GUID( IsStatic ) );
+	const FNetworkGUID NewNetGuid = FNetworkGUID::CreateFromIndex(++NetworkGuidIndex[IsStatic], IsStatic != 0);
 
 	RegisterNetGUID_Server( NewNetGuid, Object );
 
@@ -2866,7 +2874,7 @@ FNetworkGUID FNetGUIDCache::AssignNewNetGUIDFromPath_Server( const FString& Path
 	FNetworkGUID OuterGUID = GetOrAssignNetGUID( ObjOuter );
 
 	// Generate new NetGUID and assign it
-	const FNetworkGUID NewNetGuid( ALLOC_NEW_NET_GUID( 1 ) );
+	const FNetworkGUID NewNetGuid = FNetworkGUID::CreateFromIndex(++NetworkGuidIndex[1], true);
 
 	uint32 NetworkChecksum = GetClassNetworkChecksum( ObjClass );
 
@@ -2874,9 +2882,6 @@ FNetworkGUID FNetGUIDCache::AssignNewNetGUIDFromPath_Server( const FString& Path
 
 	return NewNetGuid;
 }
-
-#undef COMPOSE_NET_GUID
-#undef ALLOC_NEW_NET_GUID
 
 void FNetGUIDCache::RegisterNetGUID_Internal( const FNetworkGUID& NetGUID, const FNetGuidCacheObject& CacheObject )
 {

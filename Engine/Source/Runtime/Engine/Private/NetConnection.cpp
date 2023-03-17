@@ -3344,7 +3344,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 											UE_LOG(LogNetTraffic, Log,
 													TEXT("UNetConnection::ReceivedPacket: Unable to find static actor to cleanup for ignored bunch. ")
-													TEXT("(Channel %d NetGUID %lu)"), Bunch.ChIndex, ActorGUID.Value);
+													TEXT("(Channel %d NetGUID %s)"), Bunch.ChIndex, *ActorGUID.ToString());
 										}
 									}
 								}

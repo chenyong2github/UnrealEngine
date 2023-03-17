@@ -1327,6 +1327,48 @@ void FArchive::SerializeIntPacked(uint32& Value)
 	}
 }
 
+void FArchive::SerializeIntPacked64(uint64& Value)
+{
+	if (IsLoading())
+	{
+		Value = 0;
+		uint8 cnt = 0;
+		uint8 more = 1;
+		while (more)
+		{
+			uint8 NextByte;
+			Serialize(&NextByte, 1);			// Read next byte
+
+			more = NextByte & 1;				// Check 1 bit to see if theres more after this
+			NextByte = NextByte >> 1;			// Shift to get actual 7 bit value
+			Value += (uint64)NextByte << (7 * cnt++);	// Add to total value
+		}
+	}
+	else
+	{
+		uint8 PackedBytes[9];
+		int32 PackedByteCount = 0;
+		uint64 Remaining = Value;
+		while (true)
+		{
+			uint8 nextByte = Remaining & 0x7f;		// Get next 7 bits to write
+			Remaining = Remaining >> 7;				// Update remaining
+			nextByte = nextByte << 1;				// Make room for 'more' bit
+			if (Remaining > 0)
+			{
+				nextByte |= 1;						// set more bit
+				PackedBytes[PackedByteCount++] = nextByte;
+			}
+			else
+			{
+				PackedBytes[PackedByteCount++] = nextByte;
+				break;
+			}
+		}
+		Serialize(PackedBytes, PackedByteCount); // Actually serialize the bytes we made
+	}
+}
+
 void FArchive::LogfImpl(const TCHAR* Fmt, ...)
 {
 	// We need to use malloc here directly as GMalloc might not be safe, e.g. if called from within GMalloc!

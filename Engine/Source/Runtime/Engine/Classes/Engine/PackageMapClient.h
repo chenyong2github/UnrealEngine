@@ -221,6 +221,8 @@ public:
 
 	TMap< FNetworkGUID, FNetGuidCacheObject >		ObjectLookup;
 	TMap< TWeakObjectPtr< UObject >, FNetworkGUID >	NetGUIDLookup;
+
+	UE_DEPRECATED(5.3, "No longer used")
 	int32											UniqueNetIDs[2];
 
 	TSet< FNetworkGUID >							ImportedNetGuids;
@@ -236,6 +238,8 @@ public:
 private:
 
 	friend class UPackageMapClient;
+
+	uint64 NetworkGuidIndex[2];
 
 	TMap<FName, FNetworkGUID> PendingAsyncPackages;
 
