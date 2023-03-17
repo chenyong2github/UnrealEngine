@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Compute.Transports;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -129,7 +130,7 @@ namespace EpicGames.Horde.Compute
 			// Pass the rest of the call over to the handler
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
-			await using ComputeLease channel = new ComputeLease(new TcpComputeTransport(socket), responseMessage.AssignedResources);
+			await using ComputeLease channel = new ComputeLease(new TcpTransport(socket), responseMessage.AssignedResources);
 			return await handler(channel, cancellationToken);
 		}
 	}

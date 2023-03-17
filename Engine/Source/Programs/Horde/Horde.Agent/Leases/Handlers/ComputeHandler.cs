@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Compute.Cpp;
+using EpicGames.Horde.Compute.Transports;
 using EpicGames.Horde.Logs;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
@@ -57,7 +58,7 @@ namespace Horde.Agent.Leases.Handlers
 					return LeaseResult.Success;
 				}
 
-				await using (ComputeLease lease = new ComputeLease(new TcpComputeTransport(tcpClient.Client), computeTask.Resources))
+				await using (ComputeLease lease = new ComputeLease(new TcpTransport(tcpClient.Client), computeTask.Resources))
 				{
 					await RunAsync(lease, cancellationToken);
 					return LeaseResult.Success;

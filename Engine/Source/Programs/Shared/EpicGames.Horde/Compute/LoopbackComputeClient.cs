@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Compute.Transports;
 
 namespace EpicGames.Horde.Compute
 {
@@ -52,7 +53,7 @@ namespace EpicGames.Horde.Compute
 		{
 			using Socket socket = await listener.AcceptAsync(cancellationToken);
 
-			await using ComputeLease lease = new ComputeLease(new TcpComputeTransport(socket), new Dictionary<string, int>());
+			await using ComputeLease lease = new ComputeLease(new TcpTransport(socket), new Dictionary<string, int>());
 			await serverFunc(lease, cancellationToken);
 			await lease.CloseAsync(cancellationToken);
 		}
@@ -60,7 +61,7 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 		{
-			await using ComputeLease lease = new ComputeLease(new TcpComputeTransport(_socket), new Dictionary<string, int>());
+			await using ComputeLease lease = new ComputeLease(new TcpTransport(_socket), new Dictionary<string, int>());
 			TResult result = await handler(lease, cancellationToken);
 			await lease.CloseAsync(cancellationToken);
 			return result;
