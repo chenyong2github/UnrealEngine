@@ -69,4 +69,6 @@ extension StartViewController : StreamingConnectionDelegate {
             }
         }
     }
+    func streamingConnection(_ connection: StreamingConnection, receivedGamepadResponse: UInt8) {
+    }
 }

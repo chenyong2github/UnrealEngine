@@ -15,6 +15,7 @@ protocol StreamingConnectionDelegate : AnyObject {
     func streamingConnection(_ connection : StreamingConnection, didDisconnectWithError err: Error?)
     func streamingConnection(_ connection : StreamingConnection, requestsTextEditWithContents contents : String, handler : @escaping (Bool, String?) -> Void)
     func streamingConnection(_ connection: StreamingConnection, requestStreamerSelectionWithStreamers streamers: Array<String>, handler: @escaping (String) -> Void)
+    func streamingConnection(_ connection: StreamingConnection, receivedGamepadResponse: UInt8)
 }
 
 enum StreamingConnectionType : String {
@@ -136,6 +137,10 @@ class StreamingConnection : NSObject {
         assertionFailure("not implemented")
     }
     
+    func sendControllerConnected() {
+        assertionFailure("not implemented")
+    }
+    
     func sendControllerAnalog(_ type :StreamingConnectionControllerInputType, controllerIndex : UInt8, value : Float) {
         assertionFailure("not implemented")
     }
@@ -145,6 +150,10 @@ class StreamingConnection : NSObject {
     }
 
     func sendControllerButtonReleased(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8) {
+        assertionFailure("not implemented")
+    }
+    
+    func sendControllerDisconnected(controllerIndex: UInt8) {
         assertionFailure("not implemented")
     }
 

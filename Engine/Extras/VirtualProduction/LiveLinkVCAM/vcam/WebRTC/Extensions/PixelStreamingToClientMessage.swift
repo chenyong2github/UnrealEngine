@@ -21,6 +21,7 @@ enum PixelStreamingToClientMessage: UInt8, Codable {
     case FileExtension = 8
     case FileMimeType = 9
     case FileContents = 10
+    case GamepadResponse = 13
 }
 
 
@@ -32,4 +33,8 @@ struct PixelStreamingToClientCommand: Decodable {
 struct PixelStreamingToClientShowOnScreenKeyboardCommand: Decodable {
     let showOnScreenKeyboard: Bool
     let contents: String
+}
+
+struct PixelStreamingToClientGamepadResponse: Decodable {
+    let controllerId: UInt8
 }

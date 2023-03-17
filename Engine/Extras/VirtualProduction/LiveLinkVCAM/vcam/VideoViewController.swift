@@ -66,6 +66,8 @@ class VideoViewController : BaseViewController {
         }
     }
     
+    private var gamepads: [GCControllerPlayerIndex : Gamepad] = [:];
+    
     @IBOutlet weak var arView : ARSCNView!
 
     @IBOutlet weak var reconnectingBlurView : UIVisualEffectView!
@@ -139,11 +141,33 @@ class VideoViewController : BaseViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         UIApplication.shared.isIdleTimerDisabled = true
+        
+        // Check for already connected controllers
+        for gc in GCController.controllers() {
+            self.controllerConnected(gamepad: gc)
+        }
+
+        let notificationCenter = NotificationCenter.default;
+        
+        // Add notifications for when new controllers connect or disconnect
+        notificationCenter.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { (note) in
+            guard let gc = note.object as? GCController else { return }
+            self.controllerConnected(gamepad: gc)
+        }
+        
+        notificationCenter.addObserver(forName: .GCControllerDidDisconnect, object: nil, queue: .main) { (note) in
+            guard let gc = note.object as? GCController else { return }
+            self.controllerDisconnected(gamepad: gc)
+        }
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         UIApplication.shared.isIdleTimerDisabled = false
+        
+        let notificationCenter = NotificationCenter.default
+        notificationCenter.removeObserver(self, name: .GCControllerDidConnect, object: nil)
+        notificationCenter.removeObserver(self, name: .GCControllerDidDisconnect, object: nil)
     }
     
     func showReconnecting(_ visible : Bool, animated: Bool) {
@@ -190,6 +214,11 @@ class VideoViewController : BaseViewController {
             Log.info("Forcing disconnect due to timeout.")
             self.forceDisconnectAndDismiss()
         })
+        // Tell UE that the controllers connected to this device are no longer used
+        for gc in GCController.controllers() {
+            self.controllerDisconnected(gamepad: gc)
+        }
+        
         self.streamingConnection?.disconnect()
     }
     
@@ -306,8 +335,10 @@ class VideoViewController : BaseViewController {
         let snapshot = gc.capture()
         guard let gp = snapshot.extendedGamepad else { return }
 
-        let controllerIndex = gc.playerIndex.rawValue
-
+        guard let controller = gamepads[gc.playerIndex] else { return }
+        // Fallback to default funcationality if we haven't received an ID from UE. This could happen if using latest app with UE < 5.2
+        let controllerIndex = controller.id ?? UInt8(gc.playerIndex.rawValue)
+        
         // dict of type -> oldValue, newValue
         let inputs : [StreamingConnectionControllerInputType : ( oldValue: Float?, newValue : Float)]  = [
             .thumbstickLeftX : ( self.gameControllerSnapshot?.extendedGamepad?.leftThumbstick.xAxis.value,  gp.leftThumbstick.xAxis.value),
@@ -333,7 +364,10 @@ class VideoViewController : BaseViewController {
         guard let gc = gameController else { return }
         guard let gp = gc.extendedGamepad else { return }
 
-        let controllerIndex = gc.playerIndex.rawValue
+        guard let controller = gamepads[gc.playerIndex] else { return }
+        // Fallback to default functionality if we haven't received an ID from UE. This could happen if using latest app with UE < 5.2
+        let controllerIndex = controller.id ?? UInt8(gc.playerIndex.rawValue)
+        
         let isRepeat = false
         
         var inputType : StreamingConnectionControllerInputType!
@@ -380,6 +414,31 @@ class VideoViewController : BaseViewController {
             sc.sendControllerButtonPressed(inputType!, controllerIndex: UInt8(controllerIndex), isRepeat: isRepeat)
         } else {
             sc.sendControllerButtonReleased(inputType!, controllerIndex: UInt8(controllerIndex))
+        }
+    }
+    
+    func controllerConnected(gamepad: GCController) {
+        guard let sc = streamingConnection else { return }
+        sc.sendControllerConnected();
+        
+        let newGamepad = Gamepad()
+        newGamepad.controller = gamepad
+        gamepads[gamepad.playerIndex] = newGamepad
+    }
+    
+    func controllerDisconnected(gamepad: GCController) {
+        guard let sc = streamingConnection else { return }
+        sc.sendControllerDisconnected(controllerIndex: gamepads[gamepad.playerIndex]!.id!);
+        
+        gamepads.removeValue(forKey: gamepad.playerIndex)
+    }
+    
+    func controllerResponseReceived(controllerIndex: UInt8) {
+        for gamepad in gamepads.values {
+            if(gamepad.id == nil) {
+                gamepad.id = controllerIndex;
+                break;
+            }
         }
     }
 }

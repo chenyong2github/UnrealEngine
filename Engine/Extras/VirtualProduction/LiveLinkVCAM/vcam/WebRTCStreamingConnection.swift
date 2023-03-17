@@ -253,6 +253,17 @@ class WebRTCStreamingConnection : StreamingConnection {
         }
     }
     
+    override func sendControllerConnected() {
+        guard let client = webRTCClient else { return }
+        
+        var bytes: [UInt8] = []
+
+        // Write message type using 1 byte
+        bytes.append(PixelStreamingToStreamerMessage.GamepadConnected.rawValue)
+        
+        client.sendData(Data(bytes))
+    }
+    
     override func sendControllerAnalog(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8, value : Float) {
         
         guard let client = webRTCClient else { return }
@@ -309,6 +320,18 @@ class WebRTCStreamingConnection : StreamingConnection {
        bytes.append(buttonIndex)
        
        client.sendData(Data(bytes))
+    }
+    
+    override func sendControllerDisconnected(controllerIndex: UInt8) {
+        guard let client = webRTCClient else { return }
+        
+        var bytes: [UInt8] = []
+
+        // Write message type using 1 byte
+        bytes.append(PixelStreamingToStreamerMessage.GamepadDisconnected.rawValue)
+        bytes.append(controllerIndex)
+        
+        client.sendData(Data(bytes))
     }
 
     
@@ -523,6 +546,17 @@ extension WebRTCStreamingConnection: WebRTCClientDelegate {
                             }
                         } catch {
                             Log.error("An error occurred parsing the command `\(command ?? "<invalid>")` : \(error.localizedDescription)")
+                        }
+                    }
+                case .GamepadResponse:
+                    let response: String? = String(data: data.dropFirst(), encoding: .utf16LittleEndian)
+                    Log.info("response = \(response ?? "NULL")")
+                    if let responseData = response?.data(using: .utf8) {
+                        do {
+                            let responseJson: PixelStreamingToClientGamepadResponse = try JSONDecoder().decode(PixelStreamingToClientGamepadResponse.self, from: responseData)
+                            self.delegate?.streamingConnection(self, receivedGamepadResponse: responseJson.controllerId)
+                        } catch {
+                            Log.error("An error occurred parsing the response `\(response ?? "<invalid>")` : \(error.localizedDescription)")
                         }
                     }
                 case .QualityControlOwnership:
