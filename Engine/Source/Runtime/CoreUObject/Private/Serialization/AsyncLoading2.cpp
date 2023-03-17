@@ -1293,7 +1293,7 @@ public:
 		{
 			int32 ExistingObjectIndex = GUObjectArray.ObjectToIndex(ExistingObject);
 
-			UE_LOG(LogStreaming, Warning,
+			UE_LOG(LogStreaming, Display,
 				TEXT("FGlobalImportStore::StoreGlobalObject: The constructed public export object '%s' with index %d and id 0x%llX:0x%llX collides with object '%s' (ObjectFlags=%X, InternalObjectFlags=%x) with index %d in GlobalImportStore. ")
 				TEXT("The existing object will be replaced since it or its package was most likely renamed after it was loaded the first time."),
 				Object ? *Object->GetFullName() : TEXT("null"),
@@ -4686,8 +4686,8 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 		{
 			if (!ImportedPackageRef.GetPackage()) // If we found a package it's not actually missing but we can't load it anyway
 			{
-				UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("ImportPackages: SkipPackage"),
-					TEXT("Skipping non mounted imported package with id '0x%llX'"), ImportedPackageId.Value());
+				UE_ASYNC_PACKAGE_LOG(Display, Desc, TEXT("ImportPackages: SkipPackage"),
+					TEXT("Skipping non mounted imported package %s (0x%llX)"), *ImportedPackageNameToLoad.ToString(), ImportedPackageId.Value());
 				ImportedPackageRef.SetIsMissingPackage();
 			}
 			Data.ImportedAsyncPackages[ImportedPackageIndex++] = nullptr;
