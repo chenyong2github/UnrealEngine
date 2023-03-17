@@ -2317,11 +2317,13 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 		bRequestedGC = false;
 	}
 
-	void OnPauserCompleted()
+	void OnPauserCompleted(FStringView InPauserTag)
 	{
 		check(IsInGameThread());
 		ensure(NumExpectedPausers != INDEX_NONE);
 		++NumObservedPausers;
+
+		UE_LOG(LogGameFeatures, Display, TEXT("Deactivation of %s resumed by %.*s"), *StateProperties.PluginName, InPauserTag.Len(), InPauserTag.GetData());
 
 		if (NumObservedPausers == NumExpectedPausers)
 		{
@@ -2346,7 +2348,7 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 			NumObservedPausers = 0;
 
 			// Deactivate
-			FGameFeatureDeactivatingContext Context(FSimpleDelegate::CreateRaw(this, &FGameFeaturePluginState_Deactivating::OnPauserCompleted));
+			FGameFeatureDeactivatingContext Context(StateProperties.PluginName, [this](FStringView InPauserTag) { OnPauserCompleted(InPauserTag); });
 			UGameFeaturesSubsystem::Get().OnGameFeatureDeactivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginIdentifier.GetFullPluginURL());
 			NumExpectedPausers = Context.NumPausers;
 

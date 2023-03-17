@@ -235,6 +235,16 @@ bool FGameFeatureStateChangeContext::ShouldApplyUsingOtherContext(const FGameFea
 	return false;
 }
 
+FSimpleDelegate FGameFeatureDeactivatingContext::PauseDeactivationUntilComplete(FString InPauserTag)
+{
+	UE_LOG(LogGameFeatures, Display, TEXT("Deactivation of %.*s paused by %s"), PluginName.Len(), PluginName.GetData(), *InPauserTag);
+
+	++NumPausers;
+	return FSimpleDelegate::CreateLambda(
+		[CompletionCallback=CompletionCallback, PauserTag=MoveTemp(InPauserTag)]() { CompletionCallback(PauserTag); }
+	);
+}
+
 void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	UE_LOG(LogGameFeatures, Log, TEXT("Initializing game features subsystem"));

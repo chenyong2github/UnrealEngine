@@ -103,20 +103,18 @@ struct FGameFeatureDeactivatingContext : public FGameFeatureStateChangeContext
 {
 public:
 	// Call this if your observer has an asynchronous action to complete as part of shutdown, and invoke the returned delegate when you are done (on the game thread!)
-	FSimpleDelegate PauseDeactivationUntilComplete()
-	{
-		++NumPausers;
-		return CompletionDelegate;
-	}
+	GAMEFEATURES_API FSimpleDelegate PauseDeactivationUntilComplete(FString InPauserTag);
 
-	FGameFeatureDeactivatingContext(FSimpleDelegate&& InCompletionDelegate)
-		: CompletionDelegate(MoveTemp(InCompletionDelegate))
+	FGameFeatureDeactivatingContext(FStringView InPluginName, TFunction<void(FStringView InPauserTag)>&& InCompletionCallback)
+		: PluginName(InPluginName)
+		, CompletionCallback(MoveTemp(InCompletionCallback))
 	{
 	}
 
 	int32 GetNumPausers() const { return NumPausers; }
 private:
-	FSimpleDelegate CompletionDelegate;
+	FStringView PluginName;
+	TFunction<void(FStringView InPauserTag)> CompletionCallback;
 	int32 NumPausers = 0;
 
 	friend struct FGameFeaturePluginState_Deactivating;
