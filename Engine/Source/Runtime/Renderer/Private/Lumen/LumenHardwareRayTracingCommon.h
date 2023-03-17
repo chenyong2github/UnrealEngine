@@ -3,15 +3,20 @@
 #pragma once
 
 #include "RHIDefinitions.h"
-
-#if RHI_RAYTRACING
-
 #include "GlobalShader.h"
 #include "Lumen/LumenTracingUtils.h"
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracingPayloadType.h"
 #include "SceneTextureParameters.h"
 #include "Strata/Strata.h" 
+
+namespace LumenHardwareRayTracing
+{
+	bool IsInlineSupported();
+	bool IsRayGenSupported();
+}
+
+#if RHI_RAYTRACING
 
 namespace Lumen
 {
@@ -42,12 +47,6 @@ namespace Lumen
 		RayGen = 0,
 		Inline = 1
 	};
-}
-
-namespace LumenHardwareRayTracing
-{
-	bool IsInlineSupported();
-	bool IsRayGenSupported();
 }
 
 class FLumenHardwareRayTracingShaderBase : public FGlobalShader
