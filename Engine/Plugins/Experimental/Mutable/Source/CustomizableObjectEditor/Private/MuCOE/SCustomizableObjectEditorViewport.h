@@ -251,8 +251,9 @@ public:
 	/** Returns whether or not the a camera mode is active (Orbital or Free) */
 	bool IsCameraModeActive(int Value);
 
-	/** Sets the first material of the instance as the default section to draw in the UVs Overlay (when there is no material selected in the combobox)*/
-	void SetDrawDefaultUVMaterial();
+	/** Sets the first material of the instance as the default section to draw in the UVs Overlay (when there is no material selected in the combobox)
+		Param bIsCompilation: true if this function is called during a CO compilation, false when is called from an instance update	*/
+	void SetDrawDefaultUVMaterial(bool bIsCompilation);
 
 	/** Sets the bones visibility */
 	void SetShowBones();
@@ -308,7 +309,7 @@ private:
 	void GenerateUVMaterialOptions();
 
 	// Generates the Combobox options for each UV Channel
-	void GenerateUVChannelOptions(bool bReset);
+	void GenerateUVChannelOptions();
 
 	// Selected option of the UV Material ComboBox
 	TSharedPtr<FString> SelectedUVMaterial;

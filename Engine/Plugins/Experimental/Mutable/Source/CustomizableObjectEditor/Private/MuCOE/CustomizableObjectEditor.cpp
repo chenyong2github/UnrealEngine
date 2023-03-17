@@ -1366,8 +1366,9 @@ void FCustomizableObjectEditor::CompileObject()
 	// If any projector selected, unselect it in case the projector node is removed with this CO compile
 	ResetProjectorVisibilityNoUpdate();
 
-	// Unselect NodeMeshClipMorph if selected
+	// Resetting viewport parameters
 	Viewport->SetClipMorphPlaneVisibility(false, nullptr);
+	Viewport->SetDrawDefaultUVMaterial(true);
 
 	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: -----------------------------------------------------------"));
 	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] FCustomizableObjectEditor::CompileObject start."), FPlatformTime::Seconds());
@@ -2645,7 +2646,7 @@ void FCustomizableObjectEditor::OnUpdatePreviewInstance()
 	}
 	
 	Viewport->SetPreviewComponents(PreviewSkeletalMeshComponents);
-	Viewport->SetDrawDefaultUVMaterial();
+	Viewport->SetDrawDefaultUVMaterial(false);
 	ViewportClient->Invalidate();
 	ViewportClient->ReSetAnimation();
 	ViewportClient->SetReferenceMeshMissingWarningMessage(false);

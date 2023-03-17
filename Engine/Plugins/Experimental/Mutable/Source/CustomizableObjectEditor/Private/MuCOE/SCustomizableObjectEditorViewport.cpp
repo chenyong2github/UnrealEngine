@@ -655,29 +655,54 @@ bool SCustomizableObjectEditorViewportTabBody::IsCameraModeActive(int Value)
 }
 
 
-void SCustomizableObjectEditorViewportTabBody::SetDrawDefaultUVMaterial()
+void SCustomizableObjectEditorViewportTabBody::SetDrawDefaultUVMaterial(bool bIsCompilation)
 {
 	GenerateUVMaterialOptions();
-
-	FString CurrentDrawnMaterial = LevelViewportClient->GetMaterialToDrawInUVs();
+	bool bMaterialFound = false;
 
 	if (!ArrayUVMaterialOptionString.IsEmpty())
 	{
-		bool bFound = false;
-
-		for (int32 StringIndex = 0; StringIndex < ArrayUVMaterialOptionString.Num(); ++StringIndex)
+		if (!bIsCompilation && SelectedUVMaterial.IsValid())
 		{
-			if (*(ArrayUVMaterialOptionString[StringIndex]) == CurrentDrawnMaterial)
+			// We check if the selected Material still exists after the update
+			FString MaterialName = *SelectedUVMaterial;
+
+			for (int32 MaterialIndex = 0; MaterialIndex < ArrayUVMaterialOptionString.Num(); ++MaterialIndex)
 			{
-				bFound = true;
-				break;
+				if (MaterialName == *ArrayUVMaterialOptionString[MaterialIndex])
+				{
+					bMaterialFound = true;
+					break;
+				}
 			}
 		}
 
-		if (!bFound)
+		if (bIsCompilation || !bMaterialFound)
 		{
 			LevelViewportClient->SetDrawUVOverlayMaterial(*(ArrayUVMaterialOptionString[0]), "0");
+			SelectedUVMaterial = ArrayUVMaterialOptionString[0];
 		}
+	}
+	else
+	{
+		SelectedUVMaterial = nullptr;
+	}
+
+	GenerateUVChannelOptions();
+
+	if (!ArrayUVChannelOptionString.IsEmpty() && (bIsCompilation || !bMaterialFound))
+	{
+		SelectedUVChannel = ArrayUVChannelOptionString[0];
+	}
+	else
+	{
+		SelectedUVChannel = nullptr;
+	}
+
+	if (UVMaterialOptionCombo.IsValid() && UVChannelOptionCombo.IsValid())
+	{
+		UVMaterialOptionCombo->SetSelectedItem(SelectedUVMaterial);
+		UVChannelOptionCombo->SetSelectedItem(SelectedUVChannel);
 	}
 }
 
@@ -791,20 +816,6 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportTabBody::GenerateUVMaterial
 					}
 				}
 			}
-			else
-			{
-				FString CurrentDrawnMaterial = LevelViewportClient->GetMaterialToDrawInUVs();
-
-				for (int32 i = 0; i < ArrayUVMaterialOptionString.Num(); ++i)
-				{
-					if (CurrentDrawnMaterial == *ArrayUVMaterialOptionString[i])
-					{
-						bFound = true;
-						SelectedUVMaterial = ArrayUVMaterialOptionString[i];
-						break;
-					}
-				}
-			}
 
 			if (!bFound)
 			{
@@ -822,7 +833,7 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportTabBody::GenerateUVMaterial
 			.OnSelectionChanged(this, &SCustomizableObjectEditorViewportTabBody::OnMaterialChanged);
 
 		// Generating an array with all the options of the combobox 
-		GenerateUVChannelOptions(false);
+		GenerateUVChannelOptions();
 
 		// Setting initial selected option
 		if (ArrayUVChannelOptionString.Num())
@@ -977,7 +988,14 @@ void SCustomizableObjectEditorViewportTabBody::OnMaterialChanged(TSharedPtr<FStr
 		SelectedUVMaterial = Selected;
 
 		//We need to update options for the new LOD
-		GenerateUVChannelOptions(true);
+		GenerateUVChannelOptions();
+
+		// Resets the value to the first element of the array
+		if (!ArrayUVChannelOptionString.IsEmpty())
+		{
+			SelectedUVChannel = ArrayUVChannelOptionString[0];
+			UVChannelOptionCombo->SetSelectedItem(SelectedUVChannel);
+		}
 
 		if (LevelViewportClient.IsValid() && SelectedUVChannel.IsValid())
 		{
@@ -987,7 +1005,7 @@ void SCustomizableObjectEditorViewportTabBody::OnMaterialChanged(TSharedPtr<FStr
 }
 
 
-void SCustomizableObjectEditorViewportTabBody::GenerateUVChannelOptions(bool bReset)
+void SCustomizableObjectEditorViewportTabBody::GenerateUVChannelOptions()
 {
 	ArrayUVChannelOptionString.Empty();
 
@@ -1021,13 +1039,6 @@ void SCustomizableObjectEditorViewportTabBody::GenerateUVChannelOptions(bool bRe
 		for (int32 UVChan = 0; UVChan < UVChannels; ++UVChan)
 		{
 			ArrayUVChannelOptionString.Add(MakeShareable(new FString(FString::FromInt(UVChan))));
-		}
-
-		// Resets the value to the first element of the array
-		if (bReset)
-		{
-			SelectedUVChannel = ArrayUVChannelOptionString[0];
-			UVChannelOptionCombo->SetSelectedItem(SelectedUVChannel);
 		}
 	}
 }

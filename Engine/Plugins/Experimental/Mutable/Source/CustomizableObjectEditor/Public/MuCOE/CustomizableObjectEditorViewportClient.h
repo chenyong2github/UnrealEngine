@@ -398,12 +398,6 @@ public:
 	/** Sets camera mode */
 	void SetCameraMode(bool Value);
 
-	/** Getter of the Material name being drawn in the UV viewer */
-	FString GetMaterialToDrawInUVs()
-	{
-		return FullNameMaterialToDrawInUVs;
-	}
-
 	/** Sets the skeletal mesh bones visibility */
 	void SetShowBones();
 
@@ -446,7 +440,6 @@ private:
 
 	// Material index to draw in the uv preview.
 	FString MaterialToDrawInUVs;
-	FString FullNameMaterialToDrawInUVs;
 	int32 MaterialToDrawInUVsLOD;
 	int32 MaterialToDrawInUVsIndex;
 	int32 UVChannelToDrawInUVs;
