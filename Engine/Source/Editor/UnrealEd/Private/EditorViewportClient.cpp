@@ -5703,7 +5703,7 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 	if (!bHdrEnabled)
 	{
 		TArray<FColor> RawPixels;
-		RawPixels.SetNum(InViewport->GetSizeXY().X * InViewport->GetSizeXY().Y);
+		RawPixels.SetNum(InViewport->GetRenderTargetTextureSizeXY().X * InViewport->GetRenderTargetTextureSizeXY().Y);
 		if( !InViewport->ReadPixels(RawPixels) )
 		{
 			// Failed to read the image from the viewport
@@ -5711,7 +5711,7 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 			return;
 		}
 
-		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InViewport->GetSizeXY(), TArray64<FColor>(MoveTemp(RawPixels)));
+		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InViewport->GetRenderTargetTextureSizeXY(), TArray64<FColor>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		ImageTask->PixelData = MoveTemp(PixelData);
@@ -5722,7 +5722,7 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 	else
 	{
 		TArray<FLinearColor> RawPixels;
-		RawPixels.SetNum(InViewport->GetSizeXY().X * InViewport->GetSizeXY().Y);
+		RawPixels.SetNum(InViewport->GetRenderTargetTextureSizeXY().X * InViewport->GetRenderTargetTextureSizeXY().Y);
 		if (!InViewport->ReadLinearColorPixels(RawPixels))
 		{
 			// Failed to read the image from the viewport
@@ -5732,7 +5732,7 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 
 		ConvertPixelDataToSCRGB(RawPixels, InViewport->GetDisplayOutputFormat());
 
-		TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(InViewport->GetSizeXY(), TArray64<FLinearColor>(MoveTemp(RawPixels)));
+		TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(InViewport->GetRenderTargetTextureSizeXY(), TArray64<FLinearColor>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		ImageTask->PixelData = MoveTemp(PixelData);
@@ -5990,7 +5990,7 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 		bool bHdrEnabled = InViewport->GetSceneHDREnabled();
 
 		// Determine the size of the captured viewport data.
-		FIntPoint BitmapSize = CaptureRect.Area() > 0 ? CaptureRect.Size() : InViewport->GetSizeXY();
+		FIntPoint BitmapSize = CaptureRect.Area() > 0 ? CaptureRect.Size() : InViewport->GetRenderTargetTextureSizeXY();
 		if (!bHdrEnabled)
 		{
 			TArray<FColor> Bitmap;
