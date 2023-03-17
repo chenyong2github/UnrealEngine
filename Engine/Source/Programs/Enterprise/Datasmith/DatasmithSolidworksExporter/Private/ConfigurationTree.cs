@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using SolidWorks.Interop.sldworks;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using DatasmithSolidworks.Names;
+using static DatasmithSolidworks.Addin;
 
 namespace DatasmithSolidworks
 {
@@ -113,6 +115,28 @@ namespace DatasmithSolidworks
 			public HashSet<FActorName> Meshes = null;
 
 			public List<FComponentTreeNode> Children;
+
+			// Traverse tree passing result of function computation for each node to its children
+			// Function - receives parent's computed value and current node and returns value computed for the node(to pass to children)
+			public void Traverse<T>(T ParentValue, Func<T, FComponentTreeNode, T> Function)
+			{
+				LogDebug($" {ComponentName}");
+
+				T Value = Function(ParentValue, this);
+
+				if (Children == null)
+				{
+					return;
+				}				
+				
+				foreach (FComponentTreeNode Child in Children)
+				{
+					using (LogScopedIndent())
+					{
+						Child.Traverse(Value, Function);
+					}
+				}
+			}
 
 			public IEnumerable<FComponentTreeNode> EnumChildren()
 			{
@@ -242,6 +266,12 @@ namespace DatasmithSolidworks
 				FComponentConfig NodeConfig = CombinedChild.AddConfiguration(InConfigurationName, false, bIsActiveConfiguration);
 				NodeConfig.CopyFrom(Child.CommonConfig);
 
+				// Copy 'extra' configurations created for this actual configuration - linked display states and exploded views
+				if (Child.Configurations != null)
+				{
+					CombinedChild.Configurations.AddRange(Child.Configurations);
+				}
+
 				// Recurse to children
 				Merge(CombinedChild, Child, InConfigurationName, bIsActiveConfiguration);
 			}
@@ -294,7 +324,8 @@ namespace DatasmithSolidworks
 					// There could be components without a transform, so we're checking if for null
 					for (int Idx = 1; Idx < InNode.Configurations.Count; Idx++)
 					{
-						if (!MathUtils.TransformsAreEqual(InNode.Configurations[Idx].RelativeTransform, RelativeTransform))
+						FConvertedTransform OtherTransform = InNode.Configurations[Idx].RelativeTransform;
+						if (OtherTransform.IsValid() && !MathUtils.TransformsAreEqual(OtherTransform, RelativeTransform))
 						{
 							bAllTransformsAreSame = false;
 							break;

@@ -650,6 +650,29 @@ namespace DatasmithSolidworks
 			Instance.DebugLog.Dedent();
 		}
 
+		public static IDisposable LogScopedIndent()
+		{
+#if DatasmithSolidworksDebugOutput
+			return new FLogScopedIndent();
+#else
+			return null;
+#endif
+		}
+
+		private class FLogScopedIndent : IDisposable
+		{
+			public FLogScopedIndent()
+			{
+				LogIndent();
+			}
+
+			public void Dispose()
+			{
+				LogDedent();
+			}
+		}
+
+
 		#endregion
 
 	}

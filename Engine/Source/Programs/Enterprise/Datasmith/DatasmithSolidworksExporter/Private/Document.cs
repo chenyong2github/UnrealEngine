@@ -242,7 +242,7 @@ namespace DatasmithSolidworks
 
 			FMeshes Meshes = new FMeshes(ActiveConfigurationName);
 
-			FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, ConfigurationNames, ActiveConfigurationName, true);
+			FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, ConfigurationNames, ActiveConfigurationName, bInExportDisplayStates: true, bInExportExplodedViews: true);
 
 			List<FConfigurationData> Configs = ConfigurationExporter.ExportConfigurations(this);
 
@@ -275,7 +275,7 @@ namespace DatasmithSolidworks
 			string ActiveConfigurationName = ConfigManager.ActiveConfiguration.Name;
 
 			FMeshes Meshes = GetMeshes(ActiveConfigurationName);
-			FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, new []{ ActiveConfigurationName }, ActiveConfigurationName, false);
+			FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, new []{ ActiveConfigurationName }, ActiveConfigurationName, bInExportDisplayStates: false, bInExportExplodedViews: false);
 			List<FConfigurationData> Configs = ConfigurationExporter.ExportConfigurations(this);
 			bHasConfigurations = (Configs != null) && (Configs.Count != 0);
 			ExportToDatasmithScene(ConfigurationExporter);
