@@ -18,6 +18,8 @@ public:
 	virtual TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > CreateTrackingSystem() override;
 	virtual TSharedPtr< class IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > GetVulkanExtensions() override;
 	virtual uint64 GetGraphicsAdapterLuid() override;
+	virtual FString GetAudioInputDevice() override;
+	virtual FString GetAudioOutputDevice() override;
 
 	FString GetModuleKeyName() const override
 	{
@@ -29,11 +31,14 @@ public:
 		AliasesOut.Add(TEXT("OpenXR"));
 	}
 
-	void ShutdownModule() override;
+	virtual bool PreInit() override { return InitInstance(); }
+	virtual void ShutdownModule() override;
 
 	virtual bool IsHMDConnected() override { return true; }
 	virtual FString GetDeviceSystemName() override;
 	virtual bool IsStandaloneStereoOnlyDevice() override;
+
+	/** IOpenXRHMDModule implementation */
 	virtual bool IsExtensionAvailable(const FString& Name) const override { return AvailableExtensions.Contains(Name); }
 	virtual bool IsExtensionEnabled(const FString& Name) const override { return EnabledExtensions.Contains(Name); }
 	virtual bool IsLayerAvailable(const FString& Name) const override { return EnabledLayers.Contains(Name); }

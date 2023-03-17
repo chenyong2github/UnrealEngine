@@ -503,11 +503,12 @@ bool FOpenXRHMDModule::GetOptionalExtensions(TArray<const ANSICHAR*>& OutExtensi
 	OutExtensions.Add(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
 	OutExtensions.Add(XR_KHR_BINDING_MODIFICATION_EXTENSION_NAME);
 	OutExtensions.Add(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
+	OutExtensions.Add(XR_EXT_DPAD_BINDING_EXTENSION_NAME);
 	OutExtensions.Add(XR_EXT_PALM_POSE_EXTENSION_NAME);
-
-	// Draft extension not yet provided in headers
-	OutExtensions.Add("XR_EXT_dpad_binding");
-	OutExtensions.Add("XR_EXT_active_action_set_priority");
+	OutExtensions.Add(XR_EXT_ACTIVE_ACTION_SET_PRIORITY_EXTENSION_NAME);
+#if PLATFORM_WINDOWS
+	OutExtensions.Add(XR_OCULUS_AUDIO_DEVICE_GUID_EXTENSION_NAME);
+#endif
 
 	return true;
 }
@@ -846,4 +847,38 @@ XrPath FOpenXRHMDModule::ResolveNameToPath(FName Name)
 	{
 		return XR_NULL_PATH;
 	}
+}
+
+FString FOpenXRHMDModule::GetAudioInputDevice()
+{
+#if PLATFORM_WINDOWS
+	if (Instance && IsExtensionEnabled(XR_OCULUS_AUDIO_DEVICE_GUID_EXTENSION_NAME))
+	{
+		PFN_xrGetAudioInputDeviceGuidOculus GetAudioInputDeviceGuidOculus = nullptr;
+		if (XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrGetAudioInputDeviceGuidOculus", (PFN_xrVoidFunction*)&GetAudioInputDeviceGuidOculus)))
+		{
+			WCHAR DeviceGuid[XR_MAX_AUDIO_DEVICE_STR_SIZE_OCULUS];
+			GetAudioInputDeviceGuidOculus(Instance, DeviceGuid);
+			return FString(XR_MAX_AUDIO_DEVICE_STR_SIZE_OCULUS, DeviceGuid);
+		}
+	}
+#endif // PLATFORM_WINDOWS
+	return FString();
+}
+
+FString FOpenXRHMDModule::GetAudioOutputDevice()
+{
+#if PLATFORM_WINDOWS
+	if (Instance && IsExtensionEnabled(XR_OCULUS_AUDIO_DEVICE_GUID_EXTENSION_NAME))
+	{
+		PFN_xrGetAudioOutputDeviceGuidOculus GetAudioOutputDeviceGuidOculus = nullptr;
+		if (XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrGetAudioOutputDeviceGuidOculus", (PFN_xrVoidFunction*)&GetAudioOutputDeviceGuidOculus)))
+		{
+			WCHAR DeviceGuid[XR_MAX_AUDIO_DEVICE_STR_SIZE_OCULUS];
+			GetAudioOutputDeviceGuidOculus(Instance, DeviceGuid);
+			return FString(XR_MAX_AUDIO_DEVICE_STR_SIZE_OCULUS, DeviceGuid);
+		}
+	}
+#endif // PLATFORM_WINDOWS
+	return FString();
 }
