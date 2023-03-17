@@ -24,6 +24,7 @@
 #include "Engine/Texture2D.h"
 #include "UObject/Package.h"
 #include "EngineModule.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KismetRenderingLibrary)
 
@@ -902,6 +903,18 @@ ENGINE_API void UKismetRenderingLibrary::EnablePathTracing(bool bEnablePathTrace
 		if (EngineShowFlags != nullptr)
 		{
 			EngineShowFlags->SetPathTracing(bEnablePathTracer);
+		}
+	}
+}
+
+ENGINE_API void UKismetRenderingLibrary::RefreshPathTracingOutput()
+{
+	if (GEngine != nullptr && GEngine->GameViewport != nullptr)
+	{
+		UWorld* World = GEngine->GameViewport->GetWorld();
+		if (World != nullptr && World->Scene != nullptr)
+		{
+			World->Scene->InvalidatePathTracedOutput();
 		}
 	}
 }

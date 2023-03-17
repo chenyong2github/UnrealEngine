@@ -206,9 +206,15 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Rendering", meta = (DisplayName = "Calculate Projection Matrix (Minimal View Info)", ScriptMethod = "CalculateProjectionMatrix"))
 	static ENGINE_API FMatrix CalculateProjectionMatrix(const FMinimalViewInfo& MinimalViewInfo);
 
-	/** Enables or disables the path tracer for all viewports simulatenously.
+	/** Enables or disables the path tracer for the current Game Viewport.
 	 * This command is equivalent to setting ShowFlag.PathTracing, but is accessible even from shipping builds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (Keywords="EnablePathTracing"))
 	static ENGINE_API void EnablePathTracing(bool bEnablePathTracer);
+
+	/** Forces the path tracer to restart sample accumulation.
+	 * This can be used to force the path tracer to compute a new frame in situations where it can not detect a change in the scene automatically.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (Keywords = "PathTracing"))
+	static ENGINE_API void RefreshPathTracingOutput();
 };
