@@ -31,6 +31,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "BlueprintCompilationManager.h"
 #include "Engine/LevelScriptBlueprint.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
 extern UNREALED_API class UEditorEngine* GEditor;
 #else
 #include "UObject/LinkerLoad.h"
@@ -250,6 +251,13 @@ void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 		OutTags.Add(FAssetRegistryTag(EditorTag.Key, EditorTag.Value, FAssetRegistryTag::TT_Hidden));
 	}
 #endif //#if WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+	if (AActor* BlueprintCDO = Cast<AActor>(ClassDefaultObject))
+	{
+		FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(BlueprintCDO, OutTags);
+	}
+#endif
 }
 
 #if WITH_EDITOR

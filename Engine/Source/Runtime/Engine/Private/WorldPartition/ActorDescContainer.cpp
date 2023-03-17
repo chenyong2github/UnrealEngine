@@ -86,7 +86,7 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 
 			if (!ActorDesc.IsValid() || 
 				!ActorDesc->GetNativeClass().IsValid() || 
-				//(ActorDesc->GetBaseClass().IsValid() && !ClassDescRegistry.IsRegisteredClass(ActorDesc->GetBaseClass())) || 
+				(ActorDesc->GetBaseClass().IsValid() && !ClassDescRegistry.IsRegisteredClass(ActorDesc->GetBaseClass())) || 
 				FActorDescList::GetActorDesc(ActorDesc->GetGuid()) ||
 				(InitParams.FilterActorDesc && !InitParams.FilterActorDesc(ActorDesc.Get())))
 			{
