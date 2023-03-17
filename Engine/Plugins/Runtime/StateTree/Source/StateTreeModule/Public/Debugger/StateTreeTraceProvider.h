@@ -28,7 +28,7 @@ public:
 
 protected:
 	/** IStateTreeDebuggerProvider interface */
-	virtual void GetActivateInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const override;
+	virtual void GetActiveInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const override;
 	virtual bool ReadTimelines(const FStateTreeInstanceDebugId InstanceId, TFunctionRef<void(const FStateTreeInstanceDebugId ProcessedInstanceId, const FEventsTimeline&)> Callback) const override;
 
 private:

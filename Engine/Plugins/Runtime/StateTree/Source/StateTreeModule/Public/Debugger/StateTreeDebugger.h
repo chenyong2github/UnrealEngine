@@ -97,6 +97,8 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	FStateTreeDebugger();
 	virtual ~FStateTreeDebugger() override;
 
+	void SetAsset(const UStateTree* StateTreeAsset) { DebuggedAsset = StateTreeAsset; }
+	
 	/** Stops reading traces every frame to preserve current state */
 	void Pause();
 
@@ -113,7 +115,7 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	
 	bool IsAnalysisSessionActive() const { return GetAnalysisSession() != nullptr; }
 
-	void GetActivateInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const;
+	TConstArrayView<FStateTreeDebuggerInstanceDesc> GetActiveInstances() const;
 	const FStateTreeDebuggerInstanceDesc& GetDebuggedInstance() const;
 	void SetDebuggedInstance(const FStateTreeDebuggerInstanceDesc& SelectedInstance);
 	FString GetDebuggedInstanceDescription() const;
@@ -141,8 +143,9 @@ protected:
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FStateTreeDebugger, STATGROUP_Tickables); }
 	
 private:
+	void StopAnalysis();
 	void ResetAnalysisData();
-	
+
 	void ReadTrace(double ScrubTime);
 	void ReadTrace(uint64 FrameIndex);
 	void ReadTrace(
@@ -150,19 +153,21 @@ private:
 		const TraceServices::IFrameProvider& FrameProvider,
 		const TraceServices::FFrame& Frame
 		);
-	
-	void StopAnalysis();
 
-	void SetCurrentScrubTime(double RecordingDuration);	
+	void SendNotifications();
+
 	void SetActiveStates(const TConstArrayView<FStateTreeStateHandle> NewActiveStates);
 	
 	const TraceServices::IAnalysisSession* GetAnalysisSession() const;
 	UE::Trace::FStoreClient* GetStoreClient() const;
+	void GetSessionActiveInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const;
 
 	bool ProcessEvent(const FStateTreeInstanceDebugId InstanceId, const TraceServices::FFrame& Frame, const FStateTreeTraceEventVariantType& Event);
 	void AddEvents(float StartTime, float EndTime, const TraceServices::IFrameProvider& FrameProvider, const IStateTreeTraceProvider& StateTreeTraceProvider);
 	void UpdateMetadata(FTraceDescriptor& TraceDescriptor) const;
 
+	TWeakObjectPtr<const UStateTree> DebuggedAsset;
+	
 	IStateTreeModule& StateTreeModule;
 	
 	/** The trace analysis session. */
@@ -170,6 +175,7 @@ private:
 	
 	FTraceDescriptor ActiveSessionTraceDescriptor;
 
+	TArray<FStateTreeDebuggerInstanceDesc> ActiveInstances;
 	FStateTreeDebuggerInstanceDesc DebuggedInstance;
 	
 	TArray<FStateTreeStateHandle> StatesWithBreakpoint;
@@ -188,6 +194,7 @@ private:
 	TArray<UE::StateTreeDebugger::FFrameIndexSpan> FramesWithEvents;
 
 	bool bProcessingInitialEvents = false;
+	bool bNewEvents = false;
 	bool bPaused = false;
 };
 

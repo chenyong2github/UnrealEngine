@@ -85,7 +85,7 @@ void FStateTreeTraceProvider::AppendInstance(
 	}
 }
 
-void FStateTreeTraceProvider::GetActivateInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const
+void FStateTreeTraceProvider::GetActiveInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const
 {
 	OutInstances = ActiveInstances;
 }

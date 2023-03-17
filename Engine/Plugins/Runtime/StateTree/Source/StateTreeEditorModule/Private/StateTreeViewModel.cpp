@@ -251,7 +251,10 @@ void FStateTreeViewModel::Init(UStateTreeEditorData* InTreeData)
 
 	UE::StateTree::Delegates::OnIdentifierChanged.AddSP(this, &FStateTreeViewModel::HandleIdentifierChanged);
 
+#if WITH_STATETREE_DEBUGGER
+	Debugger->SetAsset(GetStateTree());
 	BindToDebuggerDelegates();
+#endif // WITH_STATETREE_DEBUGGER	
 }
 
 const UStateTree* FStateTreeViewModel::GetStateTree() const

@@ -16,7 +16,7 @@ class IStateTreeTraceProvider : public TraceServices::IProvider
 public:
 	typedef TraceServices::ITimeline<FStateTreeTraceEventVariantType> FEventsTimeline;
 
-	virtual void GetActivateInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const = 0;
+	virtual void GetActiveInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const = 0;
 
 	/**
 	 * Execute given function receiving an event timeline for a given instance or all timelines if instance not specified.  

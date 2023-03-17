@@ -338,9 +338,8 @@ void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId Ins
 			const FStateTreeDebuggerInstanceDesc& DebuggerInstance = Debugger->GetDebuggedInstance();
 			if (DebuggerInstance.Id != InstanceId)
 			{
-				TArray<FStateTreeDebuggerInstanceDesc> MatchingInstances;
-				Debugger->GetActivateInstances(MatchingInstances);
-				const FStateTreeDebuggerInstanceDesc* FoundDesc = MatchingInstances.FindByPredicate([InstanceId](const FStateTreeDebuggerInstanceDesc& InstanceDesc)
+				const TConstArrayView<FStateTreeDebuggerInstanceDesc> ActiveInstances = Debugger->GetActiveInstances();
+				const FStateTreeDebuggerInstanceDesc* FoundDesc = ActiveInstances.FindByPredicate([InstanceId](const FStateTreeDebuggerInstanceDesc& InstanceDesc)
 				{
 					return InstanceDesc.Id == InstanceId;
 				});
@@ -401,15 +400,20 @@ TSharedRef<SWidget> SStateTreeDebuggerView::OnGetDebuggerInstancesMenu() const
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection*/true, /*InCommandList*/nullptr);
 
-	if (Debugger.IsValid())
+	if (Debugger.IsValid() && StateTreeViewModel.IsValid())
 	{
-		TArray<FStateTreeDebuggerInstanceDesc> ActiveInstances;
-		Debugger->GetActivateInstances(ActiveInstances); 
+		const TConstArrayView<FStateTreeDebuggerInstanceDesc> ActiveInstances = Debugger->GetActiveInstances();
+		const UStateTree* CurrentStateTreeAsset = StateTreeViewModel->GetStateTree();
 
 		for (const FStateTreeDebuggerInstanceDesc& Instance : ActiveInstances)
 		{
+			// Do not list instances not matching the debugged asset
+			if (Instance.StateTree.Get() != CurrentStateTreeAsset)
+			{
+				continue;
+			}
+			
 			const FText Desc = FText::FromString(Debugger->DescribeInstance(Instance));
-
 			FUIAction ItemAction(FExecuteAction::CreateLambda([WeakDebugger = Debugger, Instance]()
 			{
 				if (WeakDebugger)
