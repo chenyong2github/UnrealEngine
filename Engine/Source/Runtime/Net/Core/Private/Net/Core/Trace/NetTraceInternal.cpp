@@ -45,7 +45,7 @@ struct FNetTraceInternal
 	};
 
 	// Get next NameId used to track what we already have traced
-	uint32 static GetNextNameId();
+	UE::Net::FNetDebugNameId static GetNextNameId();
 
 	static inline FThreadBuffer* CreateThreadBuffer();
 
@@ -59,7 +59,7 @@ FNetTraceInternal::FThreadBuffer* FNetTraceInternal::CreateThreadBuffer()
 	return ThreadBuffer.Get();
 }
 
-uint32 FNetTraceInternal::GetNextNameId()
+UE::Net::FNetDebugNameId FNetTraceInternal::GetNextNameId()
 {
 	static std::atomic<UE::Net::FNetDebugNameId> NextNameId(1);
 
@@ -381,7 +381,7 @@ void FNetTrace::PopSendBunch(FNetTraceCollector& Collector)
 void FNetTrace::TraceCollectedEvents(FNetTraceCollector& Collector, uint32 GameInstanceId, uint32 ConnectionId, ENetTracePacketType PacketType)
 {
 	FNetTracePacketInfo PacketInfo;
-	PacketInfo.ConnectionId = ConnectionId;
+	PacketInfo.ConnectionId = (uint16)ConnectionId;
 	PacketInfo.GameInstanceId = GameInstanceId;
 	PacketInfo.PacketSequenceNumber = 0;
 	PacketInfo.PacketType = PacketType;
@@ -397,7 +397,7 @@ void FNetTrace::TracePacketDropped(uint32 GameInstanceId, uint32 ConnectionId, u
 	if (GNetTraceRuntimeVerbosity)
 	{
 		FNetTracePacketInfo PacketInfo;
-		PacketInfo.ConnectionId = ConnectionId;
+		PacketInfo.ConnectionId = (uint16)ConnectionId;
 		PacketInfo.GameInstanceId = GameInstanceId;
 		PacketInfo.PacketSequenceNumber = PacketSequenceNumber;
 		PacketInfo.PacketType = PacketType;
@@ -411,7 +411,7 @@ void FNetTrace::TracePacket(uint32 GameInstanceId, uint32 ConnectionId, uint32 P
 	if (GNetTraceRuntimeVerbosity)
 	{
 		FNetTracePacketInfo PacketInfo;
-		PacketInfo.ConnectionId = ConnectionId;
+		PacketInfo.ConnectionId = (uint16)ConnectionId;
 		PacketInfo.GameInstanceId = GameInstanceId;
 		PacketInfo.PacketSequenceNumber = PacketSequenceNumber;
 		PacketInfo.PacketType = PacketType;
@@ -422,7 +422,7 @@ void FNetTrace::TracePacket(uint32 GameInstanceId, uint32 ConnectionId, uint32 P
 	}
 }
 
-void FNetTrace::TraceObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, const UE::Net::FNetDebugName* DebugName, uint64 TypeIdentifier, uint32 OwnerId)
+void FNetTrace::TraceObjectCreated(uint32 GameInstanceId, uint64 NetObjectId, const UE::Net::FNetDebugName* DebugName, uint64 TypeIdentifier, uint32 OwnerId)
 {
 	if (!GNetTraceRuntimeVerbosity)
 	{
@@ -436,7 +436,7 @@ void FNetTrace::TraceObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, co
 	FNetTraceInternal::Reporter::ReportObjectCreated(GameInstanceId, NetObjectId, DebugName->DebugNameId, TypeIdentifier, OwnerId);
 }
 
-void FNetTrace::TraceObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, const FName ObjectName, uint64 TypeIdentifier, uint32 OwnerId)
+void FNetTrace::TraceObjectCreated(uint32 GameInstanceId, uint64 NetObjectId, const FName ObjectName, uint64 TypeIdentifier, uint32 OwnerId)
 {
 	if (!GNetTraceRuntimeVerbosity)
 	{
@@ -446,7 +446,7 @@ void FNetTrace::TraceObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, co
 	FNetTraceInternal::Reporter::ReportObjectCreated(GameInstanceId, NetObjectId, FNetTrace::TraceName(ObjectName), TypeIdentifier, OwnerId);
 }
 
-void FNetTrace::TraceObjectDestroyed(uint32 GameInstanceId, uint32 NetObjectId)
+void FNetTrace::TraceObjectDestroyed(uint32 GameInstanceId, uint64 NetObjectId)
 {
 	if (GNetTraceRuntimeVerbosity)
 	{

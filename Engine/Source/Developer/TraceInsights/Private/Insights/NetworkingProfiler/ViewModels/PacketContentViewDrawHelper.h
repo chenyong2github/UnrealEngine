@@ -22,7 +22,7 @@ struct FNetworkPacketEvent
 {
 	uint32 EventTypeIndex;
 	uint32 ObjectInstanceIndex;
-	uint32 NetId;
+	uint64 NetId;
 	uint32 BitOffset;
 	uint32 BitSize;
 	uint32 Level;
@@ -36,7 +36,7 @@ struct FNetworkPacketEvent
 		, Level(0)
 	{}
 
-	FNetworkPacketEvent(uint32 InEventTypeIndex, uint32 InObjectInstanceIndex, uint32 InNetId, uint32 InBitOffset, uint32 InBitSize, uint32 InLevel)
+	FNetworkPacketEvent(uint32 InEventTypeIndex, uint32 InObjectInstanceIndex, uint64 InNetId, uint32 InBitOffset, uint32 InBitSize, uint32 InLevel)
 		: EventTypeIndex(InEventTypeIndex)
 		, ObjectInstanceIndex(InObjectInstanceIndex)
 		, NetId(InNetId)
@@ -167,7 +167,7 @@ public:
 	FPacketContentViewDrawStateBuilder(const FPacketContentViewDrawStateBuilder&) = delete;
 	FPacketContentViewDrawStateBuilder& operator=(const FPacketContentViewDrawStateBuilder&) = delete;
 
-	void AddEvent(const TraceServices::FNetProfilerContentEvent& Event, const TCHAR* Name, uint32 NetId);
+	void AddEvent(const TraceServices::FNetProfilerContentEvent& Event, const TCHAR* Name, uint64 NetId);
 	void Flush();
 
 	int32 GetMaxDepth() const { return MaxDepth; }

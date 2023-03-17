@@ -92,7 +92,7 @@ struct FNetTracePacketContentEvent
 	union
 	{
 		UE::Net::FNetDebugNameId DebugNameId;
-		uint32 ObjectId;
+		uint64 ObjectId;
 		FNetTraceBunchInfo BunchInfo;
 	};
 	struct
@@ -117,7 +117,7 @@ class FNetTraceEventScope
 	UE_NONCOPYABLE(FNetTraceEventScope)
 public:
 
-	FNetTraceEventScope(uint32 ObjectID, T& InStream, FNetTraceCollector* InCollector, uint32 Verbosity);
+	FNetTraceEventScope(uint64 ObjectId, T& InStream, FNetTraceCollector* InCollector, uint32 Verbosity);
 
 	// When a scope is disabled due to verbosity we want to deffer the tracing of names
 	// We do this by using a lambda, this also allows us to complete eliminate statics if a scope is compiled out due to compile time verbosity
@@ -127,7 +127,7 @@ public:
 	~FNetTraceEventScope();
 
 	void SetEventName(UE::Net::FNetDebugNameId NetTraceNameId);
-	void SetEventObjectId(uint32 ObjectId);
+	void SetEventObjectId(uint64 ObjectId);
 	void ExitScope();
 	bool IsValid() const;
 
@@ -151,7 +151,7 @@ public:
 	~FNetTraceNullEventScope() {};
 
 	void SetEventName(UE::Net::FNetDebugNameId NetTraceNameId) {};
-	void SetEventObjectId(uint32 ObjectId) {};
+	void SetEventObjectId(uint64 ObjectId) {};
 	void ExitScope() {};
 	bool IsValid() const { return false; }
 };
@@ -231,13 +231,13 @@ struct FNetTrace
  	NETCORE_API static void TracePacket(uint32 GameInstanceId, uint32 ConnectionId, uint32 PacketSequenceNumber, uint32 PacketBits, ENetTracePacketType PacketType);
 
 	/** Trace that we have created a new object with the given ObjectId */
-	NETCORE_API static void TraceObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, const UE::Net::FNetDebugName* Name, uint64 TypeIdentifier, uint32 OwnerId);
+	NETCORE_API static void TraceObjectCreated(uint32 GameInstanceId, uint64 NetObjectId, const UE::Net::FNetDebugName* Name, uint64 TypeIdentifier, uint32 OwnerId);
 
 	/** Trace that we have created a new object with the given ObjectId */
-	NETCORE_API static void TraceObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, const FName Name, uint64 TypeIdentifier, uint32 OwnerId);
+	NETCORE_API static void TraceObjectCreated(uint32 GameInstanceId, uint64 NetObjectId, const FName Name, uint64 TypeIdentifier, uint32 OwnerId);
 
 	/** Trace that a handle has been destroyed, the handle contains required info */
-	NETCORE_API static void TraceObjectDestroyed(uint32 GameInstanceId, uint32 NetObjectId);
+	NETCORE_API static void TraceObjectDestroyed(uint32 GameInstanceId, uint64 NetObjectId);
 
 	/** Trace that we have added a new connection for the given GameInstanceId */
 	NETCORE_API static void TraceConnectionCreated(uint32 GameInstanceId, uint32 ConnectionId);
@@ -279,14 +279,14 @@ struct FNetTrace
 };
 
 template<typename T>
-uint32 GetObjectIdForNetTrace(const T&)
+uint64 GetObjectIdForNetTrace(const T&)
 {
-	static_assert(sizeof(T) == 0, "Not supported type for NetTraceObjectID, implement uint32 GetObjectIdForNetTrace(const T&)");
+	static_assert(sizeof(T) == 0, "Not supported type for NetTraceObjectID, implement uint64 GetObjectIdForNetTrace(const T&)");
 }
 
-inline uint32 GetObjectIdForNetTrace(const FNetworkGUID& NetGUID)
+inline uint64 GetObjectIdForNetTrace(const FNetworkGUID& NetGUID)
 {
-	return (uint32)NetGUID.ObjectId;
+	return NetGUID.ObjectId;
 }
 
 template<typename T>
@@ -409,10 +409,10 @@ FNetTraceCollector* FNetTrace::GetCollectorAtVerbosity(FNetTraceCollector* Colle
 
 // FNetTraceEventScope implementation
 template <typename T>
-FNetTraceEventScope<T>::FNetTraceEventScope(uint32 InObjectId, T& InStream, FNetTraceCollector* InCollector, uint32 Verbosity)
-: Collector(FNetTrace::GetCollectorAtVerbosity(InCollector, Verbosity))
-, Stream(InStream)
-, EventIndex(FNetTrace::InvalidEventIndex)
+FNetTraceEventScope<T>::FNetTraceEventScope(uint64 InObjectId, T& InStream, FNetTraceCollector* InCollector, uint32 Verbosity)
+	: Collector(FNetTrace::GetCollectorAtVerbosity(InCollector, Verbosity))
+	, Stream(InStream)
+	, EventIndex(FNetTrace::InvalidEventIndex)
 {
 	if (Collector)
 	{
@@ -464,13 +464,14 @@ void FNetTraceEventScope<T>::SetEventName(UE::Net::FNetDebugNameId NetTraceNameI
 }
 
 template <typename T>
-void FNetTraceEventScope<T>::SetEventObjectId(uint32 ObjectId)
+void FNetTraceEventScope<T>::SetEventObjectId(uint64 ObjectId)
 {
 	if (EventIndex != FNetTrace::InvalidEventIndex)
 	{
 		Collector->EditEventNoCheck(EventIndex).ObjectId = ObjectId;
 	}
 }
+
 template <typename T>
 bool FNetTraceEventScope<T>::IsValid() const
 {
@@ -579,8 +580,8 @@ void FNetTraceCollector::Reset()
 
 #define UE_NET_TRACE_INTERNAL_DYNAMIC_NAME(Name, Collector, StartPos, EndPos, Verbosity) UE_NET_TRACE_DO_IF(FNetTrace::GetCollectorAtVerbosity(Collector, Verbosity), FNetTrace::TracePacketContentEvent(*Collector, FNetTrace::TraceName(Name), StartPos, EndPos, Verbosity))
 #define UE_NET_TRACE_INTERNAL_ASSIGNED_GUID(GameInstanceId, NetGUID, PathName, OwnerId) UE_NET_TRACE_DO_IF(GNetTraceRuntimeVerbosity, FNetTrace::TraceObjectCreated(GameInstanceId, GetObjectIdForNetTrace(NetGUID), PathName, 0U, OwnerId))
-#define UE_NET_TRACE_INTERNAL_NETHANDLE_CREATED(Handle, DebugName, ProtocolId, OwnerId) FNetTrace::TraceObjectCreated(Handle.GetReplicationSystemId(), Handle.GetId(), DebugName, ProtocolId, OwnerId)
-#define UE_NET_TRACE_INTERNAL_NETHANDLE_DESTROYED(Handle) FNetTrace::TraceObjectDestroyed(Handle.GetReplicationSystemId(), Handle.GetId())
+#define UE_NET_TRACE_INTERNAL_NETHANDLE_CREATED(Handle, DebugName, ProtocolId, OwnerId) FNetTrace::TraceObjectCreated(Handle.GetReplicationSystemId(), GetObjectIdForNetTrace(Handle), DebugName, ProtocolId, OwnerId)
+#define UE_NET_TRACE_INTERNAL_NETHANDLE_DESTROYED(Handle) FNetTrace::TraceObjectDestroyed(Handle.GetReplicationSystemId(), GetObjectIdForNetTrace(Handle))
 #define UE_NET_TRACE_INTERNAL_CONNECTION_CREATED(...) FNetTrace::TraceConnectionCreated(__VA_ARGS__)
 #define UE_NET_TRACE_INTERNAL_CONNECTION_STATE_UPDATED(...) FNetTrace::TraceConnectionStateUpdated(__VA_ARGS__)
 #define UE_NET_TRACE_INTERNAL_CONNECTION_UPDATED(...) FNetTrace::TraceConnectionUpdated(__VA_ARGS__)

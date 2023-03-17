@@ -36,7 +36,7 @@ FPacketContentViewDrawStateBuilder::FPacketContentViewDrawStateBuilder(FPacketCo
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfilerContentEvent& Event, const TCHAR* EventName, uint32 NetId)
+void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfilerContentEvent& Event, const TCHAR* EventName, uint64 NetId)
 {
 	DrawState.Events.AddUninitialized();
 	FNetworkPacketEvent& PacketEvent = DrawState.Events.Last();
@@ -233,7 +233,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfi
 
 			if (Event.ObjectInstanceIndex != 0)
 			{
-				Builder.Appendf(TEXT(" (NetId:%u, "), NetId);
+				Builder.Appendf(TEXT(" (NetId:%" UINT64_FMT ", "), NetId);
 			}
 			else
 			{

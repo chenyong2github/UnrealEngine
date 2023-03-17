@@ -279,7 +279,7 @@ void SPacketView::UpdateState()
 	struct FPacketFilter
 	{
 		bool bByNetId = false;
-		uint32 NetId = 0;
+		uint64 NetId = 0;
 		bool bByEventType = false;
 		uint32 EventTypeIndex = 0;
 		TraceServices::ENetProfilerAggregationMode AggregationMode = TraceServices::ENetProfilerAggregationMode::None;
@@ -368,12 +368,12 @@ void SPacketView::UpdateState()
 										}
 										if (bEventMatchesFilter && Filter.bByNetId)
 										{
-											uint32 NetId = uint32(-1);
+											uint64 NetId = uint64(-1);
 											if (Event.ObjectInstanceIndex != 0)
 											{
 												NetProfilerProvider->ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const TraceServices::FNetProfilerObjectInstance& ObjectInstance)
 												{
-													NetId = ObjectInstance.NetId;
+													NetId = ObjectInstance.NetObjectId;
 												});
 											}
 											if (Filter.NetId != NetId)

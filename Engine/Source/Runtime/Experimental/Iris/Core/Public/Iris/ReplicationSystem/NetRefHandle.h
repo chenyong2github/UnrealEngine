@@ -72,10 +72,9 @@ FORCEINLINE uint32 GetTypeHash(const FNetRefHandle& Handle)
 	return ::GetTypeHash(Handle.GetId());
 }
 
-FORCEINLINE uint32 GetObjectIdForNetTrace(const FNetRefHandle& Handle)
+FORCEINLINE uint64 GetObjectIdForNetTrace(const FNetRefHandle& Handle)
 {
-	// Until NetTrace is fixed: https://jira.it.epicgames.com/browse/UE-179190
-	return (uint32)Handle.GetId();
+	return Handle.GetId();
 }
 
 }

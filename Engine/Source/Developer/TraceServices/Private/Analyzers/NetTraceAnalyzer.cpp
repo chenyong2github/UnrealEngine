@@ -758,7 +758,7 @@ void FNetTraceAnalyzer::HandleConnectionClosedEvent(const FOnEventContext& Conte
 void FNetTraceAnalyzer::HandleObjectCreatedEvent(const FOnEventContext& Context, const FEventData& EventData)
 {
 	const uint64 TypeId = EventData.GetValue<uint64>("TypeId");
-	const uint32 ObjectId = EventData.GetValue<uint32>("ObjectId");
+	const uint64 ObjectId = EventData.GetValue<uint64>("ObjectId");
 	const uint32 OwnerId = EventData.GetValue<uint32>("OwnerId");
 	const uint16 NameId = EventData.GetValue<uint16>("NameId");
 	const uint8 GameInstanceId = EventData.GetValue<uint8>("GameInstanceId");
@@ -775,7 +775,7 @@ void FNetTraceAnalyzer::HandleObjectCreatedEvent(const FOnEventContext& Context,
 			{
 				// Update existing object instance
 				ExistingInstance->LifeTime.Begin = GetLastTimestamp();
-				ExistingInstance->NetId = ObjectId;
+				ExistingInstance->NetObjectId = ObjectId;
 				ExistingInstance->TypeId = TypeId;
 
 				return;
@@ -793,7 +793,7 @@ void FNetTraceAnalyzer::HandleObjectCreatedEvent(const FOnEventContext& Context,
 	// Fill in object data
 	ObjectInstance.LifeTime.Begin = GetLastTimestamp();
 	ObjectInstance.NameIndex = IntCastChecked<uint16>(NameIndex);
-	ObjectInstance.NetId = ObjectId;
+	ObjectInstance.NetObjectId = ObjectId;
 	ObjectInstance.TypeId = TypeId;
 
 	// Add to active objects
@@ -804,7 +804,7 @@ void FNetTraceAnalyzer::HandleObjectDestroyedEvent(const FOnEventContext& Contex
 {
 	// Remove from active instances and mark the end timestamp in the persistent instance list
 	const uint8 GameInstanceId = EventData.GetValue<uint8>("GameInstanceId");
-	const uint32 ObjectId = EventData.GetValue<uint32>("ObjectId");
+	const uint64 ObjectId = EventData.GetValue<uint64>("ObjectId");
 
 	TSharedRef<FNetTraceGameInstanceState> GameInstanceState = GetOrCreateActiveGameInstanceState(GameInstanceId);
 

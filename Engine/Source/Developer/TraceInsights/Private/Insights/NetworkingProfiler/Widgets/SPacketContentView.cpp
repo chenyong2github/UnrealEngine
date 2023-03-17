@@ -783,8 +783,8 @@ void SPacketContentView::FilterNetId_OnTextCommitted(const FText& InNewText, ETe
 {
 	if (InNewText.IsNumeric())
 	{
-		int32 NewNetId = 0;
-		TTypeFromString<int32>::FromString(NewNetId, *InNewText.ToString());
+		uint64 NewNetId = 0;
+		TTypeFromString<uint64>::FromString(NewNetId, *InNewText.ToString());
 		SetFilterNetId(NewNetId);
 	}
 }
@@ -922,7 +922,7 @@ void SPacketContentView::SetPacket(uint32 InGameInstanceIndex, uint32 InConnecti
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketContentView::SetFilterNetId(const uint32 InNetId)
+void SPacketContentView::SetFilterNetId(const uint64 InNetId)
 {
 	FilterNetId = InNetId;
 
@@ -1056,12 +1056,12 @@ void SPacketContentView::UpdateState(float FontScale)
 						Name = NetProfilerName.Name;
 					});
 
-					uint32 NetId = 0;
+					uint64 NetId = 0;
 					if (Event.ObjectInstanceIndex != 0)
 					{
 						NetProfilerProvider->ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const TraceServices::FNetProfilerObjectInstance& ObjectInstance)
 						{
-							NetId = ObjectInstance.NetId;
+							NetId = ObjectInstance.NetObjectId;
 						});
 					}
 
@@ -1139,7 +1139,7 @@ void SPacketContentView::UpdateHoveredEvent()
 
 		if (Event.ObjectInstanceIndex != 0)
 		{
-			Tooltip.AddNameValueTextLine(TEXT("Net Id:"), FText::AsNumber(ObjectInstance.NetId).ToString());
+			Tooltip.AddNameValueTextLine(TEXT("Net Id:"), FText::AsNumber(ObjectInstance.NetObjectId).ToString());
 			Tooltip.AddNameValueTextLine(TEXT("Type Id:"), FString::Printf(TEXT("0x%016" UINT64_x_FMT), ObjectInstance.TypeId));
 			Tooltip.AddNameValueTextLine(TEXT("Obj. LifeTime:"), FString::Format(TEXT("from {0} to {1}"),
 				{ TimeUtils::FormatTimeAuto(ObjectInstance.LifeTime.Begin), TimeUtils::FormatTimeAuto(ObjectInstance.LifeTime.End) }));

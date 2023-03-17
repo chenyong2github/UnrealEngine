@@ -86,11 +86,16 @@ struct FNetProfilerLifeTime
 
 struct FNetProfilerObjectInstance
 {
-	uint32 ObjectIndex = 0U;		// Index in the object array
-	uint16 NameIndex = 0U;			// Index in the Name array
-	uint64 TypeId = uint64(0);		// ProtocolIdentifier
-	uint32 NetId = 0U;				// NetHandleIndex or NetGUID
-	FNetProfilerLifeTime LifeTime;	// Lifetime of this instance
+	FNetProfilerLifeTime LifeTime;			// Lifetime of this instance
+	union
+	{
+		UE_DEPRECATED(5.3, "Please use NetObjectId instead")
+		uint32 NetId;						// NetHandleIndex or NetGUID
+		uint64 NetObjectId = 0;				// NetHandleIndex or NetGUID
+	};
+	uint64 TypeId = uint64(0);				// ProtocolIdentifier
+	uint32 ObjectIndex = 0U;				// Index in the object array
+	uint16 NameIndex = 0U;					// Index in the Name array
 };
 
 union FNetProfilerBunchInfo

@@ -15,8 +15,8 @@ struct FNetTraceReporter
 	static void ReportPacketDropped(const FNetTracePacketInfo& PacketInfo);
 	static void ReportPacket(const FNetTracePacketInfo& PacketInfo, uint32 PacketBits);
 	static void ReportAnsiName(UE::Net::FNetDebugNameId NameId, uint32 NameSize, const char* Name);	
-	static void ReportObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, UE::Net::FNetDebugNameId NameId, uint64 TypeIdentifier, uint32 OwnerId);
-	static void ReportObjectDestroyed(uint32 GameInstanceId, uint32 NetObjectId);
+	static void ReportObjectCreated(uint32 GameInstanceId, uint64 NetObjectId, UE::Net::FNetDebugNameId NameId, uint64 TypeIdentifier, uint32 OwnerId);
+	static void ReportObjectDestroyed(uint32 GameInstanceId, uint64 NetObjectId);
 	static void ReportConnectionCreated(uint32 GameInstanceId, uint32 ConnectionId);
 	static void ReportConnectionStateUpdated(uint32 GameInstanceId, uint32 ConnectionId, uint8 ConnectionStateValue);
 	static void ReportConnectionUpdated(uint32 GameInstanceId, uint32 ConnectionId, const TCHAR* AddressString, const TCHAR* OwningActor);

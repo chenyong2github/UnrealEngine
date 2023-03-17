@@ -157,8 +157,8 @@ public:
 	void SetPacket(uint32 InGameInstanceIndex, uint32 InConnectionIndex, TraceServices::ENetProfilerConnectionMode InConnectionMode, uint32 InPacketIndex, int64 InPacketBitSize);
 
 	bool IsFilterByNetIdEnabled() const { return bFilterByNetId; }
-	uint32 GetFilterNetId() const { return FilterNetId; }
-	void SetFilterNetId(const uint32 InNetId);
+	uint64 GetFilterNetId() const { return FilterNetId; }
+	void SetFilterNetId(const uint64 InNetId);
 
 	bool IsFilterByEventTypeEnabled() const { return bFilterByEventType; }
 	uint32 GetFilterEventTypeIndex() const { return FilterEventTypeIndex; }
@@ -252,7 +252,7 @@ private:
 	FText FilterEventName;
 
 	bool bFilterByNetId;
-	uint32 FilterNetId;
+	uint64 FilterNetId;
 
 	bool bHighlightFilteredEvents;
 
