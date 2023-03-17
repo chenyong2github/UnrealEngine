@@ -95,6 +95,13 @@ TAutoConsoleVariable<bool> CVarClearStreamingCacheOnUpdateEnd(
 	ECVF_Scalability);
 
 
+TAutoConsoleVariable<bool> CVarEnableImageCache(
+	TEXT("mutable.EnableImageCache"),
+	true,
+	TEXT("Enables or disables the Instance Image Cache. Avoids regenerating images when no parameters or mips have changed."),
+	ECVF_Scalability);
+
+
 bool FMutableQueue::IsEmpty() const
 {
 	return Array.Num() == 0;
@@ -350,6 +357,8 @@ void UCustomizableObjectSystem::InitSystem()
 	DefaultInstanceLODManagement = NewObject<UCustomizableInstanceLODManagement>();
 	check(DefaultInstanceLODManagement != nullptr);
 	CurrentInstanceLODManagement = DefaultInstanceLODManagement;
+
+	CVarEnableImageCache->SetOnChangedCallback(FConsoleVariableDelegate::CreateUObject(this, &UCustomizableObjectSystem::OnEnableImageCacheChanged));
 }
 
 
@@ -3023,6 +3032,18 @@ void UCustomizableObjectSystem::TickRecompileCustomizableObjects()
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		}
 	}
+}
+
+
+void UCustomizableObjectSystem::OnEnableImageCacheChanged(IConsoleVariable* CVar)
+{
+	if (CVar->GetBool())
+	{		
+		for (FMutableResourceCache& Cache : GetPrivate()->ModelResourcesCache)
+		{
+			Cache.Images.Empty();
+		}
+	}	
 }
 
 

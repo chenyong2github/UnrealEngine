@@ -12,6 +12,7 @@
 
 #include "CustomizableObjectSystem.generated.h"
 
+class IConsoleVariable;
 class FCustomizableObjectCompilerBase;
 class ITargetPlatform;
 class SNotificationItem;
@@ -58,6 +59,8 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Streaming Cache"), STAT_MutableStrea
 
 
 extern TAutoConsoleVariable<bool> CVarClearStreamingCacheOnUpdateEnd;
+
+extern TAutoConsoleVariable<bool> CVarEnableImageCache;
 
 
 #if WITH_EDITOR
@@ -420,7 +423,8 @@ private:
 	TMap<FString, int64> PlatformMaxChunkSize;
 	
 #endif
-
+	void OnEnableImageCacheChanged(IConsoleVariable* CVar);
+	
 	// Friends
 	friend class FCustomizableObjectSystemPrivate;
 };

@@ -5412,7 +5412,10 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 									}
 
 									// update the model resources cache
-									Cache.Images.Add(ImageCacheKey, Texture);
+									if (CVarEnableImageCache.GetValueOnGameThread())
+									{
+										Cache.Images.Add(ImageCacheKey, Texture);						
+									}
 								}
 								else
 								{
