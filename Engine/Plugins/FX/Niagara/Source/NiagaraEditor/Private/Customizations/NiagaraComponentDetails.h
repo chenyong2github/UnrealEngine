@@ -216,6 +216,8 @@ private:
 
 	FReply SummonHierarchyEditor();
 	void DeleteParameter(FNiagaraVariable UserParameter) const;
+	void SelectAllSection();
+	void OnParameterAdded(FNiagaraVariable UserParameter);
 	void RequestRename(FNiagaraVariable UserParameter);
 	void RenameParameter(FNiagaraVariable UserParameter, FName NewName);
 
