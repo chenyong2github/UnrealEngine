@@ -132,11 +132,18 @@ namespace mu
     }
 
 
-    //---------------------------------------------------------------------------------------------
-    void CompilerOptions::SetImageCompressionQuality( int quality )
-    {
-        m_pD->m_imageCompressionQuality = quality;
-    }
+	//---------------------------------------------------------------------------------------------
+	void CompilerOptions::SetImageCompressionQuality(int quality)
+	{
+		m_pD->m_imageCompressionQuality = quality;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	void CompilerOptions::SetImageTiling(int32 Tiling)
+	{
+		m_pD->m_imageTiling = Tiling;
+	}
 
 
 	//---------------------------------------------------------------------------------------------

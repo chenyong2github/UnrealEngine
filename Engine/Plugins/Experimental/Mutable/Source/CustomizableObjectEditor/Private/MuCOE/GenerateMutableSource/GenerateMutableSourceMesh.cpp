@@ -378,7 +378,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 	const EMutableMeshConversionFlags CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
 	const bool bIgnoreSkeleton = EnumHasAnyFlags(CurrentFlags, EMutableMeshConversionFlags::IgnoreSkinning);
 	const bool bIgnorePhysics = EnumHasAnyFlags(CurrentFlags, EMutableMeshConversionFlags::IgnorePhysics) || 
-								!GenerationContext.Options.bPhysicsAssetMergeEnebled;
+								!GenerationContext.Options.bPhysicsAssetMergeEnabled;
 
 	mu::MeshPtr MutableMesh = new mu::Mesh();
 		

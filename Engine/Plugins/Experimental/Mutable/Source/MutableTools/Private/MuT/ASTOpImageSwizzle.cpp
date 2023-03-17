@@ -654,9 +654,13 @@ namespace mu
 							|| Typed->angleFadeProperties.child() != FirstRasterMesh->angleFadeProperties.child()
 							|| Typed->mask.child() != FirstRasterMesh->mask.child()
 							|| Typed->projector.child() != FirstRasterMesh->projector.child()
-							|| Typed->blockIndex != FirstRasterMesh->blockIndex
-							|| Typed->sizeX != FirstRasterMesh->sizeX
-							|| Typed->sizeY != FirstRasterMesh->sizeY
+							|| Typed->BlockIndex != FirstRasterMesh->BlockIndex
+							|| Typed->SizeX != FirstRasterMesh->SizeX
+							|| Typed->SizeY != FirstRasterMesh->SizeY
+							|| Typed->UncroppedSizeX != FirstRasterMesh->UncroppedSizeX
+							|| Typed->UncroppedSizeY != FirstRasterMesh->UncroppedSizeY
+							|| Typed->CropMinX != FirstRasterMesh->CropMinX
+							|| Typed->CropMinY != FirstRasterMesh->CropMinY
 							|| Typed->bIsRGBFadingEnabled != FirstRasterMesh->bIsRGBFadingEnabled
 							|| Typed->bIsAlphaFadingEnabled != FirstRasterMesh->bIsAlphaFadingEnabled
 							)

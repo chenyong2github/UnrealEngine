@@ -3671,19 +3671,27 @@ namespace mu
 
 				uint16 SizeX = args.size[0];
 				uint16 SizeY = args.size[1];
+				int32 LODs = args.LODs;
+				
+				// This means all the mip chain
+				if (LODs == 0)
+				{
+					LODs = FMath::CeilLogTwo(FMath::Max(SizeX,SizeY));
+				}
+
 				for (int l=0; l<item.ExecutionOptions; ++l)
 				{
 					SizeX = FMath::Max(uint16(1), FMath::DivideAndRoundUp(SizeX, uint16(2)));
 					SizeY = FMath::Max(uint16(1), FMath::DivideAndRoundUp(SizeY, uint16(2)));
+					--LODs;
 				}
 
-                ImagePtr pA = new Image( SizeX,
-                                         SizeY,
-                                         1,
-                                         (EImageFormat)args.format,
+                ImagePtr pA = new Image( SizeX, SizeY,
+                                         FMath::Max(LODs,1),
+                                         EImageFormat(args.format),
 										 EInitializationType::NotInitialized );
 
-                FillPlainColourImage(pA.get(), c);
+                pA->FillColour(c);
 
                 GetMemory().SetImage( item, pA );
                 break;
@@ -3751,16 +3759,19 @@ namespace mu
 
         case OP_TYPE::IM_PATCH:
         {
+			// TODO: This is optimized for memory-usage but base and patch could be requested at the same time
 			OP::ImagePatchArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImagePatchArgs>(item.At);
             switch (item.Stage)
             {
-            case 0:
-                AddOp( FScheduledOp( item.At, item, 1),
-					FScheduledOp( args.base, item ),
-					FScheduledOp( args.patch, item ) );
-                break;
+			case 0:
+				AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.base, item));
+				break;
 
-            case 1:
+			case 1:
+				AddOp(FScheduledOp(item.At, item, 2), FScheduledOp(args.patch, item));
+				break;
+
+			case 2:
             {
                 MUTABLE_CPUPROFILER_SCOPE(IM_PATCH_1)
 
@@ -3774,35 +3785,19 @@ namespace mu
 					break;
 				}
 
-                box<vec2<int>> rect;
-                rect.min[0] = args.minX;
-                rect.min[1] = args.minY;
-                rect.size[0] = pB->GetSizeX();
-                rect.size[1] = pB->GetSizeY();
-
-				// Apply ther mipmap reduction to the crop rectangle.
+				// Apply the mipmap reduction to the crop rectangle.
 				int32 MipsToSkip = item.ExecutionOptions;
-				while (MipsToSkip > 0 && rect.size[0] > 0 && rect.size[1] > 0)
-				{
-					rect.min/=2;
-					MipsToSkip--;
-				}
+				box<UE::Math::TIntVector2<uint16>> rect;
+				rect.min[0] = args.minX / (1 << MipsToSkip);
+				rect.min[1] = args.minY / (1 << MipsToSkip);
+				rect.size[0] = pB->GetSizeX();
+				rect.size[1] = pB->GetSizeY();
 
-                ImagePtr pResult = pA->Clone();
+                ImagePtr pResult = mu::CloneOrTakeOver(pA.get());
 
 				bool bApplyPatch = !rect.IsEmpty();
 				if (bApplyPatch)
 				{
-					// Resize image if it doesn't fit in the new block size
-					if (pB->GetSizeX() != rect.size[0] ||
-						pB->GetSizeY() != rect.size[1])
-					{
-						MUTABLE_CPUPROFILER_SCOPE(ImagePatchResize_Emergency);
-
-						FImageSize blockSize((uint16)rect.size[0], (uint16)rect.size[1]);
-						pB = ImageResizeLinear(m_pSettings->GetPrivate()->m_imageCompressionQuality,pB.get(), blockSize);
-					}
-
 					// Change the block image format if it doesn't match the composed image
 					// This is usually enforced at object compilation time.
 					if (pResult->GetFormat() != pB->GetFormat())
@@ -3880,24 +3875,35 @@ namespace mu
 						FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
 				}
                 break;
+
 			case 1:
 			{
 				MUTABLE_CPUPROFILER_SCOPE(IM_RASTERMESH_1)
 
+				Ptr<const Mesh> pMesh = GetMemory().GetMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
+
 				// If no image, we are generating a flat mesh UV raster. This is the final stage in this case.
 				if (!args.image)
 				{
-					Ptr<const Mesh> pMesh = GetMemory().GetMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
-
 					uint16 SizeX = args.sizeX;
 					uint16 SizeY = args.sizeY;
+					UE::Math::TIntVector2<uint16> CropMin(args.CropMinX, args.CropMinY);
+					UE::Math::TIntVector2<uint16> UncroppedSize(args.UncroppedSizeX, args.UncroppedSizeY);
 
 					// Drop mips while possible
 					int32 MipsToDrop = item.ExecutionOptions;
+					bool bUseCrop = UncroppedSize[0] > 0;
 					while (MipsToDrop && !(SizeX % 2) && !(SizeY % 2))
 					{
-						SizeX = FMath::Max(uint16(1),FMath::DivideAndRoundUp(SizeX, uint16(2)));
-						SizeY = FMath::Max(uint16(1),FMath::DivideAndRoundUp(SizeY, uint16(2)));
+						SizeX = FMath::Max(uint16(1), FMath::DivideAndRoundUp(SizeX, uint16(2)));
+						SizeY = FMath::Max(uint16(1), FMath::DivideAndRoundUp(SizeY, uint16(2)));
+						if (bUseCrop)
+						{
+							CropMin[0] = FMath::DivideAndRoundUp(CropMin[0], uint16(2));
+							CropMin[1] = FMath::DivideAndRoundUp(CropMin[1], uint16(2));
+							UncroppedSize[0] = FMath::Max(uint16(1), FMath::DivideAndRoundUp(UncroppedSize[0], uint16(2)));
+							UncroppedSize[1] = FMath::Max(uint16(1), FMath::DivideAndRoundUp(UncroppedSize[1], uint16(2)));
+						}
 						--MipsToDrop;
 					}
 
@@ -3905,15 +3911,13 @@ namespace mu
 					Ptr<Image> ResultImage = new Image(SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE);
 					if (pMesh)
 					{
-						ImageRasterMesh(pMesh.get(), ResultImage.get(), args.blockIndex);
+						ImageRasterMesh(pMesh.get(), ResultImage.get(), args.blockIndex, CropMin, UncroppedSize);
 					}
 
 					// Stop execution.
 					GetMemory().SetImage(item, ResultImage);
 					break;
 				}
-
-				Ptr<const Mesh> pMesh = GetMemory().GetMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
 
 				const int32 MipsToSkip = item.ExecutionOptions;
 				int32 ProjectionMip = MipsToSkip;
@@ -3950,6 +3954,7 @@ namespace mu
 
 				break;
 			}
+
             case 2:
             {
 				MUTABLE_CPUPROFILER_SCOPE(IM_RASTERMESH_2)
@@ -3964,26 +3969,33 @@ namespace mu
 
                 Ptr<const Mesh> pMesh = GetMemory().GetMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
 
+				if (!pMesh)
+				{
+					check(false);
+					GetMemory().SetImage(item, nullptr);
+					break;
+				}
+
 				uint16 SizeX = args.sizeX;
 				uint16 SizeY = args.sizeY;
+				UE::Math::TIntVector2<uint16> CropMin(args.CropMinX, args.CropMinY);
+				UE::Math::TIntVector2<uint16> UncroppedSize(args.UncroppedSizeX, args.UncroppedSizeY);
 
 				// Drop mips while possible
 				int32 MipsToDrop = item.ExecutionOptions;
+				bool bUseCrop = UncroppedSize[0] > 0;
 				while (MipsToDrop && !(SizeX % 2) && !(SizeY % 2))
 				{
 					SizeX = FMath::Max(uint16(1),FMath::DivideAndRoundUp(SizeX, uint16(2)));
 					SizeY = FMath::Max(uint16(1),FMath::DivideAndRoundUp(SizeY, uint16(2)));
+					if (bUseCrop)
+					{
+						CropMin[0] = FMath::DivideAndRoundUp(CropMin[0], uint16(2));
+						CropMin[1] = FMath::DivideAndRoundUp(CropMin[1], uint16(2));
+						UncroppedSize[0] = FMath::Max(uint16(1), FMath::DivideAndRoundUp(UncroppedSize[0], uint16(2)));
+						UncroppedSize[1] = FMath::Max(uint16(1), FMath::DivideAndRoundUp(UncroppedSize[1], uint16(2)));
+					}
 					--MipsToDrop;
-				}
-	
-				if (!pMesh)
-				{
-                    check(false);
-                    Ptr<Image> ResultImage = new Image(SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE);
-
-					GetMemory().SetImage(item, ResultImage);
-
-					break;
 				}
 
 				// Raster with projection
@@ -4049,6 +4061,7 @@ namespace mu
 								SamplingMethod,
 								FadeStartRad, FadeEndRad,
 								layout, args.blockIndex,
+								CropMin, UncroppedSize,
 								&scratch);
 							break;
 
@@ -4059,6 +4072,7 @@ namespace mu
 								SamplingMethod,
 								FadeStartRad, FadeEndRad,
 								layout, args.blockIndex,
+								CropMin, UncroppedSize,
 								&scratch);
 							break;
 
@@ -4069,6 +4083,7 @@ namespace mu
 								FadeStartRad, FadeEndRad,
 								layout,
 								pProjector->m_value.projectionAngle,
+								CropMin, UncroppedSize,
 								&scratch);
 							break;
 
@@ -4895,7 +4910,7 @@ namespace mu
 
                     if( relBlockIndex >=0 )
                     {
-                        box< vec2<int> > rectInblocks;
+                        box< UE::Math::TIntVector2<uint16> > rectInblocks;
                         pLayout->GetBlock
                                 (
                                     relBlockIndex,
@@ -5935,7 +5950,7 @@ namespace mu
 			OP::ImagePlainColourArgs args = program.GetOpArgs<OP::ImagePlainColourArgs>(item.At);
 			m_heapImageDesc[item.CustomState].m_size[0] = args.size[0];
 			m_heapImageDesc[item.CustomState].m_size[1] = args.size[1];
-			m_heapImageDesc[item.CustomState].m_lods = 1;
+			m_heapImageDesc[item.CustomState].m_lods = args.LODs;
 			m_heapImageDesc[item.CustomState].m_format = args.format;
 			GetMemory().SetValidDesc(item);
 			break;

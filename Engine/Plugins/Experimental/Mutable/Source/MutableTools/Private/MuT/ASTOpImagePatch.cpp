@@ -142,4 +142,23 @@ namespace mu
 	}
 
 
+	//-------------------------------------------------------------------------------------------------
+	void ASTOpImagePatch::GetLayoutBlockSize(int* pBlockX, int* pBlockY)
+	{
+		// We didn't find any layout yet.
+		*pBlockX = 0;
+		*pBlockY = 0;
+
+		// Try the source
+		if (base)
+		{
+			base->GetLayoutBlockSize( pBlockX, pBlockY );
+		}
+
+		if (patch && *pBlockX == 0 && *pBlockY == 0)
+		{
+			patch->GetLayoutBlockSize(pBlockX, pBlockY);
+		}
+	}
+
 }

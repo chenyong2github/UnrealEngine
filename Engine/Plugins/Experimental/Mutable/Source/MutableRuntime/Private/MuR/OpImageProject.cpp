@@ -487,163 +487,6 @@ namespace
 
 
 //-------------------------------------------------------------------------------------------------
-//void ImageRasterProjected_Generic( const Mesh* pMesh,
-//                           Image* pImage,
-//                           const Image* pSource,
-//                           const Image* pMask,
-//                           float fadeStart,
-//                           float fadeEnd,
-//                           int layout,
-//                           int block )
-//{
-//	MUTABLE_CPUPROFILER_SCOPE(ImageRasterProjected_Generic);
-//
-//	EImageFormat format = pImage->GetFormat();
-//    int pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
-//
-//    int sizeX = pImage->GetSizeX();
-//    int sizeY = pImage->GetSizeY();
-//
-//    RasterProjectedPixelProcessor pixelProc( pSource,
-//                                     pImage->GetData(),
-//                                     pMask ? pMask->GetData() : 0,
-//                                     fadeStart, fadeEnd );
-//
-//    // Get the vertices
-//    int vertexCount = pMesh->GetVertexCount();
-//	TArray< RasterVertex<4> > vertices;
-//	vertices.SetNum(vertexCount);
-//
-//    UntypedMeshBufferIteratorConst texIt( pMesh->GetVertexBuffers(), MBS_TEXCOORDS, layout );
-//    UntypedMeshBufferIteratorConst posIt( pMesh->GetVertexBuffers(), MBS_POSITION, 0 );
-//    UntypedMeshBufferIteratorConst norIt( pMesh->GetVertexBuffers(), MBS_NORMAL, 0 );
-//    for ( int v=0; v<vertexCount; ++v )
-//    {
-//        float uv[2]={0.0f,0.0f};
-//        ConvertData( 0, uv, MBF_FLOAT32, texIt.ptr(), texIt.GetFormat() );
-//        ConvertData( 1, uv, MBF_FLOAT32, texIt.ptr(), texIt.GetFormat() );
-//
-//        vertices[v].x = uv[0] * sizeX;
-//        vertices[v].y = uv[1] * sizeY;
-//
-//        FVector3f pos={0.0f,0.0f,0.0f};
-//        ConvertData( 0, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
-//        ConvertData( 1, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
-//        ConvertData( 2, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
-//        vertices[v].interpolators[0] = pos[0];
-//        vertices[v].interpolators[1] = pos[1];
-//        vertices[v].interpolators[2] = pos[2];
-//
-//        float nor=0.0f;
-//        ConvertData( 0, &nor, MBF_FLOAT32, norIt.ptr(), norIt.GetFormat() );
-//        vertices[v].interpolators[3] = nor;
-//
-//        ++texIt;
-//        ++posIt;
-//        ++norIt;
-//    }
-//
-//    // Get the indices
-//    int faceCount = pMesh->GetFaceCount();
-//	TArray<int> indices;
-//	indices.SetNum(faceCount * 3);
-//
-//    UntypedMeshBufferIteratorConst indIt( pMesh->GetIndexBuffers(), MBS_VERTEXINDEX, 0 );
-//    for ( int i=0; i<faceCount*3; ++i )
-//    {
-//        uint32 index=0;
-//        ConvertData( 0, &index, MBF_UINT32, indIt.ptr(), indIt.GetFormat() );
-//
-//        indices[i] = index;
-//        ++indIt;
-//    }
-//
-//    // Get the block per face
-//	TArray<int> blocks;
-//	blocks.SetNum(vertexCount);
-//
-//    UntypedMeshBufferIteratorConst bloIt( pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK, layout );
-//    if (bloIt.ptr())
-//    {
-//        for ( int i=0; i<vertexCount; ++i )
-//        {
-//            uint16 index=0;
-//            ConvertData( 0, &index, MBF_UINT16, bloIt.ptr(), bloIt.GetFormat() );
-//
-//            blocks[i] = index;
-//            ++bloIt;
-//        }
-//    }
-//
-//    if ( block<0 )
-//    {
-//        // We are rastering the entire layout in an image, so we need to apply the block->layout
-//        // transform to the UVs
-//        const Layout* pLayout = layout<pMesh->GetLayoutCount() ? pMesh->GetLayout( layout ) : nullptr;
-//        if (pLayout && bloIt.ptr())
-//        {
-//			TArray< box< vec2<float> > > transforms;
-//			transforms.SetNum(pLayout->GetBlockCount());
-//            for ( int b=0; b<pLayout->GetBlockCount(); ++b )
-//            {
-//                FIntPoint grid = pLayout->GetGridSize();
-//
-//                box< vec2<int> > blockRect;
-//                pLayout->GetBlock( b, &blockRect.min[0], &blockRect.min[1], &blockRect.size[0], &blockRect.size[1] );
-//
-//                box< vec2<float> > rect;
-//                rect.min[0] = ( (float)blockRect.min[0] ) / (float) grid[0];
-//                rect.min[1] = ( (float)blockRect.min[1] ) / (float) grid[1];
-//                rect.size[0] = ( (float)blockRect.size[0] ) / (float) grid[0];
-//                rect.size[1] = ( (float)blockRect.size[1] ) / (float) grid[1];
-//                transforms[b] = rect;
-//            }
-//
-//            for ( int i=0; i<vertexCount; ++i )
-//            {
-//                int relBlock = pLayout->FindBlock( blocks[i] );
-//                vertices[i].x = vertices[i].x * transforms[ relBlock ].size[0]
-//                        + transforms[ relBlock ].min[0] * sizeX;
-//                vertices[i].y = vertices[i].y * transforms[ relBlock ].size[1]
-//                        + transforms[ relBlock ].min[1] * sizeY;
-//            }
-//        }
-//
-//        // Raster all the faces
-//        for ( int f=0; f<faceCount; ++f )
-//        {
-//            Triangle( pImage->GetData(),
-//                      sizeX, sizeY,
-//                      pixelSize,
-//                      vertices[indices[f*3+0]],
-//                      vertices[indices[f*3+1]],
-//                      vertices[indices[f*3+2]],
-//                      pixelProc,
-//                      false );
-//        }
-//    }
-//    else
-//    {
-//        // Raster only the faces in the selected block
-//        for ( int f=0; f<faceCount; ++f )
-//        {
-//            if ( blocks[ indices[f*3+0] ]==block )
-//            {
-//                Triangle( pImage->GetData(),
-//                          sizeX, sizeY,
-//                          pixelSize,
-//                          vertices[indices[f*3+0]],
-//                          vertices[indices[f*3+1]],
-//                          vertices[indices[f*3+2]],
-//                          pixelProc,
-//                          false );
-//            }
-//        }
-//    }
-//}
-//
-
-//-------------------------------------------------------------------------------------------------
 //! This format is the one we assumee the meshes optimised for planar and cylindrical projection
 //! will have.
 //! See CreateMeshOptimisedForProjection
@@ -673,11 +516,10 @@ static_assert( sizeof(OPTIMISED_VERTEX_WRAPPING)==36, "UNEXPECTED_STRUCT_SIZE" )
 
 //-------------------------------------------------------------------------------------------------
 template<class PIXEL_PROCESSOR>
-void ImageRasterProjected_Optimised( const Mesh* pMesh,
-                             Image* pImage,
-                             PIXEL_PROCESSOR& pixelProc,
-                             float fadeEnd,
-                             SCRATCH_IMAGE_PROJECT* scratch )
+void ImageRasterProjected_Optimised( const Mesh* pMesh, Image* pImage,
+	PIXEL_PROCESSOR& pixelProc, float fadeEnd,
+	UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
+	SCRATCH_IMAGE_PROJECT* scratch )
 {
 	MUTABLE_CPUPROFILER_SCOPE(ImageRasterProjected_Optimised);
 
@@ -692,6 +534,8 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
     int32 sizeX = pImage->GetSizeX();
     int32 sizeY = pImage->GetSizeY();
 
+	bool bUseCropping = UncroppedSize[0] > 0;
+
     // Get the vertices
     int vertexCount = pMesh->GetVertexCount();
 
@@ -704,8 +548,16 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
     float fadeEndCos = cosf(fadeEnd);
     for ( int v=0; v<vertexCount; ++v )
     {
-        scratch->vertices[v].x = pVertices[v].uv[0] * sizeX;
-        scratch->vertices[v].y = pVertices[v].uv[1] * sizeY;
+		if (bUseCropping)
+		{
+			scratch->vertices[v].x = pVertices[v].uv[0] * UncroppedSize[0] - CropMin[0];
+			scratch->vertices[v].y = pVertices[v].uv[1] * UncroppedSize[1] - CropMin[1];
+		}
+		else
+		{
+			scratch->vertices[v].x = pVertices[v].uv[0] * sizeX;
+			scratch->vertices[v].y = pVertices[v].uv[1] * sizeY;
+		}
 
         // TODO: No need to copy all. use scratch for the rest only.
         scratch->vertices[v].interpolators[0] = pVertices[v].pos[0];
@@ -747,6 +599,8 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
 		});
 
 	// Update the relevancy map
+	// \TODO: fix it to work with cropping.
+	if (!bUseCropping)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageRasterProjected_Optimised_Relevancy);
 
@@ -782,12 +636,11 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
 
 //-------------------------------------------------------------------------------------------------
 template<class PIXEL_PROCESSOR>
-void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
-                             Image* pImage,
-                             PIXEL_PROCESSOR& pixelProc,
-                             float fadeEnd,
-                             int block,
-                             SCRATCH_IMAGE_PROJECT* scratch )
+void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh, Image* pImage, PIXEL_PROCESSOR& pixelProc,
+	float fadeEnd,
+	int block,
+	UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
+	SCRATCH_IMAGE_PROJECT* scratch )
 {
 	MUTABLE_CPUPROFILER_SCOPE(ImageRasterProjected_OptimisedWrapping);
 
@@ -814,8 +667,17 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
     float fadeEndCos = cosf(fadeEnd);
     for ( int v=0; v<vertexCount; ++v )
     {
-        scratch->vertices[v].x = pVertices[v].uv[0] * sizeX;
-        scratch->vertices[v].y = pVertices[v].uv[1] * sizeY;
+		bool bUseCropping = UncroppedSize[0] > 0;
+		if (bUseCropping)
+		{
+			scratch->vertices[v].x = pVertices[v].uv[0] * UncroppedSize[0] - CropMin[0];
+			scratch->vertices[v].y = pVertices[v].uv[1] * UncroppedSize[1] - CropMin[1];
+		}
+		else
+		{
+			scratch->vertices[v].x = pVertices[v].uv[0] * sizeX;
+			scratch->vertices[v].y = pVertices[v].uv[1] * sizeY;
+		}
 
         // TODO: No need to copy all. use scratch for the rest only.
         scratch->vertices[v].interpolators[0] = pVertices[v].pos[0];
@@ -851,13 +713,11 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
              !scratch->culledVertex[i2] )
         {
             Triangle( pImage->GetData(),
-                      sizeX, sizeY,
-                      pixelSize,
-                      scratch->vertices[i0],
-                      scratch->vertices[i1],
-                      scratch->vertices[i2],
-                      pixelProc,
-                      false );
+				sizeX, sizeY,
+				pixelSize,
+				scratch->vertices[i0], scratch->vertices[i1], scratch->vertices[i2],
+				pixelProc,
+				false );
         }
     }
 
@@ -873,6 +733,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 	ESamplingMethod SamplingMethod,
 	float fadeStart, float fadeEnd,
 	int layout, int block,
+	UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
 	SCRATCH_IMAGE_PROJECT* scratch )
 {
     check( !pMask || pMask->GetSizeX() == pImage->GetSizeX() );
@@ -894,7 +755,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 					pMask ? pMask->GetData() : nullptr,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 					fadeStart, fadeEnd);
-				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, scratch);
+				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 			}
 			else if (SamplingMethod == ESamplingMethod::BiLinear)
 			{
@@ -903,7 +764,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 					pMask ? pMask->GetData() : nullptr,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 					fadeStart, fadeEnd);
-				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, scratch);
+				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 			}
 			else
 			{
@@ -923,7 +784,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 						pMask->GetData(),
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 						fadeStart, fadeEnd);
-					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, scratch);
+					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 				}
 				else if (SamplingMethod == ESamplingMethod::BiLinear)
 				{
@@ -932,7 +793,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 						pMask->GetData(),
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 						fadeStart, fadeEnd);
-					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, scratch);
+					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 				}
 				else
 				{
@@ -948,7 +809,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 						nullptr,
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 						fadeStart, fadeEnd);
-					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, scratch);
+					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 				}
 				else if (SamplingMethod == ESamplingMethod::BiLinear)
 				{
@@ -957,7 +818,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 						nullptr,
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 						fadeStart, fadeEnd);
-					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, scratch);
+					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 				}
 				else
 				{
@@ -974,7 +835,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 					pMask ? pMask->GetData() : nullptr,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 					fadeStart, fadeEnd);
-				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, scratch);
+				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 			}
 			else if (SamplingMethod == ESamplingMethod::BiLinear)
 			{
@@ -983,7 +844,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 					pMask ? pMask->GetData() : nullptr,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 					fadeStart, fadeEnd);
-				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, scratch);
+				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 			}
 			else
 			{
@@ -994,39 +855,26 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
         else
         {
 			check(false);
-    //        RasterProjectedPixelProcessor pixelProc( pSource,
-    //                                         pImage->GetData(),
-    //                                         pMask ? pMask->GetData() : 0, 
-				//bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-    //                                         fadeStart, fadeEnd );
-
-    //        ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
         }
     }
 
     else
     {
         check(false);
-        // Generic version
-        //ImageRasterProjected_Generic( pMesh, pImage, pSource, pMask,
-        //                      fadeStart, fadeEnd,
-        //                      layout, block );
     }
 
 }
 
 
 //-------------------------------------------------------------------------------------------------
-void ImageRasterProjectedWrapping( const Mesh* pMesh,
-                                       Image* pImage,
-                                       const Image* pSource,
-                                       const Image* pMask,
-									   bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
-									   ESamplingMethod SamplingMethod,
-                                       float fadeStart, float fadeEnd,
-                                       int layout,
-                                       int block,
-                                       SCRATCH_IMAGE_PROJECT* scratch )
+void ImageRasterProjectedWrapping( const Mesh* pMesh, Image* pImage,
+	const Image* pSource, const Image* pMask,
+	bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+	ESamplingMethod SamplingMethod,
+	float fadeStart, float fadeEnd,
+	int layout, int block,
+	UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
+	SCRATCH_IMAGE_PROJECT* scratch )
 {
     check( !pMask || pMask->GetSizeX() == pImage->GetSizeX() );
     check( !pMask || pMask->GetSizeY() == pImage->GetSizeY() );
@@ -1050,7 +898,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 					fadeStart, fadeEnd);
 
-				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, scratch);
+				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 			}
 			else if (SamplingMethod == ESamplingMethod::BiLinear)
 			{
@@ -1060,7 +908,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 					fadeStart, fadeEnd);
 
-				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, scratch);
+				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 			}
 			else
 			{
@@ -1080,7 +928,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 						pMask->GetData(),
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 						fadeStart, fadeEnd);
-					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, scratch);
+					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 				}
 				else if (SamplingMethod == ESamplingMethod::BiLinear)
 				{
@@ -1089,7 +937,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 						pMask->GetData(),
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 						fadeStart, fadeEnd);
-					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, scratch);
+					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 				}
 				else
 				{
@@ -1105,7 +953,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 						nullptr,
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 						fadeStart, fadeEnd);
-					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, scratch);
+					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 				}
 				else if (SamplingMethod == ESamplingMethod::BiLinear)
 				{
@@ -1114,7 +962,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 						nullptr,
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 						fadeStart, fadeEnd);
-					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, scratch);
+					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 				}
 				else
 				{
@@ -1133,7 +981,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 					fadeStart, fadeEnd);
 
-				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, scratch);
+				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 			}
 			else if (SamplingMethod == ESamplingMethod::BiLinear)
 			{	
@@ -1143,7 +991,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
 					fadeStart, fadeEnd);
 
-				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, scratch);
+				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 			}
 			else
 			{
@@ -1154,23 +1002,12 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh,
         else
         {
 			check(false);
-    //        RasterProjectedPixelProcessor pixelProc( pSource,
-				//pImage->GetData(),
-				//pMask ? pMask->GetData() : 0,
-				//bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-				//fadeStart, fadeEnd );
-
-    //        ImageRasterProjected_OptimisedWrapping( pMesh, pImage, pixelProc, fadeEnd, block, scratch );
-        }
+         }
     }
 
     else
     {
         check(false);
-        // Generic version
-        //ImageRasterProjected_Generic( pMesh, pImage, pSource, pMask,
-        //                      fadeStart, fadeEnd,
-        //                      layout, block );
     }
 
 }
@@ -1256,15 +1093,14 @@ int32 ComputeProjectedFootprintBestMip(
 }
 
 //-------------------------------------------------------------------------------------------------
-void ImageRasterProjectedCylindrical( const Mesh* pMesh,
-                                        Image* pImage,
-                                        const Image* pSource,
-                                        const Image* pMask,
-										bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
-                                        float fadeStart, float fadeEnd,
-                                        int /*layout*/,
-                                        float projectionAngle,
-                                        SCRATCH_IMAGE_PROJECT* scratch )
+void ImageRasterProjectedCylindrical( const Mesh* pMesh, Image* pImage,
+	const Image* pSource, const Image* pMask,
+	bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
+	float fadeStart, float fadeEnd,
+	int /*layout*/,
+	float projectionAngle,
+	UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
+	SCRATCH_IMAGE_PROJECT* scratch )
 {
     check( !pMask || pMask->GetSizeX() == pImage->GetSizeX() );
     check( !pMask || pMask->GetSizeY() == pImage->GetSizeY() );
@@ -1284,7 +1120,7 @@ void ImageRasterProjectedCylindrical( const Mesh* pMesh,
                                                        fadeStart, fadeEnd,
                                                                           projectionAngle);
 
-            ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
+            ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch );
         }
 
         else if ( pSource->GetFormat() == EImageFormat::IF_RGBA_UBYTE ||
@@ -1297,7 +1133,7 @@ void ImageRasterProjectedCylindrical( const Mesh* pMesh,
                                                            pMask->GetData(),
                                                            fadeStart, fadeEnd,
                                                                                   projectionAngle );
-                ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
+                ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch );
             }
             else
             {
@@ -1306,7 +1142,7 @@ void ImageRasterProjectedCylindrical( const Mesh* pMesh,
                                                            nullptr,
                                                            fadeStart, fadeEnd,
                                                                                    projectionAngle );
-                ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
+                ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch );
             }
 
         }
@@ -1319,30 +1155,17 @@ void ImageRasterProjectedCylindrical( const Mesh* pMesh,
                                                      fadeStart, fadeEnd,
                                                                          projectionAngle );
 
-            ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, scratch );
+            ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch );
         }
 
         else
         {
             check(false);
-//            RasterCylindricalProjectedPixelProcessor pixelProc( pSource,
-//                                             pImage->GetData(),
-//                                             pMask ? pMask->GetData() : 0,
-//                                             fadeStart, fadeEnd,
-//                                                                projectionAngle );
-
-//            ImageRasterProjected_Optimised( pMesh, pImage, pixelProc, fadeEnd, block, scratch );
         }
     }
     else
     {
         check(false);
-        // Generic version
-        // TODO: It will allocate temp memory.
-//        ImageRasterCylindricalProjected_Generic( pMesh, pImage, pSource, pMask,
-//                              fadeStart, fadeEnd,
-//                                                 projectionAngle,
-//                              layout, block );
     }
 
 }

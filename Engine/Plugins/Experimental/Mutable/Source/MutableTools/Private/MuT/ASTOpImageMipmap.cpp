@@ -131,6 +131,15 @@ namespace mu
 			break;
 		}
 
+		case OP_TYPE::IM_PLAINCOLOUR:
+		{
+			// Set the mipmap generation on the plaincolour operation
+			Ptr<ASTOpFixed> mop = mu::Clone<ASTOpFixed>(sourceAt);
+			mop->op.args.ImagePlainColour.LODs = Levels;
+			at = mop;
+			break;
+		}
+
 		case OP_TYPE::IM_PIXELFORMAT:
 		{
 			// Swap unless the mipmap operation builds only the tail or is compressed.
@@ -414,12 +423,16 @@ namespace mu
 					Ptr<ASTOpImagePatch> newOp = mu::Clone<ASTOpImagePatch>(at);
 					newOp->base = Visit(newOp->base.child(), newMip.get());
 					newOp->patch = Visit(newOp->patch.child(), newMip.get());
+					newAt = newOp;
 
-					// We need to add a mipmap on top to finish the mipmapping
-					mu::Ptr<ASTOpImageMipmap> topMipOp = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
-					topMipOp->Source = newOp;
-					topMipOp->bOnlyTail = true;
-					newAt = topMipOp;
+					if (currentMipmapOp->Levels != currentMipmapOp->BlockLevels)
+					{
+						// We need to add a mipmap on top to finish the mipmapping
+						mu::Ptr<ASTOpImageMipmap> topMipOp = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);
+						topMipOp->Source = newOp;
+						topMipOp->bOnlyTail = true;
+						newAt = topMipOp;
+					}
 				}
 				else
 				{
@@ -427,6 +440,7 @@ namespace mu
 					Ptr<ASTOpImagePatch> newOp = mu::Clone<ASTOpImagePatch>(at);
 					newOp->base = Visit(newOp->base.child(), currentMipmapOp);
 					newOp->patch = Visit(newOp->patch.child(), currentMipmapOp);
+					newAt = newOp;
 				}
 			}
 

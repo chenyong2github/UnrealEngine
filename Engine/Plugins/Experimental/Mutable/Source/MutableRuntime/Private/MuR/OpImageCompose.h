@@ -10,7 +10,7 @@
 namespace mu
 {
 
-	inline void ImageCompose( Image* pBase, const Image* pBlock, const box< vec2<int> >& rect )
+	inline void ImageCompose( Image* pBase, const Image* pBlock, const box< UE::Math::TIntVector2<uint16> >& rect )
 	{
 		check(pBase && pBlock);
 		check(pBase != pBlock);
@@ -55,15 +55,20 @@ namespace mu
 		else
 		{
 			// Sizes in blocks of the current mips
-			vec2<int> baseMipSize(pBase->GetSizeX() / finfo.m_pixelsPerBlockX,
+			UE::Math::TIntVector2<uint16> baseMipSize(
+				pBase->GetSizeX() / finfo.m_pixelsPerBlockX,
 				pBase->GetSizeY() / finfo.m_pixelsPerBlockY);
-			vec2<int> blockMipPos(rect.min[0] / finfo.m_pixelsPerBlockX,
+
+			UE::Math::TIntVector2<uint16> blockMipPos(
+				rect.min[0] / finfo.m_pixelsPerBlockX,
 				rect.min[1] / finfo.m_pixelsPerBlockY);
-			vec2<int> blockMipSize(rect.size[0] / finfo.m_pixelsPerBlockX,
+
+			UE::Math::TIntVector2<uint16> blockMipSize(
+				rect.size[0] / finfo.m_pixelsPerBlockX,
 				rect.size[1] / finfo.m_pixelsPerBlockY);
 
 			int doneMips = 0;
-			for (doneMips = 0; doneMips < pBase->GetLODCount() && doneMips < pBlock->GetLODCount(); ++doneMips)
+			for (; doneMips < pBase->GetLODCount() && doneMips < pBlock->GetLODCount(); ++doneMips)
 			{
 				//UE_LOG(LogMutableCore, Warning, "Block Mip Pos : %d, %d", blockMipPos[0], blockMipPos[1]);
 
@@ -90,15 +95,16 @@ namespace mu
 				// pixel format block size.
 				if (blockMipPos[0] % 2 || blockMipPos[1] % 2 || blockMipSize[0] % 2 || blockMipSize[1] % 2)
 				{
+					++doneMips;
 					break;
 				}
 
-				baseMipSize[0] = FMath::DivideAndRoundUp(baseMipSize[0], 2);
-				baseMipSize[1] = FMath::DivideAndRoundUp(baseMipSize[1], 2);
-				blockMipPos[0] = FMath::DivideAndRoundUp(blockMipPos[0], 2);
-				blockMipPos[1] = FMath::DivideAndRoundUp(blockMipPos[1], 2);
-				blockMipSize[0] = FMath::DivideAndRoundUp(blockMipSize[0], 2);
-				blockMipSize[1] = FMath::DivideAndRoundUp(blockMipSize[1], 2);
+				baseMipSize[0] = FMath::DivideAndRoundUp(baseMipSize[0], uint16(2));
+				baseMipSize[1] = FMath::DivideAndRoundUp(baseMipSize[1], uint16(2));
+				blockMipPos[0] = FMath::DivideAndRoundUp(blockMipPos[0], uint16(2));
+				blockMipPos[1] = FMath::DivideAndRoundUp(blockMipPos[1], uint16(2));
+				blockMipSize[0] = FMath::DivideAndRoundUp(blockMipSize[0], uint16(2));
+				blockMipSize[1] = FMath::DivideAndRoundUp(blockMipSize[1], uint16(2));
 			}
 
 			// Adjust the actually valid mips, maybe wasting some of the reserved memory.

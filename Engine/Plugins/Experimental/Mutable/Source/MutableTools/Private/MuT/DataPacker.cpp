@@ -766,6 +766,7 @@ namespace mu
 					NewPlain->op.args.ImagePlainColour.format = pOld->GetFormat();
 					NewPlain->op.args.ImagePlainColour.size[0] = pOld->GetSizeX();
 					NewPlain->op.args.ImagePlainColour.size[1] = pOld->GetSizeY();
+					NewPlain->op.args.ImagePlainColour.LODs = 1;
 
 					ASTOp::Replace(n, NewPlain);
 

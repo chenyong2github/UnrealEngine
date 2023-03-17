@@ -64,9 +64,14 @@ namespace mu
         //! process very slow, but will be able to compile very large models.
         void SetUseDiskCache( bool enabled );
 
-        //! Set the quality for the image compression algorithms. The level value is used internally
-        //! with System::SetImagecompressionQuality
-        void SetImageCompressionQuality( int quality );
+		//! Set the quality for the image compression algorithms. The level value is used internally
+		//! with System::SetImagecompressionQuality
+		void SetImageCompressionQuality(int quality);
+
+		/** Set the image tiling strategy :
+		 * If 0 (default) there is no tiling. Otherwise, images will be generated in tiles of the given size or less, and assembled afterwards as a final step.
+		 */
+		void SetImageTiling(int32 Tiling);
 
         //! 
         void SetDataPackingStrategy( int32 minRomSize, int32 MinTextureResidentMipCount );

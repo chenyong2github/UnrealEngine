@@ -23,7 +23,8 @@ namespace mu
 	};
 
 
-	inline void ImageRasterMesh( const Mesh* pMesh, Image* pImage, int block )
+	inline void ImageRasterMesh( const Mesh* pMesh, Image* pImage, int block,
+		UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageRasterMesh)
 
@@ -44,8 +45,17 @@ namespace mu
 			ConvertData( 0, uv, MBF_FLOAT32, texIt.ptr(), texIt.GetFormat() );
 			ConvertData( 1, uv, MBF_FLOAT32, texIt.ptr(), texIt.GetFormat() );
 
-			vertices[v].x = uv[0] * sizeX;
-			vertices[v].y = uv[1] * sizeY;
+			bool bUseCropping = UncroppedSize[0] > 0;
+			if (bUseCropping)
+			{
+				vertices[v].x = uv[0] * UncroppedSize[0] - CropMin[0];
+				vertices[v].y = uv[1] * UncroppedSize[1] - CropMin[1];
+			}
+			else
+			{
+				vertices[v].x = uv[0] * sizeX;
+				vertices[v].y = uv[1] * sizeY;
+			}
 			++texIt;
 		}
 

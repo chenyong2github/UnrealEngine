@@ -36,7 +36,7 @@ struct FProgram;
 		void Link(FProgram& program, const FLinkerOptions* Options) override;
 		FImageDesc GetImageDesc(bool returnBestOption, FGetImageDescContext* context) const override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
-		//TODO: void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
+		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		//TODO: bool IsImagePlainConstant(vec4<float>& colour) const override;
 	};
 

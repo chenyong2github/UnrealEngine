@@ -61,7 +61,7 @@ namespace mu
 		{
 			FIntPoint grid = pLayout->GetGridSize();
 
-			box< vec2<int> > block;
+			box< UE::Math::TIntVector2<uint16> > block;
 			pLayout->GetBlock( b, &block.min[0], &block.min[1], &block.size[0], &block.size[1] );
 
 			Box rect;

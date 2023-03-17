@@ -132,13 +132,12 @@ namespace mu
 		//! Get the number of blocks in the layout
 		int GetBlockCount();
 
+		/** */
+		Ptr<const Layout> GetLayout() const;
+
 		//! Set a block of the layout.
 		//! minx and miny refer to the lowest left corner of the block.
         void SetBlock( int index, int minx, int miny, int sizex, int sizey );
-
-		//! Get a block of the layout.
-		//! minx and miny refer to the lowest left corner of the block.
-		void GetBlock(int index, int* minx, int* miny, int* sizex, int* sizey);
 
 		//! Set reduction block options like priority or if the block has to be reduced symmetrically.
 		void SetBlockOptions(int index, int priority, bool bUseSymmetry);

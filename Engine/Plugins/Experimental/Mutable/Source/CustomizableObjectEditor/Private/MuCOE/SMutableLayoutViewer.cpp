@@ -99,14 +99,18 @@ void SMutableLayoutViewer::Tick(const FGeometry& AllottedGeometry, const double 
 		}
 		else
 		{
-			int BlockCount = MutableLayout->GetBlockCount();
+			int32 BlockCount = MutableLayout->GetBlockCount();
 			TArray<FCustomizableObjectLayoutBlock> Blocks;
 			Blocks.SetNum( BlockCount );
-			for (int BlockIndex = 0; BlockIndex < BlockCount; ++BlockIndex)
+			for (int32 BlockIndex = 0; BlockIndex < BlockCount; ++BlockIndex)
 			{
-				FIntPoint Size;
-				MutableLayout->GetBlock(BlockIndex, &Blocks[BlockIndex].Min[0], &Blocks[BlockIndex].Min[1], &Size[0], &Size[1]);
-				Blocks[BlockIndex].Max = Blocks[BlockIndex].Min + Size;
+				UE::Math::TIntVector2<uint16> Min;
+				UE::Math::TIntVector2<uint16> Size;
+				MutableLayout->GetBlock(BlockIndex, &Min[0], &Min[1], &Size[0], &Size[1]);
+				Blocks[BlockIndex].Min[0] = Min[0];
+				Blocks[BlockIndex].Min[1] = Min[1];
+				Blocks[BlockIndex].Max[0] = Min[0] + Size[0];
+				Blocks[BlockIndex].Max[1] = Min[1] + Size[1];
 				Blocks[BlockIndex].Id = FGuid(0,0,0,BlockIndex);
 			}
 

@@ -23,9 +23,21 @@ namespace mu
 		ASTChild mask;
 		ASTChild projector;
 
-		int32 blockIndex;
-		uint16 sizeX, sizeY;
+		/** If layouts are used, this can indicate a single layout block that we want to raster. */
+		int32 BlockIndex;
+
+		/** Size of the image to generate by rasterization of the mesh. */
+		uint16 SizeX, SizeY;
+
+		/** Expected size of the image that we want to project. */
 		uint16 SourceSizeX, SourceSizeY;
+
+		/** Sub-rect to raster, ignoring all the rest.
+		 * Only valid if any UncroppedSizeX is greater than 0. 
+		 */
+		uint16 CropMinX, CropMinY;
+		uint16 UncroppedSizeX, UncroppedSizeY;
+
 		uint8 bIsRGBFadingEnabled : 1;
 		uint8 bIsAlphaFadingEnabled : 1;
 		ESamplingMethod SamplingMethod;

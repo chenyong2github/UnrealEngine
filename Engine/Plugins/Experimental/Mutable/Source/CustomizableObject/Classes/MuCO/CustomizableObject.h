@@ -175,7 +175,7 @@ struct FCompilationOptions
 	bool bSkinWeightProfilesEnabled = true;
 
 	// Used to enable physics asset merge.
-	bool bPhysicsAssetMergeEnebled = false;
+	bool bPhysicsAssetMergeEnabled = false;
 
 	// Used to reduce the number of notifications when compiling objects
 	bool bSilentCompilation = true;
@@ -183,6 +183,9 @@ struct FCompilationOptions
 	/** Force a very big number on the mips to skip during compilation. Useful to debug special cooks of the data. */
 	bool bForceLargeLODBias = false;
 	int32 DebugBias = 0;
+
+	// Control image tiled generation
+	int32 ImageTiling = 0;
 
 };
 
@@ -1365,7 +1368,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 375;
+	static const int32 CurrentSupportedVersion = 377;
 
 public:
 

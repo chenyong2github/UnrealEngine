@@ -320,7 +320,7 @@ namespace mu
 						&&
 						MaskRaster->angleFadeProperties.child() == BlendRaster->angleFadeProperties.child()
 						&&
-						MaskRaster->blockIndex == BlendRaster->blockIndex
+						MaskRaster->BlockIndex == BlendRaster->BlockIndex
 						)
 					{
 						CurrentMask = MaskRaster->image.child();

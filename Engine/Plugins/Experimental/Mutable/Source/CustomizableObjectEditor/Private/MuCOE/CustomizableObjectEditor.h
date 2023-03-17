@@ -8,6 +8,7 @@
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuCOE/ICustomizableObjectEditor.h"
 #include "TickableEditorObject.h"
+#include "Widgets/Input/SNumericDropDown.h"
 
 #include "CustomizableObjectEditor.generated.h"
 
@@ -289,6 +290,8 @@ private:
 	void ResetCompileOptions();
 	TSharedPtr<STextComboBox> CompileOptimizationCombo;
 	TArray< TSharedPtr<FString> > CompileOptimizationStrings;
+	TSharedPtr<SNumericDropDown<float>> CompileTilingCombo;
+
 	void CompileOptions_UseParallelCompilation_Toggled();
 	bool CompileOptions_UseParallelCompilation_IsChecked();
 	void CompileOptions_UseDiskCompilation_Toggled();

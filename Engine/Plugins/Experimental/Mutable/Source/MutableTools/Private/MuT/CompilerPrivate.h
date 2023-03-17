@@ -97,6 +97,7 @@ namespace mu
 		int MinTextureResidentMipCount = 3;
 
         int m_imageCompressionQuality = 0;
+		int32 m_imageTiling=0 ;
 
         bool m_log = false;
 

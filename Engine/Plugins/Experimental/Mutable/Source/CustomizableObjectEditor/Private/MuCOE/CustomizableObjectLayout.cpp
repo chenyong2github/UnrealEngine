@@ -74,11 +74,11 @@ void UCustomizableObjectLayout::GenerateBlocksFromUVs()
 	if (Node && Mesh)
 	{
 		//Creating a GenerationContext
-		FCustomizableObjectCompiler* Compiler = new FCustomizableObjectCompiler();
+		TUniquePtr<FCustomizableObjectCompiler> Compiler( new FCustomizableObjectCompiler() );
 		UCustomizableObject* Object = Node->GetGraphEditor()->GetCustomizableObject();
 		FCompilationOptions Options = Object->CompileOptions;
 	
-		FMutableGraphGenerationContext GenerationContext(Object, Compiler, Options);
+		FMutableGraphGenerationContext GenerationContext(Object, Compiler.Get(), Options);
 	
 		//Transforming skeletalmesh to mutable mesh
 		mu::MeshPtr	MutableMesh = nullptr;
@@ -102,22 +102,22 @@ void UCustomizableObjectLayout::GenerateBlocksFromUVs()
 	
 		if (MutableMesh)
 		{
-			//Generating blocks with the mutable mesh
+			// Generating blocks with the mutable mesh
 			Layout = mu::NodeLayoutBlocks::GenerateLayoutBlocks(MutableMesh, UVChannel, GridSize.X, GridSize.Y);
 		}
 	
-		delete Compiler;
+		Compiler.Reset();
 	
 		if (Layout)
 		{
 			Blocks.Empty();
 		
-			//Generating the layout blocks with the mutable layout
+			// Generating the layout blocks with the mutable layout
 			for (int i = 0; i < Layout->GetBlockCount(); ++i)
 			{
-				int minX, minY, sizeX, sizeY;
+				uint16 minX, minY, sizeX, sizeY;
 		
-				Layout->GetBlock(i, &minX, &minY, &sizeX, &sizeY);
+				Layout->GetLayout()->GetBlock(i, &minX, &minY, &sizeX, &sizeY);
 		
 				FCustomizableObjectLayoutBlock block;
 				block.Min = FIntPoint(minX, minY);

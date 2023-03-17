@@ -169,19 +169,16 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-    void NodeLayoutBlocks::SetBlock( int index, int minx, int miny, int sizex, int sizey )
+	Ptr<const Layout> NodeLayoutBlocks::GetLayout() const
 	{
-        m_pD->m_pLayout->SetBlock( index, minx, miny, sizex, sizey );
+		return m_pD->m_pLayout;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeLayoutBlocks::GetBlock(int index, int* minx, int* miny, int* sizex, int* sizey)
+    void NodeLayoutBlocks::SetBlock( int index, int minx, int miny, int sizex, int sizey )
 	{
-		if (minx && miny && sizex && sizey)
-		{
-			m_pD->m_pLayout->GetBlock(index, minx, miny, sizex, sizey);
-		}
+        m_pD->m_pLayout->SetBlock( index, minx, miny, sizex, sizey );
 	}
 
 

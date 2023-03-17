@@ -1115,5 +1115,115 @@ namespace mu
 	}
 
 
+	//---------------------------------------------------------------------------------------------
+	void Image::FillColour(FVector4f c)
+	{
+		EImageFormat Format = GetFormat();
+		switch (Format)
+		{
+		case EImageFormat::IF_RGB_UBYTE:
+		{
+			// TODO: Optimize: don't write bytes one by one
+			int pixelCount = CalculatePixelCount();
+			uint8* pData = GetData();
+			uint8 r = uint8(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f));
+			uint8 g = uint8(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f));
+			uint8 b = uint8(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f));
+			for (int p = 0; p < pixelCount; ++p)
+			{
+				pData[0] = r;
+				pData[1] = g;
+				pData[2] = b;
+				pData += 3;
+			}
+			break;
+		}
+
+		case EImageFormat::IF_RGBA_UBYTE:
+		{
+			// TODO: Optimize: don't write bytes one by one
+			int pixelCount = CalculatePixelCount();
+			uint8* pData = GetData();
+			uint8 r = uint8(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f));
+			uint8 g = uint8(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f));
+			uint8 b = uint8(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f));
+			uint8 a = uint8(FMath::Clamp(255.0f * c[3], 0.0f, 255.0f));
+			for (int p = 0; p < pixelCount; ++p)
+			{
+				pData[0] = r;
+				pData[1] = g;
+				pData[2] = b;
+				pData[3] = a;
+				pData += 4;
+			}
+			break;
+		}
+
+		case EImageFormat::IF_BGRA_UBYTE:
+		{
+			// TODO: Optimize: don't write bytes one by one
+			int pixelCount = CalculatePixelCount();
+			uint8* pData = GetData();
+			uint8 r = uint8(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f));
+			uint8 g = uint8(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f));
+			uint8 b = uint8(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f));
+			uint8 a = uint8(FMath::Clamp(255.0f * c[3], 0.0f, 255.0f));
+			for (int p = 0; p < pixelCount; ++p)
+			{
+				pData[0] = b;
+				pData[1] = g;
+				pData[2] = r;
+				pData[3] = a;
+				pData += 4;
+			}
+			break;
+		}
+
+		case EImageFormat::IF_L_UBYTE:
+		{
+			int pixelCount = CalculatePixelCount();
+			uint8* pData = GetData();
+			uint8 v = FMath::Min<uint8>(255, FMath::Max<uint8>(0, uint8(255.0f * c[0])));
+			FMemory::Memset(pData, v, pixelCount);
+			break;
+		}
+
+		default:
+		{
+			// Generic case that supports compressed formats.
+			const FImageFormatData& FormatData = GetImageFormatData(Format);
+			Ptr<Image> Block = new Image(FormatData.m_pixelsPerBlockX, FormatData.m_pixelsPerBlockY, 1, EImageFormat::IF_RGBA_UBYTE, EInitializationType::NotInitialized);
+
+			uint32 Pixel = (uint32(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f)) << 0)
+				| (uint32(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f)) << 8)
+				| (uint32(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f)) << 16)
+				| (uint32(FMath::Clamp(255.0f * c[3], 0.0f, 255.0f)) << 24);
+			uint32* BlockData = reinterpret_cast<uint32*>(Block->GetData());
+			for (int32 I = 0; I < FormatData.m_pixelsPerBlockX * FormatData.m_pixelsPerBlockY; ++I)
+			{
+				*BlockData = Pixel;
+				BlockData += 1;
+			}
+			Ptr<Image> Converted = ImagePixelFormat(0, Block.get(), Format);
+
+			int32 DataSize = CalculateDataSize();
+			check(DataSize % FormatData.m_bytesPerBlock == 0);
+			int32 BlockCount = DataSize / FormatData.m_bytesPerBlock;
+			uint8* TargetData = GetData();
+			while (BlockCount)
+			{
+				FMemory::Memcpy(TargetData, Converted->GetData(), FormatData.m_bytesPerBlock);
+				TargetData += FormatData.m_bytesPerBlock;
+				--BlockCount;
+			}
+			break;
+		}
+
+
+		}
+
+	}
+
+
 }
 

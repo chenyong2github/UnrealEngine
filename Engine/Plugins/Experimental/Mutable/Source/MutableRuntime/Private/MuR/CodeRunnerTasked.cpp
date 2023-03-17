@@ -1111,7 +1111,7 @@ namespace mu
 					case EBlendType::BT_OVERLAY: BufferLayerColour<OverlayChannel>(pNew.get(), m_base.get(), m_col); break;
 					case EBlendType::BT_LIGHTEN: BufferLayerColour<LightenChannel>(pNew.get(), m_base.get(), m_col); break;
 					case EBlendType::BT_MULTIPLY: BufferLayerColour<MultiplyChannel>(pNew.get(), m_base.get(), m_col); break;
-					case EBlendType::BT_BLEND: FillPlainColourImage(pNew.get(), m_col); break;
+					case EBlendType::BT_BLEND: pNew->FillColour(m_col); break;
 					default: check(false);
 					}
 				}
@@ -1778,7 +1778,7 @@ namespace mu
 			ImagePtr pComposed = CloneOrTakeOver<>(m_base.get());
 			pComposed->m_flags = 0;
 
-			box< vec2<int> > rectInblocks;
+			box< UE::Math::TIntVector2<uint16> > rectInblocks;
 			m_layout->GetBlock
 			(
 				relBlockIndex,
@@ -1791,7 +1791,7 @@ namespace mu
 
 			int blockSizeX = m_base->GetSizeX() / grid[0];
 			int blockSizeY = m_base->GetSizeY() / grid[1];
-			box< vec2<int> > rect = rectInblocks;
+			box< UE::Math::TIntVector2<uint16> > rect = rectInblocks;
 			rect.min[0] *= blockSizeX;
 			rect.min[1] *= blockSizeY;
 			rect.size[0] *= blockSizeX;

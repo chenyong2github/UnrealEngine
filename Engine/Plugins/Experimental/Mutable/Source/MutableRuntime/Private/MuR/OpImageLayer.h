@@ -2021,7 +2021,7 @@ namespace mu
 	inline void ImageLayerOnBaseNoAlpha( Image* pBase,
 										 const Image* pMask,
 										 const Image* pBlended,
-										 const box< vec2<int> >& rect )
+										 const box<UE::Math::TIntVector2<uint16>>& rect )
 	{
 		check( pBase->GetSizeX() >= rect.min[0]+rect.size[0] );
 		check( pBase->GetSizeY() >= rect.min[1]+rect.size[1] );
@@ -2663,7 +2663,7 @@ namespace mu
 	inline void ImageBlendOnBaseNoAlpha(Image* pBase,
 		const Image* pMask,
 		const Image* pBlended,
-		const box< vec2<int> >& rect)
+		const box< UE::Math::TIntVector2<uint16> >& rect)
 	{
 		ImageLayerOnBaseNoAlpha< BlendChannel, false>
 			(pBase, pMask, pBlended, rect);

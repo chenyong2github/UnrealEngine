@@ -1149,7 +1149,7 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
         res.m_format = EImageFormat(op.args.ImagePlainColour.format);
         res.m_size[0] = op.args.ImagePlainColour.size[0];
         res.m_size[1] = op.args.ImagePlainColour.size[1];
-        res.m_lods = 1;
+		res.m_lods = op.args.ImagePlainColour.LODs;
         check( res.m_format != EImageFormat::IF_NONE );
         break;
 
@@ -1293,6 +1293,12 @@ void ASTOpFixed::GetLayoutBlockSize( int* pBlockX, int* pBlockY )
 	{
 		*pBlockX = 0;
 		*pBlockY = 0;
+		break;
+	}
+
+	case OP_TYPE::IM_CROP:
+	{
+		GetLayoutBlockSize(op.args.ImageCrop.source, pBlockX, pBlockY);
 		break;
 	}
 

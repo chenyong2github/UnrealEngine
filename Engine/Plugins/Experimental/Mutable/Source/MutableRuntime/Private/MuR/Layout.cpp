@@ -116,7 +116,7 @@ namespace mu {
 
 
 	//---------------------------------------------------------------------------------------------
-	void Layout::GetBlock( int index, int* pMinX, int* pMinY, int* pSizeX, int* pSizeY ) const
+	void Layout::GetBlock( int index, uint16* pMinX, uint16* pMinY, uint16* pSizeX, uint16* pSizeY ) const
 	{
 		check( index >=0 && index < m_blocks.Num() );
 		check( pMinX && pMinY && pSizeX && pSizeY );

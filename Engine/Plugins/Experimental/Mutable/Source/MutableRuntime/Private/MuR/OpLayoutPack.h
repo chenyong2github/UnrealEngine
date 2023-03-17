@@ -133,8 +133,6 @@ namespace mu
 	
 
 	//---------------------------------------------------------------------------------------------
-	//! Block comparison function to establish an order
-	//---------------------------------------------------------------------------------------------
 	struct LAY_BLOCK
 	{
 		LAY_BLOCK()
@@ -142,7 +140,7 @@ namespace mu
 			index = -1;
 		}
 
-		LAY_BLOCK( int i, vec2<int> s, int p=0, bool sym = false )
+		LAY_BLOCK( int32 i, UE::Math::TIntVector2<uint16> s, int32 p=0, bool sym = false )
 		{
 			index = i;
 			size = s;
@@ -150,9 +148,9 @@ namespace mu
 			useSymmetry = sym;
 		}
 
-		int index;
-		vec2<int> size;
-		int priority;
+		int32 index;
+		UE::Math::TIntVector2<uint16> size;
+		int32 priority;
 		bool useSymmetry;
 	};
 
@@ -202,7 +200,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     struct SCRATCH_LAYOUT_PACK
     {
-        TArray< vec2<int> > blocks;
+        TArray< UE::Math::TIntVector2<uint16> > blocks;
 		TArray< LAY_BLOCK > sorted;
 		TArray< vec2<int> > positions;
 		TArray< int > priorities;
@@ -363,14 +361,15 @@ namespace mu
     // }
 
 
-	inline int32 ReductionOperation(int& BlockSize, EReductionMethod ReductionMethod)
+	inline void ReductionOperation(uint16& BlockSize, EReductionMethod ReductionMethod)
 	{
 		if (ReductionMethod == EReductionMethod::UNITARY_REDUCTION)
 		{
-			return BlockSize -= 1;
+			BlockSize -= 1;
+			return;
 		}
 		
-		return BlockSize /= 2;
+		BlockSize /= 2;
 	}
 
 
@@ -467,7 +466,7 @@ namespace mu
 	}
 
 
-	inline bool SetPositions(int bestY,int layoutSizeY, int* maxX, int* maxY, SCRATCH_LAYOUT_PACK* scratch, EPackStrategy packStrategy)
+	inline bool SetPositions(int bestY,int layoutSizeY, uint16* maxX, uint16* maxY, SCRATCH_LAYOUT_PACK* scratch, EPackStrategy packStrategy)
 	{
 		bool fits = true;
 
@@ -524,8 +523,8 @@ namespace mu
 					}
 
 					// Does it make an unfillable hole with the top or side?
-					int minX = TNumericLimits<int>::Max();
-					int minY = TNumericLimits<int>::Max();
+					uint16 minX = TNumericLimits<uint16>::Max();
+					uint16 minY = TNumericLimits<uint16>::Max();
 					for (size_t b = 0; b < scratch->sorted.Num(); ++b)
 					{
 						if (!packedFlag[b] && b != candidate)
@@ -604,7 +603,7 @@ namespace mu
 
 			// Store
 			scratch->positions[scratch->sorted[best].index] = vec2<int>(bestX, bestLevel);
-			*maxY = FMath::Max(*maxY, bestLevel + scratch->sorted[best].size[1]);
+			*maxY = FMath::Max(*maxY, uint16(bestLevel + scratch->sorted[best].size[1]) );
 
 			if (packStrategy == EPackStrategy::FIXED_LAYOUT && *maxY > layoutSizeY)
 			{
@@ -656,12 +655,12 @@ namespace mu
 		bool usePriority = false;
 
         // Look for the maximum block sizes on the layout and the total area
-        int maxX = 0;
-        int maxY = 0;
+		uint16 maxX = 0;
+		uint16 maxY = 0;
         int area = 0;
         for ( int index=0; index<blockCount; ++index )
         {
-            box< vec2<int> > b;
+            box< UE::Math::TIntVector2<uint16> > b;
             pSourceLayout->GetBlock( index, &b.min[0], &b.min[1], &b.size[0], &b.size[1] );
 
 			int p;

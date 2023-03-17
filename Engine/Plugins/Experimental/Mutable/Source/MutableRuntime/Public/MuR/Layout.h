@@ -100,7 +100,7 @@ namespace mu
 		//! (from 0 to the Y size of the grid minus one )
 		//! \param[out] pSizeX will be set to the x size of the block
 		//! \param[out] pSizeY will be set to the y size of the block
-		void GetBlock( int index, int* pMinX, int* pMinY, int* pSizeX, int* pSizeY ) const;
+		void GetBlock( int index, uint16* pMinX, uint16* pMinY, uint16* pSizeX, uint16* pSizeY ) const;
 
 		//! Returns the reduction priority of a block.
 		//! \param index Block to get priority.

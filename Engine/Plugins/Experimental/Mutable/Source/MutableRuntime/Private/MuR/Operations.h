@@ -657,7 +657,7 @@ namespace mu
             uint16 blockSize[2];
 			EImageFormat format;
 
-            //! If true, generate all the mipmaps except the ones in skipMipmaps
+            //! If true, generate mipmaps
             uint8 generateMipmaps;
 
             //! Mipmaps to generate if mipmaps are to be generated. 0 means all.
@@ -743,6 +743,9 @@ namespace mu
             ADDRESS colour;
 			EImageFormat format;
             uint16 size[2];
+
+			/** Number of mipmaps to generate. 0 means all the chain. */
+			uint8 LODs;
         };
 
         struct ImageGPUArgs
@@ -781,6 +784,8 @@ namespace mu
 			int32 blockIndex;
 			uint16 sizeX, sizeY;
 			uint16 SourceSizeX, SourceSizeY;
+			uint16 CropMinX, CropMinY;
+			uint16 UncroppedSizeX, UncroppedSizeY;
 			uint8 bIsRGBFadingEnabled : 1;
 			uint8 bIsAlphaFadingEnabled : 1;
 			
@@ -1126,7 +1131,6 @@ namespace mu
             ImagePlainColourArgs ImagePlainColour;
             ImageGPUArgs ImageGPU;
             ImageCropArgs ImageCrop;
-//            ImageRasterMeshArgs ImageRasterMesh;
             ImageDisplaceArgs ImageDisplace;
 			ImageInvertArgs ImageInvert;
 

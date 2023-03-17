@@ -26,11 +26,12 @@ namespace mu
 		, mask(this)
 		, projector(this)
 	{
-		blockIndex = -1;
-		sizeX = 0;
-		sizeY = 0;
-		SourceSizeX = 0;
-		SourceSizeY = 0;
+		BlockIndex = -1;
+		SizeX = SizeY = 0;
+		SourceSizeX = SourceSizeY = 0;
+		CropMinX = CropMinY = 0;
+		UncroppedSizeX = UncroppedSizeY = 0;
+
 		bIsRGBFadingEnabled = 1;
 		bIsAlphaFadingEnabled = 1;
 		SamplingMethod = ESamplingMethod::Point;
@@ -56,11 +57,15 @@ namespace mu
 				angleFadeProperties == Other->angleFadeProperties &&
 				mask == Other->mask &&
 				projector == Other->projector &&
-				blockIndex == Other->blockIndex &&
-				sizeX == Other->sizeX &&
-				sizeY == Other->sizeY &&
+				BlockIndex == Other->BlockIndex &&
+				SizeX == Other->SizeX &&
+				SizeY == Other->SizeY &&
 				SourceSizeX == Other->SourceSizeX &&
 				SourceSizeY == Other->SourceSizeY &&
+				CropMinX == Other->CropMinX &&
+				CropMinY == Other->CropMinY &&
+				UncroppedSizeX == Other->UncroppedSizeX &&
+				UncroppedSizeY == Other->UncroppedSizeY &&
 				bIsRGBFadingEnabled == Other->bIsRGBFadingEnabled &&
 				bIsAlphaFadingEnabled == Other->bIsAlphaFadingEnabled &&
 				SamplingMethod == Other->SamplingMethod &&
@@ -79,7 +84,7 @@ namespace mu
 		hash_combine(res, angleFadeProperties.child().get());
 		hash_combine(res, mask.child().get());
 		hash_combine(res, projector.child().get());
-		hash_combine(res, blockIndex);
+		hash_combine(res, BlockIndex);
 		return res;
 	}
 
@@ -93,9 +98,13 @@ namespace mu
 		n->angleFadeProperties = mapChild(angleFadeProperties.child());
 		n->mask = mapChild(mask.child());
 		n->projector = mapChild(projector.child());
-		n->blockIndex = blockIndex;
-		n->sizeX = sizeX;
-		n->sizeY = sizeY;
+		n->BlockIndex = BlockIndex;
+		n->SizeX = SizeX;
+		n->SizeY = SizeY;
+		n->CropMinX = CropMinX;
+		n->CropMinY = CropMinY;
+		n->UncroppedSizeX = UncroppedSizeX;
+		n->UncroppedSizeY = UncroppedSizeY;
 		n->SourceSizeX = SourceSizeX;
 		n->SourceSizeY = SourceSizeY;
 		n->bIsRGBFadingEnabled = bIsRGBFadingEnabled;
@@ -126,11 +135,15 @@ namespace mu
 			OP::ImageRasterMeshArgs args;
 			FMemory::Memzero(&args, sizeof(args));
 
-			args.blockIndex = blockIndex;
-			args.sizeX = sizeX;
-			args.sizeY = sizeY;
+			args.blockIndex = BlockIndex;
+			args.sizeX = SizeX;
+			args.sizeY = SizeY;
 			args.SourceSizeX = SourceSizeX;
 			args.SourceSizeY = SourceSizeY;
+			args.CropMinX = CropMinX;
+			args.CropMinY = CropMinY;
+			args.UncroppedSizeX = UncroppedSizeX;
+			args.UncroppedSizeY = UncroppedSizeY;
 			args.bIsRGBFadingEnabled = bIsRGBFadingEnabled;
 			args.bIsAlphaFadingEnabled = bIsAlphaFadingEnabled;
 			args.SamplingMethod = static_cast<uint8>(SamplingMethod);
@@ -175,8 +188,8 @@ namespace mu
 		if (image)
 		{
 			res = image->GetImageDesc( returnBestOption, context);
-			res.m_size[0] = sizeX;
-			res.m_size[1] = sizeY;
+			res.m_size[0] = SizeX;
+			res.m_size[1] = SizeY;
 		}
 
 
@@ -195,8 +208,8 @@ namespace mu
 	{
 		Ptr<ImageSizeExpression> pRes = new ImageSizeExpression;
 		pRes->type = ImageSizeExpression::ISET_CONSTANT;
-		pRes->size[0] = sizeX ? sizeX : 256;
-		pRes->size[1] = sizeY ? sizeY : 256;
+		pRes->size[0] = SizeX ? SizeX : 256;
+		pRes->size[1] = SizeY ? SizeY : 256;
 		return pRes;
 	}
 

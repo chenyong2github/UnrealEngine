@@ -188,8 +188,8 @@ namespace mu
             // This reference has to be the smart pointer to avoid memory aliasing, keeping
             // processed nodes alive.
             NodePtrConst pNode;
-			UE::Math::TIntVector2<int> imageSize;
-            box< UE::Math::TIntVector2<int> > imageRect;
+			UE::Math::TIntVector2<int32> imageSize;
+            box< UE::Math::TIntVector2<int32> > imageRect;
             int state = -1;
 			TArray<mu::string> activeTags;
 			TArray<LayoutPtrConst> overrideLayouts;
@@ -424,6 +424,8 @@ namespace mu
 		//!
 		FImageDesc CalculateImageDesc(const Node::Private&);
 
+		/** Evaluate if the image to generate is big enough to be split in separate operations and tiled afterwards. */
+		Ptr<ASTOp> ApplyTiling(Ptr<ASTOp> Source, FImageSize Size, EImageFormat Format);
 
         //-----------------------------------------------------------------------------------------
         // Meshes

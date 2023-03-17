@@ -174,7 +174,6 @@ namespace mu
 			break;
 		}
 
-
 		case OP_TYPE::IM_BLANKLAYOUT:
 		{
 			// Just make sure the layout format is the right one and forget the op
@@ -189,6 +188,24 @@ namespace mu
 			}
 
 			nop->op.args.ImageBlankLayout.format = format;
+			at = nop;
+			break;
+		}
+
+		case OP_TYPE::IM_PLAINCOLOUR:
+		{
+			// Just make sure the format is the right one and forget the op
+			auto nop = mu::Clone<ASTOpFixed>(sourceAt);
+
+			EImageFormat layoutFormat = (EImageFormat)nop->op.args.ImagePlainColour.format;
+			if (FormatIfAlpha != EImageFormat::IF_NONE
+				&&
+				GetImageFormatData(layoutFormat).m_channels > 3)
+			{
+				format = FormatIfAlpha;
+			}
+
+			nop->op.args.ImagePlainColour.format = format;
 			at = nop;
 			break;
 		}

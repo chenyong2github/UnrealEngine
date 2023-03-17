@@ -250,7 +250,8 @@ namespace mu
             wplainOp->SetChild( wplainOp->op.args.ImagePlainColour.colour, whiteOp );
             wplainOp->op.args.ImagePlainColour.format = EImageFormat::IF_L_UBYTE;
             wplainOp->op.args.ImagePlainColour.size[0] = 4;
-            wplainOp->op.args.ImagePlainColour.size[1] = 4;
+			wplainOp->op.args.ImagePlainColour.size[1] = 4;
+			wplainOp->op.args.ImagePlainColour.LODs = 1;
 
             Ptr<ASTOpFixed> wresizeOp = new ASTOpFixed;
             wresizeOp->op.type = OP_TYPE::IM_RESIZELIKE;
@@ -475,7 +476,8 @@ namespace mu
                             plainOp->SetChild( plainOp->op.args.ImagePlainColour.colour, blackOp );
                             plainOp->op.args.ImagePlainColour.format = EImageFormat::IF_L_UBYTE;
                             plainOp->op.args.ImagePlainColour.size[0] = 4;
-                            plainOp->op.args.ImagePlainColour.size[1] = 4;
+							plainOp->op.args.ImagePlainColour.size[1] = 4;
+							plainOp->op.args.ImagePlainColour.LODs = 1;
 
                             Ptr<ASTOpFixed> resizeOp = new ASTOpFixed;
                             resizeOp->op.type = OP_TYPE::IM_RESIZELIKE;
@@ -519,6 +521,8 @@ namespace mu
 //							plainOp.type = OP_TYPE::IM_PLAINCOLOUR;
 //							plainOp.args.ImagePlainColour.colour = program.AddOp( blackOp );
 //							plainOp.args.ImagePlainColour.format = IF_L_UBYTE;
+//							plainOp.args.ImagePlainColour.size = ;
+//							plainOp.args.ImagePlainColour.LODs = ;
 
 //							OP resizeOp;
 //							resizeOp.type = OP_TYPE::IM_RESIZELIKE;
@@ -579,7 +583,8 @@ namespace mu
                             plainOp->SetChild( plainOp->op.args.ImagePlainColour.colour, blackOp );
                             plainOp->op.args.ImagePlainColour.format = EImageFormat::IF_L_UBYTE;
                             plainOp->op.args.ImagePlainColour.size[0] = 4;
-                            plainOp->op.args.ImagePlainColour.size[1] = 4;
+							plainOp->op.args.ImagePlainColour.size[1] = 4;
+							plainOp->op.args.ImagePlainColour.LODs = 1;
 
                             Ptr<ASTOpFixed> resizeOp = new ASTOpFixed;
                             resizeOp->op.type = OP_TYPE::IM_RESIZELIKE;
@@ -1046,7 +1051,8 @@ namespace mu
                         plainOp->SetChild( plainOp->op.args.ImagePlainColour.colour, blackOp );
                         plainOp->op.args.ImagePlainColour.format = EImageFormat::IF_L_UBYTE;
                         plainOp->op.args.ImagePlainColour.size[0] = 4;
-                        plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.LODs = 1;
 
                         Ptr<ASTOpFixed> baseResizeOp = new ASTOpFixed;
                         baseResizeOp->op.type = OP_TYPE::IM_RESIZELIKE;
@@ -1102,7 +1108,8 @@ namespace mu
                         plainOp->SetChild( plainOp->op.args.ImagePlainColour.colour, blackOp );
                         plainOp->op.args.ImagePlainColour.format = EImageFormat::IF_L_UBYTE;
                         plainOp->op.args.ImagePlainColour.size[0] = 4;
-                        plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.LODs = 1;
 
                         Ptr<ASTOpFixed> baseResizeOp = new ASTOpFixed;
                         baseResizeOp->op.type = OP_TYPE::IM_RESIZELIKE;
@@ -1130,7 +1137,8 @@ namespace mu
                         FImageDesc blendedDesc = baseAt->GetImageDesc();
                         plainOp->op.args.ImagePlainColour.format = blendedDesc.m_format;
                         plainOp->op.args.ImagePlainColour.size[0] = 4;
-                        plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.LODs = 1;
 
                         Ptr<ASTOpFixed> resizeOp = new ASTOpFixed;
                         resizeOp->op.type = OP_TYPE::IM_RESIZELIKE;
@@ -1213,7 +1221,8 @@ namespace mu
                         plainOp->SetChild( plainOp->op.args.ImagePlainColour.colour, blackOp );
                         plainOp->op.args.ImagePlainColour.format = EImageFormat::IF_L_UBYTE; //TODO: FORMAT_LIKE
                         plainOp->op.args.ImagePlainColour.size[0] = 4;
-                        plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.LODs = 1;
 
                         Ptr<ASTOpFixed> blockResizeOp = new ASTOpFixed;
                         blockResizeOp->op.type = OP_TYPE::IM_RESIZELIKE;
@@ -1259,7 +1268,8 @@ namespace mu
                         plainOp->SetChild( plainOp->op.args.ImagePlainColour.colour, blackOp );
                         plainOp->op.args.ImagePlainColour.format = EImageFormat::IF_L_UBYTE; //TODO: FORMAT_LIKE
                         plainOp->op.args.ImagePlainColour.size[0] = 4;
-                        plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.size[1] = 4;
+						plainOp->op.args.ImagePlainColour.LODs = 1;
 
                         Ptr<ASTOpFixed> blockResizeOp = new ASTOpFixed;
                         blockResizeOp->op.type = OP_TYPE::IM_RESIZELIKE;

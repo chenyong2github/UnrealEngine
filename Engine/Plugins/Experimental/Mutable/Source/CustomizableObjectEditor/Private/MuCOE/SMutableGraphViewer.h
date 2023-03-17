@@ -4,6 +4,7 @@
 
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SNumericDropDown.h"
 
 class STableViewBase;
 namespace ESelectInfo { enum Type : int; }
@@ -103,6 +104,7 @@ private:
 	TSharedRef<SWidget> GenerateCompileOptionsMenuContent();
 	TSharedPtr<STextComboBox> CompileOptimizationCombo;
 	TArray< TSharedPtr<FString> > CompileOptimizationStrings;
+	TSharedPtr<SNumericDropDown<float>> CompileTilingCombo;
 	void OnChangeCompileOptimizationLevel(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 
 	/** Callbacks from the tree widget. */

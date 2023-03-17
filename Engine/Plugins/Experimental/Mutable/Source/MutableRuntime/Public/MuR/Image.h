@@ -385,6 +385,9 @@ namespace mu
 		void GetNonBlackRect(FImageRect& rect) const;
 		void GetNonBlackRect_Reference(FImageRect& rect) const;
 
+		/** Fill the image with a plain colour. */
+		void FillColour(FVector4f c);
+
 	};
 }
 

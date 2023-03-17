@@ -136,7 +136,7 @@ namespace mu
 			IMAGE_STATE newState;
 			newState.m_imageSize[0] = desc.m_size[0] ? desc.m_size[0] : 256;
 			newState.m_imageSize[1] = desc.m_size[1] ? desc.m_size[1] : 256;
-			newState.m_imageRect.size = FIntVector2(desc.m_size);
+			newState.m_imageRect.size = UE::Math::TIntVector2<int32>(desc.m_size);
 			newState.m_imageRect.min[0] = 0;
 			newState.m_imageRect.min[1] = 0;
 			newState.m_layoutBlockId = -1;
@@ -1276,7 +1276,8 @@ namespace mu
         op->SetChild( op->op.args.ImagePlainColour.colour, base);
 		op->op.args.ImagePlainColour.format = node.Format;
         op->op.args.ImagePlainColour.size[0] = uint16(node.m_sizeX);
-        op->op.args.ImagePlainColour.size[1] = uint16(node.m_sizeY);
+		op->op.args.ImagePlainColour.size[1] = uint16(node.m_sizeY);
+		op->op.args.ImagePlainColour.LODs = 1;
 
         Ptr<ASTOpFixed> opSize = new ASTOpFixed();
         opSize->op.type = OP_TYPE::IM_RESIZE;
@@ -1572,10 +1573,10 @@ namespace mu
         }
 
         // Image size, from the current block being generated
-        op->sizeX = (uint16)m_imageState.Last().m_imageRect.size[0];
-        op->sizeY = (uint16)m_imageState.Last().m_imageRect.size[1];
+        op->SizeX = (uint16)m_imageState.Last().m_imageRect.size[0];
+        op->SizeY = (uint16)m_imageState.Last().m_imageRect.size[1];
 		// \TODO: Review naming of arg
-        op->blockIndex = GeneratedLayoutBlockId;
+        op->BlockIndex = GeneratedLayoutBlockId;
 
 		op->bIsRGBFadingEnabled = node.bIsRGBFadingEnabled;
 		op->bIsAlphaFadingEnabled = node.bIsAlphaFadingEnabled;
@@ -1602,11 +1603,9 @@ namespace mu
         // Target mask
         if ( node.m_pMask )
         {
-            auto mask = Generate( node.m_pMask.get() );
+            Ptr<ASTOp> mask = Generate( node.m_pMask.get() );
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
-            op->mask = GenerateImageSize( mask,
-                      FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
-                                  (uint16)m_imageState.Last().m_imageRect.size[1]) );
+            op->mask = GenerateImageSize( mask, FImageSize( m_imageState.Last().m_imageRect.size ) );
         }
 
         // Seam correction operations
@@ -1615,11 +1614,13 @@ namespace mu
         rasterop->mesh = op->mesh.child();
         rasterop->image = 0;
         rasterop->mask = 0;
-        rasterop->blockIndex = op->blockIndex;
-        rasterop->sizeX = op->sizeX;
-        rasterop->sizeY = op->sizeY;
-		rasterop->SourceSizeX = op->sizeX;
-		rasterop->SourceSizeY = op->sizeX;
+        rasterop->BlockIndex = op->BlockIndex;
+		rasterop->SizeX = op->SizeX;
+		rasterop->SizeY = op->SizeY;
+		rasterop->UncroppedSizeX = op->UncroppedSizeX;
+		rasterop->UncroppedSizeY = op->UncroppedSizeY;
+		rasterop->CropMinX = op->CropMinX;
+		rasterop->CropMinY = op->CropMinY;
 		rasterop->SamplingMethod = ESamplingMethod::Point;
 		rasterop->MinFilterMethod = EMinFilterMethod::None;
 
