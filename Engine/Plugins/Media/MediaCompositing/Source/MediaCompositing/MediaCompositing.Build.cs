@@ -16,6 +16,11 @@ namespace UnrealBuildTool.Rules
 					"TimeManagement",
 				});
 
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("UnrealEd");
+			}
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
