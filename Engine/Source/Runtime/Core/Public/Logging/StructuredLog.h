@@ -126,9 +126,6 @@ class FLogTemplate;
 
 /**
  * Time that a log event occurred.
- *
- * This abstraction exists to hide the multiple time representations.
- * When cycles can be converted to FDateTime, this can stop storing ticks.
  */
 class FLogTime
 {
@@ -137,15 +134,10 @@ public:
 
 	constexpr FLogTime() = default;
 
-	/** Returns the cycle count. 0 when the time was not set. */
-	constexpr uint64 GetCycles() const { return Cycles; }
-
 	/** Returns the UTC time. 0 ticks when the time was not set. */
 	UE_API FDateTime GetUtcTime() const;
 
 private:
-	/** Cycles from FPlatformTime::Cycles64() */
-	uint64 Cycles = 0;
 	/** Ticks from FDateTime::UtcNow() */
 	int64 UtcTicks = 0;
 };

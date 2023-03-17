@@ -506,7 +506,6 @@ FLogTime FLogTime::Now()
 {
 	FLogTime Time;
 	Time.UtcTicks = FDateTime::UtcNow().GetTicks();
-	Time.Cycles = FPlatformTime::Cycles64();
 	return Time;
 }
 

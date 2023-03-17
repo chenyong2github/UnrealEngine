@@ -439,7 +439,7 @@ private:
 	{
 		TStringBuilder<512> V;
 		Record.FormatMessageTo(V);
-		Serialize(*V, Record.GetVerbosity(), Record.GetCategory(), FPlatformTime::ToSeconds64(Record.GetTime().GetCycles()));
+		Serialize(*V, Record.GetVerbosity(), Record.GetCategory(), -1.0);
 	}
 
 	template <typename CharType>
