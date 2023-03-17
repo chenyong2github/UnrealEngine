@@ -283,7 +283,8 @@ namespace Audio
 		void AudioMixerThreadMPSCCommand(TFunction<void()> InCommand);
 		
 	private:
-		
+#define INVALID_AUDIO_RENDER_THREAD_ID static_cast<uint32>(-1)
+		uint32 AudioRenderThreadId = INVALID_AUDIO_RENDER_THREAD_ID;
 		void ReleaseSource(const int32 SourceId);
 		void BuildSourceEffectChain(const int32 SourceId, FSoundEffectSourceInitData& InitData, const TArray<FSourceEffectChainEntry>& SourceEffectChain, TArray<TSoundEffectSourcePtr>& OutSourceEffects);
 		void ResetSourceEffectChain(const int32 SourceId);

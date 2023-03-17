@@ -17,6 +17,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Async/Async.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "HAL/PlatformStackWalk.h"
 #include "Stats/Stats.h"
 #include "Trace/Trace.h"
 
@@ -3278,12 +3279,22 @@ namespace Audio
 		else
 		{
 			UE_LOG(LogAudioMixer, Error,  TEXT("Command buffer grown to %umb, preventing any more adds! Likely cause, the h/w has stopped consuming data."), CurrentBufferSizeInBytes >>20);
+			
+			if (AudioRenderThreadId != INVALID_AUDIO_RENDER_THREAD_ID)
+			{
+				const SIZE_T StackTraceSize = 65536;
+				ANSICHAR StackTrace[StackTraceSize] = {0};
+				FPlatformStackWalk::ThreadStackWalkAndDump(StackTrace, StackTraceSize, 0, AudioRenderThreadId);
+				UE_LOG(LogAudioMixer, Fatal, TEXT("***** ThreadStackWalkAndDump for ThreadId(%lu) ******\n%s"), AudioRenderThreadId, ANSI_TO_TCHAR(StackTrace));
+			}
+			
 		}
 	}
 
 	void FMixerSourceManager::PumpCommandQueue()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AudioMixerThreadCommands::PumpCommandQueue)
+		AudioRenderThreadId = FPlatformTLS::GetCurrentThreadId();
 		
 		// If we're already triggered, we need to wait for the audio thread to reset it before pumping
 		if (FPlatformProcess::SupportsMultithreading())
