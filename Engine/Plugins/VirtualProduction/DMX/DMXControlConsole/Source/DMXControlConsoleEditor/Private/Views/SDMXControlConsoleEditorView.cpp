@@ -27,6 +27,7 @@
 #include "ScopedTransaction.h"
 #include "TimerManager.h"
 #include "Application/ThrottleManager.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"

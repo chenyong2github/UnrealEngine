@@ -19,16 +19,6 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "DMXControlConsole",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "DMXControlConsoleEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
-		},
-		{
 			"Name": "DMXEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
