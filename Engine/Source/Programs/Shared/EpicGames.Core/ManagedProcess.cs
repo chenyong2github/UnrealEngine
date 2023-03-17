@@ -1274,6 +1274,30 @@ namespace EpicGames.Core
 			}
 		}
 
+		class ProcessWaitHandle : WaitHandle
+		{
+			public ProcessWaitHandle(SafeFileHandle processHandle)
+			{
+				SafeWaitHandle = new SafeWaitHandle(processHandle.DangerousGetHandle(), false);
+			}
+		}
+
+		/// <summary>
+		/// Waits for the process to exit
+		/// </summary>
+		public async Task WaitForExitAsync(CancellationToken cancellationToken = default)
+		{
+			if (_frameworkProcess == null)
+			{
+				using ProcessWaitHandle waitHandle = new ProcessWaitHandle(_processHandle!);
+				await waitHandle.WaitOneAsync(cancellationToken); 
+			}
+			else
+			{
+				await _frameworkProcess.WaitForExitAsync(cancellationToken);
+			}
+		}
+
 		/// <summary>
 		/// The exit code of the process. Throws an exception if the process has not terminated.
 		/// </summary>

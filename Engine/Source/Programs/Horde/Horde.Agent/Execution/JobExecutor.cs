@@ -1141,13 +1141,24 @@ namespace Horde.Agent.Execution
 		static async Task<int> ExecuteProcessAsync(string fileName, string arguments, IReadOnlyDictionary<string, string>? newEnvironment, LogParser filter, ILogger logger, CancellationToken cancellationToken)
 		{
 			logger.LogInformation("Executing {File} {Arguments}", fileName.QuoteArgument(), arguments);
-			using (ManagedProcessGroup processGroup = new ManagedProcessGroup())
+
+			using (CancellationTokenSource cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
 			{
-				using (ManagedProcess process = new ManagedProcess(processGroup, fileName, arguments, null, newEnvironment, null, ProcessPriorityClass.Normal))
+				using (ManagedProcessGroup processGroup = new ManagedProcessGroup())
 				{
-					await process.CopyToAsync((buffer, offset, length) => filter.WriteData(buffer.AsMemory(offset, length)), 4096, cancellationToken);
-					process.WaitForExit();
-					return process.ExitCode;
+					using (ManagedProcess process = new ManagedProcess(processGroup, fileName, arguments, null, newEnvironment, null, ProcessPriorityClass.Normal))
+					{
+						async Task WaitForExitOrCancelAsync()
+						{
+							await process.WaitForExitAsync(cancellationToken);
+							cancellationSource.CancelAfter(TimeSpan.FromSeconds(60.0));
+						}
+
+						Task cancelTask = WaitForExitOrCancelAsync();
+						await process.CopyToAsync((buffer, offset, length) => filter.WriteData(buffer.AsMemory(offset, length)), 4096, cancellationSource.Token);
+						await cancelTask;
+						return process.ExitCode;
+					}
 				}
 			}
 		}
