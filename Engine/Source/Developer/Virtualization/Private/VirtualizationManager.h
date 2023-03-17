@@ -115,6 +115,10 @@ struct FAnalyticsEventAttribute;
  *												This can remove lengthy connection steps from the process init phase and then only connect
  *												if we actually need that service. Note that if this is true then the connection can come from
  *												any thread, so custom backend code will need to take that into account. [Default=false]
+ * UseLegacyErrorHandling [bool]:				Controls how we deal with errors encountered when pulling payloads. When true a failed payload 
+ *												pull will return an error and allow the process to carry on (the original error handling logic)
+ *												and when false a dialog will be displayed to the user warning them about the failed pull and 
+ *												prompting them to retry the pull or to quit the process. [Default=true]
  */
 
 namespace UE::Virtualization
@@ -214,6 +218,16 @@ private:
 
 	void PullDataFromAllBackends(TArrayView<FPullRequest> Requests);
 	void PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests);
+
+	enum class ErrorHandlingResult
+	{
+		/** We should try to pull the failed payloads again */
+		Retry = 0,
+		/** We should accept that some of the payloads failed and leave it to the calling system to handle */
+		AcceptFailedPayloads
+	};
+
+	ErrorHandlingResult OnPayloadPullError();
 	
 	bool ShouldVirtualizeAsset(const UObject* Owner) const;
 
@@ -289,6 +303,9 @@ private:
 	
 	/** Should backends defer connecting to their services until first use */
 	bool bLazyInitConnections;
+
+	/** When true we do not display an error dialog on failed payload pulling and rely on the caller handling it */
+	bool bUseLegacyErrorHandling;
 
 private:
 

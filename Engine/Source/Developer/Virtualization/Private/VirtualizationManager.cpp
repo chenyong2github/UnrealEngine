@@ -20,6 +20,8 @@
 #include "VirtualizationFilterSettings.h"
 #include "AnalyticsEventAttribute.h"
 
+#include "Misc/MessageDialog.h"
+
 #define LOCTEXT_NAMESPACE "Virtualization"
 
 
@@ -195,10 +197,10 @@ public:
 		return CurrentRequests;
 	}
 
-	/** Returns if we still have payloads that have not yet been found */
-	bool HasRemainingRequests() const
+	/** Returns if there are still requests that need servicing or not */
+	bool IsWorkComplete() const
 	{
-		return !CurrentRequests.IsEmpty();
+		return CurrentRequests.IsEmpty();
 	}
 
 private:
@@ -490,6 +492,7 @@ FVirtualizationManager::FVirtualizationManager()
 	, bFilterMapContent(true)
 	, bAllowSubmitIfVirtualizationFailed(false)
 	, bLazyInitConnections(false)
+	, bUseLegacyErrorHandling(true)
 	, bPendingBackendConnections(false)
 {
 }
@@ -1120,6 +1123,11 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 	bLazyInitConnections = true;
 	UE_LOG(LogVirtualization, Display, TEXT("\tLazyInitConnections : true (set by code)"));
 #endif //UE_VIRTUALIZATION_CONNECTION_LAZY_INIT
+
+	{
+		ConfigFile.GetBool(ConfigSection, TEXT("UseLegacyErrorHandling"), bUseLegacyErrorHandling);
+		UE_LOG(LogVirtualization, Display, TEXT("\tUseLegacyErrorHandling : %s"), bUseLegacyErrorHandling ? TEXT("true") : TEXT("false"));
+	}
 
 	// Deprecated
 	{
@@ -1826,36 +1834,49 @@ void FVirtualizationManager::PullDataFromAllBackends(TArrayView<FPullRequest> Re
 	}
 
 	FPullRequestCollection RequestsCollection(Requests);
-
-	for (IVirtualizationBackend* Backend : PullEnabledBackends)
+	
+	while(true)
 	{
-		check(Backend != nullptr);
-
-		if (Backend->IsOperationDebugDisabled(IVirtualizationBackend::EOperations::Pull))
+		for (IVirtualizationBackend* Backend : PullEnabledBackends)
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("Pulling from backend '%s' is debug disabled"), *Backend->GetDebugName());
-			continue;
+			check(Backend != nullptr);
+
+			if (Backend->IsOperationDebugDisabled(IVirtualizationBackend::EOperations::Pull))
+			{
+				UE_LOG(LogVirtualization, Verbose, TEXT("Pulling from backend '%s' is debug disabled"), *Backend->GetDebugName());
+				continue;
+			}
+
+			if (Backend->GetConnectionStatus() != IVirtualizationBackend::EConnectionStatus::Connected)
+			{
+				UE_LOG(LogVirtualization, Verbose, TEXT("Cannot pull from backend '%s' as it is not connected"), *Backend->GetDebugName());
+				continue;
+			}
+
+			PullDataFromBackend(*Backend, RequestsCollection.GetRequests());
+
+			const bool bShouldCache = EnumHasAllFlags(CachingPolicy, ECachingPolicy::CacheOnPull);
+
+			TArray<FPushRequest> PayloadsToCache = RequestsCollection.OnPullCompleted(*Backend, bShouldCache);
+			if (!PayloadsToCache.IsEmpty())
+			{
+				CachePayloads(PayloadsToCache, Backend);
+			}
+
+			// We can early out if there is no more requests to make
+			if (RequestsCollection.IsWorkComplete())
+			{
+				break;
+			}
 		}
 
-		if (Backend->GetConnectionStatus() != IVirtualizationBackend::EConnectionStatus::Connected)
+		if (RequestsCollection.IsWorkComplete())
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("Cannot pull from backend '%s' as it is not connected"), *Backend->GetDebugName());
-			continue;
+			return; // All payloads pulled
 		}
-
-		PullDataFromBackend(*Backend, RequestsCollection.GetRequests());
-
-		const bool bShouldCache = EnumHasAllFlags(CachingPolicy, ECachingPolicy::CacheOnPull);
-
-		TArray<FPushRequest> PayloadsToCache = RequestsCollection.OnPullCompleted(*Backend, bShouldCache);
-		if (!PayloadsToCache.IsEmpty())
+		else if (OnPayloadPullError() != ErrorHandlingResult::Retry)
 		{
-			CachePayloads(PayloadsToCache, Backend);
-		}
-
-		if (!RequestsCollection.HasRemainingRequests())
-		{
-			break;
+			return; // Some payloads failed to pull
 		}
 	}
 }
@@ -1882,6 +1903,43 @@ void FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend
 		}
 	}
 #endif //ENABLE_COOK_STATS
+}
+
+FVirtualizationManager::ErrorHandlingResult FVirtualizationManager::OnPayloadPullError()
+{
+	if (bUseLegacyErrorHandling)
+	{
+		return ErrorHandlingResult::AcceptFailedPayloads;
+	}
+
+	static FCriticalSection CriticalSection;
+
+	if (CriticalSection.TryLock())
+	{
+		FText Title = FText::FromString(TEXT("Failed to pull virtualized data!"));
+
+
+		FString Msg = FString::Printf(	TEXT("Failed to pull payload(s) from virtualization storage and allowing the editor to continue could corrupt data!"
+											 "\n\n[Yes] Retry pulling the data\n[No] Quit the editor"));
+
+		FText Message = FText::FromString(Msg);
+		EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, Message, &Title);
+
+		if (Result == EAppReturnType::No)
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("Failed to pull payloads from persistent storage and the connection could not be re-established, exiting..."));
+			GIsCriticalError = 1;
+			FPlatformMisc::RequestExit(true);
+		}
+
+		CriticalSection.Unlock();
+	}
+	else
+	{
+		FScopeLock _(&CriticalSection);
+	}
+
+	return ErrorHandlingResult::Retry;
 }
 
 bool FVirtualizationManager::ShouldVirtualizeAsset(const UObject* OwnerObject) const
