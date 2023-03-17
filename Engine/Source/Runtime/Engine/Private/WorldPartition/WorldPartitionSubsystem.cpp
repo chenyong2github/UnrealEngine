@@ -349,9 +349,11 @@ void UWorldPartitionSubsystem::DumpStreamingSources(FOutputDevice& OutputDevice)
 
 void UWorldPartitionSubsystem::UpdateStreamingState()
 {
-	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
+	//make temp copy of array as UpdateStreamingState may FlushAsyncLoading, which may add a new world partition to RegisteredWorldPartitions while iterating
+	const TArray<UWorldPartition*> RegisteredWorldPartitionsCopy = RegisteredWorldPartitions;
+	for (UWorldPartition* RegisteredWorldParition : RegisteredWorldPartitionsCopy)
 	{
-		RegisteredWorldPartition->UpdateStreamingState();
+		RegisteredWorldParition->UpdateStreamingState();
 	}
 }
 
