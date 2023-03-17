@@ -162,9 +162,10 @@ void FHoloLensMisc::LowLevelOutputDebugString(const TCHAR *Message)
 	OutputDebugString(Message);
 }
 
-void FHoloLensMisc::RequestExit(bool Force)
+void FHoloLensMisc::RequestExit(bool Force, const TCHAR* CallSite)
 {
-	UE_LOG(LogTemp, Log, TEXT("FHoloLensMisc::RequestExit(%i)"), Force);
+	UE_LOG(LogTemp, Log, TEXT("FHoloLensMisc::RequestExit(%i, %s)"), Force,
+		CallSite ? CallSite : TEXT("<NoCallSiteInfo>"));
 	if (Force)
 	{
 		// Force immediate exit.

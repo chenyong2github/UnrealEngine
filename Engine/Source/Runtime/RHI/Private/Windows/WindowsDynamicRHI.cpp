@@ -808,7 +808,7 @@ static bool HandleUnsupportedFeatureLevel(EWindowsRHI& WindowsRHI, ERHIFeatureLe
 			UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s is not supported on your system."), GetLogName(WindowsRHI), GetLogName(FeatureLevel));
 
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("RequiredDX12SM6", "DirectX 12 with Feature Level SM6 is not supported on your system. Try running without the -sm6 command line argument."));
-			FPlatformMisc::RequestExit(1);
+			FPlatformMisc::RequestExit(true, TEXT("HandleUnsupportedFeatureLevel"));
 		}
 
 		return false;
@@ -837,7 +837,7 @@ static bool HandleUnsupportedRHI(EWindowsRHI& WindowsRHI, ERHIFeatureLevel::Type
 			UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s is not supported on your system."), GetLogName(WindowsRHI), GetLogName(FeatureLevel));
 
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("RequiredDX12", "DirectX 12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
-			FPlatformMisc::RequestExit(1);
+			FPlatformMisc::RequestExit(true, TEXT("HandleUnsupportedRHI.ForcedRHI"));
 			return false;
 		}
 	}
@@ -857,25 +857,25 @@ static bool HandleUnsupportedRHI(EWindowsRHI& WindowsRHI, ERHIFeatureLevel::Type
 	if (WindowsRHI == EWindowsRHI::D3D12)
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("RequiredDX12", "DirectX 12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
-		FPlatformMisc::RequestExit(1);
+		FPlatformMisc::RequestExit(true, TEXT("HandleUnsupportedRHI.D3D12"));
 	}
 
 	if (WindowsRHI == EWindowsRHI::D3D11)
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("RequiredDX11Feature_11_SM5", "A D3D11-compatible GPU (Feature Level 11.0, Shader Model 5.0) is required to run the engine."));
-		FPlatformMisc::RequestExit(1);
+		FPlatformMisc::RequestExit(true, TEXT("HandleUnsupportedRHI.D3D11"));
 	}
 
 	if (WindowsRHI == EWindowsRHI::Vulkan)
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("RequiredVulkan", "Vulkan Driver is required to run the engine."));
-		FPlatformMisc::RequestExit(1);
+		FPlatformMisc::RequestExit(true, TEXT("HandleUnsupportedRHI.Vulkan"));
 	}
 
 	if (WindowsRHI == EWindowsRHI::OpenGL)
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("RequiredOpenGL", "OpenGL 4.3 is required to run the engine."));
-		FPlatformMisc::RequestExit(1);
+		FPlatformMisc::RequestExit(true, TEXT("HandleUnsupportedRHI.OpenGL"));
 	}
 
 	return false;

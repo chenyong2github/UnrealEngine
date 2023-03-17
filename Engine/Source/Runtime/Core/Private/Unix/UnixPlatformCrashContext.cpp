@@ -160,7 +160,7 @@ void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Context)
 	}
 	else
 	{
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("UnixPlatformCrashContext.GracefulTerminationHandler"));
 	}
 
 	GEnteredSignalHandler = 0;

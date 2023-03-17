@@ -75,7 +75,7 @@ void FUnixErrorOutputDevice::Serialize(const TCHAR* Msg, ELogVerbosity::Type Ver
 	{
 		// We crashed outside the guarded code (e.g. appExit).
 		HandleError();
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("FUnixErrorOutputDevice.Serialize.!GIsGuarded"));
 	}
 }
 

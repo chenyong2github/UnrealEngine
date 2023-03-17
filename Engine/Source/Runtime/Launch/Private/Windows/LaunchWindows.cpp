@@ -257,7 +257,7 @@ LAUNCH_API int32 LaunchWindowsStartup( HINSTANCE hInInstance, HINSTANCE hPrevIns
 			}
 			LaunchStaticShutdownAfterError();
 			FPlatformMallocCrash::Get().PrintPoolsUsage();
-			FPlatformMisc::RequestExit( true );
+			FPlatformMisc::RequestExit( true, TEXT("LaunchWindowsStartup.ExceptionHandler"));
 		}
 #endif
 	}

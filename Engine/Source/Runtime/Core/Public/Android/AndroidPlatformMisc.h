@@ -28,7 +28,7 @@ enum class ECrashContextType;
  */
 struct CORE_API FAndroidMisc : public FGenericPlatformMisc
 {
-	static void RequestExit( bool Force );
+	static void RequestExit( bool Force, const TCHAR* CallSite = nullptr);
 	static bool RestartApplication();
 	static void LocalPrint(const TCHAR *Message);
 	static bool IsLocalPrintThreadSafe() { return true; }

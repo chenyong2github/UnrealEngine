@@ -582,7 +582,7 @@ void FWindowsPlatformMisc::PlatformPreInit()
 	if ( ::GetSystemMetrics(SM_CXSCREEN) < MinResolution[0] || ::GetSystemMetrics(SM_CYSCREEN) < MinResolution[1] )
 	{
 		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("Launch", "Error_ResolutionTooLow", "The current resolution is too low to run this game.") );
-		FPlatformMisc::RequestExit( false );
+		FPlatformMisc::RequestExit( false, TEXT("FWindowsPlatformMisc::PlatformPreInit.ResolutionTooLow"));
 	}
 
 	// initialize the file SHA hash mapping
@@ -991,24 +991,26 @@ bool FWindowsPlatformMisc::IsLowLevelOutputDebugStringStructured()
 	return !!Mutex || FGenericPlatformMisc::IsLowLevelOutputDebugStringStructured();
 }
 
-void FWindowsPlatformMisc::RequestExit( bool Force )
+void FWindowsPlatformMisc::RequestExit( bool Force, const TCHAR* CallSite )
 {
-	UE_LOG(LogWindows, Log,  TEXT("FPlatformMisc::RequestExit(%i)"), Force );
+	UE_LOG(LogWindows, Log,  TEXT("FPlatformMisc::RequestExit(%i, %s)"),
+		Force, CallSite ? CallSite : TEXT("<NoCallSiteInfo>"));
 
 	// Legacy behavior that now calls through to RequestExitWithStatus
 	if( Force )
 	{
-		RequestExitWithStatus(Force, GIsCriticalError ? 3 : 0);
+		RequestExitWithStatus(Force, GIsCriticalError ? 3 : 0, CallSite);
 	}
 	else
 	{
-		RequestExitWithStatus(false, 0);
+		RequestExitWithStatus(false, 0, CallSite);
 	}
 }
 
-void FWindowsPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
+void FWindowsPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode, const TCHAR* CallSite)
 {
-	UE_LOG(LogWindows, Log, TEXT("FPlatformMisc::RequestExitWithStatus(%i, %i)"), Force, ReturnCode);
+	UE_LOG(LogWindows, Log, TEXT("FPlatformMisc::RequestExitWithStatus(%i, %i, %s)"), Force, ReturnCode,
+		CallSite ? CallSite : TEXT("<NoCallSiteInfo>"));
 
 #if ENABLE_PGO_PROFILE
 	// save current PGO profiling data and terminate immediately

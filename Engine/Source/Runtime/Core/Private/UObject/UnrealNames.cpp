@@ -1624,7 +1624,7 @@ FNamePool::FNamePool()
 		{
 			FPlatformMisc::PromptForRemoteDebugging(false);
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "DuplicatedHardcodedName", "Duplicate hardcoded name"));
-			FPlatformMisc::RequestExit(false);
+			FPlatformMisc::RequestExit(false, TEXT("FNamePool.DuplicateHardcodedName"));
 		}
 	}
 }

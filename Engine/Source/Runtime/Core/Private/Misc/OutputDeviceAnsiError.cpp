@@ -57,7 +57,7 @@ void FOutputDeviceAnsiError::Serialize( const TCHAR* Msg, ELogVerbosity::Type Ve
 		// pop up a crash window if we are not in unattended mode
 		if( FApp::IsUnattended() == false )
 		{
-			FPlatformMisc::RequestExit( true );
+			FPlatformMisc::RequestExit( true, TEXT("FOutputDeviceAnsiError::Serialize.!GIsGuarded"));
 		}
 		else
 		{

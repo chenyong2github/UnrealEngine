@@ -2879,7 +2879,7 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 			{
 				if (FParse::Param(FCommandLine::Get(), TEXT("ExitAfterReplay")) && (!LocalPlaylistTracker || LocalPlaylistTracker->IsOnLastReplay()))
 				{
-					FPlatformMisc::RequestExit(false);
+					FPlatformMisc::RequestExit(false, TEXT("DemoNetDriver"));
 				}
 				else
 				{

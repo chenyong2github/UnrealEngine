@@ -46,8 +46,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static const TCHAR* GamePersistentDownloadDir();
     static bool HasSeparateChannelForDebugOutput();
 
-	static void RequestExit(bool Force);
-	static void RequestExitWithStatus(bool Force, uint8 ReturnCode);
+	static void RequestExit(bool Force, const TCHAR* CallSite = nullptr);
+	static void RequestExitWithStatus(bool Force, uint8 ReturnCode, const TCHAR* CallSite = nullptr);
 
 	UE_DEPRECATED(4.21, "Use GetDeviceVolume, it is now callable on all platforms.")
 	static int GetAudioVolume();

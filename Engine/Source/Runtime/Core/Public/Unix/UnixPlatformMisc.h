@@ -42,8 +42,8 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 
 	static void LowLevelOutputDebugString(const TCHAR *Message);
 
-	static void RequestExit(bool Force);
-	static void RequestExitWithStatus(bool Force, uint8 ReturnCode);
+	static void RequestExit(bool Force, const TCHAR* CallSite = nullptr);
+	static void RequestExitWithStatus(bool Force, uint8 ReturnCode, const TCHAR* CallSite = nullptr);
 	static const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);
 
 	static void NormalizePath(FString& InPath);

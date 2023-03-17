@@ -942,9 +942,10 @@ bool FGenericPlatformMisc::HasSeparateChannelForDebugOutput()
 	return true;
 }
 
-void FGenericPlatformMisc::RequestExit( bool Force )
+void FGenericPlatformMisc::RequestExit( bool Force, const TCHAR* CallSite)
 {
-	UE_LOG(LogGenericPlatformMisc, Log,  TEXT("FPlatformMisc::RequestExit(%i)"), Force );
+	UE_LOG(LogGenericPlatformMisc, Log,  TEXT("FPlatformMisc::RequestExit(%i, %s)"), Force,
+		CallSite ? CallSite : TEXT("<NoCallSiteInfo>"));
 	if( Force )
 	{
 		// Force immediate exit.
@@ -971,12 +972,12 @@ bool FGenericPlatformMisc::RestartApplication()
 	return false;
 }
 
-void FGenericPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
+void FGenericPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode, const TCHAR* CallSite)
 {
 	// Generic implementation will ignore the return code - this may be important, so warn.
 	UE_LOG(LogGenericPlatformMisc, Warning, TEXT("FPlatformMisc::RequestExitWithStatus(%i, %d) - return code will be ignored by the generic implementation."), Force, ReturnCode);
 
-	return FPlatformMisc::RequestExit(Force);
+	return FPlatformMisc::RequestExit(Force, CallSite);
 }
 
 const TCHAR* FGenericPlatformMisc::GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error)

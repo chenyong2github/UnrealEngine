@@ -895,7 +895,7 @@ static void ModalErrorOrLog(const FString& Text, int64 CurrentFilePos = 0, int64
 		{
 			// Show dialog box with error message and request exit
 			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Text));
-			FPlatformMisc::RequestExit(false);
+			FPlatformMisc::RequestExit(false, TEXT("ShaderCompiler.ModalErrorOrLog"));
 		}
 		else
 		{
@@ -7936,7 +7936,7 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 			{
 				UE_LOG(LogShaders, Error, TEXT("%s"), *Message.ToString());
 				FMessageDialog::Open(EAppMsgType::Ok, Message);
-				FPlatformMisc::RequestExit(false);
+				FPlatformMisc::RequestExit(false, TEXT("CompileGlobalShaderMap"));
 				return;
 			}
 			else

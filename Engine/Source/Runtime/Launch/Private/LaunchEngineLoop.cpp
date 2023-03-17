@@ -2822,7 +2822,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		GWarn = &UnrealEdWarn;
 #else //WITH_EDITOR
 		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Engine", "EditorNotSupported", "Editor not supported in this mode."));
-		FPlatformMisc::RequestExit(false);
+		FPlatformMisc::RequestExit(false, TEXT("FEngineLoop::PreInitPreStartupScreen.bHasEditorToken"));
 		return 1;
 #endif //WITH_EDITOR
 	}
@@ -2984,7 +2984,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if CHECK_PUREVIRTUALS
 	FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Engine", "Error_PureVirtualsEnabled", "The game cannot run with CHECK_PUREVIRTUALS enabled.  Please disable CHECK_PUREVIRTUALS and rebuild the executable."));
-	FPlatformMisc::RequestExit(false);
+	FPlatformMisc::RequestExit(false, TEXT("FEngineLoop::PreInitPreStartupScreen.Check_PureVirtuals"));
 #endif
 
 	FEmbeddedCommunication::ForceTick(2);
@@ -2996,7 +2996,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// allow for game explorer processing (including parental controls) and firewalls installation
 	if (!FPlatformMisc::CommandLineCommands())
 	{
-		FPlatformMisc::RequestExit(false);
+		FPlatformMisc::RequestExit(false, TEXT("FEngineLoop::PreInitPreStartupScreen.CommandLineCommands"));
 	}
 
 #if !UE_EDITOR
@@ -5236,7 +5236,7 @@ void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, boo
 		}
 		else
 		{
-			FPlatformMisc::RequestExit(true);
+			FPlatformMisc::RequestExit(true, TEXT("DumpEarlyReads"));
 		}
 	}
 }
@@ -5540,7 +5540,7 @@ void FEngineLoop::Tick()
 	if (GScopedTestExit.IsValid() && GScopedTestExit->RequestExit())
 	{
 		UE_LOG(LogExit, Display, TEXT("**** TestExit: %s ****"), *GScopedTestExit->RequestExitPhrase());
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("FEngineLoop::Tick.GScopedTestExit"));
 	}
 #endif
 
@@ -5651,7 +5651,7 @@ void FEngineLoop::Tick()
 		if ((FApp::IsBenchmarking() && MaxFrameCounter && (GFrameCounter > MaxFrameCounter)) ||
 			(MaxTickTime && (TotalTickTime > MaxTickTime)))
 		{
-			FPlatformMisc::RequestExit(0);
+			FPlatformMisc::RequestExit(false, TEXT("FEngineLoop::Tick.Benchmarking"));
 		}
 
 		// set FApp::CurrentTime, FApp::DeltaTime and potentially wait to enforce max tick rate

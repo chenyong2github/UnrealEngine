@@ -31,7 +31,7 @@ struct CORE_API FMacPlatformMisc : public FApplePlatformMisc
 
 	static TArray<uint8> GetMacAddress();
 
-	static void RequestExit(bool Force);
+	static void RequestExit(bool Force, const TCHAR* CallSite = nullptr);
 	static EAppReturnType::Type MessageBoxExt( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption );
 	static bool CommandLineCommands();
 	static int32 NumberOfCores();

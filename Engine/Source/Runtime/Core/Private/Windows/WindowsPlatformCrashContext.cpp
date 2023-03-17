@@ -1003,7 +1003,7 @@ static void AbortHandler(int Signal)
 	__except(ReportCrash(GetExceptionInformation()))
 	{
 		GIsCriticalError = true;
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("WindowsPlatformCrashContext.AbortHandler"));
 	}
 #endif
 }
@@ -1558,7 +1558,7 @@ LONG WINAPI EngineUnhandledExceptionFilter(LPEXCEPTION_POINTERS ExceptionInfo)
 {
 	ReportCrash(ExceptionInfo);
 	GIsCriticalError = true;
-	FPlatformMisc::RequestExit(true);
+	FPlatformMisc::RequestExit(true, TEXT("WindowsPlatformCrashContext.EngineUnhandledExceptionFilter"));
 
 	return EXCEPTION_CONTINUE_SEARCH; // Not really important, RequestExit() terminates the process just above.
 }
@@ -1751,7 +1751,7 @@ FORCENOINLINE void ReportGPUCrash(const TCHAR* ErrorMessage, void* ProgramCounte
 	}
 	__except (ReportCrash(GetExceptionInformation()))
 	{
-		FPlatformMisc::RequestExit(false);
+		FPlatformMisc::RequestExit(false, TEXT("WindowsPlatformCrashContext.ReportGPUCrash"));
 	}
 #endif
 }

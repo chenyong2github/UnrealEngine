@@ -38,7 +38,7 @@ void FAndroidErrorOutputDevice::Serialize( const TCHAR* Msg, ELogVerbosity::Type
 	else
 	{
 		HandleError();
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("FAndroidErrorOutputDevice::Serialize.!GIsGuarded"));
 	}
 }
 

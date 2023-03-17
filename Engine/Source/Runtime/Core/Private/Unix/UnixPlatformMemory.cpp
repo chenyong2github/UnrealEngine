@@ -144,7 +144,7 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 	if (geteuid() == 0)
 	{
 		fprintf(stderr, "Refusing to run with the root privileges.\n");
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("FUnixPlatformMemory.BaseAllocator"));
 		// unreachable
 		return nullptr;
 	}

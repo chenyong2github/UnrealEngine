@@ -1634,11 +1634,11 @@ bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
 #endif
 }
 
-void FIOSPlatformMisc::RequestExit(bool Force)
+void FIOSPlatformMisc::RequestExit(bool Force, const TCHAR* CallSite)
 {
 	if (Force)
 	{
-		FApplePlatformMisc::RequestExit(Force);
+		FApplePlatformMisc::RequestExit(Force, CallSite);
 	}
 	else
 	{
@@ -1647,16 +1647,17 @@ void FIOSPlatformMisc::RequestExit(bool Force)
 	}
 }
 
-void FIOSPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
+void FIOSPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode, const TCHAR* CallSite)
 {
 	if (Force)
 	{
-		FApplePlatformMisc::RequestExit(Force);
+		FApplePlatformMisc::RequestExit(Force, CallSite);
 	}
 	else
 	{
 		// Implementation will ignore the return code - this may be important, so warn.
-		UE_LOG(LogIOS, Warning, TEXT("FIOSPlatformMisc::RequestExitWithStatus(%i, %d) - return code will be ignored by the generic implementation."), Force, ReturnCode);
+		UE_LOG(LogIOS, Warning, TEXT("FIOSPlatformMisc::RequestExitWithStatus(%i, %d, %s) - return code will be ignored by the generic implementation."),
+			Force, ReturnCode, CallSite ? CallSite : TEXT("<NoCallSiteInfo>"));
 
 		// ForceExit is sort of a misnomer here.  This will exit the engine loop before calling _Exit() from the app delegate
 		[[IOSAppDelegate GetDelegate] ForceExit];

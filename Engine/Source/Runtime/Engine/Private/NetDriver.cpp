@@ -5055,7 +5055,7 @@ struct FReplicationAutoCapture
 			if (KillProcessFrames == 0)
 			{
 				GLog->Flush();
-				FPlatformMisc::RequestExit(1);
+				FPlatformMisc::RequestExit(true, TEXT("FReplicationAutoCapture"));
 			}
 		}
 #endif

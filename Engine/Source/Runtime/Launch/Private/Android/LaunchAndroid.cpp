@@ -622,7 +622,7 @@ int32 AndroidMain(struct android_app* state)
 
 	UE_LOG(LogAndroid, Log, TEXT("Exiting is over"));
 
-	FPlatformMisc::RequestExit(1);
+	FPlatformMisc::RequestExit(true, TEXT("AndroidMain"));
 	return 0;
 }
 

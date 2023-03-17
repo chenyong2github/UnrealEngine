@@ -1539,7 +1539,7 @@ bool UGameEngine::HandleExitCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 	FGameDelegates::Get().GetExitCommandDelegate().Broadcast();
 
-	FPlatformMisc::RequestExit( 0 );
+	FPlatformMisc::RequestExit(false, TEXT("UGameEngine::HandleExitCommand"));
 	return true;
 }
 
@@ -1671,7 +1671,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	if (GIsClient && (GameViewport == nullptr) && FApp::CanEverRender())
 	{
 		UE_LOG(LogEngine, Log,  TEXT("All Windows Closed") );
-		FPlatformMisc::RequestExit( 0 );
+		FPlatformMisc::RequestExit(false, TEXT("UGameEngine::Tick.ViewportClosed"));
 		return;
 	}
 
@@ -2003,6 +2003,6 @@ void UGameEngine::HandleTravelFailure_NotifyGameInstance(UWorld* World, ETravelF
 void UGameEngine::HandleBrowseToDefaultMapFailure(FWorldContext& Context, const FString& TextURL, const FString& Error)
 {
 	Super::HandleBrowseToDefaultMapFailure(Context, TextURL, Error);
-	FPlatformMisc::RequestExit(false);
+	FPlatformMisc::RequestExit(false, TEXT("UGameEngine::HandleBrowseToDefaultMapFailure"));
 }
 

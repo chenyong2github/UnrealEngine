@@ -41,7 +41,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 	{
 
 	//	FMessageDialog::Open(EAppMsgType::Ok, TEXT("OpenGL 3.2 is required to run the engine."));
-		FPlatformMisc::RequestExit(1);
+		FPlatformMisc::RequestExit(true, TEXT("PlatformCreateDynamicRHI"));
 		DynamicRHIModule = NULL;
 	}
 

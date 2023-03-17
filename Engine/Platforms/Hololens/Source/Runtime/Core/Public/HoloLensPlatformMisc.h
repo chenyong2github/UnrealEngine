@@ -62,7 +62,7 @@ struct CORE_API FHoloLensMisc : public FGenericPlatformMisc
     
     static void PumpMessages(bool bFromMainLoop);
 	static void LowLevelOutputDebugString(const TCHAR *Message);
-	static void RequestExit(bool Force);
+	static void RequestExit(bool Force, const TCHAR* CallSite = nullptr);
 	static const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);
 	static void CreateGuid(struct FGuid& Result);
 	static int32 NumberOfCores();

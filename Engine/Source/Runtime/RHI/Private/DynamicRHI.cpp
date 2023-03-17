@@ -74,7 +74,7 @@ void InitNullRHI()
 	if ((DynamicRHIModule == 0) || !DynamicRHIModule->IsSupported())
 	{
 		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("DynamicRHI", "NullDrvFailure", "NullDrv failure?"));
-		FPlatformMisc::RequestExit(1);
+		FPlatformMisc::RequestExit(true, TEXT("InitNullRHI"));
 	}
 
 	GDynamicRHI = DynamicRHIModule->CreateRHI();
@@ -364,7 +364,7 @@ void RHIInit(bool bHasEditorToken)
 					FString ShaderPlatformString = LegacyShaderPlatformToShaderFormat(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel)).ToString();
 					FString Error = FString::Printf(TEXT("A Feature Level 5 video card is required to run the editor.\nAvailableFeatureLevel = %s, ShaderPlatform = %s"), *FeatureLevelString, *ShaderPlatformString);
 					FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Error));
-					FPlatformMisc::RequestExit(1);
+					FPlatformMisc::RequestExit(true, TEXT("RHIInit"));
 				}
 
 				// Update the crash context analytics

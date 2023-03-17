@@ -56,7 +56,7 @@ private:
 			if (!GameEngine->SceneViewport->GetClient()->GetWorld())
 			{
 				// @todo: Set exit code to EMovieSceneCaptureExitCode::WorldNotFound when we have the ability to do so
-				FPlatformMisc::RequestExit(false);
+				FPlatformMisc::RequestExit(false, TEXT("FMovieSceneCaptureModule::OnPostLoadMap"));
 			}
 			else
 			{
@@ -193,7 +193,7 @@ private:
 		FActiveMovieSceneCaptures::Get().Add( Capture );
 
 		Capture->OnCaptureFinished().AddLambda([]{
-			FPlatformMisc::RequestExit(0);
+			FPlatformMisc::RequestExit(false, TEXT("FMovieSceneCaptureModule::InitializeFromCommandLine"));
 		});
 		
 		return Capture;

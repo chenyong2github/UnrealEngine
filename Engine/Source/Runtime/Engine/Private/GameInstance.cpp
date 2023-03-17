@@ -654,7 +654,7 @@ void UGameInstance::StartGameInstance()
 				&& FMessageDialog::Open(EAppMsgType::OkCancel, Message) != EAppReturnType::Ok)
 			{
 				// user canceled (maybe a typo while attempting to run a commandlet)
-				FPlatformMisc::RequestExit(false);
+				FPlatformMisc::RequestExit(false, TEXT("UGameInstance::StartGameInstance.Cancelled"));
 				return;
 			}
 			else
@@ -666,7 +666,7 @@ void UGameInstance::StartGameInstance()
 		{
 			const FText Message = FText::Format(NSLOCTEXT("Engine", "MapNotFoundNoFallback", "The map specified on the commandline '{0}' could not be found. Exiting."), FText::FromString(URL.Map));
 			FMessageDialog::Open(EAppMsgType::Ok, Message);
-			FPlatformMisc::RequestExit(false);
+			FPlatformMisc::RequestExit(false, TEXT("UGameInstance::StartGameInstance.MapNotFound"));
 			return;
 		}
 	}
@@ -677,7 +677,7 @@ void UGameInstance::StartGameInstance()
 		UE_LOG(LogLoad, Error, TEXT("%s"), *FString::Printf(TEXT("Failed to enter %s: %s. Please check the log for errors."), *DefaultMap, *Error));
 		const FText Message = FText::Format(NSLOCTEXT("Engine", "DefaultMapNotFound", "The default map '{0}' could not be found. Exiting."), FText::FromString(DefaultMap));
 		FMessageDialog::Open(EAppMsgType::Ok, Message);
-		FPlatformMisc::RequestExit(false);
+		FPlatformMisc::RequestExit(false, TEXT("UGameInstance::StartGameInstance.BrowseFailure"));
 		return;
 	}
 

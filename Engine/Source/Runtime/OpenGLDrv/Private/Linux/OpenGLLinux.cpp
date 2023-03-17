@@ -128,7 +128,7 @@ void Linux_PlatformCreateDummyGLWindow( FPlatformOpenGLContext *OutContext )
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
 			*ErrorMessage.ToString(),
 			*(NSLOCTEXT("Renderer", "LinuxCannotCreatePlatformWindowTitle", "Cannot create SDL window.").ToString()));
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("Linux_PlatformCreateDummyGLWindow"));
 		// unreachable
 		return;
 	}
@@ -218,7 +218,7 @@ struct FPlatformOpenGLDevice
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
 				*(NSLOCTEXT("Renderer", "LinuxInsufficientDriversText", "Cannot create OpenGL context. Check that the drivers and hardware support at least OpenGL 4.3 (or re-run with -opengl3)").ToString()),
 				*(NSLOCTEXT("Renderer", "LinuxInsufficientDriversTitle", "Insufficient drivers or hardware").ToString()));
-			FPlatformMisc::RequestExit(true);
+			FPlatformMisc::RequestExit(true, TEXT("FPlatformOpenGLDevice()"));
 			// unreachable
 			return;
 		}
@@ -764,7 +764,7 @@ bool PlatformInitOpenGL()
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
 				*FString::Printf(TEXT("%s. SDL error: \"%s\""), *(NSLOCTEXT("Renderer", "LinuxCannotLoadLibGLText", "Unable to dynamically load libGL").ToString()), UTF8_TO_TCHAR(SDL_GetError())),
 				*(NSLOCTEXT("Renderer", "LinuxInsufficientDriversTitle", "Insufficient drivers or hardware").ToString()));
-			FPlatformMisc::RequestExit(true);
+			FPlatformMisc::RequestExit(true, TEXT("PlatformInitOpenGL"));
 			// unreachable
 			return false;
 		}

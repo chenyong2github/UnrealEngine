@@ -94,7 +94,7 @@ uint32 FRunnableThreadWin::GuardedRun()
 				// Crashed.
 				ExitCode = 1;
 				GError->HandleError();
-				FPlatformMisc::RequestExit( true );
+				FPlatformMisc::RequestExit(true, TEXT("FRunnableThreadWin::GuardedRun.ExceptionHandler"));
 			}
 			__except(EXCEPTION_EXECUTE_HANDLER)
 			{

@@ -345,7 +345,7 @@ extern volatile sig_atomic_t GEnteredSignalHandler;
 uint8 GOverriddenReturnCode = 0;
 bool GHasOverriddenReturnCode = false;
 
-void FUnixPlatformMisc::RequestExit(bool Force)
+void FUnixPlatformMisc::RequestExit(bool Force, const TCHAR* CallSite)
 {
 	if (GEnteredSignalHandler)
 	{
@@ -357,7 +357,8 @@ void FUnixPlatformMisc::RequestExit(bool Force)
 	}
 	else
 	{
-		UE_LOG(LogCore, Log,  TEXT("FUnixPlatformMisc::RequestExit(%i)"), Force );
+		UE_LOG(LogCore, Log,  TEXT("FUnixPlatformMisc::RequestExit(%i, %s)"), Force,
+			CallSite ? CallSite : TEXT("<NoCallSiteInfo>"));
 	}
 
 	if(Force)
@@ -398,11 +399,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else
 	{
 		// Tell the platform specific code we want to exit cleanly from the main loop.
-		FGenericPlatformMisc::RequestExit(Force);
+		FGenericPlatformMisc::RequestExit(Force, CallSite);
 	}
 }
 
-void FUnixPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
+void FUnixPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode, const TCHAR* CallSite)
 {
 	if (GEnteredSignalHandler)
 	{
@@ -414,13 +415,14 @@ void FUnixPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
 	}
 	else
 	{
-		UE_LOG(LogCore, Log, TEXT("FUnixPlatformMisc::RequestExit(bForce=%s, ReturnCode=%d)"), Force ? TEXT("true") : TEXT("false"), ReturnCode);
+		UE_LOG(LogCore, Log, TEXT("FUnixPlatformMisc::RequestExit(bForce=%s, ReturnCode=%d, CallSite=%s)"),
+			Force ? TEXT("true") : TEXT("false"), ReturnCode, CallSite ? CallSite : TEXT("<NoCallSiteInfo>"));
 	}
 
 	GOverriddenReturnCode = ReturnCode;
 	GHasOverriddenReturnCode = true;
 
-	return FPlatformMisc::RequestExit(Force);
+	return FPlatformMisc::RequestExit(Force, CallSite);
 }
 
 bool FUnixPlatformMisc::HasOverriddenReturnCode(uint8 * OverriddenReturnCodeToUsePtr)

@@ -155,7 +155,7 @@ struct FMallocCrashPool
 			UE_DEBUG_BREAK();
 			FPlatformMisc::LowLevelOutputDebugStringf( TEXT( "AllocateFromPool run out of memory allocating %u bytes for %u allocations\n" ), InAllocationSize, MaxNumAllocations );
 			FPlatformMisc::LowLevelOutputDebugString( TEXT( "Please increase MaxNumAllocations for that pool, exiting...\n" ) );
-			FPlatformMisc::RequestExit( true );
+			FPlatformMisc::RequestExit( true, TEXT("GenericPlatformmallocCrash::AllocateFromPool"));
 		}
 		return nullptr;
 	}
@@ -253,7 +253,7 @@ FGenericPlatformMallocCrash::FGenericPlatformMallocCrash( FMalloc* MainMalloc )
 	if( !SmallMemoryPool || !LargeMemoryPool || !BookkeepingPool )
 	{
 		FPlatformMisc::LowLevelOutputDebugString( TEXT( "Memory pools allocations failed, exiting...\n" ) );
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("GenericPlatformmallocCrash().MemoryPoolsAllocationsFailed"));
 	}
 
 	if(!IsAligned(LargeMemoryPool, REQUIRED_ALIGNMENT) 
@@ -261,7 +261,7 @@ FGenericPlatformMallocCrash::FGenericPlatformMallocCrash( FMalloc* MainMalloc )
 	|| !IsAligned(BookkeepingPool, REQUIRED_ALIGNMENT))
 	{
 		FPlatformMisc::LowLevelOutputDebugString( TEXT( "OS allocations must be aligned to a value multiple of 16, exiting...\n" ) );
-		FPlatformMisc::RequestExit(true);
+		FPlatformMisc::RequestExit(true, TEXT("GenericPlatformmallocCrash().InvalidAlignment"));
 	}
 
 	InitializeSmallPools();
@@ -335,7 +335,7 @@ void* FGenericPlatformMallocCrash::Malloc( SIZE_T Size, uint32 Alignment )
 				FPlatformMisc::LowLevelOutputDebugStringf( TEXT( "MallocCrash run out of memory allocating %u bytes, free %u bytes\n" ), Size32, LARGE_MEMORYPOOL_SIZE-LargeMemoryPoolOffset );
 				FPlatformMisc::LowLevelOutputDebugString(TEXT("Please increase LARGE_MEMORYPOOL_SIZE, exiting...\n"));
 				UE_DEBUG_BREAK();
-				FPlatformMisc::RequestExit( true );			
+				FPlatformMisc::RequestExit( true, TEXT("GenericPlatformmallocCrash::Malloc.OutOfMemory"));
 			}
 		}
 	}
@@ -363,14 +363,14 @@ void* FGenericPlatformMallocCrash::Realloc( void* Ptr, SIZE_T NewSize, uint32 Al
 					if (!PreviousMalloc->GetAllocationSize(Ptr, PtrSize) || PtrSize == 0)
 					{
 						FPlatformMisc::LowLevelOutputDebugString( TEXT( "Realloc from previous malloc - we were not able to get correct allocation size, exiting...\n" ) );
-						FPlatformMisc::RequestExit( true );
+						FPlatformMisc::RequestExit( true, TEXT("GenericPlatformmallocCrash::Realloc.InvalidAllocationSize"));
 					}
 				}
 				// There is nothing we can do about it.
 				else
 				{
 					FPlatformMisc::LowLevelOutputDebugString( TEXT( "Realloc from previous malloc - we don't know how to get allocation size, exiting...\n" ) );
-					FPlatformMisc::RequestExit( true );	
+					FPlatformMisc::RequestExit( true, TEXT("GenericPlatformmallocCrash::Realloc.CanNotHandleMissingAllocationSize"));
 				}
 			}
 			else

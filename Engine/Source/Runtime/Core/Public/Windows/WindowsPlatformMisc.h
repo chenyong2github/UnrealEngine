@@ -100,8 +100,8 @@ struct CORE_API FWindowsPlatformMisc
 		return IsDebuggerPresent();
 	}
 	
-	static void RequestExitWithStatus(bool Force, uint8 ReturnCode);
-	static void RequestExit(bool Force);
+	static void RequestExitWithStatus(bool Force, uint8 ReturnCode, const TCHAR* CallSite = nullptr);
+	static void RequestExit(bool Force, const TCHAR* CallSite = nullptr);
 	static const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);
 	static void CreateGuid(struct FGuid& Result);
 	static EAppReturnType::Type MessageBoxExt( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption );

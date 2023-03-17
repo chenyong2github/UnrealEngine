@@ -231,7 +231,7 @@ static void InitCpuThermalSensor()
 	}
 }
 
-void FAndroidMisc::RequestExit( bool Force )
+void FAndroidMisc::RequestExit( bool Force, const TCHAR* CallSite)
 {
 
 #if PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING
@@ -245,7 +245,8 @@ void FAndroidMisc::RequestExit( bool Force )
 	}
 #endif
 
-	UE_LOG(LogAndroid, Log, TEXT("FAndroidMisc::RequestExit(%i)"), Force);
+	UE_LOG(LogAndroid, Log, TEXT("FAndroidMisc::RequestExit(%i, %s)"), Force,
+		CallSite ? CallSite : TEXT("<NoCallSiteInfo>"));
 	if (GLog)
 	{
 		GLog->Flush();
