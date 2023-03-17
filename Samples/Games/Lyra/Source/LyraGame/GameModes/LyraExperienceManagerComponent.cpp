@@ -401,7 +401,7 @@ void ULyraExperienceManagerComponent::EndPlay(const EEndPlayReason::Type EndPlay
 		NumObservedPausers = 0;
 
 		// Deactivate and unload the actions
-		FGameFeatureDeactivatingContext Context(FSimpleDelegate::CreateUObject(this, &ThisClass::OnActionDeactivationCompleted));
+		FGameFeatureDeactivatingContext Context(TEXT(""), [this](FStringView) { this->OnActionDeactivationCompleted(); });
 
 		const FWorldContext* ExistingWorldContext = GEngine->GetWorldContextFromWorld(GetWorld());
 		if (ExistingWorldContext)
