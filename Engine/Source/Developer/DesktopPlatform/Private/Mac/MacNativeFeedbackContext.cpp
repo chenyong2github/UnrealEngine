@@ -301,7 +301,7 @@ void FMacNativeFeedbackContext::SerializeRecord(const UE::FLogRecord& Record)
 
 	TStringBuilder<512> Text;
 	Record.FormatMessageTo(Text);
-	SerializeToWindow(*Text, Record.GetVerbosity(), Record.GetCategory(), FPlatformTime::ToSeconds64(Record.GetTime().GetCycles()));
+	SerializeToWindow(*Text, Record.GetVerbosity(), Record.GetCategory(), -1.0);
 }
 
 void FMacNativeFeedbackContext::SerializeToWindow(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category, double Time)
