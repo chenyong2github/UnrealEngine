@@ -17,7 +17,7 @@ class IConcertClientSession;
 class UCineCameraComponent;
 
 USTRUCT()
-struct FMultiUserVCamCameraFocusData
+struct VCAMCORE_API FMultiUserVCamCameraFocusData
 {
 public:
 	GENERATED_BODY()
@@ -50,7 +50,7 @@ public:
 };
 
 USTRUCT()
-struct FMultiUserVCamCameraData
+struct VCAMCORE_API FMultiUserVCamCameraData
 {
 public:
 	GENERATED_BODY()
@@ -112,7 +112,7 @@ public:
  *
  */
 USTRUCT()
-struct FMultiUserVCamCameraComponentEvent
+struct VCAMCORE_API FMultiUserVCamCameraComponentEvent
 {
 public:
 	GENERATED_BODY()
