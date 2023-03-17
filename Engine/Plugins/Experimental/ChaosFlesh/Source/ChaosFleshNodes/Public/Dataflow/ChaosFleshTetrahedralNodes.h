@@ -60,6 +60,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0.0"))
 	FVector GridDomain = FVector(10.0, 10.0, 10.0);
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	bool bDiscardInteriorTriangles = true;
+
 	FConstructTetGridNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
@@ -150,6 +153,9 @@ public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	bool bDiscardInteriorTriangles = true;
+
 	FGenerateTetrahedralCollectionDataflowNodes(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
@@ -168,7 +174,7 @@ protected:
 
 namespace Dataflow
 {
-	TArray<FIntVector3> GetSurfaceTriangles(const TArray<FIntVector4>& Tets);
+	TArray<FIntVector3> GetSurfaceTriangles(const TArray<FIntVector4>& Tets, const bool bKeepInterior);
 	void ChaosFleshTetrahedralNodes();
 
 

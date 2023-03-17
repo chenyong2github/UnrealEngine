@@ -38,7 +38,7 @@ namespace Dataflow
 	}
 
 	// Helper to get the boundary of a tet mesh, useful for debugging / verifying output
-	TArray<FIntVector3> GetSurfaceTriangles(const TArray<FIntVector4>& Tets)
+	TArray<FIntVector3> GetSurfaceTriangles(const TArray<FIntVector4>& Tets, const bool bKeepInterior)
 	{
 		// Rotate the vector so the first element is the smallest
 		auto RotVec = [](const FIntVector3& F) -> FIntVector3
@@ -59,10 +59,15 @@ namespace Dataflow
 			Chaos::Utilities::GetTetFaces(Tets[TetIdx], TetF[0], TetF[1], TetF[2], TetF[3], false);
 			for (int32 SubIdx = 0; SubIdx < 4; ++SubIdx)
 			{
+				// A face can be shared between a maximum of 2 tets, so no need worrying about 
+				// re-adding removed faces.
 				FIntVector3 Key = RotVec(TetF[SubIdx]);
 				if (FacesSet.Contains(Key))
 				{
-					FacesSet.Remove(Key);
+					if (!bKeepInterior)
+					{
+						FacesSet.Remove(Key);
+					}
 				}
 				else
 				{
@@ -189,7 +194,7 @@ void FConstructTetGridNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 
 		UE_LOG(LogChaosFlesh, Display, TEXT("TetGrid generated %d points and %d tetrahedra."), X.Num(), Tets.Num());
 
-		TArray<FIntVector3> Tris = Dataflow::GetSurfaceTriangles(Tets);
+		TArray<FIntVector3> Tris = Dataflow::GetSurfaceTriangles(Tets, !bDiscardInteriorTriangles);
 		TUniquePtr<FTetrahedralCollection> TetCollection(
 			FTetrahedralCollection::NewTetrahedralCollection(X, Tris, Tets));
 		InCollection->AppendGeometry(*TetCollection.Get());
@@ -300,7 +305,7 @@ void FGenerateTetrahedralCollectionDataflowNodes::EvaluateIsoStuffing(
 		{
 			TArray<FVector> Vertices; Vertices.SetNumUninitialized(IsosurfaceStuffing.Vertices.Num());
 			TArray<FIntVector4> Elements; Elements.SetNumUninitialized(IsosurfaceStuffing.Tets.Num());
-			TArray<FIntVector3> SurfaceElements = Dataflow::GetSurfaceTriangles(IsosurfaceStuffing.Tets);
+			TArray<FIntVector3> SurfaceElements = Dataflow::GetSurfaceTriangles(IsosurfaceStuffing.Tets, !bDiscardInteriorTriangles);
 
 			for (int32 Tdx = 0; Tdx < IsosurfaceStuffing.Tets.Num(); ++Tdx)
 			{
@@ -366,7 +371,7 @@ void FGenerateTetrahedralCollectionDataflowNodes::EvaluateTetWild(
 		UE_LOG(LogChaosFlesh, Display,TEXT("Generating tet mesh via TetWild..."));
 		if (UE::Geometry::FTetWild::ComputeTetMesh(Params, Verts, Tris, TetVerts, Tets, &Progress))
 		{
-			TArray<FIntVector3> SurfaceElements = Dataflow::GetSurfaceTriangles(Tets);
+			TArray<FIntVector3> SurfaceElements = Dataflow::GetSurfaceTriangles(Tets, !bDiscardInteriorTriangles);
 			TUniquePtr<FTetrahedralCollection> TetCollection(FTetrahedralCollection::NewTetrahedralCollection(TetVerts, SurfaceElements, Tets));
 			InCollection->AppendGeometry(*TetCollection.Get());
 
