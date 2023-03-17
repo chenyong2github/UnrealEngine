@@ -1477,6 +1477,8 @@ uint Classification8bits;
 uint bRoughRefraction;
 uint bTileOverflowUseMaterialData;
 uint ProjectMaxBytePerPixel;
+uint MaterialBufferAllocationInBytes;
+
 float TileOverflowRatio;
 Buffer<uint> ClassificationTileDrawIndirectBuffer;
 
@@ -1504,6 +1506,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		Print(Context, Strata.MaxBytesPerPixel, ValueColor, 3, 0);
 		Print(Context, TEXT(" / "), FontWhite); 
 		Print(Context, ProjectMaxBytePerPixel, ValueColor, 3, 0);
+		Print(Context, TEXT(" ["), FontWhite); 
+		Print(Context, uint(DivideAndRoundUp(MaterialBufferAllocationInBytes, 1000000.f)), ValueColor, 4, 0);
+		Print(Context, TEXT("Mb]"), FontWhite);
 		Newline(Context);
 
 		Print(Context, TEXT(" Shading quality    : "), LegendColor);
