@@ -71,7 +71,7 @@ void FDMXProtocolSACNModule::ShutdownModule()
 		DMXProtocolModule->UnregisterProtocol(DMX_PROTOCOLNAME_SACN);
 	}
 
-	FactorySACN.Release();
+	FactorySACN.Reset();
 }
 
 FDMXProtocolSACNModule& FDMXProtocolSACNModule::Get()

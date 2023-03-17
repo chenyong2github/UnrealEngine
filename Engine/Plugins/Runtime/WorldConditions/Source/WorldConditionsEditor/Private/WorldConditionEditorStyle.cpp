@@ -70,5 +70,5 @@ FWorldConditionEditorStyle& FWorldConditionEditorStyle::Get()
 
 void FWorldConditionEditorStyle::Shutdown()
 {
-	Instance.Release();
+	Instance.Reset();
 }

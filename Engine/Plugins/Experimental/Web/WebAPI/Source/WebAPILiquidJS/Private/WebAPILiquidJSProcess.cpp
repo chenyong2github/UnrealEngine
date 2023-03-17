@@ -275,7 +275,7 @@ uint32 FWebAPILiquidJSProcess::Run()
 	#endif
 			NotificationConfig.bIsHeadless = false;
 			
-			TaskNotification.Release();
+			TaskNotification.Reset();
 			TaskNotification = MakeUnique<FAsyncTaskNotification>(NotificationConfig);
 		}).Wait();
 

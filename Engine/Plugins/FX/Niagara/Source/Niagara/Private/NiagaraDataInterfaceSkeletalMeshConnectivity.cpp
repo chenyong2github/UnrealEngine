@@ -120,7 +120,7 @@ void FSkeletalMeshConnectivity::RegisterUser(FSkeletalMeshConnectivityUsage Usag
 			}
 			else
 			{
-				Proxy.Release();
+				Proxy.Reset();
 			}
 		}
 	}

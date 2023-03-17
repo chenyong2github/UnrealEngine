@@ -608,7 +608,7 @@ void SAssetView::NewFolderItemRequested(const FContentBrowserItemTemporaryContex
 			RefreshList();
 		}
 
-		DeferredItemToCreate.Release();
+		DeferredItemToCreate.Reset();
 	}
 
 
@@ -647,7 +647,7 @@ void SAssetView::NewFileItemRequested(const FContentBrowserItemDataTemporaryCont
 			RefreshList();
 		}
 
-		DeferredItemToCreate.Release();
+		DeferredItemToCreate.Reset();
 	}
 
 	// File creation requires focus to give item a name, otherwise the item will not be created

@@ -597,7 +597,7 @@ void FOpenXRInputPlugin::FOpenXRInput::DestroyActions()
 	if (ControllerActionSet)
 	{
 		xrDestroyActionSet(ControllerActionSet->Handle);
-		ControllerActionSet.Release();
+		ControllerActionSet.Reset();
 	}
 
 	LegacyActions.Reset();

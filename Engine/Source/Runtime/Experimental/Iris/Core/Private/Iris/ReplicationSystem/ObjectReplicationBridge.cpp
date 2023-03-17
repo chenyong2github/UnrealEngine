@@ -337,7 +337,7 @@ UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(UObject* Insta
 			}
 
 			// Release instance protocol from the uniquePtr as it is now successfully bound to the handle
-			InstanceProtocol.Release();
+			(void)InstanceProtocol.Release();
 
 			return RefHandle;
 		}
@@ -601,7 +601,7 @@ FReplicationBridgeCreateNetRefHandleResult UObjectReplicationBridge::CreateNetRe
 			RegisterRemoteInstance(Handle, InstancePtr, ReplicationProtocol, InstanceProtocol.Get(), Header.Get(), Context.ConnectionId);
 
 			// Release instance protocol from the uniquePtr as it is now successfully bound to the handle
-			InstanceProtocol.Release();
+			(void)InstanceProtocol.Release();
 
 			// Now it is safe to issue OnActorChannelOpen callback
 			ensureAlwaysMsgf(OnInstantiatedFromRemote(InstancePtr, Header.Get(), Context.ConnectionId), TEXT("Failed to invoke OnInstantiatedFromRemote for Instance named %s %s"), *InstancePtr->GetName(), *Handle.ToString());

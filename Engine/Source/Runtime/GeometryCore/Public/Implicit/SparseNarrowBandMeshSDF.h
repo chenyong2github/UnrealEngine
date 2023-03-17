@@ -1193,7 +1193,7 @@ private:
 					}
 
 					// delete the atomic block after copying the data.
-					AtomicBlockPtr.Release();
+					AtomicBlockPtr.Reset();
 				}
 			
 			}, !this->bUseParallel);

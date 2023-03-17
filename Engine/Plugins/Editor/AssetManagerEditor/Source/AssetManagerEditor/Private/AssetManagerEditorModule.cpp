@@ -523,8 +523,8 @@ void FAssetManagerEditorModule::StartupModule()
 
 void FAssetManagerEditorModule::ShutdownModule()
 {
-	CookedSandbox.Release();
-	EditorCookedSandbox.Release();
+	CookedSandbox.Reset();
+	EditorCookedSandbox.Reset();
 
 	for (IConsoleObject* AuditCmd : AuditCmds)
 	{

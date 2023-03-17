@@ -479,7 +479,7 @@ namespace UE::OptiXDenoiser
 		{
 			CUDA_CHECK(FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext()));
 			OptixFlow->Destroy();
-			OptixFlow.Release();
+			OptixFlow.Reset();
 			FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
 		}
 	}

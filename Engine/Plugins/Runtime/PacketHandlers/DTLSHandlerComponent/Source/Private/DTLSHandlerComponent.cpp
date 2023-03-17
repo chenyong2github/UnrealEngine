@@ -133,7 +133,7 @@ void FDTLSHandlerComponent::EnableEncryption()
 		else
 		{
 			UE_LOG(LogDTLSHandler, Error, TEXT("EnableEncryption: Failed to initialize context."));
-			DTLSContext.Release();
+			DTLSContext.Reset();
 		}
 	}
 	else
@@ -146,7 +146,7 @@ void FDTLSHandlerComponent::DisableEncryption()
 {
 	UE_LOG(LogDTLSHandler, Log, TEXT("DisableEncryption"));
 
-	DTLSContext.Release();
+	DTLSContext.Reset();
 }
 
 bool FDTLSHandlerComponent::IsEncryptionEnabled() const

@@ -71,7 +71,7 @@ void FDMXProtocolArtNetModule::ShutdownModule()
 		DMXProtocolModule->UnregisterProtocol(DMX_PROTOCOLNAME_ARTNET);
 	}
 	
-	FactoryArtNet.Release();
+	FactoryArtNet.Reset();
 }
 
 FDMXProtocolArtNetModule& FDMXProtocolArtNetModule::Get()

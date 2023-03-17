@@ -271,7 +271,7 @@ public:
 	 *
 	 * @return true if the TUniquePtr currently owns an object, false otherwise.
 	 */
-	bool IsValid() const
+	[[nodiscard]] bool IsValid() const
 	{
 		return Ptr != nullptr;
 	}
@@ -281,19 +281,9 @@ public:
 	 *
 	 * @return true if the TUniquePtr currently owns an object, false otherwise.
 	 */
-	FORCEINLINE explicit operator bool() const
+	[[nodiscard]] FORCEINLINE explicit operator bool() const
 	{
 		return IsValid();
-	}
-
-	/**
-	 * Logical not operator
-	 *
-	 * @return false if the TUniquePtr currently owns an object, true otherwise.
-	 */
-	FORCEINLINE bool operator!() const
-	{
-		return !IsValid();
 	}
 
 	/**
@@ -301,7 +291,7 @@ public:
 	 *
 	 * @return A pointer to the object owned by the TUniquePtr.
 	 */
-	FORCEINLINE T* operator->() const
+	[[nodiscard]] FORCEINLINE T* operator->() const
 	{
 		return Ptr;
 	}
@@ -311,7 +301,7 @@ public:
 	 *
 	 * @return A reference to the object owned by the TUniquePtr.
 	 */
-	FORCEINLINE T& operator*() const
+	[[nodiscard]] FORCEINLINE T& operator*() const
 	{
 		return *Ptr;
 	}
@@ -321,7 +311,7 @@ public:
 	 *
 	 * @return A copy of the pointer to the object owned by the TUniquePtr, or nullptr if no object is being owned.
 	 */
-	FORCEINLINE T* Get() const
+	[[nodiscard]] FORCEINLINE T* Get() const
 	{
 		return Ptr;
 	}
@@ -331,7 +321,7 @@ public:
 	 *
 	 * @return The pointer to the object that was owned by the TUniquePtr, or nullptr if no object was being owned.
 	 */
-	FORCEINLINE T* Release()
+	[[nodiscard]] FORCEINLINE T* Release()
 	{
 		T* Result = Ptr;
 		Ptr = nullptr;
@@ -359,7 +349,7 @@ public:
 	 *
 	 * @return A reference to the deleter.
 	 */
-	FORCEINLINE Deleter& GetDeleter()
+	[[nodiscard]] FORCEINLINE Deleter& GetDeleter()
 	{
 		return static_cast<Deleter&>(*this);
 	}
@@ -369,7 +359,7 @@ public:
 	 *
 	 * @return A reference to the deleter.
 	 */
-	FORCEINLINE const Deleter& GetDeleter() const
+	[[nodiscard]] FORCEINLINE const Deleter& GetDeleter() const
 	{
 		return static_cast<const Deleter&>(*this);
 	}
@@ -388,7 +378,7 @@ public:
 	 * @return true if the two TUniquePtrs are logically substitutable for each other, false otherwise.
 	 */
 	template <typename RhsT>
-	FORCEINLINE bool operator==(const TUniquePtr<RhsT>& Rhs) const
+	[[nodiscard]] FORCEINLINE bool operator==(const TUniquePtr<RhsT>& Rhs) const
 	{
 		return Get() == Rhs.Get();
 	}
@@ -400,7 +390,7 @@ public:
 	 *
 	 * @return true if the TUniquePtr is null, false otherwise.
 	 */
-	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
+	[[nodiscard]] FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
 	{
 		return !IsValid();
 	}
@@ -415,7 +405,7 @@ public:
 	 * @return false if the two TUniquePtrs are logically substitutable for each other, true otherwise.
 	 */
 	template <typename RhsT>
-	FORCEINLINE bool operator!=(const TUniquePtr<RhsT>& Rhs) const
+	[[nodiscard]] FORCEINLINE bool operator!=(const TUniquePtr<RhsT>& Rhs) const
 	{
 		return Get() != Rhs.Get();
 	}
@@ -427,7 +417,7 @@ public:
 	 *
 	 * @return true if the TUniquePtr is not null, false otherwise.
 	 */
-	FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
+	[[nodiscard]] FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
 	{
 		return IsValid();
 	}
@@ -601,7 +591,7 @@ public:
 	 *
 	 * @return true if the TUniquePtr currently owns an array, false otherwise.
 	 */
-	bool IsValid() const
+	[[nodiscard]] bool IsValid() const
 	{
 		return Ptr != nullptr;
 	}
@@ -611,19 +601,9 @@ public:
 	 *
 	 * @return true if the TUniquePtr currently owns an array, false otherwise.
 	 */
-	FORCEINLINE explicit operator bool() const
+	[[nodiscard]] FORCEINLINE explicit operator bool() const
 	{
 		return IsValid();
-	}
-
-	/**
-	 * Logical not operator
-	 *
-	 * @return false if the TUniquePtr currently owns an array, true otherwise.
-	 */
-	FORCEINLINE bool operator!() const
-	{
-		return !IsValid();
 	}
 
 	/**
@@ -631,7 +611,7 @@ public:
 	 *
 	 * @return A reference to the object at the specified index by the TUniquePtr.
 	 */
-	FORCEINLINE T& operator[](SIZE_T Index) const
+	[[nodiscard]] FORCEINLINE T& operator[](SIZE_T Index) const
 	{
 		return Ptr[Index];
 	}
@@ -641,7 +621,7 @@ public:
 	 *
 	 * @return A copy of the pointer to the array owned by the TUniquePtr, or nullptr if no array is being owned.
 	 */
-	FORCEINLINE T* Get() const
+	[[nodiscard]] FORCEINLINE T* Get() const
 	{
 		return Ptr;
 	}
@@ -651,7 +631,7 @@ public:
 	 *
 	 * @return The pointer to the array that was owned by the TUniquePtr, or nullptr if no array was being owned.
 	 */
-	FORCEINLINE T* Release()
+	[[nodiscard]] FORCEINLINE T* Release()
 	{
 		T* Result = Ptr;
 		Ptr = nullptr;
@@ -688,7 +668,7 @@ public:
 	 *
 	 * @return A reference to the deleter.
 	 */
-	FORCEINLINE Deleter& GetDeleter()
+	[[nodiscard]] FORCEINLINE Deleter& GetDeleter()
 	{
 		return static_cast<Deleter&>(*this);
 	}
@@ -698,7 +678,7 @@ public:
 	 *
 	 * @return A reference to the deleter.
 	 */
-	FORCEINLINE const Deleter& GetDeleter() const
+	[[nodiscard]] FORCEINLINE const Deleter& GetDeleter() const
 	{
 		return static_cast<const Deleter&>(*this);
 	}
@@ -716,7 +696,7 @@ public:
 	 * @return true if the two TUniquePtrs are logically substitutable for each other, false otherwise.
 	 */
 	template <typename RhsT>
-	FORCEINLINE bool operator==(const TUniquePtr<RhsT>& Rhs) const
+	[[nodiscard]] FORCEINLINE bool operator==(const TUniquePtr<RhsT>& Rhs) const
 	{
 		return Get() == Rhs.Get();
 	}
@@ -728,7 +708,7 @@ public:
 	 *
 	 * @return true if the TUniquePtr is null, false otherwise.
 	 */
-	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
+	[[nodiscard]] FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
 	{
 		return !IsValid();
 	}
@@ -743,7 +723,7 @@ public:
 	 * @return false if the two TUniquePtrs are logically substitutable for each other, true otherwise.
 	 */
 	template <typename RhsT>
-	FORCEINLINE bool operator!=(const TUniquePtr<RhsT>& Rhs) const
+	[[nodiscard]] FORCEINLINE bool operator!=(const TUniquePtr<RhsT>& Rhs) const
 	{
 		return Get() != Rhs.Get();
 	}
@@ -755,7 +735,7 @@ public:
 	 *
 	 * @return true if the TUniquePtr is not null, false otherwise.
 	 */
-	FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
+	[[nodiscard]] FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
 	{
 		return IsValid();
 	}
@@ -764,13 +744,13 @@ public:
 
 #if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
 template <typename T>
-FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TUniquePtr<T>& Rhs)
+[[nodiscard]] FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TUniquePtr<T>& Rhs)
 {
 	return !Rhs.IsValid();
 }
 
 template <typename T>
-FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TUniquePtr<T>& Rhs)
+[[nodiscard]] FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TUniquePtr<T>& Rhs)
 {
 	return Rhs.IsValid();
 }
@@ -803,7 +783,7 @@ template <
 	typename... TArgs
 	UE_REQUIRES(!std::is_array_v<T>)
 >
-FORCEINLINE TUniquePtr<T> MakeUnique(TArgs&&... Args)
+[[nodiscard]] FORCEINLINE TUniquePtr<T> MakeUnique(TArgs&&... Args)
 {
 	return TUniquePtr<T>(new T(Forward<TArgs>(Args)...));
 }
@@ -817,7 +797,7 @@ FORCEINLINE TUniquePtr<T> MakeUnique(TArgs&&... Args)
  * @return A TUniquePtr which points to a newly-constructed T with the specified Args.
  */
 template <typename T, typename... TArgs>
-FORCEINLINE typename TEnableIf<!std::is_array_v<T>, TUniquePtr<T>>::Type MakeUniqueForOverwrite()
+[[nodiscard]] FORCEINLINE typename TEnableIf<!std::is_array_v<T>, TUniquePtr<T>>::Type MakeUniqueForOverwrite()
 {
 	return TUniquePtr<T>(new T);
 }
@@ -831,7 +811,7 @@ FORCEINLINE typename TEnableIf<!std::is_array_v<T>, TUniquePtr<T>>::Type MakeUni
  * @return A TUniquePtr which points to a newly-constructed T array of the specified Size.
  */
 template <typename T>
-FORCEINLINE typename TEnableIf<TIsUnboundedArray<T>::Value, TUniquePtr<T>>::Type MakeUnique(SIZE_T Size)
+[[nodiscard]] FORCEINLINE typename TEnableIf<TIsUnboundedArray<T>::Value, TUniquePtr<T>>::Type MakeUnique(SIZE_T Size)
 {
 	typedef typename TRemoveExtent<T>::Type ElementType;
 	return TUniquePtr<T>(new ElementType[Size]());
@@ -846,7 +826,7 @@ FORCEINLINE typename TEnableIf<TIsUnboundedArray<T>::Value, TUniquePtr<T>>::Type
  * @return A TUniquePtr which points to a newly-constructed T array of the specified Size.
  */
 template <typename T>
-FORCEINLINE typename TEnableIf<TIsUnboundedArray<T>::Value, TUniquePtr<T>>::Type MakeUniqueForOverwrite(SIZE_T Size)
+[[nodiscard]] FORCEINLINE typename TEnableIf<TIsUnboundedArray<T>::Value, TUniquePtr<T>>::Type MakeUniqueForOverwrite(SIZE_T Size)
 {
 	typedef typename TRemoveExtent<T>::Type ElementType;
 	return TUniquePtr<T>(new ElementType[Size]);

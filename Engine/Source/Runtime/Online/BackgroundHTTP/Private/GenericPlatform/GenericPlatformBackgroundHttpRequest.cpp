@@ -14,7 +14,7 @@ FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpRequest()
 
 FGenericPlatformBackgroundHttpRequest::~FGenericPlatformBackgroundHttpRequest()
 {
-	RequestWrapper.Release();
+	RequestWrapper.Reset();
 }
 
 bool FGenericPlatformBackgroundHttpRequest::HandleDelayedProcess()

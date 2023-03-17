@@ -1081,7 +1081,7 @@ namespace Metasound
 
 							auto Result = FFactoryForDeprecatedPtr::template CreateExplicitArgs(InSettings, (const TUniquePtr<Audio::IProxyData>&)DeprecatedProxyDataPtr);
 
-							DeprecatedProxyDataPtr.Release();
+							(void)DeprecatedProxyDataPtr.Release();
 							return Result;
 						}
 						else
@@ -1137,7 +1137,7 @@ namespace Metasound
 
 							for (TUniquePtr<Audio::IProxyData>& DeprecatedPtr : DeprecatedArray)
 							{
-								DeprecatedPtr.Release();
+								(void)DeprecatedPtr.Release();
 							}
 
 							return Result;

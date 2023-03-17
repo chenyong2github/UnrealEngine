@@ -1066,7 +1066,7 @@ bool FVideoDecoderH264::ConvertDecodedImage(const TRefCountPtr<IMFSample>& Decod
 
 		Renderer->ReturnBuffer(CurrentRenderOutputBuffer, true, *OutputBufferSampleProperties);
 		CurrentRenderOutputBuffer = nullptr;
-		OutputBufferSampleProperties.Release();
+		OutputBufferSampleProperties.Reset();
 	}
 	return true;
 }

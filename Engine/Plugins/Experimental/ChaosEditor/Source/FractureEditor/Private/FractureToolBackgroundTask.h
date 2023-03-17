@@ -115,7 +115,7 @@ bool TickBackgroundTask(TUniquePtr<TBackgroundOpExecuter<OpType>>& BackgroundTas
 			return false;
 		}
 		bool bResult = SuccessCallback(MoveTemp(Result));
-		BackgroundTask.Release();
+		BackgroundTask.Reset();
 		return bResult;
 	}
 

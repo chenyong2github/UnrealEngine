@@ -1062,7 +1062,7 @@ private:
 
 		TSharedPtr<QueryGeomType, ESPMode::ThreadSafe> SharedPtrForRefCount(nullptr); // This scaled is temporary, use fake shared ptr.
 		TImplicitObjectScaled<QueryGeomType> ScaledB(MakeSerializable(HackBPtr), SharedPtrForRefCount, InvScale);
-		HackBPtr.Release();
+		(void)HackBPtr.Release();
 		return ScaledB;
 	}
 

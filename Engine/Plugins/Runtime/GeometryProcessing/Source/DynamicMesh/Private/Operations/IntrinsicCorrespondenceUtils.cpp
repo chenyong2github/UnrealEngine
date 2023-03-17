@@ -107,7 +107,7 @@ void IntrinsicCorrespondenceUtils::FMeshConnection::Reset(TUniquePtr<FDynamicMes
 
 void IntrinsicCorrespondenceUtils::FMeshConnection::Reset(const FDynamicMesh3& SurfMesh)
 {
-	OwnedSurfaceMesh.Release();
+	OwnedSurfaceMesh.Reset();
 
 	SurfaceMesh = &SurfMesh;
 

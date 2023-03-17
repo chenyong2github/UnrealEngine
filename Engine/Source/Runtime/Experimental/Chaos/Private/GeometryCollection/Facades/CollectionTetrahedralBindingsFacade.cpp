@@ -134,10 +134,10 @@ namespace GeometryCollection::Facades
 	bool FTetrahedralBindings::ReadBindingsGroup(const FName& GroupName)
 	{
 		check(MeshIdAttribute.IsValid());
-		Parents.Release();
-		Weights.Release();
-		Offsets.Release();
-		Mask.Release();
+		Parents.Reset();
+		Weights.Reset();
+		Offsets.Reset();
+		Mask.Reset();
 		if (!MeshIdAttribute.Find()->Contains(GroupName.ToString()))
 		{
 			return false;
@@ -183,22 +183,22 @@ namespace GeometryCollection::Facades
 		if (Parents)
 		{
 			Parents->Remove();
-			Parents.Release();
+			Parents.Reset();
 		}
 		if (Weights)
 		{
 			Weights->Remove();
-			Weights.Release();
+			Weights.Reset();
 		}
 		if (Offsets)
 		{
 			Offsets->Remove();
-			Offsets.Release();
+			Offsets.Reset();
 		}
 		if (Mask)
 		{
 			Mask->Remove();
-			Mask.Release();
+			Mask.Reset();
 		}
 		// Only drop the group if it's empty at this point?
 		if (Collection.NumAttributes(GroupName) == 0)

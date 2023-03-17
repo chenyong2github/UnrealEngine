@@ -29,5 +29,5 @@ FSmartObjectEditorStyle& FSmartObjectEditorStyle::Get()
 
 void FSmartObjectEditorStyle::Shutdown()
 {
-	Instance.Release();
+	Instance.Reset();
 }

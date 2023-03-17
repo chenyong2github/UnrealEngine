@@ -131,7 +131,7 @@ void FVREditorModule::ShutdownModule()
 		FVREditorStyle::Shutdown();
 	}
 
-	ModeManager.Release();
+	ModeManager.Reset();
 }
 
 void FVREditorModule::PostLoadCallback()

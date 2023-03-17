@@ -626,7 +626,7 @@ bool UAnimCompress::Compress(const FCompressibleAnimData& CompressibleAnimData, 
 	const bool bSuccess = DoReduction(CompressibleAnimData, OutResult);
 
 	// Clear without free since we were on the stack
-	OutResult.AnimData.Release();
+	(void)OutResult.AnimData.Release();
 
 	if (bSuccess)
 	{

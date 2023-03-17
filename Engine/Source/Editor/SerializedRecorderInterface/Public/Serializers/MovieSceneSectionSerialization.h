@@ -123,7 +123,7 @@ public:
 	virtual void CloseLowLevel() override
 	{
 		// Release the handle as this archive doesnt actually own it
-		Handle.Release();
+		(void)Handle.Release();
 	}
 };
 
@@ -144,7 +144,7 @@ public:
 	virtual bool CloseLowLevel() override
 	{
 		// Release the handle as this archive doesnt actually own it
-		Handle.Release();
+		(void)Handle.Release();
 		return true;
 	}
 };

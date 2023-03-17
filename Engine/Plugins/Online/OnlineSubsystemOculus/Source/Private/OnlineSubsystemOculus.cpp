@@ -314,7 +314,7 @@ bool FOnlineSubsystemOculus::Shutdown()
 
 	if (MessageTaskManager.IsValid())
 	{
-		MessageTaskManager.Release();
+		MessageTaskManager.Reset();
 	}
 
 #if !defined(OVRPL_DISABLED) && WITH_EDITOR

@@ -976,7 +976,7 @@ bool FVideoDecoderH265::ConvertDecodedImage(const TRefCountPtr<IMFSample>& Decod
 
 		Renderer->ReturnBuffer(CurrentRenderOutputBuffer, bRender, *OutputBufferSampleProperties);
 		CurrentRenderOutputBuffer = nullptr;
-		OutputBufferSampleProperties.Release();
+		OutputBufferSampleProperties.Reset();
 	}
 	return true;
 }

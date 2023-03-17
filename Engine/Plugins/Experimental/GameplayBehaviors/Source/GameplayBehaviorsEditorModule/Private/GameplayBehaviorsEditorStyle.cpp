@@ -29,5 +29,5 @@ FGameplayBehaviorsEditorStyle& FGameplayBehaviorsEditorStyle::Get()
 
 void FGameplayBehaviorsEditorStyle::Shutdown()
 {
-	Instance.Release();
+	Instance.Reset();
 }

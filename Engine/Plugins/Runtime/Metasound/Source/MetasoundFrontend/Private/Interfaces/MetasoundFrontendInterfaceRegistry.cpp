@@ -36,7 +36,7 @@ namespace Metasound::Frontend
 				FInterfaceRegistryTransaction Transaction{FInterfaceRegistryTransaction::ETransactionType::InterfaceRegistration, Key, InEntry->GetInterface().Version, TransactionTime};
 				TransactionBuffer->AddTransaction(MoveTemp(Transaction));
 
-				Entries.Add(Key, MoveTemp(InEntry)).Get();
+				Entries.Add(Key, MoveTemp(InEntry));
 			}
 		}
 	}
