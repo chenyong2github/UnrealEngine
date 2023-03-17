@@ -129,6 +129,17 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 
 	if (FClusteredComponentData* ComponentData = ComponentToPhysicsObjects.Find(InComponent))
 	{
+		// We need to mark the replicated proxy as pending deletion.
+		// This way anyone who tries to use the replicated proxy component knows that it
+		// doesn't actually denote a meaningful cluster union relationship.
+		if (IsAuthority())
+		{
+			if (UClusterUnionReplicatedProxyComponent* Component = ComponentData->ReplicatedProxyComponent.Get())
+			{
+				Component->MarkPendingDeletion();
+			}
+		}
+
 		PhysicsObjectsToRemove = ComponentData->PhysicsObjects;
 	}
 

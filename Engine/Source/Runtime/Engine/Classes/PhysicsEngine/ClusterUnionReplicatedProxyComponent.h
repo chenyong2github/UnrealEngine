@@ -43,6 +43,12 @@ public:
 	UFUNCTION()
 	void SetParticleChildToParent(int32 BoneId, const FTransform& ChildToParent);
 
+	UFUNCTION()
+	void MarkPendingDeletion() { bIsPendingDeletion = true; }
+
+	UFUNCTION()
+	bool IsPendingDeletion() { return bIsPendingDeletion; }
+
 protected:
 
 	UFUNCTION()
@@ -81,6 +87,9 @@ private:
 
 	UPROPERTY()
 	bool bNetUpdateParticleChildToParents;
+
+	UPROPERTY()
+	bool bIsPendingDeletion = false;
 
 	void DeferUntilChildClusteredComponentInParentUnion(TFunction<void()> Func);
 
