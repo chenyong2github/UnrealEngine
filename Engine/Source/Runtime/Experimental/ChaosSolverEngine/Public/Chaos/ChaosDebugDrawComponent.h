@@ -33,6 +33,7 @@ private:
 	static void CreateDebugDrawActor(UWorld* World);
 
 	bool bInPlay;
+	double LastRenderTime;
 
 #if CHAOS_DEBUG_DRAW
 	TArray<Chaos::FLatentDrawCommand> DrawCommands;
