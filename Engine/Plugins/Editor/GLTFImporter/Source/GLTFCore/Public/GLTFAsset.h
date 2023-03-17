@@ -32,6 +32,7 @@ namespace GLTF
 		KHR_MaterialsVariants,
 		KHR_MaterialsIOR,
 		KHR_MaterialsSpecular,
+		KHR_MaterialsEmissiveStrength,
 		KHR_TextureTransform,
 		KHR_DracoMeshCompression,
 		KHR_LightsPunctual,

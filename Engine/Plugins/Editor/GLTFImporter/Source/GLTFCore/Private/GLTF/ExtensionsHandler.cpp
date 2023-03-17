@@ -116,6 +116,7 @@ namespace GLTF
 			EExtension::KHR_MaterialsSheen,
 			EExtension::KHR_MaterialsIOR,
 			EExtension::KHR_MaterialsSpecular,
+			EExtension::KHR_MaterialsEmissiveStrength,
 			EExtension::MSFT_PackingOcclusionRoughnessMetallic,
 			EExtension::MSFT_PackingNormalRoughnessMetallic 
 		};
@@ -227,6 +228,16 @@ namespace GLTF
 					GLTF::SetTextureMap(Specular, TEXT("specularColorTexture"), nullptr, Asset->Textures, Material.Specular.SpecularColorMap, Messages);
 
 					Asset->ProcessedExtensions.Add(EExtension::KHR_MaterialsSpecular);
+				}
+				break;
+				case EExtension::KHR_MaterialsEmissiveStrength:
+				{
+					const FJsonObject& Emissive = ExtObj;
+
+					Material.bHasEmissiveStrength = true;
+					Material.EmissiveStrength = GetScalar(Emissive, TEXT("emissiveStrength"), 1.0f);
+
+					Asset->ProcessedExtensions.Add(EExtension::KHR_MaterialsEmissiveStrength);
 				}
 				break;
 				case EExtension::MSFT_PackingOcclusionRoughnessMetallic:

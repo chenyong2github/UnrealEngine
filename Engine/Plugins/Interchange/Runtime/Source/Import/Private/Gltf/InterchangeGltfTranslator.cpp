@@ -66,6 +66,7 @@ static const TArray<FString> ImporterSupportedExtensions = {
 	GLTF::ToString(GLTF::EExtension::KHR_MaterialsSheen),
 	GLTF::ToString(GLTF::EExtension::KHR_MaterialsSpecular),
 	GLTF::ToString(GLTF::EExtension::KHR_MaterialsPbrSpecularGlossiness),
+	GLTF::ToString(GLTF::EExtension::KHR_MaterialsEmissiveStrength),
 	GLTF::ToString(GLTF::EExtension::MSFT_PackingOcclusionRoughnessMetallic),
 	GLTF::ToString(GLTF::EExtension::MSFT_PackingNormalRoughnessMetallic),
 	/* Textures */
@@ -617,10 +618,10 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 		}
 
 		// Emissive
-		if ( GltfMaterial.Emissive.TextureIndex != INDEX_NONE || !GltfMaterial.EmissiveFactor.IsNearlyZero() )
+		if ( GltfMaterial.Emissive.TextureIndex != INDEX_NONE || !GltfMaterial.EmissiveFactor.IsNearlyZero() || GltfMaterial.bHasEmissiveStrength)
 		{
 			TVariant< FLinearColor, float > EmissiveFactor;
-			EmissiveFactor.Set< FLinearColor >( FLinearColor( GltfMaterial.EmissiveFactor ) );
+			EmissiveFactor.Set< FLinearColor >(GltfMaterial.bHasEmissiveStrength ? FLinearColor(GltfMaterial.EmissiveFactor) * GltfMaterial.EmissiveStrength : FLinearColor(GltfMaterial.EmissiveFactor));
 
 			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Emissive, ShaderGraphNode, Common::Parameters::EmissiveColor.ToString(),
 				EmissiveFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString() );

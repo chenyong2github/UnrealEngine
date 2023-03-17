@@ -141,6 +141,7 @@ namespace GLTF
 		FSheen              Sheen;
 		FSpecular           Specular;
 		float               IOR;
+		float               EmissiveStrength;
 
 		// base properties
 		FTextureMap Normal;
@@ -163,6 +164,7 @@ namespace GLTF
 		bool     bHasTransmission;
 		bool     bHasIOR;
 		bool     bHasSpecular;
+		bool     bHasEmissiveStrength;
 
 		FString UniqueId; //will be generated in FAsset::GenerateNames
 
@@ -171,6 +173,7 @@ namespace GLTF
 		    , BaseColorFactor {1.0f, 1.0f, 1.0f, 1.0f}
 		    , ShadingModel(EShadingModel::MetallicRoughness)
 			, IOR(1.0f)
+			, EmissiveStrength(1.0f)
 		    , NormalScale(1.f)
 		    , OcclusionStrength(1.f)
 		    , EmissiveFactor(FVector::ZeroVector)
@@ -183,6 +186,7 @@ namespace GLTF
 			, bHasTransmission(false)
 			, bHasIOR(false)
 			, bHasSpecular(false)
+			, bHasEmissiveStrength(false)
 		{
 		}
 
