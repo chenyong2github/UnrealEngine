@@ -4,372 +4,264 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
-using EpicGames.Core;
-using EpicGames.Serialization;
 
 namespace EpicGames.Horde.Compute
 {
 	/// <summary>
-	/// Handles a compute lease with a particular remote, multiplexing messages across a single socket.
+	/// Implementation of a compute lease using sockets to transfer data
 	/// </summary>
-	public sealed class ComputeLease : IComputeLease
+	public sealed class ComputeLease : IComputeLease, IAsyncDisposable
 	{
-		/// <summary>
-		/// Length of the required encrption key. 
-		/// </summary>
-		public const int KeyLength = 32;
+		record struct Packet(int Id, ReadOnlyMemory<byte> Data, TaskCompletionSource? Fence);
 
-		/// <summary>
-		/// Length of the nonce. This should be a cryptographically random number, and does not have to be secret.
-		/// </summary>
-		public const int NonceLength = 12;
-
-		/// <summary>
-		/// Maximum length of a single message
-		/// </summary>
-		public const int MaxMessageLength = 1024 * 1024;
-
-		sealed class Message : IComputeMessage
-		{
-			internal IMemoryOwner<byte>? _owner;
-			internal readonly TaskCompletionSource<Message> _next = new TaskCompletionSource<Message>();
-
-			/// <summary>
-			/// Type of the message
-			/// </summary>
-			public ComputeMessageType Type { get; }
-
-			/// <summary>
-			/// Message data
-			/// </summary>
-			public ReadOnlyMemory<byte> Data { get; private set; }
-
-			public Message(IMemoryOwner<byte>? owner, ComputeMessageType type, ReadOnlyMemory<byte> data)
-			{
-				_owner = owner;
-
-				Type = type;
-				Data = data;
-			}
-
-			/// <inheritdoc/>
-			public void Dispose()
-			{
-				if (_owner != null)
-				{
-					_owner.Dispose();
-					_owner = null;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Allows creating new messages in rented memory
-		/// </summary>
-		class Writer : IComputeMessageWriter
+		class Buffer : ComputeBuffer
 		{
 			readonly ComputeLease _owner;
-			PooledMemoryWriter _writer;
 
-			public int Length => _writer.Length;
-
-			public Writer(ComputeLease owner, int channelId, ComputeMessageType type, PooledMemoryWriter writer)
+			public Buffer(ComputeLease owner, int id, IMemoryOwner<byte> memoryOwner)
+				: base(id, memoryOwner)
 			{
 				_owner = owner;
-				_writer = writer;
-
-				_writer.WriteUInt32(0); // Placeholder for size
-				_writer.WriteUnsignedVarInt(channelId);
-				_writer.WriteUInt8((byte)type);
 			}
 
-			public void Dispose()
+			public override async ValueTask FlushAsync(CancellationToken cancellationToken)
 			{
-				if (_writer != null)
+				TaskCompletionSource tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+				using (IDisposable disposable = cancellationToken.Register(() => tcs.SetCanceled(cancellationToken)))
 				{
-					_owner.ReleaseWriter(_writer);
-					_writer = null!;
+					_owner._writeQueue.Writer.TryWrite(new Packet(Id, ReadOnlyMemory<byte>.Empty, tcs));
+					await tcs.Task;
 				}
 			}
 
-			public ValueTask SendAsync(CancellationToken cancellationToken)
+			public override async ValueTask ResetWritePositionAsync(CancellationToken cancellationToken)
 			{
-				int bodySize = _writer.Length - HeaderLength;
-				_writer.Advance(FooterLength);
+				// Flush any pending writes
+				await FlushAsync(cancellationToken);
 
-				Span<byte> message = _writer.WrittenMemory.Span;
+				// Write an empty packet telling the remote to flush any reads before continuing
+				_owner._writeQueue.Writer.TryWrite(new Packet(Id, ReadOnlyMemory<byte>.Empty, null));
 
-				Span<byte> header = message.Slice(0, HeaderLength);
-				BinaryPrimitives.WriteInt32LittleEndian(header, bodySize);
-
-				Span<byte> body = message.Slice(HeaderLength, bodySize);
-				Span<byte> footer = message.Slice(header.Length + body.Length);
-				_owner._aesGcm.Encrypt(_owner._writeNonce, body, body, footer, header);
-				IncrementNonce(_owner._writeNonce);
-
-				return _owner.SendMessageAsync(_writer.WrittenMemory, cancellationToken);
+				// Execute the regular logic to make sure we don't have any readers
+				ResetWritePosition();
 			}
 
-			/// <inheritdoc/>
-			public void Advance(int count) => _writer.Advance(count);
-
-			/// <inheritdoc/>
-			public Memory<byte> GetMemory(int sizeHint = 0) => _writer.GetMemory(sizeHint);
-
-			/// <inheritdoc/>
-			public Span<byte> GetSpan(int sizeHint = 0) => _writer.GetSpan(sizeHint);
-		}
-
-		/// <summary>
-		/// Multiplexes data onto the owner's socket
-		/// </summary>
-		class Channel : IComputeChannel
-		{
-			readonly ComputeLease _owner;
-			readonly int _channelId;
-
-			TaskCompletionSource<Message> _readTail;
-			Task<Message> _readNext;
-
-			public int Id => _channelId;
-
-			public Channel(ComputeLease owner, int channelId)
+			public async ValueTask ClientResetWritePositionAsync(CancellationToken cancellationToken)
 			{
-				_owner = owner;
-				_channelId = channelId;
-				_readTail = new TaskCompletionSource<Message>();
-				_readNext = _readTail.Task;
+				await WaitForAllReadDataAsync(cancellationToken);
+				ResetWritePosition();
 			}
 
-			public IComputeMessageWriter CreateMessage(ComputeMessageType type, int reserve) => _owner.CreateWriter(type, _channelId, reserve);
-
-			public void Dispose()
+			public override void AdvanceWritePosition(long size)
 			{
-				_owner.RemoveChannel(_channelId);
+				if (size > 0)
+				{
+					ReadOnlyMemory<byte> data = Data.Slice((int)WritePosition, (int)size);
+					_owner._writeQueue.Writer.TryWrite(new Packet(Id, data, null));
+				}
+
+				base.AdvanceWritePosition(size);
 			}
 
-			public void MarkComplete()
+			public void AdvanceWritePositionAfterRecv(long size)
 			{
-#pragma warning disable CA2000 // Dispose objects before losing scope
-				_readTail.SetResult(new Message(null, ComputeMessageType.None, ReadOnlyMemory<byte>.Empty));
-#pragma warning restore CA2000 // Dispose objects before losing scope
-			}
-
-			public void QueueMessage(Message message)
-			{
-				_readTail.SetResult(message);
-				_readTail = message._next;
-			}
-
-			/// <inheritdoc/>
-			public async ValueTask<IComputeMessage> ReadAsync(CancellationToken cancellationToken)
-			{
-				Message message = await _readNext;
-				_readNext = message._next.Task;
-				return message;
+				base.AdvanceWritePosition(size);
 			}
 		}
-
-		/// <inheritdoc/>
-		public IComputeChannel DefaultChannel => _defaultChannel;
 
 		/// <inheritdoc/>
 		public IReadOnlyDictionary<string, int> AssignedResources { get; }
 
-		const int HeaderLength = sizeof(int); // Unencrypted size of the message
-		const int FooterLength = 16; // 16-byte auth tag for encryption
-
-		readonly Socket _socket;
-		readonly MemoryPool<byte> _pool;
-		readonly AesGcm _aesGcm;
-		readonly BackgroundTask _backgroundTask;
-		readonly Channel _defaultChannel;
-
 		readonly object _lockObject = new object();
-		readonly Dictionary<int, Channel> _channels = new Dictionary<int, Channel>();
 
-		readonly byte[] _readNonce;
-		readonly byte[] _writeNonce;
+		bool _complete;
+		readonly Task _readTask;
+		readonly Task _writeTask;
+		readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
-		readonly Stack<PooledMemoryWriter> _freeWriters = new Stack<PooledMemoryWriter>();
+		readonly Dictionary<int, Buffer> _inputBuffers = new Dictionary<int, Buffer>();
+		readonly Dictionary<int, Buffer> _outputBuffers = new Dictionary<int, Buffer>();
 
-		readonly SemaphoreSlim _writeSemaphore;
+		readonly Channel<Packet> _writeQueue = Channel.CreateUnbounded<Packet>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="socket">Socket for communication</param>
-		/// <param name="key">AES encryption key (256 bits / 32 bytes)</param>
-		/// <param name="nonce">Cryptographic nonce to identify the connection. Must be longer than <see cref="NonceLength"/>.</param>
+		/// <param name="transport">Transport to communicate with the remote</param>
 		/// <param name="assignedResources">Resources assigned to this lease</param>
-		public ComputeLease(Socket socket, ReadOnlySpan<byte> key, ReadOnlySpan<byte> nonce, IReadOnlyDictionary<string, int> assignedResources)
-			: this(socket, key, nonce, assignedResources, MemoryPool<byte>.Shared)
+		public ComputeLease(IComputeTransport transport, IReadOnlyDictionary<string, int> assignedResources)
 		{
+			AssignedResources = assignedResources;
+
+			_readTask = RunReaderAsync(transport, _cts.Token);
+			_writeTask = RunWriterAsync(transport, _cts.Token);
 		}
 
 		/// <summary>
-		/// Constructor
+		/// Attempt to gracefully close the current connection and shutdown both ends of the transport
 		/// </summary>
-		/// <param name="socket">Socket for communication</param>
-		/// <param name="key">AES encryption key (256 bits / 32 bytes)</param>
-		/// <param name="nonce">Cryptographic nonce to identify the connection. Must be longer than <see cref="NonceLength"/>.</param>
-		/// <param name="assignedResources">Resources assigned to this lease</param>
-		/// <param name="pool">Memory pool from which to allocate message buffers</param>
-		public ComputeLease(Socket socket, ReadOnlySpan<byte> key, ReadOnlySpan<byte> nonce, IReadOnlyDictionary<string, int> assignedResources, MemoryPool<byte> pool)
+		public async ValueTask CloseAsync(CancellationToken cancellationToken)
 		{
-			if (key.Length != KeyLength)
-			{
-				throw new ArgumentException($"Key must be {KeyLength} bytes", nameof(key));
-			}
+			_writeQueue.Writer.TryComplete();
 
-			_socket = socket;
-			_pool = pool;
-			_aesGcm = new AesGcm(key);
+			Task cancellationTask = Task.Delay(-1, cancellationToken);
 
-			_readNonce = nonce.Slice(0, NonceLength).ToArray();
-			_writeNonce = nonce.Slice(0, NonceLength).ToArray();
+			await Task.WhenAny(_writeTask, cancellationTask);
+			cancellationToken.ThrowIfCancellationRequested();
 
-			_writeSemaphore = new SemaphoreSlim(1);
-
-			_defaultChannel = new Channel(this, 0);
-			_channels.Add(0, _defaultChannel);
-
-			_backgroundTask = BackgroundTask.StartNew(BackgroundReadAsync);
-
-			AssignedResources = assignedResources;
+			await Task.WhenAny(_readTask, cancellationTask);
+			cancellationToken.ThrowIfCancellationRequested();
 		}
 
 		/// <inheritdoc/>
 		public async ValueTask DisposeAsync()
 		{
-			await _backgroundTask.DisposeAsync();
+			_writeQueue.Writer.TryComplete();
 
-			foreach (Channel channel in _channels.Values)
+			_cts.Cancel();
+
+			await _writeTask;
+			await _readTask;
+
+			_cts.Dispose();
+
+			foreach (Buffer inputBuffer in _inputBuffers.Values)
 			{
-				channel.MarkComplete();
+				inputBuffer.Dispose();
 			}
 
-			_writeSemaphore.Dispose();
-			_aesGcm.Dispose();
-		}
-
-		/// <summary>
-		/// Creates a new encryption key for the compute lead
-		/// </summary>
-		/// <returns>New key bytes</returns>
-		public static byte[] CreateKey() => RandomNumberGenerator.GetBytes(KeyLength);
-
-		/// <inheritdoc/>
-		public IComputeChannel OpenChannel(int channelId)
-		{
-			Channel channel = new Channel(this, channelId);
-			lock (_lockObject)
+			foreach (Buffer outputBuffer in _outputBuffers.Values)
 			{
-				_channels.Add(channelId, channel);
-			}
-			return channel;
-		}
-
-		async Task BackgroundReadAsync(CancellationToken cancellationToken)
-		{
-			byte[] sizeBuffer = new byte[4];
-			while (!cancellationToken.IsCancellationRequested)
-			{
-				if (!await _socket.TryReceiveMessageAsync(sizeBuffer, SocketFlags.None, cancellationToken))
-				{
-					break;
-				}
-
-				int length = BinaryPrimitives.ReadInt32LittleEndian(sizeBuffer);
-				if (length < 0 || length > MaxMessageLength)
-				{
-					throw new InvalidOperationException();
-				}
-
-				IMemoryOwner<byte> owner = _pool.Rent(length + FooterLength);
-				try
-				{
-					// Decrypt the message
-					await _socket.ReceiveMessageAsync(owner.Memory.Slice(0, length + FooterLength), SocketFlags.None, cancellationToken);
-					_aesGcm.Decrypt(_readNonce, owner.Memory.Span.Slice(0, length), owner.Memory.Span.Slice(length, FooterLength), owner.Memory.Span.Slice(0, length), sizeBuffer);
-					IncrementNonce(_readNonce);
-
-					// Decode the message data
-					ReadOnlyMemory<byte> data = owner.Memory.Slice(0, length);
-
-					int channelId = (int)VarInt.ReadUnsigned(data.Span, out int channelIdByteCount);
-					data = data.Slice(channelIdByteCount);
-
-					ComputeMessageType type = (ComputeMessageType)data.Span[0];
-					data = data.Slice(1);
-
-#pragma warning disable CA2000 // Dispose objects before losing scope
-					Message message = new Message(owner, type, data);
-#pragma warning restore CA2000 // Dispose objects before losing scope
-
-					Channel? channel;
-					lock (_lockObject)
-					{
-						channel = _channels[channelId];
-					}
-
-					channel.QueueMessage(message);
-				}
-				catch
-				{
-					owner.Dispose();
-					throw;
-				}
+				outputBuffer.Dispose();
 			}
 		}
 
-		void RemoveChannel(int channelId)
+		async Task RunReaderAsync(IComputeTransport transport, CancellationToken cancellationToken)
 		{
-			lock (_lockObject)
-			{
-				_channels.Remove(channelId);
-			}
-		}
-
-		Writer CreateWriter(ComputeMessageType type, int channelId, int reserve)
-		{
-			PooledMemoryWriter? writer;
-			if (_freeWriters.TryPop(out writer))
-			{
-				writer.Clear(reserve);
-			}
-			else
-			{
-				writer = new PooledMemoryWriter(reserve);
-			}
-			return new Writer(this, channelId, type, writer);
-		}
-
-		void ReleaseWriter(PooledMemoryWriter writer)
-		{
-			_freeWriters.Push(writer);
-		}
-
-		async ValueTask SendMessageAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken)
-		{
-			await _writeSemaphore.WaitAsync(cancellationToken);
+			byte[] header = new byte[8];
 			try
 			{
-				await _socket.SendMessageAsync(message, SocketFlags.None, cancellationToken);
+				// Maintain a local cache of buffers to be able to query for them without having to acquire a global lock
+				Dictionary<int, Buffer> buffers = new Dictionary<int, Buffer>();
+
+				// Process messages from the remote
+				for(; ;)
+				{
+					await transport.ReadAsync(header, cancellationToken);
+
+					int id = BinaryPrimitives.ReadInt32LittleEndian(header);
+					int size = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(4));
+					if (size < 0)
+					{
+						break;
+					}
+
+					Buffer? buffer;
+					if (!buffers.TryGetValue(id, out buffer))
+					{
+						lock (_lockObject)
+						{
+							if (!_inputBuffers.TryGetValue(id, out buffer))
+							{
+								throw new NotImplementedException();
+							}
+							buffers.Add(id, buffer);
+						}
+					}
+
+					if (size == 0)
+					{
+						// We're being asked to reset the read position back to zero, so we need to know that the read offset is equal to length
+						await buffer.ClientResetWritePositionAsync(cancellationToken);
+					}
+					else
+					{
+						await transport.ReadAsync(buffer.Data.Slice((int)buffer.WritePosition, size), cancellationToken);
+						buffer.AdvanceWritePositionAfterRecv(size);
+					}
+				}
 			}
-			finally
+			catch (OperationCanceledException)
 			{
-				_writeSemaphore.Release();
+			}
+
+			// Mark all buffers as complete
+			lock (_lockObject)
+			{
+				_complete = true;
+				foreach (Buffer buffer in _outputBuffers.Values)
+				{
+					buffer.MarkComplete();
+				}
 			}
 		}
 
-		static void IncrementNonce(byte[] nonce)
+		async Task RunWriterAsync(IComputeTransport transport, CancellationToken cancellationToken)
 		{
-			BinaryPrimitives.WriteInt64LittleEndian(nonce, BinaryPrimitives.ReadInt64LittleEndian(nonce) + 1);
+			// Parse the queue of write requests
+			byte[] header = new byte[8];
+			try
+			{
+				while (await _writeQueue.Reader.WaitToReadAsync(cancellationToken))
+				{
+					Packet packet = await _writeQueue.Reader.ReadAsync(cancellationToken);
+					if (packet.Fence != null)
+					{
+						packet.Fence.SetResult();
+						continue;
+					}
+
+					BinaryPrimitives.WriteInt32LittleEndian(header, packet.Id);
+					BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), packet.Data.Length);
+					await transport.WriteAsync(header, cancellationToken);
+
+					if (packet.Data.Length > 0)
+					{
+						await transport.WriteAsync(packet.Data, cancellationToken);
+					}
+				}
+
+				// Send a close packet to the remote
+				BinaryPrimitives.WriteInt32LittleEndian(header, 0);
+				BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), -1);
+				await transport.WriteAsync(header, cancellationToken);
+			}
+			catch (OperationCanceledException)
+			{
+			}
+		}
+
+		/// <inheritdoc/>
+		public IComputeInputBuffer CreateInputBuffer(int id, IMemoryOwner<byte> memoryOwner)
+		{
+			Buffer inputBuffer = new Buffer(this, id, memoryOwner);
+			lock (_lockObject)
+			{
+				if (_complete)
+				{
+					inputBuffer.MarkComplete();
+				}
+				_inputBuffers.Add(id, inputBuffer);
+			}
+			return inputBuffer;
+		}
+
+		/// <inheritdoc/>
+		public IComputeOutputBuffer CreateOutputBuffer(int id, IMemoryOwner<byte> memoryOwner)
+		{
+			Buffer outputBuffer = new Buffer(this, id, memoryOwner);
+			lock (_lockObject)
+			{
+				if (_complete)
+				{
+					outputBuffer.MarkComplete();
+				}
+				_outputBuffers.Add(id, outputBuffer);
+			}
+			return outputBuffer;
 		}
 	}
 }

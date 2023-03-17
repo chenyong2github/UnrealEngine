@@ -129,7 +129,7 @@ namespace EpicGames.Horde.Compute
 			// Pass the rest of the call over to the handler
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
-			await using ComputeLease channel = new ComputeLease(socket, key, nonce, responseMessage.AssignedResources);
+			await using ComputeLease channel = new ComputeLease(new TcpComputeTransport(socket), responseMessage.AssignedResources);
 			return await handler(channel, cancellationToken);
 		}
 	}

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -74,16 +75,17 @@ namespace Horde.Agent.Commands
 
 		async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			IComputeChannel channel = lease.OpenChannel(1);
+			using IComputeChannel defaultChannel = lease.CreateChannel(0);
+			using IComputeChannel channel = lease.CreateChannel(1);
 
 			MemoryStorageClient storage = new MemoryStorageClient();
 
 			NodeLocator node = await CreateComputeNodeAsync(TaskFile, storage, cancellationToken);
-			await lease.DefaultChannel.CppStartAsync(node, channel.Id, cancellationToken);
+			await defaultChannel.CppStartAsync(node, channel.Id, cancellationToken);
 
 			for (; ; )
 			{
-				IComputeMessage message = await channel.ReadAsync(cancellationToken);
+				using IComputeMessage message = await channel.ReadAsync(cancellationToken);
 				switch (message.Type)
 				{
 					case ComputeMessageType.None:
@@ -115,7 +117,7 @@ namespace Horde.Agent.Commands
 							}
 
 							await channel.CppFinishAsync(cancellationToken);
-							await lease.DefaultChannel.CloseAsync(cancellationToken);
+							await defaultChannel.CloseAsync(cancellationToken);
 						}
 						return false;
 					case ComputeMessageType.CppFailure:

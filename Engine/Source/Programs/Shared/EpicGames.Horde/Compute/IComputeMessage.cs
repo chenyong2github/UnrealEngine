@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace EpicGames.Horde.Compute
 {
@@ -100,7 +97,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Wraps various requests across compute channels
 	/// </summary>
-	public static class ComputeChannelExtensions
+	public static class ComputeMessageExtensions
 	{
 		/// <summary>
 		/// Send a close message to the remote

@@ -57,7 +57,7 @@ namespace Horde.Agent.Leases.Handlers
 					return LeaseResult.Success;
 				}
 
-				await using (ComputeLease lease = new ComputeLease(tcpClient.Client, computeTask.Key.Span, computeTask.Nonce.Span.Slice(0, ComputeLease.NonceLength), computeTask.Resources))
+				await using (ComputeLease lease = new ComputeLease(new TcpComputeTransport(tcpClient.Client), computeTask.Resources))
 				{
 					await RunAsync(lease, cancellationToken);
 					return LeaseResult.Success;
@@ -76,7 +76,7 @@ namespace Horde.Agent.Leases.Handlers
 
 		public async Task RunAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			IComputeChannel channel = lease.DefaultChannel;
+			using IComputeChannel channel = lease.CreateChannel(0);
 			for (; ; )
 			{
 				using IComputeMessage message = await channel.ReadAsync(cancellationToken);
@@ -94,7 +94,8 @@ namespace Horde.Agent.Leases.Handlers
 					case ComputeMessageType.CppBegin:
 						{
 							CppBeginMessage cppBegin = message.AsCppBegin();
-							await RunCppAsync(lease.OpenChannel(cppBegin.ReplyChannelId), cppBegin.Locator, cancellationToken);
+							using IComputeChannel replyChannel = lease.CreateChannel(cppBegin.ReplyChannelId);
+							await RunCppAsync(replyChannel, cppBegin.Locator, cancellationToken);
 						}
 						break;
 					default:

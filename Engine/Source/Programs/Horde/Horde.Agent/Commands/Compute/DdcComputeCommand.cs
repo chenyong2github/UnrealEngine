@@ -55,7 +55,7 @@ namespace Horde.Agent.Commands
 
 		async Task<object?> TestCommandAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			IComputeChannel channel = lease.DefaultChannel;
+			using IComputeChannel channel = lease.CreateChannel(0);
 
 			await channel.XorRequestAsync(new byte[] { 1, 2, 3, 4, 5 }, (byte)123, cancellationToken);
 			IComputeMessage response = await channel.ReadAsync(cancellationToken);

@@ -16,8 +16,6 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public sealed class LoopbackComputeClient : IComputeClient
 	{
-		readonly byte[] _key;
-		readonly byte[] _nonce;
 		readonly BackgroundTask _listenerTask;
 		readonly Socket _listener;
 		readonly Socket _socket;
@@ -29,14 +27,11 @@ namespace EpicGames.Horde.Compute
 		/// <param name="port">Port to connect on</param>
 		public LoopbackComputeClient(Func<IComputeLease, CancellationToken, Task> serverFunc, int port = 2000)
 		{
-			_key = ComputeLease.CreateKey();
-			_nonce = RandomNumberGenerator.GetBytes(ComputeLease.NonceLength);
-
 			_listener = new Socket(SocketType.Stream, ProtocolType.IP);
 			_listener.Bind(new IPEndPoint(IPAddress.Loopback, port));
 			_listener.Listen();
 
-			_listenerTask = BackgroundTask.StartNew(ctx => RunListenerAsync(_listener, _key, _nonce, serverFunc, ctx));
+			_listenerTask = BackgroundTask.StartNew(ctx => RunListenerAsync(_listener, serverFunc, ctx));
 
 			_socket = new Socket(SocketType.Stream, ProtocolType.IP);
 			_socket.Connect(IPAddress.Loopback, port);
@@ -53,19 +48,22 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Sets up the loopback listener and calls the server method
 		/// </summary>
-		static async Task RunListenerAsync(Socket listener, ReadOnlyMemory<byte> key, ReadOnlyMemory<byte> nonce, Func<IComputeLease, CancellationToken, Task> serverFunc, CancellationToken cancellationToken)
+		static async Task RunListenerAsync(Socket listener, Func<IComputeLease, CancellationToken, Task> serverFunc, CancellationToken cancellationToken)
 		{
 			using Socket socket = await listener.AcceptAsync(cancellationToken);
 
-			await using ComputeLease lease = new ComputeLease(socket, key.Span, nonce.Span, new Dictionary<string, int>());
+			await using ComputeLease lease = new ComputeLease(new TcpComputeTransport(socket), new Dictionary<string, int>());
 			await serverFunc(lease, cancellationToken);
+			await lease.CloseAsync(cancellationToken);
 		}
 
 		/// <inheritdoc/>
 		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 		{
-			await using ComputeLease lease = new ComputeLease(_socket, _key, _nonce, new Dictionary<string, int>());
-			return await handler(lease, cancellationToken);
+			await using ComputeLease lease = new ComputeLease(new TcpComputeTransport(_socket), new Dictionary<string, int>());
+			TResult result = await handler(lease, cancellationToken);
+			await lease.CloseAsync(cancellationToken);
+			return result;
 		}
 	}
 }
