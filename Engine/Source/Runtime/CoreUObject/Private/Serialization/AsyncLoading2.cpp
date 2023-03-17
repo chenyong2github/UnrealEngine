@@ -73,6 +73,7 @@
 #include "UObject/LinkerLoad.h"
 #include "Containers/SpscQueue.h"
 #include "IO/IoPriorityQueue.h"
+#include "UObject/CoreRedirects.h"
 
 #include <atomic>
 
@@ -3859,6 +3860,14 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 				}
 			}
 
+#if WITH_EDITOR
+			const FCoreRedirectObjectName RedirectedPackageName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, PackageNameToLoad));
+			if (RedirectedPackageName.PackageName != PackageNameToLoad)
+			{
+				PackageNameToLoad = RedirectedPackageName.PackageName;
+			}
+#endif
+
 			FPackageId PackageIdToLoad = FPackageId::FromName(PackageNameToLoad);
 			FName UPackageName = PackageNameToLoad;
 			{
@@ -4515,6 +4524,24 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 		FName ImportedPackageUPackageName = bHasImportedPackageNames ? ImportedPackageNames[LocalImportedPackageIndex] : NAME_None;
 		FName ImportedPackageNameToLoad = ImportedPackageUPackageName;
 		FPackageId ImportedPackageIdToLoad = ImportedPackageId;
+
+#if WITH_EDITOR
+		if (!ImportedPackageNameToLoad.IsNone())
+		{
+			const FCoreRedirectObjectName RedirectedPackageName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, ImportedPackageNameToLoad));
+			if (RedirectedPackageName.PackageName != ImportedPackageNameToLoad)
+			{
+				ImportedPackageNameToLoad = RedirectedPackageName.PackageName;
+				ImportedPackageIdToLoad = FPackageId::FromName(ImportedPackageNameToLoad);
+				ImportedPackageUPackageName = ImportedPackageNameToLoad;
+				ImportedPackageId = ImportedPackageIdToLoad;
+				// Rewrite the import table
+				ImportedPackageIds[LocalImportedPackageIndex] = ImportedPackageId;
+				ImportedPackageNames[LocalImportedPackageIndex] = ImportedPackageUPackageName;
+			}
+		}
+#endif
+
 #if WITH_EDITORONLY_DATA && ALT2_ENABLE_LINKERLOAD_SUPPORT
 		if (bHasImportedPackageNames && LinkerLoadState.IsSet())
 		{

@@ -1582,7 +1582,24 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		}
 		ThreadContext.SyncLoadUsingAsyncLoaderCount--;
 
-		return (InOuter ? InOuter : FindObjectFast<UPackage>(nullptr, PackageName));
+		if (InOuter)
+		{
+			return InOuter;
+		}
+		else
+		{
+			UPackage* Result = FindObjectFast<UPackage>(nullptr, PackageName);
+			if (!Result)
+			{
+				// Might have been redirected
+				const FCoreRedirectObjectName NewPackageName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, PackageName));
+				if (NewPackageName.PackageName != PackageName)
+				{
+					Result = FindObjectFast<UPackage>(nullptr, NewPackageName.PackageName);
+				}
+			}
+			return Result;
+		}
 	}
 
 	UPackage* Result = nullptr;
