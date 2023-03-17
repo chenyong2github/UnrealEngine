@@ -7126,7 +7126,8 @@ bool UStaticMesh::GetPhysicsTriMeshDataCheckComplex(struct FTriMeshCollisionData
 		return ComplexCollisionMesh->GetPhysicsTriMeshDataCheckComplex(CollisionData, bInUseAllTriData, false); // Only one level of recursion
 	}
 #else // #if WITH_EDITORONLY_DATA
-	// the static mesh needs to be tagged for CPUAccess in order to access TriMeshData in runtime mode : 
+	// the static mesh needs to be tagged for CPUAccess in order to access TriMeshData in runtime mode
+	// we must also check that the selected LOD has CPU data (see below)
 	if (!bAllowCPUAccess)
 	{
 		UE_LOG(LogStaticMesh, Warning, TEXT("UStaticMesh::GetPhysicsTriMeshData: Triangle data from '%s' cannot be accessed at runtime on a mesh that isn't flagged as Allow CPU Access. This asset needs to be flagged as such (in the Advanced section)."), *GetFullName());
@@ -7144,6 +7145,14 @@ bool UStaticMesh::GetPhysicsTriMeshDataCheckComplex(struct FTriMeshCollisionData
 	const int32 UseLODIndex = bInUseAllTriData ? 0 : FMath::Clamp(LODForCollision, 0, GetRenderData()->LODResources.Num()-1);
 
 	FStaticMeshLODResources& LOD = GetRenderData()->LODResources[UseLODIndex];
+
+	// Make sure the LOD we selected actually has CPU data
+	// NOTE: for non-editor builds we forced LOD0
+	if (!LOD.IndexBuffer.GetAllowCPUAccess())
+	{
+		UE_LOG(LogStaticMesh, Warning, TEXT("UStaticMesh::GetPhysicsTriMeshData: CPU data not available on selected LOD (UseLODIndex=%d, LODForCollision=%d) on '%s'."), UseLODIndex, LODForCollision, *GetFullName());
+		return false;
+	}
 
 	FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
 
