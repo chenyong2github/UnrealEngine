@@ -624,10 +624,16 @@ void SDockingArea::UpdateWindowChromeAndSidebar()
 				}
 			}
 
-			bCanHaveSidebar = !bContainsMajorTabs;
+			if (LeftSidebar->GetAllTabIds().IsEmpty())
+			{
+				LeftSidebar->SetVisibility(EVisibility::Collapsed);
+			}
+			if (RightSidebar->GetAllTabIds().IsEmpty())
+			{
+				RightSidebar->SetVisibility(EVisibility::Collapsed);
+			}
 
-			LeftSidebar->SetVisibility(EVisibility::Collapsed);
-			RightSidebar->SetVisibility(EVisibility::Collapsed);
+			bCanHaveSidebar = !bContainsMajorTabs;
 
 			if (bCanHaveSidebar)
 			{
