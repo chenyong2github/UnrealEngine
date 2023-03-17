@@ -1,14 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "StateTreeTask_FindSlotNavigationLocation.h"
+#include "StateTreeTask_FindSlotEntranceLocation.h"
 #include "StateTreeExecutionContext.h"
 #include "SmartObjectSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "StateTreeLinker.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeTask_FindSlotNavigationLocation)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeTask_FindSlotEntranceLocation)
 
-FStateTreeTask_FindSlotNavigationLocation::FStateTreeTask_FindSlotNavigationLocation()
+FStateTreeTask_FindSlotEntranceLocation::FStateTreeTask_FindSlotEntranceLocation()
 {
 	// No tick needed.
 	bShouldCallTick = false;
@@ -17,13 +17,13 @@ FStateTreeTask_FindSlotNavigationLocation::FStateTreeTask_FindSlotNavigationLoca
 	bShouldCopyBoundPropertiesOnExitState = false;
 }
 
-bool FStateTreeTask_FindSlotNavigationLocation::Link(FStateTreeLinker& Linker)
+bool FStateTreeTask_FindSlotEntranceLocation::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(SmartObjectSubsystemHandle);
 	return true;
 }
 
-bool FStateTreeTask_FindSlotNavigationLocation::UpdateResult(const FStateTreeExecutionContext& Context) const
+bool FStateTreeTask_FindSlotEntranceLocation::UpdateResult(const FStateTreeExecutionContext& Context) const
 {
 	const USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
@@ -48,8 +48,8 @@ bool FStateTreeTask_FindSlotNavigationLocation::UpdateResult(const FStateTreeExe
 	Request.bCheckTransitionTrajectory = bCheckTransitionTrajectory;
 	Request.LocationType = LocationType;
 
-	FSmartObjectSlotNavigationLocationResult EntryLocation;
-	if (SmartObjectSubsystem.FindNavigationLocationForSlot(InstanceData.ReferenceSlot, Request, EntryLocation))
+	FSmartObjectSlotEntranceLocationResult EntryLocation;
+	if (SmartObjectSubsystem.FindEntranceLocationForSlot(InstanceData.ReferenceSlot, Request, EntryLocation))
 	{
 		InstanceData.EntryTransform = FTransform(EntryLocation.Rotation, EntryLocation.Location);
 		InstanceData.EntryTag = EntryLocation.Tag;
@@ -59,7 +59,7 @@ bool FStateTreeTask_FindSlotNavigationLocation::UpdateResult(const FStateTreeExe
 	return false;
 }
 
-EStateTreeRunStatus FStateTreeTask_FindSlotNavigationLocation::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+EStateTreeRunStatus FStateTreeTask_FindSlotEntranceLocation::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
 	if (!UpdateResult(Context))
 	{

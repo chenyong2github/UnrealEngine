@@ -5,13 +5,13 @@
 #include "GameplayInteractionsTypes.h"
 #include "Annotations/SmartObjectSlotEntranceAnnotation.h"
 #include "SmartObjectSubsystem.h"
-#include "StateTreeTask_FindSlotNavigationLocation.generated.h"
+#include "StateTreeTask_FindSlotEntranceLocation.generated.h"
 
 class USmartObjectSubsystem;
 class UNavigationQueryFilter;
 
 USTRUCT()
-struct FStateTreeTask_FindSlotNavigationLocation_InstanceData
+struct FStateTreeTask_FindSlotEntranceLocation_InstanceData
 {
 	GENERATED_BODY()
 
@@ -30,17 +30,17 @@ struct FStateTreeTask_FindSlotNavigationLocation_InstanceData
 };
 
 /**
- * Finds entry location for a Smart Object slot. The query will use slot entry annotations as
- * candidates. Each candidate is ranked (e.g. based on distance), and optionally validated to be close to a navigable space.
+ * Finds entrance location for a Smart Object slot. The query will use slot entrance annotations as candidates.
+ * Each candidate is ranked (e.g. based on distance), and optionally validated to be close to a navigable space and without collisions.
  */
-USTRUCT(meta = (DisplayName = "Find Slot Navigation Location", Category="Gameplay Interactions|Smart Object"))
-struct FStateTreeTask_FindSlotNavigationLocation : public FGameplayInteractionStateTreeTask
+USTRUCT(meta = (DisplayName = "Find Slot Entrance Location", Category="Gameplay Interactions|Smart Object"))
+struct FStateTreeTask_FindSlotEntranceLocation : public FGameplayInteractionStateTreeTask
 {
 	GENERATED_BODY()
 
-	FStateTreeTask_FindSlotNavigationLocation();
+	FStateTreeTask_FindSlotEntranceLocation();
 	
-	using FInstanceDataType = FStateTreeTask_FindSlotNavigationLocation_InstanceData;
+	using FInstanceDataType = FStateTreeTask_FindSlotEntranceLocation_InstanceData;
 
 protected:
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
@@ -74,7 +74,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Default")
 	ESmartObjectSlotNavigationLocationType LocationType = ESmartObjectSlotNavigationLocationType::Entry;
 	
-	/** Navigation filter to apply to navigation queries. */
+	/** Validation filter to apply to query. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	TSubclassOf<USmartObjectSlotValidationFilter> ValidationFilter = nullptr;
 

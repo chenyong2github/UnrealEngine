@@ -14,6 +14,7 @@
 #include "NavigationSystem.h"
 #include "AI/Navigation/NavigationTypes.h"
 #include "Annotations/SmartObjectSlotEntranceAnnotation.h"
+#include "Misc/EnumerateRange.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSubsystem)
 
@@ -1528,6 +1529,27 @@ bool USmartObjectSubsystem::EvaluateSelectionConditions(const FSmartObjectSlotHa
 
 bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotNavigationLocationResult& Result) const
 {
+	return FindEntranceLocationInternal(SlotHandle, FSmartObjectSlotEntranceHandle(), Request, Result);
+}
+
+
+bool USmartObjectSubsystem::FindEntranceLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotEntranceLocationResult& Result) const
+{
+	return FindEntranceLocationInternal(SlotHandle, FSmartObjectSlotEntranceHandle(), Request, Result);
+}
+
+bool USmartObjectSubsystem::UpdateEntranceLocation(const FSmartObjectSlotEntranceHandle EntranceHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotEntranceLocationResult& Result) const
+{
+	return FindEntranceLocationInternal(EntranceHandle.GetSlotHandle(), EntranceHandle, Request, Result);
+}
+
+bool USmartObjectSubsystem::FindEntranceLocationInternal(
+	const FSmartObjectSlotHandle SlotHandle,
+	const FSmartObjectSlotEntranceHandle SlotEntranceHandle,
+	const FSmartObjectSlotEntranceLocationRequest& Request,
+	FSmartObjectSlotEntranceLocationResult& Result
+	) const
+{
 	Result = {};
 
 	UWorld* World = GetWorld();
@@ -1559,8 +1581,10 @@ bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlot
 		NavNodeRef NodeRef;
 		FVector::FReal DistanceSqr = 0.0;
 		const FSmartObjectSlotEntranceAnnotation* EntranceAnnotation = nullptr;
+		ESmartObjectEntrancePriority SelectionPriority = ESmartObjectEntrancePriority::Normal;
 		bool bTraceGroundLocation = false;
 		bool bCheckTransitionTrajectory = false;
+		FSmartObjectSlotEntranceHandle Handle;
 	};
 
 	TArray<FSlotEntryCandidate, TInlineAllocator<8>> Candidates;
@@ -1570,9 +1594,17 @@ bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlot
 	const bool bIncludeExits = Request.LocationType == ESmartObjectSlotNavigationLocationType::Exit;
 
 	const FSmartObjectSlotDefinition& Definition = SlotView.GetDefinition();
-	for (const FInstancedStruct& Data : Definition.Data)
+	
+	for (TConstEnumerateRef<const FInstancedStruct> Data : EnumerateRange(Definition.Data))
 	{
-		if (const FSmartObjectSlotEntranceAnnotation* EntranceAnnotation = Data.GetPtr<FSmartObjectSlotEntranceAnnotation>())
+		// If specific slot was requested and this is not the one, skip it.
+		if (SlotEntranceHandle.Type == FSmartObjectSlotEntranceHandle::EType::Slot
+			&& SlotEntranceHandle.Index != Data.GetIndex())
+		{
+			continue;
+		}
+
+		if (const FSmartObjectSlotEntranceAnnotation* EntranceAnnotation = Data->GetPtr<FSmartObjectSlotEntranceAnnotation>())
 		{
 			if (EntranceAnnotation->bIsEntry == bIncludeEntries
 				|| EntranceAnnotation->bIsExit == bIncludeExits)
@@ -1586,17 +1618,20 @@ bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlot
 					Candidate.EntranceAnnotation = EntranceAnnotation;
 					Candidate.bTraceGroundLocation = EntranceAnnotation->bTraceGroundLocation;
 					Candidate.bCheckTransitionTrajectory = EntranceAnnotation->bCheckTransitionTrajectory;
+					Candidate.SelectionPriority = EntranceAnnotation->SelectionPriority;
+					Candidate.Handle = FSmartObjectSlotEntranceHandle(SlotHandle, FSmartObjectSlotEntranceHandle::EType::Entrance, Data.GetIndex());
 				}
 			}
 		}
 	}
 
-	if (Candidates.IsEmpty()
-		&& Request.bUseSlotLocationAsFallback)
+	if ((Candidates.IsEmpty() && Request.bUseSlotLocationAsFallback)
+		|| SlotEntranceHandle.Type == FSmartObjectSlotEntranceHandle::EType::Slot)
 	{
 		FSlotEntryCandidate& Candidate = Candidates.AddDefaulted_GetRef();
 		Candidate.Location = SlotTransform.GetLocation();
 		Candidate.Rotation = SlotTransform.GetRotation().Rotator();
+		Candidate.Handle = FSmartObjectSlotEntranceHandle(SlotHandle, FSmartObjectSlotEntranceHandle::EType::Slot);
 	}
 
 	if (Candidates.IsEmpty())
@@ -1605,19 +1640,33 @@ bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlot
 	}
 
 	// Sort candidates so that the best candidate is first.
-	if (Request.SelectMethod == FSmartObjectSlotEntrySelectionMethod::NearestToSearchLocation)
+	if (Candidates.Num() > 1)
 	{
-		for (FSlotEntryCandidate& Candidate : Candidates)
+		if (Request.SelectMethod == FSmartObjectSlotEntrySelectionMethod::NearestToSearchLocation)
 		{
-			Candidate.DistanceSqr = FVector::DistSquared(Request.SearchLocation, Candidate.Location);
+			for (FSlotEntryCandidate& Candidate : Candidates)
+			{
+				Candidate.DistanceSqr = FVector::DistSquared(Request.SearchLocation, Candidate.Location);
+			}
+			
+			Candidates.Sort([](const FSlotEntryCandidate& A, const FSlotEntryCandidate& B)
+			{
+				if (A.SelectionPriority == B.SelectionPriority)
+				{
+					return A.DistanceSqr < B.DistanceSqr;
+				}
+				return A.SelectionPriority > B.SelectionPriority;
+			});
 		}
-		
-		Candidates.Sort([](const FSlotEntryCandidate& A, const FSlotEntryCandidate& B)
+		else
 		{
-			return A.DistanceSqr < B.DistanceSqr;
-		});
+			// Use stable sort to keep initial order.
+			Candidates.StableSort([](const FSlotEntryCandidate& A, const FSlotEntryCandidate& B)
+			{
+				return A.SelectionPriority > B.SelectionPriority;
+			});
+		}
 	}
-
 
 	check(Candidates.Num() > 0);
 
@@ -1638,6 +1687,11 @@ bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlot
 		GroundTraceQueryParams.AddIgnoredActor(SmartObjectActor);
 		TransitionTraceQueryParams.AddIgnoredActor(SmartObjectActor);
 	}
+	if (Request.InstigatorActor)
+	{
+		GroundTraceQueryParams.AddIgnoredActor(Request.InstigatorActor);
+		TransitionTraceQueryParams.AddIgnoredActor(Request.InstigatorActor);
+	}
 	
 	bool bHasResult = false;
 
@@ -1652,7 +1706,7 @@ bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlot
 			FNavLocation NavLocation;
 			if (!UE::SmartObject::Annotations::ProjectNavigationLocation(*Request.NavigationData, Candidate.Location, SearchBounds, Request.NavigationFilter, Request.InstigatorActor, NavLocation))
 			{
-				// If no navigable area found, skip the candidate. 
+				// If no navigable area found, skip the candidate.
 				continue;
 			}
 			Candidate.Location = NavLocation.Location;

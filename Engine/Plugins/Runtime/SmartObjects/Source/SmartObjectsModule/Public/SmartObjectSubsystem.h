@@ -168,6 +168,44 @@ enum class ESmartObjectSlotNavigationLocationType : uint8
 };
 
 /**
+ * Handle describing a specific entrance on a Smart Object slot.
+ */
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceHandle
+{
+	GENERATED_BODY()
+
+	FSmartObjectSlotEntranceHandle() = default;
+
+	FSmartObjectSlotHandle GetSlotHandle() const { return SlotHandle; }
+	
+	bool IsValid() const { return Type != EType::Invalid; }
+
+private:
+
+	enum class EType : uint8
+	{
+		Invalid,	// Handle is invalid
+		Entrance,	// The handle points to a specific entrance, index is slot data index.
+		Slot,		// The handle points to the slot itself.
+	};
+	
+	explicit FSmartObjectSlotEntranceHandle(const FSmartObjectSlotHandle InSlotHandle, const EType InType, const uint8 InIndex = 0)
+		: SlotHandle(InSlotHandle)
+		, Type(InType)
+		, Index(InIndex)
+	{
+	}
+
+	FSmartObjectSlotHandle SlotHandle;
+	
+	EType Type = EType::Invalid;
+	uint8 Index = 0;
+	
+	friend class USmartObjectSubsystem;
+};
+
+/**
  * Struct used to request slot entry or exit location.
  *
  * The location validation is done in following order:
@@ -223,10 +261,10 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationRequest
 };
 
 /**
- *
+ * Validated result from FindEntranceLocationForSlot().
  */
 USTRUCT()
-struct SMARTOBJECTSMODULE_API FSmartObjectSlotNavigationLocationResult
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationResult
 {
 	GENERATED_BODY()
 
@@ -247,7 +285,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotNavigationLocationResult
 
 	/** Gameplay tag associated with the entry. */
 	FGameplayTag Tag;
+
+	/** Handle identifying the entrance that was found. */
+	FSmartObjectSlotEntranceHandle EntranceHandle;
 };
+
+using FSmartObjectSlotNavigationLocationResult = FSmartObjectSlotEntranceLocationResult; 
 
 /**
  * Result code indicating if the Collection was successfully registered or why it was not.
@@ -481,14 +524,25 @@ public:
 	[[nodiscard]] bool EvaluateSelectionConditions(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData) const;
 
 	/**
-	 * Finds navigable entry location for a specific slot. Each slot can be annotated with multiple navigation locations, and the request can be configured to also consider the slot location as one entry.
-	 * Additionally the navigation locations can be checked to be on navigable surface (does not check that the point is reachable, though), traced on ground, and without of collisions.
+	 * Finds entrance location for a specific slot. Each slot can be annotated with multiple entrance locations, and the request can be configured to also consider the slot location as one entry.
+	 * Additionally the entrance locations can be checked to be on navigable surface (does not check that the point is reachable, though), traced on ground, and without of collisions.
 	 * @param SlotHandle Handle to the smart object slot.
 	 * @param Request Request describing how to select the entry.
 	 * @param Result Entry location result (in world space).
 	 * @return True if valid entry found.
 	 */
+	bool FindEntranceLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotEntranceLocationResult& Result) const;
 	bool FindNavigationLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotNavigationLocationResult& Result) const;
+
+	
+	/**
+	 * Runs the same logic as FindEntranceLocationForSlot() but for a specific entrance location. The entrance handle can be get from entrance location result.
+	 * @param EntranceHandle Handle to a specific smart object slot entrance.
+	 * @param Request Request describing how to select the entry.
+	 * @param Result Entry location result (in world space).
+	 * @return True if result is valid.
+	 */
+	bool UpdateEntranceLocation(const FSmartObjectSlotEntranceHandle EntranceHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotEntranceLocationResult& Result) const;
 	
 	/**
 	 * Claims smart object from a request result.
@@ -1066,7 +1120,23 @@ protected:
 		const FConstStructView UserData,
 		TPair<const FSmartObjectRuntime*, bool>& LastEvaluatedRuntime
 		) const;	
-	
+
+	/**
+	 * Finds entrance location for a specific slot. Each slot can be annotated with multiple entrance locations, and the request can be configured to also consider the slot location as one entry.
+	 * Additionally the entrance locations can be checked to be on navigable surface (does not check that the point is reachable, though), traced on ground, and without of collisions.
+	 * @param SlotHandle Handle to the smart object slot.
+	 * @param SlotEntranceHandle Handle to specific entrance if just one entrance should be checked. (Optional)
+	 * @param Request Request describing how to select the entry.
+	 * @param Result Entry location result (in world space).
+	 * @return True if valid entry found.
+	 */
+	bool FindEntranceLocationInternal(
+		const FSmartObjectSlotHandle SlotHandle,
+		const FSmartObjectSlotEntranceHandle SlotEntranceHandle,
+		const FSmartObjectSlotEntranceLocationRequest& Request,
+		FSmartObjectSlotEntranceLocationResult& Result
+		) const;
+
 	/**
 	 * Name of the Space partition class to use.
 	 * Usage:

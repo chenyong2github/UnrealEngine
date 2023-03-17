@@ -11,6 +11,27 @@
 class ANavigationData;
 struct FNavLocation;
 
+/**
+ * Enum used to define a entrance selection priority. Highest priority is preferred, but when the priority is the same
+ * the selection method (distance) is used to decide which entrance is chosen.
+ */
+UENUM(BlueprintType)
+enum class ESmartObjectEntrancePriority : uint8
+{
+	Lowest,
+	Lower,
+	Low,
+	BelowNormal,
+	Normal,
+	AboveNormal,
+	High,
+	Higher,
+	Highest, 
+
+	MIN = Lowest UMETA(Hidden),
+	MAX = Highest UMETA(Hidden)
+};
+
 /** Struct defining a collider in world space. */
 struct SMARTOBJECTSMODULE_API FSmartObjectAnnotationCollider
 {
@@ -80,7 +101,11 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceAnnotation : public FSmart
 	/** If set to true, collisions will be checked between the transition from navigation location and slot location. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	uint8 bCheckTransitionTrajectory : 1;
-	
+
+	/** During entrance selection, the highest priority entrance is selected. If multiple entrances share same priority, then the selection method is used (e.g. based on distance). */
+	UPROPERTY(EditAnywhere, Category="Default")
+	ESmartObjectEntrancePriority SelectionPriority = ESmartObjectEntrancePriority::Normal;
+
 	/** Height offset at start of the transition collision check. */
 	UPROPERTY(EditAnywhere, Category="Default", meta = (EditCondition = "bCheckTransitionTrajectory"))
 	float TrajectoryStartHeightOffset = 80.0f;
