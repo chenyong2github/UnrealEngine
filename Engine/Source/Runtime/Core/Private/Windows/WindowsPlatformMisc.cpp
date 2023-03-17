@@ -986,7 +986,7 @@ void FWindowsPlatformMisc::LocalPrint( const TCHAR *Message )
 
 bool FWindowsPlatformMisc::IsLowLevelOutputDebugStringStructured()
 {
-	HANDLE Mutex = OpenMutexW(SYNCHRONIZE, /*bInheritHandle*/ false, LR"--(Global\UE_LOG_JSON)--");
+	HANDLE Mutex = OpenMutexW(SYNCHRONIZE, /*bInheritHandle*/ false, L"UE_LOG_JSON");
 	ON_SCOPE_EXIT { CloseHandle(Mutex); };
 	return !!Mutex || FGenericPlatformMisc::IsLowLevelOutputDebugStringStructured();
 }
