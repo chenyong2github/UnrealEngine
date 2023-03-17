@@ -11361,9 +11361,11 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 				TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
 				RefreshFunctionPins(EntryNode);
 			}
-			EntryNode->Position = FVector2D(-250.f, 0.f);
 			Notify(ERigVMGraphNotifType::NodeAdded, EntryNode);
 		}
+
+		EntryNode->Position = FVector2D(-250.f, 0.f);
+		Notify(ERigVMGraphNotifType::NodePositionChanged, EntryNode);
 
 		if (ReturnNode == nullptr)
 		{
@@ -11373,10 +11375,11 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 				TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
 				RefreshFunctionPins(ReturnNode);
 			}
-			ReturnNode->Position = FVector2D(250.f, 0.f);
 			Notify(ERigVMGraphNotifType::NodeAdded, ReturnNode);
 		}
 
+		ReturnNode->Position = FVector2D(250.f, 0.f);
+		Notify(ERigVMGraphNotifType::NodePositionChanged, ReturnNode);
 
 		if (bMutable)
 		{
