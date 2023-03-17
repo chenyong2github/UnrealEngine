@@ -89,7 +89,7 @@ static TAutoConsoleVariable<int32> CVarStreamingMemory(
 
 
 TAutoConsoleVariable<bool> CVarClearStreamingCacheOnUpdateEnd(
-	TEXT("mutable.ClearStreamingCahceOnUpdateEnd"),
+	TEXT("mutable.ClearStreamingCacheOnUpdateEnd"),
 	false,
 	TEXT("Clear the Streaming Cache when releasing an Instance."),
 	ECVF_Scalability);
