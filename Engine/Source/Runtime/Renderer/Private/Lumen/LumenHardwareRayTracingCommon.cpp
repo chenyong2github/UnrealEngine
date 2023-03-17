@@ -72,13 +72,22 @@ static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxTranslucentSkip
 	ECVF_RenderThreadSafe
 );
 
+bool LumenHardwareRayTracing::IsInlineSupported()
+{
+	return GRHISupportsInlineRayTracing;
+}
+
+bool LumenHardwareRayTracing::IsRayGenSupported()
+{
+	// Indirect RayGen dispatch is required for Lumen RayGen shaders
+	return GRHISupportsRayTracingShaders && GRHISupportsRayTracingDispatchIndirect;
+}
+
 bool Lumen::UseHardwareRayTracing(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
 	return IsRayTracingEnabled()
-		&& (GRHISupportsRayTracingShaders || GRHISupportsInlineRayTracing)
-		// Lumen HWRT requires indirect dispatch for various passes
-		&& GRHISupportsRayTracingDispatchIndirect
+		&& (LumenHardwareRayTracing::IsInlineSupported() || LumenHardwareRayTracing::IsRayGenSupported())
 		&& CVarLumenUseHardwareRayTracing.GetValueOnAnyThread() != 0
 		// Lumen HWRT does not support split screen yet, but stereo views can be allowed
 		&& (ViewFamily.Views.Num() == 1 || (ViewFamily.Views.Num() == 2 && IStereoRendering::IsStereoEyeView(*ViewFamily.Views[0])));
@@ -98,8 +107,8 @@ Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(
 		
 	int32 LightingModeInt = CVarLumenHardwareRayTracingLightingMode.GetValueOnRenderThread();
 
-	// Without ray tracing shaders support we can only use Surface Cache mode.
-	if (View.FinalPostProcessSettings.LumenRayLightingMode == ELumenRayLightingModeOverride::SurfaceCache || !GRHISupportsRayTracingShaders)
+	// Without ray tracing shaders (RayGen) support we can only use Surface Cache mode.
+	if (View.FinalPostProcessSettings.LumenRayLightingMode == ELumenRayLightingModeOverride::SurfaceCache || !LumenHardwareRayTracing::IsRayGenSupported())
 	{
 		LightingModeInt = static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
 	}
@@ -118,10 +127,16 @@ Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(
 bool Lumen::UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
-	return (Lumen::UseHardwareRayTracing(ViewFamily) && CVarLumenUseHardwareRayTracingInline.GetValueOnRenderThread() != 0 && GRHISupportsInlineRayTracing);
-#else
-	return false;
+	if (Lumen::UseHardwareRayTracing(ViewFamily)
+		&& LumenHardwareRayTracing::IsInlineSupported()
+		// Can't disable inline tracing if RayGen isn't supported
+		&& (CVarLumenUseHardwareRayTracingInline.GetValueOnRenderThread() != 0 || !LumenHardwareRayTracing::IsRayGenSupported()))
+	{
+		return true;
+	}
 #endif
+
+	return false;
 }
 
 float LumenHardwareRayTracing::GetFarFieldBias()

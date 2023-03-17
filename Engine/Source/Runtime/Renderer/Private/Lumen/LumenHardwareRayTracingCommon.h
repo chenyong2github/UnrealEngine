@@ -44,6 +44,12 @@ namespace Lumen
 	};
 }
 
+namespace LumenHardwareRayTracing
+{
+	bool IsInlineSupported();
+	bool IsRayGenSupported();
+}
+
 class FLumenHardwareRayTracingShaderBase : public FGlobalShader
 {
 public:

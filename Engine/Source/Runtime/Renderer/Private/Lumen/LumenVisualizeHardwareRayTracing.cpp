@@ -538,7 +538,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 	}
 
 	// Disable modes that use hit-lighting when it's not available
-	if (!GRHISupportsRayTracingShaders)
+	if (!LumenHardwareRayTracing::IsRayGenSupported())
 	{
 		bRetraceForHitLighting = false;
 		bForceHitLighting = false;
