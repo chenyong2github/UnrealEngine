@@ -95,6 +95,9 @@ namespace ContentBrowserUtils
 	bool CanDeleteFromPathView(TWeakPtr<SPathView> PathView, FText* OutErrorMsg = nullptr);
 	bool CanRenameFromPathView(TWeakPtr<SPathView> PathView, FText* OutErrorMsg = nullptr);
 
+	/** Returns internal path if it has one, otherwise strips /All prefix from virtual path*/
+	FName GetInvariantPath(const FContentBrowserItemPath& ItemPath);
+
 	/** Returns if this folder has been marked as a favorite folder */
 	UE_DEPRECATED(5.3, "Use function that takes FContentBrowserItemPath instead.")
 	bool IsFavoriteFolder(const FString& FolderPath);
