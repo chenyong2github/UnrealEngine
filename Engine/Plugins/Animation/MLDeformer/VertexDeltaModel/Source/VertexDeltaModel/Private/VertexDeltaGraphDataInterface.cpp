@@ -106,9 +106,9 @@ namespace UE::VertexDeltaModel
 		const UMLDeformerAsset* DeformerAsset = DeformerComponent != nullptr ? DeformerComponent->GetDeformerAsset() : nullptr;
 		const UMLDeformerModel* Model = DeformerAsset != nullptr ? DeformerAsset->GetModel() : nullptr;
 		const UMLDeformerModelInstance* ModelInstance = DeformerComponent != nullptr ? DeformerComponent->GetModelInstance() : nullptr;
-		if (Model != nullptr && ModelInstance != nullptr)
+		const UVertexDeltaModel* VertexDeltaModel = Cast<UVertexDeltaModel>(Model);
+		if (VertexDeltaModel != nullptr && ModelInstance != nullptr)
 		{
-			const UVertexDeltaModel* VertexDeltaModel = Cast<UVertexDeltaModel>(Model);
 			SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
 			NeuralNetwork = VertexDeltaModel->GetNNINetwork();
 			NeuralNetworkInferenceHandle = ModelInstance->GetNeuralNetworkInferenceHandle();
