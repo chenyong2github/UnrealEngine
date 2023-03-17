@@ -934,11 +934,10 @@ public:
 		FVector::FReal HitTime;
 		FVector HitNormal;
 		uint32 bIsRaycastEndInCorridor : 1;
-		inline static constexpr FVector::FReal InvalidHitTime = TNumericLimits<FVector::FReal>::Max();
 
 		FRaycastResult()
 			: CorridorPolysCount(0)
-			, HitTime(InvalidHitTime)
+			, HitTime(TNumericLimits<FVector::FReal>::Max())
 			, HitNormal(0.f)
 			, bIsRaycastEndInCorridor(false)
 		{
@@ -947,7 +946,7 @@ public:
 		}
 
 		FORCEINLINE int32 GetMaxCorridorSize() const { return MAX_PATH_CORRIDOR_POLYS; }
-		FORCEINLINE bool HasHit() const { return HitTime != InvalidHitTime; }
+		FORCEINLINE bool HasHit() const { return HitTime != TNumericLimits<FVector::FReal>::Max(); }
 		FORCEINLINE NavNodeRef GetLastNodeRef() const { return CorridorPolysCount > 0 ? CorridorPolys[CorridorPolysCount - 1] : INVALID_NAVNODEREF; }
 	};
 

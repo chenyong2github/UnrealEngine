@@ -1119,7 +1119,7 @@ void FPImplRecastNavMesh::Raycast(const FVector& StartLoc, const FVector& EndLoc
 	}
 	else
 	{
-		RaycastResult.HitTime = ARecastNavMesh::FRaycastResult::InvalidHitTime;
+		RaycastResult.HitTime = 0.f;
 		RaycastResult.HitNormal = (StartLoc - EndLoc).GetSafeNormal();
 	}
 }
