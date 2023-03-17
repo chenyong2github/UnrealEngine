@@ -19,6 +19,7 @@
 class FSandboxPlatformFile;
 class ITargetPlatform;
 class UCookOnTheFlyServer;
+enum class ECookByTheBookOptions;
 
 UCLASS(config=Editor)
 class UCookCommandlet
@@ -94,4 +95,9 @@ public:
 	
 	//~ End UCommandlet Interface
 
+private:
+	void RunCookByTheBookList(UCookOnTheFlyServer* CookOnTheFlyServer, void* StartupOptionsAsVoid,
+		ECookByTheBookOptions CookOptions);
+	void RunCookByTheBookCook(UCookOnTheFlyServer* CookOnTheFlyServer, void* StartupOptionsAsVoid,
+		ECookByTheBookOptions CookOptions);
 };

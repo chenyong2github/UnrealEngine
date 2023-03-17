@@ -96,6 +96,12 @@ enum class ECookByTheBookOptions
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
+enum class ECookListOptions
+{
+	None =								0x00000000,
+	ShowRejected =						0x00000001,
+};
+ENUM_CLASS_FLAGS(ECookListOptions);
 
 UENUM()
 namespace ECookMode
@@ -440,6 +446,7 @@ private:
 	/* Update polled fields used by CookOnTheFly's network request handlers */
 	void TickNetwork();
 
+	/** Tick the cook for the current cook mode: request, load, save, finish. */
 	void TickMainCookLoop(UE::Cook::FTickStackData& StackData);
 
 	/** Execute operations that need to be done after each Scheduler task, such as checking for new external requests. */
@@ -679,6 +686,8 @@ public:
 	uint32 TickCookOnTheFly(const float TimeSlice, ECookTickFlags TickFlags = ECookTickFlags::None);
 	/** Tick CookWorker until it finishes or needs to yield. Should only be called when in CookWorker Mode. */
 	uint32 TickCookWorker();
+	/** Log a list of all of the transitively requested packages. */
+	void RunCookList(ECookListOptions CookListOptions);
 
 	/** Clear all the previously cooked data all cook requests from now on will be considered recook requests */
 	void ClearAllCookedData();
@@ -1424,6 +1433,8 @@ private:
 	bool bPollablesInTick = false;
 	/** Config value that specifies whether the Skip-Only-Editor-Only feature is enabled. */
 	bool bCanSkipEditorReferencedPackagesWhenCooking = false;
+	/** True if we're running cooklist; tweak output */
+	bool bCookListMode = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	double SaveBusyStartTimeSeconds = MAX_flt;

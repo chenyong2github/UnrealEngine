@@ -125,6 +125,7 @@
 #include "String/ParseLines.h"
 #include "String/ParseTokens.h"
 #include "TargetDomain/TargetDomainUtils.h"
+#include "Templates/UnrealTemplate.h"
 #include "UnrealEdGlobals.h"
 #include "UObject/ArchiveCookContext.h"
 #include "UObject/Class.h"
@@ -145,6 +146,8 @@
 #define LOCTEXT_NAMESPACE "Cooker"
 
 DEFINE_LOG_CATEGORY(LogCook);
+DEFINE_LOG_CATEGORY_STATIC(LogCookList, Log, All);
+
 FName LogCookName(TEXT("LogCook"));
 LLM_DEFINE_TAG(Cooker);
 LLM_DEFINE_TAG(Cooker_SavePackage);
@@ -1285,6 +1288,64 @@ uint32 UCookOnTheFlyServer::TickCookByTheBook(const float TimeSlice, ECookTickFl
 		CookByTheBookFinished();
 	}
 	return StackData.ResultFlags;
+}
+
+void UCookOnTheFlyServer::RunCookList(ECookListOptions CookListOptions)
+{
+	using namespace UE::Cook;
+
+	TGuardValue<bool> SetRunCookListMode(bCookListMode, true);
+
+	FTickStackData StackData(MAX_flt, ECookTickFlags::None);
+	PumpExternalRequests(StackData.Timer);
+	ProcessUnsolicitedPackages();
+	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
+	while (RequestQueue.GetRequestClusters().Num() != 0 || RequestQueue.GetUnclusteredRequests().Num() != 0)
+	{
+		int32 NumPushed;
+		PumpRequests(StackData, NumPushed);
+	}
+
+	TArray<FPackageData*> ReportedDatas;
+	PackageDatas->LockAndEnumeratePackageDatas([&ReportedDatas, CookListOptions](FPackageData* PackageData)
+	{
+		bool bIncludePackage;
+		if (EnumHasAnyFlags(CookListOptions, ECookListOptions::ShowRejected))
+		{
+			bIncludePackage = PackageData->GetInstigator().Category != EInstigator::NotYetRequested;
+			if (bIncludePackage)
+			{
+				// Skip printing out a message for external actors
+				if (INDEX_NONE != UE::String::FindFirst(WriteToString<256>(PackageData->GetPackageName()), ULevel::GetExternalActorsFolderName()))
+				{
+					bIncludePackage = false;
+				}
+			}
+		}
+		else
+		{
+			bIncludePackage = PackageData->IsInProgress() || PackageData->HasAnyCookedPlatform();
+		}
+		if (bIncludePackage)
+		{
+			ReportedDatas.Add(PackageData);
+		}
+	});
+	Algo::Sort(ReportedDatas, [](FPackageData* A, FPackageData* B)
+	{
+		return A->GetPackageName().LexicalLess(B->GetPackageName());
+	});
+
+	bool bShowInstigators = (GCookProgressDisplay & (int32)ECookProgressDisplayMode::Instigators) != 0;
+	for (FPackageData* PackageData : ReportedDatas)
+	{
+		bool bRejected = !PackageData->IsInProgress() && !PackageData->HasAnyCookedPlatform();
+		UE_LOG(LogCookList, Display, TEXT("%s%s%s%s"),
+			bRejected ? TEXT("Rejected: ") : TEXT(""),
+			*WriteToString<256>(PackageData->GetPackageName()),
+			bShowInstigators ? TEXT(", Instigator: ") : TEXT(""),
+			bShowInstigators ? *PackageData->GetInstigator().ToString() : TEXT(""));
+	}
 }
 
 uint32 UCookOnTheFlyServer::TickCookOnTheFly(const float TimeSlice, ECookTickFlags TickFlags)
@@ -2497,7 +2558,8 @@ void UCookOnTheFlyServer::DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::
 	{
 		WorkerRequests->ReportDemoteToIdle(PackageData, Reason);
 		// If per-package display is on, write a log statement explaining that the package was reachable but skipped.
-		if (GCookProgressDisplay & ((int32)ECookProgressDisplayMode::Instigators | (int32)ECookProgressDisplayMode::PackageNames))
+		if (!bCookListMode &
+			((GCookProgressDisplay & ((int32)ECookProgressDisplayMode::Instigators | (int32)ECookProgressDisplayMode::PackageNames)) != 0))
 		{
 			// Suppress the message in cases that cause large spam like NotInCurrentPlugin for DLC cooks.
 			if (Reason != ESuppressCookReason::NotInCurrentPlugin)
