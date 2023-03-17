@@ -50,11 +50,7 @@ void UMVVMWidgetBlueprintExtension_View::HandleBeginCompilation(FWidgetBlueprint
 	CurrentCompilerContext.Reset();
 	if (BlueprintView)
 	{
-		for (FMVVMBlueprintViewBinding& Binding : BlueprintView->GetBindings())
-		{
-			Binding.Errors.Reset();
-		}
-
+		BlueprintView->ResetBindingMessages();
 		CurrentCompilerContext = MakePimpl<UE::MVVM::Private::FMVVMViewBlueprintCompiler>(InCreationContext);
 	}
 }

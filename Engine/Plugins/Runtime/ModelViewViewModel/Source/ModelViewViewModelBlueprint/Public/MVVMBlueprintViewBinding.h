@@ -62,10 +62,6 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	FMVVMBlueprintViewConversionPath Conversion;
 
-	/** */
-	UPROPERTY(VisibleAnywhere, Category = "Viewmodel", Transient)
-	TArray<FText> Errors;
-
 	/** The unique ID of this binding. */
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	FGuid BindingId;

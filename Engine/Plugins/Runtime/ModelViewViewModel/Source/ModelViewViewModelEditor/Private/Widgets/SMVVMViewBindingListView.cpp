@@ -288,134 +288,140 @@ public:
 			.ShowWires(true)
 			.Style(FMVVMEditorStyle::Get(), "BindingView.BindingRow")
 			[
-				SNew(SBox)
-				.HeightOverride(30)
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.Padding(2, 0)
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left) 
-					.AutoWidth()
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("PlainBorder"))
+			    .Padding(0)
+			    .BorderBackgroundColor(this, &SBindingRow::GetErrorBorderColor)
+			     [
+					SNew(SBox)
+					.HeightOverride(30)
 					[
-						SNew(SCheckBox)
-						.IsChecked(this, &SBindingRow::IsBindingCompiled)
-						.OnCheckStateChanged(this, &SBindingRow::OnIsBindingCompileChanged)
-					]
+						SNew(SHorizontalBox)
 
-					+ SHorizontalBox::Slot()
-					.Padding(2, 0)
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left) 
-					.AutoWidth()
-					[
-						SNew(SSimpleButton)
-						.Icon(FAppStyle::Get().GetBrush("Icons.Error"))
-						.Visibility(this, &SBindingRow::GetErrorVisibility)
-						.ToolTipText(this, &SBindingRow::GetErrorToolTip)
-						.OnClicked(this, &SBindingRow::OnErrorButtonClicked)
-					]
-
-					+ SHorizontalBox::Slot()
-					.Padding(4, 0)
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					.AutoWidth()
-					[
-						SNew(SBox)
-						.MinDesiredWidth(150)
+						+ SHorizontalBox::Slot()
+						.Padding(2, 0)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left) 
+						.AutoWidth()
 						[
-							SAssignNew(WidgetFieldSelector, SFieldSelector, InWidgetBlueprint, false)
-							.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
-							.SelectedField(this, &SBindingRow::GetSelectedWidgetProperty)
-							.OnFieldSelectionChanged(this, &SBindingRow::OnWidgetPropertySelected)
-							.SelectedConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, false)
-							.OnConversionFunctionSelectionChanged(this, &SBindingRow::OnConversionFunctionChanged, false)
-							.ShowConversionFunctions(this, &SBindingRow::ShouldShowConversionFunctions, false)
-							.ShowSource(false)
-							.Source(WidgetSource)
-							.AssignableTo(this, &SBindingRow::GetAssignableToProperty, false)
+							SNew(SCheckBox)
+							.IsChecked(this, &SBindingRow::IsBindingCompiled)
+							.OnCheckStateChanged(this, &SBindingRow::OnIsBindingCompileChanged)
 						]
-					]
 
-					+ SHorizontalBox::Slot()
-					.Padding(4, 0)
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Left) 
-					.AutoWidth()
-					[
-						SNew(SComboBox<FName>)
-						.OptionsSource(Private::GetBindingModeNames())
-						.InitiallySelectedItem(StaticEnum<EMVVMBindingMode>()->GetNameByValue((int64) ViewBinding->BindingType))
-						.OnSelectionChanged(this, &SBindingRow::OnBindingModeSelectionChanged)
-						.OnGenerateWidget(this, &SBindingRow::GenerateBindingModeWidget)
-						.ToolTipText(this, &SBindingRow::GetCurrentBindingModeLabel)
-						.Content()
+						+ SHorizontalBox::Slot()
+						.Padding(2, 0)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left) 
+						.AutoWidth()
+						[
+							SNew(SSimpleButton)
+							.Icon(FAppStyle::Get().GetBrush("Icons.Error"))
+							.Visibility(this, &SBindingRow::GetErrorButtonVisibility)
+							.ToolTipText(this, &SBindingRow::GetErrorButtonToolTip)
+							.OnClicked(this, &SBindingRow::OnErrorButtonClicked)
+						]
+
+						+ SHorizontalBox::Slot()
+						.Padding(4, 0)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						.AutoWidth()
 						[
 							SNew(SBox)
-							.HAlign(HAlign_Center)
-							.VAlign(VAlign_Center)
-							.WidthOverride(16)
-							.HeightOverride(16)
+							.MinDesiredWidth(150)
 							[
-								SNew(SImage)
-								.Image(this, &SBindingRow::GetCurrentBindingModeBrush)
+								SAssignNew(WidgetFieldSelector, SFieldSelector, InWidgetBlueprint, false)
+								.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
+								.SelectedField(this, &SBindingRow::GetSelectedWidgetProperty)
+								.OnFieldSelectionChanged(this, &SBindingRow::OnWidgetPropertySelected)
+								.SelectedConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, false)
+								.OnConversionFunctionSelectionChanged(this, &SBindingRow::OnConversionFunctionChanged, false)
+								.ShowConversionFunctions(this, &SBindingRow::ShouldShowConversionFunctions, false)
+								.ShowSource(false)
+								.Source(WidgetSource)
+								.AssignableTo(this, &SBindingRow::GetAssignableToProperty, false)
 							]
 						]
-					]
-				
-					+ SHorizontalBox::Slot()
-					.Padding(4, 0, 2, 0)
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					.AutoWidth()
-					[
-						SNew(SBox)
-						.MinDesiredWidth(150)
+
+						+ SHorizontalBox::Slot()
+						.Padding(4, 0)
+						.VAlign(VAlign_Fill)
+						.HAlign(HAlign_Left) 
+						.AutoWidth()
 						[
-							SAssignNew(ViewModelFieldSelector, SFieldSelector, InWidgetBlueprint, true)
-							.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
-							.SelectedField(this, &SBindingRow::GetSelectedViewModelProperty)
-							.OnFieldSelectionChanged(this, &SBindingRow::OnViewModelPropertySelected)
-							.SelectedConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, true)
-							.OnConversionFunctionSelectionChanged(this, &SBindingRow::OnConversionFunctionChanged, true)
-							.ShowConversionFunctions(this, &SBindingRow::ShouldShowConversionFunctions, true)
-							.AssignableTo(this, &SBindingRow::GetAssignableToProperty, true)
+							SNew(SComboBox<FName>)
+							.OptionsSource(Private::GetBindingModeNames())
+							.InitiallySelectedItem(StaticEnum<EMVVMBindingMode>()->GetNameByValue((int64) ViewBinding->BindingType))
+							.OnSelectionChanged(this, &SBindingRow::OnBindingModeSelectionChanged)
+							.OnGenerateWidget(this, &SBindingRow::GenerateBindingModeWidget)
+							.ToolTipText(this, &SBindingRow::GetCurrentBindingModeLabel)
+							.Content()
+							[
+								SNew(SBox)
+								.HAlign(HAlign_Center)
+								.VAlign(VAlign_Center)
+								.WidthOverride(16)
+								.HeightOverride(16)
+								[
+									SNew(SImage)
+									.Image(this, &SBindingRow::GetCurrentBindingModeBrush)
+								]
+							]
 						]
-					]
-
-					+ SHorizontalBox::Slot()
-					[
-						SNew(SSpacer)
-					]
-
-					+ SHorizontalBox::Slot()
-					.Padding(2, 1)
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Right)
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.IsChecked(this, &SBindingRow::IsExecutionModeOverrideChecked)
-						.OnCheckStateChanged(this, &SBindingRow::OnExecutionModeOverrideChanged)
-					]
-
-					+ SHorizontalBox::Slot()
-					.Padding(2, 1)
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Right)
-					.AutoWidth()
-					[
-						SNew(SComboButton)
-						.ContentPadding(FMargin(4.f, 0.f))
-						.OnGetMenuContent(this, &SBindingRow::OnGetExecutionModeMenuContent)
-						.IsEnabled(this, &SBindingRow::IsExecutionModeOverridden)
-						.ButtonContent()
+				
+						+ SHorizontalBox::Slot()
+						.Padding(4, 0, 2, 0)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						.AutoWidth()
 						[
-							SNew(STextBlock)
-							.Text(this, &SBindingRow::GetExecutioModeValue)
-							.ToolTipText(this, &SBindingRow::GetExecutioModeValueToolTip)
+							SNew(SBox)
+							.MinDesiredWidth(150)
+							[
+								SAssignNew(ViewModelFieldSelector, SFieldSelector, InWidgetBlueprint, true)
+								.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
+								.SelectedField(this, &SBindingRow::GetSelectedViewModelProperty)
+								.OnFieldSelectionChanged(this, &SBindingRow::OnViewModelPropertySelected)
+								.SelectedConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, true)
+								.OnConversionFunctionSelectionChanged(this, &SBindingRow::OnConversionFunctionChanged, true)
+								.ShowConversionFunctions(this, &SBindingRow::ShouldShowConversionFunctions, true)
+								.AssignableTo(this, &SBindingRow::GetAssignableToProperty, true)
+							]
+						]
+
+						+ SHorizontalBox::Slot()
+						[
+							SNew(SSpacer)
+						]
+
+						+ SHorizontalBox::Slot()
+						.Padding(2, 1)
+						.VAlign(VAlign_Fill)
+						.HAlign(HAlign_Right)
+						.AutoWidth()
+						[
+							SNew(SCheckBox)
+							.IsChecked(this, &SBindingRow::IsExecutionModeOverrideChecked)
+							.OnCheckStateChanged(this, &SBindingRow::OnExecutionModeOverrideChanged)
+						]
+
+						+ SHorizontalBox::Slot()
+						.Padding(2, 1)
+						.VAlign(VAlign_Fill)
+						.HAlign(HAlign_Right)
+						.AutoWidth()
+						[
+							SNew(SComboButton)
+							.ContentPadding(FMargin(4.f, 0.f))
+							.OnGetMenuContent(this, &SBindingRow::OnGetExecutionModeMenuContent)
+							.IsEnabled(this, &SBindingRow::IsExecutionModeOverridden)
+							.ButtonContent()
+							[
+								SNew(STextBlock)
+								.Text(this, &SBindingRow::GetExecutioModeValue)
+								.ToolTipText(this, &SBindingRow::GetExecutioModeValueToolTip)
+							]
 						]
 					]
 				]
@@ -473,6 +479,24 @@ public:
 
 private:
 
+	FSlateColor GetErrorBorderColor() const
+	{
+		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
+		if (BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Error))
+		{
+			return FStyleColors::Error;
+		}
+		else if (BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Warning))
+		{
+			return FStyleColors::Warning;
+		}
+		else
+		{
+			return FStyleColors::Transparent;
+		}
+	}
+
 	ECheckBoxState IsBindingEnabled() const
 	{
 		if (const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
@@ -491,16 +515,26 @@ private:
 		return ECheckBoxState::Undetermined;
 	}
 
-	EVisibility GetErrorVisibility() const
+	EVisibility GetErrorButtonVisibility() const
 	{
-		return GetThisViewBinding()->Errors.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
+		bool HasBindingError = BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Error) || BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Warning);
+		return HasBindingError ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
-	FText GetErrorToolTip() const
+	FText GetErrorButtonToolTip() const
 	{
+		// Get error messages of this binding
+		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
+		TArray<FText> BindingErrorList = BlueprintViewPtr->GetBindingMessages(GetThisViewBinding()->BindingId, EBindingMessageType::Error);
+		TArray<FText> BindingWarningList = BlueprintViewPtr->GetBindingMessages(GetThisViewBinding()->BindingId, EBindingMessageType::Warning);
+		BindingErrorList.Append(BindingWarningList);
+
 		static const FText NewLineText = FText::FromString(TEXT("\n"));
-		FText HintText = LOCTEXT("ErrorButtonText", "Errors: (Click to show in a separate window)");
-		FText ErrorsText = FText::Join(NewLineText, GetThisViewBinding()->Errors);
+		FText HintText = LOCTEXT("ErrorButtonText", "Errors and Warnings: (Click to show in a separate window)");
+		FText ErrorsText = FText::Join(NewLineText, BindingErrorList);
 		return FText::Join(NewLineText, HintText, ErrorsText);
 	}
 
@@ -515,14 +549,19 @@ private:
 		{
 			if (const FMVVMBlueprintViewBinding* ViewBinding = Entry->GetBinding(View))
 			{
-				for (const FText& ErrorText : ViewBinding->Errors)
+				for (const FText& ErrorText : View->GetBindingMessages(ViewBinding->BindingId, EBindingMessageType::Error))
 				{
 					ErrorItems.Add(MakeShared<FText>(ErrorText));
 				}
 
+				for (const FText& WarningText : View->GetBindingMessages(ViewBinding->BindingId, EBindingMessageType::Warning))
+				{
+					ErrorItems.Add(MakeShared<FText>(WarningText));
+				}
+
 				const FText BindingDisplayName = FText::FromString(ViewBinding->GetDisplayNameString(WidgetBlueprint));
 				ErrorDialog = SNew(SCustomDialog)
-					.Title(FText::Format(LOCTEXT("Compilation Errors", "Compilation Errors for {0}"), BindingDisplayName))
+					.Title(FText::Format(LOCTEXT("Compilation Errors and Warnings", "Compilation Errors and Warnings for {0}"), BindingDisplayName))
 					.Buttons({
 						SCustomDialog::FButton(LOCTEXT("OK", "OK"))
 					})

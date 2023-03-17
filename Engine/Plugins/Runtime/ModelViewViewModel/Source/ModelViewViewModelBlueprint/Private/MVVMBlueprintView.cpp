@@ -185,6 +185,51 @@ const FMVVMBlueprintViewBinding* UMVVMBlueprintView::GetBinding(FGuid Id) const
 	return Bindings.FindByPredicate([Id](const FMVVMBlueprintViewBinding& Binding) { return Id == Binding.BindingId; });
 }
 
+TArray<FText> UMVVMBlueprintView::GetBindingMessages(FGuid Id, UE::MVVM::EBindingMessageType InMessageType) const
+{
+	TArray<FText> Results;
+
+	if (BindingMessages.Contains(Id))
+	{
+		const TArray<UE::MVVM::FBindingMessage>& AllBindingMessages = BindingMessages[Id];
+		for (const UE::MVVM::FBindingMessage& Message : AllBindingMessages)
+		{
+			if (Message.MessageType == InMessageType)
+			{
+				Results.Add(Message.MessageText);
+			}
+		}
+	}
+	return Results;
+}
+
+bool UMVVMBlueprintView::HasBindingMessage(FGuid Id, UE::MVVM::EBindingMessageType InMessageType) const
+{
+	if (const TArray<UE::MVVM::FBindingMessage>* FoundBindingMessages = BindingMessages.Find(Id))
+	{
+		for (const UE::MVVM::FBindingMessage& Message : *FoundBindingMessages)
+		{
+			if (Message.MessageType == InMessageType)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void UMVVMBlueprintView::AddMessageToBinding(FGuid Id, UE::MVVM::FBindingMessage MessageToAdd)
+{
+	TArray<UE::MVVM::FBindingMessage>& FoundBindingMessages = BindingMessages.FindOrAdd(Id);
+	FoundBindingMessages.Add(MessageToAdd);
+}
+
+void UMVVMBlueprintView::ResetBindingMessages()
+{
+	BindingMessages.Reset();
+}
+
 void UMVVMBlueprintView::PostLoad()
 {
 	Super::PostLoad();

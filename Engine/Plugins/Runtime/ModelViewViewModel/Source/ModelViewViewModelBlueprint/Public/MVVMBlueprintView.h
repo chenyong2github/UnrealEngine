@@ -12,6 +12,22 @@ class UMVVMWidgetBlueprintExtension_View;
 class UWidget;
 class UWidgetBlueprint;
 
+namespace  UE::MVVM
+{
+	enum class EBindingMessageType : uint8
+	{
+		Info,
+		Warning,
+		Error
+	};
+
+	struct FBindingMessage
+	{
+		FText MessageText;
+		EBindingMessageType MessageType;
+	};
+}
+
 /**
  * 
  */
@@ -65,6 +81,11 @@ public:
 		return Bindings;
 	}
 
+	TArray<FText> GetBindingMessages(FGuid Id, UE::MVVM::EBindingMessageType InMessageType) const;
+	bool HasBindingMessage(FGuid Id, UE::MVVM::EBindingMessageType InMessageType) const;
+	void AddMessageToBinding(FGuid Id, UE::MVVM::FBindingMessage MessageToAdd);
+	void ResetBindingMessages();
+
 #if WITH_EDITOR
 //	virtual void PostEditUndo() override;
 
@@ -93,6 +114,10 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Viewmodel")
 	TArray<FMVVMBlueprintViewModelContext> AvailableViewModels;
+
+	TMap<FGuid, TArray<UE::MVVM::FBindingMessage>> BindingMessages;
+
+	bool bIsContextSensitive;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

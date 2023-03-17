@@ -99,6 +99,20 @@ public:
 		return UE::MVVM::FMVVMConstFieldVariant();
 	}
 
+	bool IsFieldLocalScope() const
+	{
+		return BindingReference.IsLocalScope();
+	}
+
+	UClass* GetParentClass() const
+	{
+		return BindingReference.GetMemberParentClass();
+	}
+
+	EBindingKind GetBindingKind() const
+	{
+		return BindingKind;
+	}
 	/** */
 	void SetBindingReference(UE::MVVM::FMVVMConstFieldVariant InField)
 	{
@@ -232,6 +246,11 @@ public:
 		return Result;
 	}
 
+	TArrayView<FMVVMBlueprintFieldPath const> GetFieldPaths() const
+	{
+		return Paths;
+	}
+
 	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
 	TArray<UE::MVVM::FMVVMConstFieldVariant> GetFields() const
 	{
@@ -244,6 +263,19 @@ public:
 		}
 
 		return Result;
+	}
+
+	bool HasFieldInLocalScope() const
+	{
+		for (const FMVVMBlueprintFieldPath& Path : Paths)
+		{
+			if (Path.IsFieldLocalScope())
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	bool BasePropertyPathContains(UE::MVVM::FMVVMConstFieldVariant Field) const
