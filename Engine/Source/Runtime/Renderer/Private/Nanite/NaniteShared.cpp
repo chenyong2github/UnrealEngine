@@ -226,8 +226,8 @@ FPackedView CreatePackedViewFromViewInfo
 
 bool ShouldDrawSceneViewsInOneNanitePass(const FViewInfo& View)
 {
-	static const TConsoleVariableData<int32>* CVarNaniteMultipleSceneViewsInOnePass = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.MultipleSceneViewsInOnePass"));
-	return View.bIsMultiViewportEnabled && CVarNaniteMultipleSceneViewsInOnePass && (CVarNaniteMultipleSceneViewsInOnePass->GetValueOnRenderThread() > 0);
+	static const TConsoleVariableData<int32>* CVarDrawSceneViewsInOneNanitePass = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.MultipleSceneViewsInOnePass"));
+	return View.bIsMultiViewportEnabled && CVarDrawSceneViewsInOneNanitePass && (CVarDrawSceneViewsInOneNanitePass->GetValueOnRenderThread() > 0);
 }
 
 void FGlobalResources::InitRHI()
