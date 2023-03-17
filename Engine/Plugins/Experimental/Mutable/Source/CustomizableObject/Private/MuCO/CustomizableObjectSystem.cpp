@@ -3035,18 +3035,6 @@ void UCustomizableObjectSystem::TickRecompileCustomizableObjects()
 }
 
 
-void UCustomizableObjectSystem::OnEnableImageCacheChanged(IConsoleVariable* CVar)
-{
-	if (CVar->GetBool())
-	{		
-		for (FMutableResourceCache& Cache : GetPrivate()->ModelResourcesCache)
-		{
-			Cache.Images.Empty();
-		}
-	}	
-}
-
-
 uint64 UCustomizableObjectSystem::GetMaxChunkSizeForPlatform(const ITargetPlatform* TargetPlatform)
 {
 	const FString& PlatformName = TargetPlatform ? TargetPlatform->IniPlatformName() : FPlatformProperties::IniPlatformName();
@@ -3081,6 +3069,18 @@ uint64 UCustomizableObjectSystem::GetMaxChunkSizeForPlatform(const ITargetPlatfo
 }
 
 #endif // WITH_EDITOR
+
+
+void UCustomizableObjectSystem::OnEnableImageCacheChanged(IConsoleVariable* CVar)
+{
+	if (!CVar->GetBool())
+	{		
+		for (FMutableResourceCache& Cache : GetPrivate()->ModelResourcesCache)
+		{
+			Cache.Images.Empty();
+		}
+	}	
+}
 
 
 void UCustomizableObjectSystem::CacheImage(uint64 ImageId)
