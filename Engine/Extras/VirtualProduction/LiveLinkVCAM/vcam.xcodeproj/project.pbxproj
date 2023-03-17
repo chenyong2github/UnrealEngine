@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		8B01BF2C26CA7DD1001872D2 /* LaunchScreen_iPad.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8B01BF2A26CA7DD1001872D2 /* LaunchScreen_iPad.storyboard */; };
 		8B05A926275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */; };
+		8B380C1C29C4702E0080A581 /* Gamepad.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B380C1B29C4702E0080A581 /* Gamepad.swift */; };
 		8B4542DA27A7CFB7001703EE /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B4542D927A7CFB6001703EE /* GameController.framework */; };
 		8B4A012D298BBEED00836DD5 /* KeyboardControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B4A012C298BBEED00836DD5 /* KeyboardControls.swift */; };
 		8B58775E27BE4B1E00D78749 /* LiveLinkProvider.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */; platformFilter = ios; };
@@ -106,6 +107,7 @@
 /* Begin PBXFileReference section */
 		8B01BF2B26CA7DD1001872D2 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen_iPad.storyboard; sourceTree = "<group>"; };
 		8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+ARCoachingOverlayViewDelegate.swift"; sourceTree = "<group>"; };
+		8B380C1B29C4702E0080A581 /* Gamepad.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Gamepad.swift; sourceTree = "<group>"; };
 		8B4542D927A7CFB6001703EE /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
 		8B4A012C298BBEED00836DD5 /* KeyboardControls.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KeyboardControls.swift; sourceTree = "<group>"; };
 		8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = LiveLinkProvider.framework; sourceTree = "<group>"; };
@@ -311,6 +313,7 @@
 				8BD09C9C2629AA4E00A4C301 /* SettingsViewController.swift */,
 				8BD09CA02629AB0700A4C301 /* SingleValueViewController.swift */,
 				8BC2656E279186C400C23415 /* MultipleChoiceViewController.swift */,
+				8B380C1B29C4702E0080A581 /* Gamepad.swift */,
 				8BD09C9D2629AA4E00A4C301 /* TimecodeViewController.swift */,
 				8BD09C9A2629AA2200A4C301 /* TentacleDetailViewController.swift */,
 				8BD09CA32629AB1100A4C301 /* AboutViewController.swift */,
@@ -473,6 +476,7 @@
 				8B72D390286B356D00F5970C /* IntToBytes.swift in Sources */,
 				8B72D3A8286C7BAB00F5970C /* WebRTCView.swift in Sources */,
 				8BD09C972625E4C200A4C301 /* Extensions.swift in Sources */,
+				8B380C1C29C4702E0080A581 /* Gamepad.swift in Sources */,
 				8B932C6A24E284EC0089EB8F /* OSCAddressPattern.swift in Sources */,
 				8B72D397286B356D00F5970C /* NativeWebSocketProvider.swift in Sources */,
 				8BF78510257A2EB000E7BAF8 /* ConnectButton.swift in Sources */,
@@ -711,7 +715,7 @@
 				CODE_SIGN_ENTITLEMENTS = vcam/VCAM.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development: Brian Smith (H95H5LFFKT)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 96DBZ92D3Y;
 				ENABLE_BITCODE = NO;
@@ -752,7 +756,7 @@
 				CODE_SIGN_ENTITLEMENTS = vcam/VCAM.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution: Epic Games International, S.a.r.l. (96DBZ92D3Y)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 96DBZ92D3Y;
 				ENABLE_BITCODE = NO;
