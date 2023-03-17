@@ -20,7 +20,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Read interface for a compute buffer
 	/// </summary>
-	public interface IComputeInputBuffer : IComputeBuffer
+	public interface IComputeInputBuffer : IComputeBuffer, IDisposable
 	{
 		/// <summary>
 		/// The shared memory for the buffer
@@ -54,7 +54,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Read-only view of shared memory that can be incrementally replicated to a remote machine.
 	/// </summary>
-	public interface IComputeOutputBuffer : IComputeBuffer
+	public interface IComputeOutputBuffer : IComputeBuffer, IDisposable
 	{
 		/// <summary>
 		/// The shared memory for the buffer

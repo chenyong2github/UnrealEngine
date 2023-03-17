@@ -54,7 +54,19 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			_memoryOwner.Dispose();
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Standard dispose pattern
+		/// </summary>
+		protected virtual void Dispose(bool disposing)
+		{
+			if (disposing)
+			{
+				_memoryOwner.Dispose();
+			}
 		}
 
 		/// <inheritdoc/>

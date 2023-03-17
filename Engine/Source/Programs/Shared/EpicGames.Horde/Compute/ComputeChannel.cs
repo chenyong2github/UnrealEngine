@@ -117,6 +117,8 @@ namespace EpicGames.Horde.Compute
 		public void Dispose()
 		{
 			_currentWriter?.Dispose();
+			_inputBuffer.Dispose();
+			_outputBuffer.Dispose();
 		}
 
 		/// <inheritdoc/>

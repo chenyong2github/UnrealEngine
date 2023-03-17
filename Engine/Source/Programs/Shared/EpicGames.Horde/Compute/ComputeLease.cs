@@ -27,6 +27,16 @@ namespace EpicGames.Horde.Compute
 				_owner = owner;
 			}
 
+			protected override void Dispose(bool disposing)
+			{
+				base.Dispose(disposing);
+
+				if (disposing)
+				{
+					_owner.ReleaseBuffer(this);
+				}
+			}
+
 			public override async ValueTask FlushAsync(CancellationToken cancellationToken)
 			{
 				TaskCompletionSource tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -127,16 +137,6 @@ namespace EpicGames.Horde.Compute
 			await _readTask;
 
 			_cts.Dispose();
-
-			foreach (Buffer inputBuffer in _inputBuffers.Values)
-			{
-				inputBuffer.Dispose();
-			}
-
-			foreach (Buffer outputBuffer in _outputBuffers.Values)
-			{
-				outputBuffer.Dispose();
-			}
 		}
 
 		async Task RunReaderAsync(IComputeTransport transport, CancellationToken cancellationToken)
@@ -262,6 +262,22 @@ namespace EpicGames.Horde.Compute
 				_outputBuffers.Add(id, outputBuffer);
 			}
 			return outputBuffer;
+		}
+
+		void ReleaseBuffer(Buffer buffer)
+		{
+			lock (_lockObject)
+			{
+				Buffer? existingBuffer;
+				if (_inputBuffers.TryGetValue(buffer.Id, out existingBuffer) && ReferenceEquals(existingBuffer, buffer))
+				{
+					_inputBuffers.Remove(buffer.Id);
+				}
+				if (_outputBuffers.TryGetValue(buffer.Id, out existingBuffer) && ReferenceEquals(existingBuffer, buffer))
+				{
+					_outputBuffers.Remove(buffer.Id);
+				}
+			}
 		}
 	}
 }
