@@ -127,12 +127,18 @@ public:
 	void SetDescriptor(const FISMComponentDescriptor& InDescriptor);
 	const FISMComponentDescriptor& GetDescriptor() const { return Descriptor; }
 
+	uint64 GetSettingsUID() const { return SettingsUID; }
+	void SetSettingsUID(uint64 InSettingsUID) { SettingsUID = InSettingsUID; }
+
 protected:
 	UPROPERTY()
 	bool bHasDescriptor = false;
 
 	UPROPERTY()
 	FISMComponentDescriptor Descriptor;
+
+	UPROPERTY(Transient)
+	uint64 SettingsUID = -1; // purposefully a value that will never happen in data
 
 	// Cached raw pointer to ISM component
 	mutable UInstancedStaticMeshComponent* CachedRawComponentPtr = nullptr;

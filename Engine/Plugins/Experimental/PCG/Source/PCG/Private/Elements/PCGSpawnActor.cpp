@@ -478,7 +478,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 			{
 				const FPCGISMCBuilderParameters& ISMCParams = ISMCBuilderTransforms.Key;
 
-				UPCGManagedISMComponent* MISMC = UPCGActorHelpers::GetOrCreateManagedISMC(TargetActor, Context->SourceComponent.Get(), ISMCParams);
+				UPCGManagedISMComponent* MISMC = UPCGActorHelpers::GetOrCreateManagedISMC(TargetActor, Context->SourceComponent.Get(), Settings->UID, ISMCParams);
 				if (!MISMC)
 				{
 					continue;

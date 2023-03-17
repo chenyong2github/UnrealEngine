@@ -177,7 +177,7 @@ namespace PCGDebugElement
 					continue;
 				}
 
-				UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params[Direction]);
+				UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), SettingsInterface->GetSettings()->UID, Params[Direction]);
 				check(ISMC && ISMC->NumCustomDataFloats == NumCustomData);
 
 				ISMC->ComponentTags.AddUnique(PCGHelpers::DefaultPCGDebugTag);
