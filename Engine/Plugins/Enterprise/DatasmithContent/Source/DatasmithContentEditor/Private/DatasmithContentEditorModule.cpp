@@ -2,7 +2,6 @@
 
 #include "DatasmithContentEditorModule.h"
 
-#include "AssetTypeActions_DatasmithScene.h"
 #include "DatasmithAreaLightActorDetailsPanel.h"
 #include "DatasmithContentEditorStyle.h"
 #include "DatasmithImportInfoCustomization.h"
@@ -19,8 +18,6 @@
 
 #define LOCTEXT_NAMESPACE "DatasmithContentEditorModule"
 
-EAssetTypeCategories::Type IDatasmithContentEditorModule::DatasmithAssetCategoryBit;
-
 /**
  * DatasmithContent module implementation (private)
  */
@@ -33,15 +30,6 @@ public:
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 		PropertyModule.RegisterCustomClassLayout( TEXT("DatasmithSceneActor"), FOnGetDetailCustomizationInstance::CreateStatic( &FDatasmithSceneActorDetailsPanel::MakeInstance ) );
 		PropertyModule.RegisterCustomClassLayout( TEXT("DatasmithAreaLightActor"), FOnGetDetailCustomizationInstance::CreateStatic(&FDatasmithAreaLightActorDetailsPanel::MakeInstance));
-
-		// Register Datasmith asset category to group asset type actions related to Datasmith together
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		DatasmithAssetCategoryBit = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Datasmith")), LOCTEXT("DatasmithContentAssetCategory", "Datasmith"));
-
-		// Register asset type actions for DatasmithScene class
-		TSharedPtr<FAssetTypeActions_DatasmithScene> DatasmithSceneAssetTypeAction = MakeShareable(new FAssetTypeActions_DatasmithScene);
-		AssetTools.RegisterAssetTypeActions(DatasmithSceneAssetTypeAction.ToSharedRef());
-		AssetTypeActionsArray.Add(DatasmithSceneAssetTypeAction);
 
 		FDatasmithContentEditorStyle::Initialize();
 
@@ -57,17 +45,6 @@ public:
 			PropertyModule.UnregisterCustomClassLayout( TEXT("DatasmithSceneActor") );
 			PropertyModule.NotifyCustomizationModuleChanged();
 		}
-
-		// Unregister asset type actions
-		if (FModuleManager::Get().IsModuleLoaded(TEXT("AssetTools")))
-		{
-			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			for (TSharedPtr<FAssetTypeActions_Base>& AssetTypeActions : AssetTypeActionsArray)
-			{
-				AssetTools.UnregisterAssetTypeActions(AssetTypeActions.ToSharedRef());
-			}
-		}
-		AssetTypeActionsArray.Empty();
 
 		// Shutdown style set associated with datasmith content
 		FDatasmithContentEditorStyle::Shutdown();
@@ -275,7 +252,6 @@ private:
 private:
 	FOnSpawnDatasmithSceneActors SpawnActorsDelegate;
 	FOnCreateDatasmithSceneEditor CreateDatasmithSceneEditorDelegate;
-	TArray<TSharedPtr<FAssetTypeActions_Base>> AssetTypeActionsArray;
 	TMap<const void*, FImporterDescription> DatasmithImporterMap;
 
 	FOnSetAssetAutoReimport SetAssetAutoReimportHandler;

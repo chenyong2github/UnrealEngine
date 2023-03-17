@@ -105,9 +105,6 @@ public:
 	virtual void UnregisterDatasmithImporter(const void* Registrar) = 0;
 	virtual TArray<FImporterDescription> GetDatasmithImporters() = 0;
 
-	/** Category bit associated with Datasmith related content */
-	static DATASMITHCONTENTEDITOR_API EAssetTypeCategories::Type DatasmithAssetCategoryBit;
-
 	/**
 	 * Delegate to enable or disable AutoReimport of an asset.
 	 */

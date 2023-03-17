@@ -10,6 +10,8 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AssetDefinition",
+					"ContentBrowser",
 					"Core",
 					"CoreUObject",
 					"DatasmithContent",
