@@ -538,7 +538,7 @@ namespace UnrealBuildTool
 						using(SingleInstanceMutex XmlConfigMutex = new SingleInstanceMutex(XmlConfigMutexName, true))
 						{
 							FileReference? XmlConfigCache = Arguments.GetFileReferenceOrDefault("-XmlConfigCache=", null);
-							XmlConfig.ReadConfigFiles(XmlConfigCache, Logger);
+							XmlConfig.ReadConfigFiles(XmlConfigCache, null, Logger);
 						}
 					}
 				

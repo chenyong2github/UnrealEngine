@@ -83,6 +83,10 @@ namespace UnrealBuildTool
 			FileReference? ProjectFile;
 			TryParseProjectFileArgument(Arguments, Logger, out ProjectFile);
 
+			// Apply the XML config again with a project specific BuildConfiguration.xml 
+			XmlConfig.ReadConfigFiles(null, ProjectFile?.Directory, Logger);
+			XmlConfig.ApplyTo(this);
+			
 			// Warn if there are explicit project file formats specified
 			if (ProjectFileFormats.Count > 0 && !bAutomated)
 			{

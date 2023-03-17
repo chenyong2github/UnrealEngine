@@ -68,8 +68,9 @@ namespace UnrealBuildTool
 		/// Initialize the config system with the given types
 		/// </summary>
 		/// <param name="OverrideCacheFile">Force use of the cached XML config without checking if it's valid (useful for remote builds)</param>
+		/// <param name="ProjectRootDirectory">Read XML configuration with a Project directory</param>
 		/// <param name="Logger">Logger for output</param>
-		public static void ReadConfigFiles(FileReference? OverrideCacheFile, ILogger Logger)
+		public static void ReadConfigFiles(FileReference? OverrideCacheFile, DirectoryReference? ProjectRootDirectory, ILogger Logger)
 		{
 			// Find all the configurable types
 			List<Type> ConfigTypes = FindConfigurableTypes();
@@ -88,22 +89,43 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				// Get the default cache file
-				CacheFile = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "XmlConfigCache.bin");
-				if(Unreal.IsEngineInstalled())
+				if (ProjectRootDirectory == null)
 				{
-					DirectoryReference? UserSettingsDir = Unreal.UserSettingDirectory;
-					if(UserSettingsDir != null)
+					// Get the default cache file
+					CacheFile = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "XmlConfigCache.bin");
+					if (Unreal.IsEngineInstalled())
 					{
-						CacheFile = FileReference.Combine(UserSettingsDir, "UnrealEngine", String.Format("XmlConfigCache-{0}.bin", Unreal.RootDirectory.FullName.Replace(":", "").Replace(Path.DirectorySeparatorChar, '+')));
+						DirectoryReference? UserSettingsDir = Unreal.UserSettingDirectory;
+						if(UserSettingsDir != null)
+						{
+							CacheFile = FileReference.Combine(UserSettingsDir, "UnrealEngine", String.Format("XmlConfigCache-{0}.bin", Unreal.RootDirectory.FullName.Replace(":", "").Replace(Path.DirectorySeparatorChar, '+')));
+						}
 					}
 				}
-
+				else
+				{
+					CacheFile = FileReference.Combine(ProjectRootDirectory, "Intermediate", "Build", "XmlConfigCache.bin");
+					Values = null;
+				}
+				
 				// Find all the input files
-				FileReference[] InputFileLocations = InputFiles.Select(x => x.Location).ToArray();
+				List<FileReference> TemporaryInputFileLocations = InputFiles.Select(x => x.Location).ToList();
+				
+				if (ProjectRootDirectory != null)
+				{
+					FileReference ProjectRootConfigLocation = FileReference.Combine(ProjectRootDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
+					if(!FileReference.Exists(ProjectRootConfigLocation))
+					{
+						CreateDefaultConfigFile(ProjectRootConfigLocation);
+					}
+
+					TemporaryInputFileLocations.Add(ProjectRootConfigLocation);
+				}
+				
+				FileReference[] InputFileLocations = TemporaryInputFileLocations.ToArray();
 
 				// Get the path to the schema
-				FileReference SchemaFile = GetSchemaLocation();
+				FileReference SchemaFile = GetSchemaLocation(ProjectRootDirectory);
 
 				// Try to read the existing cache from disk
 				XmlConfigData? CachedValues;
@@ -223,9 +245,18 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Find the location of the XML config schema
 		/// </summary>
+		/// <param name="ProjectRootDirecory">Optional project root directory</param>
 		/// <returns>The location of the schema file</returns>
-		public static FileReference GetSchemaLocation()
+		public static FileReference GetSchemaLocation(DirectoryReference? ProjectRootDirecory = null)
 		{
+			if (ProjectRootDirecory != null)
+			{
+				FileReference ProjectSchema = FileReference.Combine(ProjectRootDirecory, "Saved", "UnrealBuildTool", "BuildConfiguration.Schema.xsd");
+				if (FileReference.Exists(ProjectSchema))
+				{
+					return ProjectSchema;
+				}
+			}
 			return FileReference.Combine(Unreal.EngineDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.Schema.xsd");
 		}
 

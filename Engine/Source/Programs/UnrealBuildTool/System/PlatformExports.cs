@@ -154,7 +154,7 @@ namespace UnrealBuildTool
 		public static bool Initialize(ILogger Logger)
 		{
 			// Read the XML configuration files
-			XmlConfig.ReadConfigFiles(null, Logger);
+			XmlConfig.ReadConfigFiles(null, null, Logger);
 
 			// Register all the platform classes
 			UEBuildPlatform.RegisterPlatforms(false, false, Logger);

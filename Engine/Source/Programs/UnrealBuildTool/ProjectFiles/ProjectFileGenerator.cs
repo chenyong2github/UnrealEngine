@@ -13,6 +13,7 @@ using System.Xml.Linq;
 using System.Xml;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using EpicGames.Serialization;
 
 namespace UnrealBuildTool
 {
@@ -537,6 +538,11 @@ namespace UnrealBuildTool
 						PrimaryProjectFolder Folder = ProgramsFolder.AddSubFolder("Shared");
 						foreach (FileInfo ProjectFile in ProjectFiles)
 						{
+							// Don't add Shared Test projects unless all engine programs are included
+							if (!bIncludeEnginePrograms && ProjectFile.Name.EndsWith(".Tests.csproj", StringComparison.OrdinalIgnoreCase))
+							{
+								continue;
+							}
 							VCSharpProjectFile Project = new VCSharpProjectFile(new FileReference(ProjectFile), Logger);
 							Project.ShouldBuildForAllSolutionTargets = false;
 							AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
@@ -575,14 +581,17 @@ namespace UnrealBuildTool
 			List<FileReference> FoundProjects = new List<FileReference>();
 			List<DirectoryReference> ProjectDirs = new List<DirectoryReference>();
 
-			DirectoryReference EngineExtras = DirectoryReference.Combine(Unreal.EngineDirectory, "Extras");
-			ProjectDirs.Add(EngineExtras);
-			DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
-			
-			ProjectDirs = ProjectDirs.Union(AllEngineDirectories).ToList();
-			foreach (DirectoryReference EngineDir in AllEngineDirectories)
+			if (bIncludeEnginePrograms)
 			{
-				DiscoverCSharpProgramProjectsRecursively(EngineDir, FoundProjects);
+				DirectoryReference EngineExtras = DirectoryReference.Combine(Unreal.EngineDirectory, "Extras");
+				ProjectDirs.Add(EngineExtras);
+				DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
+			
+				ProjectDirs = ProjectDirs.Union(AllEngineDirectories).ToList();
+				foreach (DirectoryReference EngineDir in AllEngineDirectories)
+				{
+					DiscoverCSharpProgramProjectsRecursively(EngineDir, FoundProjects);
+				}
 			}
 
 			foreach (FileReference GameProjectFile in AllGameProjects)
@@ -638,11 +647,27 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private VCSharpProjectFile CreateRulesAssemblyProject(RulesAssembly RulesAssembly, DirectoryReference FSPathBase, ILogger Logger)
+		private VCSharpProjectFile CreateRulesAssemblyProject(Dictionary<RulesAssembly, DirectoryReference> RulesAssemblies, RulesAssembly RulesAssembly, DirectoryReference FSPathBase, ILogger Logger)
 		{
 			DirectoryReference ProjectFilesDirectory = DirectoryReference.Combine(FSPathBase, "Intermediate/Build/BuildRulesProjects", RulesAssembly.GetSimpleAssemblyName()!);
 			DirectoryReference.CreateDirectory(ProjectFilesDirectory);
 			FileReference ModuleFilesProjectLocation = FileReference.Combine(ProjectFilesDirectory, RulesAssembly.GetSimpleAssemblyName() + ".csproj");
+
+			SortedSet<FileReference> ReferencedProjects = new() {
+				FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "Shared", "EpicGames.Build", "EpicGames.Build.csproj"),
+				FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "UnrealBuildTool", "UnrealBuildTool.csproj")
+			};
+
+			var CurrentParent = RulesAssembly.Parent;
+			while (CurrentParent != null)
+			{
+				if (RulesAssemblies.TryGetValue(CurrentParent, out DirectoryReference? FSParentPathBase))
+				{
+					DirectoryReference ProjectFilesParentDirectory = DirectoryReference.Combine(FSParentPathBase, "Intermediate", "Build", "BuildRulesProjects", CurrentParent.GetSimpleAssemblyName()!);
+					ReferencedProjects.Add(FileReference.Combine(ProjectFilesParentDirectory, CurrentParent.GetSimpleAssemblyName() + ".csproj"));
+				}
+				CurrentParent = CurrentParent.Parent;
+			}
 
 			{
 				using FileStream Stream = FileReference.Open(ModuleFilesProjectLocation, FileMode.Create, FileAccess.Write, FileShare.Read);
@@ -652,7 +677,7 @@ namespace UnrealBuildTool
 				Writer.WriteLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
 
 				Writer.WriteLine("  <Import Project=\"" + 
-					FileReference.Combine(Unreal.EngineDirectory, "Source/Programs/Shared/UnrealEngine.csproj.props").MakeRelativeTo(ProjectFilesDirectory) + 
+					FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "Shared", "UnrealEngine.csproj.props").MakeRelativeTo(ProjectFilesDirectory) + 
 					"\" />");
 
 				Writer.WriteLine("  <PropertyGroup>");
@@ -663,16 +688,15 @@ namespace UnrealBuildTool
 				Writer.WriteLine("  </PropertyGroup>");
 				
 				Writer.WriteLine("  <ItemGroup>");
-				Writer.WriteLine("    <ProjectReference Include=\"" + 
-					FileReference.Combine(Unreal.EngineDirectory, "Source/Programs/Shared/EpicGames.Build/EpicGames.Build.csproj").MakeRelativeTo(ProjectFilesDirectory) + 
-					"\"><Private>false</Private></ProjectReference>"); // <Private>false</Private> to suppress copying of dependencies into output directory
-				Writer.WriteLine("    <ProjectReference Include=\"" + 
-					FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "UnrealBuildTool", "UnrealBuildTool.csproj").MakeRelativeTo(ProjectFilesDirectory) + 
-					"\"><Private>false</Private></ProjectReference>");
+				foreach (FileReference Reference in ReferencedProjects)
+				{
+					// <Private>false</Private> suppress copying of dependencies into output directory
+					Writer.WriteLine($"    <ProjectReference Include=\"{Reference.MakeRelativeTo(ProjectFilesDirectory)}\"><Private>false</Private></ProjectReference>");
+				}
 				Writer.WriteLine("  </ItemGroup>");
 
 				Writer.WriteLine("  <ItemGroup>");
-				foreach (FileReference ModuleFile in RulesAssembly.AssemblySourceFiles!)
+				foreach (FileReference ModuleFile in RulesAssembly.AssemblySourceFiles!.OrderBy(x => x.FullName))
 				{
 					string CsprojRelativePath = ModuleFile.MakeRelativeTo(ProjectFilesDirectory);
 					string ProjectFolder = ModuleFile.MakeRelativeTo(FSPathBase);
@@ -1115,6 +1139,8 @@ namespace UnrealBuildTool
 			AddProjectsForAllModules(AllGameProjects, ProjectFileToUProjectFile, ProgramProjects, ModProjects, AllModuleFiles, AdditionalSearchPaths, bGatherThirdPartySource, Logger);
 
 			{
+				PrimaryProjectFolder ProgramsFolder = RootFolder.AddSubFolder("Programs");
+
 				if (bIncludeDotNetPrograms)
 				{
 					// gather engine directories across extension dirs
@@ -1130,15 +1156,15 @@ namespace UnrealBuildTool
 							return true;
 						}).ToList();
 
-					PrimaryProjectFolder ProgramsFolder = RootFolder.AddSubFolder("Programs");
-
 					// Add UnrealBuildTool to the primary project
 					AddUnrealBuildToolProject(ProgramsFolder, Logger);
 
 					// Add AutomationTool to the primary project
 					VCSharpProjectFile AutomationToolProject = AddSimpleCSharpProject("AutomationTool", Logger, bShouldBuildForAllSolutionTargets: true, bForceDevelopmentConfiguration: true);
 					if (AutomationToolProject != null)
+					{
 						ProgramsFolder.ChildProjects.Add(AutomationToolProject);
+					}
 
 					// Add automation.csproj files to the primary project
 					AddRulesModules(Rules.RulesFileType.AutomationModule, "Automation", AutomationProjectFiles, AllGameProjects, RootFolder, ProgramsFolder, Logger);
@@ -1149,18 +1175,20 @@ namespace UnrealBuildTool
 					// Add shared projects
 					AddSharedDotNetModules(AllEngineDirectories, ProgramsFolder, Logger);
 
-					// Discover C# programs which should additionally be included in the solution.
-					DiscoverCSharpProgramProjects(AllEngineDirectories, AllGameProjects, ProgramsFolder, Logger);
+					if (bIncludeEnginePrograms)
+					{
+						// Discover C# programs which should additionally be included in the solution.
+						DiscoverCSharpProgramProjects(AllEngineDirectories, AllGameProjects, ProgramsFolder, Logger);
+					}
 
 					foreach (KeyValuePair<RulesAssembly, DirectoryReference> RulesAssemblyEntry in RulesAssemblies)
 					{
-						VCSharpProjectFile RulesProject = CreateRulesAssemblyProject(RulesAssemblyEntry.Key, RulesAssemblyEntry.Value, Logger);
+						VCSharpProjectFile RulesProject = CreateRulesAssemblyProject(RulesAssemblies, RulesAssemblyEntry.Key, RulesAssemblyEntry.Value, Logger);
 						AddExistingProjectFile(RulesProject, bForceDevelopmentConfiguration: false);
 						RootFolder.AddSubFolder("Rules").ChildProjects.Add(RulesProject);
 					}
 				}
-
-
+				
 				// Eliminate all redundant project folders.  E.g., folders which contain only one project and that project
 				// has the same name as the folder itself.  To the user, projects "feel like" folders already in the IDE, so we
 				// want to collapse them down where possible.
@@ -1301,8 +1329,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			bool bAlwaysIncludeEngineModules = false;
-			bool bAlwaysIncludeDotNetPrograms = false;
 			foreach (string CurArgument in Arguments)
 			{
 				if (CurArgument.StartsWith("-"))
@@ -1365,14 +1391,12 @@ namespace UnrealBuildTool
 
 							case "-GAME":
 								// Generates project files for a single game
-								bIncludeDotNetPrograms = false;
 								bIncludeEnginePrograms = false;
 								bGeneratingGameProjectFiles = true;
 								break;
 
 							case "-ENGINE":
-								// Forces engine modules and targets to be included in game-specific project files
-								bAlwaysIncludeEngineModules = true;
+								// -Engine is no longer needed as the engine module is always included now
 								break;
 
 							case "-NOCPP":
@@ -1412,7 +1436,7 @@ namespace UnrealBuildTool
 								break;
 
 							case "-DOTNET":
-								bAlwaysIncludeDotNetPrograms = true;
+								bIncludeDotNetPrograms = true;
 								break;
 
 							case "-NODOTNET":
@@ -1455,8 +1479,6 @@ namespace UnrealBuildTool
 				bIncludeShaderSource = true;
 				bIncludeTemplateFiles = false;
 				bIncludeConfigFiles = true;
-				bIncludeEnginePrograms = bAlwaysIncludeEngineModules;
-				bIncludeDotNetPrograms = bIncludeDotNetPrograms || bAlwaysIncludeDotNetPrograms;
 			}
 			else
 			{
@@ -1895,12 +1917,15 @@ namespace UnrealBuildTool
 				ProgramsFolder.ChildProjects.Add(UnrealBuildToolProject);
 			}
 
-			FileReference TestsProjectFileName = FileReference.Combine(ProgramsDirectory, "UnrealBuildTool.Tests", "UnrealBuildTool.Tests.csproj");
-			if (FileReference.Exists(TestsProjectFileName))
+			if (bIncludeEnginePrograms)
 			{
-				VCSharpProjectFile UbtTestsProject = new VCSharpProjectFile(TestsProjectFileName, Logger);
-				AddExistingProjectFile(UbtTestsProject, bNeedsAllPlatformAndConfigurations: true, bForceDevelopmentConfiguration: true);
-				ProgramsFolder.ChildProjects.Add(UbtTestsProject);
+				FileReference TestsProjectFileName = FileReference.Combine(ProgramsDirectory, "UnrealBuildTool.Tests", "UnrealBuildTool.Tests.csproj");
+				if (FileReference.Exists(TestsProjectFileName))
+				{
+					VCSharpProjectFile UbtTestsProject = new VCSharpProjectFile(TestsProjectFileName, Logger);
+					AddExistingProjectFile(UbtTestsProject, bNeedsAllPlatformAndConfigurations: true, bForceDevelopmentConfiguration: true);
+					ProgramsFolder.ChildProjects.Add(UbtTestsProject);
+				}
 			}
 		}
 
