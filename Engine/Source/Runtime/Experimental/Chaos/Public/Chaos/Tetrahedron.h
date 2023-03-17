@@ -97,6 +97,44 @@ namespace Chaos {
 			return TripleProduct(U, V, W) / 6;
 		}
 
+		T GetMinimumAltitude(int32* MinAltitudeVertex=nullptr) const
+		{
+			TArray<TTriangle<T>> Tris = GetTriangles();
+			TVec4<T> Distance(0, 0, 0, 0);
+			for (int32 i = 0; i < 4; i++)
+			{
+				const TTriangle<T>& Tri = Tris[i];
+				TVec3<T> Norm;
+				Distance[i] = -Tri.PhiWithNormal(X[3 - i], Norm);
+			}
+			if (MinAltitudeVertex)
+			{
+				(*MinAltitudeVertex) = 0;
+			}
+			T MinAltitude = Distance[0];
+			for (int32 i = 0; i < 4; i++)
+			{
+				if (Distance[i] < MinAltitude)
+				{
+					MinAltitude = Distance[i];
+					if (MinAltitudeVertex)
+					{
+						(*MinAltitudeVertex) = i;
+					}
+				}
+			}
+			if (MinAltitudeVertex)
+			{
+				(*MinAltitudeVertex) = 4 - (*MinAltitudeVertex);
+			}
+			return MinAltitude;
+		}
+
+		T GetAspectRatio() const
+		{
+			return GetMaxEdgeLength() / GetMinimumAltitude();
+		}
+
 		TVec3<T> GetFirstThreeBarycentricCoordinates(const TVec3<T>& Location) const 
 		{
 			TVec3<T> L1 = X[0] - X[3];

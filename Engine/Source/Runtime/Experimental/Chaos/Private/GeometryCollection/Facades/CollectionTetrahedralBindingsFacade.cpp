@@ -111,10 +111,10 @@ namespace GeometryCollection::Facades
 		const int32 Idx = MeshIdAttribute.AddElements(1);
 		MeshIdAttribute.Modify()[Idx] = GroupName.ToString();
 
-		Parents.Release();
-		Weights.Release();
-		Offsets.Release();
-		Mask.Release();
+		Parents.Reset();
+		Weights.Reset();
+		Offsets.Reset();
+		Mask.Reset();
 		FManagedArrayCollection& Collection = *MeshIdAttribute.GetCollection();
 		Parents.Reset(new TManagedArrayAccessor<FIntVector4>(Collection, ParentsAttributeName, GroupName));
 		Weights.Reset(new TManagedArrayAccessor<FVector4f>(Collection, WeightsAttributeName, GroupName));
