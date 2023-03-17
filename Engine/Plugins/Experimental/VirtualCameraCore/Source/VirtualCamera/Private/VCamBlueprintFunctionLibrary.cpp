@@ -65,6 +65,14 @@ ULevelSequence* UVCamBlueprintFunctionLibrary::GetPendingTakeLevelSequence()
 #endif
 }
 
+bool UVCamBlueprintFunctionLibrary::OpenLevelSequence(ULevelSequence* LevelSequence)
+{
+#if WITH_EDITOR
+	return ULevelSequenceEditorBlueprintLibrary::OpenLevelSequence(LevelSequence);
+#endif
+	return false;
+}
+
 void UVCamBlueprintFunctionLibrary::PlayCurrentLevelSequence()
 {
 #if WITH_EDITOR

@@ -45,6 +45,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	static ULevelSequence* GetPendingTakeLevelSequence();
 
+	/** Open a level sequence asset	 */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static bool OpenLevelSequence(ULevelSequence* LevelSequence);
+
 	/** Play the current level sequence */
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static void PlayCurrentLevelSequence();
