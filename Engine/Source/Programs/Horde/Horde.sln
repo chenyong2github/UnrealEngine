@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31808.319
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Build", "Horde.Build\Horde.Build.csproj", "{199841BA-0C0D-4019-9795-08618F7CD0D3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Server", "Horde.Server\Horde.Server.csproj", "{199841BA-0C0D-4019-9795-08618F7CD0D3}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Agent", "Horde.Agent\Horde.Agent.csproj", "{5F24A781-351B-4A69-9155-1D716ACE234B}"
 EndProject
@@ -18,7 +18,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		..\..\..\Restricted\NotForLicensees\Source\Programs\Horde\BuildHorde.xml = ..\..\..\Restricted\NotForLicensees\Source\Programs\Horde\BuildHorde.xml
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Build.Tests", "Horde.Build.Tests\Horde.Build.Tests.csproj", "{EB3085C5-8768-45EF-AE22-A2B15B7AF926}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Server.Tests", "Horde.Server.Tests\Horde.Server.Tests.csproj", "{EB3085C5-8768-45EF-AE22-A2B15B7AF926}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Agent.Tests", "Horde.Agent.Tests\Horde.Agent.Tests.csproj", "{0D4F13CA-AE5D-4DAC-8376-E5C43CDF66B7}"
 EndProject
