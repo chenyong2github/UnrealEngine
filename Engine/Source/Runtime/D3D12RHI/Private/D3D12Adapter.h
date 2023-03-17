@@ -599,4 +599,8 @@ protected:
 	FD3D12RootSignature StaticRayTracingGlobalRootSignature;
 	FD3D12RootSignature StaticRayTracingLocalRootSignature;
 #endif
+
+private:
+	// Insight memory trace helper
+	void TraceMemoryAllocation(FD3D12Resource* Resource);
 };
