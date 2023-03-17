@@ -2563,6 +2563,13 @@ static void AddHairMaterialDataPatchPass(
 	const bool bLightingChannel = false;
 #endif
 
+	if (GetGroomViewMode(View) == EGroomViewMode::VoxelsDensity && OutDepthTexture)
+	{
+		FHairStrandsDebugData* DebugData = const_cast<FHairStrandsDebugData*>(&View.HairStrandsViewData.DebugData);
+		DebugData->Common.SceneDepthTextureBeforeCompsition = GraphBuilder.CreateTexture(OutDepthTexture->Desc, TEXT("Hair.SceneDepthBeforeCompositionForDebug"));
+		AddCopyTexturePass(GraphBuilder, OutDepthTexture, DebugData->Common.SceneDepthTextureBeforeCompsition);
+	}
+
 	AddHairAuxilaryPass(
 		GraphBuilder,
 		View,

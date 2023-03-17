@@ -26,6 +26,7 @@ uint MacroGroupId;
 uint MacroGroupCount;
 uint MaxTotalPageIndexCount;
 
+Texture2D<float> SceneDepthBeforeCompositionTexture;
 RWTexture2D<float4> OutputTexture;
 Buffer<uint> TotalValidPageCounter;
 
@@ -270,8 +271,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (bDrawPage)
 	{
 		// Reverse-Z
+		const float SceneDepth = ConvertFromDeviceZ(SceneDepthBeforeCompositionTexture.Load(uint3(PixelCoord, 0)));
 		const float3 O = PrimaryView.TranslatedWorldCameraOrigin;
-		const float3 E = ReconstructTranslatedWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
+		const float3 E = ReconstructTranslatedWorldPositionFromDepth(UV, SceneDepth);
 		const float3 D = (E - O);
 
 		float PixelRadius = -1;
@@ -330,10 +332,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const float DistanceThreshold = 10000;
 		const bool bDebugEnabled = false;
 		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
+		const float SceneDepth = ConvertFromDeviceZ(SceneDepthBeforeCompositionTexture.Load(uint3(PixelCoord, 0)));
 
 		const float3 TranslatedWP0 = PrimaryView.TranslatedWorldCameraOrigin;
-		const float3 E = ReconstructTranslatedWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));
-		const float3 TranslatedWP1 = normalize(E - TranslatedWP0) * DistanceThreshold + TranslatedWP0;
+		const float3 TranslatedWP1 = ReconstructTranslatedWorldPositionFromDepth(UV, SceneDepth);
 
 		FVirtualVoxelCommonDesc CommonDesc;
 		CommonDesc.PageCountResolution	= VirtualVoxel.PageCountResolution;

@@ -724,6 +724,7 @@ class FVoxelVirtualRaymarchingCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, MacroGroupCount)
 		SHADER_PARAMETER(uint32, MaxTotalPageIndexCount)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthBeforeCompositionTexture)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TotalValidPageCounter)
@@ -771,6 +772,11 @@ static void AddVoxelPageRaymarchingPass(
 		Parameters->TotalValidPageCounter	= GraphBuilder.CreateSRV(VoxelResources.PageIndexGlobalCounter, PF_R32_UINT);
 		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 		Parameters->OutputTexture			= GraphBuilder.CreateUAV(OutputTexture);
+		Parameters->SceneDepthBeforeCompositionTexture = View.HairStrandsViewData.DebugData.Common.SceneDepthTextureBeforeCompsition;
+		if (Parameters->SceneDepthBeforeCompositionTexture == nullptr)
+		{
+			Parameters->SceneDepthBeforeCompositionTexture = SceneTextures.SceneDepthTexture;
+		}
 
 		FVoxelVirtualRaymarchingCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FVoxelVirtualRaymarchingCS::FTraversalType>(GHairVirtualVoxel_DebugTraversalType > 0 ? 1 : 0);

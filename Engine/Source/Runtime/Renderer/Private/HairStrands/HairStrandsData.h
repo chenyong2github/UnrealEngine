@@ -450,6 +450,11 @@ struct FHairStrandsDebugData
 		FConvexVolume ViewFrustum;
 	} CullData;
 
+	struct FCommon
+	{
+		FRDGTextureRef SceneDepthTextureBeforeCompsition = nullptr;
+	} Common;
+
 };
 
 typedef TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator> FHairStrandsMacroGroupDatas;
