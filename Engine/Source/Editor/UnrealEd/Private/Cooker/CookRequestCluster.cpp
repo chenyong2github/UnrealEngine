@@ -952,7 +952,7 @@ FPackageData* FRequestCluster::FGraphSearch::FindOrAddVertex(FName PackageName, 
 	OutNewVertex->bInitialRequest = bInitialRequest;
 	OutNewVertex->bCookable = bCookable;
 	OutNewVertex->SuppressCookReason = SuppressCookReason;
-	OutNewVertex->bExploreDependencies = true;
+	OutNewVertex->bExploreDependencies = bCookable || bHardDependency;
 	OutNewVertex->bExploreSoftDependencies = Cluster.bAllowSoftDependencies && bCookable;
 
 	return PackageData;
