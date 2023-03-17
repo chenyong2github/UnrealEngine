@@ -23,14 +23,15 @@ void FEscalationState::ValidateConfigInternal()
 
 void FEscalationState::ValidateTimePeriod(int8& Value, const TCHAR* PropertyName, EValidateTime Requirement/*=EValidateTime::Optional*/)
 {
-	int32 BaseValue = (Requirement == EValidateTime::MustBeSet) ? 1 : 0;
+	const int8 BaseValue = (Requirement == EValidateTime::MustBeSet) ? 1 : 0;
 
 	if (Value < BaseValue || Value > 16)
 	{
 		UE_LOG(LogNetCore, Warning, TEXT("FEscalationState: %s '%i' must be between %i and 16. Clamping."),
 				PropertyName, Value, BaseValue);
 
-		Value = FMath::Clamp((int32)Value, BaseValue, 16);
+		constexpr int8 MaxValue = 16;
+		Value = FMath::Clamp(Value, BaseValue, MaxValue);
 	}
 }
 
@@ -159,7 +160,8 @@ EEscalateResult FEscalationManager::UpdateSeverity(ESeverityUpdate Update, EEsca
 	bool bEscalate = Update == ESeverityUpdate::Escalate || Update == ESeverityUpdate::AutoEscalate;
 	EEscalateResult ReturnVal = bEscalate ? EEscalateResult::Escalated : EEscalateResult::Deescalated;
 	const TArray<TStructOnScope<FEscalationState>>& EscalationSeverity = BaseConfig->EscalationSeverityState;
-	int32 NewStateIdx = FMath::Clamp(ActiveState + (bEscalate ? 1 : -1), 0, EscalationSeverity.Num()-1);
+	
+	int8 NewStateIdx = static_cast<int8>(FMath::Clamp(ActiveState + (bEscalate ? 1 : -1), 0, EscalationSeverity.Num()-1));
 
 	if (NewStateIdx != ActiveState)
 	{
@@ -265,7 +267,7 @@ EEscalateResult FEscalationManager::UpdateSeverity(ESeverityUpdate Update, EEsca
 			if (bEscalate && State->HasHitAnyQuota({RegisteredCounters, CountersPerPeriodHistory, MakeArrayView(SecondCounters),
 													MakeArrayView(FrameCounters), EQuotaType::EscalateQuota}))
 			{
-				NewStateIdx = FMath::Clamp(ActiveState + 1, 0, EscalationSeverity.Num()-1);
+				NewStateIdx = static_cast<int8>(FMath::Clamp(ActiveState + 1, 0, EscalationSeverity.Num()-1));
 
 				if (NewStateIdx == ActiveState)
 				{

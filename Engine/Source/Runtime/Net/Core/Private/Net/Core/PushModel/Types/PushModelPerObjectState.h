@@ -98,7 +98,7 @@ namespace UEPushModelPrivate
 		FNetPushPerNetDriverId AddPerNetDriverState()
 		{
 			FSparseArrayAllocationInfo AllocationInfo = PerNetDriverStates.AddUninitialized();
-			new (AllocationInfo.Pointer) FPushModelPerNetDriverState(DirtiedThisFrame.Num());
+			new (AllocationInfo.Pointer) FPushModelPerNetDriverState(static_cast<uint16>(DirtiedThisFrame.Num()));
 			
 			return AllocationInfo.Index;
 		}

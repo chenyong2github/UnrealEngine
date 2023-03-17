@@ -5,7 +5,7 @@
 #include "Net/Core/Misc/DDoSDetection.h"
 #include "Net/Core/Misc/NetCoreLog.h"
 #include "Misc/ConfigCacheIni.h"
-
+#include "Templates/UnrealTemplate.h"
 
 /**
  * DDoS Detection
@@ -108,7 +108,7 @@ void FDDoSDetection::InitConfig()
 	GConfig->GetInt(DDoSSection, TEXT("HitchTimeQuotaMS"), HitchTimeQuotaMS, GEngineIni);
 	GConfig->GetInt(DDoSSection, TEXT("HitchFrameTolerance"), HitchFrameTolerance32, GEngineIni);
 
-	HitchFrameTolerance = HitchFrameTolerance32;
+	HitchFrameTolerance = IntCastChecked<int8>(HitchFrameTolerance32);
 	DDoSLogSpamLimit = DDoSLogSpamLimit > 0 ? DDoSLogSpamLimit : 64;
 
 	DetectionSeverity.Empty();
@@ -144,7 +144,7 @@ void FDDoSDetection::InitConfig()
 
 				if (GConfig->GetInt(*CurSection, TEXT("EscalateTimeQuotaMSPerFrame"), EscalateTime32, GEngineIni))
 				{
-					CurState.EscalateTimeQuotaMSPerFrame = EscalateTime32;
+					CurState.EscalateTimeQuotaMSPerFrame = IntCastChecked<int16>(EscalateTime32);
 				}
 
 				HighestCooloffTime = FMath::Max(HighestCooloffTime, CurState.CooloffTime);
@@ -172,7 +172,7 @@ void FDDoSDetection::InitConfig()
 
 void FDDoSDetection::UpdateSeverity(bool bEscalate)
 {
-	int32 NewState = FMath::Clamp(ActiveState + (bEscalate ? 1 : -1), 0, DetectionSeverity.Num()-1);
+	int8 NewState = static_cast<int8>(FMath::Clamp(ActiveState + (bEscalate ? 1 : -1), 0, DetectionSeverity.Num()-1));
 
 	if (NewState != ActiveState)
 	{
@@ -263,7 +263,7 @@ void FDDoSDetection::PreFrameReceive(float DeltaTime)
 
 		if (HitchTimeQuotaMS > 0 && EndFrameRecvTimestamp != 0.0)
 		{
-			double HitchTimeMS = (StartFrameRecvTimestamp - EndFrameRecvTimestamp) * 1000.0;
+			const double HitchTimeMS = (StartFrameRecvTimestamp - EndFrameRecvTimestamp) * 1000.0;
 
 			if ((((int32)HitchTimeMS) - HitchTimeQuotaMS) > 0)
 			{
@@ -279,7 +279,7 @@ void FDDoSDetection::PreFrameReceive(float DeltaTime)
 		}
 
 		// At the start of every frame, adjust the DDoS detection based upon DeltaTime - unless there is excessive hitching
-		FrameAdjustment = (HitchFrameCount > 0 && HitchFrameCount > HitchFrameTolerance) ? 1.f : (double)DeltaTime / ExpectedFrameTime;
+		FrameAdjustment = FloatCastChecked<float>((HitchFrameCount > 0 && HitchFrameCount > HitchFrameTolerance) ? 1.0 : (double)DeltaTime / ExpectedFrameTime, UE::LWC::DefaultFloatPrecision);
 
 		if (ActiveState > 0 && CooloffTime > 0 && (float)(StartFrameRecvTimestamp - LastMetEscalationConditions) > (float)CooloffTime)
 		{

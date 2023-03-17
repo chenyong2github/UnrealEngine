@@ -216,7 +216,7 @@ public:
 
 			Offset += Num;
 
-			*MemSizeData = Offset;
+			*MemSizeData = IntCastChecked<uint32>(Offset);
 		}
 	}
 
@@ -326,7 +326,7 @@ void FPacketAudit::AddStage_Internal(FString StageName, FBitWriter& OutPacket, b
 
 	FPacketStageData& StageData = GPendingSendPacket.StageMap.Add(StageName);
 
-	StageData.SizeBits = (bByteAligned ? (OutPacket.GetNumBytes() * 8) : OutPacket.GetNumBits());
+	StageData.SizeBits = IntCastChecked<uint32>(bByteAligned ? (OutPacket.GetNumBytes() * 8) : OutPacket.GetNumBits());
 	StageData.StageCRC = PacketCRC(OutPacket.GetData(), StageData.SizeBits);
 #endif
 }
@@ -344,7 +344,7 @@ void FPacketAudit::CheckStage_Internal(FString StageName, FBitReader& InPacket, 
 
 			if (StageData != nullptr)
 			{
-				uint32 BitsLeft = (bByteAligned ? ((InPacket.GetNumBytes() * 8) - InPacket.GetPosBits()) : InPacket.GetBitsLeft());
+				uint32 BitsLeft = IntCastChecked<uint8>(bByteAligned ? ((InPacket.GetNumBytes() * 8) - InPacket.GetPosBits()) : InPacket.GetBitsLeft());
 
 				if (BitsLeft == StageData->SizeBits)
 				{
@@ -406,8 +406,7 @@ void FPacketAudit::NotifyLowLevelSend_Internal(FBitWriter& OutPacket)
 		// @todo #JohnB: Restore when you have the whole packet pipeline unified
 		//check(GPendingSendPacket.Writer == &OutPacket);
 
-
-		uint32 OutSizeBits = OutPacket.GetNumBits();
+		uint32 OutSizeBits = IntCastChecked<uint32>(OutPacket.GetNumBits());
 
 		if (OutSizeBits > 0)
 		{
@@ -439,7 +438,7 @@ void FPacketAudit::NotifyLowLevelSend_Internal(FBitWriter& OutPacket)
 void FPacketAudit::NotifyLowLevelReceive_Internal(FBitReader& InPacket)
 {
 #if !UE_BUILD_SHIPPING
-	GCurrentReceivePacket = PacketCRC(InPacket.GetData(), InPacket.GetNumBits());
+	GCurrentReceivePacket = PacketCRC(InPacket.GetData(), IntCastChecked<uint32>(InPacket.GetNumBits()));
 	GLastReceivePacket = 0;
 #endif
 }

@@ -11,12 +11,12 @@ struct FResizableCircularQueueTestUtil
 {
 	typedef TResizableCircularQueue<uint32> QueueT;
 
-	static bool VerifyQueueIntegrity(const QueueT& Queue, uint32 ExpectedValueAtFront, uint32 Increment)
+	static bool VerifyQueueIntegrity(const QueueT& Queue, QueueT::ElementT ExpectedValueAtFront, QueueT::ElementT Increment)
 	{
 		bool bSuccess = true;
 		SIZE_T Offset = Queue.Count() - 1;
 	
-		uint32 ExpectedValue = ExpectedValueAtFront;
+		QueueT::ElementT ExpectedValue = ExpectedValueAtFront;
 
 		// Peek elements in queue at given offset, peek from back to front
 		for (SIZE_T It = 0, EndIt = Queue.Count(); It < EndIt; ++It)
@@ -37,6 +37,8 @@ struct FResizableCircularQueueTestUtil
 
 bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 {
+	typedef FResizableCircularQueueTestUtil::QueueT::ElementT ElementT;
+
 	// Test empty
 	{
 		FResizableCircularQueueTestUtil::QueueT Q(0);
@@ -48,11 +50,11 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 
 	// Test Push to Capacity
 	{
-		const SIZE_T ElementsToPush = 8;
+		const ElementT ElementsToPush = 8;
 
 		FResizableCircularQueueTestUtil::QueueT Q(ElementsToPush);
 
-		for (SIZE_T It=0; It < ElementsToPush; ++It)
+		for (ElementT It=0; It < ElementsToPush; ++It)
 		{
 			Q.Enqueue(It);
 		}
@@ -64,11 +66,11 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 
 	// Test Push over Capacity
 	{
-		const SIZE_T InitialQueueCapacity = 32;
+		const ElementT InitialQueueCapacity = 32;
 
 		FResizableCircularQueueTestUtil::QueueT Q(InitialQueueCapacity);
 
-		for (SIZE_T It=0; It < InitialQueueCapacity; ++It)
+		for (ElementT It=0; It < InitialQueueCapacity; ++It)
 		{
 			Q.Enqueue(It);
 		}
@@ -83,7 +85,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 
 	// Test Push and Pop
 	{
-		const SIZE_T ElementsToPush = 256;
+		const ElementT ElementsToPush = 256;
 		const SIZE_T ElementPopMod = 16;
 		const SIZE_T ExpectedSize = 256 - ElementPopMod;
 		const SIZE_T ExpectedCapacity = 256;
@@ -91,7 +93,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		FResizableCircularQueueTestUtil::QueueT Q(4);
 
 		uint32 ExpectedPoppedValue = 0;
-		for (uint32 It = 0; It < 256; ++It)
+		for (ElementT It = 0; It < ElementsToPush; ++It)
 		{
 			Q.Enqueue(It);
 			TestEqual(TEXT("Test Push and pop - Push"), It, Q.PeekAtOffset(Q.Count() - 1));
@@ -112,14 +114,14 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 
 	// Test Push and pop all
 	{
-		const SIZE_T ElementsToPush = 256;
+		const ElementT ElementsToPush = 256;
 
 		FResizableCircularQueueTestUtil::QueueT Q(ElementsToPush);
 
 		TestTrue(TEXT ("Test Push and pop all - IsEmpty before"), Q.IsEmpty());
 		TestEqual(TEXT("Test Push and pop all - Size before"), Q.Count(), SIZE_T(0));
 
-		for (SIZE_T It=0; It < ElementsToPush; ++It)
+		for (ElementT It=0; It < ElementsToPush; ++It)
 		{
 			Q.Enqueue(It);
 		}
@@ -128,7 +130,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Test Push and pop all - Capacity"), Q.AllocatedCapacity(), ElementsToPush);
  		TestTrue (TEXT("Test Push and pop all - Expected"), FResizableCircularQueueTestUtil::VerifyQueueIntegrity(Q, 0, 1));
 
-		for (SIZE_T It=0; It < ElementsToPush; ++It)
+		for (ElementT It=0; It < ElementsToPush; ++It)
 		{
 			Q.Pop();
 		}
@@ -181,7 +183,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 
 	// Test index wrap
 	{
-		const SIZE_T ElementsToPush = 256;
+		const ElementT ElementsToPush = 256;
 		const SIZE_T ElementPopMod = 16;
 		const SIZE_T ExpectedSize = 256 - ElementPopMod;
 		const SIZE_T ExpectedCapacity = 256;
@@ -194,7 +196,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT ("Test index wrap - IsEmpty before"), Q.IsEmpty());
 		TestEqual(TEXT("Test index wrap - Size before"), Q.Count(), SIZE_T(0));
 
-		for (SIZE_T It=0; It < ElementsToPush; ++It)
+		for (ElementT It=0; It < ElementsToPush; ++It)
 		{
 			Q.Enqueue(It);
 		}
@@ -203,7 +205,7 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Test index wrap - Capacity"), Q.AllocatedCapacity(), ElementsToPush);
  		TestTrue (TEXT("Test index wrap - Expected"), FResizableCircularQueueTestUtil::VerifyQueueIntegrity(Q, 0, 1));
 
-		for (SIZE_T It=0; It < ElementsToPush; ++It)
+		for (ElementT It=0; It < ElementsToPush; ++It)
 		{
 			Q.Pop();
 		}
@@ -215,14 +217,14 @@ bool FResizableCircularQueueTest::RunTest(const FString& Parameters)
 
 	// Test Trim
 	{
-		const SIZE_T ElementsToPush = 9;
+		const ElementT ElementsToPush = 9;
 		const SIZE_T ElementsToPop = 5;
 		const SIZE_T ExpectedCapacity = 16;
 		const SIZE_T ExpectedCapacityAfterTrim = 4;
 
 		FResizableCircularQueueTestUtil::QueueT Q(0);
 
-		for (SIZE_T It=0; It < ElementsToPush; ++It)
+		for (ElementT It=0; It < ElementsToPush; ++It)
 		{
 			Q.Enqueue(It);
 		}

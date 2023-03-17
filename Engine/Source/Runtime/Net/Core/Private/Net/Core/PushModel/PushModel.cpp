@@ -219,7 +219,7 @@ namespace UEPushModelPrivate
 			if (LIKELY(PerObjectStates.IsValidIndex(ObjectIndex)))
 			{
 				// The macros will take care of filtering out invalid objects, so we don't need to check here.
-				PerObjectStates[ObjectIndex].MarkPropertyDirty(RepIndex);
+				PerObjectStates[ObjectIndex].MarkPropertyDirty(static_cast<uint16>(RepIndex));
 			}
 		}
 
@@ -229,9 +229,9 @@ namespace UEPushModelPrivate
 			if (LIKELY(PerObjectStates.IsValidIndex(ObjectIndex)))
 			{
 				FPushModelPerObjectState& ObjectState = PerObjectStates[ObjectIndex];
-				for (int RepIndex = StartRepIndex; RepIndex <= EndRepIndex; ++RepIndex)
+				for (int32 RepIndex = StartRepIndex; RepIndex <= EndRepIndex; ++RepIndex)
 				{
-					ObjectState.MarkPropertyDirty(RepIndex);
+					ObjectState.MarkPropertyDirty(static_cast<uint16>(RepIndex));
 				}
 			}
 		}

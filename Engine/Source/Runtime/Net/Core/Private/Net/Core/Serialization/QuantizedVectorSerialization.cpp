@@ -60,7 +60,7 @@ bool WriteQuantizedVector(const int32 Scale, const T& Value, FArchive& Ar)
 		return false;
 	}
 
-	const ScalarType Factor = Scale;
+	const ScalarType Factor = IntCastChecked<int16>(Scale);
 	T ScaledValue;
 	ScaledValue.X = Value.X*Factor;
 	ScaledValue.Y = Value.Y*Factor;
