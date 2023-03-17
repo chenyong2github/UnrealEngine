@@ -108,6 +108,7 @@ public:
 
 private:
 	void AddKeys();
+	void BuildMotionSourceToKeypointMap();
 	
 	void SetupLiveLinkData();
 	void UpdateLiveLink();
@@ -128,6 +129,9 @@ private:
 
 	TArray<int32> BoneParents;
 	TArray<EHandKeypoint> BoneKeypoints;
+	typedef TPair<EHandKeypoint, bool> MotionSourceInfo; // bool true == left, false == right
+	TMap<FName, MotionSourceInfo> MotionSourceToKeypointMap;
+	bool bSupportLegacyControllerMotionSources = true;
 
 	FHandState HandStates[2];
 

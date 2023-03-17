@@ -10,6 +10,8 @@
 //#include "DrawDebugHelpers.h"
 #include "ILiveLinkClient.h"
 #include "IOpenXRHMDModule.h"
+#include "OpenXRHandTrackingSettings.h"
+#include "UObject/UObjectGlobals.h"
 
 #define LOCTEXT_NAMESPACE "OpenXRHandTracking"
 
@@ -19,8 +21,6 @@ static_assert(EHandKeypoint::Wrist == static_cast<EHandKeypoint>(XR_HAND_JOINT_W
 static_assert(EHandKeypoint::ThumbMetacarpal == static_cast<EHandKeypoint>(XR_HAND_JOINT_THUMB_METACARPAL_EXT), "EHandKeypoint enum does not match XrHandJointEXT.");
 static_assert(EHandKeypoint::IndexTip == static_cast<EHandKeypoint>(XR_HAND_JOINT_INDEX_TIP_EXT), "EHandKeypoint enum does not match XrHandJointEXT.");
 static_assert(EHandKeypoint::LittleTip == static_cast<EHandKeypoint>(XR_HAND_JOINT_LITTLE_TIP_EXT), "EHandKeypoint enum does not match XrHandJointEXT.");
-
-//static TAutoConsoleVariable<int32> CVarEnableOpenXRHandTrackingDebug(TEXT("OpenXR.debug.EnableEyetrackingDebug"), 1, TEXT("0 - Eyetracking debug visualizations are disabled. 1 - Eyetracking debug visualizations are enabled."));
 
 class FOpenXRHandTrackingModule :
 	public IOpenXRHandTrackingModule
@@ -197,6 +197,9 @@ const void* FOpenXRHandTracking::OnGetSystem(XrInstance InInstance, const void* 
 
 const void* FOpenXRHandTracking::OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext)
 {
+	// Need to wait until the EHandKeypoint enum has been loaded, so we do this here rather than in the constructor which runs too early.
+	BuildMotionSourceToKeypointMap();
+
 	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties{
 	XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
 	XrSystemProperties systemProperties{ XR_TYPE_SYSTEM_PROPERTIES,
@@ -300,9 +303,60 @@ const FTransform& FOpenXRHandTracking::FHandState::GetTransform(EHandKeypoint Ke
 	return KeypointTransforms[(uint32)Keypoint];
 }
 
+void FOpenXRHandTracking::BuildMotionSourceToKeypointMap()
+{
+	if (!MotionSourceToKeypointMap.IsEmpty())
+	{
+		return;
+	}
+
+	bool bUseMoreSpecificMotionSourceNames = false;
+	UOpenXRHandTrackingSettings* Settings = GetMutableDefault<UOpenXRHandTrackingSettings>();
+	ensure(Settings);
+	if (Settings)
+	{
+		bUseMoreSpecificMotionSourceNames = Settings->bUseMoreSpecificMotionSourceNames;
+		bSupportLegacyControllerMotionSources = Settings->bSupportLegacyControllerMotionSources;
+	}
+
+	// There is a motionsource that corresponds to each hand keypoint of the form [Left|Right][Keypoint].
+	// Build a map so we can quickly translate from motion source FName to hand bone EHandKeypoint value.
+	// We also have the option of using more specific motion sources of the form HandTracking[Left|Right][Keypoint]
+	// this is useful if one wishes to use hand tracking and controllers simultaneously.
+	// We also may support more generic legacy motion sources, by default we do support this.
+	const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/HeadMountedDisplay.EHandKeypoint"), true);
+	check(EnumPtr != nullptr);
+
+	check(IsInGameThread());
+	const FString Left(bUseMoreSpecificMotionSourceNames ? TEXT("HandTrackingLeft") : TEXT("Left"));
+	const FString Right(bUseMoreSpecificMotionSourceNames ? TEXT("HandTrackingRight") : TEXT("Right"));
+	for (int64 E = 0; E < EHandKeypointCount; ++E)
+	{
+		const EHandKeypoint EnumValue = static_cast<EHandKeypoint>(E);
+		const FString EnumName = EnumPtr->GetNameStringByValue(E);
+
+		const FName LeftName(Left + EnumName);
+		const FName RightName(Right + EnumName);
+		MotionSourceToKeypointMap.Add(LeftName, MotionSourceInfo(EnumValue, true));
+		MotionSourceToKeypointMap.Add(RightName, MotionSourceInfo(EnumValue, false));
+	}
+
+	if (bSupportLegacyControllerMotionSources)
+	{
+		MotionSourceToKeypointMap.Add(FName("Left"), MotionSourceInfo(EHandKeypoint::Palm, true));
+		MotionSourceToKeypointMap.Add(FName("Right"), MotionSourceInfo(EHandKeypoint::Palm, false));
+	}
+}
+
 bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const
 {
 	if (!bHandTrackingAvailable)
+	{
+		return false;
+	}
+	
+	// Hand tracking currently does not support late update.  Current hand tracking systems have latency that make it pointless.
+	if (!IsInGameThread())
 	{
 		return false;
 	}
@@ -311,50 +365,21 @@ bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 Contro
 	if (ControllerIndex == DeviceIndex)
 	{
 		FTransform ControllerTransform = FTransform::Identity;
-		if (MotionSource == FName("Left"))
-		{
-			ControllerTransform = GetLeftHandState().GetTransform(EHandKeypoint::Palm);
-			bTracked = GetLeftHandState().ReceivedJointPoses;
-		}
-		else if (MotionSource == FName("Right"))
-		{
-			ControllerTransform = GetRightHandState().GetTransform(EHandKeypoint::Palm);
-			bTracked = GetRightHandState().ReceivedJointPoses;
-		}
 
-		// This can only be done in the game thread since it uses the UEnum directly
-		if (IsInGameThread())
+		const MotionSourceInfo* KeyPointInfoPtr = MotionSourceToKeypointMap.Find(MotionSource);
+		if (KeyPointInfoPtr)
 		{
-			const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/HeadMountedDisplay.EHandKeypoint"), true);
-			check(EnumPtr != nullptr);
-			bool bUseRightHand = false;
-			FString SourceString = MotionSource.ToString();
-			if (SourceString.StartsWith((TEXT("Right"))))
+			const EHandKeypoint KeyPoint = KeyPointInfoPtr->Key;
+			const bool bIsLeft = KeyPointInfoPtr->Value;
+			if (bIsLeft)
 			{
-				bUseRightHand = true;
-				// Strip off the Right
-				SourceString.RightInline(SourceString.Len() - 5, false);
+				ControllerTransform = GetLeftHandState().GetTransform(KeyPoint);
+				bTracked = GetLeftHandState().ReceivedJointPoses;
 			}
 			else
 			{
-				// Strip off the Left
-				SourceString.RightInline(SourceString.Len() - 4, false);
-			}
-			FName FullEnumName(*FString(TEXT("EHandKeypoint::") + SourceString), FNAME_Find);
-			// Get the enum value from the name
-			int32 ValueFromName = EnumPtr->GetValueByName(FullEnumName);
-			if (ValueFromName != INDEX_NONE)
-			{
-				if (bUseRightHand)
-				{
-					ControllerTransform = GetRightHandState().GetTransform((EHandKeypoint)ValueFromName);
-					bTracked = GetRightHandState().ReceivedJointPoses;
-				}
-				else
-				{
-					ControllerTransform = GetLeftHandState().GetTransform((EHandKeypoint)ValueFromName);
-					bTracked = GetLeftHandState().ReceivedJointPoses;
-				}
+				ControllerTransform = GetRightHandState().GetTransform(KeyPoint);
+				bTracked = GetRightHandState().ReceivedJointPoses;
 			}
 		}
 
@@ -362,8 +387,11 @@ bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 Contro
 		OutOrientation = ControllerTransform.GetRotation().Rotator();
 	}
 
-	// Then call super to handle a few of the default labels, for backward compatibility
-	FXRMotionControllerBase::GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
+	// Then call super to handle a few of the default labels (eg AnyHand), for backward compatibility
+	if (bSupportLegacyControllerMotionSources)
+	{
+		FXRMotionControllerBase::GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
+	}
 
 	return bTracked;
 }
@@ -425,10 +453,20 @@ void FOpenXRHandTracking::EnumerateSources(TArray<FMotionControllerSource>& Sour
 {
 	check(IsInGameThread());
 
-	SourcesOut.Empty(EHandKeypointCount * 2);
+	bool bUseMoreSpecificMotionSourceNames = false;
+	UOpenXRHandTrackingSettings* Settings = GetMutableDefault<UOpenXRHandTrackingSettings>();
+	ensure(Settings);
+	if (Settings)
+	{
+		bUseMoreSpecificMotionSourceNames = Settings->bUseMoreSpecificMotionSourceNames;
+	}
+
+	SourcesOut.Reserve(SourcesOut.Num() + (EHandKeypointCount * 2));
 
 	const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/HeadMountedDisplay.EHandKeypoint"), true);
 	check(EnumPtr != nullptr);
+	const FString Left(bUseMoreSpecificMotionSourceNames ? TEXT("HandTrackingLeft") : TEXT("Left"));
+	const FString Right(bUseMoreSpecificMotionSourceNames ? TEXT("HandTrackingRight") : TEXT("Right"));
 	for (int32 Keypoint = 0; Keypoint < EHandKeypointCount; Keypoint++)
 	{
 		static int32 EnumNameLength = FString(TEXT("EHandKeypoint::")).Len();
@@ -436,9 +474,9 @@ void FOpenXRHandTracking::EnumerateSources(TArray<FMotionControllerSource>& Sour
 		const FString EnumString = EnumPtr->GetNameByValue(Keypoint).ToString();
 		const TCHAR* EnumChars = *EnumString;
 		const TCHAR* EnumValue = EnumChars + EnumNameLength;
-		FString StringLeft(TEXT("Left"));
+		FString StringLeft(Left);
 		StringLeft.AppendChars(EnumValue, EnumString.Len() - EnumNameLength);
-		FString StringRight(TEXT("Right"));
+		FString StringRight(Right);
 		StringRight.AppendChars(EnumValue, EnumString.Len() - EnumNameLength);
 		FName SourceL(*(StringLeft));
 		FName SourceR(*(StringRight));
