@@ -2366,7 +2366,10 @@ public:
 	 *
 	 * @return a string representing the combination of set bits in the bitfield or, if not a bitfield/flags enumeration, the string associated with the enumerator for the specified enum value for the enum specified by the template type.
 	 */
-	template<typename EnumType UE_REQUIRES(TIsEnum<EnumType>::Value)>
+	template<
+		typename EnumType
+		UE_REQUIRES(TIsEnum<EnumType>::Value)
+	>
 	FORCEINLINE static FString GetValueOrBitfieldAsString(const EnumType EnumeratorValue)
 	{
 		// For the C++ enum.
@@ -2378,14 +2381,20 @@ public:
 
 	// TEnumAsByte produces a warning if you use it with EnumClass, so this UE_REQUIRES keeps this overload
 	// from being matched in that case
-	template<typename EnumType UE_REQUIRES(!TIsEnumClass<EnumType>::Value)>
+	template<
+		typename EnumType
+		UE_REQUIRES(!TIsEnumClass<EnumType>::Value)
+	>
 	FORCEINLINE static FString GetValueOrBitfieldAsString(const TEnumAsByte<EnumType> EnumeratorValue)
 	{
 		return GetValueOrBitfieldAsString(EnumeratorValue.GetValue());
 	}
 
-	template<typename EnumType UE_REQUIRES(TIsEnum<EnumType>::Value),
-		typename IntegralType UE_REQUIRES(std::is_integral_v<IntegralType>)>
+	template<
+		typename EnumType,
+		typename IntegralType
+		UE_REQUIRES(TIsEnum<EnumType>::Value && std::is_integral_v<IntegralType>)
+	>
 	FORCEINLINE static FString GetValueOrBitfieldAsString(const IntegralType EnumeratorValue)
 	{
 		// For the C++ enum.
@@ -2401,8 +2410,11 @@ public:
 		out_StringValue = GetValueOrBitfieldAsString(EnumeratorValue);
 	}
 
-	template<typename EnumType UE_REQUIRES(TIsEnum<EnumType>::Value), 
-		typename IntegralType UE_REQUIRES(std::is_integral_v<IntegralType>)>
+	template<
+		typename EnumType,
+		typename IntegralType
+		UE_REQUIRES(TIsEnum<EnumType>::Value && std::is_integral_v<IntegralType>)
+	>
 	FORCEINLINE static void GetValueOrBitfieldAsString(const IntegralType EnumeratorValue, FString& out_StringValue)
 	{
 		out_StringValue = GetValueOrBitfieldAsString<EnumType>(EnumeratorValue);
