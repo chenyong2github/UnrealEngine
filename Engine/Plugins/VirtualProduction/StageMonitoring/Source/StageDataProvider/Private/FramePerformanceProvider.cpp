@@ -2,42 +2,61 @@
 
 #include "FramePerformanceProvider.h"
 
+#include "AssetCompilingManager.h"
 #include "EngineGlobals.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 #include "IStageDataProvider.h"
 #include "Misc/App.h"
+#include "RHI.h"
+#include "RenderTimer.h"
+
 #include "StageDataProviderModule.h"
 #include "StageMonitorUtils.h"
 #include "Stats/StatsData.h"
 #include "UObject/Package.h"
 #include "UObject/PackageReload.h"
 
-#include "ShaderCompiler.h"
-
 namespace UE::FramePerformanceProvider::Private
 {
 
-int32 ShadersLeftToCompile()
+int32 CompilationTasksRemaining()
 {
-	if (GShaderCompilingManager && GShaderCompilingManager->IsCompiling())
-	{
-		return GShaderCompilingManager->GetNumRemainingJobs();
-	}
-	return 0;
+	FAssetCompilingManager& Manager = FAssetCompilingManager::Get();
+	return Manager.GetNumRemainingAssets();
 }
 
-FFramePerformanceProviderMessage GetLatestPerformanceData()
+uint64 TotalGPUResourceSize(const TArray<FStatMessage>& StatMessages)
+{
+	uint64 TotalSize = 0;
+	FName NAME_STATGROUP_RHI(FStatGroup_STATGROUP_RHI::GetGroupName());
+	for (const FStatMessage& Stat : StatMessages)
+	{
+		FName LastGroup = Stat.NameAndInfo.GetGroupName();
+		if (LastGroup == NAME_STATGROUP_RHI && Stat.NameAndInfo.GetFlag(EStatMetaFlags::IsMemory))
+		{
+			TotalSize += Stat.GetValue_int64();
+		}
+	}
+	return TotalSize;
+}
+
+FFramePerformanceProviderMessage GetLatestPerformanceData(const	TArray<FStatMessage>& StatMessages)
 {
 	const float GameThreadTime = FPlatformTime::ToMilliseconds(GGameThreadTime);
 	const float RenderThreadTime = FPlatformTime::ToMilliseconds(GRenderThreadTime);
 	const float GPUTime = FPlatformTime::ToMilliseconds(GGPUFrameTime);
 	const float IdleTimeMilli = (FApp::GetIdleTime() * 1000.0);
+	FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 	return FFramePerformanceProviderMessage(
 		EStageMonitorNodeStatus::Unknown,
 		GameThreadTime,
 		RenderThreadTime,
 		GPUTime,
 		IdleTimeMilli,
-		ShadersLeftToCompile()
+		Stats.UsedPhysical,
+		TotalGPUResourceSize(StatMessages),
+		CompilationTasksRemaining()
 		);
 }
 
@@ -62,12 +81,23 @@ public:
 	// FRunnable functions
 	virtual uint32 Run() override
 	{
+		double LastRHIUpdate = FPlatformTime::Seconds();
+
 		bStopped = false;
 		do
 		{
+			const double CurrentPlatformTimeInSeconds = FPlatformTime::Seconds();
+			if (CurrentPlatformTimeInSeconds > (UpdateRHIResourcesFrequency + LastRHIUpdate)
+				|| Stats.IsEmpty())
+			{
+				Stats.Reset();
+				LastRHIUpdate = CurrentPlatformTimeInSeconds;
+				GetPermanentStats(Stats);
+			}
+
 			IStageDataProvider::SendMessage<FFramePerformanceProviderMessage>(EStageMessageFlags::None, GetFramePerformanceData());
 
-			FPlatformProcess::Sleep( UpdateFrequency );
+			FPlatformProcess::Sleep(UpdateFrequency);
 		} while (!bStopped);
 		return 0;
 	}
@@ -92,10 +122,11 @@ public:
 
 	FFramePerformanceProviderMessage GetFramePerformanceData()
 	{
-		FFramePerformanceProviderMessage OutboundData = UE::FramePerformanceProvider::Private::GetLatestPerformanceData();
-		if (OutboundData.ShadersToCompile > 0)
+		FFramePerformanceProviderMessage OutboundData =
+			UE::FramePerformanceProvider::Private::GetLatestPerformanceData(Stats);
+		if (OutboundData.CompilationTasksRemaining > 0)
 		{
-			OutboundData.Status = EStageMonitorNodeStatus::ShaderCompiling;
+			OutboundData.Status = EStageMonitorNodeStatus::AssetCompiling;
 		}
 		else
 		{
@@ -151,7 +182,9 @@ public:
 	mutable FCriticalSection LoadInfoCS;
 
 	TArray<FLoadInfo> LoadStack;
+	TArray<FStatMessage> Stats;
 
+	const float UpdateRHIResourcesFrequency = 4.0f;
 	float UpdateFrequency = 0.2f; // Default is 200ms;
 	bool bStopped = false;
 };

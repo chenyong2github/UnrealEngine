@@ -21,6 +21,7 @@ public class StageDataProvider : ModuleRules
 				"CoreUObject",
 				"DeveloperSettings",
 				"Engine",
+				"RHI",
 				"GameplayTags",
 				"RenderCore",
 				"StageDataCore",

@@ -26,7 +26,9 @@ namespace DataProviderListView
 	const FName HeaderIdName_GameThreadTiming = TEXT("GameThreadTiming");
 	const FName HeaderIdName_RenderThreadTiming = TEXT("RenderThreadTiming");
 	const FName HeaderIdName_GPUTiming = TEXT("GPUTiming");
-	const FName HeaderIdName_ShadersToCompile = TEXT("ShadersToCompile");
+	const FName HeaderIdName_CPUMem = TEXT("CPUMem");
+	const FName HeaderIdName_GPUMem = TEXT("GPUMem");
+	const FName HeaderIdName_AssetsToCompile = TEXT("AssetsToCompile");
 }
 
 /**
@@ -231,7 +233,7 @@ TSharedRef<SWidget> SDataProviderTableRow::GenerateWidgetForColumn(const FName& 
 				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetGPUTiming))
 			];
 	}
-	if (DataProviderListView::HeaderIdName_ShadersToCompile == ColumnName)
+	if (DataProviderListView::HeaderIdName_CPUMem == ColumnName)
 	{
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -240,7 +242,31 @@ TSharedRef<SWidget> SDataProviderTableRow::GenerateWidgetForColumn(const FName& 
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetShadersLeftToCompile))
+				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetCPUMem))
+			];
+	}
+	if (DataProviderListView::HeaderIdName_GPUMem == ColumnName)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetGPUMem))
+			];
+	}
+	if (DataProviderListView::HeaderIdName_AssetsToCompile == ColumnName)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetAssetsLeftToCompile))
 			];
 	}
 
@@ -271,8 +297,8 @@ FText SDataProviderTableRow::GetStatus() const
 		return LOCTEXT("Status_Ready", "Ready");
 	case EStageMonitorNodeStatus::HotReload:
 		return LOCTEXT("Status_HotReload", "Reloading");
-	case EStageMonitorNodeStatus::ShaderCompiling:
-		return LOCTEXT("Status_ShaderCompiling", "Compiling");
+	case EStageMonitorNodeStatus::AssetCompiling:
+		return LOCTEXT("Status_AssetCompiling", "Asset Compiling");
 	case EStageMonitorNodeStatus::Unknown:
 		return LOCTEXT("Status_Unknown", "Unknown");
 	default:
@@ -305,6 +331,22 @@ FSlateColor SDataProviderTableRow::GetStateColorAndOpacity() const
 			return FLinearColor::Red;
 		}
 	}
+}
+
+FString GetMemoryString( const uint64 Value )
+{
+	if (Value > 1024 * 1024)
+	{
+		// Display anything over a MB in GB format.
+		return FString::Printf( TEXT( "%.2f GB" ), float( static_cast<float>(Value) / (1024.0 * 1024.0 * 1024.0) ) );
+	}
+	else if (Value > 1024)
+	{
+		// Anything more than a KB in MB.
+		return FString::Printf( TEXT( "%.2f MB" ), float( static_cast<float>(Value) / (1024.0 * 1024.0) ) );
+	}
+
+	return FString::Printf( TEXT( "%.2f KB" ), float( static_cast<float>(Value) / (1024.0) ) );
 }
 
 FText SDataProviderTableRow::GetTimecode() const
@@ -358,9 +400,19 @@ FText SDataProviderTableRow::GetGPUTiming() const
 	return FText::AsNumber(Item->CachedPerformanceData.GPU_MS);
 }
 
-FText SDataProviderTableRow::GetShadersLeftToCompile() const
+FText SDataProviderTableRow::GetGPUMem() const
 {
-	return FText::AsNumber(Item->CachedPerformanceData.ShadersToCompile);
+	return FText::FromString(GetMemoryString(Item->CachedPerformanceData.GPU_MEM));
+}
+
+FText SDataProviderTableRow::GetCPUMem() const
+{
+	return FText::FromString(GetMemoryString(Item->CachedPerformanceData.CPU_MEM));
+}
+
+FText SDataProviderTableRow::GetAssetsLeftToCompile() const
+{
+	return FText::AsNumber(Item->CachedPerformanceData.CompilationTasksRemaining);
 }
 /**
  * SDataProviderListView
@@ -448,9 +500,17 @@ void SDataProviderListView::Construct(const FArguments& InArgs, const TWeakPtr<I
 			.FillWidth(.2f)
 			.DefaultLabel(LOCTEXT("HeaderName_GPU", "GPU (ms)"))
 
-			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_ShadersToCompile)
+			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_CPUMem)
 			.FillWidth(.2f)
-			.DefaultLabel(LOCTEXT("HeaderName_Shaders", "Shaders To Compile"))
+			.DefaultLabel(LOCTEXT("HeaderName_CPUMem", "CPU Memory"))
+
+			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_GPUMem)
+			.FillWidth(.2f)
+			.DefaultLabel(LOCTEXT("HeaderName_GPUMem", "GPU Memory"))
+
+			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_AssetsToCompile)
+			.FillWidth(.2f)
+			.DefaultLabel(LOCTEXT("HeaderName_Assets", "Assets To Compile"))
 		)
 	);
 

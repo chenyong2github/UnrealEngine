@@ -46,7 +46,9 @@ private:
 	FText GetGameThreadTiming() const;
 	FText GetRenderThreadTiming() const;
 	FText GetGPUTiming() const;
-	FText GetShadersLeftToCompile() const;
+	FText GetGPUMem() const;
+	FText GetCPUMem() const;
+	FText GetAssetsLeftToCompile() const;
 
 private:
 
