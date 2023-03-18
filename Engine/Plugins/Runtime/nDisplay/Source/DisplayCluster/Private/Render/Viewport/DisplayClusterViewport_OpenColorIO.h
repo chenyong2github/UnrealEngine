@@ -12,27 +12,16 @@
 #include "RHIResources.h"
 #include "Templates/SharedPointer.h"
 
-#include "UObject/GCObject.h"
-
 /**
  * nDisplay OCIO implementation.
  * 
  */
 class FDisplayClusterViewport_OpenColorIO
 	: public TSharedFromThis<FDisplayClusterViewport_OpenColorIO, ESPMode::ThreadSafe>
-	, public FGCObject
 {
 public:
 	FDisplayClusterViewport_OpenColorIO(const FOpenColorIOColorConversionSettings& InDisplayConfiguration);
 	virtual ~FDisplayClusterViewport_OpenColorIO();
-
-	//~Begin FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FDisplayClusterViewport_OpenColorIO");
-	}
-	//~End FGCObject interface
 
 public:
 	/** Update render thread resources. */

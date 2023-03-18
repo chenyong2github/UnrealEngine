@@ -27,14 +27,6 @@ FDisplayClusterViewport_OpenColorIO::FDisplayClusterViewport_OpenColorIO(const F
 FDisplayClusterViewport_OpenColorIO::~FDisplayClusterViewport_OpenColorIO()
 { }
 
-void FDisplayClusterViewport_OpenColorIO::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	if (DisplayConfiguration.ConfigurationSource)
-	{
-		Collector.AddReferencedObject(DisplayConfiguration.ConfigurationSource);
-	}
-}
-
 void FDisplayClusterViewport_OpenColorIO::SetupSceneView(FSceneViewFamily& InOutViewFamily, FSceneView& InOutView) const
 {
 	if (bShaderResourceValid)
