@@ -102,7 +102,7 @@ TEST_CASE("Core::Async::ParkingLot", "[Core][Async]")
 		ParkingLot::FWaitState State = ParkingLot::WaitFor(&Value,
 			[&CanWaitCount] { ++CanWaitCount; return true; },
 			[&BeforeWaitCount] { ++BeforeWaitCount; },
-			/*WaitMs*/ 1);
+			FMonotonicTimeSpan::FromMilliseconds(1.0));
 		CHECK(CanWaitCount == 1);
 		CHECK(BeforeWaitCount == 1);
 		CHECK(State.bDidWait);
@@ -124,7 +124,7 @@ TEST_CASE("Core::Async::ParkingLot", "[Core][Async]")
 					[&Remaining]
 					{
 						Remaining.fetch_sub(1, std::memory_order_relaxed);
-					}, /*WaitMs*/ 1);
+					}, FMonotonicTimeSpan::FromMilliseconds(1.0));
 			});
 			CHECK(Remaining == 0);
 		});

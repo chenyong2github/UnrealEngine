@@ -517,9 +517,11 @@ FThreadLocalData::~FThreadLocalData()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FWaitState WaitFor(const void* Address, TFunctionRef<bool()> CanWait, TFunctionRef<void()> BeforeWait, uint32 WaitMs)
+FWaitState WaitUntil(const void* Address, TFunctionRef<bool()> CanWait, TFunctionRef<void()> BeforeWait, FMonotonicTimePoint WaitTime)
 {
 	using namespace Private;
+
+	check(!WaitTime.IsNaN());
 
 	FThread& Self = FThreadLocalData::Get();
 
@@ -547,13 +549,15 @@ FWaitState WaitFor(const void* Address, TFunctionRef<bool()> CanWait, TFunctionR
 #if UE_PARKINGLOT_USE_WAITONADDRESS
 	for (;;)
 	{
-		const DWORD SystemWaitMs = (WaitMs == MAX_uint32) ? INFINITE : WaitMs;
-		if (!WaitOnAddress(&Self.WaitAddress, &Address, sizeof(Address), SystemWaitMs))
+		const FMonotonicTimeSpan WaitSpan = WaitTime - FMonotonicTimePoint::Now();
+		if (WaitSpan <= FMonotonicTimeSpan::Zero())
 		{
-			if (GetLastError() == ERROR_TIMEOUT)
-			{
-				break;
-			}
+			break;
+		}
+		const DWORD WaitMs = WaitSpan.IsInfinity() ? INFINITE : DWORD(FMath::CeilToInt64(WaitSpan.ToMilliseconds()));
+		if (!WaitOnAddress(&Self.WaitAddress, &Address, sizeof(Address), WaitMs) && GetLastError() == ERROR_TIMEOUT)
+		{
+			break;
 		}
 		if (!Self.WaitAddress)
 		{
@@ -567,12 +571,14 @@ FWaitState WaitFor(const void* Address, TFunctionRef<bool()> CanWait, TFunctionR
 	{
 		// Wait until the timeout or until the thread has been dequeued.
 		std::unique_lock SelfLock(Self.Lock);
-		if (WaitMs == MAX_uint32)
+		const FMonotonicTimeSpan WaitSpan = WaitTime - FMonotonicTimePoint::Now();
+		if (WaitSpan.IsInfinity())
 		{
 			Self.Condition.wait(SelfLock, [&Self] { return !Self.WaitAddress; });
 		}
-		else
+		else if (WaitSpan > FMonotonicTimeSpan::Zero())
 		{
+			const int64 WaitMs = FMath::CeilToInt64(WaitSpan.ToMilliseconds());
 			Self.Condition.wait_for(SelfLock, std::chrono::milliseconds(WaitMs), [&Self] { return !Self.WaitAddress; });
 		}
 

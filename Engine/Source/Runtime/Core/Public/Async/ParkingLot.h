@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Math/NumericLimits.h"
+#include "Misc/MonotonicTime.h"
 #include "Templates/Function.h"
 
 #define UE_API CORE_API
@@ -34,7 +34,7 @@ struct FWakeState final
 
 namespace Private
 {
-UE_API FWaitState WaitFor(const void* Address, TFunctionRef<bool()> CanWait, TFunctionRef<void()> BeforeWait, uint32 WaitMs);
+UE_API FWaitState WaitUntil(const void* Address, TFunctionRef<bool()> CanWait, TFunctionRef<void()> BeforeWait, FMonotonicTimePoint WaitTime);
 UE_API void WakeOne(const void* Address, TFunctionRef<uint64(FWakeState)> OnWakeState);
 }
 
@@ -48,7 +48,7 @@ UE_API void WakeOne(const void* Address, TFunctionRef<uint64(FWakeState)> OnWake
 template <typename CanWaitType, typename BeforeWaitType>
 inline FWaitState Wait(const void* Address, CanWaitType&& CanWait, BeforeWaitType&& BeforeWait)
 {
-	return Private::WaitFor(Address, Forward<CanWaitType>(CanWait), Forward<BeforeWaitType>(BeforeWait), MAX_uint32);
+	return Private::WaitUntil(Address, Forward<CanWaitType>(CanWait), Forward<BeforeWaitType>(BeforeWait), FMonotonicTimePoint::Infinity());
 }
 
 /**
@@ -57,12 +57,26 @@ inline FWaitState Wait(const void* Address, CanWaitType&& CanWait, BeforeWaitTyp
  * @param Address      Address to use as the key for the queue. The same address is used to wake the thread.
  * @param CanWait      Function called while the queue is locked. A return of false cancels the wait.
  * @param BeforeWait   Function called after the queue is unlocked and before the thread waits.
- * @param WaitMs       Minimum wait time after which waiting is automatically canceled and the thread wakes.
+ * @param WaitTime     Relative time after which waiting is automatically canceled and the thread wakes.
  */
 template <typename CanWaitType, typename BeforeWaitType>
-inline FWaitState WaitFor(const void* Address, CanWaitType&& CanWait, BeforeWaitType&& BeforeWait, uint32 WaitMs)
+inline FWaitState WaitFor(const void* Address, CanWaitType&& CanWait, BeforeWaitType&& BeforeWait, FMonotonicTimeSpan WaitTime)
 {
-	return Private::WaitFor(Address, Forward<CanWaitType>(CanWait), Forward<BeforeWaitType>(BeforeWait), WaitMs);
+	return Private::WaitUntil(Address, Forward<CanWaitType>(CanWait), Forward<BeforeWaitType>(BeforeWait), FMonotonicTimePoint::Now() + WaitTime);
+}
+
+/**
+ * Queue the calling thread to wait if CanWait returns true. BeforeWait is only called if CanWait returns true.
+ *
+ * @param Address      Address to use as the key for the queue. The same address is used to wake the thread.
+ * @param CanWait      Function called while the queue is locked. A return of false cancels the wait.
+ * @param BeforeWait   Function called after the queue is unlocked and before the thread waits.
+ * @param WaitTime     Absolute time after which waiting is automatically canceled and the thread wakes.
+ */
+template <typename CanWaitType, typename BeforeWaitType>
+inline FWaitState WaitUntil(const void* Address, CanWaitType&& CanWait, BeforeWaitType&& BeforeWait, FMonotonicTimePoint WaitTime)
+{
+	return Private::WaitUntil(Address, Forward<CanWaitType>(CanWait), Forward<BeforeWaitType>(BeforeWait), WaitTime);
 }
 
 /**
