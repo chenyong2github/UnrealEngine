@@ -109,6 +109,8 @@ struct TNaniteWritePixel
 		}
 	#endif
 
+		Pixel.WriteOverdraw();
+
 	#if ENABLE_EARLY_Z_TEST && !NANITE_TESSELLATION
 		BRANCH
 		if( !Pixel.EarlyDepthTest() )

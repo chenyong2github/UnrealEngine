@@ -1392,6 +1392,8 @@ void HWRasterizePS(VSOut In
 		Pixel.PhysicalPosition.z = ArrayIndex;
 	#endif
 
+		Pixel.WriteOverdraw();
+
 	#if ENABLE_EARLY_Z_TEST
 		BRANCH
 		if( !Pixel.EarlyDepthTest() )
