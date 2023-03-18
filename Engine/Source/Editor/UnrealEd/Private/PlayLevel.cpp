@@ -2703,9 +2703,6 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	// Let navigation know PIE is starting so it can avoid any blueprint creation/deletion/instantiation affect editor map's navmesh changes
 	FNavigationSystem::OnPIEStart(*InWorld);
 
-	// Purge the existing scene interface from the editor world to avoid 2x GPU allocations with the additional play-in-editor world that is about to init
-	InWorld->PurgeScene();
-
 	ULevelEditorPlaySettings* EditorPlaySettings = InRequestParams.EditorPlaySettings;
 	check(EditorPlaySettings);
 

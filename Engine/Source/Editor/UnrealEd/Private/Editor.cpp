@@ -972,6 +972,19 @@ UWorld* SetPlayInEditorWorld( UWorld* PlayInEditorWorld )
 	GIsPlayInEditorWorld = true;
 	GWorld = PlayInEditorWorld;
 
+	// Purge the existing scene interface from the editor world to avoid 2x GPU allocations with the additional play-in-editor world
+	if (GEditor->EditorWorld != nullptr)
+	{
+		// Clear out Slate's active scenes list since these ptrs no longer reference valid scenes.
+		if (!GEditor->EditorWorld->bPurgedScene && FSlateApplication::IsInitialized())
+		{
+			FSlateApplication::Get().FlushRenderState();
+		}
+
+		// Tear down the scene interface for the editor world
+		GEditor->EditorWorld->PurgeScene();
+	}
+
 	if (FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(PlayInEditorWorld))
 	{
 		GPlayInEditorID = WorldContext->PIEInstance;
