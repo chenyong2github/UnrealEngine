@@ -519,13 +519,6 @@ extern COREUOBJECT_API bool GIsGarbageCollecting;
 COREUOBJECT_API double GetLastGCTime();
 
 /**
- * Gets the duration of the last GC run.
- *
- * @return	Returns the last GC duration, -1 if GC has never run.
- */
-COREUOBJECT_API double GetLastGCDuration();
-
-/**
 * Whether we are inside garbage collection
 */
 FORCEINLINE bool IsGarbageCollecting()
