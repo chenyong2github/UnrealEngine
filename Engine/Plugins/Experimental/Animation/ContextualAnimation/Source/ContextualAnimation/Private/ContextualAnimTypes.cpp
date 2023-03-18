@@ -322,7 +322,11 @@ FContextualAnimSceneBindings::FContextualAnimSceneBindings(const UContextualAnim
 void FContextualAnimSceneBindings::GenerateUniqueId()
 {
 	static uint8 IncrementID = 0;
-	IncrementID = IncrementID < UINT8_MAX ? IncrementID + 1 : 0;
+	if (IncrementID >= UINT8_MAX)
+	{
+		IncrementID = 0;
+	}
+	++IncrementID;
 	Id = IncrementID;
 }
 
