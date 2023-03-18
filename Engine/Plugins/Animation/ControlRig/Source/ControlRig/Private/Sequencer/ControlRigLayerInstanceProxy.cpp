@@ -263,6 +263,14 @@ void FControlRigLayerInstanceProxy::AddReferencedObjects(UAnimInstance* InAnimIn
 	{
 		Collector.AddReferencedObject(CurrentSourceAnimInstance);
 	}
+
+	for (TSharedPtr<FAnimNode_ControlRig_ExternalSource>& Node : ControlRigNodes)
+	{
+#if WITH_EDITORONLY_DATA
+		Collector.AddReferencedObject(Node->SourceInstance);
+#endif
+		Collector.AddReferencedObject(Node->TargetInstance);
+	}
 }
 
 void FControlRigLayerInstanceProxy::InitializeCustomProxy(FAnimInstanceProxy* InputProxy, UAnimInstance* InAnimInstance)
