@@ -1804,6 +1804,12 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 	if (bNeedToFilterChangeMask)
 	{
 		ApplyFilterToChangeMask(OutBatchInfo.ParentInternalIndex, InternalIndex, Info, ObjectData.Protocol, ReplicatedObjectStateBuffer, bIsInitialState);
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+		if (!bIsInitialState && Info.HasDirtyChangeMask)
+		{
+			WriteContext.Stats.AddNumberOfReplicatedObjectStatesMaskedOut(1U);
+		}
+#endif
 	}
 
 	const bool bIsObjectIndexForAttachment = IsObjectIndexForOOBAttachment(InternalIndex);
@@ -2191,6 +2197,7 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 	const uint32 PastHeaderPos = HugeObjectWriter.GetPosBits();
 
 	FBatchInfo BatchInfo;
+	BatchInfo.Type = EBatchInfoType::Internal;
 	BatchInfo.ParentInternalIndex = InternalIndex;
 	uint32 WriteObjectFlags = WriteObjectFlag_State;
 	// Get the creation going as quickly as possible.
@@ -2266,6 +2273,7 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 		FNetBitStreamRollbackScope RollbackScope(Writer);
 		
 		FBatchInfo HugeObjectBatchInfo;
+		HugeObjectBatchInfo.Type = EBatchInfoType::HugeObject;
 		HugeObjectBatchInfo.ParentInternalIndex = FNetRefHandleManager::InvalidInternalIndex;
 		const uint32 WriteHugeObjectFlags = WriteObjectFlag_Attachments | WriteObjectFlag_HugeObject;
 		const EWriteObjectStatus HugeObjectStatus = WriteObjectInBatch(Context, ObjectIndexForOOBAttachment, WriteHugeObjectFlags, HugeObjectBatchInfo);
@@ -2328,6 +2336,7 @@ int FReplicationWriter::WriteObjectBatch(FNetSerializationContext& Context, uint
 
 		WriteBitStreamInfo.BatchStartPos = Writer.GetPosBits();
 		FBatchInfo BatchInfo;
+		BatchInfo.Type = (InternalIndex == ObjectIndexForOOBAttachment ? (WriteObjectFlags & WriteObjectFlag_HugeObject ? EBatchInfoType::HugeObject : EBatchInfoType::OOBAttachment) : EBatchInfoType::Object);
 		BatchInfo.ParentInternalIndex = InternalIndex;
 		const EWriteObjectStatus WriteObjectStatus = WriteObjectInBatch(Context, InternalIndex, WriteObjectFlags, BatchInfo);
 		if (IsWriteObjectSuccess(WriteObjectStatus))
@@ -2432,6 +2441,8 @@ int FReplicationWriter::WriteDestructionInfo(FNetSerializationContext& Context, 
 
 		// Reset scheduling priority
 		SchedulingPriorities[InternalIndex] = 0.0f;
+
+		WriteContext.Stats.AddNumberOfReplicatedDestructionInfos(1U);
 	}
 
 	return Writer.IsOverflown() ? -1 :  1;
@@ -2578,6 +2589,11 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 {
 	int WrittenObjectCount = 0;
 
+	const bool bTrackObjectStats = BatchInfo.Type != EBatchInfoType::Internal;
+	uint32 ObjectCount = 0;
+	uint32 AttachmentCount = 0;
+	uint32 DeltaCompressedObjectCount = 0;
+
 	OutRecord.ObjectReplicationRecords.Reserve(BatchInfo.ObjectInfos.Num());
 	for (const FBatchObjectInfo& BatchObjectInfo : BatchInfo.ObjectInfos)
 	{
@@ -2612,6 +2628,8 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 			Attachments.CommitReplicationRecord(BatchObjectInfo.AttachmentType, BatchObjectInfo.InternalIndex, BatchObjectInfo.AttachmentRecord);
 		}
 
+		AttachmentCount += BatchObjectInfo.bSentAttachments;
+
 		// Update transmission record.
 		if (BatchObjectInfo.bSentState)
 		{
@@ -2621,6 +2639,12 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 
 			// The object no longer has any dirty state, but may still have attachments that didn't fit
 			ChangeMask.Reset();
+
+			++ObjectCount;
+			if (Info.LastAckedBaselineIndex != FDeltaCompressionBaselineManager::InvalidBaselineIndex)
+			{
+				++DeltaCompressedObjectCount;
+			}
 		}
 		else if (BatchObjectInfo.AttachmentRecord != 0 || BatchObjectInfo.bSentTearOff || BatchObjectInfo.bSentDestroySubObject)
 		{
@@ -2667,13 +2691,25 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 			WriteContext.ObjectsWrittenThisPacket.SetBit(BatchObjectInfo.InternalIndex);
 		}
 
-#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
-		if (BatchObjectInfo.bSentState && (Info.LastAckedBaselineIndex != FDeltaCompressionBaselineManager::InvalidBaselineIndex))
-		{
-			++WriteContext.DeltaCompressedObjectCount;
-		}
-#endif
 	}
+
+#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
+	if (bTrackObjectStats)
+	{
+		FNetSendStats& NetStats = WriteContext.Stats;
+
+		// We count RootObjects if anything is sent in an object batch, even if it's just subobjects or attachments. This is to mimic UReplicationGraph::ReplicateSingleActor stats.
+		if (BatchInfo.Type == EBatchInfoType::Object)
+		{
+			if (ObjectCount || AttachmentCount)
+			{
+				NetStats.AddNumberOfReplicatedRootObjects(1U);
+			}
+		}
+		NetStats.AddNumberOfReplicatedObjects(ObjectCount);
+		NetStats.AddNumberOfDeltaCompressedReplicatedObjects(DeltaCompressedObjectCount);
+	}
+#endif
 
 	return WrittenObjectCount;
 }
@@ -2753,9 +2789,7 @@ UDataStream::EWriteResult FReplicationWriter::BeginWrite()
 	WriteContext.bHasHugeObjectToSend = bHasUnsentHugeObject;
 	WriteContext.bHasOOBAttachmentsToSend = bHasUnsentOOBAttachments;
 	WriteContext.CurrentIndex = 0U;
-	WriteContext.DeltaCompressedObjectCount = 0U;
 	WriteContext.FailedToWriteSmallObjectCount = 0U;
-	WriteContext.DeltaCompressedObjectCount = 0U;
 	WriteContext.SortedObjectCount = 0U;
 
 	// Reset dependent object array
@@ -2768,13 +2802,9 @@ UDataStream::EWriteResult FReplicationWriter::BeginWrite()
 	WriteContext.ScheduledObjectInfos = reinterpret_cast<FScheduleObjectInfo*>(FMemory::Malloc(sizeof(FScheduleObjectInfo) * Parameters.MaxActiveReplicatedObjectCount));
 	WriteContext.ScheduledObjectCount = ScheduleObjects(WriteContext.ScheduledObjectInfos);
 
-	// Init CSV stats
-#if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
-	{
-		FNetSendStats& Stats = WriteContext.Stats;
-		Stats.Reset();
-	}
-#endif
+	// Clear net stats. Used for CVS and Network Insights stats.
+	WriteContext.Stats.Reset();
+	WriteContext.Stats.SetNumberOfRootObjectsScheduledForReplication(WriteContext.ScheduledObjectCount);
 
 	WriteContext.bIsValid = true;
 
@@ -2791,10 +2821,6 @@ void FReplicationWriter::EndWrite()
 		// Update stats
 		{
 			FNetSendStats& Stats = WriteContext.Stats;
-
-			Stats.SetNumberOfObjectsScheduledForReplication(WriteContext.ScheduledObjectCount);
-			Stats.SetNumberOfReplicatedObjects(WriteContext.CurrentIndex - WriteContext.FailedToWriteSmallObjectCount);
-			Stats.SetNumberOfDeltaCompressedReplicatedObjects(WriteContext.DeltaCompressedObjectCount);
 			if (HugeObjectContext.SendStatus == EHugeObjectSendStatus::Sending)
 			{
 				Stats.SetNumberOfActiveHugeObjects(1U);

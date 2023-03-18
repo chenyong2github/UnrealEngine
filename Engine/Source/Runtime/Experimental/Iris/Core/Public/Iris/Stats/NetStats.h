@@ -21,16 +21,28 @@ public:
 	FNetSendStats& operator=(const FNetSendStats&) = delete;
 
 	/** Set number of objects scheduled for replication. */
-	void SetNumberOfObjectsScheduledForReplication(uint32 Count);
+	void SetNumberOfRootObjectsScheduledForReplication(uint32 Count);
 
-	/** Set number of replicated objects. */
-	void SetNumberOfReplicatedObjects(uint32 Count);
+	/** Add number of replicated root objects. */
+	void AddNumberOfReplicatedRootObjects(uint32 Count);
 
-	/** Get the number of replicated objects. */
+	/** Add number of replicated objects, including subobjects. */
+	void AddNumberOfReplicatedObjects(uint32 Count);
+
+	/** Add number of replicated destruction infos. */
+	void AddNumberOfReplicatedDestructionInfos(uint32 Count);
+
+	/** Add number of replicated objects, including subobjects, using delta compression. */
+	void AddNumberOfDeltaCompressedReplicatedObjects(uint32 Count);
+
+	/** Add number of replicated object states masked out such that no state is replicated for the object. The object may still replicate attachments. */
+	void AddNumberOfReplicatedObjectStatesMaskedOut(uint32 Count);
+
+	/** Get the number of replicated root objects. */
+	uint32 GetNumberOfReplicatedRootObjects() const;
+
+	/** Get the number of replicated objects, including subobjects. */
 	uint32 GetNumberOfReplicatedObjects() const;
-
-	/** Set number of replicated objects that used delta compression. */
-	void SetNumberOfDeltaCompressedReplicatedObjects(uint32 Count);
 
 	/** Set the number of huge objects in sending or waiting to be acked. */
 	void SetNumberOfActiveHugeObjects(uint32 Count);
@@ -64,10 +76,13 @@ private:
 		double HugeObjectStallingTimeInSeconds = 0;
 		double ReplicationWasteTimeInSeconds = 0;
 
-		int32 ScheduledForReplicationObjectCount = 0;
+		int32 ScheduledForReplicationRootObjectCount = 0;
+		int32 ReplicatedRootObjectCount = 0;
 		int32 ReplicatedObjectCount = 0;
+		int32 ReplicatedDestructionInfoCount = 0;
 		int32 DeltaCompressedObjectCount = 0;
 		int32 ReplicationWasteObjectCount = 0;
+		int32 ReplicatedObjectStatesMaskedOut = 0;
 		int32 ActiveHugeObjectCount = 0;
 		int32 HugeObjectsWaitingForAckCount = 0;
 		int32 HugeObjectsStallingCount = 0;
@@ -78,24 +93,39 @@ private:
 	FStats Stats;
 };
 
-inline void FNetSendStats::SetNumberOfObjectsScheduledForReplication(uint32 Count)
+inline void FNetSendStats::SetNumberOfRootObjectsScheduledForReplication(uint32 Count)
 {
-	Stats.ScheduledForReplicationObjectCount = Count;
+	Stats.ScheduledForReplicationRootObjectCount = Count;
 }
 
-inline void FNetSendStats::SetNumberOfReplicatedObjects(uint32 Count)
+inline void FNetSendStats::AddNumberOfReplicatedRootObjects(uint32 Count)
 {
-	Stats.ReplicatedObjectCount = Count;
+	Stats.ReplicatedRootObjectCount += Count;
+}
+
+inline void FNetSendStats::AddNumberOfReplicatedObjects(uint32 Count)
+{
+	Stats.ReplicatedObjectCount += Count;
+}
+
+inline void FNetSendStats::AddNumberOfDeltaCompressedReplicatedObjects(uint32 Count)
+{
+	Stats.DeltaCompressedObjectCount += Count;
+}
+
+inline void FNetSendStats::AddNumberOfReplicatedObjectStatesMaskedOut(uint32 Count)
+{
+	Stats.ReplicatedObjectStatesMaskedOut += Count;
+}
+
+inline void FNetSendStats::AddNumberOfReplicatedDestructionInfos(uint32 Count)
+{
+	Stats.ReplicatedDestructionInfoCount += Count;
 }
 
 inline uint32 FNetSendStats::GetNumberOfReplicatedObjects() const
 {
 	return Stats.ReplicatedObjectCount;
-}
-
-inline void FNetSendStats::SetNumberOfDeltaCompressedReplicatedObjects(uint32 Count)
-{
-	Stats.DeltaCompressedObjectCount = Count;
 }
 
 inline void FNetSendStats::SetNumberOfActiveHugeObjects(uint32 Count)

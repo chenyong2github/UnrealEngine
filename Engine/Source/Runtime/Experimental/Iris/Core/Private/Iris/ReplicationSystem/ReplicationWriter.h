@@ -219,9 +219,6 @@ private:
 		// The index into the scheduled objects array to attempt to replicate next.
 		uint32 CurrentIndex;
 
-		// The number of replicated objects that were serialized with delta compression.
-		uint32 DeltaCompressedObjectCount;
-
 		// How many objects that were attempted to be replicated but which ultimately didn't fit in the packet.
 		uint32 FailedToWriteSmallObjectCount;
 
@@ -250,10 +247,21 @@ private:
 		uint32 bSentDestroySubObject : 1;
 	};
 
+	enum class EBatchInfoType : uint32
+	{
+		Object,
+		HugeObject,
+		OOBAttachment,
+		Internal,
+		// Currently unused as destruction infos don't create a BatchInfo.
+		DestructionInfo,
+	};
+
 	struct FBatchInfo
 	{
 		TArray<FBatchObjectInfo, TInlineAllocator<16>> ObjectInfos;
 		uint32 ParentInternalIndex;
+		EBatchInfoType Type;
 	};
 
 	struct FObjectRecord

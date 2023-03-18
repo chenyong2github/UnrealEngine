@@ -14,10 +14,13 @@ void FNetSendStats::Accumulate(const FNetSendStats& Other)
 {
 	FScopeLock Lock(&CS);
 
-	Stats.ScheduledForReplicationObjectCount += Other.Stats.ScheduledForReplicationObjectCount;
+	Stats.ScheduledForReplicationRootObjectCount += Other.Stats.ScheduledForReplicationRootObjectCount;
+	Stats.ReplicatedRootObjectCount += Other.Stats.ReplicatedRootObjectCount;
 	Stats.ReplicatedObjectCount += Other.Stats.ReplicatedObjectCount;
+	Stats.ReplicatedDestructionInfoCount += Other.Stats.ReplicatedDestructionInfoCount;
 	Stats.DeltaCompressedObjectCount += Other.Stats.DeltaCompressedObjectCount;
 	Stats.ReplicationWasteObjectCount += Other.Stats.ReplicationWasteObjectCount;
+	Stats.ReplicatedObjectStatesMaskedOut += Other.Stats.ReplicatedObjectStatesMaskedOut;
 	Stats.ActiveHugeObjectCount += Other.Stats.ActiveHugeObjectCount;
 	Stats.HugeObjectsWaitingForAckCount += Other.Stats.HugeObjectsWaitingForAckCount;
 	Stats.HugeObjectsStallingCount += Other.Stats.HugeObjectsStallingCount;
@@ -42,15 +45,21 @@ void FNetSendStats::ReportCsvStats()
 	if (Stats.ReplicatingConnectionCount > 0)
 	{
 		const float ConnectionCountFloat = float(Stats.ReplicatingConnectionCount);
-		CSV_CUSTOM_STAT(Iris, AvgScheduledForReplicationObjectCount, Stats.ScheduledForReplicationObjectCount/ConnectionCountFloat, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Iris, AvgScheduledForReplicationRootObjectCount, Stats.ScheduledForReplicationRootObjectCount/ConnectionCountFloat, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Iris, AvgReplicatedRootObjectCount, Stats.ReplicatedRootObjectCount/ConnectionCountFloat, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT(Iris, AvgReplicatedObjectCount, Stats.ReplicatedObjectCount/ConnectionCountFloat, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Iris, AvgReplicatedDestructionInfoCount, Stats.ReplicatedDestructionInfoCount/ConnectionCountFloat, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT(Iris, AvgReplicationWasteObjectCount, Stats.ReplicationWasteObjectCount/ConnectionCountFloat, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Iris, AvgReplicatedObjectStatesMaskedOut, Stats.ReplicatedObjectStatesMaskedOut/ConnectionCountFloat, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT(Iris, AvgDeltaCompressedObjectCount, Stats.DeltaCompressedObjectCount/ConnectionCountFloat, ECsvCustomStatOp::Set);
 	}
 	else
 	{
-		CSV_CUSTOM_STAT(Iris, AvgScheduledForReplicationObjectCount, 0, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Iris, AvgScheduledForReplicationRootObjectCount, 0, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Iris, AvgReplicatedRootObjectCount, 0, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT(Iris, AvgReplicatedObjectCount, 0, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Iris, AvgReplicatedDestructionInfoCount, 0, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(Iris, AvgReplicatedHugeObjectCount, 0, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT(Iris, AvgReplicationWasteObjectCount, 0, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT(Iris, AvgDeltaCompressedObjectCount, 0, ECsvCustomStatOp::Set);
 	}
