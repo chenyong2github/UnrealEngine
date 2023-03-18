@@ -31,6 +31,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogRDG, Log, All);
 #if RDG_ENABLE_DEBUG
 extern int32 GRDGAsyncCompute;
 extern int32 GRDGClobberResources;
+extern int32 GRDGValidation;
 extern int32 GRDGDebug;
 extern int32 GRDGDebugFlushGPU;
 extern int32 GRDGDebugExtendResourceLifetimes;
@@ -93,6 +94,7 @@ void EmitRDGWarning(const FString& WarningMessage);
 #else // !RDG_ENABLE_DEBUG
 
 const int32 GRDGClobberResources = 0;
+const int32 GRDGValidation = 0;
 const int32 GRDGDebug = 0;
 const int32 GRDGDebugFlushGPU = 0;
 const int32 GRDGDebugExtendResourceLifetimes = 0;

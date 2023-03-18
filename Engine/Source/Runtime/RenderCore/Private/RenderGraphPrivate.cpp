@@ -16,6 +16,15 @@ FAutoConsoleVariableRef CVarImmediateMode(
 	TEXT("Executes passes as they get created. Useful to have a callstack of the wiring code when crashing in the pass' lambda."),
 	ECVF_RenderThreadSafe);
 
+int32 GRDGValidation = 1;
+FAutoConsoleVariableRef CVarRDGValidation(
+	TEXT("r.RDG.Validation"),
+	GRDGValidation,
+	TEXT("Enables validation of correctness in API calls and pass parameter dependencies.\n")
+	TEXT(" 0: disabled;\n")
+	TEXT(" 1: enabled (default);\n"),
+	ECVF_RenderThreadSafe);
+
 int32 GRDGDebug = 0;
 FAutoConsoleVariableRef CVarRDGDebug(
 	TEXT("r.RDG.Debug"),
@@ -511,6 +520,12 @@ void InitRenderGraph()
 	if (FParse::Param(FCommandLine::Get(), TEXT("rdgimmediate")))
 	{
 		GRDGImmediateMode = 1;
+	}
+
+	int32 ValidationValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgvalidation="), ValidationValue))
+	{
+		GRDGValidation = ValidationValue;
 	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("rdgdebug")))

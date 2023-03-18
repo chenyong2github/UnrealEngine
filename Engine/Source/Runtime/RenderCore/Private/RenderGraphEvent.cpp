@@ -525,6 +525,7 @@ FRDGEventName::FRDGEventName(const TCHAR* InEventFormat, ...)
 {
 	check(InEventFormat);
 
+	if (GRDGValidation != 0)
 	{
 		va_list VAList;
 		va_start(VAList, InEventFormat);
