@@ -8,7 +8,7 @@
 #include "PropertyEditorModule.h"
 #include "Selection.h"
 #include "Templates/SharedPointer.h"
-#include "UnrealEd/Public/Editor.h"
+#include "Editor.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "ChaosVisualDebugger"
