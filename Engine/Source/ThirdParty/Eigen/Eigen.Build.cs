@@ -19,7 +19,7 @@ public class Eigen : ModuleRules
 		PublicDefinitions.Add("EIGEN_HAS_CXX11_MATH");
 		PublicDefinitions.Add("EIGEN_HAS_CXX11_ATOMIC");
 		PublicDefinitions.Add("EIGEN_STRONG_INLINE=inline");
-		PublicDefinitions.Add("EIGEN_OVERRIDE_ALLOCATORS=1");
+		PublicDefinitions.Add("EIGEN_OVERRIDE_ALLOCATORS=0");
 		ShadowVariableWarningLevel = WarningLevel.Off;
 		bDisableStaticAnalysis = true;
 	}
