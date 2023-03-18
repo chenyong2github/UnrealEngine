@@ -42,6 +42,15 @@ namespace UnrealBuildTool
 		[XmlConfigFile]
 		public bool bAllowHybridExecutor = false;
 
+#if __BOXEXECUTOR_AVAILABLE__
+		/// <summary>
+		/// Whether the experimental box executor will be used.
+		/// </summary>
+		[XmlConfigFile]
+		[CommandLine("-Box", Value = "true")]
+		public bool bAllowBoxExecutor = false;
+#endif // #if __BOXEXECUTOR_AVAILABLE__
+
 		/// <summary>
 		/// Whether XGE may be used.
 		/// </summary>

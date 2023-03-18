@@ -48,7 +48,7 @@ namespace UnrealBuildTool
 		/// Default: BelowNormal or Normal for an Asymmetrical processor as BelowNormal can cause scheduling issues.
 		/// </summary>
 		[XmlConfigFile]
-		private static ProcessPriorityClass ProcessPriority = Utils.IsAsymmetricalProcessor() ? ProcessPriorityClass.Normal : ProcessPriorityClass.BelowNormal;
+		protected static ProcessPriorityClass ProcessPriority = Utils.IsAsymmetricalProcessor() ? ProcessPriorityClass.Normal : ProcessPriorityClass.BelowNormal;
 
 		/// <summary>
 		/// When enabled, will stop compiling targets after a compile error occurs.
@@ -84,13 +84,13 @@ namespace UnrealBuildTool
 		/// Whether to take into account the Action's weight when determining to do more work or not.
 		/// </summary>
 		[XmlConfigFile]
-		private static bool bUseActionWeights = false;
+		protected static bool bUseActionWeights = false;
 
 		/// <summary>
 		/// Whether to show CPU utilization after the work is complete.
 		/// </summary>
 		[XmlConfigFile]
-		private static bool bShowCPUUtilization = false;
+		protected static bool bShowCPUUtilization = false;
 
 		/// <summary>
 		/// Collapse non-error output lines
@@ -158,12 +158,13 @@ namespace UnrealBuildTool
 			public TimeSpan ProcessorTime { get; private set; }
 			public string? AdditionalDescription { get; protected set; } = null;
 
-			public ExecuteResults(List<string> LogLines, int ExitCode, TimeSpan ExecutionTime, TimeSpan ProcessorTime)
+			public ExecuteResults(List<string> LogLines, int ExitCode, TimeSpan ExecutionTime, TimeSpan ProcessorTime, string? AdditionalDescription = null)
 			{
 				this.LogLines = LogLines;
 				this.ExitCode = ExitCode;
 				this.ProcessorTime = ProcessorTime;
 				this.ExecutionTime = ExecutionTime;
+				this.AdditionalDescription = AdditionalDescription;
 			}
 			public ExecuteResults(List<string> LogLines, int ExitCode)
 			{
@@ -172,7 +173,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		enum ActionStatus : byte
+		internal enum ActionStatus : byte
 		{
 			Queued,
 			Running,
@@ -413,7 +414,7 @@ namespace UnrealBuildTool
 			}
 			if (!string.IsNullOrEmpty(AdditionalDescription))
             {
-				Description = $"{AdditionalDescription} {Description}";
+				Description = $"{Description} {AdditionalDescription}";
 			}
 
 			lock (ProgressWriter)

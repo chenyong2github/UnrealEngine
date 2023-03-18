@@ -353,6 +353,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		private static ActionExecutor SelectExecutor(BuildConfiguration BuildConfiguration, int ActionCount, List<TargetDescriptor> TargetDescriptors, ILogger Logger)
 		{
+#if __BOXEXECUTOR_AVAILABLE__
+			if (BuildConfiguration.bAllowBoxExecutor)
+			{
+				return new BoxExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
+			}
+#endif // #if __BOXEXECUTOR_AVAILABLE__
+
 			if (ActionCount > ParallelExecutor.GetDefaultNumParallelProcesses(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, Logger))
 			{
 				if (BuildConfiguration.bAllowHybridExecutor && HybridExecutor.IsAvailable(Logger))
