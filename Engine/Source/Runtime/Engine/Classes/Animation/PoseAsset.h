@@ -298,6 +298,14 @@ public:
 	UFUNCTION(BlueprintPure, Category=PoseAsset)
 	void GetPoseNames(TArray<FName>& PoseNames) const;
 
+	/** Returns base pose name, only valid when additive, NAME_None indicates reference pose */
+	UFUNCTION(BlueprintPure, Category=PoseAsset)
+	FName GetBasePoseName() const;
+
+	/** Set base pose index by name, NAME_None indicates reference pose - returns true if set successfully */
+	UFUNCTION(BlueprintCallable, Category=PoseAsset)
+    bool SetBasePoseName(const FName& NewBasePoseName);
+
 	UE_DEPRECATED(5.3, "Please use AddPoseWithUniqueName.")
 	ENGINE_API bool AddOrUpdatePoseWithUniqueName(const USkeletalMeshComponent* MeshComponent, FSmartName* OutPoseName = nullptr) { return false; }
 	

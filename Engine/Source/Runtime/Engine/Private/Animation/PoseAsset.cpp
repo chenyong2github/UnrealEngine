@@ -1176,6 +1176,33 @@ void UPoseAsset::RenamePose(const FName& OriginalPoseName, const FName& NewPoseN
 	ModifyPoseName(OriginalPoseName, NewPoseName);
 }
 
+FName UPoseAsset::GetBasePoseName() const
+{
+	return PoseContainer.PoseNames.IsValidIndex(BasePoseIndex) ? PoseContainer.PoseNames[BasePoseIndex].DisplayName : NAME_None;
+}
+
+bool UPoseAsset::SetBasePoseName(const FName& NewBasePoseName)
+{
+	if (NewBasePoseName != NAME_None)
+	{
+		const int32 NewIndex = PoseContainer.PoseNames.IndexOfByPredicate([NewBasePoseName](const FSmartName& SmartName)
+		{
+			return SmartName.DisplayName == NewBasePoseName;			
+		});
+		if (NewIndex != INDEX_NONE)
+		{
+			BasePoseIndex = NewIndex;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	
+	BasePoseIndex = INDEX_NONE;
+	return true;
+}
+
 void UPoseAsset::GetPoseNames(TArray<FName>& PoseNames) const
 {	
 	const int32 NumPoses = GetNumPoses();
