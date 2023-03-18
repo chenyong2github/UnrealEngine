@@ -53,6 +53,9 @@ UInterchangeDatasmithPipeline::UInterchangeDatasmithPipeline()
 
 	MeshPipeline->CommonMeshesProperties = CommonMeshesProperties;
 	MeshPipeline->CommonSkeletalMeshesAndAnimationsProperties = CommonSkeletalMeshesAndAnimationsProperties;
+
+	AnimationPipeline->CommonMeshesProperties = CommonMeshesProperties;
+	AnimationPipeline->CommonSkeletalMeshesAndAnimationsProperties = CommonSkeletalMeshesAndAnimationsProperties;
 }
 
 void UInterchangeDatasmithPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)

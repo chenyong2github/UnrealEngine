@@ -87,7 +87,7 @@ bool FDatasmithIFCTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 	OutScene->SetHost(TEXT("IFCTranslator"));
 	OutScene->SetProductName(TEXT("IFC"));
 
-    Importer = MakeShared<FDatasmithIFCImporter>(OutScene, ImportOptions.Get());
+    Importer = MakeShared<FDatasmithIFCImporter>(OutScene, ImportOptions);
 
 	const FString& FilePath = GetSource().GetSourceFile();
 	if(!Importer->OpenFile(FilePath))
@@ -132,12 +132,12 @@ bool FDatasmithIFCTranslator::LoadLevelSequence(const TSharedRef<IDatasmithLevel
 
 void FDatasmithIFCTranslator::GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	if (!ImportOptions.IsValid())
+	if (!ImportOptions)
 	{
-		ImportOptions = Datasmith::MakeOptions<UDatasmithIFCImportOptions>();
+		ImportOptions = Datasmith::MakeOptionsObjectPtr<UDatasmithIFCImportOptions>();
 	}
 
-	Options.Add(ImportOptions.Get());
+	Options.Add(ImportOptions);
 }
 
 void FDatasmithIFCTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
@@ -146,12 +146,12 @@ void FDatasmithIFCTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDat
 	{
 		if (UDatasmithIFCImportOptions* InImportOptions = Cast<UDatasmithIFCImportOptions>(OptionPtr))
 		{
-			ImportOptions.Reset(InImportOptions);
+			ImportOptions = InImportOptions;
 		}
 	}
 
-	if (Importer.IsValid())
+	if (Importer)
 	{
-		Importer->SetImportOptions(ImportOptions.Get());
+		Importer->SetImportOptions(ImportOptions);
 	}
 }

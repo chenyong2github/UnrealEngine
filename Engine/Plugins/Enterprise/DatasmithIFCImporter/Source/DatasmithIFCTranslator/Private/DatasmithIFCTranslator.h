@@ -24,6 +24,6 @@ public:
 	virtual void SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options) override;
 
 private:
-    TStrongObjectPtr<UDatasmithIFCImportOptions> ImportOptions;
+	TObjectPtr<UDatasmithIFCImportOptions> ImportOptions;
     TSharedPtr<class FDatasmithIFCImporter> Importer;
 };

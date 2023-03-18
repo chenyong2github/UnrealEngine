@@ -91,7 +91,7 @@ bool FDatasmithC4DTranslator::LoadLevelSequence(const TSharedRef<IDatasmithLevel
 
 void FDatasmithC4DTranslator::GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	Options.Add(GetOrCreateC4DImportOptions().Get());
+	Options.Add(GetOrCreateC4DImportOptions());
 }
 
 void FDatasmithC4DTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
@@ -100,7 +100,7 @@ void FDatasmithC4DTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDat
 	{
 		if (UDatasmithC4DImportOptions* InImportOptions = Cast<UDatasmithC4DImportOptions>(OptionPtr))
 		{
-			ImportOptions.Reset(InImportOptions);
+			ImportOptions = InImportOptions;
 		}
 	}
 
@@ -119,11 +119,11 @@ void FDatasmithC4DTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDat
 	}
 }
 
-TStrongObjectPtr<UDatasmithC4DImportOptions>& FDatasmithC4DTranslator::GetOrCreateC4DImportOptions()
+TObjectPtr<UDatasmithC4DImportOptions>& FDatasmithC4DTranslator::GetOrCreateC4DImportOptions()
 {
-	if (!ImportOptions.IsValid())
+	if (!ImportOptions)
 	{
-		ImportOptions = Datasmith::MakeOptions<UDatasmithC4DImportOptions>();
+		ImportOptions = Datasmith::MakeOptionsObjectPtr<UDatasmithC4DImportOptions>();
 	}
 	return ImportOptions;
 }

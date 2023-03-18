@@ -33,11 +33,11 @@ public:
 	static FPreTranslateEvent& OnPreTranslate() { return PreTranslateEvent; }*/
 	
 private:
-	TStrongObjectPtr<UDatasmithC4DImportOptions>& GetOrCreateC4DImportOptions();
+	TObjectPtr<UDatasmithC4DImportOptions>& GetOrCreateC4DImportOptions();
 
 private:
 	/** -1: try load dynamic initially; 0: dynamic cannot be loaded; 1: dynamic successful loaded */
-	TStrongObjectPtr<UDatasmithC4DImportOptions> ImportOptions;
+	TObjectPtr<UDatasmithC4DImportOptions> ImportOptions;
 	TSharedPtr<FDatasmithC4DImporter> Importer;
 #endif
 };
