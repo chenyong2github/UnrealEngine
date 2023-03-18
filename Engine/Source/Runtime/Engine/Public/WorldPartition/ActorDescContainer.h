@@ -87,7 +87,7 @@ public:
 	const FTransform& GetInstanceTransform() const;
 
 	bool HasInvalidActors() const { return InvalidActors.Num() > 0; }
-	const TArray<TUniquePtr<FWorldPartitionActorDesc>>& GetInvalidActors() const { return InvalidActors; }
+	const TArray<FAssetData>& GetInvalidActors() const { return InvalidActors; }
 	void ClearInvalidActors() { InvalidActors.Empty(); }
 
 	void RegisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext);
@@ -108,7 +108,7 @@ public:
 	FName ContainerPackageName;
 	FGuid ContentBundleGuid;
 
-	TArray<TUniquePtr<FWorldPartitionActorDesc>> InvalidActors;
+	TArray<FAssetData> InvalidActors;
 
 protected:
 	TNameActorDescMap ActorsByName;

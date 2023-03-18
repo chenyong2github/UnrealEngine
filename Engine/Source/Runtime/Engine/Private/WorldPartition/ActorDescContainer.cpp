@@ -90,7 +90,7 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 				FActorDescList::GetActorDesc(ActorDesc->GetGuid()) ||
 				(InitParams.FilterActorDesc && !InitParams.FilterActorDesc(ActorDesc.Get())))
 			{
-				InvalidActors.Emplace(MoveTemp(ActorDesc));
+				InvalidActors.Emplace(Asset);
 				continue;
 			}
 
