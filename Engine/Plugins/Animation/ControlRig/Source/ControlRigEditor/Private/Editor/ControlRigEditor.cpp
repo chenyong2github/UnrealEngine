@@ -1861,7 +1861,7 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects, bool
 			bool bClassCreated = UDetailsViewWrapperObject::GetClassForNodes(ModelNodes, false) == nullptr;
 
 			// create the wrapper object
-			if(UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(ModelNodes, ModelNode, ModelNode))
+			if(UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(GetBlueprintObj(), ModelNodes, ModelNode))
 			{
 				WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
 				WrapperObject->AddToRoot();
@@ -1922,7 +1922,7 @@ void FControlRigEditor::SetDetailViewForRigElements()
 			continue;
 		}
 
-		UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(Element->GetElementStruct(), (uint8*)Element, HierarchyBeingDebugged);
+		UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(GetBlueprintObj(), Element->GetElementStruct(), (uint8*)Element, HierarchyBeingDebugged);
 		WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
 		WrapperObject->AddToRoot();
 
@@ -4852,7 +4852,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 		{
 			check(WrappedStruct == WrapperObjects[0]->GetWrappedStruct());
 
-			URigHierarchy* Hierarchy = CastChecked<URigHierarchy>(InWrapperObject->GetOuter());
+			URigHierarchy* Hierarchy = CastChecked<URigHierarchy>(InWrapperObject->GetSubject());
 			const FRigBaseElement WrappedElement = InWrapperObject->GetContent<FRigBaseElement>();
 			const FRigBaseElement FirstWrappedElement = WrapperObjects[0]->GetContent<FRigBaseElement>();
 			const FRigElementKey& Key = WrappedElement.GetKey();
@@ -4994,7 +4994,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			check(WrappedStruct == WrapperObjects[0]->GetWrappedStruct());
 			
 			const FRigVMGraphVariableDescription VariableDescription = InWrapperObject->GetContent<FRigVMGraphVariableDescription>();
-			URigVMGraph* Graph = CastChecked<URigVMGraph>(InWrapperObject->GetOuter());
+			URigVMGraph* Graph = CastChecked<URigVMGraph>(InWrapperObject->GetSubject());
 			URigVMController* Controller = ControlRigBP->GetController(Graph);
 			if (PropertyPath == TEXT("Name") && MyBlueprintWidget.IsValid())
 			{
@@ -5051,7 +5051,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 		FProperty* TargetProperty = WrapperObjects[0]->GetClass()->FindPropertyByName(RootPinName);
 		uint8* FirstPropertyStorage = TargetProperty->ContainerPtrToValuePtr<uint8>(WrapperObjects[0].Get());
 
-		URigVMNode* Node = CastChecked<URigVMNode>(InWrapperObject->GetOuter());
+		URigVMNode* Node = CastChecked<URigVMNode>(InWrapperObject->GetSubject());
 
 		FString DefaultValue = FRigVMStruct::ExportToFullyQualifiedText(TargetProperty, FirstPropertyStorage);
 
@@ -5284,7 +5284,7 @@ bool FControlRigEditor::SelectLocalVariable(const UEdGraph* Graph, const FName& 
 				if (Variable.Name == VariableName)
 				{
 					UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(
-						Variable.StaticStruct(), (uint8*)&Variable, RigVMGraph);
+						GetBlueprintObj(), Variable.StaticStruct(), (uint8*)&Variable, RigVMGraph);
 					WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
 					WrapperObject->AddToRoot();
 

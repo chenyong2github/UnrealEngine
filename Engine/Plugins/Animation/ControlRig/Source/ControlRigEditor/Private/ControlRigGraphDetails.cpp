@@ -1304,7 +1304,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		}
 
 		ObjectsBeingCustomized.Add(WrapperObject);
-		NodesBeingCustomized.Add(CastChecked<URigVMNode>(WrapperObject->GetOuter()));
+		NodesBeingCustomized.Add(CastChecked<URigVMNode>(WrapperObject->GetSubject()));
 	}
 
 	if (BlueprintBeingCustomized == nullptr || ObjectsBeingCustomized.IsEmpty() || NodesBeingCustomized.IsEmpty())

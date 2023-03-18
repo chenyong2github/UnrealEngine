@@ -197,7 +197,7 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bo
 	return WrapperClass;
 }
 
-UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(UScriptStruct* InStruct, uint8* InStructMemory, UObject* InOuter)
+UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(UObject* InOuter, UScriptStruct* InStruct, uint8* InStructMemory, UObject* InSubject)
 {
 	check(InStruct != nullptr);
 
@@ -211,6 +211,8 @@ UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(UScriptStruct
 
 	UDetailsViewWrapperObject* Instance = NewObject<UDetailsViewWrapperObject>(InOuter, WrapperClass, NAME_None, RF_Public | RF_Transient | RF_TextExportTransient | RF_DuplicateTransient);
 	Instance->SetContent(InStructMemory, InStruct);
+	Instance->SetSubject(InSubject);
+
 	return Instance;
 }
 
@@ -511,7 +513,7 @@ UClass* UDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes,
 	return WrapperClass;	
 }
 
-UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(TArray<URigVMNode*> InNodes, URigVMNode* InSubject, UObject* InOuter)
+UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(UObject* InOuter, TArray<URigVMNode*> InNodes, URigVMNode* InSubject)
 {
 	InOuter = InOuter == nullptr ? GetTransientPackage() : InOuter;
 	
@@ -523,6 +525,7 @@ UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(TArray<URigVM
 
 	UDetailsViewWrapperObject* Instance = NewObject<UDetailsViewWrapperObject>(InOuter, WrapperClass, NAME_None, RF_Public | RF_Transient | RF_TextExportTransient | RF_DuplicateTransient);
 	Instance->SetContent(InSubject);
+	Instance->SetSubject(InSubject);
 
 	InSubject->GetGraph()->OnModified().AddUObject(Instance, &UDetailsViewWrapperObject::HandleModifiedEvent);
 	
@@ -579,6 +582,20 @@ void UDetailsViewWrapperObject::SetContent(URigVMNode* InNode)
 	{
 		SetContentForPin(Pin);
 	}
+}
+
+UObject* UDetailsViewWrapperObject::GetSubject() const
+{
+	if(SubjectPtr.IsValid())
+	{
+		return SubjectPtr.Get();
+	}
+	return nullptr;
+}
+
+void UDetailsViewWrapperObject::SetSubject(UObject* InSubject)
+{
+	SubjectPtr = TWeakObjectPtr<UObject>(InSubject);
 }
 
 void UDetailsViewWrapperObject::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -640,7 +657,7 @@ void UDetailsViewWrapperObject::HandleModifiedEvent(ERigVMGraphNotifType InNotif
 	}
 	
 	URigVMPin* Pin = CastChecked<URigVMPin>(InSubject);
-	if(Pin->GetNode() != GetOuter())
+	if(Pin->GetNode() != GetSubject())
 	{
 		return;
 	}

@@ -21,12 +21,12 @@ public:
 
 	// Creating wrappers from a given struct
 	static UClass* GetClassForStruct(UScriptStruct* InStruct, bool bCreateIfNeeded = true);
-	static UDetailsViewWrapperObject* MakeInstance(UScriptStruct* InStruct, uint8* InStructMemory, UObject* InOuter = nullptr);
+	static UDetailsViewWrapperObject* MakeInstance(UObject* InOuter, UScriptStruct* InStruct, uint8* InStructMemory, UObject* InSubject = nullptr);
 	UScriptStruct* GetWrappedStruct() const;
 
 	// Creating wrappers from a RigVMNode
 	static UClass* GetClassForNodes(TArray<URigVMNode*> InNodes, bool bCreateIfNeeded = true);
-	static UDetailsViewWrapperObject* MakeInstance(TArray<URigVMNode*> InNodes, URigVMNode* InSubject, UObject* InOuter = nullptr);
+	static UDetailsViewWrapperObject* MakeInstance(UObject* InOuter, TArray<URigVMNode*> InNodes, URigVMNode* InSubject);
 	
 	static void MarkOutdatedClass(UClass* InClass);
 	static bool IsValidClass(UClass* InClass);
@@ -66,6 +66,9 @@ public:
 
 		SetContent((const uint8*)&InValue, T::StaticStruct());
 	}
+
+	UObject* GetSubject() const;
+	void SetSubject(UObject* InSubject);
 
 	FWrappedPropertyChangedChainEvent& GetWrappedPropertyChangedChainEvent() { return WrappedPropertyChangedChainEvent; }
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
@@ -116,6 +119,9 @@ private:
 	static TMap<UClass*, FPerClassInfo> ClassToInfo;
 	static TSet<UClass*> OutdatedClassToRecreate;
 	bool bIsSettingValue;
+
+	UPROPERTY()
+	TWeakObjectPtr<UObject> SubjectPtr;
 	
 	FWrappedPropertyChangedChainEvent WrappedPropertyChangedChainEvent;
 };
