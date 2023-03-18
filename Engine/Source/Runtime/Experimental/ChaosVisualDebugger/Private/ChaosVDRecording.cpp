@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosVisualDebugger/Public/ChaosVDRecording.h"
+#include "ChaosVDRecording.h"
 
 FChaosVDFrameData& FChaosVDRecording::AddFrame()
 {
