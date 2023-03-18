@@ -302,9 +302,7 @@ class SparseMatrix
       {
         Index totalReserveSize = 0;
         // turn the matrix into non-compressed mode
-//@UE BEGIN Replacing std::malloc with a macro
-        m_innerNonZeros = static_cast<StorageIndex*>(STD_MALLOC(m_outerSize * sizeof(StorageIndex)));
-//@UE END Replacing std::malloc with a macro
+        m_innerNonZeros = static_cast<StorageIndex*>(std::malloc(m_outerSize * sizeof(StorageIndex)));
         if (!m_innerNonZeros) internal::throw_std_bad_alloc();
         
         // temporarily use m_innerSizes to hold the new starting points.
@@ -338,9 +336,7 @@ class SparseMatrix
       }
       else
       {
-//@UE BEGIN Replacing std::malloc with a macro
-        StorageIndex* newOuterIndex = static_cast<StorageIndex*>(STD_MALLOC((m_outerSize+1)*sizeof(StorageIndex)));
-//@UE END Replacing std::malloc with a macro
+        StorageIndex* newOuterIndex = static_cast<StorageIndex*>(std::malloc((m_outerSize+1)*sizeof(StorageIndex)));
         if (!newOuterIndex) internal::throw_std_bad_alloc();
         
         StorageIndex count = 0;
@@ -369,9 +365,7 @@ class SparseMatrix
         }
         
         std::swap(m_outerIndex, newOuterIndex);
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  		
-        STD_FREE(newOuterIndex);
-//@UE END Replacing std::malloc and std::free with macros.	  		
+        std::free(newOuterIndex);
       }
       
     }
@@ -494,9 +488,7 @@ class SparseMatrix
         m_outerIndex[j+1] = m_outerIndex[j] + m_innerNonZeros[j];
         oldStart = nextOldStart;
       }
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  	  
-      STD_FREE(m_innerNonZeros);
-//@UE END Replacing std::malloc and std::free with macros.	  	  
+      std::free(m_innerNonZeros);
       m_innerNonZeros = 0;
       m_data.resize(m_outerIndex[m_outerSize]);
       m_data.squeeze();
@@ -507,9 +499,7 @@ class SparseMatrix
     {
       if(m_innerNonZeros != 0)
         return; 
-//@UE BEGIN Replacing std::malloc and std::free with macros.		
-      m_innerNonZeros = static_cast<StorageIndex*>(STD_MALLOC(m_outerSize * sizeof(StorageIndex)));
-//@UE END Replacing std::malloc and std::free with macros.	  
+      m_innerNonZeros = static_cast<StorageIndex*>(std::malloc(m_outerSize * sizeof(StorageIndex)));
       for (Index i = 0; i < m_outerSize; i++)
       {
         m_innerNonZeros[i] = m_outerIndex[i+1] - m_outerIndex[i]; 
@@ -589,9 +579,7 @@ class SparseMatrix
       else if (innerChange < 0) 
       {
         // Inner size decreased: allocate a new m_innerNonZeros
-//@UE BEGIN Replacing std::malloc and std::free with macros.		
-        m_innerNonZeros = static_cast<StorageIndex*>(STD_MALLOC((m_outerSize + outerChange) * sizeof(StorageIndex)));
-//@UE END Replacing std::malloc and std::free with macros.		
+        m_innerNonZeros = static_cast<StorageIndex*>(std::malloc((m_outerSize + outerChange) * sizeof(StorageIndex)));
         if (!m_innerNonZeros) internal::throw_std_bad_alloc();
         for(Index i = 0; i < m_outerSize + (std::min)(outerChange, Index(0)); i++)
           m_innerNonZeros[i] = m_outerIndex[i+1] - m_outerIndex[i];
@@ -642,19 +630,15 @@ class SparseMatrix
       m_data.clear();
       if (m_outerSize != outerSize || m_outerSize==0)
       {
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  	  
-        STD_FREE(m_outerIndex);
-        m_outerIndex = static_cast<StorageIndex*>(STD_MALLOC((outerSize + 1) * sizeof(StorageIndex)));
-//@UE END Replacing std::malloc and std::free with macros.	  		
+        std::free(m_outerIndex);
+        m_outerIndex = static_cast<StorageIndex*>(std::malloc((outerSize + 1) * sizeof(StorageIndex)));
         if (!m_outerIndex) internal::throw_std_bad_alloc();
         
         m_outerSize = outerSize;
       }
       if(m_innerNonZeros)
       {
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  	  
-        STD_FREE(m_innerNonZeros);
-//@UE END Replacing std::malloc and std::free with macros.	  		
+        std::free(m_innerNonZeros);
         m_innerNonZeros = 0;
       }
       memset(m_outerIndex, 0, (m_outerSize+1)*sizeof(StorageIndex));
@@ -769,9 +753,7 @@ class SparseMatrix
       Eigen::Map<IndexVector>(this->m_data.indexPtr(), rows()).setLinSpaced(0, StorageIndex(rows()-1));
       Eigen::Map<ScalarVector>(this->m_data.valuePtr(), rows()).setOnes();
       Eigen::Map<IndexVector>(this->m_outerIndex, rows()+1).setLinSpaced(0, StorageIndex(rows()));
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  	  
-      STD_FREE(m_innerNonZeros);
-//@UE END Replacing std::malloc and std::free with macros.	  
+      std::free(m_innerNonZeros);
       m_innerNonZeros = 0;
     }
     inline SparseMatrix& operator=(const SparseMatrix& other)
@@ -859,10 +841,8 @@ class SparseMatrix
     /** Destructor */
     inline ~SparseMatrix()
     {
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  	
-      STD_FREE(m_outerIndex);
-	  STD_FREE(m_innerNonZeros);
-//@UE END Replacing std::malloc and std::free with macros.	  	  
+      std::free(m_outerIndex);
+      std::free(m_innerNonZeros);
     }
 
     /** Overloaded for performance */
@@ -880,9 +860,7 @@ protected:
       resize(other.rows(), other.cols());
       if(m_innerNonZeros)
       {
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  	  
-		STD_FREE(m_innerNonZeros);
-//@UE END Replacing std::malloc and std::free with macros.	  		
+        std::free(m_innerNonZeros);
         m_innerNonZeros = 0;
       }
     }
@@ -1184,9 +1162,7 @@ void SparseMatrix<Scalar,_Options,_StorageIndex>::collapseDuplicates(DupFunctor 
   m_outerIndex[m_outerSize] = count;
 
   // turn the matrix into compressed form
-//@UE BEGIN Replacing std::malloc and std::free with macros.	    
-  STD_FREE(m_innerNonZeros);
-//@UE END Replacing std::malloc and std::free with macros.	    
+  std::free(m_innerNonZeros);
   m_innerNonZeros = 0;
   m_data.resize(m_outerIndex[m_outerSize]);
 }
@@ -1281,9 +1257,7 @@ typename SparseMatrix<_Scalar,_Options,_StorageIndex>::Scalar& SparseMatrix<_Sca
         m_data.reserve(2*m_innerSize);
       
       // turn the matrix into non-compressed mode
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  
-      m_innerNonZeros = static_cast<StorageIndex*>(STD_MALLOC(m_outerSize * sizeof(StorageIndex)));
-//@UE END Replacing std::malloc and std::free with macros.	  
+      m_innerNonZeros = static_cast<StorageIndex*>(std::malloc(m_outerSize * sizeof(StorageIndex)));
       if(!m_innerNonZeros) internal::throw_std_bad_alloc();
       
       memset(m_innerNonZeros, 0, (m_outerSize)*sizeof(StorageIndex));
@@ -1297,9 +1271,7 @@ typename SparseMatrix<_Scalar,_Options,_StorageIndex>::Scalar& SparseMatrix<_Sca
     else
     {
       // turn the matrix into non-compressed mode
-//@UE BEGIN Replacing std::malloc and std::free with macros.	  
-      m_innerNonZeros = static_cast<StorageIndex*>(STD_MALLOC(m_outerSize * sizeof(StorageIndex)));
-//@UE END Replacing std::malloc and std::free with macros.	  
+      m_innerNonZeros = static_cast<StorageIndex*>(std::malloc(m_outerSize * sizeof(StorageIndex)));
       if(!m_innerNonZeros) internal::throw_std_bad_alloc();
       for(Index j=0; j<m_outerSize; ++j)
         m_innerNonZeros[j] = m_outerIndex[j+1]-m_outerIndex[j];
