@@ -2775,7 +2775,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 				{
 					DepthSwapchain->IncrementSwapChainIndex_RHIThread();
 				}
-				if (PipelinedLayerStateRHI.EmulatedLayerState.bIsFaceLockedLayerEmulationActive && EmulationSwapchain)
+				if (EmulationSwapchain)
 				{
 					EmulationSwapchain->IncrementSwapChainIndex_RHIThread();
 				}
