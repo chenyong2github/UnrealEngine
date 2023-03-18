@@ -684,7 +684,7 @@ void EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTraceR
 	float RadianceFactor = 1.0f;
 	if (TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance)
 	{
-		// Make sure we don't self-intersect and cause leaking
+		// Surface cache has limited resolution. Make sure we don't self-intersect and cause leaking or GI feedback loop
 		RadianceFactor = smoothstep(1.5f * ClipmapVoxelExtent, 2.0f * ClipmapVoxelExtent, SDFTraceResult.HitTime);
 	}
 

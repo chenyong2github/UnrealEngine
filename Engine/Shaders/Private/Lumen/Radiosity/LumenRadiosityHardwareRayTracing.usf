@@ -32,7 +32,7 @@ StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 
 float MinTraceDistance;
 float MaxTraceDistance;
-float MinTraceDistanceToSampleSurface;
+float MinTraceDistanceToSampleSurfaceCache;
 float SurfaceBias;
 float HeightfieldSurfaceBias;
 float AvoidSelfIntersectionTraceDistance;
@@ -93,6 +93,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 				const uint LinearCoord = CoordInCardTile.y * CARD_TILE_SIZE + CoordInCardTile.x;
 				const uint OriginalCullingMode = 0;
 				FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, CoordInCardTile, LinearCoord, OriginalCullingMode, MaxTranslucentSkipCount, MaxTraversalIterations);
+				Context.MinTraceDistanceToSampleSurfaceCache = MinTraceDistanceToSampleSurfaceCache;
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 				Context.HitGroupData = HitGroupData;
@@ -123,11 +124,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 				Ray.TMax = MaxTraceDistance;
 				FRayTracedLightingResult RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 #endif
-
-				if (RayResult.TraceHitDistance < MinTraceDistanceToSampleSurface)
-				{
-					RayResult.Radiance = 0.0f;
-				}
 
 				if (RayResult.bIsHit)
 				{

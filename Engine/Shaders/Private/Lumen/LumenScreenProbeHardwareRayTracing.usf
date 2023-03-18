@@ -53,6 +53,7 @@ float AvoidSelfIntersectionTraceDistance;
 float SkipFirstTwoSidedHitDistance;
 int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
+float MinTraceDistanceToSampleSurfaceCache;
 
 FRayTracedLightingResult EpsilonTrace(in RaytracingAccelerationStructure TLAS, FRayDesc Ray, inout FRayTracedLightingContext Context, out float RemainingTraceTMin)
 {
@@ -143,6 +144,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 			MaxTranslucentSkipCount,
 			MaxTraversalIterations);
 		Context.bCalculateHitVelocity = true;
+		Context.MinTraceDistanceToSampleSurfaceCache = MinTraceDistanceToSampleSurfaceCache;
 
 		#if LUMEN_HARDWARE_INLINE_RAYTRACING
 		{

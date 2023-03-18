@@ -72,6 +72,13 @@ static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxTranslucentSkip
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<float> CVarLumenHardwareRayTracingMinTraceDistanceToSampleSurfaceCache(
+	TEXT("r.Lumen.HardwareRayTracing.MinTraceDistanceToSampleSurfaceCache"),
+	10.0f,
+	TEXT("Ray hit distance from which we can start sampling surface cache in order to fix feedback loop where surface cache texel hits itself and propagates lighting."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 bool LumenHardwareRayTracing::IsInlineSupported()
 {
 	return GRHISupportsInlineRayTracing;
@@ -99,6 +106,11 @@ bool Lumen::UseHardwareRayTracing(const FSceneViewFamily& ViewFamily)
 int32 Lumen::GetMaxTranslucentSkipCount()
 {
 	return CVarLumenHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+}
+
+float LumenHardwareRayTracing::GetMinTraceDistanceToSampleSurfaceCache()
+{
+	return CVarLumenHardwareRayTracingMinTraceDistanceToSampleSurfaceCache.GetValueOnRenderThread();
 }
 
 Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(const FViewInfo& View)

@@ -77,14 +77,6 @@ FAutoConsoleVariableRef CVarRadiosityProbePlaneWeightingDepthScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenRadiosityMinTraceDistanceToSampleSurface = 10.0f;
-FAutoConsoleVariableRef CVarLumenRadiosityMinTraceDistanceToSampleSurface(
-	TEXT("r.LumenScene.Radiosity.MinTraceDistanceToSampleSurface"),
-	GLumenRadiosityMinTraceDistanceToSampleSurface,
-	TEXT("Ray hit distance from which we can start sampling surface cache in order to fix radiosity feedback loop where surface cache texel hits itself every frame."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 float GLumenRadiosityMaxRayIntensity = 40.0f;
 FAutoConsoleVariableRef CVarLumenRadiosityMaxRayIntensity(
 	TEXT("r.LumenScene.Radiosity.MaxRayIntensity"),
@@ -402,9 +394,9 @@ class FLumenRadiosityHardwareRayTracing : public FLumenHardwareRayTracingShaderB
 		SHADER_PARAMETER(float, HeightfieldSurfaceBias)
 		SHADER_PARAMETER(float, AvoidSelfIntersectionTraceDistance)
 		SHADER_PARAMETER(float, MaxRayIntensity)
-		SHADER_PARAMETER(float, MinTraceDistanceToSampleSurface)
 		SHADER_PARAMETER(int32, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, MaxTraversalIterations)
+		SHADER_PARAMETER(float, MinTraceDistanceToSampleSurfaceCache)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWTraceRadianceAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWTraceHitDistanceAtlas)
 	END_SHADER_PARAMETER_STRUCT()
@@ -756,9 +748,9 @@ void LumenRadiosity::AddRadiosityPass(
 		PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 		PassParameters->MinTraceDistance = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceBias, 0.0f, 1000.0f);
 		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
-		PassParameters->MinTraceDistanceToSampleSurface = GLumenRadiosityMinTraceDistanceToSampleSurface;
 		PassParameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 		PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
+		PassParameters->MinTraceDistanceToSampleSurfaceCache = LumenHardwareRayTracing::GetMinTraceDistanceToSampleSurfaceCache();
 
 		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FAvoidSelfIntersectionTrace>(GLumenRadiosityAvoidSelfIntersectionTraceDistance > 0.0f);		
