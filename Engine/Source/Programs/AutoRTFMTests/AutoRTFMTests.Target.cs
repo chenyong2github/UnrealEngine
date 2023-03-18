@@ -24,6 +24,9 @@ public class AutoRTFMTestsTarget : TargetRules
 		bIsBuildingConsoleApplication = true;
 
 		// Set the RTFM clang compiler
-		WindowsPlatform.Compiler = WindowsCompiler.ClangRTFM;
+		if(!bGenerateProjectFiles)
+		{
+		     WindowsPlatform.Compiler = WindowsCompiler.ClangRTFM
+		}
 	}
 }
