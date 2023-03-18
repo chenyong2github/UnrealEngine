@@ -345,6 +345,8 @@ protected:
 	/** Starting X Value*/
 	TOptional<int32> StartXValue;
 
+	/** previous Gizmo(Widget) scale before we enter this mode, used to set it back*/
+	float PreviousGizmoScale = 1.0f;
 	
 public: 
 	/** Clear all selected RigElements */
