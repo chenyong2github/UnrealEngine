@@ -555,11 +555,16 @@ void UClusterUnionComponent::ForceSetChildToParent(UPrimitiveComponent* InCompon
 		return;
 	}
 
+	TArray< Chaos::FPhysicsObjectHandle> Objects;
+	Objects.Reserve(BoneIds.Num());
+
 	for (int32 Index = 0; Index < BoneIds.Num(); ++Index)
 	{
 		Chaos::FPhysicsObjectHandle Handle = InComponent->GetPhysicsObjectById(BoneIds[Index]);
-		PhysicsProxy->SetChildToParent_External(Handle, ChildToParent[Index]);
+		Objects.Add(Handle);
 	}
+
+	PhysicsProxy->BulkSetChildToParent_External(Objects, ChildToParent);
 }
 
 void UClusterUnionComponent::SetSimulatePhysics(bool bSimulate)

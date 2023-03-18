@@ -526,36 +526,46 @@ namespace Chaos
 
 	void FClusterUnionPhysicsProxy::SetChildToParent_External(FPhysicsObjectHandle Child, const FTransform& RelativeTransform)
 	{
-		if (!Solver || !ensure(Particle_External))
+		BulkSetChildToParent_External({ Child }, { RelativeTransform });
+	}
+
+	void FClusterUnionPhysicsProxy::BulkSetChildToParent_External(const TArray<FPhysicsObjectHandle>& Objects, const TArray<FTransform>& Transforms)
+	{
+		if (!Solver || !ensure(Particle_External) || !ensure(Objects.Num() == Transforms.Num()))
 		{
 			return;
 		}
 
 		Solver->EnqueueCommandImmediate(
-			[this, Child, RelativeTransform]() mutable
+			[this, Objects, Transforms]() mutable
 			{
 				FPBDRigidsEvolutionGBF& Evolution = *GetEvolution(this);
 				FClusterUnionManager& ClusterUnionManager = Evolution.GetRigidClustering().GetClusterUnionManager();
 
 				if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnion(ClusterUnionIndex))
 				{
-					FGeometryParticleHandle* Particle = Child->GetParticle<EThreadContext::Internal>();
-					if (!ensure(Particle))
+					for (int32 Index = 0; Index < Objects.Num() && Index < Transforms.Num(); ++Index)
 					{
-						return;
-					}
-
-					const int32 ParticleIndex = ClusterUnion->ChildParticles.Find(Particle->CastToRigidParticle());
-					if (ParticleIndex != INDEX_NONE && ClusterUnion->InternalCluster)
-					{
-						if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ParticleIndex]->CastToClustered())
+						FPhysicsObjectHandle Child = Objects[Index];
+						FGeometryParticleHandle* Particle = Child->GetParticle<EThreadContext::Internal>();
+						if (!ensure(Particle))
 						{
-							ChildHandle->SetChildToParent(RelativeTransform);
-							ClusterUnionManager.UpdateAllClusterUnionProperties(*ClusterUnion, false);
-							Evolution.GetParticles().MarkTransientDirtyParticle(ClusterUnion->InternalCluster);
-							Evolution.DirtyParticle(*ClusterUnion->InternalCluster);
+							return;
+						}
+
+						const int32 ParticleIndex = ClusterUnion->ChildParticles.Find(Particle->CastToRigidParticle());
+						if (ParticleIndex != INDEX_NONE && ClusterUnion->InternalCluster)
+						{
+							if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ParticleIndex]->CastToClustered())
+							{
+								ChildHandle->SetChildToParent(Transforms[Index]);
+							}
 						}
 					}
+
+					ClusterUnionManager.UpdateAllClusterUnionProperties(*ClusterUnion, false);
+					Evolution.GetParticles().MarkTransientDirtyParticle(ClusterUnion->InternalCluster);
+					Evolution.DirtyParticle(*ClusterUnion->InternalCluster);
 				}
 			}
 		);

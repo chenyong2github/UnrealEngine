@@ -92,6 +92,7 @@ namespace Chaos
 		void SetLinearVelocity_External(const FVector& V);
 		void SetAngularVelocity_External(const FVector& W);
 		void SetChildToParent_External(FPhysicsObjectHandle Child, const FTransform& RelativeTransform);
+		void BulkSetChildToParent_External(const TArray<FPhysicsObjectHandle>& Objects, const TArray<FTransform>& Transforms);
 
 		//
 		// These functions take care of marshaling data back and forth between the game thread
