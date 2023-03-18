@@ -245,8 +245,12 @@ public:
 	/** Enqueue a field \p Command to be processed by \c ProcessCommands() or 
 	 * \c FieldForcesUpdateCallback(). 
 	 */
-	void BufferCommand(Chaos::FPBDRigidsSolver* , const FFieldSystemCommand& Command)
-	{ Commands.Add(Command); }
+	void BufferCommand(Chaos::FPBDRigidsSolver* RigidsSolver, const FFieldSystemCommand& Command)
+	{ 
+		check(RigidsSolver != nullptr);
+		RigidsSolver->GetGeometryCollectionPhysicsProxiesField_Internal().Add(this);
+		Commands.Add(Command); 
+	}
 
 	static void InitializeSharedCollisionStructures(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams);
 

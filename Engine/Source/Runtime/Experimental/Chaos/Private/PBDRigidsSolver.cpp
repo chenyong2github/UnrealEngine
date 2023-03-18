@@ -352,10 +352,11 @@ namespace Chaos
 					MSolver->FieldParameterUpdateCallback(PositionTarget, TargetedParticles);
 				}
 
-				for (FGeometryCollectionPhysicsProxy* GeoclObj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
+				for (FGeometryCollectionPhysicsProxy* GeoclObj : MSolver->GetGeometryCollectionPhysicsProxiesField_Internal())
 				{
 					GeoclObj->FieldParameterUpdateCallback(MSolver);
 				}
+				MSolver->GetGeometryCollectionPhysicsProxiesField_Internal().Reset();
 
 				MSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().ProcessPendingQueues(*MSolver);
 			}
@@ -404,10 +405,11 @@ namespace Chaos
 						MSolver->FieldForcesUpdateCallback();
 					}
 
-					for (FGeometryCollectionPhysicsProxy* GeoCollectionObj : MSolver->GetGeometryCollectionPhysicsProxies_Internal())
+					for (FGeometryCollectionPhysicsProxy* GeoCollectionObj : MSolver->GetGeometryCollectionPhysicsProxiesField_Internal())
 					{
 						GeoCollectionObj->FieldForcesUpdateCallback(MSolver);
 					}
+					MSolver->GetGeometryCollectionPhysicsProxiesField_Internal().Reset();
 
 					if(FRewindData* RewindData = MSolver->GetRewindData())
 					{

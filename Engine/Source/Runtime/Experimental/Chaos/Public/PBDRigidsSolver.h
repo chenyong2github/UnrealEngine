@@ -253,6 +253,11 @@ namespace Chaos
 			return GeometryCollectionPhysicsProxies_Internal;
 		}
 
+		TArray<FGeometryCollectionPhysicsProxy*>& GetGeometryCollectionPhysicsProxiesField_Internal()
+		{
+			return GeometryCollectionPhysicsProxiesField_Internal;
+		}
+
 		const TArray<FJointConstraintPhysicsProxy*>& GetJointConstraintPhysicsProxies_Internal() const
 		{
 			return JointConstraintPhysicsProxies_Internal;
@@ -359,6 +364,7 @@ namespace Chaos
 		TSharedPtr<FCriticalSection> MCurrentLock;
 		TSparseArray< FSingleParticlePhysicsProxy* > SingleParticlePhysicsProxies_PT;
 		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_Internal; // PT
+		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxiesField_Internal; // PT
 		TArray< FClusterUnionPhysicsProxy* > ClusterUnionPhysicsProxies_Internal; // PT
 		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_Internal; // PT
 		TArray< FCharacterGroundConstraintProxy* > CharacterGroundConstraintProxies_Internal;

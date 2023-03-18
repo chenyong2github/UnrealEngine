@@ -1052,6 +1052,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			FFieldSystemMetaDataProcessingResolution* ResolutionData = new FFieldSystemMetaDataProcessingResolution(EFieldResolutionType::Field_Resolution_Maximum);
 
 			Cmd.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr<FFieldSystemMetaDataProcessingResolution>(ResolutionData));
+			RigidsSolver->GetGeometryCollectionPhysicsProxiesField_Internal().Add(this);
 			Commands.Add(Cmd);
 		}
 		Parameters.InitializationCommands.Empty();
@@ -4297,7 +4298,7 @@ void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollecti
 void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver, const bool bUpdateViews)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Object);
-
+	ensure(RigidSolver);
 	// We are updating the Collection from the InitializeBodiesPT, so we need the PT collection
 	FGeometryDynamicCollection& Collection = PhysicsThreadCollection;
 	Chaos::FPBDPositionConstraints PositionTarget;
@@ -4305,7 +4306,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 
 	// Process Particle-Collection commands
 	int32 NumCommands = Commands.Num();
-	if (NumCommands && RigidSolver && !RigidSolver->IsShuttingDown() && Collection.Transform.Num())
+	if (NumCommands && !RigidSolver->IsShuttingDown() && Collection.Transform.Num())
 	{
 		TArray<int32> CommandsToRemove;
 		CommandsToRemove.Reserve(NumCommands);
@@ -4494,9 +4495,10 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_Object);
+	ensure(RigidSolver);
 
 	const int32 NumCommands = Commands.Num();
-	if (NumCommands && RigidSolver && !RigidSolver->IsShuttingDown())
+	if (NumCommands && !RigidSolver->IsShuttingDown())
 	{
 		TArray<int32> CommandsToRemove;
 		CommandsToRemove.Reserve(NumCommands);
