@@ -211,6 +211,10 @@ FContext::FContext()
 {
 #if _WIN32
     GetCurrentThreadStackLimits(&StackBegin, &StackEnd);
+#elif defined(__APPLE__)         
+   StackEnd = pthread_get_stackaddr_np(pthread_self());   
+   size_t StackSize = pthread_get_stacksize_np(pthread_self());    
+   StackBegin = static_cast<char*>(StackEnd) - StackSize;
 #else
     pthread_attr_t Attr;
     pthread_getattr_np(pthread_self(), &Attr);

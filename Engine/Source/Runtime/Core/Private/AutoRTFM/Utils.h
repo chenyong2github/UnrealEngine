@@ -8,7 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#else
 #include <malloc.h>
+#endif
 
 #define ASSERT(exp) do { \
     if (!(exp)) { \
@@ -43,7 +48,9 @@ std::string GetFunctionDescription(TReturnType (*FunctionPtr)(TParameterTypes...
 
 inline size_t GetAllocationSize(void* const Ptr)
 {
-#if defined(_WIN32)
+#if defined(__APPLE__)
+    return malloc_size(Ptr);
+#elif defined(_WIN32)
     return _msize(Ptr);
 #else
     return malloc_usable_size(Ptr);
