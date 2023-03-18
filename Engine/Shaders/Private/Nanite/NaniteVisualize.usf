@@ -124,6 +124,8 @@ bool ShouldApplySobelFilter()
 [numthreads(8, 8, 1)]
 void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 {
+	const uint VisualizeMode = GetVisualizeMode();
+
 	const uint2 PickingPos	= uint2(PickingPixelPos);
 	const uint2 PixelPos	= DTID.xy;
 	const uint2 TilePos		= GID.xy; // 8x8 tile 2D coord
@@ -147,7 +149,16 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	bool bDarkOutline = false;
 	bool bApplySobel = true;
 
-	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() || UnpackedMask.bIsNanitePixel))
+	if (VisualizeMode == NANITE_VISUALIZE_OVERDRAW)
+	{
+		uint DebugValueAdd = DbgBuffer32[PixelPos];
+
+		const float OverdrawScale = GetOverdrawScale();
+		const float OverdrawCount = DebugValueAdd; // Num of evaluations per pixel
+		const float OverdrawColor = 1 - exp2(-OverdrawCount * OverdrawScale);
+		Result = ColorMapInferno(OverdrawColor);
+	}
+	else if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() || UnpackedMask.bIsNanitePixel))
 	{
 		// Nanite Pixel
 
@@ -200,7 +211,6 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
 		const int HierarchyOffset = InstanceData.NaniteHierarchyOffset;
-		const uint VisualizeMode = GetVisualizeMode();
 
 		// Note: The mode is no longer a bitmask at this point, just a single visualization mode.
 
@@ -246,13 +256,6 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		{
 			const uint ShadingBin = GetMaterialShadingBin(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 			Result = IntToColor(ShadingBin);
-		}
-		else if (VisualizeMode == NANITE_VISUALIZE_OVERDRAW)
-		{
-			const float OverdrawScale = GetOverdrawScale();
-			const float OverdrawCount = DebugValueAdd; // Num of evaluations per pixel
-			const float OverdrawColor = 1 - exp2( -OverdrawCount * OverdrawScale );
-			Result = ColorMapInferno(OverdrawColor);
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_HIERARCHY_OFFSET)
 		{
