@@ -34,6 +34,7 @@ public class MediaPlateEditor : ModuleRules
 				"ModelingComponentsEditorOnly",
 				"ModelingComponents",
 				"MovieScene",
+				"PlacementMode",
 				"Projects",
 				"PropertyEditor",
 				"SceneOutliner",
