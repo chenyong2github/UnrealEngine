@@ -888,6 +888,9 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 	GWorld = EditorWorld;
 	GIsPlayInEditorWorld = false;
 
+	// Restore the previously purged scene interface for the editor world to its original glory.
+	GWorld->RestoreScene();
+
 	FWorldContext& EditorWorldContext = GEditor->GetEditorWorldContext();
 
 	// Let the viewport know about leaving PIE/Simulate session. Do it after everything's been cleaned up
@@ -2699,6 +2702,9 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 
 	// Let navigation know PIE is starting so it can avoid any blueprint creation/deletion/instantiation affect editor map's navmesh changes
 	FNavigationSystem::OnPIEStart(*InWorld);
+
+	// Purge the existing scene interface from the editor world to avoid 2x GPU allocations with the additional play-in-editor world that is about to init
+	InWorld->PurgeScene();
 
 	ULevelEditorPlaySettings* EditorPlaySettings = InRequestParams.EditorPlaySettings;
 	check(EditorPlaySettings);

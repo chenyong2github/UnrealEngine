@@ -1292,6 +1292,9 @@ public:
 
 	/** Indicates that toggling between Play-in-Editor and Simulate-in-Editor happened this frame. */
 	uint8 bToggledBetweenPIEandSIEThisFrame : 1;
+
+	/** Indicates that the renderer scene for this editor world was purged while Play-in-Editor. */
+	uint8 bPurgedScene : 1;
 #endif
 
 	/** Keeps track whether actors moved via PostEditMove and therefore constraint syncup should be performed. */
@@ -1455,7 +1458,13 @@ public:
 	/** Change the feature level that this world is current rendering with */
 	void ChangeFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel, bool bShowSlowProgressDialog = true);
 
-	void RecreateScene(ERHIFeatureLevel::Type InFeatureLevel);
+	void RecreateScene(ERHIFeatureLevel::Type InFeatureLevel, bool bBroadcastChange = true);
+
+	/** Recreate the editor world's FScene with a null scene interface to drop extra GPU memory during PIE */
+	void PurgeScene();
+
+	/** Restore the purged editor world FScene back to the proper GPU representation */
+	void RestoreScene();
 
 #endif // WITH_EDITOR
 

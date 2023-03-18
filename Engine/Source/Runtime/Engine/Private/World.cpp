@@ -139,6 +139,12 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 static int32 bDisableRemapScriptActors = 0;
 FAutoConsoleVariableRef CVarDisableRemapScriptActors(TEXT("net.DisableRemapScriptActors"), bDisableRemapScriptActors, TEXT("When set, disables name remapping of compiled script actors (for networking)"));
 
+static TAutoConsoleVariable<int32> CVarPurgeEditorSceneDuringPIE(
+	TEXT("r.PurgeEditorSceneDuringPIE"),
+	0,
+	TEXT("0 to keep editor scene fully initialized during PIE (default)\n")
+	TEXT("1 to purge editor scene from memory during PIE and restore when the session finishes."));
+
 template<class Function>
 static void ForEachNetDriver(UEngine* Engine, const UWorld* const World, const Function InFunction)
 {
@@ -378,6 +384,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 #if WITH_EDITOR
 , bDebugFrameStepExecutedThisFrame(false)
 , bToggledBetweenPIEandSIEThisFrame(false)
+, bPurgedScene(false)
 #endif
 , bShouldTick(true)
 , bHasEverBeenInitialized(false)
@@ -8559,7 +8566,7 @@ void UWorld::ChangeFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel, bool bSho
 	}
 }
 
-void UWorld::RecreateScene(ERHIFeatureLevel::Type InFeatureLevel)
+void UWorld::RecreateScene(ERHIFeatureLevel::Type InFeatureLevel, bool bBroadcastChange)
 {
 	if (Scene)
 	{
@@ -8573,7 +8580,10 @@ void UWorld::RecreateScene(ERHIFeatureLevel::Type InFeatureLevel)
 		IRendererModule& RendererModule = GetRendererModule();
 		RendererModule.RemoveScene(Scene);
 
-		FRenderResource::ChangeFeatureLevel(InFeatureLevel);
+		if (bBroadcastChange)
+		{
+			FRenderResource::ChangeFeatureLevel(InFeatureLevel);
+		}
 
 		RendererModule.AllocateScene(this, bRequiresHitProxies, FXSystem != nullptr, InFeatureLevel);
 
@@ -8583,6 +8593,56 @@ void UWorld::RecreateScene(ERHIFeatureLevel::Type InFeatureLevel)
 			Level->PrecomputedVisibilityHandler.UpdateScene(Scene);
 			Level->PrecomputedVolumeDistanceField.UpdateScene(Scene);
 		}
+	}
+}
+
+// Recreate the editor world's FScene with a null scene interface to drop extra GPU memory during PIE
+void UWorld::PurgeScene()
+{
+	if (CVarPurgeEditorSceneDuringPIE.GetValueOnGameThread() == 0)
+	{
+		return;
+	}
+
+	if (!bPurgedScene && this->IsEditorWorld())
+	{
+		FGlobalComponentReregisterContext RecreateComponents;
+
+		// Finish any deferred / async render cleanup work.
+		GetRendererModule().PerFrameCleanupIfSkipRenderer();
+		FlushRenderingCommands();
+
+		const bool bOldVal = GUsingNullRHI;
+		GUsingNullRHI = true;
+		{
+			RecreateScene(FeatureLevel, false /* bBroadcastChange */);
+		}
+		GUsingNullRHI = bOldVal;
+
+		InvalidateAllSkyCaptures();
+		TriggerStreamingDataRebuild();
+
+		bPurgedScene = true;
+	}
+}
+
+// Restore the purged editor world FScene back to the proper GPU representation
+void UWorld::RestoreScene()
+{
+	if (bPurgedScene)
+	{
+		FGlobalComponentReregisterContext RecreateComponents;
+
+		// Finish any deferred / async render cleanup work.
+		GetRendererModule().PerFrameCleanupIfSkipRenderer();
+		FlushRenderingCommands();
+
+		RecreateScene(FeatureLevel, false /* bBroadcastChange */);
+
+		InvalidateAllSkyCaptures();
+		TriggerStreamingDataRebuild();
+
+		bPurgedScene = false;
 	}
 }
 
