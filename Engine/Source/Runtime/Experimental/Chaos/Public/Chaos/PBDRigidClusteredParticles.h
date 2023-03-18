@@ -46,7 +46,7 @@ struct TConnectivityEdge
 		, Strain(0.0)
 	{}
 
-	TConnectivityEdge(TPBDRigidParticleHandle<T, 3>* InSibling, const T InStrain)
+	TConnectivityEdge(TPBDRigidParticleHandle<T, 3>* InSibling, const FRealSingle InStrain)
 		: Sibling(InSibling)
 		, Strain(InStrain) 
 	{}
@@ -61,7 +61,7 @@ struct TConnectivityEdge
 	{ return Sibling == OtherSibling; }
 
 	TPBDRigidParticleHandle<T, 3>* Sibling;
-	T Strain;
+	Chaos::FRealSingle Strain;
 };
 typedef TConnectivityEdge<FReal> FConnectivityEdge;
 typedef TArray<FConnectivityEdge> FConnectivityEdgeArray;
@@ -217,14 +217,14 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	  TArrayCollectionArray<TSet<IPhysicsProxyBase*>> MPhysicsProxies;
 
 	  // Collision Impulses
-	  TArrayCollectionArray<T> MCollisionImpulses;
+	  TArrayCollectionArray<Chaos::FRealSingle> MCollisionImpulses;
 
 	  // external strains ( use by fields )
 	  // @todo(chaos) we should eventually merge MCollisionImpulses into MExternalStrains when Clustering code has been updated to not clear the impulses just before processing them 
-	  TArrayCollectionArray<T> MExternalStrains; 
+	  TArrayCollectionArray<Chaos::FRealSingle> MExternalStrains;
 
 	  // User set parameters
-	  TArrayCollectionArray<T> MStrains;
+	  TArrayCollectionArray<Chaos::FRealSingle> MStrains;
 
 	  TArrayCollectionArray<TArray<TConnectivityEdge<T>>> MConnectivityEdges;
   

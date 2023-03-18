@@ -1446,9 +1446,9 @@ namespace Chaos
 
 			//if (bChaosDebugDrawClusterConnectionGraph)
 			{
-				FReal MaxStrain = -FLT_MAX;
+				FRealSingle MaxStrain = TNumericLimits<FRealSingle>::Lowest();
 				int32 NumConnections = 0;
-				const TArrayCollectionArray<FReal>& Strain = Clustering.GetStrainArray();
+				const TArrayCollectionArray<FRealSingle>& Strain = Clustering.GetStrainArray();
 
 				for (auto& ActiveCluster : Clustering.GetChildrenMap())
 				{

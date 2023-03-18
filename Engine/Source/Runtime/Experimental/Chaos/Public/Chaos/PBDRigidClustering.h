@@ -250,8 +250,8 @@ public:
 	*    body in the simulation. This attribute is initialized during the creation of
 	*    the cluster body, can be updated during the evaluation of the simulation.
 	*/
-	TArrayCollectionArray<FReal>& GetStrainArray() { return MParticles.StrainsArray(); }
-	const TArrayCollectionArray<FReal>& GetStrainArray() const { return MParticles.StrainsArray(); }
+	TArrayCollectionArray<FRealSingle>& GetStrainArray() { return MParticles.StrainsArray(); }
+	const TArrayCollectionArray<FRealSingle>& GetStrainArray() const { return MParticles.StrainsArray(); }
 		
 	/**
 	*  GetParentToChildren
@@ -365,8 +365,8 @@ public:
 	FRigidEvolution& GetEvolution() { return MEvolution; }
 	const FRigidEvolution& GetEvolution() const { return MEvolution; }
 
-	void SetInternalStrain(FPBDRigidClusteredParticleHandle* Particle, FReal Strain);
-	void SetExternalStrain(FPBDRigidClusteredParticleHandle* Particle, FReal Strain);
+	void SetInternalStrain(FPBDRigidClusteredParticleHandle* Particle, FRealSingle Strain);
+	void SetExternalStrain(FPBDRigidClusteredParticleHandle* Particle, FRealSingle Strain);
 
 	static bool ShouldUnionsHaveCollisionParticles();
 

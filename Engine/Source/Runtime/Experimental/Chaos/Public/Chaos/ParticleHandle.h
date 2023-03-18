@@ -1281,31 +1281,31 @@ public:
 	TUniquePtr<FImplicitObjectUnionClustered>& ChildrenSpatial() { return PBDRigidClusteredParticles->ChildrenSpatial(ParticleIdx); }
 	void SetChildrenSpatial(TUniquePtr<FImplicitObjectUnion>& Obj) { PBDRigidClusteredParticles->ChildrenSpatial(ParticleIdx) = Obj; }
 
-	const T& CollisionImpulse() const { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
-	T& CollisionImpulse() { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
-	void SetCollisionImpulse(const T Value) { PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx) = Value; }
-	const T& CollisionImpulses() const { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
-	T& CollisionImpulses() { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
-	void SetCollisionImpulses(const T Value) { PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx) = Value; }
-	void ClearCollisionImpulse() { PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx) = static_cast<T>(0); }
+	const FRealSingle& CollisionImpulse() const { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
+	FRealSingle& CollisionImpulse() { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
+	void SetCollisionImpulse(const FRealSingle Value) { PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx) = Value; }
+	const FRealSingle& CollisionImpulses() const { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
+	FRealSingle& CollisionImpulses() { return PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx); }
+	void SetCollisionImpulses(const FRealSingle Value) { PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx) = Value; }
+	void ClearCollisionImpulse() { PBDRigidClusteredParticles->CollisionImpulses(ParticleIdx) = static_cast<FRealSingle>(0); }
 
-	T GetExternalStrain() const { return PBDRigidClusteredParticles->ExternalStrains(ParticleIdx); }
+	FRealSingle GetExternalStrain() const { return PBDRigidClusteredParticles->ExternalStrains(ParticleIdx); }
 	UE_DEPRECATED(5.2, "This method should not be used anymore. FRigidClustering::SetExternalStrain should be used instead.")
-	void SetExternalStrain(const T Value) { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = Value; }
+	void SetExternalStrain(const FRealSingle Value) { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = Value; }
 	UE_DEPRECATED(5.2, "This method should not be used anymore. FRigidClustering::SetExternalStrain with 0 strain should be used instead.")
-	void ClearExternalStrain() { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = static_cast<T>(0); }
+	void ClearExternalStrain() { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = static_cast<FRealSingle>(0); }
 	
-	const T& GetInternalStrains() const { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
-	const T& Strain() const { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
+	const FRealSingle& GetInternalStrains() const { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
+	const FRealSingle& Strain() const { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
 	UE_DEPRECATED(5.2, "This method should not be used anymore. FRigidClustering::SetInternalStrain should be used instead.")
-	T& Strain() { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
+	FRealSingle& Strain() { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
 	UE_DEPRECATED(5.2, "This method should not be used anymore. FRigidClustering::SetInternalStrain should be used instead.")
-	void SetStrain(const T Value) { PBDRigidClusteredParticles->Strains(ParticleIdx) = Value; }
-	const T& Strains() const { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
+	void SetStrain(const FRealSingle Value) { PBDRigidClusteredParticles->Strains(ParticleIdx) = Value; }
+	const FRealSingle& Strains() const { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
 	UE_DEPRECATED(5.2, "This method should not be used anymore. FRigidClustering::SetInternalStrain should be used instead.")
-	T& Strains() { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
+	FRealSingle& Strains() { return PBDRigidClusteredParticles->Strains(ParticleIdx); }
 	UE_DEPRECATED(5.2, "This method should not be used anymore. FRigidClustering::SetInternalStrain should be used instead.")
-	void SetStrains(const T Value) { PBDRigidClusteredParticles->Strains(ParticleIdx) = Value; }
+	void SetStrains(const FRealSingle Value) { PBDRigidClusteredParticles->Strains(ParticleIdx) = Value; }
 	void SetMaximumInternalStrain() { PBDRigidClusteredParticles->Strains(ParticleIdx) = MaxStrain; }
 
 	const TArray<TConnectivityEdge<T>>& ConnectivityEdges() const { return PBDRigidClusteredParticles->ConnectivityEdges(ParticleIdx); }
@@ -1327,10 +1327,10 @@ public:
 	int32 TransientParticleIndex() const { return ParticleIdx; }
 
 private:
-	void SetInternalStrains(const T Value) { PBDRigidClusteredParticles->Strains(ParticleIdx) = Value; }
-	void SetExternalStrains(const T Value) { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = Value; }
+	void SetInternalStrains(const FRealSingle Value) { PBDRigidClusteredParticles->Strains(ParticleIdx) = Value; }
+	void SetExternalStrains(const FRealSingle Value) { PBDRigidClusteredParticles->ExternalStrains(ParticleIdx) = Value; }
 	friend class FRigidClustering;
-	static constexpr Chaos::FReal MaxStrain = TNumericLimits<Chaos::FReal>::Max() - TNumericLimits<Chaos::FReal>::Min();
+	static constexpr Chaos::FRealSingle MaxStrain = TNumericLimits<Chaos::FRealSingle>::Max() - TNumericLimits<Chaos::FRealSingle>::Min();
 };
 
 template <typename T, int d, bool bPersistent = true>

@@ -1242,6 +1242,20 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			{
 				if (Connections)
 				{
+					// first reserve memory for the connection so we alolocate just the right amount of memory 
+					for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+					{
+						if (FClusterHandle* ClusteredParticle = SolverParticleHandles[TransformGroupIndex])
+						{
+							const TSet<int32>& Siblings = (*Connections)[TransformGroupIndex];
+							if (Siblings.Num())
+							{
+								ClusteredParticle->ConnectivityEdges().Reserve(Siblings.Num());
+							}
+						}
+					}
+
+					// now set the connections
 					for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 					{
 						if (FClusterHandle* ClusteredParticle = SolverParticleHandles[TransformGroupIndex]) 
@@ -2131,7 +2145,7 @@ static void ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
 		if (ChildrenHandles.Num())
 		{
 			TArray<Chaos::FPBDRigidParticleHandle*> ProcessedHandles;
-			Chaos::FReal PropagationMultiplier = 1.0f;
+			Chaos::FRealSingle PropagationMultiplier = 1.0f;
 
 			int32 CurrentPropagationDepth = PropagationDepth;
 			while (CurrentPropagationDepth >= 0)
@@ -2169,7 +2183,7 @@ static void ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
 					}
 				}
 				
-				PropagationMultiplier *= static_cast<Chaos::FReal>(PropagationFactor);
+				PropagationMultiplier *= PropagationFactor;
 				--CurrentPropagationDepth;
 			}
 		}
@@ -2191,7 +2205,7 @@ void FGeometryCollectionPhysicsProxy::ApplyExternalStrain_External(FGeometryColl
 				ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
 					RBDSolver->GetEvolution()->GetRigidClustering(), *ClusteredHandle,
 					WorldLocation, Radius, PropagationDepth, PropagationFactor,
-					[StrainValue, &RigidClustering](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle, Chaos::FReal PropagationMultiplier)
+					[StrainValue, &RigidClustering](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle, Chaos::FRealSingle PropagationMultiplier)
 					{
 						RigidClustering.SetExternalStrain(ClusteredChildHandle, FMath::Max(ClusteredChildHandle->GetExternalStrain(), StrainValue * PropagationMultiplier));
 					});
@@ -2213,9 +2227,9 @@ void FGeometryCollectionPhysicsProxy::ApplyInternalStrain_External(FGeometryColl
 				ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
 					RBDSolver->GetEvolution()->GetRigidClustering(), *ClusteredHandle,
 					WorldLocation, Radius, PropagationDepth, PropagationFactor,
-					[StrainValue, RBDSolver](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle, Chaos::FReal PropagationMultiplier)
+					[StrainValue, RBDSolver](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle, Chaos::FRealSingle PropagationMultiplier)
 					{
-						const Chaos::FReal NewInternalStrain = ClusteredChildHandle->GetInternalStrains() - ((Chaos::FReal)StrainValue * PropagationMultiplier);
+						const Chaos::FRealSingle NewInternalStrain = ClusteredChildHandle->GetInternalStrains() - (StrainValue * PropagationMultiplier);
 						RBDSolver->GetEvolution()->GetRigidClustering().SetInternalStrain(ClusteredChildHandle, FMath::Max(0, NewInternalStrain));
 					});
 			}
