@@ -220,6 +220,16 @@ void PrintStats()
 	Print(Context, TEXT("     Empty"), FontYellow);
 	PrintLeftAlign(Context, InStatsBuffer[0].NumEmptyRasterBins);
 	Newline(Context);
+
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("   MainInd"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumMainPassIndirections);
+	Newline(Context);
+
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("   PostInd"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumPostPassIndirections);
+	Newline(Context);
 	Newline(Context);
 
 	// Materials: Shading Bins
@@ -285,6 +295,8 @@ void CalculateRasterStats()
 
 	uint NumEmptyRasterBins = 0;
 	uint NumTotalRasterBins = NumMainPassRasterBins;
+	uint NumMainPassIndirections = 0;
+	uint NumPostPassIndirections = 0;
 
 	LOOP
 	for (uint RasterBinIndex = 0; RasterBinIndex < NumMainPassRasterBins; ++RasterBinIndex)
@@ -292,9 +304,15 @@ void CalculateRasterStats()
 		const uint BinSWCount = MainPassRasterBinHeaders[RasterBinIndex].x;
 		const uint BinHWCount = MainPassRasterBinHeaders[RasterBinIndex].y;
 
-		if ((BinSWCount + BinHWCount) == 0)
+		const uint BinIndirections = BinSWCount + BinHWCount;
+
+		if (BinIndirections == 0)
 		{
 			++NumEmptyRasterBins;
+		}
+		else
+		{
+			NumMainPassIndirections += BinIndirections;
 		}
 	}
 
@@ -307,9 +325,15 @@ void CalculateRasterStats()
 		const uint BinSWCount = PostPassRasterBinHeaders[RasterBinIndex].x;
 		const uint BinHWCount = PostPassRasterBinHeaders[RasterBinIndex].y;
 
-		if ((BinSWCount + BinHWCount) == 0)
+		const uint BinIndirections = BinSWCount + BinHWCount;
+
+		if (BinIndirections == 0)
 		{
 			++NumEmptyRasterBins;
+		}
+		else
+		{
+			NumPostPassIndirections += BinIndirections;
 		}
 	}
 #endif
@@ -321,6 +345,8 @@ void CalculateRasterStats()
 	OutStatsBuffer[0].NumShadedQuads			= 0;
 	OutStatsBuffer[0].NumShadedPixels			= 0;
 	OutStatsBuffer[0].NumHelperLanes			= 0;
+	OutStatsBuffer[0].NumMainPassIndirections	= NumMainPassIndirections;
+	OutStatsBuffer[0].NumPostPassIndirections	= NumPostPassIndirections;
 }
 
 [numthreads(1, 1, 1)]

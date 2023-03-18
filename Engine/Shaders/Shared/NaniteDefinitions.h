@@ -326,6 +326,8 @@ struct FNaniteStats
 	UINT_TYPE NumShadedQuads;
 	UINT_TYPE NumShadedPixels;
 	UINT_TYPE NumHelperLanes;
+	UINT_TYPE NumMainPassIndirections;
+	UINT_TYPE NumPostPassIndirections;
 };
 
 struct FNanitePickingFeedback
@@ -357,5 +359,4 @@ struct FNanitePickingFeedback
 };
 
 #undef  INT_TYPE
-#undef UINT_TYPE
-#undef INLINE_ATTR
+#undef UINT_TYPE#undef INLINE_ATTR

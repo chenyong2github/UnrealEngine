@@ -164,6 +164,14 @@ static FAutoConsoleVariableRef CVarNaniteProgrammableRaster(
 	TEXT("")
 );
 
+// Support a max of 3 unique materials per visible cluster (i.e. if all clusters are fast path and use full range, never run out of space).
+float GNaniteRasterIndirectionMultiplier = 3.0f;
+static FAutoConsoleVariableRef CVarNaniteRasterIndirectionMultiplier(
+	TEXT("r.Nanite.RasterIndirectionMultiplier"),
+	GNaniteRasterIndirectionMultiplier,
+	TEXT("")
+);
+
 int32 GNaniteCullingHZB = 1;
 static FAutoConsoleVariableRef CVarNaniteCullingHZB(
 	TEXT("r.Nanite.Culling.HZB"),
@@ -2508,36 +2516,34 @@ static FBinningData AddPass_Binning(
 			ERDGInitialDataFlags::NoCopy
 		);
 
-	BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(BinningData.BinCount * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
-
-	const uint32 MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
-
-	// Support a max of 3 unique materials per visible cluster (i.e. if all clusters are fast path and use full range, never run out of space).
-	const uint32 MaxClusterIndirections = MaxVisibleClusters * 3u;
-	check(MaxClusterIndirections > 0);
-	BinningData.DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 2, FMath::RoundUpToPowerOfTwo(MaxClusterIndirections)), TEXT("Nanite.RasterizerBinData"));
-
-	FRasterBinBuild_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterBinBuild_CS::FParameters>();
-
-	PassParameters->GPUSceneParameters		= GPUSceneParameters;
-	PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
-	PassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-	PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
-	PassParameters->InClusterCountSWHW		= GraphBuilder.CreateSRV(CullingContext.ClusterCountSWHW);
-	PassParameters->InClusterOffsetSWHW		= GraphBuilder.CreateSRV(ClusterOffsetSWHW, PF_R32_UINT);
-	PassParameters->IndirectArgs			= VisiblePatchesArgs ? VisiblePatchesArgs : CullingContext.ClusterClassifyArgs;
-	PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
-	PassParameters->OutRasterizerBinHeaders = GraphBuilder.CreateUAV(BinningData.HeaderBuffer);
-
-	if( VisiblePatches )
-	{
-		PassParameters->VisiblePatches			= GraphBuilder.CreateSRV( VisiblePatches );
-		PassParameters->VisiblePatchesArgs		= GraphBuilder.CreateSRV( VisiblePatchesArgs );
-	}
-
-	PassParameters->PageConstants = CullingContext.PageConstants;
-	PassParameters->RenderFlags = RenderFlags;
-	PassParameters->MaxVisibleClusters = MaxVisibleClusters;
+	    BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(BinningData.BinCount * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
+    
+	    const uint32 MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
+		const uint32 MaxClusterIndirections = uint32(float(MaxVisibleClusters) * FMath::Max<float>(1.0f, GNaniteRasterIndirectionMultiplier));
+		check(MaxClusterIndirections > 0);
+		BinningData.DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 2, MaxClusterIndirections), TEXT("Nanite.RasterizerBinData"));
+    
+	    FRasterBinBuild_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterBinBuild_CS::FParameters>();
+    
+	    PassParameters->GPUSceneParameters		= GPUSceneParameters;
+	    PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
+	    PassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+	    PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+	    PassParameters->InClusterCountSWHW		= GraphBuilder.CreateSRV(CullingContext.ClusterCountSWHW);
+	    PassParameters->InClusterOffsetSWHW		= GraphBuilder.CreateSRV(ClusterOffsetSWHW, PF_R32_UINT);
+	    PassParameters->IndirectArgs			= VisiblePatchesArgs ? VisiblePatchesArgs : CullingContext.ClusterClassifyArgs;
+	    PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
+	    PassParameters->OutRasterizerBinHeaders = GraphBuilder.CreateUAV(BinningData.HeaderBuffer);
+    
+	    if( VisiblePatches )
+	    {
+		    PassParameters->VisiblePatches			= GraphBuilder.CreateSRV( VisiblePatches );
+		    PassParameters->VisiblePatchesArgs		= GraphBuilder.CreateSRV( VisiblePatchesArgs );
+	    }
+    
+	    PassParameters->PageConstants = CullingContext.PageConstants;
+	    PassParameters->RenderFlags = RenderFlags;
+	    PassParameters->MaxVisibleClusters = MaxVisibleClusters;
 		PassParameters->RegularMaterialRasterBinCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
 		PassParameters->bUsePrimOrMeshShader = bUsePrimOrMeshShader;
 
