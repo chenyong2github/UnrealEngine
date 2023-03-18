@@ -8615,7 +8615,7 @@ void UWorld::PurgeScene()
 		const bool bOldVal = GUsingNullRHI;
 		GUsingNullRHI = true;
 		{
-			RecreateScene(FeatureLevel, false /* bBroadcastChange */);
+			RecreateScene(GetFeatureLevel(), false /* bBroadcastChange */);
 		}
 		GUsingNullRHI = bOldVal;
 
@@ -8637,7 +8637,7 @@ void UWorld::RestoreScene()
 		GetRendererModule().PerFrameCleanupIfSkipRenderer();
 		FlushRenderingCommands();
 
-		RecreateScene(FeatureLevel, false /* bBroadcastChange */);
+		RecreateScene(GetFeatureLevel(), false /* bBroadcastChange */);
 
 		InvalidateAllSkyCaptures();
 		TriggerStreamingDataRebuild();
