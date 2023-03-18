@@ -40,8 +40,6 @@ extern "C" void autortfm_cpp_delete(void* Ptr, FContext* Context)
     FDebug Debug(Context, Ptr, nullptr, 0, 0, __FUNCTION__);
     if (Ptr)
     {
-		const size_t AllocSize = GetAllocationSize(Ptr);
-        Context->WillDeallocate(Ptr, AllocSize);
         Context->GetCurrentTransaction()->DeferUntilCommit([Ptr]
         {
             CppDelete(Ptr);
