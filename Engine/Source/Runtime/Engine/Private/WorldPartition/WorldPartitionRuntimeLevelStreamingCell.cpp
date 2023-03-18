@@ -316,7 +316,11 @@ void UWorldPartitionRuntimeLevelStreamingCell::DumpStateLog(FHierarchicalLogArch
 {
 	Super::DumpStateLog(Ar);
 
-	for (const FWorldPartitionRuntimeCellObjectMapping& Mapping : Packages)
+	TArray<FWorldPartitionRuntimeCellObjectMapping> SortedPackages(Packages);
+
+	SortedPackages.Sort([](const FWorldPartitionRuntimeCellObjectMapping& A, const FWorldPartitionRuntimeCellObjectMapping& B) { return A.Path.LexicalLess(B.Path); });
+
+	for (const FWorldPartitionRuntimeCellObjectMapping& Mapping : SortedPackages)
 	{
 		Ar.Printf(TEXT("   Actor Path: %s"), *Mapping.Path.ToString());
 		Ar.Printf(TEXT("Actor Package: %s"), *Mapping.Package.ToString());

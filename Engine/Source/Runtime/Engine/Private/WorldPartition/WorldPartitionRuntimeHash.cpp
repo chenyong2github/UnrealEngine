@@ -335,14 +335,23 @@ void UWorldPartitionRuntimeHash::DumpStateLog(FHierarchicalLogArchive& Ar)
 	Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
 	{
 		FHierarchicalLogArchive::FIndentScope CellIndentScope = Ar.PrintfIndent(TEXT("Content of %s Persistent Level"), *GetWorld()->GetName());
-		Ar.Printf(TEXT("Always loaded Actor Count: %d "), GetWorld()->PersistentLevel->Actors.Num());
+
+		TArray<const AActor*> Actors;
 		for (const AActor* Actor : GetWorld()->PersistentLevel->Actors)
 		{
 			if (Actor)
 			{
-				Ar.Printf(TEXT("Actor Path: %s"), *Actor->GetPathName());
-				Ar.Printf(TEXT("Actor Package: %s"), *Actor->GetPackage()->GetName());
+				Actors.Add(Actor);
 			}
+		}
+
+		Actors.Sort([this](const AActor& A, const AActor& B) { return A.GetFName().LexicalLess(B.GetFName()); });
+
+		Ar.Printf(TEXT("Always loaded Actor Count: %d "), Actors.Num());
+		for (const AActor* Actor : Actors)
+		{
+			Ar.Printf(TEXT("Actor Path: %s"), *Actor->GetPathName());
+			Ar.Printf(TEXT("Actor Package: %s"), *Actor->GetPackage()->GetName());
 		}
 	}
 	Ar.Printf(TEXT(""));
