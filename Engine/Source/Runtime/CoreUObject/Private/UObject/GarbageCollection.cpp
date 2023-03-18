@@ -37,6 +37,7 @@
 #include "HAL/RunnableThread.h"
 #include "UObject/FieldPathProperty.h"
 #include "UObject/GarbageCollectionHistory.h"
+#include "UObject/GarbageCollectionTesting.h"
 
 #include <atomic>
 
@@ -84,7 +85,13 @@ static bool GObjCurrentPurgeObjectIndexNeedsReset = true;
 static TArray<FUObjectItem*> GUnreachableObjects;
 static FCriticalSection GUnreachableObjectsCritical;
 static int32 GUnrechableObjectIndex = 0;
-static double GLastGCTime = 0;
+
+struct FGCTimingInfo
+{
+	double LastGCTime{};
+	double LastGCDuration = -1;
+};
+static FGCTimingInfo GTimingInfo;
 
 bool GIsGarbageCollecting = false;
 
@@ -241,6 +248,36 @@ static FAutoConsoleVariableRef CMultithreadedDestructionEnabled(
 	TEXT("If true, the engine will free objects' memory from a worker thread"),
 	ECVF_Default
 );
+
+static UObjectReachabilityStressData* GReachabilityStressData;
+static void AllocateReachabilityStressData(FOutputDevice&)
+{
+	if (GReachabilityStressData)
+	{
+		return;
+	}
+	GReachabilityStressData = GenerateReachabilityStressData();
+}
+
+static void UnlinkReachabilityStressData(FOutputDevice&)
+{
+	if (!GReachabilityStressData)
+	{
+		return;
+	}
+	UnlinkReachabilityStressData(GReachabilityStressData);
+	GReachabilityStressData = nullptr;
+}
+
+static FAutoConsoleCommandWithOutputDevice GGenerateReachabilityStressDataCmd(TEXT("gc.GenerateReachabilityStressData"),
+		        						      TEXT("Allocate deeply-nested UObject tree to "
+						        			   "stress test reachability analysis."),
+FConsoleCommandWithOutputDeviceDelegate::CreateStatic(&AllocateReachabilityStressData));
+
+static FAutoConsoleCommandWithOutputDevice GUnlinkReachabilityStressDataCmd(TEXT("gc.UnlinkReachabilityStressData"),
+                                 					    TEXT("Unlink previously-generated reachability analysis "
+										 "stress test data for collection in the next cycle."),
+FConsoleCommandWithOutputDeviceDelegate::CreateStatic(&UnlinkReachabilityStressData));
 
 #if UE_BUILD_SHIPPING
 static constexpr int32 GGarbageReferenceTrackingEnabled = 0;
@@ -4500,6 +4537,8 @@ FORCENOINLINE static void CollectGarbageFull(EObjectFlags KeepFlags)
 
 FORCEINLINE void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 {
+	const double StartTime = FPlatformTime::Seconds();
+
 	if (bPerformFullPurge)
 	{
 		CollectGarbageFull(KeepFlags);
@@ -4508,6 +4547,8 @@ FORCEINLINE void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFul
 	{
 		CollectGarbageIncremental(KeepFlags);
 	}
+
+	GTimingInfo.LastGCDuration = FPlatformTime::Seconds() - StartTime;
 }
 
 /** 
@@ -4722,7 +4763,7 @@ void CollectGarbageImpl(EObjectFlags KeepFlags)
 		FCoreUObjectDelegates::GetPostGarbageCollect().Broadcast();
 	}
 
-	GLastGCTime = FPlatformTime::Seconds();
+	GTimingInfo.LastGCTime = FPlatformTime::Seconds();
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, TEXT( "GarbageCollection - End" ) );
 }
 #endif // !UE_WITH_GC
@@ -4748,7 +4789,12 @@ FString FGarbageReferenceInfo::GetReferencingObjectInfo() const
 
 double GetLastGCTime()
 {
-	return GLastGCTime;
+	return GTimingInfo.LastGCTime;
+}
+
+double GetLastGCDuration()
+{
+	return GTimingInfo.LastGCDuration;
 }
 
 bool IsIncrementalUnhashPending()
