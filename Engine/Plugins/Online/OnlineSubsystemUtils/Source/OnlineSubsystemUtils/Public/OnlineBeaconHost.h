@@ -170,6 +170,14 @@ protected:
 	 */
 	virtual bool StartVerifyAuthentication(const FUniqueNetId& PlayerId, const FString& LoginOptions, const FString& AuthenticationToken, const FOnAuthenticationVerificationCompleteDelegate& OnComplete);
 
+	/**
+	 * Verify user authentication once the beacon type is known.
+	 *
+	 * @param PlayerId net id of player to authenticate.
+	 * @Param BeaconType type of beacon to verify the authentication for.
+	 */
+	virtual bool VerifyJoinForBeaconType(const FUniqueNetId& PlayerId, const FString& BeaconType);
+
 private:
 	/**
 	 * Event which must be signaled to complete an authentication verification request.

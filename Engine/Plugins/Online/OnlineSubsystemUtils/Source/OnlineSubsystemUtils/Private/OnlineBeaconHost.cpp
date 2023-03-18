@@ -407,6 +407,18 @@ bool AOnlineBeaconHost::HandleControlMessage(UNetConnection* Connection, uint8 M
 
 					return false;
 				}
+
+				if (!VerifyJoinForBeaconType(*UniqueId, BeaconType))
+				{
+					static const FText AuthErrorText = NSLOCTEXT("NetworkErrors", "BeaconAuthError", "Unable to authenticate for beacon. Verifying auth for beacon type {0} failed for connection owned by {1}");
+
+					SendFailurePacket(Connection, ENetCloseResult::BeaconAuthError,
+										FText::Format(AuthErrorText, FText::FromString(BeaconType),
+														FText::FromString(Connection->PlayerId.ToDebugString())));
+
+					return false;
+				}
+
 				UE_LOG(LogBeacon, Log, TEXT("%s: Beacon Join %s %s"), *GetDebugName(Connection), *BeaconType, *UniqueId.ToDebugString());
 			}
 			else
@@ -666,6 +678,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 bool AOnlineBeaconHost::StartVerifyAuthentication(const FUniqueNetId& PlayerId, const FString& LoginOptions, const FString& AuthenticationToken, const FOnAuthenticationVerificationCompleteDelegate& OnComplete)
 {
 	return false;
+}
+
+bool AOnlineBeaconHost::VerifyJoinForBeaconType(const FUniqueNetId& PlayerId, const FString& BeaconType)
+{
+	return true;
 }
 
 void AOnlineBeaconHost::OnAuthenticationVerificationComplete(UNetConnection* Connection, const FOnlineError& Error)
