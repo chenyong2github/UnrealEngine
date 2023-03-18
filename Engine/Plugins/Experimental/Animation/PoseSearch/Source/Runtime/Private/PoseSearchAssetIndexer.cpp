@@ -331,6 +331,7 @@ FAssetIndexer::CachedEntry& FAssetIndexer::GetEntry(float SampleTime)
 		Pose.SetBoneContainer(&BoneContainer);
 
 		Sample.Clip->ExtractPose(ExtractionCtx, AnimPoseData);
+		Pose[FCompactPoseBoneIndex(RootBoneIndexType)].SetIdentity();
 
 		if (IndexingContext.bMirrored)
 		{
