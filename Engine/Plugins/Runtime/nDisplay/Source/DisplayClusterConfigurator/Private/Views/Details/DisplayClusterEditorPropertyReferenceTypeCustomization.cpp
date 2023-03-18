@@ -141,8 +141,9 @@ void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeChildren(
 					ReferencedPropertyHandle->SetToolTipText(InPropertyHandle->GetToolTipText());
 				}
 
-				ReferencedPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged));
-				
+				ReferencedPropertyHandle->SetOnPropertyValueChangedWithData(TDelegate<void(const FPropertyChangedEvent&)>::CreateSP(
+					this, &FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged));
+
 				const bool bHasShowOnlyInners = InPropertyHandle->HasMetaData(TEXT("ShowOnlyInnerProperties")) || InPropertyHandle->GetInstanceMetaData(TEXT("ShowOnlyInnerProperties"));
 				if (bHasShowOnlyInners)
 				{
@@ -174,10 +175,11 @@ void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeChildren(
 	}
 }
 
-void FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged()
+void FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	// When a referenced property is changed, we have to trigger layout refresh
-	if (PropertyUtilities.IsValid())
+	// When a referenced property is changed, we have to trigger layout refresh, as long as the change is not an interactive change
+	const bool bIsInteractiveChange = (PropertyChangedEvent.ChangeType & EPropertyChangeType::Interactive) != 0;
+	if (PropertyUtilities.IsValid() && !bIsInteractiveChange)
 	{
 		PropertyUtilities.Pin()->ForceRefresh();
 	}

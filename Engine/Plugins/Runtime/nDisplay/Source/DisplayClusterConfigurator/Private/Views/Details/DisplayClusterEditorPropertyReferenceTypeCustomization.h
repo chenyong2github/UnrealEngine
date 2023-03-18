@@ -35,7 +35,7 @@ private:
 	TSharedPtr<IPropertyHandle> FindRootPropertyHandle(const FString& PropertyPath, TSharedRef<IPropertyHandle>& InPropertyHandle);
 	TSharedPtr<IPropertyHandle> GetChildPropertyHandle(const FString& PropertyName, TSharedPtr<IPropertyHandle>& PropertyHandle);
 
-	void OnReferencedPropertyValueChanged();
+	void OnReferencedPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	bool IsListType(const TSharedPtr<IPropertyHandle>& PropertyHandle);
 
