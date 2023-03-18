@@ -674,9 +674,10 @@ namespace Chaos
 		ManifoldPointResults.Reset();
 		ExpectedNumManifoldPoints = 0;
 		Flags.bWasManifoldRestored = false;
+		Flags.bCanRestoreManifold = false;
 	}
 
-	bool FPBDCollisionConstraint::UpdateAndTryRestoreManifold()
+	bool FPBDCollisionConstraint::TryRestoreManifold()
 	{
 		const FCollisionTolerances Tolerances = FCollisionTolerances();//Chaos_Manifold_Tolerances;
 		const FReal ContactPositionTolerance = Tolerances.ContactPositionToleranceScale * CollisionTolerance;
@@ -691,6 +692,11 @@ namespace Chaos
 		// we have a face or edge contact. We don't reuse the manifold if we lose points after culling here
 		ExpectedNumManifoldPoints = ManifoldPoints.Num();
 		Flags.bWasManifoldRestored = false;
+
+		if (!Flags.bCanRestoreManifold)
+		{
+			return false;
+		}
 
 		// If we have not moved or rotated much we may reuse some of the manifold points, as long as they have not moved far as well (see below)
 		bool bMovedBeyondTolerance = true;
@@ -715,7 +721,6 @@ namespace Chaos
 
 		if (bMovedBeyondTolerance)
 		{
-			ResetActiveManifoldContacts();
 			return false;
 		}
 
@@ -779,7 +784,6 @@ namespace Chaos
 				else
 				{
 					// We want to remove a(nother) point, but we will never reuse the manifold now so throw it away
-					ResetActiveManifoldContacts();
 					return false;
 				}
 			}

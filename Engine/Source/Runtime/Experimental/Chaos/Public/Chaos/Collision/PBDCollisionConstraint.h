@@ -545,13 +545,17 @@ namespace Chaos
 			ShapeWorldTransforms[1] = InShapeWorldTransform1;
 		}
 
+		// Set the transforms when we last ran collision detection. This also sets the bCanRestoreManifold flag which
+		// allows the use of UpdateAndTryRestoreManifold on the next tick.
 		void SetLastShapeWorldTransforms(const FRigidTransform3& InShapeWorldTransform0, const FRigidTransform3& InShapeWorldTransform1)
 		{
 			LastShapeWorldPositionDelta = InShapeWorldTransform0.GetTranslation() - InShapeWorldTransform1.GetTranslation();
 			LastShapeWorldRotationDelta = InShapeWorldTransform0.GetRotation().Inverse() * InShapeWorldTransform1.GetRotation();
+			Flags.bCanRestoreManifold = true;
 		}
 
-		bool UpdateAndTryRestoreManifold();
+		bool GetCanRestoreManifold() const { return Flags.bCanRestoreManifold; }
+		bool TryRestoreManifold();
 		void ResetActiveManifoldContacts();
 		bool TryAddManifoldContact(const FContactPoint& ContactPoint);
 		bool TryInsertManifoldContact(const FContactPoint& ContactPoint);
@@ -696,6 +700,10 @@ namespace Chaos
 		const FPBDCollisionConstraintHandle* GetConstraintHandle() const { return this; }
 		FPBDCollisionConstraintHandle* GetConstraintHandle() { return this; }
 
+
+		UE_DEPRECATED(5.3, "Use TryRestoreManifold")
+		bool UpdateAndTryRestoreManifold() { return TryRestoreManifold(); }
+
 	protected:
 
 		FPBDCollisionConstraint(
@@ -764,18 +772,19 @@ namespace Chaos
 			FFlags() : Bits(0) {}
 			struct
 			{
-				uint32 bDisabled : 1;
-				uint32 bUseManifold : 1;
-				uint32 bUseIncrementalManifold : 1;
-				uint32 bWasManifoldRestored : 1;
-				uint32 bIsQuadratic0 : 1;
-				uint32 bIsQuadratic1 : 1;
-				uint32 bIsProbeUnmodified : 1;  // Is this constraint a probe pre-contact-modification
-				uint32 bIsProbe : 1;            // Is this constraint currently a probe
-				uint32 bCCDEnabled : 1;			// Is CCD enabled for the current tick
-				uint32 bCCDSweepEnabled: 1;		// If this is a CCD constraint, do we want to enable the sweep/rewind phase?
-				uint32 bModifierApplied : 1;	// Was a constraint modifier applied this tick
-				uint32 bMaterialSet : 1;		// Has the material been set (or does it need to be reset)
+				uint32 bDisabled : 1;					// Is this contact disabled (by the user or because cull distance is exceeded)
+				uint32 bUseManifold : 1;				// Should we use contact manifolds or single points (faster but poor behaviour)
+				uint32 bUseIncrementalManifold : 1;		// Do we need to run incremental collision detection (only LavelSets now)
+				uint32 bCanRestoreManifold : 1;			// Can we try to restore the manifold this frame (set folowing narrowphase, cleared when reset for some reason)
+				uint32 bWasManifoldRestored : 1;		// Did we restore the manifold this frame
+				uint32 bIsQuadratic0 : 1;				// Is the first shape a sphere or capsule
+				uint32 bIsQuadratic1 : 1;				// Is the second shape a sphere or capsule
+				uint32 bIsProbeUnmodified : 1;			// Is this constraint a probe pre-contact-modification
+				uint32 bIsProbe : 1;					// Is this constraint currently a probe
+				uint32 bCCDEnabled : 1;					// Is CCD enabled for the current tick
+				uint32 bCCDSweepEnabled: 1;				// If this is a CCD constraint, do we want to enable the sweep/rewind phase?
+				uint32 bModifierApplied : 1;			// Was a constraint modifier applied this tick
+				uint32 bMaterialSet : 1;				// Has the material been set (or does it need to be reset)
 			};
 			uint32 Bits;
 		};

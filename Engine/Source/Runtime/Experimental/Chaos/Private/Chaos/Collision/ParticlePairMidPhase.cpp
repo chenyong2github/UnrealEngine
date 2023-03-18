@@ -325,29 +325,30 @@ namespace Chaos
 			}
 			
 			bool bWasManifoldRestored = false;
-			if (Context.GetSettings().bAllowManifoldReuse && Flags.bEnableManifoldUpdate && bWasUpdatedLastTick)
+			const bool bAllowManifoldRestore = Context.GetSettings().bAllowManifoldReuse && Flags.bEnableManifoldUpdate;
+			if (bAllowManifoldRestore && bWasUpdatedLastTick && Constraint->GetCanRestoreManifold())
 			{
 				// Update the existing manifold. We can re-use as-is if none of the points have moved much and the bodies have not moved much
 				// NOTE: this can succeed in "restoring" even if we have no manifold points
 				// NOTE: this uses the transforms from SetLastShapeWorldTransforms, so we can only do this if we were updated last tick
-				bWasManifoldRestored = Constraint->UpdateAndTryRestoreManifold();
-			}
-			else
-			{
-				// We are not trying to reuse manifold points, so reset them but leave stored data intact (for friction)
-				Constraint->ResetActiveManifoldContacts();
+				bWasManifoldRestored = Constraint->TryRestoreManifold();
 			}
 
 			if (!bWasManifoldRestored)
 			{
-				// We will be updating the manifold so update transforms used to check for movement in UpdateAndTryRestoreManifold on future ticks
-				Constraint->SetLastShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+				// We are not trying to (or chose not to) reuse manifold points, so reset them but leave stored data intact (for friction)
+				Constraint->ResetActiveManifoldContacts();
 
 				if (!Context.GetSettings().bDeferNarrowPhase)
 				{
 					// Run the narrow phase
 					Collisions::UpdateConstraint(*Constraint.Get(), ShapeWorldTransform0, ShapeWorldTransform1, Dt);
 				}
+
+				// We will be updating the manifold so update transforms used to check for movement in UpdateAndTryRestoreManifold on future ticks
+				// NOTE: We call this after Collisions::UpdateConstraint because it may reset the manifold and reset the bCanRestoreManifold flag.
+				// @todo(chaos): Collisions::UpdateConstraint does not need to reset the manifold - fix that
+				Constraint->SetLastShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 			}
 
 			// If we have a valid contact, add it to the active list
