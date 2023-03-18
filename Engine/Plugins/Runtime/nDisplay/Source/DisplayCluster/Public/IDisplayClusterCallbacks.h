@@ -107,9 +107,14 @@ public:
 	DECLARE_EVENT_ThreeParams(IDisplayClusterCallbacks, FDisplayClusterPostFrameRender_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportManagerProxy*, FViewport*);
 	virtual FDisplayClusterPostFrameRender_RenderThread& OnDisplayClusterPostFrameRender_RenderThread() = 0;
 
-	/** Called after backbuffer update **/
+	/** (deprecated) Called after backbuffer update **/
 	DECLARE_EVENT_ThreeParams(IDisplayClusterCallbacks, FDisplayClusterPostBackbufferUpdate_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportManagerProxy*, FViewport*);
+	UE_DEPRECATED(5.2, "This event getter has been deprecated. Please use OnDisplayClusterPostBackbufferUpdated_RenderThread()")
 	virtual FDisplayClusterPostBackbufferUpdate_RenderThread& OnDisplayClusterPostBackbufferUpdate_RenderThread() = 0;
+
+	/** Called after backbuffer update **/
+	DECLARE_EVENT_TwoParams(IDisplayClusterCallbacks, FDisplayClusterPostBackbufferUpdated_RenderThread, FRHICommandListImmediate&, FViewport*);
+	virtual FDisplayClusterPostBackbufferUpdated_RenderThread& OnDisplayClusterPostBackbufferUpdated_RenderThread() = 0;
 
 	/** Called before applying ICVFX shaders **/
 	DECLARE_EVENT_FourParams(IDisplayClusterCallbacks, FDisplayClusterPreProcessIcvfx_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportProxy*, FDisplayClusterShaderParameters_WarpBlend&, FDisplayClusterShaderParameters_ICVFX&);

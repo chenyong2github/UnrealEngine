@@ -259,11 +259,12 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 
 	TMap<FString, UDisplayClusterConfigurationViewport*> ViewportsByName;
 	
-	for (const auto& ClusterNodes : BlueprintData->Cluster->Nodes)
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& ClusterNode : BlueprintData->Cluster->Nodes)
 	{
-		if (ClusterNodes.Value->Viewports.Num() > 0)
+		// Validate vieports
+		if (ClusterNode.Value->Viewports.Num() > 0)
 		{
-			for (const auto& Viewport : ClusterNodes.Value->Viewports)
+			for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& Viewport : ClusterNode.Value->Viewports)
 			{
 				const FString ViewportName = Viewport.Value->GetName();
 
@@ -291,10 +292,16 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 		{
 			// It's allowed not to have any viewports when rendering offscreen. For example, we're going to render
 			// ICVFX inner views only which don't require any viewports. In other cases continue throwing a warning.
-			if (!ClusterNodes.Value->bRenderHeadless)
+			if (!ClusterNode.Value->bRenderHeadless)
 			{
-				MessageLog.Warning(*LOCTEXT("NoViewportsError", "Node @@ has no viewports. Please add a viewport.").ToString(), *ClusterNodes.Key);
+				MessageLog.Warning(*LOCTEXT("NoViewportsError", "Node @@ has no viewports. Please add a viewport.").ToString(), *ClusterNode.Key);
 			}
+		}
+
+		// Warn user about fullscreen + headless
+		if (ClusterNode.Value->bRenderHeadless && ClusterNode.Value->bIsFullscreen)
+		{
+			MessageLog.Warning(*LOCTEXT("HeadlessFullscreen", "Node @@ has both 'headless' and 'fullscreen' flags set. It's not forbidden but make sure it's intentional as the backbuffer will have the desktop's size.").ToString(), *ClusterNode.Key);
 		}
 	}
 }

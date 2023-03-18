@@ -122,6 +122,11 @@ public:
 		return DisplayClusterPostBackbufferUpdateEvent;
 	}
 
+	virtual FDisplayClusterPostBackbufferUpdated_RenderThread& OnDisplayClusterPostBackbufferUpdated_RenderThread() override
+	{
+		return DisplayClusterPostBackbufferUpdatedEvent;
+	}
+
 	virtual FDisplayClusterPreProcessIcvfx_RenderThread& OnDisplayClusterPreProcessIcvfx_RenderThread() override
 	{
 		return FDisplayClusterPreProcessIcvfxEvent;
@@ -152,5 +157,6 @@ private:
 	FDisplayClusterProcessLatency_RenderThread       FDisplayClusterProcessLatencyEvent;
 	FDisplayClusterPostFrameRender_RenderThread      DisplayClusterPostFrameRenderEvent;
 	FDisplayClusterPostBackbufferUpdate_RenderThread DisplayClusterPostBackbufferUpdateEvent;
+	FDisplayClusterPostBackbufferUpdated_RenderThread DisplayClusterPostBackbufferUpdatedEvent;
 	FDisplayClusterPreProcessIcvfx_RenderThread      FDisplayClusterPreProcessIcvfxEvent;
 };
