@@ -249,6 +249,7 @@ LAUNCH_API int32 LaunchWindowsStartup( HINSTANCE hInInstance, HINSTANCE hPrevIns
 				? ( GEnableInnerException ? EXCEPTION_EXECUTE_HANDLER : ReportCrash(GetExceptionInformation()) )
 				: EXCEPTION_CONTINUE_SEARCH )	
 		{
+			UE_LOG(LogLaunchWindows, Log, TEXT("LaunchWindowsStartup.ExceptionHandler"));
 			// Crashed.
 			ErrorLevel = 1;
 			if(GError)

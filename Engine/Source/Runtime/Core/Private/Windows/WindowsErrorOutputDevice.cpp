@@ -113,6 +113,7 @@ void FWindowsErrorOutputDevice::HandleError()
 	FMsg::Logf(__FILE__, __LINE__, LogWindows.GetCategoryName(), ELogVerbosity::Display, TEXT("OnHandleSystemError.Broadcast"));
 #endif
 	FCoreDelegates::OnHandleSystemError.Broadcast();
+	GLog->Panic();
 
 	// Dump the error and flush the log. If you change behavior here, you should probably update RenderingThread's __except block in FRenderingThread::Run
 #if !NO_LOGGING
