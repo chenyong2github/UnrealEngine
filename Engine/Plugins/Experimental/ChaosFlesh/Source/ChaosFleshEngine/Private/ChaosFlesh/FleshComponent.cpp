@@ -445,24 +445,72 @@ void UFleshComponent::RenderProceduralMesh()
 
 					if (const FFleshCollection* Flesh = FleshAsset->GetCollection())
 					{
+						if (HideTetrahedra.Num() != NumSkippedTets)
+						{
+							const TManagedArray<FIntVector4>* Tets =
+								Flesh->FindAttribute<FIntVector4>(
+									FTetrahedralCollection::TetrahedronAttribute, FTetrahedralCollection::TetrahedralGroup);
+
+							FaceVerticesToSkip.Reset();
+							for (TSet<int32>::TConstIterator It = HideTetrahedra.CreateConstIterator(); It; ++It)
+							{
+								const int32 Idx = *It;
+								if (Idx >= 0 && Idx < Tets->Num())
+								{
+									const FIntVector4& Tet = (*Tets)[Idx];
+									for (int32 i = 0; i < 4; i++)
+									{
+										FaceVerticesToSkip.Add(Tet[i]);
+									}
+								}
+							}
+							NumSkippedTets = HideTetrahedra.Num();
+							NumSkippedFaces = 0;
+						}
+
 						int32 NumVertices = Flesh->NumElements(FGeometryCollection::VerticesGroup);
 						int32 NumFaces = Flesh->NumElements(FGeometryCollection::FacesGroup);
 						if (NumFaces && NumVertices)
 						{
-							if (RenderMesh && RenderMesh->Vertices.Num() != NumFaces * 3)
+							if (RenderMesh && RenderMesh->Vertices.Num() != (NumFaces - NumSkippedFaces) * 3)
 							{
 								ResetProceduralMesh();
 							}
 
+							// Find vertices array.  Use dynamic collection if available and size matches.
+							const TManagedArray<FVector3f>* RenderVertex = &Flesh->Vertex;
+							if (GetDynamicCollection())
+							{
+								const TManagedArray<FVector3f>& DynamicVertex = GetDynamicCollection()->GetPositions();
+								if (DynamicVertex.Num() == RenderVertex->Num())
+								{
+									RenderVertex = &DynamicVertex;
+								}
+							}
+
+							const TManagedArray<bool>* FacesVisible =
+								Flesh->FindAttribute<bool>(
+									"Visible", FGeometryCollection::FacesGroup);
+
 							if (!RenderMesh)
 							{
 								RenderMesh = new FFleshRenderMesh;
+								NumSkippedFaces = 0;
 
-								for (int i = 0; i < NumFaces; ++i)
+								for (int i = 0, j = 0; i < NumFaces; ++i)
 								{
-									const auto& P1 = Flesh->Vertex[Flesh->Indices[i][0]];
-									const auto& P2 = Flesh->Vertex[Flesh->Indices[i][1]];
-									const auto& P3 = Flesh->Vertex[Flesh->Indices[i][2]];
+									if (((FacesVisible && (*FacesVisible)[i] == false)) ||
+										(FaceVerticesToSkip.Contains(Flesh->Indices[i][0]) &&
+										 FaceVerticesToSkip.Contains(Flesh->Indices[i][1]) &&
+										 FaceVerticesToSkip.Contains(Flesh->Indices[i][2])))
+									{
+										NumSkippedFaces++;
+										continue;
+									}
+
+									const auto& P1 = (*RenderVertex)[Flesh->Indices[i][0]];
+									const auto& P2 = (*RenderVertex)[Flesh->Indices[i][1]];
+									const auto& P3 = (*RenderVertex)[Flesh->Indices[i][2]];
 
 									RenderMesh->Vertices.Add(FVector(P1));
 									RenderMesh->Vertices.Add(FVector(P2));
@@ -476,9 +524,9 @@ void UFleshComponent::RenderProceduralMesh()
 									RenderMesh->UVs.Add(FVector2D(0, 0));
 									RenderMesh->UVs.Add(FVector2D(0, 0));
 
-									RenderMesh->Triangles.Add(3 * i);
-									RenderMesh->Triangles.Add(3 * i + 1);
-									RenderMesh->Triangles.Add(3 * i + 2);
+									RenderMesh->Triangles.Add(3 * j);
+									RenderMesh->Triangles.Add(3 * j + 1);
+									RenderMesh->Triangles.Add(3 * j + 2);
 
 									auto Normal = -Chaos::FVec3::CrossProduct(P3 - P1, P2 - P1);
 									RenderMesh->Normals.Add(Normal);
@@ -491,6 +539,8 @@ void UFleshComponent::RenderProceduralMesh()
 									RenderMesh->Tangents.Add(FProcMeshTangent(Tangent[0], Tangent[1], Tangent[2]));
 									Tangent = (P1 - P3).GetSafeNormal();
 									RenderMesh->Tangents.Add(FProcMeshTangent(Tangent[0], Tangent[1], Tangent[2]));
+								
+									j++;
 								}
 
 								Mesh->SetRelativeTransform(GetComponentTransform());
@@ -498,37 +548,40 @@ void UFleshComponent::RenderProceduralMesh()
 							}
 							else
 							{
-
-								const TManagedArray<FVector3f>* RenderVertex = &Flesh->Vertex;
-								if (GetDynamicCollection())
-								{
-									const TManagedArray<FVector3f>& DynamicVertex = GetDynamicCollection()->GetPositions();
-									if (DynamicVertex.Num()) RenderVertex = &DynamicVertex;
-								}
 								auto InRange = [](int32 Size, int32 Val) { return 0 <= Val && Val < Size; };
 
 								// Display only
-								for (int i = 0; i < NumFaces; ++i)
+								for (int i = 0, j = 0; i < NumFaces; ++i)
 								{
+									if (((FacesVisible && (*FacesVisible)[i] == false)) ||
+										(FaceVerticesToSkip.Contains(Flesh->Indices[i][0]) &&
+										 FaceVerticesToSkip.Contains(Flesh->Indices[i][1]) &&
+										 FaceVerticesToSkip.Contains(Flesh->Indices[i][2])))
+									{
+										continue;
+									}
+
 									const auto& P1 = (*RenderVertex)[Flesh->Indices[i][0]];
 									const auto& P2 = (*RenderVertex)[Flesh->Indices[i][1]];
 									const auto& P3 = (*RenderVertex)[Flesh->Indices[i][2]];
 
-									RenderMesh->Vertices[3 * i] = FVector(P1);
-									RenderMesh->Vertices[3 * i + 1] = FVector(P2);
-									RenderMesh->Vertices[3 * i + 2] = FVector(P3);
+									RenderMesh->Vertices[3 * j] = FVector(P1);
+									RenderMesh->Vertices[3 * j + 1] = FVector(P2);
+									RenderMesh->Vertices[3 * j + 2] = FVector(P3);
 
 									auto Normal = Chaos::FVec3::CrossProduct(P3 - P1, P2 - P1);
-									RenderMesh->Normals[3 * i] = Normal;
-									RenderMesh->Normals[3 * i + 1] = Normal;
-									RenderMesh->Normals[3 * i + 2] = Normal;
+									RenderMesh->Normals[3 * j] = Normal;
+									RenderMesh->Normals[3 * j + 1] = Normal;
+									RenderMesh->Normals[3 * j + 2] = Normal;
 
 									auto Tangent = (P2 - P1).GetSafeNormal();
-									RenderMesh->Tangents[3 * i] = FProcMeshTangent(Tangent[0], Tangent[1], Tangent[2]);
+									RenderMesh->Tangents[3 * j] = FProcMeshTangent(Tangent[0], Tangent[1], Tangent[2]);
 									Tangent = (P3 - P2).GetSafeNormal();
-									RenderMesh->Tangents[3 * i + 1] = FProcMeshTangent(Tangent[0], Tangent[1], Tangent[2]);
+									RenderMesh->Tangents[3 * j + 1] = FProcMeshTangent(Tangent[0], Tangent[1], Tangent[2]);
 									Tangent = (P1 - P3).GetSafeNormal();
-									RenderMesh->Tangents[3 * i + 2] = FProcMeshTangent(Tangent[0], Tangent[1], Tangent[2]);
+									RenderMesh->Tangents[3 * j + 2] = FProcMeshTangent(Tangent[0], Tangent[1], Tangent[2]);
+
+									j++;
 								}
 
 								if (!Mesh->GetComponentTransform().Equals(GetComponentTransform())) {

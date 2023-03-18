@@ -29,9 +29,21 @@ void IChaosFleshEditorPlugin::StartupModule()
 	if (GIsEditor && !IsRunningCommandlet())
 	{
 		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
-			TEXT("p.Chaos.Flesh.ImportFile"),
+			TEXT("ChaosDeformable.ImportFile"),
 			TEXT("Creates a FleshAsset from the input file"),
 			FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FChaosFleshCommands::ImportFile),
+			ECVF_Default
+		));
+
+		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("ChaosDeformable.FindQualifyingTetrahedra"),
+			TEXT("From the selected actor's flesh components, prints indices of tetrahedra matching our search criteria. "
+				"Use arg 'MinVol <value>' to specify a minimum tet volume; "
+				"use arg 'MaxAR <value>' to specify a maximum aspect ratio; "
+				"use 'XCoordGT <value>', 'YCoordGT <value>', 'ZCoordGT <value>' to select tets with all vertices greater than the specified value; "
+				"use 'XCoordLT <value>', 'YCoordLT <value>', 'ZCoordLT <value>' to select tets with all vertices less than the specified value; "
+				"use 'HideTets' to add indices to the flesh component's list of tets to skip drawing."),
+			FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FChaosFleshCommands::FindQualifyingTetrahedra),
 			ECVF_Default
 		));
 	}

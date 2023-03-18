@@ -92,11 +92,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	TArray<FVector> GetSkeletalMeshEmbeddedPositions(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "", const float SimulationBlendWeight = 1.f) const;
 
-	/** 
-	* Offset transform that moves the \c TargetDeformationSkeleton to be co-located with the flesh mesh. 
-	*/
-//	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
-//	FTransform TargetDeformationSkeletonOffset;
+	/** Indices of tetrahedra to hide. */
+	UPROPERTY(EditAnywhere, Category = "Rendering")
+	TSet<int32> HideTetrahedra;
 
 private:
 	/** FleshAsset that describes the simulation rest state. */
@@ -172,5 +170,8 @@ private:
 	int32 SimSpaceTransformIndex = INDEX_NONE;
 	int32 SimSpaceTransformGlobalIndex = INDEX_NONE;
 
+	TSet<int32> FaceVerticesToSkip;
+	int32 NumSkippedFaces = 0;
+	int32 NumSkippedTets = 0;
 };
 

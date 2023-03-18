@@ -689,7 +689,7 @@ void UProceduralMeshComponent::UpdateMeshSection(int32 SectionIndex, const TArra
 		// Update bounds, if we are getting new position data
 		if (bSameVertexCount)
 		{
-			Section.SectionLocalBox = FBox(Vertices);
+			Section.SectionLocalBox = Vertices.Num() ? FBox(Vertices) : FBox(EForceInit::ForceInit);
 
 			// Iterate through vertex data, copying in new info
 			for (int32 VertIdx = 0; VertIdx < NumVerts; VertIdx++)
