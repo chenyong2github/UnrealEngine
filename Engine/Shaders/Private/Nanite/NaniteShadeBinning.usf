@@ -54,23 +54,21 @@ FNaniteMaterialFlags GetShadingBinMaterialFlags(uint BinIndex)
 
 #if SHADING_BIN_COUNT || SHADING_BIN_SCATTER
 
-#define NUM_THREADS 8
-
-[numthreads(NUM_THREADS, NUM_THREADS, 1)]
+[numthreads(8, 8, 1)]
 void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_GroupID, uint ThreadId : SV_GroupIndex)
 {
 	const uint ViewWidth  = ViewRect.z - ViewRect.x;
 	const uint ViewHeight = ViewRect.w - ViewRect.y;
 
-	uint2 Coord = GroupId.xy * NUM_THREADS;
+	uint2 Coord = GroupId.xy * 8u;
 
-#if 0
+#if 1
 	// [0 1][2 3] -> [0 1][4 5]
 	// [4 5][6 7] -> [2 3][6 7]
 	Coord.x += BitFieldInsertU32(BitFieldMaskU32(1u, 0u), ThreadIndex, BitFieldExtractU32(ThreadIndex, 3u, 2u));
 	Coord.y += BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(ThreadIndex, 2u, 1u), BitFieldExtractU32(ThreadIndex, 3u, 3u));
 #else
-	Coord += Unflatten2D(ThreadIndex, uint2(NUM_THREADS, NUM_THREADS));
+	Coord += Unflatten2D(ThreadIndex, uint2(8u, 8u));
 #endif
 
 	const uint2 QuadTLCoord = uint2(Coord.xy << 1u) + uint2(ViewRect.xy);
