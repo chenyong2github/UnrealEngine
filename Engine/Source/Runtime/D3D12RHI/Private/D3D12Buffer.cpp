@@ -12,6 +12,8 @@ FName ChooseMetadataName(const FName& FirstChoice, const FName& SecondChoice)
 	return FirstChoice == NAME_None ? SecondChoice : FirstChoice;
 }
 
+extern int32 GD3D12BindResourceLabels;
+
 FD3D12Buffer::~FD3D12Buffer()
 {
 	if (EnumHasAnyFlags(GetUsage(), EBufferUsageFlags::VertexBuffer) && GetParentDevice())
@@ -860,7 +862,7 @@ void FD3D12DynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* De
 
 void FD3D12DynamicRHI::RHIBindDebugLabelName(FRHIBuffer* BufferRHI, const TCHAR* Name)
 {
-	if (BufferRHI == nullptr)
+	if (BufferRHI == nullptr || !GD3D12BindResourceLabels)
 	{
 		return;
 	}

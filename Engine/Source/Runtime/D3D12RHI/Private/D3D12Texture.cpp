@@ -48,6 +48,7 @@ static TAutoConsoleVariable<bool> CVarTexturePoolOnlyAccountStreamableTexture(
 	ECVF_ReadOnly
 );
 
+extern int32 GD3D12BindResourceLabels;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 // Texture Commands
@@ -2721,6 +2722,11 @@ void FD3D12DynamicRHI::RHIUnlockTextureCubeFace(FRHITextureCube* TextureCubeRHI,
 
 void FD3D12DynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHAR* Name)
 {
+	if (!TextureRHI || !GD3D12BindResourceLabels)
+	{
+		return;
+	}
+
 #if NAME_OBJECTS
 	FD3D12Texture::FLinkedObjectIterator BaseTexture(GetD3D12TextureFromRHITexture(TextureRHI));
 

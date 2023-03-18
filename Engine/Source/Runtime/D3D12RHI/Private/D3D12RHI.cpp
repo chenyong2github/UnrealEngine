@@ -21,6 +21,12 @@
 DEFINE_LOG_CATEGORY(LogD3D12RHI);
 DEFINE_LOG_CATEGORY(LogD3D12GapRecorder);
 
+int32 GD3D12BindResourceLabels = 1;
+static FAutoConsoleVariableRef CVarD3D12BindResourceLabels(
+	TEXT("d3d12.BindResourceLabels"),
+	GD3D12BindResourceLabels,
+	TEXT("Whether to enable binding of debug names to D3D12 resources."));
+
 static TAutoConsoleVariable<int32> CVarD3D12UseD24(
 	TEXT("r.D3D12.Depth24Bit"),
 	0,
