@@ -115,6 +115,7 @@ void FExternalPackageHelper::LoadObjectsFromExternalPackages(UObject* InOuter, T
 		Filter.bRecursivePaths = true;
 		Filter.bIncludeOnlyOnDiskAssets = true;
 		Filter.ClassPaths.Add(T::StaticClass()->GetClassPathName());
+		Filter.bRecursiveClasses = true;
 		Filter.PackagePaths.Add(*ExternalObjectsPath);
 
 		TArray<FAssetData> Assets;
