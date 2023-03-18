@@ -359,4 +359,5 @@ struct FNanitePickingFeedback
 };
 
 #undef  INT_TYPE
-#undef UINT_TYPE#undef INLINE_ATTR
+#undef UINT_TYPE
+#undef INLINE_ATTR
