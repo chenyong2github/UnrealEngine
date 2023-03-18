@@ -94,6 +94,9 @@ struct MOVIESCENE_API TMovieSceneCurveChannelImpl
 	/** Add a new key to a channel at a given time */
 	static FKeyHandle AddKeyToChannel(ChannelType* InChannel, FFrameNumber InFrameNumber, float InValue, EMovieSceneKeyInterpolation Interpolation);
 
+	/** Get Tangent Value at the specified time with specified delta in seconds*/
+	static double GetTangentValue(ChannelType* InChannel, const FFrameNumber InFrameTime, const float InValue, double InDeltaTime);
+
 	/**
 	 * Get the interpolation mode to use at a specified time
 	 *

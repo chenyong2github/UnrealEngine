@@ -1142,6 +1142,50 @@ EMovieSceneKeyInterpolation TMovieSceneCurveChannelImpl<ChannelType>::GetInterpo
 }
 
 template<typename ChannelType>
+double TMovieSceneCurveChannelImpl<ChannelType>::GetTangentValue(ChannelType* InChannel, const FFrameNumber InFrameTime, const float InFloatValue, double DeltaTime)
+{
+	//if zero set to .1 default
+	if (FMath::IsNearlyZero(DeltaTime))
+	{
+		DeltaTime = 0.1;
+	}
+	// Time as seconds
+	double InValue = InFloatValue;
+	FFrameRate TickResolution = InChannel->GetTickResolution();
+	const double InTime = TickResolution.AsSeconds(InFrameTime);
+
+	double TargetTime = InTime + DeltaTime;				// The time to get tangent value. Could be left or right depending on is DeltaTime is negative or positive
+	CurveValueType CurveTargetValue = 0;	// The helper value to get Tangent value
+	CurveValueType CurveValue = 0;
+	Evaluate(InChannel, InFrameTime, CurveValue);
+	Evaluate(InChannel, TargetTime * TickResolution, CurveTargetValue);	// Initialize TargetValue by TargetTime
+	double TargetValue = CurveTargetValue;
+	double Value = CurveValue;
+	double TangentValue = (TargetValue - InValue) / FMath::Abs(DeltaTime);	// The tangent value to return
+	
+	double PrevTangent = DBL_MAX;						// Used for determine whether the tangent is close to the limit
+	int32 Count = 10;									// Preventing we stuck in this function for too long
+
+	// Logic
+	// While the tangents not close enough and we haven't reach the max iteration time
+	while (!FMath::IsNearlyEqual(FMath::Abs(TangentValue), FMath::Abs(PrevTangent)) && Count > 0)
+	{
+		// Update previous tangent value and make delta time smaller
+		PrevTangent = TangentValue;
+		DeltaTime /= 2.0;
+		TargetTime = InTime + DeltaTime;
+
+		// Calculate a more precise tangent value
+		Evaluate(InChannel, TargetTime * TickResolution, CurveTargetValue);
+		TargetValue = CurveTargetValue;
+		TangentValue = (TargetValue - InValue) / FMath::Abs(DeltaTime);
+
+		--Count;
+	}
+	return TangentValue * TickResolution.AsInterval();
+}
+
+template<typename ChannelType>
 FKeyHandle TMovieSceneCurveChannelImpl<ChannelType>::AddKeyToChannel(ChannelType* InChannel, FFrameNumber InFrameNumber, float InValue, EMovieSceneKeyInterpolation Interpolation)
 {
 	TMovieSceneChannelData<ChannelValueType> ChannelData = InChannel->GetData();
@@ -1152,13 +1196,30 @@ FKeyHandle TMovieSceneCurveChannelImpl<ChannelType>::AddKeyToChannel(ChannelType
 		Value.Value = InValue;
 		AutoSetTangents(InChannel);
 	}
-	else switch (Interpolation)
+	else
 	{
-		case EMovieSceneKeyInterpolation::Auto:     ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_Auto);  break;
-		case EMovieSceneKeyInterpolation::User:     ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_User);  break;
-		case EMovieSceneKeyInterpolation::Break:    ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_Break); break;
-		case EMovieSceneKeyInterpolation::Linear:   ExistingIndex = InChannel->AddLinearKey(InFrameNumber, InValue);            break;
-		case EMovieSceneKeyInterpolation::Constant: ExistingIndex = InChannel->AddConstantKey(InFrameNumber, InValue);          break;
+		FMovieSceneTangentData TangentData;
+		if ((Interpolation == EMovieSceneKeyInterpolation::User || Interpolation == EMovieSceneKeyInterpolation::Break)
+			&& ChannelData.GetTimes().Num() > 2)
+		{
+			const double DeltaTime = 0.1;
+
+			// Left
+			TangentData.ArriveTangent = -GetTangentValue(InChannel, InFrameNumber, InValue, -DeltaTime);
+
+			// Right
+			TangentData.LeaveTangent = GetTangentValue(InChannel, InFrameNumber, InValue, DeltaTime);
+
+		}
+		switch (Interpolation)
+		{
+
+			case EMovieSceneKeyInterpolation::Auto:     ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_Auto);  break;
+			case EMovieSceneKeyInterpolation::User:     ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_User, TangentData);  break;
+			case EMovieSceneKeyInterpolation::Break:    ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_Break, TangentData); break;
+			case EMovieSceneKeyInterpolation::Linear:   ExistingIndex = InChannel->AddLinearKey(InFrameNumber, InValue);            break;
+			case EMovieSceneKeyInterpolation::Constant: ExistingIndex = InChannel->AddConstantKey(InFrameNumber, InValue);          break;
+		}
 	}
 
 	return InChannel->GetData().GetHandle(ExistingIndex);
