@@ -91,6 +91,7 @@ private:
 
 	FReply HandleClicked_PlayAll();
 	FReply HandleClicked_PlayAllReverse();
+	FReply HandleClicked_PauseAll();
 	FReply HandleClicked_StopAll();
 	FReply HandleClicked_ResetAll();
 	FReply HandleClicked_AddSequence();

@@ -344,7 +344,7 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_Transport()
 			.ContentPadding(FMargin(0.0f, 2.0f))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.OnClicked(this, &SSequencerPlaylistPanel::HandleClicked_PlayAll)
+			.OnClicked(this, &SSequencerPlaylistPanel::HandleClicked_PauseAll)
 			.ToolTipText(LOCTEXT("PauseAllButtonTooltip", "Pause all items."))
 			[
 				SNew(SImage)
@@ -821,6 +821,19 @@ FReply SSequencerPlaylistPanel::HandleClicked_PlayAllReverse()
 	}
 
 	Player->PlayAll(ESequencerPlaylistPlaybackDirection::Reverse);
+	return FReply::Handled();
+}
+
+
+FReply SSequencerPlaylistPanel::HandleClicked_PauseAll()
+{
+	USequencerPlaylistPlayer* Player = WeakPlayer.Get();
+	if (!ensure(Player))
+	{
+		return FReply::Unhandled();
+	}
+
+	Player->PauseAll();
 	return FReply::Handled();
 }
 

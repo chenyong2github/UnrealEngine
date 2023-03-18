@@ -74,13 +74,16 @@ public:
 	bool PlayAll(ESequencerPlaylistPlaybackDirection Direction = ESequencerPlaylistPlaybackDirection::Forward);
 
 	UFUNCTION(BlueprintCallable, Category="Sequencer Playlists")
+	bool PauseAll();
+
+	UFUNCTION(BlueprintCallable, Category="Sequencer Playlists")
 	bool StopAll();
 
 	UFUNCTION(BlueprintCallable, Category="Sequencer Playlists")
 	bool ResetAll();
 
 private:
-	TSharedPtr<ISequencer> GetSequencer();
+	TSharedPtr<ISequencer> GetOrCreateSequencer();
 
 	/**
 	 * Enters unbounded play (like Take Recorder) if the user is not recording.
@@ -91,9 +94,6 @@ private:
 	 * Ticked by a tickable game object to perform any necessary time-sliced logic
 	 */
 	void Tick(float DeltaTime);
-
-	/** Centralizes additional common assumptions that are convenient for downstream code to make. */
-	TSharedPtr<ISequencer> GetValidatedSequencer();
 
 	void OnTakeRecorderInitialized(UTakeRecorder* InRecorder);
 	void OnTakeRecorderStarted(UTakeRecorder* InRecorder);

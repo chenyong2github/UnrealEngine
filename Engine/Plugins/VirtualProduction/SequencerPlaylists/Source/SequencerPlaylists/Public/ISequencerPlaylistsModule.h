@@ -59,10 +59,11 @@ public:
 	                  ESequencerPlaylistPlaybackDirection Direction = ESequencerPlaylistPlaybackDirection::Forward) = 0;
 
 	/**
-	 * Suspend playback of the specified item and begin a hold.
+	 * Suspend playback of the specified item (if it is playing) and begin a hold.
+	 * If it is already paused, resume playback.
 	 * @return True if the current sequence was modified, otherwise false.
 	 */
-	virtual bool Pause(USequencerPlaylistItem* Item) = 0;
+	virtual bool TogglePause(USequencerPlaylistItem* Item) = 0;
 
 	/**
 	 * Halt any current playback of the specified item.

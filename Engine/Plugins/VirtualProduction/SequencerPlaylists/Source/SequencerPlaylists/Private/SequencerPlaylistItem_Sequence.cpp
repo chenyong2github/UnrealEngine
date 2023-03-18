@@ -99,7 +99,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::Play(
 }
 
 
-bool FSequencerPlaylistItemPlayer_Sequence::Pause(USequencerPlaylistItem* Item)
+bool FSequencerPlaylistItemPlayer_Sequence::TogglePause(USequencerPlaylistItem* Item)
 {
 	return InternalPause(Item);
 }
