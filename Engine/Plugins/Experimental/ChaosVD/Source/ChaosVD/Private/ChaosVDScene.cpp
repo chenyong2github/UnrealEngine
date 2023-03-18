@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosVD/Public/ChaosVDScene.h"
+#include "ChaosVDScene.h"
 
 #include "ChaosVDEditorSettings.h"
 #include "ChaosVDModule.h"

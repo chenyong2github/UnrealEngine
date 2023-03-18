@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosVD/Public/Widgets/SChaosVDTimelineWidget.h"
+#include "Widgets/SChaosVDTimelineWidget.h"
 
 #include "ChaosVDStyle.h"
 #include "Input/Reply.h"

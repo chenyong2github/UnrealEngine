@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosVD/Public/ChaosVDPlaybackViewportTab.h"
+#include "ChaosVDPlaybackViewportTab.h"
 
 #include "ChaosVDEngine.h"
 #include "ChaosVDStyle.h"
-#include "ChaosVD/Public/Widgets/SChaosVDPlaybackViewport.h"
+#include "Widgets/SChaosVDPlaybackViewport.h"
 #include "ChaosVDTabsIDs.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SChaosVDMainTab.h"

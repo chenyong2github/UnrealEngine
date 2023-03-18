@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosVD/Public/ChaosVDPlaybackController.h"
+#include "ChaosVDPlaybackController.h"
 
 #include "ChaosVDRecording.h"
 #include "ChaosVDScene.h"

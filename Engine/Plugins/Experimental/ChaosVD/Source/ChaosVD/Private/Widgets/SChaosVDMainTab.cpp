@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosVD/Public/Widgets/SChaosVDMainTab.h"
+#include "Widgets/SChaosVDMainTab.h"
 
 #include "ChaosVDEngine.h"
 #include "ChaosVDObjectDetailsTab.h"

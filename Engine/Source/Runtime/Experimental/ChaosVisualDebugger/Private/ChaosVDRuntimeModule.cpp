@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosVisualDebugger/Public/ChaosVDRuntimeModule.h"
+#include "ChaosVDRuntimeModule.h"
 
 #include "ChaosVDRecording.h"
 #include "Containers/Array.h"
