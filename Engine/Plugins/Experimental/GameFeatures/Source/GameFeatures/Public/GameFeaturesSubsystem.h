@@ -302,6 +302,9 @@ struct GAMEFEATURES_API FInstallBundlePluginProtocolMetaData
 	/** Resets all our Metadata values to the default values */
 	void ResetToDefaults();
 
+	/** disallows downloading using the bundle manager **/
+	bool bDoNotDownload;
+
 	FInstallBundlePluginProtocolMetaData();
 
 private:
@@ -313,6 +316,7 @@ private:
 		static const bool Default_bUninstallBeforeTerminate;
 		static const bool Default_bUserPauseDownload;
 		static const bool Default_bAllowIniLoading;
+		static const bool Default_bDoNotDownload;
 		static const EInstallBundleRequestFlags Default_InstallBundleFlags;
 		static const EInstallBundleReleaseRequestFlags Default_ReleaseInstallBundleFlags;
 	};

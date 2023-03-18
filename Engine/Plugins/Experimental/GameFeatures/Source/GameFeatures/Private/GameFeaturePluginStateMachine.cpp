@@ -395,7 +395,8 @@ namespace UE::GameFeatures
 	XOPTION(ReleaseFlags,				TEXT("ReleaseFlags"))				\
 	XOPTION(UninstallBeforeTerminate,	TEXT("UninstallBeforeTerminate"))	\
 	XOPTION(UserPauseDownload,			TEXT("Paused"))						\
-	XOPTION(AllowIniLoading,			TEXT("AllowIni"))
+	XOPTION(AllowIniLoading,			TEXT("AllowIni"))					\
+	XOPTION(DoNotDownload,				TEXT("DoNotDownload"))
 
 #define INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_ENUM(inEnum, inString) inEnum,
 enum class EGameFeatureInstallBundleProtocolOptions : uint8
@@ -1220,6 +1221,23 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 		FInstallBundlePluginProtocolMetaData& Metadata = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
 		const TArray<FName>& InstallBundles = Metadata.InstallBundles;
 		
+		// check to verify if the bundle(s) we need is already UpToDate
+		if (BundleContentState.GetAllBundlesHaveState(EInstallBundleInstallState::UpToDate))
+		{
+			bPluginDownloaded = true;
+			UpdateProgress(1.0f);
+			UpdateStateMachineImmediate();
+			return;
+		}
+
+		// not up to date, check to see if we allow downloading
+		if (Metadata.bDoNotDownload)
+		{
+			Result = GetErrorResult(TEXT("GFPStateMachine.DownloadNotAllowed"));
+			UpdateStateMachineImmediate();
+			return;
+		}
+
 		//Pull our InstallFlags from the Metadata, but also make sure SkipMount is set as there is a separate mounting step that will re-request this
 		//without SkipMount and then mount the data, this allows us to pre-download data without mounting it
 		EInstallBundleRequestFlags InstallFlags = Metadata.InstallBundleFlags;
@@ -2919,10 +2937,11 @@ void FInstallBundlePluginProtocolMetaData::ResetToDefaults()
 	bUninstallBeforeTerminate = FDefaultValues::Default_bUninstallBeforeTerminate;
 	bUserPauseDownload = FDefaultValues::Default_bUserPauseDownload;
 	bAllowIniLoading = FDefaultValues::Default_bAllowIniLoading;
+	bDoNotDownload = FDefaultValues::Default_bDoNotDownload;
 	InstallBundleFlags = FDefaultValues::Default_InstallBundleFlags;
 	ReleaseInstallBundleFlags = FDefaultValues::Default_ReleaseInstallBundleFlags;
 
-	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 7, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 8, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 }
 
 FString FInstallBundlePluginProtocolMetaData::ToString() const
@@ -2967,7 +2986,12 @@ FString FInstallBundlePluginProtocolMetaData::ToString() const
 		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%s"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::AllowIniLoading), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, *LexToString(bAllowIniLoading)));
 	}
 
-	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 7, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+	if (bDoNotDownload != FDefaultValues::Default_bDoNotDownload)
+	{
+		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%s"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::DoNotDownload), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, *LexToString(bDoNotDownload)));
+	}
+
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 8, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 
 	return ReturnedString;
 }
@@ -3117,6 +3141,21 @@ bool FInstallBundlePluginProtocolMetaData::FromString(const FString& URLString, 
 						break;
 					}
 
+					case EGameFeatureInstallBundleProtocolOptions::DoNotDownload:
+					{
+						if (OptionStrings.Num() != 2)
+						{
+							bParseSuccess = false;
+							UE_LOG(LogGameFeatures, Warning, TEXT("Error parsing InstallBundle protocol options URL %s . Invalid DoNotDownload Option!"), *URLString);
+						}
+						else
+						{
+							Metadata.bDoNotDownload = OptionStrings[1].ToBool();
+						}
+
+						break;
+					}
+
 					case EGameFeatureInstallBundleProtocolOptions::Count:
 					default:
 					{
@@ -3136,7 +3175,7 @@ bool FInstallBundlePluginProtocolMetaData::FromString(const FString& URLString, 
 		UE_LOG(LogGameFeatures, Error, TEXT("Error parsing InstallBundle protocol options URL %s . No Bundle List Found!"), *URLString);
 	}
 
-	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 7, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 8, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 
 	return bParseSuccess;
 }
