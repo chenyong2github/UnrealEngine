@@ -3,7 +3,8 @@
 #include "NaniteShadeCommon.ush"
 
 uint4 ViewRect;
-uint ShadingBinCount;
+uint2 QuadDispatchDim;
+uint  ShadingBinCount;
 
 #if (SHADING_BIN_PASS == NANITE_SHADING_BIN_COUNT)
 	#define SHADING_BIN_COUNT		1

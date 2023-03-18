@@ -267,7 +267,7 @@ void ExportPixel(const float2 PixelPos, FPixelShaderOut ShadedPixel)
 
 #define VIS_HELPER_LANES 0
 
-void ProcessPixel(bool bActiveLane, uint ShadingBin, const uint2 PixelPos, uint QuadIndex, bool3 PixelCopy, uint HelperLaneCount)
+void ProcessPixel(bool bActiveLane, uint ShadingBin, const uint2 PixelPos, uint QuadIndex, uint DispatchIndex, bool3 PixelCopy, uint HelperLaneCount)
 {
 	// All lanes shade (regardless of export - so ddx/ddy are valid)
 	FPixelShaderOut ShadedPixel = ShadePixel(PixelPos, QuadIndex);
@@ -278,9 +278,9 @@ void ProcessPixel(bool bActiveLane, uint ShadingBin, const uint2 PixelPos, uint 
 	ShadedPixel.MRT[3].rgb = ColorMapTurbo(50.0);
 #elif 0
 	// Coherency vis
-	float R =  (DispatchThreadID.x & 0xFFu) / 255.0f;
-	float G = ((DispatchThreadID.x & 0xFF00u) >> 8u) / 255.0f;
-	float B = ((DispatchThreadID.x & 0xFF0000u) >> 16u) / 255.0f;
+	float R =  (DispatchIndex & 0xFFu) / 255.0f;
+	float G = ((DispatchIndex & 0xFF00u) >> 8u) / 255.0f;
+	float B = ((DispatchIndex & 0xFF0000u) >> 16u) / 255.0f;
 	ShadedPixel.MRT[3].rgb = float3(R, G, B);
 #elif 0
 	ShadedPixel.MRT[3].rgb = IntToColor(ShadingBin);
@@ -406,6 +406,6 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 	const uint2 PixelPos = Quad.TopLeft + uint2(CornerIndex & 1u, (CornerIndex >> 1u) & 1u);
 
 	// Shade and export quad
-	ProcessPixel(bActiveLane, ShadingBin, PixelPos, QuadIndex, PixelCopy, HelperLaneCount);
+	ProcessPixel(bActiveLane, ShadingBin, PixelPos, QuadIndex, DispatchThreadID.x, PixelCopy, HelperLaneCount);
 }
 

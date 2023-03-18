@@ -522,6 +522,7 @@ class FShadingBinBuildCS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FUint32Vector4, ViewRect)
+		SHADER_PARAMETER(FUint32Vector2, QuadDispatchDim)
 		SHADER_PARAMETER(uint32, ShadingBinCount)
 		SHADER_PARAMETER(uint32, ShadingRateTileSize)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ShadingRateImage)
@@ -3070,6 +3071,7 @@ FShadeBinning ShadeBinning(
 	{
 		FShadingBinBuildCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FShadingBinBuildCS::FParameters>();
 		PassParameters->ViewRect = ViewRect;
+		PassParameters->QuadDispatchDim = FUint32Vector2(QuadDispatchDim.X, QuadDispatchDim.Y);
 		PassParameters->ShadingBinCount = ShadingBinCount;
 		PassParameters->ShadingRateTileSize = GetShadingRateTileSize();
 		PassParameters->ShadingRateImage = GetShadingRateImage(GraphBuilder, View);
@@ -3126,6 +3128,7 @@ FShadeBinning ShadeBinning(
 	{
 		FShadingBinBuildCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FShadingBinBuildCS::FParameters>();
 		PassParameters->ViewRect = ViewRect;
+		PassParameters->QuadDispatchDim = FUint32Vector2(QuadDispatchDim.X, QuadDispatchDim.Y);
 		PassParameters->ShadingBinCount = ShadingBinCount;
 		PassParameters->ShadingRateTileSize = GetShadingRateTileSize();
 		PassParameters->ShadingRateImage = GetShadingRateImage(GraphBuilder, View);
