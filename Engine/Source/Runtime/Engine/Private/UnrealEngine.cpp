@@ -12594,19 +12594,6 @@ UFont* GetStatsFont()
 }
 
 
-/**
-* Syncs the game thread with the render thread. Depending on passed in bool this will be a total
-* sync or a one frame lag.
-*/
-
-int32 GDoAsyncLoadingWhileWaitingForVSync = 1;
-static FAutoConsoleVariableRef GDoAsyncLoadingWhileWaitingForVSyncCVar(
-	TEXT("Engine.DoAsyncLoadingWhileWaitingForVSync"),
-	GDoAsyncLoadingWhileWaitingForVSync,
-	TEXT("If true process async loading while we wait for vsync."),
-	ECVF_Default
-);
-
 FFrameEndSync::FFrameEndSync()
 {
 	// FFrameEndSync instances are often used as static local vars. we need to cleanup them on engine exit to avoid static destruciton order problem
@@ -12669,24 +12656,6 @@ void FFrameEndSync::Sync( bool bAllowOneFrameThreadLag )
 		EventIndex = (EventIndex + 1) % 2;
 	}
 
-	// if we only have two cores, it is important to leave them for the RT to get its work done.
-	static bool bEnoughCoresToDoAsyncLoadingWhileWaitingForVSync = FPlatformMisc::NumberOfCoresIncludingHyperthreads() > 2;
-
-	if (bEnoughCoresToDoAsyncLoadingWhileWaitingForVSync && GDoAsyncLoadingWhileWaitingForVSync)
-	{
-		const int32 MaxTicks = 5;
-		int32 NumTicks = 0;
-		float TimeLimit = GAsyncLoadingTimeLimit / 1000.f / float(MaxTicks);
-		while (NumTicks < MaxTicks && !Fence[EventIndex].IsFenceComplete() && IsAsyncLoading())
-		{
-			NumTicks++;
-			ProcessAsyncLoading(true, false, TimeLimit);
-			if (bEmptyGameThreadTasks)
-			{
-				FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-			}
-		}
-	}
 	Fence[EventIndex].Wait(bEmptyGameThreadTasks);  // here we also opportunistically execute game thread tasks while we wait
 }
 
