@@ -108,6 +108,11 @@ public:
 	TArray<FString> GetFilenames() const;
 
 	/**
+	 * Check whether a file exists in the file states or offline files
+	 */
+	bool ContainsFilename(const FString& PackageFilename) const;
+
+	/**
 	 * Serialize the state of the Uncontrolled Changelist to a Json Object.
 	 * @param 	OutJsonObject 	The Json object used to serialize.
 	 */

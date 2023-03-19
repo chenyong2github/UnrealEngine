@@ -181,7 +181,7 @@ void FSceneOutlinerTreeItemSCC::HandleUncontrolledChangelistsStateChanged()
 
 	for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistStateRef : UncontrolledChangelistStates)
 	{
-		if (UncontrolledChangelistStateRef->GetFilenames().Contains(ExternalPackageFileName))
+		if (UncontrolledChangelistStateRef->ContainsFilename(ExternalPackageFileName))
 		{
 			UncontrolledChangelistState = UncontrolledChangelistStateRef;
 			break;

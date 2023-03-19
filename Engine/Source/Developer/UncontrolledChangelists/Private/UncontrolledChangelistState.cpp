@@ -2,6 +2,7 @@
 
 #include "UncontrolledChangelistState.h"
 
+#include "Algo/AnyOf.h"
 #include "Algo/Copy.h"
 #include "Algo/Transform.h"
 #include "Dom/JsonObject.h"
@@ -88,6 +89,11 @@ TArray<FString> FUncontrolledChangelistState::GetFilenames() const
 	Algo::Transform(GetOfflineFiles(), Filenames, [](const FString& Pathname) { return Pathname; });
 
 	return Filenames;
+}
+
+bool FUncontrolledChangelistState::ContainsFilename(const FString& PackageFilename) const
+{
+	return  OfflineFiles.Contains(PackageFilename) || Algo::AnyOf(Files, [&PackageFilename](const TSharedRef<ISourceControlState>& FileState){ return FileState->GetFilename() == PackageFilename; });
 }
 
 void FUncontrolledChangelistState::Serialize(TSharedRef<FJsonObject> OutJsonObject) const
