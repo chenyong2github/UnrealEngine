@@ -90,7 +90,7 @@ FD3D12QueryHeap::FD3D12QueryHeap(FD3D12Device* Device, D3D12_QUERY_TYPE QueryTyp
 		VERIFYD3D12RESULT(Device->GetDevice()->CreateQueryHeap(&QueryHeapDesc, IID_PPV_ARGS(D3DQueryHeap.GetInitReference())));
 		SetName(D3DQueryHeap, QueryHeapName);
 
-#if ENABLE_RESIDENCY_MANAGEMENT
+#if ENABLE_RESIDENCY_MANAGEMENT && 0 // Temporary workaround for missing resource usage tracking for query heap
 		D3DX12Residency::Initialize(ResidencyHandle, D3DQueryHeap, ResultSize * NumQueries, this);
 		D3DX12Residency::BeginTrackingObject(Device->GetResidencyManager(), ResidencyHandle);
 #endif
@@ -132,7 +132,10 @@ FD3D12QueryHeap::~FD3D12QueryHeap()
 	}
 
 #if ENABLE_RESIDENCY_MANAGEMENT
-	D3DX12Residency::EndTrackingObject(Device->GetResidencyManager(), ResidencyHandle);
+	if (D3DX12Residency::IsInitialized(ResidencyHandle))
+	{
+		D3DX12Residency::EndTrackingObject(Device->GetResidencyManager(), ResidencyHandle);
+	}
 #endif
 
 	DEC_DWORD_STAT(STAT_D3D12NumQueryHeaps);

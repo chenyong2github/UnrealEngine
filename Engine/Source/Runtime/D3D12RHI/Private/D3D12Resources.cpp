@@ -266,6 +266,14 @@ ID3D12Pageable* FD3D12Resource::GetPageable()
 void FD3D12Resource::StartTrackingForResidency()
 {
 #if ENABLE_RESIDENCY_MANAGEMENT
+	if (bBackBuffer)
+	{
+		// Back buffers may be referenced outside of command lists (during presents), however D3DX12Residency.h library 
+		// uses fences tied to command lists to detect when it's safe to evict a resource, which is wrong for back buffers.
+		// Simply disable residency tracking for back buffers as a workaround (keep them always resident).
+		return;
+	}
+
 	check(IsGPUOnly(HeapType));	// This is checked at a higher level before calling this function.
 	check(D3DX12Residency::IsInitialized(ResidencyHandle) == false);
 	const D3D12_RESOURCE_DESC ResourceDesc = Resource->GetDesc();
