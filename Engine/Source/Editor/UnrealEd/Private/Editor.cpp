@@ -79,6 +79,8 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
 
+#include "Framework/Application/SlateApplication.h"
+
 #define LOCTEXT_NAMESPACE "UnrealEd.Editor"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
