@@ -97,7 +97,9 @@ namespace EpicGames.Horde.Compute
 		readonly IComputeBufferReader _receiveBufferReader;
 		readonly IComputeBufferWriter _sendBufferWriter;
 
+#pragma warning disable CA2213
 		MessageBuilder? _currentBuilder;
+#pragma warning restore CA2213
 
 		/// <summary>
 		/// Constructor
