@@ -5,8 +5,8 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace EpicGames.Horde.Compute
 {
@@ -15,87 +15,23 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public sealed class ComputeLease : IComputeLease, IAsyncDisposable
 	{
-		record struct Packet(int Id, ReadOnlyMemory<byte> Data, TaskCompletionSource? Fence);
-
-		class Buffer : ComputeBuffer
-		{
-			readonly ComputeLease _owner;
-
-			public Buffer(ComputeLease owner, int id, IMemoryOwner<byte> memoryOwner)
-				: base(id, memoryOwner)
-			{
-				_owner = owner;
-			}
-
-			protected override void Dispose(bool disposing)
-			{
-				base.Dispose(disposing);
-
-				if (disposing)
-				{
-					_owner.ReleaseBuffer(this);
-				}
-			}
-
-			public override async ValueTask FlushAsync(CancellationToken cancellationToken)
-			{
-				TaskCompletionSource tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-				using (IDisposable disposable = cancellationToken.Register(() => tcs.SetCanceled(cancellationToken)))
-				{
-					_owner._writeQueue.Writer.TryWrite(new Packet(Id, ReadOnlyMemory<byte>.Empty, tcs));
-					await tcs.Task;
-				}
-			}
-
-			public override async ValueTask ResetWritePositionAsync(CancellationToken cancellationToken)
-			{
-				// Flush any pending writes
-				await FlushAsync(cancellationToken);
-
-				// Write an empty packet telling the remote to flush any reads before continuing
-				_owner._writeQueue.Writer.TryWrite(new Packet(Id, ReadOnlyMemory<byte>.Empty, null));
-
-				// Execute the regular logic to make sure we don't have any readers
-				ResetWritePosition();
-			}
-
-			public async ValueTask ClientResetWritePositionAsync(CancellationToken cancellationToken)
-			{
-				await WaitForAllReadDataAsync(cancellationToken);
-				ResetWritePosition();
-			}
-
-			public override void AdvanceWritePosition(long size)
-			{
-				if (size > 0)
-				{
-					ReadOnlyMemory<byte> data = Data.Slice((int)WritePosition, (int)size);
-					_owner._writeQueue.Writer.TryWrite(new Packet(Id, data, null));
-				}
-
-				base.AdvanceWritePosition(size);
-			}
-
-			public void AdvanceWritePositionAfterRecv(long size)
-			{
-				base.AdvanceWritePosition(size);
-			}
-		}
-
-		/// <inheritdoc/>
-		public IReadOnlyDictionary<string, int> AssignedResources { get; }
-
 		readonly object _lockObject = new object();
 
 		bool _complete;
+
+		readonly IComputeTransport _transport;
 		readonly Task _readTask;
-		readonly Task _writeTask;
-		readonly CancellationTokenSource _cts = new CancellationTokenSource();
+		readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
 
-		readonly Dictionary<int, Buffer> _inputBuffers = new Dictionary<int, Buffer>();
-		readonly Dictionary<int, Buffer> _outputBuffers = new Dictionary<int, Buffer>();
+		readonly Dictionary<int, IComputeBufferWriter> _receiveBuffers = new Dictionary<int, IComputeBufferWriter>();
+		readonly AsyncEvent _receiveBuffersChangedEvent = new AsyncEvent();
 
-		readonly Channel<Packet> _writeQueue = Channel.CreateUnbounded<Packet>();
+		readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1, 1);
+		readonly Dictionary<int, IComputeBufferReader> _sendBuffers = new Dictionary<int, IComputeBufferReader>();
+		readonly Dictionary<int, Task> _sendTasks = new Dictionary<int, Task>();
+
+		/// <inheritdoc/>
+		public IReadOnlyDictionary<string, int> AssignedResources { get; }
 
 		/// <summary>
 		/// Constructor
@@ -106,8 +42,8 @@ namespace EpicGames.Horde.Compute
 		{
 			AssignedResources = assignedResources;
 
-			_readTask = RunReaderAsync(transport, _cts.Token);
-			_writeTask = RunWriterAsync(transport, _cts.Token);
+			_transport = transport;
+			_readTask = RunReaderAsync(transport, _cancellationSource.Token);
 		}
 
 		/// <summary>
@@ -115,13 +51,18 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		public async ValueTask CloseAsync(CancellationToken cancellationToken)
 		{
-			_writeQueue.Writer.TryComplete();
-
 			Task cancellationTask = Task.Delay(-1, cancellationToken);
 
-			await Task.WhenAny(_writeTask, cancellationTask);
+			// Wait for all the individual send tasks to complete
+			await Task.WhenAll(_sendTasks.Values);
 			cancellationToken.ThrowIfCancellationRequested();
 
+			// Send a final message indicating that the lease is done. This will allow the senders on the remote end to terminate, and trigger
+			// a message to be sent back to our read task allowing it to shut down gracefully.
+			byte[] header = new byte[8];
+			await _transport.WriteAsync(header, cancellationToken);
+
+			// Wait for the reader to stop
 			await Task.WhenAny(_readTask, cancellationTask);
 			cancellationToken.ThrowIfCancellationRequested();
 		}
@@ -129,14 +70,13 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public async ValueTask DisposeAsync()
 		{
-			_writeQueue.Writer.TryComplete();
+			_cancellationSource.Cancel();
 
-			_cts.Cancel();
-
-			await _writeTask;
+			await Task.WhenAll(_sendTasks.Values);
 			await _readTask;
 
-			_cts.Dispose();
+			_cancellationSource.Dispose();
+			_sendSemaphore.Dispose();
 		}
 
 		async Task RunReaderAsync(IComputeTransport transport, CancellationToken cancellationToken)
@@ -145,42 +85,35 @@ namespace EpicGames.Horde.Compute
 			try
 			{
 				// Maintain a local cache of buffers to be able to query for them without having to acquire a global lock
-				Dictionary<int, Buffer> buffers = new Dictionary<int, Buffer>();
+				Dictionary<int, IComputeBufferWriter> cachedWriters = new Dictionary<int, IComputeBufferWriter>();
 
 				// Process messages from the remote
 				for(; ;)
 				{
+					// Read the next packet header
 					await transport.ReadAsync(header, cancellationToken);
 
+					// Parse the target buffer and packet size
 					int id = BinaryPrimitives.ReadInt32LittleEndian(header);
 					int size = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(4));
-					if (size < 0)
+
+					// If the size if negative, we're closing the entire connection
+					if (size == 0)
 					{
 						break;
 					}
-
-					Buffer? buffer;
-					if (!buffers.TryGetValue(id, out buffer))
+					
+					// Dispatch it to the correct place
+					IComputeBufferWriter writer = await GetReceiveBufferAsync(cachedWriters, id);
+					if (size < 0)
 					{
-						lock (_lockObject)
-						{
-							if (!_inputBuffers.TryGetValue(id, out buffer))
-							{
-								throw new NotImplementedException();
-							}
-							buffers.Add(id, buffer);
-						}
-					}
-
-					if (size == 0)
-					{
-						// We're being asked to reset the read position back to zero, so we need to know that the read offset is equal to length
-						await buffer.ClientResetWritePositionAsync(cancellationToken);
+						writer.MarkComplete();
+						DetachReceiveBuffer(cachedWriters, id);
 					}
 					else
 					{
-						await transport.ReadAsync(buffer.Data.Slice((int)buffer.WritePosition, size), cancellationToken);
-						buffer.AdvanceWritePositionAfterRecv(size);
+						await transport.ReadAsync(writer.GetMemory(), cancellationToken);
+						writer.Advance(size);
 					}
 				}
 			}
@@ -192,91 +125,138 @@ namespace EpicGames.Horde.Compute
 			lock (_lockObject)
 			{
 				_complete = true;
-				foreach (Buffer buffer in _outputBuffers.Values)
+				foreach (IComputeBufferWriter writer in _receiveBuffers.Values)
 				{
-					buffer.MarkComplete();
+					writer.MarkComplete();
 				}
 			}
 		}
 
-		async Task RunWriterAsync(IComputeTransport transport, CancellationToken cancellationToken)
+		async Task<IComputeBufferWriter> GetReceiveBufferAsync(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
 		{
-			// Parse the queue of write requests
+			IComputeBufferWriter? writer;
+			if (cachedWriters.TryGetValue(id, out writer))
+			{
+				return writer;
+			}
+
+			for(; ;)
+			{
+				Task waitTask;
+				lock (_lockObject)
+				{
+					if (_receiveBuffers.TryGetValue(id, out writer))
+					{
+						cachedWriters.Add(id, writer);
+						return writer;
+					}
+					waitTask = _receiveBuffersChangedEvent.Task;
+				}
+				await waitTask;
+			}
+		}
+
+		class SendSegment : ReadOnlySequenceSegment<byte>
+		{
+			public void Set(ReadOnlyMemory<byte> memory, ReadOnlySequenceSegment<byte>? next, long runningIndex)
+			{
+				Memory = memory;
+				Next = next;
+				RunningIndex = runningIndex;
+			}
+		}
+
+		async Task SendFromBufferAsync(int id, IComputeBufferReader reader, CancellationToken cancellationToken)
+		{
 			byte[] header = new byte[8];
-			try
+
+			BinaryPrimitives.WriteInt32LittleEndian(header, id);
+
+			SendSegment headerSegment = new SendSegment();
+			SendSegment bodySegment = new SendSegment();
+			headerSegment.Set(header, bodySegment, 0);
+
+			for (; ; )
 			{
-				while (await _writeQueue.Reader.WaitToReadAsync(cancellationToken))
+				// Wait for something to read
+				await reader.WaitAsync(0, cancellationToken);
+
+				// Acquire the semaphore
+				await _sendSemaphore.WaitAsync(cancellationToken);
+				try
 				{
-					Packet packet = await _writeQueue.Reader.ReadAsync(cancellationToken);
-					if (packet.Fence != null)
+					ReadOnlyMemory<byte> memory = reader.GetMemory();
+					if (memory.Length > 0)
 					{
-						packet.Fence.SetResult();
-						continue;
+						BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), memory.Length);
+
+						bodySegment.Set(memory, null, header.Length);
+						ReadOnlySequence<byte> sequence = new ReadOnlySequence<byte>(headerSegment, 0, bodySegment, memory.Length);
+
+						await _transport.WriteAsync(sequence, cancellationToken);
+
+						reader.Advance(memory.Length);
 					}
-
-					BinaryPrimitives.WriteInt32LittleEndian(header, packet.Id);
-					BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), packet.Data.Length);
-					await transport.WriteAsync(header, cancellationToken);
-
-					if (packet.Data.Length > 0)
+					else if (reader.IsComplete)
 					{
-						await transport.WriteAsync(packet.Data, cancellationToken);
+						BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), -1);
+						await _transport.WriteAsync(header, cancellationToken);
+						break;
 					}
 				}
-
-				// Send a close packet to the remote
-				BinaryPrimitives.WriteInt32LittleEndian(header, 0);
-				BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), -1);
-				await transport.WriteAsync(header, cancellationToken);
+				finally
+				{
+					_sendSemaphore.Release();
+				}
 			}
-			catch (OperationCanceledException)
+
+			lock (_lockObject)
 			{
+				_sendBuffers.Remove(id);
+				_sendTasks.Remove(id);
 			}
 		}
 
 		/// <inheritdoc/>
-		public IComputeInputBuffer CreateInputBuffer(int id, IMemoryOwner<byte> memoryOwner)
+		public void AttachSendBuffer(int id, IComputeBufferReader reader)
 		{
-			Buffer inputBuffer = new Buffer(this, id, memoryOwner);
 			lock (_lockObject)
 			{
-				if (_complete)
-				{
-					inputBuffer.MarkComplete();
-				}
-				_inputBuffers.Add(id, inputBuffer);
+				_sendBuffers.Add(id, reader);
+				_sendTasks.Add(id, Task.Run(() => SendFromBufferAsync(id, reader, _cancellationSource.Token), _cancellationSource.Token));
 			}
-			return inputBuffer;
 		}
 
 		/// <inheritdoc/>
-		public IComputeOutputBuffer CreateOutputBuffer(int id, IMemoryOwner<byte> memoryOwner)
+		public void AttachReceiveBuffer(int id, IComputeBufferWriter writer)
 		{
-			Buffer outputBuffer = new Buffer(this, id, memoryOwner);
+			bool complete;
 			lock (_lockObject)
 			{
-				if (_complete)
+				complete = _complete;
+
+				if(!complete)
 				{
-					outputBuffer.MarkComplete();
+					_receiveBuffers.Add(id, writer);
 				}
-				_outputBuffers.Add(id, outputBuffer);
 			}
-			return outputBuffer;
+
+			if (complete)
+			{
+				writer.MarkComplete();
+			}
+			else
+			{
+				_receiveBuffersChangedEvent.Set();
+			}
 		}
 
-		void ReleaseBuffer(Buffer buffer)
+		void DetachReceiveBuffer(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
 		{
+			cachedWriters.Remove(id);
 			lock (_lockObject)
 			{
-				Buffer? existingBuffer;
-				if (_inputBuffers.TryGetValue(buffer.Id, out existingBuffer) && ReferenceEquals(existingBuffer, buffer))
-				{
-					_inputBuffers.Remove(buffer.Id);
-				}
-				if (_outputBuffers.TryGetValue(buffer.Id, out existingBuffer) && ReferenceEquals(existingBuffer, buffer))
-				{
-					_outputBuffers.Remove(buffer.Id);
-				}
+				_receiveBuffers.Remove(id);
 			}
 		}
 	}

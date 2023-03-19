@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Compute
 {
 	/// <summary>
-	/// Interface for transferring data on a compute channel
+	/// Low-level interface for transferring data
 	/// </summary>
 	public interface IComputeTransport
 	{

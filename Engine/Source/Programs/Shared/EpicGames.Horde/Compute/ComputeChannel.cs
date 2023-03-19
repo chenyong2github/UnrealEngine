@@ -5,15 +5,17 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Threading;
 using System.Threading.Tasks;
-using EpicGames.Core;
 
 namespace EpicGames.Horde.Compute
 {
 	/// <summary>
 	/// Implementation of a compute channel
 	/// </summary>
-	class ComputeChannel : IComputeChannel, IDisposable
+	class ComputeChannel : IComputeChannel, IAsyncDisposable
 	{
+		// Length of a message header. Consists of a 1 byte type field, followed by 4 byte length field.
+		const int HeaderLength = 5;
+
 		/// <summary>
 		/// Standard implementation of a message
 		/// </summary>
@@ -46,126 +48,117 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Allows creating new messages in rented memory
 		/// </summary>
-		class Writer : IComputeMessageWriter
+		class MessageBuilder : IComputeMessageBuilder
 		{
 			readonly ComputeChannel _channel;
-			readonly IComputeOutputBuffer _buffer;
+			readonly IComputeBufferWriter _sendBufferWriter;
+			readonly ComputeMessageType _type;
 			int _length;
 
 			/// <inheritdoc/>
 			public int Length => _length;
 
-			public Writer(ComputeChannel channel, IComputeOutputBuffer buffer, ComputeMessageType type)
+			public MessageBuilder(ComputeChannel channel, IComputeBufferWriter sendBufferWriter, ComputeMessageType type)
 			{
 				_channel = channel;
-				_buffer = buffer;
-
-				this.WriteUInt8((byte)type);
-				this.WriteUInt32(0); // size placeholder
+				_sendBufferWriter = sendBufferWriter;
+				_type = type;
+				_length = 0;
 			}
 
 			public void Dispose()
 			{
-				if (_channel._currentWriter == this)
+				if (_channel._currentBuilder == this)
 				{
-					_channel._currentWriter = null;
+					_channel._currentBuilder = null;
 				}
 			}
 
-			public async ValueTask SendAsync(CancellationToken cancellationToken)
+			public void Send()
 			{
-				BinaryPrimitives.WriteInt32LittleEndian(_buffer.GetWriteSpan().Slice(1), _length);
-				await _channel.SendAsync(_length, cancellationToken);
+				Span<byte> header = _sendBufferWriter.GetMemory().Span;
+				header[0] = (byte)_type;
+				BinaryPrimitives.WriteInt32LittleEndian(header.Slice(1, 4), _length);
+
+				_sendBufferWriter.Advance(HeaderLength + _length);
+				_length = 0;
 			}
 
 			/// <inheritdoc/>
 			public void Advance(int count) => _length += count;
 
 			/// <inheritdoc/>
-			public Memory<byte> GetMemory(int sizeHint = 0) => _buffer.Data.Slice((int)_buffer.WritePosition + _length);
+			public Memory<byte> GetMemory(int sizeHint = 0) => _sendBufferWriter.GetMemory().Slice(HeaderLength + _length);
 
 			/// <inheritdoc/>
 			public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span;
 		}
 
-		/// <inheritdoc/>
-		public int Id => _id;
+		readonly IComputeBufferReader _receiveBufferReader;
+		readonly IComputeBufferWriter _sendBufferWriter;
 
-		readonly int _id;
-		readonly IComputeInputBuffer _inputBuffer;
-		readonly IComputeOutputBuffer _outputBuffer;
-		readonly long _flushLength;
-
-		Writer? _currentWriter;
+		MessageBuilder? _currentBuilder;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="id">The channel id</param>
-		/// <param name="inputBuffer">Buffer to read incoming messages from</param>
-		/// <param name="outputBuffer">Buffer to write outgoing messages to</param>
-		/// <param name="maxMessageSize">Maximum size of a message</param>
-		public ComputeChannel(int id, IComputeInputBuffer inputBuffer, IComputeOutputBuffer outputBuffer, int maxMessageSize = 1024 * 64)
+		/// <param name="receiveBufferReader">Reader for incoming messages</param>
+		/// <param name="sendBufferWriter">Writer for outgoing messages</param>
+		public ComputeChannel(IComputeBufferReader receiveBufferReader, IComputeBufferWriter sendBufferWriter)
 		{
-			_id = id;
-			_inputBuffer = inputBuffer;
-			_outputBuffer = outputBuffer;
-			_flushLength = outputBuffer.Data.Length - maxMessageSize;
+			_receiveBufferReader = receiveBufferReader;
+			_sendBufferWriter = sendBufferWriter;
 		}
 
 		/// <inheritdoc/>
-		public void Dispose()
+		public async ValueTask DisposeAsync()
 		{
-			_currentWriter?.Dispose();
-			_inputBuffer.Dispose();
-			_outputBuffer.Dispose();
+			await DisposeAsync(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Overridable dispose method
+		/// </summary>
+		protected virtual async ValueTask DisposeAsync(bool disposing)
+		{
+			_currentBuilder?.Dispose();
+			_sendBufferWriter.MarkComplete();
+			await _sendBufferWriter.FlushAsync(CancellationToken.None);
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<IComputeMessage> ReadAsync(CancellationToken cancellationToken)
+		public async ValueTask<IComputeMessage> ReceiveAsync(CancellationToken cancellationToken)
 		{
-			for (; ; )
+			while (!_receiveBufferReader.IsComplete)
 			{
-				long readPosition = _inputBuffer.ReadPosition;
-				ReadOnlyMemory<byte> memory = _inputBuffer.GetReadMemory();
-
-				const int HeaderLength = 5;
+				ReadOnlyMemory<byte> memory = _receiveBufferReader.GetMemory();
 				if (memory.Length >= HeaderLength)
 				{
 					int length = BinaryPrimitives.ReadInt32LittleEndian(memory.Span.Slice(1, 4));
-					if (memory.Length >= length)
+					if (memory.Length >= HeaderLength + length)
 					{
 						ComputeMessageType type = (ComputeMessageType)memory.Span[0];
-						Message message = new Message(type, memory.Slice(HeaderLength, length - HeaderLength));
-						_inputBuffer.AdvanceReadPosition(length);
+						Message message = new Message(type, memory.Slice(HeaderLength, length));
+						_receiveBufferReader.Advance(HeaderLength + length);
 						return message;
 					}
 				}
-
-				await _inputBuffer.WaitForWrittenDataAsync(readPosition + memory.Length, cancellationToken);
+				await _receiveBufferReader.WaitAsync(memory.Length, cancellationToken);
 			}
-		}
-
-		async Task SendAsync(int length, CancellationToken cancellationToken)
-		{
-			_outputBuffer.AdvanceWritePosition(length);
-
-			if (_outputBuffer.WritePosition > _flushLength)
-			{
-				await _outputBuffer.ResetWritePositionAsync(cancellationToken);
-			}
+			return new Message(ComputeMessageType.None, ReadOnlyMemory<byte>.Empty);
 		}
 
 		/// <inheritdoc/>
-		public IComputeMessageWriter CreateMessage(ComputeMessageType type, int sizeHint = 0)
+		public IComputeMessageBuilder CreateMessage(ComputeMessageType type, int sizeHint = 0)
 		{
-			if (_currentWriter != null)
+			if (_currentBuilder != null)
 			{
 				throw new InvalidOperationException("Only one writer can be active at a time. Dispose of the previous writer first.");
 			}
 
-			_currentWriter = new Writer(this, _outputBuffer, type);
-			return _currentWriter;
+			_currentBuilder = new MessageBuilder(this, _sendBufferWriter, type);
+			return _currentBuilder;
 		}
 	}
 }

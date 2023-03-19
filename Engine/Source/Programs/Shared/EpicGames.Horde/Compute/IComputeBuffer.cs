@@ -12,94 +12,71 @@ namespace EpicGames.Horde.Compute
 	public interface IComputeBuffer
 	{
 		/// <summary>
-		/// Identifier for the buffer
+		/// Reader from the buffer
 		/// </summary>
-		int Id { get; }
+		IComputeBufferReader Reader { get; }
+
+		/// <summary>
+		/// Writer to the buffer
+		/// </summary>
+		IComputeBufferWriter Writer { get; }
 	}
 
 	/// <summary>
 	/// Read interface for a compute buffer
 	/// </summary>
-	public interface IComputeInputBuffer : IComputeBuffer, IDisposable
+	public interface IComputeBufferReader
 	{
 		/// <summary>
-		/// The shared memory for the buffer
+		/// Whether this buffer is complete (no more data will be added)
 		/// </summary>
-		ReadOnlyMemory<byte> Data { get; }
+		bool IsComplete { get; }
 
 		/// <summary>
-		/// Offset within the data that is still to be used. Can be left at zero for a buffer that is only appended to, but must be updated to indicate data
-		/// that has been processed for message buffers (in order to coordinate when the buffer contents can be discarded during a reset).
+		/// Updates the read position
 		/// </summary>
-		long ReadPosition { get; }
+		/// <param name="size">Size of data that was read</param>
+		void Advance(int size);
 
 		/// <summary>
-		/// Position in the buffer at which new data will be added
+		/// Gets the next data to read
 		/// </summary>
-		long WritePosition { get; }
+		/// <returns>Memory to read from</returns>
+		ReadOnlyMemory<byte> GetMemory();
 
 		/// <summary>
-		/// Updates the current read position within the buffer
+		/// Wait for data to be available, or for the buffer to be marked as complete
 		/// </summary>
-		void AdvanceReadPosition(long size);
-
-		/// <summary>
-		/// Waits until new data is written to the buffer
-		/// </summary>
-		/// <param name="currentWritePosition">Current write position. This is passed as an argument to avoid races with <see cref="WritePosition"/> being updated asynchronously.</param>
+		/// <param name="currentLength">Current length of the buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask WaitForWrittenDataAsync(long currentWritePosition, CancellationToken cancellationToken);
+		ValueTask WaitAsync(int currentLength, CancellationToken cancellationToken);
 	}
 
 	/// <summary>
-	/// Read-only view of shared memory that can be incrementally replicated to a remote machine.
+	/// Buffer that can receive data from a remote machine.
 	/// </summary>
-	public interface IComputeOutputBuffer : IComputeBuffer, IDisposable
+	public interface IComputeBufferWriter
 	{
 		/// <summary>
-		/// The shared memory for the buffer
+		/// Mark the output to this buffer as complete
 		/// </summary>
-		Memory<byte> Data { get; }
-
-		/// <summary>
-		/// Current write position/used length of the buffer
-		/// </summary>
-		long WritePosition { get; }
+		void MarkComplete();
 
 		/// <summary>
 		/// Updates the current write position within the buffer
 		/// </summary>
-		void AdvanceWritePosition(long size);
+		void Advance(int size);
 
 		/// <summary>
-		/// Flushes all data that needs to be written.
+		/// Gets memory to write to
 		/// </summary>
+		/// <returns>Memory to be written to</returns>
+		Memory<byte> GetMemory();
+
+		/// <summary>
+		/// Waits until all data in this buffer has been written
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		ValueTask FlushAsync(CancellationToken cancellationToken);
-
-		/// <summary>
-		/// Flushes all writes, and resets the current write position.
-		/// </summary>
-		ValueTask ResetWritePositionAsync(CancellationToken cancellationToken);
-	}
-
-	/// <summary>
-	/// Extension methods for compute buffers
-	/// </summary>
-	static class ComputeBufferExtensions
-	{
-		/// <summary>
-		/// Gets a span for the next data to read
-		/// </summary>
-		public static ReadOnlySpan<byte> GetReadSpan(this IComputeInputBuffer buffer) => GetReadMemory(buffer).Span;
-
-		/// <summary>
-		/// Gets a span for the next data to read
-		/// </summary>
-		public static ReadOnlyMemory<byte> GetReadMemory(this IComputeInputBuffer buffer) => buffer.Data.Slice((int)buffer.ReadPosition, (int)(buffer.WritePosition - buffer.ReadPosition));
-
-		/// <summary>
-		/// Gets a span to write new data to
-		/// </summary>
-		public static Span<byte> GetWriteSpan(this IComputeOutputBuffer buffer) => buffer.Data.Slice((int)buffer.WritePosition).Span;
 	}
 }

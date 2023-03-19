@@ -4,6 +4,7 @@ using Microsoft.Win32.SafeHandles;
 using System;
 using System.Buffers;
 using System.IO.MemoryMappedFiles;
+using System.Reflection;
 
 namespace EpicGames.Horde.Compute
 {
@@ -55,14 +56,39 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="capacity">Size of the memory to allocate. Data will not be committed until used.</param>
 		public SharedMemory(long capacity)
+			: this(MemoryMappedFile.CreateNew(null, capacity))
 		{
-			_file = MemoryMappedFile.CreateNew(null, capacity);
+		}
 
-			_viewAccessor = _file.CreateViewAccessor(0, capacity);
+		/// <summary>
+		/// Creates a memory mapped file from the given file object and capacity
+		/// </summary>
+		/// <param name="file">File to create from</param>
+		private SharedMemory(MemoryMappedFile file)
+		{
+			_file = file;
+
+			_viewAccessor = _file.CreateViewAccessor();
 			_viewAccessor.SafeMemoryMappedViewHandle.AcquirePointer(ref _data);
 
-			MemoryWrapper wrapper = new MemoryWrapper(_data, (int)capacity);
+			MemoryWrapper wrapper = new MemoryWrapper(_data, (int)_viewAccessor.Capacity);
 			Memory = wrapper.Memory;
+		}
+
+		/// <summary>
+		/// Opens a shared memory region from a handle
+		/// </summary>
+		/// <param name="handle">Handle to the underlying memory mapped file</param>
+		public static SharedMemory FromHandle(SafeMemoryMappedFileHandle handle)
+		{
+			ConstructorInfo? constructorInfo = typeof(MemoryMappedFile).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null, new[] { typeof(SafeMemoryMappedFileHandle) }, null);
+			if (constructorInfo == null)
+			{
+				throw new InvalidOperationException("Cannot find private constructor for memory mapped file");
+			}
+
+			MemoryMappedFile file = (MemoryMappedFile)constructorInfo.Invoke(new object?[] { handle });
+			return new SharedMemory(file);
 		}
 
 		/// <summary>

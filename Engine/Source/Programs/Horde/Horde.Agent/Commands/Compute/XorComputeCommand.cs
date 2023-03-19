@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,17 +12,17 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Compute
 {
 	/// <summary>
-	/// Installs the agent as a service
+	/// Runs a simple compute command
 	/// </summary>
-	[Command("ddccompute", "Executes a command through the Horde Compute API")]
-	class DdcComputeCommand : ComputeCommand
+	[Command("xorcompute", "Executes a simple XOR command through the compute API")]
+	class XorComputeCommand : ComputeCommand
 	{
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DdcComputeCommand(IServiceProvider serviceProvider, ILogger<DdcComputeCommand> logger)
+		public XorComputeCommand(IServiceProvider serviceProvider, ILogger<XorComputeCommand> logger)
 			: base(serviceProvider, logger)
 		{
 			_logger = logger;

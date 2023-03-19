@@ -71,9 +71,9 @@ namespace EpicGames.Horde.Compute
 			await _semaphore.WaitAsync(cancellationToken);
 			try
 			{
-				await _channel.CppBlobReadAsync(locator, offset, length, cancellationToken);
+				_channel.CppBlobRead(locator, offset, length);
 
-				IComputeMessage response = await _channel.ReadAsync(cancellationToken);
+				IComputeMessage response = await _channel.ReceiveAsync(cancellationToken);
 				if (response.Type != ComputeMessageType.CppBlobData)
 				{
 					response.Dispose();

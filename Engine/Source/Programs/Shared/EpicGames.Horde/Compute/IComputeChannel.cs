@@ -5,25 +5,21 @@ using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Compute.Buffers;
 
 namespace EpicGames.Horde.Compute
 {
 	/// <summary>
 	/// Full-duplex channel for sending and receiving messages
 	/// </summary>
-	public interface IComputeChannel : IDisposable
+	public interface IComputeChannel : IAsyncDisposable
 	{
-		/// <summary>
-		/// Identifier for the channel
-		/// </summary>
-		int Id { get; }
-
 		/// <summary>
 		/// Reads a message from the channel
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Data for a message that was read. Must be disposed.</returns>
-		ValueTask<IComputeMessage> ReadAsync(CancellationToken cancellationToken);
+		ValueTask<IComputeMessage> ReceiveAsync(CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Creates a new builder for a message
@@ -31,19 +27,18 @@ namespace EpicGames.Horde.Compute
 		/// <param name="type">Type of the message</param>
 		/// <param name="sizeHint">Hint for the expected message size</param>
 		/// <returns>New builder for messages</returns>
-		IComputeMessageWriter CreateMessage(ComputeMessageType type, int sizeHint = 0);
+		IComputeMessageBuilder CreateMessage(ComputeMessageType type, int sizeHint = 0);
 	}
 
 	/// <summary>
 	/// Writer for compute messages
 	/// </summary>
-	public interface IComputeMessageWriter : IMemoryWriter, IDisposable
+	public interface IComputeMessageBuilder : IMemoryWriter, IDisposable
 	{
 		/// <summary>
 		/// Sends the current message
 		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask SendAsync(CancellationToken cancellationToken);
+		void Send();
 	}
 
 	/// <summary>
@@ -51,6 +46,31 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public static class ComputeChannelExtensions
 	{
+		class RentedBufferChannel : ComputeChannel
+		{
+			readonly RentedLocalBuffer _receiveBuffer;
+			readonly RentedLocalBuffer _sendBuffer;
+
+			public RentedBufferChannel(RentedLocalBuffer receiveBuffer, RentedLocalBuffer sendBuffer)
+				: base(receiveBuffer.Reader, sendBuffer.Writer)
+			{
+				_sendBuffer = sendBuffer;
+				_receiveBuffer = receiveBuffer;
+			}
+
+			/// <inheritdoc/>
+			protected override async ValueTask DisposeAsync(bool disposing)
+			{
+				await base.DisposeAsync(disposing);
+
+				if (disposing)
+				{
+					_sendBuffer.Dispose();
+					_receiveBuffer.Dispose();
+				}
+			}
+		}
+
 		/// <summary>
 		/// Creates a compute channel with the given identifier
 		/// </summary>
@@ -61,10 +81,13 @@ namespace EpicGames.Horde.Compute
 			const int MaxMessageSize = 64 * 1024;
 			const int BufferSize = MaxMessageSize * 3;
 
-			IComputeInputBuffer inputBuffer = lease.CreateInputBuffer(id, MemoryPool<byte>.Shared.Rent(BufferSize));
-			IComputeOutputBuffer outputBuffer = lease.CreateOutputBuffer(id, MemoryPool<byte>.Shared.Rent(BufferSize));
+			RentedLocalBuffer receiveBuffer = new RentedLocalBuffer(BufferSize);
+			lease.AttachReceiveBuffer(id, receiveBuffer.Writer);
 
-			return new ComputeChannel(id, inputBuffer, outputBuffer, MaxMessageSize);
+			RentedLocalBuffer sendBuffer = new RentedLocalBuffer(BufferSize);
+			lease.AttachSendBuffer(id, sendBuffer.Reader);
+
+			return new RentedBufferChannel(receiveBuffer, sendBuffer);
 		}
 	}
 }

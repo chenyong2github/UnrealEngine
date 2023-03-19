@@ -36,14 +36,13 @@ namespace EpicGames.Horde.Compute.Cpp
 		/// <param name="channel">Channel to write to</param>
 		/// <param name="locator">Locator for the node containing the task definition</param>
 		/// <param name="replyChannelId">Channel to reply to with future messages</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CppStartAsync(this IComputeChannel channel, NodeLocator locator, int replyChannelId, CancellationToken cancellationToken)
+		public static void CppStart(this IComputeChannel channel, NodeLocator locator, int replyChannelId)
 		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppBegin))
+			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.CppBegin))
 			{
 				writer.WriteNodeLocator(locator);
 				writer.WriteUnsignedVarInt(replyChannelId);
-				await writer.SendAsync(cancellationToken);
+				writer.Send();
 			}
 		}
 
@@ -75,13 +74,12 @@ namespace EpicGames.Horde.Compute.Cpp
 		/// </summary>
 		/// <param name="channel">Channel to write to</param>
 		/// <param name="locator">Locator for the result</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CppSuccessAsync(this IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
+		public static void CppSuccess(this IComputeChannel channel, NodeLocator locator)
 		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppSuccess))
+			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.CppSuccess))
 			{
 				writer.WriteNodeLocator(locator);
-				await writer.SendAsync(cancellationToken);
+				writer.Send();
 			}
 		}
 
@@ -100,13 +98,12 @@ namespace EpicGames.Horde.Compute.Cpp
 		/// </summary>
 		/// <param name="channel">Channel to write to</param>
 		/// <param name="error">Error string to send to the caller</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CppFailureAsync(this IComputeChannel channel, string error, CancellationToken cancellationToken)
+		public static void CppFailure(this IComputeChannel channel, string error)
 		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppFailure))
+			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.CppFailure))
 			{
 				writer.WriteString(error);
-				await writer.SendAsync(cancellationToken);
+				writer.Send();
 			}
 		}
 
@@ -114,12 +111,11 @@ namespace EpicGames.Horde.Compute.Cpp
 		/// Completes a C++ build task
 		/// </summary>
 		/// <param name="channel">Channel to write to</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CppFinishAsync(this IComputeChannel channel, CancellationToken cancellationToken)
+		public static void CppFinish(this IComputeChannel channel)
 		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppEnd))
+			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.CppEnd))
 			{
-				await writer.SendAsync(cancellationToken);
+				writer.Send();
 			}
 		}
 
@@ -144,16 +140,15 @@ namespace EpicGames.Horde.Compute.Cpp
 		/// <param name="locator"></param>
 		/// <param name="offset"></param>
 		/// <param name="length"></param>
-		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task CppBlobReadAsync(this IComputeChannel channel, BlobLocator locator, int offset, int length, CancellationToken cancellationToken)
+		public static void CppBlobRead(this IComputeChannel channel, BlobLocator locator, int offset, int length)
 		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppBlobRead))
+			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.CppBlobRead))
 			{
 				writer.WriteBlobLocator(locator);
 				writer.WriteUnsignedVarInt(offset);
 				writer.WriteUnsignedVarInt(length);
-				await writer.SendAsync(cancellationToken);
+				writer.Send();
 			}
 		}
 
@@ -200,10 +195,10 @@ namespace EpicGames.Horde.Compute.Cpp
 				}
 			}
 
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.CppBlobData, length + 128))
+			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.CppBlobData, length + 128))
 			{
 				writer.WriteFixedLengthBytes(data);
-				await writer.SendAsync(cancellationToken);
+				writer.Send();
 			}
 		}
 	}

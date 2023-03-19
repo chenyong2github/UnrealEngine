@@ -17,11 +17,6 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		None = 0x00,
 
-		/// <summary>
-		/// Gracefully close the current connection
-		/// </summary>
-		Close = 0x01,
-
 		#region Test Requests
 
 		/// <summary>
@@ -100,41 +95,21 @@ namespace EpicGames.Horde.Compute
 	public static class ComputeMessageExtensions
 	{
 		/// <summary>
-		/// Send a close message to the remote
+		/// Send a message to request that a byte string be xor'ed with a particular value
 		/// </summary>
-		/// <param name="channel">Channel to write to</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CloseAsync(this IComputeChannel channel, CancellationToken cancellationToken)
+		public static void XorRequest(this IComputeChannel channel, ReadOnlyMemory<byte> data, byte value)
 		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.Close))
+			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.XorRequest))
 			{
-				await writer.SendAsync(cancellationToken);
+				builder.WriteFixedLengthBytes(data.Span);
+				builder.WriteUInt8(value);
+				builder.Send();
 			}
 		}
 
 		/// <summary>
-		/// 
+		/// Parse a message as an XOR request
 		/// </summary>
-		/// <param name="channel"></param>
-		/// <param name="data"></param>
-		/// <param name="value"></param>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		public static async Task XorRequestAsync(this IComputeChannel channel, ReadOnlyMemory<byte> data, byte value, CancellationToken cancellationToken)
-		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.XorRequest))
-			{
-				writer.WriteFixedLengthBytes(data.Span);
-				writer.WriteUInt8(value);
-				await writer.SendAsync(cancellationToken);
-			}
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="message"></param>
-		/// <returns></returns>
 		public static XorRequestMessage AsXorRequest(this IComputeMessage message)
 		{
 			ReadOnlyMemory<byte> data = message.Data;

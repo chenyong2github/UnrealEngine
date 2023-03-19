@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
@@ -16,18 +12,15 @@ using EpicGames.Horde.Logs;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
-using Horde.Agent.Leases.Handlers;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
-namespace Horde.Agent.Commands
+namespace Horde.Agent.Commands.Compute
 {
 	/// <summary>
 	/// Installs the agent as a service
 	/// </summary>
 	[Command("cppcompute", "Executes a command through the C++ Compute API")]
-	class CppComputeCommand : Command
+	class CppComputeCommand : ComputeCommand
 	{
 		class JsonComputeTask
 		{
@@ -38,54 +31,36 @@ namespace Horde.Agent.Commands
 			public List<string> OutputPaths { get; set; } = new List<string>();
 		}
 
-		[CommandLine("-Cluster")]
-		public string ClusterId { get; set; } = "default";
-
-		[CommandLine("-Loopback")]
-		public bool Loopback { get; set; }
-
 		[CommandLine("-Task=", Required = true)]
 		FileReference TaskFile { get; set; } = null!;
 
-		readonly IServiceProvider _serviceProvider;
-		readonly IHttpClientFactory _httpClientFactory;
-		readonly AgentSettings _settings;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CppComputeCommand(IServiceProvider serviceProvider, IHttpClientFactory httpClientFactory, IOptions<AgentSettings> settings, ILogger<CppComputeCommand> logger)
+		public CppComputeCommand(IServiceProvider serviceProvider, ILogger<CppComputeCommand> logger)
+			: base(serviceProvider, logger)
 		{
-			_serviceProvider = serviceProvider;
-			_httpClientFactory = httpClientFactory;
-			_settings = settings.Value;
 			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public override async Task<int> ExecuteAsync(ILogger logger)
+		protected override async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			await using IComputeClient client = CreateClient();
+			await using IComputeChannel defaultChannel = lease.CreateChannel(0);
 
-			bool result = await client.ExecuteAsync(new ClusterId(ClusterId), null, HandleRequestAsync, CancellationToken.None);
-
-			return result? 0 : 1;
-		}
-
-		async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
-		{
-			using IComputeChannel defaultChannel = lease.CreateChannel(0);
-			using IComputeChannel channel = lease.CreateChannel(1);
+			const int ReplyChannelId = 1;
+			await using IComputeChannel channel = lease.CreateChannel(ReplyChannelId);
 
 			MemoryStorageClient storage = new MemoryStorageClient();
 
 			NodeLocator node = await CreateComputeNodeAsync(TaskFile, storage, cancellationToken);
-			await defaultChannel.CppStartAsync(node, channel.Id, cancellationToken);
+			defaultChannel.CppStart(node, ReplyChannelId);
 
 			for (; ; )
 			{
-				using IComputeMessage message = await channel.ReadAsync(cancellationToken);
+				using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
 				switch (message.Type)
 				{
 					case ComputeMessageType.None:
@@ -116,8 +91,7 @@ namespace Horde.Agent.Commands
 								}
 							}
 
-							await channel.CppFinishAsync(cancellationToken);
-							await defaultChannel.CloseAsync(cancellationToken);
+							channel.CppFinish();
 						}
 						return false;
 					case ComputeMessageType.CppFailure:
@@ -154,34 +128,6 @@ namespace Horde.Agent.Commands
 
 			NodeHandle handle = await writer.FlushAsync(computeNode, cancellationToken);
 			return handle.Locator;
-		}
-
-		IComputeClient CreateClient()
-		{
-			if (Loopback)
-			{
-				return new LoopbackComputeClient(RunListenerAsync);
-			}
-			else
-			{
-				return new ServerComputeClient(CreateHttpClient, _logger);
-			}
-		}
-
-		HttpClient CreateHttpClient()
-		{
-			ServerProfile profile = _settings.GetCurrentServerProfile();
-
-			HttpClient client = _httpClientFactory.CreateClient();
-			client.BaseAddress = profile.Url;
-			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", profile.Token);
-			return client;
-		}
-
-		async Task RunListenerAsync(IComputeLease lease, CancellationToken cancellationToken)
-		{
-			ComputeHandler handler = ActivatorUtilities.CreateInstance<ComputeHandler>(_serviceProvider);
-			await handler.RunAsync(lease, cancellationToken);
 		}
 	}
 }

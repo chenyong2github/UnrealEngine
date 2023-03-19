@@ -77,25 +77,24 @@ namespace Horde.Agent.Leases.Handlers
 
 		public async Task RunAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			using IComputeChannel channel = lease.CreateChannel(0);
+			await using IComputeChannel channel = lease.CreateChannel(0);
 			for (; ; )
 			{
-				using IComputeMessage message = await channel.ReadAsync(cancellationToken);
+				using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
 				switch (message.Type)
 				{
 					case ComputeMessageType.None:
-					case ComputeMessageType.Close:
 						return;
 					case ComputeMessageType.XorRequest:
 						{
 							XorRequestMessage xorRequest = message.AsXorRequest();
-							await RunXorAsync(channel, xorRequest.Data, xorRequest.Value, cancellationToken);
+							RunXor(channel, xorRequest.Data, xorRequest.Value);
 						}
 						break;
 					case ComputeMessageType.CppBegin:
 						{
 							CppBeginMessage cppBegin = message.AsCppBegin();
-							using IComputeChannel replyChannel = lease.CreateChannel(cppBegin.ReplyChannelId);
+							await using IComputeChannel replyChannel = lease.CreateChannel(cppBegin.ReplyChannelId);
 							await RunCppAsync(replyChannel, cppBegin.Locator, cancellationToken);
 						}
 						break;
@@ -105,12 +104,12 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		static async Task RunXorAsync(IComputeChannel channel, ReadOnlyMemory<byte> source, byte value, CancellationToken cancellationToken)
+		static void RunXor(IComputeChannel channel, ReadOnlyMemory<byte> source, byte value)
 		{
-			using (IComputeMessageWriter writer = channel.CreateMessage(ComputeMessageType.XorResponse, source.Length))
+			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.XorResponse, source.Length))
 			{
 				XorData(source.Span, writer.GetSpanAndAdvance(source.Length), value);
-				await writer.SendAsync(cancellationToken);
+				writer.Send();
 			}
 		}
 
@@ -130,13 +129,13 @@ namespace Horde.Agent.Leases.Handlers
 			}
 			catch (Exception ex)
 			{
-				await channel.CppFailureAsync(ex.ToString(), cancellationToken);
+				channel.CppFailure(ex.ToString());
 			}
 		}
 
 		async Task RunCppInternalAsync(IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
 		{
-			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox", channel.Id.ToString());
+			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox", Guid.NewGuid().ToString());
 
 			using ComputeStorageClient store = new ComputeStorageClient(channel);
 			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
@@ -196,12 +195,12 @@ namespace Horde.Agent.Leases.Handlers
 				CppComputeOutputNode outputNode = new CppComputeOutputNode(exitCode, logNodeRef, new TreeNodeRef<DirectoryNode>(outputTree));
 				NodeHandle outputHandle = await writer.FlushAsync(outputNode, cancellationToken);
 
-				await channel.CppSuccessAsync(outputHandle.Locator, cancellationToken);
+				channel.CppSuccess(outputHandle.Locator);
 			}
 
 			for (; ; )
 			{
-				using IComputeMessage message = await channel.ReadAsync(cancellationToken);
+				using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
 				switch (message.Type)
 				{
 					case ComputeMessageType.CppEnd:
