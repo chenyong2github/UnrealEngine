@@ -2916,6 +2916,8 @@ void FOpenGLDynamicRHI::RHIDispatchIndirectComputeShader(FRHIBuffer* ArgumentBuf
 
 	BindPendingComputeShaderState(ContextState, ComputeShader);
 
+	CommitComputeResourceTables(ComputeShader);
+
 	SetupTexturesForDraw(ContextState, ComputeShader, FOpenGL::GetMaxComputeTextureImageUnits());
 
 	SetupUAVsForCompute(ContextState, ComputeShader);
