@@ -85,7 +85,7 @@ struct CORE_API FDebug
 
 #if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 public:
-	static bool VARARGS CheckVerifyFailedImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format, ...);
+	static void VARARGS CheckVerifyFailedImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format, ...);
 private:
 	static void VARARGS LogAssertFailedMessageImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Fmt, ...);
 	static void LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Fmt, va_list Args);
@@ -212,6 +212,17 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 	#define PLATFORM_BREAK_IF_DESIRED() PLATFORM_BREAK();
 #endif // !UE_BUILD_SHIPPING
 
+#if PLATFORM_WINDOWS
+	// We want to break inline of an assertion macro on Windows for ease of debugging
+#	define PLATFORM_BREAK_IF_DESIRED_INLINE() PLATFORM_BREAK_IF_DESIRED()
+#	define PLATFORM_BREAK_IF_DESIRED_NONINLINE()
+#else
+	// ... however on every other platform this causes significant code bloat and we want to avoid it.
+	// So stepping up through callstack in a debugger is a necessary price to pay
+#	define PLATFORM_BREAK_IF_DESIRED_INLINE()
+#	define PLATFORM_BREAK_IF_DESIRED_NONINLINE() PLATFORM_BREAK_IF_DESIRED()
+#endif
+
 
 #if DO_CHECK
 #ifndef checkCode
@@ -231,10 +242,8 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 		{ \
 			if(UNLIKELY(!(expr))) \
 			{ \
-				if (FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), TEXT(""))) \
-				{ \
-					PLATFORM_BREAK(); \
-				} \
+				FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), TEXT("")); \
+				PLATFORM_BREAK_IF_DESIRED_INLINE(); \
 				CA_ASSUME(false); \
 			} \
 		}
@@ -254,10 +263,8 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 		{ \
 			if(UNLIKELY(!(expr))) \
 			{ \
-				if (FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), format, ##__VA_ARGS__)) \
-				{ \
-					PLATFORM_BREAK(); \
-				} \
+				FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), format, ##__VA_ARGS__); \
+				PLATFORM_BREAK_IF_DESIRED_INLINE(); \
 				CA_ASSUME(false); \
 			} \
 		}
@@ -369,7 +376,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 			static bool bExecuted = false; \
 			if (CheckVerifyImpl(bExecuted, Always, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), #InExpression, InFormat)) \
 			{ \
-				PLATFORM_BREAK(); \
+				PLATFORM_BREAK_IF_DESIRED_INLINE(); \
 			} \
 			return false; \
 		})))
@@ -381,7 +388,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 			FValidateArgsInternal(__VA_ARGS__); \
 			if (CheckVerifyImpl(bExecuted, Always, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), #InExpression, ##__VA_ARGS__)) \
 			{ \
-				PLATFORM_BREAK(); \
+				PLATFORM_BREAK_IF_DESIRED_INLINE(); \
 			} \
 			return false; \
 		})))
