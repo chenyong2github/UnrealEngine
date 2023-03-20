@@ -32,6 +32,11 @@
 #include "Iris/Serialization/InternalNetSerializationContext.h"
 #include "Iris/Serialization/NetBitStreamUtil.h"
 
+#ifndef UE_IRIS_PROFILE_PROTOCOL_NAMES
+	// Set this to true to see protocol names in profiling captures. The downside is the events will add an overhead on the cpu when cpu captures are occuring
+	#define UE_IRIS_PROFILE_PROTOCOL_NAMES !UE_BUILD_SHIPPING
+#endif
+
 #define UE_LOG_OBJECTREPLICATIONBRIDGE(Category, Format, ...)  UE_LOG(LogIrisBridge, Category, TEXT("ObjectReplicationBridge(%u)::") Format, GetReplicationSystem()->GetId(), ##__VA_ARGS__)
 
 static bool bUseFrequencyBasedPolling = true;
@@ -716,12 +721,14 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (ObjectData.InstanceProtocol)
 		{
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
+			IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
+#endif
 			// Call per-instance PreUpdate function
 			if (PreUpdateInstanceFunction && EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
 			{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
 				IRIS_PROFILER_SCOPE(PreReplicationUpdate);
-				IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
 #endif
 				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
 				++Stats.PreUpdatedObjectCount;
@@ -730,9 +737,8 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 			// Poll properties if the instance protocol requires it
 			if (EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll))
 			{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
 				IRIS_PROFILER_SCOPE(PreReplicationUpdate);
-				IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
 #endif
 
 				const bool bIsGCAffectedObject = GarbageCollectionAffectedObjects.GetBit(InternalObjectIndex);
@@ -759,6 +765,9 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (const FReplicationInstanceProtocol* InstanceProtocol = ObjectData.InstanceProtocol)
 		{
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
+			IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
+#endif
 			const EReplicationInstanceProtocolTraits InstanceTraits = InstanceProtocol->InstanceTraits;
 			const bool bNeedsPoll = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll);
 			bool bIsDirtyObject = DirtyObjects.GetBit(InternalObjectIndex);
@@ -766,9 +775,8 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 			// Call per-instance PreUpdate function
 			if (PreUpdateInstanceFunction && EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
 			{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
 				IRIS_PROFILER_SCOPE(PreReplicationUpdate);
-				IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
 #endif
 				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
 				++Stats.PreUpdatedObjectCount;
@@ -794,11 +802,9 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 				return;
 			}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
 			IRIS_PROFILER_SCOPE(PollPushBased);
-			IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
 #endif
-
 			// If the object is fully push model we only need to poll it if it's dirty, unless it's a new object or was garbage collected.
 			bool bWasMarkedDirty = false;
 			if (EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness))
@@ -872,7 +878,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		// Mask off objects pending dormancy as we do not want to poll/pre-update them unless they are marked for flush or are dirty
 		if (bUseDormancyToFilterPolling)
 		{
-			IRIS_PROFILER_SCOPE(UObjectReplicationBridge_PreUpdateAndPollImpl_Dormancy);
+			IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Dormancy);
 
 			// Mask off objects pending dormancy, masked off dirty objects are restored later
 			ObjectsConsideredForPolling.Combine(WantToBeDormantObjects, FNetBitArrayView::AndNotOp);
@@ -894,6 +900,8 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 					}
 				}
 			}
+
+			//TODO: Add size of DormantHandlesPendingFlush array to NetStats ?
 		}
 		DormantHandlesPendingFlush.Reset();
 
@@ -903,7 +911,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		 * are replicated atomically this polling propagation is required.
 		 */
 		{
-			IRIS_PROFILER_SCOPE(UObjectReplicationBridge_PreUpdateAndPollImpl_PropagateDirtyness);
+			IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_PropagateDirtyness);
 
 			auto PropagateSubObjectDirtinessToOwner = [&LocalNetRefHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
 			{
@@ -929,9 +937,9 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 			FNetBitArrayView::ForAllSetBits(DirtyObjects, SubObjects, FNetBitArray::AndOp, PropagateSubObjectDirtinessToOwner);
 			FNetBitArrayView::ForAllSetBits(DirtyObjects, SubObjects, FNetBitArray::AndNotOp, PropagateOwnerDirtinessToSubObjectsAndDependentObjects);
 			
-			// Patch in dependent objects, not subtle as this point
+			// Patch dependent objects, not subtle as this point
 			{
-				IRIS_PROFILER_SCOPE(UObjectReplicationBridge_PreUpdateAndPollImpl Patch in depedent objects);
+				IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_PatchIndepedentObjects);
 
 				FNetBitArray TempObjectsConsideredForPolling(ObjectsConsideredForPolling);
 				FNetBitArray::ForAllSetBits(TempObjectsConsideredForPolling, NetRefHandleManager->GetObjectsWithDependentObjectsInternalIndices(), FNetBitArray::AndOp,
@@ -943,14 +951,18 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 			}
 		}
 
-		if (IsIrisPushModelEnabled())
 		{
-			ObjectsConsideredForPolling.ForAllSetBits(PushModelUpdateAndPollFunction);
+			IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Poll);
+			if (IsIrisPushModelEnabled())
+			{
+				ObjectsConsideredForPolling.ForAllSetBits(PushModelUpdateAndPollFunction);
+			}
+			else
+			{
+				ObjectsConsideredForPolling.ForAllSetBits(UpdateAndPollFunction);
+			}
 		}
-		else
-		{
-			ObjectsConsideredForPolling.ForAllSetBits(UpdateAndPollFunction);
-		}
+		
 	}
 	else if (uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(Handle))
 	{
