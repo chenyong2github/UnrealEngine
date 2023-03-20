@@ -305,13 +305,15 @@ UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(UObject* Insta
 			}
 
 			// Set prioritizer
-			if (Params.StaticPriority > 0.0f)
+			const bool bRequireForceEnabled = Params.StaticPriority > 0.0f;
+			const FNetObjectPrioritizerHandle PrioritizerHandle = GetPrioritizer(Instance->GetClass(), bRequireForceEnabled);
+			// Set static priority if valid unless we have a force enabled prioritizer.
+			if (Params.StaticPriority > 0.0f && PrioritizerHandle == InvalidNetObjectPrioritizerHandle)
 			{
 				ReplicationSystem->SetStaticPriority(RefHandle, Params.StaticPriority);
 			}
 			else
 			{
-				const FNetObjectPrioritizerHandle PrioritizerHandle = GetPrioritizer(Instance->GetClass());
 				if (PrioritizerHandle != InvalidNetObjectPrioritizerHandle)
 				{
 					ReplicationSystem->SetPrioritizer(RefHandle, PrioritizerHandle);
@@ -1257,7 +1259,7 @@ UE::Net::FNetObjectFilterHandle UObjectReplicationBridge::GetDynamicFilter(const
 	return FilterHandle;
 }
 
-UE::Net::FNetObjectPrioritizerHandle UObjectReplicationBridge::GetPrioritizer(const UClass* Class)
+UE::Net::FNetObjectPrioritizerHandle UObjectReplicationBridge::GetPrioritizer(const UClass* Class, bool bRequireForceEnabled)
 {
 	using namespace UE::Net;
 
@@ -1266,29 +1268,24 @@ UE::Net::FNetObjectPrioritizerHandle UObjectReplicationBridge::GetPrioritizer(co
 		const FName ClassName = GetConfigClassPathName(Class);
 
 		// Try exact match first.
-		if (FNetObjectPrioritizerHandle* PrioritizerHandlePtr = ClassesWithPrioritizer.Find(ClassName))
+		if (const FClassPrioritizerInfo* PrioritizerInfo = ClassesWithPrioritizer.Find(ClassName))
 		{
-			return *PrioritizerHandlePtr;
+			const bool bUsePrioritizer = !bRequireForceEnabled || PrioritizerInfo->bForceEnable;
+			return bUsePrioritizer ? PrioritizerInfo->PrioritizerHandle : InvalidNetObjectPrioritizerHandle;
 		}
 
-		/**
-		 * Try to find superclass. If we find it and the classes are considered equal we copy the filter setting.
-		 * If it's not equal we check whether it can be spatialized or not and use the result of that.
-		 * In all cases we add the result to the mapping for faster lookup next time.
-		 */
+		// Try to find superclass with prioritizer config. If we find it we copy the config and add the result to the mapping for faster lookup next time.
 		for (const UClass* SuperClass = Class->GetSuperClass(); SuperClass != nullptr; SuperClass = SuperClass->GetSuperClass())
 		{
 			const FName SuperClassName = GetConfigClassPathName(SuperClass);
 
-			// Try to get exact match first.
-			if (FNetObjectPrioritizerHandle* PrioritizerHandlePtr = ClassesWithPrioritizer.Find(SuperClassName))
+			if (const FClassPrioritizerInfo* PrioritizerInfo = ClassesWithPrioritizer.Find(SuperClassName))
 			{
-				// Assume this class should use the same prioritizer
-				{
-					const FNetObjectPrioritizerHandle PrioritizerHandle = *PrioritizerHandlePtr;
-					ClassesWithPrioritizer.Add(ClassName, PrioritizerHandle);
-					return PrioritizerHandle;
-				}
+				// Copy info to this class
+				ClassesWithPrioritizer.Add(ClassName, *PrioritizerInfo);
+
+				const bool bUsePrioritizer = !bRequireForceEnabled || PrioritizerInfo->bForceEnable;
+				return bUsePrioritizer ? PrioritizerInfo->PrioritizerHandle : InvalidNetObjectPrioritizerHandle;
 			}
 		}
 	}
@@ -1363,8 +1360,10 @@ void UObjectReplicationBridge::LoadConfig()
 	{
 		for (const FObjectReplicationBridgePrioritizerConfig& PrioritizerConfig : BridgeConfig->GetPrioritizerConfigs())
 		{
-			const UE::Net::FNetObjectPrioritizerHandle PrioritizerHandle = ReplicationSystem->GetPrioritizerHandle(PrioritizerConfig.PrioritizerName);
-			ClassesWithPrioritizer.Add(PrioritizerConfig.ClassName, PrioritizerHandle);
+			FClassPrioritizerInfo PrioInfo;
+			PrioInfo.PrioritizerHandle = ReplicationSystem->GetPrioritizerHandle(PrioritizerConfig.PrioritizerName);
+			PrioInfo.bForceEnable = PrioritizerConfig.bForceEnableOnAllInstances;
+			ClassesWithPrioritizer.Add(PrioritizerConfig.ClassName, PrioInfo);
 		}
 	}
 

@@ -242,8 +242,8 @@ private:
 	/** Retrieves the dynamic filter to set for the given class. Will return an invalid handle if no dynamic filter should be set. */
 	UE::Net::FNetObjectFilterHandle GetDynamicFilter(const UClass* Class);
 
-	/** Retrieves the prioritizer to set for the given class. Will return an invalid handle if no prioritizer should be set. */
-	UE::Net::FNetObjectPrioritizerHandle GetPrioritizer(const UClass* Class);
+	/** Retrieves the prioritizer to set for the given class. If bRequireForceEnabled the config needs to have bForceEnableOnAllInstances set in order for this method to return the configured prioritizer. Returns an invalid handle if no prioritizer should be set. */
+	UE::Net::FNetObjectPrioritizerHandle GetPrioritizer(const UClass* Class, bool bRequireForceEnabled);
 
 	/** Returns true if instances of this class should be delta compressed */
 	bool ShouldClassBeDeltaCompressed(const UClass* Class);
@@ -258,6 +258,13 @@ private:
 private:
 
 	TMap<const UClass*, FName> ConfigClassPathNameCache;
+
+	// Prioritization
+	struct FClassPrioritizerInfo
+	{
+		UE::Net::FNetObjectPrioritizerHandle PrioritizerHandle;
+		uint32 bForceEnable : 1;
+	};
 
 	// Polling
 	struct FPollInfo
@@ -280,7 +287,7 @@ private:
 	TFunction<bool(const UClass*,const UClass*)> ShouldSubclassUseSameFilterFunction;
 
 	// Prioritizer mapping
-	TMap<FName, UE::Net::FNetObjectPrioritizerHandle> ClassesWithPrioritizer;
+	TMap<FName, FClassPrioritizerInfo> ClassesWithPrioritizer;
 
 	// Delta compression
 	TMap<FName, bool> ClassesWithDeltaCompression;

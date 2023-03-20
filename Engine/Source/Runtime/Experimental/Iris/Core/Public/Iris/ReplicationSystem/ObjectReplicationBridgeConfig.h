@@ -58,6 +58,10 @@ struct FObjectReplicationBridgePrioritizerConfig
 	/** The name of the prioritizer to set on the class instances. "Default" can be used to specify the default spatial prioritizer. */
 	UPROPERTY()
 	FName PrioritizerName;
+
+	/** Whether this prioritizer should be used for all instances of this class and subclasses, regardless of bAlwaysRelevant and bOnlyRelevantToOwner settings on instance. */
+	UPROPERTY()
+	bool bForceEnableOnAllInstances = false;
 };
 
 USTRUCT()
