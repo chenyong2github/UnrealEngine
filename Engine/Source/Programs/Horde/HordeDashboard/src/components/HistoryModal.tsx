@@ -48,8 +48,17 @@ class HistoryModalState {
    constructor() {
       makeObservable(this);
    }
+
+   @observable
+   selectedAgentUpdated = 0;
+
+   get selectedAgent(): AgentData | undefined {
+      // subscribe in any observers
+      if (this.selectedAgentUpdated) { }
+      return this._selectedAgent;
+   } 
    
-   @observable.ref selectedAgent: AgentData | undefined = undefined;
+   private _selectedAgent: AgentData | undefined = undefined;
    @observable.shallow currentData: any = [];
    @observable.shallow infoItems: InfoPanelItem[] = [];
    @observable.shallow infoSubItems: InfoPanelSubItem[] = [];
@@ -69,7 +78,7 @@ class HistoryModalState {
    @action
    setSelectedAgent(selectedAgent?: AgentData | undefined) {
       // if we're closing don't reset
-      this.selectedAgent = selectedAgent;
+      this._selectedAgent = selectedAgent;
       if (this.selectedAgent) {
          // set date to now
          this._initBuilderItems();
@@ -81,6 +90,8 @@ class HistoryModalState {
          }
          this._doUpdate();
       }
+
+      this.selectedAgentUpdated++;
    }
 
    @action

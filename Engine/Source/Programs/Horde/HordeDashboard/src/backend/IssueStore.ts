@@ -13,8 +13,16 @@ export class IssueStore {
         makeObservable(this);
     }
 
-    @observable.ref
-    issues: IssueData[] = [];
+    @observable
+    issuesUpdated: number = 0;
+
+    get issues(): IssueData[] {
+        // subscribe in any observers
+        if (this.issuesUpdated) { }
+        return this._issues;
+    }
+        
+    private _issues: IssueData[] = [];
 
     getIssues(jobId: string, stepId: string): IssueData[] {
         // @todo: refactor for new issue API
@@ -29,7 +37,7 @@ export class IssueStore {
 
         this.streamId = streamId;
 
-        if (this.issues.length) {
+        if (this._issues.length) {
             this.setData([]);
         }
 
@@ -45,7 +53,8 @@ export class IssueStore {
     @action
     private setData(data: IssueData[]) {
         // @todo: do a deep compare here to avoid redundant updates
-        this.issues = data;
+        this._issues = data;
+        this.issuesUpdated++;
     }
 
     private update(): void {

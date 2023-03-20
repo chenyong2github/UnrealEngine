@@ -59,13 +59,22 @@ class CommitCache {
       });
    }
 
-   @action
-   setData(commitData: ChangeSummaryData) {
-      this.commitData = commitData;
+   get commitData(): ChangeSummaryData | undefined {
+      // subscribe in any observers
+      if (this.commitDataUpdated) { }
+      return this._commitData;
    }
 
-   @observable.ref
-   commitData?: ChangeSummaryData;
+   @action
+   setData(commitData: ChangeSummaryData) {
+      this._commitData = commitData;
+      this.commitDataUpdated++;
+   }
+
+   @observable
+   commitDataUpdated = 0;
+
+   private _commitData?: ChangeSummaryData;
 
    change: number;
 

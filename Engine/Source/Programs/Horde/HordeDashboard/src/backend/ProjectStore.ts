@@ -10,15 +10,23 @@ export class ProjectStore {
         makeObservable(this);
     }
 
-    @observable.ref
-    projects: ProjectData[] = [];
+    @observable
+    projectsUpdated: number = 0;
+
+    get projects(): ProjectData[] {
+        // subscribe in any observers
+        if (this.projectsUpdated) { }
+        return this._projects;
+    }
 
     @observable
     activeId?: string;
 
     @action
     setProjects(data: ProjectData[]) {
-        this.projects = data;
+        // @todo: compare to avoid update
+        this._projects = data;
+        this.projectsUpdated++;
     }
 
     @action
@@ -32,23 +40,23 @@ export class ProjectStore {
     }
 
     getActive(): ProjectData | undefined {
-        return this.projects.find(p => p.id === this.activeId);
+        return this._projects.find(p => p.id === this.activeId);
     }
 
     byId(id: string | undefined): ProjectData | undefined {
-        return this.projects.find(p => p.id === id);
+        return this._projects.find(p => p.id === id);
     }
 
     byName(name: string | undefined): ProjectData | undefined {
-        return this.projects.find(p => p.name === name);
+        return this._projects.find(p => p.name === name);
     }
 
     firstProject(): ProjectData | undefined {
-        return this.projects.length ? this.projects[0] : undefined;
+        return this._projects.length ? this._projects[0] : undefined;
     }
 
     projectByStreamId(streamId: string): ProjectData | undefined {
-        return this.projects.find(p => p.streams?.find(stream => stream.id === streamId))
+        return this._projects.find(p => p.streams?.find(stream => stream.id === streamId))
     }
 
     streamById(id: string | undefined): StreamData | undefined {
@@ -56,7 +64,7 @@ export class ProjectStore {
             return undefined;
         }
         let stream: StreamData | undefined;
-        this.projects.forEach(p => {
+        this._projects.forEach(p => {
             if (stream) {
                 return;
             }
@@ -70,7 +78,7 @@ export class ProjectStore {
 
         let stream: StreamData | undefined;
 
-        this.projects.forEach(p => {
+        this._projects.forEach(p => {
             if (stream) {
                 return;
             }
@@ -108,6 +116,10 @@ export class ProjectStore {
             });
         });
     }
+
+
+    private _projects: ProjectData[] = [];
+
 }
 
 export const projectStore = new ProjectStore();

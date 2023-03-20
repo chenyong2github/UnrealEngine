@@ -10,24 +10,40 @@ export class AgentStore {
         makeObservable(this);
     }
 
-    @observable.ref
-	agents: AgentData[] = [];
+    @observable
+    agentsUpdated: number = 0
+
+    get agents(): AgentData[] {
+        // subscribe in any observers
+        if (this.agentsUpdated) { }
+        return this._agents;
+    }
+            
+	private _agents: AgentData[] = [];
 	
-	@observable.ref
-	pools: PoolData[] = [];
+    @observable
+    poolsUpdated: number = 0;
+
+    get pools(): PoolData[] {
+        // subscribe in any observers
+        if (this.poolsUpdated) { }
+        return this._pools;
+    }
+    
+    private _pools: PoolData[] = [];
 
 	// don't need this for now
     modifiedAfterDate: Date = new Date(0);
 
     @action 
     private _setPools(data: PoolData[]) {
-        this.pools = data;
+        this._pools = data;
     }
 
     @action
     private _setAgents(data: AgentData[]) {
         if(data.length !== 0) {
-            const toSet: AgentData[] = [...this.agents];
+            const toSet: AgentData[] = [...this._agents];
             data.forEach(updatedAgent => {
                 const newUpdateIdx = toSet.findIndex(existingAgent => existingAgent.id === updatedAgent.id);
                 if(newUpdateIdx !== -1) {
@@ -37,7 +53,7 @@ export class AgentStore {
                     toSet.push(updatedAgent);
                 }
             });
-            this.agents = toSet;
+            this._agents = toSet;
         }
 	}
 
