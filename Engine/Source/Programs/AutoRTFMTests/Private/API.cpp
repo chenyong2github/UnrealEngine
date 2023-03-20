@@ -3,8 +3,8 @@
 #pragma autortfm
 
 #include "API.h"
+#include "Catch2Includes.h"
 
-#include <catch_amalgamated.hpp>
 #include <AutoRTFM/AutoRTFM.h>
 #include <memory>
 #include <thread>

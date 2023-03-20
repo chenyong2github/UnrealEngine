@@ -2,7 +2,7 @@
 
 #pragma autortfm
 
-#include <catch_amalgamated.hpp>
+#include "Catch2Includes.h"
 #include <AutoRTFM/AutoRTFM.h>
 #include <vector>
 #include <unordered_set>
@@ -95,9 +95,9 @@ public:
             }
         };
 
-        auto PushAll = [&] (const vector<FNode<T>*>& Nodes)
+        auto PushAll = [&] (const vector<FNode<T>*>& InnerNodes)
         {
-            for (FNode<T>* Node : Nodes)
+            for (FNode<T>* Node : InnerNodes)
             {
                 Push(Node);
             }

@@ -2,7 +2,7 @@
 
 #pragma autortfm
 
-#include <catch_amalgamated.hpp>
+#include "Catch2Includes.h"
 #include <AutoRTFM/AutoRTFM.h>
 
 TEST_CASE("CopyAddInt64")
