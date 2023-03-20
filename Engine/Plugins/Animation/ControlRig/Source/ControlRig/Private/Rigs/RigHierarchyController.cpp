@@ -1636,6 +1636,13 @@ void URigHierarchyController::HandleHierarchyModified(ERigHierarchyNotification 
 	ModifiedEvent.Broadcast(InNotifType, InHierarchy, InElement);
 }
 
+bool URigHierarchyController::IsValid() const
+{
+	// If we're pending kill, it's fine for our Hierarchy to also be pending kill
+	const bool bPendingKillAcceptable = ::IsValid(this);
+	return Hierarchy.IsValid(bPendingKillAcceptable);
+}
+
 int32 URigHierarchyController::AddElement(FRigBaseElement* InElementToAdd, FRigBaseElement* InFirstParent, bool bMaintainGlobalTransform)
 {
 	ensure(IsValid());

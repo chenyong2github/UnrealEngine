@@ -598,7 +598,7 @@ private:
 	 * Returns true if this controller is valid / linked to a valid hierarchy.
 	 * @return Returns true if this controller is valid / linked to a valid hierarchy.
 	 */
-	bool IsValid() const { return Hierarchy.IsValid(); }
+	bool IsValid() const;
 
 	/**
 	 * Adds a new element to the hierarchy
