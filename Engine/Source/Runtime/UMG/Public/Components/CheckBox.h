@@ -8,6 +8,7 @@
 #include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SWidget.h"
+#include "Binding/States/WidgetStateRegistration.h"
 #include "Components/ContentWidget.h"
 
 #include "CheckBox.generated.h"
@@ -177,4 +178,34 @@ protected:
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PROPERTY_BINDING_IMPLEMENTATION(ECheckBoxState, CheckedState)
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+};
+
+UCLASS(Transient)
+class UMG_API UWidgetCheckedStateRegistration : public UWidgetEnumStateRegistration
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Post-load initialized values corresponding to this enum state */
+	static inline FWidgetStateBitfield Unchecked;
+	static inline FWidgetStateBitfield Checked;
+	static inline FWidgetStateBitfield Undetermined;
+
+	static const inline FName StateName = FName("CheckedState");
+
+	//~ Begin UWidgetEnumStateRegistration Interface.
+	virtual FName GetStateName() const override;
+	virtual uint8 GetRegisteredWidgetState(const UWidget* InWidget) const override;
+	//~ End UWidgetEnumStateRegistration Interface
+
+	/** Convenience method to get widget state bitfield from enum value */
+	static const FWidgetStateBitfield& GetBitfieldFromValue(uint8 InValue);
+
+protected:
+	friend UWidgetStateSettings;
+
+	//~ Begin UWidgetEnumStateRegistration Interface.
+	virtual void InitializeStaticBitfields() const override;
+	//~ End UWidgetEnumStateRegistration Interface
 };

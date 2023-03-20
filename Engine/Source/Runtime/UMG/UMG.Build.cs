@@ -10,6 +10,7 @@ public class UMG : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"DeveloperSettings",
                 "Engine",
                 "InputCore",
 				"Slate",

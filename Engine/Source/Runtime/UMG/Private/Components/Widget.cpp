@@ -20,6 +20,9 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SToolTip.h"
 #include "Binding/PropertyBinding.h"
+#include "Binding/States/WidgetStateBitfield.h"
+#include "Binding/States/WidgetStateSettings.h"
+#include "Binding/States/WidgetStateRegistration.h"
 #include "Binding/WidgetFieldNotificationExtension.h"
 #include "Logging/MessageLog.h"
 #include "Blueprint/GameViewportSubsystem.h"
@@ -201,6 +204,8 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #endif
 	AccessibleWidgetData = nullptr;
 
+	bShouldBroadcastState = true;
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
@@ -306,16 +311,24 @@ bool UWidget::GetIsEnabled() const
 
 void UWidget::SetIsEnabled(bool bInIsEnabled)
 {
+	bool bValueChanged = false;
 	if (bIsEnabled != bInIsEnabled)
 	{
 		bIsEnabled = bInIsEnabled;
 		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::bIsEnabled);
+		bValueChanged = true;
 	}
 
 	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
 	if (SafeWidget.IsValid())
 	{
 		SafeWidget->SetEnabled(bInIsEnabled);
+	}
+
+	if (bValueChanged)
+	{
+		// Note: State is disabled, so we broadcast !bIsEnabled
+		BroadcastBinaryPostStateChange(UWidgetDisabledStateRegistration::Bit, !bIsEnabled);
 	}
 }
 
@@ -1318,6 +1331,13 @@ void UWidget::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	SynchronizeAccessibleData();
 }
 
+void UWidget::ReleaseSlateResources(bool bReleaseChildren)
+{
+	UVisual::ReleaseSlateResources(bReleaseChildren);
+
+	MyWidgetStateBitfield.Reset();
+}
+
 #if WITH_EDITOR
 bool UWidget::Modify(bool bAlwaysMarkDirty)
 {
@@ -1773,11 +1793,53 @@ bool UWidget::AddBinding(FDelegateProperty* DelegateProperty, UObject* SourceObj
 	return false;
 }
 
+FDelegateHandle UWidget::RegisterPostStateListener(const FOnWidgetStateBroadcast::FDelegate& ListenerDelegate, bool bBroadcastCurrentState)
+{
+	if (!MyWidgetStateBitfield.IsValid())
+	{
+		MyWidgetStateBitfield = MakeShared<FWidgetStateBitfield>(UWidgetStateSettings::Get()->GetInitialRegistrationBitfield(this));
+	}
+
+	if (bBroadcastCurrentState)
+	{
+		ListenerDelegate.ExecuteIfBound(*MyWidgetStateBitfield);
+	}
+
+	return PostWidgetStateChanged.Add(ListenerDelegate);
+}
+
+void UWidget::UnregisterPostStateListener(const FDelegateHandle& ListenerDelegate)
+{
+	PostWidgetStateChanged.Remove(ListenerDelegate);
+
+	if (!PostWidgetStateChanged.IsBound())
+	{
+		MyWidgetStateBitfield.Reset();
+	}
+}
+
 void UWidget::OnBindingChanged(const FName& Property)
 {
 
 }
 
+void UWidget::BroadcastBinaryPostStateChange(const FWidgetStateBitfield& StateChange, bool bInValue)
+{
+	if (bShouldBroadcastState && MyWidgetStateBitfield.IsValid())
+	{
+		MyWidgetStateBitfield->SetBinaryState(StateChange, bInValue);
+		PostWidgetStateChanged.Broadcast(*MyWidgetStateBitfield);
+	}
+}
+
+void UWidget::BroadcastEnumPostStateChange(const FWidgetStateBitfield& StateChange)
+{
+	if (bShouldBroadcastState && MyWidgetStateBitfield.IsValid())
+	{
+		MyWidgetStateBitfield->SetEnumState(StateChange);
+		PostWidgetStateChanged.Broadcast(*MyWidgetStateBitfield);
+	}
+}
 
 namespace UE::UMG::Private
 {

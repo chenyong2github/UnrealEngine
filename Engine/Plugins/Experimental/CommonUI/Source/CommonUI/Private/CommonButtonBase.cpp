@@ -2,6 +2,8 @@
 
 #include "CommonButtonBase.h"
 
+#include "Binding/States/WidgetStateBitfield.h"
+#include "Binding/States/WidgetStateRegistration.h"
 #include "CommonActionWidget.h"
 #include "CommonUISubsystemBase.h"
 #include "CommonInputSubsystem.h"
@@ -458,16 +460,26 @@ void UCommonButtonBase::NativeDestruct()
 
 void UCommonButtonBase::SetIsEnabled(bool bInIsEnabled)
 {
+	bool bValueChanged = bButtonEnabled != bInIsEnabled;
+
 	if (bInIsEnabled)
 	{
+		TGuardValue<bool> StateBroadcastGuard(bShouldBroadcastState, false);
 		Super::SetIsEnabled(bInIsEnabled);
 		EnableButton();
 	}
 	else
 	{
 		// Change the underlying enabled bool but do not call the case because we don't want to propogate it to the underlying SWidget
+		TGuardValue<bool> StateBroadcastGuard(bShouldBroadcastState, false);
 		Super::SetIsEnabled(bInIsEnabled);
 		DisableButton();
+	}
+
+	if (bValueChanged)
+	{
+		// Note: State is disabled, so we broadcast !bIsEnabled
+		BroadcastBinaryPostStateChange(UWidgetDisabledStateRegistration::Bit, !bInIsEnabled);
 	}
 }
 
@@ -778,15 +790,24 @@ void UCommonButtonBase::SetIsSelected(bool InSelected, bool bGiveClickFeedback)
 
 void UCommonButtonBase::SetIsLocked(bool bInIsLocked)
 {
-	bLocked = bInIsLocked;
+	bool bValueChanged = bInIsLocked != bLocked;
 
-	SetButtonStyle();
+	if (bValueChanged)
+	{
+		bLocked = bInIsLocked;
 
-	BP_OnLockedChanged(bLocked);
+		SetButtonStyle();
+
+		BP_OnLockedChanged(bLocked);
+
+		BroadcastBinaryPostStateChange(UWidgetLockedStateRegistration::Bit, bLocked);
+	}
 }
 
 void UCommonButtonBase::SetSelectedInternal(bool bInSelected, bool bAllowSound /*= true*/, bool bBroadcast /*= true*/)
 {
+	bool bValueChanged = bInSelected != bSelected;
+
 	bSelected = bInSelected;
 
 	SetButtonStyle();
@@ -816,6 +837,11 @@ void UCommonButtonBase::SetSelectedInternal(bool bInSelected, bool bAllowSound /
 	}
 
 	UpdateInputActionWidgetVisibility();
+
+	if (bValueChanged)
+	{
+		BroadcastBinaryPostStateChange(UWidgetSelectedStateRegistration::Bit, bSelected);
+	}
 }
 
 void UCommonButtonBase::RefreshDimensions()
@@ -1641,3 +1667,22 @@ bool UCommonButtonBase::GetIsFocusable() const
 	return IsFocusable();
 }
 
+FName UWidgetLockedStateRegistration::GetStateName() const
+{
+	return StateName;
+};
+
+bool UWidgetLockedStateRegistration::GetRegisteredWidgetState(const UWidget* InWidget) const
+{
+	if (const UCommonButtonBase* CommonButton = Cast<UCommonButtonBase>(InWidget))
+	{
+		return CommonButton->GetLocked();
+	}
+
+	return false;
+}
+
+void UWidgetLockedStateRegistration::InitializeStaticBitfields() const
+{
+	Bit = FWidgetStateBitfield(GetStateName());
+}

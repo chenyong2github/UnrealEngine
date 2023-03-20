@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/Button.h"
+
+#include "Binding/States/WidgetStateBitfield.h"
+#include "Binding/States/WidgetStateRegistration.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
@@ -283,21 +286,27 @@ FReply UButton::SlateHandleClicked()
 void UButton::SlateHandlePressed()
 {
 	OnPressed.Broadcast();
+	BroadcastBinaryPostStateChange(UWidgetPressedStateRegistration::Bit, true);
+
+
 }
 
 void UButton::SlateHandleReleased()
 {
 	OnReleased.Broadcast();
+	BroadcastBinaryPostStateChange(UWidgetPressedStateRegistration::Bit, false);
 }
 
 void UButton::SlateHandleHovered()
 {
 	OnHovered.Broadcast();
+	BroadcastBinaryPostStateChange(UWidgetHoveredStateRegistration::Bit, true);
 }
 
 void UButton::SlateHandleUnhovered()
 {
 	OnUnhovered.Broadcast();
+	BroadcastBinaryPostStateChange(UWidgetHoveredStateRegistration::Bit, false);
 }
 
 #if WITH_ACCESSIBILITY

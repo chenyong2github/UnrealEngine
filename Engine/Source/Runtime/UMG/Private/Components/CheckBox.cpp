@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/CheckBox.h"
+#include "Binding/States/WidgetStateBitfield.h"
+#include "Binding/States/WidgetStateRegistration.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -209,9 +211,12 @@ ECheckBoxState UCheckBox::GetCheckedState() const
 
 void UCheckBox::SetIsChecked(bool InIsChecked)
 {
+	bool bValueChanged = false;
+
 	ECheckBoxState NewState = InIsChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	if (NewState != CheckedState)
 	{
+		bValueChanged = true;
 		CheckedState = NewState;
 		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::CheckedState);
 	}
@@ -220,12 +225,20 @@ void UCheckBox::SetIsChecked(bool InIsChecked)
 	{
 		MyCheckbox->SetIsChecked(PROPERTY_BINDING(ECheckBoxState, CheckedState));
 	}
+
+	if (bValueChanged)
+	{
+		BroadcastEnumPostStateChange(InIsChecked ? UWidgetCheckedStateRegistration::Checked : UWidgetCheckedStateRegistration::Unchecked);
+	}
 }
 
 void UCheckBox::SetCheckedState(ECheckBoxState InCheckedState)
 {
+	bool bValueChanged = false;
+
 	if (CheckedState != InCheckedState)
 	{
+		bValueChanged = true;
 		CheckedState = InCheckedState;
 		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::CheckedState);
 	}
@@ -233,6 +246,11 @@ void UCheckBox::SetCheckedState(ECheckBoxState InCheckedState)
 	if ( MyCheckbox.IsValid() )
 	{
 		MyCheckbox->SetIsChecked(PROPERTY_BINDING(ECheckBoxState, CheckedState));
+	}
+
+	if (bValueChanged)
+	{
+		BroadcastEnumPostStateChange(UWidgetCheckedStateRegistration::GetBitfieldFromValue((uint8)CheckedState));
 	}
 }
 
@@ -300,7 +318,43 @@ const FText UCheckBox::GetPaletteCategory()
 
 #endif
 
+FName UWidgetCheckedStateRegistration::GetStateName() const
+{
+	return StateName;
+};
+
+uint8 UWidgetCheckedStateRegistration::GetRegisteredWidgetState(const UWidget* InWidget) const
+{
+	if (const UCheckBox* CheckBox = Cast<UCheckBox>(InWidget))
+	{
+		return (uint8)CheckBox->GetCheckedState();
+	}
+
+	return 0;
+}
+
+const FWidgetStateBitfield& UWidgetCheckedStateRegistration::GetBitfieldFromValue(uint8 InValue)
+{
+	switch ((ECheckBoxState)InValue)
+	{
+	case ECheckBoxState::Unchecked:
+		return UWidgetCheckedStateRegistration::Unchecked;
+	case ECheckBoxState::Checked:
+		return UWidgetCheckedStateRegistration::Checked;
+	case ECheckBoxState::Undetermined:
+		return UWidgetCheckedStateRegistration::Undetermined;
+	default:
+		return UWidgetCheckedStateRegistration::Undetermined;
+	}
+}
+
+void UWidgetCheckedStateRegistration::InitializeStaticBitfields() const
+{
+	Unchecked = FWidgetStateBitfield(GetStateName(), (uint8)ECheckBoxState::Unchecked);
+	Checked = FWidgetStateBitfield(GetStateName(), (uint8)ECheckBoxState::Checked);
+	Undetermined = FWidgetStateBitfield(GetStateName(), (uint8)ECheckBoxState::Undetermined);
+}
+
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
-

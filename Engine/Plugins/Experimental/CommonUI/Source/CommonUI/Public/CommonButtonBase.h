@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Binding/States/WidgetStateRegistration.h"
 #include "CommonUserWidget.h"
 #include "Components/Button.h"
 #include "Engine/DataTable.h"
@@ -898,6 +899,31 @@ protected:
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = Input, meta = (BindWidget, OptionalWidget = true, AllowPrivateAccess = true))
 	TObjectPtr<UCommonActionWidget> InputActionWidget;
+};
+
+UCLASS(Transient)
+class COMMONUI_API UWidgetLockedStateRegistration : public UWidgetBinaryStateRegistration
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Post-load initialized bit corresponding to this binary state */
+	static inline FWidgetStateBitfield Bit;
+
+	static const inline FName StateName = FName("Locked");
+
+	//~ Begin UWidgetBinaryStateRegistration Interface.
+	virtual FName GetStateName() const override;
+	virtual bool GetRegisteredWidgetState(const UWidget* InWidget) const override;
+	//~ End UWidgetBinaryStateRegistration Interface
+
+protected:
+	friend UWidgetStateSettings;
+
+	//~ Begin UWidgetBinaryStateRegistration Interface.
+	virtual void InitializeStaticBitfields() const override;
+	//~ End UWidgetBinaryStateRegistration Interface
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

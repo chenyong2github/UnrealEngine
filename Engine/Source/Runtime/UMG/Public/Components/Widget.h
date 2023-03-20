@@ -41,6 +41,7 @@ class UPanelSlot;
 class UPropertyBinding;
 class UUserWidget;
 struct FDynamicPropertyPath;
+struct FWidgetStateBitfield;
 enum class ECheckBoxState : uint8;
 
 namespace UMWidget
@@ -250,6 +251,8 @@ public:
 	// Events
 	DECLARE_DYNAMIC_DELEGATE_RetVal(FEventReply, FOnReply);
 	DECLARE_DYNAMIC_DELEGATE_RetVal_TwoParams(FEventReply, FOnPointerEvent, FGeometry, MyGeometry, const FPointerEvent&, MouseEvent);
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWidgetStateBroadcast, const FWidgetStateBitfield& /*InStateBitfield */);
 
 	typedef TFunctionRef<TSharedPtr<SObjectWidget>( UUserWidget*, TSharedRef<SWidget> )> ConstructMethodType;
 
@@ -975,6 +978,23 @@ public:
 	/**  */
 	bool AddBinding(FDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath);
 
+	/**
+	 * Add a post-state-changed listener to this widget, will fire after a state changed and all related side effects are resolved.
+	 * 
+	 * Note: Currently we only support post-state-changed broadcasts.
+	 *
+	 * @param ListenerDelegate Delegate to fire when state changes
+	 * @param bBroadcastCurrentState true if we should trigger this delegate once on registration with the current widget state (Does not globally broadcast).
+	 */
+	FDelegateHandle RegisterPostStateListener(const FOnWidgetStateBroadcast::FDelegate& ListenerDelegate, bool bBroadcastCurrentState = true);
+
+	/**
+	 * Remove a post-state-changed  listener from this widget, resets state bitfield if no other state listeners exist
+	 *
+	 * @param ListenerDelegate Delegate to remove
+	 */
+	void UnregisterPostStateListener(const FDelegateHandle& ListenerDelegate);
+
 	static TSubclassOf<UPropertyBinding> FindBinderClassForDestination(FProperty* Property);
 
 	//~ Begin UObject
@@ -983,6 +1003,10 @@ public:
 	virtual void FinishDestroy() override;
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	//~ End UObject
+
+	//~ Begin UVisual
+	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	//~ End UVisual
 
 	FORCEINLINE bool CanSafelyRouteEvent()
 	{
@@ -1074,6 +1098,21 @@ protected:
 
 	virtual void OnBindingChanged(const FName& Property);
 
+	/**
+	 * Broadcast a binary state post change
+	 *
+	 * @param StateChange bitfield marking states that should be changed
+	 * @param bInValue true if marked states should be enabled, false otherwise
+	 */
+	void BroadcastBinaryPostStateChange(const FWidgetStateBitfield& StateChange, bool bInValue);
+
+	/**
+	 * Broadcast an enum state post change
+	 *
+	 * @param StateChange bitfield marking states that should be changed
+	 */
+	void BroadcastEnumPostStateChange(const FWidgetStateBitfield& StateChange);
+
 protected:
 	UObject* GetSourceAssetOrClass() const;
 
@@ -1129,6 +1168,15 @@ protected:
 
 	/** The underlying SWidget contained in a SObjectWidget */
 	TWeakPtr<SObjectWidget> MyGCWidget;
+
+	/** The bitfield for this widget's state */
+	TSharedPtr<FWidgetStateBitfield> MyWidgetStateBitfield;
+
+	/** False will skip state broadcasts. Useful for child classes to call Super methods without broadcasting early / late. */
+	bool bShouldBroadcastState;
+
+	/** Delegate that broadcasts after current widget state has fully changed, including all state-related side effects */
+	FOnWidgetStateBroadcast PostWidgetStateChanged;
 
 	/** Native property bindings. */
 	UPROPERTY(Transient)
