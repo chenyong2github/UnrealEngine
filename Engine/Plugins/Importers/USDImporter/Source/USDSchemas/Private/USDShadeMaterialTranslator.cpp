@@ -131,9 +131,12 @@ namespace UE::UsdShadeTranslator::Private
 						{
 							if ( Context->AssetCache && Context->InfoCache )
 							{
-								// This is super slow as it will essentially linear search the asset cache, but
-								// not much we can do at runtime without asset import data
-								const UE::FSdfPath PrimPath = Context->InfoCache->GetPrimForAsset( MID );
+								UE::FSdfPath PrimPath;
+								for (const UE::FSdfPath& Path : Context->InfoCache->GetPrimsForAsset(MID))
+								{
+									PrimPath = Path;
+									break;
+								}
 								const FString Hash = Context->AssetCache->GetHashForAsset( MID );
 
 								const FName NewInstanceName = MakeUniqueObjectName(
@@ -155,7 +158,7 @@ namespace UE::UsdShadeTranslator::Private
 								}
 								NewMID->CopyParameterOverrides( MID );
 
-								if (Context->AssetCache->RemoveAsset(Hash))
+								if (Context->AssetCache->CanRemoveAsset(Hash) && Context->AssetCache->RemoveAsset(Hash))
 								{
 									Context->AssetCache->CacheAsset(Hash, NewMID);
 									if (!PrimPath.IsEmpty())
@@ -424,9 +427,11 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 	}
 	else if ( Context->MaterialToPrimvarToUVIndex && Context->InfoCache )
 	{
-		const UE::FSdfPath FoundPrimPath = Context->InfoCache->GetPrimForAsset(ConvertedMaterial);
-		if (!FoundPrimPath.IsEmpty())
+		const TSet<UE::FSdfPath> FoundPrimPaths = Context->InfoCache->GetPrimsForAsset(ConvertedMaterial);
+		if (FoundPrimPaths.Num() > 0)
 		{
+			const UE::FSdfPath& FoundPrimPath = *FoundPrimPaths.CreateConstIterator();
+
 			if (TMap<FString, int32>* PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex->Find(FoundPrimPath.GetString()))
 			{
 				// Copy the Material -> Primvar -> UV index mapping from the cached material prim path to this prim path

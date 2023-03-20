@@ -101,7 +101,7 @@ public:
 		return CastAssets;
 	}
 
-	UE::FSdfPath GetPrimForAsset(UObject* Asset) const;
+	TSet<UE::FSdfPath> GetPrimsForAsset(UObject* Asset) const;
 	TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> GetAllAssetPrimLinks() const;
 
 private:

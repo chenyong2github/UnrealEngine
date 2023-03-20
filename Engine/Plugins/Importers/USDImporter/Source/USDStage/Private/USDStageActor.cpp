@@ -1832,10 +1832,10 @@ FString AUsdStageActor::GetSourcePrimPath(UObject* Object)
 	}
 	else if (InfoCache)
 	{
-		const UE::FSdfPath FoundPath = InfoCache->GetPrimForAsset(Object);
-		if (!FoundPath.IsEmpty())
+		const TSet<UE::FSdfPath> FoundPaths = InfoCache->GetPrimsForAsset(Object);
+		if (FoundPaths.Num() > 0)
 		{
-			return FoundPath.GetString();
+			return FoundPaths.CreateConstIterator()->GetString();
 		}
 	}
 
@@ -3221,12 +3221,29 @@ void AUsdStageActor::LoadAsset(FUsdSchemaTranslationContext& TranslationContext,
 
 	if (InfoCache)
 	{
-		TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(UE::FSdfPath{*PrimPath});
-
 		if (UsdAssetCache)
 		{
+			UE::FSdfPath UsdPrimPath = UE::FSdfPath{*PrimPath};
+			TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(UsdPrimPath);
+
 			for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
 			{
+				// If there are any other prim paths linked to this asset that we *won't* be removing/reparsing
+				// in here, it means our stage actor as a whole is still "referencing" that asset
+				bool bAssetStillReferenced = false;
+				for (const UE::FSdfPath& LinkedPrim : InfoCache->GetPrimsForAsset(OldAsset.Get()))
+				{
+					if (LinkedPrim != UsdPrimPath)
+					{
+						bAssetStillReferenced = true;
+						break;
+					}
+				}
+				if (bAssetStillReferenced)
+				{
+					continue;
+				}
+
 				UsdAssetCache->RemoveAssetReference(OldAsset.Get(), this);
 			}
 		}
@@ -3270,6 +3287,22 @@ void AUsdStageActor::LoadAssets(FUsdSchemaTranslationContext& TranslationContext
 				TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(PrimPathToRemove);
 				for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
 				{
+					// If there are any other prim paths linked to this asset that we *won't* be removing/reparsing
+					// in here, it means our stage actor as a whole is still "referencing" that asset
+					bool bAssetStillReferenced = false;
+					for (const UE::FSdfPath& LinkedPrim : InfoCache->GetPrimsForAsset(OldAsset.Get()))
+					{
+						if (!PrimPathsToRemove.Contains(LinkedPrim))
+						{
+							bAssetStillReferenced = true;
+							break;
+						}
+					}
+					if (bAssetStillReferenced)
+					{
+						continue;
+					}
+
 					UsdAssetCache->RemoveAssetReference(OldAsset.Get(), this);
 				}
 			}

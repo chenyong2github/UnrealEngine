@@ -61,6 +61,7 @@ struct FUsdInfoCache::FUsdInfoCacheImpl
 
 	// Information we may have about a subset of prims
 	TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> PrimPathToAssets;
+	TMap<TWeakObjectPtr<UObject>, TSet<UE::FSdfPath>> AssetToPrimPaths;
 	mutable FRWLock PrimPathToAssetsLock;
 
 	// Paths to material prims that are actually used by mesh prims in the scene, given the current settings for
@@ -89,6 +90,7 @@ bool FUsdInfoCache::Serialize( FArchive& Ar )
 		{
 			FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
 			Ar << ImplPtr->PrimPathToAssets;
+			Ar << ImplPtr->AssetToPrimPaths;
 		}
 		{
 			FWriteScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
@@ -755,6 +757,7 @@ void FUsdInfoCache::LinkAssetToPrim(const UE::FSdfPath& Path, UObject* Asset)
 	);
 
 	ImplPtr->PrimPathToAssets.FindOrAdd(Path).Add(Asset);
+	ImplPtr->AssetToPrimPaths.FindOrAdd(Asset).Add(Path);
 }
 
 TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::FSdfPath& Path)
@@ -766,9 +769,18 @@ TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::F
 	}
 	FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
 
-	TSet<TWeakObjectPtr<UObject>> Values;
-	ImplPtr->PrimPathToAssets.RemoveAndCopyValue(Path, Values);
-	return Values;
+	TSet<TWeakObjectPtr<UObject>> Assets;
+	ImplPtr->PrimPathToAssets.RemoveAndCopyValue(Path, Assets);
+
+	for (const TWeakObjectPtr<UObject>& Asset : Assets)
+	{
+		if (TSet<UE::FSdfPath>* PrimPaths = ImplPtr->AssetToPrimPaths.Find(Asset))
+		{
+			PrimPaths->Remove(Path);
+		}
+	}
+
+	return Assets;
 }
 
 TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAllAssetsForPrim(const UE::FSdfPath& Path) const
@@ -788,8 +800,13 @@ TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAllAssetsForPrim(const UE::FSdfP
 	return {};
 }
 
-UE::FSdfPath FUsdInfoCache::GetPrimForAsset(UObject* Asset) const
+TSet<UE::FSdfPath> FUsdInfoCache::GetPrimsForAsset(UObject* Asset) const
 {
+	if (!Asset)
+	{
+		return {};
+	}
+
 	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
 	if (!ImplPtr)
 	{
@@ -797,12 +814,9 @@ UE::FSdfPath FUsdInfoCache::GetPrimForAsset(UObject* Asset) const
 	}
 	FReadScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
 
-	for (const TPair<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>>& Pair : ImplPtr->PrimPathToAssets)
+	if (const TSet<UE::FSdfPath>* FoundPrims = ImplPtr->AssetToPrimPaths.Find(Asset))
 	{
-		if (Pair.Value.Contains(Asset))
-		{
-			return Pair.Key;
-		}
+		return *FoundPrims;
 	}
 
 	return {};
@@ -918,6 +932,7 @@ void FUsdInfoCache::Clear()
 		{
 			FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
 			ImplPtr->PrimPathToAssets.Empty();
+			ImplPtr->AssetToPrimPaths.Empty();
 		}
 		{
 			FWriteScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
