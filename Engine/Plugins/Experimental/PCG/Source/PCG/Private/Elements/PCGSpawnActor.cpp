@@ -441,7 +441,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 				Params.Descriptor.InitFrom(StaticMeshComponent);
 				// TODO: No custom data float support?
 
-				TArray<FTransform>& Transforms = MeshDescriptorTransforms.FindOrAdd(Params)
+				TArray<FTransform>& Transforms = MeshDescriptorTransforms.FindOrAdd(Params);
 
 				if (const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent))
 				{
