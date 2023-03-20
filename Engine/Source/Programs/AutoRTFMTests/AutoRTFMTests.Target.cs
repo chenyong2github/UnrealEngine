@@ -11,6 +11,8 @@ public class AutoRTFMTestsTarget : TargetRules
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+
+		Name = "AutoRTFMTests";
 		LaunchModuleName = "AutoRTFMTests";
 
 		// Compile out references from Core to the rest of the engine
@@ -23,9 +25,8 @@ public class AutoRTFMTestsTarget : TargetRules
 		// Make a console application under Windows, so entry point is main() everywhere
 		bIsBuildingConsoleApplication = true;
 
-		// Disable unity builds by default for AutoRTFMTests
-		// TODO enabling this causes linker errors
-		// bUseUnityBuild = false;
+		// Disable unity builds by default for AutoRTFMTest
+		bUseUnityBuild = false;
 
 		// Set the RTFM clang compiler
 		if (!bGenerateProjectFiles)
