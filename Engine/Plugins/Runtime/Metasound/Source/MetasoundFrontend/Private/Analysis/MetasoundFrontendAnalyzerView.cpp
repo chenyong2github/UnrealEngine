@@ -43,5 +43,22 @@ namespace Metasound
 		{
 			return OutputReceivers.Remove(InOutputName) > 0;
 		}
+
+		TArray<FMetasoundAnalyzerView::FBoundOutputDescription> FMetasoundAnalyzerView::GetBoundOutputDescriptions() const
+		{
+			TArray<FBoundOutputDescription> OutputDescriptions;
+			
+			for (auto& Receiver : OutputReceivers)
+			{
+				if (!ensure(Receiver.Value.IsValid()))
+				{
+					continue;
+				}
+
+				OutputDescriptions.Add({ Receiver.Key, Receiver.Value->GetDataType() });
+			}
+
+			return OutputDescriptions;
+		}
 	} // namespace Frontend
 } // namespace Metasound

@@ -1,20 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEngineModule.h"
 
-#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
-#include "Interfaces/MetasoundDeprecatedInterfaces.h"
-#include "Interfaces/MetasoundInterface.h"
-#include "Interfaces/MetasoundInterfaceBindingsPrivate.h"
 #include "Metasound.h"
+#include "MetasoundAudioBus.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
-#include "MetasoundFrontendDataTypeTraits.h"
+#include "MetasoundGeneratorOutputWatcher.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
 #include "MetasoundWaveTable.h"
-#include "MetasoundAudioBus.h"
+#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
+#include "Interfaces/MetasoundDeprecatedInterfaces.h"
+#include "Interfaces/MetasoundInterface.h"
+#include "Interfaces/MetasoundInterfaceBindingsPrivate.h"
 #include "Modules/ModuleManager.h"
 #include "Sound/AudioSettings.h"
 
@@ -60,6 +60,12 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 
 		// Register Analyzers
 		Metasound::Frontend::IVertexAnalyzerRegistry::Get().RegisterAnalyzerFactories();
+
+		// Register output watcher ops
+		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(float, 0.0f)
+		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(int32, 0)
+		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(bool, false)
+		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(FString, "")
 
 		UE_LOG(LogMetasoundEngine, Log, TEXT("MetaSound Engine Initialized"));
 	}

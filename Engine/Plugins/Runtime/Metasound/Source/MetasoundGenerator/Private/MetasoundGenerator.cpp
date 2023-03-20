@@ -540,6 +540,11 @@ namespace Metasound
 	{
 		OutputAnalyzerModificationQueue.Enqueue([this, AnalyzerAddress]
 		{
+			if (OutputAnalyzers.Contains(AnalyzerAddress.OutputName))
+			{
+				return;
+			}
+			
 			const FAnyDataReference* OutputReference = VertexInterfaceData.GetOutputs().FindDataReference(AnalyzerAddress.OutputName);
 			
 			if (nullptr == OutputReference)

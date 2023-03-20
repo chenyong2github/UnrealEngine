@@ -375,6 +375,17 @@ namespace Metasound::Test::Generator
 		constexpr DataType ExpectedValue = true;
 		return RunOutputAnalyzerForwardValueTest<DataType>(*this, ExpectedValue, "UE.Forward.Bool");
 	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMetasoundGeneratorOututAnalyzerForwardValueStringTest,
+	"Audio.Metasound.Generator.OutputAnalyzer.ForwardValue.String",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	bool FMetasoundGeneratorOututAnalyzerForwardValueStringTest::RunTest(const FString&)
+	{
+		using FDataType = FString;
+		const FDataType ExpectedValue { "unexpected value" };
+		return RunOutputAnalyzerForwardValueTest<FDataType>(*this, ExpectedValue, "UE.Forward.String");
+	}
 }
 
 #endif

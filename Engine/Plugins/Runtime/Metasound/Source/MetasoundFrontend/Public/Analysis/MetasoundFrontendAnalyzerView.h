@@ -51,6 +51,14 @@ namespace Metasound
 
 				return false;
 			}
+
+			struct FBoundOutputDescription
+			{
+				FName Name;
+				FName TypeName;
+			};
+
+			TArray<FBoundOutputDescription> GetBoundOutputDescriptions() const;
 		};
 	}
 }
