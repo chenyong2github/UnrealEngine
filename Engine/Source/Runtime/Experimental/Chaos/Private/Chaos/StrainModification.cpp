@@ -25,7 +25,7 @@ int32 Chaos::FStrainedProxyModifier::GetNumRestBreakables() const
 	return 0;
 }
 
-int32 Chaos::FStrainedProxyModifier::GetNumBreakingStrains() const
+int32 Chaos::FStrainedProxyModifier::GetNumBreakingStrains(const uint8 StrainTypes) const
 {
 	// Make sure we have a proxy and rest-children
 	if (Proxy == nullptr) { return 0; }
@@ -45,8 +45,12 @@ int32 Chaos::FStrainedProxyModifier::GetNumBreakingStrains() const
 		// graph or something... this logic is currently copied from
 		// FRigidClustering::ReleaseClusterParticlesImpl, but should be tucked behind
 		// an interface somewhere.
-		const Chaos::FReal CollisionImpulses = ChildHandle->CollisionImpulses();
-		const Chaos::FReal ExternalStrain = ChildHandle->GetExternalStrain();
+		const Chaos::FReal CollisionImpulses
+			= (StrainTypes & Chaos::EStrainTypes::CollisionStrain)
+			? ChildHandle->CollisionImpulses() : FReal(0);
+		const Chaos::FReal ExternalStrain
+			= (StrainTypes & Chaos::EStrainTypes::ExternalStrain)
+			? ChildHandle->GetExternalStrain() : FReal(0);
 		const Chaos::FReal MaxAppliedStrain = FMath::Max(CollisionImpulses, ExternalStrain);
 		const Chaos::FReal InternalStrain = ChildHandle->GetInternalStrains();
 		if (MaxAppliedStrain >= InternalStrain)

@@ -16,6 +16,13 @@ namespace Chaos
 	class FStrainedProxyRange;
 	class FStrainModifierAccessor;
 
+	enum EStrainTypes : uint8
+	{
+		InternalStrain = 1 << 0,
+		ExternalStrain = 1 << 1,
+		CollisionStrain = 1 << 2
+	};
+
 	// FStrainedProxyModifier
 	//
 	// User-facing api for accessing the proxy of a strained cluster. Provides const access to the
@@ -47,7 +54,7 @@ namespace Chaos
 		int32 GetNumRestBreakables() const;
 
 		// Get the number of breaking strains amongst the level-1 strainables
-		int32 GetNumBreakingStrains() const;
+		int32 GetNumBreakingStrains(const uint8 StrainTypes = EStrainTypes::ExternalStrain | EStrainTypes::CollisionStrain) const;
 
 		// Clear strains for all strained cluster children
 		void ClearStrains();
