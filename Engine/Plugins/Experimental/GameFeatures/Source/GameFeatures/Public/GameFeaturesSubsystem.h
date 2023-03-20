@@ -231,6 +231,20 @@ struct FGameFeaturePluginIdentifier
 	FGameFeaturePluginIdentifier() = default;
 	FGameFeaturePluginIdentifier(FString PluginURL);
 
+	FGameFeaturePluginIdentifier(const FGameFeaturePluginIdentifier& Other)
+		: FGameFeaturePluginIdentifier(Other.PluginURL)
+	{}
+
+	FGameFeaturePluginIdentifier(FGameFeaturePluginIdentifier&& Other);
+
+	FGameFeaturePluginIdentifier& operator=(const FGameFeaturePluginIdentifier& Other)
+	{
+		FromPluginURL(Other.PluginURL);
+		return *this;
+	}
+
+	FGameFeaturePluginIdentifier& operator=(FGameFeaturePluginIdentifier&& Other);
+
 	/** Used to determine if 2 FGameFeaturePluginIdentifiers are referencing the same GameFeaturePlugin.
 		Only matching on Identifying information instead of all the optional bundle information */
 	bool operator==(const FGameFeaturePluginIdentifier& Other) const;
@@ -256,14 +270,14 @@ struct FGameFeaturePluginIdentifier
 	}
 
 private:
-	/** The protocol used in the URL for this GameFeaturePlugin URL */
-	EGameFeaturePluginProtocol PluginProtocol;
+	/** Full PluginURL used to originally construct this identifier */
+	FString PluginURL;
 
 	/** The part of the URL that can be used to uniquely identify this plugin without any transient data */
 	FStringView IdentifyingURLSubset;
 
-	/** Full PluginURL used to originally construct this identifier */
-	FString PluginURL;
+	/** The protocol used in the URL for this GameFeaturePlugin URL */
+	EGameFeaturePluginProtocol PluginProtocol;
 
 	//Friend class so that it can access parsed URL data from under the hood
 	friend struct FGameFeaturePluginStateMachineProperties;

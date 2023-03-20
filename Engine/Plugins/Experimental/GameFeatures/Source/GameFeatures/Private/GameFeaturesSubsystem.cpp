@@ -161,6 +161,21 @@ FGameFeaturePluginIdentifier::FGameFeaturePluginIdentifier(FString PluginURL)
 	FromPluginURL(MoveTemp(PluginURL));
 }
 
+FGameFeaturePluginIdentifier::FGameFeaturePluginIdentifier(FGameFeaturePluginIdentifier&& Other)
+	: FGameFeaturePluginIdentifier(MoveTemp(Other.PluginURL))
+{
+	Other.IdentifyingURLSubset.Reset();
+	Other.PluginProtocol = EGameFeaturePluginProtocol::Unknown;
+}
+
+FGameFeaturePluginIdentifier& FGameFeaturePluginIdentifier::operator=(FGameFeaturePluginIdentifier&& Other)
+{
+	FromPluginURL(MoveTemp(Other.PluginURL));
+	Other.IdentifyingURLSubset.Reset();
+	Other.PluginProtocol = EGameFeaturePluginProtocol::Unknown;
+	return *this;
+}
+
 void FGameFeaturePluginIdentifier::FromPluginURL(FString PluginURLIn)
 {
 	//Make sure we have no stale data

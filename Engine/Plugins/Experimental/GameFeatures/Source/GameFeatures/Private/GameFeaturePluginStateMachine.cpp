@@ -482,7 +482,7 @@ UE::GameFeatures::FResult FGameFeaturePluginState::GetErrorResult(const FString&
 {
 	const FString StateName = LexToString(UGameFeaturesSubsystem::Get().GetPluginState(StateProperties.PluginIdentifier));
 	const FString ErrorCodeEnding = ErrorNamespaceAddition.IsEmpty() ? ErrorCode : ErrorNamespaceAddition + ErrorCode;
-	const FString CompleteErrorCode = (UE::GameFeatures::StateMachineErrorNamespace + StateName + ErrorCodeEnding);
+	const FString CompleteErrorCode = FString::Printf(TEXT("%s%s.%s"), *UE::GameFeatures::StateMachineErrorNamespace, *StateName, *ErrorCodeEnding);
 	return UE::GameFeatures::FResult(MakeError(CompleteErrorCode), OptionalErrorText);
 }
 
