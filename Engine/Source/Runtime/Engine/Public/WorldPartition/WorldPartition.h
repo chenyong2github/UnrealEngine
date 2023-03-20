@@ -159,8 +159,39 @@ public:
 
 	// Streaming generation
 	bool CanGenerateStreaming() const { return !StreamingPolicy; }
+
+	UE_DEPRECATED(5.3, "GenerateStreaming is deprecated, use GenerateStreaming with a param struct instead")
 	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
+
+	UE_DEPRECATED(5.3, "GenerateContainerStreaming is deprecated, use GenerateContainerStreaming with a param struct instead")
 	bool GenerateContainerStreaming(const UActorDescContainer* ActorDescContainer, TArray<FString>* OutPackagesToGenerate = nullptr);
+
+	struct FGenerateStreamingParams
+	{
+		FGenerateStreamingParams()
+		{}
+
+		const UActorDescContainer* ActorDescContainer = nullptr;
+		TOptional<const FString> OutputLogPath;
+
+		FGenerateStreamingParams& SetActorDescContainer(const UActorDescContainer* InActorDescContainer) { ActorDescContainer = InActorDescContainer; return *this; }
+		FGenerateStreamingParams& SetOutputLogPath(const FString& InOutputLogPath) { OutputLogPath = InOutputLogPath; return *this; }
+	};
+
+	struct FGenerateStreamingContext
+	{
+		FGenerateStreamingContext()
+		{}
+
+		 TArray<FString>* PackagesToGenerate = nullptr;
+		 TOptional<FString> OutputLogFilename;
+
+		FGenerateStreamingContext& SetPackagesToGenerate(TArray<FString>* InPackagesToGenerate) { PackagesToGenerate = InPackagesToGenerate; return *this; }
+	};
+
+	bool GenerateStreaming(const FGenerateStreamingParams& InParams, FGenerateStreamingContext& InContext);
+	bool GenerateContainerStreaming(const FGenerateStreamingParams& InParams, FGenerateStreamingContext& InContext);
+
 	void FlushStreaming();
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionGenerateStreamingDelegate, TArray<FString>*);

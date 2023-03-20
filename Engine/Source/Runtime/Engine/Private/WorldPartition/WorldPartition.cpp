@@ -378,8 +378,13 @@ void UWorldPartition::OnPrePIEEnded(bool bWasSimulatingInEditor)
 
 void UWorldPartition::OnBeginPlay()
 {
+	FGenerateStreamingParams Params;
+
 	TArray<FString> OutGeneratedStreamingPackageNames;
-	GenerateStreaming((bIsPIE || IsRunningGame()) ? &OutGeneratedStreamingPackageNames : nullptr);
+	FGenerateStreamingContext Context = FGenerateStreamingContext()
+		.SetPackagesToGenerate((bIsPIE || IsRunningGame()) ? &OutGeneratedStreamingPackageNames : nullptr);
+
+	GenerateStreaming(Params, Context);
 
 	// Prepare GeneratedStreamingPackages
 	check(GeneratedStreamingPackageNames.IsEmpty());
@@ -1600,8 +1605,14 @@ void UWorldPartition::BeginCook(IWorldPartitionCookPackageContext& CookContext)
 
 bool UWorldPartition::GatherPackagesToCook(IWorldPartitionCookPackageContext& CookContext)
 {
+	FGenerateStreamingParams Params = FGenerateStreamingParams()
+		.SetActorDescContainer(ActorDescContainer);
+
 	TArray<FString> PackagesToCook;
-	if (GenerateContainerStreaming(ActorDescContainer, &PackagesToCook))
+	FGenerateStreamingContext Context = FGenerateStreamingContext()
+		.SetPackagesToGenerate(&PackagesToCook);
+
+	if (GenerateContainerStreaming(Params, Context))
 	{
 		FString PackageName = GetPackage()->GetName();
 		for (const FString& PackageToCook : PackagesToCook)

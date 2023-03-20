@@ -33,7 +33,9 @@ static FAutoConsoleCommand DumpStreamingGenerationLog(
 		{
 			if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 			{
-				WorldPartition->GenerateStreaming();
+				UWorldPartition::FGenerateStreamingParams Params;
+				UWorldPartition::FGenerateStreamingContext Context;
+				WorldPartition->GenerateStreaming(Params, Context);
 				WorldPartition->FlushStreaming();
 			}
 		}
@@ -929,12 +931,17 @@ public:
 		StreamingGenerationContext = MakeUnique<FStreamingGenerationContext>(this, Container);
 	}
 
-	static TUniquePtr<FArchive> CreateDumpStateLogArchive(const TCHAR* Suffix)
+	static TUniquePtr<FArchive> CreateDumpStateLogArchive(const TCHAR* Suffix, bool bTimeStamped = true)
 	{
 		if (!GIsBuildMachine)
 		{
 			FString StateLogOutputFilename = FPaths::ProjectSavedDir() / TEXT("WorldPartition") / FString::Printf(TEXT("StreamingGeneration-%s"), Suffix);
-			StateLogOutputFilename += FString::Printf(TEXT("-%08x-%s"), FPlatformProcess::GetCurrentProcessId(), *FDateTime::Now().ToIso8601().Replace(TEXT(":"), TEXT(".")));
+
+			if (bTimeStamped)
+			{			
+				StateLogOutputFilename += FString::Printf(TEXT("-%08x-%s"), FPlatformProcess::GetCurrentProcessId(), *FDateTime::Now().ToIso8601().Replace(TEXT(":"), TEXT(".")));
+			}
+
 			StateLogOutputFilename += TEXT(".log");
 			return TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*StateLogOutputFilename));
 		}
@@ -1068,12 +1075,29 @@ private:
 
 bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 {
-	OnPreGenerateStreaming.Broadcast(OutPackagesToGenerate);
-
-	return GenerateContainerStreaming(ActorDescContainer, OutPackagesToGenerate);
+	FGenerateStreamingParams Params = FGenerateStreamingParams().SetActorDescContainer(nullptr);
+	FGenerateStreamingContext Context = FGenerateStreamingContext().SetPackagesToGenerate(OutPackagesToGenerate);
+	return GenerateStreaming(Params, Context);
 }
 
-bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InActorDescContainer, TArray<FString>* OutPackagesToGenerate /* = nullptr */)
+bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InActorDescContainer, TArray<FString>* OutPackagesToGenerate)
+{
+	FGenerateStreamingParams Params = FGenerateStreamingParams().SetActorDescContainer(InActorDescContainer);
+	FGenerateStreamingContext Context = FGenerateStreamingContext().SetPackagesToGenerate(OutPackagesToGenerate);
+	return GenerateContainerStreaming(Params, Context);
+}
+
+bool UWorldPartition::GenerateStreaming(const FGenerateStreamingParams& InParams, FGenerateStreamingContext& InContext)
+{
+	check(!InParams.ActorDescContainer);
+	FGenerateStreamingParams Params = FGenerateStreamingParams(InParams).SetActorDescContainer(ActorDescContainer);
+
+	OnPreGenerateStreaming.Broadcast(InContext.PackagesToGenerate);
+
+	return GenerateContainerStreaming(Params, InContext);
+}
+
+bool UWorldPartition::GenerateContainerStreaming(const FGenerateStreamingParams& InParams, FGenerateStreamingContext& InContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::GenerateContainerStreaming);
 
@@ -1091,7 +1115,7 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 		ErrorHandler = &MapCheckErrorHandler;
 	}
 
-	const FString ContainerPackageName = InActorDescContainer->ContainerPackageName.ToString();
+	const FString ContainerPackageName = InParams.ActorDescContainer->ContainerPackageName.ToString();
 	FString ContainerShortName = FPackageName::GetShortName(ContainerPackageName);
 	if (!ContainerPackageName.StartsWith(TEXT("/Game/")))
 	{
@@ -1107,11 +1131,16 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 
 	// Dump state log
 	TStringBuilder<256> StateLogSuffix;
-	StateLogSuffix += bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Manual")));
+	StateLogSuffix += bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : (GIsAutomationTesting ? TEXT("UnitTest") : TEXT("Manual"))));
 	StateLogSuffix += TEXT("_");
 	StateLogSuffix += ContainerShortName;
-	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(*StateLogSuffix);
+	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(*StateLogSuffix, !InParams.OutputLogPath);
 	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
+
+	if (LogFileAr)
+	{
+		InContext.OutputLogFilename = LogFileAr->GetArchiveName();
+	}
 
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
 	StreamingGeneratorParams.WorldPartitionContext = this;
@@ -1123,7 +1152,7 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 	FWorldPartitionStreamingGenerator StreamingGenerator(StreamingGeneratorParams);
 
 	// Preparation Phase
-	StreamingGenerator.PreparationPhase(InActorDescContainer);
+	StreamingGenerator.PreparationPhase(InParams.ActorDescContainer);
 
 	StreamingGenerator.DumpStateLog(HierarchicalLogAr);
 
@@ -1132,7 +1161,7 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 	StreamingPolicy = NewObject<UWorldPartitionStreamingPolicy>(const_cast<UWorldPartition*>(this), WorldPartitionStreamingPolicyClass.Get(), NAME_None, bIsPIE ? RF_Transient : RF_NoFlags);
 
 	check(RuntimeHash);
-	if (RuntimeHash->GenerateStreaming(StreamingPolicy, StreamingGenerator.GetStreamingGenerationContext(), OutPackagesToGenerate))
+	if (RuntimeHash->GenerateStreaming(StreamingPolicy, StreamingGenerator.GetStreamingGenerationContext(), InContext.PackagesToGenerate))
 	{
 		//if (IsRunningCookCommandlet())
 		{

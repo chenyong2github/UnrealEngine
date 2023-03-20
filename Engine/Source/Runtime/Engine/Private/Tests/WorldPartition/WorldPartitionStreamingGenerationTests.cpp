@@ -6,6 +6,10 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "EditorWorldUtils.h"
+#include "Misc/CommandLine.h"
+#include "Misc/FileHelper.h"
+#include "Settings/EditorLoadingSavingSettings.h"
+#include "AssetToolsModule.h"
 #endif
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -25,7 +29,7 @@ namespace WorldPartitionTests
 		};
 
 		FScopedEditorWorld ScopedEditorWorld(
-			TEXTVIEW("/Engine/WorldPartition/WorldPartitionUnitTest"),
+			TEXTVIEW("/Engine/WorldPartition/UnitTests/WPUnitTests"),
 			UWorld::InitializationValues()
 				.RequiresHitProxies(false)
 				.ShouldSimulatePhysics(false)
@@ -48,112 +52,42 @@ namespace WorldPartitionTests
 		{
 			return false;
 		}
-		
-		check(WorldPartition);
-		UActorDescContainer* ActorDescMainContainer = WorldPartition->GetActorDescContainer();
-		if (!TestNotNull(TEXT("Missing World Partition Container"), ActorDescMainContainer))
+
+		UWorldPartition::FGenerateStreamingParams Params = UWorldPartition::FGenerateStreamingParams()
+			.SetOutputLogPath(TEXT("StreamingGenerationTest"));
+
+		UWorldPartition::FGenerateStreamingContext Context;
+		WorldPartition->GenerateStreaming(Params, Context);
+
+		if (!TestTrue(TEXT("Missing Generated Output Log Path"), Context.OutputLogFilename.IsSet()))
 		{
 			return false;
 		}
 
-		if (!TestTrue(TEXT("World Partition Generate Streaming"), WorldPartition->GenerateContainerStreaming(ActorDescMainContainer)))
+		// Read reference output log
+		FString ReferenceOuputLog;
+		const FString ReferenceOutputLogPath(FPaths::GetPath(World->GetPackage()->GetLoadedPath().GetLocalFullPath()) / FPaths::GetCleanFilename(*Context.OutputLogFilename));
+		if (!TestTrue(TEXT("Error Reading Reference Output Log File"), FFileHelper::LoadFileToString(ReferenceOuputLog, *ReferenceOutputLogPath)))
 		{
 			return false;
 		}
 
-		FWorldPartitionReference ActorRef(ActorDescMainContainer, FGuid(TEXT("5D9F93BA407A811AFDDDAAB4F1CECC6A")));
-		if (!TestTrue(TEXT("Invalid Actor Reference"), ActorRef.IsValid()))
+		// Read generated output log
+		FString GeneratedOuputLog;
+		const FString GeneratedOutputLogPath(*Context.OutputLogFilename);
+		if (!TestTrue(TEXT("Error Reading Generated Output Log File"), FFileHelper::LoadFileToString(GeneratedOuputLog, *GeneratedOutputLogPath)))
 		{
 			return false;
 		}
 
-		AActor* Actor = ActorRef->GetActor();
-		if (!TestNotNull(TEXT("Missing Actor"), Actor))
+		if (!TestTrue(TEXT("Generated Output Log Don't Match Reference Output Log"), GeneratedOuputLog == ReferenceOuputLog))
 		{
-			return false;
-		}
-
-		FWorldPartitionHandle ActorHandle(ActorDescMainContainer, FGuid(TEXT("0D2B04D240BE5DE58FE437A8D2DBF5C9")));
-		if (!TestTrue(TEXT("Invalid Actor Handle"), ActorHandle.IsValid()))
-		{
-			return false;
-		}
-
-		if (!TestNull(TEXT("Actor Handle Not Loaded"), ActorHandle->GetActor()))
-		{
-			return false;
-		}
-
-		UObject* ResolvedObject = ActorHandle->GetActorSoftPath().TryLoad();
-		if (!TestNotNull(TEXT("Actor Handle Loaded"), ActorHandle->GetActor()))
-		{
-			return false;
-		}
-
-		if (!TestTrue(TEXT("Resolving Runtime Actor From Editor Path Failed"), ResolvedObject == ActorHandle->GetActor()))
-		{
-			return false;
-		}
-
-		auto TestEditorRuntimePathConversion = [this](const FSoftObjectPath& InEditorPath) -> bool
-		{
-			FSoftObjectPath RuntimePath;
-			if (!TestTrue(TEXT("Path Editor to Runtime Conversion Failed"), FWorldPartitionHelpers::ConvertEditorPathToRuntimePath(InEditorPath, RuntimePath)))
+			if (!FParse::Param(FCommandLine::Get(), TEXT("unattended")))
 			{
-				return false;
+				FString DiffCommand = GetDefault<UEditorLoadingSavingSettings>()->TextDiffToolPath.FilePath;
+				FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
+				AssetToolsModule.Get().CreateDiffProcess(DiffCommand, ReferenceOutputLogPath, GeneratedOutputLogPath);
 			}
-
-			FSoftObjectPath EditorPath;
-			if (!TestTrue(TEXT("Path Runtime to Editor Conversion Failed"), FWorldPartitionHelpers::ConvertRuntimePathToEditorPath(RuntimePath, EditorPath)))
-			{
-				return false;
-			}
-
-			if (!TestTrue(TEXT("Path Editor to Runtime to Editor Conversion Failed"), EditorPath == InEditorPath))
-			{
-				return false;
-			}
-
-			return true;
-		};
-
-		// Test path conversions to an actor
-		if (!TestEditorRuntimePathConversion(FSoftObjectPath(Actor)))
-		{
-			return false;
-		}
-
-		// Test path conversions to an actor component
-		if (!TestEditorRuntimePathConversion(FSoftObjectPath(Actor->GetRootComponent())))
-		{
-			return false;
-		}
-
-		// Test path conversions to an instanced level
-		UPackage* WorldPackage = World->GetPackage();
-		WorldPackage->Rename(*FString(WorldPackage->GetName() + TEXT("_LevelInstance_1")));
-
-		// Test path conversions to an instanced actor
-		if (!TestEditorRuntimePathConversion(FSoftObjectPath(Actor)))
-		{
-			return false;
-		}
-
-		// Test path conversions to an instanced actor component
-		if (!TestEditorRuntimePathConversion(FSoftObjectPath(Actor->GetRootComponent())))
-		{
-			return false;
-		}
-
-		// Test path conversions to a newly spawned actor
-		AActor* NewActor = World->SpawnActor(AActor::StaticClass());
-		if (!TestNotNull(TEXT("Sapwning Actor Failed"), NewActor))
-		{
-			return false;
-		}
-
-		if (!TestEditorRuntimePathConversion(FSoftObjectPath(NewActor)))
-		{
 			return false;
 		}
 #endif
@@ -163,4 +97,4 @@ namespace WorldPartitionTests
 
 #undef TEST_NAME_ROOT
 
-#endif 
+#endif

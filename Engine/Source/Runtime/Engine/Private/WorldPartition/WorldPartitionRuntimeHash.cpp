@@ -330,31 +330,34 @@ bool UWorldPartitionRuntimeHash::PopulateGeneratorPackageForCook(const TArray<FW
 
 void UWorldPartitionRuntimeHash::DumpStateLog(FHierarchicalLogArchive& Ar)
 {
-	Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
-	Ar.Printf(TEXT("%s - Persistent Level"), *GetWorld()->GetName());
-	Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
+	if (!GIsAutomationTesting)
 	{
-		FHierarchicalLogArchive::FIndentScope CellIndentScope = Ar.PrintfIndent(TEXT("Content of %s Persistent Level"), *GetWorld()->GetName());
-
-		TArray<const AActor*> Actors;
-		for (const AActor* Actor : GetWorld()->PersistentLevel->Actors)
+		Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
+		Ar.Printf(TEXT("%s - Persistent Level"), *GetWorld()->GetName());
+		Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
 		{
-			if (Actor)
+			FHierarchicalLogArchive::FIndentScope CellIndentScope = Ar.PrintfIndent(TEXT("Content of %s Persistent Level"), *GetWorld()->GetName());
+
+			TArray<const AActor*> Actors;
+			for (const AActor* Actor : GetWorld()->PersistentLevel->Actors)
 			{
-				Actors.Add(Actor);
+				if (Actor)
+				{
+					Actors.Add(Actor);
+				}
+			}
+
+			Actors.Sort([this](const AActor& A, const AActor& B) { return A.GetFName().LexicalLess(B.GetFName()); });
+
+			Ar.Printf(TEXT("Always loaded Actor Count: %d "), Actors.Num());
+			for (const AActor* Actor : Actors)
+			{
+				Ar.Printf(TEXT("Actor Path: %s"), *Actor->GetPathName());
+				Ar.Printf(TEXT("Actor Package: %s"), *Actor->GetPackage()->GetName());
 			}
 		}
-
-		Actors.Sort([this](const AActor& A, const AActor& B) { return A.GetFName().LexicalLess(B.GetFName()); });
-
-		Ar.Printf(TEXT("Always loaded Actor Count: %d "), Actors.Num());
-		for (const AActor* Actor : Actors)
-		{
-			Ar.Printf(TEXT("Actor Path: %s"), *Actor->GetPathName());
-			Ar.Printf(TEXT("Actor Package: %s"), *Actor->GetPackage()->GetName());
-		}
+		Ar.Printf(TEXT(""));
 	}
-	Ar.Printf(TEXT(""));
 }
 
 void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE)

@@ -313,8 +313,14 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 		return;
 	}
 
+	UWorldPartition::FGenerateStreamingParams Params = UWorldPartition::FGenerateStreamingParams()
+		.SetActorDescContainer(ActorDescContainer.Get());
+
+	UWorldPartition::FGenerateStreamingContext Context = UWorldPartition::FGenerateStreamingContext()
+		.SetPackagesToGenerate(OutPackageToGenerate);
+
 	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
-	WorldPartition->GenerateContainerStreaming(ActorDescContainer.Get(), OutPackageToGenerate);
+	WorldPartition->GenerateContainerStreaming(Params, Context);
 
 	ExternalStreamingObject = WorldPartition->RuntimeHash->StoreToExternalStreamingObject(WorldPartition, *GetExternalStreamingObjectName());
 
