@@ -109,6 +109,11 @@ bool FDefaultSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+bool FDefaultSourceControlProvider::UsesSnapshots() const
+{
+	return false;
+}
+
 bool FDefaultSourceControlProvider::AllowsDiffAgainstDepot() const
 {
 	return true;

@@ -516,6 +516,11 @@ bool FPerforceSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+bool FPerforceSourceControlProvider::UsesSnapshots() const
+{
+	return false;
+}
+
 bool FPerforceSourceControlProvider::AllowsDiffAgainstDepot() const
 {
 	return true;

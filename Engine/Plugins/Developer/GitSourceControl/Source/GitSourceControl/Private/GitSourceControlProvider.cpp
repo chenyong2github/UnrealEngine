@@ -280,6 +280,11 @@ bool FGitSourceControlProvider::UsesFileRevisions() const
 	return false;
 }
 
+bool FGitSourceControlProvider::UsesSnapshots() const
+{
+	return false;
+}
+
 bool FGitSourceControlProvider::AllowsDiffAgainstDepot() const
 {
 	return true;

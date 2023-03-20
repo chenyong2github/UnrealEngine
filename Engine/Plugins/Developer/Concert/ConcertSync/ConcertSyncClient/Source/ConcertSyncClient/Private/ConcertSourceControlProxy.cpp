@@ -517,6 +517,15 @@ bool FConcertSourceControlProxy::UsesCheckout() const
 	return false;
 }
 
+bool FConcertSourceControlProxy::UsesSnapshots() const
+{
+	if (ActualProvider)
+	{
+		return ActualProvider->UsesSnapshots();
+	}
+	return false;
+}
+
 bool FConcertSourceControlProxy::UsesFileRevisions() const
 {
 	if (ActualProvider)

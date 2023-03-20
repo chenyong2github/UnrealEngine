@@ -112,7 +112,7 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 	bCanExecuteSCCCheckIn = false;
 	bCanExecuteSCCRevert = false;
 	bCanExecuteSCCHistory = false;
-	bUsesFileRevisions = false;
+	bUsesSnapshots = false;
 	bUsesChangelists = false;
 
 	const bool bAllowRevert = AllowExecuteSourceControlRevert();
@@ -183,7 +183,7 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 		if (ISourceControlModule::Get().GetProvider().IsAvailable())
 		{
 			ISourceControlProvider& Provider = ISourceControlModule::Get().GetProvider();
-			bUsesFileRevisions = Provider.UsesFileRevisions();
+			bUsesSnapshots = Provider.UsesSnapshots();
 			bUsesChangelists = Provider.UsesChangelists();
 		}
 	}
@@ -201,7 +201,7 @@ bool FSceneOutlinerSCCHandler::CanExecuteSCCCheckOut() const
 
 bool FSceneOutlinerSCCHandler::CanExecuteSCCCheckIn() const
 {
-	return bCanExecuteSCCCheckIn && bUsesFileRevisions;
+	return bCanExecuteSCCCheckIn && !bUsesSnapshots;
 }
 
 bool FSceneOutlinerSCCHandler::CanExecuteSCCRevert() const

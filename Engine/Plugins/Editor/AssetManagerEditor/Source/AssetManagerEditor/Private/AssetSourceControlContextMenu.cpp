@@ -384,6 +384,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 
 	const bool bUsesCheckout = SourceControlProvider.UsesCheckout();
 	const bool bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
+	const bool bUsesSnapshots = SourceControlProvider.UsesSnapshots();
 	const bool bUsesReadOnly = SourceControlProvider.UsesLocalReadOnlyState();
 	const bool bUsesDiffAgainstDepot = SourceControlProvider.AllowsDiffAgainstDepot();
 
@@ -480,7 +481,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		FIsAsyncProcessingActive::CreateLambda([this]() { return IsStillScanning(CanExecuteSCCOpenForAdd()); })
 	);
 
-	if (bUsesFileRevisions)
+	if (!bUsesSnapshots)
 	{
 		AddAsyncMenuEntry(Section,
 			"SCCCheckIn",
@@ -1118,12 +1119,7 @@ void FAssetSourceControlContextMenuState::TryCacheCanExecuteVars(const TArray<FS
 				if (SourceControlState->CanCheckIn())
 				{
 					bCanExecuteSCCCheckIn = true;
-				}
-
-				if (SourceControlState->IsSourceControlled() && !SourceControlState->IsCheckedOut() && !bIsReadOnly)
-				{
-					bCanExecuteSCCRevertWritable = true;
-				}
+				}				
 			}
 
 			if (bUsesCheckout)
@@ -1148,6 +1144,11 @@ void FAssetSourceControlContextMenuState::TryCacheCanExecuteVars(const TArray<FS
 				if (bIsReadOnly)
 				{
 					bCanExecuteSCCMakeWritable = true;
+				}
+
+				if (SourceControlState->IsSourceControlled() && !SourceControlState->IsCheckedOut() && !bIsReadOnly)
+				{
+					bCanExecuteSCCRevertWritable = true;
 				}
 			}
 

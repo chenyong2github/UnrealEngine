@@ -49,7 +49,7 @@ private:
 	bool bCanExecuteSCCCheckIn = false;
 	bool bCanExecuteSCCHistory = false;
 	bool bCanExecuteSCCRevert = false;
-	bool bUsesFileRevisions = false;
+	bool bUsesSnapshots = false;
 	bool bUsesChangelists = false;
 
 	mutable TMap<FSceneOutlinerTreeItemPtr, TSharedPtr<FSceneOutlinerTreeItemSCC>> ItemSourceControls;

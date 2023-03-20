@@ -435,6 +435,11 @@ bool FPlasticSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+bool FPlasticSourceControlProvider::UsesSnapshots() const
+{
+	return false;
+}
+
 bool FPlasticSourceControlProvider::AllowsDiffAgainstDepot() const
 {
 	return true;

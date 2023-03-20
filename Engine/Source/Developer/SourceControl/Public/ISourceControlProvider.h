@@ -351,6 +351,11 @@ public:
 	virtual bool UsesFileRevisions() const = 0;
 
 	/**
+	 * Whether the provider uses snapshots
+	 */
+	virtual bool UsesSnapshots() const = 0;
+
+	/**
 	 * Whether the provider allow a diff between a changed file and the depot
 	 */
 	virtual bool AllowsDiffAgainstDepot() const = 0;
