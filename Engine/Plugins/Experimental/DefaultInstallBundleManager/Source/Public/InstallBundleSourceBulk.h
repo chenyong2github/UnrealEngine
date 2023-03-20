@@ -22,6 +22,7 @@ private:
 	void AsyncInit_FireInitAnlaytic();
 	void AsyncInit_MakeBundlesForBulkBuild();
 
+protected:
 	virtual EInstallBundleInstallState GetBundleInstallState(FName BundleName);
 
 	// IInstallBundleSource Interface
