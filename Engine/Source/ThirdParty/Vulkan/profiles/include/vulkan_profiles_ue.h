@@ -30,6 +30,13 @@
 #include <algorithm>
 
 #if defined(VK_VERSION_1_1)
+#define VP_UE_Vulkan_ES3_1_Android 1
+#define VP_UE_VULKAN_ES3_1_ANDROID_NAME "VP_UE_Vulkan_ES3_1_Android"
+#define VP_UE_VULKAN_ES3_1_ANDROID_SPEC_VERSION 1
+#define VP_UE_VULKAN_ES3_1_ANDROID_MIN_API_VERSION VK_MAKE_VERSION(1, 1, 0)
+#endif
+
+#if defined(VK_VERSION_1_1)
 #define VP_UE_Vulkan_SM5 1
 #define VP_UE_VULKAN_SM5_NAME "VP_UE_Vulkan_SM5"
 #define VP_UE_VULKAN_SM5_SPEC_VERSION 1
@@ -354,6 +361,45 @@ template <typename T>
 VPAPI_ATTR bool vpCheckFlags(const T& actual, const uint64_t expected) {
     return (actual & expected) == expected;
 }
+
+#ifdef VP_UE_Vulkan_ES3_1_Android
+namespace VP_UE_VULKAN_ES3_1_ANDROID {
+
+static const VpFeatureDesc featureDesc = {
+    [](VkBaseOutStructure* p) {
+    },
+    [](VkBaseOutStructure* p) -> bool {
+        bool ret = true;
+        return ret;
+    }
+};
+
+static const VpPropertyDesc propertyDesc = {
+    [](VkBaseOutStructure* p) {
+    },
+    [](VkBaseOutStructure* p) -> bool {
+        bool ret = true;
+        return ret;
+    }
+};
+
+static const VpStructChainerDesc chainerDesc = {
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+    [](VkBaseOutStructure* p, void* pUser, PFN_vpStructChainerCb pfnCb) {
+        pfnCb(p, pUser);
+    },
+};
+
+} // namespace VP_UE_VULKAN_ES3_1_ANDROID
+#endif
 
 #ifdef VP_UE_Vulkan_SM5
 namespace VP_UE_VULKAN_SM5 {
@@ -1155,6 +1201,24 @@ static const VpStructChainerDesc chainerDesc = {
 #endif
 
 static const VpProfileDesc vpProfiles[] = {
+#ifdef VP_UE_Vulkan_ES3_1_Android
+    VpProfileDesc{
+        VpProfileProperties{ VP_UE_VULKAN_ES3_1_ANDROID_NAME, VP_UE_VULKAN_ES3_1_ANDROID_SPEC_VERSION },
+        VP_UE_VULKAN_ES3_1_ANDROID_MIN_API_VERSION,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        VP_UE_VULKAN_ES3_1_ANDROID::featureDesc,
+        nullptr, 0,
+        VP_UE_VULKAN_ES3_1_ANDROID::propertyDesc,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        nullptr, 0,
+        VP_UE_VULKAN_ES3_1_ANDROID::chainerDesc,
+    },
+#endif
 #ifdef VP_UE_Vulkan_SM5
     VpProfileDesc{
         VpProfileProperties{ VP_UE_VULKAN_SM5_NAME, VP_UE_VULKAN_SM5_SPEC_VERSION },
