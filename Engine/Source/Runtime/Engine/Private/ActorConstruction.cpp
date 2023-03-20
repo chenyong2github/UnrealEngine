@@ -282,18 +282,11 @@ void AActor::RerunConstructionScripts()
 
 		// Mark package as clean on exit if not transient and not already dirty.
 		bool bMarkPackageClean = false;
-		const UPackage* ActorPackage = GetPackage();
+		UPackage* ActorPackage = GetPackage();
 		if (ActorPackage && !ActorPackage->IsDirty() && ActorPackage != GetTransientPackage())
 		{
 			bMarkPackageClean = true;
 		}
-		ON_SCOPE_EXIT
-		{
-			if (bMarkPackageClean)
-			{
-				GetPackage()->SetDirtyFlag(false);
-			}
-		};
 		
 		// Create cache to store component data across rerunning construction scripts
 		FComponentInstanceDataCache* InstanceDataCache;
@@ -610,6 +603,13 @@ void AActor::RerunConstructionScripts()
 					ChildRoot->UpdateComponentToWorld();
 				}
 			}
+		}
+
+		// If any of the code above caused the package dirty state to change, we reset it back to a "clean" state now. Note that we have to do this
+		// before we restore the undo buffer below - otherwise, the state change will become part of the current transaction, and we don't want that.
+		if (bMarkPackageClean && ActorPackage->IsDirty())
+		{
+			ActorPackage->SetDirtyFlag(false);
 		}
 
 		// Restore the undo buffer
