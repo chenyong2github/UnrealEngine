@@ -78,20 +78,7 @@ static TAutoConsoleVariable<bool> CVarOpenXRDoNotCopyEmulatedLayersToSpectatorSc
 	ECVF_Default);
 
 namespace {
-	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND, XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
-
-	/** Helper function for checking whether a blend mode is supported. */
-	bool IsEnvironmentBlendModeSupported(XrEnvironmentBlendMode BlendMode)
-	{
-		if (SupportedBlendModes.Contains(BlendMode) &&
-			// On mobile platforms the alpha channel can contain depth information, so we can't use alpha blend.
-			(BlendMode != XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND || !IsMobilePlatform(GMaxRHIShaderPlatform)))
-		{
-			return true;
-		}
-		return false;
-	}
 
 	/** Helper function for acquiring the appropriate FSceneViewport */
 	FSceneViewport* FindSceneViewport()
@@ -1347,6 +1334,14 @@ bool FOpenXRHMD::ReconfigureForShaderPlatform(EShaderPlatform NewShaderPlatform)
 	static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
 	bProjectionLayerAlphaEnabled = !IsMobilePlatform(NewShaderPlatform) && CVarPropagateAlpha->GetValueOnAnyThread() != 0;
 
+	ConfiguredShaderPlatform = NewShaderPlatform;
+
+	UE_LOG(LogHMD, Log, TEXT("HMD configured for shader platform %s, bIsMobileMultiViewEnabled=%d, bProjectionLayerAlphaEnabled=%d"),
+		*LexToString(ConfiguredShaderPlatform),
+		bIsMobileMultiViewEnabled,
+		bProjectionLayerAlphaEnabled
+		);
+
 	return true;
 }
 
@@ -1756,23 +1751,10 @@ bool FOpenXRHMD::OnStereoStartup()
 		RuntimePixelDensityMax = FMath::Min(RuntimePixelDensityMax, PerViewPixelDensityMax);
 	}
 
-	// Enumerate environment blend modes and select the best one.
+	// Select the first blend mode returned by the runtime - as per spec, environment blend modes should be in order from highest to lowest runtime preference
 	{
 		TArray<XrEnvironmentBlendMode> BlendModes = RetrieveEnvironmentBlendModes();
-
-		// Select the first blend mode returned by the runtime that is supported.
-		// This is the environment blend mode preferred by the runtime.
-		for (XrEnvironmentBlendMode BlendMode : BlendModes)
-		{
-			if (IsEnvironmentBlendModeSupported(BlendMode))
-			{
-				SelectedEnvironmentBlendMode = BlendMode;
-				break;
-			}
-		}
-
-		// If there is no supported environment blend mode, use the first option as a last resort.
-		if (!ensure(SelectedEnvironmentBlendMode != XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM))
+		if (!BlendModes.IsEmpty())
 		{
 			SelectedEnvironmentBlendMode = BlendModes[0];
 		}
@@ -2141,7 +2123,7 @@ void FOpenXRHMD::SetEnvironmentBlendMode(XrEnvironmentBlendMode NewBlendMode)
 
 	TArray<XrEnvironmentBlendMode> BlendModes = RetrieveEnvironmentBlendModes();
 
-	if (BlendModes.Contains(NewBlendMode) && IsEnvironmentBlendModeSupported(NewBlendMode))
+	if (BlendModes.Contains(NewBlendMode))
 	{
 		SelectedEnvironmentBlendMode = NewBlendMode;
 		UE_LOG(LogHMD, Log, TEXT("Environment Blend Mode set to: %d."), SelectedEnvironmentBlendMode);
@@ -2228,7 +2210,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	UnifiedCreateFlags |= TexCreate_RenderTargetable;
 
 	// On mobile without HDR all render targets need to be marked sRGB
-	bool MobileHWsRGB = IsMobileColorsRGB() && IsMobilePlatform(GMaxRHIShaderPlatform);
+	bool MobileHWsRGB = IsMobileColorsRGB() && IsMobilePlatform(GetConfiguredShaderPlatform());
 	if (MobileHWsRGB)
 	{
 		UnifiedCreateFlags |= TexCreate_SRGB;
@@ -3662,8 +3644,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-		const auto FeatureLevel = GMaxRHIFeatureLevel;
-		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
+		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GetConfiguredShaderPlatform());
 
 		TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 
@@ -3693,7 +3674,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			}
 		}
 
-		bNeedsDisplayMapping &= (GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1);
+		bNeedsDisplayMapping &= IsFeatureLevelSupported(GetConfiguredShaderPlatform(), ERHIFeatureLevel::ES3_1);
 
 		bool bIsArraySource = SrcTexture->GetDesc().IsTextureArray();
 
