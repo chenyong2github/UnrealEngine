@@ -6,14 +6,16 @@
 
 #include "Containers/ContainersFwd.h"
 #include "Delegates/IDelegateInstance.h"
-#include "Templates/SharedPointerFwd.h"
+#include "Templates/SharedPointer.h"
 
 #include "StallLogSubsystem.generated.h"
 
 class FDelegateHandle;
+class FSpawnTabArgs;
 class FStallLogHistory;
 struct FSlateBrush;
 class SDockTab;
+class SWidget;
 
 /**
  * Subsystem that provides feedback on stall detection

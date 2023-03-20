@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 
 class EDITORPERFORMANCEMODULE_API IEditorPerformanceModule : public IModuleInterface
 {
