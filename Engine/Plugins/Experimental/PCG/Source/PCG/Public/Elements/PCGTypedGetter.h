@@ -80,3 +80,28 @@ public:
 	virtual bool DataFilter(EPCGDataType InDataType) const { return !!(InDataType & EPCGDataType::Volume); }
 	//~End UPCGDataFromActorSettings
 };
+
+/** Builds a collection of primitive data from primitive components on the selected actors. */
+UCLASS(BlueprintType, ClassGroup = (Procedural))
+class PCG_API UPCGGetPrimitiveSettings : public UPCGDataFromActorSettings
+{
+	GENERATED_BODY()
+
+public:
+	UPCGGetPrimitiveSettings();
+
+	//~Begin UPCGSettings interface
+#if WITH_EDITOR
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Get Primitive Data")); }
+	virtual FText GetNodeTooltipText() const override;
+#endif
+
+protected:
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+	//~End UPCGSettings
+
+public:
+	//~Begin UPCGDataFromActorSettings interface
+	virtual bool DataFilter(EPCGDataType InDataType) const { return !!(InDataType & EPCGDataType::Primitive); }
+	//~End UPCGDataFromActorSettings
+};

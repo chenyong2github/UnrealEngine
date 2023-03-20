@@ -69,4 +69,25 @@ FText UPCGGetVolumeSettings::GetNodeTooltipText() const
 }
 #endif
 
+UPCGGetPrimitiveSettings::UPCGGetPrimitiveSettings()
+{
+	bDisplayModeSettings = false;
+	Mode = EPCGGetDataFromActorMode::ParseActorComponents;
+}
+
+TArray<FPCGPinProperties> UPCGGetPrimitiveSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Primitive);
+
+	return PinProperties;
+}
+
+#if WITH_EDITOR
+FText UPCGGetPrimitiveSettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("GetPrimitiveTooltip", "Builds a collection of primitive data from primitive components on the selected actors.");
+}
+#endif
+
 #undef LOCTEXT_NAMESPACE
