@@ -14,6 +14,9 @@ namespace Metasound
 	class FMetasoundGenerator;
 }
 
+DECLARE_TS_MULTICAST_DELEGATE(FOnGeneratorHandleAttached);
+DECLARE_TS_MULTICAST_DELEGATE(FOnGeneratorHandleDetached);
+
 UCLASS(BlueprintType,Category="MetaSound")
 class METASOUNDENGINE_API UMetasoundGeneratorHandle : public UObject
 {
@@ -32,6 +35,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="MetaSoundParameterPack")
 	bool ApplyParameterPack(UMetasoundParameterPack* Pack);
+
+	TSharedPtr<Metasound::FMetasoundGenerator> GetGenerator();
+
+	/**
+	 * NOTE: These delegates are called on the audio render thread. Careful!
+	 */
+	FOnGeneratorHandleAttached OnGeneratorHandleAttached;
+	FOnGeneratorHandleDetached OnGeneratorHandleDetached;
 
 private:
 

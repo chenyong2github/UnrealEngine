@@ -14,6 +14,7 @@
 #include "Async/AsyncWork.h"
 #include "Containers/MpscQueue.h"
 #include "Sound/SoundGenerator.h"
+#include "Delegates/Delegate.h"
 
 #ifndef ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 #define ENABLE_METASOUND_GENERATOR_RENDER_TIMING WITH_EDITOR
@@ -99,6 +100,8 @@ namespace Metasound
 		FMetasoundGeneratorInitParams InitParams;
 		bool bTriggerGenerator;
 	};
+
+	DECLARE_TS_MULTICAST_DELEGATE(FOnSetGraph);
 
 	/** FMetasoundGenerator generates audio from a given metasound IOperator
 	 * which produces a multichannel audio output.
@@ -231,6 +234,9 @@ namespace Metasound
 		 */
 		void SetPendingGraph(FMetasoundGeneratorData&& InData, bool bTriggerGraph);
 		void SetPendingGraphBuildFailed();
+
+		// Called when a new graph has been "compiled" and set up as this generator's graph.
+		FOnSetGraph OnSetGraph;
 
 	private:
 

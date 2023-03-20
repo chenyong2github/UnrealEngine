@@ -524,6 +524,8 @@ namespace Metasound
 		{
 			OnPlayTriggerRef->TriggerFrame(0);
 		}
+
+		OnSetGraph.Broadcast();
 	}
 
 	void FMetasoundGenerator::QueueParameterPack(TSharedPtr<FMetasoundParameterPackStorage> ParameterPack)

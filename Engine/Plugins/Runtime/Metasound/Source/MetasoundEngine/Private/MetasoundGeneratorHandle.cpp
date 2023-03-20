@@ -136,14 +136,26 @@ bool UMetasoundGeneratorHandle::ApplyParameterPack(UMetasoundParameterPack* Pack
 	return true;
 }
 
+TSharedPtr<Metasound::FMetasoundGenerator> UMetasoundGeneratorHandle::GetGenerator()
+{
+	// Attach if we aren't attached, check for changes, etc...
+	CacheMetasoundSource();
+
+	return PinGenerator();
+}
+
 void UMetasoundGeneratorHandle::OnSourceCreatedAGenerator(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
 {
 	if (InAudioComponentId == AudioComponentId)
 	{
 		CachedGeneratorPtr = InGenerator;
-		if (InGenerator && CachedParameterPack)
+		if (InGenerator)
 		{
-			InGenerator->QueueParameterPack(CachedParameterPack);
+			if (CachedParameterPack)
+			{
+				InGenerator->QueueParameterPack(CachedParameterPack);
+			}
+			OnGeneratorHandleAttached.Broadcast();
 		}
 	}
 }
@@ -152,6 +164,10 @@ void UMetasoundGeneratorHandle::OnSourceDestroyedAGenerator(uint64 InAudioCompon
 {
 	if (InAudioComponentId == AudioComponentId)
 	{
+		if (CachedGeneratorPtr.IsValid())
+		{
+			OnGeneratorHandleDetached.Broadcast();
+		}
 		CachedGeneratorPtr = nullptr;
 	}
 }
