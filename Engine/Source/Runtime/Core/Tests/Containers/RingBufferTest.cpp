@@ -777,7 +777,7 @@ public:
 					for (int32 Index = 0; Index < ExpectedNum; ++Index)
 					{
 						if ((Index < SourceStart && Q[Index] != Prefix[Index]) ||
-							(Index >= SourceStart && Q[Index] != MarkerValue + Index - SourceStart))
+							(Index >= SourceStart && (uint32)Q[Index] != MarkerValue + Index - SourceStart))
 						{
 							CHECK_MESSAGE(*FString::Printf(TEXT("%s: Element does not match"), HeaderMessage), false);
 							break;
