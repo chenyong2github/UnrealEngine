@@ -31,8 +31,13 @@ namespace Horde.Agent.Commands.Compute
 		/// <inheritdoc/>
 		protected override async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			await using (IComputeChannel channel = lease.CreateChannel(0))
+			await using (IComputeChannel mainChannel = lease.CreateChannel(0))
 			{
+				_logger.LogInformation("Forking compute channel...");
+				mainChannel.Fork(1);
+
+				await using IComputeChannel channel = lease.CreateChannel(1);
+
 				_logger.LogInformation("Sending XOR request");
 				channel.XorRequest(new byte[] { 1, 2, 3, 4, 5 }, (byte)123);
 

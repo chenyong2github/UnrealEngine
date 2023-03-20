@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -16,6 +17,11 @@ namespace EpicGames.Horde.Compute
 		/// No message was received (end of stream)
 		/// </summary>
 		None = 0x00,
+
+		/// <summary>
+		/// Fork a new request channel
+		/// </summary>
+		Fork = 0x01,
 
 		#region Test Requests
 
@@ -83,6 +89,12 @@ namespace EpicGames.Horde.Compute
 	}
 
 	/// <summary>
+	/// Message for forking the message loop
+	/// </summary>
+	/// <param name="Id">New channel id</param>
+	public record struct ForkMessage(int Id);
+
+	/// <summary>
 	/// Message for running an XOR command
 	/// </summary>
 	/// <param name="Data">Data to xor</param>
@@ -94,6 +106,29 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public static class ComputeMessageExtensions
 	{
+		/// <summary>
+		/// Creates a new remote message loop using the given channel id
+		/// </summary>
+		/// <param name="channel">Current channel</param>
+		/// <param name="id">New channel id</param>
+		public static void Fork(this IComputeChannel channel, int id)
+		{
+			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.Fork))
+			{
+				builder.WriteInt32(id);
+				builder.Send();
+			}
+		}
+
+		/// <summary>
+		/// Parses a fork message from the given compute message
+		/// </summary>
+		public static ForkMessage AsForkMessage(this IComputeMessage message)
+		{
+			ReadOnlyMemory<byte> data = message.Data;
+			return new ForkMessage(BinaryPrimitives.ReadInt32LittleEndian(data.Span));
+		}
+
 		/// <summary>
 		/// Send a message to request that a byte string be xor'ed with a particular value
 		/// </summary>

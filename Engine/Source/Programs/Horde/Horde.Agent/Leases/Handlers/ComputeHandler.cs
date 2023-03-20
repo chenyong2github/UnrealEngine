@@ -77,29 +77,46 @@ namespace Horde.Agent.Leases.Handlers
 
 		public async Task RunAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			await using IComputeChannel channel = lease.CreateChannel(0);
-			for (; ; )
+			await RunAsync(lease, 0, cancellationToken);
+		}
+
+		async Task RunAsync(IComputeLease lease, int id, CancellationToken cancellationToken)
+		{
+			await using (IComputeChannel channel = lease.CreateChannel(id))
 			{
-				using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
-				switch (message.Type)
+				List<Task> childTasks = new List<Task>();
+				for (; ; )
 				{
-					case ComputeMessageType.None:
-						return;
-					case ComputeMessageType.XorRequest:
-						{
-							XorRequestMessage xorRequest = message.AsXorRequest();
-							RunXor(channel, xorRequest.Data, xorRequest.Value);
-						}
-						break;
-					case ComputeMessageType.CppBegin:
-						{
-							CppBeginMessage cppBegin = message.AsCppBegin();
-							await using IComputeChannel replyChannel = lease.CreateChannel(cppBegin.ReplyChannelId);
-							await RunCppAsync(replyChannel, cppBegin.Locator, cancellationToken);
-						}
-						break;
-					default:
-						throw new NotImplementedException();
+					using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
+					_logger.LogTrace("Compute Channel {ChannelId}: {MessageType}", id, message.Type);
+
+					switch (message.Type)
+					{
+						case ComputeMessageType.None:
+							await Task.WhenAll(childTasks);
+							return;
+						case ComputeMessageType.Fork:
+							{
+								ForkMessage fork = message.AsForkMessage();
+								childTasks.Add(RunAsync(lease, fork.Id, cancellationToken));
+							}
+							break;
+						case ComputeMessageType.XorRequest:
+							{
+								XorRequestMessage xorRequest = message.AsXorRequest();
+								RunXor(channel, xorRequest.Data, xorRequest.Value);
+							}
+							break;
+						case ComputeMessageType.CppBegin:
+							{
+								CppBeginMessage cppBegin = message.AsCppBegin();
+								await using IComputeChannel replyChannel = lease.CreateChannel(cppBegin.ReplyChannelId);
+								await RunCppAsync(replyChannel, cppBegin.Locator, cancellationToken);
+							}
+							break;
+						default:
+							throw new NotImplementedException();
+					}
 				}
 			}
 		}
