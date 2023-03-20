@@ -80,6 +80,9 @@ public:
 
 	const FConversationParticipantEntry* GetParticipant(const FGameplayTag& ParticipantTag) const;
 
+	UFUNCTION(BlueprintPure, Category = Conversation)
+	AActor* GetParticipantActor(const FGameplayTag& ParticipantTag) const;
+
 protected:
 	UFUNCTION(Server, Reliable)
 	void ServerAdvanceConversation(const FAdvanceConversationRequest& InChoicePicked);

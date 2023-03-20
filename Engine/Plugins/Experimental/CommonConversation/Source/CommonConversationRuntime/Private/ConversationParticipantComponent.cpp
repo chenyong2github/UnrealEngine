@@ -160,6 +160,16 @@ const FConversationParticipantEntry* UConversationParticipantComponent::GetParti
 	return nullptr;
 }
 
+AActor* UConversationParticipantComponent::GetParticipantActor(const FGameplayTag& ParticipantTag) const
+{
+	if (const FConversationParticipantEntry* const ParticipantEntry = GetParticipant(ParticipantTag))
+	{
+		return ParticipantEntry->Actor;
+	}
+
+	return nullptr;
+}
+
 void UConversationParticipantComponent::SendClientConversationMessage(const FConversationContext& Context, const FClientConversationMessagePayload& Payload)
 {
 #if WITH_SERVER_CODE
