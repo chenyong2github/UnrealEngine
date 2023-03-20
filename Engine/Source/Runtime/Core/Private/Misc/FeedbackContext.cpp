@@ -117,6 +117,13 @@ void FFeedbackContext::FormatRecordLine(FStringBuilderBase& Out, const UE::FLogR
 
 void FFeedbackContext::AddToHistory(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time)
 {
+	if (GIsCriticalError)
+	{
+		// Turn off the storing of Errors and Warnings when GIsCriticalError is true.
+		// In a critical error (e.g. crash handling), it might be the case that Malloc is returning bad data,
+		// so we want to avoid dynamic allocation (such as the construction of strings below) as much as possible.
+		return;
+	}
 	TStringBuilder<512> Line;
 	FormatLine(Line, V, Verbosity, Category, Time, &Verbosity);
 	if (Verbosity == ELogVerbosity::Error)
