@@ -24,6 +24,7 @@ public class ModelViewViewModelBlueprint : ModuleRules
 				"BlueprintGraph",
 				"KismetCompiler",
 				"PropertyEditor",
+				"PropertyPath",
 				"SlateCore",
 				"Slate",
 				"UMG",
