@@ -281,7 +281,7 @@ public:
 	virtual void PushLayerState(bool bPreserve = false) override
 	{
 		FScopeLock LockLayers(&LayerCritSect);
-		const auto& CurrentState = LayerState();
+		const FLayerData CurrentState = LayerState(); // Copy because we modify the Stack that LayerState returns an element of.
 
 		if (bPreserve)
 		{
