@@ -1118,18 +1118,18 @@ void FClassActorThumbnailScene::ClearStaleActors()
 	}
 }
 
-bool FClassActorThumbnailScene::IsValidComponentForVisualization(UActorComponent* Component)
+bool FClassActorThumbnailScene::IsValidComponentForVisualization(const UActorComponent* Component)
 {
-	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component);
+	const UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component);
 	if ( PrimComp && PrimComp->IsVisible() && !PrimComp->bHiddenInGame )
 	{
-		UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Component);
+		const UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Component);
 		if ( StaticMeshComp && StaticMeshComp->GetStaticMesh())
 		{
 			return true;
 		}
 
-		USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Component);
+		const USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Component);
 		if ( SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset())
 		{
 			return true;

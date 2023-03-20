@@ -42,14 +42,6 @@ public:
 	static UPCGManagedISMComponent* GetOrCreateManagedISMC(AActor* InTargetActor, UPCGComponent* SourceComponent, uint64 SettingsUID, const FPCGISMCBuilderParameters& Params);
 	static bool DeleteActors(UWorld* World, const TArray<TSoftObjectPtr<AActor>>& ActorsToDelete);
 
-	/**
-	* Fetches all the components of ActorClass's CDO, including the ones added via the BP editor (which AActor.GetComponents fails to do)
-	* @param ActorClass class of AActor for which we will retrieve all components
-	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
-	* @param InComponentClass if supplied will be used to filter the results
-	*/
-	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& ActorClass, TArray<UActorComponent*>& OutComponents, const TSubclassOf<UActorComponent>& InComponentClass = TSubclassOf<UActorComponent>());
-
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of_v<AActor, T>>>
 	inline static void ForEachActorInLevel(ULevel* Level, TFunctionRef<bool(AActor*)> Callback)
 	{
@@ -105,6 +97,9 @@ public:
 	 * Return the grid cell coordinates on the PCG partition grid given a position and the grid size.
 	 */
 	static FIntVector GetCellCoord(FVector InPosition, int InGridSize, bool bUse2DGrid);
+
+	UE_DEPRECATED(5.3, "Please use UE::BlueprintTools::GetActorClassDefaultComponents() instead")
+	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& ActorClass, TArray<UActorComponent*>& OutComponents, const TSubclassOf<UActorComponent>& InComponentClass = TSubclassOf<UActorComponent>());
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

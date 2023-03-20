@@ -13,10 +13,12 @@
 #include "Components/TimelineComponent.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/TextProperty.h"
+#include "GameFramework/Actor.h"
+#include "Engine/SimpleConstructionScript.h"
+#include "Engine/SCS_Node.h"
 
 #if WITH_EDITOR
 #include "BlueprintCompilationManager.h"
-#include "Engine/SCS_Node.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -1616,6 +1618,41 @@ bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UB
 	return bNoErrors;
 }
 
+bool UBlueprint::ForEachBlueprintGeneratedClassInHierarchy(const UClass* InClass, TFunctionRef<bool(UBlueprintGeneratedClass*)> InFunc)
+{
+	bool bNoErrors = true;
+	UBlueprintGeneratedClass* CurrentClass = Cast<UBlueprintGeneratedClass>(const_cast<UClass*>(InClass));
+	while (CurrentClass)
+	{
+		if (!InFunc(CurrentClass))
+		{
+			return bNoErrors;
+		}
+
+#if WITH_EDITORONLY_DATA
+		UBlueprint* BP = UBlueprint::GetBlueprintFromClass(CurrentClass);
+
+		if (BP)
+		{
+			bNoErrors &= (BP->Status != BS_Error);
+		}
+
+		// If valid, use stored ParentClass rather than the actual UClass::GetSuperClass(); handles the case when the class has not been recompiled yet after a reparent operation.
+		if (BP && BP->ParentClass)
+		{
+			CurrentClass = Cast<UBlueprintGeneratedClass>(BP->ParentClass);
+		}
+		else
+#endif // #if WITH_EDITORONLY_DATA
+		{
+			check(CurrentClass);
+			CurrentClass = Cast<UBlueprintGeneratedClass>(CurrentClass->GetSuperClass());
+		}
+	}
+
+	return bNoErrors;
+}
+
 bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<IBlueprintPropertyGuidProvider*>& OutBlueprintParents)
 {
 	OutBlueprintParents.Reset();
@@ -1680,6 +1717,106 @@ bool UBlueprint::IsBlueprintHierarchyErrorFree(const UClass* InClass)
 	return true;
 }
 #endif
+
+void UBlueprint::GetActorClassDefaultComponents(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TArray<const UActorComponent*>& OutComponents)
+{
+	OutComponents.Reset();
+
+	ForEachComponentOfActorClassDefault(InActorClass, InComponentClass, [&](const UActorComponent* TemplateComponent)
+	{
+		OutComponents.Add(TemplateComponent);
+		return true;
+	});
+}
+
+const UActorComponent* UBlueprint::GetActorClassDefaultComponentByName(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, FName InComponentName)
+{
+	const UActorComponent* Result = nullptr;
+
+	ForEachComponentOfActorClassDefault(InActorClass, InComponentClass, [&Result, InComponentName](const UActorComponent* TemplateComponent)
+	{
+		// Try to strip suffix used to identify template component instances
+		FString StrippedName = TemplateComponent->GetName();
+		if (StrippedName.RemoveFromEnd(UActorComponent::ComponentTemplateNameSuffix))
+		{
+			if (StrippedName == InComponentName.ToString())
+			{
+				Result = TemplateComponent;
+				return false;
+			}
+		}
+		else if (TemplateComponent->GetFName() == InComponentName)
+		{
+			Result = TemplateComponent;
+			return false;
+		}
+
+		return true;
+	});
+
+	return Result;
+}
+
+const UActorComponent* UBlueprint::GetActorClassDefaultComponent(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass)
+{
+	const UActorComponent* Result = nullptr;
+
+	ForEachComponentOfActorClassDefault(InActorClass, InComponentClass, [&Result](const UActorComponent* TemplateComponent)
+	{
+		Result = TemplateComponent;
+		return false;
+	});
+
+	return Result;
+}
+
+void UBlueprint::ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& ActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TFunctionRef<bool(const UActorComponent*)> InFunc)
+{
+	if (!ActorClass.Get())
+	{
+		return;
+	}
+
+	auto FilterFunc = [&](const UActorComponent* TemplateComponent)
+	{
+		if (!InComponentClass.Get() || TemplateComponent->IsA(InComponentClass))
+		{
+			return InFunc(TemplateComponent);
+		}
+
+		return true;
+	};
+
+	// Process native components
+	const AActor* CDO = ActorClass->GetDefaultObject<AActor>();
+	for (const UActorComponent* Component : CDO->GetComponents())
+	{
+		if (!FilterFunc(Component))
+		{
+			return;
+		}
+	}
+
+	// Process blueprint components
+	if (UBlueprintGeneratedClass* ActorBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(ActorClass))
+	{
+		ForEachBlueprintGeneratedClassInHierarchy(ActorClass, [&](UBlueprintGeneratedClass* CurrentBPGC)
+		{
+			if (const USimpleConstructionScript* const ConstructionScript = CurrentBPGC->SimpleConstructionScript)
+			{
+				// Gets all BP added components
+				for (const USCS_Node* const Node : ConstructionScript->GetAllNodes())
+				{
+					if (!FilterFunc(Node->GetActualComponentTemplate(ActorBlueprintGeneratedClass)))
+					{
+						return false;
+					}
+				}
+			}
+			return true;
+		});
+	}
+}
 
 FName UBlueprint::FindBlueprintPropertyNameFromGuid(const FGuid& PropertyGuid) const
 {

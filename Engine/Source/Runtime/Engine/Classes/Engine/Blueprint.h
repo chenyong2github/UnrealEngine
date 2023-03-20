@@ -7,7 +7,9 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "UObject/Class.h"
+#include "Templates/EnableIf.h"
 #include "Templates/SubclassOf.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "Engine/EngineTypes.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/BlueprintCore.h"
@@ -1094,6 +1096,15 @@ public:
 	 */
 	static bool GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UBlueprintGeneratedClass*>& OutBlueprintParents);
 
+	/**
+	 * Iterate over all BPGCs used to generate this class and its parents, calling InFunc on them. First element is the BPGC used to generate InClass
+	 *
+	 * @param InClass				The class to get the blueprint lineage for
+	 * @param InFunc				Function that will be called for each BPGC. Must return true to continue iteration, or false to stop.
+	 * @return						true if there were no status errors in any of the parent blueprints, otherwise false
+	 */
+	static bool ForEachBlueprintGeneratedClassInHierarchy(const UClass* InClass, TFunctionRef<bool(UBlueprintGeneratedClass*)> InFunc);
+
 private:
 	/**
 	 * Gets an array of all IBlueprintPropertyGuidProviders for this class and its parents.  0th elements is the IBlueprintPropertyGuidProvider for InClass
@@ -1109,6 +1120,85 @@ public:
 	/** returns true if the class hierarchy is error free */
 	static bool IsBlueprintHierarchyErrorFree(const UClass* InClass);
 #endif
+
+	/**
+	* Fetches all the components of ActorClass's CDO, including the ones added via the BP editor (which AActor.GetComponents fails to do for CDOs).
+	* @param InActorClass		Class of AActor for which we will retrieve all components.
+	* @param InComponentClass	Only retrieve components of this type.
+	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
+	*/
+	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TArray<const UActorComponent*>& OutComponents);
+
+	/**
+	* Fetches the first component of ActorClass's CDO which match the requested component class. Will include the components added via the BP editor (which AActor.GetComponents fails to do for CDOs).
+	* @param InActorClass		Class of AActor for which we will retrieve all components.
+	* @param InComponentClass	Only retrieve components of this type.
+	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
+	*/
+	static const UActorComponent* GetActorClassDefaultComponent(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass);
+
+	/**
+	* Get the component of ActorClass's CDO that matches the given object name. Will consider all components, including the ones added via the BP editor (which AActor.GetComponents fails to do for CDOs).
+	* @param InActorClass		Class of AActor for which we will search all components.
+	* @param InComponentClass	Only consider components of this type.
+	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
+	*/
+	static const UActorComponent* GetActorClassDefaultComponentByName(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, FName InComponentName);
+
+	/**
+	* Iterate over the components of ActorClass's CDO, including the ones added via the BP editor (which AActor.GetComponents fails to return).
+	* @param InActorClass		Class of AActor for which we will retrieve all components.
+	* @param InComponentClass	Only consider components of this type.
+	* @param InFunc				Code that will be executed for each component. Must return true to continue iteration, or false to stop.
+	*/
+	static void ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TFunctionRef<bool(const UActorComponent*)> InFunc);
+
+	/**
+	* Templated version of GetActorClassDefaultComponents()
+	* @see GetActorClassDefaultComponents
+	*/
+	template <typename TComponentClass = UActorComponent, typename = typename TEnableIf<TIsDerivedFrom<TComponentClass, UActorComponent>::IsDerived>::Type>
+	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& InActorClass, TArray<const TComponentClass*>& OutComponents)
+	{
+		ForEachComponentOfActorClassDefault(InActorClass, TComponentClass::StaticClass(), [&](const UActorComponent* TemplateComponent)
+		{
+			OutComponents.Add(CastChecked<TComponentClass>(TemplateComponent));
+			return true;
+		});
+	}
+
+	/**
+	* Templated version of GetActorClassDefaultComponent()
+	* @see GetActorClassDefaultComponent
+	*/
+	template <typename TComponentClass = UActorComponent, typename = typename TEnableIf<TIsDerivedFrom<TComponentClass, UActorComponent>::IsDerived>::Type>
+	static const TComponentClass* GetActorClassDefaultComponent(const TSubclassOf<AActor>& InActorClass)
+	{
+		return Cast<TComponentClass>(GetActorClassDefaultComponent(InActorClass, TComponentClass::StaticClass()));
+	}
+
+	/**
+	* Templated version of GetActorClassDefaultComponentByName()
+	* @see GetActorClassDefaultComponentByName
+	*/
+	template <typename TComponentClass = UActorComponent, typename = typename TEnableIf<TIsDerivedFrom<TComponentClass, UActorComponent>::IsDerived>::Type>
+	static const TComponentClass* GetActorClassDefaultComponentByName(const TSubclassOf<AActor>& InActorClass, FName InComponentName)
+	{
+		return Cast<TComponentClass>(GetActorClassDefaultComponentByName(InActorClass, TComponentClass::StaticClass(), InComponentName));
+	}
+
+	/**
+	* Templated version of ForEachComponentOfActorClassDefault()
+	* @see ForEachComponentOfActorClassDefault
+	*/
+	template <typename TComponentClass = UActorComponent, typename = typename TEnableIf<TIsDerivedFrom<TComponentClass, UActorComponent>::IsDerived>::Type>
+	static void ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& InActorClass, TFunctionRef<bool(const TComponentClass*)> InFunc)
+	{
+		ForEachComponentOfActorClassDefault(InActorClass, TComponentClass::StaticClass(), [&](const UActorComponent* TemplateComponent)
+		{
+			return InFunc(CastChecked<TComponentClass>(TemplateComponent));
+		});
+	}
 
 	template<class TFieldType>
 	static FName GetFieldNameFromClassByGuid(const UClass* InClass, const FGuid VarGuid)

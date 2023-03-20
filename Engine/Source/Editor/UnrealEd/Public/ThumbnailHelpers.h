@@ -248,7 +248,7 @@ public:
 	FClassActorThumbnailScene();
 
 	/** Returns true if this component can be visualized */
-	static bool IsValidComponentForVisualization(UActorComponent* Component);
+	static bool IsValidComponentForVisualization(const UActorComponent* Component);
 
 protected:
 	// FThumbnailPreviewScene implementation

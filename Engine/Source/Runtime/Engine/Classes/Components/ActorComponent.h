@@ -1137,7 +1137,7 @@ public:
 	/** Override to specify that a component is relevant to the HLOD generation. */
 	virtual bool IsHLODRelevant() const { return false; }
 
-	/** Prefix used to identify template component instances */
+	/** Suffix used to identify template component instances */
 	static const FString ComponentTemplateNameSuffix;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMarkRenderStateDirty, UActorComponent&);

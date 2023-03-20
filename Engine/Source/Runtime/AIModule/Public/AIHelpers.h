@@ -75,11 +75,6 @@ namespace UE::AI
 	UE_DEPRECATED(5.2, "Deprecated as returning float instead of FVector::FReal. Use FQuat::Rotator()::Yaw etc.")
 	extern AIMODULE_API TOptional<float> GetYawFromQuaternion(const FQuat& Quaternion);
 
-	/**
-	 * Fetches all the components of ActorClass's CDO, including the ones added via the BP editor (which AActor.GetComponents fails to do)
-	 * @param ActorClass class of AActor for which we will retrieve all components
-	 * @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
-	 * @param InComponentClass if supplied will be used to filter the results
-	 */
+	UE_DEPRECATED(5.3, "Please use UE::BlueprintTools::GetActorClassDefaultComponents() instead")
 	extern AIMODULE_API void GetActorClassDefaultComponents(const TSubclassOf<AActor>& ActorClass, TArray<UActorComponent*>& OutComponents, const TSubclassOf<UActorComponent>& InComponentClass = TSubclassOf<UActorComponent>());
 } // UE::AI

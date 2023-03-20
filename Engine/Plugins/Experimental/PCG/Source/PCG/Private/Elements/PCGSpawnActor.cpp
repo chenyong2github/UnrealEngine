@@ -144,27 +144,21 @@ UPCGGraphInterface* UPCGSpawnActorSettings::GetSubgraphInterface() const
 		return nullptr;
 	}
 
-	TArray<UActorComponent*> PCGComponents;
-	UPCGActorHelpers::GetActorClassDefaultComponents(TemplateActorClass, PCGComponents, UPCGComponent::StaticClass());
+	UPCGGraphInterface* Result = nullptr;
 
-	if (PCGComponents.IsEmpty())
+	UBlueprint::ForEachComponentOfActorClassDefault<UPCGComponent>(TemplateActorClass, [&](const UPCGComponent* PCGComponent)
 	{
-		return nullptr;
-	}
-
-	for (UActorComponent* Component : PCGComponents)
-	{
-		if (UPCGComponent* PCGComponent = Cast<UPCGComponent>(Component))
+		// If there is no graph, there is no graph instance
+		if (PCGComponent->GetGraph() && PCGComponent->bActivated)
 		{
-			// If there is no graph, there is no graph instance
-			if (PCGComponent->GetGraph() && PCGComponent->bActivated)
-			{
-				return PCGComponent->GetGraphInstance();
-			}
+			Result = PCGComponent->GetGraphInstance();
+			return false;
 		}
-	}
+		
+		return true;
+	});
 
-	return nullptr;
+	return Result;
 }
 
 void UPCGSpawnActorSettings::BeginDestroy()
@@ -438,41 +432,38 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 		if (!bFullySkippedDueToReuse && Settings->Option == EPCGSpawnActorOption::CollapseActors)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSpawnActorElement::ExecuteInternal::CollapseActors);
-			TArray<UActorComponent*> Components;
-			UPCGActorHelpers::GetActorClassDefaultComponents(Settings->TemplateActorClass, Components, UStaticMeshComponent::StaticClass());
-			
+
 			TMap<FPCGISMCBuilderParameters, TArray<FTransform>> MeshDescriptorTransforms;
 
-			for (UActorComponent* Component : Components)
+			UBlueprint::ForEachComponentOfActorClassDefault<UStaticMeshComponent>(Settings->TemplateActorClass, [&](const UStaticMeshComponent* StaticMeshComponent)
 			{
-				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+				FPCGISMCBuilderParameters Params;
+				Params.Descriptor.InitFrom(StaticMeshComponent);
+				// TODO: No custom data float support?
+
+				TArray<FTransform>& Transforms = MeshDescriptorTransforms.FindOrAdd(Params)
+
+				if (const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent))
 				{
-					FPCGISMCBuilderParameters Params;
-					Params.Descriptor.InitFrom(StaticMeshComponent);
-					// TODO: No custom data float support?
-
-					TArray<FTransform>& Transforms = MeshDescriptorTransforms.FindOrAdd(Params);
-
-					if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent))
-					{
-						const int32 NumInstances = InstancedStaticMeshComponent->GetInstanceCount();
-						Transforms.Reserve(Transforms.Num() + NumInstances);
+					const int32 NumInstances = InstancedStaticMeshComponent->GetInstanceCount();
+					Transforms.Reserve(Transforms.Num() + NumInstances);
 						
-						for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
+					for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
+					{
+						FTransform InstanceTransform;
+						if (InstancedStaticMeshComponent->GetInstanceTransform(InstanceIndex, InstanceTransform))
 						{
-							FTransform InstanceTransform;
-							if (InstancedStaticMeshComponent->GetInstanceTransform(InstanceIndex, InstanceTransform))
-							{
-								Transforms.Add(InstanceTransform);
-							}
+							Transforms.Add(InstanceTransform);
 						}
 					}
-					else
-					{
-						Transforms.Add(StaticMeshComponent->GetRelativeTransform());
-					}
 				}
-			}
+				else
+				{
+					Transforms.Add(StaticMeshComponent->GetRelativeTransform());
+				}
+
+				return true;
+			});
 				
 			for(const TPair<FPCGISMCBuilderParameters, TArray<FTransform>>& ISMCBuilderTransforms : MeshDescriptorTransforms)
 			{
