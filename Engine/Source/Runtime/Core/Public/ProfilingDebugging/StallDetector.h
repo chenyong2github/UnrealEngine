@@ -6,6 +6,8 @@
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PreprocessorHelpers.h"
 #include "Logging/LogMacros.h"
@@ -33,6 +35,32 @@ CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogStall, Log, All);
 
 namespace UE
 {
+	class FStallDetector;
+
+	struct FStallDetectedParams
+	{
+		/** Name of Stall Detector instance*/
+		FStringView StatName;
+		/** TID of stalled thread */
+		uint32 ThreadId;
+		/** UniqueID of the stalled instance */
+		uint64 UniqueID;
+	};
+	DECLARE_EVENT_OneParam(FStallDetector, FOnStallDetected, const FStallDetectedParams&);
+	
+	struct FStallCompletedParams
+	{
+		/** TID of stalled thread */
+		uint32 ThreadId;
+		/** Name of Stall Detector instance*/
+		FStringView StatName;
+		/** Amount of time StallDetector instance stalled  */
+		double OverbudgetSeconds;
+		/** UniqueID of the stalled instance */
+		uint64 UniqueID;
+	};
+	DECLARE_EVENT_OneParam(FStallDetector, FOnStallCompleted, const FStallCompletedParams&);
+
 	/**
 	* The reporting behavior of the detector
 	**/
@@ -60,7 +88,7 @@ namespace UE
 		~FStallDetectorStats();
 
 		/**
-		* Stall dettector scope has ended, record the interval
+		* Stall detector scope has ended, record the interval
 		*/
 		void OnStallCompleted(double InOverageSeconds);
 
@@ -263,7 +291,24 @@ namespace UE
 		**/
 		static bool IsRunning();
 
+		/**
+		 * Event that triggers when we detect that a stall in any instance is occuring
+		 * Note: It is possible for multiple instances to stall at the same time,
+		 * delegates should take this into account 
+		 */
+		static FOnStallDetected StallDetected;
+
+		/**
+		 * Event that triggers when a stall has stopped
+		 * Note: It is possible for multiple instances to complete their stall at the same time,
+		 * delegates should take this into account
+		 */
+		static FOnStallCompleted StallCompleted;
+
 	private:
+		/** Monotonically increasing counter to generate a unique ID per stall detector */
+		static TAtomic<uint64> UIDGenerator;
+		
 		// The time provided, the deadline
 		FStallDetectorStats& Stats;
 
@@ -285,8 +330,14 @@ namespace UE
 		// Track the triggered state, atomic to mitigate foreground and background thread checking
 		std::atomic<bool> Triggered;
 
+		// Unique ID given to a StallDetector
+		uint64 UniqueID;
+
 		// The pinch point for tracking counts and emitting a report for a triggered hitch detector
 		void OnStallDetected(uint32 InThreadId, const double InElapsedSeconds);
+
+		// Called when the thread that triggered the detector is no longer stalling
+		void OnStallCompleted(uint32 InThreadId, const double DeltaSeconds, const double OverageSeconds);
 
 		// Guards access to the instances container from multiple threads
 		static FCriticalSection InstancesSection;

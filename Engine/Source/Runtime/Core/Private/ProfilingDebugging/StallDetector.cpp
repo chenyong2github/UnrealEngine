@@ -37,6 +37,9 @@ static int32 InitCount = 0;
 // Sentinel value for invalid timestamp
 static const double InvalidSeconds = -1.0;
 
+UE::FOnStallDetected UE::FStallDetector::StallDetected;
+UE::FOnStallCompleted UE::FStallDetector::StallCompleted;
+
 /**
 * Stall Detector Thread
 **/
@@ -335,6 +338,8 @@ private:
 };
 static ThreadLocalSlotAcquire ThreadLocalSlot;
 
+TAtomic<uint64> UE::FStallDetector::UIDGenerator = 0;
+
 UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
 	: Stats(InStats)
 	, Parent(nullptr)
@@ -342,6 +347,8 @@ UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
 	, bStarted (false)
 	, bPersistent(false)
 	, Triggered(false)
+	, UniqueID(UIDGenerator.IncrementExchange())
+	
 {
 	// Capture this thread's current stall detector to our parent member
 	Parent = static_cast<FStallDetector*>(FPlatformTLS::GetTlsValue(ThreadLocalSlot.GetSlot()));
@@ -405,19 +412,15 @@ void UE::FStallDetector::Check(bool bFinalCheck, double InCheckSeconds)
 
 	if (Triggered)
 	{
+		// bFinalCheck ensures that only the destructor or CheckAndReset run the final OnStallCompleted
 		if (bFinalCheck)
 		{
-			// this callback allows for tracking the total overrun, once the stalling period is finally done
-			Stats.OnStallCompleted(OverageSeconds);
-
 #if STALL_DETECTOR_DEBUG
 			FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Overage of %f\n"), Stats.Name, OverageSeconds);
 			FPlatformMisc::LocalPrint(OverageString.GetCharArray().GetData());
 #endif
-			if (Stats.ReportingMode != EStallDetectorReportingMode::Disabled)
-			{
-				UE_LOG(LogStall, Log, TEXT("Stall detector '%s' complete in %fs (%fs overbudget)"), Stats.Name, DeltaSeconds, OverageSeconds);
-			}
+
+			OnStallCompleted(ThreadId, DeltaSeconds, OverageSeconds);
 		}
 	}
 	else
@@ -432,6 +435,7 @@ void UE::FStallDetector::Check(bool bFinalCheck, double InCheckSeconds)
 				FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Triggered at %f\n"), Stats.Name, InCheckSeconds);
 				FPlatformMisc::LocalPrint(OverageString.GetCharArray().GetData());
 #endif
+				
 				OnStallDetected(ThreadId, DeltaSeconds);
 			}
 		}
@@ -459,6 +463,7 @@ void UE::FStallDetector::CheckAndReset()
 
 	Timer.Reset(CheckSeconds, Stats.BudgetSeconds);
 	Triggered = false;
+	UniqueID = UIDGenerator.IncrementExchange();
 }
 
 void UE::FStallDetector::Pause(const double InSeconds)
@@ -544,6 +549,31 @@ void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElaps
 		{
 			UE_LOG(LogStall, Log, TEXT("Stall detector '%s' exceeded budget of %fs"), Stats.Name, Stats.BudgetSeconds);
 		}
+	}
+	
+	StallDetected.Broadcast({
+		Stats.Name,
+		ThreadId,
+		UniqueID
+	});
+}
+
+void UE::FStallDetector::OnStallCompleted(uint32 InThreadId, double DeltaSeconds, double OverageSeconds)
+{
+	// this callback allows for tracking the total overrun, once the stalling period is finally done
+	Stats.OnStallCompleted(OverageSeconds);
+			
+	const FStallCompletedParams Params {
+		ThreadId,
+		Stats.Name,
+		OverageSeconds,
+		UniqueID
+	};
+	StallCompleted.Broadcast(Params);
+
+	if (Stats.ReportingMode != EStallDetectorReportingMode::Disabled)
+	{
+		UE_LOG(LogStall, Log, TEXT("Stall detector '%s' complete in %fs (%fs overbudget)"), Stats.Name, DeltaSeconds, OverageSeconds);
 	}
 }
 
