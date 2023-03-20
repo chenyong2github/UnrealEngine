@@ -416,10 +416,13 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
-	void FUsdPrim::Load()
+	void FUsdPrim::Load( EUsdLoadPolicy Policy )
 	{
 #if USE_USD_SDK
-		Impl->PxrUsdPrim.Get().Load();
+		static_assert( ( int32 ) EUsdLoadPolicy::UsdLoadWithDescendants == ( int32 ) pxr::UsdLoadWithDescendants, "EUsdLoadPolicy enum doesn't match USD!" );
+		static_assert( ( int32 ) EUsdLoadPolicy::UsdLoadWithoutDescendants == ( int32 ) pxr::UsdLoadWithoutDescendants, "EUsdLoadPolicy enum doesn't match USD!" );
+
+		Impl->PxrUsdPrim.Get().Load( static_cast< pxr::UsdLoadPolicy > ( Policy ) );
 #endif // #if USE_USD_SDK
 	}
 

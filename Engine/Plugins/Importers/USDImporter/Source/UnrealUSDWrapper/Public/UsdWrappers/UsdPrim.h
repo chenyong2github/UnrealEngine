@@ -6,6 +6,7 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
+#include "UnrealUSDWrapper.h"
 #include "UsdWrappers/ForwardDeclarations.h"
 
 #if USE_USD_SDK
@@ -108,7 +109,7 @@ namespace UE
 
 		bool HasPayload() const;
 		bool IsLoaded() const;
-		void Load();
+		void Load( EUsdLoadPolicy Policy = EUsdLoadPolicy::UsdLoadWithDescendants );
 		void Unload();
 
 		bool RemoveProperty( FName PropName ) const;

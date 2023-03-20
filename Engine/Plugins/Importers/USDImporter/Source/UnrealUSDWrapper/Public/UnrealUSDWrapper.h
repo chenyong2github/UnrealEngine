@@ -96,6 +96,14 @@ enum class EUsdDefaultKind : int32
 };
 ENUM_CLASS_FLAGS( EUsdDefaultKind );
 
+/** Corresponds to pxr::UsdLoadPolicy, refer to the USD SDK documentation */
+UENUM()
+enum class EUsdLoadPolicy : uint8
+{
+	UsdLoadWithDescendants,    // Load a prim plus all its descendants.
+	UsdLoadWithoutDescendants  // Load a prim by itself with no descendants.
+};
+
 UENUM()
 enum class EUsdInitialLoadSet : uint8
 {
