@@ -1481,23 +1481,26 @@ bool UK2Node_CallFunction::CanPasteHere(const UEdGraph* TargetGraph) const
 	// Cannot paste editor only functions into runtime graphs
 	if (bCanPaste)
 	{
-		UFunction* TargetFunction = GetTargetFunctionFromSkeletonClass();
+		UFunction* TargetFunction = GetTargetFunction();
 
 		bCanPaste = CanEditorOnlyFunctionBeCalled(TargetFunction, TargetGraph);
 	}
 
 	// We check function context for placability only in the base class case; derived classes are typically bound to
 	// specific functions that should always be placeable, but may not always be explicitly callable (e.g. InternalUseOnly).
-	if (bCanPaste && GetClass() == StaticClass())
+	if(bCanPaste && GetClass() == StaticClass())
 	{
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		uint32 AllowedFunctionTypes = UEdGraphSchema_K2::EFunctionType::FT_Pure | UEdGraphSchema_K2::EFunctionType::FT_Const | UEdGraphSchema_K2::EFunctionType::FT_Protected;
-		if (K2Schema->DoesGraphSupportImpureFunctions(TargetGraph))
+		if(K2Schema->DoesGraphSupportImpureFunctions(TargetGraph))
 		{
 			AllowedFunctionTypes |= UEdGraphSchema_K2::EFunctionType::FT_Imperative;
 		}
-		UFunction* TargetFunction = GetTargetFunctionFromSkeletonClass();
-
+		UFunction* TargetFunction = GetTargetFunction();
+		if( !TargetFunction )
+		{
+			TargetFunction = GetTargetFunctionFromSkeletonClass();
+		}
 		if (!TargetFunction)
 		{
 			// If the function doesn't exist and it is from self context, then it could be created from a CustomEvent node, that was also pasted (but wasn't compiled yet).
@@ -1505,7 +1508,7 @@ bool UK2Node_CallFunction::CanPasteHere(const UEdGraph* TargetGraph) const
 		}
 		else
 		{
-			bCanPaste = K2Schema->CanFunctionBeUsedInGraph(FBlueprintEditorUtils::FindBlueprintForGraphChecked(TargetGraph)->SkeletonGeneratedClass, TargetFunction, TargetGraph, AllowedFunctionTypes, false);
+			bCanPaste = K2Schema->CanFunctionBeUsedInGraph(FBlueprintEditorUtils::FindBlueprintForGraphChecked(TargetGraph)->GeneratedClass, TargetFunction, TargetGraph, AllowedFunctionTypes, false);
 		}
 	}
 	
