@@ -432,7 +432,7 @@ bool UNiagaraSimCache::EndWrite()
 	}
 
 	// If we allow interpolation we need to build our mapping table from Current -> Next
-	if (CreateParameters.bAllowInterpolation)
+	if (CreateParameters.bAllowInterpolation && CacheFrames.Num() > 0)
 	{
 		const auto& CreateInterpMapping =
 			[this](const FNiagaraSimCacheDataBuffersLayout& BufferLayout, FNiagaraSimCacheDataBuffers& BufferA, const FNiagaraSimCacheDataBuffers& BufferB)
