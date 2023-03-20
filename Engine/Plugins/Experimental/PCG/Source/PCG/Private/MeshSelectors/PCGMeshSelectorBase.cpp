@@ -7,6 +7,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorBase)
 
+#define LOCTEXT_NAMESPACE "PCGMeshSelectorBase"
+
 void FPCGMeshMaterialOverrideHelper::Initialize(
 	FPCGContext& InContext,
 	bool bInUseMaterialOverrideAttributes,
@@ -52,7 +54,7 @@ void FPCGMeshMaterialOverrideHelper::Initialize(FPCGContext& InContext)
 	{
 		if (!Metadata)
 		{
-			PCGE_LOG_C(Error, &InContext, "Data has no metadata");
+			PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("MetadataMissing", "Data has no metadata"));
 			return;
 		}
 
@@ -60,7 +62,7 @@ void FPCGMeshMaterialOverrideHelper::Initialize(FPCGContext& InContext)
 		{
 			if (!Metadata->HasAttribute(MaterialOverrideAttributeName))
 			{
-				PCGE_LOG_C(Error, &InContext, "Attribute %s for material overrides is not present in the metadata", *MaterialOverrideAttributeName.ToString());
+				PCGE_LOG_C(Error, GraphAndLog, &InContext, FText::Format(LOCTEXT("AttributeMissing", "Attribute '{0}' for material overrides is not present in the metadata"), FText::FromName(MaterialOverrideAttributeName)));
 				return;
 			}
 
@@ -69,7 +71,7 @@ void FPCGMeshMaterialOverrideHelper::Initialize(FPCGContext& InContext)
 
 			if (MaterialAttributeBase->GetTypeId() != PCG::Private::MetadataTypes<FString>::Id)
 			{
-				PCGE_LOG_C(Error, &InContext, "Material override attribute is not of valid type");
+				PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("AttributeInvalidType", "Material override attribute is not of valid type"));
 				return;
 			}
 
@@ -131,3 +133,5 @@ const TArray<TSoftObjectPtr<UMaterialInterface>>& FPCGMeshMaterialOverrideHelper
 		return StaticMaterialOverrides;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

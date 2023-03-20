@@ -6,6 +6,7 @@
 
 #include "PCGEditorGraph.generated.h"
 
+class FPCGEditor;
 class UPCGNode;
 class UPCGGraph;
 class UPCGEditorGraphNodeBase;
@@ -24,10 +25,15 @@ public:
 
 	UPCGGraph* GetPCGGraph() { return PCGGraph; }
 
+	void SetEditor(TWeakPtr<const FPCGEditor> InEditor) { PCGEditor = InEditor; }
+	TWeakPtr<const FPCGEditor> GetEditor() const { return PCGEditor; }
+
 protected:
 	void CreateLinks(UPCGEditorGraphNodeBase* InGraphNode, bool bCreateInbound, bool bCreateOutbound, const TMap<UPCGNode*, UPCGEditorGraphNodeBase*>& InGraphNodeToPCGNodeMap);
 
 private:
 	UPROPERTY()
 	TObjectPtr<UPCGGraph> PCGGraph = nullptr;
+
+	TWeakPtr<const FPCGEditor> PCGEditor = nullptr;
 };

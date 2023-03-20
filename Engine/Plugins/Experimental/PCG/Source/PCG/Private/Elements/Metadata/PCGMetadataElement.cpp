@@ -10,6 +10,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataElement)
 
+#define LOCTEXT_NAMESPACE "PCGMetadataElement"
+
 UPCGMetadataOperationSettings::UPCGMetadataOperationSettings()
 {
 	// Previous default object was: None for source and target attribute, density for point property
@@ -82,7 +84,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SpatialInput)
 		{
-			PCGE_LOG(Error, "Invalid input data");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid input data type, must be of type Spatial"));
 			continue;
 		}
 
@@ -90,13 +92,13 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!OriginalData)
 		{
-			PCGE_LOG(Error, "Unable to get point data from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("UnableToGetPointData", "Unable to get point data from input"));
 			continue;
 		}
 
 		if (!OriginalData->Metadata)
 		{
-			PCGE_LOG(Warning, "Input has no metadata");
+			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("MissingMetadata", "Input has no metadata"));
 			continue;
 		}
 
@@ -114,7 +116,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (Settings->InputSource.Selection == EPCGAttributePropertySelection::Attribute && !OriginalData->Metadata->HasAttribute(LocalSourceAttribute))
 		{
-			PCGE_LOG(Warning, "Input does not have the %s attribute", *LocalSourceAttribute.ToString());
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("InputMissingAttribute", "Input does not have the '{0}' attribute"), FText::FromName(LocalSourceAttribute)));
 			continue;
 		}
 
@@ -141,7 +143,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 			if (!SampledData->Metadata->CopyExistingAttribute(LocalSourceAttribute, DestinationAttribute))
 			{
-				PCGE_LOG(Warning, "Failed to copy to new attribute %s", *DestinationAttribute.ToString());
+				PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("FailedCopyToNewAttribute", "Failed to copy to new attribute {0}"), FText::FromName(DestinationAttribute)));
 			}
 
 			continue;
@@ -152,7 +154,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!InputAccessor.IsValid() || !InputKeys.IsValid())
 		{
-			PCGE_LOG(Warning, "Failed to create input accessor or iterator");
+			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("FailedToCreateInputAccessor", "Failed to create input accessor or iterator"));
 			continue;
 		}
 
@@ -168,7 +170,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 			
 			if (!PCGMetadataAttribute::CallbackWithRightType(InputAccessor->GetUnderlyingType(), CreateAttribute))
 			{
-				PCGE_LOG(Warning, "Failed to create new attribute %s", *LocalDestinationAttribute.ToString());
+				PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("FailedToCreateNewAttribute", "Failed to create new attribute {0}"), FText::FromName(LocalDestinationAttribute)));
 				continue;
 			}
 		}
@@ -178,7 +180,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!OutputAccessor.IsValid() || !OutputKeys.IsValid())
 		{
-			PCGE_LOG(Warning, "Failed to create output accessor or iterator");
+			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("FailedToCreateOutputAccessor", "Failed to create output accessor or iterator"));
 			continue;
 		}
 
@@ -188,7 +190,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 		// Final verification, if we can put the value of input into output
 		if (!PCG::Private::IsBroadcastable(InputAccessor->GetUnderlyingType(), OutputAccessor->GetUnderlyingType()))
 		{
-			PCGE_LOG(Error, "Can't broadcast input type into output type");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("CannotBroadcastTypes", "Cannot broadcast input type into output type"));
 			continue;
 		}
 
@@ -223,10 +225,12 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!PCGMetadataAttribute::CallbackWithRightType(OutputAccessor->GetUnderlyingType(), Operation))
 		{
-			PCGE_LOG(Warning, "Error while getting/setting values");
+			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("ErrorGettingSettingValues", "Error while getting/setting values"));
 			continue;
 		}
 	}
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

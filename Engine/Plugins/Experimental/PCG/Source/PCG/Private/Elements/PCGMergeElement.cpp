@@ -67,7 +67,7 @@ bool FPCGMergeElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SourcePointData)
 		{
-			PCGE_LOG(Error, "Unsupported data type in merge");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("UnsupportedDataType", "Unsupported data type in merge"));
 			continue;
 		}
 

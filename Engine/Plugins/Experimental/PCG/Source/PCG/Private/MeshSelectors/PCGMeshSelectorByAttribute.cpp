@@ -10,6 +10,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorByAttribute)
 
+#define LOCTEXT_NAMESPACE "PCGMeshSelectorByAttribute"
+
 namespace PCGMeshSelectorAttribute
 {
 	// Returns variation based on mesh, material overrides and reverse culling
@@ -101,19 +103,19 @@ bool UPCGMeshSelectorByAttribute::SelectInstances(
 
 	if (!InPointData)
 	{
-		PCGE_LOG_C(Error, &Context, "Missing input data");
+		PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("InputMissingData", "Missing input data"));
 		return true;
 	}
 
 	if (!InPointData->Metadata)
 	{
-		PCGE_LOG_C(Error, &Context, "Unable to get metadata from input");
+		PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("InputMissingMetadata", "Unable to get metadata from input"));
 		return true;
 	}
 
 	if (!InPointData->Metadata->HasAttribute(AttributeName))
 	{
-		PCGE_LOG_C(Error, &Context, "Attribute %s is not in the metadata", *AttributeName.ToString());
+		PCGE_LOG_C(Error, GraphAndLog, &Context, FText::Format(LOCTEXT("AttributeNotInMetadata", "Attribute '{0}' is not in the metadata"), FText::FromName(AttributeName)));
 		return true;
 	}
 
@@ -122,7 +124,7 @@ bool UPCGMeshSelectorByAttribute::SelectInstances(
 
 	if (AttributeBase->GetTypeId() != PCG::Private::MetadataTypes<FString>::Id)
 	{
-		PCGE_LOG_C(Error, &Context, "Attribute is not of valid type FString");
+		PCGE_LOG_C(Error, GraphAndLog, &Context, FText::Format(LOCTEXT("AttributeInvalidType", "Attribute '{0}' is not of valid type FString"), FText::FromName(AttributeName)));
 		return true;
 	}
 
@@ -182,12 +184,12 @@ bool UPCGMeshSelectorByAttribute::SelectInstances(
 
 				if (Mesh.IsNull())
 				{
-					PCGE_LOG_C(Error, &Context, "Invalid mesh path: %s.", *MeshSoftObjectPath);
+					PCGE_LOG_C(Error, GraphAndLog, &Context, FText::Format(LOCTEXT("InvalidMeshPath", "Invalid mesh path: '{0}'."), FText::FromString(MeshSoftObjectPath)));
 				}
 			}
 			else
 			{
-				PCGE_LOG_C(Warning, &Context, "Trivially invalid mesh path used: %s", *MeshSoftObjectPath);
+				PCGE_LOG_C(Warning, LogOnly, &Context, FText::Format(LOCTEXT("TrivialInvalidMeshPath", "Trivially invalid mesh path used: '{0}'"), FText::FromString(MeshSoftObjectPath)));
 			}
 
 			ValueKeyToMesh.Add(ValueKey, Mesh);
@@ -225,3 +227,5 @@ bool UPCGMeshSelectorByAttribute::SelectInstances(
 
 	return (CurrentPointIndex == Points.Num());
 }
+
+#undef LOCTEXT_NAMESPACE

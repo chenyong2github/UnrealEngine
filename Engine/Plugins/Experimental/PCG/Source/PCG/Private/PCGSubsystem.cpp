@@ -167,6 +167,18 @@ UPCGSubsystem* UPCGSubsystem::GetInstance(UWorld* World)
 	}
 }
 
+#if WITH_EDITOR
+UPCGSubsystem* UPCGSubsystem::GetActiveEditorInstance()
+{
+	if (GEditor)
+	{
+		return GEditor->PlayWorld ? UPCGSubsystem::GetInstance(GEditor->PlayWorld.Get()) : UPCGSubsystem::GetInstance(GEditor->GetEditorWorldContext().World());
+	}
+
+	return nullptr;
+}
+#endif
+
 void UPCGSubsystem::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);

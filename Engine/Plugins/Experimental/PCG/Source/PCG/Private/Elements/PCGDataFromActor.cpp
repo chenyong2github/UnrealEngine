@@ -78,7 +78,7 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* InContext) const
 
 		if (Context->FoundActors.IsEmpty())
 		{
-			PCGE_LOG(Warning, "No matching actor was found.");
+			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("NoActorFound", "No matching actor was found"));
 			return true;
 		}
 
@@ -110,7 +110,7 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* InContext) const
 				}
 				else
 				{
-					PCGE_LOG(Error, "Was unable to wait for end of generation tasks");
+					PCGE_LOG(Error, GraphAndLog, LOCTEXT("UnableToWaitForGenerationTasks", "Unable to wait for end of generation tasks"));
 				}
 			}
 		}
@@ -188,18 +188,18 @@ void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGData
 	{
 		if (bCanGetDataFromComponent)
 		{
-			PCGE_LOG(Warning, "Actor (%s) does not have any previously generated data.", *FoundActor->GetFName().ToString());
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("ActorHasNoGeneratedData", "Actor '{0}' does not have any previously generated data"), FText::FromName(FoundActor->GetFName())));
 		}
 		else
 		{
-			PCGE_LOG(Error, "Actor (%s) cannot get its own generated data during generation", *FoundActor->GetFName().ToString());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ActorCannotGetOwnData", "Actor '{0}' cannot get its own generated data during generation"), FText::FromName(FoundActor->GetFName())));
 		}
 		
 		return;
 	}
 	else if (Settings->Mode == EPCGGetDataFromActorMode::GetDataFromProperty && !FoundProperty)
 	{
-		PCGE_LOG(Warning, "Actor (%s) does not have a property name (%s)", *FoundActor->GetFName().ToString(), *Settings->PropertyName.ToString());
+		PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("ActorHasNoProperty", "Actor '{0}' does not have a property name '{1}'"), FText::FromName(FoundActor->GetFName()), FText::FromName(Settings->PropertyName)));
 		return;
 	}
 
@@ -244,7 +244,7 @@ void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGData
 
 		if (!bAbleToGetProperty)
 		{
-			PCGE_LOG(Warning, "Actor (%s) property (%s) does not have a supported type", *FoundActor->GetFName().ToString(), *Settings->PropertyName.ToString());
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("PropertyTypeUnsupported", "Actor '{0}' property '{1}' does not have a supported type"), FText::FromName(FoundActor->GetFName()), FText::FromName(Settings->PropertyName)));
 		}
 	}
 	else

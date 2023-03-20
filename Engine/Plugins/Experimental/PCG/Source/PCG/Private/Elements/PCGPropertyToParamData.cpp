@@ -10,8 +10,9 @@
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPropertyToParamData)
+
+#define LOCTEXT_NAMESPACE "PCGPropertyToParamDataElement"
 
 #if WITH_EDITOR
 void UPCGPropertyToParamDataSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
@@ -78,7 +79,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 	// Early out if arguments are not specified
 	if (Settings->PropertyName == NAME_None || (Settings->bSelectComponent && !Settings->ComponentClass))
 	{
-		PCGE_LOG(Error, "Some parameters are missing, abort.");
+		PCGE_LOG(Warning, GraphAndLog, LOCTEXT("ParametersMissing", "Some parameters are missing, aborting"));
 		return true;
 	}
 
@@ -87,7 +88,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 	// Optimization possibly only in non-editor builds, otherwise we could poison the input-driven cache
 	if (!Context->Node || !Context->Node->IsOutputPinConnected(PCGPinConstants::DefaultOutputLabel))
 	{
-		PCGE_LOG(Verbose, "Node is not connected, nothing to do");
+		PCGE_LOG(Verbose, LogOnly, LOCTEXT("UnconnectedNode", "Node is not connected, nothing to do"));
 		return true;
 	}
 #endif
@@ -98,7 +99,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!FoundActor)
 	{
-		PCGE_LOG(Error, "No matching actor was found.");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("NoActorFound", "No matching actor was found"));
 		return true;
 	}
 
@@ -109,7 +110,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 		ObjectToInspect = FoundActor->GetComponentByClass(Settings->ComponentClass);
 		if (!ObjectToInspect)
 		{
-			PCGE_LOG(Error, "Component doesn't exist in the found actor.");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ComponentDoesNotExist", "Component does not exist in the found actor"));
 			return true;
 		}
 	}
@@ -118,7 +119,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 	FProperty* Property = FindFProperty<FProperty>(ObjectToInspect->GetClass(), Settings->PropertyName);
 	if (!Property)
 	{
-		PCGE_LOG(Error, "Property doesn't exist in the found actor.");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("PropertyDoesNotExist", "Property does not exist in the found actor"));
 		return true;
 	}
 
@@ -176,7 +177,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (ExtractableProperties.IsEmpty())
 	{
-		PCGE_LOG(Error, "Found no properties to be extractable.");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("NoPropertiesFound", "No properties found to extract"));
 		return true;
 	}
 
@@ -195,7 +196,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!Metadata->SetAttributeFromDataProperty(AttributeName, EntryKey, ContainerPtr, FinalProperty, /*bCreate=*/ true))
 		{
-			PCGE_LOG(Error, "Error while creating an attribute for property %s. Either the property type is not supported by PCG or attribute creation failed.", *FinalProperty->GetName());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ErrorCreatingAttribute", "Error while creating an attribute for property '{0}'. Either the property type is not supported by PCG or attribute creation failed."), FText::FromString(FinalProperty->GetName())));
 			continue;
 		}
 
@@ -211,3 +212,5 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

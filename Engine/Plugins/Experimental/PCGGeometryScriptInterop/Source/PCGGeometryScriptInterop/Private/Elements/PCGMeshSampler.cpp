@@ -95,7 +95,7 @@ bool FPCGMeshSamplerElement::PrepareDataInternal(FPCGContext* InContext) const
 
 	if (!StaticMesh)
 	{
-		PCGE_LOG(Error, "Provided static mesh does not exist: %s", *Settings->StaticMeshPath.ToString());
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("MeshDoesNotExist", "Provided static mesh does not exist: '{0}'"), FText::FromString(Settings->StaticMeshPath.ToString())));
 		return true;
 	}
 
@@ -110,7 +110,7 @@ bool FPCGMeshSamplerElement::PrepareDataInternal(FPCGContext* InContext) const
 
 	if (Outcome == EGeometryScriptOutcomePins::Failure)
 	{
-		PCGE_LOG(Error, "Static to Dynamic mesh failed");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("StaticToDynamicMeshFailed", "Static to Dynamic mesh failed"));
 		return true;
 	}
 	

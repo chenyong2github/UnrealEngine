@@ -2,6 +2,7 @@
 
 #include "PCGEditorGraphNodeBase.h"
 
+#include "PCGEditor.h"
 #include "PCGEditorCommands.h"
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
@@ -9,10 +10,12 @@
 #include "PCGEditorSettings.h"
 #include "PCGGraph.h"
 #include "PCGPin.h"
+#include "PCGSubsystem.h"
 
 #include "GraphEditorActions.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
+#include "Logging/TokenizedMessage.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Widgets/Colors/SColorPicker.h"
 
@@ -275,10 +278,54 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 			}
 		}
 
+		UpdateErrorsAndWarnings();
+
 		if (!!(ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Node | EPCGChangeType::Edge | EPCGChangeType::Cosmetic)))
 		{
 			ReconstructNode();
 		}
+	}
+}
+
+void UPCGEditorGraphNodeBase::UpdateErrorsAndWarnings()
+{
+	bool bNodeChanged = false;
+
+	// Pull current errors/warnings state from PCG subsystem.
+	if (const UPCGSubsystem* Subsystem = UPCGSubsystem::GetActiveEditorInstance())
+	{
+		const UPCGComponent* ComponentBeingDebugged = nullptr;
+		{
+			const UPCGEditorGraph* EditorGraph = CastChecked<UPCGEditorGraph>(GetGraph());
+			const FPCGEditor* Editor = (EditorGraph && EditorGraph->GetEditor().IsValid()) ? EditorGraph->GetEditor().Pin().Get() : nullptr;
+			ComponentBeingDebugged = Editor ? Editor->GetPCGComponentBeingDebugged() : nullptr;
+		}
+
+		const bool bOldHasCompilerMessage = bHasCompilerMessage;
+		const int32 OldErrorType = ErrorType;
+		const FString OldErrorMsg = ErrorMsg;
+
+		bHasCompilerMessage = Subsystem->GetNodeVisualLogs().HasLogs(PCGNode, ComponentBeingDebugged);
+
+		if (bHasCompilerMessage)
+		{
+			const bool bHasErrors = Subsystem->GetNodeVisualLogs().HasLogs(PCGNode, ComponentBeingDebugged, ELogVerbosity::Error);
+			ErrorType = bHasErrors ? EMessageSeverity::Error : EMessageSeverity::Warning;
+
+			ErrorMsg = Subsystem->GetNodeVisualLogs().GetLogsSummaryText(PCGNode, ComponentBeingDebugged).ToString();
+		}
+		else
+		{
+			ErrorMsg.Empty();
+			ErrorType = 0;
+		}
+
+		bNodeChanged = (bHasCompilerMessage != bOldHasCompilerMessage) || (ErrorType != OldErrorType) || (ErrorMsg != OldErrorMsg);
+	}
+
+	if (bNodeChanged)
+	{
+		OnNodeChangedDelegate.ExecuteIfBound();
 	}
 }
 

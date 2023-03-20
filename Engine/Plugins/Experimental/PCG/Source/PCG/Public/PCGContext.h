@@ -90,6 +90,14 @@ struct PCG_API FPCGContext
 
 	AActor* GetTargetActor(const UPCGSpatialData* InSpatialData) const;
 
+#if WITH_EDITOR
+	/** Log warnings and errors to be displayed on node in graph editor. */
+	void LogVisual(ELogVerbosity::Type InVerbosity, const FText& InMessage) const;
+
+	/** True if any issues were logged during last execution. */
+	bool HasVisualLogs() const;
+#endif // WITH_EDITOR
+
 protected:
 	virtual UObject* GetExternalContainerForOverridableParam(const FPCGSettingsOverridableParam& InParam) { return nullptr; }
 

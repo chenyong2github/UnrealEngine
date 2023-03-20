@@ -10,6 +10,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointSampler)
 
+#define LOCTEXT_NAMESPACE "PCGPointSamplerElement"
+
 UPCGPointSamplerSettings::UPCGPointSamplerSettings()
 {
 	bUseSeed = true;
@@ -46,7 +48,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	// Early exit when nothing will be generated out of this sampler
 	if (bNoSampling && !bKeepZeroDensityPoints)
 	{
-		PCGE_LOG(Verbose, "Skipped - all inputs rejected");
+		PCGE_LOG(Verbose, LogOnly, LOCTEXT("AllInputsRejected", "Skipped - all inputs rejected"));
 		return true;
 	}
 
@@ -57,14 +59,14 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
 		{
-			PCGE_LOG(Error, "Invalid input data");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid input data"));
 			continue;
 		}
 
 		// Skip processing if the transformation would be trivial
 		if (bTrivialSampling)
 		{
-			PCGE_LOG(Verbose, "Skipped - trivial sampling");
+			PCGE_LOG(Verbose, LogOnly, LOCTEXT("SkippedTrivialSampling", "Skipped - trivial sampling"));
 			continue;
 		}
 
@@ -72,7 +74,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!OriginalData)
 		{
-			PCGE_LOG(Error, "Unable to get point data from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("NoPointDataInInput", "Unable to get point data from input"));
 			continue;
 		}
 
@@ -95,7 +97,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		// Early out
 		if (TargetNumPoints == 0)
 		{
-			PCGE_LOG(Verbose, "Skipped - all points rejected");
+			PCGE_LOG(Verbose, LogOnly, LOCTEXT("SkippedAllPointsRejected", "Skipped - all points rejected"));
 			continue;
 		}
 		else
@@ -129,10 +131,11 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 				}
 			});
 
-			PCGE_LOG(Verbose, "Generated %d points from %d source points", SampledPoints.Num(), OriginalPointCount);
+			PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("GenerationInfo", "Generated {0} points from {1} source points"), SampledPoints.Num(), OriginalPointCount));
 		}
 	}
 
 	return true;
 }
 
+#undef LOCTEXT_NAMESPACE

@@ -74,7 +74,7 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!ProjectionSource)
 		{
-			PCGE_LOG(Error, "Invalid projection source data input found (non-spatial data). Input will be ignored.");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidProjectionSource", "Invalid projection source data input found (non-Spatial data). Input will be ignored."));
 			continue;
 		}
 

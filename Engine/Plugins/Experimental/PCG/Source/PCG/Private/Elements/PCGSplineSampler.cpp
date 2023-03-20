@@ -1148,7 +1148,7 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!BoundingShapeSpatialInput)
 		{
-			PCGE_LOG(Warning, "Bounding Shape input is missing or of unsupported type and will not be used.");
+			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("BoundingShapeMissing", "Bounding Shape input is missing or of unsupported type and will not be used."));
 		}
 	}
 

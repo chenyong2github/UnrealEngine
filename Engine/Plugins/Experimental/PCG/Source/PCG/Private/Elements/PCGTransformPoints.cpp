@@ -12,6 +12,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTransformPoints)
 
+#define LOCTEXT_NAMESPACE "PCGTransformPointsElement"
+
 UPCGTransformPointsSettings::UPCGTransformPointsSettings()
 {
 	bUseSeed = true;
@@ -59,7 +61,7 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SpatialData)
 		{
-			PCGE_LOG(Error, "Unable to get SpatialData from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputMissingSpatialData", "Unable to get Spatial data from input"));
 			continue;
 		}
 
@@ -67,7 +69,7 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!PointData)
 		{
-			PCGE_LOG(Error, "Unable to get PointData from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputMissingPointData", "Unable to get Point data from input"));
 			continue;
 		}
 
@@ -89,7 +91,7 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 			if (!FoundAttribute || FoundAttribute->GetTypeId() != PCG::Private::MetadataTypes<FTransform>::Id)
 			{
-				PCGE_LOG(Error, "Attribute %s does not exist or is not a transform", *LocalAttributeName.ToString());
+				PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("AttributeMissing", "Attribute '{0}' does not exist or is not a transform"), FText::FromName(LocalAttributeName)));
 				continue;
 			}
 
@@ -212,3 +214,4 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 	return true;
 }
 
+#undef LOCTEXT_NAMESPACE

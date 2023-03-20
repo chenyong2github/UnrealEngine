@@ -12,6 +12,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Utils/PCGExtraCapture.h"
 
+#define LOCTEXT_NAMESPACE "PCGElement"
+
 static TAutoConsoleVariable<bool> CVarPCGValidatePointMetadata(
 	TEXT("pcg.debug.ValidatePointMetadata"),
 	true,
@@ -204,7 +206,7 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 		Context->InputData = ElementOutputs;
 		Context->OutputData = FPCGDataCollection();
 
-		PCGE_LOG(Verbose, "Performing remove duplicate points test (perf warning)");
+		PCGE_LOG(Verbose, LogOnly, LOCTEXT("PerformingDuplicatePointTest", "Performing remove duplicate points test (perf warning)"));
 		PCGSelfPruningElement::Execute(Context, EPCGSelfPruningType::RemoveDuplicates, 0.0f, false);
 
 		Context->InputData = ElementInputs;
@@ -354,12 +356,12 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 				const int32 MatchIndex = OutputPinProperties.IndexOfByPredicate([&TaggedData](const FPCGPinProperties& InProp) { return TaggedData.Pin == InProp.Label; });
 				if (MatchIndex == INDEX_NONE)
 				{
-					PCGE_LOG(Warning, "Output generated for pin %s but cannot be routed", *TaggedData.Pin.ToString());
+					PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("OutputCannotBeRouted", "Output generated for pin '{0}' but cannot be routed"), FText::FromName(TaggedData.Pin)));
 				}
 				// TODO: Temporary fix for Settings directly from InputData (ie. from elements with code and not PCG nodes)
 				else if(TaggedData.Data && !(OutputPinProperties[MatchIndex].AllowedTypes & TaggedData.Data->GetDataType()) && TaggedData.Data->GetDataType() != EPCGDataType::Settings)
 				{
-					PCGE_LOG(Warning, "Output generated for pin %s does not have a compatible type: %s", *TaggedData.Pin.ToString(), *UEnum::GetValueAsString(TaggedData.Data->GetDataType()));
+					PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("OutputIncompatibleType", "Output generated for pin '{0}' does not have a compatible type: '{1}'"), FText::FromName(TaggedData.Pin), FText::FromString(UEnum::GetValueAsString(TaggedData.Data->GetDataType()))));
 				}
 
 				if (CVarPCGValidatePointMetadata.GetValueOnAnyThread())
@@ -378,7 +380,7 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 
 						if (bHasError)
 						{
-							PCGE_LOG(Warning, "Output generated for pin %s does not have valid point metadata", *TaggedData.Pin.ToString());
+							PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("OutputMissingPointMetadata", "Output generated for pin '{0}' does not have valid point metadata"), FText::FromName(TaggedData.Pin)));
 						}
 					}
 				}
@@ -438,3 +440,5 @@ FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, 
 
 	return Context;
 }
+
+#undef LOCTEXT_NAMESPACE

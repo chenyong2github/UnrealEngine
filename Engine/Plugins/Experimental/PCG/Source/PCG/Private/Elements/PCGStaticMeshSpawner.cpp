@@ -19,6 +19,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGStaticMeshSpawner)
 
+#define LOCTEXT_NAMESPACE "PCGStaticMeshSpawnerElement"
+
 static TAutoConsoleVariable<bool> CVarAllowISMReuse(
 	TEXT("pcg.ISM.AllowReuse"),
 	true,
@@ -53,7 +55,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 
 	if (!Settings->MeshSelectorInstance)
 	{
-		PCGE_LOG(Error, "Invalid MeshSelectorInstance");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidMeshSelectorInstance", "Invalid MatchAndSet instance, try recreating this node from the node palette"));
 		return true;
 	}
 
@@ -127,7 +129,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 
 			if (!SpatialData)
 			{
-				PCGE_LOG(Error, "Invalid input data");
+				PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid input data"));
 				++Context->CurrentInputIndex;
 				continue;
 			}
@@ -135,7 +137,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 			const UPCGPointData* PointData = SpatialData->ToPointData(Context);
 			if (!PointData)
 			{
-				PCGE_LOG(Error, "Unable to get point data from input");
+				PCGE_LOG(Error, GraphAndLog, LOCTEXT("NoPointDataInInput", "Unable to get point data from input"));
 				++Context->CurrentInputIndex;
 				continue;
 			}
@@ -143,7 +145,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 			AActor* TargetActor = Context->GetTargetActor(PointData);
 			if (!TargetActor)
 			{
-				PCGE_LOG(Error, "Invalid target actor");
+				PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidTargetActor", "Invalid target actor"));
 				++Context->CurrentInputIndex;
 				continue;
 			}
@@ -158,7 +160,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 				if (OutputPointData->Metadata->HasAttribute(Settings->OutAttributeName))
 				{
 					OutputPointData->Metadata->DeleteAttribute(Settings->OutAttributeName);
-					PCGE_LOG(Verbose, "Metadata attribute %s is being overwritten in the output data", *Settings->OutAttributeName.ToString());
+					PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("AttributeOverwritten", "Metadata attribute '{0}' is being overwritten in the output data"), FText::FromName(Settings->OutAttributeName)));
 				}
 
 				OutputPointData->Metadata->CreateStringAttribute(Settings->OutAttributeName, FName(NAME_None).ToString(), /*bAllowsInterpolation=*/false);
@@ -304,7 +306,7 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 		// Either we have no mesh (so nothing to do) or the mesh couldn't be loaded
 		if (InstanceList.Descriptor.StaticMesh.IsValid())
 		{
-			PCGE_LOG(Error, "Unable to load mesh %s", *InstanceList.Descriptor.StaticMesh.ToString());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("MeshLoadFailed", "Unable to load mesh '{0}'"), FText::FromString(InstanceList.Descriptor.StaticMesh.ToString())));
 		}
 
 		return;
@@ -315,7 +317,7 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 	{
 		if (OverrideMaterial.IsValid() && !OverrideMaterial.LoadSynchronous())
 		{
-			PCGE_LOG(Error, "Unable to load override material %s", *OverrideMaterial.ToString());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("OverrideMaterialLoadFailed", "Unable to load override material '{0}'"), FText::FromString(OverrideMaterial.ToString())));
 			return;
 		}
 	}
@@ -365,7 +367,10 @@ void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context
 
 	ISMC->UpdateBounds();
 
-	PCGE_LOG(Verbose, "Added %d instances of %s on actor %s", InstanceList.Instances.Num(), *InstanceList.Descriptor.StaticMesh->GetFName().ToString(), *TargetActor->GetFName().ToString());
+	{
+		PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("GenerationInfo", "Added {0} instances of '{1}' on actor '{2}'"),
+			InstanceList.Instances.Num(), FText::FromString(InstanceList.Descriptor.StaticMesh->GetFName().ToString()), FText::FromString(TargetActor->GetFName().ToString())));
+	}
 }
 
 void UPCGStaticMeshSpawnerSettings::PostLoad()
@@ -502,3 +507,5 @@ void UPCGStaticMeshSpawnerSettings::RefreshInstancePacker()
 
 FPCGStaticMeshSpawnerContext::FPackedInstanceListData::FPackedInstanceListData() = default;
 FPCGStaticMeshSpawnerContext::FPackedInstanceListData::~FPackedInstanceListData() = default;
+
+#undef LOCTEXT_NAMESPACE

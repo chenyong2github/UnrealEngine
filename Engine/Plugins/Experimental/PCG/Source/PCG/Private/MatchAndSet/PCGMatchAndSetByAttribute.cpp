@@ -11,6 +11,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMatchAndSetByAttribute)
 
+#define LOCTEXT_NAMESPACE "PCGMatchAndSetByAttributeElement"
+
 FPCGMatchAndSetByAttributeEntry::FPCGMatchAndSetByAttributeEntry()
 {
 	ValueToMatch.bAllowsTypeChange = false;
@@ -119,7 +121,7 @@ void UPCGMatchAndSetByAttribute::MatchAndSet_Implementation(
 
 	if (!InputAccessor.IsValid() || !InputKeys.IsValid())
 	{
-		PCGE_LOG_C(Warning, &Context, "Failed to create input accessor or iterator in MatchAndSet");
+		PCGE_LOG_C(Warning, GraphAndLog, &Context, LOCTEXT("InputAccessorCreationFailed", "Failed to create input accessor or iterator in MatchAndSet"));
 		return;
 	}
 
@@ -184,7 +186,7 @@ void UPCGMatchAndSetByAttribute::MatchAndSet_Implementation(
 
 	if (!PCGMetadataAttribute::CallbackWithRightType(InputAccessor->GetUnderlyingType(), MatchAndSetOperation))
 	{
-		PCGE_LOG_C(Warning, &Context, "Error while getting/setting values in the MatchAndSet");
+		PCGE_LOG_C(Warning, GraphAndLog, &Context, LOCTEXT("ErrorGettingSettingValues", "Error while getting/setting values in the MatchAndSet"));
 	}
 }
 
@@ -207,3 +209,5 @@ bool UPCGMatchAndSetByAttribute::ValidatePreconditions_Implementation(const UPCG
 	const FPCGMetadataAttributeBase* AttributeToMatch = InPointData->Metadata->GetConstAttribute(AttributeName);
 	return AttributeToMatch && AttributeToMatch->GetTypeId() == static_cast<uint16>(MatchSourceType);
 }
+
+#undef LOCTEXT_NAMESPACE

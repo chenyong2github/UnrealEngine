@@ -12,6 +12,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeReduceElement)
 
+#define LOCTEXT_NAMESPACE "PCGAttributeReduceElement"
+
 namespace PCGAttributeReduceElement
 {
 	template <typename T>
@@ -155,7 +157,7 @@ bool FPCGAttributeReduceElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (Inputs.Num() != 1)
 	{
-		PCGE_LOG(Error, "Input pin doesn't have the right number of inputs.");
+		PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("WrongNumberOfInputs", "Input pin expected to have one input data element, encountered {0}"), Inputs.Num()));
 		return true;
 	}
 
@@ -163,7 +165,7 @@ bool FPCGAttributeReduceElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!SpatialData)
 	{
-		PCGE_LOG(Error, "Input is not a spatial data.");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputNotSpatialData", "Input is not a spatial data"));
 		return true;
 	}
 
@@ -183,7 +185,7 @@ bool FPCGAttributeReduceElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!Accessor.IsValid() || !Keys.IsValid())
 	{
-		PCGE_LOG(Error, "Input attribute/property doesn't exists");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("AttributeDoesNotExist", "Input attribute/property does not exist"));
 		return true;
 	}
 
@@ -229,7 +231,7 @@ bool FPCGAttributeReduceElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!PCGMetadataAttribute::CallbackWithRightType(Accessor->GetUnderlyingType(), DoOperation))
 	{
-		PCGE_LOG(Error, "Operation was not compatible with the attribute type or couldn't create attribute %s.", *OutputAttributeName.ToString());
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("AttributeOperationFailed", "Operation was not compatible with the attribute type or could not create attribute '{0}'"), FText::FromName(OutputAttributeName)));
 		return true;
 	}
 
@@ -239,3 +241,5 @@ bool FPCGAttributeReduceElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

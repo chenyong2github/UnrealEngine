@@ -12,6 +12,7 @@
 #include "PCGModule.h"
 #include "PCGParamData.h"
 #include "PCGPin.h"
+#include "PCGSubsystem.h"
 #include "Graph/PCGGraphCache.h"
 #include "Metadata/PCGMetadata.h"
 
@@ -97,6 +98,17 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 	{
 		UE_LOG(LogPCG, Log, TEXT("[%s] --- SCHEDULE GRAPH ---"), *SourceComponent->GetOwner()->GetName());
 	}
+
+#if WITH_EDITOR
+	if (UPCGSubsystem* Subsystem = UPCGSubsystem::GetInstance(SourceComponent->GetWorld()))
+	{
+		for (const UPCGNode* Node : Graph->GetNodes())
+		{
+			// Always clear warnings/errors before compile regardless of connectivity
+			Subsystem->GetNodeVisualLogsMutable().ClearLogs(Node, SourceComponent);
+		}
+	}
+#endif
 
 	FPCGTaskId ScheduledId = InvalidPCGTaskId;
 
@@ -608,6 +620,7 @@ void FPCGGraphExecutor::Execute()
 						SourceComponent->StoreInspectionData(Task.Node, CachedOutput);
 					}
 #endif
+
 					// Fast-forward cached result to stored results
 					FPCGTaskId SkippedTaskId = Task.NodeId;
 					StoreResults(SkippedTaskId, CachedOutput);
@@ -732,7 +745,15 @@ void FPCGGraphExecutor::Execute()
 
 				// Store result in cache as needed - done here because it needs to be done on the main thread
 				const UPCGSettingsInterface* ActiveTaskSettingsInterface = ActiveTask.Context->GetInputSettingsInterface();
-				if (ActiveTaskSettingsInterface && ActiveTask.Element->IsCacheableInstance(ActiveTaskSettingsInterface))
+
+				// Don't store if errors or warnings present
+#if WITH_EDITOR
+				const bool bHasErrorOrWarning = ActiveTask.Context->Node && (ActiveTask.Context->HasVisualLogs());
+#else
+				const bool bHasErrorOrWarning = false;
+#endif
+
+				if (ActiveTaskSettingsInterface && !bHasErrorOrWarning && ActiveTask.Element->IsCacheableInstance(ActiveTaskSettingsInterface))
 				{
 					const UPCGSettings* ActiveTaskSettings = ActiveTaskSettingsInterface ? ActiveTaskSettingsInterface->GetSettings() : nullptr;
 					GraphCache.StoreInCache(ActiveTask.Element.Get(), ActiveTask.Context->DependenciesCrc, ActiveTask.Context->InputData, ActiveTaskSettings, ActiveTask.Context->SourceComponent.Get(), ActiveTask.Context->OutputData);

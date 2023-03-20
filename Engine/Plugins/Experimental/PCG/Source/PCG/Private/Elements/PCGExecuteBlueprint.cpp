@@ -15,6 +15,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGExecuteBlueprint)
 
+#define LOCTEXT_NAMESPACE "PCGBlueprintElement"
+
 #if WITH_EDITOR
 namespace PCGBlueprintHelper
 {
@@ -539,7 +541,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 			const FPCGTaggedData& Input = Context->InputData.TaggedData[InputIndex];
 			if (const UPCGPointData* PointData = Cast<UPCGPointData>(Input.Data))
 			{
-				PCGE_LOG(Verbose, "Input %d has %d points", InputIndex, PointData->GetPoints().Num());
+				PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("InputPointInfo", "Input {0} has {1} points"), InputIndex, PointData->GetPoints().Num()));
 			}
 		}
 
@@ -552,7 +554,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 			const FPCGTaggedData& Output = Context->OutputData.TaggedData[OutputIndex];
 			if (const UPCGPointData* PointData = Cast<UPCGPointData>(Output.Data))
 			{
-				PCGE_LOG(Verbose, "Output %d has %d points", OutputIndex, PointData->GetPoints().Num());
+				PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("OutputPointInfo", "Output {0} has {1} points"), OutputIndex, PointData->GetPoints().Num()));
 			}
 
 			// Important implementation note:
@@ -616,7 +618,7 @@ void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointD
 {
 	if (!InData)
 	{
-		PCGE_LOG_C(Error, &InContext, "Invalid input data in LoopOnPoints");
+		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataLoopOnPoints", "Invalid input data in LoopOnPoints"));
 		return;
 	}
 
@@ -643,7 +645,7 @@ void UPCGBlueprintElement::MultiLoopOnPoints(FPCGContext& InContext, const UPCGP
 {
 	if (!InData)
 	{
-		PCGE_LOG_C(Error, &InContext, "Invalid input data in MultiLoopOnPoints");
+		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataMultiLoopOnPoints", "Invalid input data in MultiLoopOnPoints"));
 		return;
 	}
 
@@ -670,7 +672,7 @@ void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPo
 {
 	if (!InA || !InB)
 	{
-		PCGE_LOG_C(Error, &InContext, "Invalid input data in LoopOnPointPairs");
+		PCGE_LOG_C(Error, GraphAndLog, &InContext, LOCTEXT("InvalidInputDataLoopOnPointPairs", "Invalid input data in LoopOnPointPairs"));
 		return;
 	}
 
@@ -789,3 +791,5 @@ bool FPCGExecuteBlueprintElement::CanExecuteOnlyOnMainThread(FPCGContext* Contex
 		return false;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

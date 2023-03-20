@@ -7,6 +7,7 @@
 #include "PCGCommon.h"
 #include "PCGActorAndComponentMapping.h"
 #include "Grid/PCGComponentOctree.h"
+#include "Utils/PCGNodeVisualLogs.h"
 
 #include "PCGSubsystem.generated.h"
 
@@ -62,7 +63,12 @@ public:
 	/** Will return the subsystem from the World if it exists and if it is initialized */
 	static UPCGSubsystem* GetInstance(UWorld* World);
 
-	/** Subsytem must not be used without this condition being true. */
+#if WITH_EDITOR
+	/** Returns PIE world if it is active, otherwise returns editor world. */
+	static UPCGSubsystem* GetActiveEditorInstance();
+#endif
+
+	/** Subsystem must not be used without this condition being true. */
 	bool IsInitialized() const { return GraphExecutor != nullptr; }
 
 	APCGWorldActor* GetPCGWorldActor();
@@ -181,6 +187,10 @@ public:
 	/** Returns how many times InElement is present in the cache. */
 	uint32 GetGraphCacheEntryCount(IPCGElement* InElement) const;
 
+	/** Get graph warnings and errors for all nodes. */
+	const FPCGNodeVisualLogs& GetNodeVisualLogs() const { return NodeVisualLogs; }
+	FPCGNodeVisualLogs& GetNodeVisualLogsMutable() { return NodeVisualLogs; }
+
 private:
 	enum class EOperation : uint32
 	{
@@ -191,6 +201,8 @@ private:
 
 	FPCGTaskId ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, EOperation InOperation, bool bSave);
 	void CreatePartitionActorsWithinBounds(const FBox& InBounds);
+
+	FPCGNodeVisualLogs NodeVisualLogs;
 #endif // WITH_EDITOR
 	
 private:

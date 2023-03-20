@@ -13,6 +13,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeighted)
 
+#define LOCTEXT_NAMESPACE "PCGMeshSelectorWeighted"
+
 namespace PCGMeshSelectorWeighted
 {
 	FPCGMeshInstanceList& GetInstanceList(
@@ -121,7 +123,7 @@ bool UPCGMeshSelectorWeighted::SelectInstances(
 {
 	if (!InPointData)
 	{
-		PCGE_LOG_C(Error, &Context, "Missing input data");
+		PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("MissingInputData", "Missing input data"));
 		return true;
 	}
 
@@ -138,7 +140,7 @@ bool UPCGMeshSelectorWeighted::SelectInstances(
 		{
 			if (Entry.Weight <= 0)
 			{
-				PCGE_LOG_C(Verbose, &Context, "Entry found with weight <= 0");
+				PCGE_LOG_C(Verbose, LogOnly, &Context, LOCTEXT("EntryWithNegativeWeight", "Entry found with weight <= 0"));
 				continue;
 			}
 
@@ -175,7 +177,7 @@ bool UPCGMeshSelectorWeighted::SelectInstances(
 
 		if (!OutPointData->Metadata->HasAttribute(Settings->OutAttributeName)) 
 		{
-			PCGE_LOG_C(Error, &Context, "Out attribute %s is not in the metadata", *Settings->OutAttributeName.ToString());
+			PCGE_LOG_C(Error, GraphAndLog, &Context, FText::Format(LOCTEXT("AttributeNotInMetadata", "Out attribute '{0}' is not in the metadata"), FText::FromName(Settings->OutAttributeName)));
 		}
 
 		FPCGMetadataAttributeBase* OutAttributeBase = OutPointData->Metadata->GetMutableAttribute(Settings->OutAttributeName);
@@ -189,7 +191,7 @@ bool UPCGMeshSelectorWeighted::SelectInstances(
 			}
 			else
 			{
-				PCGE_LOG_C(Error, &Context, "Out attribute is not of valid type FString");
+				PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("AttributeNotFString", "Out attribute is not of valid type FString"));
 			}
 		}
 	}
@@ -285,3 +287,4 @@ bool UPCGMeshSelectorWeighted::SelectInstances(
 	}
 }
 
+#undef LOCTEXT_NAMESPACE

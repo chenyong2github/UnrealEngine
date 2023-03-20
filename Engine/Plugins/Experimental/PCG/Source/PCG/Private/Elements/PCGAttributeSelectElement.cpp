@@ -12,6 +12,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeSelectElement)
 
+#define LOCTEXT_NAMESPACE "PCGAttributeSelectElement"
+
 namespace PCGAttributeSelectElement
 {
 	// Of course, Dot doesn't exist for FVector4...
@@ -258,7 +260,7 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (Inputs.Num() != 1)
 	{
-		PCGE_LOG(Error, "Input pin doesn't have the right number of inputs.");
+		PCGE_LOG(Error, LogOnly, FText::Format(LOCTEXT("WrongNumberOfInputs", "Input pin expected to have one input data element, encountered {0}"), Inputs.Num()));
 		return true;
 	}
 
@@ -266,19 +268,19 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!SpatialData)
 	{
-		PCGE_LOG(Error, "Input is not a spatial data.");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputNotSpatialData", "Input is not a spatial data"));
 		return true;
 	}
 
 	const UPCGPointData* PointData = Cast<UPCGPointData>(SpatialData);
 	if (!PointData && Context->Node && Context->Node->IsOutputPinConnected(PCGAttributeSelectConstants::OutputPointLabel))
 	{
-		PCGE_LOG(Warning, "Not a point data as input, will output nothing in the %s output pin", *PCGAttributeSelectConstants::OutputPointLabel.ToString());
+		PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("InputMissingPointData", "No point data in input, will output nothing in the '{0}' output pin"), FText::FromName(PCGAttributeSelectConstants::OutputPointLabel)));
 	}
 
 	if (!SpatialData->Metadata)
 	{
-		PCGE_LOG(Error, "Input data doesn't have metadata");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputMissingMetadata", "Input data doesn't have metadata"));
 		return true;
 	}
 
@@ -296,7 +298,7 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!Accessor.IsValid() || !Keys.IsValid())
 	{
-		PCGE_LOG(Error, "Input attribute/property doesn't exists");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("AttributeMissing", "Input attribute/property does not exist"));
 		return true;
 	}
 
@@ -306,7 +308,7 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 
 		if constexpr (!PCG::Private::IsOfTypes<AttributeType, int32, int64, float, double, FVector2D, FVector, FVector4>())
 		{
-			PCGE_LOG(Error, "Attribute type is not a Vector nor a scalar");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("AttributeNotVectorScalar", "Attribute type is not a Vector nor a scalar"));
 			return -1;
 		}
 		else
@@ -323,6 +325,8 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 			{
 				return -1;
 			}
+
+			const FText InvalidErrorAxisMessage = LOCTEXT("InvalidAxis", "Invalid axis for attribute type");
 
 			// First we need to verify if the axis we want to project on is valid for dimension of our vector type.
 			// If it is a scalar, we won't project anything.
@@ -352,7 +356,7 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 
 				if (!bIsValid)
 				{
-					PCGE_LOG(Error, "Invalid axis for attribute type.");
+					PCGE_LOG(Error, GraphAndLog, InvalidErrorAxisMessage);
 					return -1;
 				}
 			}
@@ -388,7 +392,7 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 			}
 			else
 			{
-				PCGE_LOG(Error, "Invalid axis for attribute type.");
+				PCGE_LOG(Error, GraphAndLog, InvalidErrorAxisMessage);
 				OutputIndex = -1;
 			}
 
@@ -424,3 +428,5 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -14,6 +14,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointFilter)
 
+#define LOCTEXT_NAMESPACE "PCGPointFilterElement"
+
 namespace PCGPointFilterConstants
 {
 	const FName DataToFilterLabel = TEXT("In");
@@ -251,7 +253,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 					ThresholdSpatialData = TentativeThresholdSpatialData->ToPointData();
 					if (!ThresholdSpatialData)
 					{
-						PCGE_LOG(Error, "Unable to get point data from filter input");
+						PCGE_LOG(Error, GraphAndLog, LOCTEXT("CannotGetPointData", "Unable to get Point data from filter input"));
 						return true;
 					}
 
@@ -281,14 +283,14 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 		const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Input.Data);
 		if (!SpatialInput)
 		{
-			PCGE_LOG(Error, "Please move non-spatial data to other pins");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("MoveNonSpatialData", "Please move non-Spatial data to other pins"));
 			continue;
 		}
 
 		const UPCGPointData* OriginalData = SpatialInput->ToPointData(Context);
 		if (!OriginalData)
 		{
-			PCGE_LOG(Error, "Unable to get point data from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("NoPointDataInInput", "Unable to get point data from input"));
 			continue;
 		}
 
@@ -314,7 +316,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!TargetAccessor.IsValid() || !TargetKeys.IsValid())
 		{
-			PCGE_LOG(Warning, "TargetData doesn't have %s target attribute/property", *Settings->TargetAttribute.GetName().ToString());
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("TargetMissingAttribute", "TargetData doesn't have target attribute/property '{0}'"), FText::FromName(Settings->TargetAttribute.GetName())));
 			ForwardInputToOutFilterPin();
 			continue;
 		}
@@ -341,7 +343,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!ThresholdAccessor.IsValid() || !ThresholdKeys.IsValid())
 		{
-			PCGE_LOG(Warning, "DataToFilter doesn't have %s threshold attribute/property", *Settings->ThresholdAttribute.GetName().ToString());
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("AttributeMissingForFilter", "DataToFilter does not have '{0}' threshold attribute/property"), FText::FromName(Settings->ThresholdAttribute.GetName())));
 			ForwardInputToInFilterPin();
 			continue;
 		}
@@ -351,7 +353,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 		// For example: if target is double but threshold is int32, we can broadcast int32 to double, to compare a double with a double.
 		if (!PCG::Private::IsBroadcastable(ThresholdAccessor->GetUnderlyingType(), TargetAccessor->GetUnderlyingType()))
 		{
-			PCGE_LOG(Warning, "Cannot broadcast threshold type to target type");
+			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("TypeConversionFailed", "Cannot broadcast threshold type to target type"));
 			ForwardInputToInFilterPin();
 			continue;
 		}
@@ -366,7 +368,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 			if (!bCanCompare)
 			{
-				PCGE_LOG(Warning, "Cannot compare target type.");
+				PCGE_LOG(Warning, GraphAndLog, LOCTEXT("TypeComparisonFailed", "Cannot compare target type"));
 				ForwardInputToOutFilterPin();
 				continue;
 			}
@@ -471,3 +473,5 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

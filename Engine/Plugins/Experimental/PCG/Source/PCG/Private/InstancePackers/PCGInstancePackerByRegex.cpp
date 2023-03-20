@@ -9,11 +9,13 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerByRegex)
 
+#define LOCTEXT_NAMESPACE "PCGInstancePackerByRegex"
+
 void UPCGInstancePackerByRegex::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (!InSpatialData || !InSpatialData->Metadata)
 	{
-		PCGE_LOG_C(Error, &Context, "Invalid input data");
+		PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("InvalidInputData", "Invalid input data"));
 		return;
 	}
 	
@@ -52,7 +54,7 @@ void UPCGInstancePackerByRegex::PackInstances_Implementation(FPCGContext& Contex
 	
 			if (!AddTypeToPacking(AttributeBase->GetTypeId(), OutPackedCustomData))
 			{
-				PCGE_LOG_C(Warning, &Context, "Attribute name %s is not a valid type", *AttributeName.ToString());
+				PCGE_LOG_C(Warning, GraphAndLog, &Context, FText::Format(LOCTEXT("InvalidAttributeType", "Attribute name '{0}' is not of a valid type"), FText::FromName(AttributeName)));
 				continue;
 			}
 	
@@ -63,3 +65,4 @@ void UPCGInstancePackerByRegex::PackInstances_Implementation(FPCGContext& Contex
 	PackCustomDataFromAttributes(InstanceList, SelectedAttributes, OutPackedCustomData);
 }
 
+#undef LOCTEXT_NAMESPACE

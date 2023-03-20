@@ -9,6 +9,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMatchAndSetBase)
 
+#define LOCTEXT_NAMESPACE "PCGMatchAndSetBase"
+
 void UPCGMatchAndSetBase::SetType(EPCGMetadataTypes InType, EPCGMetadataTypesConstantStructStringMode InStringMode)
 {
 	Type = InType;
@@ -39,7 +41,7 @@ bool UPCGMatchAndSetBase::CreateAttributeIfNeeded(FPCGContext& Context, const FP
 
 			if (!ConstantValue.Dispatcher(CreateAttribute))
 			{
-				PCGE_LOG_C(Error, &Context, "Unable to create attribute %s on point data", *DestinationAttribute.ToString());
+				PCGE_LOG_C(Error, GraphAndLog, &Context, FText::Format(LOCTEXT("AttributeCreationFailed", "Unable to create attribute '{0}' on Point data"), FText::FromName(DestinationAttribute)));
 				return false;
 			}
 		}
@@ -47,3 +49,5 @@ bool UPCGMatchAndSetBase::CreateAttributeIfNeeded(FPCGContext& Context, const FP
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

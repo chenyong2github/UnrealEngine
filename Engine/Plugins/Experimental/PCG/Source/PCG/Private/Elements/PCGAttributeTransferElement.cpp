@@ -9,6 +9,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeTransferElement)
 
+#define LOCTEXT_NAMESPACE "PCGAttributeTransferElement"
+
 #if WITH_EDITOR
 FName UPCGAttributeTransferSettings::GetDefaultNodeName() const
 {
@@ -56,7 +58,7 @@ bool FPCGAttributeTransferElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (SourceInputs.Num() != 1 || TargetInputs.Num() != 1)
 	{
-		PCGE_LOG(Error, "Wrong number of inputs");
+		PCGE_LOG(Warning, LogOnly, LOCTEXT("WrongNumberOfInputs", "Source input contains {0} data elements, Target inputs contain {1} data elements, but both should contain precisely 1 data element"));
 		return true;
 	}
 
@@ -65,19 +67,19 @@ bool FPCGAttributeTransferElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!SourceData || !TargetData || SourceData->IsA<UPCGPointData>() != TargetData->IsA<UPCGPointData>())
 	{
-		PCGE_LOG(Error, "Only support spatial to spatial data or point to point data");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("UnsupportedTypes", "Only support Spatial to Spatial data or Point to Point data"));
 		return true;
 	}
 
 	if (!SourceData->Metadata)
 	{
-		PCGE_LOG(Error, "Source doesn't have metadata");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("SourceMissingMetadata", "Source does not have metadata"));
 		return true;
 	}
 
 	if (!SourceData->Metadata->HasAttribute(Settings->SourceAttributeName))
 	{
-		PCGE_LOG(Error, "Source doesn't have the attribute \"%s\"", *Settings->SourceAttributeName.ToString());
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("SourceMissingAttribute", "Source does not have the attribute '{0}'"), FText::FromName(Settings->SourceAttributeName)));
 		return true;
 	}
 
@@ -114,7 +116,7 @@ UPCGSpatialData* FPCGAttributeTransferElement::TransferSpatialToSpatial(FPCGCont
 	// They need to match their number of entries
 	if (SourceData->Metadata->GetItemCountForChild() != TargetData->Metadata->GetItemCountForChild())
 	{
-		PCGE_LOG(Error, "Source and target doesn't have the same number of metadata entries");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("MismatchingEntryCounts", "Source and target do not have the same number of metadata entries"));
 		return nullptr;
 	}
 
@@ -132,7 +134,7 @@ UPCGSpatialData* FPCGAttributeTransferElement::TransferSpatialToSpatial(FPCGCont
 
 	if (!NewSpatialData->Metadata->HasAttribute(TargetAttributeName))
 	{
-		PCGE_LOG(Error, "Error while creating target attribute %s", *TargetAttributeName.ToString());
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ErrorCreatingAttribute", "Error while creating target attribute '{0}'"), FText::FromName(TargetAttributeName)));
 		return nullptr;
 	}
 
@@ -150,7 +152,7 @@ UPCGPointData* FPCGAttributeTransferElement::TransferPointToPoint(FPCGContext* C
 	// They need to match their number of points
 	if (SourceData->GetPoints().Num() != TargetData->GetPoints().Num())
 	{
-		PCGE_LOG(Error, "Source and target doesn't have the same number of points");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("MismatchingPointCounts", "Source and target do not have the same number of points"));
 		return nullptr;
 	}
 
@@ -172,7 +174,7 @@ UPCGPointData* FPCGAttributeTransferElement::TransferPointToPoint(FPCGContext* C
 
 	if (!TargetAttribute)
 	{
-		PCGE_LOG(Error, "Error while creating target attribute %s", *TargetAttributeName.ToString());
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ErrorCreatingTargetAttribute", "Error while creating target attribute '{0}'"), FText::FromName(TargetAttributeName)));
 		return nullptr;
 	}
 
@@ -188,3 +190,5 @@ UPCGPointData* FPCGAttributeTransferElement::TransferPointToPoint(FPCGContext* C
 
 	return NewPointData;
 }
+
+#undef LOCTEXT_NAMESPACE

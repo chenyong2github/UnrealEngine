@@ -13,6 +13,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeightedByCategory)
 
+#define LOCTEXT_NAMESPACE "PCGMeshSelectorWeightedByCategory"
+
 #if WITH_EDITOR
 void FPCGWeightedByCategoryEntryList::ApplyDeprecation()
 {
@@ -44,19 +46,19 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 {
 	if (!InPointData)
 	{
-		PCGE_LOG_C(Error, &Context, "Missing input data");
+		PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("InputMissingData", "Missing input data"));
 		return true;
 	}
 
 	if (!InPointData->Metadata)
 	{
-		PCGE_LOG_C(Error, &Context, "Unable to get metadata from input");
+		PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("InputMissingMetadata", "Unable to get metadata from input"));
 		return true;
 	}
 
 	if (!InPointData->Metadata->HasAttribute(CategoryAttribute))
 	{
-		PCGE_LOG_C(Error, &Context, "Attribute %s is not in the metadata", *CategoryAttribute.ToString());
+		PCGE_LOG_C(Error, GraphAndLog, &Context, FText::Format(LOCTEXT("InputMissingAttribute", "Attribute '{0}' is not in the metadata"), FText::FromName(CategoryAttribute)));
 		return true;
 	}
 
@@ -66,7 +68,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 	// TODO: support enum type as well
 	if (AttributeBase->GetTypeId() != PCG::Private::MetadataTypes<FString>::Id)
 	{
-		PCGE_LOG_C(Error, &Context, "Attribute is not of valid type FString");
+		PCGE_LOG_C(Error, GraphAndLog, &Context, FText::Format(LOCTEXT("AttributeInvalidType", "Attribute '{0}' is not of valid type FString"), FText::FromName(CategoryAttribute)));
 		return true;
 	}
 
@@ -85,7 +87,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 		{
 			if (Entry.WeightedMeshEntries.Num() == 0)
 			{
-				PCGE_LOG_C(Verbose, &Context, "Empty entry found in category %s", *Entry.CategoryEntry);
+				PCGE_LOG_C(Verbose, LogOnly, &Context, FText::Format(LOCTEXT("EmptyEntryInCategory", "Empty entry found in category '{0}'"), FText::FromString(Entry.CategoryEntry)));
 				continue;
 			}
 
@@ -93,7 +95,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 
 			if (ValueKey == PCGDefaultValueKey)
 			{
-				PCGE_LOG_C(Verbose, &Context, "Invalid category %s", *Entry.CategoryEntry);
+				PCGE_LOG_C(Verbose, LogOnly, &Context, FText::Format(LOCTEXT("InvalidCategory", "Invalid category '{0}'"), FText::FromString(Entry.CategoryEntry)));
 				continue;
 			}
 
@@ -101,7 +103,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 
 			if (InstancesAndWeights)
 			{
-				PCGE_LOG_C(Warning, &Context, "Duplicate entry found in category %s. Subsequent entries are ignored.", *Entry.CategoryEntry);
+				PCGE_LOG_C(Warning, GraphAndLog, &Context, FText::Format(LOCTEXT("DuplicateEntry", "Duplicate entry found in category '{0}'. Subsequent entries are ignored."), FText::FromString(Entry.CategoryEntry)));
 				continue;
 			}
 
@@ -113,7 +115,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 				}
 				else
 				{
-					PCGE_LOG_C(Warning, &Context, "Duplicate default entry found. Subsequent default entries are ignored.");
+					PCGE_LOG_C(Warning, GraphAndLog, &Context, LOCTEXT("DuplicateDefaultEntry", "Duplicate default entry found. Subsequent default entries are ignored."));
 				}
 			}
 
@@ -124,7 +126,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 			{
 				if (WeightedEntry.Weight <= 0)
 				{
-					PCGE_LOG_C(Verbose, &Context, "Entry found with weight <= 0 in category %s", *Entry.CategoryEntry);
+					PCGE_LOG_C(Verbose, LogOnly, &Context, FText::Format(LOCTEXT("ZeroOrNegativeWeight", "Entry found with weight <= 0 in category '{0}'"), FText::FromString(Entry.CategoryEntry)));
 					continue;
 				}
 
@@ -164,7 +166,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 
 		if (!OutPointData->Metadata->HasAttribute(Settings->OutAttributeName)) 
 		{
-			PCGE_LOG_C(Error, &Context, "Out attribute %s is not in the metadata", *Settings->OutAttributeName.ToString());
+			PCGE_LOG_C(Error, GraphAndLog, &Context, FText::Format(LOCTEXT("AttributeNotInMetadata", "Out attribute '{0}' is not in the metadata"), FText::FromName(Settings->OutAttributeName)));
 		}
 
 		FPCGMetadataAttributeBase* OutAttributeBase = OutPointData->Metadata->GetMutableAttribute(Settings->OutAttributeName);
@@ -178,7 +180,7 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 			}
 			else
 			{
-				PCGE_LOG_C(Error, &Context, "Out attribute is not of valid type FString");
+				PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("TypeNotFString", "Out attribute is not of valid type FString"));
 			}
 		}
 	}
@@ -292,3 +294,5 @@ bool UPCGMeshSelectorWeightedByCategory::SelectInstances(
 		return false;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

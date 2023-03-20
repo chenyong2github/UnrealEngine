@@ -7,6 +7,8 @@
 #include "PCGContext.h"
 #include "PCGPin.h"
 
+#define LOCTEXT_NAMESPACE "PCGDistanceElement"
+
 namespace PCGDistance
 {
 	const FName SourceLabel = TEXT("Source");
@@ -92,14 +94,14 @@ bool FPCGDistanceElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!TargetData)
 		{
-			PCGE_LOG(Error, TEXT("Target must be spatial data, found '%s'"), *Target.Data->GetClass()->GetName());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("TargetMustBeSpatial", "Target must be Spatial data, found '{0}'"), FText::FromString(Target.Data->GetClass()->GetName())));
 			continue;
 		}
 
 		const UPCGPointData* TargetPointData = TargetData->ToPointData(Context);
 		if (!TargetPointData)
 		{
-			PCGE_LOG(Error, TEXT("Cannot convert target '%s' into point data"), *Target.Data->GetClass()->GetName());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("CannotConvertToPoint", "Cannot convert target '{0}' into Point data"), FText::FromString(Target.Data->GetClass()->GetName())));
 			continue;			
 		}
 
@@ -115,14 +117,14 @@ bool FPCGDistanceElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SourceData)
 		{
-			PCGE_LOG(Error, TEXT("Invalid input data"));
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid input data"));
 			continue;
 		}
 
 		const UPCGPointData* SourcePointData = SourceData->ToPointData(Context);
 		if (!SourcePointData)
 		{
-			PCGE_LOG(Error, TEXT("Cannot convert input spatial data to point data"));
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("CannotConvertToPointData", "Cannot convert input Spatial data to Point data"));
 			continue;			
 		}
 
@@ -217,3 +219,5 @@ bool FPCGDistanceElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

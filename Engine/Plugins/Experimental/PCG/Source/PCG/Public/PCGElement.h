@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Logging/LogVerbosity.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
@@ -17,18 +18,36 @@ class UPCGNode;
 
 typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
 
-#define PCGE_LOG_C(Verbosity, CustomContext, Format, ...) \
+enum class EPCGElementLogMode : uint8
+{
+	/** Output to log. */
+	LogOnly,
+	/** Display errors/warnings on graph as well as writing to log. */
+	GraphAndLog,
+};
+
+#define PCGE_LOG_BASE(Verbosity, CustomContext, Message) \
 	UE_LOG(LogPCG, \
 		Verbosity, \
-		TEXT("[%s - %s]: " Format), \
+		TEXT("[%s - %s]: %s"), \
 		*((CustomContext)->GetComponentName()), \
 		*((CustomContext)->GetTaskName()), \
-		##__VA_ARGS__)
+		*Message.ToString())
 
 #if WITH_EDITOR
-#define PCGE_LOG(Verbosity, Format, ...) do{ if(ShouldLog()) { PCGE_LOG_C(Verbosity, Context, Format, ##__VA_ARGS__); } }while(0)
+// Output to PCG log and optionally also display wanrings/errors on graph.
+#define PCGE_LOG(Verbosity, LogMode, Message) do { \
+		if ((EPCGElementLogMode::LogMode) == EPCGElementLogMode::GraphAndLog && (Context)) { (Context)->LogVisual(ELogVerbosity::Verbosity, Message); } \
+		if (ShouldLog()) { PCGE_LOG_BASE(Verbosity, Context, Message); } \
+	} while (0)
+// Output to PCG log and optionally also display wanrings/errors on graph. Takes context as argument.
+#define PCGE_LOG_C(Verbosity, LogMode, CustomContext, Message) do { \
+		if ((EPCGElementLogMode::LogMode) == EPCGElementLogMode::GraphAndLog && (CustomContext)) { (CustomContext)->LogVisual(ELogVerbosity::Verbosity, Message); } \
+		PCGE_LOG_BASE(Verbosity, CustomContext, Message); \
+	} while (0)
 #else
-#define PCGE_LOG(Verbosity, Format, ...) PCGE_LOG_C(Verbosity, Context, Format, ##__VA_ARGS__)
+#define PCGE_LOG(Verbosity, LogMode, Message) PCGE_LOG_BASE(Verbosity, Context, Message)
+#define PCGE_LOG_C(Verbosity, LogMode, CustomContext, Message) PCGE_LOG_BASE(Verbosity, CustomContext, Message)
 #endif
 
 /**

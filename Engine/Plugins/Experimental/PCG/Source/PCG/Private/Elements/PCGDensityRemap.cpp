@@ -13,6 +13,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityRemap)
 
+#define LOCTEXT_NAMESPACE "PCGDensityRemapElement"
+
 UPCGLinearDensityRemapSettings::UPCGLinearDensityRemapSettings()
 {
 	bUseSeed = true;
@@ -50,7 +52,7 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
 		{
-			PCGE_LOG(Error, "Invalid input data");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Input data missing or not of type Spatial"));
 			continue;
 		}
 
@@ -58,7 +60,7 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!OriginalData)
 		{
-			PCGE_LOG(Error, "Unable to get points from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("NoPointsInInput", "Unable to obtain points from input data"));
 			continue;
 		}
 
@@ -94,3 +96,5 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

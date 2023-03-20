@@ -12,6 +12,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeGetFromPointIndexElement)
 
+#define LOCTEXT_NAMESPACE "PCGAttributeGetFromPointIndexElement"
+
 #if WITH_EDITOR
 FName UPCGAttributeGetFromPointIndexSettings::GetDefaultNodeName() const
 {
@@ -67,7 +69,7 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 
 	if (Inputs.Num() != 1)
 	{
-		PCGE_LOG(Error, "Input pin doesn't have the right number of inputs.");
+		PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("WrongNumberOfInputs", "Input pin expected to have one input data element, encountered {0}"), Inputs.Num()));
 		return true;
 	}
 
@@ -75,7 +77,7 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 
 	if (!PointData)
 	{
-		PCGE_LOG(Error, "Input is not a point data.");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputNotPointData", "Input is not a point data"));
 		return true;
 	}
 
@@ -83,7 +85,7 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 
 	if (Index < 0 || Index >= PointData->GetPoints().Num())
 	{
-		PCGE_LOG(Error, "Index is out of bounds. Index: %d; Number of Points: %d", Index, PointData->GetPoints().Num());
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("IndexOutOfBounds", "Index is out of bounds. Index: {0}; Number of Points: {1}"), Index, PointData->GetPoints().Num()));
 		return true;
 	}
 
@@ -136,7 +138,7 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 
 			if (!NewAttribute)
 			{
-				PCGE_LOG(Error, "Error while creating target attribute %s", *OutputAttributeName.ToString());
+				PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ErrorCreatingTargetAttribute", "Error while creating target attribute '{0}'"), FText::FromName(OutputAttributeName)));
 				return false;
 			}
 
@@ -154,8 +156,10 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 	}
 	else
 	{
-		PCGE_LOG(Warning, "Can't find attribute/property %s in input", *InputSource.GetName().ToString());
+		PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("AttributeNotFound", "Cannot find attribute/property '{0}' in input"), FText::FromName(InputSource.GetName())));
 	}
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

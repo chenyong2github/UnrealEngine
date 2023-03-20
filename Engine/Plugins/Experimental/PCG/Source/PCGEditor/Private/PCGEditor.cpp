@@ -82,6 +82,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	PCGEditorGraph = NewObject<UPCGEditorGraph>(PCGGraphBeingEdited, UPCGEditorGraph::StaticClass(), NAME_None, RF_Transactional | RF_Transient);
 	PCGEditorGraph->Schema = UPCGEditorGraphSchema::StaticClass();
 	PCGEditorGraph->InitFromNodeGraph(InPCGGraph);
+	PCGEditorGraph->SetEditor(SharedThis(this));
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -170,6 +171,15 @@ void FPCGEditor::SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent)
 		{
 			// We need to force generation so that we create debug data
 			PCGComponentBeingDebugged->GenerateLocal(/*bForce=*/true);
+		}
+
+		for (UEdGraphNode* Node : PCGEditorGraph->Nodes)
+		{
+			if (UPCGEditorGraphNodeBase* PCGNode = Cast<UPCGEditorGraphNodeBase>(Node))
+			{
+				// Update now that component has changed. Will fire OnNodeChanged if necessary.
+				PCGNode->UpdateErrorsAndWarnings();
+			}
 		}
 	}
 }

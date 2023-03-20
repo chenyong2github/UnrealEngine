@@ -10,6 +10,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityFilter)
 
+#define LOCTEXT_NAMESPACE "PCGDensityFilterElement"
+
 FPCGElementPtr UPCGDensityFilterSettings::CreateElement() const
 {
 	return MakeShared<FPCGDensityFilterElement>();
@@ -42,7 +44,7 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (bNoResults && !bKeepZeroDensityPoints)
 	{
-		PCGE_LOG(Verbose, "Skipped - all inputs rejected");
+		PCGE_LOG(Verbose, LogOnly, LOCTEXT("AllInputsRejected", "Skipped - all inputs rejected"));
 		return true;
 	}
 
@@ -53,14 +55,14 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
 		{
-			PCGE_LOG(Error, "Invalid input data");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid input data"));
 			continue;
 		}
 
 		// Skip processing if the transformation is trivial
 		if (bTrivialFilter)
 		{
-			PCGE_LOG(Verbose, "Skipped - trivial filter");
+			PCGE_LOG(Verbose, LogOnly, LOCTEXT("TrivialFilter", "Skipped - trivial filter"));
 			continue;
 		}
 
@@ -68,7 +70,7 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!OriginalData)
 		{
-			PCGE_LOG(Error, "Unable to get point data from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("NoPointDataInInput", "Unable to get point data from input"));
 			continue;
 		}
 
@@ -104,8 +106,10 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 			}
 		});
 
-		PCGE_LOG(Verbose, "Generated %d points out of %d source points", FilteredPoints.Num(), Points.Num());
+		PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("GenerationInfo", "Generated {0} points out of {1} source points"), FilteredPoints.Num(), Points.Num()));
 	}
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -12,6 +12,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDataTableRowToParamData)
 
+#define LOCTEXT_NAMESPACE "PCGDataTableRowToParamDataElement"
+
 FPCGElementPtr UPCGDataTableRowToParamDataSettings::CreateElement() const
 {
 	return MakeShared<FPCGDataTableRowToParamData>();
@@ -55,7 +57,7 @@ bool FPCGDataTableRowToParamData::ExecuteInternal(FPCGContext* Context) const
 	const UDataTable* DataTable = DataTablePtr.LoadSynchronous();
 	if (!DataTable)
 	{
-		PCGE_LOG(Error, TEXT("FPCGDataTableRowToParamData: Data table is invalid"));
+		PCGE_LOG(Warning, GraphAndLog, LOCTEXT("DataTableInvalid", "FPCGDataTableRowToParamData: Data table is invalid"));
 		return true;
 	}
 
@@ -63,7 +65,7 @@ bool FPCGDataTableRowToParamData::ExecuteInternal(FPCGContext* Context) const
 	const uint8* RowDataPtr = RowDataItr ? *RowDataItr : nullptr;
 	if (!RowDataPtr)
 	{
-		PCGE_LOG(Error, TEXT("FPCGDataTableRowToParamData: Data table '%s' has no row named '%s'"), *DataTable->GetPathName(), *RowName.ToString());
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("NoRowFound", "FPCGDataTableRowToParamData: Data table '{0}' has no row named '{1}'"), FText::FromString(DataTable->GetPathName()), FText::FromName(RowName)));
 		return true;
 	}
 
@@ -77,10 +79,10 @@ bool FPCGDataTableRowToParamData::ExecuteInternal(FPCGContext* Context) const
 	{
 		const FString FieldName = DataTable->GetRowStruct()->GetAuthoredNameForField(*FieldIt);
 		const FName AttributeName(FieldName);
-
+		
 		if (!Metadata->SetAttributeFromDataProperty(AttributeName, EntryKey, RowDataPtr, *FieldIt, /*bCreate=*/ true))
 		{
-			PCGE_LOG(Warning, "Error while creating a attribute '%s'. Either the property type is not supported by PCG or attribute creation failed.", *AttributeName.ToString());
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("AttributeCreationFailed", "Error while creating new attribute '{0}'. Either the property type is not supported by PCG or attribute creation failed."), FText::FromName(AttributeName)));
 		}
 	}
 	
@@ -90,3 +92,5 @@ bool FPCGDataTableRowToParamData::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

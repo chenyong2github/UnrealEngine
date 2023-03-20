@@ -10,6 +10,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGCreateAttribute)
 
+#define LOCTEXT_NAMESPACE "PCGCreateAttributeElement"
+
 namespace PCGCreateAttributeConstants
 {
 	const FName NodeName = TEXT("CreateAttribute");
@@ -131,7 +133,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 	{
 		if (SourceParams.IsEmpty())
 		{
-			PCGE_LOG(Error, "Source param was not provided.");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ParamNotProvided", "Source param was not provided"));
 			return true;
 		}
 
@@ -139,7 +141,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SourceParamData->Metadata)
 		{
-			PCGE_LOG(Error, "Source param data doesn't have metadata");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ParamMissingMetadata", "Source param data does not have metadata"));
 			return true;
 		}
 
@@ -147,7 +149,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SourceParamData->Metadata->HasAttribute(SourceParamAttributeName))
 		{
-			PCGE_LOG(Error, "Source param data doesn't have an attribute \"%s\"", *SourceParamAttributeName.ToString());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ParamMissingAttribute", "Source param data does not have an attribute '{0}'"), FText::FromName(SourceParamAttributeName)));
 			return true;
 		}
 	}
@@ -202,7 +204,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			PCGE_LOG(Error, "Invalid data as input. Only support spatial and params");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid data as input. Only Spatial and Param data supported."));
 			continue;
 		}
 
@@ -222,7 +224,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!Attribute)
 		{
-			PCGE_LOG(Error, "Error while creating attribute %s", *OutputAttributeName.ToString());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ErrorCreatingAttribute", "Error while creating attribute '{0}'"), FText::FromName(OutputAttributeName)));
 			continue;
 		}
 
@@ -275,3 +277,4 @@ PCGMetadataEntryKey FPCGCreateAttributeElement::SetAttribute(const UPCGCreateAtt
 	return Settings->AttributeTypes.Dispatcher(SetAttribute);
 }
 
+#undef LOCTEXT_NAMESPACE

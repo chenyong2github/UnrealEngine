@@ -14,6 +14,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMatchAndSetWeightedByCategory)
 
+#define LOCTEXT_NAMESPACE "PCGMatchAndSetWeightedByCategoryElement"
+
 FPCGMatchAndSetWeightedByCategoryEntryList::FPCGMatchAndSetWeightedByCategoryEntryList()
 {
 	CategoryValue.bAllowsTypeChange = false;
@@ -174,7 +176,7 @@ void UPCGMatchAndSetWeightedByCategory::MatchAndSet_Implementation(
 
 	if (!InputAccessor.IsValid() || !InputKeys.IsValid())
 	{
-		PCGE_LOG_C(Warning, &Context, "Failed to create input accessor or iterator in MatchAndSet");
+		PCGE_LOG_C(Warning, GraphAndLog, &Context, LOCTEXT("InputAccessorFailed", "Failed to create input accessor or iterator in MatchAndSet"));
 		return;
 	}
 
@@ -272,7 +274,7 @@ void UPCGMatchAndSetWeightedByCategory::MatchAndSet_Implementation(
 
 	if (!PCGMetadataAttribute::CallbackWithRightType(InputAccessor->GetUnderlyingType(), MatchAndSetOperation))
 	{
-		PCGE_LOG_C(Warning, &Context, "Error while getting/setting values in the MatchAndSet");
+		PCGE_LOG_C(Warning, GraphAndLog, &Context, LOCTEXT("ErrorGettingSettingValues", "Error while getting/setting values in the MatchAndSet"));
 	}
 }
 
@@ -294,3 +296,5 @@ bool UPCGMatchAndSetWeightedByCategory::ValidatePreconditions_Implementation(con
 	const FPCGMetadataAttributeBase* AttributeToMatch = InPointData->Metadata->GetConstAttribute(AttributeName);
 	return AttributeToMatch && AttributeToMatch->GetTypeId() == static_cast<uint16>(CategoryType);
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -165,7 +165,7 @@ bool FPCGPointMatchAndSetElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!MatchAndSet)
 	{
-		PCGE_LOG(Error, "Invalid MatchAndSet instance");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidMatchAndSetInstance", "Invalid MatchAndSet instance, try recreating this node from the node palette"));
 		return true;
 	}
 
@@ -179,7 +179,7 @@ bool FPCGPointMatchAndSetElement::ExecuteInternal(FPCGContext* Context) const
 		const UPCGPointData* InPointData = Cast<UPCGPointData>(Input.Data);
 		if (!InPointData)
 		{
-			PCGE_LOG(Error, "Invalid input data type");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputDataType", "Input data must be of type Point"));
 			continue;
 		}
 
@@ -187,7 +187,7 @@ bool FPCGPointMatchAndSetElement::ExecuteInternal(FPCGContext* Context) const
 		// conforms to what is expected (esp. on the metadata side)
 		if (!MatchAndSet->ValidatePreconditions(InPointData))
 		{
-			PCGE_LOG(Error, "MatchAndSet failed to validate preconditions on input data");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("PreconditionsFailed", "MatchAndSet failed to validate preconditions on input data"));
 			continue;
 		}
 

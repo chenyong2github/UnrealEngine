@@ -72,7 +72,7 @@ namespace PCGVolumeSampler
 			{
 				if (InContext)
 				{
-					PCGE_LOG_C(Verbose, InContext, "Skipped - invalid cell bounds (%lld x %lld x %lld)", NumX, NumY, NumZ);
+					PCGE_LOG_C(Verbose, LogOnly, InContext, FText::Format(FText::FromString(TEXT("Skipped - invalid cell bounds ({0} x {1} x {2})")), NumX, NumY, NumZ));
 				}
 
 				return;
@@ -86,7 +86,7 @@ namespace PCGVolumeSampler
 			{
 				if (InContext)
 				{
-					PCGE_LOG_C(Error, InContext, "Skipped - tried to generate too many points (%lld x %lld x %lld)", NumX, NumY, NumZ);
+					PCGE_LOG_C(Error, GraphAndLog, InContext, FText::Format(FText::FromString(TEXT("Skipped - tried to generate too many points ({0} x {1} x {2})")), NumX, NumY, NumZ));
 				}
 
 				return;
@@ -168,7 +168,7 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	const FVector& VoxelSize = Settings->VoxelSize;
 	if (VoxelSize.X <= 0 || VoxelSize.Y <= 0 || VoxelSize.Z <= 0)
 	{
-		PCGE_LOG(Warning, "Skipped - Invalid voxel size");
+		PCGE_LOG(Warning, GraphAndLog, LOCTEXT("InvalidVoxelSize", "Skipped - Invalid voxel size"));
 		return true;
 	}
 
@@ -195,7 +195,7 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	}
 	else if (BoundingShapeInputs.Num() > 0)
 	{
-		PCGE_LOG_C(Verbose, Context, "The bounds of the Bounding Shape input pin will be ignored because the Unbounded option is enabled.");
+		PCGE_LOG_C(Verbose, LogOnly, Context, LOCTEXT("BoundsIgnored", "The bounds of the Bounding Shape input pin will be ignored because the Unbounded option is enabled"));
 	}	
 
 	// Compute bounds of bounding shape input
@@ -235,7 +235,7 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	// Warn if something is connected but no spatial data could be obtained for sampling
 	if (GeneratingShapes.Num() == 0 && (BoundingShapeInputs.Num() > 0 || VolumeInputs.Num() > 0))
 	{
-		PCGE_LOG(Warning, "No spatial data shape was provided for sampling, no points will be produced.");
+		PCGE_LOG(Warning, GraphAndLog, LOCTEXT("NoShapeToSample", "No Spatial data shape was provided for sampling, no points will be produced"));
 	}
 
 	// TODO: embarassingly parallel loop
@@ -262,7 +262,7 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!InputBounds.IsValid)
 		{
-			PCGE_LOG(Verbose, "Input data has invalid bounds");
+			PCGE_LOG(Verbose, LogOnly, LOCTEXT("InvalidBounds", "Input data has invalid bounds"));
 
 			Outputs.RemoveAt(GenerationIndex);
 			GeneratingShapes.RemoveAt(GenerationIndex);
@@ -276,7 +276,7 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (SampledData)
 		{
-			PCGE_LOG(Verbose, "Generated %d points in volume", SampledData->GetPoints().Num());
+			PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("GenerationInfo", "Generated {0} points in volume"), SampledData->GetPoints().Num()));
 		}
 	}
 

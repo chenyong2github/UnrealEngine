@@ -9,6 +9,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataPartition)
 
+#define LOCTEXT_NAMESPACE "PCGMetadataPartitionElement"
+
 FPCGElementPtr UPCGMetadataPartitionSettings::CreateElement() const
 {
 	return MakeShared<FPCGMetadataPartitionElement>();
@@ -34,7 +36,7 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SpatialInput->ConstMetadata())
 		{
-			PCGE_LOG(Error, "Input does not have metadata");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputMissingMetadata", "Input does not have metadata"));
 			continue;
 		}
 
@@ -42,7 +44,7 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SpatialInput->ConstMetadata()->HasAttribute(LocalPartitionAttribute))
 		{
-			PCGE_LOG(Error, "Input does not have the %s attribute", *LocalPartitionAttribute.ToString());
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("InputMissingAttribute", "Input does not have the '{0}' attribute"), FText::FromName(LocalPartitionAttribute)));
 			continue;
 		}
 
@@ -51,7 +53,7 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!InputData)
 		{
-			PCGE_LOG(Error, "Unable to get points out of spatial data");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("CouldNotObtainPoints", "Unable to get points out of spatial data"));
 			continue;
 		}
 
@@ -135,3 +137,5 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

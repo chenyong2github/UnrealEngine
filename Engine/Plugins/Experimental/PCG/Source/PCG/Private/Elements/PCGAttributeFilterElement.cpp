@@ -10,6 +10,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeFilterElement)
 
+#define LOCTEXT_NAMESPACE "PCGAttributeFilterElement"
+
 namespace PCGAttributeFilterConstants
 {
 	const FName NodeName = TEXT("FilterAttribute");
@@ -140,7 +142,7 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			PCGE_LOG(Error, "Invalid data as input. Only support spatial and params");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid data as input. Only Spatial and Params data are supported."));
 			continue;
 		}
 
@@ -152,3 +154,4 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 	return true;
 }
 
+#undef LOCTEXT_NAMESPACE

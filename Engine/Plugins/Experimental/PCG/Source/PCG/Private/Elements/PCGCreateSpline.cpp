@@ -79,7 +79,7 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SpatialData)
 		{
-			PCGE_LOG(Error, "Invalid input data");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid input data"));
 			continue;
 		}
 
@@ -87,14 +87,14 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!PointData)
 		{
-			PCGE_LOG(Error, "Unable to get PointData from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("UnableToGetPointData", "Unable to get point data from input"));
 			continue;
 		}
 
 		AActor* TargetActor = PointData->TargetActor.Get();
 		if (!TargetActor)
 		{
-			PCGE_LOG(Error, "Invalid target actor");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidTargetActor", "Invalid target actor"));
 			continue;
 		}
 
@@ -109,17 +109,19 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 			FName LocalArriveTangentName = ((Settings->ArriveTangentAttribute == NAME_None) ? PointMetadata->GetLatestAttributeNameOrNone() : Settings->ArriveTangentAttribute);
 			FName LocalLeaveTangentName = ((Settings->LeaveTangentAttribute == NAME_None) ? PointMetadata->GetLatestAttributeNameOrNone() : Settings->LeaveTangentAttribute);
 
+			const FText AttributeMissingOrNotVector = LOCTEXT("AttributeMissingOrNotVector", "Attribute '{0}' does not exist or is not a vector");
+
 			const FPCGMetadataAttributeBase* ArriveTangentBaseAttribute = PointMetadata->GetConstAttribute(LocalArriveTangentName);
 			if (!ArriveTangentBaseAttribute || ArriveTangentBaseAttribute->GetTypeId() != PCG::Private::MetadataTypes<FVector>::Id)
 			{
-				PCGE_LOG(Error, "Attribute %s does not exist or is not a vector", *LocalArriveTangentName.ToString());
+				PCGE_LOG(Error, GraphAndLog, FText::Format(AttributeMissingOrNotVector, FText::FromString(LocalArriveTangentName.ToString())));
 				continue;
 			}
 
 			const FPCGMetadataAttributeBase* LeaveTangentBaseAttribute = PointMetadata->GetConstAttribute(LocalLeaveTangentName);
 			if (!LeaveTangentBaseAttribute || LeaveTangentBaseAttribute->GetTypeId() != PCG::Private::MetadataTypes<FVector>::Id)
 			{
-				PCGE_LOG(Error, "Attribute %s does not exist or is not a vector", *LocalLeaveTangentName.ToString());
+				PCGE_LOG(Error, GraphAndLog, FText::Format(AttributeMissingOrNotVector, FText::FromString(LocalLeaveTangentName.ToString())));
 				continue;
 			}
 
@@ -149,7 +151,7 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 
 			if (!SplineActor)
 			{
-				PCGE_LOG(Error, "Failed to create actor to hold the spline");
+				PCGE_LOG(Error, GraphAndLog, LOCTEXT("FailedToCreateActor", "Failed to create actor to hold the spline"));
 				continue;
 			}
 

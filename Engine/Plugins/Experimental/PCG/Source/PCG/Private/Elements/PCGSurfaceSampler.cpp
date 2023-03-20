@@ -70,7 +70,7 @@ namespace PCGSurfaceSampler
 			{
 				if (Context)
 				{
-					PCGE_LOG_C(Verbose, Context, "Skipped - invalid cell bounds (%lld x %lld)", CellCountX, CellCountY);
+					PCGE_LOG_C(Verbose, LogOnly, Context, FText::Format(LOCTEXT("InvalidCellBounds", "Skipped - invalid cell bounds({0} x {1})"), CellCountX, CellCountY));
 				}
 
 				return false;
@@ -81,7 +81,7 @@ namespace PCGSurfaceSampler
 			{
 				if (Context)
 				{
-					PCGE_LOG_C(Error, Context, "Skipped - tried to generate too many points (%lld)", CellCount64);
+					PCGE_LOG_C(Error, GraphAndLog, Context, FText::Format(LOCTEXT("TooManyPoints", "Skipped - tried to generate too many points {0}"), CellCount64));
 				}
 
 				return false;
@@ -99,7 +99,7 @@ namespace PCGSurfaceSampler
 		{
 			if (Context)
 			{
-				PCGE_LOG_C(Verbose, Context, "Skipped - density yields no points");
+				PCGE_LOG_C(Verbose, LogOnly, Context, LOCTEXT("NoPointsFromDensity", "Skipped - density yields no points"));
 			}
 			
 			return false;
@@ -130,7 +130,7 @@ namespace PCGSurfaceSampler
 		// We don't support time slicing here
 		if (LoopData.bEnableTimeSlicing)
 		{
-			PCGE_LOG_C(Error, Context, "An output point data must be provided to support sampling with time slicing");
+			PCGE_LOG_C(Error, LogOnly, Context, LOCTEXT("MissingOutputPointData", "An output point data must be provided to support sampling with time slicing"));
 			return nullptr;
 		}
 
@@ -227,7 +227,7 @@ namespace PCGSurfaceSampler
 
 		if (Context && bAsyncDone)
 		{
-			PCGE_LOG_C(Verbose, Context, "Generated %d points in %d cells", SampledPoints.Num(), LoopData.CellCount);
+			PCGE_LOG_C(Verbose, LogOnly, Context, FText::Format(LOCTEXT("GenerationInfo", "Generated {0} points in {1} cells"), SampledPoints.Num(), LoopData.CellCount));
 		}
 
 		return bAsyncDone;
@@ -337,7 +337,7 @@ bool FPCGSurfaceSamplerElement::AddGeneratingShapesToContext(FPCGSurfaceSamplerC
 	const FVector& PointExtents = Settings->PointExtents;
 	if (PointExtents.X <= 0 || PointExtents.Y <= 0)
 	{
-		PCGE_LOG_C(Warning, InContext, "Skipped - Invalid point extents");
+		PCGE_LOG_C(Warning, GraphAndLog, InContext, LOCTEXT("SkippedInvalidPointExtents", "Skipped - Invalid point extents"));
 		return false;
 	}
 
@@ -359,7 +359,7 @@ bool FPCGSurfaceSamplerElement::AddGeneratingShapesToContext(FPCGSurfaceSamplerC
 	}
 	else if (BoundingShapeInputs.Num() > 0)
 	{
-		PCGE_LOG_C(Verbose, InContext, "The bounds of the Bounding Shape input pin will be ignored because the Unbounded option is enabled.");
+		PCGE_LOG_C(Verbose, LogOnly, InContext, LOCTEXT("BoundsIgnored", "The bounds of the Bounding Shape input pin will be ignored because the Unbounded option is enabled."));
 	}
 
 	if (InContext->BoundingShapeSpatialInput)
@@ -413,7 +413,7 @@ bool FPCGSurfaceSamplerElement::AddGeneratingShapesToContext(FPCGSurfaceSamplerC
 	// Warn if something is connected but no shape could be obtained for sampling
 	if (InContext->GeneratingShapes.Num() == 0 && (BoundingShapeInputs.Num() > 0 || SurfaceInputs.Num() > 0))
 	{
-		PCGE_LOG_C(Warning, InContext, "No Surface input was provided, and no surface could be found in the Bounding Shape input for sampling. Connect the surface to be sampled to the Surface input.");
+		PCGE_LOG_C(Warning, GraphAndLog, InContext, LOCTEXT("NoGenerator", "No Surface input was provided, and no surface could be found in the Bounding Shape input for sampling. Connect the surface to be sampled to the Surface input."));
 		return false;
 	}
 
@@ -460,7 +460,7 @@ void FPCGSurfaceSamplerElement::AllocateOutputs(FPCGSurfaceSamplerContext* InCon
 		{
 			if (!InputBounds.IsValid)
 			{
-				PCGE_LOG_C(Verbose, InContext, "Input data has invalid bounds");
+				PCGE_LOG_C(Warning, GraphAndLog, InContext, LOCTEXT("InvalidInputBounds", "Input data has invalid bounds"));
 			}
 
 			Outputs.RemoveAt(GeneratingShapeIndex);

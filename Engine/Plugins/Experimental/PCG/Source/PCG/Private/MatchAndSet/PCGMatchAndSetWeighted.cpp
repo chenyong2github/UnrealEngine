@@ -13,6 +13,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMatchAndSetWeighted)
 
+#define LOCTEXT_NAMESPACE "PCGMatchAndSetWeightedEntry"
+
 FPCGMatchAndSetWeightedEntry::FPCGMatchAndSetWeightedEntry()
 {
 	Value.bAllowsTypeChange = false;
@@ -146,6 +148,8 @@ void UPCGMatchAndSetWeighted::MatchAndSet_Implementation(
 
 	if (!PCGMetadataAttribute::CallbackWithRightType(SetTargetAccessor->GetUnderlyingType(), MatchAndSetOperation))
 	{
-		PCGE_LOG_C(Warning, &Context, "Error while getting/setting values in the MatchAndSet");
+		PCGE_LOG_C(Warning, GraphAndLog, &Context, LOCTEXT("ErrorGettingSettingValues", "Error while getting/setting values in the MatchAndSet"));
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

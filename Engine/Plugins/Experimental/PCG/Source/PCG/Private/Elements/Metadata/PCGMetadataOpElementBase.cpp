@@ -12,6 +12,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataOpElementBase)
 
+#define LOCTEXT_NAMESPACE "PCGMetadataElementBaseElement"
+
 void UPCGMetadataSettingsBase::PostLoad()
 {
 	Super::PostLoad();
@@ -85,9 +87,15 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	for (uint32 i = 0; i < NumberOfInputs; ++i)
 	{
 		TArray<FPCGTaggedData> InputData = Context->InputData.GetInputsByPin(Settings->GetInputPinLabel(i));
-		if (InputData.Num() != 1)
+		if (InputData.IsEmpty())
 		{
-			PCGE_LOG(Error, "Invalid inputs for pin %d", i);
+			// Absence of data not worth broadcasting to user as visual warning
+			PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("MissingInputDataForPin", "No data provided on pin {0}"), i));
+			return true;
+		}
+		else if (InputData.Num() > 1)
+		{
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("TooMuchDataForPin", "Too many data items ({0}) provided on pin {1}"), InputData.Num(), i));
 			return true;
 		}
 
@@ -105,7 +113,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			PCGE_LOG(Error, "Invalid inputs for pin %d", i);
+			PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("InvalidInputDataTypeForPin", "Invalid data provided on pin {0}, must be of type Spatial or Param"), i));
 			return true;
 		}
 	}
@@ -132,7 +140,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			InputTaggedData[0].Data->GetClass() != InputTaggedData[i].Data->GetClass() &&
 			!InputTaggedData[i].Data->IsA<UPCGParamData>())
 		{
-			PCGE_LOG(Error, "Input %d is not of the same type than input 0 and is not a param data. Not supported.", i);
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("InputTypeMismatch", "Input {0} is not of the same type than input 0 and is not a Param Data. This is not supported."), i));
 			return true;
 		}
 
@@ -153,7 +161,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 		if (!OperationData.InputAccessors[i].IsValid() || !OperationData.InputKeys[i].IsValid())
 		{
-			PCGE_LOG(Error, "Attribute/Property %s does not exist for input %d", *InputSource.GetName().ToString(), i);
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("AttributeDoesNotExist", "Attribute/Property '{0}' does not exist for input {1}"), FText::FromName(InputSource.GetName()), i));
 			return true;
 		}
 
@@ -163,7 +171,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		bool bHasSpecialRequirement = false;
 		if (!Settings->IsSupportedInputType(AttributeTypeId, i, bHasSpecialRequirement))
 		{
-			PCGE_LOG(Error, "Attribute/Property %s is not a supported type for input %d", *InputSource.GetName().ToString(), i);
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("UnsupportedAttributeType", "Attribute/Property '{0}' is not a supported type for input {1}"), FText::FromName(InputSource.GetName()), i));
 			return true;
 		}
 
@@ -176,7 +184,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			}
 			else if (OperationData.MostComplexInputType != AttributeTypeId && !PCG::Private::IsBroadcastable(AttributeTypeId, OperationData.MostComplexInputType))
 			{
-				PCGE_LOG(Error, "Attribute %s cannot be broadcasted to match types for input %d", *InputSource.GetName().ToString(), i);
+				PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("AttributeCannotBeBroadcasted", "Attribute '{0}' cannot be broadcasted to match types for input {1}"), FText::FromName(InputSource.GetName()), i));
 				return true;
 			}
 		}
@@ -192,7 +200,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		// Therefore mark that we have nothing to do and early out.
 		if (NumberOfElements[i] == 0)
 		{
-			PCGE_LOG(Verbose, "No elements in input %d.", i);
+			PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("NoElementsInInput", "No elements in input {0}"), i));
 			bNoOperationNeeded = true;
 			break;
 		}
@@ -200,7 +208,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		// Verify that the number of elements makes sense
 		if (OperationData.NumberOfElementsToProcess % NumberOfElements[i] != 0)
 		{
-			PCGE_LOG(Error, "Mismatch between the number of elements in input 0 (%d) and in input %d (%d).", OperationData.NumberOfElementsToProcess, i, NumberOfElements[i]);
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("MismatchInNumberOfElements", "Mismatch between the number of elements in input 0 ({0}) and in input {1} ({2})"), OperationData.NumberOfElementsToProcess, i, NumberOfElements[i]));
 			return true;
 		}
 
@@ -286,7 +294,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 				// We matched an attribute/property, check if the output type is valid.
 				if (!PCG::Private::IsBroadcastable(PCG::Private::MetadataTypes<AttributeType>::Id, OperationData.OutputAccessors[OutputIndex]->GetUnderlyingType()))
 				{
-					PCGE_LOG(Error, "Attribute/Property %s cannot be broadcasted to match types for input", *OutputName.ToString());
+					PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("AttributeTypeBroadcastFailed", "Attribute/Property '{0}' cannot be broadcasted to match types for input"), FText::FromName(OutputName)));
 					return false;
 				}
 
@@ -345,7 +353,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	if (!bCreateAttributeSucceeded)
 	{
-		PCGE_LOG(Error, "Error while creating output attributes");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("ErrorCreatingOutputAttributes", "Error while creating output attributes"));
 		Outputs.Empty();
 		return true;
 	}
@@ -354,10 +362,11 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	if (!DoOperation(OperationData))
 	{
-		PCGE_LOG(Error, "Error while performing the metadata operation, check logs for more information");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("ErrorOccurred", "Error while performing the metadata operation, check logs for more information"));
 		Outputs.Empty();
 	}
 
 	return true;
 }
 
+#undef LOCTEXT_NAMESPACE

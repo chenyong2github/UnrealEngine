@@ -9,6 +9,7 @@
 
 enum class EPCGChangeType : uint8;
 
+class UPCGComponent;
 class UPCGNode;
 class UPCGPin;
 class UToolMenu;
@@ -53,6 +54,9 @@ public:
 	void EnableDeferredReconstruct();
 	/** Decrease deferred reconstruct counter, ReconstructNode will be called if counter hits zero and the node is flagged for reconstruction  */
 	void DisableDeferredReconstruct();
+
+	/** Pulls current errors/warnings state from PCG subsystem. */
+	void UpdateErrorsAndWarnings();
 
 	DECLARE_DELEGATE(FOnPCGEditorGraphNodeChanged);
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;

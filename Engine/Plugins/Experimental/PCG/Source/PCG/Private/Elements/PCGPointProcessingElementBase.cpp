@@ -7,6 +7,8 @@
 #include "Helpers/PCGAsync.h"
 #include "PCGContext.h"
 
+#define LOCTEXT_NAMESPACE "PCGPointProcessingElementBase"
+
 void FPCGPointProcessingElementBase::ProcessPoints(FPCGContext* Context, const TArray<FPCGTaggedData>& Inputs, TArray<FPCGTaggedData>& Outputs, const TFunction<bool(const FPCGPoint&, FPCGPoint&)>& PointFunc) const
 {
 	// TODO: embarassingly parallel loop
@@ -19,7 +21,7 @@ void FPCGPointProcessingElementBase::ProcessPoints(FPCGContext* Context, const T
 
 		if (!SpatialData)
 		{
-			PCGE_LOG(Error, "Unable to get SpatialData from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputMissingSpatialData", "Unable to get Spatial data from input"));
 			continue;
 		}
 
@@ -27,7 +29,7 @@ void FPCGPointProcessingElementBase::ProcessPoints(FPCGContext* Context, const T
 
 		if (!PointData)
 		{
-			PCGE_LOG(Error, "Unable to get PointData from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InputMissingPointData", "Unable to get Point data from input"));
 			continue;
 		}
 
@@ -41,3 +43,5 @@ void FPCGPointProcessingElementBase::ProcessPoints(FPCGContext* Context, const T
 		FPCGAsync::AsyncPointProcessing(Context, Points, OutputPoints, PointFunc);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

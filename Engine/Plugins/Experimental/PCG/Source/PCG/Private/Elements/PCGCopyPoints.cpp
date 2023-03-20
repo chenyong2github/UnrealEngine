@@ -54,7 +54,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (Sources.Num() != 1 || Targets.Num() != 1)
 	{
-		PCGE_LOG(Error, "Invalid number of inputs - Expected one source, got %d; Expected one target, got %d.", Sources.Num(), Targets.Num());
+		PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("InvalidNumberOfInputs", "Invalid number of inputs. Expected one source, got {0}; Expected one target, got {1}."), Sources.Num(), Targets.Num()));
 		return true;
 	}
 	
@@ -65,7 +65,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!Source.Data || !Target.Data) 
 	{
-		PCGE_LOG(Error, "Invalid input data");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid input data"));
 		return true;
 	}
 
@@ -74,7 +74,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!SourceSpatialData || !TargetSpatialData)
 	{
-		PCGE_LOG(Error, "Unable to get SpatialData from input");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("CouldNotObtainSpatialData", "Unable to get Spatial Data from input"));
 		return true;
 	}
 
@@ -83,7 +83,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!SourcePointData || !TargetPointData)
 	{
-		PCGE_LOG(Error, "Unable to get PointData from input");
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("CouldNotGetPointData", "Unable to get Point Data from input"));
 		return true;
 	}
 

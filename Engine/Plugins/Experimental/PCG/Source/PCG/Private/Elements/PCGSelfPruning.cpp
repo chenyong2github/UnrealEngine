@@ -7,8 +7,9 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSelfPruning)
+
+#define LOCTEXT_NAMESPACE "PCGSelfPruningElement"
 
 namespace PCGSelfPruningAlgorithms
 {
@@ -129,7 +130,7 @@ namespace PCGSelfPruningElement
 		if (PruningType == EPCGSelfPruningType::None)
 		{
 			Context->OutputData = Context->InputData;
-			PCGE_LOG_C(Verbose, Context, "Skipped - Type is none");
+			PCGE_LOG_C(Verbose, LogOnly, Context, LOCTEXT("TypeNotSpecified", "Skipped - Type is None"));
 			return;
 		}
 
@@ -146,7 +147,7 @@ namespace PCGSelfPruningElement
 
 			if (!SpatialInput)
 			{
-				PCGE_LOG_C(Error, Context, "Invalid input data");
+				PCGE_LOG_C(Error, GraphAndLog, Context, LOCTEXT("InvalidInputData", "Invalid input data"));
 				continue;
 			}
 
@@ -230,11 +231,11 @@ namespace PCGSelfPruningElement
 
 			if (bIsDuplicateTest)
 			{
-				PCGE_LOG_C(Verbose, Context, "Removed %d duplicate points from %d source points", Points.Num() - OutputPoints.Num(), Points.Num());
+				PCGE_LOG_C(Verbose, LogOnly, Context, FText::Format(LOCTEXT("GenerationInfoDuplicate", "Removed {0} duplicate points from {1} source points"), Points.Num() - OutputPoints.Num(), Points.Num()));
 			}
 			else
 			{
-				PCGE_LOG_C(Verbose, Context, "Generated %d points from %d source points", OutputPoints.Num(), Points.Num());
+				PCGE_LOG_C(Verbose, LogOnly, Context, FText::Format(LOCTEXT("GenerationInfo", "Generated {0} points from {1} source points"), OutputPoints.Num(), Points.Num()));
 			}
 		}
 	}
@@ -260,3 +261,5 @@ bool FPCGSelfPruningElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

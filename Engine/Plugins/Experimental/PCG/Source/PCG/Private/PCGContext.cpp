@@ -5,6 +5,7 @@
 #include "PCGHelpers.h"
 #include "PCGParamData.h"
 #include "PCGPin.h"
+#include "PCGSubsystem.h"
 #include "Data/PCGSpatialData.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 #include "Metadata/PCGMetadata.h"
@@ -18,6 +19,8 @@
 #include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGContext)
+
+#define LOCTEXT_NAMESPACE "PCGContext"
 
 FPCGContext::~FPCGContext()
 {
@@ -198,7 +201,7 @@ void FPCGContext::OverrideSettings()
 			PropertyType Value{};
 			if (!AttributeAccessor->Get<PropertyType>(Value, FirstEntry, EPCGAttributeAccessorFlags::AllowBroadcast | EPCGAttributeAccessorFlags::AllowConstructible))
 			{
-				PCGE_LOG_C(Warning, this, "%s param can't be converted from %s attribute", *Param.Label.ToString(), *AttributeName.ToString());
+				PCGE_LOG_C(Warning, GraphAndLog, this, FText::Format(LOCTEXT("ConversionFailed", "Param '{0}' cannot be converted from attribute '{1}'"), FText::FromName(Param.Label), FText::FromName(AttributeName)));
 				return false;
 			}
 			// TODO: Perhaps factorise this code in another property accessor.
@@ -216,3 +219,25 @@ void FPCGContext::OverrideSettings()
 		});
 	}
 }
+
+#if WITH_EDITOR
+void FPCGContext::LogVisual(ELogVerbosity::Type InVerbosity, const FText& InMessage) const
+{
+	if (UPCGSubsystem* Subsystem = UPCGSubsystem::GetInstance(SourceComponent->GetWorld()))
+	{
+		Subsystem->GetNodeVisualLogsMutable().Log(Node, SourceComponent, InVerbosity, InMessage);
+	}
+}
+
+bool FPCGContext::HasVisualLogs() const
+{
+	if (UPCGSubsystem* Subsystem = UPCGSubsystem::GetInstance(SourceComponent->GetWorld()))
+	{
+		return Subsystem->GetNodeVisualLogs().HasLogs(Node, SourceComponent.Get());
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE

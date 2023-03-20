@@ -24,6 +24,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSpawnActor)
 
+#define LOCTEXT_NAMESPACE "PCGSpawnActorElement"
+
 static TAutoConsoleVariable<bool> CVarAllowActorReuse(
 	TEXT("pcg.Actor.AllowReuse"),
 	true,
@@ -309,7 +311,8 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 	// Early out
 	if(!Settings->TemplateActorClass || Settings->TemplateActorClass->HasAnyClassFlags(CLASS_Abstract))
 	{
-		PCGE_LOG(Error, "Invalid template actor class (%s)", Settings->TemplateActorClass ? *Settings->TemplateActorClass->GetFName().ToString() : TEXT("None"));
+		const FText ClassName = Settings->TemplateActorClass ? FText::FromString(Settings->TemplateActorClass->GetFName().ToString()) : FText::FromName(NAME_None);
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("InvalidTemplateActorClass", "Invalid template actor class '{0}'"), ClassName));
 		return true;
 	}
 
@@ -371,7 +374,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			if (PostSpawnFunction->NumParms != 0)
 			{
-				PCGE_LOG(Warning, "PostSpawnFunction \"%s\" requires parameters. We only support parameter-less functions. Will skip the call.", *PostSpawnFunctionName.ToString());
+				PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("ParametersMissing", "PostSpawnFunction '{0}' requires parameters. We only support parameter-less functions. Call will be skipped."), FText::FromName(PostSpawnFunctionName)));
 			}
 			else
 			{
@@ -380,7 +383,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			PCGE_LOG(Warning, "PostSpawnFunction \"%s\" was not found in class \"%s\".", *PostSpawnFunctionName.ToString(), *Settings->TemplateActorClass->GetFName().ToString());
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("FunctionNotFound", "PostSpawnFunction '{0}' was not found in class '{1}'"), FText::FromName(PostSpawnFunctionName), FText::FromName(Settings->TemplateActorClass->GetFName())));
 		}
 	}
 
@@ -396,7 +399,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SpatialData)
 		{
-			PCGE_LOG(Error, "Invalid input data");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid input data"));
 			continue;
 		}
 
@@ -404,7 +407,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!TargetActor)
 		{
-			PCGE_LOG(Error, "Invalid target actor");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidTargetActor", "Invalid target actor"));
 			continue;
 		}
 
@@ -416,7 +419,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!PointData)
 		{
-			PCGE_LOG(Error, "Unable to get point data from input");
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("NoPointDataInInput", "Unable to get point data from input"));
 			continue;
 		}
 
@@ -424,7 +427,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (Points.IsEmpty())
 		{
-			PCGE_LOG(Verbose, "Skipped - no points");
+			PCGE_LOG(Verbose, LogOnly, LOCTEXT("SkippedNoPoints", "Skipped - no points"));
 			continue;
 		}
 
@@ -498,7 +501,8 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 				ISMC->AddInstances(Transforms, false, true);
 				ISMC->UpdateBounds();
 				
-				PCGE_LOG(Verbose, "Added %d instances of %s to %s in %s", Transforms.Num(), *ISMC->GetStaticMesh().GetName(), *ISMC->GetName(), *TargetActor->GetActorNameOrLabel());
+				PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("InstanceCreationInfo", "Added {0} instances of mesh '{1}' to ISMC '{2}' on actor '{3}'"),
+					Transforms.Num(), FText::FromString(ISMC->GetStaticMesh().GetName()), FText::FromString(ISMC->GetName()), FText::FromString(TargetActor->GetActorNameOrLabel())));
 			}
 		}
 		else if (!bFullySkippedDueToReuse && Settings->Option != EPCGSpawnActorOption::CollapseActors && (bHasAuthority || !bSpawnedActorsRequireAuthority))
@@ -588,7 +592,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 					if (!GeneratedActor)
 					{
-						PCGE_LOG(Error, "Failed to spawn actor on point with index %d", i);
+						PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ActorSpawnFailed", "Failed to spawn actor on point with index {0}"), i));
 						continue;
 					}
 
@@ -612,7 +616,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 				Context->SourceComponent->AddToManagedResources(ManagedActors);
 
-				PCGE_LOG(Verbose, "Generated %d actors", Points.Num());
+				PCGE_LOG(Verbose, LogOnly, FText::Format(LOCTEXT("GenerationInfo", "Generated {0} actors"), Points.Num()));
 			}
 
 			// Setup & Generate on PCG components if needed
@@ -696,3 +700,5 @@ EPCGSettingsType UPCGSpawnActorSettings::GetType() const
 	return GetSubgraph() ? EPCGSettingsType::Subgraph : EPCGSettingsType::Spawner;
 }
 #endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE
