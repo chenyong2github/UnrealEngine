@@ -41,7 +41,7 @@
 	<Agent Name="HordeInstaller" Type="Win64_Docker">
 		<Property Name="StagingDir" Value="$(RootDir)/Staging"/>
 
-		<Node Name="Stage HordeInstaller">
+		<Node Name="Stage Horde Installer">
 			<Delete Files="$(StagingDir)/..."/>
 			<DotNet Arguments="publish &quot;$(RootDir)/Engine/Source/Programs/Horde/Horde.Server/Horde.Server.csproj&quot; --output &quot;$(StagingDir)/Server&quot; --runtime win-x64 $(VersionArguments)"/>
 			<DotNet Arguments="publish &quot;$(RootDir)/Engine/Source/Programs/Horde/Horde.Agent/Horde.Agent.csproj&quot; --output &quot;$(StagingDir)/Agent&quot; $(VersionArguments)"/>
@@ -62,7 +62,7 @@
 		<Property Name="ObjDir" Value="obj/$(InstallerConfig)"/>
 		<Property Name="BinDir" Value="bin/$(InstallerConfig)"/>
 		
-		<Node Name="Build HordeInstaller" Requires="Stage HordeInstaller">
+		<Node Name="Build Horde Installer" Requires="Stage Horde Installer">
 			<Property Name="CommonArgs" Value="-dConfiguration=$(InstallerConfig) -dPlatform=x64 -arch x64"/>
 
 			<Delete Files="$(StagingDir)/Server-Bulk/..."/>
