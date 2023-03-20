@@ -39,6 +39,18 @@ enum class EHairGroupInfoFlags : uint8
 };
 
 USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairGroupLODInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Curve Count"))
+	int32 NumPoints = 0;
+
+	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Curve Count"))
+	int32 NumCurves = 0;
+};
+
+USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairGroupInfo
 {
 	GENERATED_BODY()
@@ -69,6 +81,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInfo
 
 	UPROPERTY()
 	uint32 Flags = 0;
+
+	UPROPERTY()
+	TArray<FHairGroupLODInfo> LODInfos;
 };
 
 USTRUCT(BlueprintType)

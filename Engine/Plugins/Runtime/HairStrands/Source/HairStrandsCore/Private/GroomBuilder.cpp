@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8a");
+	return TEXT("v8e");
 }
 
 namespace FHairStrandsDecimation
@@ -2788,6 +2788,7 @@ static void BuildClusterData(
 	Out.ClusterCount = ValidClusterIndices.Num();
 	Out.ClusterInfos.Init(FHairClusterInfo(), Out.ClusterCount);
 	Out.VertexToClusterIds.SetNum(Out.VertexCount);
+	Out.LODInfos.SetNum(LODCount);
 
 	// Conservative allocation for inserting vertex indices for the various curves LOD
 	uint32* RawClusterVertexIds = new uint32[LODCount * InRenStrandsData.GetNumPoints()];
@@ -2902,6 +2903,9 @@ static void BuildClusterData(
 		{
 			const float CurveDecimation = FMath::Clamp(InSettings.LODs[LODIt].CurveDecimation, 0.0f, 1.0f);
 			LODCurveCount[LODIt] = FMath::Clamp(FMath::CeilToInt(Cluster.ClusterCurves.Num() * CurveDecimation), 1, Cluster.ClusterCurves.Num());
+
+			// For stats
+			Out.LODInfos[LODIt].CurveCount += LODCurveCount[LODIt];
 		}
 
 		// 4.4 Decimate each curve for all LODs
@@ -2920,6 +2924,12 @@ static void BuildClusterData(
 					InSettings.LODs,
 					ClusterCurve.CountPerLOD,
 					VertexLODMasks);
+
+				// For stats
+				for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
+				{
+					Out.LODInfos[LODIt].PointCount += ClusterCurve.CountPerLOD[LODIt];
+				}
 			}
 		}
 
@@ -3085,6 +3095,7 @@ static void BuildClusterBulkData(
 
 	Out.CPULODScreenSize= In.CPULODScreenSize;
 	Out.LODVisibility	= In.LODVisibility;
+	Out.LODInfos		= In.LODInfos;
 
 	// Sanity check
 	check(Out.ClusterCount			== uint32(In.ClusterInfos.Num()));

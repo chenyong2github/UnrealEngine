@@ -64,9 +64,6 @@
 
 #include "Styling/AppStyle.h"
 
-static FLinearColor HairGroupColor(1.0f, 0.5f, 0.0f);
-static FLinearColor HairLODColor(1.0f, 0.5f, 0.0f);
-
 #define LOCTEXT_NAMESPACE "GroomRenderingDetails"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroomAssetDetails, Log, All);
@@ -110,6 +107,49 @@ static uint32 GetHairCardsAtlasResolution(int32 InLODIndex, int32 PrevResolution
 	const uint32 MinResolution = 128;
 	const uint32 MaxResolution = 16384;
 	return FMath::Clamp(OutResolution, MinResolution, MaxResolution);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Array panel for hair strands infos
+TSharedRef<SUniformGridPanel> MakeHairStrandsLODInfoGrid(const FSlateFontInfo& DetailFontInfo, const FHairLODInfo& LODInfo)
+{
+	TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(2.0f);
+
+	// Header
+	Grid->AddSlot(1, 0) // x, y
+	.HAlign(HAlign_Right)
+	[
+		SNew(STextBlock)
+		.Font(DetailFontInfo)
+		.Text(LOCTEXT("HairInfo_CurveLOD", "Curves"))
+	];
+
+	Grid->AddSlot(2, 0) // x, y
+	.HAlign(HAlign_Right)
+	[
+		SNew(STextBlock)
+		.Font(DetailFontInfo)
+		.Text(LOCTEXT("HairInfo_PointLOD", "Points"))
+	];
+
+	// Strands
+	Grid->AddSlot(1, 1) // x, y
+	.HAlign(HAlign_Right)
+	[
+		SNew(STextBlock)
+		.Font(DetailFontInfo)
+		.Text(FText::AsNumber(LODInfo.CurveCount))
+	];
+	Grid->AddSlot(2, 1) // x, y
+	.HAlign(HAlign_Right)
+	[
+		SNew(STextBlock)
+		.Font(DetailFontInfo)
+		.Text(FText::AsNumber(LODInfo.PointCount))
+	];
+	   
+	return Grid;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1176,11 +1216,6 @@ FReply FGroomRenderingDetails::OnGenerateCardDataUsingPlugin(int32 GroupIndex)
 	return FReply::Handled();
 }
 
-void FGroomRenderingDetails::AddLODSlot(TSharedRef<IPropertyHandle>& LODHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex)
-{	
-	ExpandStruct(LODHandle, ChildrenBuilder, GroupIndex, LODIndex, true);
-}
-
 void FGroomRenderingDetails::OnGenerateElementForLODs(TSharedRef<IPropertyHandle> StructProperty, int32 LODIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout, int32 GroupIndex)
 {
 	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
@@ -1191,6 +1226,7 @@ void FGroomRenderingDetails::OnGenerateElementForLODs(TSharedRef<IPropertyHandle
 	static const FSlateBrush* GenericBrush = FCoreStyle::Get().GetBrush("GenericWhiteBox");
 	float OtherMargin = 2.0f;
 
+	// LOD Bar with add button
 	ChildrenBuilder.AddCustomRow(LOCTEXT("HairInfo_Separator", "Separator"))
 	.WholeRowContent()
 	.VAlign(VAlign_Fill)
@@ -1234,6 +1270,20 @@ void FGroomRenderingDetails::OnGenerateElementForLODs(TSharedRef<IPropertyHandle
 		]
 	];
 
+	// LOD Stats
+	const FHairStrandsClusterCullingBulkData& ClusterCullingBulkData = GroomAsset->HairGroupsData[GroupIndex].Strands.ClusterCullingBulkData;
+	if (ClusterCullingBulkData.IsValid() && LODIndex < ClusterCullingBulkData.LODInfos.Num())
+	{
+		const FHairLODInfo& LODInfo = ClusterCullingBulkData.LODInfos[LODIndex];
+
+		ChildrenBuilder.AddCustomRow(LOCTEXT("HairStrandsLODInfo_Array", "HairStrandsLODInfo"))
+		.ValueContent()
+		.HAlign(HAlign_Fill)
+		[
+			MakeHairStrandsLODInfoGrid(DetailFontInfo, LODInfo)
+		];
+	}
+	
 	// Rename the array entry name by its group name and adds all its existing properties
 	StructProperty->SetPropertyDisplayName(LOCTEXT("LODProperties", "LOD Properties"));
 	ExpandStructForLOD(StructProperty, ChildrenBuilder, GroupIndex, LODIndex, true); ///

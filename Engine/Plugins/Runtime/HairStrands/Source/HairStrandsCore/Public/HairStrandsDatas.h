@@ -729,6 +729,12 @@ struct FHairClusterIndexFormat
 	static const EPixelFormat Format = PF_R32_UINT;
 };
 
+struct FHairLODInfo
+{
+	uint32 CurveCount = 0;
+	uint32 PointCount = 0;
+};
+
 struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 {
 	FHairStrandsClusterCullingData();
@@ -746,6 +752,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 	TArray<FHairClusterLODInfo> ClusterLODInfos;
 	TArray<uint32>				VertexToClusterIds;
 	TArray<uint32>				ClusterVertexIds;
+	TArray<FHairLODInfo>		LODInfos;
 
 	/* Number of cluster  */
 	uint32 ClusterCount = 0;
@@ -767,6 +774,9 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData
 
 	/* Screen size at which LOD should switches on CPU */
 	TArray<float>	CPULODScreenSize;
+
+	/* Curve count and Point count per LOD */
+	TArray<FHairLODInfo> LODInfos;
 
 	/* LOD info for the various clusters for LOD management on GPU */
 	FByteBulkData	PackedClusterInfos;		// Size - ClusterCount
