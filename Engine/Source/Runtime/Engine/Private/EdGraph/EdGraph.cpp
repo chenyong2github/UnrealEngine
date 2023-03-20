@@ -285,11 +285,7 @@ void UEdGraph::NotifyGraphChanged()
 
 void UEdGraph::NotifyNodeChanged(const UEdGraphNode* Node)
 {
-	FEdGraphEditAction Action;
-	Action.Graph = this;
-	Action.Action = GRAPHACTION_EditNode;
-	Action.Nodes.Add(Node);
-	NotifyGraphChanged(Action);
+	NotifyGraphChanged();
 }
 
 void UEdGraph::NotifyGraphChanged(const FEdGraphEditAction& InAction)
