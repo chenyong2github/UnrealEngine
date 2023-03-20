@@ -7,6 +7,16 @@
 #include "Math/Ray.h"
 #include "VectorTypes.h"
 
+namespace MeshIntersection
+{
+	struct FHitIntersectionResult
+	{
+		int TriangleId;
+		double Distance;
+		FVector3d BaryCoords;
+	};
+}
+
 namespace UE
 {
 namespace Geometry
@@ -124,7 +134,14 @@ public:
 	 */
 	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, FVector3d& BaryCoords, const FQueryOptions& Options = FQueryOptions()) const = 0;
 
-
+	/**
+	 * Find all triangles intersected by the given ray sorted by distance
+	 * @param Ray query ray
+	 * @param OutHits returned-by-reference hit infos sorted by distance
+	 * @param Options Query options (ex. max distance)
+	 * @return true if hit, false if no hit found
+	 */
+	virtual bool FindAllHitTriangles(const FRay3d& Ray, TArray<MeshIntersection::FHitIntersectionResult>& OutHits, const FQueryOptions& Options = FQueryOptions()) const = 0;
 };
 
 
