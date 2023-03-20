@@ -603,7 +603,7 @@ bool WebRemoteControlInternalUtils::IsRequestContentType(const FHttpServerReques
 
 bool WebRemoteControlInternalUtils::CheckPassphrase(const FString& HashedPassphrase)
 {
-	bool bOutResult = !(GetDefault<URemoteControlSettings>()->bUseRemoteControlPassphrase);
+	bool bOutResult = !(GetDefault<URemoteControlSettings>()->bEnforcePassphraseForRemoteClients) || !(GetDefault<URemoteControlSettings>()->bRestrictServerAccess);
 
 	if (bOutResult)
 	{

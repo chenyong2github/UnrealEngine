@@ -2563,7 +2563,7 @@ void FWebRemoteControlModule::OnSettingsModified(UObject* Settings, FPropertyCha
 	/** Letting the Server know what the current state of the Passphrase Usage is. */
 	if (bIsWebSocketServerStarted && bIsWebServerStarted)
 	{
-		const bool bIsOpen = RCSettings->bUseRemoteControlPassphrase;
+		const bool bIsOpen = RCSettings->bEnforcePassphraseForRemoteClients;
 		
 		TArray<uint8> Response;
 		const FCheckPassphraseResponse BoolResponse = FCheckPassphraseResponse(!bIsOpen);

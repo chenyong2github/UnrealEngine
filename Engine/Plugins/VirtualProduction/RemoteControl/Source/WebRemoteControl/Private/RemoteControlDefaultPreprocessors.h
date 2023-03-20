@@ -488,17 +488,11 @@ namespace UE::WebRemoteControl
 			{
 				constexpr bool bAppendPort = false;
 				FString ClientIP = Request.PeerAddress->ToString(bAppendPort);
-				const FWildcardString WildcardAllowedIP = SimplifyAddress(GetDefault<URemoteControlSettings>()->AllowedIP);
 				
 				// Allow requests from localhost
 				if (ClientIP != TEXT("localhost") && ClientIP != TEXT("127.0.0.1"))
 				{
 					if (!GetDefault<URemoteControlSettings>()->IsClientAllowed(ClientIP))
-					{
-						return FPreprocessorResult::Deny(FString::Printf(TEXT("Client IP %s does not respect the allowed IP set in Remote Control Settings."), *ClientIP));
-					}
-
-					if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
 					{
 						return FPreprocessorResult::Deny(FString::Printf(TEXT("Client IP %s does not respect the allowed IP set in Remote Control Settings."), *ClientIP));
 					}

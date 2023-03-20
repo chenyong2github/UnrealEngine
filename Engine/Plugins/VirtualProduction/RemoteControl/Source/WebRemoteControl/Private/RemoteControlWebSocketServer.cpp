@@ -297,12 +297,6 @@ EWebsocketConnectionFilterResult FRCWebSocketServer::FilterConnection(FString Or
 				{
 					return EWebsocketConnectionFilterResult::ConnectionRefused;
 				}
-
-				const FWildcardString WildcardAllowedIP = SimplifyAddress(Settings->AllowedIP);
-				if (!WildcardAllowedIP.IsEmpty() && WildcardAllowedIP.IsMatch(ClientIP))
-				{
-					return EWebsocketConnectionFilterResult::ConnectionRefused;
-				}
 			}
 		}
 	}

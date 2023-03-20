@@ -214,7 +214,7 @@ void FRCWebInterfaceCustomizations::GeneratePanelExtensions(TArray<TSharedRef<SW
 		.Visibility_Lambda([]()
 		{
 			const URemoteControlSettings* RCSettings = GetDefault<URemoteControlSettings>();
-			bool bShouldWarn = RCSettings->bShowPassphraseDisabledWarning && !RCSettings->bUseRemoteControlPassphrase;
+			bool bShouldWarn = RCSettings->bShowPassphraseDisabledWarning && !RCSettings->bEnforcePassphraseForRemoteClients;
 			return bShouldWarn ? EVisibility::Visible : EVisibility::Collapsed;
 		})
 		.OnClicked_Lambda([]()

@@ -82,6 +82,8 @@ namespace RemoteControlUtil
 
 	UFunction* FindFunctionByNameOrMetaDataName(UObject* Object, const FString& FunctionName)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RemoteControl::FindFunctionByNameOrMetaDataName);
+
 		UFunction* Function = Object->FindFunction(FName(*FunctionName));
 #if WITH_EDITOR
 		// if the function wasn't found through the function map, try finding it through its `ScriptName` or `DisplayName` metadata
