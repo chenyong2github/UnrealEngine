@@ -78,7 +78,7 @@ public:
 	void Validate() const;
 
 private:
-	int32 GetColumnsAtTime(double Time, int32* StartColumnPtr, int32* EndColumnPtr) const;
+	int32 GetColumnsAtTime(double Time, int32* OutStartColumn, int32* OutEndColumn) const;
 
 private:
 	ILinearAllocator& Allocator;
@@ -86,7 +86,7 @@ private:
 	// Normal cells.
 	TArray<FSbTreeCell*> Cells;
 
-	// Offsetted cells. Note: Depth 0 doesn't use offseted cells. Those will always be empty.
+	// Offsetted cells. Note: Depth 0 doesn't use offsetted cells. Those will always be empty.
 	TArray<FSbTreeCell*> OffsettedCells;
 
 	// Array with time values of the first event in each column.

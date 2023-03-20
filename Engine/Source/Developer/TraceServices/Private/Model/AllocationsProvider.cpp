@@ -45,6 +45,42 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Debug functionality to discard some of the Alloc/Free/MarkAllocAsHeap/UnmarkAllocAsHeap events.
+#define INSIGHTS_FILTER_EVENTS_ENABLED 0
+
+#if INSIGHTS_FILTER_EVENTS_ENABLED
+namespace TraceServices
+{
+bool FAllocationsProvider::ShouldIgnoreEvent(double Time, uint64 Address, HeapId RootHeapId, uint32 CallstackId)
+{
+	//if (RootHeapId != EMemoryTraceRootHeap::VideoMemory)
+	//{
+	//	return true;
+	//}
+	//if (Address != 0x0ull)
+	//{
+	//	return true;
+	//}
+	//if (CallstackId != 0)
+	//{
+	//	return true;
+	//}
+	//if (Time > 10.0) // stop analysis after specified time
+	//{
+	//	EditOnAnalysisCompleted(Time);
+	//	bInitialized = false;
+	//	return true;
+	//}
+	return false;
+}
+} // namespace TraceServices
+#define INSIGHTS_FILTER_EVENT(Time, Address, RootHeapId, CallstackId) { if (ShouldIgnoreEvent(Time, Address, RootHeapId, CallstackId)) return; }
+#else // INSIGHTS_FILTER_EVENTS_ENABLED
+#define INSIGHTS_FILTER_EVENT(Time, Address, RootHeapId, CallstackId)
+#endif // INSIGHTS_FILTER_EVENTS_ENABLED
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #define INSIGHTS_DEBUG_WATCH 0
 
 #if INSIGHTS_DEBUG_WATCH
@@ -61,7 +97,7 @@ namespace TraceServices
 // Action to be executed when a match is found.
 #define INSIGHTS_DEBUG_WATCH_FOUND // just log the API call
 //#define INSIGHTS_DEBUG_WATCH_FOUND return // ignore events
-//#define INSIGHTS_DEBUG_WATCH_FOUND UE_DEBUG_BREAK(); break
+//#define INSIGHTS_DEBUG_WATCH_FOUND UE_DEBUG_BREAK()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -88,7 +124,7 @@ namespace TraceServices
 		if (IsAddressWatched(Address))\
 		{\
 			INSIGHTS_DEBUG_WATCH_FOUND;\
-			INSIGHTS_API_LOGF(Format, Time, __VA_ARGS__); \
+			INSIGHTS_API_LOGF(Format, Time, __VA_ARGS__);\
 		}\
 	}
 	#define INSIGHTS_WATCH_INDIRECT_API_LOGF(ApiName, Address, Time) \
@@ -96,7 +132,7 @@ namespace TraceServices
 		if (IsAddressWatched(Address))\
 		{\
 			INSIGHTS_DEBUG_WATCH_FOUND;\
-			INSIGHTS_INDIRECT_API_LOGF(ApiName, Address, Time); \
+			INSIGHTS_INDIRECT_API_LOGF(ApiName, Address, Time);\
 		}\
 	}
 #else
@@ -734,21 +770,23 @@ FAllocationItem* FShortLivingAllocs::Remove(uint64 Address)
 	--AllocCount;
 
 	// Remove node.
-	if (Node == OldestAllocNode)
-	{
-		OldestAllocNode = OldestAllocNode->Next;
-	}
-	if (Node == LastAddedAllocNode)
-	{
-		LastAddedAllocNode = LastAddedAllocNode->Prev;
-	}
 	if (Node->Prev)
 	{
 		Node->Prev->Next = Node->Next;
 	}
+	else
+	{
+		INSIGHTS_SLOW_CHECK(Node == OldestAllocNode);
+		OldestAllocNode = Node->Next;
+	}
 	if (Node->Next)
 	{
 		Node->Next->Prev = Node->Prev;
+	}
+	else
+	{
+		INSIGHTS_SLOW_CHECK(Node == LastAddedAllocNode)
+		LastAddedAllocNode = Node->Prev;
 	}
 
 	// Add the removed node to the "unused" list.
@@ -1297,6 +1335,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 	}
 
 	INSIGHTS_WATCH_API_LOGF(Address, TEXT("Alloc 0x%llX : Size=%llu Alignment=%u RootHeap=%u CallstackId=%u"), Time, Address, Size, Alignment, RootHeapId, CallstackId);
+	INSIGHTS_FILTER_EVENT(Time, Address, RootHeapId, CallstackId);
 
 	if (Address == 0 && RootHeapId == EMemoryTraceRootHeap::SystemMemory)
 	{
@@ -1396,7 +1435,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 		Allocation.RootHeap = static_cast<uint8>(RootHeapId);
 		Allocation.Flags = EMemoryTraceHeapAllocationFlags::None;
 
-		UpdateHistogramByAllocSize(Size);
+		RootHeap.UpdateHistogramByAllocSize(Size);
 
 		// Update stats for the current timeline sample.
 		TotalAllocatedMemory += Size;
@@ -1440,6 +1479,7 @@ void FAllocationsProvider::EditFree(double Time, uint32 CallstackId, uint64 Addr
 	}
 
 	INSIGHTS_WATCH_API_LOGF(Address, TEXT("Free 0x%llX : RootHeap=%u CallstackId=%u"), Time, Address, RootHeapId, CallstackId);
+	INSIGHTS_FILTER_EVENT(Time, Address, RootHeapId, CallstackId);
 
 	if (Address == 0 && RootHeapId == EMemoryTraceRootHeap::SystemMemory)
 	{
@@ -1536,8 +1576,8 @@ void FAllocationsProvider::EditFree(double Time, uint32 CallstackId, uint64 Addr
 
 		RootHeap.SbTree->AddAlloc(AllocationPtr); // SbTree takes ownership of AllocationPtr
 
-		uint32 EventDistance = AllocationPtr->EndEventIndex - AllocationPtr->StartEventIndex;
-		UpdateHistogramByEventDistance(EventDistance);
+		const uint32 EventDistance = AllocationPtr->EndEventIndex - AllocationPtr->StartEventIndex;
+		RootHeap.UpdateHistogramByEventDistance(EventDistance);
 
 		// Update stats for the current timeline sample. (Heap allocations are already excluded)
 		if (!AllocationPtr->IsHeap())
@@ -1736,6 +1776,11 @@ void FAllocationsProvider::EditMarkAllocationAsHeap(double Time, uint32 Callstac
 {
 	EditAccessCheck();
 
+	if (!bInitialized)
+	{
+		return;
+	}
+
 	INSIGHTS_WATCH_API_LOGF(Address, TEXT("MarkAllocAsHeap 0x%llX : Heap=%u Flags=0x%X CallstackId=%u"), Time, Address, Heap, uint32(Flags), CallstackId);
 
 	if (!IsValidHeap(Heap))
@@ -1750,6 +1795,8 @@ void FAllocationsProvider::EditMarkAllocationAsHeap(double Time, uint32 Callstac
 
 	const FHeapSpec& HeapSpec = GetHeapSpecUnchecked(Heap);
 	const FRootHeap& RootHeap = FindParentRootHeapUnchecked(Heap);
+
+	INSIGHTS_FILTER_EVENT(Time, Address, RootHeap.HeapSpec->Id, CallstackId);
 
 #if 0 // TODO
 	if (Heap == RootHeap.HeapSpec->Id)
@@ -1781,6 +1828,10 @@ void FAllocationsProvider::EditMarkAllocationAsHeap(double Time, uint32 Callstac
 		ensure(EnumHasAnyFlags(Flags, EMemoryTraceHeapAllocationFlags::Heap));
 		Alloc->Flags = Flags | EMemoryTraceHeapAllocationFlags::Heap;
 		Alloc->RootHeap = static_cast<uint8>(Heap);
+		if (CallstackId != 0)
+		{
+			Alloc->CallstackId = CallstackId;
+		}
 
 		// Re-add it to the Live allocs as a heap allocation.
 		RootHeap.LiveAllocs->AddHeap(Alloc); // the Live allocs takes ownership of Alloc
@@ -1809,6 +1860,11 @@ void FAllocationsProvider::EditUnmarkAllocationAsHeap(double Time, uint32 Callst
 {
 	EditAccessCheck();
 
+	if (!bInitialized)
+	{
+		return;
+	}
+
 	INSIGHTS_WATCH_API_LOGF(Address, TEXT("UnmarkAllocAsHeap 0x%llX : Heap=%u CallstackId=%u"), Time, Address, Heap, CallstackId);
 
 	if (!IsValidHeap(Heap))
@@ -1823,6 +1879,8 @@ void FAllocationsProvider::EditUnmarkAllocationAsHeap(double Time, uint32 Callst
 
 	const FHeapSpec& HeapSpec = GetHeapSpecUnchecked(Heap);
 	const FRootHeap& RootHeap = FindParentRootHeapUnchecked(Heap);
+
+	INSIGHTS_FILTER_EVENT(Time, Address, RootHeap.HeapSpec->Id, CallstackId);
 
 #if 0 // TODO
 	if (Heap == RootHeap.HeapSpec->Id)
@@ -1943,7 +2001,7 @@ void FAllocationsProvider::EditUnmarkAllocationAsHeap(double Time, uint32 Callst
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::UpdateHistogramByAllocSize(uint64 Size)
+void FAllocationsProvider::FRootHeap::UpdateHistogramByAllocSize(uint64 Size)
 {
 	if (Size > MaxAllocSize)
 	{
@@ -1965,7 +2023,7 @@ void FAllocationsProvider::UpdateHistogramByAllocSize(uint64 Size)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::UpdateHistogramByEventDistance(uint32 EventDistance)
+void FAllocationsProvider::FRootHeap::UpdateHistogramByEventDistance(uint32 EventDistance)
 {
 	if (EventDistance > MaxEventDistance)
 	{
@@ -2069,6 +2127,8 @@ void FAllocationsProvider::EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, ui
 
 	const TagIdType Tag = Alloc ? Alloc->Tag : 0; // If ptr is not found use "Untagged"
 	TagTracker.PushTagFromPtr(ThreadId, Tracker, Tag);
+
+	INSIGHTS_FILTER_EVENT(0.0, Ptr, RootHeapId, 0);
 
 	if (!Alloc)
 	{
@@ -2615,6 +2675,8 @@ const IAllocationsProvider* ReadAllocationsProvider(const IAnalysisSession& Sess
 #undef INSIGHTS_REMAP_INVALID_ALLOC_EVENTS
 #undef INSIGHTS_REMAP_INVALID_FREE_EVENTS
 #undef INSIGHTS_DEBUG_METADATA
+#undef INSIGHTS_FILTER_EVENTS_ENABLED
+#undef INSIGHTS_FILTER_EVENT
 #undef INSIGHTS_DEBUG_WATCH
 #undef INSIGHTS_DEBUG_WATCH_FOUND
 #undef INSIGHTS_LOGF

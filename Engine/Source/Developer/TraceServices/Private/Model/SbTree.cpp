@@ -470,18 +470,18 @@ void FSbTree::AddAlloc(const FAllocationItem* Alloc)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int32 FSbTree::GetColumnsAtTime(double Time, int32* StartColumnPtr, int32* EndColumnPtr) const
+int32 FSbTree::GetColumnsAtTime(double Time, int32* OutStartColumn, int32* OutEndColumn) const
 {
 	// Returns the first column with T >= Time.
 	// [0 .. N]
 	const int32 LowerBoundColumn = Algo::LowerBound(ColumnStartTimes, Time);
 
-	if (StartColumnPtr)
+	if (OutStartColumn)
 	{
-		*StartColumnPtr = LowerBoundColumn - 1; // [-1 .. N-1]
+		*OutStartColumn = LowerBoundColumn - 1; // [-1 .. N-1]
 	}
 
-	if (EndColumnPtr)
+	if (OutEndColumn)
 	{
 		int32 Column = LowerBoundColumn - 1; // [-1 .. N-1]
 		const int32 Last = ColumnStartTimes.Num() - 1; // N-1
@@ -489,7 +489,7 @@ int32 FSbTree::GetColumnsAtTime(double Time, int32* StartColumnPtr, int32* EndCo
 		{
 			++Column;
 		}
-		*EndColumnPtr = Column; // [-1 .. N-1]
+		*OutEndColumn = Column; // [-1 .. N-1]
 	}
 
 	return LowerBoundColumn;

@@ -100,8 +100,7 @@ private:
 		FNode* Prev;
 	};
 
-	//static const int32 MaxAllocCount = 8 * 1024; // max number of short living allocations
-	static const int32 MaxAllocCount = 64; // max number of short living allocations
+	static constexpr int32 MaxAllocCount = 64; // max number of short living allocations
 
 public:
 	FShortLivingAllocs();
@@ -218,7 +217,7 @@ public:
 	// Enumerates all allocations (including heap allocations).
 	FORCEINLINE void Enumerate(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
 
-	// Enumerates allocations in a sprecified address range (including heap allocations).
+	// Enumerates allocations in a specified address range (including heap allocations).
 	FORCEINLINE void Enumerate(uint64 StartAddress, uint64 EndAddress, TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
 
 	// Adds a new allocation with specified address.
@@ -273,10 +272,22 @@ private:
 
 	struct FRootHeap
 	{
+		void UpdateHistogramByAllocSize(uint64 Size);
+		void UpdateHistogramByEventDistance(uint32 EventDistance);
+
 		FHeapSpec* HeapSpec = nullptr;
+
 		FLiveAllocCollection* LiveAllocs = nullptr;
+
 		FSbTree* SbTree = nullptr;
+
 		uint32 EventIndex = 0;
+
+		uint64 MaxAllocSize = 0;
+		uint64 AllocSizeHistogramPow2[65] = { 0 };
+
+		uint32 MaxEventDistance = 0;
+		uint32 EventDistanceHistogramPow2[33] = { 0 };
 	};
 
 public:
@@ -354,8 +365,7 @@ public:
 	//////////////////////////////////////////////////
 
 private:
-	void UpdateHistogramByAllocSize(uint64 Size);
-	void UpdateHistogramByEventDistance(uint32 EventDistance);
+	bool ShouldIgnoreEvent(double Time, uint64 Address, HeapId RootHeapId, uint32 CallstackId);
 	void AdvanceTimelines(double Time);
 	void AddHeapSpec(HeapId Id, HeapId ParentId, const FStringView& Name, EMemoryTraceHeapFlags Flags);
 
@@ -417,12 +427,6 @@ private:
 	uint64 AllocErrors = 0;
 	uint64 FreeWarnings = 0;
 	uint64 FreeErrors = 0;
-
-	uint64 MaxAllocSize = 0;
-	uint64 AllocSizeHistogramPow2[65] = { 0 };
-
-	uint32 MaxEventDistance = 0;
-	uint32 EventDistanceHistogramPow2[33] = { 0 };
 
 	uint64 TotalAllocatedMemory = 0;
 	uint32 TotalLiveAllocations = 0;
