@@ -1134,7 +1134,7 @@ namespace GeometryCollectionTest
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 
 		
-		Chaos::TArrayCollectionArray<Chaos::FReal>& StrainArray = UnitTest.Solver->GetEvolution()->GetRigidClustering().GetStrainArray();
+		Chaos::TArrayCollectionArray<Chaos::FRealSingle>& StrainArray = UnitTest.Solver->GetEvolution()->GetRigidClustering().GetStrainArray();
 
 		EXPECT_FALSE(ParticleHandles[0]->Disabled());
 		EXPECT_TRUE(ParticleHandles[1]->Disabled());
@@ -1203,7 +1203,7 @@ namespace GeometryCollectionTest
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 
 
-		Chaos::TArrayCollectionArray<Chaos::FReal>& StrainArray = UnitTest.Solver->GetEvolution()->GetRigidClustering().GetStrainArray();
+		Chaos::TArrayCollectionArray<Chaos::FRealSingle>& StrainArray = UnitTest.Solver->GetEvolution()->GetRigidClustering().GetStrainArray();
 
 		EXPECT_FALSE(ParticleHandles[0]->Disabled());
 		EXPECT_TRUE(ParticleHandles[1]->Disabled());

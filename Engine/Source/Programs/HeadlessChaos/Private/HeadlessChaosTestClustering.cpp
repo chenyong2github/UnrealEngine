@@ -246,7 +246,7 @@ namespace ChaosTest {
 		PhysicalMaterial->DisabledLinearThreshold = 0;
 		PhysicalMaterial->DisabledAngularThreshold = 0;
 
-		Chaos::TArrayCollectionArray<FReal>& SolverStrainArray = Evolution.GetRigidClustering().GetStrainArray();
+		Chaos::TArrayCollectionArray<FRealSingle>& SolverStrainArray = Evolution.GetRigidClustering().GetStrainArray();
 
 		for (int i = 0; i < NumBoxes + NumBoxes / 4 + 1; ++i)
 		{
