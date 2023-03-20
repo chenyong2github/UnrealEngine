@@ -447,6 +447,7 @@ public:
 		// Create the RHI texture.
 		const ETextureCreateFlags TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (Owner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed);
 		const FString Name = Owner->GetPathName();
+		const static FLazyName ClassName(TEXT("FTextureCubeResource"));
 
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::CreateCube(*Name)
@@ -455,8 +456,8 @@ public:
 			.SetNumMips(Owner->GetNumMips())
 			.SetFlags(TexCreateFlags)
 			.SetExtData(Owner->GetPlatformData() ? Owner->GetPlatformData()->GetExtData() : 0)
-			.SetClassName(TEXT("FTextureCubeResource"))
-			.SetAssetName(GetOwnerName());
+			.SetClassName(ClassName)
+			.SetOwnerName(GetOwnerName());
 
 		TextureCubeRHI = RHICreateTexture(Desc);
 

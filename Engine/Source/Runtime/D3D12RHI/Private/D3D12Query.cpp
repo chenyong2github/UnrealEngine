@@ -75,7 +75,8 @@ FD3D12QueryHeap::FD3D12QueryHeap(FD3D12Device* Device, D3D12_QUERY_TYPE QueryTyp
 		break;
 	}
 
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(ResultBufferName), FName(TEXT("FD3D12QueryHeap")), NAME_None);
+	const static FLazyName D3D12QueryHeapName(TEXT("FD3D12QueryHeap"));
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(ResultBufferName), D3D12QueryHeapName, NAME_None);
 
 	// Create the query heap
 #if D3D12RHI_PLATFORM_USES_TIMESTAMP_QUERIES == 0

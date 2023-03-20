@@ -20,13 +20,15 @@
 
 DECLARE_MEMORY_STAT(TEXT("Volumetric Lightmap"),STAT_VolumetricLightmapBuildData,STATGROUP_MapBuildData);
 
+const static FLazyName VolumetricLightmapDataLayerName(TEXT("VolumetricLightmapDataLayer"));
+
 void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 {
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create3D(TEXT("VolumetricLightmap"), Dimensions, Format)
 		.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV)
 		.SetBulkData(this)
-		.SetClassName(TEXT("FVolumetricLightmapDataLayer"));
+		.SetClassName(VolumetricLightmapDataLayerName);
 
 	Texture = RHICreateTexture(Desc);
 }
@@ -36,7 +38,7 @@ void FVolumetricLightmapDataLayer::CreateTargetTexture(FIntVector Dimensions)
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create3D(TEXT("VolumetricLightmap"), Dimensions, Format)
 		.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV)
-		.SetClassName(TEXT("FVolumetricLightmapDataLayer"));
+		.SetClassName(VolumetricLightmapDataLayerName);
 
 	Texture = RHICreateTexture(Desc);
 }

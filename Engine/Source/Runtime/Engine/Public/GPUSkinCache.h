@@ -197,10 +197,15 @@ public:
 		FRWBuffersAllocation(uint32 InNumVertices, bool InWithTangents, bool InUseIntermediateTangents, uint32 InIntermediateAccumulatedTangentsSize, FRHICommandListImmediate& RHICmdList, const FName& OwnerName)
 			: NumVertices(InNumVertices), WithTangents(InWithTangents), UseIntermediateTangents(InUseIntermediateTangents), IntermediateAccumulatedTangentsSize(InIntermediateAccumulatedTangentsSize)
 		{
+			const static FLazyName PositionsName(TEXT("SkinCachePositions"));
+			const static FLazyName TangentsName(TEXT("SkinCacheTangents"));
+			const static FLazyName IntermediateTangentsName(TEXT("SkinCacheIntermediateTangents"));
+			const static FLazyName IntermediateAccumulatedTangentsName(TEXT("SkinCacheIntermediateAccumulatedTangents"));
+
 			for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 			{
-				PositionBuffers[Index].Buffer.ClassName = TEXT("SkinCachePositions");
-				PositionBuffers[Index].Buffer.AssetName = OwnerName;
+				PositionBuffers[Index].Buffer.ClassName = PositionsName;
+				PositionBuffers[Index].Buffer.OwnerName = OwnerName;
 				PositionBuffers[Index].Buffer.Initialize(TEXT("SkinCachePositions"), PosBufferBytesPerElement, NumVertices * 3, PF_R32_FLOAT, BUF_Static);
 				PositionBuffers[Index].Buffer.Buffer->SetOwnerName(OwnerName);
 				PositionBuffers[Index].AccessState = ERHIAccess::Unknown;
@@ -210,15 +215,15 @@ public:
 				// OpenGL ES does not support writing to RGBA16_SNORM images, instead pack data into SINT in the shader
 				const EPixelFormat TangentsFormat = IsOpenGLPlatform(GMaxRHIShaderPlatform) ? PF_R16G16B16A16_SINT : PF_R16G16B16A16_SNORM;
 				
-				Tangents.Buffer.ClassName = TEXT("SkinCacheTangents");
-				Tangents.Buffer.AssetName = OwnerName;
+				Tangents.Buffer.ClassName = TangentsName;
+				Tangents.Buffer.OwnerName = OwnerName;
 				Tangents.Buffer.Initialize(TEXT("SkinCacheTangents"), TangentBufferBytesPerElement, NumVertices * 2, TangentsFormat, BUF_Static);
 				Tangents.Buffer.Buffer->SetOwnerName(OwnerName);
 				Tangents.AccessState = ERHIAccess::Unknown;
 				if (UseIntermediateTangents)
 				{
-					IntermediateTangents.Buffer.ClassName = TEXT("SkinCacheIntermediateTangents");
-					IntermediateTangents.Buffer.AssetName = OwnerName;
+					IntermediateTangents.Buffer.ClassName = IntermediateTangentsName;
+					IntermediateTangents.Buffer.OwnerName = OwnerName;
 					IntermediateTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateTangents"), TangentBufferBytesPerElement, NumVertices * 2, TangentsFormat, BUF_Static);
 					IntermediateTangents.Buffer.Buffer->SetOwnerName(OwnerName);
 					IntermediateTangents.AccessState = ERHIAccess::Unknown;
@@ -226,8 +231,8 @@ public:
 			}
 			if (IntermediateAccumulatedTangentsSize > 0)
 			{
-				IntermediateAccumulatedTangents.Buffer.ClassName = TEXT("SkinCacheIntermediateAccumulatedTangents");
-				IntermediateAccumulatedTangents.Buffer.AssetName = OwnerName;
+				IntermediateAccumulatedTangents.Buffer.ClassName = IntermediateAccumulatedTangentsName;
+				IntermediateAccumulatedTangents.Buffer.OwnerName = OwnerName;
 				IntermediateAccumulatedTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateAccumulatedTangents"), sizeof(int32), IntermediateAccumulatedTangentsSize * FGPUSkinCache::IntermediateAccumBufferNumInts, PF_R32_SINT, BUF_UnorderedAccess);
 				IntermediateAccumulatedTangents.Buffer.Buffer->SetOwnerName(OwnerName);
 				IntermediateAccumulatedTangents.AccessState = ERHIAccess::Unknown;

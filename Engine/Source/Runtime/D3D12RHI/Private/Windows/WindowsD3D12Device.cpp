@@ -1969,7 +1969,9 @@ void FWindowsD3D12Adapter::CreateCommandSignatures()
 
 TUniquePtr<FD3D12DiagnosticBuffer> FD3D12Device::CreateDiagnosticBuffer(const D3D12_RESOURCE_DESC& Desc, const TCHAR* Name)
 {
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(TEXT("FD3D12DiagnosticBuffer")), FName(TEXT("FD3D12Device::CreateDiagnosticBuffer")), NAME_None);
+	const static FLazyName D3D12DiagnosticBufferName(TEXT("FD3D12DiagnosticBuffer"));
+	const static FLazyName CreateDiagnosticBufferName(TEXT("FD3D12Device::CreateDiagnosticBuffer"));
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(D3D12DiagnosticBufferName, CreateDiagnosticBufferName, NAME_None);
 
 	TRefCountPtr<ID3D12Device3> D3D12Device3;
 	HRESULT hr = GetDevice()->QueryInterface(IID_PPV_ARGS(D3D12Device3.GetInitReference()));

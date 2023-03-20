@@ -323,6 +323,8 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 
 	if( TargetSizeX > 0 && TargetSizeY > 0 )
 	{
+		const static FLazyName ClassName(TEXT("FSlateTextureRenderTarget2DResource"));
+
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("FSlateTextureRenderTarget2DResource"))
@@ -331,7 +333,7 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 			.SetClearValue(FClearValueBinding(ClearColor))
 			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 			.SetInitialState(ERHIAccess::SRVMask)
-			.SetClassName(TEXT("FSlateTextureRenderTarget2DResource"));
+			.SetClassName(ClassName);
 
 		RenderTargetTextureRHI = TextureRHI = RHICreateTexture(Desc);
 	}

@@ -43,9 +43,10 @@ public:
 
 	virtual void InitRHI() override
 	{
+		const static FLazyName ClassName(TEXT("FDummyCulledDispatchVertexIdsBuffer"));
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FDummyCulledDispatchVertexIdsBuffer"));
-			CreateInfo.ClassName = TEXT("FDummyCulledDispatchVertexIdsBuffer");
+			CreateInfo.ClassName = ClassName;
 			uint32 NumBytes = sizeof(uint32) * 4;
 			VertexBufferRHI = RHICreateBuffer(NumBytes, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 			uint32* DummyContents = (uint32*)RHILockBuffer(VertexBufferRHI, 0, NumBytes, RLM_WriteOnly);
@@ -55,7 +56,7 @@ public:
 
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FDummyByteAddressBuffer"));
-			CreateInfo.ClassName = TEXT("FDummyCulledDispatchVertexIdsBuffer");
+			CreateInfo.ClassName = ClassName;
 			uint32 NumBytes = sizeof(uint32) * 4;
 			ByteAddressBufferRHI = RHICreateBuffer(NumBytes, BUF_Static | BUF_ShaderResource |BUF_ByteAddressBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
 			uint32* DummyContents = (uint32*)RHILockBuffer(ByteAddressBufferRHI, 0, NumBytes, RLM_WriteOnly);

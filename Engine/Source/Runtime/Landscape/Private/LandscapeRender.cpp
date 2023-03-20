@@ -673,7 +673,8 @@ void FLandscapeRenderSystem::UpdateBuffers()
 		if (!SectionLODBiasBuffer.IsValid())
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("SectionLODBiasBuffer"), &SectionLODBiases);
-			CreateInfo.ClassName = TEXT("FLandscapeRenderSystem");
+			const static FLazyName ClassName(TEXT("FLandscapeRenderSystem"));
+			CreateInfo.ClassName = ClassName;
 			SectionLODBiasBuffer = RHICreateVertexBuffer(SectionLODBiases.GetResourceDataSize(), BUF_ShaderResource | BUF_Dynamic, CreateInfo);
 			SectionLODBiasSRV = RHICreateShaderResourceView(SectionLODBiasBuffer, sizeof(float), PF_R32_FLOAT);
 			bUpdateUB = true;
@@ -2593,8 +2594,9 @@ void FLandscapeVertexBuffer::InitRHI()
 
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeVertexBuffer"));
-	CreateInfo.ClassName = FName(TEXT("FLandscapeVertexBuffer"));
-	CreateInfo.AssetName = GetOwnerName();
+	const static FLazyName ClassName(TEXT("FLandscapeVertexBuffer"));
+	CreateInfo.ClassName = ClassName;
+	CreateInfo.OwnerName = GetOwnerName();
 	VertexBufferRHI = RHICreateBuffer(NumVertices * sizeof(FLandscapeVertex), BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 	FLandscapeVertex* Vertex = (FLandscapeVertex*)RHILockBuffer(VertexBufferRHI, 0, NumVertices * sizeof(FLandscapeVertex), RLM_WriteOnly);
 	int32 VertexIndex = 0;

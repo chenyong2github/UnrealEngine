@@ -228,6 +228,7 @@ public:
 #define PARTICLE_STATE_POSITION_TEXTURE_NAME	TEXT("ParticleStatePosition")
 #define PARTICLE_STATE_VELOCITY_TEXTURE_NAME	TEXT("ParticleStateVelocity")
 
+		const static FLazyName ClassName(TEXT("FParticleStateTextures"));
 		{
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::Create2D(PARTICLE_STATE_POSITION_TEXTURE_NAME)
@@ -236,7 +237,7 @@ public:
 				.SetClearValue(FClearValueBinding::Transparent)
 				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 				.SetInitialState(ERHIAccess::SRVMask)
-				.SetClassName(TEXT("FParticleStateTextures"));
+				.SetClassName(ClassName);
 
 			PositionTextureRHI = RHICreateTexture(Desc);
 		}
@@ -252,7 +253,7 @@ public:
 				.SetClearValue(FClearValueBinding::Transparent)
 				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 				.SetInitialState(ERHIAccess::SRVMask)
-				.SetClassName(TEXT("FParticleStateTextures"));
+				.SetClassName(ClassName);
 
 			VelocityTextureRHI = RHICreateTexture(Desc);
 		}
@@ -299,6 +300,7 @@ public:
 		const int32 SizeY = GParticleSimulationTextureSizeY;
 
 #define ATTRIBUTES_TEXTURE_NAME	TEXT("ParticleAttributes")
+		const static FLazyName ClassName(TEXT("FParticleAttributesTexture"));
 
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(ATTRIBUTES_TEXTURE_NAME)
@@ -307,7 +309,7 @@ public:
 			.SetClearValue(FClearValueBinding::Transparent)
 			.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoFastClear)
 			.SetInitialState(ERHIAccess::RTV)
-			.SetClassName(TEXT("FParticleAttributesTexture"));
+			.SetClassName(ClassName);
 
 		TextureRHI = RHICreateTexture(Desc);
 

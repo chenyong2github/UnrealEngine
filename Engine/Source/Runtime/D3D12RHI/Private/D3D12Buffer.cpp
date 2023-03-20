@@ -7,9 +7,10 @@ D3D12Buffer.cpp: D3D Common code for buffers.
 #include "D3D12RHIPrivate.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
 
-FName ChooseMetadataName(const FName& FirstChoice, const FName& SecondChoice)
+FName GetRHIBufferClassName(const FName& ClassName)
 {
-	return FirstChoice == NAME_None ? SecondChoice : FirstChoice;
+	const static FLazyName RHIBufferName(TEXT("FRHIBuffer"));
+	return ClassName == NAME_None ? RHIBufferName : ClassName;
 }
 
 extern int32 GD3D12BindResourceLabels;
@@ -74,7 +75,8 @@ struct FRHICommandRenameUploadBuffer final : public FRHICommand<FRHICommandRenam
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		UE_TRACE_METADATA_SCOPE_ASSET_FNAME(Resource->GetName(), FName(TEXT("FRHICommandRenameUploadBuffer::Execute")), Resource->GetOwnerName());
+		const static FLazyName ExecuteName(TEXT("FRHICommandRenameUploadBuffer::Execute"));
+		UE_TRACE_METADATA_SCOPE_ASSET_FNAME(Resource->GetName(), ExecuteName, Resource->GetOwnerName());
 
 		// Make sure we have an active pipeline when running at the top of the pipe, so the lambda below can obtain a context.
 		TOptional<ERHIPipeline> PreviousPipeline;
@@ -202,7 +204,7 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 };
 
 
-void FD3D12Buffer::UploadResourceData(FRHICommandListBase& RHICmdList, FResourceArrayInterface* InResourceArray, D3D12_RESOURCE_STATES InDestinationState, const FName& AssetName, const FName& ClassName, const FName& PackageName)
+void FD3D12Buffer::UploadResourceData(FRHICommandListBase& RHICmdList, FResourceArrayInterface* InResourceArray, D3D12_RESOURCE_STATES InDestinationState, const TCHAR* AssetName, const FName& ClassName, const FName& PackageName)
 {
 	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(AssetName, ClassName, PackageName);
 
@@ -350,13 +352,13 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	const FRHIGPUMask& InGPUMask,
 	ID3D12ResourceAllocator* ResourceAllocator,
 	const TCHAR* InDebugName,
-	const FName& AssetName,
+	const FName& OwnerName,
 	const FName& ClassName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::CreateRHIBuffer);
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBufferTime);
 
-	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(InDebugName), ChooseMetadataName(ClassName, TEXT("FRHIBuffer")), AssetName);
+	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(InDebugName), GetRHIBufferClassName(ClassName), OwnerName);
 
 	check(InDesc.Width == Size);
 
@@ -541,9 +543,7 @@ FBufferRHIRef FD3D12DynamicRHI::CreateBuffer(FRHICommandListBase& RHICmdList, ui
 
 FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListBase* RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, ID3D12ResourceAllocator* ResourceAllocator)
 {
-	FName TraceAssetName = CreateInfo.DebugName;
-	FName TraceClassName = ChooseMetadataName(CreateInfo.GetTraceClassName(), TEXT("FRHIBuffer"));
-	FName TracePackageName = CreateInfo.GetTraceAssetName();
+	FName TraceClassName = GetRHIBufferClassName(CreateInfo.GetTraceClassName());
 
 	D3D12_RESOURCE_DESC Desc;
 	uint32 Alignment;
@@ -568,14 +568,14 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListBase* RHI
 	D3D12_RESOURCE_STATES CreateState = (CreateInfo.ResourceArray && bSupportResourceStateTracking) ? D3D12_RESOURCE_STATE_COPY_DEST : DesiredState;
 	bool bHasInitialData = CreateInfo.ResourceArray != nullptr;
 
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(Desc, Alignment, Stride, Size, Usage, StateMode, CreateState, bHasInitialData, CreateInfo.GPUMask, ResourceAllocator, CreateInfo.DebugName, TraceAssetName, TraceClassName);
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(Desc, Alignment, Stride, Size, Usage, StateMode, CreateState, bHasInitialData, CreateInfo.GPUMask, ResourceAllocator, CreateInfo.DebugName, CreateInfo.OwnerName, TraceClassName);
 	check(Buffer->ResourceLocation.IsValid());
 
 	// Copy the resource data if available 
 	if (bHasInitialData)
 	{
 		check(RHICmdList);
-		Buffer->UploadResourceData(*RHICmdList, CreateInfo.ResourceArray, DesiredState, TraceAssetName, TraceClassName, TracePackageName);
+		Buffer->UploadResourceData(*RHICmdList, CreateInfo.ResourceArray, DesiredState, CreateInfo.DebugName, TraceClassName, CreateInfo.OwnerName);
 	}
 
 	return Buffer;

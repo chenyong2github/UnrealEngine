@@ -101,6 +101,8 @@ void SetDummyTextureArrayData(FRHITexture* Texture, const DataType& DummyData)
 	RHIUnlockTexture2DArray(Texture, 0, 0, false);
 }
 
+const static FLazyName SystemTexturesName(TEXT("FSystemTextures"));
+
 void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdList)
 {
 	// First initialize textures that are common to all feature levels. This is always done the first time we come into this function, as doesn't care about the
@@ -117,7 +119,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("BlackDummy"), 1, 1, PF_B8G8R8A8)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<FColor>(Texture, FColor(0, 0, 0, 0));
@@ -129,7 +131,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2DArray(TEXT("BlackArrayDummy"), 1, 1, 1, PF_B8G8R8A8)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureArrayData<FColor>(Texture, FColor(0, 0, 0, 0));
@@ -141,7 +143,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("ZeroUIntDummy"), 1, 1, PF_R32_UINT)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<uint32>(Texture, 0u);
@@ -153,7 +155,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2DArray(TEXT("ZeroUIntArrayDummy"), 1, 1, 1, PF_R32_UINT)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureArrayData<uint32>(Texture, 0u);
@@ -165,7 +167,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("BlackAlphaOneDummy"), 1, 1, PF_B8G8R8A8)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<FColor>(Texture, FColor(0, 0, 0, 255));
@@ -177,7 +179,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2DArray(TEXT("GreenDummy"), 1, 1, PF_B8G8R8A8)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<FColor>(Texture, FColor(0, 255, 0, 255));
@@ -189,7 +191,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("DefaultNormal8Bit"), 1, 1, PF_B8G8R8A8)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<FColor>(Texture, FColor(128, 128, 128, 255));
@@ -203,7 +205,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("PerlinNoiseGradient"), Extent, Extent, PF_B8G8R8A8)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 	
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 
@@ -241,7 +243,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("MaxFP16Depth"), 1, 1, PF_FloatRGBA)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<FFloat16Color>(Texture, FFloat16Color(FLinearColor(65500.0f, 65500.0f, 65500.0f, 65500.0f)));
@@ -259,7 +261,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("StencilDummy"), 1, 1, PF_R8G8B8A8_UINT)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<FColor>(Texture, FColor::White);
@@ -272,7 +274,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("MidGreyDummy"), 1, 1, PF_FloatRGBA)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<FFloat16Color>(Texture, FFloat16Color(FLinearColor(0.5f, 0.5f, 0.5f, 0.5f)));
@@ -310,7 +312,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("SobolSampling"), 32, 16, PF_R16_UINT)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		// Write the contents of the texture.
@@ -438,7 +440,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("PreintegratedGF"), Extent, Format)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 
@@ -562,7 +564,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::Create3D(TEXT("PerlinNoise3D"), Extent, Extent, Extent, PF_B8G8R8A8)
 				.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoTiling)
-				.SetClassName(TEXT("FSystemTextures"));
+				.SetClassName(SystemTexturesName);
 
 			FTextureRHIRef Texture3D = RHICreateTexture(Desc);
 
@@ -677,7 +679,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				const FRHITextureCreateDesc Desc =
 					FRHITextureCreateDesc::Create2D(TEXT("LTCMat"), LTC_Size, LTC_Size, PF_FloatRGBA)
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::FastVRAM)
-					.SetClassName(TEXT("FSystemTextures"));
+					.SetClassName(SystemTexturesName);
 
 				FTextureRHIRef Texture = RHICreateTexture(Desc);
 
@@ -706,7 +708,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				const FRHITextureCreateDesc Desc =
 					FRHITextureCreateDesc::Create2D(TEXT("LTCAmp"), LTC_Size, LTC_Size, PF_G16R16F)
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::FastVRAM)
-					.SetClassName(TEXT("FSystemTextures"));
+					.SetClassName(SystemTexturesName);
 
 				FTexture2DRHIRef Texture = RHICreateTexture(Desc);
 
@@ -769,7 +771,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				const FRHITextureCreateDesc Desc =
 					FRHITextureCreateDesc::Create2D(TEXT("SSAORandomization"), Extent, Extent, PF_R8G8)
 					.SetFlags(ETextureCreateFlags::ShaderResource)
-					.SetClassName(TEXT("FSystemTextures"));
+					.SetClassName(SystemTexturesName);
 
 				FTextureRHIRef Texture = RHICreateTexture(Desc);
 
@@ -813,7 +815,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			.SetDepth(bGTAOPreIngegratedUsingVolumeLUT ? Extent : 1)
 			.SetFormat(PF_R16F)
 			.SetFlags(ETextureCreateFlags::ShaderResource)
-			.SetClassName(TEXT("FSystemTextures"));
+			.SetClassName(SystemTexturesName);
 
 		TRefCountPtr<FRHITexture> Texture = RHICreateTexture(Desc);
 

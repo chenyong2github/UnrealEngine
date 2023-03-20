@@ -507,6 +507,8 @@ FParticleCurveTexture::FParticleCurveTexture()
 */
 void FParticleCurveTexture::InitRHI()
 {
+	const static FLazyName ClassName(TEXT("FParticleCurveTexture"));
+
 	// 8-bit per channel RGBA texture for curves.
 	const FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create2D(TEXT("ParticleCurveTexture"))
@@ -515,7 +517,7 @@ void FParticleCurveTexture::InitRHI()
 		.SetFormat(PF_B8G8R8A8)
 		.SetClearValue(FClearValueBinding(FLinearColor::Blue))
 		.SetInitialState(ERHIAccess::SRVMask)
-		.SetClassName(TEXT("FParticleCurveTexture"));
+		.SetClassName(ClassName);
 
 	CurveTextureRHI = RHICreateTexture(Desc);
 }

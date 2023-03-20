@@ -163,7 +163,7 @@ struct FRWBuffer
 	FShaderResourceViewRHIRef SRV;
 	uint32 NumBytes;
 	FName ClassName = NAME_None;	// The owner class of Buffer used for Insight asset metadata tracing, set it before calling Initialize()
-	FName AssetName = NAME_None;	// The owner asset name used for Insight asset metadata tracing, set it before calling Initialize()
+	FName OwnerName = NAME_None;	// The owner name used for Insight asset metadata tracing, set it before calling Initialize()
 
 	FRWBuffer()
 		: NumBytes(0)
@@ -220,7 +220,7 @@ struct FRWBuffer
 		NumBytes = BytesPerElement * NumElements;
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		CreateInfo.ClassName = ClassName;
-		CreateInfo.AssetName = AssetName;
+		CreateInfo.OwnerName = OwnerName;
 		CreateInfo.ResourceArray = InResourceArray;
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_UnorderedAccess | BUF_ShaderResource | AdditionalUsage, InResourceState, CreateInfo);
 		UAV = RHICreateUnorderedAccessView(Buffer, UE_PIXELFORMAT_TO_UINT8(Format));

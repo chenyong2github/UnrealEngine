@@ -354,7 +354,7 @@ public:
 		const FRHIGPUMask& InGPUMask,
 		ID3D12ResourceAllocator* ResourceAllocator,
 		const TCHAR* InDebugName,
-		const FName& InAssetName = NAME_None,
+		const FName& InOwnerName = NAME_None,
 		const FName& InClassName = NAME_None);
 
 	void CreateUAVAliasResource(

@@ -23,10 +23,11 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 
 		check( !IsValidRef( ShaderResource) );
 
+		const static FLazyName ClassName(TEXT("FSlateFontTextureRHIResource"));
 		FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("FSlateFontTextureRHIResource"), Width, Height, PixelFormat)
 			.SetFlags(ETextureCreateFlags::Dynamic)
-			.SetClassName(TEXT("FSlateFontTextureRHIResource"));
+			.SetClassName(ClassName);
 
 		if (!bIsGrayscale)
 		{

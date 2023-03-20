@@ -39,9 +39,10 @@ void FStaticShadowDepthMap::InitRHI()
 {
 	if (FApp::CanEverRender() && Data && Data->ShadowMapSizeX > 0 && Data->ShadowMapSizeY > 0 && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
+		const static FLazyName ClassName(TEXT("FStaticShadowDepthMap"));
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("FStaticShadowDepthMap"), Data->ShadowMapSizeX, Data->ShadowMapSizeY, PF_R16F)
-			.SetClassName(TEXT("FStaticShadowDepthMap"));
+			.SetClassName(ClassName);
 
 		TextureRHI = RHICreateTexture(Desc);
 

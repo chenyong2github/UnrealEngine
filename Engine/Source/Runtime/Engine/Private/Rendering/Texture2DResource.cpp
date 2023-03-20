@@ -11,6 +11,8 @@
 #include "RenderingThread.h"
 #include "Containers/ResourceArray.h"
 
+const static FLazyName Texture2DResourceName(TEXT("FTexture2DResource"));
+
 // TODO Only adding this setting to allow backwards compatibility to be forced.  The default
 // behavior is to NOT do this.  This variable should be removed in the future.  #ADDED 4.13
 static TAutoConsoleVariable<int32> CVarForceHighestMipOnUITexturesEnabled(
@@ -113,8 +115,8 @@ void FTexture2DResource::CreateTexture()
 		.SetFlags(CreationFlags)
 		.SetExtData(PlatformData->GetExtData())
 		.SetBulkData(ResourceMem)
-		.SetClassName(TEXT("FTexture2DResource"))
-		.SetAssetName(GetOwnerName());
+		.SetClassName(Texture2DResourceName)
+		.SetOwnerName(GetOwnerName());
 
 	TextureRHI = RHICreateTexture(Desc);
 
@@ -158,8 +160,8 @@ void FTexture2DResource::CreatePartiallyResidentTexture()
 		.SetFlags(CreationFlags | ETextureCreateFlags::Virtual)
 		.SetExtData(PlatformData->GetExtData())
 		.SetBulkData(ResourceMem)
-		.SetClassName(TEXT("FTexture2DResource"))
-		.SetAssetName(GetOwnerName());
+		.SetClassName(Texture2DResourceName)
+		.SetOwnerName(GetOwnerName());
 
 	TextureRHI = RHICreateTexture(Desc);
 

@@ -619,6 +619,8 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 
 	if( TargetSizeX > 0 && TargetSizeY > 0 )
 	{
+		const static FLazyName ClassName(TEXT("FTextureRenderTarget2DResource"));
+
 		FString ResourceName = Owner->GetName();
 		ETextureCreateFlags TexCreateFlags = GetCreateFlags();
 
@@ -630,8 +632,8 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 			.SetFlags(TexCreateFlags)
 			.SetInitialState(ERHIAccess::SRVMask)
 			.SetClearValue(FClearValueBinding(ClearColor))
-			.SetClassName(TEXT("FTextureRenderTarget2DResource"))
-			.SetAssetName(GetOwnerName());
+			.SetClassName(ClassName)
+			.SetOwnerName(GetOwnerName());
 
 		TextureRHI = RenderTargetTextureRHI = RHICreateTexture(Desc);
 

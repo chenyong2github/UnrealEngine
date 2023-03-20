@@ -107,13 +107,14 @@ public:
 
     virtual void InitRHI() override
     {
+		const static FLazyName DuplicatedVerticesBuffeName(TEXT("FDuplicatedVerticesBuffer"));
         {
             FResourceArrayInterface* ResourceArray = DupVertData.GetResourceArray();
             check(ResourceArray->GetResourceDataSize() > 0);
 
             FRHIResourceCreateInfo CreateInfo(TEXT("DuplicatedVerticesIndexBuffer"), ResourceArray);
-			CreateInfo.ClassName = TEXT("FDuplicatedVerticesBuffer DuplicatedVerticesIndexBuffer");
-			CreateInfo.AssetName = GetOwnerName();
+			CreateInfo.ClassName = DuplicatedVerticesBuffeName;
+			CreateInfo.OwnerName = GetOwnerName();
             DuplicatedVerticesIndexBuffer.VertexBufferRHI = RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			DuplicatedVerticesIndexBuffer.VertexBufferRHI->SetOwnerName(GetOwnerName());
             DuplicatedVerticesIndexBuffer.VertexBufferSRV = RHICreateShaderResourceView(DuplicatedVerticesIndexBuffer.VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
@@ -124,8 +125,8 @@ public:
             check(ResourceArray->GetResourceDataSize() > 0);
 
             FRHIResourceCreateInfo CreateInfo(TEXT("LengthAndIndexDuplicatedVerticesIndexBuffer"), ResourceArray);
-			CreateInfo.ClassName = TEXT("FDuplicatedVerticesBuffer LengthAndIndexDuplicatedVerticesIndexBuffer");
-			CreateInfo.AssetName = GetOwnerName();
+			CreateInfo.ClassName = DuplicatedVerticesBuffeName;
+			CreateInfo.OwnerName = GetOwnerName();
             LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferRHI = RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferRHI->SetOwnerName(GetOwnerName());
             LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV = RHICreateShaderResourceView(LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferRHI, sizeof(uint32), PF_R32_UINT);

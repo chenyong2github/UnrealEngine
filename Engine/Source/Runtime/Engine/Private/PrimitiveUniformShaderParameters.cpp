@@ -40,10 +40,11 @@ void FSinglePrimitiveStructured::InitRHI()
 	}
 
 	{
+		const static FLazyName ClassName(TEXT("FSinglePrimitiveStructured"));
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("PrimitiveSceneDataTexture"), FPrimitiveSceneShaderData::DataStrideInFloat4s, 1, PF_A32B32G32R32F)
 			.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV)
-			.SetClassName(TEXT("FSinglePrimitiveStructured"));
+			.SetClassName(ClassName);
 
 		PrimitiveSceneDataTextureRHI = RHICreateTexture(Desc);
 		PrimitiveSceneDataTextureSRV = RHICreateShaderResourceView(PrimitiveSceneDataTextureRHI, 0);

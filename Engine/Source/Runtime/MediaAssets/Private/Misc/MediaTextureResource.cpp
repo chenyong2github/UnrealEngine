@@ -1319,6 +1319,7 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 	{
 		MipGenerationCache.SafeRelease();
 
+		const static FLazyName ClassName(TEXT("FMediaTextureResource"));
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("MediaTextureResourceOutput"))
 			.SetExtent(InDim)
@@ -1327,8 +1328,8 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 			.SetFlags(OutputCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 			.SetInitialState(ERHIAccess::SRVMask)
 			.SetClearValue(FClearValueBinding(InClearColor))
-			.SetClassName(TEXT("FMediaTextureResource"))
-			.SetAssetName(GetOwnerName());
+			.SetClassName(ClassName)
+			.SetOwnerName(GetOwnerName());
 
 		OutputTarget = RHICreateTexture(Desc);
 
