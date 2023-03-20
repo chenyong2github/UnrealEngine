@@ -7,6 +7,7 @@
 #include "MeshTranslationImpl.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -799,7 +800,11 @@ namespace UsdSkelRootTranslatorImpl
 		FName AssetName = MakeUniqueObjectName(
 			GetTransientPackage(),
 			UPhysicsAsset::StaticClass(),
-			*FPaths::GetBaseFilename( TEXT( "PHYS_" ) + SkeletalMesh->GetName() )
+			*IUsdClassesModule::SanitizeObjectName(
+				FPaths::GetBaseFilename(
+					TEXT("PHYS_") + SkeletalMesh->GetName()
+				)
+			)
 		);
 
 		UPhysicsAsset* Result = NewObject< UPhysicsAsset >(
@@ -919,7 +924,9 @@ namespace UsdSkelRootTranslatorImpl
 				FName UniqueName = MakeUniqueObjectName(
 					GetTransientPackage(),
 					UAnimBlueprint::StaticClass(),
-					*( PrimName + TEXT( "_DefaultAnimBlueprint" ) )
+					*IUsdClassesModule::SanitizeObjectName(
+						PrimName + TEXT( "_DefaultAnimBlueprint" )
+					)
 				);
 
 				// Duplicate and never reuse these so that they can be assigned independent subject names if desired.

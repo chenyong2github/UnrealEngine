@@ -15,6 +15,7 @@
 
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"
+#include "USDClassesModule.h"
 #include "USDGeomXformableTranslator.h"
 #include "USDInfoCache.h"
 #include "USDIntegrationUtils.h"
@@ -98,7 +99,11 @@ namespace UE::UsdGroomTranslatorUtils::Private
 			return nullptr;
 		}
 
-		const FName BindingAssetName = MakeUniqueObjectName(GetTransientPackage(), UGroomBindingAsset::StaticClass(), *FPaths::GetBaseFilename(GroomBindingPath));
+		const FName BindingAssetName = MakeUniqueObjectName(
+			GetTransientPackage(),
+			UGroomBindingAsset::StaticClass(),
+			*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(GroomBindingPath))
+		);
 		UGroomBindingAsset* GroomBinding = NewObject<UGroomBindingAsset>(GetTransientPackage(), BindingAssetName, ObjectFlags | RF_Public);
 		if (GroomBinding)
 		{

@@ -2,8 +2,8 @@
 
 #include "USDConversionUtils.h"
 
-#include "PhysicsEngine/PhysicsAsset.h"
 #include "USDAssetImportData.h"
+#include "USDClassesModule.h"
 #include "USDDuplicateType.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -46,11 +46,8 @@
 #include "InstancedFoliageActor.h"
 #include "LandscapeProxy.h"
 #include "Misc/PackageName.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "Widgets/Notifications/SNotificationList.h"
-
-#if WITH_EDITOR
-#include "ObjectTools.h"
-#endif // WITH_EDITOR
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -92,20 +89,6 @@
 
 namespace USDConversionUtilsImpl
 {
-	// Adapted from ObjectTools as it is within an Editor-only module
-	FString SanitizeObjectName( const FString& InObjectName )
-	{
-		FString SanitizedText = InObjectName;
-		const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
-		while ( *InvalidChar )
-		{
-			SanitizedText.ReplaceCharInline( *InvalidChar, TCHAR( '_' ), ESearchCase::CaseSensitive );
-			++InvalidChar;
-		}
-
-		return SanitizedText;
-	}
-
 	/** Show some warnings if the UVSet primvars show some unsupported/problematic behavior */
 	void CheckUVSetPrimvars( TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsablePrimvars, TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsedPrimvars, const FString& MeshPath )
 	{
@@ -1114,7 +1097,7 @@ FString UsdUtils::GetAssetPathFromPrimPath( const FString& RootContentPath, cons
 	ModelApi.GetAssetName( &RawAssetName );
 
 	FString AssetName = UsdToUnreal::ConvertString( RawAssetName );
-	FString MeshName = USDConversionUtilsImpl::SanitizeObjectName( RawPrimName );
+	FString MeshName = IUsdClassesModule::SanitizeObjectName(RawPrimName);
 
 	FString USDPath = UsdToUnreal::ConvertString( Prim.GetPrimPath().GetString().c_str() );
 

@@ -9,6 +9,7 @@
 #include "USDAssetCache2.h"
 #include "USDAssetImportData.h"
 #include "USDAttributeUtils.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
@@ -46,7 +47,6 @@
 	#include "MaterialEditingLibrary.h"
 	#include "MaterialOptions.h"
 	#include "MaterialUtilities.h"
-	#include "ObjectTools.h"
 #endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
@@ -224,7 +224,11 @@ namespace UE
 
 				FScopedUnrealAllocs UEAllocs;
 
-				FName TextureName = MakeUniqueObjectName( Outer, UTexture::StaticClass(), *FPaths::GetBaseFilename( ResolvedTexturePath ) );
+				FName TextureName = MakeUniqueObjectName(
+					Outer,
+					UTexture::StaticClass(),
+					*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(ResolvedTexturePath))
+				);
 
 				return Cast<UTexture>(TextureFactory->FactoryCreateBinary(
 					UTexture::StaticClass(),
@@ -1213,7 +1217,13 @@ namespace UE
 						// Not inside an USDZ archive, just a regular texture
 						else
 						{
-							FName TextureName = MakeUniqueObjectName( Outer, UTexture::StaticClass(), *FPaths::GetBaseFilename( ResolvedTexturePath ) );
+							FName TextureName = MakeUniqueObjectName(
+								Outer,
+								UTexture::StaticClass(),
+								*IUsdClassesModule::SanitizeObjectName(
+									FPaths::GetBaseFilename(ResolvedTexturePath)
+								)
+							);
 							Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), Outer, TextureName, ObjectFlags, ResolvedTexturePath, TEXT(""), bOutCancelled));
 						}
 
@@ -1406,9 +1416,9 @@ namespace UE
 
 					// Final FilePath will be something like "C:/TexturesFolder/Game_ContentFolder_Materials_Red_BaseColor.png", which automatically guarantees
 					// it won't overwrite another texture from the same export, but will overwrite old textures from previous exports
-					FString TextureFileName = ObjectTools::SanitizeObjectName( FPaths::ChangeExtension( TextureNamePrefix, TEXT( "" ) ) );
+					FString TextureFileName = IUsdClassesModule::SanitizeObjectName( FPaths::ChangeExtension( TextureNamePrefix, TEXT( "" ) ) );
 					TextureFileName.RemoveFromStart( TEXT( "_" ) );
-					FString TextureFilePath = FPaths::Combine( TexturesFolder.Path, FString::Printf( TEXT( "%s_%s.exr" ), *ObjectTools::SanitizeObjectName( TextureFileName ), *TrimmedPropertyName ) );
+					FString TextureFilePath = FPaths::Combine( TexturesFolder.Path, FString::Printf( TEXT( "%s_%s.exr" ), *IUsdClassesModule::SanitizeObjectName( TextureFileName ), *TrimmedPropertyName ) );
 
 					// For some reason the baked samples always have zero alpha and there is nothing we can do about it... It seems like the material baking module is made
 					// with the intent that the data ends up in UTexture2Ds, where they can be set to be compressed without alpha and have the value ignored.
@@ -1464,9 +1474,9 @@ namespace UE
 
 					// Final FilePath will be something like "C:/TexturesFolder/Game_ContentFolder_Materials_Red_BaseColor.png", which automatically guarantees
 					// it won't overwrite another texture from the same export, but will overwrite old textures from previous exports
-					FString TextureFileName = ObjectTools::SanitizeObjectName( FPaths::ChangeExtension( TextureNamePrefix, TEXT( "" ) ) );
+					FString TextureFileName = IUsdClassesModule::SanitizeObjectName( FPaths::ChangeExtension( TextureNamePrefix, TEXT( "" ) ) );
 					TextureFileName.RemoveFromStart( TEXT( "_" ) );
-					FString TextureFilePath = FPaths::Combine( TexturesFolder.Path, FString::Printf( TEXT( "%s_%s.png" ), *ObjectTools::SanitizeObjectName( TextureFileName ), *TrimmedPropertyName ) );
+					FString TextureFilePath = FPaths::Combine( TexturesFolder.Path, FString::Printf( TEXT( "%s_%s.png" ), *IUsdClassesModule::SanitizeObjectName( TextureFileName ), *TrimmedPropertyName ) );
 
 					// For some reason the baked samples always have zero alpha and there is nothing we can do about it... It seems like the material baking module is made
 					// with the intent that the data ends up in UTexture2Ds, where they can be set to be compressed without alpha and have the value ignored.

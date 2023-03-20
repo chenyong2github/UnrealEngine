@@ -5,6 +5,7 @@
 #include "GeometryCache.h"
 #include "USDAssetImportData.h"
 #include "USDAttributeUtils.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDInfoCache.h"
 #include "USDIntegrationUtils.h"
@@ -13,8 +14,8 @@
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDPrimConversion.h"
-#include "USDProjectSettings.h"
 #include "USDPrimTwin.h"
+#include "USDProjectSettings.h"
 #include "USDStageActor.h"
 #include "USDTypesConversion.h"
 #include "USDValueConversion.h"
@@ -97,20 +98,6 @@
 
 namespace UsdLevelSequenceHelperImpl
 {
-	// Adapted from ObjectTools as it is within an Editor-only module
-	FString SanitizeObjectName(const FString& InObjectName)
-	{
-		FString SanitizedText = InObjectName;
-		const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
-		while (*InvalidChar)
-		{
-			SanitizedText.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
-			++InvalidChar;
-		}
-
-		return SanitizedText;
-	}
-
 	/**
 	 * Similar to FrameRate.AsFrameNumber(TimeSeconds) except that it uses RoundToDouble instead of FloorToDouble, to
 	 * prevent issues with floating point precision
@@ -1093,8 +1080,12 @@ ULevelSequence* FUsdLevelSequenceHelperImpl::FindOrAddSequenceForLayer(const UE:
 		// which also gives us a stage actor. So if we don't have an actor but have a cache, we're importing
 		const bool bIsImporting = StageActor.IsExplicitlyNull() && InfoCache;
 		FName UniqueSequenceName = bIsImporting
-			? *UsdLevelSequenceHelperImpl::SanitizeObjectName(FPaths::GetBaseFilename(SequenceDisplayName))
-			: MakeUniqueObjectName(GetTransientPackage(), ULevelSequence::StaticClass(), *UsdLevelSequenceHelperImpl::SanitizeObjectName(FPaths::GetBaseFilename(SequenceDisplayName)));
+			? *IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(SequenceDisplayName))
+			: MakeUniqueObjectName(
+				GetTransientPackage(),
+				ULevelSequence::StaticClass(),
+				*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(SequenceDisplayName))
+			);
 
 		Sequence = NewObject< ULevelSequence >(GetTransientPackage(), UniqueSequenceName, FUsdLevelSequenceHelperImpl::DefaultObjFlags);
 		Sequence->Initialize();

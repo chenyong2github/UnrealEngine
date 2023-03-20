@@ -2,9 +2,9 @@
 
 #include "USDGeomXformableTranslator.h"
 
-#include "Engine/Level.h"
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -21,6 +21,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "LiveLinkComponentController.h"
@@ -472,7 +473,11 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 		if ( ComponentType.IsSet() && ComponentType.GetValue() != nullptr )
 		{
-			const FName ComponentName = MakeUniqueObjectName( ComponentOuter, ComponentType.GetValue(), FName( Prim.GetName() ) );
+			const FName ComponentName = MakeUniqueObjectName(
+				ComponentOuter,
+				ComponentType.GetValue(),
+				*IUsdClassesModule::SanitizeObjectName(Prim.GetName().ToString())
+			);
 			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), ComponentName, ComponentFlags );
 
 			if ( AActor* Owner = SceneComponent->GetOwner() )

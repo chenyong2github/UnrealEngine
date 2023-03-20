@@ -25,6 +25,7 @@
 #include "Misc/SecureHash.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Serialization/JsonSerializer.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 
@@ -402,6 +403,19 @@ TSet<UObject*> IUsdClassesModule::GetAssetDependencies(UObject* Asset)
 	}
 
 	return Result;
+}
+
+FString IUsdClassesModule::SanitizeObjectName(const FString& InObjectName)
+{
+	FString SanitizedText = InObjectName;
+	const TCHAR* InvalidChar = INVALID_OBJECTNAME_CHARACTERS;
+	while (*InvalidChar)
+	{
+		SanitizedText.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
+		++InvalidChar;
+	}
+
+	return SanitizedText;
 }
 
 class FUsdClassesModule : public IUsdClassesModule

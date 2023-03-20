@@ -49,7 +49,6 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
-#include "ObjectTools.h"
 #include "PackageTools.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
@@ -190,7 +189,7 @@ namespace UsdStageImporterImpl
 		// We always spawn another scene actor regardless of collision or whether the level already has one,
 		// so that we can fully build our hierarchy separately before resolving collisions according to ExistingActorPolicy
 		AActor* Actor = ImportContext.World->SpawnActor(AActor::StaticClass(), nullptr, SpawnParameters);
-		Actor->SetActorLabel(ObjectTools::SanitizeObjectName(ImportContext.ObjectName));
+		Actor->SetActorLabel(IUsdClassesModule::SanitizeObjectName(ImportContext.ObjectName));
 
 		USceneComponent* RootComponent = Actor->GetRootComponent();
 		if (!RootComponent)
@@ -221,7 +220,7 @@ namespace UsdStageImporterImpl
 	AActor* GetExistingSceneActor(FUsdStageImportContext& ImportContext)
 	{
 		// We always reuse the existing scene actor for a scene, regardless of ReplacePolicy
-		FString TargetActorLabel = ObjectTools::SanitizeObjectName(ImportContext.ObjectName);
+		FString TargetActorLabel = IUsdClassesModule::SanitizeObjectName(ImportContext.ObjectName);
 		for (TActorIterator<AActor> ActorItr(ImportContext.World); ActorItr; ++ActorItr)
 		{
 			AActor* ThisActor = *ActorItr;
@@ -559,7 +558,7 @@ namespace UsdStageImporterImpl
 		// We don't care if our assets overwrite something in the final destination package (that conflict will be
 		// handled according to EReplaceAssetPolicy). But we do want these assets to have unique names amongst themselves
 		// or else they will overwrite each other when publishing
-		AssetName = UsdUtils::GetUniqueName( ObjectTools::SanitizeObjectName( AssetName ), UniqueAssetNames );
+		AssetName = UsdUtils::GetUniqueName(IUsdClassesModule::SanitizeObjectName(AssetName), UniqueAssetNames);
 		UniqueAssetNames.Add(AssetName);
 
 		return AssetName;

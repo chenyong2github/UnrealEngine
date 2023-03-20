@@ -46,4 +46,7 @@ public:
 	 * When given a mesh, will return materials, etc.)
 	 */
 	USDCLASSES_API static TSet<UObject*> GetAssetDependencies(UObject* Asset);
+
+	// Adapted from ObjectTools as it is within an Editor-only module
+	USDCLASSES_API static FString SanitizeObjectName(const FString& InObjectName);
 };

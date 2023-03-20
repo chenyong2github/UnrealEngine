@@ -777,7 +777,11 @@ namespace UsdGeomMeshTranslatorImpl
 		{
 			bOutIsNew = true;
 
-			FName AssetName = MakeUniqueObjectName(GetTransientPackage(), UStaticMesh::StaticClass(), *FPaths::GetBaseFilename(MeshName));
+			FName AssetName = MakeUniqueObjectName(
+				GetTransientPackage(),
+				UStaticMesh::StaticClass(),
+				*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(MeshName))
+			);
 			StaticMesh = NewObject< UStaticMesh >(GetTransientPackage(), AssetName, Context.ObjectFlags | EObjectFlags::RF_Public | EObjectFlags::RF_Transient);
 
 #if WITH_EDITOR
@@ -989,7 +993,11 @@ namespace UsdGeomMeshTranslatorImpl
 		{
 			bOutIsNew = true;
 
-			const FName AssetName = MakeUniqueObjectName(GetTransientPackage(), UGeometryCache::StaticClass(), *FPaths::GetBaseFilename(InPrimPath));
+			const FName AssetName = MakeUniqueObjectName(
+				GetTransientPackage(),
+				UGeometryCache::StaticClass(),
+				*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(InPrimPath))
+			);
 			GeometryCache = NewObject< UGeometryCache >(GetTransientPackage(), AssetName, Context->ObjectFlags | EObjectFlags::RF_Public);
 
 			const UE::FUsdStage& Stage = Context->Stage;

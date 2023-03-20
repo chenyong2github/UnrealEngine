@@ -19,6 +19,7 @@
 
 #include "UnrealUSDWrapper.h"
 #include "USDAssetImportData.h"
+#include "USDClassesModule.h"
 #include "USDGroomConversion.h"
 #include "USDGroomTranslatorUtils.h"
 #include "USDIntegrationUtils.h"
@@ -174,7 +175,11 @@ protected:
 				UGroomAsset* GroomAsset = Cast<UGroomAsset>(Context->AssetCache->GetCachedAsset(SHAHash.ToString()));
 				if (!GroomAsset)
 				{
-					FName AssetName = MakeUniqueObjectName(GetTransientPackage(), UGroomAsset::StaticClass(), *FPaths::GetBaseFilename(PrimPathString));
+					FName AssetName = MakeUniqueObjectName(
+						GetTransientPackage(),
+						UGroomAsset::StaticClass(),
+						*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(PrimPathString))
+					);
 
 					FHairImportContext HairImportContext(ImportOptions.Get(), GetTransientPackage(), UGroomAsset::StaticClass(), AssetName, Context->ObjectFlags | EObjectFlags::RF_Public);
 					UGroomAsset* ExistingAsset = nullptr;
@@ -321,7 +326,11 @@ protected:
 			{
 				const FString StrandsGroomCachePrimPath = UsdGroomTranslatorUtils::GetStrandsGroomCachePrimPath(PrimPath);
 				FHairImportContext HairImportContext(nullptr, GetTransientPackage(), nullptr, FName(), Context->ObjectFlags | EObjectFlags::RF_Public);
-				FName UniqueName = MakeUniqueObjectName(GetTransientPackage(), UGroomCache::StaticClass(), *FPaths::GetBaseFilename(StrandsGroomCachePrimPath));
+				FName UniqueName = MakeUniqueObjectName(
+					GetTransientPackage(),
+					UGroomCache::StaticClass(),
+					*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(StrandsGroomCachePrimPath))
+				);
 
 				// Once the processing has completed successfully, the data is transferred to the GroomCache
 				UGroomCache* GroomCache = FGroomCacheImporter::ProcessToGroomCache(*GroomCacheProcessor, AnimInfo, HairImportContext, UniqueName.ToString());

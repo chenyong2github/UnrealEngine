@@ -6,6 +6,7 @@
 #include "MeshTranslationImpl.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
+#include "USDClassesModule.h"
 #include "USDLog.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
@@ -142,7 +143,9 @@ namespace UE::UsdShadeTranslator::Private
 								const FName NewInstanceName = MakeUniqueObjectName(
 									GetTransientPackage(),
 									UMaterialInstance::StaticClass(),
-									PrimPath.IsEmpty() ? TEXT("MaterialInstance") : *FPaths::GetBaseFilename(PrimPath.GetString())
+									PrimPath.IsEmpty()
+										? TEXT("MaterialInstance")
+										: *IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(PrimPath.GetString()))
 								);
 
 								// For MID we can't swap the reference material, so we need to create a brand new one and copy
@@ -257,7 +260,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		const FName InstanceName = MakeUniqueObjectName(
 			GetTransientPackage(),
 			UMaterialInstance::StaticClass(),
-			*FPaths::GetBaseFilename(PrimPathString)
+			*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(PrimPathString))
 		);
 
 		// TODO: There is an issue here: Note how we're only ever going to write the material prim's primvars into
