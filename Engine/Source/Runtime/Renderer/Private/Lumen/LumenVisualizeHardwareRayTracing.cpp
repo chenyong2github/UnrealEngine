@@ -641,7 +641,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 			PassParameters->NearFieldMaxTraceDistanceDitherScale = Lumen::GetNearFieldMaxTraceDistanceDitherScale(bTraceFarField);
-			PassParameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(bTraceFarField);
+			PassParameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(View, bTraceFarField);
 			PassParameters->ApplySkylightStage = 1;
 
 			if (bNeedTraceHairVoxel)
@@ -826,7 +826,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 			PassParameters->NearFieldMaxTraceDistanceDitherScale = Lumen::GetNearFieldMaxTraceDistanceDitherScale(bTraceFarField);
-			PassParameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(bTraceFarField);
+			PassParameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(View, bTraceFarField);
 			// Even though the retrace should only be processing hits, which don't need skylight, the retrace may miss as it uses a different FRayTracingPipelineState
 			PassParameters->ApplySkylightStage = 1;
 

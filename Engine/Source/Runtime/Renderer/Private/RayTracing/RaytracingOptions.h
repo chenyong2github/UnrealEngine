@@ -17,6 +17,7 @@ class FScene;
 class FSceneView;
 class FSceneViewFamily;
 class FLightSceneProxy;
+struct FEngineShowFlags;
 
 // be sure to also update the definition in the `RayTracingPrimaryRays.usf`
 enum class ERayTracingPrimaryRaysFlag: uint32 
@@ -55,6 +56,19 @@ enum class ERayTracingPipelineCompatibilityFlags
 };
 ENUM_CLASS_FLAGS(ERayTracingPipelineCompatibilityFlags);
 
+namespace RayTracing
+{
+	// Keep in sync with r.RayTracing.Culling
+	enum class ECullingMode : uint8
+	{
+		Disabled,
+		BehindCameraByDistanceAndSolidAngle,
+		DistanceAndSolidAngle,
+		DistanceOrSolidAngle,
+
+		MAX
+	};
+}
 
 #if RHI_RAYTRACING
 
@@ -77,9 +91,13 @@ extern bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& 
 extern bool ShouldRenderPluginRayTracingGlobalIllumination(const FViewInfo& View);
 extern bool HasRayTracedOverlay(const FSceneViewFamily& ViewFamily);
 
+namespace RayTracing
+{
+	extern ECullingMode GetCullingMode(const FEngineShowFlags& ShowFlags);
+}
+
 extern bool EnableRayTracingShadowTwoSidedGeometry();
 extern float GetRaytracingMaxNormalBias();
-extern int32 GetRayTracingCulling();
 extern float GetRayTracingCullingRadius();
 extern bool IsRayTracingInstanceDebugDataEnabled(const FViewInfo& View);
 extern bool IsRayTracingInstanceOverlapEnabled(const FViewInfo& View);
@@ -153,9 +171,12 @@ FORCEINLINE bool HasRayTracedOverlay(const FSceneViewFamily& ViewFamily)
 	return false;
 }
 
-FORCEINLINE int32 GetRayTracingCulling()
+namespace RayTracing
 {
-	return 0;
+	FORCEINLINE ECullingMode GetCullingMode(const FEngineShowFlags& ShowFlags)
+	{
+		return ECullingMode::Disabled;
+	}
 }
 
 FORCEINLINE float GetRayTracingCullingRadius()

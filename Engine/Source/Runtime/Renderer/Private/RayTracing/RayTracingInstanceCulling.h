@@ -11,15 +11,19 @@
 
 class FPrimitiveSceneInfo;
 class FScene;
+struct FEngineShowFlags;
 
 struct FRayTracingCullingParameters;
 
-int32 GetRayTracingCulling();
 float GetRayTracingCullingRadius();
 int32 GetRayTracingCullingPerInstance();
 
 namespace RayTracing
 {
+
+enum class ECullingMode : uint8;
+
+ECullingMode GetCullingMode(const FEngineShowFlags& ShowFlags);
 
 // Tests if a primitive with the given inputs should be considered for culling.  Does NOT test configuration values.  The assumption is that the config values have already been tested.
 bool ShouldConsiderCulling(const FRayTracingCullingParameters& CullingParameters, const FBoxSphereBounds& ObjectBounds, float MinDrawDistance);

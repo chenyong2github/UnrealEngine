@@ -9,7 +9,7 @@
 
 static TAutoConsoleVariable<int32> CVarRayTracingCulling(
 	TEXT("r.RayTracing.Culling"),
-	0,
+	3,
 	TEXT("Enable culling in ray tracing for objects that are behind the camera\n")
 	TEXT(" 0: Culling disabled (default)\n")
 	TEXT(" 1: Culling by distance and solid angle enabled. Only cull objects behind camera.\n")
@@ -25,14 +25,14 @@ static TAutoConsoleVariable<int32> CVarRayTracingCullingPerInstance(
 
 static TAutoConsoleVariable<float> CVarRayTracingCullingRadius(
 	TEXT("r.RayTracing.Culling.Radius"),
-	10000.0f,
-	TEXT("Do camera culling for objects behind the camera outside of this radius in ray tracing effects (default = 10000 (100m))"),
+	30000.0f,
+	TEXT("Do camera culling for objects behind the camera outside of this radius in ray tracing effects (default = 30000 (300m))"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarRayTracingCullingAngle(
 	TEXT("r.RayTracing.Culling.Angle"),
 	1.0f,
-	TEXT("Do camera culling for objects behind the camera with a projected angle smaller than this threshold in ray tracing effects (default = 5 degrees )"),
+	TEXT("Do camera culling for objects behind the camera with a projected angle smaller than this threshold in ray tracing effects (default = 1 degrees)"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarRayTracingCullingUseMinDrawDistance(
@@ -47,9 +47,15 @@ static TAutoConsoleVariable<int32> CVarRayTracingCullingGroupIds(
 	TEXT("Cull using aggregate ray tracing group id bounds when defined instead of primitive or instance bounds."),
 	ECVF_RenderThreadSafe);
 
-int32 GetRayTracingCulling()
+RayTracing::ECullingMode RayTracing::GetCullingMode(const FEngineShowFlags& ShowFlags)
 {
-	return CVarRayTracingCulling.GetValueOnRenderThread();
+	// Disable culling if path tracer is used, so that path tracer matches raster view
+	if (ShowFlags.PathTracing)
+	{
+		return ECullingMode::Disabled;
+	}
+	
+	return (ECullingMode) FMath::Clamp(CVarRayTracingCulling.GetValueOnRenderThread(), 0, int32(ECullingMode::MAX) - 1);
 }
 
 float GetRayTracingCullingRadius()
@@ -64,7 +70,7 @@ int32 GetRayTracingCullingPerInstance()
 
 void FRayTracingCullingParameters::Init(FViewInfo& View)
 {
-	CullInRayTracing = CVarRayTracingCulling.GetValueOnRenderThread();
+	CullingMode = RayTracing::GetCullingMode(View.Family->EngineShowFlags);
 	CullingRadius = CVarRayTracingCullingRadius.GetValueOnRenderThread();
 	FarFieldCullingRadius = Lumen::GetFarFieldMaxTraceDistance();
 	CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
@@ -72,8 +78,8 @@ void FRayTracingCullingParameters::Init(FViewInfo& View)
 	AngleThresholdRatioSq = FMath::Square(AngleThresholdRatio);
 	ViewOrigin = View.ViewMatrices.GetViewOrigin();
 	ViewDirection = View.GetViewDirection();
-	bCullAllObjects = CullInRayTracing == 2 || CullInRayTracing == 3;
-	bCullByRadiusOrDistance = CullInRayTracing == 3;
+	bCullAllObjects = CullingMode == RayTracing::ECullingMode::DistanceAndSolidAngle || CullingMode == RayTracing::ECullingMode::DistanceOrSolidAngle;
+	bCullByRadiusOrDistance = CullingMode == RayTracing::ECullingMode::DistanceOrSolidAngle;
 	bIsRayTracingFarField = Lumen::UseFarField(*View.Family);
 	bCullUsingGroupIds = CVarRayTracingCullingGroupIds.GetValueOnRenderThread() != 0;
 	bCullMinDrawDistance = CVarRayTracingCullingUseMinDrawDistance.GetValueOnRenderThread() != 0;
@@ -159,7 +165,7 @@ bool CullBounds(const FRayTracingCullingParameters& CullingParameters, const FBo
 
 bool ShouldCullBounds(const FRayTracingCullingParameters& CullingParameters, const FBoxSphereBounds& RESTRICT ObjectBounds, float MinDrawDistance, bool bIsFarFieldPrimitive)
 {
-	if (CullingParameters.CullInRayTracing > 0)
+	if (CullingParameters.CullingMode != RayTracing::ECullingMode::Disabled)
 	{
 		const bool bConsiderCulling = CullingParameters.bCullAllObjects || ShouldConsiderCulling(CullingParameters, ObjectBounds, MinDrawDistance);
 

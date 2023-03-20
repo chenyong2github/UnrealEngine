@@ -1501,7 +1501,7 @@ float ComputeMaxCardUpdateDistanceFromCamera(const FViewInfo& View)
 
 #if RHI_RAYTRACING
 	// Limit to ray tracing culling radius if ray tracing is used
-	if (Lumen::UseHardwareRayTracing(*View.Family) && GetRayTracingCulling() != 0)
+	if (Lumen::UseHardwareRayTracing(*View.Family) && RayTracing::GetCullingMode(View.Family->EngineShowFlags) != RayTracing::ECullingMode::Disabled)
 	{
 		MaxCardDistanceFromCamera = GetRayTracingCullingRadius();
 	}

@@ -346,7 +346,7 @@ void DispatchRayGenOrComputeShader(
 
 		// Constants
 		PassParameters->NearFieldMaxTraceDistance = PassParameters->IndirectTracingParameters.MaxTraceDistance;
-		PassParameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(bUseFarField);
+		PassParameters->NearFieldSceneRadius = Lumen::GetNearFieldSceneRadius(View, bUseFarField);
 		PassParameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
 		PassParameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
 		PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();

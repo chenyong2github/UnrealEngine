@@ -1493,7 +1493,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			Experimental::TSherwoodMap<uint64, FAutoInstanceBatch> InstanceBatches;
 
 			TArray<FRayTracingCullPrimitiveInstancesClosure> CullInstancesClosures;
-			if (CullingParameters.CullInRayTracing > 0 && GetRayTracingCullingPerInstance())
+			if (CullingParameters.CullingMode != RayTracing::ECullingMode::Disabled && GetRayTracingCullingPerInstance())
 			{
 				CullInstancesClosures.Reserve(RelevantStaticPrimitives.Num());
 				CullingTasks.Reserve(RelevantStaticPrimitives.Num() / 256 + 1);
@@ -1555,7 +1555,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						const Experimental::FHashElementId GroupId = Scene.PrimitiveRayTracingGroupIds[PrimitiveIndex];
 						const bool bUseGroupBounds = CullingParameters.bCullUsingGroupIds && GroupId.IsValid();
 
-						if (CullingParameters.CullInRayTracing > 0 && GetRayTracingCullingPerInstance() && RelevantPrimitive.CachedRayTracingInstance->NumTransforms > 1 && !bUseGroupBounds)
+						if (CullingParameters.CullingMode != RayTracing::ECullingMode::Disabled && GetRayTracingCullingPerInstance() && RelevantPrimitive.CachedRayTracingInstance->NumTransforms > 1 && !bUseGroupBounds)
 						{
 							const bool bIsFarFieldPrimitive = EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::FarField);
 

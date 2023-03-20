@@ -158,11 +158,11 @@ namespace Lumen
 		return bUseFarField ? CVarLumenFarFieldDitherScale.GetValueOnRenderThread() : 0.0f;
 	}
 
-	float GetNearFieldSceneRadius(bool bUseFarField)
+	float GetNearFieldSceneRadius(const FViewInfo& View, bool bUseFarField)
 	{
 		float SceneRadius = FLT_MAX;
 
-		if (bUseFarField && GetRayTracingCulling() != 0)
+		if (bUseFarField && RayTracing::GetCullingMode(View.Family->EngineShowFlags) != RayTracing::ECullingMode::Disabled)
 		{
 			return GetRayTracingCullingRadius();
 		}
