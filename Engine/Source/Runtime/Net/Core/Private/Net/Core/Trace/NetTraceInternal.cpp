@@ -33,6 +33,7 @@ struct FNetTraceInternal
 		ENetTraceVersion_Initial = 1,
 		ENetTraceVersion_BunchChannelIndex = 2,
 		ENetTraceVersion_BunchChannelInfo = 3,
+		ENetTraceVersion_FixedBunchSizeEncoding = 4,		
 	};
 
 	struct FThreadBuffer
@@ -50,7 +51,7 @@ struct FNetTraceInternal
 	static inline FThreadBuffer* CreateThreadBuffer();
 
 	static inline thread_local TUniquePtr<FThreadBuffer> ThreadBuffer;
-	static constexpr ENetTraceVersion NetTraceVersion = ENetTraceVersion::ENetTraceVersion_BunchChannelInfo;
+	static constexpr ENetTraceVersion NetTraceVersion = ENetTraceVersion::ENetTraceVersion_FixedBunchSizeEncoding;
 };
 
 FNetTraceInternal::FThreadBuffer* FNetTraceInternal::CreateThreadBuffer()

@@ -564,7 +564,7 @@ void FNetTraceCollector::Reset()
 	FNetTrace::TChooseTraceEventScope<Verbosity, decltype(Stream)>::Type ScopeName(GetObjectIdForNetTrace(HandleOrNetGUID), Stream, Collector, Verbosity)
 
 #define UE_NET_TRACE_INTERNAL_NAMED_DYNAMIC_NAME_SCOPE(ScopeName, EventName, Stream, Collector, Verbosity) \
-	auto PREPROCESSOR_JOIN(NetTraceDynamicNameFunc_, __LINE__) = [&]() { return FNetTrace::TraceName(EventName); }; \
+	auto PREPROCESSOR_JOIN(NetTraceDynamicNameFunc_, __LINE__) = [&]() { uint16 NameId = FNetTrace::TraceName(EventName); return NameId; }; \
 	FNetTrace::TChooseTraceEventScope<Verbosity, decltype(Stream)>::Type ScopeName(PREPROCESSOR_JOIN(NetTraceDynamicNameFunc_, __LINE__), Stream, Collector, Verbosity)
 
 #define UE_NET_TRACE_INTERNAL_SET_SCOPE_NAME(ScopeName, EventName) UE_NET_TRACE_DO_IF(ScopeName.IsValid(), ScopeName.SetEventName(FNetTrace::TraceName(EventName)))

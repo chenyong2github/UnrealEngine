@@ -20,6 +20,7 @@ enum ENetTraceAnalyzerVersion
 	ENetTraceAnalyzerVersion_Initial = 1,
 	ENetTraceAnalyzerVersion_BunchChannelIndex = 2,
 	ENetTraceAnalyzerVersion_BunchChannelInfo = 3,
+	ENetTraceAnalyzerVersion_FixedBunchSizeEncoding = 4,		
 };
 
 
@@ -297,8 +298,18 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 			case EContentEventType::BunchEvent:
 			{
 				const uint16 DecodedNameId = IntCastChecked<uint16>(FTraceAnalyzerUtils::Decode7bit(BufferPtr));
-				const uint32 DecodedEventStartPos = IntCastChecked<uint32>(FTraceAnalyzerUtils::Decode7bit(BufferPtr));
-				const uint32 DecodedEventEndPos = IntCastChecked<uint32>(FTraceAnalyzerUtils::Decode7bit(BufferPtr)) + DecodedEventStartPos;
+
+				uint32 DecodedBunchBits = 0U;
+				if (NetTraceVersion >= ENetTraceAnalyzerVersion_FixedBunchSizeEncoding)
+				{
+					DecodedBunchBits = IntCastChecked<uint32>(FTraceAnalyzerUtils::Decode7bit(BufferPtr));
+				}
+				else
+				{
+					const uint64 DecodedEventStartPos = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+					const uint64 DecodedEventEndPos = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+					DecodedBunchBits = IntCastChecked<uint32>((uint32)DecodedEventEndPos + (uint32)DecodedEventStartPos);
+				}
 
 				const uint32* NetProfilerNameIndex = DecodedNameId ? TracedNameIdToNetProfilerNameIdMap.Find(DecodedNameId) : nullptr;
 
@@ -306,7 +317,7 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 
 				BunchInfo.BunchInfo.Value = 0;
 				BunchInfo.HeaderBits = 0U;
-				BunchInfo.BunchBits = DecodedEventEndPos;
+				BunchInfo.BunchBits = DecodedBunchBits;
 				BunchInfo.FirstBunchEventIndex = Events.Num();
 				BunchInfo.NameIndex = NetProfilerNameIndex ? IntCastChecked<uint16>(*NetProfilerNameIndex) : 0U;
 

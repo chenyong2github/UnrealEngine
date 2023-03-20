@@ -247,14 +247,12 @@ void FNetTraceReporter::ReportPacketContent(FNetTracePacketContentEvent* Events,
 			case ENetTracePacketContentEventType::BunchEvent:
 			{
 				// DebugName
-				uint32 EventId = CurrentEvent.DebugNameId;
+				const uint32 EventId = CurrentEvent.DebugNameId;
 				FTraceUtils::Encode7bit(EventId, BufferPtr);
 
-				// Start, do not delta compress as we have to deal with overshoot of previous bunch
-				FTraceUtils::Encode7bit(CurrentEvent.StartPos, BufferPtr);
-
-				// End
-				FTraceUtils::Encode7bit(CurrentEvent.EndPos - CurrentEvent.StartPos, BufferPtr);
+				// BunchSize
+				const uint32 BunchSize = CurrentEvent.EndPos;
+				FTraceUtils::Encode7bit(BunchSize, BufferPtr);
 
 				// Must reset LastOffest when we begin a new bunch
 				LastOffset = 0U;
