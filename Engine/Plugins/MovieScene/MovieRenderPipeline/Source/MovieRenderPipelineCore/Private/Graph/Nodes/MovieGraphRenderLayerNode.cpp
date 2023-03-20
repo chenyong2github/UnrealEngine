@@ -40,9 +40,17 @@ TArray<FPropertyBagPropertyDesc> UMovieGraphRenderLayerNode::GetDynamicPropertyD
 }
 
 #if WITH_EDITOR
-FText UMovieGraphRenderLayerNode::GetMenuDescription() const
+FText UMovieGraphRenderLayerNode::GetNodeTitle(const bool bGetDescriptive) const
 {
-	return NSLOCTEXT("MovieGraphNodes", "RenderLayerGraphNode_Description", "Render Layer");
+	static const FText RenderLayerNodeName = NSLOCTEXT("MovieGraphNodes", "NodeName_RenderLayer", "Render Layer");
+	static const FText RenderLayerNodeDescription = NSLOCTEXT("MovieGraphNodes", "NodeDescription_RenderLayer", "Render Layer\n{0}");
+
+	if (bGetDescriptive && !LayerName.IsEmpty())
+	{
+		return FText::Format(RenderLayerNodeDescription, FText::FromString(LayerName));
+	}
+	
+	return RenderLayerNodeName;
 }
 
 FText UMovieGraphRenderLayerNode::GetMenuCategory() const
@@ -62,5 +70,15 @@ FSlateIcon UMovieGraphRenderLayerNode::GetIconAndTint(FLinearColor& OutColor) co
 
 	OutColor = FLinearColor::White;
 	return RenderLayerIcon;
+}
+
+void UMovieGraphRenderLayerNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMovieGraphRenderLayerNode, LayerName))
+	{
+		OnNodeChangedDelegate.Broadcast(this);
+	}
 }
 #endif // WITH_EDITOR

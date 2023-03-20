@@ -24,7 +24,7 @@ public:
 	void SetVariable(UMovieGraphVariable* InVariable);
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;

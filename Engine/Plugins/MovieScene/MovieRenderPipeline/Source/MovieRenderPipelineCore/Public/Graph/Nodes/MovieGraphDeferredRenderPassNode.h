@@ -50,7 +50,7 @@ class UMovieGraphDeferredRenderPassNode : public UMovieGraphRenderPassNode
 	GENERATED_BODY()
 public:
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override
 	{
 		return NSLOCTEXT("MovieGraphNodes", "DeferredRenderPassGraphNode_Description", "Deferred Renderer");
 	}

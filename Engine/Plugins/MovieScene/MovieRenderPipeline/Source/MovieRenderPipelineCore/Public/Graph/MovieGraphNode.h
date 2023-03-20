@@ -116,7 +116,13 @@ public:
 #endif
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const PURE_VIRTUAL(UMovieGraphNode::GetMenuDescription, return FText(););
+	/**
+	 * Gets the node's title. Optionally gets a more descriptive, multi-line title for the node if bGetDescriptive is
+	 * set to true.
+	 */
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const PURE_VIRTUAL(UMovieGraphNode::GetNodeTitle, return FText(););
+
+	/** Gets the category that the node belongs under. */
 	virtual FText GetMenuCategory() const PURE_VIRTUAL(UMovieGraphNode::GetMenuCategory, return FText(); );
 #endif
 

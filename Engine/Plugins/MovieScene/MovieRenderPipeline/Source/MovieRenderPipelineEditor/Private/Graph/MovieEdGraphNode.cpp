@@ -120,10 +120,11 @@ FText UMoviePipelineEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 {
 	if (RuntimeNode)
 	{
-		return RuntimeNode->GetMenuDescription();
+		const bool bGetDescriptive = true;
+		return RuntimeNode->GetNodeTitle(bGetDescriptive);
 	}
 
-	return LOCTEXT("GraphTestTitle", "TestTitle");
+	return LOCTEXT("UnknownNodeTitle", "Unknown");
 }
 
 FText UMoviePipelineEdGraphNode::GetTooltipText() const

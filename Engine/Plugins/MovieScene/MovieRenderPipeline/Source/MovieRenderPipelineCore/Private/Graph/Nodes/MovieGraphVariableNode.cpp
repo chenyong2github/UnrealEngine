@@ -44,7 +44,7 @@ void UMovieGraphVariableNode::SetVariable(UMovieGraphVariable* InVariable)
 }
 
 #if WITH_EDITOR
-FText UMovieGraphVariableNode::GetMenuDescription() const
+FText UMovieGraphVariableNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	return GraphVariable ? FText::FromString(GraphVariable->Name) : FText();
 }

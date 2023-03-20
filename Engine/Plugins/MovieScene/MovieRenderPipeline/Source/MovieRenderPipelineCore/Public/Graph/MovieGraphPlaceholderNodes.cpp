@@ -29,9 +29,16 @@ TArray<FMovieGraphPinProperties> UMoviePipelineCollectionNode::GetOutputPinPrope
 }
 
 #if WITH_EDITOR
-FText UMoviePipelineCollectionNode::GetMenuDescription() const
+FText UMoviePipelineCollectionNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText CollectionNodeName = LOCTEXT("NodeName_Collection", "Collection");
+	static const FText CollectionNodeDescription = LOCTEXT("NodeDescription_Collection", "Collection\n{0}");
+
+	if (bGetDescriptive && !CollectionName.IsEmpty())
+	{
+		return FText::Format(CollectionNodeDescription, FText::FromString(CollectionName));
+	}
+
 	return CollectionNodeName;
 }
 
@@ -53,6 +60,16 @@ FSlateIcon UMoviePipelineCollectionNode::GetIconAndTint(FLinearColor& OutColor) 
 	OutColor = FLinearColor::White;
 	return CollectionIcon;
 }
+
+void UMoviePipelineCollectionNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMoviePipelineCollectionNode, CollectionName))
+	{
+		OnNodeChangedDelegate.Broadcast(this);
+	}
+}
 #endif // WITH_EDITOR
 
 TArray<FMovieGraphPinProperties> UMovieGraphModifierNode::GetInputPinProperties() const
@@ -70,9 +87,16 @@ TArray<FMovieGraphPinProperties> UMovieGraphModifierNode::GetOutputPinProperties
 }
 
 #if WITH_EDITOR
-FText UMovieGraphModifierNode::GetMenuDescription() const
+FText UMovieGraphModifierNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText ModifierNodeName = LOCTEXT("NodeName_Modifier", "Modifier");
+	static const FText ModifierNodeDescription = LOCTEXT("NodeDescription_Modifier", "Modifier\n{0} - {1}");
+
+	if (bGetDescriptive && !ModifiedCollectionName.IsEmpty() && !ModifierName.IsEmpty())
+	{
+		return FText::Format(ModifierNodeDescription, FText::FromString(ModifiedCollectionName), FText::FromString(ModifierName));
+	}
+
 	return ModifierNodeName;
 }
 
@@ -94,6 +118,17 @@ FSlateIcon UMovieGraphModifierNode::GetIconAndTint(FLinearColor& OutColor) const
 	OutColor = FLinearColor::White;
 	return ModifierIcon;
 }
+
+void UMovieGraphModifierNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if ((PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMovieGraphModifierNode, ModifierName)) ||
+		(PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMovieGraphModifierNode, ModifiedCollectionName)))
+	{
+		OnNodeChangedDelegate.Broadcast(this);
+	}
+}
 #endif // WITH_EDITOR
 
 TArray<FMovieGraphPinProperties> UMovieGraphGlobalGameOverridesNode::GetInputPinProperties() const
@@ -111,7 +146,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphGlobalGameOverridesNode::GetOutputPi
 }
 
 #if WITH_EDITOR
-FText UMovieGraphGlobalGameOverridesNode::GetMenuDescription() const
+FText UMovieGraphGlobalGameOverridesNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText GlobalGameOverridesNodeName = LOCTEXT("NodeName_GlobalGameOverrides", "Global Game Overrides");
 	return GlobalGameOverridesNodeName;
@@ -152,7 +187,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphDeferredRendererNode::GetOutputPinPr
 }
 
 #if WITH_EDITOR
-FText UMovieGraphDeferredRendererNode::GetMenuDescription() const
+FText UMovieGraphDeferredRendererNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText DeferredRendererNodeName = LOCTEXT("NodeName_DeferredRenderer", "Deferred Renderer");
 	return DeferredRendererNodeName;
@@ -193,7 +228,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphPathTracedRendererNode::GetOutputPin
 }
 
 #if WITH_EDITOR
-FText UMovieGraphPathTracedRendererNode::GetMenuDescription() const
+FText UMovieGraphPathTracedRendererNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText PathTracedRendererNodeName = LOCTEXT("NodeName_PathTracedRenderer", "Path Traced Renderer");
 	return PathTracedRendererNodeName;
@@ -234,7 +269,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphEXRSequenceNode::GetOutputPinPropert
 }
 
 #if WITH_EDITOR
-FText UMovieGraphEXRSequenceNode::GetMenuDescription() const
+FText UMovieGraphEXRSequenceNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText EXRSequenceNodeName = LOCTEXT("NodeName_EXRSequence", "EXR Sequence");
 	return EXRSequenceNodeName;
@@ -275,7 +310,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphJPGSequenceNode::GetOutputPinPropert
 }
 
 #if WITH_EDITOR
-FText UMovieGraphJPGSequenceNode::GetMenuDescription() const
+FText UMovieGraphJPGSequenceNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText JPGSequenceNodeName = LOCTEXT("NodeName_JPGSequence", "JPG Sequence");
 	return JPGSequenceNodeName;
@@ -322,7 +357,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphBranchNode::GetOutputPinProperties()
 }
 
 #if WITH_EDITOR
-FText UMovieGraphBranchNode::GetMenuDescription() const
+FText UMovieGraphBranchNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText BranchNodeName = LOCTEXT("NodeName_Branch", "Branch");
 	return BranchNodeName;
@@ -348,6 +383,77 @@ FSlateIcon UMovieGraphBranchNode::GetIconAndTint(FLinearColor& OutColor) const
 }
 #endif // WITH_EDITOR
 
+TArray<FMovieGraphPinProperties> UMovieGraphSelectNode::GetInputPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> Properties;
+
+	// Generate branch pins for each option
+	for (const FString& SelectOption : SelectOptions)
+	{
+		Properties.Add(FMovieGraphPinProperties(FName(SelectOption), EMovieGraphMemberType::Branch, false));
+	}
+
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::String, false));
+	
+	return Properties;
+}
+
+TArray<FMovieGraphPinProperties> UMovieGraphSelectNode::GetOutputPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> Properties;
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	return Properties;
+}
+
+#if WITH_EDITOR
+FText UMovieGraphSelectNode::GetNodeTitle(const bool bGetDescriptive) const
+{
+	static const FText SelectNodeName = LOCTEXT("NodeName_Select", "Select");
+	static const FText SelectNodeDescription = LOCTEXT("NodeDescription_Select", "Select\n{0}");
+
+	if (bGetDescriptive && !Description.IsEmpty())
+	{
+		return FText::Format(SelectNodeDescription, FText::FromString(Description));
+	}
+
+	return SelectNodeName;
+}
+
+FText UMovieGraphSelectNode::GetMenuCategory() const
+{
+	return NodeCategory_Conditionals;
+}
+
+FLinearColor UMovieGraphSelectNode::GetNodeTitleColor() const
+{
+	static const FLinearColor SelectNodeColor = FLinearColor(0.266f, 0.266f, 0.266f);
+	return SelectNodeColor;
+}
+
+FSlateIcon UMovieGraphSelectNode::GetIconAndTint(FLinearColor& OutColor) const
+{
+	static const FSlateIcon SelectIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Merge");
+
+	OutColor = FLinearColor::White;
+	return SelectIcon;
+}
+
+void UMovieGraphSelectNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMovieGraphSelectNode, SelectOptions))
+	{
+		UpdatePins();
+	}
+	
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMovieGraphSelectNode, Description))
+	{
+		OnNodeChangedDelegate.Broadcast(this);
+	}
+}
+#endif // WITH_EDITOR
+
 TArray<FMovieGraphPinProperties> UMovieGraphOutputSettingsNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
@@ -363,7 +469,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphOutputSettingsNode::GetOutputPinProp
 }
 
 #if WITH_EDITOR
-FText UMovieGraphOutputSettingsNode::GetMenuDescription() const
+FText UMovieGraphOutputSettingsNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText OutputSettingsNodeName = LOCTEXT("NodeName_OutputSettings", "Output Settings");
 	return OutputSettingsNodeName;
@@ -404,7 +510,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphAntiAliasingNode::GetOutputPinProper
 }
 
 #if WITH_EDITOR
-FText UMovieGraphAntiAliasingNode::GetMenuDescription() const
+FText UMovieGraphAntiAliasingNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	static const FText AntiAliasingNodeName = LOCTEXT("NodeName_AntiAliasing", "Anti-Aliasing");
 	return AntiAliasingNodeName;

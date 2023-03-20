@@ -12,6 +12,7 @@ UCLASS()
 class MOVIERENDERPIPELINECORE_API UMoviePipelineCollectionNode : public UMovieGraphNode
 {
 	GENERATED_BODY()
+
 public:
 	UMoviePipelineCollectionNode() = default;
 
@@ -34,11 +35,19 @@ public:
 	}
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
+
+	//~ Begin UObject interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject interface
 #endif
+
+	/** The name of this collection, which is used to reference this collection in the graph. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	FString CollectionName;
 };
 
 /** A node which modifies part of the world being rendered. */
@@ -54,11 +63,24 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
+
+	//~ Begin UObject interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject interface
 #endif
+
+	// TODO: Temporary - The modifier name will come from the specific specialized modifier node type (eg, MaterialModifier) in the future
+	/** The name of this modifier. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	FString ModifierName;
+
+	/** The name of the collection being modified. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	FString ModifiedCollectionName;
 };
 
 /** A node which configures the global game overrides. */
@@ -74,7 +96,7 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
@@ -94,7 +116,7 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
@@ -114,7 +136,7 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
@@ -134,7 +156,7 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
@@ -154,7 +176,7 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
@@ -174,11 +196,48 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 #endif
+};
+
+// TODO: Currently this node is restricted to just accepting string-based options.
+/** A node which creates a condition that selects from a set of input branches. */
+UCLASS()
+class MOVIERENDERPIPELINECORE_API UMovieGraphSelectNode : public UMovieGraphNode
+{
+	GENERATED_BODY()
+
+public:
+	UMovieGraphSelectNode() = default;
+
+	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
+	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
+
+#if WITH_EDITOR
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
+	virtual FText GetMenuCategory() const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
+
+	//~ Begin UObject interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject interface
+#endif
+
+	/** The values of options which can be selected. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	TArray<FString> SelectOptions;
+
+	/** The value of the option which has been selected. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	FString SelectedOption;
+
+	/** A description of what this select is doing. */
+	UPROPERTY(EditAnywhere, Category = "General")
+	FString Description;
 };
 
 /** A node which configures output settings. */
@@ -194,7 +253,7 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
@@ -214,7 +273,7 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
-	virtual FText GetMenuDescription() const override;
+	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;

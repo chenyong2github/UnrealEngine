@@ -35,7 +35,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphInputNode::GetOutputPinProperties() 
 }
 
 #if WITH_EDITOR
-FText UMovieGraphInputNode::GetMenuDescription() const
+FText UMovieGraphInputNode::GetNodeTitle(const bool bGetDescriptive) const
 {
 	return NSLOCTEXT("MovieGraphNodes", "InputNode_Description", "Input");
 }
