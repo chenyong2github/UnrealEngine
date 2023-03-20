@@ -205,7 +205,7 @@ float CalcTransmissionThickness(float3 WorldNormal, FTransmissionProfileParams T
 		{
 			float2 DeltUv = DiscSamples5[i] * ShadowFilterRadius;
 			float3 SamplePos = NormalizedLightVector + SideVector * DeltUv.x + UpVector * DeltUv.y;
-	#if OPENGL_PROFILE || COMPILER_VULKAN || COMPILER_SWITCH
+	#if USE_SEPARATE_SHADOW_DEPTH_CUBE_TEXTURE
 			float ShadowSample = TextureCubeSampleLevel(ShadowDepthCubeTexture2, ShadowDepthTextureSampler, SamplePos, 0.0).r;
 	#else
             float ShadowSample = TextureCubeSampleDepthLevel(ShadowDepthCubeTexture, ShadowDepthTextureSampler, SamplePos, 0.0);

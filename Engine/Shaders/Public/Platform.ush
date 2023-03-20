@@ -277,6 +277,26 @@ float2 UnpackFloat2FromUInt(uint In)
 	#define UB_CB_NAME(X) X
 #endif
 
+#ifndef PLATFORM_NEEDS_DEPTH_TEXTURE_READS
+#define PLATFORM_NEEDS_DEPTH_TEXTURE_READS 0
+#endif
+
+#ifndef PLATFORM_NEEDS_SELECT_UINT
+#define PLATFORM_NEEDS_SELECT_UINT 0
+#endif
+
+#ifndef PLATFORM_NEEDS_SEPARATE_SHADOW_DEPTH_CUBE_TEXTURE
+#define PLATFORM_NEEDS_SEPARATE_SHADOW_DEPTH_CUBE_TEXTURE 0
+#endif
+
+#ifndef PLATFORM_SUPPORTS_STRATA_UINT1
+#define PLATFORM_SUPPORTS_STRATA_UINT1 1
+#endif
+
+#ifndef COMPILER_NEEDS_DETERMINANT
+#define COMPILER_NEEDS_DETERMINANT 0
+#endif
+
 // ---------------------------------------------------- Alternative floating point types
 
 #ifndef FORCE_FLOATS
@@ -803,7 +823,7 @@ void WriteDispatchIndirectArgs(RWBuffer<uint> RWIndirectDispatchArgsBuffer, in u
 
 // ---------------------------------------------------- Compiler missing implementations
 
-#if COMPILER_SWITCH
+#if COMPILER_NEEDS_DETERMINANT
 
 	float determinant(float3x3 M)
 	{
@@ -988,7 +1008,7 @@ half4 max3( half4 a, half4 b, half4 c )
 	TYPE##4 select_internal(bool4   c, TYPE##4 a, TYPE##4 b) { return TYPE##4(c.x ? a.x : b.x, c.y ? a.y : b.y, c.z ? a.z : b.z, c.w ? a.w : b.w); } \
 
 DEFINE_SELECT(bool)
-#if !(COMPILER_HLSL || COMPILER_DXC || COMPILER_HLSLCC) || COMPILER_SWITCH
+#if !(COMPILER_HLSL || COMPILER_DXC || COMPILER_HLSLCC) || PLATFORM_NEEDS_SELECT_UINT
 // @todo-lh: Ambiguous for DXC and HLSLcc if no suffix is provided for integer literals
 DEFINE_SELECT(uint)
 #endif

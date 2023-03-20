@@ -16,8 +16,9 @@ float4 ShadowBufferSize;
 /** Cube map texture. */
 TextureCube ShadowDepthCubeTexture;
 
-#if OPENGL_PROFILE || COMPILER_VULKAN || COMPILER_SWITCH
 // This is required on GLSL based languages as the standard does NOT allow having a texture being used with both a Comparison and regular SamplerState
+#define USE_SEPARATE_SHADOW_DEPTH_CUBE_TEXTURE (OPENGL_PROFILE || COMPILER_VULKAN || PLATFORM_NEEDS_SEPARATE_SHADOW_DEPTH_CUBE_TEXTURE)
+#if USE_SEPARATE_SHADOW_DEPTH_CUBE_TEXTURE
 TextureCube ShadowDepthCubeTexture2;
 #endif
 

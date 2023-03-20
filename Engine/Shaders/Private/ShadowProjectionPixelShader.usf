@@ -421,7 +421,7 @@ void MainOnePassPointLightPS(
 	float3 WorldSampleToLightVec = LightPositionAndInvRadius.xyz - TranslateWorldPosition.xyz;
 #if OUTPUT_CUBE_SHADOW_DEPTH_NO_FILTERING
 	// Note: point light shadow depth is Z / W, not linear
-#if OPENGL_PROFILE || COMPILER_VULKAN || COMPILER_SWITCH
+#if USE_SEPARATE_SHADOW_DEPTH_CUBE_TEXTURE
 	float Shadow = TextureCubeSampleLevel(ShadowDepthCubeTexture2, ShadowDepthTextureSampler, WorldSampleToLightVec, 0);
 #else
 	float Shadow = TextureCubeSampleLevel(ShadowDepthCubeTexture, ShadowDepthTextureSampler, WorldSampleToLightVec, 0);

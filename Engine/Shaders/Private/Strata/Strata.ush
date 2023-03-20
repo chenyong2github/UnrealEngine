@@ -1723,7 +1723,7 @@ FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer(RWTexture2DArray<
 
 void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, RWTexture2DArray<uint> ExtraMaterialDataUAV, inout FStrataAddressing StrataAddressing, uint Data)
 {
-  #if !COMPILER_SWITCH
+  #if PLATFORM_SUPPORTS_STRATA_UINT1
 	// We heavily rely on the compiler to optimize out the if code
 	if (StrataAddressing.CurrentIndex < STRATA_BASE_PASS_MRT_OUTPUT_COUNT)
 	{
@@ -1739,7 +1739,7 @@ void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, RWTexture2D
 		ExtraMaterialDataUAV[uint3(StrataAddressing.PixelCoords, StrataAddressing.CurrentIndex - STRATA_BASE_PASS_MRT_OUTPUT_COUNT)] = Data;
 	}
 	StrataAddressing.CurrentIndex++;
-  #endif // !COMPILER_SWITCH
+  #endif // PLATFORM_SUPPORTS_STRATA_UINT1
 }
 
 #define STRATA_STORE_UINT1(x)	StrataStoreUint1(StrataBuffer, ExtraMaterialDataUAV, StrataAddressing, x)
@@ -1797,7 +1797,7 @@ void FinalizeWrites(inout FRWStrataMaterialContainer StrataBuffer, inout FStrata
 uint StrataLoadUint1(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
 	uint Data = 0;
-  #if !COMPILER_SWITCH
+  #if PLATFORM_SUPPORTS_STRATA_UINT1
 	#if STRATA_MATERIALCONTAINER_IS_WRITABLE
 	Data = StrataBuffer[uint3(StrataAddressing.PixelCoords, StrataAddressing.CurrentIndex)];
 	#else
@@ -1813,7 +1813,7 @@ uint StrataLoadUint1(FStrataMaterialContainer StrataBuffer, inout FStrataAddress
 uint StrataLoadUint1AtIndexOffset(in FStrataMaterialContainer StrataBuffer, in FStrataAddressing StrataAddressing, uint IndexOffset)
 {
 	uint Data = 0;
-  #if !COMPILER_SWITCH
+  #if PLATFORM_SUPPORTS_STRATA_UINT1
 	#if STRATA_MATERIALCONTAINER_IS_WRITABLE
 	Data = StrataBuffer[uint3(StrataAddressing.PixelCoords, IndexOffset)];
 	#else
