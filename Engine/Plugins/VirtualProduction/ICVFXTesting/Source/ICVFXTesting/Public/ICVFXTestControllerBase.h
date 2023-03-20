@@ -56,6 +56,9 @@ public:
 	bool TryStartingVideoCapture();
 	bool TryFinalizingVideoCapture(const bool bStopAutoContinue = false);
 
+public:
+	FString DisplayClusterUObjectPath;
+
 private:
 	float WarnStuckTime;
 	float NextWarnStuckTime;

@@ -3,24 +3,98 @@
 using AutomationTool;
 using EpicGames.Core;
 using Gauntlet;
+using ICVFXTest.Switchboard;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using UnrealBuildBase;
 using UnrealBuildTool;
 using Log = EpicGames.Core.Log;
 
 namespace ICVFXTest
 {
+	namespace NDisplay
+	{
+		public class NDisplayInnerObject
+		{
+			[JsonPropertyName("assetPath")]
+			public string AssetPath { get; set; }
+		}
+
+		public class NDisplayConfig
+		{
+			[JsonPropertyName("nDisplay")]
+			public NDisplayInnerObject InnerConfig { get; set; }
+		}
+	}
+
+	namespace Switchboard
+	{
+		public class NDisplayDeviceSetting
+		{
+			[JsonPropertyName("ndisplay_cfg_file")]
+			public string DisplayConfigFile { get; set; }
+
+			[JsonPropertyName("primary_device_name")]
+			public string PrimaryDeviceName { get; set; }
+		}
+
+		public class NdisplaySettings
+		{
+			[JsonPropertyName("settings")]
+			public NDisplayDeviceSetting Settings { get; set; }
+		}
+
+		public class NDisplayConfig
+		{
+			[JsonPropertyName("nDisplay")]
+			public NdisplaySettings DeviceSettings { get; set; }
+		}
+
+		/// <summary>
+		/// Represents a config output by switchboard.
+		/// </summary>
+		public class SwitchboardConfig
+		{
+			public string ConfigName { get; set; }
+
+			[JsonPropertyName("project_name")]
+			public string ProjectName { get; set; }
+
+			[JsonPropertyName("uproject")]
+			public string ProjectPath { get; set; }
+
+			[JsonPropertyName("devices")]
+			public NDisplayConfig Devices { get; set; }
+		}
+
+
+		public class UserSettings
+		{
+			[JsonPropertyName("config")]
+			public string LastUsedConfig { get; set; }
+
+			[JsonPropertyName("last_browsed_path")]
+			public string LastBrowsedPath { get; set; }
+		}
+	}
+
 	/// <summary>
 	/// CI testing
 	/// </summary>
 	public class PerformanceReport : AutoTest
 	{
+		private static ILogger Logger => Log.Logger;
+		
 		public PerformanceReport(UnrealTestContext InContext)
 			: base(InContext)
 		{
+			FindSwitchboardConfigs();
 		}
 
 		public override ICVFXTestConfig GetConfiguration()
@@ -28,8 +102,9 @@ namespace ICVFXTest
 			ICVFXTestConfig Config = base.GetConfiguration();
 			UnrealTestRole ClientRole = Config.RequireRole(UnrealTargetRole.Client);
 			ClientRole.CommandLineParams.Add("csvGpuStats");
-			ClientRole.CommandLineParams.Add("csvMetadata", $"\"testname=${Config.TestName}\"");
+			ClientRole.CommandLineParams.Add("csvMetadata", $"\"testname={Config.TestName}\"");
 			ClientRole.CommandLineParams.AddOrAppendParamValue("execcmds", "t.FPSChart.DoCSVProfile 1");
+			ClientRole.CommandLineParams.AddOrAppendParamValue("execcmds", "t.FPSChart.OpenFolderOnDump 0");
 			ClientRole.CommandLineParams.Add("ICVFXTest.FPSChart");
 
 			return Config;
@@ -38,6 +113,100 @@ namespace ICVFXTest
 		protected override void InitHandledErrors()
         {
 			base.InitHandledErrors();
+		}
+
+		public override string GetDisplayClusterUAssetPath(in string NDisplayJsonFile)
+		{
+			var NDisplayJsonFullPath = Path.Combine(Unreal.RootDirectory.FullName, NDisplayJsonFile);
+			string Text = File.ReadAllText(NDisplayJsonFullPath);
+			NDisplay.NDisplayConfig DisplayConfig = JsonSerializer.Deserialize<NDisplay.NDisplayConfig>(Text);
+			return DisplayConfig.InnerConfig.AssetPath;
+		}
+
+		void FindSwitchboardConfigs()
+		{
+			var SwitchboardConfigsFolder = Path.Combine(Unreal.RootDirectory.FullName, "Engine", "Plugins", "VirtualProduction", "Switchboard", "Source", "Switchboard", "configs");
+			if (Directory.Exists(SwitchboardConfigsFolder))
+			{
+				string[] FileEntries = Directory.GetFiles(SwitchboardConfigsFolder);
+
+				List<SwitchboardConfig> ConfigsForProject = new List<SwitchboardConfig>();
+
+				string LastConfigName = "";
+
+				foreach (string ConfigFile in FileEntries)
+				{
+					string Text = File.ReadAllText(ConfigFile);
+
+					if (ConfigFile.EndsWith("user_settings.json"))
+					{
+						var UserConfig = JsonSerializer.Deserialize<Switchboard.UserSettings>(Text);
+						LastConfigName = UserConfig.LastUsedConfig;
+						Logger.LogInformation($"Last config used: {LastConfigName}");
+						continue;
+					}
+
+					var Config = JsonSerializer.Deserialize<Switchboard.SwitchboardConfig>(Text);
+					Config.ConfigName = Path.GetFileName(ConfigFile);
+
+					if (Config.ProjectName == Context.Options.Project)
+					{
+						ConfigsForProject.Add(Config);
+					}
+				}
+				
+				Logger.LogInformation($"Detected {ConfigsForProject.Count} switchboard configs for this project.");
+
+				foreach (SwitchboardConfig Config in ConfigsForProject)
+				{
+					Logger.LogInformation($"\t{Config.ConfigName}");
+
+					if (!String.IsNullOrEmpty(LastConfigName) && Config.ConfigName == LastConfigName)
+					{
+						Logger.LogInformation($"Last NDisplay Config used: {Config.Devices.DeviceSettings.Settings.DisplayConfigFile}");
+						Logger.LogInformation($"Found DisplayConfigFile {Config.Devices.DeviceSettings.Settings.DisplayConfigFile}");
+						OverrideDisplayConfigPath = Config.Devices.DeviceSettings.Settings.DisplayConfigFile;
+
+						Logger.LogInformation($"Using autodetected DisplayConfig Node: {Config.Devices.DeviceSettings.Settings.PrimaryDeviceName}");
+						OverrideDisplayClusterNode = Config.Devices.DeviceSettings.Settings.PrimaryDeviceName;
+						break;
+					}
+				}
+
+				if ((string.IsNullOrEmpty(OverrideDisplayConfigPath) || string.IsNullOrEmpty(OverrideDisplayClusterNode)) && ConfigsForProject.Count() != 0)
+				{
+					// Fallback to first config that we found from switchboard.
+					SwitchboardConfig FirstConfig = ConfigsForProject.First();
+
+					if (string.IsNullOrEmpty(OverrideDisplayConfigPath))
+					{
+						Logger.LogInformation($"Using autodetected DisplayConfigFile {FirstConfig.Devices.DeviceSettings.Settings.DisplayConfigFile}");
+						OverrideDisplayConfigPath = FirstConfig.Devices.DeviceSettings.Settings.DisplayConfigFile;
+					}
+
+					if (string.IsNullOrEmpty(OverrideDisplayClusterNode))
+					{
+						Logger.LogInformation($"Using autodetected DisplayConfig Node: {FirstConfig.Devices.DeviceSettings.Settings.PrimaryDeviceName}");
+						OverrideDisplayClusterNode = FirstConfig.Devices.DeviceSettings.Settings.PrimaryDeviceName;
+					}
+				}
+			}
+
+			if (string.IsNullOrEmpty(OverrideDisplayClusterNode))
+			{
+				// Fallback to node_0 if we don't find anything.
+				OverrideDisplayClusterNode = "node_0";
+			}
+		}
+
+		public override string GetDisplayConfigPath()
+		{
+			return OverrideDisplayConfigPath;
+		}
+
+		public override string GetDisplayClusterNode()
+		{
+			return OverrideDisplayClusterNode;
 		}
 
 		/// <summary>
@@ -56,7 +225,7 @@ namespace ICVFXTest
 			var ToolPath = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "DotNET", "CsvTools", "PerfreportTool.exe");
 			if (!FileReference.Exists(ToolPath))
 			{
-				Log.TraceError($"Failed to find perf report utility at this path: \"{ToolPath}\".");
+				Logger.LogError($"Failed to find perf report utility at this path: \"{ToolPath}\".");
 				return;
 			}
 			var ReportConfigDir = Path.Combine(Unreal.RootDirectory.FullName, "Engine", "Plugins", "VirtualProduction", "ICVFXTesting", "Build", "Scripts", "PerfReport");
@@ -65,7 +234,7 @@ namespace ICVFXTest
 		var CsvsPaths = new[]
 			{
 				Path.Combine(ArtifactPath, "EditorGame", "Profiling", "FPSChartStats"),
-				Path.Combine(ArtifactPath, "EditorGame", "Settings", $"{GetConfiguration().ProjectName}", "Saved", "Profiling", "FPSChartStats"),
+				Path.Combine(ArtifactPath, "EditorGame", "Settings", $"{Context.Options.Project}", "Saved", "Profiling", "FPSChartStats"),
 				Path.Combine(TempDir, "DeviceCache", Platform.ToString(), TestInstance.ClientApps[0].Device.ToString(), "UserDir")
 			};
 
@@ -84,7 +253,7 @@ namespace ICVFXTest
 
 			if (DiscoveredCsvs.Count == 0)
 			{
-				Log.TraceError($"Test completed successfully but no csv profiling results were found. Searched paths were:\r\n  {string.Join("\r\n  ", CsvsPaths.Select(s => $"\"{s}\""))}");
+				Logger.LogError($"Test completed successfully but no csv profiling results were found. Searched paths were:\r\n  {string.Join("\r\n  ", CsvsPaths.Select(s => $"\"{s}\""))}");
 				return;
 			}
 
@@ -97,9 +266,9 @@ namespace ICVFXTest
 				 select CsvFile).First();
 			var NewestDir = Path.GetDirectoryName(NewestFile);
 
-			Log.TraceInformation($"Using perf report cache directory \"{ReportCacheDir}\".");
-			Log.TraceInformation($"Using perf report output directory \"{ReportPath}\".");
-			Log.TraceInformation($"Using csv results directory \"{NewestDir}\". Generating historic perf report data...");
+			Logger.LogInformation($"Using perf report cache directory \"{ReportCacheDir}\".");
+			Logger.LogInformation($"Using perf report output directory \"{ReportPath}\".");
+			Logger.LogInformation($"Using csv results directory \"{NewestDir}\". Generating historic perf report data...");
 
 			// Make sure the cache and output directories exist
 			if (!Directory.Exists(ReportCacheDir))
@@ -107,7 +276,7 @@ namespace ICVFXTest
 				try { Directory.CreateDirectory(ReportCacheDir); }
 				catch (Exception Ex)
 				{
-					Log.TraceError($"Failed to create perf report cache directory \"{ReportCacheDir}\". {Ex}");
+					Logger.LogError($"Failed to create perf report cache directory \"{ReportCacheDir}\". {Ex}");
 					return;
 				}
 			}
@@ -116,7 +285,7 @@ namespace ICVFXTest
 				try { Directory.CreateDirectory(ReportPath); }
 				catch (Exception Ex)
 				{
-					Log.TraceError($"Failed to create perf report output directory \"{ReportPath}\". {Ex}");
+					Logger.LogError($"Failed to create perf report output directory \"{ReportPath}\". {Ex}");
 					return;
 				}
 			}
@@ -128,7 +297,7 @@ namespace ICVFXTest
 			CommandUtils.RunAndLog(ToolPath.FullName, $"-csvdir \"{NewestDir}\" -o \"{ReportPath}\" -reportxmlbasedir \"{ReportConfigDir}\" -summaryTableCache \"{ReportCacheDir}\" -searchpattern csvprofile* -metadatafilter platform=\"{PlatformNameFilter}\"", out int ErrorCode);
 			if (ErrorCode != 0)
 			{
-				Log.TraceError($"PerfReportTool returned error code \"{ErrorCode}\" while generating detailed report.");
+				Logger.LogError($"PerfReportTool returned error code \"{ErrorCode}\" while generating detailed report.");
 			}
 
 			// Now generate the all-time historic summary report
@@ -171,7 +340,7 @@ namespace ICVFXTest
 				CommandUtils.RunAndLog(ToolPath.FullName, ArgStr, out ErrorCode);
 				if (ErrorCode != 0)
 				{
-					Log.TraceError($"PerfReportTool returned error code \"{ErrorCode}\" while generating historic report.");
+					Logger.LogError($"PerfReportTool returned error code \"{ErrorCode}\" while generating historic report.");
 				}
 			}
 
@@ -202,7 +371,32 @@ namespace ICVFXTest
 				CommandUtils.RunAndLog(ToolPath.FullName, ArgStr, out ErrorCode);
 				if (ErrorCode != 0)
 				{
-					Log.TraceError($"PerfReportTool returned error code \"{ErrorCode}\" while generating historic report.");
+					Logger.LogError($"PerfReportTool returned error code \"{ErrorCode}\" while generating historic report.");
+				}
+				else if (!CommandUtils.IsBuildMachine)
+				{
+					/*
+					if (Directory.Exists(ReportPath))
+					{
+						ProcessStartInfo startInfo = new ProcessStartInfo
+						{
+							Arguments = ReportPath,
+							FileName = "explorer.exe"
+						};
+
+						Process.Start(startInfo);
+
+						if (File.Exists(ReportPath + "/index.html"))
+						{
+							ProcessStartInfo chromeInfo = new ProcessStartInfo
+							{
+								Arguments = ReportPath + "/index.html",
+								FileName = "chrome.exe"
+							};
+
+							Process.Start(chromeInfo);
+						}
+					}*/
 				}
 			}
 		}
@@ -211,16 +405,19 @@ namespace ICVFXTest
 		{
 			if (Result == TestResult.Passed)
 			{
-				Log.TraceInformation($"Generating performance reports using PerfReportTool.");
+				Logger.LogInformation($"Generating performance reports using PerfReportTool.");
 				GeneratePerfReport(Context.GetRoleContext(UnrealTargetRole.Client).Platform, ArtifactPath, Context.Options.TempDir);
 			}
 			else
 			{
-				Log.TraceWarning($"Skipping performance report generation because the perf report test failed.");
+				Logger.LogWarning($"Skipping performance report generation because the perf report test failed.");
 			}
 
 			return base.CreateReport(Result, Context, Build, Artifacts, ArtifactPath);
 		}
+
+		private string OverrideDisplayConfigPath;
+		private string OverrideDisplayClusterNode;
 	}
   
 	//

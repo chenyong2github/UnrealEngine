@@ -10,13 +10,21 @@
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
-	"CanContainContent": false,
+	"CanContainContent": true,
 	"IsBetaVersion": true,
 	"Hidden": true,
 	"Installed": false,
 	"Plugins": [
 		{
 			"Name": "Gauntlet",
+			"Enabled": true
+		},
+		{
+			"Name": "LiveLinkCamera",
+			"Enabled": true
+		},
+		{
+			"Name": "nDisplay",
 			"Enabled": true
 		}
 	],

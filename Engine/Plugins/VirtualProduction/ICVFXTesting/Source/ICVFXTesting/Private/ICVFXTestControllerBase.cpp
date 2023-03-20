@@ -63,6 +63,11 @@ void UICVFXTestControllerBase::OnInit()
 	bRequestsMemReport = FParse::Param(FCommandLine::Get(), TEXT("ICVFXTest.MemReport"));
 	bRequestsVideoCapture = FParse::Param(FCommandLine::Get(), TEXT("ICVFXTest.VideoCapture"));
 
+	FParse::Value(FCommandLine::Get(), TEXT("ICVFXTest.DisplayClusterUAssetPath"), DisplayClusterUObjectPath);
+
+	DisplayClusterUObjectPath.RightChopInline(1);
+	UE_LOG(LogTemp, Error, TEXT("Test jere-1: %s"), *DisplayClusterUObjectPath);
+
 	MemReportTimerDelegate.BindUObject(this, &ThisClass::OnMemReportTimerExpired);
 
 	const FConsoleCommandDelegate MemReportIntervalDelegate = FConsoleCommandDelegate::CreateUObject(this, &ThisClass::OnMemReportIntervalChanged);

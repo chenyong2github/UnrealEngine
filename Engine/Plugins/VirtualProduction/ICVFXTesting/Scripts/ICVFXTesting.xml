@@ -35,8 +35,19 @@
 	<Property Name="ClientCompileAgentOverride" Value="EditorPerfWin64" />
 	<!-- Common Setting Overrides -->
 	
-	<Property Name="GauntletSettingsFile" Value="$(RootDir)/Engine/Plugins/VirtualProduction/ICVFXTesting/Scripts/GauntletSettings.xml" />
+	<Property Name="ICVFXTestingPath" Value="$(RootDir)/Engine/Plugins/VirtualProduction/ICVFXTesting/Scripts"/>
+	<Property Name="GauntletSettingsFile" Value="$(ICVFXTestingPath)/GauntletSettings.xml" />
 
 	<!-- This will declare an aggregate called BuildAndTest $(ProjectName) -->
-	<Include Script="$(RootDir)/Engine/Build/Graph/Tasks/BuildAndTestProject.xml" />
+	<Include Script="$(RootDir)/Engine/Build/Graph/Tasks/BuildAndTestProject.xml"/>
+	
+	<Agent Name="Test SaloonEditor Win64" Type="EditorPerfWin64">
+		<!--<Node Name="Test Jere">
+			<Command Name="RunUnreal" Arguments="-project=Saloon"/>
+		</Node>
+		<Node Name="Open Test Results Win64">
+			<Log Message="test"></Log>
+			<Command Name="RunPythonScript" Arguments="-pyscript=&quot;$(ICVFXTestingPath)/open_perf_folder.py&quot; &quot;$(SummaryReportPath)&quot;"/>
+		</Node>-->
+	</Agent>
 </BuildGraph>

@@ -10,13 +10,6 @@ namespace ICVFXTest
 {
 	public class ICVFXTestConfig : UnrealTestConfiguration
 	{
-		/// <summary>
-		/// Name of the project.
-		/// </summary>
-		[AutoParamWithNames("ICVFXTest.ProjectName")]
-		public string ProjectName;
-
-		/// <summary>
 		/// Name of the test.
 		/// </summary>
 		[AutoParamWithNames("ICVFXTest.TestName")]
@@ -72,13 +65,13 @@ namespace ICVFXTest
 		/// <summary>
 		/// Path to the exported ndisplay config to use for testing.
 		/// </summary>
-		[AutoParamWithNames("ICVFXTest.DisplayConfig")]
+		[AutoParamWithNames("", "ICVFXTest.DisplayConfig")]
 		public string DisplayConfigPath;
 
 		/// <summary>
 		/// Name of the display cluster node to use.
 		/// </summary>
-		[AutoParamWithNames("ICVFXTest.DisplayClusterNodeName")]
+		[AutoParamWithNames("", "ICVFXTest.DisplayClusterNodeName")]
 		public string DisplayClusterNodeName;
 
 		/// <summary>

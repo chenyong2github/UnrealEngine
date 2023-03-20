@@ -17,7 +17,13 @@ public class ICVFXTesting : ModuleRules
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-            	"Engine"
+				"CinematicCamera",
+            	"DisplayCluster",
+				"Engine",
+                "LiveLink",
+                "LiveLinkComponents",
+				"LiveLinkInterface",
+				"RenderCore"
 			}
         );
 	}

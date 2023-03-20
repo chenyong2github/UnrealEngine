@@ -33,7 +33,7 @@
 	
 	<!-- Test specific options -->
 	<Option Name="DisplayConfigPath" DefaultValue="" Description="The path to the .ndisplay file used for launching the cluster."/>
-	<Option Name="DisplayClusterNodeName" DefaultValue="node_0" Description="The name of the ndisplay node to launch."/>
+	<Option Name="DisplayClusterNodeName" DefaultValue="" Description="The name of the ndisplay node to launch."/>
 	<Option Name="ViewportScreenPercentage" DefaultValue="100.0" Description="The viewport screen percentage to use"/>
 	<Option Name="WithNanite" Restrict="true|false" DefaultValue="false" Description="Whether to use nanite when testing"/>
 	<Option Name="WithLumen" Restrict="true|false" DefaultValue="false" Description="Whether to use lumen when testing"/>
@@ -71,8 +71,8 @@
 		
 	<Property Name="ExtraGauntletCommonArgs" Value="-screenshotperiod=30 -ICVFXTest.StatCommands -ICVFXTest.MaxRunCount=$(MaxRunCount) $(LogOutputParams)" />
 	<Property Name="ExtraGauntletEditorTestArgs" Value="-game" />
-	
-	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.ProjectName=$(ProjectName)" />
+
+	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.IsBuildMachine=$(IsBuildMachine)" />
 	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.TestName=$(ProjectTestName)" />
 	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.MapOverride=$(MapOverride) -ICVFXTest.DisplayConfig=$(DisplayConfigPath) -ICVFXTest.ViewportScreenPercentage=$(ViewportScreenPercentage)" />
 	<Property Name="ExtraGauntletEditorTestArgs" Value="$(ExtraGauntletEditorTestArgs) -ICVFXTest.DisplayClusterNodeName=$(DisplayClusterNodeName)" />

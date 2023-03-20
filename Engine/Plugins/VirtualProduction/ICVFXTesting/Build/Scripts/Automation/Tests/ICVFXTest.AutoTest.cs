@@ -2,6 +2,7 @@
 
 using EpicGame;
 using Gauntlet;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnrealBuildTool;
@@ -15,6 +16,8 @@ namespace ICVFXTest
 	/// </summary>
 	public class AutoTest : ICVFXTestNode
 	{
+		private static ILogger Logger => Log.Logger;
+		
 		public AutoTest(Gauntlet.UnrealTestContext InContext)
 			: base(InContext)
 		{
@@ -41,6 +44,26 @@ namespace ICVFXTest
 		public virtual bool UseNanite()
 		{
 			return base.GetConfiguration().Nanite;
+		}
+
+		public ICVFXTestConfig GetBaseConfiguration()
+		{
+			return base.GetConfiguration();
+		}
+
+		public virtual string GetDisplayConfigPath()
+		{
+			return base.GetConfiguration().DisplayConfigPath;
+		}
+
+		public virtual string GetDisplayClusterNode()
+		{
+			return base.GetConfiguration().DisplayClusterNodeName;
+		}
+
+		public virtual string GetDisplayClusterUAssetPath(in string NDisplayJsonFile)
+		{
+			return "";
 		}
 
 		public override ICVFXTestConfig GetConfiguration()
@@ -107,7 +130,7 @@ namespace ICVFXTest
 			if (Config.MapOverride?.Length != 0)
 			{
 				ClientRole.MapOverride = Config.MapOverride;
-				Log.TraceLog($"Map Override: { Config.MapOverride }");
+				Logger.LogInformation($"Map Override: { Config.MapOverride }");
 			}
 
 			if (Config.D3DDebug)
@@ -122,14 +145,35 @@ namespace ICVFXTest
 				Gauntlet.Log.Info("Running with GPUCrashDebugging");
 			}
 
-			if (Config.DisplayConfigPath?.Length != 0)
+			string DisplayConfigPath = Config.DisplayConfigPath;
+			if (string.IsNullOrEmpty(DisplayConfigPath))
 			{
-				ClientRole.CommandLineParams.AddOrAppendParamValue("dc_cfg", Config.DisplayConfigPath);
+				DisplayConfigPath = GetDisplayConfigPath();
 			}
 
-			if (Config.DisplayClusterNodeName?.Length != 0)
+			if (DisplayConfigPath?.Length != 0)
 			{
-				ClientRole.CommandLineParams.AddOrAppendParamValue("dc_node", Config.DisplayClusterNodeName);
+				string DisplayClusterUObjectPath = GetDisplayClusterUAssetPath(DisplayConfigPath);
+
+				Logger.LogInformation($"Using -> {DisplayClusterUObjectPath}.uasset");
+				if (!string.IsNullOrEmpty(DisplayClusterUObjectPath))
+				{
+					// Needed for the test runner to figure out which display cluster root actor to move in the scene.
+					ClientRole.CommandLineParams.AddOrAppendParamValue("ICVFXTest.DisplayClusterUAssetPath", DisplayClusterUObjectPath);
+				}
+
+				ClientRole.CommandLineParams.AddOrAppendParamValue("dc_cfg", DisplayConfigPath);
+			}
+
+			string DisplayConfigNode = Config.DisplayClusterNodeName;
+			if (string.IsNullOrEmpty(DisplayConfigNode))
+			{
+				DisplayConfigNode = GetDisplayClusterNode();
+			}
+
+			if (DisplayConfigNode?.Length != 0)
+			{
+				ClientRole.CommandLineParams.AddOrAppendParamValue("dc_node", DisplayConfigNode);
 			}
 
 			if (UseVulkan())

@@ -2,13 +2,24 @@
 
 #include "ICVFXTestControllerAutoTest.h"
 
+#include "CineCameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "DisplayClusterRootActor.h"
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
+#include "EngineUtils.h"
 #include "GameFramework/GameMode.h"
+#include "IDisplayCluster.h"
+#include "ICVFXTestLocation.h"
+#include "LiveLinkComponentController.h"
+#include "LiveLinkRole.h"
+#include "LiveLinkVirtualSubject.h"
 #include "Logging/LogVerbosity.h"
 #include "PlatformFeatures.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "VideoRecordingSystem.h"
+#include "Roles/LiveLinkTransformRole.h"
+#include "UObject/SoftObjectPtr.h"
 
 namespace ICVFXTest
 {
@@ -60,6 +71,19 @@ public:
 	FICVFXAutoTestState_InitialLoad(UICVFXTestControllerAutoTest* const TestController) 
 		: FICVFXAutoTestState(TestController) 
 	{
+		ENQUEUE_RENDER_COMMAND(SetInnerGPUIndex)(
+			[TestController](FRHICommandListImmediate& RHICmdList)
+			{
+#if WITH_MGPU
+				TestController->SetInnerGPUIndex(RHICmdList.GetGPUMask().GetLastIndex());
+#endif
+			}
+		);
+	}
+
+	virtual void Start(const EICVFXAutoTestState PrevState) override
+	{
+		
 	}
 
 	virtual void Tick(float TimeDelta) override
@@ -75,30 +99,6 @@ public:
 
 private:
 	const float MaxStateChangeWait = 30.0f;
-};
-
-// Sandbox Intro
-class FICVFXAutoTestState_Intro : public FICVFXAutoTestState
-{
-public:
-	FICVFXAutoTestState_Intro(UICVFXTestControllerAutoTest* const TestController) : FICVFXAutoTestState(TestController) {}
-
-	virtual void Start(const EICVFXAutoTestState PrevState) override
-	{
-		Super::Start(PrevState);
-
-		// If starting a new run, kick off requested captures
-
-		if (Controller->RequestsVideoCapture())
-		{
-			Controller->TryStartingVideoCapture();
-		}
-
-		if (Controller->RequestsFPSChart())
-		{
-			Controller->ConsoleCommand(TEXT("StartFPSChart"));
-		}
-	}
 };
 
 // Sandbox Soak
@@ -123,6 +123,15 @@ public:
 			{
 				Controller->ConsoleCommand(TEXT("StartFPSChart"));
 			}
+
+			// Try finding the display cluster root actor to move it during the next phases.
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartScene().AddLambda([this]()
+			{
+				Controller->DisplayClusterActor = IDisplayCluster::Get().GetGameMgr()->GetRootActor();
+				Controller->UpdateInnerGPUIndex();
+				Controller->InitializeLiveLink();
+				Controller->UpdateTestLocations();
+			});
 		}
 
 		const float SoakTime = ICVFXTest::CVarSoakTime->GetFloat();
@@ -143,37 +152,58 @@ public:
 		const float SoakTime = ICVFXTest::CVarSoakTime->GetFloat();
 		if (SoakTime > 0.0f && GetTestStateTime() >= SoakTime)
 		{
-			Controller->SetTestState(EICVFXAutoTestState::Idle);
+			if (Controller->NumTestLocations())
+			{
+				Controller->SetTestState(EICVFXAutoTestState::TraverseTestLocations);
+			}
+			else
+			{
+				Controller->SetTestState(EICVFXAutoTestState::Finished);
+			}
 		}		
 	}
 };
 
-// Sandbox Soak
-class FICVFXAutoTestState_Idle : public FICVFXAutoTestState
+// Go through test locations and collect perf data.
+class FICVFXAutoTestState_TraverseTestLocations : public FICVFXAutoTestState
 {
 public:
-	FICVFXAutoTestState_Idle(UICVFXTestControllerAutoTest* const TestController) : FICVFXAutoTestState(TestController) {}
-
-	const float IdleTime = 60.f;
+	FICVFXAutoTestState_TraverseTestLocations(UICVFXTestControllerAutoTest* const TestController) : FICVFXAutoTestState(TestController) {}
 
 	virtual void Start(const EICVFXAutoTestState PrevState) override
 	{
 		Super::Start(PrevState);
+
+		//TRACE_BOOKMARK(TEXT(""));
+
 		if (!ICVFXTest::CVarTraceFileName.GetValueOnAnyThread().IsEmpty())
 		{
 			Controller->ConsoleCommand(*(FString(TEXT("trace.file ")) + ICVFXTest::CVarTraceFileName.GetValueOnAnyThread()));
 		}
 
-		UE_LOG(LogICVFXTest, Display, TEXT("AutoTest Idle %s: idle time started for %f seconds..."), ANSI_TO_TCHAR(__func__), IdleTime);
+		UE_LOG(LogICVFXTest, Display, TEXT("AutoTest TraverseTestLocations %s: started for %f seconds..."), ANSI_TO_TCHAR(__func__), Controller->TimePerTestLocation)
 	}
 
 	virtual void Tick(float TimeDelta) override
 	{
 		Super::Tick(TimeDelta);
 
-		if (IdleTime > 0.0f && GetTestStateTime() >= IdleTime)
+		Controller->TimeAtTestLocation += TimeDelta;
+		
+		if (GetTestStateTime() >= Controller->TimePerTestLocation * Controller->NumTestLocations())
 		{
 			Controller->SetTestState(EICVFXAutoTestState::Finished);
+		}
+		else if (Controller->TimeAtTestLocation >= Controller->TimePerTestLocation)
+		{
+			if (Controller->GetCurrentTestLocationIndex() == Controller->NumTestLocations() - 1)
+			{
+				Controller->SetTestState(EICVFXAutoTestState::Finished);
+			}
+			else
+			{
+				Controller->GoToNextTestLocation();
+			}
 		}
 	}
 };
@@ -362,6 +392,12 @@ FICVFXAutoTestState& UICVFXTestControllerAutoTest::SetTestState(const EICVFXAuto
 	return CurrentTestState;
 }
 
+void UICVFXTestControllerAutoTest::SetTestLocations(const TArray<AActor*> InTestLocations)
+{
+	TestLocations = InTestLocations;
+	StateTimeouts[(uint8)EICVFXAutoTestState::TraverseTestLocations] = TestLocations.Num() * TimePerTestLocation;
+}
+
 void UICVFXTestControllerAutoTest::EndICVFXTest(const int32 ExitCode /*= 0*/)
 {
 	if (CurrentState != EICVFXAutoTestState::Shutdown)
@@ -394,13 +430,13 @@ void UICVFXTestControllerAutoTest::OnInit()
 	// Initialize State Data
 	States[(uint8)EICVFXAutoTestState::InitialLoad] = new FICVFXAutoTestState_InitialLoad(this);
 	States[(uint8)EICVFXAutoTestState::Soak] = new FICVFXAutoTestState_Soak(this);
-	States[(uint8)EICVFXAutoTestState::Idle] = new FICVFXAutoTestState_Idle(this);
+	States[(uint8)EICVFXAutoTestState::TraverseTestLocations] = new FICVFXAutoTestState_TraverseTestLocations(this);
 	States[(uint8)EICVFXAutoTestState::Finished] = new FICVFXAutoTestState_Finished(this);
 	States[(uint8)EICVFXAutoTestState::Shutdown] = new FICVFXAutoTestState_Shutdown(this);
 
 	StateTimeouts[(uint8)EICVFXAutoTestState::InitialLoad] = 60.f;
 	StateTimeouts[(uint8)EICVFXAutoTestState::Soak] =  ICVFXTest::CVarSoakTime->GetFloat();
-	StateTimeouts[(uint8)EICVFXAutoTestState::Idle] = 60.0f;
+	StateTimeouts[(uint8)EICVFXAutoTestState::TraverseTestLocations] = 60.0f;
 	StateTimeouts[(uint8)EICVFXAutoTestState::Finished] = 300.f;
 	StateTimeouts[(uint8)EICVFXAutoTestState::Shutdown] = 30.f;
 
