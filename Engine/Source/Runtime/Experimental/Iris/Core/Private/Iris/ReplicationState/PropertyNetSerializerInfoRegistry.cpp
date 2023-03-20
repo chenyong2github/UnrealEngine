@@ -121,7 +121,7 @@ const FFieldClass* FNamedStructLastResortPropertyNetSerializerInfo::GetPropertyT
 bool FNamedStructLastResortPropertyNetSerializerInfo::IsSupported(const FProperty* Property) const
 {
 	const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property);
-	return StructProp->Struct->GetFName() == PropertyFName;
+	return IsSupportedStruct(StructProp->Struct->GetFName());
 }
 
 const FPropertyNetSerializerInfo* FPropertyNetSerializerInfoRegistry::FindSerializerInfo(const FProperty* Property)
@@ -185,8 +185,8 @@ const FPropertyNetSerializerInfo* FPropertyNetSerializerInfoRegistry::FindStruct
 		// as we allow multiple infos for the same class type we need to check if the info supports the Property
 		for (; Index < Registry.Num() && Registry[Index].Get<0>() == ClassType; ++Index)
 		{
-			const FNamedStructPropertyNetSerializerInfo* Info = static_cast<const FNamedStructPropertyNetSerializerInfo*>(Registry[Index].Get<1>());
-			if (Info->PropertyFName == Name)
+			const FPropertyNetSerializerInfo* Info = Registry[Index].Get<1>();
+			if (Info->IsSupportedStruct(Name))
 			{
 				return Info;
 			}
