@@ -203,6 +203,9 @@ public:
 	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
+	TObjectPtr<UMaterialInterface> OverlayMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
 	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 };
 
@@ -243,6 +246,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
 	TArray<TSoftObjectPtr<UMaterialInterface>> OverrideMaterials;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
+	TSoftObjectPtr<UMaterialInterface> OverlayMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings", meta = (DisplayAfter = "ComponentClass"))
 	TArray<TSoftObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
