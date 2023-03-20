@@ -1533,10 +1533,13 @@ void AActor::CheckForErrors()
 
 bool AActor::GetReferencedContentObjects( TArray<UObject*>& Objects ) const
 {
-	UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass( GetClass() );
-	if (Blueprint)
+	if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(GetClass()))
 	{
 		Objects.AddUnique(Blueprint);
+	}
+	else if (UBlueprintGeneratedClass* BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(GetClass()))
+	{
+		Objects.AddUnique(BlueprintGeneratedClass);
 	}
 	return true;
 }
