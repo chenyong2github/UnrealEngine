@@ -153,6 +153,8 @@ struct NIAGARASHADER_API FNiagaraDataInterfaceGeneratedFunction
 	using FunctionSpecifier = TTuple<FName, FName>;
 	TArray<FunctionSpecifier> Specifiers;
 
+	uint16 MiscUsageBitMask;
+
 	UPROPERTY()
 	TArray<FNiagaraVariableCommonReference> VariadicInputs;
 	UPROPERTY()
@@ -175,7 +177,7 @@ struct NIAGARASHADER_API FNiagaraDataInterfaceGeneratedFunction
 
 	bool operator==(const FNiagaraDataInterfaceGeneratedFunction& Other) const
 	{
-		if (DefinitionName != Other.DefinitionName || InstanceName != Other.InstanceName)
+		if (DefinitionName != Other.DefinitionName || InstanceName != Other.InstanceName || MiscUsageBitMask != Other.MiscUsageBitMask)
 			return false;
 		if (Specifiers.Num() != Other.Specifiers.Num())
 			return false;

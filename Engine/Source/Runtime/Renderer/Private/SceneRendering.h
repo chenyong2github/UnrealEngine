@@ -1514,6 +1514,12 @@ public:
 	 * If true, that means we need to run the post-dof separate modulation render pass.
 	 */
 	uint32 bHasTranslucencySeparateModulation : 1;
+	/**
+	 * True if the scene has at least one mesh that needs to sample form the first stage depth buffer.
+	 * And as such will need to render in the second stage depth buffer after the first stage depth buffer is copied.
+	 * The first stage depth buffer is usually used for depth buffer collision and projection of Niagara's particles.
+	 */
+	uint32 bUsesSecondStageDepthPass : 1;
 
 	/**
 	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied before DOF. 

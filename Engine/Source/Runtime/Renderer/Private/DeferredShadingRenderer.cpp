@@ -3020,6 +3020,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(Platform);
 	const bool bHairStrandsEnable = HairStrandsBookmarkParameters.HasInstances() && Views.Num() > 0 && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Platform);
 
+	FRDGTextureRef FirstStageDepthBuffer = nullptr;
 	{
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_PrePass));
 
@@ -3034,7 +3035,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// Draw the scene pre-pass / early z pass, populating the scene depth buffer and HiZ
 		if (bNeedsPrePass)
 		{
-			RenderPrePass(GraphBuilder, SceneTextures.Depth.Target, InstanceCullingManager);
+			RenderPrePass(GraphBuilder, SceneTextures.Depth.Target, InstanceCullingManager, &FirstStageDepthBuffer);
 		}
 		else
 		{
@@ -3288,6 +3289,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	if (FirstStageDepthBuffer)
+	{
+		SceneTextures.PartialDepth = FirstStageDepthBuffer;
+		AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.PartialDepth);
+	}
+	else
+	{
+		SceneTextures.PartialDepth = SystemTextures.DepthDummy;
+	}
 	SceneTextures.SetupMode = ESceneTextureSetupMode::SceneDepth;
 	SceneTextures.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, FeatureLevel, SceneTextures.SetupMode);
 

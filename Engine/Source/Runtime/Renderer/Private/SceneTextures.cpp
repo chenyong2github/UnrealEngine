@@ -717,6 +717,7 @@ void FSceneTextureExtracts::QueueExtractions(FRDGBuilder& GraphBuilder, const FS
 	{
 		SetupMode |= ESceneTextureSetupMode::SceneDepth;
 		ExtractIfProduced(SceneTextures.Depth.Resolve, Depth);
+		ExtractIfProduced(SceneTextures.PartialDepth.Resolve, PartialDepth);
 	}
 
 	if (EnumHasAnyFlags(SceneTextures.Config.Extracts, ESceneTextureExtracts::CustomDepth))
@@ -802,6 +803,7 @@ void SetupSceneTextureUniformParameters(
 	SceneTextureParameters.PointClampSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	SceneTextureParameters.SceneColorTexture = SystemTextures.Black;
 	SceneTextureParameters.SceneDepthTexture = SystemTextures.DepthDummy;
+	SceneTextureParameters.ScenePartialDepthTexture = SystemTextures.DepthDummy;
 	SceneTextureParameters.GBufferATexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferBTexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferCTexture = SystemTextures.Black;
@@ -825,6 +827,7 @@ void SetupSceneTextureUniformParameters(
 		if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneDepth))
 		{
 			SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
+			SceneTextureParameters.ScenePartialDepthTexture = SceneTextures->PartialDepth.Resolve;
 		}
 
 		if (IsUsingGBuffers(ShaderPlatform))
@@ -933,6 +936,8 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.SceneDepthTexture = SystemTextures.DepthDummy;
 	SceneTextureParameters.SceneDepthTextureSampler = TStaticSamplerState<>::GetRHI();
+	SceneTextureParameters.ScenePartialDepthTexture = SystemTextures.DepthDummy;
+	SceneTextureParameters.ScenePartialDepthTextureSampler = TStaticSamplerState<>::GetRHI();
 	// CustomDepthTexture is a color texture on mobile, with DeviceZ values
 	SceneTextureParameters.CustomDepthTexture = SystemTextures.Black;
 	SceneTextureParameters.CustomDepthTextureSampler = TStaticSamplerState<>::GetRHI();
@@ -963,6 +968,13 @@ void SetupMobileSceneTextureUniformParameters(
 			!EnumHasAnyFlags(SceneTextures->Depth.Resolve->Desc.Flags, TexCreate_Memoryless))
 		{
 			SceneTextureParameters.SceneDepthTexture = SceneTextures->Depth.Resolve;
+		}
+
+		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneDepth) &&
+			HasBeenProduced(SceneTextures->PartialDepth.Resolve) &&
+			!EnumHasAnyFlags(SceneTextures->PartialDepth.Resolve->Desc.Flags, TexCreate_Memoryless))
+		{
+			SceneTextureParameters.ScenePartialDepthTexture = SceneTextures->PartialDepth.Resolve;
 		}
 
 		if (SceneTextures->Config.bIsUsingGBuffers)

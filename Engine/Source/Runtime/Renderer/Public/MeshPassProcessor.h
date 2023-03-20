@@ -32,6 +32,7 @@ namespace EMeshPass
 	enum Type : uint8
 	{
 		DepthPass,
+		SecondStageDepthPass,
 		BasePass,
 		AnisotropyPass,
 		SkyPass,
@@ -80,6 +81,7 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 	switch (MeshPass)
 	{
 	case EMeshPass::DepthPass: return TEXT("DepthPass");
+	case EMeshPass::SecondStageDepthPass: return TEXT("SecondStageDepthPass");
 	case EMeshPass::BasePass: return TEXT("BasePass");
 	case EMeshPass::AnisotropyPass: return TEXT("AnisotropyPass");
 	case EMeshPass::SkyPass: return TEXT("SkyPass");
@@ -117,9 +119,9 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 	}
 
 #if WITH_EDITOR
-	static_assert(EMeshPass::Num == 29 + 4, "Need to update switch(MeshPass) after changing EMeshPass"); // GUID to prevent incorrect auto-resolves, please change when changing the expression: {A6E82589-44B3-4DAD-AC57-8AF6BD50DF43}
+	static_assert(EMeshPass::Num == 30 + 4, "Need to update switch(MeshPass) after changing EMeshPass"); // GUID to prevent incorrect auto-resolves, please change when changing the expression: {A6E82589-44B3-4DAD-AC57-8AF6BD50DF43}
 #else
-	static_assert(EMeshPass::Num == 29, "Need to update switch(MeshPass) after changing EMeshPass"); // GUID to prevent incorrect auto-resolves, please change when changing the expression: {A6E82589-44B3-4DAD-AC57-8AF6BD50DF43}
+	static_assert(EMeshPass::Num == 30, "Need to update switch(MeshPass) after changing EMeshPass"); // GUID to prevent incorrect auto-resolves, please change when changing the expression: {A6E82589-44B3-4DAD-AC57-8AF6BD50DF43}
 #endif
 
 	checkf(0, TEXT("Missing case for EMeshPass %u"), (uint32)MeshPass);

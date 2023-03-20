@@ -184,7 +184,8 @@ public:
 		/** Whether this mesh processor is being reused for rendering a pass that marks all fading out pixels on the screen */
 		const bool bDitheredLODFadingOutMaskPass,
 		FMeshPassDrawListContext* InDrawListContext,
-		const bool bShadowProjection = false);
+		const bool bShadowProjection = false,
+		const bool bSecondStageDepthPass = false);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
@@ -230,6 +231,7 @@ private:
 	const bool bEarlyZPassMovable;
 	const bool bDitheredLODFadingOutMaskPass;
 	const bool bShadowProjection;
+	const bool bSecondStageDepthPass;
 };
 
 extern void SetupDepthPassState(FMeshPassProcessorRenderState& DrawRenderState);

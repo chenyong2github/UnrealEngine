@@ -41,6 +41,9 @@ struct RENDERER_API FMinimalSceneTextures
 	// Texture containing a stencil view of the resolved (if MSAA) scene depth. 
 	FRDGTextureSRVRef Stencil{};
 
+	// Textures containing primary depth buffer copied before other meshes are rendered in the secondary depth pass.
+	FRDGTextureMSAA PartialDepth{};
+
 	// Textures containing depth / stencil information from the custom depth pass.
 	FCustomDepthTextures CustomDepth{};
 

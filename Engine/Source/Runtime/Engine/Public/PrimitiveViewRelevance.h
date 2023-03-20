@@ -66,6 +66,8 @@ struct FPrimitiveViewRelevance : public FMaterialRelevance
 	uint32 bUsesLightingChannels : 1;
 	/** Whether the primitive has materials that use volumetric translucent self shadow. */
 	uint32 bTranslucentSelfShadow : 1;
+	/** Whether the primitive should be rendered in the second stage depth only pass. */
+	uint32 bRenderInSecondStageDepthPass : 1;
 
 	/** 
 	 * Whether this primitive view relevance has been initialized this frame.  

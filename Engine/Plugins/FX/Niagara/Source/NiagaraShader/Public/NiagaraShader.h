@@ -238,6 +238,7 @@ public:
 	}
 
 	LAYOUT_FIELD(bool, bNeedsViewUniformBuffer);
+	LAYOUT_FIELD(uint16, MiscUsageBitMask);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, ExternalConstantBufferParam, 2);
 
 private:

@@ -2872,6 +2872,7 @@ void FHlslNiagaraTranslator::ConvertCompileInfoToParamInfo(const FNiagaraScriptD
 		FNiagaraDataInterfaceGeneratedFunction& DIFunc = DIInstanceInfo.GeneratedFunctions.AddDefaulted_GetRef();
 		DIFunc.DefinitionName = Sig.Name;
 		DIFunc.InstanceName = GetFunctionSignatureSymbol(Sig);
+		DIFunc.MiscUsageBitMask = Sig.MiscUsageBitMask;
 		DIFunc.Specifiers.Empty(Sig.FunctionSpecifiers.Num());
 		for (const TTuple<FName, FName>& Specifier : Sig.FunctionSpecifiers)
 		{

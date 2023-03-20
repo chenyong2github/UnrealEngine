@@ -410,6 +410,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY(meta = (Bitmask, BitmaskEnum = "/Script/Niagara.ENiagaraScriptUsage"))
 	int32 ModuleUsageBitmask;
 
+	/** Bit mask for misc usage. */
+	UPROPERTY(meta = (Bitmask))
+	uint16 MiscUsageBitMask;
+
 	/** When using simulation stages and bRequiresContext is true this will be the index of the stage that is associated with the function. */
 	UPROPERTY()
 	int32 ContextStageIndex;
@@ -451,6 +455,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bIsCompileTagGenerator(false)
 		, bHidden(false)
 		, ModuleUsageBitmask(0)
+		, MiscUsageBitMask(0)
 		, ContextStageIndex(INDEX_NONE)
 		, RequiredInputs(INDEX_NONE)
 		, RequiredOutputs(INDEX_NONE)
@@ -471,6 +476,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bIsCompileTagGenerator(false)
 		, bHidden(false)
 		, ModuleUsageBitmask(0)
+		, MiscUsageBitMask(0)
 		, ContextStageIndex(INDEX_NONE)
 		, RequiredInputs(INDEX_NONE)
 		, RequiredOutputs(INDEX_NONE)
@@ -939,6 +945,13 @@ namespace ENiagaraScriptUsageMask
 			(1 << int32(ENiagaraScriptUsage::ParticleGPUComputeScript)),
 	};
 }
+
+/** Misc usage flag for script to transmit informations. Limited to 16 bits, see MiscUsageBitMaskType. */
+enum class ENiagaraScriptMiscUsageMask : uint16
+{
+	/** This Niagara script is sampling partial depth scene texture. So it should be rendered in the secondary depth pass. */
+	UsesPartialDepthCollisionQuery = 1<<0,
+};
 
 /** Defines different usages for a niagara script. */
 UENUM()

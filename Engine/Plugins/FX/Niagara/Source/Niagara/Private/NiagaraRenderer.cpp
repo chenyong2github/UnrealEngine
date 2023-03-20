@@ -378,6 +378,28 @@ void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties* InProps, con
 	InProps->GetUsedMaterials(Emitter, BaseMaterials_GT);
 	bool bCreateMidsForUsedMaterials = InProps->NeedsMIDsForMaterials();
 
+	bRendersInSecondaryDepthPass = false;
+
+	// Let check if the GPU simulation shader script needed to use the partial depth texture for depth queries.
+	bool bNeedsPartialDepthTexture = false;
+	if (Emitter)
+	{
+		FVersionedNiagaraEmitterData* CachedEmitterData = Emitter->GetCachedEmitterData();
+		if (CachedEmitterData)
+		{
+			UNiagaraScript* NiagaraScriptGPU = CachedEmitterData->GetGPUComputeScript();
+			if (NiagaraScriptGPU)
+			{
+				FNiagaraShaderScript* NiagaraShaderScript = NiagaraScriptGPU->GetRenderThreadScript();
+				if (NiagaraShaderScript)
+				{
+					FNiagaraShaderRef NiagaraShader = NiagaraShaderScript->GetShaderGameThread(0);
+					bNeedsPartialDepthTexture = (NiagaraShader->MiscUsageBitMask & uint16(ENiagaraScriptMiscUsageMask::UsesPartialDepthCollisionQuery)) > 0;
+				}
+			}
+		}
+	}
+
 	uint32 Index = 0;
 	for (UMaterialInterface*& Mat : BaseMaterials_GT)
 	{
@@ -395,7 +417,13 @@ void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties* InProps, con
 
 		Index ++;
 		if (Mat)
+		{
 			BaseMaterialRelevance_GT |= Mat->GetRelevance_Concurrent(FeatureLevel);
+
+			// If partial depth was sampled, we need to make sure this emitter does not end up in it but only in this full depth texture.
+			// For exemple, this is to avoid self collision.
+			bRendersInSecondaryDepthPass |= IsOpaqueOrMaskedBlendMode(Mat->GetBlendMode()) && bNeedsPartialDepthTexture;
+		}
 	}
 }
 
@@ -419,6 +447,7 @@ FPrimitiveViewRelevance FNiagaraRenderer::GetViewRelevance(const FSceneView* Vie
 		Result.bOpaque = View->Family->EngineShowFlags.Bounds;
 		DynamicDataRender->GetMaterialRelevance().SetPrimitiveViewRelevance(Result);
 	}
+	Result.bRenderInSecondStageDepthPass = bRendersInSecondaryDepthPass;
 
 	return Result;
 }

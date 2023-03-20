@@ -163,6 +163,7 @@ protected:
 	uint32 bLocalSpace : 1;
 	uint32 bHasLights : 1;
 	uint32 bMotionBlurEnabled : 1;
+	uint32 bRendersInSecondaryDepthPass : 1;
 	const ENiagaraSimTarget SimTarget;
 
 	ERHIFeatureLevel::Type FeatureLevel;

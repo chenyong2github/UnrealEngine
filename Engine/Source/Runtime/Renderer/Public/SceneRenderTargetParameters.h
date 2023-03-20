@@ -156,6 +156,9 @@ private:
 	// Contains the resolved scene depth target.
 	TRefCountPtr<IPooledRenderTarget> Depth;
 
+	// Contains the resolved scene depth target.
+	TRefCountPtr<IPooledRenderTarget> PartialDepth;
+
 	// Contains the custom depth targets.
 	TRefCountPtr<IPooledRenderTarget> CustomDepth;
 

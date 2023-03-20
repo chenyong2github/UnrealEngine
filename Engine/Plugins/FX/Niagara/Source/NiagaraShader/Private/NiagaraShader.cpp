@@ -1052,6 +1052,7 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 	);
 
 	// Gather data interface bindings
+	MiscUsageBitMask = 0;
 	DataInterfaceParameters.Empty(InitializerParameters->ScriptParametersMetadata->DataInterfaceParamInfo.Num());
 	for (const FNiagaraDataInterfaceGPUParamInfo& DataInterfaceParamInfo : InitializerParameters->ScriptParametersMetadata->DataInterfaceParamInfo)
 	{
@@ -1062,6 +1063,11 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 		if (CDODataInterface == nullptr)
 		{
 			continue;
+		}
+
+		for (auto& GeneratedFunction : DataInterfaceParamInfo.GeneratedFunctions)
+		{
+			MiscUsageBitMask |= GeneratedFunction.MiscUsageBitMask;
 		}
 
 		DataInterfaceParamRef.DIType = TIndexedPtr<UNiagaraDataInterfaceBase>(CDODataInterface);

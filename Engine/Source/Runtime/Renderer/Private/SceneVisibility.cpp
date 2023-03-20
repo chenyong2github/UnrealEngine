@@ -2384,6 +2384,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 	bool bHasSingleLayerWaterMaterial;
 	bool bHasTranslucencySeparateModulation;
 	bool bHasStandardTranslucencyModulation;
+	bool bUsesSecondStageDepthPass;
 
 	FRelevancePacket(
 		FRHICommandListImmediate& InRHICmdList,
@@ -2424,6 +2425,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 		, bHasSingleLayerWaterMaterial(false)
 		, bHasTranslucencySeparateModulation(false)
 		, bHasStandardTranslucencyModulation(false)
+		, bUsesSecondStageDepthPass(false)
 	{
 	}
 
@@ -2443,6 +2445,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 		bHasSingleLayerWaterMaterial = 0;
 		bHasTranslucencySeparateModulation = 0;
 		bHasStandardTranslucencyModulation = 0;
+		bUsesSecondStageDepthPass = 0;
 		bUsesGlobalDistanceField = false;
 		bUsesLightingChannels = false;
 		bTranslucentSurfaceLighting = false;
@@ -2579,6 +2582,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 			bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
 			bHasStandardTranslucencyModulation |= ViewRelevance.bNormalTranslucency && ViewRelevance.bTranslucencyModulate && View.Family->AllowStandardTranslucencySeparated();
 			bHasTranslucencySeparateModulation |= ViewRelevance.bSeparateTranslucency && ViewRelevance.bTranslucencyModulate;
+			bUsesSecondStageDepthPass |= ViewRelevance.bRenderInSecondStageDepthPass && ShadingPath!=EShadingPath::Mobile;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2781,7 +2785,14 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 							{
 								if (!(bIsMeshInVelocityPass && bVelocityPassWritesDepth))
 								{
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DepthPass);
+									if (ViewRelevance.bRenderInSecondStageDepthPass && ShadingPath != EShadingPath::Mobile)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SecondStageDepthPass);
+									}
+									else
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DepthPass);
+									}
 								}
 #if RHI_RAYTRACING
 								if (IsRayTracingEnabled())
@@ -2999,6 +3010,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 	{
 		FViewInfo& WriteView = const_cast<FViewInfo&>(View);
 		FViewCommands& WriteViewCommands = const_cast<FViewCommands&>(ViewCommands);
+		const EShadingPath ShadingPath = Scene->GetShadingPath();
 		
 		for (int32 Index = 0; Index < NotDrawRelevant.NumPrims; Index++)
 		{
@@ -3046,6 +3058,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 		WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
 		WriteView.bHasSingleLayerWaterMaterial |= bHasSingleLayerWaterMaterial;
 		WriteView.bHasTranslucencySeparateModulation |= bHasTranslucencySeparateModulation;
+		WriteView.bUsesSecondStageDepthPass |= bUsesSecondStageDepthPass && ShadingPath != EShadingPath::Mobile;
 		WriteView.bHasStandardTranslucencyModulation |= bHasStandardTranslucencyModulation;
 		VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
@@ -3278,8 +3291,16 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 
 	if (ViewRelevance.bDrawRelevance && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass))
 	{
-		PassMask.Set(EMeshPass::DepthPass);
-		View.NumVisibleDynamicMeshElements[EMeshPass::DepthPass] += NumElements;
+		if (ViewRelevance.bRenderInSecondStageDepthPass && ShadingPath != EShadingPath::Mobile)
+		{
+			PassMask.Set(EMeshPass::SecondStageDepthPass);
+			View.NumVisibleDynamicMeshElements[EMeshPass::SecondStageDepthPass] += NumElements;
+		}
+		else
+		{
+			PassMask.Set(EMeshPass::DepthPass);
+			View.NumVisibleDynamicMeshElements[EMeshPass::DepthPass] += NumElements;
+		}
 
 		if (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth)
 		{

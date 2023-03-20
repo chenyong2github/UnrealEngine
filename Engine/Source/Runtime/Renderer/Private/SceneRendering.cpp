@@ -859,6 +859,7 @@ void FViewInfo::Init()
 	bHasTranslucencySeparateModulation = 0;
 	bHasStandardTranslucencyModulation = 0;
 	AutoBeforeDOFTranslucencyBoundary = 0.0f;
+	bUsesSecondStageDepthPass = 0;
 
 	NumVisibleStaticMeshElements = 0;
 	PrecomputedVisibilityData = 0;
