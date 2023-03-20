@@ -259,6 +259,11 @@ namespace Interchange
 						const FName Position = TEXT("Position");
 					}
 				}
+
+				namespace VertexColor
+				{
+					const FName Name = TEXT("VertexColor");
+				}
 			}
 		}
 
