@@ -101,11 +101,13 @@ public:
 
 	virtual bool Validate(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
-#if DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED
+	UE_DEPRECATED(5.3, "Use CanEditShortName instead")
 	virtual bool SupportRelabeling() const { return false; }
-	virtual bool RelabelDataLayer(FName NewDataLayerLabel) { return false; }
-#endif // DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED
 
+	UE_DEPRECATED(5.3, "Use SetShortName instead")
+	virtual bool RelabelDataLayer(FName NewDataLayerLabel) { return false; }
+
+	virtual bool CanEditDataLayerShortName() const { return false; }
 #endif // WITH_EDITOR
 
 	UFUNCTION(Category = "Data Layer", BlueprintCallable)
@@ -154,6 +156,7 @@ private:
 	void AddChild(UDataLayerInstance* DataLayer);
 	bool SetRuntimeState(EDataLayerRuntimeState InState, bool bInIsRecursive = false) const;
 	friend class UDataLayerManager;
+	friend class FDataLayerUtils;
 
 #if WITH_EDITOR
 	void RemoveChild(UDataLayerInstance* DataLayer);
@@ -163,6 +166,7 @@ protected:
 #if WITH_EDITOR
 	virtual bool PerformAddActor(AActor* InActor) const { return false; }
 	virtual bool PerformRemoveActor(AActor* InActor) const { return false;  }
+	virtual void PerformSetDataLayerShortName(const FString& InNewShortName) {}
 #endif
 
 #if WITH_EDITORONLY_DATA

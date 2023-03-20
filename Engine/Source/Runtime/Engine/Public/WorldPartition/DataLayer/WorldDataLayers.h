@@ -141,11 +141,6 @@ public:
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-#if WITH_EDITOR
-	UE_DEPRECATED(5.1, "Label usage is deprecated.")
-	FName GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const;
-#endif 
-
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstance with FName or UDataLayerAsset instead")
 	const UDataLayerInstance* GetDataLayerInstance(const FActorDataLayer& InActorDataLayer) const;
 

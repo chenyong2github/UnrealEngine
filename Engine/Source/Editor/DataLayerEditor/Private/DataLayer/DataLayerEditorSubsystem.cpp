@@ -48,6 +48,7 @@
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DeprecatedDataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/WorldPartition.h"
 
@@ -1333,6 +1334,20 @@ const TSet<TWeakObjectPtr<const UDataLayerInstance>>& UDataLayerEditorSubsystem:
 	return SelectedDataLayersFromEditorSelection;
 }
 
+bool UDataLayerEditorSubsystem::SetDataLayerShortName(UDataLayerInstance* DataLayerInstance, const FString& InNewShortName)
+{
+	if (DataLayerInstance->CanEditDataLayerShortName())
+	{
+		if (FDataLayerUtils::SetDataLayerShortName(DataLayerInstance, InNewShortName))
+		{
+			BroadcastDataLayerChanged(EDataLayerAction::Rename, DataLayerInstance, "DataLayerShortName");
+			return true;
+		}
+	}
+
+	return false;
+}
+
 //~ Begin Deprecated
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1349,12 +1364,6 @@ bool UDataLayerEditorSubsystem::RenameDataLayer(UDataLayerInstance* DataLayerIns
 	}
 
 	return false;
-}
-
-bool UDataLayerEditorSubsystem::TryGetDataLayerFromLabel(const FName& DataLayerLabel, UDataLayerInstance*& OutDataLayer) const
-{
-	OutDataLayer = GetDataLayerFromLabel(DataLayerLabel);
-	return (OutDataLayer != nullptr);
 }
 
 UDataLayerInstance* UDataLayerEditorSubsystem::GetDataLayerFromLabel(const FName& DataLayerLabel) const

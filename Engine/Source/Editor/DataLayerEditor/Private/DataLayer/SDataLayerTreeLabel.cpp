@@ -35,6 +35,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 
 struct FSlateBrush;
@@ -69,7 +71,7 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 		.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FSceneOutlinerTreeItemPtr>::IsSelectedExclusively))
 		.IsReadOnly_Lambda([Item = DataLayerItem.AsShared(), this]()
 		{
-			return DataLayerPtr == nullptr || !DataLayerPtr->SupportRelabeling() || !CanExecuteRenameRequest(Item.Get());
+			return DataLayerPtr == nullptr || !DataLayerPtr->CanEditDataLayerShortName() || !CanExecuteRenameRequest(Item.Get());
 		})
 	]
 
@@ -300,20 +302,24 @@ bool SDataLayerTreeLabel::OnVerifyItemLabelChanged(const FText& InLabel, FText& 
 		return false;
 	}
 
-	UDataLayerInstance* FoundDataLayerInstance;
-	
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (UDataLayerEditorSubsystem::Get()->TryGetDataLayerFromLabel(*InLabel.ToString(), FoundDataLayerInstance) && FoundDataLayerInstance != DataLayerPtr.Get())
-	{
-		OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "This Data Layer already exists");
-		return false;
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	if (FoundDataLayerInstance != nullptr && !FoundDataLayerInstance->SupportRelabeling())
+	UDataLayerInstance* DataLayerInstance = DataLayerPtr.Get();
+	if (!DataLayerInstance->CanEditDataLayerShortName())
 	{
 		OutErrorMessage = LOCTEXT("RenameFailed_NotPermittedOnDataLayer", "This Data Layer does not support renaming");
 		return false;
+	}
+
+	UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(DataLayerPtr.Get());
+	check(DataLayerManager);
+
+	TSet<UDataLayerInstance*> OutDataLayersWithShortName;
+	if (FDataLayerUtils::FindDataLayerByShortName(DataLayerManager, InLabel.ToString(), OutDataLayersWithShortName))
+	{
+		if (!OutDataLayersWithShortName.Contains(DataLayerPtr.Get()))
+		{
+			OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "This Data Layer already exists");
+			return false;
+		}
 	}
 
 	return true;
@@ -322,14 +328,12 @@ bool SDataLayerTreeLabel::OnVerifyItemLabelChanged(const FText& InLabel, FText& 
 void SDataLayerTreeLabel::OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo)
 {
 	UDataLayerInstance* DataLayerInstance = DataLayerPtr.Get();
-	check(DataLayerInstance->SupportRelabeling());
+	check(DataLayerInstance->CanEditDataLayerShortName());
 	if (!InLabel.ToString().Equals(DataLayerInstance->GetDataLayerShortName(), ESearchCase::CaseSensitive))
 	{
 		const FScopedTransaction Transaction(LOCTEXT("SceneOutlinerRenameDataLayerTransaction", "Rename Data Layer"));
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UDataLayerEditorSubsystem::Get()->RenameDataLayer(DataLayerInstance, *InLabel.ToString());
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		UDataLayerEditorSubsystem::Get()->SetDataLayerShortName(DataLayerInstance, InLabel.ToString());
 
 		if (WeakSceneOutliner.IsValid())
 		{

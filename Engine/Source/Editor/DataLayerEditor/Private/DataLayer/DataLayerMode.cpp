@@ -325,7 +325,7 @@ bool FDataLayerMode::CanRenameItem(const ISceneOutlinerTreeItem& Item) const
 	if (Item.IsValid() && (Item.IsA<FDataLayerTreeItem>()))
 	{
 		FDataLayerTreeItem* DataLayerTreeItem = (FDataLayerTreeItem*)&Item;
-		return !DataLayerTreeItem->GetDataLayer()->IsLocked() && DataLayerTreeItem->GetDataLayer()->SupportRelabeling();
+		return !DataLayerTreeItem->GetDataLayer()->IsLocked() && DataLayerTreeItem->GetDataLayer()->CanEditDataLayerShortName();
 	}
 	return false;
 }

@@ -45,7 +45,7 @@ void UDEPRECATED_DataLayer::PostLoad()
 	bIsVisible = bIsInitiallyVisible;
 
 	// Sanitize Label
-	DataLayerLabel = FDataLayerUtils::GetSanitizedDataLayerLabel(DataLayerLabel);
+	DataLayerLabel = *FDataLayerUtils::GetSanitizedDataLayerShortName(DataLayerLabel.ToString());
 
 	if (DebugColor == FColor::Black)
 	{

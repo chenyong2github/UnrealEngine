@@ -50,6 +50,8 @@ private:
 
 	virtual bool SupportRelabeling() const override { return true; }
 	virtual bool RelabelDataLayer(FName NewDataLayerLabel) override;
+	virtual bool CanEditDataLayerShortName() const override { return true; }
+	virtual void PerformSetDataLayerShortName(const FString& InNewShortName) { Label = *InNewShortName; }
 #endif
 
 	virtual FName GetDataLayerFName() const override { return !DeprecatedDataLayerFName.IsNone() ? DeprecatedDataLayerFName : Super::GetDataLayerFName(); }

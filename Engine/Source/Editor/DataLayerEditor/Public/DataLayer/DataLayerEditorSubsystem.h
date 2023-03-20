@@ -615,6 +615,11 @@ public:
 	*/
 	bool HasDeprecatedDataLayers() const;
 
+	/**
+	 * Assign new unique short name to DataLayerInstance if it supports it. 
+	 */
+	bool SetDataLayerShortName(UDataLayerInstance* InDataLayerInstance, const FString& InNewShortName);
+
 	//~ Begin Deprecated
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -632,10 +637,7 @@ public:
 	UE_DEPRECATED(5.0, "Per-view Data Layer visibility was removed.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Per-view Data Layer visibility was removed."))
 	void UpdateActorAllViewsVisibility(AActor* Actor) {}
-
-	UE_DEPRECATED(5.0, "Per-view Data Layer visibility was removed.")
-	void RemoveViewFromActorViewVisibility(FLevelEditorViewportClient* ViewportClient);
-
+		
 	UE_DEPRECATED(5.0, "Use SetDataLayerIsLoadedInEditor() instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use SetDataLayerIsLoadedInEditor instead"))
 	bool SetDataLayerIsDynamicallyLoadedInEditor(UDEPRECATED_DataLayer* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange) { return false; }
@@ -653,10 +655,7 @@ public:
 	bool ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDEPRECATED_DataLayer*>& DataLayers, const bool bIsFromUserChange) { return false; }
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	UE_DEPRECATED(5.1, "Use GetDataLayerInstance instead")
-	bool TryGetDataLayerFromLabel(const FName& DataLayerLabel, UDataLayerInstance*& OutDataLayer) const;
-
+			
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstance instead")
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	UDataLayerInstance* GetDataLayer(const FActorDataLayer& ActorDataLayer) const;

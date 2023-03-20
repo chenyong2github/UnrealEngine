@@ -30,7 +30,7 @@ void UDeprecatedDataLayerInstance::OnCreated()
 
 	Modify(/*bAlwaysMarkDirty*/false);
 
-	RelabelDataLayer(TEXT("DataLayer"));
+	FDataLayerUtils::SetDataLayerShortName(this, TEXT("DataLayer"));
 
 	DeprecatedDataLayerFName = TEXT("");
 
@@ -84,17 +84,7 @@ bool UDeprecatedDataLayerInstance::PerformRemoveActor(AActor* InActor) const
 
 bool UDeprecatedDataLayerInstance::RelabelDataLayer(FName InDataLayerLabel)
 {
-	FName SanitizedLabel = FDataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
-	FName UniqueNewDataLayerLabel = GetOuterAWorldDataLayers()->GenerateUniqueDataLayerLabel(SanitizedLabel);
-	if (Label != UniqueNewDataLayerLabel)
-	{
-		Modify();
-		check(!GetOuterAWorldDataLayers()->GetDataLayerFromLabel(UniqueNewDataLayerLabel));
-		Label = UniqueNewDataLayerLabel;
-		return true;
-	}
-
-	return false;
+	return FDataLayerUtils::SetDataLayerShortName(this, InDataLayerLabel.ToString());
 }
 
 #endif // WITH_EDITOR

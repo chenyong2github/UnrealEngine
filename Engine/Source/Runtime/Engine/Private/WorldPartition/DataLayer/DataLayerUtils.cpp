@@ -163,4 +163,47 @@ bool FDataLayerUtils::AreWorldDataLayersActorDescsSane(const TArray<const FWorld
 	return Algo::AllOf(InWorldDataLayersActorDescs, [](const FWorldDataLayersActorDesc* WorldDataLayerActorDescs) { return WorldDataLayerActorDescs->IsValid(); });
 }
 
+bool FDataLayerUtils::SetDataLayerShortName(UDataLayerInstance* InDataLayerInstance, const FString& InNewShortName)
+{
+	check(InDataLayerInstance->CanEditDataLayerShortName());
+	FString UniqueShortName = FDataLayerUtils::GenerateUniqueDataLayerShortName(UDataLayerManager::GetDataLayerManager(InDataLayerInstance), InNewShortName);
+	if (InDataLayerInstance->GetDataLayerShortName() != UniqueShortName)
+	{
+		InDataLayerInstance->Modify();
+		InDataLayerInstance->PerformSetDataLayerShortName(UniqueShortName);
+		return true;
+	}
+
+	return false;
+}
+
+bool FDataLayerUtils::FindDataLayerByShortName(const UDataLayerManager* InDataLayerManager, const FString& InShortName, TSet<UDataLayerInstance*>&  OutDataLayersWithShortName)
+{
+	OutDataLayersWithShortName.Empty();
+	InDataLayerManager->ForEachDataLayerInstance([&](UDataLayerInstance* DataLayerInstance)
+	{
+		if (DataLayerInstance->GetDataLayerShortName() == InShortName)
+		{
+			OutDataLayersWithShortName.Add(DataLayerInstance);
+		}
+		return true;
+	});
+	return OutDataLayersWithShortName.Num() > 0;
+}
+
+FString FDataLayerUtils::GenerateUniqueDataLayerShortName(const UDataLayerManager* InDataLayerManager, const FString& InNewShortName)
+{
+	int32 DataLayerIndex = 0;
+	const FString DataLayerShortNameSanitized = FDataLayerUtils::GetSanitizedDataLayerShortName(InNewShortName);
+	FString UniqueNewDataLayerShortName = DataLayerShortNameSanitized;
+		
+	TSet<UDataLayerInstance*> OutDataLayersWithShortName;
+	while (FindDataLayerByShortName(InDataLayerManager, UniqueNewDataLayerShortName, OutDataLayersWithShortName))
+	{
+		UniqueNewDataLayerShortName = FString::Printf(TEXT("%s%d"), *DataLayerShortNameSanitized, ++DataLayerIndex);
+	}
+		
+	return UniqueNewDataLayerShortName;
+}
+
 #endif

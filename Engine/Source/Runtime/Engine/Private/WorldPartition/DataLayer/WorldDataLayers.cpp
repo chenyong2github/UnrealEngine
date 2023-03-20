@@ -1001,18 +1001,6 @@ bool AWorldDataLayers::RemoveDataLayer(const UDEPRECATED_DataLayer* InDataLayer)
 	return false;
 }
 
-FName AWorldDataLayers::GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const
-{
-	int32 DataLayerIndex = 0;
-	const FName DataLayerLabelSanitized = FDataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
-	FName UniqueNewDataLayerLabel = DataLayerLabelSanitized;
-	while (GetDataLayerFromLabel(UniqueNewDataLayerLabel))
-	{
-		UniqueNewDataLayerLabel = FName(*FString::Printf(TEXT("%s%d"), *DataLayerLabelSanitized.ToString(), ++DataLayerIndex));
-	};
-	return UniqueNewDataLayerLabel;
-}
-
 #endif
 
 bool AWorldDataLayers::ContainsDataLayer(const UDEPRECATED_DataLayer* InDataLayer) const
@@ -1022,11 +1010,11 @@ bool AWorldDataLayers::ContainsDataLayer(const UDEPRECATED_DataLayer* InDataLaye
 
 const UDataLayerInstance* AWorldDataLayers::GetDataLayerFromLabel(const FName& InDataLayerLabel) const
 {
-	const FName DataLayerLabelSanitized = FDataLayerUtils::GetSanitizedDataLayerLabel(InDataLayerLabel);
+	const FString DataLayerLabelSanitized = *FDataLayerUtils::GetSanitizedDataLayerShortName(InDataLayerLabel.ToString());
 
 	for (const UDataLayerInstance* DataLayer : DataLayerInstances)
 	{
-		if (FName(DataLayer->GetDataLayerShortName()) == DataLayerLabelSanitized)
+		if (DataLayer->GetDataLayerShortName() == DataLayerLabelSanitized)
 		{
 			return DataLayer;
 		}

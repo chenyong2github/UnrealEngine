@@ -38,13 +38,16 @@ public:
 	static TArray<const FWorldDataLayersActorDesc*> FindWorldDataLayerActorDescs(const FActorDescViewMap& ActorDescViewMap);
 
 	static bool AreWorldDataLayersActorDescsSane(const TArray<const FWorldDataLayersActorDesc*>& InWorldDataLayersActorDescs);
+
+	static FString GenerateUniqueDataLayerShortName(const UDataLayerManager* InDataLayerManager, const FString& InNewShortName);
+	
+	static bool SetDataLayerShortName(UDataLayerInstance* InDataLayerInstance, const FString& InNewShortName);
+
+	static bool FindDataLayerByShortName(const UDataLayerManager* InDataLayerManager, const FString& InShortName, TSet<UDataLayerInstance*>& OutDataLayerInstances);
 #endif
 
-#if DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED
-	UE_DEPRECATED(5.1, "Label usage is deprecated.")
-	static FName GetSanitizedDataLayerLabel(FName InDataLayerLabel)
+	static FString GetSanitizedDataLayerShortName(FString InShortName)
 	{
-		return FName(InDataLayerLabel.ToString().TrimStartAndEnd().Replace(TEXT("\""), TEXT("")));
+		return InShortName.TrimStartAndEnd().Replace(TEXT("\""), TEXT(""));
 	}
-#endif
 };

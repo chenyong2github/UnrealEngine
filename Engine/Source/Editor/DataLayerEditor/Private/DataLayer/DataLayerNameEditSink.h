@@ -19,7 +19,7 @@ class FDataLayerNameEditSink : public UE::EditorWidgets::IObjectNameEditSink
 	virtual FText GetObjectDisplayName(UObject* Object) const override
 	{
 		UDataLayerInstance* DataLayerInstance = CastChecked<UDataLayerInstance>(Object);
-		if (DataLayerInstance->SupportRelabeling())
+		if (DataLayerInstance->CanEditDataLayerShortName())
 		{
 			return FText::Format(FText::FromString("{0}"), FText::FromString(DataLayerInstance->GetDataLayerShortName()));
 		}
@@ -35,21 +35,19 @@ class FDataLayerNameEditSink : public UE::EditorWidgets::IObjectNameEditSink
 	virtual bool IsObjectDisplayNameReadOnly(UObject* Object) const override
 	{
 		UDataLayerInstance* DataLayerInstance = CastChecked<UDataLayerInstance>(Object);
-		return !DataLayerInstance->SupportRelabeling() || DataLayerInstance->IsLocked();
+		return !DataLayerInstance->CanEditDataLayerShortName() || DataLayerInstance->IsLocked();
 	};
 
 	virtual bool SetObjectDisplayName(UObject* Object, FString DisplayName) override
 	{
 		UDataLayerInstance* DataLayerInstance = CastChecked<UDataLayerInstance>(Object);
-		if(DataLayerInstance->SupportRelabeling())
+		if(DataLayerInstance->CanEditDataLayerShortName())
 		{
 			if (!DisplayName.Equals(DataLayerInstance->GetDataLayerShortName(), ESearchCase::CaseSensitive))
 			{
 				const FScopedTransaction Transaction(LOCTEXT("DataLayerNameEditSinkRenameDataLayerTransaction", "Rename Data Layer"));
 
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				return UDataLayerEditorSubsystem::Get()->RenameDataLayer(DataLayerInstance, *DisplayName);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				return UDataLayerEditorSubsystem::Get()->SetDataLayerShortName(DataLayerInstance, DisplayName);
 			}
 		}
 		
