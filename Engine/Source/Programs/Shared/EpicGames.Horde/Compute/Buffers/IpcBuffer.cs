@@ -11,6 +11,7 @@ using Microsoft.Win32.SafeHandles;
 using System.Runtime.Versioning;
 using System.IO.MemoryMappedFiles;
 using System.Reflection;
+using System.IO;
 
 namespace EpicGames.Horde.Compute.Buffers
 {
@@ -20,11 +21,22 @@ namespace EpicGames.Horde.Compute.Buffers
 	[SupportedOSPlatform("windows")]
 	public sealed class IpcBuffer : ComputeBuffer, IDisposable
 	{
+		[StructLayout(LayoutKind.Sequential)]
+		class SECURITY_ATTRIBUTES
+		{
+			public int nLength;
+			public IntPtr lpSecurityDescriptor;
+			public int bInheritHandle;
+		}
+
 		class NativeEvent : WaitHandle
 		{
-			public NativeEvent()
+			public NativeEvent(HandleInheritability handleInheritability)
 			{
-				SafeWaitHandle = CreateEvent(IntPtr.Zero, false, false, null);
+				SECURITY_ATTRIBUTES securityAttributes = new SECURITY_ATTRIBUTES();
+				securityAttributes.nLength = Marshal.SizeOf(securityAttributes);
+				securityAttributes.bInheritHandle = (handleInheritability == HandleInheritability.Inheritable)? 1 : 0;
+				SafeWaitHandle = CreateEvent(securityAttributes, false, false, null);
 			}
 
 			public NativeEvent(IntPtr handle, bool ownsHandle)
@@ -35,7 +47,7 @@ namespace EpicGames.Horde.Compute.Buffers
 			public void Set() => SetEvent(SafeWaitHandle);
 
 			[DllImport("kernel32.dll")]
-			static extern SafeWaitHandle CreateEvent(IntPtr lpEventAttributes, bool bManualReset, bool bInitialState, string? lpName);
+			static extern SafeWaitHandle CreateEvent(SECURITY_ATTRIBUTES lpEventAttributes, bool bManualReset, bool bInitialState, string? lpName);
 
 			[DllImport("kernel32.dll")]
 			static extern bool SetEvent(SafeWaitHandle hEvent);
@@ -91,10 +103,10 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <param name="capacity">Capacity of the buffer</param>
 		public static IpcBuffer CreateNew(long capacity)
 		{
-			MemoryMappedFile memoryMappedFile = MemoryMappedFile.CreateNew(null, HeaderLength + capacity);
+			MemoryMappedFile memoryMappedFile = MemoryMappedFile.CreateNew(null, HeaderLength + capacity, MemoryMappedFileAccess.ReadWrite, MemoryMappedFileOptions.None, HandleInheritability.Inheritable);
 
-			NativeEvent writtenEvent = new NativeEvent();
-			NativeEvent flushedEvent = new NativeEvent();
+			NativeEvent writtenEvent = new NativeEvent(HandleInheritability.Inheritable);
+			NativeEvent flushedEvent = new NativeEvent(HandleInheritability.Inheritable);
 
 			return new IpcBuffer(memoryMappedFile, writtenEvent, flushedEvent);
 		}
@@ -102,13 +114,13 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <summary>
 		/// Opens an IpcBuffer from a string passed in from another process
 		/// </summary>
-		/// <param name="str">Descriptor for the buffer to open</param>
-		public static IpcBuffer OpenExisting(string str)
+		/// <param name="handle">Descriptor for the buffer to open</param>
+		public static IpcBuffer OpenExisting(string handle)
 		{
-			string[] values = str.Split(',');
+			string[] values = handle.Split(',');
 			if (values.Length != 3)
 			{
-				throw new ArgumentException("Expected three handle values for IPC buffer", nameof(str));
+				throw new ArgumentException("Expected three handle values for IPC buffer", nameof(handle));
 			}
 
 			IntPtr memoryHandle = new IntPtr((long)UInt64.Parse(values[0], NumberStyles.None));
@@ -141,6 +153,18 @@ namespace EpicGames.Horde.Compute.Buffers
 			setHandleInfo.Invoke(safeHandle, new object[] { handle });
 
 			return (MemoryMappedFile)constructorInfo.Invoke(new object[] { safeHandle });
+		}
+
+		/// <summary>
+		/// Gets the descriptor for the current buffer. This can be used for calls to <see cref="OpenExisting(String)"/> by newly spawned processes that inherit handles.
+		/// </summary>
+		/// <returns>Descriptor string for the buffer</returns>
+		public string GetHandle()
+		{
+			ulong targetMemoryHandle = (ulong)_memoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle().ToInt64();
+			ulong targetWrittenEventHandle = (ulong)_writtenEvent.SafeWaitHandle.DangerousGetHandle();
+			ulong targetFlushedEventHandle = (ulong)_flushedEvent.SafeWaitHandle.DangerousGetHandle();
+			return $"{targetMemoryHandle},{targetWrittenEventHandle},{targetFlushedEventHandle}";
 		}
 
 		/// <summary>
@@ -254,6 +278,6 @@ namespace EpicGames.Horde.Compute.Buffers
 			}
 		}
 
-		#endregion	
+		#endregion
 	}
 }

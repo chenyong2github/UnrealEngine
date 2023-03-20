@@ -9,7 +9,7 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// <summary>
 	/// In-process buffer used for compute messages
 	/// </summary>
-	public class MemoryBuffer : ComputeBuffer
+	public class HeapBuffer : ComputeBuffer
 	{
 		readonly Memory<byte> _memory;
 
@@ -23,7 +23,7 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// Creates a local buffer with the given capacity
 		/// </summary>
 		/// <param name="memory"></param>
-		public MemoryBuffer(Memory<byte> memory)
+		public HeapBuffer(Memory<byte> memory)
 		{
 			_memory = memory;
 		}

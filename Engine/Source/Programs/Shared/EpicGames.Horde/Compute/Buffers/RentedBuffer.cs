@@ -6,9 +6,9 @@ using System.Buffers;
 namespace EpicGames.Horde.Compute.Buffers
 {
 	/// <summary>
-	/// Implementation of <see cref="MemoryBuffer"/> that owns a rented memory resource
+	/// Implementation of <see cref="HeapBuffer"/> that owns a rented memory resource
 	/// </summary>
-	class RentedLocalBuffer : MemoryBuffer, IDisposable
+	class RentedLocalBuffer : HeapBuffer, IDisposable
 	{
 		readonly IMemoryOwner<byte> _memoryOwner;
 

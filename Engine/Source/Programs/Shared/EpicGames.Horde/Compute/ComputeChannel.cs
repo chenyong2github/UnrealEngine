@@ -11,7 +11,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Implementation of a compute channel
 	/// </summary>
-	class ComputeChannel : IComputeChannel, IAsyncDisposable
+	public class ComputeChannel : IComputeChannel, IAsyncDisposable
 	{
 		// Length of a message header. Consists of a 1 byte type field, followed by 4 byte length field.
 		const int HeaderLength = 5;
