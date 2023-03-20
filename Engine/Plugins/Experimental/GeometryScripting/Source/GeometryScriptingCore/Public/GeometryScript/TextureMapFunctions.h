@@ -46,7 +46,7 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_TextureMapFunctions : pub
 public:
 
 	/**
-	 * Sample the the given TextureMap at the list of UV positions and return the color at each position in ColorList output
+	 * Samples the given TextureMap at the list of UV positions and returns the color at each position in ColorList output.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|TextureUtils")
 	static void 

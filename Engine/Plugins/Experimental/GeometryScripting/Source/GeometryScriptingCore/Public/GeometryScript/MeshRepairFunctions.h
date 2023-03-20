@@ -165,12 +165,18 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshRepairFunctions : pub
 	GENERATED_BODY()
 public:
 
+	/**
+	* Compacts the mesh's vertices and triangles to remove any "holes" in the Vertex ID or Triangle ID lists.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	CompactMesh(  
 		UDynamicMesh* TargetMesh, 
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Attempts to resolve T-Junctions in the mesh by addition of vertices and welding.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ResolveMeshTJunctions(  
@@ -178,6 +184,9 @@ public:
 		FGeometryScriptResolveTJunctionOptions ResolveOptions,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Welds any open boundary edges of the mesh together if possible in order to remove "cracks."
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	WeldMeshEdges(  
@@ -185,6 +194,12 @@ public:
 		FGeometryScriptWeldEdgesOptions WeldOptions,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Tries to fill all open boundary loops (such as holes in the geometry surface) of a mesh.
+	* @param FillOptions specifies the method used to fill the holes.
+	* @param NumFilledHoles reports the number of holes filled by the function.
+	* @param NumFailedHolesFills reports the detected holes that were unable to be filled.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	FillAllMeshHoles(  
@@ -194,6 +209,9 @@ public:
 		int32& NumFailedHoleFills,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/*
+	* Removes connected components of the mesh that have a volume, area, or triangle count below a threshold as specified by the Options.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RemoveSmallComponents(  
@@ -201,6 +219,10 @@ public:
 		FGeometryScriptRemoveSmallComponentOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Removes any triangles in the mesh that are not visible from the exterior view, under various definitions of "visible" and "outside"
+	* as specified by the Options.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RemoveHiddenTriangles(  
@@ -208,6 +230,10 @@ public:
 		FGeometryScriptRemoveHiddenTrianglesOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Splits Bowties in the mesh and/or the attributes.  A Bowtie is formed when a single vertex is connected to more than two boundary edges, 
+	* and splitting duplicates the shared vertex so each triangle will have a unique copy.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SplitMeshBowties(  
@@ -216,6 +242,9 @@ public:
 		bool bAttributeBowties = true,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	* Removes triangles that have area or edge length below specified amounts depending on the Options requested.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	RepairMeshDegenerateGeometry(  

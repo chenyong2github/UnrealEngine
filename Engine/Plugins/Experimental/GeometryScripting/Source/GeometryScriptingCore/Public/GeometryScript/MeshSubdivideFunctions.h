@@ -53,6 +53,11 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshSubdivideFunctions : 
 	GENERATED_BODY()
 public:
 
+
+	
+	/**
+	 * Apply PN Tessellation to the Target Mesh as controlled by the Tessellation Level and the Options.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyPNTessellation(
@@ -61,6 +66,9 @@ public:
 		int TessellationLevel = 3,
 		UGeometryScriptDebug* Debug = nullptr );
 	
+	/**
+	* Apply Uniform Tessellation to the Target Mesh as controlled by the Tessellation Level and the Options.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyUniformTessellation(
@@ -68,6 +76,13 @@ public:
 		int TessellationLevel = 3,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	* Selectively Tessellate a Selection of the Target Mesh or possibly the entire mesh as controlled by 
+	* the Options.
+	* @param Selection selects the triangles of the mesh to be tessellated.
+	* @param Options controls the behavior of the tessellation if the Selection is empty.
+	* @param TessellationLevel determines the amount of tessellation
+	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySelectiveTessellation(
