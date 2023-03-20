@@ -2,6 +2,7 @@
 
 #include "Elements/PCGVolumeSampler.h"
 
+#include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
 #include "PCGHelpers.h"
@@ -179,16 +180,23 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	// Grab the Bounding Shape input if there is one.
 	TArray<FPCGTaggedData> BoundingShapeInputs = Context->InputData.GetInputsByPin(PCGVolumeSamplerConstants::BoundingShapeLabel);
 	const UPCGSpatialData* BoundingShapeSpatialInput = nullptr;
-	if (BoundingShapeInputs.Num() > 0)
-	{
-		ensure(BoundingShapeInputs.Num() == 1);
-		BoundingShapeSpatialInput = Cast<UPCGSpatialData>(BoundingShapeInputs[0].Data);
 
-		if (!BoundingShapeSpatialInput)
+	if (!Settings->bUnbounded)
+	{
+		if (BoundingShapeInputs.Num() > 0)
 		{
-			PCGE_LOG(Warning, "Bounding Shape input is missing or of unsupported type and will not be used.");
+			ensure(BoundingShapeInputs.Num() == 1);
+			BoundingShapeSpatialInput = Cast<UPCGSpatialData>(BoundingShapeInputs[0].Data);
+		}
+		else if (Context->SourceComponent.IsValid())
+		{
+			BoundingShapeSpatialInput = Cast<UPCGSpatialData>(Context->SourceComponent->GetActorPCGData());
 		}
 	}
+	else if (BoundingShapeInputs.Num() > 0)
+	{
+		PCGE_LOG_C(Verbose, Context, "The bounds of the Bounding Shape input pin will be ignored because the Unbounded option is enabled.");
+	}	
 
 	// Compute bounds of bounding shape input
 	FBox BoundingShapeBounds(EForceInit::ForceInit);
@@ -212,8 +220,16 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	if (GeneratingShapes.Num() == 0 && BoundingShapeSpatialInput)
 	{
 		GeneratingShapes.Add(BoundingShapeSpatialInput);
-		check(BoundingShapeInputs.Num() > 0);
-		Outputs.Add(BoundingShapeInputs[0]);
+
+		// If there was a bounding shape input, use it as the starting point to get the tags
+		if (BoundingShapeInputs.Num() > 0)
+		{
+			Outputs.Add(BoundingShapeInputs[0]);
+		}
+		else
+		{
+			Outputs.Emplace();
+		}
 	}
 
 	// Warn if something is connected but no spatial data could be obtained for sampling

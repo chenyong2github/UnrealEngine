@@ -15,26 +15,61 @@ class UWorld;
 class UPCGMetadata;
 class UPCGComponent;
 
+UENUM()
+enum class EPCGWorldQueryFilterByTag
+{
+	NoTagFilter,
+	IncludeTagged,
+	ExcludeTagged
+};
+
 USTRUCT(BlueprintType)
-struct FPCGWorldVolumetricQueryParams
+struct FPCGWorldCommonQueryParams
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
-	bool bSearchForOverlap = true;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
+	/** If true, will ignore hits/overlaps on content created from PCG. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable))
 	bool bIgnorePCGHits = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable))
 	bool bIgnoreSelfHits = true;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced", meta = (PCG_Overridable))
 	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_WorldStatic;
 
 	/** Queries against complex collision if enabled, performance warning */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced", meta = (PCG_Overridable))
 	bool bTraceComplex = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Filtering", meta = (PCG_Overridable))
+	EPCGWorldQueryFilterByTag ActorTagFilter = EPCGWorldQueryFilterByTag::NoTagFilter;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Filtering", meta = (PCG_Overridable, EditCondition = "TagFilter != EPCGWorldQueryFilterByTag::NoTagFilter"))
+	FString ActorTagsList;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Filtering", meta = (PCG_Overridable))
+	bool bIgnoreLandscapeHits = false;
+
+	// Not exposed, will be filled in when initializing this
+	UPROPERTY()
+	TSet<FName> ParsedActorTagsList;
+
+protected:
+	/** Sets up the data we need to efficiently perform the queries */
+	void Initialize();
+};
+
+USTRUCT(BlueprintType)
+struct FPCGWorldVolumetricQueryParams : public FPCGWorldCommonQueryParams
+{
+	GENERATED_BODY()
+
+	void Initialize();
+
+	/** Controls whether we are trying to find an overlap with physical objects (true) or to find empty spaces that do not contain anything (false) */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable))
+	bool bSearchForOverlap = true;
 };
 
 /** Queries volume for presence of world collision or not. Can be used to voxelize environment. */
@@ -73,40 +108,29 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FPCGWorldRayHitQueryParams
+struct FPCGWorldRayHitQueryParams : public FPCGWorldCommonQueryParams
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
+	void Initialize();
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable))
 	bool bOverrideDefaultParams = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (EditCondition = "bOverrideDefaultParams"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable, EditCondition = "bOverrideDefaultParams"))
 	FVector RayOrigin = FVector::ZeroVector;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (EditCondition = "bOverrideDefaultParams"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable, EditCondition = "bOverrideDefaultParams"))
 	FVector RayDirection = FVector(0.0, 0.0, -1.0);
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (EditCondition = "bOverrideDefaultParams"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable, EditCondition = "bOverrideDefaultParams"))
 	double RayLength = 1.0e+5; // 100m
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
-	bool bIgnorePCGHits = false;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
-	bool bIgnoreSelfHits = true;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced")
-	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_WorldStatic;
-
-	/** Queries against complex collision if enabled, performance warning */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data|Advanced")
-	bool bTraceComplex = false;
 
 	// TODO: see in FCollisionQueryParams if there are some flags we want to expose
 	// examples: bReturnFaceIndex, bReturnPhysicalMaterial, some ignore patterns
 
-	//TODO UPROPERTY()
-	//bool bUseMetadataFromLandscape = true;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data, meta = (PCG_Overridable))
+	bool bApplyMetadataFromLandscape = false;
 };
 
 /** Executes collision queries against world collision. */

@@ -33,6 +33,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data", meta = (PCG_Overridable))
 	FVector VoxelSize = FVector(100.0, 100.0, 100.0);
 
+	/** If no Bounding Shape input is provided the actor bounds are used to limit the sample generation area.
+	* This option allows ignoring the actor bounds and generating over the entire volume provided. Use with caution as this
+	* may generate a lot of points.
+	*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	bool bUnbounded = false;
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Volume Sampler")); }

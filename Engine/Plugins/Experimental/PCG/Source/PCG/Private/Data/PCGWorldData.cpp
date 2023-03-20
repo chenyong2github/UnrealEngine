@@ -2,19 +2,49 @@
 
 #include "Data/PCGWorldData.h"
 
-#include "Data/PCGSurfaceData.h"
 #include "PCGComponent.h"
-#include "Data/PCGVolumeData.h"
 #include "PCGHelpers.h"
+#include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGSurfaceData.h"
+#include "Data/PCGVolumeData.h"
 #include "Elements/PCGSurfaceSampler.h"
 #include "Elements/PCGVolumeSampler.h"
+#include "Grid/PCGLandscapeCache.h"
 #include "Helpers/PCGBlueprintHelpers.h"
 
+#include "LandscapeProxy.h"
 #include "Components/BrushComponent.h"
 #include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGWorldData)
+
+void FPCGWorldCommonQueryParams::Initialize()
+{
+	if (ActorTagFilter == EPCGWorldQueryFilterByTag::NoTagFilter)
+	{
+		ParsedActorTagsList.Reset();
+	}
+	else
+	{
+		TArray<FString> ParsedList = PCGHelpers::GetStringArrayFromCommaSeparatedString(ActorTagsList);
+		ParsedActorTagsList.Reset();
+		for (const FString& Tag : ParsedList)
+		{
+			ParsedActorTagsList.Add(FName(Tag));
+		}
+	}
+}
+
+void FPCGWorldVolumetricQueryParams::Initialize()
+{
+	FPCGWorldCommonQueryParams::Initialize();
+}
+
+void FPCGWorldRayHitQueryParams::Initialize()
+{
+	FPCGWorldCommonQueryParams::Initialize();
+}
 
 void UPCGWorldVolumetricData::Initialize(UWorld* InWorld, const FBox& InBounds)
 {
@@ -71,7 +101,36 @@ bool UPCGWorldVolumetricData::SamplePoint(const FTransform& InTransform, const F
 			continue;
 		}
 
-		// TODO: additional filtering?
+		// Additional filter as provided in the QueryParams base class
+		if (QueryParams.ActorTagFilter != EPCGWorldQueryFilterByTag::NoTagFilter)
+		{
+			if (AActor* Actor = OverlappedComponent->GetOwner())
+			{
+				bool bFoundMatch = false;
+				for (const FName& Tag : Actor->Tags)
+				{
+					if (QueryParams.ParsedActorTagsList.Contains(Tag))
+					{
+						bFoundMatch = true;
+						break;
+					}
+				}
+
+				if (bFoundMatch != (QueryParams.ActorTagFilter == EPCGWorldQueryFilterByTag::IncludeTagged))
+				{
+					continue;
+				}
+			}
+			else if (QueryParams.ActorTagFilter == EPCGWorldQueryFilterByTag::IncludeTagged)
+			{
+				continue;
+			}
+		}
+
+		if (QueryParams.bIgnoreLandscapeHits && OverlappedComponent->GetOwner() && OverlappedComponent->GetOwner()->IsA<ALandscapeProxy>())
+		{
+			continue;
+		}
 
 		if (QueryParams.bSearchForOverlap)
 		{
@@ -150,6 +209,7 @@ UPCGSpatialData* UPCGWorldVolumetricData::CopyInternal() const
 	NewVolumetricData->World = World;
 	NewVolumetricData->OriginatingComponent = OriginatingComponent;
 	NewVolumetricData->QueryParams = QueryParams;
+	NewVolumetricData->QueryParams.Initialize();
 
 	return NewVolumetricData;
 }
@@ -164,7 +224,6 @@ void UPCGWorldRayHitData::Initialize(UWorld* InWorld, const FBox& InBounds)
 bool UPCGWorldRayHitData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	// TODO: This seems to be a projection - along a direction. I suspect that UPCGWorldVolumetricData is the SamplePoint(), and this is the ProjectPoint() (in a direction)?
-
 	check(World.IsValid());
 
 	// Todo: consider prebuilding this
@@ -213,7 +272,44 @@ bool UPCGWorldRayHitData::SamplePoint(const FTransform& InTransform, const FBox&
 			continue;
 		}
 
-		// TODO: additional filtering?
+		// Additional filter as provided in the QueryParams base class
+		if (QueryParams.ActorTagFilter != EPCGWorldQueryFilterByTag::NoTagFilter)
+		{
+			AActor* Actor = HitComponent->GetOwner();
+			
+			if (Actor)
+			{
+				bool bFoundMatch = false;
+				for (const FName& Tag : Actor->Tags)
+				{
+					if (QueryParams.ParsedActorTagsList.Contains(Tag))
+					{
+						bFoundMatch = true;
+						break;
+					}
+				}
+
+				if (bFoundMatch != (QueryParams.ActorTagFilter == EPCGWorldQueryFilterByTag::IncludeTagged))
+				{
+					continue;
+				}
+			}
+			else if (QueryParams.ActorTagFilter == EPCGWorldQueryFilterByTag::IncludeTagged)
+			{
+				continue;
+			}
+		}
+
+		bool bHitOnLandscape = false;
+		if (QueryParams.bIgnoreLandscapeHits || QueryParams.bApplyMetadataFromLandscape)
+		{
+			bHitOnLandscape = HitComponent->GetOwner() && HitComponent->GetOwner()->IsA<ALandscapeProxy>();
+		}
+
+		if (QueryParams.bIgnoreLandscapeHits && bHitOnLandscape)
+		{
+			continue;
+		}
 
 		// Finally, fill in OutPoint - we're done
 		// Implementation note: this uses the same orthonormalization process as the landscape cache
@@ -225,9 +321,15 @@ bool UPCGWorldRayHitData::SamplePoint(const FTransform& InTransform, const FBox&
 		OutPoint = FPCGPoint(FTransform(XAxis, YAxis, Hit.ImpactNormal, Hit.ImpactPoint), 1.0f, 0);
 		UPCGBlueprintHelpers::SetSeedFromPosition(OutPoint);
 
-		// TODO: apply metadata
-		// e.g. if hit on landscape -> metadata on landscape at that position
-		// maybe material, etc.
+		// TODO: generalize for other sources of metadata?
+		if (QueryParams.bApplyMetadataFromLandscape && bHitOnLandscape && OutMetadata && World->GetSubsystem<UPCGSubsystem>())
+		{
+			UPCGLandscapeCache* LandscapeCache = World->GetSubsystem<UPCGSubsystem>()->GetLandscapeCache();
+			if (LandscapeCache)
+			{
+				LandscapeCache->SampleMetadataOnPoint(Cast<ALandscapeProxy>(HitComponent->GetOwner()), OutPoint, OutMetadata);
+			}
+		}
 
 		return true;
 	}
@@ -284,6 +386,7 @@ UPCGSpatialData* UPCGWorldRayHitData::CopyInternal() const
 	NewData->OriginatingComponent = OriginatingComponent;
 	NewData->Bounds = Bounds;
 	NewData->QueryParams = QueryParams;
+	NewData->QueryParams.Initialize();
 
 	return NewData;
 }

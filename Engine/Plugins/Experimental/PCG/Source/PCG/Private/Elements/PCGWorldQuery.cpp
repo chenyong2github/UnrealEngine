@@ -49,6 +49,7 @@ bool FPCGWorldVolumetricQueryElement::ExecuteInternal(FPCGContext* Context) cons
 	UPCGWorldVolumetricData* Data = NewObject<UPCGWorldVolumetricData>();
 	Data->Initialize(World);
 	Data->QueryParams = QueryParams;
+	Data->QueryParams.Initialize();
 	Data->OriginatingComponent = Context->SourceComponent;
 	Data->TargetActor = Context->SourceComponent->GetOwner();
 
@@ -126,6 +127,7 @@ bool FPCGWorldRayHitQueryElement::ExecuteInternal(FPCGContext* Context) const
 	UPCGWorldRayHitData* Data = NewObject<UPCGWorldRayHitData>();
 	Data->Initialize(World);
 	Data->QueryParams = QueryParams;
+	Data->QueryParams.Initialize();
 	Data->OriginatingComponent = Context->SourceComponent;
 	Data->TargetActor = Context->SourceComponent->GetOwner();
 
