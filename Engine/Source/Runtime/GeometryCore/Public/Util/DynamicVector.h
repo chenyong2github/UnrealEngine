@@ -231,11 +231,11 @@ public:
 			Idx++;
 			return Copy;
 		}
-		inline bool operator==(const FIterator& Itr2)
+		inline bool operator==(const FIterator& Itr2) const
 		{
 			return DVector == Itr2.DVector && Idx == Itr2.Idx;
 		}
-		inline bool operator!=(const FIterator& Itr2)
+		inline bool operator!=(const FIterator& Itr2) const
 		{
 			return DVector != Itr2.DVector || Idx != Itr2.Idx;
 		}
@@ -280,11 +280,11 @@ public:
 			Idx++;
 			return Copy;
 		}
-		inline bool operator==(const FConstIterator& Itr2)
+		inline bool operator==(const FConstIterator& Itr2) const
 		{
 			return DVector == Itr2.DVector && Idx == Itr2.Idx;
 		}
-		inline bool operator!=(const FConstIterator& Itr2)
+		inline bool operator!=(const FConstIterator& Itr2) const
 		{
 			return DVector != Itr2.DVector || Idx != Itr2.Idx;
 		}
