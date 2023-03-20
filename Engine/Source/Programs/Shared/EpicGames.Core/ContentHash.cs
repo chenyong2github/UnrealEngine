@@ -122,6 +122,19 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Creates a content hash for a block of data, using a given algorithm.
+		/// </summary>
+		/// <param name="data">Data to compute the hash for</param>
+		/// <param name="offset">Offset to the start of the data</param>
+		/// <param name="count">Length of the data</param>
+		/// <param name="algorithm">Algorithm to use to create the hash</param>
+		/// <returns>New content hash instance containing the hash of the data</returns>
+		public static ContentHash Compute(byte[] data, int offset, int count, HashAlgorithm algorithm)
+		{
+			return new ContentHash(algorithm.ComputeHash(data, offset, count));
+		}
+
+		/// <summary>
 		/// Creates a content hash for a string, using a given algorithm.
 		/// </summary>
 		/// <param name="text">Text to compute a hash for</param>
@@ -156,6 +169,21 @@ namespace EpicGames.Core
 			using (MD5 algorithm = System.Security.Cryptography.MD5.Create())
 			{
 				return Compute(data, algorithm);
+			}
+		}
+
+		/// <summary>
+		/// Creates a content hash for a block of data using MD5
+		/// </summary>
+		/// <param name="data">Data to compute the hash for</param>
+		/// <param name="offset">Offset to the start of the data</param>
+		/// <param name="count">Length of the data</param>
+		/// <returns>New content hash instance containing the hash of the data</returns>
+		public static ContentHash MD5(byte[] data, int offset, int count)
+		{
+			using (MD5 algorithm = System.Security.Cryptography.MD5.Create())
+			{
+				return Compute(data, offset, count, algorithm);
 			}
 		}
 
