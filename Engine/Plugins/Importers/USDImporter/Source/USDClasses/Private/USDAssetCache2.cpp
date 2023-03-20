@@ -358,7 +358,7 @@ namespace UE::AssetCache::Private
 				{
 					if (ObjectWithOuter != nullptr)
 					{
-						ObjectWithOuter->Rename(nullptr, GetTransientPackage(), REN_NonTransactional | REN_DontCreateRedirectors);
+						ObjectWithOuter->Rename(nullptr, GetTransientPackage(), REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 					}
 					ObjectWithOuter->MarkAsGarbage();
 				}
@@ -420,13 +420,13 @@ namespace UE::AssetCache::Private
 				if (NewOuter != SubObject->GetOuter())
 				{
 					const TCHAR* NewName = nullptr;
-					SubObject->Rename(NewName, NewOuter, REN_NonTransactional | REN_DontCreateRedirectors);
+					SubObject->Rename(NewName, NewOuter, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 				}
 
 				UObject* NoNewOuter = nullptr;
 				if (SubObjectName != SubObject->GetName() && SubObject->Rename(*SubObjectName, NoNewOuter, REN_Test))
 				{
-					SubObject->Rename(*SubObjectName, NoNewOuter, REN_NonTransactional | REN_DontCreateRedirectors);
+					SubObject->Rename(*SubObjectName, NoNewOuter, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 				}
 			}
 		}
@@ -606,7 +606,7 @@ void UUsdAssetCache2::CacheAsset(const FString& Hash, UObject* Asset, const UObj
 	{
 		UObject* NewOuter = this;
 		const FName NewName = MakeUniqueObjectName(NewOuter, Asset->GetClass(), Asset->GetFName());
-		Asset->Rename(*NewName.ToString(), NewOuter);
+		Asset->Rename(*NewName.ToString(), NewOuter, REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders);
 	}
 
 	FCachedAssetInfo NewInfo;
@@ -1347,7 +1347,7 @@ bool UUsdAssetCache2::TryUnloadAsset(FCachedAssetInfo& InOutInfo)
 
 			const TCHAR* NewName = nullptr;
 			UObject* NewOuter = GetTransientPackage();
-			Asset->Rename(NewName, NewOuter);
+			Asset->Rename(NewName, NewOuter, REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders);
 		}
 
 		return InOutInfo.BulkData.UnloadBulkData();

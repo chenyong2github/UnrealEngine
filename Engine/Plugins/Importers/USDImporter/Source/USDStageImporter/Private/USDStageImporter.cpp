@@ -693,6 +693,23 @@ namespace UsdStageImporterImpl
 				}
 			}
 
+			// We have to rename the existing asset away, because some objects manage subobjects (like
+			// UMaterialInterface and its EditorOnlyData), and try to rename them whenever they're duplicated/renamed.
+			// That can lead to issues if the target names conflict with the names of ExistingAsset's subobjects			 
+			if (ExistingAsset)
+			{
+				FName UniqueName = MakeUniqueObjectName(
+					GetTransientPackage(),
+					ExistingAsset->GetClass(),
+					ExistingAsset->GetFName()
+				);
+				ExistingAsset->Rename(
+					*UniqueName.ToString(), 
+					GetTransientPackage(), 
+					REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty
+				);
+			}
+
 			MovedAsset = DuplicateObject<UObject>( Asset, Package, *TargetAssetName );
 
 			// If our DuplicateObject didn't stomp the old asset because TargetAssetName != ExistingAsset->GetName(),
