@@ -5,11 +5,11 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "SamplesSequenceTransportCoordinator.h"
+#include "SparseSampledSequenceTransportCoordinator.h"
 
 #define LOCTEXT_NAMESPACE "WaveformEditorTimeRuler"
 
-void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<ISampledSequenceGridService> InGridService)
+void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<IFixedSampledSequenceGridService> InGridService)
 {
 	GridService = InGridService;
 	UpdateGridMetrics();

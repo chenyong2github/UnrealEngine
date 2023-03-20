@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "ISampledSequenceGridService.h"
+#include "IFixedSampledSequenceGridService.h"
 #include "Math/Vector2D.h"
 #include "Math/Range.h"
 
 struct FGeometry;
 
-namespace TimeSeriesDrawingUtils
+namespace SampledSequenceDrawingUtils
 {
 	/**
 	* Groups samples evenly into a number of desired bins.
@@ -152,6 +152,6 @@ namespace TimeSeriesDrawingUtils
 	* @param InGridMetrics				GridMetrics followed to lay down the samples
 	* @param Params						Drawing Params
 	*/
-	void GenerateSequencedSamplesCoordinatesForGeometry(TArray<FVector2D>& OutDrawCoordinates, TArrayView<const float> InSampleData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const FSampledSequenceGridMetrics InGridMetrics, const FSampledSequenceDrawingParams Params = FSampledSequenceDrawingParams());
+	void GenerateSequencedSamplesCoordinatesForGeometry(TArray<FVector2D>& OutDrawCoordinates, TArrayView<const float> InSampleData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const FFixedSampledSequenceGridMetrics InGridMetrics, const FSampledSequenceDrawingParams Params = FSampledSequenceDrawingParams());
 
 }

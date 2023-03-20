@@ -3,17 +3,17 @@
 #pragma once
 
 #include "Delegates/Delegate.h"
-#include "ISamplesSequenceTransportCoordinator.h"
+#include "ISparseSampledSequenceTransportCoordinator.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisplayRangeUpdated, const TRange<float> /* New Display Range */);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFocusPointScrubUpdate, const float /* Focused Playback Ratio */, const bool /*Playhead is Moving*/);
 
 
-class AUDIOWIDGETS_API FSamplesSequenceTransportCoordinator : public ISamplesSequenceTransportCoordinator
+class AUDIOWIDGETS_API FSparseSampledSequenceTransportCoordinator : public ISparseSampledSequenceTransportCoordinator
 {
 public:
-	FSamplesSequenceTransportCoordinator() = default;
-	virtual ~FSamplesSequenceTransportCoordinator() = default;
+	FSparseSampledSequenceTransportCoordinator() = default;
+	virtual ~FSparseSampledSequenceTransportCoordinator() = default;
 
 	/** Called when the playhead is scrubbed */
 	FOnFocusPointScrubUpdate OnFocusPointScrubUpdate;
@@ -21,7 +21,7 @@ public:
 	/** Called when the display range is updated */
 	FOnDisplayRangeUpdated OnDisplayRangeUpdated;
 
-	/** ISamplesSequenceTransportCoordinator interface */
+	/** ISparseSampledSequenceTransportCoordinator interface */
 	const TRange<float> GetDisplayRange() const;
 	const float GetFocusPoint() const override;
 	void ScrubFocusPoint(const float InTargetFocusPoint, const bool bIsMoving) override;

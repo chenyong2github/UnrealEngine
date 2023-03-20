@@ -104,7 +104,7 @@ private:
 	TSharedPtr<class FWaveformEditorWaveWriter> WaveWriter = nullptr;
 
 	/** Manages Transport info in waveform panel */
-	TSharedPtr<class FSamplesSequenceTransportCoordinator> TransportCoordinator = nullptr;
+	TSharedPtr<class FSparseSampledSequenceTransportCoordinator> TransportCoordinator = nullptr;
 
 	/** Controls Transport of the audio component  */
 	TSharedPtr<FWaveformEditorTransportController> TransportController = nullptr;

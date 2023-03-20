@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SamplesSequenceTransportCoordinator.h"
+#include "SparseSampledSequenceTransportCoordinator.h"
 
 /** Zoom Formula
 
@@ -25,45 +25,37 @@ Zoom is defined as a ratio = displayed length / total length
 
 */
 
-
-
-void FSamplesSequenceTransportCoordinator::UpdatePlaybackRange(const TRange<float>& NewRange)
+void FSparseSampledSequenceTransportCoordinator::UpdatePlaybackRange(const TRange<float>& NewRange)
 {
 	ProgressRange = NewRange;
 }
 
-
-
-const bool FSamplesSequenceTransportCoordinator::IsScrubbing() const
+const bool FSparseSampledSequenceTransportCoordinator::IsScrubbing() const
 {
 	return bIsScrubbing;
 }
 
-
-
-float FSamplesSequenceTransportCoordinator::ConvertAbsoluteRatioToZoomed(const float InAbsoluteRatio) const
+float FSparseSampledSequenceTransportCoordinator::ConvertAbsoluteRatioToZoomed(const float InAbsoluteRatio) const
 {
 	return (InAbsoluteRatio - DisplayRange.GetLowerBoundValue()) / ZoomRatio;
 }
 
-
-
-float FSamplesSequenceTransportCoordinator::ConvertZoomedRatioToAbsolute(const float InZoomedRatio) const
+float FSparseSampledSequenceTransportCoordinator::ConvertZoomedRatioToAbsolute(const float InZoomedRatio) const
 {
 	return InZoomedRatio * ZoomRatio + DisplayRange.GetLowerBoundValue();
 }
 
-const TRange<float> FSamplesSequenceTransportCoordinator::GetDisplayRange() const
+const TRange<float> FSparseSampledSequenceTransportCoordinator::GetDisplayRange() const
 {
 	return DisplayRange;
 }
 
-void FSamplesSequenceTransportCoordinator::MoveFocusPoint(const float InFocusPoint)
+void FSparseSampledSequenceTransportCoordinator::MoveFocusPoint(const float InFocusPoint)
 {
 	FocusPoint = InFocusPoint;
 }
 
-void FSamplesSequenceTransportCoordinator::UpdateZoomRatioAndDisplayRange(const float NewZoomRatio)
+void FSparseSampledSequenceTransportCoordinator::UpdateZoomRatioAndDisplayRange(const float NewZoomRatio)
 {
 	const float ClampedZoomRatio = FMath::Clamp(NewZoomRatio, UE_KINDA_SMALL_NUMBER, 1.f);
 	const float ZoomRatioDelta = ZoomRatio - ClampedZoomRatio;
@@ -103,17 +95,17 @@ void FSamplesSequenceTransportCoordinator::UpdateZoomRatioAndDisplayRange(const 
 	MoveFocusPoint(NewPlayheadPosition);
 }
 
-void FSamplesSequenceTransportCoordinator::Stop()
+void FSparseSampledSequenceTransportCoordinator::Stop()
 {
 	SetProgressRatio(0.f);
 }
 
-const float FSamplesSequenceTransportCoordinator::GetFocusPoint() const
+const float FSparseSampledSequenceTransportCoordinator::GetFocusPoint() const
 {
 	return FocusPoint;
 }
 
-void FSamplesSequenceTransportCoordinator::ScrubFocusPoint(const float InTargetFocusPoint, const bool bIsMoving)
+void FSparseSampledSequenceTransportCoordinator::ScrubFocusPoint(const float InTargetFocusPoint, const bool bIsMoving)
 {
 	const float LowerPlaybackBoundPosition = (ProgressRange.GetLowerBoundValue() - DisplayRange.GetLowerBoundValue()) / ZoomRatio;
 	const float UpperPlaybackBoundPosition = (ProgressRange.GetUpperBoundValue() - DisplayRange.GetLowerBoundValue()) / ZoomRatio;
@@ -161,7 +153,7 @@ void FSamplesSequenceTransportCoordinator::ScrubFocusPoint(const float InTargetF
 
 
 
-void FSamplesSequenceTransportCoordinator::SetProgressRatio(const float NewRatio)
+void FSparseSampledSequenceTransportCoordinator::SetProgressRatio(const float NewRatio)
 {	 
 	if (bIsScrubbing)
 	{
@@ -206,12 +198,12 @@ void FSamplesSequenceTransportCoordinator::SetProgressRatio(const float NewRatio
 	}
 }
 
-void FSamplesSequenceTransportCoordinator::SetZoomRatio(const float NewLevel)
+void FSparseSampledSequenceTransportCoordinator::SetZoomRatio(const float NewLevel)
 {
 	UpdateZoomRatioAndDisplayRange(NewLevel);
 }
 
-void FSamplesSequenceTransportCoordinator::UpdateDisplayRange(const float MinValue, const float MaxValue)
+void FSparseSampledSequenceTransportCoordinator::UpdateDisplayRange(const float MinValue, const float MaxValue)
 {
 	check(MinValue < MaxValue);
 
@@ -224,12 +216,12 @@ void FSamplesSequenceTransportCoordinator::UpdateDisplayRange(const float MinVal
 	}
 }
 
-bool FSamplesSequenceTransportCoordinator::IsRatioWithinDisplayRange(const float Ratio) const
+bool FSparseSampledSequenceTransportCoordinator::IsRatioWithinDisplayRange(const float Ratio) const
 {
 	return DisplayRange.Contains(Ratio);
 }
 
-float FSamplesSequenceTransportCoordinator::GetPlayBackRatioFromFocusPoint(const float InFocusPoint) const
+float FSparseSampledSequenceTransportCoordinator::GetPlayBackRatioFromFocusPoint(const float InFocusPoint) const
 {
 	check(InFocusPoint >= 0.f && InFocusPoint <= 1.f);
 

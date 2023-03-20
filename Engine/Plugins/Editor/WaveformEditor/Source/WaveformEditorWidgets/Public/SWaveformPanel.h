@@ -6,13 +6,13 @@
 #include "Widgets/SCompoundWidget.h"
 
 enum class EWaveformEditorDisplayUnit;
-class FSamplesSequenceTransportCoordinator;
+class FSparseSampledSequenceTransportCoordinator;
 class FWaveformEditorGridData;
 class FWaveformEditorRenderData;
 class FWaveformEditorStyle;
 class FWaveformEditorZoomController;
 class SPlayheadOverlay;
-class SSampledSequenceViewer;
+class SFixedSampledSequenceViewer;
 class SWaveformEditorTimeRuler;
 class SWaveformTransformationsOverlay;
 class SWaveformViewerOverlay;
@@ -35,7 +35,7 @@ public:
 		SLATE_DEFAULT_SLOT(FArguments, InArgs)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedPtr<SWaveformTransformationsOverlay> InWaveformTransformationsOverlay = nullptr);
+	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedPtr<SWaveformTransformationsOverlay> InWaveformTransformationsOverlay = nullptr);
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
@@ -46,7 +46,7 @@ private:
 	void SetUpTimeRuler(TSharedRef<FWaveformEditorGridData> InGridData);
 	void SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, TSharedRef<FWaveformEditorRenderData> InRenderData);
 	void SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorZoomController> InZoomManager);
-	void SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator);
+	void SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator);
 
 	void OnRenderDataUpdated();
 	void OnDisplayRangeUpdated(const TRange<float> NewDisplayRange);
@@ -67,10 +67,10 @@ private:
 
 	TSharedPtr<FWaveformEditorRenderData> RenderData;
 	TSharedPtr<FWaveformEditorGridData> GridData;
-	TSharedPtr<FSamplesSequenceTransportCoordinator> TransportCoordinator;
+	TSharedPtr<FSparseSampledSequenceTransportCoordinator> TransportCoordinator;
 
 	TSharedPtr<SWaveformEditorTimeRuler> TimeRuler;
-	TSharedPtr<SSampledSequenceViewer> WaveformViewer;
+	TSharedPtr<SFixedSampledSequenceViewer> WaveformViewer;
 	TSharedPtr<SWaveformTransformationsOverlay> WaveformTransformationsOverlay;
 	TSharedPtr<SWaveformViewerOverlay> WaveformViewerOverlay;
 	TSharedPtr<SPlayheadOverlay> PlayheadOverlay;

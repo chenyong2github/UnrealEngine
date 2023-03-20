@@ -6,7 +6,7 @@
 #include "Components/AudioComponent.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "PropertyEditorModule.h"
-#include "SamplesSequenceTransportCoordinator.h"
+#include "SparseSampledSequenceTransportCoordinator.h"
 #include "Sound/SoundWave.h"
 #include "Styling/AppStyle.h"
 #include "SWaveformPanel.h"
@@ -629,7 +629,7 @@ bool FWaveformEditor::SetUpWaveformPanel()
 
 	WaveformRenderData = MakeShared<FWaveformEditorRenderData>();
 	
-	TransportCoordinator = MakeShared<FSamplesSequenceTransportCoordinator>();
+	TransportCoordinator = MakeShared<FSparseSampledSequenceTransportCoordinator>();
 	WaveformRenderData->OnRenderDataUpdated.AddSP(this, &FWaveformEditor::HandleRenderDataUpdate);
 	
 	FOnTransformationsPropertiesRequired OnTransformationPropertiesRequired = FOnTransformationsPropertiesRequired::CreateLambda([this](FTransformationsToPropertiesArray& InObjToPropsMap)

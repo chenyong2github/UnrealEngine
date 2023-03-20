@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SSampledSequenceViewer.h"
+#include "SFixedSampledSequenceViewer.h"
 
-void SSampledSequenceViewer::Construct(const FArguments& InArgs, TArrayView<const float> InSampleData, const uint8 InNumChannels, TSharedRef<ISampledSequenceGridService> InGridService)
+void SFixedSampledSequenceViewer::Construct(const FArguments& InArgs, TArrayView<const float> InSampleData, const uint8 InNumChannels, TSharedRef<IFixedSampledSequenceGridService> InGridService)
 {
 	GridService = InGridService;
 	UpdateView(InSampleData, InNumChannels);
@@ -24,7 +24,7 @@ void SSampledSequenceViewer::Construct(const FArguments& InArgs, TArrayView<cons
 	ZeroCrossingLineThickness = Style->ZeroCrossingLineThickness;
 }
 
-void SSampledSequenceViewer::UpdateView(TArrayView<const float> InSampleData, const uint8 InNumChannels)
+void SFixedSampledSequenceViewer::UpdateView(TArrayView<const float> InSampleData, const uint8 InNumChannels)
 {
 	UpdateGridMetrics();
 
@@ -34,7 +34,7 @@ void SSampledSequenceViewer::UpdateView(TArrayView<const float> InSampleData, co
 	bForceRedraw = true;
 }
 
-int32 SSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const 
+int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const 
 {
 	float PixelWidth = MyCullingRect.GetSize().X;
 
@@ -56,7 +56,7 @@ int32 SSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeometry& A
 			TArray<FVector2D> BinDrawPoints;
 			BinDrawPoints.SetNumUninitialized(2);
 
-			for (const TimeSeriesDrawingUtils::FSampleBinCoordinates& BinCoordinates : CachedBinsDrawCoordinates)
+			for (const SampledSequenceDrawingUtils::FSampleBinCoordinates& BinCoordinates : CachedBinsDrawCoordinates)
 			{
 				BinDrawPoints[0] = BinCoordinates.Top;
 				BinDrawPoints[1] = BinCoordinates.Bottom;
@@ -122,12 +122,12 @@ int32 SSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeometry& A
 	return LayerId;
 }
 
-FVector2D SSampledSequenceViewer::ComputeDesiredSize(float) const
+FVector2D SFixedSampledSequenceViewer::ComputeDesiredSize(float) const
 {
 	return FVector2D(DesiredWidth, DesiredHeight);
 }
 
-void SSampledSequenceViewer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SFixedSampledSequenceViewer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	uint32 DiscretePixelWidth = FMath::FloorToInt(AllottedGeometry.GetLocalSize().X);
 	if (DiscretePixelWidth <= 0)
@@ -144,12 +144,12 @@ void SSampledSequenceViewer::Tick(const FGeometry& AllottedGeometry, const doubl
 
 		if (SequenceDrawMode == ESequenceDrawMode::BinnedPeaks)
 		{
-			TimeSeriesDrawingUtils::GroupInterleavedSampledTSIntoMinMaxBins<float>(CachedPeaks, CachedPixelWidth, SampleData.GetData(), SampleData.Num(), GridMetrics.SampleRate, NumChannels);
-			TimeSeriesDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(CachedBinsDrawCoordinates, AllottedGeometry, CachedPeaks, NumChannels, DrawingParams);
+			SampledSequenceDrawingUtils::GroupInterleavedSampledTSIntoMinMaxBins<float>(CachedPeaks, CachedPixelWidth, SampleData.GetData(), SampleData.Num(), GridMetrics.SampleRate, NumChannels);
+			SampledSequenceDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(CachedBinsDrawCoordinates, AllottedGeometry, CachedPeaks, NumChannels, DrawingParams);
 		}
 		else
 		{
-			TimeSeriesDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry(CachedSampleDrawCoordinates, SampleData, AllottedGeometry, NumChannels, GridMetrics, DrawingParams);
+			SampledSequenceDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry(CachedSampleDrawCoordinates, SampleData, AllottedGeometry, NumChannels, GridMetrics, DrawingParams);
 		}
 		
 		bForceRedraw = false;
@@ -160,16 +160,16 @@ void SSampledSequenceViewer::Tick(const FGeometry& AllottedGeometry, const doubl
 
 		if (SequenceDrawMode == ESequenceDrawMode::BinnedPeaks)
 		{
-			TimeSeriesDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(CachedBinsDrawCoordinates, AllottedGeometry, CachedPeaks, NumChannels, DrawingParams);
+			SampledSequenceDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(CachedBinsDrawCoordinates, AllottedGeometry, CachedPeaks, NumChannels, DrawingParams);
 		}
 		else
 		{
-			TimeSeriesDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry(CachedSampleDrawCoordinates, SampleData, AllottedGeometry, NumChannels, GridMetrics, DrawingParams);
+			SampledSequenceDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry(CachedSampleDrawCoordinates, SampleData, AllottedGeometry, NumChannels, GridMetrics, DrawingParams);
 		}
 	}
 }
 
-void SSampledSequenceViewer::DrawGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
+void SFixedSampledSequenceViewer::DrawGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
 {
 	TArray<FVector2D> LinePoints;
 	LinePoints.SetNumUninitialized(2);
@@ -216,7 +216,7 @@ void SSampledSequenceViewer::DrawGridLines(const FGeometry& AllottedGeometry, FS
 
 	for (uint16 Channel = 0; Channel < NChannels; ++Channel)
 	{
-		const TimeSeriesDrawingUtils::FHorizontalDimensionSlot ChannelBoundaries(Channel, NChannels, AllottedGeometry);
+		const SampledSequenceDrawingUtils::FHorizontalDimensionSlot ChannelBoundaries(Channel, NChannels, AllottedGeometry);
 
 		LinePoints[0] = FVector2D(0.f, ChannelBoundaries.Center);
 		LinePoints[1] = FVector2D(AllottedGeometry.Size.X, ChannelBoundaries.Center);
@@ -234,13 +234,13 @@ void SSampledSequenceViewer::DrawGridLines(const FGeometry& AllottedGeometry, FS
 	}
 }
 
-void SSampledSequenceViewer::UpdateGridMetrics()
+void SFixedSampledSequenceViewer::UpdateGridMetrics()
 {
 	check(GridService)
 	GridMetrics = GridService->GetGridMetrics();
 }
 
-void SSampledSequenceViewer::OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle)
+void SFixedSampledSequenceViewer::OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle)
 {
 	check(Style);
 

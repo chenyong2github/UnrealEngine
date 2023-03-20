@@ -67,7 +67,7 @@ bool FWaveformEditorGridData::UpdateGridMetrics(const float InGridSizePixels)
 	return true;
 }
 
-const FSampledSequenceGridMetrics FWaveformEditorGridData::GetGridMetrics() const
+const FFixedSampledSequenceGridMetrics FWaveformEditorGridData::GetGridMetrics() const
 {
 	return GridMetrics;
 }

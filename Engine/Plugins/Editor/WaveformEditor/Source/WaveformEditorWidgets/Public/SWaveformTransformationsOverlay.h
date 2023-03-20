@@ -5,7 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 
-class FSamplesSequenceTransportCoordinator;
+class FSparseSampledSequenceTransportCoordinator;
 class IWaveformTransformationRenderer;
 class SOverlay;
 class SWaveformTransformationRenderLayer;
@@ -20,7 +20,7 @@ public:
 		SLATE_DEFAULT_SLOT(FArguments, InArgs)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TArrayView< const FTransformationLayerRenderInfo> InTransformationRenderers, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator);
+	void Construct(const FArguments& InArgs, TArrayView< const FTransformationLayerRenderInfo> InTransformationRenderers, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator);
 	void OnLayerChainGenerated(FTransformationLayerRenderInfo* FirstLayerPtr, const int32 NLayers);
 	void UpdateLayerConstraints();
 	void OnNewWaveformDisplayRange(const TRange<float> NewDisplayRange);
@@ -39,5 +39,5 @@ private:
 	TArray<TSharedPtr<SWidget>> TransformationLayers;
 	TArray<SConstraintCanvas::FSlot*> LayersSlots;
 	TArrayView<const FTransformationLayerRenderInfo> TransformationRenderers;
-	TSharedPtr<FSamplesSequenceTransportCoordinator> TransportCoordinator = nullptr;
+	TSharedPtr<FSparseSampledSequenceTransportCoordinator> TransportCoordinator = nullptr;
 };

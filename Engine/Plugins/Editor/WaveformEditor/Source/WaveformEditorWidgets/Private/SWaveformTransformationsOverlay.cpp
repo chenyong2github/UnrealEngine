@@ -4,10 +4,10 @@
 
 #include "AudioWidgetsUtils.h"
 #include "SWaveformTransformationRenderLayer.h"
-#include "SamplesSequenceTransportCoordinator.h"
+#include "SparseSampledSequenceTransportCoordinator.h"
 #include "Widgets/SOverlay.h"
 
-void SWaveformTransformationsOverlay::Construct(const FArguments& InArgs, TArrayView<const FTransformationLayerRenderInfo> InTransformationRenderers, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator)
+void SWaveformTransformationsOverlay::Construct(const FArguments& InArgs, TArrayView<const FTransformationLayerRenderInfo> InTransformationRenderers, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator)
 {
 	TransformationRenderers = InTransformationRenderers;
 	TransportCoordinator = InTransportCoordinator;

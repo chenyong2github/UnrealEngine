@@ -4,7 +4,7 @@
 
 #include "Delegates/Delegate.h"
 
-struct FSampledSequenceGridMetrics
+struct FFixedSampledSequenceGridMetrics
 {
 	int32 NumMinorGridDivisions = 0;
 	uint32 SampleRate = 0;
@@ -14,10 +14,10 @@ struct FSampledSequenceGridMetrics
 	double MajorGridXStep = 0;
 };
 
-class ISampledSequenceGridService
+class IFixedSampledSequenceGridService
 {
 public:
-	virtual ~ISampledSequenceGridService() = default;
-	virtual const FSampledSequenceGridMetrics GetGridMetrics() const = 0;
+	virtual ~IFixedSampledSequenceGridService() = default;
+	virtual const FFixedSampledSequenceGridMetrics GetGridMetrics() const = 0;
 	virtual const float SnapPositionToClosestFrame(const float InPixelPosition) const = 0;
 };

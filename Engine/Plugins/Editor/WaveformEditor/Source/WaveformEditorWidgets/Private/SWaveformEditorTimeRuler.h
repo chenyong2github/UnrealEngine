@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ISampledSequenceGridService.h"
+#include "IFixedSampledSequenceGridService.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateWidgetStyleAsset.h"
@@ -11,8 +11,6 @@
 #include "Widgets/SCompoundWidget.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTimeUnitMenuSelection, const EWaveformEditorDisplayUnit /* Requested Display Unit */);
-
-class FSamplesSequenceTransportCoordinator;
 
 class SWaveformEditorTimeRuler : public SCompoundWidget
 {
@@ -29,7 +27,7 @@ class SWaveformEditorTimeRuler : public SCompoundWidget
 	SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs, TSharedRef<ISampledSequenceGridService> InGridService);
+	void Construct(const FArguments& InArgs, TSharedRef<IFixedSampledSequenceGridService> InGridService);
 	void UpdateGridMetrics();
 	void UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDisplayUnit);
 	void SetPlayheadPosition(const float InNewPosition);
@@ -51,7 +49,7 @@ private:
 	void MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder);
 	void NotifyTimeUnitMenuSelection(const EWaveformEditorDisplayUnit SelectedDisplayUnit) const;
 
-	FSampledSequenceGridMetrics GridMetrics;
+	FFixedSampledSequenceGridMetrics GridMetrics;
 
 	const FWaveformEditorTimeRulerStyle* Style = nullptr;
 
@@ -68,7 +66,7 @@ private:
 	float PlayheadPosition = 0.f;
 	FSlateFontInfo TicksTextFont;
 
-	TSharedPtr<ISampledSequenceGridService> GridService = nullptr;
+	TSharedPtr<IFixedSampledSequenceGridService> GridService = nullptr;
 
 	EWaveformEditorDisplayUnit DisplayUnit;
 };

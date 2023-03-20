@@ -3,11 +3,11 @@
 #include "SWaveformPanel.h"
 
 #include "SPlayheadOverlay.h"
-#include "SSampledSequenceViewer.h"
+#include "SFixedSampledSequenceViewer.h"
 #include "SWaveformEditorTimeRuler.h"
 #include "SWaveformTransformationsOverlay.h"
 #include "SWaveformViewerOverlay.h"
-#include "SamplesSequenceTransportCoordinator.h"
+#include "SparseSampledSequenceTransportCoordinator.h"
 #include "WaveformEditorDisplayUnit.h"
 #include "WaveformEditorGridData.h"
 #include "WaveformEditorRenderData.h"
@@ -17,7 +17,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SOverlay.h"
 
-void SWaveformPanel::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedPtr<SWaveformTransformationsOverlay> InWaveformTransformationsOverlay)
+void SWaveformPanel::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorRenderData> InRenderData, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedPtr<SWaveformTransformationsOverlay> InWaveformTransformationsOverlay)
 {
 	DisplayUnit = EWaveformEditorDisplayUnit::Seconds;
 
@@ -143,12 +143,12 @@ void SWaveformPanel::SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InG
 	FSampledSequenceViewerStyle* WaveViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
 	check(WaveViewerStyle);
 	
-	TimeSeriesDrawingUtils::FSampledSequenceDrawingParams WaveformViewerDrawingParams;
+	SampledSequenceDrawingUtils::FSampledSequenceDrawingParams WaveformViewerDrawingParams;
 	WaveformViewerDrawingParams.MaxDisplayedValue = TNumericLimits<int16>::Max();
 
-	WaveformViewer = SNew(SSampledSequenceViewer, MakeArrayView(FloatRenderData.GetData(), FloatRenderData.Num()), InRenderData->GetNumChannels(), InGridData).Style(WaveViewerStyle).SequenceDrawingParams(WaveformViewerDrawingParams);
-	WaveViewerStyle->OnStyleUpdated.AddSP(WaveformViewer.ToSharedRef(), &SSampledSequenceViewer::OnStyleUpdated);
-	GridData->OnGridMetricsUpdated.AddSP(WaveformViewer.ToSharedRef(), &SSampledSequenceViewer::UpdateGridMetrics);
+	WaveformViewer = SNew(SFixedSampledSequenceViewer, MakeArrayView(FloatRenderData.GetData(), FloatRenderData.Num()), InRenderData->GetNumChannels(), InGridData).Style(WaveViewerStyle).SequenceDrawingParams(WaveformViewerDrawingParams);
+	WaveViewerStyle->OnStyleUpdated.AddSP(WaveformViewer.ToSharedRef(), &SFixedSampledSequenceViewer::OnStyleUpdated);
+	GridData->OnGridMetricsUpdated.AddSP(WaveformViewer.ToSharedRef(), &SFixedSampledSequenceViewer::UpdateGridMetrics);
 }
 
 void SWaveformPanel::SetUpGridData(TSharedRef<FWaveformEditorRenderData> InRenderData)
@@ -159,9 +159,9 @@ void SWaveformPanel::SetUpGridData(TSharedRef<FWaveformEditorRenderData> InRende
 	GridData = MakeShared<FWaveformEditorGridData>(InRenderData->GetNumSamples() / InRenderData->GetNumChannels(), InRenderData->GetSampleRate(), RulerStyle->DesiredWidth, &RulerStyle->TicksTextFont);
 }
 
-void SWaveformPanel::SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FSamplesSequenceTransportCoordinator> InTransportCoordinator)
+void SWaveformPanel::SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator)
 {
-	InZoomManager->OnZoomRatioChanged.AddSP(InTransportCoordinator, &FSamplesSequenceTransportCoordinator::SetZoomRatio);
+	InZoomManager->OnZoomRatioChanged.AddSP(InTransportCoordinator, &FSparseSampledSequenceTransportCoordinator::SetZoomRatio);
 }
 
 void SWaveformPanel::OnRenderDataUpdated()

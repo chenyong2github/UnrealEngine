@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TimeSeriesDrawingUtils.h"
+#include "SampledSequenceDrawingUtils.h"
 
 #include "Layout/Geometry.h"
 
-TimeSeriesDrawingUtils::FHorizontalDimensionSlot::FHorizontalDimensionSlot(const uint16 DimensionToDraw, const uint16 TotalNumDimensions, const FGeometry& InAllottedGeometry)
+SampledSequenceDrawingUtils::FHorizontalDimensionSlot::FHorizontalDimensionSlot(const uint16 DimensionToDraw, const uint16 TotalNumDimensions, const FGeometry& InAllottedGeometry)
 {
 	Height = InAllottedGeometry.GetLocalSize().Y / TotalNumDimensions;
 	float ChannelSlotMidPoint = Height / 2.f;
@@ -14,7 +14,7 @@ TimeSeriesDrawingUtils::FHorizontalDimensionSlot::FHorizontalDimensionSlot(const
 	Bottom = Top + Height;
 }
 
-void TimeSeriesDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(TArray<FSampleBinCoordinates>& OutDrawCoordinates, const FGeometry& InAllottedGeometry, const TArray<TRange<float>>& InSampleBins, const uint16 NDimensions, const FSampledSequenceDrawingParams Params)
+void SampledSequenceDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(TArray<FSampleBinCoordinates>& OutDrawCoordinates, const FGeometry& InAllottedGeometry, const TArray<TRange<float>>& InSampleBins, const uint16 NDimensions, const FSampledSequenceDrawingParams Params)
 {
 	if (!ensure(NDimensions != 0))
 	{
@@ -51,7 +51,7 @@ void TimeSeriesDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(TArray<FSa
 	}
 }
 
-void TimeSeriesDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry(TArray<FVector2D>& OutDrawCoordinates, TArrayView<const float> InSampleData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const FSampledSequenceGridMetrics InGridMetrics, const FSampledSequenceDrawingParams Params)
+void SampledSequenceDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry(TArray<FVector2D>& OutDrawCoordinates, TArrayView<const float> InSampleData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const FFixedSampledSequenceGridMetrics InGridMetrics, const FSampledSequenceDrawingParams Params)
 {
 	OutDrawCoordinates.Empty();
 

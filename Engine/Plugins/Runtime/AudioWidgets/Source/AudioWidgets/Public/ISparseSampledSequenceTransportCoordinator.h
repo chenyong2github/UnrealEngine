@@ -4,10 +4,10 @@
 
 #include "Math/Range.h"
 
-class AUDIOWIDGETS_API ISamplesSequenceTransportCoordinator
+class AUDIOWIDGETS_API ISparseSampledSequenceTransportCoordinator
 {
 public:
-	virtual ~ISamplesSequenceTransportCoordinator() = default;
+	virtual ~ISparseSampledSequenceTransportCoordinator() = default;
 
 	virtual const TRange<float> GetDisplayRange() const = 0;
 	virtual const float GetFocusPoint() const = 0;
