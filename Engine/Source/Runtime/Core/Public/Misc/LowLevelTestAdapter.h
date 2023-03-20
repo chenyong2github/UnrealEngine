@@ -130,6 +130,7 @@ FString CaptureExpressionsAndValues(const FString& InExpressions, ArgTypes&&... 
 #define FAIL_CHECK(Message) FAutomationTestFramework::Get().GetCurrentTest()->AddError(Message);
 
 #define CAPTURE(...) FAutomationTestFramework::Get().GetCurrentTest()->AddInfo(CaptureExpressionsAndValues(#__VA_ARGS__, __VA_ARGS__));
-#define WARN(Message) { FAutomationTestFramework::Get().GetCurrentTest()->AddWarning(Message); }
+#define WARN(Message) FAutomationTestFramework::Get().GetCurrentTest()->AddWarning(Message); 
+#define FAIL_ON_MESSAGE(Message) FAutomationTestFramework::Get().GetCurrentTest()->AddExpectedError(Message); 
 
 #endif // !WITH_LOW_LEVEL_TESTS

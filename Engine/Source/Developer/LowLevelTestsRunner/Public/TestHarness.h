@@ -125,6 +125,8 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 #define ADD_ERROR(What)\
 	FAIL(What)
 
+#define FAIL_ON_MESSAGE(What)
+
 #define CHECK_EQUAL(Actual, Expected)\
 	CHECK(Actual == Expected)
 
