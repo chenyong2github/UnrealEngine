@@ -103,12 +103,12 @@
 #if ENABLE_COOK_STATS
 namespace MaterialCookStats
 {
-	static double UpdateCachedExpressionDataSec = 0.0;
+	static double MaterialUpdateCachedExpressionDataSec = 0.0;
 
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 		{
 			AddStat(TEXT("Material"), FCookStatsManager::CreateKeyValueArray(
-				TEXT("UpdateCachedExpressionDataSec"), UpdateCachedExpressionDataSec
+				TEXT("MaterialUpdateCachedExpressionDataSec"), MaterialUpdateCachedExpressionDataSec
 			));
 		});
 }
@@ -2027,7 +2027,7 @@ void UMaterial::UpdateTransientExpressionData()
 #if WITH_EDITOR
 void UMaterial::UpdateCachedExpressionData()
 {
-	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialCookStats::UpdateCachedExpressionDataSec));
+	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialCookStats::MaterialUpdateCachedExpressionDataSec));
 
 	if (bLoadedCachedExpressionData)
 	{

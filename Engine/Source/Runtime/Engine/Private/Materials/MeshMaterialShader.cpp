@@ -11,11 +11,11 @@
 #if ENABLE_COOK_STATS
 namespace MaterialMeshCookStats
 {
-	static int32 ShadersCompiled = 0;
+	static int32 MeshMaterialShadersCompiled = 0;
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
-		AddStat(TEXT("MeshMaterial.Misc"), FCookStatsManager::CreateKeyValueArray(
-			TEXT("ShadersCompiled"), ShadersCompiled
+		AddStat(TEXT("Material"), FCookStatsManager::CreateKeyValueArray(
+			TEXT("MeshMaterialShadersCompiled"), MeshMaterialShadersCompiled
 			));
 	});
 }
@@ -55,7 +55,7 @@ static void PrepareMeshMaterialShaderCompileJob(EShaderPlatform Platform,
 	UpdateMaterialShaderCompilingStats(Material);
 
 	UE_LOG(LogShaders, Verbose, TEXT("			%s"), ShaderType->GetName());
-	COOK_STAT(MaterialMeshCookStats::ShadersCompiled++);
+	COOK_STAT(MaterialMeshCookStats::MeshMaterialShadersCompiled++);
 
 	// Allow the shader type to modify the compile environment.
 	ShaderType->SetupCompileEnvironment(Platform, MaterialParameters, VertexFactoryType, Key.PermutationId, PermutationFlags, ShaderEnvironment);

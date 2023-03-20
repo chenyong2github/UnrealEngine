@@ -53,10 +53,25 @@
 #include "RenderCore.h"
 #include "StrataDefinitions.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "ProfilingDebugging/CookStats.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
 DEFINE_LOG_CATEGORY(LogMaterial);
+
+#if ENABLE_COOK_STATS
+namespace MaterialSharedCookStats
+{
+	static double FinishCacheShadersSec = 0.0;
+
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+		{
+			AddStat(TEXT("Material"), FCookStatsManager::CreateKeyValueArray(
+				TEXT("FinishCacheShadersSec"), FinishCacheShadersSec
+			));
+		});
+}
+#endif
 
 IMPLEMENT_TYPE_LAYOUT(FHashedMaterialParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FUniformExpressionSet);
@@ -2926,6 +2941,8 @@ bool FMaterial::IsCachingShaders() const
 
 bool FMaterial::FinishCacheShaders() const
 {
+	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialSharedCookStats::FinishCacheShadersSec));
+
 	if (CacheShadersCompletion)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FinishCacheShaders);

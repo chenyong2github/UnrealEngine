@@ -18,6 +18,7 @@
 #include "Materials/HLSLMaterialDerivativeAutogen.h"
 #include "Materials/MaterialFunction.h"
 #include "MaterialExpressionSettings.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "Engine/RendererSettings.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "Materials/Material.h"
@@ -48,6 +49,23 @@
 #if WITH_EDITORONLY_DATA
 #include "Materials/MaterialExpressionStrata.h"
 #include "ShaderPlatformCachedIniValue.h"
+#endif
+
+#if ENABLE_COOK_STATS
+#include "ProfilingDebugging/ScopedTimers.h"
+namespace MaterialTranslatorCookStats
+{
+	static int32 MaterialTranslateCalls = 0;
+	static double MaterialTranslateTimeSec = 0.0f;
+
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+		{
+			AddStat(TEXT("Material"), FCookStatsManager::CreateKeyValueArray(
+				TEXT("MaterialTranslateCalls"), MaterialTranslateCalls,
+				TEXT("MaterialTranslateTimeSec"), MaterialTranslateTimeSec
+			));
+		});
+}
 #endif
 
 static int32 GetLWCTruncateMode()
@@ -765,6 +783,8 @@ void FHLSLMaterialTranslator::ValidateVtPropertyLimits()
 bool FHLSLMaterialTranslator::Translate()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FHLSLMaterialTranslator::Translate);
+	COOK_STAT(MaterialTranslatorCookStats::MaterialTranslateCalls++);
+	COOK_STAT(FScopedDurationTimer DurationTimer(MaterialTranslatorCookStats::MaterialTranslateTimeSec));
 
 	STAT(double HLSLTranslateTime = 0);
 	{

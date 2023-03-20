@@ -21,12 +21,12 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 namespace MaterialInstanceCookStats
 {
-static double UpdateCachedExpressionDataSec = 0.0;
+static double MaterialInstanceUpdateCachedExpressionDataSec = 0.0;
 
 static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
-		AddStat(TEXT("MaterialInstance"), FCookStatsManager::CreateKeyValueArray(
-			TEXT("UpdateCachedExpressionDataSec"), UpdateCachedExpressionDataSec
+		AddStat(TEXT("Material"), FCookStatsManager::CreateKeyValueArray(
+			TEXT("MaterialInstanceUpdateCachedExpressionDataSec"), MaterialInstanceUpdateCachedExpressionDataSec
 		));
 	});
 }
@@ -187,7 +187,7 @@ void FMaterialInstanceCachedData::InitializeForConstant(const FMaterialLayersFun
 
 void UMaterialInstanceConstant::UpdateCachedData()
 {
-	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialInstanceCookStats::UpdateCachedExpressionDataSec));
+	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialInstanceCookStats::MaterialInstanceUpdateCachedExpressionDataSec));
 
 	// Don't need to rebuild cached data if it was serialized
 	if (!bLoadedCachedData)

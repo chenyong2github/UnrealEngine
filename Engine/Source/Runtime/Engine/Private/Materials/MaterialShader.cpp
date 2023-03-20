@@ -56,12 +56,12 @@ static TAutoConsoleVariable<FString> CVarShaderCompilerDebugDDCKeyAsset(
 namespace MaterialShaderCookStats
 {
 	static FCookStats::FDDCResourceUsageStats UsageStats;
-	static int32 ShadersCompiled = 0;
+	static int32 MaterialShadersCompiled = 0;
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
 		UsageStats.LogStats(AddStat, TEXT("MaterialShader.Usage"), TEXT(""));
-		AddStat(TEXT("MaterialShader.Misc"), FCookStatsManager::CreateKeyValueArray(
-			TEXT("ShadersCompiled"), ShadersCompiled
+		AddStat(TEXT("Material"), FCookStatsManager::CreateKeyValueArray(
+			TEXT("MaterialShadersCompiled"), MaterialShadersCompiled
 			));
 	});
 }
@@ -1201,7 +1201,7 @@ static void PrepareMaterialShaderCompileJob(EShaderPlatform Platform,
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
 
 	UE_LOG(LogShaders, Verbose, TEXT("			%s"), ShaderType->GetName());
-	COOK_STAT(MaterialShaderCookStats::ShadersCompiled++);
+	COOK_STAT(MaterialShaderCookStats::MaterialShadersCompiled++);
 
 	//update material shader stats
 	UpdateMaterialShaderCompilingStats(Material);
