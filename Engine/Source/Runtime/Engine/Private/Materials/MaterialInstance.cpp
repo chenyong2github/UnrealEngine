@@ -63,7 +63,7 @@ DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyUniformParamsInternal"), STAT_Mate
 
 // This flag controls whether MaterialInstances parents should be restricted to be either uncooked, to be
 // user defined, part of the engine or part of the base game.
-bool bEnableRestrictiveMaterialInstanceParents = false;
+ENGINE_API bool bEnableRestrictiveMaterialInstanceParents = false;
 
 const FMaterialInstanceCachedData FMaterialInstanceCachedData::EmptyData{};
 
@@ -3151,31 +3151,31 @@ bool UMaterialInstance::IsSpecificMaterialValidParent(UMaterialInterface* Candid
 		return true;
 	}
 
+	// Allow candidate material if it is included in base game.
+	if (CandidateParent->bIncludedInBaseGame)
+	{
+		return true;
+	}
+
+	// Or if the candidate parent is a Material and it is flagged to be used as a special engine material
+	UMaterial* ParentAsMaterial = Cast<UMaterial>(CandidateParent);
+	if (ParentAsMaterial && ParentAsMaterial->bUsedAsSpecialEngineMaterial)
+	{
+		return true;
+	}
+
 	// Cache this material package
 	UPackage* Package = GetPackage();
-
-	// Controls whether material is allowed.
-	bool bIsMaterialParentValid = false;
 	
-	// Or if this material instance package is cooked
-	bIsMaterialParentValid |= Package->HasAnyPackageFlags(PKG_Cooked);
-	
-	// Or if this material instance is transient
-	bIsMaterialParentValid |= Package == GetTransientPackage();
-	
-	// Or if the candidate material is uncooked
-	bIsMaterialParentValid |= !CandidateParent->GetPackage()->HasAnyPackageFlags(PKG_Cooked);
-	
-	// Or if the candidate parent is a Mateiral and it is flagged to be used as a special engine material
-	if (UMaterial* Material = Cast<UMaterial>(CandidateParent))
+	if (Package->HasAnyPackageFlags(PKG_Cooked)								// If this material instance package is cooked
+		|| Package == GetTransientPackage()									// Or if this material instance is transient
+		|| !CandidateParent->GetPackage()->HasAnyPackageFlags(PKG_Cooked))	// Or if the candidate material is uncooked
 	{
-		bIsMaterialParentValid |= Material->bUsedAsSpecialEngineMaterial;
+		return true;
 	}
 	
-	// Allow candidate material if it is included in base game.
-	bIsMaterialParentValid |= CandidateParent->bIncludedInBaseGame;
-
-	return bIsMaterialParentValid;
+	// Specified material is not allowed to be this material instance parent
+	return false;
 }
 
 void UMaterialInstance::ValidateParent()
