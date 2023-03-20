@@ -641,9 +641,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 #endif
 
 	FWorldPartitionEvents::BroadcastWorldPartitionInitialized(World, this);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	OnWorldPartitionInitialized.Broadcast(this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UWorldPartition::Uninitialize()
@@ -718,9 +715,6 @@ void UWorldPartition::Uninitialize()
 		InitState = EWorldPartitionInitState::Uninitialized;
 
 		FWorldPartitionEvents::BroadcastWorldPartitionUninitialized(World, this);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OnWorldPartitionUninitialized.Broadcast(this);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		World = nullptr;
 	}
