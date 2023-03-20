@@ -415,9 +415,10 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 
 	/** Custom guid weights (indexed with StrandID) (optional) */
 	TArray<FVector> CurvesClosestGuideWeights;
-};
 
-struct FHairStrandsBulkData;
+	/** Flags for attributes */
+	uint32 AttributeFlags = 0;
+};
 
 /** Hair strands datas that are stored on CPU */
 struct HAIRSTRANDSCORE_API FHairStrandsDatas
@@ -429,6 +430,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 	uint32 GetNumCurves() const { return StrandsCurves.Num(); }
 
 	uint32 GetAttributes() const;
+	uint32 GetAttributeFlags() const;
 
 	void Reset();
 
@@ -482,6 +484,10 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	FBox BoundingBox = FBox(EForceInit::ForceInit);
 	uint32 Flags = 0;
 	uint32 AttributeOffsets[HAIR_ATTRIBUTE_COUNT] = {0};
+
+	/** Imported attribute info */
+	uint32 ImportedAttributes = 0;
+	uint32 ImportedAttributeFlags = 0;
 
 	FByteBulkData Positions;	// Size = PointCount
 	FByteBulkData Attributes;	// Size = x*PointCount + y*CurveCount (depends on the stored attributes, which could be per-vertex(x) or per-curve(y))

@@ -246,6 +246,8 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	{
 		Ar << AttributeOffsets[AttributeIt];
 	}
+	Ar << ImportedAttributes;
+	Ar << ImportedAttributeFlags;
 
 	// Forced not inline means the bulk data won't automatically be loaded when we deserialize
 	// but only when we explicitly take action to load it

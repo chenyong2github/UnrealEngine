@@ -43,6 +43,9 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 	uint32 Attributes = 0;
 
 	UPROPERTY()
+	uint32 AttributeFlags = 0;
+
+	UPROPERTY()
 	uint32 Flags = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Preview)

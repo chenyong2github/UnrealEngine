@@ -390,7 +390,8 @@ struct FHairDescriptionGroup
 	FHairGroupInfo		Info;
 	FHairStrandsDatas	Strands;
 	FHairStrandsDatas	Guides;
-	uint32				Attributes = 0;
+	uint32 GetHairAttributes() const { return Strands.GetAttributes() | Guides.GetAttributes(); }
+	uint32 GetHairAttributeFlags() const { return Strands.GetAttributeFlags() | Guides.GetAttributeFlags(); }
 };
 
 struct FHairDescriptionGroups

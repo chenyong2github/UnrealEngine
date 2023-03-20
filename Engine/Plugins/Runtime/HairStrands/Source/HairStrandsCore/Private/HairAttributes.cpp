@@ -49,15 +49,25 @@ void SetHairAttribute(uint32& Out, EHairAttribute InAttribute)
 	Out |= (1u << uint32(InAttribute)); 
 }
 
-const TCHAR* GetHairAttributeText(EHairAttribute In)
+bool HasHairAttributeFlags(uint32 In, EHairAttributeFlags InFlag)
+{ 
+	return (In & (1u << uint32(InFlag))) != 0; 
+}
+
+void SetHairAttributeFlags(uint32& Out, EHairAttributeFlags InFlag) 
+{ 
+	Out |= (1u << uint32(InFlag));
+}
+
+const TCHAR* GetHairAttributeText(EHairAttribute In, uint32 InFlags)
 {
 	// If a new optional attribute is added, please add its UI/text description here
 	static_assert(uint32(EHairAttribute::Count) == 7);
 
 	switch (In)
 	{
-	case EHairAttribute::RootUV:					return TEXT("RootUV");
-	case EHairAttribute::ClumpID:					return TEXT("ClumpID");
+	case EHairAttribute::RootUV:					return HasHairAttributeFlags(InFlags, EHairAttributeFlags::HasRootUDIM) ? TEXT("RootUV(UDIM)") : TEXT("RootUV");
+	case EHairAttribute::ClumpID:					return HasHairAttributeFlags(InFlags, EHairAttributeFlags::HasMultipleClumpIDs) ? TEXT("ClumpID(3)") : TEXT("ClumpID");
 	case EHairAttribute::StrandID:					return TEXT("StrandID");
 	case EHairAttribute::PrecomputedGuideWeights:	return TEXT("ImportedGuideWeights");
 	case EHairAttribute::Color:						return TEXT("Color");
@@ -116,6 +126,11 @@ uint32 FHairStrandsDatas::GetAttributes() const
 		}
 	}
 	return Out;
+}
+
+uint32 FHairStrandsDatas::GetAttributeFlags() const
+{
+	return StrandsCurves.AttributeFlags;
 }
 
 void FHairStrandsDatas::CopyPoint(const FHairStrandsDatas& In, FHairStrandsDatas& Out, uint32 InAttributes, uint32 InIndex, uint32 OutIndex)

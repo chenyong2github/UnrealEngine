@@ -380,12 +380,13 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 			for (const FHairDescriptionGroup& Group : OutDescription.HairGroups)
 			{
 				FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
-				OutGroup.GroupName  = Group.Info.GroupName;
-				OutGroup.GroupID	= Group.Info.GroupID;
-				OutGroup.CurveCount = Group.Info.NumCurves;
-				OutGroup.GuideCount = Group.Info.NumGuides;
-				OutGroup.Attributes = Group.Attributes;
-				OutGroup.Flags		= Group.Info.Flags;
+				OutGroup.GroupName  	= Group.Info.GroupName;
+				OutGroup.GroupID		= Group.Info.GroupID;
+				OutGroup.CurveCount 	= Group.Info.NumCurves;
+				OutGroup.GuideCount 	= Group.Info.NumGuides;
+				OutGroup.Attributes 	= Group.GetHairAttributes();
+				OutGroup.AttributeFlags = Group.GetHairAttributeFlags();
+				OutGroup.Flags			= Group.Info.Flags;
 				if (OutGroup.GroupID < OutDescription.HairGroups.Num())
 				{
 					OutGroup.InterpolationSettings = GroomReimportOptions->InterpolationSettings[OutGroup.GroupID];

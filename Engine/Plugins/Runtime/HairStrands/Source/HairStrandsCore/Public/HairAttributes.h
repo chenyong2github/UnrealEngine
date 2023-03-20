@@ -58,6 +58,13 @@ enum class EHairAttribute : uint8
 	AO,
 	Count
 };
-
 HAIRSTRANDSCORE_API bool HasHairAttribute(uint32 In, EHairAttribute InAttribute);
 HAIRSTRANDSCORE_API void SetHairAttribute(uint32& Out, EHairAttribute InAttribute);
+
+enum class EHairAttributeFlags : uint8
+{
+	HasRootUDIM,
+	HasMultipleClumpIDs
+};
+HAIRSTRANDSCORE_API bool HasHairAttributeFlags(uint32 In, EHairAttributeFlags InFlag);
+HAIRSTRANDSCORE_API void SetHairAttributeFlags(uint32& Out, EHairAttributeFlags InFlag);

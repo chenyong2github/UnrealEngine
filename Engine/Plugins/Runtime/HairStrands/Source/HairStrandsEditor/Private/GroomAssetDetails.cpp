@@ -109,6 +109,35 @@ static uint32 GetHairCardsAtlasResolution(int32 InLODIndex, int32 PrevResolution
 	return FMath::Clamp(OutResolution, MinResolution, MaxResolution);
 }
 
+FText GetHairAttributeLocText(EHairAttribute In, uint32 InFlags);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Array panel for hair strands infos
+TSharedRef<SUniformGridPanel> MakeHairStrandsAttributeInfoGrid(const FSlateFontInfo& DetailFontInfo, const uint32 InAttributes, const uint32 InAttributeFlags)
+{
+	TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(2.0f);
+
+	const FLinearColor AttributeColor = FLinearColor(FColor::Yellow);
+
+	uint32 SlotIndex = 0;
+	for (uint32 AttributeIt = 0, AttributeCount = uint32(EHairAttribute::Count); AttributeIt<AttributeCount; ++AttributeIt)
+	{
+		const EHairAttribute Attribute = (EHairAttribute)AttributeIt;
+		if (HasHairAttribute(InAttributes, Attribute))
+		{
+			Grid->AddSlot(0, SlotIndex++) // x, y
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Font(DetailFontInfo)
+				.ColorAndOpacity(AttributeColor)
+				.Text(GetHairAttributeLocText(Attribute, InAttributeFlags))
+			];
+		}
+	}
+
+	return Grid;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Array panel for hair strands infos
@@ -1452,6 +1481,12 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 		.HAlign(HAlign_Fill)
 		[
 			MakeHairStrandsInfoGrid(DetailFontInfo, GroomAsset->HairGroupsInfo[GroupIndex], GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.MaxRadius)
+		];
+		ChildrenBuilder.AddCustomRow(LOCTEXT("HairStrandsAttributeInfo_Array", "HairStrandsAttributeInfo"))
+		.ValueContent()
+		.HAlign(HAlign_Fill)
+		[
+			MakeHairStrandsAttributeInfoGrid(DetailFontInfo, GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.ImportedAttributes, GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.ImportedAttributeFlags)
 		];
 	}
 

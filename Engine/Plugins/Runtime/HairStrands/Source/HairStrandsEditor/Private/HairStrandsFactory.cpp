@@ -138,12 +138,13 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 			for (const FHairDescriptionGroup& Group : OutDescription.HairGroups)
 			{
 				FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
-				OutGroup.GroupName  = Group.Info.GroupName;
-				OutGroup.GroupID	= Group.Info.GroupID;
-				OutGroup.CurveCount = Group.Info.NumCurves;
-				OutGroup.GuideCount = Group.Info.NumGuides;
-				OutGroup.Attributes = Group.Attributes;
-				OutGroup.Flags      = Group.Info.Flags;
+				OutGroup.GroupName  		= Group.Info.GroupName;
+				OutGroup.GroupID			= Group.Info.GroupID;
+				OutGroup.CurveCount 		= Group.Info.NumCurves;
+				OutGroup.GuideCount 		= Group.Info.NumGuides;
+				OutGroup.Attributes 		= Group.GetHairAttributes();
+				OutGroup.AttributeFlags 	= Group.GetHairAttributeFlags();
+				OutGroup.Flags      		= Group.Info.Flags;
 				bGuidesOnly |= (OutGroup.CurveCount == 0 && OutGroup.GuideCount > 0);
 
 				if (OutGroup.GroupID < OutDescription.HairGroups.Num())

@@ -853,7 +853,7 @@ struct FHairDebugNameInfo
 	uint8  Pad0;
 };
 
-const TCHAR* GetHairAttributeText(EHairAttribute In);
+const TCHAR* GetHairAttributeText(EHairAttribute In, uint32 InFlags);
 uint32 GetHairAttributeIndex(EHairAttribute In);
 EGroomCacheType GetHairInstanceCacheType(const FHairGroupInstance* Instance);
 
@@ -1036,7 +1036,7 @@ static void AddHairDebugPrintInstancePass(
 		// HAIR_ATTRIBUTE_XXX and EHairAttribute don't have a 1:1 mapping
 		const EHairAttribute Attribute = (EHairAttribute)AttributeIt;
 		{
-			const FString Name = GetHairAttributeText(Attribute);
+			const FString Name = GetHairAttributeText(Attribute, 0u);
 			FHairDebugNameInfo& NameInfo = AttributeNameInfos.AddDefaulted_GetRef();
 			NameInfo.PrimitiveID = ~0;
 			NameInfo.Length = Name.Len();

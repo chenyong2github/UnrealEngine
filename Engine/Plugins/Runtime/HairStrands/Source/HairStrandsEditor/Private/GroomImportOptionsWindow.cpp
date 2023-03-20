@@ -241,15 +241,15 @@ static void AddAttribute(SVerticalBox::FScopedWidgetSlotArguments& Slot, FText A
 	];
 }
 
-static FText GetHairAttributeLocText(EHairAttribute In)
+FText GetHairAttributeLocText(EHairAttribute In, uint32 InFlags)
 {
 	// If a new optional attribute is added, please add its UI/text description here
 	static_assert(uint32(EHairAttribute::Count) == 7);
 
 	switch (In)
 	{
-	case EHairAttribute::RootUV:					return LOCTEXT("GroomOptionsWindow_HasRootUV", "Root UV");
-	case EHairAttribute::ClumpID:					return LOCTEXT("GroomOptionsWindow_HasClumpID", "Clump ID");
+	case EHairAttribute::RootUV:					return HasHairAttributeFlags(InFlags, EHairAttributeFlags::HasRootUDIM) ? LOCTEXT("GroomOptionsWindow_HasRootUDIM", "Root UV (UDIM)") : LOCTEXT("GroomOptionsWindow_HasRootUV", "Root UV");
+	case EHairAttribute::ClumpID:					return HasHairAttributeFlags(InFlags, EHairAttributeFlags::HasMultipleClumpIDs) ? LOCTEXT("GroomOptionsWindow_HasClumpIDs", "Clump IDs (3)") : LOCTEXT("GroomOptionsWindow_HasClumpID", "Clump ID");
 	case EHairAttribute::StrandID:					return LOCTEXT("GroomOptionsWindow_HasStrandID", "Strand ID");
 	case EHairAttribute::PrecomputedGuideWeights:	return LOCTEXT("GroomOptionsWindow_HasPercomputedGuideWeights", "Pre-Computed Guide Weights");
 	case EHairAttribute::Color:						return LOCTEXT("GroomOptionsWindow_HasColor", "Color");
@@ -285,9 +285,11 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 
 	// Aggregate attributes from all groups (ideally we should display each group attribute separately, to check if one groom is not missing data)
 	uint32 Attributes = 0;
+	uint32 AttributeFlags = 0;
 	for (const FGroomHairGroupPreview& Group : GroupsPreview->Groups)
 	{
 		Attributes |= Group.Attributes;
+		AttributeFlags |= Group.AttributeFlags;
 	}
 
 	FText bHasAttributeText = LOCTEXT("GroomOptionsWindow_HasAttributeNone", "None");
@@ -443,7 +445,7 @@ void SGroomImportOptionsWindow::Construct(const FArguments& InArgs)
 		if (HasHairAttribute(Attributes, AttributeType))
 		{
 			SVerticalBox::FScopedWidgetSlotArguments SlotArg = VerticalSlot->InsertSlot(AttributeSlotIndex++);
-			AddAttribute(SlotArg, GetHairAttributeLocText(AttributeType));
+			AddAttribute(SlotArg, GetHairAttributeLocText(AttributeType, AttributeFlags));
 		}
 	}
 

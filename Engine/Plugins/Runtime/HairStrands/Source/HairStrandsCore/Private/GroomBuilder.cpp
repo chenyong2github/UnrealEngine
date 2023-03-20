@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8e");
+	return TEXT("v8g");
 }
 
 namespace FHairStrandsDecimation
@@ -188,9 +188,9 @@ namespace HairStrandsBuilder
 		TArray<uint32> AttributeRoughness;
 		TArray<uint32> AttributeAO;
 
-		AttributeRootUV.SetNum(NumCurves);									// 4 bytes encoding - Per-Curve
 		AttributeSeed.SetNum(FMath::DivideAndRoundUp(NumCurves, 4u));		// 1 bytes encoding - Per-Curve
 		AttributeLength.SetNum(FMath::DivideAndRoundUp(NumCurves, 2u));		// 2 bytes encoding - Per-Curve
+		if (HasHairAttribute(Attributes, EHairAttribute::RootUV)) 	{ AttributeRootUV.SetNum(NumCurves); }									// 4 bytes encoding - Per-Curve
 		if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))	{ AttributeClumpIDs.SetNum(FMath::DivideAndRoundUp(NumCurves, 2u)); }	// 2 bytes encoding - Per-Curve
 		if (HasHairAttribute(Attributes, EHairAttribute::Color))	{ AttributeBaseColor.SetNum(NumPoints); }								// 4 bytes encoding - Per-Vertex
 		if (HasHairAttribute(Attributes, EHairAttribute::Roughness)){ AttributeRoughness.SetNum(FMath::DivideAndRoundUp(NumPoints, 2u)); }	// 1 bytes encoding - Per-Vertex
@@ -341,6 +341,8 @@ namespace HairStrandsBuilder
 		OutBulkData.MaxLength = MaxLength;
 		OutBulkData.MaxRadius = MaxRadius;
 		OutBulkData.Flags = FHairStrandsBulkData::DataFlags_HasData;
+		OutBulkData.ImportedAttributes = HairStrands.GetAttributes();
+		OutBulkData.ImportedAttributeFlags = HairStrands.GetAttributeFlags();
 
 		// Concatenate all attributes
 		TArray<FHairStrandsAttributeFormat::Type> OutPackedAttributes;
@@ -1683,11 +1685,19 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		if (bHasClumpIDs)
 		{
 			CurrentHairStrandsDatas->StrandsCurves.ClumpIDs.Add(ClumpIDs[StrandID]);
+			if (false)
+			{
+				SetHairAttributeFlags(CurrentHairStrandsDatas->StrandsCurves.AttributeFlags, EHairAttributeFlags::HasMultipleClumpIDs);
+			}
 		}
 
 		if (bHasUVData)
 		{
 			CurrentHairStrandsDatas->StrandsCurves.CurvesRootUV.Add(StrandRootUV[StrandID]);
+			if (StrandRootUV[StrandID].X > 1.f || StrandRootUV[StrandID].Y > 1.f)
+			{
+				SetHairAttributeFlags(CurrentHairStrandsDatas->StrandsCurves.AttributeFlags, EHairAttributeFlags::HasRootUDIM);
+			}
 		}
 
 		// Groom 
@@ -1757,16 +1767,6 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		for (FHairDescriptionGroup& Group : Out.HairGroups)
 		{
 			Group.Info.GroupID = GroupIndex++;
-
-			// Propagate valid optional attributes
-			for (uint32 AttributeIt=0; AttributeIt< uint32(EHairAttribute::Count); ++AttributeIt)
-			{
-				const EHairAttribute HairAttribute = (EHairAttribute)AttributeIt;
-				if (HairDescription.HasAttribute(HairAttribute)) 
-				{ 
-					SetHairAttribute(Group.Attributes, HairAttribute); 
-				}
-			}
 		}
 	}
 
