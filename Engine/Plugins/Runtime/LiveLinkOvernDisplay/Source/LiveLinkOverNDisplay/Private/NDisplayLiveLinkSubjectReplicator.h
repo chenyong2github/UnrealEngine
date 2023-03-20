@@ -13,12 +13,12 @@ template <typename T> class TSubclassOf;
 
 class ILiveLinkClient;
 class IModularFeature;
-class UNDisplaySlaveVirtualSubject;
+class UNDisplayAgentVirtualSubject;
 
 
 /**
- * Classes used to replicates data to be used for each frame for each enabled subjects on the Master machines.
- * Slaves will use that replicated data to use the same thing on each machines
+ * Classes used to replicates data to be used for each frame for each enabled subjects on the Controller machines.
+ * Agents will use that replicated data to use the same thing on each machines
  */
 class LIVELINKOVERNDISPLAY_API FNDisplayLiveLinkSubjectReplicator : public IDisplayClusterClusterSyncObject, public FGCObject
 {
@@ -69,13 +69,13 @@ protected:
 
 	/**
      * Callback to be notified when LiveLinkClient was ticked so SyncObject can be serialized
-     * @note Only called on Master
+     * @note Only called on Controller
      */
 	void OnLiveLinkTicked();
 
 	/**
 	 * Hook to beginning of frames to make sure our replicated virtual subjects are the ones enabled
-	 * @note Only called on Slave
+	 * @note Only called on Agent
 	 */
 	void OnEngineBeginFrame();
 
@@ -88,10 +88,10 @@ protected:
 	/** Process a frame for a specific subject */
 	void HandleFrame(FArchive& Ar, EFrameType& FrameType, FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole>& SubjectRole, FLiveLinkSubjectFrameData& SubjectFrame);
 
-	/** Only used on slaves, handles this frame data for a subject. If a new subject is handled, the associated VirtualSubject will be created */
-	void ProcessLiveLinkData_Slave(EFrameType FrameType, const FLiveLinkSubjectKey& SubjectKey, FLiveLinkFrameDataStruct& FrameData);
+	/** Only used on agents, handles this frame data for a subject. If a new subject is handled, the associated VirtualSubject will be created */
+	void ProcessLiveLinkData_Agent(EFrameType FrameType, const FLiveLinkSubjectKey& SubjectKey, FLiveLinkFrameDataStruct& FrameData);
 
-	/** For slave only, remove tracked subjets, add ourself as a source  */
+	/** For agent only, remove tracked subjets, add ourself as a source  */
 	void ReInitializeVirtualSource();
 
 	/** If our source is removed (could happen if a new preset is applied), reinitialize ourself to stay awake */
@@ -111,8 +111,8 @@ private:
 	/** SyncObject uses string to pass around data. This represents binary LiveLinkSubject information converted to string */
 	FString LiveLinkPayload;
 
-	/** List of Subjects that we are replicating across cluster. On Slaves, it will actually be added to the LiveLink subject's list */
-	TArray<UNDisplaySlaveVirtualSubject*> TrackedSubjects;
+	/** List of Subjects that we are replicating across cluster. On Agents, it will actually be added to the LiveLink subject's list */
+	TArray<UNDisplayAgentVirtualSubject*> TrackedSubjects;
 
 	/** Guid associated to our Virtual Subject Source */
 	FGuid LiveLinkSourceGuid;

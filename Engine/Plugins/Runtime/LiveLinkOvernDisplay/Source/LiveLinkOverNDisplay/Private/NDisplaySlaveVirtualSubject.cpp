@@ -5,23 +5,23 @@
 
 
 
-void UNDisplaySlaveVirtualSubject::Update()
+void UNDisplayAgentVirtualSubject::Update()
 {
 	UpdateTranslatorsForThisFrame();
 }
 
-void UNDisplaySlaveVirtualSubject::UpdateFrameData(FLiveLinkFrameDataStruct&& NewFrameData)
+void UNDisplayAgentVirtualSubject::UpdateFrameData(FLiveLinkFrameDataStruct&& NewFrameData)
 {
 	UpdateFrameDataSnapshot(MoveTemp(NewFrameData));
 }
 
-void UNDisplaySlaveVirtualSubject::SetTrackedSubjectInfo(const FLiveLinkSubjectKey& InSubjectKey, TSubclassOf<ULiveLinkRole> InRole)
+void UNDisplayAgentVirtualSubject::SetTrackedSubjectInfo(const FLiveLinkSubjectKey& InSubjectKey, TSubclassOf<ULiveLinkRole> InRole)
 {
 	AssociatedSubject = InSubjectKey;
 	Role = InRole;
 }
 
-void UNDisplaySlaveVirtualSubject::UpdateTranslators(const TArray<ULiveLinkFrameTranslator*>& SourceTranslators)
+void UNDisplayAgentVirtualSubject::UpdateTranslators(const TArray<ULiveLinkFrameTranslator*>& SourceTranslators)
 {
 	for (const ULiveLinkFrameTranslator* SourceTranslator : SourceTranslators)
 	{

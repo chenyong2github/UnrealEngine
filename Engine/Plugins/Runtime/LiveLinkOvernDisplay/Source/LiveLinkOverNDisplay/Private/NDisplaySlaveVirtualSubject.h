@@ -11,12 +11,12 @@ class ULiveLinkFrameTranslator;
 
 
 /**
- * LiveLink VirtualSubject used on nDisplay slaves to replicate real subjects
- * Master sends data to use for each frame to make sure all machines display / uses the same data
+ * LiveLink VirtualSubject used on nDisplay agents to replicate real subjects
+ * Controller sends data to use for each frame to make sure all machines display / uses the same data
  * Uses Replicator object that this module creates.
  */
 UCLASS()
-class UNDisplaySlaveVirtualSubject : public ULiveLinkVirtualSubject
+class UNDisplayAgentVirtualSubject : public ULiveLinkVirtualSubject
 {
 	GENERATED_BODY()
 
