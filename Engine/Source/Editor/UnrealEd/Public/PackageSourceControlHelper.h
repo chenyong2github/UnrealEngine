@@ -17,10 +17,12 @@ public:
 	bool Delete(UPackage* Package) const;
 	bool Delete(const TArray<UPackage*>& Packages) const;
 	bool AddToSourceControl(UPackage* Package) const;
+	bool AddToSourceControl(const TArray<UPackage*>& Packages, bool bErrorsAsWarnings = false) const;
 	bool AddToSourceControl(const TArray<FString>& PackageNames, bool bErrorsAsWarnings = false) const;
 	bool Checkout(UPackage* Package) const;
 	bool Checkout(const TArray<FString>& PackageNames, bool bErrorsAsWarnings = false) const;
 	bool GetDesiredStatesForModification(const TArray<FString>& PackageNames, TArray<FString>& OutPackagesToCheckout, TArray<FString>& OutPackagesToAdd, bool bErrorsAsWarnings = false) const;
+	bool GetMarkedForDeleteFiles(const TArray<FString>& PackageFilenames, TArray<FString>& OutPackageFilenames, bool bErrorsAsWarnings = false) const;
 private:
 	ISourceControlProvider& GetSourceControlProvider() const;
 	FScopedSourceControl SourceControl;	

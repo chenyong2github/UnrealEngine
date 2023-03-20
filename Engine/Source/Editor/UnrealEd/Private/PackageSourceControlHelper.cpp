@@ -224,11 +224,29 @@ bool FPackageSourceControlHelper::AddToSourceControl(UPackage* Package) const
 {
 	if (UseSourceControl())
 	{
-		FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
+		const FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
 		return AddToSourceControl({ PackageFilename });
 	}
 
 	return true;
+}
+
+bool FPackageSourceControlHelper::AddToSourceControl(const TArray<UPackage*>& Packages, bool bErrorsAsWarnings) const
+{
+	if (!UseSourceControl())
+	{
+		return true;
+	}
+
+	TArray<FString> PackageFilenames;
+	PackageFilenames.Reserve(Packages.Num());
+
+	for (const UPackage* Package : Packages)
+	{
+		FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
+		PackageFilenames.Add(MoveTemp(PackageFilename));
+	}
+	return AddToSourceControl(PackageFilenames, bErrorsAsWarnings);
 }
 
 bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& PackageNames, bool bErrorsAsWarnings) const
@@ -484,3 +502,32 @@ bool FPackageSourceControlHelper::GetDesiredStatesForModification(const TArray<F
 
 	return bSuccess;
 }
+
+bool FPackageSourceControlHelper::GetMarkedForDeleteFiles(const TArray<FString>& Filenames, TArray<FString>& OutFilenames, bool bErrorsAsWarnings) const
+{
+	if (!UseSourceControl())
+	{
+		return true;
+	}
+
+	TArray<FSourceControlStateRef> SourceControlStates;
+	if (GetSourceControlProvider().GetState(Filenames, SourceControlStates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
+	{
+		// Nothing we can do if SCCStates fail
+		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get revision control state for packages"));
+		return false;
+	}
+
+	for (const FSourceControlStateRef& SourceControlState : SourceControlStates)
+	{
+		const FString& PackageFilename = SourceControlState->GetFilename();
+
+		if (SourceControlState->IsDeleted())
+		{
+			OutFilenames.Add(PackageFilename);
+		}
+	}
+
+	return true;
+}
+

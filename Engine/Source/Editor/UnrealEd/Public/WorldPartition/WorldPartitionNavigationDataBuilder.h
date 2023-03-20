@@ -20,6 +20,7 @@ public:
 protected:
 	virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) override;
 	// UWorldPartitionBuilder interface end
 
 	bool GenerateNavigationData(UWorldPartition* WorldPartition, const FBox& LoadedBounds, const FBox& GeneratingBounds) const;
@@ -28,4 +29,8 @@ protected:
 	bool DeletePackages(const FPackageSourceControlHelper& PackageHelper, const TArray<UPackage*>& PackagesToDelete) const;
 
 	bool bCleanBuilderPackages = false;
+
+	TMap<FString, int32> AddedPackagesToSubmitMap;
+	TArray<FString> AddedPackagesToSubmit;
+	TArray<FString> DeletedPackagesToSubmit;
 };

@@ -246,26 +246,98 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 			WorldPartition->OnPackageDeleted(Package);
 		}
 		
+		if (PackageHelper.UseSourceControl())
 		{
-			// Add new packages to source control
-			TRACE_CPUPROFILER_EVENT_SCOPE(AddingToSourceControl);
-			UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Adding packages to revision control."));
+			{
+				// Add new packages to source control
+				TRACE_CPUPROFILER_EVENT_SCOPE(AddingToSourceControl);
+				UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Adding packages to revision control."));
 
-			TArray<FString> PackageNamesToAdd;
-			PackageNamesToAdd.Reserve(PackagesToAdd.Num());
+				if (!PackageHelper.AddToSourceControl(PackagesToAdd))
+				{
+					UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error adding packages."));
+					return true;
+				}
+			}
+
+			// Calculate AddedPackagesToSubmit, also adding an entry to AddedPackagesToSubmitMap as when we process later WP cells they may have PackagesToDelete
+			// that have already been added to AddedPackagesToSubmit (which we need to remove) and we want to avoid lots of string compares.
+			AddedPackagesToSubmit.Reserve(AddedPackagesToSubmit.Num() + PackagesToAdd.Num());
+			AddedPackagesToSubmitMap.Reserve(AddedPackagesToSubmitMap.Num() + PackagesToAdd.Num());
+
 			for (const UPackage* Package : PackagesToAdd)
 			{
-				PackageNamesToAdd.Add(Package->GetName());
-			}
+				FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
 			
-			if (!PackageHelper.AddToSourceControl(PackageNamesToAdd))
-			{
-				UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error adding packages."));
-				return true;
+				checkSlow(AddedPackagesToSubmit.Find(PackageFilename) == INDEX_NONE);
+				checkSlow(DeletedPackagesToSubmit.Find(PackageFilename) == INDEX_NONE);
+
+				const int32 Idx = AddedPackagesToSubmit.Add(PackageFilename);
+				AddedPackagesToSubmitMap.Add(MoveTemp(PackageFilename), Idx);
 			}
 		}
+	}
 
-		UPackage::WaitForAsyncFileWrites();
+	if (PackageHelper.UseSourceControl())
+	{
+		DeletedPackagesToSubmit.Reserve(DeletedPackagesToSubmit.Num() + PackagesToDelete.Num());
+
+		for (const UPackage* Package : PackagesToDelete)
+		{
+			const FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
+
+			checkSlow(DeletedPackagesToSubmit.Find(PackageFilename) == INDEX_NONE);
+
+			const int32* AddedIdx = AddedPackagesToSubmitMap.Find(PackageFilename);
+			
+			if (AddedIdx != nullptr)
+			{
+				// Dont remove the entry completely or the Indices in AddedPackagesToSubmitMap will point to the wrong place.
+				AddedPackagesToSubmit[*AddedIdx] = FString(TEXT(""));
+				const int32 NumRemoved = AddedPackagesToSubmitMap.Remove(PackageFilename);
+				ensure(NumRemoved == 1);
+			}
+			else
+			{
+				DeletedPackagesToSubmit.Add(PackageFilename);
+			}
+		}
+	}
+
+	UPackage::WaitForAsyncFileWrites();
+
+	return true;
+}
+
+bool UWorldPartitionNavigationDataBuilder::PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess)
+{
+	Super::PostRun(World, PackageHelper, bInRunSuccess);
+	
+	const FString ChangeDescription = FString::Printf(TEXT("Rebuilt navigation data for %s"), *World->GetName());
+	TArray<FString> PackagesToSubmit;
+
+	PackagesToSubmit.Reserve(AddedPackagesToSubmit.Num() + DeletedPackagesToSubmit.Num());
+
+	// DeletedPackages may never have been added to source control so don't attempt to check them in!
+	PackageHelper.GetMarkedForDeleteFiles(DeletedPackagesToSubmit, PackagesToSubmit);
+
+	for (const FString& Filename : AddedPackagesToSubmit)
+	{
+		// Empty Filenames indicate the file was added then deleted / reverted.
+		if (Filename != FString(TEXT("")))
+		{
+			PackagesToSubmit.Add(Filename);
+		}
+	}
+
+	DeletedPackagesToSubmit.Empty();
+	AddedPackagesToSubmit.Empty();
+	AddedPackagesToSubmitMap.Empty();
+
+	if (!AutoSubmitFiles(PackagesToSubmit, ChangeDescription))
+	{
+		UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error auto-submitting packages."));
+		return true;
 	}
 
 	return true;
