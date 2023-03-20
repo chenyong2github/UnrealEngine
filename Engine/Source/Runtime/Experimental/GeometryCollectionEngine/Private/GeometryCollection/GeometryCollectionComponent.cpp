@@ -1545,6 +1545,11 @@ void UGeometryCollectionComponent::UpdateRepData()
 		return;
 	}
 
+	if (PhysicsProxy == nullptr)
+	{
+		return;
+	}
+
 	AActor* Owner = GetOwner();
 	
 	// If we have no owner or our netmode means we never require replication then early out
