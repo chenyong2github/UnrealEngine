@@ -66,13 +66,16 @@ namespace UE::WebRemoteControl
 			return FPreprocessorResult{ EPreprocessorResult::RequestHandled, MoveTemp(Response) };
 		}
 
-	/** Holds the preprocessor result. */
-	EPreprocessorResult Result = EPreprocessorResult::RequestPassthrough;
-	/** If denied, holds the response to be sent to the client. */
-	TUniquePtr<FHttpServerResponse> OptionalResponse;
+		/** Holds the preprocessor result. */
+		EPreprocessorResult Result = EPreprocessorResult::RequestPassthrough;
+		/** If denied, holds the response to be sent to the client. */
+		TUniquePtr<FHttpServerResponse> OptionalResponse;
 
 	private:
 		FPreprocessorResult() = default;
+		FPreprocessorResult(EPreprocessorResult InResult, TUniquePtr<FHttpServerResponse> InOptionalResponse)
+			: Result(InResult), OptionalResponse(MoveTemp(InOptionalResponse))
+		{}
 	};
 	
 	using FRCPreprocessorHandler = TFunction<FPreprocessorResult(const FHttpServerRequest& Request)>;
