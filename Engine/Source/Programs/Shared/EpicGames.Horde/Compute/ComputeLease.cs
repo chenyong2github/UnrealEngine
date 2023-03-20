@@ -112,7 +112,7 @@ namespace EpicGames.Horde.Compute
 					}
 					else
 					{
-						await transport.ReadAsync(writer.GetMemory(), cancellationToken);
+						await transport.ReadAsync(writer.GetMemory().Slice(0, size), cancellationToken);
 						writer.Advance(size);
 					}
 				}
