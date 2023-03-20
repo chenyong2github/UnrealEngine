@@ -1418,6 +1418,8 @@ private:
 	UMovieSceneCompiledDataManager* CompiledDataManager;
 	TSharedPtr<FMovieSceneEntitySystemRunner> Runner;
 
+	TSharedPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler> DeferredSignedObjectChangeHandler;
+
 	TMap<FName, TFunction<void()>> CleanupFunctions;
 
 	/** Transient collection of keys that is used for jumping between keys contained within the current selection */

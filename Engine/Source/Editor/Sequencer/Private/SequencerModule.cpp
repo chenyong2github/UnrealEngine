@@ -41,7 +41,6 @@
 #include "Misc/CoreDelegates.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
-#include "Editor/TransBuffer.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
 
@@ -52,104 +51,6 @@
 
 
 #define LOCTEXT_NAMESPACE "SequencerEditor"
-
-
-namespace UE
-{
-namespace Sequencer
-{
-
-struct FDeferredSignedObjectChangeHandler : UE::MovieScene::IDeferredSignedObjectChangeHandler
-{
-	FDeferredSignedObjectChangeHandler()
-	{
-		Init();
-	}
-
-	~FDeferredSignedObjectChangeHandler()
-	{
-		if (UTransBuffer* TransBuffer = WeakBuffer.Get())
-		{
-			TransBuffer->OnTransactionStateChanged().RemoveAll(this);
-		}
-	}
-
-	void Init()
-	{
-		UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>(GUnrealEd->Trans) : nullptr;
-		if (TransBuffer)
-		{
-			WeakBuffer = TransBuffer;
-			TransBuffer->OnTransactionStateChanged().AddRaw(this, &FDeferredSignedObjectChangeHandler::OnTransactionStateChanged);
-			if (TransBuffer->IsActive())
-			{
-				DeferTransactionChanges.Emplace();
-			}
-		}
-		else
-		{
-			FCoreDelegates::OnPostEngineInit.AddLambda([this]{ this->Init(); });
-		}
-	}
-
-	void OnTransactionStateChanged(const FTransactionContext& TransactionContext, ETransactionStateEventType TransactionState)
-	{
-		/** A transaction has been started. This will be followed by a TransactionCanceled or TransactionFinalized event. */
-		switch (TransactionState)
-		{
-		case ETransactionStateEventType::TransactionStarted:
-		case ETransactionStateEventType::UndoRedoStarted:
-			DeferTransactionChanges.Emplace();
-			break;
-
-		case ETransactionStateEventType::TransactionCanceled:
-		case ETransactionStateEventType::PreTransactionFinalized:
-		case ETransactionStateEventType::UndoRedoFinalized:
-			DeferTransactionChanges.Reset();
-			break;
-		}
-	}
-
-	void Flush() override
-	{
-		TSet<TWeakObjectPtr<UMovieSceneSignedObject>> SignedObjectsTmp = SignedObjects;
-		SignedObjects.Empty();
-		// we operate on a copy of the signed objects in case the delegates would modify the array
-		for (TWeakObjectPtr<UMovieSceneSignedObject> WeakObject : SignedObjectsTmp)
-		{
-			if (UMovieSceneSignedObject* Object = WeakObject.Get())
-			{
-				Object->BroadcastChanged();
-			}
-		}
-	}
-
-	void DeferMarkAsChanged(UMovieSceneSignedObject* SignedObject) override
-	{
-		SignedObjects.Add(SignedObject);
-	}
-
-	bool CreateImplicitScopedModifyDefer() override
-	{
-		ensure(!DeferImplicitChanges.IsSet());
-		DeferImplicitChanges.Emplace();
-		return true;
-	}
-
-	void ResetImplicitScopedModifyDefer() override
-	{
-		DeferImplicitChanges.Reset();
-	}
-
-	TSet<TWeakObjectPtr<UMovieSceneSignedObject>> SignedObjects;
-	TWeakObjectPtr<UTransBuffer>   WeakBuffer;
-	TOptional<UE::MovieScene::FScopedSignedObjectModifyDefer> DeferTransactionChanges;
-	TOptional<UE::MovieScene::FScopedSignedObjectModifyDefer> DeferImplicitChanges;
-};
-
-} // namespace Sequencer
-} // namespace UE
-
 
 // Destructor defined in CPP to avoid having to #include SequencerChannelInterface.h in the main module definition
 ISequencerModule::~ISequencerModule()
@@ -255,6 +156,8 @@ public:
 
 	virtual TSharedRef<ISequencer> CreateSequencer(const FSequencerInitParams& InitParams) override
 	{
+		using namespace UE::Sequencer;
+
 		TSharedRef<FSequencer> Sequencer = MakeShared<FSequencer>();
 		TSharedRef<ISequencerObjectChangeListener> ObjectChangeListener = MakeShared<FSequencerObjectChangeListener>(Sequencer);
 
@@ -425,13 +328,6 @@ public:
 			{
 				FCoreDelegates::OnPostEngineInit.AddStatic(&FSequencerCommands::Register);
 				FCoreDelegates::OnPostEngineInit.AddRaw(this, &FSequencerModule::RegisterMenus);
-			}
-
-			// Set the deferred handler for use by Sequence editors. It is not necessary in commandlets.
-			// TODO: Create/Delete the handler when Sequence editors are opened/closed.
-			if (!IsRunningCommandlet())
-			{
-				UMovieSceneSignedObject::SetDeferredHandler(MakeUnique<FDeferredSignedObjectChangeHandler>());
 			}
 
 			FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");

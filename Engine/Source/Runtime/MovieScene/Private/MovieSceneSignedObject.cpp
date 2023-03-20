@@ -14,7 +14,7 @@ namespace MovieScene
 {
 
 static TSet<TWeakPtr<IDeferredSignedObjectFlushSignal>> GDeferredSignedObjectFlushSignals;
-static TUniquePtr<IDeferredSignedObjectChangeHandler> GDeferredSignedObjectChangeHandler;
+static TWeakPtr<IDeferredSignedObjectChangeHandler> GDeferredSignedObjectChangeHandler;
 static uint32 GScopedSignedObjectDeferCount = 0;
 
 void SignalScopedSignedObjectModifyFlush()
@@ -44,9 +44,9 @@ FScopedSignedObjectModifyDefer::~FScopedSignedObjectModifyDefer()
 
 	if (GScopedSignedObjectDeferCount == 0 || bForceFlush)
 	{
-		if (GDeferredSignedObjectChangeHandler)
+		if (GDeferredSignedObjectChangeHandler.IsValid())
 		{
-			GDeferredSignedObjectChangeHandler->Flush();
+			GDeferredSignedObjectChangeHandler.Pin()->Flush();
 		}
 		SignalScopedSignedObjectModifyFlush();
 	}
@@ -61,17 +61,22 @@ UMovieSceneSignedObject::UMovieSceneSignedObject(const FObjectInitializer& Init)
 {
 	using namespace UE::MovieScene;
 
- 	if (HasAnyFlags(RF_Transactional) && GDeferredSignedObjectChangeHandler 
+ 	if (HasAnyFlags(RF_Transactional) && GDeferredSignedObjectChangeHandler.IsValid() 
 #if WITH_EDITOR
 		&& GIsTransacting
 #endif
 	)
 	{
-		GDeferredSignedObjectChangeHandler->DeferMarkAsChanged(this);
+		GDeferredSignedObjectChangeHandler.Pin()->DeferMarkAsChanged(this);
 	}
 }
 
-void UMovieSceneSignedObject::SetDeferredHandler(TUniquePtr<UE::MovieScene::IDeferredSignedObjectChangeHandler>&& InHandler)
+TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler> UMovieSceneSignedObject::GetDeferredHandler()
+{
+	return UE::MovieScene::GDeferredSignedObjectChangeHandler;
+}
+
+void UMovieSceneSignedObject::SetDeferredHandler(TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler>&& InHandler)
 {
 	UE::MovieScene::GDeferredSignedObjectChangeHandler = MoveTemp(InHandler);
 }
@@ -84,9 +89,9 @@ void UMovieSceneSignedObject::AddFlushSignal(TWeakPtr<UE::MovieScene::IDeferredS
 void UMovieSceneSignedObject::ResetImplicitScopedModifyDefer()
 {
 	using namespace UE::MovieScene;
-	if (GDeferredSignedObjectChangeHandler)
+	if (GDeferredSignedObjectChangeHandler.IsValid())
 	{
-		GDeferredSignedObjectChangeHandler->ResetImplicitScopedModifyDefer();
+		GDeferredSignedObjectChangeHandler.Pin()->ResetImplicitScopedModifyDefer();
 	}
 }
 
@@ -130,19 +135,19 @@ void UMovieSceneSignedObject::MarkAsChanged()
 
 	// Give the change handler an opportunity to create an implicit scope if there's
 	// no explicit one active.
-	if (GScopedSignedObjectDeferCount == 0 && GDeferredSignedObjectChangeHandler)
+	if (GScopedSignedObjectDeferCount == 0 && GDeferredSignedObjectChangeHandler.IsValid())
 	{
-		GDeferredSignedObjectChangeHandler->CreateImplicitScopedModifyDefer();
+		GDeferredSignedObjectChangeHandler.Pin()->CreateImplicitScopedModifyDefer();
 	}
 
-	if (GScopedSignedObjectDeferCount == 0 || !GDeferredSignedObjectChangeHandler)
+	if (GScopedSignedObjectDeferCount == 0 || !GDeferredSignedObjectChangeHandler.IsValid())
 	{
 		BroadcastChanged();
 		SignalScopedSignedObjectModifyFlush();
 	}
 	else
 	{
-		GDeferredSignedObjectChangeHandler->DeferMarkAsChanged(this);
+		GDeferredSignedObjectChangeHandler.Pin()->DeferMarkAsChanged(this);
 	}
 }
 

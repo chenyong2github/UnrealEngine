@@ -159,6 +159,7 @@
 #include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 #include "Systems/MovieSceneMotionVectorSimulationSystem.h"
 #include "IKeyArea.h"
+#include "Editor/TransBuffer.h"
 
 #include "EngineModule.h"
 
@@ -266,6 +267,103 @@ private:
 	TWeakPtr<UE::Sequencer::SOutlinerView> WeakTreeView;
 	TWeakPtr<UE::Sequencer::SOutlinerView> WeakPinnedTreeView;
 };
+
+namespace UE
+{
+	namespace Sequencer
+	{
+
+		struct FDeferredSignedObjectChangeHandler : UE::MovieScene::IDeferredSignedObjectChangeHandler
+		{
+			FDeferredSignedObjectChangeHandler()
+			{
+				Init();
+			}
+
+			~FDeferredSignedObjectChangeHandler()
+			{
+				if (UTransBuffer* TransBuffer = WeakBuffer.Get())
+				{
+					TransBuffer->OnTransactionStateChanged().RemoveAll(this);
+				}
+			}
+
+			void Init()
+			{
+				UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>(GUnrealEd->Trans) : nullptr;
+				if (TransBuffer)
+				{
+					WeakBuffer = TransBuffer;
+					TransBuffer->OnTransactionStateChanged().AddRaw(this, &FDeferredSignedObjectChangeHandler::OnTransactionStateChanged);
+					if (TransBuffer->IsActive())
+					{
+						DeferTransactionChanges.Emplace();
+					}
+				}
+				else
+				{
+					FCoreDelegates::OnPostEngineInit.AddLambda([this] { this->Init(); });
+				}
+			}
+
+			void OnTransactionStateChanged(const FTransactionContext& TransactionContext, ETransactionStateEventType TransactionState)
+			{
+				/** A transaction has been started. This will be followed by a TransactionCanceled or TransactionFinalized event. */
+				switch (TransactionState)
+				{
+				case ETransactionStateEventType::TransactionStarted:
+				case ETransactionStateEventType::UndoRedoStarted:
+					DeferTransactionChanges.Emplace();
+					break;
+
+				case ETransactionStateEventType::TransactionCanceled:
+				case ETransactionStateEventType::PreTransactionFinalized:
+				case ETransactionStateEventType::UndoRedoFinalized:
+					DeferTransactionChanges.Reset();
+					break;
+				}
+			}
+
+			void Flush() override
+			{
+				TSet<TWeakObjectPtr<UMovieSceneSignedObject>> SignedObjectsTmp = SignedObjects;
+				SignedObjects.Empty();
+				// we operate on a copy of the signed objects in case the delegates would modify the array
+				for (TWeakObjectPtr<UMovieSceneSignedObject> WeakObject : SignedObjectsTmp)
+				{
+					if (UMovieSceneSignedObject* Object = WeakObject.Get())
+					{
+						Object->BroadcastChanged();
+					}
+				}
+			}
+
+			void DeferMarkAsChanged(UMovieSceneSignedObject* SignedObject) override
+			{
+				SignedObjects.Add(SignedObject);
+			}
+
+			bool CreateImplicitScopedModifyDefer() override
+			{
+				ensure(!DeferImplicitChanges.IsSet());
+				DeferImplicitChanges.Emplace();
+				return true;
+			}
+
+			void ResetImplicitScopedModifyDefer() override
+			{
+				DeferImplicitChanges.Reset();
+			}
+
+			TSet<TWeakObjectPtr<UMovieSceneSignedObject>> SignedObjects;
+			TWeakObjectPtr<UTransBuffer>   WeakBuffer;
+			TOptional<UE::MovieScene::FScopedSignedObjectModifyDefer> DeferTransactionChanges;
+			TOptional<UE::MovieScene::FScopedSignedObjectModifyDefer> DeferImplicitChanges;
+		};
+
+	} // namespace Sequencer
+} // namespace UE
+
 
 void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates)
 {
@@ -427,6 +525,17 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		{
 			TrackEditors.Add( TrackEditor );
 		}
+	}
+
+	TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler> WeakDeferredSignedObjectChangeHandler = UMovieSceneSignedObject::GetDeferredHandler();
+	if (WeakDeferredSignedObjectChangeHandler.IsValid())
+	{
+		DeferredSignedObjectChangeHandler = WeakDeferredSignedObjectChangeHandler.Pin();
+	}
+	else
+	{
+		DeferredSignedObjectChangeHandler = MakeShared<FDeferredSignedObjectChangeHandler>();
+		UMovieSceneSignedObject::SetDeferredHandler(DeferredSignedObjectChangeHandler);
 	}
 
 	ViewModel = MakeShared<FSequencerEditorViewModel>(SharedThis(this), GetHostCapabilities());

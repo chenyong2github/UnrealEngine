@@ -67,7 +67,8 @@ public:
 
 	UMovieSceneSignedObject(const FObjectInitializer& Init);
 
-	static void SetDeferredHandler(TUniquePtr<UE::MovieScene::IDeferredSignedObjectChangeHandler>&& InHandler);
+	static TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler> GetDeferredHandler();
+	static void SetDeferredHandler(TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler>&& InHandler);
 	static void AddFlushSignal(TWeakPtr<UE::MovieScene::IDeferredSignedObjectFlushSignal> Signal);
 	static void ResetImplicitScopedModifyDefer();
 
