@@ -57,7 +57,7 @@ void UMovieSceneEventBlueprintExtension::HandleGenerateFunctionGraphs(FKismetCom
 			UEdGraphNode* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EntryPoint, EventSection, CompilerContext->Blueprint);
 			if (Endpoint)
 			{
-				UK2Node_FunctionEntry* FunctionEntry = FMovieSceneEventUtils::GenerateEntryPoint(EventSection, &EntryPoint, CompilerContext, Endpoint);
+				UK2Node_FunctionEntry* FunctionEntry = FMovieSceneEventUtils::GenerateEntryPoint(&EntryPoint, CompilerContext, Endpoint);
 				if (FunctionEntry)
 				{
 					EntryPoint.CompiledFunctionName = FunctionEntry->GetGraph()->GetFName();

@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "MovieSceneDirectorBlueprintUtils.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class FKismetCompilerContext;
@@ -24,33 +25,20 @@ class UMovieSceneTrack;
 struct FGuid;
 struct FMovieSceneEvent;
 
-
-
-struct MOVIESCENETOOLS_API FMovieSceneEventEndpointParameters
-{
-	FString SanitizedObjectName;
-	FString SanitizedEventName;
-	UClass* BoundObjectPinClass = nullptr;
-
-	static FMovieSceneEventEndpointParameters Generate(UMovieSceneEventTrack* Track);
-	static FMovieSceneEventEndpointParameters Generate(UMovieScene* MovieScene, const FGuid& ObjectBindingID);
-};
-
-
 /**
  * Static utility library for dealing with movie-scene events at edit/cook-time
  */
 struct MOVIESCENETOOLS_API FMovieSceneEventUtils
 {
 	/**
-	 * Create a new event endpoint for the specified sequence. By default, event end points are presented as a UK2Node_CustomEvent in an event graph called "Sequencer Events" with a pin for the bound object.
-	 * @note: Does not bind any event sections to the UBlueprintExtension which is necessary for the event's entry point to be generated during blueprint compilation - that must be done before (or after) this call.
-	 *
-	 * @param Blueprint       (Required, non-null) The blueprint within which to create the new custom event
-	 * @param Parameters      The end point parameters that define how to name and construct the event
-	 * @return A valid pointer to the blueprint node for the event endpoint
+	 * Generate event endpoint definition for the given track
 	 */
-	static UK2Node_CustomEvent* CreateUserFacingEvent(UBlueprint* Blueprint, const FMovieSceneEventEndpointParameters& Parameters);
+	static FMovieSceneDirectorBlueprintEndpointDefinition GenerateEventDefinition(UMovieSceneTrack* Track);
+
+	/**
+	 * Generate event endpoint definition for the given object binding
+	 */
+	static FMovieSceneDirectorBlueprintEndpointDefinition GenerateEventDefinition(UMovieScene* MovieScene, const FGuid& ObjectBindingID);
 
 
 	/**
@@ -63,7 +51,6 @@ struct MOVIESCENETOOLS_API FMovieSceneEventUtils
 	 */
 	static UK2Node_CustomEvent* BindNewUserFacingEvent(FMovieSceneEvent* EntryPoint, UMovieSceneEventSectionBase* EventSection, UBlueprint* Blueprint);
 
-
 	/**
 	 * Main generation function for creating the necessary function graph for calling an event endpoint with the parameters specified in the entry point payload
 	 *
@@ -72,7 +59,7 @@ struct MOVIESCENETOOLS_API FMovieSceneEventUtils
 	 * @param Compiler               (Required, non-null) The kismet compiler context for generation
 	 * @param Endpoint               (Required, non-null) The endpoint node that the event is bound to
 	 */
-	static UK2Node_FunctionEntry* GenerateEntryPoint(UMovieSceneEventSectionBase* EventSection, FMovieSceneEvent* EntryPoint, FKismetCompilerContext* Compiler, UEdGraphNode* Endpoint);
+	static UK2Node_FunctionEntry* GenerateEntryPoint(FMovieSceneEvent* EntryPoint, FKismetCompilerContext* Compiler, UEdGraphNode* Endpoint);
 
 	/**
 	 * Create the necessary mapping between a director Blueprint and and event section in order for the event section to be compiled correctly.
@@ -98,8 +85,6 @@ struct MOVIESCENETOOLS_API FMovieSceneEventUtils
 	 */
 	static void RemoveUnusedCustomEvents(const TArray<TWeakObjectPtr<UMovieSceneEventSectionBase>>& EventSections, UBlueprint* DirectorBP);
 
-public:
-
 	/**
 	 * Attempt to locate the blueprint node that relates to an event's end-point.
 	 * 
@@ -109,17 +94,6 @@ public:
 	 * @return The K2Node that relates to the specified event's end point, or nullptr if one was not found
 	 */
 	static UK2Node* FindEndpoint(FMovieSceneEvent* EntryPoint, UMovieSceneEventSectionBase* EventSection, UBlueprint* OwnerBlueprint);
-
-
-	/**
-	 * Attempt to locate an output pin on the specified endpoint node that matches the specified pin class
-	 * 
-	 * @param InEndpoint             (Required, non-null) The endpoint node to search on
-	 * @param BoundObjectPinClass    (Required, non-null) The class of the object pin to locate
-	 * @return An output pin that is of type PC_Object with the specified class as its PinSubCategoryObject, or nullptr if one was not found
-	 */
-	static UEdGraphPin* FindBoundObjectPin(UK2Node* InEndpoint, UClass* BoundObjectPinClass);
-
 
 	/**
 	 * Set the specified EntryPoint to be bound to a new K2 node

@@ -784,7 +784,7 @@ FMovieSceneEvent USequencerToolsFunctionLibrary::CreateEvent(UMovieSceneSequence
 	InSection->Modify();
 	FMovieSceneEventUtils::BindEventSectionToBlueprint(InSection, InEndpoint.EventEndpoint->GetBlueprint());
 
-	UEdGraphPin* BoundObjectPin = FMovieSceneEventUtils::FindBoundObjectPin(InEndpoint.EventEndpoint, BoundObjectPinClass);
+	UEdGraphPin* BoundObjectPin = FMovieSceneDirectorBlueprintUtils::FindCallTargetPin(InEndpoint.EventEndpoint, BoundObjectPinClass);
 	FMovieSceneEventUtils::SetEndpoint(&Event, InSection, InEndpoint.EventEndpoint, BoundObjectPin);
 
 	if (InEndpoint.PayloadNames.Num() != InPayload.Num())
@@ -832,10 +832,11 @@ FSequencerQuickBindingResult USequencerToolsFunctionLibrary::CreateQuickBinding(
 
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 	
-	FMovieSceneEventEndpointParameters Params;
-	Params.SanitizedObjectName = InObject->GetName();
-	Params.SanitizedEventName = InFunctionName;
-	Params.BoundObjectPinClass = InObject->GetClass();
+	FMovieSceneDirectorBlueprintEndpointDefinition EndpointDefinition;
+	EndpointDefinition.EndpointType = EMovieSceneDirectorBlueprintEndpointType::Event;
+	EndpointDefinition.EndpointName = InFunctionName;
+	EndpointDefinition.PossibleCallTargetClass = InObject->GetClass();
+	EndpointDefinition.AddExtraOutputPin(InObject->GetName(), UEdGraphSchema_K2::PC_Object, InObject->GetClass());
 	UFunction* Function = InObject->GetClass()->FindFunctionByName(FName(InFunctionName));
 	if (Function == nullptr)
 	{
@@ -847,12 +848,12 @@ FSequencerQuickBindingResult USequencerToolsFunctionLibrary::CreateQuickBinding(
 	UBlueprintFunctionNodeSpawner* BlueprintFunctionNodeSpawner = UBlueprintFunctionNodeSpawner::Create(Function);
 	FBlueprintActionMenuItem Action(BlueprintFunctionNodeSpawner);
 
-	UK2Node_CustomEvent* NewEventEndpoint = FMovieSceneEventUtils::CreateUserFacingEvent(Blueprint, Params);
+	UK2Node_CustomEvent* NewEventEndpoint = FMovieSceneDirectorBlueprintUtils::CreateEventEndpoint(Blueprint, EndpointDefinition);
 	NewEventEndpoint->bCallInEditor = bCallInEditor;
 	Result.EventEndpoint = NewEventEndpoint;
 
 	UEdGraphPin* ThenPin = NewEventEndpoint->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-	UEdGraphPin* BoundObjectPin = FMovieSceneEventUtils::FindBoundObjectPin(NewEventEndpoint, Params.BoundObjectPinClass);
+	UEdGraphPin* BoundObjectPin = FMovieSceneDirectorBlueprintUtils::FindCallTargetPin(NewEventEndpoint, EndpointDefinition.PossibleCallTargetClass);
 
 	FVector2D NodePosition(NewEventEndpoint->NodePosX + 400.f, NewEventEndpoint->NodePosY);
 	UEdGraphNode* NewNode = Action.PerformAction(NewEventEndpoint->GetGraph(), BoundObjectPin ? BoundObjectPin : ThenPin, NodePosition);
