@@ -131,7 +131,7 @@ namespace UE::RivermaxCore::Private
 		}
 
 		// We do (try) to make gpu allocations here to let the capturer know if we require it or not.
-		if (RivermaxModule->GetRivermaxManager()->IsGPUDirectSupported() && Options.bUseGPUDirect)
+		if (RivermaxModule->GetRivermaxManager()->IsGPUDirectOutputSupported() && Options.bUseGPUDirect)
 		{
 			bUseGPUDirect = AllocateGPUBuffers();
 		}

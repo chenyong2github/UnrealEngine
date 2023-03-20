@@ -96,6 +96,10 @@ namespace UE::RivermaxMedia
 		{
 			InputStream = Module->CreateInputStream();
 		}
+
+		CurrentState = EMediaState::Preparing;
+		RivermaxThreadNewState = EMediaState::Preparing;
+		
 		if (InputStream == nullptr || !InputStream->Initialize(StreamOptions, *this))
 		{
 			UE_LOG(LogRivermaxMedia, Warning, TEXT("Failed to initialize Rivermax input stream."));
@@ -111,9 +115,6 @@ namespace UE::RivermaxMedia
 		// Allocate different buffers, samples we will be using
 		AllocateBuffers();
 
-		// finalize
-		CurrentState = EMediaState::Preparing;
-		RivermaxThreadNewState = EMediaState::Preparing;
 		EventSink.ReceiveMediaEvent(EMediaEvent::MediaConnecting);
 
 #if WITH_EDITOR
@@ -560,7 +561,7 @@ namespace UE::RivermaxMedia
 		{
 			// Provide the late sample source data for the converter
 			const TSharedPtr<FRivermaxMediaTextureSample>& NextSample = SamplePool[NextFrameExpectations.FrameIndex]->Sample;
-			if (StreamOptions.bUseGPUDirect)
+			if (bDoesStreamSupportsGPUDirect)
 			{
 				OutConverterSetup.GPUBuffer = NextSample->GetGPUBuffer();
 			}

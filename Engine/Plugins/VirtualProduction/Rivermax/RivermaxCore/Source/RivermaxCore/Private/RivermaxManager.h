@@ -25,13 +25,26 @@ namespace UE::RivermaxCore::Private
 		virtual bool GetMatchingDevice(const FString& InSourceIP, FString& OutDeviceIP) const override;
 		virtual bool IsValidIP(const FString& InSourceIP) const override;
 		virtual bool IsGPUDirectSupported() const;
+		virtual bool IsGPUDirectInputSupported() const;
+		virtual bool IsGPUDirectOutputSupported() const;
 		//~ End IRivermaxManager interface
 
 	private:
+
+		/** Loads the rivermax dll shipping with engine */
 		bool LoadRivermaxLibrary();
+		
+		/** Initializes rivermax library */
 		void InitializeLibrary();
+
+		/** Verify if system is capable of doing GPUDirect */
 		void VerifyGPUDirectCapability();
+
+		/** Initializes clock used by Rivermax internals */
 		bool InitializeClock(ERivermaxTimeSource DesiredTimeSource);
+
+		/** Verify if all prerequesites to go through Rivermax initialization have been met */
+		bool VerifyPrerequesites();
 
 	private:
 

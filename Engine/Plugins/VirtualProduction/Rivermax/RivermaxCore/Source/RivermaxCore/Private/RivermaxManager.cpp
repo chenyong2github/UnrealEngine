@@ -33,6 +33,16 @@ namespace UE::RivermaxCore::Private
 		TEXT("Whether GPUDirect capability is validated at launch. Can be used to disable it entirely."),
 		ECVF_Default);
 
+	static TAutoConsoleVariable<int32> CVarRivermaxEnableGPUDirectInputCapability(
+		TEXT("Rivermax.GPUDirectInput"), 0,
+		TEXT("Whether GPUDirect capability is enabled for input purposes."),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<int32> CVarRivermaxEnableGPUDirectOutputCapability(
+		TEXT("Rivermax.GPUDirectOutput"), 1,
+		TEXT("Whether GPUDirect capability is enabled for output purposes."),
+		ECVF_Default);
+
 
 	static uint64 RivermaxTimeHandler(void* Context)
 	{
@@ -144,8 +154,13 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxManager::InitializeLibrary()
 	{
-		const bool bIsLibraryLoaded = LoadRivermaxLibrary();
-		if (bIsLibraryLoaded && FApp::CanEverRender())
+		bool bCanProceed = VerifyPrerequesites();
+		if(bCanProceed)
+		{
+			bCanProceed = LoadRivermaxLibrary();
+		}
+		
+		if (bCanProceed && FApp::CanEverRender())
 		{
 			rmax_init_config Config;
 			memset(&Config, 0, sizeof(Config));
@@ -375,6 +390,58 @@ namespace UE::RivermaxCore::Private
 		return PostInitDelegate;
 	}
 
+	bool FRivermaxManager::VerifyPrerequesites()
+	{
+		// This registry key is required in order to use rivermax sdk. This puts the network adapter in rivermax mode.
+		// With 1.20, SDK currently crashes if that is not present / set. Avoid loading the library if that's the case and notify the user.
+		
+		bool bSuccess = false;
+		FString RivermaxSetupValue;
+		static const TCHAR* MLXFolder = TEXT("SYSTEM\\CurrentControlSet\\Services\\mlx5\\Parameters");
+		static const TCHAR* RivermaxKey = TEXT("RivermaxSetup");
+		const bool bFoundKey = FWindowsPlatformMisc::QueryRegKey(HKEY_LOCAL_MACHINE, MLXFolder, RivermaxKey, RivermaxSetupValue);
+		if (bFoundKey)
+		{
+			int32 KeyValue = 0;
+			LexFromString(KeyValue, *RivermaxSetupValue);
+			if (KeyValue == 1)
+			{
+				bSuccess = true;
+				UE_LOG(LogRivermax, Verbose, TEXT("Rivermax setup registry key was found and enabled."));
+			}
+			else
+			{
+				UE_LOG(LogRivermax, Warning, TEXT("Rivermax setup registry key was found but not enabled."));
+			}
+		}
+		else
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Could not find RivermaxSetup registry key. Verify installation and reboot your machine."));
+		}
+
+		if (bSuccess)
+		{
+			// Crash was reported calling rmax_init with all prerequesite installation correctly done but no card installed. 
+			// This will prevent us from going forward with rivermax initialization
+			bSuccess = DeviceFinder->GetDevices().Num() > 0;
+			if (!bSuccess)
+			{
+				UE_LOG(LogRivermax, Warning, TEXT("Could not find any compatible Rivermax network adapters."));
+			}
+		}
+
+		return bSuccess;
+	}
+
+	bool FRivermaxManager::IsGPUDirectInputSupported() const
+	{
+		return bIsGPUDirectSupported && CVarRivermaxEnableGPUDirectInputCapability.GetValueOnAnyThread();
+	}
+
+	bool FRivermaxManager::IsGPUDirectOutputSupported() const
+	{
+		return bIsGPUDirectSupported && CVarRivermaxEnableGPUDirectOutputCapability.GetValueOnAnyThread();
+	}
 }
 
 

@@ -58,6 +58,12 @@ namespace UE::RivermaxCore
 
 		/** Whether gpudirect is supported on this platform. At the moment, we rely on CUDA to handle it. */
 		virtual bool IsGPUDirectSupported() const = 0;
+
+		/** Whether gpudirect is enabled for input streams. */
+		virtual bool IsGPUDirectInputSupported() const = 0;
+
+		/** Whether gpudirect is enabled for output streams. */
+		virtual bool IsGPUDirectOutputSupported() const = 0;
 	};
 }
 

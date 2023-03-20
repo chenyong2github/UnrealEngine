@@ -547,7 +547,7 @@ namespace UE::RivermaxCore::Private
 	void FRivermaxInputStream::AllocateBuffers()
 	{
 		IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
-		if (RivermaxModule.GetRivermaxManager()->IsGPUDirectSupported() && Options.bUseGPUDirect)
+		if (RivermaxModule.GetRivermaxManager()->IsGPUDirectInputSupported() && Options.bUseGPUDirect)
 		{
 			bIsUsingGPUDirect = AllocateGPUBuffers();
 		}
