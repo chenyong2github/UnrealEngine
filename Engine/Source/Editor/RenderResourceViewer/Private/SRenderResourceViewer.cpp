@@ -97,6 +97,7 @@ namespace RenderResourceViewerInternal
 		.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f)) \
 		[ \
 			SNew(SCheckBox) \
+			.ToolTipText(Tooltip) \
 			.IsChecked(bIsChecked) \
 			.OnCheckStateChanged(this, &OnCheckStateChangedFunc) \
 		]
