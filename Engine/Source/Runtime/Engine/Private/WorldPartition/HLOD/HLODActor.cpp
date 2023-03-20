@@ -242,9 +242,11 @@ void AWorldPartitionHLOD::SetHLODComponents(const TArray<UActorComponent*>& InHL
 		const bool ComponentReplicates = Component->GetIsReplicated();
 		bReplicates |= ComponentReplicates;
 
+		// Avoid using a dummy scene root component (for efficiency), choose one component as the root
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 		{
-			// Prefer a replicated root component
+			// If we have one, prefer a replicated component as our root.
+			// This is required, otherwise the actor won't even be considered for replication
 			if (!RootComponent || (!RootComponent->GetIsReplicated() && ComponentReplicates))
 			{
 				RootComponent = SceneComponent;
@@ -253,6 +255,18 @@ void AWorldPartitionHLOD::SetHLODComponents(const TArray<UActorComponent*>& InHL
 	
 		Component->RegisterComponent();
 	}
+
+	// Attach all scene components to our root.
+	const bool bIncludeFromChildActors = false;
+	ForEachComponent<USceneComponent>(bIncludeFromChildActors, [&](USceneComponent* Component)
+	{
+		// Skip the root component
+		if (Component != GetRootComponent())
+		{
+			// Keep world transform intact while attaching to root component
+			Component->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+		}
+	});
 }
 
 void AWorldPartitionHLOD::SetSubActors(const TArray<FHLODSubActor>& InHLODSubActors)
