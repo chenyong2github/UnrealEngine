@@ -15107,9 +15107,13 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		{
 			AddSubPin(ParentPin, Pin);
 		}
+		else if (URigVMNode* OwnerNode = Cast<URigVMNode>(InOuter))
+		{
+			AddNodePin(OwnerNode, Pin);
+		}
 		else
 		{
-			AddNodePin(CastChecked<URigVMNode>(InOuter), Pin);
+			ensureMsgf(false, TEXT("Outer %s of pin info %s is not a pin or a node"), *InOuter->GetPathName(), *InPinPath);
 		}
 
 		Notify(ERigVMGraphNotifType::PinAdded, Pin);
@@ -17417,14 +17421,14 @@ void URigVMController::MakeExecutePin(URigVMPin* InOutPin)
 void URigVMController::AddNodePin(URigVMNode* InNode, URigVMPin* InPin)
 {
 	ValidatePin(InPin);
-	check(!InNode->Pins.Contains(InPin));
+	checkf(!InNode->Pins.Contains(InPin), TEXT("Node %s already contains pin %s"), *InNode->GetPathName(), *InPin->GetName());
 	InNode->Pins.Add(InPin);
 }
 
 void URigVMController::AddSubPin(URigVMPin* InParentPin, URigVMPin* InPin)
 {
 	ValidatePin(InPin);
-	check(!InParentPin->SubPins.Contains(InPin));
+	checkf(!InParentPin->SubPins.Contains(InPin), TEXT("Parent pin %s already contains subpin %s"), *InParentPin->GetPathName(), *InPin->GetName());
 	InParentPin->SubPins.Add(InPin);
 }
 
