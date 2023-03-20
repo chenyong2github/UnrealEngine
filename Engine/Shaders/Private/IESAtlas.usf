@@ -6,7 +6,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Add texture
-#if SHADER_ADD_TEXTURE
+#if SHADER_ADD_TEXTURE_CS
 
 Texture2D<float4> InTexture_0;
 Texture2D<float4> InTexture_1;
@@ -69,7 +69,24 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 
-#endif // SHADER_ADD_TEXTURE
+#endif // SHADER_ADD_TEXTURE_CS
+
+#if SHADER_ADD_TEXTURE_PS
+
+Texture2D<float4> InTexture;
+SamplerState InSampler;
+int2 AtlasResolution;
+
+void MainPS(float4 SvPosition : SV_POSITION,
+			out float OutColor : SV_Target0)
+{
+	const float2 SrcUV = SvPosition.xy / float2(AtlasResolution);
+	float Color = InTexture.SampleLevel(InSampler, SrcUV, 0).x;
+	// Ensure there is no NaN value
+	OutColor = -min(-Color, 0);
+}
+
+#endif // SHADER_ADD_TEXTURE_PS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug
