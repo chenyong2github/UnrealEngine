@@ -1674,37 +1674,7 @@ void UControlRigGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 	Super::AutowireNewNode(FromPin);
 
 	const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
-
-	// copying high level information into a local array since the try create connection below
-	// may cause the pin array to be destroyed / changed
-	TArray<TPair<FName, EEdGraphPinDirection>> PinsToVisit;
-	for(UEdGraphPin* Pin : Pins)
-	{
-		PinsToVisit.Emplace(Pin->GetFName(), Pin->Direction);
-	}
-
-	for(const TPair<FName, EEdGraphPinDirection>& PinToVisit : PinsToVisit)
-	{
-		UEdGraphPin* Pin = FindPin(PinToVisit.Key, PinToVisit.Value);
-		if(Pin == nullptr)
-		{
-			continue;
-		}
-		
-		if (Pin->ParentPin != nullptr)
-		{
-			continue;
-		}
-
-		FPinConnectionResponse ConnectResponse = Schema->CanCreateConnection(FromPin, Pin);
-		if(ConnectResponse.Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
-		{
-			if (Schema->TryCreateConnection(FromPin, Pin))
-			{
-				break;
-			}
-		}
-	}
+	Schema->AutowireNewNode(this, FromPin);
 }
 
 bool UControlRigGraphNode::IsSelectedInEditor() const

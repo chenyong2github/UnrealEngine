@@ -2275,8 +2275,83 @@ FVector2D UControlRigGraphSchema::GetNodePositionAtStartOfInteraction(UEdGraphNo
 	return FVector2D::ZeroVector;
 }
 
+bool UControlRigGraphSchema::AutowireNewNode(UControlRigGraphNode* NewNode, UEdGraphPin* FromPin) const
+{
+	// copying high level information into a local array since the try create connection below
+	// may cause the pin array to be destroyed / changed
+	TArray<TPair<FName, EEdGraphPinDirection>> PinsToVisit;
+	for(UEdGraphPin* Pin : NewNode->Pins)
+	{
+		PinsToVisit.Emplace(Pin->GetFName(), Pin->Direction);
+	}
+
+	TArray<UEdGraphPin*> OldLinkedTo = FromPin->LinkedTo;
+	for(const TPair<FName, EEdGraphPinDirection>& PinToVisit : PinsToVisit)
+	{
+		UEdGraphPin* Pin = NewNode->FindPin(PinToVisit.Key, PinToVisit.Value);
+		if(Pin == nullptr)
+		{
+			continue;
+		}
+		
+		if (Pin->ParentPin != nullptr)
+		{
+			continue;
+		}
+
+		FPinConnectionResponse ConnectResponse = CanCreateConnection(FromPin, Pin);
+		if(ConnectResponse.Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
+		{
+			if (TryCreateConnection(FromPin, Pin))
+			{
+				// It might have been linked in a different direction. Find pin with the correct direction
+				if (Pin->LinkedTo.IsEmpty())
+				{
+					for (UEdGraphPin* Linked : FromPin->LinkedTo)
+					{
+						if (Linked->GetOwningNode() == Pin->GetOwningNode())
+						{
+							Pin = Linked;
+							break;
+						}
+					}
+				}
+
+				// If the pin is an execute context, try to create a link to the pin which was previously connected to FromPin
+				if (URigVMPin* ModelPin = NewNode->FindModelPinFromGraphPin(Pin))
+				{
+					if (!OldLinkedTo.IsEmpty() && ModelPin->IsExecuteContext())
+					{
+						bool bIsInput = Pin->Direction == EEdGraphPinDirection::EGPD_Input;
+
+						// If the pin is an input to a control flow node, the output used should be the completed pin
+						if (ModelPin->GetNode()->IsControlFlowNode())
+						{
+							if (bIsInput)
+							{
+								ModelPin = ModelPin->GetNode()->FindPin(FRigVMStruct::ControlFlowCompletedName.ToString());
+							}
+						}
+
+						// Try to create the second connection
+						if (UEdGraphPin* OppositePin = NewNode->FindGraphPinFromModelPin(ModelPin, !bIsInput))
+						{
+							if (CanCreateConnection(OppositePin, OldLinkedTo[0]).Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
+							{
+								TryCreateConnection(OppositePin, OldLinkedTo[0]);
+							}
+						}
+					}
+				}
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void UControlRigGraphSchema::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph,
-	UObject* InSubject)
+                                                 UObject* InSubject)
 {
 	switch(InNotifType)
 	{

@@ -322,6 +322,8 @@ public:
 	static TArray<UEdGraphNode*> GetNodesToMoveForNode(UEdGraphNode* InNode);
 	FVector2D GetNodePositionAtStartOfInteraction(UEdGraphNode* InNode) const;
 
+	bool AutowireNewNode(UControlRigGraphNode* NewNode, UEdGraphPin* FromPin) const;
+
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	// Allow derived classes to spawn derived node classes
