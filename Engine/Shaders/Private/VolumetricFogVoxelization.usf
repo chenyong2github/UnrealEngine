@@ -110,7 +110,7 @@ void VoxelizeGS(triangle FVoxelizeVolumePrimitiveVSToGS Inputs[3], inout Triangl
 	ResolvedView = ResolveView();
 #endif
 
-	int GridSizeZ = VolumetricFog.GridSize.z;
+	int GridSizeZ = VolumetricFog.ViewGridSize.z;
 	float4 PrimitiveVolumeBounds = VertexFactoryGetTranslatedPrimitiveVolumeBounds(Inputs[0].FactoryInterpolants);
 	float3 ViewSpacePrimitiveVolumeOrigin = mul(float4(PrimitiveVolumeBounds.xyz, 1), ResolvedView.TranslatedWorldToView).xyz;
 

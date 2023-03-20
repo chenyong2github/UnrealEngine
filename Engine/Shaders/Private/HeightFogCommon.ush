@@ -274,7 +274,8 @@ float ComputeNormalizedZSliceFromDepth(float SceneDepth)
 float3 ComputeVolumeUVFromNDC(float4 NDCPosition)
 {
 	NDCPosition.xy /= NDCPosition.w;
-	return float3(NDCPosition.xy * float2(.5f, -.5f) + .5f, ComputeNormalizedZSliceFromDepth(NDCPosition.w));
+	float3 VolumeUV = float3(NDCPosition.xy * float2(.5f, -.5f) + .5f, ComputeNormalizedZSliceFromDepth(NDCPosition.w));
+	return min(VolumeUV * float3(View.VolumetricFogScreenToResourceUV.xy, 1.0), float3(View.VolumetricFogUVMax, 1.0));
 }
 float3 ComputeVolumeUV_DEPRECATED(float3 WorldPosition, float4x4 WorldToClip)
 {
@@ -285,4 +286,21 @@ float3 ComputeVolumeUV(FLWCVector3 WorldPosition, FLWCInverseMatrix WorldToClip)
 {
 	float4 NDCPosition = LWCMultiply(MakeLWCVector4(WorldPosition, 1.0f), WorldToClip);
 	return ComputeVolumeUVFromNDC(NDCPosition);
+}
+
+float3 ComputeHistoryVolumeUVFromNDC(float4 NDCPosition)
+{
+	NDCPosition.xy /= NDCPosition.w;
+	float3 VolumeUV = float3(NDCPosition.xy * float2(.5f, -.5f) + .5f, ComputeNormalizedZSliceFromDepth(NDCPosition.w));
+	return min(VolumeUV * float3(View.VolumetricFogViewGridUVToPrevViewRectUV.xy * float3(View.VolumetricFogPrevViewGridRectUVToResourceUV.xy, 1.0), 1.0), float3(View.VolumetricFogPrevUVMax, 1.0));
+}
+float3 ComputeHistoryVolumeUV_DEPRECATED(float3 WorldPosition, float4x4 WorldToClip)
+{
+	float4 NDCPosition = mul(float4(WorldPosition, 1), WorldToClip);
+	return ComputeHistoryVolumeUVFromNDC(NDCPosition);
+}
+float3 ComputeHistoryVolumeUV(FLWCVector3 WorldPosition, FLWCInverseMatrix WorldToClip)
+{
+	float4 NDCPosition = LWCMultiply(MakeLWCVector4(WorldPosition, 1.0f), WorldToClip);
+	return ComputeHistoryVolumeUVFromNDC(NDCPosition);
 }

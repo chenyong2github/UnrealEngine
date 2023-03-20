@@ -47,8 +47,12 @@ private:
 	FRDGTextureRef DefaultLightFunctionAtlasItemTexture;
 };
 
-extern FIntVector GetVolumetricFogGridSize(FIntPoint ViewRectSize, int32& OutVolumetricFogGridPixelSize);
-extern FVector2f GetVolumetricFogFroxelToScreenSVPosRatio(FIntPoint ViewRectSize);
+// Grid size for resource allocation to be independent of dynamic resolution
+extern FIntVector GetVolumetricFogResourceGridSize(const FViewInfo& View, int32& OutVolumetricFogGridPixelSize);
+// Grid size for the view rectangle within the allocated resource
+extern FIntVector GetVolumetricFogViewGridSize(const FViewInfo& View, int32& OutVolumetricFogGridPixelSize);
+
+extern FVector2f GetVolumetricFogFroxelToScreenSVPosRatio(const FViewInfo& View);
 
 extern bool DoesPlatformSupportVolumetricFogVoxelization(const FStaticShaderPlatform Platform);
 extern bool ShouldRenderVolumetricFog(const FScene* Scene, const FSceneViewFamily& ViewFamily);

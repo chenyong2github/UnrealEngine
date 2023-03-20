@@ -1017,7 +1017,9 @@ public:
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
 
 	float LightScatteringHistoryPreExposure;
-	FVector2f LightScatteringScreenUVToHistoryVolumeUV;
+	FVector2f PrevLightScatteringViewGridUVToViewRectVolumeUV;
+	FVector2f VolumetricFogPrevViewGridRectUVToResourceUV;
+	FVector2f VolumetricFogPrevUVMax;
 	TRefCountPtr<IPooledRenderTarget> LightScatteringHistory;
 	TRefCountPtr<IPooledRenderTarget> PrevLightScatteringConservativeDepthTexture;
 

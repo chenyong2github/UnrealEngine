@@ -51,7 +51,7 @@ TRDGUniformBufferRef<FVoxelizeVolumePassUniformParameters> CreateVoxelizeVolumeP
 	auto* Parameters = GraphBuilder.AllocParameters<FVoxelizeVolumePassUniformParameters>();
 	SetupSceneTextureUniformParameters(GraphBuilder, &View.GetSceneTextures(), View.FeatureLevel, ESceneTextureSetupMode::None, Parameters->SceneTextures);
 
-	Parameters->ClipRatio = GetVolumetricFogFroxelToScreenSVPosRatio(View.ViewRect.Size());
+	Parameters->ClipRatio = GetVolumetricFogFroxelToScreenSVPosRatio(View);
 
 	Parameters->ViewToVolumeClip = FMatrix44f(View.ViewMatrices.ComputeProjectionNoAAMatrix());		// LWC_TODO: Precision loss?
 	Parameters->ViewToVolumeClip.M[2][0] += Jitter.X;
@@ -542,7 +542,7 @@ bool FVoxelizeVolumeMeshProcessor::Process(
 void VoxelizeVolumePrimitive(FVoxelizeVolumeMeshProcessor& PassMeshProcessor,
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
-	FIntVector VolumetricFogGridSize,
+	FIntVector VolumetricFogViewGridSize,
 	FVector GridZParams,
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMeshBatch& OriginalMesh)
@@ -578,8 +578,8 @@ void VoxelizeVolumePrimitive(FVoxelizeVolumeMeshProcessor& PassMeshProcessor,
 		int32 NearSlice = ComputeZSliceFromDepth(BoundsCenterDepth - Bounds.SphereRadius, GridZParams);
 		int32 FarSlice = ComputeZSliceFromDepth(BoundsCenterDepth + Bounds.SphereRadius, GridZParams);
 
-		NearSlice = FMath::Clamp(NearSlice, 0, VolumetricFogGridSize.Z - 1);
-		FarSlice = FMath::Clamp(FarSlice, 0, VolumetricFogGridSize.Z - 1);
+		NearSlice = FMath::Clamp(NearSlice, 0, VolumetricFogViewGridSize.Z - 1);
+		FarSlice = FMath::Clamp(FarSlice, 0, VolumetricFogViewGridSize.Z - 1);
 
 		const int32 NumSlices = FarSlice - NearSlice + 1;
 		const int32 NumVoxelizationPasses = FMath::DivideAndRoundUp(NumSlices, GetVoxelizationSlicesPerPass(View.GetShaderPlatform()));
@@ -601,7 +601,7 @@ void FSceneRenderer::VoxelizeFogVolumePrimitives(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FVolumetricFogIntegrationParameterData& IntegrationData,
-	FIntVector VolumetricFogGridSize,
+	FIntVector VolumetricFogViewGridSize,
 	FVector GridZParams,
 	float VolumetricFogDistance,
 	bool bVoxelizeEmissive)
@@ -609,8 +609,8 @@ void FSceneRenderer::VoxelizeFogVolumePrimitives(
 	if (View.VolumetricMeshBatches.Num() > 0 && DoesPlatformSupportVolumetricFogVoxelization(View.GetShaderPlatform()))
 	{
 		const FVector2D Jitter(
-			IntegrationData.FrameJitterOffsetValues[0].X / VolumetricFogGridSize.X,
-			IntegrationData.FrameJitterOffsetValues[0].Y / VolumetricFogGridSize.Y);
+			IntegrationData.FrameJitterOffsetValues[0].X / VolumetricFogViewGridSize.X,
+			IntegrationData.FrameJitterOffsetValues[0].Y / VolumetricFogViewGridSize.Y);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FVoxelizeVolumePassParameters>();
 		PassParameters->Pass = CreateVoxelizeVolumePassUniformBuffer(GraphBuilder, View, IntegrationData, Jitter, Scene->GetVolumetricCloudSceneInfo());
@@ -627,8 +627,8 @@ void FSceneRenderer::VoxelizeFogVolumePrimitives(
 			// Update the parts of VoxelizeParameters which are dependent on the buffer size and view rect
 			View.SetupViewRectUniformBufferParameters(
 				ViewVoxelizeParameters,
-				FIntPoint(VolumetricFogGridSize.X, VolumetricFogGridSize.Y),
-				FIntRect(0, 0, VolumetricFogGridSize.X, VolumetricFogGridSize.Y),
+				FIntPoint(VolumetricFogViewGridSize.X, VolumetricFogViewGridSize.Y),
+				FIntRect(0, 0, VolumetricFogViewGridSize.X, VolumetricFogViewGridSize.Y),
 				View.ViewMatrices,
 				View.PrevViewInfo.ViewMatrices
 			);
@@ -653,12 +653,11 @@ void FSceneRenderer::VoxelizeFogVolumePrimitives(
 			RDG_EVENT_NAME("VoxelizeVolumePrimitives"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, Scene = Scene, &View, VolumetricFogGridSize, IntegrationData, VolumetricFogDistance, GridZParams](FRHICommandListImmediate& RHICmdList)
-		{
-			FMeshPassProcessorRenderState DrawRenderState;
+			[PassParameters, Scene = Scene, &View, VolumetricFogViewGridSize, IntegrationData, VolumetricFogDistance, GridZParams](FRHICommandListImmediate& RHICmdList)
+			{
 
 			DrawDynamicMeshPass(View, RHICmdList,
-				[&View, VolumetricFogDistance, &RHICmdList, &VolumetricFogGridSize, &GridZParams](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+				[&View, VolumetricFogDistance, &RHICmdList, &VolumetricFogViewGridSize, &GridZParams](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 				{
 					FVoxelizeVolumeMeshProcessor PassMeshProcessor(
 						View.Family->Scene->GetRenderScene(),
@@ -667,6 +666,9 @@ void FSceneRenderer::VoxelizeFogVolumePrimitives(
 						DynamicMeshPassContext);
 
 					const bool bShouldRenderHeterogeneousVolumes = ShouldRenderHeterogeneousVolumesForView(View);
+
+					// Set the sub region of the texture according to the current dynamic resolution scale.
+					RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, VolumetricFogViewGridSize.X, VolumetricFogViewGridSize.Y, 1.0f);
 
 					for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.VolumetricMeshBatches.Num(); ++MeshBatchIndex)
 					{
@@ -683,7 +685,7 @@ void FSceneRenderer::VoxelizeFogVolumePrimitives(
 
 						if ((View.ViewMatrices.GetViewOrigin() - Bounds.Origin).SizeSquared() < (VolumetricFogDistance + Bounds.SphereRadius) * (VolumetricFogDistance + Bounds.SphereRadius))
 						{
-							VoxelizeVolumePrimitive(PassMeshProcessor, RHICmdList, View, VolumetricFogGridSize, GridZParams, PrimitiveSceneProxy, *Mesh);
+							VoxelizeVolumePrimitive(PassMeshProcessor, RHICmdList, View, VolumetricFogViewGridSize, GridZParams, PrimitiveSceneProxy, *Mesh);
 						}
 					}
 				},

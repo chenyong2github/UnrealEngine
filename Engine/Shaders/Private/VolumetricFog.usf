@@ -55,7 +55,7 @@ float4x4 UnjitteredPrevTranslatedWorldToClip;
 
 float3 ComputeCellTranslatedWorldPosition(uint3 GridCoordinate, float3 CellOffset, out float SceneDepth)
 {
-	float2 VolumeUV = (GridCoordinate.xy + CellOffset.xy) / VolumetricFog.GridSize.xy;
+	float2 VolumeUV = (GridCoordinate.xy + CellOffset.xy) / VolumetricFog.ViewGridSize.xy;
 	float2 VolumeNDC = (VolumeUV * 2 - 1) * float2(1, -1);
 
 	SceneDepth = ComputeDepthFromZSlice(GridCoordinate.z + CellOffset.z);
@@ -145,7 +145,7 @@ void MaterialSetupCS(
 	float3 Scattering = Albedo * Extinction;
 	float Absorption = max(Extinction - Luminance(Scattering), 0.0f);
 
-	if (all((int3)GridCoordinate < VolumetricFog.GridSizeInt))
+	if (all((int3)GridCoordinate < VolumetricFog.ResourceGridSizeInt))
 	{
 		RWVBufferA[GridCoordinate] = float4(Scattering, Absorption);
 #if USE_EMISSIVE
@@ -286,7 +286,7 @@ void InjectShadowedLocalLightPS(
 
 	// Somehow pixels are being rasterized outside of the viewport on a 970 GTX, perhaps due to use of a geometry shader bypassing the viewport scissor.
 	// This triggers the HistoryMissSuperSampleCount path causing significant overhead for shading off-screen pixels.
-	if (all(int3(GridCoordinate) < VolumetricFog.GridSizeInt))
+	if (all(int3(GridCoordinate) < VolumetricFog.ResourceGridSizeInt))
 	{
 		FDeferredLightData LightData = InitDeferredLightFromUniforms();
 
@@ -298,8 +298,7 @@ void InjectShadowedLocalLightPS(
 		uint NumSuperSamples = 1;
 
 #if USE_TEMPORAL_REPROJECTION
-
-		float3 HistoryUV = ComputeVolumeUV_DEPRECATED(ComputeCellTranslatedWorldPosition(GridCoordinate, .5f), UnjitteredPrevTranslatedWorldToClip) * float3(View.VolumetricFogScreenUVToHistoryVolumeUV.xy, 1.0);
+		float3 HistoryUV = ComputeHistoryVolumeUV_DEPRECATED(ComputeCellTranslatedWorldPosition(GridCoordinate, .5f), UnjitteredPrevTranslatedWorldToClip);
 		float HistoryAlpha = HistoryWeight;
 
 		FLATTEN
@@ -535,7 +534,7 @@ void LightScatteringCS(
 	}
 
 #if USE_TEMPORAL_REPROJECTION
-	float3 HistoryUV = ComputeVolumeUV_DEPRECATED(ComputeCellTranslatedWorldPosition(GridCoordinate, .5f), UnjitteredPrevTranslatedWorldToClip) * float3(View.VolumetricFogScreenUVToHistoryVolumeUV.xy, 1.0);
+	float3 HistoryUV = ComputeHistoryVolumeUV_DEPRECATED(ComputeCellTranslatedWorldPosition(GridCoordinate, .5f), UnjitteredPrevTranslatedWorldToClip);
 	float HistoryAlpha = HistoryWeight;
 
 	FLATTEN
@@ -546,7 +545,7 @@ void LightScatteringCS(
 
 	// Supersample if the history was outside the camera frustum
 	// The compute shader is dispatched with extra threads, make sure those don't supersample
-	NumSuperSamples = HistoryAlpha < .001f && all(int3(GridCoordinate) < VolumetricFog.GridSizeInt) ? HISTORY_MISS_SUPER_SAMPLE_COUNT : 1;
+	NumSuperSamples = HistoryAlpha < .001f && all(int3(GridCoordinate) < VolumetricFog.ViewGridSizeInt) ? HISTORY_MISS_SUPER_SAMPLE_COUNT : 1;
 #endif
 
 	for (uint SampleIndex = 0; SampleIndex < NumSuperSamples; SampleIndex++)
@@ -737,7 +736,7 @@ void LightScatteringCS(
 	
 #endif
 
-	if (all(int3(GridCoordinate) < VolumetricFog.GridSizeInt))
+	if (all(int3(GridCoordinate) < VolumetricFog.ResourceGridSizeInt))
 	{
 		PreExposedScatteringAndExtinction = MakePositiveFinite(PreExposedScatteringAndExtinction);
 		RWLightScattering[GridCoordinate] = PreExposedScatteringAndExtinction;
@@ -761,7 +760,7 @@ void FinalIntegrationCS(
 	float AccumulatedTransmittance = 1.0f;
 	float3 PreviousSliceTranslatedWorldPosition = ComputeCellTranslatedWorldPosition(uint3(GridCoordinate.xy, 0), float3(0.5f, 0.5f, 0.0f));
 	float AccumulatedDepth = 0.0;
-	for (int LayerIndex = 0; LayerIndex < VolumetricFog.GridSizeInt.z; LayerIndex++)
+	for (int LayerIndex = 0; LayerIndex < VolumetricFog.ViewGridSizeInt.z; LayerIndex++)
 	{
 		uint3 LayerCoordinate = uint3(GridCoordinate.xy, LayerIndex);
 		float4 PreExposedScatteringAndExtinction = LightScattering[LayerCoordinate];
