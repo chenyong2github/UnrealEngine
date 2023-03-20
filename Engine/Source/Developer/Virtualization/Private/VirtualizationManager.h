@@ -307,6 +307,9 @@ private:
 	/** When true we do not display an error dialog on failed payload pulling and rely on the caller handling it */
 	bool bUseLegacyErrorHandling;
 
+	/** An additional error message to display when pulling payloads fails */
+	FString PullErrorAdditionalMsg;
+
 private:
 
 	/** The name of the current project */

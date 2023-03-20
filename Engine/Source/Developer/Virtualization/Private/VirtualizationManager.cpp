@@ -1129,6 +1129,11 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		UE_LOG(LogVirtualization, Display, TEXT("\tUseLegacyErrorHandling : %s"), bUseLegacyErrorHandling ? TEXT("true") : TEXT("false"));
 	}
 
+	{
+		ConfigFile.GetString(ConfigSection, TEXT("PullErrorAdditionalMsg"), PullErrorAdditionalMsg);
+		// This value is not echoed to the log file, as seeing an error string there might confuse users
+	}
+
 	// Deprecated
 	{
 		bool bDummyValue = true;
@@ -1916,13 +1921,24 @@ FVirtualizationManager::ErrorHandlingResult FVirtualizationManager::OnPayloadPul
 
 	if (CriticalSection.TryLock())
 	{
-		FText Title = FText::FromString(TEXT("Failed to pull virtualized data!"));
+		
+		const FText Title(LOCTEXT("VAPullTitle", "Failed to pull virtualized data!"));
 
+		FTextBuilder MsgBuilder;
+		MsgBuilder.AppendLine(LOCTEXT("VAPullMsgHeader", "Failed to pull payload(s) from virtualization storage and allowing the editor to continue could corrupt data!"));
+		
+		if (!PullErrorAdditionalMsg.IsEmpty())
+		{
+			MsgBuilder.AppendLine(FString(TEXT("")));
+			MsgBuilder.AppendLine(PullErrorAdditionalMsg);
+		}
 
-		FString Msg = FString::Printf(	TEXT("Failed to pull payload(s) from virtualization storage and allowing the editor to continue could corrupt data!"
-											 "\n\n[Yes] Retry pulling the data\n[No] Quit the editor"));
+		MsgBuilder.AppendLine(FString(TEXT("")));
+		MsgBuilder.AppendLine(LOCTEXT("VAPullMsgYes", "[Yes] Retry pulling the data"));
+		MsgBuilder.AppendLine(LOCTEXT("VAPullMsgNo", "[No] Quit the editor"));
 
-		FText Message = FText::FromString(Msg);
+		const FText Message = MsgBuilder.ToText();
+
 		EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, Message, &Title);
 
 		if (Result == EAppReturnType::No)
