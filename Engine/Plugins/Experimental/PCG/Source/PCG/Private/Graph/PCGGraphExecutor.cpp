@@ -100,7 +100,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 	}
 
 #if WITH_EDITOR
-	if (UPCGSubsystem* Subsystem = UPCGSubsystem::GetInstance(SourceComponent->GetWorld()))
+	if (UPCGSubsystem* Subsystem = SourceComponent ? UPCGSubsystem::GetInstance(SourceComponent->GetWorld()) : nullptr)
 	{
 		for (const UPCGNode* Node : Graph->GetNodes())
 		{
