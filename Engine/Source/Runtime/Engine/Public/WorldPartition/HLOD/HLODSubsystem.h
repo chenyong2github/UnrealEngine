@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "UObject/ObjectKey.h"
+#include "Containers/Ticker.h"
 #include "HLODSubsystem.generated.h"
 
 
@@ -42,6 +43,8 @@ public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	//~ End UWorldSubsystem Interface.
 
+	bool Tick(float DeltaTime);
+
 	void RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD);
 	void UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD);
 
@@ -76,6 +79,12 @@ private:
 	{
 		TMap<FGuid, FCellData> CellsData;
 	};
+
+	struct FDrawDistanceQueue
+	{
+		float DrawDistance;
+		TObjectPtr<AWorldPartitionHLOD> HLODActor;
+	};
 	
 	TMap<TObjectPtr<UWorldPartition>, FWorldPartitionHLODRuntimeData> WorldPartitionsHLODRuntimeData;
 	const FCellData* GetCellData(const UWorldPartitionRuntimeCell* InCell) const;
@@ -99,6 +108,10 @@ private:
 	bool ShouldPerformWarmup() const;
 	bool ShouldPerformWarmupForCell(const UWorldPartitionRuntimeCell* InCell) const;
 	bool bCachedShouldPerformWarmup;
+
+	TArray<FDrawDistanceQueue> OperationQueue;
+	FTSTicker::FDelegateHandle TickHandle;
+	int32 LastSetCullDistance;
 
 	/** Console command used to turn on/off loading & rendering of world partition HLODs */
 	static class FAutoConsoleCommand EnableHLODCommand;
