@@ -95,7 +95,6 @@ bool FDatasmithMVRNativeTranslator::FindMVRFile(FString& OutMVRFilePathAndName) 
 	const FString DatasmithAssetsPath = FPaths::GetPath(DatasmithFilePathAndName) / DatasmithFileName + TEXT("_Assets");
 
 	const FString MVRFilename = FPaths::GetBaseFilename(DatasmithFilePathAndName) + TEXT(".mvr");
-
 	if (FPaths::FileExists(DatasmithPath / MVRFilename))
 	{
 		OutMVRFilePathAndName = DatasmithPath / MVRFilename;
@@ -104,7 +103,20 @@ bool FDatasmithMVRNativeTranslator::FindMVRFile(FString& OutMVRFilePathAndName) 
 	else if (FPaths::FileExists(DatasmithAssetsPath / MVRFilename))
 	{
 		OutMVRFilePathAndName = DatasmithAssetsPath / MVRFilename;
-		return true;;
+		return true;
+	}
+
+	// Vectorworks exports .udatasmith files with underscores, but MVR without underscores by default
+	const FString MVRFilenameNoUnderscores = MVRFilename.Replace(TEXT("_"), TEXT(" "));
+	if (FPaths::FileExists(DatasmithPath / MVRFilenameNoUnderscores))
+	{
+		OutMVRFilePathAndName = DatasmithPath / MVRFilenameNoUnderscores;
+		return true;
+	}
+	else if (FPaths::FileExists(DatasmithAssetsPath / MVRFilenameNoUnderscores))
+	{
+		OutMVRFilePathAndName = DatasmithAssetsPath / MVRFilenameNoUnderscores;
+		return true;
 	}
 
 	return false;

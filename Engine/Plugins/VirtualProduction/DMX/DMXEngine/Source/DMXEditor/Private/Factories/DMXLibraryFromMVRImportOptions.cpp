@@ -47,10 +47,10 @@ void UDMXLibraryFromMVRImportOptions::ApplyOptions(UDMXLibrary* DMXLibrary)
 
 	if (bUpdateInputPort)
 	{
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 		const TSharedPtr<FDMXInputPort> InputPort = FDMXPortManager::Get().FindInputPortByGuid(InputPortToUpdate.GetPortGuid());
 		if (InputPort.IsValid())
 		{
-			UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 			FDMXInputPortConfig* InputPortConfigPtr = Algo::FindByPredicate(ProtocolSettings->InputPortConfigs, [&InputPort](const FDMXInputPortConfig& InputPortConfig)
 				{
 					return InputPortConfig.GetPortGuid() == InputPort->GetPortGuid();
@@ -73,21 +73,21 @@ void UDMXLibraryFromMVRImportOptions::ApplyOptions(UDMXLibrary* DMXLibrary)
 			ConfigParams.LocalUniverseStart = FMath::Min(NewConfig.GetLocalUniverseStart(), FirstUniverse);
 			ConfigParams.NumUniverses = FMath::Max(NewConfig.GetNumUniverses(), NumUniverses);
 
-			UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 			ProtocolSettings->PreEditChange(UDMXProtocolSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs)));
 			ProtocolSettings->InputPortConfigs.Add(NewConfig);
 			ProtocolSettings->PostEditChange();
 		}
+		ProtocolSettings->SaveConfig();
 
 		FDMXPortManager::Get().UpdateFromProtocolSettings();
 	}
 
 	if (bUpdateOutputPort)
 	{
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 		const TSharedPtr<FDMXOutputPort> OutputPort = FDMXPortManager::Get().FindOutputPortByGuid(OutputPortToUpdate.GetPortGuid());
 		if (OutputPort.IsValid())
 		{
-			UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 			FDMXOutputPortConfig* OutputPortConfigPtr = Algo::FindByPredicate(ProtocolSettings->OutputPortConfigs, [&OutputPort](const FDMXOutputPortConfig& OutputPortConfig)
 				{
 					return OutputPortConfig.GetPortGuid() == OutputPort->GetPortGuid();
@@ -110,11 +110,11 @@ void UDMXLibraryFromMVRImportOptions::ApplyOptions(UDMXLibrary* DMXLibrary)
 			ConfigParams.LocalUniverseStart = FMath::Min(NewConfig.GetLocalUniverseStart(), FirstUniverse);
 			ConfigParams.NumUniverses = FMath::Max(NewConfig.GetNumUniverses(), NumUniverses);
 
-			UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 			ProtocolSettings->PreEditChange(UDMXProtocolSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs)));
 			ProtocolSettings->OutputPortConfigs.Add(NewConfig);
 			ProtocolSettings->PostEditChange();
 		}
+		ProtocolSettings->SaveConfig();
 
 		FDMXPortManager::Get().UpdateFromProtocolSettings();
 	}
