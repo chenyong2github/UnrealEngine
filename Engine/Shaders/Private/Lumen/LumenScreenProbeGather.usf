@@ -28,16 +28,6 @@
 #define INTEGRATE_TILE_CLASSIFICATION_MODE 0
 #endif
 
-RWTexture2D<float> RWDepth;
-
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void CopyDepthCS( 
-	uint2 DispatchThreadId : SV_DispatchThreadID)
-{
-	float DeviceZ = SceneDepthTexture[DispatchThreadId + View.ViewRectMinAndSize.xy].x;
-	RWDepth[DispatchThreadId + View.ViewRectMinAndSize.xy] = DeviceZ;
-}
-
 RWTexture2D<uint> RWScreenProbeSceneDepth;
 RWTexture2D<uint> RWScreenProbeWorldSpeed;
 RWTexture2D<UNORM float2> RWScreenProbeWorldNormal;

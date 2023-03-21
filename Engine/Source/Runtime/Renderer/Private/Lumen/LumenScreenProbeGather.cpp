@@ -16,6 +16,7 @@
 #include "ShaderPrint.h"
 #include "Strata/Strata.h"
 #include "LumenReflections.h"
+#include "DepthCopy.h"
 
 extern FLumenGatherCvarState GLumenGatherCvars;
 
@@ -544,39 +545,6 @@ namespace LumenScreenProbeGatherRadianceCache
 		return Parameters;
 	}
 };
-
-class FCopyDepthCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FCopyDepthCS)
-	SHADER_USE_PARAMETER_STRUCT(FCopyDepthCS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWDepth)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
-	END_SHADER_PARAMETER_STRUCT()
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static int32 GetGroupSize() 
-	{
-		return 8;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FCopyDepthCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "CopyDepthCS", SF_Compute);
-
 
 class FScreenProbeDownsampleDepthUniformCS : public FGlobalShader
 {
@@ -1649,20 +1617,7 @@ void FDeferredShadingSceneRenderer::StoreLumenDepthHistory(FRDGBuilder& GraphBui
 		FRDGTextureDesc NewDepthHistoryDesc = FRDGTextureDesc::Create2D(DepthDesc.Extent, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 		FRDGTextureRef NewDepthHistory = GraphBuilder.CreateTexture(NewDepthHistoryDesc, TEXT("Lumen.DepthHistory"));
 
-		FCopyDepthCS::FPermutationDomain PermutationVector;
-		auto ComputeShader = View.ShaderMap->GetShader<FCopyDepthCS>(PermutationVector);
-
-		FCopyDepthCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyDepthCS::FParameters>();
-		PassParameters->RWDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewDepthHistory));
-		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneDepthTexture = SceneTextures.Depth.Resolve;
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("CopyDepth"),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FCopyDepthCS::GetGroupSize()));
+		AddViewDepthCopyCSPass(GraphBuilder, View, SceneTextures.Depth.Resolve, NewDepthHistory);
 
 		GraphBuilder.QueueTextureExtraction(NewDepthHistory, &View.ViewState->Lumen.DepthHistoryRT);
 	}

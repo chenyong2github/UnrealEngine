@@ -36,6 +36,7 @@
 #include "RenderCore.h"
 #include "SimpleMeshDrawCommandPass.h"
 #include "UnrealEngine.h"
+#include "DepthCopy.h"
 
 static TAutoConsoleVariable<int32> CVarParallelPrePass(
 	TEXT("r.ParallelPrePass"),
@@ -113,38 +114,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDepthPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
-
-class FCopyViewDepthCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FCopyViewDepthCS)
-	SHADER_USE_PARAMETER_STRUCT(FCopyViewDepthCS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWDepth)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
-	END_SHADER_PARAMETER_STRUCT()
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static int32 GetGroupSize()
-	{
-		return 8;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FCopyViewDepthCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "CopyDepthCS", SF_Compute);
-// TODO make FCopyViewDepthCS common between lumen and other parts within the depth render file.
 
 FDepthPassParameters* GetDepthPassParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef DepthTexture)
 {
@@ -538,6 +507,7 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 	auto RenderDepthPass = [&](uint8 DepthMeshPass)
 	{
 		check(DepthMeshPass == EMeshPass::DepthPass || DepthMeshPass == EMeshPass::SecondStageDepthPass);
+		const bool bSecondStageDepthPass = DepthMeshPass == EMeshPass::SecondStageDepthPass;
 
 		if (bParallelDepthPass)
 		{
@@ -552,7 +522,7 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 				FMeshPassProcessorRenderState DrawRenderState;
 				SetupDepthPassState(DrawRenderState);
 
-				const bool bShouldRenderView = View.ShouldRenderView();
+				const bool bShouldRenderView = View.ShouldRenderView() && (bSecondStageDepthPass ? View.bUsesSecondStageDepthPass : true);
 				if (bShouldRenderView)
 				{
 					View.BeginRenderView();
@@ -561,7 +531,7 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 					View.ParallelMeshDrawCommandPasses[DepthMeshPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 
 					GraphBuilder.AddPass(
-						DepthMeshPass == EMeshPass::DepthPass ? RDG_EVENT_NAME("DepthPassParallel") : RDG_EVENT_NAME("SecondStageDepthPassParallel"),
+						bSecondStageDepthPass ? RDG_EVENT_NAME("SecondStageDepthPassParallel") : RDG_EVENT_NAME("DepthPassParallel"),
 						PassParameters,
 						ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 						[this, &View, PassParameters, DepthMeshPass](const FRDGPass* InPass, FRHICommandListImmediate& RHICmdList)
@@ -586,7 +556,7 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 				FMeshPassProcessorRenderState DrawRenderState;
 				SetupDepthPassState(DrawRenderState);
 
-				const bool bShouldRenderView = View.ShouldRenderView();
+				const bool bShouldRenderView = View.ShouldRenderView() && (bSecondStageDepthPass ? View.bUsesSecondStageDepthPass : true);
 				if (bShouldRenderView)
 				{
 					View.BeginRenderView();
@@ -595,7 +565,7 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 					View.ParallelMeshDrawCommandPasses[DepthMeshPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 
 					GraphBuilder.AddPass(
-						DepthMeshPass == EMeshPass::DepthPass ? RDG_EVENT_NAME("DepthPass") : RDG_EVENT_NAME("SecondStageDepthPass"),
+						bSecondStageDepthPass ? RDG_EVENT_NAME("SecondStageDepthPass") : RDG_EVENT_NAME("DepthPass"),
 						PassParameters,
 						ERDGPassFlags::Raster,
 						[this, &View, PassParameters, DepthMeshPass](FRHICommandList& RHICmdList)
@@ -627,9 +597,10 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 		// Copy depth buffer and render secondary depth pass if needed.
 		if(bUsesSecondStageDepthPass)
 		{
-			// We cannot use AddCopyTexturePass which do not support depth htile copy on some platforms. So we do a custom copy using compute through UAV.
-			// On some platforms, this will however trigger a HTILE decompress when transitioning the depth surface as SRV (because the depth format cannot be read as is ).
-			// TODO: A proper solution would be a proper implementation of AddCopyTexturePass that also maintain the source texture HTile in place.
+			// We cannot use AddCopyTexturePass which do not support depth HTile copy on some platforms. So we do a custom copy using compute through UAV.
+			// On some platforms, this will also trigger a HTILE decompress when transitioning the depth surface as SRV (because the depth format cannot be read as is). So the source texture loses HTile optimizations.
+			// As such, the base pass might get slower.
+			// TODO: A proper solution would be an update to AddCopyTexturePass that also maintain the source texture HTile data.
 			FRDGTextureDesc FirstStageDepthBufferDesc = FRDGTextureDesc::Create2D(SceneDepthTexture->Desc.Extent, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 			*FirstStageDepthBuffer = GraphBuilder.CreateTexture(FirstStageDepthBufferDesc, TEXT("FirstStageDepthBuffer"));
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
@@ -637,20 +608,7 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 				FViewInfo& View = Views[ViewIndex];
 				if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly && View.bUsesSecondStageDepthPass)
 				{
-					FCopyViewDepthCS::FPermutationDomain PermutationVector;
-					auto ComputeShader = View.ShaderMap->GetShader<FCopyViewDepthCS>(PermutationVector);
-
-					FCopyViewDepthCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyViewDepthCS::FParameters>();
-					PassParameters->RWDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(*FirstStageDepthBuffer));
-					PassParameters->View = View.ViewUniformBuffer;
-					PassParameters->SceneDepthTexture = SceneDepthTexture;
-
-					FComputeShaderUtils::AddPass(
-						GraphBuilder,
-						RDG_EVENT_NAME("CopyViewDepth"),
-						ComputeShader,
-						PassParameters,
-						FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FCopyViewDepthCS::GetGroupSize()));
+					AddViewDepthCopyCSPass(GraphBuilder, View, SceneDepthTexture, *FirstStageDepthBuffer);
 				}
 			}
 
