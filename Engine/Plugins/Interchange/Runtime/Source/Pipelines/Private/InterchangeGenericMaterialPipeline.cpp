@@ -41,7 +41,6 @@
 #include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialExpressionVectorNoise.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
-#include "Materials/MaterialExpressionVertexColor.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -2319,11 +2318,6 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	else if(*ShaderType == Nodes::VectorNoise::Name)
 	{
 		HandleVectorNoiseNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
-	}
-	else if(*ShaderType == Nodes::VertexColor::Name)
-	{
-		MaterialExpression->SetCustomExpressionClassName(UMaterialExpressionVertexColor::StaticClass()->GetName());
-		
 	}
 	else
 	{
