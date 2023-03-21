@@ -23,7 +23,7 @@ class UHeterogeneousVolumeComponent : public UMeshComponent
 	FIntVector VolumeResolution;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Volume)
-	float MinimumVoxelSize;
+	float Framerate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Volume)
 	uint32 bAnimate : 1;
@@ -47,7 +47,6 @@ public:
 
 private:
 	float Time;
-	float Framerate;
 };
 
 /**
