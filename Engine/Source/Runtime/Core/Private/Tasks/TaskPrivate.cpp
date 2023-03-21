@@ -226,7 +226,7 @@ namespace UE::Tasks
 			}
 
 			// the waiting task will be destroyed leaving this scope, wait for the internal reference to it to be released
-			while (WaitingTask.GetRefCount() != 1)
+			while (WaitingTask.GetRefCount(std::memory_order_acquire) != 1)
 			{
 				FPlatformProcess::Yield();
 			}

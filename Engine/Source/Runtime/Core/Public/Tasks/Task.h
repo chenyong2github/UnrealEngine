@@ -367,7 +367,7 @@ namespace UE::Tasks
 		}
 
 		// `WaitingTask` is allocated on the stack. we need to wait until its RefCount reaches zero before leaving the function to avoid "use after destruction"
-		while (WaitingTask.GetRefCount() != 1)
+		while (WaitingTask.GetRefCount(std::memory_order_acquire) != 1)
 		{
 			FPlatformProcess::Yield();
 		}

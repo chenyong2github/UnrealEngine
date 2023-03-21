@@ -120,9 +120,9 @@ namespace UE::Tasks
 				}
 			}
 
-			uint32 GetRefCount() const
+			uint32 GetRefCount(std::memory_order MemoryOrder) const
 			{
-				return RefCount.load(std::memory_order_relaxed);
+				return RefCount.load(MemoryOrder);
 			}
 
 		private:
