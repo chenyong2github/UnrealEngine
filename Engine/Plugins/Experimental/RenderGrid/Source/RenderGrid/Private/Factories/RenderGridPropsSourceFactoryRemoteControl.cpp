@@ -4,9 +4,9 @@
 #include "RenderGrid/RenderGridPropsSource.h"
 
 
-URenderGridPropsSourceBase* UE::RenderGrid::Private::FRenderGridPropsSourceFactoryRemoteControl::CreateInstance(UObject* Outer, UObject* PropsSourceOrigin)
+URenderGridPropsSourceBase* UE::RenderGrid::Private::FRenderGridPropsSourceFactoryRemoteControl::CreateInstance(UObject* PropsSourceOrigin)
 {
-	URenderGridPropsSourceRemoteControl* PropsSource = NewObject<URenderGridPropsSourceRemoteControl>(Outer);
+	URenderGridPropsSourceRemoteControl* PropsSource = NewObject<URenderGridPropsSourceRemoteControl>();
 	PropsSource->SetSourceOrigin(PropsSourceOrigin);
 	return PropsSource;
 }

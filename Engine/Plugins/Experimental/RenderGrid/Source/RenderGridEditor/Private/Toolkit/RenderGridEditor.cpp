@@ -674,9 +674,6 @@ void UE::RenderGrid::Private::FRenderGridEditor::DestroyInstance()
 
 	RenderGridWeakPtr.Reset();
 	PreviewBlueprintWeakPtr.Reset();
-
-	// Clear the undo/redo buffer, to prevent any bugs/glitches with undo/redo while the render grid editor is closed
-	//GEditor->ResetTransaction(LOCTEXT("RenderGridEditorClosed", "RenderGrid Editor Closed"));
 }
 
 void UE::RenderGrid::Private::FRenderGridEditor::UpdateInstance(UBlueprint* InBlueprint, bool bInForceFullUpdate)

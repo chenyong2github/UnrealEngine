@@ -14,6 +14,6 @@ namespace UE::RenderGrid::Private
 	class RENDERGRID_API FRenderGridPropsSourceFactoryRemoteControl final : public IRenderGridPropsSourceFactory
 	{
 	public:
-		virtual URenderGridPropsSourceBase* CreateInstance(UObject* Outer, UObject* PropsSourceOrigin) override;
+		virtual URenderGridPropsSourceBase* CreateInstance(UObject* PropsSourceOrigin) override;
 	};
 }

@@ -422,6 +422,9 @@ public:
 	/** Copy all properties from the given RenderGrid to self. */
 	void CopyAllProperties(URenderGrid* From);
 
+	/** Copy all user variables (configured in the blueprint graph) from the given RenderGrid to self. */
+	void CopyAllUserVariables(URenderGrid* From);
+
 public:
 	static TArray<FString> GetBlueprintImplementableEvents()
 	{

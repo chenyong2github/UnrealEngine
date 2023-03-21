@@ -89,6 +89,8 @@ void URenderGridBlueprint::Load()
 	{
 		Job->Rename(nullptr, RenderGrid);
 	}
+	RenderGrid->GetDefaultsObject()->Rename(nullptr, RenderGrid);
+	RenderGrid->GetSettingsObject()->Rename(nullptr, RenderGrid);
 }
 
 void URenderGridBlueprint::Save()
@@ -101,6 +103,8 @@ void URenderGridBlueprint::Save()
 			{
 				Job->Rename(nullptr, DefaultObject);
 			}
+			DefaultObject->GetDefaultsObject()->Rename(nullptr, DefaultObject);
+			DefaultObject->GetSettingsObject()->Rename(nullptr, DefaultObject);
 		}
 	}
 }
@@ -132,19 +136,30 @@ void URenderGridBlueprint::PropagateAllPropertiesToInstances()
 void URenderGridBlueprint::PropagateJobsToAsset(URenderGrid* Instance)
 {
 	check(IsValid(Instance));
+
 	RenderGrid->CopyJobs(Instance);
 }
 
 void URenderGridBlueprint::PropagateAllPropertiesExceptJobsToAsset(URenderGrid* Instance)
 {
 	check(IsValid(Instance));
+
 	RenderGrid->CopyAllPropertiesExceptJobs(Instance);
+	if (URenderGrid* CDO = GetRenderGridClassDefaultObject(); IsValid(CDO))
+	{
+		CDO->CopyAllUserVariables(Instance);
+	}
 }
 
 void URenderGridBlueprint::PropagateAllPropertiesToAsset(URenderGrid* Instance)
 {
 	check(IsValid(Instance));
+
 	RenderGrid->CopyAllProperties(Instance);
+	if (URenderGrid* CDO = GetRenderGridClassDefaultObject(); IsValid(CDO))
+	{
+		CDO->CopyAllUserVariables(Instance);
+	}
 }
 
 URenderGrid* URenderGridBlueprint::GetRenderGridWithBlueprintGraph() const
@@ -183,16 +198,7 @@ void URenderGridBlueprint::OnPostVariablesChange(UBlueprint* InBlueprint)
 	for (FBPVariableDescription& NewVariable : NewVariables)
 	{
 		uint64 PreviousPropertyFlags = NewVariable.PropertyFlags;
-		bFoundChange = bFoundChange || NewVariable.HasMetaData(FBlueprintMetadata::MD_ExposeOnSpawn);
-
-		// fix that's required for the way of saving/loading the render grid,
-		//  the render grid instance (in the blueprint class) isn't of the generated class (but instead it's of the URenderGrid class itself), and so variables can't be saved or load,
-		//  meaning that every variable has to be transient no matter what, otherwise saving or loading the render grid asset will cause a crash
-		NewVariable.PropertyFlags |= CPF_DisableEditOnInstance;
-		NewVariable.PropertyFlags &= ~CPF_ExposeOnSpawn;
-		NewVariable.PropertyFlags |= CPF_Transient;
-		NewVariable.RemoveMetaData(FBlueprintMetadata::MD_ExposeOnSpawn);
-
+		NewVariable.PropertyFlags &= ~CPF_Transient;
 		bFoundChange = bFoundChange || (NewVariable.PropertyFlags != PreviousPropertyFlags);
 	}
 

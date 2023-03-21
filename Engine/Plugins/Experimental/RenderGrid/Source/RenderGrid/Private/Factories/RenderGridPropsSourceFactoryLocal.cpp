@@ -4,9 +4,9 @@
 #include "RenderGrid/RenderGridPropsSource.h"
 
 
-URenderGridPropsSourceBase* UE::RenderGrid::Private::FRenderGridPropsSourceFactoryLocal::CreateInstance(UObject* Outer, UObject* PropsSourceOrigin)
+URenderGridPropsSourceBase* UE::RenderGrid::Private::FRenderGridPropsSourceFactoryLocal::CreateInstance(UObject* PropsSourceOrigin)
 {
-	URenderGridPropsSourceLocal* PropsSource = NewObject<URenderGridPropsSourceLocal>(Outer);
+	URenderGridPropsSourceLocal* PropsSource = NewObject<URenderGridPropsSourceLocal>();
 	PropsSource->SetSourceOrigin(PropsSourceOrigin);
 	return PropsSource;
 }

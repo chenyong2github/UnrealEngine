@@ -17,6 +17,6 @@ namespace UE::RenderGrid
 	{
 	public:
 		virtual ~IRenderGridPropsSourceFactory() = default;
-		virtual URenderGridPropsSourceBase* CreateInstance(UObject* Outer, UObject* PropsSourceOrigin) { return nullptr; }
+		virtual URenderGridPropsSourceBase* CreateInstance(UObject* PropsSourceOrigin) { return nullptr; }
 	};
 }

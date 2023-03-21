@@ -860,7 +860,7 @@ void URenderGrid::CopyAllPropertiesExceptJobs(URenderGrid* From)
 	}
 	for (FProperty* Property = StaticClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
-		if (!Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient) && Property->GetName().Compare("RenderGridJobs"))// if not [Transient] and not "RenderGridJobs"
+		if (!Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient) && !Property->GetName().Equals("RenderGridJobs"))// if not [Transient] and not "RenderGridJobs"
 		{
 			Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(this), Property->ContainerPtrToValuePtr<void>(From));
 		}
@@ -875,6 +875,24 @@ void URenderGrid::CopyAllProperties(URenderGrid* From)
 	}
 	CopyJobs(From);
 	CopyAllPropertiesExceptJobs(From);
+}
+
+void URenderGrid::CopyAllUserVariables(URenderGrid* From)
+{
+	if (!IsValid(From))
+	{
+		return;
+	}
+	if (From->GetClass()->IsChildOf(GetClass()))
+	{
+		for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+		{
+			if (!StaticClass()->HasProperty(Property))// if is [Blueprint Graph Variable]
+			{
+				Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(this), Property->ContainerPtrToValuePtr<void>(From));
+			}
+		}
+	}
 }
 
 void URenderGrid::BeginEditor()
@@ -1073,7 +1091,7 @@ URenderGridPropsSourceBase* URenderGrid::GetPropsSource() const
 	{
 		Settings->CachedPropsSourceType = Settings->PropsSourceType;
 		Settings->CachedPropsSourceOriginWeakPtr = PropsSourceOrigin;
-		Settings->CachedPropsSource = UE::RenderGrid::IRenderGridModule::Get().CreatePropsSource(const_cast<URenderGrid*>(this), Settings->PropsSourceType, PropsSourceOrigin);
+		Settings->CachedPropsSource = UE::RenderGrid::IRenderGridModule::Get().CreatePropsSource(Settings->PropsSourceType, PropsSourceOrigin);
 	}
 	return Settings->CachedPropsSource;
 }

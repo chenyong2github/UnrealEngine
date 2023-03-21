@@ -23,7 +23,7 @@ namespace UE::RenderGrid::Private
 		//~ Begin IRenderGridModule interface
 		virtual FRenderGridManager& GetManager() const override;
 
-		virtual URenderGridPropsSourceBase* CreatePropsSource(UObject* Outer, ERenderGridPropsSourceType PropsSourceType, UObject* PropsSourceOrigin) override;
+		virtual URenderGridPropsSourceBase* CreatePropsSource(ERenderGridPropsSourceType PropsSourceType, UObject* PropsSourceOrigin) override;
 		virtual const TMap<ERenderGridPropsSourceType, TSharedPtr<IRenderGridPropsSourceFactory>>& GetPropsSourceFactories() const override { return PropsSourceFactories; }
 		//~ End IRenderGridModule interface
 

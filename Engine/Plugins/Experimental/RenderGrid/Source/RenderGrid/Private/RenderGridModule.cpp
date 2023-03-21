@@ -64,7 +64,7 @@ void UE::RenderGrid::Private::FRenderGridModule::UnregisterPropsSourceFactory(co
 	PropsSourceFactories.Remove(PropsSourceType);
 }
 
-URenderGridPropsSourceBase* UE::RenderGrid::Private::FRenderGridModule::CreatePropsSource(UObject* Outer, ERenderGridPropsSourceType PropsSourceType, UObject* PropsSourceOrigin)
+URenderGridPropsSourceBase* UE::RenderGrid::Private::FRenderGridModule::CreatePropsSource(ERenderGridPropsSourceType PropsSourceType, UObject* PropsSourceOrigin)
 {
 	TSharedPtr<IRenderGridPropsSourceFactory>* FactoryPtr = PropsSourceFactories.Find(PropsSourceType);
 	if (!FactoryPtr)
@@ -78,7 +78,7 @@ URenderGridPropsSourceBase* UE::RenderGrid::Private::FRenderGridModule::CreatePr
 		return nullptr;
 	}
 
-	return Factory->CreateInstance(Outer, PropsSourceOrigin);
+	return Factory->CreateInstance(PropsSourceOrigin);
 }
 
 
