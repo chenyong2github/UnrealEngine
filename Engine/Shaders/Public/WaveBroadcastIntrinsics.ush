@@ -280,6 +280,12 @@ uint16_t2 WaveBroadcast(const FWaveBroadcastSettings Settings, uint16_t2 v)
 	uint bvu = WaveBroadcast(Settings, vu);
 	return bit_cast_uint16_t2(bvu);
 } 
+#elif 1
+{
+	uint vu = uint(v.x) | (uint(v.y) << 16u);
+	uint bvu = WaveBroadcast(Settings, vu);
+	return uint16_t2(bvu, bvu >> 16u);
+}
 #else
 {
 	return uint16_t2(

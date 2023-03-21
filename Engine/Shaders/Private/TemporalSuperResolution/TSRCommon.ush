@@ -24,7 +24,9 @@
 
 #define DEBUG_OUTPUT 0
 
-#if PLATFORM_SUPPORTS_REAL_TYPES && 1
+#if defined(DIM_16BIT_VALU)
+	#define CONFIG_COMPILE_FP16 DIM_16BIT_VALU
+#elif PLATFORM_SUPPORTS_REAL_TYPES
 	#define CONFIG_COMPILE_FP16 1
 #else
 	#define CONFIG_COMPILE_FP16 0
@@ -598,17 +600,29 @@ float2 SafeRcp(float2 x)
 
 CALL_SITE_DEBUGLOC
 half SafeRcp(half x)
+#if PLATFORM_GPU_ARCH >= PLATFORM_GPU_ARCH_AMD_RDNA_2 && PLATFORM_GPU_ARCH <= PLATFORM_GPU_ARCH_AMD_LATTEST
 {
 	// If x=0.0, then MaxHalfFloat * 0.0 = 0.0
 	return min(rcp(x), half(MaxHalfFloat)) * saturate(x * asfloat16(uint16_t(0x7C00)));
 }
+#else
+{
+	return select(x > half(0.0), min(rcp(x), half(MaxHalfFloat)), half(0.0));
+}
+#endif
 
 CALL_SITE_DEBUGLOC
 half2 SafeRcp(half2 x)
+#if PLATFORM_GPU_ARCH >= PLATFORM_GPU_ARCH_AMD_RDNA_2 && PLATFORM_GPU_ARCH <= PLATFORM_GPU_ARCH_AMD_LATTEST
 {
 	// If x=0.0, then MaxHalfFloat * 0.0 = 0.0
 	return min(rcp(x), half(MaxHalfFloat)) * saturate(x * asfloat16(uint16_t(0x7C00)));
 }
+#else
+{
+	return select(x > half(0.0), min(rcp(x), half(MaxHalfFloat)), half(0.0));
+}
+#endif
 
 #endif
 
