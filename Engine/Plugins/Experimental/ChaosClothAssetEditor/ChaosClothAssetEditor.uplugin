@@ -63,6 +63,10 @@
 		{
 			"Name": "DatasmithImporter",
 			"Enabled": true
+		},
+		{
+			"Name": "ChaosCaching",
+			"Enabled": true
 		}
 	]
 }

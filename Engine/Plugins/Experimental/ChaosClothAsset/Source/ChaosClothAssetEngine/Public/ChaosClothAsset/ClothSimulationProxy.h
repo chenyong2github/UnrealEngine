@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ChaosClothAsset/ClothSimulationContext.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Array.h"
 #include "Math/Transform.h"
@@ -27,11 +26,13 @@ struct FClothingSimulationCacheData;
 
 namespace UE::Chaos::ClothAsset
 {
+	struct FClothSimulationContext;
+
 	/**
 	 * Cloth simulation proxy.
 	 * Class used to share data between the cloth simulation and the cloth component.
 	 */
-	class FClothSimulationProxy final
+	class CHAOSCLOTHASSETENGINE_API FClothSimulationProxy
 	{
 	public:
 		explicit FClothSimulationProxy(const UChaosClothComponent& InClothComponent);
@@ -57,11 +58,13 @@ namespace UE::Chaos::ClothAsset
 
 		FBoxSphereBounds CalculateBounds_AnyThread() const;
 
+	protected:
+		void Tick();
+		void WriteSimulationData();
+		void InitializeConfigs();
+		void FillSimulationContext(float DeltaTime, bool bIsInitialization = false, FClothingSimulationCacheData* CacheData = nullptr);
+
 	private:
-		void Tick_PhysicsThread();
-
-		void WriteSimulationData_GameThread();
-
 		// Internal physics thread object
 		friend class FClothSimulationProxyParallelTask;
 
@@ -75,7 +78,7 @@ namespace UE::Chaos::ClothAsset
 		const UChaosClothComponent& ClothComponent;
 
 		// Simulation context used to store the required component data for the duration of the simulation
-		FClothSimulationContext ClothSimulationContext;
+		TUniquePtr<FClothSimulationContext> ClothSimulationContext;
 
 		// The cloth simulation model used to create this simulation, ownership might get transferred to this proxy if it changes during the simulation
 		TSharedPtr<const FChaosClothSimulationModel> ClothSimulationModel;

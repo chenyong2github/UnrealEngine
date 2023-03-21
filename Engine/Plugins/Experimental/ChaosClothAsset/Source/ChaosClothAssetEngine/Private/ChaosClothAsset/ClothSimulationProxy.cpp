@@ -4,6 +4,7 @@
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothAssetPrivate.h"
 #include "ChaosClothAsset/ClothComponent.h"
+#include "ChaosClothAsset/ClothSimulationContext.h"
 #include "ChaosClothAsset/ClothSimulationMesh.h"
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
@@ -77,7 +78,7 @@ namespace UE::Chaos::ClothAsset
 			FScopeCycleCounterUObject ContextScope(ClothSimulationProxy.ClothComponent.GetSkinnedAsset());
 			CSV_SCOPED_TIMING_STAT(Animation, Cloth);
 
-			ClothSimulationProxy.Tick_PhysicsThread();
+			ClothSimulationProxy.Tick();
 		}
 
 	private:
@@ -86,6 +87,7 @@ namespace UE::Chaos::ClothAsset
 
 	FClothSimulationProxy::FClothSimulationProxy(const UChaosClothComponent& InClothComponent)
 		: ClothComponent(InClothComponent)
+		, ClothSimulationContext(MakeUnique<FClothSimulationContext>())
 		, Solver(MakeUnique<::Chaos::FClothingSimulationSolver>())
 		, Visualization(MakeUnique<::Chaos::FClothVisualization>(Solver.Get()))
 		, MaxDeltaTime(UPhysicsSettings::Get()->MaxPhysicsDeltaTime)
@@ -97,12 +99,12 @@ namespace UE::Chaos::ClothAsset
 		// Need a valid context to initialize the mesh
 		constexpr bool bIsInitialization = true;
 		constexpr Softs::FSolverReal NoAdvanceDt = 0.f;
-		ClothSimulationContext.Fill(ClothComponent, NoAdvanceDt, MaxDeltaTime, bIsInitialization);
+		ClothSimulationContext->Fill(ClothComponent, NoAdvanceDt, MaxDeltaTime, bIsInitialization);
 
 		// Setup startup transforms
 		constexpr bool bNeedsReset = true;
-		Solver->SetLocalSpaceLocation((FVec3)ClothSimulationContext.ComponentTransform.GetLocation(), bNeedsReset);
-		Solver->SetLocalSpaceRotation((FQuat)ClothSimulationContext.ComponentTransform.GetRotation());
+		Solver->SetLocalSpaceLocation((FVec3)ClothSimulationContext->ComponentTransform.GetLocation(), bNeedsReset);
+		Solver->SetLocalSpaceRotation((FQuat)ClothSimulationContext->ComponentTransform.GetRotation());
 
 		// Create mesh simulation thread object
 		const UChaosClothAsset* const ClothAsset = ClothComponent.GetClothAsset();
@@ -119,7 +121,7 @@ namespace UE::Chaos::ClothAsset
 			FString::Format(TEXT("{0}|{1}"), { ClothComponent.GetOwner()->GetName(), ClothComponent.GetName() }) :
 			ClothComponent.GetName();
 #endif
-		const int32 MeshIndex = Meshes.Emplace(MakeUnique<FClothSimulationMesh>(*ClothSimulationModel, ClothSimulationContext, DebugName));
+		const int32 MeshIndex = Meshes.Emplace(MakeUnique<FClothSimulationMesh>(*ClothSimulationModel, *ClothSimulationContext, DebugName));
 
 		// Create collider simulation thread object
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
@@ -150,8 +152,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Solver->SetConfig(Configs[SolverConfigIndex].Get());
 
 		// Set start pose (update the context, then the solver without advancing the simulation)
-		ClothSimulationContext.Fill(ClothComponent, NoAdvanceDt, MaxDeltaTime);
-		Solver->Update((Softs::FSolverReal)ClothSimulationContext.DeltaTime);
+		ClothSimulationContext->Fill(ClothComponent, NoAdvanceDt, MaxDeltaTime);
+		Solver->Update((Softs::FSolverReal)ClothSimulationContext->DeltaTime);
 	}
 
 	FClothSimulationProxy::~FClothSimulationProxy()
@@ -164,9 +166,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		SCOPE_CYCLE_COUNTER(STAT_ClothSimulationProxy_TickGame);
 
 		// Fill a new context, note the context is also needed when the simulation is suspended
-		ClothSimulationContext.Fill(ClothComponent, DeltaTime, MaxDeltaTime, false, CacheData);
+		ClothSimulationContext->Fill(ClothComponent, DeltaTime, MaxDeltaTime, false, CacheData);
 
-		const bool bUseCache = ClothSimulationContext.CacheData.CacheIndices.Num() > 0;
+		const bool bUseCache = ClothSimulationContext->CacheData.CacheIndices.Num() > 0;
 		if (bUseCache)
 		{
 			Solver->SetEnableSolver(false);
@@ -175,11 +177,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const bool bCreateParallelTask = (DeltaTime > 0.f && !ClothComponent.IsSimulationSuspended()) || bUseCache;
 		if (bCreateParallelTask)
 		{
-			// Replace physics thread's configs with the game thread's configs
-			for (const TUniquePtr<::Chaos::FClothingSimulationConfig>& Config : Configs)
-			{
-				Config->Initialize(ClothComponent.GetPropertyCollection());  // TODO: Outfit and multi-cloths/solver config update
-			}
+			InitializeConfigs();
 
 			// Start the the cloth simulation thread
 			ParallelTask = TGraphTask<FClothSimulationProxyParallelTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(*this);
@@ -187,19 +185,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		else
 		{
 			// It still needs to write back to the GT cache as the context has changed
-			WriteSimulationData_GameThread();
+			WriteSimulationData();
 		}
 	}
 
-	void FClothSimulationProxy::Tick_PhysicsThread()
+	void FClothSimulationProxy::Tick()
 	{
 		using namespace ::Chaos;
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(FClothSimulationProxy_TickPhysics);
 		SCOPE_CYCLE_COUNTER(STAT_ClothSimulationProxy_TickPhysics);
-		const bool bUseCache = ClothSimulationContext.CacheData.HasData();
+		const bool bUseCache = ClothSimulationContext->CacheData.HasData();
 
-		if (ClothSimulationContext.DeltaTime == 0.f && !bUseCache)
+		if (ClothSimulationContext->DeltaTime == 0.f && !bUseCache)
 		{
 			return;
 		}
@@ -207,15 +205,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const double StartTime = FPlatformTime::Seconds();
 		const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
 
-		const bool bNeedsReset = (ClothSimulationContext.bReset || PrevSimulationTime == 0.f);  // Reset on the first frame too since the simulation is created in bind pose, and not in start pose
-		const bool bNeedsTeleport = ClothSimulationContext.bTeleport;
+		const bool bNeedsReset = (ClothSimulationContext->bReset || PrevSimulationTime == 0.f);  // Reset on the first frame too since the simulation is created in bind pose, and not in start pose
+		const bool bNeedsTeleport = ClothSimulationContext->bTeleport;
 		bIsTeleported = bNeedsTeleport;
 
 		// Update Solver animatable parameters
-		Solver->SetLocalSpaceLocation((FVec3)ClothSimulationContext.ComponentTransform.GetLocation(), bNeedsReset);
-		Solver->SetLocalSpaceRotation((FQuat)ClothSimulationContext.ComponentTransform.GetRotation());
-		Solver->SetWindVelocity(ClothSimulationContext.WindVelocity);
-		Solver->SetGravity(ClothSimulationContext.WorldGravity);
+		Solver->SetLocalSpaceLocation((FVec3)ClothSimulationContext->ComponentTransform.GetLocation(), bNeedsReset);
+		Solver->SetLocalSpaceRotation((FQuat)ClothSimulationContext->ComponentTransform.GetRotation());
+		Solver->SetWindVelocity(ClothSimulationContext->WindVelocity);
+		Solver->SetGravity(ClothSimulationContext->WorldGravity);
 
 		// Check teleport modes
 		for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
@@ -236,11 +234,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Step the simulation
 		if (Solver->GetEnableSolver() || !bUseCache)
 		{
-			Solver->Update((Softs::FSolverReal)ClothSimulationContext.DeltaTime);
+			Solver->Update((Softs::FSolverReal)ClothSimulationContext->DeltaTime);
 		}
 		else
 		{
-			Solver->UpdateFromCache(ClothSimulationContext.CacheData);
+			Solver->UpdateFromCache(ClothSimulationContext->CacheData);
 		}
 
 		// Keep the actual used number of iterations for the stats
@@ -273,15 +271,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ParallelTask.SafeRelease();
 
 			// Write back to the GT cache
-			WriteSimulationData_GameThread();
+			WriteSimulationData();
 		}
 	}
 
-	void FClothSimulationProxy::WriteSimulationData_GameThread()
+
+	void FClothSimulationProxy::WriteSimulationData()
 	{
 		using namespace ::Chaos;
-
-		check(IsInGameThread());
 
 		CSV_SCOPED_TIMING_STAT(Animation, Cloth);
 		TRACE_CPUPROFILER_EVENT_SCOPE(FClothSimulationProxy_WriteSimulationData);
@@ -356,13 +353,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// Get the reference transform used in the current animation pose
 			FTransform ReferenceBoneTransform = ComponentSpaceTransforms[ReferenceBoneIndex];
-			ReferenceBoneTransform *= ClothSimulationContext.ComponentTransform;
+			ReferenceBoneTransform *= ClothSimulationContext->ComponentTransform;
 			ReferenceBoneTransform.SetScale3D(FVector(1.0f));  // Scale is already baked in the cloth mesh
 
 			// Set the world space transform to be this cloth's reference bone
 			FClothSimulData& Data = CurrentSimulationData.FindOrAdd(AssetIndex);
 			Data.Transform = ReferenceBoneTransform;
-			Data.ComponentRelativeTransform = ReferenceBoneTransform.GetRelativeTransform(ClothSimulationContext.ComponentTransform);
+			Data.ComponentRelativeTransform = ReferenceBoneTransform.GetRelativeTransform(ClothSimulationContext->ComponentTransform);
 
 			// Retrieve the last reference space transform used for this cloth
 			// Note: This won't necessary match the current bone reference transform when the simulation is paused,
@@ -435,5 +432,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return Bounds;
 		}
 		return FBoxSphereBounds(ForceInit);
+	}
+
+	void FClothSimulationProxy::InitializeConfigs()
+	{
+		// Replace physics thread's configs with the game thread's configs
+		for (const TUniquePtr<::Chaos::FClothingSimulationConfig>& Config : Configs)
+		{
+			Config->Initialize(ClothComponent.GetPropertyCollection());  // TODO: Outfit and multi-cloths/solver config update
+		}
+	}
+
+	void FClothSimulationProxy::FillSimulationContext(float DeltaTime, bool bIsInitialization, FClothingSimulationCacheData* CacheData)
+	{
+		ClothSimulationContext->Fill(ClothComponent, DeltaTime, MaxDeltaTime, bIsInitialization, CacheData);
 	}
 }

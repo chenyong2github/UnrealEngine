@@ -2,40 +2,94 @@
 
 #include "ChaosClothAsset/ClothTrainingTool.h"
 #include "CoreMinimal.h"
+#include "ChaosCloth/ChaosClothingSimulationConfig.h"
 #include "ChaosClothAsset/ClothComponent.h"
+#include "ChaosClothAsset/ClothComponentToolTarget.h"
+#include "ChaosClothAsset/ClothCollection.h"
+#include "ChaosClothAsset/ClothSimulationProxy.h"
+#include "ClothingSystemRuntimeTypes.h"
+#include "Chaos/ChaosCache.h"
+#include "Chaos/CacheCollection.h"
+#include "ComponentReregisterContext.h"
 #include "ModelingOperators.h"
 #include "Misc/ScopedSlowTask.h"
 #include "ContextObjectStore.h"
 #include "InteractiveToolManager.h"
 #include "ToolTargetManager.h"
-#include "ChaosClothAsset/ClothComponentToolTarget.h"
+#include "UObject/SavePackage.h"
 
 #define LOCTEXT_NAMESPACE "ClothTrainingTool"
 
-// ------------------- Operator -------------------
-
-class FTrainClothOp : public UE::Geometry::TGenericDataOperator<FSkinnedMeshVertices>
+class UClothTrainingTool::FClothSimulationDataGenerationProxy : public UE::Chaos::ClothAsset::FClothSimulationProxy
 {
-public: 
+public:
+	explicit FClothSimulationDataGenerationProxy(const UChaosClothComponent& InClothComponent);
+	~FClothSimulationDataGenerationProxy();
 
-	TObjectPtr<UAnimSequence> AnimSequence;
-
-	virtual void CalculateResult(FProgressCancel* Progress) override;
+	using UE::Chaos::ClothAsset::FClothSimulationProxy::Tick;
+	using UE::Chaos::ClothAsset::FClothSimulationProxy::FillSimulationContext;
+	using UE::Chaos::ClothAsset::FClothSimulationProxy::InitializeConfigs;
+	using UE::Chaos::ClothAsset::FClothSimulationProxy::WriteSimulationData;
 };
 
+UClothTrainingTool::FClothSimulationDataGenerationProxy::FClothSimulationDataGenerationProxy(const UChaosClothComponent& InClothComponent)
+	: FClothSimulationProxy(InClothComponent)
+{	
+}
 
-void FTrainClothOp::CalculateResult(FProgressCancel* Progress)
+UClothTrainingTool::FClothSimulationDataGenerationProxy::~FClothSimulationDataGenerationProxy()
 {
-	// @@@@@@@@@ TODO: Do the posing, simulation, getting outputs, etc. Check for Progress->Cancelled() regularly if possible.
+}
 
-	FSkinnedMeshVertices OutputVertices;
+class UClothTrainingTool::FGenerateClothOp : public UE::Geometry::TGenericDataOperator<FSkinnedMeshVertices>
+{
+public: 
+	FGenerateClothOp(TObjectPtr<UAnimSequence> InAnimSequence, TObjectPtr<UChaosCache> InCache, TObjectPtr<UChaosClothComponent> InClothComponent, FClothSimulationDataGenerationProxy* InDataGenerationProxy)
+		: AnimSequence(InAnimSequence)
+		, Cache(InCache)
+		, ClothComponent(InClothComponent)
+		, DataGenerationProxy(InDataGenerationProxy)
+	{
+	}
+
+	virtual void CalculateResult(FProgressCancel* Progress) override;
+
+private:
+	void Simulate(float DeltaTime, int32 NumSteps);
+	void BackupClothComponentState();
+	void RestoreClothComponentState();
+	const TObjectPtr<UAnimSequence> AnimSequence;
+	TObjectPtr<UChaosCache> Cache;
+	TObjectPtr<UChaosClothComponent> ClothComponent;
+	FClothSimulationDataGenerationProxy *DataGenerationProxy = nullptr;
+
+	bool bIsSimulationSuspendedBackup = false;
+	bool bTeleportBackup = false;
+	bool bResetBackup = false;
+};
+
+void UClothTrainingTool::FGenerateClothOp::CalculateResult(FProgressCancel* Progress)
+{
+	if (ClothComponent == nullptr || Cache == nullptr || DataGenerationProxy == nullptr)
+	{
+		return;
+	}
+
+	static const FName PositionXName = TEXT("PositionX");
+	static const FName PositionYName = TEXT("PositionY");
+	static const FName PositionZName = TEXT("PositionZ");
 	
 	bool bCancelled = false;
+	// TODO: change this part to data from AnimSequence
+	constexpr float DeltaTime = 1e-3;
+	constexpr float CacheFPS = 30;
+	const int32 NumFrames = 10;
 
-	for (int i = 0; i < 10; ++i)
+	BackupClothComponentState();
+
+	ClothComponent->ResumeSimulation();
+	for (int32 Frame = 0; Frame < NumFrames; Frame++)
 	{
-		FPlatformProcess::Sleep(1.0f);
-
 		if (Progress)
 		{
 			if (Progress->Cancelled())
@@ -44,15 +98,102 @@ void FTrainClothOp::CalculateResult(FProgressCancel* Progress)
 				break;
 			}
 
-			OutputVertices.Vertices.Add(FVector3f(i,i,i));
+			FPendingFrameWrite NewFrame;
+			const float TotalTime = Frame * DeltaTime * 5;
+			Simulate(DeltaTime, (Frame + 1) * 5);
 
-			Progress->AdvanceCurrentScopeProgressBy(0.1f);
+			const TMap<int32, FClothSimulData> &SimulDataMap = DataGenerationProxy->GetCurrentSimulationData_AnyThread();
+			const FClothSimulData* const SimulData = SimulDataMap.Find(0);
+			if (SimulDataMap.Num() > 1)
+			{
+				ensureMsgf(false, TEXT("Only support single cloth for now."));
+				continue;
+			}
+			if (SimulData == nullptr)
+			{
+				ensureMsgf(false, TEXT("ClothSimulData is nullptr"));
+				continue;
+			}
+
+			const TArray<FVector3f>& SimPositions = SimulData->Positions;
+			const int32 NumParticles = SimPositions.Num();
+
+			const float Time = Frame / CacheFPS;
+			NewFrame.Time = Time;
+
+			TArray<int32>& PendingID = NewFrame.PendingChannelsIndices;
+			TArray<float> PendingPX, PendingPY, PendingPZ;
+			TArray<float> PendingVX, PendingVY, PendingVZ;
+			PendingID.SetNum(NumParticles);
+			PendingPX.SetNum(NumParticles);
+			PendingPY.SetNum(NumParticles);
+			PendingPZ.SetNum(NumParticles);
+
+			for (int32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
+			{
+				const FVector3f& Position = SimPositions[ParticleIndex];
+				PendingID[ParticleIndex] = ParticleIndex;
+				PendingPX[ParticleIndex] = Position.X;
+				PendingPY[ParticleIndex] = Position.Y;
+				PendingPZ[ParticleIndex] = Position.Z + Frame;
+			}
+
+			NewFrame.PendingChannelsData.Add(PositionXName, PendingPX);
+			NewFrame.PendingChannelsData.Add(PositionYName, PendingPY);
+			NewFrame.PendingChannelsData.Add(PositionZName, PendingPZ);
+
+			Cache->AddFrame_Concurrent(MoveTemp(NewFrame));
+			Progress->AdvanceCurrentScopeProgressBy(1.f / NumFrames);
 		}
 	}
+	RestoreClothComponentState();
 
 	if (!bCancelled)
 	{
-		SetResult(MakeUnique<FSkinnedMeshVertices>(OutputVertices));
+		UE_LOG(LogTemp, Display, TEXT("Data generation complete."));
+	}
+}
+
+void UClothTrainingTool::FGenerateClothOp::Simulate(float DeltaTime, int32 NumSteps)
+{
+	ClothComponent->ForceNextUpdateTeleportAndReset();
+	DataGenerationProxy->FillSimulationContext(DeltaTime);	
+	DataGenerationProxy->InitializeConfigs();
+	for (int32 Step = 0; Step < NumSteps; ++Step)
+	{
+		DataGenerationProxy->Tick();
+
+		// Clear any reset flags at the end of the first step
+		if (Step == 0 && NumSteps > 1)
+		{
+			ClothComponent->ResetTeleportMode();
+			DataGenerationProxy->FillSimulationContext(DeltaTime);	
+		}
+	}
+	DataGenerationProxy->WriteSimulationData();
+}
+
+void UClothTrainingTool::FGenerateClothOp::BackupClothComponentState()
+{
+	bIsSimulationSuspendedBackup = ClothComponent->IsSimulationSuspended();
+	bTeleportBackup = ClothComponent->NeedsTeleport();
+	bResetBackup = ClothComponent->NeedsReset();
+}
+
+void UClothTrainingTool::FGenerateClothOp::RestoreClothComponentState()
+{
+	bIsSimulationSuspendedBackup ? ClothComponent->SuspendSimulation() : ClothComponent->ResumeSimulation();
+	if (bResetBackup)
+	{
+		ClothComponent->ForceNextUpdateTeleportAndReset();
+	}
+	else if (bTeleportBackup)
+	{
+		ClothComponent->ForceNextUpdateTeleport();
+	}
+	else
+	{
+		ClothComponent->ResetTeleportMode();
 	}
 }
 
@@ -95,15 +236,23 @@ UInteractiveTool* UClothTrainingToolBuilder::BuildTool(const FToolBuilderState& 
 }
 
 // ------------------- Tool -------------------
+UClothTrainingTool::UClothTrainingTool() = default;
+
+UClothTrainingTool::UClothTrainingTool(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
+UClothTrainingTool::~UClothTrainingTool() = default;
 
 
 void UClothTrainingTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	if (const UClothComponentToolTarget* const ClothComponentTarget = Cast<UClothComponentToolTarget>(Target))
+	if (UClothComponentToolTarget* ClothComponentTarget = Cast<UClothComponentToolTarget>(Target))
 	{
-		const UChaosClothComponent* const TargetClothComponent = ClothComponentTarget->GetClothComponent();
+		UChaosClothComponent* TargetClothComponent = ClothComponentTarget->GetClothComponent();
 		ClothComponent = TargetClothComponent;
 	}
 
@@ -117,15 +266,26 @@ void UClothTrainingTool::Setup()
 
 void UClothTrainingTool::RunTraining()
 {
-	const FText DefaultMessage(LOCTEXT("ClothTrainingMessage", "Training..."));
+	if (ClothComponent == nullptr || ToolProperties->CacheCollection == nullptr)
+	{
+		return;
+	}
+
+	static const FName CacheName = FName("SimulatedCache");
+	UChaosCacheCollection* CacheCollection = ToolProperties->CacheCollection;
+	UChaosCache* Cache = CacheCollection->FindOrAddCache(CacheName);
+
+	const FText DefaultMessage(LOCTEXT("ClothTrainingMessage", "Generate training data..."));
 	
-	using FTaskType = UE::Geometry::TModelingOpTask<FTrainClothOp>;
+	using FTaskType = UE::Geometry::TModelingOpTask<FGenerateClothOp>;
 	using FExecuterType = UE::Geometry::FAsyncTaskExecuterWithProgressCancel<FTaskType>;
 
-	TUniquePtr<FTrainClothOp> NewOp = MakeUnique<FTrainClothOp>();
-	NewOp->AnimSequence = ToolProperties->AnimationSequence;
-	// @@@@@@@@@@@ TODO: Add anything else needed by the Operator
+	if (!DataGenerationProxy.IsValid())
+	{
+		DataGenerationProxy = MakeUnique<FClothSimulationDataGenerationProxy>(*ClothComponent);
+	}
 
+	TUniquePtr<FGenerateClothOp> NewOp = MakeUnique<FGenerateClothOp>(ToolProperties->AnimationSequence, Cache, ClothComponent, DataGenerationProxy.Get());
 
 	TUniquePtr<FExecuterType> BackgroundTaskExecuter = MakeUnique<FExecuterType>(MoveTemp(NewOp));
 	BackgroundTaskExecuter->StartBackgroundTask();
@@ -134,6 +294,7 @@ void UClothTrainingTool::RunTraining()
 	SlowTask.MakeDialog(true);
 
 	bool bSuccess = false;
+	FCacheUserToken CacheUserToken = Cache->BeginRecord(ClothComponent, FGuid(), FTransform::Identity);
 	while (true)
 	{
 		if (SlowTask.ShouldCancel())
@@ -163,15 +324,28 @@ void UClothTrainingTool::RunTraining()
 		}
 	}
 
+	ClothComponent->SuspendSimulation();
+	Cache->bCompressChannels = true;
+	Cache->EndRecord(CacheUserToken);
+
 	if (bSuccess)
 	{
-		check(BackgroundTaskExecuter != nullptr && BackgroundTaskExecuter->IsDone());
-		TUniquePtr<FTrainClothOp> Op = BackgroundTaskExecuter->GetTask().ExtractOperator();
+		UPackage* const Package = CacheCollection->GetPackage();
 
-		TUniquePtr<FSkinnedMeshVertices> Result = Op->ExtractResult();
-
-		// @@@@@@@@@@@ TODO: Do something with the result
-
+		const FString SavePath = Package->GetFName().ToString();
+		UE_LOG(LogTemp, Display, TEXT("Save to %s"), *SavePath);
+		if (Package == nullptr)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to get package for %s"), *SavePath);
+			return;
+		}
+		FSavePackageArgs SaveArgs;
+		SaveArgs.SaveFlags = SAVE_NoError;
+		const bool bSaveSucced = UPackage::SavePackage(Package, CacheCollection, *SavePath, SaveArgs);
+		if (!bSaveSucced)
+		{
+			UE_LOG(LogTemp, Display, TEXT("Failed to save cache collection"));
+		}
 	}
 
 }

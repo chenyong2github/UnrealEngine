@@ -53,7 +53,8 @@ public class ChaosClothAssetEditorTools : ModuleRules
 				"MeshConversion",
 				"MeshDescription",
 				"SkeletalMeshDescription",
-				"ChaosClothAsset"
+				"ChaosClothAsset",
+				"ChaosCaching",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

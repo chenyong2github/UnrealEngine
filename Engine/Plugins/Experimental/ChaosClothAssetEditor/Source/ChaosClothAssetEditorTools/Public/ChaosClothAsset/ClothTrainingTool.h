@@ -13,6 +13,7 @@
 #include "ClothTrainingTool.generated.h"
 
 class UChaosClothComponent;
+class UChaosCacheCollection;
 class UClothTrainingTool;
 
 
@@ -21,7 +22,6 @@ struct FSkinnedMeshVertices
 {
 	TArray<FVector3f> Vertices;
 };
-
 
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UClothTrainingToolProperties : public UObject
@@ -32,8 +32,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Files)
 	TObjectPtr<UAnimSequence> AnimationSequence;
 
-	UPROPERTY(EditAnywhere, Category = Files)
-	FText OutputBufferLocation;
+	UPROPERTY(EditAnywhere, Category = Files, meta = (DisplayName = "Generated Cache"))
+	TObjectPtr<UChaosCacheCollection> CacheCollection;
 };
 
 UENUM()
@@ -86,12 +86,16 @@ class CHAOSCLOTHASSETEDITORTOOLS_API UClothTrainingTool : public USingleSelectio
 {
 	GENERATED_BODY()
 public:
-
+	UClothTrainingTool();
+	UClothTrainingTool(FVTableHelper& Helper);
+	~UClothTrainingTool();
 	// UInteractiveTool
 	virtual void Setup() override;
 	virtual void OnTick(float DeltaTime) override;
 
 private:
+	class FClothSimulationDataGenerationProxy;
+	class FGenerateClothOp;
 
 	friend class UClothTrainingToolActionProperties;
 
@@ -104,7 +108,9 @@ private:
 	EClothTrainingToolActions PendingAction = EClothTrainingToolActions::NoAction;
 
 	UPROPERTY()
-	TObjectPtr<const UChaosClothComponent> ClothComponent;
+	TObjectPtr<UChaosClothComponent> ClothComponent;
+
+	TUniquePtr<FClothSimulationDataGenerationProxy> DataGenerationProxy;
 
 	void RequestAction(EClothTrainingToolActions ActionType);
 
