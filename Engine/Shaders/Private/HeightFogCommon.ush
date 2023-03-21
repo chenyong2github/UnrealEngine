@@ -217,7 +217,7 @@ half4 CalculateHeightFog(float3 WorldPositionRelativeToCamera)
 	ExcludeDistance = View.VolumetricFogMaxDistance * InvCosAngle;
 #endif
 
-	float4 FogInscatteringAndOpacity = GetExponentialHeightFog(WorldPositionRelativeToCamera, ExcludeDistance);
+	half4 FogInscatteringAndOpacity = GetExponentialHeightFog(WorldPositionRelativeToCamera, ExcludeDistance);
 	return FogInscatteringAndOpacity;
 }
 

@@ -57,7 +57,7 @@ void MainVertexShader(
 	
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 	float4 TranslatedWorldPosition = VertexFactoryGetWorldPosition( Input, VFIntermediates );
-	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal( Input, VFIntermediates );
+	half3x3 TangentToLocal = VertexFactoryGetTangentToLocal( Input, VFIntermediates );
 
 	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, TranslatedWorldPosition.xyz, TangentToLocal);
 	// Isolate instructions used for world position offset on xbox 360, 
