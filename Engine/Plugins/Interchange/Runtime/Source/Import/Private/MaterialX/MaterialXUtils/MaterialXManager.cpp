@@ -34,6 +34,7 @@ FMaterialXManager::FMaterialXManager()
 		{{TEXT(""),                            TEXT("low")},       TEXT("Min")},
 		{{TEXT(""),                            TEXT("lumacoeffs")},TEXT("LuminanceFactors")}, // for the moment not yet handled by Interchange, because of the attribute being an advanced pin
 		{{TEXT(""),                            TEXT("mix")},       TEXT("Alpha")},
+		{{TEXT(""),                            TEXT("offset")},    TEXT("Offset")},
 		{{TEXT(""),                            TEXT("position")},  TEXT("Position")},
 		{{TEXT(""),                            TEXT("texcoord")},  TEXT("Coordinates")},
 		{{TEXT(""),                            TEXT("octaves")},   TEXT("Octaves")},
@@ -41,19 +42,21 @@ FMaterialXManager::FMaterialXManager()
 		{{TEXT(""),                            TEXT("outhigh")},   TEXT("TargetHigh")},
 		{{TEXT(""),                            TEXT("valuel")},    TEXT("A")},
 		{{TEXT(""),                            TEXT("valuer")},    TEXT("B")},
+		{{TEXT(""),                            TEXT("valuet")},    TEXT("A")},
+		{{TEXT(""),                            TEXT("valueb")},    TEXT("B")},
+		{{TEXT(""),                            TEXT("valuetl")},   TEXT("A")},
+		{{TEXT(""),                            TEXT("valuetr")},   TEXT("B")},
+		{{TEXT(""),                            TEXT("valuebl")},   TEXT("C")},
+		{{TEXT(""),                            TEXT("valuebr")},   TEXT("D")},
+		{{TEXT(""),                            TEXT("value1")},    TEXT("A")},
+		{{TEXT(""),                            TEXT("value2")},    TEXT("B")},
 		{{MaterialX::Category::Atan2,          TEXT("in1")},       TEXT("Y")},
 		{{MaterialX::Category::Atan2,          TEXT("in2")},       TEXT("X")},
 		{{MaterialX::Category::HeightToNormal, TEXT("scale")},     UE::Interchange::Materials::Standard::Nodes::NormalFromHeightMap::Inputs::Intensity.ToString()},
-		{{MaterialX::Category::IfGreater,      TEXT("value1")},    TEXT("A")},
-		{{MaterialX::Category::IfGreater,      TEXT("value2")},    TEXT("B")},
 		{{MaterialX::Category::IfGreater,      TEXT("in1")},       TEXT("AGreaterThanB")},
 		{{MaterialX::Category::IfGreater,      TEXT("in2")},       TEXT("ALessThanB")}, //another input is added for the case equal see ConnectIfGreater
-		{{MaterialX::Category::IfGreaterEq,    TEXT("value1")},    TEXT("A")},
-		{{MaterialX::Category::IfGreaterEq,    TEXT("value2")},    TEXT("B")},
 		{{MaterialX::Category::IfGreaterEq,    TEXT("in1")},       TEXT("AGreaterThanB")}, //another is added for the case equal see ConnectIfGreaterEq
 		{{MaterialX::Category::IfGreaterEq,    TEXT("in2")},       TEXT("ALessThanB")},
-		{{MaterialX::Category::IfEqual,        TEXT("value1")},    TEXT("A")},
-		{{MaterialX::Category::IfEqual,        TEXT("value2")},    TEXT("B")},
 		{{MaterialX::Category::IfEqual,        TEXT("in1")},       TEXT("AEqualsB")},
 		{{MaterialX::Category::IfEqual,        TEXT("in2")},       TEXT("ALessThanB")},  // another input is added for the case greater see ConnectIfEqual
 		{{MaterialX::Category::Inside,         TEXT("in")},        TEXT("A")},			  // Inside is treated as a Multiply node
@@ -69,6 +72,8 @@ FMaterialXManager::FMaterialXManager()
 		{{MaterialX::Category::Normalize,      TEXT("in")},        TEXT("VectorInput")},
 		{{MaterialX::Category::Outside,        TEXT("in")},        TEXT("A")},				// Outside is treated as Multiply node
 		{{MaterialX::Category::Outside,        TEXT("mask")},      TEXT("B")},				// Outside is treated as Multiply node
+		{{MaterialX::Category::Place2D,        TEXT("pivot")},     TEXT("Pivot")},
+		{{MaterialX::Category::Place2D,        TEXT("rotate")},    TEXT("RotationAngle")},
 		{{MaterialX::Category::Power,          TEXT("in1")},       TEXT("Base")},
 		{{MaterialX::Category::Power,	       TEXT("in2")},       TEXT("Exponent")},
 		{{MaterialX::Category::Rotate2D,       TEXT("amount")},    TEXT("RotationAngle")},
@@ -78,7 +83,7 @@ FMaterialXManager::FMaterialXManager()
 		{{MaterialX::Category::Rotate3D,       TEXT("in")},        TEXT("Position")},
 		{{MaterialX::Category::Saturate,       TEXT("amount")},    TEXT("Fraction")},
 		{{MaterialX::Category::Smoothstep,     TEXT("in")},        TEXT("Value")},
-}
+	}
 	, MatchingMaterialExpressions {
 		// Math nodes
 		{MaterialX::Category::Absval,       TEXT("Abs")},
@@ -102,7 +107,9 @@ FMaterialXManager::FMaterialXManager()
 		{MaterialX::Category::Modulo,       TEXT("Fmod")},
 		{MaterialX::Category::Multiply,     TEXT("Multiply")},
 		{MaterialX::Category::Normalize,    TEXT("Normalize")},
+		{MaterialX::Category::Place2D,		TEXT("Place2D")},
 		{MaterialX::Category::Power,        TEXT("Power")},
+		{MaterialX::Category::Rotate2D,		TEXT("Rotate2D")},
 		{MaterialX::Category::RampLR,       TEXT("RampLeftRight")},
 		{MaterialX::Category::RampTB,       TEXT("RampTopBottom")},
 		{MaterialX::Category::Sign,         TEXT("Sign")},
@@ -134,6 +141,12 @@ FMaterialXManager::FMaterialXManager()
 		{MaterialX::Category::Combine2,     TEXT("AppendVector")},
 		{MaterialX::Category::Combine3,     TEXT("Append3Vector")},
 		{MaterialX::Category::Combine4,     TEXT("Append4Vector")},
+		// Procedural2D nodes
+		{MaterialX::Category::Ramp4,        TEXT("Ramp4")},
+		{MaterialX::Category::RampLR,       TEXT("RampLeftRight")},
+		{MaterialX::Category::RampTB,       TEXT("RampTopBottom")},
+		{MaterialX::Category::SplitLR,      TEXT("SplitLeftRight")},
+		{MaterialX::Category::SplitTB,      TEXT("SplitTopBottom")},
 		// Procedural3D nodes
 		{MaterialX::Category::Fractal3D,    TEXT("Fractal3D")},
 		// Geometric nodes 
@@ -155,6 +168,7 @@ FMaterialXManager::FMaterialXManager()
 		TEXT("Base"),
 		TEXT("C"),
 		TEXT("Center"),
+		TEXT("Coordinates"),
 		TEXT("D"),
 		TEXT("Exponent"),
 		TEXT("Factor"),
@@ -167,14 +181,18 @@ FMaterialXManager::FMaterialXManager()
 		TEXT("Max"),
 		TEXT("Min"),
 		TEXT("Octaves"),
+		TEXT("Offset"),
+		TEXT("Pivot"),
 		TEXT("Position"),
+		TEXT("RotationAngle"),
+		TEXT("Scale"),
 		TEXT("TargetLow"),
 		TEXT("TargetHigh"),
 		TEXT("Value"),
 		TEXT("VectorInput"),
 		TEXT("X"),
 		TEXT("Y")
-}
+	}
 	, MaterialXContainerDelegates{
 		{mx::Category::SurfaceUnlit, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXSurfaceUnlitShader::MakeInstance)},
 		{mx::Category::StandardSurface, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXStandardSurfaceShader::MakeInstance)},

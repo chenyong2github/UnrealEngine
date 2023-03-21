@@ -42,7 +42,7 @@ int32 UMaterialExpressionRampTopBottom::Compile(FMaterialCompiler* Compiler, int
 
 	int32 CoordinateIndex = Coordinates.GetTracedInput().Expression ? Coordinates.Compile(Compiler) : Compiler->TextureCoordinate(ConstCoordinate, false, false);
 
-	return Compiler->Lerp(A.Compile(Compiler), B.Compile(Compiler), Compiler->Saturate(Compiler->ComponentMask(CoordinateIndex, false, true, false, false)));
+	return Compiler->Lerp(B.Compile(Compiler), A.Compile(Compiler), Compiler->Saturate(Compiler->ComponentMask(CoordinateIndex, false, true, false, false)));
 }
 
 void UMaterialExpressionRampTopBottom::GetCaption(TArray<FString>& OutCaptions) const

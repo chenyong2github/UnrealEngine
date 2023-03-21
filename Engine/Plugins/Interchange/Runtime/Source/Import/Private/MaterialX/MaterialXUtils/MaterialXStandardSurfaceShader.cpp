@@ -24,7 +24,7 @@ void FMaterialXStandardSurfaceShader::Translate(mx::NodePtr StandardSurfaceNode)
 
 	using namespace UE::Interchange::Materials;
 
-	UInterchangeShaderGraphNode* ShaderGraphNode = CreateShaderNode<UInterchangeShaderGraphNode>(SurfaceShaderNode->getName().c_str(), StandardSurface::Name.ToString());
+	ShaderGraphNode->SetCustomShaderType(StandardSurface::Name.ToString());
 
 	//Base
 	ConnectNodeOutputToInput(mx::StandardSurface::Input::Base, ShaderGraphNode, StandardSurface::Parameters::Base.ToString(), mx::StandardSurface::DefaultValue::Float::Base);

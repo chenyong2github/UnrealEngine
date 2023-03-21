@@ -5,12 +5,14 @@
 #if WITH_EDITOR
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeTranslatorBase.h"
-#include "InterchangeTextureNode.h"
+#include "InterchangeTexture2DNode.h"
 #include "MaterialXBase.h"
 
 class FMaterialXSurfaceShaderAbstract : public FMaterialXBase
 {
 protected:
+
+	friend class FMaterialXSurfaceMaterial;
 
 	DECLARE_DELEGATE_ThreeParams(FOnConnectNodeOutputToInput, MaterialX::NodePtr, UInterchangeShaderNode*, const FString&);
 
@@ -71,26 +73,31 @@ protected:
 	 * @param DefaultValue - The default value of the MaterialX input
 	 */
 	template<typename T>
-	void ConnectNodeOutputToInput(const char* InputName, UInterchangeShaderNode* ShaderNode, const FString& InputShaderName, T DefaultValue)
+	bool ConnectNodeOutputToInput(const char* InputName, UInterchangeShaderNode* ShaderNode, const FString& InputShaderName, T DefaultValue)
 	{
 		MaterialX::DocumentPtr Document = SurfaceShaderNode->getDocument();
 		MaterialX::InputPtr Input = GetInput(SurfaceShaderNode, InputName);
 
-		if(!ConnectNodeGraphOutputToInput(Input, ShaderNode, InputShaderName))
+		bool bIsConnected = ConnectNodeGraphOutputToInput(Input, ShaderNode, InputShaderName);
+
+		if(!bIsConnected)
 		{
-			if(!ConnectNodeNameOutputToInput(Input, ShaderNode, InputShaderName))
+			bIsConnected = ConnectNodeNameOutputToInput(Input, ShaderNode, InputShaderName);
+			if(!bIsConnected)
 			{
-				//the different inputs from a standard surface are either float, linear color, or no attribute at all
+				// only handle float and linear color here, for other types, the child should handle them as it is most likely not an input but a parameter to set in Interchange
 				if constexpr(std::is_same_v<decltype(DefaultValue), float>)
 				{
-					AddFloatAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
+					bIsConnected = AddFloatAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
 				}
 				else if constexpr(std::is_same_v<decltype(DefaultValue), FLinearColor>)
 				{
-					AddLinearColorAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
+					bIsConnected = AddLinearColorAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
 				}
 			}
 		}
+
+		return bIsConnected;
 	};
 
 	/**
@@ -154,9 +161,6 @@ protected:
 
 	/** <transformvector> */
 	void ConnectTransformVectorInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
-
-	/** <rotate2d> */
-	void ConnectRotate2DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
 
 	/** <rotate3d> */
 	void ConnectRotate3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
@@ -222,40 +226,14 @@ protected:
 	UInterchangeShaderNode* CreateMaskShaderNode(uint8 RGBA, const FString& NodeName);
 
 	/**
-	 * Helper template function to create an InterchangeShaderNode
+	 * Helper function to create an InterchangeShaderNode
 	 *
 	 * @param NodeName - The name of the shader node
 	 * @param ShaderType - The shader node's type we want to create
 	 *
 	 * @return The shader node that was created
 	 */
-	template<typename ShaderNodeType>
-	ShaderNodeType* CreateShaderNode(const FString& NodeName, const FString& ShaderType)
-	{
-		static_assert(std::is_convertible_v<ShaderNodeType*, UInterchangeShaderNode*>, "CreateShaderNode only accepts type that derived from UInterchangeShaderNode");
-
-		ShaderNodeType* Node;
-
-		const FString NodeUID = UInterchangeShaderNode::MakeNodeUid(NodeName, FStringView{});
-
-		//Test directly in the NodeContainer, because the ShaderNodes can be altered during the node graph either by the parent (dot/normalmap),
-		//or by putting an intermediary node between the child and the parent (tiledimage)
-		if(Node = const_cast<ShaderNodeType*>(Cast<ShaderNodeType>(NodeContainer.GetNode(NodeUID))); !Node)
-		{
-			Node = NewObject<ShaderNodeType>(&NodeContainer);
-			Node->InitializeNode(NodeUID, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
-			NodeContainer.AddNode(Node);
-			if constexpr(std::is_same_v<ShaderNodeType, UInterchangeShaderGraphNode>)
-			{
-				NodeContainer.SetNodeParentUid(NodeUID, FString{});
-			}
-			Node->SetCustomShaderType(ShaderType);
-
-			ShaderNodes.Add(NodeName, Node);
-		}
-
-		return Node;
-	}
+	UInterchangeShaderNode* CreateShaderNode(const FString& NodeName, const FString& ShaderType);
 
 	/**
 	 * Helper function to create an InterchangeTextureNode
@@ -268,7 +246,7 @@ protected:
 	UInterchangeTextureNode* CreateTextureNode(MaterialX::NodePtr Node) const
 	{
 		static_assert(std::is_convertible_v<TextureTypeNode*, UInterchangeTextureNode*>, "CreateTextureNode only accepts type that derived from UInterchangeTextureNode");
-		UInterchangeTextureNode* TextureNode = nullptr;
+		UInterchangeTexture2DNode* TextureNode = nullptr;
 
 		//A node image should have an input file otherwise the user should check its default value
 		if(Node)
@@ -282,7 +260,7 @@ protected:
 				const FString TextureNodeUID = TEXT("\\Texture\\") + Filename;
 
 				//Only add the TextureNode once
-				TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureNodeUID)));
+				TextureNode = const_cast<UInterchangeTexture2DNode*>(Cast<UInterchangeTexture2DNode>(NodeContainer.GetNode(TextureNodeUID)));
 				if(TextureNode == nullptr)
 				{
 					TextureNode = NewObject<TextureTypeNode>(&NodeContainer);
@@ -299,6 +277,35 @@ protected:
 					const FString ColorSpace = GetColorSpace(InputFile);
 					const bool bIsSRGB = ColorSpace == TEXT("srgb_texture");
 					TextureNode->SetCustomSRGB(bIsSRGB);
+
+					auto GetAddressMode = [Node](const char* InputName)
+					{
+						EInterchangeTextureWrapMode WrapMode = EInterchangeTextureWrapMode::Wrap;
+						if(MaterialX::InputPtr InputAddressMode = Node->getInput(InputName))
+						{
+							const std::string& AddressMode = InputAddressMode->getValueString();
+							if(AddressMode == "clamp")
+							{
+								WrapMode = EInterchangeTextureWrapMode::Clamp;
+							}
+							else if(AddressMode == "mirror")
+							{
+								WrapMode = EInterchangeTextureWrapMode::Mirror;
+							}
+							else
+							{
+								WrapMode = EInterchangeTextureWrapMode::Wrap;
+							}
+						}
+
+						return WrapMode;
+					};
+
+					EInterchangeTextureWrapMode WrapModeU = GetAddressMode("uaddressmode");
+					EInterchangeTextureWrapMode WrapModeV = GetAddressMode("vaddressmode");
+
+					TextureNode->SetCustomWrapU(WrapModeU);
+					TextureNode->SetCustomWrapV(WrapModeV);
 				}
 			}
 		}
@@ -374,10 +381,14 @@ protected:
 	/** Store the shader nodes only when we create the shader graph node*/
 	TMap<FString, UInterchangeShaderNode*> ShaderNodes;
 
+	/** Matching MaterialX category and Connect function*/
+	TMap<FString, FOnConnectNodeOutputToInput> MatchingConnectNodeDelegates;
+
 	/** The surface shader node processed during the Translate, up to the derived class to initialize it*/
 	MaterialX::NodePtr SurfaceShaderNode;
 
-	/** Matching MaterialX category and Connect function*/
-	TMap<FString, FOnConnectNodeOutputToInput> MatchingConnectNodeDelegates;
+	/** Initialized by the material shader (e.g: surfacematerial), the derived class should only set the ShaderType */
+	UInterchangeShaderGraphNode* ShaderGraphNode;
+
 };
 #endif

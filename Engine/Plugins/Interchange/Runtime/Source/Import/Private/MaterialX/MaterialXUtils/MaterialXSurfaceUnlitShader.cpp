@@ -24,7 +24,7 @@ void FMaterialXSurfaceUnlitShader::Translate(mx::NodePtr SurfaceUnlitNode)
 
 	using namespace UE::Interchange::Materials;
 
-	UInterchangeShaderGraphNode* ShaderGraphNode = CreateShaderNode<UInterchangeShaderGraphNode>(SurfaceShaderNode->getName().c_str(), SurfaceUnlit::Name.ToString());
+	ShaderGraphNode->SetCustomShaderType(SurfaceUnlit::Name.ToString());
 
 	//Emission
 	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Emission, ShaderGraphNode, SurfaceUnlit::Parameters::Emission.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Emission);

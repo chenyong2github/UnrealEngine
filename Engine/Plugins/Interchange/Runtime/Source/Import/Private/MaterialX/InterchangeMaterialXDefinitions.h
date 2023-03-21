@@ -271,6 +271,7 @@ MATERIALX_NAMESPACE_BEGIN
 		// Procedural nodes 
 		static constexpr const char* Constant = "constant";
 		// Procedural2D nodes 
+		static constexpr const char* Ramp4 = "ramp4";
 		static constexpr const char* RampLR = "ramplr";
 		static constexpr const char* RampTB = "ramptb";
 		static constexpr const char* SplitLR = "splitlr";
@@ -306,7 +307,11 @@ MATERIALX_NAMESPACE_BEGIN
 		// Application
 		static constexpr const char* Time= "time";
 		// PBR
+		static constexpr const char* GltfPbr = "gltf_pbr";
+		static constexpr const char* DisneyBSDF2012 = "disney_brdf_2012";
+		static constexpr const char* DisneyBSDF2015 = "disney_bsdf_2015";
 		static constexpr const char* StandardSurface = "standard_surface";
+		static constexpr const char* UsdPreviewSurface = "UsdPreviewSurface";
 		// Shader
 		static constexpr const char* SurfaceUnlit = "surface_unlit";
 		// Convolution
@@ -318,6 +323,7 @@ MATERIALX_NAMESPACE_BEGIN
 	{
 		static constexpr const char* StandardSurface = "ND_standard_surface_surfaceshader";
 		static constexpr const char* SurfaceUnlit = "ND_surface_unlit";
+		static constexpr const char* UsdPreviewSurface = "ND_UsdPreviewSurface_surfaceshader";
 		static constexpr const char* PointLight = "ND_point_light";
 		static constexpr const char* DirectionalLight = "ND_directional_light";
 		static constexpr const char* SpotLight = "ND_spot_light";

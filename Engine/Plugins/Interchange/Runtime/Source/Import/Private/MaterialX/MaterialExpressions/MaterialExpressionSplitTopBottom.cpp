@@ -50,7 +50,7 @@ int32 UMaterialExpressionSplitTopBottom::Compile(FMaterialCompiler* Compiler, in
 	int32 AFWidth = Compiler->Mul(Compiler->Length(Compiler->AppendVector(Compiler->DDX(TexcoordYIndex), Compiler->DDY(TexcoordYIndex))), InvSqrt2);
 	int32 AAStep = Compiler->SmoothStep(Compiler->Sub(CenterIndex, AFWidth), Compiler->Add(CenterIndex, AFWidth), TexcoordYIndex);
 
-	return Compiler->Lerp(A.Compile(Compiler), B.Compile(Compiler), AAStep);
+	return Compiler->Lerp(B.Compile(Compiler), A.Compile(Compiler), AAStep);
 }
 
 void UMaterialExpressionSplitTopBottom::GetCaption(TArray<FString>& OutCaptions) const
