@@ -5,23 +5,24 @@
 #include "Algo/ForEach.h"
 #include "Commands/RemoteControlCommands.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "EditorFontGlyphs.h"
-#include "ISettingsModule.h"
-#include "RCPanelWidgetRegistry.h"
+#include "Engine/Selection.h"
 #include "GameFramework/Actor.h"
+#include "ISettingsModule.h"
 #include "Input/DragAndDrop.h"
 #include "IRemoteControlProtocolModule.h"
 #include "IRemoteControlProtocolWidgetsModule.h"
-#include "Engine/Selection.h"
-#include "Editor/EditorEngine.h"
 #include "Misc/Attribute.h"
 #include "Misc/Guid.h"
 #include "Misc/MessageDialog.h"
 #include "PropertyPath.h"
+#include "RCPanelWidgetRegistry.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
 #include "ScopedTransaction.h"
+#include "SRCHeaderRow.h"
 #include "SRCModeSwitcher.h"
 #include "SRCPanelFieldGroup.h"
 #include "SRCPanelExposedField.h"
@@ -281,45 +282,47 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 		.TreeViewStyle(&RCPanelStyle->TableViewStyle)
 		.OnGetChildren(this, &SRCPanelExposedEntitiesList::OnGetNodeChildren)
 		.HeaderRow(
-			SAssignNew(FieldsHeaderRow, SHeaderRow)
+			SAssignNew(FieldsHeaderRow, SRCHeaderRow)
 			.Style(&RCPanelStyle->HeaderRowStyle)
 			.CanSelectGeneratedColumn(true) //To show/hide columns
 
-			+ SHeaderRow::Column(RemoteControlPresetColumns::DragDropHandle)
+			+ SRCHeaderRow::Column(RemoteControlPresetColumns::DragDropHandle)
 			.DefaultLabel(LOCTEXT("RCPresetDragDropHandleColumnHeader", ""))
 			.FixedWidth(25.f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 			.ShouldGenerateWidget(true)
+			.ShouldGenerateSubMenuEntry(false)
 
-			+ SHeaderRow::Column(RemoteControlPresetColumns::OwnerName)
+			+ SRCHeaderRow::Column(RemoteControlPresetColumns::OwnerName)
 			.DefaultLabel(LOCTEXT("RCPresetOwnerNameColumnHeader", "Owner Name"))
 			.HAlignHeader(HAlign_Center)
 			.FillWidth(0.15f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column(RemoteControlPresetColumns::SubobjectPath)
+			+ SRCHeaderRow::Column(RemoteControlPresetColumns::SubobjectPath)
 			.DefaultLabel(LOCTEXT("RCPresetSubobjectPathColumnHeader", "Subobject Path"))
 			.HAlignHeader(HAlign_Center)
 			.FillWidth(0.15f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column(RemoteControlPresetColumns::Description)
+			+ SRCHeaderRow::Column(RemoteControlPresetColumns::Description)
 			.DefaultLabel(LOCTEXT("RCPresetDescColumnHeader", "Description"))
 			.HAlignHeader(HAlign_Center)
 			.FillWidth(0.35f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column(RemoteControlPresetColumns::Value)
+			+ SRCHeaderRow::Column(RemoteControlPresetColumns::Value)
 			.DefaultLabel(LOCTEXT("RCPresetValueColumnHeader", "Value"))
 			.HAlignHeader(HAlign_Center)
 			.FillWidth(0.4f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column(RemoteControlPresetColumns::Reset)
+			+ SRCHeaderRow::Column(RemoteControlPresetColumns::Reset)
 			.DefaultLabel(LOCTEXT("RCPresetResetButtonColumnHeader", ""))
 			.FixedWidth(48.f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 			.ShouldGenerateWidget(true)
+			.ShouldGenerateSubMenuEntry(false)
 		);
 
 	// Exposed Entities Dock Panel

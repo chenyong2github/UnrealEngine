@@ -20,7 +20,7 @@ struct FRemoteControlProperty;
 struct FRemoteControlPresetGroup;
 struct FRemoteControlFunction;
 class ITableRow;
-class SHeaderRow;
+class SRCHeaderRow;
 class SRCPanelGroup;
 struct SRCPanelTreeNode;
 class SRemoteControlTarget;
@@ -229,7 +229,7 @@ private:
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
 	/** Holds the header row of entities list. */
-	TSharedPtr<SHeaderRow> FieldsHeaderRow;
+	TSharedPtr<SRCHeaderRow> FieldsHeaderRow;
 	/** Holds the active list mode. */
 	EEntitiesListMode ActiveListMode;
 	/** Holds the active protocol enabled by the mode switcher. */
