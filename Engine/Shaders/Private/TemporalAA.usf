@@ -171,21 +171,19 @@
 		#error Unknown TAA quality
 	#endif
 
-	// Do not use LDS caching for screen percentage > 100% or < 50%.
-	#if TAA_SCREEN_PERCENTAGE_RANGE == 2 || TAA_SCREEN_PERCENTAGE_RANGE == 3
-		#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_VGPR_3X3)
+	#if COMPUTESHADER
+		// Do not use LDS caching for screen percentage > 100% or < 50%.
+		#if TAA_SCREEN_PERCENTAGE_RANGE == 2 || TAA_SCREEN_PERCENTAGE_RANGE == 3
+			#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_VGPR_3X3)
 
 
-	#else
-		#if AA_MOBILE_CONFIG
-			#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_DISABLE) // the shared memory is not as efficient as expected on mobile devices, try not to use it on mobile devices.
 		#else
-			#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_LDS)
+			#if AA_MOBILE_CONFIG
+				#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_DISABLE) // the shared memory is not as efficient as expected on mobile devices, try not to use it on mobile devices.
+			#else
+				#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_LDS)
+			#endif
 		#endif
-	#endif
-
-	#if !COMPUTESHADER
-		#error "Upsampling is only available for CS because of the resceponsive stencil bit."
 	#endif
 	
 #elif TAA_PASS_CONFIG == 5 || TAA_PASS_CONFIG == 6 // Used for diaphragm DOF pre-filtering.
@@ -355,7 +353,11 @@
 
 // By default, always cache neighbooring samples into VGPR.
 #ifndef AA_SAMPLE_CACHE_METHOD
-	#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_VGPR_3X3)
+	#if COMPUTESHADER
+		#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_VGPR_3X3)
+	#else
+		#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_DISABLE)
+	#endif
 #endif
 
 // By default, enable stocastic quantization of the output.
@@ -2377,11 +2379,7 @@ void MainCS(
 	#endif //TAA_DOWNSAMPLE
 }
 
-#elif PIXELSHADER // Mobile Only.
-
-#if AA_UPSAMPLE
-#error Up sample only available to CS.
-#endif
+#elif PIXELSHADER // Mobile Only, supports Main and MainUpsampling
 
 void MainPS(
 	float4 SvPosition : SV_POSITION,
