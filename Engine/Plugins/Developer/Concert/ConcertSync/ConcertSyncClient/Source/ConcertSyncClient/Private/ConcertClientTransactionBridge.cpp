@@ -15,6 +15,7 @@
 
 #if WITH_EDITOR
 	#include "Editor.h"
+	#include "EditorSupportDelegates.h"
 	#include "UnrealEdGlobals.h"
 	#include "Editor/UnrealEdEngine.h"
 	#include "Editor/TransBuffer.h"
@@ -610,6 +611,7 @@ FConcertClientTransactionBridge::~FConcertClientTransactionBridge()
 		}
 	}
 	FCoreUObjectDelegates::OnObjectTransacted.RemoveAll(this);
+	FEditorSupportDelegates::CleanseEditor.RemoveAll(this);
 #endif
 
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
@@ -975,6 +977,7 @@ void FConcertClientTransactionBridge::ConditionalBindUnderlyingLocalTransactionE
 			bHasBoundUnderlyingLocalTransactionEvents = true;
 			TransBuffer->OnTransactionStateChanged().AddRaw(this, &FConcertClientTransactionBridge::HandleTransactionStateChanged);
 			FCoreUObjectDelegates::OnObjectTransacted.AddRaw(this, &FConcertClientTransactionBridge::HandleObjectTransacted);
+			FEditorSupportDelegates::CleanseEditor.AddRaw(this, &FConcertClientTransactionBridge::OnEditorCleanse);
 		}
 	}
 #endif
@@ -983,6 +986,12 @@ void FConcertClientTransactionBridge::ConditionalBindUnderlyingLocalTransactionE
 void FConcertClientTransactionBridge::OnEngineInitComplete()
 {
 	ConditionalBindUnderlyingLocalTransactionEvents();
+}
+
+void FConcertClientTransactionBridge::OnEditorCleanse()
+{
+	OngoingTransactions.Reset();
+	OngoingTransactionsOrder.Reset();
 }
 
 void FConcertClientTransactionBridge::OnEndFrame()

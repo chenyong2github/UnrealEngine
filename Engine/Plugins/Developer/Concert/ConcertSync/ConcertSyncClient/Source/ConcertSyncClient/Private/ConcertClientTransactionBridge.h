@@ -41,6 +41,8 @@ private:
 	/** Called once Engine initialization has finished, to bind to the underlying local transaction events */
 	void OnEngineInitComplete();
 
+	void OnEditorCleanse();
+
 	/** Called at the end of the frame to notify of any transaction updates */
 	void OnEndFrame();
 
