@@ -736,9 +736,10 @@ void SBlueprintActionMenu::Tick(const FGeometry& AllottedGeometry, const double 
 {
 	SBorder::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
+	int32 NewIdxStart = ContextMenuBuilder->GetNumActions();
 	if (ContextMenuBuilder.IsValid() && ContextMenuBuilder->ProcessPendingActions())
 	{
-		GraphActionMenu->GenerateFilteredItems(true);
+		GraphActionMenu->UpdateForNewActions(NewIdxStart);
 	}
 }
 

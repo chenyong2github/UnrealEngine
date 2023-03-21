@@ -49,12 +49,20 @@ public:
 	 * the provided ActionSet. 
 	 *
 	 * NOTE: This does NOT insert the node in a sorted manner. Call SortChildren() 
-	 *       separately to accomplish that (done for performance reasons).
+	 *       separately or use AddChildAlphabetical
 	 * 
 	 * @param  ActionSet	A list of actions that you want the node to execute when picked.
 	 * @return The new action node.
 	 */
 	TSharedPtr<FGraphActionNode> AddChild(FGraphActionListBuilderBase::ActionGroup const& ActionSet);
+
+	/**
+	 * Inserts a new action node (and any required category nodes) based off
+	 * the provided ActionSet. Inserts in alphabetical order.
+	 *
+	 * @param  ActionSet	A list of actions that you want the node to execute when picked.
+	 */
+	void AddChildAlphabetical(FGraphActionListBuilderBase::ActionGroup const& ActionSet);
 
 	TSharedPtr<FGraphActionNode> AddSection(int32 Grouping, int32 InSectionID);
 
@@ -263,6 +271,8 @@ private:
 	 */
 	void InsertChild(TSharedPtr<FGraphActionNode> NodeToAdd);
 
+	void AddChildGrouping(TSharedPtr<FGraphActionNode> ActionNode, TWeakPtr<FGraphActionNode> Parent);
+	void InsertChildAlphabetical(TSharedPtr<FGraphActionNode> NodeToAdd);
 private:
 	/** The category or action name (depends on what type of node this is) */
 	FText DisplayText;

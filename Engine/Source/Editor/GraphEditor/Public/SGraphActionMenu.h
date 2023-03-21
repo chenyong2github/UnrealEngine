@@ -217,6 +217,10 @@ protected:
 	/** Root of filtered actions tree */
 	TSharedPtr<FGraphActionNode> FilteredRootAction;
 
+	/** Stored score for our current selection, so that we can quickly maintain selection when building the list asynchronously */
+	float SelectedSuggestionScore;
+	/** Stored index in the AllActions list builder that we think is the best fit */
+	int32 SelectedSuggestionSourceIndex;
 	/** Used to track selected action for keyboard interaction */
 	int32 SelectedSuggestion;
 	/** Allows us to set selection (via keyboard) without triggering action */
@@ -310,6 +314,8 @@ public:
 	/* Handler for mouse button going down */
 	bool OnMouseButtonDownEvent( TWeakPtr<FEdGraphSchemaAction> InAction );
 
+	/** Updates the displayed list starting from IdxStart, useful for async building the display list of actions */
+	void UpdateForNewActions(int32 IdxStart);
 	/** Regenerated filtered results (FilteredRootAction and FilteredActionNodes) based on filter text  */ 
 	void GenerateFilteredItems(bool bPreserveExpansion);
 
@@ -370,7 +376,15 @@ protected:
 	void OnItemScrolledIntoView( TSharedPtr<FGraphActionNode> InActionNode, const TSharedPtr<ITableRow>& InWidget );
 	/** Callback for expanding tree items recursively */
 	void OnSetExpansionRecursive(TSharedPtr<FGraphActionNode> InTreeNode, bool bInIsItemExpanded);
-
+	/** Helper function for adding and scoring actions from our builder */
+	struct FScoreResults
+	{
+		int32 BestMatchIndex;
+		float BestMatchScore;
+	};
+	FScoreResults ScoreAndAddActions(int32 StartingIndex = INDEX_NONE);
+	/** Helper function to update the active selection after updating the displayed tree */
+	void UpdateActiveSelection(FScoreResults ForResults);
 private:
 	/** The pins that have been dragged off of to prompt the creation of this action menu. */
 	TArray<UEdGraphPin*> DraggedFromPins;

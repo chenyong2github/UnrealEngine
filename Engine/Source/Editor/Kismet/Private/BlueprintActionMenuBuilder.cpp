@@ -409,7 +409,7 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(
 	// UBlueprintNodeSpawner comes with an interface to test/bind through... 
 	for (auto BindingIt = PerspectiveBindings.CreateConstIterator(); BindingIt;)
 	{
-		FFieldVariant BindingObj = *BindingIt;
+		const FFieldVariant& BindingObj = *BindingIt;
 		++BindingIt;
 		bool const bIsLastBinding = !BindingIt;
 
