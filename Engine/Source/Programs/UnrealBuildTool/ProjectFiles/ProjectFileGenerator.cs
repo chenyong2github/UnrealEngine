@@ -829,8 +829,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="PlatformProjectGenerators">The registered platform project generators</param>
 		/// <param name="Arguments">Command-line arguments</param>
+		/// <param name="bCacheDataForEditor">If true, write out target data for the editor</param>
 		/// <param name="Logger">Logger for output</param>
-		public virtual bool GenerateProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, String[] Arguments, ILogger Logger)
+		public virtual bool GenerateProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, String[] Arguments, bool bCacheDataForEditor, ILogger Logger)
 		{
 			bool bSuccess = true;
 
@@ -1257,6 +1258,12 @@ namespace UnrealBuildTool
 				// Write the project files
 				WriteProjectFiles(PlatformProjectGenerators, Logger);
 				Logger.LogDebug("Project generation complete ({GeneratedProjectFilesCount} generated, {OtherProjectFilesCount} imported)", GeneratedProjectFiles.Count, OtherProjectFiles.Count);
+			}
+
+			if (bCacheDataForEditor)
+			{
+				Logger.LogInformation("");
+				Logger.LogInformation("Generating QueryTargets data for editor...");
 
 				// Generate all the target info files for the editor
 				foreach (FileReference ProjectFile in AllGameProjects)

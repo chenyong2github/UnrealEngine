@@ -240,6 +240,8 @@ namespace UnrealBuildTool
 
 			// Now generate project files
 			ProjectFileGenerator.bGenerateProjectFiles = true;
+			// perform anything that only needs to happen one time, in the first project genereator
+			bool bPerformOneTimeOperations = true;
 			foreach(KeyValuePair< ProjectFileFormat, ProjectFileGenerator> Pair in Generators)
 			{
 				Logger.LogInformation("");
@@ -247,13 +249,16 @@ namespace UnrealBuildTool
 
 				ProjectFileGenerator.Current = Pair.Value;
 				Arguments.ApplyTo(Pair.Value);
-				bool bGenerateSuccess = Pair.Value.GenerateProjectFiles(PlatformProjectGenerators, Arguments.GetRawArray(), Logger);
+				bool bGenerateSuccess = Pair.Value.GenerateProjectFiles(PlatformProjectGenerators, Arguments.GetRawArray(), bCacheDataForEditor: bPerformOneTimeOperations, Logger);
 				ProjectFileGenerator.Current = null;
 
 				if (!bGenerateSuccess)
 				{
 					return (int)CompilationResult.OtherCompilationError;
 				}
+
+				// any further generators can skip one-time operations
+				bPerformOneTimeOperations = false;
 			}
 			return (int)CompilationResult.Succeeded;
 		}
