@@ -108,12 +108,12 @@ namespace Chaos
 			return MidPhaseIndex < Particle->ParticleCollisions().Num();
 		}
 
-		bool operator==(const FMidPhaseModifierParticleIterator& Other)
+		bool operator==(const FMidPhaseModifierParticleIterator& Other) const
 		{
 			return MidPhaseIndex == Other.MidPhaseIndex;
 		}
 
-		bool operator!=(const FMidPhaseModifierParticleIterator& Other)
+		bool operator!=(const FMidPhaseModifierParticleIterator& Other) const
 		{
 			return !operator==(Other);
 		}
