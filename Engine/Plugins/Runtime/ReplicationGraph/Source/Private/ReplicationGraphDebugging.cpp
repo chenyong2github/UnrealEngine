@@ -412,8 +412,8 @@ void AReplicationGraphDebugActor::ServerCellInfo_Implementation()
 			return;
 		}
 
-		int32 CellX = FMath::Max<int32>(0, (Viewer.ViewLocation.X - GridNode->SpatialBias.X) / GridNode->CellSize);
-		int32 CellY = FMath::Max<int32>(0, (Viewer.ViewLocation.Y - GridNode->SpatialBias.Y) / GridNode->CellSize);
+		const int32 CellX = FMath::Max<int32>(0, UE::LWC::FloatToIntCastChecked<int32>((Viewer.ViewLocation.X - GridNode->SpatialBias.X) / GridNode->CellSize));
+		const int32 CellY = FMath::Max<int32>(0, UE::LWC::FloatToIntCastChecked<int32>((Viewer.ViewLocation.Y - GridNode->SpatialBias.Y) / GridNode->CellSize)); 
 
 		FVector CellLocation(GridNode->SpatialBias.X + (((float)(CellX)+0.5f) * GridNode->CellSize), GridNode->SpatialBias.Y + (((float)(CellY)+0.5f) * GridNode->CellSize), Viewer.ViewLocation.Z);
 
@@ -547,8 +547,14 @@ void AReplicationGraphDebugActor::ServerSetPeriodFrameForClass_Implementation(UC
 		return;
 	}
 
+	if (PeriodFrame < 0 || PeriodFrame > MAX_uint16)
+	{
+		UE_LOG(LogReplicationGraph, Display, TEXT("Invalid PeriodFrame"));
+		return;
+	}
+
 	FClassReplicationInfo& ClassInfo = ReplicationGraph->GlobalActorReplicationInfoMap.GetClassInfo(Class);
-	ClassInfo.ReplicationPeriodFrame = PeriodFrame;
+	ClassInfo.ReplicationPeriodFrame = static_cast<uint16>(PeriodFrame);
 	UE_LOG(LogReplicationGraph, Display, TEXT("Setting ReplicationPeriodFrame for class %s to %u"), *Class->GetName(), ClassInfo.ReplicationPeriodFrame);
 
 	for (TActorIterator<AActor> ActorIt(GetWorld(), Class); ActorIt; ++ActorIt)
@@ -556,14 +562,14 @@ void AReplicationGraphDebugActor::ServerSetPeriodFrameForClass_Implementation(UC
 		AActor* Actor = *ActorIt;
 		if (FGlobalActorReplicationInfo* ActorInfo = ReplicationGraph->GlobalActorReplicationInfoMap.Find(Actor))
 		{
-			ActorInfo->Settings.ReplicationPeriodFrame = PeriodFrame;
+			ActorInfo->Settings.ReplicationPeriodFrame = static_cast<uint16>(PeriodFrame);
 			UE_LOG(LogReplicationGraph, Display, TEXT("Setting GlobalActorInfo ReplicationPeriodFrame for %s to %u"), *Actor->GetName(), ActorInfo->Settings.ReplicationPeriodFrame);
 		}
 
 
 		if (FConnectionReplicationActorInfo* ConnectionActorInfo = ConnectionManager->ActorInfoMap.Find(Actor))
 		{
-			ConnectionActorInfo->ReplicationPeriodFrame = PeriodFrame;
+			ConnectionActorInfo->ReplicationPeriodFrame = static_cast<uint16>(PeriodFrame);
 			UE_LOG(LogReplicationGraph, Display, TEXT("Setting Connection ReplicationPeriodFrame for %s to %u"), *Actor->GetName(), ConnectionActorInfo->ReplicationPeriodFrame);
 		}
 	}
@@ -593,7 +599,7 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetPeriodFrame(TEXT("Net.RepGraph
 
 		for (TActorIterator<AReplicationGraphDebugActor> It(World); It; ++It)
 		{
-			It->ServerSetPeriodFrameForClass(Class, Distance);
+			It->ServerSetPeriodFrameForClass(Class, UE::LWC::FloatToIntCastChecked<int32>(Distance));
 		}
 	})
 );

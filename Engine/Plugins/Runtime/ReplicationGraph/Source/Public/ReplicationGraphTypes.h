@@ -1296,7 +1296,7 @@ struct FPrioritizedActorFullDebugDetails
 	bool operator==(const FActorRepListType& InActor) const { return Actor == InActor; }
 
 	FActorRepListType Actor;
-	float DistanceSq = 0.f;
+	FVector::FReal DistanceSq = 0.f;
 	float DistanceFactor = 0.f;
 
 	uint32 FramesSinceLastRap = 0;

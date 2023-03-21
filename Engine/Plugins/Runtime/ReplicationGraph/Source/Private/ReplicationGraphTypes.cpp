@@ -554,7 +554,7 @@ void FActorRepListStatCollector::VisitStreamingLevelCollection(const UReplicatio
 	{
 		const uint32 ListSize = (uint32)LevelList.ReplicationActorList.RepList.Num();
 		const uint32 ListSlack = LevelList.ReplicationActorList.RepList.GetSlack();
-		const uint32 ListBytes = LevelList.ReplicationActorList.RepList.GetAllocatedSize();
+		const SIZE_T ListBytes = LevelList.ReplicationActorList.RepList.GetAllocatedSize();
 
 		{
 			FRepListStats& StreamingLevelStats = PerStreamingLevelStats.FindOrAdd(LevelList.StreamingLevelName);
@@ -580,7 +580,7 @@ void FActorRepListStatCollector::VisitExplicitStreamingLevelList(FName ListOwner
 {
 	const uint32 ListSize = (uint32)RepList.RepList.Num();
 	const uint32 ListSlack = RepList.RepList.GetSlack();
-	const uint32 ListBytes = RepList.RepList.GetAllocatedSize();
+	const SIZE_T ListBytes = RepList.RepList.GetAllocatedSize();
 
 	FRepListStats& ClassStats = PerClassStats.FindOrAdd(ListOwnerName);
 	ClassStats.NumLists++;

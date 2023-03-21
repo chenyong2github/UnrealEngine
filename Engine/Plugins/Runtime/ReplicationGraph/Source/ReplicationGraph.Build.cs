@@ -16,5 +16,7 @@ public class ReplicationGraph : ModuleRules
 				"PerfCounters"
 			}
 		);
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }
