@@ -227,8 +227,8 @@ public:
 			i++;
 			return copy;
 		}
-		inline bool operator==(const SegmentIterator & i2) { return i2.polygon == polygon && i2.i == i; }
-		inline bool operator!=(const SegmentIterator & i2) { return i2.polygon != polygon || i2.i != i; }
+		inline bool operator==(const SegmentIterator & i2) const { return i2.polygon == polygon && i2.i == i; }
+		inline bool operator!=(const SegmentIterator & i2) const { return i2.polygon != polygon || i2.i != i; }
 	protected:
 		const TPolygon2 * polygon;
 		int i;
