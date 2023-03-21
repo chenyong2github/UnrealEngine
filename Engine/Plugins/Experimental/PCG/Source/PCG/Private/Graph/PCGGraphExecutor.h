@@ -29,8 +29,14 @@ struct FPCGGraphTaskInput
 	}
 
 	FPCGTaskId TaskId;
+
+	/** The upstream output pin from which the input data comes. */
 	const UPCGPin* InPin;
+
+	/** The input pin on the task element. */
 	const UPCGPin* OutPin;
+
+	/** Whether the input provides any data. For the post execute task, only the output node will provide data. */
 	bool bProvideData;
 };
 

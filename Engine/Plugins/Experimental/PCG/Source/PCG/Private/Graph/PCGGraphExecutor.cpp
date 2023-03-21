@@ -1031,8 +1031,8 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		{
 			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InPin->Properties.Label));
 
-			// Write pin name Crc to uniquely identify inputs per-pin.
-			Crc.Combine(GetTypeHash(Input.InPin->Properties.Label));
+			// Write input pin name Crc to uniquely identify inputs per-pin.
+			Crc.Combine(GetTypeHash(Input.OutPin->Properties.Label));
 		}
 		else
 		{
