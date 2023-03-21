@@ -1343,6 +1343,11 @@ namespace UnrealBuildTool
 		public bool bEnforceIWYU = true;
 
 		/// <summary>
+		/// Emit a warning when an old-style monolithic header is included while compiling this target.
+		/// </summary>
+		public bool bWarnAboutMonolithicHeadersIncluded = false;
+
+		/// <summary>
 		/// Whether the final executable should export symbols.
 		/// </summary>
 		public bool bHasExports
@@ -3310,6 +3315,11 @@ namespace UnrealBuildTool
 		public bool bEnforceIWYU
 		{
 			get { return Inner.bEnforceIWYU; }
+		}
+
+		public bool bWarnAboutMonolithicHeadersIncluded
+		{
+			get { return Inner.bWarnAboutMonolithicHeadersIncluded; }
 		}
 
 		public bool bHasExports
