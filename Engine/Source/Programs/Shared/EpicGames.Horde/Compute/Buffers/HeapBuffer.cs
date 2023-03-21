@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,6 +12,7 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// </summary>
 	public class HeapBuffer : ComputeBuffer
 	{
+		readonly IMemoryOwner<byte> _memoryOwner;
 		readonly Memory<byte> _memory;
 
 		int _readPosition;
@@ -22,10 +24,22 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <summary>
 		/// Creates a local buffer with the given capacity
 		/// </summary>
-		/// <param name="memory"></param>
-		public HeapBuffer(Memory<byte> memory)
+		/// <param name="capacity">Capacity of the buffer</param>
+		public HeapBuffer(int capacity)
 		{
-			_memory = memory;
+			_memoryOwner = MemoryPool<byte>.Shared.Rent(capacity);
+			_memory = _memoryOwner.Memory.Slice(0, capacity);
+		}
+
+		/// <inheritdoc/>
+		protected override void Dispose(bool disposing)
+		{
+			base.Dispose(disposing);
+
+			if (disposing)
+			{
+				_memoryOwner.Dispose();
+			}
 		}
 
 		#region Reader

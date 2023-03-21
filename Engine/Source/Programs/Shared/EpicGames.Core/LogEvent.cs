@@ -480,7 +480,10 @@ namespace EpicGames.Core
 			{
 				foreach ((string name, object? value) in Properties)
 				{
-					yield return new KeyValuePair<string, object?>(name, value?.ToString());
+					if (!name.Equals(MessageTemplate.FormatPropertyName, StringComparison.OrdinalIgnoreCase))
+					{
+						yield return new KeyValuePair<string, object?>(name, value?.ToString());
+					}
 				}
 			}
 		}

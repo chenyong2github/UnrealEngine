@@ -3,8 +3,10 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Compute
 {
@@ -28,6 +30,7 @@ namespace EpicGames.Horde.Compute
 			public ReadOnlyMemory<byte> Data { get; }
 
 			readonly IMemoryOwner<byte> _memoryOwner;
+			int _position;
 
 			public Message(ComputeMessageType type, ReadOnlyMemory<byte> data)
 			{
@@ -43,6 +46,12 @@ namespace EpicGames.Horde.Compute
 			{
 				_memoryOwner.Dispose();
 			}
+
+			/// <inheritdoc/>
+			public ReadOnlyMemory<byte> GetMemory(int minSize = 1) => Data.Slice(_position);
+
+			/// <inheritdoc/>
+			public void Advance(int length) => _position += length;
 		}
 
 		/// <summary>
@@ -80,6 +89,11 @@ namespace EpicGames.Horde.Compute
 				header[0] = (byte)_type;
 				BinaryPrimitives.WriteInt32LittleEndian(header.Slice(1, 4), _length);
 
+				if (_channel._logger.IsEnabled(LogLevel.Trace))
+				{
+					_channel.LogMessageInfo("SEND", _type, _sendBufferWriter.GetMemory().Slice(HeaderLength, _length).Span);
+				}
+
 				_sendBufferWriter.Advance(HeaderLength + _length);
 				_length = 0;
 			}
@@ -96,6 +110,7 @@ namespace EpicGames.Horde.Compute
 
 		readonly IComputeBufferReader _receiveBufferReader;
 		readonly IComputeBufferWriter _sendBufferWriter;
+		readonly ILogger _logger;
 
 #pragma warning disable CA2213
 		MessageBuilder? _currentBuilder;
@@ -106,10 +121,12 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="receiveBufferReader">Reader for incoming messages</param>
 		/// <param name="sendBufferWriter">Writer for outgoing messages</param>
-		public ComputeChannel(IComputeBufferReader receiveBufferReader, IComputeBufferWriter sendBufferWriter)
+		/// <param name="logger">Logger for diagnostic output</param>
+		public ComputeChannel(IComputeBufferReader receiveBufferReader, IComputeBufferWriter sendBufferWriter, ILogger logger)
 		{
 			_receiveBufferReader = receiveBufferReader;
 			_sendBufferWriter = sendBufferWriter;
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
@@ -142,6 +159,10 @@ namespace EpicGames.Horde.Compute
 					{
 						ComputeMessageType type = (ComputeMessageType)memory.Span[0];
 						Message message = new Message(type, memory.Slice(HeaderLength, length));
+						if (_logger.IsEnabled(LogLevel.Trace))
+						{
+							LogMessageInfo("RECV", message.Type, message.Data.Span);
+						}
 						_receiveBufferReader.Advance(HeaderLength + length);
 						return message;
 					}
@@ -149,6 +170,20 @@ namespace EpicGames.Horde.Compute
 				await _receiveBufferReader.WaitAsync(memory.Length, cancellationToken);
 			}
 			return new Message(ComputeMessageType.None, ReadOnlyMemory<byte>.Empty);
+		}
+
+		void LogMessageInfo(string verb, ComputeMessageType type, ReadOnlySpan<byte> data)
+		{
+			StringBuilder bytes = new StringBuilder();
+			for (int offset = 0; offset < 16 && offset < data.Length; offset++)
+			{
+				bytes.Append($" {data[offset]:X2}");
+			}
+			if (data.Length > 16)
+			{
+				bytes.Append("..");
+			}
+			_logger.LogTrace("{Verb} {Type,-20} [{Length,8:n0}] = {Bytes}", verb, type, data.Length, bytes.ToString());
 		}
 
 		/// <inheritdoc/>

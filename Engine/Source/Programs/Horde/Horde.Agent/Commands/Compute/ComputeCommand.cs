@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Horde.Compute;
+using EpicGames.Horde.Compute.Clients;
 using Horde.Agent.Leases.Handlers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -29,14 +30,12 @@ namespace Horde.Agent.Commands.Compute
 		readonly IServiceProvider _serviceProvider;
 		readonly IHttpClientFactory _httpClientFactory;
 		readonly IOptions<AgentSettings> _settings;
-		readonly ILogger _logger;
 
-		public ComputeCommand(IServiceProvider serviceProvider, ILogger logger)
+		public ComputeCommand(IServiceProvider serviceProvider)
 		{
 			_serviceProvider = serviceProvider;
 			_httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
 			_settings = serviceProvider.GetRequiredService<IOptions<AgentSettings>>();
-			_logger = logger;
 		}
 
 		/// <inheritdoc/>
@@ -65,13 +64,14 @@ namespace Horde.Agent.Commands.Compute
 
 		IComputeClient CreateClient()
 		{
+			ILoggerFactory loggerFactory = _serviceProvider.GetRequiredService<ILoggerFactory>();
 			if (Loopback)
 			{
-				return new LoopbackComputeClient(RunListenerAsync);
+				return new LoopbackComputeClient(RunListenerAsync, 2000, loggerFactory);
 			}
 			else
 			{
-				return new ServerComputeClient(CreateHttpClient, _logger);
+				return new ServerComputeClient(CreateHttpClient, loggerFactory);
 			}
 		}
 
@@ -85,10 +85,10 @@ namespace Horde.Agent.Commands.Compute
 			return client;
 		}
 
-		async Task RunListenerAsync(IComputeLease lease, CancellationToken cancellationToken)
+		async Task RunListenerAsync(IComputeSocket socket, CancellationToken cancellationToken)
 		{
 			ComputeHandler handler = ActivatorUtilities.CreateInstance<ComputeHandler>(_serviceProvider);
-			await handler.RunAsync(lease, cancellationToken);
+			await handler.RunAsync(socket, cancellationToken);
 		}
 	}
 }

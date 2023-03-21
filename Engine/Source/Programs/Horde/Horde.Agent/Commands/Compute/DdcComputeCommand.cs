@@ -22,7 +22,7 @@ namespace Horde.Agent.Commands.Compute
 		/// Constructor
 		/// </summary>
 		public DdcComputeCommand(IServiceProvider serviceProvider, ILogger<DdcComputeCommand> logger)
-			: base(serviceProvider, logger)
+			: base(serviceProvider)
 		{
 			_logger = logger;
 		}
@@ -30,7 +30,8 @@ namespace Horde.Agent.Commands.Compute
 		/// <inheritdoc/>
 		protected override async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			await using (IComputeChannel channel = lease.CreateChannel(0))
+			IComputeSocket socket = lease.Socket;
+			await using (IComputeChannel channel = socket.AttachMessageChannel(0))
 			{
 				_logger.LogInformation("Sending XOR request");
 				channel.XorRequest(new byte[] { 1, 2, 3, 4, 5 }, (byte)123);

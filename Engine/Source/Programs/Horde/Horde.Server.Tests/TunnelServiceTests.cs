@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Compute;
+using EpicGames.Horde.Compute.Clients;
 using Horde.Server.Compute;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

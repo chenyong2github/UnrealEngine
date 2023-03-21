@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +22,7 @@ namespace Horde.Agent.Commands.Compute
 		/// Constructor
 		/// </summary>
 		public XorComputeCommand(IServiceProvider serviceProvider, ILogger<XorComputeCommand> logger)
-			: base(serviceProvider, logger)
+			: base(serviceProvider)
 		{
 			_logger = logger;
 		}
@@ -31,12 +30,13 @@ namespace Horde.Agent.Commands.Compute
 		/// <inheritdoc/>
 		protected override async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
-			await using (IComputeChannel mainChannel = lease.CreateChannel(0))
+			IComputeSocket socket = lease.Socket;
+			await using (IComputeChannel mainChannel = socket.AttachMessageChannel(0))
 			{
 				_logger.LogInformation("Forking compute channel...");
-				mainChannel.Fork(1);
 
-				await using IComputeChannel channel = lease.CreateChannel(1);
+				await using IComputeChannel channel = socket.AttachMessageChannel(1);
+				mainChannel.Fork(1);
 
 				_logger.LogInformation("Sending XOR request");
 				channel.XorRequest(new byte[] { 1, 2, 3, 4, 5 }, (byte)123);

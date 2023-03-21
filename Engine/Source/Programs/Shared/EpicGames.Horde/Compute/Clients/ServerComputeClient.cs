@@ -12,7 +12,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace EpicGames.Horde.Compute
+namespace EpicGames.Horde.Compute.Clients
 {
 	/// <summary>
 	/// Helper class to enlist remote resources to perform compute-intensive tasks.
@@ -41,14 +41,15 @@ namespace EpicGames.Horde.Compute
 		readonly HttpClient? _defaultHttpClient;
 		readonly Func<HttpClient> _createHttpClient;
 		readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
+		readonly ILoggerFactory _loggerFactory;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="serverUri">Uri of the server to connect to</param>
-		/// <param name="logger">Logger for diagnostic messages</param>
-		public ServerComputeClient(Uri serverUri, ILogger logger)
+		/// <param name="loggerFactory">Logger for diagnostic messages</param>
+		public ServerComputeClient(Uri serverUri, ILoggerFactory loggerFactory)
 		{
 #pragma warning disable CA2000 // Dispose objects before losing scope
 			// This is disposed via HttpClient
@@ -60,18 +61,20 @@ namespace EpicGames.Horde.Compute
 #pragma warning restore CA2000 // Dispose objects before losing scope
 
 			_createHttpClient = GetDefaultHttpClient;
-			_logger = logger;
+			_loggerFactory = loggerFactory;
+			_logger = loggerFactory.CreateLogger<ServerComputeClient>();
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="createHttpClient">Creates an HTTP client with the correct base address for the server</param>
-		/// <param name="logger">Logger for diagnostic messages</param>
-		public ServerComputeClient(Func<HttpClient> createHttpClient, ILogger logger)
+		/// <param name="loggerFactory">Logger for diagnostic messages</param>
+		public ServerComputeClient(Func<HttpClient> createHttpClient, ILoggerFactory loggerFactory)
 		{
 			_createHttpClient = createHttpClient;
-			_logger = logger;
+			_loggerFactory = loggerFactory;
+			_logger = loggerFactory.CreateLogger<ServerComputeClient>();
 		}
 
 		/// <summary>
@@ -130,8 +133,8 @@ namespace EpicGames.Horde.Compute
 			// Pass the rest of the call over to the handler
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
-			await using ComputeLease channel = new ComputeLease(new TcpTransport(socket), responseMessage.AssignedResources);
-			return await handler(channel, cancellationToken);
+			await using ComputeLease lease = new ComputeLease(responseMessage.AssignedResources, new ComputeSocket(new TcpTransport(socket), false, _loggerFactory));
+			return await handler(lease, cancellationToken);
 		}
 	}
 }

@@ -64,8 +64,6 @@ namespace EpicGames.Horde.Storage
 			typeof(Logs.LogNode),
 			typeof(Logs.LogChunkNode),
 			typeof(Logs.LogIndexNode),
-			typeof(Compute.Cpp.CppComputeNode),
-			typeof(Compute.Cpp.CppComputeOutputNode)
 		};
 
 		/// <summary>

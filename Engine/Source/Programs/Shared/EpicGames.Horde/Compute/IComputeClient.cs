@@ -16,7 +16,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="clusterId">Cluster to execute the request</param>
 		/// <param name="requirements">Requirements for the agent</param>
-		/// <param name="handler">Handler for the connection</param>
+		/// <param name="handler">Handler for the lease</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken);
 	}

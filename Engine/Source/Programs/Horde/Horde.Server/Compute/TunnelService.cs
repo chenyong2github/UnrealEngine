@@ -14,6 +14,7 @@ using EpicGames.Horde.Compute;
 using System.IO;
 using System.Buffers;
 using System.Buffers.Binary;
+using EpicGames.Horde.Compute.Clients;
 
 namespace Horde.Server.Compute
 {

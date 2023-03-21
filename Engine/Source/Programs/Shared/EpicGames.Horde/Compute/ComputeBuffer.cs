@@ -64,6 +64,20 @@ namespace EpicGames.Horde.Compute
 			Writer = new WriterImpl(this);
 		}
 
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Standard dispose pattern
+		/// </summary>
+		protected virtual void Dispose(bool disposing)
+		{
+		}
+
 		#region Reader
 
 		/// <inheritdoc cref="IComputeBufferReader.IsComplete"/>

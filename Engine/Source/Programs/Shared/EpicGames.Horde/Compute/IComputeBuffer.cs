@@ -9,7 +9,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Base interface for input and output buffers
 	/// </summary>
-	public interface IComputeBuffer
+	public interface IComputeBuffer : IDisposable
 	{
 		/// <summary>
 		/// Reader from the buffer
@@ -78,5 +78,21 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		ValueTask FlushAsync(CancellationToken cancellationToken);
+	}
+
+	/// <summary>
+	/// Default environment variable names for compute channels
+	/// </summary>
+	public static class ComputeEnvVarNames
+	{
+		/// <summary>
+		/// Default name for a channel that can be used to send messages to the initiator
+		/// </summary>
+		public const string DefaultSendBuffer = "UE_HORDE_SEND_BUFFER";
+
+		/// <summary>
+		/// Default name for a channel that can be used to receive messages from the initiator
+		/// </summary>
+		public const string DefaultRecvBuffer = "UE_HORDE_RECV_BUFFER";
 	}
 }

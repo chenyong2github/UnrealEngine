@@ -3,17 +3,16 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
-using EpicGames.Horde.Compute.Cpp;
+using EpicGames.Horde.Compute.Buffers;
 using EpicGames.Horde.Compute.Transports;
-using EpicGames.Horde.Logs;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
 using Horde.Agent.Services;
 using HordeCommon.Rpc.Tasks;
@@ -29,16 +28,20 @@ namespace Horde.Agent.Leases.Handlers
 	{
 		readonly ComputeListenerService _listenerService;
 		readonly IMemoryCache _memoryCache;
+		readonly DirectoryReference _sandboxDir;
+		readonly ILoggerFactory _loggerFactory;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeHandler(ComputeListenerService listenerService, IMemoryCache memoryCache, ILogger<ComputeHandler> logger)
+		public ComputeHandler(ComputeListenerService listenerService, IMemoryCache memoryCache, ILoggerFactory loggerFactory)
 		{
 			_listenerService = listenerService;
 			_memoryCache = memoryCache;
-			_logger = logger;
+			_sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox");
+			_loggerFactory = loggerFactory;
+			_logger = loggerFactory.CreateLogger<ComputeHandler>();
 		}
 
 		/// <inheritdoc/>
@@ -58,9 +61,10 @@ namespace Horde.Agent.Leases.Handlers
 					return LeaseResult.Success;
 				}
 
-				await using (ComputeLease lease = new ComputeLease(new TcpTransport(tcpClient.Client), computeTask.Resources))
+				await using (ComputeSocket socket = new ComputeSocket(new TcpTransport(tcpClient.Client), true, _loggerFactory))
 				{
-					await RunAsync(lease, cancellationToken);
+					await RunAsync(socket, cancellationToken);
+					await socket.CloseAsync(cancellationToken);
 					return LeaseResult.Success;
 				}
 			}
@@ -75,20 +79,20 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		public async Task RunAsync(IComputeLease lease, CancellationToken cancellationToken)
+		public async Task RunAsync(IComputeSocket socket, CancellationToken cancellationToken)
 		{
-			await RunAsync(lease, 0, cancellationToken);
+			await RunAsync(socket, 0, cancellationToken);
 		}
 
-		async Task RunAsync(IComputeLease lease, int id, CancellationToken cancellationToken)
+		async Task RunAsync(IComputeSocket socket, int channelId, CancellationToken cancellationToken)
 		{
-			await using (IComputeChannel channel = lease.CreateChannel(id))
+			await using (IComputeChannel channel = socket.AttachMessageChannel(channelId))
 			{
 				List<Task> childTasks = new List<Task>();
 				for (; ; )
 				{
 					using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
-					_logger.LogTrace("Compute Channel {ChannelId}: {MessageType}", id, message.Type);
+					_logger.LogTrace("Compute Channel {ChannelId}: {MessageType}", channelId, message.Type);
 
 					switch (message.Type)
 					{
@@ -97,8 +101,26 @@ namespace Horde.Agent.Leases.Handlers
 							return;
 						case ComputeMessageType.Fork:
 							{
-								ForkMessage fork = message.AsForkMessage();
-								childTasks.Add(RunAsync(lease, fork.Id, cancellationToken));
+								ForkMessage fork = message.ParseForkMessage();
+								childTasks.Add(RunAsync(socket, fork.ChannelId, cancellationToken));
+							}
+							break;
+						case ComputeMessageType.WriteFiles:
+							{
+								UploadFilesMessage writeFiles = message.ParseUploadFilesMessage();
+								await WriteFilesAsync(channel, writeFiles.Name, writeFiles.Locator, cancellationToken);
+							}
+							break;
+						case ComputeMessageType.DeleteFiles:
+							{
+								DeleteFilesMessage deleteFiles = message.ParseDeleteFilesMessage();
+								DeleteFiles(deleteFiles.Filter);
+							}
+							break;
+						case ComputeMessageType.ExecuteProcess:
+							{
+								ExecuteProcessMessage executeProcess = message.ParseExecuteProcessMessage();
+								await ExecuteProcessAsync(socket, channel, executeProcess.Executable, executeProcess.Arguments, executeProcess.WorkingDir, executeProcess.EnvVars, cancellationToken);  
 							}
 							break;
 						case ComputeMessageType.XorRequest:
@@ -107,15 +129,8 @@ namespace Horde.Agent.Leases.Handlers
 								RunXor(channel, xorRequest.Data, xorRequest.Value);
 							}
 							break;
-						case ComputeMessageType.CppBegin:
-							{
-								CppBeginMessage cppBegin = message.AsCppBegin();
-								await using IComputeChannel replyChannel = lease.CreateChannel(cppBegin.ReplyChannelId);
-								await RunCppAsync(replyChannel, cppBegin.Locator, cancellationToken);
-							}
-							break;
 						default:
-							throw new NotImplementedException();
+							throw new ComputeInvalidMessageException(message);
 					}
 				}
 			}
@@ -138,151 +153,152 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		public async Task RunCppAsync(IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
+		async Task WriteFilesAsync(IComputeChannel channel, string path, NodeLocator locator, CancellationToken cancellationToken)
 		{
-			try
-			{
-				await RunCppInternalAsync(channel, locator, cancellationToken);
-			}
-			catch (Exception ex)
-			{
-				channel.CppFailure(ex.ToString());
-			}
-		}
-
-		async Task RunCppInternalAsync(IComputeChannel channel, NodeLocator locator, CancellationToken cancellationToken)
-		{
-			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox", Guid.NewGuid().ToString());
-
 			using ComputeStorageClient store = new ComputeStorageClient(channel);
 			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
 
-			CppComputeNode node = await reader.ReadNodeAsync<CppComputeNode>(locator, cancellationToken);
-			DirectoryNode directoryNode = await node.Sandbox.ExpandAsync(reader, cancellationToken);
+			DirectoryNode directoryNode = await reader.ReadNodeAsync<DirectoryNode>(locator, cancellationToken);
 
-			await directoryNode.CopyToDirectoryAsync(reader, sandboxDir.ToDirectoryInfo(), _logger, cancellationToken);
-
-			MemoryStorageClient storage = new MemoryStorageClient();
-			using (TreeWriter writer = new TreeWriter(storage))
+			DirectoryReference outputDir = DirectoryReference.Combine(_sandboxDir, path);
+			if (!outputDir.IsUnderDirectory(_sandboxDir))
 			{
-				string executable = FileReference.Combine(sandboxDir, node.Executable).FullName;
-				string commandLine = CommandLineArguments.Join(node.Arguments);
-				string workingDir = DirectoryReference.Combine(sandboxDir, node.WorkingDirectory).FullName;
-
-				Dictionary<string, string>? envVars = null;
-				if (node.EnvVars.Count > 0)
-				{
-					envVars = ManagedProcess.GetCurrentEnvVars();
-					foreach ((string key, string value) in node.EnvVars)
-					{
-						envVars[key] = value;
-					}
-				}
-
-				int exitCode;
-
-				LogWriter logWriter = new LogWriter(writer);
-				using (ManagedProcessGroup group = new ManagedProcessGroup())
-				{
-					using (ManagedProcess process = new ManagedProcess(group, executable, commandLine, workingDir, envVars, null, ProcessPriorityClass.Normal))
-					{
-						byte[] buffer = new byte[1024];
-						for (; ; )
-						{
-							int length = await process.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
-							if (length == 0)
-							{
-								process.WaitForExit();
-								exitCode = process.ExitCode;
-								break;
-							}
-							await logWriter.AppendAsync(buffer.AsMemory(0, length), cancellationToken);
-						}
-					}
-				}
-
-				TreeNodeRef<LogNode> logNodeRef = await logWriter.CompleteAsync(cancellationToken);
-
-				FileFilter filter = new FileFilter(node.OutputPaths.Select(x => x.ToString()));
-				List<FileReference> outputFiles = filter.ApplyToDirectory(sandboxDir, false);
-
-				DirectoryNode outputTree = new DirectoryNode();
-				await outputTree.CopyFilesAsync(sandboxDir, outputFiles, new ChunkingOptions(), writer, null, cancellationToken);
-
-				CppComputeOutputNode outputNode = new CppComputeOutputNode(exitCode, logNodeRef, new TreeNodeRef<DirectoryNode>(outputTree));
-				NodeHandle outputHandle = await writer.FlushAsync(outputNode, cancellationToken);
-
-				channel.CppSuccess(outputHandle.Locator);
+				throw new InvalidOperationException("Cannot write files outside sandbox");
 			}
 
-			for (; ; )
+			await directoryNode.CopyToDirectoryAsync(reader, outputDir.ToDirectoryInfo(), _logger, cancellationToken);
+
+			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.WriteFilesResponse))
 			{
-				using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
-				switch (message.Type)
+				builder.Send();
+			}
+		}
+
+		void DeleteFiles(IReadOnlyList<string> deleteFiles)
+		{
+			FileFilter filter = new FileFilter(deleteFiles);
+
+			List<FileReference> files = filter.ApplyToDirectory(_sandboxDir, false);
+			foreach (FileReference file in files)
+			{
+				FileUtils.ForceDeleteFile(file);
+			}
+		}
+
+		async Task ExecuteProcessAsync(IComputeSocket socket, IComputeChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		{
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				await ExecuteProcessWindowsAsync(socket, channel, executable, arguments, workingDir, envVars, cancellationToken);
+			}
+			else
+			{
+				await ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, envVars, cancellationToken);
+			}
+		}
+
+		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		{
+			using IpcBuffer sendBuffer = IpcBuffer.CreateNew(16384); // Messages that we send to child process
+			using IpcBuffer receiveBuffer = IpcBuffer.CreateNew(16384); // Messages that child process sends to us
+
+			Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
+			if (envVars != null)
+			{
+				foreach ((string name, string? value) in envVars)
 				{
-					case ComputeMessageType.CppEnd:
-						FileUtils.ForceDeleteDirectory(sandboxDir);
-						return;
-					case ComputeMessageType.CppBlobRead:
-						{
-							CppBlobReadMessage cppBlobRead = message.AsCppBlobRead();
-							await channel.CppBlobDataAsync(cppBlobRead, storage, cancellationToken);
-						}
-						break;
-					default:
-						throw new NotImplementedException();
+					newEnvVars.Add(name, value);
+				}
+			}
+
+			newEnvVars[ComputeEnvVarNames.DefaultSendBuffer] = receiveBuffer.GetHandle(); // Note: opposite ends that we're sending/receiving to
+			newEnvVars[ComputeEnvVarNames.DefaultRecvBuffer] = sendBuffer.GetHandle();
+
+			await using ComputeChannel controlChannel = new ComputeChannel(receiveBuffer.Reader, sendBuffer.Writer, _loggerFactory.CreateLogger<ComputeChannel>());
+
+			Task processTask = ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, envVars, cancellationToken);
+			processTask = processTask.ContinueWith(x => sendBuffer.Writer.MarkComplete(), cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
+
+			List<IpcBuffer> buffers = new List<IpcBuffer>();
+			try
+			{
+				for (; ; )
+				{
+					using IComputeMessage message = await controlChannel.ReceiveAsync(cancellationToken);
+					switch (message.Type)
+					{
+						case ComputeMessageType.None:
+							await processTask;
+							return;
+						case ComputeMessageType.CreateBufferRequest:
+							{
+								CreateBufferRequest createBuffer = message.ParseCreateBufferRequest();
+
+								IpcBuffer buffer = IpcBuffer.CreateNew(createBuffer.Capacity);
+								buffers.Add(buffer);
+
+								if (createBuffer.Send)
+								{
+									socket.AttachSendBuffer(createBuffer.ChannelId, buffer.Reader);
+								}
+								else
+								{
+									socket.AttachReceiveBuffer(createBuffer.ChannelId, buffer.Writer);
+								}
+							}
+							break;
+						default:
+							throw new ComputeInvalidMessageException(message);
+					}
+				}
+			}
+			finally
+			{
+				foreach (IpcBuffer buffer in buffers)
+				{
+					buffer.Dispose();
 				}
 			}
 		}
 
-		class LogWriter
+		async Task ExecuteProcessInternalAsync(IComputeChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
-			const int MaxChunkSize = 128 * 1024;
-			const int FlushChunkSize = 100 * 1024;
+			string resolvedExecutable = FileReference.Combine(_sandboxDir, executable).FullName;
+			string resolvedCommandLine = CommandLineArguments.Join(arguments);
+			string resolvedWorkingDir = DirectoryReference.Combine(_sandboxDir, workingDir ?? String.Empty).FullName;
 
-			readonly TreeWriter _writer;
-			int _lineCount;
-			long _offset;
-			readonly LogChunkBuilder _chunkBuilder = new LogChunkBuilder(MaxChunkSize);
-			readonly List<LogChunkRef> _chunks = new List<LogChunkRef>();
-
-			public IReadOnlyList<LogChunkRef> Chunks => _chunks;
-
-			public LogWriter(TreeWriter writer)
+			Dictionary<string, string> resolvedEnvVars = ManagedProcess.GetCurrentEnvVars();
+			if (envVars != null)
 			{
-				_writer = writer;
-			}
-
-			public async ValueTask AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
-			{
-				_chunkBuilder.Append(data.Span);
-
-				if (_chunkBuilder.Length > FlushChunkSize)
+				foreach ((string key, string? value) in envVars)
 				{
-					await FlushAsync(cancellationToken);
+					if (value == null)
+					{
+						resolvedEnvVars.Remove(key);
+					}
+					else
+					{
+						resolvedEnvVars[key] = value;
+					}
 				}
 			}
 
-			async Task FlushAsync(CancellationToken cancellationToken)
+			using (ManagedProcessGroup group = new ManagedProcessGroup())
 			{
-				LogChunkNode chunkNode = _chunkBuilder.ToLogChunk();
-				LogChunkRef chunkRef = new LogChunkRef(_lineCount, _offset, chunkNode);
-				await _writer.WriteAsync(chunkRef, cancellationToken);
-
-				_chunks.Add(chunkRef);
-				_lineCount += chunkNode.LineCount;
-				_offset += chunkNode.Length;
-			}
-
-			public async Task<TreeNodeRef<LogNode>> CompleteAsync(CancellationToken cancellationToken)
-			{
-				await FlushAsync(cancellationToken);
-				LogIndexNode index = new LogIndexNode(new NgramSet(Array.Empty<ushort>()), 0, Array.Empty<LogChunkRef>());
-
-				TreeNodeRef<LogNode> logNodeRef = new TreeNodeRef<LogNode>(new LogNode(LogFormat.Text, _lineCount, _offset, _chunks, new TreeNodeRef<LogIndexNode>(index), true));
-				await _writer.WriteAsync(logNodeRef, cancellationToken);
-
-				return logNodeRef;
+				using (ManagedProcess process = new ManagedProcess(group, resolvedExecutable, resolvedCommandLine, resolvedWorkingDir, resolvedEnvVars, null, ProcessPriorityClass.Normal))
+				{
+					byte[] buffer = new byte[1024];
+					for (; ; )
+					{
+						int length = await process.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+						if (length == 0)
+						{
+							channel.SendExecuteProcessResponse(process.ExitCode);
+							return;
+						}
+						channel.SendProcessOutput(buffer);
+					}
+				}
 			}
 		}
 	}

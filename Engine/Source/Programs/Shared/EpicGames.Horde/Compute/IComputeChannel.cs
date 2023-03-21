@@ -4,7 +4,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Compute.Buffers;
 
 namespace EpicGames.Horde.Compute
 {
@@ -45,48 +44,18 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public static class ComputeChannelExtensions
 	{
-		class RentedBufferChannel : ComputeChannel
-		{
-			readonly RentedLocalBuffer _receiveBuffer;
-			readonly RentedLocalBuffer _sendBuffer;
-
-			public RentedBufferChannel(RentedLocalBuffer receiveBuffer, RentedLocalBuffer sendBuffer)
-				: base(receiveBuffer.Reader, sendBuffer.Writer)
-			{
-				_sendBuffer = sendBuffer;
-				_receiveBuffer = receiveBuffer;
-			}
-
-			/// <inheritdoc/>
-			protected override async ValueTask DisposeAsync(bool disposing)
-			{
-				await base.DisposeAsync(disposing);
-
-				if (disposing)
-				{
-					_sendBuffer.Dispose();
-					_receiveBuffer.Dispose();
-				}
-			}
-		}
-
 		/// <summary>
-		/// Creates a compute channel with the given identifier
+		/// Forwards an existing message across a channel
 		/// </summary>
-		/// <param name="lease">The lease to create a channel for</param>
-		/// <param name="id">Identifier for the channel</param>
-		public static IComputeChannel CreateChannel(this IComputeLease lease, int id)
+		/// <param name="channel">Channel to send on</param>
+		/// <param name="message">The message to be sent</param>
+		public static void Send(this IComputeChannel channel, IComputeMessage message)
 		{
-			const int MaxMessageSize = 64 * 1024;
-			const int BufferSize = MaxMessageSize * 3;
-
-			RentedLocalBuffer receiveBuffer = new RentedLocalBuffer(BufferSize);
-			lease.AttachReceiveBuffer(id, receiveBuffer.Writer);
-
-			RentedLocalBuffer sendBuffer = new RentedLocalBuffer(BufferSize);
-			lease.AttachSendBuffer(id, sendBuffer.Reader);
-
-			return new RentedBufferChannel(receiveBuffer, sendBuffer);
+			using (IComputeMessageBuilder builder = channel.CreateMessage(message.Type, message.Data.Length))
+			{
+				builder.WriteFixedLengthBytes(message.Data.Span);
+				builder.Send();
+			}
 		}
 	}
 }

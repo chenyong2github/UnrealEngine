@@ -18,7 +18,6 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// <summary>
 	/// Implementation of <see cref="IComputeBuffer"/> suitable for cross-process communication
 	/// </summary>
-	[SupportedOSPlatform("windows")]
 	public sealed class IpcBuffer : ComputeBuffer, IDisposable
 	{
 		[StructLayout(LayoutKind.Sequential)]
@@ -198,13 +197,18 @@ namespace EpicGames.Horde.Compute.Buffers
 		static extern bool DuplicateHandle(IntPtr hSourceProcessHandle, IntPtr hSourceHandle, IntPtr hTargetProcessHandle, out IntPtr lpTargetHandle, uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwOptions);
 
 		/// <inheritdoc/>
-		public void Dispose()
+		protected override void Dispose(bool disposing)
 		{
-			_flushedEvent.Dispose();
-			_writtenEvent.Dispose();
-			_memoryMappedView.Dispose();
-			_memoryMappedViewAccessor.Dispose();
-			_memoryMappedFile.Dispose();
+			base.Dispose(disposing);
+
+			if (disposing)
+			{
+				_flushedEvent.Dispose();
+				_writtenEvent.Dispose();
+				_memoryMappedView.Dispose();
+				_memoryMappedViewAccessor.Dispose();
+				_memoryMappedFile.Dispose();
+			}
 		}
 
 		#region Reader
