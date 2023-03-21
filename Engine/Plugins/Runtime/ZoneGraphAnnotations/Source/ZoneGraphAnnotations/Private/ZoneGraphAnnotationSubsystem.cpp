@@ -197,8 +197,3 @@ TStatId UZoneGraphAnnotationSubsystem::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UZoneGraphAnnotationSubsystem, STATGROUP_Tickables);
 }
-
-bool UZoneGraphAnnotationSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
-{
-	return WorldType == EWorldType::EditorStorage || Super::DoesSupportWorldType(WorldType);
-}

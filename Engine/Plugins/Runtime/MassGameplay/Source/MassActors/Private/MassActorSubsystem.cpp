@@ -95,11 +95,6 @@ void UMassActorSubsystem::Deinitialize()
 	ActorManager.Reset();
 }
 
-bool UMassActorSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
-{
-	return Super::DoesSupportWorldType(WorldType);
-}
-
 //----------------------------------------------------------------------//
 //  FMassActorManager
 //----------------------------------------------------------------------//

@@ -1117,13 +1117,6 @@ namespace EWorldType
 		/** A preview world for an editor tool */
 		EditorPreview,
 
-		/** 
-		 * A minimal world for storing editor information.
-		 * Alert: This world type is part of experimental development and it's strongly recommended to not use this world type
-		 *		as long a this alert is here.
-		 */
-		EditorStorage,
-
 		/** A preview world for a game */
 		GamePreview,
 

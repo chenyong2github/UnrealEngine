@@ -3810,13 +3810,6 @@ public:
 	/** Returns true if this world is any kind of editor world (including editor preview worlds) */
 	bool IsEditorWorld() const;
 
-	/** 
-	 * Returns true if this is a minimal world for storing information.
-	 * Alert: This is part of experimental development and it's strongly recommended to not use this function
-	 *		as long a this alert is here.
-	 */
-	bool IsStorageWorld() const;
-
 	/** Returns true if this world is a preview game world (editor or game) */
 	bool IsPreviewWorld() const;
 

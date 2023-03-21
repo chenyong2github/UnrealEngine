@@ -56,11 +56,6 @@ void UMassSimulationSubsystem::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-bool UMassSimulationSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
-{
-	return Super::DoesSupportWorldType(WorldType);
-}
-
 FMassProcessingPhase::FOnPhaseEvent& UMassSimulationSubsystem::GetOnProcessingPhaseStarted(const EMassProcessingPhase Phase)
 {
 	return PhaseManager.GetOnPhaseStart(Phase);

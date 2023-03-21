@@ -23,11 +23,6 @@ class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem
 	virtual void Deinitialize() override;
 	//~End of USubsystem interface
 
-protected:
-	//~USubsystem interface
-	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
-	//~End of USubsystem interface
-
 public:
 	UMassEntitySubsystem();
 

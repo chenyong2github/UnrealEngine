@@ -493,8 +493,3 @@ TConstArrayView<FZoneGraphTagInfo> UZoneGraphSubsystem::GetTagInfos() const
 	}
 	return TConstArrayView<FZoneGraphTagInfo>();
 }
-
-bool UZoneGraphSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
-{
-	return WorldType == EWorldType::EditorStorage || Super::DoesSupportWorldType(WorldType);
-}

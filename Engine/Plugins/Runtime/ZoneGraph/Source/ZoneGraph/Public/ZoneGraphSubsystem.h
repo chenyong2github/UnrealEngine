@@ -134,8 +134,7 @@ protected:
 	virtual void Deinitialize() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
-	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
-
+	
 	void RemoveRegisteredDataItem(const int32 Index);
 	void UnregisterStaleZoneGraphDataInstances();
 	void RegisterZoneGraphDataInstances();
