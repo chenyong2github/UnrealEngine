@@ -6,33 +6,34 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateWidgetStyleAsset.h"
-#include "WaveformEditorDisplayUnit.h"
-#include "WaveformEditorSlateTypes.h"
+#include "SampledSequenceDisplayUnit.h"
+#include "AudioWidgetsSlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnTimeUnitMenuSelection, const EWaveformEditorDisplayUnit /* Requested Display Unit */);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTimeUnitMenuSelection, const ESampledSequenceDisplayUnit /* Requested Display Unit */);
 
-class SWaveformEditorTimeRuler : public SCompoundWidget
+class AUDIOWIDGETS_API SFixedSampledSequenceRuler : public SCompoundWidget
 {
-
-	SLATE_BEGIN_ARGS(SWaveformEditorTimeRuler)
-		: _DisplayUnit(EWaveformEditorDisplayUnit::Seconds)
+	SLATE_BEGIN_ARGS(SFixedSampledSequenceRuler)
+		: _DisplayUnit(ESampledSequenceDisplayUnit::Seconds)
 	{
 	}
 
-	SLATE_ARGUMENT(EWaveformEditorDisplayUnit, DisplayUnit)
+	SLATE_ARGUMENT(ESampledSequenceDisplayUnit, DisplayUnit)
 
-	SLATE_STYLE_ARGUMENT(FWaveformEditorTimeRulerStyle, Style)
-	
+	/** Whether the playhead should be drawn or not */
+	SLATE_ATTRIBUTE(bool, DisplayPlayhead)
+
+	SLATE_STYLE_ARGUMENT(FFixedSampleSequenceRulerStyle, Style)
+
 	SLATE_END_ARGS()
 
 public:
 	void Construct(const FArguments& InArgs, TSharedRef<IFixedSampledSequenceGridService> InGridService);
 	void UpdateGridMetrics();
-	void UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDisplayUnit);
+	void UpdateDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit);
 	void SetPlayheadPosition(const float InNewPosition);
-
-	void OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle);
+	void OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle);
 
 	/** Delegate sent when the user selects a new display unit from the RMB menu*/
 	FOnTimeUnitMenuSelection OnTimeUnitMenuSelection;
@@ -47,11 +48,11 @@ private:
 
 	TSharedRef<SWidget> MakeContextMenu();
 	void MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder);
-	void NotifyTimeUnitMenuSelection(const EWaveformEditorDisplayUnit SelectedDisplayUnit) const;
+	void NotifyTimeUnitMenuSelection(const ESampledSequenceDisplayUnit SelectedDisplayUnit) const;
 
 	FFixedSampledSequenceGridMetrics GridMetrics;
 
-	const FWaveformEditorTimeRulerStyle* Style = nullptr;
+	const FFixedSampleSequenceRulerStyle* Style = nullptr;
 
 	FSlateColor BackgroundColor = FLinearColor::Black;
 	FSlateBrush BackgroundBrush;
@@ -59,15 +60,18 @@ private:
 	FSlateColor HandleColor = FLinearColor(255.f, 0.1f, 0.2f, 1.f);
 	FSlateColor TicksColor = FLinearColor(1.f, 1.f, 1.f, 0.9f);
 	FSlateColor TicksTextColor = FLinearColor(1.f, 1.f, 1.f, 0.9f);
+
 	float DesiredHeight = 0.f;
 	float DesiredWidth = 0.f;
 	float HandleWidth = 15.f;
 	float TicksTextOffset = 5.f;
 	float PlayheadPosition = 0.f;
+
 	FSlateFontInfo TicksTextFont;
 
 	TSharedPtr<IFixedSampledSequenceGridService> GridService = nullptr;
 
-	EWaveformEditorDisplayUnit DisplayUnit;
-};
+	ESampledSequenceDisplayUnit DisplayUnit;
 
+	bool bDisplayPlayhead = true;
+};

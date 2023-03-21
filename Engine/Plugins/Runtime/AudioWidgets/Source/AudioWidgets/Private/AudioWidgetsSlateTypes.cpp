@@ -13,6 +13,7 @@ namespace AudioWidgetStylesSharedParams
 	const FLazyName BackgroundBrushName = "WhiteBrush";
 	const FLazyName PlayheadHandleBrushName = "Sequencer.Timeline.VanillaScrubHandleDown";
 	const FLinearColor PlayheadColor = FLinearColor(255.f, 0.1f, 0.2f, 1.f);
+	const FLinearColor RulerTicksColor = FLinearColor(1.f, 1.f, 1.f, 0.9f);
 	const float DefaultHeight = 720.f;
 	const float DefaultWidth = 1280.f;
 }
@@ -124,4 +125,33 @@ const FPlayheadOverlayStyle& FPlayheadOverlayStyle::GetDefault()
 {
 	static FPlayheadOverlayStyle Default;
 	return Default;
+}
+
+const FName FFixedSampleSequenceRulerStyle::TypeName("FFixedSampleSequenceRulerStyle");
+
+FFixedSampleSequenceRulerStyle::FFixedSampleSequenceRulerStyle()
+	: HandleWidth(15.f)
+	, HandleColor(AudioWidgetStylesSharedParams::PlayheadColor)
+	, HandleBrush(*FAppStyle::GetBrush(AudioWidgetStylesSharedParams::PlayheadHandleBrushName))
+	, TicksColor(AudioWidgetStylesSharedParams::RulerTicksColor)
+	, TicksTextColor(AudioWidgetStylesSharedParams::RulerTicksColor)
+	, TicksTextFont(FAppStyle::GetFontStyle("Regular"))
+	, TicksTextOffset(5.f)
+	, BackgroundColor(FLinearColor::Black)
+	, BackgroundBrush(*FAppStyle::GetBrush(AudioWidgetStylesSharedParams::BackgroundBrushName))
+	, DesiredWidth(AudioWidgetStylesSharedParams::DefaultWidth)
+	, DesiredHeight(30.f)
+{
+}
+
+const FFixedSampleSequenceRulerStyle& FFixedSampleSequenceRulerStyle::GetDefault()
+{
+	static FFixedSampleSequenceRulerStyle Default;
+	return Default;
+}
+
+void FFixedSampleSequenceRulerStyle::GetResources(TArray< const FSlateBrush* >& OutBrushes) const
+{
+	OutBrushes.Add(&HandleBrush);
+	OutBrushes.Add(&BackgroundBrush);
 }

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SWaveformEditorTimeRuler.h"
-
+#include "SFixedSampledSequenceRuler.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -9,16 +8,20 @@
 
 #define LOCTEXT_NAMESPACE "WaveformEditorTimeRuler"
 
-void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<IFixedSampledSequenceGridService> InGridService)
+void SFixedSampledSequenceRuler::Construct(const FArguments& InArgs, TSharedRef<IFixedSampledSequenceGridService> InGridService)
 {
 	GridService = InGridService;
 	UpdateGridMetrics();
-
 	DisplayUnit = InArgs._DisplayUnit;
 
+	if (InArgs._DisplayPlayhead.IsSet())
+	{
+		bDisplayPlayhead = InArgs._DisplayPlayhead.Get();
+	}
+
 	Style = InArgs._Style;
-	
 	check(Style);
+
 	HandleColor = Style->HandleColor;
 	HandleWidth = Style->HandleWidth;
 	HandleBrush = Style->HandleBrush;
@@ -32,12 +35,12 @@ void SWaveformEditorTimeRuler::Construct(const FArguments& InArgs, TSharedRef<IF
 	TicksTextOffset = Style->TicksTextOffset;
 }
 
-FVector2D SWaveformEditorTimeRuler::ComputeDesiredSize(float) const
+FVector2D SFixedSampledSequenceRuler::ComputeDesiredSize(float) const
 {
 	return FVector2D(DesiredWidth, DesiredHeight);
 }
 
-int32 SWaveformEditorTimeRuler::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+int32 SFixedSampledSequenceRuler::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
@@ -48,27 +51,30 @@ int32 SWaveformEditorTimeRuler::OnPaint(const FPaintArgs& Args, const FGeometry&
 		BackgroundColor.GetSpecifiedColor());
 	
 	DrawRulerTicks(AllottedGeometry, OutDrawElements, LayerId);
-	DrawPlayheadHandle(AllottedGeometry, OutDrawElements, LayerId);
-
+	
+	if (bDisplayPlayhead)
+	{
+		DrawPlayheadHandle(AllottedGeometry, OutDrawElements, LayerId);
+	}
+	
 	return LayerId;
 }
 
-void SWaveformEditorTimeRuler::DrawRulerTicks(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
+void SFixedSampledSequenceRuler::DrawRulerTicks(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
 {
 	const double MinorGridXStep = GridMetrics.MajorGridXStep / GridMetrics.NumMinorGridDivisions;
 	const double MajorTickY = AllottedGeometry.Size.Y * 0.25;
 	const double MinorTickY = AllottedGeometry.Size.Y * 0.75;
-
+	
 	TArray<FVector2D> LinePoints;
 	LinePoints.SetNumUninitialized(2);
-
+	
 	for (double CurrentMajorTickX = GridMetrics.FirstMajorTickX; CurrentMajorTickX < AllottedGeometry.Size.X; CurrentMajorTickX += GridMetrics.MajorGridXStep)
 	{
 		const double MajorTickX = CurrentMajorTickX;
-		
 		LinePoints[0] = FVector2D(MajorTickX, MajorTickY);
 		LinePoints[1] = FVector2D(MajorTickX, AllottedGeometry.Size.Y);
-
+		
 		FSlateDrawElement::MakeLines(
 			OutDrawElements,
 			++LayerId,
@@ -77,15 +83,12 @@ void SWaveformEditorTimeRuler::DrawRulerTicks(const FGeometry& AllottedGeometry,
 			ESlateDrawEffect::None,
 			TicksColor.GetSpecifiedColor(),
 			false);
-
-
+		
 		for (int32 MinorTickIndex = 1; MinorTickIndex < GridMetrics.NumMinorGridDivisions; ++MinorTickIndex)
 		{
 			const double MinorTickX = MajorTickX + MinorGridXStep * MinorTickIndex;
-			
 			LinePoints[0] = FVector2D(MinorTickX, MinorTickY);
 			LinePoints[1] = FVector2D(MinorTickX, AllottedGeometry.Size.Y);
-
 			FSlateDrawElement::MakeLines(
 				OutDrawElements,
 				++LayerId,
@@ -94,36 +97,35 @@ void SWaveformEditorTimeRuler::DrawRulerTicks(const FGeometry& AllottedGeometry,
 				ESlateDrawEffect::None,
 				TicksColor.GetSpecifiedColor(),
 				false);
-
 		}
-
+		
 		uint32 TickFrame = FMath::RoundToInt32(MajorTickX / GridMetrics.PixelsPerFrame) + GridMetrics.StartFrame;
 		DrawTickTimeString(TickFrame, MajorTickX, MajorTickY, OutDrawElements, LayerId, AllottedGeometry);
 	}
 }
 
-void SWaveformEditorTimeRuler::DrawTickTimeString(uint32 TickFrame, const double TickX, const double TickY, FSlateWindowElementList& OutDrawElements, int32& LayerId, const FGeometry& AllottedGeometry) const
+void SFixedSampledSequenceRuler::DrawTickTimeString(uint32 TickFrame, const double TickX, const double TickY, FSlateWindowElementList& OutDrawElements, int32& LayerId, const FGeometry& AllottedGeometry) const
 {
 	FString TimeString;
-
+	
 	switch (DisplayUnit)
 	{
-	case EWaveformEditorDisplayUnit::Samples:
+	case ESampledSequenceDisplayUnit::Samples:
 	{
 		uint32 SampleTime = TickFrame;
 		TimeString = FString::Printf(TEXT("%d"), SampleTime);
 	}
 	break;
-	case EWaveformEditorDisplayUnit::Seconds:
+	case ESampledSequenceDisplayUnit::Seconds:
 		TimeString = FString::Printf(TEXT("%.3f"), TickFrame / (float) GridMetrics.SampleRate);
 		break;
 	default:
 		TimeString = FString::Printf(TEXT("%.3f"), TickFrame / (float)GridMetrics.SampleRate);
 		break;
 	}
-
+	
 	FVector2D TextOffset(TickX + TicksTextOffset, TickY);
-
+	
 	FSlateDrawElement::MakeText(
 		OutDrawElements,
 		++LayerId,
@@ -135,7 +137,7 @@ void SWaveformEditorTimeRuler::DrawTickTimeString(uint32 TickFrame, const double
 	);
 }
 
-TSharedRef<SWidget> SWaveformEditorTimeRuler::MakeContextMenu()
+TSharedRef<SWidget> SFixedSampledSequenceRuler::MakeContextMenu()
 {
 	const bool bCloseAfterSelection = false;
 	const bool bCloseSelfOnly = false;
@@ -145,16 +147,14 @@ TSharedRef<SWidget> SWaveformEditorTimeRuler::MakeContextMenu()
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("TimeUnitsSubMenuLabel", "Time Unit"),
 			LOCTEXT("TimeUnitsSubMenuLabelToolTip", "Select the time unit shown by the grid"),
-			FNewMenuDelegate::CreateSP(this, &SWaveformEditorTimeRuler::MakeTimeUnitsSubMenu)
+			FNewMenuDelegate::CreateSP(this, &SFixedSampledSequenceRuler::MakeTimeUnitsSubMenu)
 		);
 	}
 	MenuBuilder.EndSection();
-
-	
 	return MenuBuilder.MakeWidget();
 }
 
-void SWaveformEditorTimeRuler::MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder)
+void SFixedSampledSequenceRuler::MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder)
 {
 	SubMenuBuilder.BeginSection(NAME_None);
 
@@ -163,9 +163,9 @@ void SWaveformEditorTimeRuler::MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder
 		LOCTEXT("TimeUnitsSubMenuEntry_Seconds", "Seconds"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP(this, &SWaveformEditorTimeRuler::NotifyTimeUnitMenuSelection, EWaveformEditorDisplayUnit::Seconds),
-			FCanExecuteAction::CreateLambda([this] { return DisplayUnit != EWaveformEditorDisplayUnit::Seconds; }),
-			FIsActionChecked::CreateLambda([this] { return DisplayUnit == EWaveformEditorDisplayUnit::Seconds;})
+			FExecuteAction::CreateSP(this, &SFixedSampledSequenceRuler::NotifyTimeUnitMenuSelection, ESampledSequenceDisplayUnit::Seconds),
+			FCanExecuteAction::CreateLambda([this] { return DisplayUnit != ESampledSequenceDisplayUnit::Seconds; }),
+			FIsActionChecked::CreateLambda([this] { return DisplayUnit == ESampledSequenceDisplayUnit::Seconds;})
 		),
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
@@ -176,9 +176,9 @@ void SWaveformEditorTimeRuler::MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder
 		LOCTEXT("TimeUnitsSubMenuEntry_Frames", "Frames"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP(this, &SWaveformEditorTimeRuler::NotifyTimeUnitMenuSelection, EWaveformEditorDisplayUnit::Samples),
-			FCanExecuteAction::CreateLambda([this] { return DisplayUnit != EWaveformEditorDisplayUnit::Samples; }),
-			FIsActionChecked::CreateLambda([this] { return DisplayUnit == EWaveformEditorDisplayUnit::Samples; })
+			FExecuteAction::CreateSP(this, &SFixedSampledSequenceRuler::NotifyTimeUnitMenuSelection, ESampledSequenceDisplayUnit::Samples),
+			FCanExecuteAction::CreateLambda([this] { return DisplayUnit != ESampledSequenceDisplayUnit::Samples; }),
+			FIsActionChecked::CreateLambda([this] { return DisplayUnit == ESampledSequenceDisplayUnit::Samples; })
 		),
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
@@ -187,7 +187,7 @@ void SWaveformEditorTimeRuler::MakeTimeUnitsSubMenu(FMenuBuilder& SubMenuBuilder
 	SubMenuBuilder.EndSection();
  }
 
-void SWaveformEditorTimeRuler::NotifyTimeUnitMenuSelection(const EWaveformEditorDisplayUnit SelectedDisplayUnit) const
+void SFixedSampledSequenceRuler::NotifyTimeUnitMenuSelection(const ESampledSequenceDisplayUnit SelectedDisplayUnit) const
 {
 	if (SelectedDisplayUnit == DisplayUnit)
 	{
@@ -200,28 +200,26 @@ void SWaveformEditorTimeRuler::NotifyTimeUnitMenuSelection(const EWaveformEditor
 	}
 }
 
-void SWaveformEditorTimeRuler::UpdateGridMetrics()
+void SFixedSampledSequenceRuler::UpdateGridMetrics()
 {
 	check(GridService)
 	GridMetrics = GridService->GetGridMetrics();
 }
 
-void SWaveformEditorTimeRuler::UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDisplayUnit)
+void SFixedSampledSequenceRuler::UpdateDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit)
 {
 	DisplayUnit = InDisplayUnit;
 }
 
-void SWaveformEditorTimeRuler::SetPlayheadPosition(const float InNewPosition)
+void SFixedSampledSequenceRuler::SetPlayheadPosition(const float InNewPosition)
 {
 	PlayheadPosition = InNewPosition;
 }
 
-void SWaveformEditorTimeRuler::OnStyleUpdated(const FWaveformEditorWidgetStyleBase* UpdatedStyle)
+void SFixedSampledSequenceRuler::OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle)
 {
-	check(UpdatedStyle);
 	check(Style);
-
-	if (UpdatedStyle != Style)
+	if (&UpdatedStyle != Style)
 	{
 		return;
 	}
@@ -239,15 +237,13 @@ void SWaveformEditorTimeRuler::OnStyleUpdated(const FWaveformEditorWidgetStyleBa
 	TicksTextOffset = Style->TicksTextOffset;
 }
 
-void SWaveformEditorTimeRuler::DrawPlayheadHandle(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
+void SFixedSampledSequenceRuler::DrawPlayheadHandle(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
 {
 	const float WindowWidth = AllottedGeometry.Size.X;
 	const float PlayheadCenter = PlayheadPosition;
 	const float	HandleStart = PlayheadCenter - HandleWidth / 2;
 	const float	HandleEnd = HandleStart + HandleWidth;
-
  	FPaintGeometry HandleGeometry = AllottedGeometry.ToPaintGeometry(FVector2f(HandleEnd - HandleStart, AllottedGeometry.Size.Y), FSlateLayoutTransform(FVector2f(HandleStart, 0)));
-
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		LayerId,
@@ -256,7 +252,6 @@ void SWaveformEditorTimeRuler::DrawPlayheadHandle(const FGeometry& AllottedGeome
 		ESlateDrawEffect::None,
 		HandleColor.GetSpecifiedColor()
 	);
-
 	++LayerId;
 }
 

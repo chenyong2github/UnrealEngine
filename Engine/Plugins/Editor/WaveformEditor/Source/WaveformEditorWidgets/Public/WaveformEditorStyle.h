@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Styling/SlateStyle.h"
-#include "WaveformEditorSlateTypes.h"
 
 class UWaveformEditorWidgetsSettings;
 

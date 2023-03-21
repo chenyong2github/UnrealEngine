@@ -2,7 +2,7 @@
 
 #pragma once
 
-enum class EWaveformEditorDisplayUnit
+enum class ESampledSequenceDisplayUnit
 {
 	Samples,
 	Seconds

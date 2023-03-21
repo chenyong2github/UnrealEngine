@@ -5,17 +5,17 @@
 #include "HAL/Platform.h"
 #include "Widgets/SCompoundWidget.h"
 
-enum class EWaveformEditorDisplayUnit;
-class FSparseSampledSequenceTransportCoordinator;
-class FWaveformEditorGridData;
-class FWaveformEditorRenderData;
-class FWaveformEditorStyle;
-class FWaveformEditorZoomController;
+enum class ESampledSequenceDisplayUnit;
+class SWaveformViewerOverlay;
+class SWaveformTransformationsOverlay;
 class SPlayheadOverlay;
 class SFixedSampledSequenceViewer;
-class SWaveformEditorTimeRuler;
-class SWaveformTransformationsOverlay;
-class SWaveformViewerOverlay;
+class SFixedSampledSequenceRuler;
+class FWaveformEditorZoomController;
+class FWaveformEditorStyle;
+class FWaveformEditorRenderData;
+class FWaveformEditorGridData;
+class FSparseSampledSequenceTransportCoordinator;
 
 namespace WaveformEditorPanel
 {
@@ -57,19 +57,19 @@ private:
 	FReply HandleTimeRulerMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
 	FReply HandleTimeRulerInteraction(const WaveformEditorPanel::EReceivedInteractionType MouseInteractionType, const FPointerEvent& MouseEvent, const FGeometry& Geometry);
 	FReply HandlePlayheadOverlayMouseButtonUp(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
-	
+
 	//temporary float render data conversion while widgets are made generic
 	void GenerateFloatRenderData();
 	TArray<float> FloatRenderData;
 
-	void UpdateDisplayUnit(const EWaveformEditorDisplayUnit InDisplayUnit);
+	void UpdateDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit);
 	void UpdatePlayheadPosition(const float PaintedWidth);
 
 	TSharedPtr<FWaveformEditorRenderData> RenderData;
 	TSharedPtr<FWaveformEditorGridData> GridData;
 	TSharedPtr<FSparseSampledSequenceTransportCoordinator> TransportCoordinator;
 
-	TSharedPtr<SWaveformEditorTimeRuler> TimeRuler;
+	TSharedPtr<SFixedSampledSequenceRuler> TimeRuler;
 	TSharedPtr<SFixedSampledSequenceViewer> WaveformViewer;
 	TSharedPtr<SWaveformTransformationsOverlay> WaveformTransformationsOverlay;
 	TSharedPtr<SWaveformViewerOverlay> WaveformViewerOverlay;
@@ -77,7 +77,7 @@ private:
 
 	float CachedPixelWidth = 0.f;
 
-	EWaveformEditorDisplayUnit DisplayUnit;
+	ESampledSequenceDisplayUnit DisplayUnit;
 
 	FWaveformEditorStyle* WaveformEditorStyle;
 };

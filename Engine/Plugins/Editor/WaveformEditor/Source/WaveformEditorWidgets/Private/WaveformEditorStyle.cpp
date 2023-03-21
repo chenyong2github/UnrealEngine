@@ -4,8 +4,6 @@
 
 #include "AudioWidgetsSlateTypes.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "WaveformEditorSlateTypes.h"
-#include "WaveformEditorWidgetsSettings.h"
 #include "WaveformEditorWidgetsSettings.h"
 
 static FLazyName WaveformViewerStyleName("WaveformViewer.Style");
@@ -63,7 +61,7 @@ void FWaveformEditorStyle::Init()
 	StyleInstance->Set(PlayheadOverlayStyleName, PlayheadOverlayStyle);
 
 	//Time Ruler style 
-	FWaveformEditorTimeRulerStyle TimeRulerStyle = FWaveformEditorTimeRulerStyle()
+	FFixedSampleSequenceRulerStyle TimeRulerStyle = FFixedSampleSequenceRulerStyle()
 		.SetHandleColor(Settings->PlayheadColor)
 		.SetTicksColor(Settings->RulerTicksColor)
 		.SetTicksTextColor(Settings->RulerTextColor)
@@ -88,7 +86,7 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 {
 	TSharedRef<FSampledSequenceViewerStyle> WaveformViewerStyle = GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>(WaveformViewerStyleName);
 	TSharedRef<FPlayheadOverlayStyle> PlayheadOverlayStyle = GetRegisteredWidgetStyle<FPlayheadOverlayStyle>(PlayheadOverlayStyleName);
-	TSharedRef<FWaveformEditorTimeRulerStyle> WaveformEditorTimeRulerStyle = GetRegisteredWidgetStyle<FWaveformEditorTimeRulerStyle>(WaveformEditorRulerStyleName);
+	TSharedRef<FFixedSampleSequenceRulerStyle> WaveformEditorTimeRulerStyle = GetRegisteredWidgetStyle<FFixedSampleSequenceRulerStyle>(WaveformEditorRulerStyleName);
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, WaveformColor))
 	{
