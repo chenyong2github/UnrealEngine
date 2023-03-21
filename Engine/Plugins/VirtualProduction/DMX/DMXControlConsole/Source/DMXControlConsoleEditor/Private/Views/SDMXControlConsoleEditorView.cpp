@@ -57,10 +57,8 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	RegisterCommands();
 
 	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
-
-	PresetModel->GetOnPresetLoaded().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
-	PresetModel->GetOnPresetLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowAdded);
-	PresetModel->GetOnPresetLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnFaderGroupRowRemoved);
+	PresetModel->GetOnPresetLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnPresetLoaded);
+	PresetModel->GetOnPresetSaved().AddSP(this, &SDMXControlConsoleEditorView::OnPresetSaved);
 
 	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = ControlConsoleManager.GetSelectionHandler();
@@ -238,6 +236,8 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 		];
 	
 	ForceUpdateDetailsViews();
+
+	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
 UDMXControlConsole* SDMXControlConsoleEditorView::GetControlConsole() const
@@ -270,15 +270,45 @@ void SDMXControlConsoleEditorView::Tick(const FGeometry& AllottedGeometry, const
 	}
 }
 
+FReply SDMXControlConsoleEditorView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (CommandList->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SDMXControlConsoleEditorView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FSlateApplication::Get().SetKeyboardFocus(AsShared());
+
+	return FReply::Handled();
+}
+
 void SDMXControlConsoleEditorView::RegisterCommands()
 {
 	CommandList = MakeShared<FUICommandList>();
 
 	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
+
 	CommandList->MapAction
 	(
 		FDMXControlConsoleEditorCommands::Get().CreateNewPreset,
 		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::CreateNewPreset)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().SavePreset,
+		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::SavePreset)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().SavePresetAs,
+		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::SavePresetAs)
 	);
 
 	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
@@ -322,7 +352,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 			TAttribute<FText>(),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.PlusCircle")
 		);
-		
+
 		ToolbarBuilder.AddWidget(SNew(SDMXControlConsoleEditorAssetPicker));
 	}
 	ToolbarBuilder.EndSection();
@@ -364,11 +394,11 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 
 	ToolbarBuilder.BeginSection("Search");
 	{
-		const TSharedRef<SSearchBox> GlobalSearchBox =
-			SNew(SSearchBox)
-			.MinDesiredWidth(400.f)
-			.OnTextChanged(this, &SDMXControlConsoleEditorView::OnSearchTextChanged)
-			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."));
+			TSharedRef<SSearchBox> GlobalSearchBox = 
+				SNew(SSearchBox)
+				.MinDesiredWidth(400.f)
+				.OnTextChanged(this, &SDMXControlConsoleEditorView::OnSearchTextChanged)
+				.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."));
 
 		ToolbarBuilder.AddWidget(GlobalSearchBox);
 	}
@@ -576,6 +606,20 @@ void SDMXControlConsoleEditorView::OnBrowseToPresetClicked()
 bool SDMXControlConsoleEditorView::IsAnyPresetLoaded() const
 {
 	return FDMXControlConsoleEditorManager::Get().GetPreset() != nullptr;
+}
+
+void SDMXControlConsoleEditorView::OnPresetLoaded()
+{
+	RequestUpdateDetailsViews();
+	OnFaderGroupRowAdded();
+	OnFaderGroupRowRemoved();
+
+	FSlateApplication::Get().SetKeyboardFocus(AsShared());
+}
+
+void SDMXControlConsoleEditorView::OnPresetSaved()
+{
+	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
 void SDMXControlConsoleEditorView::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)

@@ -212,6 +212,7 @@ FReply SDMXControlConsoleEditorFaderGroup::OnMouseButtonDoubleClick(const FGeome
 		if (ExpandArrowButton.IsValid())
 		{
 			ExpandArrowButton->ToggleExpandArrow();
+
 			return FReply::Handled();
 		}
 	}
@@ -250,7 +251,7 @@ void SDMXControlConsoleEditorFaderGroup::OnSelectionChanged()
 			return;
 		}
 
-		// Set keyboard focus
+		// Set keyboard focus only if there are no more selected Faders in the Fader Group
 		if (IsSelected() && SelectionHandler->GetSelectedFadersFromFaderGroup(FaderGroup).IsEmpty())
 		{
 			FSlateApplication::Get().SetKeyboardFocus(AsShared());

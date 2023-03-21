@@ -40,6 +40,9 @@ public:
 
 protected:
 	//~ Begin SWidget interface
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	//~ End of SWidget interface
 
@@ -82,6 +85,12 @@ private:
 
 	/** Returns true if any preset was loaded to the console */
 	bool IsAnyPresetLoaded() const;
+
+	/** Called when a preset is loaded */
+	void OnPresetLoaded();
+
+	/** Called when a preset is saved */
+	void OnPresetSaved();
 
 	/** Called when the active tab in the editor changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);

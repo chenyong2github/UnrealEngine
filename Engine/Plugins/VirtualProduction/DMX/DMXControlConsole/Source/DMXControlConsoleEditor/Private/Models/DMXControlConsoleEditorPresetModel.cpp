@@ -91,6 +91,8 @@ void UDMXControlConsoleEditorPresetModel::SavePreset()
 		// Save as a new preset
 		SavePresetAs();
 	}
+
+	OnPresetSavedDelegate.Broadcast();
 }
 
 void UDMXControlConsoleEditorPresetModel::SavePresetAs()

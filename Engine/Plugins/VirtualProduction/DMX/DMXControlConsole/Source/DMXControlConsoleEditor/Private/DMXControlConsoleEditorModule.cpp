@@ -9,6 +9,7 @@
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorView.h"
 
+#include "AssetToolsModule.h"
 #include "LevelEditor.h"
 #include "ToolMenu.h"
 #include "Framework/Docking/TabManager.h"
@@ -23,7 +24,7 @@ const FName FDMXControlConsoleEditorModule::ControlConsoleTabName("DMXControlCon
 void FDMXControlConsoleEditorModule::StartupModule()
 {
 	FDMXControlConsoleEditorCommands::Register();
-	RegisterControlConsoleActions();
+	RegisterLevelEditorCommands();
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 		ControlConsoleTabName, 
@@ -39,7 +40,12 @@ void FDMXControlConsoleEditorModule::ShutdownModule()
 {
 }
 
-void FDMXControlConsoleEditorModule::RegisterControlConsoleActions()
+void FDMXControlConsoleEditorModule::OpenControlConsole()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(ControlConsoleTabName);
+}
+
+void FDMXControlConsoleEditorModule::RegisterLevelEditorCommands()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	const TSharedRef<FUICommandList> CommandList = LevelEditorModule.GetGlobalLevelEditorActions();
@@ -64,16 +70,11 @@ void FDMXControlConsoleEditorModule::RegisterDMXMenuExtender()
 void FDMXControlConsoleEditorModule::ExtendDMXMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().OpenControlConsole,
-			NAME_None,
-			LOCTEXT("DMXControlConsoleMenuLabel", "Control Console"),
-			LOCTEXT("DMXControlConsoleMenuTooltip", "Opens a small console that can send DMX locally or over the network"),
-			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.TabIcon")
-		);
-}
-
-void FDMXControlConsoleEditorModule::OpenControlConsole()
-{
-	FGlobalTabmanager::Get()->TryInvokeTab(ControlConsoleTabName);
+		NAME_None,
+		LOCTEXT("DMXControlConsoleMenuLabel", "Control Console"),
+		LOCTEXT("DMXControlConsoleMenuTooltip", "Opens a small console that can send DMX locally or over the network"),
+		FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.TabIcon")
+	);
 }
 
 TSharedRef<SDockTab> FDMXControlConsoleEditorModule::OnSpawnControlConsoleTab(const FSpawnTabArgs& InSpawnTabArgs)

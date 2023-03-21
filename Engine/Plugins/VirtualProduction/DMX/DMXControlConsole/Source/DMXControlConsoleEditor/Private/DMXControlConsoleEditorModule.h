@@ -6,6 +6,7 @@
 
 class FMenuBuilder;
 class FSpawnTabArgs;
+class IAssetTypeActions;
 class SDockTab;
 
 
@@ -19,18 +20,18 @@ public:
 	virtual void ShutdownModule() override;
 	//~End IModuleInterface interface
 
+	/** Opens the ControlConsole */
+	static void OpenControlConsole();
+
 private:
-	/** Registers Control Console actions in Level Editor Commands */
-	void RegisterControlConsoleActions();
+	/** Registers Control Console commands in the Level Editor */
+	void RegisterLevelEditorCommands();
 
 	/** Registers an extender for the Level Editor Toolbar DMX Menu */
 	static void RegisterDMXMenuExtender();
 
 	/** Extends the the Level Editor Toolbar DMX Menu */
 	static void ExtendDMXMenu(FMenuBuilder& MenuBuilder);
-
-	/** Opens the ControlConsole */
-	static void OpenControlConsole();
 
 	/** Spawns the ControlConsole Tab */
 	static TSharedRef<SDockTab> OnSpawnControlConsoleTab(const FSpawnTabArgs& InSpawnTabArgs);

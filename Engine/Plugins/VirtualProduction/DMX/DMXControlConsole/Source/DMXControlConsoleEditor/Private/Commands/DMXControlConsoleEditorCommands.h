@@ -21,7 +21,6 @@ public:
 	TSharedPtr<FUICommandInfo> CreateNewPreset;
 	TSharedPtr<FUICommandInfo> SavePreset;
 	TSharedPtr<FUICommandInfo> SavePresetAs;
-	TSharedPtr<FUICommandInfo> LoadPreset;
 	TSharedPtr<FUICommandInfo> SendDMX;
 	TSharedPtr<FUICommandInfo> StopDMX;
 	TSharedPtr<FUICommandInfo> ClearAll;

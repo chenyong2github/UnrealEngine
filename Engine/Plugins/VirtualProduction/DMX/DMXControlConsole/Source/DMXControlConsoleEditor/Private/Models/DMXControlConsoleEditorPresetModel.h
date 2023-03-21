@@ -47,6 +47,9 @@ public:
 	 */
 	[[nodiscard]] UDMXControlConsolePreset* CreateNewPresetAsset(const FString& SavePackagePath, const FString& SaveAssetName, UDMXControlConsole* SourceControlConsole) const;
 
+	/** Returns a delegate broadcast whenever a preset is saved */
+	FSimpleMulticastDelegate& GetOnPresetSaved() { return OnPresetSavedDelegate; }
+
 	/** Returns a delegate broadcast whenever a preset is loaded */
 	FSimpleMulticastDelegate& GetOnPresetLoaded() { return OnPresetLoadedDelegate; }
 
@@ -77,6 +80,9 @@ private:
 
 	/** Called at the very end of engine initialization, right before the engine starts ticking. */
 	void OnFEngineLoopInitComplete();
+
+	/** Delegate that needs be broadcast whenever a preset is saved */
+	FSimpleMulticastDelegate OnPresetSavedDelegate;
 
 	/** Delegate that needs be broadcast whenever a new preset is loaded */
 	FSimpleMulticastDelegate OnPresetLoadedDelegate;

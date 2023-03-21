@@ -275,13 +275,13 @@ FReply SDMXControlConsoleEditorFader::OnKeyDown(const FGeometry& MyGeometry, con
 	{
 		if (!Fader.IsValid())
 		{
-			return FReply::Unhandled();
+			return FReply::Handled();
 		}
 
 		UDMXControlConsoleFaderGroup& FaderGroup = Fader->GetOwnerFaderGroupChecked();
 		if (FaderGroup.HasFixturePatch())
 		{
-			return FReply::Unhandled();
+			return FReply::Handled();
 		}
 
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
@@ -496,7 +496,7 @@ void SDMXControlConsoleEditorFader::OnSelectionChanged()
 		return;
 	}
 
-	// Set keyboard focus
+	// Set keyboard focus on the Fader, if selected
 	if (IsSelected())
 	{
 		FSlateApplication::Get().SetKeyboardFocus(AsShared());

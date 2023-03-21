@@ -24,7 +24,7 @@ public class DMXControlConsoleEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{              
-				"AssetTools",
+				"AssetDefinition",
 				"AssetRegistry",
 				"ContentBrowser",
 				"CoreUObject",

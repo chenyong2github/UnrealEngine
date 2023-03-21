@@ -36,18 +36,18 @@ void SDMXControlConsoleEditorExpandArrowButton::Construct(const FArguments& InAr
 void SDMXControlConsoleEditorExpandArrowButton::SetExpandArrow(bool bExpand)
 {
 	bIsExpanded = bExpand;
-	OnExpandClicked.ExecuteIfBound(bExpand);
+	OnExpandClicked.ExecuteIfBound(bIsExpanded);
 }
 
 void SDMXControlConsoleEditorExpandArrowButton::ToggleExpandArrow()
 {
 	bIsExpanded = !bIsExpanded;
+	OnExpandClicked.ExecuteIfBound(bIsExpanded);
 }
 
 FReply SDMXControlConsoleEditorExpandArrowButton::OnExpandArrowClicked()
 {
 	ToggleExpandArrow();
-	OnExpandClicked.ExecuteIfBound(bIsExpanded);
 
 	return FReply::Handled();
 }
