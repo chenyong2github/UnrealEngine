@@ -194,12 +194,12 @@ class GAMEPLAYABILITIES_API UGameplayCueManager : public UDataAsset
 	/** Prespawns a single actor for gameplaycue notify actor classes that need prespawning (should be called by outside gamecode, such as gamestate) */
 	void UpdatePreallocation(UWorld* World);
 
-	void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
+	void OnPostWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 
 	void OnPreReplayScrub(UWorld* World);
 
-	/** Prints what classess exceeded their preallocation sizes during runtime */
-	void DumpPreallocationStats(UWorld* World);
+	/** Prints what classes exceeded their preallocation sizes during runtime */
+	void DumpPreallocationStats(const FPreallocationInfo& PreallocationInfo, bool bWarnOnActiveActors = false);
 
 	// -------------------------------------------------------------
 	//  Loading GameplayCueNotifies from ObjectLibraries
