@@ -28,7 +28,7 @@ struct PBIK_API FPBIKBoneSetting
 		PreferredAngles(FVector::ZeroVector){}
 
 	/** The Bone that these settings will be applied to. */
-	UPROPERTY(EditAnywhere, Category = Bone, meta = (Constant, CustomWidget = "BoneName"))
+	UPROPERTY(EditAnywhere, Category = Bone, meta = (CustomWidget = "BoneName"))
 	FName Bone;
 
 	/** Range is 0 to 1 (Default is 0). At higher values, the bone will resist rotating (forcing other bones to compensate). */

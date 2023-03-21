@@ -100,10 +100,37 @@ struct FPBIKEffector
 	float PinRotation = 1.0f;
 };
 
+USTRUCT()
+struct FPBIKWorkData
+{
+	GENERATED_BODY()
+	
+	FPBIKWorkData() :
+		bNeedsInit(true),
+		HashInitializedWith(-1)
+	{
+	}
+	
+	UPROPERTY(transient)
+	bool bNeedsInit;
+
+	UPROPERTY(transient)
+	uint32 HashInitializedWith;
+	
+	UPROPERTY(transient)
+	TArray<int32> BoneSettingToSolverBoneIndex;
+
+	UPROPERTY(transient)
+	TArray<int32> SolverBoneToElementIndex;
+	
+	UPROPERTY(transient)
+	FPBIKSolver Solver;
+};
+
 /*
  * Based on a Position Based solver at core, this node can solve multi chains within a root using multi effectors
  */
-USTRUCT(meta=(DisplayName="Full Body IK", Category="Hierarchy", Keywords="Position Based, PBIK, IK, Full Body, Multi, Effector, N-Chain, FB, HIK, HumanIK", NodeColor="0 1 1"))
+USTRUCT(meta=(DisplayName="Full Body IK", Category="Hierarchy", Keywords="FBIK, Position Based, PBIK, IK, Full Body, Multi, Effector, N-Chain, FB, HIK, HumanIK", NodeColor="0 1 1"))
 struct FRigUnit_PBIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -111,11 +138,7 @@ struct FRigUnit_PBIK : public FRigUnit_HighlevelBaseMutable
 	RIGVM_METHOD()
 	virtual void Execute() override;
 
-	FRigUnit_PBIK() :
-		Root(NAME_None),
-		bNeedsInit(true)
-	{
-	}
+	FRigUnit_PBIK() : Root(NAME_None) { }
 
 	/**This is usually the top-most skinned bone; often the "Pelvis" or "Hips", but can be set to any bone.
 	 *Bones above the root will be ignored by the solver.
@@ -147,15 +170,7 @@ struct FRigUnit_PBIK : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	FPBIKDebug Debug;
 
+	/** Runtime-only data */
 	UPROPERTY(transient)
-	TArray<int32> BoneSettingToSolverBoneIndex;
-
-	UPROPERTY(transient)
-	TArray<int32> SolverBoneToElementIndex;
-
-	UPROPERTY(transient)
-	FPBIKSolver Solver;
-
-	UPROPERTY(transient)
-	bool bNeedsInit;
+	FPBIKWorkData WorkData;
 };
