@@ -41,66 +41,102 @@ template<class RealBoneIndexType>
 struct FBoneIndexWithOperators : public FBoneIndexBase
 {
 	// BoneIndexType
-	FORCEINLINE bool operator==(const RealBoneIndexType& Rhs) const
+	FORCEINLINE friend bool operator==(const RealBoneIndexType& Lhs, const RealBoneIndexType& Rhs)
 	{
-		return BoneIndex == GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) == GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator!=(const RealBoneIndexType& Rhs) const
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+	FORCEINLINE friend bool operator!=(const RealBoneIndexType& Lhs, const RealBoneIndexType& Rhs)
 	{
-		return BoneIndex != GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) != GetIntFromComp(Rhs);
+	}
+#endif // !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+
+	FORCEINLINE friend bool operator>(const RealBoneIndexType& Lhs, const RealBoneIndexType& Rhs)
+	{
+		return GetIntFromComp(Lhs) > GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator>(const RealBoneIndexType& Rhs) const
+	FORCEINLINE friend bool operator>=(const RealBoneIndexType& Lhs, const RealBoneIndexType& Rhs)
 	{
-		return BoneIndex > GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) >= GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator>=(const RealBoneIndexType& Rhs) const
+	FORCEINLINE friend bool operator<(const RealBoneIndexType& Lhs, const RealBoneIndexType& Rhs)
 	{
-		return BoneIndex >= GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) < GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator<(const RealBoneIndexType& Rhs) const
+	FORCEINLINE friend bool operator<=(const RealBoneIndexType& Lhs, const RealBoneIndexType& Rhs)
 	{
-		return BoneIndex < GetIntFromComp(Rhs);
-	}
-
-	FORCEINLINE bool operator<=(const RealBoneIndexType& Rhs) const
-	{
-		return BoneIndex <= GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) <= GetIntFromComp(Rhs);
 	}
 
 	// FBoneIndexType
-	FORCEINLINE bool operator==(const int32 Rhs) const
+	FORCEINLINE friend bool operator==(const RealBoneIndexType& Lhs, const int32 Rhs)
 	{
-		return BoneIndex == GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) == GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator!=(const int32 Rhs) const
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+	FORCEINLINE friend bool operator!=(const RealBoneIndexType& Lhs, const int32 Rhs)
 	{
-		return BoneIndex != GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) != GetIntFromComp(Rhs);
+	}
+#endif // !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+
+	FORCEINLINE friend bool operator>(const RealBoneIndexType& Lhs, const int32 Rhs)
+	{
+		return GetIntFromComp(Lhs) > GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator>(const int32 Rhs) const
+	FORCEINLINE friend bool operator>=(const RealBoneIndexType& Lhs, const int32 Rhs)
 	{
-		return BoneIndex > GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) >= GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator>=(const int32 Rhs) const
+	FORCEINLINE friend bool operator<(const RealBoneIndexType& Lhs, const int32 Rhs)
 	{
-		return BoneIndex >= GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) < GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator<(const int32 Rhs) const
+	FORCEINLINE friend bool operator<=(const RealBoneIndexType& Lhs, const int32 Rhs)
 	{
-		return BoneIndex < GetIntFromComp(Rhs);
+		return GetIntFromComp(Lhs) <= GetIntFromComp(Rhs);
 	}
 
-	FORCEINLINE bool operator<=(const int32 Rhs) const
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+	FORCEINLINE friend bool operator==(const int32 Lhs, const RealBoneIndexType& Rhs)
 	{
-		return BoneIndex <= GetIntFromComp(Rhs);
+		return Rhs == Lhs;
 	}
+	
+	FORCEINLINE friend bool operator!=(const int32 Lhs, const RealBoneIndexType& Rhs)
+	{
+		return Rhs != Lhs;
+	}
+
+	FORCEINLINE friend bool operator>(const int32 Lhs, const RealBoneIndexType& Rhs)
+	{
+		return Rhs < Lhs;
+	}
+
+	FORCEINLINE friend bool operator>=(const int32 Lhs, const RealBoneIndexType& Rhs)
+	{
+		return Rhs <= Lhs;
+	}
+
+	FORCEINLINE friend bool operator<(const int32 Lhs, const RealBoneIndexType& Rhs)
+	{
+		return Rhs > Lhs;
+	}
+
+	FORCEINLINE friend bool operator<=(const int32 Lhs, const RealBoneIndexType& Rhs)
+	{
+		return Rhs >= Lhs;
+	}
+#endif // !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
 
 	RealBoneIndexType& operator++()
 	{
