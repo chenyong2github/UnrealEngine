@@ -1174,10 +1174,10 @@ bool FPhysInterface_Chaos::GetSquaredDistanceToBody(const FBodyInstance* InInsta
 	return bFoundValidBody;
 }
 
-uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
+uint32 GetTriangleMeshExternalFaceIndex(const Chaos::FImplicitObject* Geom, uint32 InternalFaceIndex)
 {
 	using namespace Chaos;
-	uint8 OuterType = Shape.GetGeometry()->GetType();
+	uint8 OuterType = Geom->GetType();
 	uint8 InnerType = GetInnerType(OuterType);
 	if (ensure(InnerType == ImplicitObjectType::TriangleMesh))
 	{
@@ -1185,22 +1185,28 @@ uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 Inter
 
 		if (IsScaled(OuterType))
 		{
-			const TImplicitObjectScaled<FTriangleMeshImplicitObject>& ScaledTriangleMesh = Shape.GetGeometry()->GetObjectChecked<TImplicitObjectScaled<FTriangleMeshImplicitObject>>();
+			const TImplicitObjectScaled<FTriangleMeshImplicitObject>& ScaledTriangleMesh = Geom->GetObjectChecked<TImplicitObjectScaled<FTriangleMeshImplicitObject>>();
 			TriangleMesh = ScaledTriangleMesh.GetUnscaledObject();
 		}
 		else if(IsInstanced(OuterType))
 		{
-			TriangleMesh = Shape.GetGeometry()->GetObjectChecked<TImplicitObjectInstanced<FTriangleMeshImplicitObject>>().GetInstancedObject();
+			TriangleMesh = Geom->GetObjectChecked<TImplicitObjectInstanced<FTriangleMeshImplicitObject>>().GetInstancedObject();
 		}
 		else
 		{
-			TriangleMesh = &Shape.GetGeometry()->GetObjectChecked<FTriangleMeshImplicitObject>();
+			TriangleMesh = &Geom->GetObjectChecked<FTriangleMeshImplicitObject>();
 		}
 
 		return TriangleMesh->GetExternalFaceIndexFromInternal(InternalFaceIndex);
 	}
 
 	return -1;
+}
+
+uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
+{
+	// NOTE: GetLeafGeometry will strip Transformed and Instanced wrappers (but not Scaled)
+	return GetTriangleMeshExternalFaceIndex(Shape.GetLeafGeometry(), InternalFaceIndex);
 }
 
 void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties,const TArray<FPhysicsShapeHandle>& InShapes,float InDensityKGPerCM)

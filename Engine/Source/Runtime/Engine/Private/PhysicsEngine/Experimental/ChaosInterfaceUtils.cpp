@@ -278,6 +278,8 @@ namespace ChaosInterface
 
 		if (bMakeComplexGeometry)
 		{
+			const FTransform MeshTransform = FTransform(InParams.LocalTransform.GetRotation(), Scale * InParams.LocalTransform.GetTranslation(), FVector(1, 1, 1));
+			const bool bHasTranslationOrRotation = !MeshTransform.GetTranslation().IsNearlyZero() || !MeshTransform.GetRotation().IsIdentity();
 			const bool bNoScale = Scale == FVector(1);
 			for (auto& ChaosTriMesh : InParams.ChaosTriMeshes)
 			{
@@ -289,6 +291,12 @@ namespace ChaosInterface
 				else
 				{
 					Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FTriangleMeshImplicitObject>(ChaosTriMesh, Scale));
+				}
+
+				// Wrap the mesh in a non-scaled transform if necessary (the scale is pulled out above)
+				if (bHasTranslationOrRotation)
+				{
+					Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>(MoveTemp(Implicit), MeshTransform));
 				}
 
 				ChaosTriMesh->SetCullsBackFaceRaycast(!InParams.bDoubleSided);
