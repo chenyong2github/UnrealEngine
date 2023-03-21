@@ -186,8 +186,6 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 
 	FRigUnit_TransformFromControlRigSpline()
 	{
-		UpVector = FVector::UpVector;
-		Roll = 0.f;
 		U = 0.f;
 		Transform = FTransform::Identity;
 	}
@@ -200,13 +198,13 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 	FControlRigSpline Spline;
 
 	UPROPERTY(meta = (Input))
-	FVector UpVector;
-
-	UPROPERTY(meta = (Input))
-	float Roll;
-
-	UPROPERTY(meta = (Input))
 	float U;
+
+	UPROPERTY(meta = (Input))
+	FVector PrimaryAxis;
+
+	UPROPERTY(meta = (Input))
+	FVector SecondaryAxis;
 
 	UPROPERTY(meta = (Output))
 	FTransform Transform;
@@ -598,6 +596,8 @@ struct CONTROLRIGSPLINE_API FRigUnit_SplineConstraint : public FRigUnit_Highleve
 		Minimum = 0.f;
 		Maximum = 1.f;
 		bPropagateToChildren = true;
+		PrimaryAxis = FVector::ZeroVector;
+		SecondaryAxis = FVector::ZeroVector;
 	}
 
 	RIGVM_METHOD()
@@ -632,6 +632,12 @@ struct CONTROLRIGSPLINE_API FRigUnit_SplineConstraint : public FRigUnit_Highleve
 	 */
 	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0"))
 	float Maximum;
+
+	UPROPERTY(meta = (Input))
+	FVector PrimaryAxis;
+
+	UPROPERTY(meta = (Input))
+	FVector SecondaryAxis;
 
 	/**
 	 * If set to true all of the global transforms of the children
@@ -672,7 +678,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitSplineCurveToChain : public FRigUnit_Hig
 	 * The curve to align
 	 */
 	UPROPERTY(meta = (Input, Output))
-	FControlRigSpline Spline;	
+	FControlRigSpline Spline;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;

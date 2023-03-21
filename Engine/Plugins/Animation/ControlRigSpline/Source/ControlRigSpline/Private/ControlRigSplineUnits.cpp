@@ -140,6 +140,23 @@ FRigUnit_TransformFromControlRigSpline_Execute()
 	const float ClampedU = FMath::Clamp<float>(U, 0.f, 1.f);
 	Transform = Spline.TransformAtParam(ClampedU);
 
+	FTransform OriginalTransform = Transform;
+	if (!PrimaryAxis.IsNearlyZero())
+	{
+		FVector Axis = Transform.TransformVectorNoScale(PrimaryAxis);
+		FVector Target1 = Transform.GetRotation().GetForwardVector();
+		FQuat Rotation1 = FQuat::FindBetweenNormals(Axis, Target1);
+		Transform.SetRotation((Rotation1 * Transform.GetRotation()).GetNormalized());
+	}
+
+	if (!SecondaryAxis.IsNearlyZero())
+	{
+		FVector Axis1 = OriginalTransform.TransformVectorNoScale(SecondaryAxis);
+		FVector Axis = Transform.TransformVectorNoScale(Axis1);
+		FVector Target2 = Transform.GetRotation().GetForwardVector();
+		FQuat Rotation2 = FQuat::FindBetweenNormals(Axis, Target2);
+		Transform.SetRotation((Rotation2 * Transform.GetRotation()).GetNormalized());
+	}
 }
 
 FRigUnit_TangentFromControlRigSpline_Execute()
@@ -824,6 +841,36 @@ FRigUnit_SplineConstraint_Execute()
 		}
 	}
 
+	FQuat RotatePrimary = FQuat::Identity;
+	FQuat RotateSecondary = FQuat::Identity;
+	// Find primary and secondary rotations based on primary and secondary axes
+	{
+		const FTransform OriginalTransform = ItemTransforms[0];
+		FTransform FirstTransform = ItemTransforms[0];
+		if (!PrimaryAxis.IsNearlyZero())
+		{
+			FVector Axis = FirstTransform.TransformVectorNoScale(PrimaryAxis);
+			FVector Target1 = FirstTransform.GetRotation().GetForwardVector();
+			RotatePrimary = FQuat::FindBetweenNormals(Axis, Target1);
+			FirstTransform.SetRotation((RotatePrimary * FirstTransform.GetRotation()).GetNormalized());
+		}
+
+		if (!SecondaryAxis.IsNearlyZero())
+		{
+			FVector Axis1 = OriginalTransform.TransformVectorNoScale(SecondaryAxis);
+			FVector Axis = FirstTransform.TransformVectorNoScale(Axis1);
+			FVector Target2 = FirstTransform.GetRotation().GetForwardVector();
+			RotateSecondary = FQuat::FindBetweenNormals(Axis, Target2);
+		}
+	}
+
+	// Apply primary and secondary rotations to item transforms
+	for (int32 Index = 0; Index < ItemTransforms.Num(); Index++)
+	{
+		FTransform& Transform = ItemTransforms[Index];
+		Transform.SetRotation((RotateSecondary * RotatePrimary * Transform.GetRotation()).GetNormalized());
+	}
+	
 	for (int32 Index = 0; Index < CachedItems.Num(); Index++)
 	{
 		Hierarchy->SetGlobalTransform(CachedItems[Index], ItemTransforms[Index], bPropagateToChildren);
