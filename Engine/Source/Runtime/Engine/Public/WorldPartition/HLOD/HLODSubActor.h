@@ -35,7 +35,7 @@ struct FHLODSubActorDesc
 	{
 		if (Lhs.ActorGuid == Rhs.ActorGuid)
 		{
-			return Lhs.ContainerID.ID < Rhs.ContainerID.ID;
+			return Lhs.ContainerID < Rhs.ContainerID;
 		}
 
 		return Lhs.ActorGuid < Rhs.ActorGuid;
@@ -96,7 +96,7 @@ struct FHLODSubActor
 	{
 		if (Lhs.ActorGuid == Rhs.ActorGuid)
 		{
-			return Lhs.ContainerID.ID < Rhs.ContainerID.ID;
+			return Lhs.ContainerID < Rhs.ContainerID;
 		}
 
 		return Lhs.ActorGuid < Rhs.ActorGuid;

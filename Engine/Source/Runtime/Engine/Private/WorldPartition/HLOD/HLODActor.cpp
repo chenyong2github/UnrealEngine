@@ -13,6 +13,7 @@
 
 #if WITH_EDITOR
 #include "Misc/ArchiveMD5.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODStats.h"
@@ -32,8 +33,19 @@ static FAutoConsoleVariableRef CVarWorldPartitionHLODForceDisableShadows(
 #if WITH_EDITORONLY_DATA
 FArchive& operator<<(FArchive& Ar, FHLODSubActorDesc& SubActor)
 {
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
 	Ar << SubActor.ActorGuid;
-	Ar << SubActor.ContainerID.ID;
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionFActorContainerIDu64ToGuid)
+	{
+		uint64 ContainerID;
+		Ar << ContainerID;
+	}
+	else
+	{
+		Ar << SubActor.ContainerID;
+	}
 
 	return Ar;
 }

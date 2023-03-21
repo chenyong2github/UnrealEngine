@@ -169,7 +169,7 @@ class FWorldPartitionStreamingGenerator
 						ActorSetInstance.ActorsSetGuids.Reserve(ActorSet.Actors.Num());
 						for (const FGuid& ActorGuid : ActorSet.Actors)
 						{
-							ActorSetInstance.ActorsSetGuids.Add(ActorGuid, FGuid::Combine(ContainerInstanceDescriptor.Guid, ActorGuid));
+							ActorSetInstance.ActorsSetGuids.Add(ActorGuid, ActorSetInstance.ContainerID.GetActorGuid(ActorGuid));
 						}
 					}
 
@@ -275,7 +275,6 @@ class FWorldPartitionStreamingGenerator
 		FString OwnerName;
 		FActorContainerID ID;
 		FActorContainerID ParentID;
-		FGuid Guid;
 		TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
 	};
 
@@ -519,11 +518,6 @@ class FWorldPartitionStreamingGenerator
 			SubContainerInstanceDescriptor.FilteredActors = SubContainerInstance.FilteredActors;
 			SubContainerInstanceDescriptor.ParentID = InContainerInstanceDescriptor.ID;
 			SubContainerInstanceDescriptor.OwnerName = *ContainerInstanceView.GetActorLabelOrName().ToString();
-
-			FContainerInstanceDescriptor& ParentContainer = ContainerInstanceDescriptorsMap.FindChecked(InContainerInstanceDescriptor.ParentID);
-			check(ParentContainer.ID.IsMainContainer() || ParentContainer.Guid.IsValid());
-
-			SubContainerInstanceDescriptor.Guid = FGuid::Combine(ParentContainer.Guid, ActorGuid);
 
 			// Inherit parent container properties
 			FName InheritedRuntimeGrid = InContainerInstanceDescriptor.RuntimeGrid;
@@ -1010,7 +1004,6 @@ public:
 
 					Ar.Printf(TEXT("       ID: %s"), *ContainerInstanceDescriptor.ID.ToString());
 					Ar.Printf(TEXT(" ParentID: %s"), *ContainerInstanceDescriptor.ParentID.ToString());
-					Ar.Printf(TEXT("     GUID: %s"), *ContainerInstanceDescriptor.Guid.ToString());
 					Ar.Printf(TEXT("   Bounds: %s"), *ContainerInstanceDescriptor.Bounds.ToString());
 					Ar.Printf(TEXT("Transform: %s"), *ContainerInstanceDescriptor.Transform.ToString());
 					Ar.Printf(TEXT("Container: %s"), *ContainerInstanceDescriptor.Container->GetContainerPackage().ToString());
@@ -1018,7 +1011,7 @@ public:
 
 				TArray<FActorContainerID> ChildContainersIDs;
 				InvertedContainersHierarchy.MultiFind(ContainerID, ChildContainersIDs);
-				ChildContainersIDs.Sort([](const FActorContainerID& ActorContainerIDA, const FActorContainerID& ActorContainerIDB) { return ActorContainerIDA.ID < ActorContainerIDB.ID; });
+				ChildContainersIDs.Sort();
 
 				if (ChildContainersIDs.Num())
 				{

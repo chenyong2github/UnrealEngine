@@ -280,6 +280,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Serialize actor class descriptors
 		WorldPartitionActorClassDescSerialize,
 
+		// FActorContainerID is now an FGuid instead of a uint64
+		WorldPartitionFActorContainerIDu64ToGuid,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
