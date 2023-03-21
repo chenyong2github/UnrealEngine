@@ -32,19 +32,11 @@ enum class ESmartObjectEntrancePriority : uint8
 	MAX = Highest UMETA(Hidden)
 };
 
-/** Struct defining a collider in world space. */
-struct SMARTOBJECTSMODULE_API FSmartObjectAnnotationCollider
-{
-	FVector Location;
-	FQuat Rotation;
-	FCollisionShape CollisionShape;
-};
-
 /**
  * Annotation to define a entrance locations for a Smart Object Slot.
  * This can be used to add multiple entry points to a slot, or to validate the entries against navigation data. 
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName="Entrance"))
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceAnnotation : public FSmartObjectSlotAnnotation
 {
 	GENERATED_BODY()
@@ -52,7 +44,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceAnnotation : public FSmart
 	FSmartObjectSlotEntranceAnnotation()
 		: bIsEntry(true)
 		, bIsExit(true)
-		, bTraceGroundLocation(false)
+		, bTraceGroundLocation(true)
 		, bCheckTransitionTrajectory(false)
 	{
 	}
@@ -120,12 +112,18 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceAnnotation : public FSmart
 };
 
 
+// @todo: Move these into separate file.
 namespace UE::SmartObject::Annotations
 {
 	/**
 	 * @returns navigation data for a specific actor. Similar to FNavigationSystem::GetNavDataForActor() but allows to pass custom world.
 	 */
 	extern SMARTOBJECTSMODULE_API const ANavigationData* GetNavDataForActor(const UWorld& World, const AActor* UserActor);
+
+	/**
+	 * @returns pointer to preview validation filter from settings or if empty, the default validation filter object. 
+	 */
+	const USmartObjectSlotValidationFilter* GetPreviewValidationFilter();
 
 	/**
 	 * Projects given location on nearest navigable surface.

@@ -10,6 +10,7 @@
 
 class FDebugRenderSceneProxy;
 class UNavigationQueryFilter;
+class USmartObjectSlotValidationFilter;
 
 #define WITH_SMARTOBJECT_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)
 
@@ -355,6 +356,47 @@ struct SMARTOBJECTSMODULE_API FSmartObjectTraceParams
 	bool bTraceComplex = false;
 };
 
+/** Struct defining a collider in world space. */
+struct SMARTOBJECTSMODULE_API FSmartObjectAnnotationCollider
+{
+	/** Location of the collision shape. */
+	FVector Location = FVector::ZeroVector;
+	
+	/** Rotation of the collision shape. */
+	FQuat Rotation = FQuat::Identity;
+	
+	/** Shape of the collider. */
+	FCollisionShape CollisionShape;
+};
+
+/** Struct defining Smart Object user capsule size. */
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectUserCapsuleParams
+{
+	GENERATED_BODY()
+
+	/**
+	 * Returns the capsule as an annotation collider at specified world location and rotation.
+	 * The capsule is placed so that Z-axis of the rotation is considered up.
+	 * The values specified in the struct will be constrained to create valid collider (and thus can differ from the set values).
+	 * @param Location Location of the collider.
+	 * @param Rotation Rotation of the collider.
+	 * @return annotation collider representing the capsule. */
+	FSmartObjectAnnotationCollider GetAsCollider(const FVector& Location, const FQuat& Rotation) const;
+	
+	/** Radius of the capsule */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (ClampMin = "0.0"))
+	float Radius = 35.0f;
+
+	/** Full height of the capsule */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (ClampMin = "0.0"))
+	float Height = 180.0f;
+
+	/** Step up height. This space is ignored when testing collisions. */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (ClampMin = "0.0"))
+	float StepHeight = 50.0f;
+};
+
 /**
  * Class used to define settings for Smart Object navigation and collision validation. 
  * The values of the CDO are used, the users are expected to derive from this class to create custom settings. 
@@ -376,9 +418,28 @@ public:
 
 	/** @return trace parameters for testing if there are collision transitioning from navigation location to slot location. */
 	const FSmartObjectTraceParams& GetTransitionTraceParameters() const { return TransitionTraceParameters; }
+
+	/** @return true if should do overlap test with user capsule when finding entrances. */
+	bool ShouldTestUserOverlapOnEntrance() const { return bTestUserOverlapOnEntrance; }
+
+	/**
+	 * Gets user capsule for a specified actor, if bUseNavigationCapsuleSize is specified uses INavAgentInterface to forward the values from navigation system.
+	 * The method can fail if the navigation capsule is requested, but we fail to get the navigation properties from the actor. 
+	 * @param UserActor Actor used to look up navigation settings from.
+	 * @param OutCapsule Dimensions of the user capsule.
+	 * @return true operation succeeds. */
+	bool GetUserCapsuleForActor(const AActor& UserActor, FSmartObjectUserCapsuleParams& OutCapsule) const;
 	
+	/**
+	 * Gets default user capsule size used for preview.
+	 * The method can fail if the navigation capsule is requested, but we fail to get the navigation properties from the world.
+	 * @param World where to look for default navigation settings.
+	 * @param OutCapsule Dimensions of the user capsule.
+	 * @return true if operation succeeds. */
+	bool GetDefaultUserCapsule(const UWorld& World, FSmartObjectUserCapsuleParams& OutCapsule) const;
+
 protected:
-	/** Navigation filter used to  */
+	/** Navigation filter used to validate entrance locations. */
 	UPROPERTY(EditAnywhere, Category = "Default")
 	const TSubclassOf<UNavigationQueryFilter> NavigationFilter;
 
@@ -393,6 +454,18 @@ protected:
 	/** Trace parameters user for checking if the transition between navigation location and slot is unblocked. */
 	UPROPERTY(EditAnywhere, Category = "Default")
 	FSmartObjectTraceParams TransitionTraceParameters;
+
+	/** If true, use physics overlap test to check that the space on entrance is free. */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	bool bTestUserOverlapOnEntrance = false;
+
+	/** If true, the capsule size is queried from the user actor via INavAgentInterface. */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (EditCondition = "bTestUserOverlapOnEntrance == true", EditConditionHides))
+	bool bUseNavigationCapsuleSize = false;
+
+	/** Dimensions of the capsule used for testing if user can fit into a specific location. */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (EditCondition = "bTestUserOverlapOnEntrance == true && bUseNavigationCapsuleSize == false", EditConditionHides))
+	FSmartObjectUserCapsuleParams UserCapsule;
 };
 
 /**

@@ -28,6 +28,18 @@ namespace UE::SmartObject::Annotations
 		return NavSys->GetDefaultNavDataInstance();
 	}
 
+	const USmartObjectSlotValidationFilter* GetPreviewValidationFilter()
+	{
+		const TSubclassOf<USmartObjectSlotValidationFilter> DefaultValidationFilterClass = GetDefault<USmartObjectSettings>()->PreviewValidationFilter;
+		const USmartObjectSlotValidationFilter* DefaultFilter = DefaultValidationFilterClass.GetDefaultObject();
+		if (!DefaultFilter)
+		{
+			DefaultFilter = GetDefault<USmartObjectSlotValidationFilter>();
+		}
+		return DefaultFilter;
+	}
+
+
 	const ANavigationData* GetNavDataForActor(const UWorld& World, const AActor* UserActor)
 	{
 		if (const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(&World))
@@ -129,17 +141,6 @@ namespace UE::SmartObject::Annotations
 		FLinearColor MarkerColor = EntryColor;
 		FLinearColor ColliderColor = CollisionColor;
 	};
-
-	const USmartObjectSlotValidationFilter* GetPreviewValidationFilter()
-	{
-		const TSubclassOf<USmartObjectSlotValidationFilter> DefaultValidationFilterClass = GetDefault<USmartObjectSettings>()->PreviewValidationFilter;
-		const USmartObjectSlotValidationFilter* DefaultFilter = DefaultValidationFilterClass.GetDefaultObject();
-		if (!DefaultFilter)
-		{
-			DefaultFilter = GetDefault<USmartObjectSlotValidationFilter>();
-		}
-		return DefaultFilter;
-	}
 
 	void UpdateVisualizationLogic(const UWorld& World, const FSmartObjectSlotEntranceAnnotation& Annotation, const FTransform& SlotTransform, const FTransform& AnnotationTransform, const AActor* PreviewActor, FVisualizationData& OutData)
 	{
@@ -332,6 +333,10 @@ void FSmartObjectSlotEntranceAnnotation::DrawVisualizationHUD(FSmartObjectVisual
 			if (Distance < MaxDrawDistance)
 			{
 				FString Text = FString::Printf(TEXT("S%d NAV%d \n"), VisContext.SlotIndex, VisContext.AnnotationIndex);
+				if (SelectionPriority != ESmartObjectEntrancePriority::Normal)
+				{
+					Text += UEnum::GetDisplayValueAsText(SelectionPriority).ToString();
+				}
 				if (Tag.IsValid())
 				{
 					Text += Tag.ToString();

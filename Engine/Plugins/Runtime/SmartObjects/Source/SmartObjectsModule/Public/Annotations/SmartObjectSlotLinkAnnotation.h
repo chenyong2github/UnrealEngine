@@ -9,7 +9,7 @@
  * Annotation to allow to find slots based on a Gameplay Tag.
  * This can be used to reuse same behavior on different slots, allowing to use a tag to identify a related slot. 
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName="Slot Link"))
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotLinkAnnotation : public FSmartObjectSlotAnnotation
 {
 	GENERATED_BODY()

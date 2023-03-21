@@ -254,6 +254,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationRequest
 	/** If true, check collisions between navigation location and slot location. If collisions are found, an entry is discarded. */
 	bool bCheckTransitionTrajectory = true;
 
+	/** If true, check user capsule collisions at the entrance location. Uses capsule dimensions set in the validation filter. */
+	bool bCheckEntranceLocationOverlap = true;
+
+	/** If true, check user capsule collisions at the slot location. Uses capsule dimensions set in an annotation on the slot. */
+	bool bCheckSlotLocationOverlap = true;
+
 	/** If true, include slot location as a candidate if no navigation annotation is present. */
 	bool bUseSlotLocationAsFallback = false;
 

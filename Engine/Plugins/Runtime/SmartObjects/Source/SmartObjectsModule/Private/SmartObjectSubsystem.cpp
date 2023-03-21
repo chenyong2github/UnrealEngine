@@ -14,6 +14,7 @@
 #include "NavigationSystem.h"
 #include "AI/Navigation/NavigationTypes.h"
 #include "Annotations/SmartObjectSlotEntranceAnnotation.h"
+#include "Annotations/SmartObjectAnnotation_SlotUserCollision.h"
 #include "Misc/EnumerateRange.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectSubsystem)
@@ -1574,6 +1575,22 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 		return false;
 	}
 
+	// Use capsule size used for collision overlap testing.
+	// @todo: move this outside, and allow to pass the value via Request?
+	FSmartObjectUserCapsuleParams UserCapsule;
+	if (Request.InstigatorActor
+		&& !ValidationFilter->GetUserCapsuleForActor(*Request.InstigatorActor, UserCapsule))
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Failed to find user capsule for actor."), *GetNameSafe(Request.InstigatorActor));
+		return false;
+	}
+	if (!ValidationFilter->GetDefaultUserCapsule(*World, UserCapsule))
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Failed to find default user capsule."), *GetNameSafe(Request.InstigatorActor));
+		return false;
+	}
+
+
 	struct FSlotEntryCandidate
 	{
 		FVector Location;
@@ -1586,6 +1603,8 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 		bool bCheckTransitionTrajectory = false;
 		FSmartObjectSlotEntranceHandle Handle;
 	};
+
+	const FSmartObjectAnnotation_SlotUserCollision* SlotUserCollisionAnnotation = nullptr; // @todo: currently assumes only one.
 
 	TArray<FSlotEntryCandidate, TInlineAllocator<8>> Candidates;
 	const FTransform& SlotTransform = SlotView.GetStateData<FSmartObjectSlotTransform>().GetTransform();
@@ -1622,6 +1641,10 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 					Candidate.Handle = FSmartObjectSlotEntranceHandle(SlotHandle, FSmartObjectSlotEntranceHandle::EType::Entrance, Data.GetIndex());
 				}
 			}
+		}
+		else if (const FSmartObjectAnnotation_SlotUserCollision* UserCollisionAnnotation = Data->GetPtr<FSmartObjectAnnotation_SlotUserCollision>())
+		{
+			SlotUserCollisionAnnotation = UserCollisionAnnotation;
 		}
 	}
 
@@ -1692,6 +1715,19 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 		GroundTraceQueryParams.AddIgnoredActor(Request.InstigatorActor);
 		TransitionTraceQueryParams.AddIgnoredActor(Request.InstigatorActor);
 	}
+
+	// If the slot location should be free of collisions, check it now since it's shared for all entries.
+	if (Request.bCheckSlotLocationOverlap
+		&& SlotUserCollisionAnnotation)
+	{
+		TArray<FSmartObjectAnnotationCollider> Colliders;
+		SlotUserCollisionAnnotation->GetColliders(UserCapsule, SlotTransform, Colliders);
+
+		if (UE::SmartObject::Annotations::TestCollidersOverlap(*World, Colliders, TransitionTraceParameters, TransitionTraceQueryParams))
+		{
+			return false;
+		}
+	}
 	
 	bool bHasResult = false;
 
@@ -1713,6 +1749,17 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 			Candidate.NodeRef = NavLocation.NodeRef;
 		}
 
+		// Check that the entry location is free of collisions if requested.
+		if (Request.bCheckEntranceLocationOverlap)
+		{
+			const FSmartObjectAnnotationCollider Collider = UserCapsule.GetAsCollider(Candidate.Location, Candidate.Rotation.Quaternion());
+			if (UE::SmartObject::Annotations::TestCollidersOverlap(*World, { Collider }, TransitionTraceParameters, TransitionTraceQueryParams))
+			{
+				// If the colliders overlap, skip the candidate.
+				continue;
+			}
+		}
+
 		// Check and adjust the location on ground.
 		if (Request.bTraceGroundLocation
 			&& Candidate.bTraceGroundLocation)
@@ -1732,7 +1779,7 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
  			&& Candidate.bCheckTransitionTrajectory
 			&& Candidate.EntranceAnnotation)
 		{
- 			// @todo: we're currently not using the adjusted location (Candidate.Location), consider if we should.
+ 			// @todo: we're currently _not_ using the adjusted location (Candidate.Location), consider if we should.
 			TArray<FSmartObjectAnnotationCollider> Colliders;
 			Candidate.EntranceAnnotation->GetTrajectoryColliders(SlotTransform, Colliders);
 
