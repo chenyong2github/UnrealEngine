@@ -19,6 +19,7 @@
 #include "Iris/Serialization/NetSerializers.h"
 #include "Iris/Serialization/InternalNetSerializers.h"
 #include "Math/NumericLimits.h"
+#include "HAL/IConsoleManager.h"
 
 namespace UE::Net::Private
 {
