@@ -77,6 +77,8 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeome
 int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats)
 {
 	const int32 InstanceGroupIndex = InstanceGroups.AddGroup(InstanceCount);
+
+	// When adding new group it will always have a single range
 	const FInstanceGroups::FInstanceGroupRange& NewInstanceGroup = InstanceGroups.GetGroup(InstanceGroupIndex);
 
 	ISMComponent->PreAllocateInstancesMemory(InstanceCount);
@@ -95,7 +97,7 @@ int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<c
 		{
 			for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 			{
-				ISMComponent->SetCustomData(NewInstanceGroup.Start + InstanceIndex, CustomDataFloats.Slice(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats));
+				ISMComponent->SetCustomData(NewInstanceGroup.InstanceIdToIndex[InstanceIndex], CustomDataFloats.Slice(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats));
 			}
 		}
 	}
@@ -105,6 +107,11 @@ int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<c
 
 FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM)
 {
+	if (!OnISMInstanceIndexUpdatedHandle.IsValid())
+	{
+		OnISMInstanceIndexUpdatedHandle = FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.AddRaw(this, &FGeometryCollectionISMPool::OnISMInstanceIndexUpdated);
+	}
+
 	FGeometryCollectionMeshInfo Info;
 
 	FISMIndex* ISMIndex = MeshToISMIndex.Find(MeshInstance);
@@ -112,6 +119,7 @@ FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollecti
 	{
 		Info.ISMIndex = ISMs.Emplace(OwningComponent->GetOwner(), MeshInstance, bPreferHISM);
 		MeshToISMIndex.Add(MeshInstance, Info.ISMIndex);
+		ISMComponentToISMIndex.Add(ISMs[Info.ISMIndex].ISMComponent, Info.ISMIndex);
 	}
 	else
 	{
@@ -128,10 +136,30 @@ bool FGeometryCollectionISMPool::BatchUpdateInstancesTransforms(FGeometryCollect
 	{
 		FGeometryCollectionISM& ISM = ISMs[MeshInfo.ISMIndex];
 		const FInstanceGroups::FInstanceGroupRange& InstanceGroup = ISM.InstanceGroups.GetGroup(MeshInfo.InstanceGroupIndex);
-		ensure((StartInstanceIndex + NewInstancesTransforms.Num()) <= InstanceGroup.Count);
+		ensure((StartInstanceIndex + NewInstancesTransforms.Num()) <= InstanceGroup.Count());
 
-		const int32 StartIndex = InstanceGroup.Start + StartInstanceIndex;
-		return ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, NewInstancesTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+		int32 StartIndex = InstanceGroup.InstanceIdToIndex[StartInstanceIndex];
+		int32 TransformIndex = 0;
+		int32 BatchCount = 1;
+		TArray<FTransform> BatchTransforms; //< Can't use TArrayView because blueprint function doesn't support that 
+		BatchTransforms.Reserve(NewInstancesTransforms.Num());
+		BatchTransforms.Add(NewInstancesTransforms[TransformIndex]);
+		for (int InstanceIndex = StartInstanceIndex + 1; InstanceIndex < NewInstancesTransforms.Num(); ++InstanceIndex)
+		{
+			// flush batch?
+			if (InstanceGroup.InstanceIdToIndex[InstanceIndex] != (StartIndex + BatchCount))
+			{
+				ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+				StartIndex = InstanceGroup.InstanceIdToIndex[InstanceIndex];
+				BatchTransforms.SetNum(0, false);
+				BatchCount = 0;
+			}
+			
+			BatchTransforms.Add(NewInstancesTransforms[TransformIndex++]);
+			BatchCount++;
+		}
+
+		return ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
 	}
 	UE_LOG(LogChaos, Warning, TEXT("UGeometryCollectionISMPoolComponent : Invalid ISM Id (%d) when updating the transform "), MeshInfo.ISMIndex);
 	return false;
@@ -143,24 +171,39 @@ void FGeometryCollectionISMPool::RemoveISM(const FGeometryCollectionMeshInfo& Me
 	{
 		FGeometryCollectionISM& ISM = ISMs[MeshInfo.ISMIndex];
 		const FInstanceGroups::FInstanceGroupRange& InstanceGroup = ISM.InstanceGroups.GetGroup(MeshInfo.InstanceGroupIndex);
-
-		// todo: be able to remove a range of instance may be useful
-		TArray<int32> InstancesToRemove;
-		InstancesToRemove.Reserve(InstanceGroup.Count);
-		const int32 StartIndex = InstanceGroup.Start;
-		const int32 LastIndex = InstanceGroup.Start + InstanceGroup.Count;
-		for (int32 InstanceIndex = StartIndex; InstanceIndex < LastIndex; InstanceIndex++)
-		{
-			InstancesToRemove.Add(InstanceIndex);
-		}
-		ISM.ISMComponent->RemoveInstances(InstancesToRemove);
+		ISM.ISMComponent->RemoveInstances(InstanceGroup.InstanceIdToIndex);
 		ISM.InstanceGroups.RemoveGroup(MeshInfo.InstanceGroupIndex);
+	}
+}
+
+void FGeometryCollectionISMPool::OnISMInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates)
+{
+	FISMIndex* ISMIndex = ISMComponentToISMIndex.Find(InComponent);
+	if (!ISMIndex)
+	{
+		return;
+	}
+
+	FGeometryCollectionISM& ISM = ISMs[*ISMIndex];
+	check(ISM.ISMComponent == InComponent);
+
+	for (const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData& IndexUpdateData : InIndexUpdates)
+	{
+		if (IndexUpdateData.Type == FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Removed)
+		{
+			ISM.InstanceGroups.IndexRemoved(IndexUpdateData.Index);
+		}
+		else if (IndexUpdateData.Type == FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Relocated)
+		{
+			ISM.InstanceGroups.IndexReallocated(IndexUpdateData.OldIndex, IndexUpdateData.Index);
+		}
 	}
 }
 
 void FGeometryCollectionISMPool::Clear()
 {
 	MeshToISMIndex.Reset();
+	ISMComponentToISMIndex.Reset();
 	if (ISMs.Num() > 0)
 	{
 		if (AActor* OwningActor = ISMs[0].ISMComponent->GetOwner())
@@ -173,6 +216,12 @@ void FGeometryCollectionISMPool::Clear()
 			}
 		}
 		ISMs.Reset();
+	}
+
+	if (OnISMInstanceIndexUpdatedHandle.IsValid())
+	{
+		FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Remove(OnISMInstanceIndexUpdatedHandle);
+		OnISMInstanceIndexUpdatedHandle.Reset();
 	}
 }
 

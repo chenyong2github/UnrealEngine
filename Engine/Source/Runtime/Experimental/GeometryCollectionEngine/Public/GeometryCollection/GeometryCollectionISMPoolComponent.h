@@ -7,6 +7,7 @@
 #include "Components/SceneComponent.h"
 #include "Containers/Map.h"
 #include "Materials/MaterialInterface.h"
+#include "InstancedStaticMeshDelegates.h"
 #include "GeometryCollectionISMPoolComponent.generated.h"
 
 class AActor;
@@ -29,11 +30,29 @@ public:
 	struct FInstanceGroupRange
 	{
 		FInstanceGroupRange(int32 InStart, int32 InCount)
-			: Start(InStart)
-			, Count(InCount)
-		{}
-		int32 Start;
-		int32 Count;
+		{
+			InstanceIdToIndex.Reserve(InCount);
+			for (int Index = 0; Index < InCount; ++Index)
+			{
+				InstanceIdToIndex.Add(InStart + Index);
+			}
+		}
+
+		bool TryIndexReallocate(int32 OldIndex, int32 NewIndex)
+		{
+			for (int32 i = 0; i < InstanceIdToIndex.Num(); ++i)
+			{
+				if (InstanceIdToIndex[i] == OldIndex)
+				{
+					InstanceIdToIndex[i] = NewIndex;
+					return true;
+				}
+			}
+			return false;
+		}
+
+		int32 Count() const { return InstanceIdToIndex.Num(); }
+		TArray<int32> InstanceIdToIndex;
 	};
 
 	//FInstanceGroupId AddGroup(int32 Count)
@@ -74,20 +93,37 @@ public:
 	{
 		check(GroupRanges.Contains(GroupId));
 		const FInstanceGroupRange& GroupRangeToRemove = GroupRanges[GroupId];
-
-		// we need now to shift all the groups above the remove one
-		for (TPair<FInstanceGroupId, FInstanceGroupRange>& GroupRange: GroupRanges)
-		{
-			if (GroupRange.Value.Start > GroupRangeToRemove.Start)
-			{
-				GroupRange.Value.Start -= GroupRangeToRemove.Count;
-			}
-		}
-		// now remove the range safely
-		InstancesCount -= GroupRangeToRemove.Count;
+		InstancesCount -= GroupRangeToRemove.InstanceIdToIndex.Num();
 		GroupRanges.Remove(GroupId);
 	}
 
+	void IndexRemoved(int32 IndexToRemove)
+	{
+		bool bFound = false;
+		for (TPair<FInstanceGroupId, FInstanceGroupRange>& GroupRange : GroupRanges)
+		{
+			if (GroupRange.Value.TryIndexReallocate(IndexToRemove, INDEX_NONE))
+			{
+				bFound = true;
+				break;
+			}
+		}
+		check(bFound);
+	}
+
+	void IndexReallocated(int32 OldIndex, int32 NewIndex)
+	{
+		bool bFound = false;
+		for (TPair<FInstanceGroupId, FInstanceGroupRange>& GroupRange : GroupRanges)
+		{
+			if (GroupRange.Value.TryIndexReallocate(OldIndex, NewIndex))
+			{
+				bFound = true;
+				break;
+			}
+		}
+		check(bFound);
+	}
 	const FInstanceGroupRange& GetGroup(int32 GroupIndex) const { return GroupRanges[GroupIndex]; };
 
 private:
@@ -182,13 +218,19 @@ struct FGeometryCollectionISMPool
 	FGeometryCollectionMeshInfo AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM);
 	bool BatchUpdateInstancesTransforms(FGeometryCollectionMeshInfo& MeshInfo, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport);
 	void RemoveISM(const FGeometryCollectionMeshInfo& MeshInfo);
+	
+	void OnISMInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates);
 
 	/** Clear all ISM components and associated data */
 	void Clear();
 
 	TMap<FGeometryCollectionStaticMeshInstance, FISMIndex> MeshToISMIndex;
+	TMap<UInstancedStaticMeshComponent*, FISMIndex> ISMComponentToISMIndex;
 	TArray<FGeometryCollectionISM> ISMs;
+	
 	// Todo : since ISMs index cannot change, we'll need a free list 
+
+	FDelegateHandle OnISMInstanceIndexUpdatedHandle;
 };
 
 
