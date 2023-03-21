@@ -556,7 +556,7 @@ ESavePackageResult ValidateExports(FSaveContext& SaveContext)
 		{
 			UObject* Object = Export.Obj;
 			// Consider redirectors to world/levels as map packages too.
-			if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Object))
+			while (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Object))
 			{
 				Object = Redirector->DestinationObject;
 			}
