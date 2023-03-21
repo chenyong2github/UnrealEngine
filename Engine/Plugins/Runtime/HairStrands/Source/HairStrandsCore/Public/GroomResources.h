@@ -349,8 +349,8 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	/* Curve: Point offset & count */
 	TArray<FPackedHairCurve> CurveData;
 
-	inline uint32 GetPointCount() const { return BulkData.PointCount; }
-	inline uint32 GetCurveCount() const { return BulkData.CurveCount; }
+	inline uint32 GetPointCount() const { return BulkData.GetNumPoints(); }
+	inline uint32 GetCurveCount() const { return BulkData.GetNumCurves(); }
 };
 
 struct FHairStrandsDeformedResource : public FHairCommonResource
