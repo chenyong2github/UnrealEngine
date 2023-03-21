@@ -67,10 +67,7 @@ inline bool SupportsOfflineCompiler(FName ShaderFormat)
 
 inline CrossCompiler::FShaderConductorOptions::ETargetEnvironment GetMinimumTargetEnvironment(EVulkanShaderVersion ShaderVersion)
 {
-	// All desktop Vulkan platforms create a Vulkan 1.1 instance (SP_VULKAN_SM5_ANDROID can still use 1.0)
-	return (ShaderVersion == EVulkanShaderVersion::SM5) ?
-		CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_1: 
-		CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_0;
+	return CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_1;
 }
 
 DEFINE_LOG_CATEGORY_STATIC(LogVulkanShaderCompiler, Log, All); 

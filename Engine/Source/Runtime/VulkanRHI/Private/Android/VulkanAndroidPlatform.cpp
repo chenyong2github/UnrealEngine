@@ -581,23 +581,6 @@ void FVulkanAndroidPlatform::OverridePlatformHandlers(bool bInit)
 	}
 }
 
-void FVulkanAndroidPlatform::SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel)
-{
-	if (!GIsEditor &&
-		(FVulkanPlatform::RequiresMobileRenderer() || 
-		InRequestedFeatureLevel == ERHIFeatureLevel::ES3_1 ||
-		FParse::Param(FCommandLine::Get(), TEXT("featureleveles31"))))
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
-		GMaxRHIShaderPlatform = SP_VULKAN_ES3_1_ANDROID;
-	}
-	else
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = SP_VULKAN_SM5_ANDROID;
-	}
-}
-
 bool FVulkanAndroidPlatform::FramePace(FVulkanDevice& Device, void* WindowHandle, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_VulkanAndroid_FramePace);
@@ -1629,4 +1612,15 @@ void FVulkanAndroidPlatform::SetImageMemoryRequirementWorkaround(VkImageCreateIn
 	{
 		ImageCreateInfo.tiling = VK_IMAGE_TILING_LINEAR;
 	}
+}
+
+FString FVulkanAndroidPlatform::GetVulkanProfileNameForFeatureLevel(ERHIFeatureLevel::Type FeatureLevel, bool bRaytracing)
+{
+	// Use the generic name and add "_Android" at the end (the RT suffix get added after the platform)
+	FString ProfileName = FVulkanGenericPlatform::GetVulkanProfileNameForFeatureLevel(FeatureLevel, false) + TEXT("_Android");
+	if (bRaytracing)
+	{
+		ProfileName += TEXT("_RT");
+	}
+	return ProfileName;
 }

@@ -44,9 +44,12 @@ public class Vulkan : ModuleRules
             // Let's always delay load the vulkan dll as not everyone has it installed
             PublicDelayLoadDLLs.Add("vulkan-1.dll");
         }
-    }
 
-    internal static int GetVersionFromString(string Text)
+		// Always add the vulkan profile include folder from third party
+		PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "/Vulkan/profiles/include");
+	}
+
+	internal static int GetVersionFromString(string Text)
     {
         string Token = "#define VK_HEADER_VERSION ";
         Int32 FoundIndex = Text.IndexOf(Token);

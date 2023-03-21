@@ -20,12 +20,11 @@ using FVulkanInstanceExtensionArray = TArray<TUniquePtr<class FVulkanInstanceExt
 class FVulkanGenericPlatform
 {
 public:
-	static void SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel);
-
 	static bool IsSupported() { return true; }
 
 	static bool LoadVulkanLibrary() { return true; }
-	static bool LoadVulkanInstanceFunctions(VkInstance inInstance) { return true; }
+	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
+	static void ClearVulkanInstanceFunctions();
 	static void FreeVulkanLibrary() {}
 
 	static void InitDevice(FVulkanDevice* InDevice) {}
@@ -52,7 +51,7 @@ public:
 	// most platforms can query the surface for the present mode, and size, etc
 	static bool SupportsQuerySurfaceProperties() { return true; }
 
-	static void SetupFeatureLevels();
+	static void SetupFeatureLevels(TArrayView<EShaderPlatform> ShaderPlatformForFeatureLevel);
 
 	static bool SupportsTimestampRenderQueries() { return true; }
 
@@ -144,4 +143,8 @@ public:
 	// Setup platform to use a workaround to reduce textures memory requirements
 	static void SetupImageMemoryRequirementWorkaround(const FVulkanDevice& InDevice) {};
 	static void SetImageMemoryRequirementWorkaround(VkImageCreateInfo& ImageCreateInfo) {};
+
+	// Returns the profile name to look up for a given feature level on a platform
+	static bool SupportsProfileChecks();
+	static FString GetVulkanProfileNameForFeatureLevel(ERHIFeatureLevel::Type FeatureLevel, bool bRaytracing);
 };

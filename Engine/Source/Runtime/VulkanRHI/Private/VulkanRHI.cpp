@@ -28,6 +28,18 @@
 #include "VulkanExtensions.h"
 #include "VulkanRayTracing.h"
 
+
+
+// Use Vulkan Profiles to verify feature level support on startup
+void VulkanProfilePrint(const char* Msg)
+{
+	UE_LOG(LogVulkanRHI, Log, TEXT("   - %s"), ANSI_TO_TCHAR(Msg));
+}
+#define VP_DEBUG_MESSAGE_CALLBACK VulkanProfilePrint
+#include "vulkan_profiles_ue.h"
+#undef VP_DEBUG_MESSAGE_CALLBACK
+
+
 static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assumes VkStructureType is int32!");
 
 #if NV_AFTERMATH
@@ -46,18 +58,6 @@ TAtomic<uint64> GVulkanDSetLayoutHandleIdCounter{ 0 };
 
 #define LOCTEXT_NAMESPACE "VulkanRHI"
 
-#ifdef VK_API_VERSION
-// Check the SDK is least the API version we want to use
-static_assert(VK_API_VERSION >= UE_VK_API_VERSION, "Vulkan SDK is older than the version we want to support (UE_VK_API_VERSION). Please update your SDK.");
-#elif !defined(VK_HEADER_VERSION)
-	#error No VulkanSDK defines?
-#endif
-
-#if defined(VK_API_VERSION)
-#if defined(VK_HEADER_VERSION) && VK_HEADER_VERSION < 8 && (VK_API_VERSION < VK_MAKE_VERSION(1, 0, 3))
-	#include <vulkan/vk_ext_debug_report.h>
-#endif
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -100,23 +100,275 @@ static FAutoConsoleVariableRef CVarVulkanVariableRateShading(
 
 bool GGPUCrashDebuggingEnabled = false;
 
-
-extern TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar;
+extern TAutoConsoleVariable<int32> GVulkanRayTracingCVar;
 
 // All shader stages supported by VK device - VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, FRAGMENT etc
 uint32 GVulkanDevicePipelineStageBits = 0;
 
 DEFINE_LOG_CATEGORY(LogVulkan)
 
+// Selects the device to us for the provided instance
+static VkPhysicalDevice SelectPhysicalDevice(VkInstance InInstance)
+{
+	VkResult Result;
+
+	uint32 PhysicalDeviceCount = 0;
+	Result = VulkanRHI::vkEnumeratePhysicalDevices(InInstance, &PhysicalDeviceCount, nullptr);
+	if ((Result != VK_SUCCESS) || (PhysicalDeviceCount == 0))
+	{
+		UE_LOG(LogVulkanRHI, Log, 
+			TEXT("SelectPhysicalDevice could not find a compatible Vulkan device or driver (EnumeratePhysicalDevices returned '%s' and %d devices).  ")
+			TEXT("Make sure your video card supports Vulkan and try updating your video driver to a more recent version (proceed with any pending reboots).")
+			, VK_TYPE_TO_STRING(VkResult, Result), PhysicalDeviceCount
+		);
+
+		return VK_NULL_HANDLE;
+	}
+
+	TArray<VkPhysicalDevice> PhysicalDevices;
+	PhysicalDevices.AddZeroed(PhysicalDeviceCount);
+	VERIFYVULKANRESULT(VulkanRHI::vkEnumeratePhysicalDevices(InInstance, &PhysicalDeviceCount, PhysicalDevices.GetData()));
+	checkf(PhysicalDeviceCount >= 1, TEXT("Couldn't enumerate physical devices on second attempt! Make sure your drivers are up to date and that you are not pending a reboot."));
+
+	struct FPhysicalDeviceInfo
+	{
+		FPhysicalDeviceInfo() = delete;
+		FPhysicalDeviceInfo(uint32 InOriginalIndex, VkPhysicalDevice InPhysicalDevice)
+			: OriginalIndex(InOriginalIndex)
+			, PhysicalDevice(InPhysicalDevice)
+		{
+			ZeroVulkanStruct(PhysicalDeviceProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2);
+			ZeroVulkanStruct(PhysicalDeviceIDProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES);
+			PhysicalDeviceProperties2.pNext = &PhysicalDeviceIDProperties;
+			VulkanRHI::vkGetPhysicalDeviceProperties2(PhysicalDevice, &PhysicalDeviceProperties2);
+		}
+
+		uint32 OriginalIndex;
+		VkPhysicalDevice PhysicalDevice;
+		VkPhysicalDeviceProperties2 PhysicalDeviceProperties2;
+		VkPhysicalDeviceIDProperties PhysicalDeviceIDProperties;
+	};
+	TArray<FPhysicalDeviceInfo> PhysicalDeviceInfos;
+	PhysicalDeviceInfos.Reserve(PhysicalDeviceCount);
+
+	// Fill the array with each devices properties
+	for (uint32 Index = 0; Index < PhysicalDeviceCount; ++Index)
+	{
+		PhysicalDeviceInfos.Emplace(Index, PhysicalDevices[Index]);
+	}
+
+	// Allow HMD to override which graphics adapter is chosen, so we pick the adapter where the HMD is connected
+#if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
+	if (IHeadMountedDisplayModule::IsAvailable())
+	{
+		static_assert(sizeof(uint64) == VK_LUID_SIZE);
+		const uint64 HmdGraphicsAdapterLuid = IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid();
+
+		for (int32 Index = 0; Index < PhysicalDeviceInfos.Num(); ++Index)
+		{
+			if (FMemory::Memcmp(&HmdGraphicsAdapterLuid, &PhysicalDeviceInfos[Index].PhysicalDeviceIDProperties.deviceLUID, VK_LUID_SIZE_KHR) == 0)
+			{
+				UE_LOG(LogVulkanRHI, Log, TEXT("HMD device at index %d of %u being used as default..."), Index, PhysicalDeviceCount);
+				return PhysicalDeviceInfos[Index].PhysicalDevice;
+			}
+		}
+	}
+#endif
+
+	// Use the device as forced by CVar or CommandLine arg
+	auto* CVarGraphicsAdapter = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GraphicsAdapter"));
+	int32 ExplicitAdapterValue = CVarGraphicsAdapter ? CVarGraphicsAdapter->GetValueOnAnyThread() : -1;
+	const bool bUsingCmdLine = FParse::Value(FCommandLine::Get(), TEXT("graphicsadapter="), ExplicitAdapterValue);
+	const TCHAR* GraphicsAdapterOriginTxt = bUsingCmdLine ? TEXT("command line") : TEXT("'r.GraphicsAdapter'");
+	if (ExplicitAdapterValue >= 0)  // Use adapter at the specified index
+	{
+		if (ExplicitAdapterValue >= PhysicalDeviceInfos.Num())
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to use graphics adapter at index %d as specified by %s, but only %d Adapter(s) found. Falling back to first device..."), 
+				ExplicitAdapterValue, GraphicsAdapterOriginTxt, PhysicalDeviceInfos.Num());
+			ExplicitAdapterValue = 0;
+		}
+
+		UE_LOG(LogVulkanRHI, Log, TEXT("Using device at index %d of %u as specfified by %s..."), ExplicitAdapterValue, PhysicalDeviceCount, GraphicsAdapterOriginTxt);
+		return PhysicalDeviceInfos[ExplicitAdapterValue].PhysicalDevice;
+	}
+	else if (ExplicitAdapterValue == -2)  // Take the first one that fulfills the criteria
+	{
+		UE_LOG(LogVulkanRHI, Log, TEXT("Using first device (of %u) without any sorting as specfified by %s..."), PhysicalDeviceCount, GraphicsAdapterOriginTxt);
+		return PhysicalDeviceInfos[0].PhysicalDevice;
+	}
+	else if (ExplicitAdapterValue == -1)  // Favour non integrated because there are usually faster
+	{
+		// Reoreder the list to place discrete adapters first
+		PhysicalDeviceInfos.Sort([](const FPhysicalDeviceInfo& Lhs, const FPhysicalDeviceInfo& Rhs)
+			{
+				// For devices of the same type, jsut keep the original order
+				if (Lhs.PhysicalDeviceProperties2.properties.deviceType == Rhs.PhysicalDeviceProperties2.properties.deviceType)
+				{
+					return Lhs.OriginalIndex < Rhs.OriginalIndex;
+				}
+				
+				// Prefer discrete GPUs first, then integrated, then CPU
+				return (Lhs.PhysicalDeviceProperties2.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) || 
+					(Rhs.PhysicalDeviceProperties2.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU);
+			});
+	}
+
+
+	// If a preferred vendor is specified, return the first device from that vendor
+	const EGpuVendorId PreferredVendor = RHIGetPreferredAdapterVendor();
+	if (PreferredVendor != EGpuVendorId::Unknown)
+	{
+		// Check for preferred
+		for (int32 Index = 0; Index < PhysicalDeviceInfos.Num(); ++Index)
+		{
+			if (RHIConvertToGpuVendorId(PhysicalDeviceInfos[Index].PhysicalDeviceProperties2.properties.vendorID) == PreferredVendor)
+			{
+				UE_LOG(LogVulkanRHI, Log, TEXT("Using preferred vendor device at index %d of %u..."), Index, PhysicalDeviceCount);
+				return PhysicalDeviceInfos[Index].PhysicalDevice;
+			}
+		}
+	}
+
+	// Skip all CPU devices if they aren't permitted
+	const bool bAllowCPUDevices = FParse::Param(FCommandLine::Get(), TEXT("AllowCPUDevices"));
+	for (int32 Index = 0; Index < PhysicalDeviceInfos.Num(); ++Index)
+	{
+		if (!bAllowCPUDevices && (PhysicalDeviceInfos[Index].PhysicalDeviceProperties2.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU))
+		{
+			continue;
+		}
+
+		return PhysicalDeviceInfos[Index].PhysicalDevice;
+	}
+
+	UE_LOG(LogVulkanRHI, Warning, TEXT("None of the %u devices meet all the criteria!"), PhysicalDeviceCount);
+	return VK_NULL_HANDLE;
+}
+
+static uint32 GetVulkanApiVersionForFeatureLevel(ERHIFeatureLevel::Type FeatureLevel, bool bRaytracing)
+{
+	if (FVulkanPlatform::SupportsProfileChecks())
+	{
+		const FString ProfileName = FVulkanPlatform::GetVulkanProfileNameForFeatureLevel(FeatureLevel, bRaytracing);
+		const detail::VpProfileDesc* ProfileDesc = detail::vpGetProfileDesc(TCHAR_TO_ANSI(*ProfileName));
+		if (ProfileDesc)
+		{
+			return ProfileDesc->minApiVersion;
+		}
+
+		UE_LOG(LogVulkanRHI, Warning,
+			TEXT("Profile called [%s] could not be found for feature level [%s]!"),
+			*ProfileName, *LexToString(FeatureLevel));
+	}
+
+	UE_LOG(LogVulkanRHI, Log, TEXT("Using default apiVersion for platform..."));
+	return UE_VK_API_VERSION;
+}
+
+// Returns the API version for the provided feautre level, returns 0 if not supported
+static bool CheckVulkanProfile(ERHIFeatureLevel::Type FeatureLevel, bool bRaytracing)
+{
+	const FString ProfileName = FVulkanPlatform::GetVulkanProfileNameForFeatureLevel(FeatureLevel, bRaytracing);
+
+	UE_LOG(LogVulkanRHI, Log, TEXT("Starting Vulkan Profile check for %s:"), *ProfileName);
+	ON_SCOPE_EXIT
+	{
+		UE_LOG(LogVulkanRHI, Log, TEXT("Vulkan Profile check complete."));
+	};
+
+	VpProfileProperties ProfileProperties;
+	FMemory::Memzero(ProfileProperties);
+	FCStringAnsi::Strcpy(ProfileProperties.profileName, VP_MAX_PROFILE_NAME_SIZE, TCHAR_TO_ANSI(*ProfileName));
+
+	VkBool32 bInstanceSupported = VK_FALSE;
+	VkResult InstanceResult = vpGetInstanceProfileSupport(nullptr, &ProfileProperties, &bInstanceSupported);  // :todo-jn: no VERIFYVULKANRESULT, this can fail and it's fine
+	if ((InstanceResult == VK_SUCCESS) && bInstanceSupported)
+	{
+		VkInstanceCreateInfo InstanceCreateInfo;
+		ZeroVulkanStruct(InstanceCreateInfo, VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
+
+		VpInstanceCreateInfo ProfileInstanceCreateInfo;
+		FMemory::Memzero(InstanceCreateInfo);
+		ProfileInstanceCreateInfo.pProfile = &ProfileProperties;
+		ProfileInstanceCreateInfo.pCreateInfo = &InstanceCreateInfo;
+
+		VkInstance TempInstance = VK_NULL_HANDLE;
+		VERIFYVULKANRESULT(vpCreateInstance(&ProfileInstanceCreateInfo, VULKAN_CPU_ALLOCATOR, &TempInstance));
+
+		// Use FVulkanGenericPlatform on purpose here, we only want basic common functionality (no platform specific stuff)
+		FVulkanGenericPlatform::LoadVulkanInstanceFunctions(TempInstance);
+
+		ON_SCOPE_EXIT
+		{
+			// Keep nothing around from the temporary instance we created
+			if (TempInstance)
+			{
+				VulkanRHI::vkDestroyInstance(TempInstance, VULKAN_CPU_ALLOCATOR);
+				TempInstance = VK_NULL_HANDLE;
+				FVulkanPlatform::ClearVulkanInstanceFunctions();
+			}
+		};
+
+		// Pick the device we would use on this instance
+		const VkPhysicalDevice PhysicalDevice = SelectPhysicalDevice(TempInstance);
+		if (PhysicalDevice)
+		{
+			VkBool32 bDeviceSupported = VK_FALSE;
+			VERIFYVULKANRESULT(vpGetPhysicalDeviceProfileSupport(TempInstance, PhysicalDevice, &ProfileProperties, &bDeviceSupported));
+			if (bDeviceSupported)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool FVulkanDynamicRHIModule::IsSupported()
 {
-	return FVulkanPlatform::IsSupported();
+	if (FVulkanPlatform::IsSupported())
+	{
+		return FVulkanPlatform::LoadVulkanLibrary();
+	}
+	return false;
+}
+
+bool FVulkanDynamicRHIModule::IsSupported(ERHIFeatureLevel::Type FeatureLevel)
+{
+	if (IsSupported())
+	{
+		if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+		{
+			return !GIsEditor;
+		}
+		else if (!FVulkanPlatform::SupportsProfileChecks())
+		{
+			return true;
+		}
+		else
+		{
+			return CheckVulkanProfile(FeatureLevel, false);
+		}
+	}
+
+	return false;
 }
 
 FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequestedFeatureLevel)
 {
-	FVulkanPlatform::SetupMaxRHIFeatureLevelAndShaderPlatform(InRequestedFeatureLevel);
-	check(GMaxRHIFeatureLevel != ERHIFeatureLevel::Num);
+	const bool bForceES3_1 = (FVulkanPlatform::RequiresMobileRenderer() ||
+		(InRequestedFeatureLevel == ERHIFeatureLevel::ES3_1) ||
+		FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")));
+
+	GMaxRHIFeatureLevel = (!GIsEditor && bForceES3_1) ? ERHIFeatureLevel::ES3_1 : InRequestedFeatureLevel;
+	checkf(GMaxRHIFeatureLevel != ERHIFeatureLevel::Num, TEXT("Invalid feature level requested!"));
+
+	EShaderPlatform ShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num];
+	FVulkanPlatform::SetupFeatureLevels(ShaderPlatformForFeatureLevel);
+	GMaxRHIShaderPlatform = ShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
+	checkf(GMaxRHIShaderPlatform != SP_NumPlatforms, TEXT("Requested feature level [%s] mapped to unsupported shader platform!"), *LexToString(InRequestedFeatureLevel));
 
 	GVulkanRHI = new FVulkanDynamicRHI();
 	FDynamicRHI* FinalRHI = GVulkanRHI;
@@ -236,16 +488,6 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 	SetupValidationRequests();
 
 	UE_LOG(LogVulkanRHI, Display, TEXT("Built with Vulkan header version %u.%u.%u"), VK_API_VERSION_MAJOR(VK_HEADER_VERSION_COMPLETE), VK_API_VERSION_MINOR(VK_HEADER_VERSION_COMPLETE), VK_API_VERSION_PATCH(VK_HEADER_VERSION_COMPLETE));
-
-	if (!FVulkanPlatform::LoadVulkanLibrary())
-	{
-#if PLATFORM_LINUX
-		// be more verbose on Linux
-		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("UnableToInitializeVulkanLinux", "Unable to load Vulkan library and/or acquire the necessary function pointers. Make sure an up-to-date libvulkan.so.1 is installed.").ToString(),
-			*LOCTEXT("UnableToInitializeVulkanLinuxTitle", "Unable to initialize Vulkan.").ToString());
-#endif // PLATFORM_LINUX
-		UE_LOG(LogVulkanRHI, Fatal, TEXT("Failed to find all required Vulkan entry points; make sure your driver supports Vulkan!"));
-	}
 
 	{
 		IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
@@ -398,6 +640,29 @@ void FVulkanDynamicRHI::CreateInstance()
 	bool bDisableEngineRegistration = (CVarDisableEngineAndAppRegistration && CVarDisableEngineAndAppRegistration->GetValueOnAnyThread() != 0) ||
 		(CVarShaderDevelopmentMode && CVarShaderDevelopmentMode->GetValueOnAnyThread() != 0);
 
+	// Use the API version stored in the profile
+	ApiVersion = GetVulkanApiVersionForFeatureLevel(GMaxRHIFeatureLevel, false);
+
+#if VULKAN_RHI_RAYTRACING
+	// Run a profile check to see if this device can support our raytacing requirements since it might change the required API version of the instance
+	if (FVulkanPlatform::SupportsProfileChecks() && GVulkanRayTracingCVar.GetValueOnAnyThread())
+	{
+		if (CheckVulkanProfile(GMaxRHIFeatureLevel, true))
+		{
+			// Raytracing is supported, update the required API version
+			ApiVersion = GetVulkanApiVersionForFeatureLevel(GMaxRHIFeatureLevel, true);
+		}
+		else
+		{
+			// Raytracing is not supported, disable it completely instead of only loading parts of it
+			GVulkanRayTracingCVar->Set(0, ECVF_SetByCode);
+			UE_LOG(LogVulkanRHI, Display, TEXT("Vulkan RayTracing disabled because of failed profile check."));
+		}
+	}
+#endif // VULKAN_RHI_RAYTRACING
+
+	UE_LOG(LogVulkanRHI, Log, TEXT("Using API Version %u.%u."), VK_API_VERSION_MAJOR(ApiVersion), VK_API_VERSION_MINOR(ApiVersion));
+
 	// EngineName will be of the form "UnrealEngine4.21", with the minor version ("21" in this example)
 	// updated with every quarterly release
 	FString EngineName = FApp::GetEpicProductIdentifier() + FEngineVersion::Current().ToString(EVersionComponent::Minor);
@@ -410,7 +675,7 @@ void FVulkanDynamicRHI::CreateInstance()
 	AppInfo.applicationVersion = static_cast<uint32>(BuildSettings::GetCurrentChangelist()) | (BuildSettings::IsLicenseeVersion() ? 0x80000000 : 0);
 	AppInfo.pEngineName = bDisableEngineRegistration ? nullptr : EngineNameConverter.Get();
 	AppInfo.engineVersion = FEngineVersion::Current().GetMinor();
-	AppInfo.apiVersion = UE_VK_API_VERSION;
+	AppInfo.apiVersion = ApiVersion;
 
 	VkInstanceCreateInfo InstInfo;
 	ZeroVulkanStruct(InstInfo, VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
@@ -511,143 +776,18 @@ void FVulkanDynamicRHI::CreateInstance()
 
 void FVulkanDynamicRHI::SelectDevice()
 {
-	uint32 GpuCount = 0;
-	VkResult Result = VulkanRHI::vkEnumeratePhysicalDevices(Instance, &GpuCount, nullptr);
-	if (Result == VK_ERROR_INITIALIZATION_FAILED)
+	VkPhysicalDevice PhysicalDevice = SelectPhysicalDevice(Instance);
+	if (PhysicalDevice == VK_NULL_HANDLE)
 	{
-		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("Cannot find a compatible Vulkan device or driver. Try updating your video driver to a more recent version and make sure your video card supports Vulkan.\n\n"), TEXT("Vulkan device not available"));
+		// Shouldn't be possible if profile checks passed prior to this
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, 
+			TEXT("Vulkan failed to select physical device after passing profile checks."), TEXT("No Vulkan driver found!"));
 		FPlatformMisc::RequestExitWithStatus(true, 1);
-	}
-	VERIFYVULKANRESULT_EXPANDED(Result);
-	checkf(GpuCount >= 1, TEXT("No GPU(s)/Driver(s) that support Vulkan were found! Make sure your drivers are up to date and that you are not pending a reboot."));
-
-	TArray<VkPhysicalDevice> PhysicalDevices;
-	PhysicalDevices.AddZeroed(GpuCount);
-	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkEnumeratePhysicalDevices(Instance, &GpuCount, PhysicalDevices.GetData()));
-	checkf(GpuCount >= 1, TEXT("Couldn't enumerate physical devices! Make sure your drivers are up to date and that you are not pending a reboot."));
-
-	FVulkanDevice* HmdDevice = nullptr;
-	uint32 HmdDeviceIndex = 0;
-	struct FDeviceInfo
-	{
-		FVulkanDevice* Device;
-		uint32 DeviceIndex;
-	};
-	TArray<FDeviceInfo> DiscreteDevices;
-	TArray<FDeviceInfo> IntegratedDevices;
-
-	TArray<FDeviceInfo> OriginalOrderedDevices;
-
-#if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
-	// Allow HMD to override which graphics adapter is chosen, so we pick the adapter where the HMD is connected
-	const uint64 HmdGraphicsAdapterLuid  = IHeadMountedDisplayModule::IsAvailable() ? IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : 0;
-#endif
-
-	UE_LOG(LogVulkanRHI, Display, TEXT("Found %d device(s)"), GpuCount);
-	const bool bAllowCPUDevices = FParse::Param(FCommandLine::Get(), TEXT("AllowCPUDevices"));
-	for (uint32 Index = 0; Index < GpuCount; ++Index)
-	{
-		UE_LOG(LogVulkanRHI, Display, TEXT("Device %d:"), Index);
-		FVulkanDevice* NewDevice = new FVulkanDevice(this, PhysicalDevices[Index]);
-		Devices.Add(NewDevice);
-
-		const bool bIsDiscrete = (NewDevice->GetDeviceProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
-		const bool bIsCPUDevice = (NewDevice->GetDeviceProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU);
-
-#if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
-		if (!HmdDevice && HmdGraphicsAdapterLuid != 0 &&
-			FMemory::Memcmp(&HmdGraphicsAdapterLuid, &NewDevice->GetDeviceIdProperties().deviceLUID, VK_LUID_SIZE_KHR) == 0)
-		{
-			HmdDevice = NewDevice;
-			HmdDeviceIndex = Index;
-		}
-#endif
-		if (bIsDiscrete)
-		{
-			DiscreteDevices.Add({NewDevice, Index});
-		}
-		else if (bIsCPUDevice && !bAllowCPUDevices)
-		{
-			UE_LOG(LogVulkanRHI, Display, TEXT("Skipping device [%s] of type VK_PHYSICAL_DEVICE_TYPE_CPU (add -AllowCPUDevices to your command line to include it)."), ANSI_TO_TCHAR(NewDevice->GetDeviceProperties().deviceName));
-		}
-		else
-		{
-			IntegratedDevices.Add({NewDevice, Index});
-		}
-
-		OriginalOrderedDevices.Add({NewDevice, Index});
+		return;
 	}
 
-	uint32 DeviceIndex = -1;
-#if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
-	if (HmdDevice)
-	{
-		Device = HmdDevice;
-		DeviceIndex = HmdDeviceIndex;
-	}
-#endif
-
-	// Add all integrated to the end of the list
-	DiscreteDevices.Append(IntegratedDevices);
-
-	// Non-static as it is used only a few times
-	auto* CVarGraphicsAdapter = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GraphicsAdapter"));
-	int32 CVarExplicitAdapterValue = CVarGraphicsAdapter ? CVarGraphicsAdapter->GetValueOnAnyThread() : -1;
-	FParse::Value(FCommandLine::Get(), TEXT("graphicsadapter="), CVarExplicitAdapterValue);
-
-	// If HMD didn't choose one... (disable static analysis that DeviceIndex is always -1)
-	if (DeviceIndex == -1)	//-V547
-	{
-		if (CVarExplicitAdapterValue >= (int32)GpuCount)
-		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to use r.GraphicsAdapter=%d, but only %d Adapter(s) found. Falling back to first device..."), CVarExplicitAdapterValue, GpuCount);
-			CVarExplicitAdapterValue = 0;
-		}
-		
-		if (CVarExplicitAdapterValue >= 0)
-		{
-			DeviceIndex = OriginalOrderedDevices[CVarExplicitAdapterValue].DeviceIndex;
-			Device = OriginalOrderedDevices[CVarExplicitAdapterValue].Device;
-		}
-		else
-		{
-			if (CVarExplicitAdapterValue == -2)
-			{
-				DeviceIndex = OriginalOrderedDevices[0].DeviceIndex;
-				Device = OriginalOrderedDevices[0].Device;
-			}
-			else if (DiscreteDevices.Num() > 0 && CVarExplicitAdapterValue == -1)
-			{
-				const EGpuVendorId PreferredVendor = RHIGetPreferredAdapterVendor();
-				if (DiscreteDevices.Num() > 1 && (PreferredVendor != EGpuVendorId::Unknown))
-				{
-					// Check for preferred
-					for (int32 Index = 0; Index < DiscreteDevices.Num(); ++Index)
-					{
-						if (RHIConvertToGpuVendorId(DiscreteDevices[Index].Device->GpuProps.vendorID) == PreferredVendor)
-						{
-							DeviceIndex = DiscreteDevices[Index].DeviceIndex;
-							Device = DiscreteDevices[Index].Device;
-							break;
-						}
-					}
-				}
-
-				if (DeviceIndex == -1)
-				{
-					Device = DiscreteDevices[0].Device;
-					DeviceIndex = DiscreteDevices[0].DeviceIndex;
-				}
-			}
-			else
-			{
-				FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("Cannot find a compatible Vulkan device."), TEXT("No devices found!"));
-				FPlatformMisc::RequestExitWithStatus(true, 1);
-				// unreachable
-				return;
-			}
-		}
-	}
+	UE_LOG(LogVulkanRHI, Log, TEXT("Creating Vulkan Device using VkPhysicalDevice 0x%x."), PhysicalDevice);
+	Device = new FVulkanDevice(this, PhysicalDevice);
 
 	const VkPhysicalDeviceProperties& Props = Device->GetDeviceProperties();
 	bool bUseVendorIdAsIs = true;
@@ -670,19 +810,25 @@ void FVulkanDynamicRHI::SelectDevice()
 		}
 	}
 
-	UE_LOG(LogVulkanRHI, Log, TEXT("Chosen device index: %d"), DeviceIndex);
-
 	if (bUseVendorIdAsIs)
 	{
 		GRHIVendorId = Props.vendorID;
 	}
 	GRHIAdapterName = ANSI_TO_TCHAR(Props.deviceName);
 
-	auto ReadVulkanDriverVersionFromProps = [](FVulkanDevice* CurrentDevice) {
-
-		const VkPhysicalDeviceProperties& Props = CurrentDevice->GetDeviceProperties();
-
-		if (CurrentDevice->GetVendorId() == EGpuVendorId::Nvidia)
+	if (PLATFORM_ANDROID)
+	{
+		GRHIAdapterName.Append(TEXT(" Vulkan"));
+		GRHIAdapterInternalDriverVersion = FString::Printf(TEXT("%d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
+	}
+	else if (PLATFORM_WINDOWS)
+	{
+		GRHIDeviceId = Props.deviceID;
+		UE_LOG(LogVulkanRHI, Log, TEXT("API Version: %d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
+	}
+	else if(PLATFORM_UNIX)
+	{
+		if (Device->GetVendorId() == EGpuVendorId::Nvidia)
 		{
 			UNvidiaDriverVersion NvidiaVersion;
 			static_assert(sizeof(NvidiaVersion) == sizeof(Props.driverVersion), "Mismatched Nvidia pack driver version!");
@@ -698,21 +844,6 @@ void FVulkanDynamicRHI::SelectDevice()
 		GRHIAdapterInternalDriverVersion = GRHIAdapterUserDriverVersion;
 		GRHIAdapterDriverDate = TEXT("01-01-01");  // Unused on unix systems, pick a date that will fail test if compared but passes IsValid() check
 		UE_LOG(LogVulkanRHI, Log, TEXT("     API Version: %d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
-	};
-
-	if (PLATFORM_ANDROID)
-	{
-		GRHIAdapterName.Append(TEXT(" Vulkan"));
-		GRHIAdapterInternalDriverVersion = FString::Printf(TEXT("%d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
-	}
-	else if (PLATFORM_WINDOWS)
-	{
-		GRHIDeviceId = Props.deviceID;
-		UE_LOG(LogVulkanRHI, Log, TEXT("API Version: %d.%d.%d"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion));
-	}
-	else if(PLATFORM_UNIX)
-	{
-		ReadVulkanDriverVersionFromProps(Device);
 	}
 
 	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
@@ -812,7 +943,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		GRHIMaxDispatchThreadGroupsPerDimension.Y = FMath::Min<uint32>(Limits.maxComputeWorkGroupCount[1], 0x7fffffff);
 		GRHIMaxDispatchThreadGroupsPerDimension.Z = FMath::Min<uint32>(Limits.maxComputeWorkGroupCount[2], 0x7fffffff);
 
-		FVulkanPlatform::SetupFeatureLevels();
+		FVulkanPlatform::SetupFeatureLevels(GRHIGlobals.ShaderPlatformForFeatureLevel);
 
 		GRHIRequiresRenderTargetForPixelShaderUAVs = true;
 
@@ -1138,7 +1269,7 @@ void FVulkanDynamicRHI::RHIReleaseThreadOwnership()
 
 uint32 FVulkanDynamicRHI::RHIGetVulkanVersion() const
 {
-	return UE_VK_API_VERSION;
+	return ApiVersion;
 }
 
 VkInstance FVulkanDynamicRHI::RHIGetVkInstance() const

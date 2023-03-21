@@ -56,6 +56,11 @@ bool FVulkanLinuxPlatform::LoadVulkanLibrary()
 
 	if (VulkanLib == nullptr)
 	{
+		// be more verbose on Linux
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, 
+			TEXT("Unable to load Vulkan library and/or acquire the necessary function pointers. Make sure an up-to-date libvulkan.so.1 is installed."),
+			TEXT("Unable to initialize Vulkan."));
+
 		return false;
 	}
 

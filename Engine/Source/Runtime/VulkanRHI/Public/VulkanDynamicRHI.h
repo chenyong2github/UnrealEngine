@@ -11,6 +11,7 @@
 class FVulkanFramebuffer;
 class FVulkanDevice;
 class FVulkanQueue;
+class FVulkanViewport;
 class IHeadMountedDisplayVulkanExtensions;
 struct FRHITransientHeapAllocation;
 
@@ -339,11 +340,10 @@ private:
 	void ReleasePooledUniformBuffers();
 
 protected:
+	uint32 ApiVersion = 0;
 	VkInstance Instance;
 	TArray<const ANSICHAR*> InstanceExtensions;
 	TArray<const ANSICHAR*> InstanceLayers;
-
-	TArray<FVulkanDevice*> Devices;
 
 	FVulkanDevice* Device;
 
@@ -442,6 +442,7 @@ class FVulkanDynamicRHIModule : public IDynamicRHIModule
 public:
 	// IDynamicRHIModule
 	virtual bool IsSupported() override;
+	virtual bool IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel) override;
 
 	virtual FDynamicRHI* CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::Num) override;
 };

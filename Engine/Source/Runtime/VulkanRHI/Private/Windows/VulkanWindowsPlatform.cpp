@@ -16,6 +16,7 @@
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 static HMODULE GVulkanDLLModule = nullptr;
+bool FVulkanWindowsPlatform::bAttemptedLoad = false;
 
 static PFN_vkGetInstanceProcAddr GGetInstanceProcAddr = nullptr;
 
@@ -29,6 +30,12 @@ ENUM_VK_ENTRYPOINTS_ALL(DEFINE_VK_ENTRYPOINTS)
 #pragma warning(disable : 4191) // warning C4191: 'type cast': unsafe conversion
 bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 {
+	if (bAttemptedLoad)
+	{
+		return (GVulkanDLLModule != nullptr);
+	}
+	bAttemptedLoad = true;
+
 #if NV_AFTERMATH
 	GVulkanNVAftermathModuleLoaded = false;
 	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
@@ -156,7 +163,9 @@ bool FVulkanWindowsPlatform::LoadVulkanInstanceFunctions(VkInstance inInstance)
 	
 	ENUM_VK_ENTRYPOINTS_PLATFORM_INSTANCE(GETINSTANCE_VK_ENTRYPOINTS);
 	ENUM_VK_ENTRYPOINTS_PLATFORM_INSTANCE(CHECK_VK_ENTRYPOINTS);
-#undef GET_VK_ENTRYPOINTS
+
+#undef GETINSTANCE_VK_ENTRYPOINTS
+#undef CHECK_VK_ENTRYPOINTS
 
 	return true;
 }
@@ -169,6 +178,7 @@ void FVulkanWindowsPlatform::FreeVulkanLibrary()
 		::FreeLibrary(GVulkanDLLModule);
 		GVulkanDLLModule = nullptr;
 	}
+	bAttemptedLoad = false;
 }
 
 #include "Windows/HideWindowsPlatformTypes.h"
