@@ -154,13 +154,19 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxManager::InitializeLibrary()
 	{
-		bool bCanProceed = VerifyPrerequesites();
+		bool bCanProceed = FApp::CanEverRender();
+		
+		if (bCanProceed)
+		{
+			bCanProceed = VerifyPrerequesites();
+		}
+
 		if(bCanProceed)
 		{
 			bCanProceed = LoadRivermaxLibrary();
 		}
 		
-		if (bCanProceed && FApp::CanEverRender())
+		if (bCanProceed)
 		{
 			rmax_init_config Config;
 			memset(&Config, 0, sizeof(Config));
