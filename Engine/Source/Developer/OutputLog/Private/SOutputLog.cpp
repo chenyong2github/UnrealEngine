@@ -1235,7 +1235,6 @@ SOutputLog::~SOutputLog()
 	{
 		GLog->RemoveOutputDevice(this);
 	}
-	FCoreDelegates::OnHandleSystemError.RemoveAll(this);
 
 #if WITH_EDITOR
 	if (UObjectInitialized() && !GExitPurge)
