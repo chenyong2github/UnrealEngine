@@ -61,7 +61,7 @@ namespace Horde.Agent.Leases.Handlers
 					return LeaseResult.Success;
 				}
 
-				await using (ComputeSocket socket = new ComputeSocket(new TcpTransport(tcpClient.Client), true, _loggerFactory))
+				await using (ComputeSocket socket = new ComputeSocket(new TcpTransport(tcpClient.Client), _loggerFactory))
 				{
 					await RunAsync(socket, cancellationToken);
 					await socket.CloseAsync(cancellationToken);

@@ -20,9 +20,7 @@ namespace EpicGames.Horde.Compute
 		readonly object _lockObject = new object();
 		
 		bool _complete;
-		int _nextChannelId;
 
-		readonly Queue<int> _freeChannelIds = new Queue<int>();
 		readonly IComputeTransport _transport;
 		readonly ILoggerFactory _loggerFactory;
 		readonly ILogger _logger;
@@ -36,20 +34,16 @@ namespace EpicGames.Horde.Compute
 		readonly Dictionary<int, IComputeBufferReader> _sendBuffers = new Dictionary<int, IComputeBufferReader>();
 		readonly Dictionary<int, Task> _sendTasks = new Dictionary<int, Task>();
 
-		int Endpoint => (_nextChannelId & 1);
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="transport">Transport to communicate with the remote</param>
-		/// <param name="isRemote">Whether this socket is the remote end of the connection</param>
 		/// <param name="loggerFactory">Logger for trace output</param>
-		public ComputeSocket(IComputeTransport transport, bool isRemote, ILoggerFactory loggerFactory)
+		public ComputeSocket(IComputeTransport transport, ILoggerFactory loggerFactory)
 		{
 			_transport = transport;
 			_loggerFactory = loggerFactory;
 			_logger = loggerFactory.CreateLogger<ComputeSocket>();
-			_nextChannelId = isRemote ? 1 : 2;
 			_readTask = RunReaderAsync(transport, _cancellationSource.Token);
 		}
 
@@ -68,13 +62,13 @@ namespace EpicGames.Horde.Compute
 			// a message to be sent back to our read task allowing it to shut down gracefully.
 			byte[] header = new byte[8];
 			await _transport.WriteAsync(header, cancellationToken);
-			_logger.LogTrace("{Endpoint}: Sent shutdown packet", Endpoint);
+			_logger.LogTrace("Sent shutdown packet");
 
 			// Wait for the reader to stop
 			await Task.WhenAny(_readTask, cancellationTask);
 			cancellationToken.ThrowIfCancellationRequested();
 
-			_logger.LogTrace("{Endpoint}: Closed", Endpoint);
+			_logger.LogTrace("Closed");
 		}
 
 		/// <inheritdoc/>
@@ -96,7 +90,7 @@ namespace EpicGames.Horde.Compute
 
 		async Task RunReaderAsync(IComputeTransport transport, CancellationToken cancellationToken)
 		{
-			_logger.LogTrace("{Endpoint}: Started reader", Endpoint);
+			_logger.LogTrace("Started socket reader");
 
 			byte[] header = new byte[8];
 			try
@@ -111,26 +105,26 @@ namespace EpicGames.Horde.Compute
 					int bytesRead = await transport.ReadAsync(header, cancellationToken);
 					if (bytesRead == 0)
 					{
-						_logger.LogTrace("{Endpoint}: End of socket", Endpoint);
+						_logger.LogTrace("End of socket");
 						break;
 					}
 
 					// Parse the target buffer and packet size
 					int id = BinaryPrimitives.ReadInt32LittleEndian(header);
 					int size = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(4));
-					_logger.LogTrace("{Endpoint}: Read {ChannelId} -> {Size} bytes", Endpoint, id, size);
+					_logger.LogTrace("Read {ChannelId} -> {Size} bytes", id, size);
 
 					// If the size if negative, we're closing the entire connection
 					if (size == 0)
 					{
-						_logger.LogTrace("{Endpoint}: Received shutdown packet", Endpoint);
+						_logger.LogTrace("Received shutdown packet");
 						break;
 					}
 
 					// Dispatch it to the correct place
 					if (size < 0)
 					{
-						_logger.LogTrace("{Endpoint}: Detaching buffer {Id}", Endpoint, id);
+						_logger.LogTrace("Detaching buffer {Id}", id);
 						DetachReceiveBuffer(cachedWriters, id);
 					}
 					else
@@ -155,7 +149,7 @@ namespace EpicGames.Horde.Compute
 				}
 			}
 
-			_logger.LogTrace("{Endpoint}: Closing reader", Endpoint);
+			_logger.LogTrace("Closing reader");
 		}
 
 		async Task<IComputeBufferWriter> GetReceiveBufferAsync(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
@@ -243,7 +237,7 @@ namespace EpicGames.Horde.Compute
 					}
 					else if (reader.IsComplete)
 					{
-						_logger.LogTrace("{Endpoint}: Sending complete packet for channel {ChannelId}", Endpoint, id);
+						_logger.LogTrace("Sending complete packet for channel {ChannelId}", id);
 						BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), -1);
 						await _transport.WriteAsync(header, cancellationToken);
 						break;

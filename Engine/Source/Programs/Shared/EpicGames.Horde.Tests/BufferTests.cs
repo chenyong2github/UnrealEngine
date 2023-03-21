@@ -17,9 +17,9 @@ namespace EpicGames.Horde.Tests
 	public class BufferTests
 	{
 		[TestMethod]
-		public async Task TestLocalBuffer()
+		public async Task TestHeapBuffer()
 		{
-			using RentedLocalBuffer buffer = new RentedLocalBuffer(8000);
+			using HeapBuffer buffer = new HeapBuffer(8000);
 			await TestProducerConsumerAsync(buffer.Writer, buffer.Reader);
 		}
 

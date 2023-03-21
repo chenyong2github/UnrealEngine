@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Win32.SafeHandles;
-using System.Runtime.Versioning;
 using System.IO.MemoryMappedFiles;
 using System.Reflection;
 using System.IO;
@@ -18,7 +17,7 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// <summary>
 	/// Implementation of <see cref="IComputeBuffer"/> suitable for cross-process communication
 	/// </summary>
-	public sealed class IpcBuffer : ComputeBuffer, IDisposable
+	public sealed class IpcBuffer : ComputeBuffer
 	{
 		[StructLayout(LayoutKind.Sequential)]
 		class SECURITY_ATTRIBUTES
