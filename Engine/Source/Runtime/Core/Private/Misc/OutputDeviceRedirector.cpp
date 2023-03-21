@@ -52,11 +52,16 @@ struct FOutputDeviceBlockAllocationTag : FDefaultBlockAllocationTag
 
 		FORCEINLINE static void* Malloc(SIZE_T Size, uint32 Alignment)
 		{
-			return FPlatformMemory::BaseAllocator()->Malloc(Size, DEFAULT_ALIGNMENT);
+			void* Pointer = FPlatformMemory::BaseAllocator()->Malloc(Size, DEFAULT_ALIGNMENT);
+			MemoryTrace_Alloc(uint64(Pointer), Size, DEFAULT_ALIGNMENT, EMemoryTraceRootHeap::SystemMemory);
+			MemoryTrace_MarkAllocAsHeap(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
+			return Pointer;
 		}
 
 		FORCEINLINE static void Free(void* Pointer, SIZE_T Size)
 		{
+			MemoryTrace_UnmarkAllocAsHeap(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
+			MemoryTrace_Free(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
 			return FPlatformMemory::BaseAllocator()->Free(Pointer);
 		}
 	};
