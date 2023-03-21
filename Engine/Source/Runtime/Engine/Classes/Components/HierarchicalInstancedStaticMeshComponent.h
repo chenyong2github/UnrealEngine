@@ -253,6 +253,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|HierarchicalInstancedStaticMesh")
 	void SetLODDistanceScale(float InLODDistanceScale);
 
+	UFUNCTION(BlueprintCallable, Category = "Components|HierarchicalInstancedStaticMesh")
+	float GetLODDistanceScale() const { return InstanceLODDistanceScale; }
+
 	/** Get the number of instances that overlap a given sphere */
 	int32 GetOverlappingSphereCount(const FSphere& Sphere) const;
 	/** Get the number of instances that overlap a given box */
