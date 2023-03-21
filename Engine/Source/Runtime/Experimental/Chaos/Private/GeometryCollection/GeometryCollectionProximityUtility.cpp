@@ -585,7 +585,7 @@ void FGeometryCollectionProximityUtility::CopyProximityToConnectionGraph()
 				{
 					NbrBone = Collection->Parent[NbrBone];
 				}
-				if (NbrBone != INDEX_NONE && Collection->Parent[NbrBone] == BoneParent)
+				if (NbrBone != INDEX_NONE && NbrBone != BoneIdx && Collection->Parent[NbrBone] == BoneParent)
 				{
 					ConnectionsFacade.Connect(BoneIdx, NbrBone);
 				}
