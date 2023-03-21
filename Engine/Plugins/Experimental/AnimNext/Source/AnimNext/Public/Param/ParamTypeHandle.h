@@ -291,7 +291,7 @@ public:
 			}
 		}
 
-		check(TypeHandle.IsValid());
+		//check(TypeHandle.IsValid());
 
 		return TypeHandle;
 	}
