@@ -31,6 +31,12 @@ public class BlankProgramTarget : TargetRules
 		bCompileAgainstApplicationCore = false;
 		bCompileICU = false;
 
+		// to build with automation tests:
+		// bForceCompileDevelopmentAutomationTests = true;
+
+		// to enable tracing:
+		// GlobalDefinitions.Add("UE_TRACE_ENABLED=1");
+
 		// This app is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
 		bIsBuildingConsoleApplication = true;
 	}
