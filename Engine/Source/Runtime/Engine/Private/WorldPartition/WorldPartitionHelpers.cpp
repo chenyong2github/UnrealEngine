@@ -238,15 +238,6 @@ bool FWorldPartitionHelpers::HasExceededMaxMemory()
 
 bool FWorldPartitionHelpers::ShouldCollectGarbage()
 {
-	// Even if we're not exhausting memory, GC should be run at periodic intervals
-	static double LastTime = FPlatformTime::Seconds();
-	double ThisTime = FPlatformTime::Seconds();
-	if ((ThisTime - LastTime) > 30)
-	{
-		LastTime = ThisTime;
-		return true;
-	}
-
 	return HasExceededMaxMemory();
 }
 
