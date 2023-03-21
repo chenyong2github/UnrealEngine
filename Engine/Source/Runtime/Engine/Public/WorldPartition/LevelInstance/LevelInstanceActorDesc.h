@@ -47,8 +47,9 @@ protected:
 	TWeakObjectPtr<UWorld> LevelInstanceContainerWorldContext;
 
 	FWorldPartitionActorFilter Filter;
-
+	bool bIsContainerInstance;
 private:
+	bool IsContainerInstanceInternal() const;
 	void RegisterContainerInstance(UWorld* InWorldContext);
 	void UnregisterContainerInstance();
 	void UpdateBounds();
