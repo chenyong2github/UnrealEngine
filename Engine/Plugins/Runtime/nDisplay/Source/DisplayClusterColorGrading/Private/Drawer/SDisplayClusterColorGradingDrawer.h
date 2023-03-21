@@ -56,8 +56,14 @@ public:
 	void SetDrawerStateToDefault();
 
 private:
+	/** Binds commands to the drawer's command list */
+	void BindCommands();
+
 	/** Creates the button used to dock the drawer in the operator panel */
 	TSharedRef<SWidget> CreateDockInLayoutButton();
+
+	/** Creates the toolbar used in the object list panel of the color grading drawer */
+	TSharedRef<SWidget> CreateListPanelToolbar() const;
 
 	/** Gets the display name of the color grading list at the specified index */
 	FText GetColorGradingListName(int32 ListIndex) const;
@@ -96,13 +102,13 @@ private:
 	void FillColorGradingGroupToolBar();
 
 	/** Gets whether the specified drawer mode is currently selected */
-	ECheckBoxState IsDrawerModeSelected(EDisplayClusterColorGradingDrawerMode InDrawerMode) const;
+	bool IsDrawerModeSelected(EDisplayClusterColorGradingDrawerMode InDrawerMode) const;
 
 	/** Gets the visibility state for the specified drawer mode */
 	EVisibility GetDrawerModeVisibility(EDisplayClusterColorGradingDrawerMode InDrawerMode) const;
 
 	/** Raised when the specified drawer mode checked state is changed */
-	void OnDrawerModeSelected(ECheckBoxState State, EDisplayClusterColorGradingDrawerMode InDrawerMode);
+	void OnDrawerModeSelected(EDisplayClusterColorGradingDrawerMode InDrawerMode);
 
 	/** Gets the visibility state of the color grading group toolbar */
 	EVisibility GetColorGradingGroupToolBarVisibility() const;
@@ -172,6 +178,9 @@ private:
 	TSharedPtr<SDisplayClusterColorGradingColorWheelPanel> ColorWheelPanel;
 	TSharedPtr<SDisplayClusterColorGradingDetailsPanel> DetailsPanel;
 	TArray<TSharedPtr<SInlineEditableTextBlock>> ColorGradingGroupTextBlocks;
+
+	/** Commands used by the drawer */
+	TSharedPtr<FUICommandList> CommandList;
 
 	/** The color grading data model for the currently selected objects */
 	TSharedPtr<FDisplayClusterColorGradingDataModel> ColorGradingDataModel;
