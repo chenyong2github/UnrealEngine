@@ -39,7 +39,7 @@ namespace UE::UsdInfoCache::Private
 		UE::FSdfPath AssetCollapsedRoot;
 		UE::FSdfPath ComponentCollapsedRoot;
 		uint64 ExpectedVertexCountForSubtree;
-		uint64 ExpectedMaterialSlotCountForSubtree;
+		TArray<UsdUtils::FUsdPrimMaterialSlot> SubtreeMaterialSlots;
 	};
 }
 
@@ -48,7 +48,7 @@ FArchive& operator <<( FArchive& Ar, UE::UsdInfoCache::Private::FUsdPrimInfo& In
 	Ar << Info.AssetCollapsedRoot;
 	Ar << Info.ComponentCollapsedRoot;
 	Ar << Info.ExpectedVertexCountForSubtree;
-	Ar << Info.ExpectedMaterialSlotCountForSubtree;
+	Ar << Info.SubtreeMaterialSlots;
 
 	return Ar;
 }
@@ -267,6 +267,24 @@ namespace UE::USDInfoCacheImpl::Private
 					{
 						const pxr::SdfPath& PrototypePath = PrototypePaths[ PrototypeIndex ];
 
+						// Skip invisible prototypes here to mirror how they're skipped within
+						// USDGeomMeshConversion.cpp, in the RecursivelyCollapseChildMeshes function. Those two
+						// traversals have to match at least with respect to the material slots, so that we can use
+						// the data collected here to apply material overrides to the meshes generated for the point
+						// instancers when they're collapsed
+						pxr::UsdPrim PrototypePrim = UsdPrim.GetStage()->GetPrimAtPath(PrototypePath);
+						if (pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable(PrototypePrim))
+						{
+							if (pxr::UsdAttribute VisibilityAttr = UsdGeomImageable.GetVisibilityAttr())
+							{
+								pxr::TfToken VisibilityToken;
+								if (VisibilityAttr.Get(&VisibilityToken) && VisibilityToken == pxr::UsdGeomTokens->invisible)
+								{
+									continue;
+								}
+							}
+						}
+
 						// If we're calling this for a point instancer we should have parsed the results for our
 						// prototype subtrees already
 						if ( const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = Impl.InfoMap.Find( UE::FSdfPath{ PrototypePath } ) )
@@ -388,12 +406,34 @@ namespace UE::USDInfoCacheImpl::Private
 		OutSubtreeVertexCount = 0;
 		OutSubtreeSlots.Empty();
 
+		// We will still step into invisible prims to collect all info we can, but we won't count their material slots
+		// or vertex counts: The main usage of those counts is to handle collapsed meshes, and during collapse we just
+		// early out whenever we encounter an invisible prim
+		bool bPrimIsInvisible = false;
+		if (pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable(UsdPrim))
+		{
+			if (pxr::UsdAttribute VisibilityAttr = UsdGeomImageable.GetVisibilityAttr())
+			{
+				pxr::TfToken VisibilityToken;
+				if (VisibilityAttr.Get(&VisibilityToken) && VisibilityToken == pxr::UsdGeomTokens->invisible)
+				{
+					bPrimIsInvisible = true;
+				}
+			}
+		}
+
+		// If the mesh prim has an unselected geometry purpose, it is also essentially invisible
+		if (!EnumHasAllFlags(Context.PurposesToLoad, IUsdPrim::GetPurpose(UsdPrim)))
+		{
+			bPrimIsInvisible = true;
+		}
+
 		bool bIsPointInstancer = false;
 		if ( pxr::UsdGeomPointInstancer PointInstancer{ UsdPrim } )
 		{
 			bIsPointInstancer = true;
 		}
-		else
+		else if (!bPrimIsInvisible)
 		{
 			GetPrimVertexCountAndSlots(
 				UsdPrim,
@@ -571,7 +611,7 @@ namespace UE::USDInfoCacheImpl::Private
 			{
 				TSet<UsdUtils::FUsdPrimMaterialSlot> SlotsSet{ Pair.Value };
 				UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd( Pair.Key );
-				Info.ExpectedMaterialSlotCountForSubtree = SlotsSet.Num();
+				Info.SubtreeMaterialSlots = SlotsSet.Array();
 			}
 		}
 		else
@@ -579,7 +619,7 @@ namespace UE::USDInfoCacheImpl::Private
 			for ( const TPair< UE::FSdfPath, TArray<UsdUtils::FUsdPrimMaterialSlot>>& Pair : SubtreeMaterialSlots )
 			{
 				UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd( Pair.Key );
-				Info.ExpectedMaterialSlotCountForSubtree = Pair.Value.Num();
+				Info.SubtreeMaterialSlots = Pair.Value;
 			}
 		}
 	}
@@ -727,11 +767,29 @@ TOptional<uint64> FUsdInfoCache::GetSubtreeMaterialSlotCount( const UE::FSdfPath
 
 		if ( const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = ImplPtr->InfoMap.Find( Path ) )
 		{
-			return FoundInfo->ExpectedMaterialSlotCountForSubtree;
+			return FoundInfo->SubtreeMaterialSlots.Num();
 		}
 
 		// This should never happen: We should have cached the entire tree
 		ensureMsgf( false, TEXT( "Prim path '%s' has not been cached!" ), *Path.GetString() );
+	}
+
+	return {};
+}
+
+TOptional<TArray<UsdUtils::FUsdPrimMaterialSlot>> FUsdInfoCache::GetSubtreeMaterialSlots(const UE::FSdfPath& Path)
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
+
+		if (const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = ImplPtr->InfoMap.Find(Path))
+		{
+			return FoundInfo->SubtreeMaterialSlots;
+		}
+
+		// This should never happen: We should have cached the entire tree
+		ensureMsgf(false, TEXT("Prim path '%s' has not been cached!"), *Path.GetString());
 	}
 
 	return {};

@@ -99,7 +99,6 @@ void FUsdGeomPointInstancerCreateAssetsTaskChain::SetupTasks()
 	Do( ESchemaTranslationLaunchPolicy::Async,
 		[this]() -> bool
 		{
-			// TODO: Restore support for LOD prototypes
 			LODIndexToMeshDescription.Reset( 1 );
 			LODIndexToMaterialInfo.Reset( 1 );
 

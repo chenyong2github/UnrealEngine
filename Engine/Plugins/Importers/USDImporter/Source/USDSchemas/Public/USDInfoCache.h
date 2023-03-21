@@ -21,6 +21,11 @@ enum class ECollapsingType
 	Components
 };
 
+namespace UsdUtils
+{
+	struct FUsdPrimMaterialSlot;
+}
+
 /**
  * Caches information about a specific USD Stage
  */
@@ -59,6 +64,7 @@ public:
 	// provide the total sum of vertex counts of its entire subtree when queried
 	TOptional<uint64> GetSubtreeVertexCount(const UE::FSdfPath& Path);
 	TOptional<uint64> GetSubtreeMaterialSlotCount(const UE::FSdfPath& Path);
+	TOptional<TArray<UsdUtils::FUsdPrimMaterialSlot>> GetSubtreeMaterialSlots(const UE::FSdfPath& Path);
 
 public:
 	void LinkAssetToPrim(const UE::FSdfPath& Path, UObject* Asset);

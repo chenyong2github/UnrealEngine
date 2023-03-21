@@ -259,11 +259,6 @@ void MeshTranslationImpl::SetMaterialOverrides(
 {
 	FScopedUsdAllocs Allocs;
 
-	pxr::UsdGeomMesh Mesh{Prim};
-	if (!Mesh)
-	{
-		return;
-	}
 	pxr::SdfPath PrimPath = Prim.GetPath();
 	pxr::UsdStageRefPtr Stage = Prim.GetStage();
 
@@ -289,6 +284,11 @@ void MeshTranslationImpl::SetMaterialOverrides(
 		TMap<int32, UsdUtils::FUsdPrimMaterialAssignmentInfo> LODIndexToAssignmentsMap;
 		TFunction<bool(const pxr::UsdGeomMesh&, int32)> IterateLODs = [&](const pxr::UsdGeomMesh& LODMesh, int32 LODIndex)
 		{
+			// In here we need to parse the assignments again and can't rely on the cache because the info cache
+			// only has info about the default variant selection state of the stage: It won't have info about the
+			// LOD variant set setups as that involves actively toggling variants.
+			// TODO: Make the cache rebuild collect this info. Right now is not a good time for this as that would
+			// break the parallel-for setup that that function has
 			UsdUtils::FUsdPrimMaterialAssignmentInfo LODInfo = UsdUtils::GetPrimMaterialAssignments(
 				LODMesh.GetPrim(),
 				pxr::UsdTimeCode(Time),
@@ -319,15 +319,29 @@ void MeshTranslationImpl::SetMaterialOverrides(
 	// Extract material assignment info from prim if its *not* a LOD mesh, or if we failed to parse LODs
 	if (!bInterpretedLODs)
 	{
-		LODIndexToAssignments = {
-			UsdUtils::GetPrimMaterialAssignments(
-				ValidPrim,
-				pxr::UsdTimeCode(Time),
-				bProvideMaterialIndices,
-				RenderContextToken,
-				MaterialPurposeToken
-			)
-		};
+		// Try to pull the material slot info from the info cache first, which is useful if ValidPrim is a collapsed
+		// prim subtree: Querying it's material assignments directly is likely not what we want, as ValidPrim is
+		// likely just some root Xform prim.
+		// Note: This only works because we'll rebuild the cache when our material purpose/render context changes,
+		// and because in USD relationships (and so material bindings) can't vary with time
+		TOptional<TArray<UsdUtils::FUsdPrimMaterialSlot>> SubtreeSlots = InfoCache.GetSubtreeMaterialSlots(UE::FSdfPath{PrimPath});
+		if (SubtreeSlots.IsSet())
+		{
+			UsdUtils::FUsdPrimMaterialAssignmentInfo& NewInfo = LODIndexToAssignments.Emplace_GetRef();
+			NewInfo.Slots = MoveTemp(SubtreeSlots.GetValue());
+		}
+		else
+		{
+			LODIndexToAssignments = {
+				UsdUtils::GetPrimMaterialAssignments(
+					ValidPrim,
+					pxr::UsdTimeCode(Time),
+					bProvideMaterialIndices,
+					RenderContextToken,
+					MaterialPurposeToken
+				)
+			};
+		}
 	}
 
 	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(

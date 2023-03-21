@@ -1435,6 +1435,12 @@ void SUsdStage::FillMaterialPurposeSubMenu( FMenuBuilder& MenuBuilder )
 			{
 				if ( AUsdStageActor* StageActor = GetStageActorOrCDO() )
 				{
+					FScopedTransaction Transaction(FText::Format(
+						LOCTEXT("ChangeMaterialPurpose", "Change selected material purpose for USD stage actor '{0}' to '{1}'"),
+						FText::FromString(StageActor->GetActorLabel()),
+						FText::FromString(ChosenOption.IsValid() ? *ChosenOption : TEXT(""))
+					));
+
 					StageActor->SetMaterialPurpose( **ChosenOption );
 					if ( StageActor->IsTemplate() )
 					{
@@ -1489,6 +1495,12 @@ void SUsdStage::FillMaterialPurposeSubMenu( FMenuBuilder& MenuBuilder )
 
 				if ( AUsdStageActor* StageActor = GetStageActorOrCDO() )
 				{
+					FScopedTransaction Transaction(FText::Format(
+						LOCTEXT("TypeMaterialPurpose", "Change selected material purpose for USD stage actor '{0}' to '{1}'"),
+						FText::FromString(StageActor->GetActorLabel()),
+						NewText
+					));
+
 					StageActor->SetMaterialPurpose( NewPurpose );
 					if ( StageActor->IsTemplate() )
 					{

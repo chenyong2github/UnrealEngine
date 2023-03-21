@@ -192,6 +192,7 @@ namespace UnrealToUsd
 	 */
 	USDUTILITIES_API bool ConvertMeshDescriptions( const TArray<FMeshDescription>& LODIndexToMeshDescription, pxr::UsdPrim& UsdPrim, const FMatrix& AdditionalTransform, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default() );
 }
+#endif // USE_USD_SDK
 
 namespace UsdUtils
 {
@@ -268,7 +269,11 @@ namespace UsdUtils
 		/** Describes the index of the Slot that each polygon/face of a mesh uses. Matches the order Slots */
 		TArray<int32> MaterialIndices;
 	};
+}
 
+#if USE_USD_SDK
+namespace UsdUtils
+{
 	/** Creates a FDisplayColorMaterial object describing the vertex color/opacity data from UsdMesh at time TimeCode */
 	USDUTILITIES_API TOptional<FDisplayColorMaterial> ExtractDisplayColorMaterial( const pxr::UsdGeomMesh& UsdMesh, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime() );
 
