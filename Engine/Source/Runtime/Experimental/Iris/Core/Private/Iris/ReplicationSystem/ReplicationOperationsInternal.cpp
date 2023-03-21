@@ -23,6 +23,12 @@
 namespace UE::Net::Private
 {
 
+static bool bCVarForceFullCopyAndQuantize = false;
+static FAutoConsoleVariableRef CVarForceFullCopyAndQuantize(
+	TEXT("net.iris.ForceFullCopyAndQuantize"),
+	bCVarForceFullCopyAndQuantize,
+	TEXT("When enabled a full copy and quantize will be used, if disabled we will only copy and quantize dirty state data."));
+
 void FReplicationInstanceOperationsInternal::BindInstanceProtocol(FNetHandle NetHandle, FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol)
 {
 	FReplicationInstanceProtocol::FFragmentData* FragmentData = InstanceProtocol->FragmentData;
@@ -62,7 +68,11 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 		// We cannot copy state data for zero sized objects or objects that no longer has an instance protocol.
 		if (Object.InstanceProtocol && Object.Protocol->InternalTotalSize > 0U)
 		{
+			// if the object was scopable prev frame we can do partial copy
 			bool bShouldPropagateChangedStates = Object.bShouldPropagateChangedStates;
+
+			// We do a full CopyAndQunatize if the cvar bCVarForceFullCopyAndQuantize is set or that the object is new
+			const bool bUseFullCopyAndQuantize = bCVarForceFullCopyAndQuantize || !NetRefHandleManager.GetPrevFrameScopableInternalIndices().GetBit(InternalIndex);
 
 			// Copy dirty state
 			{
@@ -73,7 +83,14 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 				ChangeMaskWriter.InitBytes(ChangeMaskData, ChangeMaskByteCount);
 
 				//UE_LOG(LogIris, Log, TEXT("Copying state data for ( InternalIndex: %u ) with NetRefHandle (Id=%u)"), InternalIndex, Object.RefHandle.GetId());
-				FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, NetRefHandleManager.GetReplicatedObjectStateBufferNoCheck(InternalIndex), &ChangeMaskWriter, Object.InstanceProtocol, Object.Protocol);
+				if (bUseFullCopyAndQuantize)
+				{
+					FReplicationInstanceOperations::CopyAndQuantize(SerializationContext, NetRefHandleManager.GetReplicatedObjectStateBufferNoCheck(InternalIndex), &ChangeMaskWriter, Object.InstanceProtocol, Object.Protocol);					
+				}
+				else
+				{
+					FReplicationInstanceOperations::CopyAndQuantizeIfDirty(SerializationContext, NetRefHandleManager.GetReplicatedObjectStateBufferNoCheck(InternalIndex), &ChangeMaskWriter, Object.InstanceProtocol, Object.Protocol);
+				}
 
 				Info.bHasDirtyChangeMask = MakeNetBitArrayView(ChangeMaskData, ChangeMaskByteCount * 8U).FindFirstOne() != FNetBitArrayView::InvalidIndex;
 			}
