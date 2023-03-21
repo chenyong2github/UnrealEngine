@@ -229,7 +229,7 @@ struct FGameFeaturePluginIdentifier
 	GENERATED_BODY()
 
 	FGameFeaturePluginIdentifier() = default;
-	FGameFeaturePluginIdentifier(FString PluginURL);
+	explicit FGameFeaturePluginIdentifier(FString PluginURL);
 
 	FGameFeaturePluginIdentifier(const FGameFeaturePluginIdentifier& Other)
 		: FGameFeaturePluginIdentifier(Other.PluginURL)
@@ -256,10 +256,10 @@ struct FGameFeaturePluginIdentifier
 		To match exactly all information in the PluginURL has to match and not just the IdentifyingURLSubset */
 	bool ExactMatchesURL(const FString& PluginURL) const;
 
-	const EGameFeaturePluginProtocol GetPluginProtocol() const { return PluginProtocol; }
+	EGameFeaturePluginProtocol GetPluginProtocol() const { return PluginProtocol; }
 
 	/** Returns the Identifying information used for this Plugin. It is a subset of the URL used to create it.*/
-	const FStringView GetIdentifyingString() const { return IdentifyingURLSubset; }
+	FStringView GetIdentifyingString() const { return IdentifyingURLSubset; }
 
 	/** Get the Full PluginURL used to originally construct this identifier */
 	const FString& GetFullPluginURL() const { return PluginURL; }
@@ -587,7 +587,7 @@ private:
 	UGameFeaturePluginStateMachine* FindGameFeaturePluginStateMachine(const FString& PluginURL) const;
 
 	/** Gets the state machine associated with the specified PluginIdentifier */
-	UGameFeaturePluginStateMachine* FindGameFeaturePluginStateMachine(FGameFeaturePluginIdentifier PluginIdentifier) const;
+	UGameFeaturePluginStateMachine* FindGameFeaturePluginStateMachine(const FGameFeaturePluginIdentifier& PluginIdentifier) const;
 
 	/** Gets the state machine associated with the specified URL, creates it if it doesnt exist */
 	UGameFeaturePluginStateMachine* FindOrCreateGameFeaturePluginStateMachine(const FString& PluginURL);
@@ -633,7 +633,7 @@ private:
 private:
 	/** The list of all game feature plugin state machine objects */
 	UPROPERTY(Transient)
-	TMap<FGameFeaturePluginIdentifier, TObjectPtr<UGameFeaturePluginStateMachine>> GameFeaturePluginStateMachines;
+	TMap<FString, TObjectPtr<UGameFeaturePluginStateMachine>> GameFeaturePluginStateMachines;
 
 	/** Game feature plugin state machine objects that are being terminated. Used to prevent GC until termination is complete. */
 	UPROPERTY(Transient)

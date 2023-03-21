@@ -1530,9 +1530,10 @@ UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginSta
 	return FindGameFeaturePluginStateMachine(FindPluginIdentifier);
 }
 
-UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachine(FGameFeaturePluginIdentifier PluginIdentifier) const
+UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachine(const FGameFeaturePluginIdentifier& PluginIdentifier) const
 {
-	TObjectPtr<UGameFeaturePluginStateMachine> const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginIdentifier);
+	TObjectPtr<UGameFeaturePluginStateMachine> const* ExistingStateMachine = 
+		GameFeaturePluginStateMachines.FindByHash(GetTypeHash(PluginIdentifier.GetIdentifyingString()), PluginIdentifier.GetIdentifyingString());
 	if (ExistingStateMachine)
 	{
 		UE_LOG(LogGameFeatures, VeryVerbose, TEXT("FOUND GameFeaturePlugin using PluginIdentifier:%.*s for PluginURL:%s"), PluginIdentifier.GetIdentifyingString().Len(), PluginIdentifier.GetIdentifyingString().GetData(), *PluginIdentifier.GetFullPluginURL());
@@ -1556,7 +1557,7 @@ UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindOrCreateGameFeatureP
 	UE_LOG(LogGameFeatures, Display, TEXT("Creating GameFeaturePlugin StateMachine using Identifier:%.*s from PluginURL:%s"), PluginIdentifier.GetIdentifyingString().Len(), PluginIdentifier.GetIdentifyingString().GetData(), *PluginURL);
 
 	UGameFeaturePluginStateMachine* NewStateMachine = NewObject<UGameFeaturePluginStateMachine>(this);
-	GameFeaturePluginStateMachines.Add(PluginIdentifier, NewStateMachine);
+	GameFeaturePluginStateMachines.Add(FString(PluginIdentifier.GetIdentifyingString()), NewStateMachine);
 	NewStateMachine->InitStateMachine(MoveTemp(PluginIdentifier));
 
 	return NewStateMachine;
@@ -1655,8 +1656,11 @@ void UGameFeaturesSubsystem::BeginTermination(UGameFeaturePluginStateMachine* Ma
 {
 	check(IsValid(Machine));
 	check(Machine->GetCurrentState() == EGameFeaturePluginState::Terminal);
-	UE_LOG(LogGameFeatures, Verbose, TEXT("BeginTermination of GameFeaturePlugin. Identifier:%.*s URL:%s"), Machine->GetPluginIdentifier().GetIdentifyingString().Len(), Machine->GetPluginIdentifier().GetIdentifyingString().GetData(), *(Machine->GetPluginURL()));
-	GameFeaturePluginStateMachines.Remove(Machine->GetPluginIdentifier());
+
+	FStringView Identifer = Machine->GetPluginIdentifier().GetIdentifyingString();
+
+	UE_LOG(LogGameFeatures, Verbose, TEXT("BeginTermination of GameFeaturePlugin. Identifier:%.*s URL:%s"), Identifer.Len(), Identifer.GetData(), *(Machine->GetPluginURL()));
+	GameFeaturePluginStateMachines.RemoveByHash(GetTypeHash(Identifer), Identifer);
 	TerminalGameFeaturePluginStateMachines.Add(Machine);
 }
 
@@ -1836,7 +1840,7 @@ TSet<FString> UGameFeaturesSubsystem::GetActivePluginNames() const
 {
 	TSet<FString> ActivePluginNames;
 
-	for (const TPair<FGameFeaturePluginIdentifier, TObjectPtr<UGameFeaturePluginStateMachine>>& Pair : GameFeaturePluginStateMachines)
+	for (const TPair<FString, TObjectPtr<UGameFeaturePluginStateMachine>>& Pair : GameFeaturePluginStateMachines)
 	{
 		UGameFeaturePluginStateMachine* StateMachine = Pair.Value;
 		if (StateMachine->GetCurrentState() == EGameFeaturePluginState::Active &&
