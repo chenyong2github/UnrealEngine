@@ -1079,7 +1079,7 @@ namespace UnrealBuildTool
 			if(PrivateIncludePathModules == null)
 			{
 				// Log dependencies if required
-				if ( Log.OutputLevel >= LogEventType.VeryVerbose)
+				if (Logger.IsEnabled((LogLevel)LogEventType.VeryVerbose))
 				{
 					Logger.LogTrace("Module {0} dependencies:", this.Name);
 					LogDependencyNameList("Public:", Rules.PublicDependencyModuleNames, Logger);
