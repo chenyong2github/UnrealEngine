@@ -8,7 +8,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Layout/ArrangedChildren.h"
 #include "Layout/LayoutUtils.h"
-#include "StyleSheet/CommonStyleSheet.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonTextBlock)
 
@@ -649,11 +648,6 @@ void UCommonTextBlock::UpdateFromStyle()
 			SetShadowOffset(FVector2D::ZeroVector);
 			SetShadowColorAndOpacity(FLinearColor::Transparent);
 		}
-	}
-
-	if (UCommonStyleSheet* StyleSheetPtr = StyleSheet.Get())
-	{
-		StyleSheetPtr->Apply(this);
 	}
 }
 

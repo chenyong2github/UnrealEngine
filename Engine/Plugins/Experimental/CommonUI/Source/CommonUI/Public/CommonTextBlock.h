@@ -9,8 +9,6 @@
 
 struct FTextBlockStyle;
 
-class UCommonStyleSheet;
-
 /* 
  * ---- All properties must be EditDefaultsOnly, BlueprintReadOnly !!! -----
  * We return the CDO to blueprints, so we cannot allow any changes (blueprint doesn't support const variables)
@@ -232,10 +230,6 @@ private:
 	/** References the scroll style asset to use, no reference disables scrolling*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
 	TSubclassOf<UCommonTextScrollStyle> ScrollStyle;
-
-	/** Prototype: Do not use! */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
-	TObjectPtr<UCommonStyleSheet> StyleSheet;
 
 	/** If scrolling is enabled/disabled initially, this can be updated in blueprint */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (ExposeOnSpawn = true, AllowPrivateAccess = true))
