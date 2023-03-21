@@ -304,6 +304,58 @@ public:
 	{
 		return Origin.ContainsNaN() || BoxExtent.ContainsNaN() || !FMath::IsFinite(SphereRadius);
 	}
+
+
+public:
+	/**
+	 * Utility class to build a TBoxSphereBounds by adding other math primitives.
+	 * Correctly handles the initial insertion (instead of potentially adding the ZeroVector by default)
+	 */
+	struct Builder
+	{
+		FORCEINLINE Builder()
+			: Box(ForceInitToZero)
+		{
+		}
+
+		FORCEINLINE Builder& operator+=(const TBoxSphereBounds<T, TExtent>& OtherBounds)
+		{
+			Box += OtherBounds.GetBox();
+			return *this;
+		}
+
+		FORCEINLINE Builder& operator+=(const TBox<T>& OtherBox)
+		{
+			Box += OtherBox;
+			return *this;
+		}
+
+		FORCEINLINE Builder& operator+=(const TSphere<T>& Sphere)
+		{
+			Box += Sphere.Center + TVector<T>(Sphere.W);
+			Box += Sphere.Center - TVector<T>(Sphere.W);
+			return *this;
+		}
+
+		FORCEINLINE Builder& operator+=(const TVector<T>& Point)
+		{
+			Box += Point;
+			return *this;
+		}
+
+		FORCEINLINE bool IsValid() const
+		{
+			return !!Box.IsValid;
+		}
+
+		FORCEINLINE operator TBoxSphereBounds<T, TExtent>() const
+		{
+			return TBoxSphereBounds<T, TExtent>(Box);
+		}
+
+	private:
+		TBox<T> Box;
+	};
 };
 
 

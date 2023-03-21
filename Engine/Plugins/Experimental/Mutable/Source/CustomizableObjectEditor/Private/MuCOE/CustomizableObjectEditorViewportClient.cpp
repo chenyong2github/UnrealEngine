@@ -230,24 +230,17 @@ bool GizmoRTSProxy::ProjectorHasInitialValues(FCustomizableObjectProjector& Para
 
 FCustomizableObjectProjector GizmoRTSProxy::SetProjectorInitialValue(TArray<TWeakObjectPtr<UDebugSkelMeshComponent>>& SkeletalMeshComponents, float TotalLength)
 {
-	FCustomizableObjectProjector Result;
-	bool bFoundComponents = false;
-	FBoxSphereBounds Bounds;
-
+	FBoxSphereBounds::Builder BoundsBuilder;
 	for (TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
 	{
-		if (!bFoundComponents)
-		{
-			Bounds = SkeletalMeshComponent->Bounds;
-		}
-		else
-		{
-			Bounds = Bounds + SkeletalMeshComponent->Bounds;
-		}
+		BoundsBuilder += SkeletalMeshComponent->Bounds;
 	}
 
-	if (bFoundComponents)
+	FCustomizableObjectProjector Result;
+
+	if (BoundsBuilder.IsValid())
 	{
+		FBoxSphereBounds Bounds(BoundsBuilder);
 		Result.Position = FVector3f(Bounds.Origin + FVector(0.0f, 1.0f, 0.0f) * TotalLength * 0.5f);	// LWC_TODO: Precision Loss
 		Result.Scale = FVector3f(40.0f, 40.0f, 40.0f);
 		Result.Up = FVector3f(0.0f, 0.0f, 1.0f);

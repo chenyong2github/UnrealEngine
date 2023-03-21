@@ -281,14 +281,16 @@ EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
 	}
 
 	// Add up all poly mesh bounds
-	FBoxSphereBounds MeshBounds(EForceInit::ForceInitToZero);
+	FBoxSphereBounds::Builder MeshBoundsBuilder;
 	for (const FAbcPolyMesh* PolyMesh : PolyMeshes)
 	{
 		if (PolyMesh->bShouldImport)
 		{
-			MeshBounds = MeshBounds + PolyMesh->SelfBounds + PolyMesh->ChildBounds;
+			MeshBoundsBuilder += PolyMesh->SelfBounds;
+			MeshBoundsBuilder += PolyMesh->ChildBounds;
 		}
 	}
+	FBoxSphereBounds MeshBounds(MeshBoundsBuilder);
 
 	// If there were not bounds available at the archive level or the mesh bounds are larger than the archive bounds use those
 	if (FMath::IsNearlyZero(ArchiveBounds.SphereRadius) || MeshBounds.SphereRadius >ArchiveBounds.SphereRadius )

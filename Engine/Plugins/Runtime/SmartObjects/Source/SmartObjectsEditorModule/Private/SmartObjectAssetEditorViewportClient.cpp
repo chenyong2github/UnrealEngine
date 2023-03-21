@@ -444,10 +444,10 @@ void FSmartObjectAssetEditorViewportClient::SetPreviewActorClass(const UClass* A
 
 FBox FSmartObjectAssetEditorViewportClient::GetPreviewBounds() const
 {
-	FBoxSphereBounds Bounds(FSphere(FVector::ZeroVector, 100.f));
+	FBoxSphereBounds::Builder Bounds;
 	if (const AActor* Actor = PreviewActor.Get())
 	{
-		Bounds = Bounds+ Actor->GetComponentsBoundingBox();
+		Bounds += Actor->GetComponentsBoundingBox();
 	}
 
 	const TSharedRef<const FSmartObjectAssetToolkit> Toolkit = AssetEditorToolkit.Pin().ToSharedRef();
@@ -459,12 +459,13 @@ FBox FSmartObjectAssetEditorViewportClient::GetPreviewBounds() const
 			const USmartObjectDefinition* Definition = Cast<USmartObjectDefinition>(EditedObject);
 			if (IsValid(Definition))
 			{
-				Bounds = Bounds + Definition->GetBounds();
+				Bounds += Definition->GetBounds();
 			}
 		}
 	}
 
-	return Bounds.GetBox();
+	const FBoxSphereBounds DefaultBounds(FSphere(FVector::ZeroVector, 100.f));
+	return Bounds.IsValid() ? FBoxSphereBounds(Bounds).GetBox() : DefaultBounds.GetBox();
 }
 
 #undef LOCTEXT_NAMESPACE

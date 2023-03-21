@@ -1519,11 +1519,12 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	TArray<FRawMeshExt> SourceMeshes;
 	TMap<FMeshIdAndLOD, TArray<int32>> GlobalMaterialMap;
 
-	FBoxSphereBounds EstimatedBounds(ForceInitToZero);
+	FBoxSphereBounds::Builder EstimatedBoundsBuilder;
 	for (const UStaticMeshComponent* StaticMeshComponent : ComponentsToMerge)
 	{
-		EstimatedBounds = EstimatedBounds + StaticMeshComponent->Bounds;
+		EstimatedBoundsBuilder += StaticMeshComponent->Bounds;
 	}
+	FBoxSphereBounds EstimatedBounds = EstimatedBoundsBuilder;
 
 	static const float FOVRad = FMath::DegreesToRadians(45.0f);
 	static const FMatrix ProjectionMatrix = FPerspectiveMatrix(FOVRad, 1920, 1080, 0.01f);

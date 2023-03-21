@@ -1150,7 +1150,7 @@ bool FClassActorThumbnailScene::IsValidComponentForVisualization(const UActorCom
 
 FBoxSphereBounds FClassActorThumbnailScene::GetPreviewActorBounds() const
 {
-	FBoxSphereBounds Bounds(ForceInitToZero);
+	FBoxSphereBounds::Builder BoundsBuilder;
 	if (PreviewActor.IsValid() && PreviewActor->GetRootComponent())
 	{
 		TArray<USceneComponent*> PreviewComponents;
@@ -1161,12 +1161,12 @@ FBoxSphereBounds FClassActorThumbnailScene::GetPreviewActorBounds() const
 		{
 			if (IsValidComponentForVisualization(PreviewComponent))
 			{
-				Bounds = Bounds + PreviewComponent->Bounds;
+				BoundsBuilder += PreviewComponent->Bounds;
 			}
 		}
 	}
 
-	return Bounds;
+	return BoundsBuilder;
 }
 
 void FClassActorThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const

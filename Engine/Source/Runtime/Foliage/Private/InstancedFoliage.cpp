@@ -935,9 +935,9 @@ void UFoliageType_Actor::UpdateBounds()
 	}
 	
 	PreviewActor->SetActorEnableCollision(false);
-	MeshBounds = FBoxSphereBounds(ForceInitToZero);
 
 	// Put this in method...
+	FBoxSphereBounds::Builder MeshBoundsBuilder;
 	if (PreviewActor != nullptr && PreviewActor->GetRootComponent())
 	{
 		TArray<USceneComponent*> PreviewComponents;
@@ -948,10 +948,11 @@ void UFoliageType_Actor::UpdateBounds()
 		{
 			if (!(PreviewComponent->bIsEditorOnly || PreviewComponent->bHiddenInGame))
 			{
-				MeshBounds = MeshBounds + PreviewComponent->Bounds;
+				MeshBoundsBuilder += PreviewComponent->Bounds;
 			}
 		}
 	}
+	MeshBounds = MeshBoundsBuilder;
 
 	FBox LowBound = MeshBounds.GetBox();
 	LowBound.Max.Z = LowBound.Min.Z + (LowBound.Max.Z - LowBound.Min.Z) * 0.1f;

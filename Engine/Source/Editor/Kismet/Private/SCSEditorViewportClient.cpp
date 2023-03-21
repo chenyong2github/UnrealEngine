@@ -1110,7 +1110,7 @@ void FSCSEditorViewportClient::RefreshPreviewBounds()
 	if(PreviewActor)
 	{
 		// Compute actor bounds as the sum of its visible parts
-		PreviewActorBounds = FBoxSphereBounds(ForceInitToZero);
+		FBoxSphereBounds::Builder BoundsBuilder;
 		for (UActorComponent* Component : PreviewActor->GetComponents())
 		{
 			// Aggregate primitive components that either have collision enabled or are otherwise visible components in-game
@@ -1118,9 +1118,10 @@ void FSCSEditorViewportClient::RefreshPreviewBounds()
 			{
 				if (PrimComp->IsRegistered() && (!PrimComp->bHiddenInGame || PrimComp->IsCollisionEnabled()) && PrimComp->Bounds.SphereRadius < HALF_WORLD_MAX)
 				{
-					PreviewActorBounds = PreviewActorBounds + PrimComp->Bounds;
+					BoundsBuilder += PrimComp->Bounds;
 				}
 			}
 		}
+		PreviewActorBounds = BoundsBuilder;
 	}
 }

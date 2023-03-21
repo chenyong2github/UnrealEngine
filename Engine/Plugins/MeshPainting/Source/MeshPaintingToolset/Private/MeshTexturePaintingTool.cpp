@@ -413,29 +413,19 @@ void UMeshTexturePaintingTool::OnPropertyModified(UObject* PropertySet, FPropert
 
 double UMeshTexturePaintingTool::EstimateMaximumTargetDimension()
 {
-	bool bFoundComponentToUse = false;
-	FBoxSphereBounds Bounds = FBoxSphereBounds(0.0);
 	UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>();
 	if (MeshPaintingSubsystem)
 	{
-		bool bFirstItem = true;
-
-		FBoxSphereBounds Extents;
+		FBoxSphereBounds::Builder ExtentsBuilder;
 		for (UMeshComponent* SelectedComponent : MeshPaintingSubsystem->GetSelectedMeshComponents())
 		{
-			if (bFirstItem)
-			{
-				Extents = SelectedComponent->Bounds;
-			}
-			else
-			{
-				Extents = Extents + SelectedComponent->Bounds;
-			}
-
-			bFirstItem = false;
+			ExtentsBuilder += SelectedComponent->Bounds;
 		}
 
-		return Extents.BoxExtent.GetAbsMax();
+		if (ExtentsBuilder.IsValid())
+		{
+			return FBoxSphereBounds(ExtentsBuilder).BoxExtent.GetAbsMax();
+		}
 	}
 
 	return Super::EstimateMaximumTargetDimension();

@@ -351,8 +351,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 	TArray<FMeshDescription> MeshDescriptions;
 	MeshDescriptions.SetNum(NumSourceModels);
 
-	TArray<FBoxSphereBounds> MeshBounds;
-	MeshBounds.SetNumZeroed(NumSourceModels);
+	FBoxSphereBounds::Builder MeshBoundsBuilder;
 
 	const FMeshSectionInfoMap BeforeBuildSectionInfoMap = StaticMesh->GetSectionInfoMap();
 	const FMeshSectionInfoMap BeforeBuildOriginalSectionInfoMap = StaticMesh->GetOriginalSectionInfoMap();
@@ -361,15 +360,13 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 	bool bNaniteDataBuilt = false;		// true once we have finished building Nanite, which can happen in multiple places
 	int32 NaniteBuiltLevels = 0;
 
-	// Bounds of the pre-Nanite mesh
-	FBoxSphereBounds HiResBounds;
-	bool bHaveHiResBounds = false;
-
 	// Do Nanite build for HiRes SourceModel if we have one. In that case we skip the inline Nanite build
 	// below that would happen with LOD0 build
 	if (bHaveHiResSourceModel && bNaniteBuildEnabled && bTargetSupportsNanite)
 	{
 		SlowTask.EnterProgressFrame(1);
+
+		FBoxSphereBounds NaniteBounds;
 
 		bool bBuildSuccess = BuildNanite(
 			StaticMesh,
@@ -379,11 +376,11 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			StaticMeshRenderData.NaniteResources,
 			NaniteSettings,
 			TArrayView< float >(),
-			HiResBounds );
+			NaniteBounds);
 
 		if( bBuildSuccess )
 		{
-			bHaveHiResBounds = true;
+			MeshBoundsBuilder += NaniteBounds;
 			bNaniteDataBuilt = true;
 		}
 	}
@@ -409,6 +406,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		
 		SlowTask.EnterProgressFrame( PercentTriangles.Num() );
 
+		FBoxSphereBounds NaniteBounds;
+
 		bool bBuildSuccess = BuildNanite(
 			StaticMesh,
 			StaticMesh->GetSourceModel(0),
@@ -417,11 +416,11 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			StaticMeshRenderData.NaniteResources,
 			NaniteSettings,
 			PercentTriangles,
-			HiResBounds );
+			NaniteBounds);
 
 		if (bBuildSuccess)
 		{
-			bHaveHiResBounds = true;
+			MeshBoundsBuilder += NaniteBounds;
 			bNaniteDataBuilt = true;
 			NaniteBuiltLevels = PercentTriangles.Num();
 		}
@@ -648,6 +647,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		TArray<TArray<uint32> > PerSectionIndices;
 		PerSectionIndices.AddDefaulted(MeshDescriptions[LodIndex].PolygonGroups().Num());
 
+		FBoxSphereBounds LODBounds;
+
 		// Build the vertex and index buffer
 		UE::Private::StaticMeshBuilder::BuildVertexBuffer(
 			StaticMesh,
@@ -659,10 +660,12 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			BuildVertexData,
 			MeshDescriptionHelper.GetOverlappingCorners(),
 			RemapVerts,
-			MeshBounds[LodIndex],
+			LODBounds,
 			true /* bNeedTangents */,
 			true /* bNeedWedgeMap */
 		);
+
+		MeshBoundsBuilder += LODBounds;
 
 		TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 		const uint32 NumTextureCoord = VertexInstanceUVs.IsValid() ? VertexInstanceUVs.GetNumChannels() : 0;
@@ -703,22 +706,9 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 	} //End of LOD for loop
 
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_STR("FStaticMeshBuilder::Build - Calculate Bounds");
-
-		// Set the bounding box of LOD0 buffer
-		if (bHaveHiResBounds)
-		{
-			// Combine with high-res bounds if it was computed
-			StaticMeshRenderData.Bounds = MeshBounds[0] + HiResBounds;
-		}
-		else
-		{
-			StaticMeshRenderData.Bounds = MeshBounds[0];
-		}
-	}
-
-
+	// Update the render data bounds
+	StaticMeshRenderData.Bounds = MeshBoundsBuilder;
+	
 	return true;
 }
 

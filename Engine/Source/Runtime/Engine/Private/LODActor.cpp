@@ -282,11 +282,12 @@ void ALODActor::PostLoad()
 			const float ScreenHeight = 1080.0f;
 			const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
 
-			FBoxSphereBounds Bounds(ForceInit);
-			ForEachComponent<UStaticMeshComponent>(false, [&Bounds](UStaticMeshComponent* SMComponent)
+			FBoxSphereBounds::Builder BoundsBuilder;
+			ForEachComponent<UStaticMeshComponent>(false, [&BoundsBuilder](UStaticMeshComponent* SMComponent)
 			{
-				Bounds = Bounds + SMComponent->CalcBounds(FTransform());
+				BoundsBuilder += SMComponent->CalcBounds(FTransform());
 			});
+			FBoxSphereBounds Bounds(BoundsBuilder);
 
 			// legacy transition screen size was previously a screen AREA fraction using resolution-scaled values, so we need to convert to distance first to correctly calculate the threshold
 			const float ScreenArea = TransitionScreenSize * (ScreenWidth * ScreenHeight);
@@ -1116,11 +1117,12 @@ void ALODActor::RecalculateDrawingDistance(const float InTransitionScreenSize)
 	// At the moment this assumes a fixed field of view of 90 degrees (horizontal and vertical axes)
 	static const float FOVRad = 90.0f * (float)UE_PI / 360.0f;
 	static const FMatrix ProjectionMatrix = FPerspectiveMatrix(FOVRad, 1920, 1080, 0.01f);
-	FBoxSphereBounds Bounds(ForceInit);
-	ForEachComponent<UStaticMeshComponent>(false, [&Bounds](UStaticMeshComponent* SMComponent)
+	FBoxSphereBounds::Builder BoundsBuilder;
+	ForEachComponent<UStaticMeshComponent>(false, [&BoundsBuilder](UStaticMeshComponent* SMComponent)
 	{
-		Bounds = Bounds + SMComponent->CalcBounds(FTransform());
+		BoundsBuilder += SMComponent->CalcBounds(FTransform());
 	});
+	FBoxSphereBounds Bounds(BoundsBuilder);
 
 	float DrawDistance = ComputeBoundsDrawDistance(InTransitionScreenSize, Bounds.SphereRadius, ProjectionMatrix);
 	SetDrawDistance(DrawDistance);
