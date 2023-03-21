@@ -952,6 +952,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				GRHIMaximumWaveSize = Features.WaveLaneCountMax;
 			}
 
+			{
+				D3D12_FEATURE_DATA_D3D12_OPTIONS4 Features{};
+				RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS4, &Features, sizeof(Features));
+				GRHIGlobals.SupportsNative16BitOps = Features.Native16BitShaderOpsSupported;
+			}
+
 #if D3D12_RHI_RAYTRACING
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 			D3D12_FEATURE_DATA_D3D12_OPTIONS5 D3D12Caps5 = {};

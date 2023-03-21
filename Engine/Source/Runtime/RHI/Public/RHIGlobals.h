@@ -438,6 +438,9 @@ struct FRHIGlobals
 	int32 MinimumWaveSize = 0;
 	int32 MaximumWaveSize = 0;
 
+	/** Whether or not the RHI supports 16bit VALU and resource loads (HLSL shader model 6.2). */
+	bool SupportsNative16BitOps = false;
+
 	/** Whether or not the RHI supports an RHI thread.
 	Requirements for RHI thread
 	* Microresources (those in RHIStaticStates.h) need to be able to be created by any thread at any time and be able to work with a radically simplified rhi resource lifecycle. CreateSamplerState, CreateRasterizerState, CreateDepthStencilState, CreateBlendState
