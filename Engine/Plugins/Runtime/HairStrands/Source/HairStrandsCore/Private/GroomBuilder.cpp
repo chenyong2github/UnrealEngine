@@ -3198,7 +3198,7 @@ static FRDGBufferRef ReadPositions(
 	FRDGBufferRef OutPositions = nullptr;
 	if (const FHairGroupInstance* Instance = Component->GetGroupInstance(GroupIt))
 	{
-		const uint32 NumVertices = Instance->Strands.Data->PointCount;
+		const uint32 NumVertices = Instance->Strands.Data->GetNumPoints();
 
 		FRDGBufferSRVRef InPositions = nullptr;
 		FRDGBufferSRVRef InPositionOffset = nullptr;
@@ -3266,8 +3266,8 @@ void RunHairStrandsPositionQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 			if (Q->GPUPositions->IsReady() || Q->ReadbackDelay == 0)
 			{
 				const FHairGroupInstance* Instance = Q->Component->GetGroupInstance(Q->GroupIt);
-				const uint32 CurveCount = Instance->Strands.RestResource->BulkData.CurveCount;
-				const uint32 PointCount = Instance->Strands.RestResource->BulkData.PointCount;
+				const uint32 CurveCount = Instance->Strands.RestResource->BulkData.GetNumCurves();
+				const uint32 PointCount = Instance->Strands.RestResource->BulkData.GetNumPoints();
 
 				check(Q->GroupIt < uint32(Q->Output->Groups.Num()));
 				FStrandsPositionOutput::FGroup& Group = Q->Output->Groups[Q->GroupIt];

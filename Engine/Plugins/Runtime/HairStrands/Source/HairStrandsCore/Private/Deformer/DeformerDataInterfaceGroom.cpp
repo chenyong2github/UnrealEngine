@@ -208,8 +208,8 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchData const& InD
 		if (FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(InvocationIndex))
 		{
 			const bool bIsSRVValid = Resources[InvocationIndex].PositionSRV != nullptr;
-			const int32 NumControlPoints = bIsSRVValid ? Instance->Strands.Data->PointCount : 0;
-			const int32 NumCurves = bIsSRVValid ? Instance->Strands.Data->CurveCount : 0;
+			const int32 NumControlPoints = bIsSRVValid ? Instance->Strands.Data->GetNumPoints() : 0;
+			const int32 NumCurves = bIsSRVValid ? Instance->Strands.Data->GetNumCurves() : 0;
 
 			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(Instance, EGroomViewMode::None);
 			

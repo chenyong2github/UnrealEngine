@@ -598,7 +598,7 @@ static void AddDrawDebugStrandsCVsPass(
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->HairStrandsVF = Instance->Strands.UniformBuffer;
 	Parameters->LocalToWorld = FMatrix44f(Instance->LocalToWorld.ToMatrixWithScale());		// LWC_TODO: Precision loss
-	Parameters->MaxVertexCount = Instance->Strands.Data->PointCount;
+	Parameters->MaxVertexCount = Instance->Strands.Data->GetNumPoints();
 	Parameters->ColorTexture = GraphBuilder.CreateUAV(ColorTexture);
 	Parameters->DepthTexture = DepthTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

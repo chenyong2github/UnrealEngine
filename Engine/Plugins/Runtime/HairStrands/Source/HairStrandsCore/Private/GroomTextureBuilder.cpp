@@ -1099,7 +1099,7 @@ static bool TraceTextures(
 				GroupData.Strands.RestResource->GetPositionOffset(),
 				RenderingData.GeometrySettings.HairWidth * 0.5f,
 				GroupData.Strands.RestResource->BulkData.MaxLength,
-				GroupData.Strands.RestResource->BulkData.PointCount,
+				GroupData.Strands.RestResource->BulkData.GetNumPoints(),
 				GroupIndex,
 				GroupData.Strands.RestResource->BulkData.AttributeOffsets,
 

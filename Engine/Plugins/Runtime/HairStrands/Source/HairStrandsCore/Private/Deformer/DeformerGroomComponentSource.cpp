@@ -67,8 +67,8 @@ bool UOptimusGroomComponentSource::GetComponentElementCountsForExecutionDomain(
 		{
 			if (const FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(InvocationIndex))
 			{
-				const int32 NumControlPoints = Instance->Strands.Data->PointCount;
-				const int32 NumCurves = Instance->Strands.Data->CurveCount;
+				const int32 NumControlPoints = Instance->Strands.Data->GetNumPoints();
+				const int32 NumCurves = Instance->Strands.Data->GetNumCurves();
 				const int32 NumThreads = InDomainName == Domains::ControlPoint ? NumControlPoints : NumCurves;
 				OutInvocationElementCounts.Add(NumThreads);
 			}

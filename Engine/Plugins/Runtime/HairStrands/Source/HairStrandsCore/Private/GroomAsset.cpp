@@ -2853,7 +2853,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 
 				// Update card stats to display
 				Desc->CardsInfo.NumCardVertices = LOD.BulkData.GetNumVertices();
-				Desc->CardsInfo.NumCards = LOD.Guides.BulkData.CurveCount;// LOD.Data.Cards.IndexOffsets.Num();
+				Desc->CardsInfo.NumCards = LOD.Guides.BulkData.GetNumCurves();// LOD.Data.Cards.IndexOffsets.Num();
 			}
 		}
 	}
@@ -3292,7 +3292,7 @@ void UGroomAsset::InitCardsResources()
 			{
 				// Update card stats to display
 				Desc->CardsInfo.NumCardVertices = LOD.BulkData.GetNumVertices();
-				Desc->CardsInfo.NumCards = LOD.Guides.BulkData.CurveCount;// LOD.Data.Cards.GetNumCards();
+				Desc->CardsInfo.NumCards = LOD.Guides.BulkData.GetNumCurves();// LOD.Data.Cards.GetNumCards();
 			}
 		}
 	}

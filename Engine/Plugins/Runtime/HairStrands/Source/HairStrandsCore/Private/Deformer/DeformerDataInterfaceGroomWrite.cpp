@@ -139,8 +139,8 @@ void FOptimusGroomWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBu
 		if (GroomInstance)
 		{
 			// Allocate required buffers
-			const int32 NumControlPoints = GroomInstance->Strands.Data->PointCount;
-			const int32 NumCurves = GroomInstance->Strands.Data->CurveCount;
+			const int32 NumControlPoints = GroomInstance->Strands.Data->GetNumPoints();
+			const int32 NumCurves = GroomInstance->Strands.Data->GetNumCurves();
 
 			FResources& R = Resources.AddDefaulted_GetRef();
 			if (OutputMask & 1)
@@ -173,8 +173,8 @@ void FOptimusGroomWriteDataProviderProxy::GatherDispatchData(FDispatchData const
 			FResources& Resource = Resources[InvocationIndex];
 
 			const bool bValid = Resource.PositionBufferUAV != nullptr && Resource.PositionBufferSRV != nullptr && Resource.PositionOffsetBufferSRV != nullptr;
-			const int32 NumCurves = bValid ? GroomInstance->Strands.Data->CurveCount : 0;
-			const int32 NumControlPoints = bValid ? GroomInstance->Strands.Data->PointCount : 0;
+			const int32 NumCurves = bValid ? GroomInstance->Strands.Data->GetNumCurves() : 0;
+			const int32 NumControlPoints = bValid ? GroomInstance->Strands.Data->GetNumPoints() : 0;
 
 			FParameters& Parameters = ParameterArray[InvocationIndex];
 			Parameters.NumControlPoints = NumControlPoints;
