@@ -20,6 +20,8 @@
 #include "PrimitiveViewRelevance.h"
 #include "SceneManagement.h"
 #include "MotionWarpingComponent.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimSceneActorComponent)
 
