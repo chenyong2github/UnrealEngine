@@ -142,6 +142,7 @@ void FContextualAnimViewModel::CreateSequencer()
 	Sequencer->OnGlobalTimeChanged().AddRaw(this, &FContextualAnimViewModel::SequencerTimeChanged);
 	Sequencer->OnPlayEvent().AddRaw(this, &FContextualAnimViewModel::SequencerPlayEvent);
 	Sequencer->OnStopEvent().AddRaw(this, &FContextualAnimViewModel::SequencerStopEvent);
+	Sequencer->GetSelectionChangedSections().AddRaw(this, &FContextualAnimViewModel::OnSequencerSelectionChangedSections);
 	Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
 }
 
@@ -397,6 +398,23 @@ void FContextualAnimViewModel::SetDefaultMode()
 	}
 
 	FContextualAnimSceneSection& ContextualAnimSection = SceneAsset->Sections[ActiveSectionIdx];
+
+	float EmptyAnimSectionLength = 0.f;
+	for (int32 AnimSetIdx = 0; AnimSetIdx < ContextualAnimSection.AnimSets.Num(); AnimSetIdx++)
+	{
+		const FContextualAnimSet& AnimSet = ContextualAnimSection.AnimSets[AnimSetIdx];
+		for (int32 AnimTrackIdx = 0; AnimTrackIdx < AnimSet.Tracks.Num(); AnimTrackIdx++)
+		{
+			const FContextualAnimTrack& AnimTrack = AnimSet.Tracks[AnimTrackIdx];
+			if(AnimTrack.Animation)
+			{
+				EmptyAnimSectionLength = FMath::Max(EmptyAnimSectionLength, AnimTrack.Animation->GetPlayLength());
+			}
+		}
+	}
+
+	EmptyAnimSectionLength = FMath::Max(1.f, EmptyAnimSectionLength);
+
 	for (int32 AnimSetIdx = 0; AnimSetIdx < ContextualAnimSection.AnimSets.Num(); AnimSetIdx++)
 	{
 		FContextualAnimSet& AnimSet = ContextualAnimSection.AnimSets[AnimSetIdx];
@@ -404,16 +422,15 @@ void FContextualAnimViewModel::SetDefaultMode()
 		{
 			const FContextualAnimTrack& AnimTrack = AnimSet.Tracks[AnimTrackIdx];
 
+			UContextualAnimMovieSceneTrack* MovieSceneTrack = FindTrackByRole(AnimTrack.Role);
+			check(MovieSceneTrack)
+
+			UContextualAnimMovieSceneSection* NewSection = nullptr;
 			UAnimSequenceBase* Animation = AnimTrack.Animation;
 			if (Animation)
 			{
-				UContextualAnimMovieSceneTrack* MovieSceneTrack = FindTrackByRole(AnimTrack.Role);
-				check(MovieSceneTrack)
-
-				UContextualAnimMovieSceneSection* NewSection = NewObject<UContextualAnimMovieSceneSection>(MovieSceneTrack, UContextualAnimMovieSceneSection::StaticClass(), NAME_None, RF_Transactional);
+				NewSection = NewObject<UContextualAnimMovieSceneSection>(MovieSceneTrack, UContextualAnimMovieSceneSection::StaticClass(), NAME_None, RF_Transactional);
 				check(NewSection);
-
-				NewSection->Initialize(ActiveSectionIdx, AnimSetIdx, AnimTrackIdx);
 
 				const float AnimLength = Animation->GetPlayLength();
 				const FFrameRate TickResolution = MovieSceneSequence->GetMovieScene()->GetTickResolution();
@@ -423,10 +440,22 @@ void FContextualAnimViewModel::SetDefaultMode()
 
 				const int32& ActiveSetIdx = ActiveAnimSetMap.FindOrAdd(ActiveSectionIdx);
 				NewSection->SetIsActive(AnimSetIdx == ActiveSetIdx);
-
-				MovieSceneTrack->AddSection(*NewSection);
-				MovieSceneTrack->SetTrackRowDisplayName(FText::FromString(FString::Printf(TEXT("%d"), AnimSetIdx)), AnimSetIdx);
 			}
+			else
+			{
+				NewSection = NewObject<UContextualAnimMovieSceneSection>(MovieSceneTrack, UContextualAnimMovieSceneSection::StaticClass(), NAME_None, RF_Transactional);
+				check(NewSection);
+
+				const FFrameRate TickResolution = MovieSceneSequence->GetMovieScene()->GetTickResolution();
+				NewSection->SetRange(TRange<FFrameNumber>::Inclusive(0, (EmptyAnimSectionLength * TickResolution).RoundToFrame()));
+				NewSection->SetRowIndex(AnimSetIdx);
+				NewSection->SetIsActive(false);
+			}
+
+			NewSection->Initialize(ActiveSectionIdx, AnimSetIdx, AnimTrackIdx);
+
+			MovieSceneTrack->AddSection(*NewSection);
+			MovieSceneTrack->SetTrackRowDisplayName(FText::FromString(FString::Printf(TEXT("%d"), AnimSetIdx)), AnimSetIdx);
 		}
 	}
 
@@ -941,6 +970,19 @@ void FContextualAnimViewModel::RefreshDetailsView()
 	DetailsView->ForceRefresh();
 }
 
+void FContextualAnimViewModel::OnSequencerSelectionChangedSections(TArray<UMovieSceneSection*> Sections)
+{
+	UE_LOG(LogContextualAnim, Log, TEXT("OnSequencerSelectionChangedSections Sections.Num: %d"), Sections.Num());
+
+	if (Sections.Num() > 0)
+	{
+		if (UContextualAnimMovieSceneSection* Section = Cast<UContextualAnimMovieSceneSection>(Sections[0]))
+		{
+			UpdateSelection(Section->GetSectionIdx(), Section->GetAnimSetIdx(), Section->GetAnimTrackIdx());
+		}
+	}
+}
+
 void FContextualAnimViewModel::UpdateSelection(const AActor* SelectedActor)
 {
 	const FContextualAnimSceneBinding* Binding = SceneBindings.FindBindingByActor(SelectedActor);
@@ -966,10 +1008,28 @@ void FContextualAnimViewModel::UpdateSelection(FName Role, int32 CriterionIdx, i
 	Sequencer->EmptySelection();
 
 	SelectionInfo.Role = Role;
+	SelectionInfo.SectionIdx = ActiveSectionIdx;
+	SelectionInfo.AnimSetIdx = ActiveAnimSetMap.FindRef(ActiveSectionIdx);
 	SelectionInfo.Criterion.Key = CriterionIdx;
 	SelectionInfo.Criterion.Value = CriterionDataIdx;
 
 	RefreshDetailsView();
+}
+
+void FContextualAnimViewModel::UpdateSelection(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx)
+{
+	if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SectionIdx, AnimSetIdx, AnimTrackIdx))
+	{
+		Sequencer->EmptySelection();
+
+		SelectionInfo.Role = AnimTrack->Role;
+		SelectionInfo.SectionIdx = SectionIdx;
+		SelectionInfo.AnimSetIdx = AnimSetIdx;
+		SelectionInfo.Criterion.Key = INDEX_NONE;
+		SelectionInfo.Criterion.Value = INDEX_NONE;
+
+		RefreshDetailsView();
+	}
 }
 
 void FContextualAnimViewModel::ClearSelection()
@@ -992,8 +1052,8 @@ AActor* FContextualAnimViewModel::GetSelectedActor() const
 
 FContextualAnimTrack* FContextualAnimViewModel::GetSelectedAnimTrack() const
 {
-	FContextualAnimSceneBinding* Binding = GetSelectedBinding();
-	return Binding ? const_cast<FContextualAnimTrack*>(&SceneBindings.GetAnimTrackFromBinding(*Binding)) : nullptr;
+	const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectionInfo.SectionIdx, SelectionInfo.AnimSetIdx, SelectionInfo.Role);
+	return AnimTrack ? const_cast<FContextualAnimTrack*>(AnimTrack) : nullptr;
 }
 
 UContextualAnimSelectionCriterion* FContextualAnimViewModel::GetSelectedSelectionCriterion() const

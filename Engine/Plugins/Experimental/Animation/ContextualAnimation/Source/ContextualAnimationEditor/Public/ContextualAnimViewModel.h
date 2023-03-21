@@ -107,6 +107,7 @@ public:
 
 	void UpdateSelection(const AActor* SelectedActor);
 	void UpdateSelection(FName Role, int32 CriterionIdx = INDEX_NONE, int32 CriterionDataIdx = INDEX_NONE);
+	void UpdateSelection(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx);
 	void ClearSelection();
 	FContextualAnimSceneBinding* GetSelectedBinding() const;
 	FContextualAnimTrack* GetSelectedAnimTrack() const;
@@ -137,6 +138,10 @@ private:
 	{
 		/** Selected Role */
 		FName Role = NAME_None;
+
+		int32 SectionIdx = INDEX_NONE;
+
+		int32 AnimSetIdx = INDEX_NONE;
 
 		/** Key = Criterion Idx in the AnimTrack, Value = Data idx (e.g vertex idx) */
 		TPair<int32, int32> Criterion;
@@ -223,6 +228,8 @@ private:
 	void SequencerPlayEvent();
 
 	void SequencerStopEvent();
+
+	void OnSequencerSelectionChangedSections(TArray<UMovieSceneSection*> Sections);
 
 	void OnAnimNotifyChanged(UAnimSequenceBase* Animation);
 

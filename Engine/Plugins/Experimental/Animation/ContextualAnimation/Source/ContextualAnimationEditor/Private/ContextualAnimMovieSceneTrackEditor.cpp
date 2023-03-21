@@ -61,8 +61,14 @@ FText FContextualAnimSection::GetSectionTitle() const
 {
 	if (UContextualAnimMovieSceneSection* Section = Cast<UContextualAnimMovieSceneSection>(WeakSection.Get()))
 	{
-		return FText::FromString(GetNameSafe(Section->GetAnimTrack().Animation));
-		
+		if(Section->GetAnimTrack().Animation)
+		{
+			return FText::FromString(GetNameSafe(Section->GetAnimTrack().Animation));
+		}
+		else
+		{
+			return FText::FromString(TEXT("No Animation"));
+		}
 	}
 
 	return FText::FromString(TEXT("Animation_Name"));
