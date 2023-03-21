@@ -779,6 +779,9 @@ bool UVPFullScreenUserWidget::Display(UWorld* InWorld)
 			return false;
 		}
 	}
+	
+	// Make sure that each display type has also received the EditorTargetViewport
+	SetEditorTargetViewport(EditorTargetViewport);
 #endif
 
 	bool bWasAdded = false;
