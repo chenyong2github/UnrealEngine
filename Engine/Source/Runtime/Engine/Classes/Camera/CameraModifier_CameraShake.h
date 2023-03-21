@@ -142,6 +142,8 @@ class ENGINE_API UCameraModifier_CameraShake : public UCameraModifier
 public:
 	UCameraModifier_CameraShake(const FObjectInitializer& ObjectInitializer);
 
+	virtual void BeginDestroy() override;
+
 	/** 
 	 * Adds a new active screen shake to be applied. 
 	 * @param NewShake - The class of camera shake to instantiate.
@@ -234,5 +236,9 @@ protected:
 	/** Whether we are currently recording camera shake debug info */
 	bool bRecordDebugData;
 #endif
+
+private:
+	void OnPreGarbageCollect();
+	void RemoveInvalidObjectsFromExpiredPool();
 };
 

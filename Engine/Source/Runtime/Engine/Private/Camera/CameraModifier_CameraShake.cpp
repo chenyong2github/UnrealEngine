@@ -49,8 +49,19 @@ UCameraModifier_CameraShake::UCameraModifier_CameraShake(const FObjectInitialize
 #endif
 {
 	SplitScreenShakeScale = 0.5f;
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddUObject(this, &UCameraModifier_CameraShake::OnPreGarbageCollect);
 }
 
+void UCameraModifier_CameraShake::BeginDestroy()
+{
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+	Super::BeginDestroy();
+}
+
+void UCameraModifier_CameraShake::OnPreGarbageCollect()
+{
+	RemoveInvalidObjectsFromExpiredPool();
+}
 
 bool UCameraModifier_CameraShake::ModifyCamera(float DeltaTime, FMinimalViewInfo& InOutPOV)
 {
@@ -343,6 +354,26 @@ UCameraShakeBase* UCameraModifier_CameraShake::ReclaimShakeFromExpiredPool(TSubc
 		}
 	}
 	return nullptr;
+}
+
+void UCameraModifier_CameraShake::RemoveInvalidObjectsFromExpiredPool()
+{
+	for (auto CamShakeItr = ExpiredPooledShakesMap.CreateIterator(); CamShakeItr; ++CamShakeItr)
+	{
+		if (!IsValid(CamShakeItr.Key()))
+		{
+			CamShakeItr.RemoveCurrent();
+			continue;
+		}
+		TArray<TObjectPtr<UCameraShakeBase>>& PooledShakes = CamShakeItr.Value().PooledShakes;
+		for (int32 i = PooledShakes.Num() - 1; i >= 0; --i)
+		{
+			if (!IsValid(PooledShakes[i]))
+			{
+				PooledShakes.RemoveAtSwap(i);
+			}
+		}
+	}
 }
 
 void UCameraModifier_CameraShake::GetActiveCameraShakes(TArray<FActiveCameraShakeInfo>& ActiveCameraShakes) const
