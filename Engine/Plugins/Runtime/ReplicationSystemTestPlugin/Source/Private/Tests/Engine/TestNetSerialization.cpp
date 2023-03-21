@@ -3,6 +3,7 @@
 #include "NetworkAutomationTest.h"
 #include "NetworkAutomationTestMacros.h"
 #include "Engine/NetSerialization.h"
+#include "Logging/LogScopedVerbosityOverride.h"
 #include "Serialization/BitReader.h"
 #include "Serialization/BitWriter.h"
 #include <limits>
@@ -22,6 +23,9 @@ namespace UE::Net::Private
 			};
 
 			const int32 ValueCount = UE_ARRAY_COUNT(Quantize10_Values);
+
+			// We are intentionally testing at least one value that would cause an error to be logged during serialization. We need to suppress it in order for other software that thinks that is a test fail.
+			LOG_SCOPE_VERBOSITY_OVERRIDE(LogCore, ELogVerbosity::Fatal);
 
 			constexpr bool bAllowResize = false;
 			FBitWriter Writer(128, bAllowResize);
@@ -75,6 +79,9 @@ namespace UE::Net::Private
 
 			const int32 ValueCount = UE_ARRAY_COUNT(Quantize100_Values);
 
+			// We are intentionally testing at least one value that would cause an error to be logged during serialization. We need to suppress it in order for other software that thinks that is a test fail.
+			LOG_SCOPE_VERBOSITY_OVERRIDE(LogCore, ELogVerbosity::Fatal);
+
 			constexpr bool bAllowResize = false;
 			FBitWriter Writer(128, bAllowResize);
 
@@ -126,6 +133,9 @@ namespace UE::Net::Private
 			};
 
 			const int32 ValueCount = UE_ARRAY_COUNT(Quantize10_Values);
+
+			// We are intentionally testing at least one value that would cause an error to be logged during serialization. We need to suppress it in order for other software that thinks that is a test fail.
+			LOG_SCOPE_VERBOSITY_OVERRIDE(LogCore, ELogVerbosity::Fatal);
 
 			constexpr bool bAllowResize = false;
 			FBitWriter Writer(512, bAllowResize);
@@ -180,6 +190,9 @@ namespace UE::Net::Private
 
 			const int32 ValueCount = UE_ARRAY_COUNT(Quantize100_Values);
 
+			// We are intentionally testing at least one value that would cause an error to be logged during serialization. We need to suppress it in order for other software that thinks that is a test fail.
+			LOG_SCOPE_VERBOSITY_OVERRIDE(LogCore, ELogVerbosity::Fatal);
+
 			constexpr bool bAllowResize = false;
 			FBitWriter Writer(512, bAllowResize);
 
@@ -232,6 +245,9 @@ namespace UE::Net::Private
 			};
 
 			const int32 ValueCount = UE_ARRAY_COUNT(Quantize100_Values);
+
+			// We are intentionally testing at least one value that would cause an error to be logged during serialization. We need to suppress it in order for other software that thinks that is a test fail.
+			LOG_SCOPE_VERBOSITY_OVERRIDE(LogCore, ELogVerbosity::Fatal);
 
 			constexpr bool bAllowResize = false;
 			FBitWriter Writer(512, bAllowResize);
