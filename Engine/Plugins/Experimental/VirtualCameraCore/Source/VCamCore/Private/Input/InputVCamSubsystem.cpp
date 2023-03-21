@@ -125,7 +125,7 @@ bool UInputVCamSubsystem::InputKey(const FInputKeyParams& Params)
 
 void UInputVCamSubsystem::PushInputComponent(UInputComponent* InInputComponent)
 {
-	if (!InInputComponent)
+	if (!ensure(InInputComponent))
 	{
 		return;
 	}
@@ -155,7 +155,7 @@ void UInputVCamSubsystem::PushInputComponent(UInputComponent* InInputComponent)
 
 bool UInputVCamSubsystem::PopInputComponent(UInputComponent* InInputComponent)
 {
-	if (CurrentInputStack.RemoveSingle(InInputComponent) > 0)
+	if (ensure(InInputComponent) && CurrentInputStack.RemoveSingle(InInputComponent) > 0)
 	{
 		InInputComponent->ClearBindingValues();
 		RequestRebuildControlMappings();

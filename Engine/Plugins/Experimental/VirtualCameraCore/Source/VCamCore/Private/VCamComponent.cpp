@@ -183,7 +183,9 @@ void UVCamComponent::RegisterInputComponent()
 
 void UVCamComponent::UnregisterInputComponent()
 {
-	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem())
+	if (UInputVCamSubsystem* InputSubsystem = GetInputVCamSubsystem()
+		// InputComponent is nulled by GC when exiting the engine
+		; InputComponent && InputSubsystem)
 	{
 		// Note: Despite the functions being called "Pop" it's actually just removing our specific input component from
 		// the stack rather than blindly popping the top component
