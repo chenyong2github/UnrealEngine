@@ -4,6 +4,7 @@
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Graph/MovieGraphConfig.h"
+#include "MovieEdGraphNode.h"
 #include "MovieGraphSchema.h"
 #include "PropertyEditorModule.h"
 #include "SMovieGraphMembersTabContent.h"
@@ -233,6 +234,25 @@ bool FMovieGraphAssetToolkit::CanDeleteSelectedMembers()
 	return false;
 }
 
+void FMovieGraphAssetToolkit::PersistEditorOnlyNodes() const
+{
+	if (InitialGraph && InitialGraph->PipelineEdGraph)
+	{
+		TArray<TObjectPtr<const UObject>> EditorOnlyNodes;
+		for (const TObjectPtr<UEdGraphNode>& GraphEdNode : InitialGraph->PipelineEdGraph->Nodes)
+		{
+			// Treat any non-MRQ nodes as editor-only nodes
+			check(GraphEdNode);
+			if (!GraphEdNode->IsA<UMoviePipelineEdGraphNodeBase>())
+			{
+				EditorOnlyNodes.Add(GraphEdNode);
+			}
+		}
+
+		InitialGraph->SetEditorOnlyNodes(EditorOnlyNodes);
+	}
+}
+
 FName FMovieGraphAssetToolkit::GetToolkitFName() const
 {
 	return FName("MovieGraphEditor");
@@ -255,11 +275,22 @@ FLinearColor FMovieGraphAssetToolkit::GetWorldCentricTabColorScale() const
 
 void FMovieGraphAssetToolkit::SaveAsset_Execute()
 {
+	// Editor-only nodes are copied to the underlying runtime graph on save/close
+	PersistEditorOnlyNodes();
+	
 	// Perform the default save process
 	// TODO: This will fail silently on a transient graph and won't trigger a Save As
 	FAssetEditorToolkit::SaveAsset_Execute();
 
 	// TODO: Any custom save logic here
+}
+
+void FMovieGraphAssetToolkit::OnClose()
+{
+	// Editor-only nodes are copied to the underlying runtime graph on save/close
+	PersistEditorOnlyNodes();
+	
+	FAssetEditorToolkit::OnClose();
 }
 
 #undef LOCTEXT_NAMESPACE

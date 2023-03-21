@@ -220,6 +220,14 @@ public:
 	/** Returns only the names of the root branches in the Output Node, with no depth information. */
 	TArray<FMovieGraphBranch> GetOutputBranches() const;
 
+#if WITH_EDITOR
+	/** Gets the editor-only nodes in this graph. Editor-only nodes do not have an equivalent runtime node. */
+	const TArray<TObjectPtr<UObject>>& GetEditorOnlyNodes() const { return EditorOnlyNodes; }
+
+	/** Sets the editor-only nodes in this graph. */
+	void SetEditorOnlyNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
+#endif
+
 	template<typename NodeType>
 	NodeType* IterateGraphForClass(const FMovieGraphTraversalContext& InContext) const
 	{
@@ -319,4 +327,10 @@ private:
 	/** All outputs which have been defined on the graph. */
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieGraphOutput>> Outputs;
+
+#if WITH_EDITORONLY_DATA
+	/** Nodes which are only useful in the editor (like comments) and have no runtime equivalent */
+	UPROPERTY()
+	TArray<TObjectPtr<UObject>> EditorOnlyNodes;
+#endif
 };

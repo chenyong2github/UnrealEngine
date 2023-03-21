@@ -74,6 +74,9 @@ private:
 	//UMoviePipelineConfigBase* AllocateTransientPreset();
 	void MakeEditorCommands();
 
+	/** Creates a new, empty comment in the graph around the currently selected nodes. */
+	void OnCreateComment() const;
+	
 	void SelectAllNodes();
 	bool CanSelectAllNodes() const;
 	bool CanDeleteSelectedNodes() const;

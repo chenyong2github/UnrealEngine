@@ -18,6 +18,7 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual void SaveAsset_Execute() override;
+	virtual void OnClose() override;
 	//~ End FAssetEditorToolkit interface
 
 	//~ Begin IToolkit interface
@@ -39,6 +40,9 @@ private:
 
 	/** Determines if the selected member(s) can be deleted. */
 	bool CanDeleteSelectedMembers();
+
+	/** Copies editor-only nodes to the underlying runtime graph so they can be restored later. */
+	void PersistEditorOnlyNodes() const;
 
 private:
 	/** The details panel for the selected object(s) in the graph */

@@ -57,6 +57,7 @@
 #include "Graph/MovieGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "GraphEditor.h"
+#include "GraphEditorActions.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineGraphPanel"
 
@@ -121,6 +122,10 @@ void SMoviePipelineGraphPanel::MakeEditorCommands()
 {
 	GraphEditorCommands = MakeShareable(new FUICommandList);
 	{
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnCreateComment)
+		);
+		
 		// Editing commands
 		GraphEditorCommands->MapAction(FGenericCommands::Get().SelectAll,
 			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::SelectAllNodes),
@@ -134,6 +139,22 @@ void SMoviePipelineGraphPanel::MakeEditorCommands()
 	}
 }
 
+void SMoviePipelineGraphPanel::OnCreateComment() const
+{
+	if (CurrentGraph)
+	{
+		FMovieGraphSchemaAction_NewComment CommentAction;
+		
+		const TSharedPtr<SGraphEditor> GraphEditorPtr = SGraphEditor::FindGraphEditorForGraph(CurrentGraph->PipelineEdGraph);
+		FVector2D Location;
+		if (GraphEditorPtr)
+		{
+			Location = GraphEditorPtr->GetPasteLocation();
+		}
+		
+		CommentAction.PerformAction(CurrentGraph->PipelineEdGraph, nullptr, Location);
+	}
+}
 
 void SMoviePipelineGraphPanel::SelectAllNodes()
 {

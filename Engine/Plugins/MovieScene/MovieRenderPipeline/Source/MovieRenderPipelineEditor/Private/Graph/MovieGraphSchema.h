@@ -127,3 +127,25 @@ private:
 	UPROPERTY()
 	FGuid VariableGuid;
 };
+
+/** Schema action for creating a new comment node in the graph. */
+USTRUCT()
+struct FMovieGraphSchemaAction_NewComment : public FMovieGraphSchemaAction
+{
+	GENERATED_BODY()
+
+	static FName StaticGetTypeId()
+	{
+		static FName Type("FMovieGraphSchemaAction_NewComment");
+		return Type;
+	}
+
+	FMovieGraphSchemaAction_NewComment()
+		: FMovieGraphSchemaAction()
+	{}
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual FName GetTypeId() const override { return StaticGetTypeId(); }
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};

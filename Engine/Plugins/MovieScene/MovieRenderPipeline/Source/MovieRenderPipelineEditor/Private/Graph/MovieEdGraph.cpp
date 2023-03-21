@@ -54,13 +54,25 @@ void UMoviePipelineEdGraph::InitFromRuntimeGraph(UMovieGraphConfig* InGraph)
 		}
 	}
 
-	// Now that we've added an Editor Graph representation for every node in the graph, link
+	// Now that we've added an Editor Graph representation for every runtime node in the graph, link
 	// the editor nodes together to match the Runtime Layout.
 	for (const TPair< UMovieGraphNode*, UMoviePipelineEdGraphNodeBase*> Pair : NodeLookup)
 	{
 		const bool bCreateInboundLinks = false;
 		const bool bCreateOutboundLinks = true;
 		CreateLinks(Pair.Value, bCreateInboundLinks, bCreateOutboundLinks, NodeLookup);
+	}
+
+	// Restore editor-only nodes, which have no runtime node equivalent
+	for (const TObjectPtr<UObject> EditorOnlyNodeObject : InGraph->GetEditorOnlyNodes())
+	{
+		if (const UEdGraphNode* EdGraphNode = Cast<UEdGraphNode>(EditorOnlyNodeObject))
+		{
+			UEdGraphNode* NewEdGraphNode = DuplicateObject(EdGraphNode, /*Outer=*/this);
+			const bool bIsUserAction = false;
+			const bool bSelectNewNode = false;
+			AddNode(NewEdGraphNode, bIsUserAction, bSelectNewNode);
+		}
 	}
 
 	InGraph->OnGraphChangedDelegate.AddUObject(this, &UMoviePipelineEdGraph::OnGraphConfigChanged);

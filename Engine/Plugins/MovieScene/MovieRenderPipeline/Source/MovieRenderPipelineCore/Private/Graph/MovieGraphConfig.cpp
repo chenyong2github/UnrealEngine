@@ -532,6 +532,18 @@ TArray<FMovieGraphBranch> UMovieGraphConfig::GetOutputBranches() const
 	return Branches;
 }
 
+#if WITH_EDITOR
+void UMovieGraphConfig::SetEditorOnlyNodes(const TArray<TObjectPtr<const UObject>>& InNodes)
+{
+	EditorOnlyNodes.Empty();
+
+	for (const TObjectPtr<const UObject>& Node : InNodes)
+	{
+		EditorOnlyNodes.Add(DuplicateObject(Node.Get(), this));
+	}
+}
+#endif	// WITH_EDITOR
+
 bool UMovieGraphConfig::DeleteInputMember(UMovieGraphInput* InputMemberToDelete)
 {
 	if (InputMemberToDelete)
