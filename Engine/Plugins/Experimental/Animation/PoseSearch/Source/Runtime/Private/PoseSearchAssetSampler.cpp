@@ -89,8 +89,8 @@ void FSequenceBaseSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx,
 
 FTransform FSequenceBaseSampler::GetTotalRootTransform() const
 {
-	const FTransform InitialRootTransform = Input.SequenceBase->ExtractRootTrackTransform(0.f, nullptr);
-	const FTransform LastRootTransform = Input.SequenceBase->ExtractRootTrackTransform(Input.SequenceBase->GetPlayLength(), nullptr);
+	const FTransform InitialRootTransform = ExtractRootTransform(0.f);
+	const FTransform LastRootTransform = ExtractRootTransform(GetPlayLength());
 	const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
 	return TotalRootTransform;
 }
