@@ -562,7 +562,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 	FPlatformAtomics::InterlockedDecrement(&ActiveEnsureCount);
 }
 
-void FORCENOINLINE FDebug::CheckVerifyFailedImpl(
+bool FORCENOINLINE FDebug::CheckVerifyFailedImpl(
 	const ANSICHAR* Expr,
 	const ANSICHAR* File,
 	int32 Line,
@@ -590,8 +590,15 @@ void FORCENOINLINE FDebug::CheckVerifyFailedImpl(
 		va_start(Args, Format);
 		AssertFailedImplV(Expr, File, Line, ProgramCounter, Format, Args);
 		va_end(Args);
+
+		return false;
 	}
-	PLATFORM_BREAK_IF_DESIRED_NONINLINE();
+
+#if UE_BUILD_SHIPPING
+	return true;
+#else
+	return !GIgnoreDebugger;
+#endif
 }
 
 #endif // DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
@@ -706,8 +713,11 @@ bool UE_DEBUG_SECTION VARARGS CheckVerifyImpl(bool& InOutExecuted, bool Always, 
 			return false;
 		}
 
-		PLATFORM_BREAK_IF_DESIRED_NONINLINE();
+#if UE_BUILD_SHIPPING
 		return true;
+#else
+		return !GIgnoreDebugger;
+#endif
 	}
 
 	return false;
