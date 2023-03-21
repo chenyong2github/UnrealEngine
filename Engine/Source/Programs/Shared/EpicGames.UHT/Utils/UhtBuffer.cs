@@ -1,11 +1,154 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Numerics;
 using System.Text;
 
 namespace EpicGames.UHT.Utils
 {
+	/// <summary>
+	/// Rent and return pooled buffers
+	/// </summary>
+	public static class UhtPoolBuffers
+	{
+
+		/// <summary>
+		/// Rent a new buffer
+		/// </summary>
+		/// <param name="size">Minimum size of the buffer</param>
+		/// <returns></returns>
+		public static UhtPoolBuffer<T> Rent<T>(int size)
+		{
+			T[] block = ArrayPool<T>.Shared.Rent(size);
+			return new UhtPoolBuffer<T>(block, size);
+		}
+
+		/// <summary>
+		/// Return a buffer
+		/// </summary>
+		/// <param name="buffer">Buffer being returned</param>
+		public static void Return<T>(UhtPoolBuffer<T> buffer)
+		{
+			if (buffer.IsSet)
+			{
+				ArrayPool<T>.Shared.Return(buffer.GetBlock());
+			}
+		}
+	}
+
+	/// <summary>
+	/// Pooled buffers
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	public struct UhtPoolBuffer<T>
+	{
+
+		/// <summary>
+		/// THe backing array
+		/// </summary>
+		private readonly T[]? _block = null;
+
+		/// <summary>
+		/// Memory region sized to the requested size
+		/// </summary>
+		public Memory<T> Memory { get; set; }
+
+		/// <summary>
+		/// Return true if we have a pool block
+		/// </summary>
+		public bool IsSet => _block != null;
+
+		/// <summary>
+		/// Create a pool buffer
+		/// </summary>
+		/// <param name="block">Array block</param>
+		/// <param name="size">Size of the requested block</param>
+		public UhtPoolBuffer(T[] block, int size)
+		{
+			_block = block;
+			Memory = new Memory<T>(block, 0, size);
+		}
+
+		/// <summary>
+		/// The backing array.  The size of the array will normally be larger than the requested size.
+		/// </summary>
+		public T[] GetBlock()
+		{
+			return _block ?? Array.Empty<T>();
+		}
+
+		/// <summary>
+		/// Reset the memory region to the given size
+		/// </summary>
+		/// <param name="size"></param>
+		public void Reset(int size)
+		{
+			Memory = new Memory<T>(GetBlock(), 0, size);
+		}
+	}
+
+	/// <summary>
+	/// Helper class for using pattern to borrow and return a buffer.
+	/// </summary>
+	public struct UhtRentedPoolBuffer<T> : IDisposable
+	{
+
+		/// <summary>
+		/// The borrowed buffer
+		/// </summary>
+		public UhtPoolBuffer<T> Buffer { get; set; }
+
+		/// <summary>
+		/// Borrow a buffer with the given size
+		/// </summary>
+		/// <param name="size">The size to borrow</param>
+		public UhtRentedPoolBuffer(int size)
+		{
+			Buffer = UhtPoolBuffers.Rent<T>(size);
+		}
+
+		/// <summary>
+		/// Return the borrowed buffer to the cache
+		/// </summary>
+		public void Dispose()
+		{
+			UhtPoolBuffers.Return<T>(Buffer);
+		}
+	}
+
+	/// <summary>
+	/// Collection of helper methods to convert string builder to borrow buffers
+	/// </summary>
+	public static class UhtPoolBufferStringBuilderExtensions
+	{
+		/// <summary>
+		/// Return a buffer initialized with the string builder.
+		/// </summary>
+		/// <param name="builder">Source builder content</param>
+		/// <returns>Buffer that should be returned with a call to Return</returns>
+		public static UhtRentedPoolBuffer<char> RentPoolBuffer(this StringBuilder builder)
+		{
+			int length = builder.Length;
+			UhtRentedPoolBuffer<char> buffer = new(length);
+			builder.CopyTo(0, buffer.Buffer.Memory.Span, length);
+			return buffer;
+		}
+
+		/// <summary>
+		/// Return a buffer initialized with the string builder sub string.
+		/// </summary>
+		/// <param name="builder">Source builder content</param>
+		/// <param name="startIndex">Starting index in the builder</param>
+		/// <param name="length">Length of the content</param>
+		/// <returns>Buffer that should be returned with a call to Return</returns>
+		public static UhtRentedPoolBuffer<char> RentPoolBuffer(this StringBuilder builder, int startIndex, int length)
+		{
+			UhtRentedPoolBuffer<char> buffer = new(length);
+			builder.CopyTo(startIndex, buffer.Buffer.Memory.Span, length);
+			return buffer;
+		}
+	}
 
 	/// <summary>
 	/// Cached character buffer system.
@@ -13,6 +156,7 @@ namespace EpicGames.UHT.Utils
 	/// Invoke UhtBuffer.Borrow method to get a buffer of the given size.
 	/// Invoke UhtBuffer.Return to return the buffer to the cache.
 	/// </summary>
+	[Obsolete("Use UhtPoolBuffer<T> instead of UhtBuffer")]
 	public class UhtBuffer
 	{
 		/// <summary>
@@ -174,6 +318,7 @@ namespace EpicGames.UHT.Utils
 	/// <summary>
 	/// Helper class for using pattern to borrow and return a buffer.
 	/// </summary>
+	[Obsolete("Use UhtRentedPoolBuffer<T> instead of UhtBorrowBuffer")]
 	public struct UhtBorrowBuffer : IDisposable
 	{
 
@@ -226,7 +371,7 @@ namespace EpicGames.UHT.Utils
 	/// Invoke UhtBuffer.Borrow method to get a buffer of the given size.
 	/// Invoke UhtBuffer.Return to return the buffer to the cache.
 	/// </summary>
-	// TODO: Refactor to share implementation and possibly support ArrayPool<T>.
+	[Obsolete("Use UhtPoolBuffer<T> instead of UhtByteBuffer")]
 	public class UhtByteBuffer
 	{
 		/// <summary>
@@ -361,6 +506,7 @@ namespace EpicGames.UHT.Utils
 	/// <summary>
 	/// Helper class for using pattern to borrow and return a buffer.
 	/// </summary>
+	[Obsolete("Use UhtRentedPoolBuffer<T> instead of UhtBorrowByteBuffer")]
 	public struct UhtBorrowByteBuffer : IDisposable
 	{
 

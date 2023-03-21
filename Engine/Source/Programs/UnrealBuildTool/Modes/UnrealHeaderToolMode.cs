@@ -594,9 +594,17 @@ namespace UnrealBuildTool.Modes
 		}
 
 		/// <inheritdoc/>
+		[Obsolete("Use the new ReadOutput with UhtPoolBuffer")]
 		public UhtBuffer? ReadOutput(string FilePath)
 		{
 			return null;
+		}
+
+		/// <inheritdoc/>
+		public bool ReadOutput(string FilePath, out UhtPoolBuffer<char> Output)
+		{
+			Output = default;
+			return false;
 		}
 
 		/// <inheritdoc/>

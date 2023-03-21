@@ -143,7 +143,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="builder">Source for the content</param>
 		public void CommitOutput(string filePath, StringBuilder builder)
 		{
-			using UhtBorrowBuffer borrowBuffer = new(builder);
+			using UhtRentedPoolBuffer<char> borrowBuffer = builder.RentPoolBuffer();
 			string tempFilePath = filePath + ".tmp";
 			SaveIfChanged(filePath, tempFilePath, new StringView(borrowBuffer.Buffer.Memory));
 		}
@@ -288,15 +288,14 @@ namespace EpicGames.UHT.Utils
 				{
 					string message = String.Empty;
 					string refPath = Path.Combine(ReferenceDirectory, fileName);
-					UhtBuffer? existingRef = Session.ReadSourceToBuffer(refPath);
-					if (existingRef != null)
+					if (Session.ReadSource(refPath, out UhtPoolBuffer<char> existingRef))
 					{
 						ReadOnlySpan<char> existingSpan = existingRef.Memory.Span;
 						if (existingSpan.CompareTo(exportedSpan, StringComparison.Ordinal) != 0)
 						{
 							message = $"********************************* {fileName} has changed.";
 						}
-						UhtBuffer.Return(existingRef);
+						UhtPoolBuffers.Return<char>(existingRef);
 					}
 					else
 					{
@@ -315,9 +314,8 @@ namespace EpicGames.UHT.Utils
 			}
 
 			// Check to see if the contents have changed
-			UhtBuffer? original = Session.ReadSourceToBuffer(filePath);
-			bool save = original == null;
-			if (original != null)
+			bool save = false;
+			if (Session.ReadSource(filePath, out UhtPoolBuffer<char> original))
 			{
 				ReadOnlySpan<char> originalSpan = original.Memory.Span;
 				if (originalSpan.CompareTo(exportedSpan, StringComparison.Ordinal) != 0)
@@ -332,7 +330,11 @@ namespace EpicGames.UHT.Utils
 					}
 					save = true;
 				}
-				UhtBuffer.Return(original);
+				UhtPoolBuffers.Return<char>(original);
+			}
+			else
+			{
+				save = true;
 			}
 
 			// If changed of the original didn't exist, then save the new version
@@ -1121,9 +1123,21 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		/// <param name="filePath">Full or relative file path</param>
 		/// <returns>Buffer containing the read data or null if not found.  The returned buffer must be returned to the cache via a call to UhtBuffer.Return</returns>
+		[Obsolete("Use the ReadSource method with the UhtPoolBuffer<char> output parameter")]
 		public UhtBuffer? ReadSourceToBuffer(string filePath)
 		{
 			return FileManager!.ReadOutput(filePath);
+		}
+
+		/// <summary>
+		/// Read the given source file
+		/// </summary>
+		/// <param name="filePath">Full or relative file path</param>
+		/// <param name="output">Read source file</param>
+		/// <returns>True if the file was read</returns>
+		public bool ReadSource(string filePath, out UhtPoolBuffer<char> output)
+		{
+			return FileManager!.ReadOutput(filePath, out output);
 		}
 
 		/// <summary>
@@ -2440,11 +2454,10 @@ namespace EpicGames.UHT.Utils
 		{
 			if (_projectJson == null && ProjectDirectory != null && ProjectFile != null)
 			{
-				UhtBuffer? contents = ReadSourceToBuffer(ProjectFile);
-				if (contents != null)
+				if (ReadSource(ProjectFile, out UhtPoolBuffer<char> contents))
 				{
 					_projectJson = JsonDocument.Parse(contents.Memory);
-					UhtBuffer.Return(contents);
+					UhtPoolBuffers.Return<char>(contents);
 				}
 			}
 

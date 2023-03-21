@@ -339,7 +339,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append(EnableDeprecationWarnings).Append("\r\n");
 
 				{
-					using UhtBorrowBuffer borrowBuffer = new(builder);
+					using UhtRentedPoolBuffer<char> borrowBuffer = builder.RentPoolBuffer();
 					string cppFilePath = factory.MakePath(HeaderFile, ".gen.cpp");
 					StringView generatedBody = new(borrowBuffer.Buffer.Memory);
 					if (SaveExportedHeaders)
@@ -500,7 +500,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\t}\r\n");
 
 				{
-					using UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart);
+					using UhtRentedPoolBuffer<char> borrowBuffer = builder.RentPoolBuffer(hashCodeBlockStart, builder.Length - hashCodeBlockStart);
 					ObjectInfos[enumObj.ObjectTypeIndex].Hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 				}
 			}
@@ -696,7 +696,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\t}\r\n");
 			}
 
-			using (UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
+			using (UhtRentedPoolBuffer<char> borrowBuffer = builder.RentPoolBuffer(hashCodeBlockStart, builder.Length - hashCodeBlockStart))
 			{
 				ObjectInfos[scriptStruct.ObjectTypeIndex].Hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 			}
@@ -923,7 +923,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			builder.AppendEndEditorOnlyGuard(function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly));
 
-			using (UhtBorrowBuffer borrowBuffer = new(builder, hashCodeBlockStart, builder.Length - hashCodeBlockStart))
+			using (UhtRentedPoolBuffer<char> borrowBuffer = builder.RentPoolBuffer(hashCodeBlockStart, builder.Length - hashCodeBlockStart))
 			{
 				ObjectInfos[function.ObjectTypeIndex].Hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 			}
@@ -1701,7 +1701,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				if (Session.IncludeDebugOutput)
 				{
-					using UhtBorrowBuffer borrowBuffer = new(hashBuilder, saveLength, hashBuilder.Length - saveLength);
+					using UhtRentedPoolBuffer<char> borrowBuffer = hashBuilder.RentPoolBuffer(saveLength, hashBuilder.Length - saveLength);
 					builder.Append("#if 0\r\n");
 					builder.Append(borrowBuffer.Buffer.Memory);
 					builder.Append("#endif\r\n");
@@ -1709,7 +1709,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				// Calculate generated class initialization code hash so that we know when it changes after hot-reload
 				{
-					using UhtBorrowBuffer borrowBuffer = new(hashBuilder);
+					using UhtRentedPoolBuffer<char> borrowBuffer = hashBuilder.RentPoolBuffer();
 					ObjectInfos[classObj.ObjectTypeIndex].Hash = UhtHash.GenenerateTextHash(borrowBuffer.Buffer.Memory.Span);
 				}
 			}

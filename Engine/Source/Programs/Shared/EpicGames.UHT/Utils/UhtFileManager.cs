@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.IO;
 using System.Text;
 using EpicGames.Core;
@@ -33,7 +34,16 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		/// <param name="filePath">File path</param>
 		/// <returns>Buffer containing the read data or null if not found.  The returned buffer must be returned to the cache via a call to UhtBuffer.Return</returns>
+		[Obsolete("Use the new ReadOutput with UhtPoolBuffer")]
 		public UhtBuffer? ReadOutput(string filePath);
+
+		/// <summary>
+		/// Read the given source file
+		/// </summary>
+		/// <param name="filePath">File path</param>
+		/// <param name="output">Read output</param>
+		/// <returns>True if the file was read</returns>
+		public bool ReadOutput(string filePath, out UhtPoolBuffer<char> output);
 
 		/// <summary>
 		/// Write the given contents to the file
@@ -83,6 +93,7 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <inheritdoc/>
+		[Obsolete("Use the new ReadOutput with UhtPoolBuffer")]
 		public UhtBuffer? ReadOutput(string filePath)
 		{
 			// Exceptions are very expensive.  Don't bother trying to open the file if it doesn't exist
@@ -110,6 +121,39 @@ namespace EpicGames.UHT.Utils
 			catch (IOException)
 			{
 				return null;
+			}
+		}
+
+		/// <inheritdoc/>
+		public bool ReadOutput(string filePath, out UhtPoolBuffer<char> output)
+		{
+			// Exceptions are very expensive.  Don't bother trying to open the file if it doesn't exist
+			if (!File.Exists(filePath))
+			{
+				output = default;
+				return false;
+			}
+
+			try
+			{
+				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
+				using UhtRentedPoolBuffer<byte> byteBuffer = new((int)fs.Length);
+				Span<byte> byteSpan = byteBuffer.Buffer.Memory.Span;
+				int readLength = fs.Read(byteSpan);
+				byteSpan = byteSpan.Slice(0, readLength);
+
+				Encoding encoding = GetEncoding(byteSpan, out int skipBytes);
+				byteSpan = byteSpan.Slice(skipBytes);
+
+				int charCount = encoding.GetCharCount(byteBuffer.Buffer.Memory.Span);
+				output = UhtPoolBuffers.Rent<char>(charCount);
+				encoding.GetChars(byteBuffer.Buffer.Memory.Span, output.Memory.Span);
+				return true;
+			}
+			catch (IOException)
+			{
+				output = default;
+				return false;
 			}
 		}
 
@@ -165,7 +209,7 @@ namespace EpicGames.UHT.Utils
 			try
 			{
 				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
-				using UhtBorrowByteBuffer byteBuffer = new((int)fs.Length);
+				using UhtRentedPoolBuffer<byte> byteBuffer = new((int)fs.Length);
 				Span<byte> byteSpan = byteBuffer.Buffer.Memory.Span;
 				int readLength = fs.Read(byteSpan);
 				byteSpan = byteSpan.Slice(0, readLength);
