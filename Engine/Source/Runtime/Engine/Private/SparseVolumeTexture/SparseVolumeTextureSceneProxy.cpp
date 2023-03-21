@@ -226,7 +226,7 @@ bool FSparseVolumeTextureRuntime::SetTileMappings(const TArrayView<const FSparse
 		PageTableRes = FIntVector3(FMath::Max(1, PageTableRes.X / 2), FMath::Max(1, PageTableRes.Y / 2), FMath::Max(1, PageTableRes.Z / 2));
 
 		const FSparseVolumeTextureTileMapping& Mapping = Mappings[MipLevel];
-		if (Mapping.NumPhysicalTiles <= 0)
+		if (!Mapping.TileIndices) // Note that we allow Mapping.NumPhysicalTiles == 0 in order to support a volume referencing just the null tile
 		{
 			continue;
 		}

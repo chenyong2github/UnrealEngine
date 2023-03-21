@@ -144,12 +144,12 @@ public:
 				const openvdb::Coord AABBDimVDB = TileAABB.dim();
 				const FIntVector3 AABBDim = FIntVector3(AABBDimVDB.x(), AABBDimVDB.y(), AABBDimVDB.z());
 				
-				// Iterate over tile AABB and invoke callback for every (virtual) voxel. AABB.max is inclusive, so we need <= instead of <.
-				for (int32 Z = 0; Z <= AABBDim.Z; ++Z)
+				// Iterate over tile AABB and invoke callback for every (virtual) voxel.
+				for (int32 Z = 0; Z < AABBDim.Z; ++Z)
 				{
-					for (int32 Y = 0; Y <= AABBDim.Y; ++Y)
+					for (int32 Y = 0; Y < AABBDim.Y; ++Y)
 					{
-						for (int32 X = 0; X <= AABBDim.X; ++X)
+						for (int32 X = 0; X < AABBDim.X; ++X)
 						{
 							const FIntVector3 TileLocalCoord(Coord.X + X, Coord.Y + Y, Coord.Z + Z);
 							OnVisit(TileLocalCoord, NumComponents, VoxelValueComponents);
