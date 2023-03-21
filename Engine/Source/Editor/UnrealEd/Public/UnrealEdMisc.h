@@ -27,7 +27,6 @@ enum class EMapChangeType : uint8
 	TearDownWorld,
 };
 
-
 /** The public interface for the unreal editor misc singleton. */
 class UNREALED_API FUnrealEdMisc
 {
@@ -279,6 +278,9 @@ public:
 
 	/** Finds a map using only the map name, no extension, no path, also caches it for faster lookup next time. */
 	FString FindMapFileFromPartialName(const FString& PartialMapName);
+
+	/** Launch an editor instance, passing ProjectName and the command line args from this running instance */
+	bool SpawnEditorInstance(const FString& ProjectName);
 
 private:
 	void SelectActorFromMessageToken(AActor* InActor);

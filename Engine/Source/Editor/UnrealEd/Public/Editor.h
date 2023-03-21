@@ -167,6 +167,8 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnViewAssetIdentifiers, TArray<FAssetIdentifier>);
 	/** delegate type to handle viewing/editing a set of asset identifiers (which are packages or ids) in the reference viewer */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOpenReferenceViewer, const TArray<FAssetIdentifier>, const FReferenceViewerParams);
+	/** delegate type for when the editor requests a restart, enables overriding how a restart is performed */
+	DECLARE_DELEGATE_RetVal_OneParam(bool /*bSuccess*/, FOnRestartRequested, const FString& /*ProjectName*/);
 
 	/** Called when the CurrentLevel is switched to a new level.  Note that this event won't be fired for temporary
 		changes to the current level, such as when copying/pasting actors. */
@@ -345,6 +347,8 @@ struct UNREALED_API FEditorDelegates
 	static FOnViewAssetIdentifiers OnOpenAssetAudit;
 	/** Called to try and edit an asset identifier, which could be a package or searchable name */
 	static FOnViewAssetIdentifiers OnEditAssetIdentifiers;
+	/** Called when the editor requests a restart */
+	static FOnRestartRequested OnRestartRequested;
 };
 
 /**

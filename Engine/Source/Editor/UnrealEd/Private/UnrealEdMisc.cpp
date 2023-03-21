@@ -944,15 +944,14 @@ bool FUnrealEdMisc::EnableWorldComposition(UWorld* InWorld, bool bEnable)
 	return true;
 }
 
-/** Build and return the path to the current project (used for relaunching the editor.)	 */
-FString CreateProjectPath()
+FString FUnrealEdMisc::GetProjectEditorBinaryPath()
 {
 #if PLATFORM_WINDOWS
 	return FPlatformProcess::ExecutablePath();
 #elif PLATFORM_MAC
 	@autoreleasepool
 	{
-		return UTF8_TO_TCHAR([[[NSBundle mainBundle] executablePath] fileSystemRepresentation]);
+		return UTF8_TO_TCHAR([[[NSBundle mainBundle]executablePath] fileSystemRepresentation] );
 	}
 #elif PLATFORM_LINUX
 	const TCHAR* PlatformConfig = FPlatformMisc::GetUBTPlatform();
@@ -963,9 +962,19 @@ FString CreateProjectPath()
 #endif
 }
 
-FString FUnrealEdMisc::GetProjectEditorBinaryPath()
+bool FUnrealEdMisc::SpawnEditorInstance(const FString& ProjectName)
 {
-	return CreateProjectPath();
+	// Use the same command line parameters that were used for this editor instance.
+	const FString Cmd = FString::Printf(TEXT("%s %s"), *ProjectName, *PendingCommandLine.Get(FCommandLine::Get()));
+
+	const FString ExeFilename = GetProjectEditorBinaryPath();
+	FProcHandle Handle = FPlatformProcess::CreateProc(*ExeFilename, *Cmd, true, false, false, NULL, 0, NULL, NULL);
+	const bool bSuccess = Handle.IsValid();
+	if (bSuccess)
+	{
+		FPlatformProcess::CloseProc(Handle);
+	}
+	return bSuccess;
 }
 
 void FUnrealEdMisc::OnExit()
@@ -1080,24 +1089,28 @@ void FUnrealEdMisc::OnExit()
 	const FString& PendingProjName = FUnrealEdMisc::Get().GetPendingProjectName();
 	if( PendingProjName.Len() > 0 )
 	{
-		// If there is a pending project switch, spawn that process now and use the same command line parameters that were used for this editor instance.
-		FString Cmd = FString::Printf(TEXT("%s %s"), *PendingProjName, *PendingCommandLine.Get(FCommandLine::Get()));
-
-		FString ExeFilename = CreateProjectPath();
-		FProcHandle Handle = FPlatformProcess::CreateProc( *ExeFilename, *Cmd, true, false, false, NULL, 0, NULL, NULL );
-		if( !Handle.IsValid() )
+		bool bSuccess = false;
+		if (FEditorDelegates::OnRestartRequested.IsBound())
+		{
+			bSuccess = FEditorDelegates::OnRestartRequested.Execute(PendingProjName);
+		}
+		else
+		{
+			bSuccess = SpawnEditorInstance(PendingProjName);
+		}
+		
+		if (!bSuccess)
 		{
 			// We were not able to spawn the new project exe.
 			// Its likely that the exe doesn't exist.
 			// Skip shutting down the editor if this happens
-			UE_LOG(LogUnrealEdMisc, Warning, TEXT("Could not restart the editor") );
+			UE_LOG(LogUnrealEdMisc, Warning, TEXT("Could not restart the editor"));
 
 			// Clear the pending project to ensure the editor can still be shut down normally
-			FUnrealEdMisc::Get().ClearPendingProjectName();
+			ClearPendingProjectName();
 
 			return;
 		}
-		FPlatformProcess::CloseProc(Handle);
 	}
 
 	// Unregister the command executor

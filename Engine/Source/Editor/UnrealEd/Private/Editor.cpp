@@ -169,6 +169,7 @@ FEditorDelegates::FOnOpenReferenceViewer				FEditorDelegates::OnOpenReferenceVie
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenSizeMap;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenAssetAudit;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnEditAssetIdentifiers;
+FEditorDelegates::FOnRestartRequested					FEditorDelegates::OnRestartRequested;
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
