@@ -443,7 +443,8 @@ void UEdGraph_ReferenceViewer::RecursivelyFilterNodeInfos(const FAssetIdentifier
 	bool PassedAssetTypeFilter = FilterCollection && Settings->GetFiltersEnabled() ? FilterCollection->PassesAllFilters(InNodeInfos[InAssetId]) : true;
 	bool PassedSearchTextFilter = IsAssetPassingSearchTextFilter(InAssetId);
 
-	bool PassedAllFilters = Settings->GetFindPathEnabled()  || (PassedAssetTypeFilter && PassedSearchTextFilter);
+	// Don't apply filters in Find Path Mode. Otherwise, check the type and search filters, and also don't include any assets in the central selection (where InCurrentDepth == 0)
+	bool PassedAllFilters = Settings->GetFindPathEnabled() || (PassedAssetTypeFilter && PassedSearchTextFilter && (InCurrentDepth == 0 || !CurrentGraphRootIdentifiers.Contains(InAssetId)));
 
 	InNodeInfos[InAssetId].ChildProvisionSize = NewProvisionSize > 0 ? NewProvisionSize : (PassedAllFilters ? 1 : 0);
 	InNodeInfos[InAssetId].PassedFilters = PassedAllFilters;
