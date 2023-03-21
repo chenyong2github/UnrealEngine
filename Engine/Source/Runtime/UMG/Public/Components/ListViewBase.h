@@ -107,7 +107,7 @@ public:
 				return SelectedItems[0];
 			}
 		}
-		return nullptr;
+		return TListTypeTraits<ItemType>::MakeNullPtr();
 	}
 
 	const ItemType* ItemFromEntryWidget(const UUserWidget& EntryWidget) const
