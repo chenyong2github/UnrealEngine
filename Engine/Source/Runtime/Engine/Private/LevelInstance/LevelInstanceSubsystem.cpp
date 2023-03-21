@@ -2585,7 +2585,7 @@ bool ULevelInstanceSubsystem::PassLevelInstanceFilter(UWorld* World, const FWorl
 			TArray<FGuid> AncestorGuids;
 			ForEachLevelInstanceAncestorsAndSelf(Cast<AActor>(LevelInstanceInterface), [&AncestorGuids, &LevelInstanceInterface](const ILevelInstanceInterface* Ancestor)
 			{
-				AncestorGuids.Insert(Cast<AActor>(Ancestor)->GetActorGuid(), 0);
+				AncestorGuids.Insert(Ancestor->GetLevelInstanceID().GetOriginalGuid(), 0);
 				LevelInstanceInterface = Ancestor;
 				return true;
 			});
