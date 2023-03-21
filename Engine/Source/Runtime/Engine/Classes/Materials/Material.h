@@ -1274,7 +1274,6 @@ public:
 	ENGINE_API virtual uint32 ComputeAllStateCRC() const override;
 #endif // WITH_EDITOR
 
-
 	/**
 	 * Checks that no pre-compilation errors have been detected and if so it reports them using specified compiler.
 	 * @return whether no errors occurred.
