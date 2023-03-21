@@ -5,7 +5,7 @@
 #include "LiveLinkVirtualSubject.h"
 
 
-#include "NDisplaySlaveVirtualSubject.generated.h"
+#include "NDisplayAgentVirtualSubject.generated.h"
 
 class ULiveLinkFrameTranslator;
 

@@ -11,7 +11,7 @@
 #include "LiveLinkRole.h"
 #include "LiveLinkSubjectSettings.h"
 #include "Misc/CoreDelegates.h"
-#include "NDisplaySlaveVirtualSubject.h"
+#include "NDisplayAgentVirtualSubject.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "UObject/Package.h"
