@@ -133,7 +133,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 {
 	const FViewInfo& View = Views[0];
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
-	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
+	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 
 	if (Views.Num() == 1
 		&& View.ViewState

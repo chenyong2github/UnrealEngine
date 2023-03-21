@@ -611,7 +611,8 @@ void VisualizeLumenScene(
 	FRDGTextureRef ColorGradingTexture,
 	FRDGBufferRef EyeAdaptationBuffer,
 	int32 VisualizeMode,
-	int32 VisualizeTileIndex)
+	int32 VisualizeTileIndex,
+	bool bLumenGIEnabled)
 {
 	FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Output.Texture));
 
@@ -644,7 +645,8 @@ void VisualizeLumenScene(
 			IndirectTracingParameters,
 			VisualizeParameters.CommonParameters,
 			Output.Texture,
-			bVisualizeModeWithHitLighting);
+			bVisualizeModeWithHitLighting,
+			bLumenGIEnabled);
 	}
 	else
 	{
@@ -710,7 +712,7 @@ int32 GetLumenVisualizeMode(const FViewInfo& View)
 	return VisualizeMode;
 }
 
-FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, bool bAnyLumenActive, const FVisualizeLumenSceneInputs& Inputs, FLumenSceneFrameTemporaries& FrameTemporaries)
+FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, bool bAnyLumenActive, bool bLumenGIEnabled, const FVisualizeLumenSceneInputs& Inputs, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	check(Inputs.SceneColor.IsValid());
 
@@ -760,7 +762,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 				VisualizeTiles[1].Mode = VISUALIZE_MODE_REFLECTION_VIEW;
 				if (Lumen::UseHardwareRayTracing(ViewFamily))
 				{
-					VisualizeTiles[1].Name = LumenReflections::IsHitLightingForceEnabled(View) ? TEXT("Reflection View, HWRT with hit lighting") : TEXT("Reflection View, HWRT");
+					VisualizeTiles[1].Name = LumenReflections::IsHitLightingForceEnabled(View, bLumenGIEnabled) ? TEXT("Reflection View, HWRT with hit lighting") : TEXT("Reflection View, HWRT");
 				}
 				else
 				{
@@ -771,7 +773,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 
 				for (int32 TileIndex = 0; TileIndex < LumenVisualize::NumOverviewTilesPerRow; ++TileIndex)
 				{
-					VisualizeLumenScene(Scene, GraphBuilder, ViewFamily.EngineShowFlags, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeTiles[TileIndex].Mode, TileIndex);	
+					VisualizeLumenScene(Scene, GraphBuilder, ViewFamily.EngineShowFlags, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeTiles[TileIndex].Mode, TileIndex, bLumenGIEnabled);	
 				}
 
 				AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("LumenVisualizeLabels"), View, FScreenPassRenderTarget(Output, ERenderTargetLoadAction::ELoad),
@@ -795,7 +797,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 			}
 			else
 			{
-				VisualizeLumenScene(Scene, GraphBuilder, ViewFamily.EngineShowFlags, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeMode, /*VisualizeTileIndex*/ -1);
+				VisualizeLumenScene(Scene, GraphBuilder, ViewFamily.EngineShowFlags, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeMode, /*VisualizeTileIndex*/ -1, bLumenGIEnabled);
 			}
 		}
 	}

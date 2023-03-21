@@ -214,8 +214,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 	for (const FViewInfo& View : Views)
 	{
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
-		bAnyLumenActive = bAnyLumenActive || 
-			(ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen);
+		bAnyLumenActive = bAnyLumenActive || ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 	}
 
 	if (bAnyLumenActive)

@@ -2243,7 +2243,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 	for (const FViewInfo& View : Views)
 	{
-		bAnyLumenActive = bAnyLumenActive || ShouldRenderLumenDiffuseGI(Scene, View) || ShouldRenderLumenReflections(View);
+		bAnyLumenActive = bAnyLumenActive || ShouldRenderLumenDiffuseGI(Scene, View);
 	}
 
 	LumenCardRenderer.Reset();
@@ -2444,20 +2444,35 @@ void UpdateLumenCardSceneUniformBuffer(
 		GET_SCALAR_ARRAY_ELEMENT(UniformParameters->DistantCardIndices, i) = LumenSceneData.DistantCardIndices[i];
 	}
 
-	UniformParameters->CardData = FrameTemporaries.CardBufferSRV;
-	UniformParameters->MeshCardsData = FrameTemporaries.MeshCardsBufferSRV;
-	UniformParameters->HeightfieldData = FrameTemporaries.HeightfieldBufferSRV;
-	UniformParameters->SceneInstanceIndexToMeshCardsIndexBuffer = FrameTemporaries.SceneInstanceIndexToMeshCardsIndexBufferSRV;
-	UniformParameters->PageTableBuffer = FrameTemporaries.PageTableBufferSRV;
-	UniformParameters->CardPageData = FrameTemporaries.CardPageBufferSRV;
+	if (FrameTemporaries.CardBufferSRV)
+	{
+		UniformParameters->CardData = FrameTemporaries.CardBufferSRV;
+		UniformParameters->MeshCardsData = FrameTemporaries.MeshCardsBufferSRV;
+		UniformParameters->HeightfieldData = FrameTemporaries.HeightfieldBufferSRV;
+		UniformParameters->SceneInstanceIndexToMeshCardsIndexBuffer = FrameTemporaries.SceneInstanceIndexToMeshCardsIndexBufferSRV;
+		UniformParameters->PageTableBuffer = FrameTemporaries.PageTableBufferSRV;
+		UniformParameters->CardPageData = FrameTemporaries.CardPageBufferSRV;
+	}
+	else
+	{
+		UniformParameters->CardData = UniformParameters->MeshCardsData = UniformParameters->HeightfieldData = UniformParameters->CardPageData = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f)));
+		UniformParameters->PageTableBuffer = UniformParameters->SceneInstanceIndexToMeshCardsIndexBuffer = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultByteAddressBuffer(GraphBuilder, sizeof(FVector4f)));
+	}
 
 	UniformParameters->NumHeightfields = LumenSceneData.Heightfields.Num();
 
-	UniformParameters->AlbedoAtlas = FrameTemporaries.AlbedoAtlas;
-	UniformParameters->OpacityAtlas = FrameTemporaries.OpacityAtlas;
-	UniformParameters->NormalAtlas = FrameTemporaries.NormalAtlas;
-	UniformParameters->EmissiveAtlas = FrameTemporaries.EmissiveAtlas;
-	UniformParameters->DepthAtlas = FrameTemporaries.DepthAtlas;
+	if (FrameTemporaries.AlbedoAtlas)
+	{
+		UniformParameters->AlbedoAtlas = FrameTemporaries.AlbedoAtlas;
+		UniformParameters->OpacityAtlas = FrameTemporaries.OpacityAtlas;
+		UniformParameters->NormalAtlas = FrameTemporaries.NormalAtlas;
+		UniformParameters->EmissiveAtlas = FrameTemporaries.EmissiveAtlas;
+		UniformParameters->DepthAtlas = FrameTemporaries.DepthAtlas;
+	}
+	else
+	{
+		UniformParameters->AlbedoAtlas = UniformParameters->OpacityAtlas = UniformParameters->NormalAtlas = UniformParameters->EmissiveAtlas = UniformParameters->DepthAtlas = GSystemTextures.GetBlackDummy(GraphBuilder);
+	}
 
 	FrameTemporaries.LumenCardSceneUniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
 }
@@ -2696,7 +2711,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 	{
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 		bool bLumenActive =
-			((ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
+			(ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen
 				// Don't update scene lighting for secondary views
 				&& !View.bIsPlanarReflection 
 				&& !View.bIsSceneCaptureCube

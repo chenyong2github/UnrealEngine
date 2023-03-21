@@ -1697,7 +1697,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	// If Lumen Reflections are enabled then we don't want precomputed reflections from reflection captures
 	// Note: this has the side effect of removing direct specular from Static Lights
-	if (ShouldRenderLumenReflections(*this))
+	if (ShouldRenderLumenReflections(*this, false, false, /* bIncludeStandalone */ false))
 	{
 		ViewUniformShaderParameters.PrecomputedIndirectSpecularColorScale = FVector3f::ZeroVector;
 	}

@@ -18,6 +18,7 @@
 #include "../RayTracing/RayTracingDeferredShadingCommon.ush"
 #include "../RayTracing/RayTracingLightingCommon.ush"
 #endif
+#include "../RayTracing/RayTracingReflectionEnvironment.ush"
 #include "LumenHardwareRayTracingPayloadCommon.ush"
 
 #if !COMPUTESHADER
@@ -525,8 +526,8 @@ struct FLumenHitLightingMaterial
 	// Keep in sync with LumenCardPixelShader.usf
 	// #lumen_todo: refactor and merge with LumenCardPixelShader.usf to ensure that their logic is the same
 	float3 ApproxFullyRoughDiffuseColor;
-	float3 ApproxFullyRoughDiffuseColor_Diffuse;
-	float3 ApproxFullyRoughDiffuseColor_Specular;
+	float3 DiffuseColor;
+	float3 ApproxFullyRoughSpecularColor;
 };
 
 FLumenHitLightingMaterial GetLumenHitLightingMaterial(FPackedMaterialClosestHitPayload PackedPayload, FRayDesc Ray)
@@ -535,8 +536,8 @@ FLumenHitLightingMaterial GetLumenHitLightingMaterial(FPackedMaterialClosestHitP
 	LumenMaterial.TopLayerSpecularColor = 0.0f;
 	LumenMaterial.TopLayerRoughness = 1.0f;
 	LumenMaterial.ApproxFullyRoughDiffuseColor = 0.0f;
-	LumenMaterial.ApproxFullyRoughDiffuseColor_Diffuse = 0.0f;
-	LumenMaterial.ApproxFullyRoughDiffuseColor_Specular = 0.0f;
+	LumenMaterial.DiffuseColor = 0.0f;
+	LumenMaterial.ApproxFullyRoughSpecularColor = 0.0f;
 
 	float3 DiffuseAndSubsurfaceColor = 0.0f;
 	float3 SpecularColor = 0.0f;
@@ -587,9 +588,9 @@ FLumenHitLightingMaterial GetLumenHitLightingMaterial(FPackedMaterialClosestHitP
 	}
 	#endif // STRATA_ENABLED
 
-	LumenMaterial.ApproxFullyRoughDiffuseColor_Diffuse = DiffuseAndSubsurfaceColor;
-	EnvBRDFApproxFullyRough(LumenMaterial.ApproxFullyRoughDiffuseColor_Specular, SpecularColor);
-	LumenMaterial.ApproxFullyRoughDiffuseColor = LumenMaterial.ApproxFullyRoughDiffuseColor_Diffuse + LumenMaterial.ApproxFullyRoughDiffuseColor_Specular;
+	LumenMaterial.DiffuseColor = DiffuseAndSubsurfaceColor;
+	EnvBRDFApproxFullyRough(LumenMaterial.ApproxFullyRoughSpecularColor, SpecularColor);
+	LumenMaterial.ApproxFullyRoughDiffuseColor = LumenMaterial.DiffuseColor + LumenMaterial.ApproxFullyRoughSpecularColor;
 
 	return LumenMaterial;
 }
@@ -602,6 +603,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	in FRayDesc Ray,
 	in FRayTracedLightingContext Context,
 	int LightingMode,
+	bool bUseReflectionCaptures,
 	inout FLumenRayHitBookmark Bookmark
 )
 {
@@ -664,8 +666,32 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	
 			if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
 			{
+				bool bTreatAsFullyRough = !bUseReflectionCaptures;
+
 				// STRATA_TODO: this path is not supported yet, as PackedPayload does not have space for indirect irradiance
-				Radiance += LumenMaterial.ApproxFullyRoughDiffuseColor * Payload.GetIndirectIrradiance();
+				Radiance += (bTreatAsFullyRough ? LumenMaterial.ApproxFullyRoughDiffuseColor : LumenMaterial.DiffuseColor) * Payload.GetIndirectIrradiance();
+
+				if (bUseReflectionCaptures)
+				{
+					const bool bSkyLightAffectReflection = ShouldSkyLightAffectReflection();
+					float3 R = reflect(Ray.Direction, Payload.GetWorldNormal());
+					const float NoV = saturate(dot(-Ray.Direction, Payload.GetWorldNormal()));
+					const float RoughnessSq = LumenMaterial.TopLayerRoughness * LumenMaterial.TopLayerRoughness;
+					const float SpecularOcclusion = GetSpecularOcclusion(NoV, RoughnessSq, 1.0);
+					Radiance += EnvBRDF(LumenMaterial.TopLayerSpecularColor, LumenMaterial.TopLayerRoughness, NoV) * SpecularOcclusion *
+						CompositeReflectionCapturesAndSkylight(
+							1.0, // CompositeAlpha
+							RayHitTranslatedWorldPosition,
+							R,
+							LumenMaterial.TopLayerRoughness,
+							0.0, // IndirectIrradiance,
+							1.0, // IndirectSpecularOcclusion
+							0.0, // ExtraIndirectSpecular
+							ForwardLightData.NumReflectionCaptures,
+							0, // ReflectionCapturesStartIndex
+							0,
+							bSkyLightAffectReflection);
+				}
 			}
 			else
 			{
@@ -701,10 +727,10 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 						}
 
 						// Add diffuse part
-						Radiance += Diffuse_Lambert(LumenMaterial.ApproxFullyRoughDiffuseColor_Diffuse) * SurfaceCacheSample.IndirectLighting;
+						Radiance += Diffuse_Lambert(LumenMaterial.DiffuseColor) * SurfaceCacheSample.IndirectLighting;
 
 						// Add rough specular part
-						Radiance += Diffuse_Lambert(LumenMaterial.ApproxFullyRoughDiffuseColor_Specular) * (1.0f - NextReflectionRayAlpha) * SurfaceCacheSample.IndirectLighting;
+						Radiance += Diffuse_Lambert(LumenMaterial.ApproxFullyRoughSpecularColor) * (1.0f - NextReflectionRayAlpha) * SurfaceCacheSample.IndirectLighting;
 					}
 				}
 			}
@@ -766,12 +792,13 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	in RaytracingAccelerationStructure TLAS,
 	in FRayDesc Ray,
 	inout FRayTracedLightingContext Context,
-	int LightingMode
+	int LightingMode,
+	bool bUseReflectionCaptures
 )
 {
 	Context.bUseBookmark = false;
 	FLumenRayHitBookmark Bookmark;
-	return TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, LightingMode, Bookmark);
+	return TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, LightingMode, bUseReflectionCaptures, Bookmark);
 }
 
 #endif // !COMPUTESHADER

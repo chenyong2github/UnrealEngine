@@ -282,6 +282,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FSkyShadowing : SHADER_PERMUTATION_BOOL("APPLY_SKY_SHADOWING");
 	class FRayTracedReflections : SHADER_PERMUTATION_BOOL("RAY_TRACED_REFLECTIONS");
+	class FLumenStandaloneReflections : SHADER_PERMUTATION_BOOL("LUMEN_STANDALONE_REFLECTIONS");
 	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 3);
 
 	using FPermutationDomain = TShaderPermutationDomain<
@@ -292,6 +293,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		FDynamicSkyLight,
 		FSkyShadowing,
 		FRayTracedReflections,
+		FLumenStandaloneReflections,
 		FStrataTileType>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
@@ -313,10 +315,20 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 			PermutationVector.Set<FStrataTileType>(0);
 		}
 
+		if (PermutationVector.Get<FLumenStandaloneReflections>())
+		{
+			PermutationVector.Set<FRayTracedReflections>(false);
+		}
+
+		if (PermutationVector.Get<FRayTracedReflections>())
+		{
+			PermutationVector.Set<FLumenStandaloneReflections>(false);
+		}
+
 		return PermutationVector;
 	}
 
-	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bBoxCapturesOnly, bool bSphereCapturesOnly, bool bSupportDFAOIndirectOcclusion, bool bEnableSkyLight, bool bEnableDynamicSkyLight, bool bApplySkyShadowing, bool bRayTracedReflections, EStrataTileType TileType)
+	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bBoxCapturesOnly, bool bSphereCapturesOnly, bool bSupportDFAOIndirectOcclusion, bool bEnableSkyLight, bool bEnableDynamicSkyLight, bool bApplySkyShadowing, bool bRayTracedReflections, bool bLumenStandaloneReflections, EStrataTileType TileType)
 	{
 		FPermutationDomain PermutationVector;
 
@@ -327,6 +339,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		PermutationVector.Set<FDynamicSkyLight>(bEnableDynamicSkyLight);
 		PermutationVector.Set<FSkyShadowing>(bApplySkyShadowing);
 		PermutationVector.Set<FRayTracedReflections>(bRayTracedReflections);
+		PermutationVector.Set<FLumenStandaloneReflections>(bLumenStandaloneReflections);
 		PermutationVector.Set<FStrataTileType>(0);
 		if (Strata::IsStrataEnabled())
 		{
@@ -370,8 +383,8 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AmbientOcclusionTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, AmbientOcclusionSampler)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenSpaceReflectionsTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, ScreenSpaceReflectionsSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ReflectionTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ReflectionTextureSampler)
 
 		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
 		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
@@ -391,6 +404,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 
 	END_SHADER_PARAMETER_STRUCT()
 }; // FReflectionEnvironmentSkyLightingPS
@@ -1616,6 +1630,7 @@ static void AddSkyReflectionPass(
 	bool bSkyLight, 
 	bool bDynamicSkyLight, 
 	bool bApplySkyShadowing,
+	bool bLumenStandaloneReflections,
 	EStrataTileType StrataTileMaterialType)
 {
 	// Render the reflection environment with tiled deferred culling
@@ -1653,8 +1668,8 @@ static void AddSkyReflectionPass(
 		PassParameters->PS.AmbientOcclusionTexture = AmbientOcclusionTexture;
 		PassParameters->PS.AmbientOcclusionSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
-		PassParameters->PS.ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : SystemTextures.Black;
-		PassParameters->PS.ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->PS.ReflectionTexture = ReflectionsColor ? ReflectionsColor : SystemTextures.Black;
+		PassParameters->PS.ReflectionTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
 		if (Scene->HasVolumetricCloud())
 		{
@@ -1683,6 +1698,8 @@ static void AddSkyReflectionPass(
 		PassParameters->PS.ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 
 		PassParameters->PS.Strata = Strata::BindStrataGlobalUniformParameters(View);
+
+		LumenReflections::SetupCompositeParameters(PassParameters->PS.ReflectionsCompositeParameters);
 	}
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
@@ -1704,6 +1721,7 @@ static void AddSkyReflectionPass(
 		View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != 0.0f,
 		bSkyLight, bDynamicSkyLight, bApplySkyShadowing,
 		bRequiresSpecializedReflectionEnvironmentShader,
+		bLumenStandaloneReflections,
 		StrataTileMaterialType);
 
 	TShaderMapRef<FReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
@@ -1799,6 +1817,7 @@ static void AddSkyReflectionPass(
 void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
+	const FLumenSceneFrameTemporaries& LumenFrameTemporaries,
 	FRDGTextureRef DynamicBentNormalAOTexture)
 {
 	extern int32 GLumenVisualizeIndirectDiffuse;
@@ -1896,11 +1915,32 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		const bool bComposePlanarReflections = !RayTracingReflectionOptions.bEnabled && HasDeferredPlanarReflections(View);
 
 		FRDGTextureRef ReflectionsColor = nullptr;
-		if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen
+		if ((ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen && ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 			|| (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR))
 		{
 			// Specular was already comped with FDiffuseIndirectCompositePS
 			continue;
+		}
+		// Standalone Lumen Reflections using HWRT and hit lighting
+		else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
+		{
+			FLumenMeshSDFGridParameters MeshSDFGridParameters;
+			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+
+			ReflectionsColor = RenderLumenReflections(
+				GraphBuilder,
+				View,
+				SceneTextures,
+				LumenFrameTemporaries,
+				MeshSDFGridParameters,
+				RadianceCacheParameters,
+				ELumenReflectionPass::Opaque,
+				nullptr,
+				nullptr,
+				ERDGPassFlags::Compute);
+
+			// Lumen needs its own depth history because things like Translucency velocities write to depth
+			StoreLumenDepthHistory(GraphBuilder, SceneTextures, View);
 		}
 		else if (RayTracingReflectionOptions.bEnabled || bScreenSpaceReflections)
 		{
@@ -2014,7 +2054,9 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 			RenderDeferredPlanarReflections(GraphBuilder, SceneTextureParameters, View, /* inout */ ReflectionsColor);
 		}
 
+		const bool bLumenStandaloneReflections = ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 		const bool bRequiresApply = ReflectionsColor != nullptr || bSkyLight || bDynamicSkyLight || bReflectionEnv;
+
 		if (bRequiresApply)
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, ReflectionEnvironment);
@@ -2033,6 +2075,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
+					bLumenStandaloneReflections,
 					EStrataTileType::EComplex);
 
 				AddSkyReflectionPass(
@@ -2047,6 +2090,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
+					bLumenStandaloneReflections,
 					EStrataTileType::ESingle);
 
 				AddSkyReflectionPass(
@@ -2061,6 +2105,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
+					bLumenStandaloneReflections,
 					EStrataTileType::ESimple);
 			}
 			else
@@ -2078,6 +2123,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
+					bLumenStandaloneReflections,
 					EStrataTileType::ECount);
 			}
 		}

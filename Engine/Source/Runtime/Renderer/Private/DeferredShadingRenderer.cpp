@@ -3863,7 +3863,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			AsyncLumenIndirectLightingOutputs);
 
 		// Render diffuse sky lighting and reflections that only operate on opaque pixels
-		RenderDeferredReflectionsAndSkyLighting(GraphBuilder, SceneTextures, DynamicBentNormalAOTexture);
+		RenderDeferredReflectionsAndSkyLighting(GraphBuilder, SceneTextures, LumenFrameTemporaries, DynamicBentNormalAOTexture);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// Renders debug visualizations for global illumination plugins
@@ -4352,6 +4352,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				{
 					const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 					const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
+					const bool bLumenGIEnabled = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 
 					FScreenPassTexture TSRMoireInput;
 					if (ViewIndex < TSRMoireInputTextures.Num())
@@ -4363,6 +4364,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						GraphBuilder,
 						View, ViewIndex,
 						bAnyLumenActive,
+						bLumenGIEnabled,
 						ViewPipelineState.ReflectionsMethod,
 						PostProcessingInputs,
 						NaniteResults,

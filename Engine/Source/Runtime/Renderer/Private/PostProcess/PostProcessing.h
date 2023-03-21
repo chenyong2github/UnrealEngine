@@ -54,6 +54,7 @@ void AddPostProcessingPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, int32 ViewIndex,
 	bool bAnyLumenActive,
+	bool bLumenGIEnabled,
 	EReflectionsMethod ReflectionsMethod,
 	const FPostProcessingInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults,

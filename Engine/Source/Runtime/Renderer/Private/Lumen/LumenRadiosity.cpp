@@ -1106,7 +1106,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadiosityProbeVisualization(FRDGB
 {
 	const FViewInfo& View = Views[0];
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
-	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
+	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
 	if (Views.Num() == 1

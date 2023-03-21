@@ -1053,8 +1053,9 @@ void AddScreenProbeDirectLighting(
 		float3 LightDirection = ScreenProbeLightSampleDirection[LightSampleBufferCoord].xyz;
 		float3 Lighting = ScreenProbeLightSampleRadiance[LightSampleBufferCoord];
 
-		DiffuseLighting += (max(dot(LightDirection, WorldNormal), 0.0f) * Weight) * Lighting;
-		SpecularLighting += (SimpleSpecularShading2(Roughness, SpecularColor, LightDirection, -CameraVector, WorldNormal) * Weight) * Lighting;
+		float NoL = max(dot(LightDirection, WorldNormal), 0.0f);
+		DiffuseLighting += (NoL * Weight) * Lighting;
+		SpecularLighting += (SimpleSpecularShading2(Roughness, SpecularColor, LightDirection, -CameraVector, WorldNormal) * (NoL * Weight)) * Lighting;
 	}
 }
 

@@ -209,6 +209,7 @@ void AddPostProcessingPasses(
 	const FViewInfo& View, 
 	int32 ViewIndex,
 	bool bAnyLumenActive,
+	bool bLumenGIEnabled,
 	EReflectionsMethod ReflectionsMethod,
 	const FPostProcessingInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults,
@@ -1094,7 +1095,7 @@ void AddPostProcessingPasses(
 			PassInputs.EyeAdaptationBuffer = GetEyeAdaptationBuffer(GraphBuilder, View);
 			PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
 
-			SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, PassInputs, LumenFrameTemporaries);
+			SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, bLumenGIEnabled, PassInputs, LumenFrameTemporaries);
 		}
 
 		if (PassSequence.IsEnabled(EPass::VisualizeDepthOfField))
@@ -1333,7 +1334,7 @@ void AddPostProcessingPasses(
 		PassInputs.EyeAdaptationBuffer = GetEyeAdaptationBuffer(GraphBuilder, View);
 		PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
 
-		SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, PassInputs, LumenFrameTemporaries);
+		SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, bLumenGIEnabled, PassInputs, LumenFrameTemporaries);
 	}
 
 	if (PassSequence.IsEnabled(EPass::VisualizeHDR))

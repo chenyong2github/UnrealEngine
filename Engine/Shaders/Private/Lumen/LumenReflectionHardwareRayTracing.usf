@@ -10,6 +10,10 @@
 // When tracing from compute, STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE=0 is not automatically detected, so we notify the use of raytracing here.
 #define STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE 0 
 
+// Additional rewiring to make DeferredShadingCommon happy
+#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
+#define PreIntegratedGFSampler		GlobalBilinearClampedSampler
+
 #include "LumenMaterial.ush"
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
@@ -57,6 +61,7 @@ StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 
 int NearFieldLightingMode;
 float NearFieldMaxTraceDistance;
+uint UseReflectionCaptures;
 float FarFieldBias;
 float FarFieldMaxTraceDistance;
 float NearFieldMaxTraceDistanceDitherScale;
@@ -151,7 +156,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			const float Epsilon = 0.5f;
 			Ray.TMin = max(TraceHitDistance - Epsilon, 0.0f);
 
-			Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, NearFieldLightingMode, RayHitBookmark);
+			Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, NearFieldLightingMode, UseReflectionCaptures != 0, RayHitBookmark);
 		}
 		#else
 		{

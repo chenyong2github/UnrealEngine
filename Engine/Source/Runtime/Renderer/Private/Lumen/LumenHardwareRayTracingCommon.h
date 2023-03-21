@@ -62,15 +62,17 @@ public:
 
 		// Lighting structures
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRaytracingLightDataPacked, LightDataPacked)
+		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
 
 		// Surface cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 
 		// Inline data
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<Lumen::FHitGroupRootConstants>, HitGroupData)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
-		FLumenHardwareRayTracingShaderBase();
+	FLumenHardwareRayTracingShaderBase();
 	FLumenHardwareRayTracingShaderBase(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	static constexpr const Lumen::ERayTracingShaderDispatchSize DispatchSize = Lumen::ERayTracingShaderDispatchSize::DispatchSize2D;

@@ -35,6 +35,13 @@ static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingLightingMode(
 	ECVF_RenderThreadSafe | ECVF_Scalability
 );
 
+static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingHitLightingReflectionCaptures(
+	TEXT("r.Lumen.HardwareRayTracing.HitLighting.ReflectionCaptures"),
+	0,
+	TEXT("Whether to apply Reflection Captures to ray hits when using Hit Lighting."),
+	ECVF_RenderThreadSafe | ECVF_Scalability
+);
+
 static TAutoConsoleVariable<int32> CVarLumenUseHardwareRayTracingInline(
 	TEXT("r.Lumen.HardwareRayTracing.Inline"),
 	1,
@@ -113,11 +120,19 @@ float LumenHardwareRayTracing::GetMinTraceDistanceToSampleSurfaceCache()
 	return CVarLumenHardwareRayTracingMinTraceDistanceToSampleSurfaceCache.GetValueOnRenderThread();
 }
 
-Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(const FViewInfo& View)
+Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(const FViewInfo& View, bool bLumenGIEnabled)
 {
 #if RHI_RAYTRACING
-		
-	int32 LightingModeInt = CVarLumenHardwareRayTracingLightingMode.GetValueOnRenderThread();
+	
+	if (!bLumenGIEnabled)
+	{
+		// ShouldRenderLumenReflections should have prevented this
+		check(GRHISupportsRayTracingShaders);
+		// Force hit lighting and no surface cache when using standalone Lumen Reflections
+		return Lumen::EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLightingAndSkyLighting;
+	}
+
+	int32 LightingModeInt = CVarLumenHardwareRayTracingLightingMode.GetValueOnAnyThread();
 
 	// Without ray tracing shaders (RayGen) support we can only use Surface Cache mode.
 	if (View.FinalPostProcessSettings.LumenRayLightingMode == ELumenRayLightingModeOverride::SurfaceCache || !LumenHardwareRayTracing::IsRayGenSupported())
@@ -134,6 +149,12 @@ Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(
 #else
 	return Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 #endif
+}
+
+bool Lumen::UseReflectionCapturesForHitLighting()
+{
+	int32 UseReflectionCaptures = CVarLumenHardwareRayTracingHitLightingReflectionCaptures.GetValueOnRenderThread();
+	return UseReflectionCaptures != 0;
 }
 
 bool Lumen::UseHardwareInlineRayTracing(const FSceneViewFamily& ViewFamily)
@@ -264,6 +285,8 @@ void SetLumenHardwareRayTracingSharedParameters(
 
 	// Lighting data
 	SharedParameters->LightDataPacked = View.RayTracingLightDataUniformBuffer;
+	SharedParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
+	SharedParameters->Forward = View.ForwardLightingResources.ForwardLightUniformBuffer;
 
 	// Inline
 	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBuffer ? GraphBuilder.CreateSRV(View.LumenHardwareRayTracingHitDataBuffer) : nullptr;

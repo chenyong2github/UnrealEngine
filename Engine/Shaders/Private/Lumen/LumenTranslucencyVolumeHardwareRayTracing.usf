@@ -105,7 +105,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 				}
 			#else
 				{
-					TraceLightingResult = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, DIM_LIGHTING_MODE);
+					TraceLightingResult = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, DIM_LIGHTING_MODE, false);
 				}
 			#endif
 

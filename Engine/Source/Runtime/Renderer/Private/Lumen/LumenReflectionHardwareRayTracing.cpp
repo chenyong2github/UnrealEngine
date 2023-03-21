@@ -62,19 +62,19 @@ namespace Lumen
 	}
 } // namespace Lumen
 
-bool LumenReflections::IsHitLightingForceEnabled(const FViewInfo& View)
+bool LumenReflections::IsHitLightingForceEnabled(const FViewInfo& View, bool bLumenGIEnabled)
 {
 #if RHI_RAYTRACING
-	return Lumen::GetHardwareRayTracingLightingMode(View) != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
+	return Lumen::GetHardwareRayTracingLightingMode(View, bLumenGIEnabled) != Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache;
 #else
 	return false;
 #endif
 }
 
-bool LumenReflections::UseHitLighting(const FViewInfo& View)
+bool LumenReflections::UseHitLighting(const FViewInfo& View, bool bLumenGIEnabled)
 {
 #if RHI_RAYTRACING
-	return IsHitLightingForceEnabled(View) || (CVarLumenReflectionsHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0);
+	return IsHitLightingForceEnabled(View, bLumenGIEnabled) || (CVarLumenReflectionsHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0);
 #else
 	return false;
 #endif
@@ -124,6 +124,7 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 		SHADER_PARAMETER(int32, SampleSceneColor)
 
 		SHADER_PARAMETER(int, NearFieldLightingMode)
+		SHADER_PARAMETER(uint32, UseReflectionCaptures)
 		SHADER_PARAMETER(float, FarFieldBias)
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
@@ -243,7 +244,9 @@ IMPLEMENT_GLOBAL_SHADER(FLumenReflectionHardwareRayTracingIndirectArgsCS, "/Engi
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedReflections(*View.Family) && LumenReflections::UseHitLighting(View))
+	const bool bLumenGIEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
+
+	if (Lumen::UseHardwareRayTracedReflections(*View.Family) && LumenReflections::UseHitLighting(View, bLumenGIEnabled))
 	{
 		for (int32 HairOcclusion = 0; HairOcclusion < 2; HairOcclusion++)
 		{
@@ -267,9 +270,10 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 {
 	if (Lumen::UseHardwareRayTracedReflections(*View.Family))
 	{
+		const bool bLumenGIEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 		const bool bUseFarField = LumenReflections::UseFarField(*View.Family);
-		const bool bUseHitLighting = LumenReflections::UseHitLighting(View);
-
+		const bool bUseHitLighting = LumenReflections::UseHitLighting(View, bLumenGIEnabled);
+		
 		// Default
 		for (int RadianceCache = 0; RadianceCache < 2; ++RadianceCache)
 		{
@@ -338,6 +342,7 @@ void DispatchRayGenOrComputeShader(
 	bool bInlineRayTracing,
 	bool bSampleSceneColorAtHit,
 	bool bNeedTraceHairVoxel,
+	bool bLumenGIEnabled,
 	ERDGPassFlags ComputePassFlags)
 {
 	FRDGBufferRef CompactedTraceTexelAllocator = CompactedTraceParameters.CompactedTraceTexelAllocator->Desc.Buffer;
@@ -372,7 +377,8 @@ void DispatchRayGenOrComputeShader(
 		Parameters->SampleSceneColorNormalTreshold = LumenReflections::GetSampleSceneColorNormalTreshold();
 		Parameters->SampleSceneColor = bSampleSceneColorAtHit ? 1 : 0;
 
-		Parameters->NearFieldLightingMode = static_cast<int32>(Lumen::GetHardwareRayTracingLightingMode(View));
+		Parameters->NearFieldLightingMode = static_cast<int32>(Lumen::GetHardwareRayTracingLightingMode(View, bLumenGIEnabled));
+		Parameters->UseReflectionCaptures = Lumen::UseReflectionCapturesForHitLighting();
 		Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
 		Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 		Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
@@ -441,12 +447,13 @@ void RenderLumenHardwareRayTracingReflections(
 	bool bUseRadianceCache,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	bool bSampleSceneColorAtHit,
+	bool bLumenGIEnabled,
 	ERDGPassFlags ComputePassFlags
 )
 {
 #if RHI_RAYTRACING	
-	const bool bUseHitLighting = LumenReflections::UseHitLighting(View);
-	const bool bIsHitLightingForceEnabled = LumenReflections::IsHitLightingForceEnabled(View);
+	const bool bUseHitLighting = LumenReflections::UseHitLighting(View, bLumenGIEnabled);
+	const bool bIsHitLightingForceEnabled = LumenReflections::IsHitLightingForceEnabled(View, bLumenGIEnabled);
 	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family) && !bIsHitLightingForceEnabled;
 	const bool bUseFarFieldForReflections = LumenReflections::UseFarField(*View.Family);
 	extern int32 GLumenReflectionHairStrands_VoxelTrace;
@@ -471,8 +478,6 @@ void RenderLumenHardwareRayTracingReflections(
 			ComputePassFlags);
 
 		bool bApplySkyLight = !bUseFarFieldForReflections;
-		bool bHitLightingRetrace = false;
-		const bool bWriteFinalLighting = !bIsHitLightingForceEnabled || !bUseFarFieldForReflections;
 
 		FLumenReflectionHardwareRayTracing::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRayTracingPass>(LumenReflections::ERayTracingPass::Default);
@@ -483,7 +488,7 @@ void RenderLumenHardwareRayTracingReflections(
 		PermutationVector = FLumenReflectionHardwareRayTracing::RemapPermutation(PermutationVector);
 
 		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, TracingParameters, ReflectionTracingParameters, ReflectionTileParameters, CompactedTraceParameters, RadianceCacheParameters,
-			PermutationVector, RayCount, bApplySkyLight, bIsHitLightingForceEnabled, bUseRadianceCache, bInlineRayTracing, bSampleSceneColorAtHit, bNeedTraceHairVoxel, ComputePassFlags);
+			PermutationVector, RayCount, bApplySkyLight, bIsHitLightingForceEnabled, bUseRadianceCache, bInlineRayTracing, bSampleSceneColorAtHit, bNeedTraceHairVoxel, bLumenGIEnabled, ComputePassFlags);
 	}
 
 	// Far Field
@@ -502,7 +507,6 @@ void RenderLumenHardwareRayTracingReflections(
 			LumenReflections::ETraceCompactionMode::FarField);
 
 		bool bApplySkyLight = true;
-		bool bHitLightingRetrace = false;
 
 		FLumenReflectionHardwareRayTracing::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenReflectionHardwareRayTracing::FRayTracingPass>(LumenReflections::ERayTracingPass::FarField);
@@ -514,7 +518,7 @@ void RenderLumenHardwareRayTracingReflections(
 
 		// Trace continuation rays
 		DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, TracingParameters, ReflectionTracingParameters, ReflectionTileParameters, CompactedTraceParameters, RadianceCacheParameters,
-			PermutationVector, RayCount, bApplySkyLight, bIsHitLightingForceEnabled, bUseRadianceCache, bInlineRayTracing, bSampleSceneColorAtHit, bNeedTraceHairVoxel, ComputePassFlags);
+			PermutationVector, RayCount, bApplySkyLight, bIsHitLightingForceEnabled, bUseRadianceCache, bInlineRayTracing, bSampleSceneColorAtHit, bNeedTraceHairVoxel, bLumenGIEnabled, ComputePassFlags);
 	}
 
 	// Hit Lighting
@@ -547,7 +551,7 @@ void RenderLumenHardwareRayTracingReflections(
 			PermutationVector = FLumenReflectionHardwareRayTracing::RemapPermutation(PermutationVector);
 
 			DispatchRayGenOrComputeShader(GraphBuilder, SceneTextures, SceneTextureParameters, Scene, View, TracingParameters, ReflectionTracingParameters, ReflectionTileParameters, CompactedTraceParameters, RadianceCacheParameters,
-				PermutationVector, RayCount, bApplySkyLight, bIsHitLightingForceEnabled, bUseRadianceCache, bUseInline, bSampleSceneColorAtHit, bNeedTraceHairVoxel, ComputePassFlags);
+				PermutationVector, RayCount, bApplySkyLight, bIsHitLightingForceEnabled, bUseRadianceCache, bUseInline, bSampleSceneColorAtHit, bNeedTraceHairVoxel, bLumenGIEnabled, ComputePassFlags);
 		}
 	}
 #endif

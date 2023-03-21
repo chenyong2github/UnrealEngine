@@ -57,9 +57,10 @@ namespace LumenVisualize
 		FLumenIndirectTracingParameters& IndirectTracingParameters,
 		FLumenVisualizeSceneParameters& VisualizeParameters,
 		FRDGTextureRef SceneColor,
-		bool bVisualizeModeWithHitLighting);
+		bool bVisualizeModeWithHitLighting,
+		bool bLumenGIEnabled);
 
-	bool IsHitLightingForceEnabled(const FViewInfo& View);
+	bool IsHitLightingForceEnabled(const FViewInfo& View, bool bLumenGIEnabled);
 	bool UseSurfaceCacheFeedback(const FEngineShowFlags& ShowFlags);
 };
 
@@ -81,6 +82,6 @@ struct FVisualizeLumenSceneInputs
 	FSceneTextureShaderParameters SceneTextures;
 };
 
-extern FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, bool bAnyLumenActive, const FVisualizeLumenSceneInputs& Inputs, FLumenSceneFrameTemporaries& FrameTemporaries);
+extern FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, bool bAnyLumenActive, bool bLumenGIEnabled, const FVisualizeLumenSceneInputs& Inputs, FLumenSceneFrameTemporaries& FrameTemporaries);
 
 extern int32 GetLumenVisualizeMode(const FViewInfo& View);

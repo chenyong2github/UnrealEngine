@@ -5,6 +5,10 @@
 #include "../SceneTextureParameters.ush"
 #include "../VelocityCommon.ush"
 
+// Additional rewiring to make DeferredShadingCommon happy
+#define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
+#define PreIntegratedGFSampler		GlobalBilinearClampedSampler
+
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenVisualize.ush"
@@ -423,6 +427,7 @@ StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 uint ThreadCount;
 uint GroupCount;
 uint LightingMode;
+uint UseReflectionCaptures;
 uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 float3 FarFieldReferencePos;
@@ -512,7 +517,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 				Ray.TMax = FarFieldMaxTraceDistance;
 			}
 
-			Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, HitLightingMode);
+			Result = TraceAndCalculateRayTracedLighting(TLAS, Ray, Context, HitLightingMode, UseReflectionCaptures != 0);
 
 			#define DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS 0
 			#if DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS && DIM_HIT_LIGHTING

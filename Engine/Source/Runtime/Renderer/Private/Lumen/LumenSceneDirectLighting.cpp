@@ -1500,7 +1500,7 @@ void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingT
 	for (const FViewInfo& View : Views)
 	{
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
-		bAnyLumenActive |= ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
+		bAnyLumenActive |= ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 	}
 
 	if (!bAnyLumenActive || !GLumenDirectLighting)

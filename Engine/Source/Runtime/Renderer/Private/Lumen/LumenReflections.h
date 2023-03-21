@@ -100,8 +100,8 @@ END_SHADER_PARAMETER_STRUCT()
 namespace LumenReflections
 {
 	bool UseFarField(const FSceneViewFamily& ViewFamily);
-	bool UseHitLighting(const FViewInfo& View);
-	bool IsHitLightingForceEnabled(const FViewInfo& View);
+	bool UseHitLighting(const FViewInfo& View, bool bLumenGIEnabled);
+	bool IsHitLightingForceEnabled(const FViewInfo& View, bool bLumenGIEnabled);
 	bool UseSurfaceCacheFeedback();
 	float GetSampleSceneColorNormalTreshold();
 	uint32 GetMaxReflectionBounces(const FViewInfo& View);
@@ -140,6 +140,7 @@ extern void TraceReflections(
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters,
 	bool bUseRadianceCache,
+	bool bLumenGIEnabled,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	ERDGPassFlags ComputePassFlags);
 
@@ -158,4 +159,5 @@ extern void RenderLumenHardwareRayTracingReflections(
 	bool bUseRadianceCache,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	bool bSampleSceneColorAtHit,
+	bool bLumenGIEnabled,
 	ERDGPassFlags ComputePassFlags);

@@ -784,6 +784,7 @@ void TraceReflections(
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters,
 	bool bUseRadianceCache,
+	bool bLumenGIEnabled,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	ERDGPassFlags ComputePassFlags)
 {
@@ -886,6 +887,7 @@ void TraceReflections(
 			bUseRadianceCache,
 			RadianceCacheParameters,
 			bSampleSceneColorAtHit,
+			bLumenGIEnabled,
 			ComputePassFlags
 		);
 	}

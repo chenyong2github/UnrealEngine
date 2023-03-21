@@ -627,17 +627,18 @@ class FReflectionPassthroughCopyCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FReflectionPassthroughCopyCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionPassthroughCopyCS", SF_Compute);
 
 
-bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck)
+bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck, bool bIncludeStandalone)
 {
 	const FScene* Scene = (const FScene*)View.Family->Scene;
 	if (Scene)
 	{
-		//@todo - support standalone Lumen Reflections
-		return ShouldRenderLumenDiffuseGI(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck)
-			&& Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck) 
+		return Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck) 
 			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
 			&& View.Family->EngineShowFlags.LumenReflections 
 			&& CVarLumenAllowReflections.GetValueOnAnyThread()
+			&& (ShouldRenderLumenDiffuseGI(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck)
+				// GRHISupportsRayTracingShaders is required for standalone Lumen Reflections because Lumen::GetHardwareRayTracingLightingMode forces hit lighting
+				|| (bIncludeStandalone && Lumen::UseHardwareRayTracedReflections(*View.Family) && GRHISupportsRayTracingShaders))
 			&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedReflections(*View.Family) || Lumen::IsSoftwareRayTracingSupported());
 	}
 	
@@ -1033,6 +1034,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	const bool bDenoise = ReflectionPass == ELumenReflectionPass::Opaque || ReflectionPass == ELumenReflectionPass::FrontLayerTranslucency;
 	const bool bFrontLayer = ReflectionPass == ELumenReflectionPass::FrontLayerTranslucency;
 	const bool bSingleLayerWater = ReflectionPass == ELumenReflectionPass::SingleLayerWater;
+	const bool bLumenGIEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 
 	check(ShouldRenderLumenReflections(View));
 	check(ReflectionPass != ELumenReflectionPass::FrontLayerTranslucency 
@@ -1164,7 +1166,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.RWTraceHit = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.TraceHit));
 
 	// Hit lighting requires a few optional buffers
-	if (LumenReflections::UseHitLighting(View))
+	if (LumenReflections::UseHitLighting(View, bLumenGIEnabled))
 	{
 		FRDGTextureDesc TraceMaterialIdDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 		ReflectionTracingParameters.TraceMaterialId = GraphBuilder.CreateTexture(TraceMaterialIdDesc, TEXT("Lumen.Reflections.TraceMaterialId"));
@@ -1191,6 +1193,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		ReflectionTileParameters,
 		MeshSDFGridParameters,
 		bUseRadianceCache,
+		bLumenGIEnabled,
 		RadianceCacheParameters,
 		ComputePassFlags);
 	
