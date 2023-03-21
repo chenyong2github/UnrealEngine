@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MetasoundGeneratorOutput.h"
+#include "MetasoundOutput.h"
 #include "MetasoundPrimitives.h"
 #include "Misc/AutomationTest.h"
 
@@ -9,12 +9,12 @@
 namespace Metasound::Test::GeneratorOutput
 {
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputIsTypeTest,
-	"Audio.Metasound.GeneratorOutput.IsType",
+	FMetasoundOutputIsTypeTest,
+	"Audio.Metasound.Output.IsType",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputIsTypeTest::RunTest(const FString&)
+	bool FMetasoundOutputIsTypeTest::RunTest(const FString&)
 	{
-		FMetasoundGeneratorOutput Output;
+		FMetaSoundOutput Output;
 		
 		Output.Init(float{ 0.0f });
 		UTEST_TRUE("float is float", Output.IsType<float>());
@@ -46,7 +46,7 @@ namespace Metasound::Test::GeneratorOutput
 	template<typename DataType>
 	bool RunOutputGetSetTest(FAutomationTestBase& Test, const DataType& InitialValue, const DataType& ExpectedValue)
 	{
-		FMetasoundGeneratorOutput Output;
+		FMetaSoundOutput Output;
 		Output.Init<DataType>(InitialValue);
 		DataType Value;
 		
@@ -70,10 +70,10 @@ namespace Metasound::Test::GeneratorOutput
 	}
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputGetSetFloatTest,
-	"Audio.Metasound.GeneratorOutput.GetSet.Float",
+	FMetasoundOutputGetSetFloatTest,
+	"Audio.Metasound.Output.GetSet.Float",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputGetSetFloatTest::RunTest(const FString&)
+	bool FMetasoundOutputGetSetFloatTest::RunTest(const FString&)
 	{
 		using DataType = float;
 		constexpr DataType InitialValue = 321.654f;
@@ -82,10 +82,10 @@ namespace Metasound::Test::GeneratorOutput
 	}
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputGetSetInt32Test,
-	"Audio.Metasound.GeneratorOutput.GetSet.Int32",
+	FMetasoundOutputGetSetInt32Test,
+	"Audio.Metasound.Output.GetSet.Int32",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputGetSetInt32Test::RunTest(const FString&)
+	bool FMetasoundOutputGetSetInt32Test::RunTest(const FString&)
 	{
 		using DataType = int32;
 		constexpr DataType InitialValue = 321654;
@@ -94,10 +94,10 @@ namespace Metasound::Test::GeneratorOutput
 	}
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputGetSetBoolTest,
-	"Audio.Metasound.GeneratorOutput.GetSet.Bool",
+	FMetasoundOutputGetSetBoolTest,
+	"Audio.Metasound.Output.GetSet.Bool",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputGetSetBoolTest::RunTest(const FString&)
+	bool FMetasoundOutputGetSetBoolTest::RunTest(const FString&)
 	{
 		using DataType = bool;
 		constexpr DataType InitialValue = false;
@@ -106,10 +106,10 @@ namespace Metasound::Test::GeneratorOutput
 	}
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputGetSetStringTest,
-	"Audio.Metasound.GeneratorOutput.GetSet.String",
+	FMetasoundOutputGetSetStringTest,
+	"Audio.Metasound.Output.GetSet.String",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputGetSetStringTest::RunTest(const FString&)
+	bool FMetasoundOutputGetSetStringTest::RunTest(const FString&)
 	{
 		using FDataType = FString;
 		const FDataType InitialValue{ "hello" };

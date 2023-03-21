@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MetasoundGeneratorOutput.h"
+#include "MetasoundOutput.h"
 #include "Analysis/MetasoundFrontendAnalyzerView.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
@@ -13,20 +13,20 @@ namespace Metasound::Private
 	/**
 	 * Provides a mechanism to check an output and notify subscribers when its value(s) change
 	 */
-	class METASOUNDENGINE_API FMetasoundGeneratorOutputWatcher
+	class METASOUNDENGINE_API FMetasoundOutputWatcher
 	{
 	public:
-		FMetasoundGeneratorOutputWatcher(Frontend::FAnalyzerAddress&& Address, const FOperatorSettings& OperatorSettings);
+		FMetasoundOutputWatcher(Frontend::FAnalyzerAddress&& Address, const FOperatorSettings& OperatorSettings);
 
 		const FName Name;
 		
 		/**
 		 * Update the watched outputs
 		 */
-		void Update(TFunctionRef<void(FName, const FMetasoundGeneratorOutput&)> OnOutputChanged);
+		void Update(TFunctionRef<void(FName, const FMetaSoundOutput&)> OnOutputChanged);
 
-		using FOutputInitFn = TFunction<void(FMetasoundGeneratorOutput&)>;
-		using FOutputUpdateFn = TFunction<bool(FMetasoundGeneratorOutputWatcher&, FMetasoundGeneratorOutput&)>;
+		using FOutputInitFn = TFunction<void(FMetaSoundOutput&)>;
+		using FOutputUpdateFn = TFunction<bool(FMetasoundOutputWatcher&, FMetaSoundOutput&)>;
 
 		/**
 		 * Stores the typed operations for a specific supported type
@@ -36,8 +36,8 @@ namespace Metasound::Private
 		public:
 			virtual ~IOutputTypeOperations() = default;
 			
-			virtual void Init(FMetasoundGeneratorOutput& Output) = 0;
-			virtual bool Update(FMetasoundGeneratorOutputWatcher& Watcher, FMetasoundGeneratorOutput& Output) = 0;
+			virtual void Init(FMetaSoundOutput& Output) = 0;
+			virtual bool Update(FMetasoundOutputWatcher& Watcher, FMetaSoundOutput& Output) = 0;
 		};
 
 		template<typename DataType>
@@ -50,12 +50,12 @@ namespace Metasound::Private
 			
 			const DataType DefaultValue;
 			
-			virtual void Init(FMetasoundGeneratorOutput& Output) override
+			virtual void Init(FMetaSoundOutput& Output) override
 			{
 				Output.Init<DataType>(DefaultValue);
 			}
 			
-			virtual bool Update(FMetasoundGeneratorOutputWatcher& Watcher, FMetasoundGeneratorOutput& Output) override
+			virtual bool Update(FMetasoundOutputWatcher& Watcher, FMetaSoundOutput& Output) override
 			{
 				return Watcher.UpdateOutput<DataType>(Output);
 			}
@@ -75,7 +75,7 @@ namespace Metasound::Private
 	
 	private:
 		template<typename DataType>
-		bool UpdateOutput(FMetasoundGeneratorOutput& Output)
+		bool UpdateOutput(FMetaSoundOutput& Output)
 		{
 			// check the type
 			if (!Output.IsType<DataType>())
@@ -97,7 +97,7 @@ namespace Metasound::Private
 		
 		static TMap<FName, TUniquePtr<IOutputTypeOperations>> OutputTypeOperationMap;
 		Frontend::FMetasoundAnalyzerView View;
-		TArray<FMetasoundGeneratorOutput> Outputs;
+		TArray<FMetaSoundOutput> Outputs;
 	};
 }
 
@@ -105,9 +105,9 @@ namespace Metasound::Private
 /** Helper to register typed operations on outputs */
 #define METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(TYPE, DEFAULT_VALUE) \
 	{ \
-		using FTypeOps = Metasound::Private::FMetasoundGeneratorOutputWatcher::TOutputTypeOperations<TYPE>; \
+		using FTypeOps = Metasound::Private::FMetasoundOutputWatcher::TOutputTypeOperations<TYPE>; \
 		TUniquePtr<FTypeOps> Ops = MakeUnique<FTypeOps>(DEFAULT_VALUE); \
-		Metasound::Private::FMetasoundGeneratorOutputWatcher::RegisterOutputTypeOperations( \
+		Metasound::Private::FMetasoundOutputWatcher::RegisterOutputTypeOperations( \
 			Metasound::GetMetasoundDataTypeName<TYPE>(), \
 			MoveTemp(Ops) \
 			); \

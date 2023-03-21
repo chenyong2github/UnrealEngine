@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundGenerator.h"
-#include "MetasoundGeneratorOutputWatcher.h"
+#include "MetasoundOutputWatcher.h"
 #include "NodeTestGraphBuilder.h"
 #include "Misc/AutomationTest.h"
 
@@ -72,13 +72,13 @@ namespace Metasound::Test::GeneratorOutputWatcher
 		Generator->AddOutputVertexAnalyzer(AnalyzerAddress);
 
 		// Add an output watcher
-		FMetasoundGeneratorOutputWatcher Watcher{ MoveTemp(AnalyzerAddress), Generator->OperatorSettings };
+		FMetasoundOutputWatcher Watcher{ MoveTemp(AnalyzerAddress), Generator->OperatorSettings };
 
 		// listen for changes to the output
 		DataType WatchedValue;
 		bool ReceivedValue = false;
-		const TFunction<void(FName, const FMetasoundGeneratorOutput&)> OnChanged =
-			[&WatchedValue, &ReceivedValue](FName, const FMetasoundGeneratorOutput& Output)
+		const TFunction<void(FName, const FMetaSoundOutput&)> OnChanged =
+			[&WatchedValue, &ReceivedValue](FName, const FMetaSoundOutput& Output)
 			{
 				ReceivedValue = Output.Get<DataType>(WatchedValue);
 			};
@@ -128,10 +128,10 @@ namespace Metasound::Test::GeneratorOutputWatcher
 	}
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputWatcherForwardValueFloatTest,
-	"Audio.Metasound.GeneratorOutputWatcher.ForwardValue.Float",
+	FMetasoundOutputWatcherForwardValueFloatTest,
+	"Audio.Metasound.OutputWatcher.ForwardValue.Float",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputWatcherForwardValueFloatTest::RunTest(const FString&)
+	bool FMetasoundOutputWatcherForwardValueFloatTest::RunTest(const FString&)
 	{
 		using DataType = float;
 		constexpr DataType ExpectedValue = 123.456f;
@@ -139,10 +139,10 @@ namespace Metasound::Test::GeneratorOutputWatcher
 	}
 	
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputWatcherForwardValueIntTest,
-	"Audio.Metasound.GeneratorOutputWatcher.ForwardValue.Int32",
+	FMetasoundOutputWatcherForwardValueIntTest,
+	"Audio.Metasound.OutputWatcher.ForwardValue.Int32",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputWatcherForwardValueIntTest::RunTest(const FString&)
+	bool FMetasoundOutputWatcherForwardValueIntTest::RunTest(const FString&)
 	{
 		using DataType = int32;
 		constexpr DataType ExpectedValue = 123456;
@@ -150,10 +150,10 @@ namespace Metasound::Test::GeneratorOutputWatcher
 	}
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputWatcherForwardValueBoolTest,
-	"Audio.Metasound.GeneratorOutputWatcher.ForwardValue.Bool",
+	FMetasoundOutputWatcherForwardValueBoolTest,
+	"Audio.Metasound.OutputWatcher.ForwardValue.Bool",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputWatcherForwardValueBoolTest::RunTest(const FString&)
+	bool FMetasoundOutputWatcherForwardValueBoolTest::RunTest(const FString&)
 	{
 		using DataType = bool;
 		constexpr DataType ExpectedValue = true;
@@ -161,10 +161,10 @@ namespace Metasound::Test::GeneratorOutputWatcher
 	}
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FMetasoundGeneratorOutputWatcherForwardValueStringTest,
-	"Audio.Metasound.GeneratorOutputWatcher.ForwardValue.String",
+	FMetasoundOutputWatcherForwardValueStringTest,
+	"Audio.Metasound.OutputWatcher.ForwardValue.String",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-	bool FMetasoundGeneratorOutputWatcherForwardValueStringTest::RunTest(const FString&)
+	bool FMetasoundOutputWatcherForwardValueStringTest::RunTest(const FString&)
 	{
 		using FDataType = FString;
 		const FDataType ExpectedValue{ "you're awesome" };

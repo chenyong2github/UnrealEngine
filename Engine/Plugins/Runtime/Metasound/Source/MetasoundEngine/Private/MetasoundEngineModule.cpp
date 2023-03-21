@@ -5,13 +5,15 @@
 #include "MetasoundAudioBus.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
-#include "MetasoundGeneratorOutputWatcher.h"
+#include "MetasoundOutputSubsystem.h"
+#include "MetasoundOutputWatcher.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
 #include "MetasoundWaveTable.h"
 #include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzerForwardValue.h"
 #include "Interfaces/MetasoundDeprecatedInterfaces.h"
 #include "Interfaces/MetasoundInterface.h"
 #include "Interfaces/MetasoundInterfaceBindingsPrivate.h"
@@ -66,6 +68,20 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(int32, 0)
 		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(bool, false)
 		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(FString, "")
+
+		// Register passthrough output analyzers
+		UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(
+			GetMetasoundDataTypeName<float>(),
+			Frontend::FVertexAnalyzerForwardFloat::GetAnalyzerName());
+		UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(
+			GetMetasoundDataTypeName<int32>(),
+			Frontend::FVertexAnalyzerForwardInt::GetAnalyzerName());
+		UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(
+			GetMetasoundDataTypeName<bool>(),
+			Frontend::FVertexAnalyzerForwardBool::GetAnalyzerName());
+		UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(
+			GetMetasoundDataTypeName<FString>(),
+			Frontend::FVertexAnalyzerForwardString::GetAnalyzerName());
 
 		UE_LOG(LogMetasoundEngine, Log, TEXT("MetaSound Engine Initialized"));
 	}

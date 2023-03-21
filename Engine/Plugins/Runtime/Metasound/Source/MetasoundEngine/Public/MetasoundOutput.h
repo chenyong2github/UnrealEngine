@@ -6,21 +6,21 @@
 #include "SoundGeneratorOutput.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
-#include "MetasoundGeneratorOutput.generated.h"
+#include "MetasoundOutput.generated.h"
 
 /**
  * Exposes the value of an output on a FMetasoundGenerator.
  */
 USTRUCT(BlueprintType)
-struct METASOUNDENGINE_API FMetasoundGeneratorOutput : public FSoundGeneratorOutput
+struct METASOUNDENGINE_API FMetaSoundOutput : public FSoundGeneratorOutput
 {
 	GENERATED_BODY()
 
-	FMetasoundGeneratorOutput() = default;
+	FMetaSoundOutput() = default;
 
-	FMetasoundGeneratorOutput(const FMetasoundGeneratorOutput& Other);
+	FMetaSoundOutput(const FMetaSoundOutput& Other);
 
-	FMetasoundGeneratorOutput& operator=(const FMetasoundGeneratorOutput& Other);
+	FMetaSoundOutput& operator=(const FMetaSoundOutput& Other);
 
 	/**
 	 * Has this output been initialized?
@@ -108,24 +108,24 @@ private:
  * If you want to support types introduced in other plugins, create a blueprint library in that plugin.
  */
 UCLASS()
-class UMetasoundGeneratorOutputBlueprintAccess final : public UBlueprintFunctionLibrary
+class UMetasoundOutputBlueprintAccess final : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
-	UFUNCTION(BlueprintCallable, Category="MetasoundGeneratorOutput")
-	static bool IsFloat(const FMetasoundGeneratorOutput& Output);
-	UFUNCTION(BlueprintCallable, Category="MetasoundGeneratorOutput")
-	static float GetFloat(const FMetasoundGeneratorOutput& Output, bool& Success);
-	UFUNCTION(BlueprintCallable, Category="MetasoundGeneratorOutput")
-	static bool IsInt32(const FMetasoundGeneratorOutput& Output);
-	UFUNCTION(BlueprintCallable, Category="MetasoundGeneratorOutput")
-	static int32 GetInt32(const FMetasoundGeneratorOutput& Output, bool& Success);
-	UFUNCTION(BlueprintCallable, Category="MetasoundGeneratorOutput")
-	static bool IsBool(const FMetasoundGeneratorOutput& Output);
-	UFUNCTION(BlueprintCallable, Category="MetasoundGeneratorOutput")
-	static bool GetBool(const FMetasoundGeneratorOutput& Output, bool& Success);
-	UFUNCTION(BlueprintCallable, Category="MetasoundGeneratorOutput")
-	static bool IsString(const FMetasoundGeneratorOutput& Output);
-	UFUNCTION(BlueprintCallable, Category="MetasoundGeneratorOutput")
-	static FString GetString(const FMetasoundGeneratorOutput& Output, bool& Success);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static bool IsFloat(const FMetaSoundOutput& Output);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static float GetFloat(const FMetaSoundOutput& Output, bool& Success);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static bool IsInt32(const FMetaSoundOutput& Output);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static int32 GetInt32(const FMetaSoundOutput& Output, bool& Success);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static bool IsBool(const FMetaSoundOutput& Output);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static bool GetBool(const FMetaSoundOutput& Output, bool& Success);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static bool IsString(const FMetaSoundOutput& Output);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static FString GetString(const FMetaSoundOutput& Output, bool& Success);
 };

@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MetasoundGeneratorOutputWatcher.h"
+#include "MetasoundOutputWatcher.h"
+#include "MetasoundTrace.h"
 
 namespace Metasound::Private
 {
-	TMap<FName, TUniquePtr<FMetasoundGeneratorOutputWatcher::IOutputTypeOperations>> FMetasoundGeneratorOutputWatcher::OutputTypeOperationMap{};
+	TMap<FName, TUniquePtr<FMetasoundOutputWatcher::IOutputTypeOperations>> FMetasoundOutputWatcher::OutputTypeOperationMap{};
 	
-	FMetasoundGeneratorOutputWatcher::FMetasoundGeneratorOutputWatcher(
+	FMetasoundOutputWatcher::FMetasoundOutputWatcher(
 		Frontend::FAnalyzerAddress&& Address,
 		const FOperatorSettings& OperatorSettings)
 		: Name(Address.OutputName)
@@ -22,16 +23,18 @@ namespace Metasound::Private
 				continue;
 			}
 
-			FMetasoundGeneratorOutput Output;
+			FMetaSoundOutput Output;
 			Output.Name = OutputDescription.Name;
 			OutputTypeOperationMap[OutputDescription.TypeName]->Init(Output);
 			Outputs.Emplace(MoveTemp(Output));
 		}
 	}
 
-	void FMetasoundGeneratorOutputWatcher::Update(const TFunctionRef<void(FName, const FMetasoundGeneratorOutput&)> OnOutputChanged)
+	void FMetasoundOutputWatcher::Update(const TFunctionRef<void(FName, const FMetaSoundOutput&)> OnOutputChanged)
 	{
-		for (FMetasoundGeneratorOutput& Output : Outputs)
+		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetasoundOutputWatcher::Update);
+		
+		for (FMetaSoundOutput& Output : Outputs)
 		{
 			const FName TypeName = Output.GetTypeName();
 			check(!TypeName.IsNone());
@@ -46,7 +49,7 @@ namespace Metasound::Private
 		}
 	}
 
-	void FMetasoundGeneratorOutputWatcher::RegisterOutputTypeOperations(FName TypeName,
+	void FMetasoundOutputWatcher::RegisterOutputTypeOperations(FName TypeName,
 		TUniquePtr<IOutputTypeOperations>&& OutputTypeOperations)
 	{
 		check(!OutputTypeOperationMap.Contains(TypeName));
