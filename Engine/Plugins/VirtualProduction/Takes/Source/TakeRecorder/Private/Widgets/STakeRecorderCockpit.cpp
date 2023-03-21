@@ -964,6 +964,7 @@ float STakeRecorderCockpit::GetEngineTimeDilation() const
 void STakeRecorderCockpit::SetEngineTimeDilation(float InEngineTimeDilation)
 {
 	GetMutableDefault<UTakeRecorderUserSettings>()->Settings.EngineTimeDilation = InEngineTimeDilation;
+	GetMutableDefault<UTakeRecorderUserSettings>()->SaveConfig();
 }
 
 FReply STakeRecorderCockpit::OnAddMarkedFrame()
