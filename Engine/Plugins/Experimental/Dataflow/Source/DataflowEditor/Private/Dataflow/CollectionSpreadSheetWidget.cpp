@@ -187,7 +187,7 @@ namespace CollectionSpreadSheetHelpers
 			break;
 
 		default:
-			ensure(false);
+			//ensure(false);
 			ValueAsString = "<Unknown Data Type>";
 		}
 
