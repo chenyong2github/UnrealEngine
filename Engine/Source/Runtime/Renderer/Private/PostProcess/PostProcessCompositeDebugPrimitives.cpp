@@ -1,0 +1,95 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "PostProcess/PostProcessCompositeDebugPrimitives.h"
+#if UE_ENABLE_DEBUG_DRAWING
+#include "ScenePrivate.h"
+
+BEGIN_SHADER_PARAMETER_STRUCT(FDebugPrimitivesPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+FScreenPassTexture AddDebugPrimitivePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FCompositePrimitiveInputs& Inputs)
+{
+	check(Inputs.SceneColor.IsValid());
+	check(Inputs.SceneDepth.IsValid());
+
+	RDG_EVENT_SCOPE(GraphBuilder, "CompositeDebugPrimitives");
+	
+	const uint32 NumMSAASamples = View.GetSceneTextures().Config.NumSamples;
+	//Set sizing values to match the SceneColor size
+	const FIntPoint Extent = Inputs.SceneColor.Texture->Desc.Extent;
+	const FIntRect ViewRect = Inputs.SceneColor.ViewRect;
+	const FViewInfo* DebugView = CreateCompositePrimitiveView(View, ViewRect, NumMSAASamples);
+
+	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
+	FRDGTextureRef DebugPrimitiveColor = Output.Texture;
+	if (!Output.IsValid())
+	{
+		// Create a new output for the scene color
+		FRDGTextureDesc ColorDesc = Inputs.SceneColor.Texture->Desc;
+		ColorDesc.Flags |= TexCreate_ShaderResource | TexCreate_RenderTargetable;
+		DebugPrimitiveColor = GraphBuilder.CreateTexture(ColorDesc, TEXT("Debug.DrawPrimitivesColor"));
+		//Create a new depth output for the final draw
+		Output = FScreenPassRenderTarget(DebugPrimitiveColor, ViewRect, ERenderTargetLoadAction::ENoAction);
+	}
+
+	//Prepare output textures for composite draw
+	const FScreenPassTextureViewport OutputViewport(Output);
+	FRDGTextureRef DebugPrimitiveDepth = CreateCompositeDepthTexture(GraphBuilder, Extent, NumMSAASamples);
+	FScreenPassTexture SceneDepth = Inputs.SceneDepth;//Inputs is const so create a over-ridable texture reference
+	FVector2f SceneDepthJitter = FVector2f(View.TemporalJitterPixels);
+
+	if (IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod))
+	{
+		TemporalUpscaleDepthPass(GraphBuilder,
+			*DebugView,
+			Inputs.SceneColor,
+			SceneDepth,
+			SceneDepthJitter,
+			NumMSAASamples);
+	}
+
+	//Simple element pixel shaders do not output background color for composite, 
+	//so this allows the background to be drawn to the RT at the same time as depth without adding extra draw calls
+	PopulateDepthPass(GraphBuilder,
+		*DebugView,
+		Inputs.SceneColor,
+		SceneDepth,
+		DebugPrimitiveColor,
+		DebugPrimitiveDepth,
+		SceneDepthJitter,
+		NumMSAASamples,
+		true);	// - Draw Background Colour
+
+	//Composite the debug draw elements into the scene
+	FDebugPrimitivesPassParameters* PassParameters = GraphBuilder.AllocParameters<FDebugPrimitivesPassParameters>();
+	PassParameters->View = DebugView->GetShaderParameters();
+	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+	PassParameters->RenderTargets[0].SetLoadAction(ERenderTargetLoadAction::ELoad);
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DebugPrimitiveDepth, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("DrawDebugPrimitives"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[&View, PassParameters, DebugView, OutputViewport](FRHICommandList& RHICmdList)
+	{
+		RHICmdList.SetViewport(OutputViewport.Rect.Min.X, OutputViewport.Rect.Min.Y, 0.0f, OutputViewport.Rect.Max.X, OutputViewport.Rect.Max.Y, 1.0f);
+
+		FMeshPassProcessorRenderState DrawRenderState;
+		DrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthWrite_StencilWrite);
+		DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+		
+		DebugView->DebugSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, *DebugView, EBlendModeFilter::OpaqueAndMasked, SDPG_World);
+		DebugView->DebugSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, *DebugView, EBlendModeFilter::OpaqueAndMasked, SDPG_Foreground);		
+	});
+
+	return MoveTemp(Output);
+}
+
+#endif

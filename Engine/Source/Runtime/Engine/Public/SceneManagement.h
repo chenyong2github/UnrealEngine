@@ -1779,6 +1779,11 @@ public:
 
 	void DrawBatchedElements(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& InView, EBlendModeFilter::Type Filter, ESceneDepthPriorityGroup DPG) const;
 
+	bool HasAnyPrimitives() const
+	{
+		return BatchedElements.HasPrimsToDraw() || TopBatchedElements.HasPrimsToDraw();
+	}
+
 	bool HasPrimitives(ESceneDepthPriorityGroup DPG) const
 	{
 		if (DPG == SDPG_World)
@@ -1858,6 +1863,13 @@ public:
 	{
 		return SimpleElementCollectors[ViewIndex];
 	}
+
+#if UE_ENABLE_DEBUG_DRAWING
+	inline FPrimitiveDrawInterface* GetDebugPDI(int32 ViewIndex)
+	{
+		return DebugSimpleElementCollectors[ViewIndex];
+	}
+#endif
 
 	/** 
 	 * Allocates an FMeshBatch that can be safely referenced by the collector (lifetime will be long enough).
@@ -1962,7 +1974,11 @@ protected:
 		ERHIFeatureLevel::Type InFeatureLevel,
 		FGlobalDynamicIndexBuffer* InDynamicIndexBuffer,
 		FGlobalDynamicVertexBuffer* InDynamicVertexBuffer,
-		FGlobalDynamicReadBuffer* InDynamicReadBuffer);
+		FGlobalDynamicReadBuffer* InDynamicReadBuffer
+#if UE_ENABLE_DEBUG_DRAWING
+		,FSimpleElementCollector* InDebugSimpleElementCollector = nullptr
+#endif
+	);
 
 	/** 
 	 * Using TChunkedArray which will never realloc as new elements are added
@@ -1978,6 +1994,10 @@ protected:
 
 	/** PDIs */
 	TArray<FSimpleElementCollector*, TInlineAllocator<2, SceneRenderingAllocator> > SimpleElementCollectors;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	TArray<FSimpleElementCollector*, TInlineAllocator<2, SceneRenderingAllocator> > DebugSimpleElementCollectors;
+#endif
 
 	/** Views being collected for */
 	TArray<FSceneView*, TInlineAllocator<2, SceneRenderingAllocator>> Views;

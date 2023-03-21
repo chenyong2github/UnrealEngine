@@ -3,7 +3,7 @@
 #if WITH_EDITOR
 
 #include "PostProcess/PostProcessVisualizeLevelInstance.h"
-#include "PostProcess/PostProcessCompositeEditorPrimitives.h"
+#include "PostProcess/PostProcessCompositePrimitivesCommon.h"
 #include "SceneTextureParameters.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
@@ -12,11 +12,11 @@
 
 namespace
 {
-class FVisualizeLevelInstancePS : public FEditorPrimitiveShader
+class FVisualizeLevelInstancePS : public FCompositePrimitiveShaderBase
 {
 public:
 	DECLARE_GLOBAL_SHADER(FVisualizeLevelInstancePS);
-	SHADER_USE_PARAMETER_STRUCT(FVisualizeLevelInstancePS, FEditorPrimitiveShader);
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeLevelInstancePS, FCompositePrimitiveShaderBase);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -56,7 +56,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 	const uint32 NumSamples = View.GetSceneTexturesConfig().NumSamples;
 
 	// Patch uniform buffers with updated state for rendering the outline mesh draw commands.
-	const FViewInfo* EditorView = CreateEditorPrimitiveView(View, Inputs.SceneColor.ViewRect, NumSamples);
+	const FViewInfo* EditorView = CreateCompositePrimitiveView(View, Inputs.SceneColor.ViewRect, NumSamples);
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
 

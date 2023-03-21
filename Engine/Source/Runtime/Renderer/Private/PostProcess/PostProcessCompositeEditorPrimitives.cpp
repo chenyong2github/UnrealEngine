@@ -1,122 +1,47 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_EDITOR
-
 #include "PostProcess/PostProcessCompositeEditorPrimitives.h"
+
+#if WITH_EDITOR
 #include "EditorPrimitivesRendering.h"
 #include "MeshPassProcessor.inl"
 #include "BasePassRendering.h"
 #include "MobileBasePassRendering.h"
-#include "SceneRenderingUtils.h"
 #include "PixelShaderUtils.h"
-#include "ScenePrivate.h"
 
 namespace
 {
-TAutoConsoleVariable<int32> CVarEditorTemporalUpsampleDepth(
-	TEXT("r.Editor.TemporalUpsampleDepth"), 2,
-	TEXT("Temporal upsample factor of the depth buffer for depth testing editor primitives against."),
-	ECVF_RenderThreadSafe);
-
-class FTemporalUpsampleEditorDepthPS : public FGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FTemporalUpsampleEditorDepthPS);
-	SHADER_USE_PARAMETER_STRUCT(FTemporalUpsampleEditorDepthPS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistory)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, History)
-		SHADER_PARAMETER(FVector2f, DepthTextureJitter)
-		SHADER_PARAMETER(int32, bCameraCut)
-
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, VelocitySampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevHistoryTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, PrevHistorySampler)
-
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	class FCompositeEditorPrimitivesPS : public FCompositePrimitiveShaderBase
 	{
-		// Only PC platforms render editor primitives.
-		return IsPCPlatform(Parameters.Platform);
-	}
-};
+	public:
+		DECLARE_GLOBAL_SHADER(FCompositeEditorPrimitivesPS);
+		SHADER_USE_PARAMETER_STRUCT(FCompositeEditorPrimitivesPS, FCompositePrimitiveShaderBase);
 
-class FPopulateEditorDepthPS : public FGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FPopulateEditorDepthPS);
-	SHADER_USE_PARAMETER_STRUCT(FPopulateEditorDepthPS, FGlobalShader);
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+			SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
+			SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
+			SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
+			SHADER_PARAMETER_ARRAY(FVector4f, SampleOffsetArray, [FCompositePrimitiveShaderBase::kMSAASampleCountMax])
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesDepth)
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesColor)
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+			SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
+			SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
+			SHADER_PARAMETER(uint32, bOpaqueEditorGizmo)
+			SHADER_PARAMETER(uint32, bCompositeAnyNonNullDepth)
+			SHADER_PARAMETER(FVector2f, DepthTextureJitter)
+			RENDER_TARGET_BINDING_SLOTS()
+			END_SHADER_PARAMETER_STRUCT()
 
-	class FUseMSAADimension : SHADER_PERMUTATION_BOOL("USE_MSAA");
-	using FPermutationDomain = TShaderPermutationDomain<FUseMSAADimension>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
-		SHADER_PARAMETER(FVector2f, DepthTextureJitter)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		const FPermutationDomain PermutationVector(Parameters.PermutationId);
-		const bool bUseMSAA = PermutationVector.Get<FUseMSAADimension>();
-
-		// Only SM5+ platforms supports MSAA.
-		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && bUseMSAA)
+			static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
-			return false;
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FCompositeEditorPrimitivesPS, "/Engine/Private/PostProcessCompositePrimitives.usf", "MainCompositeEditorPrimitivesPS", SF_Pixel);
 
-		// Only PC platforms render editor primitives.
-		return IsPCPlatform(Parameters.Platform);
-	}
-};
-
-class FCompositeEditorPrimitivesPS : public FEditorPrimitiveShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FCompositeEditorPrimitivesPS);
-	SHADER_USE_PARAMETER_STRUCT(FCompositeEditorPrimitivesPS, FEditorPrimitiveShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
-		SHADER_PARAMETER_ARRAY(FVector4f, SampleOffsetArray, [FEditorPrimitiveShader::kEditorMSAASampleCountMax])
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesDepth)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesColor)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
-		SHADER_PARAMETER(uint32, bOpaqueEditorGizmo)
-		SHADER_PARAMETER(uint32, bCompositeAnyNonNullDepth)
-		SHADER_PARAMETER(FVector2f, DepthTextureJitter)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FTemporalUpsampleEditorDepthPS, "/Engine/Private/PostProcessCompositeEditorPrimitives.usf", "MainTemporalUpsampleEditorDepthPS", SF_Pixel);
-IMPLEMENT_GLOBAL_SHADER(FPopulateEditorDepthPS, "/Engine/Private/PostProcessCompositeEditorPrimitives.usf", "MainPopulateSceneDepthPS", SF_Pixel);
-IMPLEMENT_GLOBAL_SHADER(FCompositeEditorPrimitivesPS, "/Engine/Private/PostProcessCompositeEditorPrimitives.usf", "MainCompositeEditorPrimitivesPS", SF_Pixel);
 
 void RenderEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, FMeshPassProcessorRenderState& DrawRenderState, FInstanceCullingManager& InstanceCullingManager)
 {
@@ -271,29 +196,6 @@ void RenderForegroundEditorPrimitives(FRHICommandList& RHICmdList, const FViewIn
 
 } //! namespace
 
-const FViewInfo* CreateEditorPrimitiveView(const FViewInfo& ParentView, FIntRect ViewRect, uint32 NumSamples)
-{
-	FViewInfo* EditorView = ParentView.CreateSnapshot();
-
-	// Patch view rect.
-	EditorView->ViewRect = ViewRect;
-
-	// Override pre exposure to 1.0f, because rendering after tonemapper. 
-	EditorView->PreExposure = 1.0f;
-
-	// Kills material texture mipbias because after TAA.
-	EditorView->MaterialTextureMipBias = 0.0f;
-
-	if (IsTemporalAccumulationBasedMethod(EditorView->AntiAliasingMethod))
-	{
-		EditorView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
-	}
-
-	EditorView->InitRHIResources(NumSamples);
-
-	return EditorView;
-}
-
 BEGIN_SHADER_PARAMETER_STRUCT(FEditorPrimitivesPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
@@ -309,16 +211,16 @@ END_SHADER_PARAMETER_STRUCT()
 FScreenPassTexture AddEditorPrimitivePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FEditorPrimitiveInputs& Inputs,
+	const FCompositePrimitiveInputs& Inputs,
 	FInstanceCullingManager& InstanceCullingManager)
 {
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneDepth.IsValid());
-	check(Inputs.BasePassType != FEditorPrimitiveInputs::EBasePassType::MAX);
+	check(Inputs.BasePassType != FCompositePrimitiveInputs::EBasePassType::MAX);
 
 	const FSceneTextures& SceneTextures = View.GetSceneTextures();
-	const uint32 NumSamples = SceneTextures.Config.EditorPrimitiveNumSamples;
-	const FViewInfo* EditorView = CreateEditorPrimitiveView(View, Inputs.SceneColor.ViewRect, NumSamples);
+	const uint32 NumMSAASamples = SceneTextures.Config.EditorPrimitiveNumSamples;
+	const FViewInfo* EditorView = CreateCompositePrimitiveView(View, Inputs.SceneColor.ViewRect, NumMSAASamples);
 
 	// Load the color target if it already exists.
 	const bool bProducedByPriorPass = HasBeenProduced(SceneTextures.EditorPrimitiveColor);
@@ -335,8 +237,6 @@ FScreenPassTexture AddEditorPrimitivePass(
 	}
 	else
 	{
-		const FSceneTexturesConfig& Config = SceneTextures.Config;
-
 		FIntPoint Extent = Inputs.SceneColor.Texture->Desc.Extent;
 
 		const FRDGTextureDesc ColorDesc = FRDGTextureDesc::Create2D(
@@ -345,18 +245,10 @@ FScreenPassTexture AddEditorPrimitivePass(
 			FClearValueBinding::Transparent,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable,
 			1,
-			Config.EditorPrimitiveNumSamples);
-
-		const FRDGTextureDesc DepthDesc = FRDGTextureDesc::Create2D(
-			Extent,
-			PF_DepthStencil,
-			FClearValueBinding::DepthFar,
-			TexCreate_ShaderResource | TexCreate_DepthStencilTargetable,
-			1,
-			Config.EditorPrimitiveNumSamples);
+			NumMSAASamples);
 
 		EditorPrimitiveColor = GraphBuilder.CreateTexture(ColorDesc, TEXT("Editor.PrimitivesColor"));
-		EditorPrimitiveDepth = GraphBuilder.CreateTexture(DepthDesc, TEXT("Editor.PrimitivesDepth"));
+		EditorPrimitiveDepth = CreateCompositeDepthTexture(GraphBuilder, Extent, NumMSAASamples);
 	}
 
 	// Load the color target if it already exists.
@@ -366,8 +258,9 @@ FScreenPassTexture AddEditorPrimitivePass(
 	RDG_EVENT_SCOPE(GraphBuilder, "CompositeEditorPrimitives %dx%d MSAA=%d",
 		EditorPrimitivesViewport.Rect.Width(),
 		EditorPrimitivesViewport.Rect.Height(),
-		NumSamples);
+		NumMSAASamples);
 
+	//Inputs is const so create a over-ridable texture reference
 	FScreenPassTexture SceneDepth = Inputs.SceneDepth;
 	FVector2f SceneDepthJitter = FVector2f(View.TemporalJitterPixels);
 
@@ -378,121 +271,25 @@ FScreenPassTexture AddEditorPrimitivePass(
 		// Populate depth if a prior pass did not already do it.
 		if (!bProducedByPriorPass)
 		{
-			// Upscale factor of the depth buffer that might be needed.
-			const float UpscaleFactor = float(EditorPrimitivesViewport.Rect.Width()) / float(Inputs.SceneDepth.ViewRect.Width());
-
-			// Upscale factor shouldn't be higher than there is TAA samples, or that means there will be unrendered pixels.
-			const int32 ComputeMaxUpsampleFactorDueToTAA = FMath::FloorToInt(FMath::Sqrt(float(View.TemporalJitterSequenceLength) / (UpscaleFactor * UpscaleFactor)));
-			
-			const int32 ComputeMaxUpsampleFactor = FMath::Clamp(ComputeMaxUpsampleFactorDueToTAA, 0, 4);
-
-			const int32 DepthUpsampleFactor = FMath::Clamp(CVarEditorTemporalUpsampleDepth.GetValueOnRenderThread(), 0, ComputeMaxUpsampleFactor);
-
-			// Upsample the depth at higher resolution to reduce depth intersection instability of editor primitives.
-			if (DepthUpsampleFactor > 0 && View.ViewState && IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod))
+			if (IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod))
 			{
-				FScreenPassTexture History;
-				{
-					const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-						EditorPrimitivesViewport.Extent * DepthUpsampleFactor,
-						PF_R32_FLOAT,
-						FClearValueBinding::None,
-						TexCreate_ShaderResource | TexCreate_RenderTargetable);
-
-					History.Texture = GraphBuilder.CreateTexture(Desc, TEXT("Editor.PrimitivesDepthHistory"));
-					History.ViewRect = EditorPrimitivesViewport.Rect * DepthUpsampleFactor;
-				}
-
-				FTemporalUpsampleEditorDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTemporalUpsampleEditorDepthPS::FParameters>();
-				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->Depth = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(Inputs.SceneDepth));
-				PassParameters->History = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(History));
-				PassParameters->DepthTextureJitter = FVector2f(View.TemporalJitterPixels);
-
-				PassParameters->DepthTexture = Inputs.SceneDepth.Texture;
-				PassParameters->DepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-				// TODO
-				PassParameters->VelocityTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-				PassParameters->VelocitySampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-				if (View.PrevViewInfo.EditorPrimtiveDepthHistory.IsValid())
-				{
-					PassParameters->PrevHistory = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-						View.PrevViewInfo.EditorPrimtiveDepthHistory.RT[0]->GetDesc().Extent, View.PrevViewInfo.EditorPrimtiveDepthHistory.ViewportRect));
-					PassParameters->PrevHistoryTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.EditorPrimtiveDepthHistory.RT[0]);
-					PassParameters->PrevHistorySampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-					PassParameters->bCameraCut = false;
-				}
-				else
-				{
-					PassParameters->PrevHistory = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-						FIntPoint(1, 1), FIntRect(FIntPoint(0, 0), FIntPoint(1, 1))));
-					PassParameters->PrevHistoryTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-					PassParameters->PrevHistorySampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-					PassParameters->bCameraCut = true;
-				}
-
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(History.Texture, ERenderTargetLoadAction::ENoAction);
-
-				TShaderMapRef<FTemporalUpsampleEditorDepthPS> PixelShader(View.ShaderMap);
-				FPixelShaderUtils::AddFullscreenPass(
-					GraphBuilder,
-					View.ShaderMap,
-					RDG_EVENT_NAME("TemporalUpsampleDepth %dx%d -> %dx%d",
-						Inputs.SceneDepth.ViewRect.Width(),
-						Inputs.SceneDepth.ViewRect.Height(),
-						History.ViewRect.Width(),
-						History.ViewRect.Height()),
-					PixelShader,
-					PassParameters,
-					History.ViewRect);
-
-				if (!View.bStatePrevViewInfoIsReadOnly)
-				{
-					FTemporalAAHistory* OutputHistory = &View.ViewState->PrevFrameViewInfo.EditorPrimtiveDepthHistory;
-					OutputHistory->SafeRelease();
-
-					GraphBuilder.QueueTextureExtraction(History.Texture, &OutputHistory->RT[0]);
-					OutputHistory->ViewportRect = History.ViewRect;
-					OutputHistory->ReferenceBufferSize = History.Texture->Desc.Extent;
-				}
-
-				SceneDepth = History;
-				SceneDepthJitter = FVector2f::ZeroVector;
+				TemporalUpscaleDepthPass(GraphBuilder,
+					*EditorView,
+					Inputs.SceneColor,
+					SceneDepth,
+					SceneDepthJitter,
+					NumMSAASamples);
 			}
 
-			// Populate the MSAA depth buffer from depth buffer or temporally upscaled depth buffer
-			{
-				FPopulateEditorDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPopulateEditorDepthPS::FParameters>();
-				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->Color = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(Inputs.SceneColor));
-				PassParameters->Depth = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(SceneDepth));
-				PassParameters->DepthTextureJitter = SceneDepthJitter;
-				PassParameters->DepthTexture = SceneDepth.Texture;
-				PassParameters->DepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-				PassParameters->RenderTargets[0] = FRenderTargetBinding(EditorPrimitiveColor, ERenderTargetLoadAction::EClear);
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(EditorPrimitiveDepth, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-				FPopulateEditorDepthPS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FPopulateEditorDepthPS::FUseMSAADimension>(NumSamples > 1);
-				TShaderMapRef<FPopulateEditorDepthPS> PixelShader(View.ShaderMap, PermutationVector);
-
-				FPixelShaderUtils::AddFullscreenPass(
-					GraphBuilder,
-					View.ShaderMap,
-					RDG_EVENT_NAME("PopulateDepth %dx%d%s",
-						EditorPrimitivesViewport.Rect.Width(),
-						EditorPrimitivesViewport.Rect.Height(),
-						NumSamples > 1 ? TEXT(" MSAA") : TEXT("")),
-					PixelShader,
-					PassParameters,
-					EditorPrimitivesViewport.Rect,
-					/* BlendState = */ nullptr,
-					/* RasterizerState = */ nullptr,
-					TStaticDepthStencilState<true, CF_Always>::GetRHI());
-			}
-		}
+			PopulateDepthPass(GraphBuilder,
+				*EditorView,
+				Inputs.SceneColor,
+				SceneDepth,
+				EditorPrimitiveColor,
+				EditorPrimitiveDepth,
+				SceneDepthJitter,
+				NumMSAASamples);
+		}	
 
 		// Draws the editors opaque primitives
 		{
@@ -505,9 +302,9 @@ FScreenPassTexture AddEditorPrimitivePass(
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(EditorPrimitiveColor, ERenderTargetLoadAction::ELoad);
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(EditorPrimitiveDepth, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
-			const FEditorPrimitiveInputs::EBasePassType BasePassType = Inputs.BasePassType;
+			const FCompositePrimitiveInputs::EBasePassType BasePassType = Inputs.BasePassType;
 
-			if (BasePassType == FEditorPrimitiveInputs::EBasePassType::Deferred)
+			if (BasePassType == FCompositePrimitiveInputs::EBasePassType::Deferred)
 			{
 				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, *EditorView, 0);
 			}
@@ -520,10 +317,10 @@ FScreenPassTexture AddEditorPrimitivePass(
 				RDG_EVENT_NAME("EditorPrimitives %dx%d MSAA=%d",
 					EditorPrimitivesViewport.Rect.Width(),
 					EditorPrimitivesViewport.Rect.Height(),
-					NumSamples),
+					NumMSAASamples),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[&View, &InstanceCullingManager, PassParameters, EditorView, EditorPrimitivesViewport, BasePassType, NumSamples](FRHICommandList& RHICmdList)
+				[&View, &InstanceCullingManager, PassParameters, EditorView, EditorPrimitivesViewport, BasePassType, NumMSAASamples](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetViewport(EditorPrimitivesViewport.Rect.Min.X, EditorPrimitivesViewport.Rect.Min.Y, 0.0f, EditorPrimitivesViewport.Rect.Max.X, EditorPrimitivesViewport.Rect.Max.Y, 1.0f);
 
@@ -535,7 +332,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 				{
 					SCOPED_DRAW_EVENTF(RHICmdList, EditorPrimitives,
 						TEXT("RenderViewEditorPrimitives %dx%d msaa=%d"),
-						EditorPrimitivesViewport.Rect.Width(), EditorPrimitivesViewport.Rect.Height(), NumSamples);
+						EditorPrimitivesViewport.Rect.Width(), EditorPrimitivesViewport.Rect.Height(), NumMSAASamples);
 
 					RenderEditorPrimitives(RHICmdList, *EditorView, DrawRenderState, InstanceCullingManager);
 				}
@@ -544,7 +341,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 				{
 					SCOPED_DRAW_EVENTF(RHICmdList, EditorPrimitives,
 						TEXT("RenderViewEditorForegroundPrimitives %dx%d msaa=%d"),
-						EditorPrimitivesViewport.Rect.Width(), EditorPrimitivesViewport.Rect.Height(), NumSamples);
+						EditorPrimitivesViewport.Rect.Width(), EditorPrimitivesViewport.Rect.Height(), NumMSAASamples);
 
 					RenderForegroundEditorPrimitives(RHICmdList, *EditorView, DrawRenderState, InstanceCullingManager);
 				}
@@ -580,20 +377,20 @@ FScreenPassTexture AddEditorPrimitivePass(
 		PassParameters->bCompositeAnyNonNullDepth = bProducedByPriorPass;
 		PassParameters->DepthTextureJitter = SceneDepthJitter;
 
-		for (int32 i = 0; i < int32(NumSamples); i++)
+		for (int32 i = 0; i < int32(NumMSAASamples); i++)
 		{
-			PassParameters->SampleOffsetArray[i].X = GetMSAASampleOffsets(NumSamples, i).X;
-			PassParameters->SampleOffsetArray[i].Y = GetMSAASampleOffsets(NumSamples, i).Y;
+			PassParameters->SampleOffsetArray[i].X = GetMSAASampleOffsets(NumMSAASamples, i).X;
+			PassParameters->SampleOffsetArray[i].Y = GetMSAASampleOffsets(NumMSAASamples, i).Y;
 		}
 
 		FCompositeEditorPrimitivesPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FCompositeEditorPrimitivesPS::FSampleCountDimension>(NumSamples);
+		PermutationVector.Set<FCompositeEditorPrimitivesPS::FSampleCountDimension>(NumMSAASamples);
 
 		TShaderMapRef<FCompositeEditorPrimitivesPS> PixelShader(View.ShaderMap, PermutationVector);
 		FPixelShaderUtils::AddFullscreenPass(
 			GraphBuilder,
 			View.ShaderMap,
-			RDG_EVENT_NAME("Composite %dx%d MSAA=%d", Output.ViewRect.Width(), Output.ViewRect.Height(), NumSamples),
+			RDG_EVENT_NAME("Composite %dx%d MSAA=%d", Output.ViewRect.Width(), Output.ViewRect.Height(), NumMSAASamples),
 			PixelShader,
 			PassParameters,
 			Output.ViewRect);
@@ -611,9 +408,9 @@ FScreenPassTexture AddEditorPrimitivePass(
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 		PassParameters->RenderTargets[0].SetLoadAction(ERenderTargetLoadAction::ELoad);
 
-		const FEditorPrimitiveInputs::EBasePassType BasePassType = Inputs.BasePassType;
+		const FCompositePrimitiveInputs::EBasePassType BasePassType = Inputs.BasePassType;
 
-		if (BasePassType == FEditorPrimitiveInputs::EBasePassType::Deferred)
+		if (BasePassType == FCompositePrimitiveInputs::EBasePassType::Deferred)
 		{
 			PassParameters->TranslucentBasePass = CreateTranslucentBasePassUniformBuffer(GraphBuilder, nullptr, *EditorView, 0);
 		}
@@ -626,10 +423,10 @@ FScreenPassTexture AddEditorPrimitivePass(
 			RDG_EVENT_NAME("EditorPrimitives Translucent %dx%d MSAA=%d",
 				EditorPrimitivesViewport.Rect.Width(),
 				EditorPrimitivesViewport.Rect.Height(),
-				NumSamples),
+				NumMSAASamples),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View, &InstanceCullingManager, PassParameters, EditorView, EditorPrimitivesViewport, OutputViewportRect = Output.ViewRect, BasePassType, NumSamples](FRHICommandListImmediate& RHICmdList)
+			[&View, &InstanceCullingManager, PassParameters, EditorView, EditorPrimitivesViewport, OutputViewportRect = Output.ViewRect, BasePassType, NumMSAASamples](FRHICommandListImmediate& RHICmdList)
 			{
 				RHICmdList.SetViewport(OutputViewportRect.Min.X, OutputViewportRect.Min.Y, 0.0f, OutputViewportRect.Max.X, OutputViewportRect.Max.Y, 1.0f);
 
@@ -641,7 +438,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 				{
 					SCOPED_DRAW_EVENTF(RHICmdList, EditorPrimitives,
 						TEXT("RenderViewEditorForegroundTranslucentPrimitives %dx%d msaa=%d"),
-						EditorPrimitivesViewport.Rect.Width(), EditorPrimitivesViewport.Rect.Height(), NumSamples);
+						EditorPrimitivesViewport.Rect.Width(), EditorPrimitivesViewport.Rect.Height(), NumMSAASamples);
 
 					RenderForegroundTranslucentEditorPrimitives(RHICmdList, *EditorView, DrawRenderState, InstanceCullingManager);
 				}

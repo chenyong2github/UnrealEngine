@@ -64,8 +64,13 @@ void FLineBatcherSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 		if (VisibilityMap & (1 << ViewIndex))
 		{
 			const FSceneView* View = Views[ViewIndex];
-			FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
 
+#if UE_ENABLE_DEBUG_DRAWING
+			//If we are in a debug draw build, this line batcher should write out to the debug only PDI
+			FPrimitiveDrawInterface* PDI = Collector.GetDebugPDI(ViewIndex);
+#else
+			FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
+#endif
 			for (int32 i = 0; i < Lines.Num(); i++)
 			{
 				PDI->DrawLine(Lines[i].Start, Lines[i].End, Lines[i].Color, Lines[i].DepthPriority, Lines[i].Thickness);

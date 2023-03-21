@@ -360,6 +360,13 @@ void FMeshElementCollector::SetPrimitive(const FPrimitiveSceneProxy* InPrimitive
 	{
 		MeshIdInPrimitivePerView[ViewIndex] = 0;
 	}
+#if UE_ENABLE_DEBUG_DRAWING
+	for (int32 ViewIndex = 0; ViewIndex < DebugSimpleElementCollectors.Num(); ViewIndex++)
+	{
+		DebugSimpleElementCollectors[ViewIndex]->HitProxyId = DefaultHitProxyId;
+		DebugSimpleElementCollectors[ViewIndex]->PrimitiveMeshId = 0;
+	}
+#endif
 }
 
 void FMeshElementCollector::ClearViewMeshArrays()
@@ -367,6 +374,9 @@ void FMeshElementCollector::ClearViewMeshArrays()
 	Views.Empty();
 	MeshBatches.Empty();
 	SimpleElementCollectors.Empty();
+#if UE_ENABLE_DEBUG_DRAWING
+	DebugSimpleElementCollectors.Empty();
+#endif
 	MeshIdInPrimitivePerView.Empty();
 	DynamicPrimitiveCollectorPerView.Empty();
 	NumMeshBatchElementsPerView.Empty();
@@ -383,7 +393,11 @@ void FMeshElementCollector::AddViewMeshArrays(
 	ERHIFeatureLevel::Type InFeatureLevel,
 	FGlobalDynamicIndexBuffer* InDynamicIndexBuffer,
 	FGlobalDynamicVertexBuffer* InDynamicVertexBuffer,
-	FGlobalDynamicReadBuffer* InDynamicReadBuffer)
+	FGlobalDynamicReadBuffer* InDynamicReadBuffer
+#if UE_ENABLE_DEBUG_DRAWING
+	,FSimpleElementCollector* InDebugSimpleElementCollector
+#endif
+)
 {
 	Views.Add(InView);
 	MeshIdInPrimitivePerView.Add(0);
@@ -396,6 +410,14 @@ void FMeshElementCollector::AddViewMeshArrays(
 	DynamicIndexBuffer = InDynamicIndexBuffer;
 	DynamicVertexBuffer = InDynamicVertexBuffer;
 	DynamicReadBuffer = InDynamicReadBuffer;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	//Assign the debug draw only simple element collector per view	
+	if (InDebugSimpleElementCollector)
+	{
+		DebugSimpleElementCollectors.Add(InDebugSimpleElementCollector);
+	}
+#endif
 }
 
 void FMeshElementCollector::ProcessTasks()

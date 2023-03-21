@@ -14,13 +14,13 @@
 
 namespace
 {
-class FSelectionOutlinePS : public FEditorPrimitiveShader
+class FSelectionOutlinePS : public FCompositePrimitiveShaderBase
 {
 public:
 	DECLARE_GLOBAL_SHADER(FSelectionOutlinePS);
-	SHADER_USE_PARAMETER_STRUCT(FSelectionOutlinePS, FEditorPrimitiveShader);
+	SHADER_USE_PARAMETER_STRUCT(FSelectionOutlinePS, FCompositePrimitiveShaderBase);
 	class FSelectionOutlineHDRDim : SHADER_PERMUTATION_BOOL("SELECTION_OUTLINE_HDR");
-	using FPermutationDomain = TShaderPermutationDomain< FEditorPrimitiveShader::FPermutationDomain, FSelectionOutlineHDRDim>;
+	using FPermutationDomain = TShaderPermutationDomain< FCompositePrimitiveShaderBase::FPermutationDomain, FSelectionOutlineHDRDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -49,13 +49,13 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain CurrentPermutation(Parameters.PermutationId);
-		FEditorPrimitiveShader::FPermutationDomain EditorPrimitiveShaderDomain = CurrentPermutation.Get<FEditorPrimitiveShader::FPermutationDomain>();
+		FCompositePrimitiveShaderBase::FPermutationDomain EditorPrimitiveShaderDomain = CurrentPermutation.Get<FCompositePrimitiveShaderBase::FPermutationDomain>();
 		bool bIsHDR = CurrentPermutation.Get<FSelectionOutlineHDRDim>();
 		if (bIsHDR && !SupportHDR(Parameters.Platform))
 		{
 			return false;
 		}
-		return FEditorPrimitiveShader::ShouldCompilePermutation(EditorPrimitiveShaderDomain, Parameters.Platform);
+		return FCompositePrimitiveShaderBase::ShouldCompilePermutation(EditorPrimitiveShaderDomain, Parameters.Platform);
 	}
 };
 
@@ -83,7 +83,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 	const uint32 NumSamples = View.GetSceneTexturesConfig().NumSamples;
 
 	// Patch uniform buffers with updated state for rendering the outline mesh draw commands.
-	const FViewInfo* EditorView = CreateEditorPrimitiveView(View, Inputs.SceneColor.ViewRect, NumSamples);
+	const FViewInfo* EditorView = CreateCompositePrimitiveView(View, Inputs.SceneColor.ViewRect, NumSamples);
 
 	FRDGTextureRef DepthStencilTexture = nullptr;
 
@@ -242,9 +242,9 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 		PassParameters->UILuminanceAndIsSCRGB = bIsSCRGB ? UILuminance : -UILuminance;
 
 		FSelectionOutlinePS::FPermutationDomain PermutationVector;
-		FEditorPrimitiveShader::FPermutationDomain PermutationVectorBase;
+		FCompositePrimitiveShaderBase::FPermutationDomain PermutationVectorBase;
 		PermutationVectorBase.Set<FSelectionOutlinePS::FSampleCountDimension>(NumSamples);
-		PermutationVector.Set<FEditorPrimitiveShader::FPermutationDomain>(PermutationVectorBase);
+		PermutationVector.Set<FCompositePrimitiveShaderBase::FPermutationDomain>(PermutationVectorBase);
 		PermutationVector.Set<FSelectionOutlinePS::FSelectionOutlineHDRDim>(bIsHDR);
 
 		TShaderMapRef<FSelectionOutlinePS> PixelShader(View.ShaderMap, PermutationVector);

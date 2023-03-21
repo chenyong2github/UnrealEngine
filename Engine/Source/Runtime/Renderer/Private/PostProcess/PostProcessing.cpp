@@ -33,7 +33,12 @@
 #include "PostProcess/PostProcessUpscale.h"
 #include "PostProcess/PostProcessHMD.h"
 #include "PostProcess/PostProcessVisualizeComplexity.h"
-#include "PostProcess/PostProcessCompositeEditorPrimitives.h"
+#if UE_ENABLE_DEBUG_DRAWING
+	#include "PostProcess/PostProcessCompositeDebugPrimitives.h"
+#endif
+#if WITH_EDITOR
+	#include "PostProcess/PostProcessCompositeEditorPrimitives.h"
+#endif
 #include "PostProcess/PostProcessTestImage.h"
 #include "PostProcess/PostProcessVisualizeCalibrationMaterial.h"
 #include "PostProcess/PostProcessFFTBloom.h"
@@ -42,6 +47,7 @@
 #include "PostProcess/VisualizeMotionVectors.h"
 #include "Rendering/MotionVectorSimulation.h"
 #include "ShaderPrint.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "HairStrands/HairStrandsComposition.h"
 #include "HairStrands/HairStrandsUtils.h"
 #include "HighResScreenshot.h"
@@ -299,6 +305,9 @@ void AddPostProcessingPasses(
 		PixelInspector,
 		HMDDistortion,
 		HighResolutionScreenshotMask,
+#if UE_ENABLE_DEBUG_DRAWING
+		DebugPrimitive,
+#endif
 		PrimaryUpscale,
 		SecondaryUpscale,
 		MAX
@@ -347,6 +356,9 @@ void AddPostProcessingPasses(
 		TEXT("PixelInspector"),
 		TEXT("HMDDistortion"),
 		TEXT("HighResolutionScreenshotMask"),
+#if UE_ENABLE_DEBUG_DRAWING
+		TEXT("DebugPrimitive"),
+#endif
 		TEXT("PrimaryUpscale"),
 		TEXT("SecondaryUpscale")
 	};
@@ -391,6 +403,9 @@ void AddPostProcessingPasses(
 #endif
 	PassSequence.SetEnabled(EPass::HMDDistortion, EngineShowFlags.StereoRendering && EngineShowFlags.HMDDistortion);
 	PassSequence.SetEnabled(EPass::HighResolutionScreenshotMask, IsHighResolutionScreenshotMaskEnabled(View));
+#if UE_ENABLE_DEBUG_DRAWING
+	PassSequence.SetEnabled(EPass::DebugPrimitive, FSceneRenderer::ShouldCompositeDebugPrimitivesInPostProcess(View));
+#endif
 	PassSequence.SetEnabled(EPass::PrimaryUpscale, PaniniConfig.IsEnabled() || (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && PrimaryViewRect.Size() != View.GetSecondaryViewRectSize()));
 	PassSequence.SetEnabled(EPass::SecondaryUpscale, View.RequiresSecondaryUpscale() || View.Family->GetSecondarySpatialUpscalerInterface() != nullptr);
 
@@ -1057,6 +1072,18 @@ void AddPostProcessingPasses(
 			SceneColor = AddPostProcessMaterialChain(GraphBuilder, View, PassInputs, PostProcessMaterialAfterTonemappingChain);
 		}
 
+#if UE_ENABLE_DEBUG_DRAWING
+		if (PassSequence.IsEnabled(EPass::DebugPrimitive)) //Create new debug pass sequence
+		{
+			FCompositePrimitiveInputs PassInputs;
+			PassSequence.AcceptOverrideIfLastPass(EPass::DebugPrimitive, PassInputs.OverrideOutput);
+			PassInputs.SceneColor = SceneColor;
+			PassInputs.SceneDepth = SceneDepth;
+
+			SceneColor = AddDebugPrimitivePass(GraphBuilder, View, PassInputs);
+		}
+#endif
+
 		if (PassSequence.IsEnabled(EPass::VisualizeLumenScene))
 		{
 			FVisualizeLumenSceneInputs PassInputs;
@@ -1224,11 +1251,11 @@ void AddPostProcessingPasses(
 
 	if (PassSequence.IsEnabled(EPass::EditorPrimitive))
 	{
-		FEditorPrimitiveInputs PassInputs;
+		FCompositePrimitiveInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::EditorPrimitive, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = SceneColor;
 		PassInputs.SceneDepth = SceneDepth;
-		PassInputs.BasePassType = FEditorPrimitiveInputs::EBasePassType::Deferred;
+		PassInputs.BasePassType = FCompositePrimitiveInputs::EBasePassType::Deferred;
 
 		SceneColor = AddEditorPrimitivePass(GraphBuilder, View, PassInputs, InstanceCullingManager);
 	}
@@ -1831,6 +1858,9 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		HighResolutionScreenshotMask,
 		SelectionOutline,
 		EditorPrimitive,
+#if UE_ENABLE_DEBUG_DRAWING
+		DebugPrimitive,
+#endif
 		PrimaryUpscale,
 		SecondaryUpscale,
 		Visualize,
@@ -1855,6 +1885,9 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		TEXT("HighResolutionScreenshotMask"),
 		TEXT("SelectionOutline"),
 		TEXT("EditorPrimitive"),
+#if UE_ENABLE_DEBUG_DRAWING
+		TEXT("DebugPrimitive"),
+#endif
 		TEXT("PrimaryUpscale"),
 		TEXT("SecondaryUpscale"),
 		TEXT("Visualize"),
@@ -1907,6 +1940,10 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 #else
 	PassSequence.SetEnabled(EPass::SelectionOutline, false);
 	PassSequence.SetEnabled(EPass::EditorPrimitive, false);
+#endif
+
+#if UE_ENABLE_DEBUG_DRAWING
+	PassSequence.SetEnabled(EPass::DebugPrimitive, FSceneRenderer::ShouldCompositeDebugPrimitivesInPostProcess(View));
 #endif
 	PassSequence.SetEnabled(EPass::PrimaryUpscale, bShouldPrimaryUpscale);
 	PassSequence.SetEnabled(EPass::SecondaryUpscale, View.Family->GetSecondarySpatialUpscalerInterface() != nullptr);
@@ -2457,14 +2494,27 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 
 	if (PassSequence.IsEnabled(EPass::EditorPrimitive))
 	{
-		FEditorPrimitiveInputs PassInputs;
+		FCompositePrimitiveInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::EditorPrimitive, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = SceneColor;
 		PassInputs.SceneDepth = SceneDepth;
-		PassInputs.BasePassType = FEditorPrimitiveInputs::EBasePassType::Mobile;
+		PassInputs.BasePassType = FCompositePrimitiveInputs::EBasePassType::Mobile;
 		PassInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
 		SceneColor = AddEditorPrimitivePass(GraphBuilder, View, PassInputs, InstanceCullingManager);
+	}
+#endif
+
+
+#if UE_ENABLE_DEBUG_DRAWING
+	if (PassSequence.IsEnabled(EPass::DebugPrimitive)) //Create new debug pass sequence
+	{
+		FCompositePrimitiveInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::DebugPrimitive, PassInputs.OverrideOutput);
+		PassInputs.SceneColor = SceneColor;
+		PassInputs.SceneDepth = SceneDepth;
+
+		SceneColor = AddDebugPrimitivePass(GraphBuilder, View, PassInputs);
 	}
 #endif
 

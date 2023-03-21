@@ -1157,8 +1157,10 @@ struct FPreviousViewInfo
 	// Temporal AA history for Hair
 	FTemporalAAHistory HairHistory;
 
+#if UE_ENABLE_DEBUG_DRAWING
 	// Temporal AA history for the editor primitive depth upsampling
-	FTemporalAAHistory EditorPrimtiveDepthHistory;
+	FTemporalAAHistory CompositePrimitiveDepthHistory;
+#endif
 
 	// Scene color input for SSR, that can be different from TemporalAAHistory.RT[0] if there is a SSR
 	// input post process material.
@@ -1409,6 +1411,11 @@ public:
 	FSimpleElementCollector SimpleElementCollector;
 
 	FSimpleElementCollector EditorSimpleElementCollector;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	//Separate DebugSimpleElementCollector to not conflate any other simple element collector draws which may have been added from non-debug draw passes (e.g. non-opaque draws)
+	FSimpleElementCollector DebugSimpleElementCollector;
+#endif
 
 	TStaticArray<FParallelMeshDrawCommandPass, EMeshPass::Num> ParallelMeshDrawCommandPasses;
 	
@@ -2192,6 +2199,9 @@ public:
 	* @return true if compositing is needed
 	*/
 	static bool ShouldCompositeEditorPrimitives(const FViewInfo& View);
+#if UE_ENABLE_DEBUG_DRAWING
+	static bool ShouldCompositeDebugPrimitivesInPostProcess(const FViewInfo& View);
+#endif
 
 	/**
 	* Helper function performing actual work in render thread.

@@ -103,7 +103,7 @@ float4 SampleOffsetArray[MSAA_SAMPLE_COUNT];
 uint bOpaqueEditorGizmo;
 uint bCompositeAnyNonNullDepth;
 
-void MainTemporalUpsampleEditorDepthPS(
+void MainTemporalUpsampleDepthPS(
 	float4 SvPosition : SV_POSITION,
 	out float OutDeviceZ : SV_Target0)
 {
@@ -255,7 +255,11 @@ void MainPopulateSceneDepthPS(
 		Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
 
 	OutDepth = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV, 0).r;
+#if FORCE_DRAW_COLOR
+	OutColor = Texture2DSampleLevel(ColorTexture, ColorSampler, ViewportUV, 0).rgba;
+#else
 	OutColor = 0.0;
+#endif
 }
 
 float ComputeDepthMask(float SceneDeviceZ, float EditorDeviceZ)

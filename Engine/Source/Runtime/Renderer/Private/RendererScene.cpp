@@ -1025,7 +1025,9 @@ uint64 FPreviousViewInfo::GetGPUSizeBytes(bool bLogSizes) const
 		WaterSSRHistory.GetGPUSizeBytes(bLogSizes) +
 		RoughRefractionHistory.GetGPUSizeBytes(bLogSizes) +
 		HairHistory.GetGPUSizeBytes(bLogSizes) +
-		EditorPrimtiveDepthHistory.GetGPUSizeBytes(bLogSizes) +
+#if UE_ENABLE_DEBUG_DRAWING
+		CompositePrimitiveDepthHistory.GetGPUSizeBytes(bLogSizes) +
+#endif
 		CustomSSRInput.GetGPUSizeBytes(bLogSizes) +
 		ReflectionsHistory.GetGPUSizeBytes(bLogSizes) +
 		WaterReflectionsHistory.GetGPUSizeBytes(bLogSizes) +

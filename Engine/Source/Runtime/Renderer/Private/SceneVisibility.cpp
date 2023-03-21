@@ -3551,7 +3551,11 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				InViewFamily.GetFeatureLevel(),
 				&DynamicIndexBuffer,
 				&DynamicVertexBuffer,
-				&DynamicReadBuffer);
+				&DynamicReadBuffer
+#if UE_ENABLE_DEBUG_DRAWING
+				,&InViews[ViewIndex].DebugSimpleElementCollector
+#endif
+			);
 		}
 
 		const EShadingPath ShadingPath = Scene->GetShadingPath();

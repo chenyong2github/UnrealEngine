@@ -4000,6 +4000,13 @@ bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 	return false;
 }
 
+#if UE_ENABLE_DEBUG_DRAWING
+bool FSceneRenderer::ShouldCompositeDebugPrimitivesInPostProcess(const FViewInfo& View)
+{
+	return View.DebugSimpleElementCollector.HasAnyPrimitives();
+}
+#endif
+
 void FSceneRenderer::UpdatePrimitiveIndirectLightingCacheBuffers()
 {
 	// Use a bit array to prevent primitives from being updated more than once.
