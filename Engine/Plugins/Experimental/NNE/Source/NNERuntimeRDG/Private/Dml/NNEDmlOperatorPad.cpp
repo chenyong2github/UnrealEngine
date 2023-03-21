@@ -41,7 +41,7 @@ public:
 	//
 	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
 	{
-		check(InputTensors.Num() == 1);
+		check(InputTensors.Num() >= 1);
 		check(OutputTensors.Num() == 1);
 
 		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
@@ -54,7 +54,22 @@ public:
 
 		Value = Attributes.GetValueOrDefault<float>(TEXT("value"), 0.0f);
 		Mode = ModeFromString(Attributes.GetValue<FString>(TEXT("mode")));
-		Pads = Attributes.GetValue<TArray<int32>>(TEXT("pads"));
+
+		if (InputTensors.Num() >= 2)
+		{
+			if (!InputTensors[1].HasPreparedData())
+			{
+				UE_LOG(LogNNE, Warning, TEXT("pads is only supported as an attribute or a constant tensor, it is here a variable tensor of name %s."), *InputTensors[1].GetName());
+				return false;
+			}
+			Pads.Append(InputTensors[1].GetPreparedData<int64>());
+		}
+		else
+		{
+			Pads = Attributes.GetValue<TArray<int32>>(TEXT("pads"));
+		}
+
+		
 
 		if (InputTensor.GetShape().Rank() * 2 != Pads.Num())
 		{

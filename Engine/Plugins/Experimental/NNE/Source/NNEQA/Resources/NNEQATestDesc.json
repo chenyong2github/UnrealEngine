@@ -436,9 +436,10 @@
 			]
 		},
 		{
-			"category": "MaxPool",
+			"category": "PoolOp",
 			"targets": [
-				{ "target": "MaxPool" }
+				{ "target": "MaxPool" },
+				{ "target": "AveragePool", "absolute_tolerance": 1e-6 }
 			],
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
@@ -1061,13 +1062,13 @@
 			]
 		},
 		{
-			"name": "MaxPool.2D.Default",
+			"name": "PoolOp.2D.Default",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 1, 3, 32, 32 ] } ], "outputs": [ { "shape": [ 1, 3, 31, 31 ] } ] }
 			]
 		},
 		{
-			"name": "MaxPool.2D.Strides2",
+			"name": "PoolOp.2D.Strides2",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 1, 2, 256, 256 ] } ], "outputs": [ { "shape": [ 1, 2, 128, 128 ] } ] }
 			]
@@ -1534,7 +1535,7 @@
 			]
 		},
 		{
-			"name": "MaxPool.2D.Default",
+			"name": "PoolOp.2D.Default",
 			"attribute_maps": [
 				{ "attributes": [ 
 						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" } 
@@ -1543,7 +1544,7 @@
 			]
 		},
 		{
-			"name": "MaxPool.2D.Strides2",
+			"name": "PoolOp.2D.Strides2",
 			"attribute_maps": [
 				{ "attributes": [ 
 						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" },
