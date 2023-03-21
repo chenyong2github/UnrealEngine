@@ -151,9 +151,9 @@ void UK2Node_FormatText::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_FormatText, PinNames))
 	{
 		ReconstructNode();
-		GetGraph()->NotifyNodeChanged(this);
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	GetGraph()->NotifyNodeChanged(this);
 }
 
 void UK2Node_FormatText::PinConnectionListChanged(UEdGraphPin* Pin)

@@ -35,9 +35,9 @@ void UK2Node_SwitchName::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 	if (bIsDirty)
 	{
 		ReconstructNode();
-		GetGraph()->NotifyNodeChanged(this);
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	GetGraph()->NotifyNodeChanged(this);
 }
 
 FText UK2Node_SwitchName::GetNodeTitle(ENodeTitleType::Type TitleType) const

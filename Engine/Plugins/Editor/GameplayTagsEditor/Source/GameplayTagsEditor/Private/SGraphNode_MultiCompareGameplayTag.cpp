@@ -120,7 +120,7 @@ FReply SGraphNode_MultiCompareGameplayTag::OnRemovePin()
 	FBlueprintEditorUtils::MarkBlueprintAsModified(CompareNode->GetBlueprint());
 
 	UpdateGraphNode();
-	GraphNode->GetGraph()->NotifyGraphChanged();
+	GraphNode->GetGraph()->NotifyNodeChanged(GraphNode);
 
 	return FReply::Handled();
 }
@@ -137,7 +137,7 @@ FReply SGraphNode_MultiCompareGameplayTag::OnAddPin()
 	FBlueprintEditorUtils::MarkBlueprintAsModified(CompareNode->GetBlueprint());
 
 	UpdateGraphNode();
-	GraphNode->GetGraph()->NotifyGraphChanged();
+	GraphNode->GetGraph()->NotifyNodeChanged(GraphNode);
 
 	return FReply::Handled();
 }

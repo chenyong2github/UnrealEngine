@@ -166,9 +166,9 @@ void UK2Node_ExecutePythonScript::PostEditChangeProperty(struct FPropertyChanged
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_ExecutePythonScript, Inputs) || PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_ExecutePythonScript, Outputs))
 	{
 		ReconstructNode();
-		GetGraph()->NotifyNodeChanged(this);
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	GetGraph()->NotifyNodeChanged(this);
 }
 
 void UK2Node_ExecutePythonScript::PinConnectionListChanged(UEdGraphPin* Pin)

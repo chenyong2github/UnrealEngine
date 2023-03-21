@@ -64,9 +64,9 @@ void UGameplayTagsK2Node_SwitchGameplayTagContainer::PostEditChangeProperty(stru
 	if (bIsDirty)
 	{
 		ReconstructNode();
-		GetGraph()->NotifyNodeChanged(this);
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	GetGraph()->NotifyNodeChanged(this);
 }
 
 FText UGameplayTagsK2Node_SwitchGameplayTagContainer::GetNodeTitle(ENodeTitleType::Type TitleType) const

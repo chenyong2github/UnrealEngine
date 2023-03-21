@@ -24,9 +24,9 @@ void UGameplayTagsK2Node_MultiCompareBase::PostEditChangeProperty(struct FProper
 		}
 
 		ReconstructNode();
-		GetGraph()->NotifyNodeChanged(this);
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	GetGraph()->NotifyNodeChanged(this);
 }
 
 FText UGameplayTagsK2Node_MultiCompareBase::GetTooltipText() const

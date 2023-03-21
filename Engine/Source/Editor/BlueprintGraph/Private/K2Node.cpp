@@ -527,11 +527,6 @@ void UK2Node::PinConnectionListChanged(UEdGraphPin* Pin)
 	{
 		UEdGraph* OuterGraph = GetGraph();
 
-		if (OuterGraph)
-		{
-			OuterGraph->NotifyNodeChanged(this);
-		}
-
 		if (Pin->ParentPin == nullptr)
 		{
 			RemovePin(Pin);
@@ -581,6 +576,11 @@ void UK2Node::PinConnectionListChanged(UEdGraphPin* Pin)
 		if (bOrphanedPinsGone)
 		{
 			ClearCompilerMessage();
+		}
+
+		if (OuterGraph)
+		{
+			OuterGraph->NotifyNodeChanged(this);
 		}
 
 		Pin = nullptr;
