@@ -244,7 +244,7 @@ namespace EpicGames.Core
 			}
 
 			// Configure the command
-			ILogger logger = serviceProvider.GetRequiredService<ILoggerProvider>().CreateLogger("CommandHost");
+			ILogger logger = serviceProvider.GetRequiredService<ILogger<Command>>();
 			try
 			{
 				command.Configure(args, logger);

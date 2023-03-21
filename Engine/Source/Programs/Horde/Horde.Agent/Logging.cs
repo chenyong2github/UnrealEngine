@@ -3,7 +3,10 @@
 using System;
 using System.Runtime.InteropServices;
 using EpicGames.Core;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 using Serilog;
@@ -11,6 +14,7 @@ using Serilog.Core;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
 using Serilog.Formatting.Json;
+using Serilog.Settings.Configuration;
 using Serilog.Sinks.SystemConsole.Themes;
 
 namespace Horde.Agent
@@ -24,8 +28,6 @@ namespace Horde.Agent
 			s_env = newEnv;
 		}
 
-		private static readonly Lazy<Serilog.ILogger> s_logger = new Lazy<Serilog.ILogger>(CreateSerilogLogger, true);
-		
 		public static LoggingLevelSwitch LogLevelSwitch =  new LoggingLevelSwitch();
 
 		private class DatadogLogEnricher : ILogEventEnricher
@@ -44,30 +46,14 @@ namespace Horde.Agent
 				}
 			}
 		}
-		
-		public sealed class HordeLoggerProvider : ILoggerProvider
+
+		public static ILoggerFactory CreateLoggerFactory(IConfiguration configuration)
 		{
-			private readonly SerilogLoggerProvider _inner;
-
-			public HordeLoggerProvider()
-			{
-				_inner = new SerilogLoggerProvider(s_logger.Value);
-			}
-
-			public Microsoft.Extensions.Logging.ILogger CreateLogger(string categoryName)
-			{
-				Microsoft.Extensions.Logging.ILogger logger = _inner.CreateLogger(categoryName);
-				logger = new DefaultLoggerIndentHandler(logger);
-				return logger;
-			}
-
-			public void Dispose()
-			{
-				_inner.Dispose();
-			}
+			Serilog.ILogger logger = CreateSerilogLogger(configuration);
+			return new SerilogLoggerFactory(logger, true);
 		}
 
-		static Serilog.ILogger CreateSerilogLogger()
+		static Serilog.ILogger CreateSerilogLogger(IConfiguration configuration)
 		{
 			DirectoryReference.CreateDirectory(Program.DataDir);
 
@@ -82,23 +68,13 @@ namespace Horde.Agent
 			}
 
 			return new LoggerConfiguration()
-				.MinimumLevel.Debug()
-				.MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-				.MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
-				.MinimumLevel.Override("Microsoft.AspNetCore.Routing.EndpointMiddleware", LogEventLevel.Warning)
-				.MinimumLevel.Override("Microsoft.AspNetCore.Authorization.DefaultAuthorizationService", LogEventLevel.Warning)
-				.MinimumLevel.Override("HordeServer.Authentication.HordeJwtBearerHandler", LogEventLevel.Warning)
-				.MinimumLevel.Override("HordeServer.Authentication.OktaHandler", LogEventLevel.Warning)
-				.MinimumLevel.Override("Microsoft.AspNetCore.Hosting.Diagnostics", LogEventLevel.Warning)
-				.MinimumLevel.Override("Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker", LogEventLevel.Warning)
-				.MinimumLevel.Override("Serilog.AspNetCore.RequestLoggingMiddleware", LogEventLevel.Warning)
-				.MinimumLevel.Override("Grpc.Net.Client.Internal.GrpcCall", LogEventLevel.Warning)
-				.MinimumLevel.ControlledBy(LogLevelSwitch)
-				.Enrich.FromLogContext()
-				.Enrich.With<DatadogLogEnricher>()
 				.WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: theme)
 				.WriteTo.File(FileReference.Combine(Program.DataDir, "Log-.txt").FullName, fileSizeLimitBytes: 50 * 1024 * 1024, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, retainedFileCountLimit: 10)
 				.WriteTo.File(new JsonFormatter(renderMessage: true), FileReference.Combine(Program.DataDir, "Log-.json").FullName, fileSizeLimitBytes: 50 * 1024 * 1024, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, retainedFileCountLimit: 10)
+				.ReadFrom.Configuration(configuration)
+				.MinimumLevel.ControlledBy(LogLevelSwitch)
+				.Enrich.FromLogContext()
+				.Enrich.With<DatadogLogEnricher>()
 				.CreateLogger();
 		}
 	}

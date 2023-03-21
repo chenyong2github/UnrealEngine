@@ -15,6 +15,8 @@ using Datadog.Trace;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.OpenTracing;
 using EpicGames.Core;
+using EpicGames.Horde.Compute;
+using EpicGames.Horde.Compute.Buffers;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
 using Horde.Agent.Execution;
@@ -96,8 +98,6 @@ namespace Horde.Agent
 		{
 			Program.Args = args;
 
-			using Logging.HordeLoggerProvider loggerProvider = new Logging.HordeLoggerProvider();
-
 			string? environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
 			if (String.IsNullOrEmpty(environment))
 			{
@@ -116,7 +116,7 @@ namespace Horde.Agent
 				configOverrides.Add($"{AgentSettings.SectionName}:{nameof(AgentSettings.WorkingDir)}", workingDirOverride);
 			}
 
-			IConfiguration config = new ConfigurationBuilder()
+			IConfiguration configuration = new ConfigurationBuilder()
 				.SetBasePath(AppDir.FullName)
 				.AddJsonFile("appsettings.json", optional: false)
 				.AddJsonFile("appsettings.Build.json", optional: true) // specific settings for builds (installer/dockerfile)
@@ -126,9 +126,11 @@ namespace Horde.Agent
 				.AddEnvironmentVariables()
 				.Build();
 
+			using ILoggerFactory loggerFactory = Logging.CreateLoggerFactory(configuration);
+
 			IServiceCollection services = new ServiceCollection();
 			services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
-			services.AddLogging(builder => builder.AddProvider(loggerProvider));
+			services.AddSingleton(loggerFactory);
 
 			// Enable unencrypted HTTP/2 for gRPC channel without TLS
 			AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
@@ -145,7 +147,7 @@ namespace Horde.Agent
 			}
 
 			// Add all the default 
-			IConfigurationSection configSection = config.GetSection(AgentSettings.SectionName);
+			IConfigurationSection configSection = configuration.GetSection(AgentSettings.SectionName);
 			services.AddOptions<AgentSettings>().Configure(options => configSection.Bind(options)).ValidateDataAnnotations();
 
 			AgentSettings settings = new AgentSettings();
@@ -156,7 +158,7 @@ namespace Horde.Agent
 
 			Logging.SetEnv(serverProfile.Environment);
 
-			ILogger certificateLogger = loggerProvider.CreateLogger(typeof(CertificateHelper).FullName!);
+			ILogger certificateLogger = loggerFactory.CreateLogger(typeof(CertificateHelper).FullName!);
 			services.AddHttpClient(Program.HordeServerClientName, config =>
 			{
 				config.BaseAddress = serverProfile.Url;
@@ -210,7 +212,7 @@ namespace Horde.Agent
 			services.AddMemoryCache();
 
 			// Allow commands to augment the service collection for their own DI service providers
-			services.AddSingleton<DefaultServices>(x => new DefaultServices(config, services));
+			services.AddSingleton<DefaultServices>(x => new DefaultServices(configuration, services));
 
 			// Execute all the commands
 			IServiceProvider serviceProvider = services.BuildServiceProvider();

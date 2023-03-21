@@ -68,9 +68,7 @@ namespace Horde.Agent.Commands.Workspace
 			InfoRecord info = await perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken.None);
 			bool useHaveTable = UseHaveTable.Equals("true", StringComparison.Ordinal);
 
-			using Logging.HordeLoggerProvider loggerProvider = new ();
-			ILogger repoLogger = loggerProvider.CreateLogger("Repository");
-			ManagedWorkspace repo = await ManagedWorkspace.LoadOrCreateAsync(info.ClientHost!, BaseDir, Overwrite, useHaveTable, repoLogger, CancellationToken.None);
+			ManagedWorkspace repo = await ManagedWorkspace.LoadOrCreateAsync(info.ClientHost!, BaseDir, Overwrite, useHaveTable, logger, CancellationToken.None);
 			await ExecuteAsync(perforce, repo, logger);
 			return 0;
 		}
