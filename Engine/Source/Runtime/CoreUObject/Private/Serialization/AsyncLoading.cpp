@@ -3158,10 +3158,11 @@ void FAsyncPackage::EventDrivenCreateExport(int32 LocalExportIndex)
 
 	TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object);
 
+	const UClass* Class = CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false);
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
-	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
-   	UE_TRACE_METADATA_SCOPE_ASSET(GetLinkerRoot(), CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false));
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Class, ELLMTagSet::AssetClasses);
+   	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(Export.ObjectName, Class->GetFName(), GetLinkerRoot()->GetFName());
 
 	// Check whether we already loaded the object and if not whether the context flags allow loading it.
 	//check(!Export.Object || Export.Object->HasAnyFlags(RF_ClassDefaultObject)); // we should not have this yet, unless it is a CDO
@@ -3445,14 +3446,14 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 
 	FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
 
+	const UClass* Class = CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
-	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
-  	UE_TRACE_METADATA_SCOPE_ASSET(GetLinkerRoot(), CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false));
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Class, ELLMTagSet::AssetClasses);
 
 	UObject* Object = Export.Object;
 	if (Object && Object->HasAnyFlags(RF_NeedLoad))
 	{
-
+  		UE_TRACE_METADATA_SCOPE_ASSET(Object, Class);
 		Linker->GetAsyncLoader()->LogItem(TEXT("EventDrivenSerializeExport"), Export.SerialOffset, Export.SerialSize);
 
 		LastTypeOfWorkPerformed = TEXT("EventDrivenSerializeExport");
