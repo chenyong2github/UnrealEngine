@@ -189,8 +189,7 @@ void FWorldRenderCapture::SetVisibleActors(const TArray<AActor*>& Actors)
 
 	VisiblePrimitives.Reset();
 
-	VisibleBounds = FBoxSphereBounds();
-	bool bFirst = true;
+	FBoxSphereBounds::Builder BoundsBuilder;
 
 	// Find all components that need to be included in rendering.
 	// This also descends into any ChildActorComponents
@@ -212,9 +211,7 @@ void FWorldRenderCapture::SetVisibleActors(const TArray<AActor*>& Actors)
 				VisiblePrimitives.Add(PrimitiveComponent->ComponentId);
 
 				// Append bounds of visible components only
-				FBoxSphereBounds ComponentBounds = PrimitiveComponent->Bounds;
-				VisibleBounds = (bFirst) ? ComponentBounds : (VisibleBounds + ComponentBounds);
-				bFirst = false;
+				BoundsBuilder += PrimitiveComponent->Bounds;
 			}
 			else if (Cast<UChildActorComponent>(Component) != nullptr)
 			{
@@ -229,6 +226,8 @@ void FWorldRenderCapture::SetVisibleActors(const TArray<AActor*>& Actors)
 			}
 		}
 	}
+
+	VisibleBounds = BoundsBuilder;
 }
 
 

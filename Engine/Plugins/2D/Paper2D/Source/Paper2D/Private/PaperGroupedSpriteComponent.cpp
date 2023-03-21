@@ -271,8 +271,7 @@ bool UPaperGroupedSpriteComponent::CanEditSimulatePhysics()
 
 FBoxSphereBounds UPaperGroupedSpriteComponent::CalcBounds(const FTransform& BoundTransform) const
 {
-	bool bHadAnyBounds = false;
-	FBoxSphereBounds NewBounds(ForceInit);
+	FBoxSphereBounds::Builder BoundsBuilder;
 
 	if (PerInstanceSpriteData.Num() > 0)
 	{
@@ -284,21 +283,12 @@ FBoxSphereBounds UPaperGroupedSpriteComponent::CalcBounds(const FTransform& Boun
 			{
 				const FBoxSphereBounds RenderBounds = InstanceData.SourceSprite->GetRenderBounds();
 				const FBoxSphereBounds InstanceBounds = RenderBounds.TransformBy(InstanceData.Transform * BoundTransformMatrix);
-
-				if (bHadAnyBounds)
-				{
-					NewBounds = NewBounds + InstanceBounds;
-				}
-				else
-				{
-					NewBounds = InstanceBounds;
-					bHadAnyBounds = true;
-				}
+				BoundsBuilder += InstanceBounds;
 			}
 		}
 	}
 
-	return bHadAnyBounds ? NewBounds : FBoxSphereBounds(BoundTransform.GetLocation(), FVector::ZeroVector, 0.f);
+	return BoundsBuilder.IsValid() ? BoundsBuilder : FBoxSphereBounds(BoundTransform.GetLocation(), FVector::ZeroVector, 0.f);
 }
 
 #if WITH_EDITOR

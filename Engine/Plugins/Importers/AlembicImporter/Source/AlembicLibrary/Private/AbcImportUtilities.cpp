@@ -1460,8 +1460,9 @@ bool AbcImporterUtilities::IsObjectVisibilityConstant(const Alembic::Abc::IObjec
 
 FBoxSphereBounds AbcImporterUtilities::ExtractBounds(Alembic::Abc::IBox3dProperty InBoxBoundsProperty)
 {
-	FBoxSphereBounds Bounds(ForceInitToZero);
-        // Extract data only if the property is found	
+	FBoxSphereBounds::Builder BoundsBuilder;
+
+	// Extract data only if the property is found	
 	if (InBoxBoundsProperty.valid())
 	{
 		const int32 NumSamples = InBoxBoundsProperty.getNumSamples();
@@ -1469,15 +1470,17 @@ FBoxSphereBounds AbcImporterUtilities::ExtractBounds(Alembic::Abc::IBox3dPropert
 		{
 			Alembic::Abc::Box3d BoundsSample;
 			InBoxBoundsProperty.get(BoundsSample, SampleIndex);
-                        // Set up bounds from Alembic data format
+
+			// Set up bounds from Alembic data format
 			const Imath::V3d BoundSize = BoundsSample.size();
 			const Imath::V3d BoundCenter = BoundsSample.center();
 			const FBoxSphereBounds ConvertedBounds(FVector(BoundCenter.x, BoundCenter.y, BoundCenter.z), FVector(BoundSize.x  * 0.5f, BoundSize.y * 0.5f, BoundSize.z * 0.5f), (const float)BoundSize.length() * 0.5f);
-			Bounds = ( SampleIndex == 0 ) ? ConvertedBounds : Bounds + ConvertedBounds;
+
+			BoundsBuilder += ConvertedBounds;
 		}
 	}
 
-	return Bounds;
+	return BoundsBuilder;
 }
 
 void AbcImporterUtilities::ApplyConversion(FMatrix& InOutMatrix, const FAbcConversionSettings& InConversionSettings)

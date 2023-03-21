@@ -212,26 +212,16 @@ TArray<AActor*> UEditorUtilityLibrary::GetSelectionSet()
 
 void UEditorUtilityLibrary::GetSelectionBounds(FVector& Origin, FVector& BoxExtent, float& SphereRadius)
 {
-	bool bFirstItem = true;
-
-	FBoxSphereBounds Extents;
+	FBoxSphereBounds::Builder BoundsBuilder;
 	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 	{
 		if (AActor* Actor = Cast<AActor>(*It))
 		{
-			if (bFirstItem)
-			{
-				Extents = Actor->GetRootComponent()->Bounds;
-			}
-			else
-			{
-				Extents = Extents + Actor->GetRootComponent()->Bounds;
-			}
-
-			bFirstItem = false;
+			BoundsBuilder += Actor->GetRootComponent()->Bounds;
 		}
 	}
 
+	FBoxSphereBounds Extents(BoundsBuilder);
 	Origin = Extents.Origin;
 	BoxExtent = Extents.BoxExtent;
 	SphereRadius = (float)Extents.SphereRadius; // TODO: LWC: should be double, but need to deprecate function and replace for old C++ references to continue working.

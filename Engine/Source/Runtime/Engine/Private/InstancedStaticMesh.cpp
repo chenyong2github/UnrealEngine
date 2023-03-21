@@ -2788,14 +2788,14 @@ FBoxSphereBounds UInstancedStaticMeshComponent::CalcBounds(const FTransform& Bou
 		FMatrix BoundTransformMatrix = BoundTransform.ToMatrixWithScale();
 
 		FBoxSphereBounds RenderBounds = GetStaticMesh()->GetBounds();
-		FBoxSphereBounds NewBounds = RenderBounds.TransformBy(PerInstanceSMData[0].Transform * BoundTransformMatrix);
 
-		for (int32 InstanceIndex = 1; InstanceIndex < PerInstanceSMData.Num(); InstanceIndex++)
+		FBoxSphereBounds::Builder BoundsBuilder;
+		for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); InstanceIndex++)
 		{
-			NewBounds = NewBounds + RenderBounds.TransformBy(PerInstanceSMData[InstanceIndex].Transform * BoundTransformMatrix);
+			BoundsBuilder += RenderBounds.TransformBy(PerInstanceSMData[InstanceIndex].Transform * BoundTransformMatrix);
 		}
 
-		return NewBounds;
+		return BoundsBuilder;
 	}
 	else
 	{

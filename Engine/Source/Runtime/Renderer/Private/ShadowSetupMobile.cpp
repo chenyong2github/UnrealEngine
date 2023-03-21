@@ -245,11 +245,12 @@ static void VisualizeMobileDynamicCSMSubjectCapsules(FViewInfo& View, FLightScen
 			// Combined bounds
 			FVector CombinedCasterStart;
 			FVector CombinedCasterEnd;
-			FBoxSphereBounds CombinedBounds(ForceInitToZero);
+			FBoxSphereBounds::Builder CombinedBoundsBuilder;
 			for (auto& Caster : MobileCSMSubjectPrimitives.GetShadowSubjectPrimitives())
 			{
-				CombinedBounds = (CombinedBounds.SphereRadius > 0.0f) ? CombinedBounds + Caster->Proxy->GetBounds() : Caster->Proxy->GetBounds();
+				CombinedBoundsBuilder += Caster->Proxy->GetBounds();
 			}
+			FBoxSphereBounds CombinedBounds(CombinedBoundsBuilder);
 			CombinedCasterStart = CombinedBounds.Origin;
 			CombinedCasterEnd = CombinedBounds.Origin + (LightDir * ShadowCastLength);
 
@@ -514,17 +515,16 @@ void FMobileSceneRenderer::BuildCSMVisibilityState(FLightSceneInfo* LightSceneIn
 					}
 					case 2: // combined casters:
 					{
-						FVector CombinedCasterStart;
-						FVector CombinedCasterEnd;
-						FBoxSphereBounds CombinedBounds(ForceInitToZero);
-
 						// Calculate combined bounds
+						FBoxSphereBounds::Builder CombinedBoundsBuilder;
 						for (auto& Caster : ShadowSubjectPrimitives)
 						{
-							CombinedBounds = (CombinedBounds.SphereRadius > 0.0f) ? CombinedBounds + Caster->Proxy->GetBounds() : Caster->Proxy->GetBounds();
+							CombinedBoundsBuilder += Caster->Proxy->GetBounds();
 						}
-						CombinedCasterStart = CombinedBounds.Origin;
-						CombinedCasterEnd = CombinedBounds.Origin + (LightDir * ShadowCastLength);
+
+						FBoxSphereBounds CombinedBounds(CombinedBoundsBuilder);
+						FVector CombinedCasterStart = CombinedBounds.Origin;
+						FVector CombinedCasterEnd = CombinedBounds.Origin + (LightDir * ShadowCastLength);
 
 						if (bSphereTest)
 						{

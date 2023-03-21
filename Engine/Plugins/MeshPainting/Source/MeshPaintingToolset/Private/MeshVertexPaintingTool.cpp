@@ -191,30 +191,17 @@ void UMeshVertexPaintingTool::OnPropertyModified(UObject* PropertySet, FProperty
 
 double UMeshVertexPaintingTool::EstimateMaximumTargetDimension()
 {
-	bool bFoundComponentToUse = false;
-	FBoxSphereBounds Bounds = FBoxSphereBounds(0.0);
 	if (UMeshPaintingSubsystem* MeshPaintingSubsystem = GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>())
 	{
-		bool bFirstItem = true;
-
-		FBoxSphereBounds Extents;
+		FBoxSphereBounds::Builder ExtentsBuilder;
 		for (UMeshComponent* SelectedComponent : MeshPaintingSubsystem->GetSelectedMeshComponents())
 		{
-			if (bFirstItem)
-			{
-				Extents = SelectedComponent->Bounds;
-			}
-			else
-			{
-				Extents = Extents + SelectedComponent->Bounds;
-			}
-
-			bFirstItem = false;
-			bFoundComponentToUse = true;
+			ExtentsBuilder += SelectedComponent->Bounds;
 		}
-		if (bFoundComponentToUse)
+
+		if (ExtentsBuilder.IsValid())
 		{
-			return Extents.BoxExtent.GetAbsMax();
+			return FBoxSphereBounds(ExtentsBuilder).BoxExtent.GetAbsMax();
 		}
 	}
 

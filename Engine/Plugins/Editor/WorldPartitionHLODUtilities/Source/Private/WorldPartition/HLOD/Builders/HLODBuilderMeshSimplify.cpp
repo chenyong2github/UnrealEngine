@@ -100,20 +100,17 @@ TArray<UActorComponent*> UHLODBuilderMeshSimplify::Build(const FHLODBuildContext
 	// Gather bounds of the input components
 	auto GetComponentsBounds = [&]() -> FBoxSphereBounds
 	{
-		FBoxSphereBounds Bounds;
-		bool bFirst = true;
+		FBoxSphereBounds::Builder BoundsBuilder;
 
 		for (UActorComponent* Component : InSourceComponents)
 		{
 			if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 			{
-				FBoxSphereBounds ComponentBounds = SceneComponent->Bounds;
-				Bounds = bFirst ? ComponentBounds : Bounds + ComponentBounds;
-				bFirst = false;
+				BoundsBuilder += SceneComponent->Bounds;
 			}
 		}
 
-		return Bounds;
+		return BoundsBuilder;
 	};
 
 	float ScreenSizePercent = ComputeBoundsScreenSize(FVector::ZeroVector, static_cast<float>(GetComponentsBounds().SphereRadius), FVector(0.0f, 0.0f, InHLODBuildContext.MinVisibleDistance), ProjectionMatrix);

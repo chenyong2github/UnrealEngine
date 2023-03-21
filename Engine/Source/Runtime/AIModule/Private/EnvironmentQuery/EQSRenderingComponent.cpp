@@ -333,13 +333,13 @@ FBoxSphereBounds UEQSRenderingComponent::CalcBounds(const FTransform& LocalToWor
 
 	if (Spheres.Num())
 	{
-		FBoxSphereBounds DebugBounds(FSphere(Spheres[0].Location, Spheres[0].Radius));
-		for (int32 Index = 1; Index < Spheres.Num(); ++Index)
+		FBoxSphereBounds::Builder DebugBoundsBuilder;
+		for (int32 Index = 0; Index < Spheres.Num(); ++Index)
 		{
-			DebugBounds = DebugBounds + FSphere(Spheres[Index].Location, Spheres[Index].Radius);
+			DebugBoundsBuilder += FSphere(Spheres[Index].Location, Spheres[Index].Radius);
 		}
 
-		return DebugBounds;
+		return DebugBoundsBuilder;
 	}
 #endif
 

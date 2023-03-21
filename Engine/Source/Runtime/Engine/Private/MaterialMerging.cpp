@@ -191,20 +191,17 @@ bool FMaterialProxySettings::ResolveTexelDensity(const TArray<UPrimitiveComponen
 	// Gather bounds of the input components
 	auto GetActorsBounds = [&]() -> FBoxSphereBounds
 	{
-		FBoxSphereBounds Bounds;
-		bool bFirst = true;
+		FBoxSphereBounds::Builder BoundsBuilder;
 
 		for (UPrimitiveComponent* Component : InComponents)
 		{
 			if (Component)
 			{
-				FBoxSphereBounds ComponentBounds = Component->Bounds;
-				Bounds = bFirst ? ComponentBounds : Bounds + ComponentBounds;
-				bFirst = false;
+				BoundsBuilder += Component->Bounds;
 			}
 		}
 
-		return Bounds;
+		return BoundsBuilder;
 	};
 
 	if (TextureSizingType == ETextureSizingType::TextureSizingType_AutomaticFromMeshScreenSize)
