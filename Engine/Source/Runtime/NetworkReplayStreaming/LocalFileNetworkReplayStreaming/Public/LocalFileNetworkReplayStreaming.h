@@ -175,7 +175,9 @@ struct FLocalFileReplayInfo
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileStreamFArchive : public FArchive
 {
 public:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FLocalFileStreamFArchive() : Pos(0), bAtEndOfReplay(false) {}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void	Serialize(void* V, int64 Length) override;
 	virtual int64	Tell() override;
@@ -183,16 +185,26 @@ public:
 	virtual void	Seek(int64 InPos) override;
 	virtual bool	AtEnd() override;
 
+	int64 Tell() const;
+	int64 TotalSize() const;
+
 	void Reset()
 	{
 		Buffer.Reset();
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Pos = 0;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		bAtEndOfReplay = false;
+		ArchivePos = 0;
 	}
 
 	TArray<uint8>	Buffer;
+	UE_DEPRECATED(5.3, "Please use Tell/Seek instead")
 	int32			Pos;
 	bool			bAtEndOfReplay;
+
+private:
+	int64 ArchivePos = 0;
 };
 
 namespace EQueuedLocalFileRequestType

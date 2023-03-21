@@ -24,6 +24,8 @@ namespace UnrealBuildTool.Rules
                 AddEngineThirdPartyPrivateStaticDependencies(Target,"libWebSockets");
                 AddEngineThirdPartyPrivateStaticDependencies(Target,"zlib");
             }
-        }
+
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
+		}
     }
 }

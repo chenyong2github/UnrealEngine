@@ -97,16 +97,16 @@ public:
 		, Chunks(InChunks)
 	{}
 
-	virtual void	Serialize( void* V, int64 Length );
+	virtual void	Serialize(void* V, int64 Length);
 	virtual int64	Tell();
 	virtual int64	TotalSize();
-	virtual void	Seek( int64 InPos );
+	virtual void	Seek(int64 InPos);
 	virtual bool	AtEnd();
 
 private:
 	FInMemoryReplay::FStreamChunk* GetCurrentChunk() const;
 
-	int32 Pos;
+	int64 Pos;
 	TArray<FInMemoryReplay::FStreamChunk>& Chunks;
 };
 

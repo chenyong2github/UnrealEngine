@@ -15,6 +15,8 @@ namespace UnrealBuildTool.Rules
 					"NetCore",
 				}
 			);
+
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		}
 	}
 }

@@ -16,6 +16,8 @@ namespace UnrealBuildTool.Rules
 					"NetworkReplayStreaming",
 					"Json"
 				} );
-        }
-    }
+
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
+		}
+	}
 }

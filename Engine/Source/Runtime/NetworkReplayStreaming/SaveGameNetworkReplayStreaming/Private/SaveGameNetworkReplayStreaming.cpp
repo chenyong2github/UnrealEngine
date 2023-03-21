@@ -1032,7 +1032,7 @@ void FSaveGameNetworkReplayStreamer::KeepReplay_Internal(const FString& ReplayNa
 		{
 			// Read in the Replay and MetaData
 			TArray<uint8> ReplayData;
-			ReplayData.SetNumUninitialized(ReplayFileAr->TotalSize());
+			ReplayData.SetNumUninitialized(IntCastChecked<int32>(ReplayFileAr->TotalSize()));
 			ReplayFileAr->Serialize(ReplayData.GetData(), ReplayData.Num());
 
 			// Now, create the Meta Data and save that.

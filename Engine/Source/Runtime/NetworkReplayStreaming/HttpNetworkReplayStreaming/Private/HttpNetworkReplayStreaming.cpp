@@ -154,32 +154,33 @@ public:
 
 void FHttpStreamFArchive::Serialize( void* V, int64 Length ) 
 {
-	if ( IsLoading() )
+	if (IsLoading())
 	{
-		if ( Pos + Length > Buffer.Num() )
+		if ((Pos + Length) > Buffer.Num())
 		{
 			SetError();
 			return;
 		}
 			
-		FMemory::Memcpy( V, Buffer.GetData() + Pos, Length );
+		FMemory::Memcpy(V, Buffer.GetData() + Pos, Length);
 
-		Pos += Length;
+		Pos += IntCastChecked<int32>(Length);
 	}
 	else
 	{
-		check( Pos <= Buffer.Num() );
+		check(Pos <= Buffer.Num());
 
-		const int32 SpaceNeeded = Length - ( Buffer.Num() - Pos );
+		const int32 LocalLength = IntCastChecked<int32>(Length);
+		const int32 SpaceNeeded = LocalLength - (Buffer.Num() - Pos);
 
-		if ( SpaceNeeded > 0 )
+		if (SpaceNeeded > 0)
 		{
-			Buffer.AddZeroed( SpaceNeeded );
+			Buffer.AddZeroed(SpaceNeeded);
 		}
 
-		FMemory::Memcpy( Buffer.GetData() + Pos, V, Length );
+		FMemory::Memcpy(Buffer.GetData() + Pos, V, LocalLength);
 
-		Pos += Length;
+		Pos += LocalLength;
 	}
 }
 
@@ -197,7 +198,7 @@ void FHttpStreamFArchive::Seek( int64 InPos )
 {
 	check( InPos <= Buffer.Num() );
 
-	Pos = InPos;
+	Pos = IntCastChecked<int32>(InPos);
 }
 
 bool FHttpStreamFArchive::AtEnd() 
@@ -749,7 +750,7 @@ bool FQueuedGotoFakeCheckpoint::PreProcess( FHttpNetworkReplayStreamer* Streamer
 	Streamer->CheckpointArchive.Buffer.Empty();
 	Streamer->CheckpointArchive.Pos = 0;
 
-	if (!Streamer->IsDataAvailableForTimeRange(0, Streamer->LastGotoTimeInMS))
+	if (!Streamer->IsDataAvailableForTimeRange(0, IntCastChecked<uint32>(Streamer->LastGotoTimeInMS)))
 	{
 		// Completely reset our stream (we're going to start downloading from the start of the checkpoint)
 		Streamer->StreamArchive.Buffer.Empty();
@@ -810,7 +811,7 @@ void FHttpNetworkReplayStreamer::GotoCheckpointIndex( const int32 CheckpointInde
 	if ( CheckpointIndex == -1 )
 	{
 		GotoCheckpointDelegate = Delegate;
-		SetHighPriorityTimeRange( 0, LastGotoTimeInMS );
+		SetHighPriorityTimeRange(0, IntCastChecked<uint32>(LastGotoTimeInMS));
 		LastChunkTime = 0;		// Force the next chunk to start downloading immediately
 		AddCustomRequestToQueue( TSharedPtr< FQueuedHttpRequest >( new FQueuedGotoFakeCheckpoint() ) );
 		return;
@@ -2184,7 +2185,7 @@ void FHttpNetworkReplayStreamer::HttpDownloadCheckpointFinished( FHttpRequestPtr
 		if ( LastGotoTimeInMS >= 0 )
 		{
 			// If we are fine scrubbing, make sure to wait on the part of the stream that is needed to do this in one frame
-			SetHighPriorityTimeRange( Checkpoint.Time1, LastGotoTimeInMS );
+			SetHighPriorityTimeRange(Checkpoint.Time1, IntCastChecked<uint32>(LastGotoTimeInMS));
 			
 			// Subtract off checkpoint time so we pass in the leftover to the engine to fast forward through for the fine scrubbing part
 			LastGotoTimeInMS -= Checkpoint.Time1;
@@ -2653,7 +2654,7 @@ void FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished( FHttpReque
 			if ( LastGotoTimeInMS >= 0 )
 			{
 				// If we are fine scrubbing, make sure to wait on the part of the stream that is needed to do this in one frame
-				SetHighPriorityTimeRange( CheckpointList.ReplayEvents[ DownloadCheckpointIndex ].Time1, LastGotoTimeInMS );
+				SetHighPriorityTimeRange(CheckpointList.ReplayEvents[ DownloadCheckpointIndex ].Time1, IntCastChecked<uint32>(LastGotoTimeInMS));
 
 				// Subtract off checkpoint time so we pass in the leftover to the engine to fast forward through for the fine scrubbing part
 				LastGotoTimeInMS -= CheckpointList.ReplayEvents[ DownloadCheckpointIndex ].Time1;

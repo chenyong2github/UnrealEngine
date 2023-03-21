@@ -347,7 +347,7 @@ FArchive* FInMemoryNetworkReplayStreamer::GetCheckpointArchive()
 		if (TimeBufferHintSeconds > 0.0f)
 		{
 			// Absolute time at which the buffer should start
-			const float BufferStartTimeMS = FoundReplay->StreamInfo.LengthInMS - (TimeBufferHintSeconds * 1000.0);
+			const uint32 BufferStartTimeMS = UE::LWC::FloatToIntCastChecked<uint32>(FoundReplay->StreamInfo.LengthInMS - (TimeBufferHintSeconds * 1000.0));
 
 			// Store the found checkpoint's time so that we can line up chunks with it
 			uint32 FoundCheckpointTime = 0;
@@ -409,7 +409,7 @@ void FInMemoryNetworkReplayStreamer::FlushCheckpoint(const uint32 TimeInMS)
 	CheckpointAr.Reset();
 	
 	CheckpointCurrentlyBeingSaved.TimeInMS = TimeInMS;
-	CheckpointCurrentlyBeingSaved.StreamByteOffset = FileAr->Tell();
+	CheckpointCurrentlyBeingSaved.StreamByteOffset = IntCastChecked<uint32>(FileAr->Tell());
 
 	FInMemoryReplay* const FoundReplay = GetCurrentReplayChecked();
 
@@ -578,7 +578,7 @@ void FInMemoryReplayStreamArchive::Serialize(void* V, int64 Length)
 			return;
 		}
 
-		const int32 OffsetIntoChunk = Pos - CurrentChunk->StartIndex;
+		const int64 OffsetIntoChunk = Pos - CurrentChunk->StartIndex;
 		FMemory::Memcpy(V, CurrentChunk->Data.GetData() + OffsetIntoChunk, Length);
 
 		Pos += Length;
@@ -595,9 +595,8 @@ void FInMemoryReplayStreamArchive::Serialize(void* V, int64 Length)
 			return;
 		}
 
-		const int32 OffsetIntoChunk = Pos - CurrentChunk->StartIndex;
-		const int32 SpaceNeeded = Length - (CurrentChunk->Data.Num() - OffsetIntoChunk);
-
+		const int64 OffsetIntoChunk = Pos - CurrentChunk->StartIndex;
+		const int32 SpaceNeeded = IntCastChecked<int32>(Length - (CurrentChunk->Data.Num() - OffsetIntoChunk));
 		if (SpaceNeeded > 0)
 		{
 			CurrentChunk->Data.AddZeroed(SpaceNeeded);

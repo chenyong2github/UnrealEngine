@@ -17,6 +17,8 @@ namespace UnrealBuildTool.Rules
                     "Json",
 				}
 			);
+
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		}
 	}
 }

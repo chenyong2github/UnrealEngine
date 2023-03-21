@@ -733,7 +733,7 @@ void FNullNetworkReplayStreamer::Tick(float DeltaSeconds)
 		// Note the size of the file between demo frames
 		if (FileAr.IsValid() && ReplayInfo.DemoFileLastOffset < FileAr->Tell())
 		{
-			ReplayInfo.DemoFileLastOffset = FileAr->Tell();
+			ReplayInfo.DemoFileLastOffset = IntCastChecked<int32>(FileAr->Tell());
 			FileAr->Flush();
 
 			WriteReplayInfo(CurrentStreamName, ReplayInfo);
