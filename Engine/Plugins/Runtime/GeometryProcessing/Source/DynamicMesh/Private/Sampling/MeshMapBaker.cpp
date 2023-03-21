@@ -592,9 +592,7 @@ void FMeshMapBaker::BakeSample(
 			// Note: There will be no contribution if the sample and pixel are on different UV charts
 			float FilterWeight = Weight * static_cast<float>(SampleUVChart == BufferTilePixelUVChart);
 			{
-				FVector2d TexelDistance = Dimensions.GetTexelUV(SourceCoords) - UVPosition;
-				TexelDistance.X *= Dimensions.GetWidth();
-				TexelDistance.Y *= Dimensions.GetHeight();
+				FVector2d TexelDistance = Dimensions.GetTexelDistance(Dimensions.GetTexelUV(SourceCoords), UVPosition);
 				FilterWeight *= TextureFilterEval(TexelDistance);
 			}
 

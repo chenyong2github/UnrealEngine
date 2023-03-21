@@ -26,14 +26,16 @@ template <EBCSplineType SplineType, bool bIsRadial>
 class FBCSplineFilter
 {
 private:
+	// Measured in Texel units i.e., Radius of 1 <=> Radius of 1 texel side length
 	float Radius = 1.0f;
+
 	float Coeff1[3] = {0.0f, 0.0f, 0.0f};
 	float Coeff2[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 public:
 	FBCSplineFilter(const float RadiusIn);
 
-	/** @return the filter weight given a 2D distance vector. */
+	/** @return the filter weight given a 2D distance vector, in Texel units. */
 	float GetWeight(const FVector2d& Dist) const;
 };
 
@@ -43,12 +45,12 @@ FBCSplineFilter<SplineType, bIsRadial>::FBCSplineFilter(const float RadiusIn)
 {
 	auto ComputeCoeffs = [this](const float& B, const float& C)
 	{
-		// [x < 1]:       1/6 * ((12 - 9B - 6C)x^3 + (-18 + 12B + 6C)x^2 + (6 - 2B))
+		// |x| < 1:        1/6 * ((12 - 9B - 6C)x^3 + (-18 + 12B + 6C)x^2 + (6 - 2B))
 		Coeff1[0] = (12.0f - 9.0f * B - 6.0f * C) / 6.0f;
 		Coeff1[1] = (-18.0f + 12.0f * B + 6.0f * C) / 6.0f;
 		Coeff1[2] = (6.0f - 2.0f * B) / 6.0f;
 
-		// [1 < x < 2]:   1/6 * ((-B - 6C)x^3 + (6B + 30C)x^2 + (-12B - 48C)x + (8B + 24C))
+		// 1 <= |x| < 2:   1/6 * ((-B - 6C)x^3 + (6B + 30C)x^2 + (-12B - 48C)x + (8B + 24C))
 		Coeff2[0] = (-B - 6.0f * C) / 6.0f;
 		Coeff2[1] = (6.0f * B + 30.0f * C) / 6.0f;
 		Coeff2[2] = (-12.0f * B - 48.0f * C) / 6.0f;
@@ -80,15 +82,17 @@ float FBCSplineFilter<SplineType, bIsRadial>::GetWeight(const FVector2d& Dist) c
 {
 	auto ComputeWeight = [this](float X) -> float
 	{
-		const float AbsX = FMathf::Abs(X);
+		// Scale the filter kernel f(X) in the X-direction by making the substitution f(X/Radius)
+		const float AbsX = FMathf::Abs(X / Radius);
 		const float AbsX2 = AbsX * AbsX;
 		const float AbsX3 = AbsX * AbsX2;
+
 		float Weight = 0.0f;
-		if(AbsX < Radius)
+		if(AbsX < 1.0f)
 		{
 			Weight = Coeff1[0] * AbsX3 + Coeff1[1] * AbsX2 + Coeff1[2];
 		}
-		else if(AbsX < Radius * 2.0f)
+		else if(AbsX < 2.0f)
 		{
 			Weight = Coeff2[0] * AbsX3 + Coeff2[1] * AbsX2 + Coeff2[2] * AbsX + Coeff2[3];
 		}
@@ -97,7 +101,7 @@ float FBCSplineFilter<SplineType, bIsRadial>::GetWeight(const FVector2d& Dist) c
 
 	if constexpr(bIsRadial)
 	{
-		return ComputeWeight(Dist.Length());
+		return ComputeWeight((float)Dist.Length());
 	}
 	else
 	{

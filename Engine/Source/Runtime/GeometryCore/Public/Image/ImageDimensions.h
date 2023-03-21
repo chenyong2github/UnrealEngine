@@ -113,6 +113,15 @@ public:
 		return GetTexelUV(GetCoords(LinearIndex));
 	}
 
+	/** @return The distance, measured in texels, between points P and Q which should be given in the default UV-space [0..1]^2 */
+	FVector2d GetTexelDistance(const FVector2d& P, const FVector2d Q) const
+	{
+		FVector2d TexelDistance = P - Q;
+		TexelDistance.X *= Width;
+		TexelDistance.Y *= Height;
+		return TexelDistance;
+	}
+
 	/** @return integer XY coordinates for real-valued XY coordinates (ie texel that contains value, if texel origin is in bottom-left */
 	FVector2i PixelToCoords(const FVector2d& PixelPosition) const
 	{
