@@ -814,6 +814,10 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 								RaiseNotificationWindows(CurrentEventWindow);
 							}
 						}
+
+						// Mouse dragging is the likely cause of this window move, so invalidate the cached cursor position
+						FLinuxCursor *LinuxCursor = (FLinuxCursor*)Cursor.Get();
+						LinuxCursor->InvalidateCaches();
 					}
 					break;
 
