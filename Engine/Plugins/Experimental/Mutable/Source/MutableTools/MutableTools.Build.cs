@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
 			// 
 			bUseRTTI = true;
 			bEnableExceptions = true;
-			//bUseUnity = false;
 
 			PrivateIncludePaths.AddRange(new string[] {
 				System.IO.Path.Combine(GetModuleDirectory("MutableRuntime"), "Private"),
