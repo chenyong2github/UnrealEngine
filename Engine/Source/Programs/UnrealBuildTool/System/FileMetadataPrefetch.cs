@@ -158,7 +158,12 @@ namespace UnrealBuildTool
 		/// <param name="Directory">The directory which may contain plugin directories</param>
 		static void ScanPluginFolder(DirectoryItem Directory)
 		{
-			foreach(DirectoryItem SubDirectory in Directory.EnumerateDirectories())
+			if (CancelToken.IsCancellationRequested || Directory.TryGetFile(".ubtignore", out FileItem? _))
+			{
+				return;
+			}
+
+			foreach (DirectoryItem SubDirectory in Directory.EnumerateDirectories())
 			{
 				if (SubDirectory.EnumerateFiles().Any((fi) => fi.HasExtension(".uplugin")))
 				{
@@ -177,7 +182,7 @@ namespace UnrealBuildTool
 		/// <param name="Directory">Root of the directory tree</param>
 		static void ScanDirectoryTree(DirectoryItem Directory)
 		{
-			if (Directory.TryGetFile(".ubtignore", out FileItem? OutFile))
+			if (CancelToken.IsCancellationRequested || Directory.TryGetFile(".ubtignore", out FileItem? _))
 			{
 				return;
 			}

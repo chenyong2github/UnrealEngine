@@ -691,7 +691,13 @@ namespace UnrealBuildTool
 				// Cancel the prefetcher
 				using (GlobalTracer.Instance.BuildSpan("FileMetadataPrefetch.Stop()").StartActive())
 				{
-					FileMetadataPrefetch.Stop();
+					try
+					{
+						FileMetadataPrefetch.Stop();
+					}
+					catch
+					{
+					}
 				}
 
 				// Uncomment this to output a file that contains all files that UBT has scanned.
