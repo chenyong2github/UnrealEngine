@@ -708,12 +708,6 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 	// First copy in current values
 	CurveDiffs.CopyFrom(Curves);
 
-	// Apply filtering to diffs to remove anything we dont want to inertialize
-	if(CurveFilter.Num() > 0)
-	{
-		UE::Anim::FCurveUtils::Filter(CurveDiffs, CurveFilter);
-	}
-
 	// Compute differences
 	UE::Anim::FNamedValueArrayUtils::Union(CurveDiffs, Prev1.Curves.BlendedCurve,
 		[](FInertializationCurveDiffElement& OutResultElement, const UE::Anim::FCurveElement& InElement1, UE::Anim::ENamedValueUnionFlags InFlags)
@@ -731,6 +725,12 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 				const float Prev2Weight = InElement1.Value;
 				OutResultElement.Derivative = (Prev1Weight - Prev2Weight) / DeltaTime;
 			});
+	}
+
+	// Apply filtering to diffs to remove anything we dont want to inertialize
+	if(CurveFilter.Num() > 0)
+	{
+		UE::Anim::FCurveUtils::Filter(CurveDiffs, CurveFilter);
 	}
 }
 
