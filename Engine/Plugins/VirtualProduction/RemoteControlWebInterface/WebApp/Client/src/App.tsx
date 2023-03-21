@@ -620,9 +620,9 @@ export class App extends React.Component<PropsFromState, State> {
 
     if (!connected)
       return <ConnectionStatus />;
-
+  
     if (!keyCorrect && !isOpen)
-      return <Login />;
+      return <Login onSubmit={this.checkPassphrase} />;
 
     if (loading) {
       return (
@@ -651,7 +651,7 @@ export class App extends React.Component<PropsFromState, State> {
       appClassName = appClassName.replace('closed', 'open');
 
     if (lockedUI)
-      appClassName += 'locked ';  
+      appClassName += 'locked ';
 
     return (
       <DragDropContext onBeforeCapture={this.onBeforeCapture}
