@@ -25,21 +25,6 @@ public:
 	virtual ~ISparseVolumeTextureDataConstructionAdapter() = default;
 };
 
-struct ENGINE_API FSparseVolumeTextureMipInfo
-{
-	int32 TileOffset = 0;
-	int32 TileCount = 0;
-};
-
-struct ENGINE_API FSparseVolumeTextureDataHeader : public FSparseVolumeTextureHeader
-{
-	static const uint32 kVersion = 0; // The current data format version for the header.
-	uint32 Version = kVersion; // This version can be used to convert existing header to new version later.
-	TArray<FSparseVolumeTextureMipInfo> MipInfo;
-
-	void Serialize(FArchive& Ar);
-};
-
 struct ENGINE_API FSparseVolumeTextureDataAddressingInfo
 {
 	FIntVector3 VolumeResolution;
@@ -49,26 +34,37 @@ struct ENGINE_API FSparseVolumeTextureDataAddressingInfo
 };
 
 // Holds the data for a SparseVolumeTexture that is stored on disk. It only has a single mip after importing a source asset. The mip chain is built during cooking.
-// Tiles are addressed by a flat index; unlike the runtime representation, this one stores all tiles in a 1D array and doesn't have the concept of a 3D physical tile texture.
+// Tiles are addressed by a flat index; unlike the runtime representation, this one stores all tiles in a 1D array (per mip level) and doesn't have the concept of a 3D physical tile texture.
 // The page table itself is 3D though.
 struct ENGINE_API FSparseVolumeTextureData
 {
+	struct FMipMap
+	{
+		TArray<uint32> PageTable;
+		TArray64<uint8> PhysicalTileDataA;
+		TArray64<uint8> PhysicalTileDataB;
+		int32 NumPhysicalTiles;
+	};
+
 	static const uint32 kVersion = 0; // The current data format version for the raw source data.
 	uint32 Version = kVersion; // This version can be used to convert existing source data to new version later.
 
-	FSparseVolumeTextureDataHeader Header = {};
-	TArray<TArray<uint32>> PageTable; // PageTable[MipLevel][PageCoord]
-	TArray64<uint8> PhysicalTileDataA;
-	TArray64<uint8> PhysicalTileDataB;
+	FSparseVolumeTextureHeader Header = {};
+	TArray<FMipMap> MipMaps;
 
 	void Serialize(FArchive& Ar);
+	
 	bool Construct(const ISparseVolumeTextureDataConstructionAdapter& Adapter);
-	uint32 ReadPageTable(const FIntVector3& PageTableCoord, int32 MipLevel) const;
-	FVector4f ReadTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 AttributesIdx) const;
 	FVector4f Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FSparseVolumeTextureDataAddressingInfo& AddressingInfo) const;
-	void WriteTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent = -1);
+	bool BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FSparseVolumeTextureData& OutDerivedData);
+
+private:
+
 	bool GenerateMipMaps(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels = -1);
 	bool GenerateBorderVoxels(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 MipLevel, const TArray<FIntVector3>& PageCoords);
 	bool DeduplicateTiles();
-	bool BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FSparseVolumeTextureData& OutDerivedData);
+
+	uint32 ReadPageTable(const FIntVector3& PageTableCoord, int32 MipLevel) const;
+	FVector4f ReadTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 MipLevel, int32 AttributesIdx) const;
+	void WriteTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 MipLevel, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent = -1);
 };

@@ -54,6 +54,8 @@ void FSparseVolumeTextureHeader::Serialize(FArchive& Ar)
 		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesFormats[1]);
 		Ar << NullTileValues[0];
 		Ar << NullTileValues[1];
+		Ar << NullTileValuesQuantized[0];
+		Ar << NullTileValuesQuantized[1];
 	}
 	else
 	{
@@ -94,7 +96,7 @@ bool FSparseVolumeTextureFrame::BuildDerivedData(const FIntVector3& VolumeResolu
 		AddressingInfo.AddressY = AddressY;
 		AddressingInfo.AddressZ = AddressZ;
 
-		const int32 NumMipLevels = 1; // generate entire mip chain
+		const int32 NumMipLevels = -1; // generate entire mip chain
 		const bool bMoveMip0FromSource = true; // we have no need to keep TextureData around
 		if (!TextureData.BuildDerivedData(AddressingInfo, NumMipLevels, bMoveMip0FromSource, *OutMippedTextureData))
 		{

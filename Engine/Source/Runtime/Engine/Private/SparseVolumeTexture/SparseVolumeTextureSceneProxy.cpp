@@ -52,27 +52,25 @@ namespace Private
 
 bool FSparseVolumeTextureRuntime::Create(const FSparseVolumeTextureData& TextureData)
 {
-	bool bSuccess = Create(TextureData.Header, TextureData.Header.MipInfo.Num());
+	bool bSuccess = Create(TextureData.Header, TextureData.MipMaps.Num());
 
 	if (!bSuccess)
 	{
 		return false;
 	}
 
-	const int32 NumMipLevels = TextureData.Header.MipInfo.Num();
-	const int32 TileSizeBytesA = GPixelFormats[Header.AttributesFormats[0]].BlockBytes * UE::SVT::SVTNumVoxelsPerPaddedTile;
-	const int32 TileSizeBytesB = GPixelFormats[Header.AttributesFormats[1]].BlockBytes * UE::SVT::SVTNumVoxelsPerPaddedTile;
-
+	const int32 NumMipLevels = TextureData.MipMaps.Num();
+	
 	TArray<FSparseVolumeTextureTileMapping> Mappings;
 	Mappings.Empty(NumMipLevels);
 	for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 	{
 		FSparseVolumeTextureTileMapping Mapping;
-		Mapping.TileIndices = TextureData.PageTable[MipLevel].GetData();
-		Mapping.TileDataA = TextureData.PhysicalTileDataA.GetData() + TileSizeBytesA * TextureData.Header.MipInfo[MipLevel].TileOffset;
-		Mapping.TileDataB = TextureData.PhysicalTileDataB.GetData() + TileSizeBytesB * TextureData.Header.MipInfo[MipLevel].TileOffset;
-		Mapping.NumPhysicalTiles = TextureData.Header.MipInfo[MipLevel].TileCount;
-		Mapping.TileIndicesOffset = -TextureData.Header.MipInfo[MipLevel].TileOffset;
+		Mapping.TileIndices = TextureData.MipMaps[MipLevel].PageTable.GetData();
+		Mapping.TileDataA = TextureData.MipMaps[MipLevel].PhysicalTileDataA.GetData();
+		Mapping.TileDataB = TextureData.MipMaps[MipLevel].PhysicalTileDataB.GetData();
+		Mapping.NumPhysicalTiles = TextureData.MipMaps[MipLevel].NumPhysicalTiles;
+		Mapping.TileIndicesOffset = 0;
 
 		Mappings.Add(Mapping);
 	}
@@ -162,10 +160,10 @@ bool FSparseVolumeTextureRuntime::SetTileMappings(const TArrayView<const FSparse
 	using namespace UE::SVT::Private;
 
 	const int32 NumMipLevels = Header.NumMipLevels;
-	check(Mappings.Num() == NumMipLevels)
+	check(Mappings.Num() == NumMipLevels);
 
-		// Compute number of required tiles
-		int32 NumTiles = 1; // always need a null tile
+	// Compute number of required tiles
+	int32 NumTiles = 1; // always need a null tile
 	for (const FSparseVolumeTextureTileMapping& Mapping : Mappings)
 	{
 		NumTiles += Mapping.NumPhysicalTiles;
@@ -196,8 +194,8 @@ bool FSparseVolumeTextureRuntime::SetTileMappings(const TArrayView<const FSparse
 
 	// Allocate memory for tile data
 	const int32 FormatSize[] = { GPixelFormats[Header.AttributesFormats[0]].BlockBytes, GPixelFormats[Header.AttributesFormats[1]].BlockBytes };
-	PhysicalTileDataA.SetNumZeroed(Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.Z * FormatSize[0]);
-	PhysicalTileDataB.SetNumZeroed(Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.Z * FormatSize[1]);
+	PhysicalTileDataA.SetNum(Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.Z * FormatSize[0]);
+	PhysicalTileDataB.SetNum(Header.TileDataVolumeResolution.X * Header.TileDataVolumeResolution.Y * Header.TileDataVolumeResolution.Z * FormatSize[1]);
 	uint8* PhysicalTileDataPtrs[] = { PhysicalTileDataA.GetData(), PhysicalTileDataB.GetData() };
 
 	int32 NumWrittenTiles = 0;
@@ -247,16 +245,15 @@ bool FSparseVolumeTextureRuntime::SetTileMappings(const TArrayView<const FSparse
 				for (int32 PageX = 0; PageX < PageTableRes.X; ++PageX)
 				{
 					const int32 PageIndex = PageZ * (PageTableRes.Y * PageTableRes.X) + PageY * PageTableRes.X + PageX;
-					uint32 TileIndex = Mapping.TileIndices[PageIndex];
-					if (TileIndex == 0) // points to null tile
+					const uint32 MipLocalTileIndex = Mapping.TileIndices[PageIndex];
+					if (MipLocalTileIndex == 0) // points to null tile
 					{
 						PageTablePtr[PageIndex] = 0;
 					}
 					else // points to actual physical tile
 					{
 						// Make index relative to the start index of this mip level
-						TileIndex += Mapping.TileIndicesOffset;
-						TileIndex += MipTileOffset;
+						const uint32 TileIndex = MipTileOffset + MipLocalTileIndex - 1; // -1 because MipLocalTileIndex uses 0 to refer to the null tile, but we only want a single null tile for the entire resource.
 
 						FIntVector3 TileCoord;
 						TileCoord.X = TileIndex % TileCoordSpace.X;
