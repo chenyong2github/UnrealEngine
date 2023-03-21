@@ -60,7 +60,7 @@ public:
 			// Construct a url to tell the launcher of this app and what we want to do with it
 			FOpenLauncherOptions LauncherOptions;
 			LauncherOptions.LauncherRelativeUrl = TEXT("apps");
-			LauncherOptions.LauncherRelativeUrl /= GetEncodedExePath();
+			LauncherOptions.LauncherRelativeUrl /= FLauncherMisc::GetEncodedExePath();
 			switch (Action)
 			{
 			case ELauncherAction::AppLaunch:
@@ -97,38 +97,6 @@ public:
 	}
 
 	virtual void ShutdownModule() override { }
-
-private:
-
-	/**
-	 * Return url encoded full path of currently running executable.
-	 */
-	FString GetEncodedExePath() const
-	{
-		FString EncodedExePath;
-
-		static const TCHAR* Delims[] = { TEXT("/") };
-		static const int32 NumDelims = UE_ARRAY_COUNT(Delims);
-
-		// Get the path to the executable, and encode it ('cos spaces, colons, etc break things)
-		FString ExePath = FPlatformProcess::BaseDir();
-
-		// Make sure it's not relative and the slashes are the right way
-		ExePath = FPaths::ConvertRelativePathToFull(ExePath);
-		ExePath.ReplaceInline(TEXT("\\"), TEXT("/"));
-
-		// Encode the path 'cos symbols like ':',' ' etc are bad
-		TArray<FString> ExeFolders;
-		ExePath.ParseIntoArray(ExeFolders, Delims, NumDelims);
-		for (const FString& ExeFolder : ExeFolders)
-		{
-			EncodedExePath /= FGenericPlatformHttp::UrlEncode(ExeFolder);
-		}
-		// Make sure it ends in a slash
-		EncodedExePath /= TEXT("");
-
-		return EncodedExePath;
-	}
 };
 
 

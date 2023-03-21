@@ -9,6 +9,7 @@ public class LauncherPlatform : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
+				"HTTP"
             }
         );
 
