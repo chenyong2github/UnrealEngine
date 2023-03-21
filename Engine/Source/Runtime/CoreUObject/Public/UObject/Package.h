@@ -191,9 +191,6 @@ private:
 	uint8	bDirty:1;
 
 #if WITH_EDITORONLY_DATA
-	/** True if this package is only referenced by editor-only properties */
-	uint8 bLoadedByEditorPropertiesOnly:1;
-
 	/** True if this package is a dynamic PIE package with external objects still loading */
 	uint8 bIsDynamicPIEPackagePending:1;
 #endif
@@ -208,21 +205,6 @@ public:
 	/** Whether this package has been fully loaded (aka had all it's exports created) at some point.															*/
 	mutable uint8 bHasBeenFullyLoaded:1;
 
-#if WITH_EDITORONLY_DATA
-	/** Set to true after serialization and postload and before returning from LoadPackage or calling load completion delegate, for loaded packages.			*/
-private:
-	uint8 bHasBeenEndLoaded : 1;
-public:
-	bool GetHasBeenEndLoaded() const
-	{
-		return bHasBeenEndLoaded != 0;
-	}
-	void SetHasBeenEndLoaded(bool bValue)
-	{
-		bHasBeenEndLoaded = bValue ? 1 : 0;
-	}
-#endif
-
 	/**
 	 * Whether this package can be imported, i.e. its package name is a package that exists on disk.
 	 * Note: This includes all normal packages where the Name matches the FileName
@@ -230,6 +212,28 @@ public:
 	 * but excludes level streaming packages with /Temp/ names.
 	 */
 	uint8 bCanBeImported:1;
+
+#if WITH_EDITORONLY_DATA
+private:
+	/** True if this package is only referenced by editor-only properties 
+	*   Note: This flag is manipulated on different threads, do not mix with other bitfields above as they might get corrupted.
+	*/
+	std::atomic<bool> bLoadedByEditorPropertiesOnly{ false };
+
+	/** Set to true after serialization and postload and before returning from LoadPackage or calling load completion delegate, for loaded packages.			
+	*   Note: This flag is manipulated on different threads, do not mix with other bitfields above as they might get corrupted.
+	*/
+	std::atomic<bool> bHasBeenEndLoaded{ false };
+public:
+	bool GetHasBeenEndLoaded() const
+	{
+		return bHasBeenEndLoaded.load(std::memory_order_acquire) != 0;
+	}
+	void SetHasBeenEndLoaded(bool bValue)
+	{
+		bHasBeenEndLoaded.store(bValue, std::memory_order_release);
+	}
+#endif
 
 private:
 	// @note this should probably be entirely deprecated and removed but certain stat dump function are still using it, just compile it out in shipping for now

@@ -395,8 +395,7 @@ void FixupPackageEditorOnlyFlag(FName PackageThatGotEditorOnlyFlagCleared, bool 
 
 void UPackage::SetLoadedByEditorPropertiesOnly(bool bIsEditorOnly, bool bRecursive /*= false*/)
 {
-	const bool bWasEditorOnly = bLoadedByEditorPropertiesOnly;
-	bLoadedByEditorPropertiesOnly = bIsEditorOnly;
+	const bool bWasEditorOnly = bLoadedByEditorPropertiesOnly.exchange(bIsEditorOnly);
 	if (bWasEditorOnly && !bIsEditorOnly)
 	{
 		FixupPackageEditorOnlyFlag(GetFName(), bRecursive);
