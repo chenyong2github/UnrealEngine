@@ -1163,11 +1163,6 @@ void UTakeRecorder::StopInternal(const bool bCancelled)
 				MovieScene->SetPlaybackRange(CachedPlaybackRange);
 			}
 		}
-		else
-		{
-			const bool bUpperBoundOnly = true; // Only expand the upper bound because the lower bound should have been set at the start of recording and should not change if there's existing data before the start
-			TakesUtils::ClampPlaybackRangeToEncompassAllSections(SequenceAsset->GetMovieScene(), bUpperBoundOnly);
-		}
 
 		if (bRecordingFinished)
 		{

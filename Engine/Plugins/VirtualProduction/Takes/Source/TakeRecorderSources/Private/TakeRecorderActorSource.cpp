@@ -813,9 +813,6 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 			ProcessRecordedTimes(InSequence);
 		}
 
-		// Expand the Movie Scene Playback Range to encompass all of the sections now that they've all been created.
-		SequenceRecorderUtils::ExtendSequencePlaybackRange(InSequence);
-
 		if (Target.IsValid() && !ParentSource)
 		{
 			// Automatically add or update the camera cut track if there is a camera component
