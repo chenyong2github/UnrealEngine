@@ -160,16 +160,34 @@ public:
 	{
 		/** The standard group to run work in. */
 		Default,
+		
+		/**
+		 * Prepares to sync data from an external source to the Data Storage. This is typically used for preparing columns with
+		 * data that is needed to sync from external sources.
+		 */
+		PrepareSyncExternalToDataStorage,
 		/** 
 		 * The group for processors that need to sync data from external sources such as subsystems or the world into
 		 * the Data Storage. These typically run early in a phase.
 		 */
 		SyncExternalToDataStorage,
 		/**
-		 * The group for processors that need to sync data from the Data Storage to external sources such as subsystems 
+		 * Finalizes the steps to sync data from an external source to the Data Storage. This is typically needed for processing 
+		 * data with a dependency on external updates being completed.
+		 */
+		FinalizeSyncExternalToDataStorage,
+
+		
+		/** Prepares for data from the Data Storage to be synced to external sources such as subsystem or the world. */
+		PrepareSyncDataStorageToExternal,
+		/**
+		 * The group for processors that need to sync data from the Data Storage to external sources such as subsystems
 		 * or the world into. These typically run late in a phase.
 		 */
 		SyncDataStorageToExternal,
+		/** Finalizes the sync of data from the Data Storage to external sources such as subsystem or the world. */
+		FinalizeSyncDataStorageToExternal,
+
 		/**
 		 * Processors grouped under this name will sync data to/from widgets.
 		 */
@@ -194,24 +212,92 @@ public:
 		ReadWrite 
 	};
 
-	/** Base class to be provided to query callbacks. */
+	/** 
+	 * Base class to be provided to query callbacks.
+	 * Note that at the time of writing only subclasses of Subsystem are supported as dependencies.
+	 */
 	struct FQueryContext
 	{
 		virtual ~FQueryContext() = default;
 		
+		/** Return the address of a immutable column matching the requested type or a nullptr if not found. */
 		virtual const void* GetColumn(const UScriptStruct* ColumnType) const = 0;
+		/** Return the address of a mutable column matching the requested type or a nullptr if not found. */
 		virtual void* GetMutableColumn(const UScriptStruct* ColumnType) = 0;
-		virtual void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<const UScriptStruct*> ColumnTypes,
+		/** 
+		 * Get a list of columns or nullptrs if the columntype wasn't found. Mutable addresses are returned and it's up to 
+		 * the caller to not change immutable addresses.
+		 */
+		virtual void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UScriptStruct>> ColumnTypes,
 			TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes) = 0;
-		virtual void GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const UScriptStruct* const* ColumnTypes, 
+		/**
+		 * Get a list of columns or nullptrs if the columntype wasn't found. Mutable addresses are returned and it's up to
+		 * the caller to not change immutable addresses. This version doesn't verify that the enough space is provided and
+		 * it's up to the caller to guarantee the target addresses have enough space.
+		 */
+		virtual void GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const TWeakObjectPtr<const UScriptStruct>* ColumnTypes,
 			const ITypedElementDataStorageInterface::EQueryAccessType* AccessTypes) = 0;
 
-		virtual USubsystem* GetMutableSubsystem(const TSubclassOf<USubsystem> SubsystemClass) = 0;
-		virtual const USubsystem* GetSubsystem(const TSubclassOf<USubsystem> SubsystemClass) = 0;
-		virtual void GetSubsystems(TArrayView<char*> RetrievedAddresses, TConstArrayView<const TSubclassOf<USubsystem>> SubsystemTypes, 
+		/** Returns an immutable instance of the requested dependency or a nullptr if not found. */
+		virtual const UObject* GetDependency(const UClass* DependencyClass) = 0;
+		/** Returns a mutable instance of the requested dependency or a nullptr if not found. */
+		virtual UObject* GetMutableDependency(const UClass* DependencyClass) = 0;
+		/** 
+		 * Returns a list of dependencies or nullptrs if a dependency wasn't found. Mutable versions are return and it's up to the 
+		 * caller to not change immutable dependencies.
+		 */
+		virtual void GetDependencies(TArrayView<UObject*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UClass>> DependencyTypes,
 			TConstArrayView<EQueryAccessType> AccessTypes) = 0;
 
+		/** Returns the number rows in the batch. */
 		virtual uint32 GetRowCount() const = 0;
+		/** 
+		 * Returns an immutable view that contains the row handles for all returned results. The returned size will be the same  as the
+		 * value returned by GetRowCount().
+		 */
+		virtual TConstArrayView<TypedElementRowHandle> GetRowHandles() const = 0;
+		/**
+		 * Removes the row with the provided row handle. The removal will not be immediately done but delayed until the end of the tick 
+		 * group.
+		 */
+		virtual void RemoveRow(TypedElementRowHandle Row) = 0;
+		/**
+		 * Removes rows with the provided row handles. The removal will not be immediately done but delayed until the end of the tick
+		 * group.
+		 */
+		virtual void RemoveRows(TConstArrayView<TypedElementRowHandle> Rows) = 0;
+
+		/**
+		 * Adds new empty columns to a row of the provided type. The addition will not be immediately done but delayed until the end of the
+		 * tick group.
+		 */
+		virtual void AddColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) = 0;
+		/**
+		 * Adds new empty columns to the listed rows of the provided type. The addition will not be immediately done but delayed until the end of the
+		 * tick group.
+		 */
+		virtual void AddColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) = 0;
+		/**
+		 * Removes columns of the provided types from a row. The removal will not be immediately done but delayed until the end of the
+		 * tick group.
+		 */
+		virtual void RemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) = 0;
+		/**
+		 * Removes columns of the provided types from the listed rows. The removal will not be immediately done but delayed until the end of the
+		 * tick group.
+		 */
+		virtual void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) = 0;
+
+		// Utility functions
+
+		template<typename... Columns>
+		void AddColumns(TypedElementRowHandle Row);
+		template<typename... Columns>
+		void AddColumns(TConstArrayView<TypedElementRowHandle> Rows);
+		template<typename... Columns>
+		void RemoveColumns(TypedElementRowHandle Row);
+		template<typename... Columns>
+		void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows);
 	};
 
 	using QueryCallback = TFunction<void(FQueryContext&)>;
@@ -403,4 +489,29 @@ template<typename SystemType>
 SystemType* ITypedElementDataStorageInterface::GetExternalSystem()
 {
 	return reinterpret_cast<SystemType*>(GetExternalSystemAddress(SystemType::StaticClass()));
+}
+
+
+template<typename... Columns>
+void ITypedElementDataStorageInterface::FQueryContext::AddColumns(TypedElementRowHandle Row)
+{
+	AddColumns(Row, { Columns::StaticStruct()... });
+}
+
+template<typename... Columns>
+void ITypedElementDataStorageInterface::FQueryContext::AddColumns(TConstArrayView<TypedElementRowHandle> Rows)
+{
+	AddColumns(Rows, { Columns::StaticStruct()... });
+}
+
+template<typename... Columns>
+void ITypedElementDataStorageInterface::FQueryContext::RemoveColumns(TypedElementRowHandle Row)
+{
+	RemoveColumns(Row, { Columns::StaticStruct()... });
+}
+
+template<typename... Columns>
+void ITypedElementDataStorageInterface::FQueryContext::RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows)
+{
+	RemoveColumns(Rows, { Columns::StaticStruct()... });
 }

@@ -20,7 +20,7 @@ struct FTypedElementQueryProcessorData
 	explicit FTypedElementQueryProcessorData(UMassProcessor& Owner);
 
 	EMassProcessingPhase MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase) const;
-	FString GetProcessorName(FString RootProcessorName) const;
+	FString GetProcessorName() const;
 
 	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context);
 

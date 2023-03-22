@@ -219,57 +219,6 @@ namespace TypedElementQueryBuilder
 	}
 
 
-	/**
-	 * FQueryContextForwarder
-	 */
-
-	FQueryContextForwarder::FQueryContextForwarder(ITypedElementDataStorageInterface::FQueryContext& InParentContext)
-		: ParentContext(InParentContext)
-	{}
-
-	const void* FQueryContextForwarder::GetColumn(const UScriptStruct* ColumnType) const
-	{
-		return ParentContext.GetColumn(ColumnType);
-	}
-
-	void* FQueryContextForwarder::GetMutableColumn(const UScriptStruct* ColumnType)
-	{
-		return ParentContext.GetMutableColumn(ColumnType);
-	}
-
-	void FQueryContextForwarder::GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<const UScriptStruct*> ColumnTypes,
-		TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes)
-	{
-		ParentContext.GetColumns(RetrievedAddresses, ColumnTypes, AccessTypes);
-	}
-
-	void FQueryContextForwarder::GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const UScriptStruct* const* ColumnTypes,
-		const ITypedElementDataStorageInterface::EQueryAccessType* AccessTypes)
-	{
-		ParentContext.GetColumnsUnguarded(TypeCount, RetrievedAddresses, ColumnTypes, AccessTypes);
-	}
-
-	USubsystem* FQueryContextForwarder::GetMutableSubsystem(const TSubclassOf<USubsystem> SubsystemClass)
-	{
-		return ParentContext.GetMutableSubsystem(SubsystemClass);
-	}
-
-	const USubsystem* FQueryContextForwarder::GetSubsystem(const TSubclassOf<USubsystem> SubsystemClass)
-	{
-		return ParentContext.GetSubsystem(SubsystemClass);
-	}
-
-	void FQueryContextForwarder::GetSubsystems(TArrayView<char*> RetrievedAddresses, TConstArrayView<const TSubclassOf<USubsystem>> SubsystemTypes,
-		TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes)
-	{
-		ParentContext.GetSubsystems(RetrievedAddresses, SubsystemTypes, AccessTypes);
-	}
-
-	uint32 FQueryContextForwarder::GetRowCount() const
-	{
-		return ParentContext.GetRowCount();
-	}
-
 
 	/**
 	 * Select

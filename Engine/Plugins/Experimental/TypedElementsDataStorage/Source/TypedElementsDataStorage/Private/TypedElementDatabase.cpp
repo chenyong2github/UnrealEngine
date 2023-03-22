@@ -12,6 +12,12 @@
 #include "Stats/Stats2.h"
 #include "TickTaskManagerInterface.h"
 
+const FName UTypedElementDatabase::TickGroupName_PrepareSyncWorldToMass(TEXT("PrepareSyncWorldToMass"));
+const FName UTypedElementDatabase::TickGroupName_FinalizeSyncWorldToMass(TEXT("FinalizeSyncWorldToMass"));
+const FName UTypedElementDatabase::TickGroupName_PrepareSyncMassToExternal(TEXT("PrepareSyncMassToExternal"));
+const FName UTypedElementDatabase::TickGroupName_FinalizeSyncMassToExternal(TEXT("FinalizeSyncMassToExternal"));
+const FName UTypedElementDatabase::TickGroupName_SyncWidget(TEXT("SyncWidgets"));
+
 void UTypedElementDatabase::Initialize()
 {
 	check(GEditor);
@@ -317,8 +323,11 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 		for (const FQueryDescription::FAccessControlledStruct& SelectEntry : Query.Selection)
 		{
 			checkf(SelectEntry.Type, TEXT("Provided query selection type can not be null."));
-			checkf(SelectEntry.Type->IsChildOf(FTypedElementDataStorageColumn::StaticStruct()),
-				TEXT("Provided query selection type '%s' is not based on FTypedElementDataStorageColumn."), 
+			checkf(
+				SelectEntry.Type->IsChildOf(FTypedElementDataStorageColumn::StaticStruct()) ||
+				SelectEntry.Type->IsChildOf(FMassFragment::StaticStruct()) || 
+				SelectEntry.Type->IsChildOf(FMassTag::StaticStruct()),
+				TEXT("Provided query selection type '%s' is not based on FTypedElementDataStorageColumn or another supported base type."), 
 				*SelectEntry.Type->GetStructPathName().ToString());
 			NativeQuery.AddRequirement(SelectEntry.Type, LocalToNativeAccess(SelectEntry.Access));
 		}
@@ -444,15 +453,23 @@ FName UTypedElementDatabase::GetQueryTickGroupName(EQueryTickGroups Group) const
 	{
 		case EQueryTickGroups::Default:
 			return NAME_None;
+		case EQueryTickGroups::PrepareSyncExternalToDataStorage:
+			return TickGroupName_PrepareSyncWorldToMass;
 		case EQueryTickGroups::SyncExternalToDataStorage:
 			return UE::Mass::ProcessorGroupNames::SyncWorldToMass;
+		case EQueryTickGroups::FinalizeSyncExternalToDataStorage:
+			return TickGroupName_FinalizeSyncWorldToMass;
+		
+		case EQueryTickGroups::PrepareSyncDataStorageToExternal:
+			return TickGroupName_PrepareSyncMassToExternal;
 		case EQueryTickGroups::SyncDataStorageToExternal:
 			return UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
+		case EQueryTickGroups::FinalizeSyncDataStorageToExternal:
+			return TickGroupName_FinalizeSyncMassToExternal;
+		
 		case EQueryTickGroups::SyncWidgets:
-		{
-			static const FName SyncWidgetGroupName(TEXT("SyncWidgets"));
-			return SyncWidgetGroupName;
-		}
+			return TickGroupName_SyncWidget;
+
 		default:
 			checkf(false, TEXT("EQueryTickGroups value %i can't be translated to a group name by this Data Storage backend."), static_cast<int>(Group));
 			return NAME_None;

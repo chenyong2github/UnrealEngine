@@ -2,6 +2,7 @@
 
 #include "Processors/TypedElementProcessorAdaptors.h"
 
+#include <utility>
 #include "MassCommonTypes.h"
 #include "MassExecutionContext.h"
 #include "TypedElementDatabase.h"
@@ -23,7 +24,7 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::F
 		return Context.GetMutableFragmentView(ColumnType).GetData();
 	}
 
-	void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<const UScriptStruct*> ColumnTypes,
+	void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UScriptStruct>> ColumnTypes,
 		TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes) override
 	{
 		checkf(RetrievedAddresses.Num() == ColumnTypes.Num(), TEXT("Unable to retrieve a batch of columns as the number of addresses "
@@ -34,14 +35,15 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::F
 		GetColumnsUnguarded(ColumnTypes.Num(), RetrievedAddresses.GetData(), ColumnTypes.GetData(), AccessTypes.GetData());
 	}
 
-	void GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const UScriptStruct* const* ColumnTypes,
+	void GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const TWeakObjectPtr<const UScriptStruct>* ColumnTypes,
 		const ITypedElementDataStorageInterface::EQueryAccessType* AccessTypes) override
 	{
 		for (int32 Index = 0; Index < TypeCount; ++Index)
 		{
+			checkf(ColumnTypes->IsValid(), TEXT("Attempting to retrieve a column that is not available."));
 			*RetrievedAddresses = *AccessTypes == ITypedElementDataStorageInterface::EQueryAccessType::ReadOnly
-				? const_cast<char*>(reinterpret_cast<const char*>(Context.GetFragmentView(*ColumnTypes).GetData()))
-				: reinterpret_cast<char*>(Context.GetMutableFragmentView(*ColumnTypes).GetData());
+				? const_cast<char*>(reinterpret_cast<const char*>(Context.GetFragmentView(ColumnTypes->Get()).GetData()))
+				: reinterpret_cast<char*>(Context.GetMutableFragmentView(ColumnTypes->Get()).GetData());
 
 			++RetrievedAddresses;
 			++ColumnTypes;
@@ -49,36 +51,37 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::F
 		}
 	}
 
-	USubsystem* GetMutableSubsystem(const TSubclassOf<USubsystem> SubsystemClass) override
+	UObject* GetMutableDependency(const UClass* DependencyClass) override
 	{
-		return Context.GetMutableSubsystem<USubsystem>(SubsystemClass);
+		return Context.GetMutableSubsystem<USubsystem>(const_cast<UClass*>(DependencyClass));
 	}
 
-	const USubsystem* GetSubsystem(const TSubclassOf<USubsystem> SubsystemClass) override
+	const UObject* GetDependency(const UClass* DependencyClass) override
 	{
-		return Context.GetSubsystem<USubsystem>(SubsystemClass);
+		return Context.GetSubsystem<USubsystem>(const_cast<UClass*>(DependencyClass));
 	}
 
-	void GetSubsystems(TArrayView<char*> RetrievedAddresses, TConstArrayView<const TSubclassOf<USubsystem>> SubsystemTypes, 
+	void GetDependencies(TArrayView<UObject*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UClass>> SubsystemTypes,
 		TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes) override
 	{
 		checkf(RetrievedAddresses.Num() == SubsystemTypes.Num(), TEXT("Unable to retrieve a batch of subsystem as the number of addresses "
 			"doesn't match the number of requested subsystem types."));
 
-		GetSubsystemsUnguarded(RetrievedAddresses.Num(), RetrievedAddresses.GetData(), SubsystemTypes.GetData(), AccessTypes.GetData());
+		GetDependenciesUnguarded(RetrievedAddresses.Num(), RetrievedAddresses.GetData(), SubsystemTypes.GetData(), AccessTypes.GetData());
 	}
 
-	void GetSubsystemsUnguarded(int32 SubsystemCount, char** RetrievedAddresses, const TSubclassOf<USubsystem>* SubsystemTypes,
+	void GetDependenciesUnguarded(int32 SubsystemCount, UObject** RetrievedAddresses, const TWeakObjectPtr<const UClass>* DependencyTypes,
 		const ITypedElementDataStorageInterface::EQueryAccessType* AccessTypes)
 	{
 		for (int32 Index = 0; Index < SubsystemCount; ++Index)
 		{
+			checkf(DependencyTypes->IsValid(), TEXT("Attempting to retrieve a subsystem that's no longer valid."));
 			*RetrievedAddresses = *AccessTypes == ITypedElementDataStorageInterface::EQueryAccessType::ReadOnly
-				? const_cast<char*>(reinterpret_cast<const char*>(Context.GetSubsystem<USubsystem>(*SubsystemTypes)))
-				: reinterpret_cast<char*>(Context.GetMutableSubsystem<USubsystem>(*SubsystemTypes));
+				? const_cast<USubsystem*>(Context.GetSubsystem<USubsystem>(const_cast<UClass*>(DependencyTypes->Get())))
+				: Context.GetMutableSubsystem<USubsystem>(const_cast<UClass*>(DependencyTypes->Get()));
 
 			++RetrievedAddresses;
-			++SubsystemTypes;
+			++DependencyTypes;
 			++AccessTypes;
 		}
 	}
@@ -86,6 +89,100 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::F
 	uint32 GetRowCount() const override
 	{
 		return RowCount;
+	}
+
+	TConstArrayView<TypedElementRowHandle> GetRowHandles() const
+	{
+		static_assert(
+			sizeof(TypedElementRowHandle) == sizeof(FMassEntityHandle) && alignof(TypedElementRowHandle) == alignof(FMassEntityHandle),
+			"TypedElementRowHandle and FMassEntityHandle need to by layout compatible to support Typed Elements Data Storage.");
+		TConstArrayView<FMassEntityHandle> Entities = Context.GetEntities();
+		return TConstArrayView<TypedElementRowHandle>(reinterpret_cast<const TypedElementRowHandle*>(Entities.GetData()), Entities.Num());
+	}
+
+	void RemoveRow(TypedElementRowHandle Row) override
+	{
+		Context.Defer().DestroyEntity(FMassEntityHandle::FromNumber(Row));
+	}
+
+	void RemoveRows(TConstArrayView<TypedElementRowHandle> Rows) override
+	{
+		for (TypedElementRowHandle Row : Rows)
+		{
+			Context.Defer().DestroyEntity(FMassEntityHandle::FromNumber(Row));
+		}
+	}
+
+	void AddColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes)
+	{
+		for (const UScriptStruct* ColumnType : ColumnTypes)
+		{
+			bool bIsTag = ColumnType->IsChildOf(FMassTag::StaticStruct());
+
+			checkf(ColumnType->IsChildOf(FMassFragment::StaticStruct()) || bIsTag,
+				TEXT("Given struct type to add is not a valid fragment or tag type."));
+
+			if (bIsTag)
+			{
+				Context.Defer().PushCommand<FMassDeferredAddCommand>(
+					[EntityHandle = FMassEntityHandle::FromNumber(Row), ColumnType](FMassEntityManager& System)
+					{
+						System.AddTagToEntity(EntityHandle, ColumnType);
+					});
+			}
+			else
+			{
+				Context.Defer().PushCommand<FMassDeferredAddCommand>(
+					[EntityHandle = FMassEntityHandle::FromNumber(Row), ColumnType](FMassEntityManager& System)
+					{
+						System.AddFragmentToEntity(EntityHandle, ColumnType);
+					});
+			}
+		}
+	}
+
+	void AddColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes)
+	{
+		for (TypedElementRowHandle Row : Rows)
+		{
+			AddColumns(Row, ColumnTypes);
+		}
+	}
+
+	void RemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes)
+	{
+		for (const UScriptStruct* ColumnType : ColumnTypes)
+		{
+			bool bIsTag = ColumnType->IsChildOf(FMassTag::StaticStruct());
+
+			checkf(ColumnType->IsChildOf(FMassFragment::StaticStruct()) || bIsTag,
+				TEXT("Given struct type to remove is not a valid fragment or tag type."));
+
+			if (bIsTag)
+			{
+				Context.Defer().PushCommand<FMassDeferredAddCommand>(
+					[EntityHandle = FMassEntityHandle::FromNumber(Row), ColumnType](FMassEntityManager& System)
+					{
+						System.RemoveTagFromEntity(EntityHandle, ColumnType);
+					});
+			}
+			else
+			{
+				Context.Defer().PushCommand<FMassDeferredAddCommand>(
+					[EntityHandle = FMassEntityHandle::FromNumber(Row), ColumnType](FMassEntityManager& System)
+					{
+						System.RemoveFragmentFromEntity(EntityHandle, ColumnType);
+					});
+			}
+		}
+	}
+
+	void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes)
+	{
+		for (TypedElementRowHandle Row : Rows)
+		{
+			RemoveColumns(Row, ColumnTypes);
+		}
 	}
 
 	FMassExecutionContext& Context;
@@ -99,7 +196,6 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::F
 FTypedElementQueryProcessorData::FTypedElementQueryProcessorData(UMassProcessor& Owner)
 	: Query(Owner)
 {
-
 }
 
 EMassProcessingPhase FTypedElementQueryProcessorData::MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase) const
@@ -120,33 +216,22 @@ EMassProcessingPhase FTypedElementQueryProcessorData::MapToMassProcessingPhase(I
 	};
 }
 
-FString FTypedElementQueryProcessorData::GetProcessorName(FString RootProcessorName) const
+FString FTypedElementQueryProcessorData::GetProcessorName() const
 {
-	if (ParentQuery)
-	{
-		FString Result = ParentQuery->Callback.Name.ToString();
-		Result += TEXT(" [");
-		Result += RootProcessorName;
-		Result += TEXT("]");
-		return Result;
-	}
-	else
-	{
-		return MoveTemp(RootProcessorName);
-	}
+	return ParentQuery ? ParentQuery->Callback.Name.ToString() : FString(TEXT("<unnamed>"));
 }
 
 void FTypedElementQueryProcessorData::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	if (ParentQuery)
-	{
-		Query.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
-			{
-				FMassContextForwarder QueryContext(Context);
-				ParentQuery->Callback.Function(QueryContext);
-			}
-		);
-	}
+	checkf(ParentQuery, TEXT("A query callback was registered for execution without an associated query."));
+	
+	Query.ForEachEntityChunk(EntityManager, Context, 
+		[this](FMassExecutionContext& Context)
+		{
+			FMassContextForwarder QueryContext(Context);
+			ParentQuery->Callback.Function(QueryContext);
+		}
+	);
 }
 
 
@@ -159,6 +244,7 @@ UTypedElementQueryProcessorCallbackAdapterProcessor::UTypedElementQueryProcessor
 	: Data(*this)
 {
 	bAllowMultipleInstances = true;
+	bAutoRegisterWithProcessingPhases = false;
 }
 
 FMassEntityQuery& UTypedElementQueryProcessorCallbackAdapterProcessor::GetQuery()
@@ -198,7 +284,9 @@ void UTypedElementQueryProcessorCallbackAdapterProcessor::PostInitProperties()
 
 FString UTypedElementQueryProcessorCallbackAdapterProcessor::GetProcessorName() const
 {
-	return Data.GetProcessorName(Super::GetProcessorName());
+	FString Name = Data.GetProcessorName();
+	Name += TEXT(" [Editor Processor]");
+	return Name;
 }
 
 void UTypedElementQueryProcessorCallbackAdapterProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
@@ -216,6 +304,7 @@ UTypedElementQueryObserverCallbackAdapterProcessor::UTypedElementQueryObserverCa
 	: Data(*this)
 {
 	bAllowMultipleInstances = true;
+	bAutoRegisterWithProcessingPhases = false;
 }
 
 FMassEntityQuery& UTypedElementQueryObserverCallbackAdapterProcessor::GetQuery()
@@ -239,8 +328,7 @@ void UTypedElementQueryObserverCallbackAdapterProcessor::ConfigureQueryCallback(
 
 	bRequiresGameThreadExecution = TargetParentQuery.Callback.bForceToGameThread;
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
-	ProcessingPhase = Data.MapToMassProcessingPhase(TargetParentQuery.Callback.Phase);
-
+	
 	ObservedType = const_cast<UScriptStruct*>(TargetParentQuery.Callback.MonitoredType);
 	
 	switch (TargetParentQuery.Callback.Type)
@@ -277,7 +365,21 @@ void UTypedElementQueryObserverCallbackAdapterProcessor::Register()
 
 FString UTypedElementQueryObserverCallbackAdapterProcessor::GetProcessorName() const
 {
-	return Data.GetProcessorName(Super::GetProcessorName());
+	FString Name = Data.GetProcessorName();
+	EMassObservedOperation ObservationType = GetObservedOperation();
+	if (ObservationType == EMassObservedOperation::Add)
+	{
+		Name += TEXT(" [Editor Add Observer]");
+	}
+	else if (ObservationType == EMassObservedOperation::Remove)
+	{
+		Name += TEXT(" [Editor Remove Observer]");
+	}
+	else
+	{
+		Name += TEXT(" [Editor <Unknown> Observer]");
+	}
+	return Name;
 }
 
 void UTypedElementQueryObserverCallbackAdapterProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)

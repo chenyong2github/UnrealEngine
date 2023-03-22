@@ -80,6 +80,12 @@ private:
 
 	void Reset();
 	
+	static const FName TickGroupName_PrepareSyncWorldToMass;
+	static const FName TickGroupName_FinalizeSyncWorldToMass;
+	static const FName TickGroupName_PrepareSyncMassToExternal;
+	static const FName TickGroupName_FinalizeSyncMassToExternal;
+	static const FName TickGroupName_SyncWidget;
+	
 	TArray<FMassArchetypeHandle> Tables;
 	TMap<FName, TypedElementTableHandle> TableNameLookup;
 

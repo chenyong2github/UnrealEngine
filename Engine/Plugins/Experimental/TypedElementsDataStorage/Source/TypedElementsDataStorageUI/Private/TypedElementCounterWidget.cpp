@@ -32,8 +32,8 @@ void UTypedElementCounterWidgetFactory::RegisterQueries(ITypedElementDataStorage
 			const FTypedElementCounterWidgetColumn& Counter
 		)
 		{
-			UTypedElementDataStorageSubsystem* Subsystem = Context.GetCachedMutableSubsystem<UTypedElementDataStorageSubsystem>();
-			DSI* DataInterface = Subsystem->Get();
+			UTypedElementDataStorageSubsystem& Subsystem = Context.GetCachedMutableDependency<UTypedElementDataStorageSubsystem>();
+			DSI* DataInterface = Subsystem.Get();
 			checkf(DataInterface, TEXT("FTypedElementsDataStorageUiModule tried to process widgets before the "
 				"Typed Elements Data Storage interface is available."));
 

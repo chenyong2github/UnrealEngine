@@ -35,16 +35,30 @@ class USubsystem;
  *
  * Some functions allow binding to a callback. In these cases the arguments to the provided callback are analyzed and
  * added to the query automatically. Const arguments are added as ReadOnly, while non-const arguments are added as 
- * ReadWrite. Callbacks can be periodically called if constructed as a processor, in which case the callback is
- * repeatedly, usually once per frame, called for all row (ranges) that match the query. If constructed as an observer
+ * ReadWrite. Callbacks can be periodically called if constructed as a processor, in which case the callback is triggered
+ * repeatedly, usually once per frame and called for all row (ranges) that match the query. If constructed as an observer
  * the provided target type is monitored for actions like addition or deletion into/from any table and will trigger the
- * callback once if the query matches. The following function signatures are excepted by "Select":
- *		- void(ITypedElementDataStorageInterface::FQueryContext&, [const]Column&...) 
- *			- The provided callback will be called for each row that matches the provided columns.
- *		- void(FCachedQueryContext<[const]Dependencies...>&, [const]Column&...)
- *			- Same as the previous but each listed dependency is registered and cached to improve performance. Note that
- *				dependencies marked as const will only be available for reading and otherwise are can be accessed for read/write.
- * Usage example:
+ * callback once if the query matches. The following function signatures are accepted by "Select":
+ *	- void([const]Column&...) 
+ *	- void([const]Column*...) 
+ *	- void(TypedElementRowHandle, [const]Column&...) 
+ *	- void(<Context>&, [const]Column&...) 
+ *	- void(<Context>&, TypedElementRowHandle, [const]Column&...) 
+ *	- void(<Context>&, [const]Column*...) 
+ *	- void(<Context>&, const TypedElementRowHandle*, [const]Column*...) 
+ *	Where <Context> is ITypedElementDataStorageInterface::FQueryContext or FCachedQueryContext<...>	e.g.:
+ *		void(
+ *			FCachedQueryContext<Subsystem1, const Subsystem2>& Context, 
+ *			TypedElementRowHandle Row, 
+ *			ColumnType0& ColumnA, 
+ *			const ColumnType1& ColumnB) 
+ *			{...}
+ *
+ * FCachedQueryContext can be used to store cached pointers to dependencies to reduce the overhead of retrieving these. The same
+ * const principle as for other arguments applies so dependencies marked as const can only be accessed as read-only or otherwise
+ * can be accessed as readwrite.
+ *
+ * The following is a simplified example of these options combined together:
  *		FProcessor Info(
  *			ITypedElementDataStorageInterface::EQueryTickPhase::FrameEnd, 
  *			DataStorage->GetQueryTickGroupName(ITypedElementDataStorageInterface::EQueryTickGroups::SyncExternalToDataStorage);
@@ -187,43 +201,51 @@ namespace TypedElementQueryBuilder
 		bool bForceToGameThread{ false };
 	};
 
-	struct TYPEDELEMENTFRAMEWORK_API FQueryContextForwarder : public ITypedElementDataStorageInterface::FQueryContext
+	// Because this is a thin wrapper called from within a query callback, it's better to inline fully so all
+	// function pre/postambles can be optimized away.
+	struct FQueryContextForwarder : public ITypedElementDataStorageInterface::FQueryContext
 	{
-		explicit FQueryContextForwarder(ITypedElementDataStorageInterface::FQueryContext& InParentContext);
-		
-		const void* GetColumn(const UScriptStruct* ColumnType) const override;
-		void* GetMutableColumn(const UScriptStruct* ColumnType) override;
-		void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<const UScriptStruct*> ColumnTypes,
+		inline explicit FQueryContextForwarder(ITypedElementDataStorageInterface::FQueryContext& InParentContext);
+		inline ~FQueryContextForwarder() = default;
+
+		inline const void* GetColumn(const UScriptStruct* ColumnType) const override;
+		inline void* GetMutableColumn(const UScriptStruct* ColumnType) override;
+		inline void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UScriptStruct>> ColumnTypes,
 			TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes) override;
-		void GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const UScriptStruct* const* ColumnTypes, 
+		inline void GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const TWeakObjectPtr<const UScriptStruct>* ColumnTypes,
 			const ITypedElementDataStorageInterface::EQueryAccessType* AccessTypes) override;
 
-		USubsystem* GetMutableSubsystem(const TSubclassOf<USubsystem> SubsystemClass) override;
-		const USubsystem* GetSubsystem(const TSubclassOf<USubsystem> SubsystemClass) override;
-		void GetSubsystems(TArrayView<char*> RetrievedAddresses, TConstArrayView<const TSubclassOf<USubsystem>> SubsystemTypes, 
+		inline UObject* GetMutableDependency(const UClass* DependencyClass) override;
+		inline const UObject* GetDependency(const UClass* DependencyClass) override;
+		inline void GetDependencies(TArrayView<UObject*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UClass>> SubsystemTypes,
 			TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes) override;
 
-		uint32 GetRowCount() const override;
+		inline uint32 GetRowCount() const override;
+		inline TConstArrayView<TypedElementRowHandle> GetRowHandles() const override;
+		inline void RemoveRow(TypedElementRowHandle Row) override;
+		inline void RemoveRows(TConstArrayView<TypedElementRowHandle> Rows) override;
+
+		inline void AddColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) override;
+		inline void AddColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) override;
+		inline void RemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) override;
+		inline void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) override;
 
 		ITypedElementDataStorageInterface::FQueryContext& ParentContext;
 	};
 
-	template<typename... Subsystems>
+	template<typename... Dependencies>
 	struct FCachedQueryContext final : public FQueryContextForwarder
 	{
 		explicit FCachedQueryContext(ITypedElementDataStorageInterface::FQueryContext& InParentContext);
-
-		void Fetch();
+		
 		static void Register(ITypedElementDataStorageInterface::FQueryDescription& Query);
 
-		template<typename Subsystem>
-		Subsystem* GetCachedMutableSubsystem();
-		template<typename Subsystem>
-		const Subsystem* GetCachedSubsystem() const;
+		template<typename Dependency>
+		Dependency& GetCachedMutableDependency();
+		template<typename Dependency>
+		const Dependency& GetCachedDependency() const;
 
-		char* SubsystemAddresses[sizeof...(Subsystems)];
-		const TSubclassOf<USubsystem> SubsystemTypes[sizeof...(Subsystems)];
-		ITypedElementDataStorageInterface::EQueryAccessType SubsystemAccessList[sizeof...(Subsystems)];
+		UObject* DependencyAddresses[sizeof...(Dependencies)];
 	};
 
 	// Explicitly not following the naming convention in order to present this as a query that can be read as such.
@@ -233,9 +255,9 @@ namespace TypedElementQueryBuilder
 		Select();
 
 		template<typename CallbackType, typename Function>
-		Select(FName Name, const CallbackType& Type, Function Callback);
+		Select(FName Name, const CallbackType& Type, Function&& Callback);
 		template<typename CallbackType, typename Class, typename Function>
-		Select(FName Name, const CallbackType& Type, Class* Instance, Function Callback);
+		Select(FName Name, const CallbackType& Type, Class* Instance, Function&& Callback);
 
 		template<typename... TargetTypes>
 		Select& ReadOnly();

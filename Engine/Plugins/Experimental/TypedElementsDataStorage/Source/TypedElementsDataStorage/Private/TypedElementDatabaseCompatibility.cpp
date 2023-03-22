@@ -86,7 +86,6 @@ void UTypedElementDatabaseCompatibility::CreateStandardArchetypes()
 	StandardActorWithTransformTable = Storage->RegisterTable(StandardActorTable,
 		MakeArrayView(
 		{
-			FTypedElementLabelColumn::StaticStruct(),
 			FTypedElementLocalTransformColumn::StaticStruct()
 		}), FName("Editor_StandardActorWithTransformTable"));
 }
