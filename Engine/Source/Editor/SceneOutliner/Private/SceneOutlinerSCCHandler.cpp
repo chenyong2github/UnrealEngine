@@ -10,10 +10,27 @@
 #include "ISourceControlWindowsModule.h"
 #include "UncontrolledChangelistsModule.h"
 #include "AssetViewUtils.h"
+#include "LevelEditor.h"
 #include "RevisionControlStyle/RevisionControlStyle.h"
 #include "Bookmarks/BookmarkScoped.h"
 
 #define LOCTEXT_NAMESPACE "FSceneOutlinerSCCHandler"
+
+FSceneOutlinerSCCHandler::FSceneOutlinerSCCHandler()
+{
+	if (FLevelEditorModule* LevelEditorModule = FModuleManager::LoadModulePtr<FLevelEditorModule>("LevelEditor"))
+	{
+		LevelEditorModule->OnMapChanged().AddRaw(this, &FSceneOutlinerSCCHandler::OnMapChanged);
+	}
+}
+
+FSceneOutlinerSCCHandler::~FSceneOutlinerSCCHandler()
+{
+	if (FLevelEditorModule* LevelEditorModule = FModuleManager::LoadModulePtr<FLevelEditorModule>("LevelEditor"))
+	{
+		LevelEditorModule->OnMapChanged().RemoveAll(this);
+	}
+}
 
 TSharedPtr<FSceneOutlinerTreeItemSCC> FSceneOutlinerSCCHandler::GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem) const
 {
@@ -437,6 +454,14 @@ void FSceneOutlinerSCCHandler::ExecuteSCCHistory()
 	GetSelectedPackageNames(PackageNames);
 
 	FSourceControlWindows::DisplayRevisionHistory(PackageNames);
+}
+
+void FSceneOutlinerSCCHandler::OnMapChanged(UWorld* InWorld, EMapChangeType MapChangedType)
+{
+	if (MapChangedType == EMapChangeType::NewMap)
+	{
+		ItemSourceControls.Empty();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
