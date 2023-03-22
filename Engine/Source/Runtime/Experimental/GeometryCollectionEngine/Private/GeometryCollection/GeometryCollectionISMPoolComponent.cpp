@@ -143,7 +143,7 @@ bool FGeometryCollectionISMPool::BatchUpdateInstancesTransforms(FGeometryCollect
 		int32 BatchCount = 1;
 		TArray<FTransform> BatchTransforms; //< Can't use TArrayView because blueprint function doesn't support that 
 		BatchTransforms.Reserve(NewInstancesTransforms.Num());
-		BatchTransforms.Add(NewInstancesTransforms[TransformIndex]);
+		BatchTransforms.Add(NewInstancesTransforms[TransformIndex++]);
 		for (int InstanceIndex = StartInstanceIndex + 1; InstanceIndex < NewInstancesTransforms.Num(); ++InstanceIndex)
 		{
 			// flush batch?
