@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class RemoteControlUI : ModuleRules
 {
 	public RemoteControlUI(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePaths.AddRange(new string[] {
+			Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
+		});
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {}
 		);

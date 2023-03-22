@@ -14,7 +14,7 @@
 #include "IRemoteControlUIModule.h"
 #include "Layout/Visibility.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "PropertyEditor/Private/PropertyNode.h"
+#include "PropertyNode.h"
 #include "RCPanelWidgetRegistry.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPanelStyle.h"
