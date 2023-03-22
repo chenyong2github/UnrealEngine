@@ -780,39 +780,37 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 		}
 		else // take care of simple types...
 		{
-			static FString BoolString = TEXT("bool");
-			static FString Int32String = TEXT("int32");
-			static FString IntString = TEXT("int");
-			static FString FloatString = TEXT("float");
-			static FString DoubleString = TEXT("double");
-			static FString StringString = TEXT("FString");
-			static FString NameString = TEXT("FName");
+			static const FString IntString = TEXT("int");
 
 			const FString BaseCPPType = InProperty.GetTailCPPType();
-			if(BaseCPPType.Equals(BoolString, ESearchCase::IgnoreCase))
+			if(BaseCPPType.Equals(RigVMTypeUtils::BoolType, ESearchCase::IgnoreCase))
 			{
 				FBoolProperty* BoolProperty = new FBoolProperty(PropertyOwner, InProperty.Name, RF_Public); 
 				BoolProperty->SetBoolSize(sizeof(bool), true);
 				(*ValuePropertyPtr) = BoolProperty;
 			}
-			else if(BaseCPPType.Equals(Int32String, ESearchCase::IgnoreCase) ||
+			else if(BaseCPPType.Equals(RigVMTypeUtils::Int32Type, ESearchCase::IgnoreCase) ||
 				BaseCPPType.Equals(IntString, ESearchCase::IgnoreCase))
 			{
 				(*ValuePropertyPtr) = new FIntProperty(PropertyOwner, InProperty.Name, RF_Public);;
 			}
-			else if(BaseCPPType.Equals(FloatString, ESearchCase::IgnoreCase))
+			else if(BaseCPPType.Equals(RigVMTypeUtils::UInt32Type, ESearchCase::IgnoreCase))
+			{
+				(*ValuePropertyPtr) = new FUInt32Property(PropertyOwner, InProperty.Name, RF_Public);;
+			}
+			else if(BaseCPPType.Equals(RigVMTypeUtils::FloatType, ESearchCase::IgnoreCase))
 			{
 				(*ValuePropertyPtr) = new FFloatProperty(PropertyOwner, InProperty.Name, RF_Public);;
 			}
-			else if(BaseCPPType.Equals(DoubleString, ESearchCase::IgnoreCase))
+			else if(BaseCPPType.Equals(RigVMTypeUtils::DoubleType, ESearchCase::IgnoreCase))
 			{
 				(*ValuePropertyPtr) = new FDoubleProperty(PropertyOwner, InProperty.Name, RF_Public);;
 			}
-			else if(BaseCPPType.Equals(StringString, ESearchCase::IgnoreCase))
+			else if(BaseCPPType.Equals(RigVMTypeUtils::FStringType, ESearchCase::IgnoreCase))
 			{
 				(*ValuePropertyPtr) = new FStrProperty(PropertyOwner, InProperty.Name, RF_Public);;
 			}
-			else if(BaseCPPType.Equals(NameString, ESearchCase::IgnoreCase))
+			else if(BaseCPPType.Equals(RigVMTypeUtils::FNameType, ESearchCase::IgnoreCase))
 			{
 				(*ValuePropertyPtr) = new FNameProperty(PropertyOwner, InProperty.Name, RF_Public);;
 			}

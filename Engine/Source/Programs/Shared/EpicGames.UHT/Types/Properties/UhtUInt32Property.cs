@@ -29,6 +29,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="intType">Integer type</param>
 		public UhtUInt32Property(UhtPropertySettings propertySettings, UhtPropertyIntType intType) : base(propertySettings, intType)
 		{
+			PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
 		}
 
 		/// <inheritdoc/>

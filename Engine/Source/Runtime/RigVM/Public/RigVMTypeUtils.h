@@ -23,6 +23,7 @@ namespace RigVMTypeUtils
 	const FString FloatType = TEXT("float");
 	const FString DoubleType = TEXT("double");
 	const FString Int32Type = TEXT("int32");
+	const FString UInt32Type = TEXT("uint32");
 	const FString UInt8Type = TEXT("uint8");
 	const FString FNameType = TEXT("FName");
 	const FString FStringType = TEXT("FString");
@@ -30,6 +31,7 @@ namespace RigVMTypeUtils
 	const FString FloatArrayType = TEXT("TArray<float>");
 	const FString DoubleArrayType = TEXT("TArray<double>");
 	const FString Int32ArrayType = TEXT("TArray<int32>");
+	const FString UInt32ArrayType = TEXT("TArray<uint32>");
 	const FString UInt8ArrayType = TEXT("TArray<uint8>");
 	const FString FNameArrayType = TEXT("TArray<FName>");
 	const FString FStringArrayType = TEXT("TArray<FString>");
@@ -38,6 +40,7 @@ namespace RigVMTypeUtils
 	const FName FloatTypeName = *FloatType;
 	const FName DoubleTypeName = *DoubleType;
 	const FName Int32TypeName = *Int32Type;
+	const FName UInt32TypeName = *UInt32Type;
 	const FName UInt8TypeName = *UInt8Type;
 	const FName FNameTypeName = *FNameType;
 	const FName FStringTypeName = *FStringType;
@@ -45,6 +48,7 @@ namespace RigVMTypeUtils
 	const FName FloatArrayTypeName = *FloatArrayType;
 	const FName DoubleArrayTypeName = *DoubleArrayType;
 	const FName Int32ArrayTypeName = *Int32ArrayType;
+	const FName UInt32ArrayTypeName = *UInt32ArrayType;
 	const FName UInt8ArrayTypeName = *UInt8ArrayType;
 	const FName FNameArrayTypeName = *FNameArrayType;
 	const FName FStringArrayTypeName = *FStringArrayType;
@@ -58,6 +62,7 @@ namespace RigVMTypeUtils
 		static TRigVMTypeIndex Float;	
 		static TRigVMTypeIndex Double;	
 		static TRigVMTypeIndex Int32;	
+		static TRigVMTypeIndex UInt32;	
 		static TRigVMTypeIndex UInt8;	
 		static TRigVMTypeIndex FName;	
 		static TRigVMTypeIndex FString;
@@ -66,6 +71,7 @@ namespace RigVMTypeUtils
 		static TRigVMTypeIndex FloatArray;	
 		static TRigVMTypeIndex DoubleArray;	
 		static TRigVMTypeIndex Int32Array;	
+		static TRigVMTypeIndex UInt32Array;	
 		static TRigVMTypeIndex UInt8Array;	
 		static TRigVMTypeIndex FNameArray;	
 		static TRigVMTypeIndex FStringArray;	
@@ -185,14 +191,14 @@ namespace RigVMTypeUtils
 		{
 			for(const FString& Prefix : PrefixesNotRequiringCPPTypeObject)
 			{
-				if(InCPPType.StartsWith(Prefix, ESearchCase::CaseSensitive))
+				if(InCPPType.StartsWith(Prefix, ESearchCase::IgnoreCase))
 				{
 					return false;
 				}
 			}
 			for(const FString& Prefix : PrefixesRequiringCPPTypeObject)
 			{
-				if(InCPPType.StartsWith(Prefix, ESearchCase::CaseSensitive))
+				if(InCPPType.StartsWith(Prefix, ESearchCase::IgnoreCase))
 				{
 					return true;
 				}

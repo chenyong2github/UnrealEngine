@@ -14,6 +14,7 @@ namespace RigVMTypeUtils
 	TRigVMTypeIndex TypeIndex::Float = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::Double = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::Int32 = INDEX_NONE;	
+	TRigVMTypeIndex TypeIndex::UInt32 = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::UInt8 = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::FName = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::FString = INDEX_NONE;
@@ -22,6 +23,7 @@ namespace RigVMTypeUtils
 	TRigVMTypeIndex TypeIndex::FloatArray = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::DoubleArray = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::Int32Array = INDEX_NONE;	
+	TRigVMTypeIndex TypeIndex::UInt32Array = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::UInt8Array = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::FNameArray = INDEX_NONE;	
 	TRigVMTypeIndex TypeIndex::FStringArray = INDEX_NONE;	

@@ -37,7 +37,7 @@ namespace EpicGames.UHT.Types
 		public UhtTextProperty(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
 			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
-				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
+				UhtPropertyCaps.IsMemberSupportedByBlueprint;
 			PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerKey);
 		}
 
