@@ -10,7 +10,7 @@
 #include "Templates/RefCounting.h"
 #include <atomic>
 
-#define UE_PARKINGLOT_USE_WORDMUTEX 0
+#define UE_PARKINGLOT_USE_WORDMUTEX 1
 
 #if UE_PARKINGLOT_USE_WORDMUTEX
 #include "Async/WordMutex.h"
