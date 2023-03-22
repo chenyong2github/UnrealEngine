@@ -10,6 +10,7 @@ public class DisplayClusterEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"DisplayCluster",
+				"DisplayClusterConfiguration",
 
 				"Core",
 				"CoreUObject",
