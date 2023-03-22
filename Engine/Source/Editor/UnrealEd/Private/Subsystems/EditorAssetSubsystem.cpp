@@ -8,7 +8,6 @@
 #include "Editor.h"
 #include "Editor/Transactor.h"
 #include "EditorScriptingHelpers.h"
-#include "Experimental/Async/LazyEvent.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
