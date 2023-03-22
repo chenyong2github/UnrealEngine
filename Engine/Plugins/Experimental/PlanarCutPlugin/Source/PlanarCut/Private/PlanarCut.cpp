@@ -8,6 +8,7 @@
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
 
 
 #include "DynamicMeshEditor.h"
@@ -1198,10 +1199,15 @@ void FindBoneVolumes(
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
 	TArray<double>& OutVolumes,
-	double ScalePerDimension
+	double ScalePerDimension,
+	bool bIncludeClusters
 )
 {
 	OutVolumes.Reset();
+
+	// make sure volume attributes are up to date
+	FGeometryCollectionConvexUtility::SetVolumeAttributes(&Collection);
+	const TManagedArray<float>& VolumesAttrib = Collection.GetAttribute<float>("Volume", FTransformCollection::TransformGroup);
 
 	TArray<FTransform> Transforms;
 	TArray<int32> TransformIndicesArray(TransformIndices);
@@ -1212,74 +1218,44 @@ void FindBoneVolumes(
 			TransformIndicesArray.Add(TransformIdx);
 		}
 	}
-	GeometryCollectionAlgo::GlobalMatrices(Collection.Transform, Collection.Parent, TransformIndicesArray, Transforms);
 
-	auto GetVolume = [](const FGeometryCollection& Collection, int32 GeomIdx, const FTransform& Transform,
-		double DimScaleFactor = 1) -> double
-	{
-		int32 VStart = Collection.VertexStart[GeomIdx];
-		int32 VEnd = VStart + Collection.VertexCount[GeomIdx];
-		if (VStart == VEnd)
-		{
-			return 0.0;
-		}
-		FVector3d Center = FVector::ZeroVector;
-		for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
-		{
-			FVector Pos = Transform.TransformPosition(FVector(Collection.Vertex[VIdx]));
-			Center += Pos;
-		}
-		Center /= double(VEnd - VStart);
-		int32 FStart = Collection.FaceStart[GeomIdx];
-		int32 FEnd = FStart + Collection.FaceCount[GeomIdx];
-		double VolOut = 0;
-		for (int32 FIdx = FStart; FIdx < FEnd; FIdx++)
-		{
-			FIntVector Tri = Collection.Indices[FIdx];
-			FVector3d V0 = Transform.TransformPosition(FVector3d(Collection.Vertex[Tri.X]));
-			FVector3d V1 = Transform.TransformPosition(FVector3d(Collection.Vertex[Tri.Y]));
-			FVector3d V2 = Transform.TransformPosition(FVector3d(Collection.Vertex[Tri.Z]));
-
-			// add volume of the tetrahedron formed by the triangles and the reference point
-			FVector3d V1mRef = (V1 - Center) * DimScaleFactor;
-			FVector3d V2mRef = (V2 - Center) * DimScaleFactor;
-			FVector3d N = V2mRef.Cross(V1mRef);
-
-			VolOut += ((V0 - Center) * DimScaleFactor).Dot(N) / 6.0;
-		}
-		return VolOut;
-	};
+	double VolumeScale = ScalePerDimension * ScalePerDimension * ScalePerDimension;
 
 	OutVolumes.SetNum(TransformIndicesArray.Num());
-	ParallelFor(TransformIndicesArray.Num(), [&](int32 Idx)
+	for (int32 Idx = 0; Idx < TransformIndicesArray.Num(); ++Idx)
+	{
+		int32 TransformIdx = TransformIndicesArray[Idx];
+		if (bIncludeClusters || Collection.IsRigid(TransformIdx))
 		{
-			int32 TransformIdx = TransformIndicesArray[Idx];
-			int32 GeomIdx = Collection.TransformToGeometryIndex[TransformIdx];
-			if (GeomIdx == -1 || !Collection.IsRigid(TransformIdx))
-			{
-				OutVolumes[Idx] = 0.0;
-			}
-			else
-			{
-				OutVolumes[Idx] = GetVolume(Collection, GeomIdx, Transforms[Idx], ScalePerDimension);
-			}
-		});
+			double UnscaledVolume = (double)VolumesAttrib[Idx];
+			OutVolumes[Idx] = UnscaledVolume * VolumeScale;
+		}
+		else
+		{
+			OutVolumes[Idx] = 0.0;
+		}
+	}
 }
 
 
 void FilterBonesByVolume(
-	FGeometryCollection& Collection,
+	const FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
 	const TArrayView<const double>& Volumes,
 	TFunctionRef<bool(double Volume, int32 BoneIdx)> Filter,
-	TArray<int32>& OutSmallBones
+	TArray<int32>& OutSmallBones,
+	bool bIncludeClusters
 )
 {
 	OutSmallBones.Reset();
 
-	auto AddIdx = [&Collection, &Volumes, &Filter, &OutSmallBones](int32 TransformIdx, double Volume)
+	auto AddIdx = [&Collection, &Volumes, &Filter, &OutSmallBones, bIncludeClusters](int32 TransformIdx, double Volume)
 	{
-		if (Collection.IsRigid(TransformIdx) && Collection.TransformToGeometryIndex[TransformIdx] > -1 && Filter(Volume, TransformIdx))
+		constexpr int8 ClusterType = FGeometryCollection::ESimulationTypes::FST_Clustered;
+		constexpr int8 RigidType = FGeometryCollection::ESimulationTypes::FST_Rigid;
+		const int32 SimType = Collection.SimulationType[TransformIdx];
+		const bool bCanConsiderIdx = (bIncludeClusters && SimType == ClusterType) || (SimType == RigidType && Collection.TransformToGeometryIndex[TransformIdx] > -1);
+		if (bCanConsiderIdx && Filter(Volume, TransformIdx))
 		{
 			OutSmallBones.Add(TransformIdx);
 		}
@@ -1314,11 +1290,12 @@ void FilterBonesByVolume(
 
 
 void FindSmallBones(
-	FGeometryCollection& Collection,
+	const FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
 	const TArrayView<const double>& Volumes,
 	double MinVolume,
-	TArray<int32>& OutSmallBones
+	TArray<int32>& OutSmallBones,
+	bool bIncludeClusters
 )
 {
 	FilterBonesByVolume(Collection, TransformIndices, Volumes, 
@@ -1326,7 +1303,7 @@ void FindSmallBones(
 		{
 			return Volume < MinVolume;
 		},
-		OutSmallBones);
+		OutSmallBones, bIncludeClusters);
 }
 
 
@@ -1675,6 +1652,256 @@ int32 MergeBones(
 	Collection.RemoveElements(FGeometryCollection::TransformGroup, AllRemoveIndices, ProcessingParams);
 
 	return INDEX_NONE; // TODO: consider tracking smallest index of updated groups?  but no reason to do so currently
+}
+
+namespace
+{
+	static double GetClusterVolumeFromRigidsHelper(const FGeometryCollection& Collection, const TArrayView<const double>& Volumes, int32 BoneIdx)
+	{
+		if (Collection.SimulationType[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+		{
+			return Volumes[BoneIdx];
+		}
+		double Sum = 0;
+		for (int32 Child : Collection.Children[BoneIdx])
+		{
+			Sum += GetClusterVolumeFromRigidsHelper(Collection, Volumes, Child);
+		}
+		return Sum;
+	}
+
+	static FBox GetClusterBoundsFromRigidsHelper(const FGeometryCollection& Collection, const TArray<FBox>& GeoBoxesInWorldSpace, int32 BoneIdx)
+	{
+		int32 GeoIdx = Collection.TransformToGeometryIndex[BoneIdx];
+		if (GeoIdx != INDEX_NONE)
+		{
+			return GeoBoxesInWorldSpace[GeoIdx];
+		}
+		FBox Combined(ForceInit);
+		for (int32 Child : Collection.Children[BoneIdx])
+		{
+			Combined += GetClusterBoundsFromRigidsHelper(Collection, GeoBoxesInWorldSpace, Child);
+		}
+		return Combined;
+	}
+}
+
+void MergeClusters(
+	FGeometryCollection& Collection,
+	const TArrayView<const double>& Volumes,
+	double MinVolume,
+	const TArrayView<const int32>& SmallTransformIndices,
+	UE::PlanarCut::ENeighborSelectionMethod NeighborSelectionMethod,
+	bool bOnlyMergeInProximity,
+	bool bOnlySameParent
+)
+{
+	FGeometryCollectionProximityUtility ProximityUtility(&Collection);
+	ProximityUtility.RequireProximity();
+	const TManagedArray<TSet<int32>>& Proximity = Collection.GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+	const TManagedArray<int32>* Level = Collection.FindAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+	if (!ensure(Level != nullptr))
+	{
+		// cluster merging requires a level attribute
+		return;
+	}
+
+	TArray<FBox> GeoBoxesInWorldSpace;
+	TArray<FTransform> GlobalTransforms;
+	GeometryCollectionAlgo::GlobalMatrices(Collection.Transform, Collection.Parent, GlobalTransforms);
+	GeoBoxesInWorldSpace.SetNum(Collection.TransformIndex.Num());
+	for (int32 GeoIdx = 0; GeoIdx < GeoBoxesInWorldSpace.Num(); ++GeoIdx)
+	{
+		FTransform ToWorld = GlobalTransforms[Collection.TransformIndex[GeoIdx]];
+		FBox GeoBox(ForceInit);
+		int32 VStart = Collection.VertexStart[GeoIdx];
+		int32 VEnd = VStart + Collection.VertexCount[GeoIdx];
+		for (int32 VIdx = VStart; VIdx < VEnd; ++VIdx)
+		{
+			GeoBox += ToWorld.TransformPosition((FVector)Collection.Vertex[VIdx]);
+		}
+		GeoBoxesInWorldSpace[GeoIdx] = GeoBox;
+	}
+
+	// helper to grab same level neighbors from the proximity info + traversal
+	// only selects rigid or cluster bones
+	// Note we do the traversal each time rather using a pre-computed connection graph because the cluster neighbors will change as we merge clusters
+	// (the Proximity attribute should be stable because it is on the geometry group, not the transform group)
+	auto GetSameLevelNeighbors = [&Collection, &Proximity, &Level, bOnlySameParent](int32 BoneIdx, TSet<int32>& OutNeighbors) -> void
+	{
+		int32 TargetLevel = (*Level)[BoneIdx];
+		TArray<int32> ToProcess;
+		ToProcess.Add(BoneIdx);
+		int32 BoneParent = Collection.Parent[BoneIdx];
+		while (!ToProcess.IsEmpty())
+		{
+			int32 ProcessIdx = ToProcess.Pop();
+			// we're processing a rigid node: access the proximity graph and look for neighbor nodes
+			if (Collection.SimulationType[ProcessIdx] == FGeometryCollection::ESimulationTypes::FST_Rigid
+				&& Collection.TransformToGeometryIndex[ProcessIdx] != INDEX_NONE)
+			{
+				for (int32 NbrGeo : Proximity[Collection.TransformToGeometryIndex[ProcessIdx]])
+				{
+					// Traverse parents to find a same-level cluster on this neighbor
+					int32 TraverseParent = Collection.TransformIndex[NbrGeo];
+					while (TraverseParent != -1 && (*Level)[TraverseParent] > TargetLevel)
+					{
+						TraverseParent = Collection.Parent[TraverseParent];
+					}
+					if (TraverseParent == -1) // failed to find a same-level neighbor
+					{
+						continue;
+					}
+					// any different, same-level cluster is a valid neighbor to consider
+					bool bIsRigid = Collection.SimulationType[TraverseParent] == FGeometryCollection::ESimulationTypes::FST_Rigid;
+					// A valid cluster is one that has not been emptied by a previous merge (though we should not reach such an empty cluster in this traversal)
+					bool bIsValidCluster = !Collection.Children[TraverseParent].IsEmpty() && Collection.SimulationType[TraverseParent] == FGeometryCollection::ESimulationTypes::FST_Clustered;
+					bool bValidParent = !bOnlySameParent || Collection.Parent[TraverseParent] == BoneParent;
+					if (TraverseParent != BoneIdx && TraverseParent != -1 && (*Level)[TraverseParent] == TargetLevel && bValidParent
+						&& (bIsRigid || bIsValidCluster)) // only merge to rigid or cluster bones
+					{
+						OutNeighbors.Add(TraverseParent);
+					}
+				}
+			}
+			// we're processing a cluster node: traverse down to children to find a rigid node with proximity info
+			else if (Collection.SimulationType[ProcessIdx] == FGeometryCollection::ESimulationTypes::FST_Clustered)
+			{
+				ToProcess.Reserve(ToProcess.Num() + Collection.Children[ProcessIdx].Num());
+				for (int32 ChildIdx : Collection.Children[ProcessIdx])
+				{
+					ToProcess.Add(ChildIdx);
+				}
+			}
+		}
+	};
+
+	TSet<int32> ReconsiderIfSmall, DoNotReconsider; // Sets to track nodes we've already merged, and may not need to re-merge
+	TSet<int32> Neighbors; // Set to be re-used in the below loop, tracking neighbors to consider
+	TArray<int32> ChildNodes; // Array to be re-used in the below loop, tracking nodes to merge under a new parent
+	TArray<int32> ToProcess(SmallTransformIndices); // Need a mutable copy of SmallTransformIndices to update the array with merged nodes
+	for (int32 ProcessIdx = 0; ProcessIdx < ToProcess.Num(); ++ProcessIdx)
+	{
+		int32 MergeIdx = SmallTransformIndices[ProcessIdx];
+		if (Collection.Parent[MergeIdx] == -1 || DoNotReconsider.Contains(MergeIdx)) // can't merge root nodes
+		{
+			continue;
+		}
+		bool bIsCluster = Collection.SimulationType[MergeIdx] == FGeometryCollection::ESimulationTypes::FST_Clustered;
+		if (ReconsiderIfSmall.Contains(MergeIdx))
+		{
+			double Volume = GetClusterVolumeFromRigidsHelper(Collection, Volumes, MergeIdx);
+			if (Volume > MinVolume)
+			{
+				continue;
+			}
+		}
+		Neighbors.Reset();
+		GetSameLevelNeighbors(MergeIdx, Neighbors);
+		int32 BestNeighbor = INDEX_NONE;
+		if (Neighbors.IsEmpty() && !bOnlyMergeInProximity)
+		{
+			FVector Center = GetClusterBoundsFromRigidsHelper(Collection, GeoBoxesInWorldSpace, MergeIdx).GetCenter();
+			double ClosestDistSq = FMathd::MaxReal;
+			for (int32 TransformIdx = 0; TransformIdx < Collection.Transform.Num(); ++TransformIdx)
+			{
+				if (TransformIdx == MergeIdx || (*Level)[MergeIdx] != (*Level)[TransformIdx]
+					|| Collection.SimulationType[TransformIdx] != FGeometryCollection::ESimulationTypes::FST_Clustered)
+				{
+					continue;
+				}
+				FVector OtherCenter = GetClusterBoundsFromRigidsHelper(Collection, GeoBoxesInWorldSpace, TransformIdx).GetCenter();
+				double DistSq = FVector::DistSquared(Center, OtherCenter);
+				if (BestNeighbor == INDEX_NONE || DistSq < ClosestDistSq)
+				{
+					BestNeighbor = TransformIdx;
+					ClosestDistSq = DistSq;
+				}
+			}
+		}
+		else
+		{
+			if (NeighborSelectionMethod == ENeighborSelectionMethod::NearestCenter)
+			{
+				FVector Center = GetClusterBoundsFromRigidsHelper(Collection, GeoBoxesInWorldSpace, MergeIdx).GetCenter();
+				double ClosestDistSq = FMathd::MaxReal;
+				for (int32 NeighborIdx : Neighbors)
+				{
+					FVector OtherCenter = GetClusterBoundsFromRigidsHelper(Collection, GeoBoxesInWorldSpace, NeighborIdx).GetCenter();
+					double DistSq = FVector::DistSquared(Center, OtherCenter);
+					if (BestNeighbor == INDEX_NONE || DistSq < ClosestDistSq)
+					{
+						BestNeighbor = NeighborIdx;
+						ClosestDistSq = DistSq;
+					}
+				}
+			}
+			else // ENeighborSelectionMethod::LargestNeighbor
+			{
+				double Volume = GetClusterVolumeFromRigidsHelper(Collection, Volumes, MergeIdx);
+				double LargestVolume = -1;
+				for (int32 NeighborIdx : Neighbors)
+				{
+					double NbrVolume = GetClusterVolumeFromRigidsHelper(Collection, Volumes, NeighborIdx);
+					if (BestNeighbor == INDEX_NONE || NbrVolume > LargestVolume)
+					{
+						BestNeighbor = NeighborIdx;
+						LargestVolume = NbrVolume;
+					}
+				}
+			}
+		}
+		if (BestNeighbor == INDEX_NONE)
+		{
+			continue;
+		}
+		
+		int32 ToMerge = MergeIdx;
+		if (Collection.SimulationType[BestNeighbor] != FGeometryCollection::ESimulationTypes::FST_Clustered)
+		{
+			if (Collection.SimulationType[ToMerge] == FGeometryCollection::ESimulationTypes::FST_Clustered)
+			{
+				Swap(ToMerge, BestNeighbor);
+			}
+			else
+			{
+				// both nodes are rigid: need to create a new cluster for them
+				ChildNodes.Reset();
+				ChildNodes.Add(MergeIdx);
+				ChildNodes.Add(BestNeighbor);
+				int32 NewCluster = FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(&Collection, MergeIdx, ChildNodes, true, false);
+				// Now that the node is clustered at a lower level, we shouldn't try to re-merge it with any other nodes
+				DoNotReconsider.Add(BestNeighbor);
+				double Volume = GetClusterVolumeFromRigidsHelper(Collection, Volumes, NewCluster);
+				if (Volume < MinVolume)
+				{
+					// if the new cluster is still small, we may want to merge it again
+					ToProcess[ProcessIdx] = NewCluster;
+					ProcessIdx--; // this re-considers ProcessIdx on the next iteration
+				}
+				continue;
+			}
+		}
+
+		// From the if / swap above, BestNeighbor must now be a cluster node, so we can merge under it
+		checkSlow(Collection.SimulationType[BestNeighbor] == FGeometryCollection::ESimulationTypes::FST_Clustered);
+		int32 ParentNode = BestNeighbor;
+		ChildNodes.Reset();
+		if (!bIsCluster)
+		{
+			ChildNodes.Add(ToMerge);
+		}
+		else
+		{
+			ChildNodes.Append(Collection.Children[ToMerge].Array());
+		}
+		// Note: This updates the Level, Children and Parent attributes
+		FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(&Collection, ParentNode, ChildNodes);
+		ReconsiderIfSmall.Add(BestNeighbor);
+	}
+
+	FGeometryCollectionClusteringUtility::RemoveDanglingClusters(&Collection);
+	FGeometryCollectionClusteringUtility::RemoveClustersOfOnlyOneChild(&Collection);
 }
 
 namespace

@@ -34,11 +34,13 @@ public:
 	*   L2    A  B
 	*
 	* Node E has no geometry of its own, only a transform by which to control A & B as a single unit
+	* 
+	* @return Index of the New Node
 	*/
-	static void ClusterBonesUnderNewNode(FGeometryCollection* GeometryCollection, const int32 InsertAtIndex, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate = true);
+	static int32 ClusterBonesUnderNewNode(FGeometryCollection* GeometryCollection, const int32 InsertAtIndex, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate = true);
 
 	// Same as ClusterBonesUnderNewNode, but specify the parent of the new node instead of a sibling
-	static void ClusterBonesUnderNewNodeWithParent(FGeometryCollection* GeometryCollection, const int32 ParentOfNewNode, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate = true);
+	static int32 ClusterBonesUnderNewNodeWithParent(FGeometryCollection* GeometryCollection, const int32 ParentOfNewNode, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate = true);
 
 	/** Cluster all existing bones under a new root node, so there is now only one root node and a completely flat hierarchy underneath it */
 	static void ClusterAllBonesUnderNewRoot(FGeometryCollection* GeometryCollection);

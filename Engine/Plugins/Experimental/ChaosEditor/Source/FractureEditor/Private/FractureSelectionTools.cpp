@@ -6,7 +6,7 @@
 #include "EditorSupportDelegates.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 
-void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* GeometryCollectionComponent, TArray<int32>& BoneIndices, bool bClearCurrentSelection, bool bAdd, bool bSnapToLevel)
+void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* GeometryCollectionComponent, const TArray<int32>& BoneIndices, bool bClearCurrentSelection, bool bAdd, bool bSnapToLevel)
 {
 	if (GeometryCollectionComponent)
 	{

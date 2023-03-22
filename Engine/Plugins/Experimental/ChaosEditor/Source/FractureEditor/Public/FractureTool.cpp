@@ -242,30 +242,37 @@ TArray<FString> UFractureActionTool::GetSelectedComponentMaterialNames(bool bInc
 	return MaterialNames;
 }
 
-void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditorModeToolkit* Toolkit, bool bClearSelection)
+void UFractureActionTool::Refresh(UGeometryCollectionComponent* GeometryCollectionComponent, FFractureEditorModeToolkit* Toolkit, const TArray<int32>& SetSelection, bool bClearSelection, bool bMustUpdateBoneColors)
 {
-	UGeometryCollectionComponent* GeometryCollectionComponent = Context.GetGeometryCollectionComponent();
-	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = Context.GetGeometryCollection();
-	
+	FGeometryCollectionEdit CollectionEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = CollectionEdit.GetRestCollection()->GetGeometryCollection();
+
 	FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollectionPtr.Get(), -1);
 
 	Toolkit->RegenerateOutliner();
 	Toolkit->RegenerateHistogram();
 
-	FScopedColorEdit EditBoneColor(GeometryCollectionComponent, true);
+	if (bMustUpdateBoneColors)
+	{
+		GeometryCollectionComponent->EditBoneSelection(true);
+	}
 
 	if (bClearSelection)
 	{
-		EditBoneColor.ResetBoneSelection();
 		FFractureSelectionTools::ClearSelectedBones(GeometryCollectionComponent);
 	}
 	else
 	{
-		EditBoneColor.SetSelectedBones(Context.GetSelection());
-		FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, Context.GetSelection(), true, false);
+		FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, SetSelection, true, true);
 	}
 
-	Context.GetFracturedGeometryCollection()->RebuildRenderData();
+	CollectionEdit.GetRestCollection()->RebuildRenderData();
+}
+
+void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditorModeToolkit* Toolkit, bool bClearSelection)
+{
+	UGeometryCollectionComponent* GeometryCollectionComponent = Context.GetGeometryCollectionComponent();
+	Refresh(GeometryCollectionComponent, Toolkit, Context.GetSelection(), bClearSelection);
 }
 
 void UFractureActionTool::SetOutlinerComponents(TArray<FFractureToolContext>& InContexts, FFractureEditorModeToolkit* Toolkit)
@@ -411,10 +418,6 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 				}
 				FractureContext.Sanitize(false);
 			}
-			
-			Toolkit->RegenerateHistogram();
-
-			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(FractureContext.GetGeometryCollection().Get(), -1);
 
 			Refresh(FractureContext, Toolkit);
 		}

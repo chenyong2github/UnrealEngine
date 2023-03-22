@@ -94,6 +94,7 @@ protected:
 	static void AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollectionObject);
 	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
 	static void Refresh(FFractureToolContext& Context, FFractureEditorModeToolkit* Toolkit, bool bClearSelection=false);
+	static void Refresh(UGeometryCollectionComponent* Component, FFractureEditorModeToolkit* Toolkit, const TArray<int32>& SetSelection, bool bClearSelection=false, bool bMustUpdateBoneColors=false);
 	static void SetOutlinerComponents(TArray<FFractureToolContext>& InContexts, FFractureEditorModeToolkit* Toolkit);
 	static void ClearProximity(FGeometryCollection* GeometryCollection);
 
