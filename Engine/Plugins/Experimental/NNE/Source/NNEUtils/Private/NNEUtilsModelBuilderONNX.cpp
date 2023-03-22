@@ -357,10 +357,27 @@ NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 		OperatorName == TEXT("Slice") ||				// current implementation is opset 1 (next version is 10)
 		OperatorName == TEXT("Squeeze") ||				// current implementation is opset 1 (next version is 11)
 		OperatorName == TEXT("Unsqueeze") ||			// current implementation is opset 1 (next version is 11)
-		OperatorName == TEXT("Upsample"))				// deprecated starting opset 10
+		OperatorName == TEXT("Upsample")				// deprecated starting opset 10
+		)				
 	{
 		OpsetVersion = 9;
 	}
+	else
+	if (OperatorName == TEXT("ReduceL1") ||				// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceL2") ||				// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceLogSum") ||			// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceLogSumExp") ||		// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceLogMin") ||			// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceLogMax") ||			// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceMean") ||			// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceProd") ||			// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceSum") ||			// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceSumSquare")			// current implementation is opset 11 (next version is 13)
+		)
+	{
+		OpsetVersion = 11;
+	}
+
 	TUniquePtr<IModelBuilder> Builder(CreateONNXModelBuilder(IrVersion, OpsetVersion));
 
 	Builder->Begin();

@@ -336,9 +336,6 @@
 		},
 		{
 			"category": "BatchNormalization",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml", "skip": true },
-			],
 			"targets": [
 				{ "target": "BatchNormalization", "relative_tolerance": 5e-1 }
 			]
@@ -409,6 +406,24 @@
 			],
 			"targets": [
 				{ "target": "Concat" }
+			]
+		},
+		{
+			"category": "Reduce",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true }
+			],
+			"targets": [
+				{ "target": "ReduceL1" },
+				{ "target": "ReduceL2" },
+				{ "target": "ReduceLogSum" },
+				{ "target": "ReduceLogSumExp" },
+				{ "target": "ReduceMin" },
+				{ "target": "ReduceMax" },
+				{ "target": "ReduceMean" },
+				{ "target": "ReduceProd" },
+				{ "target": "ReduceSum" },
+				{ "target": "ReduceSumSquare" }
 			]
 		},
 		{
@@ -1032,7 +1047,7 @@
 			]
 		},
 		{ 
-			"name": "Reshape.ReducedDims",
+			"name": "Reshape.RducedDims",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 3, 4 ] } ], "weights": [ { "shape": [ 2 ], "source": [ "2", "12" ], "type": "int64" } ], "outputs": [ { "shape": [ 2, 12 ] } ] }
 			]
@@ -1071,6 +1086,30 @@
 			"name": "PoolOp.2D.Strides2",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 1, 2, 256, 256 ] } ], "outputs": [ { "shape": [ 1, 2, 128, 128 ] } ] }
+			]
+		},
+		{ 
+			"name": "Reduce.Default",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 1, 1, 1 ] } ] }
+			]
+		},
+		{ 
+			"name": "Reduce.Axes.Keepdims",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 3, 1, 2 ] } ] }
+			]
+		},
+		{ 
+			"name": "Reduce.Axes.DontKeepdims",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 3, 2 ] } ] }
+			]
+		},
+		{ 
+			"name": "Reduce.NegativeAxes.Keepdims",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 3, 1, 2 ] } ] }
 			]
 		}
 	],
@@ -1550,6 +1589,37 @@
 						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" },
 						{ "name": "pads", "value": [0, 0, 0, 0], "type": "Int32Array" },
 						{ "name": "strides", "value": [2, 2], "type": "Int32Array" } 
+					]
+				}
+			]
+		},
+		{
+			"name": "Reduce.Axes.Keepdims",
+			"attribute_maps": [
+				{
+					"attributes": [
+						{ "name": "axes", "value": [ 1 ], "type": "Int32Array" },
+						{ "name": "keepdims", "value": 1, "type": "Int32" }
+					]
+				}
+			]
+		},
+		{
+			"name": "Reduce.Axes.DontKeepdims",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "axes", "value": [1], "type": "Int32Array" },
+						{ "name": "keepdims", "value": 0, "type": "Int32" }
+					]
+				}
+			]
+		},
+		{
+			"name": "Reduce.NegativeAxes.Keepdims",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "axes", "value": [-2], "type": "Int32Array" },
+						{ "name": "keepdims", "value": 1, "type": "Int32" }
 					]
 				}
 			]

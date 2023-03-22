@@ -126,6 +126,14 @@ inline int32 HandleNegativeAxis(int32 Axis, int32 Rank)
 	return Axis;
 }
 
+inline void HandleNegativeAxes(TArrayView<int32> Axes, int32 Rank)
+{
+	for (int32& Axis : Axes)
+	{
+		Axis = HandleNegativeAxis(Axis, Rank);
+	}
+}
+
 inline int32 GetDmlAxis(int32 OnnxAxis, int32 OnnxDim, int32 DmlDim)
 {
 	check(DmlDim >= OnnxDim);
