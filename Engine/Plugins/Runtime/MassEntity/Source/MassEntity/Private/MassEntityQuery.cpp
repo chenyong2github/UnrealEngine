@@ -208,7 +208,8 @@ void FMassEntityQuery::ForEachEntityChunk(FMassEntityManager& EntityManager, FMa
 		FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
 		ArchetypeData.ExecuteFunction(ExecutionContext, ExecuteFunction
 			, GetRequirementsMappingForArchetype(ArchetypeHandle)
-			, ExecutionContext.GetEntityCollection().GetRanges());
+			, ExecutionContext.GetEntityCollection().GetRanges()
+			, ChunkCondition);
 #if WITH_MASSENTITY_DEBUG
 		NumEntitiesToProcess = ExecutionContext.GetNumEntities();
 #endif
