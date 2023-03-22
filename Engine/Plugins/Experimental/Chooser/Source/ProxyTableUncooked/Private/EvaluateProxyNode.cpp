@@ -49,9 +49,11 @@ void UK2Node_EvaluateProxy::UnregisterProxyCallback()
 	}
 }
 
-UK2Node_EvaluateProxy::~UK2Node_EvaluateProxy()
+void UK2Node_EvaluateProxy::BeginDestroy()
 {
 	UnregisterProxyCallback();
+	
+	Super::BeginDestroy();
 }
 
 void UK2Node_EvaluateProxy::PostEditUndo()

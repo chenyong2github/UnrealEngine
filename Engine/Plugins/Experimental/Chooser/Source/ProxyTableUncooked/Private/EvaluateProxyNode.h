@@ -18,7 +18,7 @@ UCLASS(MinimalAPI)
 class UK2Node_EvaluateProxy : public UK2Node
 {
 	GENERATED_UCLASS_BODY()
-	~UK2Node_EvaluateProxy();
+	virtual void BeginDestroy() override;
 
 	//~ Begin UObject Interface
 	virtual void PostEditUndo() override;
