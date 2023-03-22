@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieGraphPlaceholderNodes.h"
 
@@ -172,47 +172,6 @@ FSlateIcon UMovieGraphGlobalGameOverridesNode::GetIconAndTint(FLinearColor& OutC
 }
 #endif // WITH_EDITOR
 
-TArray<FMovieGraphPinProperties> UMovieGraphDeferredRendererNode::GetInputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
-	return Properties;
-}
-
-TArray<FMovieGraphPinProperties> UMovieGraphDeferredRendererNode::GetOutputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
-	return Properties;
-}
-
-#if WITH_EDITOR
-FText UMovieGraphDeferredRendererNode::GetNodeTitle(const bool bGetDescriptive) const
-{
-	static const FText DeferredRendererNodeName = LOCTEXT("NodeName_DeferredRenderer", "Deferred Renderer");
-	return DeferredRendererNodeName;
-}
-
-FText UMovieGraphDeferredRendererNode::GetMenuCategory() const
-{
-	return NodeCategory_Renderers;
-}
-
-FLinearColor UMovieGraphDeferredRendererNode::GetNodeTitleColor() const
-{
-	static const FLinearColor DeferredRendererNodeColor = FLinearColor(0.572f, 0.274f, 1.f);
-	return DeferredRendererNodeColor;
-}
-
-FSlateIcon UMovieGraphDeferredRendererNode::GetIconAndTint(FLinearColor& OutColor) const
-{
-	static const FSlateIcon DeferredRendererIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon");
-
-	OutColor = FLinearColor::White;
-	return DeferredRendererIcon;
-}
-#endif // WITH_EDITOR
-
 TArray<FMovieGraphPinProperties> UMovieGraphPathTracedRendererNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
@@ -294,47 +253,6 @@ FSlateIcon UMovieGraphEXRSequenceNode::GetIconAndTint(FLinearColor& OutColor) co
 	return ImageSequenceIcon;
 }
 #endif // WITH_EDITOR
-
-TArray<FMovieGraphPinProperties> UMovieGraphJPGSequenceNode::GetInputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
-	return Properties;
-}
-
-TArray<FMovieGraphPinProperties> UMovieGraphJPGSequenceNode::GetOutputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
-	return Properties;
-}
-
-#if WITH_EDITOR
-FText UMovieGraphJPGSequenceNode::GetNodeTitle(const bool bGetDescriptive) const
-{
-	static const FText JPGSequenceNodeName = LOCTEXT("NodeName_JPGSequence", "JPG Sequence");
-	return JPGSequenceNodeName;
-}
-
-FText UMovieGraphJPGSequenceNode::GetMenuCategory() const
-{
-	return NodeCategory_OutputType;
-}
-
-FLinearColor UMovieGraphJPGSequenceNode::GetNodeTitleColor() const
-{
-	static const FLinearColor ImageSequenceNodeColor = FLinearColor(0.047f, 0.654f, 0.537f);
-	return ImageSequenceNodeColor;
-}
-
-FSlateIcon UMovieGraphJPGSequenceNode::GetIconAndTint(FLinearColor& OutColor) const
-{
-	static const FSlateIcon ImageSequenceIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D");
-
-	OutColor = FLinearColor::White;
-	return ImageSequenceIcon;
-}
-#endif
 
 TArray<FMovieGraphPinProperties> UMovieGraphBranchNode::GetInputPinProperties() const
 {

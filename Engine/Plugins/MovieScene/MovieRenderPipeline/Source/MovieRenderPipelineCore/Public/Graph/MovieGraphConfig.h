@@ -4,37 +4,12 @@
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraph.h"
 #include "Graph/MovieGraphNode.h"
+#include "Graph/MovieGraphTraversalContext.h"
 
 #include "MovieGraphConfig.generated.h"
 
 // Forward Declare
 class UMovieGraphNode;
-
-USTRUCT(BlueprintType)
-struct FMovieGraphBranch
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
-	FName BranchName;
-};
-
-
-USTRUCT(BlueprintType)
-struct FMovieGraphTraversalContext
-{
-	GENERATED_BODY();
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
-	FMovieGraphBranch RootBranch;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
-	FString ShotName;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
-	FString RenderLayerName;
-};
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphVariableChanged, class UMovieGraphMember*);
@@ -229,7 +204,7 @@ public:
 #endif
 
 	template<typename NodeType>
-	NodeType* IterateGraphForClass(const FMovieGraphTraversalContext& InContext) const
+	static NodeType* IterateGraphForClass(const FMovieGraphTraversalContext& InContext)
 	{
 		TArray<NodeType*> AllSettings = IterateGraphForClassAll<NodeType>(InContext);
 		if (AllSettings.Num() > 0)
@@ -240,10 +215,15 @@ public:
 	}
 	
 	template<typename NodeType>
-	TArray<NodeType*> IterateGraphForClassAll(const FMovieGraphTraversalContext& InContext) const
+	static TArray<NodeType*> IterateGraphForClassAll(const FMovieGraphTraversalContext& InContext)
 	{
 		TArray<NodeType*> TypedNodes;
-		const TArray<UMovieGraphNode*> FoundNodes = TraverseGraph(NodeType::StaticClass(), InContext);
+		if (!ensureMsgf(InContext.RootGraph, TEXT("You must specify a RootGraph to traverse with")))
+		{
+			return TypedNodes;
+		}
+
+		const TArray<UMovieGraphNode*> FoundNodes = InContext.RootGraph->TraverseGraph(NodeType::StaticClass(), InContext);
 		for (UMovieGraphNode* Node : FoundNodes)
 		{
 			TypedNodes.Add(CastChecked<NodeType>(Node));

@@ -47,6 +47,11 @@ void UMovieGraphLinearTimeStep::TickProducingFrames()
 		CurrentTimeStepData.FrameDeltaTime = FrameRate.AsInterval();
 		CurrentTimeStepData.WorldSeconds = 0.f;
 		CurrentTimeStepData.MotionBlurFraction = FrameRate.AsInterval();
+		
+		// ToDo: This will change once we have temporal sub-sample support
+		CurrentTimeStepData.bIsFirstTemporalSampleForFrame = true;
+		CurrentTimeStepData.bIsLastTemporalSampleForFrame = true;
+
 
 		if (CurrentCameraCut->ShotInfo.CurrentTickInRoot >= CurrentCameraCut->ShotInfo.TotalOutputRangeRoot.GetUpperBoundValue())
 		{

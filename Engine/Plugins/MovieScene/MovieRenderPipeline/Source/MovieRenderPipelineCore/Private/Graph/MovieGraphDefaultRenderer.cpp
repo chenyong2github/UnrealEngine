@@ -29,7 +29,7 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 	for (const FMovieGraphBranch& Branch : GraphBranches)
 	{
 		// We follow each branch looking for Render Layer nodes to figure out what render layer this should be.
-		FMovieGraphTraversalContext TraversalContext = GetOwningGraph()->GetTraversalContextForShot(InShot);
+		FMovieGraphTraversalContext TraversalContext = GetOwningGraph()->GetCurrentTraversalContext();
 		TraversalContext.RootBranch = Branch;
 
 		FString RenderLayerName = TEXT("Unnamed_Layer");
@@ -157,9 +157,36 @@ void UMovieGraphDefaultRenderer::Render(const FMovieGraphTimeStepData& InTimeSte
 		}
 	}
 
+	if (InTimeStepData.bIsFirstTemporalSampleForFrame)
+	{
+		// If this is the first sample for this output frame, then we need to 
+		// talk to all of our render passes and ask them for what data they will
+		// produce, and set the Output Merger up with that knowledge.
+		UE::MovieGraph::FMovieGraphOutputMergerFrame& NewOutputFrame = GetOwningGraph()->GetOutputMerger()->AllocateNewOutputFrame_GameThread(InTimeStepData.OutputFrameNumber);
+
+		// Get the Traversal Context (not specific to any render pass) at the first sample. This is so
+		// we can easily fetch things that are shared between all render layers later.
+		NewOutputFrame.TraversalContext = GetOwningGraph()->GetCurrentTraversalContext();
+
+		for (const TObjectPtr<UMovieGraphRenderPassNode>& RenderPass : RenderPassesInUse)
+		{
+			RenderPass->GatherOutputPasses(NewOutputFrame.ExpectedRenderPasses);
+		}
+
+		// Register the frame with our render statistics as being worked on
+
+		UE::MovieGraph::FRenderTimeStatistics* TimeStats = GetRenderTimeStatistics(NewOutputFrame.TraversalContext.Time.OutputFrameNumber);
+		if (ensure(TimeStats))
+		{
+			TimeStats->StartTime = FDateTime::UtcNow();
+		}
+	}
+
 	for (TObjectPtr<UMovieGraphRenderPassNode> RenderPass : RenderPassesInUse)
 	{
-		RenderPass->Render(InTimeStepData);
+		// Pass in a copy of the traversal context so the renderer can decide what to do with it.
+		UE::MovieGraph::FMovieGraphOutputMergerFrame& OutputFrame = GetOwningGraph()->GetOutputMerger()->GetOutputFrame_GameThread(InTimeStepData.OutputFrameNumber);
+		RenderPass->Render(OutputFrame.TraversalContext, InTimeStepData);
 	}
 }
 
@@ -216,6 +243,11 @@ FMoviePipelineSurfaceQueuePtr UMovieGraphDefaultRenderer::CreateSurfaceQueue(con
 	
 	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Allocated a Surface Queue sized: (%d, %d)"), InInitParams.Size.X, InInitParams.Size.Y);
 	return SurfaceQueue;
+}
+
+UE::MovieGraph::FRenderTimeStatistics* UMovieGraphDefaultRenderer::GetRenderTimeStatistics(const int32 InFrameNumber)
+{
+	return &RenderTimeStatistics.FindOrAdd(InFrameNumber);
 }
 
 namespace UE::MovieGraph::DefaultRenderer

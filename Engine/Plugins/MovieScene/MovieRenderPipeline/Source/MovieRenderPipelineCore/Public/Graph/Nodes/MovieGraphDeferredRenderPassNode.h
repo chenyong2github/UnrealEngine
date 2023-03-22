@@ -8,11 +8,16 @@
 #include "MovieRenderPipelineDataTypes.h"
 #include "Engine/EngineTypes.h"
 #include "Async/TaskGraphFwd.h"
+#include "Styling/AppStyle.h"
 #include "MovieGraphDeferredRenderPassNode.generated.h"
 
 // Forward Declares
 class UMovieGraphDefaultRenderer;
-namespace UE::MovieGraph::DefaultRenderer { struct FRenderTargetInitParams; }
+namespace UE::MovieGraph::DefaultRenderer
+{
+	struct FRenderTargetInitParams;
+	struct IMovieGraphOutputMerger;
+}
 struct FMovieGraphRenderPassSetupData;
 struct FMovieGraphRenderPassLayerData;
 struct FImageOverlappedAccumulator;
@@ -31,7 +36,7 @@ namespace UE::MovieGraph
 	{
 	public:
 		TWeakPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
-		// TWeakPtr<IMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
+		TWeakPtr<IMovieGraphOutputMerger, ESPMode::ThreadSafe> OutputMerger;
 
 		// If it's the first sample then we will reset the accumulator to a clean slate before accumulating into it.
 		bool bIsFirstSample;
@@ -41,7 +46,7 @@ namespace UE::MovieGraph
 		FGraphEventRef TaskPrerequisite;
 	};
 
-	// void MOVIERENDERPIPELINERENDERPASSES_API AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams);
+	void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MovieGraph::FMovieGraphSampleState InSampleState, const UE::MovieGraph::FMovieGraphRenderDataAccumulationArgs& InAccumulationParams);
 }
 
 UCLASS()
@@ -54,13 +59,27 @@ public:
 	{
 		return NSLOCTEXT("MovieGraphNodes", "DeferredRenderPassGraphNode_Description", "Deferred Renderer");
 	}
+	
+	FLinearColor GetNodeTitleColor() const
+	{
+		return FLinearColor(0.572f, 0.274f, 1.f);
+	}
+
+	FSlateIcon GetIconAndTint(FLinearColor& OutColor) const
+	{
+		static const FSlateIcon DeferredRendererIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon");
+
+		OutColor = FLinearColor::White;
+		return DeferredRendererIcon;
+	}
 #endif
 protected:
 	// UMovieGraphRenderPassNode Interface
 	virtual FString GetRendererNameImpl() const override { return TEXT("Deferred"); }
 	virtual void SetupImpl(const FMovieGraphRenderPassSetupData& InSetupData) override;
 	virtual void TeardownImpl() override;
-	virtual void RenderImpl(const FMovieGraphTimeStepData& InTimeData) override;
+	virtual void RenderImpl(FMovieGraphTraversalContext InFrameTraversalContext, const FMovieGraphTimeStepData& InTimeData) override;
+	virtual void GatherOutputPassesImpl(TArray<FMovieGraphRenderDataIdentifier>& OutExpectedPasses) const override;
 	// ~UMovieGraphRenderPassNode Interface
 
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
@@ -109,7 +128,8 @@ protected:
 	public:
 		void Setup(TWeakObjectPtr<UMovieGraphDefaultRenderer> InRenderer, TWeakObjectPtr<UMovieGraphDeferredRenderPassNode> InRenderPassNode, const FMovieGraphRenderPassLayerData& InLayer);
 		void Teardown();
-		void Render(const FMovieGraphTimeStepData& InTimeData);
+		void Render(FMovieGraphTraversalContext InFrameTraversalContext, const FMovieGraphTimeStepData& InTimeData);
+		void GatherOutputPassesImpl(TArray<FMovieGraphRenderDataIdentifier>& OutExpectedPasses) const;
 		void AddReferencedObjects(FReferenceCollector& Collector);
 
 	protected:

@@ -195,6 +195,11 @@ struct FImagePixelData
 	template<typename T>
 	const T* GetPayload() const { return static_cast<T*>(Payload.Get()); }
 
+	/**
+	* Sets the payload after construction.
+	*/
+	void SetPayload(FImagePixelPayloadPtr NewPayload) { Payload = NewPayload; }
+
 	bool GetSRGB() const { return bSRGB; }
 	void SetSRGB(bool InSRGB) { bSRGB = InSRGB; }
 

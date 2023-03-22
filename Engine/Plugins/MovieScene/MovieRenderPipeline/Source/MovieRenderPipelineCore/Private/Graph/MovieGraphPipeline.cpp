@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/MovieGraphPipeline.h"
+#include "Graph/MovieGraphDataTypes.h"
+#include "Graph/MovieGraphOutputMerger.h"
+#include "Graph/Nodes/MovieGraphFileOutputNode.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/CoreDelegates.h"
 #include "MoviePipelineQueue.h"
-#include "Graph/MovieGraphDataTypes.h"
 #include "MovieScene.h"
 #include "RenderingThread.h"
+#include "ImageWriteQueue.h"
+#include "Modules/ModuleManager.h"
 
 // Temp
 #include "LevelSequence.h"
@@ -16,6 +20,9 @@ UMovieGraphPipeline::UMovieGraphPipeline()
 	, bIsTransitioningState(false)
 	, PipelineState(EMovieRenderPipelineState::Uninitialized)
 {
+	OutputMerger = MakeShared<UE::MovieGraph::FMovieGraphOutputMerger>(this);
+
+	Debug_ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
 }
 
 void UMovieGraphPipeline::Initialize(UMoviePipelineExecutorJob* InJob, const FMovieGraphInitConfig& InitConfig)
@@ -169,6 +176,15 @@ void UMovieGraphPipeline::OnEngineTickBeginFrame()
 void UMovieGraphPipeline::TickProducingFrames()
 {
 	check(GraphTimeStepInstance);
+
+	// Move any output frames that have been finished from the Output Merger
+	// into the actual outputs. This will generate new futures (for actual 
+	// disk writes) which we keep track of below.
+	ProcessOutstandingFinishedFrames();
+	
+	// Process any files that have finished writing to disk and push them into our list of 
+	// files made by this shot.
+	ProcessOutstandingFutures();
 
 	// The callback for this function does not get registered until Initialization has been called, which sets
 	// the state to Render. If it's not, we have a initialization order/flow issue!
@@ -644,6 +660,104 @@ void UMovieGraphPipeline::OnMoviePipelineFinishedImpl()
 //	}
 //}
 
+void UMovieGraphPipeline::ProcessOutstandingFinishedFrames()
+{
+	while (!OutputMerger->GetFinishedFrames().IsEmpty())
+	{
+		UE::MovieGraph::FMovieGraphOutputMergerFrame OutputFrame;
+		OutputMerger->GetFinishedFrames().Dequeue(OutputFrame);
+
+		UE::MovieGraph::FRenderTimeStatistics* TimeStats = GetRendererInstance()->GetRenderTimeStatistics(OutputFrame.TraversalContext.Time.OutputFrameNumber);
+		if (ensure(TimeStats))
+		{
+			TimeStats->EndTime = FDateTime::UtcNow();
+		}
+
+		int32 FrameNumber = OutputFrame.TraversalContext.Time.OutputFrameNumber;
+		FString DurationTimeStr = (TimeStats->EndTime - TimeStats->StartTime).ToString();
+		// UE_LOG(LogTemp, Log, TEXT("Frame: %d Duration: %s"), FrameNumber, *DurationTimeStr);
+
+		// We need to get the list of output nodes for this frame's shot. We pass all of the data at once to each relevant one
+		// and individual output nodes can decide if they should skip writing that layer's data, or combine them into one file
+		// or multiple files, etc. To get the right evaluation context though we need to use common data from one node for now.
+		TSet<UMovieGraphFileOutputNode*> ContainerCDOs;
+
+		TArray<UMovieGraphFileOutputNode*> AllNodeInstances = UMovieGraphConfig::IterateGraphForClassAll<UMovieGraphFileOutputNode>(OutputFrame.TraversalContext);
+		for (UMovieGraphFileOutputNode* Node : AllNodeInstances)
+		{
+			ContainerCDOs.Add(Node->GetClass()->GetDefaultObject<UMovieGraphFileOutputNode>());
+		}
+
+		for (UMovieGraphFileOutputNode* CDOInstance : ContainerCDOs)
+		{
+			CDOInstance->OnReceiveImageData(this, &OutputFrame);
+		}
+
+	}
+}
+
+void UMovieGraphPipeline::AddOutputFuture(TFuture<bool>&& InOutputFuture, const UE::MovieGraph::FMovieGraphOutputFutureData& InData)
+{
+	OutstandingOutputFutures.Add(
+		UE::MovieGraph::FMovieGraphOutputFuture(MoveTemp(InOutputFuture), InData)
+	);
+}
+
+void UMovieGraphPipeline::ProcessOutstandingFutures()
+{
+	// Check if any frames failed to output
+	TArray<int32> CompletedOutputFutures;
+	for (int32 Index = 0; Index < OutstandingOutputFutures.Num(); ++Index)
+	{
+		// Output futures are pushed in order to the OutputFutures array. However they are
+		// completed asyncronously, so we don't process any futures after a not-yet-ready one
+		// otherwise we push into the GeneratedShotOutputData array out of order.
+		const UE::MovieGraph::FMovieGraphOutputFuture& OutputFuture = OutstandingOutputFutures[Index];
+		if (!OutputFuture.Get<0>().IsReady())
+		{
+			break;
+		}
+
+		CompletedOutputFutures.Add(Index);
+
+		const UE::MovieGraph::FMovieGraphOutputFutureData& FutureData = OutputFuture.Get<1>();
+
+		// The future was completed, time to add it to our shot output data.
+		FMovieGraphRenderOutputData* ShotOutputData = nullptr;
+		for (int32 OutputDataIndex = 0; OutputDataIndex < GeneratedOutputData.Num(); OutputDataIndex++)
+		{
+			if (FutureData.Shot == GeneratedOutputData[OutputDataIndex].Shot)
+			{
+				ShotOutputData = &GeneratedOutputData[OutputDataIndex];
+			}
+		}
+
+		if (!ShotOutputData)
+		{
+			GeneratedOutputData.Add(FMovieGraphRenderOutputData());
+			ShotOutputData = &GeneratedOutputData.Last();
+			ShotOutputData->Shot = FutureData.Shot;
+		}
+
+		// Add the filepath to the renderpass data.
+		ShotOutputData->RenderPassData.FindOrAdd(FutureData.DataIdentifier).FilePaths.Add(FutureData.FilePath);
+
+		// Sometime futures can be completed, but will be set to an error state (such as we couldn't write to the specified disk path.)
+		if (!OutputFuture.Get<0>().Get())
+		{
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
+			RequestShutdown(true);
+			break;
+		}
+	}
+
+	// Remove any output futures that have been completed now.
+	for (int32 Index = CompletedOutputFutures.Num() - 1; Index >= 0; --Index)
+	{
+		OutstandingOutputFutures.RemoveAt(CompletedOutputFutures[Index]);
+	}
+}
+
 UMovieGraphConfig* UMovieGraphPipeline::GetRootGraphForShot(UMoviePipelineExecutorShot* InShot) const
 {
 	if (GetCurrentJob())
@@ -678,9 +792,14 @@ UMovieGraphConfig* UMovieGraphPipeline::GetRootGraphForShot(UMoviePipelineExecut
 	return nullptr;
 }
 
-FMovieGraphTraversalContext UMovieGraphPipeline::GetTraversalContextForShot(UMoviePipelineExecutorShot* InShot) const
+FMovieGraphTraversalContext UMovieGraphPipeline::GetCurrentTraversalContext() const
 {
-	// ToDo: Fill out shot index/current shot/current frame/job/etc.
-	return FMovieGraphTraversalContext();
-}
+	FMovieGraphTraversalContext CurrentContext;
+	CurrentContext.ShotIndex = GetCurrentShotIndex();
+	CurrentContext.ShotCount = GetActiveShotList().Num();
+	CurrentContext.Job = GetCurrentJob();
+	CurrentContext.RootGraph = GetRootGraphForShot(GetActiveShotList()[GetCurrentShotIndex()]);
+	CurrentContext.Time = GetTimeStepInstance()->GetCalculatedTimeData();
 
+	return CurrentContext;
+}

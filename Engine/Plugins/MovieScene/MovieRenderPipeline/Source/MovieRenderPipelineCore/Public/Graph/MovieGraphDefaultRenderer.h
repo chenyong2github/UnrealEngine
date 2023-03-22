@@ -128,6 +128,8 @@ public:
 	virtual void Render(const FMovieGraphTimeStepData& InTimeData) override;
 	virtual void SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot) override;
 	virtual void TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot) override;
+	virtual UE::MovieGraph::FRenderTimeStatistics* GetRenderTimeStatistics(const int32 InFrameNumber);
+
 	// ~UMovieGraphRendererBase Interface
 
 	// UObject Interface
@@ -166,26 +168,36 @@ protected:
 	FMoviePipelineSurfaceQueuePtr CreateSurfaceQueue(const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InInitParams) const;
 
 protected:
+	/** A pointer to the CDOs of the Render Pass nodes that are valid for the current shot render. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMovieGraphRenderPassNode>> RenderPassesInUse;
 
-	// Render Target specify a transient backbuffer to draw the image to. We reuse these
-	// because we queue a copy onto a FMoviePipelineSurface so the only reason it is needed
-	// is for display in the UI.
+	/** Keep track of some statistics about render frame data for metadata purposes. */
+	TMap<int32, UE::MovieGraph::FRenderTimeStatistics> RenderTimeStatistics;
+
+	/*
+	* Render Target specify a transient backbuffer to draw the image to.We reuse these
+	* because we queue a copy onto a FMoviePipelineSurface so the only reason it is needed
+	* is for display in the UI.
+	*/
 	TMap<UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams, TObjectPtr<UTextureRenderTarget2D>> PooledViewRenderTargets;
 
-	// This is a list of Surfaces that we can copy our render target to immediately after
-	// it is drawn to. This is read back to the CPU a frame later (to avoid blocking the
-	// GPU), and it's contents are then copied into a FImagePixelData.
+	/*
+	* This is a list of Surfaces that we can copy our render target to immediately after
+	* it is drawn to. This is read back to the CPU a frame later (to avoid blocking the
+	* GPU), and it's contents are then copied into a FImagePixelData.
+	*/
 	TMap<UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams, FMoviePipelineSurfaceQueuePtr> PooledSurfaceQueues;
 
-	// Once a sample is copied back from the GPU, we need to potentially accumulate it over
-	// multiple frames, and to apply high-res tiling. To do this we have a pool of accumulators,
-	// where each unique render resource gets one per frame.
+	/*
+	* Once a sample is copied back from the GPU, we need to potentially accumulate it over
+	* multiple frames, and to apply high-res tiling. To do this we have a pool of accumulators,
+	* where each unique render resource gets one per frame.
+	*/
 	TMap<FName, TSharedPtr<UE::MovieGraph::DefaultRenderer::FSurfaceAccumulatorPool>> PooledAccumulators;
 
-	// Accessed by the Render Thread when starting up a new task. Makes sure we don't add tasks to the array while we're removing finished ones.
+	/** Accessed by the Render Thread when starting up a new task.Makes sure we don't add tasks to the array while we're removing finished ones. */
 	FCriticalSection OutstandingTasksMutex;
-	// Array of outstanding accumulation/blending tasks that are currently being worked on.
+	/** Array of outstanding accumulation / blending tasks that are currently being worked on. */
 	FGraphEventArray OutstandingTasks;
 };

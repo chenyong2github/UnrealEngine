@@ -3,7 +3,10 @@
 #include "Graph/Nodes/MovieGraphDeferredRenderPassNode.h"
 #include "Graph/MovieGraphDataTypes.h"
 #include "Graph/MovieGraphDefaultRenderer.h"
+#include "Graph/MovieGraphPipeline.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "MovieRenderOverlappedImage.h"
+#include "MoviePipelineSurfaceReader.h"
 
 #include "EngineModule.h"
 #include "SceneManagement.h"
@@ -42,14 +45,21 @@ void UMovieGraphDeferredRenderPassNode::TeardownImpl()
 }
 
 
-void UMovieGraphDeferredRenderPassNode::RenderImpl(const FMovieGraphTimeStepData& InTimeData)
+void UMovieGraphDeferredRenderPassNode::RenderImpl(FMovieGraphTraversalContext InFrameTraversalContext, const FMovieGraphTimeStepData& InTimeData)
 {
 	for (TUniquePtr<FMovieGraphDeferredRenderPass>& Instance : CurrentInstances)
 	{
-		Instance->Render(InTimeData);
+		Instance->Render(InFrameTraversalContext, InTimeData);
 	}
 }
 
+void UMovieGraphDeferredRenderPassNode::GatherOutputPassesImpl(TArray<FMovieGraphRenderDataIdentifier>& OutExpectedPasses) const
+{
+	for (const TUniquePtr<FMovieGraphDeferredRenderPass>& Instance : CurrentInstances)
+	{
+		Instance->GatherOutputPassesImpl(OutExpectedPasses);
+	}
+}
 
 void UMovieGraphDeferredRenderPassNode::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
@@ -85,6 +95,18 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Setup(TWe
 
 }
 
+void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::GatherOutputPassesImpl(TArray<FMovieGraphRenderDataIdentifier>& OutExpectedPasses) const
+{
+	// ToDo: Store this when the render pass is created, so we don't create it in two places at once.
+	// This is a problem right now due to the camera name not being pre-resolved.
+	FMovieGraphRenderDataIdentifier RenderDataIdentifier;
+	RenderDataIdentifier.RenderLayerName = LayerData.LayerName;
+	RenderDataIdentifier.RendererName = RenderPassNode->GetRendererName();
+	RenderDataIdentifier.SubResourceName = TEXT("beauty");
+	RenderDataIdentifier.CameraName = TEXT("Unnamed_Camera");
+
+	OutExpectedPasses.Add(RenderDataIdentifier);
+}
 void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Teardown()
 {
 	FSceneViewStateInterface* Ref = SceneViewState.GetReference();
@@ -104,7 +126,7 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::AddRefere
 	}
 }
 
-void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(const FMovieGraphTimeStepData& InTimeData)
+void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(FMovieGraphTraversalContext InFrameTraversalContext, const FMovieGraphTimeStepData& InTimeData)
 {
 	// This is the size we actually render at.
 	UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams RenderTargetInitParams;
@@ -176,14 +198,20 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(co
 	RenderDataIdentifier.RendererName = RenderPassNode->GetRendererName();
 	RenderDataIdentifier.SubResourceName = TEXT("beauty");
 	RenderDataIdentifier.CameraName = TEXT("Unnamed_Camera");
-	if (InitData.ViewActor)
-	{
-		RenderDataIdentifier.CameraName = InitData.ViewActor->GetName();
-	}
+	//if (InitData.ViewActor)
+	//{
+	//	RenderDataIdentifier.CameraName = InitData.ViewActor->GetName();
+	//}
+
+	// Take our per-frame Traversal Context and update it with context specific to this sample.
+	FMovieGraphTraversalContext UpdatedTraversalContext = InFrameTraversalContext;
+	UpdatedTraversalContext.Time = InTimeData;
+	UpdatedTraversalContext.RenderDataIdentifier = RenderDataIdentifier;
+
 
 	UE::MovieGraph::FMovieGraphSampleState SampleState;
-	SampleState.RenderDataIdentifier = RenderDataIdentifier;
-	SampleState.Time = InTimeData;
+	SampleState.TraversalContext = MoveTemp(UpdatedTraversalContext);
+	SampleState.BackbufferResolution = RenderTargetInitParams.Size;
 
 	// Readback + Accumulate.
 	PostRendererSubmission(SampleState, RenderTargetInitParams, Canvas);
@@ -204,7 +232,7 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::PostRende
 	UE::MovieGraph::DefaultRenderer::FSurfaceAccumulatorPool::FInstancePtr AccumulatorInstance = nullptr;
 	{
 		// SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
-		AccumulatorInstance = SampleAccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.Time.OutputFrameNumber, InSampleState.RenderDataIdentifier);
+		AccumulatorInstance = SampleAccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.TraversalContext.Time.OutputFrameNumber, InSampleState.TraversalContext.RenderDataIdentifier);
 	}
 
 	FMoviePipelineSurfaceQueuePtr LocalSurfaceQueue = Renderer->GetOrCreateSurfaceQueue(InRenderTargetInitParams);
@@ -212,10 +240,10 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::PostRende
 
 	UE::MovieGraph::FMovieGraphRenderDataAccumulationArgs AccumulationArgs;
 	{
-		//AccumulationArgs.OutputMerger = Renderer->GetOutputBuilder();
+		AccumulationArgs.OutputMerger = Renderer->GetOwningGraph()->GetOutputMerger();
 		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(AccumulatorInstance->Accumulator);
-		AccumulationArgs.bIsFirstSample = true; // FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample()
-		AccumulationArgs.bIsLastSample = true; // FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample()
+		AccumulationArgs.bIsFirstSample = InSampleState.TraversalContext.Time.bIsFirstTemporalSampleForFrame; // FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample()
+		AccumulationArgs.bIsLastSample = InSampleState.TraversalContext.Time.bIsLastTemporalSampleForFrame; // FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample()
 		AccumulationArgs.TaskPrerequisite = AccumulatorInstance->TaskPrereq;
 	}
 
@@ -224,12 +252,11 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::PostRende
 		UE::MovieGraph::DefaultRenderer::FMovieGraphAccumulationTask Task;
 		// There may be other accumulations for this accumulator which need to be processed first
 		Task.LastCompletionEvent = AccumulationArgs.TaskPrerequisite;
-		// TUniquePtr<FImagePixelData> Foo = MakeUnique<TImagePixelData<FFloat16Color>>(InPixelData->GetSize(), MoveTemp(InPixelData->MoveImageDataToNew))
 
-		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumulationArgs, AccumulatorInstance]() mutable
+		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), InSampleState, AccumulationArgs, AccumulatorInstance]() mutable
 			{
 				// Enqueue a encode for this frame onto our worker thread.
-				// UE::MovieGraph::DefaultRenderer::AccumulateSample_TaskThread(MoveTemp(PixelData), AccumulationArgs);
+				UE::MovieGraph::AccumulateSample_TaskThread(MoveTemp(PixelData), InSampleState, AccumulationArgs);
 
 				// We have to defer clearing the accumulator until after sample accumulation has finished
 				if (AccumulationArgs.bIsLastSample)
@@ -467,3 +494,38 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::ApplyMovi
 	return OutViewFamily;*/
 }
 
+namespace UE::MovieGraph
+{
+	void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MovieGraph::FMovieGraphSampleState InSampleState, const UE::MovieGraph::FMovieGraphRenderDataAccumulationArgs& InAccumulationParams)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MoviePipeline_AccumulateSample);
+		
+		TUniquePtr<FImagePixelData> SamplePixelData = MoveTemp(InPixelData);
+
+		// Associate the sample state with the image as payload data, this allows downstream systems to fetch the values without us having to store the data
+		// separately and ensure they stay paired the whole way down.
+		TSharedPtr<UE::MovieGraph::FMovieGraphSampleState> SampleStatePayload = MakeShared<UE::MovieGraph::FMovieGraphSampleState>(InSampleState);
+		SamplePixelData->SetPayload(StaticCastSharedPtr<IImagePixelDataPayload>(SampleStatePayload));
+
+		TSharedPtr<IMovieGraphOutputMerger, ESPMode::ThreadSafe> AccumulatorPin = InAccumulationParams.OutputMerger.Pin();
+		if (!AccumulatorPin.IsValid())
+		{
+			return;
+		}
+
+		const bool bIsWellFormed = SamplePixelData->IsDataWellFormed();
+		check(bIsWellFormed);
+
+		// ToDo:
+		bool bWriteSampleToDisk = false;
+		if (bWriteSampleToDisk)
+		{
+			// Debug Feature: Write the raw sample to disk for debugging purposes. We copy the data here,
+			// as we don't want to disturb the memory flow below.
+			TUniquePtr<FImagePixelData> SampleData = SamplePixelData->CopyImageData();
+			AccumulatorPin->OnSingleSampleDataAvailable_AnyThread(MoveTemp(SampleData));
+		}
+
+		AccumulatorPin->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(SamplePixelData));
+	}
+}
