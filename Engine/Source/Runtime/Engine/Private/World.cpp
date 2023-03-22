@@ -1308,6 +1308,12 @@ void UWorld::PostSaveRoot( FObjectPostSaveRootContext ObjectSaveContext )
 	{
 		PersistentLevel->DetachAttachAllActorsPackages(/*bReattach*/true);
 	}
+
+	if (!ObjectSaveContext.IsProceduralSave() && !(ObjectSaveContext.GetSaveFlags() & SAVE_FromAutosave))
+	{
+		// Once saved, OriginalWorldName must match World's name
+		OriginalWorldName = GetFName();
+	}
 #endif
 }
 
