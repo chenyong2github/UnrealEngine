@@ -106,6 +106,10 @@ protected:
 	/** The default source location offset used by GetSourceOffset */
 	UPROPERTY(EditAnywhere, Category = "Target AOE Selection | Data")
 	FVector DefaultSourceOffset = FVector::ZeroVector;
+
+	/** Should we offset based on world or relative Source object transform? */
+	UPROPERTY(EditAnywhere, Category = "Target AOE Selection | Data")
+	uint8 bUseRelativeOffset : 1;
 	
 	/** Indicates the trace should ignore the source actor */
 	UPROPERTY(EditAnywhere, Category = "Target AOE Selection | Data")

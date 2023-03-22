@@ -21,6 +21,7 @@ UTargetingSelectionTask_AOE::UTargetingSelectionTask_AOE(const FObjectInitialize
 	CollisionChannel = ECC_PhysicsBody;
 	bIgnoreSourceActor = false;
 	bIgnoreInstigatorActor = false;
+	bUseRelativeOffset = false;
 }
 
 void UTargetingSelectionTask_AOE::Execute(const FTargetingRequestHandle& TargetingHandle) const
@@ -265,6 +266,18 @@ FVector UTargetingSelectionTask_AOE::GetSourceLocation_Implementation(const FTar
 
 FVector UTargetingSelectionTask_AOE::GetSourceOffset_Implementation(const FTargetingRequestHandle& TargetingHandle) const
 {
+	// If we want to apply a relative offset, we offset the different base vectors of the local space of the source actor with the values provided
+	if(bUseRelativeOffset)
+	{
+		const FTargetingSourceContext* SourceContext = FTargetingSourceContext::Find(TargetingHandle);
+		if (const AActor* SourceActor = SourceContext ? SourceContext->SourceActor : nullptr)
+		{
+			return	SourceActor->GetActorForwardVector() * DefaultSourceOffset.X +
+					SourceActor->GetActorRightVector() * DefaultSourceOffset.Y +
+					SourceActor->GetActorUpVector() * DefaultSourceOffset.Z;
+		}
+	}
+
 	return DefaultSourceOffset;
 }
 
