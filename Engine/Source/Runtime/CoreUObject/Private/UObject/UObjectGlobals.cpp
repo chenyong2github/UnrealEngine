@@ -4280,6 +4280,19 @@ void CheckIsClassChildOf_Internal(const UClass* Parent, const UClass* Child)
 }
 #endif
 
+UObject* DuplicateObject_Internal(UClass* Class, const UObject* SourceObject, UObject* Outer, FName Name)
+{
+	if (SourceObject != nullptr)
+	{
+		if (Outer == nullptr || Outer == INVALID_OBJECT)
+		{
+			Outer = (UObject*)GetTransientOuterForRename(Class);
+		}
+		return StaticDuplicateObject(SourceObject,Outer,Name);
+	}
+	return nullptr;
+}
+
 FStaticConstructObjectParameters::FStaticConstructObjectParameters(const UClass* InClass)
 	: Class(InClass)
 	, Outer((UObject*)GetTransientPackage())

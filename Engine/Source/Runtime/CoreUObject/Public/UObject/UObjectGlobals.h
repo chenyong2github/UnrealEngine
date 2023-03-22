@@ -1669,6 +1669,18 @@ FUNCTION_NON_NULL_RETURN_END
 }
 
 /**
+ * Convenience function for duplicating an object
+ *
+ * @param Class the class of the object being copied
+ * @param SourceObject the object being copied
+ * @param Outer the outer to use for the object
+ * @param Name the optional name of the object
+ *
+ * @return the copied object or null if it failed for some reason
+ */
+COREUOBJECT_API UObject* DuplicateObject_Internal(UClass* Class, const UObject* SourceObject, UObject* Outer, const FName NAME_None);
+
+/**
  * Convenience template for duplicating an object
  *
  * @param SourceObject the object being copied
@@ -1680,28 +1692,13 @@ FUNCTION_NON_NULL_RETURN_END
 template< class T >
 T* DuplicateObject(T const* SourceObject,UObject* Outer, const FName Name = NAME_None)
 {
-	if (SourceObject != nullptr)
-	{
-		if (Outer == nullptr || Outer == INVALID_OBJECT)
-		{
-			Outer = (UObject*)GetTransientPackage();
-		}
-		return (T*)StaticDuplicateObject(SourceObject,Outer,Name);
-	}
-	return nullptr;
+	return static_cast<T*>(DuplicateObject_Internal(T::StaticClass(), SourceObject, Outer, Name));
 }
+
 template <typename T>
 T* DuplicateObject(const TObjectPtr<T>& SourceObject,UObject* Outer, const FName Name = NAME_None)
 {
-	if (SourceObject != nullptr)
-	{
-		if (Outer == nullptr || Outer == INVALID_OBJECT)
-		{
-			Outer = (UObject*)GetTransientPackage();
-		}
-		return (T*)StaticDuplicateObject(SourceObject,Outer,Name);
-	}
-	return nullptr;
+	return static_cast<T*>(DuplicateObject_Internal(T::StaticClass(), SourceObject, Outer, Name));
 }
 
 /**
