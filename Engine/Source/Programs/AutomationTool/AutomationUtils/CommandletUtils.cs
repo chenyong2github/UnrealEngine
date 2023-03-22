@@ -308,7 +308,7 @@ namespace AutomationTool
 			// If we're running on a Windows build machine, copy any crash dumps into the log folder
 			if(HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64 && IsBuildMachine)
 			{
-				DirectoryInfo CrashesDir = new DirectoryInfo(DirectoryReference.Combine(DirectoryReference.FromFile(ProjectName) ?? Unreal.EngineDirectory, "Saved", "Crashes").FullName);
+				DirectoryInfo CrashesDir = new DirectoryInfo(GetCrashesDirectory(ProjectName).FullName);
 				if(CrashesDir.Exists)
 				{
 					foreach(DirectoryInfo CrashDir in CrashesDir.EnumerateDirectories())
@@ -537,6 +537,17 @@ namespace AutomationTool
 				}
 			}
 			return ProjectFullPath;
+		}
+
+		/// <summary>
+		/// Get the crashes directory for the given project file
+		/// </summary>
+		/// <param name="ProjectFullPath">Path to a project file</param>
+		/// <returns>DirectoryReference for the directory where crashes are stored for this project</returns>
+		public static DirectoryReference GetCrashesDirectory(FileReference ProjectFullPath)
+		{
+			DirectoryReference CrashesDir = DirectoryReference.Combine(DirectoryReference.FromFile(ProjectFullPath) ?? Unreal.EngineDirectory, "Saved", "Crashes");
+			return CrashesDir;
 		}
 	}
 }
