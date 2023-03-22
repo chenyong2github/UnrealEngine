@@ -21,6 +21,7 @@ public:
     
     bool IsNested() const { return !!Parent; }
     FTransaction* GetParent() const { return Parent; }
+	void SetParent(FTransaction* NewParent) { Parent = NewParent; }
 
     // This should just use type displays or ranges. Maybe ranges could even work out great.
     bool IsNestedWithin(const FTransaction* Other) const
@@ -42,19 +43,18 @@ public:
     bool IsDone() const { return bIsDone; }
     void SetIsDone() { bIsDone = true; }
     
+	inline bool IsScopedTransaction() const { return bIsStackScoped; }
+	inline void SetIsScopedTransaction() { bIsStackScoped = true; }
+
     void DeferUntilCommit(std::function<void()>&&);
     void DeferUntilAbort(std::function<void()>&&);
-
-    // Whether this succeeded or not is reflected in Context::GetStatus().
-    template<typename TTryFunctor>
-    void Try(const TTryFunctor& TryFunctor);
 
     void AbortAndThrow();
     void AbortWithoutThrowing();
     bool AttemptToCommit();
 
     // Record that a write is about to occur at the given LogicalAddress of Size bytes.
-    void RecordWrite(void* LogicalAddress, size_t Size);
+    void RecordWrite(void* LogicalAddress, size_t Size, bool bIsClosed);
     void RecordWriteMaxPageSized(void* LogicalAddress, size_t Size);
 
     void DidAllocate(void* LogicalAddress, size_t Size);
@@ -72,15 +72,14 @@ private:
     FContext* Context;
     
     // Are we nested? Then this is the parent.
-    FTransaction* Parent;
+    FTransaction* Parent{nullptr};
 
     // Commit tasks run on commit in forward order. Abort tasks run on abort in reverse order.
     TTaskArray<std::function<void()>> CommitTasks;
     TTaskArray<std::function<void()>> AbortTasks;
 
     bool bIsDone{false};
-
-    FLongJump AbortJump;
+	bool bIsStackScoped{false};
 
     FHitSet HitSet;
     FWriteLog WriteLog;

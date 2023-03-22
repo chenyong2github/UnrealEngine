@@ -4,7 +4,6 @@
 
 #include "Context.h"
 #include "Transaction.h"
-#include <cstddef>
 
 namespace AutoRTFM
 {
@@ -40,8 +39,23 @@ inline void FTransaction::RecordWriteMaxPageSized(void* LogicalAddress, size_t S
     WriteLog.Push(FWriteLogEntry(LogicalAddress, Size, CopyAddress));
 }
 
-inline void FTransaction::RecordWrite(void* LogicalAddress, size_t Size)
+inline void FTransaction::RecordWrite(void* LogicalAddress, size_t Size, bool bIsClosed)
 {
+	// We don't record any writes to unscoped transactions when the write-address
+	// is within the nearest closed C++ function call nest. This may seem weird, but we
+	// have to prohibit this because we can't track all the comings and goings of
+	// local variables and all child C++ scopes. It's easy to get into a situation
+	// where a rollback will undo the recorded writes to stack-locals that actually
+	// corrupts the undo process itself.
+	if (!IsScopedTransaction()
+		&& !bIsClosed
+		&& Context->IsInnerTransactionStack(LogicalAddress))
+	{
+		// It is an error to write to stack variables within an open nest
+		fprintf(stderr, "FATAL: Writing to local stack memory from an unscoped transaction is not allowed.\n");
+		abort();
+	}
+
     uint8_t* Address = reinterpret_cast<uint8_t*>(LogicalAddress);
 
     size_t I = 0;
@@ -75,22 +89,6 @@ inline void FTransaction::DeferUntilCommit(std::function<void()>&& Callback)
 inline void FTransaction::DeferUntilAbort(std::function<void()>&& Callback)
 {
     AbortTasks.Add(std::move(Callback));
-}
-
-template<typename TTryFunctor>
-void FTransaction::Try(const TTryFunctor& TryFunctor)
-{
-    AbortJump.TryCatch(
-        [&] ()
-        {
-            TryFunctor();
-            ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
-        },
-        [&] ()
-        {
-            ASSERT(Context->GetStatus() != EContextStatus::Idle);
-            ASSERT(Context->GetStatus() != EContextStatus::OnTrack);
-        });
 }
 
 } // namespace AutoRTFM

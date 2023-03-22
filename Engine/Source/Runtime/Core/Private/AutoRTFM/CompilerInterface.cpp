@@ -31,7 +31,7 @@ void CheckAlignment(FContext* Context, void* Ptr, size_t AlignmentMask)
 
 extern "C" void autortfm_record_write(FContext* Context, void* Ptr, size_t Size)
 {
-    Context->RecordWrite(Ptr, Size);
+    Context->RecordWrite(Ptr, Size, true);
 }
 
 extern "C" void* autortfm_lookup_function(FContext* Context, void* OriginalFunction, const char* Where)

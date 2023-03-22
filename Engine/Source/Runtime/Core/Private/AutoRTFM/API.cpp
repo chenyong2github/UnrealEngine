@@ -4,8 +4,10 @@
 
 #include "AutoRTFM/AutoRTFM.h"
 #include "AutoRTFM/AutoRTFMConstants.h"
+#include "CallNest.h"
 #include "Context.h"
 #include "ContextInlines.h"
+#include "ContextStatus.h"
 #include "Debug.h"
 #include "FunctionMapInlines.h"
 #include "TransactionInlines.h"
@@ -56,6 +58,61 @@ extern "C" void autortfm_abort()
     }
 }
 
+extern "C" bool autortfm_start_transaction()
+{
+	if (FContext::IsTransactional())
+	{
+		return FContext::Get()->StartTransaction();
+	}
+	else
+	{
+		fprintf(stderr, "autortfm_start_transaction called from outside a transact.\n");
+		abort();
+	}
+}
+
+extern "C" autortfm_result autortfm_commit_transaction()
+{
+	if (FContext::IsTransactional())
+	{
+		return static_cast<autortfm_result>(FContext::Get()->CommitTransaction());
+	}
+	else
+	{
+		fprintf(stderr, "autortfm_commit_transaction called from outside a transaction.\n");
+		abort();
+	}
+}
+
+extern "C" autortfm_result autortfm_abort_transaction()
+{
+	if (FContext::IsTransactional())
+	{
+		return static_cast<autortfm_result>(FContext::Get()->AbortTransaction(false));
+	}
+	else
+	{
+		fprintf(stderr, "autortfm_abort_transaction called from outside a transaction.\n");
+		abort();
+	}
+}
+
+extern "C" void autortfm_clear_transaction_status()
+{
+	ASSERT(FContext::Get()->IsAborting());
+	FContext::Get()->ClearTransactionStatus();
+}
+
+extern "C" bool autortfm_is_aborting()
+{
+	return FContext::Get()->IsAborting();
+}
+
+extern "C" bool autortfm_current_nest_throw()
+{
+	FContext::Get()->Throw();
+}
+
 extern "C" void autortfm_abort_if_transactional()
 {
     if (FContext::IsTransactional())
@@ -71,18 +128,20 @@ extern "C" void autortfm_abort_if_closed()
 
 extern "C" void autortfm_open(void (*Work)(void* Arg), void* Arg)
 {
-    Work(Arg);
+	Work(Arg);
 }
 
-extern "C" void autortfm_close(void (*Work)(void* Arg), void* Arg)
+extern "C" autortfm_status autortfm_close(void (*Work)(void* Arg), void* Arg)
 {
+	autortfm_status Result = autortfm_status_ontrack;
+
     if (FContext::IsTransactional())
     {
         FContext* Context = FContext::Get();
         void (*WorkClone)(void* Arg, FContext* Context) = FunctionMapLookup(Work, Context, "autortfm_close");
         if (WorkClone)
         {
-            WorkClone(Arg, Context);
+			Result = static_cast<autortfm_status>(Context->CallClosedNest(WorkClone, Arg));
         }
     }
     else
@@ -90,6 +149,13 @@ extern "C" void autortfm_close(void (*Work)(void* Arg), void* Arg)
         fprintf(stderr, "autortfm_close called from outside a transaction.\n");
         abort();
     }
+
+	return Result;
+}
+
+extern "C" void autortfm_record_open_write(void* Ptr, size_t Size)
+{
+	FContext::Get()->RecordWrite(Ptr, Size, false);
 }
 
 extern "C" void autortfm_register_open_function(void* OriginalFunction, void* NewFunction)
@@ -259,6 +325,52 @@ void STM_autortfm_abort(FContext* Context)
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_abort);
 
+void STM_autortfm_start_transaction(FContext* Context)
+{
+	fprintf(stderr, "autortfm_start_transaction called from closed code.\n");
+	abort();
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_start_transaction);
+
+void STM_autortfm_commit_transaction(FContext* Context)
+{
+	fprintf(stderr, "autostm_committransaction called from closed code.\n");
+	abort();
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_commit_transaction);
+
+autortfm_result STM_autortfm_abort_transaction(FContext* Context)
+{
+	if (FContext::IsTransactional())
+	{
+		return static_cast<autortfm_result>(Context->AbortTransaction(true));
+	}
+	else
+	{
+		fprintf(stderr, "autortfm_abort_transaction called from outside a transaction.\n");
+		abort();
+	}
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_abort_transaction);
+
+void STM_autortfm_clear_transaction_status(FContext* Context)
+{
+	fprintf(stderr, "autortfm_clear_transaction_status called from closed code.\n");
+	abort();
+}
+
+bool STM_autortfm_is_aborting(FContext* Context)
+{
+	return Context->IsAborting();
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_is_aborting);
+
+bool STM_autortfm_current_nest_throw(FContext* Context)
+{
+	Context->Throw();
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_current_nest_throw);
+
 void STM_autortfm_abort_if_transactional(FContext* Context)
 {
     if (FDebug::bVerbose)
@@ -282,19 +394,29 @@ UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_abort_if_closed);
 
 void STM_autortfm_open(void (*Work)(void* Arg), void* Arg, FContext* Context)
 {
-    Work(Arg);
+	// WARNING! DO NOT EDIT! Changes to this function will be elided due to special compiler optimizations
+	Work(Arg);
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_open);
 
-void STM_autortfm_close(void (*Work)(void* Arg), void* Arg, FContext* Context)
+autortfm_status STM_autortfm_close(void (*Work)(void* Arg), void* Arg, FContext* Context)
 {
     void (*WorkClone)(void* Arg, FContext* Context) = FunctionMapLookup(Work, Context, "STM_autortfm_close");
     if (WorkClone)
     {
         WorkClone(Arg, Context);
     }
+
+	return static_cast<autortfm_status>(FContext::Get()->GetStatus());
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_close);
+
+extern "C" void STM_autortfm_record_open_write(void*, size_t, FContext*)
+{
+	fprintf(stderr, "FATAL: autortfm_record_open_write called from closed code.\n");
+	abort();
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_record_open_write);
 
 void STM_DeferUntilCommit(std::function<void()>&& Work, FContext* Context)
 {

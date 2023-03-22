@@ -7,18 +7,6 @@
 
 namespace AutoRTFM
 {
-
-enum class EContextStatus
-{
-    Idle,
-    OnTrack,
-    AbortedByLineInitialization,
-    AbortedByCommitTimeLineCheck,
-    AbortedByFailedLockAcquisition,
-    AbortedByLanguage,
-    AbortedByRequest
-};
-
 static_assert(static_cast<unsigned>(EContextStatus::OnTrack) == Constants::Context_Status_OnTrack, "Not equal");
 
 inline const char* GetContextStatusName(EContextStatus Status)
@@ -29,10 +17,6 @@ inline const char* GetContextStatusName(EContextStatus Status)
         return "Idle";
     case EContextStatus::OnTrack:
         return "OnTrack";
-    case EContextStatus::AbortedByLineInitialization:
-        return "AbortedByLineInitialization";
-    case EContextStatus::AbortedByCommitTimeLineCheck:
-        return "AbortedByCommitTimeLineCheck";
     case EContextStatus::AbortedByFailedLockAcquisition:
         return "AbortedByFailedLockAcquisition";
     case EContextStatus::AbortedByLanguage:

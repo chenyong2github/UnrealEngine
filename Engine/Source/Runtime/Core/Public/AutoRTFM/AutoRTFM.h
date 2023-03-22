@@ -42,6 +42,16 @@ typedef enum
     autortfm_committed
 } autortfm_result;
 
+// This must match AutoRTFM::EContextStatus.
+typedef enum
+{
+	autortfm_status_idle,
+	autortfm_status_ontrack,
+	autortfm_status_aborted_by_failed_lock_aquisition,
+	autortfm_status_aborted_by_language,
+	autortfm_status_aborted_by_request
+} autortfm_status;
+
 // Tells if we are currently running in a transaction. This will return true in an
 // open nest (see autortfm_open).
 #if UE_AUTORTFM
@@ -99,17 +109,59 @@ inline void autortfm_commit(void (*work)(void* arg), void* arg)
 }
 #endif
 
-// Request that the current transaction aborts. Only aborts the innermost
-// transaction nest. The corresponding autortfm_transact call will return
-// autortfm_aborted_by_request.
-//
-// Guaranteed to crash if called outside a transaction.
+// Create a new transaction in the open.
 #if UE_AUTORTFM
-void autortfm_abort(void);
+bool autortfm_start_transaction();
 #else
-inline void autortfm_abort(void)
+inline bool autortfm_start_transaction()
 {
-    abort();
+	return false;
+}
+#endif
+
+// End a transaction and commit the changes to be visible to all
+#if UE_AUTORTFM
+autortfm_result autortfm_commit_transaction();
+#else
+inline autortfm_result autortfm_commit_transaction()
+{
+	return autortfm_aborted_by_language;
+}
+#endif
+
+// End a transaction and discard all changes
+#if UE_AUTORTFM
+autortfm_result autortfm_abort_transaction();
+#else
+inline autortfm_result autortfm_abort_transaction()
+{
+	return autortfm_aborted_by_request;
+}
+#endif
+
+// Clear the status of a transaction that was aborted in the open
+#if UE_AUTORTFM
+void autortfm_clear_transaction_status();
+#else
+inline void autortfm_clear_transaction_status()
+{
+}
+#endif
+
+#if UE_AUTORTFM
+bool autortfm_is_aborting();
+#else
+inline bool autortfm_is_aborting()
+{
+	return false;
+}
+#endif
+
+#if UE_AUTORTFM
+bool autortfm_current_nest_throw();
+#else
+inline bool autortfm_current_nest_throw()
+{
 }
 #endif
 
@@ -147,11 +199,24 @@ inline void autortfm_open(void (*work)(void* arg), void* arg)
 //
 // Guaranteed to crash if called outside a transaction.
 #if UE_AUTORTFM
-void autortfm_close(void (*work)(void* arg), void* arg);
+autortfm_status autortfm_close(void (*work)(void* arg), void* arg);
 #else
-inline void autortfm_close(void (*work)(void* arg), void* arg)
+inline autortfm_status autortfm_close(void (*work)(void* arg), void* arg)
 {
     abort();
+	return autortfm_status_aborted_by_language;
+}
+#endif
+
+// Records the pointer and size from the open into the current transaction
+//
+// Guaranteed to assert if called outside a transaction.
+// Guaranteed to assert if called from closed code.
+#if UE_AUTORTFM
+void autortfm_record_open_write(void* Ptr, size_t Size);
+#else
+inline void autortfm_record_open_write(void* Ptr, size_t Size)
+{
 }
 #endif
 
@@ -291,6 +356,15 @@ enum class ETransactionResult
     Committed = autortfm_committed
 };
 
+enum class EContextStatus
+{
+	Idle = autortfm_status_idle,
+	OnTrack = autortfm_status_ontrack,
+	AbortedByFailedLockAcquisition = autortfm_status_aborted_by_failed_lock_aquisition,
+	AbortedByLanguage = autortfm_status_aborted_by_language,
+	AbortedByRequest = autortfm_status_aborted_by_request
+};
+
 inline bool IsTransactional() { return autortfm_is_transactional(); }
 inline bool IsClosed() { return autortfm_is_closed(); }
 
@@ -310,9 +384,93 @@ void Commit(const TFunctor& Functor)
         const_cast<void*>(static_cast<const void*>(&Functor)));
 }
 
-inline void Abort()
+inline bool StartTransaction()
 {
-    autortfm_abort();
+	return autortfm_start_transaction();
+}
+
+inline ETransactionResult CommitTransaction()
+{
+	return static_cast<ETransactionResult>(autortfm_commit_transaction());
+}
+
+inline ETransactionResult AbortTransaction()
+{
+	return static_cast<ETransactionResult>(autortfm_abort_transaction());
+}
+
+inline void ClearTransactionStatus()
+{
+	autortfm_clear_transaction_status();
+}
+
+inline bool IsAborting()
+{
+	return autortfm_is_aborting();
+}
+
+// RecordOpenWrite records the memory span into the current transaction as written.
+//  If this memory is previously unknown to the transaction, the original value is saved.
+inline void RecordOpenWrite(void* Ptr, size_t Size)
+{
+	autortfm_record_open_write(Ptr, Size);
+}
+
+template<typename TTYPE>
+inline void RecordOpenWrite(TTYPE* Ptr)
+{
+	autortfm_record_open_write(Ptr, sizeof(TTYPE));
+}
+
+// RecordOpenRead does nothing right now, but it is intended as a support stub for the day when we move to full AutoSTM
+inline void RecordOpenRead(void const* Ptr, size_t Size)
+{
+}
+
+template<typename TTYPE>
+inline void RecordOpenRead(TTYPE* Ptr)
+{
+	RecordOpenRead(Ptr, sizeof(TTYPE));
+}
+
+// WriteMemory first records the memory span as written (see RecordOpenWrite) and then copies the specified value into it.
+inline void WriteMemory(void* DestPtr, void const* SrcPtr, size_t Size)
+{
+	RecordOpenWrite(DestPtr, Size);
+	memcpy(DestPtr, SrcPtr, Size);
+}
+
+template<typename TTYPE>
+inline void WriteMemoryTrivial(TTYPE* DestPtr, TTYPE const* SrcPtr)
+{
+	RecordOpenWrite(DestPtr, sizeof(TTYPE));
+	*DestPtr = *SrcPtr;
+}
+
+template<typename TTYPE>
+inline void WriteMemory(TTYPE* DestPtr, TTYPE const* SrcPtr)
+{
+	if constexpr (std::is_trivially_copyable<TTYPE>::value)
+	{
+		WriteMemoryTrivial<TTYPE>(DestPtr, SrcPtr);
+	}
+	else
+	{
+		WriteMemory(DestPtr, SrcPtr, sizeof(TTYPE));
+	}
+}
+
+template<typename TTYPE>
+inline void WriteMemory(TTYPE* DestPtr, TTYPE const SrcValue)
+{
+	if constexpr (std::is_trivially_copyable<TTYPE>::value)
+	{
+		WriteMemoryTrivial<TTYPE>(DestPtr, &SrcValue);
+	}
+	else
+	{
+		WriteMemory(DestPtr, &SrcValue, sizeof(TTYPE));
+	}
 }
 
 inline void AbortIfTransactional()
@@ -331,14 +489,19 @@ void Open(const TFunctor& Functor)
     autortfm_open(
         [] (void* Arg) { (*static_cast<const TFunctor*>(Arg))(); },
         const_cast<void*>(static_cast<const void*>(&Functor)));
+
+	if (autortfm_is_aborting())
+	{
+		autortfm_current_nest_throw();
+	}
 }
 
 template<typename TFunctor>
-void Close(const TFunctor& Functor)
+EContextStatus Close(const TFunctor& Functor)
 {
-    autortfm_close(
+    return static_cast<EContextStatus>(autortfm_close(
         [] (void* Arg) { (*static_cast<const TFunctor*>(Arg))(); },
-        const_cast<void*>(static_cast<const void*>(&Functor)));
+        const_cast<void*>(static_cast<const void*>(&Functor))));
 }
 
 inline void RegisterOpenFunction(void* OriginalFunction, void* NewFunction)

@@ -8,9 +8,9 @@
 namespace AutoRTFM
 {
 
-inline void FContext::RecordWrite(void* LogicalAddress, size_t Size)
+inline void FContext::RecordWrite(void* LogicalAddress, size_t Size, bool bIsClosed)
 {
-    CurrentTransaction->RecordWrite(LogicalAddress, Size);
+    CurrentTransaction->RecordWrite(LogicalAddress, Size, bIsClosed);
 }
 
 inline void FContext::DidAllocate(void* LogicalAddress, size_t Size)

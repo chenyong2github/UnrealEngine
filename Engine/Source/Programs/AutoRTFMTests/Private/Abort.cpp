@@ -29,7 +29,7 @@ TEST_CASE("Abort")
     	m[10].push_back(11);
     	m[12].push_back(13);
     	m[12].push_back(14);
-    	AutoRTFM::Abort();
+    	AutoRTFM::AbortTransaction();
 	});
 
     REQUIRE(

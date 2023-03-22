@@ -3,6 +3,7 @@
 #if (defined(__AUTORTFM) && __AUTORTFM)
 #include "Transaction.h"
 #include "TransactionInlines.h"
+#include "CallNestInlines.h"
 #include "Debug.h"
 #include "GlobalData.h"
 
@@ -11,7 +12,6 @@ namespace AutoRTFM
 
 FTransaction::FTransaction(FContext* Context)
     : Context(Context)
-    , Parent(Context->GetCurrentTransaction())
 {
 }
 
@@ -30,9 +30,7 @@ void FTransaction::AbortWithoutThrowing()
     {
         fprintf(GetLogFile(), "Aborting (%s)\n", GetContextStatusName(Context->GetStatus()));
     }
-    ASSERT(Context->GetStatus() == EContextStatus::AbortedByLineInitialization
-           || Context->GetStatus() == EContextStatus::AbortedByCommitTimeLineCheck
-           || Context->GetStatus() == EContextStatus::AbortedByFailedLockAcquisition
+    ASSERT(Context->GetStatus() == EContextStatus::AbortedByFailedLockAcquisition
            || Context->GetStatus() == EContextStatus::AbortedByLanguage
            || Context->GetStatus() == EContextStatus::AbortedByRequest);
     ASSERT(Context->GetCurrentTransaction() == this);
@@ -50,7 +48,7 @@ void FTransaction::AbortWithoutThrowing()
 void FTransaction::AbortAndThrow()
 {
     AbortWithoutThrowing();
-    AbortJump.Throw();
+	Context->Throw();
 }
 
 bool FTransaction::AttemptToCommit()
@@ -75,8 +73,9 @@ void FTransaction::Undo()
 {
     for (FWriteLogEntry& Entry : WriteLog)
     {
-        // Skip writes that are into our current transactions stack.
-        if (Context->IsInnerTransactionStack(Entry.OriginalAndSize.Get()))
+        // Skip writes to our current transaction nest if we're scoped. We're about to
+		// leave so the changes don't matter. 
+        if (IsScopedTransaction() && Context->IsInnerTransactionStack(Entry.OriginalAndSize.Get()))
         {
             continue;
         }
@@ -106,8 +105,6 @@ void FTransaction::AbortOuterNest()
 
     switch (Context->GetStatus())
     {
-    case EContextStatus::AbortedByLineInitialization:
-    case EContextStatus::AbortedByCommitTimeLineCheck:
     case EContextStatus::AbortedByFailedLockAcquisition:
         break;
     case EContextStatus::AbortedByRequest:
@@ -131,7 +128,7 @@ void FTransaction::CommitNested()
     for (FWriteLogEntry& Write : WriteLog)
     {
         // Skip writes that are into our current transactions stack.
-        if (Context->IsInnerTransactionStack(Write.OriginalAndSize.Get()))
+        if (IsScopedTransaction() && Context->IsInnerTransactionStack(Write.OriginalAndSize.Get()))
         {
             continue;
         }

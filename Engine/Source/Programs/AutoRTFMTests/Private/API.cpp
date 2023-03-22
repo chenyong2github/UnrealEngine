@@ -23,7 +23,7 @@ TEST_CASE("API.autortfm_result")
     REQUIRE(autortfm_aborted_by_request == autortfm_transact([](void* const Arg)
     {
         *static_cast<int* const>(Arg) = 13;
-        AutoRTFM::Abort();
+        AutoRTFM::AbortTransaction();
     }, &Answer));
 
     REQUIRE(42 == Answer);
@@ -127,7 +127,7 @@ TEST_CASE("API.autortfm_abort")
             // Because we are aborting this won't actually occur!
             InNest = true;
 
-            autortfm_abort();
+            autortfm_abort_transaction();
         });
 
         AfterNest = true;
@@ -221,7 +221,7 @@ TEST_CASE("API.autortfm_open")
             *static_cast<int* const>(Arg) *= 2;
         }, &Answer);
 
-        AutoRTFM::Abort();
+        AutoRTFM::AbortTransaction();
     }));
 
     REQUIRE(84 == Answer);
@@ -252,7 +252,7 @@ TEST_CASE("API.autortfm_close")
             InOpenNest = true;
         });
 
-        AutoRTFM::Abort();
+        AutoRTFM::AbortTransaction();
     }));
 
     REQUIRE(false == InClosedNest);
@@ -294,7 +294,7 @@ TEST_CASE("API.autortfm_defer_until_commit")
         // This should only be modified on the commit!
         if (OuterTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Commit([&]
@@ -308,7 +308,7 @@ TEST_CASE("API.autortfm_defer_until_commit")
         // This should only be modified on the commit!
         if (InnerTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         NestResult = AutoRTFM::Transact([&]
@@ -318,13 +318,13 @@ TEST_CASE("API.autortfm_defer_until_commit")
                 *static_cast<bool* const>(Arg) = true;
             }, &InnerTransactionWithAbort);
 
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         });
 
         // This should never be modified because its transaction aborted!
         if (InnerTransactionWithAbort)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Open([&]
@@ -338,7 +338,7 @@ TEST_CASE("API.autortfm_defer_until_commit")
         // This should only be modified on the commit!
         if (InnerOpenNest)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
     }));
 
@@ -367,7 +367,7 @@ TEST_CASE("API.autortfm_defer_until_abort")
         // This should only be modified on the commit!
         if (OuterTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Commit([&]
@@ -381,7 +381,7 @@ TEST_CASE("API.autortfm_defer_until_abort")
         // This should only be modified on the commit!
         if (InnerTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         NestResult = AutoRTFM::Transact([&]
@@ -391,13 +391,13 @@ TEST_CASE("API.autortfm_defer_until_abort")
                 *static_cast<bool* const>(Arg) = true;
             }, &InnerTransactionWithAbort);
 
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         });
 
         // This should never be modified because its transaction aborted!
         if (InnerTransactionWithAbort)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Open([&]
@@ -411,7 +411,7 @@ TEST_CASE("API.autortfm_defer_until_abort")
         // This should only be modified on the commit!
         if (InnerOpenNest)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
     }));
 
@@ -440,7 +440,7 @@ TEST_CASE("API.autortfm_open_commit")
         // This should only be modified on the commit!
         if (OuterTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Commit([&]
@@ -454,7 +454,7 @@ TEST_CASE("API.autortfm_open_commit")
         // This should only be modified on the commit!
         if (InnerTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         NestResult = AutoRTFM::Transact([&]
@@ -464,13 +464,13 @@ TEST_CASE("API.autortfm_open_commit")
                 *static_cast<bool* const>(Arg) = true;
             }, &InnerTransactionWithAbort);
 
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         });
 
         // This should never be modified because its transaction aborted!
         if (InnerTransactionWithAbort)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Open([&]
@@ -483,7 +483,7 @@ TEST_CASE("API.autortfm_open_commit")
             // This should be modified immediately!
             if (!InnerOpenNest)
             {
-                AutoRTFM::Abort();
+                AutoRTFM::AbortTransaction();
             }
         });
     });
@@ -513,7 +513,7 @@ TEST_CASE("API.autortfm_open_abort")
         // This should only be modified on the commit!
         if (OuterTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Commit([&]
@@ -527,7 +527,7 @@ TEST_CASE("API.autortfm_open_abort")
         // This should only be modified on the commit!
         if (InnerTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         NestResult = AutoRTFM::Transact([&]
@@ -537,13 +537,13 @@ TEST_CASE("API.autortfm_open_abort")
                 *static_cast<bool* const>(Arg) = true;
             }, &InnerTransactionWithAbort);
 
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         });
 
         // This should never be modified because its transaction aborted!
         if (InnerTransactionWithAbort)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Open([&]
@@ -557,7 +557,7 @@ TEST_CASE("API.autortfm_open_abort")
         // This should only be modified on the commit!
         if (InnerOpenNest)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
     }));
 
@@ -645,7 +645,7 @@ TEST_CASE("API.ETransactionResult")
     REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == AutoRTFM::Transact([&]
     {
         Answer = 13;
-        AutoRTFM::Abort();
+        AutoRTFM::AbortTransaction();
     }));
 
     REQUIRE(42 == Answer);
@@ -749,7 +749,7 @@ TEST_CASE("API.Abort")
             // Because we are aborting this won't actually occur!
             InNest = true;
 
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         });
 
         AfterNest = true;
@@ -843,7 +843,7 @@ TEST_CASE("API.Open")
             Answer *= 2;
         });
 
-        AutoRTFM::Abort();
+        AutoRTFM::AbortTransaction();
     }));
 
     REQUIRE(84 == Answer);
@@ -874,7 +874,7 @@ TEST_CASE("API.Close")
             InOpenNest = true;
         });
 
-        AutoRTFM::Abort();
+        AutoRTFM::AbortTransaction();
     }));
 
     REQUIRE(false == InClosedNest);
@@ -916,7 +916,7 @@ TEST_CASE("API.DeferUntilCommit")
         // This should only be modified on the commit!
         if (OuterTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Commit([&]
@@ -930,7 +930,7 @@ TEST_CASE("API.DeferUntilCommit")
         // This should only be modified on the commit!
         if (InnerTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         NestResult = AutoRTFM::Transact([&]
@@ -940,13 +940,13 @@ TEST_CASE("API.DeferUntilCommit")
                 InnerTransactionWithAbort = true;
             });
 
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         });
 
         // This should never be modified because its transaction aborted!
         if (InnerTransactionWithAbort)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Open([&]
@@ -960,7 +960,7 @@ TEST_CASE("API.DeferUntilCommit")
         // This should only be modified on the commit!
         if (InnerOpenNest)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
     }));
 
@@ -989,7 +989,7 @@ TEST_CASE("API.DeferUntilAbort")
         // This should only be modified on the commit!
         if (OuterTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Commit([&]
@@ -1003,7 +1003,7 @@ TEST_CASE("API.DeferUntilAbort")
         // This should only be modified on the commit!
         if (InnerTransaction)
         {
-            AutoRTFM::Abort();
+			AutoRTFM::AbortTransaction();
         }
 
         NestResult = AutoRTFM::Transact([&]
@@ -1013,13 +1013,13 @@ TEST_CASE("API.DeferUntilAbort")
                 InnerTransactionWithAbort = true;
             });
 
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         });
 
         // This should never be modified because its transaction aborted!
         if (InnerTransactionWithAbort)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Open([&]
@@ -1033,7 +1033,7 @@ TEST_CASE("API.DeferUntilAbort")
         // This should only be modified on the commit!
         if (InnerOpenNest)
         {
-            AutoRTFM::Abort();
+			AutoRTFM::AbortTransaction();
         }
     }));
 
@@ -1062,7 +1062,7 @@ TEST_CASE("API.OpenCommit")
         // This should only be modified on the commit!
         if (OuterTransaction)
         {
-            AutoRTFM::Abort();
+            AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Commit([&]
@@ -1076,7 +1076,7 @@ TEST_CASE("API.OpenCommit")
         // This should only be modified on the commit!
         if (InnerTransaction)
         {
-            AutoRTFM::Abort();
+			AutoRTFM::AbortTransaction();
         }
 
         NestResult = AutoRTFM::Transact([&]
@@ -1086,13 +1086,13 @@ TEST_CASE("API.OpenCommit")
                 InnerTransactionWithAbort = true;
             });
 
-            AutoRTFM::Abort();
+		AutoRTFM::AbortTransaction();
         });
 
         // This should never be modified because its transaction aborted!
         if (InnerTransactionWithAbort)
         {
-            AutoRTFM::Abort();
+			AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Open([&]
@@ -1105,7 +1105,7 @@ TEST_CASE("API.OpenCommit")
             // This should be modified immediately!
             if (!InnerOpenNest)
             {
-                AutoRTFM::Abort();
+				AutoRTFM::AbortTransaction();
             }
         });
     }));
@@ -1135,7 +1135,7 @@ TEST_CASE("API.OpenAbort")
         // This should only be modified on the commit!
         if (OuterTransaction)
         {
-            AutoRTFM::Abort();
+			AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Commit([&]
@@ -1149,7 +1149,7 @@ TEST_CASE("API.OpenAbort")
         // This should only be modified on the commit!
         if (InnerTransaction)
         {
-            AutoRTFM::Abort();
+			AutoRTFM::AbortTransaction();
         }
 
         NestResult = AutoRTFM::Transact([&]
@@ -1159,13 +1159,13 @@ TEST_CASE("API.OpenAbort")
                 InnerTransactionWithAbort = true;
             });
 
-            AutoRTFM::Abort();
+		AutoRTFM::AbortTransaction();
         });
 
         // This should never be modified because its transaction aborted!
         if (InnerTransactionWithAbort)
         {
-            AutoRTFM::Abort();
+			AutoRTFM::AbortTransaction();
         }
 
         AutoRTFM::Open([&]
@@ -1179,7 +1179,7 @@ TEST_CASE("API.OpenAbort")
         // This should only be modified on the commit!
         if (InnerOpenNest)
         {
-            AutoRTFM::Abort();
+			AutoRTFM::AbortTransaction();
         }
     }));
 
