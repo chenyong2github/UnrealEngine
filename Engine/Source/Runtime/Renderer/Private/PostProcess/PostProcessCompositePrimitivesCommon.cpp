@@ -74,8 +74,8 @@ public:
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		// Only PC platforms render editor primitives.
-		return IsPCPlatform(Parameters.Platform);
+		// Only render if debug viewmodes are allowed.
+		return AllowDebugViewmodes(Parameters.Platform);
 	}
 };
 
@@ -112,8 +112,8 @@ public:
 			return false;
 		}
 
-		// Only PC platforms render editor primitives.
-		return IsPCPlatform(Parameters.Platform);
+		// Only render if debug viewmodes are allowed.
+		return AllowDebugViewmodes(Parameters.Platform);
 	}
 };
 

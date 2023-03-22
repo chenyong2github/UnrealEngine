@@ -4003,7 +4003,7 @@ bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 #if UE_ENABLE_DEBUG_DRAWING
 bool FSceneRenderer::ShouldCompositeDebugPrimitivesInPostProcess(const FViewInfo& View)
 {
-	return View.DebugSimpleElementCollector.HasAnyPrimitives();
+	return AllowDebugViewmodes() && View.DebugSimpleElementCollector.HasAnyPrimitives();
 }
 #endif
 
