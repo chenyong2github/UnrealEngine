@@ -2666,11 +2666,8 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 			// If we have an incomplete shadermap, continue with it to prevent creation of duplicate shadermaps for the same ShaderMapId
 			if (!ShaderMap && !FPlatformProperties::RequiresCookedData())
 			{
-				if (bSkipCompilationOnPostLoad == false || IsRequiredComplete())
-				{
-					TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
-					CacheShadersPending = FMaterialShaderMap::BeginLoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
-				}
+				TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
+				CacheShadersPending = FMaterialShaderMap::BeginLoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
 			}
 
 			check(!ShaderMap || ShaderMap->GetFrozenContentSize() > 0u);
