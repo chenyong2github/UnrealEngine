@@ -21,6 +21,11 @@ void UChooserTable::PostEditUndo()
 		OnOutputObjectTypeChanged.Broadcast(OutputObjectType);
 		CachedPreviousOutputObjectType = OutputObjectType;
 	}
+	if (CachedPreviousContextObjectType != ContextObjectType)
+	{
+		OnContextClassChanged.Broadcast(ContextObjectType);
+		CachedPreviousContextObjectType = ContextObjectType;
+	}
 }
 
 void UChooserTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -33,8 +38,18 @@ void UChooserTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		if (CachedPreviousOutputObjectType != OutputObjectType)
 		{
 			OnOutputObjectTypeChanged.Broadcast(OutputObjectType);
+			CachedPreviousOutputObjectType = OutputObjectType;
 		}
-		CachedPreviousOutputObjectType = OutputObjectType;
+	}
+	
+	static FName ContextPropertyName = "ContextObjectType";
+	if (PropertyChangedEvent.Property->GetName() == ContextPropertyName)
+	{
+		if (CachedPreviousContextObjectType != ContextObjectType)
+		{
+			OnContextClassChanged.Broadcast(ContextObjectType);
+			CachedPreviousContextObjectType = ContextObjectType;
+		}
 	}
 }
 

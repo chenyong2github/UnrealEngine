@@ -17,10 +17,13 @@ class UHasContextClass : public UInterface
 	GENERATED_BODY()
 };
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FContextClassChanged, UClass*)
+
 class IHasContextClass
 {
 	GENERATED_BODY()
 public:
+	FContextClassChanged OnContextClassChanged;
 	virtual UClass* GetContextClass() { return nullptr; };
 };
 

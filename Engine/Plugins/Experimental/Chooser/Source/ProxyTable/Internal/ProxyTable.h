@@ -27,6 +27,7 @@ public:
 
 	// caching the type so that on Undo, we can tell if we should fire the changed delegate
 	UClass* CachedPreviousType = nullptr;
+	UClass* CachedPreviousContextClass = nullptr;
 #endif
 	
 

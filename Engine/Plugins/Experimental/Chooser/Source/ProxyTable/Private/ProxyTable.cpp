@@ -17,6 +17,12 @@ void UProxyAsset::PostEditUndo()
 		OnTypeChanged.Broadcast(Type);
 		CachedPreviousType = Type;
 	}
+	
+	if (CachedPreviousContextClass != ContextClass)
+	{
+		OnContextClassChanged.Broadcast(ContextClass);
+		CachedPreviousContextClass = ContextClass;
+	}
 }
 
 void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -24,6 +30,7 @@ void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	UObject::PostEditChangeProperty(PropertyChangedEvent);
 	
 	static FName TypeName = "Type";
+	static FName ContextClassName = "ContextClass";
 	if (PropertyChangedEvent.Property->GetName() == TypeName)
 	{
 		if (CachedPreviousType != Type)
@@ -31,6 +38,14 @@ void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 			OnTypeChanged.Broadcast(Type);
 		}
 		CachedPreviousType = Type;
+	}
+	else if (PropertyChangedEvent.Property->GetName() == ContextClassName)
+	{
+		if (CachedPreviousContextClass != ContextClass)
+		{
+			OnContextClassChanged.Broadcast(ContextClass);
+		}
+		CachedPreviousContextClass = ContextClass;
 	}
 }
 

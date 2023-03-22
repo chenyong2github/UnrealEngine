@@ -21,12 +21,14 @@ public:
 
 #if WITH_EDITOR
 	FChooserOutputObjectTypeChanged OnOutputObjectTypeChanged;
+	
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;
 
-	// caching the OutputObjectType so that on Undo, we can tell if we should fire the changed delegate
+	// caching the OutputObjectType and ContextObjectType so that on Undo, we can tell if we should fire the changed delegate
 	UClass* CachedPreviousOutputObjectType;
+	UClass* CachedPreviousContextObjectType;
 #endif
 	
 #if WITH_EDITORONLY_DATA
