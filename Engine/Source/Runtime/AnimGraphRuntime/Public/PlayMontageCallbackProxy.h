@@ -10,8 +10,8 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMontagePlayDelegate, FName, NotifyName);
 
-UCLASS(MinimalAPI)
-class UPlayMontageCallbackProxy : public UObject
+UCLASS()
+class ANIMGRAPHRUNTIME_API UPlayMontageCallbackProxy : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -71,7 +71,9 @@ private:
 	FOnMontageBlendingOutStarted BlendingOutDelegate;
 	FOnMontageEnded MontageEndedDelegate;
 
-	void PlayMontage(
+protected:
+	// Attempts to play a montage with the specified settings. Returns whether it started or not.
+	bool PlayMontage(
 		class USkeletalMeshComponent* InSkeletalMeshComponent,
 		class UAnimMontage* MontageToPlay,
 		float PlayRate = 1.f,
