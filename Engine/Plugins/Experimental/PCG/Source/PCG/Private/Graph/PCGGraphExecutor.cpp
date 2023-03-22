@@ -1032,7 +1032,7 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InPin->Properties.Label));
 
 			// Write input pin name Crc to uniquely identify inputs per-pin.
-			Crc.Combine(GetTypeHash(Input.OutPin->Properties.Label));
+			Crc.Combine(GetTypeHash(Input.OutPin ? Input.OutPin->Properties.Label : FName(TEXT("MissingLabel"))));
 		}
 		else
 		{
