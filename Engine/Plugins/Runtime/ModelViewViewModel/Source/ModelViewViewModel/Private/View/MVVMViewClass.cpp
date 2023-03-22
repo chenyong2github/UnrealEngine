@@ -22,76 +22,6 @@
 ///////////////////////////////////////////////////////////////////////
 // 
 ///////////////////////////////////////////////////////////////////////
-
-FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeManual(FName InName, UClass* InNotifyFieldValueChangedClass)
-{
-	FMVVMViewClass_SourceCreator Result;
-	if (ensure(InNotifyFieldValueChangedClass && InNotifyFieldValueChangedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
-	{
-		Result.PropertyName = InName;
-		Result.ExpectedSourceType = InNotifyFieldValueChangedClass;
-		Result.bCreateInstance = false;
-		Result.bOptional = true;
-	}
-	return Result;
-}
-
-FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeInstance(FName InName, UClass* InNotifyFieldValueChangedClass)
-{
-	FMVVMViewClass_SourceCreator Result;
-	if (ensure(InNotifyFieldValueChangedClass && InNotifyFieldValueChangedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
-	{
-		Result.PropertyName = InName;
-		Result.ExpectedSourceType = InNotifyFieldValueChangedClass;
-		Result.bCreateInstance = true;
-		Result.bOptional = false;
-	}
-	return Result;
-}
-
-FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeFieldPath(FName InName, UClass* InNotifyFieldValueChangedClass, FMVVMVCompiledFieldPath InFieldPath, bool bOptional)
-{
-	FMVVMViewClass_SourceCreator Result;
-	if (ensure(InNotifyFieldValueChangedClass&& InNotifyFieldValueChangedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
-	{
-		if (ensure(InFieldPath.IsValid()))
-		{
-			Result.PropertyName = InName;
-			Result.ExpectedSourceType = InNotifyFieldValueChangedClass;
-			Result.FieldPath = InFieldPath;
-			Result.bOptional = bOptional;
-		}
-	}
-	return Result;
-}
-
-FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeGlobalContext(FName InName, FMVVMViewModelContext InContext, bool bOptional)
-{
-	FMVVMViewClass_SourceCreator Result;
-	if (ensure(InContext.ContextClass && InContext.ContextClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
-	{
-		Result.PropertyName = InName;
-		Result.ExpectedSourceType = InContext.ContextClass;
-		Result.GlobalViewModelInstance = MoveTemp(InContext);
-		Result.bOptional = bOptional;
-	}
-	return Result;
-}
-
-FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeResolver(FName InName, UClass* InNotifyFieldValueChangedClass, UMVVMViewModelContextResolver* InResolver, bool bOptional)
-{
-	FMVVMViewClass_SourceCreator Result;
-	if (ensure(InResolver && InNotifyFieldValueChangedClass && InNotifyFieldValueChangedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
-	{
-		Result.PropertyName = InName;
-		Result.ExpectedSourceType = InNotifyFieldValueChangedClass;
-		Result.Resolver = InResolver;
-		Result.bOptional = bOptional;
-		ensure(InResolver->GetPackage() != GetTransientPackage() && !InResolver->HasAnyFlags(RF_Transient));
-	}
-	return Result;
-}
-
 UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InViewClass, UMVVMView* InView, UUserWidget* InUserWidget) const
 {
 	check(InViewClass);
@@ -99,8 +29,9 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 	check(InUserWidget);
 
 	UObject* Result = nullptr;
+	const bool bOptional = (Flags & (uint8)ESourceFlags::IsOptional) != 0;
 
-	if (bCreateInstance)
+	if ((Flags & (uint8)ESourceFlags::TypeCreateInstance) != 0)
 	{
 		if (ExpectedSourceType.Get() != nullptr)
 		{
@@ -184,6 +115,134 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 	return Result;
 }
 
+#if UE_WITH_MVVM_DEBUGGING
+FMVVMViewClass_SourceCreator::FToStringArgs FMVVMViewClass_SourceCreator::FToStringArgs::Short()
+{
+	FToStringArgs Result;
+	Result.bUseDisplayName = false;
+	Result.bAddCreationMode = false;
+	Result.bAddFlags = false;
+	return Result;
+}
+
+FMVVMViewClass_SourceCreator::FToStringArgs FMVVMViewClass_SourceCreator::FToStringArgs::All()
+{
+	return FToStringArgs();
+}
+
+FString FMVVMViewClass_SourceCreator::ToString(const FMVVMCompiledBindingLibrary& BindingLibrary, FToStringArgs Args) const
+{
+	TStringBuilder<512> StringBuilder;
+	StringBuilder << TEXT("Type: ");
+#if WITH_EDITOR
+	if (Args.bUseDisplayName)
+	{
+		StringBuilder << ExpectedSourceType->GetDisplayNameText().ToString();
+	}
+	else
+#endif
+	{
+		StringBuilder << ExpectedSourceType->GetPathName();
+	}
+	
+	StringBuilder << TEXT(", SourceName: ");
+	StringBuilder << GetSourceName();
+
+	if (Args.bAddFlags)
+	{
+		bool bHasFlag = false;
+		auto AddPipe = [&StringBuilder, &bHasFlag]()
+		{
+			if (bHasFlag)
+			{
+				StringBuilder << TEXT('|');
+			}
+			bHasFlag = true;
+		};
+
+		StringBuilder << TEXT(", Flags: ");
+		if ((Flags & (uint8)ESourceFlags::IsOptional) != 0)
+		{
+			AddPipe();
+			StringBuilder << TEXT("Optional");
+		}
+		if (CanBeSet())
+		{
+			AddPipe();
+			StringBuilder << TEXT("CanBeSet");
+		}
+		if (CanBeEvaluated())
+		{
+			AddPipe();
+			StringBuilder << TEXT("CanBeEvaluated");
+		}
+		if (IsSourceAUserWidgetProperty())
+		{
+			AddPipe();
+			StringBuilder << TEXT("IsUserWidgetProperty");
+		}
+	}
+
+	if (Args.bAddCreationMode)
+	{
+		StringBuilder << TEXT("\n    CreationType: ");
+		if ((Flags & (uint8)ESourceFlags::TypeCreateInstance) != 0)
+		{
+			StringBuilder << TEXT("CreateInsance");
+		}
+		else if (Resolver)
+		{
+			StringBuilder << Resolver->GetClass()->GetFullName();
+		}
+		else if (GlobalViewModelInstance.IsValid())
+		{
+			StringBuilder << TEXT("GlobalCollection={");
+			if (GlobalViewModelInstance.ContextClass)
+			{
+				StringBuilder << GlobalViewModelInstance.ContextClass->GetPathName();
+			}
+			else
+			{
+				StringBuilder << TEXT("<Invalid>");
+			}
+			StringBuilder << TEXT(", ");
+			StringBuilder << GlobalViewModelInstance.ContextName;
+			StringBuilder << TEXT("}");
+		}
+		else if (FieldPath.IsValid())
+		{
+			StringBuilder << TEXT("Path=");
+			TValueOrError<FString, FString> FieldPathString = BindingLibrary.FieldPathToString(FieldPath, Args.bUseDisplayName);
+			if (FieldPathString.HasValue())
+			{
+				StringBuilder << FieldPathString.GetValue();
+			}
+			else
+			{
+				StringBuilder << TEXT("<Error>");
+				StringBuilder << FieldPathString.GetError();
+			}
+		}
+	}
+
+	return StringBuilder.ToString();
+}
+#endif
+
+#if WITH_EDITOR
+void FMVVMViewClass_SourceCreator::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		if (Flags == 0)
+		{
+			Flags |= bCreateInstance_DEPRECATED ? (uint8)ESourceFlags::TypeCreateInstance : 0;
+			Flags |= bIsUserWidgetProperty_DEPRECATED ? (uint8)ESourceFlags::IsUserWidgetProperty : 0;
+			Flags |= bOptional_DEPRECATED ? (uint8)ESourceFlags::IsOptional : 0;
+		}
+	}
+}
+#endif
 
 ///////////////////////////////////////////////////////////////////////
 // 
@@ -204,6 +263,7 @@ EMVVMExecutionMode FMVVMViewClass_CompiledBinding::GetExecuteMode() const
 	return (Flags & EBindingFlags::OverrideExecuteMode) == 0 ? DefaultMode : ExecutionMode;
 }
 
+#if UE_WITH_MVVM_DEBUGGING
 FMVVMViewClass_CompiledBinding::FToStringArgs FMVVMViewClass_CompiledBinding::FToStringArgs::Short()
 {
 	FToStringArgs Result;
@@ -242,71 +302,103 @@ FString FMVVMViewClass_CompiledBinding::ToString(const FMVVMCompiledBindingLibra
 
 	if (Args.bAddFieldPath)
 	{
-		StringBuilder << TEXT("Binding: ");
-		TValueOrError<FString, FString> DestinationString = BindingLibrary.FieldPathToString(GetBinding().GetDestinationFieldPath(), Args.bUseDisplayName);
-		TValueOrError<FString, FString> SourceString = BindingLibrary.FieldPathToString(GetBinding().GetSourceFieldPath(), Args.bUseDisplayName);
-		TValueOrError<FString, FString> ConversionString = MakeValue(FString());
-		if (GetBinding().GetConversionFunctionFieldPath().IsValid())
+		if (GetBinding().IsValid())
 		{
-			ConversionString = BindingLibrary.FieldPathToString(GetBinding().GetConversionFunctionFieldPath(), Args.bUseDisplayName);
-		}
+			StringBuilder << TEXT("Binding: ");
 
-		if (DestinationString.HasError() || SourceString.HasError() || ConversionString.HasError())
-		{
-			StringBuilder << TEXT("Error: ");
-		}
+			FString SourceString;
+			FString DestinationString;
+			FString ConversionString;
+			bool bErrorStrings = false;
+			if (!IsConversionFunctionComplex())
+			{
+				TValueOrError<FString, FString> SourceFieldPathString = BindingLibrary.FieldPathToString(GetBinding().GetSourceFieldPath(), Args.bUseDisplayName);
+				SourceString = SourceFieldPathString.HasValue() ? SourceFieldPathString.StealValue() : SourceFieldPathString.StealError();
+				bErrorStrings = bErrorStrings || SourceFieldPathString.HasError();
+			}
+			{
+				TValueOrError<FString, FString> DestinationFieldPathString = BindingLibrary.FieldPathToString(GetBinding().GetDestinationFieldPath(), Args.bUseDisplayName);
+				DestinationString = DestinationFieldPathString.HasValue() ? DestinationFieldPathString.StealValue() : DestinationFieldPathString.StealError();
+				bErrorStrings = bErrorStrings || DestinationFieldPathString.HasError();
+			}
+			if (GetBinding().GetConversionFunctionFieldPath().IsValid())
+			{
+				TValueOrError<FString, FString> ConversionFieldPathString = BindingLibrary.FieldPathToString(GetBinding().GetConversionFunctionFieldPath(), Args.bUseDisplayName);
+				ConversionString = ConversionFieldPathString.HasValue() ? ConversionFieldPathString.StealValue() : ConversionFieldPathString.StealError();
+				bErrorStrings = bErrorStrings || ConversionFieldPathString.HasError();
+			}
 
-		if (Args.bUseDisplayName)
-		{
-			StringBuilder << TEXT('"');
-		}
-		StringBuilder << (DestinationString.HasValue() ? DestinationString.GetValue() : DestinationString.GetError());
-		if (Args.bUseDisplayName)
-		{
-			StringBuilder << TEXT('"');
-		}
-		StringBuilder << TEXT(" = ");
-		if (GetBinding().GetConversionFunctionFieldPath().IsValid())
-		{
+			if (bErrorStrings)
+			{
+				StringBuilder << TEXT("Error: ");
+			}
+
 			if (Args.bUseDisplayName)
 			{
 				StringBuilder << TEXT('"');
 			}
-			StringBuilder << (ConversionString.HasValue() ? ConversionString.GetValue() : ConversionString.GetError());
+			StringBuilder << DestinationString;
 			if (Args.bUseDisplayName)
 			{
 				StringBuilder << TEXT('"');
 			}
-			StringBuilder << TEXT(" ( ");
-		}
+			StringBuilder << TEXT(" = ");
+			if (GetBinding().GetConversionFunctionFieldPath().IsValid())
+			{
+				if (Args.bUseDisplayName)
+				{
+					StringBuilder << TEXT('"');
+				}
+				StringBuilder << ConversionString;
+				if (Args.bUseDisplayName)
+				{
+					StringBuilder << TEXT('"');
+				}
+				StringBuilder << TEXT(" ( ");
+			}
 
-		if (Args.bUseDisplayName)
-		{
-			StringBuilder << TEXT('"');
-		}
-		StringBuilder << (SourceString.HasValue() ? SourceString.GetValue() : SourceString.GetError());
-		if (Args.bUseDisplayName)
-		{
-			StringBuilder << TEXT('"');
-		}
+			if (!IsConversionFunctionComplex())
+			{
+				if (Args.bUseDisplayName)
+				{
+					StringBuilder << TEXT('"');
+				}
+				StringBuilder << SourceString;
+				if (Args.bUseDisplayName)
+				{
+					StringBuilder << TEXT('"');
+				}
+			}
 
-		if (GetBinding().GetConversionFunctionFieldPath().IsValid())
-		{
-			StringBuilder << TEXT(" )");
-		}
+			if (GetBinding().GetConversionFunctionFieldPath().IsValid())
+			{
+				StringBuilder << TEXT(" )");
+			}
 
-		StringBuilder << TEXT("\n    ");
+			StringBuilder << TEXT("\n    ");
+		}
+		else if (Args.bAddFieldPath && IsEvaluateSourceCreatorBinding())
+		{
+			StringBuilder << TEXT("Evaluate Source Creator: [");
+			StringBuilder << EvaluateSourceCreatorIndex;
+			StringBuilder << TEXT("]\n    ");
+		}
+		else
+		{
+			StringBuilder << TEXT("!!Invalid Binding Error!!");
+			StringBuilder << TEXT("\n    ");
+		}
 	}
 
-	StringBuilder << TEXT("PropertyName: '");
-	StringBuilder << SourcePropertyName;
+	StringBuilder << TEXT("SourceName: ");
+	StringBuilder << GetSourceName();
 
 	if (Args.bAddFieldId)
 	{
 		if (GetSourceFieldId().IsValid())
 		{
 			TValueOrError<UE::FieldNotification::FFieldId, void> SourceFieldId = BindingLibrary.GetFieldId(GetSourceFieldId());
-			StringBuilder << TEXT("', FieldId: '");
+			StringBuilder << TEXT(", FieldId: ");
 			StringBuilder << (SourceFieldId.HasValue() ? SourceFieldId.GetValue().GetName() : FName());
 		}
 		else
@@ -317,24 +409,29 @@ FString FMVVMViewClass_CompiledBinding::ToString(const FMVVMCompiledBindingLibra
 
 	if (Args.bAddFlags)
 	{
-		StringBuilder << TEXT("`, Mode: '");
-		StringBuilder << StaticEnum<EMVVMExecutionMode>()->GetNameByValue((int64)ExecutionMode);
-		StringBuilder << TEXT("`, Flags: '");
-
-		auto AddPipe = [&StringBuilder]()
+		if ((Flags & EBindingFlags::OverrideExecuteMode) != 0)
 		{
-			StringBuilder << TEXT('|');
+			StringBuilder << TEXT(", Mode: ");
+			StringBuilder << StaticEnum<EMVVMExecutionMode>()->GetNameByValue((int64)ExecutionMode);
+		}
+
+		StringBuilder << TEXT(", Flags: ");
+
+		bool bAddPipe = false;
+		auto AddPipe = [&StringBuilder, &bAddPipe]()
+		{
+			if (bAddPipe)
+			{
+				StringBuilder << TEXT('|');
+			}
+			bAddPipe = true;
 		};
 
-		if ((Flags & EBindingFlags::ForwardBinding) != 0)
+		if ((Flags & EBindingFlags::ExecuteAtInitialization) != 0)
 		{
-			StringBuilder << TEXT("Forward");
+			AddPipe();
+			StringBuilder << TEXT("ExecAtInit");
 		}
-		else
-		{
-			StringBuilder << TEXT("Backward");
-		}
-
 		if ((Flags & EBindingFlags::OneTime) != 0)
 		{
 			AddPipe();
@@ -350,7 +447,7 @@ FString FMVVMViewClass_CompiledBinding::ToString(const FMVVMCompiledBindingLibra
 			AddPipe();
 			StringBuilder << TEXT("Optional");
 		}
-		if ((Flags & EBindingFlags::ConversionFunctionIsComplex) != 0)
+		if (IsConversionFunctionComplex())
 		{
 			AddPipe();
 			StringBuilder << TEXT("Complex");
@@ -365,11 +462,11 @@ FString FMVVMViewClass_CompiledBinding::ToString(const FMVVMCompiledBindingLibra
 			AddPipe();
 			StringBuilder << TEXT("Self");
 		}
-		StringBuilder << TEXT("'");
 	}
 
 	return StringBuilder.ToString();
 }
+#endif
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -391,6 +488,47 @@ void UMVVMViewClass::Initialize(UUserWidget* UserWidget)
 		View->ConstructView(this);
 	}
 }
+
+#if UE_WITH_MVVM_DEBUGGING
+void UMVVMViewClass::Log(FMVVMViewClass_SourceCreator::FToStringArgs SourceArgs, FMVVMViewClass_CompiledBinding::FToStringArgs BindingArgs) const
+{
+	bool bPreviousLoad = bLoaded;
+	if (!bLoaded)
+	{
+		const_cast<UMVVMViewClass*>(this)->BindingLibrary.Load();
+		const_cast<UMVVMViewClass*>(this)->bLoaded = true;
+	}
+
+	TStringBuilder<2048> Builder;
+	Builder << TEXT("Compiled Sources for: ");
+	Builder << GetOutermost()->GetFName();
+	for (const FMVVMViewClass_SourceCreator& Sources : GetViewModelCreators())
+	{
+		Builder << TEXT("\n");
+		Builder << Sources.ToString(GetBindingLibrary(), SourceArgs);
+	}
+	UE_LOG(LogMVVM, Log, TEXT("%s"), Builder.ToString());
+
+	Builder.Reset();
+
+	Builder << TEXT("Compiled Bindings for: ");
+	Builder << GetOutermost()->GetFName();
+	for (const FMVVMViewClass_CompiledBinding& Binding : GetCompiledBindings())
+	{
+		Builder << TEXT("\n");
+		Builder << Binding.ToString(GetBindingLibrary(), BindingArgs);
+	}
+	UE_LOG(LogMVVM, Log, TEXT("%s"), Builder.ToString());
+
+	if (!bPreviousLoad)
+	{
+#if WITH_EDITOR
+		const_cast<UMVVMViewClass*>(this)->BindingLibrary.Unload();
+		const_cast<UMVVMViewClass*>(this)->bLoaded = false;
+#endif
+	}
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE
 

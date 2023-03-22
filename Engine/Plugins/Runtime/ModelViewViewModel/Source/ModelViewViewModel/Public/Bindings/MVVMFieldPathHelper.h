@@ -14,28 +14,27 @@ template <typename ValueType, typename ErrorType> class TValueOrError;
 namespace UE::MVVM::FieldPathHelper
 {
 	/**
-	 * Info about the viewmodel and field.
+	 * Info about the viewmodel and field notify.
+	 * It can has invalid values and still be a valid OneTime binding.
 	 */
-	struct FParsedBindingInfo
+	struct FParsedNotifyBindingInfo
 	{
-		using FFieldVariantArray = TArray<FMVVMConstFieldVariant, TInlineAllocator<4>>;
-
 		/**
-		 * The viewmodel that is used to create the binding. When it's invalid the binding can be valid but only OneTime mode is supported.
-		 * @return the class of "ViewmodelB" when the path is "ViewmodelA.ViewmodelB.Vector.X"
+		 * The viewmodel that is used to create the binding.
+		 * Value is the class of "ViewmodelB" when the path is "ViewmodelA.ViewmodelB.Vector.X"
 		 */
-		TSubclassOf<UObject> NotifyFieldClass;
+		const UClass* NotifyFieldClass = nullptr;
 
 		/**
-		 * The property we will bind to. When it's invalid the binding can be valid but only OneTime mode is supported.
-		 * @return "Vector" when the path is "ViewmodelA.ViewmodelB.Vector.X"
+		 * The property we will bind to
+		 * Value is "Vector" when the path is "ViewmodelA.ViewmodelB.Vector.X"
 		 */
 		FFieldNotificationId NotifyFieldId;
 
 		/**
 		 * The viewmodel index in the original path.
 		 * When it's INDEX_NONE but the ParsedBindingInfo is valid, the class accessor is the Accessor class.
-		 * @return 1 when the path is "ViewmodelA.ViewmodelB.Vector.X"
+		 * Value 1 when the path is "ViewmodelA.ViewmodelB.Vector.X"
 		 */
 		int32 ViewModelIndex = INDEX_NONE;
 	};
@@ -47,11 +46,11 @@ namespace UE::MVVM::FieldPathHelper
 	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GenerateFieldPathList(TArrayView<const FMVVMConstFieldVariant> Fields, bool bForSourceBinding);
 
 	/**
-	 * Generate the FParsedBindingInfo from the parsed field path.
-	 * This gives us which FieldId and Viewmodel should be used by the path.
+	 * Generate the FParsedNotifyBindingInfo from the parsed field path.
+	 * This gives us which FieldId and Viewmodel that will be used by the path.
 	 * Note. The code may have changed since the binding was created in the editor. As an example, a sub-object can be a viewmodel now.
 	 */
-	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<FParsedBindingInfo, FText> GetBindingInfoFromFieldPath(const UClass* Accessor, TArrayView<const FMVVMConstFieldVariant> Fields);
+	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<FParsedNotifyBindingInfo, FText> GetNotifyBindingInfoFromFieldPath(const UClass* Accessor, TArrayView<const FMVVMConstFieldVariant> Fields);
 
 	/** */
 	UE_NODISCARD MODELVIEWVIEWMODEL_API FString ToString(TArrayView<const FMVVMFieldVariant> Fields);

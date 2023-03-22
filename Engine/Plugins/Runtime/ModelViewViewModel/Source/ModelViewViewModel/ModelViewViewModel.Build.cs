@@ -23,5 +23,14 @@ public class ModelViewViewModel : ModuleRules
 				"Slate",
 				"UMG",
 			});
+
+		if (Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping)
+		{
+			PublicDefinitions.Add("UE_WITH_MVVM_DEBUGGING=0");
+		}
+		else
+		{
+			PublicDefinitions.Add("UE_WITH_MVVM_DEBUGGING=1");
+		}
 	}
 }

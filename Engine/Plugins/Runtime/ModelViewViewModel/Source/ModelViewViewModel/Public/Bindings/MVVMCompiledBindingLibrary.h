@@ -197,7 +197,10 @@ struct FMVVMVCompiledBinding
 public:
 	bool IsValid() const
 	{
-		return SourceFieldPath.IsValid() && DestinationFieldPath.IsValid();
+		const bool bSourceValid = SourceFieldPath.IsValid() || IsComplexFunction();
+		const bool bDestinationValid = DestinationFieldPath.IsValid();
+		const bool bFunctionValid = ConversionFunctionFieldPath.IsValid() || !HasConversionFunction();
+		return bSourceValid && bDestinationValid && bFunctionValid;
 	}
 
 	FMVVMVCompiledFieldPath GetSourceFieldPath() const
@@ -215,17 +218,38 @@ public:
 		return ConversionFunctionFieldPath;
 	}
 
+	bool HasConversionFunction() const
+	{
+		return (Flags & (uint8)EFlags::HasConversionFunction) != 0;
+	}
+
+	bool IsComplexFunction() const
+	{
+		uint8 AllFunctionFlags = (uint8)EFlags::IsConversionFunctionComplex | (uint8)EFlags::HasConversionFunction;
+		return (Flags & AllFunctionFlags) == AllFunctionFlags;
+	}
+
 private:
 	using IndexType = int16;
 
 	UPROPERTY()
-	FMVVMVCompiledFieldPath SourceFieldPath; // todo: make this an array to support multiple input to conversion functions
+	FMVVMVCompiledFieldPath SourceFieldPath;
 
 	UPROPERTY()
 	FMVVMVCompiledFieldPath DestinationFieldPath;
 
 	UPROPERTY()
 	FMVVMVCompiledFieldPath ConversionFunctionFieldPath;
+
+	enum class EFlags : uint8
+	{
+		None = 0,
+		HasConversionFunction = 1 << 0,
+		IsConversionFunctionComplex = 1 << 1,
+	};
+
+	UPROPERTY()
+	uint8 Flags;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
@@ -239,6 +263,7 @@ USTRUCT()
 struct MODELVIEWVIEWMODEL_API FMVVMCompiledBindingLibrary
 {
 	GENERATED_BODY()
+
 	friend UE::MVVM::FCompiledBindingLibraryCompiler;
 
 public:

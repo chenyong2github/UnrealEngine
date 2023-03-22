@@ -335,30 +335,40 @@ TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FDirectionalBindingArg
 
 TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindingArgs Args) const
 {
-	// Test Source
-	TValueOrError<const FProperty*, FText> SourceResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForSourceBinding(Args.SourceBinding);
-	if (SourceResult.HasError())
-	{
-		return MakeError(SourceResult.StealError());
-	}
+	const bool bIsSimpleConversionFunction = Args.ConversionFunction && UE::MVVM::BindingHelper::IsValidForSimpleRuntimeConversion(Args.ConversionFunction);
+	const bool bIsComplexConversionFunction = Args.ConversionFunction && UE::MVVM::BindingHelper::IsValidForComplexRuntimeConversion(Args.ConversionFunction);
 
-	const FProperty* SourceProperty = SourceResult.StealValue();
-	if (SourceProperty == nullptr)
+	// Test Source
+	const FProperty* SourceProperty = nullptr;
+	if (!bIsComplexConversionFunction)
 	{
-		return MakeError(LOCTEXT("NoValueToBindAtSource", "There is no value to bind at the source."));
+		TValueOrError<const FProperty*, FText> SourceResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForSourceBinding(Args.SourceBinding);
+		if (SourceResult.HasError())
+		{
+			return MakeError(SourceResult.StealError());
+		}
+
+		SourceProperty = SourceResult.StealValue();
+		if (SourceProperty == nullptr)
+		{
+			return MakeError(LOCTEXT("NoValueToBindAtSource", "There is no value to bind at the source."));
+		}
 	}
 
 	// Test Destination
-	TValueOrError<const FProperty*, FText> DestinationResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForDestinationBinding(Args.DestinationBinding);
-	if (DestinationResult.HasError())
+	const FProperty* DestinationProperty = nullptr;
 	{
-		return MakeError(DestinationResult.StealError());
-	}
+		TValueOrError<const FProperty*, FText> DestinationResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForDestinationBinding(Args.DestinationBinding);
+		if (DestinationResult.HasError())
+		{
+			return MakeError(DestinationResult.StealError());
+		}
 
-	const FProperty* DestinationProperty = DestinationResult.StealValue();
-	if (DestinationProperty == nullptr)
-	{
-		return MakeError(LOCTEXT("NoValueToBindAtDestination", "There is no value to bind at the destination."));
+		DestinationProperty = DestinationResult.StealValue();
+		if (DestinationProperty == nullptr)
+		{
+			return MakeError(LOCTEXT("NoValueToBindAtDestination", "There is no value to bind at the destination."));
+		}
 	}
 
 	auto GetPropertyType = [](const FProperty* Property)
@@ -381,8 +391,6 @@ TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindi
 			return MakeError(ReturnResult.StealError());
 		}
 
-		const bool bIsSimpleConversionFunction = UE::MVVM::BindingHelper::IsValidForSimpleRuntimeConversion(Args.ConversionFunction);
-		const bool bIsComplexConversionFunction = UE::MVVM::BindingHelper::IsValidForComplexRuntimeConversion(Args.ConversionFunction);
 		if (!bIsSimpleConversionFunction && !bIsComplexConversionFunction)
 		{
 			return MakeError(FText::Format(LOCTEXT("ConversionFunctionNotValid", "The conversion function '{0}' is not valid as a conversion function"), FText::FromString(Args.ConversionFunction->GetName())));

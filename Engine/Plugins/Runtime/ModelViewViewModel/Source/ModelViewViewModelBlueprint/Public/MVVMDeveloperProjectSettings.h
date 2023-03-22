@@ -90,9 +90,13 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	bool bAllowBindingFromDetailView = true;
 
-	/** When generating a source from the Viewmodel editor, allow the compiler to generate a setter function. */
+	/** When generating a source in the viewmodel editor, allow the compiler to generate a setter function. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
 	bool bAllowGeneratedViewModelSetter = true;
+
+	/** When generating a binding with a long source path, allow the compiler to generate a new viewmodel source. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	bool bAllowLongSourcePath = true;
 	
 	/** For the binding list widget, allow the user to edit the binding in the detail view. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")

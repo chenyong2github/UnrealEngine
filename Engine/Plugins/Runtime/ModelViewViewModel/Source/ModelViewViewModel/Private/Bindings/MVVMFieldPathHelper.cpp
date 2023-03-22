@@ -272,8 +272,12 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GenerateFieldPathList(TArra
 }
 
 
-TValueOrError<FParsedBindingInfo, FText> GetBindingInfoFromFieldPath(const UClass* InAccessor, TArrayView<const FMVVMConstFieldVariant> InFieldPath)
+TValueOrError<FParsedNotifyBindingInfo, FText> GetNotifyBindingInfoFromFieldPath(const UClass* InAccessor, TArrayView<const FMVVMConstFieldVariant> InFieldPath)
 {
+	// The class is the UserWidget.
+	// We assume that the first property is the viewmodel/widget added in the editor
+	// To be a valid oneway path, all properties after the initial viewmodel has to be "notify"
+	// or after the last "notify" all the path after are onetime (example vectornotify.x)
 	if (InAccessor == nullptr)
 	{
 		return MakeError(LOCTEXT("AccessorClassNull", "The accessor class is null."));
@@ -288,8 +292,8 @@ TValueOrError<FParsedBindingInfo, FText> GetBindingInfoFromFieldPath(const UClas
 		return MakeError(LOCTEXT("FieldPathDoesntStartWithAccessor", "Field path that doesn't start with the accessor is not supported."));
 	}
 
-	FParsedBindingInfo Result;
-
+	FParsedNotifyBindingInfo Result;
+	bool bFoundViewModel = false;
 	for (int32 Index = InFieldPath.Num() - 1; Index >= 0; --Index)
 	{
 		FMVVMConstFieldVariant Field = InFieldPath[Index];
@@ -341,11 +345,22 @@ TValueOrError<FParsedBindingInfo, FText> GetBindingInfoFromFieldPath(const UClas
 			FMVVMAvailableBinding AvailableBinding = UMVVMSubsystem::GetAvailableBindingForField(Field, InAccessor);
 			if (AvailableBinding.IsValid() && AvailableBinding.HasNotify())
 			{
-				Result.NotifyFieldClass = const_cast<UClass*>(FieldOwnerAsClass);
-				Result.NotifyFieldId = FFieldNotificationId(AvailableBinding.GetBindingName().ToName());
-				Result.ViewModelIndex = Index-1;
-				break;
+				if (!bFoundViewModel)
+				{
+					Result.NotifyFieldClass = const_cast<UClass*>(FieldOwnerAsClass);
+					Result.NotifyFieldId = FFieldNotificationId(AvailableBinding.GetBindingName().ToName());
+					Result.ViewModelIndex = Index - 1;
+					bFoundViewModel = true;
+				}
 			}
+			else if (bFoundViewModel && Index != 0)
+			{
+				Result = FParsedNotifyBindingInfo();
+			}
+		}
+		else if (bFoundViewModel)
+		{
+			Result = FParsedNotifyBindingInfo();
 		}
 	}
 

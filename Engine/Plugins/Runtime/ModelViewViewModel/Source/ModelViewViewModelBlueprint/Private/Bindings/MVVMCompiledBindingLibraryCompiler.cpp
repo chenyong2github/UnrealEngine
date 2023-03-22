@@ -20,7 +20,7 @@ static const FName NAME_BlueprintGetter = "BlueprintGetter";
 /** */
 struct FRawFieldId
 {
-	UClass* NotifyFieldValueChangedClass;
+	const UClass* NotifyFieldValueChangedClass;
 	UE::FieldNotification::FFieldId FieldId;
 
 	int32 LoadedFieldIdIndex = INDEX_NONE;
@@ -66,17 +66,18 @@ public:
 /** */
 struct FRawBinding
 {
-	TArray<FCompiledBindingLibraryCompiler::FFieldPathHandle> SourcePathHandles;
+	FCompiledBindingLibraryCompiler::FFieldPathHandle SourcePathHandle;
 	FCompiledBindingLibraryCompiler::FFieldPathHandle DestinationPathHandle;
 	FCompiledBindingLibraryCompiler::FFieldPathHandle ConversionFunctionPathHandle;
 
 	FCompiledBindingLibraryCompiler::FBindingHandle BindingHandle;
 	FMVVMVCompiledBinding CompiledBinding;
+	bool bIsConversionFunctionComplex = false;
 
 public:
 	bool IsSameBinding(const FRawBinding& Binding) const
 	{
-		return Binding.SourcePathHandles == SourcePathHandles
+		return Binding.SourcePathHandle == SourcePathHandle
 			&& Binding.DestinationPathHandle == DestinationPathHandle
 			&& Binding.ConversionFunctionPathHandle == ConversionFunctionPathHandle;
 	}
@@ -137,7 +138,7 @@ FCompiledBindingLibraryCompiler::FCompiledBindingLibraryCompiler()
 
 }
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> FCompiledBindingLibraryCompiler::AddFieldId(TSubclassOf<UObject> SourceClass, FName FieldId)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> FCompiledBindingLibraryCompiler::AddFieldId(const UClass* SourceClass, FName FieldId)
 {
 	Impl->bCompiled = false;
 
@@ -165,12 +166,12 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> FCompiledB
 
 		int32 FoundFieldIdIndex = Impl->FieldIds.IndexOfByPredicate([FoundFieldId, SourceClass](const Private::FRawFieldId& Other)
 			{
-				return Other.FieldId == FoundFieldId && Other.NotifyFieldValueChangedClass == SourceClass.Get();
+				return Other.FieldId == FoundFieldId && Other.NotifyFieldValueChangedClass == SourceClass;
 			});
 		if (FoundFieldIdIndex == INDEX_NONE)
 		{
 			Private::FRawFieldId RawFieldId;
-			RawFieldId.NotifyFieldValueChangedClass = SourceClass.Get();
+			RawFieldId.NotifyFieldValueChangedClass = SourceClass;
 			RawFieldId.FieldId = FoundFieldId;
 			RawFieldId.IdHandle = FFieldIdHandle::MakeHandle();
 			FoundFieldIdIndex = Impl->FieldIds.Add(MoveTemp(RawFieldId));
@@ -360,7 +361,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompile
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompiledBindingLibraryCompiler::AddConversionFunctionFieldPath(TSubclassOf<UObject> SourceClass, const UFunction* Function)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompiledBindingLibraryCompiler::AddConversionFunctionFieldPath(const UClass* SourceClass, const UFunction* Function)
 {
 	Impl->bCompiled = false;
 
@@ -417,29 +418,34 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompile
 
 TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledBindingLibraryCompiler::AddBinding(FFieldPathHandle InSourceHandle, FFieldPathHandle InDestinationHandle)
 {
-	return AddBinding(InSourceHandle, InDestinationHandle, FFieldPathHandle());
+	return AddBindingImpl(InSourceHandle, InDestinationHandle, FFieldPathHandle(), false);
 }
 
 
 TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledBindingLibraryCompiler::AddBinding(FFieldPathHandle InSourceHandle, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
 {
-	return AddBinding(MakeArrayView(&InSourceHandle, 1), InDestinationHandle, InConversionFunctionHandle);
+	return AddBindingImpl(InSourceHandle, InDestinationHandle, InConversionFunctionHandle, false);
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledBindingLibraryCompiler::AddBinding(TArrayView<const FFieldPathHandle> InSourceHandles, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
+TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledBindingLibraryCompiler::AddComplexBinding(FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
+{
+	return AddBindingImpl(FFieldPathHandle(), InDestinationHandle, InConversionFunctionHandle, true);
+}
+
+
+TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledBindingLibraryCompiler::AddBindingImpl(FFieldPathHandle InSourceHandle, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle, bool bInIsComplexBinding)
 {
 	Impl->bCompiled = false;
 
 	UMVVMSubsystem::FConstDirectionalBindingArgs DirectionBindingArgs;
 
-	ensureMsgf(InSourceHandles.Num() == 1, TEXT("Conversion function with more than one arguements is not yet supported."));
-
+	// Complex Conversion function do not have input arguments.
+	if (!bInIsComplexBinding)
 	{
-		FFieldPathHandle FirstSourceHandle = InSourceHandles[0];
-		const int32 FoundSourceFieldPath = Impl->FieldPaths.IndexOfByPredicate([FirstSourceHandle](const Private::FRawFieldPath& Other)
+		const int32 FoundSourceFieldPath = Impl->FieldPaths.IndexOfByPredicate([InSourceHandle](const Private::FRawFieldPath& Other)
 			{
-				return Other.PathHandle == FirstSourceHandle;
+				return Other.PathHandle == InSourceHandle;
 			});
 		if (FoundSourceFieldPath == INDEX_NONE)
 		{
@@ -527,19 +533,20 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledB
 	}
 
 	Private::FRawBinding NewBinding;
-	NewBinding.SourcePathHandles = InSourceHandles;
+	NewBinding.SourcePathHandle = InSourceHandle;
 	NewBinding.DestinationPathHandle = InDestinationHandle;
 	NewBinding.ConversionFunctionPathHandle = InConversionFunctionHandle;
+	NewBinding.bIsConversionFunctionComplex = bInIsComplexBinding;
 	const int32 FoundSameBindingIndex = Impl->Bindings.IndexOfByPredicate([&NewBinding](const Private::FRawBinding& Binding)
 		{
 			return NewBinding.IsSameBinding(Binding);
 		});
 
-	//if (FoundSameBindingIndex != INDEX_NONE)
-	//{
-	//	return MakeError(LOCTEXT("BindingAlreadyAdded", "The binding already exist."));
-	//}
-	//else
+	if (FoundSameBindingIndex != INDEX_NONE)
+	{
+		return MakeError(LOCTEXT("BindingAlreadyAdded", "The binding already exist."));
+	}
+	else
 	{
 		FCompiledBindingLibraryCompiler::FBindingHandle ResultBindingHandle = FBindingHandle::MakeHandle();
 		NewBinding.BindingHandle = ResultBindingHandle;
@@ -769,13 +776,17 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 		Binding.CompiledBinding.CompiledBindingLibraryId = Result.Library.CompiledBindingLibraryId;
 		check(Binding.CompiledBinding.CompiledBindingLibraryId.IsValid());
 
-		Binding.CompiledBinding.SourceFieldPath = GetCompiledFieldPath(Binding.SourcePathHandles[0]);
-		check(Binding.CompiledBinding.SourceFieldPath.IsValid());
+		Binding.CompiledBinding.SourceFieldPath = GetCompiledFieldPath(Binding.SourcePathHandle);
+		check(Binding.bIsConversionFunctionComplex || Binding.CompiledBinding.SourceFieldPath.IsValid());
 
 		Binding.CompiledBinding.DestinationFieldPath = GetCompiledFieldPath(Binding.DestinationPathHandle);
 		check(Binding.CompiledBinding.DestinationFieldPath.IsValid());
 
 		Binding.CompiledBinding.ConversionFunctionFieldPath = GetCompiledFieldPath(Binding.ConversionFunctionPathHandle);
+
+		Binding.CompiledBinding.Flags = 0;
+		Binding.CompiledBinding.Flags |= (Binding.ConversionFunctionPathHandle.IsValid()) ? (uint8)FMVVMVCompiledBinding::EFlags::HasConversionFunction : 0;
+		Binding.CompiledBinding.Flags |= (Binding.bIsConversionFunctionComplex) ? (uint8)FMVVMVCompiledBinding::EFlags::IsConversionFunctionComplex : 0;
 
 		Result.Bindings.Add(Binding.BindingHandle, Binding.CompiledBinding);
 	}

@@ -34,7 +34,7 @@ struct FMVVMViewSource
 
 	// Number of bindings connected to the source.
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
-	int32 RegisteredCout = 0;
+	int32 RegisteredCount = 0;
 
 	// The source is defined in the ClassExtension.
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
@@ -63,9 +63,13 @@ public:
 	void ConstructView(const UMVVMViewClass* ClassExtension);
 
 	//~ Begin UUserWidgetExtension implementation
+	//virtual void Initialize() override;
 	virtual void Construct() override;
 	virtual void Destruct() override;
 	//~ End UUserWidgetExtension implementation
+
+	void InitializeBindings();
+	void DeintializeBindings();
 
 	const UMVVMViewClass* GetViewClass() const
 	{
@@ -75,57 +79,58 @@ public:
 	void ExecuteDelayedBinding(const FMVVMViewDelayedBinding& DelayedBinding) const;
 	void ExecuteEveryTickBindings() const;
 
-// todo a way to identify a binding from outside. maybe a unique name in the editor?
-	//UFUNCTION(BlueprintCallable, Category = "Viewmodel")
-	//void SetLibraryBindingEnabled(FGuid ViewModelId, FMVVMBindingName BindingName, bool bEnable);
-
-	//UFUNCTION(BlueprintCallable, Category = "Viewmodel")
-	//bool IsLibraryBindingEnabled(FGuid ViewModelId, FMVVMBindingName BindingName) const;
-
+	/** Find and return the viewmodel with the specified name. */
 	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	TScriptInterface<INotifyFieldValueChanged> GetViewModel(FName ViewModelName) const;
 
+	/**
+	 * Set the viewmodel of the specified name.
+	 * The viewmodel needs to be settable and the type should match (child of the defined viewmodel).
+	 * If the view is initialized, all bindings that uses that viewmodel will be re-executed with the new viewmodel instance.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> ViewModel);
 
 private:
+	bool EvaluateSourceCreator(int32 SourceIndex);
+	bool SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> ViewModel, bool bForDynamicSource);
+
 	void HandledLibraryBindingValueChanged(UObject* InViewModel, UE::FieldNotification::FFieldId InFieldId, int32 InCompiledBindingIndex) const;
 
-	void ExecuteLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding) const;
-	void ExecuteLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, UObject* Source) const;
+	void ExecuteLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex) const;
 
 	void EnableLibraryBinding(const FMVVMViewClass_CompiledBinding& Item, int32 BindingIndex);
 	void DisableLibraryBinding(const FMVVMViewClass_CompiledBinding& Item, int32 BindingIndex);
 	bool IsLibraryBindingEnabled(int32 InBindindIndex) const;
 
 	bool RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex);
-	void UnregisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding);
+	void UnregisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex);
 
-	TScriptInterface<INotifyFieldValueChanged> FindSource(const FMVVMViewClass_CompiledBinding& Binding, bool bAllowNull) const;
+	TScriptInterface<INotifyFieldValueChanged> FindSource(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex, bool bAllowNull) const;
 	FMVVMViewSource* FindViewSource(const FName SourceName);
 	const FMVVMViewSource* FindViewSource(const FName SourceName) const;
 
 private:
-// todo support dynamic runtime binding.
-	/** Binding that are added dynamically at runtime. */
-	//TArray<FMVVMView_Binding> RegisteredDynamicBindings;
-
 	UPROPERTY(Transient)
 	TObjectPtr<const UMVVMViewClass> ClassExtension;
 
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Viewmodel")
 	TArray<FMVVMViewSource> Sources;
 
-	/** The binding that are enabled for the instance. */
-	TBitArray<> EnabledLibraryBindings;
+	/** The binding that are registered by the view to the sources. */
+	TBitArray<> RegisteredLibraryBindings;
 
 	/** Should log when a binding is executed. */
 	UPROPERTY(EditAnywhere, Transient, Category = "Viewmodel")
 	bool bLogBinding = false;
 
-	/** Is the Construct method was called. */
+	/** Is the Construct method called. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Viewmodel")
 	bool bConstructed = false;
+	
+	/** Is the Initialize method called. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Viewmodel")
+	bool bInitialized = false;
 
 	/** The view has at least one binding that need to be ticked every frame. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Viewmodel")
