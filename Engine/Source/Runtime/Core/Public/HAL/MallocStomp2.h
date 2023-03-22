@@ -6,7 +6,7 @@
 #include "HAL/PlatformTLS.h"
 
 #ifndef WITH_MALLOC_STOMP2
-#define WITH_MALLOC_STOMP2 WITH_EDITOR
+#define WITH_MALLOC_STOMP2 WITH_EDITOR && PLATFORM_WINDOWS
 #endif
 #if WITH_MALLOC_STOMP2
 #include <atomic>
