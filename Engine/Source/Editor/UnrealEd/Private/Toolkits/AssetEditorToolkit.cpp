@@ -327,7 +327,10 @@ FAssetEditorToolkit::~FAssetEditorToolkit()
 	// We're no longer editing this object, so let the editor know
 	if (GEditor)
 	{
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorClosed(this);
+		if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+		{
+			AssetEditorSubsystem->NotifyEditorClosed(this);
+		}
 	}
 
 	EditorModeManager.Reset();
