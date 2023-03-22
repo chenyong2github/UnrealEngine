@@ -856,6 +856,23 @@ void UnrealUSDWrapper::EraseStageFromCache( const UE::FUsdStage& Stage )
 #endif // #if USE_USD_SDK
 }
 
+void UnrealUSDWrapper::SetDefaultResolverDefaultSearchPath( const TArray<FDirectoryPath>& SearchPath )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	std::vector< std::string > DefaultResolverSearchPath;
+	DefaultResolverSearchPath.reserve( SearchPath.Num() );
+
+	for ( const FDirectoryPath& Directory : SearchPath )
+	{
+		DefaultResolverSearchPath.push_back( TCHAR_TO_UTF8( *Directory.Path ) );
+	}
+
+	pxr::ArDefaultResolver::SetDefaultSearchPath( DefaultResolverSearchPath );
+#endif // #if USE_USD_SDK
+}
+
 void UnrealUSDWrapper::SetupDiagnosticDelegate()
 {
 #if USE_USD_SDK
@@ -969,6 +986,10 @@ public:
 
 			PlugRegistry::GetInstance().RegisterPlugins( UsdPluginDirectories );
 		}
+
+		// Set the default search path for USD's default resolver using any path specified in the settings.
+		const TArray<FDirectoryPath> SearchPath = GetDefault<UUsdProjectSettings>()->DefaultResolverSearchPath;
+		UnrealUSDWrapper::SetDefaultResolverDefaultSearchPath( SearchPath );
 
 #endif // USE_USD_SDK
 

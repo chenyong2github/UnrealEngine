@@ -39,6 +39,18 @@ public:
 	UPROPERTY( config, EditAnywhere, Category = USD, meta = (RelativeToGameContentDir) )
 	TArray<FDirectoryPath> AdditionalPluginDirectories;
 
+	// The directories that will be used as the default search path by USD's default resolver
+	// during asset resolution.
+	//
+	// Each directory in the search path should be an absolute path. If it is not, it will be
+	// anchored to the current working directory.
+	//
+	// Note that the default search path must be set before the first invocation of USD's
+	// resolver system, so changing this setting will require a restart of the engine in order
+	// for the new setting to take effect.
+	UPROPERTY( config, EditAnywhere, Category = USD, meta = (ConfigRestartRequired = true) )
+	TArray<FDirectoryPath> DefaultResolverSearchPath;
+
 	// Material purposes to show on drop-downs in addition to the standard "preview" and "full"
 	UPROPERTY( config, EditAnywhere, Category = USD )
 	TArray<FName> AdditionalMaterialPurposes;

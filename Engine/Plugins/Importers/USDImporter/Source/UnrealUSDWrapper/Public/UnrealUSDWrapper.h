@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 
+#include "Engine/EngineTypes.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/Tuple.h"
 #include "UObject/ObjectMacros.h"
@@ -223,6 +224,16 @@ public:
 
 	/** Removes the stage from the stage cache. See UsdStageCache::Erase. */
 	UNREALUSDWRAPPER_API static void EraseStageFromCache( const UE::FUsdStage& Stage );
+
+	/**
+	 * Set the directories that will be used as the default search path by USD's default resolver during asset resolution.
+	 *
+	 * Each directory in the search path should be an absolute path. If it is not, it will be anchored to the current working directory.
+	 *
+	 * Note that the default search path must be set before the first invocation of USD's resolver system, so this function
+	 * must be called before that to have any effect.
+	 */
+	UNREALUSDWRAPPER_API static void SetDefaultResolverDefaultSearchPath( const TArray<FDirectoryPath>& SearchPath );
 
 	/** Starts listening to error/warning/log messages emitted by USD */
 	UNREALUSDWRAPPER_API static void SetupDiagnosticDelegate();
