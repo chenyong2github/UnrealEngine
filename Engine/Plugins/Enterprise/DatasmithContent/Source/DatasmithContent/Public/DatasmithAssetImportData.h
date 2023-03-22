@@ -321,22 +321,6 @@ public:
 	FString ClipInfoPath;
 };
 
-UCLASS(EditInlineNew)
-class DATASMITHCONTENT_API UDatasmithIFCSceneImportData : public UDatasmithSceneImportData
-{
-	GENERATED_BODY()
-};
-
-UCLASS(EditInlineNew)
-class DATASMITHCONTENT_API UDatasmithStaticMeshIFCImportData : public UDatasmithStaticMeshImportData
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(VisibleAnywhere, Category = InternalProperty)
-	FString SourceGlobalId;
-};
-
 namespace Datasmith
 {
 	DATASMITHCONTENT_API UAssetImportData* GetAssetImportData(UObject* Asset);

@@ -23,14 +23,6 @@ DEFINE_LOG_CATEGORY(LogCADTranslator);
 
 namespace DatasmithCADTranslatorImpl
 {
-static bool bGEnableNativeIFCTranslator = false;
-FAutoConsoleVariableRef GCADTranslatorEnableNativeIFCTranslator(
-	TEXT("ds.IFC.EnableNativeTranslator"),
-	bGEnableNativeIFCTranslator,
-	TEXT("\
-Enable/disable UE native IFC translator. If native translator is disabled, TechSoft is used.\n\
-Default is disable\n"),
-	ECVF_Default);
 
 static bool bGEnableUnsupportedCADFormats = false;
 FAutoConsoleVariableRef GEnableUnsupportedCADFormats(
@@ -122,11 +114,8 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("dwg"), TEXT("AutoCAD model files") });
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("dxf"), TEXT("AutoCAD model files") });
 
-	if (!DatasmithCADTranslatorImpl::bGEnableNativeIFCTranslator)
-	{
-		OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("ifc"), TEXT("IFC (Industry Foundation Classes)") });
-		OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("ifczip"), TEXT("IFC (Industry Foundation Classes)") });
-	}
+	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("ifc"), TEXT("IFC (Industry Foundation Classes)") });
+	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("ifczip"), TEXT("IFC (Industry Foundation Classes)") });
 	
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("hsf"), TEXT("HOOPS stream files") });
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("prc"), TEXT("HOOPS stream files") });

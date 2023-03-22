@@ -30,7 +30,6 @@ namespace AutomationTool
 		static string[] PluginsExceptions =
 		{
 			"Engine/Plugins/Enterprise/DatasmithCADImporter/...",
-			"Engine/Plugins/Enterprise/DatasmithIFCImporter/...",
 			"Engine/Plugins/Enterprise/DatasmithC4DImporter/...",
 			"Engine/Plugins/Enterprise/AxFImporter/...",
 			"Engine/Plugins/Enterprise/MDLImporter/..."
