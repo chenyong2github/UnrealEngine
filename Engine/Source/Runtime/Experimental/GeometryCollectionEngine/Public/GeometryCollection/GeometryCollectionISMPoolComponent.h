@@ -229,8 +229,6 @@ struct FGeometryCollectionISMPool
 	TArray<FGeometryCollectionISM> ISMs;
 	
 	// Todo : since ISMs index cannot change, we'll need a free list 
-
-	FDelegateHandle OnISMInstanceIndexUpdatedHandle;
 };
 
 
@@ -246,6 +244,11 @@ class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionISMPoolComponent: public U
 public:
 	using FMeshGroupId = int32;
 	using FMeshId = int32;
+
+	//~ Begin UActorComponent Interface
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
+	//~ End UActorComponent Interface
 
 	/** 
 	* Create an Mesh group which represent an arbitrary set of mesh with their instance 
@@ -265,11 +268,20 @@ public:
 
 	/** Get the ISM component related to a mesh id. */
 	UInstancedStaticMeshComponent* GetISMForMeshId(FMeshGroupId MeshGroupId, FMeshId MeshId) const;
+	
+	/** Instance Index updated on the InstancedStaticMeshComponent which might need to be handled by the pool instance groups */
+	void OnISMInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates)
+	{
+		// forward to the Pool
+		Pool.OnISMInstanceIndexUpdated(InComponent, InIndexUpdates);
+	}
 
 private:
 	uint32 NextMeshGroupId = 0;
 	TMap<FMeshGroupId, FGeometryCollectionMeshGroup> MeshGroups;
 	FGeometryCollectionISMPool Pool;
+
+	FDelegateHandle OnISMInstanceIndexUpdatedHandle;
 
 	// Expose internals for debug draw support.
 	friend class UGeometryCollectionISMPoolDebugDrawComponent;

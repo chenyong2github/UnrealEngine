@@ -107,11 +107,6 @@ int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<c
 
 FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM)
 {
-	if (!OnISMInstanceIndexUpdatedHandle.IsValid())
-	{
-		OnISMInstanceIndexUpdatedHandle = FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.AddRaw(this, &FGeometryCollectionISMPool::OnISMInstanceIndexUpdated);
-	}
-
 	FGeometryCollectionMeshInfo Info;
 
 	FISMIndex* ISMIndex = MeshToISMIndex.Find(MeshInstance);
@@ -217,17 +212,23 @@ void FGeometryCollectionISMPool::Clear()
 		}
 		ISMs.Reset();
 	}
-
-	if (OnISMInstanceIndexUpdatedHandle.IsValid())
-	{
-		FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Remove(OnISMInstanceIndexUpdatedHandle);
-		OnISMInstanceIndexUpdatedHandle.Reset();
-	}
 }
 
 UGeometryCollectionISMPoolComponent::UGeometryCollectionISMPoolComponent(const FObjectInitializer& ObjectInitializer)
 	: NextMeshGroupId(0)
 {
+}
+
+void UGeometryCollectionISMPoolComponent::OnRegister()
+{
+	FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.AddUObject(this, &UGeometryCollectionISMPoolComponent::OnISMInstanceIndexUpdated);
+	Super::OnRegister();
+}
+
+void UGeometryCollectionISMPoolComponent::OnUnregister()
+{
+	FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.RemoveAll(this);
+	Super::OnUnregister();
 }
 
 UGeometryCollectionISMPoolComponent::FMeshGroupId  UGeometryCollectionISMPoolComponent::CreateMeshGroup()
