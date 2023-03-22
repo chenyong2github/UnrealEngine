@@ -20,6 +20,7 @@ class FUICommandList;
 class IAssetViewport;
 class ISequencer;
 class ULevel;
+class UToolMenu;
 struct FPropertyAndParent;
 
 
@@ -172,11 +173,9 @@ private:
 
 	void OnPropertyEditorOpened();
 
-	TSharedRef<FExtender> GetLevelViewportExtender(const TSharedRef<FUICommandList> CommandList, const TArray<AActor*> InActors);
+	void RegisterMenus();
 
-	TSharedRef<FExtender> OnExtendLevelEditorViewMenu(const TSharedRef<FUICommandList> CommandList);
-
-	void MakeBrowseToSelectedActorSubMenu(FMenuBuilder& MenuBuilder, AActor* Actor, const TArray<TPair<FMovieSceneSequenceID, FSequencer*> > FoundInSequences);
+	void MakeBrowseToSelectedActorSubMenu(UToolMenu* Menu);
 	void BrowseToSelectedActor(AActor* Actor, FSequencer* Sequencer, FMovieSceneSequenceID SequenceId);
 
 	bool IsPropertyReadOnly(const FPropertyAndParent& InPropertyAndParent);
