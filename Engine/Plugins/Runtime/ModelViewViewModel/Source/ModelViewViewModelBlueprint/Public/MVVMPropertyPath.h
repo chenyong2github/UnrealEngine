@@ -113,6 +113,7 @@ public:
 	{
 		return BindingKind;
 	}
+
 	/** */
 	void SetBindingReference(UE::MVVM::FMVVMConstFieldVariant InField)
 	{
