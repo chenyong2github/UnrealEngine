@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "../Common.ush"
 #include "../Random.ush"
 #include "../TextureSampling.ush"
