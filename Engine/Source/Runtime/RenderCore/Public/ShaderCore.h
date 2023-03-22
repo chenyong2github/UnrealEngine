@@ -559,6 +559,14 @@ struct FShaderCompilerEnvironment
 	void SetDefine(const TCHAR* Name, bool Value)			{ Definitions.SetDefine(Name, Value); }
 	void SetDefine(const TCHAR* Name, float Value)			{ Definitions.SetFloatDefine(Name, Value); }
 
+	template <typename ValueType> void SetDefineIfUnset(const TCHAR* Name, ValueType Value)
+	{
+		if (!Definitions.GetDefinitionMap().Contains(Name))
+		{
+			SetDefine(Name, Value);
+		}
+	}
+
 	const TMap<FString,FString>& GetDefinitions() const
 	{
 		return Definitions.GetDefinitionMap();
