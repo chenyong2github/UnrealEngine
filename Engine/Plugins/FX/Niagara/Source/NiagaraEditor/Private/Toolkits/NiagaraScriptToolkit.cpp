@@ -710,7 +710,7 @@ FText FNiagaraScriptToolkit::GetCompileStatusTooltip() const
 
 FSlateIcon FNiagaraScriptToolkit::GetRefreshStatusImage() const
 {
-	return FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Refresh");
+	return FSlateIcon(FAppStyle::Get().GetStyleSetName(), "FontEditor.Update");
 }
 
 FText FNiagaraScriptToolkit::GetRefreshStatusTooltip() const
