@@ -62,8 +62,7 @@ bool FRenderTarget::ReadPixels(TArray< FColor >& OutImageData, FReadSurfaceDataF
 {
 	if(InRect == FIntRect(0, 0, 0, 0))
 	{
-		FIntPoint RTTSize = RenderTargetTextureRHI->GetSizeXY(); // Actual RTT size may differ from viewport SizeXY for stereo render targets
-		InRect = FIntRect(0, 0, RTTSize.X, RTTSize.Y);
+		InRect = FIntRect(0, 0, GetSizeXY().X, GetSizeXY().Y);
 	}
 
 	// Read the render target surface data back.	
@@ -199,8 +198,7 @@ bool FRenderTarget::ReadLinearColorPixels(TArray<FLinearColor> &OutImageData, FR
 {
 	if (InRect == FIntRect(0, 0, 0, 0))
 	{
-		FIntPoint RTTSize = RenderTargetTextureRHI->GetSizeXY(); // Actual RTT size may differ from viewport SizeXY for stereo render targets
-		InRect = FIntRect(0, 0, RTTSize.X, RTTSize.Y);
+		InRect = FIntRect(0, 0, GetSizeXY().X, GetSizeXY().Y);
 	}
 
 	// Read the render target surface data back.	
@@ -1451,8 +1449,8 @@ bool FViewport::TakeHighResScreenShot()
 {
 	if( GScreenshotResolutionX == 0 && GScreenshotResolutionY == 0 )
 	{
-		GScreenshotResolutionX = GetRenderTargetTextureSizeXY().X * GetHighResScreenshotConfig().ResolutionMultiplier;
-		GScreenshotResolutionY = GetRenderTargetTextureSizeXY().Y * GetHighResScreenshotConfig().ResolutionMultiplier;
+		GScreenshotResolutionX = SizeX * GetHighResScreenshotConfig().ResolutionMultiplier;
+		GScreenshotResolutionY = SizeY * GetHighResScreenshotConfig().ResolutionMultiplier;
 	}
 
 	uint32 MaxTextureDimension = GetMax2DTextureDimension();
@@ -2460,7 +2458,7 @@ ENGINE_API bool GetViewportScreenShot(FViewport* Viewport, TArray<FColor>& Bitma
 	// Read the contents of the viewport into an array.
 	if (Viewport->ReadPixels(Bitmap, FReadSurfaceDataFlags(), ViewRect))
 	{
-		check(Bitmap.Num() == ViewRect.Area() || (Bitmap.Num() == Viewport->GetRenderTargetTextureSizeXY().X * Viewport->GetRenderTargetTextureSizeXY().Y));
+		check(Bitmap.Num() == ViewRect.Area() || (Bitmap.Num() == Viewport->GetSizeXY().X * Viewport->GetSizeXY().Y));
 		return true;
 	}
 
@@ -2472,7 +2470,7 @@ ENGINE_API bool GetViewportScreenShotHDR(FViewport* Viewport, TArray<FLinearColo
 	// Read the contents of the viewport into an array.
 	if (Viewport->ReadLinearColorPixels(Bitmap, FReadSurfaceDataFlags(RCM_MinMax), ViewRect))
 	{
-		check(Bitmap.Num() == ViewRect.Area() || (Bitmap.Num() == Viewport->GetRenderTargetTextureSizeXY().X * Viewport->GetRenderTargetTextureSizeXY().Y));
+		check(Bitmap.Num() == ViewRect.Area() || (Bitmap.Num() == Viewport->GetSizeXY().X * Viewport->GetSizeXY().Y));
 		return true;
 	}
 
