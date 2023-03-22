@@ -5,6 +5,11 @@ import { removeAnchorLink } from '../../utilities/index';
 
 export const MarkdownLink: React.FunctionComponent<ILinkProps> = props => {
    let href = props.href;
+
+   if (href?.indexOf("README.md") !== -1) {
+      href = "/docs/"
+   }
+
    if (href && href[0] === '#' && href.indexOf('/') === -1) {
       // This is an anchor link within this page. We need to prepend the current route.
       href = removeAnchorLink(window.location.hash) + href;

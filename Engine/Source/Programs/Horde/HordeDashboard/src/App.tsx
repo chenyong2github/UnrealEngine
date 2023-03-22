@@ -15,6 +15,7 @@ import { AutomationView } from './components/AutomationView';
 import { DashboardView } from './components/DashboardView';
 import { DebugView } from './components/DebugView';
 import { DeviceView } from './components/DeviceView';
+import { DocView } from './components/docs/DocView';
 import { ErrorDialog, ErrorHandler } from './components/ErrorHandler';
 import { JobDetailViewV2 } from './components/jobDetailsV2/JobDetailViewV2';
 import { LogView } from './components/LogView';
@@ -146,7 +147,9 @@ const Main: React.FC = () => {
                { path: "audit/issue/:issueId", element: <AuditLogView /> },
                { path: "automation", element: <AutomationView /> },
                { path: "tools", element: <ToolView /> },
-               { path: "debug/lease/:leaseId", element: <DebugView /> }
+               { path: "debug/lease/:leaseId", element: <DebugView /> },
+               { path: "docs", element: <DocView /> },
+               { path: "docs/*", element: <DocView /> }
             ]
          }
       ];
@@ -203,7 +206,7 @@ const HomeRedirect: React.FC = () => {
 const Root: React.FC = () => {
    return <div>
       <Outlet />
-      <HomeRedirect />      
+      <HomeRedirect />
    </div>
 }
 

@@ -44,13 +44,13 @@ class SideRailBase extends React.Component<ISideRailProps, ISideRailState> {
       this._classNames = getClassNames(this.props.styles, { theme: this.props.theme });
 
       const jumpLinkList = this._renderJumpLinkList();
-      const relatedLinkList = this._renderLinkList(this.props.relatedLinks, 'Job');
+      const relatedLinkList = this._renderLinkList(this.props.relatedLinks, 'Reference');
       const contactLinkList = this._renderLinkList(this.props.contactLinks, 'Contacts');
 
       return jumpLinkList || relatedLinkList || contactLinkList ? (
          <FocusZone direction={FocusZoneDirection.vertical} className={this._classNames.root}>
-            {jumpLinkList}            
             {relatedLinkList}
+            {jumpLinkList}                        
             {contactLinkList}
          </FocusZone>
       ) : null;

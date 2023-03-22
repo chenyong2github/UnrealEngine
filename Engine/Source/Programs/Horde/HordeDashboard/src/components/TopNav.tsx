@@ -456,6 +456,26 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
                bottomDivider: true
             }
          });
+
+         // currently disabled until doc copy to public folder is sorted
+         /*
+         const docsItems: IContextualMenuItem[] = [];
+         docsItems.push({
+            key: "server_docs",
+            text: "Documentation",
+            link: `/docs`
+         });
+
+         subItems.push({
+            itemType: ContextualMenuItemType.Section,
+            key: `server_docs_item`,
+            sectionProps: {
+               title: "Documentation",
+               items: docsItems,
+               bottomDivider: true
+            }
+         });
+         */
       }
 
       // Configuration
