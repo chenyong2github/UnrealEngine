@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -1541,13 +1542,52 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Determines if a module type is valid for a target, based on custom attributes
+		/// </summary>
+		/// <param name="ModuleType">The type of the module to check</param>
+		/// <param name="TargetRules">The target to check against</param>
+		/// <param name="InvalidReason">Out, reason this module was invalid</param>
+		/// <returns>True if the module is valid, false otherwise</returns>
+		internal static bool IsValidForTarget(Type ModuleType, ReadOnlyTargetRules TargetRules, [NotNullWhen(false)] out string? InvalidReason)
+		{
+			IEnumerable<TargetType> SupportedTargetTypes = ModuleType.GetCustomAttributes<SupportedTargetTypesAttribute>().SelectMany(x => x.TargetTypes).Distinct();
+			if (SupportedTargetTypes.Any() && !SupportedTargetTypes.Contains(TargetRules.Type))
+			{
+				InvalidReason = $"TargetType '{TargetRules.Type}'";
+				return false;
+			}
+
+			IEnumerable<UnrealTargetConfiguration> SupportedConfigurations = ModuleType.GetCustomAttributes<SupportedConfigurationsAttribute>().SelectMany(x => x.Configurations).Distinct();
+			if (SupportedConfigurations.Any() && !SupportedConfigurations.Contains(TargetRules.Configuration))
+			{
+				InvalidReason = $"Configuration '{TargetRules.Configuration}'";
+				return false;
+			}
+
+			// Skip platform extension modules. We only care about the base modules, not the platform overrides.
+			// The platform overrides get applied at a later stage when we actually come to build the module.
+			if (!UEBuildPlatform.GetPlatformFolderNames().Any(Name => ModuleType.Name.EndsWith("_" + Name)))
+			{
+				IEnumerable<UnrealTargetPlatform> SupportedPlatforms = ModuleType.GetCustomAttributes<SupportedPlatformsAttribute>().SelectMany(x => x.Platforms).Distinct();
+				if (SupportedPlatforms.Any() && !SupportedPlatforms.Contains(TargetRules.Platform))
+				{
+					InvalidReason = $"Platform '{TargetRules.Platform}'";
+					return false;
+				}
+			}
+
+			InvalidReason = null;
+			return true;
+		}
+
+		/// <summary>
 		/// Determines if this module can be precompiled for the current target.
 		/// </summary>
 		/// <param name="RulesFile">Path to the module rules file</param>
 		/// <returns>True if the module can be precompiled, false otherwise</returns>
 		internal bool IsValidForTarget(FileReference RulesFile)
 		{
-			if(Type == ModuleRules.ModuleType.CPlusPlus)
+			if (Type == ModuleRules.ModuleType.CPlusPlus)
 			{
 				switch (PrecompileForTargets)
 				{

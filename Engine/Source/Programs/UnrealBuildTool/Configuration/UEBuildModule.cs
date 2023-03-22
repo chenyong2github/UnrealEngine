@@ -1027,6 +1027,12 @@ namespace UnrealBuildTool
 			// Add us to the reference stack - note do this before checking for cycles as we allow them if an element in the stack
 			// declares the next element at leading to a dependency cycle.
 			ReferenceStack.Add(this);
+			
+			// Check if this module is invalid for the current target, based on Module attributes
+			if (!ModuleRules.IsValidForTarget(Rules.GetType(), Rules.Target, out string? InvalidReason))
+			{
+				Logger.LogWarning("Warning: Referenced module '{Module}' does not support {InvalidReason} via {ReferenceChain}", ThisRefName, InvalidReason, NextReferenceChain);
+			}
 
 			if (CheckForCycles)
 			{

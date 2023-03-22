@@ -3563,30 +3563,30 @@ namespace UnrealBuildTool
 				foreach (string ModuleName in ModuleNames)
 				{
 					FileReference ModuleFileName = RulesAssembly.GetModuleFileName(ModuleName)!;
-					if (Directories.Any(BaseDir => ModuleFileName.IsUnderDirectory(BaseDir)))
+					if (!Directories.Any(BaseDir => ModuleFileName.IsUnderDirectory(BaseDir)))
 					{
-						Type RulesType = RulesAssembly.GetModuleRulesType(ModuleName)!;
+						Logger.LogDebug("Excluding module {Module}: Not under compatible directories", ModuleName);
+						continue;
+					}
 
-						// Skip platform extension modules. We only care about the base modules, not the platform overrides.
-						// The platform overrides get applied at a later stage when we actually come to build the module.
-						if (!UEBuildPlatform.GetPlatformFolderNames().Any(Name => RulesType.Name.EndsWith("_" + Name)))
+					Type RulesType = RulesAssembly.GetModuleRulesType(ModuleName)!;
+
+					if (!ModuleRules.IsValidForTarget(RulesType, Rules, out string? InvalidReason))
+					{
+						Logger.LogDebug("Excluding module {Module}: Does not support {InvalidReason}", ModuleName, InvalidReason);
+						continue;
+					}
+
+					// Skip platform extension modules. We only care about the base modules, not the platform overrides.
+					// The platform overrides get applied at a later stage when we actually come to build the module.
+					if (!UEBuildPlatform.GetPlatformFolderNames().Any(Name => RulesType.Name.EndsWith("_" + Name)))
+					{
+						if (ModuleFileName.ContainsAnyNames(ExcludeFolders, Unreal.EngineDirectory))
 						{
-							SupportedPlatformsAttribute? SupportedPlatforms = RulesType.GetCustomAttribute<SupportedPlatformsAttribute>();
-							if (SupportedPlatforms != null)
-							{
-								if (SupportedPlatforms.Platforms.Contains(Platform))
-								{
-									FilteredModuleNames.Add(ModuleName);
-								}
-							}
-							else
-							{
-								if (!ModuleFileName.ContainsAnyNames(ExcludeFolders, Unreal.EngineDirectory))
-								{
-									FilteredModuleNames.Add(ModuleName);
-								}
-							}
+							Logger.LogDebug("Excluding module {Module}: Excluded folder name", ModuleName);
+							continue;
 						}
+						FilteredModuleNames.Add(ModuleName);
 					}
 				}
 			}
@@ -3635,10 +3635,18 @@ namespace UnrealBuildTool
 						{
 							throw new BuildException("Unable to find module '{0}' referenced by {1}", ModuleDescriptor.Name, Plugin.File);
 						}
-						if (!ModuleFileName.ContainsAnyNames(ExcludeFolders, Plugin.Directory))
+						Type RulesType = RulesAssembly.GetModuleRulesType(ModuleDescriptor.Name)!;
+						if (!ModuleRules.IsValidForTarget(RulesType, Rules, out string? InvalidReason))
 						{
-							FilteredModuleNames.Add(ModuleDescriptor.Name);
+							Logger.LogDebug("Excluding plugin {Plugin} module {Module}: Does not support {InvalidReason}", Plugin.Name, ModuleDescriptor.Name, InvalidReason);
+							continue;
 						}
+						if (ModuleFileName.ContainsAnyNames(ExcludeFolders, Plugin.Directory))
+						{
+							Logger.LogDebug("Excluding plugin {Plugin} module {Module}: Excluded folder name", Plugin.Name, ModuleDescriptor.Name);
+							continue;
+						}
+						FilteredModuleNames.Add(ModuleDescriptor.Name);
 					}
 				}
 			}
@@ -3658,8 +3666,13 @@ namespace UnrealBuildTool
 				}
 
 				// Figure out if it can be precompiled
-				if (ModuleRules != null && ModuleRules.IsValidForTarget(ModuleRules.File))
+				if (ModuleRules != null)
 				{
+					if (!ModuleRules.IsValidForTarget(ModuleRules.File))
+					{
+						Logger.LogDebug("Excluding module {Module}: Not precompiled for target '{TargetType}'", ModuleRules.Name, Rules.Type);
+						continue;
+					}
 					ValidModuleNames.Add(FilteredModuleName);
 				}
 			}
