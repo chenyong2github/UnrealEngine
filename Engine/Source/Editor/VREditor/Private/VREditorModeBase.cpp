@@ -8,6 +8,7 @@
 #include "ILevelEditor.h"
 #include "IXRTrackingSystem.h"
 #include "LevelEditor.h"
+#include "LevelViewportActions.h"
 #include "Modules/ModuleManager.h"
 #include "SLevelViewport.h"
 
@@ -41,21 +42,45 @@ void UVREditorModeBase::Shutdown()
 }
 
 
+namespace UE::VREditor::Private
+{
+	TSharedPtr<SLevelViewport> TryGetActiveViewport()
+	{
+		const TSharedRef<ILevelEditor>& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor").GetFirstLevelEditor().ToSharedRef();
+		TSharedPtr<IAssetViewport> ActiveViewport = LevelEditor->GetActiveViewportInterface();
+		if (!ActiveViewport)
+		{
+			return nullptr;
+		}
+
+		return StaticCastSharedRef<SLevelViewport>(ActiveViewport->AsWidget());
+	}
+}
+
+
 void UVREditorModeBase::Enter()
 {
-	const TSharedRef<ILevelEditor>& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor").GetFirstLevelEditor().ToSharedRef();
-	if (TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface())
-	{
-		TSharedRef<SLevelViewport> ExistingActiveLevelViewport =
-			StaticCastSharedRef<SLevelViewport>(ActiveLevelViewport->AsWidget());
+	using namespace UE::VREditor::Private;
 
-		ExistingActiveLevelViewport->RemoveAllPreviews(true);
-		StartViewport(ExistingActiveLevelViewport);
-	}
-	else
+	TSharedPtr<SLevelViewport> ActiveLevelViewport = TryGetActiveViewport();
+
+	if (ActiveLevelViewport && ActiveLevelViewport->GetCommandList() && FLevelViewportCommands::Get().SetDefaultViewportType)
 	{
-		// TODO handle error
+		ActiveLevelViewport->GetCommandList()->TryExecuteAction(
+			FLevelViewportCommands::Get().SetDefaultViewportType.ToSharedRef());
+
+		// If the active viewport was e.g. a cinematic viewport, changing it
+		// back to default recreated it and our pointer might be stale.
+		ActiveLevelViewport = TryGetActiveViewport();
 	}
+
+	if (!ensure(ActiveLevelViewport))
+	{
+		return;
+	}
+
+	ActiveLevelViewport->RemoveAllPreviews(true);
+	StartViewport(ActiveLevelViewport);
 
 	OnVRModeEntryCompleteEvent.Broadcast();
 }

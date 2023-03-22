@@ -54,6 +54,7 @@
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::Left/RightHandSourceId
 #include "UI/VREditorFloatingUI.h"
 #include "AssetEditorViewportLayout.h"
+#include "LevelViewportActions.h"
 
 #define LOCTEXT_NAMESPACE "VREditorMode"
 
@@ -239,8 +240,16 @@ void UVREditorMode::Enter()
 	FinishEntry();
 }
 
+namespace UE::VREditor::Private
+{
+	// Defined in VREditorModeBase.cpp.
+	TSharedPtr<SLevelViewport> TryGetActiveViewport();
+}
+
 void UVREditorMode::BeginEntry()
 {
+	using namespace UE::VREditor::Private;
+
 	FSavedEditorState& SavedEditorState = static_cast<FSavedEditorState&>(SavedEditorStateChecked());
 
 	bWantsToExitMode = false;
@@ -260,15 +269,24 @@ void UVREditorMode::BeginEntry()
 		const TSharedRef< ILevelEditor >& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor").GetFirstLevelEditor().ToSharedRef();
 
 		// Do we have an active perspective viewport that is valid for VR?  If so, go ahead and use that.
-		TSharedPtr<SLevelViewport> ExistingActiveLevelViewport;
+		TSharedPtr<SLevelViewport> ExistingActiveLevelViewport = TryGetActiveViewport();
+
+		if (ExistingActiveLevelViewport && ExistingActiveLevelViewport->GetCommandList() && FLevelViewportCommands::Get().SetDefaultViewportType)
 		{
-			TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
-			if (ActiveLevelViewport.IsValid())
-			{
-				ExistingActiveLevelViewport = StaticCastSharedRef< SLevelViewport >(ActiveLevelViewport->AsWidget());
-				ExistingActiveLevelViewport->RemoveAllPreviews(true);
-			}
+			ExistingActiveLevelViewport->GetCommandList()->TryExecuteAction(
+				FLevelViewportCommands::Get().SetDefaultViewportType.ToSharedRef());
+
+			// If the active viewport was e.g. a cinematic viewport, changing it
+			// back to default recreated it and our pointer might be stale.
+			ExistingActiveLevelViewport = TryGetActiveViewport();
 		}
+
+		if (!ensure(ExistingActiveLevelViewport))
+		{
+			return;
+		}
+
+		ExistingActiveLevelViewport->RemoveAllPreviews(true);
 
 		StartViewport(ExistingActiveLevelViewport);
 
