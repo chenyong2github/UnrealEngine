@@ -93,7 +93,13 @@ FDisplayClusterViewportManager::~FDisplayClusterViewportManager()
 		LightCardManager.Reset();
 	}
 
-	ViewportManagerViewExtension.Reset();
+	if (ViewportManagerViewExtension.IsValid())
+	{
+		// Force release of VE data since this TSharedPtr<> may also be held by other resources at this time.
+		// So Reset() doesn't actually release it right away in some situations.
+		ViewportManagerViewExtension->Release();
+		ViewportManagerViewExtension.Reset();
+	}
 
 	Configuration.Reset();
 

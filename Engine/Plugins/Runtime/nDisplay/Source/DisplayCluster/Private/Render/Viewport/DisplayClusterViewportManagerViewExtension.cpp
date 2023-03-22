@@ -32,8 +32,32 @@ FDisplayClusterViewportManagerViewExtension::FDisplayClusterViewportManagerViewE
 
 FDisplayClusterViewportManagerViewExtension::~FDisplayClusterViewportManagerViewExtension()
 {
+	ViewportManagerProxy.Reset();
 	UnregisterCallbacks();
 }
+
+bool FDisplayClusterViewportManagerViewExtension::IsActive() const
+{
+	return ViewportManagerProxy.IsValid();
+}
+
+void FDisplayClusterViewportManagerViewExtension::Release()
+{
+	check(IsInGameThread());
+
+	ViewportManagerProxy.Reset();
+}
+
+void FDisplayClusterViewportManagerViewExtension::Release_RenderThread()
+{
+	check(IsInRenderingThread());
+
+	ViewportManagerProxy.Reset();
+	ViewportProxies.Empty();
+
+	UnregisterCallbacks();
+}
+
 
 void FDisplayClusterViewportManagerViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
@@ -46,12 +70,17 @@ void FDisplayClusterViewportManagerViewExtension::PreRenderView_RenderThread(FRD
 
 void FDisplayClusterViewportManagerViewExtension::SubscribeToPostProcessingPass(EPostProcessingPass PassId, FAfterPassCallbackDelegateArray& InOutPassCallbacks, bool bIsPassEnabled)
 {
+	if (!IsActive())
+	{
+		return;
+	}
+
 	switch (PassId)
 	{
 	case EPostProcessingPass::SSRInput:
 		for (const FViewportProxy& ViewportIt : ViewportProxies)
 		{
-			if (ViewportIt.ViewportProxy.IsValid() && ViewportIt.ViewportProxy->ShouldUsePostProcessPassAfterSSRInput())
+			if (ViewportIt.ViewportProxy.IsValid() && ViewportIt.ViewportProxy.Pin()->ShouldUsePostProcessPassAfterSSRInput())
 			{
 				InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterSSRInput_RenderThread));
 				break;
@@ -62,7 +91,7 @@ void FDisplayClusterViewportManagerViewExtension::SubscribeToPostProcessingPass(
 	case EPostProcessingPass::FXAA:
 		for (const FViewportProxy& ViewportIt : ViewportProxies)
 		{
-			if (ViewportIt.ViewportProxy.IsValid() && ViewportIt.ViewportProxy->ShouldUsePostProcessPassAfterFXAA())
+			if (ViewportIt.ViewportProxy.IsValid() && ViewportIt.ViewportProxy.Pin()->ShouldUsePostProcessPassAfterFXAA())
 			{
 				InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterFXAA_RenderThread));
 				break;
@@ -77,8 +106,13 @@ void FDisplayClusterViewportManagerViewExtension::SubscribeToPostProcessingPass(
 
 FScreenPassTexture FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterFXAA_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs)
 {
+	if (!IsActive())
+	{
+		return ReturnUntouchedSceneColorForPostProcessing(Inputs);
+	}
+
 	uint32 ContextNum = 0;
-	if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
+	if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy.Pin()->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
 	{
 		if (ViewportProxyPtr->ShouldUsePostProcessPassAfterFXAA())
 		{
@@ -91,8 +125,13 @@ FScreenPassTexture FDisplayClusterViewportManagerViewExtension::PostProcessPassA
 
 FScreenPassTexture FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterSSRInput_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs)
 {
+	if (!IsActive())
+	{
+		return ReturnUntouchedSceneColorForPostProcessing(Inputs);
+	}
+
 	uint32 ContextNum = 0;
-	if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
+	if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy.Pin()->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
 	{
 		if (ViewportProxyPtr->ShouldUsePostProcessPassAfterSSRInput())
 		{
@@ -122,6 +161,11 @@ FScreenPassTexture FDisplayClusterViewportManagerViewExtension::ReturnUntouchedS
 
 bool FDisplayClusterViewportManagerViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
+	if (!IsActive())
+	{
+		return false;
+	}
+
 	static const FDisplayClusterSceneViewExtensionContext DCViewExtensionContext;
 	if (Context.IsA(MoveTempIfPossible(DCViewExtensionContext)))
 	{
@@ -138,6 +182,11 @@ bool FDisplayClusterViewportManagerViewExtension::IsActiveThisFrame_Internal(con
 
 void FDisplayClusterViewportManagerViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
+	if (!IsActive())
+	{
+		return;
+	}
+
 	ViewportProxies.Empty();
 
 	// Get all viewport proxies that are uses in this view family
@@ -147,7 +196,7 @@ void FDisplayClusterViewportManagerViewExtension::PreRenderViewFamily_RenderThre
 		{
 			FViewportProxy NewViewportProxy;
 
-			if (IDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy->FindViewport_RenderThread(SceneView->StereoViewIndex, &NewViewportProxy.ViewportProxyContext.ContextNum))
+			if (IDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy.Pin()->FindViewport_RenderThread(SceneView->StereoViewIndex, &NewViewportProxy.ViewportProxyContext.ContextNum))
 			{
 				NewViewportProxy.ViewportProxyContext.ViewFamilyProfileDescription = InViewFamily.ProfileDescription;
 
@@ -162,11 +211,19 @@ void FDisplayClusterViewportManagerViewExtension::PreRenderViewFamily_RenderThre
 
 void FDisplayClusterViewportManagerViewExtension::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
+	if (!IsActive())
+	{
+		return;
+	}
+
 	for (FViewportProxy& ViewportIt : ViewportProxies)
 	{
 		if (const FSceneView* SceneView = InViewFamily.Views[ViewportIt.ViewIndex])
 		{
-			ViewportIt.ViewportProxy->OnPostRenderViewFamily_RenderThread(GraphBuilder, InViewFamily, *SceneView, ViewportIt.ViewportProxyContext);
+			if (ViewportIt.ViewportProxy.IsValid())
+			{
+				ViewportIt.ViewportProxy.Pin()->OnPostRenderViewFamily_RenderThread(GraphBuilder, InViewFamily, *SceneView, ViewportIt.ViewportProxyContext);
+			}
 		}
 	}
 
@@ -176,11 +233,17 @@ void FDisplayClusterViewportManagerViewExtension::PostRenderViewFamily_RenderThr
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterViewportManagerViewExtension::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)
 {
-	check(IsInRenderingThread());
+	if (!IsActive())
+	{
+		return;
+	}
 
 	for (FViewportProxy& ViewportIt : ViewportProxies)
 	{
-		ViewportIt.ViewportProxy->OnResolvedSceneColor_RenderThread(GraphBuilder, SceneTextures, ViewportIt.ViewportProxyContext);
+		if (ViewportIt.ViewportProxy.IsValid())
+		{
+			ViewportIt.ViewportProxy.Pin()->OnResolvedSceneColor_RenderThread(GraphBuilder, SceneTextures, ViewportIt.ViewportProxyContext);
+		}
 	}
 }
 

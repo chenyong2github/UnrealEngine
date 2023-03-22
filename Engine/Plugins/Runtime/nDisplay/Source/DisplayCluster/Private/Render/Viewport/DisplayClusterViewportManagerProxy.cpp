@@ -16,6 +16,8 @@
 #include "Render/Viewport/LightCard/DisplayClusterViewportLightCardManagerProxy.h"
 
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
+#include "Render/Viewport/DisplayClusterViewportManagerViewExtension.h"
+
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetManager.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetResource.h"
 #include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessManager.h"
@@ -98,7 +100,13 @@ void FDisplayClusterViewportManagerProxy::Release_RenderThread()
 
 	LightCardManagerProxy.Reset();
 
-	ViewportManagerViewExtension.Reset();
+	if (ViewportManagerViewExtension.IsValid())
+	{
+		// Force release of VE data since this TSharedPtr<> may also be held by other resources at this time.
+		// So Reset() doesn't actually release it right away in some situations.
+		ViewportManagerViewExtension->Release_RenderThread();
+		ViewportManagerViewExtension.Reset();
+	}
 }
 
 void FDisplayClusterViewportManagerProxy::Initialize(FDisplayClusterViewportManager& InViewportManager)

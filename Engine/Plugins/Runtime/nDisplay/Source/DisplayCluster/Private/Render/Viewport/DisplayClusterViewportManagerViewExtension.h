@@ -52,6 +52,13 @@ public:
 	 * @return - Screen pass texture
 	 */
 	static FScreenPassTexture ReturnUntouchedSceneColorForPostProcessing(const FPostProcessMaterialInputs& InOutInputs);
+
+	/** Release from game thread.*/
+	void Release();
+
+	/** Release from render thread.*/
+	void Release_RenderThread();
+
 private:
 	/** nDisplay VE Callback [subscribed to Renderer:ResolvedSceneColorCallbacks].
 	 *
@@ -88,17 +95,20 @@ private:
 	/** UnRegister callbacks to external modules (Renderer:ResolvedSceneColor). */
 	void UnregisterCallbacks();
 
+	/** Return true if the VE is safe to use. */
+	bool IsActive() const;
+
 private:
 	FDelegateHandle ResolvedSceneColorCallbackHandle;
 
 private:
 	const FDisplayClusterViewportManager* ViewportManager;
-	const TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
+	TWeakPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
 
 	struct FViewportProxy
 	{
 		// The ViewportProxy must exist until this object is removed.
-		TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe> ViewportProxy;
+		TWeakPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe> ViewportProxy;
 
 		// The index of view in viewfamily collection
 		int32 ViewIndex = 0;
