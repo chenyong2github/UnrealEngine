@@ -51,7 +51,8 @@ public class GeometryScriptingEditor : ModuleRules
 				"ModelingComponentsEditorOnly",
 				"EditorFramework",
 				"UnrealEd",
-				"BSPUtils"
+				"BSPUtils",
+				"ImageCore"
 			}
 			);
 

@@ -6,6 +6,7 @@
 #include "RendererInterface.h"
 #include "RenderUtils.h"
 #include "TextureResource.h"
+#include "TextureCompiler.h"
 
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -237,6 +238,8 @@ bool UE::AssetUtils::ReadTexture(
 	if (ensure(TextureMap) == false) return false;
 
 #if WITH_EDITOR
+	FTextureCompilingManager::Get().FinishCompilation({ TextureMap });
+
 	const bool bPlatformDataHasMips = TextureMap->GetPlatformData()->Mips.Num() != 0;
 
 	if (TextureMap->Source.IsValid() && (bPreferPlatformData == false || bPlatformDataHasMips == false))
