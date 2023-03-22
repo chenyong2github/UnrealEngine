@@ -7,7 +7,6 @@
 #include "NNEDmlCommon.h"
 #include "NNECoreTypes.h"
 #include "NNECoreTensor.h"
-#include "NNECoreOperator.h"
 #include "NNECoreAttributeMap.h"
 #include "NNERuntimeRDG.h"
 
