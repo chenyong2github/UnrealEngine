@@ -5537,7 +5537,7 @@ void FCustomizableTextObjectFactory::ProcessBuffer(UObject* InParent, EObjectFla
 				UObject* ObjectParent = InParent ? InParent : GetParentForNewObject(ObjClass);
 
 				// Make sure this name is not used by anything else. Will rename other stuff if necessary
-				UpdateObjectName(ObjClass, ObjName);
+				UpdateObjectName(ObjClass, ObjectParent, ObjName);
 				ClearObjectNameUsage(ObjectParent, ObjName);
 
 				// Spawn the object and reset it's archetype

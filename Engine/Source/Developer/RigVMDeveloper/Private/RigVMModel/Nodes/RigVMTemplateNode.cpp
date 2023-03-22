@@ -288,6 +288,11 @@ TArray<URigVMPin*> URigVMTemplateNode::GetAggregatePins(const ERigVMPinDirection
 		AggregatePins = FindAggregatePins(Permutations[0]);
 		for (int32 i=1; i<Permutations.Num(); ++i)
 		{
+			if(Permutations[i] >= Template->NumPermutations())
+			{
+				continue;
+			}
+			
 			TArray<URigVMPin*> OtherAggregateInputs = FindAggregatePins(Permutations[i]);
 			if (OtherAggregateInputs.Num() != AggregatePins.Num() ||
 				OtherAggregateInputs.FilterByPredicate([&](const URigVMPin* OtherPin)

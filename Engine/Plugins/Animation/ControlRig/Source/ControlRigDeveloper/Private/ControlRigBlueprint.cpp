@@ -979,6 +979,10 @@ void UControlRigBlueprint::PostLoad()
 			RefreshAllModels();
 		}
 
+		// at this point we may still have links which are detached. we may or may not be able to 
+		// reattach them.
+		GetRigVMClient()->ProcessDetachedLinks();
+
 		GetControlRigBlueprintGeneratedClass()->GetRigVMGraphFunctionStore()->RemoveAllCompilationData();
 
 		// perform backwards compat value upgrades
@@ -995,7 +999,7 @@ void UControlRigBlueprint::PostLoad()
 			{
 				URigVMController* Controller = GetOrCreateController(GraphToValidate);
 				FRigVMControllerNotifGuard NotifGuard(Controller, true);
-				Controller->RemoveUnusedOrphanedPins(Node);
+				Controller->RemoveUnusedOrphanedPins(Node, true);
 			}
 				
 			for(URigVMNode* Node : GraphToValidate->GetNodes())
@@ -1411,7 +1415,10 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 			for (URigVMGraph* ModelGraph : ModelGraphs)
 			{
 				URigVMController* Controller = GetOrCreateController(ModelGraph);
-				Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true, false);
+				URigVMController::FRestoreLinkedPathSettings Settings;
+				Settings.bFollowCoreRedirectors = true;
+				Settings.bRelayToOrphanPins = true;
+				Controller->ProcessDetachedLinks(Settings);
 			}
 		}
 		return;
@@ -1420,18 +1427,20 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 	TGuardValue<bool> IsCompilingGuard(bIsCompiling, true);
 	TGuardValue<bool> ClientIgnoreModificationsGuard(RigVMClient.bIgnoreModelNotifications, true);
 	
-	TArray<URigVMGraph*> GraphsToDetach = RigVMClient.GetAllModels(true, false);
+	TArray<URigVMGraph*> AllModelsLeavesFirst = RigVMClient.GetAllModelsLeavesFirst(true);
+	TMap<const URigVMGraph*, TArray<URigVMController::FLinkedPath>> LinkedPaths;
 
 	if (ensure(IsInGameThread()))
 	{
-		for (URigVMGraph* GraphToDetach : GraphsToDetach)
+		for (URigVMGraph* Graph : AllModelsLeavesFirst)
 		{
-			URigVMController* Controller = GetOrCreateController(GraphToDetach);
+			URigVMController* Controller = GetOrCreateController(Graph);
 			// temporarily disable default value validation during load time, serialized values should always be accepted
 			TGuardValue<bool> PerGraphDisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
 			FRigVMControllerNotifGuard NotifGuard(Controller, true);
-			Controller->DetachLinksFromPinObjects();
-			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
+			LinkedPaths.Add(Graph, Controller->GetLinkedPaths());
+			Controller->FastBreakLinkedPaths(LinkedPaths.FindChecked(Graph));
+			TArray<URigVMNode*> Nodes = Graph->GetNodes();
 			for (URigVMNode* Node : Nodes)
 			{
 				Controller->RepopulatePinsOnNode(Node, true, true);
@@ -1440,88 +1449,26 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 		SetupPinRedirectorsForBackwardsCompatibility();
 	}
 
-	for (URigVMGraph* GraphToDetach : GraphsToDetach)
+	for (URigVMGraph* Graph : AllModelsLeavesFirst)
 	{
-		URigVMController* Controller = GetOrCreateController(GraphToDetach);
-		// at this stage, allow all links to be reattached,
-		// RecomputeAllTemplateFilteredPermutations() later should break any invalid links
+		URigVMController* Controller = GetOrCreateController(Graph);
 		FRigVMControllerNotifGuard NotifGuard(Controller, true);
-		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, true, true);
-	}
-
-	TArray<URigVMGraph*> GraphsToClean = GetAllModels();
-
-	// Sort from leaf graphs to root
-	TArray<URigVMGraph*> SortedGraphsToClean;
-	SortedGraphsToClean.Reserve(GraphsToClean.Num());
-	while (SortedGraphsToClean.Num() < GraphsToClean.Num())
-	{
-		bool bGraphAdded = false;
-		for (URigVMGraph* Graph : GraphsToClean)
 		{
-			if (SortedGraphsToClean.Contains(Graph))
-			{
-				continue;
-			}
-			
-			TArray<URigVMGraph*> ContainedGraphs;
-			for (URigVMNode* Node : Graph->GetNodes())
-			{
-				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
-				{
-					if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
-					{
-						if (FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.GetLongPackageName() != GetPackage()->GetPathName())
-						{
-							continue;
-						}
-						if (URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->LoadReferencedNode())
-						{
-							ContainedGraphs.Add(ReferencedNode->GetContainedGraph());
-							continue;
-						}
-					}
-
-					if (URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
-					{
-						ContainedGraphs.Add(ContainedGraph);
-					}
-				}
-			}
-			
-			bool bAllContained = true;
-			for (URigVMGraph* Contained : ContainedGraphs)
-			{
-				if (!SortedGraphsToClean.Contains(Contained))
-				{
-					bAllContained = false;
-					break;
-				}
-			}
-			if (bAllContained)
-			{
-				SortedGraphsToClean.Add(Graph);
-				bGraphAdded = true;
-			}
+			URigVMController::FRestoreLinkedPathSettings Settings;
+			Settings.bFollowCoreRedirectors = true;
+			Controller->RestoreLinkedPaths(LinkedPaths.FindChecked(Graph));
 		}
-		ensure(bGraphAdded);
-	}
-	
-	for(int32 GraphIndex=0; GraphIndex<SortedGraphsToClean.Num(); GraphIndex++)
-	{
-		URigVMGraph* GraphToClean = SortedGraphsToClean[GraphIndex];
-		URigVMController* Controller = GetOrCreateController(GraphToClean);
-		TGuardValue<bool> GuardEditGraph(GraphToClean->bEditable, true);
-		FRigVMControllerNotifGuard NotifGuard(Controller, true);
+
+		TGuardValue<bool> GuardEditGraph(Graph->bEditable, true);
 		
-		for(URigVMNode* ModelNode : GraphToClean->GetNodes())
+		for(URigVMNode* ModelNode : Graph->GetNodes())
 		{
 			Controller->RemoveUnusedOrphanedPins(ModelNode);
 		}
 
 		if(bIsPostLoad)
 		{
-			for(URigVMNode* ModelNode : GraphToClean->GetNodes())
+			for(URigVMNode* ModelNode : Graph->GetNodes())
 			{
 				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
 				{
@@ -1535,56 +1482,42 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 
 		if(bIsPostLoad)
 		{
-			for(URigVMNode* ModelNode : GraphToClean->GetNodes())
+			for(URigVMNode* ModelNode : Graph->GetNodes())
 			{
-				if (ModelNode->HasWildCardPin())
-				{
-					continue;
-				}
 				if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
 				{
-					UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct(); 
-					if(ScriptStruct == nullptr)
+					if (!UnitNode->HasWildCardPin())
 					{
-						Controller->FullyResolveTemplateNode(UnitNode, INDEX_NONE, false);
-					}
-
-					// Try to find a deprecated template
-					if (UnitNode->GetScriptStruct() == nullptr && !UnitNode->TemplateNotation.IsNone())
-					{
-						const FRigVMTemplate* Template = FRigVMRegistry::Get().FindTemplate(UnitNode->TemplateNotation, true);
-						FRigVMTemplate::FTypeMap TypeMap = UnitNode->GetTemplatePinTypeMap(true);
-						int32 Permutation;
-						if (Template->FullyResolve(TypeMap, Permutation))
+						UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct(); 
+						if(ScriptStruct == nullptr)
 						{
-							const FRigVMFunction* Function = Template->GetPermutation(Permutation);
-							UnitNode->ResolvedFunctionName = Function->GetName();
+							Controller->FullyResolveTemplateNode(UnitNode, INDEX_NONE, false);
 						}
-					}
 
-					if (UnitNode->GetScriptStruct() == nullptr)
-					{
-						static const TCHAR UnresolvedUnitNodeMessage[] = TEXT("Node %s could not be resolved.");
-						Controller->ReportErrorf(UnresolvedUnitNodeMessage, *ModelNode->GetNodePath(true));
+						// Try to find a deprecated template
+						if (UnitNode->GetScriptStruct() == nullptr && !UnitNode->TemplateNotation.IsNone())
+						{
+							const FRigVMTemplate* Template = FRigVMRegistry::Get().FindTemplate(UnitNode->TemplateNotation, true);
+							FRigVMTemplate::FTypeMap TypeMap = UnitNode->GetTemplatePinTypeMap();
+
+							int32 Permutation;
+							if (Template->FullyResolve(TypeMap, Permutation))
+							{
+								const FRigVMFunction* Function = Template->GetPermutation(Permutation);
+								UnitNode->ResolvedFunctionName = Function->GetName();
+							}
+						}
+
+						if (UnitNode->GetScriptStruct() == nullptr)
+						{
+							static const TCHAR UnresolvedUnitNodeMessage[] = TEXT("Node %s could not be resolved.");
+							Controller->ReportErrorf(UnresolvedUnitNodeMessage, *ModelNode->GetNodePath(true));
+						}
 					}
 				}
 				if (URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(ModelNode))
 				{
-					if (const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
-					{
-						FRigVMTemplate::FTypeMap TypeMap = DispatchNode->GetTemplatePinTypeMap(true);
-						const FString ResolvedPermutationName = Factory->GetPermutationName(TypeMap);
-						if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*ResolvedPermutationName))
-						{
-							DispatchNode->ResolvedFunctionName = Function->GetName();
-						}
-						else
-						{
-							static const TCHAR UnresolvedDispatchPermutationMessage[] = TEXT("Dispatch factory %s could not find permutation..");
-							Controller->ReportErrorf(UnresolvedDispatchPermutationMessage, *Factory->GetFactoryName().ToString());
-						}
-					}
-					else
+					if (DispatchNode->GetFactory() == nullptr)
 					{
 						static const TCHAR UnresolvedDispatchNodeMessage[] = TEXT("Dispatch node %s has no factory..");
 						Controller->ReportErrorf(UnresolvedDispatchNodeMessage, *ModelNode->GetNodePath(true));
@@ -4206,12 +4139,6 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 	{
 		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
 
-		{
-			URigVMController* Controller = GetOrCreateController();
-			FRigVMControllerNotifGuard NotifGuard(Controller, true);
-			Controller->ReattachLinksToPinObjects();
-		}
-
 		check(GetDefaultModel());
 
 		for(URigVMGraph* Model : RigVMClient)
@@ -4229,7 +4156,9 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 
 					int32 VariableIndex = AddedMemberVariableMap.FindChecked(Description.Name);
 					FName VarName = NewVariables[VariableIndex].VarName;
-					GetOrCreateController()->RefreshVariableNode(VariableNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
+
+					URigVMController* Controller = GetOrCreateController(Model);
+					Controller->RefreshVariableNode(VariableNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
 					bDirtyDuringLoad = true;
 				}
 
@@ -4243,7 +4172,8 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 
 					int32 VariableIndex = AddedMemberVariableMap.FindChecked(Description.Name);
 					FName VarName = NewVariables[VariableIndex].VarName;
-					GetOrCreateController()->ReplaceParameterNodeWithVariable(ParameterNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
+					URigVMController* Controller = GetOrCreateController(Model);
+					Controller->ReplaceParameterNodeWithVariable(ParameterNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
 					bDirtyDuringLoad = true;
 				}
 			}
@@ -4494,12 +4424,6 @@ void UControlRigBlueprint::PatchParameterNodesOnLoad()
 		
 		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
 
-		{
-			URigVMController* Controller = GetOrCreateController();
-			FRigVMControllerNotifGuard NotifGuard(Controller, true);
-			Controller->ReattachLinksToPinObjects();
-		}
-
 		check(GetDefaultModel());
 
 		for(URigVMGraph* Model : RigVMClient)
@@ -4609,8 +4533,8 @@ void UControlRigBlueprint::PatchLinksWithCast()
 				URigVMPin* TargetPin = Link->GetTargetPin();
 				if(!SourcePin->IsLinkedTo(TargetPin))
 				{
-					const TArray<URigVMLink*> LinksToReattach = {Link};
-					Controller->ReattachLinksToPinObjects(true, &LinksToReattach, false, false);
+					const TArray<URigVMController::FLinkedPath> LinkedPaths = Controller->GetLinkedPaths({Link});
+					Controller->RestoreLinkedPaths(LinkedPaths);
 				}
 			}
 

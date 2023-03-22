@@ -1835,7 +1835,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 										LOCTEXT("RemoveVisualDebug_Tooltip", "Removes the visual debugging node"),
 										FSlateIcon(),
 											FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, VisualDebugNode]() {
-											Controller->RemoveNodeByName(VisualDebugNode->GetFName(), true, false, true);
+											Controller->RemoveNodeByName(VisualDebugNode->GetFName(), true, false);
 										})
 									));
 								}

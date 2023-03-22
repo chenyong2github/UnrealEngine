@@ -34,6 +34,8 @@ public:
 	// Default constructor
 	URigVMGraph();
 
+	virtual void PostLoad() override;
+
 	// Returns all of the Nodes within this Graph.
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	const TArray<URigVMNode*>& GetNodes() const;
@@ -41,6 +43,10 @@ public:
 	// Returns all of the Links within this Graph.
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	const TArray<URigVMLink*>& GetLinks() const;
+
+	// Returns true if the graph contains a link given its string representation 
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	bool ContainsLink(const FString& InPinPathRepresentation) const;
 
 	// Returns all of the contained graphs
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
@@ -53,6 +59,10 @@ public:
 	// Returns the root / top level parent graph of this graph (or this if it is the root graph)
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
     URigVMGraph* GetRootGraph() const;
+
+	// Returns the root / top level parent graph of this graph (or this if it is the root graph)
+	UFUNCTION(BlueprintPure, Category = RigVMGraph)
+	int32 GetGraphDepth() const;
 
 	// Returns true if this graph is a root / top level graph
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
@@ -162,6 +172,9 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<URigVMLink>> Links;
 
+	UPROPERTY(transient)
+	TArray<TObjectPtr<URigVMLink>> DetachedLinks;
+
 	UPROPERTY()
 	TArray<FName> SelectedNodes;
 
@@ -188,7 +201,7 @@ private:
 	UPROPERTY()
 	TArray<FRigVMGraphVariableDescription> LocalVariables;
 
-	bool IsNameAvailable(const FString& InName);
+	bool IsNameAvailable(const FString& InName) const;
 
 	friend class URigVMController;
 	friend class UControlRigBlueprint;

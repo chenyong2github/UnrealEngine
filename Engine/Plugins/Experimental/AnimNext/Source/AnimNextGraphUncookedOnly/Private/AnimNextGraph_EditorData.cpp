@@ -125,16 +125,18 @@ void UAnimNextGraph_EditorData::RefreshAllModels(EAnimNextGraphLoadType InLoadTy
 	TGuardValue<bool> ClientIgnoreModificationsGuard(RigVMClient.bIgnoreModelNotifications, true);
 
 	TArray<URigVMGraph*> GraphsToDetach = RigVMClient.GetAllModels(true, false);
-
+	TMap<const URigVMGraph*, TArray<URigVMController::FLinkedPath>> LinkedPaths;
+	
 	if (ensure(IsInGameThread()))
 	{
-		for (URigVMGraph* GraphToDetach : GraphsToDetach)
+		for (const URigVMGraph* GraphToDetach : GraphsToDetach)
 		{
 			URigVMController* Controller = RigVMClient.GetOrCreateController(GraphToDetach);
 			// temporarily disable default value validation during load time, serialized values should always be accepted
 			TGuardValue<bool> PerGraphDisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
 			FRigVMControllerNotifGuard NotifGuard(Controller, true);
-			Controller->DetachLinksFromPinObjects();
+			LinkedPaths.Add(GraphToDetach, Controller->GetLinkedPaths());
+			Controller->FastBreakLinkedPaths(LinkedPaths.FindChecked(GraphToDetach));
 			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
 			for (URigVMNode* Node : Nodes)
 			{
@@ -144,13 +146,13 @@ void UAnimNextGraph_EditorData::RefreshAllModels(EAnimNextGraphLoadType InLoadTy
 		//SetupPinRedirectorsForBackwardsCompatibility();
 	}
 
-	for (URigVMGraph* GraphToDetach : GraphsToDetach)
+	for (const URigVMGraph* GraphToDetach : GraphsToDetach)
 	{
 		URigVMController* Controller = RigVMClient.GetOrCreateController(GraphToDetach);
 		// at this stage, allow all links to be reattached,
 		// RecomputeAllTemplateFilteredPermutations() later should break any invalid links
 		FRigVMControllerNotifGuard NotifGuard(Controller, true);
-		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, true, true);
+		Controller->RestoreLinkedPaths(LinkedPaths.FindChecked(GraphToDetach));
 	}
 
 	if (bIsPostLoad)

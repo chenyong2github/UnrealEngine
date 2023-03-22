@@ -1624,7 +1624,7 @@ bool UControlRigGraphSchema::TryDeleteGraph(UEdGraph* GraphToDelete) const
 							}
 						}
 						
-						return Controller->RemoveNode(LibraryNode, bSetupUndoRedo, false, true);
+						return Controller->RemoveNode(LibraryNode, bSetupUndoRedo, false);
 					}
 				}
 			}
@@ -2051,7 +2051,7 @@ bool UControlRigGraphSchema::SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNo
 		{
 			GEditor->CancelTransaction(0);
 		}
-		return RigNode->GetController()->RemoveNode(RigNode->GetModelNode(), true, true, true);
+		return RigNode->GetController()->RemoveNode(RigNode->GetModelNode(), true, true);
 	}
 	return false;
 }

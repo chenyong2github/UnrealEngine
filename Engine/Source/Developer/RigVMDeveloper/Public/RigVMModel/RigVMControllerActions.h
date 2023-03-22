@@ -90,6 +90,23 @@ private:
 };
 
 /**
+ * A tuple 
+ * access to sub actions, merge functionality as well as undo and redo
+ * base implementations.
+ */
+USTRUCT()
+struct FRigVMActionNodeContent
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString Old;
+
+	UPROPERTY()
+	FString New;
+};
+
+/**
  * The base action is the base struct for all actions, and provides
  * access to sub actions, merge functionality as well as undo and redo
  * base implementations.
@@ -128,6 +145,9 @@ struct FRigVMBaseAction
 	// returns true if successfull.
 	virtual bool Merge(const FRigVMBaseAction* Other);
 
+	// Returns true if this action makes the other action obsolete.
+	virtual bool MakesObsolete(const FRigVMBaseAction* Other) const;
+
 	// Un-does the action and returns true if successfull.
 	virtual bool Undo(URigVMController* InController);
 
@@ -143,6 +163,9 @@ struct FRigVMBaseAction
 		SubActions.Add(Key);
 	}
 
+	bool StoreNode(const URigVMNode* InNode, URigVMController* InController, bool bIsPriorChange = true);
+	bool RestoreNode(const FName& InNodeName, URigVMController* InController, bool bIsUndoing);
+
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG
 	
 	// Logs the action to the console / output log
@@ -155,6 +178,9 @@ struct FRigVMBaseAction
 
 	UPROPERTY()
 	TArray<FRigVMActionKey> SubActions;
+
+	UPROPERTY()
+	TMap<FName, FRigVMActionNodeContent> ExportedNodes;
 };
 
 /**
@@ -252,28 +278,42 @@ public:
 			ActionList = &CurrentActions[CurrentActions.Num()-1]->SubActions;
 		}
 
-		bool bMergeIfPossible = bPerformMerge;
-		if (bMergeIfPossible)
+		bool bMergeIfPossible = false;
+		bool bIgnoreAction = false;
+		
+		if (ActionList->Num() > 0 && InAction.SubActions.Num() == 0)
 		{
-			bMergeIfPossible = false;
-			if (ActionList->Num() > 0 && InAction.SubActions.Num() == 0)
+			const FRigVMActionWrapper Wrapper((*ActionList)[ActionList->Num() - 1]);
+			if (Wrapper.GetAction()->SubActions.Num() == 0)
 			{
+				FRigVMBaseAction* OtherAction = Wrapper.GetAction();
+
 				if (ActionList->Last().ScriptStructPath == ActionType::StaticStruct()->GetPathName())
 				{
-					FRigVMActionWrapper Wrapper((*ActionList)[ActionList->Num() - 1]);
-					if (Wrapper.GetAction()->SubActions.Num() == 0)
+					if(bPerformMerge)
 					{
-						bMergeIfPossible = Wrapper.GetAction()->Merge(&InAction);
-						if (bMergeIfPossible)
+						bMergeIfPossible = OtherAction->Merge(&InAction);
+						if(bMergeIfPossible)
 						{
 							(*ActionList)[ActionList->Num()-1].ExportedText = Wrapper.ExportText();
 						}
 					}
 				}
+
+				if(!bMergeIfPossible)
+				{
+					if(InAction.MakesObsolete(OtherAction))
+					{
+						// if this new action cancels out the last one we don't
+						// need to perform either of the actions
+						ActionList->Pop();
+						bIgnoreAction = true;
+					}
+				}
 			}
 		}
 
-		if (!bMergeIfPossible)
+		if (!bMergeIfPossible && !bIgnoreAction)
 		{
 			FRigVMActionKey Key;
 			Key.Set<ActionType>(InAction);
@@ -363,222 +403,6 @@ private:
 	friend class URigVMController;
 };
 
-/**
- * An action which inverses the child actions,
- * it performs undo on redo and vice versa.
- */
-USTRUCT()
-struct FRigVMInverseAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-	virtual ~FRigVMInverseAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMInverseAction::StaticStruct(); }
-
-	virtual bool Undo(URigVMController* InController);
-	virtual bool Redo(URigVMController* InController);
-};
-
-/**
- * An action adding a unit node to the graph.
- */
-USTRUCT()
-struct FRigVMAddUnitNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddUnitNodeAction();
-	FRigVMAddUnitNodeAction(URigVMUnitNode* InNode);
-	virtual ~FRigVMAddUnitNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddUnitNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FString ScriptStructPath;
-
-	UPROPERTY()
-	FName MethodName;
-	
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
- * An action adding a variable node to the graph.
- */
-USTRUCT()
-struct FRigVMAddVariableNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddVariableNodeAction();
-	FRigVMAddVariableNodeAction(URigVMVariableNode* InNode);
-	virtual ~FRigVMAddVariableNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddVariableNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FName VariableName;
-	
-	UPROPERTY()
-	FString CPPType;
-
-	UPROPERTY()
-	FString CPPTypeObjectPath;
-
-	UPROPERTY()
-	bool bIsGetter;
-
-	UPROPERTY()
-	FString DefaultValue;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
- * An action adding a comment node to the graph.
- */
-USTRUCT()
-struct FRigVMAddCommentNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddCommentNodeAction();
-	FRigVMAddCommentNodeAction(URigVMCommentNode* InNode);
-	virtual ~FRigVMAddCommentNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddCommentNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FString CommentText;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FVector2D Size;
-
-	UPROPERTY()
-	FLinearColor Color;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
- * An action adding a reroute node to the graph.
- */
-USTRUCT()
-struct FRigVMAddRerouteNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddRerouteNodeAction();
-	FRigVMAddRerouteNodeAction(URigVMRerouteNode* InNode);
-	virtual ~FRigVMAddRerouteNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddRerouteNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	bool bShowAsFullNode;
-
-	UPROPERTY()
-	FString CPPType;
-
-	UPROPERTY()
-	FName CPPTypeObjectPath;
-
-	UPROPERTY()
-	FString DefaultValue;
-
-	UPROPERTY()
-	bool bIsConstant;
-
-	UPROPERTY()
-	FName CustomWidgetName;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
- * An action adding an enum node to the graph.
- */
-USTRUCT()
-struct FRigVMAddEnumNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddEnumNodeAction();
-	FRigVMAddEnumNodeAction(URigVMEnumNode* InNode);
-	virtual ~FRigVMAddEnumNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddEnumNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FString CPPType;
-
-	UPROPERTY()
-	FName CPPTypeObjectPath;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
- * An action adding a template node to the graph.
- */
-USTRUCT()
-struct FRigVMAddTemplateNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddTemplateNodeAction();
-	FRigVMAddTemplateNodeAction(URigVMTemplateNode* InNode);
-	virtual ~FRigVMAddTemplateNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddTemplateNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FName TemplateNotation;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
 
 /**
  * An action injecting a node into a pin
@@ -614,24 +438,45 @@ public:
 };
 
 /**
- * An action removing a node from the graph.
+ * An action ejecting a node from a pin
  */
 USTRUCT()
-struct FRigVMRemoveNodeAction : public FRigVMBaseAction
+struct FRigVMEjectNodeFromPinAction : public FRigVMInjectNodeIntoPinAction
 {
 	GENERATED_BODY()
 
 public:
 
-	FRigVMRemoveNodeAction() {}
-	FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMController* InController);
-	virtual ~FRigVMRemoveNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRemoveNodeAction::StaticStruct(); }
+	FRigVMEjectNodeFromPinAction();
+	FRigVMEjectNodeFromPinAction(URigVMInjectionInfo* InInjectionInfo);
+	virtual ~FRigVMEjectNodeFromPinAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMEjectNodeFromPinAction::StaticStruct(); }
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+};
+
+/**
+ * An action removing one or more nodes from the graph.
+ */
+USTRUCT()
+struct FRigVMRemoveNodesAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMRemoveNodesAction() {}
+	FRigVMRemoveNodesAction(TArray<URigVMNode*> InNodes, URigVMController* InController);
+	virtual ~FRigVMRemoveNodesAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRemoveNodesAction::StaticStruct(); }
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
 
 	UPROPERTY()
-	FRigVMActionKey InverseActionKey;
+	TArray<FName> NodeNames;
+
+	UPROPERTY()
+	FString ExportedContent;	
 };
 
 /**
@@ -1180,33 +1025,6 @@ public:
 };
 
 /**
- * An action to add a node from a text buffer
- */
-USTRUCT()
-struct FRigVMImportNodeFromTextAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMImportNodeFromTextAction();
-	FRigVMImportNodeFromTextAction(URigVMNode* InNode, URigVMController* InController);
-	virtual ~FRigVMImportNodeFromTextAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMImportNodeFromTextAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-
-	UPROPERTY()
-	FString ExportedText;
-};
-
-/**
  * An action to collapse a selection of nodes
  */
 USTRUCT()
@@ -1231,9 +1049,6 @@ public:
 
 	UPROPERTY()
 	TArray<FString> CollapsedNodesPaths;
-
-	UPROPERTY()
-	TArray<FString> CollapsedNodesLinks;
 
 	UPROPERTY()
 	bool bIsAggregate;
@@ -1261,9 +1076,6 @@ public:
 
 	UPROPERTY()
 	FString LibraryNodeContent;
-
-	UPROPERTY()
-	TArray<FString> LibraryNodeLinks;
 
 	UPROPERTY()
 	TArray<FString> ExpandedNodePaths;
@@ -1309,6 +1121,7 @@ public:
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMPushGraphAction::StaticStruct(); }
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
+	virtual bool MakesObsolete(const FRigVMBaseAction* Other) const override;
 
 	UPROPERTY()
 	FSoftObjectPath GraphPath;
@@ -1330,6 +1143,7 @@ public:
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMPopGraphAction::StaticStruct(); }
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
+	virtual bool MakesObsolete(const FRigVMBaseAction* Other) const override;
 
 	UPROPERTY()
 	FSoftObjectPath GraphPath;
@@ -1630,33 +1444,6 @@ public:
 };
 
 /**
- * An action adding an invoke entry node to the graph.
- */
-USTRUCT()
-struct FRigVMAddInvokeEntryNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddInvokeEntryNodeAction();
-	FRigVMAddInvokeEntryNodeAction(URigVMInvokeEntryNode* InNode);
-	virtual ~FRigVMAddInvokeEntryNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddInvokeEntryNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FName EntryName;
-	
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
  * An action marking a function as public/private.
  */
 USTRUCT()
@@ -1678,4 +1465,49 @@ public:
 	
 	UPROPERTY()
 	bool bIsPublic;
+};
+
+/**
+ * An action importing nodes and links from text
+ */
+USTRUCT()
+struct FRigVMImportFromTextAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMImportFromTextAction() {}
+	FRigVMImportFromTextAction(const FString& InContent, const TArray<FName>& InTopLevelNodeNames);
+	FRigVMImportFromTextAction(URigVMNode* InNode, URigVMController* InController, bool bIncludeExteriorLinks = true);
+	FRigVMImportFromTextAction(const TArray<URigVMNode*>& InNodes, URigVMController* InController, bool bIncludeExteriorLinks = true);
+	void SetContent(const TArray<URigVMNode*>& InNodes, URigVMController* InController, bool bIncludeExteriorLinks = true);
+	virtual ~FRigVMImportFromTextAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMImportFromTextAction::StaticStruct(); }
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString Content;
+
+	UPROPERTY()
+	TArray<FName> TopLevelNodeNames;
+};
+
+/**
+ * An action to add store / restore a single node
+ */
+USTRUCT()
+struct FRigVMReplaceNodesAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMReplaceNodesAction() {}
+	FRigVMReplaceNodesAction(const TArray<URigVMNode*>& InNodes, URigVMController* InController);
+	virtual ~FRigVMReplaceNodesAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMReplaceNodesAction::StaticStruct(); }
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
 };

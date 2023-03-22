@@ -1484,9 +1484,9 @@ URigVMPin* URigVMPin::FindSubPin(const FString& InPinPath) const
 	return nullptr;
 }
 
-bool URigVMPin::IsLinkedTo(URigVMPin* InPin) const
+bool URigVMPin::IsLinkedTo(const URigVMPin* InPin) const
 {
-	for (URigVMLink* Link : Links)
+	for (const URigVMLink* Link : Links)
 	{
 		if (Link->GetSourcePin() == InPin || Link->GetTargetPin() == InPin)
 		{
@@ -1847,43 +1847,49 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 
 	if (!bInAllowNonArgumentPins)
 	{
-		if (URigVMTemplateNode* SourceTemplateNode = Cast<URigVMTemplateNode>(SourceNode))
+		if (const URigVMTemplateNode* SourceTemplateNode = Cast<URigVMTemplateNode>(SourceNode))
 		{
 			if (!SourceNode->IsA<URigVMFunctionEntryNode>() && !SourceNode->IsA<URigVMFunctionReturnNode>())
 			{
 				if (const FRigVMTemplate* Template = SourceTemplateNode->GetTemplate())
 				{
-					URigVMPin* RootPin = InSourcePin->GetRootPin();
-					if (!Template->FindArgument(RootPin->GetFName()))
+					const URigVMPin* RootPin = InSourcePin->GetRootPin();
+					if(!RootPin->IsOrphanPin())
 					{
-						if(!RootPin->IsExecuteContext())
+						if (!Template->FindArgument(RootPin->GetFName()))
 						{
-							if (OutFailureReason)
+							if(!RootPin->IsExecuteContext())
 							{
-								*OutFailureReason = FString::Printf(TEXT("Library pin %s supported types need to be reduced."), *RootPin->GetPinPath(true));
+								if (OutFailureReason)
+								{
+									*OutFailureReason = FString::Printf(TEXT("Library pin %s supported types need to be reduced."), *RootPin->GetPinPath(true));
+								}
+								return false;
 							}
-							return false;
 						}
 					}
 				}
 			}
 		}
-		if (URigVMTemplateNode* TargetTemplateNode = Cast<URigVMTemplateNode>(TargetNode))
+		if (const URigVMTemplateNode* TargetTemplateNode = Cast<URigVMTemplateNode>(TargetNode))
 		{
 			if (!TargetNode->IsA<URigVMFunctionEntryNode>() && !TargetNode->IsA<URigVMFunctionReturnNode>())
 			{
 				if (const FRigVMTemplate* Template = TargetTemplateNode->GetTemplate())
 				{
-					URigVMPin* RootPin = InTargetPin->GetRootPin();
-					if (!Template->FindArgument(RootPin->GetFName()))
+					const URigVMPin* RootPin = InTargetPin->GetRootPin();
+					if(!RootPin->IsOrphanPin())
 					{
-						if(!RootPin->IsExecuteContext())
+						if (!Template->FindArgument(RootPin->GetFName()))
 						{
-							if (OutFailureReason)
+							if(!RootPin->IsExecuteContext())
 							{
-								*OutFailureReason = FString::Printf(TEXT("Library pin %s supported types need to be reduced."), *RootPin->GetPinPath(true));
+								if (OutFailureReason)
+								{
+									*OutFailureReason = FString::Printf(TEXT("Library pin %s supported types need to be reduced."), *RootPin->GetPinPath(true));
+								}
+								return false;
 							}
-							return false;
 						}
 					}
 				}
@@ -1892,7 +1898,7 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 	}
 
 	// only allow to link to specified input / output pins on an injected node
-	if (URigVMInjectionInfo* SourceInjectionInfo = SourceNode->GetInjectionInfo())
+	if (const URigVMInjectionInfo* SourceInjectionInfo = SourceNode->GetInjectionInfo())
 	{
 		if (SourceInjectionInfo->OutputPin != InSourcePin->GetRootPin())
 		{
@@ -1905,7 +1911,7 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 	}
 
 	// only allow to link to specified input / output pins on an injected node
-	if (URigVMInjectionInfo* TargetInjectionInfo = TargetNode->GetInjectionInfo())
+	if (const URigVMInjectionInfo* TargetInjectionInfo = TargetNode->GetInjectionInfo())
 	{
 		if (TargetInjectionInfo->InputPin != InTargetPin->GetRootPin())
 		{

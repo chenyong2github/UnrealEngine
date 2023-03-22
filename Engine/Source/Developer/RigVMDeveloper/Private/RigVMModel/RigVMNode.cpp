@@ -180,6 +180,11 @@ URigVMGraph* URigVMNode::GetRootGraph() const
 	return nullptr;
 }
 
+int32 URigVMNode::GetGraphDepth() const
+{
+	return GetGraph()->GetGraphDepth();
+}
+
 URigVMInjectionInfo* URigVMNode::GetInjectionInfo() const
 {
 	return Cast<URigVMInjectionInfo>(GetOuter());

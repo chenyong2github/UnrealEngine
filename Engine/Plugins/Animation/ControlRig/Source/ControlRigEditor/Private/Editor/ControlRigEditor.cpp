@@ -2572,8 +2572,8 @@ void FControlRigEditor::DeleteSelectedNodes()
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	SetUISelectionState(NAME_None);
 
-	bool DeletedAnything = false;
-	GetFocusedController()->OpenUndoBracket(TEXT("Delete selected nodes"));
+	bool bRelinkPins = false;
+	TArray<URigVMNode*> NodesToRemove;
 
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
@@ -2584,17 +2584,18 @@ void FControlRigEditor::DeleteSelectedNodes()
 				AnalyticsTrackNodeEvent(GetBlueprintObj(), Node, true);
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 				{
-					const bool bReconnectPins = (FSlateApplication::Get().GetModifierKeys().IsShiftDown());
-					if(GetFocusedController()->RemoveNodeByName(*RigNode->ModelNodePath, true, false, true, bReconnectPins))
+					bRelinkPins = bRelinkPins || FSlateApplication::Get().GetModifierKeys().IsShiftDown();
+
+					if(URigVMNode* ModelNode = GetFocusedController()->GetGraph()->FindNodeByName(*RigNode->ModelNodePath))
 					{
-						DeletedAnything = true;
+						NodesToRemove.Add(ModelNode);
 					}
 				}
 				else if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
 				{
-					if(GetFocusedController()->RemoveNodeByName(CommentNode->GetFName(), true, false, true))
+					if(URigVMNode* ModelNode = GetFocusedController()->GetGraph()->FindNodeByName(CommentNode->GetFName()))
 					{
-						DeletedAnything = true;
+						NodesToRemove.Add(ModelNode);
 					}
 				}
 				else
@@ -2605,14 +2606,18 @@ void FControlRigEditor::DeleteSelectedNodes()
 		}
 	}
 
-	if(DeletedAnything)
+	if(NodesToRemove.IsEmpty())
 	{
-		GetFocusedController()->CloseUndoBracket();
+		return;
 	}
-	else
+
+	GetFocusedController()->OpenUndoBracket(TEXT("Delete selected nodes"));
+	if(bRelinkPins && NodesToRemove.Num() == 1)
 	{
-		GetFocusedController()->CancelUndoBracket();
+		GetFocusedController()->RelinkSourceAndTargetPins(NodesToRemove[0], true);;
 	}
+	GetFocusedController()->RemoveNodes(NodesToRemove, true);
+	GetFocusedController()->CloseUndoBracket();
 }
 
 bool FControlRigEditor::CanDeleteNodes() const

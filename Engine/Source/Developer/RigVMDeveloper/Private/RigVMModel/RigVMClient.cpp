@@ -3,6 +3,7 @@
 #include "RigVMModel/RigVMClient.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Exporters/Exporter.h"
+#include "Algo/Sort.h"
 #include "UnrealExporter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMClient)
@@ -134,6 +135,13 @@ TArray<URigVMGraph*> FRigVMClient::GetAllModels(bool bIncludeFunctionLibrary, bo
 		}
 	}
 	return AllModels;
+}
+
+TArray<URigVMGraph*> FRigVMClient::GetAllModelsLeavesFirst(bool bIncludeFunctionLibrary) const
+{
+	TArray<URigVMGraph*> SortedModels = GetAllModels(bIncludeFunctionLibrary, true);
+	URigVMController::SortGraphElementsByGraphDepth(SortedModels, true);
+	return SortedModels;
 }
 
 URigVMController* FRigVMClient::GetController(int32 InIndex) const
@@ -687,14 +695,16 @@ FRigVMClientPatchResult FRigVMClient::PatchModelsOnLoad()
 {
 	FRigVMClientPatchResult Result;
 	
-	TArray<URigVMGraph*> AllModels = GetAllModels(true, true);
+	TArray<URigVMGraph*> AllModels = GetAllModelsLeavesFirst(true);
 	TGuardValue<bool> ClientIgnoreModificationsGuard(bIgnoreModelNotifications, true);
 	for(URigVMGraph* Model : AllModels)
 	{
+		Model->PostLoad();
+		
 		URigVMController* Controller = GetOrCreateController(Model);
 		TGuardValue<bool> GuardSuspendTemplateComputation(Controller->bSuspendTemplateComputation, true);
 		TGuardValue<bool> GuardIsTransacting(Controller->bIsTransacting, true);
-		
+
 		Result.Merge(Controller->PatchUnitNodesOnLoad());
 		Result.Merge(Controller->PatchDispatchNodesOnLoad());
 		Result.Merge(Controller->PatchBranchNodesOnLoad());
@@ -704,6 +714,16 @@ FRigVMClientPatchResult FRigVMClient::PatchModelsOnLoad()
 	}
 
 	return Result;
+}
+
+void FRigVMClient::ProcessDetachedLinks()
+{
+	TArray<URigVMGraph*> AllModels = GetAllModels(true, true);
+	for(URigVMGraph* Model : AllModels)
+	{
+		URigVMController* Controller = GetOrCreateController(Model);
+		Controller->ProcessDetachedLinks();
+	}
 }
 
 void FRigVMClient::PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName)

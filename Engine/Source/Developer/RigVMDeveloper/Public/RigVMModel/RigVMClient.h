@@ -103,6 +103,7 @@ public:
 	URigVMGraph* GetModel(const FString& InNodePathOrName) const;
 	URigVMGraph* GetModel(const UObject* InEditorSideObject) const;
 	TArray<URigVMGraph*> GetAllModels(bool bIncludeFunctionLibrary, bool bRecursive) const;
+	TArray<URigVMGraph*> GetAllModelsLeavesFirst(bool bIncludeFunctionLibrary) const;
 	URigVMController* GetController(int32 InIndex) const;
 	URigVMController* GetController(const FString& InNodePathOrName) const;
 	URigVMController* GetController(const URigVMGraph* InModel) const;
@@ -144,6 +145,9 @@ public:
 
 	// backwards compatibility
 	FRigVMClientPatchResult PatchModelsOnLoad();
+
+	// try to reattach detached links and delete remaining ones
+	void ProcessDetachedLinks();
 
 	// work to be done after a duplication of the source asset
 	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);

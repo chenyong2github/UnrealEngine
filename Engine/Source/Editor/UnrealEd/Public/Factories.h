@@ -57,7 +57,7 @@ protected:
 	virtual void PostProcessConstructedObjects() {};
 
 	/** Provide the opportunity to change the name during import */
-	virtual void UpdateObjectName(UClass* ObjectClass, FName& InOutObjName) {};
+	virtual void UpdateObjectName(UClass* ObjectClass, UObject* InParent, FName& InOutObjName) {};
 
 	/** Util to ensure that InName is a valid name for a new object within InParent. Will rename any existing object within InParent if it is called InName. */
 	static void ClearObjectNameUsage(UObject* InParent, FName InName);

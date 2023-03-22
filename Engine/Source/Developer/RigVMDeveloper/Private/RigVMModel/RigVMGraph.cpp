@@ -20,6 +20,28 @@ URigVMGraph::URigVMGraph()
 	SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 }
 
+void URigVMGraph::PostLoad()
+{
+	Super::PostLoad();
+
+	// update the bookkeeping on the links
+	for(URigVMLink* Link : Links)
+	{
+		URigVMPin* SourcePin = Link->GetSourcePin();
+		URigVMPin* TargetPin = Link->GetTargetPin();
+		check((SourcePin == nullptr) == (TargetPin == nullptr));
+		
+		if(SourcePin)
+		{
+			SourcePin->Links.AddUnique(Link);
+		}
+		if(TargetPin)
+		{
+			TargetPin->Links.AddUnique(Link);
+		}
+	}
+}
+
 const TArray<URigVMNode*>& URigVMGraph::GetNodes() const
 {
 	return Nodes;
@@ -30,14 +52,19 @@ const TArray<URigVMLink*>& URigVMGraph::GetLinks() const
 	return Links;
 }
 
+bool URigVMGraph::ContainsLink(const FString& InPinPathRepresentation) const
+{
+	return FindLink(InPinPathRepresentation) != nullptr;
+}
+
 TArray<URigVMGraph*> URigVMGraph::GetContainedGraphs(bool bRecursive) const
 {
 	TArray<URigVMGraph*> Graphs;
 	for (URigVMNode* Node : GetNodes())
 	{
-		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+		if (const URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 		{
-			Graphs.Add(CollapseNode->GetContainedGraph());
+			Graphs.AddUnique(CollapseNode->GetContainedGraph());
 			if (bRecursive)
 			{
 				Graphs.Append(CollapseNode->GetContainedGraph()->GetContainedGraphs(true));
@@ -63,6 +90,15 @@ URigVMGraph* URigVMGraph::GetRootGraph() const
 		return ParentGraph->GetRootGraph();
 	}
 	return (URigVMGraph*)this;
+}
+
+int32 URigVMGraph::GetGraphDepth() const
+{
+	if(const URigVMGraph* ParentGraph = GetParentGraph())
+	{
+		return ParentGraph->GetGraphDepth() + 1;
+	}
+	return 0;
 }
 
 bool URigVMGraph::IsRootGraph() const
@@ -429,9 +465,9 @@ void URigVMGraph::PreSave(FObjectPreSaveContext SaveContext)
 	LastStructureHash = GetStructureHash();
 }
 
-bool URigVMGraph::IsNameAvailable(const FString& InName)
+bool URigVMGraph::IsNameAvailable(const FString& InName) const
 {
-	for (URigVMNode* Node : Nodes)
+	for (const URigVMNode* Node : Nodes)
 	{
 		if (Node->GetName() == InName)
 		{

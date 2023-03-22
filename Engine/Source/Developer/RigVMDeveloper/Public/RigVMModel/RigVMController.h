@@ -19,6 +19,7 @@
 #include "RigVMModel/RigVMBuildData.h"
 #include "RigVMCore/RigVMUserWorkflow.h"
 #include "UObject/Interface.h"
+#include "Algo/Sort.h"
 #include "RigVMController.generated.h"
 
 class URigVMActionStack;
@@ -88,7 +89,7 @@ DECLARE_DELEGATE_FiveParams(FRigVMController_OnBulkEditProgressDelegate, TSoftOb
 DECLARE_DELEGATE_RetVal_TwoParams(FString, FRigVMController_PinPathRemapDelegate, const FString& /* InPinPath */, bool /* bIsInput */);
 DECLARE_DELEGATE_OneParam(FRigVMController_RequestJumpToHyperlinkDelegate, const UObject* InSubject);
 DECLARE_DELEGATE_OneParam(FRigVMController_ConfigureWorkflowOptionsDelegate, URigVMUserWorkflowOptions* InOutOptions);
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_CheckPinComatibilityDelegate, URigVMPin*, URigVMPin*);
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_CheckPinCompatibilityDelegate, URigVMPin*, URigVMPin*);
 
 USTRUCT(BlueprintType)
 struct RIGVMDEVELOPER_API FRigStructScope
@@ -205,7 +206,7 @@ public:
 	// Pushes a new graph to the stack
 	// This causes a GraphChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo = true);
+	bool PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo = true);
 
 	// Pops the last graph off the stack
 	// This causes a GraphChanged modified event.
@@ -494,11 +495,11 @@ public:
 
 	// Exports the given nodes as text
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FString ExportNodesToText(const TArray<FName>& InNodeNames);
+	FString ExportNodesToText(const TArray<FName>& InNodeNames, bool bIncludeExteriorLinks = false);
 
 	// Exports the selected nodes as text
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FString ExportSelectedNodesToText();
+	FString ExportSelectedNodesToText(bool bIncludeExteriorLinks = false);
 
 	// Exports the given nodes as text
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -552,13 +553,23 @@ public:
 	// Removes a node from the graph
 	// This causes a NodeRemoved modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bRecursive = false, bool bPrintPythonCommand = false, bool bRelinkPins = false);
+	bool RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Removes a node from the graph given the node's name.
 	// This causes a NodeRemoved modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveNodeByName(const FName& InNodeName, bool bSetupUndoRedo = true, bool bRecursive = false, bool bPrintPythonCommand = false, bool bRelinkPins = false);
-	
+	bool RemoveNodeByName(const FName& InNodeName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Removes a list of nodes from the graph
+	// This causes a NodeRemoved modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Removes a list of nodes from the graph given the names
+	// This causes a NodeRemoved modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RemoveNodesByName(const TArray<FName>& InNodeNames, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
 	// Renames a node in the graph
 	// This causes a NodeRenamed modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -908,9 +919,8 @@ public:
 	// A delegate to request to configure an options instance for a node workflow
 	FRigVMController_ConfigureWorkflowOptionsDelegate ConfigureWorkflowOptionsDelegate; 
 
-	int32 DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks = nullptr);
-	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr, bool bSetupOrphanedPins = false, bool bAllowNonArgumentLinks = false, bool bRecursive = true);
 	void AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath);
+	void ClearPinRedirectors();
 
 	// Removes nodes which went stale.
 	void RemoveStaleNodes();
@@ -919,11 +929,12 @@ public:
 	bool ShouldRedirectPin(UScriptStruct* InOwningStruct, const FString& InOldRelativePinPath, FString& InOutNewRelativePinPath) const;
 	bool ShouldRedirectPin(const FString& InOldPinPath, FString& InOutNewPinPath) const;
 
-	void RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCoreRedirectors = true, bool bSetupOrphanedPins = false, bool bDetachAndReattachLinks = false);
+	void RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCoreRedirectors = true, bool bSetupOrphanedPins = false, bool bRecreateLinks = false);
 	void RemovePinsDuringRepopulate(URigVMNode* InNode, TArray<URigVMPin*>& InPins, bool bSetupOrphanedPins);
 
 	// removes any orphan pins that no longer holds a link
-	bool RemoveUnusedOrphanedPins(URigVMNode* InNode);
+	// @param bRelayLinks If true we'll try to relay the links back to their original pins 
+	bool RemoveUnusedOrphanedPins(URigVMNode* InNode, bool bRelayLinks = false);
 
 	// Update filtered permutations, and propagate both ways of the link before adding this link
 	bool PrepareToLink(URigVMPin* FirstToResolve, URigVMPin* SecondToResolve, bool bSetupUndoRedo);
@@ -1063,9 +1074,9 @@ private:
 	FString GetValidNodeName(const FString& InPrefix);
 	bool IsValidGraph() const;
 	bool IsGraphEditable() const;
-	bool IsValidNodeForGraph(URigVMNode* InNode);
-	bool IsValidPinForGraph(URigVMPin* InPin);
-	bool IsValidLinkForGraph(URigVMLink* InLink);
+	bool IsValidNodeForGraph(const URigVMNode* InNode);
+	bool IsValidPinForGraph(const URigVMPin* InPin);
+	bool IsValidLinkForGraph(const URigVMLink* InLink);
 	bool CanAddNode(URigVMNode* InNode, bool bReportErrors, bool bIgnoreFunctionEntryReturnNodes = false);
 	TObjectPtr<URigVMNode> FindEventNode(const UScriptStruct* InScriptStruct) const;
 	bool CanAddEventNode(UScriptStruct* InScriptStruct, const bool bReportErrors) const;
@@ -1083,7 +1094,7 @@ private:
 	static FString GetPinInitialDefaultValue(const URigVMPin* InPin);
 	static FString GetPinInitialDefaultValueFromStruct(UScriptStruct* ScriptStruct, const URigVMPin* InPin, uint32 InOffset);
 	URigVMPin* InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, const FString& InDefaultValue, bool bSetupUndoRedo);
-	bool RemovePin(URigVMPin* InPinToRemove, bool bSetupUndoRedo);
+	bool RemovePin(URigVMPin* InPinToRemove, bool bSetupUndoRedo, bool bForceBreakLinks = false);
 	FProperty* FindPropertyForPin(const FString& InPinPath);
 	bool BindPinToVariable(URigVMPin* InPin, const FString& InNewBoundVariablePath, bool bSetupUndoRedo, const FString& InVariableNodeName = FString());
 	bool UnbindPinFromVariable(URigVMPin* InPin, bool bSetupUndoRedo);
@@ -1094,11 +1105,12 @@ private:
 	URigVMNode* EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
 	bool EjectAllInjectedNodes(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
 
+public:
+
 	// try to reconnect source and target pins after a node deletion
 	void RelinkSourceAndTargetPins(URigVMNode* RigNode, bool bSetupUndoRedo = true);
 
-public:
-	bool AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo = true, ERigVMPinDirection InUserDirection = ERigVMPinDirection::Invalid, bool bCreateCastNode = false);
+	bool AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo = true, ERigVMPinDirection InUserDirection = ERigVMPinDirection::Invalid, bool bCreateCastNode = false, bool bIsRestoringLinks = false, FString* OutFailureReason = nullptr);
 	bool BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo = true);
 	bool BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupUndoRedo = true);
 	void EnableTypeCasting(bool bEnabled = true) { bEnableTypeCasting = bEnabled; }
@@ -1120,7 +1132,7 @@ private:
 
 	void RefreshFunctionPins(URigVMNode* InNode);
 
-	void ReportRemovedLink(const FString& InSourcePinPath, const FString& InTargetPinPath);
+	void ReportRemovedLink(const FString& InSourcePinPath, const FString& InTargetPinPath, const FString& Reason = FString());
 
 	struct FPinState
 	{
@@ -1188,25 +1200,68 @@ public:
 	static FString GetSanitizedPinName(const FString& InName);
 	static FString GetSanitizedPinPath(const FString& InName);
 	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
-	static TArray<TPair<FString, FString>> GetLinkedPinPaths(URigVMNode* InNode, bool bIncludeInjectionNodes = false);
-	static TArray<TPair<FString, FString>> GetLinkedPinPaths(const TArray<URigVMNode*>& InNodes, bool bIncludeInjectionNodes = false);
-	bool BreakLinkedPaths(const TArray<TPair<FString, FString>>& InLinkedPaths, bool bSetupUndoRedo);
-	bool RestoreLinkedPaths(
-		const TArray<TPair<FString, FString>>& InLinkedPaths,
-		const TMap<FString, FString>& InNodeNameMap,
-		const TMap<FString,FRigVMController_PinPathRemapDelegate>& InRemapDelegates,
-		FRigVMController_CheckPinComatibilityDelegate InCompatibilityDelegate,
-		bool bSetupUndoRedo,
-		ERigVMPinDirection InUserDirection = ERigVMPinDirection::Invalid);
-	bool RestoreLinkedPaths(
-		const TArray<TPair<FString, FString>>& InLinkedPaths,
-		const TMap<FString, FString>& InNodeNameMap,
-		const TMap<FString,FRigVMController_PinPathRemapDelegate>& InRemapDelegates,
-		bool bSetupUndoRedo,
-		ERigVMPinDirection InUserDirection = ERigVMPinDirection::Invalid)
+
+	struct FLinkedPath
 	{
-		return RestoreLinkedPaths(InLinkedPaths, InNodeNameMap, InRemapDelegates, FRigVMController_CheckPinComatibilityDelegate(), bSetupUndoRedo, InUserDirection);
-	}
+		FLinkedPath()
+			: bSourceNodeIsInjected(false)
+			, bTargetNodeIsInjected(false)
+		{}
+
+		FLinkedPath(URigVMLink* InLink);
+
+		URigVMGraph* GetGraph(URigVMGraph* InGraph = nullptr) const;
+		FString GetPinPathRepresentation() const;
+		URigVMPin* GetSourcePin(URigVMGraph* InGraph = nullptr) const;
+		URigVMPin* GetTargetPin(URigVMGraph* InGraph = nullptr) const;
+
+		friend uint32 GetTypeHash(const FLinkedPath& InPath);
+
+		bool operator ==(const FLinkedPath& InOther) const { return GetTypeHash(*this) == GetTypeHash(InOther); }
+		bool operator !=(const FLinkedPath& InOther) const { return !(*this == InOther); }
+		
+		TSoftObjectPtr<URigVMGraph> GraphPtr;
+		FString SourcePinPath;
+		FString TargetPinPath;
+		bool bSourceNodeIsInjected;
+		bool bTargetNodeIsInjected;
+	};
+
+	struct FRestoreLinkedPathSettings
+	{
+		FRestoreLinkedPathSettings()
+			: bFollowCoreRedirectors(false)
+			, bRelayToOrphanPins(false)
+			, bIsImportingFromText(false)
+			, UserDirection(ERigVMPinDirection::Invalid)
+		{}
+
+		bool bFollowCoreRedirectors;
+		bool bRelayToOrphanPins;
+		bool bIsImportingFromText;
+		ERigVMPinDirection UserDirection;
+		TMap<FString, FString> NodeNameMap;
+		TMap<FString,FRigVMController_PinPathRemapDelegate> RemapDelegates;
+		FRigVMController_CheckPinCompatibilityDelegate CompatibilityDelegate;
+	};
+
+	TArray<FLinkedPath> GetLinkedPaths() const;
+	static TArray<FLinkedPath> GetLinkedPaths(const TArray<URigVMLink*>& InLinks);
+	static TArray<FLinkedPath> GetLinkedPaths(URigVMNode* InNode, bool bIncludeInjectionNodes = false);
+	static TArray<FLinkedPath> GetLinkedPaths(const TArray<URigVMNode*>& InNodes, bool bIncludeInjectionNodes = false);
+	static TArray<FLinkedPath> GetLinkedPaths(const URigVMPin* InPin, bool bSourceLinksRecursive = false, bool bTargetLinksRecursive = false);
+	bool BreakLinkedPaths(const TArray<FLinkedPath>& InLinkedPaths, bool bSetupUndoRedo = false, bool bRelyOnBreakLink = true);
+	bool RestoreLinkedPaths(
+		const TArray<FLinkedPath>& InLinkedPaths,
+		const FRestoreLinkedPathSettings& InSettings = FRestoreLinkedPathSettings(),
+		bool bSetupUndoRedo = false);
+	TArray<FLinkedPath> RemapLinkedPaths(
+		const TArray<FLinkedPath>& InLinkedPaths,
+		const FRestoreLinkedPathSettings& InSettings = FRestoreLinkedPathSettings(),
+		bool bSetupUndoRedo = false);
+	bool FastBreakLinkedPaths(const TArray<FLinkedPath>& InLinkedPaths, bool bSetupUndoRedo = false);
+	URigVMLink* FindLinkFromPinPathRepresentation(const FString& InPinPathRepresentation, bool bLookForDetachedLink) const;
+	void ProcessDetachedLinks(const FRestoreLinkedPathSettings& InSettings = FRestoreLinkedPathSettings());
 
 #if WITH_EDITOR
 	// Registers this template node's use for later determining the commonly used types
@@ -1228,6 +1283,64 @@ protected:
 
 	// work to do after a duplication of the host asset
 	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
+
+	template<typename T>
+	static void SortGraphElementsByGraphDepth(TArray<T*>& InOutElements, bool bReverse = false)
+	{
+		if(InOutElements.IsEmpty())
+		{
+			return;
+		}
+
+		int32 MinDepth = InOutElements[0]->GetGraphDepth();
+		int32 MaxDepth = MinDepth;
+		int32 Increment = 1;
+		TMap<int32, TArray<T*>> ElementsPerDepth;
+		for(T* Element : InOutElements)
+		{
+			const int32 Depth = Element->GetGraphDepth(); 
+			ElementsPerDepth.FindOrAdd(Depth).Add(Element);
+			MinDepth = FMath::Min<int32>(MinDepth, Depth);
+			MaxDepth = FMath::Max<int32>(MaxDepth, Depth);
+		}
+
+		if(bReverse)
+		{
+			Swap(MinDepth, MaxDepth);
+			Increment = -1;
+		}
+		
+		InOutElements.Reset();
+		for(int32 Depth = MinDepth; /* no exit condition */; Depth += Increment)
+		{
+			if(const TArray<T*>* Elements = ElementsPerDepth.Find(Depth))
+			{
+				InOutElements.Append(*Elements);
+			}
+
+			if(Depth == MaxDepth)
+			{
+				break;
+			}
+		}
+	}
+
+	template<typename T>
+	static void SortGraphElementsByImportOrder(
+		TArray<TObjectPtr<T>> InOutElements,
+		const TArray<T*>& InElementsInImportOrder,
+		const TArray<T*>& InPreviousElementPriorToImport
+	) {
+		Algo::SortBy(InOutElements, [InElementsInImportOrder, InPreviousElementPriorToImport](T* Element) -> int32
+		{
+			const int32 ImportOrderIndex = InElementsInImportOrder.Find(Element);
+			if(ImportOrderIndex != INDEX_NONE)
+			{
+				return ImportOrderIndex + InPreviousElementPriorToImport.Num();
+			}
+			return InPreviousElementPriorToImport.Find(Element);
+		});
+	}
 	
 private: 
 	UPROPERTY(transient)
@@ -1306,6 +1419,7 @@ private:
 	friend struct FRigVMAddRerouteNodeAction;
 	friend struct FRigVMChangePinTypeAction;
 	friend struct FRigVMInjectNodeIntoPinAction;
+	friend struct FRigVMEjectNodeFromPinAction;
 	friend class FRigVMParserAST;
 	friend class FRigVMControllerCompileBracketScope;
 	friend class FRigVMControllerGraphGuard;
@@ -1321,13 +1435,22 @@ public:
 	FRigVMControllerGraphGuard(URigVMController* InController, URigVMGraph* InGraph, bool bSetupUndoRedo = true)
 		: Controller(InController)
 		, bUndo(bSetupUndoRedo)
+		, bEnabled(true)
 	{
-		Controller->PushGraph(InGraph, bUndo);
-		NumGraphs = Controller->Graphs.Num();
+		bEnabled = Controller->PushGraph(InGraph, bUndo);
+		if(bEnabled)
+		{
+			NumGraphs = Controller->Graphs.Num();
+		}
 	}
 
 	~FRigVMControllerGraphGuard()
 	{
+		if(!bEnabled)
+		{
+			return;
+		}
+		
 		// an action can be cancelled in the middle of a graph guard,
 		// in that case CancelAction should have already popped the graph
 		if (Controller->Graphs.Num() < NumGraphs)
@@ -1341,6 +1464,7 @@ private:
 
 	URigVMController* Controller;
 	bool bUndo;
+	bool bEnabled;
 
 	int32 NumGraphs;
 };

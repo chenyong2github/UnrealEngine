@@ -86,6 +86,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
     URigVMGraph* GetRootGraph() const;
 
+	// Returns the graph nesting depth of this node
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	int32 GetGraphDepth() const;
+
 	// Returns the injection info of this Node (or nullptr)
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	URigVMInjectionInfo* GetInjectionInfo() const;
