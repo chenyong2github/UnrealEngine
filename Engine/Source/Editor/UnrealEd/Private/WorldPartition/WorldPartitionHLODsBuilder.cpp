@@ -438,11 +438,8 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors()
 			BuildProducts.Add(BuildManifest);
 
 			// Write build products to a file
-			FString BuildProductsFile = DistributedBuildWorkingDir / BuildProductsFileName;
-			bool bRet = FFileHelper::SaveStringArrayToFile(BuildProducts, *BuildProductsFile);
-			if (!bRet)
+			if (!AddBuildProducts(BuildProducts))
 			{
-				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error writing build product file %s"), *BuildProductsFile);
 				return false;
 			}
 
@@ -532,11 +529,8 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 		}
 
 		// Write build products to a file
-		FString BuildProductsFile = DistributedBuildWorkingDir / BuildProductsFileName;
-		bool bRet = FFileHelper::SaveStringArrayToFile(BuildProducts, *BuildProductsFile);
-		if (!bRet)
+		if (!AddBuildProducts(BuildProducts))
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error writing build product file %s"), *BuildProductsFile);
 			return false;
 		}
 
@@ -1227,4 +1221,16 @@ bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceD
 	AssetRegistry.ScanModifiedAssetFiles(ModifiedFiles.GetAllFiles());
 
 	return true;
+}
+
+bool UWorldPartitionHLODsBuilder::AddBuildProducts(const TArray<FString>& BuildProducts) const
+{
+	// Write build products to a file
+	FString BuildProductsFile = FString::Printf(TEXT("%s/%s/%s"), *FPaths::RootDir(), *DistributedBuildWorkingDirName, *BuildProductsFileName);
+	bool bRet = FFileHelper::SaveStringArrayToFile(BuildProducts, *BuildProductsFile, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);
+	if (!bRet)
+	{
+		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error writing build product file %s"), *BuildProductsFile);
+	}
+	return bRet;
 }

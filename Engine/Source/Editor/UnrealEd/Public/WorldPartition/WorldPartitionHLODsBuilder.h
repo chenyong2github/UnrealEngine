@@ -103,6 +103,8 @@ protected:
 
 	bool ShouldRunStep(const EHLODBuildStep BuildStep) const;
 
+	bool AddBuildProducts(const TArray<FString>& BuildProducts) const;
+
 private:
 	class UWorldPartition* WorldPartition;
 	class FSourceControlHelper* SourceControlHelper;
