@@ -12,10 +12,10 @@ DECLARE_DELEGATE_OneParam(FOnNewMouseDelta, const float /* new delta */)
 class FWaveformEditorGridData;
 class FSparseSampledSequenceTransportCoordinator;
 
-class SWaveformViewerOverlay : public SLeafWidget
+class SWaveformEditorInputRoutingOverlay : public SLeafWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SWaveformViewerOverlay)
+	SLATE_BEGIN_ARGS(SWaveformEditorInputRoutingOverlay)
 	{
 	}
 

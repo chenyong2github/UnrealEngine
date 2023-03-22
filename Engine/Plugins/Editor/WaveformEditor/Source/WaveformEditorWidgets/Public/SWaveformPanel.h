@@ -6,7 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 enum class ESampledSequenceDisplayUnit;
-class SWaveformViewerOverlay;
+class SWaveformEditorInputRoutingOverlay;
 class SWaveformTransformationsOverlay;
 class SPlayheadOverlay;
 class SFixedSampledSequenceViewer;
@@ -45,7 +45,7 @@ private:
 	void SetupPlayheadOverlay();
 	void SetUpTimeRuler(TSharedRef<FWaveformEditorGridData> InGridData);
 	void SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, TSharedRef<FWaveformEditorRenderData> InRenderData);
-	void SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorZoomController> InZoomManager);
+	void SetUpInputRoutingOverlay(TSharedRef<FWaveformEditorZoomController> InZoomManager);
 	void SetUpZoomManager(TSharedRef<FWaveformEditorZoomController> InZoomManager, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator);
 
 	void OnRenderDataUpdated();
@@ -72,7 +72,7 @@ private:
 	TSharedPtr<SFixedSampledSequenceRuler> TimeRuler;
 	TSharedPtr<SFixedSampledSequenceViewer> WaveformViewer;
 	TSharedPtr<SWaveformTransformationsOverlay> WaveformTransformationsOverlay;
-	TSharedPtr<SWaveformViewerOverlay> WaveformViewerOverlay;
+	TSharedPtr<SWaveformEditorInputRoutingOverlay> InputRoutingOverlay;
 	TSharedPtr<SPlayheadOverlay> PlayheadOverlay;
 
 	float CachedPixelWidth = 0.f;

@@ -8,7 +8,7 @@
 #include "SparseSampledSequenceTransportCoordinator.h"
 #include "SPlayheadOverlay.h"
 #include "SWaveformTransformationsOverlay.h"
-#include "SWaveformViewerOverlay.h"
+#include "SWaveformEditorInputRoutingOverlay.h"
 #include "WaveformEditorGridData.h"
 #include "WaveformEditorRenderData.h"
 #include "WaveformEditorStyle.h"
@@ -43,7 +43,7 @@ void SWaveformPanel::Construct(const FArguments& InArgs, TSharedRef<FWaveformEdi
 	}
 
 	SetupPlayheadOverlay();
-	SetUpWaveformViewerOverlay(InZoomManager);
+	SetUpInputRoutingOverlay(InZoomManager);
 	SetUpTimeRuler(GridData.ToSharedRef());
 	
 	CreateLayout();
@@ -53,7 +53,7 @@ void SWaveformPanel::CreateLayout()
 {
 	check(TimeRuler);
 	check(WaveformViewer);
-	check(WaveformViewerOverlay);
+	check(InputRoutingOverlay);
 
 	TSharedPtr<SOverlay> WaveformView = SNew(SOverlay);
 
@@ -77,7 +77,7 @@ void SWaveformPanel::CreateLayout()
 
 	WaveformView->AddSlot()
 	[
-		WaveformViewerOverlay.ToSharedRef()
+		InputRoutingOverlay.ToSharedRef()
 	];
 
 	ChildSlot
@@ -113,7 +113,7 @@ void SWaveformPanel::SetUpTimeRuler(TSharedRef<FWaveformEditorGridData> InGridDa
 	TimeRuler->SetOnMouseMove(FPointerEventHandler::CreateSP(this, &SWaveformPanel::HandleTimeRulerMouseMove));
 }
 
-void SWaveformPanel::SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorZoomController> InZoomManager)
+void SWaveformPanel::SetUpInputRoutingOverlay(TSharedRef<FWaveformEditorZoomController> InZoomManager)
 {
 	FSampledSequenceViewerStyle* ViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
 	check(ViewerStyle);
@@ -127,8 +127,8 @@ void SWaveformPanel::SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorZoomCo
 
 	check(PlayheadOverlay)
 	OverlaidWidgets.Add(PlayheadOverlay);
-	WaveformViewerOverlay = SNew(SWaveformViewerOverlay, OverlaidWidgets).Style(ViewerStyle);
-	WaveformViewerOverlay->OnNewMouseDelta.BindSP(InZoomManager, &FWaveformEditorZoomController::ZoomByDelta);
+	InputRoutingOverlay = SNew(SWaveformEditorInputRoutingOverlay, OverlaidWidgets).Style(ViewerStyle);
+	InputRoutingOverlay->OnNewMouseDelta.BindSP(InZoomManager, &FWaveformEditorZoomController::ZoomByDelta);
 }
 
 void SWaveformPanel::SetupPlayheadOverlay()
