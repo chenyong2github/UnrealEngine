@@ -235,7 +235,7 @@ void FCbWriter::MakeFieldsUniform(const int64 FieldBeginOffset, const int64 Fiel
 	}
 	if (!TargetView.IsEmpty())
 	{
-		Data.RemoveAt(FieldEndOffset - TargetView.GetSize(), TargetView.GetSize());
+		Data.RemoveAt(FieldEndOffset - TargetView.GetSize(), TargetView.GetSize(), /*bAllowShrinking*/ false);
 	}
 }
 
