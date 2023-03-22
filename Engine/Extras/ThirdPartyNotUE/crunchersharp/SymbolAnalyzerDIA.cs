@@ -165,9 +165,11 @@ namespace CruncherSharp
 			var worker = sender as BackgroundWorker;
 
 			var allSymbolsCount = (worker != null) ? tasks.Count : 0;
-			var i = 0;
+			var addedSymbolsCount = 0;
 
 			worker?.ReportProgress(0, "Adding symbols");
+			int progress = 0;
+
 
 			foreach (LoadCSVTask task in tasks)
 			{
@@ -196,9 +198,12 @@ namespace CruncherSharp
 					}
 				}
 
-				var percentProgress = (int)Math.Round((double)(100 * i++) / allSymbolsCount);
-				percentProgress = Math.Max(Math.Min(percentProgress, 99), 1);
-				worker?.ReportProgress(percentProgress, String.Format("Adding symbol {0} on {1}", i, allSymbolsCount));
+				var percentProgress = (int)Math.Round((double)(100 * addedSymbolsCount++) / allSymbolsCount);
+				if (percentProgress > progress)
+				{
+					progress = Math.Max(Math.Min(percentProgress, 99), 1);
+					worker?.ReportProgress(progress, String.Format("Adding symbol {0} on {1}", addedSymbolsCount, allSymbolsCount));
+				}
 			}
 
 			worker?.ReportProgress(100, String.Format("{0} symbols added", allSymbolsCount));

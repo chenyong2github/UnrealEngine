@@ -1020,7 +1020,10 @@ namespace CruncherSharp
             PopulateDataTable();
 
             checkedListBoxNamespaces.Items.Clear();
-            foreach (var name in CurrentSymbolAnalyzer.RootNamespaces) checkedListBoxNamespaces.Items.Add(name);
+			if (checkedListBoxNamespaces.Enabled)
+			{
+				foreach (var name in CurrentSymbolAnalyzer.RootNamespaces) checkedListBoxNamespaces.Items.Add(name);
+			}
 
             // Sort by name by default (ascending)
             dataGridSymbols.Sort(dataGridSymbols.Columns[0], ListSortDirection.Ascending);
@@ -1507,6 +1510,17 @@ namespace CruncherSharp
 		{
 			useRawPDBToolStripMenuItem.Checked = !useRawPDBToolStripMenuItem.Checked;
 			PopulateDataTable();
+		}
+
+		private void checkBoxNamespaces_CheckedChanged(object sender, EventArgs e)
+		{
+			checkedListBoxNamespaces.Enabled = checkBoxNamespaces.Checked;
+			checkedListBoxNamespaces.Visible = checkBoxNamespaces.Checked;
+			checkedListBoxNamespaces.Items.Clear();
+			if (checkedListBoxNamespaces.Enabled)
+			{
+				foreach (var name in CurrentSymbolAnalyzer.RootNamespaces) checkedListBoxNamespaces.Items.Add(name);
+			}
 		}
 	}
 }

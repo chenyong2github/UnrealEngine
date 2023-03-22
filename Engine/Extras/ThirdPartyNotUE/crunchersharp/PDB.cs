@@ -292,6 +292,7 @@ namespace PDBReader
 		}
 
 		public ulong NumTypeRecords { get { return _tpiStream.RecordCount; } }
+		public ulong NumElements { get { return _tpiStream.TypeIndexEnd - _tpiStream.TypeIndexBegin; } }
 
 		private bool IsNonFwdDeclaredStruct(uint index)
 		{

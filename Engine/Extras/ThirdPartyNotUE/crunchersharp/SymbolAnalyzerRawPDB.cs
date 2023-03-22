@@ -78,6 +78,8 @@ namespace CruncherSharp
 				return false;
 			}
 
+			worker?.ReportProgress(0, "Adding symbols");
+			var allSymbolsCount = pdbFile.NumElements;
 			uint addedSymbolsCount = 0;
 			if (task.SecondPDB)
 			{
@@ -118,12 +120,22 @@ namespace CruncherSharp
 						}
 					}
 				});
+				int progress = 0;
 				foreach (KeyValuePair<string, SymbolInfo> pair in results)
 				{
 					if (!HasSymbolInfo(pair.Key))
 					{
 						Symbols.Add(pair.Key, pair.Value);
 						++addedSymbolsCount;
+
+						var percentProgress = (int)Math.Round((double)(100 * addedSymbolsCount) / allSymbolsCount);
+						if (percentProgress > progress)
+						{
+							progress = Math.Max(Math.Min(percentProgress, 99), 1);
+							worker?.ReportProgress(progress, String.Format("Adding symbol {0} on {1}", addedSymbolsCount, allSymbolsCount));
+						}
+
+
 						if (pair.Key.Contains("::") && !pair.Key.Contains("<"))
 						{
 							RootNamespaces.Add(pair.Key.Substring(0, pair.Key.IndexOf("::")));
