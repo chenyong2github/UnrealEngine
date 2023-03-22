@@ -23,7 +23,7 @@ public:
 
 	UE_API void Wait();
 	UE_API bool WaitUntil(FMonotonicTimePoint WaitTime);
-	UE_API void Signal();
+	UE_API void Notify();
 
 private:
 	bool bWait = true;

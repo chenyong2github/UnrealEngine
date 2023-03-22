@@ -30,7 +30,7 @@ private:
 };
 
 /**
- * A type of event that avoids missed signals by maintaining a signal count.
+ * A type of event that avoids missed notifications by maintaining a notification count.
  *
  * This type of event is suited to waiting on another thread conditionally.
  * Typical usage looks similar to this example:
@@ -46,16 +46,16 @@ private:
  *         Event.Wait(Token);
  *     }
  *
- * On the signaling thread:
+ * On the notifying thread:
  *
  *     ++CurrentValue;
  *     if (CurrentValue == TargetValue)
  *     {
- *         Event.Signal();
+ *         Event.Notify();
  *     }
  *
  * Acquiring a token before checking the condition avoids a race because Wait returns immediately
- * when the token no longer matches the signal count.
+ * when the token no longer matches the notification count.
  */
 template <typename CounterType>
 class TEventCount
@@ -71,9 +71,9 @@ public:
 	/**
 	 * Prepare to wait.
 	 *
-	 * Call this before any logic that must re-execute if the event is signaled in the meantime.
+	 * Call this before any logic that must re-execute if the event is notified in the meantime.
 	 *
-	 * @return A token to pass to one of the wait functions to abort the wait if the event has been signaled since.
+	 * @return A token to pass to one of the wait functions to abort the wait if the event has been notified since.
 	 */
 	inline TEventCountToken<CounterType> PrepareWait()
 	{
@@ -83,7 +83,7 @@ public:
 	}
 
 	/**
-	 * Wait until the event is signaled. Returns immediately if signaled since the token was acquired.
+	 * Wait until the event is notified. Returns immediately if notified since the token was acquired.
 	 *
 	 * @param Compare   A token acquired from PrepareWait() before checking the conditions for this wait.
 	 */
@@ -96,11 +96,11 @@ public:
 	}
 
 	/**
-	 * Wait until the event is signaled. Returns immediately if signaled since the token was acquired.
+	 * Wait until the event is notified. Returns immediately if notified since the token was acquired.
 	 *
 	 * @param Compare    A token acquired from PrepareWait() before checking the conditions for this wait.
 	 * @param WaitTime   Relative time after which waiting is automatically canceled and the thread wakes.
-	 * @return True if the event was signaled before the wait time elapsed, otherwise false.
+	 * @return True if the event was notified before the wait time elapsed, otherwise false.
 	 */
 	inline bool WaitFor(TEventCountToken<CounterType> Compare, FMonotonicTimeSpan WaitTime)
 	{
@@ -112,11 +112,11 @@ public:
 	}
 
 	/**
-	 * Wait until the event is signaled. Returns immediately if signaled since the token was acquired.
+	 * Wait until the event is notified. Returns immediately if notified since the token was acquired.
 	 *
 	 * @param Compare    A token acquired from PrepareWait() before checking the conditions for this wait.
 	 * @param WaitTime   Absolute time after which waiting is automatically canceled and the thread wakes.
-	 * @return True if the event was signaled before the wait time elapsed, otherwise false.
+	 * @return True if the event was notified before the wait time elapsed, otherwise false.
 	 */
 	inline bool WaitUntil(TEventCountToken<CounterType> Compare, FMonotonicTimePoint WaitTime)
 	{
@@ -128,12 +128,12 @@ public:
 	}
 
 	/**
-	 * Signals all waiting threads.
+	 * Notifies all waiting threads.
 	 *
-	 * Any threads that have called PrepareWait() and not yet waited will be signaled immediately
+	 * Any threads that have called PrepareWait() and not yet waited will be notified immediately
 	 * if they do wait on a token from a call to PrepareWait() that preceded this call.
 	 */
-	inline void Signal()
+	inline void Notify()
 	{
 		CounterType Value = Count.load(std::memory_order_relaxed);
 		if ((Value & 1) && Count.compare_exchange_strong(Value, Value + 1, std::memory_order_release))

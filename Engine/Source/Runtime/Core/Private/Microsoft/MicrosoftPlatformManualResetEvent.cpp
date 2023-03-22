@@ -46,7 +46,7 @@ bool FMicrosoftPlatformManualResetEvent::WaitUntil(FMonotonicTimePoint WaitTime)
 	}
 }
 
-void FMicrosoftPlatformManualResetEvent::Signal()
+void FMicrosoftPlatformManualResetEvent::Notify()
 {
 	bWait = false;
 	WakeByAddressSingle((void*)&bWait);

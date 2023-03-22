@@ -605,7 +605,7 @@ void WakeOne(const void* Address, TFunctionRef<uint64(FWakeState)> OnWakeState)
 		checkSlow(WakeThread->WaitAddress == Address);
 		WakeThread->WakeToken = WakeToken;
 		WakeThread->WaitAddress = nullptr;
-		WakeThread->Event.Signal();
+		WakeThread->Event.Notify();
 	}
 }
 
@@ -648,7 +648,7 @@ uint32 WakeMultiple(const void* const Address, const uint32 WakeCount)
 	{
 		checkSlow(WakeThread->WaitAddress == Address);
 		WakeThread->WaitAddress = nullptr;
-		WakeThread->Event.Signal();
+		WakeThread->Event.Notify();
 	}
 
 	return uint32(WakeThreads.Num());

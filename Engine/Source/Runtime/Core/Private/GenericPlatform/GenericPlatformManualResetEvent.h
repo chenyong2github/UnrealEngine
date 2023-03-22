@@ -14,10 +14,10 @@ namespace UE::HAL::Private
 {
 
 /**
- * A manual reset event that supports only one thread waiting and one thread signaling at a time.
+ * A manual reset event that supports only one thread waiting and one thread notifying at a time.
  *
  * Only one waiting thread may call Reset() or the Wait() functions.
- * Only one signaling thread may call Signal() once until the event is reset.
+ * Only one notifying thread may call Notify() once until the event is reset.
  */
 class FGenericPlatformManualResetEvent
 {
@@ -27,7 +27,7 @@ public:
 	FGenericPlatformManualResetEvent& operator=(const FGenericPlatformManualResetEvent&) = delete;
 
 	/**
-	 * Resets the event to permit another Wait/Signal cycle.
+	 * Resets the event to permit another Wait/Notify cycle.
 	 *
 	 * Must only be called by the waiting thread, and only when there is no possibility of waking
 	 * occurring concurrently with the reset.
@@ -38,9 +38,9 @@ public:
 	}
 
 	/**
-	 * Waits for Signal() to be called.
+	 * Waits for Notify() to be called.
 	 *
-	 * Signal() may be called prior to Wait(), and this will return immediately in that case.
+	 * Notify() may be called prior to Wait(), and this will return immediately in that case.
 	 */
 	void Wait()
 	{
@@ -48,12 +48,12 @@ public:
 	}
 
 	/**
-	 * Waits until the wait time for Signal() to be called.
+	 * Waits until the wait time for Notify() to be called.
 	 *
-	 * Signal() may be called prior to WaitUntil(), and this will return immediately in that case.
+	 * Notify() may be called prior to WaitUntil(), and this will return immediately in that case.
 	 *
 	 * @param WaitTime   Absolute time after which waiting is canceled and the thread wakes.
-	 * @return True if Signal() was called before the wait time elapsed, otherwise false.
+	 * @return True if Notify() was called before the wait time elapsed, otherwise false.
 	 */
 	bool WaitUntil(FMonotonicTimePoint WaitTime)
 	{
@@ -72,12 +72,12 @@ public:
 	}
 
 	/**
-	 * Signals the waiting thread.
+	 * Notifies the waiting thread.
 	 *
-	 * Signal() may be called prior to one of the wait functions, and the eventual wait call will
+	 * Notify() may be called prior to one of the wait functions, and the eventual wait call will
 	 * return immediately when that occurs.
 	 */
-	void Signal()
+	void Notify()
 	{
 		{
 			std::unique_lock SelfLock(Lock);

@@ -122,7 +122,7 @@ void FRequestOwnerShared::BeginBarrier(ERequestBarrierFlags Flags)
 void FRequestOwnerShared::EndBarrier(ERequestBarrierFlags Flags)
 {
 	ON_SCOPE_EXIT { Release(); };
-	bool bSignalBarrier = false;
+	bool bNotifyBarrier = false;
 	{
 		FWriteScopeLock WriteLock(Lock);
 		if (EnumHasAnyFlags(Flags, ERequestBarrierFlags::Priority) && --PriorityBarrierCount == 0)
@@ -131,12 +131,12 @@ void FRequestOwnerShared::EndBarrier(ERequestBarrierFlags Flags)
 		}
 		if (--BarrierCount == 0)
 		{
-			bSignalBarrier = true;
+			bNotifyBarrier = true;
 		}
 	}
-	if (bSignalBarrier)
+	if (bNotifyBarrier)
 	{
-		BarrierEvent.Signal();
+		BarrierEvent.Notify();
 	}
 }
 

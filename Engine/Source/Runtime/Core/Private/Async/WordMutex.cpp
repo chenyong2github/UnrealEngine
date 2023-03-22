@@ -153,7 +153,7 @@ void FWordMutex::UnlockSlow(UPTRINT CurrentState)
 		}
 
 		// Wake the thread that was at the head of the queue.
-		Head->Event.Signal();
+		Head->Event.Notify();
 		break;
 	}
 }

@@ -138,7 +138,7 @@ struct FOutputDeviceRedirectorState
 	/** A lock to synchronize access to the thread. */
 	FRWLock ThreadLock;
 
-	/** An event that is signaled when the dedicated primary thread is idle. */
+	/** An event that is notified when the dedicated primary thread is idle. */
 	FEventCount ThreadIdleEvent;
 
 	/** An event to wake the dedicated primary thread to process buffered items. */
@@ -421,7 +421,7 @@ bool FOutputDeviceRedirectorState::TryStopThread()
 {
 	if (FWriteScopeLock ThreadScopeLock(ThreadLock); bThreadStarted.exchange(false, std::memory_order_relaxed))
 	{
-		ThreadWakeEvent.Signal();
+		ThreadWakeEvent.Notify();
 		Thread.Join();
 	}
 	return true;
@@ -450,7 +450,7 @@ void FOutputDeviceRedirectorState::ThreadLoop()
 				FlushBufferedItems();
 			}
 		}
-		ThreadIdleEvent.Signal();
+		ThreadIdleEvent.Notify();
 		ThreadWakeEvent.Wait(Token);
 	}
 }
@@ -561,7 +561,7 @@ void FOutputDeviceRedirector::FlushThreadedLogs(EOutputDeviceRedirectorFlushOpti
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FOutputDeviceRedirector::FlushThreadedLogs);
 			UE::FEventCountToken Token = State->ThreadIdleEvent.PrepareWait();
-			State->ThreadWakeEvent.Signal();
+			State->ThreadWakeEvent.Notify();
 			State->ThreadIdleEvent.Wait(Token);
 		}
 		return;
@@ -655,7 +655,7 @@ void FOutputDeviceRedirector::SerializeRecord(const UE::FLogRecord& Record)
 	// Queue the record to serialize to buffered output devices from the primary thread.
 	if (State->BufferedItems.EnqueueAndReturnWasEmpty(Record))
 	{
-		State->ThreadWakeEvent.Signal();
+		State->ThreadWakeEvent.Notify();
 	}
 }
 
@@ -716,7 +716,7 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 	// Queue the line to serialize to buffered output devices from the primary thread.
 	if (State->BufferedItems.EnqueueAndReturnWasEmpty(Data, Category, Verbosity, RealTime))
 	{
-		State->ThreadWakeEvent.Signal();
+		State->ThreadWakeEvent.Notify();
 	}
 }
 
