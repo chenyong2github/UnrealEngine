@@ -85,11 +85,15 @@ namespace NetworkProfiler
 		/** If non 0, we will early out of loading in this many minutes worth of profile time */
 		int MaxProfileMinutes		= 0;
 
-		public MainWindow()
+		public MainWindow( string[] Args )
 		{
 			InitializeComponent();
 
 			this.Closing += OnFormClosing;
+
+			this.AllowDrop = true;
+			this.DragEnter += OnDragEnter;
+			this.DragDrop += OnDragDrop;
 
 			// Set default state.
 			SetDefaultLineView();
@@ -108,8 +112,29 @@ namespace NetworkProfiler
 			ActorPerfPropsDetailsListView.Columns[0].Width = 170;
 			ActorPerfPropsDetailsListView.Columns[1].Width = 50;
 			ActorPerfPropsDetailsListView.Columns[2].Width = 50;
+
+			if ( Args.Length > 0 )
+			{
+				ChangeNetworkStream( Args[0] );
+			}
 		}
-		
+		private void OnDragEnter( object sender, DragEventArgs e )
+		{
+			if ( e.Data.GetDataPresent( DataFormats.FileDrop ) )
+			{
+				e.Effect = DragDropEffects.Copy;
+			}
+		}
+
+		private void OnDragDrop( object sender, DragEventArgs e )
+		{
+			string[] Files = ( string[] )e.Data.GetData( DataFormats.FileDrop );
+			if( Files.Length > 0 )
+			{
+				ChangeNetworkStream( Files[0] );
+			}
+		}
+
 		private void OnFormClosing( object sender, CancelEventArgs e )
 		{
 			CancelLoadThread();

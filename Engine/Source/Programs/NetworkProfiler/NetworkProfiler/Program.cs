@@ -20,7 +20,7 @@ namespace NetworkProfiler
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 			Application.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
-			Application.Run(new MainWindow());
+			Application.Run(new MainWindow(Args));
 		}
 	}
 }
