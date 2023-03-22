@@ -193,7 +193,8 @@ bool URigVMController::PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo)
 
 URigVMGraph* URigVMController::PopGraph(bool bSetupUndoRedo)
 {
-	if(Graphs.Num() == 1)
+	ensure(Graphs.Num() > 1);
+	if (Graphs.Num() == 1)
 	{
 		return nullptr;
 	}
@@ -11316,13 +11317,13 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 	{
 		const UScriptStruct* ExecuteContextStruct = FRigVMExecuteContext::StaticStruct();
 		
-		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->ContainedGraph, bSetupUndoRedo);
+		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->ContainedGraph, false);
 		AddExposedPin(FRigVMStruct::ExecuteContextName,
 			ERigVMPinDirection::IO,
 			FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName()),
 			*ExecuteContextStruct->GetPathName(),
 			FString(),
-			bSetupUndoRedo);
+			false);
 	}
 
 	{
