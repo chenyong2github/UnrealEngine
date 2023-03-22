@@ -770,7 +770,6 @@ namespace AutomationScripts
 						string[] CookedFiles = FileReference.ReadAllLines(CookedFilesManifestFile);
 						foreach (string RelativeFilename in CookedFiles)
 						{
-							CommandUtils.LogInformation("{0}", RelativeFilename);
 							SC.PackageStoreManifest.ZenCookedFiles.Add(FileReference.Combine(SC.PlatformCookDir, RelativeFilename).FullName);
 						}
 						return;
