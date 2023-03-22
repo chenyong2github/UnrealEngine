@@ -20,7 +20,6 @@
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataThreadPoolTask.h"
-#include "Experimental/Async/LazyEvent.h"
 #include "Experimental/ZenServerInterface.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/ThreadSafeCounter.h"

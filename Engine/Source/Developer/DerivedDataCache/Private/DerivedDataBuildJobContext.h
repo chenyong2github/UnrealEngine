@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/ManualResetEvent.h"
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
@@ -9,7 +10,6 @@
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataSharedString.h"
-#include "Experimental/Async/LazyEvent.h"
 #include "Memory/MemoryFwd.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/Function.h"
@@ -88,12 +88,12 @@ private:
 	FBuildOutputBuilder& OutputBuilder;
 	TMap<FUtf8SharedString, FCbObject> Constants;
 	TMap<FUtf8SharedString, FCompressedBuffer> Inputs;
-	UE::FLazyEvent BuildCompleteEvent{EEventMode::ManualReset};
 	TUniqueFunction<void ()> OnEndBuild;
 	IRequestOwner* Owner{};
 	uint64 RequiredMemory{};
 	ECachePolicy CachePolicyMask;
 	EBuildPolicy BuildPolicyMask;
+	FManualResetEvent BuildCompleteEvent;
 	bool bIsAsyncBuild{false};
 	bool bIsAsyncBuildComplete{false};
 	bool bDeterministicOutputCheck{true};

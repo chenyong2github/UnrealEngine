@@ -2,8 +2,8 @@
 
 #include "HttpClient.h"
 
+#include "Async/ManualResetEvent.h"
 #include "Containers/LockFreeList.h"
-#include "HAL/Event.h"
 #include "Memory/MemoryView.h"
 #include "Misc/AsciiSet.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -271,7 +271,7 @@ struct Http::Private::FHttpRequestQueueData
 	struct FWaiter
 	{
 		THttpUniquePtr<IHttpRequest> Request;
-		FEventRef Event{EEventMode::ManualReset};
+		FManualResetEvent Event;
 	};
 
 	FHttpRequestQueueData(IHttpConnectionPool& ConnectionPool, const FHttpClientParams& ClientParams)
@@ -290,7 +290,7 @@ struct Http::Private::FHttpRequestQueueData
 					if (FWaiter* Waiter = Waiters.Pop())
 					{
 						Waiter->Request = MoveTemp(Request);
-						Waiter->Event->Trigger();
+						Waiter->Event.Notify();
 					}
 				}
 			}
@@ -310,7 +310,7 @@ struct Http::Private::FHttpRequestQueueData
 			if (FWaiter* Waiter = Waiters.Pop())
 			{
 				Waiter->Request = MoveTemp(Request);
-				Waiter->Event->Trigger();
+				Waiter->Event.Notify();
 			}
 			else
 			{
@@ -326,16 +326,16 @@ struct Http::Private::FHttpRequestQueueData
 			if (FWaiter* Waiter = Waiters.Pop())
 			{
 				Waiter->Request = MoveTemp(Request);
-				Waiter->Event->Trigger();
+				Waiter->Event.Notify();
 			}
-			if (LocalWaiter.Event->Wait(0))
+			if (LocalWaiter.Event.WaitFor(FMonotonicTimeSpan::Zero()))
 			{
 				return MoveTemp(LocalWaiter.Request);
 			}
 		}
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpRequestQueue_Wait);
-		LocalWaiter.Event->Wait();
+		LocalWaiter.Event.Wait();
 		return MoveTemp(LocalWaiter.Request);
 	}
 

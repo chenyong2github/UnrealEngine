@@ -29,7 +29,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TEMPORARY SERIALIZATION AS BULK DATA
 #if WITH_EDITORONLY_DATA
-#include "Experimental/Async/LazyEvent.h"
+#include "Async/ManualResetEvent.h"
 #include "Serialization/BulkData.h"
 #endif // WITH_EDITORONLY_DATA
 // TEMPORARY SERIALIZATION AS BULK DATA
@@ -336,11 +336,11 @@ void FDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 
 		// Blocking read to populate the bulk data to be serialized later by the linker.
 		{
-			FLazyEvent BatchComplete(EEventMode::ManualReset);
+			FManualResetEvent BatchComplete;
 			FDerivedDataIoBatch Batch;
 			FDerivedDataIoRequest Request = Batch.Read(*this);
 			FDerivedDataIoResponse Response;
-			Batch.Dispatch(Response, [&BatchComplete] { BatchComplete.Trigger(); });
+			Batch.Dispatch(Response, [&BatchComplete] { BatchComplete.Notify(); });
 			BatchComplete.Wait();
 
 			const FSharedBuffer Data = Response.GetData(Request);
