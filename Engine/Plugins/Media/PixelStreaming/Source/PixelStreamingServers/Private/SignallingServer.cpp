@@ -152,17 +152,7 @@ namespace UE::PixelStreamingServers
 		PublicMount.SetDefaultFile(FString(TEXT("player.html")));
 		MountsArr.Add(PublicMount);
 
-		// Add /images
-		FWebSocketHttpMount ImagesMount;
-		ImagesMount.SetPathOnDisk(ServersDir / TEXT("images"));
-		ImagesMount.SetWebPath(FString(TEXT("/images")));
-		MountsArr.Add(ImagesMount);
-
-		// Add /scripts
-		FWebSocketHttpMount ScriptsMount;
-		ScriptsMount.SetPathOnDisk(ServersDir / TEXT("scripts"));
-		ScriptsMount.SetWebPath(FString(TEXT("/scripts")));
-		MountsArr.Add(ScriptsMount);
+		// Todo (Luke.Bermingham): Expose way for user to specify what directories to serve.
 
 		return MountsArr;
 	}
