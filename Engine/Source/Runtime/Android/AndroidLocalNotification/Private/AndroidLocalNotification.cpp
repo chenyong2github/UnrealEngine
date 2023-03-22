@@ -86,8 +86,18 @@ void FAndroidLocalNotificationService::ClearAllLocalNotifications()
 int32 FAndroidLocalNotificationService::ScheduleLocalNotificationAtTime(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent)
 {
 #if USE_ANDROID_JNI
-	extern int32 AndroidThunkCpp_ScheduleLocalNotificationAtTime(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent);
-	return AndroidThunkCpp_ScheduleLocalNotificationAtTime(FireDateTime , LocalTime, Title, Body, Action, ActivationEvent);
+	extern int32 AndroidThunkCpp_ScheduleLocalNotificationAtTime(const FDateTime & FireDateTime, bool LocalTime, const FText & Title, const FText & Body, const FText & Action, const FString & ActivationEvent, int32 IdOverride);
+	return AndroidThunkCpp_ScheduleLocalNotificationAtTime(FireDateTime, LocalTime, Title, Body, Action, ActivationEvent, -1);
+#else
+	return -1;
+#endif
+}
+
+int32 FAndroidLocalNotificationService::ScheduleLocalNotificationAtTimeOverrideId(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent, int32 IdOverride)
+{
+#if USE_ANDROID_JNI
+	extern int32 AndroidThunkCpp_ScheduleLocalNotificationAtTime(const FDateTime & FireDateTime, bool LocalTime, const FText & Title, const FText & Body, const FText & Action, const FString & ActivationEvent, int32 IdOverride);
+	return AndroidThunkCpp_ScheduleLocalNotificationAtTime(FireDateTime, LocalTime, Title, Body, Action, ActivationEvent, IdOverride);
 #else
 	return -1;
 #endif

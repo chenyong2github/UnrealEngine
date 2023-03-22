@@ -4980,6 +4980,36 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 	}
 
+	public static void AddLocalNotificationID(Context context, int id)
+	{
+		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		String notificationIDs = preferences.getString("notificationIDs", "");
+		if (notificationIDs.length() == 0)
+		{
+			editor.putString("notificationIDs", Integer.toString(id));
+			editor.commit();
+		}
+		else
+		{
+			String[] parts = notificationIDs.split("-");
+			ArrayList<Integer> iParts = new ArrayList<Integer>();
+			for (String part : parts)
+			{
+				if (part.length() > 0)
+				{
+					iParts.add(Integer.parseInt(part));
+				}
+			}
+			if (!iParts.contains(id))
+			{
+				editor.putString("notificationIDs", notificationIDs + "-" + id);
+				editor.commit();
+			}
+		}
+		
+	}
+
 	public static int LocalNotificationGetID(Context context)
 	{
 		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
@@ -5115,9 +5145,18 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 	}
 
-	public int AndroidThunkJava_LocalNotificationScheduleAtTime(String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent) 
+	public int AndroidThunkJava_LocalNotificationScheduleAtTime(String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent, int idOverride) 
 	{
-		int notificationID = LocalNotificationGetID(this);
+		int notificationID = idOverride;
+		if (notificationID == -1)
+		{
+			notificationID = LocalNotificationGetID(this);
+		}
+		else
+		{
+			//Make sure the Overriden id is a part of the current notification list
+			AddLocalNotificationID(this, notificationID);
+		}
 
 		if (!LocalNotificationScheduleAtTime(this, notificationID, targetDateTime, localTime, title, body, action, activationEvent))
 		{

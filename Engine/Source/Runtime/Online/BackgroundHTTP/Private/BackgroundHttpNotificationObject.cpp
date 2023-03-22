@@ -11,11 +11,11 @@
 #include "LocalNotification.h"
 
 FBackgroundHttpNotificationObject::FBackgroundHttpNotificationObject(FText InNotificationTitle, FText InNotificationBody, FText InNotificationAction, const FString& InNotificationActivationString, bool InNotifyOnlyOnFullSuccess)
-	: FBackgroundHttpNotificationObject(InNotificationTitle, InNotificationBody, InNotificationAction, InNotificationActivationString, InNotifyOnlyOnFullSuccess, true)
+	: FBackgroundHttpNotificationObject(InNotificationTitle, InNotificationBody, InNotificationAction, InNotificationActivationString, InNotifyOnlyOnFullSuccess, true, -1)
 {
 }
 
-FBackgroundHttpNotificationObject::FBackgroundHttpNotificationObject(FText InNotificationTitle, FText InNotificationBody, FText InNotificationAction, const FString& InNotificationActivationString, bool InNotifyOnlyOnFullSuccess, bool InbOnlySendNotificationInBackground)
+FBackgroundHttpNotificationObject::FBackgroundHttpNotificationObject(FText InNotificationTitle, FText InNotificationBody, FText InNotificationAction, const FString& InNotificationActivationString, bool InNotifyOnlyOnFullSuccess, bool InbOnlySendNotificationInBackground, int32 InIdOverride)
 	: NotificationTitle(InNotificationTitle)
     , NotificationAction(InNotificationAction)
     , NotificationBody(InNotificationBody)
@@ -24,6 +24,7 @@ FBackgroundHttpNotificationObject::FBackgroundHttpNotificationObject(FText InNot
     , bNotifyOnlyOnFullSuccess(InNotifyOnlyOnFullSuccess)
 	, bIsInBackground(false)
 	, NumFailedDownloads(0)
+	, IdOverride(InIdOverride)
     , PlatformNotificationService(nullptr)
     , OnApp_EnteringForegroundHandle()
 	, OnApp_EnteringBackgroundHandle()
@@ -87,7 +88,7 @@ FBackgroundHttpNotificationObject::~FBackgroundHttpNotificationObject()
 
 			if (nullptr != PlatformNotificationService)
 			{
-				PlatformNotificationService->ScheduleLocalNotificationAtTime(TargetTime, true, NotificationTitle, NotificationBody, NotificationAction, NotificationActivationString);
+				PlatformNotificationService->ScheduleLocalNotificationAtTimeOverrideId(TargetTime, true, NotificationTitle, NotificationBody, NotificationAction, NotificationActivationString, IdOverride);
 			}
 		}
 	}

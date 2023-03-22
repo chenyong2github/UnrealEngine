@@ -29,6 +29,19 @@ public:
 	*/
 	virtual int32 ScheduleLocalNotificationAtTime(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent) = 0;
 
+	/** Schedule a local notification at a specific time with a specific Id, inLocalTime specifies the current local time or if UTC time should be used
+	 * Currently only works for Android.
+	 * @param FireDateTime The time at which to fire the local notification
+	 * @param LocalTime If true the provided time is in the local timezone, if false it is in UTC
+	 * @param Title The title of the notification
+	 * @param Body The more detailed description of the notification
+	 * @param Action The text to be displayed on the slider controller
+	 * @param ActivationEvent A string that is passed in the delegate callback when the app is brought into the foreground from the user activating the notification
+	 * @param IdOverride A int that is passed to pin the notification to an Id. By doing this it will only show the latest notification sent from that ID.
+	 * @return A unique identifier used to cancel the notification
+	*/
+	virtual int32 ScheduleLocalNotificationAtTimeOverrideId(const FDateTime& FireDateTime, bool LocalTime, const FText& Title, const FText& Body, const FText& Action, const FString& ActivationEvent, int32 IdOverride) = 0;
+
 	/** Schedule a local notification badge at a specific time, inLocalTime specifies the current local time or if UTC time should be used
 	 * @param FireDateTime The time at which to fire the local notification
 	 * @param LocalTime If true the provided time is in the local timezone, if false it is in UTC
