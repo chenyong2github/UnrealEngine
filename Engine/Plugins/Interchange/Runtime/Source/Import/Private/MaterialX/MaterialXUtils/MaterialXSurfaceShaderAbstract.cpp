@@ -335,7 +335,7 @@ void FMaterialXSurfaceShaderAbstract::ConnectImageInputToOutput(MaterialX::NodeP
 
 		UInterchangeShaderNode* TextureShaderNode = CreateShaderNode(UpstreamNode->getName().c_str(), TextureSample::Name.ToString());
 		TextureShaderNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
-		UInterchangeShaderPortsAPI::ConnectOuputToInput(ParentShaderNode, InputChannelName, TextureShaderNode->GetUniqueID(), OutputChannel);
+		UInterchangeShaderPortsAPI::ConnectOuputToInputByName(ParentShaderNode, InputChannelName, TextureShaderNode->GetUniqueID(), OutputChannel);
 	}
 	else
 	{
@@ -941,7 +941,7 @@ void FMaterialXSurfaceShaderAbstract::ConnectBlurInputToOutput(MaterialX::NodePt
 
 				UInterchangeShaderNode* TextureShaderNode = CreateShaderNode(UpstreamNode->getName().c_str(), TextureSampleBlur::Name.ToString());
 				TextureShaderNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSampleBlur::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
-				UInterchangeShaderPortsAPI::ConnectOuputToInput(ParentShaderNode, InputChannelName, TextureShaderNode->GetUniqueID(), OutputChannel);
+				UInterchangeShaderPortsAPI::ConnectOuputToInputByName(ParentShaderNode, InputChannelName, TextureShaderNode->GetUniqueID(), OutputChannel);
 
 				if(mx::InputPtr InputKernel = UpstreamNode->getInput("filtertype"))
 				{

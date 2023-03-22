@@ -101,7 +101,17 @@ namespace UE
 
 				int32 GetOutputIndex(UMaterialExpression& MaterialExpression, const FString& OutputName)
 				{
-					int32 ExpressionOutputIndex = 0;
+					// Check whether OutputName stores an index
+					int32 ExpressionOutputIndex = UInterchangeShaderPortsAPI::GetOutputIndexFromName(OutputName);
+					if (ExpressionOutputIndex != INDEX_NONE)
+					{
+						if (MaterialExpression.GetOutputs().IsValidIndex(ExpressionOutputIndex))
+						{
+							return ExpressionOutputIndex;
+						}
+					}
+
+					ExpressionOutputIndex = 0;
 
 					for (const FExpressionOutput& ExpressionOutput : MaterialExpression.GetOutputs())
 					{

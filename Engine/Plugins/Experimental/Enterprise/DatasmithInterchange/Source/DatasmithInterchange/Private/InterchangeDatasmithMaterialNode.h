@@ -127,7 +127,6 @@ private:
 namespace UE::DatasmithInterchange::MaterialUtils
 {
 	extern const FName DefaultOutputIndexAttrName;
-	extern const FName MaterialFunctionPathAttrName;
 
 	extern const FName MaterialTypeAttrName;
 	extern const FName MaterialQualityAttrName;

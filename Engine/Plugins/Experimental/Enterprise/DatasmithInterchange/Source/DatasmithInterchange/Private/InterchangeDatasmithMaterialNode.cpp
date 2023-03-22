@@ -38,7 +38,6 @@ const FString UInterchangeDatasmithPbrMaterialNode::MaterialFunctionsDependencie
 
 namespace UE::DatasmithInterchange::MaterialUtils
 {
-	const FName MaterialFunctionPathAttrName(TEXT("Datasmith:Material:FunctionCall:MaterialFunctionPath"));
 	const FName DefaultOutputIndexAttrName(TEXT("Datasmith:MaterialExpression:DefaultOutputIndex"));
 
 	const FName MaterialTypeAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialType"));
@@ -68,7 +67,12 @@ namespace UE::DatasmithInterchange::MaterialUtils
 
 			void ConnectOuputToInput(const FString& OutputNodeUid, const FName& OutputName) const
 			{
-				UInterchangeShaderPortsAPI::ConnectOuputToInput(InputNode, InputName, OutputNodeUid, OutputName.ToString());
+				UInterchangeShaderPortsAPI::ConnectOuputToInputByName(InputNode, InputName, OutputNodeUid, OutputName.ToString());
+			}
+
+			void ConnectOuputToInput(const FString& OutputNodeUid, int32 OutputIndex) const
+			{
+				UInterchangeShaderPortsAPI::ConnectOuputToInputByIndex(InputNode, InputName, OutputNodeUid, OutputIndex);
 			}
 		};
 
@@ -446,7 +450,6 @@ namespace UE::DatasmithInterchange::MaterialUtils
 		FString FunctionPath = FPackageName::ExportTextPathToObjectPath(DatasmithExpression.GetFunctionPathName());
 
 		TArray<FString> InputNames;
-		UInterchangeShaderNode* ExpressionNode = nullptr;
 
 		if (FPackageName::DoesPackageExist(FunctionPath))
 		{
@@ -471,7 +474,7 @@ namespace UE::DatasmithInterchange::MaterialUtils
 			const bool bCanProceed = FunctionInputs.Num() < DatasmithExpression.GetInputCount() || FunctionOutputs.IsValidIndex(OutputIndex);
 			if (!ensure(bCanProceed))
 			{
-				// TODO: Log error
+				// TODO: Log warning invalid predefined asset reference used by function call expression
 				return;
 			}
 
@@ -480,10 +483,6 @@ namespace UE::DatasmithInterchange::MaterialUtils
 			{
 				InputNames.Add(FunctionInput.Input.InputName.ToString());
 			}
-
-			ExpressionNode = CreateExpressionNode(DatasmithExpression, ConnectionData.InputNode->GetUniqueID());
-
-			ExpressionNode->AddStringAttribute(MaterialFunctionPathAttrName, FunctionPath);
 		}
 		else
 		{
@@ -491,36 +490,45 @@ namespace UE::DatasmithInterchange::MaterialUtils
 			const UInterchangeDatasmithPbrMaterialNode* PbrMaterialNode = Cast<const UInterchangeDatasmithPbrMaterialNode>(NodeContainer.GetNode(MaterialUid));
 			if (!ensure(PbrMaterialNode))
 			{
-				// TODO: Log error
+				// TODO: Log warning invalid internal reference used by function call expression
 				return;
 			}
 
+			FunctionPath.Empty();
 			UInterchangeShaderPortsAPI::GatherInputs(PbrMaterialNode, InputNames);
 
-			UInterchangeFunctionCallShaderNode* FunctionCallExpressionNode = CreateExpressionNode<UInterchangeFunctionCallShaderNode>(DatasmithExpression, ConnectionData.InputNode->GetUniqueID());
-			FunctionCallExpressionNode->SetCustomMaterialFunction(MaterialUid);
-
 			MaterialFunctionUids.Add(MaterialUid);
-
-			ExpressionNode = FunctionCallExpressionNode;
 		}
 
-		if (!ensure(ExpressionNode))
+		if (FunctionPath.IsEmpty() && MaterialUid.IsEmpty())
+		{
+			// TODO: Log warning invalid reference used by function call expression
+			return;
+		}
+
+		UInterchangeFunctionCallShaderNode* FunctionCallExpressionNode = CreateExpressionNode<UInterchangeFunctionCallShaderNode>(DatasmithExpression, ConnectionData.InputNode->GetUniqueID());
+		if (!ensure(FunctionCallExpressionNode))
 		{
 			// TODO: Log error
 			return;
 		}
 
-		// TODO: Handle case where path is an existing asset vs a material function defined in file
-		ExpressionNode->SetCustomShaderType(TEXT("MaterialFunctionCall"));
+		if (!MaterialUid.IsEmpty())
+		{
+			FunctionCallExpressionNode->SetCustomMaterialFunction(MaterialUid);
+		}
+		else
+		{
+			FunctionCallExpressionNode->SetCustomMaterialFunction(FunctionPath);
+		}
 
-		ConnectionData.ConnectDefaultOuputToInput(ExpressionNode->GetUniqueID());
+		ConnectionData.ConnectOuputToInput(FunctionCallExpressionNode->GetUniqueID(), OutputIndex);
 
 		for (int32 InputIndex = 0; InputIndex < DatasmithExpression.GetInputCount(); ++InputIndex)
 		{
 			if (const IDatasmithExpressionInput* ExpressionInput = DatasmithExpression.GetInput(InputIndex))
 			{
-				FConnectionData InputConnectionData{ ExpressionNode, InputNames[InputIndex]};
+				FConnectionData InputConnectionData{ FunctionCallExpressionNode, InputNames[InputIndex] };
 
 				ConnectExpression(ExpressionInput->GetExpression(), InputConnectionData, ExpressionInput->GetOutputIndex());
 			}
@@ -554,8 +562,7 @@ namespace UE::DatasmithInterchange::MaterialUtils
 			}
 			else
 			{
-				// TODO: Need to find node's output list
-				ConnectionData.ConnectOuputToInput(ExpressionNode->GetUniqueID(), NAME_None);
+				ConnectionData.ConnectOuputToInput(ExpressionNode->GetUniqueID(), OutputIndex);
 			}
 		}
 

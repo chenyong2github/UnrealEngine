@@ -7,6 +7,7 @@
 
 const TCHAR* UInterchangeShaderPortsAPI::InputPrefix = TEXT("Inputs");
 const TCHAR* UInterchangeShaderPortsAPI::InputSeparator = TEXT(":");
+const TCHAR* UInterchangeShaderPortsAPI::OutputByIndex = TEXT("__ByIndex__");
 
 FName UInterchangeShaderPortsAPI::MakeInputConnectionKey(const FString& InputName)
 {
@@ -87,7 +88,7 @@ bool UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(UInterchangeBaseNode
 	return InterchangeNode->AddStringAttribute(MakeInputConnectionKey(InputName), ExpressionUid);
 }
 
-bool UInterchangeShaderPortsAPI::ConnectOuputToInput(UInterchangeBaseNode* InterchangeNode, const FString& InputName, const FString& ExpressionUid, const FString& OutputName)
+bool UInterchangeShaderPortsAPI::ConnectOuputToInputByName(UInterchangeBaseNode* InterchangeNode, const FString& InputName, const FString& ExpressionUid, const FString& OutputName)
 {
 	if (OutputName.IsEmpty())
 	{
@@ -97,6 +98,18 @@ bool UInterchangeShaderPortsAPI::ConnectOuputToInput(UInterchangeBaseNode* Inter
 	{
 		return InterchangeNode->AddStringAttribute(MakeInputConnectionKey(InputName), ExpressionUid + InputSeparator + OutputName);
 	}
+}
+
+bool UInterchangeShaderPortsAPI::ConnectOuputToInputByIndex(UInterchangeBaseNode* InterchangeNode, const FString& InputName, const FString& ExpressionUid, int32 OutputIndex)
+{
+	TStringBuilder<128> StringBuilder;
+	StringBuilder.Append(ExpressionUid);
+	StringBuilder.Append(InputSeparator);
+	StringBuilder.Append(OutputByIndex);
+	StringBuilder.Append(InputSeparator);
+	StringBuilder.Append(FString::FromInt(OutputIndex));
+
+	return InterchangeNode->AddStringAttribute(MakeInputConnectionKey(InputName), StringBuilder.ToString());
 }
 
 UE::Interchange::EAttributeTypes UInterchangeShaderPortsAPI::GetInputType(const UInterchangeBaseNode* InterchangeNode, const FString& InputName)
@@ -113,6 +126,21 @@ bool UInterchangeShaderPortsAPI::GetInputConnection(const UInterchangeBaseNode* 
 	}
 
 	return false;
+}
+
+int32 UInterchangeShaderPortsAPI::GetOutputIndexFromName(const FString& OutputName)
+{
+	if (OutputName.StartsWith(OutputByIndex))
+	{
+		FString OutputIndex;
+		FString Discard;
+
+		OutputName.Split(InputSeparator, &Discard, &OutputIndex, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+
+		return FCString::Atoi(*OutputIndex);
+	}
+
+	return INDEX_NONE;
 }
 
 FString UInterchangeShaderNode::MakeNodeUid(const FStringView NodeName, const FStringView ParentNodeUid)

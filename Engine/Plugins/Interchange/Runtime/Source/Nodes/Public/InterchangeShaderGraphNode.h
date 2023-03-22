@@ -70,26 +70,50 @@ public:
 	 * @param InterchangeNode	The Node to create the input on.
 	 * @param InputName			The name to give to the input.
 	 * @param ExpressionUid		The unique id of the node to connect to the input.
-	 * @param OutputName		The name of the ouput from ExpressionUid to connect to the input.
-	 * @return					true if the input connection was succesfully added to the node.
+	 * @param OutputName		The name of the output from ExpressionUid to connect to the input.
+	 * @return					true if the input connection was successfully added to the node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	static bool ConnectOuputToInput(UInterchangeBaseNode* InterchangeNode, const FString& InputName, const FString& ExpressionUid, const FString& OutputName);
+	static bool ConnectOuputToInputByName(UInterchangeBaseNode* InterchangeNode, const FString& InputName, const FString& ExpressionUid, const FString& OutputName);
+	UE_DEPRECATED(5.3, "This function is replace by ConnectOuputToInputByName.")
+	static bool ConnectOuputToInput(UInterchangeBaseNode* InterchangeNode, const FString& InputName, const FString& ExpressionUid, const FString& OutputName)
+	{
+		return ConnectOuputToInputByName(InterchangeNode, InputName, ExpressionUid, OutputName);
+	}
+
+	/**
+	 * Adds an input connection attribute.
+	 * @param InterchangeNode	The Node to create the input on.
+	 * @param InputName			The name to give to the input.
+	 * @param ExpressionUid		The unique id of the node to connect to the input.
+	 * @param OutputIndex		The index of the output from ExpressionUid to connect to the input.
+	 * @return					true if the input connection was successfully added to the node.
+	 * OutputIndex is encoded in a string in the following pattern  ExpressionUid:OutputByIndex:FString::FromInt(OutputIndex)
+	 * The index should be retrieved using UInterchangeShaderPortsAPI::GetOutputIndexFromName
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	static bool ConnectOuputToInputByIndex(UInterchangeBaseNode* InterchangeNode, const FString& InputName, const FString& ExpressionUid, int32 OutputIndex);
  
 	/**
-	 * Retrieves the node unique id and the ouputname connected to a given input, if any.
+	 * Retrieves the node unique id and the output name connected to a given input, if any.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	static bool GetInputConnection(const UInterchangeBaseNode* InterchangeNode, const FString& InputName, FString& OutExpressionUid, FString& OutputName);
-	
+
 	/**
 	 * For an input with a value, returns the type of the stored value.
 	 */
 	static UE::Interchange::EAttributeTypes GetInputType(const UInterchangeBaseNode* InterchangeNode, const FString& InputName);
- 
+
+	/**
+	 * Returns INDEX_NONE if OutputName is not an index.
+	 */
+	static int32 GetOutputIndexFromName(const FString& OutputName);
+
 private:
 	static const TCHAR* InputPrefix;
 	static const TCHAR* InputSeparator;
+	static const TCHAR* OutputByIndex;
 };
 
 /**
