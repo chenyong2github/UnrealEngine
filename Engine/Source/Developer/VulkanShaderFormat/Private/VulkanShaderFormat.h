@@ -18,6 +18,7 @@ enum class EVulkanShaderVersion
 	ES3_1_ANDROID,
 	SM5,
 	SM5_ANDROID,
+	SM6,
 };
 
 extern void DoCompileVulkanShader(const struct FShaderCompilerInput& Input,struct FShaderCompilerOutput& Output,const class FString& WorkingDirectory, EVulkanShaderVersion Version);

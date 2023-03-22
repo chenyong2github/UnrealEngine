@@ -67,7 +67,9 @@ inline bool SupportsOfflineCompiler(FName ShaderFormat)
 
 inline CrossCompiler::FShaderConductorOptions::ETargetEnvironment GetMinimumTargetEnvironment(EVulkanShaderVersion ShaderVersion)
 {
-	return CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_1;
+	return (ShaderVersion == EVulkanShaderVersion::SM6) ?
+		CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_3:
+		CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_1;
 }
 
 DEFINE_LOG_CATEGORY_STATIC(LogVulkanShaderCompiler, Log, All); 
@@ -2196,6 +2198,10 @@ static void VulkanCreateDXCCompileBatchFiles(
 	else if (Options.TargetEnvironment == CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_2)
 	{
 		VulkanVersion = TEXT("vulkan1.2");
+	}
+	else if (Options.TargetEnvironment == CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_3)
+	{
+		VulkanVersion = TEXT("vulkan1.3");
 	}
 	else
 	{

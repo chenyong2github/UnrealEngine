@@ -96,8 +96,9 @@ namespace CrossCompiler
 			Vulkan_1_0,
 			Vulkan_1_1,
 			Vulkan_1_2,
+			Vulkan_1_3,
 		};
-		ETargetEnvironment TargetEnvironment = ETargetEnvironment::Vulkan_1_0;
+		ETargetEnvironment TargetEnvironment = ETargetEnvironment::Vulkan_1_1;
 
 		/** Shader model version of the input language. By default SM6.2. */
 		FHlslShaderModel ShaderModel = { 6, 2 };

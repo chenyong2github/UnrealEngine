@@ -390,6 +390,9 @@ namespace CrossCompiler
 		case ETargetEnvironment::Vulkan_1_2:
 			DxcArgRefs.Add("-fspv-target-env=vulkan1.2");
 			break;
+		case ETargetEnvironment::Vulkan_1_3:
+			DxcArgRefs.Add("-fspv-target-env=vulkan1.3");
+			break;
 		}
 
 		if (DxcArgRefs.Num() > 0)
