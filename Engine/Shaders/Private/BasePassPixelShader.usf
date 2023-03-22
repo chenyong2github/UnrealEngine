@@ -1366,8 +1366,8 @@ void FPixelShaderInOut_MainPS(
 	float3 OutOfBoundsMaskLuminance = 0;
 	// This feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 	// The following block is disabled on Vulkan because it triggers an nvidia driver bug (UE-101609).
-	#if !VULKAN_PROFILE_SM5
-		#if METAL_SM5_PROFILE || SM6_PROFILE || SM5_PROFILE || VULKAN_PROFILE_SM5
+	#if !VULKAN_PROFILE_SM5 && !VULKAN_PROFILE_SM6
+		#if METAL_SM5_PROFILE || SM6_PROFILE || SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE_SM6
 		BRANCH
 		if (View.OutOfBoundsMask > 0)
 		{

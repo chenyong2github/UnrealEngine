@@ -49,6 +49,7 @@ inline bool IsVulkanShaderFormat(FName ShaderFormat)
 	return ShaderFormat == NAME_VULKAN_ES3_1_ANDROID
 		|| ShaderFormat == NAME_VULKAN_ES3_1
 		|| ShaderFormat == NAME_VULKAN_SM5
+//		|| ShaderFormat == NAME_VULKAN_SM6 // :todo-jn:
 		|| ShaderFormat == NAME_VULKAN_SM5_ANDROID;
 }
 
@@ -2548,6 +2549,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 {
 	check(IsVulkanShaderFormat(Input.ShaderFormat));
 
+	const bool bIsSM6 = (Version == EVulkanShaderVersion::SM6);
 	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5) || (Version == EVulkanShaderVersion::SM5_ANDROID);
 	const bool bIsMobileES31 = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID);
 	bool bStripReflect = Input.IsRayTracingShader();
@@ -2566,12 +2568,12 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		HSF_InvalidFrequency,
 		HSF_InvalidFrequency,
 		HSF_PixelShader,
-		bIsSM5 ? HSF_GeometryShader : HSF_InvalidFrequency,
+		(bIsSM5 || bIsSM6) ? HSF_GeometryShader : HSF_InvalidFrequency,
 		HSF_ComputeShader, 
-		bIsSM5 ? HSF_RayGen : HSF_InvalidFrequency,
-		bIsSM5 ? HSF_RayMiss : HSF_InvalidFrequency,
-		bIsSM5 ? HSF_RayHitGroup : HSF_InvalidFrequency,
-		bIsSM5 ? HSF_RayCallable : HSF_InvalidFrequency,
+		(bIsSM5 || bIsSM6) ? HSF_RayGen : HSF_InvalidFrequency,
+		(bIsSM5 || bIsSM6) ? HSF_RayMiss : HSF_InvalidFrequency,
+		(bIsSM5 || bIsSM6) ? HSF_RayHitGroup : HSF_InvalidFrequency,
+		(bIsSM5 || bIsSM6) ? HSF_RayCallable : HSF_InvalidFrequency,
 	};
 
 	const EShaderFrequency Frequency = (EShaderFrequency)Input.Target.Frequency;
@@ -2595,6 +2597,10 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	{
 		AdditionalDefines.SetDefine(TEXT("ES3_1_PROFILE"), 1);
 		AdditionalDefines.SetDefine(TEXT("VULKAN_PROFILE"), 1);
+	}
+	else if (bIsSM6)
+	{
+		AdditionalDefines.SetDefine(TEXT("VULKAN_PROFILE_SM6"), 1);
 	}
 	else if (bIsSM5)
 	{

@@ -176,6 +176,10 @@
 #define	VULKAN_PROFILE_SM5 0
 #endif
 
+#ifndef VULKAN_PROFILE_SM6
+#define	VULKAN_PROFILE_SM6 0
+#endif
+
 #ifndef IOS
 #define IOS 0
 #endif
@@ -365,6 +369,10 @@ float2 UnpackFloat2FromUInt(uint In)
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
 	#define STENCIL_COMPONENT_SWIZZLE .x
 
+#elif VULKAN_PROFILE_SM6
+	#define FEATURE_LEVEL FEATURE_LEVEL_SM6
+	#define STENCIL_COMPONENT_SWIZZLE .x
+
 #elif METAL_PROFILE
 	#define FEATURE_LEVEL  FEATURE_LEVEL_ES3_1
 	// @todo metal: remove this and make sure all uses handle METAL_PROFILE
@@ -475,7 +483,7 @@ float2 UnpackFloat2FromUInt(uint In)
 // Ideally this would just be enabled for all SM4 and above feature level platforms
 // @todo metal mrt: No reason this can't work with Metal, once cross compiler is fixed
 #ifndef SUPPORTS_INDEPENDENT_SAMPLERS
-#define SUPPORTS_INDEPENDENT_SAMPLERS (SM6_PROFILE || SM5_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE)
+#define SUPPORTS_INDEPENDENT_SAMPLERS (SM6_PROFILE || SM5_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE_SM6 || VULKAN_PROFILE)
 #endif
 
 // Whether the platform support pixel coverage on MSAA targets (SV_Coverage).
@@ -632,7 +640,7 @@ void ShaderYield()
 
 #endif // SM6_PROFILE || SM5_PROFILE || COMPILER_SUPPORTS_ATTRIBUTES
 
-#if SM6_PROFILE || SM5_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || ES3_1_PROFILE || VULKAN_PROFILE_SM5
+#if SM6_PROFILE || SM5_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || ES3_1_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE_SM6
 #define EARLYDEPTHSTENCIL [earlydepthstencil]
 #endif
 
