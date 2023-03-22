@@ -547,7 +547,7 @@ FMalloc* FAndroidPlatformMemory::BaseAllocator()
 	FLowLevelMemTracker::Get().SetProgramSize(Stats.UsedPhysical);
 #endif
 
-#if RUNNING_WITH_ASAN
+#if FORCE_ANSI_ALLOCATOR
 	return (Instance = new FMallocAnsi());
 #endif
 

@@ -601,7 +601,7 @@ namespace UnrealBuildTool
 
 				if (Sanitizer == ClangSanitizer.Address || Sanitizer == ClangSanitizer.HwAddress)
 				{
-					Arguments.Add("-fno-omit-frame-pointer -DRUNNING_WITH_ASAN=1");
+					Arguments.Add("-fno-omit-frame-pointer -DRUNNING_WITH_ASAN=1 -DFORCE_ANSI_ALLOCATOR=1");
 				}
 			}
 
