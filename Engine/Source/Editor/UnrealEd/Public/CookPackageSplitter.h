@@ -4,6 +4,7 @@
 
 #if WITH_EDITOR
 
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Containers/Array.h"
 #include "Containers/List.h"
 #include "Containers/UnrealString.h"
