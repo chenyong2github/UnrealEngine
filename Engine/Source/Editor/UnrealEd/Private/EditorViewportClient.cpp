@@ -4240,12 +4240,6 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 #endif
 	}
 
-	if(!IsRealtime())
-	{
-		// Wait for the rendering thread to finish drawing the view before returning.
-		// This reduces the apparent latency of dragging the viewport around.
-		FlushRenderingCommands();
-	}
 
 	Viewport = ViewportBackup;
 }
