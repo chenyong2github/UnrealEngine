@@ -104,7 +104,7 @@ namespace EpicGames.UHT.Utils
 
 			try
 			{
-				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
+				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
 				using UhtBorrowByteBuffer byteBuffer = new((int)fs.Length);
 				Span<byte> byteSpan = byteBuffer.Buffer.Memory.Span;
 				int readLength = fs.Read(byteSpan);
@@ -136,7 +136,7 @@ namespace EpicGames.UHT.Utils
 
 			try
 			{
-				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
+				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
 				using UhtRentedPoolBuffer<byte> byteBuffer = new((int)fs.Length);
 				Span<byte> byteSpan = byteBuffer.Buffer.Memory.Span;
 				int readLength = fs.Read(byteSpan);
@@ -208,7 +208,7 @@ namespace EpicGames.UHT.Utils
 
 			try
 			{
-				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan);
+				using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
 				using UhtRentedPoolBuffer<byte> byteBuffer = new((int)fs.Length);
 				Span<byte> byteSpan = byteBuffer.Buffer.Memory.Span;
 				int readLength = fs.Read(byteSpan);
