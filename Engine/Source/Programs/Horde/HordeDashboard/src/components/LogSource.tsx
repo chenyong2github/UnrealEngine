@@ -190,17 +190,14 @@ export abstract class LogSource {
          return;
       }
 
-      if (!this.active) {
-         this.stopPolling();
-         return;
-      }
-
       if (!this.pollMS) {
          return;
       }
 
-      this.pollID = setTimeout(() => { this.poll(); }, this.pollMS);
-
+      if (this.active) {
+         this.pollID = setTimeout(() => { this.poll(); }, this.pollMS);
+      } 
+      
       if (this.polling) {
          return;
       }
@@ -213,8 +210,10 @@ export abstract class LogSource {
          });
       }).finally(() => {
          this.polling = false;
+         if (!this.active) {
+            this.stopPolling();
+         }
       });
-
 
    }
 
