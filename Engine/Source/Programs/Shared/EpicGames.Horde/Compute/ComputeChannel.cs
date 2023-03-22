@@ -183,7 +183,7 @@ namespace EpicGames.Horde.Compute
 			{
 				bytes.Append("..");
 			}
-			_logger.LogTrace("{Verb} {Type,-20} [{Length,8:n0}] = {Bytes}", verb, type, data.Length, bytes.ToString());
+			_logger.LogTrace("{Verb} {Type,-22} [{Length,8:n0}] = {Bytes}", verb, type, data.Length, bytes.ToString());
 		}
 
 		/// <inheritdoc/>

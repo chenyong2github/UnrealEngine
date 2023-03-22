@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -14,9 +13,9 @@ using Microsoft.Extensions.Logging;
 namespace EpicGames.Horde.Compute.Clients
 {
 	/// <summary>
-	/// Implementation of <see cref="IComputeChannel"/> which marshals data over a loopback connection to a method running on a background task.
+	/// Implementation of <see cref="IComputeChannel"/> which marshals data over a loopback connection to a method running on a background task in the same process.
 	/// </summary>
-	public sealed class LoopbackComputeClient : IComputeClient
+	public sealed class LocalComputeClient : IComputeClient
 	{
 		readonly BackgroundTask _listenerTask;
 		readonly Socket _listener;
@@ -29,7 +28,7 @@ namespace EpicGames.Horde.Compute.Clients
 		/// <param name="serverFunc">Callback to process the server side of the connection</param>
 		/// <param name="port">Port to connect on</param>
 		/// <param name="loggerFactory">Logger for diagnostic output</param>
-		public LoopbackComputeClient(Func<IComputeSocket, CancellationToken, Task> serverFunc, int port, ILoggerFactory loggerFactory)
+		public LocalComputeClient(Func<IComputeSocket, CancellationToken, Task> serverFunc, int port, ILoggerFactory loggerFactory)
 		{
 			_loggerFactory = loggerFactory;
 
