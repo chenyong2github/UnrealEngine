@@ -296,7 +296,7 @@ namespace Horde.Agent.Leases.Handlers
 							channel.SendExecuteProcessResponse(process.ExitCode);
 							return;
 						}
-						channel.SendProcessOutput(buffer);
+						channel.SendProcessOutput(buffer.AsMemory(0, length));
 					}
 				}
 			}
