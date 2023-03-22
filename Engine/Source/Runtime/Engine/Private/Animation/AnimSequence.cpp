@@ -4837,10 +4837,11 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 		case EAnimDataModelNotifyType::CurveFlagsChanged:
 		case EAnimDataModelNotifyType::CurveScaled:
 		{
-			ClearAllCachedCookedPlatformData();
+			ClearCompressedCurveData();
 				
 			if (NotifyCollector.IsNotWithinBracket())
 			{						
+				ClearAllCachedCookedPlatformData();
 				UpdateRawDataGuid(RegenerateGUID);
 				BeginCacheDerivedDataForCurrentPlatform();
 			}
