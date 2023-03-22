@@ -804,6 +804,8 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 				LinkerLoadingContext->AddUniqueLoadedObjects(DupObjects);
 			}
 
+			//WidgetBP->IsWidgetFreeFromCircularReferences();
+
 			BPGClass->SetWidgetTreeArchetype(NewWidgetTree);
 			if (OldWidgetTree)
 			{
@@ -812,6 +814,21 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 			OldWidgetTree = nullptr;
 
 			WidgetBP->WidgetTree->SetFlags(PreviousFlags);
+		}
+
+		{
+			TValueOrError<void, UWidget*> HasReference = WidgetBP->HasCircularReferences();
+			if (HasReference.HasError())
+			{
+				if (UWidget* FoundCircularWidget = BPGClass->GetWidgetTreeArchetype()->FindWidget(HasReference.GetError()->GetFName()))
+				{
+					BPGClass->GetWidgetTreeArchetype()->RemoveWidget(FoundCircularWidget);
+				}
+				MessageLog.Error(*FText::Format(LOCTEXT("CircularReference", "The WidgetTree '{0}' Contains circular references. See widget '{1}'"),
+					FText::FromString(WidgetBP->WidgetTree->GetPathName()),
+					FText::FromString(HasReference.GetError()->GetName())
+					).ToString());
+			}
 		}
 
 		int32 AnimIndex = 0;

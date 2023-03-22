@@ -10,6 +10,7 @@
 #include "Binding/DynamicPropertyPath.h"
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Animation/WidgetAnimationBinding.h"
+#include "Templates/ValueOrError.h"
 
 #include "WidgetBlueprint.generated.h"
 
@@ -313,6 +314,9 @@ public:
 
 	/** Returns true if the supplied user widget will not create a circular reference when added to this blueprint */
 	bool IsWidgetFreeFromCircularReferences(UUserWidget* UserWidget) const;
+	
+	/**  */
+	TValueOrError<void, UWidget*> HasCircularReferences() const;
 
 	static bool ValidateGeneratedClass(const UClass* InClass);
 	

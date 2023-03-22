@@ -1154,7 +1154,7 @@ bool UWidgetBlueprint::IsWidgetFreeFromCircularReferences(UUserWidget* UserWidge
 			if (GeneratedByBlueprint->WidgetTree && GeneratedByBlueprint->WidgetTree->RootWidget)
 			{
 				TArray<UWidget*> ChildWidgets;
-				GeneratedByBlueprint->WidgetTree->GetChildWidgets(GeneratedByBlueprint->WidgetTree->RootWidget, ChildWidgets);
+				GeneratedByBlueprint->WidgetTree->GetAllWidgets(ChildWidgets);
 				for (UWidget* ChildWidget : ChildWidgets)
 				{
 					if (UWidgetBlueprint* ChildGeneratedBlueprint = Cast<UWidgetBlueprint>(ChildWidget->WidgetGeneratedBy))
@@ -1187,6 +1187,63 @@ bool UWidgetBlueprint::IsWidgetFreeFromCircularReferences(UUserWidget* UserWidge
 	}
 
 	return true;
+}
+
+namespace UE::UMG::Private
+{
+bool HasCircularReferences(const UClass* CurrentClass, TArray<const UClass*, TInlineAllocator<32>> DiscoveredBlueprint, UWidget*& OutResult)
+{
+	if (DiscoveredBlueprint.ContainsByPredicate([CurrentClass](const UClass* Other) { return CurrentClass->IsChildOf(Other); }))
+	{
+		return true;
+	}
+	DiscoveredBlueprint.Add(CurrentClass);
+
+	if (const UWidgetBlueprintGeneratedClass* CurrentWidgetClass = Cast<const UWidgetBlueprintGeneratedClass>(CurrentClass))
+	{
+		TArray<UWidget*> AllWidgets;
+		if (const UWidgetBlueprint* WidgetBP = Cast<const UWidgetBlueprint>(CurrentWidgetClass->ClassGeneratedBy))
+		{
+			if (WidgetBP->WidgetTree)
+			{
+				WidgetBP->WidgetTree->GetAllWidgets(AllWidgets);
+			}
+		}
+		else if (UWidgetTree* CurrentWidgetTree = CurrentWidgetClass->GetWidgetTreeArchetype())
+		{
+			CurrentWidgetTree->GetAllWidgets(AllWidgets);
+
+		}
+
+		for (UWidget* Widget : AllWidgets)
+		{
+			if (UUserWidget* UserWidget = Cast<UUserWidget>(Widget))
+			{
+				if (HasCircularReferences(UserWidget->GetClass(), DiscoveredBlueprint, OutResult))
+				{
+					OutResult = Widget;
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+}
+
+TValueOrError<void, UWidget*> UWidgetBlueprint::HasCircularReferences() const
+{
+	if (GeneratedClass)
+	{
+		TArray<const UClass*, TInlineAllocator<32>> DiscoveredBlueprint;
+		UWidget* Result = nullptr;
+		if (UE::UMG::Private::HasCircularReferences(GeneratedClass, DiscoveredBlueprint, Result))
+		{
+			return MakeError(Result);
+		}
+	}
+	return MakeValue();
 }
 
 UPackage* UWidgetBlueprint::GetWidgetTemplatePackage() const
