@@ -457,8 +457,6 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
             }
          });
 
-         // currently disabled until doc copy to public folder is sorted
-         /*
          const docsItems: IContextualMenuItem[] = [];
          docsItems.push({
             key: "server_docs",
@@ -475,7 +473,6 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
                bottomDivider: true
             }
          });
-         */
       }
 
       // Configuration
