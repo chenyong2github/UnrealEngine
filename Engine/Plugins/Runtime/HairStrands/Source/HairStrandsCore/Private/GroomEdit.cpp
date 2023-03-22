@@ -47,7 +47,7 @@ static void HairStrandsDataToEditableHairStrands(const FHairStrandsDatas& In, TA
 		const FVector3f GuideWeights = bHasValidClosestGuide ? (FVector3f)In.StrandsCurves.CurvesClosestGuideIDs[StrandsIt] : FVector3f::ZeroVector;
 
 		Out[StrandsIt].StrandID		= bHasValidStrandsIDs ? In.StrandsCurves.StrandIDs[StrandsIt] : StrandsIt;
-		Out[StrandsIt].ClumpID		= bHasValidClumpIDs ? In.StrandsCurves.ClumpIDs[StrandsIt] : 0;
+		Out[StrandsIt].ClumpID		= bHasValidClumpIDs ? In.StrandsCurves.ClumpIDs[StrandsIt].X : 0;
 		Out[StrandsIt].RootUV		= In.StrandsCurves.CurvesRootUV[StrandsIt];
 		Out[StrandsIt].GuideIDs[0]  = GuideIDs.X;
 		Out[StrandsIt].GuideIDs[1]  = GuideIDs.Y;

@@ -111,7 +111,7 @@ float  GetHairStrandsSeed(float2 HairPrimitiveUV)
 	return GetHairStrandsAttributes(HairPrimitiveUV).HairSeed;
 }
 
-uint GetHairStrandsClumpID(float2 HairPrimitiveUV)
+uint3 GetHairStrandsClumpID(float2 HairPrimitiveUV)
 {
 	return 0;
 }

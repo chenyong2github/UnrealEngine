@@ -94,9 +94,14 @@ float UnpackHairSeed(uint In)
 	return (In & 0xFF) / 255.f;
 }
 
-uint UnpackHairClumpID(uint In)
+uint3 UnpackHairClumpID(uint In)
 {
-	return (In & 0xFFFF);
+	return (In & 0xFFFF).xxx;
+}
+
+uint3 UnpackHairClumpID(uint2 In)
+{
+	return uint3(In.x & 0xFFFF, (In.x>>16) & 0xFFFF, (In.x>>32) & 0xFFFF);
 }
 
 float3 UnpackHairColor(uint In)

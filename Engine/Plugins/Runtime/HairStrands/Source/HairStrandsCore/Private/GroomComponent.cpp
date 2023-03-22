@@ -68,6 +68,9 @@ static FAutoConsoleVariableRef CVarHairStrands_BoundsMode(TEXT("r.HairStrands.Bo
 static int32 GHairStrands_UseAttachedSimulationComponents = 0;
 static FAutoConsoleVariableRef CVarHairStrands_UseAttachedSimulationComponents(TEXT("r.HairStrands.UseAttachedSimulationComponents"), GHairStrands_UseAttachedSimulationComponents, TEXT("Boolean to check if we are using already attached niagara components for simulation (WIP)"));
 
+static int32 GHairStrands_ViewModeClumpIndex = 0;
+static FAutoConsoleVariableRef CVarHairStrands_ViewModeClumpIndex(TEXT("r.HairStrands.ViewMode.ClumpIndex"), GHairStrands_ViewModeClumpIndex, TEXT("Define the ClumpID index (0, 1, or 2) which should be visualized"));
+
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -703,6 +706,12 @@ public:
 						if (ViewMode == EGroomViewMode::LODColoration)
 						{
 							HairMaxRadius = Instances[GroupIt]->HairGroupPublicData ? Instances[GroupIt]->HairGroupPublicData->LODIndex : 0;
+						}
+
+						// Reuse the HairMaxRadius field to send the clumpID index selection
+						if (ViewMode == EGroomViewMode::ClumpID)
+						{
+							HairMaxRadius = FMath::Clamp(GHairStrands_ViewModeClumpIndex, 0, 2);
 						}
 
 						FVector HairColor = FVector::ZeroVector;

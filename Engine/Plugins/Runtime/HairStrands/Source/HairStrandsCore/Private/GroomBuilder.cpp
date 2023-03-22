@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8g");
+	return TEXT("v8h");
 }
 
 namespace FHairStrandsDecimation
@@ -179,7 +179,8 @@ namespace HairStrandsBuilder
 		}
 
 		const uint32 Attributes = HairStrands.GetAttributes();
-
+		const uint32 AttributeFlags = HairStrands.GetAttributeFlags();
+		const bool bHasMultipleClumpIDs = HasHairAttributeFlags(AttributeFlags, EHairAttributeFlags::HasMultipleClumpIDs);
 		TArray<uint32> AttributeRootUV;
 		TArray<uint32> AttributeSeed;
 		TArray<uint32> AttributeLength;
@@ -190,11 +191,11 @@ namespace HairStrandsBuilder
 
 		AttributeSeed.SetNum(FMath::DivideAndRoundUp(NumCurves, 4u));		// 1 bytes encoding - Per-Curve
 		AttributeLength.SetNum(FMath::DivideAndRoundUp(NumCurves, 2u));		// 2 bytes encoding - Per-Curve
-		if (HasHairAttribute(Attributes, EHairAttribute::RootUV)) 	{ AttributeRootUV.SetNum(NumCurves); }									// 4 bytes encoding - Per-Curve
-		if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))	{ AttributeClumpIDs.SetNum(FMath::DivideAndRoundUp(NumCurves, 2u)); }	// 2 bytes encoding - Per-Curve
-		if (HasHairAttribute(Attributes, EHairAttribute::Color))	{ AttributeBaseColor.SetNum(NumPoints); }								// 4 bytes encoding - Per-Vertex
-		if (HasHairAttribute(Attributes, EHairAttribute::Roughness)){ AttributeRoughness.SetNum(FMath::DivideAndRoundUp(NumPoints, 2u)); }	// 1 bytes encoding - Per-Vertex
-		if (HasHairAttribute(Attributes, EHairAttribute::AO))		{ AttributeAO.SetNum(FMath::DivideAndRoundUp(NumPoints, 4u)); }			// 1 bytes encoding - Per-Vertex
+		if (HasHairAttribute(Attributes, EHairAttribute::RootUV)) 	{ AttributeRootUV.SetNum(NumCurves); }																		// 4 bytes encoding - Per-Curve
+		if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))	{ AttributeClumpIDs.SetNum(bHasMultipleClumpIDs ? NumCurves * 2u : FMath::DivideAndRoundUp(NumCurves, 2u));}// 8 or 2 bytes encoding - Per-Curve
+		if (HasHairAttribute(Attributes, EHairAttribute::Color))	{ AttributeBaseColor.SetNum(NumPoints); }																	// 4 bytes encoding - Per-Vertex
+		if (HasHairAttribute(Attributes, EHairAttribute::Roughness)){ AttributeRoughness.SetNum(FMath::DivideAndRoundUp(NumPoints, 2u)); }										// 1 bytes encoding - Per-Vertex
+		if (HasHairAttribute(Attributes, EHairAttribute::AO))		{ AttributeAO.SetNum(FMath::DivideAndRoundUp(NumPoints, 4u)); }												// 1 bytes encoding - Per-Vertex
 
 		const FVector HairBoxCenter = HairStrands.BoundingBox.GetCenter();
 
@@ -313,8 +314,18 @@ namespace HairStrandsBuilder
 			// Per-Curve Clump ID (16 bits max)
 			if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))
 			{
-				uint16* Packed = (uint16*)AttributeClumpIDs.GetData();
-				Packed[CurveIndex] = uint16(FMath::Clamp(Curves.ClumpIDs[CurveIndex], 0, 65535));
+				if (bHasMultipleClumpIDs)
+				{
+					uint64* Packed = (uint64*)AttributeClumpIDs.GetData();
+					Packed[CurveIndex] |= uint64(FMath::Clamp(Curves.ClumpIDs[CurveIndex].X, 0, 65535));
+					Packed[CurveIndex] |= uint64(FMath::Clamp(Curves.ClumpIDs[CurveIndex].Y, 0, 65535))<<16;
+					Packed[CurveIndex] |= uint64(FMath::Clamp(Curves.ClumpIDs[CurveIndex].Z, 0, 65535))<<32;
+				}
+				else
+				{
+					uint16* Packed = (uint16*)AttributeClumpIDs.GetData();
+					Packed[CurveIndex] = uint16(FMath::Clamp(Curves.ClumpIDs[CurveIndex].X, 0, 65535));
+				}
 			}
 
 			// Per-Curve Strand ID
@@ -360,7 +371,7 @@ namespace HairStrandsBuilder
 
 			for (uint32 AttributeIt=0; AttributeIt< HAIR_ATTRIBUTE_COUNT; ++AttributeIt)
 			{
-				OutBulkData.AttributeOffsets[AttributeIt] = HAIR_ATRIBUTE_INVALID_OFFSET;
+				OutBulkData.AttributeOffsets[AttributeIt] = HAIR_ATTRIBUTE_INVALID_OFFSET;
 			}
 
 			if (HasHairAttribute(Attributes, EHairAttribute::RootUV))
@@ -381,8 +392,16 @@ namespace HairStrandsBuilder
 
 			if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))
 			{
-				OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_CLUMPID] = OutPackedAttributes.Num() * UintToByte;
-				OutPackedAttributes.Append(AttributeClumpIDs);
+				if (HasHairAttributeFlags(OutBulkData.ImportedAttributeFlags, EHairAttributeFlags::HasMultipleClumpIDs))
+				{
+					OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_CLUMPID3] = OutPackedAttributes.Num() * UintToByte;
+					OutPackedAttributes.Append(AttributeClumpIDs);
+				}
+				else
+				{
+					OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_CLUMPID] = OutPackedAttributes.Num() * UintToByte;
+					OutPackedAttributes.Append(AttributeClumpIDs);
+				}
 			}
 
 			if (HasHairAttribute(Attributes, EHairAttribute::Color))
@@ -1503,6 +1522,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 	TVertexAttributesConstRef<float> VertexAO				= HairDescription.VertexAttributes().GetAttributesRef<float>(HairAttribute::Vertex::AO);
 	TStrandAttributesConstRef<int> StrandNumVertices		= HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::VertexCount);
 	TStrandAttributesConstRef<int> ClumpIDs					= HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::ClumpID);
+	TStrandAttributesConstRef<FVector3f> ClumpID3s			= HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClumpID);
 
 	if (!VertexPositions.IsValid() || !StrandNumVertices.IsValid())
 	{
@@ -1513,7 +1533,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 	const bool bHasBaseColorAttribute = VertexBaseColor.IsValid();
 	const bool bHasRoughnessAttribute = VertexRoughness.IsValid();
 	const bool bHasAOAttribute = VertexAO.IsValid();
-	const bool bHasClumpIDs = ClumpIDs.IsValid();
+	const bool bHasClumpIDs = ClumpIDs.IsValid() || ClumpID3s.IsValid();
 
 	// Sanity check
 	check(bHasBaseColorAttribute == HairDescription.HasAttribute(EHairAttribute::Color));
@@ -1540,8 +1560,8 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 	TStrandAttributesConstRef<int> ClosestGuide		  = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::ClosestGuides);
 	TStrandAttributesConstRef<float> GuideWeight	  = HairDescription.StrandAttributes().GetAttributesRef<float>(HairAttribute::Strand::GuideWeights);
 	// Triplet
-	TStrandAttributesConstRef<FVector3f> ClosestGuides  = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides);
-	TStrandAttributesConstRef<FVector3f> GuideWeights	  = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights);
+	TStrandAttributesConstRef<FVector3f> ClosestGuides= HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides);
+	TStrandAttributesConstRef<FVector3f> GuideWeights = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights);
 
 	// To use ClosestGuides and GuideWeights attributes, guides must be imported from HairDescription and
 	// must include StrandID attribute since ClosestGuides references those IDs
@@ -1684,10 +1704,14 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 
 		if (bHasClumpIDs)
 		{
-			CurrentHairStrandsDatas->StrandsCurves.ClumpIDs.Add(ClumpIDs[StrandID]);
-			if (false)
+			if (ClumpID3s.IsValid())
 			{
+				CurrentHairStrandsDatas->StrandsCurves.ClumpIDs.Add(FIntVector(ClumpID3s[StrandID].X, ClumpID3s[StrandID].Y, ClumpID3s[StrandID].Z));
 				SetHairAttributeFlags(CurrentHairStrandsDatas->StrandsCurves.AttributeFlags, EHairAttributeFlags::HasMultipleClumpIDs);
+			}
+			else
+			{
+				CurrentHairStrandsDatas->StrandsCurves.ClumpIDs.Add(FIntVector(ClumpIDs[StrandID]));
 			}
 		}
 

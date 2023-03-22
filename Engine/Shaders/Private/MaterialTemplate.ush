@@ -1522,7 +1522,7 @@ float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 #endif
 }
 
-float MaterialExpressionGetHairClumpID(FMaterialPixelParameters Parameters)
+float3 MaterialExpressionGetHairClumpID(FMaterialPixelParameters Parameters)
 {
 #if HAIR_STRAND_MESH_FACTORY
 	return GetHairStrandsClumpID(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);

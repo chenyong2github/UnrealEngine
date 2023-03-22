@@ -404,8 +404,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	/** Strand ID associated with each curve (optional) */
 	TArray<int> StrandIDs;
 
-	/** Clump ID associated with each curve (optional) */
-	TArray<uint16> ClumpIDs;
+	/** Clump ID associated with each curve (optional) */	
+	TArray<FIntVector> ClumpIDs;
 
 	/** Mapping of imported Groom ID to index */
 	TMap<int, int> GroomIDToIndex;

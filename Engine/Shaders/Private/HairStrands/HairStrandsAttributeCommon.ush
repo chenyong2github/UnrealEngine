@@ -10,6 +10,7 @@
 #define HAIR_ATTRIBUTE_STRIDE_SEED			1
 #define HAIR_ATTRIBUTE_STRIDE_LENGTH		2
 #define HAIR_ATTRIBUTE_STRIDE_CLUMPID		2
+#define HAIR_ATTRIBUTE_STRIDE_CLUMPID3		8
 #define HAIR_ATTRIBUTE_STRIDE_BASECOLOR		4
 #define HAIR_ATTRIBUTE_STRIDE_ROUGHNESS		1
 #define HAIR_ATTRIBUTE_STRIDE_AO			1
@@ -18,10 +19,11 @@
 #define HAIR_ATTRIBUTE_OFFSET_ROOTUV(InOffsets)		(InOffsets[0].x)
 #define HAIR_ATTRIBUTE_OFFSET_SEED(InOffsets)		(InOffsets[0].y)
 #define HAIR_ATTRIBUTE_OFFSET_LENGTH(InOffsets)		(InOffsets[0].z)
-#define HAIR_ATTRIBUTE_OFFSET_CLUMPID(InOffsets)	(InOffsets[0].w)
+#define HAIR_ATTRIBUTE_OFFSET_AO(InOffsets)			(InOffsets[0].w)
 #define HAIR_ATTRIBUTE_OFFSET_BASECOLOR(InOffsets)	(InOffsets[1].x)
 #define HAIR_ATTRIBUTE_OFFSET_ROUGHNESS(InOffsets)	(InOffsets[1].y)
-#define HAIR_ATTRIBUTE_OFFSET_AO(InOffsets)			(InOffsets[1].z)
+#define HAIR_ATTRIBUTE_OFFSET_CLUMPID(InOffsets)	(InOffsets[1].z)
+#define HAIR_ATTRIBUTE_OFFSET_CLUMPID3(InOffsets)	(InOffsets[1].w)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Attribute access functions
@@ -37,10 +39,29 @@ uint InternalGetHairStrandsAttributes(uint Index, uint AttributeOffsetInBytes, u
 	return Packed >> (8u * ElementIndex);
 }
 
+uint2 InternalGetHairStrandsAttributes64(uint Index, uint AttributeOffsetInBytes, uint AttributeStrideInBytes, ByteAddressBuffer InAttributeBuffer)
+{
+	// Ensure the reading address is 4-byte aligned
+	const uint Address = AttributeOffsetInBytes + Index * AttributeStrideInBytes;
+	const uint Address_4BytesAligned = Address & (~0x3);
+
+	// For now, do two separate load to as we don't ensure the offset is 2byte-aligned
+	uint2 OutPacked = 0;
+	OutPacked.x = InAttributeBuffer.Load(Address_4BytesAligned);
+	OutPacked.y = InAttributeBuffer.Load(Address_4BytesAligned + 4u);
+	return OutPacked;
+}
+
 uint InternalGetHairStrandsAttributesPerCurve(uint HairPrimitiveId, uint AttributeOffsetInBytes, uint AttributeStrideInBytes, ByteAddressBuffer InAttributeBuffer, Buffer<uint> InPointToCurveBuffer)
 {
 	const uint CurveIndex = InPointToCurveBuffer[HairPrimitiveId];
 	return InternalGetHairStrandsAttributes(CurveIndex, AttributeOffsetInBytes, AttributeStrideInBytes, InAttributeBuffer);
+}
+
+uint2 InternalGetHairStrandsAttributesPerCurve64(uint HairPrimitiveId, uint AttributeOffsetInBytes, uint AttributeStrideInBytes, ByteAddressBuffer InAttributeBuffer, Buffer<uint> InPointToCurveBuffer)
+{
+	const uint CurveIndex = InPointToCurveBuffer[HairPrimitiveId];
+	return InternalGetHairStrandsAttributes64(CurveIndex, AttributeOffsetInBytes, AttributeStrideInBytes, InAttributeBuffer);
 }
 
 uint InternalGetHairStrandsAttributesPerVertex(uint HairPrimitiveId, uint AttributeOffsetInBytes, uint AttributeStrideInBytes, ByteAddressBuffer InAttributeBuffer)
@@ -60,7 +81,7 @@ float InternalGetHairStrandsWorldRadius(Buffer<uint4> InPositionBuffer, uint Ver
 
 bool IsAttributeValid(uint InOffset)
 {
-	return InOffset != HAIR_ATRIBUTE_INVALID_OFFSET;
+	return InOffset != HAIR_ATTRIBUTE_INVALID_OFFSET;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -125,12 +146,17 @@ float GetHairStrandsSeed(uint HairPrimitiveId, float2 HairPrimitiveUV)
 	return UnpackHairSeed(InternalGetHairStrandsAttributesPerCurve(HairPrimitiveId, HAIR_ATTRIBUTE_OFFSET_SEED(HairStrandsVF.AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_SEED, HairStrandsVF.AttributeBuffer, HairStrandsVF.PointToCurveBuffer));
 }
 
-uint GetHairStrandsClumpID(uint HairPrimitiveId, float2 HairPrimitiveUV)
+uint3 GetHairStrandsClumpID(uint HairPrimitiveId, float2 HairPrimitiveUV)
 {
-	const uint ClumpIdOffset = HAIR_ATTRIBUTE_OFFSET_CLUMPID(HairStrandsVF.AttributeOffsets);
+	const uint ClumpIdOffset  = HAIR_ATTRIBUTE_OFFSET_CLUMPID(HairStrandsVF.AttributeOffsets);
+	const uint ClumpId3Offset = HAIR_ATTRIBUTE_OFFSET_CLUMPID3(HairStrandsVF.AttributeOffsets);
 	if (IsAttributeValid(ClumpIdOffset))
 	{
 		return UnpackHairClumpID(InternalGetHairStrandsAttributesPerCurve(HairPrimitiveId, ClumpIdOffset, HAIR_ATTRIBUTE_STRIDE_CLUMPID, HairStrandsVF.AttributeBuffer, HairStrandsVF.PointToCurveBuffer));
+	}
+	else if (IsAttributeValid(ClumpId3Offset))
+	{
+		return UnpackHairClumpID(InternalGetHairStrandsAttributesPerCurve64(HairPrimitiveId, ClumpId3Offset, HAIR_ATTRIBUTE_STRIDE_CLUMPID3, HairStrandsVF.AttributeBuffer, HairStrandsVF.PointToCurveBuffer));
 	}
 	else
 	{
