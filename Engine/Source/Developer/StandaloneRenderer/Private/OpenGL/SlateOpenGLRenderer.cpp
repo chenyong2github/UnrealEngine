@@ -270,6 +270,12 @@ bool FSlateOpenGLRenderer::GenerateDynamicImageResource(FName ResourceName, uint
 	return TextureManager->CreateDynamicTextureResource(ResourceName, Width, Height, Bytes) != NULL;
 }
 
+bool FSlateOpenGLRenderer::GenerateDynamicImageResource(FName ResourceName, FSlateTextureDataRef TextureData)
+{
+	return GenerateDynamicImageResource(ResourceName, TextureData->GetWidth(), TextureData->GetHeight(), TextureData->GetRawBytes());
+}
+
+
 FSlateResourceHandle FSlateOpenGLRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	return TextureManager->GetResourceHandle(Brush, LocalSize, DrawScale);
