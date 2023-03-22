@@ -597,6 +597,44 @@ void FZenStoreWriter::EndCook(const FCookInfo& Info)
 		{
 			UE_LOG(LogSavePackage, Error, TEXT("Failed saving package store manifest file '%s'"), *PackageStoreManifestFilePath);
 		}
+
+		{
+			// Temporary solution until we can reliably read the oplog from UAT
+			TArray<FString> CookedFiles;
+			TIoStatusOr<FCbObject> OplogStatus = HttpClient->GetOplog().Get();
+			if (OplogStatus.IsOk())
+			{
+				FCbObject Oplog = OplogStatus.ConsumeValueOrDie();
+				for (FCbField& OplogEntry : Oplog["entries"].AsArray())
+				{
+					FCbObject OplogObj = OplogEntry.AsObject();
+					for (FCbField& ChunkEntry : OplogEntry["packagedata"].AsArray())
+					{
+						FCbObject ChunkObj = ChunkEntry.AsObject();
+						if (ChunkObj["filename"])
+						{
+							CookedFiles.Add(FString(ChunkObj["filename"].AsString()));
+						}
+					}
+					for (FCbField& ChunkEntry : OplogEntry["bulkdata"].AsArray())
+					{
+						FCbObject ChunkObj = ChunkEntry.AsObject();
+						if (ChunkObj["filename"])
+						{
+							CookedFiles.Add(FString(ChunkObj["filename"].AsString()));
+						}
+					}
+				}
+				if (!FFileHelper::SaveStringArrayToFile(CookedFiles, *FPaths::Combine(MetadataDirectoryPath, TEXT("cookedfiles.manifest"))))
+				{
+					UE_LOG(LogSavePackage, Error, TEXT("Failed writing UAT file manifest"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogSavePackage, Error, TEXT("Failed reading oplog"));
+			}
+		}
 	}
 
 	UE_LOG(LogZenStoreWriter, Display, TEXT("Input:\t%d Packages"), PackageStoreOptimizer->GetTotalPackageCount());

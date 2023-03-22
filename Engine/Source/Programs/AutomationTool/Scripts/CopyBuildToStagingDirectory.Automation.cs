@@ -761,6 +761,22 @@ namespace AutomationScripts
 					return;
 				}
 
+				{
+					// Temporary solution until we can reliably read the oplog from UAT
+					FileReference CookedFilesManifestFile = FileReference.Combine(SC.MetadataDir, "cookedfiles.manifest");
+					if (FileReference.Exists(CookedFilesManifestFile))
+					{
+						SC.PackageStoreManifest.ZenCookedFiles = new List<string>();
+						string[] CookedFiles = FileReference.ReadAllLines(CookedFilesManifestFile);
+						foreach (string RelativeFilename in CookedFiles)
+						{
+							CommandUtils.LogInformation("{0}", RelativeFilename);
+							SC.PackageStoreManifest.ZenCookedFiles.Add(FileReference.Combine(SC.PlatformCookDir, RelativeFilename).FullName);
+						}
+						return;
+					}
+				}
+
 				byte[] ManifestData = File.ReadAllBytes(PackageStoreManifestFile.FullName);
 				CbObject ManifestObject = new CbField(ManifestData).AsObject();
 				CbObject ZenServerObject = ManifestObject["zenserver"].AsObject();
