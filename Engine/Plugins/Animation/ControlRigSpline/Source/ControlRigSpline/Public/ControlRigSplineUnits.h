@@ -188,6 +188,8 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 	{
 		U = 0.f;
 		Transform = FTransform::Identity;
+		PrimaryAxis = FVector::ZeroVector;
+		SecondaryAxis = FVector::ZeroVector;
 	}
 
 	/** Execute logic for this rig unit */
