@@ -41,7 +41,7 @@ struct FAnimSequenceDecompressionContext
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
-	
+
 	FAnimSequenceDecompressionContext(const FFrameRate& InSamplingRate, const int32 InNumberOfFrames, EAnimInterpolationType Interpolation_, const FName& AnimName_, const ICompressedAnimData& CompressedAnimData_, const TArray<FTransform>& RefPoses_, const TArray<FTrackToSkeletonMap>& TrackToSkeletonMap_, const USkeleton* InSourceSkeleton, bool bIsBakedAdditive)
 		:
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -68,10 +68,16 @@ struct FAnimSequenceDecompressionContext
 	const ICompressedAnimData& CompressedAnimData;
 
 private:
-	// Immutable reference/bind pose, maps a bone index to its reference transform
+	// Immutable reference/bind pose from the source skeleton, maps a bone index to its reference transform.
+	// The same skeleton reference pose must be provided during compression and decompression. This is the
+	// source skeleton reference pose (the one assigned to an anim sequence). Re-targeting is taken into account
+	// elsewhere. Additionally, if the source skeleton reference pose isn't used, the TrackToSkeletonMap indices
+	// may not match the provided pose. This could cause us to read incorrect bone transforms or possibly out
+	// of bounds.
 	TArrayView<const FTransform> RefPoses;
 
-	// Immutable array that maps from a track index to a bone index
+	// Immutable array that maps from a track index to a bone index. This is built during compression using
+	// the source skeleton (the one assigned to an anim sequence).
 	TArrayView<const FTrackToSkeletonMap> TrackToSkeletonMap;
 
 public:
