@@ -83,7 +83,7 @@ bool Audio::FAudioCaptureAudioUnitStream::GetCaptureDeviceInfo(FCaptureDeviceInf
 	return true;
 }
 
-bool Audio::FAudioCaptureAudioUnitStream::OpenCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnCaptureFunction InOnCapture, uint32 NumFramesDesired)
+bool Audio::FAudioCaptureAudioUnitStream::OpenAudioCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnAudioCaptureFunction InOnCapture, uint32 NumFramesDesired)
 {
 	NumChannels = 1;
 	SampleRate = 48000;
@@ -219,8 +219,7 @@ bool Audio::FAudioCaptureAudioUnitStream::IsCapturing() const
 
 void Audio::FAudioCaptureAudioUnitStream::OnAudioCapture(void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow)
 {
-	float* InBufferData = (float*)InBuffer;
-	OnCapture(InBufferData, InBufferFrames, NumChannels, SampleRate, StreamTime, bOverflow);
+	OnCapture(InBuffer, InBufferFrames, NumChannels, SampleRate, StreamTime, bOverflow);
 }
 
 bool Audio::FAudioCaptureAudioUnitStream::GetInputDevicesAvailable(TArray<FCaptureDeviceInfo>& OutDevices)

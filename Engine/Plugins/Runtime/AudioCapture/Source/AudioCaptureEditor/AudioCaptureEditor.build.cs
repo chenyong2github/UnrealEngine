@@ -23,7 +23,9 @@ public class AudioCaptureEditor : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			// Allow us to use direct sound
+			PrivateDependencyModuleNames.Add("AudioCaptureWasapi");
+			
+			// RtAudio depends on DirectSound
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectSound");
 		}
 	}

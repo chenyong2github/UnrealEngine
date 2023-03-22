@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioRecordingManager.h"
+#include "AudioCaptureCore.h"
 #include "AudioCaptureEditor.h"
 #include "Sound/AudioSettings.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -20,21 +21,6 @@ namespace Audio
 {
 
 /**
-* Callback Function For the Microphone Capture for RtAudio
-*/
-static int32 OnAudioCaptureCallback(void *OutBuffer, void* InBuffer, uint32 InBufferFrames, double StreamTime, uint32 AudioStreamStatus, void* InUserData)
-{
-	// Check for stream overflow (i.e. we're feeding audio faster than we're consuming)
-	const bool bIsOverflow = 0 != AudioStreamStatus;
-
-	// Cast the user data to the singleton mic recorder
-	FAudioRecordingManager* AudioRecordingManager = (FAudioRecordingManager*)InUserData;
-
-	// Call the mic capture callback function
-	return AudioRecordingManager->OnAudioCapture(InBuffer, InBufferFrames, StreamTime, bIsOverflow);
-}
-
-/**
 * FAudioRecordingManager Implementation
 */
 
@@ -52,9 +38,9 @@ FAudioRecordingManager::FAudioRecordingManager()
 
 FAudioRecordingManager::~FAudioRecordingManager()
 {
-	if (ADC.IsStreamOpen())
+	if (AudioCapture.IsStreamOpen())
 	{
-		ADC.AbortStream();
+		AudioCapture.AbortStream();
 	}
 }
 
@@ -79,10 +65,10 @@ void FAudioRecordingManager::StartRecording(const FRecordingSettings& InSettings
 	RecordingBlockSize = 1024;
 
 	// If we have a stream open close it (reusing streams can cause a blip of previous recordings audio)
-	if (ADC.IsStreamOpen())
+	if (AudioCapture.IsStreamOpen())
 	{
-		ADC.StopStream();
-		ADC.CloseStream();
+		AudioCapture.StopStream();
+		AudioCapture.CloseStream();
 	}
 
 	UE_LOG(LogMicManager, Log, TEXT("Starting mic recording."));
@@ -94,9 +80,16 @@ void FAudioRecordingManager::StartRecording(const FRecordingSettings& InSettings
 	InputGain = Audio::ConvertToLinear(Settings.GainDb);
 
 	// Get the default mic input device info
-	FRtAudioInputWrapper::FDeviceInfo Info = ADC.GetDeviceInfo(StreamParams.DeviceID);
-	RecordingSampleRate = Info.PreferredSampleRate;
-	NumInputChannels = Info.NumChannels;	
+	FAudioCaptureDeviceParams StreamParams;
+	FCaptureDeviceInfo DeviceInfo;
+	if (!AudioCapture.GetCaptureDeviceInfo(DeviceInfo, StreamParams.DeviceIndex))
+	{
+		UE_LOG(LogMicManager, Error, TEXT("Unable to get default audio capture device."));
+		return;
+	}
+
+	RecordingSampleRate = DeviceInfo.PreferredSampleRate;
+	NumInputChannels = DeviceInfo.InputChannels;
 
 	if (NumInputChannels == 0)
 	{
@@ -135,22 +128,27 @@ void FAudioRecordingManager::StartRecording(const FRecordingSettings& InSettings
 	// Publish to the mic input thread that we're ready to record...
 	bRecording = true;
 
-	StreamParams.DeviceID = ADC.GetDefaultInputDevice(); // Only use the default input device for now
-
-	StreamParams.NumChannels = NumInputChannels;
+	StreamParams.NumInputChannels = NumInputChannels;
+	StreamParams.SampleRate = RecordingSampleRate;
+	StreamParams.PCMAudioEncoding = EPCMAudioEncoding::PCM_16;
 
 	uint32 BufferFrames = FMath::Max(RecordingBlockSize, 256);
 
-	UE_LOG(LogMicManager, Log, TEXT("Initialized mic recording manager at %d hz sample rate, %d channels, and %d Recording Block Size"), RecordingSampleRate, StreamParams.NumChannels, BufferFrames);
+	UE_LOG(LogMicManager, Log, TEXT("Initialized mic recording manager at %.4f hz sample rate, %d channels, and %d Recording Block Size"), RecordingSampleRate, StreamParams.NumInputChannels, BufferFrames);
 
-	// RtAudio uses exceptions for error handling... 
+	FOnAudioCaptureFunction OnAudioCaptureCallback = [this](const void* InBuffer, int32 InNumFrames, int32 InNumChannels, int32 InSampleRate, double InStreamTime, bool bInOverflow)
+	{
+		OnAudioCapture(InBuffer, InNumFrames, InStreamTime, bInOverflow);
+	};
+
 	// Open up new audio stream
-	bool bSuccess = ADC.OpenStream(StreamParams, RecordingSampleRate, &BufferFrames, &OnAudioCaptureCallback, this);
+	bool bSuccess = AudioCapture.OpenAudioCaptureStream(StreamParams, OnAudioCaptureCallback, BufferFrames);
+
 	bError = !bSuccess;
 
 	if (bSuccess)
 	{
-		ADC.StartStream();
+		AudioCapture.StartStream();
 	}
 }
 
@@ -209,8 +207,8 @@ void FAudioRecordingManager::StopRecording(TArray<USoundWave*>& OutSoundWaves)
 	if (bRecording)
 	{
 		bRecording = false;
-		ADC.StopStream();
-		ADC.CloseStream();
+		AudioCapture.StopStream();
+		AudioCapture.CloseStream();
 
 		if (CurrentRecordedPCMData.Num() > 0)
 		{
@@ -422,16 +420,19 @@ void FAudioRecordingManager::StopRecording(TArray<USoundWave*>& OutSoundWaves)
 	}
 }
 
-int32 FAudioRecordingManager::OnAudioCapture(void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow)
+int32 FAudioRecordingManager::OnAudioCapture(const void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow)
 {
-	FScopeLock Lock(&CriticalSection);
-
-	if (bRecording)
+	// Check recording state prior to locking to avoid potential race condition when stopping
+	if (bRecording && InBufferFrames > 0)
 	{
-		if (bOverflow) 
-			++NumOverflowsDetected;
+		FScopeLock Lock(&CriticalSection);
 
-		CurrentRecordedPCMData.Append((int16*)InBuffer, InBufferFrames * NumInputChannels);
+		if (bOverflow)
+		{
+			++NumOverflowsDetected;
+		}
+
+		CurrentRecordedPCMData.Append((const int16*)InBuffer, InBufferFrames * NumInputChannels);
 		return 0;
 	}
 

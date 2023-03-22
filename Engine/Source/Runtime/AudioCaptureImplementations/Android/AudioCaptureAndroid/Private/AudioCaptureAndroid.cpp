@@ -28,7 +28,7 @@ bool Audio::FAudioCaptureAndroidStream::GetCaptureDeviceInfo(FCaptureDeviceInfo&
 	return true;
 }
 
-bool Audio::FAudioCaptureAndroidStream::OpenCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnCaptureFunction InOnCapture, uint32 NumFramesDesired)
+bool Audio::FAudioCaptureAndroidStream::OpenAudioCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnAudioCaptureFunction InOnCapture, uint32 NumFramesDesired)
 {
 	// Build stream settings object.
 	oboe::AudioStreamBuilder StreamBuilder;

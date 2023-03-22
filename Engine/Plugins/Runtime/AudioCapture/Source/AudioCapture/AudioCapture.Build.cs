@@ -16,12 +16,16 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-            if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
-				Target.Platform == UnrealTargetPlatform.Mac)
-            {
-                PrivateDependencyModuleNames.Add("AudioCaptureRtAudio");
-            }
-            else if (Target.Platform == UnrealTargetPlatform.IOS)
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+			{
+				PrivateDependencyModuleNames.Add("AudioCaptureWasapi");
+				PrivateDependencyModuleNames.Add("AudioCaptureRtAudio");
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				PrivateDependencyModuleNames.Add("AudioCaptureRtAudio");
+			}
+			else if (Target.Platform == UnrealTargetPlatform.IOS)
             {
                 PrivateDependencyModuleNames.Add("AudioCaptureAudioUnit");
             }

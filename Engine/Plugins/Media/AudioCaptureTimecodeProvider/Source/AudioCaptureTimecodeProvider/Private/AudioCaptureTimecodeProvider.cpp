@@ -37,14 +37,14 @@ public:
 		//We want a fast timecode detection but we don't want to be called too often.
 		const int32 NumberCaptureFrames = 64;
 
-		Audio::FOnCaptureFunction OnCapture = [this](const float* AudioData, int32 NumFrames, int32 NumChannels, int32 SampleRate, double StreamTime, bool bOverFlow)
+		Audio::FOnAudioCaptureFunction OnCapture = [this](const void* AudioData, int32 NumFrames, int32 NumChannels, int32 SampleRate, double StreamTime, bool bOverFlow)
 		{
-			OnAudioCapture(AudioData, NumFrames, NumChannels, StreamTime, bOverFlow);
+			OnAudioCapture((const float*)AudioData, NumFrames, NumChannels, StreamTime, bOverFlow);
 		};
 
 		Audio::FAudioCaptureDeviceParams Params = Audio::FAudioCaptureDeviceParams();
 
-		if (!AudioCapture.OpenCaptureStream(Params, MoveTemp(OnCapture), NumberCaptureFrames))
+		if (!AudioCapture.OpenAudioCaptureStream(Params, MoveTemp(OnCapture), NumberCaptureFrames))
 		{
 			UE_LOG(LogAudioCaptureTimecodeProvider, Error, TEXT("Can't open the default capture stream for %s."), *Owner->GetName());
 			return false;

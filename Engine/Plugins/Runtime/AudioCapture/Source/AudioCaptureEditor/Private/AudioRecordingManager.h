@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/ThreadSafeBool.h"
+#include "AudioCaptureCore.h"
 #include "Engine/EngineTypes.h"
-#include "RtAudioWrapper.h"
+#include "HAL/ThreadSafeBool.h"
 
 class USoundWave;
 
@@ -56,7 +55,7 @@ namespace Audio
 		void StopRecording(TArray<USoundWave*>& OutSoundWaves);
 
 		// Called by RtAudio when a new audio buffer is ready to be supplied.
-		int32 OnAudioCapture(void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow);
+		int32 OnAudioCapture(const void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow);
 
 	private:
 
@@ -72,11 +71,8 @@ namespace Audio
 		// Copy of the input recording settings
 		FRecordingSettings Settings;
 
-		// RtAudio ADC object -- used to interact with low-level audio device.
-		FRtAudioInputWrapper ADC;
-
-		// Stream parameters to initialize the ADC
-		FRtAudioInputWrapper::FStreamParameters StreamParams;
+		// FAudioCapture object -- used to interact with low-level audio device.
+		FAudioCapture AudioCapture;
 
 		// Critical section used to stop and retrieve finished audio buffers.
 		FCriticalSection CriticalSection;

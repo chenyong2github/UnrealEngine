@@ -43,7 +43,13 @@ namespace Audio
 		bool GetCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo, int32 DeviceIndex = INDEX_NONE);
 
 		// Opens the audio capture stream with the given parameters
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UE_DEPRECATED(5.3, "OpenCaptureStream is deprecated, please use OpenAudioCaptureStream instead.")
 		bool OpenCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnCaptureFunction OnCapture, uint32 NumFramesDesired);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		// Opens the audio capture stream with the given parameters
+		bool OpenAudioCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnAudioCaptureFunction OnCapture, uint32 NumFramesDesired);
 
 		// Closes the audio capture stream
 		bool CloseStream();

@@ -21,14 +21,14 @@ bool UAudioCapture::OpenDefaultAudioStream()
 {
 	if (!AudioCapture.IsStreamOpen())
 	{
-		Audio::FOnCaptureFunction OnCapture = [this](const float* AudioData, int32 NumFrames, int32 InNumChannels, int32 InSampleRate, double StreamTime, bool bOverFlow)
+		Audio::FOnAudioCaptureFunction OnCapture = [this](const void* AudioData, int32 NumFrames, int32 InNumChannels, int32 InSampleRate, double StreamTime, bool bOverFlow)
 		{
-			OnGeneratedAudio(AudioData, NumFrames * InNumChannels);
+			OnGeneratedAudio((const float*)AudioData, NumFrames * InNumChannels);
 		};
 
 		// Start the stream here to avoid hitching the audio render thread. 
 		Audio::FAudioCaptureDeviceParams Params;
-		if (AudioCapture.OpenCaptureStream(Params, MoveTemp(OnCapture), 1024))
+		if (AudioCapture.OpenAudioCaptureStream(Params, MoveTemp(OnCapture), 1024))
 		{
 			// If we opened the capture stream succesfully, get the capture device info and initialize the UAudioGenerator
 			Audio::FCaptureDeviceInfo Info;

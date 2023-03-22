@@ -16,7 +16,7 @@ namespace Audio
 
 		// Begin IAudioCaptureStream
 		virtual bool GetCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo, int32 DeviceIndex) override { return false; }
-		virtual bool OpenCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnCaptureFunction OnCapture, uint32 NumFramesDesired) override { return false; }
+		virtual bool OpenAudioCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnAudioCaptureFunction OnCapture, uint32 NumFramesDesired) override { return false; }
 		virtual bool CloseStream() override { return false; }
 		virtual bool StartStream() override { return false; }
 		virtual bool StopStream() override { return false; }

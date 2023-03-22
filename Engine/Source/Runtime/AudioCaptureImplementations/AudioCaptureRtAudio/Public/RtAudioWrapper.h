@@ -10,7 +10,7 @@ namespace Audio
 {
 	// FRtAudioInputWrapper wraps RtAudio implementation and provides a way to 
 	// capture input audio from an hardware audio device. 
-	class AUDIOCAPTURERTAUDIO_API FRtAudioInputWrapper
+	class AUDIOCAPTURERTAUDIO_API UE_DEPRECATED(5.3, "FRtAudioInputWrapper is deprecated, please use FAudioCapture instead.") FRtAudioInputWrapper
 	{
 	public:
 		static constexpr uint32 InvalidDeviceID = INDEX_NONE;

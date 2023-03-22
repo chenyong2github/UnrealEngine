@@ -62,11 +62,23 @@ namespace Audio
 		return false;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool FAudioCapture::OpenCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnCaptureFunction OnCapture, uint32 NumFramesDesired)
 	{
 		if (Impl.IsValid())
 		{
 			return Impl->OpenCaptureStream(InParams, MoveTemp(OnCapture), NumFramesDesired);
+		}
+
+		return false;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	bool FAudioCapture::OpenAudioCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnAudioCaptureFunction OnCapture, uint32 NumFramesDesired)
+	{
+		if (Impl.IsValid())
+		{
+			return Impl->OpenAudioCaptureStream(InParams, MoveTemp(OnCapture), NumFramesDesired);
 		}
 
 		return false;
@@ -182,7 +194,7 @@ namespace Audio
 		bool bSuccess = true;
 		if (!AudioCapture.IsStreamOpen())
 		{
-			FOnCaptureFunction OnCapture = [this](const float* AudioData, int32 NumFrames, int32 NumChannels, int32 SampleRate, double StreamTime, bool bOverFlow)
+			FOnAudioCaptureFunction OnCapture = [this](const void* AudioData, int32 NumFrames, int32 NumChannels, int32 SampleRate, double StreamTime, bool bOverFlow)
 			{
 				int32 NumSamples = NumChannels * NumFrames;
 
@@ -212,7 +224,7 @@ namespace Audio
 			FAudioCaptureDeviceParams Params = FAudioCaptureDeviceParams();
 
 			// Start the stream here to avoid hitching the audio render thread. 
-			if (AudioCapture.OpenCaptureStream(Params, MoveTemp(OnCapture), 1024))
+			if (AudioCapture.OpenAudioCaptureStream(Params, MoveTemp(OnCapture), 1024))
 			{
 				AudioCapture.StartStream();
 			}

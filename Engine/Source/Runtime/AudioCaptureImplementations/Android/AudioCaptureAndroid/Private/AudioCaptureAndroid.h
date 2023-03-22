@@ -12,7 +12,7 @@ namespace Audio
 		FAudioCaptureAndroidStream();
 
 		virtual bool GetCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo, int32 DeviceIndex) override;
-		virtual bool OpenCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnCaptureFunction InOnCapture, uint32 NumFramesDesired) override;
+		virtual bool OpenAudioCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnAudioCaptureFunction InOnCapture, uint32 NumFramesDesired) override;
 		virtual bool CloseStream() override;
 		virtual bool StartStream() override;
 		virtual bool StopStream() override;
@@ -29,7 +29,7 @@ namespace Audio
 		// end oboe::AudioStreamCallback
 
 	private:
-		FOnCaptureFunction OnCapture;
+		FOnAudioCaptureFunction OnCapture;
 		int32 NumChannels;
 		int32 SampleRate;
 

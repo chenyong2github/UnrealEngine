@@ -63,6 +63,8 @@ namespace Audio
 		return FDeviceInfo{};
 	}
 
+	// Suppress deprecation warning for use of FAudioCallback
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Opens an audio stream. Returns true on success, false on error. 
 	bool FRtAudioInputWrapper::OpenStream(const FStreamParameters& InStreamParams, float InDesiredSampleRate, uint32* InOutDesiredBufferNumFrames, FAudioCallback Callback, void* InUserData)
 	{
@@ -90,6 +92,7 @@ namespace Audio
 
 		return true;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Starts an open stream
 	void FRtAudioInputWrapper::StartStream()
