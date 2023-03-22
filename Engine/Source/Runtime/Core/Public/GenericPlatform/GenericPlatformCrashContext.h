@@ -440,11 +440,17 @@ public:
 	/** Updates (or adds if not already present) arbitrary engine data to the crash context (will remove the key if passed an empty string) */
 	CORE_API static void SetEngineData(const FString& Key, const FString& Value);
 
+	/** Get the engine data dictionary */
+	CORE_API static const TMap<FString, FString>& GetEngineData();
+
 	/** Clears the game data dictionary */
 	CORE_API static void ResetGameData();
 
 	/** Updates (or adds if not already present) arbitrary game data to the crash context (will remove the key if passed an empty string) */
 	CORE_API static void SetGameData(const FString& Key, const FString& Value);
+
+	/** Get the game data dictionary */
+	CORE_API static const TMap<FString, FString>& GetGameData();
 
 	/** Adds a plugin descriptor string to the enabled plugins list in the crash context */
 	CORE_API static void AddPlugin(const FString& PluginDesc);

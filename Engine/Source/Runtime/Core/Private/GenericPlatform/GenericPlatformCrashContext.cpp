@@ -1132,6 +1132,11 @@ void FGenericCrashContext::SetEngineData(const FString& Key, const FString& Valu
 	}
 }
 
+const TMap<FString, FString>& FGenericCrashContext::GetEngineData()
+{
+	return NCached::EngineData;
+}
+
 /** Get arbitrary engine data from the crash context */
 const FString* FGenericCrashContext::GetEngineData(const FString& Key)
 {
@@ -1169,6 +1174,11 @@ void FGenericCrashContext::SetGameData(const FString& Key, const FString& Value)
 		});
 		OldVal = Value;
 	}
+}
+
+const TMap<FString, FString>& FGenericCrashContext::GetGameData()
+{
+	return NCached::GameData;
 }
 
 /** Get arbitrary game data from the crash context */
