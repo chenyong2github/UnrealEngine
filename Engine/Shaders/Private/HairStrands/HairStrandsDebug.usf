@@ -252,10 +252,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	uint VertexIndex = VertexId;
 	float ScaleR = 1;
-	if (HairStrandsVF.CullingEnable)
+	if (HairStrandsVF.bCullingEnable)
 	{
-		ScaleR = HairStrandsVF.CulledVertexRadiusScaleBuffer[VertexIndex];
-		VertexIndex = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex];
+		ScaleR = HairStrandsVF.CullingRadiusScaleBuffer[VertexIndex];
+		VertexIndex = HairStrandsVF.CullingIndexBuffer[VertexIndex];
 	}
 
 	const float3 P_Local = UnpackHairControlPoint(

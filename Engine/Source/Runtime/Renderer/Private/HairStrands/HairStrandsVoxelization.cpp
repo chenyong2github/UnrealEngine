@@ -1161,9 +1161,6 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
 				const float CoverageScale = HairGroupPublicData->GetActiveStrandsCoverageScale();
 
-				FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
-				LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);
-
 				FVoxelRasterComputeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelRasterComputeCS::FParameters>();
 				PassParameters->MaxRasterCount = FMath::Clamp(GHairStrandsVoxelComputeRasterMaxVoxelCount, 1, 256);
 				PassParameters->VirtualVoxelParams = VoxelResources.Parameters.Common;
@@ -1180,7 +1177,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 
 				if (bCullingEnable)
 				{
-					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VoxelComputeRaster(culling=on)"), ComputeShader_CullingOn, PassParameters, PassParameters->HairInstance.HairStrandsVF_CullingIndirectBufferArgs, 0);
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VoxelComputeRaster(culling=on)"), ComputeShader_CullingOn, PassParameters, PassParameters->HairInstance.HairStrandsVF.Culling.CullingIndirectBufferArgs, 0);
 				}
 				else
 				{

@@ -10,7 +10,7 @@ uint VertexCount;
 Buffer<uint4>  	 PositionBuffer;
 RWBuffer<float4> OutputTangentBuffer;
 
-uint			HairStrandsVF_bIsCullingEnable;
+uint			HairStrandsVF_bCullingEnable;
 
 #if PERMUTATION_CULLING == 1
 Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
@@ -32,7 +32,7 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 	int IndexNext = clamp(IndexCurr+1, 0, MaxVertexCount-1);
 	bool bValid = IndexCurr < MaxVertexCount;
 #if PERMUTATION_CULLING
-	if (HairStrandsVF_bIsCullingEnable)
+	if (HairStrandsVF_bCullingEnable)
 	{
 		const int FetchIndex = DispatchThreadId;
 		const int VertexCountAfterCulling = clamp((int)HairStrandsVF_CullingIndirectBuffer[3], 0, MaxVertexCount);

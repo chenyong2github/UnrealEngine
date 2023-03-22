@@ -24,7 +24,7 @@ uint             RaytracingProceduralSplits;
 RWBuffer<uint>   OutputIndexBuffer;
 #endif
 
-uint HairStrandsVF_bIsCullingEnable;
+uint HairStrandsVF_bCullingEnable;
 #if PERMUTATION_CULLING == 1
 Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
 Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
@@ -172,7 +172,7 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 	uint SourceIndex0 = VertexIndex0;
 	uint SourceIndex1 = VertexIndex1;
 #if PERMUTATION_CULLING == 1
-	if (HairStrandsVF_bIsCullingEnable)
+	if (HairStrandsVF_bCullingEnable)
 	{
 		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 		if (VertexIndex1 >= VertexCountAfterCulling)
@@ -301,7 +301,7 @@ uint VertexCount;
 uint bDrawInvalidElement;
 float PositionThreshold2;
 
-uint HairStrandsVF_bIsCullingEnable;
+uint HairStrandsVF_bCullingEnable;
 Buffer<uint> 	 HairStrandsVF_CullingIndirectBuffer;
 Buffer<uint> 	 HairStrandsVF_CullingIndexBuffer;
 Buffer<uint4> 	 CurrPositionBuffer;
@@ -324,7 +324,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_
 		// Fetch vertex index if culling is enabled
 		uint VertexIndex0 = DispatchThreadId;
 		bool bIsValid = VertexIndex0 < VertexCount;
-		if (bIsValid && HairStrandsVF_bIsCullingEnable)
+		if (bIsValid && HairStrandsVF_bCullingEnable)
 		{
 			const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 			const uint FetchIndex0 = DispatchThreadId;

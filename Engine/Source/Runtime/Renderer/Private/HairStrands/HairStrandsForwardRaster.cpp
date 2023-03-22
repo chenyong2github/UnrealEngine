@@ -305,7 +305,7 @@ FRasterForwardCullingOutput AddHairStrandsForwardCullingPass(
 
 			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
 			// Sanity check
-			check(PointCount == HairGroupPublicData->VFInput.Strands.PointCount);
+			check(PointCount == HairGroupPublicData->VFInput.Strands.Common.PointCount);
 
 			MaxNumPrimIDs += PointCount;
 		}
@@ -355,9 +355,6 @@ FRasterForwardCullingOutput AddHairStrandsForwardCullingPass(
 
 			const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
 			check(HairGroupPublicData);
-
-			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
-			const FMatrix44d LocalToWorldPrimitiveTransform = VFInput.LocalToWorldTransform.ToMatrixWithScale(); 
 
 			const bool bCullingEnable = false; //bSupportCulling && GHairVisibilityComputeRaster_Culling ? HairGroupPublicData->GetCullingResultAvailable() : false;
 			

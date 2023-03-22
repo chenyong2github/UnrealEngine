@@ -164,7 +164,7 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 {
 	check(HairData);
 
-	if (HairData->VFInput.Strands.bScatterSceneLighting)
+	if (HairData->VFInput.Strands.Common.bScatterSceneLighting)
 	{
 		MacroGroup.bNeedScatterSceneLighting = true;
 	}

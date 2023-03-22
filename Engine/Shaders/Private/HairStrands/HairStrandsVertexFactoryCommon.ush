@@ -4,6 +4,10 @@
 
 #include "/Engine/Shared/HairStrandsDefinitions.h"
 
+#ifndef HAIR_STRANDS_PARAMETERS
+#define HAIR_STRANDS_PARAMETERS 0
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair control points
 
@@ -143,14 +147,15 @@ FHairCurve UnpackHairCurve(uint In)
 // Hair strands instance parameters
 
 #if defined(HAIR_STRANDS_PARAMETERS) && HAIR_STRANDS_PARAMETERS == 1
-uint			HairStrandsVF_bIsCullingEnable;
-uint			HairStrandsVF_bHasRaytracedGeometry;
+uint			HairStrandsVF_bCullingEnable;
+uint			HairStrandsVF_bRaytracingGeometry;
+uint			HairStrandsVF_RaytracingProceduralSplits;
 float			HairStrandsVF_Radius;
 float			HairStrandsVF_RootScale;
 float			HairStrandsVF_TipScale;
 float			HairStrandsVF_Length;
 float			HairStrandsVF_Density;
-uint			HairStrandsVF_bUseStableRasterization;
+uint			HairStrandsVF_bStableRasterization;
 float3			HairStrandsVF_PositionOffset;
 uint			HairStrandsVF_PointCount;
 uint			HairStrandsVF_CurveCount;

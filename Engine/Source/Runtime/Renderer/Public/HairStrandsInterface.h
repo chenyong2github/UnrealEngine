@@ -21,6 +21,92 @@ class UTexture2D;
 class FSceneInterface;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Shader parameters
+
+// Instance common parameters
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCommonParameters, RENDERER_API)
+	SHADER_PARAMETER(float,  Density)
+	SHADER_PARAMETER(float,  Radius)
+	SHADER_PARAMETER(float,  RootScale)
+	SHADER_PARAMETER(float,  TipScale)
+	SHADER_PARAMETER(float,  Length)
+	SHADER_PARAMETER(float,  LengthScale)
+	SHADER_PARAMETER(float,  RaytracingRadiusScale)
+	SHADER_PARAMETER(uint32, GroupIndex)
+	SHADER_PARAMETER(uint32, PointCount)
+	SHADER_PARAMETER(uint32, CurveCount)
+	SHADER_PARAMETER(uint32, RaytracingProceduralSplits)
+	SHADER_PARAMETER(uint32, bRaytracingGeometry)
+	SHADER_PARAMETER(uint32, bStableRasterization)
+	SHADER_PARAMETER(uint32, bScatterSceneLighting)
+	SHADER_PARAMETER(FVector3f, PositionOffset)
+	SHADER_PARAMETER(FVector3f, PrevPositionOffset)
+	SHADER_PARAMETER(FMatrix44f, LocalToWorldPrimitiveTransform)
+	SHADER_PARAMETER(FMatrix44f, LocalToTranslatedWorldPrimitiveTransform)
+	SHADER_PARAMETER_ARRAY(FUintVector4, AttributeOffsets, [HAIR_ATTRIBUTE_OFFSET_COUNT])
+END_SHADER_PARAMETER_STRUCT()
+
+// Instance resources (RDG)
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceResourceParameters, RENDERER_API)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionOffsetBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CurveBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PointToCurveBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, AttributeBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+// Instance prev. resources (RDG)
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstancePrevResourceParameters, RENDERER_API)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PrevPositionBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PrevPositionOffsetBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+// Instance culling resources (RDG)
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCullingParameters, RENDERER_API)
+	SHADER_PARAMETER(uint32, bCullingEnable)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CullingIndirectBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CullingIndexBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CullingRadiusScaleBuffer)
+	RDG_BUFFER_ACCESS(CullingIndirectBufferArgs, ERHIAccess::IndirectArgs)
+END_SHADER_PARAMETER_STRUCT()
+
+// Instance resources (Raw)
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceResourceRawParameters, RENDERER_API)
+	SHADER_PARAMETER_SRV(Buffer<uint4>, PositionBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, PositionOffsetBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, CurveBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, PointToCurveBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, TangentBuffer)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, AttributeBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+// Instance prev. resources (Raw)
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstancePrevResourceRawParameters, RENDERER_API)
+	SHADER_PARAMETER_SRV(Buffer<uint4>, PreviousPositionBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionOffsetBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+// Instance culling resources (Raw)
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCullingRawParameters, RENDERER_API)
+	SHADER_PARAMETER(uint32, bCullingEnable)
+//	SHADER_PARAMETER_SRV(Buffer<uint>, CullingIndirectBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, CullingIndexBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float>, CullingRadiusScaleBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+// Intermediate struct which can be referenced by FHairStrandsInstanceParameters for getting 
+// the HairStrandsVF_ decoration in shader
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceIntermediateParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCommonParameters, Common)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceResourceParameters, Resources)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCullingParameters, Culling)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceParameters, )
+	SHADER_PARAMETER_STRUCT(FHairStrandsInstanceIntermediateParameters, HairStrandsVF)
+END_SHADER_PARAMETER_STRUCT()
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Utils buffers for importing/exporting hair resources
 
 enum class ERDGImportedBufferFlags
@@ -229,22 +315,7 @@ public:
 			FShaderResourceViewRHIRef PrevPositionOffsetBufferRHISRV	= nullptr;
 			FShaderResourceViewRHIRef CurveBufferRHISRV					= nullptr;
 
-			FVector PositionOffset = FVector::ZeroVector;
-			FVector PrevPositionOffset = FVector::ZeroVector;
-			TArray<uint32> AttributeOffsets;
-
-			uint32 CurveCount = 0;
-			uint32 PointCount = 0;
-			float HairRadius = 0;
-			float HairRootScale = 0;
-			float HairTipScale = 0;
-			float HairRaytracingRadiusScale = 0;
-			float HairLengthScale = 1.f;
-			float HairLength = 0;
-			float HairDensity = 0;
-			bool bUseStableRasterization = false;
-			bool bScatterSceneLighting = false;
-			bool bUseRaytracingGeometry = false;
+			FHairStrandsInstanceCommonParameters Common; 
 		} Strands;
 
 		struct FCards

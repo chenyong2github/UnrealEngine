@@ -123,7 +123,7 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 	const uint NumControlPoints = IndirectPrimIDCount.Load(0);
 #else // PERMUTATION_INDIRECT_PRIM_IDS
 	#if PERMUTATION_CULLING	
-	const uint NumControlPoints = HairStrandsVF_bIsCullingEnable ? HairStrandsVF_CullingIndirectBuffer[3] : ControlPointCount;
+	const uint NumControlPoints = HairStrandsVF_bCullingEnable ? HairStrandsVF_CullingIndirectBuffer[3] : ControlPointCount;
 	#else // PERMUTATION_CULLING
 	const uint NumControlPoints = ControlPointCount;
 	#endif //PERMUTATION_CULLING
@@ -151,7 +151,7 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 		uint PrimID = BatchIndex * 64 + GroupThreadID;
 		bSegValid = bSegValid && (PrimID < NumControlPoints);
 
-		if (bSegValid && HairStrandsVF_bIsCullingEnable)
+		if (bSegValid && HairStrandsVF_bCullingEnable)
 		{
 			const uint FetchIndex0 = PrimID;
 			const uint FetchIndex1 = min(FetchIndex0 + 1, NumControlPoints - 1);

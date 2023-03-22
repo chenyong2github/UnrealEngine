@@ -501,7 +501,7 @@ static void RunHairStrandsGatherCluster(
 		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 		if (Instance->GeometryType == EHairGeometryType::Strands && Instance->Strands.IsValid())
 		{
-			if (Instance->Strands.bIsCullingEnabled)
+			if (Instance->Strands.bCullingEnable)
 			{
 				RegisterClusterData(Instance, ClusterData);
 			}
@@ -1014,7 +1014,7 @@ static void RunHairLODSelection(
 
 				// Early initialization, so that when filtering MeshBatch block in SceneVisiblity, we can use this value to know 
 				// if the hair instance is visible or not (i.e., HairLengthScale > 0)
-				Instance->HairGroupPublicData->VFInput.Strands.HairLengthScale = Instance->Strands.Modifier.HairLengthScale;
+				Instance->HairGroupPublicData->VFInput.Strands.Common.LengthScale = Instance->Strands.Modifier.HairLengthScale;
 			}
 
 			// Only switch LOD if the data are ready to be used
@@ -1035,7 +1035,7 @@ static void RunHairLODSelection(
 				Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
 				Instance->Guides.bIsDeformationEnable = Instance->HairGroupPublicData->bIsDeformationEnable;
 				Instance->Guides.bIsSimulationCacheEnable = Instance->HairGroupPublicData->bIsSimulationCacheEnable;
-				Instance->Strands.bIsCullingEnabled = bCullingEnable;
+				Instance->Strands.bCullingEnable = bCullingEnable;
 			}
 
 			// Ensure that if the binding type is set to Skinning (or has RBF enabled), the skel. mesh is valid and support skin cache.

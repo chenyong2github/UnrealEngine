@@ -47,34 +47,11 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters> FHairCardsUniformBuffer;
 
-
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParameters, HAIRSTRANDSCORE_API)
-	SHADER_PARAMETER(float, Radius)
-	SHADER_PARAMETER(float, RootScale)
-	SHADER_PARAMETER(float, TipScale)
-	SHADER_PARAMETER(float, Length)
-	SHADER_PARAMETER(float, Density)
-	SHADER_PARAMETER(float, RaytracingRadiusScale)
-	SHADER_PARAMETER(uint32, CullingEnable)
-	SHADER_PARAMETER(uint32, HasMaterial)
-	SHADER_PARAMETER(uint32, StableRasterization)
-	SHADER_PARAMETER(uint32, ScatterSceneLighing)
-	SHADER_PARAMETER(uint32, RaytracingProceduralSplits)
-	SHADER_PARAMETER(float, GroupIndex)
-	SHADER_PARAMETER_ARRAY(FUintVector4, AttributeOffsets, [HAIR_ATTRIBUTE_OFFSET_COUNT])
-
-	SHADER_PARAMETER_SRV(Buffer<float4>, PositionOffsetBuffer)
-	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionOffsetBuffer)
-
-	SHADER_PARAMETER_SRV(Buffer<uint4>, PositionBuffer)
-	SHADER_PARAMETER_SRV(Buffer<uint4>, PreviousPositionBuffer)
-
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, AttributeBuffer)
-	SHADER_PARAMETER_SRV(Buffer<uint>, PointToCurveBuffer)
-	SHADER_PARAMETER_SRV(Buffer<float4>, TangentBuffer)
-
-	SHADER_PARAMETER_SRV(Buffer<uint>, CulledVertexIdsBuffer)
-	SHADER_PARAMETER_SRV(Buffer<float>, CulledVertexRadiusScaleBuffer)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCommonParameters, Common)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceResourceRawParameters, Resources)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstancePrevResourceRawParameters, PrevResources)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCullingRawParameters, Culling)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FHairStrandsVertexFactoryUniformShaderParameters> FHairStrandsUniformBuffer;
@@ -128,7 +105,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		EHairInterpolationType HairInterpolationType = EHairInterpolationType::NoneSkinning;
 
 		// Indicates if culling is enabled for this hair strands data.
-		bool bIsCullingEnabled = false;
+		bool bCullingEnable = false;
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////

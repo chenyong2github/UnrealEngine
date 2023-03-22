@@ -597,13 +597,13 @@ static void AddDrawDebugStrandsCVsPass(
 	FDrawDebugStrandsCVsCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugStrandsCVsCS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->HairStrandsVF = Instance->Strands.UniformBuffer;
-	Parameters->LocalToWorld = FMatrix44f(Instance->LocalToWorld.ToMatrixWithScale());		// LWC_TODO: Precision loss
+	Parameters->LocalToWorld = FMatrix44f(Instance->LocalToWorld.ToMatrixWithScale());		// LWC_TODO: Precision loss // TODO change this to Uniform buffer parameters..
 	Parameters->MaxVertexCount = Instance->Strands.Data->GetNumPoints();
 	Parameters->ColorTexture = GraphBuilder.CreateUAV(ColorTexture);
 	Parameters->DepthTexture = DepthTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	const uint32 PointCount = Instance->HairGroupPublicData->VFInput.Strands.PointCount;
+	const uint32 PointCount = Instance->HairGroupPublicData->VFInput.Strands.Common.PointCount;
 	FComputeShaderUtils::AddPass(
 		GraphBuilder, 
 		RDG_EVENT_NAME("HairStrands::DrawCVs"), 
@@ -954,14 +954,14 @@ static void AddHairDebugPrintInstancePass(
 
 				{
 					Data2 = FUintVector4(0);
-					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView] ? 0x1u  : 0u;
-					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsShadowView]  ? 0x2u  : 0u;
-					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.bScatterSceneLighting       ? 0x4u  : 0u;
-					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.bUseRaytracingGeometry      ? 0x8u  : 0u;
-					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.bUseStableRasterization     ? 0x10u : 0u;
-					Data2.X |= Instance->HairGroupPublicData->bSupportVoxelization                        ? 0x20u : 0u;
-					Data2.X |= ActiveGroomCacheType == EGroomCacheType::Guides                            ? 0x40u : 0u;
-					Data2.X |= ActiveGroomCacheType == EGroomCacheType::Strands                           ? 0x80u : 0u;
+					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView]  ? 0x1u  : 0u;
+					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsShadowView]   ? 0x2u  : 0u;
+					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bScatterSceneLighting ? 0x4u  : 0u;
+					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bRaytracingGeometry   ? 0x8u  : 0u;
+					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bStableRasterization  ? 0x10u : 0u;
+					Data2.X |= Instance->HairGroupPublicData->bSupportVoxelization                         ? 0x20u : 0u;
+					Data2.X |= ActiveGroomCacheType == EGroomCacheType::Guides                             ? 0x40u : 0u;
+					Data2.X |= ActiveGroomCacheType == EGroomCacheType::Strands                            ? 0x80u : 0u;
 					Data2.X |= uint32(FFloat16(Instance->HairGroupPublicData->ContinuousLODScreenSize).Encoded) << 16u;
 
 					Data2.Y = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
@@ -979,14 +979,14 @@ static void AddHairDebugPrintInstancePass(
 				}
 				
 				Data3 = FUintVector4(0);
-				Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairRadius).Encoded;
-				Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairDensity).Encoded << 16u;
+				Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Radius).Encoded;
+				Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Density).Encoded << 16u;
 
-				Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairRootScale).Encoded;
-				Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairTipScale).Encoded << 16u;
+				Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.RootScale).Encoded;
+				Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.TipScale).Encoded << 16u;
 
-				Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairLength).Encoded;
-				Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.HairLengthScale).Encoded << 16u;
+				Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Length).Encoded;
+				Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.LengthScale).Encoded << 16u;
 			}
 			break;
 		case EHairGeometryType::Cards:

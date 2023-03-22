@@ -676,7 +676,7 @@ bool IsHairVisible(const FMeshBatchAndRelevance& MeshBatch)
 		const FHairGroupPublicData* Data = HairStrands::GetHairData(MeshBatch.Mesh);
 		switch (Data->VFInput.GeometryType)
 		{
-		case EHairGeometryType::Strands: return Data->VFInput.Strands.HairLengthScale > 0;
+		case EHairGeometryType::Strands: return Data->VFInput.Strands.Common.LengthScale > 0;
 		case EHairGeometryType::Cards: return true;
 		case EHairGeometryType::Meshes: return true;
 		}

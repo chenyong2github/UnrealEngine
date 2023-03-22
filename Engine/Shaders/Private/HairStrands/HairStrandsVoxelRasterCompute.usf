@@ -690,7 +690,7 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 	float LodRadiusScale0 = 1;
 	float LodRadiusScale1 = 1;
 #if PERMUTATION_CULLING == 1
-	if (HairStrandsVF_bIsCullingEnable)
+	if (HairStrandsVF_bCullingEnable)
 	{
 		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 		uint FetchIndex0 = VertexIndex0;
@@ -824,7 +824,7 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 				// Groom having raytraced geometry will cast-shadow on opaque geomtry with their RT-geometry, not with their 
 				// voxelization. To avoid for doubling/incorrect shadowing, we mark voxel with no-shadow casting flag. 
 				// This adds a significant cost when used.
-				if (HairStrandsVF_bHasRaytracedGeometry)
+				if (HairStrandsVF_bRaytracingGeometry)
 				{
 					InterlockedOr(OutPageTexture[VoxelPageCoord], VOXEL_CAST_NO_SHADOW_MASK);
 				}

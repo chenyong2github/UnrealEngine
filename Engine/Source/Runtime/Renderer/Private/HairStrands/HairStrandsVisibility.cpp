@@ -2835,57 +2835,47 @@ FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& Gra
 
 	const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
 
-	FHairStrandsInstanceParameters Out;
+	FHairStrandsInstanceParameters Output;
+	FHairStrandsInstanceIntermediateParameters& Out = Output.HairStrandsVF;
 	if (bForceRegister)
 	{
-		Out.HairStrandsVF_PositionBuffer		= Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
-		Out.HairStrandsVF_PositionOffsetBuffer	= Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
-		Out.HairStrandsVF_CurveBuffer			= Register(GraphBuilder, VFInput.Strands.CurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.HairStrandsVF_PointToCurveBuffer	= Register(GraphBuilder, VFInput.Strands.PointToCurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.HairStrandsVF_AttributeBuffer		= Register(GraphBuilder, VFInput.Strands.AttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.Resources.PositionBuffer		= Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.Resources.PositionOffsetBuffer	= Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.Resources.CurveBuffer			= Register(GraphBuilder, VFInput.Strands.CurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.Resources.PointToCurveBuffer	= Register(GraphBuilder, VFInput.Strands.PointToCurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.Resources.AttributeBuffer		= Register(GraphBuilder, VFInput.Strands.AttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
 	}
 	else
 	{
-		Out.HairStrandsVF_PositionBuffer		= VFInput.Strands.PositionBuffer.SRV;
-		Out.HairStrandsVF_PositionOffsetBuffer	= VFInput.Strands.PositionOffsetBuffer.SRV;
-		Out.HairStrandsVF_CurveBuffer			= VFInput.Strands.CurveBuffer.SRV;
-		Out.HairStrandsVF_PointToCurveBuffer	= VFInput.Strands.PointToCurveBuffer.SRV;
-		Out.HairStrandsVF_AttributeBuffer		= VFInput.Strands.AttributeBuffer.SRV;
+		Out.Resources.PositionBuffer		= VFInput.Strands.PositionBuffer.SRV;
+		Out.Resources.PositionOffsetBuffer	= VFInput.Strands.PositionOffsetBuffer.SRV;
+		Out.Resources.CurveBuffer			= VFInput.Strands.CurveBuffer.SRV;
+		Out.Resources.PointToCurveBuffer	= VFInput.Strands.PointToCurveBuffer.SRV;
+		Out.Resources.AttributeBuffer		= VFInput.Strands.AttributeBuffer.SRV;
 	}
 
-	Out.HairStrandsVF_PointCount				= VFInput.Strands.PointCount;
-	Out.HairStrandsVF_CurveCount				= VFInput.Strands.CurveCount;
-	Out.HairStrandsVF_Radius					= VFInput.Strands.HairRadius;
-	Out.HairStrandsVF_RootScale					= VFInput.Strands.HairRootScale;
-	Out.HairStrandsVF_TipScale					= VFInput.Strands.HairTipScale;
-	Out.HairStrandsVF_Length					= VFInput.Strands.HairLength;
-	Out.HairStrandsVF_bUseStableRasterization	= VFInput.Strands.bUseStableRasterization ? 1 : 0;
-	Out.HairStrandsVF_Density					= VFInput.Strands.HairDensity;
-	Out.HairStrandsVF_bIsCullingEnable			= 0;
-	Out.HairStrandsVF_bHasRaytracedGeometry		= VFInput.Strands.bUseRaytracingGeometry ? 1u : 0u;
-	Out.HairStrandsVF_PositionOffset			= (FVector3f)VFInput.Strands.PositionOffset;
-
-	PACK_HAIR_ATTRIBUTE_OFFSETS(Out.HairStrandsVF_AttributeOffsets, VFInput.Strands.AttributeOffsets);
+	Out.Common = VFInput.Strands.Common;
+	Out.Culling.bCullingEnable = 0;
 
 	// Absolute local to world
-	Out.HairStrandsVF_LocalToWorldPrimitiveTransform	= FMatrix44f(VFInput.LocalToWorldTransform.ToMatrixWithScale()); // LWC_TODO: Precision loss
+	Out.Common.LocalToWorldPrimitiveTransform	= FMatrix44f(VFInput.LocalToWorldTransform.ToMatrixWithScale()); // LWC_TODO: Precision loss, remove usage for this
 
 	// Translated local to world
 	const FVector& TranslatedWorldOffset = ViewInfo.ViewMatrices.GetPreViewTranslation();
 	FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
 	LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);
-	Out.HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform = FMatrix44f(LocalToTranslatedWorldTransform.ToMatrixWithScale());
+	Out.Common.LocalToTranslatedWorldPrimitiveTransform = FMatrix44f(LocalToTranslatedWorldTransform.ToMatrixWithScale());
 
 	if (bCullingEnable)
 	{
 		FRDGImportedBuffer CullingIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV);
-		Out.HairStrandsVF_CullingIndirectBuffer = CullingIndirectBuffer.SRV;
-		Out.HairStrandsVF_bIsCullingEnable = 1;
-		Out.HairStrandsVF_CullingIndexBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexIdBuffer());
-		Out.HairStrandsVF_CullingRadiusScaleBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexRadiusScaleBuffer());
-		Out.HairStrandsVF_CullingIndirectBufferArgs = CullingIndirectBuffer.Buffer;
+		Out.Culling.bCullingEnable = 1;
+		Out.Culling.CullingIndirectBuffer = CullingIndirectBuffer.SRV;
+		Out.Culling.CullingIndexBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexIdBuffer());
+		Out.Culling.CullingRadiusScaleBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexRadiusScaleBuffer());
+		Out.Culling.CullingIndirectBufferArgs = CullingIndirectBuffer.Buffer;
 	}
-	return Out;
+	return Output;
 }
 
 class FVisiblityRasterClassificationCS : public FGlobalShader
@@ -3265,7 +3255,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 
 			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
 			// Sanity check
-			check(HairGroupPublicData->VFInput.Strands.PointCount == PointCount);
+			check(HairGroupPublicData->VFInput.Strands.Common.PointCount == PointCount);
 
 			MaxNumPrimIDs = FMath::Max(MaxNumPrimIDs, PointCount);
 		}
@@ -3440,14 +3430,11 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
 			check(HairGroupPublicData);
 
-			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
-			const FMatrix44d LocalToWorldPrimitiveTransform = VFInput.LocalToWorldTransform.ToMatrixWithScale(); 
-
 			const bool bCullingEnable = bSupportCulling && GHairVisibilityComputeRaster_Culling ? HairGroupPublicData->GetCullingResultAvailable() : false;
 			const bool bCullingEnableInRasterizers = bCullingEnable && !bClassification;
 
 			const uint32 PointCount = HairGroupPublicData->GetActiveStrandsPointCount();
-			check(PointCount == HairGroupPublicData->VFInput.Strands.PointCount);
+			check(PointCount == HairGroupPublicData->VFInput.Strands.Common.PointCount);
 			const float CoverageScale = HairGroupPublicData->GetActiveStrandsCoverageScale();
 
 			// HW/SW classification
@@ -3882,7 +3869,7 @@ class FHairStrandsPositionChangedCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(float, PositionThreshold2)
-		SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
+		SHADER_PARAMETER(uint32, HairStrandsVF_bCullingEnable)
 		SHADER_PARAMETER(uint32, bDrawInvalidElement)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairStrandsVF_CullingIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairStrandsVF_CullingIndirectBuffer)
@@ -3921,7 +3908,7 @@ static void AddHairStrandsHasPositionChangedPass(
 	Parameters->VertexCount = PointCount;
 	Parameters->PositionThreshold2 = FMath::Square(GHairStrands_InvalidationPosition_Threshold);
 	Parameters->bDrawInvalidElement = GHairStrands_InvalidationPosition_Debug > 0 ? 1u : 0u;
-	Parameters->HairStrandsVF_bIsCullingEnable = 0u;
+	Parameters->HairStrandsVF_bCullingEnable = 0u;
 	Parameters->HairStrandsVF_CullingIndexBuffer = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u), PF_R32_UINT);
 	Parameters->HairStrandsVF_CullingIndirectBuffer = Parameters->HairStrandsVF_CullingIndexBuffer;
 	Parameters->CurrPositionBuffer = HairGroupPublicData->VFInput.Strands.PositionBuffer.SRV;
@@ -3934,7 +3921,7 @@ static void AddHairStrandsHasPositionChangedPass(
 	{
 		Parameters->HairStrandsVF_CullingIndexBuffer = Register(GraphBuilder, HairGroupPublicData->GetCulledVertexIdBuffer(), ERDGImportedBufferFlags::CreateSRV).SRV;
 		Parameters->HairStrandsVF_CullingIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV).SRV;
-		Parameters->HairStrandsVF_bIsCullingEnable = 1;
+		Parameters->HairStrandsVF_bCullingEnable = 1;
 	}
 
 	const FIntVector DispatchCount(FMath::DivideAndRoundUp(PointCount, FHairStrandsPositionChangedCS::GetGroupSize()), 1, 1);

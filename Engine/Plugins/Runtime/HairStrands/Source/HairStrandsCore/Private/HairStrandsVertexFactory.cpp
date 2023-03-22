@@ -94,46 +94,39 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 	const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(this, ViewMode);
 
 	FHairStrandsVertexFactoryUniformShaderParameters Out = {};
-	Out.GroupIndex					= Debug.GroupIndex;
-	Out.Radius 						= VFInput.Strands.HairRadius;
-	Out.RootScale 					= VFInput.Strands.HairRootScale;
-	Out.TipScale 					= VFInput.Strands.HairTipScale;
-	Out.RaytracingRadiusScale		= VFInput.Strands.HairRaytracingRadiusScale;
-	Out.RaytracingProceduralSplits  = GetHairRaytracingProceduralSplits();
-	Out.Length 						= VFInput.Strands.HairLength;
-	Out.Density 					= VFInput.Strands.HairDensity;
-	Out.StableRasterization			= VFInput.Strands.bUseStableRasterization;
-	Out.ScatterSceneLighing			= VFInput.Strands.bScatterSceneLighting;
-	Out.PositionBuffer				= VFInput.Strands.PositionBufferRHISRV;
-	Out.PreviousPositionBuffer		= VFInput.Strands.PrevPositionBufferRHISRV;
-	Out.AttributeBuffer				= VFInput.Strands.AttributeBufferRHISRV;
-	Out.PointToCurveBuffer			= VFInput.Strands.PointToCurveBufferRHISRV;
-	Out.TangentBuffer 				= VFInput.Strands.TangentBufferRHISRV;
-	Out.PositionOffsetBuffer 		= VFInput.Strands.PositionOffsetBufferRHISRV;
-	Out.PreviousPositionOffsetBuffer= VFInput.Strands.PrevPositionOffsetBufferRHISRV;
+	Out.Common = VFInput.Strands.Common;
+
+	Out.Resources.PositionBuffer					= VFInput.Strands.PositionBufferRHISRV;
+	Out.Resources.PositionOffsetBuffer 				= VFInput.Strands.PositionOffsetBufferRHISRV;
+	Out.Resources.AttributeBuffer					= VFInput.Strands.AttributeBufferRHISRV;
+	Out.Resources.CurveBuffer						= VFInput.Strands.CurveBufferRHISRV;
+	Out.Resources.PointToCurveBuffer				= VFInput.Strands.PointToCurveBufferRHISRV;
+	Out.Resources.TangentBuffer 					= VFInput.Strands.TangentBufferRHISRV;
+	Out.PrevResources.PreviousPositionBuffer		= VFInput.Strands.PrevPositionBufferRHISRV;
+	Out.PrevResources.PreviousPositionOffsetBuffer	= VFInput.Strands.PrevPositionOffsetBufferRHISRV;
 
 	// swap in some default data for those buffers that are not valid yet
-	if (!Out.PositionBuffer) 				{ Out.PositionBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
-	if (!Out.PreviousPositionBuffer) 		{ Out.PreviousPositionBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
-	if (!Out.AttributeBuffer) 				{ Out.AttributeBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVByteAddress; }
-	if (!Out.PointToCurveBuffer) 			{ Out.PointToCurveBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVUint; }
-	if (!Out.TangentBuffer) 				{ Out.TangentBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
-	if (!Out.PositionOffsetBuffer) 			{ Out.PositionOffsetBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
-	if (!Out.PreviousPositionOffsetBuffer) 	{ Out.PreviousPositionOffsetBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
+	if (!Out.Resources.PositionBuffer) 						{ Out.Resources.PositionBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
+	if (!Out.Resources.PositionOffsetBuffer) 				{ Out.Resources.PositionOffsetBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
+	if (!Out.Resources.AttributeBuffer) 					{ Out.Resources.AttributeBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVByteAddress; }
+	if (!Out.Resources.CurveBuffer) 						{ Out.Resources.CurveBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVByteAddress; }
+	if (!Out.Resources.PointToCurveBuffer) 					{ Out.Resources.PointToCurveBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVUint; }
+	if (!Out.Resources.TangentBuffer) 						{ Out.Resources.TangentBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
 
-	Out.CullingEnable = HairGroupPublicData->GetCullingResultAvailable();
-	if (Out.CullingEnable)
+	if (!Out.PrevResources.PreviousPositionBuffer) 			{ Out.PrevResources.PreviousPositionBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
+	if (!Out.PrevResources.PreviousPositionOffsetBuffer) 	{ Out.PrevResources.PreviousPositionOffsetBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat; }
+
+	Out.Culling.bCullingEnable = HairGroupPublicData->GetCullingResultAvailable();
+	if (Out.Culling.bCullingEnable)
 	{
-		Out.CulledVertexIdsBuffer = HairGroupPublicData->GetCulledVertexIdBuffer().SRV;
-		Out.CulledVertexRadiusScaleBuffer = HairGroupPublicData->GetCulledVertexRadiusScaleBuffer().SRV;
+		Out.Culling.CullingIndexBuffer = HairGroupPublicData->GetCulledVertexIdBuffer().SRV;
+		Out.Culling.CullingRadiusScaleBuffer = HairGroupPublicData->GetCulledVertexRadiusScaleBuffer().SRV;
 	}
 	else
 	{
-		Out.CulledVertexIdsBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVUint;
-		Out.CulledVertexRadiusScaleBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat;
+		Out.Culling.CullingIndexBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVUint;
+		Out.Culling.CullingRadiusScaleBuffer = GDummyCulledDispatchVertexIdsBuffer.SRVFloat;
 	}
-
-	PACK_HAIR_ATTRIBUTE_OFFSETS(Out.AttributeOffsets, VFInput.Strands.AttributeOffsets);	
 	return Out;
 }
 

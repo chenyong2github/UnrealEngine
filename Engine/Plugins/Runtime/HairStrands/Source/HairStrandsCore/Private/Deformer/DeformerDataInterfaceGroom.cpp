@@ -216,12 +216,13 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchData const& InD
 			FParameters& Parameters = ParameterArray[InvocationIndex];
 			Parameters.NumControlPoints = NumControlPoints;
 			Parameters.NumCurves = NumCurves;
-			Parameters.VF_HairRadius = VFInput.Strands.HairRadius;
-			Parameters.VF_HairLength = VFInput.Strands.HairLength;
-			Parameters.VF_RootScale = VFInput.Strands.HairRootScale;
-			Parameters.VF_TipScale = VFInput.Strands.HairTipScale;
-			Parameters.VF_GroupIndex = Instance->Debug.GroupIndex;
-			PACK_HAIR_ATTRIBUTE_OFFSETS(Parameters.VF_AttributeOffsets, VFInput.Strands.AttributeOffsets);
+			Parameters.VF_HairRadius = VFInput.Strands.Common.Radius;
+			Parameters.VF_HairLength = VFInput.Strands.Common.Length;
+			Parameters.VF_RootScale  = VFInput.Strands.Common.RootScale;
+			Parameters.VF_TipScale   = VFInput.Strands.Common.TipScale;
+			Parameters.VF_GroupIndex = VFInput.Strands.Common.GroupIndex;// Instance->Debug.GroupIndex;
+			Parameters.VF_AttributeOffsets = VFInput.Strands.Common.AttributeOffsets;
+			//PACK_HAIR_ATTRIBUTE_OFFSETS(Parameters.VF_AttributeOffsets, VFInput.Strands.AttributeOffsets);
 
 			if (bIsSRVValid)
 			{

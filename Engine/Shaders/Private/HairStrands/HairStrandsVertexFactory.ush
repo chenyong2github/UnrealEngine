@@ -74,12 +74,12 @@
  */
 bool UseStableRasterization()
 {
-	return HairStrandsVF.StableRasterization > 0;
+	return HairStrandsVF.bStableRasterization > 0;
 }
 
 bool UseScatterSceneLighting()
 {
-	return HairStrandsVF.ScatterSceneLighing > 0;
+	return HairStrandsVF.bScatterSceneLighting > 0;
 }
 
 struct FVertexFactoryInput
@@ -138,11 +138,11 @@ FVertexInfo GetVertexInfo(FVertexFactoryInput Input)
 #endif
 
 #if USE_CULLED_CLUSTER == 1
-	if (HairStrandsVF.CullingEnable)
+	if (HairStrandsVF.bCullingEnable)
 	{
-		VertexInfo.VertexIndex = HairStrandsVF.CulledVertexIdsBuffer[BaseIndex + VertexInfo.IsTip];
+		VertexInfo.VertexIndex = HairStrandsVF.CullingIndexBuffer[BaseIndex + VertexInfo.IsTip];
 #if !RAYHITGROUPSHADER
-		VertexInfo.LodRadiusScale = HairStrandsVF.CulledVertexRadiusScaleBuffer[BaseIndex + VertexInfo.IsTip];
+		VertexInfo.LodRadiusScale = HairStrandsVF.CullingRadiusScaleBuffer[BaseIndex + VertexInfo.IsTip];
 		VertexInfo.bForceInvalidQuad = VertexInfo.LodRadiusScale <= 0.0f;
 #endif
 		VertexInfo.HairPrimitiveId = VertexInfo.VertexIndex - VertexInfo.IsTip;
@@ -398,12 +398,12 @@ RAY_TRACING_ENTRY_INTERSECTION(MaterialIS)
 	uint VertexIndex0 = PrimitiveIndex() / HairStrandsVF.RaytracingProceduralSplits;
 	uint VertexIndex1 = VertexIndex0 + 1;
 	float ScaleR0 = 1, ScaleR1 = 1;
-	if (HairStrandsVF.CullingEnable)
+	if (HairStrandsVF.bCullingEnable)
 	{
-		ScaleR0 = HairStrandsVF.CulledVertexRadiusScaleBuffer[VertexIndex0];
-		ScaleR1 = HairStrandsVF.CulledVertexRadiusScaleBuffer[VertexIndex1];
-		VertexIndex0 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex0];
-		VertexIndex1 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex1];
+		ScaleR0 = HairStrandsVF.CullingRadiusScaleBuffer[VertexIndex0];
+		ScaleR1 = HairStrandsVF.CullingRadiusScaleBuffer[VertexIndex1];
+		VertexIndex0 = HairStrandsVF.CullingIndexBuffer[VertexIndex0];
+		VertexIndex1 = HairStrandsVF.CullingIndexBuffer[VertexIndex1];
 	}
 
 	const float EffectiveRadius = HairStrandsVF.Radius * HairStrandsVF.RaytracingRadiusScale;
@@ -482,10 +482,10 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 	uint VertexIndex0 = HitPrimitiveIndex / HairStrandsVF.RaytracingProceduralSplits;
 	uint VertexIndex1 = VertexIndex0 + 1;
 
-	if (HairStrandsVF.CullingEnable)
+	if (HairStrandsVF.bCullingEnable)
 	{
-		VertexIndex0 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex0];
-		VertexIndex1 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex1];
+		VertexIndex0 = HairStrandsVF.CullingIndexBuffer[VertexIndex0];
+		VertexIndex1 = HairStrandsVF.CullingIndexBuffer[VertexIndex1];
 	}
 
 	const float EffectiveRadius = HairStrandsVF.Radius * HairStrandsVF.RaytracingRadiusScale;
@@ -533,10 +533,10 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 	uint VertexIndex0 = Tri.Indices.z / 4; // last index always belongs to the "bottom" vertex of the hair segment
 	uint VertexIndex1 = VertexIndex0 + 1;
 
-	if (HairStrandsVF.CullingEnable)
+	if (HairStrandsVF.bCullingEnable)
 	{
-		VertexIndex0 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex0];
-		VertexIndex1 = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex1];
+		VertexIndex0 = HairStrandsVF.CullingIndexBuffer[VertexIndex0];
+		VertexIndex1 = HairStrandsVF.CullingIndexBuffer[VertexIndex1];
 	}
 
 	float UCoord = dot(float3(1, float((HitPrimitiveIndex % 2) == 0), 0), Weights);

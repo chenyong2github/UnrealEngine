@@ -97,12 +97,12 @@ Buffer<uint4>	Interpolation1Buffer;
 
 Buffer<uint>   SimRootPointIndexBuffer;
 
-uint HairStrandsVF_bIsCullingEnable;
+uint HairStrandsVFTODO_bCullingEnable;
 #if PERMUTATION_CULLING == 1
-Buffer<uint>	HairStrandsVF_CullingIndirectBuffer; 
-Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
-Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
-Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
+Buffer<uint>	HairStrandsVFTODO_CullingIndirectBuffer; 
+Buffer<uint>	HairStrandsVFTODO_CullingIndexBuffer;
+Buffer<float>	HairStrandsVFTODO_CullingRadiusScaleBuffer;
+Buffer<uint>	HairStrandsVFTODO_CullingIndirectBufferArgs;
 #endif
 
 #if PERMUTATION_DYNAMIC_GEOMETRY >= 1 || PERMUTATION_DEBUG == 1 
@@ -462,15 +462,15 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// 1. Find vertex index
 	uint VertexIndex = DispatchThreadId;
 #if PERMUTATION_CULLING
-	if (HairStrandsVF_bIsCullingEnable)
+	if (HairStrandsVFTODO_bCullingEnable)
 	{
 		const uint FetchIndex = DispatchThreadId;
-		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+		const uint VertexCountAfterCulling = HairStrandsVFTODO_CullingIndirectBuffer[3];
 		if (FetchIndex >= VertexCountAfterCulling)
 		{
 			return;
 		}
-		VertexIndex = HairStrandsVF_CullingIndexBuffer[FetchIndex];
+		VertexIndex = HairStrandsVFTODO_CullingIndexBuffer[FetchIndex];
 	}
 #endif
 
@@ -662,7 +662,7 @@ Buffer<uint> ClusterIndexCountBuffer;
 Buffer<uint> CulledClusterCountBuffer;
 
 Buffer<uint> IndirectBuffer;
-Buffer<uint> HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint> HairStrandsVFTODO_CullingIndirectBuffer;
 Buffer<float4> RenderDeformedOffsetBuffer;
 
 RWBuffer<int> OutClusterAABBBuffer; 	// Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
@@ -699,7 +699,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 	const uint IndexOffset = ClusterIndexOffsetBuffer[ClusterFetchIndex];
 	const uint IndexCount = min(ClusterIndexCountBuffer[ClusterFetchIndex], GROUP_SIZE);
 	
-	const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+	const uint VertexCountAfterCulling = HairStrandsVFTODO_CullingIndirectBuffer[3];
 
 	int3 ClusterAABBMin = 9999999.0f;
 	int3 ClusterAABBMax =-9999999.0f;

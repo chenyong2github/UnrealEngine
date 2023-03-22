@@ -53,7 +53,7 @@ VSOutput VSMain(VSInput Input)
 	#if PERMUTATION_CULLING
 	uint PrimID = Input.InstanceID;
 
-	if (HairStrandsVF_bIsCullingEnable)
+	if (HairStrandsVF_bCullingEnable)
 	{
 		const uint NumVerticesAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 		if (PrimID >= NumVerticesAfterCulling)

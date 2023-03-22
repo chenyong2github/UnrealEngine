@@ -400,7 +400,7 @@ void BinningCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID :
 		group_VerticesNum = IndirectPrimIDCount.Load(0);
 #else // PERMUTATION_INDIRECT_PRIM_IDS
 	#if PERMUTATION_CULLING	
-		group_VerticesNum = HairStrandsVF_bIsCullingEnable ? HairStrandsVF_CullingIndirectBuffer[3] : VertexCount;
+		group_VerticesNum = HairStrandsVF_bCullingEnable ? HairStrandsVF_CullingIndirectBuffer[3] : VertexCount;
 	#else // PERMUTATION_CULLING
 		group_VerticesNum = VertexCount;
 	#endif //PERMUTATION_CULLING
@@ -430,7 +430,7 @@ void BinningCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID :
 		uint PrimID = BatchIndex * 1024 + GroupThreadID;
 		bSegValid = bSegValid && (PrimID < group_VerticesNum);
 
-		if (bSegValid && HairStrandsVF_bIsCullingEnable)
+		if (bSegValid && HairStrandsVF_bCullingEnable)
 		{
 			const uint FetchIndex0 = PrimID;
 			const uint FetchIndex1 = min(FetchIndex0 + 1, group_VerticesNum - 1);
