@@ -69,7 +69,7 @@ namespace EpicGames.Horde.Compute.Clients
 		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 		{
 			await using ComputeSocket socket = new ComputeSocket(new TcpTransport(_socket), _loggerFactory);
-			await using ComputeLease lease = new ComputeLease(new Dictionary<string, int>(), socket);
+			await using ComputeLease lease = new ComputeLease(new List<string>(), new Dictionary<string, int>(), socket);
 			TResult result = await handler(lease, cancellationToken);
 			await socket.CloseAsync(cancellationToken);
 			return result;

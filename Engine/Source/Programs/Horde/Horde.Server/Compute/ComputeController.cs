@@ -54,6 +54,11 @@ namespace Horde.Server.Compute
 		/// Resources assigned to this machine
 		/// </summary>
 		public Dictionary<string, int> AssignedResources { get; set; } = new Dictionary<string, int>();
+
+		/// <summary>
+		/// Properties of the agent assigned to do the work
+		/// </summary>
+		public IReadOnlyList<string> Properties { get; set; } = new List<string>();
 	}
 
 	/// <summary>
@@ -110,6 +115,7 @@ namespace Horde.Server.Compute
 			response.Port = computeResource.Port;
 			response.Nonce = StringUtils.FormatHexString(computeResource.Task.Nonce.Span);
 			response.Key = StringUtils.FormatHexString(computeResource.Task.Key.Span);
+			response.Properties = computeResource.Properties;
 
 			foreach (KeyValuePair<string, int> pair in computeResource.Task.Resources)
 			{

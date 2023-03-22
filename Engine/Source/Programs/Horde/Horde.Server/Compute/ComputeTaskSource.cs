@@ -45,13 +45,19 @@ namespace Horde.Server.Compute
 		public ComputeTask Task { get; }
 
 		/// <summary>
+		/// Properties of the assigned agent
+		/// </summary>
+		public IReadOnlyList<string> Properties { get; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeResource(IPAddress ip, int port, ComputeTask task)
+		public ComputeResource(IPAddress ip, int port, ComputeTask task, IReadOnlyList<string> properties)
 		{
 			Ip = ip;
 			Port = port;
 			Task = task;
+			Properties = properties;
 		}
 	}
 
@@ -121,7 +127,7 @@ namespace Horde.Server.Compute
 							if (node.Value.Lease.TrySetResult(lease))
 							{
 								Waiter waiter = node.Value;
-								return new ComputeResource(waiter.Ip, waiter.Port, computeTask);
+								return new ComputeResource(waiter.Ip, waiter.Port, computeTask, waiter.Agent.Properties);
 							}
 						}
 					}

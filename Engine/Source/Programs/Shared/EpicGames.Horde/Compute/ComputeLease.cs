@@ -12,6 +12,9 @@ namespace EpicGames.Horde.Compute
 	public sealed class ComputeLease : IComputeLease, IAsyncDisposable
 	{
 		/// <inheritdoc/>
+		public IReadOnlyList<string> Properties { get; }
+
+		/// <inheritdoc/>
 		public IReadOnlyDictionary<string, int> AssignedResources { get; }
 
 		/// <inheritdoc/>
@@ -20,10 +23,12 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="properties">Properties of the assigned agent</param>
 		/// <param name="assignedResources">Resources assigned to this lease</param>
 		/// <param name="socket">Socket for communication</param>
-		public ComputeLease(IReadOnlyDictionary<string, int> assignedResources, IComputeSocket socket)
+		public ComputeLease(IReadOnlyList<string> properties, IReadOnlyDictionary<string, int> assignedResources, IComputeSocket socket)
 		{
+			Properties = properties;
 			AssignedResources = assignedResources;
 			Socket = socket;
 		}

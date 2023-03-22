@@ -36,6 +36,7 @@ namespace EpicGames.Horde.Compute.Clients
 			public string Nonce { get; set; } = String.Empty;
 			public string Key { get; set; } = String.Empty;
 			public Dictionary<string, int> AssignedResources { get; set; } = new Dictionary<string, int>();
+			public List<string> Properties { get; set; } = new List<string>();
 		}
 
 		readonly HttpClient? _defaultHttpClient;
@@ -134,7 +135,7 @@ namespace EpicGames.Horde.Compute.Clients
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
 			await using ComputeSocket computeSocket = new ComputeSocket(new TcpTransport(socket), _loggerFactory);
-			await using ComputeLease lease = new ComputeLease(responseMessage.AssignedResources, computeSocket);
+			await using ComputeLease lease = new ComputeLease(responseMessage.Properties, responseMessage.AssignedResources, computeSocket);
 			return await handler(lease, cancellationToken);
 		}
 	}
