@@ -129,6 +129,10 @@ public class MacPlatform : ApplePlatform
 
 	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
 	{
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, UnrealTargetPlatform.IOS);
+		bool bUseModernXcode;
+		Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+
 		// Stage all the build products
 		foreach (StageTarget Target in SC.StageTargets)
 		{
@@ -173,8 +177,8 @@ public class MacPlatform : ApplePlatform
 			SC.StageFile(StagedFileType.NonUFS, SplashImage);
 		}
 
-		// Stage the bootstrap executable
-		if (!Params.NoBootstrapExe)
+		// Stage the bootstrap executable (modern doesn't need it with full .apps)
+		if (!Params.NoBootstrapExe && !bUseModernXcode)
 		{
 			foreach (StageTarget Target in SC.StageTargets)
 			{
@@ -401,7 +405,7 @@ public class MacPlatform : ApplePlatform
 		if (Params.CreateAppBundle)
 		{
 			string ExeName = SC.StageExecutables[0];
-			string BundlePath = SC.IsCodeBasedProject ? CombinePaths(SC.ArchiveDirectory.FullName, ExeName + ".app") : BundlePath = CombinePaths(SC.ArchiveDirectory.FullName, SC.ShortProjectName + ".app");
+			string BundlePath = SC.IsCodeBasedProject ? CombinePaths(SC.ArchiveDirectory.FullName, ExeName + ".app") : CombinePaths(SC.ArchiveDirectory.FullName, SC.ShortProjectName + ".app");
 
 			if (SC.bIsCombiningMultiplePlatforms)
 			{

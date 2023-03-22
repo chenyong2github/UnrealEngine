@@ -1128,19 +1128,23 @@ namespace UnrealBuildTool
 				BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "Info.plist"), BuildProductType.RequiredResource);
 				BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "PkgInfo"), BuildProductType.RequiredResource);
 
-				if (Target.Type == TargetType.Editor)
+				// modern xcode doesn't use the bootstrap launcher because it can make full .app with staged data inside it
+				if (!Target.MacPlatform.bUseModernXcode)
 				{
-					BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "Resources/UnrealEditor.icns"), BuildProductType.RequiredResource);
-					BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "Resources/UProject.icns"), BuildProductType.RequiredResource);
-				}
-				else
-				{
-					string IconName = Target.Name;
-					if (IconName == "EpicGamesBootstrapLauncher")
+					if (Target.Type == TargetType.Editor)
 					{
-						IconName = "EpicGamesLauncher";
+						BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "Resources/UnrealEditor.icns"), BuildProductType.RequiredResource);
+						BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "Resources/UProject.icns"), BuildProductType.RequiredResource);
 					}
-					BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "Resources/" + IconName + ".icns"), BuildProductType.RequiredResource);
+					else
+					{
+						string IconName = Target.Name;
+						if (IconName == "EpicGamesBootstrapLauncher")
+						{
+							IconName = "EpicGamesLauncher";
+						}
+						BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "Resources/" + IconName + ".icns"), BuildProductType.RequiredResource);
+					}
 				}
 			}
 		}

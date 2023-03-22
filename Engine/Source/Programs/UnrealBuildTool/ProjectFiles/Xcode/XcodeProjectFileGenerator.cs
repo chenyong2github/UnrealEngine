@@ -49,6 +49,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		string AppName = "";
 
+		/// <summary>
+		/// If set, only write out one target/project 
+		/// </summary>
+		string? SingleTargetName = null;
+		
+
 		public XcodeProjectFileGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
@@ -65,6 +71,12 @@ namespace UnrealBuildTool
 			{
 				AppName = CommandLine.GetString("-appname=");
 			}
+
+			if (CommandLine.HasValue("-SingleTarget="))
+			{
+				SingleTargetName = CommandLine.GetString("-SingleTarget=");
+			}
+
 		}
 
 		/// <summary>
@@ -129,7 +141,7 @@ namespace UnrealBuildTool
 			// unfortunately, we can't read the project configs now because we don't have enough information to 
 			// find the .uproject file for that would make this project (we could change the high level to pass it 
 			// down but it would touch all project generators - not worth it if we end up removing the legacy)
-			return new XcodeProjectXcconfig.XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName, bMakeProjectPerTarget);
+			return new XcodeProjectXcconfig.XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName, bMakeProjectPerTarget, SingleTargetName);
 		}
 
 		private bool WriteWorkspaceSettingsFile(string Path, ILogger Logger)
@@ -386,9 +398,13 @@ namespace UnrealBuildTool
 
 			if (bGenerateRunOnlyProject)
 			{
-				bIncludeEnginePrograms = false;
+				// if we have a single target, allow all targets so we can pick it out (helps with programs)
+				if (SingleTargetName != null)
+				{
+					bIncludeEnginePrograms = false;
+					bIncludeTemplateFiles = false;
+				}
 				//bIncludeEngineSource = false;
-				bIncludeTemplateFiles = false;
 				bIncludeConfigFiles = false;
 				bIncludeDocumentation = false;
 				bIncludeShaderSource = false;
@@ -414,6 +430,12 @@ namespace UnrealBuildTool
 			DateTime MainStart = DateTime.UtcNow;
 			foreach (var TargetPair in Targets)
 			{
+				// don't bother if we aren't interested in this target
+				if (SingleTargetName != null && !TargetPair.Item2.Name.Equals(SingleTargetName, StringComparison.InvariantCultureIgnoreCase))
+				{
+					continue;
+				}
+
 				ProjectFile TargetProjectFile = TargetPair.Item1;
 				// don't do this for legacy projets, for speed
 				((XcodeProjectXcconfig.XcodeProjectFile)TargetProjectFile).ConditionalCreateLegacyProject();

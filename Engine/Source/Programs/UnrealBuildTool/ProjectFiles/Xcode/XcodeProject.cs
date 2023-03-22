@@ -1179,6 +1179,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 		/// <summary>
 		/// Write some scripts to do some fixup with how UBT links files. There is currently a difference between Mac and IOS/TVOS:
+		/// All:
+		///   - The staged files gets pulled into the .app for a self-contained app, created at Xcode build time, unless an envvar is set
+		///       that tells this script to skip the copy. This allows UAT to potentially skip copying staged files before we stage
+		///       ("BuildCookRun -build -cook -stage -package" can skip the copying until the -package step).
+		///       Also we don't copy anything if this is the engine, no-project, build, and an 
 		/// Mac:
 		///   - UBT will link directly to Foo.app/Contents/MacOS/Foo, for .app bundled apps
 		///   - During normal processing, that's all that is needed, so we don't need to copy anything
@@ -1198,22 +1203,62 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// <param name="Project"></param>
 		protected void ProcessScripts(XcodeResourcesBuildPhase ResourcesBuildPhase, XcodeProject Project)
 		{
-			// @todo remove this if UBT links directly into the .app
+			// nothing to do for editors
+			if (Project.UnrealData.TargetRules.Type == TargetType.Editor)
+			{
+				return;
+			}
+
+			List<string> CopyScript = new();
+
 			if (Project.Platform == UnrealTargetPlatform.IOS || Project.Platform == UnrealTargetPlatform.TVOS)
 			{
 				// UBT no longer copies the executable into the .app directory in PostBuild, so we do it here
 				// EXECUTABLE_NAME is Foo, EXECUTABLE_PATH is Foo.app/Foo
 				// NOTE: We read from hardcoded location where UBT writes to, but we write to CONFIGURATION_BUILD_DIR because
 				// when Archiving, the .app is somewhere else
-				string[] Script = {
-						$"cp \\\"${{UE_PROJECT_DIR}}/Binaries/{Platform}/${{EXECUTABLE_NAME}}\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{EXECUTABLE_PATH}}\\\"",
-					};
-				string ScriptInput = $"$(UE_PROJECT_DIR)/Binaries/{Platform}/$(EXECUTABLE_NAME)";
-				string ScriptOutput = $"$(CONFIGURATION_BUILD_DIR)/$(EXECUTABLE_PATH)";
-				XcodeShellScriptBuildPhase ScriptPhase = new("Copy UE Executable into .app", Script, new string[] { ScriptInput }, new string[] { ScriptOutput });
-				BuildPhases.Add(ScriptPhase);
-				References.Add(ScriptPhase);
+				CopyScript.AddRange(new string[]
+				{
+					"# Copy the IOS/TVOS executable into .app",
+					$"cp \\\"${{UE_BINARIES_DIR}}/${{EXECUTABLE_NAME}}\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{EXECUTABLE_PATH}}\\\"",
+					"",
+				});
 			}
+
+			// rsync the Staged build into the .app, unless the UE_SKIP_STAGEDDATA_SYNC var is set to 1
+			string TargetPlatformName = Platform.ToString()!;
+			if (TargetType != TargetType.Game && TargetType != TargetType.Program)
+			{
+				TargetPlatformName += TargetType.ToString();
+			}
+
+			// editor builds don't need staged content in them
+			if (TargetType != TargetType.Editor)
+			{
+				bool bIsEngineBuild = Project.UnrealData.UProjectFileLocation == null;
+				string DefaultStageDir = bIsEngineBuild ? "${UE_OVERRIDE_STAGE_DIR}" : $"${{UE_PROJECT_DIR}}/Saved/StagedBuilds/{TargetPlatformName}";
+				string SyncSubdir = (Platform == UnrealTargetPlatform.Mac) ? "/UE" : "";
+				CopyScript.AddRange(new string[]
+				{
+					"# Skip syncing if desired",
+					"if [[ ${UE_SKIP_STAGEDDATA_SYNC} -eq 1 ]]; then exit 0; fi",
+					"",
+
+					"# When building engine projects, like UnrealGame, we don't have data to stage unless something has specified UE_OVERRIDE_STAGE_DIR",
+					$"STAGED_DIR={DefaultStageDir}",
+					"if [[ -z ${STAGED_DIR} ]]; then exit 0; fi",
+					"if [[ ! -e ${STAGED_DIR} ]]; then exit 0; fi",
+					"",
+					"echo \\\"Syncing ${STAGED_DIR} to ${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}\\\"",
+					$"rsync -av --exclude=Info.plist --exclude=/Manifest_* --exclude=*.app \\\"${{STAGED_DIR}}/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}{SyncSubdir}\\\"",
+				});
+			}
+
+			// run this script every time, but xcode will show a warning if there isn't _some_ output
+			string ScriptOutput = $"/dev/null";
+			XcodeShellScriptBuildPhase CopyScriptPhase = new("Copy UE Executable into .app", CopyScript, new string[] { }, new string[] { ScriptOutput });
+			BuildPhases.Add(CopyScriptPhase);
+			References.Add(CopyScriptPhase);
 
 			// always generate a dsym file when we archive, and by having Xcode do it, it will be put into the archive properly
 			// (note bInstallOnly which will make this onle run when archiving)
@@ -1243,20 +1288,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 		private void ProcessAssets(XcodeResourcesBuildPhase ResourcesBuildPhase)
 		{
-			if (Platform == UnrealTargetPlatform.IOS || Platform == UnrealTargetPlatform.TVOS)
-			{
-				// cookeddata needs to be brought in from the Staged directory, (IOS for Game, IOSClient for Client, etc)
-				string TargetPlatformName = Platform.ToString()!;
-				if (TargetType != TargetType.Game)
-				{
-					TargetPlatformName += TargetType.ToString();
-				}
-
-				// @todo do this for Mac?
-				DirectoryReference CookedData = DirectoryReference.Combine(UnrealData.ProductDirectory, "Saved", "StagedBuilds", TargetPlatformName, "cookeddata");
-				ResourcesBuildPhase.AddFolderResource(CookedData, "Resources");
-			}
-
 			List<string> StoryboardPaths = new List<string>()
 				{
 					"$(Project)/Build/$(Platform)/Resources/Interface/LaunchScreen.storyboardc",
@@ -1516,11 +1547,15 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			Xcconfig.AppendLine($"UE_PRODUCT_NAME_STRIPPED = {UnrealData.ProductName.Replace("_", "").Replace(" ", "")}");
 			Xcconfig.AppendLine($"UE_DISPLAY_NAME = {UnrealData.DisplayName}");
 			Xcconfig.AppendLine($"UE_SIGNING_PREFIX = {SigningPrefix}");
-			Xcconfig.AppendLine($"UE_ENGINE_DIR = {Unreal.EngineDirectory}");
-			Xcconfig.AppendLine($"UE_PROJECT_DIR = {ProjectOrEngineDir}");
 			Xcconfig.AppendLine($"UE_PLATFORM_NAME = {Platform}");
 			Xcconfig.AppendLine($"UE_TARGET_NAME = {UnrealData.TargetRules.Name}");
 			Xcconfig.AppendLine($"UE_TARGET_PLATFORM_NAME = {TargetPlatformName}");
+			Xcconfig.AppendLine($"UE_ENGINE_DIR = {Unreal.EngineDirectory}");
+			Xcconfig.AppendLine($"UE_BINARIES_DIR = {DirectoryReference.Combine(ProjectOrEngineDir, "Binaries", Platform.ToString())}");
+			if (UnrealData.UProjectFileLocation != null)
+			{
+				Xcconfig.AppendLine($"UE_PROJECT_DIR = {UnrealData.UProjectFileLocation.Directory}");
+			}
 
 			Xcconfig.AppendLine("");
 			Xcconfig.AppendLine("// Constant settings (same for all platforms and targets)");
@@ -1813,7 +1848,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// <param name="BundleID">Override option for bundle identifier</param>
 		/// <param name="AppName"></param>
 		/// <param name="bMakeProjectPerTarget"></param>
-		public XcodeProjectFile(FileReference InitFilePath, DirectoryReference BaseDir, bool bIsForDistribution, string BundleID, string AppName, bool bMakeProjectPerTarget)
+		/// <param name="SingleTargetName"></param>
+		public XcodeProjectFile(FileReference InitFilePath, DirectoryReference BaseDir, bool bIsForDistribution, string BundleID, string AppName, bool bMakeProjectPerTarget, string? SingleTargetName)
 			: base(InitFilePath, BaseDir)
 		{
 			UnrealData = new UnrealData(InitFilePath, bIsForDistribution, BundleID, AppName, bMakeProjectPerTarget, IsStubProject);
@@ -1821,6 +1857,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// create the container for all the files that will 
 			SharedFileCollection = new XcodeFileCollection(this);
 			FileCollection = SharedFileCollection;
+			this.SingleTargetName = SingleTargetName;
 		}
 
 		public UnrealData UnrealData;
@@ -1841,6 +1878,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		private XcodeFileCollection SharedFileCollection;
 		public XcodeFileCollection FileCollection;
 
+		// if set, only this will be written
+		private string? SingleTargetName;
 
 		/// <summary>
 		/// Allocates a generator-specific source file object
@@ -1950,6 +1989,13 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// Implements Project interface
 		public override bool WriteProjectFile(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
+			// if we don't want this one, just skip
+			if (SingleTargetName != null && !ProjectFilePath.GetFileNameWithoutAnyExtensions().Equals(SingleTargetName, StringComparison.InvariantCultureIgnoreCase))
+			{
+				return true;
+			}
+
+
 			ConditionalCreateLegacyProject();
 
 			if (LegacyProjectFile != null)

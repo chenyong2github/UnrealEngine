@@ -59,6 +59,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/MacTargetPlatform.MacTargetSettings", "bEnableRayTracing")]
 		public bool bEnableRayTracing = false;
+
+		/// <summary>
+		/// Whether or not to use Modernized xcode mode
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "XcodeConfiguration", "bUseModernXcode")]
+		public bool bUseModernXcode = false;
 	}
 
 	/// <summary>
@@ -109,6 +115,11 @@ namespace UnrealBuildTool
 		public bool bEnableRayTracing
 		{
 			get { return Inner.bEnableRayTracing; }
+		}
+
+		public bool bUseModernXcode
+		{
+			get { return Inner.bUseModernXcode; }
 		}
 
 #pragma warning restore CS1591

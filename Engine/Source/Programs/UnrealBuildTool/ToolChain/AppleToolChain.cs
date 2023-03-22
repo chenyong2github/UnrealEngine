@@ -463,5 +463,110 @@ namespace UnrealBuildTool
 			ExtraOptions = (bIsForLTOBuild && Major == 10 && Minor == 0 && Patch == 1) ? "-j 1" : "";
 			return DsymutilLocation.FullName;
 		}
+
+
+		public override ICollection<FileItem> PostBuild(ReadOnlyTargetRules Target, FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
+		{
+			List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Target, Executable, BinaryLinkEnvironment, Graph));
+
+			bool bIsBuildingAppBundle = !BinaryLinkEnvironment.bIsBuildingDLL && !BinaryLinkEnvironment.bIsBuildingLibrary && !BinaryLinkEnvironment.bIsBuildingConsoleApplication;
+			if (Target.MacPlatform.bUseModernXcode && bIsBuildingAppBundle)
+			{
+				Action PostBuildAction = ApplePostBuildSyncMode.CreatePostBuildSyncAction(Target, Executable, BinaryLinkEnvironment.IntermediateDirectory!, Graph);
+
+				PostBuildAction.PrerequisiteItems.UnionWith(OutputFiles);
+				OutputFiles.AddRange(PostBuildAction.ProducedItems);
+			}
+
+			return OutputFiles;
+		}
 	};
+
+	[Serializable]
+	class ApplePostBuildSyncTarget
+	{
+		public FileReference? ProjectFile;
+		public UnrealTargetPlatform Platform;
+		public UnrealTargetConfiguration Configuration;
+		public string TargetName;
+
+		public ApplePostBuildSyncTarget(ReadOnlyTargetRules Target)
+		{
+			Platform = Target.Platform;
+			Configuration = Target.Configuration;
+			ProjectFile = Target.ProjectFile;
+			TargetName = Target.Name;
+		}
+	}
+
+	[ToolMode("ApplePostBuildSync", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms)]
+	class ApplePostBuildSyncMode : ToolMode
+	{
+		[CommandLine("-Input=", Required = true)]
+		public FileReference? InputFile = null;
+
+		[CommandLine("-XmlConfigCache=")]
+		public FileReference? XmlConfigCache = null;
+
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		{
+			Arguments.ApplyTo(this);
+			Arguments.CheckAllArgumentsUsed();
+
+			// Run the PostBuildSync command
+			ApplePostBuildSyncTarget Target = BinaryFormatterUtils.Load<ApplePostBuildSyncTarget>(InputFile!);
+			PostBuildSync(Target, Logger);
+
+			return 0;
+		}
+
+		private void PostBuildSync(ApplePostBuildSyncTarget Target, ILogger Logger)
+		{
+			// generate a run-only project file for codesigning, etc
+			DirectoryReference? GeneratedProjectFile;
+			Logger.LogInformation("Generating temporary Xcode project...");
+			DateTime Start = DateTime.Now;
+			IOSExports.GenerateRunOnlyXcodeProject(Target.ProjectFile, Target.Platform, Target.TargetName, false, Logger, out GeneratedProjectFile);
+
+			// run xcodebuild on the generated project to make the .app
+			bool bForDistribution = false;
+			Logger.LogInformation($"Finalizing .app via Xcode... [generation took {(DateTime.Now - Start).TotalMilliseconds / 1000.0}s]");
+			IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, Target.TargetName, Target.Configuration.ToString(), bForDistribution, Logger);
+		}
+
+
+
+
+		private static FileItem GetPostBuildOutputFile(FileReference Executable, string TargetName, UnrealTargetPlatform Platform)
+		{
+			FileReference StagedExe;
+			if (Platform == UnrealTargetPlatform.Mac)
+			{
+				StagedExe = FileReference.Combine(Executable.Directory.ParentDirectory!, "PkgInfo");
+			}
+			else
+			{
+				StagedExe = FileReference.Combine(Executable.Directory, TargetName + ".app", TargetName);
+			}
+			return FileItem.GetItemByFileReference(StagedExe);
+		}
+
+		public static Action CreatePostBuildSyncAction(ReadOnlyTargetRules Target, FileItem Executable, DirectoryReference IntermediateDir, IActionGraphBuilder Graph)
+		{
+			ApplePostBuildSyncTarget PostBuildSync = new(Target);
+			FileReference PostBuildSyncFile = FileReference.Combine(IntermediateDir!, "PostBuildSync.dat");
+			BinaryFormatterUtils.Save(PostBuildSyncFile, PostBuildSync);
+
+			string PostBuildSyncArguments = String.Format("-Input=\"{0}\" -XmlConfigCache=\"{1}\" -remoteini=\"{2}\"", PostBuildSyncFile, XmlConfig.CacheFile, UnrealBuildTool.GetRemoteIniPath());
+			Action PostBuildSyncAction = Graph.CreateRecursiveAction<ApplePostBuildSyncMode>(ActionType.CreateAppBundle, PostBuildSyncArguments);
+
+			PostBuildSyncAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+			PostBuildSyncAction.PrerequisiteItems.Add(Executable);
+			PostBuildSyncAction.ProducedItems.Add(GetPostBuildOutputFile(Executable.Location, Target.Name, Target.Platform));
+			PostBuildSyncAction.StatusDescription = $"Executing PostBuildSync [{Executable.Location}]";
+			PostBuildSyncAction.bCanExecuteRemotely = false;
+
+			return PostBuildSyncAction;
+		}
+	}
 }

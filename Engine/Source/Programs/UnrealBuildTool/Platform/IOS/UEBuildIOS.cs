@@ -145,6 +145,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-EnableUBSan")]
 		public bool bEnableUndefinedBehaviorSanitizer = false;
+
+		/// <summary>
+		/// Are we using modern xcode in this project?
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "XcodeConfiguration", "bUseModernXcode")]
+		public bool bUseModernXcode = false;
 	}
 
 	/// <summary>
@@ -241,6 +247,11 @@ namespace UnrealBuildTool
 			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
 		}
 
+		public bool bUseModernXcode
+		{
+			get { return Inner.bUseModernXcode; }
+		}
+
 #pragma warning restore CS1591
 		#endregion
 	}
@@ -254,12 +265,6 @@ namespace UnrealBuildTool
 		/// The cached project file location
 		/// </summary>
 		public readonly FileReference? ProjectFile;
-
-		/// <summary>
-		/// Are we using modern xcode in this project?
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "XcodeConfiguration", "bUseModernXcode")]
-		public bool bUseModernXcode = false;
 
 		/// <summary>
 		/// Whether to build the iOS project as a framework.
@@ -780,7 +785,7 @@ namespace UnrealBuildTool
 
 			Target.IOSPlatform.ProjectSettings = ((IOSPlatform)GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
-			if (!Target.IOSPlatform.ProjectSettings.bUseModernXcode)
+			if (!Target.IOSPlatform.bUseModernXcode)
 			{
 				// always strip in shipping configuration (commandline could have set it also)
 				if (Target.Configuration == UnrealTargetConfiguration.Shipping)

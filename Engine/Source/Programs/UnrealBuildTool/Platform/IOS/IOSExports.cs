@@ -243,21 +243,25 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="UProjectFile">Location of .uproject file (or null for the engine project</param>
 		/// <param name="Platform">The platform to generate a project for</param>
+		/// <param name="TargetName">The name of the target being built, so we can generate a more minimal project</param>
 		/// <param name="bForDistribution">True if this is making a bild for uploading to app store</param>
 		/// <param name="Logger">Logging object</param>
 		/// <param name="GeneratedProjectFile">Returns the .xcworkspace that was made</param>
-		public static void GenerateRunOnlyXcodeProject(FileReference? UProjectFile, UnrealTargetPlatform Platform, bool bForDistribution, ILogger Logger, out DirectoryReference? GeneratedProjectFile)
+		public static void GenerateRunOnlyXcodeProject(FileReference? UProjectFile, UnrealTargetPlatform Platform, string TargetName, bool bForDistribution, ILogger Logger, out DirectoryReference? GeneratedProjectFile)
 		{
 			List<string> Options = new()
 			{
 				$"-platforms={Platform}",
-				$"-{Platform}DeployOnly",
-				"-NoIntellisens",
-				"-IngnoreJunk",
+				"-DeployOnly",
+				"-NoIntellisense",
+				"-NoCPP",
+				"-NoDotNet",
+				"-IgnoreJunk",
 				bForDistribution ? "-distribution" : "-development",
 				"-IncludeTempTargets",
-				"-projectfileformat = XCode",
+				"-projectfileformat=XCode",
 				"-automated",
+				$"-singletarget={TargetName}"
 			};
 
 			if (UProjectFile == null || UProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
@@ -316,7 +320,7 @@ namespace UnrealBuildTool
 				$"-workspace \"{XcodeProject.FullName}\"",
 				$"-scheme \"{SchemeName}\"",
 				$"-configuration \"{Configuration}\"",
-				$"-destination generic/platform=" + (Platform == UnrealTargetPlatform.TVOS ? "tvOS" : "iOS"),
+				$"-destination generic/platform=" + (Platform == UnrealTargetPlatform.TVOS ? "tvOS" : Platform == UnrealTargetPlatform.Mac ? "macOS" : "iOS"),
 				//$"-sdk {SDKName}",
 			};
 
@@ -371,8 +375,10 @@ namespace UnrealBuildTool
 				}
 			}
 
-			int ReturnCode = Utils.RunLocalProcessAndLogOutput("/usr/bin/env", string.Join(" ", Arguments), Logger);
-//			DirectoryReference.Delete(XcodeProject, true);
+			int ReturnCode;
+			string Output = Utils.RunLocalProcessAndReturnStdOut("/usr/bin/env", string.Join(" ", Arguments), null, out ReturnCode);
+			Logger.LogDebug(Output);
+			DirectoryReference.Delete(XcodeProject, true);
 			return ReturnCode;
 		}
 

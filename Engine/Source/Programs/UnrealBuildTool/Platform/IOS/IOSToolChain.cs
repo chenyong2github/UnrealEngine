@@ -1170,55 +1170,53 @@ namespace UnrealBuildTool
 
 			if (bUseModernXcode)
 			{
-				// update version xcconfig file so xcode can update the .plist with our incrementing build version
-				OutputFiles.Add(UpdateVersionFile(BinaryLinkEnvironment, Executable, Graph));
+				// base class AppleToolchain makes the shared postbuild sync object, so we are done
+				return OutputFiles;
 			}
-			else
+
+			// strip the debug info from the executable if needed. creates a dummy output file for the action graph to track that it's out of date.
+			if (Target.IOSPlatform.bStripSymbols || (Target.Configuration == UnrealTargetConfiguration.Shipping))
 			{
-				// strip the debug info from the executable if needed. creates a dummy output file for the action graph to track that it's out of date.
-				if (Target.IOSPlatform.bStripSymbols || (Target.Configuration == UnrealTargetConfiguration.Shipping))
-				{
-					FileItem StripCompleteFile = FileItem.GetItemByFileReference(FileReference.Combine(BinaryLinkEnvironment.IntermediateDirectory!, Executable.Location.GetFileName() + ".stripped"));
+				FileItem StripCompleteFile = FileItem.GetItemByFileReference(FileReference.Combine(BinaryLinkEnvironment.IntermediateDirectory!, Executable.Location.GetFileName() + ".stripped"));
 
-					// If building a framework we can only strip local symbols, need to leave global in place
-					string StripArguments = BinaryLinkEnvironment.bIsBuildingDLL ? "-x" : "";
+				// If building a framework we can only strip local symbols, need to leave global in place
+				string StripArguments = BinaryLinkEnvironment.bIsBuildingDLL ? "-x" : "";
 
-					Action StripAction = Graph.CreateAction(ActionType.CreateAppBundle);
-					StripAction.WorkingDirectory = GetMacDevSrcRoot();
-					StripAction.CommandPath = BuildHostPlatform.Current.Shell;
-					StripAction.CommandArguments = String.Format("-c \"\\\"{0}strip\\\" {1} \\\"{2}\\\" && touch \\\"{3}\\\"\"", Settings.Value.ToolchainDir, StripArguments, Executable.Location, StripCompleteFile);
-					StripAction.PrerequisiteItems.Add(Executable);
-					StripAction.PrerequisiteItems.UnionWith(OutputFiles);
-					StripAction.ProducedItems.Add(StripCompleteFile);
-					StripAction.StatusDescription = String.Format("Stripping symbols from {0}", Executable.AbsolutePath);
-					StripAction.bCanExecuteRemotely = false;
+				Action StripAction = Graph.CreateAction(ActionType.CreateAppBundle);
+				StripAction.WorkingDirectory = GetMacDevSrcRoot();
+				StripAction.CommandPath = BuildHostPlatform.Current.Shell;
+				StripAction.CommandArguments = String.Format("-c \"\\\"{0}strip\\\" {1} \\\"{2}\\\" && touch \\\"{3}\\\"\"", Settings.Value.ToolchainDir, StripArguments, Executable.Location, StripCompleteFile);
+				StripAction.PrerequisiteItems.Add(Executable);
+				StripAction.PrerequisiteItems.UnionWith(OutputFiles);
+				StripAction.ProducedItems.Add(StripCompleteFile);
+				StripAction.StatusDescription = String.Format("Stripping symbols from {0}", Executable.AbsolutePath);
+				StripAction.bCanExecuteRemotely = false;
 
-					OutputFiles.Add(StripCompleteFile);
-				}
+				OutputFiles.Add(StripCompleteFile);
+			}
 
-				if (!BinaryLinkEnvironment.bIsBuildingDLL)
-				{
-					// generate the asset catalog
-					bool bUserImagesExist = false;
-					DirectoryReference ResourcesDir = GenerateAssetCatalog(ProjectFile, BinaryLinkEnvironment.Platform, ref bUserImagesExist);
+			if (!BinaryLinkEnvironment.bIsBuildingDLL)
+			{
+				// generate the asset catalog
+				bool bUserImagesExist = false;
+				DirectoryReference ResourcesDir = GenerateAssetCatalog(ProjectFile, BinaryLinkEnvironment.Platform, ref bUserImagesExist);
 
-					// Get the output location for the asset catalog
-					FileItem AssetCatalogFile = FileItem.GetItemByFileReference(GetAssetCatalogFile(BinaryLinkEnvironment.Platform, Executable.Location));
+				// Get the output location for the asset catalog
+				FileItem AssetCatalogFile = FileItem.GetItemByFileReference(GetAssetCatalogFile(BinaryLinkEnvironment.Platform, Executable.Location));
 
-					// Make the compile action
-					Action CompileAssetAction = Graph.CreateAction(ActionType.CreateAppBundle);
-					CompileAssetAction.WorkingDirectory = GetMacDevSrcRoot();
-					CompileAssetAction.CommandPath = new FileReference("/usr/bin/xcrun");
-					CompileAssetAction.CommandArguments = GetAssetCatalogArgs(BinaryLinkEnvironment.Platform, ResourcesDir.FullName, Path.GetDirectoryName(AssetCatalogFile.AbsolutePath)!);
-					CompileAssetAction.PrerequisiteItems.Add(Executable);
-					CompileAssetAction.ProducedItems.Add(AssetCatalogFile);
-					CompileAssetAction.DeleteItems.Add(AssetCatalogFile);
-					CompileAssetAction.StatusDescription = CompileAssetAction.CommandArguments;// string.Format("Generating debug info for {0}", Path.GetFileName(Executable.AbsolutePath));
-					CompileAssetAction.bCanExecuteRemotely = false;
+				// Make the compile action
+				Action CompileAssetAction = Graph.CreateAction(ActionType.CreateAppBundle);
+				CompileAssetAction.WorkingDirectory = GetMacDevSrcRoot();
+				CompileAssetAction.CommandPath = new FileReference("/usr/bin/xcrun");
+				CompileAssetAction.CommandArguments = GetAssetCatalogArgs(BinaryLinkEnvironment.Platform, ResourcesDir.FullName, Path.GetDirectoryName(AssetCatalogFile.AbsolutePath)!);
+				CompileAssetAction.PrerequisiteItems.Add(Executable);
+				CompileAssetAction.ProducedItems.Add(AssetCatalogFile);
+				CompileAssetAction.DeleteItems.Add(AssetCatalogFile);
+				CompileAssetAction.StatusDescription = CompileAssetAction.CommandArguments;// string.Format("Generating debug info for {0}", Path.GetFileName(Executable.AbsolutePath));
+				CompileAssetAction.bCanExecuteRemotely = false;
 
-					// Add it to the output files so it's always built
-					OutputFiles.Add(AssetCatalogFile);
-				}
+				// Add it to the output files so it's always built
+				OutputFiles.Add(AssetCatalogFile);
 			}
 
 			// Generate the app bundle
@@ -1231,40 +1229,37 @@ namespace UnrealBuildTool
 
 				Dictionary<string, DirectoryReference> FrameworkNameToSourceDir = new Dictionary<string, DirectoryReference>();
 
-				if (!bUseModernXcode)
+				FileReference StagedExecutablePath = GetStagedExecutablePath(Executable.Location, Target.Name);
+				DirectoryReference BundleDirectory = Target.bShouldCompileAsDLL ? Executable.Directory.Location : StagedExecutablePath.Directory;
+				foreach (UEBuildFramework Framework in BinaryLinkEnvironment.AdditionalFrameworks)
 				{
-					FileReference StagedExecutablePath = GetStagedExecutablePath(Executable.Location, Target.Name);
-					DirectoryReference BundleDirectory = Target.bShouldCompileAsDLL ? Executable.Directory.Location : StagedExecutablePath.Directory;
-					foreach (UEBuildFramework Framework in BinaryLinkEnvironment.AdditionalFrameworks)
+					DirectoryReference? FrameworkDirectory = Framework.GetFrameworkDirectory(BinaryLinkEnvironment.Platform, BinaryLinkEnvironment.Architecture, Logger);
+					if (FrameworkDirectory != null)
 					{
-						DirectoryReference? FrameworkDirectory = Framework.GetFrameworkDirectory(BinaryLinkEnvironment.Platform, BinaryLinkEnvironment.Architecture, Logger);
-						if (FrameworkDirectory != null)
+						if (!String.IsNullOrEmpty(Framework.CopyBundledAssets))
 						{
-							if (!String.IsNullOrEmpty(Framework.CopyBundledAssets))
+							// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
+							DirectoryReference LocalSource = DirectoryReference.Combine(FrameworkDirectory, Framework.CopyBundledAssets);
+							string BundleName = Framework.CopyBundledAssets.Substring(Framework.CopyBundledAssets.LastIndexOf('/') + 1);
+							FrameworkNameToSourceDir[BundleName] = LocalSource;
+						}
+
+						if (Framework.bCopyFramework)
+						{
+							string FrameworkDir = FrameworkDirectory.FullName;
+							if (FrameworkDir.EndsWith(".framework"))
 							{
-								// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
-								DirectoryReference LocalSource = DirectoryReference.Combine(FrameworkDirectory, Framework.CopyBundledAssets);
-								string BundleName = Framework.CopyBundledAssets.Substring(Framework.CopyBundledAssets.LastIndexOf('/') + 1);
-								FrameworkNameToSourceDir[BundleName] = LocalSource;
+								FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
 							}
 
-							if (Framework.bCopyFramework)
-							{
-								string FrameworkDir = FrameworkDirectory.FullName;
-								if (FrameworkDir.EndsWith(".framework"))
-								{
-									FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
-								}
-
-								OutputFiles.Add(CopyBundleResource(new UEBuildBundleResource(new ModuleRules.BundleResource(Path.Combine(FrameworkDir, Framework.Name + ".framework"), "Frameworks")), Executable, BundleDirectory, Graph));
-							}
+							OutputFiles.Add(CopyBundleResource(new UEBuildBundleResource(new ModuleRules.BundleResource(Path.Combine(FrameworkDir, Framework.Name + ".framework"), "Frameworks")), Executable, BundleDirectory, Graph));
 						}
 					}
+				}
 
-					foreach (UEBuildBundleResource Resource in BinaryLinkEnvironment.AdditionalBundleResources)
-					{
-						OutputFiles.Add(CopyBundleResource(Resource, Executable, StagedExecutablePath.Directory, Graph));
-					}
+				foreach (UEBuildBundleResource Resource in BinaryLinkEnvironment.AdditionalBundleResources)
+				{
+					OutputFiles.Add(CopyBundleResource(Resource, Executable, StagedExecutablePath.Directory, Graph));
 				}
 
 				IOSPostBuildSyncTarget PostBuildSyncTarget = new IOSPostBuildSyncTarget(Target, Executable.Location, BinaryLinkEnvironment.IntermediateDirectory, UPLScripts, SdkVersion, FrameworkNameToSourceDir);
@@ -1410,6 +1405,7 @@ namespace UnrealBuildTool
 				CommandLineArguments CmdLine = new CommandLineArguments(Arguments);
 
 				PlatformProjectGeneratorCollection PlatformProjectGenerators = new PlatformProjectGeneratorCollection();
+				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.Mac, new MacProjectGenerator(CmdLine, Logger), Logger);
 				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.IOS, new IOSProjectGenerator(CmdLine, Logger), Logger);
 				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine, Logger), Logger);
 
@@ -1590,7 +1586,7 @@ namespace UnrealBuildTool
 			{
 				// generate a run-only project file for codesigning, etc
 				DirectoryReference? GeneratedProjectFile;
-				IOSExports.GenerateRunOnlyXcodeProject(Target.ProjectFile, Target.Platform, Target.bForDistribution, Logger, out GeneratedProjectFile);
+				IOSExports.GenerateRunOnlyXcodeProject(Target.ProjectFile, Target.Platform, Target.TargetName, Target.bForDistribution, Logger, out GeneratedProjectFile);
 
 				// @todo - should we move this in to FinalizeAppWithXcode?
 				string ConfigName = Target.Configuration.ToString();

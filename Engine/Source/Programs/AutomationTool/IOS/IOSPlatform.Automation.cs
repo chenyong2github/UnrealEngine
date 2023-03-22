@@ -1103,7 +1103,7 @@ public class IOSPlatform : ApplePlatform
 		{
 			// we need an xcode project to continue
 			DirectoryReference GeneratedProject = null;
-			IOSExports.GenerateRunOnlyXcodeProject(RawProjectPath, TargetPlatformType, false, Logger, out GeneratedProject);
+			IOSExports.GenerateRunOnlyXcodeProject(RawProjectPath, TargetPlatformType, SchemeName ?? GameName, false, Logger, out GeneratedProject);
 
 			if (GeneratedProject == null || !DirectoryReference.Exists(GeneratedProject))
 			{
