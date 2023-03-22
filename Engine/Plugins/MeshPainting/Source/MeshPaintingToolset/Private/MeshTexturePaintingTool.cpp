@@ -25,6 +25,7 @@
 
 #include "Editor/EditorEngine.h"
 extern UNREALED_API class UEditorEngine* GEditor;
+extern ENGINE_API FString GVertexViewModeOverrideOwnerName;
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshTexturePaintingTool)
 
