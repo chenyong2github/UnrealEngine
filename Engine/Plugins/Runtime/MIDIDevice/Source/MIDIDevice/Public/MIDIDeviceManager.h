@@ -74,6 +74,11 @@ class MIDIDEVICE_API UMIDIDeviceManager : public UBlueprintFunctionLibrary
 public:
 
 	/**
+	 * Shuts down any existing midi devices to ensure no dangling streams are left, and mark any input or output controller for cleanup
+	 */
+	UFUNCTION(BlueprintCallable, Category="MIDI Device Manager")
+	static void ShutDownAllMIDIDevices();
+	/**
 	 * Enumerates all of the connected MIDI devices and reports back with the IDs and names of those devices.  This operation is a little expensive
 	 * so only do it once at startup, or if you think that a new device may have been connected.
 	 *

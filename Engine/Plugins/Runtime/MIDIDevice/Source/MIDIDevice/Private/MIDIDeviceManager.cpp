@@ -154,6 +154,17 @@ void UMIDIDeviceManager::FindMIDIDevicesInternal(TArray<FFoundMIDIDevice>& OutMI
 	}
 }
 
+void UMIDIDeviceManager::ShutDownAllMIDIDevices()
+{
+	for (TObjectIterator<UMIDIDeviceControllerBase> ControllerIter; ControllerIter; ++ControllerIter)
+	{
+		UMIDIDeviceControllerBase* MIDIDeviceController = *ControllerIter;
+		if (IsValid(MIDIDeviceController))
+		{
+			MIDIDeviceController->ShutdownDevice();
+		}
+	}
+}
 
 void UMIDIDeviceManager::FindMIDIDevices(TArray<FFoundMIDIDevice>& OutMIDIDevices)
 {
