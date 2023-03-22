@@ -66,6 +66,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	TArray<TSubclassOf<USmartObjectBehaviorDefinition>> BehaviorDefinitionClasses;
 
+	/** If true will evaluate the slot and object conditions, otherwise will skip them. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
+	bool bShouldEvaluateConditions = true;
+
 	/** Is set, will filter out any SmartObject that does not pass the predicate. */
 	TFunction<bool(FSmartObjectHandle)> Predicate;
 
@@ -180,6 +184,16 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceHandle
 	FSmartObjectSlotHandle GetSlotHandle() const { return SlotHandle; }
 	
 	bool IsValid() const { return Type != EType::Invalid; }
+
+	bool operator==(const FSmartObjectSlotEntranceHandle& Other) const
+	{
+		return SlotHandle == Other.SlotHandle && Type == Other.Type && Index == Other.Index;
+	}
+
+	bool operator!=(const FSmartObjectSlotEntranceHandle& Other) const
+	{
+		return !(*this == Other);
+	}
 
 private:
 

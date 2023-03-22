@@ -1616,15 +1616,15 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 	
 	for (TConstEnumerateRef<const FInstancedStruct> Data : EnumerateRange(Definition.Data))
 	{
-		// If specific slot was requested and this is not the one, skip it.
-		if (SlotEntranceHandle.Type == FSmartObjectSlotEntranceHandle::EType::Slot
-			&& SlotEntranceHandle.Index != Data.GetIndex())
-		{
-			continue;
-		}
-
 		if (const FSmartObjectSlotEntranceAnnotation* EntranceAnnotation = Data->GetPtr<FSmartObjectSlotEntranceAnnotation>())
 		{
+			// If specific entry location was requested and this is not the one, skip it.
+			if (SlotEntranceHandle.Type == FSmartObjectSlotEntranceHandle::EType::Entrance
+				&& SlotEntranceHandle.Index != Data.GetIndex())
+			{
+				continue;
+			}
+			
 			if (EntranceAnnotation->bIsEntry == bIncludeEntries
 				|| EntranceAnnotation->bIsExit == bIncludeExits)
 			{
@@ -1805,6 +1805,8 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 			// Reverse direction for exits.
 			Result.Rotation = Result.Rotation.Add(0.0, 180.0, 0.0).Clamp();
 		}
+
+		Result.EntranceHandle = Candidate.Handle;
 		
 		bHasResult = true;
 		
@@ -1850,7 +1852,7 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 	BindPropertiesFromStruct(ConditionContextData, UserData);
 
 	// Check object conditions.
-	if (!EvaluateObjectConditions(ConditionContextData, SmartObjectRuntime))
+	if (Filter.bShouldEvaluateConditions && !EvaluateObjectConditions(ConditionContextData, SmartObjectRuntime))
 	{
 		return;
 	}
@@ -1867,7 +1869,7 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 		const FSmartObjectSlotHandle SlotHandle = SmartObjectRuntime.SlotHandles[SlotIndex];
 		
 		// Check slot conditions.
-		if (!EvaluateSlotConditions(ConditionContextData, SlotHandle, RuntimeSlot))
+		if (Filter.bShouldEvaluateConditions && !EvaluateSlotConditions(ConditionContextData, SlotHandle, RuntimeSlot))
 		{
 			continue;
 		}
