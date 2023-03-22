@@ -76,6 +76,8 @@ void FDisplayClusterMediaInputBase::Stop()
 
 void FDisplayClusterMediaInputBase::ImportMediaData(FRHICommandListImmediate& RHICmdList, const FMediaTextureInfo& TextureInfo)
 {
+	UE_LOG(LogDisplayClusterMedia, Verbose, TEXT("MediaInput '%s': importing texture on RT frame '%lu'..."), *GetMediaId(), GFrameCounterRenderThread);
+
 	MediaTexture->JustInTimeRender();
 
 	FRHITexture* const SrcTexture = MediaTexture->GetResource() ? MediaTexture->GetResource()->GetTextureRHI() : nullptr;

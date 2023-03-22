@@ -12,6 +12,7 @@
 class FRDGBuilder;
 class UMediaCapture;
 class UMediaOutput;
+class UDisplayClusterMediaOutputSynchronizationPolicy;
 
 
 /**
@@ -22,7 +23,7 @@ class FDisplayClusterMediaCaptureBase
 	, public FGCObject
 {
 public:
-	FDisplayClusterMediaCaptureBase(const FString& MediaId, const FString& ClusterNodeId, UMediaOutput* MediaOutput);
+	FDisplayClusterMediaCaptureBase(const FString& MediaId, const FString& ClusterNodeId, UMediaOutput* MediaOutput, UDisplayClusterMediaOutputSynchronizationPolicy* SyncPolicy = nullptr);
 	virtual ~FDisplayClusterMediaCaptureBase();
 
 public:
@@ -37,6 +38,11 @@ public:
 public:
 	virtual bool StartCapture();
 	virtual void StopCapture();
+
+	UMediaCapture* GetMediaCapture() const
+	{
+		return MediaCapture;
+	}
 
 protected:
 	void ExportMediaData(FRDGBuilder& GraphBuilder, const FMediaTextureInfo& TextureInfo);
@@ -64,8 +70,9 @@ private:
 
 private:
 	//~ Begin GC by AddReferencedObjects
-	UMediaOutput*           MediaOutput  = nullptr;
-	UMediaCapture*          MediaCapture = nullptr;
+	UMediaOutput*  MediaOutput  = nullptr;
+	UMediaCapture* MediaCapture = nullptr;
+	UDisplayClusterMediaOutputSynchronizationPolicy* SyncPolicy = nullptr;
 	//~ End GC by AddReferencedObjects
 
 	// Used to restart media capture in the case it falls in error

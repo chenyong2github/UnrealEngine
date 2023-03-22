@@ -6,6 +6,8 @@
 #include "IDisplayCluster.h"
 #include "IDisplayClusterCallbacks.h"
 
+#include "DisplayClusterConfigurationTypes_Media.h"
+
 #include "MediaCapture.h"
 #include "MediaOutput.h"
 
@@ -15,8 +17,9 @@
 #include "UObject/Package.h"
 
 
-FDisplayClusterMediaCaptureBase::FDisplayClusterMediaCaptureBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaOutput* InMediaOutput)
+FDisplayClusterMediaCaptureBase::FDisplayClusterMediaCaptureBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaOutput* InMediaOutput, UDisplayClusterMediaOutputSynchronizationPolicy* InSyncPolicy)
 	: FDisplayClusterMediaBase(InMediaId, InClusterNodeId)
+	, SyncPolicy(InSyncPolicy)
 {
 	checkSlow(InMediaOutput);
 	MediaOutput = DuplicateObject(InMediaOutput, GetTransientPackage());
@@ -33,11 +36,19 @@ FDisplayClusterMediaCaptureBase::~FDisplayClusterMediaCaptureBase()
 
 void FDisplayClusterMediaCaptureBase::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(MediaOutput);
+	if (MediaOutput)
+	{
+		Collector.AddReferencedObject(MediaOutput);
+	}
 
 	if (MediaCapture)
 	{
 		Collector.AddReferencedObject(MediaCapture);
+	}
+
+	if (SyncPolicy)
+	{
+		Collector.AddReferencedObject(SyncPolicy);
 	}
 }
 
@@ -50,6 +61,15 @@ bool FDisplayClusterMediaCaptureBase::StartCapture()
 		{
 			MediaCapture->SetMediaOutput(MediaOutput);
 
+			// Initialize and start capture synchronization
+			if (SyncPolicy && SyncPolicy->IsCaptureTypeSupported(MediaCapture))
+			{
+				if (!SyncPolicy->StartSynchronization(MediaCapture, GetMediaId()))
+				{
+					UE_LOG(LogDisplayClusterMedia, Warning, TEXT("MediaCapture '%s': couldn't start synchronization."), *GetMediaId());
+				}
+			}
+
 			bWasCaptureStarted = StartMediaCapture();
 			return bWasCaptureStarted;
 		}
@@ -60,6 +80,13 @@ bool FDisplayClusterMediaCaptureBase::StartCapture()
 
 void FDisplayClusterMediaCaptureBase::StopCapture()
 {
+	// Stop synchronization
+	if (SyncPolicy)
+	{
+		SyncPolicy->StopSynchronization();
+	}
+
+	// Stop capture
 	if (MediaCapture)
 	{
 		MediaCapture->StopCapture(false);
@@ -74,6 +101,8 @@ void FDisplayClusterMediaCaptureBase::ExportMediaData(FRDGBuilder& GraphBuilder,
 
 	if (SrcTexture)
 	{
+		UE_LOG(LogDisplayClusterMedia, Verbose, TEXT("MediaCapture '%s': exporting texture on RT frame '%lu'..."), *GetMediaId(), GFrameCounterRenderThread);
+
 		MediaCapture->SetValidSourceGPUMask(GraphBuilder.RHICmdList.GetGPUMask());
 
 		LastSrcRegionSize = FIntSize(TextureInfo.Region.Size());

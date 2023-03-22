@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Synchronization/DisplayClusterFrameQueueItem.h"
+#include "Synchronization/LatencyQueue/DisplayClusterFrameQueueItem.h"
 
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterMediaLog.h"

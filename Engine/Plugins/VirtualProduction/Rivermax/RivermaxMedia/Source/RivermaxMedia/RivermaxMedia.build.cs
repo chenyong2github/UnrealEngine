@@ -12,6 +12,7 @@ public class RivermaxMedia : ModuleRules
 				"CoreUObject",
 				"MediaAssets",
 				"MediaIOCore",
+				"RivermaxCore",
 				"TimeManagement"
 			}
 		);
@@ -21,7 +22,6 @@ public class RivermaxMedia : ModuleRules
 				"Engine",
 				"RenderCore",
 				"RHI",
-				"RivermaxCore",
 				"RivermaxRendering"
 			}
 		);

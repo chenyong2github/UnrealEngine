@@ -5,17 +5,14 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-#include "Synchronization/DisplayClusterFrameQueue.h"
+#include "Synchronization/LatencyQueue/DisplayClusterFrameQueue.h"
 
-class FDisplayClusterMediaCaptureBase;
-class FDisplayClusterMediaCaptureICVFX;
 class FDisplayClusterMediaCaptureNode;
 class FDisplayClusterMediaCaptureViewport;
-class FDisplayClusterMediaInputBase;
-class FDisplayClusterMediaInputICVFX;
 class FDisplayClusterMediaInputNode;
 class FDisplayClusterMediaInputViewport;
 class IMediaPlayerFactory;
+
 
 /**
  * Media module
@@ -53,13 +50,11 @@ private:
 	void OnEnginePreExit();
 
 private:
-	TMap<FString, TUniquePtr<FDisplayClusterMediaCaptureViewport>> CaptureViewports;
-	TUniquePtr<FDisplayClusterMediaCaptureNode>                    CaptureNode;
-	TArray<FDisplayClusterMediaCaptureBase*>                       AllCaptures;
+	TMap<FString, TSharedPtr<FDisplayClusterMediaCaptureViewport>> CaptureViewports;
+	TSharedPtr<FDisplayClusterMediaCaptureNode>                    CaptureNode;
 
-	TMap<FString, TUniquePtr<FDisplayClusterMediaInputViewport>>   InputViewports;
-	TUniquePtr<FDisplayClusterMediaInputNode>                      InputNode;
-	TArray<FDisplayClusterMediaInputBase*>                         AllInputs;
+	TMap<FString, TSharedPtr<FDisplayClusterMediaInputViewport>>   InputViewports;
+	TSharedPtr<FDisplayClusterMediaInputNode>                      InputNode;
 
 	// Latency queue
 	FDisplayClusterFrameQueue FrameQueue;

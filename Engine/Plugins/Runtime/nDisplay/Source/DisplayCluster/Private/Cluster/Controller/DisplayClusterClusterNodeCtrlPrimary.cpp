@@ -12,6 +12,7 @@
 #include "Network/Service/RenderSync/DisplayClusterRenderSyncService.h"
 #include "Network/Service/ClusterEventsJson/DisplayClusterClusterEventsJsonService.h"
 #include "Network/Service/ClusterEventsBinary/DisplayClusterClusterEventsBinaryService.h"
+#include "Network/Service/GenericBarrier/DisplayClusterGenericBarrierService.h"
 #include "Network/Listener/DisplayClusterTcpListener.h"
 #include "Network/DisplayClusterNetworkTypes.h"
 
@@ -115,12 +116,13 @@ bool FDisplayClusterClusterNodeCtrlPrimary::InitializeServers()
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s - initializing primary node servers..."), *GetControllerName());
 
 	// Instantiate node servers
-	ClusterSyncServer         = MakeUnique<FDisplayClusterClusterSyncService>       ();
-	RenderSyncServer          = MakeUnique<FDisplayClusterRenderSyncService>        ();
+	ClusterSyncServer         = MakeUnique<FDisplayClusterClusterSyncService>();
+	RenderSyncServer          = MakeUnique<FDisplayClusterRenderSyncService>();
+	GenericBarriersServer     = MakeUnique<FDisplayClusterGenericBarrierService>();
 	ClusterEventsJsonServer   = MakeUnique<FDisplayClusterClusterEventsJsonService> ();
 	ClusterEventsBinaryServer = MakeUnique<FDisplayClusterClusterEventsBinaryService>();
 
-	return ClusterSyncServer && RenderSyncServer && ClusterEventsJsonServer && ClusterEventsBinaryServer;
+	return ClusterSyncServer && RenderSyncServer && GenericBarriersServer && ClusterEventsJsonServer && ClusterEventsBinaryServer;
 }
 
 bool FDisplayClusterClusterNodeCtrlPrimary::StartServers()
@@ -176,6 +178,7 @@ bool FDisplayClusterClusterNodeCtrlPrimary::StartServers()
 	// Start the servers
 	return StartServerWithLogs(ClusterSyncServer.Get(),         TcpListener) // Start with shared listener
 		&& StartServerWithLogs(RenderSyncServer.Get(),          TcpListener) // Start with shared listener
+		&& StartServerWithLogs(GenericBarriersServer.Get(),     TcpListener) // Start with shared listener
 		&& StartServerWithLogs(ClusterEventsJsonServer.Get(),   CfgPrimary->Host, Ports.ClusterEventsJson)
 		&& StartServerWithLogs(ClusterEventsBinaryServer.Get(), CfgPrimary->Host, Ports.ClusterEventsBinary)
 		&& TcpListener->StartListening(CfgPrimary->Host, Ports.ClusterSync); // Start shared listener as well
@@ -191,6 +194,7 @@ void FDisplayClusterClusterNodeCtrlPrimary::StopServers()
 	// Stop services
 	ClusterSyncServer->Shutdown();
 	RenderSyncServer->Shutdown();
+	GenericBarriersServer->Shutdown();
 	ClusterEventsJsonServer->Shutdown();
 	ClusterEventsBinaryServer->Shutdown();
 

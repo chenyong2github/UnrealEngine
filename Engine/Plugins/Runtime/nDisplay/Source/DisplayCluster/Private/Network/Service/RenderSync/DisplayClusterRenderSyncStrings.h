@@ -2,21 +2,23 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 
 /**
  * Rendering synchronization protocol strings
  */
 namespace DisplayClusterRenderSyncStrings
 {
-	constexpr static auto ProtocolName = "RenderSync";
+	constexpr static const TCHAR* ProtocolName = TEXT("RenderSync");
 
-	constexpr static auto TypeRequest  = "request";
-	constexpr static auto TypeResponse = "response";
+	constexpr static const TCHAR* TypeRequest  = TEXT("Request");
+	constexpr static const TCHAR* TypeResponse = TEXT("Response");
 
-	constexpr static auto ArgumentsDefaultCategory = "RS";
+	constexpr static const TCHAR* ArgumentsDefaultCategory = TEXT("RS");
 
 	namespace SyncOnBarrier
 	{
-		constexpr static auto Name = "SyncOnBarrier";
+		constexpr static const TCHAR* Name = TEXT("SyncOnBarrier");
 	};
 };

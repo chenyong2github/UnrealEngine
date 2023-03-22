@@ -6,4 +6,5 @@
 
 
 // Module-wide log categories
-DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterMedia, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterMedia,     Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterMediaSync, Log, All);
