@@ -432,6 +432,9 @@ void SSequencerGroupManager::UpdateTree()
 		}
 	}
 
+
+	TreeView->RequestTreeRefresh();
+
 	bNodeGroupsDirty = false;
 }
 
@@ -571,6 +574,8 @@ void SSequencerGroupManager::CreateNodeGroup()
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("CreateNewGroupTransaction", "Create New Group"));
+
+	MovieScene->Modify();
 
 	UMovieSceneNodeGroup* NewNodeGroup = NewObject<UMovieSceneNodeGroup>(&MovieScene->GetNodeGroups(), NAME_None, RF_Transactional);
 	NewNodeGroup->SetName(FSequencerUtilities::GetUniqueName(FName("Group"), ExistingGroupNames));
