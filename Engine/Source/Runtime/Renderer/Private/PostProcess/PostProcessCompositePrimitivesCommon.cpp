@@ -74,12 +74,8 @@ public:
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-#if WITH_EDITOR
 		// Only PC platforms render editor primitives.
 		return IsPCPlatform(Parameters.Platform);
-#else
-		return true;
-#endif
 	}
 };
 

@@ -29,13 +29,7 @@ public:
 			return false;
 		}
 
-#if WITH_EDITOR
-		// Only PC platforms render editor primitives.
 		return IsPCPlatform(Platform);
-#else
-		//Not currently used for any other passes but place 
-		return false;
-#endif
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
