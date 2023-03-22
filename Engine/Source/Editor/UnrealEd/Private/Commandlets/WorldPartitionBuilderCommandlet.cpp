@@ -112,11 +112,11 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	{
 		if (!RunBuilder(BuilderClass, MapPackageName))
 		{
-			return false;
+			return 1;
 		}
 	}
 
-	return true;
+	return 0;
 }
 
 bool UWorldPartitionBuilderCommandlet::RunBuilder(TSubclassOf<UWorldPartitionBuilder> InBuilderClass, const FString& InWorldPackageName)
