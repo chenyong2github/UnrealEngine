@@ -216,7 +216,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	#endif
 }
 
-void GetMaterialPayload(
+void GetMaterialPayload( 
 	FPixelMaterialInputs PixelMaterialInputs,
 	FMaterialPixelParameters MaterialParameters,
 	FVertexFactoryInterpolantsVSToPS Interpolants,
@@ -230,7 +230,6 @@ void GetMaterialPayload(
 	float TotalCoverage = 1.f;
 	bool bStrataSubsurfaceEnable = false;
 	const float3 WorldBentNormal0 = GetWorldBentNormalZero(MaterialParameters);
-	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
 
   #if STRATA_OPTIMIZED_UNLIT
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
@@ -241,11 +240,8 @@ void GetMaterialPayload(
 	#endif
   #else // STRATA_OPTIMIZED_UNLIT
 	// Initialise a Strata header with normal in registers
-	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
-	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
-	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
-	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
-	StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+	FStrataData StrataData = PixelMaterialInputs.GetFrontStrataData();
+	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 	StrataPixelHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW);
 	SetDynamicIndirectShadowCasterRepresentation(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION);
@@ -552,7 +548,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 #endif
 
 	// Fill payload with material data
-	GetMaterialPayload(PixelMaterialInputs, MaterialParameters, Interpolants, PackedPayload.IsEnableSkyLightContribution(), Payload);
+	GetMaterialPayload(PixelMaterialInputs, MaterialParameters, Interpolants, PackedPayload.IsEnableSkyLightContribution(), Payload); 
 
 	PackedPayload = PackRayTracingPayload(Payload, PropagatedCone);
 

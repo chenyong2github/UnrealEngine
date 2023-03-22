@@ -146,18 +146,12 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	const float DecalFading = saturate(4 - 4 * abs(SwizzlePos.z * 2 - 1)) * DecalParams.x;
 
 #if STRATA_ENABLED    
-	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
-	StrataHeader.StrataTree = MaterialParameters.StrataTree;
-	StrataHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount; // Must be one due to parameter blending being forced on the entire Strata tree form the convert-to-decal node.
-	StrataHeader.IrradianceAO = InitIrradianceAndOcclusion();
+	FStrataPixelHeader StrataHeader = MaterialParameters.GetFrontStrataHeader();
 	StrataHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
-	StrataHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
 
 	float Coverage = 0.0;
 	if (StrataHeader.StrataTree.BSDFCount > 0)
 	{
-		FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
-
 		FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 		const float3 V = MaterialParameters.CameraVector;
 

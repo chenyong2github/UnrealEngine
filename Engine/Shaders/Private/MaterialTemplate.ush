@@ -298,6 +298,17 @@ float4 GetDynamicParameter(FMaterialParticleParameters Parameters, float4 Defaul
 struct FPixelMaterialInputs
 {
 %s
+
+#if TEMPLATE_USES_STRATA
+FStrataData GetFrontStrataData()
+{
+#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1
+	return FullySimplifiedFrontMaterial;
+#else
+	return FrontMaterial;
+#endif
+}
+#endif // TEMPLATE_USES_STRATA
 };
 
 /** 
@@ -490,7 +501,29 @@ struct FMaterialPixelParameters
 #if TEMPLATE_USES_STRATA
 	FSharedLocalBases SharedLocalBases;
 	FStrataTree StrataTree;
+
+#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1
+	FSharedLocalBases SharedLocalBasesFullySimplified;
+	FStrataTree StrataTreeFullySimplified;
+#endif
+
 	FStrataPixelFootprint StrataPixelFootprint;
+
+	FStrataPixelHeader GetFrontStrataHeader()
+	{
+		FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1
+		StrataPixelHeader.StrataTree = StrataTreeFullySimplified;
+		StrataPixelHeader.BSDFCount = StrataTreeFullySimplified.BSDFCount;
+		StrataPixelHeader.SharedLocalBases = SharedLocalBasesFullySimplified;
+#else
+		StrataPixelHeader.StrataTree = StrataTree;
+		StrataPixelHeader.BSDFCount = StrataTree.BSDFCount;
+		StrataPixelHeader.SharedLocalBases = SharedLocalBases;
+#endif
+		StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+		return StrataPixelHeader;
+	}
 #endif
 
 	FMaterialAttributes MaterialAttributes;
@@ -3159,6 +3192,10 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 	Parameters.StrataPixelFootprint = StrataGetPixelFootprint(Parameters.WorldPosition_CamRelative, GetRoughnessFromNormalCurvature(Parameters));
 	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
 	Parameters.StrataTree = GetInitialisedStrataTree();
+#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1
+	Parameters.SharedLocalBasesFullySimplified = StrataInitialiseSharedLocalBases();
+	Parameters.StrataTreeFullySimplified = GetInitialisedStrataTree();
+#endif
 #endif
 
 	// Note that here MaterialNormal can be in world space or tangent space
@@ -3217,6 +3254,10 @@ void CalcPixelMaterialInputsAnalyticDerivatives(in out FMaterialPixelParameters 
 	Parameters.StrataPixelFootprint = StrataGetPixelFootprint(Parameters.WorldPosition_CamRelative, GetRoughnessFromNormalCurvature(Parameters));
 	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
 	Parameters.StrataTree = GetInitialisedStrataTree();
+#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1
+	Parameters.SharedLocalBasesFullySimplified = StrataInitialiseSharedLocalBases();
+	Parameters.StrataTreeFullySimplified = GetInitialisedStrataTree();
+#endif
 #endif
 
 	// Note that here MaterialNormal can be in world space or tangent space

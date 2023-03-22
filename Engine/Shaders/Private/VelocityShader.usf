@@ -140,14 +140,10 @@ void MainPixelShader(
 
 #if STRATA_ENABLED
 	const bool bThinTranslucentMaterial = false;
-
-	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
 	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 
-	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
-	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
-	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
-	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
+	FStrataData StrataData = PixelMaterialInputs.GetFrontStrataData();
+	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 
 	float MaterialOpacity = 1.0f;
 	FStrataTree StrataTree = StrataPixelHeader.StrataTree;

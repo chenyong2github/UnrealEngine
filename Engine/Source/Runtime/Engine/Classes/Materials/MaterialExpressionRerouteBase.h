@@ -27,6 +27,7 @@ class ENGINE_API UMaterialExpressionRerouteBase : public UMaterialExpression
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 

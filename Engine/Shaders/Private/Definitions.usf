@@ -260,6 +260,10 @@
 #define STRATA_MATERIAL_EXPORT_LEGACY_BLEND_MODE		0
 #endif
 
+#ifndef STRATA_USE_FULLYSIMPLIFIED_MATERIAL
+#define STRATA_USE_FULLYSIMPLIFIED_MATERIAL				0
+#endif
+
 // Those define usage should match the meaning of EStrataMaterialExport enum from MaterialCompiler.h
 #define STRATA_MATERIAL_EXPORT_DIFFUSE_COLOR				1
 #define STRATA_MATERIAL_EXPORT_NORMAL						2

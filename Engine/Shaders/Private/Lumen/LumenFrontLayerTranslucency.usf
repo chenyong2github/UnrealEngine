@@ -78,12 +78,8 @@ void MainPS(
 		const float3 L = MaterialParameters.WorldNormal;
 
 		// Initialise a Strata header with normal in registers
-		FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
-		FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
-		StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
-		StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
-		StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
-		StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+		FStrataData StrataData = PixelMaterialInputs.GetFrontStrataData();
+		FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 		StrataPixelHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
 		float TotalCoverage = 1.f;

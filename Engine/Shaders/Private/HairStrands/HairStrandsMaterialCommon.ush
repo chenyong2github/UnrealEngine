@@ -210,11 +210,7 @@ FEvaluateOutput Evaluate(
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, LocalScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
 #if STRATA_ENABLED && MATERIAL_IS_STRATA && MATERIAL_SHADINGMODEL_HAIR
-		FStrataPixelHeader StrataPixelHeader		= InitialiseStrataPixelHeader();
-		StrataPixelHeader.StrataTree				= MaterialParameters.StrataTree;
-		StrataPixelHeader.BSDFCount					= MaterialParameters.StrataTree.BSDFCount;
-		StrataPixelHeader.SharedLocalBases			= MaterialParameters.SharedLocalBases;
-		StrataPixelHeader.IrradianceAO				= InitIrradianceAndOcclusion();
+		FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 		SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & 0x100);
 		SetDynamicIndirectShadowCasterRepresentation(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & 0x80);
 

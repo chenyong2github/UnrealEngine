@@ -24,6 +24,10 @@ void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader Strata
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree) {}
 void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree) {}
 void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}
+void UpdateAllBSDFsOperatorCoverageTransmittance_FullySimplified(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}
+void UpdateAllOperatorsCoverageTransmittance_FullySimplified(inout FStrataTree StrataTree) {}
+void UpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(inout FStrataTree StrataTree) {}
+void PreUpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}
 
 #endif // STRATA_ENABLED
 

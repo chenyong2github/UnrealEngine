@@ -18203,6 +18203,28 @@ bool UMaterialExpressionRerouteBase::IsResultMaterialAttributes(int32 OutputInde
 
 	return false;
 }
+
+bool UMaterialExpressionRerouteBase::IsResultStrataMaterial(int32 OutputIndex)
+{
+	FExpressionInput Input;
+	if (GetRerouteInput(Input))
+	{
+		// Most code checks to make sure that there aren't loops before going here. In our case, we rely on the fact that
+		// UMaterialExpressionReroute's implementation of TraceInputsToRealExpression is resistant to input loops.
+		if (Input.IsConnected() && Input.Expression != nullptr && OutputIndex == 0)
+		{
+			int32 RealExpressionOutputIndex = -1;
+			UMaterialExpression* RealExpression = TraceInputsToRealExpression(RealExpressionOutputIndex);
+			if (RealExpression != nullptr)
+			{
+				return RealExpression->IsResultStrataMaterial(RealExpressionOutputIndex);
+			}
+		}
+	}
+
+	return false;
+}
+
 #endif // WITH_EDITOR
 
 
@@ -25128,11 +25150,12 @@ int32 UMaterialExpressionStrataWeight::Compile(class FMaterialCompiler* Compiler
 			return Compiler->Errorf(TEXT("Weight input graph could not be evaluated for parameter blending."));
 		}
 
-		StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
-
 		OutputCodeChunk = Compiler->StrataWeightParameterBlending(
 			ACodeChunk, WeightCodeChunk, 
 			StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
+
+		// Propagate the parameter blended normal
+		StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
 	}
 	else
 	{

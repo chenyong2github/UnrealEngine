@@ -67,12 +67,8 @@ void Main(
 	TotalCoverage = UnlitBSDF.Coverage;
   #else // STRATA_OPTIMIZED_UNLIT
 	// Initialise a Strata header with normal in registers
-	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
-	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
-	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
-	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
-	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
-	StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+	FStrataData StrataData = PixelMaterialInputs.GetFrontStrataData();
+	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 	StrataPixelHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	
 	FStrataTree StrataTree = StrataPixelHeader.StrataTree;

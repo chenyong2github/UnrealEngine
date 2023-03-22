@@ -3570,6 +3570,11 @@ void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree);
 void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree);
 void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V);
 
+void UpdateAllBSDFsOperatorCoverageTransmittance_FullySimplified(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V);
+void UpdateAllOperatorsCoverageTransmittance_FullySimplified(inout FStrataTree StrataTree);
+void UpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(inout FStrataTree StrataTree);
+void PreUpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V);
+
 // Update all Coverage/Transmittance/Weights for all BSDFs based on material topology
 void StrataUpdateTree(
 	inout FStrataAddressing StrataAddressing,
@@ -3578,25 +3583,52 @@ void StrataUpdateTree(
 	float3 V,
 	FStrataIntegrationSettings Settings)
 {
-	//
-	// Pre-Update the BSDF by traversing up the strata tree until the root node. This allows to modify BSDF's parameters based on operators (i.e., thin-film coating)
-	//
-	PreUpdateAllBSDFWithBottomUpOperatorVisit(StrataPixelHeader, StrataTree, StrataAddressing, V);
+	// bStaticBoolUseFullySimplifiedPath is meant to be staticalyl assigfned so that only one of the path below is ever compiled.
+#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1
+	{
+		//
+		// Pre-Update the BSDF by traversing up the strata tree until the root node. This allows to modify BSDF's parameters based on operators (i.e., thin-film coating)
+		//
+		PreUpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(StrataPixelHeader, StrataTree, StrataAddressing, V);
 
-	//
-	// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
-	//
-	UpdateAllBSDFsOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, Settings, StrataAddressing, V);
+		//
+		// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
+		//
+		UpdateAllBSDFsOperatorCoverageTransmittance_FullySimplified(StrataPixelHeader, StrataTree, Settings, StrataAddressing, V);
 
-	//
-	// Propagate up the coverage/transmittance of each node in the strata tree.
-	//
-	UpdateAllOperatorsCoverageTransmittance(StrataTree);
+		//
+		// Propagate up the coverage/transmittance of each node in the strata tree.
+		//
+		UpdateAllOperatorsCoverageTransmittance_FullySimplified(StrataTree);
 
-	//
-	// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
-	//
-	UpdateAllBSDFWithBottomUpOperatorVisit(StrataTree);
+		//
+		// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
+		//
+		UpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(StrataTree);
+	}
+#else // STRATA_USE_FULLYSIMPLIFIED_MATERIAL
+	{
+		//
+		// Pre-Update the BSDF by traversing up the strata tree until the root node. This allows to modify BSDF's parameters based on operators (i.e., thin-film coating)
+		//
+		PreUpdateAllBSDFWithBottomUpOperatorVisit(StrataPixelHeader, StrataTree, StrataAddressing, V);
+
+		//
+		// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
+		//
+		UpdateAllBSDFsOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, Settings, StrataAddressing, V);
+
+		//
+		// Propagate up the coverage/transmittance of each node in the strata tree.
+		//
+		UpdateAllOperatorsCoverageTransmittance(StrataTree);
+
+		//
+		// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
+		//
+		UpdateAllBSDFWithBottomUpOperatorVisit(StrataTree);
+	}
+#endif // STRATA_USE_FULLYSIMPLIFIED_MATERIAL
 }
 
 void StrataUpdateTree(

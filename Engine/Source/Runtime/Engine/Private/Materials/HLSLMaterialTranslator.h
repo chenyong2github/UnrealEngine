@@ -225,6 +225,13 @@ enum class EMaterialCastFlags : uint32
 };
 ENUM_CLASS_FLAGS(EMaterialCastFlags);
 
+enum EStrataCompilationContext : uint8
+{
+	SCC_Default = 0u,
+	SCC_FullySimplified = 1u,
+	SCC_MAX = 2u
+};
+
 class FHLSLMaterialTranslator : public FMaterialCompiler
 {
 	friend class FMaterialDerivativeAutogen;
@@ -416,54 +423,7 @@ protected:
 	/** Will contain all the shading models picked up from the material expression graph */
 	FMaterialShadingModelField ShadingModelsFromCompilation;
 
-	/** The code initializing the array of shared local bases. */
-	FString StrataPixelNormalInitializerValues;
-	/** The next free index that can be used to represent a unique macros pointing to the position in the array of shared local bases written to memory once the shader is executed. */
-	uint8 NextFreeStrataShaderNormalIndex;
-	/** The effective final shared local bases count used by the final shader. */
-	uint8 FinalUsedSharedLocalBasesCount;
-	/** Represent a shared local basis description with its associated code. */
-	struct FStrataSharedLocalBasesInfo
-	{
-		FStrataRegisteredSharedLocalBasis SharedData;
-		FString NormalCode;
-		FString TangentCode;
-	};
-	/** Tracks shared local bases used by strata materials, mapping a normal code chunk hash to a SharedMaterialInfo.
-	 * A normal code chunk hash can point to multiple shared info in case it is paired with different tangents. */
-	TMultiMap<uint64, FStrataSharedLocalBasesInfo> CodeChunkToStrataSharedLocalBasis;
-
-	TMap<FGuid, int32> StrataMaterialExpressionToOperatorIndex;
-	TArray<FStrataOperator> StrataMaterialExpressionRegisteredOperators;
-	FStrataOperator* StrataMaterialRootOperator;
-	uint32 StrataMaterialBSDFCount;
-	uint32 StrataMaterialRequestedSizeByte;
-	bool bStrataMaterialIsSimple;
-	bool bStrataMaterialIsSingle;
-	bool bStrataMaterialIsUnlitNode;
-	bool bStrataUsesConversionFromLegacy;
-	bool bStrataOutputsOpaqueRoughRefractions;
-
-	/** Stack of unique id for each node of the strata tree 
-	* This is transient and updated on the fly in the exact same way when parsing node for 
-	*  1- StrataGenerateMaterialTopologyTree: generating a picture of the strata material tree for code generation and simplifications.
-	*  2- CompilePropertyAndSetMaterialProperty(MP_ShadingModel): compiling the code with some features enabled/disabled and accounting for tree simplification decided beforehand.
-	* It is not valid to uise that information outside of those functions.
-	*/
-	TArray<FGuid> StrataNodeIdentifierStack;
-
-	/**
-	 * This can be used to know if the strata tree we are trying to build is too deep and we should stop the compilation.
-	 * True means that we have likely encountered node re-entry leading to cyclic graph we cannot handle and compile internally: we must fail the compilation.
-	 */
-	bool bStrataTreeOutOfStackDepthOccurred;
-
-	/** Stack of thickness input used for propagating thickness information from root node and vertical operation
-	* This is transient and updated when calling StrataGenerateMaterialTopologyTree. The information is then stored into the FStratOperator
-	*/
-	TArray<int32> StrataThicknessStack;
-	TArray<FExpressionInput*> StrataThicknessIndexToExpressionInput;
-
+	// Describe the simplification status. Once the material has been compiled, it can be used to understand if and how it has been simplified.
 	struct FStrataSimplificationStatus
 	{
 		bool bMaterialFitsInMemoryBudget = false;	// Track whether or not the material fits.
@@ -471,7 +431,82 @@ protected:
 		uint32 OriginalRequestedByteSize = 0;
 		bool bRunFullSimplification = false;	// Simple implementation for now: if the material does not fit, we simply everything.
 	};
-	FStrataSimplificationStatus StrataSimplificationStatus;
+
+	/** Represent a shared local basis description with its associated code. */
+	struct FStrataSharedLocalBasesInfo
+	{
+		FStrataRegisteredSharedLocalBasis SharedData;
+		FString NormalCode;
+		FString TangentCode;
+	};
+
+	struct FStrataCompilationContext
+	{
+		FStrataCompilationContext();
+
+		FStrataCompilationContext(EStrataCompilationContext InCompilationContext);
+
+		EStrataCompilationContext CompilationContextIndex;
+
+		/** The code initializing the array of shared local bases. */
+		FString StrataPixelNormalInitializerValues;
+		/** The next free index that can be used to represent a unique macros pointing to the position in the array of shared local bases written to memory once the shader is executed. */
+		uint8 NextFreeStrataShaderNormalIndex;
+		/** The effective final shared local bases count used by the final shader. */
+		uint8 FinalUsedSharedLocalBasesCount;
+		/** Tracks shared local bases used by strata materials, mapping a normal code chunk hash to a SharedMaterialInfo.
+		 * A normal code chunk hash can point to multiple shared info in case it is paired with different tangents. */
+		TMultiMap<uint64, FStrataSharedLocalBasesInfo> CodeChunkToStrataSharedLocalBasis;
+
+		TMap<FGuid, int32> StrataMaterialExpressionToOperatorIndex;
+		TArray<FStrataOperator> StrataMaterialExpressionRegisteredOperators;
+		FStrataOperator* StrataMaterialRootOperator;
+		uint32 StrataMaterialBSDFCount;
+		uint32 StrataMaterialRequestedSizeByte;
+		bool bStrataMaterialIsSimple;
+		bool bStrataMaterialIsSingle;
+		bool bStrataMaterialIsUnlitNode;
+
+		/** Stack of unique id for each node of the strata tree
+		* This is transient and updated on the fly in the exact same way when parsing node for
+		*  1- StrataGenerateMaterialTopologyTree: generating a picture of the strata material tree for code generation and simplifications.
+		*  2- CompilePropertyAndSetMaterialProperty(MP_ShadingModel): compiling the code with some features enabled/disabled and accounting for tree simplification decided beforehand.
+		* It is not valid to use that information outside of those functions.
+		*/
+		TArray<FGuid> StrataNodeIdentifierStack;
+
+		/**
+		 * This can be used to know if the strata tree we are trying to build is too deep and we should stop the compilation.
+		 * True means that we have likely encountered node re-entry leading to cyclic graph we cannot handle and compile internally: we must fail the compilation.
+		 */
+		bool bStrataTreeOutOfStackDepthOccurred;
+
+		/** Stack of thickness input used for propagating thickness information from root node and vertical operation
+		* This is transient and updated when calling StrataGenerateMaterialTopologyTree. The information is then stored into the FStratOperator
+		*/
+		TArray<int32> StrataThicknessStack;
+		TArray<FExpressionInput*> StrataThicknessIndexToExpressionInput;
+
+		FStrataSimplificationStatus StrataSimplificationStatus;
+
+		bool StrataGenerateDerivedMaterialOperatorData(FHLSLMaterialTranslator* Compiler);
+
+		void StrataEvaluateSharedLocalBases(FHLSLMaterialTranslator* Compiler, uint8& RequestedSharedLocalBasesCount, FShaderCompilerEnvironment* OutEnvironment);
+
+		FStrataSharedLocalBasesInfo StrataCompilationInfoGetMatchingSharedLocalBasisInfo(const FStrataRegisteredSharedLocalBasis& SearchedSharedLocalBasis);
+
+	private:
+		void Initialise();
+	};
+	FStrataCompilationContext StrataCompilationContext[EStrataCompilationContext::SCC_MAX];
+
+	EStrataCompilationContext CurrentStrataCompilationContext = EStrataCompilationContext::SCC_Default;
+	int32 FullySimplifiedStrataFrontMaterialCodeChunk = INDEX_NONE;
+	FString FullySimplifiedStrataFrontMaterialTranslatedCodeChunkDefinitions;
+	FString FullySimplifiedStrataFrontMaterialTranslatedCodeChunks;
+
+	bool bStrataUsesConversionFromLegacy;
+	bool bStrataOutputsOpaqueRoughRefractions;
 
 	/** Tracks the total number of vt samples in the shader. */
 	uint32 NumVtSamples;
@@ -691,8 +726,6 @@ protected:
 
 	int32 GenericSwitch(const TCHAR* Function, int32 IfTrue, int32 IfFalse);
 
-	bool StrataGenerateDerivedMaterialOperatorData();
-	void StrataEvaluateSharedLocalBases(uint8& UsedSharedLocalBasesCount, uint8& RequestedSharedLocalBasesCount, FString* OutStrataPixelNormalInitializerValues, FShaderCompilerEnvironment* OutEnvironment) const;
 	FString StrataGetCastParameterCode(int32 Index, EMaterialValueType DestType);
 
 	bool ValidateMaterialExpressionPermission(const UMaterialExpression* Expression);
@@ -1157,11 +1190,10 @@ protected:
 
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk) override;
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk, int32 TangentCodeChunk) override;
+	virtual FString GetStrataSharedLocalBasisIndexMacro(const FStrataRegisteredSharedLocalBasis& SharedLocalBasis) override;
 	virtual int32 StrataAddParameterBlendingBSDFCoverageToNormalMixCodeChunk(int32 ACodeChunk, int32 BCodeChunk) override;
 	virtual int32 StrataVerticalLayeringParameterBlendingBSDFCoverageToNormalMixCodeChunk(int32 TopCodeChunk) override;
 	virtual int32 StrataHorizontalMixingParameterBlendingBSDFCoverageToNormalMixCodeChunk(int32 BackgroundCodeChunk, int32 ForegroundCodeChunk, int32 HorizontalMixCodeChunk) override;
-
-	FStrataSharedLocalBasesInfo StrataCompilationInfoGetMatchingSharedLocalBasisInfo(const FStrataRegisteredSharedLocalBasis& SearchedSharedLocalBasis) const;
 
 #if HANDLE_CUSTOM_OUTPUTS_AS_MATERIAL_ATTRIBUTES
 	/** Used to translate code for custom output attributes such as ClearCoatBottomNormal */
