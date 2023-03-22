@@ -166,6 +166,12 @@ int32 ULyraTeamSubsystem::FindTeamFromObject(const UObject* TestObject) const
 			return GenericTeamIdToInteger(InstigatorWithTeamInterface->GetGenericTeamId());
 		}
 
+		// TeamInfo actors don't actually have the team interface, so they need a special case
+		if (const ALyraTeamInfoBase* TeamInfo = Cast<ALyraTeamInfoBase>(TestActor))
+		{
+			return TeamInfo->GetTeamId();
+		}
+
 		// Fall back to finding the associated player state
 		if (const ALyraPlayerState* LyraPS = FindPlayerStateFromActor(TestActor))
 		{
