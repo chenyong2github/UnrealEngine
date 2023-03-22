@@ -309,6 +309,12 @@ void UTickableTransformConstraint::PostEditChangeProperty(FPropertyChangedEvent&
 	}
 }
 
+void UTickableTransformConstraint::PostEditUndo()
+{
+	Super::PostEditUndo();
+	InitConstraint();
+}
+
 UTickableTransformConstraint::FOnConstraintChanged& UTickableTransformConstraint::GetOnConstraintChanged()
 {
 	return OnConstraintChanged;	
@@ -408,15 +414,7 @@ void UTickableTransformConstraint::OnActiveStateChanged() const
 void UTickableTransformConstraint::PostLoad()
 {
 	Super::PostLoad();
-	if (ConstraintTick.ConstraintFunctions.IsEmpty())
-	{
-		ConstraintTick.RegisterFunction(GetFunction() );
-	}
-
-	SetupDependencies();	
-	RegisterDelegates();
-
-	EnsurePrimaryDependency();
+	InitConstraint();
 }
 
 void UTickableTransformConstraint::PostDuplicate(bool bDuplicateForPIE)
@@ -606,6 +604,19 @@ FTickFunction* UTickableTransformConstraint::GetHandleTickFunction(const TObject
 	}
 		
 	return InHandle->GetTickFunction();
+}
+
+void UTickableTransformConstraint::InitConstraint()
+{
+	if (ConstraintTick.ConstraintFunctions.IsEmpty())
+	{
+		ConstraintTick.RegisterFunction(GetFunction());
+	}
+
+	SetupDependencies();
+	RegisterDelegates();
+
+	EnsurePrimaryDependency();
 }
 
 /** 
@@ -1364,8 +1375,7 @@ UTransformableComponentHandle* FTransformConstraintUtils::CreateHandleForSceneCo
 	UTransformableComponentHandle* ComponentHandle = nullptr;
 	if (InSceneComponent)
 	{
-		ComponentHandle = NewObject<UTransformableComponentHandle>(Outer);
-		ComponentHandle->SetFlags(RF_Transactional);
+		ComponentHandle = NewObject<UTransformableComponentHandle>(Outer, NAME_None, RF_Transactional);
 		ComponentHandle->Component = InSceneComponent;
 		ComponentHandle->SocketName = InSocketName;
 		InSceneComponent->SetMobility(EComponentMobility::Movable);

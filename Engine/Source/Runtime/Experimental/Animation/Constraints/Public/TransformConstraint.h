@@ -151,6 +151,9 @@ protected:
 	/** Returns the handle's tick function (ensuring it lives in the same world). */
 	FTickFunction* GetHandleTickFunction(const TObjectPtr<UTransformableHandle>& InHandle) const;
 
+	/** (Re-)Registers the constraint function and (re-)binds the required delegates*/
+	void InitConstraint();
+
 #if WITH_EDITOR
 public:
 	/** Returns the constraint's label used for UI. */
@@ -162,6 +165,7 @@ public:
 
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditUndo() override;
 	// End of UObject interface
 
 	/** Returns a delegate that can be used to monitor for property changes. This can be used to monitor constraints changes

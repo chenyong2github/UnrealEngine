@@ -58,7 +58,7 @@ void AConstraintsActor::PostRegisterAllComponents()
 
 	if (ConstraintsManager == nullptr)
 	{
-		ConstraintsManager = NewObject<UConstraintsManager>(this);
+		ConstraintsManager = NewObject<UConstraintsManager>(this, NAME_None, RF_Transactional);
 	}
 	ConstraintsManager->Init(GetWorld());
 	RegisterConstraintsTickFunctions();

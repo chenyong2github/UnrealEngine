@@ -232,7 +232,6 @@ UConstraintsManager* UConstraintsManager::Get(UWorld* InWorld)
 #if WITH_EDITOR
 	ConstraintsActor->SetActorLabel(TEXT("Constraints Manager"));
 #endif // WITH_EDITOR
-	ConstraintsActor->ConstraintsManager->SetFlags(RF_Transactional);
 	return ConstraintsActor->ConstraintsManager;
 }
 
@@ -386,28 +385,7 @@ bool FConstraintsManagerController::DoesExistInAnyWorld(UTickableConstraint* InC
 
 UConstraintsManager* FConstraintsManagerController::GetManager() const
 {
-	if (!World)
-	{
-		return nullptr;
-	}
-	
-	// look for ConstraintsActor and return its manager
-	if (UConstraintsManager* Manager = FindManager())
-	{
-		return Manager;
-	}
-
-	// create a new ConstraintsActor
-	AConstraintsActor* ConstraintsActor = World->SpawnActor<AConstraintsActor>();
-#if WITH_EDITOR
-	ConstraintsActor->SetActorLabel(TEXT("Constraints Manager"));
-#endif // WITH_EDITOR
-	ConstraintsActor->ConstraintsManager = NewObject<UConstraintsManager>(ConstraintsActor);
-	ConstraintsActor->ConstraintsManager->Init(World);
-	// ULevel* Level = World->GetCurrentLevel();
-	// ConstraintsActor->ConstraintsManager->Level = Level;
-
-	return ConstraintsActor->ConstraintsManager;
+	return UConstraintsManager::Get(World);
 }
 
 UConstraintsManager* FConstraintsManagerController::FindManager() const

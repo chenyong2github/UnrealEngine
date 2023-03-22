@@ -24,11 +24,6 @@ UTransformableHandle::~UTransformableHandle()
 	OnHandleModified.Clear();
 }
 
-void UTransformableHandle::PostLoad()
-{
-	Super::PostLoad();
-}
-
 UTransformableHandle::FHandleModifiedEvent& UTransformableHandle::HandleModified()
 {
 	return OnHandleModified;

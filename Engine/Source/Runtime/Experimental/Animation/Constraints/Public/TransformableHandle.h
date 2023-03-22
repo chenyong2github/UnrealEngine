@@ -45,8 +45,6 @@ public:
 	DECLARE_EVENT_TwoParams(UTransformableHandle, FHandleModifiedEvent, UTransformableHandle*, EHandleEvent);
 	
 	virtual ~UTransformableHandle();
-
-	virtual void PostLoad() override;
 	
 	/** Sanity check to ensure the handle is safe to use. */
 	virtual bool IsValid() const PURE_VIRTUAL(IsValid, return false;);
