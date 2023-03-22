@@ -36,6 +36,7 @@
 #include "Editor.h"
 #include "EngineAnalytics.h"
 #include "Engine/Blueprint.h"
+#include "Factories/IRCDefaultValueFactory.h"
 #include "TimerManager.h"
 #include "UObject/PackageReload.h"
 #endif
@@ -1777,6 +1778,28 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 				}
 			}
 		}
+		for (auto Iter = PreMaterialModifiedCache.CreateIterator(); Iter; ++Iter)
+		{
+			FGuid& PropertyId = Iter.Key();
+			FPreMaterialModifiedCache& CacheEntry = Iter.Value();
+			if (TSharedPtr<FRemoteControlProperty> Property = Registry->GetExposedEntity<FRemoteControlProperty>(PropertyId))
+			{
+				if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(Object))
+				{
+					if (CacheEntry.bHadValue && MeshComponent->OverrideMaterials[CacheEntry.ArrayIndex] == NULL)
+					{
+						FRCResetToDefaultArgs Args;
+						Args.Property = Event.Property;
+						Args.Path = Property->FieldPathInfo.ToPathPropertyString();
+						Args.ArrayIndex = Property->FieldPathInfo.Segments[0].ArrayIndex;
+						Args.bCreateTransaction = false;
+						IRemoteControlModule& RemoteControlModule = IRemoteControlModule::Get();
+						RemoteControlModule.ResetToDefaultValue(Object, Args);
+					}
+				}
+			}
+			Iter.RemoveCurrent();
+		}
 	}
  
 	for (auto Iter = PreObjectsModifiedActorCache.CreateIterator(); Iter; ++Iter)
@@ -1869,7 +1892,17 @@ void URemoteControlPreset::OnPreObjectPropertyChanged(UObject* Object, const cla
 						if (ExposedProperty == Current->GetValue())
 						{
 							bHasFound = true;
-
+							
+							if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(Object))
+							{
+								if (PropertyChain.GetActiveNode()->GetValue()->GetFName() == GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials))
+								{
+									FPreMaterialModifiedCache& NewEntry = PreMaterialModifiedCache.FindOrAdd(RCProperty->GetId());
+									NewEntry.ArrayIndex = RCProperty->FieldPathInfo.Segments[0].ArrayIndex;
+									NewEntry.bHadValue = MeshComponent->OverrideMaterials[NewEntry.ArrayIndex] != NULL;
+								}
+							}
+							
 							FPreObjectsModifiedCache& NewEntry = PreObjectsModifiedCache.FindOrAdd(RCProperty->GetId());
 							NewEntry.Objects.AddUnique(Object);
 							NewEntry.Property = PropertyChain.GetActiveNode()->GetValue();

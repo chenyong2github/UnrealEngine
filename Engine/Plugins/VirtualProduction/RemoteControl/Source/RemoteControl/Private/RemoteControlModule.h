@@ -31,9 +31,9 @@ public:
 	virtual bool RegisterEmbeddedPreset(URemoteControlPreset* Preset, bool bReplaceExisting) override;
 	virtual void UnregisterEmbeddedPreset(FName Name) override;
 	virtual void UnregisterEmbeddedPreset(URemoteControlPreset* Preset) override;
-	virtual bool CanResetToDefaultValue(UObject* InObject, const FProperty* InProperty) const override;
+	virtual bool CanResetToDefaultValue(UObject* InObject, const FRCResetToDefaultArgs& InArgs) const override;
 	virtual bool HasDefaultValueCustomization(const UObject* InObject, const FProperty* InProperty) const override;
-	virtual void ResetToDefaultValue(UObject* InObject, FProperty* InProperty) override;
+	virtual void ResetToDefaultValue(UObject* InObject, FRCResetToDefaultArgs& InArgs) override;
 	virtual void PerformMasking(const TSharedRef<FRCMaskingOperation>& InMaskingOperation) override;
 	virtual void RegisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType, const TSharedPtr<IRemoteControlMaskingFactory>& InMaskingFactory) override;
 	virtual void UnregisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType) override;

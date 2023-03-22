@@ -3,8 +3,9 @@
 #include "SRCPanelExposedField.h"
 
 #include "Algo/Transform.h"
-#include "Components/LocalLightComponent.h"
+#include "Components/MeshComponent.h"
 #include "EditorFontGlyphs.h"
+#include "Factories/IRCDefaultValueFactory.h"
 #include "IDetailTreeNode.h"
 #include "IRCProtocolBindingList.h"
 #include "IRemoteControlModule.h"
@@ -13,6 +14,7 @@
 #include "IRemoteControlUIModule.h"
 #include "Layout/Visibility.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "PropertyEditor/Private/PropertyNode.h"
 #include "RCPanelWidgetRegistry.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPanelStyle.h"
@@ -580,7 +582,17 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject*
 		
 			if (RemoteControlModule.HasDefaultValueCustomization(InObject, InPropertyHandle->GetProperty()))
 			{
-				return RemoteControlModule.CanResetToDefaultValue(InObject, InPropertyHandle->GetProperty());
+				FRCResetToDefaultArgs Args;
+				Args.Property = InPropertyHandle->GetProperty();
+				
+				if (TSharedPtr<FPropertyNode> PropertyNode = InPropertyHandle->GetPropertyNode())
+				{
+					Args.Path = PropertyNode->GetPropertyPath();
+					Args.ArrayIndex = PropertyNode->GetArrayIndex();
+				}
+
+				Args.bCreateTransaction = false;
+				return RemoteControlModule.CanResetToDefaultValue(InObject, Args);
 			}
 
 			return InPropertyHandle->DiffersFromDefault();
@@ -593,7 +605,17 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject*
 
 			if (RemoteControlModule.HasDefaultValueCustomization(InObject, InPropertyHandle->GetProperty()))
 			{
-				RemoteControlModule.ResetToDefaultValue(InObject, InPropertyHandle->GetProperty());
+				FRCResetToDefaultArgs Args;
+				Args.Property = InPropertyHandle->GetProperty();
+				
+				if (TSharedPtr<FPropertyNode> PropertyNode = InPropertyHandle->GetPropertyNode())
+				{
+					Args.Path = PropertyNode->GetPropertyPath();
+					Args.ArrayIndex = PropertyNode->GetArrayIndex();
+				}
+				
+				Args.bCreateTransaction = true;
+				RemoteControlModule.ResetToDefaultValue(InObject, Args);
 			
 				return;
 			}
@@ -603,6 +625,28 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject*
 	);
 	
 	const FResetToDefaultOverride ResetValueOverride = FResetToDefaultOverride::Create(CanResetToDefaultValue, PerformValueReset);
+
+	if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(InObject))
+	{
+		if (InPropertyHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials) &&
+			MeshComponent->OverrideMaterials[InPropertyHandle->GetPropertyNode()->GetArrayIndex()] == NULL)
+		{
+			IRemoteControlModule& RemoteControlModule = IRemoteControlModule::Get();
+
+			FRCResetToDefaultArgs Args;
+			Args.Property = InPropertyHandle->GetProperty();
+			
+			if (TSharedPtr<FPropertyNode> PropertyNode = InPropertyHandle->GetPropertyNode())
+			{
+				Args.Path = PropertyNode->GetPropertyPath();
+				Args.ArrayIndex = PropertyNode->GetArrayIndex();
+			}
+
+			Args.bCreateTransaction = false;
+			RemoteControlModule.ResetToDefaultValue(InObject, Args);
+		}
+		
+	}
 	
 	ResetDefaultProperty.Reset();
 	

@@ -7,6 +7,7 @@
 #include "Backends/CborStructSerializerBackend.h"
 #include "Components/ActorComponent.h"
 #include "Components/LightComponent.h"
+#include "Components/MeshComponent.h"
 #include "Factories/RCDefaultValueFactories.h"
 #include "Factories/RemoteControlMaskingFactories.h"
 #include "Features/IModularFeatures.h"
@@ -752,21 +753,21 @@ void FRemoteControlModule::UnregisterEmbeddedPreset(URemoteControlPreset* Preset
 	EmbeddedPresets.Remove(PresetName);
 }
 
-bool FRemoteControlModule::CanResetToDefaultValue(UObject* InObject, const FProperty* InProperty) const
+bool FRemoteControlModule::CanResetToDefaultValue(UObject* InObject, const FRCResetToDefaultArgs& InArgs) const
 {
-	if (!InObject || !InProperty)
+	if (!InObject || !InArgs.Property)
 	{
 		return false;
 	}
 
 	// NOTE : Get the owning class to which the property actually belongs.
-	if (UClass* OwningClass = InProperty->GetOwnerClass())
+	if (UClass* OwningClass = InArgs.Property->GetOwnerClass())
 	{
-		const FString DefaultValueKey = OwningClass->GetName() + TEXT(".") + InProperty->GetName();
+		const FString DefaultValueKey = OwningClass->GetName() + TEXT(".") + InArgs.Property->GetName();
 		
 		if (const TSharedPtr<IRCDefaultValueFactory>* DefaultValueFactory = DefaultValueFactories.Find(*DefaultValueKey))
 		{
-			return (*DefaultValueFactory)->CanResetToDefaultValue(InObject);
+			return (*DefaultValueFactory)->CanResetToDefaultValue(InObject, InArgs);
 		}
 	}
 
@@ -794,21 +795,39 @@ bool FRemoteControlModule::HasDefaultValueCustomization(const UObject* InObject,
 	return false;
 }
 
-void FRemoteControlModule::ResetToDefaultValue(UObject* InObject, FProperty* InProperty)
+void FRemoteControlModule::ResetToDefaultValue(UObject* InObject, FRCResetToDefaultArgs& InArgs)
 {
-	if (!InObject || !InProperty)
+	if (!InObject || !InArgs.Property)
 	{
 		return;
 	}
 
 	// NOTE : Get the owning class to which the property actually belongs.
-	if (UClass* OwningClass = InProperty->GetOwnerClass())
+	if (UClass* OwningClass = InArgs.Property->GetOwnerClass())
 	{
-		const FString DefaultValueKey = OwningClass->GetName() + TEXT(".") + InProperty->GetName();
+		const FString DefaultValueKey = OwningClass->GetName() + TEXT(".") + InArgs.Property->GetName();
 
 		if (const TSharedPtr<IRCDefaultValueFactory>* DefaultValueFactory = DefaultValueFactories.Find(*DefaultValueKey))
 		{
-			(*DefaultValueFactory)->ResetToDefaultValue(InObject, InProperty);
+#if WITH_EDITOR
+			
+			if (InArgs.bCreateTransaction && GEditor)
+			{
+				GEditor->BeginTransaction(LOCTEXT("RemoteControlModule","Remote Control Custom Reset To Default"));
+			}
+
+#endif // WITH_EDITOR
+
+			(*DefaultValueFactory)->ResetToDefaultValue(InObject, InArgs);
+
+#if WITH_EDITOR
+
+			if (InArgs.bCreateTransaction && GEditor)
+			{
+				GEditor->EndTransaction();
+			}
+
+#endif // WITH_EDITOR
 		}
 	}
 }
@@ -1707,7 +1726,12 @@ bool FRemoteControlModule::ResetObjectProperties(const FRCObjectReference& Objec
 
 		if(HasDefaultValueCustomization(Object, ObjectAccess.Property.Get()))
 		{
-			ResetToDefaultValue(Object, ObjectAccess.Property.Get());
+			FRCResetToDefaultArgs Args;
+			Args.Property = ObjectAccess.Property.Get();
+			Args.Path = ObjectAccess.PropertyPathInfo.ToPathPropertyString();
+			Args.ArrayIndex = ObjectAccess.PropertyPathInfo.Segments[0].ArrayIndex;
+			Args.bCreateTransaction = false;
+			ResetToDefaultValue(Object, Args);
 		}
 		else
 #endif
@@ -2386,6 +2410,7 @@ void FRemoteControlModule::RegisterDefaultValueFactories()
 {
 	// NOTE : Use the class to which the property actually belongs.
 	RegisterDefaultValueFactoryForType(ULightComponentBase::StaticClass(), GET_MEMBER_NAME_CHECKED(ULightComponentBase, Intensity), FLightIntensityDefaultValueFactory::MakeInstance());
+	RegisterDefaultValueFactoryForType(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials), FOverrideMaterialsDefaultValueFactory::MakeInstance());
 }
 
 void FRemoteControlModule::RegisterMaskingFactories()

@@ -22,6 +22,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FExposedProperty;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 struct FRCMaskingOperation;
+struct FRCResetToDefaultArgs;
 struct FRemoteControlProperty;
 class IRemoteControlPropertyFactory;
 
@@ -282,9 +283,9 @@ public:
 	/**
 	 * Returns true when the given object can be reset to its default value, false otherwise.
 	 * @param InObject Reference to the exposed object.
-	 * @param InProperty Reference to the exposed property.
+	 * @param InArgs Arguments to be passed.
 	 */
-	virtual bool CanResetToDefaultValue(UObject* InObject, const FProperty* InProperty) const = 0;
+	virtual bool CanResetToDefaultValue(UObject* InObject, const FRCResetToDefaultArgs& InArgs) const = 0;
 
 	/**
 	 * Returns true when the given object and property has custom default value, false otherwise.
@@ -296,9 +297,9 @@ public:
 	/**
 	 * Performs actual data reset on the given object.
 	 * @param InObject Reference to the exposed object.
-	 * @param InProperty Reference to the exposed property.
+	 * @param InArgs Arguments to be passed.
 	 */
-	virtual void ResetToDefaultValue(UObject* InObject, FProperty* InProperty) = 0;
+	virtual void ResetToDefaultValue(UObject* InObject, FRCResetToDefaultArgs& InArgs) = 0;
 
 	/**
 	 * Performs the given masking operation.

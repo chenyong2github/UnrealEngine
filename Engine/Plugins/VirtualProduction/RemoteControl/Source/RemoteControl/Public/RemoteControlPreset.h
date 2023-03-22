@@ -847,6 +847,16 @@ private:
 	TMap<FGuid, FPreObjectsModifiedCache> PreObjectsModifiedCache;
 	TMap<FGuid, FPreObjectsModifiedCache> PreObjectsModifiedActorCache;
 
+	/** A struct representing a material object modified that is housed by a container (eg. array, set, map). */
+	struct FPreMaterialModifiedCache
+	{
+		int32 ArrayIndex;
+		bool bHadValue;
+	};
+
+	/** Caches material modifications during a frame. */
+	TMap<FGuid, FPreMaterialModifiedCache> PreMaterialModifiedCache;
+
 	/** Cache properties that were modified during a frame. */
 	TSet<FGuid> PerFrameModifiedProperties;
 	
