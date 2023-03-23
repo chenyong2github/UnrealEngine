@@ -10,6 +10,11 @@
 #	endif
 #endif
 
+#ifndef UE_IRIS_PROFILE_PROTOCOL_NAMES
+	// Set this to true to see protocol names in profiling captures. The downside is the events will add an overhead on the cpu when cpu captures are occuring
+	#define UE_IRIS_PROFILE_PROTOCOL_NAMES !UE_BUILD_SHIPPING
+#endif
+
 //#define IRIS_USE_SUPERLUMINAL
 
 #if IRIS_PROFILER_ENABLE

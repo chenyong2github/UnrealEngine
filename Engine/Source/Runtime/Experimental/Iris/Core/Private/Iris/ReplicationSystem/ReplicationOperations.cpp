@@ -476,7 +476,7 @@ bool FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(const FRep
 	{
 		const EReplicationFragmentTraits MaskedFragmentTraits = Fragments[StateIt]->GetTraits() & (EReplicationFragmentTraits::NeedsPoll | ExcludeTraits);
 		if (MaskedFragmentTraits == EReplicationFragmentTraits::NeedsPoll)
-		{			
+		{
 			bIsStateDirty |= Fragments[StateIt]->PollReplicatedState(PollOptions);
 		}
 	}
@@ -572,6 +572,9 @@ void FReplicationInstanceOperations::CopyAndQuantizeIfDirty(FNetSerializationCon
 		// Append changemask data to bitstreams and quantize state if mask is dirty
 		if (Private::AppendMemberChangeMasks(OutChangeMaskWriter, OutConditionalChangeMaskWriter, FragmentData[StateIt].ExternalSrcBuffer, CurrentDescriptor))
 		{
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
+			IRIS_PROFILER_SCOPE_TEXT(CurrentDescriptor->DebugName->Name);
+#endif
 			FReplicationStateOperations::Quantize(Context, CurrentInternalStateBuffer, FragmentData[StateIt].ExternalSrcBuffer, CurrentDescriptor);
 		}
 		

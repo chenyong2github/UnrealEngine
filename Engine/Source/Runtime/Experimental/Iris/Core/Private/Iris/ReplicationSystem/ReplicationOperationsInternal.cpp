@@ -20,6 +20,8 @@
 #include "Iris/Serialization/InternalNetSerializers.h"
 #include "Math/NumericLimits.h"
 #include "HAL/IConsoleManager.h"
+#include "Iris/Core/IrisProfiler.h"
+#include "Net/Core/Trace/NetDebugName.h"
 
 namespace UE::Net::Private
 {
@@ -82,6 +84,10 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 				const uint32 ChangeMaskByteCount = FNetBitArrayView::CalculateRequiredWordCount(Object.Protocol->ChangeMaskBitCount) * 4;
 				ChangeMaskStorageType* ChangeMaskData = Cache.GetChangeMaskStorage(Info);
 				ChangeMaskWriter.InitBytes(ChangeMaskData, ChangeMaskByteCount);
+
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
+				IRIS_PROFILER_SCOPE_TEXT(Object.Protocol->DebugName->Name);
+#endif
 
 				//UE_LOG(LogIris, Log, TEXT("Copying state data for ( InternalIndex: %u ) with NetRefHandle (Id=%u)"), InternalIndex, Object.RefHandle.GetId());
 				if (bUseFullCopyAndQuantize)

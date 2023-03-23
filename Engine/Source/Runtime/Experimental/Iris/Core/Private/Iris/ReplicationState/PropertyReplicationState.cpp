@@ -12,6 +12,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Containers/StringFwd.h"
 #include "Iris/Core/IrisDebugging.h"
+#include "Iris/Core/IrisProfiler.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogIrisRepNotify, Warning, All);
 
@@ -224,6 +225,10 @@ bool FPropertyReplicationState::PollPropertyReplicationState(const void* RESTRIC
 		const FReplicationStateDescriptor* Descriptor = ReplicationStateDescriptor;
 		const uint8* SrcBuffer = reinterpret_cast<const uint8*>(SrcStateData);
 
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
+		IRIS_PROFILER_SCOPE_TEXT(ReplicationStateDescriptor->DebugName->Name);
+#endif
+
 		const FReplicationStateMemberDescriptor* MemberDescriptors = Descriptor->MemberDescriptors;
 		const FProperty** MemberProperties = Descriptor->MemberProperties;
 		const FReplicationStateMemberPropertyDescriptor* MemberPropertyDescriptors = Descriptor->MemberPropertyDescriptors;
@@ -251,6 +256,10 @@ void FPropertyReplicationState::PushPropertyReplicationState(void* RESTRICT DstD
 	{
 		const FReplicationStateDescriptor* Descriptor = ReplicationStateDescriptor;
 		uint8* DstBuffer = reinterpret_cast<uint8*>(DstData);
+
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
+		IRIS_PROFILER_SCOPE_TEXT(ReplicationStateDescriptor->DebugName->Name);
+#endif
 
 		const FReplicationStateMemberDescriptor* MemberDescriptors = Descriptor->MemberDescriptors;
 		const FProperty** MemberProperties = Descriptor->MemberProperties;

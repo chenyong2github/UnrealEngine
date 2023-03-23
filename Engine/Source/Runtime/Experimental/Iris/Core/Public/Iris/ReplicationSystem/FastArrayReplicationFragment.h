@@ -148,6 +148,10 @@ bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllSta
 	FastArrayType* SrcArraySerializer = GetFastArraySerializerFromOwner();
 	ItemArrayType* SrcWrappedArray = reinterpret_cast<ItemArrayType*>(reinterpret_cast<uint8*>(SrcArraySerializer) + WrappedArrayOffsetRelativeFastArraySerializerProperty);
 	
+#if UE_IRIS_PROFILE_PROTOCOL_NAMES
+	IRIS_PROFILER_SCOPE_TEXT(ReplicationStateDescriptor->DebugName->Name);
+#endif
+
 	// Lookup destination data
 	FastArrayType* DstArraySerializer = GetFastArraySerializerFromReplicationState();
 	ItemArrayType* DstWrappedArray = reinterpret_cast<ItemArrayType*>(reinterpret_cast<uint8*>(DstArraySerializer) + WrappedArrayOffsetRelativeFastArraySerializerProperty);
