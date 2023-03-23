@@ -70,15 +70,19 @@ struct METASOUNDENGINE_API FMetaSoundBuilderOptions
 {
 	GENERATED_BODY()
 
+	// Name of generated object. If object already exists, used as the base name to ensure new object is unique.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MetaSound|Builder")
 	FName Name;
 
 	// If true, adds MetaSound to node registry, making it available
 	// for reference by other dynamically created MetaSounds.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MetaSound|Builder")
-	bool bAddToRegistry = false;
+	UPROPERTY()
+	bool bAddToRegistry = true;
 
-	TScriptInterface<IMetaSoundDocumentInterface> ExistingAsset;
+	// If set, builder overwrites the given MetaSound's document with the builder's copy
+	// (ignores the Name field above).
+	UPROPERTY()
+	TScriptInterface<IMetaSoundDocumentInterface> ExistingMetaSound;
 };
 
 UENUM(BlueprintType)
@@ -171,63 +175,63 @@ public:
 
 	// Returns graph input node by the given name if it exists, or an invalid handle if not found.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle FindGraphInputNode(FName InputName, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle FindGraphInputNode(FName InputName, EMetaSoundBuilderResult& OutResult);
 
 	// Returns graph output node by the given name if it exists, or an invalid handle if not found.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle FindGraphOutputNode(FName OutputName, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle FindGraphOutputNode(FName OutputName, EMetaSoundBuilderResult& OutResult);
 
 	// Returns node input by the given name if it exists, or an invalid handle if not found.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Input Handle") FMetaSoundBuilderNodeInputHandle FindNodeInputByName(const FMetaSoundNodeHandle& NodeHandle, FName InputName, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Input Handle") FMetaSoundBuilderNodeInputHandle FindNodeInputByName(const FMetaSoundNodeHandle& NodeHandle, FName InputName, EMetaSoundBuilderResult& OutResult);
 
 	// Returns node output by the given name.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Input  Handles") TArray<FMetaSoundBuilderNodeInputHandle> FindNodeInputs(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Input  Handles") TArray<FMetaSoundBuilderNodeInputHandle> FindNodeInputs(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult);
 
 	// Returns node inputs by the given DataType (ex. "Audio", "Trigger", "String", "Bool", "Float", "Int32", etc.).
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Input Handles") TArray<FMetaSoundBuilderNodeInputHandle> FindNodeInputsByDataType(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult, FName DataType) const;
+	UPARAM(DisplayName = "Input Handles") TArray<FMetaSoundBuilderNodeInputHandle> FindNodeInputsByDataType(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult, FName DataType);
 
 	// Returns node output by the given name.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Output Handle") FMetaSoundBuilderNodeOutputHandle FindNodeOutputByName(const FMetaSoundNodeHandle& NodeHandle, FName OutputName, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Output Handle") FMetaSoundBuilderNodeOutputHandle FindNodeOutputByName(const FMetaSoundNodeHandle& NodeHandle, FName OutputName, EMetaSoundBuilderResult& OutResult);
 
 	// Returns all node outputs.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Output Handles") TArray<FMetaSoundBuilderNodeOutputHandle> FindNodeOutputs(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Output Handles") TArray<FMetaSoundBuilderNodeOutputHandle> FindNodeOutputs(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult);
 
 	// Returns node outputs by the given DataType (ex. "Audio", "Trigger", "String", "Bool", "Float", "Int32", etc.).
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Output Handles") TArray<FMetaSoundBuilderNodeOutputHandle> FindNodeOutputsByDataType(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult, FName DataType) const;
+	UPARAM(DisplayName = "Output Handles") TArray<FMetaSoundBuilderNodeOutputHandle> FindNodeOutputsByDataType(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult, FName DataType);
 
 	// Returns input nodes associated with a given interface.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Input Node Handles") TArray<FMetaSoundNodeHandle> FindInterfaceInputNodes(FName InterfaceName, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Input Node Handles") TArray<FMetaSoundNodeHandle> FindInterfaceInputNodes(FName InterfaceName, EMetaSoundBuilderResult& OutResult);
 
 	// Returns output nodes associated with a given interface.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Output Node Handles") TArray<FMetaSoundNodeHandle> FindInterfaceOutputNodes(FName InterfaceName, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Output Node Handles") TArray<FMetaSoundNodeHandle> FindInterfaceOutputNodes(FName InterfaceName, EMetaSoundBuilderResult& OutResult);
 
 	// Returns input's parent node if the input is valid, otherwise returns invalid node handle.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle FindNodeInputParent(const FMetaSoundBuilderNodeInputHandle& InputHandle, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle FindNodeInputParent(const FMetaSoundBuilderNodeInputHandle& InputHandle, EMetaSoundBuilderResult& OutResult);
 
 	// Returns output's parent node if the input is valid, otherwise returns invalid node handle.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle FindNodeOutputParent(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle FindNodeOutputParent(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, EMetaSoundBuilderResult& OutResult);
 
 	// Returns output's parent node if the input is valid, otherwise returns invalid node handle.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Node ClassVersion") FMetasoundFrontendVersion FindNodeClassVersion(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult) const;
+	UPARAM(DisplayName = "Node ClassVersion") FMetasoundFrontendVersion FindNodeClassVersion(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult);
 
 	// Returns node input's data if valid (including things like name and datatype).
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	void GetNodeInputData(const FMetaSoundBuilderNodeInputHandle& InputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult) const;
+	void GetNodeInputData(const FMetaSoundBuilderNodeInputHandle& InputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult);
 
 	// Returns node output's data if valid (including things like name and datatype).
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	void GetNodeOutputData(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult) const;
+	void GetNodeOutputData(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult);
 
 	// Returns if a given interface is declared.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
@@ -280,41 +284,67 @@ protected:
 		return Builder;
 	}
 
+	// Runs build, conforming the document and corresponding object data on a MetaSound UObject to that managed by this builder.
 	template <typename UClassType>
-	TScriptInterface<IMetaSoundDocumentInterface> BuildInternal(UObject* Parent, const FMetaSoundBuilderOptions& BuilderOptions) const
+	UClassType* BuildInternal(UObject* Parent, const FMetaSoundBuilderOptions& BuilderOptions) const
 	{
-		FName ObjectName = BuilderOptions.Name;
-		if (!ObjectName.IsNone())
+		using namespace Metasound::Frontend;
+
+		UClassType* MetaSound = nullptr;
+		if (BuilderOptions.ExistingMetaSound)
 		{
-			ObjectName = MakeUniqueObjectName(Parent, UClassType::StaticClass(), BuilderOptions.Name);
+			MetaSound = CastChecked<UClassType>(BuilderOptions.ExistingMetaSound.GetObject());
+
+			// Always unregister if mutating existing object. If bAddToRegistry is set to false,
+			// leaving registered would result in any references to this MetaSound executing on
+			// out-of-date data. If bAddToRegistry is set, then it needs to be unregistered before
+			// being registered as it is below.
+			if (MetaSound)
+			{
+				const FNodeRegistryKey& RegistryKey = MetaSound->GetRegistryKey();
+				if (NodeRegistryKey::IsValid(RegistryKey))
+				{
+					if (FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(RegistryKey))
+					{
+						MetaSound->UnregisterGraphWithFrontend();
+					}
+				}
+			}
+		}
+		else
+		{
+			FName ObjectName = BuilderOptions.Name;
+			if (!ObjectName.IsNone())
+			{
+				ObjectName = MakeUniqueObjectName(Parent, UClassType::StaticClass(), BuilderOptions.Name);
+			}
+
+			MetaSound = NewObject<UClassType>(Parent, ObjectName, RF_Public | RF_Transient);
 		}
 
-		UClassType* NewMetaSound = BuilderOptions.ExistingAsset
-			? CastChecked<UClassType>(BuilderOptions.ExistingAsset.GetObject())
-			: NewObject<UClassType>(Parent, ObjectName, RF_Public | RF_Transient);
-		if (!NewMetaSound)
+		if (MetaSound)
 		{
-			return nullptr;
+			FMetasoundFrontendDocument NewDocument = GetConstBuilder().GetDocument();
+			{
+				// This is required to ensure the newly build document has a unique class
+				// identifier to avoid collisions if added to the Frontend class registry
+				// (either below or at a later point in time).
+				constexpr bool bResetVersion = false;
+				FMetaSoundFrontendDocumentBuilder::InitGraphClassMetadata(NewDocument.RootGraph.Metadata, bResetVersion);
+			}
+
+			MetaSound->SetDocument(MoveTemp(NewDocument));
+			MetaSound->ConformObjectDataToInterfaces();
+
+			if (BuilderOptions.bAddToRegistry)
+			{
+				MetaSound->RegisterGraphWithFrontend();
+			}
+
+			UE_LOG(LogMetaSound, VeryVerbose, TEXT("MetaSound '%s' built from '%s'"), *BuilderOptions.Name.ToString(), *GetFullName());
 		}
 
-		FMetasoundFrontendDocument NewDocument = GetConstBuilder().GetDocument();
-		{
-			// This is required to ensure the newly build document has a unique class
-			// identifier to avoid collisions if added to the Frontend class registry
-			// (either below or at a later point in time).
-			constexpr bool bResetVersion = false;
-			FMetaSoundFrontendDocumentBuilder::InitGraphClassMetadata(NewDocument.RootGraph.Metadata, bResetVersion);
-		}
-		NewMetaSound->SetDocument(MoveTemp(NewDocument));
-		NewMetaSound->ConformObjectDataToInterfaces();
-
-		if (BuilderOptions.bAddToRegistry)
-		{
-			NewMetaSound->RegisterGraphWithFrontend();
-		}
-
-		UE_LOG(LogMetaSound, VeryVerbose, TEXT("New MetaSound '%s' built from '%s'"), *BuilderOptions.Name.ToString(), *GetFullName());
-		return NewMetaSound;
+		return MetaSound;
 	}
 
 	UPROPERTY()

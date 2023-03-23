@@ -766,6 +766,11 @@ const FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked() cons
 	return *Document;
 }
 
+const Metasound::Frontend::FNodeRegistryKey& FMetasoundAssetBase::GetRegistryKey() const
+{
+	return RegistryKey;
+}
+
 FString FMetasoundAssetBase::GetOwningAssetName() const
 {
 	if (const UObject* OwningAsset = GetOwningAsset())

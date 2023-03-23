@@ -27,7 +27,7 @@ TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundEditorSubsystem::BuildTo
 			InBuilder->SetAuthor(Author);
 
 			FMetaSoundBuilderOptions BuilderOptions { FName(*AssetName) };
-			BuilderOptions.ExistingAsset = NewMetaSound;
+			BuilderOptions.ExistingMetaSound = NewMetaSound;
 			TScriptInterface<IMetaSoundDocumentInterface> DocInterface = InBuilder->Build(Parent, BuilderOptions);
 
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(NewMetaSound);

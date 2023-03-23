@@ -9,6 +9,7 @@
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "Metasound.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundGeneratorHandle.h"
@@ -298,7 +299,7 @@ void UMetaSoundBuilderBase::DisconnectNodesByInterfaceBindings(const FMetaSoundN
 	OutResult = bEdgesRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
-FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::FindNodeInputByName(const FMetaSoundNodeHandle& NodeHandle, FName InputName, EMetaSoundBuilderResult& OutResult) const
+FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::FindNodeInputByName(const FMetaSoundNodeHandle& NodeHandle, FName InputName, EMetaSoundBuilderResult& OutResult)
 {
 	if (const FMetasoundFrontendNode* Node = Builder.FindNode(NodeHandle.NodeID))
 	{
@@ -311,20 +312,30 @@ FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::FindNodeInputByName(cons
 			return FMetaSoundBuilderNodeInputHandle { Node->GetID(), Input->VertexID };
 		}
 
-		UE_LOG(LogMetaSound, Display, TEXT("Failed to find node input by name with builder '%s'. Node of class '%s' has no input named '%s'"), *GetName(), *InputName.ToString());
+		FString NodeClassName = TEXT("N/A");
+		if (const FMetasoundFrontendClass* Class = Builder.FindDependency(Node->ClassID))
+		{
+			NodeClassName = Class->Metadata.GetClassName().ToString();
+		}
+
+		UE_LOG(LogMetaSound, Display, TEXT("Builder '%s' failed to find node input '%s': Node class '%s' contains no such input"), *GetName(), *InputName.ToString(), *NodeClassName);
+	}
+	else
+	{
+		UE_LOG(LogMetaSound, Display, TEXT("Builder '%s' failed to find node input '%s': Node with ID '%s' not found"), *GetName(), *InputName.ToString(), *NodeHandle.NodeID.ToString());
 	}
 
-	UE_LOG(LogMetaSound, Display, TEXT("Failed to find node input by name with builder '%s'. Node of with ID '%s' not found"), *GetName(), *NodeHandle.NodeID.ToString());
+
 	OutResult = EMetaSoundBuilderResult::Failed;
 	return { };
 }
 
-TArray<FMetaSoundBuilderNodeInputHandle> UMetaSoundBuilderBase::FindNodeInputs(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult) const
+TArray<FMetaSoundBuilderNodeInputHandle> UMetaSoundBuilderBase::FindNodeInputs(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult)
 {
 	return FindNodeInputsByDataType(NodeHandle, OutResult, { });
 }
 
-TArray<FMetaSoundBuilderNodeInputHandle> UMetaSoundBuilderBase::FindNodeInputsByDataType(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult, FName DataType) const
+TArray<FMetaSoundBuilderNodeInputHandle> UMetaSoundBuilderBase::FindNodeInputsByDataType(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult, FName DataType)
 {
 	TArray<FMetaSoundBuilderNodeInputHandle> FoundVertices;
 	if (Builder.ContainsNode(NodeHandle.NodeID))
@@ -345,7 +356,7 @@ TArray<FMetaSoundBuilderNodeInputHandle> UMetaSoundBuilderBase::FindNodeInputsBy
 	return FoundVertices;
 }
 
-FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::FindNodeOutputByName(const FMetaSoundNodeHandle& NodeHandle, FName OutputName, EMetaSoundBuilderResult& OutResult) const
+FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::FindNodeOutputByName(const FMetaSoundNodeHandle& NodeHandle, FName OutputName, EMetaSoundBuilderResult& OutResult)
 {
 	if (const FMetasoundFrontendNode* Node = Builder.FindNode(NodeHandle.NodeID))
 	{
@@ -357,20 +368,30 @@ FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::FindNodeOutputByName(co
 			OutResult = EMetaSoundBuilderResult::Succeeded;
 			return FMetaSoundBuilderNodeOutputHandle { Node->GetID(), Output->VertexID };
 		}
-		UE_LOG(LogMetaSound, Display, TEXT("Failed to find node output by name with builder '%s'. Node of class '%s' has no output named '%s'"), *GetName(), *OutputName.ToString());
+
+		FString NodeClassName = TEXT("N/A");
+		if (const FMetasoundFrontendClass* Class = Builder.FindDependency(Node->ClassID))
+		{
+			NodeClassName = Class->Metadata.GetClassName().ToString();
+		}
+
+		UE_LOG(LogMetaSound, Display, TEXT("Builder '%s' failed to find node output '%s': Node class '%s' contains no such output"), *GetName(), *OutputName.ToString(), *NodeClassName);
+	}
+	else
+	{
+		UE_LOG(LogMetaSound, Display, TEXT("Builder '%s' failed to find node output '%s': Node with ID '%s' not found"), *GetName(), *OutputName.ToString(), *NodeHandle.NodeID.ToString());
 	}
 
-	UE_LOG(LogMetaSound, Display, TEXT("Failed to find node output by name with builder '%s'. Node of with ID '%s' not found"), *GetName(), *NodeHandle.NodeID.ToString());
 	OutResult = EMetaSoundBuilderResult::Failed;
 	return { };
 }
 
-TArray<FMetaSoundBuilderNodeOutputHandle> UMetaSoundBuilderBase::FindNodeOutputs(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult) const
+TArray<FMetaSoundBuilderNodeOutputHandle> UMetaSoundBuilderBase::FindNodeOutputs(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult)
 {
 	return FindNodeOutputsByDataType(NodeHandle, OutResult, { });
 }
 
-TArray<FMetaSoundBuilderNodeOutputHandle> UMetaSoundBuilderBase::FindNodeOutputsByDataType(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult, FName DataType) const
+TArray<FMetaSoundBuilderNodeOutputHandle> UMetaSoundBuilderBase::FindNodeOutputsByDataType(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult, FName DataType)
 {
 	TArray<FMetaSoundBuilderNodeOutputHandle> FoundVertices;
 	if (Builder.ContainsNode(NodeHandle.NodeID))
@@ -391,7 +412,7 @@ TArray<FMetaSoundBuilderNodeOutputHandle> UMetaSoundBuilderBase::FindNodeOutputs
 	return FoundVertices;
 }
 
-TArray<FMetaSoundNodeHandle> UMetaSoundBuilderBase::FindInterfaceInputNodes(FName InterfaceName, EMetaSoundBuilderResult& OutResult) const
+TArray<FMetaSoundNodeHandle> UMetaSoundBuilderBase::FindInterfaceInputNodes(FName InterfaceName, EMetaSoundBuilderResult& OutResult)
 {
 	TArray<FMetaSoundNodeHandle> NodeHandles;
 
@@ -414,7 +435,7 @@ TArray<FMetaSoundNodeHandle> UMetaSoundBuilderBase::FindInterfaceInputNodes(FNam
 	return NodeHandles;
 }
 
-TArray<FMetaSoundNodeHandle> UMetaSoundBuilderBase::FindInterfaceOutputNodes(FName InterfaceName, EMetaSoundBuilderResult& OutResult) const
+TArray<FMetaSoundNodeHandle> UMetaSoundBuilderBase::FindInterfaceOutputNodes(FName InterfaceName, EMetaSoundBuilderResult& OutResult)
 {
 	TArray<FMetaSoundNodeHandle> NodeHandles;
 
@@ -436,7 +457,7 @@ TArray<FMetaSoundNodeHandle> UMetaSoundBuilderBase::FindInterfaceOutputNodes(FNa
 	return NodeHandles;
 }
 
-FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphInputNode(FName InputName, EMetaSoundBuilderResult& OutResult) const
+FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphInputNode(FName InputName, EMetaSoundBuilderResult& OutResult)
 {
 	if (const FMetasoundFrontendNode* GraphInputNode = Builder.FindGraphInputNode(InputName))
 	{
@@ -448,7 +469,7 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphInputNode(FName InputName, 
 	return { };
 }
 
-FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphOutputNode(FName OutputName, EMetaSoundBuilderResult& OutResult) const
+FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphOutputNode(FName OutputName, EMetaSoundBuilderResult& OutResult)
 {
 	if (const FMetasoundFrontendNode* GraphOutputNode = Builder.FindGraphOutputNode(OutputName))
 	{
@@ -524,7 +545,7 @@ void UMetaSoundBuilderBase::SetNodeInputDefault(const FMetaSoundBuilderNodeInput
 	OutResult = bInputDefaultSet ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
-FMetaSoundNodeHandle UMetaSoundBuilderBase::FindNodeInputParent(const FMetaSoundBuilderNodeInputHandle& InputHandle, EMetaSoundBuilderResult& OutResult) const
+FMetaSoundNodeHandle UMetaSoundBuilderBase::FindNodeInputParent(const FMetaSoundBuilderNodeInputHandle& InputHandle, EMetaSoundBuilderResult& OutResult)
 {
 	if (Builder.ContainsNode(InputHandle.NodeID))
 	{
@@ -536,7 +557,7 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::FindNodeInputParent(const FMetaSound
 	return { };
 }
 
-FMetaSoundNodeHandle UMetaSoundBuilderBase::FindNodeOutputParent(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, EMetaSoundBuilderResult& OutResult) const
+FMetaSoundNodeHandle UMetaSoundBuilderBase::FindNodeOutputParent(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, EMetaSoundBuilderResult& OutResult)
 {
 	if (Builder.ContainsNode(OutputHandle.NodeID))
 	{
@@ -548,7 +569,7 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::FindNodeOutputParent(const FMetaSoun
 	return { };
 }
 
-FMetasoundFrontendVersion UMetaSoundBuilderBase::FindNodeClassVersion(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult) const
+FMetasoundFrontendVersion UMetaSoundBuilderBase::FindNodeClassVersion(const FMetaSoundNodeHandle& NodeHandle, EMetaSoundBuilderResult& OutResult)
 {
 	if (const FMetasoundFrontendNode* Node = Builder.FindNode(NodeHandle.NodeID))
 	{
@@ -563,7 +584,7 @@ FMetasoundFrontendVersion UMetaSoundBuilderBase::FindNodeClassVersion(const FMet
 	return FMetasoundFrontendVersion::GetInvalid();
 }
 
-void UMetaSoundBuilderBase::GetNodeInputData(const FMetaSoundBuilderNodeInputHandle& InputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult) const
+void UMetaSoundBuilderBase::GetNodeInputData(const FMetaSoundBuilderNodeInputHandle& InputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult)
 {
 	if (const FMetasoundFrontendVertex* Vertex = Builder.FindNodeInput(InputHandle.NodeID, InputHandle.VertexID))
 	{
@@ -579,9 +600,9 @@ void UMetaSoundBuilderBase::GetNodeInputData(const FMetaSoundBuilderNodeInputHan
 	}
 }
 
-void UMetaSoundBuilderBase::GetNodeOutputData(const FMetaSoundBuilderNodeOutputHandle& InputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult) const
+void UMetaSoundBuilderBase::GetNodeOutputData(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult)
 {
-	if (const FMetasoundFrontendVertex* Vertex = Builder.FindNodeInput(InputHandle.NodeID, InputHandle.VertexID))
+	if (const FMetasoundFrontendVertex* Vertex = Builder.FindNodeOutput(OutputHandle.NodeID, OutputHandle.VertexID))
 	{
 		Name = Vertex->Name;
 		DataType = Vertex->TypeName;
@@ -595,9 +616,9 @@ void UMetaSoundBuilderBase::GetNodeOutputData(const FMetaSoundBuilderNodeOutputH
 	}
 }
 
-TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundPatchBuilder::Build(UObject* Parent, const FMetaSoundBuilderOptions& BuildOptions) const
+TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundPatchBuilder::Build(UObject* Parent, const FMetaSoundBuilderOptions& InBuilderOptions) const
 {
-	return BuildInternal<UMetaSoundPatch>(Parent, BuildOptions);
+	return BuildInternal<UMetaSoundPatch>(Parent, InBuilderOptions);
 }
 
 UClass& UMetaSoundPatchBuilder::GetBuilderUClass() const
@@ -612,9 +633,10 @@ UClass& UMetaSoundSourceBuilder::GetBuilderUClass() const
 
 void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioComponent, FOnCreateAuditionGeneratorHandleDelegate CreateGenerator)
 {
-	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSourceBuilder::Audition);
-
+	using namespace Metasound;
 	using namespace Metasound::Frontend;
+
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSourceBuilder::Audition);
 
 	if (!AudioComponent)
 	{
@@ -622,14 +644,12 @@ void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioCo
 		return;
 	}
 
-	// kevin.cavanaugh [3/13/2023] - Rebuilding the audition sound currently isn't working. 
-	// Forcing a rebuild each time for now.
-	/*if (AuditionSound.IsValid())
-	{
-		const FMetasoundFrontendDocument& Doc = GetConstBuilder().GetDocument();
-		AuditionSound->SetDocument(Doc);
-		AuditionSound->ConformObjectDataToInterfaces();
+	FMetaSoundBuilderOptions BuilderOptions;
+	BuilderOptions.bAddToRegistry = true;
 
+	if (AuditionSound.IsValid())
+	{
+		BuilderOptions.ExistingMetaSound = AuditionSound.Get();
 		if (USoundBase* Sound = AudioComponent->GetSound())
 		{
 			if (Sound != AuditionSound)
@@ -637,26 +657,18 @@ void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioCo
 				UE_LOG(LogMetaSound, Warning, TEXT("MetaSoundBuilder '%s' supplied AudioComponent with unlinked sound '%s'. Stopping sound and replacing with builder's audition sound."),
 					*GetFullName(),
 					*Sound->GetFullName());
-				AudioComponent->SetSound(AuditionSound.Get());
 			}
 		}
-		else
-		{
-			AudioComponent->SetSound(AuditionSound.Get());
-		}
 	}
-	else*/
+	else
 	{
-		FMetaSoundBuilderOptions BuildOptions;
-		BuildOptions.Name = MakeUniqueObjectName(nullptr, UMetaSoundSource::StaticClass(), FName(GetName() + TEXT("_Audition")));
-		BuildOptions.bAddToRegistry = false;
+		BuilderOptions.Name = MakeUniqueObjectName(nullptr, UMetaSoundSource::StaticClass(), FName(GetName() + TEXT("_Audition")));
+	}
 
-		TScriptInterface<IMetaSoundDocumentInterface> DocumentInterface = Build(Parent, BuildOptions);
-		AuditionSound = Cast<UMetaSoundSource>(DocumentInterface.GetObject());
-		if (AuditionSound.IsValid())
-		{
-			AudioComponent->SetSound(AuditionSound.Get());
-		}
+	AuditionSound = BuildInternal<UMetaSoundSource>(Parent, BuilderOptions);
+	if (AuditionSound.IsValid())
+	{
+		AudioComponent->SetSound(AuditionSound.Get());
 	}
 
 	if (CreateGenerator.IsBound())
@@ -669,9 +681,9 @@ void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioCo
 	AudioComponent->Play();
 }
 
-TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundSourceBuilder::Build(UObject* Parent, const FMetaSoundBuilderOptions& BuildOptions) const
+TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundSourceBuilder::Build(UObject* Parent, const FMetaSoundBuilderOptions& InBuilderOptions) const
 {
-	return BuildInternal<UMetaSoundSource>(Parent, BuildOptions);
+	return BuildInternal<UMetaSoundSource>(Parent, InBuilderOptions);
 }
 
 const Metasound::Engine::FOutputAudioFormatInfoPair* UMetaSoundSourceBuilder::FindOutputAudioFormatInfo() const
