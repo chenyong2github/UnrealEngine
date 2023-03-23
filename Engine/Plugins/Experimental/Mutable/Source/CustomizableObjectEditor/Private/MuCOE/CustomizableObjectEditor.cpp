@@ -1141,10 +1141,10 @@ TSharedRef<SWidget> FCustomizableObjectEditor::GenerateCompileOptionsMenuContent
 		CompileOptimizationStrings.Add(MakeShareable(new FString(NSLOCTEXT("UnrealEd", "OptimizationMin", "Minimal").ToString())));
 		CompileOptimizationStrings.Add(MakeShareable(new FString(NSLOCTEXT("UnrealEd", "OptimizationMed", "Medium").ToString())));
 		CompileOptimizationStrings.Add(MakeShareable(new FString(NSLOCTEXT("UnrealEd", "OptimizationMax", "Maximum").ToString())));
-		int32 SelectedOptimization = FMath::Clamp(CustomizableObject->CompileOptions.OptimizationLevel,0, CompileOptimizationStrings.Num()-1);
 
 		if (CustomizableObject)
 		{
+			int32 SelectedOptimization = FMath::Clamp(CustomizableObject->CompileOptions.OptimizationLevel, 0, CompileOptimizationStrings.Num() - 1);
 			CompileOptimizationCombo =
 				SNew(STextComboBox)
 				.OptionsSource(&CompileOptimizationStrings)
