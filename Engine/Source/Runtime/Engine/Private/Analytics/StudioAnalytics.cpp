@@ -135,7 +135,7 @@ void FStudioAnalytics::RecordEvent(const FString& EventName, const TArray<FAnaly
 
 void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double SecondsSpentLoading, const TArray<FAnalyticsEventAttribute>& InAttributes)
 {
-	const int SchemaVersion = 1;
+	const int SchemaVersion = 2;
 
 	// Ignore anything less than a 1/4th a second.
 	if (SecondsSpentLoading < 0.250)
