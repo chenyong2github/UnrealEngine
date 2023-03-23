@@ -152,8 +152,8 @@ void ULevelStreamingLevelInstance::PrepareLevelInstanceLoadedActor(AActor& InAct
 	{
 		InActor.PushLevelInstanceEditingStateToProxies(CastChecked<AActor>(InLevelInstance)->IsInEditingLevelInstance());
 
-		const FGuid& LevelInstanceGuid = InLevelInstance->GetLevelInstanceID().GetGuid();
-		FSetActorInstanceGuid SetActorInstanceGuid(&InActor, FGuid::Combine(LevelInstanceGuid, InActor.GetActorGuid()));
+		const FActorContainerID& ContainerID = InLevelInstance->GetLevelInstanceID().GetContainerID();
+		FSetActorInstanceGuid SetActorInstanceGuid(&InActor, ContainerID.GetActorGuid(InActor.GetActorGuid()));
 	}
 
 	if (LevelInstanceEditorInstanceActor.IsValid())

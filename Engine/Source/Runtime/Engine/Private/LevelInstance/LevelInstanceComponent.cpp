@@ -2,6 +2,7 @@
 #include "LevelInstance/LevelInstanceComponent.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
@@ -63,7 +64,7 @@ bool ULevelInstanceComponent::ShouldShowSpriteComponent() const
 
 void ULevelInstanceComponent::PreEditUndo()
 {
-	CachedFilter = Filter;
+	UndoRedoCachedFilter = Filter;
 }
 
 void ULevelInstanceComponent::PostEditUndo()
@@ -73,12 +74,12 @@ void ULevelInstanceComponent::PostEditUndo()
 	UpdateComponentToWorld();
 	UpdateEditorInstanceActor();
 
-	if (Filter != CachedFilter)
+	if (Filter != UndoRedoCachedFilter)
 	{
 		FWorldPartitionActorFilter::RequestFilterRefresh(false);
 		FWorldPartitionActorFilter::GetOnWorldPartitionActorFilterChanged().Broadcast();
 	}
-	CachedFilter = FWorldPartitionActorFilter();
+	UndoRedoCachedFilter = FWorldPartitionActorFilter();
 }
 
 void ULevelInstanceComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -140,6 +141,33 @@ void ULevelInstanceComponent::OnCommit()
 	{
 		SpriteComponent->SetVisibility(ShouldShowSpriteComponent());
 	}
+}
+
+const TMap<FActorContainerID, TSet<FGuid>>& ULevelInstanceComponent::GetFilteredActorsPerContainer() const
+{
+	if (CachedFilter != Filter)
+	{
+		CachedFilteredActorsPerContainer.Reset();
+	}
+
+	if (CachedFilteredActorsPerContainer.IsSet())
+	{
+		return CachedFilteredActorsPerContainer.GetValue();
+	}
+
+	TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
+	if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(GetOwner()))
+	{
+		// Fill Container Instance Filter
+		UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
+		check(WorldPartitionSubsystem);
+				
+		FilteredActors = WorldPartitionSubsystem->GetFilteredActorsPerContainer(LevelInstance->GetLevelInstanceID().GetContainerID(), LevelInstance->GetWorldAssetPackage(), Filter);
+	}
+	
+	CachedFilteredActorsPerContainer = MoveTemp(FilteredActors);
+	CachedFilter = Filter;
+	return CachedFilteredActorsPerContainer.GetValue();
 }
 
 #endif

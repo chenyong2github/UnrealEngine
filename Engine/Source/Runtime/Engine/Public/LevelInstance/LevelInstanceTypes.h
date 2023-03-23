@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
 #include "Templates/SubclassOf.h"
+#include "WorldPartition/WorldPartitionActorContainerID.h"
 #include "LevelInstanceTypes.generated.h"
 
 // FLevelInstanceID is a runtime unique id that is computed from the Hash of LevelInstance Actor Guid and all its ancestor LevelInstance Actor Guids.
@@ -33,11 +34,11 @@ struct FLevelInstanceID
 
 	inline uint64 GetHash() const { return Hash; }
 
-	inline const FGuid& GetGuid() const { return Guid; }
+	inline const FActorContainerID& GetContainerID() const { return ContainerID; }
 
 private:
 	uint64 Hash = 0;
-	FGuid Guid;
+	FActorContainerID ContainerID;
 	TArray<FGuid> Guids;
 	FName ActorName;
 };

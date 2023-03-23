@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 #include "WorldPartition/Filter/WorldPartitionActorFilter.h"
+#include "WorldPartition/WorldPartitionActorContainerID.h"
 
 #include "LevelInstanceComponent.generated.h"
 
@@ -38,6 +39,7 @@ public:
 
 	const FWorldPartitionActorFilter& GetFilter() const { return Filter; }
 	void SetFilter(const FWorldPartitionActorFilter& InFilter);
+	const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
 private:
 	bool ShouldShowSpriteComponent() const;
 
@@ -48,6 +50,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = Filter, meta=(LevelInstanceFilter))
 	FWorldPartitionActorFilter Filter;
 
-	FWorldPartitionActorFilter CachedFilter;
+	FWorldPartitionActorFilter UndoRedoCachedFilter;
+
+	mutable FWorldPartitionActorFilter CachedFilter;
+	mutable TOptional<TMap<FActorContainerID, TSet<FGuid>>> CachedFilteredActorsPerContainer;
 #endif
 };

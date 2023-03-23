@@ -4,9 +4,15 @@
 
 #include "WorldPartitionStreamingSource.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "WorldPartition/Filter/WorldPartitionActorFilter.h"
+#include "WorldPartition/WorldPartitionActorContainerID.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Misc/Guid.h"
 #include "WorldPartitionSubsystem.generated.h"
 
 class UWorldPartition;
+class UActorDescContainer;
 class FWorldPartitionActorDesc;
 
 enum class EWorldPartitionRuntimeCellState : uint8;
@@ -22,6 +28,12 @@ class ENGINE_API UWorldPartitionSubsystem : public UTickableWorldSubsystem
 
 public:
 	UWorldPartitionSubsystem();
+
+	//~ Begin UObject Interface
+#if WITH_EDITOR
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+#endif
+	//~ End UObject Interface
 
 	//~ Begin USubsystem Interface.
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -65,9 +77,52 @@ public:
 	void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
 
 #if WITH_EDITOR
+	FWorldPartitionActorFilter GetWorldPartitionActorFilter(const FString& InWorldPackage) const;
+	TMap<FActorContainerID, TSet<FGuid>> GetFilteredActorsPerContainer(const FActorContainerID& InContainerID, const FString& InWorldPackage, const FWorldPartitionActorFilter& InActorFilter);
+
 	static bool IsRunningConvertWorldPartitionCommandlet();
 
+	UActorDescContainer* RegisterContainer(FName PackageName) { return ActorDescContainerInstanceManager.RegisterContainer(PackageName, GetWorld()); }
+	void UnregisterContainer(UActorDescContainer* Container) { ActorDescContainerInstanceManager.UnregisterContainer(Container); }
+	FBox GetContainerBounds(FName PackageName) const { return ActorDescContainerInstanceManager.GetContainerBounds(PackageName); }
+	void UpdateContainerBounds(FName PackageName) { ActorDescContainerInstanceManager.UpdateContainerBounds(PackageName); }
+
 	TSet<FWorldPartitionActorDesc*> SelectedActorDescs;
+
+	class FActorDescContainerInstanceManager
+	{
+		friend class UWorldPartitionSubsystem;
+
+		struct FActorDescContainerInstance
+		{
+			FActorDescContainerInstance()
+				: Container(nullptr)
+				, RefCount(0)
+				, Bounds(ForceInit)
+			{}
+
+			void AddReferencedObjects(FReferenceCollector& Collector);
+			void UpdateBounds();
+
+			UActorDescContainer* Container;
+			uint32 RefCount;
+			FBox Bounds;
+		};
+
+		void AddReferencedObjects(FReferenceCollector& Collector);
+
+	public:
+		UActorDescContainer* RegisterContainer(FName PackageName, UWorld* InWorld);
+		void UnregisterContainer(UActorDescContainer* Container);
+
+		FBox GetContainerBounds(FName PackageName) const;
+		void UpdateContainerBounds(FName PackageName);
+
+	private:
+		TMap<FName, FActorDescContainerInstance> ActorDescContainers;
+	};
+private:
+	FWorldPartitionActorFilter GetWorldPartitionActorFilterInternal(const FString& InWorldPackage, TSet<FString>& InOutVisitedPackages) const;
 #endif
 
 protected:
@@ -99,5 +154,6 @@ private:
 
 #if WITH_EDITOR
 	bool bIsRunningConvertWorldPartitionCommandlet;
+	mutable FActorDescContainerInstanceManager ActorDescContainerInstanceManager;
 #endif
 };

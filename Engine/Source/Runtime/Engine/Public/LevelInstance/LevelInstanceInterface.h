@@ -6,6 +6,7 @@
 #include "UObject/Interface.h"
 #include "UObject/SoftObjectPtr.h"
 #include "LevelInstance/LevelInstanceTypes.h"
+#include "WorldPartition/WorldPartitionActorContainerID.h"
 #include "LevelInstanceInterface.generated.h"
 
 class ULevelInstanceComponent;
@@ -117,5 +118,7 @@ class ENGINE_API ILevelInstanceInterface
 	virtual bool MoveActorsTo(const TArray<AActor*>& ActorsToMove);
 
 	virtual const FWorldPartitionActorFilter& GetFilter() const;
+
+	virtual const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
 #endif
 };

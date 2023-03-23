@@ -13,6 +13,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 #include "WorldPartition/WorldPartitionActorDescArchive.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -79,12 +80,12 @@ void FLevelInstanceActorDesc::UpdateBounds()
 {
 	check(LevelInstanceContainerWorldContext.IsValid());
 
-	ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(LevelInstanceContainerWorldContext.Get());
-	check(LevelInstanceSubsystem);
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(LevelInstanceContainerWorldContext.Get());
+	check(WorldPartitionSubsystem);
 
 	FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelPackage));
 	FTransform FinalLevelTransform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
-	FBox ContainerBounds = LevelInstanceSubsystem->GetContainerBounds(LevelPackage).TransformBy(FinalLevelTransform);
+	FBox ContainerBounds = WorldPartitionSubsystem->GetContainerBounds(LevelPackage).TransformBy(FinalLevelTransform);
 
 	ContainerBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
 }
@@ -101,10 +102,10 @@ void FLevelInstanceActorDesc::RegisterContainerInstance(UWorld* InWorldContext)
 			check(InWorldContext);
 			LevelInstanceContainerWorldContext = InWorldContext;
 
-			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(InWorldContext);
-			check(LevelInstanceSubsystem);
+			UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(InWorldContext);
+			check(WorldPartitionSubsystem);
 
-			LevelInstanceContainer = LevelInstanceSubsystem->RegisterContainer(LevelPackage);
+			LevelInstanceContainer = WorldPartitionSubsystem->RegisterContainer(LevelPackage);
 			check(LevelInstanceContainer.IsValid());
 
 			// Should only be called on RegisterContainerInstance before ActorDesc is hashed
@@ -119,10 +120,10 @@ void FLevelInstanceActorDesc::UnregisterContainerInstance()
 	{
 		check(LevelInstanceContainerWorldContext.IsValid());
 
-		ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(LevelInstanceContainerWorldContext.Get());
-		check(LevelInstanceSubsystem);
+		UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(LevelInstanceContainerWorldContext.Get());
+		check(WorldPartitionSubsystem);
 
-		LevelInstanceSubsystem->UnregisterContainer(LevelInstanceContainer.Get());
+		WorldPartitionSubsystem->UnregisterContainer(LevelInstanceContainer.Get());
 		LevelInstanceContainer.Reset();
 	}
 
@@ -187,65 +188,10 @@ bool FLevelInstanceActorDesc::GetContainerInstance(const FGetContainerInstancePa
 		if (InParams.bBuildFilter)
 		{
 			// Fill Container Instance Filter
-			ULevelInstanceSubsystem* LevelInstanceSubsystem = UWorld::GetSubsystem<ULevelInstanceSubsystem>(LevelInstanceContainerWorldContext.Get());
-			check(LevelInstanceSubsystem);
+			UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(LevelInstanceContainerWorldContext.Get());
+			check(WorldPartitionSubsystem);
 
-			FWorldPartitionActorFilter ContainerFilter = LevelInstanceSubsystem->GetLevelInstanceFilter(LevelInstanceContainer->GetContainerPackage().ToString());
-			ContainerFilter.Override(Filter);
-
-			// Flatten Filter to FActorContainerID map
-			TMap<FActorContainerID, TSet<FSoftObjectPath>> FilteredOutDataLayersPerContainer;
-			TFunction<void(const FActorContainerID&, const FWorldPartitionActorFilter&)> ProcessFilter = [&FilteredOutDataLayersPerContainer, &ProcessFilter](const FActorContainerID& InContainerID, const FWorldPartitionActorFilter& InContainerFilter)
-			{
-				check(!FilteredOutDataLayersPerContainer.Contains(InContainerID));
-				TSet<FSoftObjectPath>& Filtered = FilteredOutDataLayersPerContainer.Add(InContainerID);
-
-				for (auto& [AssetPath, DataLayerFilter] : InContainerFilter.DataLayerFilters)
-				{
-					if (!DataLayerFilter.bIncluded)
-					{
-						Filtered.Add(AssetPath);
-					}
-				}
-
-				for (auto& [ActorGuid, WorldPartitionActorFilter] : InContainerFilter.GetChildFilters())
-				{
-					ProcessFilter(FActorContainerID(InContainerID, ActorGuid), *WorldPartitionActorFilter);
-				}
-			};
-
-			ProcessFilter(InParams.ContainerID, ContainerFilter);
-
-			TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&FilteredOutDataLayersPerContainer, &OutContainerInstance, &ProcessContainers, &InParams](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
-			{
-				const TSet<FSoftObjectPath>& Filtered = FilteredOutDataLayersPerContainer.FindChecked(InContainerID);
-				for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
-				{
-					if (ActorDescIt->GetDataLayers().Num() > 0 && ActorDescIt->IsUsingDataLayerAsset())
-					{
-						for (FName DataLayerName : ActorDescIt->GetDataLayers())
-						{
-							FSoftObjectPath DataLayerAsset(DataLayerName.ToString());
-							if (Filtered.Contains(DataLayerAsset))
-							{
-								OutContainerInstance.FilteredActors.FindOrAdd(InContainerID).Add(ActorDescIt->GetGuid());
-								break;
-							}
-						}
-					}
-
-					if (ActorDescIt->IsContainerInstance())
-					{
-						FWorldPartitionActorDesc::FContainerInstance ChildContainerInstance;
-						if (ActorDescIt->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ChildContainerInstance))
-						{
-							ProcessContainers(FActorContainerID(InContainerID, ActorDescIt->GetGuid()), ChildContainerInstance.Container);
-						}
-					}
-				}
-			};
-
-			ProcessContainers(InParams.ContainerID, OutContainerInstance.Container);
+			OutContainerInstance.FilteredActors = WorldPartitionSubsystem->GetFilteredActorsPerContainer(InParams.ContainerID, LevelInstanceContainer->GetContainerPackage().ToString(), Filter);
 		}
 		return true;
 	}

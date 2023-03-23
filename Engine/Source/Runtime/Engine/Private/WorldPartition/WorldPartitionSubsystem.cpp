@@ -4,11 +4,15 @@
 #include "SceneView.h"
 #include "UnrealEngine.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
+#include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "Engine/Canvas.h"
 #include "Engine/CoreSettings.h"
+#include "Engine/LevelBounds.h"
 #include "Debug/DebugDrawService.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
@@ -120,11 +124,234 @@ const UWorldPartition* UWorldPartitionSubsystem::GetWorldPartition() const
 }
 
 #if WITH_EDITOR
+void UWorldPartitionSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UWorldPartitionSubsystem* This = CastChecked<UWorldPartitionSubsystem>(InThis);
+
+	This->ActorDescContainerInstanceManager.AddReferencedObjects(Collector);
+}
+
+FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilter(const FString& InWorldPackage) const
+{
+	TSet<FString> VisitedPackages;
+	return GetWorldPartitionActorFilterInternal(InWorldPackage, VisitedPackages);
+}
+
+
+FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilterInternal(const FString& InWorldPackage, TSet<FString>& InOutVisitedPackages) const
+{
+	if (InOutVisitedPackages.Contains(InWorldPackage))
+	{
+		return FWorldPartitionActorFilter(InWorldPackage);
+	}
+
+	InOutVisitedPackages.Add(InWorldPackage);
+
+	// Most of the time if this will return an existing Container but when loading a new LevelInstance (Content Browser Drag&Drop, Create LI) 
+	// This will make sure Container exists.
+	UActorDescContainer* LevelContainer = ActorDescContainerInstanceManager.RegisterContainer(*InWorldPackage, GetWorld());
+	check(LevelContainer);
+	ON_SCOPE_EXIT{ ActorDescContainerInstanceManager.UnregisterContainer(LevelContainer); };
+
+	// Lazy create filter for now
+	TArray<const FWorldPartitionActorDesc*> ContainerActorDescs;
+	const FWorldDataLayersActorDesc* WorldDataLayersActorDesc = nullptr;
+
+	for (FActorDescList::TConstIterator<> ActorDescIt(LevelContainer); ActorDescIt; ++ActorDescIt)
+	{
+		if (ActorDescIt->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
+		{
+			check(!WorldDataLayersActorDesc);
+			WorldDataLayersActorDesc = static_cast<const FWorldDataLayersActorDesc*>(*ActorDescIt);
+		}
+		else if (ActorDescIt->IsContainerInstance())
+		{
+			ContainerActorDescs.Add(*ActorDescIt);
+		}
+	}
+
+	FWorldPartitionActorFilter Filter(InWorldPackage);
+
+	if (WorldDataLayersActorDesc)
+	{
+		for (const FDataLayerInstanceDesc& DataLayerInstanceDesc : WorldDataLayersActorDesc->GetDataLayerInstances())
+		{
+			// For now consider all DataLayerInstances using Assets as filters that are included by default
+			if (DataLayerInstanceDesc.IsUsingAsset() && DataLayerInstanceDesc.GetAsset() && DataLayerInstanceDesc.GetAsset()->SupportsActorFilters())
+			{
+				Filter.DataLayerFilters.Add(FSoftObjectPath(DataLayerInstanceDesc.GetAssetPath().ToString()), FWorldPartitionActorFilter::FDataLayerFilter(DataLayerInstanceDesc.GetShortName(), DataLayerInstanceDesc.IsIncludedInActorFilterDefault()));
+			}
+		}
+	}
+
+	for (const FWorldPartitionActorDesc* ContainerActorDesc : ContainerActorDescs)
+	{
+		TSet<FString> VisitedPackagesCopy(InOutVisitedPackages);
+
+		// Get World Default Filter
+		FWorldPartitionActorFilter* ChildFilter = new FWorldPartitionActorFilter(GetWorldPartitionActorFilterInternal(ContainerActorDesc->GetLevelPackage().ToString(), VisitedPackagesCopy));
+		ChildFilter->DisplayName = ContainerActorDesc->GetActorLabelOrName().ToString();
+
+		// Apply Filter to Default
+		if (const FWorldPartitionActorFilter* ContainerFilter = ContainerActorDesc->GetContainerFilter())
+		{
+			ChildFilter->Override(*ContainerFilter);
+		}
+
+		Filter.AddChildFilter(ContainerActorDesc->GetGuid(), ChildFilter);
+	}
+
+	return Filter;
+}
+
+TMap<FActorContainerID, TSet<FGuid>> UWorldPartitionSubsystem::GetFilteredActorsPerContainer(const FActorContainerID& InContainerID, const FString& InWorldPackage, const FWorldPartitionActorFilter& InActorFilter)
+{
+	TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
+
+	FWorldPartitionActorFilter ContainerFilter = GetWorldPartitionActorFilter(InWorldPackage);
+	ContainerFilter.Override(InActorFilter);
+
+	// Flatten Filter to FActorContainerID map
+	TMap<FActorContainerID, TSet<FSoftObjectPath>> FilteredOutDataLayersPerContainer;
+	TFunction<void(const FActorContainerID&, const FWorldPartitionActorFilter&)> ProcessFilter = [&FilteredOutDataLayersPerContainer, &ProcessFilter](const FActorContainerID& InContainerID, const FWorldPartitionActorFilter& InContainerFilter)
+	{
+		check(!FilteredOutDataLayersPerContainer.Contains(InContainerID));
+		TSet<FSoftObjectPath>& Filtered = FilteredOutDataLayersPerContainer.Add(InContainerID);
+
+		for (auto& [AssetPath, DataLayerFilter] : InContainerFilter.DataLayerFilters)
+		{
+			if (!DataLayerFilter.bIncluded)
+			{
+				Filtered.Add(AssetPath);
+			}
+		}
+
+		for (auto& [ActorGuid, WorldPartitionActorFilter] : InContainerFilter.GetChildFilters())
+		{
+			ProcessFilter(FActorContainerID(InContainerID, ActorGuid), *WorldPartitionActorFilter);
+		}
+	};
+
+	ProcessFilter(InContainerID, ContainerFilter);
+
+	TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&FilteredOutDataLayersPerContainer, &FilteredActors, &ProcessContainers](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
+	{
+		const TSet<FSoftObjectPath>& Filtered = FilteredOutDataLayersPerContainer.FindChecked(InContainerID);
+		for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
+		{
+			if (ActorDescIt->GetDataLayers().Num() > 0 && ActorDescIt->IsUsingDataLayerAsset())
+			{
+				for (FName DataLayerName : ActorDescIt->GetDataLayers())
+				{
+					FSoftObjectPath DataLayerAsset(DataLayerName.ToString());
+					if (Filtered.Contains(DataLayerAsset))
+					{
+						FilteredActors.FindOrAdd(InContainerID).Add(ActorDescIt->GetGuid());
+						break;
+					}
+				}
+			}
+
+			if (ActorDescIt->IsContainerInstance())
+			{
+				FWorldPartitionActorDesc::FContainerInstance ChildContainerInstance;
+				if (ActorDescIt->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ChildContainerInstance))
+				{
+					ProcessContainers(FActorContainerID(InContainerID, ActorDescIt->GetGuid()), ChildContainerInstance.Container);
+				}
+			}
+		}
+	};
+
+	UActorDescContainer* Container = RegisterContainer(*InWorldPackage);
+	ProcessContainers(InContainerID, Container);
+	UnregisterContainer(Container);
+
+	return FilteredActors;
+}
+
+
 bool UWorldPartitionSubsystem::IsRunningConvertWorldPartitionCommandlet()
 {
 	static UClass* WorldPartitionConvertCommandletClass = FindObject<UClass>(nullptr, TEXT("/Script/UnrealEd.WorldPartitionConvertCommandlet"), true);
 	check(WorldPartitionConvertCommandletClass);
 	return GetRunningCommandletClass() && GetRunningCommandletClass()->IsChildOf(WorldPartitionConvertCommandletClass);
+}
+
+void UWorldPartitionSubsystem::FActorDescContainerInstanceManager::FActorDescContainerInstance::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(Container);
+}
+
+void UWorldPartitionSubsystem::FActorDescContainerInstanceManager::FActorDescContainerInstance::UpdateBounds()
+{
+	Bounds.Init();
+	for (FActorDescList::TIterator<> ActorDescIt(Container); ActorDescIt; ++ActorDescIt)
+	{
+		if (ActorDescIt->GetActorNativeClass()->IsChildOf<ALevelBounds>())
+		{
+			continue;
+		}
+		Bounds += ActorDescIt->GetRuntimeBounds();
+	}
+}
+
+void UWorldPartitionSubsystem::FActorDescContainerInstanceManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (auto& [Name, ContainerInstance] : ActorDescContainers)
+	{
+		ContainerInstance.AddReferencedObjects(Collector);
+	}
+}
+
+UActorDescContainer* UWorldPartitionSubsystem::FActorDescContainerInstanceManager::RegisterContainer(FName PackageName, UWorld* InWorld)
+{
+	FActorDescContainerInstance* ExistingContainerInstance = &ActorDescContainers.FindOrAdd(PackageName);
+	UActorDescContainer* ActorDescContainer = ExistingContainerInstance->Container;
+
+	if (ExistingContainerInstance->RefCount++ == 0)
+	{
+		ActorDescContainer = NewObject<UActorDescContainer>(GetTransientPackage());
+		ExistingContainerInstance->Container = ActorDescContainer;
+
+		// This will potentially invalidate ExistingContainerInstance due to ActorDescContainers reallocation
+		ActorDescContainer->Initialize({ InWorld, PackageName });
+
+		ExistingContainerInstance = &ActorDescContainers.FindChecked(PackageName);
+		ExistingContainerInstance->UpdateBounds();
+	}
+
+	check(ActorDescContainer->IsTemplateContainer());
+	return ActorDescContainer;
+}
+
+void UWorldPartitionSubsystem::FActorDescContainerInstanceManager::UnregisterContainer(UActorDescContainer* Container)
+{
+	FName PackageName = Container->GetContainerPackage();
+	FActorDescContainerInstance& ExistingContainerInstance = ActorDescContainers.FindChecked(PackageName);
+
+	if (--ExistingContainerInstance.RefCount == 0)
+	{
+		ExistingContainerInstance.Container->Uninitialize();
+		ActorDescContainers.FindAndRemoveChecked(PackageName);
+	}
+}
+
+FBox UWorldPartitionSubsystem::FActorDescContainerInstanceManager::GetContainerBounds(FName PackageName) const
+{
+	if (const FActorDescContainerInstance* ActorDescContainerInstance = ActorDescContainers.Find(PackageName))
+	{
+		return ActorDescContainerInstance->Bounds;
+	}
+	return FBox(ForceInit);
+}
+
+void UWorldPartitionSubsystem::FActorDescContainerInstanceManager::UpdateContainerBounds(FName PackageName)
+{
+	if (FActorDescContainerInstance* ActorDescContainerInstance = ActorDescContainers.Find(PackageName))
+	{
+		ActorDescContainerInstance->UpdateBounds();
+	}
 }
 #endif
 

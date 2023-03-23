@@ -248,6 +248,17 @@ const FWorldPartitionActorFilter& ILevelInstanceInterface::GetFilter() const
 	return NoFilter;
 }
 
+const TMap<FActorContainerID, TSet<FGuid>>& ILevelInstanceInterface::GetFilteredActorsPerContainer() const
+{
+	if (ULevelInstanceComponent* LevelInstanceComponent = GetLevelInstanceComponent())
+	{
+		return LevelInstanceComponent->GetFilteredActorsPerContainer();
+	}
+
+	static TMap<FActorContainerID, TSet<FGuid>> NoFilteredActors;
+	return NoFilteredActors;
+}
+
 #endif
 
 

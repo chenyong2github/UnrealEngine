@@ -2,8 +2,8 @@
 
 #include "LevelInstanceFilterPropertyTypeCustomization.h"
 #include "LevelInstance/LevelInstanceInterface.h"
-#include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceComponent.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -68,10 +68,10 @@ TSharedPtr<FWorldPartitionActorFilterMode::FFilter> FLevelInstanceFilterProperty
 		return nullptr;
 	}
 
-	ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>();
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 
 	// Get the Default Filter for selected WorldAssetPackage
-	TSharedPtr<FWorldPartitionActorFilter> Filter = MakeShared<FWorldPartitionActorFilter>(LevelInstanceSubsystem->GetLevelInstanceFilter(WorldAssetPackage));
+	TSharedPtr<FWorldPartitionActorFilter> Filter = MakeShared<FWorldPartitionActorFilter>(WorldPartitionSubsystem->GetWorldPartitionActorFilter(WorldAssetPackage));
 
 	// Set its name based on single/multi selection (root node name in outliner)
 	Filter->DisplayName = LevelInstances.Num() == 1 ? ActorLabel : TEXT("(Multiple Actors)");
