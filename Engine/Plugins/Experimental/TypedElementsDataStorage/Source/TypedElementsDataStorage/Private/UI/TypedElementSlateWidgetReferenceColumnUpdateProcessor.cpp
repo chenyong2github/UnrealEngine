@@ -3,60 +3,60 @@
 #include "UI/TypedElementSlateWidgetReferenceColumnUpdateProcessor.h"
 
 #include "Elements/Columns/TypedElementSlateWidgetColumns.h"
-#include "MassCommonTypes.h"
-#include "MassExecutionContext.h"
+#include "Elements/Framework/TypedElementQueryBuilder.h"
 
-UTypedElementSlateWidgetReferenceColumnUpdateProcessor::UTypedElementSlateWidgetReferenceColumnUpdateProcessor()
-	: ColumnRemovalQuery(*this)
-	, RowDeletionQuery(*this)
+void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const
 {
-	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
-	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::SyncWorldToMass;
-	ProcessingPhase = EMassProcessingPhase::PrePhysics;
+	RegisterDeleteRowOnWidgetDeleteQuery(DataStorage);
+	RegisterDeleteColumnOnWidgetDeleteQuery(DataStorage);
 }
 
-void UTypedElementSlateWidgetReferenceColumnUpdateProcessor::ConfigureQueries()
+void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterDeleteRowOnWidgetDeleteQuery(ITypedElementDataStorageInterface& DataStorage) const
 {
-	ColumnRemovalQuery.AddRequirement(FTypedElementSlateWidgetReferenceColumn::StaticStruct(), EMassFragmentAccess::ReadOnly);
-	ColumnRemovalQuery.AddTagRequirement(*FTypedElementSlateWidgetReferenceDeletesRowTag::StaticStruct(), EMassFragmentPresence::None);
-	
-	RowDeletionQuery.AddRequirement(FTypedElementSlateWidgetReferenceColumn::StaticStruct(), EMassFragmentAccess::ReadOnly);
-	RowDeletionQuery.AddTagRequirement(*FTypedElementSlateWidgetReferenceDeletesRowTag::StaticStruct(), EMassFragmentPresence::All);
-}
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
 
-void UTypedElementSlateWidgetReferenceColumnUpdateProcessor::Execute(
-	FMassEntityManager& EntityManager, FMassExecutionContext& Context)
-{
-	ColumnRemovalQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
-		{
-			CheckStatus<false>(Context);
-		});
-
-	RowDeletionQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
-		{
-			CheckStatus<true>(Context);
-		});
-}
-
-template<bool DeleteRow>
-void UTypedElementSlateWidgetReferenceColumnUpdateProcessor::CheckStatus(FMassExecutionContext& Context)
-{
-	int32 Index = 0;
-	TArrayView<FTypedElementSlateWidgetReferenceColumn> WidgetColumns =
-		Context.GetMutableFragmentView<FTypedElementSlateWidgetReferenceColumn>();
-	for (FTypedElementSlateWidgetReferenceColumn& WidgetColumn : WidgetColumns)
-	{
-		if (!WidgetColumn.Widget.IsValid())
-		{
-			if constexpr (DeleteRow)
+	DataStorage.RegisterQuery(
+		Select(
+			TEXT("Delete row with deleted widget"),
+			FProcessor(DSI::EQueryTickPhase::PrePhysics, 
+				DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::PrepareSyncExternalToDataStorage))
+				.SetBeforeGroup(DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage)),
+			[](DSI::FQueryContext& Context, TypedElementRowHandle Row, const FTypedElementSlateWidgetReferenceColumn& WidgetReference)
 			{
-				Context.Defer().DestroyEntity(Context.GetEntity(Index));
+				if (!WidgetReference.Widget.IsValid())
+				{
+					Context.RemoveRow(Row);
+				}
 			}
-			else
+		)
+		.Where()
+			.All<FTypedElementSlateWidgetReferenceDeletesRowTag>()
+		.Compile()
+	);
+}
+
+void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterDeleteColumnOnWidgetDeleteQuery(ITypedElementDataStorageInterface& DataStorage) const
+{
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
+
+	DataStorage.RegisterQuery(
+		Select(
+			TEXT("Delete widget column for deleted widget"),
+			FProcessor(DSI::EQueryTickPhase::PrePhysics,
+				DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::PrepareSyncExternalToDataStorage))
+				.SetBeforeGroup(DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage)),
+			[](DSI::FQueryContext& Context, TypedElementRowHandle Row, const FTypedElementSlateWidgetReferenceColumn& WidgetReference)
 			{
-				Context.Defer().RemoveFragment_RuntimeCheck<FTypedElementSlateWidgetReferenceColumn>(Context.GetEntity(Index));
+				if (!WidgetReference.Widget.IsValid())
+				{
+					Context.RemoveColumns<FTypedElementSlateWidgetReferenceColumn>(Row);
+				}
 			}
-		}
-		++Index;
-	}
+		)
+		.Where()
+			.All<FTypedElementSlateWidgetReferenceDeletesRowTag>()
+		.Compile()
+	);
 }

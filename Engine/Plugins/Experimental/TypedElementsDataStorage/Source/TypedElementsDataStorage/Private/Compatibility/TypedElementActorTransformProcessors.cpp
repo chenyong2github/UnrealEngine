@@ -2,132 +2,93 @@
 
 #include "Compatibility/TypedElementActorTransformProcessors.h"
 
+
 #include "Elements/Columns/TypedElementMiscColumns.h"
 #include "Elements/Columns/TypedElementTransformColumns.h"
+#include "Elements/Framework/TypedElementQueryBuilder.h"
 #include "MassActorSubsystem.h"
-#include "MassExecutionContext.h"
 
-/**
- * UTypedElementActorAddTransformColumnProcessor
- */
-
-UTypedElementActorAddTransformColumnProcessor::UTypedElementActorAddTransformColumnProcessor()
-	: Query(*this)
+void UTypedElementActorTransformFactory::RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const
 {
-	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
-	// Run this before the world gets synced to MASS so a new transform is initialized in the same frame.
-	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::SyncWorldToMass);
-	ProcessingPhase = EMassProcessingPhase::PrePhysics;
-	bRequiresGameThreadExecution = true;
+	RegisterActorAddTransformColumn(DataStorage);
+	RegisterActorLocalTransformToColumn(DataStorage);
+	RegisterLocalTransformColumnToActor(DataStorage);
 }
 
-void UTypedElementActorAddTransformColumnProcessor::ConfigureQueries()
+void UTypedElementActorTransformFactory::RegisterActorAddTransformColumn(ITypedElementDataStorageInterface& DataStorage) const
 {
-	Query.AddRequirement(FMassActorFragment::StaticStruct(), EMassFragmentAccess::ReadOnly);
-	Query.AddRequirement(FTypedElementLocalTransformColumn::StaticStruct(), EMassFragmentAccess::ReadOnly, EMassFragmentPresence::None);
-}
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
 
-void UTypedElementActorAddTransformColumnProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
-{
-	Query.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
-		{
-			const FMassActorFragment* ActorIt = Context.GetFragmentView<FMassActorFragment>().GetData();
-			
-			for (FMassEntityHandle Entity : Context.GetEntities())
+	DataStorage.RegisterQuery(
+		Select(
+			TEXT("Add transform column to actor"),
+			FProcessor(DSI::EQueryTickPhase::PrePhysics, 
+				DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::PrepareSyncExternalToDataStorage))
+				.SetBeforeGroup(DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage))
+				.ForceToGameThread(true),
+			[](DSI::FQueryContext& Context, TypedElementRowHandle Row, const FMassActorFragment& Actor)
 			{
-				if (ActorIt->Get()->GetRootComponent())
+				const AActor* ActorInstance = Actor.Get();
+				if (ActorInstance != nullptr && ActorInstance->GetRootComponent())
 				{
-					Context.Defer().AddFragment_RuntimeCheck<FTypedElementLocalTransformColumn>(Entity);
+					Context.AddColumns<FTypedElementLocalTransformColumn>(Row);
 				}
-				
-				++ActorIt;
 			}
-		}
+		)
+		.Where()
+			.None<FTypedElementLocalTransformColumn>()
+		.Compile()
 	);
 }
 
-
-/**
- * UTypedElementActorLocalTransformToColumnProcessor
- */
-
-UTypedElementActorLocalTransformToColumnProcessor::UTypedElementActorLocalTransformToColumnProcessor()
-	: Query(*this)
+void UTypedElementActorTransformFactory::RegisterActorLocalTransformToColumn(ITypedElementDataStorageInterface& DataStorage) const
 {
-	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
-	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::SyncWorldToMass;
-	ProcessingPhase = EMassProcessingPhase::PrePhysics;
-	bRequiresGameThreadExecution = true;
-}
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
 
-void UTypedElementActorLocalTransformToColumnProcessor::ConfigureQueries()
-{
-	Query.AddRequirement(FMassActorFragment::StaticStruct(), EMassFragmentAccess::ReadOnly);
-	Query.AddRequirement(FTypedElementLocalTransformColumn::StaticStruct(), EMassFragmentAccess::ReadWrite);
-}
-
-void UTypedElementActorLocalTransformToColumnProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
-{
-	Query.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
-		{
-			const FMassActorFragment* ActorIt = Context.GetFragmentView<FMassActorFragment>().GetData();
-			FTypedElementLocalTransformColumn* TransformIt = Context.GetMutableFragmentView<FTypedElementLocalTransformColumn>().GetData();
-
-			for (FMassEntityHandle Entity : Context.GetEntities())
+	DataStorage.RegisterQuery(
+		Select(
+			TEXT("Sync actor transform to column"),
+			FProcessor(DSI::EQueryTickPhase::PrePhysics, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage))
+				.ForceToGameThread(true),
+			[](DSI::FQueryContext& Context, TypedElementRowHandle Row, const FMassActorFragment& Actor, FTypedElementLocalTransformColumn& Transform)
 			{
-				const AActor* ActorInstance = ActorIt->Get();
+				const AActor* ActorInstance = Actor.Get();
 				if (ActorInstance != nullptr && ActorInstance->GetRootComponent() != nullptr)
 				{
-					TransformIt->Transform = ActorIt->Get()->GetActorTransform();
+					Transform.Transform = ActorInstance->GetActorTransform();
 				}
 				else
 				{
-					Context.Defer().RemoveFragment_RuntimeCheck<FTypedElementLocalTransformColumn>(Entity);
+					Context.RemoveColumns<FTypedElementLocalTransformColumn>(Row);
 				}
-				
-				++ActorIt;
-				++TransformIt;
 			}
-		}
+		)
+		.Compile()
 	);
 }
 
-
-/**
- * UTypedElementTransformColumnToActorProcessor
- */
-
-UTypedElementTransformColumnToActorProcessor::UTypedElementTransformColumnToActorProcessor()
-	: Query(*this)
+void UTypedElementActorTransformFactory::RegisterLocalTransformColumnToActor(ITypedElementDataStorageInterface& DataStorage) const
 {
-	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
-	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
-	ProcessingPhase = EMassProcessingPhase::FrameEnd;
-	bRequiresGameThreadExecution = true;
-}
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
 
-void UTypedElementTransformColumnToActorProcessor::ConfigureQueries()
-{
-	Query.AddRequirement(FMassActorFragment::StaticStruct(), EMassFragmentAccess::ReadWrite);
-	Query.AddRequirement(FTypedElementLocalTransformColumn::StaticStruct(), EMassFragmentAccess::ReadOnly);
-	Query.AddTagRequirement(*FTypedElementSyncBackToWorldTag::StaticStruct(), EMassFragmentPresence::All);
-}
-
-void UTypedElementTransformColumnToActorProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
-{
-	Query.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
-		{
-			FMassActorFragment* ActorIt = Context.GetMutableFragmentView<FMassActorFragment>().GetData();
-			const FTypedElementLocalTransformColumn* TransformIt = Context.GetFragmentView<FTypedElementLocalTransformColumn>().GetData();
-			
-			const int32 NumEntities = Context.GetNumEntities();
-			for (int32 Index = 0; Index < NumEntities; ++Index)
+	DataStorage.RegisterQuery(
+		Select(
+			TEXT("Sync transform column to actor"),
+			FProcessor(DSI::EQueryTickPhase::FrameEnd, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncDataStorageToExternal))
+				.ForceToGameThread(true),
+			[](FMassActorFragment& Actor, const FTypedElementLocalTransformColumn& Transform)
 			{
-				ActorIt->GetMutable()->SetActorTransform(TransformIt->Transform);
-				
-				++ActorIt;
-				++TransformIt;
+				if (AActor* ActorInstance = Actor.GetMutable(); ActorInstance != nullptr)
+				{
+					ActorInstance->SetActorTransform(Transform.Transform);
+				}
 			}
-		}
+		)
+		.Where()
+			.All< FTypedElementSyncBackToWorldTag>()
+		.Compile()
 	);
 }

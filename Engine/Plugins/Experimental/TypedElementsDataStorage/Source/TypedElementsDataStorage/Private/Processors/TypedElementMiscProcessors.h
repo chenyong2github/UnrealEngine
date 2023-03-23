@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassProcessor.h"
+#include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "UObject/ObjectMacros.h"
 
 #include "TypedElementMiscProcessors.generated.h"
@@ -11,17 +11,12 @@
  * Removes all FTypedElementSyncBackToWorldTags at the end of an update cycle.
  */
 UCLASS()
-class UTypedElementRemoveSyncToWorldTagProcessor : public UMassProcessor
+class UTypedElementRemoveSyncToWorldTagFactory : public UTypedElementDataStorageFactory
 {
 	GENERATED_BODY()
 
 public:
-	UTypedElementRemoveSyncToWorldTagProcessor();
+	~UTypedElementRemoveSyncToWorldTagFactory() override = default;
 
-protected:
-	void ConfigureQueries() override;
-	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
-
-private:
-	FMassEntityQuery Query;
+	void RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const override;
 };

@@ -2,23 +2,18 @@
 
 #pragma once
 
-#include "MassObserverProcessor.h"
+#include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "UObject/ObjectMacros.h"
 
 #include "TypedElementActorPackagePathToColumnProcessor.generated.h"
 
 UCLASS()
-class UTypedElementActorPackagePathToColumnProcessor : public UMassObserverProcessor
+class UTypedElementActorPackagePathFactory : public UTypedElementDataStorageFactory
 {
 	GENERATED_BODY()
 
 public:
-	UTypedElementActorPackagePathToColumnProcessor();
+	~UTypedElementActorPackagePathFactory() override = default;
 
-protected:
-	void ConfigureQueries() override;
-	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
-
-private:
-	FMassEntityQuery Query;
+	void RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const override;
 };

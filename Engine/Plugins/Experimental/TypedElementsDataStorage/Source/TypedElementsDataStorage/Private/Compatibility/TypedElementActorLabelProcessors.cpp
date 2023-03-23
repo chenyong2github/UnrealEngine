@@ -4,106 +4,70 @@
 
 #include "Elements/Columns/TypedElementMiscColumns.h"
 #include "Elements/Columns/TypedElementLabelColumns.h"
+#include "Elements/Framework/TypedElementQueryBuilder.h"
 #include "Hash/CityHash.h"
 #include "MassActorSubsystem.h"
-#include "MassExecutionContext.h"
 
-/**
- * UTypedElementActorLabelToColumnProcessor
- */
 
-UTypedElementActorLabelToColumnProcessor::UTypedElementActorLabelToColumnProcessor()
-	: Query(*this)
+void UTypedElementActorLabelFactory::RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const
 {
-	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
-	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::SyncWorldToMass;
-	ProcessingPhase = EMassProcessingPhase::PrePhysics;
-	bRequiresGameThreadExecution = true;
+	RegisterActorLabelToColumnQuery(DataStorage);
+	RegisterLabelColumnToActorQuery(DataStorage);
 }
 
-void UTypedElementActorLabelToColumnProcessor::ConfigureQueries()
+void UTypedElementActorLabelFactory::RegisterActorLabelToColumnQuery(ITypedElementDataStorageInterface& DataStorage) const
 {
-	Query.AddRequirement(FMassActorFragment::StaticStruct(), EMassFragmentAccess::ReadOnly);
-	Query.AddRequirement(FTypedElementLabelColumn::StaticStruct(), EMassFragmentAccess::ReadWrite);
-	Query.AddRequirement(FTypedElementLabelHashColumn::StaticStruct(), EMassFragmentAccess::ReadWrite);
-}
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
 
-void UTypedElementActorLabelToColumnProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
-{
-	Query.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
-		{
-			const FMassActorFragment* ActorIt = Context.GetFragmentView<FMassActorFragment>().GetData();
-			FTypedElementLabelColumn* LabelIt = Context.GetMutableFragmentView<FTypedElementLabelColumn>().GetData();
-			FTypedElementLabelHashColumn* LabelHashIt = Context.GetMutableFragmentView<FTypedElementLabelHashColumn>().GetData();
-			
-			const int32 NumEntities = Context.GetNumEntities();
-			for (int32 Index = 0; Index < NumEntities; ++Index)
+	DataStorage.RegisterQuery(
+		Select(
+			TEXT("Sync actor label to column"),
+			FProcessor(DSI::EQueryTickPhase::PrePhysics, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage))
+				.ForceToGameThread(true),
+			[](const FMassActorFragment& Actor, FTypedElementLabelColumn& Label, FTypedElementLabelHashColumn& LabelHash)
 			{
-				const FString& ActorLabel = ActorIt->Get()->GetActorLabel(false);
-				uint64 ActorLabelHash = CityHash64(
-					reinterpret_cast<const char*>(ActorLabel.GetCharArray().GetData()), 
-					ActorLabel.Len() * sizeof(ActorLabel.GetCharArray().GetData()[0]));
-				if (LabelHashIt->LabelHash != ActorLabelHash)
+				if (const AActor* ActorInstance = Actor.Get(); ActorInstance != nullptr)
 				{
-					LabelIt->Label = ActorLabel;
-					LabelHashIt->LabelHash = ActorLabelHash;
+					const FString& ActorLabel = ActorInstance->GetActorLabel(false);
+					uint64 ActorLabelHash = CityHash64(reinterpret_cast<const char*>(*ActorLabel), ActorLabel.Len() * sizeof(**ActorLabel));
+					if (LabelHash.LabelHash != ActorLabelHash)
+					{
+						Label.Label = ActorLabel;
+						LabelHash.LabelHash = ActorLabelHash;
+					}
 				}
-				
-				++ActorIt;
-				++LabelIt;
-				++LabelHashIt;
 			}
-		}
+		)
+		.Compile()
 	);
 }
 
-
-
-/**
- * UTypedElementLabelColumnToActorProcessor
- */
-
-UTypedElementLabelColumnToActorProcessor::UTypedElementLabelColumnToActorProcessor()
-	: Query(*this)
+void UTypedElementActorLabelFactory::RegisterLabelColumnToActorQuery(ITypedElementDataStorageInterface& DataStorage) const
 {
-	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
-	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
-	ProcessingPhase = EMassProcessingPhase::FrameEnd;
-	bRequiresGameThreadExecution = true;
-}
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
 
-void UTypedElementLabelColumnToActorProcessor::ConfigureQueries()
-{
-	Query.AddRequirement(FMassActorFragment::StaticStruct(), EMassFragmentAccess::ReadWrite);
-	Query.AddRequirement(FTypedElementLabelColumn::StaticStruct(), EMassFragmentAccess::ReadOnly);
-	Query.AddRequirement(FTypedElementLabelHashColumn::StaticStruct(), EMassFragmentAccess::ReadOnly);
-	Query.AddTagRequirement(*FTypedElementSyncBackToWorldTag::StaticStruct(), EMassFragmentPresence::All);
-}
-
-void UTypedElementLabelColumnToActorProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
-{
-	Query.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
-		{
-			FMassActorFragment* ActorIt = Context.GetMutableFragmentView<FMassActorFragment>().GetData();
-			const FTypedElementLabelColumn* LabelIt = Context.GetFragmentView<FTypedElementLabelColumn>().GetData();
-			const FTypedElementLabelHashColumn* LabelHashIt = Context.GetFragmentView<FTypedElementLabelHashColumn>().GetData();
-
-			const int32 NumEntities = Context.GetNumEntities();
-			for (int32 Index = 0; Index < NumEntities; ++Index)
+	DataStorage.RegisterQuery(
+		Select(
+			TEXT("Sync label column to actor"),
+			FProcessor(DSI::EQueryTickPhase::FrameEnd, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncDataStorageToExternal))
+				.ForceToGameThread(true),
+			[](DSI::FQueryContext&, FMassActorFragment& Actor, const FTypedElementLabelColumn& Label, const FTypedElementLabelHashColumn& LabelHash)
 			{
-				const FString& ActorLabel = ActorIt->Get()->GetActorLabel(false);
-				uint64 ActorLabelHash = CityHash64(
-					reinterpret_cast<const char*>(ActorLabel.GetCharArray().GetData()),
-					ActorLabel.Len() * sizeof(ActorLabel.GetCharArray().GetData()[0]));
-				if (LabelHashIt->LabelHash != ActorLabelHash)
+				if (AActor* ActorInstance = Actor.GetMutable(); ActorInstance != nullptr)
 				{
-					ActorIt->GetMutable()->SetActorLabel(LabelIt->Label);
+					const FString& ActorLabel = ActorInstance->GetActorLabel(false);
+					uint64 ActorLabelHash = CityHash64(reinterpret_cast<const char*>(*ActorLabel), ActorLabel.Len() * sizeof(**ActorLabel));
+					if (LabelHash.LabelHash != ActorLabelHash)
+					{
+						ActorInstance->SetActorLabel(Label.Label);
+					}
 				}
-				
-				++ActorIt;
-				++LabelIt;
-				++LabelHashIt;
 			}
-		}
+		)
+		.Where()
+			.All<FTypedElementSyncBackToWorldTag>()
+		.Compile()
 	);
 }

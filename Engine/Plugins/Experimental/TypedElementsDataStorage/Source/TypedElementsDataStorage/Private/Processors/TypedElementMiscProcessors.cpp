@@ -2,35 +2,27 @@
 
 #include "Processors/TypedElementMiscProcessors.h"
 
-#include "MassCommonTypes.h"
-#include "MassExecutionContext.h"
 #include "Elements/Columns/TypedElementMiscColumns.h"
+#include "Elements/Framework/TypedElementQueryBuilder.h"
 
-/**
- * UTypedElementRemoveSyncToWorldTagProcessor
- */
-
-UTypedElementRemoveSyncToWorldTagProcessor::UTypedElementRemoveSyncToWorldTagProcessor()
-	: Query(*this)
+void UTypedElementRemoveSyncToWorldTagFactory::RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const
 {
-	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
-	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::UpdateWorldFromMass);
-	ProcessingPhase = EMassProcessingPhase::FrameEnd;
-}
+	using namespace TypedElementQueryBuilder;
+	using DSI = ITypedElementDataStorageInterface;
 
-void UTypedElementRemoveSyncToWorldTagProcessor::ConfigureQueries()
-{
-	Query.AddTagRequirement(*FTypedElementSyncBackToWorldTag::StaticStruct(), EMassFragmentPresence::All);
-}
-
-void UTypedElementRemoveSyncToWorldTagProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
-{
-	Query.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
-		{
-			for (FMassEntityHandle Entity : Context.GetEntities())
+	DataStorage.RegisterQuery(
+		Select(
+			TEXT("Remove 'sync to world' tag"),
+			FProcessor(DSI::EQueryTickPhase::FrameEnd, 
+				DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::FinalizeSyncDataStorageToExternal))
+				.SetAfterGroup(DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncDataStorageToExternal)),
+			[](DSI::FQueryContext& Context, const TypedElementRowHandle* Rows)
 			{
-				Context.Defer().RemoveTag_RuntimeCheck<FTypedElementSyncBackToWorldTag>(Entity);
+				Context.RemoveColumns<FTypedElementSyncBackToWorldTag>(TConstArrayView<TypedElementRowHandle>(Rows, Context.GetRowCount()));
 			}
-		}
+		)
+		.Where()
+			.All<FTypedElementSyncBackToWorldTag>()
+		.Compile()
 	);
 }

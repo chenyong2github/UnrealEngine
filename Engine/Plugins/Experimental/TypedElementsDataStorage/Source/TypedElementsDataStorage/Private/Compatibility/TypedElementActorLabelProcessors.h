@@ -2,48 +2,30 @@
 
 #pragma once
 
-#include "MassProcessor.h"
+#include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "UObject/ObjectMacros.h"
 
 #include "TypedElementActorLabelProcessors.generated.h"
 
-/**
- * Takes the label set on an actor and copies it to the Data Storage if they differ.
- */
+
 UCLASS()
-class UTypedElementActorLabelToColumnProcessor : public UMassProcessor
+class UTypedElementActorLabelFactory : public UTypedElementDataStorageFactory
 {
 	GENERATED_BODY()
 
 public:
-	UTypedElementActorLabelToColumnProcessor();
+	~UTypedElementActorLabelFactory() override = default;
 
-protected:
-	void ConfigureQueries() override;
-	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+	void RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const override;
 
 private:
-	FMassEntityQuery Query;
-};
-
-
-
-/**
- * Takes the label stored in the Data Storage and copies it to the actor's label if the FTypedElementSyncBackToWorldTag
- * has been set and the labels differ.
- */
-UCLASS()
-class UTypedElementLabelColumnToActorProcessor : public UMassProcessor
-{
-	GENERATED_BODY()
-
-public:
-	UTypedElementLabelColumnToActorProcessor();
-
-protected:
-	void ConfigureQueries() override;
-	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
-
-private:
-	FMassEntityQuery Query;
+	/**
+	 * Takes the label set on an actor and copies it to the Data Storage if they differ.
+	 */
+	void RegisterActorLabelToColumnQuery(ITypedElementDataStorageInterface& DataStorage) const;
+	/**
+	 * Takes the label stored in the Data Storage and copies it to the actor's label if the FTypedElementSyncBackToWorldTag
+	 * has been set and the labels differ.
+	 */
+	void RegisterLabelColumnToActorQuery(ITypedElementDataStorageInterface& DataStorage) const;
 };
