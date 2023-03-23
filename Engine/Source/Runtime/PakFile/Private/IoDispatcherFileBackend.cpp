@@ -1245,12 +1245,13 @@ void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InCo
 		&Stats
 	});
 
-	uint64 DecompressionContextCount = uint64(GIoDispatcherDecompressionWorkerCount > 0 ? GIoDispatcherDecompressionWorkerCount : 4);
-	for (uint64 ContextIndex = 0; ContextIndex < DecompressionContextCount; ++ContextIndex)
+	int32 DecompressionContextCount = int32(GIoDispatcherDecompressionWorkerCount > 0 ? GIoDispatcherDecompressionWorkerCount : 4);
+	CompressionContexts.SetNum(DecompressionContextCount);
+	for (TUniquePtr<FFileIoStoreCompressionContext>& CompressionContext : CompressionContexts)
 	{
-		FFileIoStoreCompressionContext* Context = new FFileIoStoreCompressionContext();
-		Context->Next = FirstFreeCompressionContext;
-		FirstFreeCompressionContext = Context;
+		CompressionContext = MakeUnique<FFileIoStoreCompressionContext>();
+		CompressionContext->Next = FirstFreeCompressionContext;
+		FirstFreeCompressionContext = CompressionContext.Get();
 	}
 
 	Thread = FRunnableThread::Create(this, TEXT("IoService"), 0, TPri_AboveNormal);
@@ -1827,7 +1828,7 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 		const bool bScatterAsync = bIsMultithreaded && (!BlockToDecompress->CompressionMethod.IsNone() || BlockToDecompress->EncryptionKey.IsValid() || BlockToDecompress->SignatureHash);
 		if (bScatterAsync)
 		{
-			TGraphTask<FDecompressAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(*this, BlockToDecompress);
+			BlockToDecompress->CompressionContext->Task = TGraphTask<FDecompressAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(*this, BlockToDecompress);
 		}
 		else
 		{
@@ -2058,6 +2059,15 @@ uint32 FFileIoStore::Run()
 			PlatformImpl->ServiceWait();
 		}
 	}
+
+	for (TUniquePtr<FFileIoStoreCompressionContext>& CompressionContext : CompressionContexts)
+	{
+		if (CompressionContext->Task)
+		{
+			CompressionContext->Task->Wait();
+		}
+	}
+
 	return 0;
 }
 
