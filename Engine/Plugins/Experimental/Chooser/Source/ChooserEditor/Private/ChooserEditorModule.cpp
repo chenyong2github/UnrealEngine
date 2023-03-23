@@ -7,6 +7,7 @@
 #include "EnumColumnEditor.h"
 #include "FloatRangeColumnEditor.h"
 #include "GameplayTagColumnEditor.h"
+#include "ObjectColumnEditor.h"
 #include "ChooserTableEditorCommands.h"
 #include "ChooserPropertyAccess.h"
 #include "PropertyEditorModule.h"
@@ -23,6 +24,7 @@ void FModule::StartupModule()
 	RegisterFloatRangeWidgets();
 	RegisterBoolWidgets();
 	RegisterEnumWidgets();
+	RegisterObjectWidgets();
 	
 	FChooserTableEditorCommands::Register();
 
