@@ -860,11 +860,13 @@ void URenderGrid::CopyAllPropertiesExceptJobs(URenderGrid* From)
 	}
 	for (FProperty* Property = StaticClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
-		if (!Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient) && !Property->GetName().Equals("RenderGridJobs"))// if not [Transient] and not "RenderGridJobs"
+		if (!Property->HasAnyPropertyFlags(CPF_Transient | CPF_DuplicateTransient) && !Property->GetName().Equals("RenderGridJobs") && !Property->GetName().Equals("Defaults") && !Property->GetName().Equals("Settings"))// if not [Transient] and not "RenderGridJobs"/"Defaults"/"Settings"
 		{
 			Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(this), Property->ContainerPtrToValuePtr<void>(From));
 		}
 	}
+	Defaults->CopyValuesFrom(From->GetDefaultsObject());
+	Settings->CopyValuesFrom(From->GetSettingsObject());
 }
 
 void URenderGrid::CopyAllProperties(URenderGrid* From)
@@ -975,6 +977,7 @@ URenderGridQueue* URenderGrid::RenderJobs(const TArray<URenderGridJob*>& Jobs)
 		if (URenderGrid* DefaultObject = Cast<URenderGrid>(GetClass()->GetDefaultObject(true)); IsValid(DefaultObject))
 		{
 			CopyAllProperties(DefaultObject);
+			CopyAllUserVariables(DefaultObject);
 			return DefaultObject->RenderJobs(Jobs);
 		}
 		return nullptr;
@@ -1013,6 +1016,7 @@ URenderGridQueue* URenderGrid::RenderJobsSingleFrame(const TArray<URenderGridJob
 		if (URenderGrid* DefaultObject = Cast<URenderGrid>(GetClass()->GetDefaultObject(true)); IsValid(DefaultObject))
 		{
 			CopyAllProperties(DefaultObject);
+			CopyAllUserVariables(DefaultObject);
 			return DefaultObject->RenderJobsSingleFrame(Jobs, Frame);
 		}
 		return nullptr;
@@ -1051,6 +1055,7 @@ URenderGridQueue* URenderGrid::RenderJobsSingleFramePosition(const TArray<URende
 		if (URenderGrid* DefaultObject = Cast<URenderGrid>(GetClass()->GetDefaultObject(true)); IsValid(DefaultObject))
 		{
 			CopyAllProperties(DefaultObject);
+			CopyAllUserVariables(DefaultObject);
 			return DefaultObject->RenderJobsSingleFramePosition(Jobs, FramePosition);
 		}
 		return nullptr;

@@ -89,8 +89,6 @@ void URenderGridBlueprint::Load()
 	{
 		Job->Rename(nullptr, RenderGrid);
 	}
-	RenderGrid->GetDefaultsObject()->Rename(nullptr, RenderGrid);
-	RenderGrid->GetSettingsObject()->Rename(nullptr, RenderGrid);
 }
 
 void URenderGridBlueprint::Save()
@@ -103,8 +101,6 @@ void URenderGridBlueprint::Save()
 			{
 				Job->Rename(nullptr, DefaultObject);
 			}
-			DefaultObject->GetDefaultsObject()->Rename(nullptr, DefaultObject);
-			DefaultObject->GetSettingsObject()->Rename(nullptr, DefaultObject);
 		}
 	}
 }
@@ -119,17 +115,27 @@ void URenderGridBlueprint::PropagateJobsToInstances()
 
 void URenderGridBlueprint::PropagateAllPropertiesExceptJobsToInstances()
 {
-	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this](URenderGrid* Instance)
+	URenderGrid* CDO = GetRenderGridClassDefaultObject();
+	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this, CDO](URenderGrid* Instance)
 	{
 		Instance->CopyAllPropertiesExceptJobs(RenderGrid);
+		if (IsValid(CDO))
+		{
+			Instance->CopyAllUserVariables(CDO);
+		}
 	}));
 }
 
 void URenderGridBlueprint::PropagateAllPropertiesToInstances()
 {
-	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this](URenderGrid* Instance)
+	URenderGrid* CDO = GetRenderGridClassDefaultObject();
+	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this, CDO](URenderGrid* Instance)
 	{
 		Instance->CopyAllProperties(RenderGrid);
+		if (IsValid(CDO))
+		{
+			Instance->CopyAllUserVariables(CDO);
+		}
 	}));
 }
 
@@ -198,7 +204,16 @@ void URenderGridBlueprint::OnPostVariablesChange(UBlueprint* InBlueprint)
 	for (FBPVariableDescription& NewVariable : NewVariables)
 	{
 		uint64 PreviousPropertyFlags = NewVariable.PropertyFlags;
-		NewVariable.PropertyFlags &= ~CPF_Transient;
+		bFoundChange = bFoundChange || NewVariable.HasMetaData(FBlueprintMetadata::MD_ExposeOnSpawn);
+
+		if ((NewVariable.PropertyFlags & CPF_DisableEditOnInstance) == 0)// if [Instance Editable]
+		{
+			NewVariable.PropertyFlags |= CPF_BlueprintReadOnly;// set [Blueprint Read Only] to true
+		}
+		NewVariable.PropertyFlags &= ~CPF_ExposeOnSpawn;
+		NewVariable.PropertyFlags |= CPF_Transient;
+		NewVariable.RemoveMetaData(FBlueprintMetadata::MD_ExposeOnSpawn);
+
 		bFoundChange = bFoundChange || (NewVariable.PropertyFlags != PreviousPropertyFlags);
 	}
 

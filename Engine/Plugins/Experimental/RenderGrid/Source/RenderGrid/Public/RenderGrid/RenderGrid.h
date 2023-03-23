@@ -52,6 +52,12 @@ class RENDERGRID_API URenderGridSettings : public UObject
 public:
 	URenderGridSettings();
 
+	void CopyValuesFrom(URenderGridSettings* From)
+	{
+		PropsSourceType = From->PropsSourceType;
+		PropsSourceOrigin_RemoteControl = From->PropsSourceOrigin_RemoteControl;
+	}
+
 public:
 	/** The type of the properties that a job in this grid can have. */
 	UPROPERTY(/*EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Properties Type")*/)
@@ -88,6 +94,13 @@ class RENDERGRID_API URenderGridDefaults : public UObject
 
 public:
 	URenderGridDefaults();
+
+	void CopyValuesFrom(URenderGridDefaults* From)
+	{
+		LevelSequence = From->LevelSequence;
+		RenderPreset = From->RenderPreset;
+		OutputDirectory = From->OutputDirectory;
+	}
 
 public:
 	/** The default level sequence for new jobs, this is what will be rendered during rendering. A job without a level sequence can't be rendered. */
