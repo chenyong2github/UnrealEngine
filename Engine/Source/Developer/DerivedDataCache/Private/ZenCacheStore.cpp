@@ -366,6 +366,7 @@ public:
 					if (CacheStore.bIsLocalConnection)
 					{
 						BatchRequest.AddInteger(ANSITEXTVIEW("AcceptFlags"), static_cast<uint32_t>(Zen::Http::RpcAcceptOptions::kAllowLocalReferences));
+						BatchRequest.AddInteger(ANSITEXTVIEW("Pid"), FPlatformProcess::GetCurrentProcessId());
 					}
 
 					BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
@@ -660,6 +661,7 @@ public:
 				if (CacheStore.bIsLocalConnection)
 				{
 					BatchRequest.AddInteger(ANSITEXTVIEW("AcceptFlags"), static_cast<uint32_t>(Zen::Http::RpcAcceptOptions::kAllowLocalReferences));
+					BatchRequest.AddInteger(ANSITEXTVIEW("Pid"), FPlatformProcess::GetCurrentProcessId());
 				}
 
 				BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
@@ -819,6 +821,7 @@ public:
 				if (CacheStore.bIsLocalConnection)
 				{
 					BatchRequest.AddInteger(ANSITEXTVIEW("AcceptFlags"), static_cast<uint32_t>(Zen::Http::RpcAcceptOptions::kAllowLocalReferences));
+					BatchRequest.AddInteger(ANSITEXTVIEW("Pid"), FPlatformProcess::GetCurrentProcessId());
 				}
 
 				BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
