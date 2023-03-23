@@ -75,6 +75,7 @@ public class UnrealFrontend : ModuleRules
 				"Sockets",
 				"UdpMessaging",
                 "TcpMessaging",
+				"DirectoryWatcher"
 			}
 		);
 
