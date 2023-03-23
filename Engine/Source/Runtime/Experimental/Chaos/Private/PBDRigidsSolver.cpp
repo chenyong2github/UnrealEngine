@@ -647,6 +647,11 @@ namespace Chaos
 				});
 
 			FGeometryParticleHandle* Handle = Proxy->GetHandle_LowLevel();
+			if(MRewindData)
+			{
+				MRewindData->RemoveObject(Handle);
+			}
+			
 			Proxy->SetHandle(nullptr);
 			const int32 OffsetForRewind = MRewindData ? MRewindData->Capacity() : 0;
 			PendingDestroyPhysicsProxy.Add(FPendingDestroyInfo{Proxy, GetCurrentFrame() + OffsetForRewind, Handle, UniqueIdx});
