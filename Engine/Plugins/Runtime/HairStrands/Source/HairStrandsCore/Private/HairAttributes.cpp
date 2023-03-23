@@ -77,21 +77,6 @@ const TCHAR* GetHairAttributeText(EHairAttribute In, uint32 InFlags)
 	return TEXT("UNKNOWN");
 }
 
-uint32 GetHairAttributeIndex(EHairAttribute In)
-{
-	switch (In)
-	{
-	case EHairAttribute::RootUV:					return HAIR_ATTRIBUTE_ROOTUV;
-	case EHairAttribute::ClumpID:					return HAIR_ATTRIBUTE_CLUMPID;
-	case EHairAttribute::StrandID:					return HAIR_ATTRIBUTE_COUNT;	// We don't store this information (yet)
-	case EHairAttribute::PrecomputedGuideWeights:	return HAIR_ATTRIBUTE_COUNT;	// We don't store this information
-	case EHairAttribute::Color:						return HAIR_ATTRIBUTE_BASECOLOR;
-	case EHairAttribute::Roughness:					return HAIR_ATTRIBUTE_ROUGHNESS;
-	case EHairAttribute::AO:						return HAIR_ATTRIBUTE_AO;
-	}
-	return HAIR_ATTRIBUTE_COUNT;
-}
-
 bool FHairStrandsPoints::HasAttribute(EHairAttribute In) const
 {
 	if (In == EHairAttribute::Color)		{ return PointsBaseColor.Num() > 0; }

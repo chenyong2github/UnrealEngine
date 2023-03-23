@@ -1059,10 +1059,12 @@ static bool TraceTextures(
 			Instance.Common.LengthScale = 1.0f;
 			Instance.Common.Length = GroupData.Strands.RestResource->BulkData.MaxLength;
 			Instance.Common.PositionOffset = FVector3f(GroupData.Strands.RestResource->GetPositionOffset());
-			PACK_HAIR_ATTRIBUTE_OFFSETS(Instance.Common.AttributeOffsets, GroupData.Strands.RestResource->BulkData.AttributeOffsets);
+			PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(Instance.Common.CurveAttributeOffsets, GroupData.Strands.RestResource->BulkData.CurveAttributeOffsets);
+			PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(Instance.Common.PointAttributeOffsets, GroupData.Strands.RestResource->BulkData.PointAttributeOffsets);
 
 			Instance.Resources.PositionBuffer = GroupData.Strands.RestResource->PositionBuffer.SRV;
-			Instance.Resources.AttributeBuffer = GroupData.Strands.RestResource->AttributeBuffer.SRV;
+			Instance.Resources.CurveAttributeBuffer = GroupData.Strands.RestResource->CurveAttributeBuffer.SRV;
+			Instance.Resources.PointAttributeBuffer = GroupData.Strands.RestResource->PointAttributeBuffer.SRV;
 			Instance.Resources.PointToCurveBuffer = GroupData.Strands.RestResource->PointToCurveBuffer.SRV;
 
 			InternalGenerateHairStrandsTextures(

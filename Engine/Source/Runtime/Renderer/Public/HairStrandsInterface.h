@@ -43,7 +43,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCommonParameters, RENDERER_API
 	SHADER_PARAMETER(FVector3f, PrevPositionOffset)
 	SHADER_PARAMETER(FMatrix44f, LocalToWorldPrimitiveTransform)
 	SHADER_PARAMETER(FMatrix44f, LocalToTranslatedWorldPrimitiveTransform)
-	SHADER_PARAMETER_ARRAY(FUintVector4, AttributeOffsets, [HAIR_ATTRIBUTE_OFFSET_COUNT])
+	SHADER_PARAMETER_ARRAY(FUintVector4, CurveAttributeOffsets, [HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT])
+	SHADER_PARAMETER_ARRAY(FUintVector4, PointAttributeOffsets, [HAIR_POINT_ATTRIBUTE_OFFSET_COUNT])
 END_SHADER_PARAMETER_STRUCT()
 
 // Instance resources (RDG)
@@ -52,7 +53,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceResourceParameters, RENDERER_A
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionOffsetBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CurveBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PointToCurveBuffer)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, AttributeBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, CurveAttributeBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, PointAttributeBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 // Instance prev. resources (RDG)
@@ -77,7 +79,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceResourceRawParameters, RENDERE
 	SHADER_PARAMETER_SRV(Buffer<uint>, CurveBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, PointToCurveBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, TangentBuffer)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, AttributeBuffer)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, CurveAttributeBuffer)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, PointAttributeBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 // Instance prev. resources (Raw)
@@ -291,7 +294,8 @@ public:
 			FRDGImportedBuffer PositionBuffer;
 			FRDGImportedBuffer PrevPositionBuffer;
 			FRDGImportedBuffer TangentBuffer;
-			FRDGImportedBuffer AttributeBuffer;
+			FRDGImportedBuffer CurveAttributeBuffer;
+			FRDGImportedBuffer PointAttributeBuffer;
 			FRDGImportedBuffer PointToCurveBuffer;
 			FRDGImportedBuffer PositionOffsetBuffer;
 			FRDGImportedBuffer PrevPositionOffsetBuffer;
@@ -300,7 +304,8 @@ public:
 			FRDGExternalBuffer PositionBufferExternal;
 			FRDGExternalBuffer PrevPositionBufferExternal;
 			FRDGExternalBuffer TangentBufferExternal;
-			FRDGExternalBuffer AttributeBufferExternal;
+			FRDGExternalBuffer CurveAttributeBufferExternal;
+			FRDGExternalBuffer PointAttributeBufferExternal;
 			FRDGExternalBuffer PointToCurveBufferExternal;
 			FRDGExternalBuffer PositionOffsetBufferExternal;
 			FRDGExternalBuffer PrevPositionOffsetBufferExternal;
@@ -309,7 +314,8 @@ public:
 			FShaderResourceViewRHIRef PositionBufferRHISRV				= nullptr;
 			FShaderResourceViewRHIRef PrevPositionBufferRHISRV			= nullptr;
 			FShaderResourceViewRHIRef TangentBufferRHISRV				= nullptr;
-			FShaderResourceViewRHIRef AttributeBufferRHISRV				= nullptr;
+			FShaderResourceViewRHIRef CurveAttributeBufferRHISRV		= nullptr;
+			FShaderResourceViewRHIRef PointAttributeBufferRHISRV		= nullptr;
 			FShaderResourceViewRHIRef PointToCurveBufferRHISRV			= nullptr;
 			FShaderResourceViewRHIRef PositionOffsetBufferRHISRV		= nullptr;
 			FShaderResourceViewRHIRef PrevPositionOffsetBufferRHISRV	= nullptr;

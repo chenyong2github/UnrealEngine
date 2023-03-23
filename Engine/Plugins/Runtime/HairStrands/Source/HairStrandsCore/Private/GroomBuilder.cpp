@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8h");
+	return TEXT("v8m");
 }
 
 namespace FHairStrandsDecimation
@@ -185,7 +185,7 @@ namespace HairStrandsBuilder
 		TArray<uint32> AttributeSeed;
 		TArray<uint32> AttributeLength;
 		TArray<uint32> AttributeClumpIDs;
-		TArray<uint32> AttributeBaseColor;
+		TArray<uint32> AttributeColor;
 		TArray<uint32> AttributeRoughness;
 		TArray<uint32> AttributeAO;
 
@@ -193,7 +193,7 @@ namespace HairStrandsBuilder
 		AttributeLength.SetNum(FMath::DivideAndRoundUp(NumCurves, 2u));		// 2 bytes encoding - Per-Curve
 		if (HasHairAttribute(Attributes, EHairAttribute::RootUV)) 	{ AttributeRootUV.SetNum(NumCurves); }																		// 4 bytes encoding - Per-Curve
 		if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))	{ AttributeClumpIDs.SetNum(bHasMultipleClumpIDs ? NumCurves * 2u : FMath::DivideAndRoundUp(NumCurves, 2u));}// 8 or 2 bytes encoding - Per-Curve
-		if (HasHairAttribute(Attributes, EHairAttribute::Color))	{ AttributeBaseColor.SetNum(NumPoints); }																	// 4 bytes encoding - Per-Vertex
+		if (HasHairAttribute(Attributes, EHairAttribute::Color))	{ AttributeColor.SetNum(NumPoints); }																		// 4 bytes encoding - Per-Vertex
 		if (HasHairAttribute(Attributes, EHairAttribute::Roughness)){ AttributeRoughness.SetNum(FMath::DivideAndRoundUp(NumPoints, 2u)); }										// 1 bytes encoding - Per-Vertex
 		if (HasHairAttribute(Attributes, EHairAttribute::AO))		{ AttributeAO.SetNum(FMath::DivideAndRoundUp(NumPoints, 4u)); }												// 1 bytes encoding - Per-Vertex
 
@@ -256,7 +256,7 @@ namespace HairStrandsBuilder
 				// Per-Vertex Color
 				if (HasHairAttribute(Attributes, EHairAttribute::Color))
 				{
-					uint32& Packed = AttributeBaseColor[PointIndex + IndexOffset];
+					uint32& Packed = AttributeColor[PointIndex + IndexOffset];
 					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].R) * 0x7FF), 0u, 0x7FFu);
 					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].G) * 0x7FF), 0u, 0x7FFu)<<11;
 					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0x3FF), 0u, 0x3FFu)<<22;
@@ -355,38 +355,35 @@ namespace HairStrandsBuilder
 		OutBulkData.ImportedAttributes = HairStrands.GetAttributes();
 		OutBulkData.ImportedAttributeFlags = HairStrands.GetAttributeFlags();
 
-		// Concatenate all attributes
-		TArray<FHairStrandsAttributeFormat::Type> OutPackedAttributes;
+		const uint32 UintToByte = 4;
+
+		// Concatenate all curve-attributes
 		{
+			TArray<FHairStrandsAttributeFormat::Type> OutPackedAttributes;
 			OutPackedAttributes.Reserve(
 				AttributeRootUV.Num() + 
 				AttributeSeed.Num() +
 				AttributeLength.Num() +
-				AttributeClumpIDs.Num() +
-				AttributeBaseColor.Num() +
-				AttributeRoughness.Num() +
-				AttributeAO.Num());
+				AttributeClumpIDs.Num());
 
-			const uint32 UintToByte = 4;
-
-			for (uint32 AttributeIt=0; AttributeIt< HAIR_ATTRIBUTE_COUNT; ++AttributeIt)
+			for (uint32 AttributeIt=0; AttributeIt< HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
 			{
-				OutBulkData.AttributeOffsets[AttributeIt] = HAIR_ATTRIBUTE_INVALID_OFFSET;
+				OutBulkData.CurveAttributeOffsets[AttributeIt] = HAIR_ATTRIBUTE_INVALID_OFFSET;
 			}
 
 			if (HasHairAttribute(Attributes, EHairAttribute::RootUV))
 			{
-				OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_ROOTUV] = OutPackedAttributes.Num() * UintToByte;
+				OutBulkData.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_ROOTUV] = OutPackedAttributes.Num() * UintToByte;
 				OutPackedAttributes.Append(AttributeRootUV);
 			}
 
 			{
-				OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_SEED]   = OutPackedAttributes.Num() * UintToByte;
+				OutBulkData.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_SEED]   = OutPackedAttributes.Num() * UintToByte;
 				OutPackedAttributes.Append(AttributeSeed);
 			}
 
 			{
-				OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_LENGTH] = OutPackedAttributes.Num() * UintToByte;
+				OutBulkData.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_LENGTH] = OutPackedAttributes.Num() * UintToByte;
 				OutPackedAttributes.Append(AttributeLength);
 			}
 
@@ -394,37 +391,53 @@ namespace HairStrandsBuilder
 			{
 				if (HasHairAttributeFlags(OutBulkData.ImportedAttributeFlags, EHairAttributeFlags::HasMultipleClumpIDs))
 				{
-					OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_CLUMPID3] = OutPackedAttributes.Num() * UintToByte;
+					OutBulkData.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_CLUMPID3] = OutPackedAttributes.Num() * UintToByte;
 					OutPackedAttributes.Append(AttributeClumpIDs);
 				}
 				else
 				{
-					OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_CLUMPID] = OutPackedAttributes.Num() * UintToByte;
+					OutBulkData.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_CLUMPID] = OutPackedAttributes.Num() * UintToByte;
 					OutPackedAttributes.Append(AttributeClumpIDs);
 				}
 			}
 
+			CopyToBulkData<FHairStrandsAttributeFormat>(OutBulkData.CurveAttributes, OutPackedAttributes);
+		}
+
+		// Concatenate all point-attributes
+		{
+			TArray<FHairStrandsAttributeFormat::Type> OutPackedAttributes;
+			OutPackedAttributes.Reserve(
+				AttributeColor.Num() +
+				AttributeRoughness.Num() +
+				AttributeAO.Num());
+
+			for (uint32 AttributeIt=0; AttributeIt< HAIR_POINT_ATTRIBUTE_COUNT; ++AttributeIt)
+			{
+				OutBulkData.PointAttributeOffsets[AttributeIt] = HAIR_ATTRIBUTE_INVALID_OFFSET;
+			}
+			
 			if (HasHairAttribute(Attributes, EHairAttribute::Color))
 			{
-				OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_BASECOLOR] = OutPackedAttributes.Num() * UintToByte;
-				OutPackedAttributes.Append(AttributeBaseColor);
+				OutBulkData.PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_COLOR] = OutPackedAttributes.Num() * UintToByte;
+				OutPackedAttributes.Append(AttributeColor);
 			}
 
 			if (HasHairAttribute(Attributes, EHairAttribute::Roughness))
 			{
-				OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_ROUGHNESS] = OutPackedAttributes.Num() * UintToByte;
+				OutBulkData.PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_ROUGHNESS] = OutPackedAttributes.Num() * UintToByte;
 				OutPackedAttributes.Append(AttributeRoughness);
 			}
 
 			if (HasHairAttribute(Attributes, EHairAttribute::AO))
 			{
-				OutBulkData.AttributeOffsets[HAIR_ATTRIBUTE_AO] = OutPackedAttributes.Num() * UintToByte;
+				OutBulkData.PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_AO] = OutPackedAttributes.Num() * UintToByte;
 				OutPackedAttributes.Append(AttributeAO);
 			}
+			CopyToBulkData<FHairStrandsAttributeFormat>(OutBulkData.PointAttributes, OutPackedAttributes);
 		}
 
 		CopyToBulkData<FHairStrandsPositionFormat>(OutBulkData.Positions, OutPackedPositions);
-		CopyToBulkData<FHairStrandsAttributeFormat>(OutBulkData.Attributes, OutPackedAttributes);
 		CopyToBulkData<FHairStrandsCurveFormat>(OutBulkData.Curves, OutPackedCurves);
 		if (bUse16bitsCurveIndex)
 		{

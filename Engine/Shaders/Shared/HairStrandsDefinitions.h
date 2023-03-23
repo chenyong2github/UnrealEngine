@@ -10,16 +10,19 @@
 // Change this to force recompilation of all strata dependent shaders (use https://www.random.org/cgi-bin/randbyte?nbytes=4&format=h)
 #define HAIRSTRANDS_SHADER_VERSION 0x3ba5af0e
 
-// Attribute index
-#define HAIR_ATTRIBUTE_ROOTUV 0
-#define HAIR_ATTRIBUTE_SEED 1
-#define HAIR_ATTRIBUTE_LENGTH 2
-#define HAIR_ATTRIBUTE_BASECOLOR 3
-#define HAIR_ATTRIBUTE_ROUGHNESS 4
-#define HAIR_ATTRIBUTE_AO 5
-#define HAIR_ATTRIBUTE_CLUMPID 6
-#define HAIR_ATTRIBUTE_CLUMPID3 7
-#define HAIR_ATTRIBUTE_COUNT 8
+// Curve Attribute index
+#define HAIR_CURVE_ATTRIBUTE_ROOTUV 0
+#define HAIR_CURVE_ATTRIBUTE_SEED 1
+#define HAIR_CURVE_ATTRIBUTE_LENGTH 2
+#define HAIR_CURVE_ATTRIBUTE_CLUMPID 3
+#define HAIR_CURVE_ATTRIBUTE_CLUMPID3 4
+#define HAIR_CURVE_ATTRIBUTE_COUNT 5
+
+// Point Attribute index
+#define HAIR_POINT_ATTRIBUTE_COLOR 0
+#define HAIR_POINT_ATTRIBUTE_ROUGHNESS 1
+#define HAIR_POINT_ATTRIBUTE_AO 2
+#define HAIR_POINT_ATTRIBUTE_COUNT 3
 
 // Groom limits (based on encoding)
 #define HAIR_MAX_NUM_POINT_PER_CURVE ((1u<<8)-1u)
@@ -58,19 +61,23 @@
 
 #define MAX_HAIR_MACROGROUP_COUNT 16
 
-// HAIR_ATTRIBUTE_MAX rounded to 4
-#define HAIR_ATTRIBUTE_OFFSET_COUNT ((HAIR_ATTRIBUTE_COUNT + 3) / 4)
+// HAIR_XXX_ATTRIBUTE_MAX rounded to 4
+#define HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT ((HAIR_CURVE_ATTRIBUTE_COUNT + 3) / 4)
+#define HAIR_POINT_ATTRIBUTE_OFFSET_COUNT ((HAIR_POINT_ATTRIBUTE_COUNT + 3) / 4)
 
 // Pack all offset into uint4
-#define PACK_HAIR_ATTRIBUTE_OFFSETS(Out, In) \
-	for (uint32 AttributeIt4 = 0; AttributeIt4 < HAIR_ATTRIBUTE_OFFSET_COUNT; ++AttributeIt4) \
+#define PACK_HAIR_ATTRIBUTE_OFFSETS(Out, In, Offset, Count) \
+	for (uint32 AttributeIt4 = 0; AttributeIt4 < Count; ++AttributeIt4) \
 	{ \
-		Out[AttributeIt4] = FUintVector4(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF); \
+		Out[AttributeIt4] = FUintVector4(HAIR_ATTRIBUTE_INVALID_OFFSET, HAIR_ATTRIBUTE_INVALID_OFFSET, HAIR_ATTRIBUTE_INVALID_OFFSET, HAIR_ATTRIBUTE_INVALID_OFFSET); \
 	} \
-	for (uint32 AttributeIt = 0; AttributeIt < HAIR_ATTRIBUTE_COUNT; ++AttributeIt) \
+	for (uint32 AttributeIt = 0; AttributeIt < Offset; ++AttributeIt) \
 	{ \
 		const uint32 Index4 = AttributeIt & (~0x3); \
 		const uint32 SubIndex = AttributeIt - Index4; \
 		const uint32 IndexDiv4 = Index4 >> 2u; \
 		Out[IndexDiv4][SubIndex] = In[AttributeIt]; \
 	}
+
+#define PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(Out, In) PACK_HAIR_ATTRIBUTE_OFFSETS(Out, In, HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT, HAIR_CURVE_ATTRIBUTE_COUNT)
+#define PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(Out, In) PACK_HAIR_ATTRIBUTE_OFFSETS(Out, In, HAIR_POINT_ATTRIBUTE_OFFSET_COUNT, HAIR_POINT_ATTRIBUTE_COUNT)

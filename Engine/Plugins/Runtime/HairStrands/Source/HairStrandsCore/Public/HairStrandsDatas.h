@@ -483,16 +483,18 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	float MaxRadius = 0;
 	FBox BoundingBox = FBox(EForceInit::ForceInit);
 	uint32 Flags = 0;
-	uint32 AttributeOffsets[HAIR_ATTRIBUTE_COUNT] = {0};
+	uint32 CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_COUNT] = {0};
+	uint32 PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_COUNT] = {0};
 
 	/** Imported attribute info */
 	uint32 ImportedAttributes = 0;
 	uint32 ImportedAttributeFlags = 0;
 
-	FByteBulkData Positions;	// Size = PointCount
-	FByteBulkData Attributes;	// Size = x*PointCount + y*CurveCount (depends on the stored attributes, which could be per-vertex(x) or per-curve(y))
-	FByteBulkData PointToCurve; // Size = PointCount
-	FByteBulkData Curves;		// Size = CurveCount
+	FByteBulkData Positions;		// Size = PointCount
+	FByteBulkData CurveAttributes;	// Size = y*CurveCount (depends on the per-curve stored attributes)
+	FByteBulkData PointAttributes;	// Size = x*PointCount (depends on the per-point stored attributes)
+	FByteBulkData PointToCurve; 	// Size = PointCount
+	FByteBulkData Curves;			// Size = CurveCount
 };
 
 /** Hair strands debug data */

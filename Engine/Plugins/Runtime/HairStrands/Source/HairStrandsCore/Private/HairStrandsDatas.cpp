@@ -242,9 +242,13 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	Ar << MaxRadius;
 	Ar << BoundingBox;
 	Ar << Flags;
-	for (uint8 AttributeIt = 0; AttributeIt < HAIR_ATTRIBUTE_COUNT; ++AttributeIt)
+	for (uint8 AttributeIt = 0; AttributeIt < HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
 	{
-		Ar << AttributeOffsets[AttributeIt];
+		Ar << CurveAttributeOffsets[AttributeIt];
+	}
+	for (uint8 AttributeIt = 0; AttributeIt < HAIR_POINT_ATTRIBUTE_COUNT; ++AttributeIt)
+	{
+		Ar << PointAttributeOffsets[AttributeIt];
 	}
 	Ar << ImportedAttributes;
 	Ar << ImportedAttributeFlags;
@@ -255,7 +259,8 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	{
 		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
 		Positions.SetBulkDataFlags(BulkFlags);
-		Attributes.SetBulkDataFlags(BulkFlags);
+		CurveAttributes.SetBulkDataFlags(BulkFlags);
+		PointAttributes.SetBulkDataFlags(BulkFlags);
 		PointToCurve.SetBulkDataFlags(BulkFlags);
 		Curves.SetBulkDataFlags(BulkFlags);
 	}
@@ -266,7 +271,8 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		bool bAttemptFileMapping = false;
 
 		Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		Attributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		PointAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		CurveAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		PointToCurve.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		Curves.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
@@ -280,19 +286,25 @@ void FHairStrandsBulkData::Reset()
 	MaxRadius = 0;
 	BoundingBox = FBox(EForceInit::ForceInit);
 	Flags = 0;
-	for (uint8 AttributeIt = 0; AttributeIt < HAIR_ATTRIBUTE_COUNT; ++AttributeIt)
+	for (uint8 AttributeIt = 0; AttributeIt < HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
 	{
-		AttributeOffsets[AttributeIt] = 0xFFFFFFFF;
+		CurveAttributeOffsets[AttributeIt] = 0xFFFFFFFF;
+	}
+	for (uint8 AttributeIt = 0; AttributeIt < HAIR_POINT_ATTRIBUTE_COUNT; ++AttributeIt)
+	{
+		PointAttributeOffsets[AttributeIt] = 0xFFFFFFFF;
 	}
 	// Deallocate memory if needed
 	Positions.RemoveBulkData();
-	Attributes.RemoveBulkData();
+	CurveAttributes.RemoveBulkData();
+	PointAttributes.RemoveBulkData();
 	PointToCurve.RemoveBulkData();
 	Curves.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
 	Positions 		= FByteBulkData();
-	Attributes		= FByteBulkData();
+	CurveAttributes	= FByteBulkData();
+	PointAttributes	= FByteBulkData();
 	PointToCurve	= FByteBulkData();
 	Curves			= FByteBulkData();
 }

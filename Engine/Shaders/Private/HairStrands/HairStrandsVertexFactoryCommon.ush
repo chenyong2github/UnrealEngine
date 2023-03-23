@@ -162,12 +162,14 @@ FHairCurve UnpackHairCurve(uint In)
 	uint				Prefix##_CurveCount; \
 	float4x4			Prefix##_LocalToWorldPrimitiveTransform; \
 	float4x4			Prefix##_LocalToTranslatedWorldPrimitiveTransform; \
-	uint4				Prefix##_AttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT]; \
+	uint4				Prefix##_CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT]; \
+	uint4				Prefix##_PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_OFFSET_COUNT]; \
 	Buffer<uint4>		Prefix##_PositionBuffer; \
 	Buffer<float4>		Prefix##_PositionOffsetBuffer; \
 	Buffer<uint>		Prefix##_CurveBuffer; \
 	Buffer<uint>		Prefix##_PointToCurveBuffer; \
-	ByteAddressBuffer 	Prefix##_AttributeBuffer; \
+	ByteAddressBuffer 	Prefix##_CurveAttributeBuffer; \
+	ByteAddressBuffer 	Prefix##_PointAttributeBuffer; \
 	Buffer<uint>		Prefix##_CullingIndirectBuffer; \
 	Buffer<uint>		Prefix##_CullingIndexBuffer; \
 	Buffer<float>		Prefix##_CullingRadiusScaleBuffer; \

@@ -136,7 +136,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		int   CachedProceduralSplits = 0;
 		#endif
 
-		FRDGExternalBuffer DebugAttributeBuffer;
+		FRDGExternalBuffer DebugCurveAttributeBuffer;
 		FHairGroupInstanceModifer Modifier;
 
 		FHairStrandsUniformBuffer UniformBuffer;

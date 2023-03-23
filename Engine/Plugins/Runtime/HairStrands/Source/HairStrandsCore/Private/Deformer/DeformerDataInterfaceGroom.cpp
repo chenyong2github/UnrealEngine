@@ -179,7 +179,8 @@ void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder
 			R.PositionOffsetBuffer 	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer);
 			R.CurveBuffer			= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveBuffer);
 			R.PointToCurveBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PointToCurveBuffer);
-			R.AttributeBuffer		= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->AttributeBuffer);
+			R.CurveAttributeBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveAttributeBuffer);
+			R.PointAttributeBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PointAttributeBuffer);
 
 			if (FallbackSRV)
 			{
@@ -218,7 +219,8 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchData const& InD
 			{
 				Parameters.Resources.PositionBuffer			= FallbackSRV;
 				Parameters.Resources.PositionOffsetBuffer 	= FallbackSRV;
-				Parameters.Resources.AttributeBuffer		= FallbackSRV;
+				Parameters.Resources.CurveAttributeBuffer	= FallbackSRV;
+				Parameters.Resources.PointAttributeBuffer	= FallbackSRV;
 				Parameters.Resources.PointToCurveBuffer		= FallbackSRV;
 				Parameters.Resources.CurveBuffer			= FallbackSRV;
 			}

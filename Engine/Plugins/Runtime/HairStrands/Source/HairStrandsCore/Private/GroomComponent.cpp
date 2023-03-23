@@ -2937,7 +2937,7 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 				#endif
 
 				#if WITH_EDITOR
-				LocalInstance->Strands.DebugAttributeBuffer.Release();
+				LocalInstance->Strands.DebugCurveAttributeBuffer.Release();
 				#endif
 
 				InternalResourceRelease(LocalInstance->Strands.VertexFactory);

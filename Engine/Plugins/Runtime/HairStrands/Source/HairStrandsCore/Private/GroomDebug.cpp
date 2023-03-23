@@ -967,15 +967,7 @@ static void AddHairDebugPrintInstancePass(
 					Data2.Y = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
 					Data2.Z = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
 
-					for (uint32 AttributeIt=0; AttributeIt<uint32(EHairAttribute::Count); ++AttributeIt)
-					{
-						const EHairAttribute Attribute = (EHairAttribute)AttributeIt;
-						const uint32 Index = GetHairAttributeIndex(Attribute);
-						if (Index < HAIR_ATTRIBUTE_COUNT)
-						{
-							Data2.W |= Instance->Strands.Data->AttributeOffsets[Index] != 0xFFFFFFFF ? (1u<<AttributeIt) : 0u;
-						}
-					}
+					Data2.W = Instance->Strands.Data->ImportedAttributes;
 				}
 				
 				Data3 = FUintVector4(0);

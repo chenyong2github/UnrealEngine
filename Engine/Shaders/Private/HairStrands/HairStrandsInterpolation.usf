@@ -552,7 +552,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 uint				CurveCount;
 
 Buffer<uint>		RenCurveBuffer;
-uint4				RenAttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT];
+uint4				RenCurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT];
 Buffer<int>			RenVertexToClusterIdBuffer;
 
 #if PERMUTATION_SIMULATION == 1
@@ -627,7 +627,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint GroupThread1D : S
 		Out |= (SeedValues[GroupThread1D+2] & 0xFF) << 16;
 		Out |= (SeedValues[GroupThread1D+3] & 0xFF) << 24;
 
-		const uint OffsetInBytes = HAIR_ATTRIBUTE_OFFSET_SEED(RenAttributeOffsets);
+		const uint OffsetInBytes = HAIR_CURVE_ATTRIBUTE_OFFSET_SEED(RenCurveAttributeOffsets);
 		OutRenAttributeBuffer.Store(OffsetInBytes + CurveIndex, Out);
 	}
 }

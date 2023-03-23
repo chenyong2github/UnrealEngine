@@ -2749,7 +2749,8 @@ void AddMeshDrawTransitionPass(
 			ExternalAccessQueue.Add(VFInput.Strands.PositionBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.TangentBuffer.Buffer);
-			ExternalAccessQueue.Add(VFInput.Strands.AttributeBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.CurveAttributeBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.PointAttributeBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PointToCurveBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PositionOffsetBuffer.Buffer);
 			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionOffsetBuffer.Buffer);
@@ -2767,7 +2768,8 @@ void AddMeshDrawTransitionPass(
 				VFInput.Strands.PositionBuffer				= FRDGImportedBuffer();
 				VFInput.Strands.PrevPositionBuffer			= FRDGImportedBuffer();
 				VFInput.Strands.TangentBuffer				= FRDGImportedBuffer();
-				VFInput.Strands.AttributeBuffer				= FRDGImportedBuffer();
+				VFInput.Strands.CurveAttributeBuffer		= FRDGImportedBuffer();
+				VFInput.Strands.PointAttributeBuffer		= FRDGImportedBuffer();
 				VFInput.Strands.PointToCurveBuffer			= FRDGImportedBuffer();
 				VFInput.Strands.PositionOffsetBuffer		= FRDGImportedBuffer();
 				VFInput.Strands.PrevPositionOffsetBuffer	= FRDGImportedBuffer();
@@ -2843,7 +2845,8 @@ FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& Gra
 		Out.Resources.PositionOffsetBuffer	= Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
 		Out.Resources.CurveBuffer			= Register(GraphBuilder, VFInput.Strands.CurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
 		Out.Resources.PointToCurveBuffer	= Register(GraphBuilder, VFInput.Strands.PointToCurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.Resources.AttributeBuffer		= Register(GraphBuilder, VFInput.Strands.AttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.Resources.CurveAttributeBuffer	= Register(GraphBuilder, VFInput.Strands.CurveAttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		Out.Resources.PointAttributeBuffer	= Register(GraphBuilder, VFInput.Strands.PointAttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
 	}
 	else
 	{
@@ -2851,7 +2854,8 @@ FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& Gra
 		Out.Resources.PositionOffsetBuffer	= VFInput.Strands.PositionOffsetBuffer.SRV;
 		Out.Resources.CurveBuffer			= VFInput.Strands.CurveBuffer.SRV;
 		Out.Resources.PointToCurveBuffer	= VFInput.Strands.PointToCurveBuffer.SRV;
-		Out.Resources.AttributeBuffer		= VFInput.Strands.AttributeBuffer.SRV;
+		Out.Resources.CurveAttributeBuffer	= VFInput.Strands.CurveAttributeBuffer.SRV;
+		Out.Resources.PointAttributeBuffer	= VFInput.Strands.PointAttributeBuffer.SRV;
 	}
 
 	Out.Common = VFInput.Strands.Common;

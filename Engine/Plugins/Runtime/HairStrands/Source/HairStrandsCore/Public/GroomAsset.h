@@ -115,7 +115,8 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		{
 			uint32 Total = 0;
 			Total += BulkData.Positions.IsBulkDataLoaded() 		? BulkData.Positions.GetBulkDataSize()   : 0;
-			Total += BulkData.Attributes.IsBulkDataLoaded()		? BulkData.Attributes.GetBulkDataSize() : 0;
+			Total += BulkData.CurveAttributes.IsBulkDataLoaded()? BulkData.CurveAttributes.GetBulkDataSize() : 0;
+			Total += BulkData.PointAttributes.IsBulkDataLoaded()? BulkData.PointAttributes.GetBulkDataSize() : 0;
 			Total += BulkData.Curves.IsBulkDataLoaded() 		? BulkData.Curves.GetBulkDataSize(): 0;
 			Total += BulkData.PointToCurve.IsBulkDataLoaded()	? BulkData.PointToCurve.GetBulkDataSize() : 0;
 			return Total;

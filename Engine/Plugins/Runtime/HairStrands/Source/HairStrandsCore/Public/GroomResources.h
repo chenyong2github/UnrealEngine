@@ -313,7 +313,8 @@ struct FHairStrandsRestResource : public FHairCommonResource
 		Total += GetBufferTotalNumBytes(PositionBuffer);
 		Total += GetBufferTotalNumBytes(PositionOffsetBuffer);
 		Total += GetBufferTotalNumBytes(TangentBuffer);
-		Total += GetBufferTotalNumBytes(AttributeBuffer);
+		Total += GetBufferTotalNumBytes(PointAttributeBuffer);
+		Total += GetBufferTotalNumBytes(CurveAttributeBuffer);
 		Total += GetBufferTotalNumBytes(PointToCurveBuffer);
 		Total += GetBufferTotalNumBytes(CurveBuffer);
 		return Total;
@@ -328,8 +329,11 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	/* Strand hair tangent buffer (non-allocated unless used for static geometry) */
 	FRDGExternalBuffer TangentBuffer;
 
-	/* Strand hair attribute buffer */
-	FRDGExternalBuffer AttributeBuffer;
+	/* Strand hair per-point attribute buffer */
+	FRDGExternalBuffer PointAttributeBuffer;
+
+	/* Strand hair per-curve attribute buffer */
+	FRDGExternalBuffer CurveAttributeBuffer;
 
 	/* Strand hair vertex to curve index mapping */
 	FRDGExternalBuffer PointToCurveBuffer;
