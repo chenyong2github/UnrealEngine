@@ -20,13 +20,6 @@
 			]
 		},
 		{
-			"Name": "DatasmithIFCImporter",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		},
-		{
 			"Name": "DatasmithC4DImporter",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
