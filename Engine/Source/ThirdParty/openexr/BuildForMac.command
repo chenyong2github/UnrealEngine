@@ -2,15 +2,7 @@
 
 set -e
 
-# Note that for OpenEXR v3.1.5, we've apply the following patch to the
-# OpenEXR source:
-#     openexr_v3.1.5_PR_1268_OSS_Fuzz.patch
-# Issues in the OpenEXR source were identified by OSS Fuzz that have been
-# addressed in the development branch but not yet incorporated into an
-# official release, so we apply the patch in the meantime to bring in those
-# fixes. See the OpenEXR pull request for more detail:
-#     https://github.com/AcademySoftwareFoundation/openexr/pull/1268/files
-OPENEXR_VERSION=3.1.5
+OPENEXR_VERSION=3.1.6
 
 UE_THIRD_PARTY_LOCATION=`cd $(pwd)/..; pwd`
 IMATH_CMAKE_LOCATION="$UE_THIRD_PARTY_LOCATION/Imath/Deploy/Imath-3.1.3/Mac/lib/cmake/Imath"
@@ -39,7 +31,7 @@ rm -rf $INSTALL_INCLUDE_LOCATION
 rm -rf $INSTALL_MAC_LOCATION
 
 mkdir $BUILD_LOCATION
-pushd $BUILD_LOCATION
+pushd $BUILD_LOCATION > /dev/null
 
 CXX_FLAGS="-fvisibility-ms-compat -fvisibility-inlines-hidden"
 
@@ -76,6 +68,6 @@ cmake --build . --config Release
 echo Installing OpenEXR for Release...
 cmake --install . --config Release
 
-popd
+popd > /dev/null
 
 echo Done.

@@ -8,15 +8,6 @@ REPOSITORY_NAME="openexr"
 BUILD_SCRIPT_NAME="$(basename $BASH_SOURCE)"
 BUILD_SCRIPT_DIR=`cd $(dirname "$BASH_SOURCE"); pwd`
 
-# Note that for OpenEXR v3.1.5, we've applied the following patch to the
-# OpenEXR source:
-#     openexr_v3.1.5_PR_1268_OSS_Fuzz.patch
-# Issues in the OpenEXR source were identified by OSS Fuzz that have been
-# addressed in the development branch but not yet incorporated into an
-# official release, so we apply the patch in the meantime to bring in those
-# fixes. See the OpenEXR pull request for more detail:
-#     https://github.com/AcademySoftwareFoundation/openexr/pull/1268/files
-
 UsageAndExit()
 {
     echo "Build $LIBRARY_NAME for use with Unreal Engine on Linux"
@@ -27,11 +18,11 @@ UsageAndExit()
     echo
     echo "Usage examples:"
     echo
-    echo "    $BUILD_SCRIPT_NAME 3.1.5 x86_64-unknown-linux-gnu"
-    echo "      -- Installs $LIBRARY_NAME version 3.1.5 for x86_64 architecture."
+    echo "    $BUILD_SCRIPT_NAME 3.1.6 x86_64-unknown-linux-gnu"
+    echo "      -- Installs $LIBRARY_NAME version 3.1.6 for x86_64 architecture."
     echo
-    echo "    $BUILD_SCRIPT_NAME 3.1.5 aarch64-unknown-linux-gnueabi"
-    echo "      -- Installs $LIBRARY_NAME version 3.1.5 for arm64 architecture."
+    echo "    $BUILD_SCRIPT_NAME 3.1.6 aarch64-unknown-linux-gnueabi"
+    echo "      -- Installs $LIBRARY_NAME version 3.1.6 for arm64 architecture."
     echo
     exit 1
 }
@@ -81,7 +72,7 @@ pushd $BUILD_LOCATION > /dev/null
 
 # Run Engine/Build/BatchFiles/Linux/SetupToolchain.sh first to ensure
 # that the toolchain is setup and verify that this name matches.
-TOOLCHAIN_NAME=v20_clang-13.0.1-centos7
+TOOLCHAIN_NAME=v21_clang-15.0.1-centos7
 
 UE_TOOLCHAIN_LOCATION="$UE_ENGINE_LOCATION/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/$TOOLCHAIN_NAME"
 

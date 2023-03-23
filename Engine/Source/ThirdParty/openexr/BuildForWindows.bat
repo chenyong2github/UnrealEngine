@@ -1,19 +1,11 @@
 @echo off
 setlocal
 
-rem Note that for OpenEXR v3.1.5, we've apply the following patch to the
-rem OpenEXR source:
-rem     openexr_v3.1.5_PR_1268_OSS_Fuzz.patch
-rem Issues in the OpenEXR source were identified by OSS Fuzz that have been
-rem addressed in the development branch but not yet incorporated into an
-rem official release, so we apply the patch in the meantime to bring in those
-rem fixes. See the OpenEXR pull request for more detail:
-rem     https://github.com/AcademySoftwareFoundation/openexr/pull/1268/files
-set OPENEXR_VERSION=3.1.5
+set OPENEXR_VERSION=3.1.6
 
 if [%1]==[] goto usage
 
-rem Set as VS2015 for backwards compatibility even though VS2019 is used
+rem Set as VS2015 for backwards compatibility even though VS2022 is used
 rem when building.
 set COMPILER_VERSION_NAME=VS2015
 set ARCH_NAME=%1
@@ -22,7 +14,8 @@ set UE_THIRD_PARTY_LOCATION=%cd%\..
 set IMATH_CMAKE_LOCATION=%UE_THIRD_PARTY_LOCATION%\Imath\Deploy\Imath-3.1.3\%COMPILER_VERSION_NAME%\%ARCH_NAME%\lib\cmake\Imath
 set ZLIB_LOCATION=%UE_THIRD_PARTY_LOCATION%\zlib\v1.2.8
 set ZLIB_INCLUDE_LOCATION=%ZLIB_LOCATION%\include\Win64\%COMPILER_VERSION_NAME%
-set ZLIB_LIB_LOCATION=%ZLIB_LOCATION%\lib\Win64\%COMPILER_VERSION_NAME%\Release
+set ZLIB_LIBRARY_LOCATION_RELEASE=%ZLIB_LOCATION%\lib\Win64\%COMPILER_VERSION_NAME%\Release\zlibstatic.lib
+set ZLIB_LIBRARY_LOCATION_DEBUG=%ZLIB_LOCATION%\lib\Win64\%COMPILER_VERSION_NAME%\Debug\zlibstatic.lib
 
 set UE_MODULE_LOCATION=%cd%
 
@@ -56,7 +49,8 @@ cmake -G "Visual Studio 17 2022" %SOURCE_LOCATION%^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_LOCATION%"^
     -DCMAKE_PREFIX_PATH="%IMATH_CMAKE_LOCATION%"^
     -DZLIB_INCLUDE_DIR="%ZLIB_INCLUDE_LOCATION%"^
-    -DZLIB_ROOT="%ZLIB_LIB_LOCATION%"^
+    -DZLIB_LIBRARY_RELEASE="%ZLIB_LIBRARY_LOCATION_RELEASE%"^
+    -DZLIB_LIBRARY_DEBUG="%ZLIB_LIBRARY_LOCATION_DEBUG%"^
     -DCMAKE_INSTALL_INCLUDEDIR="%INSTALL_INCLUDEDIR%"^
     -DCMAKE_INSTALL_BINDIR="%INSTALL_BIN_DIR%"^
     -DCMAKE_INSTALL_LIBDIR="%INSTALL_LIB_DIR%"^
