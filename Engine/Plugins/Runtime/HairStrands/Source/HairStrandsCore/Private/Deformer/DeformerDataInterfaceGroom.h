@@ -4,6 +4,7 @@
 
 #include "RenderGraphDefinitions.h"
 #include "OptimusComputeDataInterface.h"
+#include "HairStrandsInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DeformerDataInterfaceGroom.generated.h"
 
@@ -67,14 +68,7 @@ private:
 	using FParameters = FGroomDataInterfaceParameters;
 
 	UGroomComponent* GroomComponent = nullptr; // Should it be HairInstance instead?
-	struct FResources
-	{
-		FRDGBufferSRVRef PositionOffsetSRV = nullptr;
-		FRDGBufferSRVRef PositionSRV = nullptr;
-		FRDGBufferSRVRef AttributeSRV = nullptr;
-		FRDGBufferSRVRef VertexToCurveSRV = nullptr;
-		FRDGBufferSRVRef FallbackSRV = nullptr;
-		FRDGBufferSRVRef CurveSRV = nullptr;
-	};
-	TArray<FResources> Resources;
+	TArray<FHairStrandsInstanceResourceParameters> Resources;
+	FRDGBufferSRVRef FallbackSRV;
+
 };

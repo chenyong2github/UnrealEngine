@@ -617,6 +617,12 @@ class FHairStrandsTextureVS : public FGlobalShader
 	}
 };
 
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceRawParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCommonParameters, Common)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceResourceRawParameters, Resources)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCullingRawParameters, Culling)
+END_SHADER_PARAMETER_STRUCT()
+
 class FHairStrandsTexturePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairStrandsTexturePS);
@@ -628,17 +634,10 @@ class FHairStrandsTexturePS : public FGlobalShader
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(float, MaxDistance)
 		SHADER_PARAMETER(int32, TracingDirection)
-		SHADER_PARAMETER_ARRAY(FUintVector4, InVF_AttributeOffsets, [HAIR_ATTRIBUTE_OFFSET_COUNT])
+		SHADER_PARAMETER_STRUCT(FHairStrandsInstanceRawParameters, InVF)
 
 		SHADER_PARAMETER(uint32, UVsChannelIndex)
 		SHADER_PARAMETER(uint32, UVsChannelCount)
-
-		SHADER_PARAMETER(float, InVF_Radius)
-		SHADER_PARAMETER(FVector3f, InVF_PositionOffset)
-		SHADER_PARAMETER_SRV(Buffer, InVF_PositionBuffer)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, InVF_AttributeBuffer)
-		SHADER_PARAMETER_SRV(Buffer, InVF_VertexToCurveBuffer)
-		SHADER_PARAMETER(uint32, InVF_GroupIndex)
 
 		SHADER_PARAMETER(FVector3f, Voxel_MinBound)
 		SHADER_PARAMETER(FVector3f, Voxel_MaxBound)
@@ -763,15 +762,7 @@ static void InternalGenerateHairStrandsTextures(
 	FRDGBufferRef VoxelOffsetAndCount,
 	FRDGBufferRef VoxelData,
 	
-	FRHIShaderResourceView* InHairStrands_PositionBuffer,
-	FRHIShaderResourceView* InHairStrands_AttributeBuffer,
-	FRHIShaderResourceView* InHairStrands_VertexToCurveBuffer,
-	const FVector& InHairStrands_PositionOffset,
-	float InHairStrands_Radius,
-	float InHairStrands_Length,
-	uint32 InHairStrands_ControlPointCount,
-	uint32 InHairStrands_GroupIndex,
-	const uint32* InHairStrands_AttributeOffsets,
+	FHairStrandsInstanceRawParameters& Instance,
 	FHairStrandsRDGTextures& Out)
 {
 	const FIntPoint OutputResolution = Out.DepthTexture->Desc.Extent;
@@ -789,14 +780,7 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->UVsChannelIndex = UVsChannelIndex;
 	ParametersPS->UVsChannelCount = UVsChannelCount;
 
-	ParametersPS->InVF_PositionBuffer = InHairStrands_PositionBuffer;
-	ParametersPS->InVF_PositionOffset = (FVector3f)InHairStrands_PositionOffset;
-	ParametersPS->InVF_AttributeBuffer = InHairStrands_AttributeBuffer;
-	ParametersPS->InVF_VertexToCurveBuffer = InHairStrands_VertexToCurveBuffer;
-	PACK_HAIR_ATTRIBUTE_OFFSETS(ParametersPS->InVF_AttributeOffsets, InHairStrands_AttributeOffsets);
-
-	ParametersPS->InVF_Radius = InHairStrands_Radius;
-	ParametersPS->InVF_GroupIndex = InHairStrands_GroupIndex;
+	ParametersPS->InVF = Instance;
 	
 	ParametersPS->Voxel_MinBound = VoxelMinBound;
 	ParametersPS->Voxel_MaxBound = VoxelMaxBound;
@@ -1063,6 +1047,23 @@ static bool TraceTextures(
 
 			// Ensure the rest resources are loaded when rendering the strands textures
 			GroupData.Strands.RestResource->Allocate(GraphBuilder, EHairResourceLoadingType::Sync);
+			
+			// Manually setting up parameters, since we don't have a real instance
+			FHairStrandsInstanceRawParameters Instance;
+			Instance.Common.GroupIndex = GroupIndex;
+			Instance.Common.PointCount = GroupData.Strands.RestResource->BulkData.GetNumPoints();
+			Instance.Common.CurveCount = GroupData.Strands.RestResource->BulkData.GetNumCurves();
+			Instance.Common.Radius = RenderingData.GeometrySettings.HairWidth * 0.5f;
+			Instance.Common.RootScale = 1.0f;
+			Instance.Common.TipScale = 1.0f;
+			Instance.Common.LengthScale = 1.0f;
+			Instance.Common.Length = GroupData.Strands.RestResource->BulkData.MaxLength;
+			Instance.Common.PositionOffset = FVector3f(GroupData.Strands.RestResource->GetPositionOffset());
+			PACK_HAIR_ATTRIBUTE_OFFSETS(Instance.Common.AttributeOffsets, GroupData.Strands.RestResource->BulkData.AttributeOffsets);
+
+			Instance.Resources.PositionBuffer = GroupData.Strands.RestResource->PositionBuffer.SRV;
+			Instance.Resources.AttributeBuffer = GroupData.Strands.RestResource->AttributeBuffer.SRV;
+			Instance.Resources.PointToCurveBuffer = GroupData.Strands.RestResource->PointToCurveBuffer.SRV;
 
 			InternalGenerateHairStrandsTextures(
 				GraphBuilder,
@@ -1092,17 +1093,7 @@ static bool TraceTextures(
 				GroupData.Debug.Resource->VoxelDescription.MaxSegmentPerVoxel,
 				VoxelOffsetAndCount,
 				VoxelData,
-
-				GroupData.Strands.RestResource->PositionBuffer.SRV,
-				GroupData.Strands.RestResource->AttributeBuffer.SRV,
-				GroupData.Strands.RestResource->PointToCurveBuffer.SRV,
-				GroupData.Strands.RestResource->GetPositionOffset(),
-				RenderingData.GeometrySettings.HairWidth * 0.5f,
-				GroupData.Strands.RestResource->BulkData.MaxLength,
-				GroupData.Strands.RestResource->BulkData.GetNumPoints(),
-				GroupIndex,
-				GroupData.Strands.RestResource->BulkData.AttributeOffsets,
-
+				Instance,
 				Output);
 
 

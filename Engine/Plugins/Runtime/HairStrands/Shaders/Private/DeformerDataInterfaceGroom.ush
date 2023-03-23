@@ -3,29 +3,18 @@
 #include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsVertexFactoryCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Bindings
 
-uint				{DataInterfaceName}_NumControlPoints;
-uint				{DataInterfaceName}_NumCurves;
-float				{DataInterfaceName}_VF_HairRadius;
-float				{DataInterfaceName}_VF_HairLength;
-float				{DataInterfaceName}_VF_RootScale;
-float				{DataInterfaceName}_VF_TipScale;
-uint				{DataInterfaceName}_VF_GroupIndex;
-uint4				{DataInterfaceName}_VF_AttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT];
-Buffer<float4>		{DataInterfaceName}_PositionOffsetBuffer;
-Buffer<uint4>		{DataInterfaceName}_PositionBuffer;
-ByteAddressBuffer	{DataInterfaceName}_AttributeBuffer;
-Buffer<uint>		{DataInterfaceName}_VertexToCurveBuffer;
-Buffer<uint>		{DataInterfaceName}_CurveBuffer;
+HAIR_STRANDS_INSTANCE_PARAMETERS({DataInterfaceName})
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Helpers
 
 FHairControlPoint ReadControlPointData(uint ControlPointIndex)
 {
-	const uint MaxControlPoints = {DataInterfaceName}_NumControlPoints;
+	const uint MaxControlPoints = {DataInterfaceName}_PointCount;
 	if (ControlPointIndex >= MaxControlPoints)
 	{
 		return (FHairControlPoint)0;
@@ -35,14 +24,14 @@ FHairControlPoint ReadControlPointData(uint ControlPointIndex)
 	return UnpackHairControlPoint(
 		{DataInterfaceName}_PositionBuffer[ControlPointIndex], 
 		{DataInterfaceName}_PositionOffsetBuffer[0],
-		{DataInterfaceName}_VF_HairRadius, 
+		{DataInterfaceName}_Radius, 
 		1.0f /*RootScale*/, 
 		1.0f /*TipScale*/);
 }
 
 FHairCurve ReadCurveData(uint CurveIndex)
 {
-	const uint MaxCurve = {DataInterfaceName}_NumCurves;
+	const uint MaxCurve = {DataInterfaceName}_CurveCount;
 	if (CurveIndex >= MaxCurve)
 	{
 		return (FHairCurve)0;
@@ -56,12 +45,12 @@ FHairCurve ReadCurveData(uint CurveIndex)
 
 uint ReadNumControlPoints_{DataInterfaceName}()
 {
-	return {DataInterfaceName}_NumControlPoints;
+	return {DataInterfaceName}_PointCount;
 }
 
 uint ReadNumCurves_{DataInterfaceName}()
 {
-	return {DataInterfaceName}_NumCurves;
+	return {DataInterfaceName}_CurveCount;
 }
 
 float3 ReadPosition_{DataInterfaceName}(uint ControlPointIndex)
@@ -82,18 +71,18 @@ float ReadCoordU_{DataInterfaceName}(uint ControlPointIndex)
 float ReadLength_{DataInterfaceName}(uint ControlPointIndex)
 {
 	const float CoordU      = ReadControlPointData(ControlPointIndex).UCoord;
-	const float CurveLength = UnpackHairLength(InternalGetHairStrandsAttributesPerCurve(ControlPointIndex, HAIR_ATTRIBUTE_OFFSET_LENGTH({DataInterfaceName}_VF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_LENGTH, {DataInterfaceName}_AttributeBuffer, {DataInterfaceName}_VertexToCurveBuffer));
+	const float CurveLength = UnpackHairLength(InternalGetHairStrandsAttributesPerCurve(ControlPointIndex, HAIR_ATTRIBUTE_OFFSET_LENGTH({DataInterfaceName}_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_LENGTH, {DataInterfaceName}_AttributeBuffer, {DataInterfaceName}_PointToCurveBuffer));
 	return CurveLength * CoordU;
 }
 
 float2 ReadRootUV_{DataInterfaceName}(uint ControlPointIndex)
 {
-	return UnpackHairRootUV(InternalGetHairStrandsAttributesPerCurve(ControlPointIndex, HAIR_ATTRIBUTE_OFFSET_ROOTUV({DataInterfaceName}_VF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_ROOTUV, {DataInterfaceName}_AttributeBuffer, {DataInterfaceName}_VertexToCurveBuffer));
+	return UnpackHairRootUV(InternalGetHairStrandsAttributesPerCurve(ControlPointIndex, HAIR_ATTRIBUTE_OFFSET_ROOTUV({DataInterfaceName}_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_ROOTUV, {DataInterfaceName}_AttributeBuffer, {DataInterfaceName}_PointToCurveBuffer));
 }
 
 float ReadSeed_{DataInterfaceName}(uint ControlPointIndex)
 {
-	return UnpackHairSeed(InternalGetHairStrandsAttributesPerCurve(ControlPointIndex, HAIR_ATTRIBUTE_OFFSET_SEED({DataInterfaceName}_VF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_SEED, {DataInterfaceName}_AttributeBuffer, {DataInterfaceName}_VertexToCurveBuffer));
+	return UnpackHairSeed(InternalGetHairStrandsAttributesPerCurve(ControlPointIndex, HAIR_ATTRIBUTE_OFFSET_SEED({DataInterfaceName}_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_SEED, {DataInterfaceName}_AttributeBuffer, {DataInterfaceName}_PointToCurveBuffer));
 }
 
 float ReadCurveOffsetPoint_{DataInterfaceName}(uint CurveIndex)

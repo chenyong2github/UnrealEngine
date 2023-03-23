@@ -95,19 +95,8 @@ void UOptimusGroomDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefini
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGroomDataInterfaceParameters, )
-	SHADER_PARAMETER(uint32, NumControlPoints)
-	SHADER_PARAMETER(uint32, NumCurves)
-	SHADER_PARAMETER(float, VF_HairRadius)
-	SHADER_PARAMETER(float, VF_HairLength)
-	SHADER_PARAMETER(float, VF_RootScale)
-	SHADER_PARAMETER(float, VF_TipScale)
-	SHADER_PARAMETER(uint32, VF_GroupIndex)
-	SHADER_PARAMETER_ARRAY(FUintVector4, VF_AttributeOffsets, [HAIR_ATTRIBUTE_OFFSET_COUNT])
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>,    PositionOffsetBuffer)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>,     PositionBuffer)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, AttributeBuffer)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,      VertexToCurveBuffer)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,      CurveBuffer)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCommonParameters, Common)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceResourceParameters, Resources)
 END_SHADER_PARAMETER_STRUCT()
 
 void UOptimusGroomDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
@@ -179,18 +168,23 @@ bool FOptimusGroomDataProviderProxy::IsValid(FValidationData const& InValidation
 void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	Resources.Empty();
+	FallbackSRV = nullptr;
 	const uint32 InstanceCount = GroomComponent ? GroomComponent->GetGroupCount() : 0;
 	for (uint32 Index =0; Index <InstanceCount;++Index)
 	{
 		if (FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(Index))
 		{
-			FResources& R = Resources.AddDefaulted_GetRef();
-			R.PositionOffsetSRV = Register(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-			R.PositionSRV		= Register(GraphBuilder, Instance->Strands.RestResource->PositionBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-			R.AttributeSRV		= Register(GraphBuilder, Instance->Strands.RestResource->AttributeBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-			R.VertexToCurveSRV	= Register(GraphBuilder, Instance->Strands.RestResource->PointToCurveBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-			R.CurveSRV			= Register(GraphBuilder, Instance->Strands.RestResource->CurveBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-			R.FallbackSRV		= GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
+			FHairStrandsInstanceResourceParameters& R = Resources.AddDefaulted_GetRef();
+			R.PositionBuffer		= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionBuffer);
+			R.PositionOffsetBuffer 	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer);
+			R.CurveBuffer			= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveBuffer);
+			R.PointToCurveBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PointToCurveBuffer);
+			R.AttributeBuffer		= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->AttributeBuffer);
+
+			if (FallbackSRV)
+			{
+				FallbackSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
+			}
 		}
 	}
 }
@@ -207,38 +201,26 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchData const& InD
 	{
 		if (FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(InvocationIndex))
 		{
-			const bool bIsSRVValid = Resources[InvocationIndex].PositionSRV != nullptr;
+			const bool bIsSRVValid = Resources[InvocationIndex].PositionBuffer != nullptr;
 			const int32 NumControlPoints = bIsSRVValid ? Instance->Strands.Data->GetNumPoints() : 0;
 			const int32 NumCurves = bIsSRVValid ? Instance->Strands.Data->GetNumCurves() : 0;
 
 			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(Instance, EGroomViewMode::None);
 			
 			FParameters& Parameters = ParameterArray[InvocationIndex];
-			Parameters.NumControlPoints = NumControlPoints;
-			Parameters.NumCurves = NumCurves;
-			Parameters.VF_HairRadius = VFInput.Strands.Common.Radius;
-			Parameters.VF_HairLength = VFInput.Strands.Common.Length;
-			Parameters.VF_RootScale  = VFInput.Strands.Common.RootScale;
-			Parameters.VF_TipScale   = VFInput.Strands.Common.TipScale;
-			Parameters.VF_GroupIndex = VFInput.Strands.Common.GroupIndex;// Instance->Debug.GroupIndex;
-			Parameters.VF_AttributeOffsets = VFInput.Strands.Common.AttributeOffsets;
-			//PACK_HAIR_ATTRIBUTE_OFFSETS(Parameters.VF_AttributeOffsets, VFInput.Strands.AttributeOffsets);
+			Parameters.Common = VFInput.Strands.Common;
 
 			if (bIsSRVValid)
 			{
-				Parameters.PositionOffsetBuffer = Resources[InvocationIndex].PositionOffsetSRV;
-				Parameters.PositionBuffer		= Resources[InvocationIndex].PositionSRV;
-				Parameters.AttributeBuffer		= Resources[InvocationIndex].AttributeSRV;
-				Parameters.VertexToCurveBuffer	= Resources[InvocationIndex].VertexToCurveSRV;
-				Parameters.CurveBuffer			= Resources[InvocationIndex].CurveSRV;
+				Parameters.Resources = Resources[InvocationIndex];
 			}
 			else
 			{
-				Parameters.PositionOffsetBuffer = Resources[InvocationIndex].FallbackSRV;
-				Parameters.PositionBuffer		= Resources[InvocationIndex].FallbackSRV;
-				Parameters.AttributeBuffer		= Resources[InvocationIndex].FallbackSRV;
-				Parameters.VertexToCurveBuffer	= Resources[InvocationIndex].FallbackSRV;
-				Parameters.CurveBuffer			= Resources[InvocationIndex].FallbackSRV;
+				Parameters.Resources.PositionBuffer			= FallbackSRV;
+				Parameters.Resources.PositionOffsetBuffer 	= FallbackSRV;
+				Parameters.Resources.AttributeBuffer		= FallbackSRV;
+				Parameters.Resources.PointToCurveBuffer		= FallbackSRV;
+				Parameters.Resources.CurveBuffer			= FallbackSRV;
 			}
 		}
 	}

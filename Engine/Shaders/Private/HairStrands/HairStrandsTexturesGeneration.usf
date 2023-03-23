@@ -59,9 +59,10 @@ void MainVS(
 
 #if SHADER_PIXEL
 
-#define HAIR_STRANDS_PARAMETERS 0
 #include "HairStrandsVertexFactoryCommon.ush"
 #include "HairStrandsAttributeCommon.ush"
+
+HAIR_STRANDS_INSTANCE_PARAMETERS(InVF)
 
 float3 ComputeTangent(
 	const FHairControlPoint CP0,
@@ -84,15 +85,6 @@ int2 OutputResolution;
 uint VertexCount;
 uint PrimitiveCount;
 uint bHasMaterialData;
-
-Buffer<uint4>		InVF_PositionBuffer;
-ByteAddressBuffer	InVF_AttributeBuffer;
-Buffer<uint>		InVF_VertexToCurveBuffer;
-uint4				InVF_AttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT];
-
-float3 InVF_PositionOffset;
-float InVF_Radius;
-uint InVF_GroupIndex;
 
 Buffer<float> VertexBuffer;
 Buffer<float4> NormalsBuffer;
@@ -144,9 +136,6 @@ bool Trace(
 	inout float4 OutMaterial)
 {
 	bool bIsValid = false;
-
-	const float InVF_RootScale = 1.0f;
-	const float InVF_TipScale = 1.0f;
 
 	const float3 WP0 = InRayO;
 	const float3 WP1 = InRayO + InRayD * InMaxDistance;
@@ -298,8 +287,8 @@ bool Trace(
 							OutTangent = Tangent;
 							OutDepth = Distance;
 
-							OutSeed         = UnpackHairSeed(InternalGetHairStrandsAttributesPerCurve(P0, HAIR_ATTRIBUTE_OFFSET_SEED(InVF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_SEED, InVF_AttributeBuffer, InVF_VertexToCurveBuffer));
-							OutRootUV       = UnpackHairRootUV(InternalGetHairStrandsAttributesPerCurve(P0, HAIR_ATTRIBUTE_OFFSET_ROOTUV(InVF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_ROOTUV, InVF_AttributeBuffer, InVF_VertexToCurveBuffer));
+							OutSeed         = UnpackHairSeed(InternalGetHairStrandsAttributesPerCurve(P0, HAIR_ATTRIBUTE_OFFSET_SEED(InVF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_SEED, InVF_AttributeBuffer, InVF_PointToCurveBuffer));
+							OutRootUV       = UnpackHairRootUV(InternalGetHairStrandsAttributesPerCurve(P0, HAIR_ATTRIBUTE_OFFSET_ROOTUV(InVF_AttributeOffsets), HAIR_ATTRIBUTE_STRIDE_ROOTUV, InVF_AttributeBuffer, InVF_PointToCurveBuffer));
 							OutU			= lerp(CP_Curr.UCoord, CP_Next.UCoord, VertexU);
 							OutMaterial.xyz = 0;
 							OutMaterial.w   = 0;

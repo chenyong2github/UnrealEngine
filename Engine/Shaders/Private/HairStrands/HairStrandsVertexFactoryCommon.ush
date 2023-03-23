@@ -146,31 +146,33 @@ FHairCurve UnpackHairCurve(uint In)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair strands instance parameters
 
+#define HAIR_STRANDS_INSTANCE_PARAMETERS(Prefix) \
+	uint				Prefix##_bCullingEnable; \
+	uint				Prefix##_bRaytracingGeometry; \
+	uint				Prefix##_RaytracingProceduralSplits; \
+	uint				Prefix##_GroupIndex; \
+	float				Prefix##_Radius; \
+	float				Prefix##_RootScale; \
+	float				Prefix##_TipScale; \
+	float				Prefix##_Length; \
+	float				Prefix##_Density; \
+	uint				Prefix##_bStableRasterization; \
+	float3				Prefix##_PositionOffset; \
+	uint				Prefix##_PointCount; \
+	uint				Prefix##_CurveCount; \
+	float4x4			Prefix##_LocalToWorldPrimitiveTransform; \
+	float4x4			Prefix##_LocalToTranslatedWorldPrimitiveTransform; \
+	uint4				Prefix##_AttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT]; \
+	Buffer<uint4>		Prefix##_PositionBuffer; \
+	Buffer<float4>		Prefix##_PositionOffsetBuffer; \
+	Buffer<uint>		Prefix##_CurveBuffer; \
+	Buffer<uint>		Prefix##_PointToCurveBuffer; \
+	ByteAddressBuffer 	Prefix##_AttributeBuffer; \
+	Buffer<uint>		Prefix##_CullingIndirectBuffer; \
+	Buffer<uint>		Prefix##_CullingIndexBuffer; \
+	Buffer<float>		Prefix##_CullingRadiusScaleBuffer; \
+	Buffer<uint>		Prefix##_CullingIndirectBufferArgs;
+
 #if defined(HAIR_STRANDS_PARAMETERS) && HAIR_STRANDS_PARAMETERS == 1
-uint			HairStrandsVF_bCullingEnable;
-uint			HairStrandsVF_bRaytracingGeometry;
-uint			HairStrandsVF_RaytracingProceduralSplits;
-float			HairStrandsVF_Radius;
-float			HairStrandsVF_RootScale;
-float			HairStrandsVF_TipScale;
-float			HairStrandsVF_Length;
-float			HairStrandsVF_Density;
-uint			HairStrandsVF_bStableRasterization;
-float3			HairStrandsVF_PositionOffset;
-uint			HairStrandsVF_PointCount;
-uint			HairStrandsVF_CurveCount;
-float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
-float4x4		HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform;
-Buffer<uint4>	HairStrandsVF_PositionBuffer;
-Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
-Buffer<uint>	HairStrandsVF_CurveBuffer;
-uint4			HairStrandsVF_AttributeOffsets[HAIR_ATTRIBUTE_OFFSET_COUNT];
-
-#if defined(PERMUTATION_CULLING) && PERMUTATION_CULLING == 1
-Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
-Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
-Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
-Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
+	HAIR_STRANDS_INSTANCE_PARAMETERS(HairStrandsVF)
 #endif
-
-#endif // HAIR_STRANDS_PARAMETERS
