@@ -66,7 +66,7 @@ BLOSC_LIB_LOCATION="$BLOSC_LOCATION/Unix/$ARCH_NAME"
 BLOSC_LIBRARY_LOCATION_RELEASE="$BLOSC_LIB_LOCATION/libblosc.a"
 BLOSC_LIBRARY_LOCATION_DEBUG="$BLOSC_LIB_LOCATION/libblosc_d.a"
 
-BOOST_LOCATION="$UE_THIRD_PARTY_LOCATION/Boost/boost-1_70_0"
+BOOST_LOCATION="$UE_THIRD_PARTY_LOCATION/Boost/boost-1_80_0"
 BOOST_INCLUDE_LOCATION="$BOOST_LOCATION/include"
 BOOST_LIB_LOCATION="$BOOST_LOCATION/lib/Unix/$ARCH_NAME"
 
@@ -171,6 +171,7 @@ CMAKE_ARGS=(
     -DOPENVDB_INSTALL_CMAKE_MODULES=OFF
     -DOPENVDB_CORE_SHARED=OFF
     -DOPENVDB_CORE_STATIC=ON
+    -DCMAKE_DEBUG_POSTFIX=_d
 )
 
 # Finding Boost requires specifying the architecture suffix.
@@ -183,6 +184,17 @@ fi
 
 NUM_CPU=`grep -c ^processor /proc/cpuinfo`
 
+echo Configuring Debug build for $LIBRARY_NAME version $LIBRARY_VERSION...
+cmake -G "Unix Makefiles" $SOURCE_LOCATION -DCMAKE_BUILD_TYPE=Debug "${CMAKE_ARGS[@]}"
+
+echo Building $LIBRARY_NAME for Debug...
+cmake --build . -j$NUM_CPU
+
+echo Installing $LIBRARY_NAME for Debug...
+cmake --install .
+
+# The Unix Makefiles generator does not support multiple configurations, so we
+# need to re-configure for Release.
 echo Configuring Release build for $LIBRARY_NAME version $LIBRARY_VERSION...
 cmake -G "Unix Makefiles" $SOURCE_LOCATION -DCMAKE_BUILD_TYPE=Release "${CMAKE_ARGS[@]}"
 

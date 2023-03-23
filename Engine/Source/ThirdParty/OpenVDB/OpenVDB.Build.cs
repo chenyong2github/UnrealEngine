@@ -12,6 +12,8 @@ public class OpenVDB : ModuleRules
 		// We are just setting up paths for pre-compiled binaries.
 		Type = ModuleType.External;
 
+		bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
+
 		// OpenVDB makes use of both RTTI and C++ exceptions, so clients of
 		// this module should likely enable both of these as well.
 		bUseRTTI = true;
@@ -25,6 +27,8 @@ public class OpenVDB : ModuleRules
 		PublicDefinitions.Add("OPENVDB_OPENEXR_STATICLIB");
 		PublicDefinitions.Add("NOMINMAX");
 
+		string LibPostfix = bDebug ? "_d" : "";
+
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			string LibDirectory = Path.Combine(
@@ -33,7 +37,10 @@ public class OpenVDB : ModuleRules
 				Target.Architecture.WindowsLibDir,
 				"lib");
 
-			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.lib"));
+			string StaticLibName = "libopenvdb" + LibPostfix + ".lib";
+
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, StaticLibName));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
@@ -42,7 +49,10 @@ public class OpenVDB : ModuleRules
 				"Mac",
 				"lib");
 
-			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.a"));
+			string StaticLibName = "libopenvdb" + LibPostfix + ".a";
+
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, StaticLibName));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -52,7 +62,10 @@ public class OpenVDB : ModuleRules
 				Target.Architecture.LinuxName,
 				"lib");
 
-			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.a"));
+			string StaticLibName = "libopenvdb" + LibPostfix + ".a";
+
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, StaticLibName));
 		}
 
 		PublicDependencyModuleNames.AddRange(
