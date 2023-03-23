@@ -54,7 +54,7 @@ FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& O
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FFilterConfigurator::operator==(const FFilterConfigurator& Other)
+bool FFilterConfigurator::operator==(const FFilterConfigurator& Other) const
 {
 	bool bIsEqual = AvailableFilters.Get() == Other.AvailableFilters.Get();
 	bIsEqual &= RootNode.IsValid() == Other.RootNode.IsValid();

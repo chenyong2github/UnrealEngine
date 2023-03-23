@@ -20,9 +20,9 @@ public:
 	FFilterConfigurator(const FFilterConfigurator& Other);
 	FFilterConfigurator& operator=(const FFilterConfigurator& Other);
 
-	bool operator==(const FFilterConfigurator& Other);
+	bool operator==(const FFilterConfigurator& Other) const;
 
-	bool operator!=(const FFilterConfigurator& Other) { return !(*this == Other); }
+	bool operator!=(const FFilterConfigurator& Other) const { return !(*this == Other); }
 
 	virtual ~FFilterConfigurator();
 
