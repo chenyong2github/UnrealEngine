@@ -55,8 +55,8 @@ struct FPhysicalPageRequest
 };
 
 extern int32 GForceInvalidateDirectionalVSM;
-extern float GNaniteMaxPixelsPerEdge;
-extern float GNaniteMinPixelsPerEdgeHW;
+extern TAutoConsoleVariable<float> CVarNaniteMaxPixelsPerEdge;
+extern TAutoConsoleVariable<float> CVarNaniteMinPixelsPerEdgeHW;
 
 int32 GVSMShowLightDrawEvents = 0;
 FAutoConsoleVariableRef CVarVSMShowLightDrawEvents(
@@ -2039,8 +2039,8 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 	
 	const int32 NumPrimaryViews = Views.Num();
 
-	const float NaniteMaxPixelsPerEdge   = GNaniteMaxPixelsPerEdge;
-	const float NaniteMinPixelsPerEdgeHW = GNaniteMinPixelsPerEdgeHW;
+	const float NaniteMaxPixelsPerEdge   = CVarNaniteMaxPixelsPerEdge.GetValueOnRenderThread();
+	const float NaniteMinPixelsPerEdgeHW = CVarNaniteMinPixelsPerEdgeHW.GetValueOnRenderThread();
 
 	// 1. create derivative views for each of the Mip levels, 
 	Views.AddDefaulted( NumPrimaryViews * ( FVirtualShadowMap::MaxMipLevels - 1) );

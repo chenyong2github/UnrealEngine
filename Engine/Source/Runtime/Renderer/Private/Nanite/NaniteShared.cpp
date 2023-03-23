@@ -16,8 +16,8 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FNaniteUniformParameters, "Nanite", Nanit
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(NaniteRayTracing);
 IMPLEMENT_STATIC_AND_SHADER_UNIFORM_BUFFER_STRUCT(FNaniteRayTracingUniformParameters, "NaniteRayTracing", NaniteRayTracing);
 
-extern float GNaniteMaxPixelsPerEdge;
-extern float GNaniteMinPixelsPerEdgeHW;
+extern TAutoConsoleVariable<float> CVarNaniteMaxPixelsPerEdge;
+extern TAutoConsoleVariable<float> CVarNaniteMinPixelsPerEdgeHW;
 
 // Optimized compute dual depth export pass on supported platforms.
 int32 GNaniteExportDepth = 1;
@@ -93,8 +93,8 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	const FIntRect& ViewRect = Params.ViewRect;
 	const FVector4f ViewSizeAndInvSize(ViewRect.Width(), ViewRect.Height(), 1.0f / float(ViewRect.Width()), 1.0f / float(ViewRect.Height()));
 
-	const float NaniteMaxPixelsPerEdge = GNaniteMaxPixelsPerEdge * Params.MaxPixelsPerEdgeMultipler;
-	const float NaniteMinPixelsPerEdgeHW = GNaniteMinPixelsPerEdgeHW;
+	const float NaniteMaxPixelsPerEdge = CVarNaniteMaxPixelsPerEdge.GetValueOnRenderThread() * Params.MaxPixelsPerEdgeMultipler;
+	const float NaniteMinPixelsPerEdgeHW = CVarNaniteMinPixelsPerEdgeHW.GetValueOnRenderThread();
 	const FVector3f ViewTilePosition = AbsoluteViewOrigin.GetTile();
 	const FVector DrawDistanceOrigin = Params.bOverrideDrawDistanceOrigin ? Params.DrawDistanceOrigin : Params.ViewMatrices.GetViewOrigin();
 

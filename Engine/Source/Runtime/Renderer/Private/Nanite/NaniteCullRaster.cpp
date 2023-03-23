@@ -38,174 +38,175 @@ static_assert(1 + NANITE_NUM_CULLING_FLAG_BITS + NANITE_MAX_INSTANCES_BITS <= 32
 static_assert(1 + NANITE_MAX_NODES_PER_PRIMITIVE_BITS + NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 32, "FCandidateNode.y fields don't fit in 32bits");
 static_assert(1 + NANITE_MAX_BVH_NODES_PER_GROUP <= 32, "FCandidateNode.z fields don't fit in 32bits");
 
-int32 GNaniteShowDrawEvents = 0;
-static FAutoConsoleVariableRef CVarNaniteShowDrawEvents(
+TAutoConsoleVariable<int32> CVarNaniteShowDrawEvents(
 	TEXT("r.Nanite.ShowMeshDrawEvents"),
-	GNaniteShowDrawEvents,
-	TEXT("")
+	0,
+	TEXT("Emit draw events for Nanite rasterization and materials."),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteAsyncRasterization = 1;
-static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
+static TAutoConsoleVariable<int32> CVarNaniteEnableAsyncRasterization(
 	TEXT("r.Nanite.AsyncRasterization"),
-	GNaniteAsyncRasterization,
-	TEXT("")
+	1,
+	TEXT("If available, run Nanite compute rasterization as asynchronous compute."),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteParallelRasterTranslateExperimental = 0;
-static FAutoConsoleVariableRef CVarNaniteParallelRasterTranslateExperimental(
+static TAutoConsoleVariable<int32> CVarNaniteParallelRasterTranslateExperimental(
 	TEXT("r.Nanite.ParallelRasterTranslateExperimental"),
-	GNaniteParallelRasterTranslateExperimental,
-	TEXT("")
+	0,
+	TEXT("Whether parallel translation of raster commands is enabled (experimental)."),
+	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarNaniteAsyncRasterizeShadowDepths(
 	TEXT("r.Nanite.AsyncRasterization.ShadowDepths"),
 	1,
-	TEXT("Whether to run Nanite SW rasterization on a compute pipe if possible.")
+	TEXT("If available, run Nanite compute rasterization of shadows as asynchronous compute."),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteComputeRasterization = 1;
-static FAutoConsoleVariableRef CVarNaniteComputeRasterization(
+static TAutoConsoleVariable<int32> CVarNaniteComputeRasterization(
 	TEXT("r.Nanite.ComputeRasterization"),
-	GNaniteComputeRasterization,
-	TEXT("")
+	1,
+	TEXT("Whether to allow compute rasterization. When disabled all rasterization will go through the hardware path."),
+	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarNaniteFilterPrimitives(
 	TEXT("r.Nanite.FilterPrimitives"),
 	1,
+	TEXT("Whether per-view filtering of primitive is enabled."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarNaniteMeshShaderRasterization(
+	TEXT("r.Nanite.MeshShaderRasterization"),
+	1,
+	TEXT("If available, use mesh shaders for hardware rasterization."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarNaniteVSMMeshShaderRasterization(
+	TEXT("r.Nanite.VSMMeshShaderRasterization"),
+	0,
+	TEXT("If available, use mesh shaders for VSM hardware rasterization."),
+	ECVF_RenderThreadSafe
+);
+
+
+static TAutoConsoleVariable<int32> CVarNanitePrimShaderRasterization(
+	TEXT("r.Nanite.PrimShaderRasterization"),
+	1,
+	TEXT("If available, use primitive shaders for hardware rasterization."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarNaniteRasterSetupTask(
+	TEXT("r.Nanite.RasterSetupTask"),
+	1,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteMeshShaderRasterization = 1;
-FAutoConsoleVariableRef CVarNaniteMeshShaderRasterization(
-	TEXT("r.Nanite.MeshShaderRasterization"),
-	GNaniteMeshShaderRasterization,
-	TEXT("")
-);
-
-// Support disabling mesh shader raster for VSMs
-int32 GNaniteVSMMeshShaderRasterization = 0;
-FAutoConsoleVariableRef CVarNaniteVSMMeshShaderRasterization(
-	TEXT("r.Nanite.VSMMeshShaderRasterization"),
-	GNaniteVSMMeshShaderRasterization,
-	TEXT("")
-);
-
-int32 GNanitePrimShaderRasterization = 1;
-FAutoConsoleVariableRef CVarNanitePrimShaderRasterization(
-	TEXT("r.Nanite.PrimShaderRasterization"),
-	GNanitePrimShaderRasterization,
-	TEXT("")
-);
-
-int32 GNaniteRasterSetupTask = 1;
-FAutoConsoleVariableRef CVarNaniteRasterSetupTask(
-	TEXT("r.Nanite.RasterSetupTask"),
-	GNaniteRasterSetupTask,
-	TEXT("")
-);
-
-int32 GNaniteRasterSetupCache = 1;
-FAutoConsoleVariableRef CVarNaniteRasterSetupCache(
+static TAutoConsoleVariable<int32> CVarNaniteRasterSetupCache(
 	TEXT("r.Nanite.RasterSetupCache"),
-	GNaniteRasterSetupCache,
-	TEXT("")
+	1,
+	TEXT(""),
+	ECVF_RenderThreadSafe
 );
 
-float GNaniteMaxPixelsPerEdge = 1.0f;
-FAutoConsoleVariableRef CVarNaniteMaxPixelsPerEdge(
+TAutoConsoleVariable<float> CVarNaniteMaxPixelsPerEdge(
 	TEXT("r.Nanite.MaxPixelsPerEdge"),
-	GNaniteMaxPixelsPerEdge,
-	TEXT("")
+	1.0f,
+	TEXT("The triangle edge length that the Nanite runtime targets, measured in pixels."),
+	ECVF_RenderThreadSafe
 	);
 
-int32 GNaniteImposterMaxPixels = 5;
-FAutoConsoleVariableRef CVarNaniteImposterMaxPixels(
+static TAutoConsoleVariable<int32> CVarNaniteImposterMaxPixels(
 	TEXT("r.Nanite.ImposterMaxPixels"),
-	GNaniteImposterMaxPixels,
-	TEXT("")
+	5,
+	TEXT("The maximum size of imposters measured in pixels."),
+	ECVF_RenderThreadSafe
 );
 
-float GNaniteMinPixelsPerEdgeHW = 32.0f;
-FAutoConsoleVariableRef CVarNaniteMinPixelsPerEdgeHW(
+TAutoConsoleVariable<float> CVarNaniteMinPixelsPerEdgeHW(
 	TEXT("r.Nanite.MinPixelsPerEdgeHW"),
-	GNaniteMinPixelsPerEdgeHW,
-	TEXT("")
+	32.0f,
+	TEXT("The triangle edge length in pixels at which Nanite starts using the hardware rasterizer."),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteAllowProgrammableRaster = 1;
-static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
+static TAutoConsoleVariable<int32> CVarNaniteAllowProgrammableRaster(
 	TEXT("r.Nanite.AllowProgrammableRaster"),
-	GNaniteAllowProgrammableRaster,
-	TEXT(""),
-	ECVF_ReadOnly
+	1,
+	TEXT("Whether to allow programmable rasterization. Disabling this also prevents any programmable shaders from being built."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
 // 0 : Disabled
 // 1 : Pixel Clear
 // 2 : Tile Clear
-int32 GNaniteFastVisBufferClear = 1;
-static FAutoConsoleVariableRef CVarNaniteFastVisBufferClear(
+static TAutoConsoleVariable<int32> CVarNaniteFastVisBufferClear(
 	TEXT("r.Nanite.FastVisBufferClear"),
-	GNaniteFastVisBufferClear,
-	TEXT("")
+	1,
+	TEXT("Whether the fast clear optimization is enabled. Set to 2 for tile clear."),
+	ECVF_RenderThreadSafe
 );
 
 // Requires r.Nanite.AllowProgrammableRaster=1 for compiled shaders
 // 0: Disabled
 // 1: Enabled
-int32 GNaniteProgrammableRaster = 1;
-static FAutoConsoleVariableRef CVarNaniteProgrammableRaster(
+static TAutoConsoleVariable<int32> CVarNaniteProgrammableRaster(
 	TEXT("r.Nanite.ProgrammableRaster"),
-	GNaniteProgrammableRaster,
-	TEXT("")
+	1,
+	TEXT("Whether programmable rasterization is enabled.")
+	TEXT("Programmable rasterization is used to enable custom material rasterization such as WPO, PDO and masked materials."),
+	ECVF_RenderThreadSafe
 );
 
 // Support a max of 3 unique materials per visible cluster (i.e. if all clusters are fast path and use full range, never run out of space).
-float GNaniteRasterIndirectionMultiplier = 3.0f;
-static FAutoConsoleVariableRef CVarNaniteRasterIndirectionMultiplier(
+static TAutoConsoleVariable<float> CVarNaniteRasterIndirectionMultiplier(
 	TEXT("r.Nanite.RasterIndirectionMultiplier"),
-	GNaniteRasterIndirectionMultiplier,
-	TEXT("")
+	3.0f,
+	TEXT(""),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteCullingHZB = 1;
-static FAutoConsoleVariableRef CVarNaniteCullingHZB(
+static TAutoConsoleVariable<int32> CVarNaniteCullingHZB(
 	TEXT("r.Nanite.Culling.HZB"),
-	GNaniteCullingHZB,
-	TEXT("Set to 0 to test disabling Nanite culling due to occlusion by the hierarchical depth buffer.")
+	1,
+	TEXT("Set to 0 to test disabling Nanite culling due to occlusion by the hierarchical depth buffer."),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteCullingFrustum = 1;
-static FAutoConsoleVariableRef CVarNaniteCullingFrustum(
+static TAutoConsoleVariable<int32> CVarNaniteCullingFrustum(
 	TEXT("r.Nanite.Culling.Frustum"),
-	GNaniteCullingFrustum,
-	TEXT("Set to 0 to test disabling Nanite culling due to being outside of the view frustum.")
+	1,
+	TEXT("Set to 0 to test disabling Nanite culling due to being outside of the view frustum."),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteCullingGlobalClipPlane = 1;
-static FAutoConsoleVariableRef CVarNaniteCullingGlobalClipPlane(
+static TAutoConsoleVariable<int32> CVarNaniteCullingGlobalClipPlane(
 	TEXT("r.Nanite.Culling.GlobalClipPlane"),
-	GNaniteCullingGlobalClipPlane,
+	1,
 	TEXT("Set to 0 to test disabling Nanite culling due to being beyond the global clip plane.\n")
-	TEXT("NOTE: Has no effect if r.AllowGlobalClipPlane=0.")
+	TEXT("NOTE: Has no effect if r.AllowGlobalClipPlane=0."),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteCullingDrawDistance = 1;
-static FAutoConsoleVariableRef CVarNaniteCullingDrawDistance(
+static TAutoConsoleVariable<int32> CVarNaniteCullingDrawDistance(
 	TEXT("r.Nanite.Culling.DrawDistance"),
-	GNaniteCullingDrawDistance,
-	TEXT("Set to 0 to test disabling Nanite culling due to instance draw distance.")
+	1,
+	TEXT("Set to 0 to test disabling Nanite culling due to instance draw distance."),
+	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteCullingWPODisableDistance = 1;
-static FAutoConsoleVariableRef CVarNaniteCullingWPODisableDistance(
+static TAutoConsoleVariable<int32> CVarNaniteCullingWPODisableDistance(
 	TEXT("r.Nanite.Culling.WPODisableDistance"),
-	GNaniteCullingWPODisableDistance,
-	TEXT("Set to 0 to test disabling 'World Position Offset Disable Distance' for Nanite instances.")
+	1,
+	TEXT("Set to 0 to test disabling 'World Position Offset Disable Distance' for Nanite instances."),
+	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarLargePageRectThreshold(
@@ -215,18 +216,16 @@ static TAutoConsoleVariable<int32> CVarLargePageRectThreshold(
 	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteDisocclusionHack = 0;
-static FAutoConsoleVariableRef CVarNaniteDisocclusionHack(
+static TAutoConsoleVariable<int32> CVarNaniteDisocclusionHack(
 	TEXT("r.Nanite.DisocclusionHack"),
-	GNaniteDisocclusionHack,
+	0,
 	TEXT("HACK that lowers LOD level of disoccluded instances to mitigate performance spikes"),
 	ECVF_RenderThreadSafe
 );
 
-int32 GNanitePersistentThreadsCulling = 1;
-static FAutoConsoleVariableRef CVarNanitePersistentThreadsCulling(
+static TAutoConsoleVariable<int32> CVarNanitePersistentThreadsCulling(
 	TEXT("r.Nanite.PersistentThreadsCulling"),
-	GNanitePersistentThreadsCulling,
+	1,
 	TEXT("Perform node and cluster culling in one combined kernel using persistent threads."),
 	ECVF_RenderThreadSafe
 );
@@ -312,18 +311,18 @@ static bool UseMeshShader(EShaderPlatform ShaderPlatform, Nanite::EPipeline Pipe
 	const bool bMSSupportsClipDistance = FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersWithClipDistance(ShaderPlatform);
 
 	// We require tier1 support to utilize primitive attributes
-	const bool bSupported = GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShadersTier1 && (!bAllowGlobalClipPlane || bMSSupportsClipDistance);
-	return bSupported && (GNaniteVSMMeshShaderRasterization != 0 || Pipeline != Nanite::EPipeline::Shadows);
+	const bool bSupported = CVarNaniteMeshShaderRasterization.GetValueOnAnyThread() != 0 && GRHISupportsMeshShadersTier1 && (!bAllowGlobalClipPlane || bMSSupportsClipDistance);
+	return bSupported && (CVarNaniteVSMMeshShaderRasterization.GetValueOnAnyThread() != 0 || Pipeline != Nanite::EPipeline::Shadows);
 }
 
 static bool UsePrimitiveShader()
 {
-	return GNanitePrimShaderRasterization != 0 && GRHISupportsPrimitiveShaders;
+	return CVarNanitePrimShaderRasterization.GetValueOnAnyThread() != 0 && GRHISupportsPrimitiveShaders;
 }
 
 static bool AllowProgrammableRaster(EShaderPlatform ShaderPlatform)
 {
-	return GNaniteAllowProgrammableRaster != 0;
+	return CVarNaniteAllowProgrammableRaster.GetValueOnAnyThread() != 0;
 }
 
 static bool UseAsyncComputeForShadowMaps(const FViewFamilyInfo& ViewFamily)
@@ -1644,7 +1643,7 @@ void CollectRasterPSOInitializers(
 	EShaderPlatform ShaderPlatform,
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
-	if (!GNaniteProgrammableRaster)
+	if (!CVarNaniteProgrammableRaster.GetValueOnAnyThread())
 	{
 		return;
 	}
@@ -1772,7 +1771,7 @@ FCullingContext InitCullingContext(
 		CullingContext.Configuration.bTwoPassOcclusion = false;
 	}
 
-	if (!AllowProgrammableRaster(ShaderPlatform) || GNaniteProgrammableRaster == 0)
+	if (!AllowProgrammableRaster(ShaderPlatform) || CVarNaniteProgrammableRaster.GetValueOnRenderThread() == 0)
 	{
 		// Never use programmable raster if the material shaders are unavailable (or if globally disabled).
 		CullingContext.Configuration.bProgrammableRaster = false;
@@ -1801,27 +1800,27 @@ FCullingContext InitCullingContext(
 
 	// TODO: Exclude from shipping builds
 	{
-		if (GNaniteCullingFrustum == 0)
+		if (CVarNaniteCullingFrustum.GetValueOnRenderThread() == 0)
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM;
 		}
 
-		if (GNaniteCullingHZB == 0)
+		if (CVarNaniteCullingHZB.GetValueOnRenderThread() == 0)
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_HZB;
 		}
 
-		if (GNaniteCullingGlobalClipPlane == 0)
+		if (CVarNaniteCullingGlobalClipPlane.GetValueOnRenderThread() == 0)
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_GLOBAL_CLIP_PLANE;
 		}
 
-		if (GNaniteCullingDrawDistance == 0)
+		if (CVarNaniteCullingDrawDistance.GetValueOnRenderThread() == 0)
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_DRAW_DISTANCE;
 		}
 
-		if (GNaniteCullingWPODisableDistance == 0)
+		if (CVarNaniteCullingWPODisableDistance.GetValueOnRenderThread() == 0)
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_WPO_DISABLE_DISTANCE;
 		}
@@ -2196,7 +2195,7 @@ static void AddPass_NodeAndClusterCull(
 	bool bMultiView
 	)
 {
-	if (GNanitePersistentThreadsCulling)
+	if (CVarNanitePersistentThreadsCulling.GetValueOnRenderThread())
 	{
 		AddPass_NodeAndClusterCull( GraphBuilder,
 									RDG_EVENT_NAME("PersistentCull"),
@@ -2328,7 +2327,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 
 		PassParameters->NumInstances						= CullingContext.NumInstancesPreCull;
 		PassParameters->MaxNodes							= Nanite::FGlobalResources::GetMaxNodes();
-		PassParameters->ImposterMaxPixels					= GNaniteImposterMaxPixels;
+		PassParameters->ImposterMaxPixels					= CVarNaniteImposterMaxPixels.GetValueOnRenderThread();
 
 		PassParameters->GPUSceneParameters = GPUSceneParameters;
 		PassParameters->RasterParameters = RasterContext.Parameters;
@@ -2519,7 +2518,7 @@ static FBinningData AddPass_Binning(
 	    BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(BinningData.BinCount * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
     
 	    const uint32 MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
-		const uint32 MaxClusterIndirections = uint32(float(MaxVisibleClusters) * FMath::Max<float>(1.0f, GNaniteRasterIndirectionMultiplier));
+		const uint32 MaxClusterIndirections = uint32(float(MaxVisibleClusters) * FMath::Max<float>(1.0f, CVarNaniteRasterIndirectionMultiplier.GetValueOnRenderThread()));
 		check(MaxClusterIndirections > 0);
 		BinningData.DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 2, MaxClusterIndirections), TEXT("Nanite.RasterizerBinData"));
     
@@ -2865,7 +2864,7 @@ FBinningData AddPass_Rasterize(
 				RasterMaterialCacheKey.bPatches              = bPatches;
 
 				FNaniteRasterMaterialCache  EmptyCache;
-				FNaniteRasterMaterialCache& RasterMaterialCache = GNaniteRasterSetupCache > 0 ? RasterEntry.CacheMap.FindOrAdd(RasterMaterialCacheKey) : EmptyCache;
+				FNaniteRasterMaterialCache& RasterMaterialCache = CVarNaniteRasterSetupCache.GetValueOnRenderThread() > 0 ? RasterEntry.CacheMap.FindOrAdd(RasterMaterialCacheKey) : EmptyCache;
 
 				RasterizerPass.RasterMaterialCache = &RasterMaterialCache;
 
@@ -3109,13 +3108,13 @@ FBinningData AddPass_Rasterize(
 		}
 	},
 #if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
-		GNaniteRasterSetupCache > 0 ? &GNaniteRasterSetupPipe : nullptr,
+		CVarNaniteRasterSetupCache.GetValueOnRenderThread() > 0 ? &GNaniteRasterSetupPipe : nullptr,
 #else
 		nullptr,
 #endif
 		UE::Tasks::ETaskPriority::Normal,
 		// Skip running async if disabled or the number of bins is small.
-		GNaniteRasterSetupTask > 0 && ActiveRasterBinCount >= ActiveRasterBinAsyncThreshold
+		CVarNaniteRasterSetupTask.GetValueOnRenderThread() > 0 && ActiveRasterBinCount >= ActiveRasterBinAsyncThreshold
 	);
 
 	const ERasterScheduling Scheduling = RasterContext.RasterScheduling;
@@ -3230,7 +3229,7 @@ FBinningData AddPass_Rasterize(
 	int32 PassWorkload = FMath::Max(ActiveRasterBinCount, 1);
 	ERDGPassFlags ParallelTranslateFlag = ERDGPassFlags::None;
 
-	if (GNaniteParallelRasterTranslateExperimental)
+	if (CVarNaniteParallelRasterTranslateExperimental.GetValueOnRenderThread())
 	{
 		// Force the pass onto its own async command list.
 		PassWorkload = 1000;
@@ -3265,6 +3264,7 @@ FBinningData AddPass_Rasterize(
 
 		Parameters.IndirectArgs->MarkResourceAsUsed();
 
+		const bool bShowDrawEvents = CVarNaniteShowDrawEvents.GetValueOnRenderThread() != 0;
 		for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 		{
 			if (RasterizerPass.bHidden || RasterizerPass.bTessellation)
@@ -3273,7 +3273,7 @@ FBinningData AddPass_Rasterize(
 			}
 
 		#if WANTS_DRAW_MESH_EVENTS
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, HWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), GetRasterMaterialName(RasterizerPass.RasterPipeline.RasterMaterial, FixedMaterialProxy));
+			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, HWRaster, bShowDrawEvents != 0, TEXT("%s"), GetRasterMaterialName(RasterizerPass.RasterPipeline.RasterMaterial, FixedMaterialProxy));
 		#endif
 
 			Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
@@ -3359,6 +3359,7 @@ FBinningData AddPass_Rasterize(
 			FRasterizePassParameters Parameters = *RasterPassParameters;
 			Parameters.IndirectArgs->MarkResourceAsUsed();
 
+			const bool bShowDrawEvents = CVarNaniteShowDrawEvents.GetValueOnRenderThread() != 0;
 			for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 			{
 				if (RasterizerPass.bHidden)
@@ -3367,7 +3368,7 @@ FBinningData AddPass_Rasterize(
 				}
 
 			#if WANTS_DRAW_MESH_EVENTS
-				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), GetRasterMaterialName(RasterizerPass.RasterPipeline.RasterMaterial, FixedMaterialProxy));
+				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWRaster, bShowDrawEvents, TEXT("%s"), GetRasterMaterialName(RasterizerPass.RasterPipeline.RasterMaterial, FixedMaterialProxy));
 			#endif
 
 				Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
@@ -3416,13 +3417,13 @@ void AddClearVisBufferPass(
 		return;
 	}
 
-	const bool bUseFastClear = GNaniteFastVisBufferClear != 0 && (RectMinMaxBufferSRV == nullptr && NumRects == 0 && ExternalDepthBuffer == nullptr);
+	const bool bUseFastClear = CVarNaniteFastVisBufferClear.GetValueOnRenderThread() != 0 && (RectMinMaxBufferSRV == nullptr && NumRects == 0 && ExternalDepthBuffer == nullptr);
 	if (bUseFastClear)
 	{
 		// TODO: Don't currently support offset views.
 		checkf(TextureRect.Min.X == 0 && TextureRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
 
-		const bool bTiled = (GNaniteFastVisBufferClear == 2);
+		const bool bTiled = (CVarNaniteFastVisBufferClear.GetValueOnRenderThread() == 2);
 
 		FRasterClearCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterClearCS::FParameters>();
 		PassParameters->ClearRect = FUint32Vector4((uint32)TextureRect.Min.X, (uint32)TextureRect.Min.Y, (uint32)TextureRect.Max.X, (uint32)TextureRect.Max.Y);
@@ -3515,9 +3516,9 @@ FRasterContext InitRasterContext(
 	RasterContext.TextureSize = TextureSize;
 
 	// Set rasterizer scheduling based on config and platform capabilities.
-	if (GNaniteComputeRasterization != 0)
+	if (CVarNaniteComputeRasterization.GetValueOnRenderThread() != 0)
 	{
-		const bool bUseAsyncCompute = GSupportsEfficientAsyncCompute && (GNaniteAsyncRasterization != 0) && EnumHasAnyFlags(GRHIMultiPipelineMergeableAccessMask, ERHIAccess::UAVMask);
+		const bool bUseAsyncCompute = GSupportsEfficientAsyncCompute && (CVarNaniteEnableAsyncRasterization.GetValueOnRenderThread() != 0) && EnumHasAnyFlags(GRHIMultiPipelineMergeableAccessMask, ERHIAccess::UAVMask);
 		RasterContext.RasterScheduling = bUseAsyncCompute ? ERasterScheduling::HardwareAndSoftwareOverlap : ERasterScheduling::HardwareThenSoftware;
 	}
 	else
@@ -3792,7 +3793,7 @@ void CullRasterize(
 	FCullingParameters CullingParameters;
 	{
 		// Never use the disocclusion hack with virtual shadows as it interacts very poorly with caching that first frame
-		const bool bDisocclusionHack = GNaniteDisocclusionHack && !VirtualShadowMapArray;
+		const bool bDisocclusionHack = CVarNaniteDisocclusionHack.GetValueOnRenderThread() && !VirtualShadowMapArray;
 
 		CullingParameters.InViews						= GraphBuilder.CreateSRV(CullingContext.ViewsBuffer);
 		CullingParameters.NumViews						= ViewArray.NumViews;

@@ -152,7 +152,7 @@ static FAutoConsoleVariableRef CVarNaniteCustomDepthExportMethod(
 extern int32 GNaniteIsolateInvalidCoarseMesh;
 #endif
 
-extern int32 GNaniteShowDrawEvents;
+extern TAutoConsoleVariable<int32> CVarNaniteShowDrawEvents;
 
 extern int32 GNaniteShowStats;
 
@@ -789,7 +789,7 @@ void RecordShadingCommand(
 )
 {
 #if WANTS_DRAW_MESH_EVENTS
-	SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWShading, GNaniteShowDrawEvents != 0, TEXT("%s"), GetShadingMaterialName(ShadingCommand.MaterialProxy));
+	SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWShading, CVarNaniteShowDrawEvents.GetValueOnRenderThread() != 0, TEXT("%s"), GetShadingMaterialName(ShadingCommand.MaterialProxy));
 #endif
 
 	PassData.X = ShadingCommand.ShadingBin;
