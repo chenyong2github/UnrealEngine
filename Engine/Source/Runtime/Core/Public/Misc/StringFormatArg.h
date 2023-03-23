@@ -36,24 +36,33 @@ struct CORE_API FStringFormatArg
 	/** Value as an FString */
 	FString StringValue;
 
-	FStringFormatArg( const int32 Value );
-	FStringFormatArg( const uint32 Value );
-	FStringFormatArg( const int64 Value );
-	FStringFormatArg( const uint64 Value );
-	FStringFormatArg( const float Value );
-	FStringFormatArg( const double Value );
-	FStringFormatArg( FString Value );
-	FStringFormatArg( FStringView Value );
-	FStringFormatArg( const ANSICHAR* Value );
-	FStringFormatArg( const WIDECHAR* Value );
-	FStringFormatArg( const UCS2CHAR* Value );
-	FStringFormatArg( const UTF8CHAR* Value );
-
-	/** Copyable */
-	FStringFormatArg( const FStringFormatArg& RHS );
-	
-private:
-
 	/** Not default constructible */
-	FStringFormatArg();
+	FStringFormatArg() = delete;
+	~FStringFormatArg() = default;
+
+	FStringFormatArg(const int32 Value);
+	FStringFormatArg(const uint32 Value);
+	FStringFormatArg(const int64 Value);
+	FStringFormatArg(const uint64 Value);
+	FStringFormatArg(const float Value);
+	FStringFormatArg(const double Value);
+	FStringFormatArg(FString Value);
+	FStringFormatArg(FStringView Value);
+	FStringFormatArg(const ANSICHAR* Value);
+	FStringFormatArg(const WIDECHAR* Value);
+	FStringFormatArg(const UCS2CHAR* Value);
+	FStringFormatArg(const UTF8CHAR* Value);
+
+	FStringFormatArg(const FStringFormatArg& Other)
+	{
+		*this = Other;
+	}
+	FStringFormatArg(FStringFormatArg&& Other)
+	{
+		*this = MoveTemp(Other);
+	}
+	
+	FStringFormatArg& operator=(const FStringFormatArg& Other);
+	FStringFormatArg& operator=(FStringFormatArg&& Other);
+
 };
