@@ -46,7 +46,72 @@ public:
 
 	/** The asset registry tag that contains whether the clip was recorded with a CineCamera for this meta-data */
 	static const FName AssetRegistryTag_bIsACineCameraRecording;
+	
+	/** The asset registry tag that contains whether this take is good or not */
+	static const FName AssetRegistryTag_bIsNoGood;
 
+	/** The asset registry tag that contains whether this was flagged by a user */
+	static const FName AssetRegistryTag_bIsFlagged;
+
+	/** The asset registry tag that contains its favorite status */
+	static const FName AssetRegistryTag_FavoriteLevel;
+
+	/** The asset registry tag that contains whether it was created from a VCam */
+	static const FName AssetRegistryTag_bIsCreatedFromVCam;
+	
+public:
+
+	/** The asset registry tag that contains the focal length for this meta-data */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_FocalLength() { return AssetRegistryTag_FocalLength; }
+	
+	/** The asset registry tag that contains if the selected state for this meta-data */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_IsSelected() { return AssetRegistryTag_bIsSelected; }
+	
+	/** The asset registry tag that contains the recorded level name for this meta-data */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_RecordedLevel() { return AssetRegistryTag_RecordedLevelName; }
+	
+	/** The asset registry tag that contains the FrameCountStart in for this meta-data */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_FrameCountStart() { return AssetRegistryTag_FrameCountStart; }
+	
+	/** The asset registry tag that contains the FrameCountEnd out for this meta-data */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_FrameCountEnd() { return AssetRegistryTag_FrameCountEnd; }
+	
+	/** The asset registry tag that contains the LengthInFrames out for this meta-data */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_LengthInFrames() { return AssetRegistryTag_LengthInFrames; }
+	
+	/** The asset registry tag that contains the FrameCountEnd out for this meta-data */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_DisplayRate() { return AssetRegistryTag_DisplayRate; }
+	
+	/** The asset registry tag that contains whether the clip was recorded with a CineCamera for this meta-data */
+	UFUNCTION(BlueprintPure, Category = "Virtual Camera|Clips")
+	static FName GetClipsMetaDataTag_IsCineACineCameraRecording() { return AssetRegistryTag_bIsACineCameraRecording; }
+	
+	/** The asset registry tag that contains whether this take is good or not */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_IsNoGood() { return AssetRegistryTag_bIsNoGood; }
+	
+	/** The asset registry tag that contains whether this was flagged by a user */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_IsFlagged() { return AssetRegistryTag_bIsFlagged; }
+	
+	/** The asset registry tag that contains its favorite status */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_FavoriteLevel() { return AssetRegistryTag_FavoriteLevel; }
+	
+	/** The asset registry tag that contains whether it was created from a VCam */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static FName GetClipsMetaDataTag_IsCreatedFromVCam() { return AssetRegistryTag_bIsCreatedFromVCam; }
+
+	/** Gets all asset registry tags */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Clips")
+	static TSet<FName> GetAllClipsMetaDataTags();
 
 public:
 
@@ -157,38 +222,53 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Clips")
 	void SetIsACineCameraRecording(bool bInIsACineCameraRecording);
 
-
 private:
+	
 	/** The focal length of the streamed camera used to record the take */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float FocalLength;
 
 	/** Whether or not the take was marked as 'selected' */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	bool bIsSelected; 
 
 	/** The name of the level that the clip was recorded in */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	FString RecordedLevelName; 
 
 	/** The initial frame of the clip used for calculating duration. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	int FrameCountStart;
 
 	/** The last frame of the clip used for calculating duration. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	int FrameCountEnd; 
 
 	/** The level sequence length in frames calculated from VirtualCameraSubsystem used for AssetData calculations */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	int LengthInFrames; 
 
 	/** The display rate of the level sequence used for AssetData calculations. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	FFrameRate DisplayRate;
 
 	/** If the LevelSequence was recorded with a CineCameraActor, rather than a VirtualCameraActor */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	bool bIsACineCameraRecording;
+	
+	/** Whether this take is marked as good */
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	bool bIsNoGood = false;
+	
+	/** The asset registry tag that contains whether this was flagged by a user */
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	bool bIsFlagged = false;
 
+	/** The asset registry tag that contains its favorite status */
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	int32 FavoriteLevel = 0;
+
+	/** Whether the sequence was created from a VCam */
+	UPROPERTY(EditAnywhere, Category = "Clips", BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	bool bIsCreatedFromVCam = true;
 };

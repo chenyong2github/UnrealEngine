@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamBlueprintFunctionLibrary.h"
+#include "FunctionLibraries/VCamBlueprintFunctionLibrary.h"
 
 #include "LevelSequence/VirtualCameraClipsMetaData.h"
 #include "VirtualCameraUserSettings.h"
@@ -13,6 +13,7 @@
 #include "GameFramework/PlayerController.h"
 #include "LevelSequence.h"
 #include "MovieScene.h"
+#include "FunctionLibraries/TakeMetaDataTagsFunctionLibrary.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -250,10 +251,10 @@ TArray<FAssetData> UVCamBlueprintFunctionLibrary::SortAssetsByTimecodeAssetData(
 	SortedTimecodeArray.Sort([](const FAssetData& LevelSequence1AssetData, const FAssetData& LevelSequence2AssetData)
 	{
 		FString LevelSequence1TimestampTagValue;
-		bool bFoundLevelSequence1Tag = LevelSequence1AssetData.GetTagValue("TakeMetaData_Timestamp", LevelSequence1TimestampTagValue);
+		bool bFoundLevelSequence1Tag = LevelSequence1AssetData.GetTagValue(UTakeMetaDataTagsFunctionLibrary::GetTakeMetaDataTag_Timestamp(), LevelSequence1TimestampTagValue);
 
 		FString LevelSequence2TimestampTagValue;
-		bool bFoundLevelSequence2Tag = LevelSequence2AssetData.GetTagValue("TakeMetaData_Timestamp", LevelSequence2TimestampTagValue);
+		bool bFoundLevelSequence2Tag = LevelSequence2AssetData.GetTagValue(UTakeMetaDataTagsFunctionLibrary::GetTakeMetaDataTag_Timestamp(), LevelSequence2TimestampTagValue);
 
 
 		if (bFoundLevelSequence1Tag && bFoundLevelSequence2Tag)

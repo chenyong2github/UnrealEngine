@@ -112,7 +112,7 @@ public:
 	/** Sort array of FAssetData by metadata timecode **/
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera | Clips ")
 	static TArray<FAssetData> SortAssetsByTimecodeAssetData(TArray<FAssetData> LevelSequenceAssets);
-
+	
 	/** Pilot the provided actor using editor scripting */
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera | Streaming ")
 	static void PilotActor(AActor* SelectedActor);

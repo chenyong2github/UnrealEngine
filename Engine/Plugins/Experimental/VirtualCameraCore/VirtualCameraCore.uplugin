@@ -70,7 +70,7 @@
 		{
 			"Name": "VirtualCamera",
 			"Type": "Runtime",
-			"LoadingPhase": "PostDefault",
+			"LoadingPhase": "Default",
 			"PlatformAllowList": [
 				"Win64",
 				"Linux"

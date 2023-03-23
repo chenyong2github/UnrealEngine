@@ -10,7 +10,10 @@ const FName UVirtualCameraClipsMetaData::AssetRegistryTag_FrameCountEnd = "Clips
 const FName UVirtualCameraClipsMetaData::AssetRegistryTag_LengthInFrames = "ClipsMetaData_LengthInFrames";
 const FName UVirtualCameraClipsMetaData::AssetRegistryTag_DisplayRate = "ClipsMetaData_DisplayRate";
 const FName UVirtualCameraClipsMetaData::AssetRegistryTag_bIsACineCameraRecording = "ClipsMetaData_bIsACineCameraRecording";
-
+const FName UVirtualCameraClipsMetaData::AssetRegistryTag_bIsNoGood = "ClipsMetaData_bIsNoGood";
+const FName UVirtualCameraClipsMetaData::AssetRegistryTag_bIsFlagged = "ClipsMetaData_bIsFlagged";
+const FName UVirtualCameraClipsMetaData::AssetRegistryTag_FavoriteLevel = "ClipsMetaData_FavoriteLevel";
+const FName UVirtualCameraClipsMetaData::AssetRegistryTag_bIsCreatedFromVCam = "ClipsMetaData_bIsCreatedFromVCam";
 
 UVirtualCameraClipsMetaData::UVirtualCameraClipsMetaData(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -20,6 +23,23 @@ UVirtualCameraClipsMetaData::UVirtualCameraClipsMetaData(const FObjectInitialize
 	bIsACineCameraRecording = false; 
 }
 
+TSet<FName> UVirtualCameraClipsMetaData::GetAllClipsMetaDataTags()
+{
+	return {
+		GetClipsMetaDataTag_FocalLength(),
+		GetClipsMetaDataTag_IsSelected(),
+		GetClipsMetaDataTag_RecordedLevel(),
+		GetClipsMetaDataTag_FrameCountStart(),
+		GetClipsMetaDataTag_FrameCountEnd(),
+		GetClipsMetaDataTag_LengthInFrames(),
+		GetClipsMetaDataTag_DisplayRate(),
+		GetClipsMetaDataTag_IsCineACineCameraRecording(),
+		GetClipsMetaDataTag_IsNoGood(),
+		GetClipsMetaDataTag_IsFlagged(),
+		GetClipsMetaDataTag_FavoriteLevel(),
+		GetClipsMetaDataTag_IsCreatedFromVCam()
+	};
+}
 
 void UVirtualCameraClipsMetaData::ExtendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
@@ -34,6 +54,10 @@ void UVirtualCameraClipsMetaData::ExtendAssetRegistryTags(TArray<FAssetRegistryT
 	OutTags.Emplace(AssetRegistryTag_LengthInFrames, FString::FromInt(LengthInFrames), FAssetRegistryTag::ETagType::TT_Numerical, FAssetRegistryTag::TD_None);
 	OutTags.Emplace(AssetRegistryTag_DisplayRate, DisplayRate.ToPrettyText().ToString(), FAssetRegistryTag::ETagType::TT_Alphabetical, FAssetRegistryTag::TD_None);
 	OutTags.Emplace(AssetRegistryTag_bIsACineCameraRecording, IsRecordedFromACineCameraActor, FAssetRegistryTag::ETagType::TT_Alphabetical, FAssetRegistryTag::TD_None);
+	OutTags.Emplace(AssetRegistryTag_bIsNoGood, FString::FromInt(bIsNoGood), FAssetRegistryTag::ETagType::TT_Numerical, FAssetRegistryTag::TD_None);
+	OutTags.Emplace(AssetRegistryTag_bIsFlagged, FString::FromInt(bIsFlagged), FAssetRegistryTag::ETagType::TT_Numerical, FAssetRegistryTag::TD_None);
+	OutTags.Emplace(AssetRegistryTag_FavoriteLevel, FString::FromInt(FavoriteLevel), FAssetRegistryTag::ETagType::TT_Alphabetical, FAssetRegistryTag::TD_None);
+	OutTags.Emplace(AssetRegistryTag_bIsCreatedFromVCam, FString::FromInt(bIsCreatedFromVCam), FAssetRegistryTag::ETagType::TT_Numerical, FAssetRegistryTag::TD_None);
 }
 
 #if WITH_EDITOR
