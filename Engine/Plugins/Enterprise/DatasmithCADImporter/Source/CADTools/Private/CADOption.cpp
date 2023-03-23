@@ -145,6 +145,7 @@ FAutoConsoleVariableRef GCADTranslatorMaxMaterialCountPerMesh(
 Default value is 256\n"),
 ECVF_Default);
 
+bool FImportParameters::bValidationProcess = false;
 
 uint32 GetTypeHash(const FImportParameters& ImportParameters)
 {

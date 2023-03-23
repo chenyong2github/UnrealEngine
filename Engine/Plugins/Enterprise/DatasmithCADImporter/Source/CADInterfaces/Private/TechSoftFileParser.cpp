@@ -9,10 +9,14 @@
 #include "TUniqueTechSoftObj.h"
 
 #include "HAL/FileManager.h"
+#include "HAL/PlatformTime.h"
+
 #ifndef CADKERNEL_DEV
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 #endif
+
+#include "Tasks/Task.h"
 #include "Templates/UnrealTemplate.h"
 
 namespace CADLibrary
@@ -254,12 +258,13 @@ void UpdateIOOptionAccordingToFormat(const CADLibrary::ECADFormat Format, A3DImp
 
 	case CADLibrary::ECADFormat::JT:
 	{
+		Importer.m_sLoadData.m_sIncremental.m_bLoadNoDependencies = false;
 		if (FImportParameters::bGPreferJtFileEmbeddedTessellation)
 		{
 			Importer.m_sLoadData.m_sGeneral.m_eReadGeomTessMode = kA3DReadTessOnly;
 			Importer.m_sLoadData.m_sSpecifics.m_sJT.m_eReadTessellationLevelOfDetail = A3DEJTReadTessellationLevelOfDetail::kA3DJTTessLODHigh;
-			break;
 		}
+		break;
 	}
 
 	case CADLibrary::ECADFormat::N_X:
@@ -309,7 +314,7 @@ double ExtractUniformScale(FVector3d& Scale)
 	return UniformScale;
 }
 
-} // ns TechSoftFileParserImpl
+} // namespace TechSoftFileParserImpl
 
 #endif
 
@@ -401,9 +406,11 @@ ECADParsingResult FTechSoftFileParser::Process()
 	}
 
 	// Adapt BRep to UE::CADKernel
-	if (AdaptBRepModel() != A3D_SUCCESS)
 	{
-		return ECADParsingResult::ProcessFailed;
+		if (AdaptBRepModel() != A3D_SUCCESS)
+		{
+			return ECADParsingResult::ProcessFailed;
+		}
 	}
 
 	// Some formats (like IGES) require a sew all the time. In this case, bForceSew = true
@@ -413,9 +420,7 @@ ECADParsingResult FTechSoftFileParser::Process()
 	}
 
 	ReserveCADFileData();
-
 	ReadMaterialsAndColors();
-
 	ECADParsingResult Result = TraverseModel();
 
 	if (Result == ECADParsingResult::ProcessOk)

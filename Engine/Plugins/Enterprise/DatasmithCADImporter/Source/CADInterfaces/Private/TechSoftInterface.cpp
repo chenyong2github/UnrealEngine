@@ -97,7 +97,19 @@ FString GetTechSoftVersion()
 FUniqueTechSoftModelFile LoadModelFileFromFile(const A3DImport& Import, A3DStatus& Status)
 {
 	A3DAsmModelFile* ModelFile = nullptr;
-	Status = A3DAsmModelFileLoadFromFile(Import.GetFilePath(), &Import.m_sLoadData, &ModelFile);
+#if !PLATFORM_EXCEPTIONS_DISABLED
+	try
+#endif
+	{
+		Status = A3DAsmModelFileLoadFromFile(Import.GetFilePath(), &Import.m_sLoadData, &ModelFile);
+	}
+#if !PLATFORM_EXCEPTIONS_DISABLED
+	catch (...)
+	{
+		UE_LOG(LogCADInterfaces, Warning, TEXT("Failed to load %s. An exception is thrown."), *Import.GetFilePath());
+		return FUniqueTechSoftModelFile();
+	}
+#endif
 
 	switch (Status)
 	{
@@ -167,7 +179,7 @@ A3DStatus GetSurfaceAsNurbs(const A3DSurfBase* SurfacePtr, A3DSurfNurbsData* Out
 
 A3DStatus GetSurfaceDomain(const A3DSurfBase* SurfacePtr, A3DDomainData& OutDomain)
 {
-	return A3DSrfGetDomain(SurfacePtr, &OutDomain);
+	return A3DSurfGetDomain(SurfacePtr, &OutDomain);
 }
 
 A3DStatus Evaluate(const A3DSurfBase* SurfacePtr, const A3DVector2dData& UVParameter, A3DUns32 Derivatives, A3DVector3dData* OutPointAndDerivatives)

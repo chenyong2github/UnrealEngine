@@ -214,6 +214,11 @@ void FFileDescriptor::SetFileFormat(const FString& Extension)
 		Format = ECADFormat::CATIA;
 		bCanReferenceOtherFiles = true;
 	}
+	else if (Extension == TEXT("catshape"))
+	{
+		Format = ECADFormat::CATIA;
+		bCanReferenceOtherFiles = false;
+	}
 	else if (Extension == TEXT("cgr"))
 	{
 		Format = ECADFormat::CATIA_CGR;
@@ -224,7 +229,8 @@ void FFileDescriptor::SetFileFormat(const FString& Extension)
 		Format = ECADFormat::IGES;
 		bCanReferenceOtherFiles = false;
 	}
-	else if (Extension == TEXT("step") || Extension == TEXT("stp"))
+	else if (Extension == TEXT("step") || Extension == TEXT("stp")
+		|| Extension == TEXT("stpz") || Extension == TEXT("stpx") || Extension == TEXT("stpxz"))
 	{
 		Format = ECADFormat::STEP;
 		bCanReferenceOtherFiles = true;
@@ -263,7 +269,7 @@ void FFileDescriptor::SetFileFormat(const FString& Extension)
 	else if (Extension == TEXT("asm.*")
 		|| Extension == TEXT("creo") || Extension == TEXT("creo.*")
 		|| Extension == TEXT("neu") || Extension == TEXT("neu.*")
-		|| Extension == TEXT("xpr"))
+		|| Extension == TEXT("xas"))
 	{
 		Format = ECADFormat::CREO;
 		bCanReferenceOtherFiles = true;
@@ -288,7 +294,8 @@ void FFileDescriptor::SetFileFormat(const FString& Extension)
 		Format = ECADFormat::SOLIDWORKS;
 		bCanReferenceOtherFiles = true;
 	}
-	else if (Extension == TEXT("x_t") || Extension == TEXT("x_b"))
+	else if (Extension == TEXT("x_t") || Extension == TEXT("x_b")
+		|| Extension == TEXT("xmt") || Extension == TEXT("xmt_txt"))
 	{
 		Format = ECADFormat::PARASOLID;
 		bCanReferenceOtherFiles = true;
@@ -308,12 +315,12 @@ void FFileDescriptor::SetFileFormat(const FString& Extension)
 		Format = ECADFormat::SOLID_EDGE;
 		bCanReferenceOtherFiles = true;
 	}
-	else if (Extension == TEXT("dwg"))
+	else if (Extension == TEXT("dwg") || Extension == TEXT("dxf"))
 	{
 		Format = ECADFormat::AUTOCAD;
 		bCanReferenceOtherFiles = true;
 	}
-	else if (Extension == TEXT("ifc"))
+	else if (Extension == TEXT("ifc") || Extension == TEXT("ifczip"))
 	{
 		Format = ECADFormat::IFC;
 		bCanReferenceOtherFiles = false;

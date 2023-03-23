@@ -57,6 +57,7 @@ namespace CADLibrary
 		CADTOOLS_API static float GUnitScale;
 		CADTOOLS_API static float GMeshingParameterFactor;
 		CADTOOLS_API static int32 GMaxMaterialCountPerMesh;
+		CADTOOLS_API static bool bValidationProcess;
 
 	public:
 		FImportParameters(FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
@@ -104,17 +105,23 @@ namespace CADLibrary
 
 			// these static variables have to be serialized to be transmitted to CADWorkers
 			// because CADWorker has not access to CVars
-			Ar << ImportParameters.bGOverwriteCache;
 			Ar << ImportParameters.bGDisableCADKernelTessellation;
-			Ar << ImportParameters.bGEnableTimeControl;
 			Ar << ImportParameters.bGEnableCADCache;
+			Ar << ImportParameters.bGEnableTimeControl;
+			Ar << ImportParameters.bGOverwriteCache;
 			Ar << ImportParameters.bGPreferJtFileEmbeddedTessellation;
-			Ar << ImportParameters.GStitchingTolerance;
+			Ar << ImportParameters.bGRemoveDuplicatedTriangle;
+			Ar << ImportParameters.bGSewMeshIfNeeded;
 			Ar << ImportParameters.bGStitchingForceSew;
-			Ar << ImportParameters.bGStitchingRemoveThinFaces;
 			Ar << ImportParameters.bGStitchingRemoveDuplicatedFaces;
-			Ar << ImportParameters.GStitchingForceFactor;
+			Ar << ImportParameters.bGStitchingRemoveThinFaces;
+			Ar << ImportParameters.bValidationProcess;
 			Ar << ImportParameters.GMaxMaterialCountPerMesh;
+			Ar << ImportParameters.GMeshingParameterFactor;
+			Ar << ImportParameters.GStitchingForceFactor;
+			Ar << ImportParameters.GStitchingTolerance;
+			Ar << ImportParameters.GUnitScale;
+
 			return Ar;
 		}
 
