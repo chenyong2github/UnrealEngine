@@ -1,8 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Framework/Text/SyntaxHighlighterTextLayoutMarshaller.h"
 #include "Framework/Text/SyntaxTokenizer.h"
@@ -57,11 +55,20 @@ public:
 
 protected:
 
+	enum class EParseState : uint8
+	{
+		None,
+		LookingForString,
+		LookingForCharacter,
+		LookingForSingleLineComment,
+		LookingForMultiLineComment,
+	};
+
 	static TSharedPtr<ISyntaxTokenizer> CreateTokenizer();
 	
 	virtual void ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines) override;
 
-	virtual FTextLayout::FNewLineData ProcessTokenizedLine(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString);
+	virtual FTextLayout::FNewLineData ProcessTokenizedLine(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString, EParseState& CurrentParseState);
 
 	FHLSLSyntaxHighlighterMarshaller(TSharedPtr<ISyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
 

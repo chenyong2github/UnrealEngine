@@ -505,26 +505,18 @@ void FHLSLSyntaxHighlighterMarshaller::ParseTokens(const FString& SourceString, 
 
 	// Parse the tokens, generating the styled runs for each line
 	int32 LineNo = 0;
+	EParseState ParseState = EParseState::None;
 	for(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine : TokenizedLines)
 	{
-		LinesToAdd.Add(ProcessTokenizedLine(TokenizedLine, LineNo, SourceString));
+		LinesToAdd.Add(ProcessTokenizedLine(TokenizedLine, LineNo, SourceString, ParseState));
 		LineNo++;
 	}
 
 	TargetTextLayout.AddLines(LinesToAdd);
 }
 
-FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString)
+FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString, EParseState& ParseState)
 {
-	enum class EParseState : uint8
-	{
-		None,
-		LookingForString,
-		LookingForCharacter,
-		LookingForSingleLineComment,
-		LookingForMultiLineComment,
-	};
-	EParseState ParseState = EParseState::None;
 	TSharedRef<FString> ModelString = MakeShareable(new FString());
 	TArray< TSharedRef< IRun > > Runs;
 
@@ -645,6 +637,10 @@ FTextLayout::FNewLineData FHLSLSyntaxHighlighterMarshaller::ProcessTokenizedLine
 		}
 	}
 
+	if (ParseState != EParseState::LookingForMultiLineComment)
+	{
+		ParseState = EParseState::None;
+	}
 	return FTextLayout::FNewLineData(MoveTemp(ModelString), MoveTemp(Runs));
 }
 
