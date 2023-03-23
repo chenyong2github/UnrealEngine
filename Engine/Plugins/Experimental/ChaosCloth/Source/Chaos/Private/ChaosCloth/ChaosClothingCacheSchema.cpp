@@ -46,11 +46,6 @@ void FClothingCacheSchema::RecordPostSolve(const FClothingSimulationSolver& Clot
 				const Softs::FSolverVec3& ParticleX = ParticleXs[ParticleIndex];
 
 				// Adding the vertices relative position to the particle write datas
-				FPendingParticleWrite NewData;
-
-				NewData.ParticleIndex = ParticleIndex;
-				OutFrame.PendingParticleData.Add(MoveTemp(NewData));
-
 				PendingID.Add(ParticleIndex);
 				PendingVX.Add(ParticleV.X);
 				PendingVY.Add(ParticleV.Y);
@@ -89,15 +84,15 @@ void FClothingCacheSchema::PlaybackPreSolve(UChaosCache& InCache, FReal InTime, 
 	const TArray<float>* PendingPX = EvaluatedResult.Channels.Find(PositionXName);
 	const TArray<float>* PendingPY = EvaluatedResult.Channels.Find(PositionYName);
 	const TArray<float>* PendingPZ = EvaluatedResult.Channels.Find(PositionZName);
+	const int32 NumCachedParticles = EvaluatedResult.ParticleIndices.Num();
 
-	if (PendingVX && PendingVY && PendingVZ && PendingPX && PendingPY && PendingPZ)
+	if (PendingVX && PendingVY && PendingVZ && PendingPX && PendingPY && PendingPZ && NumCachedParticles)
 	{
 		// Directly set the result of the cache into the solver particles
-		const int32 NumCachedParticles = EvaluatedResult.ParticleIndices.Num();
 		Softs::FSolverVec3* ParticleXs = ClothSolver.GetParticleXs(0);
 		Softs::FSolverVec3* ParticleVs = ClothSolver.GetParticleVs(0);
 		const int32 NumParticles = ClothSolver.GetNumParticles();
-		for (int32 CachedIndex = 0; CachedIndex < NumParticles; ++CachedIndex)
+		for (int32 CachedIndex = 0; CachedIndex < NumCachedParticles; ++CachedIndex)
 		{
 			const int32 ParticleIndex = EvaluatedResult.ParticleIndices[CachedIndex];
 			check(ParticleIndex < NumParticles);

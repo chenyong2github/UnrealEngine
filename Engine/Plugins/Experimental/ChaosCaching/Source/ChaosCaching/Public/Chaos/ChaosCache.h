@@ -437,6 +437,13 @@ public:
 	}
 
 private:
+	void FlushPendingFrames_ChannelOnlyReservePass(TQueue<FPendingFrameWrite, EQueueMode::Spsc>& LocalPendingWrites,
+		bool& bCanSimpleCopyChannelData);
+
+	// @return Whether or not any particle data was written
+	template<EQueueMode Mode>
+	bool FlushPendingFrames_MainPass(TQueue<FPendingFrameWrite, Mode>& InPendingWrites, bool bCanSimpleCopyChannelData);
+
 	friend class AChaosCacheManager;
 
 	/** Timestamped generic event tracks */
@@ -468,4 +475,7 @@ private:
 
 	/** Indicates that we need to strip MassToLocal before playing the cache. */
 	bool bStripMassToLocal;
+
+	/** Reverse Lookup for ChannelCurveToParticle. Rebuilt on load.*/
+	TMap<int32,int32> ParticleToChannelCurve;
 };

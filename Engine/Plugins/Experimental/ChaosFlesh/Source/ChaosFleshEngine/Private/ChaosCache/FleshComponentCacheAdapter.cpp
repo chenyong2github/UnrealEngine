@@ -52,27 +52,39 @@ namespace Chaos
 					const Softs::FSolverVec3* ParticleXs = &Particles.X(0);
 					const Softs::FSolverVec3* ParticleVs = &Particles.V(0);
 
+					TArray<float> PendingVX, PendingVY, PendingVZ, PendingPX, PendingPY, PendingPZ;
+					TArray<int32>& PendingID = OutFrame.PendingChannelsIndices;
+
+					PendingID.Reserve(NumParticles);
+					PendingVX.Reserve(NumParticles);
+					PendingVY.Reserve(NumParticles);
+					PendingVZ.Reserve(NumParticles);
+					PendingPX.Reserve(NumParticles);
+					PendingPY.Reserve(NumParticles);
+					PendingPZ.Reserve(NumParticles);
+
 					for (uint32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
 					{
 						const Softs::FSolverVec3& ParticleV = ParticleVs[ParticleIndex];
 						const Softs::FSolverVec3& ParticleX = ParticleXs[ParticleIndex];
 
 						// Adding the vertices relative position to the particle write datas
-						FPendingParticleWrite NewData;
+						PendingID.Add(ParticleIndex);
+						PendingVX.Add(ParticleV.X);
+						PendingVY.Add(ParticleV.Y);
+						PendingVZ.Add(ParticleV.Z);
 
-						NewData.ParticleIndex = ParticleIndex;
-						//	NewData.PendingTransform = FTransform(FQuat::Identity, FVector(ParticleX)).GetRelativeTransform(InRootTransform);
-
-						NewData.PendingCurveData.Add(MakeTuple(VelocityXName, ParticleV.X));
-						NewData.PendingCurveData.Add(MakeTuple(VelocityYName, ParticleV.Y));
-						NewData.PendingCurveData.Add(MakeTuple(VelocityZName, ParticleV.Z));
-
-						NewData.PendingCurveData.Add(MakeTuple(PositionXName, ParticleX.X));
-						NewData.PendingCurveData.Add(MakeTuple(PositionYName, ParticleX.Y));
-						NewData.PendingCurveData.Add(MakeTuple(PositionZName, ParticleX.Z));
-
-						OutFrame.PendingParticleData.Add(MoveTemp(NewData));
+						PendingPX.Add(ParticleX.X);
+						PendingPY.Add(ParticleX.Y);
+						PendingPZ.Add(ParticleX.Z);
 					}
+
+					OutFrame.PendingChannelsData.Add(VelocityXName, PendingVX);
+					OutFrame.PendingChannelsData.Add(VelocityYName, PendingVY);
+					OutFrame.PendingChannelsData.Add(VelocityZName, PendingVZ);
+					OutFrame.PendingChannelsData.Add(PositionXName, PendingPX);
+					OutFrame.PendingChannelsData.Add(PositionYName, PendingPY);
+					OutFrame.PendingChannelsData.Add(PositionZName, PendingPZ);
 				}
 			}
 		}
@@ -88,57 +100,45 @@ namespace Chaos
 			{
 				FCacheEvaluationContext Context(TickRecord);
 				Context.bEvaluateTransform = false;
-				Context.bEvaluateCurves = true;
+				Context.bEvaluateCurves = false;
 				Context.bEvaluateEvents = false;
+				Context.bEvaluateChannels = true;
 
 				// The evaluated result are already in world space since we are passing the tickrecord.spacetransform in the context
 				FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, nullptr);
-				const int32 NumCurves = EvaluatedResult.Curves.Num();
+
+				const TArray<float>* PendingVX = EvaluatedResult.Channels.Find(VelocityXName);
+				const TArray<float>* PendingVY = EvaluatedResult.Channels.Find(VelocityYName);
+				const TArray<float>* PendingVZ = EvaluatedResult.Channels.Find(VelocityZName);
+				const TArray<float>* PendingPX = EvaluatedResult.Channels.Find(PositionXName);
+				const TArray<float>* PendingPY = EvaluatedResult.Channels.Find(PositionYName);
+				const TArray<float>* PendingPZ = EvaluatedResult.Channels.Find(PositionZName);
+
+				const int32 NumCachedParticles = EvaluatedResult.ParticleIndices.Num();
 
 				FParticles& Particles = Evolution->Particles();
 
-				const uint32 NumParticles = Particles.Size();
-				if (NumParticles > 0)
+				const int32 NumParticles = Particles.Size();
+				if (NumCachedParticles > 0)
 				{
+					// Directly set the result of the cache into the solver particles
+
 					Softs::FSolverVec3* ParticleXs = &Particles.X(0);
 					Softs::FSolverVec3* ParticleVs = &Particles.V(0);
 
-					for (uint32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
+					for (int32 CachedIndex = 0; CachedIndex < NumCachedParticles; ++CachedIndex)
 					{
-						Softs::FSolverVec3& ParticleV = ParticleVs[ParticleIndex];
-						Softs::FSolverVec3& ParticleX = ParticleXs[ParticleIndex];
-
-						// Directly set the result of the cache into the solver particles
-						if ( ParticleIndex < (uint32)EvaluatedResult.ParticleIndices.Num())
+						const int32 ParticleIndex = EvaluatedResult.ParticleIndices[CachedIndex];
+						if (ensure(ParticleIndex < NumParticles))
 						{
-							const int32 TransformIndex = EvaluatedResult.ParticleIndices[ParticleIndex];
-							if (EvaluatedResult.Curves.IsValidIndex(TransformIndex))
-							{
-								if (const float* VelocityX = EvaluatedResult.Curves[TransformIndex].Find(VelocityXName))
-								{
-									ParticleV.X = *VelocityX;
-								}
-								if (const float* VelocityY = EvaluatedResult.Curves[TransformIndex].Find(VelocityYName))
-								{
-									ParticleV.Y = *VelocityY;
-								}
-								if (const float* VelocityZ = EvaluatedResult.Curves[TransformIndex].Find(VelocityZName))
-								{
-									ParticleV.Z = *VelocityZ;
-								}
-								if (const float* PositionX = EvaluatedResult.Curves[TransformIndex].Find(PositionXName))
-								{
-									ParticleX.X = *PositionX;
-								}
-								if (const float* PositionY = EvaluatedResult.Curves[TransformIndex].Find(PositionYName))
-								{
-									ParticleX.Y = *PositionY;
-								}
-								if (const float* PositionZ = EvaluatedResult.Curves[TransformIndex].Find(PositionZName))
-								{
-									ParticleX.Z = *PositionZ;
-								}
-							}
+							Softs::FSolverVec3& ParticleV = ParticleVs[ParticleIndex];
+							Softs::FSolverVec3& ParticleX = ParticleXs[ParticleIndex];
+							ParticleV.X = (*PendingVX)[CachedIndex];
+							ParticleV.Y = (*PendingVY)[CachedIndex];
+							ParticleV.Z = (*PendingVZ)[CachedIndex];
+							ParticleX.X = (*PendingPX)[CachedIndex];
+							ParticleX.Y = (*PendingPY)[CachedIndex];
+							ParticleX.Z = (*PendingPZ)[CachedIndex];
 						}
 					}
 				}
@@ -157,7 +157,7 @@ namespace Chaos
 	{
 		// If we have a flesh mesh we can play back any cache as long as it has one or more tracks
 		const UFleshComponent* FleshComp = CastChecked<UFleshComponent>(InComponent);
-		return FleshComp && InCache->TrackToParticle.Num() > 0;
+		return FleshComp && InCache->ChannelCurveToParticle.Num() > 0;
 	}
 
 	Chaos::Softs::FDeformableSolver* FFleshCacheAdapter::GetDeformableSolver(UPrimitiveComponent* InComponent) const
@@ -208,59 +208,49 @@ namespace Chaos
 
 			FCacheEvaluationContext Context(TickRecord);
 			Context.bEvaluateTransform = false;
-			Context.bEvaluateCurves = true;
+			Context.bEvaluateCurves = false;
 			Context.bEvaluateEvents = false;
+			Context.bEvaluateChannels = true;
 
 			FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, nullptr);
 
-			FleshComp->ResetDynamicCollection();
-			if (UFleshDynamicAsset* DynamicCollection = FleshComp->GetDynamicCollection())
-			{
-				TManagedArray<FVector3f>& DynamicVertex = DynamicCollection->GetPositions();
-				//TManagedArray<FVector3f>& DynamicVertex = DynamicCollection->GetVelocities();
+			const TArray<float>* PendingVX = EvaluatedResult.Channels.Find(VelocityXName);
+			const TArray<float>* PendingVY = EvaluatedResult.Channels.Find(VelocityYName);
+			const TArray<float>* PendingVZ = EvaluatedResult.Channels.Find(VelocityZName);
+			const TArray<float>* PendingPX = EvaluatedResult.Channels.Find(PositionXName);
+			const TArray<float>* PendingPY = EvaluatedResult.Channels.Find(PositionYName);
+			const TArray<float>* PendingPZ = EvaluatedResult.Channels.Find(PositionZName);
 
-				const int32 NumCurves = EvaluatedResult.Curves.Num();
-				if (NumCurves == EvaluatedResult.ParticleIndices.Num())
+			const int32 NumCachedParticles = EvaluatedResult.ParticleIndices.Num();
+
+			const bool bHasPositions = PendingPX && PendingPY && PendingPZ;
+			const bool bHasVelocities = PendingVX && PendingVY && PendingVZ;
+
+
+			FleshComp->ResetDynamicCollection();
+
+			if (bHasPositions && NumCachedParticles > 0)
+			{
+				if (UFleshDynamicAsset* DynamicCollection = FleshComp->GetDynamicCollection())
 				{
-					if (DynamicVertex.Num() == NumCurves)
+					TManagedArray<FVector3f>& DynamicVertex = DynamicCollection->GetPositions();
+					//TManagedArray<FVector3f>& DynamicVertex = DynamicCollection->GetVelocities();
+					const int32 NumDynamicVertex = DynamicVertex.Num();
+					if (NumDynamicVertex == NumCachedParticles)
 					{
-						for (int32 ParticleIndex = 0; ParticleIndex < NumCurves; ++ParticleIndex)
+						for (int32 CachedIndex = 0; CachedIndex < NumCachedParticles; ++CachedIndex)
 						{
-							if (ParticleIndex < EvaluatedResult.ParticleIndices.Num())
+							const int32 ParticleIndex = EvaluatedResult.ParticleIndices[CachedIndex];
+
+							if (ensure(ParticleIndex < NumDynamicVertex))
 							{
-								const int32 TransformIndex = EvaluatedResult.ParticleIndices[ParticleIndex];
-								if (EvaluatedResult.Curves.IsValidIndex(TransformIndex))
-								{
-									/*
-									if (const float* VelocityX = EvaluatedResult.Curves[TransformIndex].Find(VelocityXName))
-									{
-										SimulationContext->CachedVelocities[ParticleIndex].X = *VelocityX;
-									}
-									if (const float* VelocityY = EvaluatedResult.Curves[TransformIndex].Find(VelocityYName))
-									{
-										SimulationContext->CachedVelocities[ParticleIndex].Y = *VelocityY;
-									}
-									if (const float* VelocityZ = EvaluatedResult.Curves[TransformIndex].Find(VelocityZName))
-									{
-										SimulationContext->CachedVelocities[ParticleIndex].Z = *VelocityZ;
-									}
-									*/
-									if (const float* PositionX = EvaluatedResult.Curves[TransformIndex].Find(PositionXName))
-									{
-										DynamicVertex[ParticleIndex].X = *PositionX;
-									}
-									if (const float* PositionY = EvaluatedResult.Curves[TransformIndex].Find(PositionYName))
-									{
-										DynamicVertex[ParticleIndex].Y = *PositionY;
-									}
-									if (const float* PositionZ = EvaluatedResult.Curves[TransformIndex].Find(PositionZName))
-									{
-										DynamicVertex[ParticleIndex].Z = *PositionZ;
-									}
-									auto UEVertd = [](Chaos::FVec3 V) { return FVector3d(V.X, V.Y, V.Z); };
-									auto UEVertf = [](FVector3d V) { return FVector3f((float)V.X, (float)V.Y, (float)V.Z); };
-									DynamicVertex[ParticleIndex] = UEVertf(FleshComp->GetComponentTransform().InverseTransformPosition(UEVertd(DynamicVertex[ParticleIndex])));
-								}
+								DynamicVertex[ParticleIndex].X = (*PendingPX)[CachedIndex];
+								DynamicVertex[ParticleIndex].Y = (*PendingPY)[CachedIndex];
+								DynamicVertex[ParticleIndex].Z = (*PendingPZ)[CachedIndex];
+
+								auto UEVertd = [](Chaos::FVec3 V) { return FVector3d(V.X, V.Y, V.Z); };
+								auto UEVertf = [](FVector3d V) { return FVector3f((float)V.X, (float)V.Y, (float)V.Z); };
+								DynamicVertex[ParticleIndex] = UEVertf(FleshComp->GetComponentTransform().InverseTransformPosition(UEVertd(DynamicVertex[ParticleIndex])));
 							}
 						}
 					}

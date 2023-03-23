@@ -228,6 +228,13 @@ public:
 	virtual FKeyHandle AddKey(float InTime, float InValue, const bool bUnwindRotation = false, FKeyHandle KeyHandle = FKeyHandle()) final override;
 
 	/**
+	* Reserves keys to be added by AddKey.
+	* 
+	* @see AddKey
+	*/
+	void ReserveKeys(const int32 Number);
+
+	/**
 	 * Sets the keys with the keys.
 	 *
 	 * Expects that the keys are already sorted.

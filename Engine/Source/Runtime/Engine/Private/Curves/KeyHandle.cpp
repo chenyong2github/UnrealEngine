@@ -50,11 +50,6 @@ void FKeyHandleMap::Initialize(TArrayView<const FKeyHandle> InKeyHandles)
 
 void FKeyHandleMap::Add( const FKeyHandle& InHandle, int32 InIndex )
 {
-	for (auto It = KeyHandlesToIndices.CreateIterator(); It; ++It)
-	{
-		int32& KeyIndex = It.Value();
-		if (KeyIndex >= InIndex) { ++KeyIndex; }
-	}
 
 	if (InIndex > KeyHandles.Num())
 	{
@@ -68,6 +63,14 @@ void FKeyHandleMap::Add( const FKeyHandle& InHandle, int32 InIndex )
 	}
 	else
 	{
+		if (InIndex < KeyHandles.Num())
+		{
+			for (auto It = KeyHandlesToIndices.CreateIterator(); It; ++It)
+			{
+				int32& KeyIndex = It.Value();
+				if (KeyIndex >= InIndex) { ++KeyIndex; }
+			}
+		}
 		KeyHandles.Insert(InHandle, InIndex);
 	}
 
@@ -92,6 +95,13 @@ void FKeyHandleMap::Empty(int32 ExpectedNumElements)
 {
 	KeyHandlesToIndices.Empty(ExpectedNumElements);
 	KeyHandles.Empty(ExpectedNumElements);
+}
+
+
+void FKeyHandleMap::Reserve(int32 NumElements)
+{
+	KeyHandlesToIndices.Reserve(NumElements);
+	KeyHandles.Reserve(NumElements);
 }
 
 

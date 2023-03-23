@@ -103,12 +103,81 @@ void UChaosCache::PostLoad()
 	// Up-to-date now
 	Version = CurrentVersion;
 
+	// Build ParticleToChannelCurve 
+	ParticleToChannelCurve.Reserve(ChannelCurveToParticle.Num());
+	for (int32 ChannelCurveIndex = 0; ChannelCurveIndex < ChannelCurveToParticle.Num(); ++ChannelCurveIndex)
+	{
+		ParticleToChannelCurve.Add(ChannelCurveToParticle[ChannelCurveIndex], ChannelCurveIndex);
+	}
+
 	Super::PostLoad();
 }
 
-void UChaosCache::FlushPendingFrames()
+void UChaosCache::FlushPendingFrames_ChannelOnlyReservePass(TQueue<FPendingFrameWrite, EQueueMode::Spsc>& LocalPendingWrites,
+	bool& bCanSimpleCopyChannelData)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushPendingFrames);
+	bCanSimpleCopyChannelData = true;
+
+	TMap<FName, int32> ChannelKeys;
+	FPendingFrameWrite NewData;
+	while (PendingWrites.Dequeue(NewData))
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushSingleFrameReservePass);
+
+		const bool bContainsParticleData = NewData.PendingParticleData.Num() > 0;
+		if (!bContainsParticleData)
+		{
+			const int32 NumParticles = NewData.PendingChannelsIndices.Num();
+			for (const TPair<FName, TArray<float>>& ChannelData : NewData.PendingChannelsData)
+			{
+				int32* ChannelKeyCount = ChannelKeys.Find(ChannelData.Key);
+				if (!ChannelKeyCount)
+				{
+					ChannelKeyCount = &ChannelKeys.Add(ChannelData.Key);
+					*ChannelKeyCount = 0;
+				}
+				(*ChannelKeyCount)++;
+			}
+
+			for (int32 PendingIndex = 0; PendingIndex < NumParticles; ++PendingIndex)
+			{
+				const int32 ParticleIndex = NewData.PendingChannelsIndices[PendingIndex];
+				if (bCanSimpleCopyChannelData && PendingIndex < ChannelCurveToParticle.Num())
+				{
+					bCanSimpleCopyChannelData = ChannelCurveToParticle[PendingIndex] == ParticleIndex;
+				}
+
+				if (!ParticleToChannelCurve.Contains(ParticleIndex))
+				{
+					checkSlow(!ChannelCurveToParticle.Contains(ParticleIndex));
+					const int32 ChannelIndex = ChannelCurveToParticle.Add(ParticleIndex);
+					ParticleToChannelCurve.Add(ParticleIndex, ChannelIndex);
+				}
+			}
+		}
+
+		LocalPendingWrites.Enqueue(MoveTemp(NewData));
+	}
+
+	const int32 NumChannels = ChannelCurveToParticle.Num();
+	for (const TPair<FName, int32>& KeyCount : ChannelKeys)
+	{
+		FRichCurves* TargetCurve = ChannelsTracks.Find(KeyCount.Key);
+		if (TargetCurve == nullptr)
+		{
+			TargetCurve = &ChannelsTracks.Add(KeyCount.Key);
+			TargetCurve->RichCurves.SetNum(NumChannels);
+		}
+		for (FRichCurve& Curve : TargetCurve->RichCurves)
+		{
+			Curve.ReserveKeys(Curve.GetNumKeys() + KeyCount.Value);
+		}
+	}
+}
+
+template<EQueueMode Mode>
+bool UChaosCache::FlushPendingFrames_MainPass(TQueue<FPendingFrameWrite, Mode>& InPendingWrites, bool bCanSimpleCopyChannelData)
+{
 	bool bWroteParticleData = false;
 	FPendingFrameWrite NewData;
 
@@ -128,7 +197,7 @@ void UChaosCache::FlushPendingFrames()
 			// Signals that this is the final keyframe and that the particle then deactivates.
 			PTrack.bDeactivateOnEnd = true;
 		}
-		
+
 		if (ensure(PTrack.GetNumKeys() == 0 || Time > PTrack.KeyTimestamps.Last()))
 		{
 			PTrack.KeyTimestamps.Add(Time);
@@ -143,61 +212,78 @@ void UChaosCache::FlushPendingFrames()
 		return false;
 	};
 
-	while(PendingWrites.Dequeue(NewData))
+	while (InPendingWrites.Dequeue(NewData))
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushSingleFrame);
-
+		QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushSingleFramePass2);
 		{
-			const int32 NumParticles = NewData.PendingChannelsIndices.Num();
+			const bool bContainsParticleData = NewData.PendingParticleData.Num() > 0;
+			const int32 NumParticles = bContainsParticleData ? NewData.PendingParticleData.Num() : NewData.PendingChannelsIndices.Num();
 			bWroteParticleData |= NumParticles > 0;
-
-			for(auto& ChannelData : NewData.PendingChannelsData)
+			for (auto& ChannelData : NewData.PendingChannelsData)
 			{
 				// TArray<FRichCurve>& TargetCurve = ChannelsTracks.FindOrAdd(ChannelData.Key).RichCurves;
 				// TargetCurve.SetNum(NumParticles);
 
 				FRichCurves* TargetCurve = ChannelsTracks.Find(ChannelData.Key);
-				if(TargetCurve == nullptr)
+				if (TargetCurve == nullptr)
 				{
 					TargetCurve = &ChannelsTracks.Add(ChannelData.Key);
 					TargetCurve->RichCurves.SetNum(NumParticles);
 				}
-				int32 ParticleIndex = 0;
-				for(auto& ChannelValue : ChannelData.Value)
-				{
-					TargetCurve->RichCurves[ParticleIndex++].AddKey(NewData.Time, ChannelValue);
-				}
-			}
 
-			const bool bContainsParticleData = NewData.PendingParticleData.Num() > 0;
-			// If there is no particle data, use ChannelCurveToParticle instead. 
-			if (!bContainsParticleData)
-			{
-				// If there are more particles, append the curve index to the particle index map
-				const int32 OldNum = ChannelCurveToParticle.Num();
-				const int32 NewNum = NewData.PendingChannelsIndices.Num();	
-				if (OldNum < NewNum)
+				// If there is no particle data, use ChannelCurveToParticle instead.				
+				check(ChannelData.Value.Num() <= NumParticles);
+				if (bContainsParticleData)
 				{
-					ChannelCurveToParticle.SetNum(NewNum);
-					for(int32 Index = OldNum; Index < NewNum; ++Index)
+					for (int32 PendingIndex = 0; PendingIndex < NumParticles; ++PendingIndex)
 					{
-						ChannelCurveToParticle[Index] = NewData.PendingChannelsIndices[Index];
+						const FPendingParticleWrite& ParticleData = NewData.PendingParticleData[PendingIndex];
+						const int32 ParticleIndex = ParticleData.ParticleIndex;
+
+						int32 TrackIndex = INDEX_NONE;
+						if (!TrackToParticle.Find(ParticleIndex, TrackIndex))
+						{
+							TrackToParticle.Add(ParticleIndex);
+							TrackIndex = ParticleTracks.AddDefaulted();
+						}
+						TargetCurve->RichCurves[TrackIndex].AddKey(NewData.Time, ChannelData.Value[PendingIndex]);
+					}
+				}
+				else if (bCanSimpleCopyChannelData)
+				{
+					int32 ParticleIndex = 0;
+					for (auto& ChannelValue : ChannelData.Value)
+					{
+						TargetCurve->RichCurves[ParticleIndex++].AddKey(NewData.Time, ChannelValue);
+					}
+				}
+				else
+				{
+					for (int32 PendingIndex = 0; PendingIndex < NumParticles; ++PendingIndex)
+					{
+						const int32 ParticleIndex = NewData.PendingChannelsIndices[PendingIndex];
+						int32* ChannelIndex = ParticleToChannelCurve.Find(ParticleIndex);
+						if (!ChannelIndex)
+						{
+							ChannelIndex = &ParticleToChannelCurve.Add(ParticleIndex, ChannelCurveToParticle.Add(ParticleIndex));
+						}
+						TargetCurve->RichCurves[*ChannelIndex].AddKey(NewData.Time, ChannelData.Value[PendingIndex]);
 					}
 				}
 			}
 		}
-		
+
 		const int32 ParticleCount = NewData.PendingParticleData.Num();
 
 		bWroteParticleData |= ParticleCount > 0;
 
-		for(int32 Index = 0; Index < ParticleCount; ++Index)
+		for (int32 Index = 0; Index < ParticleCount; ++Index)
 		{
 			const FPendingParticleWrite& ParticleData = NewData.PendingParticleData[Index];
 			const int32 ParticleIndex = ParticleData.ParticleIndex;
 
 			int32 TrackIndex = INDEX_NONE;
-			if(!TrackToParticle.Find(ParticleIndex, TrackIndex))
+			if (!TrackToParticle.Find(ParticleIndex, TrackIndex))
 			{
 				TrackToParticle.Add(ParticleIndex);
 				TrackIndex = ParticleTracks.AddDefaulted();
@@ -208,7 +294,7 @@ void UChaosCache::FlushPendingFrames()
 
 			if (WriteDataToTransformTrack(PTrack, NewData.Time, ParticleData.bPendingDeactivate, ParticleData.PendingTransform))
 			{
-				for(TPair<FName, float> CurveKeyPair : ParticleData.PendingCurveData)
+				for (TPair<FName, float> CurveKeyPair : ParticleData.PendingCurveData)
 				{
 					FRichCurve& TargetCurve = TargetCacheData.CurveData.FindOrAdd(CurveKeyPair.Key);
 					TargetCurve.AddKey(NewData.Time, CurveKeyPair.Value);
@@ -216,11 +302,11 @@ void UChaosCache::FlushPendingFrames()
 			}
 		}
 
-		for(TTuple<FName, FCacheEventTrack>& PendingTrack : NewData.PendingEvents)
+		for (TTuple<FName, FCacheEventTrack>& PendingTrack : NewData.PendingEvents)
 		{
 			FCacheEventTrack* CacheTrack = EventTracks.Find(PendingTrack.Key);
 
-			if(!CacheTrack)
+			if (!CacheTrack)
 			{
 				CacheTrack = &EventTracks.Add(PendingTrack.Key, FCacheEventTrack(PendingTrack.Key, PendingTrack.Value.Struct));
 			}
@@ -235,10 +321,31 @@ void UChaosCache::FlushPendingFrames()
 			{
 				TransformCacheTrack = &NamedTransformTracks.Add(PendingNamedTransform.Key, FNamedTransformTrack());
 			}
-			WriteDataToTransformTrack(*TransformCacheTrack, NewData.Time, false, PendingNamedTransform.Value);			
+			WriteDataToTransformTrack(*TransformCacheTrack, NewData.Time, false, PendingNamedTransform.Value);
 		}
 
 		++NumRecordedFrames;
+	}
+	return bWroteParticleData;
+}
+
+void UChaosCache::FlushPendingFrames()
+{
+	QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushPendingFrames);
+	bool bWroteParticleData = false;
+
+	const bool bDoChannelOnlyTwoPass = PendingWrites.Peek() && PendingWrites.Peek()->PendingParticleData.Num() == 0 && PendingWrites.Peek()->PendingChannelsIndices.Num() > 0;
+	if (bDoChannelOnlyTwoPass)
+	{
+		bool bCanSimpleCopyChannelData = false;
+		TQueue<FPendingFrameWrite, EQueueMode::Spsc> LocalPendingWrites;
+		FlushPendingFrames_ChannelOnlyReservePass(LocalPendingWrites, bCanSimpleCopyChannelData);
+		bWroteParticleData = FlushPendingFrames_MainPass(LocalPendingWrites, bCanSimpleCopyChannelData);
+	}
+	else
+	{
+		constexpr bool bCanSimpleCopyChannelData = false;
+		bWroteParticleData = FlushPendingFrames_MainPass(PendingWrites, bCanSimpleCopyChannelData);
 	}
 
 	if(bWroteParticleData)
@@ -291,6 +398,7 @@ FCacheUserToken UChaosCache::BeginRecord(UPrimitiveComponent* InComponent, FGuid
 			CurveData.Reset();
 			EventTracks.Reset();
 			NamedTransformTracks.Reset();
+			ParticleToChannelCurve.Reset();
 
 			PendingWrites.Empty();
 

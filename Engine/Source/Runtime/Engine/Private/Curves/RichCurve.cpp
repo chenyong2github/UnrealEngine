@@ -301,7 +301,14 @@ FRichCurveKey* FRichCurve::GetFirstMatchingKey(const TArray<FKeyHandle>& KeyHand
 FKeyHandle FRichCurve::AddKey( const float InTime, const float InValue, const bool bUnwindRotation, FKeyHandle NewHandle )
 {
 	int32 Index = 0;
-	for(; Index < Keys.Num() && Keys[Index].Time < InTime; ++Index);
+	if (Keys.Num() == 0 || Keys.Last().Time < InTime)
+	{
+		Index = Keys.Num();
+	}
+	else
+	{
+		for (; Index < Keys.Num() && Keys[Index].Time < InTime; ++Index);
+	}
 	Keys.Insert(FRichCurveKey(InTime, InValue), Index);
 
 	// If we were asked to treat this curve as a rotation value and to unwindow the rotation, then
@@ -327,6 +334,13 @@ FKeyHandle FRichCurve::AddKey( const float InTime, const float InValue, const bo
 	KeyHandlesToIndices.Add(NewHandle, Index);
 
 	return NewHandle;
+}
+
+
+void FRichCurve::ReserveKeys(const int32 Number)
+{
+	Keys.Reserve(Number);
+	KeyHandlesToIndices.Reserve(Number);
 }
 
 
