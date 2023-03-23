@@ -3094,7 +3094,7 @@ static bool CompileToGlslWithShaderConductor(
 	// Reduce arrays with const accessors to structs, which will then be packed to an array by GL cross compile
 	if(!bCompilationFailed && !Options.bDisableOptimizations && (Version == GLSL_ES3_1_ANDROID || Version == GLSL_150_ES3_1))
 	{
-		const char* OptArgs[] = { "--reduce-const-array-to-struct" };
+		const char* OptArgs[] = { "--reduce-const-array-to-struct", "--convert-composite-to-op-access-chain-pass"};
 		if (!CompilerContext.OptimizeSpirv(SpirvData, OptArgs, UE_ARRAY_COUNT(OptArgs)))
 		{
 			UE_LOG(LogOpenGLShaderCompiler, Error, TEXT("Failed to apply reduce-const-array-to-struct for Android"));

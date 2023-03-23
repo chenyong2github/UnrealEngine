@@ -985,6 +985,9 @@ Optimizer::PassToken CreateAndroidDriverPatchPass();
 // UE Change Begin: Added support for reducing const arrays to structs
 Optimizer::PassToken CreateReduceConstArrayToStructPass();
 // UE Change End: Added support for reducing const arrays to structs
+// UE Change Begin: Convert-Composite-To-Op-Access-Chain-Pass
+Optimizer::PassToken CreateConvertCompositeToOpAccessChainPass();
+// UE Change End: Convert-Composite-To-Op-Access-Chain-Pass
 
 }  // namespace spvtools
 
