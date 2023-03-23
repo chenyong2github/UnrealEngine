@@ -1,6 +1,6 @@
 {
   "name": "conductor",
-  "version": "0.3.88",
+  "version": "0.3.89",
   "scripts": {
     "postinstall": "concurrently \"cd ./Client && npm install && cd ..\" \"cd ./Server && npm install && cd ..\"",
     "build": "node ./Scripts/build.js",

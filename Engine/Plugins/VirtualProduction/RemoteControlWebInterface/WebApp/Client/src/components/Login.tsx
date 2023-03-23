@@ -17,14 +17,14 @@ export class Login extends React.Component<Props> {
     this.submit();
   }
 
-  submit = async (initialSubmit) => {
-	const secured = crypto.createHash('md5').update(this.state.value).digest('hex');
-	try {
-		await this.props.onSubmit(secured);
-	} catch (e) {
-		const newState = { value: this.state.value, error: !initialSubmit };
-		this.setState(newState);
-	}
+  submit = async (initialSubmit?: boolean) => {
+    const secured = crypto.createHash('md5').update(this.state.value).digest('hex');
+    try {
+      await this.props.onSubmit(secured);
+    } catch (e) {
+      const newState = { value: this.state.value, error: !initialSubmit };
+      this.setState(newState);
+    }
   }
 
   state: State = {
