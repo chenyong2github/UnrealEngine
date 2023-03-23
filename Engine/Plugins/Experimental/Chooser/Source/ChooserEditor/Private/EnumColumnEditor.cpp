@@ -86,38 +86,41 @@ public:
 		ChildSlot
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().MaxWidth(45.0f)
+			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				SNew(SButton).ButtonStyle(FAppStyle::Get(),"FlatButton").TextStyle(FAppStyle::Get(),"RichTextBlock.Bold").HAlign(HAlign_Center)
-				.Text_Lambda([this, Row]()
-				{
-					// this is a bit of an odd thing to do, but as we are polling for the "=" / "!=" button state anyway,
-					// also poll to see if the currently bound Enum has changed, and if it has, recreate the enum combo box.
-					const UEnum* CurrentEnumSource = nullptr;
-					if (EnumColumn->InputValue.IsValid())
+				SNew(SBox).WidthOverride(45)
+				[
+					SNew(SButton).ButtonStyle(FAppStyle::Get(),"FlatButton").TextStyle(FAppStyle::Get(),"RichTextBlock.Bold").HAlign(HAlign_Center)
+					.Text_Lambda([this, Row]()
 					{
-						CurrentEnumSource = EnumColumn->InputValue.Get<FChooserParameterEnumBase>().GetEnum(); 
-					}
-					if (EnumSource != CurrentEnumSource)
-					{
-						EnumComboBorder->SetContent(CreateEnumComboBox());
-						EnumSource = EnumColumn->InputValue.Get<FChooserParameterEnumBase>().GetEnum();
-					}
+						// this is a bit of an odd thing to do, but as we are polling for the "=" / "!=" button state anyway,
+						// also poll to see if the currently bound Enum has changed, and if it has, recreate the enum combo box.
+						const UEnum* CurrentEnumSource = nullptr;
+						if (EnumColumn->InputValue.IsValid())
+						{
+							CurrentEnumSource = EnumColumn->InputValue.Get<FChooserParameterEnumBase>().GetEnum(); 
+						}
+						if (EnumSource != CurrentEnumSource)
+						{
+							EnumComboBorder->SetContent(CreateEnumComboBox());
+							EnumSource = EnumColumn->InputValue.Get<FChooserParameterEnumBase>().GetEnum();
+						}
 					
-					return (EnumColumn->RowValues.IsValidIndex(Row) && EnumColumn->RowValues[Row].CompareNotEqual ? LOCTEXT("Not Equal", "!=") : LOCTEXT("Equal", "="));
-				})
-				.OnClicked_Lambda([this, Row]()
-				{
-					if (EnumColumn->RowValues.IsValidIndex(Row))
+						return (EnumColumn->RowValues.IsValidIndex(Row) && EnumColumn->RowValues[Row].CompareNotEqual ? LOCTEXT("Not Equal", "!=") : LOCTEXT("Equal", "="));
+					})
+					.OnClicked_Lambda([this, Row]()
 					{
-						const FScopedTransaction Transaction(LOCTEXT("Edit Comparison", "Edit Comparison Operation"));
-						TransactionObject->Modify(true);
-						EnumColumn->RowValues[Row].CompareNotEqual = !EnumColumn->RowValues[Row].CompareNotEqual;
-					}
-					return FReply::Handled();
-				})
+						if (EnumColumn->RowValues.IsValidIndex(Row))
+						{
+							const FScopedTransaction Transaction(LOCTEXT("Edit Comparison", "Edit Comparison Operation"));
+							TransactionObject->Modify(true);
+							EnumColumn->RowValues[Row].CompareNotEqual = !EnumColumn->RowValues[Row].CompareNotEqual;
+						}
+						return FReply::Handled();
+					})
+				]
 			]
-			+ SHorizontalBox::Slot().FillWidth(true)
+			+ SHorizontalBox::Slot().FillWidth(1)
 			[
 				SAssignNew(EnumComboBorder, SBorder).Padding(0).BorderBackgroundColor(FLinearColor(0,0,0,0))
 				[

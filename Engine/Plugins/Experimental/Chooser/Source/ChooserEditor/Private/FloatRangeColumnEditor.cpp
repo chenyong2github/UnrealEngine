@@ -22,11 +22,11 @@ TSharedRef<SWidget> CreateFloatRangeColumnWidget(UChooserTable* Chooser, FChoose
 	FFloatRangeColumn* FloatRangeColumn = static_cast<FFloatRangeColumn*>(Column);
 
 	return SNew(SHorizontalBox)
-	+ SHorizontalBox::Slot().MaxWidth(10)
+	+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 	[
 		SNew(STextBlock).Text(LOCTEXT("FloatRangeLeft", "("))
 	]
-	+ SHorizontalBox::Slot().FillWidth(1.0)
+	+ SHorizontalBox::Slot().FillWidth(0.5f)
 	[
 		SNew(SNumericEntryBox<float>)
 		.MaxValue_Lambda([FloatRangeColumn, Row]()
@@ -47,11 +47,11 @@ TSharedRef<SWidget> CreateFloatRangeColumnWidget(UChooserTable* Chooser, FChoose
 			}
 		})
 	]
-	+ SHorizontalBox::Slot().MaxWidth(10)
+	+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 	[
 		SNew(STextBlock).Text(LOCTEXT("FloatRangeComma", " ,"))
 	]
-	+ SHorizontalBox::Slot().FillWidth(1.0)
+	+ SHorizontalBox::Slot().FillWidth(0.5f)
 	[
 		SNew(SNumericEntryBox<float>)
 		.MinValue_Lambda([FloatRangeColumn, Row]()
@@ -72,7 +72,7 @@ TSharedRef<SWidget> CreateFloatRangeColumnWidget(UChooserTable* Chooser, FChoose
 			}
 		})
 	]
-	+ SHorizontalBox::Slot().MaxWidth(10)
+	+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 	[
 		SNew(STextBlock).Text(LOCTEXT("FloatRangeRight", " )"))
 	];
