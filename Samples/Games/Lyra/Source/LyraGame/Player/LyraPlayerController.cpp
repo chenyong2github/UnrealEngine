@@ -572,7 +572,7 @@ void ALyraReplayPlayerController::RecorderPlayerStateUpdated(APlayerState* NewRe
 		FollowedPlayerState = NewRecorderPlayerState;
 
 		// Bind to when pawn changes and call now
-		NewRecorderPlayerState->OnPawnSet.AddDynamic(this, &ALyraReplayPlayerController::OnPlayerStatePawnSet);
+		NewRecorderPlayerState->OnPawnSet.AddUniqueDynamic(this, &ALyraReplayPlayerController::OnPlayerStatePawnSet);
 		OnPlayerStatePawnSet(NewRecorderPlayerState, NewRecorderPlayerState->GetPawn(), nullptr);
 	}
 }
