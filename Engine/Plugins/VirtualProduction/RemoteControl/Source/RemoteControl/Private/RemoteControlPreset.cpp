@@ -10,6 +10,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Engine.h"
 #include "Engine/Level.h"
+#include "Factories/IRCDefaultValueFactory.h"
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "IRemoteControlModule.h"
@@ -36,7 +37,6 @@
 #include "Editor.h"
 #include "EngineAnalytics.h"
 #include "Engine/Blueprint.h"
-#include "Factories/IRCDefaultValueFactory.h"
 #include "TimerManager.h"
 #include "UObject/PackageReload.h"
 #endif
