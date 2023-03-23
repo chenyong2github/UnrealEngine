@@ -63,13 +63,6 @@ struct TStructOpsTypeTraits<FDataCacheDuplicatedObjectData> : public TStructOpsT
 	};
 };
 
-/** Dummy class to use as an outer as we can instantiate a UObject since it is abstract class. */
-UCLASS()
-class UActorComponentInstanceDataTransientOuter : public UObject
-{
-	GENERATED_BODY()
-};
-
 /** Base class for instance cached data of a particular type. */
 USTRUCT()
 struct ENGINE_API FInstanceCacheDataBase
@@ -80,8 +73,12 @@ struct ENGINE_API FInstanceCacheDataBase
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
 
+	UE_DEPRECATED(5.3, "Use GetUniqueTransientObject instead")
 	/** Get (or create) the unique transient outer for the duplicated objects created for this object */
-	UObject* GetUniqueTransientPackage();
+	UObject* GetUniqueTransientPackage() { return GetUniqueTransientObject(UObject::StaticClass()); }
+
+	/** Get (or create) the unique transient outer for the duplicated objects created for this object */
+	UObject* GetUniqueTransientObject(UClass* Class);
 
 	const TArray<FDataCacheDuplicatedObjectData>& GetDuplicatedObjects() const { return DuplicatedObjects; }
 	const TArray<TObjectPtr<UObject>>& GetReferencedObjects() const { return ReferencedObjects; }
