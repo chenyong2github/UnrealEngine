@@ -271,7 +271,8 @@ namespace UE::Chaos::ClothAsset
 		SetDefaults();
 	}
 
-	void FCollectionClothPatternFacade::Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<uint32>& Indices)
+	template<typename IndexType>
+	void FCollectionClothPatternFacade::Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<IndexType>& Indices)
 	{
 		Reset();
 
@@ -335,6 +336,8 @@ namespace UE::Chaos::ClothAsset
 			SimRestNormal[SimVertexIndex] = SimRestNormal[SimVertexIndex].GetSafeNormal(UE_SMALL_NUMBER, FVector3f::XAxisVector);
 		}
 	}
+	template CHAOSCLOTHASSET_API void FCollectionClothPatternFacade::Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<int32>& Indices);
+	template CHAOSCLOTHASSET_API void FCollectionClothPatternFacade::Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<uint32>& Indices);
 
 	void FCollectionClothPatternFacade::Initialize(const FCollectionClothPatternConstFacade& Other)
 	{

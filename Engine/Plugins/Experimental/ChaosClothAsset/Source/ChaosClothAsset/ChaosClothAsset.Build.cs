@@ -11,7 +11,9 @@ public class ChaosClothAsset : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core"
+				"Core",
+				"GeometryCore",
+				"MeshConversion",
 			}
 		);
 		PublicDependencyModuleNames.AddRange(

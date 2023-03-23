@@ -35,6 +35,8 @@ public class ChaosClothAssetEditor : ModuleRules
 				"EditorInteractiveToolsFramework",
 				"ModelingComponentsEditorOnly", // Static/skeletal mesh tool targets
 				"ModelingComponents",
+				"MeshConversion",
+				"MeshDescription",
 				"MeshModelingToolsExp",
 				"MeshModelingToolsEditorOnlyExp",
 				"EditorStyle",

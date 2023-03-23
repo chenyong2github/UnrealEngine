@@ -4,6 +4,11 @@
 
 #include "ChaosClothAsset/CollectionClothPatternFacade.h"
 
+namespace UE::Geometry
+{
+class FDynamicMesh3;
+}
+
 namespace UE::Chaos::ClothAsset
 {
 	class FClothCollection;
@@ -133,6 +138,9 @@ namespace UE::Chaos::ClothAsset
 		/** Initialize the cloth LOD using another cloth collection. */
 		void Initialize(const FCollectionClothLodConstFacade& Other);
 
+		/** Initialize the cloth LOD from a DynamicMesh (possibly using UV islands to define Patterns)*/
+		void Initialize(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex);
+
 		/** Set the new number of materials to this cloth LOD. */
 		void SetNumMaterials(int32 NumMaterials);
 		/** Set the new number of tether batches to this cloth LOD. */
@@ -201,6 +209,9 @@ namespace UE::Chaos::ClothAsset
 		FCollectionClothLodFacade(const TSharedPtr<FClothCollection>& InClothCollection, int32 InLodIndex);
 
 		void SetDefaults();
+
+		template<bool bWeldNearlyCoincidentVertices>
+		void InitializeFromDynamicMeshInternal(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex);
 
 		TSharedPtr<FClothCollection> GetClothCollection() { return ConstCastSharedPtr<FClothCollection>(ClothCollection); }
 	};

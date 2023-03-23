@@ -125,7 +125,8 @@ namespace UE::Chaos::ClothAsset
 		void Reset();
 
 		/** Initialize the cloth pattern using the specified 3D and 2D positions, and topology. */
-		void Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<uint32>& Indices);
+		template<typename IndexType>
+		void Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<IndexType>& Indices);
 
 		/** Initialize the cloth pattern using another pattern. */
 		void Initialize(const FCollectionClothPatternConstFacade& Other);

@@ -4,6 +4,7 @@
 #include "ChaosClothAsset/DataflowNodes/TerminalNode.h"
 #include "ChaosClothAsset/DataflowNodes/DatasmithImportNode.h"
 #include "ChaosClothAsset/DataflowNodes/ImportNode.h"
+#include "ChaosClothAsset/DataflowNodes/StaticMeshImportNode.h"
 #include "ChaosClothAsset/DataflowNodes/PatternSelectionNode.h"
 #include "ChaosClothAsset/DataflowNodes/DeleteRenderMeshNode.h"
 #include "ChaosClothAsset/DataflowNodes/CopySimulationToRenderMeshNode.h"
@@ -23,6 +24,7 @@ namespace UE::Chaos::ClothAsset::DataflowNodes
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetTerminalNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetDatasmithImportNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetImportNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetStaticMeshImportNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetPatternSelectionNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetDeleteRenderMeshNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetCopySimulationToRenderMeshNode);
