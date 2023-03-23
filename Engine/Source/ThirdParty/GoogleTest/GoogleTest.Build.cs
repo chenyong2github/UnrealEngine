@@ -35,6 +35,11 @@ public class GoogleTest : ModuleRules
                 PartialLibraryPath += "/" + DefaultConfiguration;
             }
 
+            if (!Target.Architecture.bIsX64)
+            {
+                PartialLibraryPath += "/ARM64";
+            }
+
             //if (!Target.IsMonolithic)
             //{
             //    PartialLibraryPath += "_Shared";
