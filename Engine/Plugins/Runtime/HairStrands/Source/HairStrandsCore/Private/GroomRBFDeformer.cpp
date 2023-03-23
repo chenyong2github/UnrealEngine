@@ -81,7 +81,7 @@ FVector3f DisplacePosition(
 
 void DeformStrands(	
 	const FHairStrandsDatas& HairStandsData,
-	const TArray<FHairStrandsIndexFormat::Type>& VertexToCurveIndexBuffer,
+	const TArray<FHairStrandsIndexFormat::Type>& PointToCurveBuffer,
 	const TArray<FHairStrandsIndexFormat::Type>& RootToUniqueTriangleBuffer,
 	const TArray<FHairStrandsRootBarycentricFormat::Type>& RootBarycentricBuffer,
 
@@ -117,7 +117,7 @@ void DeformStrands(
 	ParallelFor(CurveCount, [&](uint32 CurveIndex)
 	{
 		const uint32 VertexOffset = HairStandsData.StrandsCurves.CurvesOffset[CurveIndex];
-		const uint32 RootIndex = VertexToCurveIndexBuffer[VertexOffset];
+		const uint32 RootIndex = PointToCurveBuffer[VertexOffset];
 		const uint32 TriangleIndex = RootToUniqueTriangleBuffer[RootIndex];
 
 		// Sanity check
@@ -152,7 +152,7 @@ void DeformStrands(
 	// Apply correction offset to each control points
 	ParallelFor(VertexCount, [&](uint32 VertexIndex)
 	{
-		const uint32 CurveIndex = VertexToCurveIndexBuffer[VertexIndex];
+		const uint32 CurveIndex = PointToCurveBuffer[VertexIndex];
 		const FVector4f CorrectionOffset = CorrectionOffsets[CurveIndex];
 		OutDeformedPositionBuffer[VertexIndex] += CorrectionOffset;
 	});
@@ -206,7 +206,7 @@ TArray<FVector3f> GetDeformedHairStrandsPositions(
 	const FHairStrandsDatas& HairStrandsData,
 	const uint32 MeshLODIndex,
 	const FSkeletalMeshRenderData* InMeshRenderData,
-	const TArray<FHairStrandsIndexFormat::Type>& VertexToCurveIndexBuffer,
+	const TArray<FHairStrandsIndexFormat::Type>& PointToCurveBuffer,
 	const FHairStrandsRootData::FMeshProjectionLOD& RestLODData)
 {
 	// Init the mesh samples with the target mesh vertices
@@ -258,7 +258,7 @@ TArray<FVector3f> GetDeformedHairStrandsPositions(
 
 	DeformStrands(
 		HairStrandsData,
-		VertexToCurveIndexBuffer,
+		PointToCurveBuffer,
 		RootToUniqueTriangleBuffer,
 		RestLODData.RootBarycentricBuffer,
 
@@ -521,7 +521,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 		}
 
 		// Build Curve index for every vertices
-		auto BuildVertexToCurveMapping = [](const FHairStrandsDatas& In, TArray<uint32>& Out)
+		auto BuildPointToCurveMapping = [](const FHairStrandsDatas& In, TArray<uint32>& Out)
 		{
 			const uint32 CurveCount = In.GetNumCurves();
 			Out.SetNum(In.GetNumPoints());
@@ -551,10 +551,10 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			FHairGroupInfo DummyInfo;
 			FGroomBuilder::BuildData(Group, InGroomAsset->HairGroupsInterpolation[GroupIndex], DummyInfo, StrandsData, GuidesData);
 
-			TArray<uint32> SimRootDataVertexToCurveIndexBuffer;
-			TArray<uint32> RenRootDataVertexToCurveIndexBuffer;
-			BuildVertexToCurveMapping(GuidesData, SimRootDataVertexToCurveIndexBuffer);
-			BuildVertexToCurveMapping(StrandsData, RenRootDataVertexToCurveIndexBuffer);
+			TArray<uint32> SimRootDataPointToCurveBuffer;
+			TArray<uint32> RenRootDataPointToCurveBuffer;
+			BuildPointToCurveMapping(GuidesData, SimRootDataPointToCurveBuffer);
+			BuildPointToCurveMapping(StrandsData, RenRootDataPointToCurveBuffer);
 
 			// Get deformed guides
 			// If the groom override the value, we output dummy value for the guides, since they won't be used
@@ -573,7 +573,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 					GuidesData,
 					MeshLODIndex,
 					SkeletalMeshData_Target,
-					SimRootDataVertexToCurveIndexBuffer,
+					SimRootDataPointToCurveBuffer,
 					SimRootData.MeshProjectionLODs[MeshLODIndex]);
 			}
 
@@ -587,7 +587,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 					StrandsData,
 					MeshLODIndex,
 					SkeletalMeshData_Target,
-					RenRootDataVertexToCurveIndexBuffer,
+					RenRootDataPointToCurveBuffer,
 					RenRootData.MeshProjectionLODs[MeshLODIndex]);
 			}
 		}

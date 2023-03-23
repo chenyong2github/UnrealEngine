@@ -229,8 +229,8 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
 	static_assert(sizeof(FHairStrandsPositionFormat::BulkType) == sizeof(FHairStrandsPositionFormat::Type));
 	static_assert(sizeof(FHairStrandsAttributeFormat::BulkType) == sizeof(FHairStrandsAttributeFormat::Type));
-	static_assert(sizeof(FHairStrandsVertexToCurveFormat16::BulkType) == sizeof(FHairStrandsVertexToCurveFormat16::Type));
-	static_assert(sizeof(FHairStrandsVertexToCurveFormat32::BulkType) == sizeof(FHairStrandsVertexToCurveFormat32::Type));
+	static_assert(sizeof(FHairStrandsPointToCurveFormat16::BulkType) == sizeof(FHairStrandsPointToCurveFormat16::Type));
+	static_assert(sizeof(FHairStrandsPointToCurveFormat32::BulkType) == sizeof(FHairStrandsPointToCurveFormat32::Type));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type)); 
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
@@ -256,7 +256,7 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
 		Positions.SetBulkDataFlags(BulkFlags);
 		Attributes.SetBulkDataFlags(BulkFlags);
-		VertexToCurve.SetBulkDataFlags(BulkFlags);
+		PointToCurve.SetBulkDataFlags(BulkFlags);
 		Curves.SetBulkDataFlags(BulkFlags);
 	}
 
@@ -267,7 +267,7 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 		Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		Attributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		VertexToCurve.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		PointToCurve.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		Curves.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 }
@@ -287,13 +287,13 @@ void FHairStrandsBulkData::Reset()
 	// Deallocate memory if needed
 	Positions.RemoveBulkData();
 	Attributes.RemoveBulkData();
-	VertexToCurve.RemoveBulkData();
+	PointToCurve.RemoveBulkData();
 	Curves.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
 	Positions 		= FByteBulkData();
 	Attributes		= FByteBulkData();
-	VertexToCurve	= FByteBulkData();
+	PointToCurve	= FByteBulkData();
 	Curves			= FByteBulkData();
 }
 

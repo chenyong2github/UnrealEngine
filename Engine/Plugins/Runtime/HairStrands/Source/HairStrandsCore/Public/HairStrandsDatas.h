@@ -115,7 +115,7 @@ struct FHairStrandsAttributeFormat
 	static const EPixelFormat Format = PF_R32_UINT;
 };
 
-struct FHairStrandsVertexToCurveFormat16
+struct FHairStrandsPointToCurveFormat16
 {
 	typedef uint16 Type;
 	typedef uint16 BulkType;
@@ -125,7 +125,7 @@ struct FHairStrandsVertexToCurveFormat16
 	static const EPixelFormat Format = PF_R16_UINT;
 };
 
-struct FHairStrandsVertexToCurveFormat32
+struct FHairStrandsPointToCurveFormat32
 {
 	typedef uint32 Type;
 	typedef uint32 BulkType;
@@ -491,7 +491,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 
 	FByteBulkData Positions;	// Size = PointCount
 	FByteBulkData Attributes;	// Size = x*PointCount + y*CurveCount (depends on the stored attributes, which could be per-vertex(x) or per-curve(y))
-	FByteBulkData VertexToCurve;// Size = PointCount
+	FByteBulkData PointToCurve; // Size = PointCount
 	FByteBulkData Curves;		// Size = CurveCount
 };
 

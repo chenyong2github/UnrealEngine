@@ -167,15 +167,15 @@ namespace HairStrandsBuilder
 		OutPackedCurves.SetNum(NumCurves * FHairStrandsCurveFormat::ComponentCount);
 
 		const bool bUse16bitsCurveIndex = NumCurves < 65536;
-		TArray<FHairStrandsVertexToCurveFormat16::Type> OutVertexToCurve16;
-		TArray<FHairStrandsVertexToCurveFormat32::Type> OutVertexToCurve32;
+		TArray<FHairStrandsPointToCurveFormat16::Type> OutPointToCurve16;
+		TArray<FHairStrandsPointToCurveFormat32::Type> OutPointToCurve32;
 		if (bUse16bitsCurveIndex)
 		{
-			OutVertexToCurve16.SetNum(NumPoints);
+			OutPointToCurve16.SetNum(NumPoints);
 		}
 		else
 		{
-			OutVertexToCurve32.SetNum(NumPoints);
+			OutPointToCurve32.SetNum(NumPoints);
 		}
 
 		const uint32 Attributes = HairStrands.GetAttributes();
@@ -246,11 +246,11 @@ namespace HairStrandsBuilder
 				// Vertex to Curve
 				if (bUse16bitsCurveIndex)
 				{
-					OutVertexToCurve16[PointIndex + IndexOffset] = CurveIndex;
+					OutPointToCurve16[PointIndex + IndexOffset] = CurveIndex;
 				}
 				else
 				{
-					OutVertexToCurve32[PointIndex + IndexOffset] = CurveIndex;
+					OutPointToCurve32[PointIndex + IndexOffset] = CurveIndex;
 				}
 
 				// Per-Vertex Color
@@ -429,11 +429,11 @@ namespace HairStrandsBuilder
 		if (bUse16bitsCurveIndex)
 		{
 			OutBulkData.Flags |= FHairStrandsBulkData::DataFlags_Has16bitsCurveIndex;
-			CopyToBulkData<FHairStrandsVertexToCurveFormat16>(OutBulkData.VertexToCurve, OutVertexToCurve16);
+			CopyToBulkData<FHairStrandsPointToCurveFormat16>(OutBulkData.PointToCurve, OutPointToCurve16);
 		}
 		else
 		{
-			CopyToBulkData<FHairStrandsVertexToCurveFormat32>(OutBulkData.VertexToCurve, OutVertexToCurve32);
+			CopyToBulkData<FHairStrandsPointToCurveFormat32>(OutBulkData.PointToCurve, OutPointToCurve32);
 		}
 	}
 

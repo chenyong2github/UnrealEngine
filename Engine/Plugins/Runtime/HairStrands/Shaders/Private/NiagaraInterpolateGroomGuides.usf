@@ -26,7 +26,7 @@ Buffer<uint>		RootToUniqueTriangleIndexBuffer;
 
 #endif
 
-Buffer<uint>		VertexToCurveIndexBuffer;
+Buffer<uint>		PointToCurveIndexBuffer;
 RWBuffer<uint4>		DeformedPositionBuffer;
 Buffer<uint4>		RestPositionBuffer;
 Buffer<uint>		CurvesOffsetsBuffer;
@@ -74,7 +74,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId.x < uint(NumPoints))
 	{
-		const int StrandIndex = VertexToCurveIndexBuffer[DispatchThreadId.x];
+		const int StrandIndex = PointToCurveIndexBuffer[DispatchThreadId.x];
 		
 		const int PointCount = CurvesOffsetsBuffer[StrandIndex + 1] - CurvesOffsetsBuffer[StrandIndex];
 		const int PointIndex = DispatchThreadId.x - CurvesOffsetsBuffer[StrandIndex];
