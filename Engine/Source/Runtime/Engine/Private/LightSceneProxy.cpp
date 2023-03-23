@@ -137,6 +137,8 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 		{
 			bCastDynamicShadow = false;
 		}
+
+		bTransmission = false;
 	}
 }
 

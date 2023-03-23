@@ -388,7 +388,7 @@ protected:
 	const uint8 bCastTranslucentShadows : 1;
 
 	/** Whether light from this light transmits through surfaces with subsurface scattering profiles. Requires light to be movable. */
-	const uint8 bTransmission : 1;
+	uint8 bTransmission : 1;
 
 	const uint8 bCastVolumetricShadow : 1;
 	const uint8 bCastHairStrandsDeepShadow : 1;
