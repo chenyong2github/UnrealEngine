@@ -33,14 +33,15 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"DerivedDataCache",
+						"ImageCore",
+						"MeshBuilder",
+						"MeshBuilderCommon",
 						"MeshDescription",
-						"StaticMeshDescription",
-						"RawMesh",
 						"MeshUtilities",
 						"MeshUtilitiesCommon",
-						"MeshBuilderCommon",
-						"MeshBuilder",
 						"NaniteUtilities",
+						"RawMesh",
+						"StaticMeshDescription",
 					}
 				);
 

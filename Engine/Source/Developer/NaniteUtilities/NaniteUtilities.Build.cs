@@ -13,5 +13,12 @@ public class NaniteUtilities : ModuleRules
 				"Engine",
 			}
 		);
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"ImageCore",
+			}
+		);
 	}
 }

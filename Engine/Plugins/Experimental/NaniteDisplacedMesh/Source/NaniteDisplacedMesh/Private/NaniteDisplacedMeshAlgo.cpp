@@ -238,14 +238,34 @@ bool DisplaceNaniteMesh(
 	TArray< Nanite::FDisplacementMap > DisplacementMaps;
 	for( auto& DisplacementMap : Parameters.DisplacementMaps )
 	{
-		if( IsValid( DisplacementMap.Texture ) && DisplacementMap.Texture->Source.IsValid() )
+
+		if (DisplacementMap.Texture)
 		{
-			DisplacementMaps.Add( Nanite::FDisplacementMap(
-				DisplacementMap.Texture->Source,
-				DisplacementMap.Magnitude,
-				DisplacementMap.Center,
-				DisplacementMap.Texture->AddressX,
-				DisplacementMap.Texture->AddressY ) );
+			if (IsValid(DisplacementMap.Texture) && DisplacementMap.Texture->Source.IsValid())
+			{
+				FImage FirstMipImage;
+				if (DisplacementMap.Texture->Source.GetMipImage(FirstMipImage, 0))
+				{
+					DisplacementMaps.Add(Nanite::FDisplacementMap(
+						MoveTemp(FirstMipImage),
+						DisplacementMap.Magnitude,
+						DisplacementMap.Center,
+						DisplacementMap.Texture->AddressX,
+						DisplacementMap.Texture->AddressY));
+				}
+				else
+				{
+					// Virtualization can fail to fetch the bulk data. (Avoid crashing or polluting a ddc key)
+					UE_LOG( LogStaticMesh, Error, TEXT("Adaptive tessellate failed because it couldn't read the displacement texture source data"));
+					return false;
+				}
+			}
+			else
+			{
+				// If the raw pointer is not null, but for some reason it is not valid bail out of the build to not pollute a ddc key
+				UE_LOG( LogStaticMesh, Error, TEXT("Adaptive tessellate failed because it couldn't use the displacement texture"));
+				return false;
+			}
 		}
 		else
 		{

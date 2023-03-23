@@ -2,6 +2,9 @@
 
 #include "DisplacementMap.h"
 
+#include "ImageCore.h"
+#include "ImageCoreUtils.h"
+
 namespace Nanite
 {
 
@@ -19,21 +22,21 @@ FDisplacementMap::FDisplacementMap()
 	SourceData.Add(0);
 }
 
-FDisplacementMap::FDisplacementMap( FTextureSource& TextureSource, float InMagnitude, float InCenter, TextureAddress InAddressX, TextureAddress InAddressY )
+FDisplacementMap::FDisplacementMap( FImage&& TextureSourceImage, float InMagnitude, float InCenter, TextureAddress InAddressX, TextureAddress InAddressY )
 	: NumLevels(1)
 	, Magnitude( InMagnitude )
 	, Center( InCenter )
 	, AddressX( InAddressX )
 	, AddressY( InAddressY )
 {
-	check( TextureSource.IsValid() );
-	TextureSource.GetMipData( SourceData, 0 );
+	SourceData = MoveTemp(TextureSourceImage.RawData);
+	check(!SourceData.IsEmpty());
 
-	SourceFormat  = TextureSource.GetFormat();
-	BytesPerPixel = TextureSource.GetBytesPerPixel();
+	SourceFormat = FImageCoreUtils::ConvertToTextureSourceFormat(TextureSourceImage.Format);
+	BytesPerPixel = ERawImageFormat::GetBytesPerPixel(TextureSourceImage.Format);
 		
-	SizeX = TextureSource.GetSizeX();
-	SizeY = TextureSource.GetSizeY();
+	SizeX = TextureSourceImage.GetWidth();
+	SizeY = TextureSourceImage.GetHeight();
 
 	uint32 PrevSizeX = SizeX;
 	uint32 PrevSizeY = SizeY;

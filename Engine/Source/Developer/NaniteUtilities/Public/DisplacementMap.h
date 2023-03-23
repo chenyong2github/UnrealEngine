@@ -26,7 +26,7 @@ public:
 
 public:
 	NANITEUTILITIES_API				FDisplacementMap();
-	NANITEUTILITIES_API				FDisplacementMap( FTextureSource& TextureSource, float InMagnitude, float InCenter, TextureAddress InAddressX, TextureAddress InAddressY );
+	NANITEUTILITIES_API				FDisplacementMap( struct FImage&& TextureSourceImage, float InMagnitude, float InCenter, TextureAddress InAddressX, TextureAddress InAddressY );
 
 									// Bilinear filtered
 	NANITEUTILITIES_API float		Sample( FVector2f UV ) const;
