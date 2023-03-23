@@ -28,6 +28,7 @@ UNavModifierComponent::UNavModifierComponent(const FObjectInitializer& ObjectIni
 	AreaClass = UNavArea_Null::StaticClass();
 	FailsafeExtent = FVector(100, 100, 100);
 	bIncludeAgentHeight = true;
+	NavMeshResolution = ENavigationDataResolution::Invalid;
 }
 
 void UNavModifierComponent::OnRegister()
@@ -170,6 +171,8 @@ void UNavModifierComponent::GetNavigationData(FNavigationRelevantData& Data) con
 	{
 		Data.Modifiers.Add(FAreaNavModifier(ComponentBounds[Idx].Box, FTransform(ComponentBounds[Idx].Quat), AreaClass).SetIncludeAgentHeight(bIncludeAgentHeight));
 	}
+
+	Data.Modifiers.SetNavMeshResolution(NavMeshResolution);
 }
 
 void UNavModifierComponent::SetAreaClass(TSubclassOf<UNavArea> NewAreaClass)

@@ -23,6 +23,10 @@ class NAVIGATIONSYSTEM_API UNavModifierComponent : public UNavRelevantComponent
 	UPROPERTY(EditAnywhere, Category = Navigation)
 	FVector FailsafeExtent;
 
+	/** Experimental: Indicates which navmesh resolution should be used around the actor. */
+	UPROPERTY(EditAnywhere, Category = Navigation, AdvancedDisplay)
+	ENavigationDataResolution NavMeshResolution;
+
 	/** Setting to 'true' will result in expanding lower bounding box of the nav 
 	 *	modifier by agent's height, before applying to navmesh */
 	UPROPERTY(config, EditAnywhere, Category = Navigation)
