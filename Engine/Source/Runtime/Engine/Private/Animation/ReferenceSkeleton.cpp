@@ -5,7 +5,10 @@
 #include "EngineLogs.h"
 #include "Engine/SkeletalMesh.h"
 
-FReferenceSkeletonModifier::FReferenceSkeletonModifier(USkeleton* InSkeleton) : RefSkeleton(InSkeleton->ReferenceSkeleton), Skeleton(InSkeleton) {}
+FReferenceSkeletonModifier::FReferenceSkeletonModifier(USkeleton* InSkeleton)
+	: RefSkeleton(InSkeleton->ReferenceSkeleton),
+	Skeleton(InSkeleton)
+{}
 
 FReferenceSkeletonModifier::~FReferenceSkeletonModifier()
 {
@@ -17,9 +20,26 @@ void FReferenceSkeletonModifier::UpdateRefPoseTransform(const int32 BoneIndex, c
 	RefSkeleton.UpdateRefPoseTransform(BoneIndex, BonePose);
 }
 
-void FReferenceSkeletonModifier::Add(const FMeshBoneInfo& BoneInfo, const FTransform& BonePose)
+void FReferenceSkeletonModifier::Add(const FMeshBoneInfo& BoneInfo, const FTransform& BonePose, const bool bAllowMultipleRoots)
 {
+	TGuardValue OperationGuard(RefSkeleton.bOnlyOneRootAllowed, !bAllowMultipleRoots);
 	RefSkeleton.Add(BoneInfo, BonePose);
+}
+
+void FReferenceSkeletonModifier::Remove(const FName& BoneName, const bool bRemoveChildren)
+{
+	RefSkeleton.Remove(BoneName, bRemoveChildren);
+}
+
+void FReferenceSkeletonModifier::Rename(const FName& InOldName, const FName& InNewName)
+{
+	RefSkeleton.Rename(InOldName, InNewName);
+}
+
+int32 FReferenceSkeletonModifier::SetParent(const FName& InBoneName, const FName& InParentName, const bool bAllowMultipleRoots)
+{
+	TGuardValue OperationGuard(RefSkeleton.bOnlyOneRootAllowed, !bAllowMultipleRoots);
+	return RefSkeleton.SetParent(InBoneName, InParentName);
 }
 
 int32 FReferenceSkeletonModifier::FindBoneIndex(const FName& BoneName) const
@@ -73,6 +93,246 @@ FTransform GetComponentSpaceTransform(TArray<uint8>& ComponentSpaceFlags, TArray
 		ComponentSpaceFlags[TargetIndex] = 1;
 	}
 	return This;
+}
+
+void FReferenceSkeleton::Remove(const FName InBoneName, const bool bRemoveChildren)
+{
+	const int32 RawBoneIndex = FindRawBoneIndex(InBoneName);
+	if (RawBoneIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	const FMeshBoneInfo& BoneInfo = RawRefBoneInfo[RawBoneIndex];
+	const int32 RawParentIndex = BoneInfo.ParentIndex;
+	
+	// Make sure our arrays are in sync.
+	checkSlow((RawRefBoneInfo.Num() == RawRefBonePose.Num()) && (RawRefBoneInfo.Num() == RawNameToIndexMap.Num()));
+
+	// store children indices and sort them from greatest to lowest
+	TArray<int32> Children;
+	GetDirectChildBones(RawBoneIndex, Children);
+	Children.Sort([](const int32 Index0, const int32 Index1) {return Index0 > Index1;} );
+
+	// reindex function
+	auto ReIndexBones = [this, RawBoneIndex, RawParentIndex](const bool bUpdateParent)
+	{
+		for (int32 NextIndex=RawBoneIndex+1; NextIndex < GetRawBoneNum(); NextIndex++)
+		{
+			FMeshBoneInfo& Bone = RawRefBoneInfo[NextIndex];
+        
+			// update parent
+			if (Bone.ParentIndex > RawBoneIndex)
+			{
+				Bone.ParentIndex -= 1;
+			}
+			else if (bUpdateParent && (Bone.ParentIndex == RawBoneIndex))
+			{
+				Bone.ParentIndex = RawParentIndex;
+			}
+        
+			// update cached index
+			RawNameToIndexMap[Bone.Name] -= 1;
+		}
+	};
+
+	if (bRemoveChildren)
+	{
+		// 1 - treat children first
+		for (const int32 ChildIndex: Children)
+		{
+			Remove(RawRefBoneInfo[ChildIndex].Name, bRemoveChildren);
+		}
+
+		// 2 - reindex next bones
+		ReIndexBones(false);
+		
+		// 3 - remove useless raw data
+		RawRefBonePose.RemoveAt(RawBoneIndex, 1);
+		RawRefBoneInfo.RemoveAt(RawBoneIndex, 1);
+		RawNameToIndexMap.Remove(InBoneName);
+		
+		return;
+	}
+
+	// 1 - store transforms
+
+	// store parent's global transform
+	FTransform ParentGlobal = FTransform::Identity;
+	int32 ParentIndex = RawParentIndex;
+	while (ParentIndex > INDEX_NONE)
+	{
+		ParentGlobal = ParentGlobal * RawRefBonePose[ParentIndex];
+		ParentIndex--;
+	}
+
+	// store bone's global transform
+	const FTransform BoneGlobal = RawRefBonePose[RawBoneIndex] * ParentGlobal;
+
+	// 2 - switch children transforms to new parent space
+	for (const int32 ChildIndex: Children)
+	{
+		const FTransform ChildrenGlobal = RawRefBonePose[ChildIndex] * BoneGlobal;
+		RawRefBonePose[ChildIndex] = ChildrenGlobal.GetRelativeTransform(ParentGlobal);
+	}
+
+	// 3 - reindex next bones
+	ReIndexBones(true);
+
+	// 4 - remove useless raw data
+	RawRefBonePose.RemoveAt(RawBoneIndex, 1);
+	RawRefBoneInfo.RemoveAt(RawBoneIndex, 1);
+	RawNameToIndexMap.Remove(InBoneName);
+}
+
+void FReferenceSkeleton::Rename(const FName InBoneName, const FName InNewName)
+{
+	const int32 RawBoneIndex = FindRawBoneIndex(InBoneName);
+	const int32 RawNewBoneIndex = FindRawBoneIndex(InNewName);
+	if (RawBoneIndex == INDEX_NONE || RawNewBoneIndex != INDEX_NONE)
+	{
+		return;
+	}
+
+	FMeshBoneInfo& BoneInfo = RawRefBoneInfo[RawBoneIndex];
+	BoneInfo.Name = InNewName;
+	RawNameToIndexMap.Remove(InBoneName);
+	RawNameToIndexMap.Add(InNewName, RawBoneIndex);
+}
+
+int32 FReferenceSkeleton::SetParent(const FName InBoneName, const FName InParentName)
+{
+	if (InBoneName == InParentName)
+	{
+		return INDEX_NONE;
+	}
+
+	const int32 BoneIndex = FindRawBoneIndex(InBoneName);
+	if (BoneIndex < 1)
+	{ // we do not allow to change the root's parent 
+		return BoneIndex;
+	}
+	
+	const int32 NewParentIndex = FindRawBoneIndex(InParentName);
+	if (NewParentIndex == INDEX_NONE && InParentName != NAME_None)
+	{
+		return INDEX_NONE;
+	}
+
+	auto GetParentIndex = [&](const int32 InBoneIndex) -> int32
+	{
+		return RawRefBoneInfo.IsValidIndex(InBoneIndex) ? RawRefBoneInfo[InBoneIndex].ParentIndex : INDEX_NONE;
+	};
+
+	const int32 NumBones = GetRawBoneNum();
+	auto GetEndOfBranch = [&](const int32 InBoneIndex) -> int32
+	{
+		const int32 StartBranch = InBoneIndex; 
+
+		int32 EndOfBranch = InBoneIndex+1;
+		int32 ParentIndex = GetParentIndex(EndOfBranch);
+
+		// if next child bone's parent is less than or equal to StartParentIndex,
+		// we are leaving the branch so no need to go further
+		while (ParentIndex >= StartBranch && EndOfBranch < NumBones)
+		{
+			EndOfBranch++;
+			ParentIndex = GetParentIndex(EndOfBranch);
+		}
+		return EndOfBranch;
+	};
+
+	// bone branch to move 
+	const int32 EndOfBoneBranch = GetEndOfBranch(BoneIndex);
+
+	// parent branch to move
+	const int32 EndOfNewParentBranch = NewParentIndex > INDEX_NONE ? GetEndOfBranch(NewParentIndex) : EndOfBoneBranch+1;
+
+	// reorder bones
+	TArray<FName> Names;
+	auto AddBones = [&](int32 Begin, int32 End)
+	{
+		for (int32 Index = Begin; Index < End; Index++)
+		{
+			Names.Add(RawRefBoneInfo[Index].Name);
+		}		
+	};
+
+	if (NewParentIndex == INDEX_NONE)
+	{
+		// add all bones before BoneIndex
+		AddBones(0, BoneIndex);
+		// add bones after branch
+		AddBones(EndOfBoneBranch, NumBones);
+		// add bone branch at the end
+		AddBones(BoneIndex, EndOfBoneBranch);
+	}
+	else if (NewParentIndex > BoneIndex)
+	{
+		// add all bones before BoneIndex
+		AddBones(0, BoneIndex);
+		// add parent branch up
+		AddBones(NewParentIndex, EndOfNewParentBranch);
+		// add bone branch
+		AddBones(BoneIndex, EndOfBoneBranch);
+		// add bones between bone branch and parent 
+		AddBones(EndOfBoneBranch, NewParentIndex);
+		// add the end
+		AddBones(EndOfNewParentBranch, NumBones);
+	}
+	else
+	{
+		// add all bones before the end of the new parent branch
+		AddBones(0, EndOfNewParentBranch);
+		// add bone branch
+		AddBones(BoneIndex, EndOfBoneBranch);
+		// add remaining bones
+		AddBones(EndOfNewParentBranch, BoneIndex);
+		AddBones(EndOfBoneBranch, NumBones);
+	}
+
+	check(Names.Num() == NumBones);
+	
+	TMap<int32, int32> OldToNewIndexes; OldToNewIndexes.Reserve(Names.Num());
+	TMap<FName, int32> NewNameToIndexMap; NewNameToIndexMap.Reserve(Names.Num());
+	TArray<FMeshBoneInfo> NewRawRefBoneInfo; NewRawRefBoneInfo.Reserve(Names.Num());
+	TArray<FTransform> NewRawRefBonePose; NewRawRefBonePose.Reserve(Names.Num());
+
+	// store new data
+	for (int32 Index = 0; Index < Names.Num(); ++Index)
+	{
+		const int32 OldIndex = FindRawBoneIndex(Names[Index]);
+		OldToNewIndexes.Add(OldIndex, Index);
+		
+		NewNameToIndexMap.Add(Names[Index], Index);
+		NewRawRefBoneInfo.Add(RawRefBoneInfo[OldIndex]);
+		NewRawRefBonePose.Add(RawRefBonePose[OldIndex]);
+	}
+
+	// new bone index
+	const int32 NewBoneIndex = *NewNameToIndexMap.Find(InBoneName);
+	
+	// update parents
+	for (int32 Index = 0; Index < Names.Num(); ++Index)
+	{
+		FMeshBoneInfo& NewBoneInfo = NewRawRefBoneInfo[Index];
+		if (Index == NewBoneIndex)
+		{
+			NewBoneInfo.ParentIndex = NewParentIndex > INDEX_NONE ? *NewNameToIndexMap.Find(InParentName) : INDEX_NONE;
+		}
+		else if (NewBoneInfo.ParentIndex > INDEX_NONE)
+		{
+			NewBoneInfo.ParentIndex = *OldToNewIndexes.Find(NewBoneInfo.ParentIndex);
+		}
+	}
+	
+	// swap data
+	RawRefBonePose = MoveTemp(NewRawRefBonePose);
+	RawRefBoneInfo = MoveTemp(NewRawRefBoneInfo);
+	RawNameToIndexMap = MoveTemp(NewNameToIndexMap);
+	
+	// return new bone index
+	return NewBoneIndex;
 }
 
 int32 FReferenceSkeleton::GetRawSourceBoneIndex(const USkeleton* Skeleton, const FName& SourceBoneName) const

@@ -83,8 +83,17 @@ public:
 	void UpdateRefPoseTransform(const int32 BoneIndex, const FTransform& BonePose);
 
 	// Add a new bone. BoneName must not already exist! ParentIndex must be valid.
-	void Add(const FMeshBoneInfo& BoneInfo, const FTransform& BonePose);
+	void Add(const FMeshBoneInfo& BoneInfo, const FTransform& BonePose, const bool bAllowMultipleRoots = false);
 
+	// Remove a bone. BoneName must be valid.
+	void Remove(const FName& BoneName, const bool bRemoveChildren);
+
+	// Rename a bone. InOldName must be valid and InNewName not already a bone name.
+	void Rename(const FName& InOldName, const FName& InNewName);
+
+	// Change bone's parent. InBoneName must be valid and InParentName can be Name_NONE to unparent.
+	int32 SetParent(const FName& InBoneName, const FName& InParentName, const bool bAllowMultipleRoots = false);
+	
 	/** Find Bone Index from BoneName. Precache as much as possible in speed critical sections! */
 	int32 FindBoneIndex(const FName& BoneName) const;
 
@@ -204,6 +213,15 @@ private:
 			|| ((BoneIndex > 0) && RawRefBoneInfo.IsValidIndex(BoneInfo.ParentIndex) && (BoneInfo.ParentIndex < BoneIndex))));
 	}
 
+	/** Remove InBoneName and its children if bRemoveChildren == true. */
+	void Remove(const FName InBoneName, const bool bRemoveChildren);
+
+	/** Rename InBoneName with InNewName. */
+	void Rename(const FName InBoneName, const FName InNewName);
+
+	/** Set InParentName as InBoneName's parent. */
+	int32 SetParent(const FName InBoneName, const FName InParentName);
+
 	// Help us translate a virtual bone source into a raw bone source (for evaluating virtual bone transform)
 	int32 GetRawSourceBoneIndex(const USkeleton* Skeleton, const FName& SourceBoneName) const;
 
@@ -250,6 +268,8 @@ public:
 		return RawRefBonePose;
 	}
 
+	const TMap<FName, int32>& GetRawNameToIndexMap() const { return RawNameToIndexMap; }
+	
 	void Empty(int32 Size=0)
 	{
 		RawRefBoneInfo.Empty(Size);

@@ -17,6 +17,7 @@
 #include "Serialization/MemoryReader.h"
 #include "SkeletalMeshAttributes.h"
 #include "SkeletalMeshOperations.h"
+#include "MeshElementContainer.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshLODImporterData, Log, All);
@@ -2006,6 +2007,39 @@ FSkeletalMeshImportData FSkeletalMeshImportData::CreateFromMeshDescription(const
 
 			Face.WedgeIndex[Corner] = SkelMeshImportData.Wedges.Add(Wedge);
 		}
+	}
+
+	// Update Bones data
+	const FSkeletalMeshAttributes::FBoneArray& Bones = Attributes.Bones();
+	SkelMeshImportData.RefBonesBinary.Reserve(Bones.Num());
+	
+	FSkeletalMeshAttributes::FBoneNameAttributesConstRef BoneNames = Attributes.GetBoneNames();
+	FSkeletalMeshAttributes::FBoneParentIndexAttributesConstRef BoneParentIndices = Attributes.GetBoneParentIndices();
+	FSkeletalMeshAttributes::FBonePoseAttributesConstRef BonePoses = Attributes.GetBonePoses();
+
+	auto GetNumChildren = [&](const int32 ParentIndex)
+	{
+		int32 NumChildren = 0;
+		for (const FBoneID& BoneId: Bones.GetElementIDs())
+		{
+			if (BoneParentIndices.Get(BoneId) == ParentIndex)
+			{
+				NumChildren++;
+			}
+		}
+		return NumChildren;
+	};
+
+	int32 Index = 0;
+	for (const FBoneID& BoneId: Bones.GetElementIDs())
+	{
+		SkeletalMeshImportData::FBone NewBone;
+			NewBone.Name = BoneNames.Get(BoneId).ToString();
+			NewBone.ParentIndex = BoneParentIndices.Get(BoneId);
+			NewBone.BonePos.Transform = FTransform3f(BonePoses.Get(BoneId));
+			NewBone.NumChildren = GetNumChildren(Index);
+		SkelMeshImportData.RefBonesBinary.Emplace( MoveTemp(NewBone) );
+		Index++;
 	}
 
 	SkelMeshImportData.CleanUpUnusedMaterials();
