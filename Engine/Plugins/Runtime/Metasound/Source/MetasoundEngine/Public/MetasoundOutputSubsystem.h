@@ -29,7 +29,7 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FOnMetasoundOutputValueChanged, const FMetaSou
  * Provides access to a playing Metasound generator's outputs
  */
 UCLASS()
-class UMetaSoundOutputSubsystem : public UTickableWorldSubsystem
+class METASOUNDENGINE_API UMetaSoundOutputSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 

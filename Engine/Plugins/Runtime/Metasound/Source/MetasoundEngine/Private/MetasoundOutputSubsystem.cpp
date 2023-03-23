@@ -154,7 +154,12 @@ UMetaSoundOutputSubsystem::FGeneratorInfo* UMetaSoundOutputSubsystem::FindOrAddG
 		&& GeneratorInfo.AudioComponent->GetAudioComponentID() == AudioComponentId;
 	}))
 	{
-		return Info;
+		if (Info->Source.IsValid())
+		{
+			return Info;
+		}
+		// Source is no longer valid, remove info
+		OnGeneratorDestroyed(AudioComponentId, Info->Generator.Pin());
 	}
 
 	UMetaSoundSource* Source = Cast<UMetaSoundSource>(AudioComponent->GetSound());
