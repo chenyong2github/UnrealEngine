@@ -254,6 +254,12 @@ bool ULandscapeComponent::ValidateCombinationMaterial(UMaterialInstanceConstant*
 		return false;
 	}
 
+	// Check if the currently used Landscape Material changed, since a ALandscapeStreamingProxy can use its ALandscape parent material.
+	if (GetLandscapeMaterial() != InCombinationMaterial->Parent)
+	{
+		return false;
+	}
+
 	const TArray<FStaticTerrainLayerWeightParameter>& TerrainLayerWeightParameters = InCombinationMaterial->GetEditorOnlyStaticParameters().TerrainLayerWeightParameters;
 	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapAllocations = GetWeightmapLayerAllocations();
 
@@ -4874,8 +4880,10 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 		SpawnParams.OverrideLevel = TargetLevel;
 		LandscapeProxy = TargetLevel->GetWorld()->SpawnActor<ALandscapeStreamingProxy>(SpawnParams);
 
-		// copy shared properties to this new proxy
-		LandscapeProxy->GetSharedProperties(Landscape);
+		// copy shared properties to this new proxy, not including material since we'll use the ALandscape material.
+		const bool bIncludeLandscapeMaterial = false;
+		
+		LandscapeProxy->GetSharedProperties(Landscape, bIncludeLandscapeMaterial);
 		LandscapeProxy->CreateLandscapeInfo();
 		LandscapeProxy->SetActorLabel(LandscapeProxy->GetName());
 		bSetPositionAndOffset = true;
@@ -6011,7 +6019,10 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			{
 				if (ALandscapeProxy* Proxy = ProxyPtr.Get())
 				{
-					Proxy->GetSharedProperties(this);
+					// This should not include material since the ALandscapeStreamingProxy is either using the ALandscape material, or has a specific override.
+					const bool bIncludeLandscapeMaterial = false;
+					
+					Proxy->GetSharedProperties(this, bIncludeLandscapeMaterial);
 					Proxy->PostEditChangeProperty(PropertyChangedEvent);
 				}
 			}
@@ -6050,7 +6061,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 			if (ChangedMaterial)
 			{
-				UpdateAllComponentMaterialInstances();
+				Info->UpdateAllComponentMaterialInstances();
 
 				UWorld* World = GetWorld();
 
@@ -7460,6 +7471,34 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 }
 
 #if WITH_EDITOR
+
+void ALandscapeStreamingProxy::FixupSharedData(ALandscape* InLandscape)
+{
+	bool bUpdated = false;
+
+	if (InLandscape != nullptr)
+	{
+		if (LandscapeMaterial == InLandscape->GetLandscapeMaterial())
+		{
+			LandscapeMaterial = nullptr;
+			bUpdated = true;
+		}
+
+		if (LandscapeHoleMaterial == InLandscape->GetLandscapeHoleMaterial())
+		{
+			LandscapeHoleMaterial = nullptr;
+			bUpdated = true;
+		}
+	}
+
+	if (bUpdated)
+	{
+		MarkPackageDirty();
+	}
+
+	Super::FixupSharedData(InLandscape);
+}
+
 bool ALandscapeProxy::LandscapeImportWeightmapFromRenderTarget(UTextureRenderTarget2D* InRenderTarget, FName InLayerName)
 {
 	ALandscape* Landscape = GetLandscapeActor();

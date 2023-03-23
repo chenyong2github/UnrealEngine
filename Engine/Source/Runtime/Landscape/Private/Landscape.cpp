@@ -92,10 +92,12 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
+#include "UObject/UObjectThreadContext.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
+
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "Misc/ScopedSlowTask.h"
@@ -2322,6 +2324,7 @@ void ULandscapeComponent::DeleteLayerAllocation(const FGuid& InEditLayerGuid, in
 void ALandscapeProxy::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
+
 	ULandscapeInfo* LandscapeInfo = nullptr;
 	if (!IsPendingKillPending())
 	{
@@ -2380,6 +2383,55 @@ void ALandscapeProxy::PostRegisterAllComponents()
 	if ((LandscapeInfo != nullptr) && !IsPendingKillPending() && LandscapeGuid.IsValid())
 	{
 		LandscapeInfo->FixupProxiesTransform();
+	}
+
+	bool bFixedUpInvalidMaterialInstances = false;
+
+	for (ULandscapeComponent* Comp : LandscapeComponents)
+	{
+		if (Comp == nullptr)
+		{
+			continue;
+		}
+
+		// Validate the layer combination and store it in the MaterialInstanceConstantMap
+		UMaterialInstance* MaterialInstance = Comp->GetMaterialInstance(0, false);
+
+		if (MaterialInstance == nullptr)
+		{
+			continue;
+		}
+
+		UMaterialInstanceConstant* CombinationMaterialInstance = Cast<UMaterialInstanceConstant>(MaterialInstance->Parent);
+		// Only validate if uncooked and in the editor/commandlet mode (we cannot re-build material instance constants if this is not the case : see UMaterialInstance::CacheResourceShadersForRendering, which is only called if FApp::CanEverRender() returns true) 
+		if (!Comp->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly) && (GIsEditor && FApp::CanEverRender()))
+		{
+			if (Comp->ValidateCombinationMaterial(CombinationMaterialInstance))
+			{
+				MaterialInstanceConstantMap.Add(*ULandscapeComponent::GetLayerAllocationKey(Comp->GetWeightmapLayerAllocations(), CombinationMaterialInstance->Parent), CombinationMaterialInstance);
+			}
+			else
+			{
+				// There was a problem with the loaded material : it doesn't match the expected material combination, we need to regenerate the material instances : 
+				Comp->UpdateMaterialInstances();
+				bFixedUpInvalidMaterialInstances = true;
+			}
+		}
+		else if (CombinationMaterialInstance)
+		{
+			// Skip ValidateCombinationMaterial
+			MaterialInstanceConstantMap.Add(*ULandscapeComponent::GetLayerAllocationKey(Comp->GetWeightmapLayerAllocations(), CombinationMaterialInstance->Parent), CombinationMaterialInstance);
+		}
+	}
+
+	if (bFixedUpInvalidMaterialInstances)
+	{
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("LandscapeName"), FText::FromString(GetPathName()));
+		Arguments.Add(TEXT("ProxyPackage"), FText::FromString(GetOutermost()->GetName()));
+		FMessageLog("MapCheck").Info()
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_FixedUpInvalidLandscapeMaterialInstances", "{LandscapeName} : Fixed up invalid landscape material instances. Please re-save {ProxyPackage}."), Arguments)))
+			->AddToken(FMapErrorToken::Create(FMapErrors::FixedUpInvalidLandscapeMaterialInstances));
 	}
 #endif // WITH_EDITOR
 }
@@ -3499,49 +3551,6 @@ void ALandscapeProxy::PostLoad()
 		EditorCachedLayerInfos_DEPRECATED.Empty();
 	}
 
-	bool bFixedUpInvalidMaterialInstances = false;
-
-	for (ULandscapeComponent* Comp : LandscapeComponents)
-	{
-		if (Comp)
-		{
-			// Validate the layer combination and store it in the MaterialInstanceConstantMap
-			if (UMaterialInstance* MaterialInstance = Comp->GetMaterialInstance(0, false))
-			{
-				UMaterialInstanceConstant* CombinationMaterialInstance = Cast<UMaterialInstanceConstant>(MaterialInstance->Parent);
-				// Only validate if uncooked and in the editor/commandlet mode (we cannot re-build material instance constants if this is not the case : see UMaterialInstance::CacheResourceShadersForRendering, which is only called if FApp::CanEverRender() returns true) 
-				if (!Comp->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly) && (GIsEditor && FApp::CanEverRender()))
-				{
-					if (Comp->ValidateCombinationMaterial(CombinationMaterialInstance))
-					{
-						MaterialInstanceConstantMap.Add(*ULandscapeComponent::GetLayerAllocationKey(Comp->GetWeightmapLayerAllocations(), CombinationMaterialInstance->Parent), CombinationMaterialInstance);
-					}
-					else
-					{
-						// There was a problem with the loaded material : it doesn't match the expected material combination, we need to regenerate the material instances : 
-						Comp->UpdateMaterialInstances();
-						bFixedUpInvalidMaterialInstances = true;
-					}
-				}
-				else if (CombinationMaterialInstance)
-				{
-					// Skip ValidateCombinationMaterial
-					MaterialInstanceConstantMap.Add(*ULandscapeComponent::GetLayerAllocationKey(Comp->GetWeightmapLayerAllocations(), CombinationMaterialInstance->Parent), CombinationMaterialInstance);
-				}
-			}
-		}
-	}
-
-	if (bFixedUpInvalidMaterialInstances)
-	{
-		FFormatNamedArguments Arguments;
-		Arguments.Add(TEXT("LandscapeName"), FText::FromString(GetPathName()));
-		Arguments.Add(TEXT("ProxyPackage"), FText::FromString(GetOutermost()->GetName()));
-		FMessageLog("MapCheck").Info()
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_FixedUpInvalidLandscapeMaterialInstances", "{LandscapeName} : Fixed up invalid landscape material instances. Please re-save {ProxyPackage}."), Arguments)))
-			->AddToken(FMapErrorToken::Create(FMapErrors::FixedUpInvalidLandscapeMaterialInstances));
-	}
-
 	UWorld* World = GetWorld();
 
 	// track feature level change to flush grass cache
@@ -3604,7 +3613,7 @@ void ALandscapeProxy::Destroyed()
 }
 #endif // WITH_EDITOR
 
-void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
+void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape, const bool bIncludeLandscapeMaterial)
 {
 	if (Landscape)
 	{
@@ -3649,12 +3658,12 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
 		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
 
-		if (!LandscapeMaterial)
+		if (bIncludeLandscapeMaterial && !LandscapeMaterial)
 		{
 			LandscapeMaterial = Landscape->LandscapeMaterial;
 			PerLODOverrideMaterials = Landscape->PerLODOverrideMaterials;
 		}
-		if (!LandscapeHoleMaterial)
+		if (bIncludeLandscapeMaterial && !LandscapeHoleMaterial)
 		{
 			LandscapeHoleMaterial = Landscape->LandscapeHoleMaterial;
 		}
@@ -3850,6 +3859,8 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODInd
 	{
 		return LandscapeMaterial;
 	}
+
+	checkf(!FUObjectThreadContext::Get().IsRoutingPostLoad, TEXT("This method should not be called during PostLoad since the LandscapeActor may not be fully unserialized yet."));
 
 	if (const ALandscape* Landscape = GetLandscapeActor())
 	{
@@ -4400,7 +4411,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 			{
 				if (ALandscapeStreamingProxy* StreamingProxy = StreamingProxyPtr.Get())
 				{
-					StreamingProxy->SetLandscapeActor(LandscapeActor.Get());
+					StreamingProxy->SetLandscapeActor(Landscape);
 #if WITH_EDITOR
 					StreamingProxy->FixupSharedData(Landscape);
 #endif // WITH_EDITOR

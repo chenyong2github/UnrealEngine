@@ -987,7 +987,9 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				FTransform LandscapeTransform = FirstProxy->LandscapeActorToWorld();
 				ALandscape* NewLandscape = MainWorld->SpawnActor<ALandscape>(ALandscape::StaticClass(), LandscapeTransform, SpawnParams);
 
-				NewLandscape->GetSharedProperties(FirstProxy);
+				// We want to clone this StreamingProxy to create the parent ALandscape, including materials.
+				const bool bIncludeLandscapeMaterial = true;
+				NewLandscape->GetSharedProperties(FirstProxy, bIncludeLandscapeMaterial);
 
 				LandscapeInfo->RegisterActor(NewLandscape);
 			}

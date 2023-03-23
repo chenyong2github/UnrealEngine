@@ -996,7 +996,7 @@ public:
 	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
 
 	// Copy properties from parent Landscape actor
-	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape);
+	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape, const bool bIncludeLandscapeMaterial);
 
 #if WITH_EDITOR
 	/* Serialize all hashes/guids that record the current state of this proxy */
@@ -1059,7 +1059,7 @@ public:
 	LANDSCAPE_API void ChangedPhysMaterial();
 
 	// Assign only mismatching data and mark proxy package dirty
-	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape);
+	LANDSCAPE_API virtual void FixupSharedData(ALandscape* Landscape);
 
 	/** Set landscape absolute location in section space */
 	LANDSCAPE_API void SetAbsoluteSectionBase(FIntPoint SectionOffset);
