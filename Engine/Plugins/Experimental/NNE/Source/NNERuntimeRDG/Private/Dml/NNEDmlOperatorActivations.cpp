@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #ifdef NNE_USE_DIRECTML
 #include "NNEDmlOperator.h"
+#include "NNEDmlOperatorUtils.h"
 
 namespace UE::NNERuntimeRDG::Private::Dml
 {
@@ -26,10 +27,11 @@ public:
 
 private:
 
-	FOperatorDmlActivationUnary() : Alpha(0.0f), Beta(0.0f), Gamma(0.0f) {}
+	FOperatorDmlActivationUnary() : Alpha(0.0f), Beta(0.0f), Gamma(0.0f), Axis(-1) {}
 	float Alpha;
 	float Beta;
 	float Gamma;
+	int Axis;
 
 public:
 
@@ -40,6 +42,12 @@ public:
 	{
 		const NNECore::Internal::FTensor& InputTensorDesc = InputTensors[0];
 		const NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
+
+		if constexpr (std::is_same_v<DmlActivationOpDescType, DML_ACTIVATION_SOFTMAX1_OPERATOR_DESC>)
+		{
+			Axis = Attributes.GetValueOrDefault(TEXT("axis"), -1);
+		}
+		Axis = HandleNegativeAxis(Axis, InputTensorDesc.GetShape().Rank());
 
 		Alpha = Attributes.GetValueOrDefault(TEXT("alpha"), Alpha);
 		Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
@@ -74,6 +82,14 @@ private:
 	{
 		Desc.InputTensor = &TensorDesc.Desc;
 		Desc.OutputTensor = &TensorDesc.Desc;
+	}
+
+	void InitDmlOpDesc(DML_ACTIVATION_SOFTMAX1_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	{
+		Desc.InputTensor = &TensorDesc.Desc;
+		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.AxisCount = 1;
+		Desc.Axes = (UINT*) &Axis;
 	}
 
 	void InitDmlOpDesc(DML_ACTIVATION_SOFTPLUS_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
@@ -235,6 +251,7 @@ REGISTER_OP_ACTIVATION_UNARY(OpName, DmlOpName)
 	REGISTER_OP_ACTIVATION_UNARY(			Relu, 				RELU )
 	REGISTER_OP_ACTIVATION_UNARY_PARAMS(	Selu, 				SCALED_ELU, 			1.67326319217681884765625f, 		0.0f, 		1.05070102214813232421875f )
 	REGISTER_OP_ACTIVATION_UNARY(			Sigmoid, 			SIGMOID	)
+	REGISTER_OP_ACTIVATION_UNARY(			Softmax, 			SOFTMAX1 )
 	REGISTER_OP_ACTIVATION_UNARY(			Softplus, 			SOFTPLUS )
 	REGISTER_OP_ACTIVATION_UNARY(			Softsign, 			SOFTSIGN )
 

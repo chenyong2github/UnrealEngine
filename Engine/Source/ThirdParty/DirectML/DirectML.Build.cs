@@ -28,7 +28,7 @@ public class DirectML : ModuleRules
 			PublicDelayLoadDLLs.Add(DllFileName);
 			RuntimeDependencies.Add("$(TargetOutputDir)/DML/" + DllFileName, DllFullPath);
 
-			PublicDefinitions.Add("DML_TARGET_VERSION=0x5000");
+			PublicDefinitions.Add("DML_TARGET_VERSION=0x5100");
 			PublicDefinitions.Add("WITH_DIRECTML");
 			PublicDefinitions.Add("DIRECTML_PATH=DML");
 

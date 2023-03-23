@@ -203,6 +203,10 @@
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
 					]},
 				{	"target": "Sinh" },
+				{	"target": "Softmax", 
+					"runtimes": [{ "name": "NNERuntimeRDGHlsl",   "skip": true }],
+					"additional_datasets": [ "Elementwise.Softmax.AttributeTest" ]
+				},
 				{	"target": "Softplus"},
 				{	"target": "Softsign"},
 				{	"target": "Sqrt"},
@@ -525,6 +529,14 @@
 			"datasets": [
 				{
 					"inputs": [ { "shape": [ 4 ] } ]
+				}
+			]
+		},
+		{
+			"name": "Elementwise.Softmax.AttributeTest",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 4, 3, 5, 2 ] } ]
 				}
 			]
 		},
@@ -1149,6 +1161,12 @@
 				{ "attributes": [ { "name": "alpha", "value": 0.7 }, { "name": "gamma", "value": 0.1 } ] },
 				{ "attributes": [ { "name": "alpha", "value": 0.7 }, { "name": "gamma", "value": 0.5 } ] },
 				{ "attributes": [ ] }
+			]
+		},
+		{
+			"name": "Elementwise.Softmax.AttributeTest",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "axis", "value": 2, "type": "Int32" } ] }
 			]
 		},
 		{
