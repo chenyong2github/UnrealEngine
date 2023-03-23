@@ -5,9 +5,47 @@
 
 //------------------------------------------------------- CONFIG
 
-#define TILE_SIZE 8
+#if DIM_NYQUIST
+	#define LANE_COUNT 32
+	#define DIM_WAVE_SIZE (LANE_COUNT)
+	#define DOWNSAMPLE_FACTOR 2u
+	
+	/** Size of the entire group loaded into memory including overscan. */
+	#define GROUP_TILE_SIZE 8u
+	#define TILE_SIZE (GROUP_TILE_SIZE - 2u)
+
+	#define LANE_OUTPUT_STRIDE_X 2u
+	#define LANE_OUTPUT_STRIDE_Y 1u
+	#define LANE_INPUT_STRIDE_X (LANE_OUTPUT_STRIDE_X * DOWNSAMPLE_FACTOR)
+	#define LANE_INPUT_STRIDE_Y (LANE_OUTPUT_STRIDE_Y * DOWNSAMPLE_FACTOR)
+	
+	/** Number of lane the GROUP_TILE_SIZE. */
+	#define LANE_COUNT_X (GROUP_TILE_SIZE / LANE_OUTPUT_STRIDE_X)
+	#define LANE_COUNT_Y (GROUP_TILE_SIZE / LANE_OUTPUT_STRIDE_Y)
+
+	/** Size of the SIMD per lane that also number of input pixel loaded into each individual lanes. */
+	#define INPUT_SIMD_SIZE (LANE_INPUT_STRIDE_X * LANE_INPUT_STRIDE_Y)
+	#define OUTPUT_SIMD_SIZE (LANE_OUTPUT_STRIDE_X * LANE_OUTPUT_STRIDE_Y)
+
+	#define tsr_input_halfC  TLaneVector2D<tsr_half, CONFIG_CHANNEL_COUNT, LANE_INPUT_STRIDE_X, LANE_INPUT_STRIDE_Y>
+	#define tsr_output_halfC TLaneVector2D<tsr_half, CONFIG_CHANNEL_COUNT, LANE_OUTPUT_STRIDE_X, LANE_OUTPUT_STRIDE_Y>
+
+#else
+	#define TILE_SIZE 8
+#endif
 
 #define KERNEL_SIZE 4
+
+#define CONFIG_CLAMP 1
+
+#define CONFIG_HDR_WEIGHT 1
+
+
+//------------------------------------------------------- CONVOLUTIONS
+
+#if DIM_NYQUIST
+	#include "TSRConvolutionNetwork.ush"
+#endif
 
 
 //------------------------------------------------------- CONSTANTS
@@ -32,6 +70,9 @@ groupshared tsr_halfC SharedArray0[TILE_SIZE * TILE_SIZE];
 
 
 //------------------------------------------------------- FUNCTIONS
+
+static const float MitchellNetravaliB = rcp(3.0);
+static const float MitchellNetravaliC = rcp(3.0);
 
 // Mitchell Netravali
 // B-spline:       B=1      C=0
@@ -83,16 +124,153 @@ uint2 OutputViewRectMax;
 uint bGenerateOutputMip1;
 float HistoryValidityMultiply;
 
-Texture2D<tsr_halfC> History_HighFrequency;
-Texture2D<tsr_half2> History_Metadata;
-Texture2D<tsr_half3> History_Translucency;
-Texture2D<tsr_half>  History_TranslucencyAlpha;
+Texture2D<tsr_halfC> UpdateHistoryOutputTexture;
 
 RWTexture2D<tsr_halfC> SceneColorOutputMip0;
 RWTexture2D<tsr_halfC> SceneColorOutputMip1;
 
 
-//------------------------------------------------------- ENTRY POINT
+//------------------------------------------------------- ENTRY POINT NYQUIST DOWNSAMPLE
+
+#if DIM_NYQUIST
+
+#if COMPILER_SUPPORTS_WAVE_SIZE
+	WAVESIZE(LANE_COUNT)
+#endif
+[numthreads(LANE_COUNT, 1, 1)]
+void MainCS(
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	const uint LaneIndex = GroupThreadIndex;
+
+	// Load all the colors
+	tsr_input_halfC Colors;
+	ISOLATE
+	{
+		const tsr_short2 GroupPixelOffset = (
+			tsr_short2(HistoryInfo_ViewportMin) +
+			tsr_short2(GroupId) * tsr_short(TILE_SIZE * DOWNSAMPLE_FACTOR).xx +
+			tsr_short(-1).xx);
+		
+		UNROLL_N(INPUT_SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < INPUT_SIMD_SIZE; SimdIndex++)
+		{
+			tsr_short2 PixelPos = GroupPixelOffset + GetLaneSimdPixelOffset<LANE_INPUT_STRIDE_X, LANE_INPUT_STRIDE_Y>(LaneIndex, SimdIndex);
+			PixelPos = clamp(PixelPos, tsr_short2(HistoryInfo_ViewportMin), tsr_short2(HistoryInfo_ViewportMax - 1));
+
+			Colors.SetElement(SimdIndex, UpdateHistoryOutputTexture[PixelPos]);
+		}
+	}
+
+	tsr_output_halfC Output;
+	{
+		#if CONFIG_CLAMP
+			tsr_output_halfC Min = DownsampleMin2x2(Colors);
+			tsr_output_halfC Max = DownsampleMax2x2(Colors);
+
+			Min = min(Min, AccessNeighborTexel(Min, tsr_short2(1, 0)));
+			Min = min(Min, AccessNeighborTexel(Min, tsr_short2(0, 1)));
+
+			Max = max(Max, AccessNeighborTexel(Max, tsr_short2(1, 0)));
+			Max = max(Max, AccessNeighborTexel(Max, tsr_short2(0, 1)));
+		#endif
+		
+		tsr_input_halfC LDRColors = Colors;
+		#if CONFIG_HDR_WEIGHT
+		{
+			UNROLL_N(INPUT_SIMD_SIZE)
+			for (uint SimdIndex = 0; SimdIndex < INPUT_SIMD_SIZE; SimdIndex++)
+			{
+				LDRColors.SetElement(SimdIndex, Colors.GetElement(SimdIndex) * HdrWeight4(Colors.GetElement(SimdIndex)));
+			}
+		}
+		#endif
+
+		/*
+		 *  ^
+		 *  |  b  c
+		 *  |  a  b
+		 *  o------>
+		 */
+		const float WeightA = MitchellNetravali(/* PixelOffset = */ 0.5, MitchellNetravaliB, MitchellNetravaliC);
+		const float WeightB = MitchellNetravali(/* PixelOffset = */ 1.5, MitchellNetravaliB, MitchellNetravaliC);
+		const float TotalWeight = 4.0 * (WeightA * WeightA + WeightB * WeightB + WeightA * WeightB * 2.0);
+
+		const tsr_half FinalWeightA = tsr_half(WeightA * WeightA / TotalWeight);
+		const tsr_half FinalWeightB = tsr_half(WeightA * WeightB / TotalWeight);
+		const tsr_half FinalWeightC = tsr_half(WeightB * WeightB / TotalWeight);
+	
+		/*
+		 *  c   b | b   c
+		 *  b   a | a   b
+		 *  ------o------
+		 *  b   a | a   b
+		 *  c   b | b   c
+		 */
+		const tsr_half Weights0[4] = { FinalWeightC, FinalWeightB, FinalWeightB, FinalWeightA };
+		const tsr_half Weights1[4] = { FinalWeightB, FinalWeightC, FinalWeightA, FinalWeightB };
+		const tsr_half Weights2[4] = { FinalWeightB, FinalWeightA, FinalWeightC, FinalWeightB };
+		const tsr_half Weights3[4] = { FinalWeightA, FinalWeightB, FinalWeightB, FinalWeightC };
+
+		tsr_output_halfC Out0 = DownsampleDot2x2(LDRColors, Weights0);
+		tsr_output_halfC Out1 = DownsampleDot2x2(LDRColors, Weights1);
+		tsr_output_halfC Out2 = DownsampleDot2x2(LDRColors, Weights2);
+		tsr_output_halfC Out3 = DownsampleDot2x2(LDRColors, Weights3);
+
+		Output = Out0 + AccessNeighborTexel(Out1, tsr_short2(1, 0)) + AccessNeighborTexel(Out2, tsr_short2(0, 1)) + AccessNeighborTexel(Out3, tsr_short2(1, 1));
+		#if CONFIG_HDR_WEIGHT
+		{
+			UNROLL_N(OUTPUT_SIMD_SIZE)
+			for (uint SimdIndex = 0; SimdIndex < OUTPUT_SIMD_SIZE; SimdIndex++)
+			{
+				Output.SetElement(SimdIndex, Output.GetElement(SimdIndex) * HdrWeightInvY(Luma4(Output.GetElement(SimdIndex))));
+			}
+		}
+		#endif
+		#if CONFIG_CLAMP
+			Output = clamp(Output, Min, Max);
+		#endif
+	}
+
+	ISOLATE
+	{
+		const tsr_short2 GroupPixelOffset = (
+			tsr_short2(OutputViewRectMin) +
+			tsr_short2(GroupId) * tsr_short(TILE_SIZE).xx);
+		
+		UNROLL_N(OUTPUT_SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < OUTPUT_SIMD_SIZE; SimdIndex++)
+		{
+			tsr_short2 OutputPixelOffset = GetLaneSimdPixelOffset<LANE_OUTPUT_STRIDE_X, LANE_OUTPUT_STRIDE_Y>(LaneIndex, SimdIndex);
+			tsr_short2 OutputPixelPos = InvalidateOutputPixelPos(GroupPixelOffset + OutputPixelOffset, OutputViewRectMax);
+			
+			OutputPixelPos.x = select(all(OutputPixelOffset < TILE_SIZE), OutputPixelPos.x, ~tsr_short(0));
+
+			SceneColorOutputMip0[OutputPixelPos] = Output.GetElement(SimdIndex);
+		}
+		
+		{
+			tsr_output_halfC HalfResOutput = Output * tsr_half(0.25);
+			HalfResOutput = HalfResOutput + AccessNeighborTexel(HalfResOutput, tsr_short2(1, 0));
+			HalfResOutput = HalfResOutput + AccessNeighborTexel(HalfResOutput, tsr_short2(0, 1));
+		
+			tsr_short2 OutputPixelOffset = GetLaneSimdPixelOffset<LANE_OUTPUT_STRIDE_X, LANE_OUTPUT_STRIDE_Y>(LaneIndex, /* SimdIndex = */ 0);
+			tsr_short2 OutputPixelPos = InvalidateOutputPixelPos(GroupPixelOffset + OutputPixelOffset, OutputViewRectMax);
+			OutputPixelPos.x = select(all(OutputPixelOffset < TILE_SIZE), OutputPixelPos.x, ~tsr_short(0));
+
+			tsr_short2 HalfResOutputPixelPos = OutputPixelPos >> tsr_short(1);
+			HalfResOutputPixelPos[0] |= ((OutputPixelPos[0] & tsr_short(0x1)) | tsr_short(!bGenerateOutputMip1)) * tsr_short(~0);
+			HalfResOutputPixelPos[1] |= ((OutputPixelPos[1] & tsr_short(0x1)) | tsr_short(!bGenerateOutputMip1)) * tsr_short(~0);
+			
+			SceneColorOutputMip1[HalfResOutputPixelPos] = HalfResOutput.GetElement(/* SimdIndex = */ 0);
+		}
+	}
+}
+
+#else // !DIM_NYQUIST
+
+//------------------------------------------------------- ENTRY POINT REFERENCE
 
 [numthreads(TILE_SIZE * TILE_SIZE, 1, 1)]
 void MainCS(
@@ -109,15 +287,14 @@ void MainCS(
 	
 	// Downsample the history
 	{
-		const float B = rcp(3.0);
-		const float C = rcp(3.0);
-
 		// Position of the output pixel in the history.
 		float2 OutputPixelPos = ApplyScreenTransform(float2(DispatchThreadId), DispatchThreadToHistoryPixelPos);
 		float2 TopLeftKernel = floor(OutputPixelPos + (0.5 - 0.5 * KERNEL_SIZE)) + 0.5;
 		
-		tsr_halfC MinColor = tsr_half(POSITIVE_INFINITY);
-		tsr_halfC MaxColor = tsr_half(0.0);
+		#if CONFIG_CLAMP
+			tsr_halfC MinColor = tsr_half(POSITIVE_INFINITY);
+			tsr_halfC MaxColor = tsr_half(0.0);
+		#endif
 		tsr_half ColorWeight = tsr_half(0.0);
 
 		UNROLL_N(KERNEL_SIZE)
@@ -132,34 +309,26 @@ void MainCS(
 
 				SampleUV = clamp(SampleUV, HistoryInfo_UVViewportBilinearMin, HistoryInfo_UVViewportBilinearMax);
 
-				tsr_halfC SampleColor    = History_HighFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
-				tsr_half3 SampleTranslucencyColor = History_Translucency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
-				tsr_half  SampleTranslucencyAlpha = History_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				tsr_halfC SampleColor = UpdateHistoryOutputTexture.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				
-				#if DIM_SEPARATE_TRANSLUCENCY
-				{
-					SampleColor.rgb = SampleColor.rgb * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb;
-				
-					#if CONFIG_SCENE_COLOR_ALPHA
-						SampleColor.a = saturate(tsr_half(1.0) - saturate(tsr_half(1.0) - SampleColor.a) * SampleTranslucencyAlpha);
-					#endif
-				}
-				#endif
-
 				float2 PixelOffset = abs(SamplePixelPos - OutputPixelPos);
 
-				tsr_half kernelWeight = tsr_half(MitchellNetravali(PixelOffset.x, B, C) * MitchellNetravali(PixelOffset.y, B, C));
+				tsr_half kernelWeight = tsr_half(MitchellNetravali(PixelOffset.x, MitchellNetravaliB, MitchellNetravaliC) * MitchellNetravali(PixelOffset.y, MitchellNetravaliB, MitchellNetravaliC));
 				tsr_half SampleHdrWeight = HdrWeight4(SampleColor);
-
-				MinColor = min(MinColor, SampleColor);
-				MaxColor = max(MaxColor, SampleColor);
+				
+				#if CONFIG_CLAMP
+					MinColor = min(MinColor, SampleColor);
+					MaxColor = max(MaxColor, SampleColor);
+				#endif
 				Color  += (kernelWeight * SampleHdrWeight) * SampleColor;
 				ColorWeight += (kernelWeight * SampleHdrWeight);
 			}
 		}
 
 		Color *= SafeRcp(ColorWeight);
-		Color = clamp(Color, MinColor, MaxColor);
+		#if CONFIG_CLAMP
+			Color = clamp(Color, MinColor, MaxColor);
+		#endif
 	}
 	
 	// Compute final output
@@ -218,3 +387,4 @@ void MainCS(
 	#endif
 }
 
+#endif // !DIM_NYQUIST

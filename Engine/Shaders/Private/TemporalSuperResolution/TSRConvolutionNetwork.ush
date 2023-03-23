@@ -48,6 +48,14 @@ tsr_short2 GetSimdIndexPixelCoordinateInLane(const uint SimdIndex)
 	return tsr_short2(SimdIndex % LaneStrideX, SimdIndex / LaneStrideX);
 }
 
+CALL_SITE_DEBUGLOC
+template<uint LaneStrideX, uint LaneStrideY>
+uint GetPixelCoordinateInLaneSimdIndex(const tsr_short2 PixelCoordinateInLane)
+{
+	return uint(dot(PixelCoordinateInLane, tsr_short2(1, LaneStrideX)));
+}
+
+
 /** Returns coordinate of a pixel within a wave. */
 CALL_SITE_DEBUGLOC
 template<uint LaneStrideX, uint LaneStrideY>
@@ -488,3 +496,75 @@ TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Median3x3(TLaneV
 	return Median9(InSamples);
 }
 #endif
+
+
+//------------------------------------------------------- DOWNSAMPLE 2x2 CONVOLUTIONS
+
+CALL_SITE_DEBUGLOC
+template<typename ScalarType, uint VectorSize, uint LaneStrideX, uint LaneStrideY>
+TLaneVector2D<ScalarType, VectorSize, LaneStrideX / 2, LaneStrideY / 2> DownsampleMin2x2(
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Input)
+{
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX / 2, LaneStrideY / 2> OutMin;
+	UNROLL
+	for (uint OutputSimdIndex = 0; OutputSimdIndex < ((LaneStrideX * LaneStrideY) / 4); OutputSimdIndex++)
+	{
+		const uint2 OutputPos = GetSimdIndexPixelCoordinateInLane<LaneStrideX / 2, LaneStrideY / 2>(OutputSimdIndex);
+		vector<ScalarType, VectorSize> Input0 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[0])));
+		vector<ScalarType, VectorSize> Input1 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[1])));
+		vector<ScalarType, VectorSize> Input2 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[2])));
+		vector<ScalarType, VectorSize> Input3 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[3])));
+
+		OutMin.SetElement(OutputSimdIndex, min(min(Input0, Input1), min(Input2, Input3)));
+	}
+	return OutMin;
+}
+
+CALL_SITE_DEBUGLOC
+template<typename ScalarType, uint VectorSize, uint LaneStrideX, uint LaneStrideY>
+TLaneVector2D<ScalarType, VectorSize, LaneStrideX / 2, LaneStrideY / 2> DownsampleMax2x2(
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Input)
+{
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX / 2, LaneStrideY / 2> OutMax;
+	UNROLL
+	for (uint OutputSimdIndex = 0; OutputSimdIndex < ((LaneStrideX * LaneStrideY) / 4); OutputSimdIndex++)
+	{
+		const uint2 OutputPos = GetSimdIndexPixelCoordinateInLane<LaneStrideX / 2, LaneStrideY / 2>(OutputSimdIndex);
+		vector<ScalarType, VectorSize> Input0 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[0])));
+		vector<ScalarType, VectorSize> Input1 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[1])));
+		vector<ScalarType, VectorSize> Input2 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[2])));
+		vector<ScalarType, VectorSize> Input3 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[3])));
+
+		OutMax.SetElement(OutputSimdIndex, max(max(Input0, Input1), max(Input2, Input3)));
+	}
+	return OutMax;
+}
+
+CALL_SITE_DEBUGLOC
+template<typename ScalarType, uint VectorSize, uint LaneStrideX, uint LaneStrideY>
+TLaneVector2D<ScalarType, VectorSize, LaneStrideX / 2, LaneStrideY / 2> DownsampleDot2x2(
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Input, const ScalarType Weights[4])
+{
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX / 2, LaneStrideY / 2> OutMax;
+	UNROLL
+	for (uint OutputSimdIndex = 0; OutputSimdIndex < ((LaneStrideX * LaneStrideY) / 4); OutputSimdIndex++)
+	{
+		const uint2 OutputPos = GetSimdIndexPixelCoordinateInLane<LaneStrideX / 2, LaneStrideY / 2>(OutputSimdIndex);
+		vector<ScalarType, VectorSize> Input0 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[0])));
+		vector<ScalarType, VectorSize> Input1 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[1])));
+		vector<ScalarType, VectorSize> Input2 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[2])));
+		vector<ScalarType, VectorSize> Input3 = Input.GetElement(GetPixelCoordinateInLaneSimdIndex<LaneStrideX, LaneStrideY>(tsr_short2(OutputPos * 2 + Offsets2x2[3])));
+
+		OutMax.SetElement(OutputSimdIndex, Input0 * Weights[0] + Input1 * Weights[1] + Input2 * Weights[2] + Input3 * Weights[3]);
+	}
+	return OutMax;
+}
+
+CALL_SITE_DEBUGLOC
+template<typename ScalarType, uint VectorSize, uint LaneStrideX, uint LaneStrideY>
+TLaneVector2D<ScalarType, VectorSize, LaneStrideX / 2, LaneStrideY / 2> DownsampleAvg2x2(
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Input)
+{
+	const ScalarType Weights[4] = { ScalarType(0.25), ScalarType(0.25), ScalarType(0.25), ScalarType(0.25) };
+	return DownsampleDot2x2(Input, Weights);
+}
