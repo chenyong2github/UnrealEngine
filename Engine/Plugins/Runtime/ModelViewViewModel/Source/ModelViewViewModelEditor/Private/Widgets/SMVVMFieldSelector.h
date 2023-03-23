@@ -101,6 +101,9 @@ private:
 
 	void OnSearchBoxTextChanged(const FText& NewText);
 
+	void OnContextToggleChanged(ECheckBoxState CheckState);
+	ECheckBoxState ContextToggleIsChecked() const;
+
 	struct FConversionFunctionItem
 	{
 		FString GetCategoryName() { return CategoryPath.Num() > 0 ? CategoryPath.Last() : FString(); }

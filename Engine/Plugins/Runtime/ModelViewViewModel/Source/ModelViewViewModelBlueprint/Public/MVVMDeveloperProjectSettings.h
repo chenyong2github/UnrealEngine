@@ -26,6 +26,24 @@ struct FMVVMDeveloperProjectWidgetSettings
 	TSet<FName> AdvancedFieldNames;
 };
 
+UENUM()
+enum class EFilterFlag : uint8
+{
+	None = 0,
+	All = 1 << 0
+};
+ENUM_CLASS_FLAGS(EFilterFlag)
+
+USTRUCT()
+struct FMVVMViewBindingFilterSettings
+{
+	GENERATED_BODY()
+
+	/** Filter out the properties and functions that are not valid in the context of the binding. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	EFilterFlag FilterFlags = EFilterFlag::None;
+};
+
 /**
  *
  */
@@ -109,6 +127,10 @@ public:
 	/** Individual class that are allowed to be uses as conversion functions. */
 	UPROPERTY(EditAnywhere, config, Category = "Viewmodel", meta = (EditCondition = "ConversionFunctionFilter == EMVVMDeveloperConversionFunctionFilterType::AllowedList"))
 	TSet<FSoftClassPath> AllowedClassForConversionFunctions;
+
+	/** Settings for filtering the list of available properties and functions on binding creation. */
+	UPROPERTY(EditAnywhere, config, Category = "Viewmodel")
+	FMVVMViewBindingFilterSettings FilterSettings;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

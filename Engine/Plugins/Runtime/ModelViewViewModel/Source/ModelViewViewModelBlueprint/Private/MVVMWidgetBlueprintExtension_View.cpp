@@ -122,3 +122,19 @@ void UMVVMWidgetBlueprintExtension_View::HandleFinishCompilingClass(UWidgetBluep
 	}
 }
 
+void UMVVMWidgetBlueprintExtension_View::SetFilterSettings(FMVVMViewBindingFilterSettings InFilterSettings)
+{
+	FilterSettings = InFilterSettings;
+}
+
+#if WITH_EDITORONLY_DATA
+void UMVVMWidgetBlueprintExtension_View::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!IsTemplate())
+	{
+		SetFilterSettings(GetDefault<UMVVMDeveloperProjectSettings>()->FilterSettings);
+	}
+}
+#endif

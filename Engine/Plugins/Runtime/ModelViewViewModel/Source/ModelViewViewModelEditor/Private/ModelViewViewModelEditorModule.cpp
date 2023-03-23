@@ -11,6 +11,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "MessageLogModule.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMDeveloperProjectSettings.h"
 #include "MVVMEditorCommands.h"
 #include "MVVMEditorSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
@@ -121,6 +122,14 @@ void FModelViewViewModelEditorModule::HandleRegisterBlueprintEditorTab(const FWi
 
 			ApplicationMode.OnPostActivateMode.AddRaw(this, &FModelViewViewModelEditorModule::HandleActivateMode);
 			ApplicationMode.OnPreDeactivateMode.AddRaw(this, &FModelViewViewModelEditorModule::HandleDeactiveMode);
+		}
+
+		if (TSharedPtr<FWidgetBlueprintEditor> BP = ApplicationMode.GetBlueprintEditor())
+		{
+			if (UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(BP->GetWidgetBlueprintObj()))
+			{
+				ExtensionView->SetFilterSettings(GetDefault<UMVVMDeveloperProjectSettings>()->FilterSettings);
+			}
 		}
 	}
 }

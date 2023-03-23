@@ -7,12 +7,15 @@
 #include "Framework/Views/TableViewMetadata.h"
 #include "Hierarchy/SReadOnlyHierarchyView.h"
 #include "MVVMEditorSubsystem.h"
+#include "MVVMDeveloperProjectSettings.h"
+#include "MVVMWidgetBlueprintExtension_View.h"
 #include "SPrimaryButton.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Styling/SlateIconFinder.h"
 #include "Types/MVVMBindingMode.h"
 #include "Widgets/SMVVMFieldEntry.h"
 #include "Widgets/SMVVMSourceEntry.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -865,8 +868,28 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 		.Padding(0, 4, 0, 4)
 		.AutoHeight()
 		[
-			SAssignNew(SearchBox, SSearchBox)
-			.OnTextChanged(this, &SFieldSelector::OnSearchBoxTextChanged)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.Padding(3.f, 0.f, 3.f, 0.f)	
+			[
+				SAssignNew(SearchBox, SSearchBox)
+				.OnTextChanged(this, &SFieldSelector::OnSearchBoxTextChanged)
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &SFieldSelector::OnContextToggleChanged)
+				.IsChecked(this, &SFieldSelector::ContextToggleIsChecked)
+				.ToolTipText(LOCTEXT("ContextFlagToolTip", "Should the list be filtered to only properties and functions that make sense in the current context?"))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("MVVMContextSensitiveToggle", "Context Sensitive"))
+				]
+			]
 		];
 
 	// If we're showing conversion functions, we don't want to set the AssignableTo property of SSourceBindingList, because then it will only show exact matches, 
@@ -1055,6 +1078,34 @@ EFieldVisibility SFieldSelector::GetFieldVisibilityFlags() const
 	}
 
 	return Flags;
+}
+
+void SFieldSelector::OnContextToggleChanged(ECheckBoxState CheckState)
+{
+	UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint.Get());
+	check(ExtensionView);
+
+	FMVVMViewBindingFilterSettings FilterSettings = ExtensionView->GetFilterSettings();
+	FilterSettings.FilterFlags = CheckState == ECheckBoxState::Checked ? EFilterFlag::All : EFilterFlag::None;
+	ExtensionView->SetFilterSettings(FilterSettings);
+
+	if (WidgetList.IsValid())
+	{
+		OnWidgetSelected(WidgetBlueprint->GetFName(), ESelectInfo::Direct);
+	}
+
+	if (ViewModelList.IsValid())
+	{
+		OnViewModelSelected(FBindingSource(), ESelectInfo::Direct);
+	}
+}
+
+ECheckBoxState SFieldSelector::ContextToggleIsChecked() const
+{
+	UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint.Get());
+	check(ExtensionView);
+
+	return ExtensionView->GetFilterSettings().FilterFlags == EFilterFlag::All ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 TSharedPtr<SFieldSelector::FConversionFunctionItem> SFieldSelector::FindOrCreateItemForCategory(TArray<TSharedPtr<FConversionFunctionItem>>& Items, TArrayView<FString> CategoryPath)

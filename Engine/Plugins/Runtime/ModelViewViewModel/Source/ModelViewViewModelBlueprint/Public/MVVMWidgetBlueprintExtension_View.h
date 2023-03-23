@@ -3,6 +3,7 @@
 #pragma once
 
 #include "WidgetBlueprintExtension.h"
+#include "MVVMDeveloperProjectSettings.h"
 
 #include "MVVMWidgetBlueprintExtension_View.generated.h"
 
@@ -45,6 +46,9 @@ public:
 public:
 	//~ Begin UObject interface
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	virtual void PostInitProperties() override;
+#endif
 	//~ End UObject interface
 
 	//~ Begin UWidgetBlueprintExtension interface
@@ -57,9 +61,18 @@ public:
 	virtual void HandleEndCompilation() override;
 	//~ End UWidgetBlueprintExtension interface
 
+	void SetFilterSettings(FMVVMViewBindingFilterSettings InFilterSettings);
+	FMVVMViewBindingFilterSettings GetFilterSettings() const
+	{
+		return FilterSettings;
+	}
+
 private:
 	UPROPERTY(Instanced)
 	TObjectPtr<UMVVMBlueprintView> BlueprintView;
+
+	UPROPERTY(Transient)
+	FMVVMViewBindingFilterSettings FilterSettings;
 
 	FSimpleMulticastDelegate BlueprintViewChangedDelegate;
 	TPimplPtr<UE::MVVM::Private::FMVVMViewBlueprintCompiler> CurrentCompilerContext;

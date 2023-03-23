@@ -8,6 +8,7 @@
 #include "MVVMBlueprintViewModelContext.h"
 #include "MVVMDeveloperProjectSettings.h"
 #include "MVVMSubsystem.h"
+#include "MVVMWidgetBlueprintExtension_View.h"
 #include "PropertyPermissionList.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Types/MVVMAvailableBinding.h"
@@ -170,9 +171,28 @@ TArray<FFieldVariant> FFieldIterator_Bindable::GetFields(const UStruct* Struct) 
 	auto AddResult = [this, &Result, Struct](const TArray<FMVVMAvailableBinding>& AvailableBindingsList)
 	{
 		Result.Reserve(AvailableBindingsList.Num());
+
+		EFilterFlag FilterFlags;
+		if (UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint.Get()))
+		{
+			FilterFlags = ExtensionView->GetFilterSettings().FilterFlags;
+		}
+		else
+		{
+			FilterFlags = GetDefault<UMVVMDeveloperProjectSettings>()->FilterSettings.FilterFlags;
+		}
+
 		for (const FMVVMAvailableBinding& Value : AvailableBindingsList)
 		{
-			TOptional<FFieldVariant> PassResult = Private::PassFilter(Value, Struct, FieldVisibilityFlags, AssignableTo, false);
+			TOptional<FFieldVariant> PassResult;
+			if (FilterFlags == EFilterFlag::All)
+			{
+				PassResult = Private::PassFilter(Value, Struct, FieldVisibilityFlags, AssignableTo, false);
+			}
+			else
+			{
+				PassResult = Private::PassFilter(Value, Struct, EFieldVisibility::None, nullptr, false);
+			}
 			if (PassResult.IsSet())
 			{
 				Result.Add(MoveTemp(PassResult.GetValue()));
@@ -507,7 +527,24 @@ FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SProp
 				FMVVMAvailableBinding Binding = UMVVMSubsystem::GetAvailableBinding(OwnerClass, FMVVMBindingName(FieldName), AccessorClass);
 				if (Binding.IsValid())
 				{
-					bPassFilter = Private::PassFilter(Binding, OwnerClass, FieldIterator->GetFieldVisibilityFlags(), FieldIterator->GetAssignableTo(), true).IsSet();
+					EFilterFlag FilterFlags;
+					if (UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint.Get()))
+					{
+						FilterFlags = ExtensionView->GetFilterSettings().FilterFlags;
+					}
+					else
+					{
+						FilterFlags = GetDefault<UMVVMDeveloperProjectSettings>()->FilterSettings.FilterFlags;
+					}
+
+					if (FilterFlags == EFilterFlag::All)
+					{
+						bPassFilter = Private::PassFilter(Binding, OwnerClass, FieldIterator->GetFieldVisibilityFlags(), FieldIterator->GetAssignableTo(), true).IsSet();
+					}
+					else
+					{
+						bPassFilter = Private::PassFilter(Binding, OwnerClass, EFieldVisibility::None, nullptr, true).IsSet();
+					}
 				}
 				break;
 			}
@@ -538,7 +575,25 @@ FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SProp
 		FMVVMAvailableBinding Binding = UMVVMSubsystem::GetAvailableBinding(AccessorClass, BindingName, AccessorClass);
 		if (Binding.IsValid())
 		{
-			bool bPassFilter = Private::PassFilter(Binding, AccessorClass, FieldIterator->GetFieldVisibilityFlags(), FieldIterator->GetAssignableTo(), true).IsSet();
+			EFilterFlag FilterFlags;
+			if (UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint.Get()))
+			{
+				FilterFlags = ExtensionView->GetFilterSettings().FilterFlags;
+			}
+			else
+			{
+				FilterFlags = GetDefault<UMVVMDeveloperProjectSettings>()->FilterSettings.FilterFlags;
+			}
+			bool bPassFilter;
+
+			if (FilterFlags == EFilterFlag::All)
+			{
+				bPassFilter = Private::PassFilter(Binding, AccessorClass, FieldIterator->GetFieldVisibilityFlags(), FieldIterator->GetAssignableTo(), true).IsSet();
+			}
+			else
+			{
+				bPassFilter = Private::PassFilter(Binding, AccessorClass, EFieldVisibility::None, nullptr, true).IsSet();
+			}
 			if (bPassFilter)
 			{
 				if (Source->Key.ViewModelId.IsValid())
