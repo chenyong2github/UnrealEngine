@@ -67,7 +67,8 @@ struct FActorContainerID
 
 	FGuid GetActorGuid(const FGuid& InActorGuid) const
 	{
-		return FGuid::Combine(Guid, InActorGuid);
+		// Preserve the original actor guid for top level actors
+		return Guid.IsValid() ? FGuid::Combine(Guid, InActorGuid) : InActorGuid;
 	}
 
 	friend FORCEINLINE uint32 GetTypeHash(const FActorContainerID& InContainerID)

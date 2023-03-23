@@ -48,7 +48,7 @@ class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartiti
 
 #if WITH_EDITOR
 	//~Begin UWorldPartitionRuntimeCell Interface
-	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer, const FGuid& InActorGuid) override;
+	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) override;
 	virtual int32 GetActorCount() const override;
 	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) override;
 	// Cook methods

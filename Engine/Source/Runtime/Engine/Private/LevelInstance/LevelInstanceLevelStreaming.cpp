@@ -151,6 +151,9 @@ void ULevelStreamingLevelInstance::PrepareLevelInstanceLoadedActor(AActor& InAct
 	if (InLevelInstance)
 	{
 		InActor.PushLevelInstanceEditingStateToProxies(CastChecked<AActor>(InLevelInstance)->IsInEditingLevelInstance());
+
+		const FGuid& LevelInstanceGuid = InLevelInstance->GetLevelInstanceID().GetGuid();
+		FSetActorInstanceGuid SetActorInstanceGuid(&InActor, FGuid::Combine(LevelInstanceGuid, InActor.GetActorGuid()));
 	}
 
 	if (LevelInstanceEditorInstanceActor.IsValid())
@@ -221,8 +224,6 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 		{
 			GEngine->BlockTillLevelStreamingCompleted(LevelInstanceActor->GetWorld());
 
-			const FGuid& LevelInstanceGuid = LevelInstance->GetLevelInstanceID().GetGuid();
-
 			// Most of the code here is meant to allow partial support for undo/redo of LevelInstance Instance Loading:
 			// by setting the objects RF_Transient and !RF_Transactional we can check when unloading if those flags
 			// have been changed and figure out if we need to clear the transaction buffer or not.
@@ -252,8 +253,6 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 					if (LevelActor)
 					{
 						LevelStreaming->PrepareLevelInstanceLoadedActor(*LevelActor, LevelInstance, false);
-
-						FSetActorGuid SetActorGuid(LevelActor, FGuid::Combine(LevelInstanceGuid, LevelActor->GetActorGuid()));
 					}
 				}
 

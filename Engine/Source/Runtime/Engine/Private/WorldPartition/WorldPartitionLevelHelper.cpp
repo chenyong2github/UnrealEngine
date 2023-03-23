@@ -447,8 +447,8 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 					TransformParams.bDoPostEditMove = false;
 					FLevelUtils::ApplyLevelTransform(TransformParams);
 
-					// Set the actor's guid
-					FSetActorGuid SetActorGuid(Actor, PackageObjectMapping->ActorGuid);
+					// Set the actor's instance guid
+					FSetActorInstanceGuid SetActorInstanceGuid(Actor, PackageObjectMapping->ActorInstanceGuid);
 						
 					// Path to use when searching for this actor in MoveExternalActorsToLevel
 					PackageObjectMapping->LoadedPath = *Actor->GetPathName();

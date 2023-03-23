@@ -14,15 +14,6 @@ const FActorContainerID& IStreamingGenerationContext::FActorInstance::GetContain
 	return ActorSetInstance->ContainerID;
 }
 
-const FGuid& IStreamingGenerationContext::FActorInstance::GetActorGuid() const
-{
-	if (const FGuid* RemappedGuid = ActorSetInstance->ActorsSetGuids.Find(ActorGuid))
-	{
-		return *RemappedGuid;
-	}
-	return ActorGuid;
-}
-
 const FTransform& IStreamingGenerationContext::FActorInstance::GetTransform() const
 {
 	return ActorSetInstance->Transform;

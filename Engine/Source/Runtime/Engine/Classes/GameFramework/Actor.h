@@ -882,13 +882,22 @@ private:
 #if WITH_EDITORONLY_DATA
 protected:
 	/**
-	 * The GUID for this actor.
-	 *
-	 * Note: Don't use VisibleAnywhere here to avoid getting the CPF_Edit flag and get this property reset when resetting to defaults.
-	 *       See FActorDetails::AddActorCategory and EditorUtilities::CopySingleProperty for details.
+	 * The GUID for this actor; this guid will be the same for actors from instanced streaming levels.
+	 * @see		ActorInstanceGuid
+	 * @note	Don't use VisibleAnywhere here to avoid getting the CPF_Edit flag and get this property reset when resetting to defaults.
+	 *			See FActorDetails::AddActorCategory and EditorUtilities::CopySingleProperty for details.
 	 */
 	UPROPERTY(BluePrintReadOnly, AdvancedDisplay, Category=Actor, NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
 	FGuid ActorGuid;
+
+	/**
+	 * The instance GUID for this actor; this guid will be unique for actors from instanced streaming levels.
+	 * @see		ActorGuid
+	 * @note	Don't use VisibleAnywhere here to avoid getting the CPF_Edit flag and get this property reset when resetting to defaults.
+	 *			See FActorDetails::AddActorCategory and EditorUtilities::CopySingleProperty for details.
+	 */
+	UPROPERTY(BluePrintReadOnly, AdvancedDisplay, Category=Actor, Transient, NonTransactional)
+	FGuid ActorInstanceGuid;
 
 	/**
 	 * The GUID for this actor's content bundle.
@@ -954,6 +963,9 @@ public:
 
 	/** Returns this actor's Guid. Actor Guids are only available in editor builds. */
 	inline const FGuid& GetActorGuid() const { return ActorGuid; }
+
+	/** Returns this actor's instance Guid. Actor Guids are only available in editor builds. */
+	inline const FGuid& GetActorInstanceGuid() const { return ActorInstanceGuid.IsValid() ? ActorInstanceGuid : ActorGuid; }
 
 	/** Returns this actor's content bundle Guid. */
 	inline const FGuid& GetContentBundleGuid() const { return ContentBundleGuid; }
@@ -3953,6 +3965,7 @@ private:
 
 	friend struct FSetActorHiddenInSceneOutliner;
 	friend struct FSetActorGuid;
+	friend struct FSetActorInstanceGuid;
 	friend struct FSetActorContentBundleGuid;
 	friend struct FAssignActorDataLayer;
 	friend struct FSetActorSelectable;
@@ -4209,8 +4222,16 @@ private:
 	friend class UEngine;
 	friend class UExternalActorsCommandlet;
 	friend class UWorldPartitionConvertCommandlet;
+};
+
+struct FSetActorInstanceGuid
+{
+private:
+	FSetActorInstanceGuid(AActor* InActor, const FGuid& InActorInstanceGuid)
+	{
+		InActor->ActorInstanceGuid = InActorInstanceGuid;
+	}
 	friend class ULevelStreamingLevelInstance;
-	friend class UWorldPartitionLevelStreamingDynamic;
 	friend class FWorldPartitionLevelHelper;
 };
 

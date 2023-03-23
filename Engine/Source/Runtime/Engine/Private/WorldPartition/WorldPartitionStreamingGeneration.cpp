@@ -163,16 +163,6 @@ class FWorldPartitionStreamingGenerator
 					ActorSetInstance.ContainerID = ContainerInstanceDescriptor.ID;
 					ActorSetInstance.Transform = ContainerInstanceDescriptor.Transform;
 
-					// Apply the per-container actor guids
-					if (!ContainerID.IsMainContainer())
-					{
-						ActorSetInstance.ActorsSetGuids.Reserve(ActorSet.Actors.Num());
-						for (const FGuid& ActorGuid : ActorSet.Actors)
-						{
-							ActorSetInstance.ActorsSetGuids.Add(ActorGuid, ActorSetInstance.ContainerID.GetActorGuid(ActorGuid));
-						}
-					}
-
 					// Apply AND logic on spatially loaded flag
 					ActorSetInstance.bIsSpatiallyLoaded = ReferenceActorDescView.GetIsSpatiallyLoaded() && ContainerInstanceDescriptor.bIsSpatiallyLoaded;
 

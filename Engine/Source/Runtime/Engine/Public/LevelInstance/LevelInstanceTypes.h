@@ -35,13 +35,6 @@ struct FLevelInstanceID
 
 	inline const FGuid& GetGuid() const { return Guid; }
 
-protected:
-#if WITH_EDITOR
-	friend ULevelInstanceSubsystem;
-	// - this relies on the Guids[0] to be the OriginalGuid of the LevelInstance Actor before it gets overriden in ULevelInstanceLevelStreaming.
-	// - this is only used for filtering actors, we compare a filter built from a Level Package (with original actor guids) to the filter of a loaded Level Instance (with unique actor guids)
-	inline const FGuid& GetOriginalGuid() const { return Guids[0]; }
-#endif
 private:
 	uint64 Hash = 0;
 	FGuid Guid;

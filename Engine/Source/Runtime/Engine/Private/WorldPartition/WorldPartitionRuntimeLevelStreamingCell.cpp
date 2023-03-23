@@ -202,7 +202,7 @@ void UWorldPartitionRuntimeLevelStreamingCell::SetIsAlwaysLoaded(bool bInIsAlway
 }
 
 #if WITH_EDITOR
-void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer, const FGuid& InActorGuid)
+void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer)
 {
 	check(!ActorDescView.GetActorIsEditorOnly());
 
@@ -213,7 +213,7 @@ void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartit
 		InContainer->GetContainerPackage(), 
 		GetWorld()->GetPackage()->GetFName(), 
 		ActorDescView.GetContentBundleGuid(),
-		InActorGuid
+		InContainerID.GetActorGuid(ActorDescView.GetGuid())
 	);
 }
 
@@ -322,9 +322,9 @@ void UWorldPartitionRuntimeLevelStreamingCell::DumpStateLog(FHierarchicalLogArch
 
 	for (const FWorldPartitionRuntimeCellObjectMapping& Mapping : SortedPackages)
 	{
-		Ar.Printf(TEXT("   Actor Path: %s"), *Mapping.Path.ToString());
-		Ar.Printf(TEXT("Actor Package: %s"), *Mapping.Package.ToString());
-		Ar.Printf(TEXT("   Actor Guid: %s"), *Mapping.ActorGuid.ToString());
+		Ar.Printf(TEXT("         Actor Path: %s"), *Mapping.Path.ToString());
+		Ar.Printf(TEXT("      Actor Package: %s"), *Mapping.Package.ToString());
+		Ar.Printf(TEXT("Actor Instance Guid: %s"), *Mapping.ActorInstanceGuid.ToString());
 	}
 }
 #endif
