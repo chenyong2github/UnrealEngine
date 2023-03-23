@@ -11,66 +11,26 @@
 
 FObjectMixerEditorListRowFolder* FObjectMixerUtils::AsFolderRow(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem)
 {
-	// Sometimes the outliner reports type as the parent type, but we can be assured we're always using our type.
-	// For this reason, we check for our type first and if it's not our type, check parent type then cast.
-	if (FObjectMixerEditorListRowFolder* AsFolder = InTreeItem->CastTo<FObjectMixerEditorListRowFolder>())
-	{
-		return AsFolder;
-	}
-	
-	if (FActorFolderTreeItem* AsFolder = InTreeItem->CastTo<FActorFolderTreeItem>())
-	{
-		if (AsFolder->GetFolder().IsValid())
-		{
-			return StaticCast<FObjectMixerEditorListRowFolder*>(AsFolder);
-		}
-	}
-
-	return nullptr;
+	check (InTreeItem);
+	return InTreeItem->CastTo<FObjectMixerEditorListRowFolder>();
 }
 
 FObjectMixerEditorListRowActor* FObjectMixerUtils::AsActorRow(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem)
 {
-	// Sometimes the outliner reports type as the parent type, but we can be assured we're always using our type.
-	// For this reason, we check for our type first and if it's not our type, check parent type then cast.
-	if (FObjectMixerEditorListRowActor* AsActor = InTreeItem->CastTo<FObjectMixerEditorListRowActor>())
-	{
-		return AsActor;
-	}
-	
-	if (FActorTreeItem* AsActor = InTreeItem->CastTo<FActorTreeItem>())
-	{
-		return StaticCast<FObjectMixerEditorListRowActor*>(AsActor);
-	}
-
-	return nullptr;
+	check (InTreeItem);
+	return InTreeItem->CastTo<FObjectMixerEditorListRowActor>();
 }
 
 FObjectMixerEditorListRowComponent* FObjectMixerUtils::AsComponentRow(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem)
 {
-	// Sometimes the outliner reports type as the parent type, but we can be assured we're always using our type.
-	// For this reason, we check for our type first and if it's not our type, check parent type then cast.
-	if (FObjectMixerEditorListRowComponent* AsComponent = InTreeItem->CastTo<FObjectMixerEditorListRowComponent>())
-	{
-		return AsComponent;
-	}
-	
-	if (FComponentTreeItem* AsComponent = InTreeItem->CastTo<FComponentTreeItem>())
-	{
-		return StaticCast<FObjectMixerEditorListRowComponent*>(AsComponent);
-	}
-
-	return nullptr;
+	check (InTreeItem);
+	return InTreeItem->CastTo<FObjectMixerEditorListRowComponent>();
 }
 
 FObjectMixerEditorListRowUObject* FObjectMixerUtils::AsObjectRow(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem)
 {
-	if (FObjectMixerEditorListRowUObject* AsObject = InTreeItem->CastTo<FObjectMixerEditorListRowUObject>())
-	{
-		return AsObject;
-	}
-
-	return nullptr;
+	check (InTreeItem);
+	return InTreeItem->CastTo<FObjectMixerEditorListRowUObject>();
 }
 
 FObjectMixerEditorListRowData* FObjectMixerUtils::GetRowData(TSharedPtr<ISceneOutlinerTreeItem> InTreeItem)
@@ -139,7 +99,7 @@ UObject* FObjectMixerUtils::GetRowObject(TSharedPtr<ISceneOutlinerTreeItem> InTr
 
 	if (const FObjectMixerEditorListRowUObject* ObjectRow = AsObjectRow(InTreeItem))
 	{
-		ObjectRow->ObjectSoftPtr.Get();
+		return ObjectRow->ObjectSoftPtr.Get();
 	}
 
 	return nullptr;

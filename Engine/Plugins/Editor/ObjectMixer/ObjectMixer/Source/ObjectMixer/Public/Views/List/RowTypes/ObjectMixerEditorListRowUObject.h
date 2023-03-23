@@ -4,15 +4,9 @@
 
 #include "Views/List/ObjectMixerEditorListRowData.h"
 
-#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Folder.h"
-#include "GameFramework/Actor.h"
 #include "ISceneOutlinerTreeItem.h"
-#include "Layout/Visibility.h"
-#include "PropertyHandle.h"
 #include "SSceneOutliner.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
 
 struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowUObject : ISceneOutlinerTreeItem
@@ -24,6 +18,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowUObject : ISceneOutlinerTr
 	, ObjectSoftPtr(InObject)
 	, ID(InObject)
 	{
+		TreeType = Type;
 		RowData = FObjectMixerEditorListRowData(InSceneOutliner, InDisplayNameOverride);
 	}
 	

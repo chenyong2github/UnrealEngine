@@ -5,15 +5,7 @@
 #include "Views/List/ObjectMixerEditorListRowData.h"
 
 #include "ComponentTreeItem.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "Folder.h"
-#include "GameFramework/Actor.h"
-#include "Layout/Visibility.h"
-#include "PropertyHandle.h"
 #include "SSceneOutliner.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/Object.h"
 
 struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowComponent : FComponentTreeItem
 {
@@ -23,6 +15,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRowComponent : FComponentTree
 	: FComponentTreeItem(InObject)
 	, OriginalObjectSoftPtr(InObject)
 	{
+		TreeType = Type;
 		RowData = FObjectMixerEditorListRowData(InSceneOutliner, InDisplayNameOverride);
 	}
 	
