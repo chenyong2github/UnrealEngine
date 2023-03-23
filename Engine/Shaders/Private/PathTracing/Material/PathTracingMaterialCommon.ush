@@ -212,7 +212,8 @@ float ShadowTerminatorTerm(float3 L, float3 N, float3 Ns)
 float3 GetPathTracingDiffuseModel(float3 DiffuseColor, float Roughness, float NoV, float NoL, float VoH, float NoH)
 {
 #if MATERIAL_ROUGHDIFFUSE
-	return PI * Diffuse_Chan(DiffuseColor, Pow4(Roughness), NoV, NoL, VoH, NoH, 1.0f);
+	// Clamp to [0,1] as the model is ever so slightly non-energy conserving at grazing angles which can cause unwanted noise
+	return saturate(PI * Diffuse_Chan(DiffuseColor, Pow4(Roughness), NoV, NoL, VoH, NoH, 1.0f));
 #else
 	return DiffuseColor;
 #endif
