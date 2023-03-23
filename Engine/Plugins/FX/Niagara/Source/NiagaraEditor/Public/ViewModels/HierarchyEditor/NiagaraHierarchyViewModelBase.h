@@ -25,7 +25,7 @@ struct FNiagaraHierarchyIdentity
 	UPROPERTY()
 	TArray<FName> Names;
 
-	bool operator==(const FNiagaraHierarchyIdentity& OtherIdentity)
+	bool operator==(const FNiagaraHierarchyIdentity& OtherIdentity) const
 	{
 		if(Guids.Num() != OtherIdentity.Guids.Num() || Names.Num() != OtherIdentity.Names.Num())
 		{
