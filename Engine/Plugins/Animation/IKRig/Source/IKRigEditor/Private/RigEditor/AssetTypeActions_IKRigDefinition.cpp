@@ -39,7 +39,7 @@ const TArray<FText>& FAssetTypeActions_IKRigDefinition::GetSubMenus() const
 {
 	static const TArray<FText> SubMenus
 	{
-		LOCTEXT("AnimIKRigSubMenu", "IK Rig")
+		LOCTEXT("AnimRetargetingSubMenu", "Retargeting")
 	};
 	return SubMenus;
 }
