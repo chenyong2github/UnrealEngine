@@ -1542,16 +1542,13 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 
 		if ( !ValidPackagePath.IsEmpty() )
 		{
-			// We can't TryLoad() this right now as we may be in an Async thread, so settle for checking with the asset registry module
+			// We can't TryLoad() or LoadObject<> this right now as we may be in an Async thread.
+			// The FAssetData may not be ready yet however, in case we're loading a stage right when launching the
+			// editor, so here we just settle for finding any valid object
 			FSoftObjectPath SoftObjectPath{ ValidPackagePath };
 			if ( SoftObjectPath.IsValid() )
 			{
-				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( "AssetRegistry" );
-				FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath( SoftObjectPath );
-				if ( AssetData.IsValid() && AssetData.GetClass()->IsChildOf( UMaterialInterface::StaticClass() ) )
-				{
-					return ValidPackagePath;
-				}
+				return ValidPackagePath;
 			}
 
 			UE_LOG( LogUsd, Warning, TEXT( "Could not find a valid material at path '%s', targetted by prim '%s's unrealMaterial attribute. Material assignment will fallback to USD materials and display color data." ),

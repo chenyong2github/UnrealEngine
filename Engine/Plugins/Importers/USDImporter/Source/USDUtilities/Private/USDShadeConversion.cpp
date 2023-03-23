@@ -1944,6 +1944,13 @@ namespace UE
 						FString ResolvedPath = UsdUtils::GetResolvedTexturePath( ShadeInput.GetAttr() );
 						InOutHashState.UpdateWithString( *ResolvedPath, ResolvedPath.Len() );
 					}
+					else if (ShadeInputValue.IsHolding<pxr::TfToken>())
+					{
+						// Stringify instead of using GetHash because if ShadeInputValue contains a pxr::TfToken then
+						// it will actually just contain some non-deterministic integer IDs
+						FString Stringified = UsdToUnreal::ConvertString(pxr::TfStringify(ShadeInputValue));
+						InOutHashState.UpdateWithString( *Stringified, Stringified.Len() );
+					}
 					else
 					{
 						uint64 ValueHash = ( uint64 ) ShadeInputValue.GetHash();

@@ -27,6 +27,8 @@ namespace UnrealBuildTool.Rules
 					"DeveloperSettings",
 					"GeometryCache",
 					"Json", // To read/write plugInfo.json files from UnrealUSDWrapper.cpp
+					"MeshDescription",
+					"RHI",
 				}
 			);
 		}

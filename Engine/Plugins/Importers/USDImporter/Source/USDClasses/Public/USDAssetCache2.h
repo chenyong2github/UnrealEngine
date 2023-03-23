@@ -170,6 +170,8 @@ private:
 	// Tries unloading unreferenced, persistent assets back to bulkdata on disk if we can
 	bool TryUnloadAsset(FCachedAssetInfo& InOutInfo);
 	bool IsAssetOwnedByCacheInternal(const FString& AssetPath) const;
+	bool AddAssetReferenceInternal(const UObject* Asset, const UObject* Referencer);
+	void TouchAsset(UObject* Asset, const UObject* Referencer = nullptr);
 
 private:
 	friend struct FUsdScopedAssetCacheReferencer;

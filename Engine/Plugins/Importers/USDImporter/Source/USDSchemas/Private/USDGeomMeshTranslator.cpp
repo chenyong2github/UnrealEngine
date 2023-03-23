@@ -431,6 +431,7 @@ namespace UsdGeomMeshTranslatorImpl
 				}
 				case UsdUtils::EPrimAssignmentType::UnrealMaterial:
 				{
+					// TODO: Try reusing the MeshTranslationImpl code for this as it has more warnings/feedback
 					Material = Cast< UMaterialInterface >(FSoftObjectPath(Slot.MaterialSource).TryLoad());
 					break;
 				}
@@ -834,6 +835,7 @@ namespace UsdGeomMeshTranslatorImpl
 
 		StaticMesh.SetRenderData(MakeUnique< FStaticMeshRenderData >());
 		StaticMesh.CreateBodySetup();
+		StaticMesh.MarkAsNotHavingNavigationData(); // Needed or else it will warn if we try cooking with body setup
 	}
 
 	bool BuildStaticMesh(UStaticMesh& StaticMesh, const FStaticFeatureLevel& FeatureLevel, TArray<FMeshDescription>& LODIndexToMeshDescription)

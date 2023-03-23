@@ -212,12 +212,21 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 			}
 			case UsdUtils::EPrimAssignmentType::UnrealMaterial:
 			{
-				Material = Cast< UMaterialInterface >(FSoftObjectPath(Slot.MaterialSource).TryLoad());
-				if (!Material)
+				UObject* Object = FSoftObjectPath(Slot.MaterialSource).TryLoad();
+				Material = Cast< UMaterialInterface >(Object);
+				if (!Object)
 				{
 					UE_LOG(LogUsd, Warning, TEXT("UE material '%s' for prim '%s' could not be loaded or was not found."),
 						*Slot.MaterialSource,
 						*UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath()));
+				}
+				else if (!Material)
+				{
+					UE_LOG(LogUsd, Warning, TEXT("Object '%s' assigned as an Unreal Material for prim '%s' is not actually a material (but instead a '%s') and will not be used"),
+						*Slot.MaterialSource,
+						*UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath()),
+						*Object->GetClass()->GetName()
+					);
 				}
 				else if (!Material->IsTwoSided() && Slot.bMeshIsDoubleSided)
 				{

@@ -72,6 +72,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 		if ( StaticMesh )
 		{
 			StaticMesh->CreateBodySetup(); // BodySetup is required for HISM component
+			StaticMesh->MarkAsNotHavingNavigationData(); // Needed or else it will warn if we try cooking with body setup
 		}
 
 		MeshComponent.SetStaticMesh( StaticMesh );
