@@ -3,8 +3,11 @@
 #pragma once
 
 #include "Kismet/BlueprintFunctionLibrary.h"
+
+#include "AssetRegistry/AssetData.h"
 #include "Containers/Array.h"
 #include "Templates/Function.h"
+
 #include "AssetFilteringAndSortingFunctionLibrary.generated.h"
 
 struct FAssetData;
