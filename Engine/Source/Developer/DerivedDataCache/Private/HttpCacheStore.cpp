@@ -287,12 +287,17 @@ public:
 
 	const FString& GetDomain() const { return Domain; }
 	const FString& GetNamespace() const { return Namespace; }
-	const FString& GetOAuthProvider() const { return OAuthProvider; }
-	const FString& GetOAuthClientId() const { return OAuthClientId; }
-	const FString& GetOAuthSecret() const { return OAuthSecret; }
-	const FString& GetOAuthScope() const { return OAuthScope; }
-	const FString& GetOAuthProviderIdentifier() const { return OAuthProviderIdentifier; }
-	const FString& GetOAuthAccessToken() const { return OAuthAccessToken; }
+	const FString GetAccessToken() const
+	{
+		TAnsiStringBuilder<128> AccessTokenBuilder;
+
+		if (Access.IsValid())
+		{
+			AccessTokenBuilder << *Access;
+		}
+
+		return FString(ANSI_TO_TCHAR(AccessTokenBuilder.ToString()));
+	}
 
 private:
 	FString Domain;
@@ -2893,24 +2898,14 @@ TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* N
 
 ILegacyCacheStore* GetAnyHttpCacheStore(
 	FString& OutDomain,
-	FString& OutOAuthProvider,
-	FString& OutOAuthClientId,
-	FString& OutOAuthSecret,
-	FString& OutOAuthScope,
-	FString& OAuthProviderIdentifier,
-	FString& OAuthAccessToken,
+	FString& OutAccessToken,
 	FString& OutNamespace)
 {
 #if WITH_HTTP_DDC_BACKEND
 	if (FHttpCacheStore* HttpBackend = FHttpCacheStore::GetAny())
 	{
 		OutDomain = HttpBackend->GetDomain();
-		OutOAuthProvider = HttpBackend->GetOAuthProvider();
-		OutOAuthClientId = HttpBackend->GetOAuthClientId();
-		OutOAuthSecret = HttpBackend->GetOAuthSecret();
-		OutOAuthScope = HttpBackend->GetOAuthScope();
-		OAuthProviderIdentifier = HttpBackend->GetOAuthProviderIdentifier();
-		OAuthAccessToken = HttpBackend->GetOAuthAccessToken();
+		OutAccessToken = HttpBackend->GetAccessToken();
 		OutNamespace = HttpBackend->GetNamespace();
 		return HttpBackend;
 	}

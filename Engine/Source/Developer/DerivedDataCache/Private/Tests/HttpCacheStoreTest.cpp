@@ -41,12 +41,7 @@ namespace UE::DerivedData
 
 ILegacyCacheStore* GetAnyHttpCacheStore(
 	FString& OutDomain,
-	FString& OutOAuthProvider,
-	FString& OutOAuthClientId,
-	FString& OutOAuthSecret,
-	FString& OutOAuthScope,
-	FString& OAuthProviderIdentifier,
-	FString& OAuthAccessToken,
+	FString& OutAccessToken,
 	FString& OutNamespace);
 
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config);
@@ -162,7 +157,7 @@ protected:
 	static ILegacyCacheStore* GetTestBackend()
 	{
 		static ILegacyCacheStore* CachedBackend = GetAnyHttpCacheStore(
-			TestDomain, TestOAuthProvider, TestOAuthClientId, TestOAuthSecret, TestOAuthScope, TestOAuthProviderIdentifier, TestOAuthAccessToken, TestNamespace);
+			TestDomain, TestAccessToken, TestNamespace);
 		return CachedBackend;
 	}
 
@@ -488,12 +483,7 @@ protected:
 
 protected:
 	static inline FString TestDomain;
-	static inline FString TestOAuthProvider;
-	static inline FString TestOAuthClientId;
-	static inline FString TestOAuthSecret;
-	static inline FString TestOAuthScope;
-	static inline FString TestOAuthProviderIdentifier;
-	static inline FString TestOAuthAccessToken;
+	static inline FString TestAccessToken;
 	static inline FString TestNamespace;
 };
 
@@ -505,10 +495,12 @@ TArray<FCacheRecord> CreateTestCacheRecords(ICacheStore* InTestBackend, uint32 I
 	TArray<FCacheRecord> CacheRecords;
 	TArray<FCachePutRequest> PutRequests;
 	PutRequests.Reserve(InNumKeys);
+	const uint32 KeySalt = 1;
 
 	for (uint32 KeyIndex = 0; KeyIndex < InNumKeys; ++KeyIndex)
 	{
 		FIoHashBuilder HashBuilder;
+		HashBuilder.Update(&KeySalt,sizeof(KeySalt));
 
 		TArray<FSharedBuffer> Values;
 		for (uint32 ValueIndex = 0; ValueIndex < InNumValues; ++ValueIndex)
@@ -523,6 +515,11 @@ TArray<FCacheRecord> CreateTestCacheRecords(ICacheStore* InTestBackend, uint32 I
 			}
 			Values.Emplace(MakeSharedBufferFromArray(MoveTemp(ValueContents)));
 			HashBuilder.Update(Values.Last().GetView());
+		}
+
+		if (MetaContents)
+		{
+			MetaContents.AppendHash(HashBuilder);
 		}
 
 		FCacheKey Key;
@@ -624,11 +621,9 @@ bool FHttpCacheStoreTest::RunTest(const FString& Parameters)
 	FServiceSettings ZenUpstreamTestServiceSettings;
 	FServiceAutoLaunchSettings& ZenUpstreamTestAutoLaunchSettings = ZenUpstreamTestServiceSettings.SettingsVariant.Get<FServiceAutoLaunchSettings>();
 	ZenUpstreamTestAutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineSavedDir(), "ZenUpstreamUnitTest"));
-	ZenUpstreamTestAutoLaunchSettings.ExtraArgs = FString::Printf(TEXT("--http asio --upstream-jupiter-url \"%s\" --upstream-jupiter-oauth-url \"%s\" --upstream-jupiter-oauth-clientid \"%s\" --upstream-jupiter-oauth-clientsecret \"%s\" --upstream-jupiter-namespace \"%s\""),
+	ZenUpstreamTestAutoLaunchSettings.ExtraArgs = FString::Printf(TEXT("--http asio --upstream-jupiter-url \"%s\" --upstream-jupiter-token \"%s\" --upstream-jupiter-namespace \"%s\""),
 		*TestDomain,
-		*TestOAuthProvider,
-		*TestOAuthClientId,
-		*TestOAuthSecret,
+		*TestAccessToken,
 		*TestNamespace
 	);
 	ZenUpstreamTestAutoLaunchSettings.DesiredPort = 23337; // Avoid the normal default port
@@ -640,11 +635,9 @@ bool FHttpCacheStoreTest::RunTest(const FString& Parameters)
 	FServiceSettings ZenUpstreamSiblingTestServiceSettings;
 	FServiceAutoLaunchSettings& ZenUpstreamSiblingTestAutoLaunchSettings = ZenUpstreamSiblingTestServiceSettings.SettingsVariant.Get<FServiceAutoLaunchSettings>();
 	ZenUpstreamSiblingTestAutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineSavedDir(), "ZenUpstreamSiblingUnitTest"));
-	ZenUpstreamSiblingTestAutoLaunchSettings.ExtraArgs = FString::Printf(TEXT("--http asio --upstream-jupiter-url \"%s\" --upstream-jupiter-oauth-url \"%s\" --upstream-jupiter-oauth-clientid \"%s\" --upstream-jupiter-oauth-clientsecret \"%s\" --upstream-jupiter-namespace \"%s\""),
+	ZenUpstreamSiblingTestAutoLaunchSettings.ExtraArgs = FString::Printf(TEXT("--http asio --upstream-jupiter-url \"%s\" --upstream-jupiter-token \"%s\" --upstream-jupiter-namespace \"%s\""),
 		*TestDomain,
-		*TestOAuthProvider,
-		*TestOAuthClientId,
-		*TestOAuthSecret,
+		*TestAccessToken,
 		*TestNamespace
 	);
 	ZenUpstreamSiblingTestAutoLaunchSettings.DesiredPort = 23338; // Avoid the normal default port
