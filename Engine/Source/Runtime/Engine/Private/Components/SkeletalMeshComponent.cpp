@@ -3484,9 +3484,9 @@ void USkeletalMeshComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResour
 	}
 }
 
-void USkeletalMeshComponent::SetAnimationMode(EAnimationMode::Type InAnimationMode)
+void USkeletalMeshComponent::SetAnimationMode(EAnimationMode::Type InAnimationMode, bool bForceInitAnimScriptInstance)
 {
-	bool bNeedChange = AnimationMode != InAnimationMode;
+	const bool bNeedChange = AnimationMode != InAnimationMode;
 	if (bNeedChange)
 	{
 		AnimationMode = InAnimationMode;
@@ -3496,7 +3496,7 @@ void USkeletalMeshComponent::SetAnimationMode(EAnimationMode::Type InAnimationMo
 	// when mode is swapped, make sure to reinitialize
 	// even if it was same mode, this was due to users who wants to use BP construction script to do this
 	// if you use it in the construction script, it gets serialized, but it never instantiate. 
-	if(GetSkeletalMeshAsset() != nullptr && (bNeedChange || AnimationMode == EAnimationMode::AnimationBlueprint))
+	if(GetSkeletalMeshAsset() != nullptr && (bNeedChange || (AnimationMode == EAnimationMode::AnimationBlueprint && bForceInitAnimScriptInstance)))
 	{
 		if (InitializeAnimScriptInstance(true))
 		{
@@ -4713,6 +4713,13 @@ bool USkeletalMeshComponent::FindAttributeChecked(const FName& BoneName, const F
 	}
 
 	return bFound;
+}
+
+
+const FName& USkeletalMeshComponent::GetAnimationModePropertyNameChecked()
+{
+	static FName Name = GET_MEMBER_NAME_CHECKED(USkeletalMeshComponent, AnimationMode);
+	return Name;
 }
 
 

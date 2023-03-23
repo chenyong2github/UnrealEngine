@@ -4,6 +4,7 @@
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
@@ -522,6 +523,19 @@ void SetSecondFogDataFogHeightOffset(UObject* Object, float InFogHeightOffset)
 	ExponentialHeightFogComponent->SetSecondFogHeightOffset(InFogHeightOffset);
 }
 
+uint8 GetSkeletalMeshAnimationMode(const UObject* Object)
+{
+	const USkeletalMeshComponent* SkeletalMeshComponent = CastChecked<const USkeletalMeshComponent>(Object);
+	return SkeletalMeshComponent->GetAnimationMode();
+}
+
+void SetSkeletalMeshAnimationMode(UObject* Object, uint8 InAnimationMode)
+{
+	USkeletalMeshComponent* SkeletalMeshComponent = CastChecked<USkeletalMeshComponent>(Object);
+	constexpr bool bForceInitAnimScriptInstance = false; // Avoid reinits each frame if an anim node track is added with AnimBlueprint mode
+	SkeletalMeshComponent->SetAnimationMode((EAnimationMode::Type)InAnimationMode, bForceInitAnimScriptInstance);
+}
+
 void FIntermediate3DTransform::ApplyTo(USceneComponent* SceneComponent) const
 {
 	double DeltaTime = FApp::GetDeltaTime();
@@ -1009,6 +1023,13 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	Accessors.Float.Add(
 			UExponentialHeightFogComponent::StaticClass(), *SecondFogDataFogHeightOffsetPath,
 			GetSecondFogDataFogHeightOffset, SetSecondFogDataFogHeightOffset);
+
+	Accessors.Byte.Add(
+		USkeletalMeshComponent::StaticClass(), USkeletalMeshComponent::GetAnimationModePropertyNameChecked(),
+		GetSkeletalMeshAnimationMode, SetSkeletalMeshAnimationMode);
+	Accessors.Enum.Add(
+		USkeletalMeshComponent::StaticClass(), USkeletalMeshComponent::GetAnimationModePropertyNameChecked(),
+		GetSkeletalMeshAnimationMode, SetSkeletalMeshAnimationMode);
 
 	// --------------------------------------------------------------------------------------------
 	// Set up vector properties

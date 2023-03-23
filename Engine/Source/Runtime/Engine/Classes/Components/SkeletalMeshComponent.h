@@ -562,7 +562,10 @@ protected:
 	/** Whether to use Animation Blueprint or play Single Animation Asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Animation)
 	TEnumAsByte<EAnimationMode::Type>	AnimationMode;
-	
+public:
+	// helper function to get the member name and verify it exists, without making it public
+	static const FName& GetAnimationModePropertyNameChecked();
+
 private:
 	/** Teleport type to use on the next update */
 	ETeleportType PendingTeleportType;
@@ -1031,9 +1034,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "Dynamics,Physics", UnsafeDuringActorConstruction = "true"))
 	void ResetAnimInstanceDynamics(ETeleportType InTeleportType = ETeleportType::ResetPhysics);
 
-	/** Below are the interface to control animation when animation mode, not blueprint mode **/
+	/** Below are the interface to control animation when animation mode, not blueprint mode */
+
+	/**
+	* Set the Animation Mode
+	* @param InAnimationMode : Requested AnimationMode
+	* @param bForceInitAnimScriptInstance : Init AnimScriptInstance if the AnimationMode is AnimationBlueprint even if the new animation mode is the same as current (this allows to use BP construction script to do this)
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|Animation", meta = (Keywords = "Animation"))
-	void SetAnimationMode(EAnimationMode::Type InAnimationMode);
+	void SetAnimationMode(EAnimationMode::Type InAnimationMode, bool bForceInitAnimScriptInstance = true);
 	
 	UFUNCTION(BlueprintPure, Category = "Components|Animation", meta = (Keywords = "Animation"))
 	EAnimationMode::Type GetAnimationMode() const;
