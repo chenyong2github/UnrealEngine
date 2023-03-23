@@ -207,4 +207,10 @@ void FClothingCacheSchema::LoadCacheData(UChaosCache* InCache, Chaos::FReal InTi
 	}
 }
 
+bool FClothingCacheSchema::CacheIsValidForPlayback(UChaosCache* InCache)
+{
+	// Old caches use TrackToParticle. New caches use ChannelCurveToParticle
+	return InCache->TrackToParticle.Num() > 0 || InCache->ChannelCurveToParticle.Num() > 0; 
+}
+
 } // namespace Chaos

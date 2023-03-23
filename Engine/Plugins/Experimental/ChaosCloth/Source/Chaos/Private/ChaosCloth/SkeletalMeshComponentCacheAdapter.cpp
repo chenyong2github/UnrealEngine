@@ -64,7 +64,7 @@ namespace Chaos
 	{
 		// If we have a skel mesh we can play back any cache as long as it has one or more tracks
 		const USkeletalMeshComponent* MeshComp = CastChecked<USkeletalMeshComponent>(InComponent);
-		return MeshComp && MeshComp->GetSkinnedAsset() && InCache->TrackToParticle.Num() > 0;
+		return MeshComp && MeshComp->GetSkinnedAsset() && Chaos::FClothingCacheSchema::CacheIsValidForPlayback(InCache);
 	}
 
 	FClothingSimulationSolver* FSkeletalMeshCacheAdapter::GetClothSolver(UPrimitiveComponent* InComponent) const

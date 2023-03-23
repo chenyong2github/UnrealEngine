@@ -23,6 +23,8 @@ struct FClothingCacheSchema
 	static void CHAOSCLOTH_API PlaybackPreSolve(UChaosCache& InCache, FReal InTime, FPlaybackTickRecord& TickRecord, FClothingSimulationSolver& ClothSolver);
 	static void CHAOSCLOTH_API LoadCacheData(UChaosCache* InCache, FReal InTime, FClothingSimulationCacheData& CacheData);
 
+	static bool CHAOSCLOTH_API CacheIsValidForPlayback(UChaosCache* InCache);
+
 private:
 	inline static const FName VelocityXName = TEXT("VelocityX");
 	inline static const FName VelocityYName = TEXT("VelocityY");
