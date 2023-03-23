@@ -1450,7 +1450,16 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 }
 
 
-void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection,	int32 ConvexCount, double ErrorToleranceInCm)
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> TransformSubset)
+{
+	GenerateClusterConvexHullsFromLeafHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, true, TransformSubset);
+}
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm)
+{
+	GenerateClusterConvexHullsFromLeafHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, false, TArrayView<const int32>());
+}
+
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHullsInternal(FGeometryCollection& Collection,	int32 ConvexCount, double ErrorToleranceInCm, bool bOnlySubset, const TArrayView<const int32> TransformSubset)
 {
 	static FName ConvexGroupName("Convex");
 	static FName ConvexHullAttributeName("ConvexHull");
@@ -1472,14 +1481,35 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(F
 	const TManagedArray<TSet<int32>>& Proximity = Collection.GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 
 	const TArray<FTransform> GlobalTransforms = TransformFacade.ComputeCollectionSpaceTransforms();
-	const TArray<int32> DepthFirstTransformIndices = HierarchyFacade.GetTransformArrayInDepthFirstOrder();
-
 	const TManagedArrayAccessor<int32> SimulationTypeAttribute(Collection, FGeometryCollection::SimulationTypeAttribute, FTransformCollection::TransformGroup);
+	TArray<int32> TransformsToProcess;
+	if (bOnlySubset)
+	{
+		TransformsToProcess.Append(TransformSubset);
+		if (TransformsToProcess.IsEmpty())
+		{
+			return;
+		}
+	}
+	else // process all
+	{
+		TransformsToProcess.Reserve(GlobalTransforms.Num());
+		for (int32 Idx = 0; Idx < GlobalTransforms.Num(); ++Idx)
+		{
+			TransformsToProcess.Add(Idx);
+		}
+	}
 
-	for (int32 TransformIndex: DepthFirstTransformIndices)
+	// Simulation types must be present
+	if (!SimulationTypeAttribute.IsValid())
+	{
+		return;
+	}
+
+	for (int32 TransformIndex : TransformsToProcess)
 	{
 		// only do this for clusters
-		const bool bIsCluster = (SimulationTypeAttribute.IsValid() && SimulationTypeAttribute.Get()[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered);
+		const bool bIsCluster = (SimulationTypeAttribute.Get()[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered);
 		if (bIsCluster)
 		{
 			// compute using the leaf nodes 

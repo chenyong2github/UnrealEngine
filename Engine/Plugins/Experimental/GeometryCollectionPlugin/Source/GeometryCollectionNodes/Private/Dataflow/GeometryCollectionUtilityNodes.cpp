@@ -63,6 +63,7 @@ FGenerateClusterConvexHullsFromLeafHullsDataflowNode::FGenerateClusterConvexHull
 	RegisterInputConnection(&Collection);
 	RegisterInputConnection(&ConvexCount);
 	RegisterInputConnection(&ErrorTolerance);
+	RegisterInputConnection(&OptionalSelectionFilter);
 
 	RegisterOutputConnection(&Collection);
 }
@@ -77,12 +78,24 @@ void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FC
 		{
 			const int32 InConvexCount = GetValue(Context, &ConvexCount);
 			const double InErrorToleranceInCm = GetValue(Context, &ErrorTolerance);
-
-			FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
-				*GeomCollection,
-				InConvexCount,
-				InErrorToleranceInCm
-			);
+			if (IsConnected(&OptionalSelectionFilter))
+			{
+				const FDataflowTransformSelection& InOptionalSelectionFilter = GetValue<FDataflowTransformSelection>(Context, &OptionalSelectionFilter);
+				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
+					*GeomCollection,
+					InConvexCount,
+					InErrorToleranceInCm,
+					InOptionalSelectionFilter.AsArray()
+				);
+			}
+			else
+			{
+				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
+					*GeomCollection,
+					InConvexCount,
+					InErrorToleranceInCm
+				);
+			}
 
 			SetValue<FManagedArrayCollection>(Context, static_cast<const FManagedArrayCollection>(*GeomCollection), &Collection);
 		}
