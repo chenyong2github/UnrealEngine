@@ -10,6 +10,9 @@
 
 namespace Chaos
 {
+
+	struct FClothingPatternData;
+
 	class FClothConstraints final
 	{
 	public:
@@ -44,7 +47,8 @@ namespace Chaos
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 			Softs::FSolverReal MeshScale,
-			bool bEnabled);
+			bool bEnabled,
+			const FClothingPatternData* PatternData = nullptr);
 
 		void Update(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
@@ -181,7 +185,8 @@ namespace Chaos
 		void CreateBendingConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
-			const FTriangleMesh& TriangleMesh);
+			const FTriangleMesh& TriangleMesh,
+			const FClothingPatternData* PatternData);
 		void CreateAreaConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
@@ -221,6 +226,7 @@ namespace Chaos
 		TSharedPtr<Softs::FXPBDBendingSpringConstraints> XBendingConstraints;
 		TSharedPtr<Softs::FPBDBendingConstraints> BendingElementConstraints;
 		TSharedPtr<Softs::FXPBDBendingConstraints> XBendingElementConstraints;
+		TSharedPtr<Softs::FXPBDAnisotropicBendingConstraints> XAnisoBendingElementConstraints;
 		TSharedPtr<Softs::FPBDAreaSpringConstraints> AreaConstraints;
 		TSharedPtr<Softs::FXPBDAreaSpringConstraints> XAreaConstraints;
 		TSharedPtr<Softs::FPBDLongRangeConstraints> LongRangeConstraints; 

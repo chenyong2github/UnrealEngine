@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosCloth/ChaosClothConstraints.h"
 #include "ChaosCloth/ChaosWeightMapTarget.h"
+#include "ChaosCloth/ChaosClothingPatternData.h"
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/XPBDSpringConstraints.h"
 #include "Chaos/PBDBendingConstraints.h"
 #include "Chaos/XPBDBendingConstraints.h"
+#include "Chaos/XPBDAnisotropicBendingConstraints.h"
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/XPBDAxialSpringConstraints.h"
 #include "Chaos/PBDVolumeConstraint.h"
@@ -101,7 +103,8 @@ void FClothConstraints::AddRules(
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 	Softs::FSolverReal MeshScale,
-	bool bEnabled)
+	bool bEnabled,
+	const FClothingPatternData* PatternData)
 {
 	// Self collisions
 	CreateSelfCollisionConstraints(ConfigProperties, TriangleMesh);
@@ -110,7 +113,7 @@ void FClothConstraints::AddRules(
 	CreateEdgeConstraints(ConfigProperties, WeightMaps, TriangleMesh);
 
 	// Bending constraints
-	CreateBendingConstraints(ConfigProperties, WeightMaps, TriangleMesh);
+	CreateBendingConstraints(ConfigProperties, WeightMaps, TriangleMesh, PatternData);
 
 	// Area constraints
 	CreateAreaConstraints(ConfigProperties, WeightMaps, TriangleMesh);
@@ -228,88 +231,104 @@ void FClothConstraints::CreateEdgeConstraints(
 void FClothConstraints::CreateBendingConstraints(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
-	const FTriangleMesh& TriangleMesh)
+	const FTriangleMesh& TriangleMesh,
+	const FClothingPatternData* PatternData)
 {
-	const bool bUseBendingElements = ConfigProperties.GetValue<bool>(TEXT("UseBendingElements"));
-
-	if (bUseBendingElements)
+	if (PatternData && PatternData->PatternPositions.Num() && Softs::FXPBDAnisotropicBendingConstraints::IsEnabled(ConfigProperties))
 	{
-		if (Softs::FXPBDBendingConstraints::IsEnabled(ConfigProperties))
-		{
-			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-			const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-			const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
-			const TConstArrayView<FRealSingle> DampingMultipliers;
+		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
+		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
+		const TConstArrayView<FRealSingle> DampingMultipliers;
+		XAnisoBendingElementConstraints = MakeShared<Softs::FXPBDAnisotropicBendingConstraints>(
+			Evolution->Particles(),
+			ParticleOffset, NumParticles,
+			TriangleMesh,
+			PatternData->WeldedFaceVertexPatternPositions,
+			BendingStiffnessMultipliers,
+			BendingStiffnessMultipliers,
+			BendingStiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			DampingMultipliers,
+			ConfigProperties,
+			/*bTrimKinematicConstraints =*/ true);
 
-			XBendingElementConstraints = MakeShared<Softs::FXPBDBendingConstraints>(
-				Evolution->Particles(),
-				ParticleOffset, NumParticles,
-				MoveTemp(BendingElements),
-				BendingStiffnessMultipliers,
-				BucklingStiffnessMultipliers,
-				DampingMultipliers,
-				ConfigProperties,
-				/*bTrimKinematicConstraints =*/ true);
-
-			++NumConstraintInits;  // Uses init to update the property tables
-			++NumConstraintRules;
-		}
-		else if (Softs::FPBDBendingConstraints::IsEnabled(ConfigProperties))
-		{
-			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-			const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-			const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
-
-			BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(
-				Evolution->Particles(),
-				ParticleOffset, NumParticles,
-				MoveTemp(BendingElements),
-				BendingStiffnessMultipliers,
-				BucklingStiffnessMultipliers,
-				ConfigProperties,
-				/*bTrimKinematicConstraints =*/ true);
-
-			++NumConstraintInits;  // Uses init to update the property tables
-			++NumConstraintRules;
-		}
+		++NumConstraintInits;  // Uses init to update the property tables
+		++NumConstraintRules;
 	}
-	else
+	else if (Softs::FXPBDBendingConstraints::IsEnabled(ConfigProperties))
 	{
-		if (Softs::FXPBDBendingSpringConstraints::IsEnabled(ConfigProperties))
-		{
-			const TArray<Chaos::TVec2<int32>> CrossEdges = TriangleMesh.GetUniqueAdjacentPoints();
-			const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-			const TConstArrayView<FRealSingle> DampingMultipliers;
+		TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
+		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
+		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
+		const TConstArrayView<FRealSingle> DampingMultipliers;
 
-			XBendingConstraints = MakeShared<Softs::FXPBDBendingSpringConstraints>(
-				Evolution->Particles(),
-				ParticleOffset, NumParticles,
-				CrossEdges,
-				BendingStiffnessMultipliers,
-				DampingMultipliers,
-				ConfigProperties,
-				/*bTrimKinematicConstraints =*/ true);
+		XBendingElementConstraints = MakeShared<Softs::FXPBDBendingConstraints>(
+			Evolution->Particles(),
+			ParticleOffset, NumParticles,
+			MoveTemp(BendingElements),
+			BendingStiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			DampingMultipliers,
+			ConfigProperties,
+			/*bTrimKinematicConstraints =*/ true);
 
-			++NumConstraintInits;  // Uses init to update the property tables
-			++NumConstraintRules;
-		}
-		else if (Softs::FPBDBendingSpringConstraints::IsEnabled(ConfigProperties))
-		{
-			const TArray<Chaos::TVec2<int32>> CrossEdges = TriangleMesh.GetUniqueAdjacentPoints();
-			const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
+		++NumConstraintInits;  // Uses init to update the property tables
+		++NumConstraintRules;
+	}
+	else if (Softs::FPBDBendingConstraints::IsEnabled(ConfigProperties))
+	{
+		TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
+		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
+		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
 
-			BendingConstraints = MakeShared<Softs::FPBDBendingSpringConstraints>(
-				Evolution->Particles(),
-				ParticleOffset,
-				NumParticles,
-				CrossEdges,
-				BendingStiffnessMultipliers,
-				ConfigProperties,
-				/*bTrimKinematicConstraints =*/ true);
+		BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(
+			Evolution->Particles(),
+			ParticleOffset, NumParticles,
+			MoveTemp(BendingElements),
+			BendingStiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			ConfigProperties,
+			/*bTrimKinematicConstraints =*/ true);
 
-			++NumConstraintInits;  // Uses init to update the property tables
-			++NumConstraintRules;
-		}
+		++NumConstraintInits;  // Uses init to update the property tables
+		++NumConstraintRules;
+	}
+	else if (Softs::FXPBDBendingSpringConstraints::IsEnabled(ConfigProperties))
+	{
+		const TArray<Chaos::TVec2<int32>> CrossEdges = TriangleMesh.GetUniqueAdjacentPoints();
+		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
+		const TConstArrayView<FRealSingle> DampingMultipliers;
+
+		XBendingConstraints = MakeShared<Softs::FXPBDBendingSpringConstraints>(
+			Evolution->Particles(),
+			ParticleOffset, NumParticles,
+			CrossEdges,
+			BendingStiffnessMultipliers,
+			DampingMultipliers,
+			ConfigProperties,
+			/*bTrimKinematicConstraints =*/ true);
+
+		++NumConstraintInits;  // Uses init to update the property tables
+		++NumConstraintRules;
+	}
+	else if (Softs::FPBDBendingSpringConstraints::IsEnabled(ConfigProperties))
+	{
+		const TArray<Chaos::TVec2<int32>> CrossEdges = TriangleMesh.GetUniqueAdjacentPoints();
+		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
+
+		BendingConstraints = MakeShared<Softs::FPBDBendingSpringConstraints>(
+			Evolution->Particles(),
+			ParticleOffset,
+			NumParticles,
+			CrossEdges,
+			BendingStiffnessMultipliers,
+			ConfigProperties,
+			/*bTrimKinematicConstraints =*/ true);
+
+		++NumConstraintInits;  // Uses init to update the property tables
+		++NumConstraintRules;
 	}
 }
 
@@ -610,6 +629,20 @@ void FClothConstraints::CreateRules()
 			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
 		{
 			XBendingElementConstraints->Apply(Particles, Dt);
+		};
+	}
+	if (XAnisoBendingElementConstraints)
+	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
+		{
+			XAnisoBendingElementConstraints->Init(Particles);
+			XAnisoBendingElementConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+		};
+		ConstraintRules[ConstraintRuleIndex++] =
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
+		{
+			XAnisoBendingElementConstraints->Apply(Particles, Dt);
 		};
 	}
 	if (XAreaConstraints)

@@ -103,6 +103,34 @@ namespace UE::Chaos::ClothAsset
 		}
 		return ReferenceBoneIndex;
 	}
+
+	// Welded weights are averaged. TODO: add other welding options such as Max and Min
+	static TArray<float> WeldWeightMap(const TConstArrayView<float>& UnweldedMap, const TArray<uint32>& PatternToWeldedIndices, const int32 NumWelded)
+	{
+		TArray<float> WeldedMap;
+		WeldedMap.SetNumZeroed(NumWelded);
+
+		TArray<float> NumInfluences;
+		NumInfluences.SetNumZeroed(NumWelded);
+		
+		check(UnweldedMap.Num() == PatternToWeldedIndices.Num());
+		for (int32 OrigIdx = 0; OrigIdx < UnweldedMap.Num(); ++OrigIdx)
+		{
+			const int32 WeldedIdx = PatternToWeldedIndices[OrigIdx];
+			NumInfluences[WeldedIdx] += 1.f;
+			WeldedMap[WeldedIdx] += UnweldedMap[OrigIdx];
+		}
+
+		for (int32 WeldedIdx = 0; WeldedIdx < NumWelded; ++WeldedIdx)
+		{
+			if (NumInfluences[WeldedIdx] > 0.f)
+			{
+				WeldedMap[WeldedIdx] /= NumInfluences[WeldedIdx];
+			}
+		}
+		return WeldedMap;
+	}
+
 }  // End namespace UE::Chaos::ClothAsset
 
 FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FManagedArrayCollection>& ClothCollection, const FReferenceSkeleton& ReferenceSkeleton)
@@ -120,14 +148,18 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FM
 		FChaosClothSimulationLodModel& LodModel = ClothSimulationLodModels[LodIndex];
 		const FCollectionClothLodConstFacade ClothLod = Cloth.GetLod(LodIndex);
 		TArray<int32> WeldingMap;
-		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices, WeldingMap);
+		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices, WeldingMap, LodModel.PatternPositions, LodModel.PatternIndices, LodModel.PatternToWeldedIndices);
 
 		static const FName MaxDistanceName = TEXT("MaxDistance");
 		const TConstArrayView<float> MaxDistanceValues = ClothLod.GetWeightMap(MaxDistanceName);
 
-		if (MaxDistanceValues.Num())
+		if (MaxDistanceValues.Num() == LodModel.Positions.Num())
 		{
 			LodModel.MaxDistance = MaxDistanceValues;
+		}
+		else if(MaxDistanceValues.Num() > 0)
+		{
+			LodModel.MaxDistance = WeldWeightMap(MaxDistanceValues, LodModel.PatternToWeldedIndices, LodModel.Positions.Num());
 		}
 		else
 		{

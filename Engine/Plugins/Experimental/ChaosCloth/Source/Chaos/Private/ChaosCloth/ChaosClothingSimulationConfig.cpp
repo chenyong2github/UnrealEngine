@@ -73,7 +73,6 @@ namespace Chaos
 			if (ClothConfig->BendingStiffnessWeighted.Low > 0.f || ClothConfig->BendingStiffnessWeighted.High > 0.f ||
 				(ClothConfig->bUseBendingElements && (ClothConfig->BucklingStiffnessWeighted.Low > 0.f || ClothConfig->BucklingStiffnessWeighted.High > 0.f)))
 			{
-				Properties->AddValue(TEXT("UseBendingElements"), ClothConfig->bUseBendingElements);
 				if (ClothConfig->bUseBendingElements)
 				{
 					const int32 BendingElementStiffnessIndex = Properties->AddProperty(TEXT("BendingElementStiffness"), bEnable, bAnimatable);

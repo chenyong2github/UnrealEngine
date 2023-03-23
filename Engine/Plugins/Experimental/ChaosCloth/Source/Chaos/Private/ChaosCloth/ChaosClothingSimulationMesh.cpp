@@ -100,6 +100,11 @@ int32 FClothingSimulationMesh::GetNumPoints(int32 LODIndex) const
 	return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].PhysicalMeshData.Vertices.Num() : 0;
 }
 
+int32 FClothingSimulationMesh::GetNumPatternPoints(int32 LODIndex) const
+{
+	return 0;
+}
+
 TConstArrayView<FVector3f> FClothingSimulationMesh::GetPositions(int32 LODIndex) const
 {
 	if (IsValidLODIndex(LODIndex))
@@ -109,6 +114,11 @@ TConstArrayView<FVector3f> FClothingSimulationMesh::GetPositions(int32 LODIndex)
 		return TConstArrayView<FVector3f>(ClothPhysicalMeshData.Vertices);
 	}
 	return TConstArrayView<FVector3f>();
+}
+
+TConstArrayView<FVector2f> FClothingSimulationMesh::GetPatternPositions(int32 LODIndex) const
+{
+	return TConstArrayView<FVector2f>();
 }
 
 TConstArrayView<FVector3f> FClothingSimulationMesh::GetNormals(int32 LODIndex) const
@@ -127,6 +137,16 @@ TConstArrayView<uint32> FClothingSimulationMesh::GetIndices(int32 LODIndex) cons
 	return IsValidLODIndex(LODIndex) ?
 		TConstArrayView<uint32>(Asset->LodData[LODIndex].PhysicalMeshData.Indices) :
 		TConstArrayView<uint32>();
+}
+
+TConstArrayView<uint32> FClothingSimulationMesh::GetPatternIndices(int32 LODIndex) const
+{
+	return TConstArrayView<uint32>();
+}
+
+TConstArrayView<uint32> FClothingSimulationMesh::GetPatternToWeldedIndices(int32 LODIndex) const
+{
+	return TConstArrayView<uint32>();
 }
 
 TArray<TConstArrayView<FRealSingle>> FClothingSimulationMesh::GetWeightMaps(int32 LODIndex) const

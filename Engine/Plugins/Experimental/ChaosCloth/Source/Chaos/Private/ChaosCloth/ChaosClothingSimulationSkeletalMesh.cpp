@@ -59,6 +59,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].PhysicalMeshData.Vertices.Num() : 0;
 	}
 
+	int32 FClothingSimulationSkeletalMesh::GetNumPatternPoints(int32 LODIndex) const
+	{
+		return 0;
+	}
+
 	TConstArrayView<FVector3f> FClothingSimulationSkeletalMesh::GetPositions(int32 LODIndex) const
 	{
 		if (IsValidLODIndex(LODIndex))
@@ -68,6 +73,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return ClothPhysicalMeshData.Vertices;
 		}
 		return TConstArrayView<FVector3f>();
+	}
+
+	TConstArrayView<FVector2f> FClothingSimulationSkeletalMesh::GetPatternPositions(int32 LODIndex) const
+	{
+		return TConstArrayView<FVector2f>();
 	}
 
 	TConstArrayView<FVector3f> FClothingSimulationSkeletalMesh::GetNormals(int32 LODIndex) const
@@ -86,6 +96,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return IsValidLODIndex(LODIndex) ?
 			TConstArrayView<uint32>(Asset->LodData[LODIndex].PhysicalMeshData.Indices) :
 			TConstArrayView<uint32>();
+	}
+
+	TConstArrayView<uint32> FClothingSimulationSkeletalMesh::GetPatternIndices(int32 LODIndex) const
+	{
+		return TConstArrayView<uint32>();
+	}
+
+	TConstArrayView<uint32> FClothingSimulationSkeletalMesh::GetPatternToWeldedIndices(int32 LODIndex) const
+	{
+		return TConstArrayView<uint32>();
 	}
 
 	TArray<TConstArrayView<FRealSingle>> FClothingSimulationSkeletalMesh::GetWeightMaps(int32 LODIndex) const

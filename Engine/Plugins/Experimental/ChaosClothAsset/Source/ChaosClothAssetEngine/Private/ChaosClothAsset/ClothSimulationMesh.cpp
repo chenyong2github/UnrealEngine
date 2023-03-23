@@ -42,9 +42,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return ClothSimulationModel.GetPositions(LODIndex).Num();
 	}
 
+	int32 FClothSimulationMesh::GetNumPatternPoints(int32 LODIndex) const
+	{
+		return ClothSimulationModel.GetPatternPositions(LODIndex).Num();
+	}
+
 	TConstArrayView<FVector3f> FClothSimulationMesh::GetPositions(int32 LODIndex) const
 	{
 		return TConstArrayView<FVector3f>(ClothSimulationModel.GetPositions(LODIndex));
+	}
+
+	TConstArrayView<FVector2f> FClothSimulationMesh::GetPatternPositions(int32 LODIndex) const
+	{
+		return TConstArrayView<FVector2f>(ClothSimulationModel.GetPatternPositions(LODIndex));
 	}
 
 	TConstArrayView<FVector3f> FClothSimulationMesh::GetNormals(int32 LODIndex) const
@@ -55,6 +65,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TConstArrayView<uint32> FClothSimulationMesh::GetIndices(int32 LODIndex) const
 	{
 		return TConstArrayView<uint32>(ClothSimulationModel.GetIndices(LODIndex));
+	}
+
+	TConstArrayView<uint32> FClothSimulationMesh::GetPatternIndices(int32 LODIndex) const
+	{
+		return TConstArrayView<uint32>(ClothSimulationModel.GetPatternIndices(LODIndex));
+	}
+
+	TConstArrayView<uint32> FClothSimulationMesh::GetPatternToWeldedIndices(int32 LODIndex) const
+	{
+		return TConstArrayView<uint32>(ClothSimulationModel.GetPatternToWeldedIndices(LODIndex));
 	}
 
 	TArray<TConstArrayView<::Chaos::FRealSingle>> FClothSimulationMesh::GetWeightMaps(int32 LODIndex) const

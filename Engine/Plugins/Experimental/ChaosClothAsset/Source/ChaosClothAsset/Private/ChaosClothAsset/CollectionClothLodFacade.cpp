@@ -780,7 +780,7 @@ namespace UE::Chaos::ClothAsset
 			LodIndex);
 	}
 
-	void FCollectionClothLodConstFacade::BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices, TArray<int32>& WeldingMap) const
+	void FCollectionClothLodConstFacade::BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices, TArray<int32>& WeldingMap, TArray<FVector2f>& PatternsPositions, TArray<uint32>& PatternsIndices, TArray<uint32>& PatternToWeldedIndices) const
 	{
 		const int32 NumSimVertices = GetNumSimVertices();
 
@@ -870,14 +870,14 @@ namespace UE::Chaos::ClothAsset
 		}
 
 		// Fill up the vertex arrays
+		PatternsPositions = GetSimPosition();
 		Positions.SetNumUninitialized(NumWeldedVertices);
 		Normals.SetNumUninitialized(NumWeldedVertices);
 
 		const TConstArrayView<FVector3f> SimRestPosition = GetSimRestPosition();
 		const TConstArrayView<FVector3f> SimRestNormal = GetSimRestNormal();
 
-		TArray<uint32> WeldedIndices;
-		WeldedIndices.SetNumUninitialized(NumSimVertices);
+		PatternToWeldedIndices.SetNumUninitialized(NumSimVertices);
 
 		uint32 WeldedIndex = 0;
 		for (int32 VertexIndex = 0; VertexIndex < NumSimVertices; ++VertexIndex)
@@ -886,25 +886,28 @@ namespace UE::Chaos::ClothAsset
 			{
 				Positions[WeldedIndex] = SimRestPosition[VertexIndex];
 				Normals[WeldedIndex] = SimRestNormal[VertexIndex];
-				WeldedIndices[VertexIndex] = WeldedIndex++;
+				PatternToWeldedIndices[VertexIndex] = WeldedIndex++;
 			}
 			else
 			{
-				WeldedIndices[VertexIndex] = WeldedIndices[WeldingMap[VertexIndex]];
+				PatternToWeldedIndices[VertexIndex] = PatternToWeldedIndices[WeldingMap[VertexIndex]];
 			}
 		}
 
 		// Fill up the face array
 		const int32 NumSimFaces = GetNumSimFaces();
 		Indices.SetNumUninitialized(NumSimFaces * 3);
-
+		PatternsIndices.SetNumUninitialized(NumSimFaces * 3);
 		const TConstArrayView<FIntVector3> SimIndices = GetSimIndices();
 
 		for (int32 FaceIndex = 0; FaceIndex < NumSimFaces; ++FaceIndex)
 		{
-			Indices[FaceIndex * 3 + 0] = WeldedIndices[SimIndices[FaceIndex][0]];
-			Indices[FaceIndex * 3 + 1] = WeldedIndices[SimIndices[FaceIndex][1]];
-			Indices[FaceIndex * 3 + 2] = WeldedIndices[SimIndices[FaceIndex][2]];
+			Indices[FaceIndex * 3 + 0] = PatternToWeldedIndices[SimIndices[FaceIndex][0]];
+			Indices[FaceIndex * 3 + 1] = PatternToWeldedIndices[SimIndices[FaceIndex][1]];
+			Indices[FaceIndex * 3 + 2] = PatternToWeldedIndices[SimIndices[FaceIndex][2]];
+			PatternsIndices[FaceIndex * 3 + 0] = SimIndices[FaceIndex][0];
+			PatternsIndices[FaceIndex * 3 + 1] = SimIndices[FaceIndex][1];
+			PatternsIndices[FaceIndex * 3 + 2] = SimIndices[FaceIndex][2];
 		}
 	}
 

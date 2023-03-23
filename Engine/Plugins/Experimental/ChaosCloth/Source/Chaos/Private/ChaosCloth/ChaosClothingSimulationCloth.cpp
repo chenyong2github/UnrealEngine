@@ -4,6 +4,7 @@
 #include "ChaosCloth/ChaosClothingSimulationMesh.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
 #include "ChaosCloth/ChaosClothingSimulationConfig.h"
+#include "ChaosCloth/ChaosClothingPatternData.h"
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Chaos/CollectionPropertyFacade.h"
@@ -46,6 +47,8 @@ struct FClothingSimulationCloth::FLODData
 	const TArray<TConstArrayView<FRealSingle>> WeightMaps;
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>> Tethers;
 
+	const FClothingPatternData PatternData;
+
 	// Per Solver data
 	struct FSolverData
 	{
@@ -55,12 +58,15 @@ struct FClothingSimulationCloth::FLODData
 	TMap<FClothingSimulationSolver*, FSolverData> SolverData;
 
 	// Stats
-	int32 NumKinenamicParticles;
-	int32 NumDynammicParticles;
+	int32 NumKinematicParticles;
+	int32 NumDynamicParticles;
 
 	FLODData(
 		int32 InNumParticles,
 		const TConstArrayView<uint32>& InIndices,
+		const TConstArrayView<FVector2f>& InPatternPositions,
+		const TConstArrayView<uint32>& InPatternIndices,
+		const TConstArrayView<uint32>& InPatternToWeldedIndices,
 		const TArray<TConstArrayView<FRealSingle>>& InWeightMaps,
 		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers);
 
@@ -79,12 +85,16 @@ struct FClothingSimulationCloth::FLODData
 FClothingSimulationCloth::FLODData::FLODData(
 	int32 InNumParticles,
 	const TConstArrayView<uint32>& InIndices,
+	const TConstArrayView<FVector2f>& InPatternPositions,
+	const TConstArrayView<uint32>& InPatternIndices,
+	const TConstArrayView<uint32>& InPatternToWeldedIndices,
 	const TArray<TConstArrayView<FRealSingle>>& InWeightMaps,
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers)
 	: NumParticles(InNumParticles)
 	, Indices(InIndices)
 	, WeightMaps(InWeightMaps)
 	, Tethers(InTethers)
+	, PatternData(NumParticles, Indices, InPatternPositions, InPatternIndices, InPatternToWeldedIndices)
 {
 }
 
@@ -175,21 +185,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Create constraints
 	const bool bEnabled = false;  // Set constraint disabled by default
-	ClothConstraints.AddRules(ConfigProperties, TriangleMesh, WeightMaps, Tethers, MeshScale, bEnabled);
+	ClothConstraints.AddRules(ConfigProperties, TriangleMesh, WeightMaps, Tethers, MeshScale, bEnabled, &PatternData);
 
 	// Update LOD stats
 	const TConstArrayView<Softs::FSolverReal> InvMasses(Solver->GetParticleInvMasses(Offset), NumParticles);
-	NumKinenamicParticles = 0;
-	NumDynammicParticles = 0;
+	NumKinematicParticles = 0;
+	NumDynamicParticles = 0;
 	for (int32 Index = 0; Index < NumParticles; ++Index)
 	{
 		if (InvMasses[Index] == (Softs::FSolverReal)0.)
 		{
-			++NumKinenamicParticles;
+			++NumKinematicParticles;
 		}
 		else
 		{
-			++NumDynammicParticles;
+			++NumDynamicParticles;
 		}
 	}
 }
@@ -359,7 +369,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (InBendingStiffness[0] > 0.f || InBendingStiffness[1] > 0.f ||
 		(bInUseBendingElements && (InBucklingStiffness[0] > 0.f || InBucklingStiffness[1] > 0.f)))
 	{
-		Properties.AddValue(TEXT("UseBendingElements"), bInUseBendingElements);
 		if (bInUseBendingElements)
 		{
 			const int32 BendingElementStiffnessIndex = Properties.AddProperty(TEXT("BendingElementStiffness"), bEnable, bAnimatable);
@@ -519,6 +528,9 @@ void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 		LODData.Add(MakeUnique<FLODData>(
 			Mesh->GetNumPoints(Index),
 			Mesh->GetIndices(Index),
+			Mesh->GetPatternPositions(Index),
+			Mesh->GetPatternIndices(Index),
+			Mesh->GetPatternToWeldedIndices(Index),
 			Mesh->GetWeightMaps(Index),
 			Mesh->GetTethers(Index, bUseGeodesicTethers)));
 	}
@@ -842,8 +854,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			// Enable new LOD's particles
 			LODData[LODIndex]->Enable(Solver, true);
-			NumActiveKinematicParticles = LODData[LODIndex]->NumKinenamicParticles;
-			NumActiveDynamicParticles = LODData[LODIndex]->NumDynammicParticles;
+			NumActiveKinematicParticles = LODData[LODIndex]->NumKinematicParticles;
+			NumActiveDynamicParticles = LODData[LODIndex]->NumDynamicParticles;
 
 			// Wrap new LOD based on previous LOD if possible (can only do 1 level LOD at a time, and if previous LOD exists)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT

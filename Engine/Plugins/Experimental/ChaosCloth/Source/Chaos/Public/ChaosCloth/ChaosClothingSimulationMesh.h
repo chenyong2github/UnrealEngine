@@ -58,9 +58,13 @@ namespace Chaos
 		virtual int32 GetOwnerLODIndex(int32 LODIndex) const;
 		virtual bool IsValidLODIndex(int32 LODIndex) const;
 		virtual int32 GetNumPoints(int32 LODIndex) const;
+		virtual int32 GetNumPatternPoints(int32 LODIndex) const;
 		virtual TConstArrayView<FVector3f> GetPositions(int32 LODIndex) const;
+		virtual TConstArrayView<FVector2f> GetPatternPositions(int32 LODIndex) const;
 		virtual TConstArrayView<FVector3f> GetNormals(int32 LODIndex) const;
 		virtual TConstArrayView<uint32> GetIndices(int32 LODIndex) const;
+		virtual TConstArrayView<uint32> GetPatternIndices(int32 LODIndex) const;
+		virtual TConstArrayView<uint32> GetPatternToWeldedIndices(int32 LODIndex) const;
 		virtual TArray<TConstArrayView<FRealSingle>> GetWeightMaps(int32 LODIndex) const;
 		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const;
 		virtual int32 GetReferenceBoneIndex() const;
@@ -88,14 +92,26 @@ namespace Chaos
 		/* Return the number of points for the specified LOD, or 0 if the LOD is empty or invalid. */
 		virtual int32 GetNumPoints(int32 LODIndex) const = 0;
 
+		/* Return the number of pattern points (2d, unwelded) for the specified LOD, or 0 if patterns are not supported or the LOD is empty or invalid. */
+		virtual int32 GetNumPatternPoints(int32 LODIndex) const = 0;
+
 		/* Return the source mesh positions (pre-skinning). */
 		virtual TConstArrayView<FVector3f> GetPositions(int32 LODIndex) const = 0;
+
+		/* Return the source mesh 2d pattern positions. */
+		virtual TConstArrayView<FVector2f> GetPatternPositions(int32 LODIndex) const = 0;
 
 		/* Return the source mesh normals (pre-skinning). */
 		virtual TConstArrayView<FVector3f> GetNormals(int32 LODIndex) const = 0;
 
 		/* Return the specified LOD's triangle indices for this mesh. */
 		virtual TConstArrayView<uint32> GetIndices(int32 LODIndex) const = 0;
+
+		/* Return the specified LOD's pattern (unwelded) triangle indices for this mesh, or empty array if patterns are not supported. */
+		virtual TConstArrayView<uint32> GetPatternIndices(int32 LODIndex) const = 0;
+
+		/* Return the specified LOD's map from pattern (unwelded) vertices to (welded) vertices, or empty array if patterns are not supported. */
+		virtual TConstArrayView<uint32> GetPatternToWeldedIndices(int32 LODIndex) const = 0;
 
 		/* Return the specified LOD's weightmap. */
 		virtual TArray<TConstArrayView<FRealSingle>> GetWeightMaps(int32 LODIndex) const = 0;
