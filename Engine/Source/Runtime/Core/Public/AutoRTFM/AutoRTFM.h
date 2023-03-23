@@ -162,6 +162,7 @@ bool autortfm_current_nest_throw();
 #else
 inline bool autortfm_current_nest_throw()
 {
+	return false;
 }
 #endif
 
