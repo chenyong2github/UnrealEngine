@@ -29,6 +29,7 @@ public:
 	FCacheBucketOwner& operator=(const FCacheBucketOwner&) = delete;
 
 	using FCacheBucket::operator==;
+	inline bool operator==(const FCacheBucketOwner& Other) const { return FCacheBucket::operator==(Other); }
 	inline bool operator==(FUtf8StringView Bucket) const { return ToString() == Bucket; }
 };
 
