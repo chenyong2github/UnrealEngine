@@ -8,9 +8,10 @@
 #include "Internationalization/PolyglotTextData.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Cultures/KeysCulture.h"
-#include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS && ENABLE_LOC_TESTING
+#if WITH_TESTS && ENABLE_LOC_TESTING
+
+#include "Tests/TestHarnessAdapter.h"
 
 #define LOCTEXT_NAMESPACE "Core.Tests.KeysCultureTests"
 
@@ -44,8 +45,7 @@ FString CreateExpectedOutputFromPolyglotData(const FPolyglotTextData& InData)
 	return FString::Printf(TEXT("%s, %s"), *Key, *Namespace);
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKeysCultureTest, "System.Core.Misc.KeysCulture", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
-bool FKeysCultureTest::RunTest (const FString& Parameters)
+TEST_CASE_NAMED(FKeysCultureTest, "System::Core::Misc::KeysCulture", "[.][EditorContext][ClientContext][SmokeFilter]")
 {
 	FRestoreCultureStateGuard RestoreCultureStateGuard;
 	
@@ -63,11 +63,9 @@ bool FKeysCultureTest::RunTest (const FString& Parameters)
 	FInternationalization& I18N = FInternationalization::Get();
 	// We initialize the test environment to the native culture to start from a clean slate.
 	I18N.SetCurrentCulture(NativeCulture);
-	if (I18N.GetCurrentCulture()->GetName() != NativeCulture)
-	{
-		// somehow failed to initialize the test environment to the right culture. Early out.
-		return false;
-	}
+	// somehow failed to initialize the test environment to the right culture. Early out.
+	REQUIRE(I18N.GetCurrentCulture()->GetName() == NativeCulture);
+
 #define CREATE_TEST_POLYGLOTDATA(InKey, InSourceString) FPolyglotTextData(ELocalizedTextSourceCategory::Editor, TEXT(LOCTEXT_NAMESPACE), TEXT(InKey), TEXT(InSourceString), NativeCulture)
 	// We use polyglot text data here to patch in our test strings so we don't have to create a separte loclization resource file 
 	// Test1 is for text with a native string and a non-empty translation in a target language
@@ -86,80 +84,64 @@ bool FKeysCultureTest::RunTest (const FString& Parameters)
 	
 	FString Test1NativeCultureDisplayString = Test1Text.ToString();
 	// Test1 display string should have the same value as the native string. Otherwise it could be a problem with registering the text. The set up of the test failed. Early out.
-	if (Test1NativeCultureDisplayString != Test1.GetNativeString())
-	{
-		return false;
-	}
+	REQUIRE(Test1NativeCultureDisplayString == Test1.GetNativeString());
 
 	FString Test2NativeCultureDisplayString = Test2Text.ToString();
 	// Same as above.
-	if (Test2NativeCultureDisplayString != Test2.GetNativeString())
-	{
-		return false;
-	}
+	REQUIRE(Test2NativeCultureDisplayString == Test2.GetNativeString());
 
 		// Change to target culture. 
 	I18N.SetCurrentCulture(TargetCulture);
 	// Test 1 - We should be able to change from the native culture to the target culture 
-	if (!TestTrue(TEXT("Changing from native culture to target culture."), I18N.GetCurrentCulture()->GetName() == TargetCulture))
-	{
-		// just early out. Doesn't make sense to keep testing.
-		return false;
-	}
+	// just early out. Doesn't make sense to keep testing.
+	REQUIRE_MESSAGE(TEXT("Changing from native culture to target culture."), I18N.GetCurrentCulture()->GetName() == TargetCulture);
 
 	// Test 2 - The display string for the text with translation should match the localized string in the target culture 
 	FString Test1TargetCultureDisplayString = Test1Text.ToString();
 	FString Test1TargetCultureString;
 	Test1.GetLocalizedString(TargetCulture, Test1TargetCultureString);
-	TestEqual(TEXT("Text with translation display is the same as the localized string in target culture."), Test1TargetCultureDisplayString, Test1TargetCultureString);
+	CHECK_MESSAGE(TEXT("Text with translation display is the same as the localized string in target culture."), Test1TargetCultureDisplayString == Test1TargetCultureString);
 
 	// Test 3 - The text with no translation should have no retrievable text from it spolyglot data in the target culture.
 	// Test 4 - The display string for the text with no translation should match the native string while in the target culture. Text with no translations for a culture should fall back to the native string. 
 	FString Test2TargetCultureDisplayString = Test2Text.ToString();
 	FString Test2TargetCultureString;
 	Test2.GetLocalizedString(TargetCulture, Test2TargetCultureString);
-	TestTrue(TEXT("Text without translation should not have a localized string in the target culture."), Test2TargetCultureString.IsEmpty());
-	TestEqual(TEXT("Text without translation display string is the same as the native string in target culture."), Test2TargetCultureDisplayString, Test2.GetNativeString());
+	CHECK_MESSAGE(TEXT("Text without translation should not have a localized string in the target culture."), Test2TargetCultureString.IsEmpty());
+	CHECK_MESSAGE(TEXT("Text without translation display string is the same as the native string in target culture."), Test2TargetCultureDisplayString == Test2.GetNativeString());
 	
 	// Change to the keys culture
 	// This culture should output all the display strings as the localization key and namespace of the text.
 	// There will be logs that say the localization resource files associated with the keys culture can't be read. That is normal and can be ignored.
 	I18N.SetCurrentCulture(FKeysCulture::StaticGetName());
 	// Test 5 - Can we successfully change from the native culture to the keys culture 
-	if (!TestTrue(TEXT("Changing from native culture to keys culture."), I18N.GetCurrentCulture()->GetName() == FKeysCulture::StaticGetName()))
-	{
-		// just early out. Doesn't make sense to keep testing.
-		return false;
-	}
-	
+	// just early out. Doesn't make sense to keep testing.
+	REQUIRE_MESSAGE(TEXT("Changing from native culture to keys culture."), I18N.GetCurrentCulture()->GetName() == FKeysCulture::StaticGetName());
+
 	// Test 6 - The display string for the text with translation should be the localization key and localization namespace for the text in the keys culture 
 	FString Test1KeysCultureDisplayString = Test1Text.ToString();
-	TestEqual(TEXT("Text with translation now has display string that matches its localization key and namespace in keys culture."), Test1KeysCultureDisplayString, CreateExpectedOutputFromPolyglotData(Test1));
+	CHECK_MESSAGE(TEXT("Text with translation now has display string that matches its localization key and namespace in keys culture."), Test1KeysCultureDisplayString == CreateExpectedOutputFromPolyglotData(Test1));
 	
 	// Test 7 - The display string for the text with no translation should be its localization key and localization namespace in the keys culture.
 	FString Test2KeysCultureDisplayString = Test2Text.ToString();
-	TestEqual(TEXT("Text with blank translation has display string that matches its localization key and namespace in keys culture."), Test2KeysCultureDisplayString, CreateExpectedOutputFromPolyglotData(Test2));
+	CHECK_MESSAGE(TEXT("Text with blank translation has display string that matches its localization key and namespace in keys culture."), Test2KeysCultureDisplayString == CreateExpectedOutputFromPolyglotData(Test2));
 
 	// Revert to native culture. All of the text should still show up as the originals.
 	I18N.SetCurrentCulture(NativeCulture);
 	// Test 8 - Can we change from the keys culture back to the native culture 
-	if (!TestTrue(TEXT("Able to revert from keys culture to native culture.."), I18N.GetCurrentCulture()->GetName() == NativeCulture))
-	{
-		// early out same as above 
-		return false;
-	}
+	// early out same as above 
+	REQUIRE_MESSAGE(TEXT("Able to revert from keys culture to native culture.."), I18N.GetCurrentCulture()->GetName() == NativeCulture);
 
 	// Test 9 - The display string for the text with translation should be exactly the same as its original native string before changing to the keys culture
 	FString Test1NativeCultureRevertedDisplayString = Test1Text.ToString();
-	TestEqual(TEXT("Text with translation has display string that is the same as the original native string in native culture."), Test1NativeCultureRevertedDisplayString, Test1.GetNativeString());
+	CHECK_MESSAGE(TEXT("Text with translation has display string that is the same as the original native string in native culture."), Test1NativeCultureRevertedDisplayString == Test1.GetNativeString());
 
-// Test 10 - The display string for the text with no translation should be exactly the same as its original native string before changing to the keys culture
+	// Test 10 - The display string for the text with no translation should be exactly the same as its original native string before changing to the keys culture
 	FString Test2NativeCultureRevertedDisplayString = Test2Text.ToString();
-	TestEqual(TEXT("Text without translation has display string the same as its native string in native culture."), Test2NativeCultureRevertedDisplayString, Test2.GetNativeString());
+	CHECK_MESSAGE(TEXT("Text without translation has display string the same as its native string in native culture."), Test2NativeCultureRevertedDisplayString == Test2.GetNativeString());
 
 // @TODOLocalization: Unregister the polyglot data once the functionality is implemented.
-	return true;
 }
 
 #undef LOCTEXT_NAMESPACE 
-#endif // WITH_DEV_AUTOMATION_TESTS && ENABLE_LOC_TESTING
+#endif // WITH_TESTS && ENABLE_LOC_TESTING
