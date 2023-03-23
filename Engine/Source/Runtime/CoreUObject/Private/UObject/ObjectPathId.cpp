@@ -193,7 +193,7 @@ namespace UE::CoreUObject::Private
 		GComplexPathHashToId.Add(Key, NewId);
 		Index = NewId;
 		Number = 0;
-		GCoreComplexObjectPathDebug = GComplexPaths.GetData();
+		GCoreComplexObjectPathDebug = (FStoredObjectPathDebug*)GComplexPaths.GetData();
 	}
 
 	FObjectPathId::FObjectPathId(const UObject* Object)

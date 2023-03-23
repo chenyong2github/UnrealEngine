@@ -311,6 +311,27 @@ namespace UE::CoreUObject::Private
 		FMinimalName ClassName;
 	};
 
+	struct FObjectPathIdDebug
+	{
+		uint32 Index = 0;
+		uint32 Number = 0;
+
+		static constexpr uint32 WeakObjectMask = ~((~0u) >> 1);       //most significant bit
+		static constexpr uint32 SimpleNameMask = WeakObjectMask >> 1; //second most significant bits
+	};
+
+	struct FStoredObjectPathDebug
+	{
+		static constexpr const int32 NumInlineElements = 3;
+		int32 NumElements;
+
+		union
+		{
+			FMinimalName Short[NumInlineElements];
+			FMinimalName* Long;
+		};
+	};
+
 	constexpr uint32 PackageIdShift = 33;
 	constexpr uint32 ObjectPathIdShift = 1;
 	constexpr uint32 ObjectPathIdMask = 0x00FF'FFFF;
