@@ -48,7 +48,7 @@ public class OpenGLDrv : ModuleRules
 			PrivateIncludePathModuleNames.Add("Launch");
 		}
 
-        if (Target.Platform != UnrealTargetPlatform.Win64
+        if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)
 			&& Target.Platform != UnrealTargetPlatform.IOS && Target.Platform != UnrealTargetPlatform.Android
 			&& !Target.IsInPlatformGroup(UnrealPlatformGroup.Linux)
 			&& Target.Platform != UnrealTargetPlatform.TVOS)
