@@ -3,10 +3,10 @@
 #include "DerivedDataThreadPoolTask.h"
 
 #include "Async/InheritedContext.h"
-#include "Async/ManualResetEvent.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataRequestTypes.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "Misc/IQueuedWork.h"
 #include "Misc/QueuedThreadPool.h"
 #include "Stats/Stats.h"
@@ -56,7 +56,7 @@ private:
 	IRequestOwner& Owner;
 	FQueuedThreadPool& ThreadPool;
 	TUniqueFunction<void ()> TaskBody;
-	FManualResetEvent Event;
+	FLazyEvent Event{EEventMode::ManualReset};
 	std::atomic<bool> bClaimed = false;
 };
 
@@ -91,7 +91,7 @@ TRefCountPtr<IRequest> FThreadPoolTaskRequest::TryEnd()
 		FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
 		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
 		TaskBody();
-		Event.Notify();
+		Event.Trigger();
 	});
 }
 

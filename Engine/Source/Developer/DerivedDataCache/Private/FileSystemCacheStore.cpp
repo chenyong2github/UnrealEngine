@@ -7,7 +7,6 @@
 #include "Algo/StableSort.h"
 #include "Algo/Transform.h"
 #include "Async/Async.h"
-#include "Async/ManualResetEvent.h"
 #include "Containers/StaticBitArray.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheInterface.h"
@@ -18,6 +17,7 @@
 #include "DerivedDataChunk.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValue.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/Event.h"
 #include "HAL/FileManager.h"
@@ -265,7 +265,7 @@ private:
 
 	IFileManager& FileManager = IFileManager::Get();
 
-	mutable FManualResetEvent IdleEvent;
+	mutable FLazyEvent IdleEvent;
 	FEventRef WaitEvent;
 	FThread Thread;
 
@@ -315,6 +315,7 @@ FFileSystemCacheStoreMaintainer::FFileSystemCacheStoreMaintainer(
 	: Params(InParams)
 	, CachePath(InCachePath)
 	, bExitAfterScan(Params.ScanFrequency.GetTotalDays() > MaxScanFrequencyDays)
+	, IdleEvent(EEventMode::ManualReset)
 	, WaitEvent(EEventMode::AutoReset)
 	, Thread(
 		TEXT("FileSystemCacheStoreMaintainer"),
@@ -349,7 +350,7 @@ void FFileSystemCacheStoreMaintainer::Tick()
 		Loop();
 	}
 	bIdle = true;
-	IdleEvent.Notify();
+	IdleEvent.Trigger();
 }
 
 void FFileSystemCacheStoreMaintainer::Loop()
@@ -369,7 +370,7 @@ void FFileSystemCacheStoreMaintainer::Loop()
 		bIdle = false;
 		Scan();
 		bIdle = true;
-		IdleEvent.Notify();
+		IdleEvent.Trigger();
 		bIgnoreScanRate = false;
 		const FDateTime ScanEnd = FDateTime::Now();
 
@@ -394,7 +395,7 @@ void FFileSystemCacheStoreMaintainer::Loop()
 	}
 
 	bIdle = true;
-	IdleEvent.Notify();
+	IdleEvent.Trigger();
 }
 
 void FFileSystemCacheStoreMaintainer::Scan()

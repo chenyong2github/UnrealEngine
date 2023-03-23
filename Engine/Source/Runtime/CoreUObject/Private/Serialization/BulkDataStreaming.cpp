@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Serialization/BulkData.h"
-#include "Async/ManualResetEvent.h"
 #include "Async/MappedFileHandle.h"
 #include "Containers/ChunkedArray.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "HAL/CriticalSection.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/ConfigCacheIni.h"
@@ -132,14 +132,15 @@ protected:
 
 private:
 
-	UE::FManualResetEvent	DoneEvent;
-	FIoRequest				Request;
-	int64					SizeResult;
-	std::atomic<uint32>		Status;
+	UE::FLazyEvent		DoneEvent;
+	FIoRequest			Request;
+	int64				SizeResult;
+	std::atomic<uint32>	Status;
 };
 
 FChunkRequest::FChunkRequest(FIoBuffer&& InBuffer)
 	: Buffer(MoveTemp(InBuffer))
+	, DoneEvent(EEventMode::ManualReset)
 	, SizeResult(-1)
 	, Status{uint32(EChunkRequestStatus::None)}
 {
@@ -172,7 +173,7 @@ void FChunkRequest::Issue(FIoChunkId ChunkId, FIoReadOptions Options, int32 Prio
 		HandleChunkResult(MoveTemp(Result));
 		Status.store(uint32(ReadyOrCanceled | EChunkRequestStatus::CallbackTriggered), std::memory_order_release); 
 
-		DoneEvent.Notify();
+		DoneEvent.Trigger();
 	});
 
 	IoBatch.Issue();
@@ -182,7 +183,8 @@ bool FChunkRequest::WaitForChunkRequest(float TimeLimitSeconds)
 {
 	checkf(GetStatus() != EChunkRequestStatus::None, TEXT("The request must be issued before waiting for completion"));
 
-	return DoneEvent.WaitFor(TimeLimitSeconds <= 0.0f ? FMonotonicTimeSpan::Infinity() : FMonotonicTimeSpan::FromSeconds(TimeLimitSeconds));
+	const uint32 TimeLimitMilliseconds = TimeLimitSeconds <= 0.0f ? MAX_uint32 : (uint32)(TimeLimitSeconds * 1000.0f);
+	return DoneEvent.Wait(TimeLimitMilliseconds);
 }
 
 void FChunkRequest::CancelChunkRequest()
@@ -789,7 +791,7 @@ public:
 	virtual bool Wait(uint32 Milliseconds) override final
 	{
 		check(GetStatus() != FBulkDataRequest::EStatus::None);
-		return DoneEvent.WaitFor(UE::FMonotonicTimeSpan::FromMilliseconds(Milliseconds));
+		return DoneEvent.Wait(Milliseconds);
 	}
 
 	void Read(
@@ -854,15 +856,15 @@ private:
 		}
 
 		SetStatus(CompletionStatus);
-		DoneEvent.Notify();
+		DoneEvent.Trigger();
 	}
 
 	static constexpr int32 TargetBytesPerChunk = sizeof(FChunkBatchReadRequest) * 8;
 	using FRequests = TChunkedArray<FChunkBatchReadRequest, TargetBytesPerChunk>;
 
-	FIoBatch				IoBatch;
-	FRequests				Requests; //TOOD: Optimize if there's only a single read request 
-	UE::FManualResetEvent	DoneEvent;
+	FIoBatch		IoBatch;
+	FRequests		Requests; //TOOD: Optimize if there's only a single read request 
+	UE::FLazyEvent	DoneEvent{EEventMode::ManualReset};
 	FBulkDataRequest::FCompletionCallback CompletionCallback;
 };
 
