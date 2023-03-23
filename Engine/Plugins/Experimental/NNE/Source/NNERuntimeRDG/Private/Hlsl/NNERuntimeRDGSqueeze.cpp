@@ -31,8 +31,10 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			const NNECore::Internal::FTensor& X = *InputTensors[0];
 			TArray<uint32> OutputShapeData(X.GetShape().GetData());
 
-			for (int32 Axe : Axes)
+			for (int32 Idx = Axes.Num() - 1; Idx >= 0; --Idx)
 			{
+				const int32 Axe = Axes[Idx];
+
 				if (OutputShapeData[Axe] != 1)
 				{
 					UE_LOG(LogNNE, Warning, TEXT("Squeeze at axe %d for 'Data' (name: %s) should be targeting a dimension of size 1 but it is %d."), Axe, *X.GetName(), OutputShapeData[Axe]);

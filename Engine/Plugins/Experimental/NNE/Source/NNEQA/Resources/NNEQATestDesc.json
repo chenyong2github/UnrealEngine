@@ -438,18 +438,12 @@
 		},
 		{
 			"category": "SqueezeOp",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml", "skip": true },
-			],
 			"targets": [
 				{ "target": "Squeeze" }
 			]
 		},
 		{
 			"category": "Unsqueeze",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml", "skip": true },
-			],
 			"targets": [
 				{ "target": "Unsqueeze" }
 			]
@@ -1035,15 +1029,27 @@
 			]
 		},
 		{ 
-			"name": "Unsqueeze",
+			"name": "Unsqueeze.Unsqueeze1",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 3, 4 ] } ], "outputs": [ { "shape": [ 2, 1, 3, 4 ] } ] }
 			]
 		},
 		{ 
-			"name": "SqueezeOp",
+			"name": "Unsqueeze.Unsqueeze2",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 131 ] } ], "outputs": [ { "shape": [ 1, 131, 1 ] } ] }
+			]
+		},
+		{ 
+			"name": "SqueezeOp.Axes",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 3, 1, 4 ] } ], "outputs": [ { "shape": [ 2, 3, 4 ] } ] }
+			]
+		},
+		{ 
+			"name": "SqueezeOp.MultiAxes",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 1, 3, 1, 4 ] } ], "outputs": [ { "shape": [ 2, 3, 4 ] } ] }
 			]
 		},
 		{ 
@@ -1560,7 +1566,7 @@
 			]
 		},
 		{
-			"name": "SqueezeOp",
+			"name": "SqueezeOp.Axes",
 			"attribute_maps": [
 				{ "attributes": [
 					{ "name": "axes", "value": [2], "type": "Int32Array" }
@@ -1568,10 +1574,26 @@
 			]
 		},
 		{
-			"name": "Unsqueeze",
+			"name": "SqueezeOp.MultiAxes",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "axes", "value": [1, 3], "type": "Int32Array" }
+				] }
+			]
+		},
+		{
+			"name": "Unsqueeze.Unsqueeze1",
 			"attribute_maps": [
 				{ "attributes": [
 					{ "name": "axes", "value": [1], "type": "Int32Array" }
+				] }
+			]
+		},
+		{
+			"name": "Unsqueeze.Unsqueeze2",
+			"attribute_maps": [
+				{ "attributes": [
+					{ "name": "axes", "value": [2], "type": "Int32Array" }
 				] }
 			]
 		},

@@ -350,6 +350,7 @@ NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 	
 	int64 IrVersion = OnnxIrVersion;
 	int64 OpsetVersion = OnnxOpsetVersion;
+
 	if (OperatorName == TEXT("BatchNormalization") ||	// current implementation is opset 9 (next version is 14)
 		OperatorName == TEXT("Clip") ||					// current implementation is opset 6 (next version is 11)
 		OperatorName == TEXT("Pad") ||					// current implementation is opset 2 (next version is 11)
@@ -372,7 +373,9 @@ NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 		OperatorName == TEXT("ReduceMean") ||			// current implementation is opset 11 (next version is 13)
 		OperatorName == TEXT("ReduceProd") ||			// current implementation is opset 11 (next version is 13)
 		OperatorName == TEXT("ReduceSum") ||			// current implementation is opset 11 (next version is 13)
-		OperatorName == TEXT("ReduceSumSquare")			// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("ReduceSumSquare") ||		// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("Squeeze") ||				// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("Unsqueeze")				// current implementation is opset 11 (next version is 13)
 		)
 	{
 		OpsetVersion = 11;
