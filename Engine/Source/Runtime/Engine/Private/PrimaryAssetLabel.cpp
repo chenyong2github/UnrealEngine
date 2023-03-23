@@ -21,6 +21,7 @@ UPrimaryAssetLabel::UPrimaryAssetLabel()
 {
 	bLabelAssetsInMyDirectory = false;
 	bIsRuntimeLabel = false;
+	bIncludeRedirectors = true;
 
 	// By default have low priority and don't recurse
 	Rules.bApplyRecursively = false;
@@ -53,7 +54,7 @@ void UPrimaryAssetLabel::UpdateAssetBundleData()
 		{
 			FSoftObjectPath AssetRef = Manager.GetAssetPathForData(AssetData);
 
-			if (!AssetRef.IsNull())
+			if (!AssetRef.IsNull() && (bIncludeRedirectors || !AssetData.IsRedirector()))
 			{
 				NewPaths.Add(AssetRef.GetAssetPath());
 			}
@@ -74,7 +75,7 @@ void UPrimaryAssetLabel::UpdateAssetBundleData()
 			FAssetData FoundAsset = Manager.GetAssetRegistry().GetAssetByObjectPath(CollectionAssets[Index]);
 			FSoftObjectPath AssetRef = Manager.GetAssetPathForData(FoundAsset);
 
-			if (!AssetRef.IsNull())
+			if (!AssetRef.IsNull() && (bIncludeRedirectors || !FoundAsset.IsRedirector()))
 			{
 				NewPaths.Add(AssetRef.GetAssetPath());
 			}
