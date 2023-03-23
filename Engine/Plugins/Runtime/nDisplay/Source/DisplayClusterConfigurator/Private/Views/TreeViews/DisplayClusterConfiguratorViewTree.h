@@ -40,7 +40,7 @@ public:
 	//~ IDisplayClusterConfiguratorViewTree
 	virtual void RebuildTree() override;
 	virtual UDisplayClusterConfigurationData* GetEditorData() const override;
-	virtual void ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) const override;
+	virtual void ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) override;
 
 	virtual void SetHoveredItem(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem) override;
 	virtual void ClearHoveredItem() override;
@@ -51,6 +51,7 @@ public:
 	virtual void GetSelectedObjects(TArray<UObject*>& OutObjects) const override;
 	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) override;
 	virtual void Filter(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InItems, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutFilteredItems) override;
+	virtual void Sort(const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InItems, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutSortedItems) override;
 
 	virtual FDelegateHandle RegisterOnHoveredItemSet(const FOnHoveredItemSetDelegate& Delegate) override;
 	virtual void UnregisterOnHoveredItemSet(FDelegateHandle DelegateHandle) override;
@@ -74,6 +75,15 @@ protected:
 
 	virtual EDisplayClusterConfiguratorTreeFilterResult FilterItem(const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem, const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutFilteredItems);
 
+	/** Applies the current sort configuration to the specified item, sorting the item's children as necessary */
+	virtual void SortItem(const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem);
+
+	/** Gets the current sort mode for the specified column */
+	virtual EColumnSortMode::Type GetSortMode(const FName InColumnId) const;
+
+	/** Raised when a column in the tree view is sorted */
+	virtual void OnSort(const EColumnSortPriority::Type InSortPriority, const FName& InColumnId, const EColumnSortMode::Type InSortMode);
+
 protected:
 	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
@@ -89,4 +99,10 @@ protected:
 	TSharedPtr<SDisplayClusterConfiguratorViewTree> ViewTree;
 
 	bool bEnabled;
+
+	/** The name of the column in the tree view that is currently being sorted */
+	FName SortedColumn;
+
+	/** The current sort mode of the column being sorted in the tree view */
+	EColumnSortMode::Type SortMode;
 };

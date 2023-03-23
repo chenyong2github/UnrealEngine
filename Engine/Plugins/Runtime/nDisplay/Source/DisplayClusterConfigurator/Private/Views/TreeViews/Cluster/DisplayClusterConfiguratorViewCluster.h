@@ -26,7 +26,7 @@ public:
 
 	//~ Begin FDisplayClusterConfiguratorViewTree interface
 	virtual TSharedRef<SWidget> CreateWidget() override;
-	virtual void ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) const override;
+	virtual void ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) override;
 
 	virtual void FillContextMenu(FMenuBuilder& MenuBuilder) override;
 	virtual void BindPinnableCommands(FUICommandList_Pinnable& CommandList) override;

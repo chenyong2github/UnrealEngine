@@ -16,7 +16,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "UICommandList_Pinnable.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "UnrealExporter.h"
 #include "Exporters/Exporter.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"
@@ -46,7 +45,7 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorViewCluster::CreateWidget()
 	return FDisplayClusterConfiguratorViewTree::CreateWidget();
 }
 
-void FDisplayClusterConfiguratorViewCluster::ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) const
+void FDisplayClusterConfiguratorViewCluster::ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs)
 {
 	// For the cluster view, use the group column to indicate which host the cluster nodes belong to with a colored band
 	OutColumnArgs.Add(SHeaderRow::Column(FDisplayClusterConfiguratorViewCluster::Columns::Host)

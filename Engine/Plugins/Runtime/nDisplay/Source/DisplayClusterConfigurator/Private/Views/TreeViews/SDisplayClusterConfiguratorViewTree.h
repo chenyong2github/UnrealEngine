@@ -62,16 +62,14 @@ public:
 public:
 	virtual void Refresh();
 
-	virtual void RefreshFilter(){}
-
 	/** Creates the tree control and then populates */
 	virtual void CreateTreeColumns();
 
 	/** Function to build the Config tree widgets from the source config object */
 	void RebuildTree();
 
-	/** Apply filtering to the tree */
-	virtual void ApplyFilter();
+	/** Apply sorting and filtering to the tree */
+	virtual void ApplySortAndFilter();
 
 	/** Set the initial expansion state of the tree items */
 	virtual void SetInitialExpansionState();

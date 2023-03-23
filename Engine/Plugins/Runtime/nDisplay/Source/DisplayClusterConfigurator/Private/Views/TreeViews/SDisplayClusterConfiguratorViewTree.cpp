@@ -13,7 +13,6 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "UICommandList_Pinnable.h"
-#include "UObject/PackageReload.h"
 #include "UObject/UObjectGlobals.h"
 #include "Types/ISlateMetaData.h"
 #include "Widgets/Views/STreeView.h"
@@ -288,17 +287,20 @@ void SDisplayClusterConfiguratorViewTree::RebuildTree()
 
 	FDisplayClusterConfiguratorTreeBuilderOutput Output(Items, LinearItems);
 	BuilderPtr.Pin()->Build(Output);
-	ApplyFilter();
+	ApplySortAndFilter();
 }
 
-void SDisplayClusterConfiguratorViewTree::ApplyFilter()
+void SDisplayClusterConfiguratorViewTree::ApplySortAndFilter()
 {
 	TextFilterPtr->SetFilterText(FilterText);
 
 	FilteredItems.Empty();
 
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SortedItems;
+	ViewTreePtr.Pin()->Sort(Items, SortedItems);
+
 	FDisplayClusterConfiguratorTreeFilterArgs FilterArgs(!FilterText.IsEmpty() ? TextFilterPtr : nullptr);
-	ViewTreePtr.Pin()->Filter(FilterArgs, Items, FilteredItems);
+	ViewTreePtr.Pin()->Filter(FilterArgs, SortedItems, FilteredItems);
 
 	if (!FilterText.IsEmpty())
 	{
@@ -422,7 +424,7 @@ void SDisplayClusterConfiguratorViewTree::BindCommands()
 void SDisplayClusterConfiguratorViewTree::OnFilterTextChanged(const FText& SearchText)
 {
 	FilterText = SearchText;
-	ApplyFilter();
+	ApplySortAndFilter();
 }
 
 void SDisplayClusterConfiguratorViewTree::OnConfigReloaded()

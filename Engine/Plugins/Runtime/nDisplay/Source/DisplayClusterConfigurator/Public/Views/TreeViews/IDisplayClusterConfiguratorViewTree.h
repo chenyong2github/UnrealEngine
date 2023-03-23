@@ -98,7 +98,7 @@ public:
 	 * Generates a list of columns to add to the tree view.
 	 * @param OutColumnArgs - The list of column arguments to construct the columns from.
 	 */
-	virtual void ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) const = 0;
+	virtual void ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) = 0;
 
 	/**
 	 * Sets currently hovered tree item
@@ -138,7 +138,7 @@ public:
 	virtual void GetSelectedObjects(TArray<UObject*>& OutObjects) const = 0;
 
 	/**
-	 * Finds any tree items that represet the specified objects and selects them.
+	 * Finds any tree items that represent the specified objects and selects them.
 	 * @param ObjectsToSelect - The objects to select
 	 */
 	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) = 0;
@@ -151,6 +151,12 @@ public:
 	 */
 	virtual void Filter(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InItems, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutFilteredItems) = 0;
 
+	/**
+	 * Sorts the specified list of items based on the current sort configuration and outputs the sorted list.
+	 * @param InItems - The list of items to sort
+	 * @param OutSortedItems - The output list of sorted items
+	 */
+	virtual void Sort(const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InItems, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutSortedItems) = 0;
 
 	/**
 	 * Register the hovered tree item delegate

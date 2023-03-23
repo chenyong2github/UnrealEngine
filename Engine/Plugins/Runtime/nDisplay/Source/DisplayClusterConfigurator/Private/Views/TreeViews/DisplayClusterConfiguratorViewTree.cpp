@@ -5,10 +5,8 @@
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "Views/TreeViews/DisplayClusterConfiguratorTreeItem.h"
 #include "Views/TreeViews/DisplayClusterConfiguratorTreeBuilder.h"
+#include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Views/TreeViews/SDisplayClusterConfiguratorViewTree.h"
-
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorViewTree"
 
@@ -20,6 +18,9 @@ FDisplayClusterConfiguratorViewTree::FDisplayClusterConfiguratorViewTree(const T
 	, bEnabled(false)
 {
 	GEditor->RegisterForUndo(this);
+
+	SortedColumn = IDisplayClusterConfiguratorViewTree::Columns::Item;
+	SortMode = EColumnSortMode::Ascending;
 }
 
 FDisplayClusterConfiguratorViewTree::~FDisplayClusterConfiguratorViewTree()
@@ -87,11 +88,14 @@ UDisplayClusterConfigurationData* FDisplayClusterConfiguratorViewTree::GetEditor
 	return ToolkitPtr.Pin()->GetEditorData();
 }
 
-void FDisplayClusterConfiguratorViewTree::ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) const
+void FDisplayClusterConfiguratorViewTree::ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs)
 {
 	OutColumnArgs.Add(SHeaderRow::Column(IDisplayClusterConfiguratorViewTree::Columns::Item)
 		.DefaultLabel(LOCTEXT("DisplayClusterConfiguratorNameLabel", "Items"))
-		.FillWidth(0.5f));
+		.FillWidth(0.5f)
+		.InitialSortMode(EColumnSortMode::Ascending)
+		.SortMode(this, &FDisplayClusterConfiguratorViewTree::GetSortMode, IDisplayClusterConfiguratorViewTree::Columns::Item)
+		.OnSort(this, &FDisplayClusterConfiguratorViewTree::OnSort));
 }
 
 void FDisplayClusterConfiguratorViewTree::SetHoveredItem(const TSharedRef<IDisplayClusterConfiguratorTreeItem>& InTreeItem)
@@ -157,6 +161,67 @@ EDisplayClusterConfiguratorTreeFilterResult FDisplayClusterConfiguratorViewTree:
 	}
 
 	return ItemFilterResult;
+}
+
+void FDisplayClusterConfiguratorViewTree::Sort(const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InItems, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutSortedItems)
+{
+	for (const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& Item : InItems)
+	{
+		SortItem(Item);
+		OutSortedItems.Add(Item);
+	}
+
+	if (SortMode != EColumnSortMode::None)
+	{
+		if (SortedColumn == IDisplayClusterConfiguratorViewTree::Columns::Item)
+		{
+			Algo::SortBy(OutSortedItems, [this](const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& Item) { return Item->GetRowItemName(); }, FNameLexicalLess());
+		}
+
+		if (SortMode == EColumnSortMode::Descending)
+		{
+			Algo::Reverse(OutSortedItems);
+		}
+	}
+}
+
+void FDisplayClusterConfiguratorViewTree::SortItem(const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& InItem)
+{
+	if (InItem.IsValid() && InItem->GetChildren().Num() && SortMode != EColumnSortMode::None)
+	{
+		for (const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& Child : InItem->GetChildren())
+		{
+			SortItem(Child);
+		}
+
+		if (SortedColumn == IDisplayClusterConfiguratorViewTree::Columns::Item)
+		{
+			Algo::SortBy(InItem->GetChildren(), [this](const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& Child) { return Child->GetRowItemName(); }, FNameLexicalLess());
+		}
+
+		if (SortMode == EColumnSortMode::Descending)
+		{
+			Algo::Reverse(InItem->GetChildren());
+		}
+	}
+}
+
+EColumnSortMode::Type FDisplayClusterConfiguratorViewTree::GetSortMode(const FName InColumnId) const
+{
+	if (SortedColumn != InColumnId)
+	{
+		return EColumnSortMode::None;
+	}
+
+	return SortMode;
+}
+
+void FDisplayClusterConfiguratorViewTree::OnSort(const EColumnSortPriority::Type InSortPriority, const FName& InColumnId, const EColumnSortMode::Type InSortMode)
+{
+	SortedColumn = InColumnId;
+	SortMode = InSortMode;
+
+	ViewTree->ApplySortAndFilter();
 }
 
 void FDisplayClusterConfiguratorViewTree::RebuildTree()
