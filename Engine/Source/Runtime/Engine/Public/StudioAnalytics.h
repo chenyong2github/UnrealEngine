@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "HAL/Thread.h"
 
+#include <atomic>
+
 class IAnalyticsProvider;
 class IAnalyticsProviderET;
 struct FAnalyticsEventAttribute;
@@ -56,6 +58,6 @@ private:
 	static ENGINE_API TSharedPtr<IAnalyticsProviderET> Analytics;
 	static TArray<FAnalyticsEventAttribute> DefaultAttributes;
 	static FThread TimerThread;
-	static volatile double TimeEstimation;
+	static std::atomic<double> TimeEstimation;
 };
 

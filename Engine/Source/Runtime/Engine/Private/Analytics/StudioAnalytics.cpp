@@ -14,7 +14,7 @@
 #endif
 
 bool FStudioAnalytics::bInitialized = false;
-volatile double FStudioAnalytics::TimeEstimation = 0;
+std::atomic<double> FStudioAnalytics::TimeEstimation { 0 };
 FThread FStudioAnalytics::TimerThread;
 TSharedPtr<IAnalyticsProviderET> FStudioAnalytics::Analytics;
 TArray<FAnalyticsEventAttribute> FStudioAnalytics::DefaultAttributes;
@@ -88,11 +88,11 @@ void FStudioAnalytics::RunTimer_Concurrent()
 
 		if (DeltaTime > BreakpointHitchTime)
 		{
-			TimeEstimation += FixedInterval;
+			TimeEstimation.store(TimeEstimation.load(std::memory_order_relaxed) + FixedInterval);
 		}
 		else
 		{
-			TimeEstimation += DeltaTime;
+			TimeEstimation.store(TimeEstimation.load(std::memory_order_relaxed) + DeltaTime);
 		}
 	}
 }
@@ -117,7 +117,7 @@ void FStudioAnalytics::Shutdown()
 
 double FStudioAnalytics::GetAnalyticSeconds()
 {
-	return bInitialized ? TimeEstimation : FPlatformTime::Seconds();
+	return bInitialized ? TimeEstimation.load(std::memory_order_relaxed) : FPlatformTime::Seconds();
 }
 
 void FStudioAnalytics::RecordEvent(const FString& EventName)
