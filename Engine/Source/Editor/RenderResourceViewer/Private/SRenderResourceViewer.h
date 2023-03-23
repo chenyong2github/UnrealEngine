@@ -12,6 +12,7 @@ struct FRHIResourceStats;
 class ITableRow;
 class STableViewBase;
 class SDockTab;
+class FUICommandList;
 
 class SRenderResourceViewerWidget : public SCompoundWidget
 {
@@ -21,6 +22,8 @@ public:
 
 	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
 	~SRenderResourceViewerWidget() {}
+
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 	void RefreshNodes(bool bUpdateRHIResources = false);
@@ -40,6 +43,10 @@ private:
 	void OnRTASCheckboxChanged(ECheckBoxState NewState)					{ bShowRTAS = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	void OnNoneCheckboxChanged(ECheckBoxState NewState)					{ bShowNone = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	FReply OnRefreshButtonClicked()										{ RefreshNodes(true); return FReply::Handled(); }
+	void InitCommandList();
+	TSharedPtr<SWidget> OpenContextMenu();
+	void ContextMenu_FindInContentBrowser();
+	bool ContextMenu_FindInContentBrowser_CanExecute() const;
 
 	TArray<TSharedPtr<FRHIResourceStats>> RHIResources;
 	TSharedPtr<SListView<TSharedPtr<FRHIResourceStats>>> ResourceListView;
@@ -50,6 +57,7 @@ private:
 	TSharedPtr< class SEditableTextBox > FilterTextBox;
 	uint64 TotalResourceCount = 0;
 	uint64 TotalResourceSize = 0;
+	TSharedPtr<FUICommandList> CommandList;
 
 	bool bShowResident = true;			// Show resource with Resident flag set
 	bool bShowTransient = true;			// Show resource with Transient flag set

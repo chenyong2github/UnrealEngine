@@ -5,7 +5,11 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "RHI.h"
+#include "ContentBrowserModule.h"
+#include "IContentBrowserSingleton.h"
 
 #define LOCTEXT_NAMESPACE "SRenderResourceView"
 
@@ -80,6 +84,25 @@ namespace RenderResourceViewerInternal
 			}
 			return SNullWidget::NullWidget;
 		}
+	};
+
+	class FContextMenuCommands : public TCommands<FContextMenuCommands>
+	{
+	public:
+		FContextMenuCommands()
+			: TCommands<FContextMenuCommands>(TEXT("RenderResourceViewer"), NSLOCTEXT("Contexts", "RenderResourceViewer", "Render Resource Viewer"), NAME_None, FAppStyle::GetAppStyleSetName())
+		{}
+
+		virtual void RegisterCommands() override
+		{
+			UI_COMMAND(Command_FindInContentBrowser,
+				"Browse to Asset", 
+				"Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)", 
+				EUserInterfaceActionType::Button, 
+				FInputChord(EModifierKey::Control, EKeys::B));
+		}
+
+		TSharedPtr<FUICommandInfo> Command_FindInContentBrowser;
 	};
 }
 
@@ -218,6 +241,7 @@ void SRenderResourceViewerWidget::Construct(const FArguments& InArgs, const TSha
 					.ListItemsSource(&ResourceInfos)
 					.SelectionMode(ESelectionMode::SingleToggle)
 					.OnGenerateRow(this, &SRenderResourceViewerWidget::HandleResourceGenerateRow)
+					.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SRenderResourceViewerWidget::OpenContextMenu))
 					.HeaderRow
 					(
 						SNew(SHeaderRow)
@@ -232,6 +256,8 @@ void SRenderResourceViewerWidget::Construct(const FArguments& InArgs, const TSha
 			]
 		]
 	];
+
+	InitCommandList();
 
 	RefreshNodes(true);
 }
@@ -335,6 +361,67 @@ void SRenderResourceViewerWidget::OnColumnSortModeChanged(const EColumnSortPrior
 FText SRenderResourceViewerWidget::GetResourceSizeText() const
 {
 	return FText::FromString(RenderResourceViewerInternal::GetFormatedSize(TotalResourceSize));
+}
+
+FReply SRenderResourceViewerWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	return CommandList->ProcessCommandBindings(InKeyEvent) == true ? FReply::Handled() : FReply::Unhandled();
+}
+
+void SRenderResourceViewerWidget::InitCommandList()
+{
+	RenderResourceViewerInternal::FContextMenuCommands::Register();
+	CommandList = MakeShared<FUICommandList>();
+
+	CommandList->MapAction(RenderResourceViewerInternal::FContextMenuCommands::Get().Command_FindInContentBrowser,
+		FExecuteAction::CreateSP(this, &SRenderResourceViewerWidget::ContextMenu_FindInContentBrowser),
+		FCanExecuteAction::CreateSP(this, &SRenderResourceViewerWidget::ContextMenu_FindInContentBrowser_CanExecute));
+}
+
+TSharedPtr<SWidget> SRenderResourceViewerWidget::OpenContextMenu()
+{
+	FMenuBuilder MenuBuilder(true, CommandList.ToSharedRef());
+	MenuBuilder.AddMenuEntry
+	(
+		RenderResourceViewerInternal::FContextMenuCommands::Get().Command_FindInContentBrowser,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser.Small")
+	);
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SRenderResourceViewerWidget::ContextMenu_FindInContentBrowser()
+{
+	UObject* SelectedAsset = nullptr;
+	const TArray<TSharedPtr<FRHIResourceStats>>& SelectedNodes = ResourceListView->GetSelectedItems();
+	if (SelectedNodes.Num() > 0)
+	{
+		// Find the UObject asset from the owner name path
+		FString ObjectPathString = SelectedNodes[0]->OwnerName.ToString();
+		int32 LODIdx = ObjectPathString.Find(TEXT(" [LOD"));
+		if (LODIdx > -1)
+		{
+			ObjectPathString = ObjectPathString.Left(LODIdx);
+		}
+
+		SelectedAsset = FSoftObjectPath(ObjectPathString).ResolveObject();
+	}
+
+	if (SelectedAsset)
+	{
+		// Highlight the asset in content browser
+		const TArray<UObject*>& Assets = { SelectedAsset };
+		const FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		ContentBrowserModule.Get().SyncBrowserToAssets(Assets);
+	}
+}
+
+bool SRenderResourceViewerWidget::ContextMenu_FindInContentBrowser_CanExecute() const
+{
+	return ResourceListView->GetSelectedItems().Num() > 0;
 }
 
 #undef LOCTEXT_NAMESPACE

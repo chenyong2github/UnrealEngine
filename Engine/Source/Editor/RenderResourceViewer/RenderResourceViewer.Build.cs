@@ -10,6 +10,9 @@ public class RenderResourceViewer : ModuleRules
 			new string[]
 			{
 				"WorkspaceMenuStructure",
+				"ContentBrowser",
+				"UnrealEd",
+				"AssetDefinition"
 			}
 		);
 
@@ -17,6 +20,7 @@ public class RenderResourceViewer : ModuleRules
 			new string[]
 			{
 				"Core",
+				"CoreUObject",
 				"InputCore",
 				"SlateCore",
 				"Slate",
