@@ -671,11 +671,12 @@ void UMovieGraphPipeline::ProcessOutstandingFinishedFrames()
 		if (ensure(TimeStats))
 		{
 			TimeStats->EndTime = FDateTime::UtcNow();
+
+			int32 FrameNumber = OutputFrame.TraversalContext.Time.OutputFrameNumber;
+			FString DurationTimeStr = (TimeStats->EndTime - TimeStats->StartTime).ToString();
+			// UE_LOG(LogTemp, Log, TEXT("Frame: %d Duration: %s"), FrameNumber, *DurationTimeStr);
 		}
 
-		int32 FrameNumber = OutputFrame.TraversalContext.Time.OutputFrameNumber;
-		FString DurationTimeStr = (TimeStats->EndTime - TimeStats->StartTime).ToString();
-		// UE_LOG(LogTemp, Log, TEXT("Frame: %d Duration: %s"), FrameNumber, *DurationTimeStr);
 
 		// We need to get the list of output nodes for this frame's shot. We pass all of the data at once to each relevant one
 		// and individual output nodes can decide if they should skip writing that layer's data, or combine them into one file
