@@ -2105,52 +2105,52 @@ void FVirtualizationManager::GatherAnalytics(TArray<FAnalyticsEventAttribute>& A
 		const FString BaseName = TEXT("Virtualization");
 
 		{
-			FString AttrName = BaseName + TEXT(".Enabled");
+			FString AttrName = BaseName + TEXT("_Enabled");
 			Attributes.Emplace(MoveTemp(AttrName), System.IsEnabled());
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Cache.TimeSpent");
+			FString AttrName = BaseName + TEXT("_Cache_TimeSpent");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Cache.CyclesSpent * FPlatformTime::GetSecondsPerCycle());
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Cache.PayloadCount");
+			FString AttrName = BaseName + TEXT("_Cache_PayloadCount");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Cache.PayloadCount);
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Cache.TotalBytes");
+			FString AttrName = BaseName + TEXT("_Cache_TotalBytes");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Cache.TotalBytes);
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Push.TimeSpent");
+			FString AttrName = BaseName + TEXT("_Push_TimeSpent");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Push.CyclesSpent * FPlatformTime::GetSecondsPerCycle());
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Push.PayloadCount");
+			FString AttrName = BaseName + TEXT("_Push_PayloadCount");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Push.PayloadCount);
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Push.TotalBytes");
+			FString AttrName = BaseName + TEXT("_Push_TotalBytes");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Push.TotalBytes);
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Pull.TimeSpent");
+			FString AttrName = BaseName + TEXT("_Pull_TimeSpent");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Pull.CyclesSpent * FPlatformTime::GetSecondsPerCycle());
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Pull.PayloadCount");
+			FString AttrName = BaseName + TEXT("_Pull_PayloadCount");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Pull.PayloadCount);
 		}
 
 		{
-			FString AttrName = BaseName + TEXT(".Pull.TotalBytes");
+			FString AttrName = BaseName + TEXT("_Pull_TotalBytes");
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Pull.TotalBytes);
 		}
 	}

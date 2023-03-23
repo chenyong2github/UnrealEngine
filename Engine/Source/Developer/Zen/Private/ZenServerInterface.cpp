@@ -2151,80 +2151,80 @@ FZenServiceInstance::GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attribute
 	if (GetStats(ZenStats) == false)
 		return false;
 
-	const FString BaseName = TEXT("Zen");
+	const FString BaseName = TEXT("Zen_");
 
 	{
-		FString AttrName = BaseName + TEXT(".Enabled");
+		FString AttrName = BaseName + TEXT("Enabled");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.IsValid);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cache.HitRatio");
+		FString AttrName = BaseName + TEXT("Cache_HitRatio");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.HitRatio);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cache.Hits");
+		FString AttrName = BaseName + TEXT("Cache_Hits");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Hits);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cache.Misses");
+		FString AttrName = BaseName + TEXT("Cache_Misses");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Misses);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cache.Size.Disk");
+		FString AttrName = BaseName + TEXT("Cache_Size_Disk");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Size.Disk);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cache.Size.Memory");
+		FString AttrName = BaseName + TEXT("Cache_Size_Memory");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Size.Memory);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cache.UpstreamHits");
+		FString AttrName = BaseName + TEXT("Cache_UpstreamHits");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.UpstreamHits);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cache.UpstreamRatio");
+		FString AttrName = BaseName + TEXT("Cache_UpstreamRatio");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.UpstreamRatio);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cache.TotalUploadedMB");
+		FString AttrName = BaseName + TEXT("Cache_TotalUploadedMB");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalUploadedMB);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Upstream.TotalDownloadedMB");
+		FString AttrName = BaseName + TEXT("Upstream_TotalDownloadedMB");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalDownloadedMB);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Upstream.TotalUploadedMB");
+		FString AttrName = BaseName + TEXT("Upstream_TotalUploadedMB");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalUploadedMB);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cas.Size.Large");
+		FString AttrName = BaseName + TEXT("Cas_Size_Large");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Large);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cas.Size.Small");
+		FString AttrName = BaseName + TEXT("Cas_Size_Small");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Small);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cas.Size.Tiny");
+		FString AttrName = BaseName + TEXT("Cas_Size_Tiny");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Tiny);
 	}
 
 	{
-		FString AttrName = BaseName + TEXT(".Cas.Size.Total");
+		FString AttrName = BaseName + TEXT("Cas_Size_Total");
 		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Total);
 	}
 

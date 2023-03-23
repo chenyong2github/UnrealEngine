@@ -964,37 +964,37 @@ public:
 		// Append to the attributes
 		for (const FDerivedDataCacheResourceStat& Stat : ResourceStats)
 		{
-			FString BaseName = TEXT("DDC.Resource.") + Stat.AssetType;
+			FString BaseName = TEXT("DDC_Resource_") + Stat.AssetType;
 
 			BaseName = BaseName.Replace(TEXT("("), TEXT("")).Replace(TEXT(")"), TEXT(""));
 
 			{
-				FString AttrName = BaseName + TEXT(".BuildCount");
+				FString AttrName = BaseName + TEXT("_BuildCount");
 				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildCount);
 			}
 
 			{
-				FString AttrName = BaseName + TEXT(".BuildTimeSec");
+				FString AttrName = BaseName + TEXT("_BuildTimeSec");
 				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildTimeSec);
 			}
 
 			{
-				FString AttrName = BaseName + TEXT(".BuildSizeMB");
+				FString AttrName = BaseName + TEXT("_BuildSizeMB");
 				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildSizeMB);
 			}
 
 			{
-				FString AttrName = BaseName + TEXT(".LoadCount");
+				FString AttrName = BaseName + TEXT("_LoadCount");
 				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadCount);
 			}
 
 			{
-				FString AttrName = BaseName + TEXT(".LoadTimeSecLoadTimeSec");
+				FString AttrName = BaseName + TEXT("_LoadTimeSecLoadTimeSec");
 				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadTimeSec);
 			}
 
 			{
-				FString AttrName = BaseName + TEXT(".LoadSizeMB");
+				FString AttrName = BaseName + TEXT("_LoadSizeMB");
 				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadSizeMB);
 			}
 		}
@@ -1007,7 +1007,7 @@ public:
 		// Append to the attributes
 		for (const FDerivedDataCacheSummaryStat& Stat : SummaryStats.Stats)
 		{
-			FString FormattedAttrName = "DDC.Summary." + Stat.Key;
+			FString FormattedAttrName = "DDC_Summary_" + Stat.Key;
 
 			if (Stat.Value.IsNumeric())
 			{

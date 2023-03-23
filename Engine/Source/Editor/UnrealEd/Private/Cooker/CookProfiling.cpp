@@ -920,7 +920,7 @@ void LogCookStats(ECookMode::Type CookMode)
 		{
 			for (const auto& Attr : StatAttributes)
 			{
-				FString FormattedAttrName = StatName + "." + Attr.Key;
+				FString FormattedAttrName = StatName + "_" + Attr.Key;
 
 				if (Attr.Value.IsNumeric())
 				{
