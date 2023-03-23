@@ -2067,7 +2067,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 		const uint32 MeshLODCount = TargetMeshData->GetNumLODs();
 
 		uint32 GroupIndex = 0;
-		for (const FHairGroupData& GroupData : GroomAsset->HairGroupsData)
+		for (const FHairGroupPlatformData& GroupData : GroomAsset->HairGroupsPlatformData)
 		{
 			FHairStrandsDatas StrandsData;
 			FHairStrandsDatas GuidesData;
@@ -2162,7 +2162,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 			const uint32 CardsLODCount = OutHairGroupDatas[GroupIt].CardsRootData.Num();
 			for (uint32 CardsLODIt = 0; CardsLODIt < CardsLODCount; ++CardsLODIt)
 			{
-				if (BindingAsset->Groom->HairGroupsData[GroupIt].Cards.IsValid(CardsLODIt))
+				if (BindingAsset->Groom->HairGroupsPlatformData[GroupIt].Cards.IsValid(CardsLODIt))
 				{
 					FHairStrandsDatas LODGuidesData;
 					const bool bIsValid = GroomAsset->GetHairCardsGuidesDatas(GroupIt, CardsLODIt, LODGuidesData);

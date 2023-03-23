@@ -40,7 +40,7 @@ void UE::GroomQueries::ExtractAllHairCards(AGroomActor* GroomActor,
 	for (int32 GroupIdx = 0; GroupIdx < NumHairGroups; ++GroupIdx)
 	{
 		const FHairGroupInfo& GroupInfo = Asset->HairGroupsInfo[GroupIdx];
-		const FHairGroupData& GroupData = Asset->HairGroupsData[GroupIdx];
+		const FHairGroupPlatformData& GroupData = Asset->HairGroupsPlatformData[GroupIdx];
 
 		int32 NumCardsLODs = GroupData.Cards.LODs.Num();
 		if (LODIndex >= NumCardsLODs)
@@ -520,7 +520,7 @@ void UE::GroomQueries::ProcessHairCurves(AGroomActor* GroomActor,
 	for (int32 GroupIdx = 0; GroupIdx < NumHairGroups; ++GroupIdx)
 	{
 		const FHairGroupInfo& GroupInfo = Asset->HairGroupsInfo[GroupIdx];
-		const FHairGroupData& GroupData = Asset->HairGroupsData[GroupIdx];
+		const FHairGroupPlatformData& GroupData = Asset->HairGroupsPlatformData[GroupIdx];
 
 		//int32 NumCurves = GroupInfo.NumCurves;
 		//int32 NumGuides = GroupInfo.NumGuides;

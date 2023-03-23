@@ -117,8 +117,8 @@ void ExecuteRebuild(const FToolMenuContext& InContext)
 						FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
 						OutGroup.GroupID    	= GroupIndex;
 						OutGroup.GroupName		= GroomAsset->HairGroupsInfo[GroupIndex].GroupName;
-						OutGroup.CurveCount 	= GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.GetNumCurves();
-						OutGroup.GuideCount 	= GroomAsset->HairGroupsData[GroupIndex].Guides.BulkData.GetNumCurves();
+						OutGroup.CurveCount 	= GroomAsset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.GetNumCurves();
+						OutGroup.GuideCount 	= GroomAsset->HairGroupsPlatformData[GroupIndex].Guides.BulkData.GetNumCurves();
 						OutGroup.Attributes 	= HairDescriptionGroups.HairGroups[GroupIndex].GetHairAttributes();
 						OutGroup.AttributeFlags = HairDescriptionGroups.HairGroups[GroupIndex].GetHairAttributeFlags();
 						OutGroup.InterpolationSettings = GroomAsset->HairGroupsInterpolation[GroupIndex];

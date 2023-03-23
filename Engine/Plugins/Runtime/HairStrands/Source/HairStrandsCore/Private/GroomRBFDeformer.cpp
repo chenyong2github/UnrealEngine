@@ -399,7 +399,7 @@ static void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& Deforme
 				const FHairGroupsLOD& HairGroupLOD = GroomAsset->HairGroupsLOD[GroupIndex];
 
 				FHairGroupInfo& HairGroupsInfo = GroomAsset->HairGroupsInfo[GroupIndex];
-				FHairGroupData& HairGroupsData = GroomAsset->HairGroupsData[GroupIndex];
+				FHairGroupPlatformData& HairGroupsData = GroomAsset->HairGroupsPlatformData[GroupIndex];
 
 				FHairStrandsDatas StrandsData;
 				FHairStrandsDatas GuidesData;
@@ -422,8 +422,8 @@ static void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& Deforme
 	GroomAsset->UpdateHairGroupsInfo();
 
 	// Update/reimport the cards/meshes geometry which have been deformed prior to call this function
-	GroomAsset->BuildCardsGeometry();
-	GroomAsset->BuildMeshesGeometry();
+	GroomAsset->BuildCardsData();
+	GroomAsset->BuildMeshesData();
 }
 
 static void ExtractSkeletalVertexPosition(
@@ -544,7 +544,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 		{
 			const uint32 GroupIndex = Group.Info.GroupID;
 			const FHairStrandsDatas& OriginalGuides = Group.Guides;
-			const FHairGroupData& HairGroupData = InGroomAsset->HairGroupsData[GroupIndex];
+			const FHairGroupPlatformData& HairGroupData = InGroomAsset->HairGroupsPlatformData[GroupIndex];
 
 			FHairStrandsDatas StrandsData;
 			FHairStrandsDatas GuidesData;

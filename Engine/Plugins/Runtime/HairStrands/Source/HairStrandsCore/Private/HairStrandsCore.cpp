@@ -231,7 +231,7 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshT
 			Out->SourceGeometryCache = Cast<UGeometryCache>(Source);
 			Out->TargetGeometryCache = Cast<UGeometryCache>(Target);
 		}
-		Out->HairGroupBulkDatas.Reserve(GroomAsset->HairGroupsData.Num());
+		Out->HairGroupBulkDatas.Reserve(GroomAsset->HairGroupsPlatformData.Num());
 		Out->NumInterpolationPoints = NumInterpolationPoints;
 		Out->MatchingSection = MatchingSection;
 		Out->MarkPackageDirty();

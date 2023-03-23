@@ -241,7 +241,7 @@ protected:
 					GroomCacheProcessor = MakeUnique<FGroomCacheProcessor>(EGroomCacheType::Strands, AnimInfo.Attributes);
 
 					// ref. FGroomCacheImporter::ImportGroomCache
-					const TArray<FHairGroupData>& GroomHairGroupsData = GroomAsset->HairGroupsData;
+					const TArray<FHairGroupPlatformData>& GroomHairGroupsData = GroomAsset->HairGroupsPlatformData;
 
 					// Each frame is translated into a HairDescription and processed into HairGroupData
 					// Sample one extra frame so that we can interpolate between EndFrame - 1 and EndFrame

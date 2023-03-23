@@ -124,7 +124,7 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 		FScopedSlowTask SlowTask(NumFrames, LOCTEXT("ImportGroomCache", "Importing GroomCache frames"));
 		SlowTask.MakeDialog();
 
-		const TArray<FHairGroupData>& GroomHairGroupsData = GroomAssetForCache->HairGroupsData;
+		const TArray<FHairGroupPlatformData>& GroupPlatformData = GroomAssetForCache->HairGroupsPlatformData;
 
 		// Each frame is translated into a HairDescription and processed into HairGroupData
 		for (int32 FrameIndex = AnimInfo.StartFrame; FrameIndex < AnimInfo.EndFrame + 1; ++FrameIndex)
@@ -149,11 +149,11 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 
 				const uint32 GroupCount = HairDescriptionGroups.HairGroups.Num();
 
-				if (GroupCount != GroomHairGroupsData.Num())
+				if (GroupCount != GroupPlatformData.Num())
 				{
 					bSuccess = false;
 					UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache does not have the same number of groups as the static groom (%d instead of %d). Aborting GroomCache import."),
-						GroupCount, GroomHairGroupsData.Num());
+						GroupCount, GroupPlatformData.Num());
 					break;
 				}
 
@@ -172,14 +172,14 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 				{
 					if (bImportStrandsCache)
 					{
-						if (HairGroupsData[GroupIndex].Strands.GetNumCurves() != GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumCurves() ||
-							HairGroupsData[GroupIndex].Strands.GetNumPoints() != GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumPoints())
+						if (HairGroupsData[GroupIndex].Strands.GetNumCurves() != GroupPlatformData[GroupIndex].Strands.BulkData.GetNumCurves() ||
+							HairGroupsData[GroupIndex].Strands.GetNumPoints() != GroupPlatformData[GroupIndex].Strands.BulkData.GetNumPoints())
 						{
 							bSuccess = false;
 							UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache frame %d does not have the same number of curves (%u) \
 								or vertices (%u) for the strands as the static groom (%u and %u respectively). Aborting GroomCache import."),
 								FrameIndex, HairGroupsData[GroupIndex].Strands.GetNumCurves(), HairGroupsData[GroupIndex].Strands.GetNumPoints(),
-								GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumCurves(), GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumPoints());
+								GroupPlatformData[GroupIndex].Strands.BulkData.GetNumCurves(), GroupPlatformData[GroupIndex].Strands.BulkData.GetNumPoints());
 							break;
 						}
 					}
@@ -191,14 +191,14 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 							bGuidesOnly = true;
 						}
 
-						if (HairGroupsData[GroupIndex].Guides.GetNumCurves() != GroomHairGroupsData[GroupIndex].Guides.BulkData.GetNumCurves() ||
-							HairGroupsData[GroupIndex].Guides.GetNumPoints() != GroomHairGroupsData[GroupIndex].Guides.BulkData.GetNumPoints())
+						if (HairGroupsData[GroupIndex].Guides.GetNumCurves() != GroupPlatformData[GroupIndex].Guides.BulkData.GetNumCurves() ||
+							HairGroupsData[GroupIndex].Guides.GetNumPoints() != GroupPlatformData[GroupIndex].Guides.BulkData.GetNumPoints())
 						{
 							bSuccess = false;
 							UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache frame %d does not have the same number of curves (%u) \
 								or vertices (%u) for the guides as the static groom (%u and %u respectively). Aborting GroomCache import."),
 								FrameIndex, HairGroupsData[GroupIndex].Guides.GetNumCurves(), HairGroupsData[GroupIndex].Guides.GetNumPoints(),
-								GroomHairGroupsData[GroupIndex].Guides.BulkData.GetNumCurves(), GroomHairGroupsData[GroupIndex].Guides.BulkData.GetNumPoints());
+								GroupPlatformData[GroupIndex].Guides.BulkData.GetNumCurves(), GroupPlatformData[GroupIndex].Guides.BulkData.GetNumPoints());
 							break;
 						}
 					}

@@ -19,7 +19,7 @@ class UGeometryCache;
 class UMaterialInterface;
 class UNiagaraSystem;
 class UGroomAsset;
-struct FHairGroupData;
+struct FHairGroupPlatformData;
 
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FGoomBindingGroupInfo

@@ -737,7 +737,7 @@ void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(
 		OutLocalToWorld = SystemInstance ? SystemInstance->GetWorldTransform() : FTransform::Identity;
 		if (OutGroupIndex < DefaultSource->GetNumHairGroups())
 		{
-			OutStrandsRestResource = DefaultSource->HairGroupsData[OutGroupIndex].Guides.RestResource;
+			OutStrandsRestResource = DefaultSource->HairGroupsPlatformData[OutGroupIndex].Guides.RestResource;
 			OutGroomAsset = DefaultSource;
 		}
 	}

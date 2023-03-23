@@ -43,7 +43,7 @@ struct HAIRSTRANDSCORE_API FHairGroupLODInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Curve Count"))
+	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Point Count"))
 	int32 NumPoints = 0;
 
 	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Curve Count"))
@@ -100,7 +100,7 @@ struct HAIRSTRANDSCORE_API FHairGroupsMaterial
 
 
 /** Describe all data & resource for a groom asset's hair group */
-struct HAIRSTRANDSCORE_API FHairGroupData
+struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 {
 	////////////////////////////////////////////////////////////////////////////
 	// Helper
@@ -475,7 +475,7 @@ public:
 	TArray<FHairGroupsMaterial> HairGroupsMaterials;
 
 	/** Store strands/cards/meshes data */
-	TArray<FHairGroupData> HairGroupsData;
+	TArray<FHairGroupPlatformData> HairGroupsPlatformData;
 
 	/** Enable radial basis function interpolation to be used instead of the local skin rigid transform */
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (ToolTip = "Enable radial basis function interpolation to be used instead of the local skin rigid transform (WIP)", DisplayName = "RBF Interpolation"))
@@ -633,8 +633,8 @@ public:
 	bool IsMaterialUsed(int32 MaterialIndex) const;
 	TArray<FName> GetMaterialSlotNames() const;
 
-	bool BuildCardsGeometry();
-	bool BuildMeshesGeometry();
+	bool BuildCardsData();
+	bool BuildMeshesData();
 
 	enum EClassDataStripFlag : uint8
 	{
@@ -663,8 +663,8 @@ private:
 #if WITH_EDITORONLY_DATA
 	bool HasImportedStrandsData() const;
 
-	bool BuildCardsGeometry(uint32 GroupIndex);
-	bool BuildMeshesGeometry(uint32 GroupIndex);
+	bool BuildCardsData(uint32 GroupIndex);
+	bool BuildMeshesData(uint32 GroupIndex);
 
 	bool HasValidCardsData(uint32 GroupIndex) const;
 	bool HasValidMeshesData(uint32 GroupIndex) const;
@@ -690,8 +690,8 @@ public:
 	bool CacheDerivedDatas();
 	bool CacheDerivedData(uint32 GroupIndex);
 	bool CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey);
-	bool CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKey);
-	bool CacheMeshesGeometry(uint32 GroupIndex);
+	bool CacheCardsData(uint32 GroupIndex, const FString& StrandsKey);
+	bool CacheMeshesData(uint32 GroupIndex);
 
 	FString GetDerivedDataKey();
 	FString GetDerivedDataKeyForCards(uint32 GroupIt, const FString& StrandsKey);

@@ -1300,7 +1300,7 @@ void FGroomRenderingDetails::OnGenerateElementForLODs(TSharedRef<IPropertyHandle
 	];
 
 	// LOD Stats
-	const FHairStrandsClusterCullingBulkData& ClusterCullingBulkData = GroomAsset->HairGroupsData[GroupIndex].Strands.ClusterCullingBulkData;
+	const FHairStrandsClusterCullingBulkData& ClusterCullingBulkData = GroomAsset->HairGroupsPlatformData[GroupIndex].Strands.ClusterCullingBulkData;
 	if (ClusterCullingBulkData.IsValid() && LODIndex < ClusterCullingBulkData.LODInfos.Num())
 	{
 		const FHairLODInfo& LODInfo = ClusterCullingBulkData.LODInfos[LODIndex];
@@ -1480,13 +1480,13 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 		.ValueContent()
 		.HAlign(HAlign_Fill)
 		[
-			MakeHairStrandsInfoGrid(DetailFontInfo, GroomAsset->HairGroupsInfo[GroupIndex], GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.MaxRadius)
+			MakeHairStrandsInfoGrid(DetailFontInfo, GroomAsset->HairGroupsInfo[GroupIndex], GroomAsset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.MaxRadius)
 		];
 		ChildrenBuilder.AddCustomRow(LOCTEXT("HairStrandsAttributeInfo_Array", "HairStrandsAttributeInfo"))
 		.ValueContent()
 		.HAlign(HAlign_Fill)
 		[
-			MakeHairStrandsAttributeInfoGrid(DetailFontInfo, GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.ImportedAttributes, GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.ImportedAttributeFlags)
+			MakeHairStrandsAttributeInfoGrid(DetailFontInfo, GroomAsset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.ImportedAttributes, GroomAsset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.ImportedAttributeFlags)
 		];
 	}
 
