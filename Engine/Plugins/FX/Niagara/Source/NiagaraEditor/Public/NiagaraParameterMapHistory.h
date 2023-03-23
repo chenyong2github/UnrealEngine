@@ -14,6 +14,7 @@ class UEdGraphPin;
 class UEdGraphNode;
 class UNiagaraParameterCollection;
 class FHlslNiagaraTranslator;
+class UNiagaraGraph;
 
 class FCompileConstantResolver
 {
