@@ -119,17 +119,12 @@ void FWebsocketMessageRouter::UnbindRoute(const FString& MessageName)
 
 bool FRCWebSocketServer::Start(uint32 Port, TSharedPtr<FWebsocketMessageRouter> InRouter)
 {
-	if (!IsPortAvailable(Port))
-	{
-		return false;
-	}
-
 	FWebSocketClientConnectedCallBack CallBack;
 	CallBack.BindRaw(this, &FRCWebSocketServer::OnWebSocketClientConnected);
 
 	Server = FModuleManager::Get().LoadModuleChecked<IWebSocketNetworkingModule>(TEXT("WebSocketNetworking")).CreateServer();
 	
-	if (!Server || !Server->Init(Port, CallBack))
+	if (!Server || !Server->Init(Port, CallBack, GetDefault<URemoteControlSettings>()->RemoteControlWebsocketServerBindAddress))
 	{
 		Server.Reset();
 		return false;

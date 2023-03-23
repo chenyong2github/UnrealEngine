@@ -176,6 +176,9 @@ private:
 	/** Port of the remote control http server. */
 	uint32 HttpServerPort;
 
+	/** The address the websocket server is currently bound to. */
+	FString WebsocketServerBindAddress;
+
 	/** Port of the remote control websocket server. */
 	uint32 WebSocketServerPort;
 

@@ -287,6 +287,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server", DisplayName = "Remote Control HTTP Server Port")
 	uint32 RemoteControlHttpServerPort = 30010;
 
+	/** The address to bind the websocket server to. 0.0.0.0 will open the connection to everyone on your network, while 127.0.0.1 will only allow local requests to come through.  */
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server", DisplayName = "Remote Control Websocket Bind Address")
+	FString RemoteControlWebsocketServerBindAddress = TEXT("0.0.0.0");
+
 	/** The web remote control WebSocket server's port. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server", DisplayName = "Remote Control WebSocket Server Port")
 	uint32 RemoteControlWebSocketServerPort = 30020;

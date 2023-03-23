@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebSocketServer.h"
+
 #include "WebSocket.h"
 
 #if USE_LIBWEBSOCKET
@@ -23,7 +24,7 @@ struct PerSessionDataServer
 {
 	// Each session is actually a socket to a client
 	FWebSocket* Socket;
-	// Holds the concatenated message fragments.
+	// Holds the concatenated message fragments.er
 	TArray<uint8> FrameBuffer;
 	// The current state of the message being read.
 	EFragmentationState FragementationState = EFragmentationState::BeginFrame;
@@ -98,7 +99,7 @@ void FWebSocketServer::EnableHTTPServer(TArray<FWebSocketHttpMount> InDirectorie
 #endif
 }
 
-bool FWebSocketServer::Init(uint32 Port, FWebSocketClientConnectedCallBack CallBack)
+bool FWebSocketServer::Init(uint32 Port, FWebSocketClientConnectedCallBack CallBack, FString BindAddress)
 {
 #if USE_LIBWEBSOCKET
 #if !UE_BUILD_SHIPPING
@@ -128,14 +129,19 @@ bool FWebSocketServer::Init(uint32 Port, FWebSocketClientConnectedCallBack CallB
 	// look up libwebsockets.h for details.
 	Info.port = Port;
 	ServerPort = Port;
-	// we listen on all available interfaces.
+
 	Info.iface = NULL;
+	if (!BindAddress.IsEmpty())
+	{
+		Info.iface = StringCast<ANSICHAR>(*BindAddress).Get();
+	}
+
 	Info.protocols = &Protocols[0];
 	// no extensions
 	Info.extensions = NULL;
 	Info.gid = -1;
 	Info.uid = -1;
-	Info.options = 0;
+	Info.options = LWS_SERVER_OPTION_ALLOW_LISTEN_SHARE;
 	// tack on this object.
 	Info.user = this;
 

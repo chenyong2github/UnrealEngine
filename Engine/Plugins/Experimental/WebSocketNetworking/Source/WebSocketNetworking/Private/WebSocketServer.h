@@ -15,7 +15,7 @@ public:
 	//~ Begin IWebSocketServer interface
 	virtual ~FWebSocketServer() override;
 	virtual void EnableHTTPServer(TArray<FWebSocketHttpMount> DirectoriesToServe) override;
-	virtual bool Init(uint32 Port, FWebSocketClientConnectedCallBack) override;
+	virtual bool Init(uint32 Port, FWebSocketClientConnectedCallBack, FString BindAddress = TEXT("")) override;
 	virtual void SetFilterConnectionCallback(FWebSocketFilterConnectionCallback InFilterConnectionCallback) override;
 	virtual void Tick() override;
 	virtual FString Info() override;
