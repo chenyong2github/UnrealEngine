@@ -146,7 +146,7 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 	////////////////////////////////////////////////////////////////////////////
 	// Data
 
-	struct FSim : FBase
+	struct FGuides : FBase
 	{
 		/* Return the memory size for GPU resources */
 		uint32 GetResourcesSize() const
@@ -202,6 +202,7 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 		FHairStrandsRaytracingResource*		RaytracingResource = nullptr;
 		#endif
 
+		bool bIsCookedOut = false;
 	} Strands;
 
 	struct FCards
@@ -382,8 +383,6 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 		FHairStrandsDebugDatas Data;
 		FHairStrandsDebugDatas::FResources* Resource = nullptr;
 	} Debug;
-
-	bool bIsCookedOut = false;
 };
 
 struct FHairDescriptionGroup
