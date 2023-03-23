@@ -11,6 +11,7 @@ UAnimCurveCompressionSettings::UAnimCurveCompressionSettings(const FObjectInitia
 {
 	Codec = CreateDefaultSubobject<UAnimCurveCompressionCodec_CompressedRichCurve>(TEXT("CurveCompressionCodec"));
 	Codec->SetFlags(RF_Transactional);
+	Codec->ClearFlags(RF_Public);
 }
 
 UAnimCurveCompressionCodec* UAnimCurveCompressionSettings::GetCodec(const FString& Path)
