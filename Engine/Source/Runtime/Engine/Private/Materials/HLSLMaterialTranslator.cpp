@@ -11550,7 +11550,7 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 		}
 
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types, Parameters.%s) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */, Parameters.%s, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */, Parameters.%s, %u, %u, %u, %u)"),
 			bHasDynamicShadingModels ? TEXT("Dynamic") : TEXT("Static"),
 			*StrataGetCastParameterCode(BaseColor,						MCT_Float3),
 			*StrataGetCastParameterCode(Specular,						MCT_Float),
@@ -11577,7 +11577,6 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 			*SharedLocalBasisIndexMacro,
 			*ClearCoat_SharedLocalBasisIndexMacro,
 			*GetParametersSharedLocalBasesName(CurrentStrataCompilationContext),
-			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			// Regular normal basis
 			*NormalCode,
 			*TangentCode,
@@ -11593,7 +11592,7 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 	}
 
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types, Parameters.%s) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */"),
+		MCT_Strata, TEXT("StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */"),
 		bHasDynamicShadingModels ? TEXT("Dynamic") : TEXT("Static"),
 		*StrataGetCastParameterCode(BaseColor,						MCT_Float3),
 		*StrataGetCastParameterCode(Specular,						MCT_Float),
@@ -11620,7 +11619,6 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 		*SharedLocalBasisIndexMacro,
 		*ClearCoat_SharedLocalBasisIndexMacro,
 		*GetParametersSharedLocalBasesName(CurrentStrataCompilationContext),
-		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		// Regular normal basis
 		*NormalCode,
 		*TangentCode,
