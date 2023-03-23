@@ -353,7 +353,7 @@ bool SMVVMViewModelPanel::HandleVerifyNameTextChanged(const FText& InText, FText
 
 void SMVVMViewModelPanel::HandleNameTextCommited(const FText& InText, ETextCommit::Type CommitInfo, FGuid ViewModelGuid)
 {
-	if (CommitInfo == ETextCommit::OnEnter)
+	if (CommitInfo == ETextCommit::OnEnter || CommitInfo == ETextCommit::OnUserMovedFocus)
 	{
 		FText OutErrorMessage;
 		RenameViewModelProperty(ViewModelGuid, InText, true, OutErrorMessage);
