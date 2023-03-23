@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosClothAsset/DataflowNodes/SimulationDefaultConfigNode.h"
-#include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
+#include "ChaosClothAsset/SimulationDefaultConfigNode.h"
+#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "ChaosCloth/ChaosClothingSimulationConfig.h"
 #include "Chaos/CollectionPropertyFacade.h"

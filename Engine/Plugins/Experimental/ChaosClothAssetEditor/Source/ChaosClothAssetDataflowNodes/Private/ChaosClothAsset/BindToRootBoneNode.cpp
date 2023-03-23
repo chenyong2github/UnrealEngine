@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosClothAsset/DataflowNodes/BindToRootBoneNode.h"
-#include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
+#include "ChaosClothAsset/BindToRootBoneNode.h"
+#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BindToRootBoneNode)

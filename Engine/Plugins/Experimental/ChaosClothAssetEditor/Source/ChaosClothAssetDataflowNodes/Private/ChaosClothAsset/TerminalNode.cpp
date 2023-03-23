@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosClothAsset/DataflowNodes/TerminalNode.h"
-#include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
+#include "ChaosClothAsset/TerminalNode.h"
+#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Chaos/CollectionPropertyFacade.h"

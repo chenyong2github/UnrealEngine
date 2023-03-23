@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosClothAsset/DataflowNodes/PatternSelectionNode.h"
-#include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
+#include "ChaosClothAsset/PatternSelectionNode.h"
+#include "ChaosClothAsset/DataflowNodes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PatternSelectionNode)
 

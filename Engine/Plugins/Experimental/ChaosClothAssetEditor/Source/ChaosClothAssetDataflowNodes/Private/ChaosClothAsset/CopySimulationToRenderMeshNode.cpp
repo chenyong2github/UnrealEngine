@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosClothAsset/DataflowNodes/CopySimulationToRenderMeshNode.h"
-#include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
+#include "ChaosClothAsset/CopySimulationToRenderMeshNode.h"
+#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
 #include "Materials/Material.h"
 

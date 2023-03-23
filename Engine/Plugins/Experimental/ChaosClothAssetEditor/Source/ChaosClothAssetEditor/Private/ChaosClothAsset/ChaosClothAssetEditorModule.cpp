@@ -4,7 +4,6 @@
 #include "ChaosClothAsset/ClothEditorMode.h"
 #include "ChaosClothAsset/ClothEditorCommands.h"
 #include "ChaosClothAsset/ClothEditorStyle.h"
-#include "ChaosClothAsset/DataflowNodes/DataflowNodes.h"
 #include "ContentBrowserMenuContexts.h"
 #include "EditorModeRegistry.h"
 #include "Selection.h"
@@ -26,8 +25,6 @@ void FChaosClothAssetEditorModule::StartupModule()
 	// Register asset actions
 	FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
 	IAssetTools& AssetTools = AssetToolsModule.Get();
-
-	DataflowNodes::Register();
 
 	// TODO: Register details view customizations
 }

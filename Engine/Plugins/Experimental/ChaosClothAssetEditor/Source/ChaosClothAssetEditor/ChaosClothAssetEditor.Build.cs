@@ -55,6 +55,7 @@ public class ChaosClothAssetEditor : ModuleRules
 				"ChaosCloth",
 				"ChaosClothAsset",
 				"ChaosClothAssetEngine",
+				"ChaosClothAssetDataflowNodes",
 				"ClothingSystemEditor",
 				"ChaosClothAssetTools",
 				"ChaosClothAssetEditorTools",
@@ -66,8 +67,6 @@ public class ChaosClothAssetEditor : ModuleRules
 				"TypedElementFramework",
 				"TypedElementRuntime",
 				"AssetDefinition",
-				"DatasmithImporter",
-				"ExternalSource"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
