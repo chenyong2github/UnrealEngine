@@ -39,5 +39,8 @@ public:
 	// Force update caches
 	bool bGeometryChanged = false;
 
+	// Indicates if the frustum was rotated from base algorithm to better fit context size
+	// Used to implement hysteresis and avoid potential jumps back and forth.
+	bool bRotateFrustumToFitContextSize = false;
 };
 

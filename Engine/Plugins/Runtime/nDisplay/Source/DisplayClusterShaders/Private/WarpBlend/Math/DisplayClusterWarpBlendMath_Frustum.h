@@ -18,81 +18,7 @@ public:
 	{ }
 
 public:
-	bool CalcFrustum(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FDisplayClusterWarpContext& OutFrustum)
-	{
-		if (!GeometryContext.GeometryProxy.bIsGeometryValid)
-		{
-			// Bad source geometry
-			return false;
-		}
-
-		// Get view base:
-		ImplCalcView();
-
-		if (bFindBestProjectionType == false)
-		{
-			ImplCalcViewProjection();
-			ImplCalcFrustum();
-		}
-		else
-		{
-			// Frustum projection with auto-fix (back-side view planes)
-			// Projection type changed runtime. Validate frustum points, all must be over view plane:
-			EDisplayClusterWarpBlendProjectionType BaseProjectionType = ProjectionType;
-			EDisplayClusterWarpBlendFrustumType    BaseFrustumType = FrustumType;
-
-			// Optimize for PerfectCPU:
-			if (FrustumType == EDisplayClusterWarpBlendFrustumType::FULL && GeometryContext.GeometryProxy.GeometryType == EDisplayClusterWarpGeometryType::WarpMap)
-			{
-				while (true)
-				{
-					SetParameter(EDisplayClusterWarpBlendFrustumType::LOD);
-
-					// Fast check for bad view
-					ImplCalcViewProjection();
-					if (ImplCalcFrustum())
-					{
-						break;
-					}
-
-					if (!ImplUpdateProjectionType())
-					{
-						break;
-					}
-				}
-			}
-
-			// Restore base parameter
-			SetParameter(BaseFrustumType);
-
-			// Search valid projection mode:
-			if (BaseProjectionType == ProjectionType)
-			{
-
-				while (true)
-				{
-					//Full check for bad projection:
-					ImplCalcViewProjection();
-					if (ImplCalcFrustum())
-					{
-						break;
-					}
-
-					if (!ImplUpdateProjectionType())
-					{
-						break;
-					}
-				}
-			}
-		}
-
-		ImplBuildFrustum(InViewport, InContextNum);
-
-		// Return result back:
-		OutFrustum = Frustum;
-
-		return true;
-	}
+	bool CalcFrustum(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FDisplayClusterWarpContext& OutFrustum);
 
 private:
 	EDisplayClusterWarpBlendFrustumType       FrustumType = EDisplayClusterWarpBlendFrustumType::AABB;
@@ -195,87 +121,11 @@ private:
 	FMatrix Local2World;
 	FMatrix World2Local;
 
-	void ImplCalcViewProjection()
-	{
-		// CUstomize view direction
-		FVector ViewDir = ViewDirection;
-
-		switch (ProjectionType)
-		{
-		case EDisplayClusterWarpBlendProjectionType::StaticSurfacePlane:
-			ViewDir = GeometryContext.SurfaceViewPlane;
-			break;
-
-		case EDisplayClusterWarpBlendProjectionType::RuntimeStaticSurfacePlaneInverted:
-			// Frustum projection fix (back-side view planes)
-			ViewDir = -GeometryContext.SurfaceViewPlane;
-			break;
-
-		case EDisplayClusterWarpBlendProjectionType::StaticSurfaceNormal:
-			// Use fixed surface view normal
-			ViewDir = GeometryContext.SurfaceViewNormal;
-			break;
-
-		case EDisplayClusterWarpBlendProjectionType::RuntimeStaticSurfaceNormalInverted:
-			// Frustum projection fix (back-side view planes)
-			ViewDir = -GeometryContext.SurfaceViewNormal;
-			break;
-
-		default:
-			break;
-		}
-
-		FVector const NewX = ViewDir.GetSafeNormal();
-		// make sure we don't ever pick the same as NewX
-		if(FMath::Abs(NewX.Z) < (1.f - KINDA_SMALL_NUMBER))
-		{
-			Local2World = FRotationMatrix::MakeFromXZ(NewX, FVector(0.f, 0.f, 1.f));
-		}
-		else
-		{
-			Local2World = FRotationMatrix::MakeFromXY(NewX, FVector(0.f, 1.f, 0.f));
-		}
-
-		Local2World.SetOrigin(EyeOrigin); // Finally set view origin to eye location
-
-		World2Local = Local2World.Inverse();
-	}
+	void ImplCalcViewProjection();
 
 	FMatrix GeometryToFrustum;
 
-	bool ImplCalcFrustum()
-	{
-		// Reset extend of the frustum
-		Frustum.ProjectionAngles.Top = -FLT_MAX;
-		Frustum.ProjectionAngles.Bottom = FLT_MAX;
-		Frustum.ProjectionAngles.Left = FLT_MAX;
-		Frustum.ProjectionAngles.Right = -FLT_MAX;
-
-		GeometryToFrustum = GeometryContext.GeometryToOrigin * World2Local;
-
-		bool bResult = false;
-
-		//Compute rendering frustum with current method
-		switch (FrustumType)
-		{
-		case EDisplayClusterWarpBlendFrustumType::AABB:
-			bResult = ImplCalcFrustum_AABB();
-			break;
-
-		case EDisplayClusterWarpBlendFrustumType::FULL:
-			bResult = ImplCalcFrustum_FULL();
-			break;
-
-		case EDisplayClusterWarpBlendFrustumType::LOD:
-			bResult = ImplCalcFrustum_LOD();
-			break;
-
-		default:
-			break;
-		}
-
-		return bResult;
-	}
+	bool ImplCalcFrustum();
 
 	void ImplBuildFrustum(IDisplayClusterViewport* InViewport, const uint32 InContextNum);
 
@@ -391,6 +241,13 @@ private:
 	bool ImplCalcFrustum_FULL_WarpProceduralMesh();
 
 	bool ImplCalcFrustum_LOD_WarpMap();
+
+	/** 
+	 * When necessary, rotates by 90 deg. the frustum to better fit the aspect ratio of the viewport.
+	 * 
+	 * @param ContextSize Viewport size (Width x Height).
+	 */
+	void ImplFitFrustumToContextSize(const FIntPoint& ContextSize);
 
 private:
 	FDisplayClusterWarpBlend_GeometryContext& GeometryContext;
