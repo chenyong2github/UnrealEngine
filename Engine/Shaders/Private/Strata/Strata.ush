@@ -1116,7 +1116,7 @@ struct FStrataTree
 	uint OperatorCount;
 
 	FStrataBSDF BSDFs[STRATA_MAX_BSDF_COUNT];
-	FStrataOperator Operators[STRATA_MAX_OPERATOR_COUNT]; // STRATA_TODO assert when too many ops on the compiler side. Shoud already be done for BSDF count.
+	FStrataOperator Operators[STRATA_MAX_OPERATOR_COUNT];
 };
 
 FStrataTree GetInitialisedStrataTree()
