@@ -16,6 +16,9 @@
  * DO NOT EDIT: This file is generated.
  */
 
+#pragma warning(push)
+#pragma warning(disable : 4191) // warning C4191: 'type cast': unsafe conversion
+
 #ifndef VULKAN_PROFILES_HPP_
 #define VULKAN_PROFILES_HPP_ 1
 
@@ -2195,3 +2198,5 @@ VPAPI_ATTR VkResult vpGetProfileFormatStructureTypes(const VpProfileProperties *
 }
 
 #endif // VULKAN_PROFILES_HPP_
+
+#pragma warning(pop) // restore 4191
