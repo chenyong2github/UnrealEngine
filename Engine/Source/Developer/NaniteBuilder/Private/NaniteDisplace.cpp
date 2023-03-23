@@ -126,14 +126,31 @@ void TessellateAndDisplace(
 	TArray< FDisplacementMap > DisplacementMaps;
 	for( auto& DisplacementMap : Settings.DisplacementMaps )
 	{
-		if( IsValid( DisplacementMap.Texture ) )
+		if ( DisplacementMap.Texture )
 		{
-			DisplacementMaps.Add( FDisplacementMap(
-				DisplacementMap.Texture->Source,
-				DisplacementMap.Magnitude,
-				DisplacementMap.Center,
-				DisplacementMap.Texture->AddressX,
-				DisplacementMap.Texture->AddressY ) );
+			if ( IsValid( DisplacementMap.Texture ) && DisplacementMap.Texture->Source.IsValid() )
+			{
+				FImage FirstMipImage;
+				if ( DisplacementMap.Texture->Source.GetMipImage( FirstMipImage, 0 ) )
+				{
+					DisplacementMaps.Add( Nanite::FDisplacementMap(
+						MoveTemp( FirstMipImage ),
+						DisplacementMap.Magnitude,
+						DisplacementMap.Center,
+						DisplacementMap.Texture->AddressX,
+						DisplacementMap.Texture->AddressY ) );
+				}
+				else
+				{
+					// Virtualization can fail to fetch the bulk data.
+					checkNoEntry();
+				}
+			}
+			else
+			{
+				// If the raw pointer is not null, but for some reason it is not valid better to crash then continuing with some false data
+				checkNoEntry();
+			}
 		}
 		else
 		{
