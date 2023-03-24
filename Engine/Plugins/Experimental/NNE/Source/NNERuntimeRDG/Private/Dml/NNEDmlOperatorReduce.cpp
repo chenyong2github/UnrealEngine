@@ -132,7 +132,7 @@ public:
 };
 
 // Register Reshape operator on Module startup
-#define OP(OpName, ReduceFunc) FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDmlReduce<##ReduceFunc##>::Create)
+#define OP(OpName, ReduceFunc) FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDmlReduce<ReduceFunc>::Create)
 
 struct FOperatorDmlReduceRegistrator
 {
