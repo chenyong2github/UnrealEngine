@@ -110,11 +110,10 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define PLATFORM_RETURN_ADDRESS_FOR_CALLSTACKTRACING		PLATFORM_RETURN_ADDRESS_POINTER
 
 #define WINDOWS_USE_FEATURE_APPLICATIONMISC_CLASS			1
-#define WINDOWS_USE_FEATURE_PLATFORMPROCESS_CLASS			1
 #define WINDOWS_USE_FEATURE_PLATFORMMISC_CLASS				1
 #define WINDOWS_USE_FEATURE_PLATFORMHTTP_CLASS				1
 #define WINDOWS_USE_FEATURE_LAUNCH							1
-#define WINDOWS_USE_FEATURE_DYNAMIC_RHI						1
+
 
 // Q: Why is there a __nop() before __debugbreak()?
 // A: VS' debug engine has a bug where it will silently swallow explicit

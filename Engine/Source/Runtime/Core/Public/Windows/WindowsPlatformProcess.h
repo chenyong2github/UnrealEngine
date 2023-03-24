@@ -263,7 +263,5 @@ private:
 	static void ResolveMissingImportsRecursive(const FString& FileName, const TArray<FString>& SearchPaths, TArray<FString>& ImportFileNames, TSet<FString>& VisitedImportNames);
 };
 
-#if WINDOWS_USE_FEATURE_PLATFORMPROCESS_CLASS
 typedef FWindowsPlatformProcess FPlatformProcess;
-#endif
 

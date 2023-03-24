@@ -9,8 +9,6 @@
 #include "Containers/StaticArray.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
-#if WINDOWS_USE_FEATURE_DYNAMIC_RHI
-
 #include "Windows/WindowsPlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "WindowsDynamicRHI"
@@ -1016,4 +1014,3 @@ const TCHAR* GetSelectedDynamicRHIModuleName(bool bCleanup)
 
 #undef LOCTEXT_NAMESPACE
 
-#endif //WINDOWS_USE_FEATURE_DYNAMIC_RHI
