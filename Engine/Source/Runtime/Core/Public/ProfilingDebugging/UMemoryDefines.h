@@ -3,13 +3,6 @@
 #pragma once
 
 /**
- * true we want to force an ansi allocator
- */
-#ifndef FORCE_ANSI_ALLOCATOR
-	#define FORCE_ANSI_ALLOCATOR 0
-#endif
-
-/**
  * true if intelTBB (a.k.a MallocTBB) can be used (different to the platform actually supporting it)
  */
 #ifndef TBB_ALLOCATOR_ALLOWED

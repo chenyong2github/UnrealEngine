@@ -207,6 +207,11 @@
 	#define FORCE_USE_STATS 0
 #endif
 
+/** Set to true to force an ansi allocator instead of redirecting to FMemory. */
+#ifndef FORCE_ANSI_ALLOCATOR
+	#define FORCE_ANSI_ALLOCATOR 0
+#endif
+
 /**
  *	Optionally enable support for named events from the stat macros without the stat system overhead
  *	This will attempt to disable regular stats system and use named events instead

@@ -20,6 +20,19 @@
 #ifndef EIGEN_MEMORY_H
 #define EIGEN_MEMORY_H
 
+//@UE BEGIN Replacing std::malloc and std::free with macros.	  
+#if EIGEN_UE_OVERRIDE_ALLOCATORS && !FORCE_ANSI_ALLOCATOR
+	void* StdMalloc(std::size_t Size, std::size_t Alignment);
+	void StdFree(void *Ptr);
+
+	#define EIGEN_STD_MALLOC(_size)		StdMalloc(_size, EIGEN_DEFAULT_ALIGN_BYTES)
+	#define EIGEN_STD_FREE(_p)			StdFree(_p)
+#else
+	#define EIGEN_STD_MALLOC(_size)		std::malloc(_size)
+	#define EIGEN_STD_FREE(_p)			std::free(_p)
+#endif
+//@UE END Replacing std::malloc and std::free with macros.	  
+
 #ifndef EIGEN_MALLOC_ALREADY_ALIGNED
 
 // Try to determine automatically if malloc is already aligned.
@@ -102,7 +115,9 @@ EIGEN_DEVICE_FUNC inline void* handmade_aligned_malloc(std::size_t size, std::si
   eigen_assert(alignment >= sizeof(void*) && (alignment & (alignment-1)) == 0 && "Alignment must be at least sizeof(void*) and a power of 2");
 
   EIGEN_USING_STD(malloc)
-  void *original = malloc(size+alignment);
+//@UE BEGIN Replacing std::malloc and std::free with macros.	    
+  void *original = EIGEN_STD_MALLOC(size+alignment);
+//@UE END Replacing std::malloc and std::free with macros.	    
   
   if (original == 0) return 0;
   void *aligned = reinterpret_cast<void*>((reinterpret_cast<std::size_t>(original) & ~(std::size_t(alignment-1))) + alignment);
@@ -115,7 +130,9 @@ EIGEN_DEVICE_FUNC inline void handmade_aligned_free(void *ptr)
 {
   if (ptr) {
     EIGEN_USING_STD(free)
-    free(*(reinterpret_cast<void**>(ptr) - 1));
+//@UE BEGIN Replacing std::malloc and std::free with macros.	  	
+    EIGEN_STD_FREE(*(reinterpret_cast<void**>(ptr) - 1));
+//@UE END Replacing std::malloc and std::free with macros.	  	
   }
 }
 
@@ -179,7 +196,9 @@ EIGEN_DEVICE_FUNC inline void* aligned_malloc(std::size_t size)
   #if (EIGEN_DEFAULT_ALIGN_BYTES==0) || EIGEN_MALLOC_ALREADY_ALIGNED
 
     EIGEN_USING_STD(malloc)
-    result = malloc(size);
+//@UE BEGIN Replacing std::malloc and std::free with macros.	  	
+    result = EIGEN_STD_MALLOC(size);
+//@UE END Replacing std::malloc and std::free with macros.	  
 
     #if EIGEN_DEFAULT_ALIGN_BYTES==16
     eigen_assert((size<16 || (std::size_t(result)%16)==0) && "System's malloc returned an unaligned pointer. Compile with EIGEN_MALLOC_ALREADY_ALIGNED=0 to fallback to handmade aligned memory allocator.");
@@ -200,7 +219,9 @@ EIGEN_DEVICE_FUNC inline void aligned_free(void *ptr)
   #if (EIGEN_DEFAULT_ALIGN_BYTES==0) || EIGEN_MALLOC_ALREADY_ALIGNED
 
     EIGEN_USING_STD(free)
-    free(ptr);
+//@UE BEGIN Replacing std::malloc and std::free with macros.	  	
+    EIGEN_STD_FREE(ptr);
+//@UE END Replacing std::malloc and std::free with macros.	  	
 
   #else
     handmade_aligned_free(ptr);
@@ -246,7 +267,9 @@ template<> EIGEN_DEVICE_FUNC inline void* conditional_aligned_malloc<false>(std:
   check_that_malloc_is_allowed();
 
   EIGEN_USING_STD(malloc)
-  void *result = malloc(size);
+//@UE BEGIN Replacing std::malloc and std::free with macros.	    
+  void *result = EIGEN_STD_MALLOC(size);
+//@UE END Replacing std::malloc and std::free with macros.	    
 
   if(!result && size)
     throw_std_bad_alloc();
@@ -262,7 +285,9 @@ template<bool Align> EIGEN_DEVICE_FUNC inline void conditional_aligned_free(void
 template<> EIGEN_DEVICE_FUNC inline void conditional_aligned_free<false>(void *ptr)
 {
   EIGEN_USING_STD(free)
-  free(ptr);
+//@UE BEGIN Replacing std::malloc and std::free with macros.	    
+  EIGEN_STD_FREE(ptr);
+//@UE END Replacing std::malloc and std::free with macros.	    
 }
 
 template<bool Align> inline void* conditional_aligned_realloc(void* ptr, std::size_t new_size, std::size_t old_size)
