@@ -31,6 +31,7 @@ public:
 	void SetShowingEmptyFolders(bool bInShowingEmptyFolders) { bShowingEmptyFolders = bInShowingEmptyFolders; }
 
 private:
+	bool IsShowingUnloadedActors() const;
 	/** Adds all the direct and indirect children of a world to OutItems */
 	void CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
 	/** Create all component items for an actor if we are showing components and place them in OutItems */
