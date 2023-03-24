@@ -11,7 +11,7 @@
  * StateTree for Actors with StateTree component. 
  */
 UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "StateTree Component", CommonSchema))
-class UStateTreeComponentSchema : public UStateTreeSchema
+class GAMEPLAYSTATETREEMODULE_API UStateTreeComponentSchema : public UStateTreeSchema
 {
 	GENERATED_BODY()
 
