@@ -111,7 +111,7 @@ TEST_CASE("API.autortfm_commit")
     REQUIRE(42 == Answer);
 }
 
-TEST_CASE("API.autortfm_abort")
+TEST_CASE("API.autortfm_abort_transaction")
 {
     bool BeforeNest = false;
     bool InNest = false;
@@ -244,10 +244,10 @@ TEST_CASE("API.autortfm_close")
         AutoRTFM::Open([&]
         {
             // A closed call inside an open does not abort either.
-            autortfm_close([](void* const Arg)
+			REQUIRE(autortfm_status_ontrack == autortfm_close([](void* const Arg)
             {
                 *static_cast<bool* const>(Arg) = true;
-            }, &InClosedNestInOpenNest);
+            }, &InClosedNestInOpenNest));
 
             InOpenNest = true;
         });
@@ -839,10 +839,10 @@ TEST_CASE("API.Close")
         AutoRTFM::Open([&]
         {
             // A closed call inside an open does not abort either.
-            AutoRTFM::Close([&]
+			REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]
             {
                 InClosedNestInOpenNest = true;
-            });
+            }));
 
             InOpenNest = true;
         });

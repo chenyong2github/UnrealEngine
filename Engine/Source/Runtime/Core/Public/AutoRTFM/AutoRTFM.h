@@ -201,7 +201,7 @@ inline void autortfm_open(void (*work)(void* arg), void* arg)
 //
 // Guaranteed to crash if called outside a transaction.
 #if UE_AUTORTFM
-autortfm_status autortfm_close(void (*work)(void* arg), void* arg);
+[[nodiscard]] autortfm_status autortfm_close(void (*work)(void* arg), void* arg);
 #else
 inline autortfm_status autortfm_close(void (*work)(void* arg), void* arg)
 {
@@ -403,6 +403,11 @@ inline bool IsAborting()
 	return autortfm_is_aborting();
 }
 
+inline bool CurrentNestThrow()
+{
+	return autortfm_current_nest_throw();
+}
+
 // RecordOpenWrite records the memory span into the current transaction as written.
 //  If this memory is previously unknown to the transaction, the original value is saved.
 inline void RecordOpenWrite(void* Ptr, size_t Size)
@@ -483,15 +488,10 @@ void Open(const TFunctor& Functor)
     autortfm_open(
         [] (void* Arg) { (*static_cast<const TFunctor*>(Arg))(); },
         const_cast<void*>(static_cast<const void*>(&Functor)));
-
-	if (autortfm_is_aborting())
-	{
-		autortfm_current_nest_throw();
-	}
 }
 
 template<typename TFunctor>
-EContextStatus Close(const TFunctor& Functor)
+[[nodiscard]] EContextStatus Close(const TFunctor& Functor)
 {
     return static_cast<EContextStatus>(autortfm_close(
         [] (void* Arg) { (*static_cast<const TFunctor*>(Arg))(); },

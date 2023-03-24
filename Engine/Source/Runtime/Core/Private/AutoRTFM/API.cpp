@@ -331,7 +331,7 @@ UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_start_transaction);
 
 void STM_autortfm_commit_transaction(FContext* Context)
 {
-	fprintf(stderr, "autostm_committransaction called from closed code.\n");
+	fprintf(stderr, "autostm_commit_transaction called from closed code.\n");
 	abort();
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_commit_transaction);
