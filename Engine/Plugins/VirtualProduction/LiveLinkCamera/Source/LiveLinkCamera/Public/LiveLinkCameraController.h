@@ -173,4 +173,6 @@ protected:
 
 private:
 	double LastLensTableVerificationTimestamp = 0.0;
+
+	bool bLastIsDepthOfFieldSupported = false;
 };

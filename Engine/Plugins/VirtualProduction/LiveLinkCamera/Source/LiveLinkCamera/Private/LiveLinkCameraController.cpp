@@ -57,17 +57,23 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 
 			if (UCineCameraComponent* CineCameraComponent = Cast<UCineCameraComponent>(CameraComponent))
 			{
-				// If depth of field is not supported, force disable depth of field on the camera
-				// Otherwise, if depth of field is supported and the frame data has a valid value for focus, force the focus method to Manual 
-				if (UpdateFlags.bApplyFocusDistance)
+				// If the depth of field support flag has changed, update the focus method accordingly
+				if (bLastIsDepthOfFieldSupported != StaticData->bIsDepthOfFieldSupported)
 				{
-					if (StaticData->bIsDepthOfFieldSupported == false)
+					// If depth of field is not supported, force disable depth of field on the camera
+					// Otherwise, if depth of field is supported and the frame data has a valid value for focus, force the focus method to Manual 
+					if (UpdateFlags.bApplyFocusDistance)
 					{
-						CineCameraComponent->FocusSettings.FocusMethod = ECameraFocusMethod::Disable;
-					}
-					else if (StaticData->bIsFocusDistanceSupported)
-					{
-						CineCameraComponent->FocusSettings.FocusMethod = ECameraFocusMethod::Manual;
+						if (StaticData->bIsDepthOfFieldSupported == false)
+						{
+							CineCameraComponent->FocusSettings.FocusMethod = ECameraFocusMethod::Disable;
+						}
+						else if (StaticData->bIsFocusDistanceSupported)
+						{
+							CineCameraComponent->FocusSettings.FocusMethod = ECameraFocusMethod::Manual;
+						}
+
+						bLastIsDepthOfFieldSupported = StaticData->bIsDepthOfFieldSupported;
 					}
 				}
 
