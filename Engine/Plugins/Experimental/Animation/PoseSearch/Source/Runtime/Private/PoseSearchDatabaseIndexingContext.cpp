@@ -10,6 +10,7 @@
 #include "Animation/MirrorDataTable.h"
 #include "DerivedDataRequestOwner.h"
 #include "InstancedStruct.h"
+#include "PoseSearch/PoseSearchContext.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchSchema.h"
@@ -36,15 +37,7 @@ void FAssetSamplingContext::Init(const UMirrorDataTable* InMirrorDataTable, cons
 
 FTransform FAssetSamplingContext::MirrorTransform(const FTransform& InTransform) const
 {
-	const EAxis::Type MirrorAxis = MirrorDataTable->MirrorAxis;
-	FVector T = InTransform.GetTranslation();
-	T = FAnimationRuntime::MirrorVector(T, MirrorAxis);
-	const FQuat ReferenceRotation = ComponentSpaceRefRotations[FCompactPoseBoneIndex(0)];
-	FQuat Q = InTransform.GetRotation();
-	Q = FAnimationRuntime::MirrorQuat(Q, MirrorAxis);
-	Q *= FAnimationRuntime::MirrorQuat(ReferenceRotation, MirrorAxis).Inverse() * ReferenceRotation;
-	FTransform Result = FTransform(Q, T, InTransform.GetScale3D());
-	return Result;
+	return UE::PoseSearch::MirrorTransform(InTransform, MirrorDataTable->MirrorAxis, ComponentSpaceRefRotations[FCompactPoseBoneIndex(RootBoneIndexType)]);
 }
 
 //////////////////////////////////////////////////////////////////////////

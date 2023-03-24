@@ -31,7 +31,7 @@ UMotionTrajectoryComponent::UMotionTrajectoryComponent(const FObjectInitializer&
 FTrajectorySample UMotionTrajectoryComponent::CalcWorldSpacePresentTrajectorySample(float DeltaTime) const
 {
 	const APawn* Pawn = TryGetOwnerPawn();
-	checkf(false, TEXT("UMotionTrajectoryComponent::GetPresentTrajectory for Pawn: %s requires implementation."), Pawn ? *(Pawn->GetHumanReadableName()) : TEXT("NULL"));
+	UE_LOG(LogMotionTrajectory, Error, TEXT("UMotionTrajectoryComponent::GetPresentTrajectory for Pawn: %s requires implementation."), Pawn ? *(Pawn->GetHumanReadableName()) : TEXT("NULL"));
 	return FTrajectorySample();
 }
 

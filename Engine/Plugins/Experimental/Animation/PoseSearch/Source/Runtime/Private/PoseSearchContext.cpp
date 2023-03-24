@@ -108,38 +108,47 @@ const FTransform& FDebugDrawParams::GetRootTransform() const
 
 void FDebugDrawParams::DrawLine(const FVector& LineStart, const FVector& LineEnd, const FColor& Color, float Thickness) const
 {
-	if (AnimInstanceProxy)
+	if (Color.A > 0)
 	{
-		AnimInstanceProxy->AnimDrawDebugLine(LineStart, LineEnd, Color, false, 0.f, Thickness, SDPG_Foreground);
-	}
-	else if (World)
-	{
-		DrawDebugLine(World, LineStart, LineEnd, Color, false, 0.f, SDPG_Foreground, Thickness);
+		if (AnimInstanceProxy)
+		{
+			AnimInstanceProxy->AnimDrawDebugLine(LineStart, LineEnd, Color, false, 0.f, Thickness, SDPG_Foreground);
+		}
+		else if (World)
+		{
+			DrawDebugLine(World, LineStart, LineEnd, Color, false, 0.f, SDPG_Foreground, Thickness);
+		}
 	}
 }
 
 void FDebugDrawParams::DrawPoint(const FVector& Position, const FColor& Color, float Thickness) const
 {
-	if (AnimInstanceProxy)
+	if (Color.A > 0)
 	{
-		AnimInstanceProxy->AnimDrawDebugPoint(Position, Thickness, Color, false, 0.f, SDPG_Foreground);
-	}
-	else if (World)
-	{
-		DrawDebugPoint(World, Position, Thickness, Color, false, 0.f, SDPG_Foreground);
+		if (AnimInstanceProxy)
+		{
+			AnimInstanceProxy->AnimDrawDebugPoint(Position, Thickness, Color, false, 0.f, SDPG_Foreground);
+		}
+		else if (World)
+		{
+			DrawDebugPoint(World, Position, Thickness, Color, false, 0.f, SDPG_Foreground);
+		}
 	}
 }
 
 void FDebugDrawParams::DrawCircle(const FMatrix& TransformMatrix, float Radius, int32 Segments, const FColor& Color, float Thickness) const
 {
-	if (AnimInstanceProxy)
+	if (Color.A > 0)
 	{
-		AnimInstanceProxy->AnimDrawDebugCircle(TransformMatrix.GetOrigin(), Radius, Segments, Color, TransformMatrix.GetScaledAxis(EAxis::X), false, 0.f, SDPG_Foreground, Thickness);
-	}
-	else if (World)
-	{
-		// @todo: use the DrawDebugCircle API with the up vector to communize with the AnimInstanceProxy call
-		DrawDebugCircle(World, TransformMatrix, Radius, Segments, Color, false, 0.f, SDPG_Foreground, Thickness);
+		if (AnimInstanceProxy)
+		{
+			AnimInstanceProxy->AnimDrawDebugCircle(TransformMatrix.GetOrigin(), Radius, Segments, Color, TransformMatrix.GetScaledAxis(EAxis::X), false, 0.f, SDPG_Foreground, Thickness);
+		}
+		else if (World)
+		{
+			// @todo: use the DrawDebugCircle API with the up vector to communize with the AnimInstanceProxy call
+			DrawDebugCircle(World, TransformMatrix, Radius, Segments, Color, false, 0.f, SDPG_Foreground, Thickness);
+		}
 	}
 }
 
@@ -459,6 +468,15 @@ TConstArrayView<float> FSearchContext::GetCurrentResultNextPoseVector() const
 	check(CurrentResult.IsValid());
 	const FPoseSearchIndex& SearchIndex = CurrentResult.Database->GetSearchIndex();
 	return SearchIndex.GetPoseValues(CurrentResult.NextPoseIdx);
+}
+
+FTransform MirrorTransform(const FTransform& InTransform, EAxis::Type MirrorAxis, const FQuat& ReferenceRotation)
+{
+	const FVector T = FAnimationRuntime::MirrorVector(InTransform.GetTranslation(), MirrorAxis);
+	const FQuat Q = FAnimationRuntime::MirrorQuat(InTransform.GetRotation(), MirrorAxis);
+	const FQuat QR = Q * FAnimationRuntime::MirrorQuat(ReferenceRotation, MirrorAxis).Inverse() * ReferenceRotation;
+	const FTransform Result = FTransform(QR, T, InTransform.GetScale3D());
+	return Result;
 }
 
 } // namespace UE::PoseSearch

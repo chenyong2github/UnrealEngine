@@ -73,7 +73,7 @@ public:
 	// This is useful to help the system stay in one animation segment longer, or shorter depending on how you set this bias.
 	// Negative values make it more likely to be picked, or stayed in, positive values make it less likely to be picked or stay in.
 	UPROPERTY(EditAnywhere, Category = "Bias")
-	float ContinuingPoseCostBias = 0.f;
+	float ContinuingPoseCostBias = -0.01f;
 
 	// Base Cost added or removed to all poses from databases that use this config. It can be overridden by Anim Notify: Pose Search Modify Cost at the frame level of animation data.
 	// Negative values make it more likely to be picked, or stayed in, Positive values make it less likely to be picked or stay in.

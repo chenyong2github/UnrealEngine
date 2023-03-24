@@ -479,15 +479,22 @@ void FBlendSpaceSampler::ProcessRootTransform()
 
 		const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
 
-		if (ensureMsgf(RootMotionProvider, TEXT("Could not get Root Motion Provider.")))
+		if (RootMotionProvider)
 		{
-			if (ensureMsgf(RootMotionProvider->HasRootMotion(StackAttributeContainer), TEXT("Blend Space had no Root Motion Attribute.")))
+			if (RootMotionProvider->HasRootMotion(StackAttributeContainer))
 			{
 				FTransform RootMotionDelta;
 				RootMotionProvider->ExtractRootMotion(StackAttributeContainer, RootMotionDelta);
-
 				RootMotionAccumulation = RootMotionDelta * RootMotionAccumulation;
 			}
+			else
+			{
+				UE_LOG(LogPoseSearch, Error, TEXT("FBlendSpaceSampler::ProcessRootTransform: Blend Space '%s' has no Root Motion Attribute"), *Input.BlendSpace->GetName());
+			}
+		}
+		else
+		{
+			UE_LOG(LogPoseSearch, Error, TEXT("FBlendSpaceSampler::ProcessRootTransform: Could not get Root Motion Provider for BlendSpace '%s'"), *Input.BlendSpace->GetName());
 		}
 
 		AccumulatedRootTransform[SampleIdx] = RootMotionAccumulation;

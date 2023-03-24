@@ -7,6 +7,7 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/MirrorDataTable.h"
 #include "Engine/SkinnedAsset.h"
+#include "PoseSearch/PoseSearchContext.h"
 
 void UPoseSearchMeshComponent::Initialize(const FTransform& InComponentToWorld)
 {
@@ -153,14 +154,7 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 
 	if (UpdateContext.bMirrored)
 	{
-		const EAxis::Type MirrorAxis = UpdateContext.MirrorDataTable->MirrorAxis;
-		FVector T = LastRootMotionDelta.GetTranslation();
-		T = FAnimationRuntime::MirrorVector(T, MirrorAxis);
-		const FQuat ReferenceRotation = (*UpdateContext.ComponentSpaceRefRotations)[FCompactPoseBoneIndex(0)];
-		FQuat Q = LastRootMotionDelta.GetRotation();
-		Q = FAnimationRuntime::MirrorQuat(Q, MirrorAxis);
-		Q *= FAnimationRuntime::MirrorQuat(ReferenceRotation, MirrorAxis).Inverse() * ReferenceRotation;
-		LastRootMotionDelta = FTransform(Q, T, LastRootMotionDelta.GetScale3D());
+		LastRootMotionDelta = UE::PoseSearch::MirrorTransform(LastRootMotionDelta, UpdateContext.MirrorDataTable->MirrorAxis, (*UpdateContext.ComponentSpaceRefRotations)[FCompactPoseBoneIndex(RootBoneIndexType)]);
 	}
 
 	const FTransform ComponentTransform = LastRootMotionDelta * StartingTransform;

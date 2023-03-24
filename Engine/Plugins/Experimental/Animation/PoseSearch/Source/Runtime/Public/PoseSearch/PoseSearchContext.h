@@ -230,4 +230,6 @@ public:
 #endif
 };
 
+POSESEARCH_API FTransform MirrorTransform(const FTransform& InTransform, EAxis::Type MirrorAxis, const FQuat& ReferenceRotation);
+
 } // namespace UE::PoseSearch
