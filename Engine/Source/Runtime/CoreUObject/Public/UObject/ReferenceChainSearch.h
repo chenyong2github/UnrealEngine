@@ -206,6 +206,13 @@ public:
 			Nodes.Reserve(ReserveDepth);
 		}
 
+		FReferenceChain(FGraphNode* InTargetNode, TArray<FGraphNode*> InNodes, TArray<const FNodeReferenceInfo*> InReferenceInfos)
+			: TargetNode(InTargetNode)
+			, Nodes(MoveTemp(InNodes))
+			, ReferenceInfos(MoveTemp(InReferenceInfos))
+		{
+		}
+
 		int64 GetAllocatedSize() const
 		{
 			return Nodes.GetAllocatedSize() + ReferenceInfos.GetAllocatedSize();
@@ -329,7 +336,6 @@ public:
 private:
 
 	/** The objects we're going to look for references to */
-	TArray<UObject*> ObjectsToFindReferencesTo;
 	TArray<FGCObjectInfo*> ObjectInfosToFindReferencesTo;
 
 	/** Search mode and options */
@@ -343,21 +349,8 @@ private:
 	/** Maps UObject pointers to object info structs */
 	TMap<const UObject*, FGCObjectInfo*> ObjectToInfoMap;
 
-	/** Performs the search */
-	void PerformSearch();
-
-	/** Constructs a complete graph of all references between objects */
-	void FindDirectReferencesForObjects();
-
-	/** Constructs a subset of the graph of references between objects to try and find the targets using minimal memory */
-	void FindMinimalDirectReferencesForObjects();
-
 	/** Frees memory */
 	void Cleanup();
-
-	/** Tries to find a node for an object and if it doesn't exists creates a new one and returns it */
-	FGraphNode* FindOrAddNode(const UObject* InObjectToFindNodeFor);
-	FGraphNode* FindOrAddNode(FGCObjectInfo* InObjectInfo);
 
 	/** Link two nodes together with the given reference info */
 	void LinkNodes(
@@ -373,23 +366,11 @@ private:
 		FName PropertyName,
 		TConstArrayView<uint64> StackFrames = {});
 
-	/** Builds reference chains */
-	static int32 BuildReferenceChainsRecursive(FGraphNode* TargetNodes, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode);
-	/** Builds reference chains */
-	static void BuildReferenceChains(TConstArrayView<FGraphNode*> TargetNodes, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode);
-	/** Builds reference chains for direct references only */
-	static void BuildReferenceChainsForDirectReferences(TConstArrayView<FGraphNode*> TargetNodes, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode);
-	/** Leaves only chains with unique root objects */
-	static void RemoveChainsWithDuplicatedRoots(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjReferencerNode);
-	/** Leaves only unique chains */
-	static void RemoveDuplicatedChains(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjReferencerNode);
-	/** Deduplicates chains that have the same root and first garbage object encountered */
-	static void RemoveDuplicateGarbageChains(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjReferencerNode);
-
 	/** Returns a string with all flags (we care about) set on an object */
 	static FString GetObjectFlags(FGCObjectInfo* InObject);
 	static FString GetObjectFlags(EInternalObjectFlags InternalFlags, EObjectFlags Flags);
 
 	/** Dumps a reference chain to log */
-	static void DumpChain(FReferenceChainSearch::FReferenceChain* Chain, TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, FOutputDevice& Out);
+	static void DumpChain(FReferenceChainSearch::FReferenceChain* Chain, TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback,
+		TMap<uint64, FString>& CallstackCache, FOutputDevice& Out);
 };

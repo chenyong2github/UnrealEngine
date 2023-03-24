@@ -4355,6 +4355,10 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					{
 						SearchModeFlags |= EReferenceChainSearchMode::FullChain;
 					}
+					else if (FCString::Stricmp(*Tok, TEXT("minimal")) == 0)
+					{
+						SearchModeFlags |= EReferenceChainSearchMode::Minimal;
+					}
 #if ENABLE_GC_HISTORY
 					else if (FParse::Value(Str, TEXT("history="), HistoryLevel))
 					{
