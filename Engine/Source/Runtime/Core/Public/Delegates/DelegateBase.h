@@ -8,6 +8,7 @@
 #include "UObject/NameTypes.h"
 #include "Delegates/DelegateSettings.h"
 #include "Delegates/IDelegateInstance.h"
+#include "Delegates/DelegateMacros.h"
 
 struct FWeakObjectPtr;
 
