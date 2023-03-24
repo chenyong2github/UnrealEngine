@@ -130,7 +130,7 @@ export const StepHistoryPanel: React.FC<{ jobDetails: JobDetailsV2; stepId: stri
       if (column.name === "Change") {
 
          const sindex = dataView.history.indexOf(ref); 
-         return <ChangeButton job={jobDetails.jobData!} stepRef={ref} hideAborted={true} rangeCL={ sindex < (dataView.history.length - 1) ? dataView.history[sindex + 1].change : undefined}/>;
+         return <ChangeButton job={jobDetails.jobData!} stepRef={ref} hideAborted={true} rangeCL={ sindex < (dataView.history.length - 1) ? (dataView.history[sindex + 1].change + 1) : undefined}/>;
 
       }
 

@@ -185,7 +185,7 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
    let [update, setUpdate] = useState(0);
 
    // depending how this is optimized in production, might need to change around so rolling over cl doesn't re-render
-   const [commitState, setCommitState] = useState<{ target?: ChangeContextMenuTarget, job?: JobData, commit?: GetChangeSummaryResponse }>({});
+   const [commitState, setCommitState] = useState<{ target?: ChangeContextMenuTarget, job?: JobData, commit?: GetChangeSummaryResponse, rangeCL?: number }>({});
 
    useEffect(() => {
 
@@ -514,7 +514,27 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
          }
 
 
-         return <Stack style={{ margin: 0, cursor: "pointer" }} onClick={(ev) => { ev.stopPropagation(); ev.preventDefault(); setCommitState({ job: item.job, commit: commit, target: { point: { x: ev.clientX, y: ev.clientY } } }) }} >
+         return <Stack style={{ margin: 0, cursor: "pointer" }} onClick={(ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+
+            let rangeCL: number | undefined;
+            if (item.job) {
+
+               const cjob = jobs.find((j => j.id === item.job!.id));
+               if (cjob) {
+                  const index = jobs.indexOf(cjob);
+                  if (index < jobs.length - 1) {
+                     rangeCL = jobs[index + 1].change;
+                     if (rangeCL) {
+                        rangeCL += 1;                        
+                     }
+                  }
+               }
+            }
+
+            setCommitState({ job: item.job, rangeCL: rangeCL, commit: commit, target: { point: { x: ev.clientX, y: ev.clientY } } })
+         }} >
             <Stack verticalAlign="center" verticalFill={true} horizontal horizontalAlign={"start"} tokens={{ childrenGap: 18 }}>
                <Stack verticalAlign="center" verticalFill={true} horizontalAlign="start"> <div style={{ paddingBottom: "1px" }}>
                   <span style={{ padding: "2px 6px 2px 6px", height: "18px", cursor: "pointer" }} className={item.job.startedByUserInfo ? "cl-callout-button-user" : "cl-callout-button"} >{change}</span>
@@ -598,7 +618,7 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
    return (
       <Stack tokens={{ childrenGap: 0 }} className={detailClasses.detailsRow}>
          <FocusZone direction={FocusZoneDirection.vertical} >
-            {commitState.target && commitState.job && <ChangeContextMenu target={commitState.target} job={commitState.job} commit={commitState.commit} onDismiss={() => setCommitState({})} />}
+            {commitState.target && commitState.job && <ChangeContextMenu target={commitState.target} job={commitState.job} commit={commitState.commit} rangeCL={commitState.rangeCL} onDismiss={() => setCommitState({})} />}
             <div className={detailClasses.container} style={{ width: "100%", height: 'calc(100vh - 240px)', position: 'relative', marginTop: 0 }} data-is-scrollable={true}>
 
                {<ScrollablePane scrollbarVisibility={ScrollbarVisibility.always} onScroll={() => { controller.setState(undefined, true) }} style={{ overflow: "visible" }}>

@@ -660,7 +660,7 @@ const GraphTooltip: React.FC<{ dataView: StepHistoryDataView }> = observer(({ da
          </Link>
          <Stack style={{ paddingLeft: 2, paddingTop: 8 }} tokens={{ childrenGap: 8 }}>
             <Stack>
-               <ChangeButton prefix="CL" job={dataView.details!.jobData!} stepRef={ref} hideAborted={true} rangeCL={sindex < (dataView.history.length - 1) ? dataView.history[sindex + 1].change : undefined} />
+               <ChangeButton prefix="CL" job={dataView.details!.jobData!} stepRef={ref} hideAborted={true} rangeCL={sindex < (dataView.history.length - 1) ? (dataView.history[sindex + 1].change + 1) : undefined} />
             </Stack>
             <Stack><Text variant={textSize}>{displayTimeStr}</Text></Stack>
             <Stack><Text variant={textSize}>Duration: {duration}</Text></Stack>

@@ -64,7 +64,7 @@ export const JobOperationsContextMenu: React.FC<{ job: GetJobResponse, children?
          }
       },
       {
-         key: 'open_in_swarm_range', text: 'Open CL Range in Swarm', onClick: () => {
+         key: 'open_in_swarm_history', text: 'Open CL History in Swarm', onClick: () => {
 
             const stream = projectStore.streamById(job.streamId)!;
             const project = projectStore.byId(stream!.projectId)!;

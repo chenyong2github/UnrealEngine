@@ -115,10 +115,9 @@ export const ChangeContextMenu: React.FC<{ target: ChangeContextMenuTarget, onDi
    const stream = projectStore.streamById(job.streamId)!;
    const project = projectStore.byId(stream!.projectId)!;
    const name = project.name === "Engine" ? "UE4" : project.name;
-
-   let url = "";
-   url = `${dashboard.swarmUrl}/files/${name}/${stream.name}?range=@${jobChange}#commits`;
-
+   
+   const historyUrl = `${dashboard.swarmUrl}/files/${name}/${stream.name}?range=@${jobChange}#commits`;
+   menuItems.push({ key: 'open_in_swarm_history', text: "Open CL History in Swarm", onClick: (ev) => { window.open(historyUrl) } })
 
    let highCL = jobChange;
    let lowCL = jobChange;
@@ -126,20 +125,11 @@ export const ChangeContextMenu: React.FC<{ target: ChangeContextMenuTarget, onDi
    if (rangeCL !== undefined) {
       lowCL = Math.min(jobChange, rangeCL);
       highCL = Math.max(jobChange, rangeCL);
-      url = `${dashboard.swarmUrl}/files/${name}/${stream.name}?range=@${lowCL},@${highCL}#commits`;
-   }
-
-   let rangeText = 'Open CL Range in Swarm';
-
-   if (rangeCL) {
-      rangeText = `Open CL Range ${lowCL} - ${highCL}`;
-   }
-
-
-   if (url) {
+      const url = `${dashboard.swarmUrl}/files/${name}/${stream.name}?range=@${lowCL},@${highCL}#commits`;
+      const rangeText = `Open CL Range ${lowCL} - ${highCL}`;
       menuItems.push({ key: 'open_in_swarm_range', text: rangeText, onClick: (ev) => { window.open(url) } })
    }
-
+   
    return (<ContextualMenu
       styles={{ list: { selectors: { '.ms-ContextualMenu-itemText': { fontSize: "10px", paddingLeft: 8 } } } }}
       items={menuItems}
