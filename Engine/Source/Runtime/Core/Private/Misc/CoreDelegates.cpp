@@ -32,7 +32,16 @@ TDelegate<IPakFile*(const FString&, int32)> FCoreDelegates::MountPak;
 TDelegate<bool(const FString&)> FCoreDelegates::OnUnmountPak;
 TDelegate<void()> FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TMulticastDelegate<void(const IPakFile&)> FCoreDelegates::OnPakFileMounted2;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+TTSMulticastDelegate<void(const IPakFile&)>& FCoreDelegates::GetOnPakFileMounted2()
+{
+	static TTSMulticastDelegate<void(const IPakFile&)> Singleton;
+	return Singleton;
+}
+
 TMulticastDelegate<void(const FString&)> FCoreDelegates::NewFileAddedDelegate;
 TMulticastDelegate<void()> FCoreDelegates::NoPakFilesMountedDelegate;
 TMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnFileOpenedForReadFromPakFile;

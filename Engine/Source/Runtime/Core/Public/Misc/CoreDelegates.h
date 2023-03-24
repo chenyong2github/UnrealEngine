@@ -114,7 +114,9 @@ public:
 	static TDelegate<void()> OnOptimizeMemoryUsageForMountedPaks;
 
 	// After a pakfile is mounted this is called
+	UE_DEPRECATED(5.3, "This delegate is not thread-safe, please use GetOnPakFileMounted2().")
 	static TMulticastDelegate<void(const IPakFile&)> OnPakFileMounted2;
+	static TTSMulticastDelegate<void(const IPakFile&)>& GetOnPakFileMounted2();
 
 	// After a file is added this is called
 	static TMulticastDelegate<void(const FString&)> NewFileAddedDelegate;

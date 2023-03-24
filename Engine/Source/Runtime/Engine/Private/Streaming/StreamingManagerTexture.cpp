@@ -174,7 +174,7 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FRenderAssetStreamingManager::OnPreGarbageCollect);
 
-	FCoreDelegates::OnPakFileMounted2.AddLambda([this](const IPakFile& PakFile)
+	FCoreDelegates::GetOnPakFileMounted2().AddLambda([this](const IPakFile& PakFile)
 	{
 		FScopeLock ScopeLock(&MountedStateDirtyFilesCS);
 		bRecacheAllFiles = true;

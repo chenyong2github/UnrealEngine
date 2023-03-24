@@ -7870,7 +7870,12 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			double OnPakFileMounted2Time = 0.0;
 			{
 				FScopedDurationTimer Timer(OnPakFileMounted2Time);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FCoreDelegates::OnPakFileMounted2.Broadcast(*Pak);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+				FCoreDelegates::GetOnPakFileMounted2().Broadcast(*Pak);
 			}
 
 			UE_LOG(LogPakFile, Display, TEXT("Mounted Pak file '%s', mount point: '%s'"), InPakFilename, *Pak->GetMountPoint());

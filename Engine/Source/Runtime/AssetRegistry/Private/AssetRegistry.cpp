@@ -332,7 +332,7 @@ private:
 			LoadState = EState::NotFound;
 
 			// The PAK with the main registry isn't mounted yet
-			PakMountedDelegate = FCoreDelegates::OnPakFileMounted2.AddLambda([this](const IPakFile& Pak)
+			PakMountedDelegate = FCoreDelegates::GetOnPakFileMounted2().AddLambda([this](const IPakFile& Pak)
 				{
 					FScopeLock Lock(&StateLock);
 					if (LoadState == EState::NotFound && TrySetPath(Pak))
@@ -343,7 +343,7 @@ private:
 						// DelegateHandle also deallocates our lambda captures
 						FDelegateHandle LocalPakMountedDelegate = PakMountedDelegate;
 						PakMountedDelegate.Reset();
-						FCoreDelegates::OnPakFileMounted2.Remove(LocalPakMountedDelegate);
+						FCoreDelegates::GetOnPakFileMounted2().Remove(LocalPakMountedDelegate);
 					}
 				});
 		}
@@ -418,7 +418,7 @@ private:
 		}
 
 		// Cancel any further searching in Paks since we will no longer accept preloads starting after this point
-		FCoreDelegates::OnPakFileMounted2.Remove(PakMountedDelegate);
+		FCoreDelegates::GetOnPakFileMounted2().Remove(PakMountedDelegate);
 		PakMountedDelegate.Reset();
 
 		if (ConsumeAsynchronous && LoadState == EState::Loading)
@@ -478,7 +478,6 @@ private:
 	 */
 	FAssetRegistryState Payload;
 
-	/** Delegate handle for the callback added to OnPakFileMounted2.After threading starts, Read / Write only within the lock. */
 	FDelegateHandle PakMountedDelegate;
 
 	/** Callback from ConsumeOrDefer that is set so TryLoadAsync can trigger the Consume when it completes.Read / Write only within the lock. */

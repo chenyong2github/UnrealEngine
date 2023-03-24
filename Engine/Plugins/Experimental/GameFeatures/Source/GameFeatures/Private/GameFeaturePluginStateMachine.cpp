@@ -1776,7 +1776,7 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 			IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FGameFeaturePluginState_Mounting::OnInstallBundleCompleted);
 			if (UE::GameFeatures::ShouldLogMountedFiles)
 			{
-				FCoreDelegates::OnPakFileMounted2.AddRaw(this, &FGameFeaturePluginState_Mounting::OnPakFileMounted);
+				FCoreDelegates::GetOnPakFileMounted2().AddRaw(this, &FGameFeaturePluginState_Mounting::OnPakFileMounted);
 			}
 		}
 	}
@@ -1857,7 +1857,7 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 	virtual void EndState() override
 	{
 		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
-		FCoreDelegates::OnPakFileMounted2.RemoveAll(this);
+		FCoreDelegates::GetOnPakFileMounted2().RemoveAll(this);
 	}
 };
 

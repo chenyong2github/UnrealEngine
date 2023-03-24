@@ -3283,7 +3283,7 @@ static void FShaderLibraryPakFileMountedCallback(const IPakFile& PakFile)
 void FShaderCodeLibrary::PreInit()
 {
 	// add a callback for opening later chunks
-	UE::ShaderLibrary::Private::OnPakFileMountedDelegateHandle = FCoreDelegates::OnPakFileMounted2.AddStatic(&FShaderLibraryPakFileMountedCallback);
+	UE::ShaderLibrary::Private::OnPakFileMountedDelegateHandle = FCoreDelegates::GetOnPakFileMounted2().AddStatic(&FShaderLibraryPakFileMountedCallback);
 }
 
 void FShaderCodeLibrary::InitForRuntime(EShaderPlatform ShaderPlatform)
@@ -3354,7 +3354,7 @@ void FShaderCodeLibrary::Shutdown()
 {
 	if (UE::ShaderLibrary::Private::OnPakFileMountedDelegateHandle.IsValid())
 	{
-		FCoreDelegates::OnPakFileMounted2.Remove(UE::ShaderLibrary::Private::OnPakFileMountedDelegateHandle);
+		FCoreDelegates::GetOnPakFileMounted2().Remove(UE::ShaderLibrary::Private::OnPakFileMountedDelegateHandle);
 		UE::ShaderLibrary::Private::OnPakFileMountedDelegateHandle.Reset();
 	}
 	if (UE::ShaderLibrary::Private::OnPluginMountedDelegateHandle.IsValid())
