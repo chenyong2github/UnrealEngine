@@ -1,4 +1,5 @@
-bin/*
+# Allow submitting binaries
+# bin/*
 obj/*
 .vs/*
 *.suo
@@ -79,7 +80,7 @@ StyleCopReport.xml
 *.obj
 *.iobj
 *.pch
-*.pdb
+# *.pdb
 *.ipdb
 *.pgc
 *.pgd
