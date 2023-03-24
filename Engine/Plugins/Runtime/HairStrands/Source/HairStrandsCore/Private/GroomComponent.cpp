@@ -135,7 +135,7 @@ static FHairGroupDesc GetGroomGroupsDesc(const UGroomAsset* Asset, UGroomCompone
 	}
 
 	FHairGroupDesc O = Component->GroomGroupsDesc[GroupIndex];
-	O.HairLength = Asset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.MaxLength;
+	O.HairLength = Asset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.Header.MaxLength;
 	O.LODBias 	 = Asset->EffectiveLODBias[GroupIndex] > 0 ? FMath::Max(O.LODBias, Asset->EffectiveLODBias[GroupIndex]) : O.LODBias;
 
 	// Width can be overridden at 3 levels:
@@ -147,7 +147,7 @@ static FHairGroupDesc GetGroomGroupsDesc(const UGroomAsset* Asset, UGroomCompone
 		O.HairWidth = 
 			Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairWidth_Override ? 
 			Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairWidth : 
-			Asset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.MaxRadius * 2.0f;
+			Asset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.Header.MaxRadius * 2.0f;
 	}
 
 	if (!O.HairRootScale_Override)				{ O.HairRootScale				= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairRootScale;				}
@@ -2718,7 +2718,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			{
 				// This codes assumes strands LOD are contigus and the highest (i.e., 0...x). Change this code to something more robust
 				check(HairGroupInstance->HairGroupPublicData);
-				const int32 StrandsLODCount = GroupData.Strands.ClusterCullingResource->BulkData.CPULODScreenSize.Num();
+				const int32 StrandsLODCount = GroupData.Strands.ClusterCullingResource->BulkData.Header.CPULODScreenSize.Num();
 				const TArray<float>& LODScreenSizes = HairGroupInstance->HairGroupPublicData->GetLODScreenSizes();
 				const TArray<bool>& LODVisibilities = HairGroupInstance->HairGroupPublicData->GetLODVisibilities();
 				check(StrandsLODCount <= LODScreenSizes.Num());
@@ -2729,11 +2729,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					// Other type of geometry are not serizalized, and so won't match
 					if (GroomAsset->HairGroupsLOD[GroupIt].LODs[LODIt].GeometryType == EGroomGeometryType::Strands)
 					{
-						check(GroupData.Strands.ClusterCullingResource->BulkData.CPULODScreenSize[LODIt] == LODScreenSizes[LODIt]);
-						check(GroupData.Strands.ClusterCullingResource->BulkData.LODVisibility[LODIt] == LODVisibilities[LODIt]);
+						check(GroupData.Strands.ClusterCullingResource->BulkData.Header.CPULODScreenSize[LODIt] == LODScreenSizes[LODIt]);
+						check(GroupData.Strands.ClusterCullingResource->BulkData.Header.LODVisibility[LODIt] == LODVisibilities[LODIt]);
 					}
 				}
-				HairGroupInstance->HairGroupPublicData->ClusterCount = HairGroupInstance->Strands.ClusterCullingResource->BulkData.ClusterCount;
+				HairGroupInstance->HairGroupPublicData->ClusterCount = HairGroupInstance->Strands.ClusterCullingResource->BulkData.Header.ClusterCount;
 				BeginInitResource(HairGroupInstance->HairGroupPublicData);
 			}
 

@@ -443,7 +443,7 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 				ParamsScale[32 * ThicknessOffset + i] = HairPhysics.StrandsParameters.ThicknessScale.GetRichCurve()->Eval(VertexCoord);
 			}
 
-			const FBox& StrandsBox = StrandsDatas->BoundingBox;
+			const FBox& StrandsBox = StrandsDatas->Header.BoundingBox;
 
 			NumStrands = StrandsDatas->GetNumCurves();
 			LocalSimulation = false;

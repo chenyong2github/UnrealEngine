@@ -170,62 +170,92 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 
 void FHairStrandsInterpolationBulkData::Reset()
 {
-	Flags = 0;
-	PointCount = 0;
-	SimPointCount = 0;
+	Header.Flags = 0;
+	Header.PointCount = 0;
+	Header.SimPointCount = 0;
 	
 	// Deallocate memory if needed
-	Interpolation.RemoveBulkData();
-	Interpolation0.RemoveBulkData();
-	Interpolation1.RemoveBulkData();
-	SimRootPointIndex.RemoveBulkData();
+	Data.Interpolation.RemoveBulkData();
+	Data.Interpolation0.RemoveBulkData();
+	Data.Interpolation1.RemoveBulkData();
+	Data.SimRootPointIndex.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	Interpolation		= FByteBulkData();
-	Interpolation0		= FByteBulkData();
-	Interpolation1		= FByteBulkData();
-	SimRootPointIndex	= FByteBulkData();
+	Data.Interpolation		= FByteBulkData();
+	Data.Interpolation0		= FByteBulkData();
+	Data.Interpolation1		= FByteBulkData();
+	Data.SimRootPointIndex	= FByteBulkData();
 }
 
 void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar, UObject* Owner)
+{
+	SerializeHeader(Ar, Owner);
+	SerializeData(Ar, Owner);
+}
+
+void FHairStrandsInterpolationBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
+{
+	Ar << Header.Flags;
+	Ar << Header.PointCount;
+	Ar << Header.SimPointCount;
+}
+
+void FHairStrandsInterpolationBulkData::SerializeData(FArchive& Ar, UObject* Owner)
 {
 	static_assert(sizeof(FHairInterpolationVertex::BulkType) == sizeof(FHairInterpolationVertex));
 	static_assert(sizeof(FHairInterpolation0Vertex::BulkType) == sizeof(FHairInterpolation0Vertex));
 	static_assert(sizeof(FHairInterpolation1Vertex::BulkType) == sizeof(FHairInterpolation1Vertex));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
 
-	if (Ar.IsSaving())
-	{
-		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
-		Interpolation.SetBulkDataFlags(BulkFlags);
-		Interpolation0.SetBulkDataFlags(BulkFlags);
-		Interpolation1.SetBulkDataFlags(BulkFlags);
-		SimRootPointIndex.SetBulkDataFlags(BulkFlags);
-	}
-
-	Ar << Flags;
-	Ar << PointCount;
-	Ar << SimPointCount;
-
-	if (!!(Flags & DataFlags_HasData))
+	if (!!(Header.Flags & DataFlags_HasData))
 	{
 		const int32 ChunkIndex = 0;
 		bool bAttemptFileMapping = false;
 
-		if (!!(Flags & DataFlags_HasSingleGuideData))
+		if (!!(Header.Flags & DataFlags_HasSingleGuideData))
 		{
-			Interpolation.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+			Data.Interpolation.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		}
 		else
 		{
-			Interpolation0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-			Interpolation1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+			Data.Interpolation0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+			Data.Interpolation1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		}
-		SimRootPointIndex.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.SimRootPointIndex.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 }
 
 void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
+{
+	SerializeHeader(Ar, Owner);
+	SerializeData(Ar, Owner);
+}
+
+void FHairStrandsBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
+{
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+
+	Ar << Header.CurveCount;
+	Ar << Header.PointCount;
+	Ar << Header.MaxLength;
+	Ar << Header.MaxRadius;
+	Ar << Header.BoundingBox;
+	Ar << Header.Flags;
+	for (uint8 AttributeIt = 0; AttributeIt < HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
+	{
+		Ar << Header.CurveAttributeOffsets[AttributeIt];
+	}
+	for (uint8 AttributeIt = 0; AttributeIt < HAIR_POINT_ATTRIBUTE_COUNT; ++AttributeIt)
+	{
+		Ar << Header.PointAttributeOffsets[AttributeIt];
+	}
+	Ar << Header.ImportedAttributes;
+	Ar << Header.ImportedAttributeFlags;
+}
+
+
+void FHairStrandsBulkData::SerializeData(FArchive& Ar, UObject* Owner)
 {
 	static_assert(sizeof(FHairStrandsPositionFormat::BulkType) == sizeof(FHairStrandsPositionFormat::Type));
 	static_assert(sizeof(FHairStrandsAttributeFormat::BulkType) == sizeof(FHairStrandsAttributeFormat::Type));
@@ -235,78 +265,62 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
-
-	Ar << CurveCount;
-	Ar << PointCount;
-	Ar << MaxLength;
-	Ar << MaxRadius;
-	Ar << BoundingBox;
-	Ar << Flags;
-	for (uint8 AttributeIt = 0; AttributeIt < HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
-	{
-		Ar << CurveAttributeOffsets[AttributeIt];
-	}
-	for (uint8 AttributeIt = 0; AttributeIt < HAIR_POINT_ATTRIBUTE_COUNT; ++AttributeIt)
-	{
-		Ar << PointAttributeOffsets[AttributeIt];
-	}
-	Ar << ImportedAttributes;
-	Ar << ImportedAttributeFlags;
-
+	  
 	// Forced not inline means the bulk data won't automatically be loaded when we deserialize
 	// but only when we explicitly take action to load it
 	if (Ar.IsSaving())
 	{
 		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
-		Positions.SetBulkDataFlags(BulkFlags);
-		CurveAttributes.SetBulkDataFlags(BulkFlags);
-		PointAttributes.SetBulkDataFlags(BulkFlags);
-		PointToCurve.SetBulkDataFlags(BulkFlags);
-		Curves.SetBulkDataFlags(BulkFlags);
+		Data.Positions.SetBulkDataFlags(BulkFlags);
+		Data.CurveAttributes.SetBulkDataFlags(BulkFlags);
+		Data.PointAttributes.SetBulkDataFlags(BulkFlags);
+		Data.PointToCurve.SetBulkDataFlags(BulkFlags);
+		Data.Curves.SetBulkDataFlags(BulkFlags);
 	}
 
-	if (!!(Flags & DataFlags_HasData))
+	if (!!(Header.Flags & DataFlags_HasData))
 	{
 		const int32 ChunkIndex = 0;
 		bool bAttemptFileMapping = false;
 
-		Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		PointAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		CurveAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		PointToCurve.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		Curves.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.PointAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.CurveAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.PointToCurve.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.Curves.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 }
 
+
 void FHairStrandsBulkData::Reset()
 {
-	CurveCount = 0;
-	PointCount = 0;
-	MaxLength = 0;
-	MaxRadius = 0;
-	BoundingBox = FBox(EForceInit::ForceInit);
-	Flags = 0;
+	Header.CurveCount = 0;
+	Header.PointCount = 0;
+	Header.MaxLength = 0;
+	Header.MaxRadius = 0;
+	Header.BoundingBox = FBox(EForceInit::ForceInit);
+	Header.Flags = 0;
 	for (uint8 AttributeIt = 0; AttributeIt < HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
 	{
-		CurveAttributeOffsets[AttributeIt] = 0xFFFFFFFF;
+		Header.CurveAttributeOffsets[AttributeIt] = 0xFFFFFFFF;
 	}
 	for (uint8 AttributeIt = 0; AttributeIt < HAIR_POINT_ATTRIBUTE_COUNT; ++AttributeIt)
 	{
-		PointAttributeOffsets[AttributeIt] = 0xFFFFFFFF;
+		Header.PointAttributeOffsets[AttributeIt] = 0xFFFFFFFF;
 	}
 	// Deallocate memory if needed
-	Positions.RemoveBulkData();
-	CurveAttributes.RemoveBulkData();
-	PointAttributes.RemoveBulkData();
-	PointToCurve.RemoveBulkData();
-	Curves.RemoveBulkData();
+	Data.Positions.RemoveBulkData();
+	Data.CurveAttributes.RemoveBulkData();
+	Data.PointAttributes.RemoveBulkData();
+	Data.PointToCurve.RemoveBulkData();
+	Data.Curves.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	Positions 		= FByteBulkData();
-	CurveAttributes	= FByteBulkData();
-	PointAttributes	= FByteBulkData();
-	PointToCurve	= FByteBulkData();
-	Curves			= FByteBulkData();
+	Data.Positions 		= FByteBulkData();
+	Data.CurveAttributes= FByteBulkData();
+	Data.PointAttributes= FByteBulkData();
+	Data.PointToCurve	= FByteBulkData();
+	Data.Curves			= FByteBulkData();
 }
 
 void FHairStrandsDatas::Reset()

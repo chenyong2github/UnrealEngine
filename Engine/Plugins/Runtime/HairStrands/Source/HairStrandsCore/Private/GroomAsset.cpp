@@ -125,12 +125,12 @@ uint32 FHairGroupPlatformData::FStrands::GetDataSize() const
 	Total += FBaseWithInterpolation::GetDataSize();
 	uint32 CTotal = 0;
 	uint32 BTotal = 0;
-	CTotal += ClusterCullingBulkData.LODVisibility.GetAllocatedSize();
-	CTotal += ClusterCullingBulkData.CPULODScreenSize.GetAllocatedSize();
-	CTotal += ClusterCullingBulkData.ClusterLODInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.ClusterLODInfos.GetBulkDataSize() : 0;
-	BTotal += ClusterCullingBulkData.VertexToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.VertexToClusterIds.GetBulkDataSize() : 0;
-	BTotal += ClusterCullingBulkData.ClusterVertexIds.IsBulkDataLoaded()	? ClusterCullingBulkData.ClusterVertexIds.GetBulkDataSize() : 0;
-	CTotal += ClusterCullingBulkData.PackedClusterInfos.IsBulkDataLoaded()	? ClusterCullingBulkData.PackedClusterInfos.GetBulkDataSize() : 0;
+	CTotal += ClusterCullingBulkData.Header.LODVisibility.GetAllocatedSize();
+	CTotal += ClusterCullingBulkData.Header.CPULODScreenSize.GetAllocatedSize();
+	CTotal += ClusterCullingBulkData.Data.ClusterLODInfos.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.ClusterLODInfos.GetBulkDataSize() : 0;
+	BTotal += ClusterCullingBulkData.Data.VertexToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.VertexToClusterIds.GetBulkDataSize() : 0;
+	BTotal += ClusterCullingBulkData.Data.ClusterVertexIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.ClusterVertexIds.GetBulkDataSize() : 0;
+	CTotal += ClusterCullingBulkData.Data.PackedClusterInfos.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.PackedClusterInfos.GetBulkDataSize() : 0;
 
 	return BTotal + Total + CTotal;
 }
@@ -2378,12 +2378,10 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 			return false;
 		}
 
-		const bool bNeedInterpolationData = NeedsInterpolationData(GroupIndex);
-
 		// Build groom data with the new build settings
 		bSuccess = BuildHairGroup(
 			GroupIndex,
-			bNeedInterpolationData,
+			NeedsInterpolationData(GroupIndex),
 			LocalHairDescriptionGroups,
 			HairGroupsInterpolation,
 			HairGroupsLOD,
@@ -3023,7 +3021,7 @@ bool UGroomAsset::BuildMeshesData(uint32 GroupIndex)
 			{
 				// Build a default box
 				FHairMeshesBuilder::BuildGeometry(
-					GroupData.Strands.BulkData.BoundingBox,
+					GroupData.Strands.BulkData.Header.BoundingBox,
 					LOD.BulkData);
 			}
 
@@ -3182,16 +3180,16 @@ void UGroomAsset::InitStrandsResources()
 				bool bLastVisibility = true;
 				// LOD visibility is not serialized into FHairStrandsClusterCullingBulkData as it does not affect the actual generated data. For consistency we 
 				// patch the LOD visibility with the groom asset value, which might be different from what has been serialized
-				for (uint32 LODIt = 0, LODCount = GroupData.Strands.ClusterCullingBulkData.LODVisibility.Num(); LODIt < LODCount; ++LODIt)
+				for (uint32 LODIt = 0, LODCount = GroupData.Strands.ClusterCullingBulkData.Header.LODVisibility.Num(); LODIt < LODCount; ++LODIt)
 				{
 					if (LODIt < HairGroupLODCount)
 					{
 						bLastVisibility = HairGroupsLOD[GroupIndex].LODs[LODIt].bVisible;
-						GroupData.Strands.ClusterCullingBulkData.LODVisibility[LODIt] = bLastVisibility;
+						GroupData.Strands.ClusterCullingBulkData.Header.LODVisibility[LODIt] = bLastVisibility;
 					}
 					else
 					{
-						GroupData.Strands.ClusterCullingBulkData.LODVisibility[LODIt] = bLastVisibility;
+						GroupData.Strands.ClusterCullingBulkData.Header.LODVisibility[LODIt] = bLastVisibility;
 					}
 				}
 

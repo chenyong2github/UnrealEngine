@@ -114,11 +114,11 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 		uint32 GetDataSize() const
 		{
 			uint32 Total = 0;
-			Total += BulkData.Positions.IsBulkDataLoaded() 		? BulkData.Positions.GetBulkDataSize()   : 0;
-			Total += BulkData.CurveAttributes.IsBulkDataLoaded()? BulkData.CurveAttributes.GetBulkDataSize() : 0;
-			Total += BulkData.PointAttributes.IsBulkDataLoaded()? BulkData.PointAttributes.GetBulkDataSize() : 0;
-			Total += BulkData.Curves.IsBulkDataLoaded() 		? BulkData.Curves.GetBulkDataSize(): 0;
-			Total += BulkData.PointToCurve.IsBulkDataLoaded()	? BulkData.PointToCurve.GetBulkDataSize() : 0;
+			Total += BulkData.Data.Positions.IsBulkDataLoaded() 		? BulkData.Data.Positions.GetBulkDataSize()   : 0;
+			Total += BulkData.Data.CurveAttributes.IsBulkDataLoaded()	? BulkData.Data.CurveAttributes.GetBulkDataSize() : 0;
+			Total += BulkData.Data.PointAttributes.IsBulkDataLoaded()	? BulkData.Data.PointAttributes.GetBulkDataSize() : 0;
+			Total += BulkData.Data.Curves.IsBulkDataLoaded() 			? BulkData.Data.Curves.GetBulkDataSize(): 0;
+			Total += BulkData.Data.PointToCurve.IsBulkDataLoaded()		? BulkData.Data.PointToCurve.GetBulkDataSize() : 0;
 			return Total;
 		}
 
@@ -132,10 +132,10 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 		{
 			uint32 Total = 0;
 			Total += FBase::GetDataSize();
-			Total += InterpolationBulkData.Interpolation.IsBulkDataLoaded()		? InterpolationBulkData.Interpolation.GetBulkDataSize() : 0;
-			Total += InterpolationBulkData.Interpolation0.IsBulkDataLoaded()	? InterpolationBulkData.Interpolation0.GetBulkDataSize() : 0;
-			Total += InterpolationBulkData.Interpolation1.IsBulkDataLoaded()	? InterpolationBulkData.Interpolation1.GetBulkDataSize() : 0;
-			Total += InterpolationBulkData.SimRootPointIndex.IsBulkDataLoaded()	? InterpolationBulkData.SimRootPointIndex.GetBulkDataSize() : 0;
+			Total += InterpolationBulkData.Data.Interpolation.IsBulkDataLoaded()	? InterpolationBulkData.Data.Interpolation.GetBulkDataSize() : 0;
+			Total += InterpolationBulkData.Data.Interpolation0.IsBulkDataLoaded()	? InterpolationBulkData.Data.Interpolation0.GetBulkDataSize() : 0;
+			Total += InterpolationBulkData.Data.Interpolation1.IsBulkDataLoaded()	? InterpolationBulkData.Data.Interpolation1.GetBulkDataSize() : 0;
+			Total += InterpolationBulkData.Data.SimRootPointIndex.IsBulkDataLoaded()? InterpolationBulkData.Data.SimRootPointIndex.GetBulkDataSize() : 0;
 			return Total;
 		}
 
@@ -186,12 +186,12 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 			uint32 Total = 0;
 			Total += FBaseWithInterpolation::GetDataSize();
 
-			Total += ClusterCullingBulkData.LODVisibility.GetAllocatedSize();
-			Total += ClusterCullingBulkData.CPULODScreenSize.GetAllocatedSize();
-			Total += ClusterCullingBulkData.ClusterInfos.IsBulkDataLoaded()			? ClusterCullingBulkData.ClusterInfos.GetBulkDataSize() : 0;
-			Total += ClusterCullingBulkData.ClusterLODInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.ClusterLODInfos.GetBulkDataSize() : 0;
-			Total += ClusterCullingBulkData.VertexToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.VertexToClusterIds.GetBulkDataSize() : 0;
-			Total += ClusterCullingBulkData.ClusterVertexIds.IsBulkDataLoaded()		? ClusterCullingBulkData.ClusterVertexIds.GetBulkDataSize() : 0;
+			Total += ClusterCullingBulkData.Header.LODVisibility.GetAllocatedSize();
+			Total += ClusterCullingBulkData.Header.CPULODScreenSize.GetAllocatedSize();
+			Total += ClusterCullingBulkData.Data.ClusterInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.Data.ClusterInfos.GetBulkDataSize() : 0;
+			Total += ClusterCullingBulkData.Data.ClusterLODInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.Data.ClusterLODInfos.GetBulkDataSize() : 0;
+			Total += ClusterCullingBulkData.Data.VertexToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.VertexToClusterIds.GetBulkDataSize() : 0;
+			Total += ClusterCullingBulkData.Data.ClusterVertexIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.ClusterVertexIds.GetBulkDataSize() : 0;
 			return Total;
 		}
 #endif

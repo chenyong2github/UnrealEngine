@@ -967,7 +967,7 @@ static void AddHairDebugPrintInstancePass(
 					Data2.Y = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
 					Data2.Z = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
 
-					Data2.W = Instance->Strands.Data->ImportedAttributes;
+					Data2.W = Instance->Strands.Data->Header.ImportedAttributes;
 				}
 				
 				Data3 = FUintVector4(0);

@@ -914,7 +914,7 @@ static void AddHairClusterAABBPass(
 	FRDGBufferSRVRef& DrawIndirectRasterComputeBuffer)
 {
 	// Clusters AABB are only update if the groom is deformed.
-	const FBoxSphereBounds& Bounds = Instance->Strands.Data->BoundingBox;
+	const FBoxSphereBounds& Bounds = Instance->Strands.Data->Header.BoundingBox;
 	FTransform InRenLocalToTranslatedWorld = Instance->LocalToWorld;
 	InRenLocalToTranslatedWorld.AddToTranslation(TranslatedWorldOffset);
 	const FBoxSphereBounds TransformedBounds = Bounds.TransformBy(InRenLocalToTranslatedWorld);
@@ -1733,13 +1733,13 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 
 	if (bUseGuideAttributeOffsets)
 	{
-		PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.CurveAttributeOffsets, Instance->Guides.Data->CurveAttributeOffsets);
-		PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.PointAttributeOffsets, Instance->Guides.Data->PointAttributeOffsets);
+		PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.CurveAttributeOffsets, Instance->Guides.Data->Header.CurveAttributeOffsets);
+		PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.PointAttributeOffsets, Instance->Guides.Data->Header.PointAttributeOffsets);
 	}
 	else
 	{
-		PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.CurveAttributeOffsets, Instance->Strands.Data->CurveAttributeOffsets);
-		PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.PointAttributeOffsets, Instance->Strands.Data->PointAttributeOffsets);
+		PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.CurveAttributeOffsets, Instance->Strands.Data->Header.CurveAttributeOffsets);
+		PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.PointAttributeOffsets, Instance->Strands.Data->Header.PointAttributeOffsets);
 	}
 
 #if RHI_RAYTRACING
@@ -2137,7 +2137,7 @@ void ComputeHairStrandsInterpolation(
 				// Special case for debug mode were the attribute buffer is patch with some custom data to show hair properties (strands belonging to the same cluster, ...)
 				if (Instance->Strands.DebugCurveAttributeBuffer.Buffer == nullptr)
 				{
-					CreateHairStrandsDebugAttributeBuffer(GraphBuilder, &Instance->Strands.DebugCurveAttributeBuffer, Instance->Strands.Data->CurveAttributes.GetBulkDataSize(), FName(Instance->Debug.MeshComponentName));
+					CreateHairStrandsDebugAttributeBuffer(GraphBuilder, &Instance->Strands.DebugCurveAttributeBuffer, Instance->Strands.Data->Data.CurveAttributes.GetBulkDataSize(), FName(Instance->Debug.MeshComponentName));
 				}
 				FRDGImportedBuffer OutRenCurveAttributeBuffer = Register(GraphBuilder, Instance->Strands.DebugCurveAttributeBuffer, ERDGImportedBufferFlags::CreateUAV);
 
@@ -2148,7 +2148,7 @@ void ComputeHairStrandsInterpolation(
 					PatchMode,
 					bValidGuide,
 					bUseSingleGuide,
-					Instance->Strands.Data->CurveAttributeOffsets,
+					Instance->Strands.Data->Header.CurveAttributeOffsets,
 					Register(GraphBuilder, Instance->Strands.RestResource->CurveAttributeBuffer, ERDGImportedBufferFlags::CreateSRV).Buffer,
 					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveBuffer),
 					RegisterAsSRV(GraphBuilder, Instance->Strands.ClusterCullingResource->VertexToClusterIdBuffer),

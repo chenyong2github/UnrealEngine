@@ -865,7 +865,7 @@ FHairStrandsRestResource::FHairStrandsRestResource(FHairStrandsBulkData& InBulkD
 	PositionBuffer(), PointAttributeBuffer(), CurveAttributeBuffer(), PointToCurveBuffer(), BulkData(InBulkData), CurveType(InCurveType)
 {
 	// Sanity check
-	check(!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasData));
+	check(!!(BulkData.Header.Flags & FHairStrandsBulkData::DataFlags_HasData));
 }
 
 bool FHairStrandsRestResource::InternalIsDataLoaded()
@@ -873,11 +873,11 @@ bool FHairStrandsRestResource::InternalIsDataLoaded()
 	if (BulkDataRequest.IsNone())
 	{
 		FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(5);
-		Batch.Read(BulkData.Positions);
-		Batch.Read(BulkData.CurveAttributes);
-		Batch.Read(BulkData.PointAttributes);
-		Batch.Read(BulkData.PointToCurve);
-		Batch.Read(BulkData.Curves);
+		Batch.Read(BulkData.Data.Positions);
+		Batch.Read(BulkData.Data.CurveAttributes);
+		Batch.Read(BulkData.Data.PointAttributes);
+		Batch.Read(BulkData.Data.PointToCurve);
+		Batch.Read(BulkData.Data.Curves);
 
 		Batch.Issue(BulkDataRequest);
 	}
@@ -895,17 +895,17 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 
 	// 1. Lock data, which force the loading data from files (on non-editor build/cooked data). These data are then uploaded to the GPU
 	// 2. A local copy is done by the buffer uploader. This copy is discarded once the uploading is done.
-	InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsPositionFormat>(GraphBuilder, BulkData.Positions, PointCount, PositionBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
-	InternalCreateByteAddressBufferRDG_FromBulkData(GraphBuilder, BulkData.CurveAttributes, CurveAttributeBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_CurveAttributeBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
-	InternalCreateByteAddressBufferRDG_FromBulkData(GraphBuilder, BulkData.PointAttributes, PointAttributeBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PointAttributeBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
-	InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsCurveFormat>(GraphBuilder, BulkData.Curves, CurveCount, CurveBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_CurveBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
-	if (!!(BulkData.Flags & BulkData.DataFlags_Has16bitsCurveIndex))
+	InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsPositionFormat>(GraphBuilder, BulkData.Data.Positions, PointCount, PositionBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	InternalCreateByteAddressBufferRDG_FromBulkData(GraphBuilder, BulkData.Data.CurveAttributes, CurveAttributeBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_CurveAttributeBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	InternalCreateByteAddressBufferRDG_FromBulkData(GraphBuilder, BulkData.Data.PointAttributes, PointAttributeBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PointAttributeBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsCurveFormat>(GraphBuilder, BulkData.Data.Curves, CurveCount, CurveBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_CurveBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	if (!!(BulkData.Header.Flags & FHairStrandsBulkData::DataFlags_Has16bitsCurveIndex))
 	{
-		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsPointToCurveFormat16>(GraphBuilder, BulkData.PointToCurve, PointCount, PointToCurveBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PointToCurveBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
+		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsPointToCurveFormat16>(GraphBuilder, BulkData.Data.PointToCurve, PointCount, PointToCurveBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PointToCurveBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
 	}
 	else
 	{
-		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsPointToCurveFormat32>(GraphBuilder, BulkData.PointToCurve, PointCount, PointToCurveBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PointToCurveBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
+		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsPointToCurveFormat32>(GraphBuilder, BulkData.Data.PointToCurve, PointCount, PointToCurveBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PointToCurveBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
 	}
 
 	TArray<FVector4f> RestOffset;
@@ -919,9 +919,9 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 		CurveData.SetNum(CurveCount);
 		uint32* Data = (uint32*)CurveData.GetData();
 
-		const uint32* ReadOnlyData = (const uint32*)BulkData.Curves.Lock(LOCK_READ_ONLY);
+		const uint32* ReadOnlyData = (const uint32*)BulkData.Data.Curves.Lock(LOCK_READ_ONLY);
 		memcpy(Data, ReadOnlyData, sizeof(uint32) * CurveCount);
-		BulkData.Curves.Unlock();
+		BulkData.Data.Curves.Unlock();
 	}
 }
 
@@ -1032,65 +1032,86 @@ FHairStrandsClusterCullingBulkData::FHairStrandsClusterCullingBulkData()
 
 void FHairStrandsClusterCullingBulkData::Reset()
 {
-	ClusterCount = 0;
-	ClusterLODCount = 0;
-	VertexCount = 0;
-	VertexLODCount = 0;
+	Header.ClusterCount = 0;
+	Header.ClusterLODCount = 0;
+	Header.VertexCount = 0;
+	Header.VertexLODCount = 0;
 
-	LODVisibility.Empty();;
-	CPULODScreenSize.Empty();
+	Header.LODVisibility.Empty();
+	Header.CPULODScreenSize.Empty();
+	Header.LODInfos.Empty();
 
-	ClusterLODInfos.RemoveBulkData();
-	VertexToClusterIds.RemoveBulkData();
-	ClusterVertexIds.RemoveBulkData();
-	PackedClusterInfos.RemoveBulkData();
+	Data.ClusterLODInfos.RemoveBulkData();
+	Data.VertexToClusterIds.RemoveBulkData();
+	Data.ClusterVertexIds.RemoveBulkData();
+	Data.PackedClusterInfos.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	ClusterLODInfos 	= FByteBulkData();
-	VertexToClusterIds 	= FByteBulkData();
-	ClusterVertexIds 	= FByteBulkData();
-	PackedClusterInfos 	= FByteBulkData();
+	Data.ClusterLODInfos 	= FByteBulkData();
+	Data.VertexToClusterIds = FByteBulkData();
+	Data.ClusterVertexIds 	= FByteBulkData();
+	Data.PackedClusterInfos = FByteBulkData();
 }
 
 void FHairStrandsClusterCullingBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
-	Ar << ClusterCount;
-	Ar << ClusterLODCount;
-	Ar << VertexCount;
-	Ar << VertexLODCount;
-	Ar << LODVisibility;
-	Ar << CPULODScreenSize;
+	SerializeHeader(Ar, Owner);
+	SerializeData(Ar, Owner);
+}
 
+void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
+{
+	Ar << Header.ClusterCount;
+	Ar << Header.ClusterLODCount;
+	Ar << Header.VertexCount;
+	Ar << Header.VertexLODCount;
+	Ar << Header.LODVisibility;
+	Ar << Header.CPULODScreenSize;
+	uint32 LODInfosCount = Header.LODInfos.Num();
+	Ar << LODInfosCount;
+	if (Ar.IsLoading())
+	{
+		Header.LODInfos.SetNum(LODInfosCount);
+	}
+	for (uint32 It = 0; It < LODInfosCount; ++It)
+	{
+		Ar << Header.LODInfos[It].CurveCount;
+		Ar << Header.LODInfos[It].PointCount;
+	}
+}
+
+void FHairStrandsClusterCullingBulkData::SerializeData(FArchive& Ar, UObject* Owner)
+{
 	const int32 ChunkIndex = 0;
 	bool bAttemptFileMapping = false;
 
 	if (Ar.IsSaving())
 	{
 		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
-		ClusterLODInfos.SetBulkDataFlags(BulkFlags);
-		VertexToClusterIds.SetBulkDataFlags(BulkFlags);
-		ClusterVertexIds.SetBulkDataFlags(BulkFlags);
-		PackedClusterInfos.SetBulkDataFlags(BulkFlags);
+		Data.ClusterLODInfos.SetBulkDataFlags(BulkFlags);
+		Data.VertexToClusterIds.SetBulkDataFlags(BulkFlags);
+		Data.ClusterVertexIds.SetBulkDataFlags(BulkFlags);
+		Data.PackedClusterInfos.SetBulkDataFlags(BulkFlags);
 	}
 
-	if (ClusterLODCount)
+	if (Header.ClusterLODCount)
 	{
-		ClusterLODInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.ClusterLODInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 
-	if (VertexCount)
+	if (Header.VertexCount)
 	{
-		VertexToClusterIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.VertexToClusterIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 
-	if (VertexLODCount)
+	if (Header.VertexLODCount)
 	{
-		ClusterVertexIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.ClusterVertexIds.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 
-	if (ClusterCount)
+	if (Header.ClusterCount)
 	{
-		PackedClusterInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Data.PackedClusterInfos.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 
 	if (GHairStrandsBulkData_Validation > 0 && Ar.IsSaving())
@@ -1101,13 +1122,13 @@ void FHairStrandsClusterCullingBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 void FHairStrandsClusterCullingBulkData::Validate(bool bIsSaving)
 {
-	if (ClusterCount == 0)
+	if (Header.ClusterCount == 0)
 		return;
 
-	const FHairClusterInfo::Packed* Datas = (const FHairClusterInfo::Packed*)PackedClusterInfos.Lock(LOCK_READ_ONLY);
+	const FHairClusterInfo::Packed* Datas = (const FHairClusterInfo::Packed*)Data.PackedClusterInfos.Lock(LOCK_READ_ONLY);
 	
 	// Simple heuristic to check if the data are valid
-	const uint32 MaxCount = FMath::Min(ClusterCount, 128u);
+	const uint32 MaxCount = FMath::Min(Header.ClusterCount, 128u);
 	bool bIsValid = true;
 	for (uint32 It = 0; It < MaxCount; ++It)
 	{
@@ -1116,11 +1137,11 @@ void FHairStrandsClusterCullingBulkData::Validate(bool bIsSaving)
 	}
 	if (!bIsValid)
 	{
-		FString Name = ClusterLODInfos.GetDebugName();
-		UE_LOG(LogHairStrands, Error, TEXT("[Groom/DDC] Strands - Invalid ClusterCullingBulkData when %s bulk data - %s"), bIsSaving ? TEXT("Saving") : TEXT("Loading"), *Name);
+		FString DebugName = Data.ClusterLODInfos.GetDebugName();
+		UE_LOG(LogHairStrands, Error, TEXT("[Groom/DDC] Strands - Invalid ClusterCullingBulkData when %s bulk data - %s"), bIsSaving ? TEXT("Saving") : TEXT("Loading"), *DebugName);
 	}
 
-	PackedClusterInfos.Unlock();
+	Data.PackedClusterInfos.Unlock();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1137,10 +1158,10 @@ bool FHairStrandsClusterCullingResource::InternalIsDataLoaded()
 	if (BulkDataRequest.IsNone())
 	{
 		FBulkDataBatchRequest::NewBatch(4)
-			.Read(BulkData.PackedClusterInfos)
-			.Read(BulkData.ClusterLODInfos)
-			.Read(BulkData.VertexToClusterIds)
-			.Read(BulkData.ClusterVertexIds)
+			.Read(BulkData.Data.PackedClusterInfos)
+			.Read(BulkData.Data.ClusterLODInfos)
+			.Read(BulkData.Data.VertexToClusterIds)
+			.Read(BulkData.Data.ClusterVertexIds)
 			.Issue(BulkDataRequest);
 	}
 
@@ -1156,11 +1177,11 @@ void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuil
 		BulkData.Validate(false);
 	}
 
-	InternalCreateStructuredBufferRDG_FromBulkData<FHairClusterInfoFormat>(GraphBuilder, BulkData.PackedClusterInfos, BulkData.ClusterCount, ClusterInfoBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsClusterCulling_ClusterInfoBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
-	InternalCreateStructuredBufferRDG_FromBulkData<FHairClusterLODInfoFormat>(GraphBuilder, BulkData.ClusterLODInfos, BulkData.ClusterLODCount, ClusterLODInfoBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsClusterCulling_ClusterLODInfoBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	InternalCreateStructuredBufferRDG_FromBulkData<FHairClusterInfoFormat>(GraphBuilder, BulkData.Data.PackedClusterInfos, BulkData.Header.ClusterCount, ClusterInfoBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsClusterCulling_ClusterInfoBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	InternalCreateStructuredBufferRDG_FromBulkData<FHairClusterLODInfoFormat>(GraphBuilder, BulkData.Data.ClusterLODInfos, BulkData.Header.ClusterLODCount, ClusterLODInfoBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsClusterCulling_ClusterLODInfoBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
 
-	InternalCreateVertexBufferRDG_FromBulkData<FHairClusterIndexFormat>(GraphBuilder, BulkData.VertexToClusterIds, BulkData.VertexCount, VertexToClusterIdBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsClusterCulling_VertexToClusterIds"), ResourceName), OwnerName, EHairResourceUsageType::Static);
-	InternalCreateVertexBufferRDG_FromBulkData<FHairClusterIndexFormat>(GraphBuilder, BulkData.ClusterVertexIds, BulkData.VertexLODCount, ClusterVertexIdBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsClusterCulling_ClusterVertexIds"), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	InternalCreateVertexBufferRDG_FromBulkData<FHairClusterIndexFormat>(GraphBuilder, BulkData.Data.VertexToClusterIds, BulkData.Header.VertexCount, VertexToClusterIdBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsClusterCulling_VertexToClusterIds"), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	InternalCreateVertexBufferRDG_FromBulkData<FHairClusterIndexFormat>(GraphBuilder, BulkData.Data.ClusterVertexIds, BulkData.Header.VertexLODCount, ClusterVertexIdBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsClusterCulling_ClusterVertexIds"), ResourceName), OwnerName, EHairResourceUsageType::Static);
 }
 
 void FHairStrandsClusterCullingResource::InternalRelease()
@@ -1590,7 +1611,7 @@ FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(FHairStrand
 	InterpolationBuffer(), Interpolation0Buffer(), Interpolation1Buffer(), BulkData(InBulkData)
 {
 	// Sanity check
-	check(!!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasData));
+	check(!!(BulkData.Header.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasData));
 }
 
 bool FHairStrandsInterpolationResource::InternalIsDataLoaded()
@@ -1598,17 +1619,17 @@ bool FHairStrandsInterpolationResource::InternalIsDataLoaded()
 	if (BulkDataRequest.IsNone())
 	{
 		FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(4);
-		const bool bUseSingleGuide = !!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
+		const bool bUseSingleGuide = !!(BulkData.Header.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
 		if (bUseSingleGuide)
 		{
-			Batch.Read(BulkData.Interpolation);
+			Batch.Read(BulkData.Data.Interpolation);
 		}
 		else
 		{
-			Batch.Read(BulkData.Interpolation0);
-			Batch.Read(BulkData.Interpolation1);
+			Batch.Read(BulkData.Data.Interpolation0);
+			Batch.Read(BulkData.Data.Interpolation1);
 		}
-		Batch.Read(BulkData.SimRootPointIndex);
+		Batch.Read(BulkData.Data.SimRootPointIndex);
 
 		Batch.Issue(BulkDataRequest);
 	}
@@ -1620,17 +1641,17 @@ void FHairStrandsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuild
 {
 	BulkDataRequest = FBulkDataBatchRequest();
 
-	const bool bUseSingleGuide = !!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
+	const bool bUseSingleGuide = !!(BulkData.Header.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
 	if (bUseSingleGuide)
 	{
-		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsInterpolationFormat>(GraphBuilder, BulkData.Interpolation, BulkData.PointCount, InterpolationBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsInterpolation_InterpolationBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
+		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsInterpolationFormat>(GraphBuilder, BulkData.Data.Interpolation, BulkData.Header.PointCount, InterpolationBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsInterpolation_InterpolationBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
 	}
 	else
 	{
-		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsInterpolation0Format>(GraphBuilder, BulkData.Interpolation0, BulkData.PointCount, Interpolation0Buffer, ToHairResourceDebugName(TEXT("Hair.StrandsInterpolation_Interpolation0Buffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
-		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsInterpolation1Format>(GraphBuilder, BulkData.Interpolation1, BulkData.PointCount, Interpolation1Buffer, ToHairResourceDebugName(TEXT("Hair.StrandsInterpolation_Interpolation1Buffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
+		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsInterpolation0Format>(GraphBuilder, BulkData.Data.Interpolation0, BulkData.Header.PointCount, Interpolation0Buffer, ToHairResourceDebugName(TEXT("Hair.StrandsInterpolation_Interpolation0Buffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
+		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsInterpolation1Format>(GraphBuilder, BulkData.Data.Interpolation1, BulkData.Header.PointCount, Interpolation1Buffer, ToHairResourceDebugName(TEXT("Hair.StrandsInterpolation_Interpolation1Buffer"), ResourceName), OwnerName, EHairResourceUsageType::Static);
 	}
-	InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsRootIndexFormat>(GraphBuilder, BulkData.SimRootPointIndex, BulkData.SimPointCount, SimRootPointIndexBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsInterpolation_SimRootPointIndex"), ResourceName), OwnerName, EHairResourceUsageType::Static);
+	InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsRootIndexFormat>(GraphBuilder, BulkData.Data.SimRootPointIndex, BulkData.Header.SimPointCount, SimRootPointIndexBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsInterpolation_SimRootPointIndex"), ResourceName), OwnerName, EHairResourceUsageType::Static);
 }
 
 void FHairStrandsInterpolationResource::InternalRelease()

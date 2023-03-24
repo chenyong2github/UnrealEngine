@@ -287,7 +287,19 @@ struct FHairStrandsRootUtils
 	static float	 PackUVsToFloat(const FVector2f& UV);
 };
 
-struct FHairStrandsInterpolationBulkData;
+
+struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
+{
+	virtual ~FHairStrandsBulkCommon() { }
+	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) = 0;
+	virtual void SerializeData(FArchive& Ar, UObject* Owner) = 0;
+
+#if WITH_EDITORONLY_DATA
+	// Transient Name/DDCkey for streaming
+	FString Name;
+	FString DerivedDataKey;
+#endif
+};
 
 /** Hair strands points interpolation attributes */
 struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
@@ -319,7 +331,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 	bool bUseUniqueGuide = false;
 };
 
-struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
+struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkCommon
 {
 	enum EDataFlags
 	{
@@ -329,15 +341,25 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
 
 	void Reset();
 	void Serialize(FArchive& Ar, UObject* Owner);
-	uint32 GetPointCount() const { return PointCount; };
+	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
+	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
+	uint32 GetPointCount() const { return Header.PointCount; };
 
-	uint32 Flags = 0;
-	uint32 PointCount = 0;
-	uint32 SimPointCount = 0;
-	FByteBulkData Interpolation;	// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a single guide
-	FByteBulkData Interpolation0;	// FHairStrandsInterpolation0Format - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
-	FByteBulkData Interpolation1;	// FHairStrandsInterpolation1Format - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
-	FByteBulkData SimRootPointIndex;// FHairStrandsRootIndexFormat      - Per-rendering-vertex index of the sim-root vertex
+	struct FHeader
+	{
+		uint32 Flags = 0;
+		uint32 PointCount = 0;
+		uint32 SimPointCount = 0;
+	} Header;
+
+	struct FData
+	{
+
+		FByteBulkData Interpolation;	// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a single guide
+		FByteBulkData Interpolation0;	// FHairStrandsInterpolation0Format - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
+		FByteBulkData Interpolation1;	// FHairStrandsInterpolation1Format - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
+		FByteBulkData SimRootPointIndex;// FHairStrandsRootIndexFormat      - Per-rendering-vertex index of the sim-root vertex
+	} Data;
 };
 
 /** Hair strands points attribute */
@@ -457,7 +479,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 float GetHairStrandsMaxLength(const FHairStrandsDatas& In);
 float GetHairStrandsMaxRadius(const FHairStrandsDatas& In);
 
-struct HAIRSTRANDSCORE_API FHairStrandsBulkData
+struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 {
 	enum EDataFlags
 	{
@@ -466,35 +488,43 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	};
 
 	void Serialize(FArchive& Ar, UObject* Owner);
+	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
+	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
 
-	bool IsValid() const { return CurveCount > 0 && PointCount > 0; }
+	bool IsValid() const { return Header.CurveCount > 0 && Header.PointCount > 0; }
 	void Reset();
 
-	uint32 GetNumCurves() const { return CurveCount;  };
-	uint32 GetNumPoints() const { return PointCount; };
-	float  GetMaxLength() const	{ return MaxLength; };
-	float  GetMaxRadius() const { return MaxRadius; }
-	FVector GetPositionOffset() const { return BoundingBox.GetCenter(); }
-	const FBox& GetBounds() const { return BoundingBox; }
+	uint32 GetNumCurves() const { return Header.CurveCount;  };
+	uint32 GetNumPoints() const { return Header.PointCount; };
+	float  GetMaxLength() const	{ return Header.MaxLength; };
+	float  GetMaxRadius() const { return Header.MaxRadius; }
+	FVector GetPositionOffset() const { return Header.BoundingBox.GetCenter(); }
+	const FBox& GetBounds() const { return Header.BoundingBox; }
 
-	uint32 CurveCount = 0;
-	uint32 PointCount = 0;
-	float MaxLength = 0;
-	float MaxRadius = 0;
-	FBox BoundingBox = FBox(EForceInit::ForceInit);
-	uint32 Flags = 0;
-	uint32 CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_COUNT] = {0};
-	uint32 PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_COUNT] = {0};
+	struct FHeader
+	{
+		uint32 CurveCount = 0;
+		uint32 PointCount = 0;
+		float  MaxLength = 0;
+		float  MaxRadius = 0;
+		FBox   BoundingBox = FBox(EForceInit::ForceInit);
+		uint32 Flags = 0;
+		uint32 CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_COUNT] = {0};
+		uint32 PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_COUNT] = {0};
+	
+		/** Imported attribute info */
+		uint32 ImportedAttributes = 0;
+		uint32 ImportedAttributeFlags = 0;
+	} Header;
 
-	/** Imported attribute info */
-	uint32 ImportedAttributes = 0;
-	uint32 ImportedAttributeFlags = 0;
-
-	FByteBulkData Positions;		// Size = PointCount
-	FByteBulkData CurveAttributes;	// Size = y*CurveCount (depends on the per-curve stored attributes)
-	FByteBulkData PointAttributes;	// Size = x*PointCount (depends on the per-point stored attributes)
-	FByteBulkData PointToCurve; 	// Size = PointCount
-	FByteBulkData Curves;			// Size = CurveCount
+	struct FData
+	{
+		FByteBulkData Positions;		// Size = PointCount
+		FByteBulkData CurveAttributes;	// Size = y*CurveCount (depends on the per-curve stored attributes)
+		FByteBulkData PointAttributes;	// Size = x*PointCount (depends on the per-point stored attributes)
+		FByteBulkData PointToCurve; 	// Size = PointCount
+		FByteBulkData Curves;			// Size = CurveCount
+	} Data;
 };
 
 /** Hair strands debug data */
@@ -769,32 +799,42 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 	uint32 VertexCount = 0;
 };
 
-struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData
+struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulkCommon
 {
 	FHairStrandsClusterCullingBulkData();
 	void Reset();
 	void Serialize(FArchive& Ar, UObject* Owner);
-	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
+	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
+	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
+	bool IsValid() const { return Header.ClusterCount > 0 && Header.VertexCount > 0; }
 	void Validate(bool bIsSaving);
 
-	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
-	TArray<bool>	LODVisibility;
+	struct FHeader
+	{
+		/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
+		TArray<bool> LODVisibility;
+	
+		/* Screen size at which LOD should switches on CPU */
+		TArray<float> CPULODScreenSize;
+	
+		/* Curve count and Point count per LOD */
+		TArray<FHairLODInfo> LODInfos;
+	
+		uint32 ClusterCount = 0;
+		uint32 ClusterLODCount = 0;
+		uint32 VertexCount = 0;
+		uint32 VertexLODCount = 0;
+	} Header;
 
-	/* Screen size at which LOD should switches on CPU */
-	TArray<float>	CPULODScreenSize;
+	struct FData
+	{
 
-	/* Curve count and Point count per LOD */
-	TArray<FHairLODInfo> LODInfos;
+		/* LOD info for the various clusters for LOD management on GPU */
+		FByteBulkData	PackedClusterInfos;		// Size - ClusterCount
+		FByteBulkData	ClusterLODInfos;		// Size - ClusterLODCount
+		FByteBulkData	VertexToClusterIds;		// Size - VertexCount
+		FByteBulkData	ClusterVertexIds;		// Size - VertexLODCount
+	} Data;
 
-	/* LOD info for the various clusters for LOD management on GPU */
-	FByteBulkData	PackedClusterInfos;		// Size - ClusterCount
-	FByteBulkData	ClusterLODInfos;		// Size - ClusterLODCount
-	FByteBulkData	VertexToClusterIds;		// Size - VertexCount
-	FByteBulkData	ClusterVertexIds;		// Size - VertexLODCount
-
-	uint32 ClusterCount = 0;
-	uint32 ClusterLODCount = 0;
-	uint32 VertexCount = 0;
-	uint32 VertexLODCount = 0;
 };
 
