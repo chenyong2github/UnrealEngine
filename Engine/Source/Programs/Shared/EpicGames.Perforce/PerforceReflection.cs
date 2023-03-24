@@ -644,7 +644,7 @@ namespace EpicGames.Perforce
 		static object ParseStringAsNullableDateTimeOffset(Utf8String str)
 		{
 			string text = str.ToString();
-			return DateTimeOffset.Parse(Regex.Replace(text, "[a-zA-Z ]*$", "")); // Strip timezone name (eg. "EST")
+			return DateTimeOffset.Parse(Regex.Replace(text, "[a-zA-Z. ]*$", "")); // Strip timezone name (eg. "EST")
 		}
 	}
 }
