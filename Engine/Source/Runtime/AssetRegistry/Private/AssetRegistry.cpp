@@ -4544,6 +4544,11 @@ FScanPathContext::FScanPathContext(FEventContext& InEventContext, FClassInherita
 			UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: %s is not in a mounted path, will not scan."), *InFile);
 			continue;
 		}
+		if (FPackageName::IsTempPackage(PackageName))
+		{
+			UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: %s is in the /Temp path, will not scan."), *InFile);
+			continue;
+		}
 		if (Extension.IsEmpty())
 		{
 			// The empty extension is not a valid Package extension; it might exist, but we will pay the price to check it
@@ -4573,6 +4578,11 @@ FScanPathContext::FScanPathContext(FEventContext& InEventContext, FClassInherita
 		else if (!FPackageName::TryConvertToMountedPath(InDir, &LocalPath, &PackageName, nullptr, nullptr, &Extension, &FlexNameType))
 		{
 			UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: %s is not in a mounted path, will not scan."), *InDir);
+			continue;
+		}
+		if (FPackageName::IsTempPackage(PackageName))
+		{
+			UE_LOG(LogAssetRegistry, Warning, TEXT("ScanPathsSynchronous: %s is in the /Temp path, will not scan."), *InDir);
 			continue;
 		}
 		LocalDirs.Add(LocalPath + Extension);
