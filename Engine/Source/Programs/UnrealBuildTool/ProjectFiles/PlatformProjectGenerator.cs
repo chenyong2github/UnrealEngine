@@ -13,6 +13,7 @@ namespace UnrealBuildTool
 	/// </summary>
 	abstract class PlatformProjectGenerator
 	{
+		static public readonly string DefaultPlatformConfigurationType  = "Makefile";
 		protected readonly ILogger Logger;
 
 		/// <summary>
@@ -142,7 +143,7 @@ namespace UnrealBuildTool
 		/// <returns>string    The platform configuration type.  Defaults to "Makefile" unless overridden</returns>
 		public virtual string GetVisualStudioPlatformConfigurationType(UnrealTargetPlatform InPlatform, VCProjectFileFormat InProjectFileFormat)
 		{
-			return "Makefile";
+			return DefaultPlatformConfigurationType;
 		}
 
 		/// <summary>

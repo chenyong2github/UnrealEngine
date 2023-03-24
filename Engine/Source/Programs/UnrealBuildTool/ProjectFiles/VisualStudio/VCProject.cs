@@ -1071,15 +1071,13 @@ namespace UnrealBuildTool
 
 			VCProjectFileContent.AppendLine("  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />");
 
-			// Write the invalid configuration data
-			foreach (string InvalidConfigPlatformName in InvalidConfigPlatformNames)
-			{
-				VCProjectFileContent.AppendLine("  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='Invalid|{0}'\" Label=\"Configuration\">", InvalidConfigPlatformName);
-				VCProjectFileContent.AppendLine("    <ConfigurationType>Makefile</ConfigurationType>");
-				VCProjectFileContent.AppendLine("  </PropertyGroup>");
-			}
+			// Write the default configuration info
+			VCProjectFileContent.AppendLine("  <PropertyGroup Label=\"Configuration\">");
+			VCProjectFileContent.AppendLine($"    <ConfigurationType>{PlatformProjectGenerator.DefaultPlatformConfigurationType}</ConfigurationType>");
+			VCProjectFileGenerator.AppendPlatformToolsetProperty(VCProjectFileContent, ProjectFileFormat);
+			VCProjectFileContent.AppendLine("  </PropertyGroup>");
 
-			// Write each project configuration PreDefaultProps section
+			// Write the per platform/config configuration info
 			foreach (Tuple<string, UnrealTargetConfiguration> ConfigurationTuple in ProjectConfigurationNameAndConfigurations)
 			{
 				string ProjectConfigurationName = ConfigurationTuple.Item1;
@@ -1088,7 +1086,38 @@ namespace UnrealBuildTool
 				{
 					string ProjectPlatformName = PlatformTuple.Item1;
 					UnrealTargetPlatform TargetPlatform = PlatformTuple.Item2;
-					WritePostDefaultPropsConfiguration(TargetPlatform, TargetConfiguration, ProjectPlatformName, ProjectConfigurationName, PlatformProjectGenerators, VCProjectFileContent, Logger);
+
+					PlatformProjectGenerator? ProjGenerator = PlatformProjectGenerators.GetPlatformProjectGenerator(TargetPlatform, true);
+					if (ProjGenerator == null)
+					{
+						continue;
+					}
+
+					StringBuilder PlatformToolsetString = new StringBuilder();
+					ProjGenerator.GetVisualStudioPlatformToolsetString(TargetPlatform, TargetConfiguration, ProjectFileFormat, PlatformToolsetString);
+					string PlatformConfigurationType = ProjGenerator.GetVisualStudioPlatformConfigurationType(TargetPlatform, ProjectFileFormat);
+
+					// if we are using the defaults set earlier then skip writing this
+					if (PlatformConfigurationType == PlatformProjectGenerator.DefaultPlatformConfigurationType && PlatformToolsetString.Length == 0)
+					{
+						continue;
+					}
+
+					string ProjectConfigurationAndPlatformName = ProjectConfigurationName + "|" + ProjectPlatformName;
+					string ConditionString = "Condition=\"'$(Configuration)|$(Platform)'=='" + ProjectConfigurationAndPlatformName + "'\"";
+					VCProjectFileContent.AppendLine("  <PropertyGroup {0} Label=\"Configuration\">", ConditionString);
+					VCProjectFileContent.AppendLine("    <ConfigurationType>{0}</ConfigurationType>", PlatformConfigurationType);
+
+					if (PlatformToolsetString.Length == 0)
+					{
+						VCProjectFileGenerator.AppendPlatformToolsetProperty(VCProjectFileContent, ProjectFileFormat);
+					}
+					else
+					{
+						VCProjectFileContent.Append(PlatformToolsetString);
+					}
+
+					VCProjectFileContent.AppendLine("  </PropertyGroup>");
 				}
 			}
 
@@ -1618,36 +1647,6 @@ namespace UnrealBuildTool
 					VCProjectFileContent.AppendLine("  </PropertyGroup>");
 				}
 			}
-		}
-
-		// Anonymous function that writes post-Default.props configuration data
-		private void WritePostDefaultPropsConfiguration(UnrealTargetPlatform TargetPlatform, UnrealTargetConfiguration TargetConfiguration, string ProjectPlatformName, string ProjectConfigurationName, PlatformProjectGeneratorCollection PlatformProjectGenerators, StringBuilder VCProjectFileContent, ILogger Logger)
-		{
-			PlatformProjectGenerator? ProjGenerator = PlatformProjectGenerators.GetPlatformProjectGenerator(TargetPlatform, true);
-
-			string ProjectConfigurationAndPlatformName = ProjectConfigurationName + "|" + ProjectPlatformName;
-			string ConditionString = "Condition=\"'$(Configuration)|$(Platform)'=='" + ProjectConfigurationAndPlatformName + "'\"";
-
-			StringBuilder PlatformToolsetString = new StringBuilder();
-			if (ProjGenerator != null)
-			{
-				ProjGenerator.GetVisualStudioPlatformToolsetString(TargetPlatform, TargetConfiguration, ProjectFileFormat, PlatformToolsetString);
-			}
-
-			string PlatformConfigurationType = (ProjGenerator == null) ? "Makefile" : ProjGenerator.GetVisualStudioPlatformConfigurationType(TargetPlatform, ProjectFileFormat);
-			VCProjectFileContent.AppendLine("  <PropertyGroup {0} Label=\"Configuration\">", ConditionString);
-			VCProjectFileContent.AppendLine("    <ConfigurationType>{0}</ConfigurationType>", PlatformConfigurationType);
-
-			if (PlatformToolsetString.Length == 0)
-			{
-				VCProjectFileGenerator.AppendPlatformToolsetProperty(VCProjectFileContent, ProjectFileFormat);
-			}
-			else
-			{
-				VCProjectFileContent.Append(PlatformToolsetString);
-			}
-
-			VCProjectFileContent.AppendLine("  </PropertyGroup>");
 		}
 
 		// Helper class to generate NMake build commands and arguments

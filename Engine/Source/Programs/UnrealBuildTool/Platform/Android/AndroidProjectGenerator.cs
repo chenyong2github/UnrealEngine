@@ -118,41 +118,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Return any custom property group lines
-		/// </summary>
-		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
-		/// <param name="ProjectFileFormat"></param>
-		/// <returns>string    The custom property import lines for the project file; Empty string if it doesn't require one</returns>
-		public override string GetVisualStudioPlatformConfigurationType(UnrealTargetPlatform InPlatform, VCProjectFileFormat ProjectFileFormat)
-		{
-			string ConfigurationType = "";
-
-			if (AGDEInstalled)
-			{
-				ConfigurationType = "Makefile";
-			}
-			else
-			{
-				ConfigurationType = base.GetVisualStudioPlatformConfigurationType(InPlatform, ProjectFileFormat);
-			}
-
-			return ConfigurationType;
-		}
-
-		/// <summary>
-		/// Return the platform toolset string to write into the project configuration
-		/// </summary>
-		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
-		/// <param name="InConfiguration"> The UnrealTargetConfiguration being built</param>
-		/// <param name="InProjectFileFormat">The version of Visual Studio to target</param>
-		/// <param name="ProjectFileBuilder">String builder for the project file</param>
-		/// <returns>string    The custom configuration section for the project file; Empty string if it doesn't require one</returns>
-		public override void GetVisualStudioPlatformToolsetString(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, VCProjectFileFormat InProjectFileFormat, StringBuilder ProjectFileBuilder)
-		{
-			VCProjectFileGenerator.AppendPlatformToolsetProperty(ProjectFileBuilder, InProjectFileFormat);
-		}
-
-		/// <summary>
 		/// Return any custom paths for VisualStudio this platform requires
 		/// This include ReferencePath, LibraryPath, LibraryWPath, IncludePath and ExecutablePath.
 		/// </summary>
