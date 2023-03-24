@@ -571,6 +571,16 @@ private:
 	bool StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCaptureSource> InSource);
 	bool UpdateSource(TSharedPtr<UE::MediaCapture::Private::FCaptureSource> InCaptureSource);
 
+	/** 
+	 * Whether capture should be done using experimental scheduling.
+	 * Experimental scheduling means that readback is started on the render thread but we don't block on the game thread if it hasn't been completed by the next frame.
+	 */
+	bool UseExperimentalScheduling() const;
+
+	/**
+	 * When using anythread capture, the capture callback will be called directly after readback is complete, meaning there will be minimal delay.
+	 * When not using it, the capture callback will be called on the render thread which can introduce a delay.
+	 */
 	bool UseAnyThreadCapture() const;
 
 protected:
