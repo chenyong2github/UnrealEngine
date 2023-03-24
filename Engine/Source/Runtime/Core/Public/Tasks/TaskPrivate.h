@@ -73,6 +73,15 @@ namespace UE::Tasks
 	const TCHAR* ToString(EExtendedTaskPriority ExtendedPriority);
 	bool ToExtendedTaskPriority(const TCHAR* ExtendedPriorityStr, EExtendedTaskPriority& OutExtendedPriority);
 
+	namespace Private
+	{
+		CORE_API void TranslatePriority(ENamedThreads::Type ThreadType, ETaskPriority& OutPriority, EExtendedTaskPriority& OutExtendedPriority);
+		CORE_API ENamedThreads::Type TranslatePriority(ETaskPriority Priority);
+#if TASKGRAPH_NEW_FRONTEND
+		CORE_API ENamedThreads::Type TranslatePriority(EExtendedTaskPriority Priority);
+#endif
+	}
+
 	class FPipe;
 
 	namespace Private
@@ -303,7 +312,7 @@ namespace UE::Tasks
 			// In this case the task will be automatically scheduled when all dependencies are completed.
 			bool TryLaunch(uint64 TaskSize)
 			{
-				TaskTrace::Launched(GetTraceId(), LowLevelTask.GetDebugName(), true, (ENamedThreads::Type)0xff, TaskSize);
+				TaskTrace::Launched(GetTraceId(), LowLevelTask.GetDebugName(), true, TranslatePriority(LowLevelTask.GetPriority()), TaskSize);
 				return TryUnlock();
 			}
 

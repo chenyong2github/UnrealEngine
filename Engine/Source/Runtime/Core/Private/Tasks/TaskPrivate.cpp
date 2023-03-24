@@ -3,9 +3,7 @@
 #include "Tasks/TaskPrivate.h"
 #include "Tasks/Pipe.h"
 
-#if TASKGRAPH_NEW_FRONTEND
 #include "Async/TaskGraphInterfaces.h"
-#endif
 
 namespace UE::Tasks
 {
@@ -443,6 +441,104 @@ namespace UE::Tasks
 		{
 			verify(ToTaskPriority(*RawSetting, Priority));
 			ExtendedPriority = EExtendedTaskPriority::None;
+		}
+	}
+
+	namespace Private
+	{
+		// task priority translation from the old API to the new API
+		void TranslatePriority(ENamedThreads::Type ThreadType, ETaskPriority& OutPriority, EExtendedTaskPriority& OutExtendedPriority)
+		{
+			using namespace UE::Tasks;
+
+#if TASKGRAPH_NEW_FRONTEND
+
+			ENamedThreads::Type ThreadIndex = ENamedThreads::GetThreadIndex(ThreadType);
+			if (ThreadIndex != ENamedThreads::AnyThread)
+			{
+				check(ThreadIndex == ENamedThreads::GameThread || ThreadIndex == ENamedThreads::GetRenderThread() || ThreadIndex == ENamedThreads::RHIThread);
+				EExtendedTaskPriority ConversionMap[] =
+				{
+					EExtendedTaskPriority::RHIThreadNormalPri,
+					EExtendedTaskPriority::GameThreadNormalPri,
+					EExtendedTaskPriority::RenderThreadNormalPri
+				};
+				OutExtendedPriority = ConversionMap[ThreadIndex - ENamedThreads::RHIThread];
+				OutExtendedPriority = (EExtendedTaskPriority)((int32)OutExtendedPriority + (ENamedThreads::GetTaskPriority(ThreadType) != ENamedThreads::NormalTaskPriority ? 1 : 0));
+				OutExtendedPriority = (EExtendedTaskPriority)((int32)OutExtendedPriority + (ENamedThreads::GetQueueIndex(ThreadType) != ENamedThreads::MainQueue ? 2 : 0));
+				OutPriority = ETaskPriority::Count;
+			}
+			else
+			{
+				OutExtendedPriority = EExtendedTaskPriority::None;
+				uint32 ThreadPriority = GetThreadPriorityIndex(ThreadType);
+				check(ThreadPriority < uint32(ENamedThreads::NumThreadPriorities));
+				ETaskPriority ConversionMap[int(ENamedThreads::NumThreadPriorities)] = { ETaskPriority::Normal, ETaskPriority::High, ETaskPriority::BackgroundNormal };
+				OutPriority = ConversionMap[ThreadPriority];
+			}
+
+			if (OutPriority == ETaskPriority::BackgroundNormal && GetTaskPriority(ThreadType))
+			{
+				OutPriority = ETaskPriority::BackgroundHigh;
+			}
+
+#else
+			uint32 ThreadPriority = GetThreadPriorityIndex(ThreadType);
+			check(ThreadPriority < uint32(ENamedThreads::NumThreadPriorities));
+			ETaskPriority Conversion[int(ENamedThreads::NumThreadPriorities)] = { ETaskPriority::Normal, ETaskPriority::High, ETaskPriority::BackgroundNormal };
+			OutPriority = Conversion[ThreadPriority];
+
+			if (OutPriority == ETaskPriority::BackgroundNormal && GetTaskPriority(ThreadType))
+			{
+				OutPriority = ETaskPriority::BackgroundHigh;
+			}
+#endif
+		}
+
+#if TASKGRAPH_NEW_FRONTEND
+
+		// task priority translation from the new API to the old API
+		ENamedThreads::Type TranslatePriority(EExtendedTaskPriority Priority)
+		{
+			checkf(Priority >= EExtendedTaskPriority::GameThreadNormalPri && Priority < EExtendedTaskPriority::Count, TEXT("only named threads can call this method: %d"), Priority);
+
+			int32 ConversionMap[] =
+			{
+					ENamedThreads::GameThread, // GameThreadNormalPri
+					ENamedThreads::GameThread | ENamedThreads::HighTaskPriority, // GameThreadHiPri
+					ENamedThreads::GameThread | ENamedThreads::LocalQueue, // GameThreadNormalPriLocalQueue
+					ENamedThreads::GameThread | ENamedThreads::HighTaskPriority | ENamedThreads::LocalQueue, // GameThreadHiPriLocalQueue
+
+					ENamedThreads::GetRenderThread(), // RenderThreadNormalPri
+					ENamedThreads::GetRenderThread() | ENamedThreads::HighTaskPriority, // RenderThreadHiPri
+					ENamedThreads::GetRenderThread() | ENamedThreads::LocalQueue, // RenderThreadNormalPriLocalQueue
+					ENamedThreads::GetRenderThread() | ENamedThreads::HighTaskPriority | ENamedThreads::LocalQueue, // RenderThreadHiPriLocalQueue
+
+					ENamedThreads::RHIThread, // RHIThreadNormalPri
+					ENamedThreads::RHIThread | ENamedThreads::HighTaskPriority, // RHIThreadHiPri
+					ENamedThreads::RHIThread | ENamedThreads::LocalQueue, // RHIThreadNormalPriLocalQueue
+					ENamedThreads::RHIThread | ENamedThreads::HighTaskPriority | ENamedThreads::LocalQueue // RHIThreadHiPriLocalQueue
+			};
+
+			return (ENamedThreads::Type)ConversionMap[(int32)Priority - (int32)EExtendedTaskPriority::GameThreadNormalPri];
+		}
+
+#endif
+
+		ENamedThreads::Type TranslatePriority(ETaskPriority Priority)
+		{
+			checkSlow(Priority < ETaskPriority::Count);
+
+			ENamedThreads::Type ConversionMap[] =
+			{
+				ENamedThreads::AnyHiPriThreadNormalTask,
+				ENamedThreads::AnyNormalThreadNormalTask,
+				ENamedThreads::AnyBackgroundHiPriTask,
+				ENamedThreads::AnyBackgroundThreadNormalTask,
+				ENamedThreads::AnyBackgroundThreadNormalTask // same as above
+			};
+
+			return ConversionMap[(int32)Priority];
 		}
 	}
 }
