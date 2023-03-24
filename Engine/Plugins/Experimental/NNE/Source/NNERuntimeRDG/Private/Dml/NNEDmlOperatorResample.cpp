@@ -28,8 +28,9 @@ void RemoveValuesByIndex(TConstArrayView<uint32> Indices, TArray<TData, TAllocat
 	}
 }
 
-// Upsample operator is implemented as a DML Resample operator
-class FOperatorDmlUpsample : public FOperatorDml
+// Upsample and Resize operator are implemented as a DML Resample operator
+template < bool IsResize>
+class FOperatorDmlResample : public FOperatorDml
 {
 	static DML_INTERPOLATION_MODE ModeFromString(FStringView StringVal)
 	{
@@ -52,7 +53,7 @@ public:
 
 	static FOperatorDml* Create()
 	{
-		return new FOperatorDmlUpsample();
+		return new FOperatorDmlResample<IsResize>();
 	}
 
 	//
@@ -60,28 +61,51 @@ public:
 	//
 	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
 	{
-		check(InputTensors.Num() == 2);
+		check(InputTensors.Num() >= 1 && InputTensors.Num() < 4);
 		check(OutputTensors.Num() == 1);
 
 		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
-		const NNECore::Internal::FTensor& ScaleTensor = InputTensors[1];
+		const NNECore::Internal::FTensor& ScaleTensor = (InputTensors.Num() == 2)?InputTensors[1]:InputTensors[2];//Upsample have scale at position 1, while Resize at 2.
 		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
-		
-		// Read attributes
-		DML_INTERPOLATION_MODE Mode = ModeFromString(Attributes.GetValue<FString>("mode"));
 
-		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-		DmlUtil::FTensorDesc	DmlScaleTensor{};
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
-
-		if (!DmlInputTensor.InitFromTensor(InputTensor, 1))
+		if (InputTensors.Num() == 3 && InputTensors[2].GetDataType() == ENNETensorDataType::Int64)
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Warning, TEXT("Unsupported input type for 'sizes' of name %s, only 'scales' of type float is supported."), *InputTensors[2].GetName());
 			return false;
 		}
 
-		if (!DmlScaleTensor.InitFromTensor(ScaleTensor, 1))
+		if (!ScaleTensor.HasPreparedData())
+		{
+			UE_LOG(LogNNE, Warning, TEXT("scale should be a constant tensor, it is here a variable tensor of name %s."), *ScaleTensor.GetName());
+			return false;
+		}
+		
+		// Read attributes
+		DML_INTERPOLATION_MODE Mode = ModeFromString(Attributes.GetValue<FString>(TEXT("mode")));
+
+		if constexpr (IsResize)
+		{
+			if (Mode == DML_INTERPOLATION_MODE_NEAREST_NEIGHBOR)
+			{
+				FString NeareastMode = Attributes.GetValueOrDefault<FString>(TEXT("nearest_mode"), TEXT("round_prefer_floor"));
+				if (FCString::Stricmp(*NeareastMode, TEXT("floor")) != 0)
+				{
+					UE_LOG(LogNNE, Warning, TEXT("Unsupported neareast mode:%s, using floor instead"), *NeareastMode);
+				}
+			}
+
+			FString CoordinateTransformationMode = Attributes.GetValueOrDefault<FString>(TEXT("coordinate_transformation_mode"), TEXT("half_pixel"));
+			if (FCString::Stricmp(*CoordinateTransformationMode, TEXT("half_pixel")) != 0)
+			{
+				UE_LOG(LogNNE, Warning, TEXT("Unsupported coordinate transformation mode:%s, using half_pixel instead"), *CoordinateTransformationMode);
+			}
+		}
+
+		// Initialize tensor descriptors
+		DmlUtil::FTensorDesc	DmlInputTensor{};
+		DmlUtil::FTensorDesc	DmlOutputTensor{};
+
+		if (!DmlInputTensor.InitFromTensor(InputTensor, 1))
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
@@ -94,7 +118,10 @@ public:
 		}
 
 		// Notify DML graph that we have constant CPU tensor inputs
-		ConstantCPUInputs.Add(1);
+		for (int i = 1; i < InputTensors.Num(); ++i)
+		{
+			ConstantCPUInputs.Add(i);
+		}
 
 		TConstArrayView<float> Scales = ScaleTensor.GetPreparedData<float>();
 		
@@ -138,8 +165,20 @@ public:
 	}
 };
 
+#define NNE_DML_REGISTER_RESAMPLE_OP(OpName, IsResize) \
+struct FDmlOperator##OpName##Registrator \
+{ \
+	FDmlOperator##OpName##Registrator() \
+	{ \
+		FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDmlResample<IsResize>::Create); \
+	} \
+}; \
+\
+static FDmlOperator##OpName##Registrator RegisterDmlOperator##OpName;
+
 // Register operator on Module startup
-NNE_DML_REGISTER_OP(Upsample)
+NNE_DML_REGISTER_RESAMPLE_OP(Upsample, false)
+NNE_DML_REGISTER_RESAMPLE_OP(Resize, true)
 
 } // namespace UE::NNERuntimeRDG::Private::Dml
 

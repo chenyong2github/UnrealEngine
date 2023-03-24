@@ -630,16 +630,13 @@ private:
 				{
 					DataSize = Graph->GetTensorDataSize(TensorInit);
 
-					if (DataSize)
+					if (TensorDataBlob.Num() < DataSize)
 					{
-						if (TensorDataBlob.Num() < DataSize)
-						{
-							TensorDataBlob.SetNumUninitialized(DataSize);
-						}
-
-						Graph->GetTensorData(TensorInit, TensorDataBlob.GetData(), DataSize, 0);
-						Data = TensorDataBlob.GetData();
+						TensorDataBlob.SetNumUninitialized(DataSize);
 					}
+
+					Graph->GetTensorData(TensorInit, TensorDataBlob.GetData(), DataSize, 0);
+					Data = TensorDataBlob.GetData();
 				}
 
 				auto Tensor =

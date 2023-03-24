@@ -63,6 +63,7 @@ public:
 				return false;
 			}
 			Pads.Append(InputTensors[1].GetPreparedData<int64>());
+			ConstantCPUInputs.Add(1);
 		}
 		else
 		{

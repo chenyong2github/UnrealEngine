@@ -10,8 +10,8 @@
 					"absolute_tolerance": 5.0e-2
 				}
 			]
-				},
-				{
+		},
+		{
 			"category": "StyleTransfer.VariableInputSize",
 			"is_model_test": true,
 			"targets": [
@@ -67,17 +67,15 @@
 			"is_model_test": true,
 			"targets": [
 				{
-					"target": "OneLayerWithWeights",
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
-					]
+					"target": "OneLayerWithWeights"
 				},
 				{
 					"target": "TwoLayersNoWeight",
-					"tags": [ "SmokeTest" ],
-					"runtimes": [
-						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
-					]
+					"tags": [ "SmokeTest" ]
+				},
+				{
+					"target": "MultiInput",
+					"tags": [ "SmokeTest" ]
 				},
 				{
 					"target": "MultiOutput",

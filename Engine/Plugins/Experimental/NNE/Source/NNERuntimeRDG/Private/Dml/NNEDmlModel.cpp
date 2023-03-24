@@ -493,7 +493,7 @@ public:
 			
 		DML_GRAPH_DESC	Graph = DML_GRAPH_DESC{};
 
-		Graph.InputCount = InputEdges.Num();
+		Graph.InputCount = NumInputs;
 		Graph.OutputCount = OutputEdges.Num();
 		Graph.NodeCount = Operators.Num();
 		Graph.Nodes = Nodes.GetData();
@@ -624,6 +624,11 @@ private:
 			{
 				AddInputEdge(TensorIdx);
 			}
+
+			if (InGraph.ConstantCPUIndices.Find(TensorIdx) == INDEX_NONE)
+			{
+				++NumInputs;
+			}
 		}
 
 		return true;
@@ -728,8 +733,6 @@ private:
 				.SetTensorIdx(TensorIdx)
 				.SetNodeSrcOutput(NumInputs)
 		);
-
-		++NumInputs;
 	}
 
 	void AddOutputEdge(int32 TensorIdx)

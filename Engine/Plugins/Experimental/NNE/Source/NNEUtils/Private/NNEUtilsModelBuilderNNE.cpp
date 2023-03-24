@@ -113,8 +113,8 @@ public:
 		TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>> NNEShape;
 		for (int i = 0; i < Shape.Num(); ++i)
 		{
-			//ORT Graph return 0 for variable dimensions, NNE use -1.
-			NNEShape.Emplace(Shape[i] == 0 ? -1 : Shape[i]);
+			//ORT Graph return 0 for variable dimensions for inputs/outputs, NNE use -1.
+			NNEShape.Emplace(!Data && Shape[i] == 0 ? -1 : Shape[i]);
 		}
 		
 		int Idx = AddTensor(Name, NNEShape, DataType, Data, DataSize);
