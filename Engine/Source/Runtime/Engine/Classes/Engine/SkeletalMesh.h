@@ -2042,6 +2042,7 @@ public:
 	UPROPERTY()
 	TArray<FTransform> RetargetBasePose;
 
+	UE_DEPRECATED(5.3, "Please do not use the retarget base pose. If you need a separate retarget pose, use the IK Retargeter or adjust the reference pose of the skeletal mesh.")
 	static FName GetRetargetBasePoseMemberName()
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2049,6 +2050,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	UE_DEPRECATED(5.3, "Please do not use the retarget base pose. If you need a separate retarget pose, use the IK Retargeter or adjust the reference pose of the skeletal mesh.")
 	TArray<FTransform>& GetRetargetBasePose()
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RetargetBasePose);
@@ -2057,6 +2059,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	UE_DEPRECATED(5.3, "Please do not use the retarget base pose. If you need a separate retarget pose, use the IK Retargeter or adjust the reference pose of the skeletal mesh.")
 	const TArray<FTransform>& GetRetargetBasePose() const
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RetargetBasePose, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
@@ -2065,6 +2068,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	UE_DEPRECATED(5.3, "Please do not use the retarget base pose. If you need a separate retarget pose, use the IK Retargeter or adjust the reference pose of the skeletal mesh.")
 	void SetRetargetBasePose(const TArray<FTransform>& InRetargetBasePose)
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::RetargetBasePose);
