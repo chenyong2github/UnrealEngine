@@ -20,6 +20,14 @@ public:
 	FManualResetEvent& operator=(const FManualResetEvent&) = delete;
 
 	/**
+	 * Returns true if the event is notified, otherwise false.
+	 */
+	inline bool IsNotified() const
+	{
+		return !!(State.load(std::memory_order_acquire) & IsNotifiedFlag);
+	}
+
+	/**
 	 * Wait until the event is notified.
 	 */
 	inline void Wait()
@@ -35,7 +43,7 @@ public:
 	 */
 	inline bool WaitFor(FMonotonicTimeSpan WaitTime)
 	{
-		return WaitUntil(FMonotonicTimePoint::Now() + WaitTime);
+		return WaitTime.IsZero() ? IsNotified() : WaitUntil(FMonotonicTimePoint::Now() + WaitTime);
 	}
 
 	/**

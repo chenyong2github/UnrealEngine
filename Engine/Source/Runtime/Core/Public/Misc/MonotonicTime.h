@@ -37,6 +37,7 @@ public:
 	constexpr double ToSeconds() const { return Time; }
 	constexpr double ToMilliseconds() const { return Time * 1000.0; }
 
+	constexpr bool IsZero() const { return *this == Zero(); }
 	constexpr bool IsInfinity() const { return *this == Infinity() || *this == -Infinity(); }
 	bool IsNaN() const { return FPlatformMath::IsNaN(Time); }
 
