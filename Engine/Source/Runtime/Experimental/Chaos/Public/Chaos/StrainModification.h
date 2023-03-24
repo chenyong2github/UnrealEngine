@@ -54,7 +54,9 @@ namespace Chaos
 		int32 GetNumRestBreakables() const;
 
 		// Get the number of breaking strains amongst the level-1 strainables
-		int32 GetNumBreakingStrains(const uint8 StrainTypes = EStrainTypes::ExternalStrain | EStrainTypes::CollisionStrain) const;
+		// If DoubleCount is true, then add N for each strain which is strong enough to
+		// break a connection N times.
+		int32 GetNumBreakingStrains(bool bDoubleCount = true, const uint8 StrainTypes = EStrainTypes::ExternalStrain | EStrainTypes::CollisionStrain) const;
 
 		// Clear strains for all strained cluster children
 		void ClearStrains();

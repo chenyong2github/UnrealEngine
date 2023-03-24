@@ -25,7 +25,7 @@ int32 Chaos::FStrainedProxyModifier::GetNumRestBreakables() const
 	return 0;
 }
 
-int32 Chaos::FStrainedProxyModifier::GetNumBreakingStrains(const uint8 StrainTypes) const
+int32 Chaos::FStrainedProxyModifier::GetNumBreakingStrains(const bool bDoubleCount, const uint8 StrainTypes) const
 {
 	// Make sure we have a proxy and rest-children
 	if (Proxy == nullptr) { return 0; }
@@ -51,9 +51,14 @@ int32 Chaos::FStrainedProxyModifier::GetNumBreakingStrains(const uint8 StrainTyp
 		const Chaos::FReal ExternalStrain
 			= (StrainTypes & Chaos::EStrainTypes::ExternalStrain)
 			? ChildHandle->GetExternalStrain() : FReal(0);
-		const Chaos::FReal MaxAppliedStrain = FMath::Max(CollisionImpulses, ExternalStrain);
 		const Chaos::FReal InternalStrain = ChildHandle->GetInternalStrains();
-		if (MaxAppliedStrain >= InternalStrain)
+		Chaos::FReal MaxAppliedStrain = FMath::Max(CollisionImpulses, ExternalStrain);
+
+		if (bDoubleCount && InternalStrain > SMALL_NUMBER)
+		{
+			NumBreakingStrains += (int32)(MaxAppliedStrain / InternalStrain);
+		}
+		else if (MaxAppliedStrain >= InternalStrain)
 		{
 			++NumBreakingStrains;
 		}
