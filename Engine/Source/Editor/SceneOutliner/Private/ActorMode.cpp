@@ -454,13 +454,9 @@ int32 FActorMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) const
 	{
 		return EItemSortOrder::Folder;
 	}
-	else if (Item.IsA<FActorTreeItem>() || Item.IsA<FComponentTreeItem>())
+	else if (Item.IsA<FActorTreeItem>() || Item.IsA<FComponentTreeItem>() || Item.IsA<FActorDescTreeItem>())
 	{
 		return EItemSortOrder::Actor;
-	}
-	else if (Item.IsA<FActorDescTreeItem>())
-	{
-		return EItemSortOrder::Unloaded;
 	}
 
 	// Warning: using actor mode with an unsupported item type!

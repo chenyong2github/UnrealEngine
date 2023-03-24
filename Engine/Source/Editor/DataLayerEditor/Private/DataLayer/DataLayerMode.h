@@ -66,7 +66,6 @@ public:
 		WorldDataLayers = 0,
 		DataLayer = 10,
 		Actor = 20,
-		Unloaded = 30,
 	};
 
 	FDataLayerMode(const FDataLayerModeParams& Params);

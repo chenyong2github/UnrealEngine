@@ -307,13 +307,9 @@ int32 FDataLayerMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) co
 	{
 		return static_cast<int32>(EItemSortOrder::DataLayer);
 	}
-	else if (Item.IsA<FDataLayerActorTreeItem>())
+	else if (Item.IsA<FDataLayerActorTreeItem>() || Item.IsA<FDataLayerActorDescTreeItem>())
 	{
 		return static_cast<int32>(EItemSortOrder::Actor);
-	}
-	else if (Item.IsA<FDataLayerActorDescTreeItem>())
-	{
-		return static_cast<int32_t>(EItemSortOrder::Unloaded);
 	}
 	// Warning: using actor mode with an unsupported item type!
 	check(false);
