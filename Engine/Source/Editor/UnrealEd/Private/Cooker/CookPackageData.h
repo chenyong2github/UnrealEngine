@@ -1330,7 +1330,7 @@ private:
 	static FName LookupPackageNameOnDisk(FName NormalizedFileName, bool bExactMatchRequired, FName& FoundFileName);
 
 	/** Allocator for PackageDatas Guarded by ExistenceLock. */
-	TTypedBlockAllocator<FPackageData> Allocator;
+	TTypedBlockAllocatorFreeList<FPackageData> Allocator;
 	FPackageDataMonitor Monitor;
 	/** Guarded by ExistenceLock */
 	TMap<FName, FPackageData*> PackageNameToPackageData;
