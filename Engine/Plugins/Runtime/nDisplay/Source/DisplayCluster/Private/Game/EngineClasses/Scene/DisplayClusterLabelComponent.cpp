@@ -33,6 +33,14 @@ UDisplayClusterLabelComponent::UDisplayClusterLabelComponent()
 	SetVisibility(false);
 }
 
+void UDisplayClusterLabelComponent::SetLabelConfiguration(const FDisplayClusterLabelConfiguration& InConfiguration)
+{
+	SetRootActor(InConfiguration.RootActor);
+	SetWidgetScale(InConfiguration.Scale);
+	SetVisibility(InConfiguration.bVisible);
+	LabelFlags = InConfiguration.LabelFlags;
+}
+
 void UDisplayClusterLabelComponent::SetRootActor(ADisplayClusterRootActor* InActor)
 {
 	RootActor = InActor;
@@ -47,6 +55,21 @@ void UDisplayClusterLabelComponent::SetWidgetScale(float NewValue)
 float UDisplayClusterLabelComponent::GetWidgetScale() const
 {
 	return WidgetScale;
+}
+
+void UDisplayClusterLabelComponent::SetLabelFlags(EDisplayClusterLabelFlags InFlags)
+{
+	EnumAddFlags(LabelFlags, InFlags);
+}
+
+void UDisplayClusterLabelComponent::ClearLabelFlags(EDisplayClusterLabelFlags InFlags)
+{
+	EnumRemoveFlags(LabelFlags, InFlags);
+}
+
+bool UDisplayClusterLabelComponent::HasAnyLabelFlags(EDisplayClusterLabelFlags InFlags) const
+{
+	return EnumHasAnyFlags(GetLabelFlags(), InFlags);
 }
 
 void UDisplayClusterLabelComponent::TickComponent(float DeltaTime, ELevelTick TickType,
@@ -110,12 +133,12 @@ void UDisplayClusterLabelComponent::UpdateWidgetComponent()
 		}
 
 #if WITH_EDITOR
-		const bool bInGame = GEditor == nullptr;
+		const bool bIsGame = !GIsEditor;
 #else
-		constexpr bool bInGame = true;
+		const bool bIsGame = true;
 #endif
-
-		if (bInGame)
+		
+		if (bIsGame)
 		{
 			const USceneComponent* Viewpoint = RootActor.IsValid() ? RootActor->GetCommonViewPoint() : nullptr;
 			if (Viewpoint != nullptr)
@@ -167,8 +190,25 @@ void UDisplayClusterLabelComponent::CheckForVisibilityChange()
 	// MU doesn't seem to register nested sub component visibility changes, and OnVisibilityChanged won't
 	// fire on the MU client so we have to manually check here.
 
-	if (GetVisibleFlag() != WidgetComponent->GetVisibleFlag())
+#if WITH_EDITOR
+	const bool bIsGame = !GIsEditor;
+#else
+	const bool bIsGame = true;
+#endif
+	
+	bool bDisplayWidget = GetVisibleFlag();
+	
+	if (bIsGame && !HasAnyLabelFlags(EDisplayClusterLabelFlags::DisplayInGame))
 	{
-		WidgetComponent->SetVisibility(GetVisibleFlag());
+		bDisplayWidget = false;
+	}
+	else if (!bIsGame && !HasAnyLabelFlags(EDisplayClusterLabelFlags::DisplayInEditor))
+	{
+		bDisplayWidget = false;
+	}
+	
+	if (bDisplayWidget != WidgetComponent->GetVisibleFlag())
+	{
+		WidgetComponent->SetVisibility(bDisplayWidget);
 	}
 }

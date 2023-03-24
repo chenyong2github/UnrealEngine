@@ -42,8 +42,12 @@ void FDisplayClusterLightCardEditorCommands::RegisterCommands()
 	UI_COMMAND(DrawLightCard, "Draw Light Card", "Draw polygon light card on viewport", EUserInterfaceActionType::ToggleButton, FInputChord());
 
 	UI_COMMAND(ToggleAllLabels, "Labels", "Display labels in the preview and wall", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleLightCardLabels, "Light Card Labels", "Display labels on light cards in the preview and wall", EUserInterfaceActionType::ToggleButton, FInputChord());
-
+	UI_COMMAND(ToggleLabelsVisibleInEditor, "Labels Visible in Editor", "Display labels in the editor", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleLabelsHiddenInGame, "Labels Hidden in Game", "Hide labels from displaying on the wall when running as -game", EUserInterfaceActionType::ToggleButton, FInputChord());
+	
+	// @todo label types -- ToggleLightCardLabels is meant for only light card types and the user text should be updated to reflect that when labels are supported on more than just light cards
+	UI_COMMAND(ToggleLightCardLabels, "Show Labels", "Display labels on light cards in the preview and wall", EUserInterfaceActionType::ToggleButton, FInputChord());
+	
 	UI_COMMAND(ToggleIconVisibility, "Icons", "Display icons in the light card editor where applicable", EUserInterfaceActionType::ToggleButton, FInputChord());
 }
 

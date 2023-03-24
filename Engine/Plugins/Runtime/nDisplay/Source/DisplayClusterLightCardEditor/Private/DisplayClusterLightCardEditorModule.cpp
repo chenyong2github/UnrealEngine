@@ -75,7 +75,7 @@ void FDisplayClusterLightCardEditorModule::ShowLabels(const FLabelArgs& InArgs)
 	for (ADisplayClusterLightCardActor* LightCardActor : RootActorLightCardActors)
 	{
 		LightCardActor->Modify(false);
-		LightCardActor->ShowLightCardLabel(InArgs.bVisible, InArgs.Scale, InArgs.RootActor);
+		LightCardActor->ShowLightCardLabel(InArgs);
 	}
 }
 

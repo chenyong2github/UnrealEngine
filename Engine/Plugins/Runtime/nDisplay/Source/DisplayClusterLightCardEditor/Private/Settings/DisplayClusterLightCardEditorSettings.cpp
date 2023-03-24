@@ -7,6 +7,7 @@
 #include "DisplayClusterMeshProjectionRenderer.h"
 
 #include "DisplayClusterLightCardActor.h"
+#include "Components/DisplayClusterLabelComponent.h"
 
 #include "Editor/UnrealEdTypes.h"
 #include "Engine/Texture.h"
@@ -20,6 +21,7 @@ UDisplayClusterLightCardEditorProjectSettings::UDisplayClusterLightCardEditorPro
 	LightCardTemplateDefaultPath.Path = TEXT("/Game/VP/LightCards");
 	LightCardLabelScale = 1.f;
 	bDisplayLightCardLabels = false;
+	LightCardLabelFlags = EDisplayClusterLabelFlags::DisplayInGame | EDisplayClusterLabelFlags::DisplayInEditor;
 }
 
 const FName FDisplayClusterLightCardEditorRecentItem::Type_LightCard = "LightCard";

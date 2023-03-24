@@ -2,12 +2,14 @@
 
 #pragma once
 
+#include "Components/DisplayClusterLabelConfiguration.h"
 #include "StageActor/IDisplayClusterStageActor.h"
 
 #include "GameFramework/Actor.h"
 
 #include "DisplayClusterLightCardActor.generated.h"
 
+enum class EDisplayClusterLabelFlags : uint8;
 class ADisplayClusterRootActor;
 class UActorComponent;
 class UDisplayClusterLabelComponent;
@@ -115,8 +117,12 @@ public:
 
 	/** If this light card is considered a flag */
 	bool IsLightCardFlag() const { return bIsLightCardFlag; }
+
+	/** Configure light card labels */
+	void ShowLightCardLabel(const FDisplayClusterLabelConfiguration& InLabelConfiguration);
 	
 	/** Show or hide the light card label  */
+	UE_DEPRECATED(5.3, "Use the ShowLightCardLabel function which accepts FDisplayClusterLabelConfiguration arguments.")
 	void ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor);
 
 	/** Set a weak root actor owner. This should be used on legacy light cards that don't have StageActorComponent->RootActor set */

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "Components/DisplayClusterLabelConfiguration.h"
 
 #include "DisplayClusterLabelComponent.generated.h"
 
@@ -26,8 +27,12 @@ class DISPLAYCLUSTER_API UDisplayClusterLabelComponent : public USceneComponent
 	GENERATED_BODY()
 
 public:
+	
 	UDisplayClusterLabelComponent();
 
+	/** Set the configuration for this label updating multiple properties at once */
+	void SetLabelConfiguration(const FDisplayClusterLabelConfiguration& InConfiguration);
+	
 	/** Set the root actor this label should use when determining transform */
 	void SetRootActor(ADisplayClusterRootActor* InActor);
 
@@ -37,6 +42,18 @@ public:
 	/** Return the widget scale */
 	float GetWidgetScale() const;
 
+	/** Updates flags for this label */
+	void SetLabelFlags(EDisplayClusterLabelFlags InFlags);
+	
+	/** Clears all label flags */
+	void ClearLabelFlags(EDisplayClusterLabelFlags InFlags);
+	
+	/** Retrieve label flags */
+	EDisplayClusterLabelFlags GetLabelFlags() const { return LabelFlags; }
+	
+	/** Checks for existence of a flag on this label */
+	bool HasAnyLabelFlags(EDisplayClusterLabelFlags InFlags) const;
+	
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -73,4 +90,8 @@ private:
 	/** A uniform scale to apply to the text which will keep consistency across distance from the label to the root actor view */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Label, meta = (AllowPrivateAccess))
 	float WidgetScale = 1.f;
+
+	/** Current flags set for this label component */
+	UPROPERTY()
+	EDisplayClusterLabelFlags LabelFlags;
 };

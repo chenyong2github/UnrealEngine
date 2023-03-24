@@ -10,12 +10,12 @@ public class DisplayClusterScenePreview : ModuleRules
 			new string[] {
 				"DisplayClusterLightCardEditorShaders",
 				"DisplayClusterLightCardExtender",
-				"RHI"
+				"RHI",
+				"DisplayCluster"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"DisplayCluster",
 				"DisplayClusterConfiguration",
 
 				"Core",

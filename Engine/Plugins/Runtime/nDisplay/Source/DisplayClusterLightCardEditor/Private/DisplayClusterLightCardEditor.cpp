@@ -25,6 +25,7 @@
 #include "Blueprints/DisplayClusterBlueprintLib.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterICVFXCameraComponent.h"
+#include "Components/DisplayClusterLabelComponent.h"
 
 #include "ContentBrowserModule.h"
 #include "FileHelpers.h"
@@ -231,8 +232,10 @@ AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorCl
 		SpawnArgs.RootActor = ActiveRootActor.Get();
 		SpawnArgs.Template = InTemplate;
 		SpawnArgs.Level = InLevel;
-		SpawnArgs.AddLightCardArgs.bShowLabels = Settings->bDisplayLightCardLabels;
-		SpawnArgs.AddLightCardArgs.LabelScale = Settings->LightCardLabelScale;
+		SpawnArgs.AddLightCardArgs.LabelConfiguration.bVisible = Settings->bDisplayLightCardLabels;
+		SpawnArgs.AddLightCardArgs.LabelConfiguration.Scale = Settings->LightCardLabelScale;
+		SpawnArgs.AddLightCardArgs.LabelConfiguration.LabelFlags = Settings->LightCardLabelFlags;
+		SpawnArgs.AddLightCardArgs.LabelConfiguration.RootActor = ActiveRootActor.Get();
 	
 		if (ViewportView.IsValid())
 		{
@@ -456,8 +459,10 @@ void FDisplayClusterLightCardEditor::AddLightCardsToActor(const TArray<ADisplayC
 	if (ActiveRootActor.IsValid())
 	{
 		FDisplayClusterLightCardEditorHelper::FAddLightCardArgs AddLightCardArgs;
-		AddLightCardArgs.bShowLabels = ShouldShowLightCardLabels();
-		AddLightCardArgs.LabelScale = *GetLightCardLabelScale();
+		AddLightCardArgs.LabelConfiguration.bVisible = ShouldShowLightCardLabels();
+		AddLightCardArgs.LabelConfiguration.Scale = *GetLightCardLabelScale();
+		AddLightCardArgs.LabelConfiguration.LabelFlags = GetLightCardLabelFlags();
+		AddLightCardArgs.LabelConfiguration.RootActor = ActiveRootActor.Get();
 		
 		FDisplayClusterLightCardEditorHelper::AddLightCardsToRootActor(LightCards, ActiveRootActor.Get(), MoveTemp(AddLightCardArgs));
 		
@@ -763,8 +768,15 @@ void FDisplayClusterLightCardEditor::RemoveActors(
 							LayersSubsystem->RemoveActorFromLayer(LightCard, LightCardLayerName);
 						}
 					}
-					
-					LightCard->ShowLightCardLabel(false, *GetLightCardLabelScale(), ActiveRootActor.Get());
+
+					FDisplayClusterLabelConfiguration LabelArgs;
+					{
+						LabelArgs.bVisible = false;
+						LabelArgs.Scale = *GetLightCardLabelScale();
+						LabelArgs.RootActor = ActiveRootActor.Get();
+						LabelArgs.LabelFlags = GetLightCardLabelFlags();
+					}
+					LightCard->ShowLightCardLabel(MoveTemp(LabelArgs));
 				}
 			}
 
@@ -910,6 +922,7 @@ void FDisplayClusterLightCardEditor::ShowLightCardLabels(bool bVisible)
 
 	IDisplayClusterLightCardEditor::FLabelArgs Args;
 	Args.bVisible = bVisible;
+	Args.LabelFlags = GetLightCardLabelFlags();
 	Args.Scale = *GetLightCardLabelScale();
 	Args.RootActor = GetActiveRootActor().Get();
 	
@@ -921,6 +934,32 @@ void FDisplayClusterLightCardEditor::ShowLightCardLabels(bool bVisible)
 bool FDisplayClusterLightCardEditor::ShouldShowLightCardLabels() const
 {
 	return GetDefault<UDisplayClusterLightCardEditorProjectSettings>()->bDisplayLightCardLabels;
+}
+
+void FDisplayClusterLightCardEditor::ToggleLightCardLabelFlag(EDisplayClusterLabelFlags InFlag)
+{
+	SaveLightCardLabelFlags(GetLightCardLabelFlags() ^ InFlag);
+}
+
+void FDisplayClusterLightCardEditor::SaveLightCardLabelFlags(EDisplayClusterLabelFlags InFlags)
+{
+	GetMutableDefault<UDisplayClusterLightCardEditorProjectSettings>()->LightCardLabelFlags = InFlags;
+	ShowLightCardLabels(ShouldShowLightCardLabels());
+}
+
+bool FDisplayClusterLightCardEditor::LightCardLabelHasFlag(EDisplayClusterLabelFlags FlagToCheck) const
+{
+	return EnumHasAnyFlags(GetLightCardLabelFlags(), FlagToCheck);
+}
+
+bool FDisplayClusterLightCardEditor::LightCardLabelDoesNotHaveFlag(EDisplayClusterLabelFlags FlagToCheck) const
+{
+	return !LightCardLabelHasFlag(FlagToCheck);
+}
+
+EDisplayClusterLabelFlags FDisplayClusterLightCardEditor::GetLightCardLabelFlags() const
+{
+	return GetDefault<UDisplayClusterLightCardEditorProjectSettings>()->LightCardLabelFlags;
 }
 
 TOptional<float> FDisplayClusterLightCardEditor::GetLightCardLabelScale() const
@@ -942,6 +981,7 @@ void FDisplayClusterLightCardEditor::SetLightCardLabelScale(float NewValue)
 	IDisplayClusterLightCardEditor::FLabelArgs Args;
 	Args.bVisible = ShouldShowLightCardLabels();
 	Args.Scale = NewValue;
+	Args.LabelFlags = GetLightCardLabelFlags();
 	Args.RootActor = GetActiveRootActor().Get();
 	
 	LightCardEditorModule.ShowLabels(MoveTemp(Args));
@@ -1289,7 +1329,9 @@ TSharedRef<SWidget> FDisplayClusterLightCardEditor::GenerateLabelsMenu()
 	MenuBuilder.BeginSection("Labels", LOCTEXT("LabelsMenuHeader", "Labels"));
 	{
 		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ToggleLightCardLabels);
-	
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ToggleLabelsVisibleInEditor);
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ToggleLabelsHiddenInGame);
+		
 		MenuBuilder.AddWidget(
 		SNew(SBox)
 		.HAlign(HAlign_Right)
@@ -1557,6 +1599,18 @@ void FDisplayClusterLightCardEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::ToggleLightCardLabels),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FDisplayClusterLightCardEditor::ShouldShowLightCardLabels));
+
+	CommandList->MapAction(
+		FDisplayClusterLightCardEditorCommands::Get().ToggleLabelsVisibleInEditor,
+		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::ToggleLightCardLabelFlag, EDisplayClusterLabelFlags::DisplayInEditor),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FDisplayClusterLightCardEditor::LightCardLabelHasFlag, EDisplayClusterLabelFlags::DisplayInEditor));
+
+	CommandList->MapAction(
+		FDisplayClusterLightCardEditorCommands::Get().ToggleLabelsHiddenInGame,
+		FExecuteAction::CreateSP(this, &FDisplayClusterLightCardEditor::ToggleLightCardLabelFlag, EDisplayClusterLabelFlags::DisplayInGame),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FDisplayClusterLightCardEditor::LightCardLabelDoesNotHaveFlag, EDisplayClusterLabelFlags::DisplayInGame));
 }
 
 void FDisplayClusterLightCardEditor::RegisterToolbarExtensions()

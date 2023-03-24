@@ -4,6 +4,8 @@
 
 #include "StageActor/DisplayClusterWeakStageActorPtr.h"
 
+#include "Components/DisplayClusterLabelConfiguration.h"
+
 #include "DisplayClusterMeshProjectionRenderer.h"
 
 #include "SceneView.h"
@@ -234,13 +236,18 @@ public:
 
 	struct FAddLightCardArgs
 	{
-		bool bShowLabels;
-		float LabelScale;
+		UE_DEPRECATED(5.3, "Use LabelConfiguration to configure label visibility.")
+		bool bShowLabels = false;
+		UE_DEPRECATED(5.3, "Use LabelConfiguration to configure label scale.")
+		float LabelScale = 1.f;
+
+		/** Label configuration to use for the new light card */
+		FDisplayClusterLabelConfiguration LabelConfiguration;
 
 		FAddLightCardArgs():
-		bShowLabels(false),
-		LabelScale(1.f)
-		{}
+			LabelConfiguration()
+		{
+		}
 	};
 	
 	struct FSpawnActorArgs

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/DisplayClusterLabelComponent.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -40,24 +41,9 @@ public:
 		return FModuleManager::Get().IsModuleLoaded(ModuleName);
 	}
 
-	struct FLabelArgs
+	struct FLabelArgs : FDisplayClusterLabelConfiguration
 	{
 		// TODO: Specify type (Light Card vs CCR)
-		
-		/**
-		 * [Required] The root actor to display labels for
-		 */
-		class ADisplayClusterRootActor* RootActor = nullptr;
-		
-		/**
-		 * The scale to apply to the label
-		 */
-		float Scale = 1.f;
-
-		/**
-		 * Should the label be visible
-		 */
-		bool bVisible = false;
 	};
 	
 	/**

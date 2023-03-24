@@ -54,6 +54,8 @@ public:
 
 	TSharedPtr<FUICommandInfo> ToggleAllLabels;
 	TSharedPtr<FUICommandInfo> ToggleLightCardLabels;
+	TSharedPtr<FUICommandInfo> ToggleLabelsVisibleInEditor;
+	TSharedPtr<FUICommandInfo> ToggleLabelsHiddenInGame;
 
 	TSharedPtr<FUICommandInfo> ToggleIconVisibility;
 };

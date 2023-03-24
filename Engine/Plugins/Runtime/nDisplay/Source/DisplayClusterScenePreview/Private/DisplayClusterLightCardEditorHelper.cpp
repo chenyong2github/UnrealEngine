@@ -882,7 +882,10 @@ AActor* FDisplayClusterLightCardEditorHelper::SpawnStageActor(const FSpawnActorA
 			}
 		}
 
-		NewLightCard->ShowLightCardLabel(InSpawnArgs.AddLightCardArgs.bShowLabels, InSpawnArgs.AddLightCardArgs.LabelScale, RootActor);
+		FDisplayClusterLabelConfiguration LabelConfiguration = InSpawnArgs.AddLightCardArgs.LabelConfiguration;
+		LabelConfiguration.RootActor = RootActor;
+
+		NewLightCard->ShowLightCardLabel(LabelConfiguration);
 		
 		if (ADisplayClusterChromakeyCardActor* ChromakeyCardActor = Cast<ADisplayClusterChromakeyCardActor>(NewActor))
 		{

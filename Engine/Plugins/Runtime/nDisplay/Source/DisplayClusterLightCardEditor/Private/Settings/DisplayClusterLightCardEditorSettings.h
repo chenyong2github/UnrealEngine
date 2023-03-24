@@ -6,6 +6,7 @@
 
 #include "DisplayClusterLightCardEditorSettings.generated.h"
 
+enum class EDisplayClusterLabelFlags : uint8;
 class UDisplayClusterLightCardTemplate;
 struct FSlateBrush;
 
@@ -35,6 +36,10 @@ public:
 	/** Whether light card labels should be displayed. Handled through the light card editor */
 	UPROPERTY()
 	bool bDisplayLightCardLabels;
+	
+	/** Flags for the label */
+	UPROPERTY()
+	EDisplayClusterLabelFlags LightCardLabelFlags;
 	
 	/** The scale to use for light card labels */
 	UPROPERTY(config, EditAnywhere, Category = Labels)

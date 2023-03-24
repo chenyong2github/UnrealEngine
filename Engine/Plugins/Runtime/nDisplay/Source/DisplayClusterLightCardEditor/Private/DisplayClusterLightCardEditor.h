@@ -11,6 +11,7 @@
 #include "EditorUndoClient.h"
 #include "IDisplayClusterOperatorApp.h"
 
+enum class EDisplayClusterLabelFlags : uint8;
 class FLayoutExtender;
 class FMenuBuilder;
 class FSpawnTabArgs;
@@ -184,6 +185,21 @@ public:
 	/** If light card labels are currently toggled */
 	bool ShouldShowLightCardLabels() const;
 
+	/** Toggles light cards label flag */
+	void ToggleLightCardLabelFlag(EDisplayClusterLabelFlags InFlag);
+	
+	/** Save the light card label flags to settings */
+	void SaveLightCardLabelFlags(EDisplayClusterLabelFlags InFlags);
+	
+	/** If the light card label has a specific flag */
+	bool LightCardLabelHasFlag(EDisplayClusterLabelFlags FlagToCheck) const;
+
+	/** If the light card label is missing a specific flag */
+	bool LightCardLabelDoesNotHaveFlag(EDisplayClusterLabelFlags FlagToCheck) const;
+	
+	/** The current light card label flags */
+	EDisplayClusterLabelFlags GetLightCardLabelFlags() const;
+	
 	/** Return the current light card label scale */
 	TOptional<float> GetLightCardLabelScale() const;
 

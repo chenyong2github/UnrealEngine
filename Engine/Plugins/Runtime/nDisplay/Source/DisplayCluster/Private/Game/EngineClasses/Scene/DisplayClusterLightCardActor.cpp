@@ -577,7 +577,7 @@ void ADisplayClusterLightCardActor::SetIsLightCardFlag(bool bNewFlagValue)
 	bIsLightCardFlag = bNewFlagValue;
 }
 
-void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor)
+void ADisplayClusterLightCardActor::ShowLightCardLabel(const FDisplayClusterLabelConfiguration& InLabelConfiguration)
 {
 	if (IsUVActor())
 	{
@@ -589,9 +589,19 @@ void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleV
 	LabelComponent->Modify(false);
 	LightCardComponent->Modify(false);
 #endif
-	LabelComponent->SetVisibility(bValue, true);
-	LabelComponent->SetRootActor(InRootActor);
-	LabelComponent->SetWidgetScale(ScaleValue);
+	LabelComponent->SetLabelConfiguration(InLabelConfiguration);
+}
+
+void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor)
+{
+	FDisplayClusterLabelConfiguration LabelConfiguration;
+	{
+		LabelConfiguration.bVisible = bValue;
+		LabelConfiguration.Scale = ScaleValue;
+		LabelConfiguration.RootActor = InRootActor;
+		LabelConfiguration.LabelFlags = LabelComponent->GetLabelFlags();
+	}
+	ShowLightCardLabel(MoveTemp(LabelConfiguration));
 }
 
 void ADisplayClusterLightCardActor::SetWeakRootActorOwner(ADisplayClusterRootActor* InRootActor)
