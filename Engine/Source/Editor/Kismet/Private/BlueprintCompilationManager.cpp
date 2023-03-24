@@ -1919,6 +1919,8 @@ void FBlueprintCompilationManagerImpl::FlushReinstancingQueueImpl(bool bFindAndR
 					It.RemoveCurrent();
 				}
 			}
+			// preserve any pairs that are currently loading:
+			ClassesToReinstance = MoveTemp(ClassesToReinstanceOwned);
 		}
 		else
 		{
