@@ -596,33 +596,6 @@ TEST_CASE("API.autortfm_did_allocate")
     }
 }
 
-TEST_CASE("API.autortfm_will_deallocate")
-{
-    constexpr unsigned Size = 1024;
-    unsigned BumpAllocator[Size];
-
-    for (unsigned I = 0; I < Size; I++)
-    {
-        BumpAllocator[I] = I;
-    }
-
-    AutoRTFM::Commit([&]
-    {
-        for (unsigned I = 0; I < Size; I++)
-        {
-            BumpAllocator[I] += 1;
-            autortfm_will_deallocate(&BumpAllocator[I], sizeof(unsigned));
-        }
-    });
-
-	// Even though we marked it as going to be deallocated, that doesn't
-    // magically stop our writes going through on commit.
-    for (unsigned I = 0; I < Size; I++)
-    {
-        REQUIRE((I + 1) == BumpAllocator[I]);
-    }
-}
-
 TEST_CASE("API.autortfm_check_consistency_assuming_no_races")
 {
     AutoRTFM::Commit([&]
@@ -1215,33 +1188,6 @@ TEST_CASE("API.DidAllocate")
     for (unsigned I = 0; I < Size; I++)
     {
         REQUIRE(I == BumpAllocator[I]);
-    }
-}
-
-TEST_CASE("API.WillDeallocate")
-{
-    constexpr unsigned Size = 1024;
-    unsigned BumpAllocator[Size];
-
-    for (unsigned I = 0; I < Size; I++)
-    {
-        BumpAllocator[I] = I;
-    }
-
-    AutoRTFM::Commit([&]
-    {
-        for (unsigned I = 0; I < Size; I++)
-        {
-            BumpAllocator[I] += 1;
-            AutoRTFM::WillDeallocate(&BumpAllocator[I], sizeof(unsigned));
-        }
-    });
-
-    // Even though we marked it as going to be deallocated, that doesn't
-    // magically stop our writes going through on commit.
-    for (unsigned I = 0; I < Size; I++)
-    {
-        REQUIRE((I + 1) == BumpAllocator[I]);
     }
 }
 

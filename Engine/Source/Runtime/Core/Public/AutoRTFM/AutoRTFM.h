@@ -84,16 +84,18 @@ inline bool autortfm_is_closed(void)
 }
 #endif
 
-// Run the callback in a transaction. None of its effects will be visible until
-// it finishes, assuming it finishes without aborting. It's fine to call this
-// within a transaction. In that case, the nested transaction is only useful if
-// you might choose to abort it (then only the nested transaction aborts).
+// If AutoRTFM is enabled, run the callback in a transaction (otherwise just run the callback).
+// Writes and other effects get instrumented and will be reversed if the transaction aborts.
+// If this begins a nested transaction, the instrumented effects are logged onto the root
+// transaction, so the effects can be reversed later if the root transaction aborts, even
+// if this nested transaction succeeds.
 #if UE_AUTORTFM
 autortfm_result autortfm_transact(void (*work)(void* arg), void* arg);
 #else
 inline autortfm_result autortfm_transact(void (*work)(void* arg), void* arg)
 {
-    return autortfm_aborted_by_language;
+	work(arg);
+    return autortfm_committed;
 }
 #endif
 
@@ -310,14 +312,6 @@ inline void* autortfm_did_allocate(void* ptr, size_t size)
 }
 #endif
 
-// Inform the runtime that we have freed the object (meaning, we deferred it to
-// be freed in abort). This does nothing when called from open code.
-#if UE_AUTORTFM
-void autortfm_will_deallocate(void* ptr, size_t size);
-#else
-inline void autortfm_will_deallocate(void* ptr, size_t size) { }
-#endif
-
 // If running in a transaction, then perform a consistency check of the
 // transaction's read-write set. If possible, this compares the read-write set's
 // expected values with the actual values in global memory. Does nothing when
@@ -529,11 +523,6 @@ void OpenAbort(const TFunctor& Work) { }
 inline void* DidAllocate(void* Ptr, size_t Size)
 {
     return autortfm_did_allocate(Ptr, Size);
-}
-
-inline void WillDeallocate(void* Ptr, size_t Size)
-{
-    autortfm_will_deallocate(Ptr, Size);
 }
 
 inline void CheckConsistencyAssumingNoRaces()

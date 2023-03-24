@@ -11,6 +11,12 @@
 #include <float.h>
 #include <math.h>
 
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#else
+#include <malloc.h>
+#endif
+
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
@@ -45,9 +51,6 @@ void STM_free(void* Ptr, FContext* Context)
 {
     if (Ptr)
     {
-		const size_t AllocSize = GetAllocationSize(Ptr);
-        Context->WillDeallocate(Ptr, AllocSize);
-
         Context->GetCurrentTransaction()->DeferUntilCommit([Ptr]
         {
             free(Ptr);
@@ -61,7 +64,13 @@ void* STM_realloc(void* Ptr, size_t Size, FContext* Context)
     void* NewObject = STM_malloc(Size, Context);
     if (Ptr)
     {
-    	const size_t OldSize = GetAllocationSize(Ptr);
+#if defined(__APPLE__)
+		const size_t OldSize = malloc_size(Ptr);
+#elif defined(_WIN32)
+		const size_t OldSize = _msize(Ptr);
+#else
+		const size_t OldSize = malloc_usable_size(Ptr);
+#endif
         MemcpyToNew(NewObject, Ptr, std::min(OldSize, Size), Context);
         STM_free(Ptr, Context);
     }
@@ -148,13 +157,9 @@ FILE* STM___acrt_iob_func(int Index, FContext* Context)
     }
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(__acrt_iob_func);
-
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(__stdio_common_vfprintf);
-
-UE_AUTORTFM_REGISTER_SELF_FUNCTION(puts);
-
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(__stdio_common_vsprintf);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(__stdio_common_vswprintf);
-
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(__stdio_common_vfwprintf);
 
 #else // _WIN32 -> so !_WIN32
@@ -172,6 +177,18 @@ UE_AUTORTFM_REGISTER_SELF_FUNCTION(IsDebuggerPresent);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(EnterCriticalSection);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(LeaveCriticalSection);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(QueryPerformanceCounter);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(QueryPerformanceFrequency);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(TlsGetValue);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(GetCurrentThreadId);
+
+// TODO: need to instrument these because in the case of abort, the
+// constructed object will be undone
+extern "C" void* _Init_thread_header();
+extern "C" void* _Init_thread_abort();
+extern "C" void* _Init_thread_footer();
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_header);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_abort);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_footer);
 #endif
 
 wchar_t* STM_wcsncpy(wchar_t* Dst, const wchar_t* Src, size_t Count, FContext* Context)

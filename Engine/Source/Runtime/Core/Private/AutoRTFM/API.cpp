@@ -222,10 +222,6 @@ extern "C" void* autortfm_did_allocate(void* Ptr, size_t Size)
     return Ptr;
 }
 
-extern "C" void autortfm_will_deallocate(void* Ptr, size_t Size)
-{
-}
-
 extern "C" void autortfm_check_consistency_assuming_no_races()
 {
     if (FContext::IsTransactional())
@@ -478,12 +474,6 @@ void* STM_autortfm_did_allocate(void* Ptr, size_t Size, FContext* Context)
     return Ptr;
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_did_allocate);
-
-void STM_autortfm_will_deallocate(void* Ptr, size_t Size, FContext* Context)
-{
-    Context->WillDeallocate(Ptr, Size);
-}
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_will_deallocate);
 
 void STM_autortfm_check_consistency_assuming_no_races(FContext* Context)
 {

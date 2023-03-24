@@ -18,8 +18,4 @@ inline void FContext::DidAllocate(void* LogicalAddress, size_t Size)
     CurrentTransaction->DidAllocate(LogicalAddress, Size);
 }
 
-inline void FContext::WillDeallocate(void* LogicalAddress, size_t Size)
-{
-}
-
 } // namespace AutoRTFM

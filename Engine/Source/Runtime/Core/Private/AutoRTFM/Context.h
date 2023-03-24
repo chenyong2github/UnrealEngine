@@ -39,7 +39,6 @@ public:
     void RecordWrite(void* LogicalAddress, size_t Size, bool bIsClosed);
 
     void DidAllocate(void* LogicalAddress, size_t Size);
-    void WillDeallocate(void* LogicalAddress, size_t Size);
 
     // The rest of this is internalish.
     void AbortByLanguageAndThrow();
