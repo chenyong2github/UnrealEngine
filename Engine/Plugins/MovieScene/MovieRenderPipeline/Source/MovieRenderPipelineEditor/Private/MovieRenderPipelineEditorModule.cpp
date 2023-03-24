@@ -140,9 +140,9 @@ class FMovieRenderPipelineRenderer : public IMovieRendererInterface
 			{
 				ActiveJob->SetPresetOrigin(ProjectSettings->LastPresetOrigin.Get());
 			}
-		}
 
-		UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(ActiveJob);
+			UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(ActiveJob);
+		}
 
 		TArray<FString> ShotNames;
 		for (UMovieSceneCinematicShotSection* ShotSection : InSections)
