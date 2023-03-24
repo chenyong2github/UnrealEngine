@@ -11,7 +11,6 @@
 #include "SparseVolumeTextureOpenVDBUtility.h"
 #include "OpenVDBImportOptions.h"
 
-#include "Serialization/EditorBulkDataWriter.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/FileHelper.h"
@@ -498,12 +497,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		FScopedSlowTask ImportTask(1.0f, LOCTEXT("ImportingVDBStatic", "Importing static OpenVDB"));
 		ImportTask.MakeDialog(true);
 
-		UStaticSparseVolumeTexture* StaticSVTexture = NewObject<UStaticSparseVolumeTexture>(InParent, UStaticSparseVolumeTexture::StaticClass(), InName, Flags);
-
 		ExpandVolumeBounds(ImportOptions, PreviewData.GridInfo, VolumeBoundsMin, VolumeBoundsMax);
-		StaticSVTexture->VolumeResolution = VolumeBoundsMax - VolumeBoundsMin;
-		StaticSVTexture->Frames.SetNum(1);
-		StaticSVTexture->NumMipLevels = ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
 
 		FSparseVolumeTextureData TextureData{};
 		const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(PreviewData.LoadedFile, ImportOptions, VolumeBoundsMin, TextureData);
@@ -514,9 +508,13 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			return nullptr;
 		}
 
-		// Serialize the raw source data into the asset object.
-		UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(StaticSVTexture->Frames[0].RawData);
-		TextureData.Serialize(RawDataArchiveWriter);
+		UStaticSparseVolumeTexture* StaticSVTexture = NewObject<UStaticSparseVolumeTexture>(InParent, UStaticSparseVolumeTexture::StaticClass(), InName, Flags);
+		const bool bInitSuccess = StaticSVTexture->InitializeFromUncooked(TextureData);
+		if (!bInitSuccess)
+		{
+			UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Failed to initialize SparseVolumeTexture: %s"), *Filename);
+			return nullptr;
+		}
 
 		if (ImportTask.ShouldCancel())
 		{
@@ -533,8 +531,6 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		
 		// Data from original file is no longer needed; we iterate over all frames later
 		PreviewData.LoadedFile.Empty();
-
-		UAnimatedSparseVolumeTexture* AnimatedSVTexture = NewObject<UAnimatedSparseVolumeTexture>(InParent, UAnimatedSparseVolumeTexture::StaticClass(), InName, Flags);
 		
 		const int32 NumFrames = PreviewData.SequenceFilenames.Num();
 
@@ -542,7 +538,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		ImportTask.MakeDialog(true);
 
 		// Allocate space for each frame
-		AnimatedSVTexture->Frames.SetNum(NumFrames);
+		TArray<FSparseVolumeTextureData> UncookedFramesData;
+		UncookedFramesData.SetNum(NumFrames);
 
 		std::atomic_bool bErrored = false;
 		std::atomic_bool bCanceled = false;
@@ -614,8 +611,6 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		ImportTask.EnterProgressFrame(1.0f, LOCTEXT("ConvertingVDBAnim", "Converting OpenVDB animation"));
 
-		AnimatedSVTexture->NumMipLevels = ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
-
 		FEvent* AllTasksFinishedEvent = FPlatformProcess::GetSynchEventFromPool();
 		std::atomic_int FinishedTasksCounter = 0; // Will be incremented even if frame processing failed
 		std::atomic_int ProcessedFramesCounter = 0;
@@ -641,7 +636,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			};
 
 			AsyncTask(ENamedThreads::AnyNormalThreadNormalTask, 
-				[FrameIdx, NumFrames, &PreviewData, &ImportOptions, &AnimatedSVTexture,
+				[FrameIdx, NumFrames, &PreviewData, &ImportOptions, &UncookedFramesData,
 				AllTasksFinishedEvent, &bErrored, &bCanceled, &FinishedTasksCounter, &ProcessedFramesCounter, &VolumeBoundsMin]()
 				{
 					// Ensure the FinishedTasksCounter will be incremented in all cases
@@ -675,9 +670,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 						return;
 					}
 
-					// Serialize the raw source data from this frame into the asset object.
-					UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(AnimatedSVTexture->Frames[FrameIdx].RawData);
-					TextureData.Serialize(RawDataArchiveWriter);
+					UncookedFramesData[FrameIdx] = MoveTemp(TextureData);
 
 					// Increment ProcessedFramesCounter
 					ProcessedFramesCounter.fetch_add(1);
@@ -727,7 +720,13 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			return nullptr;
 		}
 
-		AnimatedSVTexture->VolumeResolution = VolumeBoundsMax - VolumeBoundsMin;
+		UAnimatedSparseVolumeTexture* AnimatedSVTexture = NewObject<UAnimatedSparseVolumeTexture>(InParent, UAnimatedSparseVolumeTexture::StaticClass(), InName, Flags);
+		const bool bInitSuccess = AnimatedSVTexture->InitializeFromUncooked(UncookedFramesData);
+		if (!bInitSuccess)
+		{
+			UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Failed to initialize SparseVolumeTexture: %s"), *Filename);
+			return nullptr;
+		}
 
 		ResultAssets.Add(AnimatedSVTexture);
 	}
@@ -751,5 +750,3 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 #endif // WITH_EDITORONLY_DATA
 
 #undef LOCTEXT_NAMESPACE
-
-#include "Serialization/EditorBulkDataWriter.h"

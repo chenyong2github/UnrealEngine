@@ -29,12 +29,27 @@
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
 #include "Serialization/EditorBulkDataReader.h"
+#include "Serialization/EditorBulkDataWriter.h"
 
 #include "ContentStreaming.h"
 
 #define LOCTEXT_NAMESPACE "USparseVolumeTexture"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTexture, Log, All);
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+static int32 SVTComputeNumMipLevels(const FIntVector3& InResolution)
+{
+	int32 Levels = 1;
+	FIntVector3 Resolution = InResolution;
+	while (Resolution.X > SPARSE_VOLUME_TILE_RES || Resolution.Y > SPARSE_VOLUME_TILE_RES || Resolution.Z > SPARSE_VOLUME_TILE_RES)
+	{
+		Resolution /= 2;
+		++Levels;
+	}
+	return Levels;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -298,6 +313,66 @@ UE::Shader::EValueType USparseVolumeTexture::GetUniformParameterType(int32 Index
 UStreamableSparseVolumeTexture::UStreamableSparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+bool UStreamableSparseVolumeTexture::InitializeFromUncooked(const TArrayView<FSparseVolumeTextureData>& InUncookedData, int32 InNumMipLevels)
+{
+	if (InUncookedData.IsEmpty())
+	{
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to initialize a SparseVolumeTexture with no frames"));
+		return false;
+	}
+
+	auto ExpandVolumeBounds = [](const FSparseVolumeTextureHeader& Header, FIntVector3& VolumeBoundsMin, FIntVector3& VolumeBoundsMax)
+	{
+		VolumeBoundsMin.X = FMath::Min(VolumeBoundsMin.X, Header.VirtualVolumeAABBMin.X);
+		VolumeBoundsMin.Y = FMath::Min(VolumeBoundsMin.Y, Header.VirtualVolumeAABBMin.Y);
+		VolumeBoundsMin.Z = FMath::Min(VolumeBoundsMin.Z, Header.VirtualVolumeAABBMin.Z);
+
+		VolumeBoundsMax.X = FMath::Max(VolumeBoundsMax.X, Header.VirtualVolumeAABBMax.X);
+		VolumeBoundsMax.Y = FMath::Max(VolumeBoundsMax.Y, Header.VirtualVolumeAABBMax.Y);
+		VolumeBoundsMax.Z = FMath::Max(VolumeBoundsMax.Z, Header.VirtualVolumeAABBMax.Z);
+	};
+
+	// Compute union of all frame AABBs
+	FIntVector3 VolumeBoundsMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
+	FIntVector3 VolumeBoundsMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
+	for (const FSparseVolumeTextureData& Data : InUncookedData)
+	{
+		ExpandVolumeBounds(Data.Header, VolumeBoundsMin, VolumeBoundsMax);
+	}
+
+	// The the minimum of the union of all frame AABBs should ideally be at (0, 0, 0), but it should also be fine if it is greater than that.
+	// A mimimum of less than (0, 0, 0) is not permitted.
+	if (VolumeBoundsMin.X < 0 || VolumeBoundsMin.Y < 0 || VolumeBoundsMin.Z < 0)
+	{
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to initialize a SparseVolumeTexture with a VirtualVolumeAABBMin < 0 (%i, %i, %i)"),
+			VolumeBoundsMin.X, VolumeBoundsMin.Y, VolumeBoundsMin.Z);
+		return false;
+	}
+	if (VolumeBoundsMin.X > 0 || VolumeBoundsMin.Y > 0 || VolumeBoundsMin.Z > 0)
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Initialized a SparseVolumeTexture with a VirtualVolumeAABBMin > 0 (%i, %i, %i). This wastes memory"),
+			VolumeBoundsMin.X, VolumeBoundsMin.Y, VolumeBoundsMin.Z);
+	}
+
+	VolumeResolution = VolumeBoundsMax;
+	Frames.SetNum(InUncookedData.Num());
+
+	const int32 NumMipLevelsFullMipChain = SVTComputeNumMipLevels(VolumeResolution);
+	check(NumMipLevelsFullMipChain > 0);
+
+	NumMipLevels = (InNumMipLevels <= INDEX_NONE) ? NumMipLevelsFullMipChain : FMath::Clamp(InNumMipLevels, 1, NumMipLevelsFullMipChain);
+
+#if WITH_EDITORONLY_DATA
+	for (int32 FrameIndex = 0; FrameIndex < Frames.Num(); ++FrameIndex)
+	{
+		UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(Frames[FrameIndex].RawData);
+		InUncookedData[FrameIndex].Serialize(RawDataArchiveWriter);
+	}
+#endif
+
+	return true;
 }
 
 void UStreamableSparseVolumeTexture::PostLoad()
@@ -575,6 +650,21 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataForFrame(FSpars
 UStaticSparseVolumeTexture::UStaticSparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+bool UStaticSparseVolumeTexture::InitializeFromUncooked(const TArrayView<FSparseVolumeTextureData>& InUncookedData, int32 InNumMipLevels)
+{
+	if (InUncookedData.Num() > 1)
+	{
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to initialize a UStaticSparseVolumeTexture with more than 1 frame: %i"), InUncookedData.Num());
+		return false;
+	}
+	return Super::InitializeFromUncooked(InUncookedData, InNumMipLevels);
+}
+
+bool UStaticSparseVolumeTexture::InitializeFromUncooked(FSparseVolumeTextureData& InUncookedData, int32 InNumMipLevels)
+{
+	return Super::InitializeFromUncooked(MakeArrayView<FSparseVolumeTextureData>(&InUncookedData, 1), InNumMipLevels);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

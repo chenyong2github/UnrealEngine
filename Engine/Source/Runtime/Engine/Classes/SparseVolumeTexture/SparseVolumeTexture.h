@@ -148,6 +148,8 @@ public:
 	UStreamableSparseVolumeTexture();
 	virtual ~UStreamableSparseVolumeTexture() = default;
 
+	virtual bool InitializeFromUncooked(const TArrayView<FSparseVolumeTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
 	virtual void FinishDestroy() override;
@@ -201,15 +203,14 @@ public:
 	UStaticSparseVolumeTexture();
 	virtual ~UStaticSparseVolumeTexture() = default;
 
+	virtual bool InitializeFromUncooked(const TArrayView<FSparseVolumeTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/) override;
+	bool InitializeFromUncooked(FSparseVolumeTextureData& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetNumFrames() const override { return 1; }
 	//~ End USparseVolumeTexture Interface.
 
 private:
-
-#if WITH_EDITOR
-	friend class USparseVolumeTextureFactory; // Importer
-#endif
 };
 
 // UAnimatedSparseVolumeTexture inherit from USparseVolumeTexture to be viewed using the first frame by default.
@@ -228,11 +229,6 @@ public:
 	//~ End USparseVolumeTexture Interface.
 
 private:
-
-#if WITH_EDITOR
-	friend class USparseVolumeTextureFactory; // Importer
-#endif
-	
 	int32 PreviewFrameIndex;
 	int32 PreviewMipLevel;
 };
