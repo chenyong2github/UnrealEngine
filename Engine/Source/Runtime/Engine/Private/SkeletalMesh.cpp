@@ -2108,15 +2108,19 @@ void USkeletalMesh::CalculateInvRefMatrices()
 		}
 
 #if WITH_EDITORONLY_DATA
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if(GetRetargetBasePose().Num() == 0)
 		{
 			SetRetargetBasePose(GetRefSkeleton().GetRefBonePose());
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITORONLY_DATA
 	}
 }
 
 #if WITH_EDITOR
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void USkeletalMesh::ReallocateRetargetBasePose()
 {
 	// if you're adding other things here, please note that this function is called during postLoad
@@ -2151,6 +2155,7 @@ void USkeletalMesh::ReallocateRetargetBasePose()
 		GetRetargetBasePose() = GetRefSkeleton().GetRefBonePose();
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void USkeletalMesh::CalculateRequiredBones(FSkeletalMeshLODModel& LODModel, const struct FReferenceSkeleton& InRefSkeleton, const TMap<FBoneIndexType, FBoneIndexType> * BonesToRemove)
 {
@@ -3259,10 +3264,12 @@ void USkeletalMesh::FinishPostLoadInternal(FSkinnedAssetPostLoadContext& Context
 	CalculateInvRefMatrices();
 
 #if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (GetRetargetBasePose().Num() == 0 && !GetOutermost()->bIsCookedForEditor)
 	{
 		GetRetargetBasePose() = GetRefSkeleton().GetRefBonePose();
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SupportVirtualBoneInRetargeting)
 	{

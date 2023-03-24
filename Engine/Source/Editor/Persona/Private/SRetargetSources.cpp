@@ -282,6 +282,7 @@ bool SRetargetSources::ShouldFilterAsset(const FAssetData& InAssetData)
 	return false;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SRetargetSources::ResetRetargetBasePose()
 {
 	UDebugSkelMeshComponent * PreviewMeshComp = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
@@ -303,6 +304,7 @@ void SRetargetSources::ResetRetargetBasePose()
 
 	FSlateApplication::Get().DismissAllMenus();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void SRetargetSources::UseCurrentPose()
 {
@@ -321,7 +323,9 @@ void SRetargetSources::UseCurrentPose()
 			const TArray<FTransform> & SpaceBases = PreviewMeshComp->GetComponentSpaceTransforms();
 			// @todo check to see if skeleton vs preview mesh makes it different for missing bones
 			const FReferenceSkeleton& RefSkeleton = PreviewMesh->GetRefSkeleton();
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			TArray<FTransform> & NewRetargetBasePose = PreviewMesh->GetRetargetBasePose();
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			// if you're using leader pose component in preview, this won't work
 			check(PreviewMesh->GetRefSkeleton().GetNum() == SpaceBases.Num());
 			int32 TotalNumBones = PreviewMesh->GetRefSkeleton().GetNum();
@@ -410,15 +414,16 @@ void SRetargetSources::ImportPose(const UPoseAsset* PoseAsset, const FName& Pose
 					const FScopedTransaction Transaction(LOCTEXT("ImportRetargetBasePose_Action", "Import Retarget Base Pose"));
 					PreviewMesh->Modify();
 
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					// reset to original ref pose first
 					PreviewMesh->SetRetargetBasePose(PreviewMesh->GetRefSkeleton().GetRefBonePose());
-
 					// now override imported pose
 					for (int32 TrackIndex = 0; TrackIndex < PoseTrackNames.Num(); ++TrackIndex)
 					{
 						const int32 BoneIndex = PreviewMesh->GetRefSkeleton().FindBoneIndex(PoseTrackNames[TrackIndex]);
 						PreviewMesh->GetRetargetBasePose()[BoneIndex] = PoseTransforms[TrackIndex];
 					}
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 					TurnOnPreviewRetargetBasePose();
 				}
