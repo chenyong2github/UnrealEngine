@@ -204,36 +204,6 @@ private:
 };
 
 USTRUCT()
-struct FOptimusNodeAction_ConnectAdderPin
-	: public FOptimusAction
-{
-	GENERATED_BODY()
-	
-	FOptimusNodeAction_ConnectAdderPin() = default;
-
-	FOptimusNodeAction_ConnectAdderPin(
-		IOptimusNodeAdderPinProvider* InAdderPinProvider,
-		UOptimusNodePin* InSourcePin,
-		FName InNewPinName);
-
-
-protected:
-	bool Do(IOptimusPathResolver* InRoot) override; 
-	bool Undo(IOptimusPathResolver* InRoot) override;
-
-private:
-	FString NodePath;
-
-	FString SourcePinPath;
-
-	FName NewPinName;
-
-	// New Pin Path will be updated to the actual path after Do()
-	FString NewPinPath;
-};
-
-
-USTRUCT()
 struct FOptimusNodeAction_AddRemovePin :
 	public FOptimusAction
 {

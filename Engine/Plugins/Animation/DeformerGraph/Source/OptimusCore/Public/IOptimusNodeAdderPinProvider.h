@@ -22,11 +22,22 @@ class OPTIMUSCORE_API IOptimusNodeAdderPinProvider
 	GENERATED_BODY()
 
 public:
-	virtual bool CanAddPinFromPin(const UOptimusNodePin* InSourcePin, EOptimusNodePinDirection InNewPinDirection, FString* OutReason = nullptr) const = 0;
+	virtual bool CanAddPinFromPin(
+		const UOptimusNodePin* InSourcePin,
+		EOptimusNodePinDirection InNewPinDirection,
+		FString* OutReason = nullptr
+		) const = 0;
 
-	virtual UOptimusNodePin* TryAddPinFromPin(UOptimusNodePin* InSourcePin, FName InNewPinName) = 0;
+	// If there are multiple options for the target parent pin,
+	// a menu should show up for the user to choose one from these options
+	virtual TArray<UOptimusNodePin*> GetTargetParentPins(const UOptimusNodePin* InSourcePin) const = 0;
 	
-	virtual bool RemoveAddedPin(UOptimusNodePin* InAddedPinToRemove) = 0;
+	virtual TArray<UOptimusNodePin*> TryAddPinFromPin(
+		UOptimusNodePin* InPreferredTargetParentPin,
+		UOptimusNodePin* InSourcePin
+		) = 0;
+	
+	virtual bool RemoveAddedPins(TConstArrayView<UOptimusNodePin*> InAddedPinsToRemove) = 0;
 
-	virtual FName GetSanitizedNewPinName(FName InPinName)= 0;
+	virtual FName GetSanitizedNewPinName(UOptimusNodePin* InTargetParentPin, FName InPinName)= 0;
 };

@@ -34,7 +34,7 @@ public:
 	static FLinearColor GetColorFromPinType(const FEdGraphPinType& InPinType);
 
 	// UEdGraphSchema overrides
-	bool TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const;
+	bool TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const override;
 	const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override;
 	void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const override;
 	void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;

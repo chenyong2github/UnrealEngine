@@ -159,61 +159,253 @@ bool UOptimusNode_CustomComputeKernel::CanAddPinFromPin(
 	return true;
 }
 
-
-UOptimusNodePin* UOptimusNode_CustomComputeKernel::TryAddPinFromPin(
-	UOptimusNodePin* InSourcePin,
-	FName InNewPinName
-	) 
+TArray<UOptimusNodePin*> UOptimusNode_CustomComputeKernel::GetTargetParentPins(const UOptimusNodePin* InSourcePin) const
 {
-	const EOptimusNodePinDirection NewPinDirection =
-		InSourcePin->GetDirection() == EOptimusNodePinDirection::Input ?
-				EOptimusNodePinDirection::Output : EOptimusNodePinDirection::Input;
+	TArray<UOptimusNodePin*> TargetParentPins;
 	
-	TArray<FOptimusParameterBinding>& BindingArray = 
-		InSourcePin->GetDirection() == EOptimusNodePinDirection::Input ?
-			OutputBindingArray.InnerArray : InputBindingArray.InnerArray;
-
-	FOptimusParameterBinding Binding;
-	Binding.Name = InNewPinName;
-	Binding.DataType = {InSourcePin->GetDataType()};
-	Binding.DataDomain = InSourcePin->GetDataDomain();
-
-	Modify();
-	BindingArray.Add(Binding);
-	UpdatePreamble();
+	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Input)
+	{
+		return {};
+	}
 	
-	UOptimusNodePin* NewPin	= AddPinDirect(InNewPinName, NewPinDirection, Binding.DataDomain, Binding.DataType);
+	TArray<UOptimusNodePin*> GroupPinsToCheck;
+	// Nullptr represents the primary group
+	GroupPinsToCheck.Add(nullptr);
 
-	return NewPin;
+	for (UOptimusNodePin* GroupPin: GetPins())
+	{
+		if (IsGroupingInputPin(GroupPin))
+		{
+			GroupPinsToCheck.Add(GroupPin);
+		}
+	}
+	
+	TSet<UOptimusComponentSourceBinding*> SourceComponentBindings = InSourcePin->GetComponentSourceBindings();
+	
+	for (UOptimusNodePin* GroupPin : GroupPinsToCheck)
+	{
+		TArray<const UOptimusNodePin*> PinsPerGroup;
+		
+		if (GroupPin)
+		{
+			PinsPerGroup = GroupPin->GetSubPins();
+		}
+		else
+		{
+			PinsPerGroup = GetPrimaryGroupInputPins();
+		}
+		
+		TSet<UOptimusComponentSourceBinding*> ComponentBindingsForGroup;
+		for (const UOptimusNodePin* Pin : PinsPerGroup)
+		{
+			ComponentBindingsForGroup.Append(Pin->GetComponentSourceBindings());
+		}
+
+		TSet<UOptimusComponentSourceBinding*> MatchingBindings = ComponentBindingsForGroup.Intersect(SourceComponentBindings);
+	
+		if (MatchingBindings.Num() > 0 ||
+			SourceComponentBindings.Num() == 0 || // Source-less pin can be added to any group
+			ComponentBindingsForGroup.Num() == 0) // Source-less group can be a target for any pin 
+		{
+			TargetParentPins.Add(GroupPin);
+		}
+	}
+
+	return TargetParentPins;
 }
 
 
-bool UOptimusNode_CustomComputeKernel::RemoveAddedPin(
-	UOptimusNodePin* InAddedPinToRemove
-	)
+TArray<UOptimusNodePin*> UOptimusNode_CustomComputeKernel::TryAddPinFromPin(
+	UOptimusNodePin* InPreferredTargetParentPin,
+	UOptimusNodePin* InSourcePin
+	) 
 {
-	TArray<FOptimusParameterBinding>& BindingArray = 
-		InAddedPinToRemove->GetDirection() == EOptimusNodePinDirection::Input ?
-			InputBindingArray.InnerArray : OutputBindingArray.InnerArray;
+	TArray<UOptimusNodePin*> AddedPins;
+	
+	const EOptimusNodePinDirection NewPinDirection =
+		InSourcePin->GetDirection() == EOptimusNodePinDirection::Input ?
+				EOptimusNodePinDirection::Output : EOptimusNodePinDirection::Input;
 
-	Modify();
-	BindingArray.RemoveAll(
-		[InAddedPinToRemove](const FOptimusParameterBinding& Binding)
+	TArray<FOptimusParameterBinding>* BindingArray = nullptr;
+	UOptimusNodePin* ParentPin = nullptr;
+	UOptimusNodePin* BeforePin = nullptr;
+
+	if (NewPinDirection == EOptimusNodePinDirection::Output)
+	{
+		BindingArray = &OutputBindingArray.InnerArray;
+	}
+	else if (NewPinDirection == EOptimusNodePinDirection::Input)
+	{
+		if (InPreferredTargetParentPin)
 		{
-			return Binding.Name == InAddedPinToRemove->GetFName(); 
-		});
+			// Making sure we are connecting from the input side of the kernel
+			check(InSourcePin->GetDirection() == EOptimusNodePinDirection::Output);
+		
+			FOptimusSecondaryInputBindingsGroup* Group = SecondaryInputBindingGroups.FindByPredicate(
+				[InPreferredTargetParentPin](const FOptimusSecondaryInputBindingsGroup& InGroup)
+				{
+					return InGroup.GroupName == InPreferredTargetParentPin->GetFName();
+				});
+
+			if (!ensure(Group))
+			{
+				return {};
+			}
+
+			ParentPin = InPreferredTargetParentPin;
+			BindingArray = &Group->BindingArray.InnerArray;
+		}
+		else
+		{
+			// In case there is no preferred parent pin, we infer the group pin from the source pin
+			// Two cases:
+			//		1. primary group
+			//		2. create a new group
+			TArray<UOptimusNodePin*> ParentPins = GetTargetParentPins(InSourcePin);
+			
+			if (ParentPins.Num() >= 1)
+			{
+				// multiple parent pins but no preferred parent pin implies we want to add to the primary group,
+				// nullptr group pin means the matching group is the primary group, which does not have a grouping pin
+				check(ParentPins[0] == nullptr);
+
+				BindingArray = &InputBindingArray.InnerArray;
+
+				for (UOptimusNodePin* Pin : GetPins())
+				{
+					if (Pin->IsGroupingPin())
+					{
+						BeforePin = Pin;
+						break;
+					}
+				}
+			}
+			else
+			{
+				// This means the source pin does not belong to any existing group, so create a new group
+				TSet<UOptimusComponentSourceBinding*> ComponentBindings = InSourcePin->GetComponentSourceBindings();
+				
+				check(ComponentBindings.Num() != 0);
+
+				UOptimusComponentSourceBinding* ComponentBinding = *ComponentBindings.begin();
+
+				FName GroupName = Optimus::GetUniqueNameForScope(this, ComponentBinding->GetFName());
+
+				SecondaryInputBindingGroups.AddDefaulted_GetRef().GroupName = GroupName;
+				BindingArray = &SecondaryInputBindingGroups.Last().BindingArray.InnerArray;
+				
+				AddedPins.Add(AddGroupingPinDirect(GroupName, EOptimusNodePinDirection::Input));
+				ParentPin = AddedPins.Last();
+			}
+		}	
+	}
+	else
+	{
+		checkNoEntry();
+	}
+
+	if (ParentPin)
+	{
+		ParentPin->SetIsExpanded(true);
+	}
+	
+	FOptimusParameterBinding Binding;
+	Binding.Name = GetSanitizedNewPinName(ParentPin, InSourcePin->GetFName());
+	Binding.DataType = {InSourcePin->GetDataType()};
+	Binding.DataDomain = InSourcePin->GetDataDomain();
+
+	
+	BindingArray->Add(Binding);
 	UpdatePreamble();
-	return RemovePinDirect(InAddedPinToRemove);
+	
+	AddedPins.Add(AddPinDirect(Binding.Name, NewPinDirection, Binding.DataDomain, Binding.DataType, BeforePin, ParentPin));
+
+	return AddedPins;
+}
+
+
+bool UOptimusNode_CustomComputeKernel::RemoveAddedPins(
+	TConstArrayView<UOptimusNodePin*> InAddedPinsToRemove
+)
+{
+	if (InAddedPinsToRemove.Num() == 0)
+	{
+		return true;
+	}
+
+	// Currently only two pins can be added in 1 go at the most, group pin + some data pin
+	if (!ensure(InAddedPinsToRemove.Num() <= 2))
+	{
+		return false;
+	}
+	
+	if (InAddedPinsToRemove.Num() == 1)
+	{
+		UOptimusNodePin* PinToRemove = InAddedPinsToRemove[0];
+		
+		TArray<FOptimusParameterBinding>* BindingArray = 
+			PinToRemove->GetDirection() == EOptimusNodePinDirection::Input ?
+				&InputBindingArray.InnerArray : &OutputBindingArray.InnerArray;
+	
+		if (UOptimusNodePin* GroupPin = PinToRemove->GetParentPin())
+		{
+			FOptimusSecondaryInputBindingsGroup* Group = SecondaryInputBindingGroups.FindByPredicate(
+			   [GroupPin](const FOptimusSecondaryInputBindingsGroup& InGroup)
+			   {
+				   return InGroup.GroupName == GroupPin->GetFName();
+			   });
+
+			if (!ensure(Group))
+			{
+				return false;
+			}
+		
+			BindingArray = &Group->BindingArray.InnerArray;
+		}
+	
+
+		BindingArray->RemoveAll(
+			[PinToRemove](const FOptimusParameterBinding& Binding)
+			{
+				return Binding.Name == PinToRemove->GetFName(); 
+			});
+		UpdatePreamble();
+		return RemovePinDirect(PinToRemove);	
+	}
+
+	check(InAddedPinsToRemove.Num() == 2);
+
+	UOptimusNodePin* GroupPin = InAddedPinsToRemove[0];
+	check(GroupPin->GetDirection() == EOptimusNodePinDirection::Input);
+	check(GroupPin->GetSubPins().Num() == 1);
+	check(GroupPin->GetSubPins()[0] == InAddedPinsToRemove[1]);
+	
+	SecondaryInputBindingGroups.RemoveAll(
+		[GroupPin](const FOptimusSecondaryInputBindingsGroup& InGroup)
+		{
+			return InGroup.GroupName == GroupPin->GetFName();
+		});
+
+	UpdatePreamble();
+
+	return RemovePinDirect(GroupPin);
 }
 
 
 FName UOptimusNode_CustomComputeKernel::GetSanitizedNewPinName(
+	UOptimusNodePin* InTargetParentPin,
 	FName InPinName
 	)
 {
 	FName NewName = Optimus::GetSanitizedNameForHlsl(InPinName);
 
-	NewName = Optimus::GetUniqueNameForScope(this, NewName);
+	UObject* ScopeObject = this;
+	if (InTargetParentPin)
+	{
+		ScopeObject = InTargetParentPin;
+	}
+	
+	NewName = Optimus::GetUniqueNameForScope(ScopeObject, NewName);
 
 	return NewName;
 }

@@ -15,9 +15,14 @@
 
 #include "EdGraphSchema_K2.h"
 #include "Editor.h"
+#include "OptimusActionStack.h"
 #include "OptimusComputeDataInterface.h"
 #include "OptimusEditorGraphConnectionDrawingPolicy.h"
 #include "Styling/SlateIconFinder.h"
+
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/MenuStack.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
 
@@ -205,8 +210,57 @@ bool UOptimusEditorGraphSchema::TryCreateConnection(
 			TargetNode = OptimusEditor::GetModelNodeFromGraphPin(InPinA);
 			SourcePin = InputModelPin;
 		}
-		UOptimusNodeGraph *Graph = TargetNode->GetOwningGraph();
-		return Graph->AddPinAndLink(TargetNode, SourcePin);
+
+		IOptimusNodeAdderPinProvider *AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(TargetNode);
+		TArray<UOptimusNodePin*> ParentPins = AdderPinProvider->GetTargetParentPins(SourcePin);
+
+		if (ParentPins.Num() <= 1)
+		{
+			UOptimusNodeGraph *Graph = TargetNode->GetOwningGraph();
+			return Graph->AddPinAndLink(TargetNode, ParentPins.Num() == 0? nullptr : ParentPins[0], SourcePin);
+		}
+
+		FMenuBuilder MenuBuilder(true, NULL);
+
+		MenuBuilder.BeginSection(NAME_None, FText::FromString(TEXT("Add pin to")));
+
+		for (UOptimusNodePin* ParentPin : ParentPins)
+		{
+			FText EntryName;
+			if (!ParentPin)
+			{
+				EntryName = LOCTEXT("DefaultGroupName", "Default");
+			}
+			else
+			{
+				EntryName = FText::FromName(ParentPin->GetFName());
+			}
+			
+			MenuBuilder.AddMenuEntry(
+				EntryName,
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(
+				FExecuteAction::CreateLambda([TargetNode, ParentPin, SourcePin]()
+					{
+						UOptimusNodeGraph *Graph = TargetNode->GetOwningGraph();
+						Graph->AddPinAndLink(TargetNode, ParentPin, SourcePin);
+					}),
+					FCanExecuteAction()
+				));
+		}
+
+		MenuBuilder.EndSection();
+		
+		FSlateApplication::Get().PushMenu(
+			FSlateApplication::Get().GetUserFocusedWidget(0).ToSharedRef(),
+			FWidgetPath(),
+			MenuBuilder.MakeWidget(),
+			FSlateApplication::Get().GetCursorPos(),
+			FPopupTransitionEffect( FPopupTransitionEffect::ContextMenu)
+			);
+
+		return false;
 	}
 
 	return false;

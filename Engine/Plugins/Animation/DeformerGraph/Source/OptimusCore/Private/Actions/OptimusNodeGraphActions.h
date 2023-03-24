@@ -11,6 +11,7 @@
 
 #include "OptimusNodeGraphActions.generated.h"
 
+class IOptimusNodeAdderPinProvider;
 class UOptimusNode_ComputeKernelFunction;
 class UOptimusNode_CustomComputeKernel;
 enum class EOptimusNodeGraphType;
@@ -355,6 +356,36 @@ protected:
 	bool Undo(IOptimusPathResolver* InRoot) override { return AddLink(InRoot); }
 };
 
+USTRUCT()
+struct FOptimusNodeGraphAction_ConnectAdderPin
+	: public FOptimusNodeGraphAction_AddRemoveLink
+{
+	GENERATED_BODY()
+	
+	FOptimusNodeGraphAction_ConnectAdderPin() = default;
+
+	FOptimusNodeGraphAction_ConnectAdderPin(
+		IOptimusNodeAdderPinProvider* InAdderPinProvider,
+		UOptimusNodePin* InPreferredTargetParentPin,
+		UOptimusNodePin* InSourcePin,
+		bool bInShouldLink
+		);
+
+protected:
+	bool Do(IOptimusPathResolver* InRoot) override; 
+	bool Undo(IOptimusPathResolver* InRoot) override;
+
+private:
+	FString NodePath;
+
+	FString PreferredParentPinPath;
+	
+	FString SourcePinPath;
+
+	TArray<FString> AddedPinPaths;
+
+	bool bShouldLink;
+};
 
 USTRUCT()
 struct FOptimusNodeGraphAction_PackageKernelFunction :

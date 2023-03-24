@@ -297,12 +297,14 @@ public:
 	/// Add a new pin to the target node with the type of source pin
 	/// and connect the source pin to the new pin
 	/// @param InTargetNode The node to add the pin to, it has to have an adder pin
+	/// @param InPreferredTargetParentPin The preferred pin to add the new pin to, or null if it can be inferred from source
 	/// @param InSourcePin The pin to create the new pin and to connect to the new pin
 	/// @return True if new pin and the new link is created.
 	bool AddPinAndLink(
 		UOptimusNode* InTargetNode,
+		UOptimusNodePin* InPreferredTargetParentPin,
 		UOptimusNodePin* InSourcePin
-	);
+		);
 
 	const TArray<UOptimusNode*>& GetAllNodes() const { return Nodes; }
 	const TArray<UOptimusNodeLink*>& GetAllLinks() const { return Links; }

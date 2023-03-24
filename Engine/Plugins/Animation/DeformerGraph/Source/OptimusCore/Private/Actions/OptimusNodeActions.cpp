@@ -261,62 +261,6 @@ bool FOptimusNodeAction_SetPinDataDomain::SetPinDataDomain(
 }
 
 
-FOptimusNodeAction_ConnectAdderPin::FOptimusNodeAction_ConnectAdderPin(
-	IOptimusNodeAdderPinProvider* InAdderPinProvider,
-	UOptimusNodePin* InSourcePin,
-	FName InNewPinName)
-{
-	UOptimusNode* Node = Cast<UOptimusNode>(InAdderPinProvider);
-	
-	if (ensure(Node))
-	{
-		NodePath = Node->GetNodePath();
-	}
-
-	SourcePinPath = InSourcePin->GetPinPath();
-
-	NewPinName = InNewPinName;
-}
-
-bool FOptimusNodeAction_ConnectAdderPin::Do(IOptimusPathResolver* InRoot)
-{
-	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
-	IOptimusNodeAdderPinProvider* AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(Node);
-	
-	if (!ensure(AdderPinProvider))
-	{
-		return false;
-	}
-
-	UOptimusNodePin* SourcePin = InRoot->ResolvePinPath(SourcePinPath);
-	
-	const UOptimusNodePin* NewPin = AdderPinProvider->TryAddPinFromPin(SourcePin, NewPinName);
-
-	if (!NewPin)
-	{
-		return false;
-	}
-	
-	NewPinPath = NewPin->GetPinPath();
-
-	return true;
-}
-
-bool FOptimusNodeAction_ConnectAdderPin::Undo(IOptimusPathResolver* InRoot)
-{
-	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
-	IOptimusNodeAdderPinProvider* AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(Node);
-	
-	if (!ensure(AdderPinProvider))
-	{
-		return false;
-	}
-
-	UOptimusNodePin* NewPin = InRoot->ResolvePinPath(NewPinPath);
-
-	return AdderPinProvider->RemoveAddedPin(NewPin);
-}
-
 FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(
 	UOptimusNode* InNode,
 	FName InName,

@@ -81,16 +81,19 @@ public:
 		FString* OutReason = nullptr
 		) const override;
 
-	UOptimusNodePin* TryAddPinFromPin(
-		UOptimusNodePin* InSourcePin,
-		FName InNewPinName
+	TArray<UOptimusNodePin*> GetTargetParentPins(const UOptimusNodePin* InSourcePin) const override;
+
+	TArray<UOptimusNodePin*> TryAddPinFromPin(
+		UOptimusNodePin* InPreferredTargetParentPin,
+		UOptimusNodePin* InSourcePin
 		) override;
 	
-	bool RemoveAddedPin(
-		UOptimusNodePin* InAddedPinToRemove
-		) override;
+	bool RemoveAddedPins(
+		TConstArrayView<UOptimusNodePin*> InAddedPinsToRemove
+	) override;
 	
 	FName GetSanitizedNewPinName(
+		UOptimusNodePin* InTargetParentPin,
 		FName InPinName
 		) override;
 

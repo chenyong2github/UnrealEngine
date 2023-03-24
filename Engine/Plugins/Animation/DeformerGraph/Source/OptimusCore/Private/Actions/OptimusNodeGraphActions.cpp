@@ -618,6 +618,127 @@ FOptimusNodeGraphAction_RemoveLink::FOptimusNodeGraphAction_RemoveLink(
 	SetTitlef(TEXT("Remove Link"));
 }
 
+FOptimusNodeGraphAction_ConnectAdderPin::FOptimusNodeGraphAction_ConnectAdderPin(
+	IOptimusNodeAdderPinProvider* InAdderPinProvider,
+	UOptimusNodePin* InPreferredTargetParentPin,
+	UOptimusNodePin* InSourcePin,
+	bool bInShouldLink
+	) :
+	bShouldLink(bInShouldLink)
+{
+	if (bInShouldLink)
+	{
+		SetTitlef(TEXT("Add Pin & Link"));
+	}
+	else
+	{
+		SetTitlef(TEXT("Add Pin From Pin"));
+	}
+	
+	UOptimusNode* Node = Cast<UOptimusNode>(InAdderPinProvider);
+	
+	if (ensure(Node))
+	{
+		NodePath = Node->GetNodePath();
+	}
+
+	if (InPreferredTargetParentPin)
+	{
+		PreferredParentPinPath = InPreferredTargetParentPin->GetPinPath();
+	}
+	
+	SourcePinPath = InSourcePin->GetPinPath();
+}
+
+bool FOptimusNodeGraphAction_ConnectAdderPin::Do(IOptimusPathResolver* InRoot)
+{
+	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
+	IOptimusNodeAdderPinProvider* AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(Node);
+	
+	if (!ensure(AdderPinProvider))
+	{
+		return false;
+	}
+
+	UOptimusNodePin* PreferredTargetParentPin = InRoot->ResolvePinPath(PreferredParentPinPath);
+
+	UOptimusNodePin* SourcePin = InRoot->ResolvePinPath(SourcePinPath);
+
+	TArray<UOptimusNodePin*> AddedPins = AdderPinProvider->TryAddPinFromPin(PreferredTargetParentPin, SourcePin);
+
+	if (AddedPins.Num() == 0)
+	{
+		return false;
+	}
+
+	AddedPinPaths.Reset();
+	Algo::Transform(AddedPins, AddedPinPaths,
+		[](UOptimusNodePin* InPin)
+		{
+			return InPin->GetPinPath();
+		});
+
+	UOptimusNodePin* AddedPin = AddedPins.Last();
+	
+	if (!ensure(!AddedPin->IsGroupingPin()))
+	{
+		AdderPinProvider->RemoveAddedPins(AddedPins);
+		return false;
+	}
+
+	if (bShouldLink)
+	{
+		if (SourcePin->GetDirection() == EOptimusNodePinDirection::Output)
+		{
+			NodeOutputPinPath = SourcePin->GetPinPath();
+			NodeInputPinPath = AddedPin->GetPinPath();
+		}
+		else
+		{
+			
+			NodeOutputPinPath = AddedPin->GetPinPath();
+			NodeInputPinPath = SourcePin->GetPinPath();
+		}
+		
+		if (!ensure(AddLink(InRoot)))
+		{
+			AdderPinProvider->RemoveAddedPins(AddedPins);
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+bool FOptimusNodeGraphAction_ConnectAdderPin::Undo(IOptimusPathResolver* InRoot)
+{
+	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
+	IOptimusNodeAdderPinProvider* AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(Node);
+	
+	if (!ensure(AdderPinProvider))
+	{
+		return false;
+	}
+
+	if (bShouldLink)
+	{
+		if (!ensure(RemoveLink(InRoot)))
+		{
+			return false;
+		}
+	}
+
+	TArray<UOptimusNodePin*> AddedPins;
+
+	Algo::Transform(AddedPinPaths, AddedPins,
+		[InRoot](const FString& InPinPath)
+		{
+			return InRoot->ResolvePinPath(InPinPath);
+		});
+
+	return AdderPinProvider->RemoveAddedPins(AddedPins);
+}
+
 
 FOptimusNodeGraphAction_PackageKernelFunction::FOptimusNodeGraphAction_PackageKernelFunction(
 	UOptimusNode_CustomComputeKernel* InKernelNode,

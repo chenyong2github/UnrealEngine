@@ -74,7 +74,7 @@ bool FOptimusComponentBindingAction_AddBinding::Undo(IOptimusPathResolver* InRoo
 	}
 
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
-	return Deformer->RemoveComponentBinding(Binding);
+	return Deformer->RemoveComponentBindingDirect(Binding);
 }
 
 

@@ -719,7 +719,11 @@ bool UOptimusNodeGraph::RemoveAllLinks(UOptimusNodePin* InNodePin)
 	return GetActionStack()->RunAction(Action);
 }
 
-bool UOptimusNodeGraph::AddPinAndLink(UOptimusNode* InTargetNode, UOptimusNodePin* InSourcePin)
+bool UOptimusNodeGraph::AddPinAndLink(
+	UOptimusNode* InTargetNode,
+	UOptimusNodePin* InPreferredTargetParentPin,
+	UOptimusNodePin* InSourcePin
+	)
 {
 	IOptimusNodeAdderPinProvider *AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(InTargetNode);
 	
@@ -746,43 +750,21 @@ bool UOptimusNodeGraph::AddPinAndLink(UOptimusNode* InTargetNode, UOptimusNodePi
 		return false;
 	}
 
-	// Add a pin according to adder pin provider and link to it
-	FOptimusCompoundAction *Action = new FOptimusCompoundAction(TEXT("Add Pin"));
-
-	// Create a name for the new pin up front, shared between two sub actions
-	FName PinName = AdderPinProvider->GetSanitizedNewPinName(InSourcePin->GetFName());
-
-	Action->AddSubAction<FOptimusNodeAction_ConnectAdderPin>(AdderPinProvider, InSourcePin, PinName);
-
-
-	FString OutputPinPath = FString::Printf(TEXT("%s.%s"),
-	*InTargetNode->GetNodePath(), *PinName.ToString());
-
-	FString InputPinPath = InSourcePin->GetPinPath();
-
-	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Output)
+	// For now lets default to not disconnect exisiting link on the source pin
+	// Additional logic be added in the future if we want to let the user decide
+	bool bShouldLink = true;
+	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Input)
 	{
-		Swap(OutputPinPath, InputPinPath);
-	}
-	else
-	{
-		// Check to see if there's an existing link on the _input_ pin. Output pins can have any
-		// number of connections coming out.
+		// Check to see if there's an existing link on the _input_ pin.
 		TArray<int32> PinLinks = GetAllLinkIndexesToPin(InSourcePin);
-
-		// This shouldn't happen, but we'll cover for it anyway.
-		checkSlow(PinLinks.Num() <= 1);
-
-		for (int32 LinkIndex : PinLinks)
+		if (PinLinks.Num() > 0)
 		{
-			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Links[LinkIndex]);
+			
+			bShouldLink = false;
 		}
 	}
-	
-	Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(OutputPinPath, InputPinPath);
 
-
-	return GetActionStack()->RunAction(Action);
+	return GetActionStack()->RunAction<FOptimusNodeGraphAction_ConnectAdderPin>(AdderPinProvider, InPreferredTargetParentPin, InSourcePin, bShouldLink);
 }
 
 UOptimusNode* UOptimusNodeGraph::ConvertCustomKernelToFunction(UOptimusNode* InCustomKernel)
