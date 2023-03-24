@@ -72,7 +72,7 @@ namespace UE::Interchange
 			int32 BakeKeyCount = FMath::RoundToInt32(SequenceLength * BakeFrequency) + 1;
 			const FFrameRate ResampleFrameRate(BakeFrequency, 1);
 
-			auto EvaluateCurve = [=](const int32& CurveIndex, double CurrentTime, float DefaultValue)
+			auto EvaluateCurve = [this](const int32& CurveIndex, double CurrentTime, float DefaultValue)
 			{
 				if (Curves[CurveIndex].IsEmpty())
 				{
