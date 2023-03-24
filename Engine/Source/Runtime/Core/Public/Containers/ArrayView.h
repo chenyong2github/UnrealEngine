@@ -379,26 +379,26 @@ public:
 	/** Returns the left-most part of the view by taking the given number of elements from the left. */
 	[[nodiscard]] inline TArrayView Left(SizeType Count) const
 	{
-		return TArrayView(DataPtr, FMath::Clamp(Count, 0, ArrayNum));
+		return TArrayView(DataPtr, FMath::Clamp(Count, (SizeType)0, ArrayNum));
 	}
 
 	/** Returns the left-most part of the view by chopping the given number of elements from the right. */
 	[[nodiscard]] inline TArrayView LeftChop(SizeType Count) const
 	{
-		return TArrayView(DataPtr, FMath::Clamp(ArrayNum - Count, 0, ArrayNum));
+		return TArrayView(DataPtr, FMath::Clamp(ArrayNum - Count, (SizeType)0, ArrayNum));
 	}
 
 	/** Returns the right-most part of the view by taking the given number of elements from the right. */
 	[[nodiscard]] inline TArrayView Right(SizeType Count) const
 	{
-		const SizeType OutLen = FMath::Clamp(Count, 0, ArrayNum);
+		const SizeType OutLen = FMath::Clamp(Count, (SizeType)0, ArrayNum);
 		return TArrayView(DataPtr + ArrayNum - OutLen, OutLen);
 	}
 
 	/** Returns the right-most part of the view by chopping the given number of elements from the left. */
 	[[nodiscard]] inline TArrayView RightChop(SizeType Count) const
 	{
-		const SizeType OutLen = FMath::Clamp(ArrayNum - Count, 0, ArrayNum);
+		const SizeType OutLen = FMath::Clamp(ArrayNum - Count, (SizeType)0, ArrayNum);
 		return TArrayView(DataPtr + ArrayNum - OutLen, OutLen);
 	}
 
@@ -417,7 +417,7 @@ public:
 		Index = (Index > CurrentLength) ? CurrentLength : Index;
 
 		// Clamp count between 0 and the distance to the end of the range
-		Count = FMath::Clamp(Count, 0, (CurrentLength - Index));
+		Count = FMath::Clamp(Count, (SizeType)0, (CurrentLength - Index));
 
 		TArrayView Result = TArrayView(CurrentStart + Index, Count);
 		return Result;
