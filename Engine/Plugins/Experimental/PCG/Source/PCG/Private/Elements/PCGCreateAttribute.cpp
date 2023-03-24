@@ -14,8 +14,9 @@
 
 namespace PCGCreateAttributeConstants
 {
-	const FName NodeName = TEXT("CreateAttribute");
-	const FName SourceLabel = TEXT("Source");
+	const FName NodeNameAddAttribute = TEXT("Add Attribute");
+	const FName NodeNameCreateAttribute = TEXT("Create Attribute");
+	const FName AttributesLabel = TEXT("Attributes");
 }
 
 void UPCGCreateAttributeSettings::PostLoad()
@@ -48,30 +49,13 @@ void UPCGCreateAttributeSettings::PostLoad()
 
 FName UPCGCreateAttributeSettings::AdditionalTaskName() const
 {
-	if (bFromSourceParam)
-	{
-		const FName NodeName = PCGCreateAttributeConstants::NodeName;
-
-		if ((OutputAttributeName == NAME_None) && (SourceParamAttributeName == NAME_None))
-		{
-			return NodeName;
-		}
-		else
-		{
-			const FString AttributeName = ((OutputAttributeName == NAME_None) ? SourceParamAttributeName : OutputAttributeName).ToString();
-			return FName(FString::Printf(TEXT("%s %s"), *NodeName.ToString(), *AttributeName));
-		}
-	}
-	else
-	{
-		return FName(FString::Printf(TEXT("%s: %s"), *OutputAttributeName.ToString(), *AttributeTypes.ToString()));
-	}
+	return AdditionalTaskNameInternal(PCGCreateAttributeConstants::NodeNameAddAttribute);
 }
 
 #if WITH_EDITOR
 FName UPCGCreateAttributeSettings::GetDefaultNodeName() const
 {
-	return PCGCreateAttributeConstants::NodeName;
+	return PCGCreateAttributeConstants::NodeNameAddAttribute;
 }
 #endif // WITH_EDITOR
 
@@ -90,7 +74,7 @@ TArray<FPCGPinProperties> UPCGCreateAttributeSettings::InputPinProperties() cons
 
 	if (bFromSourceParam)
 	{
-		PinProperties.Emplace(PCGCreateAttributeConstants::SourceLabel, EPCGDataType::Param);
+		PinProperties.Emplace(PCGCreateAttributeConstants::AttributesLabel, EPCGDataType::Param);
 	}
 
 	return PinProperties;
@@ -116,6 +100,53 @@ FPCGElementPtr UPCGCreateAttributeSettings::CreateElement() const
 	return MakeShared<FPCGCreateAttributeElement>();
 }
 
+FName UPCGCreateAttributeSettings::AdditionalTaskNameInternal(FName NodeName) const
+{
+	if (bFromSourceParam)
+	{
+		if ((OutputAttributeName == NAME_None) && (SourceParamAttributeName == NAME_None))
+		{
+			return NodeName;
+		}
+		else
+		{
+			const FString AttributeName = ((OutputAttributeName == NAME_None) ? SourceParamAttributeName : OutputAttributeName).ToString();
+			return FName(FString::Printf(TEXT("%s %s"), *NodeName.ToString(), *AttributeName));
+		}
+	}
+	else
+	{
+		return FName(FString::Printf(TEXT("%s: %s"), *OutputAttributeName.ToString(), *AttributeTypes.ToString()));
+	}
+}
+
+UPCGCreateAttributeSetSettings::UPCGCreateAttributeSetSettings()
+{
+	// No input pin to grab source param from
+	bDisplayFromSourceParamSetting = false;
+}
+
+#if WITH_EDITOR
+FName UPCGCreateAttributeSetSettings::GetDefaultNodeName() const
+{
+	return PCGCreateAttributeConstants::NodeNameCreateAttribute;
+}
+#endif // WITH_EDITOR
+
+TArray<FPCGPinProperties> UPCGCreateAttributeSetSettings::OutputPinProperties() const
+{
+	FPCGPinProperties PinProperties;
+	PinProperties.Label = PCGPinConstants::DefaultOutputLabel;
+	PinProperties.AllowedTypes = EPCGDataType::Param;
+
+	return { PinProperties };
+}
+
+FName UPCGCreateAttributeSetSettings::AdditionalTaskName() const
+{
+	return AdditionalTaskNameInternal(PCGCreateAttributeConstants::NodeNameCreateAttribute);
+}
+
 bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGCreateAttributeElement::Execute);
@@ -125,7 +156,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGCreateAttributeSettings* Settings = Context->GetInputSettings<UPCGCreateAttributeSettings>();
 	check(Settings);
 
-	TArray<FPCGTaggedData> SourceParams = Context->InputData.GetInputsByPin(PCGCreateAttributeConstants::SourceLabel);
+	TArray<FPCGTaggedData> SourceParams = Context->InputData.GetInputsByPin(PCGCreateAttributeConstants::AttributesLabel);
 	UPCGParamData* SourceParamData = nullptr;
 	FName SourceParamAttributeName = NAME_None;
 
@@ -276,5 +307,4 @@ PCGMetadataEntryKey FPCGCreateAttributeElement::SetAttribute(const UPCGCreateAtt
 
 	return Settings->AttributeTypes.Dispatcher(SetAttribute);
 }
-
 #undef LOCTEXT_NAMESPACE

@@ -28,7 +28,7 @@ namespace FPCGEditorCommon
 	const FString ContextIdentifier = TEXT("PCGEditorContext");
 
 	const FName SpatialDataType = FName(TEXT("Spatial Data"));
-	const FName ParamDataType = FName(TEXT("Param Data"));
+	const FName ParamDataType = FName(TEXT("Attribute Set"));
 	const FName SettingsDataType = FName(TEXT("Settings Data"));
 	const FName OtherDataType = FName(TEXT("Other Data"));
 

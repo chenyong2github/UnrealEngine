@@ -10,12 +10,10 @@
 
 class FPCGMetadataAttributeBase;
 class UPCGMetadata;
-class UPCGParamData;
 
 /**
-* Node to create an attribute from a Spatial data or a ParamData.
-* If no input is provided, the node behave as a "CreateParamData" and will output a ParamData
-* with the given attribute set.
+* Adds an attribute to Spatial data or to an Attribute Set, or creates a new Attribute Set if no
+* input is provided.
 * 
 * Note: This need to be updated if we ever add new types.
 */
@@ -35,17 +33,18 @@ public:
 	virtual bool HasDynamicPins() const override { return true; }
 #endif // WITH_EDITOR
 
-	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
-	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
-
 	virtual FName AdditionalTaskName() const override;
 	//~End UPCGSettings interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName OutputAttributeName = NAME_None;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = bDisplayFromSourceParamSetting, EditConditionHides, HideEditConditionToggle))
 	bool bFromSourceParam = false;
+
+	// This can be set false by inheriting nodes to hide the 'From Source Param' property.
+	UPROPERTY(Transient, meta = (EditCondition = false, EditConditionHides))
+	bool bDisplayFromSourceParamSetting = true;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bFromSourceParam", EditConditionHides))
 	FName SourceParamAttributeName = NAME_None;
@@ -101,7 +100,33 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 protected:
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+
+	FName AdditionalTaskNameInternal(FName NodeName) const;
+
 	virtual FPCGElementPtr CreateElement() const override;
+};
+
+/* Creates a new Attribute Set. */
+UCLASS(BlueprintType, ClassGroup = (Procedural))
+class PCG_API UPCGCreateAttributeSetSettings : public UPCGCreateAttributeSettings
+{
+	GENERATED_BODY()
+
+public:
+	UPCGCreateAttributeSetSettings();
+
+	//~Begin UPCGSettings interface
+#if WITH_EDITOR
+	virtual FName GetDefaultNodeName() const override;
+#endif
+	virtual FName AdditionalTaskName() const override;
+
+protected:
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+	//~End UPCGSettings interface
 };
 
 class FPCGCreateAttributeElement : public FSimplePCGElement

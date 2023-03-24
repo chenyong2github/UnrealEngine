@@ -66,6 +66,18 @@ void UPCGBlueprintElement::PostLoad()
 
 		OutputPinLabels_DEPRECATED.Reset();
 	}
+
+	// Go through the user-defined custom input pins and remove any Param pins labelled 'Params' or 'Param'. Such pins should not be
+	// added manually, the params pin is created dynamically from code based on presence of overrides.
+	for (int32 i = CustomInputPins.Num() - 1; i >= 0; --i)
+	{
+		FPCGPinProperties& Properties = CustomInputPins[i];
+		if (Properties.AllowedTypes == EPCGDataType::Param && (Properties.Label == FName(TEXT("Params")) || Properties.Label == FName(TEXT("Param"))))
+		{
+			// Non-swap version to preserve order
+			CustomInputPins.RemoveAt(i);
+		}
+	}
 #endif
 }
 
@@ -410,6 +422,22 @@ UObject* UPCGBlueprintSettings::GetJumpTargetForDoubleClick() const
 	}
 	
 	return Super::GetJumpTargetForDoubleClick();
+}
+
+void UPCGBlueprintSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
+{
+	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
+
+	// Rename first found 'Param' or 'Params' pin to 'Overrides' which helps to ensure legacy params pins will retain incident edges.
+	for (TObjectPtr<UPCGPin>& InputPin : InputPins)
+	{
+		if (InputPin && InputPin->Properties.AllowedTypes == EPCGDataType::Param && 
+			(InputPin->Properties.Label == FName(TEXT("Params")) || InputPin->Properties.Label == FName(TEXT("Param"))))
+		{
+			InputPin->Properties.Label = PCGPinConstants::DefaultParamsLabel;
+			break;
+		}
+	}
 }
 #endif // WITH_EDITOR
 
