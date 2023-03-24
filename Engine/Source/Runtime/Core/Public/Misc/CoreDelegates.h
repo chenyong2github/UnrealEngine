@@ -572,6 +572,14 @@ public:
 	// Called at the end of the frame where the process spawned a fork
 	static FSimpleMulticastDelegate OnChildEndFramePostFork;
 
+	// Called when FParse::Command succeeds. Used to audit named commands usage.
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNamedCommandParsed, const TCHAR* /*Cmd*/);
+	static FOnNamedCommandParsed OnNamedCommandParsed;
+
+	// Called when FExec::Exec is called in a context where it's disallowed (UE_ALLOW_EXEC_COMMANDS = 0).
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisallowedExecCommandCalled, const TCHAR* /*Cmd*/);
+	static FOnDisallowedExecCommandCalled OnDisallowedExecCommandCalled;
+
 private:
 
 	// Callbacks for hotfixes

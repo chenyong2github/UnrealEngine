@@ -10,6 +10,7 @@
 #include "Containers/Set.h"
 #include "Internationalization/Text.h"
 #include "Misc/AsciiSet.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/Guid.h"
 #include "Misc/OutputDeviceNull.h"
 #include "Misc/StringBuilder.h"
@@ -737,6 +738,8 @@ bool FParse::Command( const TCHAR** Stream, const TCHAR* Match, bool bParseMight
 			{
 				(*Stream)++;
 			}
+
+			FCoreDelegates::OnNamedCommandParsed.Broadcast(Match);
 
 			return true; // Success.
 		}

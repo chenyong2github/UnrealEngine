@@ -2,6 +2,9 @@
 
 #include "Misc/Exec.h"
 
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreDelegates.h"
+
 FExec::~FExec()
 {
 }
@@ -23,4 +26,17 @@ bool FExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 
 	return bExecSuccess;
 }
-#endif // UE_ALLOW_EXEC_COMMANDS
+#else // UE_ALLOW_EXEC_COMMANDS
+bool FExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+{
+	return Exec( InWorld, Cmd );
+}
+
+bool FExec::Exec( UWorld* InWorld, const TCHAR* Cmd )
+{
+	ensure(false);
+	FCoreDelegates::OnDisallowedExecCommandCalled.Broadcast( Cmd );
+
+	return false;
+}
+#endif // !UE_ALLOW_EXEC_COMMANDS

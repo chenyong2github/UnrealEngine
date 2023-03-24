@@ -357,3 +357,5 @@ FSimpleMulticastDelegate FCoreDelegates::OnParentBeginFork;
 FSimpleMulticastDelegate FCoreDelegates::OnParentPreFork;
 TMulticastDelegate<void(EForkProcessRole /* ProcessRole */)> FCoreDelegates::OnPostFork;
 FSimpleMulticastDelegate FCoreDelegates::OnChildEndFramePostFork;
+FCoreDelegates::FOnDisallowedExecCommandCalled FCoreDelegates::OnDisallowedExecCommandCalled;
+FCoreDelegates::FOnNamedCommandParsed FCoreDelegates::OnNamedCommandParsed;

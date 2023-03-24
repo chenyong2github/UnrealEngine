@@ -71,6 +71,12 @@ private:
 	/** Invoked if the engine detects some local changes.. */
 	void OnVanillaStateChanged(bool bIsVanilla);
 
+	/** Invoked on disallowed usage of FExec::Exec */
+	void OnDisallowedExecCommandCalled(const TCHAR* Cmd);
+
+	/** Invoked on FParse::Command success. Used to audit named commands usage. */
+	void OnNamedCommandParsed(const TCHAR* Cmd);
+
 	/** Check on CRC and return true if its running state state changed (so that the change is persisted on disk). */
 	bool UpdateExternalProcessReporterState(bool bQuickCheck);
 

@@ -44,22 +44,21 @@ public:
 	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
 #else // UE_ALLOW_EXEC_COMMANDS
 
-public:
 	/**
 	 * final override of Exec that asserts if called
 	 */
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) final { check(false); return false; }
+	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) final;
 	
 	/**
 	 * final override of Exec to replace overrides where a default value for Ar is provided
 	 */
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd ) final { check(false); return false; }
+	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd ) final;
 
 #endif // !UE_ALLOW_EXEC_COMMANDS
 
 protected:
 	/** Implementation of Exec that is called on all targets where UE_ALLOW_EXEC_COMMANDS is true */
-	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) { return false; }
+	virtual bool Exec_Runtime( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) { return false; }
 
 	/** Implementation of Exec that is only called in non-shipping targets */
 	virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) { return false; }
