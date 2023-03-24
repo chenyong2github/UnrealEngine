@@ -2409,7 +2409,9 @@ bool ULevelInstanceSubsystem::CanUseWorldAsset(const ILevelInstanceInterface* Le
 
 bool ULevelInstanceSubsystem::PassLevelInstanceFilter(UWorld* World, const FWorldPartitionHandle& Actor) const
 {
-	if (const ILevelInstanceInterface* TopAncestor = GetOwningLevelInstance(World->PersistentLevel))
+	UWorld* ContainerOuterWorld = Actor->GetContainer()->GetWorldPartition()->GetTypedOuter<UWorld>();
+	check(ContainerOuterWorld);
+	if (const ILevelInstanceInterface* TopAncestor = GetOwningLevelInstance(ContainerOuterWorld->PersistentLevel))
 	{
 		FActorContainerID ContainerID = TopAncestor->GetLevelInstanceID().GetContainerID();
 		ForEachLevelInstanceAncestors(Cast<AActor>(TopAncestor), [&TopAncestor](const ILevelInstanceInterface* Ancestor)
