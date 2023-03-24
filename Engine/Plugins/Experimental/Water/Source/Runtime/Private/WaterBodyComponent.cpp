@@ -408,7 +408,9 @@ void UWaterBodyComponent::UpdateWaterZones()
 			const FBox Bounds3D = Bounds.GetBox();
 			if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
 			{
-				FoundZone = WaterSubsystem->FindWaterZone(FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)));
+				const AActor* ActorOwner = GetTypedOuter<AActor>();
+				const ULevel* PreferredLevel = ActorOwner ? ActorOwner->GetLevel() : nullptr;
+				FoundZone = WaterSubsystem->FindWaterZone(FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)), PreferredLevel);
 			}
 		}
 

@@ -536,7 +536,7 @@ void UWaterSubsystem::MarkWaterZonesInRegionForRebuild(const FBox2D& InUpdateReg
 	}
 }
 
-TSoftObjectPtr<AWaterZone> UWaterSubsystem::FindWaterZone(const FBox2D& Bounds) const
+TSoftObjectPtr<AWaterZone> UWaterSubsystem::FindWaterZone(const FBox2D& Bounds, const TSoftObjectPtr<const ULevel> PreferredLevel) const
 {
 
 	const UWorld* World = GetWorld();
@@ -584,6 +584,37 @@ TSoftObjectPtr<AWaterZone> UWaterSubsystem::FindWaterZone(const FBox2D& Bounds) 
 	if (ViableZones.Num() == 0)
 	{
 		return {};
+	}
+
+	// Return best match in PreferredLevel if there is a match
+	if (!PreferredLevel.IsNull() && ViableZones.Num() > 1)
+	{
+		TSoftObjectPtr<AWaterZone> PreferredZone;
+		int32 PreferredZoneMax = INT32_MIN;
+
+		FNameBuilder ParentPath;
+		PreferredLevel.ToSoftObjectPath().ToString(ParentPath);
+		FStringView ParentPathView(ParentPath);
+
+		for (const TPair<TSoftObjectPtr<AWaterZone>, int32>& It : ViableZones)
+		{
+			if (PreferredZone.IsNull() || (It.Value > PreferredZoneMax))
+			{
+				const TSoftObjectPtr<AWaterZone>& WaterZoneSoftPath = It.Key;
+				FNameBuilder ActorPath;
+				WaterZoneSoftPath.ToSoftObjectPath().ToString(ActorPath);
+				if (ActorPath.ToView().StartsWith(ParentPathView))
+				{
+					PreferredZone = WaterZoneSoftPath;
+					PreferredZoneMax = It.Value;
+				}
+			}
+		}
+
+		if (!PreferredZone.IsNull())
+		{
+			return PreferredZone;
+		}
 	}
 
 	return Algo::MaxElementBy(ViableZones, [](const TPair<TSoftObjectPtr<AWaterZone>, int32>& A) { return A.Value; })->Key;

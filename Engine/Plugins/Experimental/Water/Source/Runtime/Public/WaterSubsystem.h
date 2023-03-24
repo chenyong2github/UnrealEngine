@@ -177,7 +177,7 @@ public:
 	void MarkWaterZonesInRegionForRebuild(const FBox2D& InUpdateRegion, EWaterZoneRebuildFlags InRebuildFlags);
 
 	/** Returns the water with the highest priority within the bounds provided. */
-	TSoftObjectPtr<AWaterZone> FindWaterZone(const FBox2D& Bounds) const;
+	TSoftObjectPtr<AWaterZone> FindWaterZone(const FBox2D& Bounds, const TSoftObjectPtr<const ULevel> PreferredLevel = {}) const;
 
 #if WITH_EDITOR
 	/** Little scope object to temporarily change the value of bAllowWaterSubsystemOnPreviewWorld */
