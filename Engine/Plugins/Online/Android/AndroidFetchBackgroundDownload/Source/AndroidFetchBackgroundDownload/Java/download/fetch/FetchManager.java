@@ -26,6 +26,7 @@ import com.tonyodev.fetch2.NetworkType;
 import com.tonyodev.fetch2.Priority;
 import com.tonyodev.fetch2.Request;
 import com.tonyodev.fetch2.exception.FetchException;
+import com.tonyodev.fetch2core.FetchLogger;
 import com.tonyodev.fetch2core.Func;
 import com.tonyodev.fetch2core.Func2;
 import com.tonyodev.fetch2.Status;
@@ -358,9 +359,13 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 
 		if (FetchInstance == null)
 		{
+//			InstanceLogger = new FetchLogger(true, "FManager");
+
 			//TODO TRoss: Pull these values from the worker's getInputData
 			FetchInstance = Fetch.Impl.getInstance(new FetchConfiguration.Builder(context)
 				.setNamespace(context.getPackageName())
+//				.enableLogging(true)
+//				.setLogger(InstanceLogger)
 				.enableRetryOnNetworkGain(true)
 				.setProgressReportingInterval(200)
 				.build());
@@ -949,6 +954,7 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 	//private boolean ShouldRetryRequest(@NonNull Request 
 	
 	private Fetch FetchInstance = null;
+	private FetchLogger InstanceLogger = null;
 
 	private FetchRequestProgressListener FetchListener = null;
 	

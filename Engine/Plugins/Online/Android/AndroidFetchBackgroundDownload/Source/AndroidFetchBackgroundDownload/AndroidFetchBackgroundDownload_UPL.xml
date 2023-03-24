@@ -47,4 +47,48 @@
 		<log text="Copying AndroidFetchBackgroundDownload files to staging"/>
 		<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/unreal" />
 	</prebuildCopies>
+
+	<gameActivityImportAdditions>
+		<insert>
+			import com.epicgames.unreal.network.NetworkConnectivityClient;
+			import com.epicgames.unreal.network.NetworkChangedManager;
+		</insert>
+	</gameActivityImportAdditions>
+
+	<gameActivityClassAdditions>
+		<insert>
+			private NetworkConnectivityClient.Listener AFBD_NetworkListener = null;
+
+			public native void nativeAndroidBackgroundDownloadNetworkChanged();
+
+			public void AndroidThunkJava_AFBD_AddNetworkListener()
+			{
+				if (AFBD_NetworkListener == null)
+				{
+					AFBD_NetworkListener = new NetworkConnectivityClient.Listener() {
+						@Override
+						public void onNetworkAvailable(NetworkConnectivityClient.NetworkTransportType networkTransportType)
+						{
+							nativeAndroidBackgroundDownloadNetworkChanged();
+						}
+						@Override
+						public void onNetworkLost()
+						{
+							nativeAndroidBackgroundDownloadNetworkChanged();
+						}
+					};
+					NetworkChangedManager.getInstance().addListener(AFBD_NetworkListener);
+				}
+			}
+
+			public void AndroidThunkJava_AFBD_RemoveNetworkListener()
+			{
+				if (AFBD_NetworkListener != null)
+				{
+					NetworkChangedManager.getInstance().removeListener(AFBD_NetworkListener);
+					AFBD_NetworkListener = null;
+				}
+			}
+		</insert>
+	</gameActivityClassAdditions>
 </root>

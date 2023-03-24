@@ -78,6 +78,22 @@ const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_RESOURCE_S
 
 FAndroidPlatformBackgroundHttpManager::FJavaClassInfo FAndroidPlatformBackgroundHttpManager::JavaInfo = FAndroidPlatformBackgroundHttpManager::FJavaClassInfo();
 
+static bool bNetworkConnected = false;
+static volatile int32 bNetworkReconnected = false;
+
+static bool GetNetworkConnected()
+{
+	switch (FPlatformMisc::GetNetworkConnectionType())
+	{
+		case ENetworkConnectionType::Ethernet:
+		case ENetworkConnectionType::Cell:
+		case ENetworkConnectionType::WiFi:
+		case ENetworkConnectionType::WiMAX:
+			return true;
+	}
+	return false;
+}
+
 FAndroidPlatformBackgroundHttpManager::FAndroidPlatformBackgroundHttpManager()
 	: bHasPendingCompletes(false)
 	, bIsModifyingPauseList(false)
@@ -85,6 +101,17 @@ FAndroidPlatformBackgroundHttpManager::FAndroidPlatformBackgroundHttpManager()
 	, bIsModifyingCancelList(false)
 	, AndroidBackgroundHTTPManagerDefaultLocalizedText()
 {
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		static jmethodID AddNetworkListenerFunc = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_AFBD_AddNetworkListener", "()V", false);
+		if (AddNetworkListenerFunc != nullptr)
+		{
+			FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, AddNetworkListenerFunc);
+		}
+	}
+
+	bNetworkReconnected = false;
+	bNetworkConnected = GetNetworkConnected();
 }
 
 bool FAndroidPlatformBackgroundHttpManager::HandleRequirementsCheck()
@@ -152,6 +179,17 @@ bool FAndroidPlatformBackgroundHttpManager::Tick(float DeltaTime)
 void FAndroidPlatformBackgroundHttpManager::ActivatePendingRequests()
 {
 	UE_LOG(LogBackgroundHttpManager, VeryVerbose, TEXT("ActivatePendingRequests called"));
+
+	bool bRestoreActiveRequests = false;
+	if (FPlatformAtomics::AtomicRead(&bNetworkReconnected))
+	{
+		FRWScopeLock ScopeLock(ActiveRequestLock, SLT_ReadOnly);
+		int32 ActiveRequestCount = ActiveRequests.Num();
+		UE_LOG(LogBackgroundHttpManager, Display, TEXT("Reconnected and found %d active requests to restore"), ActiveRequestCount);
+		bRestoreActiveRequests = (ActiveRequestCount > 0);
+		FPlatformAtomics::InterlockedExchange(&bNetworkReconnected, false);
+	}
+
 	bool bHasPendingRequests = false;
 	{
 		FRWScopeLock ScopeLock(PendingRequestLock, SLT_ReadOnly);
@@ -160,9 +198,10 @@ void FAndroidPlatformBackgroundHttpManager::ActivatePendingRequests()
 		UE_LOG(LogBackgroundHttpManager, VeryVerbose, TEXT("bHasPendingRequests: %d"), static_cast<int>(bHasPendingRequests));
 	}
 		
-	if (bHasPendingRequests)
+	if (bHasPendingRequests || bRestoreActiveRequests)
 	{
-		UE_LOG(LogBackgroundHttpManager, Display, TEXT("Found PendingRequests to activate"));
+		UE_CLOG(bHasPendingRequests, LogBackgroundHttpManager, Display, TEXT("Found PendingRequests to activate"));
+		UE_CLOG(bRestoreActiveRequests, LogBackgroundHttpManager, Display, TEXT("Found ActiveRequests to restore"));
 
 		const bool bIsOptional = false;
 
@@ -1062,6 +1101,32 @@ JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroi
 JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroidBackgroundDownloadOnTick(JNIEnv* jenv, jobject thiz)
 {
 	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnTickWorkerThread.Broadcast(jenv, thiz);
+}
+
+//
+//JNI methods coming from GameActivity
+//
+
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeAndroidBackgroundDownloadNetworkChanged(JNIEnv* jenv, jobject thiz)
+{
+	bool bNewNetworkConnected = GetNetworkConnected();
+
+	if (bNewNetworkConnected != bNetworkConnected)
+	{
+		bNetworkConnected = bNewNetworkConnected;
+
+		if (bNetworkConnected)
+		{
+			// reconnected !
+			//FPlatformMisc::LowLevelOutputDebugString(TEXT("nativeAFBD_NetworkChanged: Reconnected!"));
+			FPlatformAtomics::InterlockedExchange(&bNetworkReconnected, true);
+		}
+		else
+		{
+			// disconnected !
+			//FPlatformMisc::LowLevelOutputDebugString(TEXT("nativeAFBD_NetworkChanged: Disconnected!"));
+		}
+	}
 }
 
 
