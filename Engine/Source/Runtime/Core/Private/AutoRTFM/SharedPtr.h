@@ -71,7 +71,7 @@ public:
     static TSharedPtr New(TArguments&&... Arguments)
     {
         TSharedPtr Result;
-        Result.Ptr = new T(std::forward<TArguments>(Arguments)...);
+        Result.Ptr = new T(Forward<TArguments>(Arguments)...);
         Result.Count = new unsigned(1);
         return Result;
     }

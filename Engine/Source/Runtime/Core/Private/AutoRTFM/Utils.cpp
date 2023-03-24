@@ -13,6 +13,7 @@
 #include <execinfo.h>
 #endif
 
+#include "Containers/StringConv.h"
 #include "Misc/CoreMiscDefines.h"
 
 namespace AutoRTFM
