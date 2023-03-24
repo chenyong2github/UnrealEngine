@@ -5,10 +5,6 @@
 #include "CoreTypes.h"
 #include "Microsoft/MicrosoftPlatformCrashContext.h"
 
-#if !defined(WINDOWS_CRASHCONTEXT_WITH_CUSTOM_HANDLERS)
-	#define WINDOWS_CRASHCONTEXT_WITH_CUSTOM_HANDLERS 0
-#endif
-
 
 struct CORE_API FWindowsPlatformCrashContext : public FMicrosoftPlatformCrashContext
 {
