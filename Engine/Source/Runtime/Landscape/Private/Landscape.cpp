@@ -773,7 +773,6 @@ void ULandscapeComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceS
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GrassData->GetAllocatedSize());
 }
 
-#if WITH_EDITOR
 UMaterialInterface* ULandscapeComponent::GetLandscapeMaterial(int8 InLODIndex) const
 {
 	if (InLODIndex != INDEX_NONE)
@@ -818,6 +817,7 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeHoleMaterial() const
 	return nullptr;
 }
 
+#if WITH_EDITOR
 bool ULandscapeComponent::IsLandscapeHoleMaterialValid() const
 {
 	UMaterialInterface* HoleMaterial = GetLandscapeHoleMaterial();
@@ -3644,6 +3644,74 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape, const bool
 #endif // WITH_EDITOR
 }
 
+UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
+{
+	if (InLODIndex != INDEX_NONE)
+	{
+		UWorld* World = GetWorld();
+
+		if (World != nullptr)
+		{
+			if (const FLandscapePerLODMaterialOverride* LocalMaterialOverride = PerLODOverrideMaterials.FindByPredicate(
+				[InLODIndex](const FLandscapePerLODMaterialOverride& InOverride) { return (InOverride.LODIndex == InLODIndex) && (InOverride.Material != nullptr); }))
+			{
+				return LocalMaterialOverride->Material;
+			}
+		}
+	}
+
+	return LandscapeMaterial != nullptr ? LandscapeMaterial : UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+UMaterialInterface* ALandscapeProxy::GetLandscapeHoleMaterial() const
+{
+	return LandscapeHoleMaterial;
+}
+
+UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODIndex) const
+{
+	if (InLODIndex != INDEX_NONE)
+	{
+		UWorld* World = GetWorld();
+
+		if (World != nullptr)
+		{
+			if (const FLandscapePerLODMaterialOverride* LocalMaterialOverride = PerLODOverrideMaterials.FindByPredicate(
+				[InLODIndex](const FLandscapePerLODMaterialOverride& InOverride) { return (InOverride.LODIndex == InLODIndex) && (InOverride.Material != nullptr); }))
+			{
+				return LocalMaterialOverride->Material;
+			}
+		}
+	}
+
+	if (LandscapeMaterial != nullptr)
+	{
+		return LandscapeMaterial;
+	}
+
+	checkf(!FUObjectThreadContext::Get().IsRoutingPostLoad, TEXT("This method should not be called during PostLoad since the LandscapeActor may not be fully unserialized yet."));
+
+	if (const ALandscape* Landscape = GetLandscapeActor())
+	{
+		return Landscape->GetLandscapeMaterial(InLODIndex);
+	}
+
+	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
+{
+	if (LandscapeHoleMaterial)
+	{
+		return LandscapeHoleMaterial;
+	}
+	else if (const ALandscape* Landscape = GetLandscapeActor())
+	{
+		return Landscape->GetLandscapeHoleMaterial();
+	}
+	return nullptr;
+}
+
 #if WITH_EDITOR
 
 void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
@@ -3770,74 +3838,6 @@ void ALandscapeProxy::RecreateComponentsRenderState(TFunctionRef<void(ULandscape
 			ComponentRecreateRenderStates.Emplace(Comp);
 		}
 	}
-}
-
-UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
-{
-	if (InLODIndex != INDEX_NONE)
-	{
-		UWorld* World = GetWorld();
-
-		if (World != nullptr)
-		{
-			if (const FLandscapePerLODMaterialOverride* LocalMaterialOverride = PerLODOverrideMaterials.FindByPredicate(
-				[InLODIndex](const FLandscapePerLODMaterialOverride& InOverride) { return (InOverride.LODIndex == InLODIndex) && (InOverride.Material != nullptr); }))
-			{
-				return LocalMaterialOverride->Material;
-			}
-		}
-	}
-
-	return LandscapeMaterial != nullptr ? LandscapeMaterial : UMaterial::GetDefaultMaterial(MD_Surface);
-}
-
-UMaterialInterface* ALandscapeProxy::GetLandscapeHoleMaterial() const
-{
-	return LandscapeHoleMaterial;
-}
-
-UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODIndex) const
-{
-	if (InLODIndex != INDEX_NONE)
-	{
-		UWorld* World = GetWorld();
-
-		if (World != nullptr)
-		{
-			if (const FLandscapePerLODMaterialOverride* LocalMaterialOverride = PerLODOverrideMaterials.FindByPredicate(
-				[InLODIndex](const FLandscapePerLODMaterialOverride& InOverride) { return (InOverride.LODIndex == InLODIndex) && (InOverride.Material != nullptr); }))
-			{
-				return LocalMaterialOverride->Material;
-			}
-		}
-	}
-
-	if (LandscapeMaterial != nullptr)
-	{
-		return LandscapeMaterial;
-	}
-
-	checkf(!FUObjectThreadContext::Get().IsRoutingPostLoad, TEXT("This method should not be called during PostLoad since the LandscapeActor may not be fully unserialized yet."));
-
-	if (const ALandscape* Landscape = GetLandscapeActor())
-	{
-		return Landscape->GetLandscapeMaterial(InLODIndex);
-	}
-
-	return UMaterial::GetDefaultMaterial(MD_Surface);
-}
-
-UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
-{
-	if (LandscapeHoleMaterial)
-	{
-		return LandscapeHoleMaterial;
-	}
-	else if (const ALandscape* Landscape = GetLandscapeActor())
-	{
-		return Landscape->GetLandscapeHoleMaterial();
-	}
-	return nullptr;
 }
 
 bool ALandscapeStreamingProxy::IsNaniteEnabled() const

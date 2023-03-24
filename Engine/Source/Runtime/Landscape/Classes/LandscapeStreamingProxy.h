@@ -51,9 +51,9 @@ public:
 	virtual ALandscape* GetLandscapeActor() override;
 	virtual const ALandscape* GetLandscapeActor() const override;
 	void LANDSCAPE_API SetLandscapeActor(ALandscape* InLandscape);
-#if WITH_EDITOR
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const override;
 	virtual UMaterialInterface* GetLandscapeHoleMaterial() const override;
+#if WITH_EDITOR
 	virtual bool IsNaniteEnabled() const override;
 #endif
 	//~ End ALandscapeBase Interface

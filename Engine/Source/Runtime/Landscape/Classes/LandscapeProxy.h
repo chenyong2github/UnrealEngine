@@ -990,6 +990,12 @@ public:
 	// Copy properties from parent Landscape actor
 	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape, const bool bIncludeLandscapeMaterial);
 
+	// Get Landscape Material assigned to this Landscape
+	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
+
+	// Get Hole Landscape Material assigned to this Landscape
+	virtual UMaterialInterface* GetLandscapeHoleMaterial() const;
+
 #if WITH_EDITOR
 	/* Serialize all hashes/guids that record the current state of this proxy */
 	void SerializeStateHashes(FArchive& Ar);
@@ -1033,12 +1039,6 @@ public:
 	LANDSCAPE_API static ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* InLayerName, const ULevel* InLevel, const ULandscapeLayerInfoObject* InTemplate = nullptr);
 
 	LANDSCAPE_API ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* InLayerName, const ULandscapeLayerInfoObject* InTemplate = nullptr);
-
-	// Get Landscape Material assigned to this Landscape
-	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
-
-	// Get Hole Landscape Material assigned to this Landscape
-	virtual UMaterialInterface* GetLandscapeHoleMaterial() const;
 
 	/** Fix up component layers, weightmaps */
 	void FixupWeightmaps();

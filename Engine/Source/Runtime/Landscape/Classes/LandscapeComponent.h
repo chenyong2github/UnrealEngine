@@ -906,6 +906,12 @@ public:
 	/** Initialize the landscape component */
 	LANDSCAPE_API void Init(int32 InBaseX, int32 InBaseY, int32 InComponentSizeQuads, int32 InNumSubsections, int32 InSubsectionSizeQuads);
 
+	/** Returns the component's LandscapeMaterial, or the Component's OverrideLandscapeMaterial if set */
+	LANDSCAPE_API UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
+
+	/** Returns the components's LandscapeHoleMaterial, or the Component's OverrideLandscapeHoleMaterial if set */
+	LANDSCAPE_API UMaterialInterface* GetLandscapeHoleMaterial() const;
+
 #if WITH_EDITOR
 	/**
 	 * Recalculate cached bounds using height values.
@@ -1023,12 +1029,6 @@ public:
 	 * Create weightmaps for this component for the layers specified in the WeightmapLayerAllocations array, works in the specified edit layer
 	 */
 	void ReallocateWeightmapsInternal(FLandscapeEditDataInterface* DataInterface = nullptr, const FGuid& InEditLayerGuid = FGuid(), bool InSaveToTransactionBuffer = true, bool InForceReallocate = false, ALandscapeProxy* InTargetProxy = nullptr, TArray<UTexture*>* OutNewCreatedTextures = nullptr);
-
-	/** Returns the component's LandscapeMaterial, or the Component's OverrideLandscapeMaterial if set */
-	LANDSCAPE_API UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
-
-	/** Returns the components's LandscapeHoleMaterial, or the Component's OverrideLandscapeHoleMaterial if set */
-	LANDSCAPE_API UMaterialInterface* GetLandscapeHoleMaterial() const;
 
 	/** Returns true if the component has a valid LandscapeHoleMaterial */
 	LANDSCAPE_API bool IsLandscapeHoleMaterialValid() const;
