@@ -777,6 +777,11 @@ FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromClass(TSubclas
 
 	for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 	{
+		if (Spec.Ability == nullptr)
+		{
+			continue;
+		}
+
 		if (Spec.Ability->GetClass() == InAbilityClass)
 		{
 			return &Spec;
