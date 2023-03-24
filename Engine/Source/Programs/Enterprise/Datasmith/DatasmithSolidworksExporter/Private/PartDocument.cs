@@ -10,9 +10,136 @@ using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.FDatasmithExporter;
 using System.Diagnostics;
 using System.Linq;
+using static DatasmithSolidworks.FAssemblyDocumentTracker;
 
 namespace DatasmithSolidworks
 {
+	// Checks if scene is updated iteratively
+	//
+	// Solidworks notifications lack a number of notifications for material changes - 
+	// material (re)assignment to various entity types and change in material properties themselves
+	// This class lazily iterates over all the components to identify these changes
+	// This lazy process it performed in small portions ove multiple 'ticks' in the main thread.
+	// It's done in the main thread(not in a separate thread) for simple reason that SW api 
+	// is very slow to use from another thread(although it may be convenient for simple tasks)
+	// Doing this in a thread takes dozens of seconds for models which take a second to fully export.
+	// Making this unusable. And also unstable as any change to the model in the main thread may result in a crash in the thread
+	public abstract class FLazyUpdateCheckerBase
+	{
+		private readonly FDocumentTracker DocumentTracker;
+		private int MaxTickTimeMilliseconds = 100;
+		private IEnumerator<bool> Updating = null;
+
+		protected FLazyUpdateCheckerBase(FDocumentTracker InDocumentTracker)
+		{
+			DocumentTracker = InDocumentTracker;
+		}
+
+		public void Reset()
+		{
+			if (Updating != null)
+			{
+				Updating.Dispose();
+				Updating = null;
+			}
+		}
+
+		// Advances checking for updates in the model
+		public void Tick()
+		{
+			if (DocumentTracker.GetDirty())
+			{
+				// If document is already market dirty don't need to check for modifications
+				Reset();
+				return;
+			}
+
+			if (Updating == null)
+			{
+				Restart();
+				Updating = CheckForModificationsEnum().GetEnumerator();
+			}
+
+			Stopwatch Watch = Stopwatch.StartNew();
+
+			bool bPostponed = false;
+			try
+			{
+				while (Updating.MoveNext())
+				{
+					if (Watch.ElapsedMilliseconds > MaxTickTimeMilliseconds)
+					{
+						// Postpone the reset of update if it has already taken too long for this tick, so the application doesn't stutter
+						bPostponed = true;
+						break;
+					}
+				}
+			}
+			catch
+			{
+				// This will just restart the checker in case any exception occurs during update
+			}
+
+			if (HasUpdates())
+			{
+				DocumentTracker.SetDirty(true);
+			}
+
+			if (!bPostponed)
+			{
+				Reset();
+			}
+		}
+
+		/// Reset state of updates check
+		public abstract void Restart();
+
+		/// Get state of updates check
+		public abstract bool HasUpdates();
+
+		///  Resumable check for modifications
+		public abstract IEnumerable<bool> CheckForModificationsEnum();
+	};
+
+	public class FPartLazyUpdateChecker: FLazyUpdateCheckerBase
+	{
+		private FPartDocumentTracker PartDocumentTracker;
+		private bool bHasDirtyMaterials;
+
+		public FPartLazyUpdateChecker(FPartDocumentTracker InDocumentTracker) : base(InDocumentTracker)
+		{
+			PartDocumentTracker = InDocumentTracker;
+		}
+
+		public override void Restart()
+		{
+			bHasDirtyMaterials = false;
+		}
+
+		public override bool HasUpdates()
+		{
+			return bHasDirtyMaterials;
+		}
+
+		public override IEnumerable<bool> CheckForModificationsEnum()
+		{
+			FObjectMaterials CurrentMaterials =
+				FObjectMaterials.LoadPartMaterials(PartDocumentTracker, PartDocumentTracker.SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null, PartDocumentTracker.ExportedMaterialsMap);
+			if (CurrentMaterials == null && PartDocumentTracker.ExportedPartMaterials == null)
+			{
+				yield break;
+			}
+			else if ((CurrentMaterials != null && PartDocumentTracker.ExportedPartMaterials == null) ||
+			         (CurrentMaterials == null && PartDocumentTracker.ExportedPartMaterials != null))
+			{
+				bHasDirtyMaterials = true;
+				yield break;
+			}
+
+			bHasDirtyMaterials = !CurrentMaterials.EqualMaterials(PartDocumentTracker.ExportedPartMaterials);
+		}
+	};
+
 	public class FPartDocumentTracker : FDocumentTracker
 	{
 		public PartDoc SwPartDoc { get; private set; } = null;
@@ -26,6 +153,8 @@ namespace DatasmithSolidworks
 		public FObjectMaterials ExportedPartMaterials { get; set; }
 
 		public string PathName { get; private set; }
+
+		private FPartLazyUpdateChecker LazyUpdateChecker;
 
 		public FPartDocumentTracker(FPartDocument InDoc, PartDoc InPartDoc, FDatasmithExporter InExporter,
 			FAssemblyDocumentTracker InAsmDoc, FComponentName InComponentName)
@@ -217,23 +346,6 @@ namespace DatasmithSolidworks
 			
 		}
 
-		public override bool HasMaterialUpdates()
-		{
-			FObjectMaterials CurrentMaterials =
-				FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
-			if (CurrentMaterials == null && ExportedPartMaterials == null)
-			{
-				return false;
-			}
-			else if ((CurrentMaterials != null && ExportedPartMaterials == null) ||
-			         (CurrentMaterials == null && ExportedPartMaterials != null))
-			{
-				return true;
-			}
-
-			return !CurrentMaterials.EqualMaterials(ExportedPartMaterials);
-		}
-
 		public override FObjectMaterials GetComponentMaterials(Component2 Comp)
 		{
 			return null;
@@ -259,7 +371,8 @@ namespace DatasmithSolidworks
 		// Extract mesh data for current active configuration. MeshData is ready for export to DatasmithMesh 
 		public FMeshData ExtractPartMeshData()
 		{
-			FObjectMaterials PartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
+			FObjectMaterials PartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null, ExportedMaterialsMap);
+			ExportedPartMaterials = PartMaterials;
 			ConcurrentBag<FBody> Bodies = FBody.FetchBodies(SwPartDoc);
 			return FStripGeometry.CreateMeshData(Bodies, PartMaterials);
 		}
@@ -268,9 +381,19 @@ namespace DatasmithSolidworks
 		{
 		}
 
-		public override ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet)
+		public override Dictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet)
 		{
 			return null;
+		}
+
+		public void Tick()
+		{
+			LazyUpdateChecker?.Tick();
+		}
+
+		public void TrackChanges()
+		{
+			LazyUpdateChecker = new FPartLazyUpdateChecker(this);
 		}
 	}
 
@@ -459,7 +582,6 @@ namespace DatasmithSolidworks
 	{
 		private readonly FPartDocumentTracker DocumentTracker;
 		private readonly FPartDocumentEvents Events;
-		private FMaterialUpdateChecker MaterialUpdateChecker;
 
 		public FPartDocumentNotifications(int InDocId, PartDoc InPartDoc, FPartDocumentTracker InDocumentTracker)
 		{
@@ -469,26 +591,26 @@ namespace DatasmithSolidworks
 
 		public void Destroy()
 		{
-			MaterialUpdateChecker?.Destroy();
 			Events.Destroy();
 		}
 
+
 		public void Start()
 		{
-			if (MaterialUpdateChecker == null)
-			{
-				MaterialUpdateChecker = new FMaterialUpdateChecker(DocumentTracker);
-			}
+			DocumentTracker.TrackChanges();
 		}
 
 		public void Resume()
 		{
-			MaterialUpdateChecker?.Resume();
 		}
 
 		public void Pause()
 		{
-			MaterialUpdateChecker?.Pause();
+		}
+
+		public void Idle()
+		{
+			DocumentTracker.Tick();
 		}
 	}
 	
@@ -507,6 +629,11 @@ namespace DatasmithSolidworks
 		{
 			Notifications.Destroy();
 			DocumentTracker.Destroy();
+		}
+
+		public void Idle()
+		{
+			Notifications.Idle();
 		}
 
 		public void Start()

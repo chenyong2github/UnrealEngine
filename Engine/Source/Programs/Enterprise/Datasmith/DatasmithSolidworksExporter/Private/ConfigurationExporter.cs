@@ -198,7 +198,7 @@ namespace DatasmithSolidworks
 			private readonly FMeshes Meshes;
 			private readonly string Name;
 			private readonly bool bIsMainConfiguration;
-			private ConcurrentDictionary<FComponentName, FComponentMesh> MeshForComponent = new ConcurrentDictionary<FComponentName, FComponentMesh>();
+			private Dictionary<FComponentName, FComponentMesh> MeshForComponent = new Dictionary<FComponentName, FComponentMesh>();
 			private readonly FConfiguration ParentConfiguration;
 
 			public FConfiguration(FMeshes InMeshes, string InName, bool bInIsMainConfiguration, FConfiguration InParentConfiguration = null)
@@ -211,7 +211,7 @@ namespace DatasmithSolidworks
 
 			public void AddComponentWhichNeedsMesh(Component2 InComponent, FComponentName InComponentName)
 			{
-				MeshForComponent.TryAdd(InComponentName, new FComponentMesh() {Component = InComponent});
+				MeshForComponent[InComponentName] = new FComponentMesh() {Component = InComponent};
 			}
 
 			public void AddMesh(FComponentName ComponentName, FMeshData MeshData, out FMeshName MeshName)
@@ -485,13 +485,10 @@ namespace DatasmithSolidworks
 				HashSet<FComponentName> ComponentNamesToExportSet = new HashSet<FComponentName>();
 				foreach (FComponentName ComponentName in MeshesConfiguration.EnumerateComponentNames())
 				{
-					if (!ComponentNamesToExportSet.Contains(ComponentName))
-					{
-						ComponentNamesToExportSet.Add(ComponentName);
-					}
+					ComponentNamesToExportSet.Add(ComponentName);
 				}
 
-				ConcurrentDictionary<FComponentName, FObjectMaterials> ModifiedComponentsMaterials = InDoc.LoadDocumentMaterials(ComponentNamesToExportSet);
+				Dictionary<FComponentName, FObjectMaterials> ModifiedComponentsMaterials = InDoc.LoadDocumentMaterials(ComponentNamesToExportSet);
 
 				if (ModifiedComponentsMaterials != null)
 				{
@@ -531,7 +528,7 @@ namespace DatasmithSolidworks
 
 					FConfigurationTree.FComponentTreeNode NewNode = new FConfigurationTree.FComponentTreeNode(Component);
 					NewNode.ComponentInfo.ComponentName = new FComponentName(Component);
-					InDoc.AddExportedComponent(NewNode);
+					InDoc.AddCollectedComponent(NewNode);
 
 					object[] Children = (object[])Component.GetChildren();
 					if (Children != null)
@@ -749,14 +746,9 @@ namespace DatasmithSolidworks
 
 			if (InDoc is FAssemblyDocumentTracker AsmDoc)
 			{
-				HashSet<FComponentName> ComponentsSet = new HashSet<FComponentName>();
+				HashSet<FComponentName> ComponentsSet = new HashSet<FComponentName>(AsmDoc.SyncState.CollectedComponentsMap.Keys);
 
-				foreach (FComponentName CompName in AsmDoc.SyncState.ExportedComponentsMap.Keys)
-				{
-					ComponentsSet.Add(CompName);
-				}
-
-				ConcurrentDictionary<FComponentName, FObjectMaterials> ComponentMaterials =
+				Dictionary<FComponentName, FObjectMaterials> ComponentMaterials =
 					FObjectMaterials.LoadAssemblyMaterials(AsmDoc, ComponentsSet, Option, DisplayStates);
 
 				if (ComponentMaterials != null)
@@ -770,7 +762,7 @@ namespace DatasmithSolidworks
 			else
 			{
 				FPartDocumentTracker PartDocumentTracker = InDoc as FPartDocumentTracker;
-				FObjectMaterials PartMaterials = FObjectMaterials.LoadPartMaterials(InDoc, PartDocumentTracker.SwPartDoc, Option, DisplayStates);
+				FObjectMaterials PartMaterials = FObjectMaterials.LoadPartMaterials(InDoc, PartDocumentTracker.SwPartDoc, Option, DisplayStates, InDoc.ExportedMaterialsMap);
 				Component2 Comp = InConfiguration.GetRootComponent3(true);
 
 				MaterialsMap.Add(FComponentName.FromCustomString(Comp?.Name2 ?? ""), PartMaterials);
@@ -863,7 +855,7 @@ namespace DatasmithSolidworks
 				}
 				Meshes.AddComponentWhichNeedsMesh(NewNode.Component, NewNode.ComponentName);
 			}
-			InDoc.AddExportedComponent(NewNode);
+			InDoc.AddCollectedComponent(NewNode);
 		}
 
 		private static void ComputeNodeTransform(FComponentConfig ParentConfig, FComponentTreeNode InNode, FComponentConfig ComponentConfig)

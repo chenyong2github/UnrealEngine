@@ -123,15 +123,13 @@ namespace DatasmithSolidworks
 				}
 			}
 
-			Parallel.ForEach(AllBodies, ObjBody =>
+			foreach(object ObjBody in AllBodies)
 			{
-				Body2 Body = ObjBody as Body2;
-
-				if (Body != null && Body.Visible && !Body.IsTemporaryBody())
+				if (ObjBody is Body2 Body && Body.Visible && !Body.IsTemporaryBody())
 				{
 					ResultBodies.Add(new FBody(Body));
 				}
-			});
+			}
 
 			return ResultBodies;
 		}

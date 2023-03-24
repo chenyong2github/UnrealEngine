@@ -12,89 +12,6 @@ using static DatasmithSolidworks.Addin;
 
 namespace DatasmithSolidworks
 {
-	// Checks for material updates periodically, using a separate thread to execute checks
-	// todo: Solidworks API is not concurrent-friendly - https://forum.solidworks.com/thread/43129
-	//   need to test but it's probably faster to check material updates simply in Sync. Maybe 
-	//   with the same period as currently if needed so
-	public class FMaterialUpdateChecker
-	{
-		public Thread MaterialCheckerThread = null;
-		public bool bExitMaterialUpdateThread = false;
-		public ManualResetEvent MaterialCheckerEvent = null;
-
-		public FDocumentTracker DocumentTracker;
-
-		public FMaterialUpdateChecker(FDocumentTracker InDocumentTracker)
-		{
-			DocumentTracker = InDocumentTracker;
-
-			MaterialCheckerEvent = new ManualResetEvent(false);
-			MaterialCheckerEvent.Set();
-
-			MaterialCheckerThread = new Thread(CheckForMaterialUpdatesProc);
-			MaterialCheckerThread.Name = "DatasmithSolidworks.FMaterialUpdateChecker Thread";
-			MaterialCheckerThread.Start();
-		}
-
-		public void Destroy()
-		{
-			bExitMaterialUpdateThread = true;
-
-			if (MaterialCheckerThread != null && !MaterialCheckerThread.Join(500))
-			{
-				MaterialCheckerThread.Abort();
-			}
-		}
-
-		public void Resume()
-		{
-			MaterialCheckerEvent.Set();
-		}
-
-		public void Pause()
-		{
-			MaterialCheckerEvent.Reset();
-		}
-
-		private void CheckForMaterialUpdatesProc()
-		{
-			while (!bExitMaterialUpdateThread)
-			{
-				MaterialCheckerEvent.WaitOne();
-
-				// Only check for material updates when we are not current exporting
-				if (!DocumentTracker.IsUpdateInProgress())
-				{
-					bool bSketchMode = false;
-					try
-					{
-						bSketchMode = (DocumentTracker.SwDoc.SketchManager?.ActiveSketch != null);
-					}
-					catch
-					{
-						Debug.Assert(false);
-					}
-				
-					if (!bSketchMode)
-					{
-#if DEBUG
-						Stopwatch Watch = Stopwatch.StartNew();
-#endif
-						bool bHasMaterialUpdates = DocumentTracker.HasMaterialUpdates();
-#if DEBUG
-						Watch.Stop();
-						Debug.WriteLine($"FMaterialUpdateChecker->HasMaterialUpdates: {(double)Watch.ElapsedMilliseconds / 1000.0}");
-#endif
-						if (bHasMaterialUpdates)
-						{
-							DocumentTracker.SetDirty(true);
-						}
-					}
-				}
-				Thread.Sleep(600);
-			}
-		}
-	}
 
 	// Build DatasmithScene from Solidworks Document, supporting scene changes/modifications
 	// Doesn't incorporate change notifications callbacks/handlers(i.e. notification handlers call into this class to tell what was changed and it updates Datasmith scene accordingly)
@@ -103,7 +20,7 @@ namespace DatasmithSolidworks
 		public readonly FDocument Doc;  // Top Document that is tracked/exported
 		public ModelDoc2 SwDoc => Doc.SwDoc;
 
-		public ConcurrentDictionary<int, FMaterial> ExportedMaterialsMap = new ConcurrentDictionary<int, FMaterial>();
+		public Dictionary<int, FMaterial> ExportedMaterialsMap = new Dictionary<int, FMaterial>();
 		public bool bHasConfigurations = false;
 
 		public FDatasmithFacadeScene DatasmithScene = null;
@@ -138,8 +55,6 @@ namespace DatasmithSolidworks
 		{
 			bDocumentIsDirty = bInDirty;
 		}
-
-		public abstract bool HasMaterialUpdates();
 
 		public uint GetFaceId(IFace2 InFace)
 		{
@@ -304,9 +219,9 @@ namespace DatasmithSolidworks
 
 		public virtual void AddPartDocument(FConfigurationTree.FComponentTreeNode InNode){}
 
-		public virtual void AddExportedComponent(FConfigurationTree.FComponentTreeNode InNode) {}
+		public virtual void AddCollectedComponent(FConfigurationTree.FComponentTreeNode InNode) {}
 
-		public abstract ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet);
+		public abstract Dictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet);
 		public abstract void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials);
 		public abstract FObjectMaterials GetComponentMaterials(Component2 Comp);
 
@@ -353,13 +268,13 @@ namespace DatasmithSolidworks
 		{
 			Exporter.AssignMaterialsToDatasmithMeshes(CreatedMeshes);
 		}
-
 	};
 
 
 	// Controls Syncing of a tracked Document, handling all events
 	public interface IDocumentSyncer
 	{
+
 		// Make Datasmith Scene up to date with the Solidworks Document
 		void Sync(string InOutputPath);
 
@@ -385,6 +300,8 @@ namespace DatasmithSolidworks
 
 		// Explicit immediate release of resources(line event handlers)
 		void Destroy();
+
+		void Idle();
 	}
 
 	/**
@@ -460,6 +377,7 @@ namespace DatasmithSolidworks
 
 		public void OnIdle()
 		{
+			DocumentSyncer.Idle();
 			if (bDirectLinkAutoSync && DocumentSyncer.GetDirty())
 			{
 				OnDirectLinkSync();

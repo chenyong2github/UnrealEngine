@@ -671,8 +671,6 @@ namespace DatasmithSolidworks
 				LogDedent();
 			}
 		}
-
-
 		#endregion
 
 	}
@@ -688,6 +686,18 @@ namespace DatasmithSolidworks
 				Map.Add(Key, Value);
 			}
 			return Value;
+		}
+
+		public static bool TryRemove<K, V>(this Dictionary<K, V> Map, K Key, out V OutValue) 
+		{
+			if (Map.TryGetValue(Key, out OutValue))
+			{
+				Map.Remove(Key);
+				return true;
+			}			
+			return false;
+
+
 		}
 	}
 }

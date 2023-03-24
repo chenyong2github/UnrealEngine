@@ -160,9 +160,9 @@ namespace DatasmithSolidworks
 	public class FDatasmithExporter
 	{
 		private Dictionary<FActorName, Tuple<EActorType, FDatasmithFacadeActor>> ExportedActorsMap = new Dictionary<FActorName, Tuple<EActorType, FDatasmithFacadeActor>>();
-		private ConcurrentDictionary<FMeshName, FMeshExportInfo> ExportedMeshesMap = new ConcurrentDictionary<FMeshName, FMeshExportInfo>();
-		private ConcurrentDictionary<int, FDatasmithFacadeMaterialInstance> ExportedMaterialInstancesMap = new ConcurrentDictionary<int, FDatasmithFacadeMaterialInstance>();
-		private ConcurrentDictionary<string, FDatasmithFacadeTexture> ExportedTexturesMap = new ConcurrentDictionary<string, FDatasmithFacadeTexture>();
+		private Dictionary<FMeshName, FMeshExportInfo> ExportedMeshesMap = new Dictionary<FMeshName, FMeshExportInfo>();
+		private Dictionary<int, FDatasmithFacadeMaterialInstance> ExportedMaterialInstancesMap = new Dictionary<int, FDatasmithFacadeMaterialInstance>();
+		private Dictionary<string, FDatasmithFacadeTexture> ExportedTexturesMap = new Dictionary<string, FDatasmithFacadeTexture>();
 
 		// Number of meshes/variants using this material to allow exporting only used materials
 		private Dictionary<int, int> MaterialUsers = new Dictionary<int, int>();
@@ -281,7 +281,7 @@ namespace DatasmithSolidworks
 			RemoveMesh(Info.MeshName);
 			LogDedent();
 
-			ExportedMeshesMap.TryAdd(Info.MeshName, Info);
+			ExportedMeshesMap[Info.MeshName] = Info;
 
 			LogDebug($"DatasmithScene.AddMesh('{Info.MeshElement.GetName()}')");
 			DatasmithScene.AddMesh(Info.MeshElement);
@@ -301,6 +301,8 @@ namespace DatasmithSolidworks
             {
                 return;
             }
+
+            
 			if (ExportedMeshesMap.TryRemove(MeshName, out FMeshExportInfo Info))
 			{
 				LogDebug($"  removing mesh element '{Info.MeshElement.GetName()}'");
@@ -794,7 +796,7 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public void ExportMaterials(ConcurrentDictionary<int, FMaterial> InMaterialsMap)
+		public void ExportMaterials(Dictionary<int, FMaterial> InMaterialsMap)
 		{
 			LogDebug($"ExportMaterials: \n  {string.Join("  \n", InMaterialsMap.Select(KVP => $"{KVP.Key}: {KVP.Value}" ))}");
 
@@ -1044,7 +1046,7 @@ namespace DatasmithSolidworks
 					TextureElement.SetTextureAddressY(FDatasmithFacadeTexture.ETextureAddress.Wrap);
 					FDatasmithFacadeTexture.ETextureMode TextureMode = FDatasmithFacadeTexture.ETextureMode.Diffuse;
 					TextureElement.SetTextureMode(TextureMode);
-					ExportedTexturesMap.TryAdd(InMaterial.Texture, TextureElement);
+					ExportedTexturesMap[InMaterial.Texture] = TextureElement;
 
 					InMaterialInstance.AddTexture(InParamName, TextureElement);
 				}
@@ -1076,7 +1078,7 @@ namespace DatasmithSolidworks
 					TextureElement.SetTextureAddressY(FDatasmithFacadeTexture.ETextureAddress.Wrap);
 					FDatasmithFacadeTexture.ETextureMode TextureMode = FDatasmithFacadeTexture.ETextureMode.Normal;
 					TextureElement.SetTextureMode(TextureMode);
-					ExportedTexturesMap.TryAdd(InMaterial.BumpTextureFileName, TextureElement);
+					ExportedTexturesMap[InMaterial.BumpTextureFileName] = TextureElement;
 
 					InMaterialInstance.AddTexture(InParamName, TextureElement);
 				}
@@ -1144,7 +1146,7 @@ namespace DatasmithSolidworks
 		}
 
 		// Export meshes
-		public IEnumerable<FMeshExportInfo> ExportMeshes(IEnumerable<FMeshExportInfo> MeshExportInfos)
+		public IEnumerable<FMeshExportInfo> ExportMeshes(List<FMeshExportInfo> MeshExportInfos)
 		{
 			LogDebug($"ExportMeshes: {string.Join(", ", MeshExportInfos)}");
 

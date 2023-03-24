@@ -9,9 +9,92 @@ using System.Diagnostics;
 using System.Linq;
 using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.Addin;
+using static DatasmithSolidworks.FAssemblyDocumentTracker;
 
 namespace DatasmithSolidworks
 {
+
+	public class FAssemblyLazyUpdateChecker: FLazyUpdateCheckerBase
+	{
+		private readonly FAssemblyDocumentTracker AsmDocumentTracker;
+
+		private bool bHasDirtyMaterials;
+		private bool bHasDirtyComponents;
+		HashSet<FComponentName> AllExportedComponents;
+
+		public FAssemblyLazyUpdateChecker(FAssemblyDocumentTracker InDocumentTracker): base(InDocumentTracker)
+		{
+			AsmDocumentTracker = InDocumentTracker;
+		}
+
+		public override bool HasUpdates()
+		{
+			return bHasDirtyComponents || bHasDirtyMaterials;
+		}
+
+		public override void Restart()
+		{
+			AllExportedComponents = new HashSet<FComponentName>();
+			bHasDirtyMaterials = false;
+			bHasDirtyComponents = false;
+		}
+
+		public override IEnumerable<bool> CheckForModificationsEnum()
+		{
+			FSyncState SyncState = AsmDocumentTracker.SyncState;
+
+			// Dig into part level materials (they wont be read by LoadDocumentMaterials)
+			AllExportedComponents.UnionWith(SyncState.CleanComponents);
+			AllExportedComponents.UnionWith(SyncState.DirtyComponents.Keys);
+
+			Dictionary<int, FMaterial> MaterialsMap = new Dictionary<int, FMaterial>();
+			Dictionary<FComponentName, FObjectMaterials> CurrentDocMaterialsMap  = new Dictionary<FComponentName, FObjectMaterials>();
+
+			foreach (bool _ in FObjectMaterials.LoadAssemblyMaterialsEnum(AsmDocumentTracker, AllExportedComponents, CurrentDocMaterialsMap, MaterialsMap))
+			{
+				yield return _;
+			}
+
+			HashSet<FComponentName> Components =  SyncState.ComponentsMaterialsMap == null ? new HashSet<FComponentName>() : new HashSet<FComponentName>(SyncState.ComponentsMaterialsMap.Keys);
+			HashSet<FComponentName> CurrentComponents =  CurrentDocMaterialsMap == null ? new HashSet<FComponentName>() : new HashSet<FComponentName>(CurrentDocMaterialsMap.Keys);
+
+			// Components which stayed in the materials map
+			HashSet<FComponentName> CommonComponents = new HashSet<FComponentName>(CurrentComponents.Intersect(Components));
+			 
+			IEnumerable<FComponentName> ComponentsWithAddedOrRemovedMaterial = Components.Union(CurrentComponents).Except(CommonComponents);
+			foreach (FComponentName CompName in ComponentsWithAddedOrRemovedMaterial)
+			{
+				bool bShouldSyncComponentMaterial = false;
+
+				if (SyncState.CollectedComponentsMap.ContainsKey(CompName))
+				{
+					Component2 Comp = SyncState.CollectedComponentsMap[CompName];
+					bShouldSyncComponentMaterial = !Comp.IsSuppressed() &&
+					                               (Comp.Visible == (int)swComponentVisibilityState_e
+						                               .swComponentVisible);
+					yield return true;
+				}
+
+				if (bShouldSyncComponentMaterial)
+				{
+					bHasDirtyMaterials = true;
+					AsmDocumentTracker.SetComponentDirty(CompName, EComponentDirtyState.Material);
+				}
+			}
+
+			// Check if components have their material modified
+			foreach (FComponentName ComponentName in CommonComponents)
+			{
+				if (!SyncState.ComponentsMaterialsMap[ComponentName]
+					    .EqualMaterials(CurrentDocMaterialsMap[ComponentName]))
+				{
+					AsmDocumentTracker.SetComponentDirty(ComponentName, EComponentDirtyState.Material);
+					bHasDirtyComponents = true;
+					yield return true;
+				}
+			}
+		}
+	};
 
 	public class FAssemblyDocumentTracker : FDocumentTracker
 	{
@@ -28,7 +111,7 @@ namespace DatasmithSolidworks
 		{
 			public Dictionary<string, FPartDocument> PartsMap = new Dictionary<string, FPartDocument>();
 
-			public ConcurrentDictionary<FComponentName, FObjectMaterials> ComponentsMaterialsMap = null;
+			public Dictionary<FComponentName, FObjectMaterials> ComponentsMaterialsMap = null;
 
 			public Dictionary<FComponentName, string> ComponentToPartMap = new Dictionary<FComponentName, string>();
 
@@ -38,13 +121,13 @@ namespace DatasmithSolidworks
 			/// All updated(not dirty) components. Updated component will be removed from dirty on export end
 			public HashSet<FComponentName> CleanComponents = new HashSet<FComponentName>();
 
-			/** Flags for each component that needs update. Cleared when export completes*/
+			/// Flags for each component that needs update. Cleared when export completes*/
 			public Dictionary<FComponentName, uint> DirtyComponents = new Dictionary<FComponentName, uint>();
 
 			public HashSet<FComponentName> ComponentsToDelete = new HashSet<FComponentName>();
 
-			public Dictionary<FComponentName, Component2> ExportedComponentsMap =
-				new Dictionary<FComponentName, Component2>();
+			/// all components in the document
+			public Dictionary<FComponentName, Component2> CollectedComponentsMap = new Dictionary<FComponentName, Component2>();
 
 			/** Stores which mesh was exported for each component*/
 			public Dictionary<FComponentName, List<FMeshName>> ComponentNameToMeshNameMap =
@@ -58,6 +141,8 @@ namespace DatasmithSolidworks
 		public AssemblyDoc SwAsmDoc { get; private set; } = null;
 
 		public FSyncState SyncState { get; private set; } = new FSyncState();
+
+		private FAssemblyLazyUpdateChecker LazyUpdateChecker;
 
 		public FAssemblyDocumentTracker(FAssemblyDocument InDoc, AssemblyDoc InSwDoc, FDatasmithExporter InExporter) : base(InDoc, InExporter)
 		{
@@ -120,11 +205,11 @@ namespace DatasmithSolidworks
 			{
 				FActorName ActorName = Exporter.GetComponentActorName(CompName);
 				SyncState.ComponentToPartMap.Remove(CompName);
-				SyncState.ExportedComponentsMap.Remove(CompName);
+				SyncState.CollectedComponentsMap.Remove(CompName);
 
 				ReleaseComponentMeshes(CompName);
 
-				SyncState.ComponentsMaterialsMap?.TryRemove(CompName, out FObjectMaterials _);
+				SyncState.ComponentsMaterialsMap?.Remove(CompName);
 				SyncState.ComponentsTransformsMap.Remove(CompName);
 				Exporter.RemoveActor(ActorName);
 			}
@@ -165,7 +250,7 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public override ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(
+		public override Dictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(
 			HashSet<FComponentName> ComponentNamesToExportSet)
 		{
 			return FObjectMaterials.LoadAssemblyMaterials(this, ComponentNamesToExportSet,
@@ -178,7 +263,7 @@ namespace DatasmithSolidworks
 
 			if (SyncState.ComponentsMaterialsMap == null)
 			{
-				SyncState.ComponentsMaterialsMap = new ConcurrentDictionary<FComponentName, FObjectMaterials>();
+				SyncState.ComponentsMaterialsMap = new Dictionary<FComponentName, FObjectMaterials>();
 			}
 			SyncState.ComponentsMaterialsMap[ComponentName] = Materials;
 		}
@@ -202,71 +287,6 @@ namespace DatasmithSolidworks
 			ConcurrentBag<FBody> Bodies = FBody.FetchBodies(Comp);
 			FMeshData MeshData = FStripGeometry.CreateMeshData(Bodies, ComponentMaterials);
 			return MeshData;
-		}
-
-		public override bool HasMaterialUpdates()
-		{
-			// Dig into part level materials (they wont be read by LoadDocumentMaterials)
-			HashSet<FComponentName> AllExportedComponents = new HashSet<FComponentName>();
-			AllExportedComponents.UnionWith(SyncState.CleanComponents);
-			AllExportedComponents.UnionWith(SyncState.DirtyComponents.Keys);
-
-			ConcurrentDictionary<FComponentName, FObjectMaterials> CurrentDocMaterialsMap =
-				FObjectMaterials.LoadAssemblyMaterials(this, AllExportedComponents,
-					swDisplayStateOpts_e.swThisDisplayState, null);
-
-
-			HashSet<FComponentName> Components =  SyncState.ComponentsMaterialsMap == null ? new HashSet<FComponentName>() : new HashSet<FComponentName>(SyncState.ComponentsMaterialsMap.Keys);
-			HashSet<FComponentName> CurrentComponents =  CurrentDocMaterialsMap == null ? new HashSet<FComponentName>() : new HashSet<FComponentName>(CurrentDocMaterialsMap.Keys);
-
-			// Components which stayed in the materials map
-			HashSet<FComponentName> CommonComponents = new HashSet<FComponentName>(CurrentComponents.Intersect(Components));
-
-			 
-			bool bHasDirtyMaterials = false;
-			IEnumerable<FComponentName> ComponentsWithAddedOrRemovedMaterial = Components.Union(CurrentComponents).Except(CommonComponents);
-			foreach (FComponentName CompName in ComponentsWithAddedOrRemovedMaterial)
-			{
-				bool bShouldSyncComponentMaterial = false;
-
-				if (SyncState.ExportedComponentsMap.ContainsKey(CompName))
-				{
-					try
-					{
-						Component2 Comp = SyncState.ExportedComponentsMap[CompName];
-						bShouldSyncComponentMaterial = !Comp.IsSuppressed() &&
-						                               (Comp.Visible == (int)swComponentVisibilityState_e
-							                               .swComponentVisible);
-					}
-					catch
-					{
-						// todo: exceptions here(and other places loading materials) thrown because of multi-threaded FMaterialUpdateChecker
-						// calling this code from its thread  performing COM calls into SW API 
-						// calling the API from any other thread than main is extremely slow so update checker is running forever
-						// meaning it has increased probability to have model update while it's running and have a race condition of any kind
-						// there's UE-177970 fot this
-						Debug.Assert(false);
-					}
-				}
-
-				if (bShouldSyncComponentMaterial)
-				{
-					bHasDirtyMaterials = true;
-					SetComponentDirty(CompName, EComponentDirtyState.Material);
-				}
-			}
-
-			// Check if components have their material modified
-			bool bHasDirtyComponents = false;
-			foreach (FComponentName ComponentName in CommonComponents)
-			{
-				if (!SyncState.ComponentsMaterialsMap[ComponentName].EqualMaterials(CurrentDocMaterialsMap[ComponentName]))
-				{
-					SetComponentDirty(ComponentName, EComponentDirtyState.Material);
-					bHasDirtyComponents = true;
-				}
-			}
-			return bHasDirtyComponents || bHasDirtyMaterials;
 		}
 
 		public FConvertedTransform GetComponentDatasmithTransform(Component2 InComponent)
@@ -415,9 +435,9 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public override void AddExportedComponent(FConfigurationTree.FComponentTreeNode InNode)
+		public override void AddCollectedComponent(FConfigurationTree.FComponentTreeNode InNode)
 		{
-			SyncState.ExportedComponentsMap[InNode.ComponentName] = InNode.Component;
+			SyncState.CollectedComponentsMap[InNode.ComponentName] = InNode.Component;
 		}
 
 		public override bool NeedExportComponent(FConfigurationTree.FComponentTreeNode InComponent,
@@ -505,7 +525,17 @@ namespace DatasmithSolidworks
 		{
 			SyncState.CleanComponents?.Clear();
 			SyncState.DirtyComponents?.Clear();
-			SyncState.ExportedComponentsMap?.Clear();
+			SyncState.CollectedComponentsMap?.Clear();
+		}
+
+		public void Tick()
+		{
+			LazyUpdateChecker?.Tick();
+		}
+
+		public void TrackChanges()
+		{
+			LazyUpdateChecker = new FAssemblyLazyUpdateChecker(this);
 		}
 	}
 
@@ -694,7 +724,7 @@ namespace DatasmithSolidworks
 		{
 			// Check each exported component's transform for changes, since 
 			// this callback does not tell us what changed (and there's no other way to know that)!
-			foreach (var KVP in AsmDocumentTracker.SyncState.ExportedComponentsMap)
+			foreach (var KVP in AsmDocumentTracker.SyncState.CollectedComponentsMap)
 			{
 				Component2 Comp = KVP.Value;
 				FConvertedTransform PrevCompTransform;
@@ -885,7 +915,6 @@ namespace DatasmithSolidworks
 	{
 		private readonly FAssemblyDocumentTracker DocumentTracker;
 		private readonly FAssemblyDocumentEvents Events;
-		private FMaterialUpdateChecker MaterialUpdateChecker;
 
 		public FAssemblyDocumentNotifications(FAssemblyDocument InAssemblyDocument, FAssemblyDocumentTracker InAsmDocumentTracker)
 		{
@@ -895,26 +924,25 @@ namespace DatasmithSolidworks
 
 		public void Destroy()
 		{
-			MaterialUpdateChecker?.Destroy();
 			Events.Destroy();
 		}
 
 		public void Start()
 		{
-			if (MaterialUpdateChecker == null)
-			{
-				MaterialUpdateChecker = new FMaterialUpdateChecker(DocumentTracker);
-			}
+			DocumentTracker.TrackChanges();
 		}
 
 		public void Resume()
 		{
-			MaterialUpdateChecker?.Resume();
 		}
 
 		public void Pause()
 		{
-			MaterialUpdateChecker?.Pause();
+		}
+
+		public void Idle()
+		{
+			DocumentTracker.Tick();
 		}
 	}
 
@@ -934,6 +962,11 @@ namespace DatasmithSolidworks
 		{
 			Notifications.Destroy();
 			DocumentTracker.Destroy();
+		}
+
+		public void Idle()
+		{
+			Notifications.Idle();
 		}
 
 		public void Start()
