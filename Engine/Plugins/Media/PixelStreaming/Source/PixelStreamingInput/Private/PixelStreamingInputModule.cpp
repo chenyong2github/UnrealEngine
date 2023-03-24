@@ -100,6 +100,8 @@ namespace UE::PixelStreamingInput
 		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("GamepadButtonPressed", FPixelStreamingInputMessage(90, { EType::Uint8, EType::Uint8, EType::Uint8 }));
 		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("GamepadButtonReleased", FPixelStreamingInputMessage(91, { EType::Uint8, EType::Uint8, EType::Uint8 }));
 		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("GamepadAnalog", FPixelStreamingInputMessage(92, { EType::Uint8, EType::Uint8, EType::Double }));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("GamepadConnected", FPixelStreamingInputMessage(93));
+		FPixelStreamingInputProtocol::ToStreamerProtocol.Add("GamepadDisconnected", FPixelStreamingInputMessage(94, { EType::Uint8 }));
 
 		// XR Input Messages.
 		// clang-format off
@@ -145,6 +147,7 @@ namespace UE::PixelStreamingInput
 		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("FileContents", FPixelStreamingInputMessage(10));
 		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("TestEcho", FPixelStreamingInputMessage(11));
 		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("InputControlOwnership", FPixelStreamingInputMessage(12));
+		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("GamepadResponse", FPixelStreamingInputMessage(13));
 		FPixelStreamingInputProtocol::FromStreamerProtocol.Add("Protocol", FPixelStreamingInputMessage(255));
 	}
 } // namespace UE::PixelStreamingInput

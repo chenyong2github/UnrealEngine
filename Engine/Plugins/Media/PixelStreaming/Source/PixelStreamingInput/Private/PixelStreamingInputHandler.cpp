@@ -17,13 +17,13 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Input/HittestGrid.h"
-#include "IPixelStreamingInputModule.h"
 #include "PixelStreamingHMD.h"
 #include "IPixelStreamingHMDModule.h"
 #include "PixelStreamingInputEnums.h"
 #include "PixelStreamingInputConversion.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "PixelStreamingInputDevice.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingInputHandler, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingInputHandler);
@@ -56,9 +56,11 @@ namespace UE::PixelStreamingInput
 		RegisterMessageHandler("TouchMove", [this](FMemoryReader Ar) { HandleOnTouchMoved(Ar); });
 		RegisterMessageHandler("TouchEnd", [this](FMemoryReader Ar) { HandleOnTouchEnded(Ar); });
 
+		RegisterMessageHandler("GamepadConnected", [this](FMemoryReader Ar) { HandleOnControllerConnected(Ar); });
 		RegisterMessageHandler("GamepadAnalog", [this](FMemoryReader Ar) { HandleOnControllerAnalog(Ar); });
 		RegisterMessageHandler("GamepadButtonPressed", [this](FMemoryReader Ar) { HandleOnControllerButtonPressed(Ar); });
 		RegisterMessageHandler("GamepadButtonReleased", [this](FMemoryReader Ar) { HandleOnControllerButtonReleased(Ar); });
+		RegisterMessageHandler("GamepadDisconnected", [this](FMemoryReader Ar) { HandleOnControllerDisconnected(Ar); });
 
 		RegisterMessageHandler("MouseEnter", [this](FMemoryReader Ar) { HandleOnMouseEnter(Ar); });
 		RegisterMessageHandler("MouseLeave", [this](FMemoryReader Ar) { HandleOnMouseLeave(Ar); });
@@ -541,6 +543,22 @@ namespace UE::PixelStreamingInput
 		}
 	}
 
+	void FPixelStreamingInputHandler::HandleOnControllerConnected(FMemoryReader Ar)
+	{
+		TSharedPtr<FPixelStreamingInputDevice> InputDevice = FPixelStreamingInputDevice::GetInputDevice();
+		uint8 NextControllerId = InputDevice->OnControllerConnected();
+
+		FString Descriptor = FString::Printf(TEXT("{ \"controllerId\": %d }"), NextControllerId);
+
+		FBufferArchive Buffer;
+		Buffer << Descriptor;
+		TArray<uint8> Data(Buffer.GetData(), Buffer.Num());
+		// Specific implementation for this method is handled per streamer
+		OnSendMessage.Broadcast("GamepadResponse", FMemoryReader(Data));
+
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("GAMEPAD_CONNECTED: ControllerId = %d"), NextControllerId);
+	}
+
 	void FPixelStreamingInputHandler::HandleOnControllerAnalog(FMemoryReader Ar)
 	{
 		TPayloadThreeParam<uint8, uint8, double> Payload(Ar);
@@ -554,8 +572,22 @@ namespace UE::PixelStreamingInput
 		float AnalogValue = (float)Payload.Param3;
 		FPlatformUserId UserId = IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
 
-		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("GAMEPAD_ANALOG: ControllerId = %d; KeyName = %s; AnalogValue = %.4f;"), ControllerId.GetId(), *AxisPtr->ToString(), AnalogValue);
-		MessageHandler->OnControllerAnalog(AxisPtr->GetFName(), UserId, ControllerId, AnalogValue);
+		FSlateApplication& SlateApplication = FSlateApplication::Get();
+		FAnalogInputEvent AnalogInputEvent(
+			*AxisPtr,													  /* InKey */
+			SlateApplication.GetPlatformApplication()->GetModifierKeys(), /* InModifierKeys */
+			ControllerId,												  /* InDeviceId */
+			false,														  /* bInIsRepeat*/
+			0,															  /* InCharacterCode */
+			0,															  /* InKeyCode */
+			AnalogValue,												  /* InAnalogValue */
+			// TODO (william.belcher): This user idx should be the playerId
+			0 /* InUserIndex */
+		);
+		FSlateApplication::Get().ProcessAnalogInputEvent(AnalogInputEvent);
+
+		// Commented to reduce log spam
+		// UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("GAMEPAD_ANALOG: ControllerId = %d; KeyName = %s; AnalogValue = %.4f;"), ControllerId.GetId(), *AxisPtr->ToString(), AnalogValue);
 	}
 
 	void FPixelStreamingInputHandler::HandleOnControllerButtonPressed(FMemoryReader Ar)
@@ -571,8 +603,19 @@ namespace UE::PixelStreamingInput
 		bool bIsRepeat = Payload.Param3 != 0;
 		FPlatformUserId UserId = IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
 
+		FKeyEvent KeyEvent(
+			*ButtonPtr,															  /* InKey */
+			FSlateApplication::Get().GetPlatformApplication()->GetModifierKeys(), /* InModifierKeys */
+			ControllerId,														  /* InDeviceId */
+			bIsRepeat,															  /* bInIsRepeat */
+			0,																	  /* InCharacterCode */
+			0,																	  /* InKeyCode */
+			// TODO (william.belcher): This user idx should be the playerId
+			0 /* InUserIndex*/
+		);
+		FSlateApplication::Get().ProcessKeyDownEvent(KeyEvent);
+
 		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("GAMEPAD_PRESSED: ControllerId = %d; KeyName = %s; IsRepeat = %s;"), ControllerId.GetId(), *ButtonPtr->ToString(), bIsRepeat ? TEXT("True") : TEXT("False"));
-		MessageHandler->OnControllerButtonPressed(ButtonPtr->GetFName(), UserId, ControllerId, bIsRepeat);
 	}
 
 	void FPixelStreamingInputHandler::HandleOnControllerButtonReleased(FMemoryReader Ar)
@@ -587,8 +630,31 @@ namespace UE::PixelStreamingInput
 		FInputDeviceId ControllerId = FInputDeviceId::CreateFromInternalId((int32)Payload.Param1);
 		FPlatformUserId UserId = IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
 
+		FKeyEvent KeyEvent(
+			*ButtonPtr,															  /* InKey */
+			FSlateApplication::Get().GetPlatformApplication()->GetModifierKeys(), /* InModifierKeys */
+			ControllerId,														  /* InDeviceId */
+			false,																  /* bInIsRepeat */
+			0,																	  /* InCharacterCode */
+			0,																	  /* InKeyCode */
+			// TODO (william.belcher): This user idx should be the playerId
+			0 /* InUserIndex*/
+		);
+		FSlateApplication::Get().ProcessKeyUpEvent(KeyEvent);
+
 		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("GAMEPAD_RELEASED: ControllerId = %d; KeyName = %s;"), ControllerId.GetId(), *ButtonPtr->ToString());
-		MessageHandler->OnControllerButtonReleased(ButtonPtr->GetFName(), UserId, ControllerId, false);
+	}
+
+	void FPixelStreamingInputHandler::HandleOnControllerDisconnected(FMemoryReader Ar)
+	{
+		TPayloadOneParam<uint8> Payload(Ar);
+
+		uint8 DisconnectedControllerId = Payload.Param1;
+
+		TSharedPtr<FPixelStreamingInputDevice> InputDevice = FPixelStreamingInputDevice::GetInputDevice();
+		InputDevice->OnControllerDisconnected(DisconnectedControllerId);
+
+		UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("GAMEPAD_DISCONNECTED: ControllerId = %d"), DisconnectedControllerId);
 	}
 
 	/**
@@ -1337,7 +1403,7 @@ namespace UE::PixelStreamingInput
 			Buffer << Descriptor;
 			TArray<uint8> Data(Buffer.GetData(), Buffer.Num());
 			// Specific implementation for this method is handled per streamer
-			OnSendMessage.Broadcast(FMemoryReader(Data));
+			OnSendMessage.Broadcast("Command", FMemoryReader(Data));
 		});
 	}
 

@@ -27,6 +27,8 @@ namespace UE::PixelStreamingInput
 		virtual void SetChannelValues(int32 ControllerId, const FForceFeedbackValues& Values) override;
 
 		void AddInputHandler(TSharedPtr<IPixelStreamingInputHandler> InputHandler);
+		uint8 OnControllerConnected();
+		void OnControllerDisconnected(uint8 DeleteControllerId);
 
 		static TSharedPtr<FPixelStreamingInputDevice> GetInputDevice();
 
@@ -41,11 +43,20 @@ namespace UE::PixelStreamingInput
 		static TSharedPtr<FPixelStreamingInputDevice> InputDevice;
 
 		/**
-		 * The Map of input handlers. Each input handler belongs to a single streamer
+		 * The array of input handlers. Each input handler belongs to a single streamer
 		 *
 		 * NOTE: We store each input handler as a weakptr as we don't want to be the reason
 		 * the handler doesn't get deleted. Each handler should be tied to a Streamer's lifecycle
 		 */
 		TArray<TWeakPtr<IPixelStreamingInputHandler>> InputHandlers;
+
+		/**
+		 * The array of connected controllers. As each device can have multiple controllers, we want to make sure that each controller of each device is unique
+		 * As such, a simple incrementer approach is not applicable and we must instead keep track of all the connected controllers
+		 *
+		 * NOTE: We store each input handler as a weakptr as we don't want to be the reason
+		 * the handler doesn't get deleted. Each handler should be tied to a Streamer's lifecycle
+		 */
+		TArray<uint8> ConnectedControllers;
 	};
 } // namespace UE::PixelStreamingInput

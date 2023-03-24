@@ -110,6 +110,6 @@ public:
 	 */
 	virtual void SetInputType(EPixelStreamingInputType InputType) = 0;
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSendMessage, FMemoryReader);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSendMessage, FString, FMemoryReader);
 	FOnSendMessage OnSendMessage;
 };

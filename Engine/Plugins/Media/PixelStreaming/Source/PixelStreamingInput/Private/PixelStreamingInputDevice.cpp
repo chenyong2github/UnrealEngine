@@ -86,4 +86,21 @@ namespace UE::PixelStreamingInput
 			}
 		}
 	}
+
+	uint8 FPixelStreamingInputDevice::OnControllerConnected()
+	{
+		uint8 NextControllerId = 0;
+		while (ConnectedControllers.Contains(NextControllerId))
+		{
+			NextControllerId++;
+		}
+
+		ConnectedControllers.Add(NextControllerId);
+		return NextControllerId;
+	}
+
+	void FPixelStreamingInputDevice::OnControllerDisconnected(uint8 DeleteControllerId)
+	{
+		ConnectedControllers.Remove(DeleteControllerId);
+	}
 } // namespace UE::PixelStreamingInput

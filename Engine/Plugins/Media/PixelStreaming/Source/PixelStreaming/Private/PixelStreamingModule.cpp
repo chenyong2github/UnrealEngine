@@ -496,12 +496,12 @@ namespace UE::PixelStreaming
 
 			// Handle sending commands to peers
 			TWeakPtr<IPixelStreamingStreamer> WeakStreamer = Streamer;
-			InputHandler->OnSendMessage.AddLambda([WeakStreamer](FMemoryReader Ar) {
+			InputHandler->OnSendMessage.AddLambda([WeakStreamer](FString MessageName, FMemoryReader Ar) {
 				if (TSharedPtr<IPixelStreamingStreamer> Streamer = WeakStreamer.Pin())
 				{
 					FString Descriptor;
 					Ar << Descriptor;
-					Streamer->SendPlayerMessage(FPixelStreamingInputProtocol::FromStreamerProtocol.Find("Command")->GetID(), Descriptor);
+					Streamer->SendPlayerMessage(FPixelStreamingInputProtocol::FromStreamerProtocol.Find(MessageName)->GetID(), Descriptor);
 				}
 			});
 		}

@@ -78,9 +78,11 @@ namespace UE::PixelStreamingInput
 		/**
 		 * Controller handling
 		 */
+		virtual void HandleOnControllerConnected(FMemoryReader Ar);
 		virtual void HandleOnControllerAnalog(FMemoryReader Ar);
 		virtual void HandleOnControllerButtonPressed(FMemoryReader Ar);
 		virtual void HandleOnControllerButtonReleased(FMemoryReader Ar);
+		virtual void HandleOnControllerDisconnected(FMemoryReader Ar);
 		/**
 		 * Mouse handling
 		 */
