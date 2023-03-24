@@ -701,7 +701,7 @@ void UpdateWaterInfoRendering(
 	RenderCaptureInterface::FScopedCapture RenderCapture((RenderCaptureNextWaterInfoDraws != 0), TEXT("RenderWaterInfo"));
 	RenderCaptureNextWaterInfoDraws = FMath::Max(0, RenderCaptureNextWaterInfoDraws - 1);
 
-	if (Context.TextureRenderTarget == nullptr || Scene == nullptr)
+	if (!IsValid(Context.TextureRenderTarget) || Scene == nullptr)
 	{
 		return;
 	}
