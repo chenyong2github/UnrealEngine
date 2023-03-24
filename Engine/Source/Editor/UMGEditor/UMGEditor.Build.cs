@@ -22,6 +22,7 @@ public class UMGEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AssetDefinition",
 				"ClassViewer",
 				"Core",
 				"CoreUObject",

@@ -24,6 +24,7 @@ public class Blutility : ModuleRules
 				"EditorFramework",
 				"UnrealEd",
 				"Kismet",
+				"AssetDefinition",
 				"AssetRegistry",
 				"AssetTools",
 				"WorkspaceMenuStructure",

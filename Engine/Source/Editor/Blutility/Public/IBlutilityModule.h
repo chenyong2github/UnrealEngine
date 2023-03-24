@@ -6,6 +6,7 @@
 #include "Modules/ModuleInterface.h"
 #include "AssetTypeCategories.h"
 
+struct FAssetCategoryPath;
 class UBlueprint;
 
 /**
@@ -21,7 +22,10 @@ public:
 	/** Global Find Results workspace menu item */
 	virtual TSharedPtr<class FWorkspaceItem> GetMenuGroup() const = 0;
 
+	UE_DEPRECATED(5.3, "Use GetAssetCategories instead")
 	virtual EAssetTypeCategories::Type GetAssetCategory() const = 0;
+
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const = 0;
 
 	virtual void AddLoadedScriptUI(class UEditorUtilityWidgetBlueprint* InBlueprint) = 0;
 
