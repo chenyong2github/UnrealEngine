@@ -44,7 +44,16 @@ TTSMulticastDelegate<void(const IPakFile&)>& FCoreDelegates::GetOnPakFileMounted
 
 TMulticastDelegate<void(const FString&)> FCoreDelegates::NewFileAddedDelegate;
 TMulticastDelegate<void()> FCoreDelegates::NoPakFilesMountedDelegate;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnFileOpenedForReadFromPakFile;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)>& FCoreDelegates::GetOnFileOpenedForReadFromPakFile()
+{
+	static TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)> Singleton;
+	return Singleton;
+}
 
 TMulticastDelegate<void(bool, int32, int32)> FCoreDelegates::OnUserLoginChangedEvent;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

@@ -8253,7 +8253,10 @@ IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 
 		if (Result)
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FCoreDelegates::OnFileOpenedForReadFromPakFile.Broadcast(*PakFile->GetFilename(), Filename);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FCoreDelegates::GetOnFileOpenedForReadFromPakFile().Broadcast(*PakFile->GetFilename(), Filename);
 		}
 	}
 	else

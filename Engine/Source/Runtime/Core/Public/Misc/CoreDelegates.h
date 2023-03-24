@@ -124,8 +124,10 @@ public:
 	// After an attempt to mount all pak files, but none wre found, this is called
 	static TMulticastDelegate<void()> NoPakFilesMountedDelegate;
 
-	// When a file is opened for read from a pak file
+	// When a file is opened for read from a pak file.
+	UE_DEPRECATED(5.3, "This delegate is not thread-safe, please use Use FCoreDelegates::GetOnFileOpenedForReadFromPakFile()")
 	static TMulticastDelegate<void(const TCHAR* PakFile, const TCHAR* FileName)> OnFileOpenedForReadFromPakFile;
+	static TTSMulticastDelegate<void(const TCHAR* PakFile, const TCHAR* FileName)>& GetOnFileOpenedForReadFromPakFile();
 
 	typedef TSharedPtr<class IMovieStreamer, ESPMode::ThreadSafe> FMovieStreamerPtr;
 

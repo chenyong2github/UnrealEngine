@@ -1497,12 +1497,12 @@ private:
 public:
 	FFileInPakFileHistoryHelper()
 	{
-		FCoreDelegates::OnFileOpenedForReadFromPakFile.AddRaw(this, &FFileInPakFileHistoryHelper::OnFileOpenedForRead);
+		FCoreDelegates::GetOnFileOpenedForReadFromPakFile().AddRaw(this, &FFileInPakFileHistoryHelper::OnFileOpenedForRead);
 	}
 
 	~FFileInPakFileHistoryHelper()
 	{
-		FCoreDelegates::OnFileOpenedForReadFromPakFile.RemoveAll(this);
+		FCoreDelegates::GetOnFileOpenedForReadFromPakFile().RemoveAll(this);
 	}
 
 	void DumpHistory()
