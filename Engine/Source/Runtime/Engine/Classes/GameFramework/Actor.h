@@ -3969,6 +3969,7 @@ private:
 	friend struct FSetActorContentBundleGuid;
 	friend struct FAssignActorDataLayer;
 	friend struct FSetActorSelectable;
+	friend struct FSetActorFolderPath;
 #endif
 
 	// Static helpers for accessing functions on SceneComponent.
@@ -4233,6 +4234,16 @@ private:
 	}
 	friend class ULevelStreamingLevelInstance;
 	friend class FWorldPartitionLevelHelper;
+};
+
+struct FSetActorFolderPath
+{
+private:
+	FSetActorFolderPath(AActor* InActor, const FName InFolderPath, bool bInBroadcastChange = true)
+	{
+		InActor->SetFolderPathInternal(InFolderPath, bInBroadcastChange);
+	}
+	friend class UWorldPartitionRuntimeCell;
 };
 
 struct FSetActorContentBundleGuid

@@ -56,8 +56,14 @@ void UWorldPartitionRuntimeCell::PostDuplicate(bool bDuplicateForPIE)
 		{
 			if (ensure(Actor))
 			{
+				const FName FolderPath = Actor->GetFolderPath();
+				
 				// Don't use AActor::Rename here since the actor is not part of the world, it's only a duplication template.	
 				Actor->UObject::Rename(nullptr, UnsavedActorsContainer);
+				
+				// Mimic what AActor::Rename does under the hood to convert ActorFolders when changing the outer
+				const bool bBroadcastChange = false;
+				FSetActorFolderPath SetFolderPath(Actor, FolderPath, bBroadcastChange);
 			}
 		}
 	}
