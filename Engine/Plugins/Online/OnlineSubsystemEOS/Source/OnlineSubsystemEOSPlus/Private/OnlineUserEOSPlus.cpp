@@ -58,17 +58,8 @@ static inline FName ToOSSName(EOSSValue OSSValue)
 	return NULL_SUBSYSTEM;
 }
 
-inline FString BuildEOSPlusStringId(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId)
-{
-	FString StrId = InBaseUniqueNetId.IsValid() ? InBaseUniqueNetId->ToString() : TEXT("");
-	StrId += EOSPLUS_ID_SEPARATOR;
-	StrId += InEOSUniqueNetId.IsValid() ? InEOSUniqueNetId->ToString() : TEXT("");
-	return StrId;
-}
-
 FUniqueNetIdEOSPlus::FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId)
-	: FUniqueNetIdString(BuildEOSPlusStringId(InBaseUniqueNetId, InEOSUniqueNetId), FName("EOSPlus"))
-	, BaseUniqueNetId(InBaseUniqueNetId)
+	: BaseUniqueNetId(InBaseUniqueNetId)
 	, EOSUniqueNetId(InEOSUniqueNetId)
 {
 	int32 TotalBytes = GetSize();
@@ -97,6 +88,12 @@ FUniqueNetIdEOSPlus::FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUni
 	}
 }
 
+FName FUniqueNetIdEOSPlus::GetType() const
+{
+	static FName Type(TEXT("EOSPlus"));
+	return Type;
+}
+
 const uint8* FUniqueNetIdEOSPlus::GetBytes() const
 {
 	return RawBytes.GetData();
@@ -116,6 +113,20 @@ int32 FUniqueNetIdEOSPlus::GetSize() const
 bool FUniqueNetIdEOSPlus::IsValid() const
 {
 	return BaseUniqueNetId.IsValid() || EOSUniqueNetId.IsValid();
+}
+
+FString FUniqueNetIdEOSPlus::ToString() const
+{
+	const FString BaseStr = BaseUniqueNetId.IsValid() ? BaseUniqueNetId->ToString() : FString();
+	const FString EosStr = EOSUniqueNetId.IsValid() ? EOSUniqueNetId->ToString() : FString();
+	return BaseStr + EOSPLUS_ID_SEPARATOR + EosStr;
+}
+
+FString FUniqueNetIdEOSPlus::ToDebugString() const
+{
+	const FString BaseStr = BaseUniqueNetId.IsValid() ? BaseUniqueNetId->ToDebugString() : TEXT("INVALID");
+	const FString EosStr = EOSUniqueNetId.IsValid() ? EOSUniqueNetId->ToDebugString() : TEXT("INVALID");
+	return BaseStr + EOSPLUS_ID_SEPARATOR + EosStr;
 }
 
 FOnlineUserEOSPlus::FOnlineUserEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
