@@ -116,10 +116,10 @@ void UObject::SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShoul
 	if( Existing.Linker && bShouldDetachExisting )
 	{
 		UE_CLOG(HasAnyFlags(RF_NeedLoad|RF_NeedPostLoad), LogUObjectLinker, Error,
-			TEXT("Detaching from existing linker for %s while object %s needs loading from linker %s."),
+			TEXT("Detaching from existing linker %s while object %s needs loading. Setting linker to %s."),
 			*Existing.Linker->GetArchiveName(),
 			*GetFullName(),
-			LinkerLoad ? *LinkerLoad->GetDebugName() : TEXT(""));
+			LinkerLoad ? *LinkerLoad->GetDebugName() : TEXT("nullptr"));
 		check(Existing.Linker->ExportMap[Existing.LinkerIndex].Object!=nullptr);
 		check(Existing.Linker->ExportMap[Existing.LinkerIndex].Object==this);
 		Existing.Linker->ExportMap[Existing.LinkerIndex].ResetObject();

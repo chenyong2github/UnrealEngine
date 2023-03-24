@@ -6389,11 +6389,6 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_PostLoadExportBundle(FAsyncL
 
 	FAsyncPackageScope2 PackageScope(Package);
 
-#if WITH_EDITOR
-	// This needs to happen after loading new blueprints in the editor, and this is handled in EndLoad for synchronous loads
-	FBlueprintSupport::FlushReinstancingQueue();
-#endif
-
 #if ALT2_ENABLE_LINKERLOAD_SUPPORT
 	if (Package->LinkerLoadState.IsSet())
 	{
@@ -7572,7 +7567,7 @@ void FAsyncLoadingThread2::CollectUnreachableObjects(
 					bLinkerEntryWasInvalid = ObjExport.bExportLoadFailed;
 				}
 #endif // WITH_EDITORONLY_DATA
-				Object->SetLinker(NULL, INDEX_NONE);
+				Object->SetLinker(nullptr, INDEX_NONE);
 #if WITH_EDITORONLY_DATA
 				if (bLinkerEntryWasInvalid)
 				{
@@ -8075,6 +8070,9 @@ void FAsyncLoadingThread2::ConditionalProcessEditorCallbacks()
 	{
 		return;
 	}
+
+	FBlueprintSupport::FlushReinstancingQueue();
+
 	while (!EditorCompletedUPackages.IsEmpty() || !EditorLoadedAssets.IsEmpty())
 	{
 		TArray<UObject*> LocalEditorLoadedAssets;
