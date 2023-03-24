@@ -318,7 +318,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::OnSizePropertyChanged(con
 {
 	if(PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
 	{
-		GEditor->GetTimerManager()->SetTimerForNextTick(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::HandleSizePropertyChanged));
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::HandleSizePropertyChanged));
 	}
 	else
 	{
