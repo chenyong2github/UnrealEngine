@@ -293,6 +293,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 	virtual ~FHairStrandsBulkCommon() { }
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) = 0;
 	virtual void SerializeData(FArchive& Ar, UObject* Owner) = 0;
+	virtual void Request(FBulkDataBatchRequest& In) = 0;
+	virtual bool HasData() const { return true; }
 
 #if WITH_EDITORONLY_DATA
 	// Transient Name/DDCkey for streaming
@@ -343,6 +345,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkC
 	void Serialize(FArchive& Ar, UObject* Owner);
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
 	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
+	virtual void Request(FBulkDataBatchRequest& In) override;
+	virtual bool HasData() const override;
 	uint32 GetPointCount() const { return Header.PointCount; };
 
 	struct FHeader
@@ -491,6 +495,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 	void Serialize(FArchive& Ar, UObject* Owner);
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
 	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
+	virtual void Request(FBulkDataBatchRequest& In) override;
 
 	bool IsValid() const { return Header.CurveCount > 0 && Header.PointCount > 0; }
 	void Reset();
@@ -807,6 +812,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 	void Serialize(FArchive& Ar, UObject* Owner);
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
 	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
+	virtual void Request(FBulkDataBatchRequest& In) override;
 	bool IsValid() const { return Header.ClusterCount > 0 && Header.VertexCount > 0; }
 	void Validate(bool bIsSaving);
 

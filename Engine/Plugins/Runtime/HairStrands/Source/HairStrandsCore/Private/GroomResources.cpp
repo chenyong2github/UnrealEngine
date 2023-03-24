@@ -27,6 +27,11 @@
 #include "RenderGraphUtils.h"
 #include "RenderTargetPool.h"
 #include "GroomBindingBuilder.h"
+#if WITH_EDITORONLY_DATA
+#include "Containers/StringView.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
+#endif
 
 static int32 GHairStrandsBulkData_ReleaseAfterUse = 0;
 static FAutoConsoleVariableRef CVarHairStrandsBulkData_ReleaseAfterUse(TEXT("r.HairStrands.Strands.BulkData.ReleaseAfterUse"), GHairStrandsBulkData_ReleaseAfterUse, TEXT("Release CPU bulk data once hair groom/groom binding asset GPU resources are created. This saves memory"));
@@ -89,6 +94,55 @@ const TCHAR* ToHairResourceDebugName(const TCHAR* In, FHairResourceName& InDebug
 	return In;
 #endif
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// IO/DDC request
+
+#if !WITH_EDITORONLY_DATA
+bool FHairResourceRequest::IsNone() const 									{ return IORequest.IsNone(); }
+bool FHairResourceRequest::IsCompleted() const								{ return IORequest.IsCompleted(); }
+void FHairResourceRequest::Request(FHairStrandsBulkCommon& In, bool bWait)	{ In.Request(IORequest); }
+#else
+bool FHairResourceRequest::IsNone() const 									{ return Status == None; }
+bool FHairResourceRequest::IsCompleted() const								{ return Status == Completed; }
+void FHairResourceRequest::Request(FHairStrandsBulkCommon& In, bool bWait)
+{
+	if (!In.HasData())
+	{
+		Status = Completed;
+		return;
+	}
+
+	Status = Pending;
+
+	using namespace UE::DerivedData;
+	DDCRequestOwner = MakeUnique<FRequestOwner>(bWait ? UE::DerivedData::EPriority::Blocking : UE::DerivedData::EPriority::Normal);
+	const FCacheKey DataKey = ConvertLegacyCacheKey(In.DerivedDataKey);
+	const FSharedString Name = MakeStringView(In.Name);
+
+	UE::DerivedData::GetCache().GetValue({ {Name, DataKey} }, *DDCRequestOwner,
+	[this, &In](FCacheGetValueResponse&& Response)
+	{
+		if (Response.Status == UE::DerivedData::EStatus::Ok)
+		{
+			FSharedBuffer Data = Response.Value.GetData().Decompress();
+			FMemoryReaderView Reader(Data, true /*bIsPersistent*/);
+			In.SerializeData(Reader, nullptr /*Owner*/);
+			Status = Completed;
+		}
+		else
+		{
+			checkNoEntry();
+		}
+	});
+
+	if (bWait)
+	{
+		DDCRequestOwner->Wait();
+		check(Status == Completed);
+	}
+}
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // FRWBuffer utils 
@@ -875,26 +929,15 @@ bool FHairStrandsRestResource::InternalIsDataLoaded()
 {
 	if (BulkDataRequest.IsNone())
 	{
-		FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(5);
-		Batch.Read(BulkData.Data.Positions);
-		Batch.Read(BulkData.Data.CurveAttributes);
-		if (BulkData.Header.Flags & FHairStrandsBulkData::DataFlags_HasPointAttribute)
-		{
-			Batch.Read(BulkData.Data.PointAttributes);
-		}
-		Batch.Read(BulkData.Data.PointToCurve);
-		Batch.Read(BulkData.Data.Curves);
-
-		Batch.Issue(BulkDataRequest);
+		BulkDataRequest.Request(BulkData);
 	}
-	
 	return BulkDataRequest.IsCompleted();
 }
 
 bool IsHairStrandsContinousLODEnabled();
 void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	BulkDataRequest = FBulkDataBatchRequest();
+	BulkDataRequest = FHairResourceRequest();
 
 	const uint32 PointCount = BulkData.GetNumPoints();
 	const uint32 CurveCount = BulkData.GetNumCurves();
@@ -1136,6 +1179,31 @@ void FHairStrandsClusterCullingBulkData::SerializeData(FArchive& Ar, UObject* Ow
 	}
 }
 
+void FHairStrandsClusterCullingBulkData::Request(FBulkDataBatchRequest& In)
+{
+	FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(4);
+	if (Header.ClusterLODCount)
+	{
+		Batch.Read(Data.ClusterLODInfos);
+	}
+
+	if (Header.VertexCount)
+	{
+		Batch.Read(Data.VertexToClusterIds);
+	}
+
+	if (Header.VertexLODCount)
+	{
+		Batch.Read(Data.ClusterVertexIds);
+	}
+
+	if (Header.ClusterCount)
+	{
+		Batch.Read(Data.PackedClusterInfos);
+	}
+	Batch.Issue(In);
+}
+
 void FHairStrandsClusterCullingBulkData::Validate(bool bIsSaving)
 {
 	if (Header.ClusterCount == 0)
@@ -1173,20 +1241,14 @@ bool FHairStrandsClusterCullingResource::InternalIsDataLoaded()
 {
 	if (BulkDataRequest.IsNone())
 	{
-		FBulkDataBatchRequest::NewBatch(4)
-			.Read(BulkData.Data.PackedClusterInfos)
-			.Read(BulkData.Data.ClusterLODInfos)
-			.Read(BulkData.Data.VertexToClusterIds)
-			.Read(BulkData.Data.ClusterVertexIds)
-			.Issue(BulkDataRequest);
+		BulkDataRequest.Request(BulkData);
 	}
-
 	return BulkDataRequest.IsCompleted();
 }
 
 void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	BulkDataRequest = FBulkDataBatchRequest();
+	BulkDataRequest = FHairResourceRequest();
 
 	if (GHairStrandsBulkData_Validation > 0)
 	{
@@ -1206,7 +1268,7 @@ void FHairStrandsClusterCullingResource::InternalRelease()
 	ClusterLODInfoBuffer.Release();
 	ClusterVertexIdBuffer.Release();
 	VertexToClusterIdBuffer.Release();
-	BulkDataRequest = FBulkDataBatchRequest();
+	BulkDataRequest = FHairResourceRequest();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1634,28 +1696,14 @@ bool FHairStrandsInterpolationResource::InternalIsDataLoaded()
 {
 	if (BulkDataRequest.IsNone())
 	{
-		FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(4);
-		const bool bUseSingleGuide = !!(BulkData.Header.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
-		if (bUseSingleGuide)
-		{
-			Batch.Read(BulkData.Data.Interpolation);
-		}
-		else
-		{
-			Batch.Read(BulkData.Data.Interpolation0);
-			Batch.Read(BulkData.Data.Interpolation1);
-		}
-		Batch.Read(BulkData.Data.SimRootPointIndex);
-
-		Batch.Issue(BulkDataRequest);
+		BulkDataRequest.Request(BulkData);
 	}
-
 	return BulkDataRequest.IsCompleted();
 }
 
 void FHairStrandsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	BulkDataRequest = FBulkDataBatchRequest();
+	BulkDataRequest = FHairResourceRequest();
 
 	const bool bUseSingleGuide = !!(BulkData.Header.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
 	if (bUseSingleGuide)
@@ -1676,7 +1724,7 @@ void FHairStrandsInterpolationResource::InternalRelease()
 	Interpolation0Buffer.Release();
 	Interpolation1Buffer.Release();
 	SimRootPointIndexBuffer.Release();
-	BulkDataRequest = FBulkDataBatchRequest();
+	BulkDataRequest = FHairResourceRequest();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

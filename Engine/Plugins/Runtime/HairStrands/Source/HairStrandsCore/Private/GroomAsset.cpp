@@ -708,7 +708,7 @@ static void InternalSerializePlatformDatas(FArchive& Ar, UObject* Owner, TArray<
 static void InternalSerializeCard(FArchive& Ar, UObject* Owner, FHairGroupPlatformData::FCards::FLOD& CardLODData);
 static void InternalSerializeMesh(FArchive& Ar, UObject* Owner, FHairGroupPlatformData::FMeshes::FLOD& MeshLODData);
 static void InternalSerializeGuide(FArchive& Ar, UObject* Owner, FHairGroupPlatformData::FGuides& GuideData);
-static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlatformData::FStrands& StrandData);
+static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlatformData::FStrands& StrandData, bool bHeader, bool bData);
 static void InternalSerializePlatformData(FArchive& Ar, UObject* Owner, FHairGroupPlatformData& GroupData);
 
 // Serialize is only called for cooking??
@@ -1673,17 +1673,28 @@ static void InternalSerializeGuide(FArchive& Ar, UObject* Owner, FHairGroupPlatf
 	GuideData.BulkData.Serialize(Ar, Owner);
 }
 
-static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlatformData::FStrands& StrandData)
+static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlatformData::FStrands& StrandData, bool bHeader, bool bData)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
+	// When cooking data, force loading of bulk data prior to saving them
+	if (Ar.IsCooking() && Ar.IsSaving())
+	{
+		{ FHairResourceRequest R; R.Request(StrandData.BulkData, true /*bWait*/); }
+		{ FHairResourceRequest R; R.Request(StrandData.InterpolationBulkData, true /*bWait*/); }
+		{ FHairResourceRequest R; R.Request(StrandData.ClusterCullingBulkData, true /*bWait*/); }
+	}
+
 	if (!Ar.IsCooking() || !StrandData.bIsCookedOut)
 	{
-		StrandData.BulkData.Serialize(Ar, Owner);
-		StrandData.InterpolationBulkData.Serialize(Ar, Owner);
+		if (bHeader)	{ StrandData.BulkData.SerializeHeader(Ar, Owner); }
+		if (bData)		{ StrandData.BulkData.SerializeData(Ar, Owner); }
+		if (bHeader)	{ StrandData.InterpolationBulkData.SerializeHeader(Ar, Owner); }
+		if (bData)		{ StrandData.InterpolationBulkData.SerializeData(Ar, Owner); }
 		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairClusterCullingData)
 		{
-			StrandData.ClusterCullingBulkData.Serialize(Ar, Owner);
+			if (bHeader){ StrandData.ClusterCullingBulkData.SerializeHeader(Ar, Owner); }
+			if (bData)	{ StrandData.ClusterCullingBulkData.SerializeData(Ar, Owner); }
 		}
 	}
 	else
@@ -1692,11 +1703,14 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 		// Theoritically, we should have something to detect if we are going to use or not guide (for 
 		// simulation or RBF deformation) on the target platform
 		FHairGroupPlatformData::FStrands NoStrandsData;
-		NoStrandsData.BulkData.Serialize(Ar, Owner);
-		NoStrandsData.InterpolationBulkData.Serialize(Ar, Owner);
+		if (bHeader) 	{ NoStrandsData.BulkData.SerializeHeader(Ar, Owner); }
+		if (bData)		{ NoStrandsData.BulkData.SerializeData(Ar, Owner); }
+		if (bHeader) 	{ NoStrandsData.InterpolationBulkData.SerializeHeader(Ar, Owner); }
+		if (bData) 		{ NoStrandsData.InterpolationBulkData.SerializeData(Ar, Owner); }
 		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairClusterCullingData)
 		{
-			NoStrandsData.ClusterCullingBulkData.Serialize(Ar, Owner);
+			if (bHeader){ NoStrandsData.ClusterCullingBulkData.SerializeHeader(Ar, Owner); }
+			if (bData)	{ NoStrandsData.ClusterCullingBulkData.SerializeData(Ar, Owner); }
 		}
 	}
 }
@@ -1706,7 +1720,7 @@ static void InternalSerializePlatformData(FArchive& Ar, UObject* Owner, FHairGro
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
 	InternalSerializeGuide(Ar, Owner, GroupData.Guides);
-	InternalSerializeStrand(Ar, Owner, GroupData.Strands);
+	InternalSerializeStrand(Ar, Owner, GroupData.Strands, true, true);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeGroomCardsAndMeshes)
 	{
@@ -2332,32 +2346,47 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 
 	using namespace UE::DerivedData;
 
-	const FString DerivedDataKey = UGroomAsset::GetDerivedDataKeyForStrands(GroupIndex);
-	const FCacheKey Key = ConvertLegacyCacheKey(DerivedDataKey);
+	const FString DerivedDataKey= UGroomAsset::GetDerivedDataKeyForStrands(GroupIndex);
+	const FCacheKey HeaderKey = ConvertLegacyCacheKey(DerivedDataKey + FString(TEXT("_Header")));
 	const FSharedString Name = MakeStringView(GetPathName());
 	FSharedBuffer Data;
 	{
 		FRequestOwner Owner(EPriority::Blocking);
-		GetCache().GetValue({ {Name, Key} }, Owner, [&Data](FCacheGetValueResponse&& Response)
+		GetCache().GetValue({ {Name, HeaderKey} }, Owner, [&Data](FCacheGetValueResponse&& Response)
 		{
 			Data = Response.Value.GetData().Decompress();
 		});
 		Owner.Wait();
 	}
 
+	// Populate key/name for streaming data request
+	auto FillDrivedDataKey = [&DerivedDataKey, &Name](FHairGroupPlatformData& In)
+	{
+		In.Strands.BulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_RestData"));
+		In.Strands.BulkData.Name = Name;
+	
+		In.Strands.InterpolationBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_InterpolationData"));
+		In.Strands.InterpolationBulkData.Name = Name;
+	
+		In.Strands.ClusterCullingBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_ClusterCullingData"));
+		In.Strands.ClusterCullingBulkData.Name = Name;
+	};
+
+	FHairGroupPlatformData& PlatformData = HairGroupsPlatformData[GroupIndex];
+
 	bool bSuccess = true;
 	if (Data)
 	{
 		UE_CLOG(IsHairStrandsDDCLogEnable(), LogHairStrands, Log, TEXT("[Groom/DDC] Strands - Found (Groom:%s Group6:%d)."), *GetName(), GroupIndex);
 
-		// Reset hair group data to ensure previously loaded bulk data are cleared/cleaned priori to load new data.
-		HairGroupsPlatformData[GroupIndex] = FHairGroupPlatformData();
+		// Reset hair group data to ensure previously loaded bulk data are cleared/cleaned prior to load new data.
+		PlatformData = FHairGroupPlatformData();
+		FillDrivedDataKey(PlatformData);
 
 		FMemoryReaderView Ar(Data, /*bIsPersistent*/ true);
 
-		InternalSerializeGuide(Ar, this, HairGroupsPlatformData[GroupIndex].Guides);
-		InternalSerializeStrand(Ar, this, HairGroupsPlatformData[GroupIndex].Strands);
-
+		InternalSerializeGuide(Ar, this, PlatformData.Guides);
+		InternalSerializeStrand(Ar, this, PlatformData.Strands, true/*Header*/, false/*Data*/);
 	}
 	else
 	{
@@ -2390,15 +2419,63 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 		
 		if (bSuccess)
 		{
-			TArray<uint8> WriteData;
-			FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
-				
-			InternalSerializeGuide(Ar, this, HairGroupsPlatformData[GroupIndex].Guides);
-			InternalSerializeStrand(Ar, this, HairGroupsPlatformData[GroupIndex].Strands);
+			FillDrivedDataKey(PlatformData);
 
-			FRequestOwner AsyncOwner(EPriority::Normal);
-			GetCache().PutValue({ {Name, Key, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
-			AsyncOwner.KeepAlive();
+			// Header
+			{
+				TArray<uint8> WriteData;
+				FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
+				InternalSerializeGuide(Ar, this, PlatformData.Guides);
+				InternalSerializeStrand(Ar, this, PlatformData.Strands, true/*Header*/, false/*Data*/);
+
+
+				FRequestOwner AsyncOwner(EPriority::Normal);
+				GetCache().PutValue({ {Name, HeaderKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
+				AsyncOwner.KeepAlive();
+			}
+
+			// Data (Rest)
+			{
+				TArray<uint8> WriteData;
+				FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
+
+				PlatformData.Strands.BulkData.SerializeData(Ar, this);
+				
+				const FCacheKey DataKey = ConvertLegacyCacheKey(PlatformData.Strands.BulkData.DerivedDataKey);
+
+				FRequestOwner AsyncOwner(EPriority::Normal);
+				GetCache().PutValue({ {Name, DataKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
+				AsyncOwner.KeepAlive();
+			}
+
+			// Data (Interpolation)
+			if (PlatformData.Strands.InterpolationBulkData.HasData())
+			{
+				TArray<uint8> WriteData;
+				FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
+
+				PlatformData.Strands.InterpolationBulkData.SerializeData(Ar, this);
+				
+				const FCacheKey DataKey = ConvertLegacyCacheKey(PlatformData.Strands.InterpolationBulkData.DerivedDataKey);
+
+				FRequestOwner AsyncOwner(EPriority::Normal);
+				GetCache().PutValue({ {Name, DataKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
+				AsyncOwner.KeepAlive();
+			}
+
+			// Data (cluster Culling)
+			{
+				TArray<uint8> WriteData;
+				FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
+
+				PlatformData.Strands.ClusterCullingBulkData.SerializeData(Ar, this);
+				
+				const FCacheKey DataKey = ConvertLegacyCacheKey(PlatformData.Strands.ClusterCullingBulkData.DerivedDataKey);
+
+				FRequestOwner AsyncOwner(EPriority::Normal);
+				GetCache().PutValue({ {Name, DataKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
+				AsyncOwner.KeepAlive();
+			}
 		}
 	}
 

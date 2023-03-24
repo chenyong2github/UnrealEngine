@@ -12,6 +12,8 @@
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
 
+namespace UE::DerivedData { class FRequestOwner; }
+
 #define STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS 4
 
 inline uint32 GetBufferTotalNumBytes(const FRDGExternalBuffer& In) 
@@ -72,6 +74,24 @@ FORCEINLINE EHairResourceStatus& operator|=(EHairResourceStatus&A, EHairResource
 FORCEINLINE bool operator! (EHairResourceStatus A) { return static_cast<uint8>(A) != 0; }
 
 EHairResourceLoadingType GetHairResourceLoadingType(EHairGeometryType InGeometryType, int32 InLODIndex);
+
+struct FHairResourceRequest
+{
+	void Request(FHairStrandsBulkCommon& In, bool bWait=false);
+	bool IsNone() const ;
+	bool IsCompleted() const;
+
+#if !WITH_EDITORONLY_DATA
+	// IO
+	FBulkDataBatchRequest IORequest;
+#else
+	// DDC
+	enum EStatus { None, Pending, Completed };
+	EStatus Status = EStatus::None;
+	FString PathName;
+	TUniquePtr<UE::DerivedData::FRequestOwner> DDCRequestOwner;
+#endif
+};
 
 /* Hair resouces which whom allocation can be deferred */
 struct FHairCommonResource : public FRenderResource
@@ -345,7 +365,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	FHairStrandsBulkData& BulkData;
 
 	/* Handle to bulk data request */
-	FBulkDataBatchRequest BulkDataRequest;
+	FHairResourceRequest BulkDataRequest;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
@@ -468,7 +488,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	FHairStrandsClusterCullingBulkData& BulkData;
 
 	/* Handle to bulk data request */
-	FBulkDataBatchRequest BulkDataRequest;
+	FHairResourceRequest BulkDataRequest;
 };
 
 struct FHairStrandsInterpolationResource : public FHairCommonResource
@@ -506,7 +526,7 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 	FHairStrandsInterpolationBulkData& BulkData;
 
 	/* Handle to bulk data request */
-	FBulkDataBatchRequest BulkDataRequest;
+	FHairResourceRequest BulkDataRequest;
 };
 
 #if RHI_RAYTRACING

@@ -225,6 +225,33 @@ void FHairStrandsInterpolationBulkData::SerializeData(FArchive& Ar, UObject* Own
 	}
 }
 
+bool FHairStrandsInterpolationBulkData::HasData() const
+{
+	return Header.Flags & DataFlags_HasData;
+}
+
+void FHairStrandsInterpolationBulkData::Request(FBulkDataBatchRequest& InRequest)
+{
+	if (!(Header.Flags & DataFlags_HasData))
+	{
+		return;
+	}
+
+	check(InRequest.IsNone());
+	FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(3);
+	if (!!(Header.Flags & DataFlags_HasSingleGuideData))
+	{
+		Batch.Read(Data.Interpolation);
+	}
+	else
+	{
+		Batch.Read(Data.Interpolation0);
+		Batch.Read(Data.Interpolation1);
+	}
+	Batch.Read(Data.SimRootPointIndex);
+	Batch.Issue(InRequest);
+}
+
 void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
 	SerializeHeader(Ar, Owner);
@@ -297,6 +324,24 @@ void FHairStrandsBulkData::SerializeData(FArchive& Ar, UObject* Owner)
 	}
 }
 
+void FHairStrandsBulkData::Request(FBulkDataBatchRequest& In)
+{
+	if (!!(Header.Flags & DataFlags_HasData))
+	{
+		check(In.IsNone());
+
+		FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(5);
+		Batch.Read(Data.Positions);
+		if (Header.Flags & DataFlags_HasPointAttribute)
+		{
+			Batch.Read(Data.PointAttributes);
+		}
+		Batch.Read(Data.CurveAttributes);
+		Batch.Read(Data.PointToCurve);
+		Batch.Read(Data.Curves);
+		Batch.Issue(In);
+	}
+}
 
 void FHairStrandsBulkData::Reset()
 {
