@@ -478,7 +478,7 @@ struct FAsyncPackage : public FGCObject
 	/** Returns true if this package is already being loaded in the current callstack */
 	bool IsBeingProcessedRecursively() const
 	{
-		return ReentryCount > 1;
+		return ReentryCount > 0;
 	}
 
 	/** FGCObject Interface */
