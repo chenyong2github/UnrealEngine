@@ -56,10 +56,10 @@ TEST_CASE("OpenAPI.RecordDataClosed_Illegal", "[.]")
 	int value = 0;
 	AutoRTFM::ETransactionResult transactResult = AutoRTFM::Transact([&]()
 	{
-		AutoRTFM::Close([&]() {
+		REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]() {
 			AutoRTFM::RecordOpenWrite(&value); // Illegal. Can't record writes explicitly while closed
 			value = 1;
-		});
+		}));
 	});
 
 	REQUIRE(transactResult == AutoRTFM::ETransactionResult::Committed);
@@ -98,9 +98,9 @@ TEST_CASE("OpenAPI.AbortTransactionScopedFromClosed")
 {
 	auto transactResult = AutoRTFM::Transact([&]()
 	{
-		AutoRTFM::Close([&]() {
+		REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]() {
 			AutoRTFM::AbortTransaction();
-		});
+		}));
 		FAIL("AutoRTFM::Close should have no-op'ed because it's already closed from the Transact");
 	});
 	REQUIRE(transactResult == AutoRTFM::ETransactionResult::AbortedByRequest);
@@ -242,7 +242,7 @@ TEST_CASE("OpenAPI.OpenCloseOpenClose")
 			REQUIRE(!AutoRTFM::IsClosed());
 
 			// -------------------------------------
-			AutoRTFM::Close([&]() {
+			REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]() {
 				// C - WE ARE CLOSED AGAIN
 				if (!AutoRTFM::IsClosed()) FAIL("C - NOT CLOSED AS EXPECTED!");
 
@@ -279,7 +279,7 @@ TEST_CASE("OpenAPI.OpenCloseOpenClose")
 				// G - BACK TO CLOSED AGAIN
 				if (!AutoRTFM::IsClosed()) FAIL("NOT CLOSED!");
 
-			});
+			}));
 			// -------------------------------------
 			// H - BACK TO OPEN 
 			REQUIRE(!AutoRTFM::IsClosed());
@@ -330,9 +330,9 @@ TEST_CASE("OpenAPI.Commit_TransactOpenCloseCommit")
 		AutoRTFM::Open([&]() {
 			AutoRTFM::StartTransaction();
 
-			AutoRTFM::Close([&]() {
+			REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]() {
 				value = 42;
-			});
+			}));
 
 			REQUIRE(value == 42); // RTFM writes through immediately, so we can see this value in the open
 			AutoRTFM::CommitTransaction();
@@ -370,10 +370,10 @@ TEST_CASE("OpenAPI.Commit_TransactOpenCloseAbort")
 			AutoRTFM::StartTransaction();
 
 			// Closing from the open doesn't work
-			AutoRTFM::Close([&]() {
+			REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]() {
 				value = 42;
 				valueLocal = 10.0;
-			});
+			}));
 
 			AutoRTFM::AbortTransaction(); // undoes value = 42 in the open
 			AutoRTFM::CurrentNestThrow();
@@ -478,13 +478,13 @@ TEST_CASE("OpenAPI.StackWriteCommitInTheOpen2")
 		AutoRTFM::Open([&]()
 		{
 			AutoRTFM::StartTransaction();
-			AutoRTFM::Close([&]()
+			REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]()
 			{
 				AutoRTFM::Open([&]() {
 					AutoRTFM::RecordOpenWrite(&value);
 					value = 10;
 				});
-			});
+			}));
 
 			AutoRTFM::CommitTransaction();
 			REQUIRE(value == 10);
@@ -680,7 +680,7 @@ TEST_CASE("OpenAPI.Footgun1")
 	AutoRTFM::Transact([&]()
 	{
 		// Does nothing - already closed
-		AutoRTFM::Close([&]()
+		REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]()
 		{
 			// Recorded valueB as starting at 0.
 			valueB = 123;
@@ -695,7 +695,7 @@ TEST_CASE("OpenAPI.Footgun1")
 			// valueA is now recorded as starting at 10
 			valueA = 20;
 			AutoRTFM::AbortTransaction();
-		});
+		}));
 	});
 
 	// We rollback the transaction to the value we had when we first recorded the address
@@ -710,7 +710,7 @@ TEST_CASE("OpenAPI.Footgun2")
 	AutoRTFM::Transact([&]()
 	{
 		// Does nothing - already closed
-		AutoRTFM::Close([&]()
+		REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]()
 		{
 			// Recorded valueB as starting at 0.
 			valueB = 20;
@@ -727,7 +727,7 @@ TEST_CASE("OpenAPI.Footgun2")
 			// valueA is now recorded as starting at 10
 			valueC = 40;
 			AutoRTFM::AbortTransaction();
-		});
+		}));
 	});
 
 	// We rollback the transaction to the value we had when we first recorded the address
@@ -747,10 +747,10 @@ TEST_CASE("OpenAPI.StartCloseOpenCommit")
 	AutoRTFM::StartTransaction();
 
 	// Can't close outside of a transaction
-	AutoRTFM::Close([&]()
+	REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]()
 	{
 		value = 420;
-	});
+	}));
 
 	// assignment within the close should be visible to us
 	REQUIRE(value == 420);
@@ -839,12 +839,12 @@ TEST_CASE("OpenAPI.TransOpenTransCloseAbortAbort")
 
 				value = 42;
 				// Can't close outside of a Transact
-				AutoRTFM::Close([&]()
+				REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]()
 				{
 					value = 420;
 					AutoRTFM::AbortTransaction();
 					bGetsToA = true;
-				});
+				}));
 
 				REQUIRE(bGetsToA == false);
 

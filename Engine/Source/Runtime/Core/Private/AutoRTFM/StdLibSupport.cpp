@@ -78,11 +78,7 @@ void* STM_realloc(void* Ptr, size_t Size, FContext* Context)
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(realloc);
 
 
-size_t STM_strlen(const char* Str, FContext* Context)
-{
-	AutoRTFM::Unreachable();
-}
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strlen);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(strlen);
 
 // FIXME: This is only correct when:
 // - Str is newly allocated

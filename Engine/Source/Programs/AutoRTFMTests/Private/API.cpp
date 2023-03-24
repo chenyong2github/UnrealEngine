@@ -75,10 +75,10 @@ TEST_CASE("API.autortfm_is_closed")
         {
             InOpenNest = autortfm_is_closed();
 
-            AutoRTFM::Close([&]
+            REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]
             {
                 InClosedNestInOpenNest = autortfm_is_closed();
-            });
+            }));
         });
     });
 
@@ -236,10 +236,10 @@ TEST_CASE("API.autortfm_close")
     REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == AutoRTFM::Transact([&]
     {
         // A closed call inside a transaction does not abort.
-        autortfm_close([](void* const Arg)
+        REQUIRE(autortfm_status_ontrack == autortfm_close([](void* const Arg)
         {
             *static_cast<bool* const>(Arg) = true;
-        }, &InClosedNest);
+        }, &InClosedNest));
 
         AutoRTFM::Open([&]
         {
@@ -670,10 +670,10 @@ TEST_CASE("API.IsClosed")
         {
             InOpenNest = AutoRTFM::IsClosed();
 
-            AutoRTFM::Close([&]
+            REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]
             {
                 InClosedNestInOpenNest = AutoRTFM::IsClosed();
-            });
+            }));
         });
     });
 
@@ -831,10 +831,10 @@ TEST_CASE("API.Close")
     REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == AutoRTFM::Transact([&]
     {
         // A closed call inside a transaction does not abort.
-        AutoRTFM::Close([&]
+        REQUIRE(AutoRTFM::EContextStatus::OnTrack == AutoRTFM::Close([&]
         {
             InClosedNest = true;
-        });
+        }));
 
         AutoRTFM::Open([&]
         {
