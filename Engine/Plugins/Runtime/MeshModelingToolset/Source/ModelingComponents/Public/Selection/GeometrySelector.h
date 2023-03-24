@@ -9,6 +9,7 @@
 #include "InputState.h"
 #include "ToolContextInterfaces.h"
 
+class IToolsContextRenderAPI;
 class IToolsContextTransactionsAPI;
 
 
@@ -182,6 +183,11 @@ public:
 	 * the call to UpdateTransform to compute new 3D positions for 3D points. 
 	 */
 	virtual void UpdateTransform( TFunctionRef<FVector3d(int VertexID, const FVector3d& InitialPosition, const FTransform& WorldTransform)> VertexTransformFunc ) = 0;
+
+	/**
+	 * Optional function called per-frame to visualize the active Transformation
+	 */
+	virtual void PreviewRender(IToolsContextRenderAPI* RenderAPI) { }
 
 	/**
 	 * Finish a transform (eg called on mouse-up during 3D gizmo interaction). 

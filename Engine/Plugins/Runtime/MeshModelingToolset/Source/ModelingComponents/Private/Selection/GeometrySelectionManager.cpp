@@ -1164,6 +1164,14 @@ void UGeometrySelectionManager::DebugRender(IToolsContextRenderAPI* RenderAPI)
 	// disable selection during xform to avoid overhead
 	if (IsInActiveTransformation())
 	{
+		for (int32 k = 0; k < ActiveTargetReferences.Num(); ++k)
+		{
+			if (ActiveTransformations[k] != nullptr)
+			{
+				ActiveTransformations[k]->PreviewRender(RenderAPI);
+			}
+		}
+
 		return;
 	}
 

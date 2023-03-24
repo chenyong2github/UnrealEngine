@@ -10,6 +10,7 @@
 #include "Changes/MeshVertexChange.h"
 #include "GroupTopology.h"
 #include "Operations/GroupTopologyDeformer.h"
+#include "ToolDataVisualizer.h"
 
 using namespace UE::Geometry;
 
@@ -50,7 +51,25 @@ void FDynamicMeshPolygroupTransformer::BeginTransform(const FGeometrySelection& 
 			ROIMap.Add(MeshVertices[k], k);
 		}
 
-		//UpdatedPositions = InitialPositions;
+		UpdatedPositions = InitialPositions;
+
+		OverlayNormalsArray = LinearDeformer->GetModifiedOverlayNormals().Array();
+
+		ActiveSelectionEdges.Reset();
+		ActiveSelectionVertices.Reset();
+		UE::Geometry::EnumeratePolygroupSelectionElements( Selection, SourceMesh, UseTopology,
+			[&](int32 VertexID, FVector3d Position) { ActiveSelectionVertices.Add(VertexID); },
+			[&](int32 EdgeID, const FSegment3d&) { ActiveSelectionEdges.Add(SourceMesh.GetEdgeV(EdgeID)); },
+			[&](int32 TriangleID, const FTriangle3d&) {},
+			/*ApplyTransform*/nullptr, /*bMapFacesToEdgeLoops*/true);
+
+		ActiveROIEdges.Reset();
+		LinearDeformer->EnumerateROIEdges([&](const FEdgeSpan& Span) {
+			for (int32 EdgeID : Span.Edges)
+			{
+				ActiveROIEdges.Add(SourceMesh.GetEdgeV(EdgeID));
+			}
+		});
 	});
 
 	ActiveVertexChange = MakePimpl<FMeshVertexChangeBuilder>(EMeshVertexChangeComponents::VertexPositions | EMeshVertexChangeComponents::OverlayNormals);
@@ -76,10 +95,10 @@ void FDynamicMeshPolygroupTransformer::UpdateTransform(
 	int32 N = MeshVertices.Num();
 	FTransform WorldTransform = Selector->GetLocalToWorldTransform();
 
-	//for (int32 k = 0; k < N; ++k)
-	//{
-	//	UpdatedPositions[k] = PositionTransformFunc(MeshVertices[k], InitialPositions[k], WorldTransform);
-	//}
+	for (int32 k = 0; k < N; ++k)
+	{
+		UpdatedPositions[k] = PositionTransformFunc(MeshVertices[k], InitialPositions[k], WorldTransform);
+	}
 
 	Selector->GetDynamicMesh()->EditMesh([&](FDynamicMesh3& EditMesh)
 	{
@@ -98,17 +117,10 @@ void FDynamicMeshPolygroupTransformer::UpdateTransform(
 			}
 		});
 
-
-		// TODO: the right thing to do here would be to only recompute the modified overlay normals...but we have no utility for that??
-		//FMeshNormals::QuickRecomputeOverlayNormals(EditMesh);
+		FMeshNormals::RecomputeOverlayElementNormals(EditMesh, OverlayNormalsArray);
 
 	}, EDynamicMeshChangeType::DeformationEdit,
-		//EDynamicMeshAttributeChangeFlags::VertexPositions, false);
 	   EDynamicMeshAttributeChangeFlags::VertexPositions | EDynamicMeshAttributeChangeFlags::NormalsTangents, false);
-
-
-	// why does simple deformer do this every time??
-	//UpdatePendingVertexChange(false);
 }
 
 
@@ -140,6 +152,48 @@ void FDynamicMeshPolygroupTransformer::EndTransform(IToolsContextTransactionsAPI
 		OnEndTransformFunc(TransactionsAPI);
 	}
 }
+
+
+
+void FDynamicMeshPolygroupTransformer::PreviewRender(IToolsContextRenderAPI* RenderAPI)
+{
+	if (bFallbackToSimpleTransform)
+	{
+		FBasicDynamicMeshSelectionTransformer::PreviewRender(RenderAPI);
+		return;
+	}
+	if (!bEnableSelectionTransformDrawing) return;
+	if (!LinearDeformer.IsValid()) return;
+
+	FToolDataVisualizer Visualizer;
+	Visualizer.bDepthTested = false;
+	Visualizer.BeginFrame(RenderAPI);
+
+	Visualizer.PushTransform(Selector->GetLocalToWorldTransform());
+
+	const FDynamicMesh3* Mesh = LinearDeformer->GetMesh();
+
+	Visualizer.SetPointParameters(FLinearColor(0, 0.3f, 0.95f, 1), 5.0f);
+	for (int32 VertexID : ActiveSelectionVertices)
+	{
+		Visualizer.DrawPoint(Mesh->GetVertex(VertexID));
+	}
+
+	Visualizer.SetLineParameters(FLinearColor(0, 0.3f, 0.95f, 1), 3.0f);
+	for (FIndex2i EdgeV : ActiveSelectionEdges)
+	{
+		Visualizer.DrawLine(Mesh->GetVertex(EdgeV.A), Mesh->GetVertex(EdgeV.B));
+	}
+	Visualizer.SetLineParameters(FLinearColor(0, 0.3f, 0.95f, 1), 1.0f);
+	for (FIndex2i EdgeV : ActiveROIEdges)
+	{
+		Visualizer.DrawLine(Mesh->GetVertex(EdgeV.A), Mesh->GetVertex(EdgeV.B));
+	}
+
+	Visualizer.EndFrame();
+}
+
+
 
 
 #undef LOCTEXT_NAMESPACE 

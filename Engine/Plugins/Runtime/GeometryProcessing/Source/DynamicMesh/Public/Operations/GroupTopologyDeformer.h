@@ -125,6 +125,15 @@ public:
 	/** @return the set of all overlay normals that will be modified by the deformation*/
 	const TSet<int>& GetModifiedOverlayNormals() const { return ModifiedOverlayNormals; }
 
+	/** Call EdgeSpanFunc for every group FEdgeSpan in the modified-area ROI that will be modified by the solver (does not include edges that are encompassed by the Handle) */
+	void EnumerateROIEdges(TFunctionRef<void(const FEdgeSpan& EdgeSpan)> EdgeSpanFunc) const
+	{
+		for (const FROIEdge& Edge : ROIEdges)
+		{
+			EdgeSpanFunc(Edge.Span);
+		}
+	}
+
 protected:
 	//
 	// These are functions that subclasses may wish to override

@@ -16,6 +16,8 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
+#include "Selection/DynamicMeshPolygroupTransformer.h"
+
 #include "RenderingThread.h"
 
 using namespace UE::Geometry;
@@ -76,7 +78,16 @@ IGeometrySelectionTransformer* FStaticMeshSelector::InitializeTransformation(con
 {
 	check(!ActiveTransformer);
 
-	ActiveTransformer = MakePimpl<FBasicDynamicMeshSelectionTransformer>();
+	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
+	{
+		ActiveTransformer = MakeShared<FDynamicMeshPolygroupTransformer>();
+	}
+	else
+	{
+		ActiveTransformer = MakeShared<FBasicDynamicMeshSelectionTransformer>();
+	}
+	ActiveTransformer->bEnableSelectionTransformDrawing = true;
+
 	ActiveTransformer->Initialize(this);
 	ActiveTransformer->OnEndTransformFunc = [this](IToolsContextTransactionsAPI*) 
 	{ 

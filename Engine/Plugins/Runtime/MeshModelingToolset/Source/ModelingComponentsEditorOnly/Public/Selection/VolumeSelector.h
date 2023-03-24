@@ -43,7 +43,7 @@ protected:
 	// TODO: this is not a great design, it would be better if something external could own this mesh...
 	TStrongObjectPtr<UDynamicMesh> LocalTargetMesh;
 
-	TPimplPtr<FBasicDynamicMeshSelectionTransformer> ActiveTransformer;
+	TSharedPtr<FBasicDynamicMeshSelectionTransformer> ActiveTransformer;
 	void CommitMeshTransform();
 };
 

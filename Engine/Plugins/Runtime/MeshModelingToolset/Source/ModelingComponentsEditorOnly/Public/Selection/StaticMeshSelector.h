@@ -46,7 +46,7 @@ protected:
 	TStrongObjectPtr<UDynamicMesh> LocalTargetMesh;
 	void CopyFromStaticMesh();
 
-	TPimplPtr<FBasicDynamicMeshSelectionTransformer> ActiveTransformer;
+	TSharedPtr<FBasicDynamicMeshSelectionTransformer> ActiveTransformer;
 	void CommitMeshTransform();
 };
 

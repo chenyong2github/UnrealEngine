@@ -227,6 +227,11 @@ public:
 	virtual void UpdateTransform( TFunctionRef<FVector3d(int32 VertexID, const FVector3d& InitialPosition, const FTransform& WorldTransform)> PositionTransformFunc ) override;
 	void UpdatePendingVertexChange(bool bFinal);
 
+	/** Enable line drawing of selection during transform, this is necessary in some contexts where live mesh update is too slow */
+	bool bEnableSelectionTransformDrawing = false;
+
+	virtual void PreviewRender(IToolsContextRenderAPI* RenderAPI) override;
+
 	virtual void EndTransform(IToolsContextTransactionsAPI* TransactionsAPI) override;
 
 	TFunction<void(IToolsContextTransactionsAPI* TransactionsAPI)> OnEndTransformFunc;
@@ -237,11 +242,17 @@ protected:
 	TArray<int32> MeshVertices;
 	TArray<FVector3d> InitialPositions;
 	TSet<int32> TriangleROI;
-	TSet<int32> OverlayNormals;
+	TSet<int32> OverlayNormalsSet;
+	TArray<int32> OverlayNormalsArray;
 
 	TArray<FVector3d> UpdatedPositions;
 
 	TPimplPtr<FMeshVertexChangeBuilder> ActiveVertexChange;
+
+	// used for preview rendering
+	TArray<UE::Geometry::FIndex2i> ActiveSelectionEdges;
+	TArray<int32> ActiveSelectionVertices;
+	TArray<UE::Geometry::FIndex2i> ActiveROIEdges;
 
 };
 

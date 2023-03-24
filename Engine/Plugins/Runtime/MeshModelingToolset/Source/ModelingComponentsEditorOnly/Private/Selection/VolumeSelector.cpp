@@ -16,6 +16,8 @@
 #include "ConversionUtils/VolumeToDynamicMesh.h"
 #include "ConversionUtils/DynamicMeshToVolume.h"
 
+#include "Selection/DynamicMeshPolygroupTransformer.h"
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "FVolumeSelector"
@@ -68,7 +70,16 @@ IGeometrySelectionTransformer* FVolumeSelector::InitializeTransformation(const F
 {
 	check(!ActiveTransformer);
 
-	ActiveTransformer = MakePimpl<FBasicDynamicMeshSelectionTransformer>();
+	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
+	{
+		ActiveTransformer = MakeShared<FDynamicMeshPolygroupTransformer>();
+	}
+	else
+	{
+		ActiveTransformer = MakeShared<FBasicDynamicMeshSelectionTransformer>();
+	}
+	ActiveTransformer->bEnableSelectionTransformDrawing = true;
+
 	ActiveTransformer->Initialize(this);
 	ActiveTransformer->OnEndTransformFunc = [this](IToolsContextTransactionsAPI*) 
 	{ 

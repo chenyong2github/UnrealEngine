@@ -21,6 +21,8 @@ public:
 	virtual void UpdateTransform( TFunctionRef<FVector3d(int32 VertexID, const FVector3d& InitialPosition, const FTransform& WorldTransform)> PositionTransformFunc ) override;
 	virtual void EndTransform(IToolsContextTransactionsAPI* TransactionsAPI) override;
 
+	virtual void PreviewRender(IToolsContextRenderAPI* RenderAPI) override;
+
 protected:
 	bool bFallbackToSimpleTransform = false;
 

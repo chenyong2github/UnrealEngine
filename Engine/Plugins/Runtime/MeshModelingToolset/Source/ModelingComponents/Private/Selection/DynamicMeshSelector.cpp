@@ -13,6 +13,7 @@
 #include "Spatial/SegmentTree3.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Selection/DynamicMeshPolygroupTransformer.h"
+#include "ToolDataVisualizer.h"
 
 using namespace UE::Geometry;
 
@@ -809,10 +810,37 @@ void FBasicDynamicMeshSelectionTransformer::BeginTransform(const FGeometrySelect
 		UE::Geometry::VertexToTriangleOneRing(&SourceMesh, MeshVertices, TriangleROI);
 
 		// save overlay normals
+		OverlayNormalsArray.Reset();
+		OverlayNormalsSet.Reset();
 		if (SourceMesh.HasAttributes() && SourceMesh.Attributes()->PrimaryNormals() != nullptr)
 		{
 			const FDynamicMeshNormalOverlay* Normals = SourceMesh.Attributes()->PrimaryNormals();
-			UE::Geometry::TrianglesToOverlayElements(Normals, TriangleROI, OverlayNormals);
+			UE::Geometry::TrianglesToOverlayElements(Normals, TriangleROI, OverlayNormalsSet);
+			OverlayNormalsArray = OverlayNormalsSet.Array();
+		}
+
+		// collect selected mesh edges and vertices
+		ActiveSelectionEdges.Reset();
+		ActiveSelectionVertices.Reset();
+		TSet<int32> SelectionEdges;
+		UE::Geometry::EnumerateTriangleSelectionElements(Selection, SourceMesh, 
+			[&](int32 VertexID, FVector3d Position) { ActiveSelectionVertices.Add(VertexID); },
+			[&](int32 EdgeID, const FSegment3d&) { ActiveSelectionEdges.Add(SourceMesh.GetEdgeV(EdgeID)); SelectionEdges.Add(EdgeID); },
+			[&](int32 TriangleID, const FTriangle3d&) {},
+			/*ApplyTransform*/nullptr, /*bMapFacesToEdgeLoops*/true);
+
+		ActiveROIEdges.Reset();
+		for (int32 tid : TriangleROI)
+		{
+			FIndex3i TriEdges = SourceMesh.GetTriEdges(tid);
+			for (int32 k = 0; k < 3; ++k)
+			{
+				if (SelectionEdges.Contains(TriEdges[k]) == false)
+				{
+					ActiveROIEdges.Add(SourceMesh.GetEdgeV(TriEdges[k]));
+					SelectionEdges.Add(TriEdges[k]);
+				}
+			}
 		}
 	});
 
@@ -839,14 +867,10 @@ void FBasicDynamicMeshSelectionTransformer::UpdateTransform(
 			EditMesh.SetVertex(MeshVertices[k], UpdatedPositions[k]);
 		}
 
-		// TODO: the right thing to do here would be to only recompute the modified overlay normals...but we have no utility for that??
-		//FMeshNormals::QuickRecomputeOverlayNormals(EditMesh);
+		FMeshNormals::RecomputeOverlayElementNormals(EditMesh, OverlayNormalsArray);
 
 	}, EDynamicMeshChangeType::DeformationEdit,
-		//EDynamicMeshAttributeChangeFlags::VertexPositions, false);
 	   EDynamicMeshAttributeChangeFlags::VertexPositions | EDynamicMeshAttributeChangeFlags::NormalsTangents, false);
-
-	UpdatePendingVertexChange(false);
 }
 
 void FBasicDynamicMeshSelectionTransformer::UpdatePendingVertexChange(bool bFinal)
@@ -855,7 +879,7 @@ void FBasicDynamicMeshSelectionTransformer::UpdatePendingVertexChange(bool bFina
 	Selector->GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& SourceMesh)
 	{
 		ActiveVertexChange->SaveVertices(&SourceMesh, MeshVertices, !bFinal);
-		ActiveVertexChange->SaveOverlayNormals(&SourceMesh, OverlayNormals, !bFinal);
+		ActiveVertexChange->SaveOverlayNormals(&SourceMesh, OverlayNormalsSet, !bFinal);
 	});
 }
 
@@ -878,7 +902,38 @@ void FBasicDynamicMeshSelectionTransformer::EndTransform(IToolsContextTransactio
 }
 
 
+void FBasicDynamicMeshSelectionTransformer::PreviewRender(IToolsContextRenderAPI* RenderAPI)
+{
+	if (!bEnableSelectionTransformDrawing) return;
 
+	FToolDataVisualizer Visualizer;
+	Visualizer.bDepthTested = false;
+	Visualizer.BeginFrame(RenderAPI);
+
+	Visualizer.PushTransform(Selector->GetLocalToWorldTransform());
+
+	Selector->GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& SourceMesh)
+	{
+		Visualizer.SetPointParameters(FLinearColor(0, 0.3f, 0.95f, 1), 5.0f);
+		for (int32 VertexID : ActiveSelectionVertices)
+		{
+			Visualizer.DrawPoint(SourceMesh.GetVertex(VertexID));
+		}
+
+		Visualizer.SetLineParameters(FLinearColor(0, 0.3f, 0.95f, 1), 3.0f);
+		for (FIndex2i EdgeV : ActiveSelectionEdges)
+		{
+			Visualizer.DrawLine(SourceMesh.GetVertex(EdgeV.A), SourceMesh.GetVertex(EdgeV.B));
+		}
+		Visualizer.SetLineParameters(FLinearColor(0, 0.3f, 0.95f, 1), 1.0f);
+		for (FIndex2i EdgeV : ActiveROIEdges)
+		{
+			Visualizer.DrawLine(SourceMesh.GetVertex(EdgeV.A), SourceMesh.GetVertex(EdgeV.B));
+		}
+	});
+
+	Visualizer.EndFrame();
+}
 
 
 
