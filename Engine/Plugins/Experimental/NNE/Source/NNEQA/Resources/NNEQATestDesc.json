@@ -59,6 +59,13 @@
 				{
 					"target": "VertexDeltaModel",
 					"absolute_tolerance": 1e-4
+				},
+				{
+					"target": "FaceDetector",
+					"runtimes": [
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+					],
+					"absolute_tolerance": 1e-4
 				}
 			]
 		},

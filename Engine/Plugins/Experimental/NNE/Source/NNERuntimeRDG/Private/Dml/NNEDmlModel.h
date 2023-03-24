@@ -70,7 +70,7 @@ private:
 	ID3D12Resource* CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON, D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT, const TCHAR* DebugName = nullptr);
 
 	//Note: This should go into RDG
-	static constexpr int32 MaxNumInputs = 32;
+	static constexpr int32 MaxNumInputs = 512;
 	static constexpr int32 MaxNumOutputs = 4;
 
 	using FRHIBufferInputArray = TArray<FRHIBuffer*, TInlineAllocator<MaxNumInputs>>;
@@ -86,8 +86,6 @@ private:
 
 	TArray<int32>						ConstantCPUTensorIndices;
 
-	FRHIBufferInputArray				InputBuffers;
-	FRHIBufferOutputArray				OutputBuffers;
 #ifdef NNE_USE_D3D12_RESOURCES
 	TComPtr<ID3D12Resource>				PersistBuff;
 	TComPtr<ID3D12Resource>				TempBuff;
