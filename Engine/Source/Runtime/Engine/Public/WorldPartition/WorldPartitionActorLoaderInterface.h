@@ -19,6 +19,10 @@ class ENGINE_API IWorldPartitionActorLoaderInterface
 	GENERATED_IINTERFACE_BODY()
 
 #if WITH_EDITOR
+	using FReferenceMap = TMap<FGuid, FWorldPartitionReference>;
+	using FActorReferenceMap = TMap<FGuid, FReferenceMap>;
+	using FContainerReferenceMap = TMap<TWeakObjectPtr<UActorDescContainer>, FActorReferenceMap>;
+
 public:
 	/** Base class for actor loaders */
 	class ENGINE_API ILoaderAdapter
@@ -60,7 +64,11 @@ public:
 		void PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads);
 		void AddReferenceToActor(FWorldPartitionHandle& Actor);
 		void RemoveReferenceToActor(FWorldPartitionHandle& Actor);
-		void OnRefreshLoadedState(bool bFromUserOperation);		
+		void OnRefreshLoadedState(bool bFromUserOperation);
+
+		// Helpers
+		FActorReferenceMap& GetContainerReferences(UActorDescContainer* InContainer);
+		const FActorReferenceMap* GetContainerReferencesConst(UActorDescContainer* InContainer) const;
 
 	private:
 		UWorld* World;
@@ -68,7 +76,7 @@ public:
 		uint8 bLoaded : 1;
 		uint8 bUserCreated : 1;
 
-		TMap<FGuid, TMap<FGuid, FWorldPartitionReference>> ActorReferences;
+		FContainerReferenceMap ContainerActorReferences;
 	};
 
 	virtual ILoaderAdapter* GetLoaderAdapter() =0;

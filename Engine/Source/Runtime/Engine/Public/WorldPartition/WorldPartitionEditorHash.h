@@ -42,6 +42,10 @@ public:
 
 		/** Optional minimum box to stop searching for actors */
 		TOptional<FBox> MinimumBox;
+
+		FForEachIntersectingActorParams& SetIncludeSpatiallyLoadedActors(bool bInIncludeSpatiallyLoadedActors) { bIncludeSpatiallyLoadedActors = bInIncludeSpatiallyLoadedActors; return *this; };
+		FForEachIntersectingActorParams& SetIncludeNonSpatiallyLoadedActors(bool bInIncludeNonSpatiallyLoadedActors) { bIncludeNonSpatiallyLoadedActors = bInIncludeNonSpatiallyLoadedActors; return *this; };
+		FForEachIntersectingActorParams& SetMinimumBox(const FBox& InMinimumBox) { MinimumBox = InMinimumBox; return *this; };
 	};
 
 	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, const FForEachIntersectingActorParams& Params = FForEachIntersectingActorParams()) PURE_VIRTUAL(UWorldPartitionEditorHash::ForEachIntersectingActor, return 0;);

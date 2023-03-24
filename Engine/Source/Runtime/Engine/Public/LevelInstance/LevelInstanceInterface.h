@@ -57,6 +57,8 @@ class ENGINE_API ILevelInstanceInterface
 	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const = 0;
 
 	virtual TSubclassOf<AActor> GetEditorPivotClass() const { return nullptr; }
+
+	virtual bool SupportsPartialEditorLoading() const;
 #endif
 	// Pure Interface End
 		

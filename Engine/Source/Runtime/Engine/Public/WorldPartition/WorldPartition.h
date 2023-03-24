@@ -396,6 +396,11 @@ private:
 	TMap<FWorldPartitionReference, AActor*> DirtyActors;
 
 	TSet<FString> GeneratedStreamingPackageNames;
+
+public:
+	bool bForceEnableStreamingInEditor;
+
+private:
 #endif
 
 	EWorldPartitionInitState InitState;

@@ -82,8 +82,10 @@ public:
 	struct FContainerInstance
 	{
 		const UActorDescContainer* Container = nullptr;
+		ULevel* LoadedLevel = nullptr;
+		bool bSupportsPartialEditorLoading = false;
 		FTransform Transform = FTransform::Identity;
-		EContainerClusterMode ClusterMode;
+		EContainerClusterMode ClusterMode;		
 		TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
 	};
 

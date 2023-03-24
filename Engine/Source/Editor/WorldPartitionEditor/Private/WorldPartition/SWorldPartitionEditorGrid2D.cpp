@@ -1045,8 +1045,8 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 		}
 	}
 
-	UWorldPartitionEditorHash::FForEachIntersectingActorParams ForEachIntersectingActorParams;
-	ForEachIntersectingActorParams.MinimumBox = FBox(FVector::ZeroVector, FVector(GetSelectionSnap()));
+	UWorldPartitionEditorHash::FForEachIntersectingActorParams ForEachIntersectingActorParams = UWorldPartitionEditorHash::FForEachIntersectingActorParams()
+		.SetMinimumBox(FBox(FVector::ZeroVector, FVector(GetSelectionSnap())));
 
 	GetWorldPartition()->EditorHash->ForEachIntersectingActor(ViewRectWorld, [&](FWorldPartitionActorDesc* ActorDesc)
 	{

@@ -178,12 +178,15 @@ bool FLevelInstanceActorDesc::GetContainerInstance(const FGetContainerInstancePa
 {
 	if (LevelInstanceContainer.IsValid())
 	{
+		const ILevelInstanceInterface* LevelInstance = ActorPtr.IsValid() ? CastChecked<const ILevelInstanceInterface>(ActorPtr.Get()) : nullptr;
 		OutContainerInstance.Container = LevelInstanceContainer.Get();
+		OutContainerInstance.LoadedLevel = LevelInstance ? LevelInstance->GetLoadedLevel() : nullptr;
+		OutContainerInstance.bSupportsPartialEditorLoading = LevelInstance ? LevelInstance->SupportsPartialEditorLoading() : false;
 		OutContainerInstance.ClusterMode = EContainerClusterMode::Partitioned;
 
 		// Apply level instance pivot offset
 		FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelInstanceContainer->GetContainerPackage()));
-		OutContainerInstance.Transform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
+		OutContainerInstance.Transform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;		
 
 		if (InParams.bBuildFilter)
 		{

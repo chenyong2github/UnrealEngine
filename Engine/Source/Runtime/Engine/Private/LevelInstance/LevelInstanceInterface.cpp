@@ -3,6 +3,7 @@
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceLevelStreaming.h"
+#include "GameFramework/Actor.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "UObject/Package.h"
@@ -16,6 +17,13 @@
 ULevelInstanceInterface::ULevelInstanceInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {}
+
+#if WITH_EDITOR
+bool ILevelInstanceInterface::SupportsPartialEditorLoading() const
+{
+	return CastChecked<AActor>(this)->GetIsSpatiallyLoaded() && !IsEditing();
+}
+#endif
 
 ULevelInstanceSubsystem* ILevelInstanceInterface::GetLevelInstanceSubsystem() const
 {

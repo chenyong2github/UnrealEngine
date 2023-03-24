@@ -274,6 +274,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, bEnablingStreamingJustified(false)
 	, bIsPIE(false)
 	, NumUserCreatedLoadedRegions(0)
+	, bForceEnableStreamingInEditor(false)
 #endif
 	, InitState(EWorldPartitionInitState::Uninitialized)
 	, bStreamingInEnabled(true)
@@ -489,10 +490,14 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		EditorHash->Initialize();
 
 		AlwaysLoadedActors = new FLoaderAdapterAlwaysLoadedActors(OuterWorld);
-		PinnedActors = new FLoaderAdapterPinnedActors(OuterWorld);
+
+		if (IsMainWorldPartition())
+		{			
+			PinnedActors = new FLoaderAdapterPinnedActors(OuterWorld);
 		
-		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-		ForceLoadedActors = WorldPartitionEditorModule.GetDisableLoadingInEditor() && IsMainWorldPartition() ? new FLoaderAdapterActorList(OuterWorld) : nullptr;
+			IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+			ForceLoadedActors = WorldPartitionEditorModule.GetDisableLoadingInEditor() ? new FLoaderAdapterActorList(OuterWorld) : nullptr;
+		}
 	}
 
 	check(RuntimeHash);
@@ -507,11 +512,15 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		const FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName().IsNone() ? LevelPackage->GetFName() : LevelPackage->GetLoadedPath().GetPackageFName();
 
 		// Currently known Instancing use cases:
-		// - World Partition map template (New Level)
-		// - PIE World Travel
+		//	- World Partition map template (New Level)
+		//	- PIE World Travel
 		FString SourceWorldPath, RemappedWorldPath;
 		const bool bIsInstanced = OuterWorld->GetSoftObjectPathMapping(SourceWorldPath, RemappedWorldPath);
-	
+
+		// Follow the world's streaming enabled value most of the times, except:
+		//	- World is instanced and from a Level Instance that supports partial loading
+		const bool bIsStreamingEnabled = bForceEnableStreamingInEditor || IsStreamingEnabled();
+
 		if (bIsInstanced)
 		{
 			InstancingContext.AddPackageMapping(PackageName, LevelPackage->GetFName());
@@ -540,7 +549,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 					ActorDescIterator->TransformInstance(SourceWorldPath, RemappedWorldPath);
 				}
 
-				ActorDescIterator->bIsForcedNonSpatiallyLoaded = !IsStreamingEnabled();
+				ActorDescIterator->bIsForcedNonSpatiallyLoaded = !bIsStreamingEnabled;
 
 				if (ForceLoadedActors)
 				{
@@ -592,7 +601,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	if (bIsEditor && !bIsCooking)
 	{
-		// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
+		// Load the always loaded cell
+		if (AlwaysLoadedActors)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadAlwaysLoaded);
 			AlwaysLoadedActors->Load();

@@ -17,6 +17,11 @@ protected:
 	virtual void ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const override;
 	//~ End ILoaderAdapter interface
 
+private:
+	void HandleActorContainer(const FWorldPartitionHandle& InActor, TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const;
+
+protected:
+
 	TSet<FWorldPartitionHandle> Actors;
 };
 #endif

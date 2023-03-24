@@ -15,6 +15,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "UObject/Linker.h"
 #include "UObject/Package.h"
+#include "WorldPartition/WorldPartition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceLevelStreaming)
 
@@ -23,6 +24,13 @@
 #include "LevelUtils.h"
 #include "ActorFolder.h"
 #include "UObject/LinkerLoad.h"
+
+static bool GDisableLevelInstanceEditorPartialLoading = false;
+FAutoConsoleVariableRef CVarDisableLevelInstanceEditorPartialLoading(
+	TEXT("wp.Editor.DisableLevelInstanceEditorPartialLoading"),
+	GDisableLevelInstanceEditorPartialLoading,
+	TEXT("Allow disabling partial loading of level instances in the editor."),
+	ECVF_Default);
 #endif
 
 ULevelStreamingLevelInstance::ULevelStreamingLevelInstance(const FObjectInitializer& ObjectInitializer)
@@ -329,10 +337,23 @@ void ULevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* InLevel)
 			LevelTransform = FTransform(WorldSettings->LevelInstancePivotOffset) * LevelTransform;
 		}
 
-		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
+#if WITH_EDITOR
+		if (!GDisableLevelInstanceEditorPartialLoading)
 		{
-			LevelInstanceSubsystem->RegisterLoadedLevelStreamingLevelInstance(this);
+			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
+			{
+				LevelInstanceSubsystem->RegisterLoadedLevelStreamingLevelInstance(this);
+
+				if (UWorldPartition* WorldPartition = NewLoadedLevel->GetWorldPartition())
+				{
+					check(!WorldPartition->IsInitialized());
+					if (ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(LevelInstanceID))
+					{
+						WorldPartition->bForceEnableStreamingInEditor = LevelInstance->SupportsPartialEditorLoading();
+					}
+				}
+			}
 		}
+#endif
 	}
 }
-

@@ -72,7 +72,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 			int32 NumUnloads = 0;
 			{
 				FWorldPartitionLoadingContext::FDeferred LoadingContext;
-				ActorReferences.Empty();
+				ContainerActorReferences.Empty();
 				NumUnloads = LoadingContext.GetNumUnregistrations();
 			}
 
@@ -135,14 +135,16 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 			TArray<FWorldPartitionHandle> ActorsToUnload;			
 			ForEachActor([this, &ActorsToLoad, &ActorsToUnload](const FWorldPartitionHandle& Actor)
 			{
+				const FActorReferenceMap* ActorReferences = GetContainerReferencesConst(Actor->GetContainer());
+
 				if (ShouldActorBeLoaded(Actor))
 				{
-					if (!ActorReferences.Contains(Actor->GetGuid()))
+					if (!ActorReferences || !ActorReferences->Contains(Actor->GetGuid()))
 					{
 						ActorsToLoad.Add(Actor);
 					}
 				}
-				else if (ActorReferences.Contains(Actor->GetGuid()))
+				else if (ActorReferences && ActorReferences->Contains(Actor->GetGuid()))
 				{
 					ActorsToUnload.Add(Actor);
 				}
@@ -162,8 +164,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 
 						for (FWorldPartitionHandle& ActorToLoad : ActorsToLoad)
 						{
-							FWorldPartitionHandle ActorHandle(WorldPartition, ActorToLoad->GetGuid());
-							AddReferenceToActor(ActorHandle);
+							AddReferenceToActor(ActorToLoad);
 							SlowTask.EnterProgressFrame(1);
 						}
 					}
@@ -191,6 +192,15 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 			}
 		}
 	}
+
+	// Remove invalid containers (happens when reloading level instances, etc)
+	for (FContainerReferenceMap::TIterator It(ContainerActorReferences); It; ++It)
+	{
+		if (!It->Key.IsValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
 }
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDescContainerInitialize(UActorDescContainer* Container)
@@ -205,7 +215,9 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDescContainerUn
 	TArray<FWorldPartitionHandle> ActorsToUnload;
 	for(UActorDescContainer::TConstIterator<> It(Container); It; ++It)
 	{
-		if( ActorReferences.Find(It->GetGuid()))
+		const FActorReferenceMap* ActorReferences = GetContainerReferencesConst(It->GetContainer());
+
+		if (!ActorReferences || !ActorReferences->Find(It->GetGuid()))
 		{
 			ActorsToUnload.Emplace(Container, It->GetGuid());
 		}
@@ -273,7 +285,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::AddReferenceToActor(FWorldPartitionHandle& ActorHandle)
 {
-	TFunction<void(const FWorldPartitionHandle&, TMap<FGuid, FWorldPartitionReference>&)> AddReferences = [this, &ActorHandle, &AddReferences](const FWorldPartitionHandle& Handle, TMap<FGuid, FWorldPartitionReference>& ReferenceMap)
+	TFunction<void(const FWorldPartitionHandle&, FReferenceMap&)> AddReferences = [this, &ActorHandle, &AddReferences](const FWorldPartitionHandle& Handle, FReferenceMap& ReferenceMap)
 	{
 		if (!ReferenceMap.Contains(Handle->GetGuid()))
 		{
@@ -291,11 +303,13 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::AddReferenceToActor(FW
 		}
 	};
 
+	FActorReferenceMap& ActorReferences = GetContainerReferences(ActorHandle->GetContainer());
 	AddReferences(ActorHandle, ActorReferences.Emplace(ActorHandle->GetGuid()));
 }
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RemoveReferenceToActor(FWorldPartitionHandle& ActorHandle)
 {
+	FActorReferenceMap& ActorReferences = GetContainerReferences(ActorHandle->GetContainer());
 	ActorReferences.Remove(ActorHandle->GetGuid());
 }
 
@@ -307,6 +321,16 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnRefreshLoadedState(b
 void IWorldPartitionActorLoaderInterface::RefreshLoadedState(bool bIsFromUserChange)
 {
 	ActorLoaderInterfaceRefreshState.Broadcast(bIsFromUserChange);
+}
+
+IWorldPartitionActorLoaderInterface::FActorReferenceMap& IWorldPartitionActorLoaderInterface::ILoaderAdapter::GetContainerReferences(UActorDescContainer* InContainer)
+{
+	return ContainerActorReferences.FindOrAdd(InContainer);
+}
+
+const IWorldPartitionActorLoaderInterface::FActorReferenceMap* IWorldPartitionActorLoaderInterface::ILoaderAdapter::GetContainerReferencesConst(UActorDescContainer* InContainer) const
+{
+	return ContainerActorReferences.Find(InContainer);
 }
 #endif
 

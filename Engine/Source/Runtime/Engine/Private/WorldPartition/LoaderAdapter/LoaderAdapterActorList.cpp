@@ -2,6 +2,7 @@
 
 #include "WorldPartition/LoaderAdapter/LoaderAdapterActorList.h"
 #include "WorldPartition/WorldPartition.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 
 #if WITH_EDITOR
@@ -60,6 +61,29 @@ void FLoaderAdapterActorList::RemoveActors(const TArray<FGuid>& ActorGuids)
 void FLoaderAdapterActorList::RemoveActors(const TArray<FWorldPartitionHandle>& ActorHandles)
 {
 	ActorsToRemove = TSet<FWorldPartitionHandle>(ActorHandles);
+
+	for (const FWorldPartitionHandle& ActorHandle : ActorHandles)
+	{
+		if (ActorHandle->IsContainerInstance())
+		{
+			FWorldPartitionActorDesc::FContainerInstance ContainerInstance;
+			if (ActorHandle->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ContainerInstance))
+			{
+				if (ContainerInstance.bSupportsPartialEditorLoading)
+				{
+					if (UWorldPartition* ContainerWorldPartition = ContainerInstance.LoadedLevel ? ContainerInstance.LoadedLevel->GetWorldPartition() : nullptr)
+					{
+						for (FActorDescContainerCollection::TIterator<> ActorDescIterator(ContainerWorldPartition); ActorDescIterator; ++ActorDescIterator)
+						{
+							FWorldPartitionHandle SubActorHandle(ContainerWorldPartition, ActorDescIterator->GetGuid());
+							ActorsToRemove.Add(SubActorHandle);
+						}
+					}
+				}
+			}
+		}
+	}
+
 	RefreshLoadedState();
 	Actors = Actors.Difference(ActorsToRemove);
 	ActorsToRemove.Empty();

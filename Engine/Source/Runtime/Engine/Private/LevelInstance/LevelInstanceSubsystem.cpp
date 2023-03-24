@@ -22,6 +22,7 @@
 #include "WorldPartition/LevelInstance/LevelInstanceActorDesc.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
@@ -280,6 +281,7 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 
 #if WITH_EDITOR
 	LevelsToRemoveScope.Reset();
+	IWorldPartitionActorLoaderInterface::RefreshLoadedState(true);
 #endif
 }
 

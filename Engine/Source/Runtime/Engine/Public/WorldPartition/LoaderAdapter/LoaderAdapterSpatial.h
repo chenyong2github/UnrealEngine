@@ -5,6 +5,8 @@
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 
 #if WITH_EDITOR
+class UWorldPartition;
+
 /** Base class for actor loaders that requires spatial queries */
 class ENGINE_API ILoaderAdapterSpatial : public IWorldPartitionActorLoaderInterface::ILoaderAdapter
 {
@@ -20,6 +22,10 @@ protected:
 	// Private interface
 	virtual bool Intersect(const FBox& Box) const =0;
 
+private:
+	void HandleIntersectingContainer(UWorldPartition* InWorldPartition, TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const;
+
+protected:
 	bool bIncludeSpatiallyLoadedActors;
 	bool bIncludeNonSpatiallyLoadedActors;
 };

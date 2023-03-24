@@ -20,9 +20,10 @@ UWorldPartitionEditorHash::FForEachIntersectingActorParams::FForEachIntersecting
 
 int32 UWorldPartitionEditorHash::ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, bool bIncludeSpatiallyLoadedActors, bool bIncludeNonSpatiallyLoadedActors)
 {
-	UWorldPartitionEditorHash::FForEachIntersectingActorParams ForEachIntersectingActorParams;
-	ForEachIntersectingActorParams.bIncludeSpatiallyLoadedActors = bIncludeSpatiallyLoadedActors;
-	ForEachIntersectingActorParams.bIncludeNonSpatiallyLoadedActors = bIncludeNonSpatiallyLoadedActors;
+	UWorldPartitionEditorHash::FForEachIntersectingActorParams ForEachIntersectingActorParams = UWorldPartitionEditorHash::FForEachIntersectingActorParams()
+		.SetIncludeSpatiallyLoadedActors(bIncludeSpatiallyLoadedActors)
+		.SetIncludeNonSpatiallyLoadedActors(bIncludeNonSpatiallyLoadedActors);
+
 	return ForEachIntersectingActor(Box, InOperation, ForEachIntersectingActorParams);
 }
 #endif
