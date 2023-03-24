@@ -53,6 +53,19 @@ void UVoxelBlendMeshesTool::SaveProperties()
 }
 
 
+void UVoxelBlendMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
+{
+	Super::ConvertInputsAndSetPreviewMaterials(bSetPreviewMesh);
+
+	if (!BlendProperties->bVoxWrap && HasOpenBoundariesInMeshInputs())
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("WarnOpenEdges", "Open edges found: Consider using the 'Vox Wrap Preprocess' settings to avoid artifacts."),
+			EToolMessageLevel::UserWarning);
+	}
+}
+
+
 TUniquePtr<FDynamicMeshOperator> UVoxelBlendMeshesTool::MakeNewOperator()
 {
 	TUniquePtr<FVoxelBlendMeshesOp> Op = MakeUnique<FVoxelBlendMeshesOp>();

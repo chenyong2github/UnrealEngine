@@ -62,6 +62,8 @@ protected:
 	virtual FString GetCreatedAssetName() const override;
 	virtual FText GetActionName() const override;
 
+	virtual void ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh) override;
+
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 

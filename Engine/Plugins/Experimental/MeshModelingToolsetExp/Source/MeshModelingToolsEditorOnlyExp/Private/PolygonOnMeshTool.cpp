@@ -122,10 +122,13 @@ void UPolygonOnMeshTool::Setup()
 				GetToolManager()->DisplayMessage(LOCTEXT("BoundaryEdgesNotification", "Cut resulted in one or more boundary edges."),
 					EToolMessageLevel::UserWarning);
 			}
+			else if (UpdatedPreview->HaveEmptyResult())
+			{
+				UpdateAcceptWarnings(EAcceptWarning::EmptyForbidden);
+			}
 			else
 			{
-				// This clears the warning if needed
-				UpdateAcceptWarnings(UpdatedPreview->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
+				GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
 			}
 		}
 	);

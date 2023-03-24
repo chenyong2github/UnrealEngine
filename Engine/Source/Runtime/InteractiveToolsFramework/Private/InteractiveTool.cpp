@@ -282,8 +282,11 @@ void UInteractiveTool::UpdateAcceptWarnings(EAcceptWarning Warning)
 	switch (Warning)
 	{
 	case EAcceptWarning::NoWarning:
-		// clear warning
-		GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
+		if (bLastShowedAcceptWarning)
+		{
+			// clear warning
+			GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
+		}
 		break;
 	case EAcceptWarning::EmptyForbidden:
 		GetToolManager()->DisplayMessage(LOCTEXT("CannotCreateEmptyMesh", "WARNING: Tool doesn't allow creation of an empty mesh."),
@@ -292,6 +295,7 @@ void UInteractiveTool::UpdateAcceptWarnings(EAcceptWarning Warning)
 	default:
 		check(false);
 	}
+	bLastShowedAcceptWarning = Warning != EAcceptWarning::NoWarning;
 }
 
 

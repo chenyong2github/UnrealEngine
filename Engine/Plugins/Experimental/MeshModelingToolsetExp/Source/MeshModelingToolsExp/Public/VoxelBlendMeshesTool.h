@@ -79,6 +79,10 @@ protected:
 	virtual FString GetCreatedAssetName() const override;
 	virtual FText GetActionName() const override;
 
+	virtual void ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh) override;
+
+	// TODO: this tool also needs a warning for meshes w/ open boundaries
+
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 

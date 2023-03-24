@@ -48,8 +48,20 @@ void UVoxelMorphologyMeshesTool::SetupProperties()
 void UVoxelMorphologyMeshesTool::SaveProperties()
 {
 	Super::SaveProperties();
+	MorphologyProperties->SaveProperties(this);
+}
 
-	VoxProperties->SaveProperties(this);
+
+void UVoxelMorphologyMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
+{
+	Super::ConvertInputsAndSetPreviewMaterials(bSetPreviewMesh);
+
+	if (!MorphologyProperties->bVoxWrap && HasOpenBoundariesInMeshInputs())
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("WarnOpenEdges", "Open edges found: Consider using the 'Vox Wrap Preprocess' settings to avoid artifacts."),
+			EToolMessageLevel::UserWarning);
+	}
 }
 
 
@@ -79,12 +91,12 @@ TUniquePtr<FDynamicMeshOperator> UVoxelMorphologyMeshesTool::MakeNewOperator()
 
 FString UVoxelMorphologyMeshesTool::GetCreatedAssetName() const
 {
-	return TEXT("Morphology");
+	return TEXT("Offset");
 }
 
 FText UVoxelMorphologyMeshesTool::GetActionName() const
 {
-	return LOCTEXT("VoxelMorphologyMeshes", "Voxel Morphology");
+	return LOCTEXT("VoxelMorphologyMeshes", "Voxel Offset");
 }
 
 

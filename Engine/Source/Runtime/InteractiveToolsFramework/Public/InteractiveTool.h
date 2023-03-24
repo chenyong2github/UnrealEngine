@@ -538,6 +538,11 @@ protected:
 	 */
 	virtual void UpdateAcceptWarnings(EAcceptWarning Warning);
 
+private:
+	// Tracks whether the UpdateAcceptWarnings function showed a warning the last time it was called.
+	// Used to avoid clearing the tool display message in cases where it was not set by this function.
+	bool bLastShowedAcceptWarning = false;
+
 
 
 protected:

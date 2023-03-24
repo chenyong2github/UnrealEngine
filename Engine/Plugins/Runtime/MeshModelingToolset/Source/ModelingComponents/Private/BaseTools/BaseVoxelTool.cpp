@@ -35,6 +35,18 @@ void UBaseVoxelTool::SaveProperties()
 	VoxProperties->SaveProperties(this);
 }
 
+bool UBaseVoxelTool::HasOpenBoundariesInMeshInputs()
+{
+	for (int32 Idx = 0; Idx < OriginalDynamicMeshes.Num(); ++Idx)
+	{
+		if (!OriginalDynamicMeshes[Idx]->IsClosed() && OriginalDynamicMeshes[Idx]->TriangleCount() > 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 
 TArray<UMaterialInterface*> UBaseVoxelTool::GetOutputMaterials() const
 {

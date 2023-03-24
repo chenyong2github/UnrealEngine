@@ -32,6 +32,9 @@ protected:
 	/** Sets the output material to the default "world grid" material */
 	virtual TArray<UMaterialInterface*> GetOutputMaterials() const override;
 
+	// Test whether any of the OriginalDynamicMeshes has any open boundary edges
+	virtual bool HasOpenBoundariesInMeshInputs();
+
 
 	UPROPERTY()
 	TObjectPtr<UVoxelProperties> VoxProperties;
