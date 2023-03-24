@@ -58,8 +58,13 @@ namespace Horde.Agent.Commands.Compute
 				requirements = new Requirements(Condition.Parse(Requirements));
 			}
 
-			bool result = await client.ExecuteAsync(new ClusterId(ClusterId), requirements, HandleRequestAsync, CancellationToken.None);
+			await using IComputeLease? lease = await client.TryAssignWorkerAsync(new ClusterId(ClusterId), requirements, CancellationToken.None);
+			if (lease == null)
+			{
+				throw new Exception("Unable to create lease");
+			}
 
+			bool result = await HandleRequestAsync(lease, CancellationToken.None);
 			return result ? 0 : 1;
 		}
 
@@ -79,7 +84,7 @@ namespace Horde.Agent.Commands.Compute
 			}
 			else if (Loopback)
 			{
-				return new LoopbackComputeClient(2000, logger);
+				return new AgentComputeClient(Assembly.GetExecutingAssembly().Location, 2000, logger);
 			}
 			else
 			{
@@ -95,74 +100,6 @@ namespace Horde.Agent.Commands.Compute
 			client.BaseAddress = profile.Url;
 			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", profile.Token);
 			return client;
-		}
-
-		class LoopbackComputeClient : IComputeClient
-		{
-			readonly int _port;
-			readonly ILogger _logger;
-
-			public LoopbackComputeClient(int port, ILogger logger)
-			{
-				_port = port;
-				_logger = logger;
-			}
-
-			public ValueTask DisposeAsync() => new ValueTask();
-
-			public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
-			{
-				_logger.LogInformation("** CLIENT **");
-
-				TResult result;
-				using (Socket listener = new Socket(SocketType.Stream, ProtocolType.IP))
-				{
-					listener.Bind(new IPEndPoint(IPAddress.Loopback, _port));
-					listener.Listen();
-
-					using (CancellationTokenSource cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-					{
-						Task<TResult> listenTask = ListenAsync<TResult>(listener, handler, cancellationSource.Token);
-						try
-						{
-							using ManagedProcessGroup group = new ManagedProcessGroup();
-
-							using Process process = new Process();
-							process.StartInfo.FileName = "dotnet";
-							process.StartInfo.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
-							process.StartInfo.ArgumentList.Add("computeworker");
-							process.StartInfo.ArgumentList.Add($"-port={_port}");
-							process.StartInfo.UseShellExecute = true;
-							process.Start();
-
-							group.AddProcess(process.Handle);
-
-							await process.WaitForExitAsync(cancellationToken);
-						}
-						finally
-						{
-							cancellationSource.Cancel();
-						}
-						result = await listenTask;
-					}
-				}
-				return result;
-			}
-
-			async Task<TResult> ListenAsync<TResult>(Socket listener, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
-			{
-				TResult result;
-				using (Socket tcpSocket = await listener.AcceptAsync(cancellationToken))
-				{
-					await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpSocket), _logger))
-					{
-						await using ComputeLease lease = new ComputeLease(new List<string>(), new Dictionary<string, int>(), socket);
-						result = await handler(lease, cancellationToken);
-						await socket.CloseAsync(cancellationToken);
-					}
-				}
-				return result;
-			}
 		}
 	}
 

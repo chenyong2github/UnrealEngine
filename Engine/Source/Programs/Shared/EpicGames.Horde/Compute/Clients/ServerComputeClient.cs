@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,6 +39,29 @@ namespace EpicGames.Horde.Compute.Clients
 			public string Key { get; set; } = String.Empty;
 			public Dictionary<string, int> AssignedResources { get; set; } = new Dictionary<string, int>();
 			public List<string> Properties { get; set; } = new List<string>();
+		}
+
+		record class LeaseInfo(IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> AssignedResources, IComputeSocket Socket);
+
+		class LeaseImpl : IComputeLease
+		{
+			readonly IAsyncEnumerator<LeaseInfo> _source;
+
+			public IReadOnlyList<string> Properties => _source.Current.Properties;
+			public IReadOnlyDictionary<string, int> AssignedResources => _source.Current.AssignedResources;
+			public IComputeSocket Socket => _source.Current.Socket;
+
+			public LeaseImpl(IAsyncEnumerator<LeaseInfo> source)
+			{
+				_source = source;
+			}
+
+			/// <inheritdoc/>
+			public async ValueTask DisposeAsync()
+			{
+				await _source.MoveNextAsync();
+				await _source.DisposeAsync();
+			}
 		}
 
 		readonly HttpClient? _defaultHttpClient;
@@ -99,7 +123,19 @@ namespace EpicGames.Horde.Compute.Clients
 		}
 
 		/// <inheritdoc/>
-		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
+		public async Task<IComputeLease?> TryAssignWorkerAsync(ClusterId clusterId, Requirements? requirements, CancellationToken cancellationToken)
+		{
+			IAsyncEnumerator<LeaseInfo> source = ConnectAsync(clusterId, requirements, cancellationToken).GetAsyncEnumerator(cancellationToken);
+			if (!await source.MoveNextAsync(cancellationToken))
+			{
+				await source.DisposeAsync();
+				return null;
+			}
+			return new LeaseImpl(source);
+		}
+
+		/// <inheritdoc/>
+		async IAsyncEnumerable<LeaseInfo> ConnectAsync(ClusterId clusterId, Requirements? requirements, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
 			_logger.LogInformation("Requesting compute resource");
 
@@ -135,8 +171,7 @@ namespace EpicGames.Horde.Compute.Clients
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
 			await using ClientComputeSocket computeSocket = new ClientComputeSocket(new TcpTransport(socket), _logger);
-			await using ComputeLease lease = new ComputeLease(responseMessage.Properties, responseMessage.AssignedResources, computeSocket);
-			return await handler(lease, cancellationToken);
+			yield return new LeaseInfo(responseMessage.Properties, responseMessage.AssignedResources, computeSocket);
 		}
 	}
 }

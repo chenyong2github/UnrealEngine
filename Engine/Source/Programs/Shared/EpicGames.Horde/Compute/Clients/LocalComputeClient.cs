@@ -17,6 +17,18 @@ namespace EpicGames.Horde.Compute.Clients
 	/// </summary>
 	public sealed class LocalComputeClient : IComputeClient
 	{
+		class LeaseImpl : IComputeLease
+		{
+			public IReadOnlyList<string> Properties { get; } = new List<string>();
+			public IReadOnlyDictionary<string, int> AssignedResources => new Dictionary<string, int>();
+			public IComputeSocket Socket => _socket;
+
+			readonly ClientComputeSocket _socket;
+
+			public LeaseImpl(ClientComputeSocket socket) => _socket = socket;
+			public ValueTask DisposeAsync() => _socket.DisposeAsync();
+		}
+
 		readonly BackgroundTask _listenerTask;
 		readonly Socket _listener;
 		readonly Socket _socket;
@@ -65,13 +77,12 @@ namespace EpicGames.Horde.Compute.Clients
 		}
 
 		/// <inheritdoc/>
-		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
+		public Task<IComputeLease?> TryAssignWorkerAsync(ClusterId clusterId, Requirements? requirements, CancellationToken cancellationToken)
 		{
-			await using ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(_socket), _logger);
-			await using ComputeLease lease = new ComputeLease(new List<string>(), new Dictionary<string, int>(), socket);
-			TResult result = await handler(lease, cancellationToken);
-			await socket.CloseAsync(cancellationToken);
-			return result;
+#pragma warning disable CA2000 // Dispose objects before losing scope
+			ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(_socket), _logger);
+			return Task.FromResult<IComputeLease?>(new LeaseImpl(socket));
+#pragma warning restore CA2000 // Dispose objects before losing scope
 		}
 	}
 }

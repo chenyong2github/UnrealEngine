@@ -24,9 +24,51 @@ namespace RemoteClient
 		static async Task Main()
 		{
 			ILogger logger = Log.Logger;
+			CancellationToken cancellationToken = CancellationToken.None;
 
+			// Create the client to handle our requests
 			await using IComputeClient client = CreateClient(true, logger);
-			await client.ExecuteAsync(new ClusterId("default"), null, (lease, ctx) => ExecuteAsync(lease, logger, ctx), CancellationToken.None);
+
+			// Allocate a worker
+			await using IComputeLease? lease = await client.TryAssignWorkerAsync(new ClusterId("default"), null, cancellationToken);
+			if (lease == null)
+			{
+				logger.LogInformation("Unable to connect to remote");
+				return;
+			}
+
+			// Create a message channel on channel id 0. The Horde Agent always listens on this channel for requests.
+			const int ControlChannelId = 0;
+			await using IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(ControlChannelId, 30 * 1024 * 1024, logger);
+
+			// Upload the sandbox
+			MemoryStorageClient storage = new MemoryStorageClient();
+			using (TreeWriter treeWriter = new TreeWriter(storage))
+			{
+				DirectoryNode sandbox = new DirectoryNode();
+				await sandbox.CopyFromDirectoryAsync(RemoteServerFile.Directory.ToDirectoryInfo(), new ChunkingOptions(), treeWriter, null, cancellationToken);
+				NodeHandle handle = await treeWriter.FlushAsync(sandbox, cancellationToken);
+				await channel.UploadFilesAsync("", handle.Locator, storage, cancellationToken);
+			}
+
+			// Run the task remotely in the background and echo the output to the console
+			Task childProcessTask = channel.ExecuteAsync(RemoteServerFile.GetFileName(), new List<string>(), null, null, (string x) => logger.LogInformation("ChildProcess: {Message}", x), cancellationToken);
+
+			// Generate data into a buffer attached to channel 1. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
+			const int DataChannelId = 1;
+			using (IComputeBufferWriter writer = lease.Socket.AttachSendBuffer(DataChannelId, 1024 * 1024))
+			{
+				for (int idx = 0; idx < 100; idx++)
+				{
+					logger.LogInformation("Writing value: {Value}", idx);
+					writer.GetMemory().Span[0] = (byte)idx;
+					writer.Advance(1);
+					await Task.Delay(1000, cancellationToken);
+				}
+			}
+
+			// Wait for the child process to finish
+			await childProcessTask;
 		}
 
 		static IComputeClient CreateClient(bool loopback, ILogger logger)
@@ -39,41 +81,6 @@ namespace RemoteClient
 			{
 				return new ServerComputeClient(new Uri("https://localhost:5001"), null, logger);
 			}
-		}
-
-		static async Task<int> ExecuteAsync(IComputeLease lease, ILogger logger, CancellationToken cancellationToken)
-		{
-			IComputeSocket socket = lease.Socket;
-			await using (IComputeMessageChannel channel = socket.CreateMessageChannel(0, 30 * 1024 * 1024, logger))
-			{
-				// Upload the sandbox
-				MemoryStorageClient storage = new MemoryStorageClient();
-				using (TreeWriter treeWriter = new TreeWriter(storage))
-				{
-					DirectoryNode sandbox = new DirectoryNode();
-					await sandbox.CopyFromDirectoryAsync(RemoteServerFile.Directory.ToDirectoryInfo(), new ChunkingOptions(), treeWriter, null, cancellationToken);
-					NodeHandle handle = await treeWriter.FlushAsync(sandbox, cancellationToken);
-					await channel.UploadFilesAsync("", handle.Locator, storage, cancellationToken);
-				}
-
-				// Run the task remotely in the background and echo the output to the console
-				Task childProcessTask = channel.ExecuteAsync(RemoteServerFile.GetFileName(), new List<string>(), null, null, (string x) => logger.LogInformation("ChildProcess: {Message}", x), cancellationToken);
-
-				// Generate data into a buffer attached to channel 1. The remote server will echo them back to us as it receives them.
-				IComputeBufferWriter writer = socket.AttachSendBuffer(1, 1024 * 1024);
-				for (int idx = 0; idx < 100; idx++)
-				{
-					logger.LogInformation("Writing value: {Value}", idx);
-					writer.GetMemory().Span[0] = (byte)idx;
-					writer.Advance(1);
-					await Task.Delay(1000, cancellationToken);
-				}
-				writer.MarkComplete();
-
-				// Wait for the child process to finish
-				await childProcessTask;
-			}
-			return 0;
 		}
 	}
 }
