@@ -193,7 +193,8 @@ bool UMVVMView::EvaluateSourceCreator(int32 SourceCreatorIndex)
 	}
 
 	UUserWidget* UserWidget = GetUserWidget();
-	const FMVVMViewClass_SourceCreator& SourceCreator = ClassExtension->GetViewModelCreators()[SourceCreatorIndex];
+	const TArrayView<const FMVVMViewClass_SourceCreator> ViewModelCreators = ClassExtension->GetViewModelCreators();
+	const FMVVMViewClass_SourceCreator& SourceCreator = ViewModelCreators[SourceCreatorIndex];
 	UObject* NewSource = SourceCreator.CreateInstance(ClassExtension, this, UserWidget);
 	ensureMsgf((NewSource == nullptr || NewSource->GetClass()->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())), TEXT("The source has implement the interface. It should be check at compile time."));
 	return SetSourceInternal(SourceCreator.GetSourceName(), NewSource, true);

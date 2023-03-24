@@ -20,10 +20,10 @@ struct FMVVMStructFieldPathHelperTest
 
 public:
 	UPROPERTY()
-	int32 PropertyInt;
+	int32 PropertyInt = 0;
 
 	UPROPERTY()
-	FVector PropertyVector;
+	FVector PropertyVector = FVector::ZeroVector;
 
 	UPROPERTY()
 	TObjectPtr<UMVVMObjectFieldPathHelperTest> PropertyObject;

@@ -249,7 +249,7 @@ private:
 	};
 
 	UPROPERTY()
-	uint8 Flags;
+	uint8 Flags = 0;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
