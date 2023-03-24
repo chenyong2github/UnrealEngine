@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Compute.Buffers
 {
 	/// <summary>
-	/// In-process buffer used for compute messages
+	/// In-process buffer used to store compute messages
 	/// </summary>
-	public class HeapBuffer : ComputeBuffer
+	class PooledBuffer : ComputeBufferBase
 	{
 		readonly IMemoryOwner<byte> _memoryOwner;
 		readonly Memory<byte> _memory;
@@ -21,11 +21,14 @@ namespace EpicGames.Horde.Compute.Buffers
 		TaskCompletionSource? _writtenTcs;
 		TaskCompletionSource? _flushedTcs;
 
+		/// <inheritdoc/>
+		public override long Length => _memory.Length;
+
 		/// <summary>
 		/// Creates a local buffer with the given capacity
 		/// </summary>
 		/// <param name="capacity">Capacity of the buffer</param>
-		public HeapBuffer(int capacity)
+		public PooledBuffer(int capacity)
 		{
 			_memoryOwner = MemoryPool<byte>.Shared.Rent(capacity);
 			_memory = _memoryOwner.Memory.Slice(0, capacity);
@@ -42,13 +45,23 @@ namespace EpicGames.Horde.Compute.Buffers
 			}
 		}
 
+		/// <inheritdoc/>
+		public override Memory<byte> GetMemory(long offset, int length)
+		{
+			if (offset > Int32.MaxValue)
+			{
+				throw new ArgumentException("Offset is out of range", nameof(offset));
+			}
+			return _memory.Slice((int)offset, length);
+		}
+
 		#region Reader
 
 		/// <inheritdoc/>
-		protected override bool FinishedReading() => _finishedWriting && _readPosition == _writePosition;
+		public override bool FinishedReading() => _finishedWriting && _readPosition == _writePosition;
 
 		/// <inheritdoc/>
-		protected override void AdvanceReadPosition(int size)
+		public override void AdvanceReadPosition(int size)
 		{
 			_readPosition += size;
 
@@ -59,10 +72,10 @@ namespace EpicGames.Horde.Compute.Buffers
 		}
 
 		/// <inheritdoc/>
-		protected override ReadOnlyMemory<byte> GetReadMemory() => _memory.Slice(_readPosition, _writePosition - _readPosition);
+		public override ReadOnlyMemory<byte> GetReadMemory() => _memory.Slice(_readPosition, _writePosition - _readPosition);
 
 		/// <inheritdoc/>
-		protected override async ValueTask WaitAsync(int currentLength, CancellationToken cancellationToken)
+		public override async ValueTask WaitForDataAsync(int currentLength, CancellationToken cancellationToken)
 		{
 			int initialWritePosition = _readPosition + currentLength;
 
@@ -102,14 +115,14 @@ namespace EpicGames.Horde.Compute.Buffers
 		#region Writer
 
 		/// <inheritdoc/>
-		protected override void FinishWriting()
+		public override void FinishWriting()
 		{
 			_finishedWriting = true;
 			_writtenTcs?.TrySetResult();
 		}
 
 		/// <inheritdoc/>
-		protected override void AdvanceWritePosition(int size)
+		public override void AdvanceWritePosition(int size)
 		{
 			if (_finishedWriting)
 			{
@@ -121,10 +134,10 @@ namespace EpicGames.Horde.Compute.Buffers
 		}
 
 		/// <inheritdoc/>
-		protected override Memory<byte> GetWriteMemory() => _memory.Slice(_writePosition);
+		public override Memory<byte> GetWriteMemory() => _memory.Slice(_writePosition);
 
 		/// <inheritdoc/>
-		protected override async ValueTask FlushWritesAsync(CancellationToken cancellationToken)
+		public override async ValueTask FlushWritesAsync(CancellationToken cancellationToken)
 		{
 			if (_readPosition < _writePosition)
 			{

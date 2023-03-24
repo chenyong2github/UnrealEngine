@@ -4,6 +4,7 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -56,24 +57,19 @@ namespace EpicGames.Horde.Compute
 		DeleteFiles = 0x12,
 
 		/// <summary>
-		/// Delete a directory in the remote (Initiator -> Remote)
-		/// </summary>
-		DeleteDirectory = 0x13,
-
-		/// <summary>
 		/// Execute a process in a sandbox (Initiator -> Remote)
 		/// </summary>
-		ExecuteProcess = 0x16,
+		Execute = 0x16,
 
 		/// <summary>
 		/// Returns the process exit code (Remote -> Initiator)
 		/// </summary>
-		ExecuteProcessResponse = 0x17,
+		ExecuteResult = 0x17,
 
 		/// <summary>
 		/// Returns output from the child process to the caller (Remote -> Initiator)
 		/// </summary>
-		ProcessOutput = 0x18,
+		ExecuteOutput = 0x18,
 
 		#endregion
 
@@ -94,14 +90,14 @@ namespace EpicGames.Horde.Compute
 		#region Buffers
 
 		/// <summary>
-		/// Creates a new receive buffer for messages
+		/// Registers a send buffer created by a child process
 		/// </summary>
-		CreateBufferRequest = 0x30,
+		AttachSendBuffer = 0x30,
 
 		/// <summary>
-		/// Receives information about the new receive buffer
+		/// Registers a receive buffer created by a child process
 		/// </summary>
-		CreateBufferResponse = 0x31,
+		AttachRecvBuffer = 0x31,
 
 		#endregion
 
@@ -180,14 +176,14 @@ namespace EpicGames.Horde.Compute
 	public record struct ReadBlobMessage(BlobLocator Locator, int Offset, int Length);
 
 	/// <summary>
-	/// Request creation of a new buffer, and attaching it to the lease
+	/// Request a receive buffer in a worker process
 	/// </summary>
-	public record struct CreateBufferRequest(int ChannelId, long Capacity, bool Send);
+	public record struct AttachSendBufferRequest(int ChannelId, string Handle);
 
 	/// <summary>
-	/// Response to create a new buffer
+	/// Request a receive buffer in a worker process
 	/// </summary>
-	public record struct CreateBufferResponse(string Handle);
+	public record struct AttachRecvBufferRequest(int ChannelId, string Handle);
 
 	/// <summary>
 	/// Message for running an XOR command
@@ -204,19 +200,17 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Sends an exception response to the remote
 		/// </summary>
-		public static void Exception(this IComputeChannel channel, Exception ex) => Exception(channel, ex.Message, ex.StackTrace);
+		public static void SendException(this IComputeMessageChannel channel, Exception ex) => SendException(channel, ex.Message, ex.StackTrace);
 
 		/// <summary>
 		/// Sends an exception response to the remote
 		/// </summary>
-		public static void Exception(this IComputeChannel channel, string description, string? trace)
+		public static void SendException(this IComputeMessageChannel channel, string description, string? trace)
 		{
-			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.Exception))
-			{
-				builder.WriteString(description);
-				builder.WriteOptionalString(trace);
-				builder.Send();
-			}
+			using IComputeMessageBuilder message = channel.CreateMessage(ComputeMessageType.Exception);
+			message.WriteString(description);
+			message.WriteOptionalString(trace);
+			message.Send();
 		}
 
 		/// <summary>
@@ -228,9 +222,9 @@ namespace EpicGames.Horde.Compute
 			string description = message.ReadString();
 			return new ExceptionMessage(msg, description);
 		}
-
+/*
 		/// <inheritdoc/>
-		public static void Fork(this IComputeChannel channel, int newChannelId)
+		public static void Fork(this IComputeMessageChannel channel, int newChannelId)
 		{
 			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.Fork))
 			{
@@ -238,7 +232,7 @@ namespace EpicGames.Horde.Compute
 				builder.Send();
 			}
 		}
-
+*/
 		/// <summary>
 		/// Parses a fork message from the given compute message
 		/// </summary>
@@ -252,19 +246,17 @@ namespace EpicGames.Horde.Compute
 		/// Sends untyped user data to the remote
 		/// </summary>
 		/// <param name="channel">Current channel</param>
-		/// <param name="span">Data to send</param>
-		public static void SendUserData(this IComputeChannel channel, ReadOnlySpan<byte> span)
+		/// <param name="memory">Data to send</param>
+		public static void SendUserData(this IComputeMessageChannel channel, ReadOnlyMemory<byte> memory)
 		{
-			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.UserData))
-			{
-				builder.WriteFixedLengthBytes(span);
-				builder.Send();
-			}
+			using IComputeMessageBuilder message = channel.CreateMessage(ComputeMessageType.UserData, memory.Length);
+			message.WriteFixedLengthBytes(memory.Span);
+			message.Send();
 		}
 
 		#region Process
 
-		static async Task<IComputeMessage> RunStorageServer(this IComputeChannel channel, IStorageClient storage, CancellationToken cancellationToken)
+		static async Task<IComputeMessage> RunStorageServer(this IComputeMessageChannel channel, IStorageClient storage, CancellationToken cancellationToken)
 		{
 			for (; ; )
 			{
@@ -294,13 +286,13 @@ namespace EpicGames.Horde.Compute
 		/// <param name="locator">Location of a <see cref="DirectoryNode"/> describing contents of the sandbox</param>
 		/// <param name="storage">Storage for the sandbox data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task UploadFilesAsync(this IComputeChannel channel, string path, NodeLocator locator, IStorageClient storage, CancellationToken cancellationToken)
+		public static async Task UploadFilesAsync(this IComputeMessageChannel channel, string path, NodeLocator locator, IStorageClient storage, CancellationToken cancellationToken)
 		{
-			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.WriteFiles))
+			using (IComputeMessageBuilder request = channel.CreateMessage(ComputeMessageType.WriteFiles))
 			{
-				writer.WriteString(path);
-				writer.WriteNodeLocator(locator);
-				writer.Send();
+				request.WriteString(path);
+				request.WriteNodeLocator(locator);
+				request.Send();
 			}
 
 			using IComputeMessage response = await RunStorageServer(channel, storage, cancellationToken);
@@ -325,13 +317,11 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="channel">Current channel</param>
 		/// <param name="paths">Paths of files or directories to delete</param>
-		public static void DeleteFiles(this IComputeChannel channel, IReadOnlyList<string> paths)
+		public static void DeleteFiles(this IComputeMessageChannel channel, IReadOnlyList<string> paths)
 		{
-			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.DeleteDirectory))
-			{
-				writer.WriteList(paths, MemoryWriterExtensions.WriteString);
-				writer.Send();
-			}
+			IComputeMessageBuilder request = channel.CreateMessage(ComputeMessageType.DeleteFiles);
+			request.WriteList(paths, MemoryWriterExtensions.WriteString);
+			request.Send();
 		}
 
 		/// <summary>
@@ -341,6 +331,53 @@ namespace EpicGames.Horde.Compute
 		{
 			List<string> files = message.ReadList(MemoryReaderExtensions.ReadString);
 			return new DeleteFilesMessage(files);
+		}
+
+		class StringOutputWriter
+		{
+			byte[] _buffer;
+			int _length;
+			readonly Action<string> _handler;
+
+			public StringOutputWriter(Action<string> handler)
+			{
+				_buffer = new byte[10];
+				_handler = handler;
+			}
+
+			public void WriteData(ReadOnlyMemory<byte> data)
+			{
+				int requiredLength = _length + data.Length;
+				if (requiredLength > _buffer.Length)
+				{
+					Array.Resize(ref _buffer, requiredLength);
+				}
+
+				data.CopyTo(_buffer.AsMemory(_length));
+				_length += data.Length;
+
+				ReadOnlySpan<byte> output = _buffer.AsSpan(0, _length);
+				for (; ; )
+				{
+					int newLineIdx = output.IndexOf((byte)'\n');
+					if (newLineIdx == -1)
+					{
+						break;
+					}
+
+					int length = newLineIdx;
+					if (length > 0 && output[length - 1] == (byte)'\r')
+					{
+						length--;
+					}
+
+					_handler(Encoding.UTF8.GetString(output.Slice(0, length)));
+					output = output.Slice(newLineIdx + 1);
+				}
+
+				_length = output.Length;
+				output.CopyTo(_buffer);
+			}
 		}
 
 		/// <summary>
@@ -353,15 +390,31 @@ namespace EpicGames.Horde.Compute
 		/// <param name="outputHandler">Output callback for stdout</param>
 		/// <param name="envVars">Environment variables for the child process</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task<int> ExecuteProcessAsync(this IComputeChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, Action<ReadOnlyMemory<byte>> outputHandler, CancellationToken cancellationToken)
+		public static Task<int> ExecuteAsync(this IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, Action<string> outputHandler, CancellationToken cancellationToken)
 		{
-			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.ExecuteProcess))
+			StringOutputWriter writer = new StringOutputWriter(outputHandler);
+			return ExecuteAsync(channel, executable, arguments, workingDir, envVars, writer.WriteData, cancellationToken);
+		}
+
+		/// <summary>
+		/// Executes a remote process
+		/// </summary>
+		/// <param name="channel">Current channel</param>
+		/// <param name="executable">Executable to run, relative to the sandbox root</param>
+		/// <param name="arguments">Arguments for the child process</param>
+		/// <param name="workingDir">Working directory for the process</param>
+		/// <param name="outputHandler">Output callback for stdout</param>
+		/// <param name="envVars">Environment variables for the child process</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async Task<int> ExecuteAsync(this IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, Action<ReadOnlyMemory<byte>> outputHandler, CancellationToken cancellationToken)
+		{
+			using (IComputeMessageBuilder request = channel.CreateMessage(ComputeMessageType.Execute))
 			{
-				writer.WriteString(executable);
-				writer.WriteList(arguments, MemoryWriterExtensions.WriteString);
-				writer.WriteOptionalString(workingDir);
-				writer.WriteDictionary(envVars ?? new Dictionary<string, string?>(), MemoryWriterExtensions.WriteString, MemoryWriterExtensions.WriteOptionalString);
-				writer.Send();
+				request.WriteString(executable);
+				request.WriteList(arguments, MemoryWriterExtensions.WriteString);
+				request.WriteOptionalString(workingDir);
+				request.WriteDictionary(envVars ?? new Dictionary<string, string?>(), MemoryWriterExtensions.WriteString, MemoryWriterExtensions.WriteOptionalString);
+				request.Send();
 			}
 
 			for (; ; )
@@ -372,10 +425,10 @@ namespace EpicGames.Horde.Compute
 					case ComputeMessageType.Exception:
 						ExceptionMessage exception = message.ParseExceptionMessage();
 						throw new ComputeRemoteException(exception);
-					case ComputeMessageType.ProcessOutput:
+					case ComputeMessageType.ExecuteOutput:
 						outputHandler(message.Data);
 						break;
-					case ComputeMessageType.ExecuteProcessResponse:
+					case ComputeMessageType.ExecuteResult:
 						ExecuteProcessResponseMessage executeProcessResponse = message.ParseExecuteProcessResponse();
 						return executeProcessResponse.ExitCode;
 					default:
@@ -399,13 +452,11 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Sends output from a child process
 		/// </summary>
-		public static void SendProcessOutput(this IComputeChannel channel, ReadOnlyMemory<byte> data)
+		public static void SendExecuteOutput(this IComputeMessageChannel channel, ReadOnlyMemory<byte> data)
 		{
-			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.ProcessOutput))
-			{
-				builder.WriteFixedLengthBytes(data.Span);
-				builder.Send();
-			}
+			using IComputeMessageBuilder message = channel.CreateMessage(ComputeMessageType.ExecuteOutput);
+			message.WriteFixedLengthBytes(data.Span);
+			message.Send();
 		}
 
 		/// <summary>
@@ -413,13 +464,11 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="channel"></param>
 		/// <param name="exitCode">Exit code from the process</param>
-		public static void SendExecuteProcessResponse(this IComputeChannel channel, int exitCode)
+		public static void SendExecuteResult(this IComputeMessageChannel channel, int exitCode)
 		{
-			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.ExecuteProcessResponse))
-			{
-				builder.WriteInt32(exitCode);
-				builder.Send();
-			}
+			using IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.ExecuteResult);
+			builder.WriteInt32(exitCode);
+			builder.Send();
 		}
 
 		/// <summary>
@@ -481,14 +530,14 @@ namespace EpicGames.Horde.Compute
 		/// <param name="length">Length of data to return</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Stream containing the blob data</returns>
-		public static async Task<Stream> ReadBlobAsync(this IComputeChannel channel, BlobLocator locator, int offset, int length, CancellationToken cancellationToken)
+		public static async Task<Stream> ReadBlobAsync(this IComputeMessageChannel channel, BlobLocator locator, int offset, int length, CancellationToken cancellationToken)
 		{
-			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.ReadBlob))
+			using (IComputeMessageBuilder request = channel.CreateMessage(ComputeMessageType.ReadBlob))
 			{
-				writer.WriteBlobLocator(locator);
-				writer.WriteUnsignedVarInt(offset);
-				writer.WriteUnsignedVarInt(length);
-				writer.Send();
+				request.WriteBlobLocator(locator);
+				request.WriteUnsignedVarInt(offset);
+				request.WriteUnsignedVarInt(length);
+				request.Send();
 			}
 
 			IComputeMessage response = await channel.ReceiveAsync(cancellationToken);
@@ -508,7 +557,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="message">The read request</param>
 		/// <param name="storage">Storage client to retrieve the blob from</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static Task SendBlobDataAsync(this IComputeChannel channel, ReadBlobMessage message, IStorageClient storage, CancellationToken cancellationToken)
+		public static Task SendBlobDataAsync(this IComputeMessageChannel channel, ReadBlobMessage message, IStorageClient storage, CancellationToken cancellationToken)
 		{
 			return SendBlobDataAsync(channel, message.Locator, message.Offset, message.Length, storage, cancellationToken);
 		}
@@ -522,7 +571,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="length">Length of the data</param>
 		/// <param name="storage">Storage client to retrieve the blob from</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task SendBlobDataAsync(this IComputeChannel channel, BlobLocator locator, int offset, int length, IStorageClient storage, CancellationToken cancellationToken)
+		public static async Task SendBlobDataAsync(this IComputeMessageChannel channel, BlobLocator locator, int offset, int length, IStorageClient storage, CancellationToken cancellationToken)
 		{
 			byte[] data;
 			if (offset == 0 && length == 0)
@@ -544,114 +593,11 @@ namespace EpicGames.Horde.Compute
 				}
 			}
 
-			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.ReadBlobResponse, length + 128))
+			using (IComputeMessageBuilder response = channel.CreateMessage(ComputeMessageType.ReadBlobResponse, data.Length + 128))
 			{
-				writer.WriteFixedLengthBytes(data);
-				writer.Send();
+				response.WriteFixedLengthBytes(data);
+				response.Send();
 			}
-		}
-
-		#endregion
-
-		#region Child process
-
-		/// <summary>
-		/// Wrapper around the lifetime of an <see cref="IpcBuffer"/> which only exposes the writer interface
-		/// </summary>
-		class WrappedBufferWriter : IComputeBufferWriter
-		{
-			readonly IpcBuffer _buffer;
-
-			public WrappedBufferWriter(IpcBuffer buffer) => _buffer = buffer;
-
-			public void Dispose() => _buffer.Dispose();
-
-			public void Advance(int size) => _buffer.Writer.Advance(size);
-
-			public ValueTask FlushAsync(CancellationToken cancellationToken) => _buffer.Writer.FlushAsync(cancellationToken);
-
-			public Memory<byte> GetMemory() => _buffer.Writer.GetMemory();
-
-			public void MarkComplete() => _buffer.Writer.MarkComplete();
-		}
-
-		/// <summary>
-		/// Creates a buffer which can be used to send data to the remote
-		/// </summary>
-		/// <param name="channel">Channel to write to</param>
-		/// <param name="id">Identifier for the new buffer</param>
-		/// <param name="capacity">Capacity of the buffer</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>New compute buffer</returns>
-		public static async Task<IComputeBufferWriter> CreateSendBufferAsync(this IComputeChannel channel, int id, long capacity, CancellationToken cancellationToken)
-		{
-			IpcBuffer buffer = await CreateBufferAsync(channel, id, capacity, true, cancellationToken);
-			return new WrappedBufferWriter(buffer);
-		}
-
-		/// <summary>
-		/// Wrapper around the lifetime of an <see cref="IpcBuffer"/> which only exposes the reader interface
-		/// </summary>
-		class WrappedBufferReader : IComputeBufferReader
-		{
-			readonly IpcBuffer _buffer;
-
-			public WrappedBufferReader(IpcBuffer buffer) => _buffer = buffer;
-
-			public void Dispose() => _buffer.Dispose();
-
-			public bool IsComplete => _buffer.Reader.IsComplete;
-
-			public void Advance(int size) => _buffer.Reader.Advance(size);
-
-			public ReadOnlyMemory<byte> GetMemory() => _buffer.Reader.GetMemory();
-
-			public ValueTask WaitAsync(int currentLength, CancellationToken cancellationToken) => _buffer.Reader.WaitAsync(currentLength, cancellationToken);
-		}
-
-		/// <summary>
-		/// Creates a buffer which can be used to receive data from the remote
-		/// </summary>
-		/// <param name="channel">Channel to write to</param>
-		/// <param name="id">Identifier for the new buffer</param>
-		/// <param name="capacity">Capacity of the buffer</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>New compute buffer</returns>
-		public static async Task<IComputeBufferReader> CreateReceiveBufferAsync(this IComputeChannel channel, int id, long capacity, CancellationToken cancellationToken)
-		{
-			IpcBuffer buffer = await CreateBufferAsync(channel, id, capacity, false, cancellationToken);
-			return new WrappedBufferReader(buffer);
-		}
-
-		static async Task<IpcBuffer> CreateBufferAsync(this IComputeChannel channel, int id, long capacity, bool send, CancellationToken cancellationToken)
-		{
-			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.CreateBufferRequest))
-			{
-				builder.WriteInt32(id);
-				builder.WriteInt64(capacity);
-				builder.WriteBoolean(send);
-				builder.Send();
-			}
-
-			using IComputeMessage response = await channel.ReceiveAsync(cancellationToken);
-			if (response.Type != ComputeMessageType.CreateBufferResponse)
-			{
-				throw new NotSupportedException();
-			}
-
-			string handle = response.ReadString();
-			return IpcBuffer.OpenExisting(handle);
-		}
-
-		/// <summary>
-		/// Parse a <see cref="CreateBufferRequest"/> message
-		/// </summary>
-		public static CreateBufferRequest ParseCreateBufferRequest(this IComputeMessage message)
-		{
-			int channelId = message.ReadInt32();
-			long capacity = message.ReadInt64();
-			bool send = message.ReadBoolean();
-			return new CreateBufferRequest(channelId, capacity, send);
 		}
 
 		#endregion
@@ -661,14 +607,12 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Send a message to request that a byte string be xor'ed with a particular value
 		/// </summary>
-		public static void XorRequest(this IComputeChannel channel, ReadOnlyMemory<byte> data, byte value)
+		public static void SendXorRequest(this IComputeMessageChannel channel, ReadOnlyMemory<byte> data, byte value)
 		{
-			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.XorRequest))
-			{
-				builder.WriteFixedLengthBytes(data.Span);
-				builder.WriteUInt8(value);
-				builder.Send();
-			}
+			using IComputeMessageBuilder message = channel.CreateMessage(ComputeMessageType.XorRequest);
+			message.WriteFixedLengthBytes(data.Span);
+			message.WriteUInt8(value);
+			message.Send();
 		}
 
 		/// <summary>

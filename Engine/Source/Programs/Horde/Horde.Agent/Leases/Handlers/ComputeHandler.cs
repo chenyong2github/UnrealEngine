@@ -29,19 +29,17 @@ namespace Horde.Agent.Leases.Handlers
 		readonly ComputeListenerService _listenerService;
 		readonly IMemoryCache _memoryCache;
 		readonly DirectoryReference _sandboxDir;
-		readonly ILoggerFactory _loggerFactory;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeHandler(ComputeListenerService listenerService, IMemoryCache memoryCache, ILoggerFactory loggerFactory)
+		public ComputeHandler(ComputeListenerService listenerService, IMemoryCache memoryCache, ILogger<ComputeHandler> logger)
 		{
 			_listenerService = listenerService;
 			_memoryCache = memoryCache;
 			_sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox");
-			_loggerFactory = loggerFactory;
-			_logger = loggerFactory.CreateLogger<ComputeHandler>();
+			_logger = logger;
 		}
 
 		/// <inheritdoc/>
@@ -61,7 +59,7 @@ namespace Horde.Agent.Leases.Handlers
 					return LeaseResult.Success;
 				}
 
-				await using (ComputeSocket socket = new ComputeSocket(new TcpTransport(tcpClient.Client), _loggerFactory))
+				await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpClient.Client), _logger))
 				{
 					await RunAsync(socket, cancellationToken);
 					await socket.CloseAsync(cancellationToken);
@@ -86,7 +84,7 @@ namespace Horde.Agent.Leases.Handlers
 
 		async Task RunAsync(IComputeSocket socket, int channelId, CancellationToken cancellationToken)
 		{
-			await using (IComputeChannel channel = socket.AttachMessageChannel(channelId))
+			await using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, 30 * 1024 * 1024, _logger))
 			{
 				List<Task> childTasks = new List<Task>();
 				for (; ; )
@@ -117,7 +115,7 @@ namespace Horde.Agent.Leases.Handlers
 								DeleteFiles(deleteFiles.Filter);
 							}
 							break;
-						case ComputeMessageType.ExecuteProcess:
+						case ComputeMessageType.Execute:
 							{
 								ExecuteProcessMessage executeProcess = message.ParseExecuteProcessMessage();
 								await ExecuteProcessAsync(socket, channel, executeProcess.Executable, executeProcess.Arguments, executeProcess.WorkingDir, executeProcess.EnvVars, cancellationToken);  
@@ -136,13 +134,11 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		static void RunXor(IComputeChannel channel, ReadOnlyMemory<byte> source, byte value)
+		static void RunXor(IComputeMessageChannel channel, ReadOnlyMemory<byte> source, byte value)
 		{
-			using (IComputeMessageBuilder writer = channel.CreateMessage(ComputeMessageType.XorResponse, source.Length))
-			{
-				XorData(source.Span, writer.GetSpanAndAdvance(source.Length), value);
-				writer.Send();
-			}
+			using IComputeMessageBuilder response = channel.CreateMessage(ComputeMessageType.XorResponse, source.Length);
+			XorData(source.Span, response.GetSpanAndAdvance(source.Length), value);
+			response.Send();
 		}
 
 		static void XorData(ReadOnlySpan<byte> source, Span<byte> target, byte value)
@@ -153,7 +149,7 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		async Task WriteFilesAsync(IComputeChannel channel, string path, NodeLocator locator, CancellationToken cancellationToken)
+		async Task WriteFilesAsync(IComputeMessageChannel channel, string path, NodeLocator locator, CancellationToken cancellationToken)
 		{
 			using ComputeStorageClient store = new ComputeStorageClient(channel);
 			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
@@ -168,9 +164,9 @@ namespace Horde.Agent.Leases.Handlers
 
 			await directoryNode.CopyToDirectoryAsync(reader, outputDir.ToDirectoryInfo(), _logger, cancellationToken);
 
-			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.WriteFilesResponse))
+			using (IComputeMessageBuilder message = channel.CreateMessage(ComputeMessageType.WriteFilesResponse))
 			{
-				builder.Send();
+				message.Send();
 			}
 		}
 
@@ -185,7 +181,7 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		async Task ExecuteProcessAsync(IComputeSocket socket, IComputeChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		async Task ExecuteProcessAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
@@ -197,10 +193,9 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
-			using IpcBuffer sendBuffer = IpcBuffer.CreateNew(16384); // Messages that we send to child process
-			using IpcBuffer receiveBuffer = IpcBuffer.CreateNew(16384); // Messages that child process sends to us
+			await using IpcComputeMessageChannel ipcChannel = new IpcComputeMessageChannel(4096, _logger);
 
 			Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
 			if (envVars != null)
@@ -211,40 +206,40 @@ namespace Horde.Agent.Leases.Handlers
 				}
 			}
 
-			newEnvVars[ComputeEnvVarNames.DefaultSendBuffer] = receiveBuffer.GetHandle(); // Note: opposite ends that we're sending/receiving to
-			newEnvVars[ComputeEnvVarNames.DefaultRecvBuffer] = sendBuffer.GetHandle();
+			newEnvVars[ComputeSocket.WorkerIpcEnvVar] = ipcChannel.GetStringHandle();
 
-			await using ComputeChannel controlChannel = new ComputeChannel(receiveBuffer.Reader, sendBuffer.Writer, _loggerFactory.CreateLogger<ComputeChannel>());
+			Task processTask = ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, newEnvVars, cancellationToken);
+			processTask = processTask.ContinueWith(x => ipcChannel.ForceComplete(), cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
 
-			Task processTask = ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, envVars, cancellationToken);
-			processTask = processTask.ContinueWith(x => receiveBuffer.Writer.MarkComplete(), cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
-
-			List<IpcBuffer> buffers = new List<IpcBuffer>();
+			List<IDisposable> buffers = new List<IDisposable>();
 			try
 			{
 				for (; ; )
 				{
-					using IComputeMessage message = await controlChannel.ReceiveAsync(cancellationToken);
+					using IComputeMessage message = await ipcChannel.ReceiveAsync(cancellationToken);
 					switch (message.Type)
 					{
 						case ComputeMessageType.None:
 							await processTask;
 							return;
-						case ComputeMessageType.CreateBufferRequest:
+						case ComputeMessageType.AttachRecvBuffer:
 							{
-								CreateBufferRequest createBuffer = message.ParseCreateBufferRequest();
-
-								IpcBuffer buffer = IpcBuffer.CreateNew(createBuffer.Capacity);
-								buffers.Add(buffer);
-
-								if (createBuffer.Send)
-								{
-									socket.AttachSendBuffer(createBuffer.ChannelId, buffer.Reader);
-								}
-								else
-								{
-									socket.AttachReceiveBuffer(createBuffer.ChannelId, buffer.Writer);
-								}
+								AttachRecvBufferRequest attachRecvBuffer = IpcComputeMessageChannel.ParseAttachRecvBuffer(message);
+#pragma warning disable CA2000 // Dispose objects before losing scope
+								(IComputeBufferReader reader, IComputeBufferWriter writer) = SharedMemoryBuffer.OpenIpcHandle(attachRecvBuffer.Handle).ToShared();
+								reader.Dispose();
+								socket.AttachRecvBuffer(attachRecvBuffer.ChannelId, writer);
+#pragma warning restore CA2000 // Dispose objects before losing scope
+							}
+							break;
+						case ComputeMessageType.AttachSendBuffer:
+							{
+								AttachSendBufferRequest attachSendBuffer = IpcComputeMessageChannel.ParseAttachSendBuffer(message);
+#pragma warning disable CA2000 // Dispose objects before losing scope
+								(IComputeBufferReader reader, IComputeBufferWriter writer) = SharedMemoryBuffer.OpenIpcHandle(attachSendBuffer.Handle).ToShared();
+								writer.Dispose();
+								socket.AttachSendBuffer(attachSendBuffer.ChannelId, reader);
+#pragma warning restore CA2000 // Dispose objects before losing scope
 							}
 							break;
 						default:
@@ -254,14 +249,14 @@ namespace Horde.Agent.Leases.Handlers
 			}
 			finally
 			{
-				foreach (IpcBuffer buffer in buffers)
+				foreach (SharedMemoryBuffer buffer in buffers)
 				{
 					buffer.Dispose();
 				}
 			}
 		}
 
-		async Task ExecuteProcessInternalAsync(IComputeChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		async Task ExecuteProcessInternalAsync(IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
 			string resolvedExecutable = FileReference.Combine(_sandboxDir, executable).FullName;
 			string resolvedCommandLine = CommandLineArguments.Join(arguments);
@@ -293,10 +288,10 @@ namespace Horde.Agent.Leases.Handlers
 						int length = await process.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
 						if (length == 0)
 						{
-							channel.SendExecuteProcessResponse(process.ExitCode);
+							channel.SendExecuteResult(process.ExitCode);
 							return;
 						}
-						channel.SendProcessOutput(buffer.AsMemory(0, length));
+						channel.SendExecuteOutput(buffer.AsMemory(0, length));
 					}
 				}
 			}

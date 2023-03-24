@@ -13,7 +13,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Implementation of a compute channel
 	/// </summary>
-	public class ComputeChannel : IComputeChannel, IAsyncDisposable
+	public class ComputeMessageChannel : IComputeMessageChannel, IAsyncDisposable
 	{
 		// Length of a message header. Consists of a 1 byte type field, followed by 4 byte length field.
 		const int HeaderLength = 5;
@@ -59,7 +59,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		class MessageBuilder : IComputeMessageBuilder
 		{
-			readonly ComputeChannel _channel;
+			readonly ComputeMessageChannel _channel;
 			readonly IComputeBufferWriter _sendBufferWriter;
 			readonly ComputeMessageType _type;
 			int _length;
@@ -67,7 +67,7 @@ namespace EpicGames.Horde.Compute
 			/// <inheritdoc/>
 			public int Length => _length;
 
-			public MessageBuilder(ComputeChannel channel, IComputeBufferWriter sendBufferWriter, ComputeMessageType type)
+			public MessageBuilder(ComputeMessageChannel channel, IComputeBufferWriter sendBufferWriter, ComputeMessageType type)
 			{
 				_channel = channel;
 				_sendBufferWriter = sendBufferWriter;
@@ -110,6 +110,8 @@ namespace EpicGames.Horde.Compute
 
 		readonly IComputeBufferReader _receiveBufferReader;
 		readonly IComputeBufferWriter _sendBufferWriter;
+
+		// Can lock chunked memory writer to acuqire pointer
 		readonly ILogger _logger;
 
 #pragma warning disable CA2213
@@ -122,7 +124,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="receiveBufferReader">Reader for incoming messages</param>
 		/// <param name="sendBufferWriter">Writer for outgoing messages</param>
 		/// <param name="logger">Logger for diagnostic output</param>
-		public ComputeChannel(IComputeBufferReader receiveBufferReader, IComputeBufferWriter sendBufferWriter, ILogger logger)
+		public ComputeMessageChannel(IComputeBufferReader receiveBufferReader, IComputeBufferWriter sendBufferWriter, ILogger logger)
 		{
 			_receiveBufferReader = receiveBufferReader;
 			_sendBufferWriter = sendBufferWriter;
@@ -144,6 +146,7 @@ namespace EpicGames.Horde.Compute
 			_currentBuilder?.Dispose();
 			_sendBufferWriter.MarkComplete();
 			await _sendBufferWriter.FlushAsync(CancellationToken.None);
+			_sendBufferWriter.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -167,7 +170,7 @@ namespace EpicGames.Horde.Compute
 						return message;
 					}
 				}
-				await _receiveBufferReader.WaitAsync(memory.Length, cancellationToken);
+				await _receiveBufferReader.WaitForDataAsync(memory.Length, cancellationToken);
 			}
 			return new Message(ComputeMessageType.None, ReadOnlyMemory<byte>.Empty);
 		}
@@ -183,11 +186,11 @@ namespace EpicGames.Horde.Compute
 			{
 				bytes.Append("..");
 			}
-			_logger.LogTrace("{Verb} {Type,-22} [{Length,8:n0}] = {Bytes}", verb, type, data.Length, bytes.ToString());
+			_logger.LogTrace("{Verb} {Type,-22} [{Length,10:n0}] = {Bytes}", verb, type, data.Length, bytes.ToString());
 		}
 
 		/// <inheritdoc/>
-		public IComputeMessageBuilder CreateMessage(ComputeMessageType type, int sizeHint = 0)
+		public IComputeMessageBuilder CreateMessage(ComputeMessageType type, int maxSize)
 		{
 			if (_currentBuilder != null)
 			{

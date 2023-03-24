@@ -2,6 +2,8 @@
 
 using System;
 using System.Diagnostics;
+using System.IO.Pipelines;
+using System.IO.Pipes;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -9,6 +11,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Compute.Buffers;
+using EpicGames.Horde.Compute.Transports;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.VisualStudio.TestPlatform.CrossPlatEngine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace EpicGames.Horde.Tests
@@ -17,33 +22,38 @@ namespace EpicGames.Horde.Tests
 	public class BufferTests
 	{
 		[TestMethod]
-		public async Task TestHeapBuffer()
+		public async Task TestPooledBuffer()
 		{
-			using HeapBuffer buffer = new HeapBuffer(8000);
-			await TestProducerConsumerAsync(buffer.Writer, buffer.Reader);
+			await TestProducerConsumerAsync(length => new PooledBuffer(length));
 		}
 
 		[TestMethod]
-		public async Task TestIpcBuffer()
+		public async Task TestSharedMemoryBuffer()
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				using IpcBuffer buffer1 = IpcBuffer.CreateNew(16384);
-				string info = buffer1.DuplicateIntoProcess(Process.GetCurrentProcess().Handle);
-				using IpcBuffer buffer2 = IpcBuffer.OpenExisting(info);
-				await TestProducerConsumerAsync(buffer1.Writer, buffer2.Reader);
+				await TestProducerConsumerAsync(length => new SharedMemoryBuffer(length));
 			}
 		}
 
-		static async Task TestProducerConsumerAsync(IComputeBufferWriter writer, IComputeBufferReader reader)
+		static async Task TestProducerConsumerAsync(Func<int, IComputeBuffer> createBuffer)
 		{
 			const int Length = 8000;
 
+			Pipe sourceToTargetPipe = new Pipe();
+			Pipe targetToSourcePipe = new Pipe();
+
+			await using IComputeSocket sourceSocket = new ClientComputeSocket(new PipeTransport(targetToSourcePipe.Reader, sourceToTargetPipe.Writer), NullLogger.Instance);
+			await using IComputeSocket targetSocket = new ClientComputeSocket(new PipeTransport(sourceToTargetPipe.Reader, targetToSourcePipe.Writer), NullLogger.Instance);
+
+			using IComputeBufferWriter sourceWriter = sourceSocket.AttachSendBuffer(0, createBuffer(Length));
+			using IComputeBufferReader targetReader = targetSocket.AttachRecvBuffer(0, createBuffer(Length));
+
 			byte[] input = RandomNumberGenerator.GetBytes(Length);
-			Task producerTask = RunProducerAsync(writer, input);
+			Task producerTask = RunProducerAsync(sourceWriter, input);
 
 			byte[] output = new byte[Length];
-			await RunConsumerAsync(reader, output);
+			await RunConsumerAsync(targetReader, output);
 
 			await producerTask;
 			Assert.IsTrue(input.SequenceEqual(output));
@@ -72,7 +82,7 @@ namespace EpicGames.Horde.Tests
 				int length = Math.Min(memory.Length, 7);
 				memory.Slice(0, length).CopyTo(output.Slice(offset));
 				reader.Advance(length);
-				await reader.WaitAsync(memory.Length - length, CancellationToken.None);
+				await reader.WaitForDataAsync(memory.Length - length, CancellationToken.None);
 				offset += length;
 			}
 		}

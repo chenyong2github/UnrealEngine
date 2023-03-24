@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Threading;
@@ -42,15 +43,15 @@ namespace EpicGames.Horde.Compute.Clients
 		readonly HttpClient? _defaultHttpClient;
 		readonly Func<HttpClient> _createHttpClient;
 		readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
-		readonly ILoggerFactory _loggerFactory;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="serverUri">Uri of the server to connect to</param>
-		/// <param name="loggerFactory">Logger for diagnostic messages</param>
-		public ServerComputeClient(Uri serverUri, ILoggerFactory loggerFactory)
+		/// <param name="authHeader">Authentication header</param>
+		/// <param name="logger">Logger for diagnostic messages</param>
+		public ServerComputeClient(Uri serverUri, AuthenticationHeaderValue? authHeader, ILogger logger)
 		{
 #pragma warning disable CA2000 // Dispose objects before losing scope
 			// This is disposed via HttpClient
@@ -59,23 +60,22 @@ namespace EpicGames.Horde.Compute.Clients
 
 			_defaultHttpClient = new HttpClient(handler, true);
 			_defaultHttpClient.BaseAddress = serverUri;
+			_defaultHttpClient.DefaultRequestHeaders.Authorization = authHeader;
 #pragma warning restore CA2000 // Dispose objects before losing scope
 
 			_createHttpClient = GetDefaultHttpClient;
-			_loggerFactory = loggerFactory;
-			_logger = loggerFactory.CreateLogger<ServerComputeClient>();
+			_logger = logger;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="createHttpClient">Creates an HTTP client with the correct base address for the server</param>
-		/// <param name="loggerFactory">Logger for diagnostic messages</param>
-		public ServerComputeClient(Func<HttpClient> createHttpClient, ILoggerFactory loggerFactory)
+		/// <param name="logger">Logger for diagnostic messages</param>
+		public ServerComputeClient(Func<HttpClient> createHttpClient, ILogger logger)
 		{
 			_createHttpClient = createHttpClient;
-			_loggerFactory = loggerFactory;
-			_logger = loggerFactory.CreateLogger<ServerComputeClient>();
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -134,7 +134,7 @@ namespace EpicGames.Horde.Compute.Clients
 			// Pass the rest of the call over to the handler
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
-			await using ComputeSocket computeSocket = new ComputeSocket(new TcpTransport(socket), _loggerFactory);
+			await using ClientComputeSocket computeSocket = new ClientComputeSocket(new TcpTransport(socket), _logger);
 			await using ComputeLease lease = new ComputeLease(responseMessage.Properties, responseMessage.AssignedResources, computeSocket);
 			return await handler(lease, cancellationToken);
 		}

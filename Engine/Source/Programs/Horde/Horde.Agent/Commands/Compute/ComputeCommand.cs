@@ -10,7 +10,6 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.EC2.Model;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Horde.Compute;
@@ -20,7 +19,6 @@ using Horde.Agent.Leases.Handlers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Polly;
 
 namespace Horde.Agent.Commands.Compute
 {
@@ -52,7 +50,7 @@ namespace Horde.Agent.Commands.Compute
 		/// <inheritdoc/>
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			await using IComputeClient client = CreateClient();
+			await using IComputeClient client = CreateClient(_serviceProvider.GetRequiredService<ILogger<IComputeClient>>());
 
 			Requirements? requirements = null;
 			if (Requirements != null)
@@ -73,20 +71,19 @@ namespace Horde.Agent.Commands.Compute
 		/// <returns></returns>
 		protected abstract Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken);
 
-		IComputeClient CreateClient()
+		IComputeClient CreateClient(ILogger logger)
 		{
-			ILoggerFactory loggerFactory = _serviceProvider.GetRequiredService<ILoggerFactory>();
 			if (Local)
 			{
-				return new LocalComputeClient((socket, ctx) => ComputeWorkerCommand.RunWorkerAsync(socket, _serviceProvider, ctx), 2000, loggerFactory);
+				return new LocalComputeClient((socket, ctx) => ComputeWorkerCommand.RunWorkerAsync(socket, _serviceProvider, ctx), 2000, logger);
 			}
 			else if (Loopback)
 			{
-				return new LoopbackComputeClient(2000, loggerFactory);
+				return new LoopbackComputeClient(2000, logger);
 			}
 			else
 			{
-				return new ServerComputeClient(CreateHttpClient, loggerFactory);
+				return new ServerComputeClient(CreateHttpClient, logger);
 			}
 		}
 
@@ -103,20 +100,19 @@ namespace Horde.Agent.Commands.Compute
 		class LoopbackComputeClient : IComputeClient
 		{
 			readonly int _port;
-			readonly ILoggerFactory _loggerFactory;
+			readonly ILogger _logger;
 
-			public LoopbackComputeClient(int port, ILoggerFactory loggerFactory)
+			public LoopbackComputeClient(int port, ILogger logger)
 			{
 				_port = port;
-				_loggerFactory = loggerFactory;
+				_logger = logger;
 			}
 
 			public ValueTask DisposeAsync() => new ValueTask();
 
 			public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 			{
-				ILogger logger = _loggerFactory.CreateLogger<LoopbackComputeClient>();
-				logger.LogInformation("** INITIATOR **");
+				_logger.LogInformation("** CLIENT **");
 
 				TResult result;
 				using (Socket listener = new Socket(SocketType.Stream, ProtocolType.IP))
@@ -158,7 +154,7 @@ namespace Horde.Agent.Commands.Compute
 				TResult result;
 				using (Socket tcpSocket = await listener.AcceptAsync(cancellationToken))
 				{
-					await using (ComputeSocket socket = new ComputeSocket(new TcpTransport(tcpSocket), _loggerFactory))
+					await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpSocket), _logger))
 					{
 						await using ComputeLease lease = new ComputeLease(new List<string>(), new Dictionary<string, int>(), socket);
 						result = await handler(lease, cancellationToken);
@@ -190,12 +186,10 @@ namespace Horde.Agent.Commands.Compute
 		{
 			logger.LogInformation("** WORKER **");
 
-			ILoggerFactory loggerFactory = _serviceProvider.GetRequiredService<ILoggerFactory>();
-
 			using Socket tcpSocket = new Socket(SocketType.Stream, ProtocolType.IP);
 			await tcpSocket.ConnectAsync(IPAddress.Loopback, Port);
 
-			await using (ComputeSocket socket = new ComputeSocket(new TcpTransport(tcpSocket), loggerFactory))
+			await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpSocket), logger))
 			{
 				logger.LogInformation("Running worker...");
 				await RunWorkerAsync(socket, _serviceProvider, CancellationToken.None);

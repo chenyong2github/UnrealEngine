@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
-using EpicGames.Horde.Compute.Buffers;
+using System.Globalization;
+using EpicGames.Horde.Compute.Sockets;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Compute
 {
@@ -13,88 +13,137 @@ namespace EpicGames.Horde.Compute
 	public interface IComputeSocket : IAsyncDisposable
 	{
 		/// <summary>
-		/// Attaches buffers to a channel.
+		/// Creates a new buffer of the given capacity, suitable for this socket type
 		/// </summary>
-		/// <param name="channelId">Identifier of the channel</param>
-		/// <param name="sendBufferReader">The reader to attach</param>
-		/// <param name="receiveBufferWriter">The writer to attach</param>
-		/// <returns>Identifier for the message channel</returns>
-		void AttachBuffers(int channelId, IComputeBufferReader? sendBufferReader, IComputeBufferWriter? receiveBufferWriter);
+		/// <param name="capacity">Capacity of the buffer</param>
+		IComputeBuffer CreateBuffer(long capacity);
 
 		/// <summary>
-		/// Creates a channel to receive data on the given channel id
+		/// Attaches a buffer to receive data.
 		/// </summary>
-		/// <param name="channelId">Identifier of the channel</param>
-		/// <param name="sendBuffer">Buffer for sending messages</param>
-		/// <param name="receiveBuffer">Buffer for receiving messages</param>
-		IComputeChannel AttachMessageChannel(int channelId, IComputeBuffer sendBuffer, IComputeBuffer receiveBuffer);
+		/// <param name="channelId">Channel to receive data on</param>
+		/// <param name="writer">Writer for the received data</param>
+		void AttachRecvBuffer(int channelId, IComputeBufferWriter writer);
+
+		/// <summary>
+		/// Attaches a buffer to receive data.
+		/// </summary>
+		/// <param name="channelId">Channel to receive data on</param>
+		/// <param name="reader">Reader for incoming data</param>
+		void AttachSendBuffer(int channelId, IComputeBufferReader reader);
 	}
 
 	/// <summary>
-	/// Extension methods for sockets
+	/// Utility methods for creating sockets
+	/// </summary>
+	public static class ComputeSocket
+	{
+		/// <summary>
+		/// Environment variable for channel info for communicating with the worker process
+		/// </summary>
+		public const string WorkerIpcEnvVar = "UE_HORDE_COMPUTE_IPC";
+
+		/// <summary>
+		/// Creates a socket for a worker
+		/// </summary>
+		/// <param name="logger">Logger for diagnostic messages</param>
+		public static IComputeSocket ConnectAsWorker(ILogger logger)
+		{
+			string? handle = Environment.GetEnvironmentVariable(WorkerIpcEnvVar);
+			if (handle == null)
+			{
+				throw new InvalidOperationException($"Environment variable {WorkerIpcEnvVar} is not defined; cannot connect as worker.");
+			}
+
+			try
+			{
+				IpcComputeMessageChannel channel = IpcComputeMessageChannel.FromStringHandle(handle, logger);
+				return new WorkerComputeSocket(channel, logger);
+			}
+			catch(Exception ex)
+			{
+				throw new Exception($"While connecting using '{handle}'", ex);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for <see cref="IComputeMessageChannel"/>
 	/// </summary>
 	public static class ComputeSocketExtensions
 	{
-		class HeapBufferChannel : IComputeChannel
+		/// <summary>
+		/// Attaches a buffer to receive data.
+		/// </summary>
+		/// <param name="socket">Socket to attach to</param>
+		/// <param name="channelId">Channel to receive data on</param>
+		/// <param name="capacity">Capacity for the buffer</param>
+		public static IComputeBufferReader AttachRecvBuffer(this IComputeSocket socket, int channelId, long capacity) => AttachRecvBuffer(socket, channelId, socket.CreateBuffer(capacity));
+
+		/// <summary>
+		/// Attaches a buffer to receive data.
+		/// </summary>
+		/// <param name="socket">Socket to attach to</param>
+		/// <param name="channelId">Channel to receive data on</param>
+		/// <param name="buffer">Buffer to attach to the socket</param>
+		public static IComputeBufferReader AttachRecvBuffer(this IComputeSocket socket, int channelId, IComputeBuffer buffer)
 		{
-			readonly IComputeChannel _inner;
-			readonly HeapBuffer _receiveBuffer;
-			readonly HeapBuffer _sendBuffer;
-
-			public HeapBufferChannel(IComputeChannel inner, HeapBuffer receiveBuffer, HeapBuffer sendBuffer)
-			{
-				_inner = inner;
-				_sendBuffer = sendBuffer;
-				_receiveBuffer = receiveBuffer;
-			}
-
-			/// <inheritdoc/>
-			public async ValueTask DisposeAsync()
-			{
-				await _inner.DisposeAsync();
-
-				_sendBuffer.Dispose();
-				_receiveBuffer.Dispose();
-			}
-
-			/// <inheritdoc/>
-			public ValueTask<IComputeMessage> ReceiveAsync(CancellationToken cancellationToken) => _inner.ReceiveAsync(cancellationToken);
-
-			/// <inheritdoc/>
-			public IComputeMessageBuilder CreateMessage(ComputeMessageType type, int sizeHint = 0) => _inner.CreateMessage(type, sizeHint);
+			(IComputeBufferReader reader, IComputeBufferWriter writer) = buffer.ToShared();
+			socket.AttachRecvBuffer(channelId, writer);
+			return reader;
 		}
 
 		/// <summary>
-		/// Creates a channel to receive data on the given channel id
+		/// Attaches a buffer from which to send data.
 		/// </summary>
-		/// <param name="socket">Socket to attach a channel on</param>
-		/// <param name="channelId">Identifier of the channel</param>
-		public static IComputeChannel AttachMessageChannel(this IComputeSocket socket, int channelId)
+		/// <param name="socket">Socket to attach to</param>
+		/// <param name="channelId">Channel to receive data on</param>
+		/// <param name="capacity">Capacity for the buffer</param>
+		public static IComputeBufferWriter AttachSendBuffer(this IComputeSocket socket, int channelId, long capacity) => AttachSendBuffer(socket, channelId, socket.CreateBuffer(capacity));
+
+		/// <summary>
+		/// Attaches a buffer from which to send data.
+		/// </summary>
+		/// <param name="socket">Socket to attach to</param>
+		/// <param name="channelId">Channel to receive data on</param>
+		/// <param name="buffer">Buffer for the data to send</param>
+		public static IComputeBufferWriter AttachSendBuffer(this IComputeSocket socket, int channelId, IComputeBuffer buffer)
 		{
-			const int MaxMessageSize = 64 * 1024;
-			const int BufferSize = MaxMessageSize * 3;
-
-			HeapBuffer receiveBuffer = new HeapBuffer(BufferSize);
-			HeapBuffer sendBuffer = new HeapBuffer(BufferSize);
-
-			IComputeChannel inner = socket.AttachMessageChannel(channelId, sendBuffer, receiveBuffer);
-			return new HeapBufferChannel(inner, receiveBuffer, sendBuffer);
+			(IComputeBufferReader reader, IComputeBufferWriter writer) = buffer.ToShared();
+			socket.AttachSendBuffer(channelId, reader);
+			return writer;
 		}
 
 		/// <summary>
-		/// Attaches a send buffer to a socket. Data will be read from this buffer and replicated a receive buffer attached with the same id on the remote.
+		/// Creates a message channel with the given identifier
 		/// </summary>
-		/// <param name="socket">Socket to attach to</param>
-		/// <param name="channelId">Identifier for the buffer</param>
-		/// <param name="reader">Source to read from</param>
-		public static void AttachSendBuffer(this IComputeSocket socket, int channelId, IComputeBufferReader reader) => socket.AttachBuffers(channelId, reader, null);
+		/// <param name="socket">Socket to create a channel for</param>
+		/// <param name="channelId">Identifier for the channel</param>
+		/// <param name="logger">Logger for the channel</param>
+		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, ILogger logger) => socket.CreateMessageChannel(channelId, 65536, logger);
 
 		/// <summary>
-		/// Attaches a receive buffer to a socket. Data will be read into this buffer from the other end of the lease.
+		/// Creates a message channel with the given identifier
 		/// </summary>
-		/// <param name="socket">Socket to attach to</param>
-		/// <param name="channelId">Identifier for the buffer</param>
-		/// <param name="writer">The buffer to attach</param>
-		public static void AttachReceiveBuffer(this IComputeSocket socket, int channelId, IComputeBufferWriter writer) => socket.AttachBuffers(channelId, null, writer);
+		/// <param name="socket">Socket to create a channel for</param>
+		/// <param name="channelId">Identifier for the channel</param>
+		/// <param name="bufferSize">Size of the send and receive buffer</param>
+		/// <param name="logger">Logger for the channel</param>
+		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, long bufferSize, ILogger logger) => CreateMessageChannel(socket, channelId, bufferSize, bufferSize, logger);
+
+		/// <summary>
+		/// Creates a message channel with the given identifier
+		/// </summary>
+		/// <param name="socket">Socket to create a channel for</param>
+		/// <param name="channelId">Identifier for the channel</param>
+		/// <param name="sendBufferSize">Size of the send buffer</param>
+		/// <param name="recvBufferSize">Size of the recieve buffer</param>
+		/// <param name="logger">Logger for the channel</param>
+		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, long sendBufferSize, long recvBufferSize, ILogger logger)
+		{
+			IComputeBufferReader reader = socket.AttachRecvBuffer(channelId, recvBufferSize);
+			IComputeBufferWriter writer = socket.AttachSendBuffer(channelId, sendBufferSize);
+			return new ComputeMessageChannel(reader, writer, logger);
+		}
 	}
 }

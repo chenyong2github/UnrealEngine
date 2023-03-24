@@ -13,22 +13,21 @@ using Microsoft.Extensions.Logging;
 namespace EpicGames.Horde.Compute
 {
 	/// <summary>
-	/// Implementation of a compute lease using sockets to transfer data
+	/// Manages a set of readers and writers to buffers across a transport layer
 	/// </summary>
-	public sealed class ComputeSocket : IComputeSocket, IAsyncDisposable
+	public abstract class ComputeSocketBase : IComputeSocket, IAsyncDisposable
 	{
 		readonly object _lockObject = new object();
-		
+
 		bool _complete;
 
 		readonly IComputeTransport _transport;
-		readonly ILoggerFactory _loggerFactory;
 		readonly ILogger _logger;
 		readonly Task _readTask;
 		CancellationTokenSource _cancellationSource = new CancellationTokenSource();
 
 		readonly Dictionary<int, IComputeBufferWriter> _receiveBuffers = new Dictionary<int, IComputeBufferWriter>();
-		readonly AsyncEvent _receiveBuffersChangedEvent = new AsyncEvent();
+		readonly AsyncEvent _recvBufferWritersChangedEvent = new AsyncEvent();
 
 		readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1, 1);
 		readonly Dictionary<int, IComputeBufferReader> _sendBuffers = new Dictionary<int, IComputeBufferReader>();
@@ -38,12 +37,11 @@ namespace EpicGames.Horde.Compute
 		/// Constructor
 		/// </summary>
 		/// <param name="transport">Transport to communicate with the remote</param>
-		/// <param name="loggerFactory">Logger for trace output</param>
-		public ComputeSocket(IComputeTransport transport, ILoggerFactory loggerFactory)
+		/// <param name="logger">Logger for trace output</param>
+		protected ComputeSocketBase(IComputeTransport transport, ILogger logger)
 		{
 			_transport = transport;
-			_loggerFactory = loggerFactory;
-			_logger = loggerFactory.CreateLogger<ComputeSocket>();
+			_logger = logger;
 			_readTask = RunReaderAsync(transport, _cancellationSource.Token);
 		}
 
@@ -72,7 +70,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask DisposeAsync()
+		public virtual async ValueTask DisposeAsync()
 		{
 			if (_cancellationSource != null)
 			{
@@ -86,6 +84,7 @@ namespace EpicGames.Horde.Compute
 			}
 
 			_sendSemaphore.Dispose();
+			GC.SuppressFinalize(this);
 		}
 
 		async Task RunReaderAsync(IComputeTransport transport, CancellationToken cancellationToken)
@@ -98,12 +97,13 @@ namespace EpicGames.Horde.Compute
 				// Maintain a local cache of buffers to be able to query for them without having to acquire a global lock
 				Dictionary<int, IComputeBufferWriter> cachedWriters = new Dictionary<int, IComputeBufferWriter>();
 
+				Memory<byte> last = Memory<byte>.Empty;
+
 				// Process messages from the remote
 				for (; ; )
 				{
 					// Read the next packet header
-					int bytesRead = await transport.ReadAsync(header, cancellationToken);
-					if (bytesRead == 0)
+					if (!await transport.ReadOptionalAsync(header, cancellationToken))
 					{
 						_logger.LogTrace("End of socket");
 						break;
@@ -112,7 +112,6 @@ namespace EpicGames.Horde.Compute
 					// Parse the target buffer and packet size
 					int id = BinaryPrimitives.ReadInt32LittleEndian(header);
 					int size = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(4));
-					_logger.LogTrace("Read {ChannelId} -> {Size} bytes", id, size);
 
 					// If the size if negative, we're closing the entire connection
 					if (size == 0)
@@ -125,12 +124,12 @@ namespace EpicGames.Horde.Compute
 					if (size < 0)
 					{
 						_logger.LogTrace("Detaching buffer {Id}", id);
-						DetachReceiveBuffer(cachedWriters, id);
+						DetachRecvBufferWriter(cachedWriters, id);
 					}
 					else
 					{
 						IComputeBufferWriter writer = await GetReceiveBufferAsync(cachedWriters, id);
-						await transport.ReadAsync(writer.GetMemory().Slice(0, size), cancellationToken);
+						await transport.ReadFullAsync(writer.GetMemory().Slice(0, size), cancellationToken);
 						writer.Advance(size);
 					}
 				}
@@ -174,7 +173,7 @@ namespace EpicGames.Horde.Compute
 						cachedWriters.Add(id, writer);
 						return writer;
 					}
-					waitTask = _receiveBuffersChangedEvent.Task;
+					waitTask = _recvBufferWritersChangedEvent.Task;
 				}
 
 				timer ??= Stopwatch.StartNew();
@@ -217,7 +216,7 @@ namespace EpicGames.Horde.Compute
 			for (; ; )
 			{
 				// Wait for something to read
-				await reader.WaitAsync(0, cancellationToken);
+				await reader.WaitForDataAsync(0, cancellationToken);
 
 				// Acquire the semaphore
 				await _sendSemaphore.WaitAsync(cancellationToken);
@@ -230,7 +229,6 @@ namespace EpicGames.Horde.Compute
 
 						bodySegment.Set(memory, null, header.Length);
 						ReadOnlySequence<byte> sequence = new ReadOnlySequence<byte>(headerSegment, 0, bodySegment, memory.Length);
-
 						await _transport.WriteAsync(sequence, cancellationToken);
 
 						reader.Advance(memory.Length);
@@ -257,44 +255,39 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public void AttachBuffers(int channelId, IComputeBufferReader? sendBufferReader, IComputeBufferWriter? receiveBufferWriter)
+		public abstract IComputeBuffer CreateBuffer(long capacity);
+
+		/// <summary>
+		/// Registers the write end of an attached receive buffer
+		/// </summary>
+		/// <param name="channelId">Channel id</param>
+		/// <param name="recvBufferWriter">Writer for the receive buffer</param>
+		public void AttachRecvBuffer(int channelId, IComputeBufferWriter recvBufferWriter)
 		{
 			bool complete;
 			lock (_lockObject)
 			{
 				complete = _complete;
-				if (sendBufferReader != null)
+				if (!complete)
 				{
-					_sendBuffers.Add(channelId, sendBufferReader);
-					_sendTasks.Add(channelId, Task.Run(() => SendFromBufferAsync(channelId, sendBufferReader, _cancellationSource.Token), _cancellationSource.Token));
-				}
-				if (receiveBufferWriter != null && !complete)
-				{
-					_receiveBuffers.Add(channelId, receiveBufferWriter);
+					_receiveBuffers.Add(channelId, recvBufferWriter);
 				}
 			}
 
-			if (receiveBufferWriter != null)
+			if (recvBufferWriter != null)
 			{
 				if (complete)
 				{
-					receiveBufferWriter.MarkComplete();
+					recvBufferWriter.MarkComplete();
 				}
 				else
 				{
-					_receiveBuffersChangedEvent.Set();
+					_recvBufferWritersChangedEvent.Set();
 				}
 			}
 		}
 
-		/// <inheritdoc/>
-		public IComputeChannel AttachMessageChannel(int channelId, IComputeBuffer sendBuffer, IComputeBuffer receiveBuffer)
-		{
-			AttachBuffers(channelId, sendBuffer.Reader, receiveBuffer.Writer);
-			return new ComputeChannel(receiveBuffer.Reader, sendBuffer.Writer, _loggerFactory.CreateLogger<ComputeChannel>());
-		}
-
-		void DetachReceiveBuffer(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
+		void DetachRecvBufferWriter(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
 		{
 			cachedWriters.Remove(id);
 
@@ -308,6 +301,21 @@ namespace EpicGames.Horde.Compute
 			if (writer != null)
 			{
 				writer.MarkComplete();
+				writer.Dispose();
+			}
+		}
+
+		/// <summary>
+		/// Registers the read end of an attached send buffer
+		/// </summary>
+		/// <param name="channelId">Channel id</param>
+		/// <param name="sendBufferReader">Writer for the receive buffer</param>
+		public void AttachSendBuffer(int channelId, IComputeBufferReader sendBufferReader)
+		{
+			lock (_lockObject)
+			{
+				_sendBuffers.Add(channelId, sendBufferReader);
+				_sendTasks.Add(channelId, Task.Run(() => SendFromBufferAsync(channelId, sendBufferReader, _cancellationSource.Token), _cancellationSource.Token));
 			}
 		}
 	}

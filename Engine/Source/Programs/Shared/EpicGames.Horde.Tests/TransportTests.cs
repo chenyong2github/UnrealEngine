@@ -74,7 +74,7 @@ namespace EpicGames.Horde.Tests
 
 				for (int offset = 0; offset < output.Length;)
 				{
-					offset += await aesTransport.ReadAsync(output.AsMemory(offset), CancellationToken.None);
+					offset += await aesTransport.ReadPartialAsync(output.AsMemory(offset), CancellationToken.None);
 				}
 			}
 
@@ -89,7 +89,7 @@ namespace EpicGames.Horde.Tests
 		{
 			for (int offset = 0; offset < buffer.Length;)
 			{
-				int size = await transport.ReadAsync(buffer.Slice(offset), CancellationToken.None);
+				int size = await transport.ReadPartialAsync(buffer.Slice(offset), CancellationToken.None);
 				Assert.IsTrue(size > 0);
 				offset += size;
 			}

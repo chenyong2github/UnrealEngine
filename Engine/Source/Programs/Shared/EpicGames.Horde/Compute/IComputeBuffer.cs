@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,21 +13,36 @@ namespace EpicGames.Horde.Compute
 	public interface IComputeBuffer : IDisposable
 	{
 		/// <summary>
-		/// Reader from the buffer
+		/// Total length of this buffer
+		/// </summary>
+		long Length { get; }
+
+		/// <summary>
+		/// Reader for this buffer
 		/// </summary>
 		IComputeBufferReader Reader { get; }
 
 		/// <summary>
-		/// Writer to the buffer
+		/// Writer for this buffer
 		/// </summary>
 		IComputeBufferWriter Writer { get; }
+
+		/// <summary>
+		/// Access the underlying memory for the buffer
+		/// </summary>
+		Memory<byte> GetMemory(long offset, int length);
 	}
 
 	/// <summary>
 	/// Read interface for a compute buffer
 	/// </summary>
-	public interface IComputeBufferReader
+	public interface IComputeBufferReader : IDisposable
 	{
+		/// <summary>
+		/// Accessor for the buffer this is reading from
+		/// </summary>
+		IComputeBuffer Buffer { get; }
+
 		/// <summary>
 		/// Whether this buffer is complete (no more data will be added)
 		/// </summary>
@@ -49,14 +65,19 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="currentLength">Current length of the buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask WaitAsync(int currentLength, CancellationToken cancellationToken);
+		ValueTask WaitForDataAsync(int currentLength, CancellationToken cancellationToken);
 	}
 
 	/// <summary>
 	/// Buffer that can receive data from a remote machine.
 	/// </summary>
-	public interface IComputeBufferWriter
+	public interface IComputeBufferWriter : IDisposable
 	{
+		/// <summary>
+		/// Accessor for the buffer we're writing to
+		/// </summary>
+		IComputeBuffer Buffer { get; }
+
 		/// <summary>
 		/// Mark the output to this buffer as complete
 		/// </summary>
@@ -81,18 +102,111 @@ namespace EpicGames.Horde.Compute
 	}
 
 	/// <summary>
-	/// Default environment variable names for compute channels
+	/// Extension methods for <see cref="IComputeBuffer"/>
 	/// </summary>
-	public static class ComputeEnvVarNames
+	public static class ComputeBufferExtensions
 	{
-		/// <summary>
-		/// Default name for a channel that can be used to send messages to the initiator
-		/// </summary>
-		public const string DefaultSendBuffer = "UE_HORDE_SEND_BUFFER";
+		sealed class RefCountedBuffer
+		{
+			int _refFlags = 1 | 2;
+
+			public IComputeBuffer Buffer { get; }
+
+			public RefCountedBuffer(IComputeBuffer buffer) => Buffer = buffer;
+
+			public void Release(int flag)
+			{
+				for (; ; )
+				{
+					int initialRefFlags = _refFlags;
+					if (Interlocked.CompareExchange(ref _refFlags, initialRefFlags & ~flag, initialRefFlags) != initialRefFlags)
+					{
+						continue;
+					}
+					if (initialRefFlags == flag)
+					{
+						Buffer.Dispose();
+					}
+					break;
+				}
+			}
+		}
+
+		class RefCountedReader : IComputeBufferReader
+		{
+			public readonly RefCountedBuffer _buffer;
+			public readonly IComputeBufferReader _reader;
+
+			public IComputeBuffer Buffer => _reader.Buffer;
+
+			public RefCountedReader(RefCountedBuffer refCountedBuffer)
+			{
+				_buffer = refCountedBuffer;
+				_reader = refCountedBuffer.Buffer.Reader;
+			}
+
+			public void Dispose() => _buffer.Release(1);
+			public bool IsComplete => _reader.IsComplete;
+			public void Advance(int size) => _reader.Advance(size);
+			public ReadOnlyMemory<byte> GetMemory() => _reader.GetMemory();
+			public ValueTask WaitForDataAsync(int currentLength, CancellationToken cancellationToken) => _reader.WaitForDataAsync(currentLength, cancellationToken);
+		}
+
+		class RefCountedWriter : IComputeBufferWriter
+		{
+			public readonly RefCountedBuffer _buffer;
+			public readonly IComputeBufferWriter _writer;
+
+			public IComputeBuffer Buffer => _writer.Buffer;
+
+			public RefCountedWriter(RefCountedBuffer refCountedBuffer)
+			{
+				_buffer = refCountedBuffer;
+				_writer = refCountedBuffer.Buffer.Writer;
+			}
+
+			public void Dispose() => _buffer.Release(2);
+			public void Advance(int size) => _writer.Advance(size);
+			public ValueTask FlushAsync(CancellationToken cancellationToken) => _writer.FlushAsync(cancellationToken);
+			public Memory<byte> GetMemory() => _writer.GetMemory();
+			public void MarkComplete() => _writer.MarkComplete();
+		}
 
 		/// <summary>
-		/// Default name for a channel that can be used to receive messages from the initiator
+		/// Converts a compute buffer to be disposable through its reader/writer 
 		/// </summary>
-		public const string DefaultRecvBuffer = "UE_HORDE_RECV_BUFFER";
+		/// <param name="buffer"></param>
+		/// <returns></returns>
+		public static (IComputeBufferReader, IComputeBufferWriter) ToShared(this IComputeBuffer buffer)
+		{
+			RefCountedBuffer refCountedBuffer = new RefCountedBuffer(buffer);
+			return (new RefCountedReader(refCountedBuffer), new RefCountedWriter(refCountedBuffer));
+		}
+
+		/// <summary>
+		/// Waits until there is a block of the certain size in the buffer, and returns it
+		/// </summary>
+		/// <param name="reader">Instance to read from</param>
+		/// <param name="minLength">Minimum length of the memory</param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async ValueTask<ReadOnlyMemory<byte>> GetMemoryAsync(this IComputeBufferReader reader, int minLength, CancellationToken cancellationToken)
+		{
+			for (; ; )
+			{
+				bool complete = reader.IsComplete;
+
+				ReadOnlyMemory<byte> memory = reader.GetMemory();
+				if (memory.Length >= minLength)
+				{
+					return memory;
+				}
+				else if (complete)
+				{
+					throw new EndOfStreamException();
+				}
+				await reader.WaitForDataAsync(memory.Length, cancellationToken);
+			}
+		}
 	}
 }

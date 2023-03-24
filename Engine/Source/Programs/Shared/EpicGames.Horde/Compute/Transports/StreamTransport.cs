@@ -15,6 +15,9 @@ namespace EpicGames.Horde.Compute.Transports
 	{
 		readonly Stream _stream;
 
+		/// <inheritdoc/>
+		public long Position { get; private set; }
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -22,7 +25,12 @@ namespace EpicGames.Horde.Compute.Transports
 		public StreamTransport(Stream stream) => _stream = stream;
 
 		/// <inheritdoc/>
-		public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken) => await _stream.ReadAsync(buffer, cancellationToken);
+		public async ValueTask<int> ReadPartialAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+		{
+			int length = await _stream.ReadAsync(buffer, cancellationToken);
+			Position += length;
+			return length;
+		}
 
 		/// <inheritdoc/>
 		public async ValueTask WriteAsync(ReadOnlySequence<byte> buffer, CancellationToken cancellationToken)
@@ -30,6 +38,7 @@ namespace EpicGames.Horde.Compute.Transports
 			foreach (ReadOnlyMemory<byte> memory in buffer)
 			{
 				await _stream.WriteAsync(memory, cancellationToken);
+				Position += memory.Length;
 			}
 		}
 	}

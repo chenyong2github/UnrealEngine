@@ -56,14 +56,14 @@ namespace Horde.Agent.Commands.Compute
 			NodeLocator sandbox = await CreateSandboxAsync(TaskFile, storage, cancellationToken);
 
 			// Open a socket and upload the sandbox
-			await using (IComputeChannel channel = lease.Socket.AttachMessageChannel(0))
+			await using (IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(0, 30 * 1024 * 1024, _logger))
 			{
 				await channel.UploadFilesAsync("", sandbox, storage, cancellationToken);
 
 				// Execute the program
 				using (LogParser parser = new LogParser(_logger, new List<string>()))
 				{
-					await channel.ExecuteProcessAsync(jsonComputeTask.Executable, jsonComputeTask.Arguments, jsonComputeTask.WorkingDir, jsonComputeTask.EnvVars, parser.WriteData, cancellationToken);
+					await channel.ExecuteAsync(jsonComputeTask.Executable, jsonComputeTask.Arguments, jsonComputeTask.WorkingDir, jsonComputeTask.EnvVars, parser.WriteData, cancellationToken);
 				}
 			}
 

@@ -13,30 +13,30 @@ using Microsoft.Extensions.Logging;
 namespace EpicGames.Horde.Compute.Clients
 {
 	/// <summary>
-	/// Implementation of <see cref="IComputeChannel"/> which marshals data over a loopback connection to a method running on a background task in the same process.
+	/// Implementation of <see cref="IComputeClient"/> which marshals data over a loopback connection to a method running on a background task in the same process.
 	/// </summary>
 	public sealed class LocalComputeClient : IComputeClient
 	{
 		readonly BackgroundTask _listenerTask;
 		readonly Socket _listener;
 		readonly Socket _socket;
-		readonly ILoggerFactory _loggerFactory;
+		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="serverFunc">Callback to process the server side of the connection</param>
 		/// <param name="port">Port to connect on</param>
-		/// <param name="loggerFactory">Logger for diagnostic output</param>
-		public LocalComputeClient(Func<IComputeSocket, CancellationToken, Task> serverFunc, int port, ILoggerFactory loggerFactory)
+		/// <param name="logger">Logger for diagnostic output</param>
+		public LocalComputeClient(Func<IComputeSocket, CancellationToken, Task> serverFunc, int port, ILogger logger)
 		{
-			_loggerFactory = loggerFactory;
+			_logger = logger;
 
 			_listener = new Socket(SocketType.Stream, ProtocolType.IP);
 			_listener.Bind(new IPEndPoint(IPAddress.Loopback, port));
 			_listener.Listen();
 
-			_listenerTask = BackgroundTask.StartNew(ctx => RunListenerAsync(_listener, serverFunc, loggerFactory, ctx));
+			_listenerTask = BackgroundTask.StartNew(ctx => RunListenerAsync(_listener, serverFunc, logger, ctx));
 
 			_socket = new Socket(SocketType.Stream, ProtocolType.IP);
 			_socket.Connect(IPAddress.Loopback, port);
@@ -53,11 +53,11 @@ namespace EpicGames.Horde.Compute.Clients
 		/// <summary>
 		/// Sets up the loopback listener and calls the server method
 		/// </summary>
-		static async Task RunListenerAsync(Socket listener, Func<IComputeSocket, CancellationToken, Task> serverFunc, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
+		static async Task RunListenerAsync(Socket listener, Func<IComputeSocket, CancellationToken, Task> serverFunc, ILogger logger, CancellationToken cancellationToken)
 		{
 			using Socket tcpSocket = await listener.AcceptAsync(cancellationToken);
 
-			await using (ComputeSocket socket = new ComputeSocket(new TcpTransport(tcpSocket), loggerFactory))
+			await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpSocket), logger))
 			{
 				await serverFunc(socket, cancellationToken);
 				await socket.CloseAsync(cancellationToken);
@@ -67,7 +67,7 @@ namespace EpicGames.Horde.Compute.Clients
 		/// <inheritdoc/>
 		public async Task<TResult> ExecuteAsync<TResult>(ClusterId clusterId, Requirements? requirements, Func<IComputeLease, CancellationToken, Task<TResult>> handler, CancellationToken cancellationToken)
 		{
-			await using ComputeSocket socket = new ComputeSocket(new TcpTransport(_socket), _loggerFactory);
+			await using ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(_socket), _logger);
 			await using ComputeLease lease = new ComputeLease(new List<string>(), new Dictionary<string, int>(), socket);
 			TResult result = await handler(lease, cancellationToken);
 			await socket.CloseAsync(cancellationToken);

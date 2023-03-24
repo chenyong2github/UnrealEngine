@@ -46,6 +46,9 @@ namespace EpicGames.Horde.Compute.Transports
 		const int WritePacketSize = 64 * 1024;
 		readonly BackgroundTask _backgroundReadTask;
 
+		/// <inheritdoc/>
+		public long Position { get; private set; }
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -97,7 +100,7 @@ namespace EpicGames.Horde.Compute.Transports
 			for (; ; )
 			{
 				// Read more data into the buffer
-				int read = await _inner.ReadAsync(memory.Slice(size), cancellationToken);
+				int read = await _inner.ReadPartialAsync(memory.Slice(size), cancellationToken);
 				if (read == 0)
 				{
 					break;
@@ -140,23 +143,15 @@ namespace EpicGames.Horde.Compute.Transports
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+		public async ValueTask<int> ReadPartialAsync(Memory<byte> buffer, CancellationToken cancellationToken)
 		{
 			int sizeRead = 0;
-			while (sizeRead < buffer.Length)
+			while (sizeRead == 0)
 			{
 				// Try to get more data into the read buffer
 				if (_readBuffer.Length == 0)
 				{
-					ReadResult result;
-					if (sizeRead == 0)
-					{
-						result = await _readPipe.Reader.ReadAsync(cancellationToken);
-					}
-					else if (!_readPipe.Reader.TryRead(out result) || result.IsCompleted)
-					{
-						return sizeRead;
-					}
+					ReadResult result = await _readPipe.Reader.ReadAsync(cancellationToken);
 					_readBuffer = result.Buffer;
 				}
 
@@ -166,6 +161,7 @@ namespace EpicGames.Horde.Compute.Transports
 				buffer = buffer.Slice(copySize);
 				_readBuffer = _readBuffer.Slice(copySize);
 				sizeRead += copySize;
+				Position += copySize;
 			}
 			return sizeRead;
 		}
@@ -185,6 +181,8 @@ namespace EpicGames.Horde.Compute.Transports
 
 				Memory<byte> writeBuffer = _writeBufferOwner.Memory.Slice(_writeBufferOffset, HeaderLength + plainText.Length + FooterLength);
 				Encrypt(plainText.Span, writeBuffer.Span);
+
+				Position += plainText.Length;
 
 				await _lastWriteTask;
 				_lastWriteTask = _inner.WriteAsync(writeBuffer, cancellationToken).AsTask();
