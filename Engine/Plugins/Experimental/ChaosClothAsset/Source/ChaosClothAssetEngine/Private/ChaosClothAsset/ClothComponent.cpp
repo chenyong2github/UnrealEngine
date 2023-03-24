@@ -369,3 +369,20 @@ bool UChaosClothComponent::ShouldWaitForParallelSimulationInTickComponent() cons
 
 	return bWaitForParallelTask || (CVarClothPhysicsWaitForParallelClothTask && CVarClothPhysicsWaitForParallelClothTask->GetBool());
 }
+
+void UChaosClothComponent::Pose(const TArray<FTransform>& InComponentSpaceTransforms)
+{
+	const bool bIsInputValid = InComponentSpaceTransforms.Num() == GetComponentSpaceTransforms().Num();
+	ensure(bIsInputValid);
+	if (!bIsInputValid)
+	{
+		return;
+	}
+	GetEditableComponentSpaceTransforms() = InComponentSpaceTransforms;
+	bNeedToFlipSpaceBaseBuffers = true;
+	FinalizeBoneTransform();
+
+	UpdateBounds();
+	MarkRenderTransformDirty();
+	MarkRenderDynamicDataDirty();
+}

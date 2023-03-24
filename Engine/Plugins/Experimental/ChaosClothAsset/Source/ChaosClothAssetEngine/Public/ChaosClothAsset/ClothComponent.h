@@ -85,6 +85,9 @@ public:
 	 */
 	TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const { return TSharedPtr<const FManagedArrayCollection>(PropertyCollection); }
 
+	/** Pose the cloth component using component space transforms. */
+	void Pose(const TArray<FTransform>& InComponentSpaceTransforms);
+
 	friend UE::Chaos::ClothAsset::FClothComponentCacheAdapter;
 
 protected:
