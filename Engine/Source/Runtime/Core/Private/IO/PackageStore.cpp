@@ -48,8 +48,6 @@ FArchive& operator<<(FArchive& Ar, FPackageStoreEntryResource& PackageStoreEntry
 
 	Ar << Flags;
 	Ar << PackageStoreEntry.PackageName;
-	Ar << PackageStoreEntry.SourcePackageName;
-	Ar << PackageStoreEntry.Region;
 	Ar << PackageStoreEntry.ExportInfo;
 	Ar << PackageStoreEntry.ImportedPackageIds;
 	Ar << PackageStoreEntry.OptionalSegmentExportInfo;
@@ -70,8 +68,6 @@ FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreEntryResource& Packa
 
 	Writer << "flags" << static_cast<uint32>(PackageStoreEntry.Flags);
 	Writer << "packagename" << PackageStoreEntry.PackageName.ToString();
-	Writer << "sourcepackagename" << PackageStoreEntry.SourcePackageName.ToString();
-	Writer << "region" << PackageStoreEntry.Region.ToString();
 	Writer << "exportinfo" << PackageStoreEntry.ExportInfo;
 
 	if (PackageStoreEntry.ImportedPackageIds.Num())
@@ -118,8 +114,6 @@ FPackageStoreEntryResource FPackageStoreEntryResource::FromCbObject(const FCbObj
 	Entry.Flags				= static_cast<EPackageStoreEntryFlags>(Obj["flags"].AsUInt32());
 	Entry.PackageName		= FName(Obj["packagename"].AsString());
 	Entry.PackageId			= FPackageId::FromName(Entry.PackageName);
-	Entry.SourcePackageName	= FName(Obj["sourcepackagename"].AsString());
-	Entry.Region			= FName(Obj["region"].AsString());
 	Entry.ExportInfo		= FPackageStoreExportInfo::FromCbObject(Obj["exportinfo"].AsObject());
 	
 	if (Obj["importedpackageids"])

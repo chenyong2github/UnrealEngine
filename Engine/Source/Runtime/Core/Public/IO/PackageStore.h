@@ -67,7 +67,6 @@ struct FPackageStoreEntry
 enum class EPackageStoreEntryFlags : uint32
 {
 	None		= 0,
-	Redirected	= 0x01,
 	AutoOptional= 0x02,
 };
 ENUM_CLASS_FLAGS(EPackageStoreEntryFlags);
@@ -86,15 +85,11 @@ struct FPackageStoreEntryResource
 	/** The package name. */
 	FName PackageName;
 	FPackageId PackageId;
-	/** Used for localized and redirected packages. */
-	FName SourcePackageName;
-	/** Region name for localized packages. */
-	FName Region;
 	/** The package export information. */
 	FPackageStoreExportInfo ExportInfo;
 	/** Imported package IDs. */
 	TArray<FPackageId> ImportedPackageIds;
-	/** Referenced shader map hashes - must be sorted in order to preserve determinism across builds. */
+	/** Referenced shader map hashes. */
 	TArray<FSHAHash> ShaderMapHashes;
 	/** The editor data package export information. */
 	FPackageStoreExportInfo OptionalSegmentExportInfo;
@@ -105,23 +100,6 @@ struct FPackageStoreEntryResource
 	FPackageId GetPackageId() const
 	{
 		return PackageId;
-	}
-
-	/** Returns the source package ID. */
-	FPackageId GetSourcePackageId() const
-	{
-		return SourcePackageName.IsNone() ? FPackageId() : FPackageId::FromName(SourcePackageName);
-	}
-
-	FName GetSourcePackageName() const
-	{
-		return SourcePackageName;
-	}
-
-	/** Returns whether this package is redirected. */
-	bool IsRedirected() const
-	{
-		return EnumHasAnyFlags(Flags, EPackageStoreEntryFlags::Redirected); 
 	}
 
 	/** Returns whether this package was saved as auto optional */
