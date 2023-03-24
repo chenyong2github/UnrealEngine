@@ -272,6 +272,34 @@ public:
 		return Pairs.Num();
 	}
 
+	/** @return The max valid index of the elements in the sparse storage. */
+	[[nodiscard]] FORCEINLINE int32 GetMaxIndex() const
+	{
+		return Pairs.GetMaxIndex();
+	}
+
+	/**
+	 * Checks whether an element id is valid.
+	 * @param Id - The element id to check.
+	 * @return true if the element identifier refers to a valid element in this map.
+	 */
+	[[nodiscard]] FORCEINLINE bool IsValidId(FSetElementId Id) const
+	{
+		return Pairs.IsValidId(Id);
+	}
+
+	/** Return a mapped pair by internal identifier. Element must be valid (see @IsValidId). */
+	[[nodiscard]] FORCEINLINE ElementType& Get(FSetElementId Id)
+	{
+		return Pairs[Id];
+	}
+
+	/** Return a mapped pair by internal identifier.  Element must be valid (see @IsValidId).*/
+	[[nodiscard]] FORCEINLINE const ElementType& Get(FSetElementId Id) const
+	{
+		return Pairs[Id];
+	}
+
 	/**
 	 * Get the unique keys contained within this map.
 	 *
@@ -770,6 +798,11 @@ protected:
 		FORCEINLINE ItKeyType&   Key()   const { return PairIt->Key; }
 		FORCEINLINE ItValueType& Value() const { return PairIt->Value; }
 
+		[[nodiscard]] FORCEINLINE FSetElementId GetId() const
+		{
+			return PairIt.GetId();
+		}
+
 		FORCEINLINE PairType& operator* () const { return  *PairIt; }
 		FORCEINLINE PairType* operator->() const { return &*PairIt; }
 
@@ -810,6 +843,10 @@ protected:
 			return !(bool)*this;
 		}
 
+		[[nodiscard]] FORCEINLINE FSetElementId GetId() const
+		{
+			return SetIt.GetId();
+		}
 		FORCEINLINE ItKeyType&   Key() const { return SetIt->Key; }
 		FORCEINLINE ItValueType& Value() const { return SetIt->Value; }
 
@@ -1673,6 +1710,7 @@ public:
 		return Pairs.Num();
 	}
 
+	/** @return The max valid index of the elements in the sparse storage. */
 	int32 GetMaxIndex() const
 	{
 		return Pairs.GetMaxIndex();

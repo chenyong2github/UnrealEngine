@@ -458,6 +458,36 @@ public:
 	FORCEINLINE       ValueType& operator[](KeyConstPointerType Key)       { return this->FindChecked(Key); }
 	FORCEINLINE const ValueType& operator[](KeyConstPointerType Key) const { return this->FindChecked(Key); }
 
+	// Interface functions to match TMap/TSet
+
+	/** @return The max valid index of the elements in the sparse storage. */
+	[[nodiscard]] FORCEINLINE int32 GetMaxIndex() const
+	{
+		return Pairs.Num() - 1;
+	}
+
+	/**
+	 * Checks whether an element id is valid.
+	 * @param Id - The element id to check.
+	 * @return true if the element identifier refers to a valid element in this map.
+	 */
+	[[nodiscard]] FORCEINLINE bool IsValidId(FSetElementId Id) const
+	{
+		return Pairs.IsValidIndex(Id.AsInteger());
+	}
+
+	/** Return a mapped pair by internal identifier. Element must be valid (see @IsValidId). */
+	[[nodiscard]] FORCEINLINE ElementType& Get(FSetElementId Id)
+	{
+		return Pairs[Id.AsInteger()];
+	}
+
+	/** Return a mapped pair by internal identifier.  Element must be valid (see @IsValidId).*/
+	[[nodiscard]] FORCEINLINE const ElementType& Get(FSetElementId Id) const
+	{
+		return Pairs[Id.AsInteger()];
+	}
+
 private:
 	typedef TArray<ElementType, ArrayAllocator> ElementArrayType;
 
@@ -550,6 +580,11 @@ private:
 		FORCEINLINE ItKeyType&   Key()   const { return PairIt->Key; }
 		FORCEINLINE ItValueType& Value() const { return PairIt->Value; }
 
+		[[nodiscard]] FORCEINLINE FSetElementId GetId() const
+		{
+			return FSetElementId::FromInteger(PairIt.GetIndex());
+		}
+
 		FORCEINLINE PairType& operator* () const { return  *PairIt; }
 		FORCEINLINE PairType* operator->() const { return &*PairIt; }
 
@@ -596,6 +631,11 @@ private:
 
 		FORCEINLINE ItKeyType& Key()   const { return Data[Index].Key; }
 		FORCEINLINE ItValueType& Value() const { return Data[Index].Value; }
+
+		[[nodiscard]] FORCEINLINE FSetElementId GetId() const
+		{
+			return FSetElementId::FromInteger(Index);
+		}
 
 		FORCEINLINE PairType& operator* () const { return  Data[Index]; }
 		FORCEINLINE PairType* operator->() const { return &Data[Index]; }

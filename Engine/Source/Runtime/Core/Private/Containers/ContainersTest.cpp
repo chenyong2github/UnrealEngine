@@ -232,6 +232,13 @@ namespace
 			check(*It  == E);
 			check(*CIt == E);
 
+			FSetElementId Id = It.GetId();
+			FSetElementId CId = It.GetId();
+			check(Cont.IsValidId(Id));
+			check(Cont.IsValidId(CId));
+			check(Cont.Get(Id) == E);
+			check(Cont.Get(CId) == E);
+
 			++It;
 			++CIt;
 		}

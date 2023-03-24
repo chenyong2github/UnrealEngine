@@ -587,14 +587,26 @@ public:
 			Elements.IsAllocated(Index);
 	}
 
-	/** Accesses the identified element's value. */
+	/** Accesses the identified element's value. Element must be valid (see @IsValidId). */
 	FORCEINLINE ElementType& operator[](FSetElementId Id)
 	{
 		return Elements[Id.Index].Value;
 	}
 
-	/** Accesses the identified element's value. */
+	/** Accesses the identified element's value. Element must be valid (see @IsValidId). */
 	FORCEINLINE const ElementType& operator[](FSetElementId Id) const
+	{
+		return Elements[Id.Index].Value;
+	}
+
+	/** Accesses the identified element's value. Element must be valid (see @IsValidId). */
+	[[nodiscard]] FORCEINLINE ElementType& Get(FSetElementId Id)
+	{
+		return Elements[Id.Index].Value;
+	}
+
+	/** Accesses the identified element's value. Element must be valid (see @IsValidId). */
+	[[nodiscard]] FORCEINLINE const ElementType& Get(FSetElementId Id) const
 	{
 		return Elements[Id.Index].Value;
 	}
