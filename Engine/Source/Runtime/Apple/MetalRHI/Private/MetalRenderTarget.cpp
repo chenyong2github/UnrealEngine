@@ -174,8 +174,7 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRe
 	TArray<FColor> OutDataUnConverted;
 	RHIReadSurfaceData(TextureRHI, InRect, OutDataUnConverted, InFlags);
 
-	OutData.Empty();
-	OutData.AddUninitialized(OutDataUnConverted.Num());
+	OutData.SetNumUninitialized(OutDataUnConverted.Num());
 
 	for (uint32 i = 0; i < OutDataUnConverted.Num(); ++i)
 	{
@@ -236,21 +235,20 @@ static void ConvertSurfaceDataToFColor(EPixelFormat Format, uint32 Width, uint32
 void FMetalDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	@autoreleasepool {
+
+	// allocate output space
+	const uint32 SizeX = Rect.Width();
+	const uint32 SizeY = Rect.Height();
+	OutData.SetNumUninitialized(SizeX * SizeY);
+
 	if (!ensure(TextureRHI))
 	{
-		OutData.Empty();
-		OutData.AddZeroed(Rect.Width() * Rect.Height());
+		FMemory::Memzero(OutData.GetData(), sizeof(FColor) * OutData.Num());
 		return;
 	}
 
 	FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
 
-	// allocate output space
-	const uint32 SizeX = Rect.Width();
-	const uint32 SizeY = Rect.Height();
-	OutData.Empty();
-	OutData.AddUninitialized(SizeX * SizeY);
-	
 	FColor* OutDataPtr = OutData.GetData();
 	mtlpp::Region Region(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
     
@@ -420,8 +418,7 @@ void FMetalDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 	// allocate output space
 	const uint32 SizeX = Rect.Width();
 	const uint32 SizeY = Rect.Height();
-	OutData.Empty();
-	OutData.AddUninitialized(SizeX * SizeY);
+	OutData.SetNumUninitialized(SizeX * SizeY);
 	
 	mtlpp::Region Region = mtlpp::Region(Rect.Min.X, Rect.Min.Y, SizeX, SizeY);
 	
@@ -486,8 +483,7 @@ void FMetalDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRec
 	const uint32 SizeX = InRect.Width();
 	const uint32 SizeY = InRect.Height();
 	const uint32 SizeZ = ZMinMax.Y - ZMinMax.X;
-	OutData.Empty();
-	OutData.AddUninitialized(SizeX * SizeY * SizeZ);
+	OutData.SetNumUninitialized(SizeX * SizeY * SizeZ);
 	
 	mtlpp::Region Region = mtlpp::Region(InRect.Min.X, InRect.Min.Y, ZMinMax.X, SizeX, SizeY, SizeZ);
 	

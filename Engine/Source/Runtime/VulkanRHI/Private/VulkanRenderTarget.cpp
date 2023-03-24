@@ -385,11 +385,11 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 	const uint32 DestWidth = Rect.Max.X - Rect.Min.X;
 	const uint32 DestHeight = Rect.Max.Y - Rect.Min.Y;
 	const uint32 NumRequestedPixels = DestWidth * DestHeight;
+	OutData.SetNumUninitialized(NumRequestedPixels);
 	if (GIgnoreCPUReads)
 	{
 		// Debug: Fill with CPU
-		OutData.Empty(0);
-		OutData.AddZeroed(NumRequestedPixels);
+		FMemory::Memzero(OutData.GetData(), NumRequestedPixels * sizeof(FColor));
 		return;
 	}
 
@@ -405,8 +405,7 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 
 	default:
 		// Just return black for texture types we don't support.
-		OutData.Empty(0);
-		OutData.AddZeroed(NumRequestedPixels);
+		FMemory::Memzero(OutData.GetData(), NumRequestedPixels * sizeof(FColor));
 		return;
 	}
 
@@ -487,7 +486,6 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 		SrcPitch = DestWidth * PixelByteSize;
 	}
 
-	OutData.SetNum(NumRequestedPixels);
 	FColor* Dest = OutData.GetData();
 	ConvertRawDataToFColor(Surface.StorageFormat, DestWidth, DestHeight, In, SrcPitch, Dest, InFlags);
 
@@ -503,9 +501,10 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 {
 	TArray<FColor> FromColorData;
 	RHIReadSurfaceData(TextureRHI, Rect, FromColorData, InFlags);
-	for (FColor& From : FromColorData)
+	OutData.SetNumUninitialized(FromColorData.Num());
+	for (int Index = 0, Num = FromColorData.Num(); Index < Num; Index++)
 	{
-		OutData.Emplace(FLinearColor(From));
+		OutData[Index] = FLinearColor(FromColorData[Index]);
 	}
 }
 
@@ -609,7 +608,7 @@ void FVulkanDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRec
 
 		uint32 OutWidth = InRect.Max.X - InRect.Min.X;
 		uint32 OutHeight= InRect.Max.Y - InRect.Min.Y;
-		OutputData.SetNum(OutWidth * OutHeight);
+		OutputData.SetNumUninitialized(OutWidth * OutHeight);
 		uint32 OutIndex = 0;
 		FFloat16Color* Dest = OutputData.GetData();
 		for (int32 Row = InRect.Min.Y; Row < InRect.Max.Y; ++Row)
@@ -687,12 +686,12 @@ void FVulkanDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntR
 	const uint32 Size = NumPixels * sizeof(FFloat16Color);
 
 	// Allocate the output buffer.
-	OutData.Reserve(Size);
+	OutData.SetNumUninitialized(Size);
 
 	if (GIgnoreCPUReads == 1)
 	{
 		// Debug: Fill with CPU
-		OutData.AddZeroed(Size);
+		FMemory::Memzero(OutData.GetData(), Size * sizeof(FFloat16Color));
 		return;
 	}
 
@@ -753,7 +752,6 @@ void FVulkanDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntR
 
 	StagingBuffer->InvalidateMappedMemory();
 
-	OutData.SetNum(NumPixels);
 	FFloat16Color* Dest = OutData.GetData();
 	for (int32 Layer = ZMinMax.X; Layer < ZMinMax.Y; ++Layer)
 	{

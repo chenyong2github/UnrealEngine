@@ -761,8 +761,7 @@ void FD3D12DynamicRHI::ReadSurfaceDataNoMSAARaw(FRHITexture* TextureRHI, FIntRec
 	uint32 BytesPerPixel = GPixelFormats[TextureRHI->GetFormat()].BlockBytes;
 
 	// Allocate the output buffer.
-	OutData.Empty();
-	OutData.AddUninitialized(SizeX * SizeY * BytesPerPixel);
+	OutData.SetNumUninitialized(SizeX * SizeY * BytesPerPixel);
 
 	uint32 BytesPerLine = BytesPerPixel * InRect.Width();
 	const uint32 XBytesAligned = Align((uint32)readBackHeapDesc.Footprint.Width * BytesPerPixel, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
@@ -1181,8 +1180,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRe
 	const uint32 SizeY = InRect.Height();
 
 	// Allocate the output buffer.
-	OutData.Empty();
-	OutData.AddUninitialized(SizeX * SizeY);
+	OutData.SetNumUninitialized(SizeX * SizeY);
 
 	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc.Format);
 	uint32 SrcPitch = SizeX * BytesPerPixel;
@@ -1196,8 +1194,8 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 {
 	if (!ensure(InRHITexture))
 	{
-		OutData.Empty();
-		OutData.AddZeroed(InRect.Width() * InRect.Height());
+		OutData.SetNumUninitialized(InRect.Width() * InRect.Height());
+		FMemory::Memzero(OutData.GetData(), sizeof(FColor) * OutData.Num());
 		return;
 	}
 
@@ -1239,8 +1237,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 	const uint32 SizeY = InRect.Height();
 
 	// Allocate the output buffer.
-	OutData.Empty();
-	OutData.AddUninitialized(SizeX * SizeY);
+	OutData.SetNumUninitialized(SizeX * SizeY);
 
 	FPixelFormatInfo FormatInfo = GPixelFormats[DestTexture2D->GetFormat()];
 	uint32 BytesPerPixel = FormatInfo.BlockBytes;
@@ -1478,8 +1475,8 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 
 	FD3D12Texture* Texture = GetD3D12TextureFromRHITexture(TextureRHI, GPUIndex);
 
-	uint32 SizeX = InRect.Width();
-	uint32 SizeY = InRect.Height();
+	const uint32 SizeX = InRect.Width();
+	const uint32 SizeY = InRect.Height();
 
 	// Check the format of the surface
 	D3D12_RESOURCE_DESC const& TextureDesc = Texture->GetResource()->GetDesc();
@@ -1487,7 +1484,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 	check(TextureDesc.Format == GPixelFormats[PF_FloatRGBA].PlatformFormat);
 
 	// Allocate the output buffer.
-	OutData.Empty(SizeX * SizeY);
+	OutData.SetNumUninitialized(SizeX * SizeY);
 
 	// Read back the surface data from defined rect
 	D3D12_BOX	Rect;
@@ -1558,13 +1555,6 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 	D3D12_RANGE Range = { 0, MipBytesAligned };
 	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, &Range, &pData));
 
-	// Presize the array
-	int32 TotalCount = SizeX * SizeY;
-	if (TotalCount >= OutData.Num())
-	{
-		OutData.AddZeroed(TotalCount);
-	}
-
 	for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; Y++)
 	{
 		FFloat16Color* SrcPtr = (FFloat16Color*)((uint8*)pData + (Y - InRect.Min.Y) * XBytesAligned);
@@ -1599,9 +1589,9 @@ void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRe
 
 	FD3D12Texture* Texture = GetD3D12TextureFromRHITexture(TextureRHI, GPUIndex);
 
-	uint32 SizeX = InRect.Width();
-	uint32 SizeY = InRect.Height();
-	uint32 SizeZ = ZMinMax.Y - ZMinMax.X;
+	const uint32 SizeX = InRect.Width();
+	const uint32 SizeY = InRect.Height();
+	const uint32 SizeZ = ZMinMax.Y - ZMinMax.X;
 
 	// Check the format of the surface
 	D3D12_RESOURCE_DESC const& TextureDesc = Texture->GetResource()->GetDesc();
@@ -1611,7 +1601,7 @@ void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRe
 	check(bIsRGBAFmt || bIsR16FFmt || bIsR32FFmt);
 
 	// Allocate the output buffer.
-	OutData.Empty(SizeX * SizeY * SizeZ * sizeof(FFloat16Color));
+	OutData.SetNumUninitialized(SizeX * SizeY * SizeZ);
 
 	// Read back the surface data from defined rect
 	D3D12_BOX	Rect;
@@ -1668,13 +1658,6 @@ void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRe
 	// Lock the staging resource.
 	void* pData;
 	VERIFYD3D12RESULT(TempTexture3D->GetResource()->Map(0, nullptr, &pData));
-
-	// Presize the array
-	int32 TotalCount = SizeX * SizeY * SizeZ;
-	if (TotalCount >= OutData.Num())
-	{
-		OutData.AddZeroed(TotalCount);
-	}
 
 	// Read the data out of the buffer
 	if (bIsRGBAFmt)

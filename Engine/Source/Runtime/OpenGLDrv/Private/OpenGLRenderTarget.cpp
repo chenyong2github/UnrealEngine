@@ -888,10 +888,12 @@ void FOpenGLDynamicRHI::ReadSurfaceDataRaw(FOpenGLContextState& ContextState, FR
 
 void FOpenGLDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI,FIntRect Rect,TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags)
 {
+	const uint32 Size = Rect.Width() * Rect.Height();
+	OutData.SetNumUninitialized(Size);
+
 	if (!ensure(TextureRHI))
 	{
-		OutData.Empty();
-		OutData.AddZeroed(Rect.Width() * Rect.Height());
+		FMemory::Memzero(OutData.GetData(), Size * sizeof(FColor));
 		return;
 	}
 
@@ -901,14 +903,9 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI,FIntRect Rect
 	TArray<uint8> Temp;
 
 	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-	OutData.Empty();
 	if (&ContextState != &InvalidContextState)
 	{
 		ReadSurfaceDataRaw(ContextState, TextureRHI, Rect, Temp, InFlags);
-
-		uint32 Size = Rect.Width() * Rect.Height();
-
-		OutData.AddUninitialized(Size);
 
 		FMemory::Memcpy(OutData.GetData(), Temp.GetData(), Size * sizeof(FColor));
 	}
@@ -943,8 +940,7 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 	uint32 SizeY = Rect.Height();
 
 	// Initialize output
-	OutData.Empty(SizeX * SizeY);
-	OutData.AddUninitialized(SizeX * SizeY);
+	OutData.SetNumUninitialized(SizeX * SizeY);
 
 	// Bind the framebuffer
 	// @TODO: Do we need to worry about multisampling?
@@ -1036,8 +1032,7 @@ void FOpenGLDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI,FIntRect
 	uint32 SizeX = Rect.Width();
 	uint32 SizeY = Rect.Height();
 
-	OutData.Empty(SizeX * SizeY);
-	OutData.AddUninitialized(SizeX * SizeY);
+	OutData.SetNumUninitialized(SizeX * SizeY);
 
 	glBindFramebuffer(UGL_READ_FRAMEBUFFER, SourceFramebuffer);
 	FOpenGL::ReadBuffer(SourceFramebuffer == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
@@ -1092,8 +1087,7 @@ void FOpenGLDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRe
 	uint32 SizeZ = ZMinMax.Y - ZMinMax.X;
 
 	// Allocate the output buffer.
-	OutData.Empty(SizeX * SizeY * SizeZ * sizeof(FFloat16Color));
-	OutData.AddZeroed(SizeX * SizeY * SizeZ);
+	OutData.SetNumUninitialized(SizeX * SizeY * SizeZ);
 
 	// Set up the source as a temporary FBO
 	uint32 MipmapLevel = 0;
