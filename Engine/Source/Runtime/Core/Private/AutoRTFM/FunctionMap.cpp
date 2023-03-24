@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "Containers/Array.h"
+
 namespace AutoRTFM
 {
 

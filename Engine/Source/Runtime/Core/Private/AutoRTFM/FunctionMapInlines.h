@@ -5,6 +5,8 @@
 #include "Context.h"
 #include "FunctionMap.h"
 
+#include "Containers/StringConv.h"
+
 namespace AutoRTFM
 {
 

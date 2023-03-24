@@ -16,6 +16,9 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <memory.h>
+
+#include "Templates/Function.h"
 
 #ifdef __cplusplus
 extern "C"

@@ -9,6 +9,9 @@
 #include "ScopedGuard.h"
 #include "TransactionInlines.h"
 
+#include "Templates/UniquePtr.h"
+#include "Containers/StringConv.h"
+
 namespace AutoRTFM
 {
 

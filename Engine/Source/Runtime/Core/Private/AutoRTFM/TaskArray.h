@@ -3,6 +3,7 @@
 #pragma once
 
 #include "SharedPtr.h"
+#include "Containers/Array.h"
 
 namespace AutoRTFM
 {

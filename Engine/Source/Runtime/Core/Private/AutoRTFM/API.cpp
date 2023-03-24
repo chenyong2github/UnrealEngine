@@ -13,6 +13,8 @@
 #include "TransactionInlines.h"
 #include "Utils.h"
 
+#include "Templates/Tuple.h"
+
 // This is the implementation of the AutoRTFM.h API. Ideally, functions here should just delegate to some internal API.
 // For now, I have these functions also perform some error checking.
 
