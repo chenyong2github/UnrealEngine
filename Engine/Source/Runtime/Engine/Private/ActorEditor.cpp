@@ -32,6 +32,9 @@
 #include "Modules/ModuleManager.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "StaticMeshResources.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
+#include "UObject/SoftObjectPtr.h"
+#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -1621,6 +1624,26 @@ bool AActor::RemoveAllDataLayers()
 	return false;
 }
 
+TArray<const UDataLayerAsset*> AActor::ResolveDataLayerAssets(const TArray<TSoftObjectPtr<UDataLayerAsset>>& InDataLayerAssets) const
+{
+	TArray<const UDataLayerAsset*> ResolvedAssets;
+	ResolvedAssets.Reserve(InDataLayerAssets.Num());
+	Algo::TransformIf(InDataLayerAssets, ResolvedAssets, [](const TSoftObjectPtr<UDataLayerAsset>& DataLayerAsset) { return DataLayerAsset.IsValid(); }, [](const TSoftObjectPtr<UDataLayerAsset>& DataLayerAsset) { return DataLayerAsset.Get(); });
+	return ResolvedAssets;
+}
+
+TArray<const UDataLayerAsset*> AActor::GetDataLayerAssets() const
+{
+	TArray<const UDataLayerAsset*> Resolved = ResolveDataLayerAssets(DataLayerAssets);
+
+	TGuardValue<bool> GIsSavingPackageGuard(GIsSavingPackage, false);
+	TArray<const UDataLayerAsset*> ResolvedNoSaving = ResolveDataLayerAssets(DataLayerAssets);
+
+	check(Resolved == ResolvedNoSaving);
+
+	return Resolved;
+}
+
 TArray<FName> AActor::GetDataLayerInstanceNames() const
 {
 	TArray<FName> DataLayerInstanceNames;
@@ -1641,6 +1664,9 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesForLevel() const
 
 void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 {
+	// Always call here because this gets called in AActor::Presave and makes sure the SoftObjectPtrs are resolved before saving.
+	TArray<const UDataLayerAsset*> ResolvedAssets = ResolveDataLayerAssets(DataLayerAssets);
+
 	if (IsTemplate())
 	{
 		return;
@@ -1676,9 +1702,10 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 	
 	if (bRevertChangesOnLockedDataLayer)
 	{
+		TArray<const UDataLayerAsset*> ResolvedPreEditChangeAssets = ResolveDataLayerAssets(PreEditChangeDataLayers);
 		// Since it's not possible to prevent changes of particular elements of an array, rollback change on locked DataLayers.
-		TSet<const UDataLayerAsset*> PreEdit(PreEditChangeDataLayers);
-		TSet<const UDataLayerAsset*> PostEdit(DataLayerAssets);
+		TSet<const UDataLayerAsset*> PreEdit(ResolvedPreEditChangeAssets);
+		TSet<const UDataLayerAsset*> PostEdit(ResolvedAssets);
 
 		auto DifferenceContainsLockedDataLayers = [DataLayerManager](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
 		{
@@ -1725,7 +1752,11 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 	// Only invalidate DataLayerAssets on cook. In Editor we want to be able to re-resolve if the asset gets readded to the WorldDataLayers actor
 	if (IsRunningCookCommandlet())
 	{
-		CleanupDataLayers(DataLayerAssets);
+		// Get a new resolved array in case DataLayerAssets changed
+		TArray<const UDataLayerAsset*> CleanedUpDataLayers = ResolveDataLayerAssets(DataLayerAssets);
+		CleanupDataLayers(CleanedUpDataLayers);
+		DataLayerAssets.Empty(CleanedUpDataLayers.Num());
+		Algo::Transform(CleanedUpDataLayers, DataLayerAssets, [](const UDataLayerAsset* DataLayerAsset) { return TSoftObjectPtr<UDataLayerAsset>(DataLayerAsset); });
 	}
 	CleanupDataLayers(DataLayers);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS

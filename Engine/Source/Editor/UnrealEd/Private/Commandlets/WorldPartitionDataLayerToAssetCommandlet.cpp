@@ -573,7 +573,7 @@ uint32 UDataLayerToAssetCommandlet::RemapDataLayersAssetsFromPreviousConversions
 {
 	uint32 ErrorCount = 0;
 
-	const TArray<TObjectPtr<const UDataLayerAsset>>& ActorDataLayerAssets = Actor->GetDataLayerAssets();
+	TArray<const UDataLayerAsset*> ActorDataLayerAssets = Actor->GetDataLayerAssets();
 	for (int32 i = ActorDataLayerAssets.Num() - 1; i >= 0; --i)
 	{
 		const TObjectPtr<const UDataLayerAsset>& ActorDataLayerAsset = ActorDataLayerAssets[i];

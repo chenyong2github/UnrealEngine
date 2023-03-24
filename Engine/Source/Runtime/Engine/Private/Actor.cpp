@@ -466,6 +466,7 @@ void AActor::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Super::PreSave(ObjectSaveContext);
 #if WITH_EDITOR
+	// Always call FixupDataLayers() on PreSave so that DataLayerAssets SoftObjectPtrs internal WeakPtrs get resolved before GIsSavingPackage gets set to true preventing resolving.
 	FixupDataLayers();
 #endif
 }
@@ -6161,7 +6162,7 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUs
 		TArray<const UDataLayerInstance*> DataLayerInstances;
 		if (UDataLayerManager* DataLayerManager = bUseLevelContext ? UDataLayerManager::GetDataLayerManager(this) : UDataLayerManager::GetDataLayerManager(GetWorld()))
 		{
-			DataLayerInstances += DataLayerManager->GetDataLayerInstances(DataLayerAssets);
+			DataLayerInstances += DataLayerManager->GetDataLayerInstances(GetDataLayerAssets());
 
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			DataLayerInstances += DataLayerManager->GetDataLayerInstances(DataLayers);

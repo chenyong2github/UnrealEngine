@@ -910,9 +910,9 @@ protected:
 	TArray<FActorDataLayer> DataLayers;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = DataLayers)
-	TArray<TObjectPtr<const UDataLayerAsset>> DataLayerAssets;
+	TArray<TSoftObjectPtr<UDataLayerAsset>> DataLayerAssets;
 
-	TArray<TObjectPtr<const UDataLayerAsset>> PreEditChangeDataLayers;
+	TArray<TSoftObjectPtr<UDataLayerAsset>> PreEditChangeDataLayers;
 
 public:
 	/** The copy/paste id used to remap actors during copy operations */
@@ -1251,6 +1251,7 @@ public:
 private:
 	virtual bool ActorTypeSupportsDataLayer() const { return true; }
 	virtual bool ActorTypeShouldSkipFromLevelInstance() const { return false; }
+	TArray<const UDataLayerAsset*> ResolveDataLayerAssets(const TArray<TSoftObjectPtr<UDataLayerAsset>>& InDataLayerAssets) const;
 public:
 	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);
 	bool RemoveDataLayer(const UDataLayerInstance* DataLayerInstance);
@@ -1264,7 +1265,7 @@ public:
 	static const FName GetDataLayerAssetsPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayerAssets); }
 	static const FName GetDataLayerPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayers); }
 
-	const TArray<TObjectPtr<const UDataLayerAsset>>& GetDataLayerAssets() const { return DataLayerAssets; }
+	TArray<const UDataLayerAsset*> GetDataLayerAssets() const;
 
 	//~ Begin Deprecated
 
