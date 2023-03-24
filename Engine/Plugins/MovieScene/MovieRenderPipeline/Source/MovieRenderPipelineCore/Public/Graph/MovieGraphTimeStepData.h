@@ -14,6 +14,17 @@ struct MOVIERENDERPIPELINECORE_API FMovieGraphTimeStepData
 {
 	GENERATED_BODY()
 
+public:
+	FMovieGraphTimeStepData()
+		: OutputFrameNumber(0)
+		, FrameDeltaTime(0.f)
+		, WorldTimeDilation(0.f)
+		, WorldSeconds(0.f)
+		, MotionBlurFraction(0.f)
+		, bIsFirstTemporalSampleForFrame(false)
+		, bIsLastTemporalSampleForFrame(false)
+	{}
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
 	int32 OutputFrameNumber;
 

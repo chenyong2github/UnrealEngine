@@ -27,6 +27,12 @@ struct FMovieGraphTraversalContext
 {
 	GENERATED_BODY();
 
+public:
+	FMovieGraphTraversalContext()
+		: ShotIndex(0)
+		, ShotCount(0)
+	{}
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
 	FMovieGraphBranch RootBranch;
 
