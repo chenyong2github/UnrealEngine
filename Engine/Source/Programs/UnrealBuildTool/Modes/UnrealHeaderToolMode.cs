@@ -37,18 +37,18 @@ namespace UnrealBuildTool.Modes
 		/// <summary>
 		/// Supported units in the game
 		/// </summary>
-		private readonly ReadOnlyHashSet<StringView> _units;
+		private readonly IReadOnlySet<StringView> _units;
 
 		/// <summary>
 		/// Special parsed struct names that do not require a prefix
 		/// </summary>
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "<Pending>")]
-		private readonly ReadOnlyHashSet<StringView> _structsWithNoPrefix;
+		private readonly IReadOnlySet<StringView> _structsWithNoPrefix;
 
 		/// <summary>
 		/// Special parsed struct names that have a 'T' prefix
 		/// </summary>
-		private readonly ReadOnlyHashSet<StringView> _structsWithTPrefix;
+		private readonly IReadOnlySet<StringView> _structsWithTPrefix;
 
 		/// <summary>
 		/// Mapping from 'human-readable' macro substring to # of parameters for delegate declarations
@@ -401,7 +401,7 @@ namespace UnrealBuildTool.Modes
 			return List;
 		}
 
-		private ReadOnlyHashSet<StringView> GetHashSet(string Section, string Key, StringViewComparer Comparer)
+		private IReadOnlySet<StringView> GetHashSet(string Section, string Key, StringViewComparer Comparer)
 		{
 			HashSet<StringView> Set = new(Comparer);
 

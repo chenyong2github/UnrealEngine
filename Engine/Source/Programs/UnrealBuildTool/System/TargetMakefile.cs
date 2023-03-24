@@ -773,7 +773,7 @@ namespace UnrealBuildTool
 			using (GlobalTracer.Instance.BuildSpan("TargetMakefile.IsValidForSourceFiles()").StartActive())
 			{
 				// Get the list of excluded folder names for this platform
-				ReadOnlyHashSet<string> ExcludedFolderNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
+				IReadOnlySet<string> ExcludedFolderNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 
 				// Load the metadata cache
 				SourceFileMetadataCache MetadataCache = SourceFileMetadataCache.CreateHierarchy(ProjectFile, Logger);
@@ -927,7 +927,7 @@ namespace UnrealBuildTool
 		/// <param name="ExcludedFolderNames">Set of directory names to exclude</param>
 		/// <param name="Logger">Logger for output diagnostics</param>
 		/// <returns>True if the directory contains any source files</returns>
-		static bool ContainsSourceFiles(DirectoryItem Directory, ReadOnlyHashSet<string> ExcludedFolderNames, ILogger Logger)
+		static bool ContainsSourceFiles(DirectoryItem Directory, IReadOnlySet<string> ExcludedFolderNames, ILogger Logger)
 		{
 			// Check this directory isn't ignored
 			if(!ExcludedFolderNames.Contains(Directory.Name))
@@ -959,7 +959,7 @@ namespace UnrealBuildTool
 		/// <param name="ExcludedFolderNames">Set of folder names to ignore when recursing the directory tree</param>
 		/// <param name="FilesWithMarkup">Receives the set of files which contain reflection markup</param>
 		/// <param name="Queue">Queue to add sub-tasks to</param>
-		static void FindFilesWithMarkup(DirectoryItem Directory, SourceFileMetadataCache MetadataCache, ReadOnlyHashSet<string> ExcludedFolderNames, ConcurrentBag<FileItem> FilesWithMarkup, ThreadPoolWorkQueue Queue)
+		static void FindFilesWithMarkup(DirectoryItem Directory, SourceFileMetadataCache MetadataCache, IReadOnlySet<string> ExcludedFolderNames, ConcurrentBag<FileItem> FilesWithMarkup, ThreadPoolWorkQueue Queue)
 		{
 			if (Directory.TryGetFile(".ubtignore", out FileItem? OutFile))
 			{

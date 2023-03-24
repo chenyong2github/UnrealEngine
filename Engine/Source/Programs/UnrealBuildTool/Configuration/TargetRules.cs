@@ -2769,7 +2769,7 @@ namespace UnrealBuildTool
 			get { return Inner.TargetSourceFile!; }
 		}
 
-		internal ReadOnlyHashSet<FileReference> TargetFiles
+		internal IReadOnlySet<FileReference> TargetFiles
 		{
 			get { return Inner.TargetFiles!; }
 		}

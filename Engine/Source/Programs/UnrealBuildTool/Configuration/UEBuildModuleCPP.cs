@@ -257,7 +257,7 @@ namespace UnrealBuildTool
 				{
 					PublicIncludePaths.Add(PublicDirectory);
 
-					ReadOnlyHashSet<string> ExcludeNames = UEBuildPlatform.GetBuildPlatform(Rules.Target.Platform).GetExcludedFolderNames();
+					IReadOnlySet<string> ExcludeNames = UEBuildPlatform.GetBuildPlatform(Rules.Target.Platform).GetExcludedFolderNames();
 					EnumerateLegacyIncludePaths(DirectoryItem.GetItemByDirectoryReference(PublicDirectory), ExcludeNames, LegacyPublicIncludePaths);
 				}
 
@@ -283,7 +283,7 @@ namespace UnrealBuildTool
 		/// <param name="BaseDirectory">The directory to start from. This directory is not added to the output list.</param>
 		/// <param name="ExcludeNames">Set of folder names to exclude from the search.</param>
 		/// <param name="LegacyPublicIncludePaths">List populated with the discovered directories</param>
-		static void EnumerateLegacyIncludePaths(DirectoryItem BaseDirectory, ReadOnlyHashSet<string> ExcludeNames, HashSet<DirectoryReference> LegacyPublicIncludePaths)
+		static void EnumerateLegacyIncludePaths(DirectoryItem BaseDirectory, IReadOnlySet<string> ExcludeNames, HashSet<DirectoryReference> LegacyPublicIncludePaths)
 		{
 			foreach(DirectoryItem SubDirectory in BaseDirectory.EnumerateDirectories())
 			{
@@ -1829,7 +1829,7 @@ namespace UnrealBuildTool
 		/// <returns>Set of source files that should be built</returns>
 		public InputFileCollection FindInputFiles(UnrealTargetPlatform Platform, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles, ILogger Logger)
 		{
-			ReadOnlyHashSet<string> ExcludedNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
+			IReadOnlySet<string> ExcludedNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 
 			InputFileCollection InputFiles = new InputFileCollection();
 
@@ -1852,7 +1852,7 @@ namespace UnrealBuildTool
 		/// <param name="DirectoryToSourceFiles">Map from directory to source files inside it</param>
 		/// <param name="InputFiles">Collection of source files, categorized by type</param>
 		/// <param name="Logger">Logger for output</param>
-		static void FindInputFilesFromDirectoryRecursive(DirectoryItem BaseDirectory, ReadOnlyHashSet<string> ExcludedNames, HashSet<DirectoryReference> SourceDirectories, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles, InputFileCollection InputFiles, ILogger Logger)
+		static void FindInputFilesFromDirectoryRecursive(DirectoryItem BaseDirectory, IReadOnlySet<string> ExcludedNames, HashSet<DirectoryReference> SourceDirectories, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles, InputFileCollection InputFiles, ILogger Logger)
 		{
 			bool bIgnoreFileFound;
 			FileItem[] SourceFiles = FindInputFilesFromDirectory(BaseDirectory, InputFiles, out bIgnoreFileFound, Logger);

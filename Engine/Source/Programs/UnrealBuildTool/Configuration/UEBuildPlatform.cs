@@ -213,12 +213,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Cached copy of the list of folders to include for this platform
 		/// </summary>
-		private ReadOnlyHashSet<string>? CachedIncludedFolderNames;
+		private IReadOnlySet<string>? CachedIncludedFolderNames;
 
 		/// <summary>
 		/// Cached copy of the list of folders to exclude for this platform
 		/// </summary>
-		private ReadOnlyHashSet<string>? CachedExcludedFolderNames;
+		private IReadOnlySet<string>? CachedExcludedFolderNames;
 
 		/// <summary>
 		/// Constructor.
@@ -320,7 +320,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Finds a list of folder names to include when building for this platform
 		/// </summary>
-		public ReadOnlyHashSet<string> GetIncludedFolderNames()
+		public IReadOnlySet<string> GetIncludedFolderNames()
 		{
 			if(CachedIncludedFolderNames == null)
 			{
@@ -332,7 +332,7 @@ namespace UnrealBuildTool
 					Names.Add(Group.ToString());
 				}
 
-				CachedIncludedFolderNames = new ReadOnlyHashSet<string>(Names, DirectoryReference.Comparer);
+				CachedIncludedFolderNames = Names;
 			}
 			return CachedIncludedFolderNames;
 		}
@@ -340,11 +340,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Finds a list of folder names to exclude when building for this platform
 		/// </summary>
-		public ReadOnlyHashSet<string> GetExcludedFolderNames()
+		public IReadOnlySet<string> GetExcludedFolderNames()
 		{
 			if(CachedExcludedFolderNames == null)
 			{
-				CachedExcludedFolderNames = new ReadOnlyHashSet<string>(GetPlatformFolderNames().Except(GetIncludedFolderNames()), DirectoryReference.Comparer);
+				CachedExcludedFolderNames = new HashSet<string>(GetPlatformFolderNames().Except(GetIncludedFolderNames()), DirectoryReference.Comparer);
 			}
 			return CachedExcludedFolderNames;
 		}

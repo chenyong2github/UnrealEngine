@@ -7,7 +7,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using EpicGames.Core;
 using EpicGames.Redis;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
@@ -89,7 +88,7 @@ namespace Horde.Server.Compute
 		readonly RedisKey _baseKey;
 		readonly RedisSetKey<TQueueId> _queueIndex;
 		readonly RedisHashKey<TQueueId, DateTime> _activeQueues; // Queues which are actively being dequeued from
-		ReadOnlyHashSet<TQueueId> _localActiveQueues = new HashSet<TQueueId>();
+		IReadOnlySet<TQueueId> _localActiveQueues = new HashSet<TQueueId>();
 		readonly Stopwatch _resetActiveQueuesTimer = Stopwatch.StartNew();
 		readonly List<Listener> _listeners = new List<Listener>();
 		readonly RedisChannel<TQueueId> _newQueueChannel;
@@ -332,7 +331,7 @@ namespace Horde.Server.Compute
 			// readers can thus access it without the need for any locking.
 			for(; ;)
 			{
-				ReadOnlyHashSet<TQueueId> localActiveQueuesCopy = _localActiveQueues;
+				IReadOnlySet<TQueueId> localActiveQueuesCopy = _localActiveQueues;
 				if (localActiveQueuesCopy.Contains(queueId))
 				{
 					break;

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -9,6 +10,7 @@ namespace EpicGames.Core
 	/// Wrapper around the HashSet container that only allows read operations
 	/// </summary>
 	/// <typeparam name="T">Type of element for the hashset</typeparam>
+	[Obsolete("ReadOnlyHashSet<T> is obsolete, please replace with IReadOnlySet<T>")]
 	public class ReadOnlyHashSet<T> : IReadOnlyCollection<T>
 	{
 		/// <summary>

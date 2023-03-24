@@ -3533,7 +3533,7 @@ namespace UnrealBuildTool
 			}
 
 			// Find all the platform folders to exclude from the list of valid modules
-			ReadOnlyHashSet<string> ExcludeFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
+			IReadOnlySet<string> ExcludeFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 
 			// Set of module names to build
 			HashSet<string> FilteredModuleNames = new HashSet<string>();

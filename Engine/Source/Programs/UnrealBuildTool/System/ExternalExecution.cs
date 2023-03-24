@@ -354,7 +354,7 @@ namespace UnrealBuildTool
 		/// <param name="BaseDirectory">Base directory to search</param>
 		/// <param name="ExcludeFolders">Array of folders to exclude</param>
 		/// <param name="Headers">Receives the list of headers that was found</param>
-		static void FindHeaders(DirectoryItem BaseDirectory, ReadOnlyHashSet<string> ExcludeFolders, List<FileItem> Headers)
+		static void FindHeaders(DirectoryItem BaseDirectory, IReadOnlySet<string> ExcludeFolders, List<FileItem> Headers)
 		{
 			if (BaseDirectory.TryGetFile(".ubtignore", out FileItem? OutIgnoreFile))
 			{
@@ -427,7 +427,7 @@ namespace UnrealBuildTool
 			UHTModuleInfo[] ModuleInfoArray = new UHTModuleInfo[ModulesSortedByType.Count];
 			using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 			{
-				ReadOnlyHashSet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
+				IReadOnlySet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 				for(int Idx = 0; Idx < ModulesSortedByType.Count; Idx++)
 				{
 					UEBuildModuleCPP Module = ModulesSortedByType[Idx];
@@ -506,7 +506,7 @@ namespace UnrealBuildTool
 				Dictionary<UEBuildModuleCPP, UHTModuleInfo> IncludePathInfo = new();
 				using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 				{
-					ReadOnlyHashSet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
+					IReadOnlySet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 					foreach (var Module in IncludePathModules)
 					{
 						Queue.Enqueue(() =>
@@ -528,7 +528,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		static void SetupUObjectModule(UHTModuleInfo ModuleInfo, ReadOnlyHashSet<string> ExcludedFolders, SourceFileMetadataCache MetadataCache, ThreadPoolWorkQueue Queue)
+		static void SetupUObjectModule(UHTModuleInfo ModuleInfo, IReadOnlySet<string> ExcludedFolders, SourceFileMetadataCache MetadataCache, ThreadPoolWorkQueue Queue)
 		{
 			foreach (DirectoryReference ModuleDirectory in ModuleInfo.ModuleDirectories)
 			{
