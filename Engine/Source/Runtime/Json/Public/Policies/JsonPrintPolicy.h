@@ -85,16 +85,6 @@ struct TJsonPrintPolicy
 };
 
 
-/**
- * Specialization for TCHAR that allows direct copying from FString data.
- */
-template <>
-inline void TJsonPrintPolicy<TCHAR>::WriteString( FArchive* Stream, const FString& String )
-{
-	Stream->Serialize((void*)*String, String.Len() * sizeof(TCHAR));
-}
-
-
 #if !PLATFORM_TCHAR_IS_CHAR16
 
 /**
