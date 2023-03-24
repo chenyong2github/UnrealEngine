@@ -78,8 +78,8 @@ public:
 	FStaticMeshVertexIterator( UStaticMeshComponent* SMC )
 		: ComponentToWorldIT( SMC->GetComponentTransform().ToInverseMatrixWithScale().GetTransposed() )
 		, StaticMeshComponent( SMC )
-		, PositionBuffer( SMC->GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer )
-		, VertexBuffer( SMC->GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer )
+		, PositionBuffer( SMC->GetStaticMesh()->GetRenderData()->GetCurrentFirstLOD(SMC->GetStaticMesh()->GetMinLODIdx())->VertexBuffers.PositionVertexBuffer )
+		, VertexBuffer( SMC->GetStaticMesh()->GetRenderData()->GetCurrentFirstLOD(SMC->GetStaticMesh()->GetMinLODIdx())->VertexBuffers.StaticMeshVertexBuffer )
 		, CurrentVertexIndex( 0 )
 	{
 
@@ -110,11 +110,11 @@ private:
 	/** Component To World Inverse Transpose matrix */
 	FMatrix ComponentToWorldIT;
 	/** Component containing the mesh that we are getting vertices from */
-	UStaticMeshComponent* StaticMeshComponent;
+	const UStaticMeshComponent* StaticMeshComponent;
 	/** The static meshes position vertex buffer */
-	FPositionVertexBuffer& PositionBuffer;
+	const FPositionVertexBuffer& PositionBuffer;
 	/** The static meshes vertex buffer for normals */
-	FStaticMeshVertexBuffer& VertexBuffer;
+	const FStaticMeshVertexBuffer& VertexBuffer;
 	/** Current vertex index */
 	uint32 CurrentVertexIndex;
 };

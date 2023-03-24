@@ -4487,10 +4487,17 @@ bool UInstancedStaticMeshComponent::IsInstanceTouchingSelectionBox(int32 Instanc
 			{
 				TArray<FVector> Vertex;
 
-				FStaticMeshLODResources& LODModel = GetStaticMesh()->GetRenderData()->LODResources[0];
-				FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+				const int32 MinLODIdx = GetStaticMesh()->GetMinLODIdx();
+				const FStaticMeshLODResources* LODModel = GetStaticMesh()->GetRenderData()->GetCurrentFirstLOD(MinLODIdx);
+				if (!LODModel)
+				{
+					return false;
+				}
 
-				for (const FStaticMeshSection& Section : LODModel.Sections)
+				const FIndexArrayView Indices = LODModel->IndexBuffer.GetArrayView();
+				const FPositionVertexBuffer& Vertices = LODModel->VertexBuffers.PositionVertexBuffer;
+
+				for (const FStaticMeshSection& Section : LODModel->Sections)
 				{
 					// Iterate over each triangle.
 					for (int32 TriangleIndex = 0; TriangleIndex < (int32)Section.NumTriangles; TriangleIndex++)
@@ -4501,7 +4508,7 @@ bool UInstancedStaticMeshComponent::IsInstanceTouchingSelectionBox(int32 Instanc
 						for (int32 i = 0; i < 3; i++)
 						{
 							int32 VertexIndex = Indices[FirstIndex + i];
-							FVector LocalPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex));
+							FVector LocalPosition(Vertices.VertexPosition(VertexIndex));
 							Vertex.Emplace(InstanceTransfrom.TransformPosition(LocalPosition));
 						}
 
@@ -4556,19 +4563,26 @@ bool UInstancedStaticMeshComponent::IsInstanceTouchingSelectionFrustum(int32 Ins
 					return true;
 				}
 
-				FStaticMeshLODResources& LODModel = GetStaticMesh()->GetRenderData()->LODResources[0];
-				FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+				const int32 MinLODIdx = GetStaticMesh()->GetMinLODIdx();
+				const FStaticMeshLODResources* LODModel = GetStaticMesh()->GetRenderData()->GetCurrentFirstLOD(MinLODIdx);
+				if (!LODModel)
+				{
+					return false;
+				}
 
-				for (const FStaticMeshSection& Section : LODModel.Sections)
+				const FIndexArrayView Indices = LODModel->IndexBuffer.GetArrayView();
+				const FPositionVertexBuffer& Vertices = LODModel->VertexBuffers.PositionVertexBuffer;
+
+				for (const FStaticMeshSection& Section : LODModel->Sections)
 				{
 					// Iterate over each triangle.
 					for (int32 TriangleIndex = 0; TriangleIndex < (int32)Section.NumTriangles; TriangleIndex++)
 					{
 						int32 Index = TriangleIndex * 3 + Section.FirstIndex;
 
-						FVector PointA(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index]));
-						FVector PointB(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index + 1]));
-						FVector PointC(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index + 2]));
+						FVector PointA(Vertices.VertexPosition(Indices[Index]));
+						FVector PointB(Vertices.VertexPosition(Indices[Index + 1]));
+						FVector PointC(Vertices.VertexPosition(Indices[Index + 2]));
 
 						PointA = InstanceTransfrom.TransformPosition(PointA);
 						PointB = InstanceTransfrom.TransformPosition(PointB);

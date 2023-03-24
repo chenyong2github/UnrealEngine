@@ -370,12 +370,22 @@ bool GetComponentHitTriangle_Internal(FHitResult HitResult, VectorType* TriVerti
 	}
 	
 	// physics collision data is created from StaticMesh RenderData
-	// so use HitResult.FaceIndex to extract triangle from the LOD0 mesh
+	// so use HitResult.FaceIndex to extract triangle from the mesh
 	// (note: this may be incorrect if there are multiple sections...in that case I think we have to
 	//  first find section whose accumulated index range would contain .FaceIndexX)
 	UStaticMesh* StaticMesh = Component->GetStaticMesh();
-	FStaticMeshLODResources& LOD = StaticMesh->GetRenderData()->LODResources[0];
-	FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
+
+	// Get the lowest available render LOD.
+	// If the Minimum LOD index is not zero, their might be a lower LOD available, but it will not be used for rendering in the viewport.
+	const int32 MinLODIdx = StaticMesh->GetMinLODIdx();
+	const FStaticMeshLODResources* LOD = StaticMesh->GetRenderData()->GetCurrentFirstLOD(MinLODIdx);
+	if (!LOD)
+	{
+		return false;
+	}
+
+	const FIndexArrayView Indices = LOD->IndexBuffer.GetArrayView();
+	const FPositionVertexBuffer& Vertices = LOD->VertexBuffers.PositionVertexBuffer;
 
 	const int32 TriIdx = 3 * HitResult.FaceIndex;
 	if (TriIdx + 2 >= Indices.Num())
@@ -384,16 +394,16 @@ bool GetComponentHitTriangle_Internal(FHitResult HitResult, VectorType* TriVerti
 	}
 
 	const uint32 Idx[3] = { Indices[TriIdx], Indices[TriIdx + 1], Indices[TriIdx + 2] };
-	const uint32 NumVertices = LOD.VertexBuffers.PositionVertexBuffer.GetNumVertices();
+	const uint32 NumVertices = Vertices.GetNumVertices();
 	if (Idx[0] >= NumVertices || Idx[1] >= NumVertices || Idx[2] >= NumVertices)
 	{
 		return false;
 	}
 
 	const FVector Positions[3] = {
-		static_cast<FVector>(LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Idx[0])),
-		static_cast<FVector>(LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Idx[1])),
-		static_cast<FVector>(LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Idx[2]))
+		static_cast<FVector>(Vertices.VertexPosition(Idx[0])),
+		static_cast<FVector>(Vertices.VertexPosition(Idx[1])),
+		static_cast<FVector>(Vertices.VertexPosition(Idx[2]))
 	};
 
 	// transform to world space

@@ -1150,7 +1150,7 @@ class FStaticMeshRenderDataSpatialWrapper : public TStaticMeshSpatialWrapperBase
 public:
 	virtual TUniquePtr<FStaticMeshLODResourcesMeshSurfaceAdapter> MakeMeshAdapter(const FMeshSceneAdapterBuildOptions& BuildOptions) override
 	{
-		return MakeUnique<FStaticMeshLODResourcesMeshSurfaceAdapter>(&StaticMesh->GetRenderData()->LODResources[0], StaticMesh, BuildOptions.bOnlySurfaceMaterials);
+		return MakeUnique<FStaticMeshLODResourcesMeshSurfaceAdapter>(StaticMesh->GetRenderData()->GetCurrentFirstLOD(0), StaticMesh, BuildOptions.bOnlySurfaceMaterials);
 	}
 };
 

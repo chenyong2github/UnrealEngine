@@ -3027,12 +3027,12 @@ void UStaticMeshComponent::PostStaticMeshCompilation()
 namespace ComponentIsTouchingSelectionHelpers
 {
 
-const FStaticMeshLODResources& GetMinLODModel(const UStaticMesh& StaticMesh)
+const FStaticMeshLODResources* GetRenderLOD(const UStaticMesh& StaticMesh)
 {
+	// Get the lowest available render LOD.
+	// If the Minimum LOD index is not zero, their might be a lower LOD available, but it will not be used for rendering in the viewport.
 	const int32 MinLODIdx = StaticMesh.GetMinLODIdx();
-	const FStaticMeshRenderData* RenderData = StaticMesh.GetRenderData();
-	const int32 LODIdx = RenderData->GetCurrentFirstLODIdx(MinLODIdx);
-	return RenderData->LODResources[LODIdx];
+	return StaticMesh.GetRenderData()->GetCurrentFirstLOD(MinLODIdx);
 }
 
 enum class ECheckSectionBoundsResult
@@ -3082,12 +3082,16 @@ bool UStaticMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox
 			TArray<FVector> TriVertices;
 			TriVertices.SetNumUninitialized(3);
 
-			const FStaticMeshLODResources& LODModel = ComponentIsTouchingSelectionHelpers::GetMinLODModel(*GetStaticMesh());
+			const FStaticMeshLODResources* LOD = ComponentIsTouchingSelectionHelpers::GetRenderLOD(*GetStaticMesh());
+			if (!LOD)
+			{
+				return false;
+			}
 
-			const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
-			const FPositionVertexBuffer& Vertices = LODModel.VertexBuffers.PositionVertexBuffer;
+			const FIndexArrayView Indices = LOD->IndexBuffer.GetArrayView();
+			const FPositionVertexBuffer& Vertices = LOD->VertexBuffers.PositionVertexBuffer;
 
-			for (const FStaticMeshSection& Section : LODModel.Sections)
+			for (const FStaticMeshSection& Section : LOD->Sections)
 			{
 				switch (ComponentIsTouchingSelectionHelpers::CheckSectionBounds(Section, Indices, Vertices, bMustEncompassEntireComponent))
 				{
@@ -3150,13 +3154,17 @@ bool UStaticMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolu
 				return true;
 			}
 
-			const FStaticMeshLODResources& LODModel = ComponentIsTouchingSelectionHelpers::GetMinLODModel(*GetStaticMesh());
+			const FStaticMeshLODResources* LOD = ComponentIsTouchingSelectionHelpers::GetRenderLOD(*GetStaticMesh());
+			if (!LOD)
+			{
+				return false;
+			}
 
-			const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
-			const FPositionVertexBuffer& Vertices = LODModel.VertexBuffers.PositionVertexBuffer;
+			const FIndexArrayView Indices = LOD->IndexBuffer.GetArrayView();
+			const FPositionVertexBuffer& Vertices = LOD->VertexBuffers.PositionVertexBuffer;
 
 			const FTransform& TransformToWorld = GetComponentTransform();
-			for (const FStaticMeshSection& Section : LODModel.Sections)
+			for (const FStaticMeshSection& Section : LOD->Sections)
 			{
 				switch (ComponentIsTouchingSelectionHelpers::CheckSectionBounds(Section, Indices, Vertices, bMustEncompassEntireComponent))
 				{
