@@ -16,7 +16,6 @@ struct FGeometry;
 class SZoomPan : public SCompoundWidget
 {
 public:
-
 	SLATE_BEGIN_ARGS(SZoomPan) {}
 		/** Slot for this designers content (optional) */
 		SLATE_DEFAULT_SLOT(FArguments, Content)
@@ -26,7 +25,7 @@ public:
 		SLATE_ATTRIBUTE(float, ZoomAmount)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	UMGEDITOR_API void Construct(const FArguments& InArgs);
 	
 	/**
 	 * Sets the content for this border
@@ -36,9 +35,9 @@ public:
 	void SetContent( const TSharedRef< SWidget >& InContent );
 
 protected:
-	void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
+	UMGEDITOR_API void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
 
-	virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
+	UMGEDITOR_API virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
 
 	/** The position within the panel at which the user is looking */
 	TAttribute<FVector2D> ViewOffset;
