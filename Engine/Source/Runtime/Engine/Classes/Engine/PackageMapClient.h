@@ -219,6 +219,8 @@ public:
 	 */
 	void ReportSyncLoadedGUIDs();
 
+	void ResetReplayDirtyTracking();
+
 	TMap< FNetworkGUID, FNetGuidCacheObject >		ObjectLookup;
 	TMap< TWeakObjectPtr< UObject >, FNetworkGUID >	NetGUIDLookup;
 

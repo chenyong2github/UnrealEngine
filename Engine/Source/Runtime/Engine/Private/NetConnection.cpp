@@ -570,6 +570,8 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
  */
 void UNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState InState, const FURL& InURL, int32 InConnectionSpeed, int32 InMaxPacket)
 {
+	using namespace UE::Net;
+
 	Driver = InDriver;
 
 	InitChannelData();
@@ -609,6 +611,9 @@ void UNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState InSta
 			CurrentNetSpeed = FMath::Max<int32>(CurrentNetSpeed, 1800);
 		}
 	}
+
+	FaultRecovery = MakeUnique<FNetConnectionFaultRecovery>();
+	FaultRecovery->InitDefaults((Driver != nullptr ? Driver->GetNetDriverDefinition().ToString() : TEXT("")), this);
 
 	// Create package map.
 	auto PackageMapClient = NewObject<UPackageMapClient>(this);

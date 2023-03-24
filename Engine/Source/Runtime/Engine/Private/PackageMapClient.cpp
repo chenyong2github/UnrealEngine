@@ -4199,3 +4199,28 @@ bool FNetGUIDCache::FIsOwnerOrPawnHelper::IsOwnerOrPawn() const
 }
 #endif
 
+void FNetGUIDCache::ResetReplayDirtyTracking()
+{
+	// reset guids
+	for (auto It = ObjectLookup.CreateIterator(); It; ++It)
+	{
+		FNetGuidCacheObject& CacheObject = It.Value();
+		CacheObject.bDirtyForReplay = true;
+	}
+
+	// reset net export groups
+	for (auto It = NetFieldExportGroupMap.CreateIterator(); It; ++It)
+	{
+		TSharedPtr<FNetFieldExportGroup>& ExportGroup = It.Value();
+		if (ExportGroup.IsValid())
+		{
+			// reset the exports in each group
+			for (FNetFieldExport& Export : ExportGroup->NetFieldExports)
+			{
+				Export.bDirtyForReplay = true;
+			}
+
+			ExportGroup->bDirtyForReplay = true;
+		}
+	}
+}

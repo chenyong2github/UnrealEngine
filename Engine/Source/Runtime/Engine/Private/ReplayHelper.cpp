@@ -179,6 +179,11 @@ void FReplayHelper::StartRecording(UNetConnection* Connection)
 
 	ActiveReplayName = DemoURL.Map;
 
+	if (bHasDeltaCheckpoints)
+	{
+		ResetDeltaCheckpointTracking(Connection);
+	}
+
 	FStartStreamingParameters Params;
 	Params.CustomName = DemoURL.Map;
 	Params.FriendlyName = FriendlyNameOption != nullptr ? FString(FriendlyNameOption) : World->GetMapName();
@@ -2344,6 +2349,36 @@ void FReplayHelper::NotifyReplayError(UE::Net::TNetResult<EReplayResult>&& Resul
 	ResultManager.HandleNetResult(MoveTemp(Result));
 }
 
+void FReplayHelper::ResetDeltaCheckpointTracking(UNetConnection* Connection)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ReplayResetDeltaCheckpoint time"), STAT_ReplayResetDeltaCheckpoint, STATGROUP_Net);
+
+	if (Connection)
+	{
+		if (UNetDriver* Driver = Connection->GetDriver())
+		{
+			// reset object list
+			FNetworkObjectList& NetworkObjects = Driver->GetNetworkObjectList();
+			NetworkObjects.ResetReplayDirtyTracking();
+
+			// reset guid cache
+			if (FNetGUIDCache* GuidCache = Connection->Driver->GuidCache.Get())
+			{
+				GuidCache->ResetReplayDirtyTracking();
+			}
+
+			// reset object replicators
+			for (FObjectReplicator* Replicator : Driver->AllOwnedReplicators)
+			{
+				if (Replicator)
+				{
+					Replicator->ResetReplayDirtyTracking();
+				}
+			}
+		}
+	}
+}
+
 void FReplayResultHandler::InitResultHandler(FReplayHelper* InReplayHelper)
 {
 	ReplayHelper = InReplayHelper;
@@ -2376,4 +2411,3 @@ UE::Net::EHandleNetResult FReplayResultHandler::HandleNetResult(UE::Net::FNetRes
 
 	return EHandleNetResult::Handled;
 }
-

@@ -188,6 +188,8 @@ public:
 	/** Marks this object dirty for replays using delta checkpoints */
 	void MarkDirtyForReplay(AActor* const Actor);
 
+	void ResetReplayDirtyTracking();
+
 	/** Removes the recently dormant status from the passed in connection */
 	void ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
 

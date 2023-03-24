@@ -201,6 +201,8 @@ private:
 
 	bool SetExternalDataForObject(UNetConnection* Connection, UObject* OwningObject, const uint8* Src, const int32 NumBits);
 
+	void ResetDeltaCheckpointTracking(UNetConnection* Connection);
+
 	// Cached replay URL
 	FURL DemoURL;
 

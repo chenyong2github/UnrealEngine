@@ -251,6 +251,7 @@ public:
 	bool CanSkipUpdate(FReplicationFlags Flags);
 
 	bool IsDirtyForReplay() const { return bDirtyForReplay; }
+	void ResetReplayDirtyTracking() { bDirtyForReplay = true; }
 
 public:
 

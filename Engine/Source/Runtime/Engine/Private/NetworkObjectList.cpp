@@ -400,6 +400,17 @@ void FNetworkObjectList::MarkDirtyForReplay(AActor* const Actor)
 	}
 }
 
+void FNetworkObjectList::ResetReplayDirtyTracking()
+{
+	for (auto It = AllNetworkObjects.CreateIterator(); It; ++It)
+	{
+		if (FNetworkObjectInfo* ObjectInfo = (*It).Get())
+		{
+			ObjectInfo->bDirtyForReplay = false;
+		}
+	}
+}
+
 void FNetworkObjectList::ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver)
 {
 	TSharedPtr<FNetworkObjectInfo>* NetworkObjectInfoPtr = FindOrAdd(Actor, NetDriver);
