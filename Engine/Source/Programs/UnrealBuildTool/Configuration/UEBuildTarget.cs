@@ -1241,10 +1241,11 @@ namespace UnrealBuildTool
 				RulesObject.bDisableLinking = true;
 			}
 
-			// Don't link if we're compiling specific files and ignore build outputs
+			// Ignore build outputs when compiling specific files, as most actions are skipped.
+			// Do not disable linking! Those actions will be skipped and compiling specific files doesn't invalidate the makefile
+			// so it will be saved with no binary outputs. That would be bad!
 			if (Descriptor.SpecificFilesToCompile.Any())
 			{
-				RulesObject.bDisableLinking = true;
 				RulesObject.bIgnoreBuildOutputs = true;
 			}
 

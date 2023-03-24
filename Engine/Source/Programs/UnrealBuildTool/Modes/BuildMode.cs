@@ -774,7 +774,8 @@ namespace UnrealBuildTool
 					// Run the deployment steps
 					foreach(TargetMakefile Makefile in Makefiles)
 					{
-						if (Makefile.bDeployAfterCompile)
+						// Receipt file may not exist when compiling specific files
+						if (Makefile.bDeployAfterCompile && FileReference.Exists(Makefile.ReceiptFile))
 						{
 							TargetReceipt Receipt = TargetReceipt.Read(Makefile.ReceiptFile);
 							Logger.LogInformation("Deploying {ReceiptTargetName} {ReceiptPlatform} {ReceiptConfiguration}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
