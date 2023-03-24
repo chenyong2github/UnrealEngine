@@ -65,12 +65,16 @@ public:
 
 #if WITH_EDITOR
 	LANDSCAPE_API void BuildAll();
-	LANDSCAPE_API void BuildGrassMaps();
+
+	UE_DEPRECATED(5.3, "BuildGIBakedTextures is officially deprecated nowe")
+	LANDSCAPE_API void BuildGIBakedTextures() {}
+	UE_DEPRECATED(5.3, "GetOutdatedGIBakedTextureComponentsCount is officially deprecated now")
+	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount() { return 0; }
+
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount();
-	LANDSCAPE_API void BuildGIBakedTextures();
-	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount();
-	LANDSCAPE_API void BuildPhysicalMaterial();
+	LANDSCAPE_API void BuildGrassMaps();
 	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount();
+	LANDSCAPE_API void BuildPhysicalMaterial();
 	/**
 	 * Updates the Nanite mesh on all landscape actors whose mesh is not up to date.
 	 * @param InProxiesToBuild - If specified, only the Nanite meshes of the specified landscape actors (recursively for all streaming proxies, in the case of a 1 ALandscape / N ALandscapeStreamingProxy setup) will be built
@@ -103,16 +107,15 @@ private:
 
 	void OnNaniteWorldSettingsChanged(AWorldSettings* WorldSettings) { RegenerateGrass(true, true); }
 
-	bool bIsGrassCreationPrioritized;
+	bool bIsGrassCreationPrioritized = false;
 	TArray<TWeakObjectPtr<ALandscapeProxy>> Proxies;
 	FDelegateHandle OnNaniteWorldSettingsChangedHandle;
 
 #if WITH_EDITOR
-	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
-	class FLandscapeGIBakedTextureBuilder* GIBakedTextureBuilder;
-	class FLandscapePhysicalMaterialBuilder* PhysicalMaterialBuilder;
+	class FLandscapeGrassMapsBuilder* GrassMapsBuilder = nullptr;
+	class FLandscapePhysicalMaterialBuilder* PhysicalMaterialBuilder = nullptr;
 	
-	FLandscapeNotificationManager* NotificationManager;
+	FLandscapeNotificationManager* NotificationManager = nullptr;
 	FOnHeightmapStreamedDelegate OnHeightmapStreamed;
 	bool bAnyViewShowCollisions = false;
 	FDateTime AppCurrentDateTime; // Represents FDateTime::Now(), at the beginning of the frame (useful to get a human-readable date/time that is fixed during the frame)

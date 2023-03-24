@@ -548,21 +548,19 @@ public:
 	int32 LODBias;
 
 	UPROPERTY()
+	// TODO [jonathan.bard] : remove unused : 
 	FGuid StateId;
 
-	/** The Material Guid that used when baking, to detect material recompilations */
-	UPROPERTY()
+	UE_DEPRECATED(5.3, "BakedTextureMaterialGuid is officially deprecated now and nothing updates it anymore")
 	FGuid BakedTextureMaterialGuid;
 
-	/** The Material Guid that last saved, to notify manual build operation to bake textures */
-	UPROPERTY(Transient)
+	UE_DEPRECATED(5.3, "LastBakedTextureMaterialGuid is officially deprecated now and nothing updates it anymore")
 	FGuid LastBakedTextureMaterialGuid;
 
-	/** Pre-baked Base Color texture for use by distance field GI */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = BakedTextures)
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.3, "GIBakedBaseColorTexture is officially deprecated now and nothing updates it anymore")
 	TObjectPtr<UTexture2D> GIBakedBaseColorTexture;
 
-#if WITH_EDITORONLY_DATA
 	/**	Legacy irrelevant lights */
 	UPROPERTY()
 	TArray<FGuid> IrrelevantLights_DEPRECATED;

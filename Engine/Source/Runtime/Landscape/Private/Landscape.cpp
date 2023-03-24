@@ -760,8 +760,6 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 	if (Ar.IsSaving() && Ar.IsPersistent())
 	{
-		//Update the last saved Guid for GI texture
-		LastBakedTextureMaterialGuid = BakedTextureMaterialGuid;
 		//Update the last saved Hash for physical material
 		LastSavedPhysicalMaterialHash = PhysicalMaterialHash;
 	}
@@ -1028,26 +1026,6 @@ void ULandscapeComponent::PostLoad()
 			}
 		}
 
-		if (GIBakedBaseColorTexture)
-		{
-			if (GIBakedBaseColorTexture->GetOutermost() != GetOutermost())
-			{
-				// The GIBakedBaseColorTexture property was never intended to be reassigned, but it was previously editable so we need to null any invalid values
-				// it will get recreated by ALandscapeProxy::UpdateBakedTextures()
-				GIBakedBaseColorTexture = nullptr;
-				BakedTextureMaterialGuid = FGuid();
-			}
-			else
-			{
-				// Remove public flag from GI textures to stop them being visible in the content browser.
-				// Previous version of landscape set these flags on creation.
-				if (GIBakedBaseColorTexture->HasAnyFlags(RF_Public))
-				{
-					GIBakedBaseColorTexture->ClearFlags(RF_Public);
-				}
-			}
-		}
-		LastBakedTextureMaterialGuid = BakedTextureMaterialGuid;
 		LastSavedPhysicalMaterialHash = PhysicalMaterialHash;
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
@@ -1319,7 +1297,6 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	NumComponentsNeedingGrassMapRender = 0;
 	NumTexturesToStreamForVisibleGrassMapRender = 0;
-	NumComponentsNeedingTextureBaking = 0;
 
 	if (VisibilityLayer == nullptr)
 	{
@@ -2515,23 +2492,6 @@ void ALandscape::PostInitProperties()
 			{
 				if (FLandscapeNotificationManager* LandscapeNotificationManager = LandscapeSubSystem->GetNotificationManager())
 				{
-					// Create conditional TextureBakingNotification
-					TextureBakingNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::TextureBaking,
-						[this]() { return NumComponentsNeedingTextureBaking > 0; },
-						[this](FText& InText)
-						{
-							// Accumulating all outstanding textures needing baking for ALL landscapes because only one such notification can be displayed at a time
-							int ComponentsNeedingTextureBakingAllLandscapes = 0;
-							for (const ALandscape* Landscape : TObjectRange<ALandscape>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
-							{
-								ComponentsNeedingTextureBakingAllLandscapes += Landscape->NumComponentsNeedingTextureBaking;
-							}
-							
-							FFormatNamedArguments Args;
-							Args.Add(TEXT("OutstandingTextures"), FText::AsNumber(ComponentsNeedingTextureBakingAllLandscapes));
-							InText = FText::Format(NSLOCTEXT("TextureBaking", "TextureBakingFormat", "Baking Landscape Textures ({OutstandingTextures})"), Args);
-						});
-			
 					// Create conditional GrassRenderingNotification
 					GrassRenderingNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::GrassRendering,
 						[this]() { return NumComponentsNeedingGrassMapRender > 0 && !(FSlateApplication::Get().HasAnyMouseCaptor() || GUnrealEd->IsUserInteracting()); },
@@ -2549,7 +2509,6 @@ void ALandscape::PostInitProperties()
 							InText = FText::Format(NSLOCTEXT("GrassMapRender", "GrassMapRenderFormat", "Building Grass Maps ({OutstandingGrassMaps})"), Args);
 						});
 			
-					LandscapeNotificationManager->RegisterNotification(TextureBakingNotification);
 					LandscapeNotificationManager->RegisterNotification(GrassRenderingNotification);
 				}
 			}
@@ -3045,8 +3004,6 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 #if WITH_EDITOR
 	// Work out whether we have grass or not for the next game run
 	BuildGrassMaps();
-	//Update the baked textures before saving
-	BuildGIBakedTextures();
 
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
@@ -5099,304 +5056,6 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 	Proxy->SerializeStateHashes(Ar);
 }
 
-FLandscapeGIBakedTextureBuilder::FLandscapeGIBakedTextureBuilder(UWorld* InWorld)
-	:World(InWorld)
-	,OutdatedGIBakedTextureComponentsCount(0)
-	,GIBakedTexturesLastCheckTime(0)
-{
-
-}
-
-void FLandscapeGIBakedTextureBuilder::Build()
-{
-	if (World)
-	{
-		for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
-		{
-			ProxyIt->BuildGIBakedTextures();
-		}
-		//Force update the outdated count when using the build menu option.
-		OutdatedGIBakedTextureComponentsCount = 0;
-		GIBakedTexturesLastCheckTime = FPlatformTime::Seconds();
-
-	}
-}
-
-int32 FLandscapeGIBakedTextureBuilder::GetOutdatedGIBakedTextureComponentsCount(bool bInForceUpdate) const
-{
-	if (World)
-	{
-		bool bUpdate = bInForceUpdate;
-		double GIBakedTexturesTimeNow = FPlatformTime::Seconds();
-		if (!bUpdate)
-		{
-			// Recheck every 20 secs
-			if ((GIBakedTexturesTimeNow - GIBakedTexturesLastCheckTime) > 20)
-			{
-				bUpdate = true;
-			}
-		}
-		if (bUpdate)
-		{
-			GIBakedTexturesLastCheckTime = GIBakedTexturesTimeNow;
-			OutdatedGIBakedTextureComponentsCount = 0;
-			for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
-			{
-				OutdatedGIBakedTextureComponentsCount += ProxyIt->GetOutdatedGIBakedTextureComponentsCount();
-			}
-		}
-	}
-	return OutdatedGIBakedTextureComponentsCount;
-}
-
-void ALandscapeProxy::BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask /* = nullptr */)
-{
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		const bool bShouldMarkDirty = true;
-		UpdateGIBakedTextureData(bShouldMarkDirty);
-	}
-	}
-
-int32 ALandscapeProxy::GetOutdatedGIBakedTextureComponentsCount() const
-	{
-	int32 OutdatedGITextureComponentsCount = 0;
-	UpdateGIBakedTextureStatus(nullptr, nullptr, &OutdatedGITextureComponentsCount);
-	return OutdatedGITextureComponentsCount;
-	}
-
-void ALandscapeProxy::UpdateGIBakedTextureStatus(bool* bOutGenerateLandscapeGIData, TMap<UTexture2D*, FGIBakedTextureState>* OutComponentsNeedBakingByHeightmap, int32* OutdatedComponentsCount) const
-{
-	int32 OutdatedComponents = 0;
-	int32 ComponentsNeedToBeCleared = 0;
-	int32 ComponentsNeedToBeBaked = 0;
-
-	//@todo - remove Landscape GI Data
-	if (true)
-	{
-		if (bOutGenerateLandscapeGIData)
-		{
-			*bOutGenerateLandscapeGIData = false;
-		}
-
-		for (ULandscapeComponent* Component : LandscapeComponents)
-		{
-			if (Component != nullptr && Component->GIBakedBaseColorTexture != nullptr)
-			{
-				ComponentsNeedToBeCleared++;
-			}
-		}
-
-		OutdatedComponents += ComponentsNeedToBeCleared;
-	}
-	else
-	{
-		// Stores the components and their state hash data for a single atlas
-		struct FGIBakeTextureStateBuilder
-		{
-			// pointer as FMemoryWriter caches the address of the FBufferArchive, and this struct could be relocated on a realloc.
-			TUniquePtr<FBufferArchive> ComponentStateAr;
-			TArray<ULandscapeComponent*> Components;
-
-			FGIBakeTextureStateBuilder()
-			{
-				ComponentStateAr = MakeUnique<FBufferArchive>();
-			}
-		};
-
-		TMap<UTexture2D*, FGIBakeTextureStateBuilder> ComponentsByHeightmap;
-		for (ULandscapeComponent* Component : LandscapeComponents)
-		{
-			if (Component == nullptr)
-			{
-				continue;
-			}
-
-			FGIBakeTextureStateBuilder& Info = ComponentsByHeightmap.FindOrAdd(Component->GetHeightmap());
-			Info.Components.Add(Component);
-			Component->SerializeStateHashes(*Info.ComponentStateAr);
-		}
-
-		for (auto It = ComponentsByHeightmap.CreateIterator(); It; ++It)
-		{
-			FGIBakeTextureStateBuilder& Info = It.Value();
-
-			// Calculate a combined Guid-like ID we can use for this component
-			uint32 Hash[5];
-			FSHA1::HashBuffer(Info.ComponentStateAr->GetData(), Info.ComponentStateAr->Num(), (uint8*)Hash);
-			FGuid CombinedStateId = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
-
-			if (Info.Components[0]->BakedTextureMaterialGuid != CombinedStateId)
-			{
-				ComponentsNeedToBeBaked += Info.Components.Num();
-				if (OutComponentsNeedBakingByHeightmap)
-				{
-					FGIBakedTextureState& GIBakedTextureState = OutComponentsNeedBakingByHeightmap->FindOrAdd(It.Key());
-					GIBakedTextureState.Components = MoveTemp(Info.Components);
-					GIBakedTextureState.CombinedStateId = CombinedStateId;
-				}
-			}
-		}
-		OutdatedComponents += ComponentsNeedToBeBaked;
-	}
-
-	if (OutdatedComponentsCount)
-	{
-		if (OutdatedComponents == 0)
-		{
-			for (auto Component : LandscapeComponents)
-			{
-				const bool bIsDirty = Component->GetPackage()->IsDirty();
-				if (Component->LastBakedTextureMaterialGuid != Component->BakedTextureMaterialGuid && !bIsDirty)
-				{
-					OutdatedComponents++;
-				}
-			}
-		}
-		*OutdatedComponentsCount = OutdatedComponents;
-	}
-}
-
-void ALandscapeProxy::UpdateGIBakedTextureData(bool bInShouldMarkDirty)
-{
-	const bool bBakeAllGITextures = true;
-	UpdateGIBakedTextures(bBakeAllGITextures);
-	if (bInShouldMarkDirty && GetOutdatedGIBakedTextureComponentsCount() > 0)
-	{
-		MarkPackageDirty();
-	}
-}
-
-void ALandscapeProxy::UpdateGIBakedTextures(bool bBakeAllGITextures)
-{
-	// See if we can render
-	UWorld* World = GetWorld();
-	if (!GIsEditor || GUsingNullRHI || !World || World->IsGameWorld() || World->GetFeatureLevel() < ERHIFeatureLevel::SM5)
-	{
-		return;
-	}
-
-	if (!bBakeAllGITextures && UpdateBakedTexturesCountdown-- > 0)
-	{
-		return;
-	}
-
-	bool bGenerateLandscapeGIData = true;
-	TMap<UTexture2D*, FGIBakedTextureState> ComponentsToBeBakedByHeightmap;
-	UpdateGIBakedTextureStatus(&bGenerateLandscapeGIData, &ComponentsToBeBakedByHeightmap);
-	
-	if (!bGenerateLandscapeGIData)
-	{
-		// Clear out any existing GI textures
-		for (ULandscapeComponent* Component : LandscapeComponents)
-		{
-			if (Component != nullptr && Component->GIBakedBaseColorTexture != nullptr)
-			{
-				Component->BakedTextureMaterialGuid.Invalidate();
-				Component->GIBakedBaseColorTexture = nullptr;
-				Component->MarkRenderStateDirty();
-			}
-		}
-
-		// Don't check if we need to update anything for another 60 frames
-		UpdateBakedTexturesCountdown = 60;
-
-		return;
-	}
-
-	NumComponentsNeedingTextureBaking = 0;
-	int32 NumGenerated = 0;
-
-	for (auto It = ComponentsToBeBakedByHeightmap.CreateConstIterator(); It; ++It)
-	{
-		const FGIBakedTextureState& Info = It.Value();
-
-		bool bCanBake = true;
-		for (ULandscapeComponent* Component : Info.Components)
-		{
-			// not registered; ignore this component
-			if (!Component->SceneProxy)
-			{
-				continue;
-			}
-
-			// Check we can render the material
-			UMaterialInstance* MaterialInstance = Component->GetMaterialInstance(0, false);
-			if (!MaterialInstance)
-			{
-				// Cannot render this component yet as it doesn't have a material; abandon the atlas for this heightmap
-				bCanBake = false;
-				break;
-			}
-
-			FMaterialResource* MaterialResource = MaterialInstance->GetMaterialResource(World->GetFeatureLevel());
-			if (!MaterialResource || !MaterialResource->HasValidGameThreadShaderMap())
-			{
-				// Cannot render this component yet as its shaders aren't compiled; abandon the atlas for this heightmap
-				bCanBake = false;
-				break;
-			}
-		}
-
-		if (bCanBake)
-		{
-			// We throttle, baking only one atlas per frame if bBakeAllGITextures is false.
-			if (!bBakeAllGITextures && NumGenerated > 0)
-				{
-					NumComponentsNeedingTextureBaking += Info.Components.Num();
-				}
-				else
-				{
-					UTexture2D* HeightmapTexture = It.Key();
-					// 1/8 the res of the heightmap
-				FIntPoint AtlasSize(HeightmapTexture->Source.GetSizeX() >> 3, HeightmapTexture->Source.GetSizeY() >> 3);
-
-					TArray<FColor> AtlasSamples;
-					AtlasSamples.AddZeroed(AtlasSize.X * AtlasSize.Y);
-
-					for (ULandscapeComponent* Component : Info.Components)
-					{
-						// not registered; ignore this component
-						if (!Component->SceneProxy)
-						{
-							continue;
-						}
-
-						int32 ComponentSamples = (SubsectionSizeQuads + 1) * NumSubsections;
-						check(FMath::IsPowerOfTwo(ComponentSamples));
-
-						int32 BakeSize = ComponentSamples >> 3;
-						TArray<FColor> Samples;
-						if (FMaterialUtilities::ExportBaseColor(Component, BakeSize, Samples))
-						{
-							const int32 AtlasOffsetX = FMath::RoundToInt32(Component->HeightmapScaleBias.Z * HeightmapTexture->Source.GetSizeX()) >> 3;
-							const int32 AtlasOffsetY = FMath::RoundToInt32(Component->HeightmapScaleBias.W * HeightmapTexture->Source.GetSizeY()) >> 3;
-							for (int32 y = 0; y < BakeSize; y++)
-							{
-								FMemory::Memcpy(&AtlasSamples[(y + AtlasOffsetY) * AtlasSize.X + AtlasOffsetX], &Samples[y * BakeSize], sizeof(FColor) * BakeSize);
-							}
-							NumGenerated++;
-						}
-					}
-				UTexture2D* AtlasTexture = FMaterialUtilities::CreateTexture(GetOutermost(), HeightmapTexture->GetName() + TEXT("_BaseColor"), AtlasSize, AtlasSamples, TC_Default, TEXTUREGROUP_World, RF_NoFlags, true, Info.CombinedStateId);
-
-					for (ULandscapeComponent* Component : Info.Components)
-					{
-						Component->BakedTextureMaterialGuid = Info.CombinedStateId;
-						Component->GIBakedBaseColorTexture = AtlasTexture;
-						Component->MarkRenderStateDirty();
-					}
-				}
-			}
-		}
-	
-	if (NumGenerated == 0)
-	{
-		// Don't check if we need to update anything for another 60 frames
-		UpdateBakedTexturesCountdown = 60;
-	}
-}
-
 FLandscapePhysicalMaterialBuilder::FLandscapePhysicalMaterialBuilder(UWorld* InWorld)
 	:World(InWorld)
 	,OudatedPhysicalMaterialComponentsCount(0)
@@ -5508,7 +5167,6 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeCo
 		{
 			Component->InvalidateLightingCache();
 		}
-		Component->BakedTextureMaterialGuid.Invalidate();
 		ByProxy.FindOrAdd(Component->GetLandscapeProxy()).Add(Component);
 	}
 

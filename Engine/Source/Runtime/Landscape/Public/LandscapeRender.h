@@ -719,7 +719,6 @@ protected:
 #endif
 	// Heightmap in RG and Normalmap in BA
 	UTexture2D* HeightmapTexture; 
-	UTexture2D* BaseColorForGITexture;
 	FVector4f HeightmapScaleBias;
 	float HeightmapSubsectionOffsetU;
 	float HeightmapSubsectionOffsetV;
@@ -819,7 +818,7 @@ public:
 
 	virtual bool HeightfieldHasPendingStreaming() const override;
 
-	virtual void GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, UTexture2D*& OutVisibilityTexture, FHeightfieldComponentDescription& OutDescription) const override;
+	virtual void GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutVisibilityTexture, FHeightfieldComponentDescription& OutDescription) const override;
 
 	virtual void GetLCIs(FLCIArray& LCIs) override;
 

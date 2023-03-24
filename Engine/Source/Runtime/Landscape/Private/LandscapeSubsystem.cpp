@@ -49,13 +49,6 @@ DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick,
 #define LOCTEXT_NAMESPACE "LandscapeSubsystem"
 
 ULandscapeSubsystem::ULandscapeSubsystem()
-	: bIsGrassCreationPrioritized(false)
-#if WITH_EDITOR
-	, GrassMapsBuilder(nullptr)
-	, GIBakedTextureBuilder(nullptr)
-	, PhysicalMaterialBuilder(nullptr)
-	, NotificationManager(nullptr)
-#endif
 {
 }
 
@@ -87,7 +80,6 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 #if WITH_EDITOR
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
-	GIBakedTextureBuilder = new FLandscapeGIBakedTextureBuilder(GetWorld());
 	PhysicalMaterialBuilder = new FLandscapePhysicalMaterialBuilder(GetWorld());
 
 	if (!IsRunningCommandlet())
@@ -113,7 +105,6 @@ void ULandscapeSubsystem::Deinitialize()
 	
 #if WITH_EDITOR
 	delete GrassMapsBuilder;
-	delete GIBakedTextureBuilder;
 	delete PhysicalMaterialBuilder;
 	delete NotificationManager;
 #endif
@@ -275,7 +266,6 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 				// editor-only
 				if (!World->IsPlayInEditor())
 				{
-					Proxy->UpdateGIBakedTextures();
 					Proxy->UpdatePhysicalMaterialTasks();
 				}
 			}
@@ -309,7 +299,6 @@ void ULandscapeSubsystem::BuildAll()
 	MarkModifiedLandscapesAsDirty();
 
 	BuildGrassMaps();
-	BuildGIBakedTextures();
 	BuildPhysicalMaterial();
 	BuildNanite();
 }
@@ -322,16 +311,6 @@ void ULandscapeSubsystem::BuildGrassMaps()
 int32 ULandscapeSubsystem::GetOutdatedGrassMapCount()
 {
 	return GrassMapsBuilder->GetOutdatedGrassMapCount(/*bInForceUpdate*/false);
-}
-
-void ULandscapeSubsystem::BuildGIBakedTextures()
-{
-	GIBakedTextureBuilder->Build();
-}
-
-int32 ULandscapeSubsystem::GetOutdatedGIBakedTextureComponentsCount()
-{
-	return GIBakedTextureBuilder->GetOutdatedGIBakedTextureComponentsCount(/*bInForceUpdate*/false);
 }
 
 void ULandscapeSubsystem::BuildPhysicalMaterial()
@@ -545,14 +524,6 @@ void ULandscapeSubsystem::DisplayMessages(FCanvas* Canvas, float& XPos, float& Y
 	{
 		SmallTextItem.SetColor(FLinearColor::Red);
 		SmallTextItem.Text = FText::Format(LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: GRASS MAPS NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), OutdatedGrassMapCount);
-		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
-		YPos += FontSizeY;
-	}
-
-	if (int32 ComponentsNeedingGITextureBaking = GetOutdatedGIBakedTextureComponentsCount())
-	{
-		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_TEXTURES_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: BAKED TEXTURES NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsNeedingGITextureBaking);
 		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
 		YPos += FontSizeY;
 	}

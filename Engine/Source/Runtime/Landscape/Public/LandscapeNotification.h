@@ -15,7 +15,6 @@ struct FLandscapeNotification
 		ShadingModelInvalid = 0,
 		LandscapeTextureResourcesNotReady,
 		LandscapeBrushResourcesNotReady,
-		TextureBaking,
 		GrassRendering,
 	};
 

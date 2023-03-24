@@ -722,10 +722,9 @@ void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
 			UTexture2D* HeightAndNormal;
-			UTexture2D* DiffuseColor;
 			UTexture2D* Visibility;
 			FHeightfieldComponentDescription Desc(FMatrix::Identity, InPrimitive->GetInstanceSceneDataOffset());
-			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, Visibility, Desc);
 			GHeightFieldTextureAtlas.AddAllocation(HeightAndNormal);
 
 			if (Visibility)
@@ -786,10 +785,9 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 		if (Proxy->SupportsHeightfieldRepresentation())
 		{
 			UTexture2D* HeightAndNormal;
-			UTexture2D* DiffuseColor;
 			UTexture2D* Visibility;
 			FHeightfieldComponentDescription Desc(FMatrix::Identity, InPrimitive->GetInstanceSceneDataOffset());
-			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
+			Proxy->GetHeightfieldRepresentation(HeightAndNormal, Visibility, Desc);
 			GHeightFieldTextureAtlas.RemoveAllocation(HeightAndNormal);
 
 			if (Visibility)

@@ -132,9 +132,6 @@ public:
 		{
 			FToolMenuSection& Section = BuildMenu->FindOrAddSection("LevelEditorLandscape");
 
-			FUIAction ActionBakeTextures(FExecuteAction::CreateStatic(&BuildGITextures), FCanExecuteAction());
-			Section.AddMenuEntry(NAME_None, LOCTEXT("BuildGITexturesOnly", "Build GI Textures Only"),LOCTEXT("BuildGIBakedTextures ", "Build GI baked base color textures"), TAttribute<FSlateIcon>(), ActionBakeTextures,EUserInterfaceActionType::Button);
-			
 			FUIAction ActionBuildGrassMaps(FExecuteAction::CreateStatic(&BuildGrassMaps), FCanExecuteAction());
 			Section.AddMenuEntry(TEXT("BuildGrassMapsOnly"), LOCTEXT("BuildGrassMapsOnly", "Build Grass Maps Only"), LOCTEXT("BuildLandscapeGrassMaps", "Build landscape grass maps"), TAttribute<FSlateIcon>(), ActionBuildGrassMaps, EUserInterfaceActionType::Button);
 
@@ -240,17 +237,6 @@ public:
 			false, 
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.Visualizers")
 		);
-	}
-
-	static void BuildGITextures()
-	{
-		if (UWorld* World = GEditor->GetEditorWorldContext().World())
-		{
-			if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
-			{
-				LandscapeSubsystem->BuildGIBakedTextures();
-			}
-		}
 	}
 
 	static void BuildGrassMaps()

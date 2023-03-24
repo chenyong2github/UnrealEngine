@@ -1530,9 +1530,6 @@ public:
 			}
 			TimeSinceLastInteractorMove += DeltaTime;
 
-			// Prevent landscape from baking textures while tool stroke is active
-			EdMode->CurrentToolTarget.LandscapeInfo->PostponeTextureBaking();
-
 			if (ShouldUpdateEditingLayer())
 			{
 				ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();

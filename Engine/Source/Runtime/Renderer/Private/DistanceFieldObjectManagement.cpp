@@ -764,10 +764,9 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 			FVector4f* UploadObjectBounds = (FVector4f*)DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Add_GetRef(PrimitiveIndex);
 
 			UTexture2D* HeightNormalTexture;
-			UTexture2D* DiffuseColorTexture;
 			UTexture2D* VisibilityTexture;
 			FHeightfieldComponentDescription HeightFieldCompDesc(Primitive->Proxy->GetLocalToWorld(), Primitive->GetInstanceSceneDataOffset());
-			Primitive->Proxy->GetHeightfieldRepresentation(HeightNormalTexture, DiffuseColorTexture, VisibilityTexture, HeightFieldCompDesc);
+			Primitive->Proxy->GetHeightfieldRepresentation(HeightNormalTexture, VisibilityTexture, HeightFieldCompDesc);
 
 			const bool bInAtlas = HeightNormalTexture && (GHeightFieldTextureAtlas.GetAllocationHandle(HeightNormalTexture) != INDEX_NONE);
 

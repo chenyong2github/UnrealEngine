@@ -303,8 +303,8 @@ public:
 
 	LANDSCAPE_API void RemoveXYOffsets();
 
-	/** Postpones landscape textures baking, usually used during landscape painting to avoid hitches */
-	LANDSCAPE_API void PostponeTextureBaking();
+	UE_DEPRECATED(5.3, "Texture Baking is officially deprecated now and nothing updates it anymore")
+	LANDSCAPE_API void PostponeTextureBaking() {}
 
 	/** Will tell if the landscape actor can have some content related to the layer system */
 	LANDSCAPE_API bool CanHaveLayersContent() const;

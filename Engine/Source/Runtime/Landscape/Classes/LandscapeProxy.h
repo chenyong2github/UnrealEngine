@@ -927,26 +927,18 @@ public:
 	/** Render grass maps for the specified components */
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);
 
-	/** Stores Components and their latest BakedTextureMaterial hash*/
+	UE_DEPRECATED(5.3, "FGIBakedTextureState is officially deprecated now and nothing updates it anymore")
 	struct FGIBakedTextureState
 	{
 		FGuid CombinedStateId;
 		TArray<ULandscapeComponent*> Components;
 	};
 		
-	/** Update any GI baked textures from the landscape as necessary */
-	void UpdateGIBakedTextures(bool bBakeAllGITextures = false);
-	/** Update the landscape GI baked textures without deferring*/
-	void UpdateGIBakedTextureData(bool bInShouldMarkDirty = false);
-	/** Update the status of landscape GI baked textures*/
-	void UpdateGIBakedTextureStatus(bool* bOutGenerateLandscapeGIData, TMap<UTexture2D*, FGIBakedTextureState>* OutComponentsNeedBakingByHeightmap, int32* OutdatedComponentsCount=nullptr) const;
-
 	/** Update the landscape physical material render tasks */
 	void UpdatePhysicalMaterialTasks(bool bInShouldMarkDirty = false);
-
 	void UpdatePhysicalMaterialTasksStatus(TSet<ULandscapeComponent*>* OutdatedComponents, int32* OutdatedComponentsCount) const;
 
-	/** Frame counter to count down to the next time we check to update baked textures, so we don't check every frame */
+	UE_DEPRECATED(5.3, "UpdateBakedTexturesCountdown is officially deprecated now and nothing updates it anymore")
 	int32 UpdateBakedTexturesCountdown;
 
 	/** Editor notification when changing feature level */
@@ -1008,8 +1000,10 @@ public:
 
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount() const;
 	LANDSCAPE_API void BuildGrassMaps(struct FScopedSlowTask* InSlowTask = nullptr);
-	LANDSCAPE_API void BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask = nullptr);
-	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount() const;
+	UE_DEPRECATED(5.3, "BuildGIBakedTextures is officially deprecated now")
+	LANDSCAPE_API void BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask = nullptr) {}
+	UE_DEPRECATED(5.3, "GetOutdatedGIBakedTextureComponentsCount is officially deprecated now returns 0")
+	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount() const { return 0; }
 	LANDSCAPE_API void BuildPhysicalMaterial(struct FScopedSlowTask* InSlowTask = nullptr);
 	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount() const;
 	LANDSCAPE_API virtual void CreateSplineComponent() override;
@@ -1246,17 +1240,13 @@ public:
 
 	/* For the grassmap rendering notification */
 	int32 NumComponentsNeedingGrassMapRender;
-	UE_DEPRECATED(5.1, "No longer used for the grassmap rendering notification.")
-	LANDSCAPE_API static int32 TotalComponentsNeedingGrassMapRender;
 
 	/* To throttle texture streaming when we're trying to render a grassmap */
 	int32 NumTexturesToStreamForVisibleGrassMapRender;
 	LANDSCAPE_API static int32 TotalTexturesToStreamForVisibleGrassMapRender;
 
-	/* For the texture baking notification */
+	UE_DEPRECATED(5.3, "NumComponentsNeedingTextureBaking is officially deprecated now and nothing updates it anymore")
 	int32 NumComponentsNeedingTextureBaking;
-	UE_DEPRECATED(5.1, "No longer used for the texture baking notification.")
-	LANDSCAPE_API static int32 TotalComponentsNeedingTextureBaking;
 
 	/** remove an overlapping component. Called from MapCheck. */
 	LANDSCAPE_API void RemoveOverlappingComponent(ULandscapeComponent* Component);
@@ -1378,16 +1368,19 @@ private:
 /**
  * Helper class used to Build or monitor Landscape GI Textures
  */
-class LANDSCAPE_API FLandscapeGIBakedTextureBuilder
+class LANDSCAPE_API UE_DEPRECATED(5.3, "FLandscapeGIBakedTextureBuilder is officially deprecated now and nothing updates it anymore") FLandscapeGIBakedTextureBuilder
 {
 public:
-	FLandscapeGIBakedTextureBuilder(UWorld* InWorld);
-	void Build();
-	int32 GetOutdatedGIBakedTextureComponentsCount(bool bInForceUpdate = true) const;
+	FLandscapeGIBakedTextureBuilder(UWorld* InWorld)
+		:World(InWorld)
+	{}
+	void Build(){}
+	int32 GetOutdatedGIBakedTextureComponentsCount(bool bInForceUpdate = true) const { return 0; }
+
 private:
-	UWorld* World;
-	mutable int32 OutdatedGIBakedTextureComponentsCount;
-	mutable double GIBakedTexturesLastCheckTime;
+	UWorld* World = nullptr;
+	mutable int32 OutdatedGIBakedTextureComponentsCount = 0;
+	mutable double GIBakedTexturesLastCheckTime = 0;
 };
 
 

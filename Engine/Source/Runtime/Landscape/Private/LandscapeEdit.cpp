@@ -4792,16 +4792,6 @@ void ULandscapeInfo::RemoveXYOffsets()
 	});
 }
 
-void ULandscapeInfo::PostponeTextureBaking()
-{
-	static const int32 PostponeValue = 60; //frames
-	
-	ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
-	{
-		Proxy->UpdateBakedTexturesCountdown = PostponeValue;
-	});
-}
-
 bool ULandscapeInfo::CanHaveLayersContent() const
 {
 	if (ALandscape* Landscape = LandscapeActor.Get())

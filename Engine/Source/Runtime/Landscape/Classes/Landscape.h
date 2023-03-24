@@ -557,7 +557,6 @@ private:
 	TSharedPtr<FLandscapeNotification> WaitingForTexturesNotification;
 	TSharedPtr<FLandscapeNotification> WaitingForBrushesNotification;
 	TSharedPtr<FLandscapeNotification> InvalidShadingModelNotification;
-	TSharedPtr<FLandscapeNotification> TextureBakingNotification;
 	TSharedPtr<FLandscapeNotification> GrassRenderingNotification;
 
 	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)

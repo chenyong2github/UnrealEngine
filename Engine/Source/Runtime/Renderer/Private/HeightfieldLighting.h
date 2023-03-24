@@ -19,15 +19,14 @@ class FHeightfieldComponentTextures
 {
 public:
 
-	FHeightfieldComponentTextures(UTexture2D* InHeightAndNormal, UTexture2D* InDiffuseColor, UTexture2D* InVisibility) :
+	FHeightfieldComponentTextures(UTexture2D* InHeightAndNormal, UTexture2D* InVisibility) :
 		HeightAndNormal(InHeightAndNormal),
-		DiffuseColor(InDiffuseColor),
 		Visibility(InVisibility)
 	{}
 
 	FORCEINLINE bool operator==(FHeightfieldComponentTextures Other) const
 	{
-		return HeightAndNormal == Other.HeightAndNormal && DiffuseColor == Other.DiffuseColor && Visibility == Other.Visibility;
+		return HeightAndNormal == Other.HeightAndNormal && Visibility == Other.Visibility;
 	}
 
 	FORCEINLINE friend uint32 GetTypeHash(FHeightfieldComponentTextures ComponentTextures)
@@ -36,7 +35,6 @@ public:
 	}
 
 	UTexture2D* HeightAndNormal;
-	UTexture2D* DiffuseColor;
 	UTexture2D* Visibility;
 };
 

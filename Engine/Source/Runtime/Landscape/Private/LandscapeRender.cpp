@@ -890,7 +890,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, VisibilityWeightmapTexture(nullptr)
 	, VisibilityWeightmapChannel(-1)
 	, HeightmapTexture(InComponent->GetHeightmap())
-	, BaseColorForGITexture(InComponent->GIBakedBaseColorTexture)
 	, HeightmapScaleBias(InComponent->HeightmapScaleBias)
 	, XYOffsetmapTexture(InComponent->XYOffsetmapTexture)
 	, SharedBuffersKey(0)
@@ -3810,10 +3809,9 @@ bool FLandscapeComponentSceneProxy::HeightfieldHasPendingStreaming() const
 	return bHeightmapTextureStreaming || bVisibilityTextureStreaming;
 }
 
-void FLandscapeComponentSceneProxy::GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, UTexture2D*& OutVisibilityTexture, FHeightfieldComponentDescription& OutDescription) const
+void FLandscapeComponentSceneProxy::GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutVisibilityTexture, FHeightfieldComponentDescription& OutDescription) const
 {
 	OutHeightmapTexture = HeightmapTexture;
-	OutDiffuseColorTexture = BaseColorForGITexture;
 	OutVisibilityTexture = VisibilityWeightmapTexture;
 
 	OutDescription.HeightfieldScaleBias = HeightmapScaleBias;
