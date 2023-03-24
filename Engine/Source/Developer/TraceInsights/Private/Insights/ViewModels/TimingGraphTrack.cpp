@@ -408,19 +408,19 @@ void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTim
 // Frams Stats Timer Series
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetFrameStatsTimerSeries(uint32 TimerId)
+TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetFrameStatsTimerSeries(uint32 TimerId, ETraceFrameType FrameType)
 {
-	TSharedPtr<FGraphSeries>* Ptr = AllSeries.FindByPredicate([TimerId](const TSharedPtr<FGraphSeries>& Series)
+	TSharedPtr<FGraphSeries>* Ptr = AllSeries.FindByPredicate([TimerId, FrameType](const TSharedPtr<FGraphSeries>& Series)
 		{
 			const TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
-			return TimingSeries->Type == FTimingGraphSeries::ESeriesType::FrameStatsTimer && TimingSeries->TimerId == TimerId;
+			return TimingSeries->Type == FTimingGraphSeries::ESeriesType::FrameStatsTimer && TimingSeries->TimerId == TimerId && TimingSeries->FrameType == FrameType;
 		});
 	return (Ptr != nullptr) ? StaticCastSharedPtr<FTimingGraphSeries>(*Ptr) : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddFrameStatsTimerSeries(uint32 TimerId, FLinearColor Color)
+TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddFrameStatsTimerSeries(uint32 TimerId, ETraceFrameType FrameType, FLinearColor Color)
 {
 	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>(FTimingGraphSeries::ESeriesType::FrameStatsTimer);
 
@@ -431,8 +431,7 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddFrameStatsTimerSeries(uint3
 	Series->SetColor(Color, BorderColor);
 
 	Series->TimerId = TimerId;
-	//Series->CpuOrGpu = ;
-	//Series->TimelineIndex = ;
+	Series->FrameType = FrameType;
 
 	// Use shared viewport.
 	Series->SetBaselineY(SharedValueViewport.GetBaselineY());
@@ -447,12 +446,12 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddFrameStatsTimerSeries(uint3
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingGraphTrack::RemoveFrameStatsTimerSeries(uint32 TimerId)
+void FTimingGraphTrack::RemoveFrameStatsTimerSeries(uint32 TimerId, ETraceFrameType FrameType)
 {
-	AllSeries.RemoveAll([TimerId](const TSharedPtr<FGraphSeries>& Series)
+	AllSeries.RemoveAll([TimerId, FrameType](const TSharedPtr<FGraphSeries>& Series)
 		{
 			const TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
-			return TimingSeries->Type == FTimingGraphSeries::ESeriesType::FrameStatsTimer && TimingSeries->TimerId == TimerId;
+			return TimingSeries->Type == FTimingGraphSeries::ESeriesType::FrameStatsTimer && TimingSeries->TimerId == TimerId && TimingSeries->FrameType == FrameType;
 		});
 }
 
@@ -480,7 +479,7 @@ void FTimingGraphTrack::UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, 
 				return;
 			}
 
-			FramesProvider.EnumerateFrames(ETraceFrameType::TraceFrameType_Game, (uint64) 0, (uint64) FrameCount, [&Series](const TraceServices::FFrame& Frame)
+			FramesProvider.EnumerateFrames(Series.FrameType, (uint64) 0, (uint64) FrameCount, [&Series](const TraceServices::FFrame& Frame)
 				{
 					FTimingGraphSeries::FAtomicTimingEvent Event;
 					Event.FrameStartTime = Frame.StartTime;

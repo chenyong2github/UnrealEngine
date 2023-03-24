@@ -219,19 +219,19 @@ private:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Frame Type
 
-	void CreateFrameTypeOptionsSources();
+	void CreateModeOptionsSources();
 
-	void FrameType_OnSelectionChanged(TSharedPtr<ETraceFrameType> NewGroupingMode, ESelectInfo::Type SelectInfo);
+	void Mode_OnSelectionChanged(TSharedPtr<ETraceFrameType> NewGroupingMode, ESelectInfo::Type SelectInfo);
 
-	TSharedRef<SWidget> FrameType_OnGenerateWidget(TSharedPtr<ETraceFrameType> InGroupingMode) const;
+	TSharedRef<SWidget> Mode_OnGenerateWidget(TSharedPtr<ETraceFrameType> InGroupingMode) const;
 
-	FText FrameType_GetSelectedText() const;
+	FText Mode_GetSelectedText() const;
 	
-	FText FrameType_GetText(ETraceFrameType InFrameType) const;
+	FText Mode_GetText(ETraceFrameType InFrameType) const;
 
-	FText FrameType_GetSelectedTooltipText() const;
+	FText Mode_GetSelectedTooltipText() const;
 
-	FText FrameType_GetTooltipText(ETraceFrameType InFrameType) const;
+	FText Mode_GetTooltipText(ETraceFrameType InFrameType) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
@@ -299,14 +299,16 @@ private:
 
 	void ToggleTimingViewEventFilter(FTimerNodePtr TimerNode) const;
 
+	void TreeView_BuildPlotTimerMenu(FMenuBuilder& MenuBuilder);
+
 	TSharedPtr<FTimingGraphTrack> GetTimingViewMainGraphTrack() const;
 	void ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr) const;
 	bool IsSeriesInTimingViewMainGraph(FTimerNodePtr TimerNode) const;
 	void ToggleTimingViewMainGraphEventSeries(FTimerNodePtr TimerNode) const;
 
-	void ToggleGraphFrameStatsSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr) const;
-	bool IsFrameStatsSeriesInTimingViewMainGraph(FTimerNodePtr TimerNode) const;
-	void ToggleTimingViewMainGraphEventFrameStatsSeries(FTimerNodePtr TimerNode) const;
+	void ToggleGraphFrameStatsSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr, ETraceFrameType FrameType) const;
+	bool IsFrameStatsSeriesInTimingViewMainGraph(FTimerNodePtr TimerNode, ETraceFrameType FrameType) const;
+	void ToggleTimingViewMainGraphEventFrameStatsSeries(FTimerNodePtr TimerNode, ETraceFrameType FrameType) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -407,11 +409,11 @@ private:
 	//////////////////////////////////////////////////
 	// Frame Type
 
-	TArray<TSharedPtr<ETraceFrameType>> FrameTypeOptionsSource;
+	TArray<TSharedPtr<ETraceFrameType>> ModeOptionsSource;
 
-	TSharedPtr<SComboBox<TSharedPtr<ETraceFrameType>>> FrameTypeComboBox;
+	TSharedPtr<SComboBox<TSharedPtr<ETraceFrameType>>> ModeComboBox;
 
-	ETraceFrameType FrameType;
+	ETraceFrameType ModeFrameType;
 
 	//////////////////////////////////////////////////
 	// Sorting

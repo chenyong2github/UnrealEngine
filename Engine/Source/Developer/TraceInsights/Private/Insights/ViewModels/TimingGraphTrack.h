@@ -63,11 +63,11 @@ public:
 	ESeriesType Type;
 	union
 	{
-		ETraceFrameType FrameType;
 		uint32 TimerId;
 		uint32 CounterId;
 	};
 
+	ETraceFrameType FrameType;
 	double CachedSessionDuration;
 	TArray<FSimpleTimingEvent> CachedEvents; // used by Timer series
 	TArray<FAtomicTimingEvent> FrameStatsCachedEvents; // used by Frame Stats Timer series
@@ -95,9 +95,9 @@ public:
 	TSharedPtr<FTimingGraphSeries> AddTimerSeries(uint32 TimerId, FLinearColor Color);
 	void RemoveTimerSeries(uint32 TimerId);
 
-	TSharedPtr<FTimingGraphSeries> GetFrameStatsTimerSeries(uint32 TimerId);
-	TSharedPtr<FTimingGraphSeries> AddFrameStatsTimerSeries(uint32 TimerId, FLinearColor Color);
-	void RemoveFrameStatsTimerSeries(uint32 TimerId);
+	TSharedPtr<FTimingGraphSeries> GetFrameStatsTimerSeries(uint32 TimerId, ETraceFrameType FrameType);
+	TSharedPtr<FTimingGraphSeries> AddFrameStatsTimerSeries(uint32 TimerId, ETraceFrameType FrameType, FLinearColor Color);
+	void RemoveFrameStatsTimerSeries(uint32 TimerId, ETraceFrameType FrameType);
 
 	TSharedPtr<FTimingGraphSeries> GetStatsCounterSeries(uint32 CounterId);
 	TSharedPtr<FTimingGraphSeries> AddStatsCounterSeries(uint32 CounterId, FLinearColor Color);
