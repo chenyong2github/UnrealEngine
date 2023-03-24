@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8o");
+	return TEXT("v8p1");
 }
 
 namespace FHairStrandsDecimation
@@ -434,7 +434,13 @@ namespace HairStrandsBuilder
 				OutBulkData.Header.PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_AO] = OutPackedAttributes.Num() * UintToByte;
 				OutPackedAttributes.Append(AttributeAO);
 			}
-			CopyToBulkData<FHairStrandsAttributeFormat>(OutBulkData.Data.PointAttributes, OutPackedAttributes);
+
+			const bool bHasPointAttribute = OutPackedAttributes.Num() > 0;
+			if (bHasPointAttribute)
+			{
+				OutBulkData.Header.Flags |= FHairStrandsBulkData::DataFlags_HasPointAttribute;
+				CopyToBulkData<FHairStrandsAttributeFormat>(OutBulkData.Data.PointAttributes, OutPackedAttributes);
+			}
 		}
 
 		CopyToBulkData<FHairStrandsPositionFormat>(OutBulkData.Data.Positions, OutPackedPositions);

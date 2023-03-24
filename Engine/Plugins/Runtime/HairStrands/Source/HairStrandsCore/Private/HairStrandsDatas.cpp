@@ -273,7 +273,10 @@ void FHairStrandsBulkData::SerializeData(FArchive& Ar, UObject* Owner)
 		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
 		Data.Positions.SetBulkDataFlags(BulkFlags);
 		Data.CurveAttributes.SetBulkDataFlags(BulkFlags);
-		Data.PointAttributes.SetBulkDataFlags(BulkFlags);
+		if (Header.Flags & DataFlags_HasPointAttribute)
+		{
+			Data.PointAttributes.SetBulkDataFlags(BulkFlags);
+		}
 		Data.PointToCurve.SetBulkDataFlags(BulkFlags);
 		Data.Curves.SetBulkDataFlags(BulkFlags);
 	}
@@ -284,7 +287,10 @@ void FHairStrandsBulkData::SerializeData(FArchive& Ar, UObject* Owner)
 		bool bAttemptFileMapping = false;
 
 		Data.Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		Data.PointAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		if (Header.Flags & DataFlags_HasPointAttribute)
+		{
+			Data.PointAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		}
 		Data.CurveAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		Data.PointToCurve.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		Data.Curves.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);

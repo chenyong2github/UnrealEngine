@@ -485,6 +485,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 	{
 		DataFlags_HasData = 1,				// Contains valid data. Otherwise: Position, Attributes, ... are all empty
 		DataFlags_Has16bitsCurveIndex = 2,	// Use 16bits index for vertex to curve mapping
+		DataFlags_HasPointAttribute = 4,	// Contains point attribute data.
 	};
 
 	void Serialize(FArchive& Ar, UObject* Owner);
