@@ -385,7 +385,7 @@ void URichTextBlock::SetDefaultFont(FSlateFontInfo InFontInfo)
 	ApplyUpdatedDefaultTextStyle();
 }
 
-void URichTextBlock::SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush)
+void URichTextBlock::SetDefaultStrikeBrush(const FSlateBrush& InStrikeBrush)
 {
 	BeginDefaultStyleOverride();
 	DefaultTextStyleOverride.StrikeBrush = InStrikeBrush;

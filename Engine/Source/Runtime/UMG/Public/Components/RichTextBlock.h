@@ -113,7 +113,7 @@ public:
 	 * @param InStrikeBrush The new brush to use to strike through text
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush);
+	void SetDefaultStrikeBrush(const FSlateBrush& InStrikeBrush);
 
 	/**
 	 *  Set the minimum desired width for this rich text block
