@@ -432,7 +432,6 @@ void SSequencerGroupManager::UpdateTree()
 		}
 	}
 
-
 	TreeView->RequestTreeRefresh();
 
 	bNodeGroupsDirty = false;
@@ -551,6 +550,7 @@ void SSequencerGroupManager::RemoveSelectedItemsFromNodeGroup()
 		Item.Key->RemoveNode(Item.Value);
 	}
 	
+	RefreshNodeGroups();
 }
 
 void SSequencerGroupManager::CreateNodeGroup()
