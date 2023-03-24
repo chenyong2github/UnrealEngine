@@ -137,6 +137,22 @@ DECLARE_EVENT_TwoParams(AActor, FActorOnPackagingModeChanged, AActor*, bool /* b
 DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnProcessEvent, AActor*, UFunction*, void*);
 #endif
 
+#if WITH_EDITOR
+class FActorInstanceGuidMapper
+{
+	using FGuidMapper = TFunction<FGuid(const FGuid&)>;
+
+public:
+	void RegisterGuidMapper(FName InPackageName, const FGuidMapper& InGuidMapper);
+	void UnregisterGuidMapper(FName InPackageName);
+
+	FGuid MapGuid(FName InPackageName, const FGuid& InGuid);
+
+private:
+	TMap<FName, FGuidMapper> GuidMappers;
+};
+#endif
+
 /**
  * TInlineComponentArray is simply a TArray that reserves a fixed amount of space on the stack
  * to try to avoid heap allocation when there are fewer than a specified number of elements expected in the result.
@@ -883,7 +899,7 @@ private:
 protected:
 	/**
 	 * The GUID for this actor; this guid will be the same for actors from instanced streaming levels.
-	 * @see		ActorInstanceGuid
+	 * @see		ActorInstanceGuid, FActorInstanceGuidMapper
 	 * @note	Don't use VisibleAnywhere here to avoid getting the CPF_Edit flag and get this property reset when resetting to defaults.
 	 *			See FActorDetails::AddActorCategory and EditorUtilities::CopySingleProperty for details.
 	 */
@@ -893,8 +909,7 @@ protected:
 	/**
 	 * The instance GUID for this actor; this guid will be unique for actors from instanced streaming levels.
 	 * @see		ActorGuid
-	 * @note	Don't use VisibleAnywhere here to avoid getting the CPF_Edit flag and get this property reset when resetting to defaults.
-	 *			See FActorDetails::AddActorCategory and EditorUtilities::CopySingleProperty for details.
+	 * @note	This is not guaranteed to be valid during PostLoad in all situations, but safe to access from RegisterAllComponents.
 	 */
 	UPROPERTY(BluePrintReadOnly, AdvancedDisplay, Category=Actor, Transient, NonTransactional)
 	FGuid ActorInstanceGuid;

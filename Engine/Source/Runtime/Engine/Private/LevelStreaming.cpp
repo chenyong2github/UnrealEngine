@@ -2440,7 +2440,6 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(const FLoadLev
 	return LoadLevelInstance_Internal(Params, bOutSuccess);
 }
 
-
 ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(const FLoadLevelInstanceParams& Params, bool& bOutSuccess)
 {
 	const FString PackagePath = FPackageName::GetLongPackagePath(Params.LongPackageName);
@@ -2456,29 +2455,10 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(const
 	const FString OnDiskPackageName = PackagePath + TEXT("/") + ShortPackageName;
 
 	// Determine loaded package name
-	TStringBuilder<512> LevelPackageNameStrBuilder;
-	if (Params.bLoadAsTempPackage)
-	{
-		LevelPackageNameStrBuilder.Append(TEXT("/Temp"));
-	}
-	LevelPackageNameStrBuilder.Append(PackagePath);
-	LevelPackageNameStrBuilder.Append(TEXT("/"));
-		
-	bool bNeedsUniqueTest = false;
-	if (Params.OptionalLevelNameOverride)
-	{
-		// Use the supplied suffix, which is expected to result in a unique package name but we have to check if it is not.
-		LevelPackageNameStrBuilder.Append(*Params.OptionalLevelNameOverride);
-		bNeedsUniqueTest = true;
-	}
-	else
-	{
-		LevelPackageNameStrBuilder.Append(ShortPackageName);
-		LevelPackageNameStrBuilder.Append(TEXT("_LevelInstance_"));
-		LevelPackageNameStrBuilder.Append(FString::FromInt(++UniqueLevelInstanceId));
-	}
+	const FString LevelPackageNameStr(GetLevelInstancePackageName(Params));
 
-	const FString LevelPackageNameStr(LevelPackageNameStrBuilder.ToString());
+	const bool bNeedsUniqueTest = Params.OptionalLevelNameOverride != nullptr;
+
 	const FName UnmodifiedLevelPackageName = FName(*LevelPackageNameStr);
 #if WITH_EDITOR
 	const bool bIsPlayInEditor = Params.World->IsPlayInEditor();
@@ -2535,6 +2515,43 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(const
 	bOutSuccess = true;
     return StreamingLevel;
 }	
+
+FString ULevelStreamingDynamic::GetLevelInstancePackageName(const FLoadLevelInstanceParams& Params)
+{
+	const FString PackagePath = FPackageName::GetLongPackagePath(Params.LongPackageName);
+	FString ShortPackageName = FPackageName::GetShortName(Params.LongPackageName);
+
+	if (ShortPackageName.StartsWith(Params.World->StreamingLevelsPrefix))
+	{
+		ShortPackageName.RightChopInline(Params.World->StreamingLevelsPrefix.Len(), false);
+	}
+
+	// Remove PIE prefix if it's there before we actually load the level
+	const FString OnDiskPackageName = PackagePath + TEXT("/") + ShortPackageName;
+
+	// Determine loaded package name
+	TStringBuilder<512> LevelPackageNameStrBuilder;
+	if (Params.bLoadAsTempPackage)
+	{
+		LevelPackageNameStrBuilder.Append(TEXT("/Temp"));
+	}
+	LevelPackageNameStrBuilder.Append(PackagePath);
+	LevelPackageNameStrBuilder.Append(TEXT("/"));
+		
+	if (Params.OptionalLevelNameOverride)
+	{
+		// Use the supplied suffix, which is expected to result in a unique package name but we have to check if it is not.
+		LevelPackageNameStrBuilder.Append(*Params.OptionalLevelNameOverride);
+	}
+	else
+	{
+		LevelPackageNameStrBuilder.Append(ShortPackageName);
+		LevelPackageNameStrBuilder.Append(TEXT("_LevelInstance_"));
+		LevelPackageNameStrBuilder.Append(FString::FromInt(++UniqueLevelInstanceId));
+	}
+
+	return LevelPackageNameStrBuilder.ToString();
+}
 
 /*-----------------------------------------------------------------------------
 	ULevelStreamingAlwaysLoaded implementation.

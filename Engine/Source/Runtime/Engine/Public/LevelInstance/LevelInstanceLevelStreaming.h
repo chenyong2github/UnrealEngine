@@ -39,6 +39,7 @@ private:
 #if WITH_EDITOR
 	void ResetLevelInstanceLoaders();
 	void PrepareLevelInstanceLoadedActor(AActor& InActor, ILevelInstanceInterface* InLevelInstance, bool bResetLoaders);
+	void OnLoadedActorPreAddedToLevel(const TArray<AActor*>& InActors);
 	void OnLoadedActorAddedToLevel(AActor& InActor);
 	void OnLoadedActorRemovedFromLevel(AActor& InActor);
 

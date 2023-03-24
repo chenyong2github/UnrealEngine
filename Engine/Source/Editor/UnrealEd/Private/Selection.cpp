@@ -12,6 +12,7 @@
 #include "GameFramework/Actor.h"
 #include "Logging/LogMacros.h"
 #include "Templates/UnrealTemplate.h"
+#include "Editor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSelection, Log, All);
 
@@ -355,4 +356,38 @@ bool USelection::Modify(bool bAlwaysMarkDirty)
 {
 	return ElementSelectionSet 
 		&& ElementSelectionSet->Modify(bAlwaysMarkDirty);
+}
+
+FDeselectedActorsEvent::~FDeselectedActorsEvent()
+{
+	if (GEditor && GEditor->GetSelectedActors())
+	{
+		if (UTypedElementSelectionSet* ElementSelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
+		{
+			bool bSelectionChanged = false;
+			FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementSelectionSet->GetElementList());
+
+			for (AActor* Actor : DeselectedActors)
+			{
+				if (!Actor->GetRootSelectionParent())
+				{
+					if (FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor, /*bAllowCreate*/false))
+					{
+						static const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+							.SetAllowHidden(true)
+							.SetAllowGroups(false)
+							.SetWarnIfLocked(false)
+							.SetChildElementInclusionMethod(ETypedElementChildInclusionMethod::Recursive);
+
+						bSelectionChanged |= ElementSelectionSet->DeselectElement(ActorHandle, SelectionOptions);
+					}
+				}
+			}
+
+			if (bSelectionChanged)
+			{
+				GEditor->NoteSelectionChange();
+			}
+		}
+	}
 }

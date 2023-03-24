@@ -494,3 +494,16 @@ public:
 		: TSelectionIterator<FSelectedEditableComponentFilter>(InSelection)
 	{}
 };
+
+class UNREALED_API FDeselectedActorsEvent
+{
+public:
+	FDeselectedActorsEvent(const TArray<AActor*>& InDeselectedActors)
+		: DeselectedActors(InDeselectedActors)
+	{}
+
+	~FDeselectedActorsEvent();
+
+private:
+	const TArray<AActor*>& DeselectedActors;
+};

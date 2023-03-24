@@ -60,6 +60,7 @@ Level.cpp: Level-related functions
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PathViews.h"
+#include "Selection.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
@@ -193,13 +194,6 @@ FPendingAutoReceiveInputActor::~FPendingAutoReceiveInputActor() = default;
 /*-----------------------------------------------------------------------------
 ULevel implementation.
 -----------------------------------------------------------------------------*/
-
-#if WITH_EDITOR
-ULevel::FLoadedActorAddedToLevelPreEvent ULevel::OnLoadedActorAddedToLevelPreEvent;
-ULevel::FLoadedActorAddedToLevelPostEvent ULevel::OnLoadedActorAddedToLevelPostEvent;
-ULevel::FLoadedActorRemovedFromLevelPreEvent ULevel::OnLoadedActorRemovedFromLevelPreEvent;
-ULevel::FLoadedActorRemovedFromLevelPostEvent ULevel::OnLoadedActorRemovedFromLevelPostEvent;
-#endif
 
 /** Called when a level package has been dirtied. */
 FSimpleMulticastDelegate ULevel::LevelDirtiedEvent;
@@ -836,7 +830,7 @@ void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform*
 	FScopedSlowTask SlowTask(ActorsQueue.Num() * 3, LOCTEXT("RegisteringActors", "Registering actors..."));
 	SlowTask.MakeDialogDelayed(1.0f);
 
-	OnLoadedActorAddedToLevelPreEvent.Broadcast(this);
+	OnLoadedActorAddedToLevelPreEvent.Broadcast(ActorsQueue);
 
 	// Register all components
 	for (AActor* Actor : ActorsQueue)
@@ -905,7 +899,11 @@ void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform*
 		SlowTask.EnterProgressFrame(1);
 	}
 
-	OnLoadedActorAddedToLevelPostEvent.Broadcast(this);
+	TArray<AActor*> ValidActorsQueue;
+	ValidActorsQueue.Reserve(ActorsQueue.Num());
+	Algo::CopyIf(ActorsQueue, ValidActorsQueue, [&](AActor* Actor) { return IsValid(Actor); });
+
+	OnLoadedActorAddedToLevelPostEvent.Broadcast(ValidActorsQueue);
 }
 
 void ULevel::RemoveLoadedActor(AActor* Actor, const FTransform* TransformToRemove)
@@ -951,8 +949,8 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 
 	FScopedSlowTask SlowTask(ActorsQueue.Num(), LOCTEXT("UnregisteringActors", "Unregistering actors..."));
 	SlowTask.MakeDialogDelayed(1.0f);
-			
-	OnLoadedActorRemovedFromLevelPreEvent.Broadcast(this);
+
+	OnLoadedActorRemovedFromLevelPreEvent.Broadcast(ActorsQueue);
 
 	for (AActor* Actor : ActorsQueue)
 	{
@@ -978,7 +976,12 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 		SlowTask.EnterProgressFrame(1);
 	}
 
-	OnLoadedActorRemovedFromLevelPostEvent.Broadcast(this);
+	TArray<AActor*> ValidActorsQueue;
+	ValidActorsQueue.Reserve(ActorsQueue.Num());
+	Algo::CopyIf(ActorsQueue, ValidActorsQueue, [&](AActor* Actor) { return IsValid(Actor); });
+
+	FDeselectedActorsEvent DeselectedActorsEvent(ValidActorsQueue);
+	OnLoadedActorRemovedFromLevelPostEvent.Broadcast(ValidActorsQueue);
 }
 #endif
 

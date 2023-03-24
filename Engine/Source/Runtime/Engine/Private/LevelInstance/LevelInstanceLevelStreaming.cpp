@@ -23,6 +23,8 @@
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "LevelUtils.h"
 #include "ActorFolder.h"
+#include "Misc/LazySingleton.h"
+#include "Misc/ScopeExit.h"
 #include "UObject/LinkerLoad.h"
 
 static bool GDisableLevelInstanceEditorPartialLoading = false;
@@ -87,6 +89,20 @@ FBox ULevelStreamingLevelInstance::GetBounds() const
 	}
 	check(CachedBounds.IsValid);
 	return CachedBounds;
+}
+
+void ULevelStreamingLevelInstance::OnLoadedActorPreAddedToLevel(const TArray<AActor*>& InActors)
+{
+	check(LevelInstanceEditorInstanceActor.IsValid());
+	if (ILevelInstanceInterface* LevelInstance = GetLevelInstance())
+	{
+		for (AActor* Actor : InActors)
+		{
+			// Must happen before the actors are registered with the world, which is the case for this delegate.
+			const FActorContainerID& ContainerID = LevelInstance->GetLevelInstanceID().GetContainerID();
+			FSetActorInstanceGuid SetActorInstanceGuid(Actor, ContainerID.GetActorGuid(Actor->GetActorGuid()));
+		}
+	}
 }
 
 void ULevelStreamingLevelInstance::OnLoadedActorAddedToLevel(AActor& InActor)
@@ -159,9 +175,6 @@ void ULevelStreamingLevelInstance::PrepareLevelInstanceLoadedActor(AActor& InAct
 	if (InLevelInstance)
 	{
 		InActor.PushLevelInstanceEditingStateToProxies(CastChecked<AActor>(InLevelInstance)->IsInEditingLevelInstance());
-
-		const FActorContainerID& ContainerID = InLevelInstance->GetLevelInstanceID().GetContainerID();
-		FSetActorInstanceGuid SetActorInstanceGuid(&InActor, ContainerID.GetActorGuid(InActor.GetActorGuid()));
 	}
 
 	if (LevelInstanceEditorInstanceActor.IsValid())
@@ -221,7 +234,15 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 	{
 		Params.bInitiallyVisible = LevelInstance->IsInitiallyVisible();
 	}
-	
+
+	const FString LevelInstancePackageName = ULevelStreamingDynamic::GetLevelInstancePackageName(Params);
+
+#if WITH_EDITOR
+	FActorInstanceGuidMapper& ActorInstanceGuidMapper = TLazySingleton<FActorInstanceGuidMapper>::Get();
+	ActorInstanceGuidMapper.RegisterGuidMapper(*LevelInstancePackageName, [LevelInstance](const FGuid& InActorGuid) { return LevelInstance->GetLevelInstanceID().GetContainerID().GetActorGuid(InActorGuid); });
+	ON_SCOPE_EXIT { ActorInstanceGuidMapper.UnregisterGuidMapper(*LevelInstancePackageName); };
+#endif
+
 	ULevelStreamingLevelInstance* LevelStreaming = Cast<ULevelStreamingLevelInstance>(ULevelStreamingDynamic::LoadLevelInstance(Params, bOutSuccess));
 	if (bOutSuccess)
 	{
@@ -240,6 +261,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 			{
 				check(LevelStreaming->GetLevelStreamingState() == ELevelStreamingState::LoadedVisible);
 
+				Level->OnLoadedActorAddedToLevelPreEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstance::OnLoadedActorPreAddedToLevel);
 				Level->OnLoadedActorAddedToLevelEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstance::OnLoadedActorAddedToLevel);
 				Level->OnLoadedActorRemovedFromLevelEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstance::OnLoadedActorRemovedFromLevel);
 
@@ -301,6 +323,7 @@ void ULevelStreamingLevelInstance::UnloadInstance(ULevelStreamingLevelInstance* 
 	else
 	{
 		ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel();
+		LoadedLevel->OnLoadedActorAddedToLevelPreEvent.RemoveAll(LevelStreaming);
 		LoadedLevel->OnLoadedActorAddedToLevelEvent.RemoveAll(LevelStreaming);
 		LoadedLevel->OnLoadedActorRemovedFromLevelEvent.RemoveAll(LevelStreaming);
 		LevelStreaming->LevelInstanceEditorInstanceActor.Reset();

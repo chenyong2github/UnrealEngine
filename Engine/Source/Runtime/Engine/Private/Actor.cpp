@@ -60,8 +60,10 @@
 #include "FoliageHelper.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceInterface.h"
+#include "Misc/LazySingleton.h"
 #endif
 
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
@@ -99,6 +101,29 @@ TMap<FName, int32> CSVActorClassNameToCountMap;
 FCriticalSection CSVActorClassNameToCountMapLock;
 
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
+
+#if WITH_EDITOR
+void FActorInstanceGuidMapper::RegisterGuidMapper(FName InPackageName, const FGuidMapper& InGuidMapper)
+{
+	check(!GuidMappers.Contains(InPackageName));
+	GuidMappers.Add(InPackageName, InGuidMapper);
+}
+
+void FActorInstanceGuidMapper::UnregisterGuidMapper(FName InPackageName)
+{
+	check(GuidMappers.Contains(InPackageName));
+	GuidMappers.Remove(InPackageName);
+}
+
+FGuid FActorInstanceGuidMapper::MapGuid(FName InPackageName, const FGuid& InGuid)
+{
+	if (FGuidMapper* GuidMapper = GuidMappers.Find(InPackageName))
+	{
+		return (*GuidMapper)(InGuid);
+	}
+	return InGuid;
+}
+#endif
 
 uint32 AActor::BeginPlayCallDepth = 0;
 
@@ -861,6 +886,13 @@ void AActor::Serialize(FArchive& Ar)
 			ActorGuid = FGuid::NewGuid();
 		}
 
+		check(!ActorInstanceGuid.IsValid());
+		const FGuid NewActorInstanceGuid = TLazySingleton<FActorInstanceGuidMapper>::Get().MapGuid(GetOuter()->GetPackage()->GetFName(), ActorGuid);
+		if (NewActorInstanceGuid != ActorGuid)
+		{
+			ActorInstanceGuid = NewActorInstanceGuid;
+		}
+
 		if (!CanChangeIsSpatiallyLoadedFlag() && (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ActorGridPlacementDeprecateDefaultValueFixup))
 		{
 			bIsSpatiallyLoaded = GetClass()->GetDefaultObject<AActor>()->bIsSpatiallyLoaded;
@@ -879,7 +911,6 @@ void AActor::Serialize(FArchive& Ar)
 				ContentBundleGuid = FixupContentBundleGuid;
 			}
 		}
-
 	}
 #endif
 }

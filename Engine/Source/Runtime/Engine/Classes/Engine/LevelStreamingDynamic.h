@@ -86,6 +86,8 @@ class ENGINE_API ULevelStreamingDynamic : public ULevelStreaming
 
 	static ULevelStreamingDynamic* LoadLevelInstance(const FLoadLevelInstanceParams& Params, bool& bOutSuccess);
 
+	static FString GetLevelInstancePackageName(const FLoadLevelInstanceParams& Params);
+
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	//~ End UObject Interface
