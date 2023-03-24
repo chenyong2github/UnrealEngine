@@ -714,6 +714,7 @@ void UWorldPartition::Uninitialize()
 		ActorDescContainer = nullptr;
 
 		EditorHash = nullptr;
+		bIsPIE = false;
 #endif		
 
 		if (DataLayerManager)
