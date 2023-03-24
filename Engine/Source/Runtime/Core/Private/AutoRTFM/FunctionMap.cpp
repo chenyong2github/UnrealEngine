@@ -91,12 +91,12 @@ void FunctionMapAdd(void* OldFunction, void* NewFunction)
     InitializeGlobalDataIfNecessary();
     
     TLockGuard<FFastLock> LockGuard(GlobalData->FunctionMapLock);
-    std::vector<void*> Functions;
-    Functions.push_back(OldFunction);
-    while (!Functions.empty())
+    TArray<void*> Functions;
+    Functions.Push(OldFunction);
+    while (!Functions.IsEmpty())
     {
-        void* Function = Functions.back();
-        Functions.pop_back();
+        void* Function = Functions.Last();
+        Functions.Pop();
         FunctionMapAddImpl(Function, NewFunction);
     }
 }

@@ -13,7 +13,7 @@ inline void* FunctionMapLookup(void* OldFunction, FContext* Context, const char*
     void* Result = FunctionMapTryLookup(OldFunction);
     if (!Result)
     {
-        fprintf(stderr, "Could not find function %p (%s)\n", OldFunction, GetFunctionDescription(OldFunction).c_str());
+        fprintf(stderr, "Could not find function %p (%s)\n", OldFunction, TCHAR_TO_ANSI(*GetFunctionDescription(OldFunction)));
         if (Where)
         {
             fprintf(stderr, "%s\n", Where);

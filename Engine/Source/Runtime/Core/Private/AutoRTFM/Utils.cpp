@@ -3,11 +3,10 @@
 #if (defined(__AUTORTFM) && __AUTORTFM)
 #include "Utils.h"
 #include <errno.h>
-#include <mutex>
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #include <windows.h>
 #include <dbghelp.h>
 #else
@@ -23,31 +22,17 @@ constexpr const char* LogFilename = nullptr;
 
 constexpr const char* LogFileMode = "wt";
 
-std::once_flag LogInitializationFlag;
 FILE* LogFile;
 
 FILE* GetLogFile()
 {
-    std::call_once(LogInitializationFlag, []
+    UE_CALL_ONCE([]
     {
         if (LogFilename)
         {
             ASSERT(LogFileMode);
 
-#ifdef _MSC_VER
-/*
-   Disable warning about deprecated STD C functions.
-*/
-#pragma warning(disable : 4996)
-
-#pragma warning(push)
-#endif
-
             LogFile = fopen(LogFilename, LogFileMode);
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
             if (!LogFile)
             {
@@ -63,13 +48,13 @@ FILE* GetLogFile()
     return LogFile;
 }
 
-std::string GetFunctionDescription(void* FunctionPtr)
+FString GetFunctionDescription(void* FunctionPtr)
 {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     // This is gross, but it works. It's possible for someone to have SymInitialized before. But if they had, then this
     // will just fail. Also, this function is called in cases where we're failing, so it's ok if we do dirty things.
     SymInitialize(GetCurrentProcess(), nullptr, true);
-    
+
     DWORD64 Displacement = 0;
     DWORD64 Address = reinterpret_cast<DWORD64>(FunctionPtr);
     char Buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
@@ -82,14 +67,14 @@ std::string GetFunctionDescription(void* FunctionPtr)
     }
     else
     {
-        return "<error getting description>";
+        return TEXT("<error getting description>");
     }
-#else // _WIN32 -> so !_WIN32
+#else // PLATFORM_WINDOWS -> so !PLATFORM_WINDOWS
     char** const symbols = backtrace_symbols(&FunctionPtr, 1);
-    std::string name(*symbols);
+    FString Name(ANSI_TO_TCHAR(*symbols));
     free(symbols);
-    return name;
-#endif // _WIN32 -> so end of !_WIN32
+    return Name;
+#endif // PLATFORM_WINDOWS -> so !PLATFORM_WINDOWS
 }
 
 } // namespace AutoRTFM

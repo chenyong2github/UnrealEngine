@@ -81,14 +81,14 @@ inline void FTransaction::DidAllocate(void* LogicalAddress, size_t Size)
     }
 }
 
-inline void FTransaction::DeferUntilCommit(std::function<void()>&& Callback)
+inline void FTransaction::DeferUntilCommit(TFunction<void()>&& Callback)
 {
-    CommitTasks.Add(std::move(Callback));
+    CommitTasks.Add(MoveTemp(Callback));
 }
 
-inline void FTransaction::DeferUntilAbort(std::function<void()>&& Callback)
+inline void FTransaction::DeferUntilAbort(TFunction<void()>&& Callback)
 {
-    AbortTasks.Add(std::move(Callback));
+    AbortTasks.Add(MoveTemp(Callback));
 }
 
 } // namespace AutoRTFM

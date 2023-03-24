@@ -3,7 +3,6 @@
 #pragma once
 
 #include "SharedPtr.h"
-#include <vector>
 
 namespace AutoRTFM
 {
@@ -14,28 +13,28 @@ class TTaskArray
 public:
     TTaskArray() = default;
 
-    bool IsEmpty() const { return Latest.empty() && Stash.empty(); }
+    bool IsEmpty() const { return Latest.IsEmpty() && Stash.IsEmpty(); }
 
     void Add(T&& value)
     {
-        Latest.push_back(std::move(value));
+        Latest.Push(MoveTemp(value));
     }
     void Add(const T& value)
     {
-        Latest.push_back(value);
+        Latest.Push(value);
     }
 
     void AddAll(TTaskArray<T>&& Other)
     {
         Canonicalize();
-        for (TSharedPtr<std::vector<T>>& StashedVectorBox : Other.Stash)
+        for (TSharedPtr<TArray<T>>& StashedVectorBox : Other.Stash)
         {
-            Stash.push_back(std::move(StashedVectorBox));
+            Stash.Push(MoveTemp(StashedVectorBox));
         }
-        Other.Stash.clear(); 
-        if (!Other.Latest.empty())
+        Other.Stash.Empty();
+        if (!Other.Latest.IsEmpty())
         {
-            Stash.push_back(TSharedPtr<std::vector<T>>::New(std::move(Other.Latest)));
+            Stash.Push(TSharedPtr<TArray<T>>::New(MoveTemp(Other.Latest)));
         }
     }
 
@@ -43,16 +42,16 @@ public:
     {
         Canonicalize();
         Other.Canonicalize();
-        for (const TSharedPtr<std::vector<T>>& StashedVectorBox : Other.Stash)
+        for (const TSharedPtr<TArray<T>>& StashedVectorBox : Other.Stash)
         {
-            Stash.push_back(StashedVectorBox);
+            Stash.Push(StashedVectorBox);
         }
     }
 
     template<typename TFunc>
     bool ForEachForward(const TFunc& Func)
     {
-        for (TSharedPtr<std::vector<T>>& StashedVectorBox : Stash)
+        for (TSharedPtr<TArray<T>>& StashedVectorBox : Stash)
         {
             for (const T& Entry : *StashedVectorBox)
             {
@@ -75,17 +74,17 @@ public:
     template<typename TFunc>
     bool ForEachBackward(const TFunc& Func)
     {
-        for (size_t Index = Latest.size(); Index--;)
+        for (size_t Index = Latest.Num(); Index--;)
         {
             if (!Func(Latest[Index]))
             {
                 return false;
             }
         }
-        for (size_t IndexInStash = Stash.size(); IndexInStash--;)
+        for (size_t IndexInStash = Stash.Num(); IndexInStash--;)
         {
-            const std::vector<T>& StashedVector = *Stash[IndexInStash];
-            for (size_t Index = StashedVector.size(); Index--;)
+            const TArray<T>& StashedVector = *Stash[IndexInStash];
+            for (size_t Index = StashedVector.Num(); Index--;)
             {
                 if (!Func(StashedVector[Index]))
                 {
@@ -98,8 +97,8 @@ public:
 
     void Reset()
     {
-        Latest.clear();
-        Stash.clear();
+        Latest.Empty();
+        Stash.Empty();
     }
 
 private:
@@ -108,15 +107,15 @@ private:
     // method is `const`.
     void Canonicalize() const
     {
-        if (!Latest.empty())
+        if (!Latest.IsEmpty())
         {
-            Stash.push_back(TSharedPtr<std::vector<T>>::New(std::move(Latest)));
+            Stash.Push(TSharedPtr<TArray<T>>::New(MoveTemp(Latest)));
         }
     }
     
-    mutable std::vector<T> Latest;
+    mutable TArray<T> Latest;
     
-    mutable std::vector<TSharedPtr<std::vector<T>>> Stash;
+    mutable TArray<TSharedPtr<TArray<T>>> Stash;
 };
 
 } // namespace AutoRTFM

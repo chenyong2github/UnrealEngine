@@ -337,8 +337,6 @@ inline void autortfm_check_abi(void* ptr, size_t size) { }
 #ifdef __cplusplus
 }
 
-#include <functional>
-
 namespace AutoRTFM
 {
 
@@ -504,10 +502,10 @@ inline void RegisterOpenFunction(void* OriginalFunction, void* NewFunction)
 }
 
 #if UE_AUTORTFM
-void DeferUntilCommit(std::function<void()>&& Work);
-void DeferUntilAbort(std::function<void()>&& Work);
-void OpenCommit(std::function<void()>&& Work);
-void OpenAbort(std::function<void()>&& Work);
+void DeferUntilCommit(TFunction<void()>&& Work);
+void DeferUntilAbort(TFunction<void()>&& Work);
+void OpenCommit(TFunction<void()>&& Work);
+void OpenAbort(TFunction<void()>&& Work);
 #else
 template<typename TFunctor>
 void DeferUntilCommit(const TFunctor& Work) { Work(); }

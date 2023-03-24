@@ -9,7 +9,6 @@
 #include <string.h>
 #include <wchar.h>
 #include <float.h>
-#include <math.h>
 
 #ifdef __APPLE__
 #include <malloc/malloc.h>
@@ -17,7 +16,7 @@
 #include <malloc.h>
 #endif
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #define NOMINMAX
 #include <windows.h>
 #endif
@@ -71,7 +70,7 @@ void* STM_realloc(void* Ptr, size_t Size, FContext* Context)
 #else
 		const size_t OldSize = malloc_usable_size(Ptr);
 #endif
-        MemcpyToNew(NewObject, Ptr, std::min(OldSize, Size), Context);
+        MemcpyToNew(NewObject, Ptr,  FMath::Min(OldSize, Size), Context);
         STM_free(Ptr, Context);
     }
     return NewObject;
@@ -141,7 +140,7 @@ int STM_puts(const char* Str, FContext* Context)
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(puts);
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 
 FILE* STM___acrt_iob_func(int Index, FContext* Context)
 {
@@ -162,15 +161,15 @@ UE_AUTORTFM_REGISTER_SELF_FUNCTION(__stdio_common_vsprintf);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(__stdio_common_vswprintf);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(__stdio_common_vfwprintf);
 
-#else // _WIN32 -> so !_WIN32
+#else // PLATFORM_WINDOWS -> so !PLATFORM_WINDOWS
 extern "C" size_t _ZNSt3__112__next_primeEm(size_t N) __attribute__((weak));
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_ZNSt3__112__next_primeEm);
-#endif // _WIN32 -> so end of !_WIN32
+#endif // PLATFORM_WINDOWS -> so end of !PLATFORM_WINDOWS
 
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<float(*)(float, float)>(&powf));
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<double(*)(double, double)>(&pow));
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_isnan);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_finite);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(IsDebuggerPresent);
@@ -189,7 +188,7 @@ extern "C" void* _Init_thread_footer();
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_header);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_abort);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_footer);
-#endif
+#endif // PLATFORM_WINDOWS
 
 wchar_t* STM_wcsncpy(wchar_t* Dst, const wchar_t* Src, size_t Count, FContext* Context)
 {

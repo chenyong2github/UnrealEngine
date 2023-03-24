@@ -169,11 +169,11 @@ extern "C" void autortfm_register_open_function(void* OriginalFunction, void* Ne
     FunctionMapAdd(OriginalFunction, NewFunction);
 }
 
-void DeferUntilCommit(std::function<void()>&& Work)
+void DeferUntilCommit(TFunction<void()>&& Work)
 {
     if (FContext::IsTransactional())
     {
-        FContext::Get()->GetCurrentTransaction()->DeferUntilCommit(std::move(Work));
+        FContext::Get()->GetCurrentTransaction()->DeferUntilCommit(MoveTemp(Work));
     }
     else
     {
@@ -181,20 +181,20 @@ void DeferUntilCommit(std::function<void()>&& Work)
     }
 }
 
-void DeferUntilAbort(std::function<void()>&& Work)
+void DeferUntilAbort(TFunction<void()>&& Work)
 {
     if (FContext::IsTransactional())
     {
-        FContext::Get()->GetCurrentTransaction()->DeferUntilAbort(std::move(Work));
+        FContext::Get()->GetCurrentTransaction()->DeferUntilAbort(MoveTemp(Work));
     }
 }
 
-void OpenCommit(std::function<void()>&& Work)
+void OpenCommit(TFunction<void()>&& Work)
 {
     Work();
 }
 
-void OpenAbort(std::function<void()>&& Work)
+void OpenAbort(TFunction<void()>&& Work)
 {
 }
 
@@ -254,7 +254,7 @@ extern "C" void autortfm_check_abi(void* const Ptr, const size_t Size)
 	private:
 		auto Tied() const
 		{
-			return std::tie(LogLineBytes, LineBytes, LineTableSize, Offset_Context_CurrentTransaction, Offset_Context_LineTable, Offset_Context_Status, LogSize_LineEntry, Size_LineEntry, Offset_LineEntry_LogicalLine, Offset_LineEntry_ActiveLine, Offset_LineEntry_LoggingTransaction, Offset_LineEntry_AccessMask, Context_Status_OnTrack);
+			return Tie(LogLineBytes, LineBytes, LineTableSize, Offset_Context_CurrentTransaction, Offset_Context_LineTable, Offset_Context_Status, LogSize_LineEntry, Size_LineEntry, Offset_LineEntry_LogicalLine, Offset_LineEntry_ActiveLine, Offset_LineEntry_LoggingTransaction, Offset_LineEntry_AccessMask, Context_Status_OnTrack);
 		}
 
 	public:
@@ -416,31 +416,31 @@ extern "C" void STM_autortfm_record_open_write(void*, size_t, FContext*)
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_record_open_write);
 
-void STM_DeferUntilCommit(std::function<void()>&& Work, FContext* Context)
+void STM_DeferUntilCommit(TFunction<void()>&& Work, FContext* Context)
 {
     ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
-    Context->GetCurrentTransaction()->DeferUntilCommit(std::move(Work));
+    Context->GetCurrentTransaction()->DeferUntilCommit(MoveTemp(Work));
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(DeferUntilCommit);
 
-void STM_DeferUntilAbort(std::function<void()>&& Work, FContext* Context)
+void STM_DeferUntilAbort(TFunction<void()>&& Work, FContext* Context)
 {
     ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
-    Context->GetCurrentTransaction()->DeferUntilAbort(std::move(Work));
+    Context->GetCurrentTransaction()->DeferUntilAbort(MoveTemp(Work));
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(DeferUntilAbort);
 
-void STM_OpenCommit(std::function<void()>&& Work, FContext* Context)
+void STM_OpenCommit(TFunction<void()>&& Work, FContext* Context)
 {
     ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
-    Context->GetCurrentTransaction()->DeferUntilCommit(std::move(Work));
+    Context->GetCurrentTransaction()->DeferUntilCommit(MoveTemp(Work));
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(OpenCommit);
 
-void STM_OpenAbort(std::function<void()>&& Work, FContext* Context)
+void STM_OpenAbort(TFunction<void()>&& Work, FContext* Context)
 {
     ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
-    Context->GetCurrentTransaction()->DeferUntilAbort(std::move(Work));
+    Context->GetCurrentTransaction()->DeferUntilAbort(MoveTemp(Work));
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(OpenAbort);
 

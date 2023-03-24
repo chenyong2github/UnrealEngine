@@ -94,14 +94,14 @@ void FTransaction::AbortNested()
     Undo();
 
     Parent->CommitTasks.AddAll(AbortTasks);
-    Parent->AbortTasks.AddAll(std::move(AbortTasks));
+    Parent->AbortTasks.AddAll(MoveTemp(AbortTasks));
 }
 
 void FTransaction::AbortOuterNest()
 {
     Undo();
 
-    AbortTasks.ForEachBackward([] (const std::function<void()>& Task) -> bool { Task(); return true; });
+    AbortTasks.ForEachBackward([] (const TFunction<void()>& Task) -> bool { Task(); return true; });
 
     switch (Context->GetStatus())
     {
@@ -137,10 +137,10 @@ void FTransaction::CommitNested()
         Parent->HitSet.Insert(Write.OriginalAndSize);
     }
 
-    Parent->WriteLogBumpAllocator.Merge(std::move(WriteLogBumpAllocator));
+    Parent->WriteLogBumpAllocator.Merge(MoveTemp(WriteLogBumpAllocator));
 
-    Parent->CommitTasks.AddAll(std::move(CommitTasks));
-    Parent->AbortTasks.AddAll(std::move(AbortTasks));
+    Parent->CommitTasks.AddAll(MoveTemp(CommitTasks));
+    Parent->AbortTasks.AddAll(MoveTemp(AbortTasks));
 }
 
 bool FTransaction::AttemptToCommitOuterNest()
@@ -154,7 +154,7 @@ bool FTransaction::AttemptToCommitOuterNest()
         fprintf(GetLogFile(), "Running commit tasks...\n");
     }
 
-    CommitTasks.ForEachForward([] (const std::function<void()>& Task) -> bool { Task(); return true; });
+    CommitTasks.ForEachForward([] (const TFunction<void()>& Task) -> bool { Task(); return true; });
 
     return true;
 }

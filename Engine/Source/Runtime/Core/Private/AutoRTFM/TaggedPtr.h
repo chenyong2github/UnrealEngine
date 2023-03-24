@@ -87,7 +87,7 @@ namespace AutoRTFM
 
 	    void SetTopTag(const TopTagT Tag)
 	    {
-	    	*reinterpret_cast<TopTagT*>(reinterpret_cast<uint8_t*>(&Payload) + OffsetOfTopTag) = std::move(Tag);
+	    	*reinterpret_cast<TopTagT*>(reinterpret_cast<uint8_t*>(&Payload) + OffsetOfTopTag) = MoveTemp(Tag);
 	    }
 
 	    TopTagT GetTopTag() const
@@ -182,7 +182,7 @@ namespace AutoRTFM
 
 	    void SetTopTag(const TopTagT Tag)
 	    {
-	    	*reinterpret_cast<TopTagT*>(reinterpret_cast<uint8_t*>(&Payload) + OffsetOfTopTag) = std::move(Tag);
+	    	*reinterpret_cast<TopTagT*>(reinterpret_cast<uint8_t*>(&Payload) + OffsetOfTopTag) = Tag;
 	    }
 
 	    TopTagT GetTopTag() const

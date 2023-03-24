@@ -34,11 +34,11 @@ template<typename TTryFunctor, typename TCatchFunctor>
 void FLongJump::TryCatch(const TTryFunctor& TryFunctor, const TCatchFunctor& CatchFunctor)
 {
     ASSERT(!bIsSet);
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 	if (!setjmp(JmpBuf))
 #else
 	if (!_setjmp(JmpBuf))
-#endif
+#endif // PLATFORM_WINDOWS
     {
         bIsSet = true;
         TryFunctor();
@@ -55,11 +55,11 @@ void FLongJump::TryCatch(const TTryFunctor& TryFunctor, const TCatchFunctor& Cat
 inline void FLongJump::Throw()
 {
     ASSERT(bIsSet);
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 	longjmp(JmpBuf, 1);
 #else
 	_longjmp(JmpBuf, 1);
-#endif
+#endif // PLATFORM_WINDOWS
 }
 
 } // namespace AutoRTFM

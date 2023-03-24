@@ -3,17 +3,15 @@
 #if (defined(__AUTORTFM) && __AUTORTFM)
 #include "GlobalData.h"
 #include "Context.h"
-#include <mutex>
 
 namespace AutoRTFM
 {
 
-std::once_flag GlobalDataInitializationFlag;
 FGlobalData* GlobalData;
 
 void InitializeGlobalDataIfNecessary()
 {
-    std::call_once(GlobalDataInitializationFlag, []
+    UE_CALL_ONCE([]
     {
         // AutoRTFM is intended to be used primarily from monolithic UE binaries, where having
         // some additional DLL/so/dylib would just be annoying. However, we guard against the
@@ -28,15 +26,6 @@ void InitializeGlobalDataIfNecessary()
         
         constexpr const char* EnvName = "AutoRTFMGlobalData";
 
-#ifdef _MSC_VER
-/*
-   Disable warning about deprecated STD C functions.
-*/
-#pragma warning(disable : 4996)
-
-#pragma warning(push)
-#endif
-
         if (char* EnvString = getenv(EnvName))
         {
             sscanf(EnvString, "%p", &GlobalData);
@@ -50,10 +39,6 @@ void InitializeGlobalDataIfNecessary()
             snprintf(Buffer, sizeof(Buffer), "%s=%p", EnvName, GlobalData);
             putenv(Buffer);
         }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
     });
 }
 

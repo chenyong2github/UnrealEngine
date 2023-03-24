@@ -8,7 +8,6 @@
 #include "TaskArray.h"
 #include "WriteLog.h"
 #include "WriteLogBumpAllocator.h"
-#include <functional>
 
 namespace AutoRTFM
 {
@@ -46,8 +45,8 @@ public:
 	inline bool IsScopedTransaction() const { return bIsStackScoped; }
 	inline void SetIsScopedTransaction() { bIsStackScoped = true; }
 
-    void DeferUntilCommit(std::function<void()>&&);
-    void DeferUntilAbort(std::function<void()>&&);
+    void DeferUntilCommit(TFunction<void()>&&);
+    void DeferUntilAbort(TFunction<void()>&&);
 
     void AbortAndThrow();
     void AbortWithoutThrowing();
@@ -75,8 +74,8 @@ private:
     FTransaction* Parent{nullptr};
 
     // Commit tasks run on commit in forward order. Abort tasks run on abort in reverse order.
-    TTaskArray<std::function<void()>> CommitTasks;
-    TTaskArray<std::function<void()>> AbortTasks;
+    TTaskArray<TFunction<void()>> CommitTasks;
+    TTaskArray<TFunction<void()>> AbortTasks;
 
     bool bIsDone{false};
 	bool bIsStackScoped{false};

@@ -7,7 +7,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string>
 
 #define ASSERT(exp) do { \
     if (!(exp)) { \
@@ -23,19 +22,19 @@ namespace AutoRTFM
 {
     fprintf(stderr, "Unreachable encountered!\n");
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     __assume(false);
 #else
     __builtin_unreachable();
-#endif
+#endif // PLATFORM_WINDOWS
 }
 
 FILE* GetLogFile();
 
-std::string GetFunctionDescription(void* FunctionPtr);
+FString GetFunctionDescription(void* FunctionPtr);
 
 template<typename TReturnType, typename... TParameterTypes>
-std::string GetFunctionDescription(TReturnType (*FunctionPtr)(TParameterTypes...))
+FString GetFunctionDescription(TReturnType (*FunctionPtr)(TParameterTypes...))
 {
     return GetFunctionDescription(reinterpret_cast<void*>(FunctionPtr));
 }

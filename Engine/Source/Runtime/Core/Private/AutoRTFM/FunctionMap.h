@@ -3,7 +3,6 @@
 #pragma once
 
 #include "GlobalData.h"
-#include <cstddef>
 
 namespace AutoRTFM
 {

@@ -8,13 +8,11 @@
 #include "GlobalData.h"
 #include "ScopedGuard.h"
 #include "TransactionInlines.h"
-#include <algorithm>
-#include <memory>
 
 namespace AutoRTFM
 {
 
-thread_local std::unique_ptr<FContext> ContextTls;
+thread_local TUniquePtr<FContext> ContextTls;
 
 void FContext::InitializeGlobalData()
 {
@@ -22,12 +20,12 @@ void FContext::InitializeGlobalData()
 
 FContext* FContext::TryGet()
 {
-    return ContextTls.get();
+    return ContextTls.Get();
 }
 
 void FContext::Set()
 {
-    ContextTls.reset(this);
+    ContextTls.Reset(this);
 }
 
 FContext* FContext::Get()
@@ -259,11 +257,11 @@ ETransactionResult FContext::Transact(void (*Function)(void* Arg), void* Arg)
     void (*ClonedFunction)(void* Arg, FContext* Context) = FunctionMapTryLookup(Function);
     if (!ClonedFunction)
     {
-        fprintf(stderr, "Could not find function %p (%s) in AutoRTFM::FContext::Transact.\n", Function, GetFunctionDescription(Function).c_str());
+        fprintf(stderr, "Could not find function %p (%s) in AutoRTFM::FContext::Transact.\n", Function, TCHAR_TO_ANSI(*GetFunctionDescription(Function)));
         return ETransactionResult::AbortedByLanguage;
     }
     
-	//std::unique_ptr<FTransaction> NewTransactionUniquePtr(new FTransaction(this));
+	//TUniquePtr<FTransaction> NewTransactionUniquePtr(new FTransaction(this));
 	FTransaction* NewTransaction = new FTransaction(this);
 	FCallNest* NewNest = new FCallNest(this);
 
@@ -398,13 +396,13 @@ void FContext::AbortByLanguageAndThrow()
     CurrentTransaction->AbortAndThrow();
 }
 
-#if _WIN32
+#if PLATFORM_WINDOWS
 extern "C" __declspec(dllimport) void __stdcall GetCurrentThreadStackLimits(void**, void**);
 #endif
 
 FContext::FContext()
 {
-#if _WIN32
+#if PLATFORM_WINDOWS
     GetCurrentThreadStackLimits(&StackBegin, &StackEnd);
 #elif defined(__APPLE__)         
    StackEnd = pthread_get_stackaddr_np(pthread_self());   
