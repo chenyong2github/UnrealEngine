@@ -77,7 +77,7 @@ FFolder FFolder::GetWorldRootFolder(UWorld* InWorld)
 {
 	if (InWorld)
 	{
-		return FFolder::GetOptionalFolderRootObject(InWorld->PersistentLevel).GetValue();
+		return FFolder::GetOptionalFolderRootObject(InWorld->PersistentLevel).Get(FFolder::GetInvalidRootObject());
 	}
 	return FFolder::GetInvalidFolder();
 }
