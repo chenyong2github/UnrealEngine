@@ -19,6 +19,21 @@ namespace EpicGames.Horde.Compute
 	}
 
 	/// <summary>
+	/// Exception thrown for internal reasons
+	/// </summary>
+	public sealed class ComputeInternalException : ComputeException
+	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="message"></param>
+		public ComputeInternalException(string message)
+			: base(message)
+		{
+		}
+	}
+
+	/// <summary>
 	/// Exception thrown on a remote machine
 	/// </summary>
 	public sealed class ComputeRemoteException : ComputeException

@@ -197,6 +197,12 @@ namespace EpicGames.Horde.Compute
 				throw new InvalidOperationException("Only one writer can be active at a time. Dispose of the previous writer first.");
 			}
 
+			Memory<byte> memory = _sendBufferWriter.GetMemory();
+			if (memory.Length < maxSize)
+			{
+				throw new ComputeInternalException($"Insufficient space in buffer to write message of {maxSize} bytes; only {memory.Length} remaining");
+			}
+
 			_currentBuilder = new MessageBuilder(this, _sendBufferWriter, type);
 			return _currentBuilder;
 		}
