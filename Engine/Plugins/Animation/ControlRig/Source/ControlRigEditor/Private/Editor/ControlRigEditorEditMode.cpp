@@ -148,6 +148,7 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 	});
 
 	// get size setting for bone drawing
+	FBoneAxisDrawConfig AxisConfig;
 	float BoneRadius = 1.0f;
 	if (FAnimationViewportClient* AnimViewportClient = static_cast<FAnimationViewportClient*>(Viewport->GetClient()))
 	{
@@ -177,7 +178,7 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 		BoneColor = bIsSelected ? PersonaOptions->SelectedBoneColor : BoneColor;
 
 		// draw the little coordinate frame inside the bone ONLY if selected or affected
-		const bool bDrawAxesInsideBone = bIsAffected|| bIsSelected;
+		AxisConfig.bDraw = bIsAffected|| bIsSelected;
 
 		// draw cone to each child
 		// but use a different color if this bone is NOT selected, but the child IS selected
@@ -208,7 +209,7 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 			BoneColor,
 			SDPG_Foreground,
 			BoneRadius,
-			bDrawAxesInsideBone);
+			AxisConfig);
 		if (Hierarchy->GetFirstParent(ElementIndex) == INDEX_NONE)
 		{
 			SkeletalDebugRendering::DrawConeConnection(PDI, BoneTransform.GetLocation(), FVector::Zero(), BoneRadius, FLinearColor::Red);

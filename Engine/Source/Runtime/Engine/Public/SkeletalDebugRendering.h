@@ -26,6 +26,13 @@ namespace EBoneDrawMode
 	};
 };
 
+struct FBoneAxisDrawConfig
+{
+	bool bDraw = false;
+	float Thickness = 0.f;
+	float Length = 0.f;
+};
+
 struct FSkelDebugDrawConfig
 {
 public:
@@ -37,6 +44,7 @@ public:
 	FLinearColor AffectedBoneColor;
 	FLinearColor SelectedBoneColor;
 	FLinearColor ParentOfSelectedBoneColor;
+	FBoneAxisDrawConfig AxisConfig;
 };
 
 namespace SkeletalDebugRendering
@@ -85,7 +93,7 @@ ENGINE_API void DrawAxes(
  * @param	InColor				The color to use for the bone
  * @param	InDepthPriority		The scene depth priority group to use
  * @param	SphereRadius		Radius of the ball drawn at the bone location
- * @param	bDrawAxes			If true, will draw small coordinate axes inside the joint sphere
+ * @param	InAxisConfig		Draw configuration for small coordinate axes inside the joint sphere
  */
 ENGINE_API	void DrawWireBoneAdvanced(
 	FPrimitiveDrawInterface* PDI,
@@ -95,7 +103,7 @@ ENGINE_API	void DrawWireBoneAdvanced(
 	const FLinearColor& InColor,
 	ESceneDepthPriorityGroup InDepthPriority,
 	const float SphereRadius,
-	const bool bDrawAxes);
+	const FBoneAxisDrawConfig& InAxisConfig);
 
 /**
  * Draw a cone showing offset from origin position to a given bone transform

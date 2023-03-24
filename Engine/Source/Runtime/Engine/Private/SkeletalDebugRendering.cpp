@@ -66,7 +66,7 @@ void DrawWireBoneAdvanced(
 	const FLinearColor& InColor,
 	ESceneDepthPriorityGroup InDepthPriority,
 	const float SphereRadius,
-	const bool bDrawAxes)
+	const FBoneAxisDrawConfig& InAxisConfig)
 {
 #if ENABLE_DRAW_DEBUG
 
@@ -76,9 +76,11 @@ void DrawWireBoneAdvanced(
 	DrawWireSphere(PDI, InBoneTransform, InColor, SphereRadius, NumSphereSides, InDepthPriority, 0.0f, 1.0f);
 
 	// draw axes at joint location
-	if (bDrawAxes)
+	if (InAxisConfig.bDraw)
 	{
-		SkeletalDebugRendering::DrawAxes(PDI, InBoneTransform, SDPG_Foreground, 0.f , SphereRadius);
+		const float Thickness = InAxisConfig.Thickness > 0.f ? InAxisConfig.Thickness : 0.f;
+		const float Length = InAxisConfig.Length > 0.f ? InAxisConfig.Length : SphereRadius;
+		SkeletalDebugRendering::DrawAxes(PDI, InBoneTransform, SDPG_Foreground, Thickness, Length);
 	}
 
 	// draw wire cones to each child
@@ -363,6 +365,8 @@ void DrawBonesInternal(
 		}
 	}
 
+	FBoneAxisDrawConfig AxisConfig = DrawConfig.AxisConfig;
+	
 	// spin through all required bones and render them
 	const float BoneRadius = DrawConfig.BoneDrawSize;
 	for (int32 Index = 0; Index < RequiredBones.Num(); ++Index)
@@ -389,7 +393,7 @@ void DrawBonesInternal(
 		BoneColor = bIsSelected ? DrawConfig.SelectedBoneColor : BoneColor;
 
 		// draw the little coordinate frame inside the bone ONLY if selected or affected
-		const bool bDrawAxesInsideBone = bIsAffected || bIsSelected;
+		AxisConfig.bDraw = bIsAffected || bIsSelected;
 
 		// draw cone to each child
 		// but use a different color if this bone is NOT selected, but the child IS selected
@@ -428,7 +432,7 @@ void DrawBonesInternal(
 			BoneColor,
 			SDPG_Foreground,
 			BoneRadius,
-			bDrawAxesInsideBone);
+			AxisConfig);
 		
 		// special case for root connection to origin
 		if (GetParentIndex(BoneIndex) == INDEX_NONE)
