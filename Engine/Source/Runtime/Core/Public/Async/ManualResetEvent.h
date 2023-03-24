@@ -61,7 +61,7 @@ public:
 			{
 				return true;
 			}
-			if (WaitTime <= FMonotonicTimePoint::Now())
+			if (!WaitTime.IsInfinity() && WaitTime <= FMonotonicTimePoint::Now())
 			{
 				return false;
 			}
