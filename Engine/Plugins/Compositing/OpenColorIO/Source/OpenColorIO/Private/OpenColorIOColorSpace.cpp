@@ -143,20 +143,26 @@ bool FOpenColorIOColorConversionSettings::IsValid() const
 	{
 		if (IsDisplayView())
 		{
-			switch (DisplayViewDirection)
+			if (SourceColorSpace.IsValid() && DestinationDisplayView.IsValid())
 			{
-			case EOpenColorIOViewTransformDirection::Forward:
-				return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationDisplayView.Display, DestinationDisplayView.View, EOpenColorIOViewTransformDirection::Forward);
-			case EOpenColorIOViewTransformDirection::Inverse:
-				return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationDisplayView.Display, DestinationDisplayView.View, EOpenColorIOViewTransformDirection::Inverse);
-			default:
-				checkNoEntry();
-				return false;
+				switch (DisplayViewDirection)
+				{
+				case EOpenColorIOViewTransformDirection::Forward:
+					return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationDisplayView.Display, DestinationDisplayView.View, EOpenColorIOViewTransformDirection::Forward);
+				case EOpenColorIOViewTransformDirection::Inverse:
+					return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationDisplayView.Display, DestinationDisplayView.View, EOpenColorIOViewTransformDirection::Inverse);
+				default:
+					checkNoEntry();
+					return false;
+				}
 			}
 		}
 		else
 		{
-			return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationColorSpace.ColorSpaceName);
+			if (SourceColorSpace.IsValid() && DestinationColorSpace.IsValid())
+			{
+				return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationColorSpace.ColorSpaceName);
+			}
 		}
 	}
 
