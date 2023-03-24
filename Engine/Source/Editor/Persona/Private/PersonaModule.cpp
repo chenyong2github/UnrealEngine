@@ -1306,7 +1306,7 @@ void FPersonaModule::FillCreateAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr
 	}
 
 	const bool bDoNotShowNameDialog = false;
-	const bool bAllowReplaceExisting = false;
+	const bool bAllowReplaceExisting = true;  // This avoids a crash when saving on top of the currently previewed animation (if false, it tries to generate using a PersonaToolkit that no longer exists, as the editor gets closed for deleting the asset)
 
 	// create rig
 	MenuBuilder.BeginSection("CreateAnimationSubMenu", LOCTEXT("CreateAnimationSubMenuHeading", "Create Animation"));
@@ -1360,7 +1360,7 @@ void FPersonaModule::FillCreateAnimationFromCurrentAnimationMenu(FMenuBuilder& M
 	}
 
 	const bool bDoNotShowNameDialog = false;
-	const bool bAllowReplaceExisting = false;
+	const bool bAllowReplaceExisting = true;  // This avoids a crash when saving on top of the currently previewed animation (if false, it tries to generate using a PersonaToolkit that no longer exists, as the editor gets closed for deleting the asset)
 
 	// create rig
 	MenuBuilder.BeginSection("CreateAnimationSubMenu", LOCTEXT("CreateAnimationFromCurrentAnimationSubmenuHeading", "Create Animation"));
@@ -1401,7 +1401,7 @@ void FPersonaModule::FillCreatePoseAssetMenu(FMenuBuilder& MenuBuilder, TWeakPtr
 	}
 
 	const bool bDoNotShowNameDialog = false;
-	const bool bAllowReplaceExisting = false;
+	const bool bAllowReplaceExisting = true;  // This avoids a crash when saving on top of the currently previewed animation (if false, it tries to generate using a PersonaToolkit that no longer exists, as the editor gets closed for deleting the asset)
 
 	// create rig
 	MenuBuilder.BeginSection("CreatePoseAssetSubMenu", LOCTEXT("CreatePoseAssetSubMenuHeading", "Create PoseAsset"));
