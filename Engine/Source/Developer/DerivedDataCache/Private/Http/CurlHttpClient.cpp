@@ -3,10 +3,10 @@
 #include "HttpClient.h"
 
 #include "Async/InheritedContext.h"
-#include "Async/ManualResetEvent.h"
 #include "Containers/ConsumeAllMpmcQueue.h"
 #include "Containers/LockFreeList.h"
 #include "Containers/StringView.h"
+#include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/Thread.h"
 #include "Memory/CompositeBuffer.h"
@@ -294,7 +294,7 @@ public:
 	TRefCountPtr<IHttpResponseMonitor> GetMonitor() final { return this; }
 
 	void Cancel() final;
-	void Wait() const final { CompleteEvent.Wait(); }
+	void Wait() const final { CompleteEvent->Wait(); }
 	bool Poll() const final { return EnumHasAnyFlags(State.load(), ECurlHttpResponseState::Complete); }
 	bool IsCanceled() const { return EnumHasAnyFlags(State.load(std::memory_order_relaxed), ECurlHttpResponseState::Canceled); }
 
@@ -340,7 +340,7 @@ private:
 	FAnsiStringView Error;
 	ANSICHAR ErrorBuffer[CURL_ERROR_SIZE]{};
 	FHttpResponseStats Stats;
-	mutable FManualResetEvent CompleteEvent;
+	FEventRef CompleteEvent{EEventMode::ManualReset};
 
 	enum class EHttpReceiverFunction : uint8
 	{
@@ -1138,7 +1138,7 @@ void FCurlHttpResponse::SetComplete(CURLcode Code)
 	}
 
 	CurlHttp::Private::AtomicFetchOr(State, ECurlHttpResponseState::Complete);
-	CompleteEvent.Notify();
+	CompleteEvent->Trigger();
 
 	if (UE_LOG_ACTIVE(LogHttp, Verbose))
 	{
@@ -1184,7 +1184,7 @@ void FCurlHttpResponse::Cancel()
 	// Waiting within a receiver function would prevent the response from completing.
 	if (LocalReceiverFunction == EHttpReceiverFunction::None)
 	{
-		CompleteEvent.Wait();
+		CompleteEvent->Wait();
 	}
 }
 

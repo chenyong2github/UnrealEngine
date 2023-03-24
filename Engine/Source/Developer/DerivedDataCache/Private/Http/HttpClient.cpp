@@ -2,8 +2,8 @@
 
 #include "HttpClient.h"
 
-#include "Async/ManualResetEvent.h"
 #include "Containers/LockFreeList.h"
+#include "HAL/Event.h"
 #include "Memory/MemoryView.h"
 #include "Misc/AsciiSet.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -271,7 +271,7 @@ struct Http::Private::FHttpRequestQueueData
 	struct FWaiter
 	{
 		THttpUniquePtr<IHttpRequest> Request;
-		FManualResetEvent Event;
+		FEventRef Event{EEventMode::ManualReset};
 	};
 
 	FHttpRequestQueueData(IHttpConnectionPool& ConnectionPool, const FHttpClientParams& ClientParams)
@@ -290,7 +290,7 @@ struct Http::Private::FHttpRequestQueueData
 					if (FWaiter* Waiter = Waiters.Pop())
 					{
 						Waiter->Request = MoveTemp(Request);
-						Waiter->Event.Notify();
+						Waiter->Event->Trigger();
 					}
 				}
 			}
@@ -302,9 +302,7 @@ struct Http::Private::FHttpRequestQueueData
 	{
 		if (Params.bIgnoreMaxRequests)
 		{
-			THttpUniquePtr<IHttpRequest> Request = Client->TryCreateRequest(Params);
-			checkf(Request, TEXT("IHttpClient::TryCreateRequest returned null in spite of bIgnoreMaxRequests."));
-			return Request;
+			return Client->TryCreateRequest(Params);
 		}
 
 		while (THttpUniquePtr<IHttpRequest> Request = Client->TryCreateRequest(Params))
@@ -312,7 +310,7 @@ struct Http::Private::FHttpRequestQueueData
 			if (FWaiter* Waiter = Waiters.Pop())
 			{
 				Waiter->Request = MoveTemp(Request);
-				Waiter->Event.Notify();
+				Waiter->Event->Trigger();
 			}
 			else
 			{
@@ -328,18 +326,16 @@ struct Http::Private::FHttpRequestQueueData
 			if (FWaiter* Waiter = Waiters.Pop())
 			{
 				Waiter->Request = MoveTemp(Request);
-				Waiter->Event.Notify();
+				Waiter->Event->Trigger();
 			}
-			if (LocalWaiter.Event.IsNotified())
+			if (LocalWaiter.Event->Wait(0))
 			{
-				checkf(LocalWaiter.Request, TEXT("CreateRequest returning null after IsNotified()."));
 				return MoveTemp(LocalWaiter.Request);
 			}
 		}
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpRequestQueue_Wait);
-		LocalWaiter.Event.Wait();
-		checkf(LocalWaiter.Request, TEXT("CreateRequest returning null after Wait()."));
+		LocalWaiter.Event->Wait();
 		return MoveTemp(LocalWaiter.Request);
 	}
 
