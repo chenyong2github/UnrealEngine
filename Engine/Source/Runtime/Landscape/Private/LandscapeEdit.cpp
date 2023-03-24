@@ -4544,6 +4544,15 @@ void ALandscape::PostEditImport()
 		}
 	}
 
+	// Even if the component's UPROPERTY is TextExportTransient/NonPIEDuplicate, it still gets duplicated and added to the OwnedComponents so we need to remove it after duplicating the actor : 
+	check(NaniteComponent == nullptr);
+	TInlineComponentArray<ULandscapeNaniteComponent*> OwnedNaniteComponents;
+	GetComponents<ULandscapeNaniteComponent>(OwnedNaniteComponents, /*bIncludeFromChildActors = */false);
+	for (ULandscapeNaniteComponent* OwnedNaniteComponent : OwnedNaniteComponents)
+	{
+		OwnedNaniteComponent->DestroyComponent();
+	}
+
 	// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
 	RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 
