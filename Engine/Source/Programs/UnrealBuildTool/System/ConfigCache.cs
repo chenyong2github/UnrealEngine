@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace UnrealBuildTool
 {
@@ -226,17 +227,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Cache of individual config files
 		/// </summary>
-		static Dictionary<FileReference, ConfigFile?> LocationToConfigFile = new Dictionary<FileReference, ConfigFile?>();
+		static ConcurrentDictionary<FileReference, ConfigFile?> LocationToConfigFile = new ConcurrentDictionary<FileReference, ConfigFile?>();
 
 		/// <summary>
 		/// Cache of config hierarchies by project
 		/// </summary>
-		static Dictionary<ConfigHierarchyKey, ConfigHierarchy> HierarchyKeyToHierarchy = new Dictionary<ConfigHierarchyKey, ConfigHierarchy>();
+		static ConcurrentDictionary<ConfigHierarchyKey, ConfigHierarchy> HierarchyKeyToHierarchy = new ConcurrentDictionary<ConfigHierarchyKey, ConfigHierarchy>();
 
 		/// <summary>
 		/// Cache of config fields by type
 		/// </summary>
-		static Dictionary<Type, List<ConfigMember>> TypeToConfigMembers = new Dictionary<Type, List<ConfigMember>>();
+		static ConcurrentDictionary<Type, List<ConfigMember>> TypeToConfigMembers = new ConcurrentDictionary<Type, List<ConfigMember>>();
 
 		/// <summary>
 		/// Attempts to read a config file (or retrieve it from the cache)
@@ -246,24 +247,16 @@ namespace UnrealBuildTool
 		/// <returns>True if the file exists and was read, false otherwise</returns>
 		internal static bool TryReadFile(FileReference Location, [NotNullWhen(true)] out ConfigFile? ConfigFile)
 		{
-			lock (LocationToConfigFile)
+			ConfigFile = LocationToConfigFile.GetOrAdd(Location, _ =>
 			{
-				if (!LocationToConfigFile.TryGetValue(Location, out ConfigFile))
+				if (FileReference.Exists(Location))
 				{
-					if (FileReference.Exists(Location))
-					{
-						ConfigFile = new ConfigFile(Location);
-					}
-					else
-					{
-						ConfigFile = null;
-					}
-
-					// Note: it's important to keep the null value here so we don't keep checking for files that don't exist
-					LocationToConfigFile.Add(Location, ConfigFile);
+					return new ConfigFile(Location);
 				}
-			}
 
+				// Note: it's important to keep the null value here so we don't keep checking for files that don't exist
+				return null;
+			});
 			return ConfigFile != null;
 		}
 
@@ -318,34 +311,28 @@ namespace UnrealBuildTool
 			ConfigHierarchyKey Key = new ConfigHierarchyKey(Type, ProjectDir, Platform, CustomConfig, OverrideStrings);
 
 			// Try to get the cached hierarchy with this key
-			ConfigHierarchy? Hierarchy;
-			lock (HierarchyKeyToHierarchy)
+			return HierarchyKeyToHierarchy.GetOrAdd(Key, _ =>
 			{
-				if (!HierarchyKeyToHierarchy.TryGetValue(Key, out Hierarchy))
+				// Find all the input files
+				List<ConfigFile> Files = new List<ConfigFile>();
+				foreach (FileReference IniFileName in ConfigHierarchy.EnumerateConfigFileLocations(Type, ProjectDir, Platform, CustomConfig))
 				{
-					// Find all the input files
-					List<ConfigFile> Files = new List<ConfigFile>();
-					foreach (FileReference IniFileName in ConfigHierarchy.EnumerateConfigFileLocations(Type, ProjectDir, Platform, CustomConfig))
+					ConfigFile? File;
+					if (TryReadFile(IniFileName, out File))
 					{
-						ConfigFile? File;
-						if (TryReadFile(IniFileName, out File))
-						{
-							Files.Add(File);
-						}
+						Files.Add(File);
 					}
-
-					foreach (string OverrideString in OverrideStrings)
-					{
-						ConfigFile OverrideFile = new ConfigFile(OverrideString);
-						Files.Add(OverrideFile);
-					}
-
-					// Create the hierarchy
-					Hierarchy = new ConfigHierarchy(Files);
-					HierarchyKeyToHierarchy.Add(Key, Hierarchy);
 				}
-			}
-			return Hierarchy;
+
+				foreach (string OverrideString in OverrideStrings)
+				{
+					ConfigFile OverrideFile = new ConfigFile(OverrideString);
+					Files.Add(OverrideFile);
+				}
+
+				// Create the hierarchy
+				return new ConfigHierarchy(Files);
+			});
 		}
 	
 		/// <summary>
@@ -355,28 +342,23 @@ namespace UnrealBuildTool
 		/// <returns>List of config fields for the given type</returns>
 		static List<ConfigMember> FindConfigMembersForType(Type TargetObjectType)
 		{
-			List<ConfigMember>? Members;
-			lock(TypeToConfigMembers)
+			return TypeToConfigMembers.GetOrAdd(TargetObjectType, _ =>
 			{
-				if (!TypeToConfigMembers.TryGetValue(TargetObjectType, out Members))
+				List<ConfigMember> Members = new List<ConfigMember>();
+				if (TargetObjectType.BaseType != null)
 				{
-					Members = new List<ConfigMember>();
-					if(TargetObjectType.BaseType != null)
-					{
-						Members.AddRange(FindConfigMembersForType(TargetObjectType.BaseType));
-					}
-					foreach (FieldInfo FieldInfo in TargetObjectType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
-					{
-						ProcessConfigTypeMember<FieldInfo>(TargetObjectType, FieldInfo, Members, (FieldInfo, Attribute) => new ConfigField(FieldInfo, Attribute));
-					}
-					foreach (PropertyInfo PropertyInfo in TargetObjectType.GetProperties(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
-					{
-						ProcessConfigTypeMember<PropertyInfo>(TargetObjectType, PropertyInfo, Members, (PropertyInfo, Attribute) => new ConfigProperty(PropertyInfo, Attribute));
-					}
-					TypeToConfigMembers.Add(TargetObjectType, Members);
+					Members.AddRange(FindConfigMembersForType(TargetObjectType.BaseType));
 				}
-			}
-			return Members;
+				foreach (FieldInfo FieldInfo in TargetObjectType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+				{
+					ProcessConfigTypeMember<FieldInfo>(TargetObjectType, FieldInfo, Members, (FieldInfo, Attribute) => new ConfigField(FieldInfo, Attribute));
+				}
+				foreach (PropertyInfo PropertyInfo in TargetObjectType.GetProperties(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+				{
+					ProcessConfigTypeMember<PropertyInfo>(TargetObjectType, PropertyInfo, Members, (PropertyInfo, Attribute) => new ConfigProperty(PropertyInfo, Attribute));
+				}
+				return Members;
+			});
 		}
 
 		static void ProcessConfigTypeMember<MEMBER>(Type TargetType, MEMBER MemberInfo, List<ConfigMember> Members, Func<MEMBER, ConfigFileAttribute, ConfigMember> CreateConfigMember)

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -100,20 +101,23 @@ namespace EpicGames.Core
 
 			string assemblyName = Path.GetFileNameWithoutExtension(assemblyPath);
 			DateTime assemblyLastWriteTime = File.GetLastWriteTimeUtc(assemblyPath);
-			if (s_assemblyLocationCache.ContainsKey(assemblyName))
+			lock(s_assemblyLocationCache)
 			{
-				// We already have this assembly in our cache. Only replace it if the discovered file is newer (to avoid stale assemblies breaking stuff).
-				if (assemblyLastWriteTime > s_assemblyWriteTimes[assemblyName])
+				if (s_assemblyLocationCache.ContainsKey(assemblyName))
 				{
-					s_assemblyLocationCache[assemblyName] = assemblyPath;
-					s_assemblyWriteTimes[assemblyName] = assemblyLastWriteTime;
+					// We already have this assembly in our cache. Only replace it if the discovered file is newer (to avoid stale assemblies breaking stuff).
+					if (assemblyLastWriteTime > s_assemblyWriteTimes[assemblyName])
+					{
+						s_assemblyLocationCache[assemblyName] = assemblyPath;
+						s_assemblyWriteTimes[assemblyName] = assemblyLastWriteTime;
+					}
 				}
-			}
-			else
-			{
-				// This is the first copy of this assembly ... add it to our cache.
-				s_assemblyLocationCache.Add(assemblyName, assemblyPath);
-				s_assemblyWriteTimes.Add(assemblyName, assemblyLastWriteTime);
+				else
+				{
+					// This is the first copy of this assembly ... add it to our cache.
+					s_assemblyLocationCache.Add(assemblyName, assemblyPath);
+					s_assemblyWriteTimes.Add(assemblyName, assemblyLastWriteTime);
+				}
 			}
 
 			if (!s_addedToAssemblyResolver)
@@ -122,18 +126,21 @@ namespace EpicGames.Core
 				{
 					// Name is fully qualified assembly definition - e.g. "p4dn, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ff968dc1933aba6f"
 					string assemblyName = args.Name!.Split(',')[0];
-					if (s_assemblyLocationCache.TryGetValue(assemblyName, out string? assemblyLocation))
+					lock (s_assemblyLocationCache)
 					{
-						// We have this assembly in our folder.					
-						if (File.Exists(assemblyLocation))
+						if (s_assemblyLocationCache.TryGetValue(assemblyName, out string? assemblyLocation))
 						{
-							// The assembly still exists, so load it.
-							return Assembly.LoadFile(assemblyLocation);
-						}
-						else
-						{
-							// The assembly no longer exists on disk, so remove it from our cache.
-							s_assemblyLocationCache.Remove(assemblyName);
+							// We have this assembly in our folder.					
+							if (File.Exists(assemblyLocation))
+							{
+								// The assembly still exists, so load it.
+								return Assembly.LoadFile(assemblyLocation);
+							}
+							else
+							{
+								// The assembly no longer exists on disk, so remove it from our cache.
+								s_assemblyLocationCache.Remove(assemblyName);
+							}
 						}
 					}
 

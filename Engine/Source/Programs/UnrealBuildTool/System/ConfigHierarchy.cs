@@ -195,11 +195,27 @@ namespace UnrealBuildTool
         /// </summary>
         System.Threading.ReaderWriterLockSlim NameToSectionLock = new System.Threading.ReaderWriterLockSlim();
 
-        /// <summary>
-        /// Construct a config hierarchy from the given files
-        /// </summary>
-        /// <param name="Files">Set of files to include (in order)</param>
-        public ConfigHierarchy(IEnumerable<ConfigFile> Files)
+		static readonly string? PersonalConfigFolder = null;
+
+		static ConfigHierarchy()
+		{
+			// Some user accounts (eg. SYSTEM on Windows) don't have a home directory. Ignore them if Environment.GetFolderPath() returns an empty string.
+			string PersonalFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+			if (!String.IsNullOrEmpty(PersonalFolder))
+			{
+				PersonalConfigFolder = PersonalFolder;
+				if (RuntimePlatform.IsMac || RuntimePlatform.IsLinux)
+				{
+					PersonalConfigFolder = System.IO.Path.Combine(PersonalConfigFolder, "Documents");
+				}
+			}
+		}
+
+		/// <summary>
+		/// Construct a config hierarchy from the given files
+		/// </summary>
+		/// <param name="Files">Set of files to include (in order)</param>
+		public ConfigHierarchy(IEnumerable<ConfigFile> Files)
 		{
 			this.Files = Files.ToArray();
 		}
@@ -968,21 +984,8 @@ namespace UnrealBuildTool
 		// Match FPlatformProcess::UserDir()
 		private static string? GetUserDir()
 		{
-			// Some user accounts (eg. SYSTEM on Windows) don't have a home directory. Ignore them if Environment.GetFolderPath() returns an empty string.
-			string PersonalFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-			string? PersonalConfigFolder = null;
-			if (!String.IsNullOrEmpty(PersonalFolder))
-			{
-				PersonalConfigFolder = PersonalFolder;
-				if (RuntimePlatform.IsMac || RuntimePlatform.IsLinux)
-				{
-					PersonalConfigFolder = System.IO.Path.Combine(PersonalConfigFolder, "Documents");
-				}
-			}
-
 			return PersonalConfigFolder;
 		}
-
 
 		private static string PerformBasicReplacements(string InString, string BaseIniName, string CustomConfig)
 		{
