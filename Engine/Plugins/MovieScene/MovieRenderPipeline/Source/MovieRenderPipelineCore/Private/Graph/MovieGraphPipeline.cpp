@@ -71,8 +71,7 @@ void UMovieGraphPipeline::Initialize(UMoviePipelineExecutorJob* InJob, const FMo
 	// Create instances of our different classes from the InitConfig
 	GraphTimeStepInstance = NewObject<UMovieGraphTimeStepBase>(this, InitConfig.TimeStepClass);
 	GraphRendererInstance = NewObject<UMovieGraphRendererBase>(this, InitConfig.RendererClass);
-	GraphTimeRangeBuilderInstance = NewObject<UMovieGraphTimeRangeBuilderBase>(this, InitConfig.TimeRangeBuilderClass);
-	GraphDataCachingInstance = NewObject<UMovieGraphDataCachingBase>(this, InitConfig.DataCachingClass);
+	GraphDataSourceInstance = NewObject<UMovieGraphDataSourceBase>(this, InitConfig.DataSourceClass);
 	
 	CurrentJob = InJob;
 	CurrentShotIndex = 0;
@@ -81,7 +80,7 @@ void UMovieGraphPipeline::Initialize(UMoviePipelineExecutorJob* InJob, const FMo
 	// Now that we've created our various systems, we will start using them. First thing we do is cache data about
 	// the world, job, player viewport, etc, before we make any modifications. These will be restored at the end
 	// of the render.
-	GraphDataCachingInstance->CacheDataPreJob(InitConfig);
+	GraphDataSourceInstance->CacheDataPreJob(InitConfig);
 
 	// Construct a debug UI and bind it to this instance.
 	// LoadDebugWidget();
@@ -127,7 +126,7 @@ void UMovieGraphPipeline::BuildShotListFromDataSource()
 {
 	// Synchronize our shot list with our target data source. New shots will be added and outdated shots removed.
 	// Shots that are already in the list will be updated but their enable flag will be respected. 
-	GraphDataCachingInstance->UpdateShotList();
+	GraphDataSourceInstance->UpdateShotList();
 
 	for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
 	{

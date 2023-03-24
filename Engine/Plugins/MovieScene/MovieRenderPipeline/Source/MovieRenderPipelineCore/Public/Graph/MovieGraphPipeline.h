@@ -50,9 +50,7 @@ public:
 	/** Used occasionally to cross-reference other components. Don't call this unless you know what you're doing. */
 	UMovieGraphRendererBase* GetRendererInstance() const { return GraphRendererInstance; }
 	/** Used occasionally to cross-reference other components. Don't call this unless you know what you're doing. */
-	UMovieGraphTimeRangeBuilderBase* GetTimeRangeBuilderInstance() const { return GraphTimeRangeBuilderInstance; }
-	/** Used occasionally to cross-reference other components. Don't call this unless you know what you're doing. */
-	UMovieGraphDataCachingBase* GetDataCachingInstance() const { return GraphDataCachingInstance; }
+	UMovieGraphDataSourceBase* GetDataSourceInstance() const { return GraphDataSourceInstance; }
 	/** Gets the Output Merger for this Movie Pipeline which is responsible for gathering all of the data coming in for a given output frame, before making it available to the MovieGraphPipeline. */
 	TSharedPtr<UE::MovieGraph::IMovieGraphOutputMerger> GetOutputMerger() const { return OutputMerger; }
 	/** Writing images to disk is an async process. When you start writing, declare a future with the filename you will eventually write to, and complete the future once it is on disk. */
@@ -91,10 +89,7 @@ protected:
 	TObjectPtr<UMovieGraphRendererBase> GraphRendererInstance;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UMovieGraphTimeRangeBuilderBase> GraphTimeRangeBuilderInstance;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UMovieGraphDataCachingBase> GraphDataCachingInstance;
+	TObjectPtr<UMovieGraphDataSourceBase> GraphDataSourceInstance;
 
 protected:
 	UPROPERTY(Transient)

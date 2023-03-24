@@ -7,6 +7,7 @@
 #include "Templates/SubclassOf.h"
 #include "ImagePixelData.h"
 #include "Containers/Queue.h"
+#include "Misc/FrameRate.h"
 #include "MovieGraphDataTypes.generated.h"
 
 // Forward Declares
@@ -45,11 +46,13 @@ struct MOVIERENDERPIPELINECORE_API FMovieGraphInitConfig
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
 	TSubclassOf<UMovieGraphRendererBase> RendererClass;
 
+	/**
+	* Which class should the UMovieGraphPipeline use to build time ranges from, and
+	* during evaluation, send callbacks about the time actually evaluated so you
+	* can sync with an external source. Defaults to UMovieGraphSequenceDataSource.
+	*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
-	TSubclassOf<UMovieGraphTimeRangeBuilderBase> TimeRangeBuilderClass;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
-	TSubclassOf<UMovieGraphDataCachingBase> DataCachingClass;
+	TSubclassOf<UMovieGraphDataSourceBase> DataSourceClass;
 
 	/**
 	* Should the UMovieGraphPipeline render the full player viewport? Defaults
@@ -111,20 +114,28 @@ public:
 	UMovieGraphPipeline* GetOwningGraph() const;
 };
 
+/**
+* Movie Graph Pipeline is mostly interested in knowing about ranges of time that
+* it should render, and less concerned with the specifics of where that data comes
+* from (ie: a Level Sequence). This lets you synchronize with a different data source
+* to provide the ranges of time to render, and then the UMovieGraphTimeStepBase class
+* figures out how to move around within that time step, before calling some functions
+* to synchronize your external data source to actually match the evaluated time.
+*/
 UCLASS(BlueprintType, Abstract)
-class MOVIERENDERPIPELINECORE_API UMovieGraphTimeRangeBuilderBase : public UObject
+class MOVIERENDERPIPELINECORE_API UMovieGraphDataSourceBase : public UObject
 {
 	GENERATED_BODY()
 public:
+	/** An internal, high resolution framerate that seeks, etc. will be returned in. (ie: 24,000/1) */
+	virtual FFrameRate GetTickResolution() const { return FFrameRate(); }
+	/** A lower res, human readable Frame Rate. We convert to the Tick Resolution internally. (ie: 24/1) */
+	virtual FFrameRate GetDisplayRate() const { return FFrameRate(); }
 	virtual void BuildTimeRanges() { }
-	UMovieGraphPipeline* GetOwningGraph() const;
-};
-
-UCLASS(BlueprintType, Abstract)
-class MOVIERENDERPIPELINECORE_API UMovieGraphDataCachingBase : public UObject
-{
-	GENERATED_BODY()
-public:
+	/** 
+	* Called when the Movie Graph Pipeline starts before anything has happened, allowing you to 
+	* cache your datasource before making any modifications to it as a result of rendering.
+	*/
 	virtual void CacheDataPreJob(const FMovieGraphInitConfig& InInitConfig) {}
 	virtual void RestoreCachedDataPostJob() {}
 	virtual void UpdateShotList() {}
