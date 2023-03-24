@@ -2,10 +2,10 @@
 
 #include "DerivedDataRequestOwner.h"
 
-#include "Async/EventCount.h"
 #include "Containers/Array.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestTypes.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
@@ -16,6 +16,12 @@
 
 namespace UE::DerivedData::Private
 {
+
+/** A one-time-use event to work around the lack of condition variables. */
+struct FRequestBarrierEvent : public FRefCountBase
+{
+	FLazyEvent Event{EEventMode::ManualReset};
+};
 
 class FRequestOwnerShared final : public IRequestOwner, public FRequestBase
 {
@@ -43,7 +49,7 @@ public:
 private:
 	mutable FRWLock Lock;
 	TArray<TRefCountPtr<IRequest>, TInlineAllocator<1>> Requests;
-	FEventCount BarrierEvent;
+	TRefCountPtr<FRequestBarrierEvent> BarrierEvent;
 	uint32 BarrierCount{0};
 	uint32 PriorityBarrierCount{0};
 	EPriority Priority{EPriority::Normal};
@@ -122,7 +128,7 @@ void FRequestOwnerShared::BeginBarrier(ERequestBarrierFlags Flags)
 void FRequestOwnerShared::EndBarrier(ERequestBarrierFlags Flags)
 {
 	ON_SCOPE_EXIT { Release(); };
-	bool bNotifyBarrier = false;
+	TRefCountPtr<FRequestBarrierEvent> LocalBarrierEvent;
 	{
 		FWriteScopeLock WriteLock(Lock);
 		if (EnumHasAnyFlags(Flags, ERequestBarrierFlags::Priority) && --PriorityBarrierCount == 0)
@@ -131,12 +137,13 @@ void FRequestOwnerShared::EndBarrier(ERequestBarrierFlags Flags)
 		}
 		if (--BarrierCount == 0)
 		{
-			bNotifyBarrier = true;
+			LocalBarrierEvent = MoveTemp(BarrierEvent);
+			BarrierEvent = nullptr;
 		}
 	}
-	if (bNotifyBarrier)
+	if (LocalBarrierEvent)
 	{
-		BarrierEvent.Notify();
+		LocalBarrierEvent->Event.Trigger();
 	}
 }
 
@@ -165,7 +172,7 @@ void FRequestOwnerShared::Cancel()
 	for (;;)
 	{
 		TRefCountPtr<IRequest> LocalRequest;
-		FEventCountToken BarrierToken;
+		TRefCountPtr<FRequestBarrierEvent> LocalBarrierEvent;
 
 		{
 			FWriteScopeLock WriteLock(Lock);
@@ -177,7 +184,11 @@ void FRequestOwnerShared::Cancel()
 			}
 			else if (BarrierCount > 0)
 			{
-				BarrierToken = BarrierEvent.PrepareWait();
+				LocalBarrierEvent = BarrierEvent;
+				if (!LocalBarrierEvent)
+				{
+					LocalBarrierEvent = BarrierEvent = new FRequestBarrierEvent;
+				}
 			}
 			else
 			{
@@ -191,7 +202,7 @@ void FRequestOwnerShared::Cancel()
 		}
 		else
 		{
-			BarrierEvent.Wait(BarrierToken);
+			LocalBarrierEvent->Event.Wait();
 		}
 	}
 }
@@ -201,7 +212,7 @@ void FRequestOwnerShared::Wait()
 	for (;;)
 	{
 		TRefCountPtr<IRequest> LocalRequest;
-		FEventCountToken BarrierToken;
+		TRefCountPtr<FRequestBarrierEvent> LocalBarrierEvent;
 
 		{
 			FWriteScopeLock WriteLock(Lock);
@@ -212,7 +223,11 @@ void FRequestOwnerShared::Wait()
 			}
 			else if (BarrierCount > 0)
 			{
-				BarrierToken = BarrierEvent.PrepareWait();
+				LocalBarrierEvent = BarrierEvent;
+				if (!LocalBarrierEvent)
+				{
+					LocalBarrierEvent = BarrierEvent = new FRequestBarrierEvent;
+				}
 			}
 			else
 			{
@@ -226,7 +241,7 @@ void FRequestOwnerShared::Wait()
 		}
 		else
 		{
-			BarrierEvent.Wait(BarrierToken);
+			LocalBarrierEvent->Event.Wait();
 		}
 	}
 }

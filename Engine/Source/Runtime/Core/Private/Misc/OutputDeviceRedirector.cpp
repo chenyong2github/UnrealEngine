@@ -2,10 +2,10 @@
 
 #include "Misc/OutputDeviceRedirector.h"
 
-#include "Async/EventCount.h"
 #include "Containers/BitArray.h"
 #include "Containers/DepletableMpmcQueue.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
+#include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
@@ -138,11 +138,11 @@ struct FOutputDeviceRedirectorState
 	/** A lock to synchronize access to the thread. */
 	FRWLock ThreadLock;
 
-	/** An event that is notified when the dedicated primary thread is idle. */
-	FEventCount ThreadIdleEvent;
+	/** A queue of events to trigger when the dedicated primary thread is idle. */
+	TDepletableMpscQueue<FEvent*, FOutputDeviceLinearAllocator> ThreadIdleEvents;
 
 	/** An event to wake the dedicated primary thread to process buffered items. */
-	FEventCount ThreadWakeEvent;
+	std::atomic<FEvent*> ThreadWakeEvent = nullptr;
 
 	/** The ID of the thread holding the primary lock. */
 	std::atomic<uint32> LockedThreadId = MAX_uint32;
@@ -152,9 +152,6 @@ struct FOutputDeviceRedirectorState
 
 	/** The ID of the panic thread, which is only set by Panic(). */
 	std::atomic<uint32> PanicThreadId = MAX_uint32;
-
-	/** Whether a dedicated primary thread has been started. */
-	std::atomic<bool> bThreadStarted = false;
 
 	/** Whether the backlog is enabled. */
 	bool bEnableBacklog = false;
@@ -410,8 +407,11 @@ void FOutputDeviceRedirectorState::RemoveOutputDevice(FOutputDevice* OutputDevic
 
 bool FOutputDeviceRedirectorState::TryStartThread()
 {
-	if (FWriteScopeLock ThreadScopeLock(ThreadLock); !bThreadStarted.exchange(true, std::memory_order_relaxed))
+	if (FWriteScopeLock ThreadScopeLock(ThreadLock); !ThreadWakeEvent.load(std::memory_order_relaxed))
 	{
+		FEvent* WakeEvent = FPlatformProcess::GetSynchEventFromPool();
+		WakeEvent->Trigger();
+		ThreadWakeEvent.store(WakeEvent, std::memory_order_release);
 		Thread = FThread(TEXT("OutputDeviceRedirector"), [this] { ThreadLoop(); });
 	}
 	return true;
@@ -419,10 +419,12 @@ bool FOutputDeviceRedirectorState::TryStartThread()
 
 bool FOutputDeviceRedirectorState::TryStopThread()
 {
-	if (FWriteScopeLock ThreadScopeLock(ThreadLock); bThreadStarted.exchange(false, std::memory_order_relaxed))
+	if (FWriteScopeLock ThreadScopeLock(ThreadLock); FEvent* WakeEvent = ThreadWakeEvent.exchange(nullptr, std::memory_order_acquire))
 	{
-		ThreadWakeEvent.Notify();
+		WakeEvent->Trigger();
 		Thread.Join();
+		FOutputDevicesWriteScopeLock Lock(*this);
+		FPlatformProcess::ReturnSynchEventToPool(WakeEvent);
 	}
 	return true;
 }
@@ -436,13 +438,9 @@ void FOutputDeviceRedirectorState::ThreadLoop()
 		PrimaryThreadId.store(ThreadId, std::memory_order_relaxed);
 	}
 
-	for (;;)
+	while (FEvent* WakeEvent = ThreadWakeEvent.load(std::memory_order_acquire))
 	{
-		FEventCountToken Token = ThreadWakeEvent.PrepareWait();
-		if (!bThreadStarted.load(std::memory_order_relaxed))
-		{
-			break;
-		}
+		WakeEvent->Wait();
 		while (!BufferedItems.IsEmpty() && IsPrimaryThread(ThreadId))
 		{
 			if (FOutputDevicesPrimaryScopeLock Lock(*this); Lock.IsLocked())
@@ -450,8 +448,7 @@ void FOutputDeviceRedirectorState::ThreadLoop()
 				FlushBufferedItems();
 			}
 		}
-		ThreadIdleEvent.Notify();
-		ThreadWakeEvent.Wait(Token);
+		ThreadIdleEvents.Deplete([](FEvent* Event) { Event->Trigger(); });
 	}
 }
 
@@ -555,14 +552,17 @@ bool FOutputDeviceRedirector::IsRedirectingTo(FOutputDevice* OutputDevice)
 
 void FOutputDeviceRedirector::FlushThreadedLogs(EOutputDeviceRedirectorFlushOptions Options)
 {
-	if (FReadScopeLock ThreadLock(State->ThreadLock); State->bThreadStarted.load(std::memory_order_relaxed))
+	if (FReadScopeLock ThreadLock(State->ThreadLock); FEvent* WakeEvent = State->ThreadWakeEvent.load(std::memory_order_acquire))
 	{
 		if (!EnumHasAnyFlags(Options, EOutputDeviceRedirectorFlushOptions::Async))
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FOutputDeviceRedirector::FlushThreadedLogs);
-			UE::FEventCountToken Token = State->ThreadIdleEvent.PrepareWait();
-			State->ThreadWakeEvent.Notify();
-			State->ThreadIdleEvent.Wait(Token);
+			FEventRef IdleEvent(EEventMode::ManualReset);
+			if (State->ThreadIdleEvents.EnqueueAndReturnWasEmpty(IdleEvent.Get()))
+			{
+				WakeEvent->Trigger();
+			}
+			IdleEvent->Wait();
 		}
 		return;
 	}
@@ -655,7 +655,10 @@ void FOutputDeviceRedirector::SerializeRecord(const UE::FLogRecord& Record)
 	// Queue the record to serialize to buffered output devices from the primary thread.
 	if (State->BufferedItems.EnqueueAndReturnWasEmpty(Record))
 	{
-		State->ThreadWakeEvent.Notify();
+		if (FEvent* WakeEvent = State->ThreadWakeEvent.load(std::memory_order_acquire))
+		{
+			WakeEvent->Trigger();
+		}
 	}
 }
 
@@ -716,7 +719,10 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 	// Queue the line to serialize to buffered output devices from the primary thread.
 	if (State->BufferedItems.EnqueueAndReturnWasEmpty(Data, Category, Verbosity, RealTime))
 	{
-		State->ThreadWakeEvent.Notify();
+		if (FEvent* WakeEvent = State->ThreadWakeEvent.load(std::memory_order_acquire))
+		{
+			WakeEvent->Trigger();
+		}
 	}
 }
 
