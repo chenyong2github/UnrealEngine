@@ -52,7 +52,7 @@ namespace UE::ReferenceChainSearch
 		}
 		ObjectType VertexToObject(FVertex Vertex) const
 		{
-			return reinterpret_cast<UObject*>(GUObjectArray.IndexToObject(Vertex)->Object);
+			return static_cast<UObject*>(GUObjectArray.IndexToObject(Vertex)->Object);
 		}
 
 		bool IsIn(ConstObjectType Outer, ConstObjectType PotentialInner) const
