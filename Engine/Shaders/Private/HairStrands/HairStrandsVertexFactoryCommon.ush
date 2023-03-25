@@ -125,6 +125,45 @@ float UnpackHairRoughness(uint In)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair curve
 
+float UnpackR8(uint In) { return saturate((In & 0xFF) / 255.f); }
+
+struct FGuideData
+{
+	uint3  VertexIndices;
+	float3 VertexLerps;
+	float3 VertexWeights;
+};
+
+FGuideData UnpackGuideData(uint In)
+{
+	FGuideData Out = (FGuideData)0;
+	Out.VertexWeights		= float3(1, 0, 0);
+	Out.VertexIndices		= 0;
+	Out.VertexLerps			= 0;
+	Out.VertexIndices.x		= In & 0xFFFFFF;
+	Out.VertexLerps.x		= UnpackR8(In >> 24);
+	return Out;
+}
+
+FGuideData UnpackGuideData(uint4 In)
+{
+	FGuideData Out = (FGuideData)0;
+	Out.VertexIndices.x = (In.x & 0xFFFF) | (((In.z      ) & 0xFF) << 16);
+	Out.VertexIndices.y = (In.x >> 16   ) | (((In.z >> 8 ) & 0xFF) << 16);
+	Out.VertexIndices.z = (In.y & 0xFFFF) | (((In.z >> 16) & 0xFF) << 16);
+
+	Out.VertexWeights	= float3(UnpackR8(In.y>>16), UnpackR8(In.y>>24), 0);
+	Out.VertexWeights.z = saturate(1.0f - (Out.VertexWeights.x + Out.VertexWeights.y));
+
+	Out.VertexLerps.x	= UnpackR8(In.w);
+	Out.VertexLerps.y	= UnpackR8(In.w >> 8);
+	Out.VertexLerps.z	= UnpackR8(In.w >> 16);
+	return Out;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair curve
+
 struct FHairCurve
 {
 	uint PointIndex;

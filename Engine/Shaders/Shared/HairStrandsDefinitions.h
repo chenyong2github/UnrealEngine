@@ -31,6 +31,10 @@
 
 #define HAIR_ATTRIBUTE_INVALID_OFFSET 0xFFFFFFFF
 
+// Hair interpolation (in bytes)
+#define HAIR_INTERPOLATION_1GUIDE_STRIDE 4
+#define HAIR_INTERPOLATION_3GUIDE_STRIDE 16
+
 // Max number of discrete LOD that a hair group can have
 #define MAX_HAIR_LOD 8
 

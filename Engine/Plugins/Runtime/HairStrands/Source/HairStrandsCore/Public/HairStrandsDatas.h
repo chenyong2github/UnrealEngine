@@ -31,44 +31,6 @@ struct FPackedHairAttribute0Vertex
 	uint8 Seed;
 };
 
-struct FHairInterpolationVertex
-{
-	typedef uint32 BulkType;
-
-	// Guide's vertex index are stored onto 24bits: 1) VertexGuideIndex0 is the lower part, 2) VertexGuideIndex1 is the upper part
-	uint16 VertexGuideIndex0;
-	uint8  VertexGuideIndex1;
-	uint8  VertexLerp;
-};
-
-struct FHairInterpolation0Vertex
-{
-	typedef uint64 BulkType;
-
-	uint16 Index0;
-	uint16 Index1;
-	uint16 Index2;
-
-	uint8 VertexWeight0;
-	uint8 VertexWeight1;
-};
-
-struct FHairInterpolation1Vertex
-{
-	typedef uint64 BulkType;
-
-	uint8 VertexIndex0;
-	uint8 VertexIndex1;
-	uint8 VertexIndex2;
-
-	uint8 VertexLerp0;
-	uint8 VertexLerp1;
-	uint8 VertexLerp2;
-
-	uint8 Pad0;
-	uint8 Pad1;
-};
-
 struct FPackedHairCurve
 {
 	typedef uint32 BulkType;
@@ -148,35 +110,13 @@ struct FHairStrandsTangentFormat
 
 struct FHairStrandsInterpolationFormat
 {
-	typedef FHairInterpolationVertex Type;
-	typedef FHairInterpolationVertex::BulkType BulkType;
+	typedef uint32 Type;
+	typedef uint32 BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_UShort2;
+	static const EVertexElementType VertexElementType = VET_UInt;
 	static const EPixelFormat Format = PF_R32_UINT;
-};
-
-struct FHairStrandsInterpolation0Format
-{
-	typedef FHairInterpolation0Vertex Type;
-	typedef FHairInterpolation0Vertex::BulkType BulkType;
-
-	static const uint32 ComponentCount = 1;
-	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_UShort4;
-	static const EPixelFormat Format = PF_R16G16B16A16_UINT;
-};
-
-struct FHairStrandsInterpolation1Format
-{
-	typedef FHairInterpolation1Vertex Type;
-	typedef FHairInterpolation1Vertex::BulkType BulkType;
-
-	static const uint32 ComponentCount = 1;
-	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_UShort4;
-	static const EPixelFormat Format = PF_R16G16B16A16_UINT;
 };
 
 struct FHairStrandsRootIndexFormat
@@ -358,10 +298,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkC
 
 	struct FData
 	{
-
-		FByteBulkData Interpolation;	// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a single guide
-		FByteBulkData Interpolation0;	// FHairStrandsInterpolation0Format - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
-		FByteBulkData Interpolation1;	// FHairStrandsInterpolation1Format - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for up to 3 guides
+		FByteBulkData Interpolation;	// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a 1 or 3 guide(s))
 		FByteBulkData SimRootPointIndex;// FHairStrandsRootIndexFormat      - Per-rendering-vertex index of the sim-root vertex
 	} Data;
 };

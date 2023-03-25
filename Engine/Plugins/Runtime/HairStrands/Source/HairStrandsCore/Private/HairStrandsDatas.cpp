@@ -111,63 +111,6 @@ FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairInterpolation0Vertex& Vertex)
-{
-	Ar << Vertex.Index0;
-	Ar << Vertex.Index1;
-	Ar << Vertex.Index2;
-	Ar << Vertex.VertexWeight0;
-	Ar << Vertex.VertexWeight1;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FHairInterpolationVertex& Vertex)
-{
-	Ar << Vertex.VertexGuideIndex0;
-	Ar << Vertex.VertexGuideIndex1;
-	Ar << Vertex.VertexLerp;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
-{
-	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-
-	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion3)
-	{
-		Ar << Vertex.VertexIndex0;
-		Ar << Vertex.VertexIndex1;
-		Ar << Vertex.VertexIndex2;
-
-		Ar << Vertex.VertexLerp0;
-		Ar << Vertex.VertexLerp1;
-		Ar << Vertex.VertexLerp2;
-
-		Ar << Vertex.Pad0;
-		Ar << Vertex.Pad1;
-	}
-	else
-	{
-		Ar << Vertex.VertexIndex0;
-		Ar << Vertex.VertexIndex1;
-		Ar << Vertex.VertexIndex2;
-
-		uint8 Pad0 = 0;
-		Ar << Pad0;
-
-		if (Ar.IsLoading())
-		{
-			Vertex.VertexLerp0 = 0;
-			Vertex.VertexLerp1 = 0;
-			Vertex.VertexLerp2 = 0;
-		}
-	}
-
-	return Ar;
-}
-
 void FHairStrandsInterpolationBulkData::Reset()
 {
 	Header.Flags = 0;
@@ -176,14 +119,10 @@ void FHairStrandsInterpolationBulkData::Reset()
 	
 	// Deallocate memory if needed
 	Data.Interpolation.RemoveBulkData();
-	Data.Interpolation0.RemoveBulkData();
-	Data.Interpolation1.RemoveBulkData();
 	Data.SimRootPointIndex.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
 	Data.Interpolation		= FByteBulkData();
-	Data.Interpolation0		= FByteBulkData();
-	Data.Interpolation1		= FByteBulkData();
 	Data.SimRootPointIndex	= FByteBulkData();
 }
 
@@ -202,25 +141,13 @@ void FHairStrandsInterpolationBulkData::SerializeHeader(FArchive& Ar, UObject* O
 
 void FHairStrandsInterpolationBulkData::SerializeData(FArchive& Ar, UObject* Owner)
 {
-	static_assert(sizeof(FHairInterpolationVertex::BulkType) == sizeof(FHairInterpolationVertex));
-	static_assert(sizeof(FHairInterpolation0Vertex::BulkType) == sizeof(FHairInterpolation0Vertex));
-	static_assert(sizeof(FHairInterpolation1Vertex::BulkType) == sizeof(FHairInterpolation1Vertex));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
 
 	if (!!(Header.Flags & DataFlags_HasData))
 	{
 		const int32 ChunkIndex = 0;
 		bool bAttemptFileMapping = false;
-
-		if (!!(Header.Flags & DataFlags_HasSingleGuideData))
-		{
-			Data.Interpolation.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		}
-		else
-		{
-			Data.Interpolation0.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-			Data.Interpolation1.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		}
+		Data.Interpolation.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		Data.SimRootPointIndex.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 }
@@ -238,16 +165,8 @@ void FHairStrandsInterpolationBulkData::Request(FBulkDataBatchRequest& InRequest
 	}
 
 	check(InRequest.IsNone());
-	FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(3);
-	if (!!(Header.Flags & DataFlags_HasSingleGuideData))
-	{
-		Batch.Read(Data.Interpolation);
-	}
-	else
-	{
-		Batch.Read(Data.Interpolation0);
-		Batch.Read(Data.Interpolation1);
-	}
+	FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(2);
+	Batch.Read(Data.Interpolation);
 	Batch.Read(Data.SimRootPointIndex);
 	Batch.Issue(InRequest);
 }

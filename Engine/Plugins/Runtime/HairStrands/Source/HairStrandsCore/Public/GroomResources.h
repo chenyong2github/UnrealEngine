@@ -509,17 +509,13 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 	{
 		uint32 Total = 0;
 		Total += GetBufferTotalNumBytes(InterpolationBuffer);
-		Total += GetBufferTotalNumBytes(Interpolation0Buffer);
-		Total += GetBufferTotalNumBytes(Interpolation1Buffer);
 		Total += GetBufferTotalNumBytes(SimRootPointIndexBuffer);
 		return Total;
 	}
 
-	bool UseSingleGuide() const { return InterpolationBuffer.Buffer != nullptr; }
+	bool UseSingleGuide() const { return (BulkData.Header.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData) != 0; }
 
 	FRDGExternalBuffer InterpolationBuffer;
-	FRDGExternalBuffer Interpolation0Buffer;
-	FRDGExternalBuffer Interpolation1Buffer;
 	FRDGExternalBuffer SimRootPointIndexBuffer;
 
 	/* Reference to the hair strands interpolation render data */

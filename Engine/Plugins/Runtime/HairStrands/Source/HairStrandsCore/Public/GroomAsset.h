@@ -133,8 +133,6 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 			uint32 Total = 0;
 			Total += FBase::GetDataSize();
 			Total += InterpolationBulkData.Data.Interpolation.IsBulkDataLoaded()	? InterpolationBulkData.Data.Interpolation.GetBulkDataSize() : 0;
-			Total += InterpolationBulkData.Data.Interpolation0.IsBulkDataLoaded()	? InterpolationBulkData.Data.Interpolation0.GetBulkDataSize() : 0;
-			Total += InterpolationBulkData.Data.Interpolation1.IsBulkDataLoaded()	? InterpolationBulkData.Data.Interpolation1.GetBulkDataSize() : 0;
 			Total += InterpolationBulkData.Data.SimRootPointIndex.IsBulkDataLoaded()? InterpolationBulkData.Data.SimRootPointIndex.GetBulkDataSize() : 0;
 			return Total;
 		}

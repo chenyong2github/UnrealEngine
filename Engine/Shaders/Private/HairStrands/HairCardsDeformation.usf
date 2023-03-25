@@ -21,7 +21,7 @@ Buffer<float4> GuideDeformedPositionOffsetBuffer;
 Buffer<uint4>  GuideRestPositionBuffer;
 Buffer<uint4>  GuideDeformedPositionBuffer;
 Buffer<float4> CardsRestPositionBuffer;
-Buffer<uint>   CardsInterpolationBuffer;
+ByteAddressBuffer CardsInterpolationBuffer;
 
 RWBuffer<float4> CardsDeformedPositionBuffer; 
 
@@ -92,11 +92,10 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 #if PERMUTATION_DYNAMIC_GEOMETRY == 0
 	// Simple deformation based on world space offset
 
-	const uint PackedInterpolationData = CardsInterpolationBuffer[VertexId];
-	const uint GuideIndex0 = PackedInterpolationData & 0xFFFFFF;
+	const FGuideData GuideData = UnpackGuideData(CardsInterpolationBuffer.Load(VertexId * HAIR_INTERPOLATION_1GUIDE_STRIDE));
+	const uint GuideIndex0 = GuideData.VertexIndices.x;
 	const uint GuideIndex1 = min(GuideIndex0+1, GuideVertexCount-1);
-
-	const float GuideLerp = ((PackedInterpolationData>>24) & 0xFF)/float(0xFF);
+	const float GuideLerp = GuideData.VertexLerps.x;
 
 	const FHairControlPoint RestGuideP0 = UnpackHairControlPoint(
 		GuideRestPositionBuffer[GuideIndex0],
@@ -140,10 +139,10 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 #elif PERMUTATION_DYNAMIC_GEOMETRY == 1
 	// Compute the deformation offset in triangle local space
 
-	const uint PackedInterpolationData = CardsInterpolationBuffer[VertexId];
-	const uint GuideIndex0 = PackedInterpolationData & 0xFFFFFF;
+	const FGuideData GuideData = UnpackGuideData(CardsInterpolationBuffer.Load(VertexId * HAIR_INTERPOLATION_1GUIDE_STRIDE));
+	const uint GuideIndex0 = GuideData.VertexIndices.x;
 	const uint GuideIndex1 = min(GuideIndex0 + 1, GuideVertexCount - 1);
-	const float GuideLerp = ((PackedInterpolationData >> 24) & 0xFF) / float(0xFF);
+	const float GuideLerp = GuideData.VertexLerps.x;
 
 	const uint RootIndex = GuideVertexToRootIndexBuffer[GuideIndex0];
 	const uint TriangleIndex = GuideRootToUniqueTriangleIndexBuffer[RootIndex];

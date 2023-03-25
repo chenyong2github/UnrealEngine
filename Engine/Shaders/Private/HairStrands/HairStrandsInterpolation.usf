@@ -22,9 +22,16 @@
 
 #pragma warning (default:7203) // downgrade 'not enough registers available for the entire program.' to a warning instead of error
 
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Guides
-struct FGuideData
+
+#if SHADER_HAIRINTERPOLATION || SHADER_PATCHATTRIBUTE
+ByteAddressBuffer InterpolationBuffer;
+#endif
+
+struct FGuideDataWithOffset
 {
 	uint3  VertexIndices;
 	float3 VertexLerps;
@@ -32,34 +39,28 @@ struct FGuideData
 	float3 OutPositionOffset;
 };
 
-FGuideData GetGuideData(uint InVertexIndex, uint InInterpolationData, float3 OutPositionOffset)
+FGuideDataWithOffset GetGuideData(uint InVertexIndex, bool bSingleGuide, float3 OutPositionOffset)
 {
-	FGuideData Out = (FGuideData)0;
-	Out.OutPositionOffset	= OutPositionOffset;
-	Out.VertexWeights		= float3(1, 0, 0);
-	Out.VertexIndices		= 0;
-	Out.VertexLerps			= 0;
-	Out.VertexIndices.x		= InInterpolationData & 0xFFFFFF;
-	Out.VertexLerps.x		= saturate(((InInterpolationData >> 24) & 0xFF) / 255.f);
-	return Out;
-}
+#if PERMUTATION_SIMULATION > 0
+	FGuideData GuideData;
+	if (bSingleGuide)
+	{
+		GuideData = UnpackGuideData(InterpolationBuffer.Load(InVertexIndex * HAIR_INTERPOLATION_1GUIDE_STRIDE));
+	}
+	else
+	{
+		GuideData = UnpackGuideData(InterpolationBuffer.Load4(InVertexIndex * HAIR_INTERPOLATION_3GUIDE_STRIDE));
+	}
 
-FGuideData GetGuideData(uint InVertexIndex, uint4 InInterpolationData0, uint4 InInterpolationData1, float3 OutPositionOffset)
-{
-	FGuideData Out = (FGuideData)0;
+	FGuideDataWithOffset Out;
+	Out.VertexIndices     = GuideData.VertexIndices;
+	Out.VertexLerps       = GuideData.VertexLerps;
+	Out.VertexWeights     = GuideData.VertexWeights;
 	Out.OutPositionOffset = OutPositionOffset;
-
-	Out.VertexIndices.x = InInterpolationData0.x | (( InInterpolationData1.x & 0xFF) << 16);
-	Out.VertexIndices.y = InInterpolationData0.y | (((InInterpolationData1.x >> 8) & 0xFF) << 16);
-	Out.VertexIndices.z = InInterpolationData0.z | (( InInterpolationData1.y & 0xFF) << 16);
-
-	Out.VertexWeights	= float3(saturate((InInterpolationData0.w & 0xFF) / 255.f), saturate(((InInterpolationData0.w >> 8) & 0xFF) / 255.f), 0);
-	Out.VertexWeights.z = saturate(1.0f - (Out.VertexWeights.x + Out.VertexWeights.y));
-
-	Out.VertexLerps.x	= saturate(((InInterpolationData1.y >> 8) & 0xFF) / 255.f);
-	Out.VertexLerps.y	= saturate(( InInterpolationData1.z & 0xFF) / 255.f);
-	Out.VertexLerps.z	= saturate(((InInterpolationData1.z >> 8) & 0xFF) / 255.f);
 	return Out;
+#else
+	return (FGuideDataWithOffset)0;
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -80,22 +81,10 @@ float3 InRenHairPositionOffset;
 float3 InSimHairPositionOffset;
 float4x4 LocalToWorldMatrix;
 
-Buffer<uint4>  RenRestPosePositionBuffer;
-Buffer<uint4>  SimRestPosePositionBuffer;
-Buffer<uint4>  SimDeformedPositionBuffer;
-
-// Hair interpolation support either 
-// * A single guide, 
-// * Or up to 3 guides. 
-// This option is setup on interpolation data of the groom asset
-#if PERMUTATION_USE_SINGLE_GUIDE == 1
-Buffer<uint>	InterpolationBuffer;
-#else
-Buffer<uint4>	Interpolation0Buffer;
-Buffer<uint4>	Interpolation1Buffer;
-#endif
-
-Buffer<uint>   SimRootPointIndexBuffer;
+Buffer<uint4> RenRestPosePositionBuffer;
+Buffer<uint4> SimRestPosePositionBuffer;
+Buffer<uint4> SimDeformedPositionBuffer;
+Buffer<uint>  SimRootPointIndexBuffer;
 
 uint HairStrandsVFTODO_bCullingEnable;
 #if PERMUTATION_CULLING == 1
@@ -264,24 +253,8 @@ FRootTriangleData GetRootTriangleData(uint VertexIndex, bool bSim)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Guides
-
-FGuideData GetGuideData(uint InVertexIndex)
-{
-#if PERMUTATION_SIMULATION == 1
-  #if PERMUTATION_USE_SINGLE_GUIDE
-	return GetGuideData(InVertexIndex, InterpolationBuffer[InVertexIndex], OutSimHairPositionOffsetBuffer[0].xyz);
-  #else
-	return GetGuideData(InVertexIndex, Interpolation0Buffer[InVertexIndex], Interpolation1Buffer[InVertexIndex], OutSimHairPositionOffsetBuffer[0].xyz);
-  #endif
-#else
-	return (FGuideData)0;
-#endif
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Rigid interpolation
-float3 ApplyRigidInterpolation(FGuideData GuideData, float3 InPosition)
+float3 ApplyRigidInterpolation(FGuideDataWithOffset GuideData, float3 InPosition)
 {
 	float3 CurrOffset = 0;
 #if PERMUTATION_SIMULATION == 1
@@ -307,7 +280,7 @@ float3 ApplyRigidInterpolation(FGuideData GuideData, float3 InPosition)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Skinning with offset
-float3 ApplySkinningWithOffset(const FGuideData GuideData, const FRootTriangleData RenTri, float3 InPosition)
+float3 ApplySkinningWithOffset(const FGuideDataWithOffset GuideData, const FRootTriangleData RenTri, float3 InPosition)
 {
 	float3 CurrOffset = 0;
 
@@ -340,7 +313,7 @@ float3 ApplySkinningWithOffset(const FGuideData GuideData, const FRootTriangleDa
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Skinning with translantion
-float3 ApplySkinningWithTranslation(const FGuideData GuideData, const FRootTriangleData RenTri, float3 InPosition)
+float3 ApplySkinningWithTranslation(const FGuideDataWithOffset GuideData, const FRootTriangleData RenTri, float3 InPosition)
 {
 	InPosition -= RenTri.RootBarycentric.x * RenTri.RestTriangle.P0 + RenTri.RootBarycentric.y * RenTri.RestTriangle.P1 + RenTri.RootBarycentric.z * RenTri.RestTriangle.P2;
 
@@ -370,7 +343,7 @@ float3 ApplySkinningWithTranslation(const FGuideData GuideData, const FRootTrian
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Skinning with rotation
-float3 ApplySkinningWithRotation(const FGuideData GuideData, const FRootTriangleData RenTri, float3 InPosition)
+float3 ApplySkinningWithRotation(const FGuideDataWithOffset GuideData, const FRootTriangleData RenTri, float3 InPosition)
 {
 	InPosition -= RenTri.RootBarycentric.x * RenTri.RestTriangle.P0 + RenTri.RootBarycentric.y * RenTri.RestTriangle.P1 + RenTri.RootBarycentric.z * RenTri.RestTriangle.P2;
 
@@ -404,7 +377,7 @@ float3 ApplySkinningWithRotation(const FGuideData GuideData, const FRootTriangle
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Skinning with translation and rotation
-float3 ApplySkinningWithTranslationAndRotation(const FGuideData GuideData, const FRootTriangleData RenTri, float3 InPosition)
+float3 ApplySkinningWithTranslationAndRotation(const FGuideDataWithOffset GuideData, const FRootTriangleData RenTri, float3 InPosition)
 {
 	float3 CurrOffset = 0;
 
@@ -478,7 +451,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// 2. Appply deformation
 	if (VertexIndex < VertexCount)
 	{
-		const FGuideData GuideData = GetGuideData(VertexIndex);
+		const FGuideDataWithOffset GuideData = GetGuideData(VertexIndex, PERMUTATION_USE_SINGLE_GUIDE, OutSimHairPositionOffsetBuffer[0].xyz);
 		const FRootTriangleData RenTri = GetRootTriangleData(VertexIndex, false);
 
 		// Manual decoding of the rest position
@@ -554,26 +527,8 @@ uint				CurveCount;
 Buffer<uint>		RenCurveBuffer;
 uint4				RenCurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT];
 Buffer<int>			RenVertexToClusterIdBuffer;
-
-#if PERMUTATION_SIMULATION == 1
-Buffer<uint>		InterpolationBuffer;
-#elif PERMUTATION_SIMULATION == 2
-Buffer<uint4>		Interpolation0Buffer;
-Buffer<uint4>		Interpolation1Buffer;
-#endif
 RWByteAddressBuffer	OutRenAttributeBuffer;
 
-
-FGuideData GetGuideData(uint InVertexIndex)
-{
-#if PERMUTATION_SIMULATION == 1
-	return GetGuideData(InVertexIndex, InterpolationBuffer[InVertexIndex], 0 /*OutPositionOffset*/);
-#elif PERMUTATION_SIMULATION == 2
-	return GetGuideData(InVertexIndex, Interpolation0Buffer[InVertexIndex], Interpolation1Buffer[InVertexIndex], 0 /*OutPositionOffset*/);
-#else
-	return (FGuideData)0;
-#endif
-}
 groupshared uint SeedValues[1024];
 
 uint ToSeedHash(uint In)
@@ -609,7 +564,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint GroupThread1D : S
 		#else // if (PERMUTATION_SIMULATION > 0)
 		{
 			const uint VertexIndex0		= UnpackHairCurve(RenCurveBuffer[CurveIndex]).PointIndex;
-			const FGuideData GuideData	= GetGuideData(VertexIndex0);
+			const FGuideDataWithOffset GuideData = GetGuideData(VertexIndex0, PERMUTATION_SIMULATION == 1, 0 /*OutPositionOffset*/);
 			const uint GuideIndex		= GuideData.VertexIndices[0]; // Take the closest guide
 			SeedValues[GroupThread1D]	= ToSeedHash(GuideIndex);
 		}

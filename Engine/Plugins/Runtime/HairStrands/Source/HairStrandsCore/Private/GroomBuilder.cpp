@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8p3");
+	return TEXT("v8q");
 }
 
 namespace FHairStrandsDecimation
@@ -1338,65 +1338,90 @@ namespace HairInterpolationBuilder
 		auto LowerPart = [](uint32 Index) -> uint16 { return uint16(Index & 0xFFFF); };
 		auto UpperPart = [](uint32 Index) -> uint8  { return uint8((Index >> 16) & 0xFF); };
 
-
 		OutBulkData.Header.Flags = FHairStrandsInterpolationBulkData::DataFlags_HasData;
 		OutBulkData.Header.PointCount = PointCount;
 
 		if (HairInterpolation.bUseUniqueGuide)
 		{
+			struct FHairInterpolation1GuideVertex
+			{
+				// Guide's vertex index are stored onto 24bits: 1) VertexGuideIndex0 is the lower part, 2) VertexGuideIndex1 is the upper part
+				uint16 VertexGuideIndex0;
+				uint8  VertexGuideIndex1;
+				uint8  VertexLerp;
+			};
+			static_assert(sizeof(FHairInterpolation1GuideVertex) == HAIR_INTERPOLATION_1GUIDE_STRIDE);
+			static_assert(sizeof(FHairStrandsInterpolationFormat::Type) == 4u);
+
 			OutBulkData.Header.Flags |= FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData;
 
 			TArray<FHairStrandsInterpolationFormat::Type> OutPointsInterpolation;
-			OutPointsInterpolation.SetNum(PointCount * FHairStrandsInterpolationFormat::ComponentCount);
-
+			OutPointsInterpolation.SetNum(PointCount);
+			FHairInterpolation1GuideVertex* Out = (FHairInterpolation1GuideVertex*)OutPointsInterpolation.GetData();
 			for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 			{
-				const FIntVector& Indices = HairInterpolation.PointsSimCurvesVertexIndex[PointIndex];
-				const FVector& Weights = (FVector)HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
-				const FVector& S = (FVector)HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
+				const FIntVector& Indices 	= HairInterpolation.PointsSimCurvesVertexIndex[PointIndex];
+				const FVector3f& Weights 	= (FVector3f)HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
+				const FVector3f& S 			= (FVector3f)HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
 
-				FHairStrandsInterpolationFormat::Type& OutInterp = OutPointsInterpolation[PointIndex];
+				FHairInterpolation1GuideVertex& OutInterp = Out[PointIndex];
 				OutInterp.VertexGuideIndex0 = LowerPart(Indices[0]);
 				OutInterp.VertexGuideIndex1 = UpperPart(Indices[0]);
-				OutInterp.VertexLerp		= S[0] * 255.f;
+				OutInterp.VertexLerp		 = FMath::Clamp(S[0] * 255.f, 0, 255);
 			}
 
 			HairStrandsBuilder::CopyToBulkData<FHairStrandsInterpolationFormat>(OutBulkData.Data.Interpolation, OutPointsInterpolation);
 		}
 		else
 		{
-			TArray<FHairStrandsInterpolation0Format::Type> OutPointsInterpolation0;
-			TArray<FHairStrandsInterpolation1Format::Type> OutPointsInterpolation1;
+			struct FHairInterpolation3GuidesVertex
+			{	
+				typedef FUintVector4 BulkType;
 
-			OutPointsInterpolation0.SetNum(PointCount * FHairStrandsInterpolation0Format::ComponentCount);
-			OutPointsInterpolation1.SetNum(PointCount * FHairStrandsInterpolation1Format::ComponentCount);
+				// 128 bits
+				uint16 Index0;       // X:16
+				uint16 Index1;       // X:16
+				uint16 Index2;       // Y:16
+				uint8  VertexWeight0;// Y:8
+				uint8  VertexWeight1;// Y:8
+				uint8  VertexIndex0; // Z:8
+				uint8  VertexIndex1; // Z:8
+				uint8  VertexIndex2; // Z:8
+				uint8  Pad0;         // Z:8
+				uint8  VertexLerp0;  // W:8
+				uint8  VertexLerp1;  // W:8
+				uint8  VertexLerp2;  // W:8
+				uint8  Pad1;         // W:8
+			};
+			static_assert(sizeof(FHairInterpolation3GuidesVertex) == HAIR_INTERPOLATION_3GUIDE_STRIDE);
+			static_assert(sizeof(FHairStrandsInterpolationFormat::Type) == 4u);
+
+			TArray<FHairStrandsInterpolationFormat::Type> OutPointsInterpolation;
+			OutPointsInterpolation.SetNum(PointCount * 4);
+			FHairInterpolation3GuidesVertex* Out = (FHairInterpolation3GuidesVertex*)OutPointsInterpolation.GetData();
 
 			for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 			{
-				const FIntVector& Indices = HairInterpolation.PointsSimCurvesVertexIndex[PointIndex];
-				const FVector& Weights = (FVector)HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
-				const FVector& S = (FVector)HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
+				const FIntVector& Indices 	= HairInterpolation.PointsSimCurvesVertexIndex[PointIndex];
+				const FVector3f& Weights 	= (FVector3f)HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
+				const FVector3f& S 			= (FVector3f)HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
 
-				FHairStrandsInterpolation0Format::Type& OutInterp0 = OutPointsInterpolation0[PointIndex];
-				OutInterp0.Index0 = LowerPart(Indices[0]);
-				OutInterp0.Index1 = LowerPart(Indices[1]);
-				OutInterp0.Index2 = LowerPart(Indices[2]);
-				OutInterp0.VertexWeight0 = Weights[0] * 255.f;
-				OutInterp0.VertexWeight1 = Weights[1] * 255.f;
-
-				FHairStrandsInterpolation1Format::Type& OutInterp1 = OutPointsInterpolation1[PointIndex];
-				OutInterp1.VertexIndex0 = UpperPart(Indices[0]);
-				OutInterp1.VertexIndex1 = UpperPart(Indices[1]);
-				OutInterp1.VertexIndex2 = UpperPart(Indices[2]);
-				OutInterp1.VertexLerp0  = S[0] * 255.f;
-				OutInterp1.VertexLerp1  = S[1] * 255.f;
-				OutInterp1.VertexLerp2  = S[2] * 255.f;
-				OutInterp1.Pad0			= 0;
-				OutInterp1.Pad1			= 0;
+				FHairInterpolation3GuidesVertex& OutInterp = Out[PointIndex];
+				OutInterp.Index0 		= LowerPart(Indices[0]);
+				OutInterp.Index1 		= LowerPart(Indices[1]);
+				OutInterp.Index2 		= LowerPart(Indices[2]);
+				OutInterp.VertexWeight0 = FMath::Clamp(Weights[0] * 255.f, 0, 255);
+				OutInterp.VertexWeight1 = FMath::Clamp(Weights[1] * 255.f, 0, 255);
+				OutInterp.VertexIndex0  = UpperPart(Indices[0]);
+				OutInterp.VertexIndex1  = UpperPart(Indices[1]);
+				OutInterp.VertexIndex2  = UpperPart(Indices[2]);
+				OutInterp.Pad0			= 0;
+				OutInterp.VertexLerp0   = FMath::Clamp(S[0] * 255.f, 0, 255);
+				OutInterp.VertexLerp1   = FMath::Clamp(S[1] * 255.f, 0, 255);
+				OutInterp.VertexLerp2   = FMath::Clamp(S[2] * 255.f, 0, 255);
+				OutInterp.Pad1			= 0;
 			}
-
-			HairStrandsBuilder::CopyToBulkData<FHairStrandsInterpolation0Format>(OutBulkData.Data.Interpolation0, OutPointsInterpolation0);
-			HairStrandsBuilder::CopyToBulkData<FHairStrandsInterpolation1Format>(OutBulkData.Data.Interpolation1, OutPointsInterpolation1);
+			HairStrandsBuilder::CopyToBulkData<FHairStrandsInterpolationFormat>(OutBulkData.Data.Interpolation, OutPointsInterpolation);
 		}
 
 		{
