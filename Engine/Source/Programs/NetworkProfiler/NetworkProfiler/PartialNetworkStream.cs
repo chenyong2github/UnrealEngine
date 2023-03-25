@@ -500,20 +500,28 @@ namespace NetworkProfiler
 
 			float OneOverDeltaTime = 1 / ( EndTime - StartTime );
 
-			var Columns = new string[8];
+			float TotalTimeInMS = 0;
+			foreach (var UniqueActor in ActorDetailList)
+			{
+				TotalTimeInMS += UniqueActor.Value.TimeInMS;
+			}
+			float OneOverTotalTimeMS = 1 / TotalTimeInMS;
+
+			var Columns = new string[9];
 			foreach (var UniqueActor in ActorDetailList)
 			{
 				long NumActorBytes = ( UniqueActor.Value.SizeBits + 7 ) / 8;
 
 				Columns[0] = NetworkStream.GetName( UniqueActor.Key );
 				Columns[1] = UniqueActor.Value.TimeInMS.ToString( "0.00" );
-				Columns[2] = ( NumActorBytes * OneOverDeltaTime / 1024.0f ).ToString( "0.00" );
-				Columns[3] = NumActorBytes.ToString();
-				Columns[4] = UniqueActor.Value.Count.ToString();
-                Columns[5] = ( UniqueActor.Value.Count * OneOverDeltaTime ).ToString( "0.00" );
-                Columns[6] = ( UniqueActor.Value.ReplicatedCount * OneOverDeltaTime ).ToString( "0.00" );
+				Columns[2] = ( UniqueActor.Value.TimeInMS * OneOverTotalTimeMS * 100 ).ToString("0.00");
+				Columns[3] = ( NumActorBytes * OneOverDeltaTime / 1024.0f ).ToString( "0.00" );
+				Columns[4] = NumActorBytes.ToString();
+				Columns[5] = UniqueActor.Value.Count.ToString();
+                Columns[6] = ( UniqueActor.Value.Count * OneOverDeltaTime ).ToString( "0.00" );
+                Columns[7] = ( UniqueActor.Value.ReplicatedCount * OneOverDeltaTime ).ToString( "0.00" );
 
-				Columns[7] = UniqueActor.Value.Count > 0 ? ( 100.0f - ( ( float )UniqueActor.Value.ReplicatedCount / ( float )UniqueActor.Value.Count * 100.0f ) ).ToString( "0.00" ) : "0";
+				Columns[8] = UniqueActor.Value.Count > 0 ? ( 100.0f - ( ( float )UniqueActor.Value.ReplicatedCount / ( float )UniqueActor.Value.Count * 100.0f ) ).ToString( "0.00" ) : "0";
 
                 ListView.Items.Add( new ListViewItem( Columns ) );
 			}

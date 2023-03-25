@@ -103,7 +103,7 @@ namespace NetworkProfiler
 			SetupColumns( PropertyListView, new String[]	{ "Total Size (KBytes)", "Count", "Average Size (Bytes)", "Average Size (Bits)", "Time (ms)", "Average Time (ms)", "Property" });
 			SetupColumns( RPCListView,		new String[]	{ "Total Size (KBytes)", "Count", "Average Size (Bytes)", "Average Size (Bits)", "Time (ms)", "Average Time (ms)", "RPC" });
 
-			SetupColumns( ActorPerfPropsListView, new String[] { "Actor", "MS", "KB/s", "Bytes", "Count", "Update HZ", "Rep HZ", "Waste" } );
+			SetupColumns( ActorPerfPropsListView, new String[] { "Actor", "MS", "MS %", "KB/s", "Bytes", "Count", "Update HZ", "Rep HZ", "Waste" } );
 			SetupColumns( ActorPerfPropsDetailsListView, new String[] { "Property", "Bytes", "Count" } );
 
 			SetupColumns( ObjectReplicationListView, new String[] { "Object Class", "# Comparisons", "# Replications", "Comparison Time (ms)", "Avg. Time Per Compare (ms)" } );
