@@ -704,6 +704,20 @@ void ADisplayClusterRootActor::UpdateProceduralMeshComponentData(const UProcedur
 	}
 }
 
+void ADisplayClusterRootActor::SetPreviewEnablePostProcess(const bool bNewPreviewEnablePostProcess)
+{
+#if WITH_EDITOR
+	if (bNewPreviewEnablePostProcess != bPreviewEnablePostProcess)
+	{
+		bPreviewEnablePostProcess = bNewPreviewEnablePostProcess;
+
+		ResetPreviewComponents_Editor(true);
+		PreviewRenderFrame.Reset();
+	}
+#endif // WITH_EDITOR
+}
+
+
 bool ADisplayClusterRootActor::BuildHierarchy()
 {
 	check(CurrentConfigData);

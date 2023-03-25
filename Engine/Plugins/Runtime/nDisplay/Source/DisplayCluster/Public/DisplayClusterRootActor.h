@@ -177,6 +177,15 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Update ProceduralMeshComponent data"), Category = "NDisplay|Components")
 	void UpdateProceduralMeshComponentData(const UProceduralMeshComponent* InProceduralMeshComponent = nullptr);
 
+
+	/**
+	* Blueprint setter for the PreviewEnablePostProcess property. Makes sure preview pipeline is updated properly.
+	*
+	* @param bNewPreviewEnablePostProcess - Desired new property value.
+	*/
+	UFUNCTION(BlueprintSetter)
+	void SetPreviewEnablePostProcess(const bool bNewPreviewEnablePostProcess);
+
 public:
 	IDisplayClusterViewportManager* GetViewportManager() const
 	{
@@ -348,7 +357,7 @@ public:
 	float PreviewRenderTargetRatioMult = 0.25;
 
 	/** Enable PostProcess for preview. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Enable Post Process", EditCondition = "bPreviewEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Enable Post Process", EditCondition = "bPreviewEnable"), BlueprintSetter = SetPreviewEnablePostProcess)
 	bool bPreviewEnablePostProcess = false;
 
 	/** Freeze preview render.  This will impact editor performance. */
