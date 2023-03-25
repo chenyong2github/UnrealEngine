@@ -100,7 +100,7 @@ namespace UnrealBuildTool
 			VCProjectFileContent.Append("		<NMakeForcedUsingAssemblies>$(NMakeForcedUsingAssemblies);" + FoundationWinMDPath + ";" + UniversalWinMDPath + ";platform.winmd</NMakeForcedUsingAssemblies>" + ProjectFileGenerator.NewLine);
 		}
 
-		public override void GetVisualStudioPreDefaultString(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, StringBuilder VCProjectFileContent)
+		public override void GetVisualStudioPreDefaultString(UnrealTargetPlatform InPlatform, StringBuilder VCProjectFileContent)
 		{
 			// VS2017 expects WindowsTargetPlatformVersion to be set in conjunction with these other properties, otherwise the projects
 			// will fail to load when the solution is in a HoloLens configuration.
@@ -118,12 +118,12 @@ namespace UnrealBuildTool
 				SDKVersion = version.ToString();
 			}
 
-			VCProjectFileContent.AppendLine("		<AppContainerApplication>true</AppContainerApplication>");
-			VCProjectFileContent.AppendLine("		<ApplicationType>Windows Store</ApplicationType>");
-			VCProjectFileContent.AppendLine("		<ApplicationTypeRevision>10.0</ApplicationTypeRevision>");
-			VCProjectFileContent.AppendLine("		<WindowsAppContainer>true</WindowsAppContainer>");
-			VCProjectFileContent.AppendLine("		<AppxPackage>true</AppxPackage>");
-			VCProjectFileContent.AppendLine("		<WindowsTargetPlatformVersion>{0}</WindowsTargetPlatformVersion>", SDKVersion.ToString()); 
+			VCProjectFileContent.AppendLine("    <AppContainerApplication>true</AppContainerApplication>");
+			VCProjectFileContent.AppendLine("    <ApplicationType>Windows Store</ApplicationType>");
+			VCProjectFileContent.AppendLine("    <ApplicationTypeRevision>10.0</ApplicationTypeRevision>");
+			VCProjectFileContent.AppendLine("    <WindowsAppContainer>true</WindowsAppContainer>");
+			VCProjectFileContent.AppendLine("    <AppxPackage>true</AppxPackage>");
+			VCProjectFileContent.AppendLine("    <WindowsTargetPlatformVersion>{0}</WindowsTargetPlatformVersion>", SDKVersion.ToString()); 
 		}
 
 		public override string GetVisualStudioLayoutDirSection(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InConditionString, TargetType TargetType, FileReference TargetRulesPath, FileReference ProjectFilePath, FileReference NMakeOutputPath, VCProjectFileFormat InProjectFileFormat)
