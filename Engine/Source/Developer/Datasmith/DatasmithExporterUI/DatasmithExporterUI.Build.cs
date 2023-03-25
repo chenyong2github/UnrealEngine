@@ -4,7 +4,7 @@ using System;
 
 namespace UnrealBuildTool.Rules
 {
-	[SupportedPlatforms("Win64", "Mac")]
+	[SupportedPlatforms("Win64", "Mac", "Linux")]
 	public class DatasmithExporterUI : ModuleRules
 	{
 		public DatasmithExporterUI(ReadOnlyTargetRules Target)
