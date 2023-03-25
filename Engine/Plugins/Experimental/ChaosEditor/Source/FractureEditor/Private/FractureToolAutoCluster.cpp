@@ -97,6 +97,15 @@ void UFractureToolAutoCluster::Render(const FSceneView* View, FViewport* Viewpor
 				FVector Pt = ShowGridPoints[Idx];
 				PDI->DrawPoint(Pt, FLinearColor(1.f, 0.f, 1.f), 5, SDPG_Foreground);
 			});
+		if (AutoClusterSettings->bShowGridLines)
+		{
+			EnumerateVisualizationMapping(GridLinesMappings, ShowGridLines.Num(),
+				[&](int32 Idx, FVector ExplodedVector)
+				{
+					TPair<FVector, FVector> Pts = ShowGridLines[Idx];
+					PDI->DrawLine(Pts.Key, Pts.Value, FLinearColor(1.f, 1.f, 0.f), SDPG_Foreground);
+				});
+		}
 	}
 
 	if (AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::BySize)
@@ -128,14 +137,43 @@ void UFractureToolAutoCluster::FractureContextChanged()
 			for (const int32 ClusterIndex : Context.GetSelection())
 			{
 				GridPointsMappings.AddMapping(CollectionIdx, ClusterIndex, ShowGridPoints.Num());
+				FBox Bounds;
 				TArray<FVector> LocalGridPoints = FFractureEngineClustering::GenerateGridSites(
 					*GeometryCollection, ClusterIndex,
 					AutoClusterSettings->ClusterGridWidth,
 					AutoClusterSettings->ClusterGridDepth,
-					AutoClusterSettings->ClusterGridHeight);
+					AutoClusterSettings->ClusterGridHeight,
+					&Bounds);
 				for (FVector LocalPt : LocalGridPoints)
 				{
 					ShowGridPoints.Add(ContextTransform.TransformPosition(LocalPt));
+				}
+				GridLinesMappings.AddMapping(CollectionIdx, ClusterIndex, ShowGridLines.Num());
+				FIntVector3 Dims(
+					AutoClusterSettings->ClusterGridWidth,
+					AutoClusterSettings->ClusterGridDepth,
+					AutoClusterSettings->ClusterGridHeight);
+				FVector InvDims(1.0 / double(Dims.X), 1.0 / double(Dims.Y), 1.0 / double(Dims.Z));
+				FVector Diag = Bounds.Max - Bounds.Min;
+				for (int32 Dim = 0; Dim < 3; ++Dim)
+				{
+					FIntVector3 DMap(Dim, (Dim + 1) % 3, (Dim + 2) % 3);
+					FVector Start, End;
+					Start[DMap.Z] = Bounds.Min[DMap.Z];
+					End[DMap.Z] = Bounds.Max[DMap.Z];
+					for (int32 W = 0; W <= Dims[DMap.X]; ++W)
+					{
+						double AlongW = W * InvDims[DMap.X];
+						Start[DMap.X] = Bounds.Min[DMap.X] + AlongW * Diag[DMap.X];
+						End[DMap.X] = Start[DMap.X];
+						for (int32 H = 0; H <= Dims[DMap.Y]; ++H)
+						{
+							double AlongH = H * InvDims[DMap.Y];
+							Start[DMap.Y] = Bounds.Min[DMap.Y] + AlongH * Diag[DMap.Y];
+							End[DMap.Y] = Start[DMap.Y];
+							ShowGridLines.Emplace(ContextTransform.TransformPosition(Start), ContextTransform.TransformPosition(End));
+						}
+					}
 				}
 			}
 		}

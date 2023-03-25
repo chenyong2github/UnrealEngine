@@ -706,11 +706,16 @@ TArray<FVector> FFractureEngineClustering::GenerateGridSites(
 	const int32 ClusterIndex,
 	const int32 InGridX,
 	const int32 InGridY,
-	const int32 InGridZ)
+	const int32 InGridZ,
+	FBox* OutBounds)
 {
 	TArray<FVector> PartitionPositions;
 
 	FBox Bounds = FVoronoiPartitioner::GenerateBounds(&GeometryCollection, ClusterIndex);
+	if (OutBounds)
+	{
+		*OutBounds = Bounds;
+	}
 	int32 GridX = FMath::Max(1, InGridX);
 	int32 GridY = FMath::Max(1, InGridY);
 	int32 GridZ = FMath::Max(1, InGridZ);

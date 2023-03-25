@@ -78,6 +78,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (ClampMin = "1", UIMax = "20", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByGrid", EditConditionHides))
 	int ClusterGridHeight = 2;
 
+	/** If true, show the cluster grid boundary lines. */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByGrid", EditConditionHides))
+	bool bShowGridLines = true;
+
 	/** If a cluster has volume less than this value (in cm) cubed, then the auto-cluster process will attempt to merge it into a neighboring cluster. */
 	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (ClampMin = "0"))
 	float MinimumSize = 0;
@@ -131,11 +135,14 @@ protected:
 		Super::ClearVisualizations();
 		ShowGridPoints.Empty();
 		GridPointsMappings.Empty();
+		ShowGridLines.Empty();
+		GridLinesMappings.Empty();
 	}
 
 private:
 
 	TArray<FVector> ShowGridPoints;
-	FVisualizationMappings GridPointsMappings;
+	TArray<TPair<FVector, FVector>> ShowGridLines;
+	FVisualizationMappings GridPointsMappings, GridLinesMappings;
 };
 

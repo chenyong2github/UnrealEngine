@@ -128,7 +128,8 @@ public:
 		const int32 ClusterIndex,
 		const int32 GridX,
 		const int32 GridY,
-		const int32 GridZ);
+		const int32 GridZ,
+		FBox* OutBounds = nullptr);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
