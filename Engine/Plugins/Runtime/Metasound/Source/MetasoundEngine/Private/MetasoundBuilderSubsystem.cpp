@@ -26,14 +26,6 @@ namespace Metasound::Engine
 {
 	namespace BuilderSubsystemPrivate
 	{
-		static int32 DocumentBuilderEnabledCVar = 0;
-		FAutoConsoleVariableRef CVarEnableDocumentBuilder(
-			TEXT("au.MetaSound.BuilderSubsystem.Enabled"),
-			DocumentBuilderEnabledCVar,
-			TEXT("Enables the the Runtime MetaSoundBuilderSubsystem, which (as of 5.3) is in beta (Default: Disabled).\n")
-			TEXT("0: Disabled, 1: Enabled"),
-			ECVF_Default);
-
 		template <typename TLiteralType>
 		FMetasoundFrontendLiteral CreatePODMetaSoundLiteral(const TLiteralType& Value, FName& OutDataType)
 		{
@@ -740,14 +732,7 @@ void UMetaSoundSourceBuilder::SetFormat(EMetaSoundOutputAudioFormat OutputFormat
 
 UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::CreatePatchBuilder(FName BuilderName, EMetaSoundBuilderResult& OutResult)
 {
-	using namespace Metasound::Engine::BuilderSubsystemPrivate;
-
-	if (!DocumentBuilderEnabledCVar)
-	{
-		UE_LOG(LogMetaSound, Error, TEXT("CreatePatchBuilder Failed to create MetaSound Builder '%s': See CVar au.MetaSound.BuilderSubsystem.Enabled (%s')"), *BuilderName.ToString(), CVarEnableDocumentBuilder->GetHelp());
-		return nullptr;
-	}
-	return &CreateTransientBuilder<UMetaSoundPatchBuilder>();
+	return &Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
 }
 
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
@@ -767,12 +752,6 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 	AudioOutNodeInputs.Reset();
 
 	OutResult = EMetaSoundBuilderResult::Failed;
-
-	if (!DocumentBuilderEnabledCVar)
-	{
-		UE_LOG(LogMetaSound, Error, TEXT("CreateSourceBuilder Failed to create MetaSound Builder '%s': See CVar au.MetaSound.BuilderSubsystem.Enabled (%s')"), *BuilderName.ToString(), CVarEnableDocumentBuilder->GetHelp());
-		return nullptr;
-	}
 
 	UMetaSoundSourceBuilder& NewBuilder = CreateTransientBuilder<UMetaSoundSourceBuilder>();
 
