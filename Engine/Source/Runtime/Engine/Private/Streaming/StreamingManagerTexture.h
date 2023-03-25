@@ -99,6 +99,8 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 
 	virtual int64 GetMaxEverRequired() const override { return MaxEverRequired; }
 
+	virtual float GetCachedMips() const override { return DisplayedStats.CachedMips; }
+
 	virtual void ResetMaxEverRequired() override { MaxEverRequired = 0; }
 
 	/**

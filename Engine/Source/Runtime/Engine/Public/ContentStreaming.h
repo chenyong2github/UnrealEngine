@@ -472,6 +472,9 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	/** Max required textures/meshes ever seen in bytes. */
 	virtual int64 GetMaxEverRequired() const = 0;
 
+	/** Amount of memory cached in pool */
+	virtual float GetCachedMips() const = 0;
+
 	/** Resets the max ever required textures/meshes.  For possibly when changing resolutions or screen pct. */
 	virtual void ResetMaxEverRequired() = 0;
 
