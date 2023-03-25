@@ -16,6 +16,7 @@ namespace EpicGames.Horde.Compute.Buffers
 		readonly Memory<byte> _memory;
 
 		int _readPosition;
+		int _readLength;
 		int _writePosition;
 		bool _finishedWriting;
 		TaskCompletionSource? _writtenTcs;
@@ -23,6 +24,9 @@ namespace EpicGames.Horde.Compute.Buffers
 
 		/// <inheritdoc/>
 		public override long Length => _memory.Length;
+
+		// Accessor for the value of read length. 
+		int GetInterlockedReadLength() => Interlocked.CompareExchange(ref _readLength, 0, 0);
 
 		/// <summary>
 		/// Creates a local buffer with the given capacity
@@ -58,29 +62,26 @@ namespace EpicGames.Horde.Compute.Buffers
 		#region Reader
 
 		/// <inheritdoc/>
-		public override bool FinishedReading() => _finishedWriting && _readPosition == _writePosition;
+		public override bool FinishedReading() => _finishedWriting && GetInterlockedReadLength() == 0;
 
 		/// <inheritdoc/>
 		public override void AdvanceReadPosition(int size)
 		{
 			_readPosition += size;
-
-			if (_readPosition == _writePosition)
+			if (Interlocked.Add(ref _readLength, -size) == 0)
 			{
 				_flushedTcs?.TrySetResult();
 			}
 		}
 
 		/// <inheritdoc/>
-		public override ReadOnlyMemory<byte> GetReadMemory() => _memory.Slice(_readPosition, _writePosition - _readPosition);
+		public override ReadOnlyMemory<byte> GetReadMemory() => _memory.Slice(_readPosition, GetInterlockedReadLength());
 
 		/// <inheritdoc/>
 		public override async ValueTask WaitForDataAsync(int currentLength, CancellationToken cancellationToken)
 		{
-			int initialWritePosition = _readPosition + currentLength;
-
 			// Early out if we're already past this
-			if (_finishedWriting || _writePosition > initialWritePosition)
+			if (_finishedWriting || GetInterlockedReadLength() != currentLength)
 			{
 				return;
 			}
@@ -93,7 +94,7 @@ namespace EpicGames.Horde.Compute.Buffers
 					_writtenTcs = tcs;
 					for (; ; )
 					{
-						if (_finishedWriting || _writePosition > initialWritePosition)
+						if (_finishedWriting || GetInterlockedReadLength() != currentLength)
 						{
 							break;
 						}
@@ -130,16 +131,26 @@ namespace EpicGames.Horde.Compute.Buffers
 			}
 
 			_writePosition += size;
+			Interlocked.Add(ref _readLength, size);
+
 			_writtenTcs?.TrySetResult();
 		}
 
 		/// <inheritdoc/>
-		public override Memory<byte> GetWriteMemory() => _memory.Slice(_writePosition);
+		public override Memory<byte> GetWriteMemory()
+		{
+			if (GetInterlockedReadLength() == 0)
+			{
+				_readPosition = 0;
+				_writePosition = 0;
+			}
+			return _memory.Slice(_writePosition);
+		}
 
 		/// <inheritdoc/>
 		public override async ValueTask FlushWritesAsync(CancellationToken cancellationToken)
 		{
-			if (_readPosition < _writePosition)
+			if (GetInterlockedReadLength() != 0)
 			{
 				TaskCompletionSource tcs = new TaskCompletionSource();
 				using (_ = cancellationToken.Register(x => tcs.SetCanceled((CancellationToken)x!), cancellationToken, false))
@@ -150,7 +161,7 @@ namespace EpicGames.Horde.Compute.Buffers
 						_ = originalTcs.Task.ContinueWith(x => tcs.TrySetResult(), cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
 					}
 				}
-				if (_readPosition < _writePosition)
+				if (GetInterlockedReadLength() != 0)
 				{
 					await tcs.Task;
 				}

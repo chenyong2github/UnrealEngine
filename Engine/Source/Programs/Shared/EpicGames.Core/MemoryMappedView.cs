@@ -49,6 +49,11 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Gets a pointer to the data
+		/// </summary>
+		public byte* GetPointer() => _data;
+
+		/// <summary>
 		/// Gets a memory object for the given range
 		/// </summary>
 		/// <param name="offset"></param>

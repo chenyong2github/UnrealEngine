@@ -22,22 +22,55 @@ namespace EpicGames.Horde.Compute.Buffers
 	{
 		const int HeaderLength = 32;
 
-		long ReadPosition
+		sealed unsafe class Header
 		{
-			get => BinaryPrimitives.ReadInt64LittleEndian(_header.Span.Slice(8));
-			set => BinaryPrimitives.WriteInt64LittleEndian(_header.Span.Slice(8), value);
-		}
+			readonly byte* _finishedWritingPtr;
+			readonly long* _readPositionPtr;
+			readonly long* _readLengthPtr;
+			readonly long* _writePositionPtr;
 
-		long WritePosition
-		{
-			get => BinaryPrimitives.ReadInt64LittleEndian(_header.Span.Slice(16));
-			set => BinaryPrimitives.WriteInt64LittleEndian(_header.Span.Slice(16), value);
-		}
+			public Header(MemoryMappedView view)
+			{
+				byte* basePtr = view.GetPointer();
+				_finishedWritingPtr = basePtr;
 
-		bool FinishedWriting
-		{
-			get => _header.Span[24] != 0;
-			set => _header.Span[24] = value ? (byte)1 : (byte)0;
+				long* nextPtr = (long*)basePtr + 1;
+				_readPositionPtr = nextPtr++;
+				_readLengthPtr = nextPtr++;
+				_writePositionPtr = nextPtr++;
+			}
+
+			public bool FinishedWriting => *_finishedWritingPtr != 0;
+
+			public long ReadPosition => Interlocked.Read(ref *_readPositionPtr);
+			public long ReadLength => Interlocked.Read(ref *_readLengthPtr);
+			public long WritePosition => Interlocked.Read(ref *_writePositionPtr);
+
+			public void TryReset()
+			{
+				if (ReadLength == 0)
+				{
+					Interlocked.Exchange(ref *_writePositionPtr, 0);
+					Interlocked.Exchange(ref *_readPositionPtr, 0);
+				}
+			}
+
+			public void FinishWriting()
+			{
+				*_finishedWritingPtr = 1;
+			}
+
+			public long AdvanceReadPosition(long value)
+			{
+				Interlocked.Add(ref *_readPositionPtr, value);
+				return Interlocked.Add(ref *_readLengthPtr, -value);
+			}
+
+			public long AdvanceWritePosition(long value)
+			{
+				Interlocked.Add(ref *_writePositionPtr, value);
+				return Interlocked.Add(ref *_readLengthPtr, value);
+			}
 		}
 
 		const int ChunkOffsetPow2 = 10;
@@ -46,7 +79,7 @@ namespace EpicGames.Horde.Compute.Buffers
 		readonly MemoryMappedViewAccessor _memoryMappedViewAccessor;
 		readonly MemoryMappedView _memoryMappedView;
 		readonly long _length;
-		readonly Memory<byte> _header;
+		readonly Header _header;
 		readonly Memory<byte> _memory; // TODO: DEPRECATE
 		readonly Memory<byte>[] _chunks;
 
@@ -86,7 +119,7 @@ namespace EpicGames.Horde.Compute.Buffers
 			_writtenEvent = writtenEvent;
 			_flushedEvent = flushedEvent;
 
-			_header = _memoryMappedView.GetMemory(0, HeaderLength);
+			_header = new Header(_memoryMappedView);
 			_length = _memoryMappedViewAccessor.Capacity;
 
 			_memory = _memoryMappedView.GetMemory(HeaderLength, (int)(_length - HeaderLength)); // TODO: REMOVE
@@ -216,29 +249,29 @@ namespace EpicGames.Horde.Compute.Buffers
 		#region Reader
 
 		/// <inheritdoc/>
-		public override bool FinishedReading() => FinishedWriting && ReadPosition == WritePosition;
+		public override bool FinishedReading() => _header.FinishedWriting && _header.ReadLength == 0;
 
 		/// <inheritdoc/>
 		public override void AdvanceReadPosition(int size)
 		{
-			ReadPosition += size;
-
-			if (ReadPosition == WritePosition)
+			if (_header.AdvanceReadPosition(size) == 0)
 			{
 				_flushedEvent.Set();
 			}
 		}
 
 		/// <inheritdoc/>
-		public override ReadOnlyMemory<byte> GetReadMemory() => _memory.Slice((int)ReadPosition, (int)(WritePosition - ReadPosition));
+		public override ReadOnlyMemory<byte> GetReadMemory()
+		{
+			return _memory.Slice((int)_header.ReadPosition, (int)_header.ReadLength);
+		}
 
 		/// <inheritdoc/>
 		public override async ValueTask WaitForDataAsync(int currentLength, CancellationToken cancellationToken)
 		{
-			long initialWritePosition = ReadPosition + currentLength;
 			for (; ; )
 			{
-				if (FinishedWriting || WritePosition > initialWritePosition)
+				if (_header.FinishedWriting || _header.ReadLength > currentLength)
 				{
 					return;
 				}
@@ -256,32 +289,37 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <inheritdoc/>
 		public override void FinishWriting()
 		{
-			FinishedWriting = true;
+			_header.FinishWriting();
 			_writtenEvent.Set();
 		}
 
 		/// <inheritdoc/>
 		public override void AdvanceWritePosition(int size)
 		{
-			if (FinishedWriting)
+			if (_header.FinishedWriting)
 			{
 				throw new InvalidOperationException("Cannot update write position after marking as complete");
 			}
 
-			WritePosition += size;
+			_header.AdvanceWritePosition(size);
 			_writtenEvent.Set();
 		}
 
 		/// <inheritdoc/>
-		public override Memory<byte> GetWriteMemory() => _memory.Slice((int)WritePosition);
+		public override Memory<byte> GetWriteMemory()
+		{
+			_header.TryReset();
+			return _memory.Slice((int)_header.WritePosition);
+		}
 
 		/// <inheritdoc/>
 		public override async ValueTask FlushWritesAsync(CancellationToken cancellationToken)
 		{
-			while (ReadPosition < WritePosition)
+			while (_header.ReadLength > 0)
 			{
 				await _flushedEvent.WaitOneAsync(cancellationToken);
 			}
+			_header.TryReset();
 		}
 
 		#endregion
