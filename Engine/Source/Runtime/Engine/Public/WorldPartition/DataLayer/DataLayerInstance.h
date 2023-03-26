@@ -79,8 +79,6 @@ public:
 
 	const TCHAR* GetDataLayerIconName() const;
 
-	virtual bool CanHaveChildDataLayers() const { return true; }
-	virtual bool CanHaveParentDataLayer() const { return true; }
 	bool CanBeChildOf(const UDataLayerInstance* InParent, FText* OutReason = nullptr) const;
 	bool SetParent(UDataLayerInstance* InParent);
 
@@ -144,6 +142,9 @@ public:
 
 	virtual FString GetDataLayerShortName() const { return TEXT("Invalid Data Layer"); }
 	virtual FString GetDataLayerFullName() const { return TEXT("Invalid Data Layer"); }
+
+	virtual bool CanHaveChildDataLayers() const { return true; }
+	virtual bool CanHaveParentDataLayer() const { return true; }
 
 	const UDataLayerInstance* GetParent() const { return Parent; }
 	UDataLayerInstance* GetParent() { return Parent; }
