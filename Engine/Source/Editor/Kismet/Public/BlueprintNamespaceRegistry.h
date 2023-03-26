@@ -84,6 +84,7 @@ protected:
 	void OnAssetAdded(const FAssetData& AssetData);
 	void OnAssetRemoved(const FAssetData& AssetData);
 	void OnAssetRenamed(const FAssetData& AssetData, const FString& InOldName);
+	void OnAssetRegistryFilesLoaded();
 
 	/** Namespace identifier registration methods. */
 	void FindAndRegisterAllNamespaces();
@@ -106,6 +107,7 @@ private:
 	FDelegateHandle OnAssetAddedDelegateHandle;
 	FDelegateHandle OnAssetRemovedDelegateHandle;
 	FDelegateHandle OnAssetRenamedDelegateHandle;
+	FDelegateHandle OnFilesLoadedDelegateHandle;
 	FDelegateHandle OnReloadCompleteDelegateHandle;
 	FDelegateHandle OnDefaultNamespaceTypeChangedDelegateHandle;
 

@@ -1981,6 +1981,7 @@ FFindInBlueprintSearchManager::FFindInBlueprintSearchManager()
 	, bEnableCSVStatsProfiling(false)
 	, bEnableDeveloperMenuTools(false)
 	, bDisableSearchResultTemplates(false)
+	, bDisableImmediateAssetDiscovery(false)
 {
 	for (int32 TabIdx = 0; TabIdx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 	{
@@ -2021,6 +2022,7 @@ void FFindInBlueprintSearchManager::Initialize()
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bEnableCsvStatsProfiling"), bEnableCSVStatsProfiling, GEditorIni);
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bEnableDeveloperMenuTools"), bEnableDeveloperMenuTools, GEditorIni);
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bDisableSearchResultTemplates"), bDisableSearchResultTemplates, GEditorIni);
+	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bDisableImmediateAssetDiscovery"), bDisableImmediateAssetDiscovery, GEditorIni);
 
 #if CSV_PROFILER
 	// If profiling has been enabled, turn on the stat category and begin a capture.
@@ -2042,9 +2044,6 @@ void FFindInBlueprintSearchManager::Initialize()
 		IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
 		if (AssetRegistry)
 		{
-			//AssetRegistry->OnAssetAdded().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetAdded);
-			AssetRegistry->OnAssetRemoved().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRemoved);
-			AssetRegistry->OnAssetRenamed().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRenamed);
 			AssetRegistry->OnFilesLoaded().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRegistryFilesLoaded);
 		}
 	}
@@ -2068,7 +2067,7 @@ void FFindInBlueprintSearchManager::Initialize()
 	// Register to be notified of reloads
 	FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FFindInBlueprintSearchManager::OnReloadComplete);
 
-	if(!GIsSavingPackage && AssetRegistryModule)
+	if(!GIsSavingPackage && AssetRegistryModule && (!bDisableImmediateAssetDiscovery || !AssetRegistryModule->GetRegistry().IsLoadingAssets()))
 	{
 		// Do an immediate load of the cache to catch any Blueprints that were discovered by the asset registry before we initialized.
 		BuildCache();
@@ -2330,6 +2329,13 @@ void FFindInBlueprintSearchManager::OnAssetRenamed(const struct FAssetData& InAs
 void FFindInBlueprintSearchManager::OnAssetRegistryFilesLoaded()
 {
 	CSV_EVENT(FindInBlueprint, TEXT("OnAssetRegistryFilesLoaded"));
+
+	// If we've deferred asset discovery, scan all registered assets now to extract search metadata from the asset tags.
+	// Note: Depending on how many assets there are (loaded/unloaded), this may block the UI frame for an extended period.
+	if (bDisableImmediateAssetDiscovery)
+	{
+		BuildCache();
+	}
 
 	if (!IsCacheInProgress() && PendingAssets.Num() == 0)
 	{
@@ -2946,7 +2952,18 @@ void FFindInBlueprintSearchManager::CleanCache()
 
 void FFindInBlueprintSearchManager::BuildCache()
 {
-	AssetRegistryModule = &FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFindInBlueprintSearchManager::BuildCache);
+
+	if (!ensure(AssetRegistryModule))
+	{
+		return;
+	}
+
+	IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+	if (!AssetRegistry)
+	{
+		return;
+	}
 
 	TArray< FAssetData > BlueprintAssets;
 	FARFilter ClassFilter;
@@ -2957,12 +2974,17 @@ void FFindInBlueprintSearchManager::BuildCache()
 		ClassFilter.ClassPaths.Add(ClassPathName);
 	}
 
-	AssetRegistryModule->Get().GetAssets(ClassFilter, BlueprintAssets);
+	AssetRegistry->GetAssets(ClassFilter, BlueprintAssets);
 	
 	for( FAssetData& Asset : BlueprintAssets )
 	{
 		OnAssetAdded(Asset);
 	}
+
+	// Register to be notified for future asset registry events.
+	AssetRegistry->OnAssetAdded().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetAdded);
+	AssetRegistry->OnAssetRemoved().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRemoved);
+	AssetRegistry->OnAssetRenamed().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRenamed);
 }
 
 void FFindInBlueprintSearchManager::DumpCache(FArchive& Ar)

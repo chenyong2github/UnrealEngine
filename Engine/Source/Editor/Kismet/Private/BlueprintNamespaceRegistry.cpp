@@ -76,11 +76,14 @@ void FBlueprintNamespaceRegistry::Initialize()
 	if(GIsEditor && !IsRunningCommandlet())
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		//OnAssetAddedDelegateHandle = AssetRegistry.OnAssetAdded().AddRaw(this, &FBlueprintNamespaceRegistry::OnAssetAdded);
-		OnAssetRemovedDelegateHandle = AssetRegistry.OnAssetRemoved().AddRaw(this, &FBlueprintNamespaceRegistry::OnAssetRemoved);
-		OnAssetRenamedDelegateHandle = AssetRegistry.OnAssetRenamed().AddRaw(this, &FBlueprintNamespaceRegistry::OnAssetRenamed);
-
-		FindAndRegisterAllNamespaces();
+		if (AssetRegistry.IsLoadingAssets())
+		{
+			OnFilesLoadedDelegateHandle = AssetRegistry.OnFilesLoaded().AddRaw(this, &FBlueprintNamespaceRegistry::OnAssetRegistryFilesLoaded);
+		}
+		else
+		{
+			OnAssetRegistryFilesLoaded();
+		}
 
 		OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBlueprintNamespaceRegistry::OnReloadComplete);
 		OnDefaultNamespaceTypeChangedDelegateHandle = FBlueprintNamespaceUtilities::OnDefaultBlueprintNamespaceTypeChanged().AddRaw(this, &FBlueprintNamespaceRegistry::OnDefaultNamespaceTypeChanged);
@@ -107,6 +110,7 @@ void FBlueprintNamespaceRegistry::Shutdown()
 			AssetRegistry->OnAssetAdded().Remove(OnAssetAddedDelegateHandle);
 			AssetRegistry->OnAssetRemoved().Remove(OnAssetRemovedDelegateHandle);
 			AssetRegistry->OnAssetRenamed().Remove(OnAssetRenamedDelegateHandle);
+			AssetRegistry->OnFilesLoaded().Remove(OnFilesLoadedDelegateHandle);
 		}
 	}
 
@@ -169,6 +173,18 @@ void FBlueprintNamespaceRegistry::OnAssetRenamed(const FAssetData& AssetData, co
 	}
 }
 
+void FBlueprintNamespaceRegistry::OnAssetRegistryFilesLoaded()
+{
+	// Find available namespaces once all assets are registered.
+	FindAndRegisterAllNamespaces();
+
+	// Get notified for new asset events that occur going forward.
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	OnAssetAddedDelegateHandle = AssetRegistry.OnAssetAdded().AddRaw(this, &FBlueprintNamespaceRegistry::OnAssetAdded);
+	OnAssetRemovedDelegateHandle = AssetRegistry.OnAssetRemoved().AddRaw(this, &FBlueprintNamespaceRegistry::OnAssetRemoved);
+	OnAssetRenamedDelegateHandle = AssetRegistry.OnAssetRenamed().AddRaw(this, &FBlueprintNamespaceRegistry::OnAssetRenamed);
+}
+
 void FBlueprintNamespaceRegistry::OnReloadComplete(EReloadCompleteReason InReason)
 {
 	// Rebuild the registry to reflect the appropriate default namespace identifiers for any reloaded types.
@@ -226,6 +242,8 @@ void FBlueprintNamespaceRegistry::GetAllRegisteredPaths(TArray<FString>& OutPath
 
 void FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces);
+
 	// Resolve the subset of excluded objects that are loaded.
 	TSet<const UObject*> ExcludedObjects;
 	for (const FSoftObjectPath& ExcludedObjectPath : ExcludedObjectPaths)
