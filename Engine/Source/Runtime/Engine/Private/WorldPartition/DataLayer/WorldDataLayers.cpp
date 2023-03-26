@@ -575,7 +575,9 @@ bool AWorldDataLayers::IsInActorEditorContext(const UDataLayerInstance* InDataLa
 
 bool AWorldDataLayers::AddToActorEditorContext(UDataLayerInstance* InDataLayerInstance)
 {
-	check(DataLayerInstances.Contains(InDataLayerInstance));
+	check(InDataLayerInstance->CanBeInActorEditorContext());
+	check(ContainsDataLayer(InDataLayerInstance));
+
 	if (!CurrentDataLayers.DataLayerInstanceNames.Contains(InDataLayerInstance->GetDataLayerFName()))
 	{
 		Modify(/*bDirty*/false);
@@ -587,7 +589,9 @@ bool AWorldDataLayers::AddToActorEditorContext(UDataLayerInstance* InDataLayerIn
 
 bool AWorldDataLayers::RemoveFromActorEditorContext(UDataLayerInstance* InDataLayerInstance)
 {
-	check(DataLayerInstances.Contains(InDataLayerInstance));
+	check(InDataLayerInstance->CanBeInActorEditorContext());
+	check(ContainsDataLayer(InDataLayerInstance));
+
 	if (CurrentDataLayers.DataLayerInstanceNames.Contains(InDataLayerInstance->GetDataLayerFName()))
 	{
 		Modify(/*bDirty*/false);

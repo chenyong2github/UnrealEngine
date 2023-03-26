@@ -13,6 +13,7 @@
 #define DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED 1
 
 class AWorldDataLayers;
+class FText;
 class IStreamingGenerationErrorHandler;
 class UWorld;
 
@@ -78,8 +79,9 @@ public:
 
 	const TCHAR* GetDataLayerIconName() const;
 
-	bool CanParent(const UDataLayerInstance* InParent) const;
-	bool IsDataLayerTypeValidToParent(EDataLayerType ParentDataLayerType) const;
+	virtual bool CanHaveChildDataLayers() const { return true; }
+	virtual bool CanHaveParentDataLayer() const { return true; }
+	bool CanBeChildOf(const UDataLayerInstance* InParent, FText* OutReason = nullptr) const;
 	bool SetParent(UDataLayerInstance* InParent);
 
 	void SetChildParent(UDataLayerInstance* InParent);
@@ -90,14 +92,22 @@ public:
 	virtual bool IsReadOnly() const;
 	virtual bool CanEditChange(const FProperty* InProperty) const;
 	
+	virtual bool CanUserAddActors() const;
 	virtual bool CanAddActor(AActor* Actor) const;
 	virtual bool AddActor(AActor* Actor) const;
+	virtual bool CanUserRemoveActors() const;
 	virtual bool CanRemoveActor(AActor* Actor) const;
 	virtual bool RemoveActor(AActor* Actor) const;
 
+	virtual bool CanBeInActorEditorContext() const;
 	bool IsInActorEditorContext() const;
 	bool AddToActorEditorContext();
 	bool RemoveFromActorEditorContext();
+
+	virtual bool CanEditDataLayerShortName() const { return false; }
+
+	// Whether the DataLayer was created by a user and can be deleted by a user.
+	virtual bool IsUserManaged() const { return true; }
 
 	virtual bool Validate(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
@@ -107,7 +117,8 @@ public:
 	UE_DEPRECATED(5.3, "Use SetShortName instead")
 	virtual bool RelabelDataLayer(FName NewDataLayerLabel) { return false; }
 
-	virtual bool CanEditDataLayerShortName() const { return false; }
+	UE_DEPRECATED(5.3, "Use CanBeChildOf instead")
+	bool CanParent(const UDataLayerInstance* InParent) const { return CanBeChildOf(InParent); }
 #endif // WITH_EDITOR
 
 	UFUNCTION(Category = "Data Layer", BlueprintCallable)
@@ -164,6 +175,8 @@ private:
 
 protected:
 #if WITH_EDITOR
+	bool IsParentDataLayerTypeCompatible(const UDataLayerInstance* InParent) const;
+
 	virtual bool PerformAddActor(AActor* InActor) const { return false; }
 	virtual bool PerformRemoveActor(AActor* InActor) const { return false;  }
 	virtual void PerformSetDataLayerShortName(const FString& InNewShortName) {}

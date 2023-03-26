@@ -2,6 +2,7 @@
 
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
+#include "Internationalization/Text.h"
 #include "UObject/UnrealType.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
@@ -134,6 +135,11 @@ const TCHAR* UDataLayerInstance::GetDataLayerIconName() const
 	return FDataLayerUtils::GetDataLayerIconName(GetType());
 }
 
+bool UDataLayerInstance::CanUserAddActors() const
+{
+	return !IsLocked();
+}
+
 bool UDataLayerInstance::CanAddActor(AActor* InActor) const
 {
 	return InActor != nullptr && InActor->SupportsDataLayer() && !InActor->ContainsDataLayer(this);
@@ -147,6 +153,11 @@ bool UDataLayerInstance::AddActor(AActor* InActor) const
 	}
 
 	return false;
+}
+
+bool UDataLayerInstance::CanUserRemoveActors() const
+{
+	return !IsLocked();
 }
 
 bool UDataLayerInstance::CanRemoveActor(AActor* InActor) const
@@ -164,15 +175,64 @@ bool UDataLayerInstance::RemoveActor(AActor* InActor) const
 	return false;
 }
 
-bool UDataLayerInstance::CanParent(const UDataLayerInstance* InParent) const
+bool UDataLayerInstance::CanBeChildOf(const UDataLayerInstance* InParent, FText* OutReason) const
 {
-	return (this != InParent)
-		&& (Parent != InParent) 
-		&& (InParent == nullptr || (IsDataLayerTypeValidToParent(InParent->GetType()) && (InParent->GetOuterWorldDataLayers() == GetOuterWorldDataLayers())));
+	auto AssignReason = [OutReason](FText&& Reason)
+	{
+		if(OutReason != nullptr)
+		{
+			*OutReason = MoveTemp(Reason);
+		}
+	};
+
+	if (this == InParent || Parent == InParent)
+	{
+		AssignReason(LOCTEXT("SameParentOrSameDataLayer", "Data Layer already has this parent"));
+		return false;
+	}
+
+	if (InParent == nullptr)
+	{
+		// nullptr is considered a valid parent
+		return true;
+	}
+
+	if (!CanHaveParentDataLayer())
+	{
+		AssignReason(FText::Format(LOCTEXT("ParentDataLayerUnsupported", "Data Layer \"{0}\" does not support parent data layers"), FText::FromString(GetDataLayerShortName())));
+		return false;
+	}
+
+	if (!InParent->CanHaveChildDataLayers())
+	{
+		AssignReason(FText::Format(LOCTEXT("ChildDataLayerUnsuported", "Data Layer \"{0}\" does not support child data layers"), FText::FromString(InParent->GetDataLayerShortName())));
+		return false;
+	}
+
+	if (!IsParentDataLayerTypeCompatible(InParent))
+	{
+		AssignReason(FText::Format(LOCTEXT("IncompatibleChildType", "{0} Data Layer cannot have {1} child Data Layers"), UEnum::GetDisplayValueAsText(GetType()), UEnum::GetDisplayValueAsText(InParent->GetType())));
+		return false;
+	}
+
+	if (InParent->GetOuterWorldDataLayers() != GetOuterWorldDataLayers())
+	{
+		AssignReason(LOCTEXT("DifferentOuterWorldDataLayer", "Parent WorldDataLayers is a different from child WorldDataLayers"));
+		return false;
+	}
+
+	return true;
 }
 
-bool UDataLayerInstance::IsDataLayerTypeValidToParent(EDataLayerType ParentDataLayerType) const
+bool UDataLayerInstance::IsParentDataLayerTypeCompatible(const UDataLayerInstance* InParent) const
 {
+	if (InParent == nullptr)
+	{
+		return false;
+	}
+
+	EDataLayerType ParentDataLayerType = InParent->GetType();
+
 	return GetType() != EDataLayerType::Unknown
 		&& ParentDataLayerType != EDataLayerType::Unknown
 		&& (ParentDataLayerType == EDataLayerType::Editor || GetType() == EDataLayerType::Runtime);
@@ -180,10 +240,12 @@ bool UDataLayerInstance::IsDataLayerTypeValidToParent(EDataLayerType ParentDataL
 
 bool UDataLayerInstance::SetParent(UDataLayerInstance* InParent)
 {
-	if (!CanParent(InParent))
+	if (!CanBeChildOf(InParent))
 	{
 		return false;
 	}
+
+	check(CanHaveParentDataLayer());
 
 	Modify();
 
@@ -220,6 +282,8 @@ void UDataLayerInstance::SetChildParent(UDataLayerInstance* InParent)
 		return;
 	}
 
+	check(!InParent || InParent->CanHaveChildDataLayers());
+
 	Modify();
 	while (Children.Num())
 	{
@@ -241,13 +305,18 @@ FText UDataLayerInstance::GetDataLayerText(const UDataLayerInstance* InDataLayer
 
 bool UDataLayerInstance::Validate(IStreamingGenerationErrorHandler* ErrorHandler) const
 {
-	if (GetParent() != nullptr && !IsDataLayerTypeValidToParent(GetParent()->GetType()))
+	if (GetParent() != nullptr && !IsParentDataLayerTypeCompatible(GetParent()))
 	{
 		ErrorHandler->OnDataLayerHierarchyTypeMismatch(this, GetParent());
 		return false;
 	}
 
 	return true;
+}
+
+bool UDataLayerInstance::CanBeInActorEditorContext() const
+{
+	return !IsLocked();
 }
 
 bool UDataLayerInstance::IsInActorEditorContext() const
@@ -315,6 +384,7 @@ void UDataLayerInstance::ForEachChild(TFunctionRef<bool(const UDataLayerInstance
 void UDataLayerInstance::AddChild(UDataLayerInstance* InDataLayer)
 {
 	check(InDataLayer->GetOuterWorldDataLayers() == GetOuterWorldDataLayers())
+	check(CanHaveChildDataLayers());
 	Modify();
 	checkSlow(!Children.Contains(InDataLayer));
 	Children.Add(InDataLayer);

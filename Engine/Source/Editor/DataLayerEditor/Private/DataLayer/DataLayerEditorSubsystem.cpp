@@ -369,6 +369,7 @@ TSharedRef<SWidget> UDataLayerEditorSubsystem::GetActorEditorContextWidget(UWorl
 
 void UDataLayerEditorSubsystem::AddToActorEditorContext(UDataLayerInstance* InDataLayerInstance)
 {
+	check(InDataLayerInstance->CanBeInActorEditorContext());
 	if (InDataLayerInstance->AddToActorEditorContext())
 	{
 		BroadcastDataLayerChanged(EDataLayerAction::Modify, InDataLayerInstance, NAME_None);
@@ -377,6 +378,7 @@ void UDataLayerEditorSubsystem::AddToActorEditorContext(UDataLayerInstance* InDa
 
 void UDataLayerEditorSubsystem::RemoveFromActorEditorContext(UDataLayerInstance* InDataLayerInstance)
 {
+	check(InDataLayerInstance->CanBeInActorEditorContext());
 	if (InDataLayerInstance->RemoveFromActorEditorContext())
 	{
 		BroadcastDataLayerChanged(EDataLayerAction::Modify, InDataLayerInstance, NAME_None);
@@ -468,7 +470,7 @@ UWorld* UDataLayerEditorSubsystem::GetWorld() const
 
 bool UDataLayerEditorSubsystem::SetParentDataLayer(UDataLayerInstance* DataLayerInstance, UDataLayerInstance* ParentDataLayer)
 {
-	if (DataLayerInstance->CanParent(ParentDataLayer))
+	if (DataLayerInstance->CanBeChildOf(ParentDataLayer))
 	{
 		const bool bIsLoaded = DataLayerInstance->IsEffectiveLoadedInEditor();
 		DataLayerInstance->SetParent(ParentDataLayer);
@@ -1248,6 +1250,11 @@ void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<UDataLayerInstance
 	TArray<UDataLayerInstance*> DeletedDataLayerInstances;
 	for (UDataLayerInstance* DataLayerToDelete : DataLayersToDelete)
 	{
+		if (!DataLayerToDelete->IsUserManaged())
+		{
+			continue;
+		}
+
 		if (AWorldDataLayers* OuterWorldDataLayers = DataLayerToDelete ? DataLayerToDelete->GetOuterWorldDataLayers() : nullptr)
 		{
 			if (OuterWorldDataLayers->RemoveDataLayer(DataLayerToDelete))
@@ -1265,6 +1272,12 @@ void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<UDataLayerInstance
 void UDataLayerEditorSubsystem::DeleteDataLayer(UDataLayerInstance* DataLayerToDelete)
 {
 	UE_CLOG(!GetWorld(), LogDataLayerEditorSubsystem, Error, TEXT("%s - Failed because world in null."), ANSI_TO_TCHAR(__FUNCTION__));
+	
+	if (!DataLayerToDelete->IsUserManaged())
+	{
+		return;
+	}
+
 	if (AWorldDataLayers* OuterWorldDataLayers = DataLayerToDelete ? DataLayerToDelete->GetOuterWorldDataLayers() : nullptr)
 	{
 		if (OuterWorldDataLayers->RemoveDataLayer(DataLayerToDelete))
