@@ -146,18 +146,6 @@ TMulticastDelegate<void(FString, int, int)> FCoreDelegates::ApplicationReceivedL
 TMulticastDelegate<void()> FCoreDelegates::ApplicationPerformFetchDelegate;
 TMulticastDelegate<void(FString)> FCoreDelegates::ApplicationBackgroundSessionEventDelegate;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-TMulticastDelegate<void(const TCHAR*, int32&)> FCoreDelegates::CountPreLoadConfigFileRespondersDelegate;
-TMulticastDelegate<void(const TCHAR*, FString&)> FCoreDelegates::PreLoadConfigFileDelegate;
-TMulticastDelegate<void(const TCHAR*, const FString&, int32&)> FCoreDelegates::PreSaveConfigFileDelegate;
-TMulticastDelegate<void(const FConfigFile*)> FCoreDelegates::OnFConfigCreated;
-TMulticastDelegate<void(const FConfigFile*)> FCoreDelegates::OnFConfigDeleted;
-TMulticastDelegate<void(const TCHAR*, const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigValueRead;
-TMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigSectionRead;
-TMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigSectionNameRead;
-TMulticastDelegate<void(const FString&, const TSet<FString>&)> FCoreDelegates::OnConfigSectionsChanged;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 TTSMulticastDelegate<void(const TCHAR*, int32&)>& FCoreDelegates::TSCountPreLoadConfigFileRespondersDelegate()
 {
 	static TTSMulticastDelegate<void(const TCHAR*, int32&)> Singleton;
@@ -253,10 +241,6 @@ TMulticastDelegate<void()> FCoreDelegates::PreRenderingThreadDestroyed;
 
 TMulticastDelegate<void(int32)> FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-TMulticastDelegate<void()> FCoreDelegates::ConfigReadyForUse;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 TTSMulticastDelegate<void()>& FCoreDelegates::TSConfigReadyForUse()
 {
 	static TTSMulticastDelegate<void()> Singleton;
@@ -271,10 +255,6 @@ TDelegate<void(const FString&, FString*)> FCoreDelegates::LaunchCustomHandlerFor
 TMulticastDelegate<void(const FString&, FPlatformUserId)> FCoreDelegates::OnActivatedByProtocol;
 
 TMulticastDelegate<void(const FString&)> FCoreDelegates::OnGCFinishDestroyTimeExtended;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-TMulticastDelegate<void(FCoreDelegates::FExtraBinaryConfigData&)> FCoreDelegates::AccessExtraBinaryConfigData;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TTSMulticastDelegate<void(FCoreDelegates::FExtraBinaryConfigData&)>& FCoreDelegates::TSAccessExtraBinaryConfigData()
 {

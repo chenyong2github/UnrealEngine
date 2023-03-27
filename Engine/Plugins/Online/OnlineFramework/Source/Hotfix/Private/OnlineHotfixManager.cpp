@@ -1113,9 +1113,6 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 
 	const FString ConfigFileName = ConfigFile->Name.ToString();
 	FCoreDelegates::TSOnConfigSectionsChanged().Broadcast(ConfigFileName, UpdatedSectionNames);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FCoreDelegates::OnConfigSectionsChanged.Broadcast(ConfigFileName, UpdatedSectionNames);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Reload log suppression if configs changed
 	if (bUpdateLogSuppression)

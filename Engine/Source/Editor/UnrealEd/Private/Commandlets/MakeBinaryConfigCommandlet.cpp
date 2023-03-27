@@ -100,9 +100,6 @@ int32 UMakeBinaryConfigCommandlet::Main(const FString& Params)
 	// allow delegates to modify the config data with some tagged binary data
 	FCoreDelegates::FExtraBinaryConfigData ExtraData(Config, true);
 	FCoreDelegates::TSAccessExtraBinaryConfigData().Broadcast(ExtraData);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FCoreDelegates::AccessExtraBinaryConfigData.Broadcast(ExtraData);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// write it all out!
 	TArray<uint8> FileContent;
