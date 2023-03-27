@@ -20,7 +20,6 @@ namespace RemoteClient
 		static DirectoryReference ProjectDir { get; } = DirectoryReference.Combine(AssemblyDir, "../../..");
 		static string ConfigPath { get; } = AssemblyDir.MakeRelativeTo(ProjectDir);
 
-		static FileReference HordeAgentFile { get; } = FileReference.Combine(ProjectDir, "../../Horde.Agent", ConfigPath, "HordeAgent.dll");
 		static FileReference RemoteServerFile { get; } = FileReference.Combine(ProjectDir, "../RemoteServer", ConfigPath, "RemoteServer.exe");
 
 		static async Task Main()
@@ -77,7 +76,8 @@ namespace RemoteClient
 		{
 			if (loopback)
 			{
-				return new AgentComputeClient(HordeAgentFile.FullName, 2000, logger);
+				DirectoryReference sandboxDir = DirectoryReference.Combine(new FileReference(Assembly.GetExecutingAssembly().Location).Directory, "Sandbox");
+				return new LocalComputeClient(2000, sandboxDir, logger);
 			}
 			else
 			{

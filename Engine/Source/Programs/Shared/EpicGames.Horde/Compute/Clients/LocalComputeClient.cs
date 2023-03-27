@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute.Transports;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Compute.Clients
@@ -37,10 +38,10 @@ namespace EpicGames.Horde.Compute.Clients
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="serverFunc">Callback to process the server side of the connection</param>
 		/// <param name="port">Port to connect on</param>
+		/// <param name="sandboxDir">Sandbox directory for the worker</param>
 		/// <param name="logger">Logger for diagnostic output</param>
-		public LocalComputeClient(Func<IComputeSocket, CancellationToken, Task> serverFunc, int port, ILogger logger)
+		public LocalComputeClient(int port, DirectoryReference sandboxDir, ILogger logger)
 		{
 			_logger = logger;
 
@@ -48,7 +49,7 @@ namespace EpicGames.Horde.Compute.Clients
 			_listener.Bind(new IPEndPoint(IPAddress.Loopback, port));
 			_listener.Listen();
 
-			_listenerTask = BackgroundTask.StartNew(ctx => RunListenerAsync(_listener, serverFunc, logger, ctx));
+			_listenerTask = BackgroundTask.StartNew(ctx => RunListenerAsync(_listener, sandboxDir, logger, ctx));
 
 			_socket = new Socket(SocketType.Stream, ProtocolType.IP);
 			_socket.Connect(IPAddress.Loopback, port);
@@ -65,13 +66,16 @@ namespace EpicGames.Horde.Compute.Clients
 		/// <summary>
 		/// Sets up the loopback listener and calls the server method
 		/// </summary>
-		static async Task RunListenerAsync(Socket listener, Func<IComputeSocket, CancellationToken, Task> serverFunc, ILogger logger, CancellationToken cancellationToken)
+		static async Task RunListenerAsync(Socket listener, DirectoryReference sandboxDir, ILogger logger, CancellationToken cancellationToken)
 		{
 			using Socket tcpSocket = await listener.AcceptAsync(cancellationToken);
 
+			using MemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 10 * 1024 * 1024 });
+
 			await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpSocket), logger))
 			{
-				await serverFunc(socket, cancellationToken);
+				ComputeWorker worker = new ComputeWorker(sandboxDir, memoryCache, logger);
+				await worker.RunAsync(socket, cancellationToken);
 				await socket.CloseAsync(cancellationToken);
 			}
 		}

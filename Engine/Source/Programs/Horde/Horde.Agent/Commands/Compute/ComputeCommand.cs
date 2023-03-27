@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -15,7 +13,7 @@ using EpicGames.Horde.Common;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Compute.Clients;
 using EpicGames.Horde.Compute.Transports;
-using Horde.Agent.Leases.Handlers;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -35,6 +33,9 @@ namespace Horde.Agent.Commands.Compute
 
 		[CommandLine("-Loopback")]
 		public bool Loopback { get; set; }
+
+		[CommandLine("-Sandbox=")]
+		public DirectoryReference SandboxDir { get; set; } = DirectoryReference.Combine(Program.DataDir, "Sandbox");
 
 		readonly IServiceProvider _serviceProvider;
 		readonly IHttpClientFactory _httpClientFactory;
@@ -80,7 +81,7 @@ namespace Horde.Agent.Commands.Compute
 		{
 			if (Local)
 			{
-				return new LocalComputeClient((socket, ctx) => ComputeWorkerCommand.RunWorkerAsync(socket, _serviceProvider, ctx), 2000, logger);
+				return new LocalComputeClient(2000, SandboxDir, logger);
 			}
 			else if (Loopback)
 			{
@@ -109,14 +110,14 @@ namespace Horde.Agent.Commands.Compute
 	[Command("computeworker", "Runs the agent as a local compute host, accepting incoming connections on the loopback adapter with a given port")]
 	class ComputeWorkerCommand : Command
 	{
-		readonly IServiceProvider _serviceProvider;
+		readonly IMemoryCache _memoryCache;
 
 		[CommandLine("-Port=")]
 		int Port { get; set; } = 2000;
 
-		public ComputeWorkerCommand(IServiceProvider serviceProvider)
+		public ComputeWorkerCommand(IMemoryCache memoryCache)
 		{
-			_serviceProvider = serviceProvider;
+			_memoryCache = memoryCache;
 		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
@@ -129,7 +130,7 @@ namespace Horde.Agent.Commands.Compute
 			await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpSocket), logger))
 			{
 				logger.LogInformation("Running worker...");
-				await RunWorkerAsync(socket, _serviceProvider, CancellationToken.None);
+				await RunWorkerAsync(socket, _memoryCache, logger, CancellationToken.None);
 				logger.LogInformation("Worker complete");
 				await socket.CloseAsync(CancellationToken.None);
 			}
@@ -138,10 +139,12 @@ namespace Horde.Agent.Commands.Compute
 			return 0;
 		}
 
-		public static async Task RunWorkerAsync(IComputeSocket socket, IServiceProvider serviceProvider, CancellationToken cancellationToken)
+		public static async Task RunWorkerAsync(IComputeSocket socket, IMemoryCache memoryCache, ILogger logger, CancellationToken cancellationToken)
 		{
-			ComputeHandler handler = ActivatorUtilities.CreateInstance<ComputeHandler>(serviceProvider);
-			await handler.RunAsync(socket, cancellationToken);
+			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox");
+
+			ComputeWorker worker = new ComputeWorker(sandboxDir, memoryCache, logger);
+			await worker.RunAsync(socket, cancellationToken);
 		}
 	}
 }
