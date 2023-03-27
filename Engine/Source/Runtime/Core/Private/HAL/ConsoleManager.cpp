@@ -2605,7 +2605,7 @@ static TAutoConsoleVariable<int32> CVarTranslucentSortPolicy(
 	TEXT("r.TranslucentSortPolicy"),
 	0,
 	TEXT("0: Sort based on distance from camera centerpoint to bounding sphere centerpoint. (default, best for 3D games)\n"
-		 "1: Sort based on projected distance to camera."
+		 "1: Sort based on projected distance to camera.\n"
 		 "2: Sort based on the projection onto a fixed axis. (best for 2D games)"),
 	ECVF_RenderThreadSafe);
 
@@ -2619,15 +2619,15 @@ static TAutoConsoleVariable<int32> CVarMobileHDR(
 static TAutoConsoleVariable<int32> CVarMobileShadingPath(
 	TEXT("r.Mobile.ShadingPath"),
 	0,
-	TEXT("0: Forward shading (default)"
+	TEXT("0: Forward shading (default)\n"
 		 "1: Deferred shading"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarMobileAllowDeferredShadingOpenGL(
 	TEXT("r.Mobile.AllowDeferredShadingOpenGL"),
 	0,
-	TEXT("0: Do not Allow Deferred Shading on OpenGL (default)"
-		"1: Allow Deferred Shading on OpenGL"),
+	TEXT("0: Do not Allow Deferred Shading on OpenGL (default)\n"
+		 "1: Allow Deferred Shading on OpenGL"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarMobileEnableStaticAndCSMShadowReceivers(

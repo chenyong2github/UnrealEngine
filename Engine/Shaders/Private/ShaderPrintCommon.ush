@@ -11,7 +11,7 @@
 // 
 // 0. Contex-based state API
 // -------------------------
-// FShaderPrintContext Ctx = InitShaderPrintContext(all(SvPosition.xy == float2(100, 100), uint2(50,50))
+// FShaderPrintContext Ctx = InitShaderPrintContext(all(SvPosition.xy == float2(100, 100)), uint2(50,50));
 //                             ------------------------------------   ------------
 //                                 Pixel/thread to filter             Coord at which 
 //                                                                       to draw
@@ -20,7 +20,7 @@
 // ----------------------
 // First create a context, then print scalar/vector/matrix/text...
 // 
-//   FShaderPrintContext Ctx = InitShaderPrintContext(all(PixelPos.xy == uint2(100, 100), uint2(50,50))
+//   FShaderPrintContext Ctx = InitShaderPrintContext(all(PixelPos.xy == uint2(100, 100)), uint2(50,50));
 // 
 //   Print(Ctx, MyFloat);
 //   Newline(Ctx);
@@ -66,7 +66,7 @@
 //    void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 //    {
 //       // Create context which 'add' the widget only on thread (0,0)
-//       FShaderPrintContext Ctx = InitShaderPrintContext(all(DispatchThreadId == uint2(0, 0), uint2(50,50))
+//       FShaderPrintContext Ctx = InitShaderPrintContext(all(DispatchThreadId == uint2(0, 0)), uint2(50,50));
 // 
 //		 // Any threads can get the slider value with this call
 //       const float ScaleValue = AddSlider(Ctx, 1.f, TEXT("Scale"));
@@ -216,7 +216,7 @@ FFontColor GetDefaultFontColor()							{ FFontColor Out; Out.Color = float3(1,1,
 #define ColorDarkBlue	float4(0.25f, 0.25f, 0.50f, 1.0f)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Util pack/unpac functions
+// Util pack/unpack functions
 
 struct FShaderPrintItem
 {
