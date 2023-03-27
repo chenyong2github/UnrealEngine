@@ -120,17 +120,16 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 		TotalAnimationPosesInFrames = SearchIndex.GetNumPoses();
 		TotalAnimationPosesInTime = FText::Format(TimeFormat, static_cast<double>(TotalAnimationPosesInFrames) / SampleRate);
 			
+		uint32 NumOfSearchablePoses = 0;
+		for (const FPoseSearchPoseMetadata& PoseMetadata : SearchIndex.PoseMetadata)
 		{
-			uint32 NumOfSearchablePoses = 0;
-			for (const FPoseSearchPoseMetadata & PoseMetadata : SearchIndex.PoseMetadata)
-			{
-				NumOfSearchablePoses += PoseMetadata.Flags != EPoseSearchPoseFlags::BlockTransition;
-			}
-				
-			SearchableFrames = NumOfSearchablePoses;
-			SearchableTime = FText::Format(TimeFormat, static_cast<double>(NumOfSearchablePoses) / SampleRate);
+			NumOfSearchablePoses += PoseMetadata.Flags != EPoseSearchPoseFlags::BlockTransition;
 		}
-			
+		SearchableFrames = NumOfSearchablePoses;
+		SearchableTime = FText::Format(TimeFormat, static_cast<double>(NumOfSearchablePoses) / SampleRate);
+	
+		ConfigCardinality = PoseSearchDatabase->Schema->SchemaCardinality;
+
 		// Kinematic Information
 	
 		// using FText instead of meta = (ForceUnits = "cm/s") to keep properties consistent

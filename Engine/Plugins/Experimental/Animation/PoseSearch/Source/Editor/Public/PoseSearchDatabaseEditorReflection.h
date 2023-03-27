@@ -198,6 +198,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "General Information")
 	FText SearchableTime;
 
+	// Cardinality for the database config (how many floats per pose to store the pose features data)
+	UPROPERTY(VisibleAnywhere, Category = "General Information")
+	uint32 ConfigCardinality;
+
 	// Average speed of the characters trajectory across all animations in the database.
 	UPROPERTY(VisibleAnywhere, Category = "Kinematic Information")
 	FText AverageSpeed;
