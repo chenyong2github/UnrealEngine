@@ -8623,6 +8623,12 @@ void UWorld::PurgeScene()
 
 	if (!bPurgedScene && this->IsEditorWorld())
 	{
+		// Clear out Slate's active scenes list since these ptrs no longer reference valid scenes.
+		if (FSlateApplication::IsInitialized())
+		{
+			FSlateApplication::Get().FlushRenderState();
+		}
+
 		FGlobalComponentReregisterContext RecreateComponents;
 
 		// Finish any deferred / async render cleanup work.
