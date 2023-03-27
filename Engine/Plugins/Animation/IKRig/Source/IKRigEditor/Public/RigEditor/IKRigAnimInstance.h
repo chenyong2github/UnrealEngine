@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AnimPreviewInstance.h"
-#include "IKRigProcessor.h"
+#include "Rig/IKRigProcessor.h"
 #include "AnimNodes/AnimNode_IKRig.h"
 
 #include "IKRigAnimInstance.generated.h"

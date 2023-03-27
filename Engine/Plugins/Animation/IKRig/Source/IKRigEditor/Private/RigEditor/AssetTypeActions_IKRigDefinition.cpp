@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigEditor/AssetTypeActions_IKRigDefinition.h"
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "RigEditor/IKRigToolkit.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 

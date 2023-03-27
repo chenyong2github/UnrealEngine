@@ -5,7 +5,7 @@
 #include "RigEditor/IKRigEditorStyle.h"
 #include "RigEditor/IKRigToolkit.h"
 #include "RigEditor/IKRigEditorController.h"
-#include "IKRigSolver.h"
+#include "Rig/Solvers/IKRigSolver.h"
 
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

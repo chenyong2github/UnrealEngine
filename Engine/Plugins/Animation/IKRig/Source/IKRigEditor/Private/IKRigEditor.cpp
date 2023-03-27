@@ -7,7 +7,7 @@
 #include "PropertyEditorModule.h"
 #include "PropertyEditorDelegates.h"
 #include "EditorModeRegistry.h"
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "RigEditor/AssetTypeActions_IKRigDefinition.h"
 #include "RetargetEditor/AssetTypeActions_IKRetargeter.h"
 #include "RetargetEditor/IKRetargetCommands.h"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IKRigDataTypes.h"
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDataTypes.h"
+#include "Rig/IKRigDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigDataTypes)
 

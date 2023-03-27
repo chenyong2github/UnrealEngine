@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "IPersonaEditMode.h"
 #include "SkeletalDebugRendering.h"
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Solvers/IKRig_LimbSolver.h"
+#include "Rig/Solvers/IKRig_LimbSolver.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IKRig_LimbSolver)
 

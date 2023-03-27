@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/Object.h"
-#include "IKRigDataTypes.h"
+#include "Rig/IKRigDataTypes.h"
 
 #include "IKRigSolver.generated.h"
 

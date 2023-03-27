@@ -13,7 +13,7 @@
 #include "AnimNotifyState_IKWindow.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
-#include "IKRigDataTypes.h"
+#include "Rig/IKRigDataTypes.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PrimitiveSceneProxy.h"

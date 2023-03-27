@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "IKRigSolver.h"
 
 #include "IKRig_BodyMover.generated.h"

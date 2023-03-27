@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "IKRigDefinition.h"
-#include "IKRigSolver.h"
+#include "Rig/IKRigDefinition.h"
+#include "Rig/Solvers/IKRigSolver.h"
 
 #include "IKRig_PoleSolver.generated.h"
 

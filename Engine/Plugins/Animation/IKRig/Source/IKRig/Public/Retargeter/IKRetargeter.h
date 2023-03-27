@@ -3,7 +3,7 @@
 #pragma once
 
 #include "IKRetargetProfile.h"
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "IKRetargetSettings.h"
 
 #include "IKRetargeter.generated.h"

@@ -3,9 +3,9 @@
 #include "RigEditor/IKRigController.h"
 
 #include "IKRigEditor.h"
-#include "IKRigDefinition.h"
-#include "IKRigProcessor.h"
-#include "IKRigSolver.h"
+#include "Rig/IKRigDefinition.h"
+#include "Rig/IKRigProcessor.h"
+#include "Rig/Solvers/IKRigSolver.h"
 
 #include "Engine/SkeletalMesh.h"
 #include "ScopedTransaction.h"

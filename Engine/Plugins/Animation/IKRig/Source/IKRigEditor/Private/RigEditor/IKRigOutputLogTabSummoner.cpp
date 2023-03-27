@@ -2,7 +2,7 @@
 #include "RigEditor/IKRigOutputLogTabSummoner.h"
 
 #include "IDocumentation.h"
-#include "IKRigProcessor.h"
+#include "Rig/IKRigProcessor.h"
 #include "RigEditor/IKRigToolkit.h"
 #include "RigEditor/IKRigEditorStyle.h"
 #include "RigEditor/SIKRigOutputLog.h"

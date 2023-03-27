@@ -5,7 +5,7 @@
 #include "EditorViewportClient.h"
 #include "AssetEditorModeManager.h"
 #include "IKRigDebugRendering.h"
-#include "IKRigProcessor.h"
+#include "Rig/IKRigProcessor.h"
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Preferences/PersonaOptions.h"

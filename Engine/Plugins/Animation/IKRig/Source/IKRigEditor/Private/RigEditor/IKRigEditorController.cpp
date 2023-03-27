@@ -9,7 +9,7 @@
 #include "RigEditor/IKRigToolkit.h"
 #include "RigEditor/SIKRigAssetBrowser.h"
 #include "RigEditor/SIKRigOutputLog.h"
-#include "Solvers/IKRig_FBIKSolver.h"
+#include "Rig/Solvers/IKRig_FBIKSolver.h"
 #include "Widgets/Input/SComboBox.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"

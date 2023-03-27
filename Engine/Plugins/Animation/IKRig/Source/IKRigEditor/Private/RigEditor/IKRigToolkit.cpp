@@ -16,7 +16,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "IPersonaViewport.h"
 #include "PersonaPreviewSceneDescription.h"
 #include "RigEditor/IKRigAnimInstance.h"

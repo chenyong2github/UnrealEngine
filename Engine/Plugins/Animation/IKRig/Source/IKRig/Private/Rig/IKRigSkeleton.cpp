@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IKRigSkeleton.h"
+#include "Rig/IKRigSkeleton.h"
 
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "Algo/LevenshteinDistance.h"
 #include "Engine/SkeletalMesh.h"
 #include "Math/Bounds.h"

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Solvers/IKRig_FBIKSolver.h"
+#include "Rig/Solvers/IKRig_FBIKSolver.h"
 
-#include "IKRigDataTypes.h"
-#include "IKRigSkeleton.h"
+#include "Rig/IKRigDataTypes.h"
+#include "Rig/IKRigSkeleton.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IKRig_FBIKSolver)
 

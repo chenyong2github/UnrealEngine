@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "IKRigSolver.h"
 #include "Core/PBIKSolver.h"
 #include "PBIK_Shared.h"

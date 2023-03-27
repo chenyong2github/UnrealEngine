@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "IKRigDataTypes.h"
+#include "Rig/IKRigDataTypes.h"
 #include "Animation/AnimNode_CustomProperty.h"
 #include "Animation/InputScaleBias.h"
 #include <functional>

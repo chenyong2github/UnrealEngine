@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IKRigSolver.h"
+#include "Rig/Solvers/IKRigSolver.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigSolver)
 

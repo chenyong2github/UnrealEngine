@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IKRigDataTypes.h"
+#include "Rig/IKRigDataTypes.h"
 #include "UObject/Interface.h"
 
 #include "IKRigInterface.generated.h"

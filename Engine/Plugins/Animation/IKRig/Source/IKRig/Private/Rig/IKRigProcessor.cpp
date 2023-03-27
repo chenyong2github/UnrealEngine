@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IKRigProcessor.h"
-#include "IKRigDefinition.h"
-#include "IKRigSolver.h"
+#include "Rig/IKRigProcessor.h"
+#include "Rig/IKRigDefinition.h"
+#include "Rig/Solvers/IKRigSolver.h"
 
 #include "Engine/SkeletalMesh.h"
 

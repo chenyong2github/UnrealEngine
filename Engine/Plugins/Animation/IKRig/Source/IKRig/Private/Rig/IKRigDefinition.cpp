@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 
 #include "IKRigObjectVersion.h"
 #include "Engine/SkeletalMesh.h"

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "IKRigSolver.h"
 
-#include "Solvers/LimbSolver.h"
+#include "Rig/Solvers/LimbSolver.h"
 
 #include "IKRig_LimbSolver.generated.h"
 

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorUndoClient.h"
-#include "IKRigDefinition.h"
+#include "Rig/IKRigDefinition.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableViewBase.h"
