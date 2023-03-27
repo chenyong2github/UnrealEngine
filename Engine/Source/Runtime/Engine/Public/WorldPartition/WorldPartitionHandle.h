@@ -54,6 +54,7 @@ public:
 
 		int32 GetNumRegistrations() const { return NumRegistrations; }
 		int32 GetNumUnregistrations() const { return NumUnregistrations; }
+		bool GetNeedsClearTransactions() const { return bNeedsClearTransactions; }
 
 	private:
 		virtual void RegisterActor(FWorldPartitionActorDesc* ActorDesc) override;
@@ -69,6 +70,7 @@ public:
 
 		int32 NumRegistrations = 0;
 		int32 NumUnregistrations = 0;
+		bool bNeedsClearTransactions = false;
 	};
 
 	/**

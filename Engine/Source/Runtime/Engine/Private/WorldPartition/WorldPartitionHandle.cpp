@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionHandle.h"
-#include "Engine/Level.h"
 #include "WorldPartition/ActorDescContainerCollection.h"
-
+#include "Engine/Level.h"
+#include "Engine/World.h"
 
 #if WITH_EDITOR
 /**
@@ -214,6 +214,8 @@ void FWorldPartitionLoadingContext::FDeferred::UnregisterActor(FWorldPartitionAc
 		NumUnregistrations++;
 
 		check(!ContainerOps.FindChecked(Container).Registrations.Contains(ActorDesc));
+
+		bNeedsClearTransactions |= Actor->GetTypedOuter<UWorld>()->HasAnyFlags(RF_Transactional);
 	}
 }
 

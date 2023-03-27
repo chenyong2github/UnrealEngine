@@ -87,7 +87,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 
 			if (NumUnloads)
 			{
-				PostLoadedStateChanged(0, NumUnloads);
+				PostLoadedStateChanged(0, NumUnloads, true);
 			}
 		}
 	}
@@ -154,6 +154,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 			{
 				int32 NumLoads = 0;
 				int32 NumUnloads = 0;
+				bool bClearTransactions = false;
 				{
 					FWorldPartitionLoadingContext::FDeferred LoadingContext;
 
@@ -183,11 +184,12 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 
 					NumLoads = LoadingContext.GetNumRegistrations();
 					NumUnloads = LoadingContext.GetNumUnregistrations();
+					bClearTransactions = LoadingContext.GetNeedsClearTransactions();
 				}
 
 				if (NumLoads || NumUnloads)
 				{
-					PostLoadedStateChanged(NumLoads, NumUnloads);
+					PostLoadedStateChanged(NumLoads, NumUnloads, bClearTransactions);
 				}
 			}
 		}
@@ -236,7 +238,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDescContainerUn
 			SlowTask.EnterProgressFrame(1);
 		}
 	
-		PostLoadedStateChanged(0, ActorsToUnload.Num());
+		PostLoadedStateChanged(0, ActorsToUnload.Num(), true);
 	}
 }
 
@@ -263,7 +265,7 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::ShouldActorBeLoaded(co
 	return true;
 };
 
-void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads)
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads, bool bClearTransactions)
 {
 	check(NumLoads || NumUnloads);
 
@@ -273,7 +275,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged
 
 		if (NumUnloads)
 		{
-			if (!GIsTransacting && World->HasAnyFlags(RF_Transactional))
+			if (!GIsTransacting && bClearTransactions)
 			{
 				GEditor->ResetTransaction(LOCTEXT("UnloadingEditorActorResetTrans", "Editor Actors Unloaded"));
 			}

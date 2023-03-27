@@ -61,7 +61,7 @@ public:
 		virtual bool PassActorDescFilter(const FWorldPartitionHandle& Actor) const;
 		void RefreshLoadedState();
 
-		void PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads);
+		void PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads, bool bClearTransactions);
 		void AddReferenceToActor(FWorldPartitionHandle& Actor);
 		void RemoveReferenceToActor(FWorldPartitionHandle& Actor);
 		void OnRefreshLoadedState(bool bFromUserOperation);
