@@ -197,18 +197,6 @@ FAutoConsoleVariableRef CVarFXLWCTileRecache(
 	TEXT("Setting this value to 0 will remove this behavior but could introduce rendering & simulation artifacts.\n"),
 	ECVF_Default);
 
-int32 OldDetailModeToBitmask(int32 OldMode)
-{
-	// low = L+M+H, Medium = M+H, High = H
-	uint32 AllDetailModes = /*(1<<EParticleDetailMode::PDM_VeryLow) |*/ (1 << EParticleDetailMode::PDM_Low) | (1 << EParticleDetailMode::PDM_Medium) | (1 << EParticleDetailMode::PDM_High);
-	uint32 DetailModeBitmask = OldMode == EDetailMode::DM_Low ? AllDetailModes
-		: OldMode == EDetailMode::DM_Medium ? ((1 << EParticleDetailMode::PDM_Medium) | (1 << EParticleDetailMode::PDM_High))
-		: OldMode == EDetailMode::DM_High ? (1 << EParticleDetailMode::PDM_High) : AllDetailModes;
-
-	return DetailModeBitmask;
-}
-
-
 /** Whether to allow particle systems to perform work. */
 ENGINE_API bool GIsAllowingParticles = true;
 
@@ -1025,7 +1013,16 @@ void UParticleEmitter::PostLoad()
 	if (PSysVer < FParticleSystemCustomVersion::FixLegacySpawningBugs)
 	{
 		bUseLegacySpawningBehavior = true;
-	}	
+	}
+
+	if (PSysVer < FParticleSystemCustomVersion::AddEpicDetailMode)
+	{
+		// Init epic detail mode to enabled if high is set
+		if (DetailModeBitmask & (1 << EParticleDetailMode::PDM_High))
+		{
+			DetailModeBitmask |= (1 << EParticleDetailMode::PDM_Epic);
+		}
+	}
 
 	for (int32 LODIndex = 0; LODIndex < LODLevels.Num(); LODIndex++)
 	{
@@ -1052,13 +1049,7 @@ void UParticleEmitter::PostLoad()
 		}
 	}
 
-#if	WITH_EDITORONLY_DATA
-	// set up DetailModeFlags from deprecated DetailMode if needed
-	if (DetailModeBitmask == PDM_DefaultValue)
-	{
-		DetailModeBitmask = OldDetailModeToBitmask(DetailMode_DEPRECATED);
-	}
-
+#if WITH_EDITORONLY_DATA
 	UpdateDetailModeDisplayString();
 #endif
 
@@ -5866,7 +5857,7 @@ void UParticleSystemComponent::InitParticles()
 			if (Emitter)
 			{
 				FParticleEmitterInstance* Instance = NumInstances == 0 ? NULL : EmitterInstances[Idx];
-				check(GlobalDetailMode < NUM_DETAILMODE_FLAGS);
+				check(GlobalDetailMode < EParticleDetailMode::PDM_MAX);
 				const bool bDetailModeAllowsRendering = DetailMode <= GlobalDetailMode && (Emitter->DetailModeBitmask & (1 << GlobalDetailMode));
 				const bool bShouldCreateAndOrInit = bDetailModeAllowsRendering && Emitter->HasAnyEnabledLODs() && bCanEverRender;
 

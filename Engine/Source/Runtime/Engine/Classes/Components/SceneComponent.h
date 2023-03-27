@@ -37,6 +37,7 @@ enum EDetailMode : int
 	DM_Low UMETA(DisplayName="Low"),
 	DM_Medium UMETA(DisplayName="Medium"),
 	DM_High UMETA(DisplayName="High"),
+	DM_Epic UMETA(DisplayName="Epic"),
 	DM_MAX,
 };
 
