@@ -39,8 +39,11 @@ void UMassObserverProcessor::PostInitProperties()
 
 void UMassObserverProcessor::Register()
 {
-	check(ObservedType);
-	UMassObserverRegistry::GetMutable().RegisterObserver(*ObservedType, Operation, GetClass());
+	if (bAutoRegisterWithObserverRegistry)
+	{
+		check(ObservedType);
+		UMassObserverRegistry::GetMutable().RegisterObserver(*ObservedType, Operation, GetClass());
+	}
 }
 
 

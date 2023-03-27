@@ -24,6 +24,9 @@ protected:
 	virtual void Register();
 
 protected:
+	UPROPERTY(EditDefaultsOnly, Category = Processor, config)
+	bool bAutoRegisterWithObserverRegistry = true;
+
 	/** Determines which Fragment or Tag type this given UMassObserverProcessor will be observing */
 	UPROPERTY()
 	TObjectPtr<UScriptStruct> ObservedType = nullptr;
