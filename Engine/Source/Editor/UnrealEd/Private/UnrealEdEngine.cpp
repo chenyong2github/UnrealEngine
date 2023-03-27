@@ -269,15 +269,17 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 #if STALL_DETECTOR
 	// Start tracking stalls when we open the Main Frame
-	IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([](TSharedPtr<SWindow>, bool)
+	IMainFrameModule::Get().OnMainFrameCreationFinished().AddWeakLambda(this, [this](TSharedPtr<SWindow>, bool)
 		{
+			bRequiresStallDetectorShutdown = true;
 			UE::FStallDetector::Startup();
 		});
 
 	// Stop tracking stalls when we close the Main Frame, the closest event around
-	OnEditorClose().AddLambda([]()
+	OnEditorClose().AddLambda([this]()
 		{
 			// We conditionally shutdown here because for now there is no UnreadEdEngine specific shutdown 
+			bRequiresStallDetectorShutdown = false;
 			if (UE::FStallDetector::IsRunning())
 			{
 				UE::FStallDetector::Shutdown();
@@ -468,6 +470,16 @@ UUnrealEdEngine::~UUnrealEdEngine()
 	{
 		GUnrealEd = NULL; 
 	}
+
+#if STALL_DETECTOR
+	// Handle cases where OnEditorClose() was not called such as UE_LOG fatal errors or any call to RequestEngineExit()
+	// Without this stall detector thread will continue to run until it crashes trying to access cleaned up critical section
+	if (bRequiresStallDetectorShutdown && UE::FStallDetector::IsRunning())
+	{
+		bRequiresStallDetectorShutdown = false;
+		UE::FStallDetector::Shutdown();
+	}
+#endif // STALL_DETECTOR
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

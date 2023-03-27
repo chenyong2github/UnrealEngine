@@ -950,4 +950,7 @@ private:
 
 	/** Delegate Called after files have been deleted to perform necessary cleanups. */
 	FDelegateHandle SourceControlFilesDeletedHandle;
+
+	/** Keep track of need to stop stall detector thread */
+	bool bRequiresStallDetectorShutdown = false;
 };
