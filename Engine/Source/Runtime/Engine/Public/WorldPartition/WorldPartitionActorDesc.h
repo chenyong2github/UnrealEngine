@@ -150,6 +150,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FName GetActorLabelOrName() const;
 	FName GetDisplayClassName() const;
 
+	inline bool IsDefaultActorDesc() const { return bIsDefaultActorDesc; }
+
 	virtual bool IsContainerInstance() const { return false; }
 	virtual FName GetLevelPackage() const { return NAME_None; }
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const { return nullptr; }
