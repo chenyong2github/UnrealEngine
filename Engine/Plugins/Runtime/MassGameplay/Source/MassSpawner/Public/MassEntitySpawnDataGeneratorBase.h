@@ -66,4 +66,13 @@ public:
 	 * @param OutResults Generator result for each entity type that had > 0 entities assigned to it.
 	 */
 	void BuildResultsFromEntityTypes(const int32 SpawnCount, TConstArrayView<FMassSpawnedEntityType> EntityTypes, TArray<FMassEntitySpawnDataGeneratorResult>& OutResults) const;
+
+protected:
+	int32 GetRandomSelectionSeed() const { return bUseCustomSeed ? RandomSelectionSeed : GFrameNumber; }
+
+	UPROPERTY(Category = "Query", EditAnywhere, meta=(EditCondition="bUseCustomSeed"))
+	int32 RandomSelectionSeed = 0;
+
+	UPROPERTY()
+	uint8 bUseCustomSeed : 1;
 };

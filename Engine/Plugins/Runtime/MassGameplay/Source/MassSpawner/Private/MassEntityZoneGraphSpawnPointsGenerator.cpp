@@ -27,7 +27,7 @@ void UMassEntityZoneGraphSpawnPointsGenerator::Generate(UObject& QueryOwner, TCo
 
 	TArray<FVector> Locations;
 	
-	const FRandomStream RandomStream(GFrameNumber);
+	const FRandomStream RandomStream(GetRandomSelectionSeed());
 	const TConstArrayView<FRegisteredZoneGraphData> RegisteredZoneGraphs = ZoneGraph->GetRegisteredZoneGraphData();
 	if (RegisteredZoneGraphs.IsEmpty())
 	{

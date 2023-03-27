@@ -55,7 +55,7 @@ void UMassEntityEQSSpawnPointsGenerator::OnEQSQueryFinished(TSharedPtr<FEnvQuery
 	EQSResult->GetAllAsLocations(Locations);
 
 	// Randomize them
-	FRandomStream RandomStream(GFrameNumber);
+	FRandomStream RandomStream(GetRandomSelectionSeed());
 	for (int32 I = 0; I < Locations.Num(); ++I)
 	{
 		const int32 J = RandomStream.RandHelper(Locations.Num());
