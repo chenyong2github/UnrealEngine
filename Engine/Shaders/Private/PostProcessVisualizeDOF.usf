@@ -10,6 +10,9 @@ SamplerState ColorSampler;
 Texture2D DepthTexture;
 SamplerState DepthSampler;
 
+FScreenTransform SvPositionToColorUV;
+FScreenTransform SvPositionToDepthUV;
+
 float4 NearColor;
 float4 FarColor;
 
@@ -21,11 +24,9 @@ void VisualizeDOFPS(
 {
 	OutColor = 0;
 
-	float2 UV = UVAndScreenPos.xy; 
-	int2 PixelPos = (int2)SvPosition.xy;
-	float2 ViewLocalUV = float2(UVAndScreenPos.z * 0.5f + 0.5f, 0.5f - 0.5f * UVAndScreenPos.w);
+	float SceneDeviceZ = DepthTexture.SampleLevel(DepthSampler, ApplyScreenTransform(SvPosition, SvPositionToColorUV), 0).r;
+	half3 SceneColor = Texture2DSample(ColorTexture, ColorSampler, ApplyScreenTransform(SvPosition, SvPositionToDepthUV)).rgb;
 
-	float SceneDeviceZ = DepthTexture.SampleLevel(DepthSampler, UV, 0).r;
 	float SceneDepth = ConvertFromDeviceZ(SceneDeviceZ);
 
 	// 0..1
@@ -33,10 +34,9 @@ void VisualizeDOFPS(
 	// 0..1
 	half Far = CalcUnfocusedPercentCustomBound(SceneDepth, 0, 1);
 
+	OutColor = 0;
 	OutColor.rgb = lerp(OutColor.rgb, NearColor.rgb, Near);
 	OutColor.rgb = lerp(OutColor.rgb, FarColor.rgb, Far);
-
-	half3 SceneColor = Texture2DSample(ColorTexture, ColorSampler, UV).rgb;
 
 	// blend in a bit of the scene color to make navigation easier
 	OutColor.rgb = lerp(saturate(OutColor.rgb), Luminance(SceneColor), 0.1f);

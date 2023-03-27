@@ -26,6 +26,8 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
+		SHADER_PARAMETER(FScreenTransform, SvPositionToColorUV)
+		SHADER_PARAMETER(FScreenTransform, SvPositionToDepthUV)
 		SHADER_PARAMETER(FVector4f, DepthOfFieldParams)
 		SHADER_PARAMETER(FVector4f, NearColor)
 		SHADER_PARAMETER(FVector4f, FarColor)
@@ -39,7 +41,6 @@ FScreenPassTexture AddVisualizeDOFPass(FRDGBuilder& GraphBuilder, const FViewInf
 {
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneDepth.IsValid());
-	checkf(Inputs.SceneColor.ViewRect == Inputs.SceneDepth.ViewRect, TEXT("VisualizeDOF requires that the scene and depth view rects match."));
 
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
@@ -59,6 +60,17 @@ FScreenPassTexture AddVisualizeDOFPass(FRDGBuilder& GraphBuilder, const FViewInf
 	PassParameters->DepthTexture = Inputs.SceneDepth.Texture;
 	PassParameters->ColorSampler = PointClampSampler;
 	PassParameters->DepthSampler = PointClampSampler;
+	{
+		FScreenTransform SvPositionToViewportUV = FScreenTransform::SvPositionToViewportUV(Output.ViewRect);
+		PassParameters->SvPositionToColorUV = 
+			SvPositionToViewportUV *
+			FScreenTransform::ChangeTextureBasisFromTo(
+				InputViewport, FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TextureUV);
+		PassParameters->SvPositionToDepthUV =
+			SvPositionToViewportUV *
+			FScreenTransform::ChangeTextureBasisFromTo(
+				FScreenPassTextureViewport(Inputs.SceneDepth), FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TextureUV);
+	}
 	PassParameters->DepthOfFieldParams = GetDepthOfFieldParameters(View.FinalPostProcessSettings);
 	PassParameters->NearColor = FLinearColor(0, 0.8f, 0, 0);
 	PassParameters->FarColor = FLinearColor(0, 0, 0.8f, 0);
