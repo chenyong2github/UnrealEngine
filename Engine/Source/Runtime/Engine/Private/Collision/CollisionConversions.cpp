@@ -103,7 +103,7 @@ static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const T
 	{
 		if (const FPhysicsShape* Shape = GetShape(Hit))
 		{
-			const Chaos::EImplicitObjectType ShapeType = Shape->GetGeometry()->GetType();
+			const Chaos::EImplicitObjectType ShapeType = Shape->GetGeometry()->GetNestedType();
 			if (ShapeType == Chaos::ImplicitObjectType::Union && !Hit.FaceNormal.IsNearlyZero())
 			{
 				return Hit.FaceNormal;

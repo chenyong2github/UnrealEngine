@@ -100,6 +100,11 @@ public:
 		}
 	}
 
+	virtual EImplicitObjectType GetNestedType() const override
+	{
+		return MObject->GetNestedType();
+	}
+
 	virtual TUniquePtr<FImplicitObject> Copy() const
 	{
 		if (MObject)

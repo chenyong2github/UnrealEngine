@@ -121,6 +121,7 @@ public:
 	//Not all implicit objects can be duplicated, up to user code to use this in cases that make sense
 	virtual FImplicitObject* Duplicate() const { check(false); return nullptr; }
 
+	virtual EImplicitObjectType GetNestedType() const { return GetType(); }
 	EImplicitObjectType GetType() const;
 	static int32 GetOffsetOfType() { return offsetof(FImplicitObject, Type); }
 

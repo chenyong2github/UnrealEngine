@@ -198,6 +198,11 @@ public:
 		return MObject->GetTypeHash();
 	}
 
+	virtual EImplicitObjectType GetNestedType() const override
+	{
+		return MObject->GetNestedType();
+	}
+
 	virtual TUniquePtr<FImplicitObject> Copy() const override
 	{
 		return TUniquePtr<FImplicitObject>(CopyHelper(this));
@@ -579,6 +584,11 @@ public:
 	const TConcrete* GetUnscaledObject() const
 	{
 		return MObject.Get();
+	}
+
+	virtual EImplicitObjectType GetNestedType() const override
+	{
+		return MObject->GetNestedType();
 	}
 
 	FReal GetRadius() const
