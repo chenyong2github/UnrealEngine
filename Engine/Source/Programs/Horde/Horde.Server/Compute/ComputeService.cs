@@ -83,7 +83,6 @@ namespace Horde.Server.Compute
 			return new ComputeResource(ip, port, computeTask, agent.Properties);
 		}
 
-
 		static ComputeTask CreateComputeTask(Dictionary<string, int> assignedResources)
 		{
 			ComputeTask computeTask = new ComputeTask();
