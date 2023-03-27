@@ -259,7 +259,7 @@ public:
 	USDSTAGE_API virtual void PostUnregisterAllComponents() override;
 	// End AActor interface
 
-	AUsdStageActor();
+	USDSTAGE_API AUsdStageActor();
 
 protected:
 	/** Loads the asset for a single prim */
