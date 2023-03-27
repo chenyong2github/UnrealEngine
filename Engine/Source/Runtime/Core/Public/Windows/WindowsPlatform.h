@@ -112,7 +112,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define WINDOWS_USE_FEATURE_APPLICATIONMISC_CLASS			1
 #define WINDOWS_USE_FEATURE_PLATFORMMISC_CLASS				1
 #define WINDOWS_USE_FEATURE_PLATFORMHTTP_CLASS				1
-#define WINDOWS_USE_FEATURE_LAUNCH							1
 
 
 // Q: Why is there a __nop() before __debugbreak()?

@@ -2,8 +2,6 @@
 	
 #include "CoreMinimal.h"
 
-#if WINDOWS_USE_FEATURE_LAUNCH
-
 #include "Misc/App.h"
 #include "Misc/OutputDeviceError.h"
 #include "LaunchEngineLoop.h"
@@ -285,6 +283,4 @@ int32 WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstanc
 	LaunchWindowsShutdown();
 	return Result;
 }
-
-#endif //WINDOWS_USE_FEATURE_LAUNCH
 
