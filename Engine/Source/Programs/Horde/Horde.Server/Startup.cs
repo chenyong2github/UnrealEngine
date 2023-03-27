@@ -396,6 +396,7 @@ namespace Horde.Server
 			services.AddSingleton<AgentService>();
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<RequestTrackerService>();
+			services.AddSingleton<ComputeService>();
 			services.AddSingleton<CredentialService>();
 			services.AddSingleton<MongoService>();
 			services.AddSingleton<GlobalsService>();

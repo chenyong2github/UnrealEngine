@@ -552,7 +552,7 @@ namespace Horde.Server.Agents
 		}
 
 		/// <inheritdoc/>
-		Task PublishUpdateEventAsync(AgentId agentId)
+		public Task PublishUpdateEventAsync(AgentId agentId)
 		{
 			return _redisService.GetDatabase().PublishAsync(_updateEventChannel, agentId);
 		}

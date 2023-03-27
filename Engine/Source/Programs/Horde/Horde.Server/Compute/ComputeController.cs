@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
 using Horde.Server.Acls;
@@ -69,15 +70,15 @@ namespace Horde.Server.Compute
 	[Route("[controller]")]
 	public class ComputeControllerV2 : HordeControllerBase
 	{
-		readonly ComputeTaskSource _computeTaskSource;
+		readonly ComputeService _computeService;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeControllerV2(ComputeTaskSource computeTaskSource, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public ComputeControllerV2(ComputeService computeService, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
-			_computeTaskSource = computeTaskSource;
+			_computeService = computeService;
 			_globalConfig = globalConfig;
 		}
 
@@ -90,7 +91,7 @@ namespace Horde.Server.Compute
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v2/compute/{clusterId}")]
-		public ActionResult<AssignComputeResponse> AssignComputeResourceAsync(ClusterId clusterId, [FromBody] AssignComputeRequest request)
+		public async Task<ActionResult<AssignComputeResponse>> AssignComputeResourceAsync(ClusterId clusterId, [FromBody] AssignComputeRequest request)
 		{
 			ComputeClusterConfig? clusterConfig;
 			if (!_globalConfig.Value.TryGetComputeCluster(clusterId, out clusterConfig))
@@ -104,7 +105,7 @@ namespace Horde.Server.Compute
 
 			Requirements requirements = request.Requirements ?? new Requirements();
 
-			ComputeResource? computeResource = _computeTaskSource.TryAllocateResource(clusterId, requirements);
+			ComputeResource? computeResource = await _computeService.TryAllocateResource(requirements);
 			if (computeResource == null)
 			{
 				return StatusCode((int)HttpStatusCode.ServiceUnavailable);
