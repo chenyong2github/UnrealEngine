@@ -26,6 +26,7 @@
 #include "ToolMenus.h"
 #include "FileHelpers.h"
 #include "Settings/ProjectPackagingSettings.h"
+#include "Settings/PlatformsMenuSettings.h"
 #include "Containers/Set.h"
 
 namespace
@@ -99,7 +100,7 @@ void FTurnkeyEditorSupport::LaunchRunningMap(const FString& DeviceId, const FStr
 		}
 		else
 		{
-			PlatformInfo = PlatformInfo::FindPlatformInfo(GetDefault<UProjectPackagingSettings>()->GetTargetFlavorForPlatform(*TargetDeviceId.GetPlatformName()));
+			PlatformInfo = PlatformInfo::FindPlatformInfo(GetDefault<UPlatformsMenuSettings>()->GetTargetFlavorForPlatform(*TargetDeviceId.GetPlatformName()));
 		}
 					
 		FString UBTPlatformName = PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString;

@@ -23,6 +23,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Settings/ProjectPackagingSettings.h"
+#include "Settings/PlatformsMenuSettings.h"
 #include "TargetReceipt.h"
 #include "UnrealEdMisc.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -157,8 +158,9 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	default:
 	{
 		const UProjectPackagingSettings* AllPlatformPackagingSettings = GetDefault<UProjectPackagingSettings>();
+		const UPlatformsMenuSettings* PlatformsSettings = GetDefault<UPlatformsMenuSettings>();
 
-		EProjectPackagingBuildConfigurations BuildConfig = AllPlatformPackagingSettings->GetBuildConfigurationForPlatform(*IniPlatformName);
+		EProjectPackagingBuildConfigurations BuildConfig = PlatformsSettings->GetBuildConfigurationForPlatform(*IniPlatformName);
 		// if PPBC_MAX is set, then the project default should be used instead of the per platform build config
 		if (BuildConfig == EProjectPackagingBuildConfigurations::PPBC_MAX)
 		{
@@ -280,7 +282,7 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	// only set the BuildTarget in code-based projects
 	if (LauncherSessionInfo->bPlayUsingLauncherHasCode)
 	{
-		const FTargetInfo* TargetInfo = GetDefault<UProjectPackagingSettings>()->GetLaunchOnTargetInfo();
+		const FTargetInfo* TargetInfo = GetDefault<UPlatformsMenuSettings>()->GetLaunchOnTargetInfo();
 		if (TargetInfo != nullptr)
 		{
 			LauncherProfile->SetBuildTarget(TargetInfo->Name);

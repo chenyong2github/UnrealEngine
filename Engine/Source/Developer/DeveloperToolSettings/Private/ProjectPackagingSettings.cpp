@@ -83,13 +83,6 @@ void UProjectPackagingSettings::PostEditChangeProperty(FPropertyChangedEvent& Pr
 		// We need to fix paths for no name updates to catch the reloadconfig call
 		FixCookingPaths();
 	}
-	else if (Name == FName((TEXT("StagingDirectory"))))
-	{
-		// fix up path
-		FString Path = StagingDirectory.Path;
-		FPaths::MakePathRelativeTo(Path, FPlatformProcess::BaseDir());
-		StagingDirectory.Path = Path;
-	}
 	else if (Name == FName(TEXT("ForDistribution")))
 	{
 		if (ForDistribution && BuildConfiguration != EProjectPackagingBuildConfigurations::PPBC_Shipping)
@@ -196,7 +189,7 @@ TArray<EProjectPackagingBuildConfigurations> UProjectPackagingSettings::GetValid
 }
 
 
-static const FTargetInfo* FindBestTargetInfo(const FString& TargetName, bool bContentOnlyUsesEngineTargets, bool* bOutIsProjectTarget=nullptr)
+const FTargetInfo* FindBestTargetInfo(const FString& TargetName, bool bContentOnlyUsesEngineTargets, bool* bOutIsProjectTarget=nullptr)
 {
 	bool bUseEngineTargets = false;
 	if (bContentOnlyUsesEngineTargets)
@@ -235,73 +228,10 @@ static const FTargetInfo* FindBestTargetInfo(const FString& TargetName, bool bCo
 
 }
 
+
 const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfo() const
 {
 	return FindBestTargetInfo(BuildTarget, false);
-}
-
-const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfoForPlatform(FName PlatformName, bool& bOutIsProjectTarget) const
-{
-	return FindBestTargetInfo(GetBuildTargetForPlatform(PlatformName), true, &bOutIsProjectTarget);
-}
-
-const FTargetInfo* UProjectPackagingSettings::GetLaunchOnTargetInfo() const
-{
-	return FindBestTargetInfo(LaunchOnTarget, true);
-}
-
-
-EProjectPackagingBuildConfigurations UProjectPackagingSettings::GetBuildConfigurationForPlatform(FName PlatformName) const
-{
-	const EProjectPackagingBuildConfigurations* Value = PerPlatformBuildConfig.Find(PlatformName);
-
-	// PPBC_MAX defines the default project setting case and should be handled accordingly.
-	return Value == nullptr ? EProjectPackagingBuildConfigurations::PPBC_MAX : *Value;
-}
-
-void UProjectPackagingSettings::SetBuildConfigurationForPlatform(FName PlatformName, EProjectPackagingBuildConfigurations Configuration)
-{
-	if (Configuration == EProjectPackagingBuildConfigurations::PPBC_MAX)
-	{
-		PerPlatformBuildConfig.Remove(PlatformName);
-	}
-	else
-	{
-		PerPlatformBuildConfig.Add(PlatformName, Configuration);
-	}
-}
-
-FName UProjectPackagingSettings::GetTargetFlavorForPlatform(FName FlavorName) const
-{
-	const FName* Value = PerPlatformTargetFlavorName.Find(FlavorName);
-
-	// the flavor name is also the name of the vanilla info
-	return Value == nullptr ? FlavorName : *Value;
-}
-
-void UProjectPackagingSettings::SetTargetFlavorForPlatform(FName PlatformName, FName TargetFlavorName)
-{
-	PerPlatformTargetFlavorName.Add(PlatformName, TargetFlavorName);
-}
-
-FString UProjectPackagingSettings::GetBuildTargetForPlatform(FName PlatformName) const
-{
-	const FString* Value = PerPlatformBuildTarget.Find(PlatformName);
-
-	// empty string defines the default project setting case and should be handled accordingly.
-	return Value == nullptr ? "" : *Value;
-}
-
-void UProjectPackagingSettings::SetBuildTargetForPlatform(FName PlatformName, FString BuildTargetName)
-{
-	if (BuildTargetName.IsEmpty())
-	{
-		PerPlatformBuildTarget.Remove(PlatformName);
-	}
-	else
-	{
-		PerPlatformBuildTarget.Add(PlatformName, BuildTargetName);
-	}
 }
 
 #undef LOCTEXT_NAMESPACE
