@@ -920,6 +920,9 @@ public:
 		return *this;
 	}
 
+	TMulticastDelegate(TMulticastDelegate&&) = default;
+	TMulticastDelegate& operator=(TMulticastDelegate&&) = default;
+
 	/**
 	 * Broadcasts this delegate to all bound objects, except to those that may have expired.
 	 *
