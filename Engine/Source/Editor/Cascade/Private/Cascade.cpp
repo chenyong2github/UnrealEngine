@@ -2387,6 +2387,12 @@ void FCascade::BindCommands()
 		FIsActionChecked::CreateSP(this, &FCascade::IsDetailModeChecked, DM_High));
 
 	ToolkitCommands->MapAction(
+		Commands.DetailMode_Epic,
+		FExecuteAction::CreateSP(this, &FCascade::OnDetailMode, DM_Epic),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FCascade::IsDetailModeChecked, DM_Epic));
+
+	ToolkitCommands->MapAction(
 		Commands.Significance_Critical,
 		FExecuteAction::CreateSP(this, &FCascade::OnSignificance, EParticleSignificanceLevel::Critical),
 		FCanExecuteAction(),

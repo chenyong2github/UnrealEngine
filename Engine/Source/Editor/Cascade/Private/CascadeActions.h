@@ -65,6 +65,7 @@ public:
 	TSharedPtr<FUICommandInfo> DetailMode_Low;
 	TSharedPtr<FUICommandInfo> DetailMode_Medium;
 	TSharedPtr<FUICommandInfo> DetailMode_High;
+	TSharedPtr<FUICommandInfo> DetailMode_Epic;
 	TSharedPtr<FUICommandInfo> Significance_Critical;
 	TSharedPtr<FUICommandInfo> Significance_High;
 	TSharedPtr<FUICommandInfo> Significance_Medium;

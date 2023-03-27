@@ -109,6 +109,7 @@ TSharedRef<SWidget> SCascadePreviewViewportToolBar::GenerateViewMenu() const
 				Menu.AddMenuEntry(FCascadeCommands::Get().DetailMode_Low);
 				Menu.AddMenuEntry(FCascadeCommands::Get().DetailMode_Medium);
 				Menu.AddMenuEntry(FCascadeCommands::Get().DetailMode_High);
+				Menu.AddMenuEntry(FCascadeCommands::Get().DetailMode_Epic);
 			}
 			Menu.EndSection();
 		}
