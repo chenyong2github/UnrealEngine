@@ -55,16 +55,16 @@ public:
 
 	/** Compare two OCIO configurations.
 	 *
-	 * @param InDisplayConfiguration - configuration to compare with.
+	 * @param InConversionSettings - configuration to compare with.
 	 *
 	 * @return - true if equal.
 	 */
-	bool IsDisplayConfigurationEquals(const FOpenColorIOColorConversionSettings& InDisplayConfiguration) const;
+	bool IsConversionSettingsEqual(const FOpenColorIOColorConversionSettings& InConversionSettings) const;
 
-	/** Get current OCIO configuration. */
-	const FOpenColorIOColorConversionSettings& GetDisplayConfiguration() const
+	/** Get current OCIO conversion settings. */
+	const FOpenColorIOColorConversionSettings& GetConversionSettings() const
 	{
-		return DisplayConfiguration;
+		return ConversionSettings;
 	}
 
 private:
@@ -72,11 +72,11 @@ private:
 	FOpenColorIORenderPassResources CachedResourcesRenderThread;
 
 	/** Configuration to apply during post render callback. */
-	FOpenColorIOColorConversionSettings DisplayConfiguration;
+	FOpenColorIOColorConversionSettings ConversionSettings;
 
 	/** Shader resources state. */
 	bool bShaderResourceValid = true;
 
 	/** Configuration data state. */
-	bool bConfigurationDataValid = true;
+	TAtomic<bool> bIsEnabled = true;
 };

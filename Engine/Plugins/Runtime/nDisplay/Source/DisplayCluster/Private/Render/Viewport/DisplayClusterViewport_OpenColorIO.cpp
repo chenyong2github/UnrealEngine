@@ -21,7 +21,7 @@
 // FDisplayClusterViewport_OpenColorIO
 //////////////////////////////////////////////////////////////////////////
 FDisplayClusterViewport_OpenColorIO::FDisplayClusterViewport_OpenColorIO(const FOpenColorIOColorConversionSettings& InDisplayConfiguration)
-	: DisplayConfiguration(InDisplayConfiguration)
+	: ConversionSettings(InDisplayConfiguration)
 { }
 
 FDisplayClusterViewport_OpenColorIO::~FDisplayClusterViewport_OpenColorIO()
@@ -46,7 +46,9 @@ void FDisplayClusterViewport_OpenColorIO::SetupSceneView(FSceneViewFamily& InOut
 void FDisplayClusterViewport_OpenColorIO::UpdateOpenColorIORenderPassResources()
 {
 	bShaderResourceValid = false;
-	if (!bConfigurationDataValid)
+	bIsEnabled = ConversionSettings.IsValid() ? ConversionSettings.ConfigurationSource->IsTransformReady(ConversionSettings) : false;
+
+	if (!bIsEnabled)
 	{
 		// The data in this configuration was not correctly initialized in the previous frame. Ignore this OCIO
 		return;
@@ -55,13 +57,13 @@ void FDisplayClusterViewport_OpenColorIO::UpdateOpenColorIORenderPassResources()
 	FOpenColorIOTransformResource* ShaderResource = nullptr;
 	TSortedMap<int32, FTextureResource*> TransformTextureResources;
 
-	if (DisplayConfiguration.ConfigurationSource != nullptr)
+	if (ConversionSettings.ConfigurationSource != nullptr)
 	{
 		const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
 
-		const bool bFoundTransform = DisplayConfiguration.ConfigurationSource->GetRenderResources(
+		const bool bFoundTransform = ConversionSettings.ConfigurationSource->GetRenderResources(
 			FeatureLevel
-			, DisplayConfiguration
+			, ConversionSettings
 			, ShaderResource
 			, TransformTextureResources);
 
@@ -75,9 +77,6 @@ void FDisplayClusterViewport_OpenColorIO::UpdateOpenColorIORenderPassResources()
 
 				//Invalidate shader resource
 				ShaderResource = nullptr;
-
-				// Data in this configuration is corrupted. Ignore this configuration for next frames
-				bConfigurationDataValid = false;
 			}
 			else
 			{
@@ -104,12 +103,12 @@ void FDisplayClusterViewport_OpenColorIO::UpdateOpenColorIORenderPassResources()
 
 bool FDisplayClusterViewport_OpenColorIO::IsEnabled_RenderThread() const
 {
-	return CachedResourcesRenderThread.ShaderResource != nullptr;
+	return bIsEnabled;
 }
 
-bool FDisplayClusterViewport_OpenColorIO::IsDisplayConfigurationEquals(const FOpenColorIOColorConversionSettings& InDisplayConfiguration) const
+bool FDisplayClusterViewport_OpenColorIO::IsConversionSettingsEqual(const FOpenColorIOColorConversionSettings& InConversionSettings) const
 {
-	return DisplayConfiguration.ToString() == InDisplayConfiguration.ToString();
+	return ConversionSettings.ToString() == InConversionSettings.ToString();
 }
 
 bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& GraphBuilder, const FDisplayClusterViewport_Context& InViewportContext,

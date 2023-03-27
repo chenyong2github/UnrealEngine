@@ -109,7 +109,7 @@ bool FDisplayClusterViewport::IsOpenColorIOEquals(const FDisplayClusterViewport&
 			return true;
 		}
 
-		if (OpenColorIO->IsDisplayConfigurationEquals(InViewport.OpenColorIO->GetDisplayConfiguration()))
+		if (OpenColorIO->IsConversionSettingsEqual(InViewport.OpenColorIO->GetConversionSettings()))
 		{
 			return true;
 		}

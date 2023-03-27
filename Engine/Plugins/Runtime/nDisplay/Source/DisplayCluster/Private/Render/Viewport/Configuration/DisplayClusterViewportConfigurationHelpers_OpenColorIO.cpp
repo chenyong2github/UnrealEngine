@@ -85,24 +85,24 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateChromakeyVie
 	return false;
 }
 
-void FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ApplyOCIOConfiguration(FDisplayClusterViewport& DstViewport, const FOpenColorIOColorConversionSettings& InConfiguration)
+void FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ApplyOCIOConfiguration(FDisplayClusterViewport& DstViewport, const FOpenColorIOColorConversionSettings& InConversionSettings)
 {
 	// Check OCIO before apply
-	if(!InConfiguration.IsValid())
+	if(!InConversionSettings.IsValid())
 	{
 		DisableOCIOConfiguration(DstViewport);
 
 		return;
 	}
 
-	if (DstViewport.OpenColorIO.IsValid() && DstViewport.OpenColorIO->IsDisplayConfigurationEquals(InConfiguration))
+	if (DstViewport.OpenColorIO.IsValid() && DstViewport.OpenColorIO->IsConversionSettingsEqual(InConversionSettings))
 	{
 		// Already assigned
 		return;
 	}
 
 	DstViewport.OpenColorIO.Reset();
-	DstViewport.OpenColorIO = MakeShared<FDisplayClusterViewport_OpenColorIO>(InConfiguration);
+	DstViewport.OpenColorIO = MakeShared<FDisplayClusterViewport_OpenColorIO>(InConversionSettings);
 }
 
 void FDisplayClusterViewportConfigurationHelpers_OpenColorIO::DisableOCIOConfiguration(FDisplayClusterViewport& DstViewport)

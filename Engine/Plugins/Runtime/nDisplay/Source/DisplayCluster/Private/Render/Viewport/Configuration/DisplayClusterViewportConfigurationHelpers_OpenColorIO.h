@@ -81,11 +81,11 @@ private:
 	/** Apply OCIO to viewport.
 	 *
 	 * @param DstViewport       - Dest viewport object
-	 * @param InConfiguration   - OCIO configuration
+	 * @param InConversionSettings   - OCIO conversion settings
 	 *
 	 * @return - none
 	 */
-	static void ApplyOCIOConfiguration(FDisplayClusterViewport& DstViewport, const FOpenColorIOColorConversionSettings& InConfiguration);
+	static void ApplyOCIOConfiguration(FDisplayClusterViewport& DstViewport, const FOpenColorIOColorConversionSettings& InConversionSettings);
 
 	/** Reset OCIO for viewport.
 	 *

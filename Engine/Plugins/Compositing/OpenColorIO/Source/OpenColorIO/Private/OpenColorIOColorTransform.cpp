@@ -544,8 +544,8 @@ bool UOpenColorIOColorTransform::AreRenderResourcesReady() const
 		}
 	}
 
-	// Transform shaders are always required, and the all of the required ones should have finished compiling.
-	if (NumShadersRequired == 0 || NumShadersRequired != NumShadersReady)
+	// All of the required shaders should have finished compiling.
+	if (NumShadersRequired != NumShadersReady)
 	{
 		return false;
 	}
