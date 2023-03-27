@@ -11,6 +11,8 @@
 #include "CookWorkerServer.h"
 #include "CoreGlobals.h"
 #include "HAL/PlatformTime.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/CoreMisc.h"
 #include "PackageResultsMessage.h"
 #include "PackageTracker.h"
