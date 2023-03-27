@@ -15,27 +15,11 @@
 FOnlineAchievementsEOS::FOnlineAchievementsEOS(FOnlineSubsystemEOS* InSubsystem)
 	: EOSSubsystem(InSubsystem)
 {
-	Init();
-}
-
-void FOnlineAchievementsEOS::Init()
-{
-	GConfig->GetBool(TEXT("OnlineSubsystemEOS"), TEXT("bUseUnlockAchievements"), bUseUnlockAchievements, GEngineIni);
 }
 
 void FOnlineAchievementsEOS::WriteAchievements(const FUniqueNetId& PlayerId, FOnlineAchievementsWriteRef& WriteObject, const FOnAchievementsWrittenDelegate& Delegate)
 {
-	if (bUseUnlockAchievements)
-	{
-		UnlockAchievements(PlayerId, WriteObject, Delegate);
-	}
-	else // If bUseUnlockAchievements is not set to true, we'll unlock the achievements through stat changes
-	{
-		UE_LOG_ONLINE_ACHIEVEMENTS(Warning, TEXT("Upgrade note: OSSEOS is updating its implementation of WriteAchievements to match other OSS implementations. For more information, search for bUseUnlockAchievements in the release notes."));
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UnlockAchievementsThroughStats(PlayerId, WriteObject, Delegate);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
+	UnlockAchievements(PlayerId, WriteObject, Delegate);
 }
 
 typedef TEOSCallback<EOS_Achievements_OnUnlockAchievementsCompleteCallback, EOS_Achievements_OnUnlockAchievementsCompleteCallbackInfo, FOnlineAchievementsEOS> FUnlockAchievementsCallback;
@@ -107,22 +91,6 @@ void FOnlineAchievementsEOS::UnlockAchievements(const FUniqueNetId& PlayerId, FO
 	};
 
 	EOS_Achievements_UnlockAchievements(EOSSubsystem->AchievementsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
-}
-
-void FOnlineAchievementsEOS::UnlockAchievementsThroughStats(const FUniqueNetId& PlayerId, FOnlineAchievementsWriteRef& WriteObject, const FOnAchievementsWrittenDelegate& Delegate) const
-{
-	TArray<FOnlineStatsUserUpdatedStats> StatsToWrite;
-
-	FOnlineStatsUserUpdatedStats& UpdatedStats = StatsToWrite.Emplace_GetRef(PlayerId.AsShared());
-	for (const TPair<FName, FVariantData>& Stat : WriteObject->Properties)
-	{
-		UpdatedStats.Stats.Add(Stat.Key.ToString(), FOnlineStatUpdate(Stat.Value, FOnlineStatUpdate::EOnlineStatModificationType::Unknown));
-	}
-
-	EOSSubsystem->StatsInterfacePtr->UpdateStats(PlayerId.AsShared(), StatsToWrite, FOnlineStatsUpdateStatsComplete());
-
-	WriteObject->WriteState = EOnlineAsyncTaskState::Done;
-	Delegate.ExecuteIfBound(PlayerId, true);
 }
 
 typedef TEOSCallback<EOS_Achievements_OnQueryPlayerAchievementsCompleteCallback, EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo, FOnlineAchievementsEOS> FQueryProgressCallback;
