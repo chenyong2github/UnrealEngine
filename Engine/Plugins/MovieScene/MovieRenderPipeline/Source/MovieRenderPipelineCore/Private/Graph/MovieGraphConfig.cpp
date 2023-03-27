@@ -53,24 +53,37 @@ void UMovieGraphOutput::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 }
 #endif // WITH_EDITOR
 
+FName UMovieGraphConfig::GlobalVariable_ShotName = "shot_name";
+FName UMovieGraphConfig::GlobalVariable_SequenceName = "seq_name";
+FName UMovieGraphConfig::GlobalVariable_FrameNumber = "frame_num";
+FName UMovieGraphConfig::GlobalVariable_CameraName = "camera_name";
+FName UMovieGraphConfig::GlobalVariable_RenderLayerName = "render_layer_name";
+
 UMovieGraphConfig::UMovieGraphConfig()
 {
 	InputNode = CreateDefaultSubobject<UMovieGraphInputNode>(TEXT("DefaultInputNode"));
 	OutputNode = CreateDefaultSubobject<UMovieGraphOutputNode>(TEXT("DefaultOutputNode"));
-	
-	if (!HasAnyFlags(RF_ClassDefaultObject))
+
+	// Don't add default members in the ctor if this object is being loaded (ie, it's not a new object). Defer that
+	// until PostLoad(), otherwise the default members may be overwritten when properties are loaded.
+	const bool bIsNewObject = !HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad);
+	if (bIsNewObject)
 	{
+		AddDefaultMembers();
 		InputNode->UpdatePins();
 		OutputNode->UpdatePins();
 	}
 }
 
-void UMovieGraphConfig::PostInitProperties()
+void UMovieGraphConfig::PostLoad()
 {
-	Super::PostInitProperties();
+	Super::PostLoad();
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+		// TODO: When the graph has stabilized, we can remove this and replace with a system that solely performs
+		// upgrades/deprecations. For now, we assume that each load of the graph should re-initialize all default
+		// members.
 		AddDefaultMembers();
 	}
 }
@@ -119,6 +132,29 @@ void UMovieGraphConfig::TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclas
 
 }
 
+UMovieGraphVariable* UMovieGraphConfig::AddGlobalVariable(const FName& InName)
+{
+	// Don't add duplicate global variables
+	const bool VariableExists = Variables.ContainsByPredicate([&InName](const TObjectPtr<UMovieGraphVariable>& Variable)
+	{
+		return Variable && (Variable->Name == InName);
+	});
+
+	if (VariableExists)
+	{
+		return nullptr;
+	}
+	
+	if (UMovieGraphVariable* NewVariable = AddVariable(InName))
+	{
+		NewVariable->bIsGlobal = true;
+		NewVariable->bIsEditable = false;
+		return NewVariable;
+	}
+
+	return nullptr;
+}
+
 void UMovieGraphConfig::AddDefaultMembers()
 {
 	const bool InputGlobalsExists = Inputs.ContainsByPredicate([](const UMovieGraphMember* Member)
@@ -147,6 +183,15 @@ void UMovieGraphConfig::AddDefaultMembers()
 		NewOutput->Name = MovieGraphGlobalsMemberName.ToString();
 
 		OutputNode->UpdatePins();
+	}
+
+	// Add all of the global variables that should be available in the graph
+	static const TArray<FName> GlobalVariableNames =
+		{GlobalVariable_ShotName, GlobalVariable_SequenceName, GlobalVariable_FrameNumber,
+		 GlobalVariable_CameraName, GlobalVariable_RenderLayerName};
+	for (const FName& GlobalVariableName : GlobalVariableNames)
+	{
+		AddGlobalVariable(GlobalVariableName);
 	}
 }
 
@@ -354,31 +399,48 @@ bool UMovieGraphConfig::RemoveNode(UMovieGraphNode* InNode)
 }
 
 template<typename T>
-T* UMovieGraphConfig::AddMember(TArray<TObjectPtr<T>>& MemberArray, const FText& BaseName)
+T* UMovieGraphConfig::AddMember(TArray<TObjectPtr<T>>& InMemberArray, const FName& InBaseName)
 {
 	static_assert(std::is_base_of_v<UMovieGraphMember, T>, "T is not derived from UMovieGraphMember");
 	
 	using namespace UE::MoviePipeline::RenderGraph;
-	
-	T* NewMember = NewObject<T>(this, NAME_None, RF_Transactional);
-	MemberArray.Add(NewMember);
 
+	// TODO: This can be replaced with just CreateDefaultSubobject() when AddDefaultMembers() isn't called from PostLoad()
+	//
+	// This method will be called in two cases: 1) when default members are being added to a new graph when it is being
+	// initially created or loaded via PostLoad(), or 2) a member is being added to the graph by the user. For case 1,
+	// when the constructor is running, RF_NeedInitialization will be set. CreateDefaultSubobject() needs to be called
+	// in this scenario instead of NewObject().
+	const bool bIsNewObject = HasAnyFlags(RF_NeedInitialization);
+	T* NewMember = bIsNewObject
+		? CreateDefaultSubobject<T>(MakeUniqueObjectName(this, T::StaticClass()))
+		: NewObject<T>(this, NAME_None);
+	
+	if (!NewMember)
+	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Unable to create new member object in the graph."));
+		return nullptr;
+	}
+
+	InMemberArray.Add(NewMember);
+	NewMember->SetFlags(RF_Transactional);
 	NewMember->Type = EMovieGraphMemberType::Float;
 	NewMember->SetGuid(FGuid::NewGuid());
 
 	// Generate and set a unique name
 	TArray<FString> ExistingMemberNames;
-	Algo::Transform(MemberArray, ExistingMemberNames, [](const T* Member) { return Member->Name; });
-	NewMember->Name = GetUniqueName(ExistingMemberNames, BaseName.ToString());
+	Algo::Transform(InMemberArray, ExistingMemberNames, [](const T* Member) { return Member->Name; });
+	NewMember->Name = GetUniqueName(ExistingMemberNames, InBaseName.ToString());
 
 	return NewMember;
 }
 
-UMovieGraphVariable* UMovieGraphConfig::AddVariable()
+UMovieGraphVariable* UMovieGraphConfig::AddVariable(const FName InCustomBaseName)
 {
 	static const FText VariableBaseName = LOCTEXT("VariableBaseName", "Variable");
 	
-	UMovieGraphVariable* NewVariable = AddMember(Variables, VariableBaseName);
+	UMovieGraphVariable* NewVariable = AddMember(
+		Variables, !InCustomBaseName.IsNone() ? InCustomBaseName : FName(*VariableBaseName.ToString()));
 
 #if WITH_EDITOR
 	OnGraphVariablesChangedDelegate.Broadcast();
@@ -391,7 +453,7 @@ UMovieGraphInput* UMovieGraphConfig::AddInput()
 {
 	static const FText InputBaseName = LOCTEXT("InputBaseName", "Input");
 
-	UMovieGraphInput* NewInput = AddMember(Inputs, InputBaseName);
+	UMovieGraphInput* NewInput = AddMember(Inputs, FName(*InputBaseName.ToString()));
 	InputNode->UpdatePins();
 	
 #if WITH_EDITOR
@@ -405,7 +467,7 @@ UMovieGraphOutput* UMovieGraphConfig::AddOutput()
 {
 	static const FText OutputBaseName = LOCTEXT("OutputBaseName", "Output");
 	
-	UMovieGraphOutput* NewOutput = AddMember(Outputs, OutputBaseName);
+	UMovieGraphOutput* NewOutput = AddMember(Outputs, FName(*OutputBaseName.ToString()));
 	OutputNode->UpdatePins();
 
 #if WITH_EDITOR
@@ -428,9 +490,14 @@ UMovieGraphVariable* UMovieGraphConfig::GetVariableByGuid(const FGuid& InGuid) c
 	return nullptr;
 }
 
-TArray<UMovieGraphVariable*> UMovieGraphConfig::GetVariables() const
+TArray<UMovieGraphVariable*> UMovieGraphConfig::GetVariables(const bool bIncludeGlobal) const
 {
-	return Variables;
+	if (bIncludeGlobal)
+	{
+		return Variables;
+	}
+
+	return Variables.FilterByPredicate([](const UMovieGraphVariable* Var) { return Var && !Var->IsGlobal(); });
 }
 
 TArray<UMovieGraphInput*> UMovieGraphConfig::GetInputs() const

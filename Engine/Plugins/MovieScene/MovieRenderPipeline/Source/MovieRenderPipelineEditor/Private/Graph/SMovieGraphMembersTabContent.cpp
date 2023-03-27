@@ -76,12 +76,32 @@ bool SMovieGraphMembersTabContent::CanDeleteSelectedMembers() const
 		return false;
 	}
 
-	// There may need to be some more extensive validation here in the future
+	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+	ActionMenu->GetSelectedActions(SelectedActions);
+	
+	for (const TSharedPtr<FEdGraphSchemaAction>& SelectedAction : SelectedActions)
+	{
+		const FMovieGraphSchemaAction* MovieAction = static_cast<FMovieGraphSchemaAction*>(SelectedAction.Get());
+
+		// Don't allow deletion if the member was explicitly marked as non-deletable
+		if (const UMovieGraphMember* Member = Cast<UMovieGraphMember>(MovieAction->ActionTarget))
+		{
+			if (!Member->IsDeletable())
+			{
+				return false;
+			}
+		}
+	}
+
 	return true;
 }
 
 void SMovieGraphMembersTabContent::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
+	static const FText UserVariablesCategory = LOCTEXT("UserVariablesCategory", "User Variables");
+	static const FText GlobalVariablesCategory = LOCTEXT("GlobalVariablesCategory", "Global Variables");
+	static const FText EmptyCategory = FText::GetEmpty();
+	
 	if (!CurrentGraph)
 	{
 		return;
@@ -90,23 +110,22 @@ void SMovieGraphMembersTabContent::CollectAllActions(FGraphActionListBuilderBase
 	FGraphActionMenuBuilder ActionMenuBuilder;
 
 	// Creates a new action in the action menu under a specific section w/ the provided action target
-	auto AddToActionMenu = [&ActionMenuBuilder](UMovieGraphMember* ActionTarget, const EActionSection Section) -> void
+	auto AddToActionMenu = [&ActionMenuBuilder](UMovieGraphMember* ActionTarget, const EActionSection Section, const FText& Category) -> void
 	{
-		const FText InputActionDesc = FText::FromString(ActionTarget->Name);
-		const FText InputActionCategory;
-		const FText InputActionTooltip;
-		const FText InputActionKeywords;
-		const int32 InputActionSectionID = static_cast<int32>(Section);
-		const TSharedPtr<FMovieGraphSchemaAction> InputAction(new FMovieGraphSchemaAction(InputActionCategory, InputActionDesc, InputActionTooltip, 0, InputActionKeywords, InputActionSectionID));
-		InputAction->ActionTarget = ActionTarget;
-		ActionMenuBuilder.AddAction(InputAction);
+		const FText MemberActionDesc = FText::FromString(ActionTarget->Name);
+		const FText MemberActionTooltip;
+		const FText MemberActionKeywords;
+		const int32 MemberActionSectionID = static_cast<int32>(Section);
+		const TSharedPtr<FMovieGraphSchemaAction> MemberAction(new FMovieGraphSchemaAction(Category, MemberActionDesc, MemberActionTooltip, 0, MemberActionKeywords, MemberActionSectionID));
+		MemberAction->ActionTarget = ActionTarget;
+		ActionMenuBuilder.AddAction(MemberAction);
 	};
 
 	for (UMovieGraphInput* Input : CurrentGraph->GetInputs())
 	{
 		if (Input && Input->IsDeletable())
 		{
-			AddToActionMenu(Input, EActionSection::Inputs);
+			AddToActionMenu(Input, EActionSection::Inputs, EmptyCategory);
             
             // Update actions when an input is updated (renamed, etc)
             Input->OnMovieGraphInputChangedDelegate.AddSP(this, &SMovieGraphMembersTabContent::RefreshMemberActions);
@@ -117,21 +136,34 @@ void SMovieGraphMembersTabContent::CollectAllActions(FGraphActionListBuilderBase
 	{
 		if (Output && Output->IsDeletable())
 		{
-			AddToActionMenu(Output, EActionSection::Outputs);
+			AddToActionMenu(Output, EActionSection::Outputs, EmptyCategory);
 
 			// Update actions when an output is updated (renamed, etc)
 			Output->OnMovieGraphOutputChangedDelegate.AddSP(this, &SMovieGraphMembersTabContent::RefreshMemberActions);
 		}
 	}
 
-	for (UMovieGraphVariable* Variable : CurrentGraph->GetVariables())
+	const bool bIncludeGlobal = true;
+	const TArray<UMovieGraphVariable*> AllVariables = CurrentGraph->GetVariables(bIncludeGlobal);
+
+	// Add non-global variables first
+	for (UMovieGraphVariable* Variable : AllVariables)
 	{
-		if (Variable)
+		if (Variable && !Variable->IsGlobal())
 		{
-			AddToActionMenu(Variable, EActionSection::Variables);
+			AddToActionMenu(Variable, EActionSection::Variables, UserVariablesCategory);
 
 			// Update actions when a variable is updated (renamed, etc)
 			Variable->OnMovieGraphVariableChangedDelegate.AddSP(this, &SMovieGraphMembersTabContent::RefreshMemberActions);
+		}
+	}
+
+	// Add global variables after user-declared variables
+	for (UMovieGraphVariable* Variable : AllVariables)
+	{
+		if (Variable && Variable->IsGlobal())
+		{
+			AddToActionMenu(Variable, EActionSection::Variables, GlobalVariablesCategory);
 		}
 	}
 	

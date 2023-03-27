@@ -123,10 +123,11 @@ void UMovieGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Context
 	}
 
 	// Create an accessor node action for each variable the graph has
-	for (const UMovieGraphVariable* Variable : RuntimeGraph->GetVariables())
+	const bool bIncludeGlobal = true;
+	for (const UMovieGraphVariable* Variable : RuntimeGraph->GetVariables(bIncludeGlobal))
 	{
 		const FText Name = FText::FromString(Variable->Name);
-		const FText Category = LOCTEXT("CreateVariable_Category", "Variables");
+		const FText Category = Variable->IsGlobal() ? LOCTEXT("CreateGlobalVariable_Category", "Global Variables") : LOCTEXT("CreateVariable_Category", "Variables");
 		const FText Tooltip = LOCTEXT("CreateVariable_Tooltip", "Create an accessor node for this variable.");
 		
 		TSharedPtr<FMovieGraphSchemaAction> NewAction = MakeShared<FMovieGraphSchemaAction_NewVariableNode>(Category, Name, Variable->GetGuid(), Tooltip);
@@ -341,7 +342,6 @@ UEdGraphNode* FMovieGraphSchemaAction_NewVariableNode::PerformAction(UEdGraph* P
 	{
 		GraphNode->AutowireNewNode(FromPin);
 	}
-
 
 	return GraphNode;
 }

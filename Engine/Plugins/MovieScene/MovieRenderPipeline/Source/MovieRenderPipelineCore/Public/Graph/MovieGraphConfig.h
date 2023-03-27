@@ -20,6 +20,9 @@ class UMovieGraphNode;
 UCLASS(Abstract)
 class MOVIERENDERPIPELINECORE_API UMovieGraphMember : public UObject
 {
+	// The graph needs to set private flags during construction time
+	friend class UMovieGraphConfig;
+	
 	GENERATED_BODY()
 
 public:
@@ -36,41 +39,58 @@ public:
 
 public:
 	/** The type of data associated with this member. */
-	UPROPERTY(EditAnywhere, Category = "General")
+	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
 	EMovieGraphMemberType Type = EMovieGraphMemberType::Float;
 
 	// TODO: Need a details customization that validates whether or not the name is valid/unique
 	/** The name of this member, which is user-facing. */
-	UPROPERTY(EditAnywhere, Category = "General")
+	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
 	FString Name;
 
 	/** The optional description of this member, which is user-facing. */
-	UPROPERTY(EditAnywhere, Category = "General")
+	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
 	FString Description;
 
 	// TODO: This needs to eventually be capable of storing multiple types. Using TVariant looks promising, but it will
 	// still require extensive details panel customizations
 	/** The default value of this member. */
-	UPROPERTY(EditAnywhere, Category = "General")
+	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
 	float Default = 0.f;
 
 private:
 	/** A GUID that uniquely identifies this member within its graph. */
 	UPROPERTY()
 	FGuid Guid;
+
+	// Note: This is a bool flag rather than a method (eg, IsEditable()) for now in order to allow it to drive the
+	// EditCondition metadata on properties.
+	/** Whether this member can be edited in the UI. */
+	UPROPERTY()
+	bool bIsEditable = true;
 };
 
 /**
- * A variable that can be created and used inside the graph. These variables can be controlled at
- * the job level.
+ * A variable that can be used inside the graph. Most variables are created by the user, and can have their value
+ * changed at the job level. Global variables, however, are not user-created and their values are provided when the
+ * graph is evaluated. Overriding them at the job level is not possible.
  */
 UCLASS(BlueprintType)
 class MOVIERENDERPIPELINECORE_API UMovieGraphVariable : public UMovieGraphMember
 {
+	// The graph needs to set private flags during construction time
+	friend class UMovieGraphConfig;
+	
 	GENERATED_BODY()
 
 public:
 	UMovieGraphVariable() = default;
+
+	/** Returns true if this variable is a global variable. */
+	bool IsGlobal() const { return bIsGlobal; }
+
+	//~ Begin UMovieGraphMember interface
+	virtual bool IsDeletable() const override { return !bIsGlobal; }
+	//~ End UMovieGraphMember interface
 
 public:
 #if WITH_EDITOR
@@ -80,6 +100,11 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject overrides
 #endif // WITH_EDITOR
+
+private:
+	/** Whether this variable represents a global variable. */
+	UPROPERTY()
+	bool bIsGlobal = false;
 };
 
 /**
@@ -150,7 +175,7 @@ public:
 	UMovieGraphConfig();
 
 	//~ UObject interface
-	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 	//~ End UObject interface
 
 	bool AddLabeledEdge(UMovieGraphNode* FromNode, const FName& FromPinLabel, UMovieGraphNode* ToNode, const FName& ToPinLabel);
@@ -168,8 +193,11 @@ public:
 	UMovieGraphNode* GetOutputNode() const { return OutputNode; }
 	const TArray<TObjectPtr<UMovieGraphNode>>& GetNodes() const { return AllNodes; }
 
-	/** Adds a new variable member with default values to the graph. Returns the new variable on success, else nullptr. */
-	UMovieGraphVariable* AddVariable();
+	/**
+	 * Adds a new variable member with default values to the graph. The new variable will have a base name of
+	 * "Variable" unless specified in InCustomBaseName. Returns the new variable on success, else nullptr.
+	 */
+	UMovieGraphVariable* AddVariable(const FName InCustomBaseName = NAME_None);
 
 	/** Adds a new input member to the graph. Returns the new input on success, else nullptr. */
 	UMovieGraphInput* AddInput();
@@ -180,8 +208,11 @@ public:
 	/** Gets the variable in the graph with the specified GUID, else nullptr if one could not be found. */
 	UMovieGraphVariable* GetVariableByGuid(const FGuid& InGuid) const;
 
-	/** Gets all variables that have been defined on the graph. */
-	TArray<UMovieGraphVariable*> GetVariables() const;
+	/**
+	 * Gets all variables that are available to be used in the graph. Global variables can optionally be included if
+	 * bIncludeGlobal is set to true.
+	 */
+	TArray<UMovieGraphVariable*> GetVariables(const bool bIncludeGlobal = false) const;
 
 	/** Gets all inputs that have been defined on the graph. */
 	TArray<UMovieGraphInput*> GetInputs() const;
@@ -238,6 +269,13 @@ protected:
 	void TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext, TArray<UMovieGraphNode*>& OutNodes) const;
 
 public:
+	// Names of global variables that are provided by the graph
+	static FName GlobalVariable_ShotName;
+	static FName GlobalVariable_SequenceName;
+	static FName GlobalVariable_FrameNumber;
+	static FName GlobalVariable_CameraName;
+	static FName GlobalVariable_RenderLayerName;
+	
 #if WITH_EDITOR
 	FOnMovieGraphChanged OnGraphChangedDelegate;
 	FOnMovieGraphVariablesChanged OnGraphVariablesChangedDelegate;
@@ -290,13 +328,16 @@ private:
 	
 	/** Add a new member of type T to MemberArray, with a unique name that includes BaseName in it. */
 	template<typename T>
-	T* AddMember(TArray<TObjectPtr<T>>& MemberArray, const FText& BaseName);
+	T* AddMember(TArray<TObjectPtr<T>>& InMemberArray, const FName& InBaseName);
+
+	/** Adds a global variable to the graph with the provided name. */
+	UMovieGraphVariable* AddGlobalVariable(const FName& InName);
 
 	/** Adds members to the graph that should always be available. */
 	void AddDefaultMembers();
 
 private:
-	/** All variables which have been defined on the graph. */
+	/** All variables (user and global) which are available for use in the graph. */
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieGraphVariable>> Variables;
 

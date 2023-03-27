@@ -10,7 +10,12 @@
 
 FText UMoviePipelineEdGraphVariableNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("GetVariableNodeTitle", "Get Variable");
+	static const FText VariableNodeTitle = LOCTEXT("GetVariableNodeTitle", "Get Variable");
+	static const FText GlobalVariableNodeTitle = LOCTEXT("GetGlobalVariableNodeTitle", "Get Global Variable");
+
+	const UMovieGraphVariableNode* VariableNode = Cast<UMovieGraphVariableNode>(RuntimeNode);
+
+	return (VariableNode && VariableNode->IsGlobalVariable()) ? GlobalVariableNodeTitle : VariableNodeTitle;
 }
 
 void UMoviePipelineEdGraphVariableNode::AllocateDefaultPins()

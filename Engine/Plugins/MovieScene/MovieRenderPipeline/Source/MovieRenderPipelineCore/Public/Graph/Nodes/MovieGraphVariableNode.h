@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Graph/MovieGraphConfig.h"
 #include "Graph/MovieGraphNode.h"
 
 #include "MovieGraphVariableNode.generated.h"
@@ -22,6 +23,9 @@ public:
 
 	/** Sets the variable that this node represents. */
 	void SetVariable(UMovieGraphVariable* InVariable);
+
+	/** Returns true if this node represents a global variable, else false. */
+	bool IsGlobalVariable() const { return GraphVariable && GraphVariable->IsGlobal(); }
 
 #if WITH_EDITOR
 	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
