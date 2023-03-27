@@ -83,6 +83,7 @@ void UAnimSequenceBase::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutC
 		}
 	}
 }
+#endif
 
 void UAnimSequenceBase::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
@@ -94,7 +95,6 @@ void UAnimSequenceBase::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSiz
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Struct->GetStructureSize());
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CurveData.FloatCurves.GetAllocatedSize());
 }
-#endif
 
 void UAnimSequenceBase::PostLoad()
 {
