@@ -369,6 +369,18 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 		CompositeTextureStr += Texture.CompositeTexture->Source.GetIdString();
 	}
 
+	// child texture formats may need to know the mip dimensions in order to generate the ddc
+	// key, however VTs don't ever use child texture formats so we just pass 0s
+	FIntVector3 Mip0Dimensions = {};
+	int32 MipCount = 0;
+	if (BuildSettings.bVirtualStreamable == false)
+	{
+		MipCount = ITextureCompressorModule::GetMipCountForBuildSettings(
+			Texture.Source.GetSizeX(), Texture.Source.GetSizeY(), Texture.Source.GetNumSlices(), Texture.Source.GetNumMips(), 
+			BuildSettings, 
+			Mip0Dimensions.X, Mip0Dimensions.Y, Mip0Dimensions.Z);
+	}
+
 	// build the key, but don't use include the version if it's 0 to be backwards compatible
 	KeyBuilder.Appendf(TEXT("%s_%s%s%s_%02u_%s"),
 		*BuildSettings.TextureFormatName.GetPlainNameString(),
@@ -376,7 +388,7 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 		*Texture.Source.GetIdString(),
 		*CompositeTextureStr,
 		(uint32)NUM_INLINE_DERIVED_MIPS,
-		(TextureFormat == NULL) ? TEXT("") : *TextureFormat->GetDerivedDataKeyString(BuildSettings)
+		(TextureFormat == NULL) ? TEXT("") : *TextureFormat->GetDerivedDataKeyString(BuildSettings, MipCount, Mip0Dimensions)
 		);
 
 	// Add key data for extra layers beyond the first
@@ -398,7 +410,7 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 		KeyBuilder.Appendf(TEXT("%s%d%s_"),
 			*LayerBuildSettings.TextureFormatName.GetPlainNameString(),
 			LayerVersion,
-			(LayerTextureFormat == NULL) ? TEXT("") : *LayerTextureFormat->GetDerivedDataKeyString(LayerBuildSettings));
+			(LayerTextureFormat == NULL) ? TEXT("") : *LayerTextureFormat->GetDerivedDataKeyString(LayerBuildSettings, MipCount, Mip0Dimensions));
 	}
 
 	if (BuildSettings.bVirtualStreamable)

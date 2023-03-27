@@ -11,7 +11,12 @@ public class TextureFormat : ModuleRules
 				"Core",
 				"ImageCore"
 			}
-			);
+		);
+
+		PrivateIncludePathModuleNames.AddRange(new string[]
+		{
+			"TextureCompressor"
+		});
 
 		//AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTextureTools");
 	}

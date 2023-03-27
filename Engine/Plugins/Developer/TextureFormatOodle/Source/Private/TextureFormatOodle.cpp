@@ -869,7 +869,7 @@ public:
 		return OodleTextureVersionLatest;
 	}
 
-	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings) const override
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const override
 	{
 		// return all parameters that affect our output Texture
 		// so if any of them change, we rebuild

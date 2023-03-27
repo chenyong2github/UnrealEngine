@@ -532,18 +532,18 @@ public:
 		return BASE_ASTC_FORMAT_VERSION;
 	}
 
-	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const override
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const override
 	{
 #if SUPPORTS_ISPC_ASTC
 		if(GASTCCompressor == 0)
 		{
-			return IntelISPCTexCompFormat.GetDerivedDataKeyString(BuildSettings);
+			return IntelISPCTexCompFormat.GetDerivedDataKeyString(InBuildSettings, InMipCount, InMip0Dimensions);
 		}
 #endif
 
 		// ASTC block size chosen is in PixelFormat
-		EPixelFormat PixelFormat = GetQualityFormat(BuildSettings);
-		int Speed = GetDefaultCompressionBySpeedValue(BuildSettings.FormatConfigOverride);
+		EPixelFormat PixelFormat = GetQualityFormat(InBuildSettings);
+		int Speed = GetDefaultCompressionBySpeedValue(InBuildSettings.FormatConfigOverride);
 
  		return FString::Printf(TEXT("ASTC_%d_%d"), (int)PixelFormat,Speed);
 	}

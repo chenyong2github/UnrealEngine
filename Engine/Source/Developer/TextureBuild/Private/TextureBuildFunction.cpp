@@ -473,7 +473,9 @@ void GenericTextureTilingBuildFunction(UE::DerivedData::FBuildContext& Context, 
 		}
 		else
 		{
-			TextureExtendedData = Tiler->GetExtendedDataForTexture(TextureDescription);
+			// If we're in this path we need to have the LODBias delivered to us.
+			FCbObject LODBiasCb = Context.FindConstant(UTF8TEXTVIEW("LODBias"));
+			TextureExtendedData = Tiler->GetExtendedDataForTexture(TextureDescription, LODBiasCb["LODBias"].AsInt8());
 		}
 	}
 

@@ -1783,7 +1783,7 @@ bool DDC1_BuildTiledClassicTexture(
 			check(LinearMipSizes[MipIndex] == TextureDescription.GetMipSizeInBytes(MipIndex));
 		}
 
-		TextureExtendedData = Tiler->GetExtendedDataForTexture(TextureDescription);
+		TextureExtendedData = Tiler->GetExtendedDataForTexture(TextureDescription, LinearSettingsPerLayerFetchOrBuild[0].LODBias);
 		OutputTextureNumStreamingMips = TextureDescription.GetNumStreamingMips(&TextureExtendedData, GenerateTextureEngineParameters());
 
 		for (int32 MipIndex = 0; MipIndex < TextureDescription.NumMips; MipIndex++)
@@ -2851,7 +2851,14 @@ public:
 		{
 			// old style
 			DefinitionBuilder.AddInputBuild(UTF8TEXTVIEW("EncodedTextureDescriptionInput"), { InParentBuildKey, UE::DerivedData::FValueId::FromName(UTF8TEXTVIEW("EncodedTextureDescription")) });			
-			// The tiling build can generate the extended data.
+
+			// The tiling build can generate the extended data - however it needs the LODBias to do so.
+			FCbWriter Writer;
+			Writer.BeginObject();
+			Writer.AddInteger("LODBias", InBuildSettings.LODBias);
+			Writer.EndObject();
+
+			DefinitionBuilder.AddConstant(UTF8TEXTVIEW("LODBias"), Writer.Save().AsObject());
 		}
 		else
 		{

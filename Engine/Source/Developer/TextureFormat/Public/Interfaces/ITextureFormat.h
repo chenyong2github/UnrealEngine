@@ -70,6 +70,12 @@ struct FEncodedTextureExtendedData
 {
 	int32 NumMipsInTail = 0;
 	uint32 ExtData = 0;
+	
+	// If true, this texture might change layouts if top mips are striped (i.e. LODBias is not zero).
+	bool bSensitiveToLODBias = false;
+	
+	// If bSensitiveToLODBias is set, this is the LODBias for this layout.
+	int8 LODBiasIfSensitive = 0;
 
 	// With packing/tiling, mip sizes are not trivially computable. Not that these sizes must NOT be
 	// used for mips prior to tiling. For those, FEncodedTextureDescription::GetMipSizeInBytes().
@@ -188,17 +194,40 @@ struct FEncodedTextureDescription
 		return Slices;
 	}
 
+	int32 GetMipWidth(int32 InMipIndex) const
+	{
+		return FMath::Max(TopMipSizeX >> InMipIndex, 1);
+	}
+	int32 GetMipHeight(int32 InMipIndex) const
+	{
+		return FMath::Max(TopMipSizeY >> InMipIndex, 1);
+	}
+	// Always 1 unless volume texture.
+	int32 GetMipDepth(int32 InMipIndex) const
+	{
+		return bVolumeTexture ? FMath::Max(TopMipVolumeSizeZ >> InMipIndex, 1) : 1;
+	}
+	static int32 GetMipWidth(int32 InTextureWidth, int32 InMipIndex)
+	{
+		return FMath::Max(InTextureWidth >> InMipIndex, 1);
+	}
+	static int32 GetMipHeight(int32 InTextureHeight, int32 InMipIndex)
+	{
+		return FMath::Max(InTextureHeight >> InMipIndex, 1);
+	}
+	static int32 GetMipDepth(int32 InTextureDepth, int32 InMipIndex, bool bInVolumeTexture)
+	{
+		return bInVolumeTexture ? FMath::Max(InTextureDepth >> InMipIndex, 1) : 1;
+	}
+
+
 	// Returns the size of the mip at the given index. Z is 1 unless it's a volume texture.
 	FIntVector3 GetMipDimensions(int32 InMipIndex) const
 	{
 		FIntVector3 Results;
-		Results.X = FMath::Max(TopMipSizeX >> InMipIndex, 1);
-		Results.Y = FMath::Max(TopMipSizeY >> InMipIndex, 1);
-		Results.Z = 1;
-		if (bVolumeTexture)
-		{
-			Results.Z = FMath::Max(TopMipVolumeSizeZ >> InMipIndex, 1);
-		}
+		Results.X = GetMipWidth(InMipIndex);
+		Results.Y = GetMipHeight(InMipIndex);
+		Results.Z = GetMipDepth(InMipIndex);
 		return Results;
 	}
 
@@ -249,8 +278,11 @@ struct FEncodedTextureDescription
 		return NumMips;
 	}
 
+	// Returns the description _for the single mip level_ (i.e. no further mips)
 	FEncodedTextureDescription GetDescriptionForMipLevel(const FEncodedTextureExtendedData* InExtendedData, int32 InMipIndex) const
 	{
+		check(InMipIndex < NumMips);
+
 		FEncodedTextureDescription MipTextureDescription = *this;
 		FIntVector3 TailFirstMipDims = GetMipDimensions(InMipIndex);
 		MipTextureDescription.TopMipSizeX = TailFirstMipDims.X;
@@ -265,6 +297,27 @@ struct FEncodedTextureDescription
 			// We want the layout for the entire tail.
 			MipTextureDescription.NumMips = IntCastChecked<uint8>(InExtendedData->NumMipsInTail);
 		}		
+		return MipTextureDescription;
+	}
+
+	FEncodedTextureDescription RemoveTopMips(const FEncodedTextureExtendedData* InExtendedData, int32 InRemoveCount) const
+	{
+		check(InRemoveCount < NumMips);
+
+		FEncodedTextureDescription MipTextureDescription = *this;
+		FIntVector3 TailFirstMipDims = GetMipDimensions(InRemoveCount);
+		MipTextureDescription.TopMipSizeX = TailFirstMipDims.X;
+		MipTextureDescription.TopMipSizeY = TailFirstMipDims.Y;
+		MipTextureDescription.TopMipVolumeSizeZ = TailFirstMipDims.Z;
+		MipTextureDescription.NumMips = NumMips - InRemoveCount;
+		if (InExtendedData && InExtendedData->NumMipsInTail && InRemoveCount >= NumMips - InExtendedData->NumMipsInTail)
+		{
+			// we must only ever get the first mip tail index!
+			check(InRemoveCount == NumMips - InExtendedData->NumMipsInTail);
+
+			// We want the layout for the entire tail.
+			MipTextureDescription.NumMips = IntCastChecked<uint8>(InExtendedData->NumMipsInTail);
+		}
 		return MipTextureDescription;
 	}
 };
@@ -285,9 +338,9 @@ public:
 	*/
 	
 	/**
-	* Generate and return any out-of-band data that needs to be saved for a given encoded texture description.
+	* Generate and return any out-of-band data that needs to be saved for a given encoded texture description and LODBias.
 	*/
-	virtual FEncodedTextureExtendedData GetExtendedDataForTexture(const FEncodedTextureDescription& InTextureDescription) const = 0;
+	virtual FEncodedTextureExtendedData GetExtendedDataForTexture(const FEncodedTextureDescription& InTextureDescription, int8 InLODBias) const = 0;
 
 	virtual const FUtf8StringView GetBuildFunctionName() const = 0;
 
@@ -359,10 +412,12 @@ public:
 	 * Gets an optional derived data key string, so that the compressor can
 	 * rely upon the number of mips, size of texture, etc, when compressing the image
 	 *
-	 * @param BuildSettings Reference to the build settings we are compressing with.
+	 * @param InBuildSettings Reference to the build settings we are compressing with.
+	 * @param InMipCount Mip count of the physical texture that will be built - 0 for virtual textures.
+ 	 * @param InMip0Dimensions Mip width/height/slices of the physical texture that will be built - 0s for virtual textures.
 	 * @return A string that will be used with the DDC, the string should be in the format "<DATA>_"
 	 */
-	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const
 	{
 		return TEXT("");
 	}
@@ -416,9 +471,10 @@ public:
 
 	/**
 	* Generate and return any out-of-band data that needs to be saved for a given encoded texture description. This is
-	* for textures that have been transformed in some way for a platform.
+	* for textures that have been transformed in some way for a platform. LODBias is needed because in some cases the tiling
+	* changes based on the top mip actually given to the hardware.
 	*/
-	virtual FEncodedTextureExtendedData GetExtendedDataForTexture(const FEncodedTextureDescription& InTextureDescription) const
+	virtual FEncodedTextureExtendedData GetExtendedDataForTexture(const FEncodedTextureDescription& InTextureDescription, int8 InLODBias) const
 	{
 		return FEncodedTextureExtendedData();
 	}

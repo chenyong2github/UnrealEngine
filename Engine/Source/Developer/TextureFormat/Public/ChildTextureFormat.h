@@ -2,8 +2,6 @@
 
 #pragma once
 
-// HEADER_UNIT_SKIP - Bad include TextureCompressorModule.h
-
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
 #include "Interfaces/ITextureFormatManagerModule.h"
@@ -131,9 +129,10 @@ protected:
 	virtual uint8 GetChildFormatVersion(FName Format, const FTextureBuildSettings* BuildSettings) const = 0;
 
 	/**
-	 * Make the child type think about if they need a key string or not, by making it pure virtual
+	 * Make the child type think about if they need a key string or not, by making it pure virtual.
+	 * InMipCount and InMip0Dimensions are only valid for non-virtual textures (VTs should never call this function as they never tile)
 	 */
-	virtual FString GetChildDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const = 0;
+	virtual FString GetChildDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const = 0;
 
 	/**
 	 * Obtains the global format config object for this texture format.
@@ -192,12 +191,12 @@ public:
 		return (BaseVersion << 8) | ChildVersion;
 	}
 
-	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const final
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const final
 	{
-		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(InBuildSettings);
 
-		FString BaseString = GetBaseFormatObject(BuildSettings.TextureFormatName)->GetDerivedDataKeyString(BaseSettings);
-		FString ChildString = GetChildDerivedDataKeyString(BuildSettings);
+		FString BaseString = GetBaseFormatObject(InBuildSettings.TextureFormatName)->GetDerivedDataKeyString(BaseSettings, InMipCount, InMip0Dimensions);
+		FString ChildString = GetChildDerivedDataKeyString(InBuildSettings, InMipCount, InMip0Dimensions);
 
 		return BaseString + ChildString;
 	}
