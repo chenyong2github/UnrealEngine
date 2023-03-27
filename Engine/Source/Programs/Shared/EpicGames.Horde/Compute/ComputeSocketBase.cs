@@ -129,8 +129,23 @@ namespace EpicGames.Horde.Compute
 					else
 					{
 						IComputeBufferWriter writer = await GetReceiveBufferAsync(cachedWriters, id);
-						await transport.ReadFullAsync(writer.GetMemory().Slice(0, size), cancellationToken);
-						writer.Advance(size);
+						for (int offset = 0; offset < size;)
+						{
+							Memory<byte> memory = writer.GetMemory();
+							if (memory.Length == 0)
+							{
+								_logger.LogTrace("No space in buffer {Id}, flushing", id);
+								await writer.FlushAsync(cancellationToken);
+							}
+							else
+							{
+								int maxRead = Math.Min(size - offset, memory.Length);
+								int read = await transport.ReadPartialAsync(memory.Slice(0, maxRead), cancellationToken);
+								writer.Advance(read);
+
+								offset += read;
+							}
+						}
 					}
 				}
 			}
@@ -257,12 +272,8 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public abstract IComputeBuffer CreateBuffer(long capacity);
 
-		/// <summary>
-		/// Registers the write end of an attached receive buffer
-		/// </summary>
-		/// <param name="channelId">Channel id</param>
-		/// <param name="recvBufferWriter">Writer for the receive buffer</param>
-		public void AttachRecvBuffer(int channelId, IComputeBufferWriter recvBufferWriter)
+		/// <inheritdoc/>
+		public ValueTask AttachRecvBufferAsync(int channelId, IComputeBufferWriter recvBufferWriter, CancellationToken cancellationToken)
 		{
 			bool complete;
 			lock (_lockObject)
@@ -285,6 +296,7 @@ namespace EpicGames.Horde.Compute
 					_recvBufferWritersChangedEvent.Set();
 				}
 			}
+			return new ValueTask();
 		}
 
 		void DetachRecvBufferWriter(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
@@ -310,13 +322,15 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="channelId">Channel id</param>
 		/// <param name="sendBufferReader">Writer for the receive buffer</param>
-		public void AttachSendBuffer(int channelId, IComputeBufferReader sendBufferReader)
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public ValueTask AttachSendBufferAsync(int channelId, IComputeBufferReader sendBufferReader, CancellationToken cancellationToken)
 		{
 			lock (_lockObject)
 			{
 				_sendBuffers.Add(channelId, sendBufferReader);
 				_sendTasks.Add(channelId, Task.Run(() => SendFromBufferAsync(channelId, sendBufferReader, _cancellationSource.Token), _cancellationSource.Token));
 			}
+			return new ValueTask();
 		}
 	}
 }

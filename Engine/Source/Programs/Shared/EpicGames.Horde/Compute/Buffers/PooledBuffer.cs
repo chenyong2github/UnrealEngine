@@ -15,12 +15,20 @@ namespace EpicGames.Horde.Compute.Buffers
 		readonly IMemoryOwner<byte> _memoryOwner;
 		readonly Memory<byte> _memory;
 
+		enum State
+		{
+			Normal,
+			ReaderWaitingForData, // Once new data is available, set _readerTcs
+			WriterWaitingToFlush, // Once flush has been complete, set _writerTcs
+			Finished
+		}
+
 		int _readPosition;
 		int _readLength;
 		int _writePosition;
-		bool _finishedWriting;
-		TaskCompletionSource? _writtenTcs;
-		TaskCompletionSource? _flushedTcs;
+		int _state;
+		TaskCompletionSource _readerTcs = new TaskCompletionSource(); // Used when reader is waiting for writer. Reset by the reader.
+		TaskCompletionSource _writerTcs = new TaskCompletionSource(); // Used when writer is waiting for reader. Reset by the writer.
 
 		/// <inheritdoc/>
 		public override long Length => _memory.Length;
@@ -62,16 +70,13 @@ namespace EpicGames.Horde.Compute.Buffers
 		#region Reader
 
 		/// <inheritdoc/>
-		public override bool FinishedReading() => _finishedWriting && GetInterlockedReadLength() == 0;
+		public override bool FinishedReading() => (State)_state == State.Finished && GetInterlockedReadLength() == 0;
 
 		/// <inheritdoc/>
 		public override void AdvanceReadPosition(int size)
 		{
 			_readPosition += size;
-			if (Interlocked.Add(ref _readLength, -size) == 0)
-			{
-				_flushedTcs?.TrySetResult();
-			}
+			Interlocked.Add(ref _readLength, -size);
 		}
 
 		/// <inheritdoc/>
@@ -80,34 +85,44 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <inheritdoc/>
 		public override async ValueTask WaitForDataAsync(int currentLength, CancellationToken cancellationToken)
 		{
-			// Early out if we're already past this
-			if (_finishedWriting || GetInterlockedReadLength() != currentLength)
+			try
 			{
-				return;
-			}
-
-			TaskCompletionSource tcs = new TaskCompletionSource();
-			using (IDisposable registration = cancellationToken.Register(x => tcs.SetCanceled((CancellationToken)x!), cancellationToken))
-			{
-				try
+				while (GetInterlockedReadLength() == currentLength)
 				{
-					_writtenTcs = tcs;
-					for (; ; )
+					int state = _state;
+					if (state == (int)State.Finished)
 					{
-						if (_finishedWriting || GetInterlockedReadLength() != currentLength)
-						{
-							break;
-						}
-						else
-						{
-							await _writtenTcs.Task;
-						}
+						break;
 					}
+					else if (state == (int)State.Normal)
+					{
+						TaskCompletionSource readerTcs = _readerTcs;
+						if (readerTcs.Task.IsCompleted)
+						{
+							Interlocked.CompareExchange(ref _readerTcs, new TaskCompletionSource(), readerTcs);
+						}
+						Interlocked.CompareExchange(ref _state, (int)State.ReaderWaitingForData, state);
+					}
+					else if (state == (int)State.ReaderWaitingForData)
+					{
+						await _readerTcs.Task.WaitAsync(cancellationToken);
+					}
+					else if (state == (int)State.WriterWaitingToFlush)
+					{
+						Compact();
+						Interlocked.CompareExchange(ref _state, (int)State.Normal, state);
+						_writerTcs.TrySetResult();
+					}
+					else
+					{
+						throw new NotImplementedException();
+					}
+					cancellationToken.ThrowIfCancellationRequested();
 				}
-				finally
-				{
-					_writtenTcs = null;
-				}
+			}
+			finally
+			{
+				Interlocked.CompareExchange(ref _state, (int)State.Normal, (int)State.ReaderWaitingForData);
 			}
 		}
 
@@ -118,14 +133,21 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <inheritdoc/>
 		public override void FinishWriting()
 		{
-			_finishedWriting = true;
-			_writtenTcs?.TrySetResult();
+			for (; ; )
+			{
+				int state = _state;
+				if (Interlocked.CompareExchange(ref _state, (int)State.Finished, state) == state)
+				{
+					_readerTcs.TrySetResult();
+					break;
+				}
+			}
 		}
 
 		/// <inheritdoc/>
 		public override void AdvanceWritePosition(int size)
 		{
-			if (_finishedWriting)
+			if (_state == (int)State.Finished)
 			{
 				throw new InvalidOperationException("Cannot update write position after marking as complete");
 			}
@@ -133,39 +155,61 @@ namespace EpicGames.Horde.Compute.Buffers
 			_writePosition += size;
 			Interlocked.Add(ref _readLength, size);
 
-			_writtenTcs?.TrySetResult();
+			if (Interlocked.CompareExchange(ref _state, (int)State.Normal, (int)State.ReaderWaitingForData) == (int)State.ReaderWaitingForData)
+			{
+				_readerTcs.TrySetResult();
+			}
 		}
 
 		/// <inheritdoc/>
 		public override Memory<byte> GetWriteMemory()
 		{
-			if (GetInterlockedReadLength() == 0)
-			{
-				_readPosition = 0;
-				_writePosition = 0;
-			}
 			return _memory.Slice(_writePosition);
 		}
 
 		/// <inheritdoc/>
-		public override async ValueTask FlushWritesAsync(CancellationToken cancellationToken)
+		public override async ValueTask FlushAsync(CancellationToken cancellationToken)
 		{
-			if (GetInterlockedReadLength() != 0)
+			try
 			{
-				TaskCompletionSource tcs = new TaskCompletionSource();
-				using (_ = cancellationToken.Register(x => tcs.SetCanceled((CancellationToken)x!), cancellationToken, false))
+				while (_readPosition > 0)
 				{
-					TaskCompletionSource? originalTcs = Interlocked.CompareExchange(ref _flushedTcs, tcs, null);
-					if (originalTcs != null)
+					int state = _state;
+					if (state == (int)State.Finished)
 					{
-						_ = originalTcs.Task.ContinueWith(x => tcs.TrySetResult(), cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
+						break;
+					}
+					else if (state == (int)State.Normal)
+					{
+						TaskCompletionSource writerTcs = _writerTcs;
+						if (writerTcs.Task.IsCompleted)
+						{
+							Interlocked.CompareExchange(ref _writerTcs, new TaskCompletionSource(), writerTcs);
+						}
+						Interlocked.CompareExchange(ref _state, (int)State.WriterWaitingToFlush, state);
+					}
+					else if (state == (int)State.ReaderWaitingForData)
+					{
+						Compact();
+						break;
+					}
+					else if (state == (int)State.WriterWaitingToFlush)
+					{
+						await _writerTcs.Task.WaitAsync(cancellationToken);
 					}
 				}
-				if (GetInterlockedReadLength() != 0)
-				{
-					await tcs.Task;
-				}
 			}
+			finally
+			{
+				Interlocked.CompareExchange(ref _state, (int)State.Normal, (int)State.WriterWaitingToFlush);
+			}
+		}
+
+		void Compact()
+		{
+			_memory.Slice(_readPosition, _readLength).CopyTo(_memory);
+			_readPosition = 0;
+			_writePosition = _readLength;
 		}
 
 		#endregion

@@ -24,8 +24,9 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="type">Type of the message</param>
 		/// <param name="maxSize">Maximum size of the message that will be written</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>New builder for messages</returns>
-		IComputeMessageBuilder CreateMessage(ComputeMessageType type, int maxSize = 1024);
+		ValueTask<IComputeMessageBuilder> CreateMessageAsync(ComputeMessageType type, int maxSize, CancellationToken cancellationToken);
 	}
 
 	/// <summary>
@@ -45,13 +46,26 @@ namespace EpicGames.Horde.Compute
 	public static class ComputeChannelExtensions
 	{
 		/// <summary>
+		/// Creates a new builder for a message
+		/// </summary>
+		/// <param name="channel">Channel to send on</param>
+		/// <param name="type">Type of the message</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New builder for messages</returns>
+		public static ValueTask<IComputeMessageBuilder> CreateMessageAsync(this IComputeMessageChannel channel, ComputeMessageType type, CancellationToken cancellationToken)
+		{
+			return channel.CreateMessageAsync(type, 1024, cancellationToken);
+		}
+
+		/// <summary>
 		/// Forwards an existing message across a channel
 		/// </summary>
 		/// <param name="channel">Channel to send on</param>
 		/// <param name="message">The message to be sent</param>
-		public static void Send(this IComputeMessageChannel channel, IComputeMessage message)
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async ValueTask SendAsync(this IComputeMessageChannel channel, IComputeMessage message, CancellationToken cancellationToken)
 		{
-			using (IComputeMessageBuilder builder = channel.CreateMessage(message.Type, message.Data.Length))
+			using (IComputeMessageBuilder builder = await channel.CreateMessageAsync(message.Type, message.Data.Length, cancellationToken))
 			{
 				builder.WriteFixedLengthBytes(message.Data.Span);
 				builder.Send();

@@ -83,7 +83,7 @@ namespace EpicGames.Horde.Compute
 			public Memory<byte> GetMemory() => _buffer.GetWriteMemory();
 
 			/// <inheritdoc/>
-			public ValueTask FlushAsync(CancellationToken cancellationToken) => _buffer.FlushWritesAsync(cancellationToken);
+			public ValueTask FlushAsync(CancellationToken cancellationToken) => _buffer.FlushAsync(cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -148,7 +148,7 @@ namespace EpicGames.Horde.Compute
 		public abstract Memory<byte> GetWriteMemory();
 
 		/// <inheritdoc cref="IComputeBufferWriter.FlushAsync(CancellationToken)"/>
-		public abstract ValueTask FlushWritesAsync(CancellationToken cancellationToken);
+		public abstract ValueTask FlushAsync(CancellationToken cancellationToken);
 
 		#endregion
 	}

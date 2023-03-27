@@ -41,7 +41,7 @@ namespace RemoteClient
 
 			// Create a message channel on channel id 0. The Horde Agent always listens on this channel for requests.
 			const int ControlChannelId = 0;
-			await using IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(ControlChannelId, 30 * 1024 * 1024, logger);
+			await using IComputeMessageChannel channel = await lease.Socket.CreateMessageChannelAsync(ControlChannelId, 4 * 1024 * 1024, logger, cancellationToken);
 
 			// Upload the sandbox
 			MemoryStorageClient storage = new MemoryStorageClient();
@@ -58,7 +58,7 @@ namespace RemoteClient
 
 			// Generate data into a buffer attached to channel 1. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
 			const int DataChannelId = 1;
-			using (IComputeBufferWriter writer = lease.Socket.AttachSendBuffer(DataChannelId, 1024 * 1024))
+			using (IComputeBufferWriter writer = await lease.Socket.AttachSendBufferAsync(DataChannelId, 1024 * 1024, cancellationToken))
 			{
 				for (int idx = 0; idx < 100; idx++)
 				{

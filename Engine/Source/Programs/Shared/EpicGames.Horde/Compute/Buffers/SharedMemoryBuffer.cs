@@ -6,7 +6,6 @@ using Microsoft.Win32.SafeHandles;
 using System.IO.MemoryMappedFiles;
 using System.Reflection;
 using System.IO;
-using System.Buffers.Binary;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Linq;
@@ -22,9 +21,17 @@ namespace EpicGames.Horde.Compute.Buffers
 	{
 		const int HeaderLength = 32;
 
+		enum State
+		{
+			Normal,
+			ReaderWaitingForData, // Once new data is available, set _readerTcs
+			WriterWaitingToFlush, // Once flush has been complete, set _writerTcs
+			Finished
+		}
+
 		sealed unsafe class Header
 		{
-			readonly byte* _finishedWritingPtr;
+			readonly int* _statePtr;
 			readonly long* _readPositionPtr;
 			readonly long* _readLengthPtr;
 			readonly long* _writePositionPtr;
@@ -32,7 +39,7 @@ namespace EpicGames.Horde.Compute.Buffers
 			public Header(MemoryMappedView view)
 			{
 				byte* basePtr = view.GetPointer();
-				_finishedWritingPtr = basePtr;
+				_statePtr = (int*)basePtr;
 
 				long* nextPtr = (long*)basePtr + 1;
 				_readPositionPtr = nextPtr++;
@@ -40,24 +47,22 @@ namespace EpicGames.Horde.Compute.Buffers
 				_writePositionPtr = nextPtr++;
 			}
 
-			public bool FinishedWriting => *_finishedWritingPtr != 0;
-
+			public State State => (State)Interlocked.CompareExchange(ref *_statePtr, 0, 0);
 			public long ReadPosition => Interlocked.Read(ref *_readPositionPtr);
 			public long ReadLength => Interlocked.Read(ref *_readLengthPtr);
 			public long WritePosition => Interlocked.Read(ref *_writePositionPtr);
 
-			public void TryReset()
+			public void Compact()
 			{
-				if (ReadLength == 0)
-				{
-					Interlocked.Exchange(ref *_writePositionPtr, 0);
-					Interlocked.Exchange(ref *_readPositionPtr, 0);
-				}
+				Interlocked.Exchange(ref *_readPositionPtr, 0);
+				Interlocked.Exchange(ref *_writePositionPtr, ReadLength);
 			}
+
+			public bool UpdateState(State oldState, State newState) => Interlocked.CompareExchange(ref *_statePtr, (int)newState, (int)oldState) == (int)oldState;
 
 			public void FinishWriting()
 			{
-				*_finishedWritingPtr = 1;
+				*_statePtr = (int)State.Finished;
 			}
 
 			public long AdvanceReadPosition(long value)
@@ -83,8 +88,8 @@ namespace EpicGames.Horde.Compute.Buffers
 		readonly Memory<byte> _memory; // TODO: DEPRECATE
 		readonly Memory<byte>[] _chunks;
 
-		readonly Native.EventHandle _writtenEvent;
-		readonly Native.EventHandle _flushedEvent;
+		readonly Native.EventHandle _readerEvent;
+		readonly Native.EventHandle _writerEvent;
 
 		/// <inheritdoc/>
 		public override long Length => _length;
@@ -116,8 +121,8 @@ namespace EpicGames.Horde.Compute.Buffers
 			_memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
 			_memoryMappedView = new MemoryMappedView(_memoryMappedViewAccessor);
 
-			_writtenEvent = writtenEvent;
-			_flushedEvent = flushedEvent;
+			_readerEvent = writtenEvent;
+			_writerEvent = flushedEvent;
 
 			_header = new Header(_memoryMappedView);
 			_length = _memoryMappedViewAccessor.Capacity;
@@ -183,8 +188,8 @@ namespace EpicGames.Horde.Compute.Buffers
 		public string GetIpcHandle()
 		{
 			IntPtr memoryHandle = _memoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle();
-			IntPtr writtenEventHandle = _writtenEvent.SafeWaitHandle.DangerousGetHandle();
-			IntPtr flushedEventHandle = _flushedEvent.SafeWaitHandle.DangerousGetHandle();
+			IntPtr writtenEventHandle = _readerEvent.SafeWaitHandle.DangerousGetHandle();
+			IntPtr flushedEventHandle = _writerEvent.SafeWaitHandle.DangerousGetHandle();
 			return GetIpcHandle(memoryHandle, writtenEventHandle, flushedEventHandle);
 		}
 
@@ -204,13 +209,13 @@ namespace EpicGames.Horde.Compute.Buffers
 			}
 
 			IntPtr targetWrittenEventHandle;
-			if (!Native.DuplicateHandle(sourceProcessHandle, _writtenEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetWrittenEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
+			if (!Native.DuplicateHandle(sourceProcessHandle, _readerEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetWrittenEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
 			{
 				throw new Win32Exception();
 			}
 
 			IntPtr targetFlushedEventHandle;
-			if(!Native.DuplicateHandle(sourceProcessHandle, _flushedEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetFlushedEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
+			if(!Native.DuplicateHandle(sourceProcessHandle, _writerEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetFlushedEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
 			{
 				throw new Win32Exception();
 			}
@@ -230,8 +235,8 @@ namespace EpicGames.Horde.Compute.Buffers
 
 			if (disposing)
 			{
-				_flushedEvent.Dispose();
-				_writtenEvent.Dispose();
+				_writerEvent.Dispose();
+				_readerEvent.Dispose();
 				_memoryMappedView.Dispose();
 				_memoryMappedViewAccessor.Dispose();
 				_memoryMappedFile.Dispose();
@@ -249,14 +254,14 @@ namespace EpicGames.Horde.Compute.Buffers
 		#region Reader
 
 		/// <inheritdoc/>
-		public override bool FinishedReading() => _header.FinishedWriting && _header.ReadLength == 0;
+		public override bool FinishedReading() => _header.State == State.Finished && _header.ReadLength == 0;
 
 		/// <inheritdoc/>
 		public override void AdvanceReadPosition(int size)
 		{
 			if (_header.AdvanceReadPosition(size) == 0)
 			{
-				_flushedEvent.Set();
+				_writerEvent.Set();
 			}
 		}
 
@@ -269,16 +274,40 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <inheritdoc/>
 		public override async ValueTask WaitForDataAsync(int currentLength, CancellationToken cancellationToken)
 		{
-			for (; ; )
+			try
 			{
-				if (_header.FinishedWriting || _header.ReadLength > currentLength)
+				while (_header.ReadLength == currentLength)
 				{
-					return;
+					State state = _header.State;
+					if (state == State.Finished)
+					{
+						break;
+					}
+					else if (state == State.Normal)
+					{
+						_readerEvent.Reset();
+						_header.UpdateState(state, State.ReaderWaitingForData);
+					}
+					else if (state == State.ReaderWaitingForData)
+					{
+						await _readerEvent.WaitOneAsync(cancellationToken);
+					}
+					else if (state == State.WriterWaitingToFlush)
+					{
+						_header.Compact();
+						_header.UpdateState(state, State.Normal);
+						_writerEvent.Set();
+					}
+					else
+					{
+						throw new NotImplementedException();
+					}
+					cancellationToken.ThrowIfCancellationRequested();
 				}
-				else
-				{
-					await _writtenEvent.WaitOneAsync(cancellationToken);
-				}
+			}
+			finally
+			{
+				_header.UpdateState(State.ReaderWaitingForData, State.Normal);
 			}
 		}
 
@@ -290,36 +319,60 @@ namespace EpicGames.Horde.Compute.Buffers
 		public override void FinishWriting()
 		{
 			_header.FinishWriting();
-			_writtenEvent.Set();
+			_readerEvent.Set();
 		}
 
 		/// <inheritdoc/>
 		public override void AdvanceWritePosition(int size)
 		{
-			if (_header.FinishedWriting)
+			if (_header.State == State.Finished)
 			{
 				throw new InvalidOperationException("Cannot update write position after marking as complete");
 			}
 
 			_header.AdvanceWritePosition(size);
-			_writtenEvent.Set();
-		}
 
-		/// <inheritdoc/>
-		public override Memory<byte> GetWriteMemory()
-		{
-			_header.TryReset();
-			return _memory.Slice((int)_header.WritePosition);
-		}
-
-		/// <inheritdoc/>
-		public override async ValueTask FlushWritesAsync(CancellationToken cancellationToken)
-		{
-			while (_header.ReadLength > 0)
+			if (_header.UpdateState(State.ReaderWaitingForData, State.Normal))
 			{
-				await _flushedEvent.WaitOneAsync(cancellationToken);
+				_readerEvent.Set();
 			}
-			_header.TryReset();
+		}
+
+		/// <inheritdoc/>
+		public override Memory<byte> GetWriteMemory() => _memory.Slice((int)_header.WritePosition);
+
+		/// <inheritdoc/>
+		public override async ValueTask FlushAsync(CancellationToken cancellationToken)
+		{
+			try
+			{
+				while (_header.ReadPosition > 0)
+				{
+					State state = _header.State;
+					if (state == State.Finished)
+					{
+						break;
+					}
+					else if (state == State.Normal)
+					{
+						_writerEvent.Reset();
+						_header.UpdateState(state, State.WriterWaitingToFlush);
+					}
+					else if (state == State.ReaderWaitingForData)
+					{
+						_header.Compact();
+						break;
+					}
+					else if (state == State.WriterWaitingToFlush)
+					{
+						await _writerEvent.WaitOneAsync(cancellationToken);
+					}
+				}
+			}
+			finally
+			{
+				_header.UpdateState(State.WriterWaitingToFlush, State.Normal);
+			}
 		}
 
 		#endregion

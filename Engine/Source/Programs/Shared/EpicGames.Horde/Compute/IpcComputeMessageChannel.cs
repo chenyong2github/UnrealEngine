@@ -2,6 +2,7 @@
 
 using System;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute.Buffers;
@@ -90,11 +91,11 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Registers a receive buffer with the agent process
 		/// </summary>
-		public void AttachRecvBuffer(int channelId, SharedMemoryBuffer buffer)
+		public async ValueTask AttachRecvBufferAsync(int channelId, SharedMemoryBuffer buffer, CancellationToken cancellationToken)
 		{
 			string handle = buffer.GetIpcHandle(_parentProcessHandle);
 
-			using IComputeMessageBuilder message = CreateMessage(ComputeMessageType.AttachRecvBuffer, handle.Length + 20);
+			using IComputeMessageBuilder message = await CreateMessageAsync(ComputeMessageType.AttachRecvBuffer, handle.Length + 20, cancellationToken);
 			message.WriteInt32(channelId);
 			message.WriteString(handle);
 			message.Send();
@@ -113,11 +114,11 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Registers a send buffer with the agent process
 		/// </summary>
-		public void AttachSendBuffer(int channelId, SharedMemoryBuffer buffer)
+		public async ValueTask AttachSendBufferAsync(int channelId, SharedMemoryBuffer buffer, CancellationToken cancellationToken)
 		{
 			string handle = buffer.GetIpcHandle(_parentProcessHandle);
 
-			using IComputeMessageBuilder message = CreateMessage(ComputeMessageType.AttachSendBuffer, handle.Length + 20);
+			using IComputeMessageBuilder message = await CreateMessageAsync(ComputeMessageType.AttachSendBuffer, handle.Length + 20, cancellationToken);
 			message.WriteInt32(channelId);
 			message.WriteString(handle);
 			message.Send();

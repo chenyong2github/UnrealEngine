@@ -169,6 +169,10 @@ namespace EpicGames.Horde.Compute
 						_receiveBufferReader.Advance(HeaderLength + length);
 						return message;
 					}
+					if (_receiveBufferReader.Buffer.Length < HeaderLength + length)
+					{
+						throw new Exception($"Receive buffer is too small for message; size is {_receiveBufferReader.Buffer.Length}, need {HeaderLength + length}");
+					}
 				}
 				await _receiveBufferReader.WaitForDataAsync(memory.Length, cancellationToken);
 			}
@@ -190,21 +194,32 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public IComputeMessageBuilder CreateMessage(ComputeMessageType type, int maxSize)
+		public async ValueTask<IComputeMessageBuilder> CreateMessageAsync(ComputeMessageType type, int maxSize, CancellationToken cancellationToken)
 		{
 			if (_currentBuilder != null)
 			{
 				throw new InvalidOperationException("Only one writer can be active at a time. Dispose of the previous writer first.");
 			}
 
-			Memory<byte> memory = _sendBufferWriter.GetMemory();
-			if (memory.Length < maxSize)
+			for(; ;)
 			{
-				throw new ComputeInternalException($"Insufficient space in buffer to write message of {maxSize} bytes; only {memory.Length} remaining");
-			}
+				Memory<byte> memory = _sendBufferWriter.GetMemory();
+				if (memory.Length >= maxSize)
+				{
+					_currentBuilder = new MessageBuilder(this, _sendBufferWriter, type);
+					return _currentBuilder;
+				}
 
-			_currentBuilder = new MessageBuilder(this, _sendBufferWriter, type);
-			return _currentBuilder;
+				long totalLength = _sendBufferWriter.Buffer.Length;
+				if (totalLength < maxSize)
+				{
+					throw new ComputeInternalException($"Insufficient space in buffer to write message of {maxSize} bytes; buffer only has {totalLength} remaining");
+				}
+				else
+				{
+					await _sendBufferWriter.FlushAsync(cancellationToken);
+				}
+			}
 		}
 	}
 }

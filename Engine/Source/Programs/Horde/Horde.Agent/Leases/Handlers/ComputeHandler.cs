@@ -84,7 +84,7 @@ namespace Horde.Agent.Leases.Handlers
 
 		async Task RunAsync(IComputeSocket socket, int channelId, CancellationToken cancellationToken)
 		{
-			await using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, 30 * 1024 * 1024, _logger))
+			await using (IComputeMessageChannel channel = await socket.CreateMessageChannelAsync(channelId, 4 * 1024 * 1024, _logger, cancellationToken))
 			{
 				List<Task> childTasks = new List<Task>();
 				for (; ; )
@@ -124,7 +124,7 @@ namespace Horde.Agent.Leases.Handlers
 						case ComputeMessageType.XorRequest:
 							{
 								XorRequestMessage xorRequest = message.AsXorRequest();
-								RunXor(channel, xorRequest.Data, xorRequest.Value);
+								await RunXor(channel, xorRequest.Data, xorRequest.Value, cancellationToken);
 							}
 							break;
 						default:
@@ -134,9 +134,9 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-		static void RunXor(IComputeMessageChannel channel, ReadOnlyMemory<byte> source, byte value)
+		static async ValueTask RunXor(IComputeMessageChannel channel, ReadOnlyMemory<byte> source, byte value, CancellationToken cancellationToken)
 		{
-			using IComputeMessageBuilder response = channel.CreateMessage(ComputeMessageType.XorResponse, source.Length);
+			using IComputeMessageBuilder response = await channel.CreateMessageAsync(ComputeMessageType.XorResponse, source.Length, cancellationToken);
 			XorData(source.Span, response.GetSpanAndAdvance(source.Length), value);
 			response.Send();
 		}
@@ -164,7 +164,7 @@ namespace Horde.Agent.Leases.Handlers
 
 			await directoryNode.CopyToDirectoryAsync(reader, outputDir.ToDirectoryInfo(), _logger, cancellationToken);
 
-			using (IComputeMessageBuilder message = channel.CreateMessage(ComputeMessageType.WriteFilesResponse))
+			using (IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.WriteFilesResponse, cancellationToken))
 			{
 				message.Send();
 			}
@@ -228,7 +228,7 @@ namespace Horde.Agent.Leases.Handlers
 #pragma warning disable CA2000 // Dispose objects before losing scope
 								(IComputeBufferReader reader, IComputeBufferWriter writer) = SharedMemoryBuffer.OpenIpcHandle(attachRecvBuffer.Handle).ToShared();
 								reader.Dispose();
-								socket.AttachRecvBuffer(attachRecvBuffer.ChannelId, writer);
+								await socket.AttachRecvBufferAsync(attachRecvBuffer.ChannelId, writer, cancellationToken);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 							}
 							break;
@@ -238,7 +238,7 @@ namespace Horde.Agent.Leases.Handlers
 #pragma warning disable CA2000 // Dispose objects before losing scope
 								(IComputeBufferReader reader, IComputeBufferWriter writer) = SharedMemoryBuffer.OpenIpcHandle(attachSendBuffer.Handle).ToShared();
 								writer.Dispose();
-								socket.AttachSendBuffer(attachSendBuffer.ChannelId, reader);
+								await socket.AttachSendBufferAsync(attachSendBuffer.ChannelId, reader, cancellationToken);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 							}
 							break;
@@ -288,10 +288,10 @@ namespace Horde.Agent.Leases.Handlers
 						int length = await process.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
 						if (length == 0)
 						{
-							channel.SendExecuteResult(process.ExitCode);
+							await channel.SendExecuteResultAsync(process.ExitCode, cancellationToken);
 							return;
 						}
-						channel.SendExecuteOutput(buffer.AsMemory(0, length));
+						await channel.SendExecuteOutputAsync(buffer.AsMemory(0, length), cancellationToken);
 					}
 				}
 			}

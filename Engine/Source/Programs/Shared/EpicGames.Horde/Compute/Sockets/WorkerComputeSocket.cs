@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Compute.Buffers;
 using Microsoft.Extensions.Logging;
@@ -30,18 +31,18 @@ namespace EpicGames.Horde.Compute.Sockets
 		public IComputeBuffer CreateBuffer(long capacity) => new SharedMemoryBuffer(capacity);
 
 		/// <inheritdoc/>
-		public void AttachRecvBuffer(int channelId, IComputeBufferWriter writer)
+		public async ValueTask AttachRecvBufferAsync(int channelId, IComputeBufferWriter writer, CancellationToken cancellationToken)
 		{
 			SharedMemoryBuffer buffer = (SharedMemoryBuffer)writer.Buffer;
-			_ipcMessageChannel.AttachRecvBuffer(channelId, buffer);
+			await _ipcMessageChannel.AttachRecvBufferAsync(channelId, buffer, cancellationToken);
 			_logger.LogTrace("Attached recv buffer to channel {ChannelId}", channelId);
 		}
 
 		/// <inheritdoc/>
-		public void AttachSendBuffer(int channelId, IComputeBufferReader reader)
+		public async ValueTask AttachSendBufferAsync(int channelId, IComputeBufferReader reader, CancellationToken cancellationToken)
 		{
 			SharedMemoryBuffer buffer = (SharedMemoryBuffer)reader.Buffer;
-			_ipcMessageChannel.AttachSendBuffer(channelId, buffer);
+			await _ipcMessageChannel.AttachSendBufferAsync(channelId, buffer, cancellationToken);
 			_logger.LogTrace("Attached send buffer to channel {ChannelId}", channelId);
 		}
 	}
