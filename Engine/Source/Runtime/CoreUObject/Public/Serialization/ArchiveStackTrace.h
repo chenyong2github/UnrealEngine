@@ -244,6 +244,8 @@ public:
 		const FArchiveDiffMap* InDiffMap = nullptr,
 		int64 InDiffMapStartOffset = 0);
 
+	virtual ~FArchiveStackTraceWriter() override;
+
 	FORCENOINLINE virtual void Serialize(void* Data, int64 Length) override; // FORCENOINLINE so it can be counted during StackTrace
 	virtual void SetSerializeContext(FUObjectSerializeContext* Context) override;
 	virtual FUObjectSerializeContext* GetSerializeContext() override;

@@ -428,6 +428,8 @@ FArchiveStackTraceWriter::FArchiveStackTraceWriter(
 {
 }
 
+FArchiveStackTraceWriter::~FArchiveStackTraceWriter() = default;
+
 void FArchiveStackTraceWriter::Serialize(void* Data, int64 Length)
 {
 	static struct FBreakAtOffsetSettings
