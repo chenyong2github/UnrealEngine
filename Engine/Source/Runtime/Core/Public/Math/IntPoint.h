@@ -93,6 +93,14 @@ struct TIntPoint
 	{
 	}
 
+	// Workaround for clang deprecation warnings for deprecated XY member in implicitly-defined special member functions
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TIntPoint(TIntPoint&&) = default;
+	TIntPoint(const TIntPoint&) = default;
+	TIntPoint& operator=(TIntPoint&&) = default;
+	TIntPoint& operator=(const TIntPoint&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/**
 	 * Get specific component of a point.
 	 *
@@ -221,20 +229,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		X /= Other.X;
 		Y /= Other.Y;
-
-		return *this;
-	}
-
-	/**
-	 * Assign another point to this one.
-	 *
-	 * @param Other The point to assign this point from.
-	 * @return Reference to this point after assignment.
-	 */
-	TIntPoint& operator=(const TIntPoint& Other)
-	{
-		X = Other.X;
-		Y = Other.Y;
 
 		return *this;
 	}

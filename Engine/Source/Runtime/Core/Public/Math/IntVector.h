@@ -107,6 +107,14 @@ struct TIntVector3
 	{
 	}
 
+	// Workaround for clang deprecation warnings for deprecated XYZ member in implicitly-defined special member functions
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TIntVector3(TIntVector3&&) = default;
+	TIntVector3(const TIntVector3&) = default;
+	TIntVector3& operator=(TIntVector3&&) = default;
+	TIntVector3& operator=(const TIntVector3&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/**
 	 * Gets specific component of a point.
 	 *
@@ -603,6 +611,14 @@ struct TIntVector2
 	{
 	}
 
+	// Workaround for clang deprecation warnings for deprecated XY member in implicitly-defined special member functions
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TIntVector2(TIntVector2&&) = default;
+	TIntVector2(const TIntVector2&) = default;
+	TIntVector2& operator=(TIntVector2&&) = default;
+	TIntVector2& operator=(const TIntVector2&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	const IntType& operator[](int32 ComponentIndex) const
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -712,6 +728,14 @@ struct TIntVector4
 		, W(IntCastChecked<IntType>(Other.W))
 	{
 	}
+
+	// Workaround for clang deprecation warnings for deprecated XYZW member in implicitly-defined special member functions
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TIntVector4(TIntVector4&&) = default;
+	TIntVector4(const TIntVector4&) = default;
+	TIntVector4& operator=(TIntVector4&&) = default;
+	TIntVector4& operator=(const TIntVector4&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Gets specific component of a point.
@@ -879,22 +903,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Y -= Other.Y;
 		Z -= Other.Z;
 		W -= Other.W;
-
-		return *this;
-	}
-
-	/**
-	 * Assigns another point to this one.
-	 *
-	 * @param Other The point to assign this point from.
-	 * @return Reference to this point after assignment.
-	 */
-	TIntVector4& operator=(const TIntVector4& Other)
-	{
-		X = Other.X;
-		Y = Other.Y;
-		Z = Other.Z;
-		W = Other.W;
 
 		return *this;
 	}
