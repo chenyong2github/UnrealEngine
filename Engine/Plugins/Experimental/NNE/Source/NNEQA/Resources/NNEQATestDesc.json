@@ -65,8 +65,7 @@
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
 					],
-					"absolute_tolerance": 1e-4,
-					"skip": true, "comment": "Not working yet"
+					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m02",
@@ -87,59 +86,45 @@
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
 					],
-					"absolute_tolerance": 1e-4,
-					"skip": true, "comment": "Not working yet"
+					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m05",
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
 					],
-					"absolute_tolerance": 1e-4,
-					"skip": true, "comment": "Not working yet"
+					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m06",
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
 					],
-					"absolute_tolerance": 1e-4,
-					"skip": true, "comment": "Not working yet"
+					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m07",
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
 					],
-					"absolute_tolerance": 1e-4,
-					"skip": true, "comment": "Not working yet"
+					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m08",
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
 					],
-					"absolute_tolerance": 1e-4,
-					"skip": true, "comment": "Not working yet"
+					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m09",
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
 					],
-					"absolute_tolerance": 1e-4,
-					"skip": true, "comment": "Not working yet"
+					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m10",
-					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
-					],
-					"absolute_tolerance": 1e-4,
-					"skip": true, "comment": "Not working yet"
-				},
-				{
-					"target": "hs_m11",
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
 					],
@@ -168,6 +153,10 @@
 					"runtimes": [
 						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
 					]
+				},
+				{
+					"target": "ConstOutput",
+					"comment": "Model contain a 2nd output (Y1) constant from an initializer."
 				}
 			]
 		},
@@ -396,9 +385,6 @@
 		},
 		{
 			"category": "Identity",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml", "skip": true },
-			],
 			"targets": [
 				{ "target": "Identity" }
 			]

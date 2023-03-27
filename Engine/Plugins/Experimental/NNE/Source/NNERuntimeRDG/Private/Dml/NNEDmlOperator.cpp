@@ -389,6 +389,16 @@ bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const 
 	BuffDesc.Strides = nullptr;
 	BuffDesc.TotalTensorSizeInBytes = Tensor.GetDataSize(); // DmlUtil::CalculateBufferSize(DmlTensorDesc, Tensor);
 
+	static DmlUtil::FSmallUIntArray ScalarShape({ 1 });
+
+	//Handle scalar tensors
+	if (Tensor.GetShape().Rank() == 0)
+	{
+		BuffDesc.DimensionCount = ScalarShape.Num();
+		DmlTensorDesc.Sizes = ScalarShape;
+		BuffDesc.Sizes = ScalarShape.GetData();
+	}
+
 	DmlTensorDesc.Desc = DML_TENSOR_DESC{ DML_TENSOR_TYPE_BUFFER, &DmlTensorDesc.BuffDesc };
 
 	return true;
