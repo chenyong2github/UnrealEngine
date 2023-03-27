@@ -229,7 +229,8 @@ bool UMVVMView::SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyF
 		return false;
 	}
 
-	const FMVVMViewClass_SourceCreator& SourceCreator = ClassExtension->GetViewModelCreators()[AllCreatedSourcesIndex];
+	const TArrayView<const FMVVMViewClass_SourceCreator> ViewModelCreators = ClassExtension->GetViewModelCreators();
+	const FMVVMViewClass_SourceCreator& SourceCreator = ViewModelCreators[AllCreatedSourcesIndex];
 
 	if (bForDynamicSource && !SourceCreator.CanBeEvaluated())
 	{
