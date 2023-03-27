@@ -328,7 +328,7 @@ void FOutputLogModule::CloseDebugConsole()
 void FOutputLogModule::ClearOnPIE(const bool bIsSimulating)
 {
 	bool bClearOnPIEEnabled = false;
-	GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), bClearOnPIEEnabled, GEditorPerProjectIni);
+	GConfig->GetBool(TEXT("/Script/OutputLog.OutputLogSettings"), TEXT("bEnableOutputLogClearOnPIE"), bClearOnPIEEnabled, GEditorPerProjectIni);
 
 	if (bClearOnPIEEnabled)
 	{
