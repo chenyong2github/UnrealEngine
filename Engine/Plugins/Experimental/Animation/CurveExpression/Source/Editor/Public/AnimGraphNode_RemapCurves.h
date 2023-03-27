@@ -1,19 +1,20 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
-#include "AnimGraphNode_Base.h"
+#include "AnimNode_RemapCurves.h"
 
-#include "AnimNode_RemapCurvesFromMesh.h"
+#include "AnimGraphNode_Base.h"
 #include "IRemapCurvesDebuggingProvider.h"
 
-#include "AnimGraphNode_RemapCurvesFromMesh.generated.h"
+#include "AnimGraphNode_RemapCurves.generated.h"
+
 
 namespace ENodeTitleType { enum Type : int; }
 
 
 UCLASS(MinimalAPI)
-class UAnimGraphNode_RemapCurvesFromMesh :
+class UAnimGraphNode_RemapCurves :
 	public UAnimGraphNode_Base,
 	public IRemapCurvesDebuggingProvider
 {
@@ -21,7 +22,7 @@ class UAnimGraphNode_RemapCurvesFromMesh :
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings)
-	FAnimNode_RemapCurvesFromMesh Node;
+	FAnimNode_RemapCurves Node;
 
 	bool CanVerifyExpressions() const override;
 	void VerifyExpressions() override;
@@ -43,5 +44,5 @@ public:
 	
 private:
 	USkeletalMeshComponent* GetDebuggedComponent() const;
-	FAnimNode_RemapCurvesFromMesh* GetDebuggedNode() const;
+	FAnimNode_RemapCurves* GetDebuggedNode() const;	
 };

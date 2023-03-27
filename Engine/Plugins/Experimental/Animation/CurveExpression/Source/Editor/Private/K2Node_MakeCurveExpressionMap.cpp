@@ -196,7 +196,7 @@ void UK2Node_MakeCurveExpressionMap::ValidateNodeDuringCompilation(FCompilerResu
 				{
 					const int32 ExpressionColumn = SourceExpression.GetData() - InLine.GetData();
 					Args.Add(TEXT("Error"), FText::FromString(Error->Message));
-					Args.Add(TEXT("Column"), FText::AsNumber(Error->Column + ExpressionColumn + 1));
+					Args.Add(TEXT("Column"), FText::AsNumber(Error->Location.Start + ExpressionColumn + 1));
 				
 					MessageLog.Error(
 						*FText::Format(LOCTEXT("Warning_BadExpression", "@@ has an error on line {Line}, column {Column}. {Error}"), Args).ToString(), 

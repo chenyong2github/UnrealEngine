@@ -6,11 +6,11 @@
 #include "IPropertyTypeCustomization.h"
 
 
-class SMultiLineEditableText;
+class SMultiLineEditableTextBox;
 class SScrollBar;
 
 
-class FAnimGraphNode_RemapCurvesFromMeshCustomization :
+class FAnimGraphNode_RemapCurvesDebuggingCustomization :
 	public IDetailCustomization
 {
 public:
@@ -44,6 +44,6 @@ private:
 	TSharedPtr<SScrollBar> HorizontalScrollbar;
 	TSharedPtr<SScrollBar> VerticalScrollbar;
 
-	TSharedPtr<SMultiLineEditableText> TextEditor;	
+	TSharedPtr<SMultiLineEditableTextBox> TextEditor;	
 };
 
