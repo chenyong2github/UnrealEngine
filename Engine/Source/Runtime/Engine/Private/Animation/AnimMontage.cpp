@@ -759,6 +759,20 @@ void UAnimMontage::PropagateChanges()
 }
 #endif // WITH_EDITOR
 
+void UAnimMontage::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CompositeSections.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SlotAnimTracks.GetAllocatedSize());
+	for (FSlotAnimationTrack& Slot : SlotAnimTracks)
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Slot.AnimTrack.GetTotalBytesUsed());
+	}
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(BranchingPointMarkers.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(BranchingPointStateNotifyIndices.GetAllocatedSize());
+}
+
 bool UAnimMontage::IsValidAdditive() const
 {
 	// if first one is additive, this is additive

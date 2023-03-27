@@ -338,6 +338,8 @@ struct FAnimTrack
 
 	/** return true if anim notify is available */
 	bool IsNotifyAvailable() const;
+
+	ENGINE_API int32 GetTotalBytesUsed() const;
 };
 
 UCLASS(abstract, MinimalAPI)

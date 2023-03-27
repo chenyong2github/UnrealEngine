@@ -199,8 +199,19 @@ void UBlendSpace::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
 #endif // WITH_EDITOR
 
+void UBlendSpace::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+	
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(this->SampleData.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(this->GridSamples.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(this->BlendSpaceData.StaticStruct()->GetStructureSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(this->BlendSpaceData.Segments.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(this->BlendSpaceData.Triangles.GetAllocatedSize());
+}
 
 bool UBlendSpace::UpdateBlendSamples_Internal(
 	const FVector&            InBlendSpacePosition, 

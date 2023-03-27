@@ -706,6 +706,11 @@ bool FAnimTrack::IsNotifyAvailable() const
 	return false;
 }
 
+int32 FAnimTrack::GetTotalBytesUsed() const
+{
+	return AnimSegments.GetAllocatedSize();
+}
+
 bool FAnimTrack::IsValidToAdd(const UAnimSequenceBase* SequenceBase) const
 {
 	bool bValid = false;

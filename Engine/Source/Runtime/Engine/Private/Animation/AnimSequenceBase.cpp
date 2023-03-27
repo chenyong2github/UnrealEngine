@@ -83,6 +83,17 @@ void UAnimSequenceBase::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutC
 		}
 	}
 }
+
+void UAnimSequenceBase::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	const FRawCurveTracks& CurveData = GetCurveData();
+	const UStruct* Struct = CurveData.StaticStruct();
+	ensure(Struct);
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Struct->GetStructureSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CurveData.FloatCurves.GetAllocatedSize());
+}
 #endif
 
 void UAnimSequenceBase::PostLoad()
