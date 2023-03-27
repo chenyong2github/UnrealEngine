@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ReplicationOperationsInternal.h"
+
 #include "Iris/Core/IrisLog.h"
+#include "Iris/Core/IrisProfiler.h"
+
+#include "Net/Core/Trace/NetTrace.h"
+#include "Net/Core/Trace/NetDebugName.h"
+
 #include "Iris/ReplicationSystem/ChangeMaskCache.h"
 #include "Iris/ReplicationSystem/ChangeMaskUtil.h"
 #include "Iris/ReplicationSystem/NetRefHandleManager.h"
@@ -71,6 +77,8 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 		// We cannot copy state data for zero sized objects or objects that no longer has an instance protocol.
 		if (Object.InstanceProtocol && Object.Protocol->InternalTotalSize > 0U)
 		{
+			IRIS_PROFILER_PROTOCOL_NAME(Object.Protocol->DebugName->Name);
+
 			// if the object was scopable prev frame we can do partial copy
 			bool bShouldPropagateChangedStates = Object.bShouldPropagateChangedStates;
 
@@ -84,10 +92,6 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 				const uint32 ChangeMaskByteCount = FNetBitArrayView::CalculateRequiredWordCount(Object.Protocol->ChangeMaskBitCount) * 4;
 				ChangeMaskStorageType* ChangeMaskData = Cache.GetChangeMaskStorage(Info);
 				ChangeMaskWriter.InitBytes(ChangeMaskData, ChangeMaskByteCount);
-
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-				IRIS_PROFILER_SCOPE_TEXT(Object.Protocol->DebugName->Name);
-#endif
 
 				//UE_LOG(LogIris, Log, TEXT("Copying state data for ( InternalIndex: %u ) with NetRefHandle (Id=%u)"), InternalIndex, Object.RefHandle.GetId());
 				if (bUseFullCopyAndQuantize)

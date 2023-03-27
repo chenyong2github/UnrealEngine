@@ -355,6 +355,11 @@ public:
 	 */
 	IRISCORE_API UNetObjectFilter* GetFilter(const FName FilterName) const;
 
+	/**
+	 * Returns the name of the filter associated to this handle.
+	 */
+	IRISCORE_API FName GetFilterName(UE::Net::FNetObjectFilterHandle Filter) const;
+
 	// Group Filtering
 
 	/**

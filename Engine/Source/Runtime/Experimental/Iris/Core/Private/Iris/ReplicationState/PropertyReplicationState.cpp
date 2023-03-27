@@ -225,9 +225,7 @@ bool FPropertyReplicationState::PollPropertyReplicationState(const void* RESTRIC
 		const FReplicationStateDescriptor* Descriptor = ReplicationStateDescriptor;
 		const uint8* SrcBuffer = reinterpret_cast<const uint8*>(SrcStateData);
 
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-		IRIS_PROFILER_SCOPE_TEXT(ReplicationStateDescriptor->DebugName->Name);
-#endif
+		IRIS_PROFILER_PROTOCOL_NAME(ReplicationStateDescriptor->DebugName->Name);
 
 		const FReplicationStateMemberDescriptor* MemberDescriptors = Descriptor->MemberDescriptors;
 		const FProperty** MemberProperties = Descriptor->MemberProperties;
@@ -257,9 +255,7 @@ void FPropertyReplicationState::PushPropertyReplicationState(void* RESTRICT DstD
 		const FReplicationStateDescriptor* Descriptor = ReplicationStateDescriptor;
 		uint8* DstBuffer = reinterpret_cast<uint8*>(DstData);
 
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-		IRIS_PROFILER_SCOPE_TEXT(ReplicationStateDescriptor->DebugName->Name);
-#endif
+		IRIS_PROFILER_PROTOCOL_NAME(ReplicationStateDescriptor->DebugName->Name);
 
 		const FReplicationStateMemberDescriptor* MemberDescriptors = Descriptor->MemberDescriptors;
 		const FProperty** MemberProperties = Descriptor->MemberProperties;

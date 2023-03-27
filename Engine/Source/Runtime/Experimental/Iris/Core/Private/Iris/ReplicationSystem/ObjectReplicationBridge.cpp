@@ -329,6 +329,7 @@ UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(UObject* Insta
 				const FNetObjectFilterHandle FilterHandle = GetDynamicFilter(Instance->GetClass());
 				if (FilterHandle != InvalidNetObjectFilterHandle)
 				{
+					UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("BeginReplication Filter: %s will be used for Object: %s "), *(ReplicationSystem->GetFilterName(FilterHandle).ToString()), *Instance->GetName());
 					ReplicationSystem->SetFilter(RefHandle, FilterHandle);
 				}
 			}
@@ -716,15 +717,12 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (ObjectData.InstanceProtocol)
 		{
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-			IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
-#endif
+			IRIS_PROFILER_PROTOCOL_NAME(ObjectData.Protocol->DebugName->Name);
+
 			// Call per-instance PreUpdate function
 			if (PreUpdateInstanceFunction && EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
 			{
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-				IRIS_PROFILER_SCOPE(PreReplicationUpdate);
-#endif
+				IRIS_PROFILER_SCOPE_VERBOSE(PreReplicationUpdate);
 				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
 				++Stats.PreUpdatedObjectCount;
 			}
@@ -732,9 +730,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 			// Poll properties if the instance protocol requires it
 			if (EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll))
 			{
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-				IRIS_PROFILER_SCOPE(PreReplicationUpdate);
-#endif
+				IRIS_PROFILER_SCOPE_VERBOSE(Poll);
 
 				const bool bIsGCAffectedObject = GarbageCollectionAffectedObjects.GetBit(InternalObjectIndex);
 				GarbageCollectionAffectedObjects.ClearBit(InternalObjectIndex);
@@ -760,9 +756,8 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (const FReplicationInstanceProtocol* InstanceProtocol = ObjectData.InstanceProtocol)
 		{
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-			IRIS_PROFILER_SCOPE_TEXT(ObjectData.Protocol->DebugName->Name);
-#endif
+			IRIS_PROFILER_PROTOCOL_NAME(ObjectData.Protocol->DebugName->Name);
+
 			const EReplicationInstanceProtocolTraits InstanceTraits = InstanceProtocol->InstanceTraits;
 			const bool bNeedsPoll = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll);
 			bool bIsDirtyObject = DirtyObjects.GetBit(InternalObjectIndex);
@@ -770,9 +765,8 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 			// Call per-instance PreUpdate function
 			if (PreUpdateInstanceFunction && EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
 			{
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-				IRIS_PROFILER_SCOPE(PreReplicationUpdate);
-#endif
+				IRIS_PROFILER_SCOPE_VERBOSE(PreReplicationUpdate);
+
 				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
 				++Stats.PreUpdatedObjectCount;
 
@@ -797,9 +791,8 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 				return;
 			}
 
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-			IRIS_PROFILER_SCOPE(PollPushBased);
-#endif
+			IRIS_PROFILER_SCOPE_VERBOSE(PollPushBased);
+
 			// If the object is fully push model we only need to poll it if it's dirty, unless it's a new object or was garbage collected.
 			bool bWasMarkedDirty = false;
 			if (EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness))
@@ -851,117 +844,121 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		}
 	};
 
-	// Update all objects
-	if (!Handle.IsValid())
+	// If we are asked to poll a single object
+	if (Handle.IsValid())
 	{
-		const FNetBitArray& ScopableObjects = LocalNetRefHandleManager.GetScopableInternalIndices();
-		const FNetBitArray& WantToBeDormantObjects = LocalNetRefHandleManager.GetWantToBeDormantInternalIndices();
-
-		// Filter the set of objects considered for pre-update and polling
-		// We always want to consider objects marked as dirty and their subobjects
-		FNetBitArray ObjectsConsideredForPolling(LocalNetRefHandleManager.GetMaxActiveObjectCount());
-		if (bUseFrequencyBasedPolling)
+		if (uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(Handle))
 		{
-			FNetBitArrayView FrequencyBasedObjectsToPollView = MakeNetBitArrayView(ObjectsConsideredForPolling);
-			PollFrequencyLimiter->Update(MakeNetBitArrayView(ScopableObjects), DirtyObjects, FrequencyBasedObjectsToPollView);
+			UpdateAndPollFunction(InternalObjectIndex);
+		}
+
+		return;
+	}
+	
+	// If we poll all scopebable objects
+
+	const FNetBitArray& ScopableObjects = LocalNetRefHandleManager.GetScopableInternalIndices();
+	const FNetBitArray& WantToBeDormantObjects = LocalNetRefHandleManager.GetWantToBeDormantInternalIndices();
+
+	// Filter the set of objects considered for pre-update and polling
+	// We always want to consider objects marked as dirty and their subobjects
+	FNetBitArray ObjectsConsideredForPolling(LocalNetRefHandleManager.GetMaxActiveObjectCount());
+	if (bUseFrequencyBasedPolling)
+	{
+		FNetBitArrayView FrequencyBasedObjectsToPollView = MakeNetBitArrayView(ObjectsConsideredForPolling);
+		PollFrequencyLimiter->Update(MakeNetBitArrayView(ScopableObjects), DirtyObjects, FrequencyBasedObjectsToPollView);
+	}
+	else
+	{
+		ObjectsConsideredForPolling.Copy(ScopableObjects);
+	}
+
+	// Mask off objects pending dormancy as we do not want to poll/pre-update them unless they are marked for flush or are dirty
+	if (bUseDormancyToFilterPolling)
+	{
+		IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Dormancy);
+
+		// Mask off objects pending dormancy, masked off dirty objects are restored later
+		ObjectsConsideredForPolling.Combine(WantToBeDormantObjects, FNetBitArrayView::AndNotOp);
+
+		// Add objects that have requested to flush dormancy
+		for (FNetRefHandle HandlePendingFlush : MakeArrayView(DormantHandlesPendingFlush))
+		{
+			if (const uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(HandlePendingFlush))
+			{
+				if (ObjectsConsideredForPolling.GetBit(InternalObjectIndex))
+				{
+					continue;
+				}
+
+				ObjectsConsideredForPolling.SetBit(InternalObjectIndex);
+				for (const FInternalNetRefIndex SubObjectIndex : LocalNetRefHandleManager.GetSubObjects(InternalObjectIndex))
+				{
+					ObjectsConsideredForPolling.SetBit(SubObjectIndex);
+				}
+			}
+		}
+
+		//TODO: Add size of DormantHandlesPendingFlush array to NetStats ?
+	}
+	DormantHandlesPendingFlush.Reset();
+
+	/**
+	* Make sure to propagate polling for owners to subobjects and vice versa. If an actor is not due to update due to
+	* polling frequency it can still be dirty or a dormant object marked for flush and polled for that reason. In order to make sure all recent state updates
+	* are replicated atomically this polling propagation is required.
+	*/
+	{
+		IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_PropagateDirtyness);
+
+		auto PropagateSubObjectDirtinessToOwner = [&LocalNetRefHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
+		{
+			const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+			ObjectsConsideredForPolling.SetBit(ObjectData.SubObjectRootIndex);
+		};
+
+		auto PropagateOwnerDirtinessToSubObjectsAndDependentObjects = [&LocalNetRefHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
+		{
+			const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+
+			// Mark owner as well as we might have masked it out in the dormancy pass
+			ObjectsConsideredForPolling.SetBit(InternalObjectIndex);
+
+			for (const FInternalNetRefIndex SubObjectInternalIndex : LocalNetRefHandleManager.GetSubObjects(InternalObjectIndex))
+			{
+				ObjectsConsideredForPolling.SetBit(SubObjectInternalIndex);
+			}
+		};
+
+		// Update subobjects' owner first and owners' subobjects second. It's the only way to properly mark all groups of objects in two passes.
+		const FNetBitArrayView SubObjects = MakeNetBitArrayView(LocalNetRefHandleManager.GetSubObjectInternalIndices());
+		FNetBitArrayView::ForAllSetBits(DirtyObjects, SubObjects, FNetBitArray::AndOp, PropagateSubObjectDirtinessToOwner);
+		FNetBitArrayView::ForAllSetBits(DirtyObjects, SubObjects, FNetBitArray::AndNotOp, PropagateOwnerDirtinessToSubObjectsAndDependentObjects);
+			
+		// Patch dependent objects, not subtle as this point
+		{
+			IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_PatchDependentObjects);
+
+			FNetBitArray TempObjectsConsideredForPolling(ObjectsConsideredForPolling);
+			FNetBitArray::ForAllSetBits(TempObjectsConsideredForPolling, NetRefHandleManager->GetObjectsWithDependentObjectsInternalIndices(), FNetBitArray::AndOp,
+				[&LocalNetRefHandleManager, &ObjectsConsideredForPolling](FInternalNetRefIndex ObjectIndex) 
+				{
+					LocalNetRefHandleManager.ForAllDependentObjectsRecursive(ObjectIndex, [&ObjectsConsideredForPolling, ObjectIndex](FInternalNetRefIndex DependentObjectIndex) { ObjectsConsideredForPolling.SetBit(DependentObjectIndex); });
+				}
+			);
+		}
+	}
+
+	{
+		IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Poll);
+		if (IsIrisPushModelEnabled())
+		{
+			ObjectsConsideredForPolling.ForAllSetBits(PushModelUpdateAndPollFunction);
 		}
 		else
 		{
-			ObjectsConsideredForPolling.Copy(ScopableObjects);
+			ObjectsConsideredForPolling.ForAllSetBits(UpdateAndPollFunction);
 		}
-
-		// Mask off objects pending dormancy as we do not want to poll/pre-update them unless they are marked for flush or are dirty
-		if (bUseDormancyToFilterPolling)
-		{
-			IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Dormancy);
-
-			// Mask off objects pending dormancy, masked off dirty objects are restored later
-			ObjectsConsideredForPolling.Combine(WantToBeDormantObjects, FNetBitArrayView::AndNotOp);
-
-			// Add objects that have requested to flush dormancy
-			for (FNetRefHandle HandlePendingFlush : MakeArrayView(DormantHandlesPendingFlush))
-			{
-				if (const uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(HandlePendingFlush))
-				{
-					if (ObjectsConsideredForPolling.GetBit(InternalObjectIndex))
-					{
-						continue;
-					}
-
-					ObjectsConsideredForPolling.SetBit(InternalObjectIndex);
-					for (const FInternalNetRefIndex SubObjectIndex : LocalNetRefHandleManager.GetSubObjects(InternalObjectIndex))
-					{
-						ObjectsConsideredForPolling.SetBit(SubObjectIndex);
-					}
-				}
-			}
-
-			//TODO: Add size of DormantHandlesPendingFlush array to NetStats ?
-		}
-		DormantHandlesPendingFlush.Reset();
-
-		/**
-		 * Make sure to propagate polling for owners to subobjects and vice versa. If an actor is not due to update due to
-		 * polling frequency it can still be dirty or a dormant object marked for flush and polled for that reason. In order to make sure all recent state updates
-		 * are replicated atomically this polling propagation is required.
-		 */
-		{
-			IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_PropagateDirtyness);
-
-			auto PropagateSubObjectDirtinessToOwner = [&LocalNetRefHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
-			{
-				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
-				ObjectsConsideredForPolling.SetBit(ObjectData.SubObjectRootIndex);
-			};
-
-			auto PropagateOwnerDirtinessToSubObjectsAndDependentObjects = [&LocalNetRefHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
-			{
-				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
-
-				// Mark owner as well as we might have masked it out in the dormancy pass
-				ObjectsConsideredForPolling.SetBit(InternalObjectIndex);
-
-				for (const FInternalNetRefIndex SubObjectInternalIndex : LocalNetRefHandleManager.GetSubObjects(InternalObjectIndex))
-				{
-					ObjectsConsideredForPolling.SetBit(SubObjectInternalIndex);
-				}
-			};
-
-			// Update subobjects' owner first and owners' subobjects second. It's the only way to properly mark all groups of objects in two passes.
-			const FNetBitArrayView SubObjects = MakeNetBitArrayView(LocalNetRefHandleManager.GetSubObjectInternalIndices());
-			FNetBitArrayView::ForAllSetBits(DirtyObjects, SubObjects, FNetBitArray::AndOp, PropagateSubObjectDirtinessToOwner);
-			FNetBitArrayView::ForAllSetBits(DirtyObjects, SubObjects, FNetBitArray::AndNotOp, PropagateOwnerDirtinessToSubObjectsAndDependentObjects);
-			
-			// Patch dependent objects, not subtle as this point
-			{
-				IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_PatchIndepedentObjects);
-
-				FNetBitArray TempObjectsConsideredForPolling(ObjectsConsideredForPolling);
-				FNetBitArray::ForAllSetBits(TempObjectsConsideredForPolling, NetRefHandleManager->GetObjectsWithDependentObjectsInternalIndices(), FNetBitArray::AndOp,
-					[&LocalNetRefHandleManager, &ObjectsConsideredForPolling](FInternalNetRefIndex ObjectIndex) 
-					{
-						LocalNetRefHandleManager.ForAllDependentObjectsRecursive(ObjectIndex, [&ObjectsConsideredForPolling, ObjectIndex](FInternalNetRefIndex DependentObjectIndex) { ObjectsConsideredForPolling.SetBit(DependentObjectIndex); });
-					}
-				);
-			}
-		}
-
-		{
-			IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Poll);
-			if (IsIrisPushModelEnabled())
-			{
-				ObjectsConsideredForPolling.ForAllSetBits(PushModelUpdateAndPollFunction);
-			}
-			else
-			{
-				ObjectsConsideredForPolling.ForAllSetBits(UpdateAndPollFunction);
-			}
-		}
-		
-	}
-	else if (uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(Handle))
-	{
-		UpdateAndPollFunction(InternalObjectIndex);
 	}
 
 	// Report stats

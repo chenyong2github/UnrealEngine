@@ -885,6 +885,11 @@ UNetObjectFilter* UReplicationSystem::GetFilter(const FName FilterName) const
 	return Impl->ReplicationSystemInternal.GetFiltering().GetFilter(FilterName);
 }
 
+FName UReplicationSystem::GetFilterName(UE::Net::FNetObjectFilterHandle Filter) const
+{
+	return Impl->ReplicationSystemInternal.GetFiltering().GetFilterName(Filter);
+}
+
 bool UReplicationSystem::SetConnectionFilter(FNetRefHandle Handle, const TBitArray<>& Connections, UE::Net::ENetFilterStatus ReplicationStatus)
 {
 	using namespace UE::Net;

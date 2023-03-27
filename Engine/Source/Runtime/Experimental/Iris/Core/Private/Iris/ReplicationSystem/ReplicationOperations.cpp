@@ -510,6 +510,8 @@ bool FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(const 
 
 void FReplicationInstanceOperations::CopyAndQuantize(FNetSerializationContext& Context, uint8* DstObjectStateBuffer, FNetBitStreamWriter* OutChangeMaskWriter, const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol)
 {
+	IRIS_PROFILER_SCOPE_VERBOSE(CopyAndQuantize);
+
 	check(InstanceProtocol && InstanceProtocol->FragmentCount == Protocol->ReplicationStateCount);
 
 	FReplicationInstanceProtocol::FFragmentData* FragmentData = InstanceProtocol->FragmentData;
@@ -548,6 +550,8 @@ void FReplicationInstanceOperations::CopyAndQuantize(FNetSerializationContext& C
 
 void FReplicationInstanceOperations::CopyAndQuantizeIfDirty(FNetSerializationContext& Context, uint8* DstObjectStateBuffer, FNetBitStreamWriter* OutChangeMaskWriter, const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol)
 {
+	IRIS_PROFILER_SCOPE_VERBOSE(CopyAndQuantizeIfDirty);
+
 	check(InstanceProtocol && InstanceProtocol->FragmentCount == Protocol->ReplicationStateCount);
 
 	FReplicationInstanceProtocol::FFragmentData* FragmentData = InstanceProtocol->FragmentData;
@@ -572,9 +576,7 @@ void FReplicationInstanceOperations::CopyAndQuantizeIfDirty(FNetSerializationCon
 		// Append changemask data to bitstreams and quantize state if mask is dirty
 		if (Private::AppendMemberChangeMasks(OutChangeMaskWriter, OutConditionalChangeMaskWriter, FragmentData[StateIt].ExternalSrcBuffer, CurrentDescriptor))
 		{
-#if UE_IRIS_PROFILE_PROTOCOL_NAMES
-			IRIS_PROFILER_SCOPE_TEXT(CurrentDescriptor->DebugName->Name);
-#endif
+			IRIS_PROFILER_PROTOCOL_NAME(CurrentDescriptor->DebugName->Name);
 			FReplicationStateOperations::Quantize(Context, CurrentInternalStateBuffer, FragmentData[StateIt].ExternalSrcBuffer, CurrentDescriptor);
 		}
 		

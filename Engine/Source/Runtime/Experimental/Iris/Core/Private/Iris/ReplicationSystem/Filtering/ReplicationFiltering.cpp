@@ -19,6 +19,36 @@
 namespace UE::Net::Private
 {
 
+FName GetStaticFilterName(FNetObjectFilterHandle Filter)
+{
+	switch (Filter)
+	{
+		case InvalidNetObjectFilterHandle:
+		{
+			return NAME_None;
+		} break;
+
+		case ToOwnerFilterHandle:
+		{
+			static const FName ToOwnerFilterName = TEXT("ToOwnerFilter");
+			return ToOwnerFilterName;
+		} break;
+
+		case ConnectionFilterHandle:
+		{
+			static const FName ConnectionFilterName = TEXT("ConnectionFilter");
+			return ConnectionFilterName;
+		} break;
+
+		default:
+		{
+			ensureMsgf(false, TEXT("ReplicationFiltering GetStaticFilterName() received undefined static filter handle %d."), Filter);
+		} break;
+	}
+
+	return NAME_None;
+}
+
 inline static ENetFilterStatus GetDependentObjectFilterStatus(const FNetRefHandleManager* NetRefHandleManager, const FNetBitArray& ObjectsInScope, FInternalNetRefIndex ObjectIndex)
 {
 	for (const FInternalNetRefIndex ParentObjectIndex : NetRefHandleManager->GetDependentObjectParents(ObjectIndex))
@@ -445,6 +475,17 @@ UNetObjectFilter* FReplicationFiltering::GetFilter(const FName FilterName) const
 	}
 
 	return nullptr;
+}
+
+FName FReplicationFiltering::GetFilterName(FNetObjectFilterHandle Filter) const
+{
+	if (FNetObjectFilterHandleUtil::IsDynamicFilter(Filter))
+	{
+		const uint32 DynamicFilterIndex = FNetObjectFilterHandleUtil::GetDynamicFilterIndex(Filter);
+		return DynamicFilterInfos[DynamicFilterIndex].Name;
+	}
+
+	return UE::Net::Private::GetStaticFilterName(Filter);
 }
 
 // Connection handling
@@ -1937,4 +1978,4 @@ inline uint32 FNetObjectFilterHandleUtil::GetDynamicFilterIndex(FNetObjectFilter
 	return (Handle & DynamicNetObjectFilterHandleFlag) ? (Handle & ~DynamicNetObjectFilterHandleFlag) : ~0U;
 }
 
-}
+} // end namespace UE::Net::Private

@@ -67,6 +67,9 @@ public:
 	FNetObjectFilterHandle GetFilterHandle(const FName FilterName) const;
 	UNetObjectFilter* GetFilter(const FName FilterName) const;
 
+	/** Returns the name of the Filter represented by the handle. */
+	FName GetFilterName(FNetObjectFilterHandle Filter) const;
+
 	// Connection handling
 	void AddConnection(uint32 ConnectionId);
 	void RemoveConnection(uint32 ConnectionId);

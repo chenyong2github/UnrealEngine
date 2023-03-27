@@ -10,10 +10,20 @@
 #	endif
 #endif
 
-#ifndef UE_IRIS_PROFILE_PROTOCOL_NAMES
-	// Set this to true to see protocol names in profiling captures. The downside is the events will add an overhead on the cpu when cpu captures are occuring
-	#define UE_IRIS_PROFILE_PROTOCOL_NAMES !UE_BUILD_SHIPPING
+// When true this adds dynamic protocol names in profile captures. The downside is a noticeable cpu cost overhead but only while cpu trace recording is occurring.
+#ifndef UE_IRIS_PROFILER_ENABLE_PROTOCOL_NAMES
+#	define UE_IRIS_PROFILER_ENABLE_PROTOCOL_NAMES !UE_BUILD_SHIPPING
 #endif
+
+// When true this adds low-level cpu trace captures of operations in Iris. Adds a little cpu overhead but only while cpu trace recording is occurring.
+#ifndef UE_IRIS_PROFILER_ENABLE_VERBOSE
+#	if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#		define UE_IRIS_PROFILER_ENABLE_VERBOSE 0
+#	else
+#		define UE_IRIS_PROFILER_ENABLE_VERBOSE 1
+#	endif
+#endif
+
 
 //#define IRIS_USE_SUPERLUMINAL
 
@@ -33,4 +43,16 @@
 #	define PERFORMANCEAPI_ENABLED 0
 #	define IRIS_PROFILER_SCOPE(x)
 #	define IRIS_PROFILER_SCOPE_TEXT(X)
+#endif
+
+#if UE_IRIS_PROFILER_ENABLE_PROTOCOL_NAMES
+#	define IRIS_PROFILER_PROTOCOL_NAME(x) IRIS_PROFILER_SCOPE_TEXT(x)
+#else
+#	define IRIS_PROFILER_PROTOCOL_NAME(x)
+#endif
+
+#if UE_IRIS_PROFILER_ENABLE_VERBOSE
+#	define IRIS_PROFILER_SCOPE_VERBOSE(x) IRIS_PROFILER_SCOPE(x);
+#else
+#	define IRIS_PROFILER_SCOPE_VERBOSE(x)
 #endif
