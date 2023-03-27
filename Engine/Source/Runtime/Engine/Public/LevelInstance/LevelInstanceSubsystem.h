@@ -105,6 +105,7 @@ public:
 	void BlockUnloadLevelInstance(ILevelInstanceInterface* LevelInstance);
 		
 	bool HasChildEdit(const ILevelInstanceInterface* LevelInstance) const;
+	bool HasParentEdit(const ILevelInstanceInterface* LevelInstance) const;
 
 	TArray<ILevelInstanceInterface*> GetLevelInstances(const FString& WorldAssetPackage);
 	

@@ -102,6 +102,8 @@ class ENGINE_API ILevelInstanceInterface
 	virtual bool IsEditing() const;
 	
 	virtual bool HasChildEdit() const;
+
+	virtual bool HasParentEdit() const;
 	
 	virtual bool IsDirty() const;
 	

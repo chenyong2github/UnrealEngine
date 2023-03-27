@@ -21,7 +21,7 @@ ULevelInstanceInterface::ULevelInstanceInterface(const FObjectInitializer& Objec
 #if WITH_EDITOR
 bool ILevelInstanceInterface::SupportsPartialEditorLoading() const
 {
-	return CastChecked<AActor>(this)->GetIsSpatiallyLoaded() && !IsEditing();
+	return CastChecked<AActor>(this)->GetIsSpatiallyLoaded() && !IsEditing() && !HasParentEdit();
 }
 #endif
 
@@ -136,6 +136,19 @@ bool ILevelInstanceInterface::HasChildEdit() const
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 		{
 			return LevelInstanceSubsystem->HasChildEdit(this);
+		}
+	}
+
+	return false;
+}
+
+bool ILevelInstanceInterface::HasParentEdit() const
+{
+	if (HasValidLevelInstanceID())
+	{
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+		{
+			return LevelInstanceSubsystem->HasParentEdit(this);
 		}
 	}
 

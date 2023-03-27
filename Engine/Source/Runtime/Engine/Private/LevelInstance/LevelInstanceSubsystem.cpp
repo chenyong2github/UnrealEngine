@@ -2221,6 +2221,20 @@ bool ULevelInstanceSubsystem::HasChildEdit(const ILevelInstanceInterface* LevelI
 	return ChildEditCountPtr && *ChildEditCountPtr;
 }
 
+bool ULevelInstanceSubsystem::HasParentEdit(const ILevelInstanceInterface* LevelInstance) const
+{
+	bool bResult = false;
+	
+	const AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
+	ForEachLevelInstanceAncestors(LevelInstanceActor, [LevelInstance, &bResult](const ILevelInstanceInterface* Ancestor)
+	{
+		bResult = Ancestor->IsEditing();
+		return !bResult;
+	});
+
+	return bResult;
+}
+
 void ULevelInstanceSubsystem::OnCommitChild(const FLevelInstanceID& LevelInstanceID, bool bChildChanged)
 {
 	int32& ChildEditCount = ChildEdits.FindChecked(LevelInstanceID);
