@@ -1007,7 +1007,7 @@ public:
 		// Append to the attributes
 		for (const FDerivedDataCacheSummaryStat& Stat : SummaryStats.Stats)
 		{
-			FString FormattedAttrName = "DDC_Summary_" + Stat.Key;
+			FString FormattedAttrName = "DDC_Summary_" + Stat.Key.Replace(TEXT("."), TEXT("_"));
 
 			if (Stat.Value.IsNumeric())
 			{
@@ -1024,14 +1024,18 @@ public:
 			{
 				for (const FCookStatsManager::StringKeyValue& Stat : Node->CustomStats)
 				{
+					FString FormattedAttrName = Stat.Key.Replace(TEXT("."), TEXT("_"));
+
 					if (Stat.Value.IsNumeric())
 					{
-						Attributes.Emplace(Stat.Key, FCString::Atof(*Stat.Value));
+						Attributes.Emplace(FormattedAttrName, FCString::Atof(*Stat.Value));
 					}
 					else
 					{
-						Attributes.Emplace(Stat.Key, Stat.Value);
+						Attributes.Emplace(FormattedAttrName, Stat.Value);
 					}
+
+
 				}
 			});
 #endif

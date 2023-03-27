@@ -908,7 +908,7 @@ void LogCookStats(ECookMode::Type CookMode)
 
 	if (FStudioAnalytics::IsAvailable() && IsCookByTheBookMode(CookMode))
 	{
-		const int SchemaVersion = 1;
+		const int SchemaVersion = 2;
 
 		// convert filtered stats directly to an analytics event
 		TArray<FAnalyticsEventAttribute> Attributes;
@@ -920,7 +920,7 @@ void LogCookStats(ECookMode::Type CookMode)
 		{
 			for (const auto& Attr : StatAttributes)
 			{
-				FString FormattedAttrName = StatName + "_" + Attr.Key;
+				FString FormattedAttrName = (StatName + "_" + Attr.Key).Replace(TEXT("."), TEXT("_"));
 
 				if (Attr.Value.IsNumeric())
 				{
