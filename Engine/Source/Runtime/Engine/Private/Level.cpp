@@ -963,6 +963,8 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 		Actor->UnregisterAllComponents();
 		Actor->RegisterAllActorTickFunctions(false, true);
 
+		OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
+
 		if (TransformToRemove)
 		{
 			FLevelUtils::FApplyLevelTransformParams TransformParams(this, TransformToRemove->Inverse());
@@ -970,8 +972,6 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 			TransformParams.bDoPostEditMove = true;
 			FLevelUtils::ApplyLevelTransform(TransformParams);
 		}
-
-		OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
 
 		SlowTask.EnterProgressFrame(1);
 	}
