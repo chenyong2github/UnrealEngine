@@ -1004,9 +1004,13 @@ public:
 
 	bool GetCaptureStack() const
 	{
-		return bCaptureStack;
+		return bCaptureStack && !NeedSkipStackWalk();
 	}
 
+	/**
+	 * Used to disabled stack capture when an error or warning event is triggered.
+	 * Setting bCapture=true does not guarantees GetCaptureStack()=true because that method also depend on NeedSkipStackWalk(). 
+	 */
 	void SetCaptureStack(bool bCapture)
 	{
 		bCaptureStack = bCapture;

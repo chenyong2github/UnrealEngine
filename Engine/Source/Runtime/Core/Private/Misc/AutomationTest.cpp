@@ -30,11 +30,11 @@ namespace AutomationTest
 		bCaptureLogEvents,
 		TEXT("Consider warning/error log events during a test as impacting the test itself"));
 
-	static bool bSkipStackWalk = true;
+	static bool bSkipStackWalk = false;
 	static FAutoConsoleVariableRef CVarAutomationSkipStackWalk(
 		TEXT("Automation.SkipStackWalk"),
 		bSkipStackWalk,
-		TEXT("Whether to skip stack walk while iterating for listing the tests"));
+		TEXT("Whether to skip any stack issues that the automation test framework triggers"));
 
 	static bool bLogBPTestMetadata = false;
 	static FAutoConsoleVariableRef CVarAutomationLogBPTestMetadata(
