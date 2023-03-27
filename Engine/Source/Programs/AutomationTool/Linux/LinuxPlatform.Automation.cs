@@ -380,7 +380,7 @@ chmod +x {0}
 				// try contacting the device(s) and cache the key(s)
 				foreach (string DeviceAddress in ProjParams.DeviceNames)
 				{
-					RunAndLog(CmdEnv, "cmd.exe", String.Format("/c \"echo y | {0} -P 22 -ssh -t -l {1} -pw {2} {3} echo All Ok\"", PlinkPath, ProjParams.DeviceUsername, ProjParams.DevicePassword, DeviceAddress));
+					RunAndLog(CmdEnv, "cmd.exe", String.Format("/c \'echo y | {0} -P 22 -ssh -t -l {1} -pw {2} {3} echo All Ok\'", PlinkPath, ProjParams.DeviceUsername, ProjParams.DevicePassword, DeviceAddress));
 				}
 			}
 		}

@@ -758,11 +758,12 @@ namespace AutomationTool
 		/// <param name="Filenames">Filename.</param>
 		/// <returns>True if the file exists, false otherwise.</returns>
 		public static bool FileExists(string FileName)
-		{
-			var NormalizedFilename = ConvertSeparators(PathSeparator.Default, FileName);
+        {
+			// need to remove the quotes before checking to see if it exists
+			var NormalizedFilename = ConvertSeparators(PathSeparator.Default, FileName).Replace("\"", "");
 			return InternalUtils.SafeFileExists(NormalizedFilename);
-		}
-
+        }
+		
 		/// <summary>
 		/// Checks if a file(s) exists.
 		/// </summary>
@@ -782,7 +783,8 @@ namespace AutomationTool
         /// <returns>True if the file exists, false otherwise.</returns>
         public static bool FileExists(bool bQuiet, string FileName)
         {
-			var NormalizedFilename = ConvertSeparators(PathSeparator.Default, FileName);
+			// need to remove the quotes before checking to see if it exists
+			var NormalizedFilename = ConvertSeparators(PathSeparator.Default, FileName).Replace("\"", "");
 			return InternalUtils.SafeFileExists(NormalizedFilename, bQuiet);
         }
 
