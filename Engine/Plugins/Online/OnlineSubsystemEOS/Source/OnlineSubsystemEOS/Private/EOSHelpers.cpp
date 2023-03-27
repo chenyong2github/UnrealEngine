@@ -10,7 +10,7 @@
 #include "OnlineSubsystemEOSPrivate.h"
 #include "UserManagerEOS.h"
 
-void FEOSHelpers::PlatformAuthCredentials(EOS_Auth_Credentials &Credentials)
+void FEOSHelpers::GetSystemAuthCredentialsOptions(void*& OutCredentialsOptions)
 {
 }
 

@@ -20,7 +20,7 @@ class FEOSHelpers
 public:
 	virtual ~FEOSHelpers() = default;
 
-	virtual void PlatformAuthCredentials(EOS_Auth_Credentials &Credentials);
+	virtual void GetSystemAuthCredentialsOptions(void*& OutCredentialsOptions);
 	virtual void PlatformTriggerLoginUI(FOnlineSubsystemEOS* EOSSubsystem, const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate);
 	virtual IEOSPlatformHandlePtr CreatePlatform(EOS_Platform_Options& PlatformOptions);
 

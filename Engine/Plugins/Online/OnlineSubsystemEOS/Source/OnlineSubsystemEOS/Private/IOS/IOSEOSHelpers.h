@@ -16,7 +16,7 @@ class FIOSEOSHelpers : public FEOSHelpers
 public:
 	virtual ~FIOSEOSHelpers();
 
-	virtual void PlatformAuthCredentials(EOS_Auth_Credentials &Credentials) override;
+	virtual void GetSystemAuthCredentialsOptions(void*& OutCredentialsOptions) override;
 	virtual void PlatformTriggerLoginUI(FOnlineSubsystemEOS* EOSSubsystem, const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate) override;
 
 private:

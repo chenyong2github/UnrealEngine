@@ -53,7 +53,7 @@ FIOSEOSHelpers::~FIOSEOSHelpers()
 #endif
 }
 
-void FIOSEOSHelpers::PlatformAuthCredentials(EOS_Auth_Credentials &Credentials)
+void FIOSEOSHelpers::GetSystemAuthCredentialsOptions(void*& OutCredentialsOptions)
 {
 #if PRESENTATIONCONTEXT_REQUIRED
 	if (PresentationContextProvider == nil)
@@ -70,7 +70,7 @@ void FIOSEOSHelpers::PlatformAuthCredentials(EOS_Auth_Credentials &Credentials)
 	CredentialsOptions.PresentationContextProviding = nullptr;
 #endif
 
-	Credentials.SystemAuthCredentialsOptions = (void*)&CredentialsOptions;
+	OutCredentialsOptions = (void*)&CredentialsOptions;
 }
 
 void FIOSEOSHelpers::PlatformTriggerLoginUI(FOnlineSubsystemEOS* InEOSSubsystem, const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate)

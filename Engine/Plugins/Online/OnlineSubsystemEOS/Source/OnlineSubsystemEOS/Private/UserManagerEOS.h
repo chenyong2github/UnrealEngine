@@ -325,6 +325,8 @@ public:
 	int32 GetDefaultLocalUser() const { return DefaultLocalUser; }
 
 private:
+	void CallEOSAuthLogin(int32 LocalUserNum, const FOnlineAccountCredentials& Credentials);
+
 	void RemoveLocalUser(int32 LocalUserNum);
 	void AddLocalUser(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId, EOS_ProductUserId UserId);
 
@@ -341,7 +343,6 @@ private:
 	void UpdatePresence(EOS_EpicAccountId AccountId);
 	void UpdateFriendPresence(const FString& FriendId, FOnlineUserPresenceRef Presence);
 
-	IOnlineSubsystem* GetPlatformOSS() const;
 	void GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const;
 	FString GetPlatformDisplayName(int32 LocalUserNum) const;
 
