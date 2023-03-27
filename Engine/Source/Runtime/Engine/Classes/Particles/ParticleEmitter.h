@@ -92,6 +92,11 @@ DECLARE_STATS_GROUP(TEXT("Emitters"), STATGROUP_EmittersRT, STATCAT_Advanced);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("STAT_EmittersStatGroupTester"), STAT_EmittersStatGroupTester, STATGROUP_Emitters, ENGINE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("STAT_EmittersRTStatGroupTester"), STAT_EmittersRTStatGroupTester, STATGROUP_EmittersRT, ENGINE_API);
 
+/* detail modes for emitters are now flags instead of a single enum
+	an emitter is shown if it is flagged for the current system scalability level
+ */
+#define NUM_DETAILMODE_FLAGS 3
+
 UCLASS(hidecategories=Object, editinlinenew, abstract, MinimalAPI)
 class UParticleEmitter : public UObject
 {
@@ -165,6 +170,10 @@ class UParticleEmitter : public UObject
 	/** This value indicates the emitter should be drawn 'collapsed' in Cascade */
 	UPROPERTY(EditAnywhere, Category=Cascade)
 	uint8 bCollapsed:1;
+
+	/** If detail mode is >= system detail mode, primitive won't be rendered. */
+	UPROPERTY()
+	TEnumAsByte<EDetailMode> DetailMode_DEPRECATED;
 
 	/**
 	 *	The color of the emitter in the curve editor and debug rendering modes.
@@ -253,8 +262,7 @@ class UParticleEmitter : public UObject
 		DetailModeDisplay = "";
 		DetailModeDisplay += DetailModeBitmask & (1 << EParticleDetailMode::PDM_Low) ? "Low, " : "";
 		DetailModeDisplay += DetailModeBitmask & (1 << EParticleDetailMode::PDM_Medium) ? "Medium, " : "";
-		DetailModeDisplay += DetailModeBitmask & (1 << EParticleDetailMode::PDM_High) ? "High, " : "";
-		DetailModeDisplay += DetailModeBitmask & (1 << EParticleDetailMode::PDM_Epic) ? "Epic" : "";
+		DetailModeDisplay += DetailModeBitmask & (1 << EParticleDetailMode::PDM_High) ? "High" : "";
 	}
 #endif // WITH_EDITORONLY_DATA
 	virtual void Serialize(FArchive& Ar)override;

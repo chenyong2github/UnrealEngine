@@ -467,9 +467,9 @@ void FCascadeEdPreviewViewportClient::Draw(FViewport* InViewport, FCanvas* Canva
 
 	int32 DetailMode = CascadePtr.Pin()->GetDetailMode();
 	
-	if (DetailMode != DM_Epic)
+	if (DetailMode != DM_High)
 	{
-		FString DetailModeOutput = FString::Printf(TEXT("DETAIL MODE: %s"), (DetailMode == DM_High) ? TEXT("HIGH") : (DetailMode == DM_Medium) ? TEXT("MEDIUM") : TEXT("LOW"));
+		FString DetailModeOutput = FString::Printf(TEXT("DETAIL MODE: %s"), (DetailMode == DM_Medium)? TEXT("MEDIUM"): TEXT("LOW"));
 		TextItem.SetColor( FLinearColor::Red );
 		TextItem.Text = FText::FromString( DetailModeOutput );
 		Canvas->DrawItem(TextItem, 5.0f, MiscMessageY);

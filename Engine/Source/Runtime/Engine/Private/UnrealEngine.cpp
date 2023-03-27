@@ -9563,9 +9563,9 @@ bool UEngine::HandleTrackParticleRenderingStatsCommand( const TCHAR* Cmd, FOutpu
 	GTrackParticleRenderingStats = !GTrackParticleRenderingStats;
 	if (GTrackParticleRenderingStats)
 	{
-		if (GetCachedScalabilityCVars().DetailMode >= DM_High)
+		if (GetCachedScalabilityCVars().DetailMode == DM_High)
 		{
-			Ar.Logf(TEXT("Currently in at least high detail mode, note that particle stats will only be captured in medium or low detail modes (eg splitscreen)."));
+			Ar.Logf(TEXT("Currently in high detail mode, note that particle stats will only be captured in medium or low detail modes (eg splitscreen)."));
 		}
 		Ar.Logf(TEXT("Enabled particle render stat tracking with %.1fs between captures, min tracked time of %.4fs, use DUMPPARTICLERENDERINGSTATS to save results."),
 			GTimeBetweenParticleRenderStatCaptures, GMinParticleDrawTimeToTrack);

@@ -6630,7 +6630,7 @@ bool UEditorEngine::HandleSetDetailModeCommand( const TCHAR* Str, FOutputDevice&
 {
 	TArray<AActor*> ActorsToDeselect;
 
-	uint8 ParsedDetailMode = DM_Epic;
+	uint8 ParsedDetailMode = DM_High;
 	if ( FParse::Value( Str, TEXT("MODE="), ParsedDetailMode ) )
 	{
 		for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
@@ -6674,7 +6674,7 @@ bool UEditorEngine::HandleSetDetailModeCommand( const TCHAR* Str, FOutputDevice&
 
 bool UEditorEngine::HandleSetDetailModeViewCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld )
 {
-	uint8 DM = DM_Epic;
+	uint8 DM = DM_High;
 	if ( FParse::Value( Str, TEXT("MODE="), DM ) )
 	{
 		DetailMode = (EDetailMode)DM;

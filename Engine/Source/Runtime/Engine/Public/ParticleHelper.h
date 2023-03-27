@@ -50,7 +50,6 @@ enum EParticleDetailMode : int
 	PDM_Low UMETA(DisplayName = "Low"),
 	PDM_Medium UMETA(DisplayName = "Medium"),
 	PDM_High UMETA(DisplayName = "High"),
-	PDM_Epic UMETA(DisplayName = "Epic"),
 	PDM_MAX UMETA(Hidden),
 };
 inline const int32 PDM_DefaultValue = 0xFFFF;
@@ -2704,7 +2703,6 @@ struct FParticleSystemCustomVersion
 		BeforeCustomVersionWasAdded = 0,
 		SkipCookingEmittersBasedOnDetailMode,	// skip emitter cooking if their detail mode doesn't match predefined
 		FixLegacySpawningBugs,					// fixing some spawning bugs but must keep old behavior around for existing systems.
-		AddEpicDetailMode,						// adding another bitmask entry to EParticleDetailMode
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
