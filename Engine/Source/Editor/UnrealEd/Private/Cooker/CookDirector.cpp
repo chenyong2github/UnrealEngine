@@ -1217,8 +1217,6 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 	TArray<FString> Tokens;
 	UE::String::ParseTokensMultiple(CommandLine, { ' ', '\t', '\r', '\n' }, [&Tokens](FStringView Token)
 		{
-			const FStringView TargetPlatformToken(TEXT("-TargetPlatform"));
-
 			if (Token.StartsWith(TEXT("-run=")) ||
 				Token == TEXT("-CookOnTheFly") ||
 				Token == TEXT("-CookWorker") ||
@@ -1234,14 +1232,6 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 				Token.StartsWith(TEXT("-unattended"))
 				)
 			{
-				return;
-			}
-			else if (Token.StartsWith(TargetPlatformToken))
-			{
-				// TargetPlatform gets transformed into CookDirectorTargetPlatform
-				FString ModifiedTargetPlatformArgument(TEXT("-CookDirectorTargetPlatform"));
-				ModifiedTargetPlatformArgument.Append(Token.RightChop(TargetPlatformToken.Len()));
-				Tokens.Add(ModifiedTargetPlatformArgument);
 				return;
 			}
 			Tokens.Add(FString(Token));
