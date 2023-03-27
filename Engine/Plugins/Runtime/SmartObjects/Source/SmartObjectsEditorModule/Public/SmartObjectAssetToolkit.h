@@ -7,9 +7,9 @@
 
 class FAdvancedPreviewScene;
 class FSpawnTabArgs;
-
 class FEditorViewportClient;
 class UAssetEditor;
+class IStructureDetailsView;
 
 struct FSmartObjectDefinitionPreviewData;
 

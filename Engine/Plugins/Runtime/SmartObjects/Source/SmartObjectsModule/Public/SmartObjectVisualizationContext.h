@@ -4,6 +4,7 @@
 
 #include "EngineDefines.h"
 #include "Math/Transform.h"
+#include "Templates/SubclassOf.h"
 
 class FCanvas;
 class FSceneView;
