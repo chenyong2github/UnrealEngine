@@ -18,7 +18,9 @@
 #include <stdlib.h>
 #include <memory.h>
 
+#if UE_AUTORTFM
 #include "Templates/Function.h"
+#endif
 
 #ifdef __cplusplus
 extern "C"
