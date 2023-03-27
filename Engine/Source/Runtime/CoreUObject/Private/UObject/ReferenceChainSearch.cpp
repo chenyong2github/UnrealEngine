@@ -325,7 +325,7 @@ namespace UE::ReferenceChainSearch
 					// During construction store edge lists relative to null to be fixed up later
 					FVertex* StartAddress = nullptr;
 					GraphBuffer.Append(EdgeList);
-					EdgeLists[SourceVertex - StartVertex] = TArrayView<FVertex>(StartAddress + BufferStartIndex, EdgeList.Num());
+					EdgeLists[SourceVertex - StartVertex] = TArrayView<FVertex>(StartAddress + BufferStartIndex, EdgeList.Num()); //-V769
 					CurrentEdgeList.Reset();
 				}
 			}

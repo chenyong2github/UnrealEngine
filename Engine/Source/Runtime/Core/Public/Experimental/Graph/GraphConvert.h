@@ -192,7 +192,8 @@ inline FGraph ConvertToGraph(
 
 		// Store the vertex's offset into GraphBuffer, for later fixup
 		// Edge list is guaranteed to fit within 32 bits after removal of duplicates
-		OutGraph.EdgeLists.Emplace(EdgeListBase + InitialOffset, static_cast<int32>(VertexEdges.Num()));
+		OutGraph.EdgeLists.Emplace(EdgeListBase + InitialOffset, static_cast<int32>(VertexEdges.Num())); //-V769
+
 		++Vertex;
 	}
 	if (EnumHasAnyFlags(Options, EConvertToGraphOptions::Shrink))
