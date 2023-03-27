@@ -7,6 +7,7 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Engine/Level.h"
+#include "Containers/Ticker.h"
 #include "Misc/ScopedSlowTask.h"
 #include "WorldPartition/WorldPartition.h"
 #endif
@@ -322,7 +323,22 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnRefreshLoadedState(b
 
 void IWorldPartitionActorLoaderInterface::RefreshLoadedState(bool bIsFromUserChange)
 {
-	ActorLoaderInterfaceRefreshState.Broadcast(bIsFromUserChange);
+	if (!GUndo && !GIsTransacting)
+	{
+		ActorLoaderInterfaceRefreshState.Broadcast(bIsFromUserChange);
+	}
+	else
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([=](float DeltaTime)
+		{
+			if (!GUndo && !GIsTransacting)
+			{
+				ActorLoaderInterfaceRefreshState.Broadcast(bIsFromUserChange);
+				return false;
+			}
+			return true;
+		}));
+	}
 }
 
 IWorldPartitionActorLoaderInterface::FActorReferenceMap& IWorldPartitionActorLoaderInterface::ILoaderAdapter::GetContainerReferences(UActorDescContainer* InContainer)

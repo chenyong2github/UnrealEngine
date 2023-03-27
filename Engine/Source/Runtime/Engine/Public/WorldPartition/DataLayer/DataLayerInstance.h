@@ -66,6 +66,9 @@ public:
 	AWorldDataLayers* GetOuterWorldDataLayers() const;
 
 #if WITH_EDITOR
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
+
 	void SetVisible(bool bIsVisible);
 	void SetIsInitiallyVisible(bool bIsInitiallyVisible);
 	void SetIsLoadedInEditor(bool bIsLoadedInEditor, bool bFromUserChange);
@@ -199,6 +202,7 @@ protected:
 	/** Wheter the data layer is loaded in editor (user setting) */
 	UPROPERTY(Transient)
 	uint32 bIsLoadedInEditor : 1;
+	uint32 bUndoIsLoadedInEditor : 1;
 
 	/** Whether this data layer editor visibility was changed by a user operation */
 	UPROPERTY(Transient)
@@ -218,5 +222,4 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UDataLayerInstance>> Children;
-
 };

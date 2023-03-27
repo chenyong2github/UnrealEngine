@@ -5,12 +5,12 @@
 #include "Internationalization/Text.h"
 #include "UObject/UnrealType.h"
 #include "WorldPartition/WorldPartitionLog.h"
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerInstance)
-
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 
@@ -54,6 +54,21 @@ AWorldDataLayers* UDataLayerInstance::GetOuterWorldDataLayers() const
 }
 
 #if WITH_EDITOR
+void UDataLayerInstance::PreEditUndo()
+{
+	Super::PreEditUndo();
+	bUndoIsLoadedInEditor = bIsLoadedInEditor;
+}
+
+void UDataLayerInstance::PostEditUndo()
+{
+	Super::PostEditUndo();
+	if (bIsLoadedInEditor != bUndoIsLoadedInEditor)
+	{
+		IWorldPartitionActorLoaderInterface::RefreshLoadedState(true);
+	}
+}
+
 void UDataLayerInstance::SetVisible(bool bInIsVisible)
 {
 	if (bIsVisible != bInIsVisible)

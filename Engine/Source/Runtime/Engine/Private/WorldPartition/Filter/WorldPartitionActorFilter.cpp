@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/Filter/WorldPartitionActorFilter.h"
-#include "Containers/Ticker.h"
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 
 #if WITH_EDITORONLY_DATA
@@ -58,24 +57,7 @@ FWorldPartitionActorFilter& FWorldPartitionActorFilter::operator=(FWorldPartitio
 #if WITH_EDITORONLY_DATA
 void FWorldPartitionActorFilter::RequestFilterRefresh(bool bIsFromUserChange)
 {
-	if (GUndo || GIsTransacting)
-	{
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([=](float DeltaTime)
-		{
-			if (GUndo || GIsTransacting)
-			{
-				// Tick again we are still inside a transaction...
-				return true;
-			}
-			
-			IWorldPartitionActorLoaderInterface::RefreshLoadedState(bIsFromUserChange);
-			return false;
-		}));
-	}
-	else
-	{
-		IWorldPartitionActorLoaderInterface::RefreshLoadedState(bIsFromUserChange);
-	}
+	IWorldPartitionActorLoaderInterface::RefreshLoadedState(bIsFromUserChange);
 }
 
 void FWorldPartitionActorFilter::AddChildFilter(const FGuid& InGuid, FWorldPartitionActorFilter* InChildFilter)
