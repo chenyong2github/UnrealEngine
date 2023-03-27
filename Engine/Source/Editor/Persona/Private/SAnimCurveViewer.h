@@ -39,24 +39,22 @@ public:
 	FName CurveName;
 	float Weight;
 	bool bOverrideData;
-	TWeakPtr<class IEditableSkeleton> EditableSkeleton;		// The skeleton we're associated with
 	bool bShown;
 	bool bMorphTarget;
 	bool bMaterial;
 	
 	/** Static function for creating a new item, but ensures that you can only have a TSharedRef to one */
-	static TSharedRef<FDisplayedAnimCurveInfo> Make(TWeakPtr<class IEditableSkeleton> InEditableSkeleton, const FName& InCurveName)
+	static TSharedRef<FDisplayedAnimCurveInfo> Make(const FName& InCurveName)
 	{
-		return MakeShareable(new FDisplayedAnimCurveInfo(InEditableSkeleton, InCurveName));
+		return MakeShareable(new FDisplayedAnimCurveInfo(InCurveName));
 	}
 
 protected:
 	/** Hidden constructor, always use Make above */
-	FDisplayedAnimCurveInfo(TWeakPtr<class IEditableSkeleton> InEditableSkeleton, const FName& InCurveName)
+	FDisplayedAnimCurveInfo(const FName& InCurveName)
 		: CurveName(InCurveName)
 		, Weight(0.0f)
 		, bOverrideData(false)
-		, EditableSkeleton(InEditableSkeleton)
 		, bShown(false)
 		, bMorphTarget(false)
 		, bMaterial(false)
@@ -155,9 +153,10 @@ private:
 class SAnimCurveViewer : public SCompoundWidget, public FSelfRegisteringEditorUndoClient
 {
 public:
-	SLATE_BEGIN_ARGS( SAnimCurveViewer )
-	{}
-	
+	SLATE_BEGIN_ARGS( SAnimCurveViewer ) {}
+
+	SLATE_ARGUMENT(TSharedPtr<IEditableSkeleton>, EditableSkeleton)
+
 	SLATE_END_ARGS()
 
 	/**
@@ -166,7 +165,7 @@ public:
 	* @param InArgs - Arguments passed from Slate
 	*
 	*/
-	void Construct( const FArguments& InArgs, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected);
+	void Construct( const FArguments& InArgs, const TSharedRef<class IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected);
 
 	/**
 	* Destructor - resets the animation curve

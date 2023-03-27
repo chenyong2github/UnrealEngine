@@ -1582,7 +1582,10 @@ void FAnimationBlueprintEditor::OnActiveTabChanged( TSharedPtr<SDockTab> Previou
 
 void FAnimationBlueprintEditor::SetPreviewMesh(USkeletalMesh* NewPreviewMesh)
 {
-	GetSkeletonTree()->SetSkeletalMesh(NewPreviewMesh);
+	if(SkeletonTree.IsValid())
+	{
+		SkeletonTree->SetSkeletalMesh(NewPreviewMesh);
+	}
 }
 
 void FAnimationBlueprintEditor::RefreshPreviewInstanceTrackCurves()
@@ -1719,7 +1722,10 @@ void FAnimationBlueprintEditor::ClearSelectedAnimGraphNodes()
 
 void FAnimationBlueprintEditor::DeselectAll()
 {
-	GetSkeletonTree()->DeselectAll();
+	if(SkeletonTree)
+	{
+		SkeletonTree->DeselectAll();
+	}
 	ClearSelectedActor();
 	ClearSelectedAnimGraphNodes();
 }

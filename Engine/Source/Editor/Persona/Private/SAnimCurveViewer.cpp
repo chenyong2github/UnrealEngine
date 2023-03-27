@@ -459,12 +459,12 @@ TOptional<float> SAnimCurveListRow::GetMaxWeight() const
 //////////////////////////////////////////////////////////////////////////
 // SAnimCurveViewer
 
-void SAnimCurveViewer::Construct(const FArguments& InArgs, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected)
+void SAnimCurveViewer::Construct(const FArguments& InArgs,  const TSharedRef<IPersonaPreviewScene>& InPreviewScene, FOnObjectsSelected InOnObjectsSelected)
 {
 	OnObjectsSelected = InOnObjectsSelected;
 
 	PreviewScenePtr = InPreviewScene;
-	EditableSkeletonPtr = InEditableSkeleton;
+	EditableSkeletonPtr = InArgs._EditableSkeleton;
 
 	InPreviewScene->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &SAnimCurveViewer::OnPreviewMeshChanged));
 	InPreviewScene->RegisterOnAnimChanged(FOnAnimChanged::CreateSP(this, &SAnimCurveViewer::OnPreviewAssetChanged));
@@ -715,7 +715,7 @@ void SAnimCurveViewer::CreateAnimCurveList( const FString& SearchText, bool bInF
 		TSharedPtr<FDisplayedAnimCurveInfo>* ExistingItem = AllSeenAnimCurvesMap.Find(InCurveName);
 		if(ExistingItem == nullptr)
 		{
-			TSharedRef<FDisplayedAnimCurveInfo> NewInfo = FDisplayedAnimCurveInfo::Make(EditableSkeletonPtr, InCurveName);
+			TSharedRef<FDisplayedAnimCurveInfo> NewInfo = FDisplayedAnimCurveInfo::Make(InCurveName);
 
 			float Weight = 0.f;
 			const bool bOverride = GetAnimCurveOverride(InCurveName, Weight);
@@ -732,21 +732,24 @@ void SAnimCurveViewer::CreateAnimCurveList( const FString& SearchText, bool bInF
 			(*ExistingItem)->bMorphTarget = EnumHasAnyFlags(InFlags, UE::Anim::ECurveElementFlags::MorphTarget);
 		}
 	};
-	
+
 	// Add curve items from skeleton metadata
-	EditableSkeletonPtr.Pin()->GetSkeleton().ForEachCurveMetaData([&AddCurve](FName InCurveName, const FCurveMetaData& InCurveMetaData)
+	if(TSharedPtr<IEditableSkeleton> EditableSkeleton = EditableSkeletonPtr.Pin())
 	{
-		UE::Anim::ECurveElementFlags Flags = UE::Anim::ECurveElementFlags::None;
-		if(InCurveMetaData.Type.bMaterial)
+		EditableSkeleton->GetSkeleton().ForEachCurveMetaData([&AddCurve](FName InCurveName, const FCurveMetaData& InCurveMetaData)
 		{
-			Flags |= UE::Anim::ECurveElementFlags::Material; 
-		}
-		if(InCurveMetaData.Type.bMorphtarget)
-		{
-			Flags |= UE::Anim::ECurveElementFlags::MorphTarget; 
-		}
-		AddCurve(InCurveName, Flags);
-	});
+			UE::Anim::ECurveElementFlags Flags = UE::Anim::ECurveElementFlags::None;
+			if(InCurveMetaData.Type.bMaterial)
+			{
+				Flags |= UE::Anim::ECurveElementFlags::Material; 
+			}
+			if(InCurveMetaData.Type.bMorphtarget)
+			{
+				Flags |= UE::Anim::ECurveElementFlags::MorphTarget; 
+			}
+			AddCurve(InCurveName, Flags);
+		});
+	}
 
 	// Add active curves if required
 	TSet<FName> ActiveCurves;

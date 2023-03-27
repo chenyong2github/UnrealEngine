@@ -199,7 +199,7 @@ public:
 	void RecompileAnimBlueprintIfDirty();
 
 	/** Get the skeleton tree this Persona editor is hosting */
-	TSharedRef<class ISkeletonTree> GetSkeletonTree() const { return SkeletonTree.ToSharedRef(); }
+	TSharedPtr<class ISkeletonTree> GetSkeletonTree() const { return SkeletonTree; }
 
 	/** Make this available to allow us to create title bar widgets for other container types - e.g. blendspaces */
 	using FBlueprintEditor::CreateGraphTitleBarWidget;
