@@ -641,7 +641,11 @@ void CalculateFPSTimings()
 	static auto CVarVsync = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSync"));
 	if (CVarGTSyncType->GetInt() == 2 && CVarVsync->GetInt() != 0)
 	{
-		FrameTimeMS = RHIGetFrameTime();
+		float RHIFrameTime = RHIGetFrameTime();
+		if (RHIFrameTime != 0)
+		{
+			FrameTimeMS = RHIFrameTime;
+		}
 	}
 	
 	// A 3/4, 1/4 split gets close to a simple 10 frame moving average
