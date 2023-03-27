@@ -25,22 +25,6 @@ uint2 UnpackTileCoord(uint In)
 	return uint2(In & 0xffff, (In >> 16) & 0xffff);
 }
 
-uint PackR11G11B10F(float3 rgb)
-{
-	uint r = (f32tof16(rgb.r) << 17) & 0xFFE00000;
-	uint g = (f32tof16(rgb.g) << 6) & 0x001FFC00;
-	uint b = (f32tof16(rgb.b) >> 5) & 0x000003FF;
-	return r | g | b;
-}
-
-float3 UnpackR11G11B10F(uint rgb)
-{
-	float r = f16tof32((rgb >> 17) & 0x7FF0);
-	float g = f16tof32((rgb >> 6) & 0x7FF0);
-	float b = f16tof32((rgb << 5) & 0x7FE0);
-	return float3(r, g, b);
-}
-
 uint PackDepth(float In)
 {
 	return asuint(In);
