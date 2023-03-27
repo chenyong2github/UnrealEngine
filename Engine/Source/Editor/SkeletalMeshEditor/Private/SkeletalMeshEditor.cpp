@@ -347,11 +347,30 @@ void FSkeletalMeshEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChanged
 		return;
 	}
 
+	static const TArray<FTabId> DefaultTabs{
+		SkeletalMeshEditorTabs::DetailsTab,
+		SkeletalMeshEditorTabs::AssetDetailsTab,
+		SkeletalMeshEditorTabs::SkeletonTreeTab,
+		SkeletalMeshEditorTabs::AdvancedPreviewTab,
+		SkeletalMeshEditorTabs::MorphTargetsTab,
+		SkeletalMeshEditorTabs::CurveMetadataTab,
+		SkeletalMeshEditorTabs::FindReplaceTab
+	};
+	
 	if (bIsEnteringMode)
 	{
 		// FIXME: We should get the hosted toolkit from here.
 		if (GetEditorModeManager().GetActiveScriptableMode(ModeChangedID)->UsesToolkits())
 		{
+			// for (const FTabId& TabId: DefaultTabs)
+			// {
+			// 	if (const TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabId))
+			// 	{
+			// 		TabToRestore.Emplace(TabId, Tab->IsForeground());
+			// 		Tab->RequestCloseTab();
+			// 	}
+			// }
+
 			TabManager->TryInvokeTab(SkeletalMeshEditorTabs::ToolboxDetailsTab);
 		}
 	}
@@ -362,6 +381,12 @@ void FSkeletalMeshEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChanged
 		{
 			ToolboxTab->RequestCloseTab();
 		}
+
+		// for (const TPair<FTabId, bool>& Tab: TabToRestore)
+		// {
+		// 	TabManager->TryInvokeTab(Tab.Get<0>());
+		// }
+		TabToRestore.Empty();
 	}
 }
 
@@ -696,7 +721,7 @@ void FSkeletalMeshEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 
 void FSkeletalMeshEditor::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
 {
-	if (ensure(!HostedToolkit.IsValid()))
+	if (!HostedToolkit.IsValid())
 	{
 		HostedToolkit = Toolkit;
 
@@ -710,7 +735,7 @@ void FSkeletalMeshEditor::OnToolkitHostingStarted(const TSharedRef<IToolkit>& To
 
 void FSkeletalMeshEditor::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit)
 {
-	if (ensure(Toolkit == HostedToolkit))
+	if (Toolkit == HostedToolkit)
 	{
 		if (ToolboxWidget.IsValid())
 		{
@@ -1630,15 +1655,25 @@ void FSkeletalMeshEditorNotifier::HandleNotification(const TArray<FName>& BoneNa
 	switch (InNotifyType)
 	{
 	case ESkeletalMeshNotifyType::BonesAdded:
+		SkeletonTree->DeselectAll();
 		SkeletonTree->Refresh();
 		break;
 	case ESkeletalMeshNotifyType::BonesRemoved:
+		SkeletonTree->DeselectAll();
 		SkeletonTree->Refresh();
 		break;
 	case ESkeletalMeshNotifyType::BonesMoved:
 		break;
 	case ESkeletalMeshNotifyType::BonesSelected:
 		SkeletonTree->DeselectAll();
+		if (!BoneNames.IsEmpty())
+		{
+			SkeletonTree->SetSelectedBone(BoneNames[0], ESelectInfo::Direct);
+		}
+		break;
+	case ESkeletalMeshNotifyType::BonesRenamed:
+		SkeletonTree->DeselectAll();
+		SkeletonTree->Refresh();
 		if (!BoneNames.IsEmpty())
 		{
 			SkeletonTree->SetSelectedBone(BoneNames[0], ESelectInfo::Direct);

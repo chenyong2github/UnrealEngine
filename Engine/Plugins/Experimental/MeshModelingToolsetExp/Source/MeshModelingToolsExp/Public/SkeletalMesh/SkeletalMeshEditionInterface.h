@@ -41,10 +41,11 @@ public:
 protected:
 	virtual void HandleSkeletalMeshModified(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType) = 0;
 	TOptional<FName> GetBoneName(HHitProxy* InHitProxy) const;
+	
+	TWeakPtr<ISkeletalMeshEditorBinding> Binding;
 
 private:
 	TUniquePtr<FSkeletalMeshToolNotifier> Notifier;
-	TWeakPtr<ISkeletalMeshEditorBinding> Binding;
 	
 	friend FSkeletalMeshToolNotifier;
 };

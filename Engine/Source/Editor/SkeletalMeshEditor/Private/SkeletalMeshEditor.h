@@ -220,6 +220,9 @@ private:
 
 	// Binding to send/receive skeletal mesh modifications
 	TSharedPtr<FSkeletalMeshEditorBinding> Binding;
+
+	// Tabs to restore when getting out of the tool
+	TArray<TPair<FTabId, bool>> TabToRestore;
 };
 
 /**

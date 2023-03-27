@@ -32,6 +32,8 @@ private:
 	bool IsModelingToolModeActive(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const;
 	void OnToggleModelingToolsMode(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor);
 
+	void OnPostEngineInit();
+	
 	// The handle for the extender delegate we added. Needed for clean module shutdown.
 	FDelegateHandle SkelMeshEditorExtenderHandle;
 

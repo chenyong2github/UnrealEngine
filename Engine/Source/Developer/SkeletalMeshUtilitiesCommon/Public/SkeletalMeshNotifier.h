@@ -14,7 +14,8 @@ enum class ESkeletalMeshNotifyType
 	BonesAdded,
 	BonesRemoved,
 	BonesMoved,
-	BonesSelected
+	BonesSelected,
+	BonesRenamed
 };
 
 // A delegate for monitoring to skeletal mesh global notifications.

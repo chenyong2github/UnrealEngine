@@ -16,6 +16,10 @@ struct FMeshDescription;
 struct FReferenceSkeleton;
 struct FTransformComposer;
 
+/**
+ * FMirrorOptions
+ */
+
 USTRUCT(BlueprintType)
 struct SKELETALMESHUTILITIESCOMMON_API FMirrorOptions
 {
@@ -38,6 +42,30 @@ struct SKELETALMESHUTILITIESCOMMON_API FMirrorOptions
 
 	FTransform MirrorTransform(const FTransform& InGlobalTransform) const;
 	FVector MirrorVector(const FVector& InVector) const;
+};
+
+/**
+ * FOrientOptions
+ */
+
+USTRUCT(BlueprintType)
+struct SKELETALMESHUTILITIESCOMMON_API FOrientOptions
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Orient")
+	TEnumAsByte<EAxis::Type> Primary = EAxis::X;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Orient")
+	TEnumAsByte<EAxis::Type> Secondary = EAxis::Y;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Orient")
+	FVector SecondaryTarget = FVector::YAxisVector;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Orient")
+	bool bOrientChildren = true;
+
+	FTransform OrientTransform(const FVector& InPrimaryTarget, const FTransform& InTransform) const;
 };
 
 /**
@@ -68,16 +96,15 @@ public:
 	 */
 	bool MirrorBone(const FName InBoneName, const FMirrorOptions& InOptions = FMirrorOptions());
 	bool MirrorBones(const TArray<FName>& InBonesName, const FMirrorOptions& InOptions = FMirrorOptions());
-	bool MirrorBonesDep(const TArray<FName>& InBonesName);
 
-	/** Moves a bone at a new desired local transform
-	 *  @param InBoneToMove The new bone's name that needs to be moved.
+	/** Sets the bone the desired local transform
+	 *  @param InBoneName The new bone's name that needs to be moved.
 	 *  @param InNewTransform The new local transform in the bone's parent space.
 	 *  @param bMoveChildren Propagate new transform to children
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
-	bool MoveBone(const FName InBoneToMove, const FTransform& InNewTransform, const bool bMoveChildren);
-	bool MoveBones(const TArray<FName>& InBonesToMove, const TArray<FTransform>& InNewTransforms, const bool bMoveChildren);
+	bool SetBoneTransform(const FName InBoneName, const FTransform& InNewTransform, const bool bMoveChildren);
+	bool SetBonesTransforms(const TArray<FName>& InBoneNames, const TArray<FTransform>& InNewTransforms, const bool bMoveChildren);
 
 	/** Remove a bone in the skeleton hierarchy
 	 *  @param InBoneName The new bone's name.
@@ -105,11 +132,11 @@ public:
 
 	/** Align bones
 	 *  @param InBoneName The current bone's name.
-	 *  @param bAlignChildren
+	 *  @param InOptions The orienting options
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
-	bool AlignBone(const FName InBoneName, const bool bAlignChildren);
-	bool AlignBones(const TArray<FName>& InBoneNames, const bool bAlignChildren);
+	bool OrientBone(const FName InBoneName, const FOrientOptions& InOptions = FOrientOptions());
+	bool OrientBones(const TArray<FName>& InBoneNames, const FOrientOptions& InOptions = FOrientOptions());
 	
 	/**
 	 * Actually applies the skeleton modifications to the skeletal mesh.
@@ -133,7 +160,11 @@ private:
 	void GetBonesToMirror(const TArray<FName>& InBonesName, const FMirrorOptions& InOptions, TArray<int32>& OutBonesToMirror) const;
 	void GetMirroredNames(const TArray<int32>& InBonesToMirror, const FMirrorOptions& InOptions, TArray<FName>& OutBonesName) const;
 	void GetMirroredBones(const TArray<int32>& InBonesToMirror, const TArray<FName>& InMirroredNames, TArray<int32>& OutMirroredBones);
-	void GetMirroredTransforms(const TArray<int32>& InBonesToMirror, const FMirrorOptions& InOptions, TArray<FTransform>& OutMirroredTransforms) const;
+	void GetMirroredTransforms(	const TArray<int32>& InBonesToMirror, const TArray<int32>& InMirroredBones,
+								const FMirrorOptions& InOptions, TArray<FTransform>& OutMirroredTransforms) const;
+
+	// orient function
+	void GetBonesToOrient(const TArray<FName>& InBonesName, const FOrientOptions& InOptions, TArray<int32>& OutBonesToOrient) const;
 	
 	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
 	TUniquePtr<FMeshDescription> MeshDescription;

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "StatusBarSubsystem.h"
 #include "Toolkits/BaseToolkit.h"
 
 
@@ -15,6 +16,9 @@ class FSkeletalMeshModelingToolsEditorModeToolkit :
 	 public FModeToolkit
 {
 public:
+
+	~FSkeletalMeshModelingToolsEditorModeToolkit();
+	
 	// IToolkit overrides
 	void Init(const TSharedPtr<IToolkitHost>& InToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 	FName GetToolkitFName() const override;
@@ -44,6 +48,7 @@ private:
 
 	FText ActiveToolName;
 	FText ActiveToolMessage;
+	FStatusBarMessageHandle ActiveToolMessageHandle;
 
 	TSharedPtr<SWidget> ToolkitWidget;
 	TSharedPtr<IDetailsView> DetailsView;

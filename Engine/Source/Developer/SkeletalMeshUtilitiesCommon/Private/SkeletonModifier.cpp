@@ -52,9 +52,61 @@ FTransform FMirrorOptions::MirrorTransform(const FTransform& InTransform) const
 
 FVector FMirrorOptions::MirrorVector(const FVector& InVector) const
 {
-	FVector Axis = FVector::ZeroVector;
-	Axis.SetComponentForAxis(MirrorAxis, 1.f);
+	FVector Axis(ForceInitToZero); Axis.SetComponentForAxis(MirrorAxis, 1.f);
 	return InVector.MirrorByVector(Axis);
+}
+
+FTransform FOrientOptions::OrientTransform(const FVector& InPrimaryTarget, const FTransform& InTransform) const
+{
+	if (Primary == EAxis::None || InPrimaryTarget.IsNearlyZero())
+	{
+		return InTransform;
+	}
+
+	FTransform Transform = InTransform;
+
+	FVector PrimaryAxis(ForceInitToZero); PrimaryAxis.SetComponentForAxis(Primary, 1.f);
+	const FVector PrimaryTarget = InPrimaryTarget.GetSafeNormal();
+	
+	// orient primary axis towards InPrimaryTarget
+	{
+		const FVector Axis = Transform.TransformVectorNoScale(PrimaryAxis).GetSafeNormal();
+		const FQuat Rotation = FQuat::FindBetweenNormals(Axis, PrimaryTarget);
+		const FQuat NewRotation = (Rotation * Transform.GetRotation()).GetNormalized();
+		Transform.SetRotation(NewRotation);
+	}
+
+	if (Secondary == EAxis::None || SecondaryTarget.IsNearlyZero())
+	{ // no need to use secondary axis
+		return Transform;
+	}
+
+	FVector Target = SecondaryTarget.GetSafeNormal();
+	if (FMath::IsNearlyEqual(FMath::Abs(FVector::DotProduct(PrimaryTarget, Target)), 1.0f))
+	{ // both targets are parallel
+		return Transform;
+	}
+
+	// orient secondary axis towards SecondaryDirection
+	{
+		FVector SecondaryAxis(ForceInitToZero); SecondaryAxis.SetComponentForAxis(Secondary, 1.f);
+		
+		{
+			const FVector Axis = Transform.TransformVectorNoScale(PrimaryAxis).GetSafeNormal();
+			Target = Target - FVector::DotProduct(Target, Axis) * Axis;
+		}
+
+		if (!Target.IsNearlyZero())
+		{
+			Target = Target.GetSafeNormal();
+			const FVector Axis = Transform.TransformVectorNoScale(SecondaryAxis).GetSafeNormal();
+			const FQuat Rotation = FQuat::FindBetweenNormals(Axis, Target);
+			const FQuat NewRotation = (Rotation * Transform.GetRotation()).GetNormalized();
+			Transform.SetRotation(NewRotation);
+		}
+	}
+	
+	return Transform;
 }
 
 void FSkeletonModifier::ExternalUpdate(const FReferenceSkeleton& InRefSkeleton, const TArray<int32>& InIndexTracker)
@@ -452,22 +504,22 @@ bool FSkeletonModifier::MirrorBones(const TArray<FName>& InBonesName, const FMir
 	TArray<FName> MirroredNames; GetMirroredNames(BonesToMirror, InOptions, MirroredNames);
 
 	// add bones first if they are missing
-	TArray<int32> MirroredIndex; GetMirroredBones(BonesToMirror, MirroredNames, MirroredIndex);
-	if (MirroredIndex.Num() != NumBonesToMirror)
+	TArray<int32> MirroredBones; GetMirroredBones(BonesToMirror, MirroredNames, MirroredBones);
+	if (MirroredBones.Num() != NumBonesToMirror)
 	{
 		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Mirror: Couldn't find mirrored bones."));
 		return false;
 	}
 
 	// compute mirrored transforms
-	TArray<FTransform> MirroredTransforms; GetMirroredTransforms(BonesToMirror, InOptions, MirroredTransforms);
+	TArray<FTransform> MirroredTransforms; GetMirroredTransforms(BonesToMirror, MirroredBones, InOptions, MirroredTransforms);
 
 	// update reference skeleton
 	{
 		FReferenceSkeletonModifier Modifier(*ReferenceSkeleton, nullptr);
 		for (int32 Index = 0; Index < NumBonesToMirror; Index++)
 		{
-			Modifier.UpdateRefPoseTransform(MirroredIndex[Index], MirroredTransforms[Index]);
+			Modifier.UpdateRefPoseTransform(MirroredBones[Index], MirroredTransforms[Index]);
 		}
 	}
 
@@ -625,7 +677,8 @@ void FSkeletonModifier::GetMirroredBones(
 }
 
 void FSkeletonModifier::GetMirroredTransforms(
-	const TArray<int32>& InBonesToMirror, const FMirrorOptions& InOptions, TArray<FTransform>& OutMirroredTransforms) const
+	const TArray<int32>& InBonesToMirror, const TArray<int32>& InMirroredBones,
+	const FMirrorOptions& InOptions, TArray<FTransform>& OutMirroredTransforms) const
 {
 	OutMirroredTransforms.Reset();
 	
@@ -689,8 +742,9 @@ void FSkeletonModifier::GetMirroredTransforms(
 		const int32 RefBoneIndex = InBonesToMirror[Index];		
 		const int32 RefParentIndex = BoneInfos[RefBoneIndex].ParentIndex;
 		const int32 ParentMirroredIndex = InBonesToMirror.IndexOfByKey(RefParentIndex);
+		const int32 ParentIndex = BoneInfos[InMirroredBones[Index]].ParentIndex;
 		const FTransform& ParentGlobal = ParentMirroredIndex != INDEX_NONE ? MirroredGlobal[ParentMirroredIndex] :
-							TransformComposer->GetGlobalTransform(RefParentIndex);
+							TransformComposer->GetGlobalTransform(ParentIndex);
 		OutMirroredTransforms.Add(MirroredGlobal[Index].GetRelativeTransform(ParentGlobal));
 	}
 }
@@ -699,26 +753,26 @@ void FSkeletonModifier::GetMirroredTransforms(
 // atm, we update the bone's local ref transform so children's global transforms are changed (we just need to cache the
 // global transforms then restore them back)
 // orienting the bone for example should change the children's global transform
-bool FSkeletonModifier::MoveBone( const FName InBoneToMove, const FTransform& InNewTransform, const bool bMoveChildren)
+bool FSkeletonModifier::SetBoneTransform( const FName InBoneName, const FTransform& InNewTransform, const bool bMoveChildren)
 {
-	if (InBoneToMove == NAME_None)
+	if (InBoneName == NAME_None)
 	{
 		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Move: Cannot move bone with no name."));
 		return false;
 	}
 	
-	return MoveBones({InBoneToMove}, {InNewTransform}, bMoveChildren);
+	return SetBonesTransforms({InBoneName}, {InNewTransform}, bMoveChildren);
 }
 
-bool FSkeletonModifier::MoveBones(
-	const TArray<FName>& InBonesToMove, const TArray<FTransform>& InNewTransforms, const bool bMoveChildren)
+bool FSkeletonModifier::SetBonesTransforms(
+	const TArray<FName>& InBoneNames, const TArray<FTransform>& InNewTransforms, const bool bMoveChildren)
 {
 	if (!IsReferenceSkeletonValid())
 	{
 		return false;
 	}
 	
-	const int32 NumBonesToMove = InBonesToMove.Num();
+	const int32 NumBonesToMove = InBoneNames.Num();
 	if (NumBonesToMove == 0 || NumBonesToMove != InNewTransforms.Num())
 	{
 		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Move: Discrepancy between bones and transforms (%d / %d)."), NumBonesToMove, InNewTransforms.Num());
@@ -731,7 +785,7 @@ bool FSkeletonModifier::MoveBones(
 
 	for (int32 Index = 0; Index < NumBonesToMove; Index++)
 	{
-		const int32 BoneIndex = ReferenceSkeleton->FindRawBoneIndex(InBonesToMove[Index]);
+		const int32 BoneIndex = ReferenceSkeleton->FindRawBoneIndex(InBoneNames[Index]);
 		if (BoneIndex != INDEX_NONE)
 		{
 			BoneIndices.Add(BoneIndex);
@@ -756,7 +810,13 @@ bool FSkeletonModifier::MoveBones(
 		{
 			TArray<int32> Children;
 			ReferenceSkeleton->GetDirectChildBones(BoneIndices[Index], Children);
-			ChildrenToFix.Append(Children);
+			for (int32 ChildIndex: Children)
+			{
+				if (!BoneIndices.Contains(ChildIndex))
+				{
+					ChildrenToFix.Add(ChildIndex);
+				}
+			}
 		}
 
 		// sort them from highest index to lowest
@@ -973,18 +1033,18 @@ bool FSkeletonModifier::ParentBones(const TArray<FName>& InBoneNames, const TArr
 	return true;
 }
 
-bool FSkeletonModifier::AlignBone(const FName InBoneName, const bool bAlignChildren)
+bool FSkeletonModifier::OrientBone(const FName InBoneName, const FOrientOptions& InOptions)
 {
 	if (InBoneName == NAME_None)
 	{
-		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Align: Cannot align a bone with no name."));
+		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Orient: Cannot orient a bone with no name."));
 		return false;
 	}
 	
-	return AlignBones({InBoneName}, bAlignChildren);
+	return OrientBones({InBoneName}, InOptions);
 }
 
-bool FSkeletonModifier::AlignBones(const TArray<FName>& InBoneNames, const bool bAlignChildren)
+bool FSkeletonModifier::OrientBones(const TArray<FName>& InBoneNames, const FOrientOptions& InOptions)
 {
 	if (!IsReferenceSkeletonValid())
 	{
@@ -993,73 +1053,121 @@ bool FSkeletonModifier::AlignBones(const TArray<FName>& InBoneNames, const bool 
 	
 	if (InBoneNames.IsEmpty())
 	{
-		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Align: No bone provided."));
+		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Orient: No bone provided."));
 		return false;
 	}
 
-	auto GetAlignedTransform = [&](const FName& InBoneName) -> TOptional<FTransform>
+	// get bones to mirror
+	TArray<int32> BonesToOrient; GetBonesToOrient(InBoneNames, InOptions, BonesToOrient);
+	const int32 NumBonesToOrient = BonesToOrient.Num();
+	if (NumBonesToOrient == 0)
 	{
-		TOptional<FTransform> OptTransform;
+		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Orient: None of the provided names has been found."));
+		return false;
+	}
+	
+	auto GetAlignedTransform = [&](const int32 BoneIndex) -> FTransform
+	{
+		const FTransform& BoneGlobal = TransformComposer->GetGlobalTransform(BoneIndex);
 		
-		const int32 BoneIndex = ReferenceSkeleton->FindRawBoneIndex(InBoneName);
 		const int32 ParentIndex = BoneIndex != INDEX_NONE ? ReferenceSkeleton->GetRawParentIndex(BoneIndex) : INDEX_NONE;
-		if (ParentIndex == INDEX_NONE)
-		{ // we can't align if there's no parent
-			return OptTransform;
-		}
 
 		TArray<int32> Children; ReferenceSkeleton->GetDirectChildBones(BoneIndex, Children);
-		if (Children.Num() != 1)
+		const int32 NumChildren = Children.Num();
+		if (NumChildren > 1)
 		{ // we can't align if there are more than one children
-			return OptTransform;
+			return BoneGlobal;
 		}
 
-		const FTransform& ParentGlobal = GetTransform(ParentIndex, true);
-		const FTransform& BoneGlobal = GetTransform(BoneIndex, true);
-		const FTransform& ChildGlobal = GetTransform(Children[0], true);
+		const FTransform& ParentGlobal = TransformComposer->GetGlobalTransform(ParentIndex);
+		FVector Direction = (BoneGlobal.GetLocation() - ParentGlobal.GetLocation()).GetSafeNormal();
 
-		// X/Y axis
-		const FVector XAxis = (ChildGlobal.GetLocation() - BoneGlobal.GetLocation()).GetSafeNormal();
-		const FVector YAxis = (BoneGlobal.GetLocation() - ParentGlobal.GetLocation()).GetSafeNormal();
-
-		if (XAxis.IsNearlyZero() || YAxis.IsNearlyZero())
+		if (NumChildren > 0)
 		{
-			return OptTransform;
+			const FTransform& ChildGlobal = TransformComposer->GetGlobalTransform(Children[0]);
+			Direction = (ChildGlobal.GetLocation() - BoneGlobal.GetLocation()).GetSafeNormal();
+		}
+		
+		if (Direction.IsNearlyZero())
+		{
+			return BoneGlobal;
 		}
 
-		// Z axis
-		const bool bComputePlane = (FMath::Abs(FVector::DotProduct(XAxis, YAxis)) - 1.0f) < KINDA_SMALL_NUMBER;
-		const FVector ZAxis = bComputePlane ? FVector::CrossProduct(XAxis, YAxis) : BoneGlobal.TransformVector(FVector::ZAxisVector);
-	
-		FQuat Rotation = FRotationMatrix::MakeFromXZ(XAxis, ZAxis).ToQuat();
-		Rotation.Normalize();
-
-		const FTransform GlobalTransform(Rotation, BoneGlobal.GetLocation());
-		const FTransform LocalTransform = GlobalTransform.GetRelativeTransform(ParentGlobal);
-
-		return LocalTransform;
+		return InOptions.OrientTransform(Direction, BoneGlobal);
 	};
+
+	const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton->GetRawRefBoneInfo();
 	
-	TArray<FName> BonesToAlign; BonesToAlign.Reserve(InBoneNames.Num());
-	TArray<FTransform> Transforms; Transforms.Reserve(InBoneNames.Num());
-	for (int32 Index = 0; Index < InBoneNames.Num(); ++Index)	
+	TArray<FName> BonesToAlign; BonesToAlign.Reserve(NumBonesToOrient);
+	TArray<FTransform> OrientedGlobal; OrientedGlobal.Reserve(NumBonesToOrient);
+	for (int32 Index = 0; Index < NumBonesToOrient; ++Index)	
 	{
-		TOptional<FTransform> OptTransform = GetAlignedTransform(InBoneNames[Index]);
-		if (OptTransform)
-		{
-			BonesToAlign.Add(InBoneNames[Index]);
-			Transforms.Add(*OptTransform);
-		}
+		const int32 BoneIndex = BonesToOrient[Index];
+		BonesToAlign.Add(BoneInfos[BoneIndex].Name);
+		OrientedGlobal.Add(GetAlignedTransform(BoneIndex));
+	}
+
+	// switch back to local
+	TArray<FTransform> Transforms; Transforms.Reserve(NumBonesToOrient);
+	for (int32 Index = 0; Index < BonesToAlign.Num(); Index++)
+	{
+		const FName& BoneName = BonesToAlign[Index];
+		const int32 BoneIndex = ReferenceSkeleton->FindRawBoneIndex(BoneName);
+		const int32 ParentIndex = BoneInfos[BoneIndex].ParentIndex;
+		const int32 ParentOrientedIndex = ParentIndex != INDEX_NONE ? BonesToAlign.IndexOfByKey(BoneInfos[ParentIndex].Name) : INDEX_NONE;
+		const FTransform& ParentGlobal = ParentOrientedIndex != INDEX_NONE ? OrientedGlobal[ParentOrientedIndex] :
+					TransformComposer->GetGlobalTransform(ParentIndex);
+		Transforms.Add(OrientedGlobal[Index].GetRelativeTransform(ParentGlobal));
 	}
 
 	if (BonesToAlign.IsEmpty())
 	{
-		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Align: No bone to align."));
+		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier - Orient: No bone to orient."));
 		return false;
 	}
 
 	static constexpr bool bMoveChildren = false;
-	return MoveBones(BonesToAlign, Transforms, bMoveChildren);
+	return SetBonesTransforms(BonesToAlign, Transforms, bMoveChildren);
+}
+
+void FSkeletonModifier::GetBonesToOrient(
+	const TArray<FName>& InBonesName, const FOrientOptions& InOptions, TArray<int32>& OutBonesToOrient) const
+{
+	OutBonesToOrient.Reset();
+	
+	TSet<int32> IndicesToOrient;
+	auto GetBonesToOrient = [&](const int32 BoneIndex, auto&& GetBonesToOrient2) -> void
+	{
+		if (BoneIndex == INDEX_NONE)
+		{
+			return;
+		}
+		
+		IndicesToOrient.Add(BoneIndex);
+
+		if (InOptions.bOrientChildren)
+		{
+			TArray<int32> Children; ReferenceSkeleton->GetDirectChildBones(BoneIndex, Children);
+			for (int32 ChildIndex: Children)
+			{
+				GetBonesToOrient2(ChildIndex, GetBonesToOrient2);
+			}
+		}
+	};
+	
+	for (const FName& BoneName: InBonesName)
+	{
+		GetBonesToOrient(ReferenceSkeleton->FindRawBoneIndex(BoneName), GetBonesToOrient);
+	}
+
+	const int32 NumBonesToOrient = IndicesToOrient.Num();
+	if (NumBonesToOrient == 0)
+	{
+		return;
+	}
+
+	IndicesToOrient.Sort([](const int32 Index0, const int32 Index1) {return Index0 < Index1;});
+	OutBonesToOrient = IndicesToOrient.Array();
 }
 
 void FSkeletonModifier::UpdateBoneTracker(const TArray<FMeshBoneInfo>& InOtherInfos)

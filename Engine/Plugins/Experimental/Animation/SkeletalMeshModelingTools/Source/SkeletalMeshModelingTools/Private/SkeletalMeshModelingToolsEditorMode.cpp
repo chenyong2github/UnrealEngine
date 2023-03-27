@@ -40,6 +40,8 @@
 #include "SkeletalMeshNotifier.h"
 #include "SkeletalMesh/SkeletalMeshEditionInterface.h"
 
+#include "SkeletalMesh/SkeletonEditingTool.h"
+
 #define LOCTEXT_NAMESPACE "SkeletalMeshModelingToolsEditorMode"
 
 
@@ -229,6 +231,9 @@ void USkeletalMeshModelingToolsEditorMode::Enter()
 	RegisterTool(ToolManagerCommands.BeginSkinWeightsPaintTool, TEXT("BeginSkinWeightsPaintTool"), NewObject<USkinWeightsPaintToolBuilder>());
 	RegisterTool(ToolManagerCommands.BeginSkinWeightsBindingTool, TEXT("BeginSkinWeightsBindingTool"), NewObject<USkinWeightsBindingToolBuilder>());
 
+	// Skeleton Editing
+	RegisterTool(ToolManagerCommands.BeginSkeletonEditingTool, TEXT("BeginSkeletonEditingTool"), NewObject<USkeletonEditingToolBuilder>());
+	
 	GetInteractiveToolsContext()->ToolManager->SelectActiveToolType(EToolSide::Left, TEXT("BeginSkinWeightsPaintTool"));
 }
 
@@ -311,8 +316,20 @@ bool USkeletalMeshModelingToolsEditorMode::ComputeBoundingBoxForViewportFocus(AA
 					InOutBox += Component->GetBoneLocation(BoneName);
 				}
 				
-				return true;
+				return true; 
 			}
+		}
+	}
+
+	// if Tool supports custom Focus box, use that
+	if (GetToolManager()->HasAnyActiveTool())
+	{
+		UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+		IInteractiveToolCameraFocusAPI* FocusAPI = Cast<IInteractiveToolCameraFocusAPI>(Tool);
+		if (FocusAPI && FocusAPI->SupportsWorldSpaceFocusBox())
+		{
+			InOutBox = FocusAPI->GetWorldSpaceFocusBox();
+			return true;
 		}
 	}
 	
@@ -321,11 +338,15 @@ bool USkeletalMeshModelingToolsEditorMode::ComputeBoundingBoxForViewportFocus(AA
 
 void USkeletalMeshModelingToolsEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	FSkeletalMeshModelingToolsActionCommands::UpdateToolCommandBinding(Tool, Toolkit->GetToolkitCommands(), false);
+	
 	ConnectTool(Tool);
 }
 
 void USkeletalMeshModelingToolsEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	FSkeletalMeshModelingToolsActionCommands::UpdateToolCommandBinding(Tool, Toolkit->GetToolkitCommands(), true);
+	
 	DisconnectTool(Tool);
 }
 

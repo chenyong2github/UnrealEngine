@@ -126,6 +126,8 @@ public:
 
 	TSharedPtr<FUICommandInfo> BeginSkinWeightsPaintTool;
 	TSharedPtr<FUICommandInfo> BeginSkinWeightsBindingTool;
+
+	TSharedPtr<FUICommandInfo> BeginSkeletonEditingTool;
 	
 	TSharedPtr<FUICommandInfo> BeginLODManagerTool;
 	TSharedPtr<FUICommandInfo> BeginGenerateStaticMeshLODAssetTool;

@@ -40,6 +40,8 @@ void FSkeletalMeshModelingToolsModule::StartupModule()
 
 	ToolbarExtenders.Add(ISkeletalMeshEditorModule::FSkeletalMeshEditorToolbarExtender::CreateRaw(this, &FSkeletalMeshModelingToolsModule::ExtendSkelMeshEditorToolbar));
 	SkelMeshEditorExtenderHandle = ToolbarExtenders.Last().GetHandle();
+
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FSkeletalMeshModelingToolsModule::OnPostEngineInit);
 }
 
 void FSkeletalMeshModelingToolsModule::ShutdownModule()
@@ -55,6 +57,9 @@ void FSkeletalMeshModelingToolsModule::ShutdownModule()
 
 	FSkeletalMeshModelingToolsCommands::Unregister();
 	FSkeletalMeshModelingToolsStyle::Unregister();
+	
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	FSkeletalMeshModelingToolsActionCommands::UnregisterAllToolActions();
 }
 
 
@@ -146,6 +151,11 @@ void FSkeletalMeshModelingToolsModule::OnToggleModelingToolsMode(TWeakPtr<ISkele
 			EditorModeManager.ActivateDefaultMode();
 		}
 	}
+}
+
+void FSkeletalMeshModelingToolsModule::OnPostEngineInit()
+{
+	FSkeletalMeshModelingToolsActionCommands::RegisterAllToolActions();
 }
 
 #undef LOCTEXT_NAMESPACE

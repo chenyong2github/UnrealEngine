@@ -29,7 +29,8 @@ public class SkeletalMeshModelingTools : ModuleRules
 				"StylusInput",
 				"ToolMenus",
 				"ToolWidgets",
-				"UnrealEd", 
+				"UnrealEd",
+				"StatusBar"
 			}
 		);
 	}

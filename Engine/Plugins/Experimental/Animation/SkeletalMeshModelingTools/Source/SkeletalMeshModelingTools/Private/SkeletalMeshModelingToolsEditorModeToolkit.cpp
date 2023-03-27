@@ -20,10 +20,19 @@
 #include "ModelingToolsManagerActions.h"
 #include "BaseTools/MeshSurfacePointTool.h"
 #include "SPrimaryButton.h"
+#include "Toolkits/AssetEditorModeUILayer.h"
 
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshModelingToolsEditorModeToolkit"
 
+FSkeletalMeshModelingToolsEditorModeToolkit::~FSkeletalMeshModelingToolsEditorModeToolkit()
+{
+	if (UEditorInteractiveToolsContext* Context = GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode))
+	{
+		Context->OnToolNotificationMessage.RemoveAll(this);
+		Context->OnToolWarningMessage.RemoveAll(this);
+	}
+}
 
 void FSkeletalMeshModelingToolsEditorModeToolkit::Init(
 	const TSharedPtr<IToolkitHost>& InToolkitHost, 
@@ -95,9 +104,12 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::Init(
 
 	ActiveToolName = FText::GetEmpty();
 	ActiveToolMessage = FText::GetEmpty();
-	
-	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolNotificationMessage.AddSP(this, &FSkeletalMeshModelingToolsEditorModeToolkit::PostNotification);
-	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolWarningMessage.AddSP(this, &FSkeletalMeshModelingToolsEditorModeToolkit::PostWarning);
+
+	if (UEditorInteractiveToolsContext* Context = GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode))
+	{
+		Context->OnToolNotificationMessage.AddSP(this, &FSkeletalMeshModelingToolsEditorModeToolkit::PostNotification);
+		Context->OnToolWarningMessage.AddSP(this, &FSkeletalMeshModelingToolsEditorModeToolkit::PostWarning);
+	}
 
 	SAssignNew(ViewportOverlayWidget, SHorizontalBox)
 
@@ -238,11 +250,12 @@ static const FName EditTabName(TEXT("Edit"));
 static const FName ProcessingTabName(TEXT("MeshOps"));
 static const FName DeformTabName(TEXT("Deform"));
 static const FName SkinWeightsTabName(TEXT("Skin"));
+static const FName SkeletonTabName(TEXT("Skeleton"));
 
 
 void FSkeletalMeshModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
 {
-	InPaletteName = { EditTabName, ProcessingTabName, DeformTabName, SkinWeightsTabName };
+	InPaletteName = { EditTabName, ProcessingTabName, DeformTabName, SkinWeightsTabName, SkeletonTabName };
 }
 
 
@@ -288,6 +301,10 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::BuildToolPalette(FName Palette
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSkinWeightsPaintTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSkinWeightsBindingTool);
 	}
+	else if (PaletteName == SkeletonTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSkeletonEditingTool);
+	}
 }
 
 
@@ -298,13 +315,28 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::OnToolPaletteChanged(FName Pal
 
 void FSkeletalMeshModelingToolsEditorModeToolkit::PostNotification(const FText& InMessage)
 {
+	ClearNotification();
+	
 	ActiveToolMessage = InMessage;
+
+	if (ModeUILayer.IsValid())
+	{
+		const FName StatusBarName = ModeUILayer.Pin()->GetStatusBarName();
+		ActiveToolMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(StatusBarName, ActiveToolMessage);
+	}
 }
 
 
 void FSkeletalMeshModelingToolsEditorModeToolkit::ClearNotification()
 {
 	ActiveToolMessage = FText::GetEmpty();
+
+	if (ModeUILayer.IsValid())
+	{
+		const FName StatusBarName = ModeUILayer.Pin()->GetStatusBarName();
+		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(StatusBarName, ActiveToolMessageHandle);
+	}
+	ActiveToolMessageHandle.Reset();
 }
 
 
