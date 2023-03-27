@@ -492,7 +492,17 @@ FThreadLocalData::~FThreadLocalData()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FWaitState WaitUntil(const void* Address, TFunctionRef<bool()> CanWait, TFunctionRef<void()> BeforeWait, FMonotonicTimePoint WaitTime)
+FWaitState Wait(const void* Address, const TFunctionRef<bool()>& CanWait, const TFunctionRef<void()>& BeforeWait)
+{
+	return WaitUntil(Address, CanWait, BeforeWait, FMonotonicTimePoint::Infinity());
+}
+
+FWaitState WaitFor(const void* Address, const TFunctionRef<bool()>& CanWait, const TFunctionRef<void()>& BeforeWait, FMonotonicTimeSpan WaitTime)
+{
+	return WaitUntil(Address, CanWait, BeforeWait, FMonotonicTimePoint::Now() + WaitTime);
+}
+
+FWaitState WaitUntil(const void* Address, const TFunctionRef<bool()>& CanWait, const TFunctionRef<void()>& BeforeWait, FMonotonicTimePoint WaitTime)
 {
 	using namespace Private;
 
@@ -564,7 +574,7 @@ FWaitState WaitUntil(const void* Address, TFunctionRef<bool()> CanWait, TFunctio
 	return State;
 }
 
-void WakeOne(const void* Address, TFunctionRef<uint64(FWakeState)> OnWakeState)
+void WakeOne(const void* Address, const TFunctionRef<uint64(FWakeState)>& OnWakeState)
 {
 	using namespace Private;
 
