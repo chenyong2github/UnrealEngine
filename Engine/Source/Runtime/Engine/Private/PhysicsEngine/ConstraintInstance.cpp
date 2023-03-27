@@ -1079,15 +1079,14 @@ void FConstraintInstance::SetAngularDOFLimitScale(float InSwing1LimitScale, floa
 	{
 		if ( ProfileInstance.ConeLimit.Swing1Motion == ACM_Limited || ProfileInstance.ConeLimit.Swing2Motion == ACM_Limited )
 		{
-			// PhysX swing directions are different from Unreal's - so change here.
 			if (ProfileInstance.ConeLimit.Swing1Motion == ACM_Limited)
 			{
-				FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Swing2, ACM_Limited);
+				FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Swing1, ACM_Limited);
 			}
 
 			if (ProfileInstance.ConeLimit.Swing2Motion == ACM_Limited)
 			{
-				FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Swing1, ACM_Limited);
+				FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Swing2, ACM_Limited);
 			}
 		
 			//The limit values need to be clamped so it will be valid in PhysX
@@ -1100,12 +1099,12 @@ void FConstraintInstance::SetAngularDOFLimitScale(float InSwing1LimitScale, floa
 
 		if ( ProfileInstance.ConeLimit.Swing1Motion  == ACM_Locked )
 		{
-			FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Swing2, ACM_Locked);
+			FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Swing1, ACM_Locked);
 		}
 
 		if ( ProfileInstance.ConeLimit.Swing2Motion  == ACM_Locked )
 		{
-			FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Swing1, ACM_Locked);
+			FPhysicsInterface::SetAngularMotionLimitType_AssumesLocked(InUnbrokenConstraint, ELimitAxis::Swing2, ACM_Locked);
 		}
 
 		if ( ProfileInstance.TwistLimit.TwistMotion == ACM_Limited )

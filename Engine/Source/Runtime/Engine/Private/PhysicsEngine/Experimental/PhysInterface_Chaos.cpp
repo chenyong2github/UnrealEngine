@@ -262,6 +262,11 @@ Chaos::EJointMotionType ConvertMotionType(EAngularConstraintMotion InEngineType)
 
 void FPhysInterface_Chaos::SetAngularMotionLimitType_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, EAngularConstraintMotion InMotion)
 {
+	// Twist is X component, Swing1 is Z component, and Swing2 is Y component in Chaos (see EJointAngularConstraintIndex)
+	static_assert(((int32)Chaos::EJointAngularConstraintIndex::Twist == 0), "EJointAngularConstraintIndex has changed");
+	static_assert(((int32)Chaos::EJointAngularConstraintIndex::Swing1 == 2), "EJointAngularConstraintIndex has changed");
+	static_assert(((int32)Chaos::EJointAngularConstraintIndex::Swing2 == 1), "EJointAngularConstraintIndex has changed");
+
 	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
 		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
@@ -273,11 +278,11 @@ void FPhysInterface_Chaos::SetAngularMotionLimitType_AssumesLocked(const FPhysic
 				break;
 
 			case PhysicsInterfaceTypes::ELimitAxis::Swing1:
-				Constraint->SetAngularMotionTypesY(ConvertMotionType(InMotion));
+				Constraint->SetAngularMotionTypesZ(ConvertMotionType(InMotion));
 				break;
 
 			case PhysicsInterfaceTypes::ELimitAxis::Swing2:
-				Constraint->SetAngularMotionTypesZ(ConvertMotionType(InMotion));
+				Constraint->SetAngularMotionTypesY(ConvertMotionType(InMotion));
 				break;
 			default:
 				ensure(false);
