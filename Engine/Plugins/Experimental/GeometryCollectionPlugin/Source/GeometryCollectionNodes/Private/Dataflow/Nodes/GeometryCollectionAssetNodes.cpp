@@ -30,6 +30,19 @@ namespace Dataflow
 
 // ===========================================================================================================================
 
+FGeometryCollectionTerminalDataflowNode::FGeometryCollectionTerminalDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowTerminalNode(InParam, InGuid)
+{
+	RegisterInputConnection(&Collection);
+	RegisterOutputConnection(&Collection, &Collection);
+	RegisterInputConnection(&Materials);
+	RegisterOutputConnection(&Materials, &Materials);
+	RegisterInputConnection(&InstancedMeshes);
+	RegisterOutputConnection(&InstancedMeshes, &InstancedMeshes);
+}
+
+
+
 void FGeometryCollectionTerminalDataflowNode::SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const
 {
 	using FGeometryCollectionPtr = TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>;
@@ -40,9 +53,9 @@ void FGeometryCollectionTerminalDataflowNode::SetAssetValue(TObjectPtr<UObject> 
 	{
 		if (FGeometryCollectionPtr GeometryCollection = CollectionAsset->GetGeometryCollection())
 		{
-			const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-			const FMaterialArray& InMaterials = GetValue<FMaterialArray>(Context, &Materials);
-			const FInstancedMeshesArray& InInstancedMeshes = GetValue<FInstancedMeshesArray>(Context, &InstancedMeshes);
+			const FManagedArrayCollection& InCollection = GetValue(Context, &Collection);
+			const FMaterialArray& InMaterials = GetValue(Context, &Materials);
+			const FInstancedMeshesArray& InInstancedMeshes = GetValue(Context, &InstancedMeshes);
 
 			if (InCollection.NumElements(FGeometryCollection::TransformGroup) == 0)
 			{
@@ -69,13 +82,13 @@ void FGeometryCollectionTerminalDataflowNode::Evaluate(Dataflow::FContext& Conte
 	using FMaterialArray = TArray<TObjectPtr<UMaterial>>;
 	using FInstancedMeshesArray = TArray<FGeometryCollectionAutoInstanceMesh>;
 
-	const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-	const FMaterialArray& InMaterials = GetValue<FMaterialArray>(Context, &Materials);
-	const FInstancedMeshesArray& InInstancedMeshes = GetValue<FInstancedMeshesArray>(Context, &InstancedMeshes);
+	const FManagedArrayCollection& InCollection = GetValue(Context, &Collection);
+	const FMaterialArray& InMaterials = GetValue(Context, &Materials);
+	const FInstancedMeshesArray& InInstancedMeshes = GetValue(Context, &InstancedMeshes);
 
-	SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-	SetValue<FMaterialArray>(Context, InMaterials, &Materials);
-	SetValue<FInstancedMeshesArray>(Context, InInstancedMeshes, &InstancedMeshes);
+	SetValue(Context, InCollection, &Collection);
+	SetValue(Context, InMaterials, &Materials);
+	SetValue(Context, InInstancedMeshes, &InstancedMeshes);
 }
 
 // ===========================================================================================================================
@@ -141,8 +154,7 @@ void FCreateGeometryCollectionFromSourcesDataflowNode::Evaluate(Dataflow::FConte
 {
 	ensure(Out->IsA(&Collection) || Out->IsA(&Materials) || Out->IsA(&InstancedMeshes));
 	
-	using FGeometryCollectionSourceArray = TArray<FGeometryCollectionSource>;
-	const FGeometryCollectionSourceArray& InSources = GetValue<FGeometryCollectionSourceArray>(Context, &Sources);
+	const TArray<FGeometryCollectionSource>& InSources = GetValue(Context, &Sources);
 
 	FGeometryCollection OutCollection;
 	TArray<TObjectPtr<UMaterial>> OutMaterials;
@@ -153,8 +165,9 @@ void FCreateGeometryCollectionFromSourcesDataflowNode::Evaluate(Dataflow::FConte
 	InstancedMeshFacade.DefineSchema();
 
 	constexpr bool bReindexMaterialsInLoop = false;
-	for (const FGeometryCollectionSource& Source: InSources)
+	for (int32 SourceIndex = 0; SourceIndex < InSources.Num(); SourceIndex++)
 	{
+		const FGeometryCollectionSource& Source = InSources[SourceIndex];
 		const int32 NumTransformsBeforeAppending = OutCollection.NumElements(FGeometryCollection::TransformGroup);
 
 		// todo: change AppendGeometryCollectionSource to take a FManagedArrayCollection so we could move the collection when assigning it to the output
@@ -164,10 +177,20 @@ void FCreateGeometryCollectionFromSourcesDataflowNode::Evaluate(Dataflow::FConte
 		FGeometryCollectionAutoInstanceMesh InstancedMesh;
 		InstancedMesh.Mesh = Cast<UStaticMesh>(Source.SourceGeometryObject.TryLoad());
 		InstancedMesh.Materials = Source.SourceMaterial;
-		const int32 InstancedMeshIndex = OutInstancedMeshes.AddUnique(InstancedMesh);
+		InstancedMesh.NumInstances = 0;
+		InstancedMesh.CustomData.Reset();
+
+		int32 InstancedMeshIndex = OutInstancedMeshes.Find(InstancedMesh);
+		if (InstancedMeshIndex == INDEX_NONE)
+		{
+			InstancedMeshIndex = OutInstancedMeshes.Add(InstancedMesh);
+		}
+		OutInstancedMeshes[InstancedMeshIndex].NumInstances++;
+		OutInstancedMeshes[InstancedMeshIndex].CustomData.Append(Source.InstanceCustomData);
 
 		// add the instanced mesh  for all the newly added transforms 
 		const int32 NumTransformsAfterAppending = OutCollection.NumElements(FGeometryCollection::TransformGroup);
+		//ensure((NumTransformsAfterAppending - NumTransformsBeforeAppending) == 1);
 		for (int32 TransformIndex = NumTransformsBeforeAppending; TransformIndex < NumTransformsAfterAppending; TransformIndex++)
 		{
 			InstancedMeshFacade.SetIndex(TransformIndex, InstancedMeshIndex);
@@ -199,5 +222,4 @@ void FCreateGeometryCollectionFromSourcesDataflowNode::Evaluate(Dataflow::FConte
 	SetValue(Context, static_cast<const FManagedArrayCollection&>(OutCollection), &Collection);
 	SetValue(Context, MoveTemp(OutMaterials), &Materials);
 	SetValue(Context, MoveTemp(OutInstancedMeshes), &InstancedMeshes);
-	
 }

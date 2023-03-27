@@ -44,6 +44,9 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	TArray<TObjectPtr<UMaterialInterface>> SourceMaterial;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource|Instance")
+	TArray<float> InstanceCustomData;
+
 	//~ Note: bAddInternalMaterials defaults to true so a 'Reset' of a geometry collection that was created before this member was added will have consistent behavior. New geometry collections should always set bAddInternalMaterials to false.
 	/** (Legacy) Whether source materials will be duplicated to create new slots for internal materials, or existing odd materials will be considered internal. (For non-Geometry Collection inputs only.) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource", DisplayName = "(Legacy) Add Internal Materials")
@@ -75,6 +78,14 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionAutoInstanceMesh
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "AutoInstance")
 	TArray<TObjectPtr<UMaterialInterface>> Materials;
+
+	UPROPERTY(VisibleAnywhere, Category = "AutoInstance")
+	int32 NumInstances = 0;
+
+	UPROPERTY(VisibleAnywhere, Category = "AutoInstance")
+	TArray<float> CustomData;
+
+	int32 GetNumDataPerInstance() const;
 
 	bool operator ==(const FGeometryCollectionAutoInstanceMesh& Other) const;
 };
@@ -425,7 +436,7 @@ public:
 	const FGeometryCollectionAutoInstanceMesh& GetAutoInstanceMesh(int32 AutoInstanceMeshIndex) const;
 
 	/**  find or add a auto instance mesh from another one and return its index */
-	int32 FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanecMesh);
+	int32 FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh);
 
 	/** find or add a auto instance mesh from a mesh and alist of material and return its index */
 	int32 FindOrAddAutoInstanceMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials);
@@ -551,10 +562,6 @@ public:
 	/** list of unique static mesh / materials pairs for auto instancing*/
 	UPROPERTY(EditAnywhere, Category = "Rendering")
 	TArray<FGeometryCollectionAutoInstanceMesh> AutoInstanceMeshes;
-
-	/** Array of material custom data for all static meshes in AutoInstanceMeshes. */
-	UPROPERTY(EditAnywhere, Category = "Rendering")
-	TArray<float> AutoInstanceMaterialCustomData;
 
 	UFUNCTION(BlueprintCallable, Category = "Nanite")
 	void SetEnableNanite(bool bValue);
@@ -761,8 +768,11 @@ private:
 	*/
 	void ValidateSizeSpecificDataDefaults();
 
-	// update cachedroot index using the current hierarchy setup
+	// update cached root index using the current hierarchy setup
 	void UpdateRootIndex();
+
+	// fill instanced mesh instance count from geometry collection data if not done yet 
+	void FillAutoInstanceMeshesInstancesIfNeeded();
 
 private:
 	/** Guid created on construction of this collection. It should be used to uniquely identify this collection */

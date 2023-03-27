@@ -4380,38 +4380,15 @@ void UGeometryCollectionComponent::AddAutoInstancesToISMPool()
 			{
 				// first count the instance per mesh 
 				const int32 NumMeshes = RestCollection->AutoInstanceMeshes.Num();
-				TArray<int32> InstanceCounts;
-				InstanceCounts.AddZeroed(NumMeshes);
-				int32 TotalInstanceCount = 0;
-
-				const TManagedArray<TSet<int32>>& Children = RestCollection->GetGeometryCollection()->Children;
-
-				const GeometryCollection::Facades::FCollectionInstancedMeshFacade InstancedMeshFacade(*RestCollection->GetGeometryCollection());
-				if (InstancedMeshFacade.IsValid())
-				{
-					for (int32 TransformIndex = 0; TransformIndex < InstancedMeshFacade.GetNumIndices(); TransformIndex++)
-					{
-						const int32 AutoInstanceMeshIndex = InstancedMeshFacade.GetIndex(TransformIndex);
-						if (Children[TransformIndex].Num() == 0)
-						{
-							InstanceCounts[AutoInstanceMeshIndex]++;
-							TotalInstanceCount++;
-						}
-					}
-				}
+				const int32 NumCustomDataFloatsFromComponent = ISMPoolMaterialCustomData.Num();
 
 				// Apply custom instance data from geometry collcection object if custom data array is set up correctly so that it's size matches a multiple of the number of instances.
-				const bool bHasValidAssetCustomInstanceData = TotalInstanceCount && RestCollection->AutoInstanceMaterialCustomData.Num() % TotalInstanceCount == 0;
-				const int32 NumCustomDataFloatsFromAsset = bHasValidAssetCustomInstanceData ? RestCollection->AutoInstanceMaterialCustomData.Num() / TotalInstanceCount : 0;
-				const int32 NumCustomDataFloatsFromComponent = ISMPoolMaterialCustomData.Num();
-				const int32 NumCustomDataFloats = NumCustomDataFloatsFromAsset + NumCustomDataFloatsFromComponent;
 				TArray<float, TInlineAllocator<64>> CustomFloatData;
-				int32 CustomDataFromAssetReadIndex = 0;
 
 				// now register each mesh 
-				for (int32 MeshIndex = 0; MeshIndex < NumMeshes; MeshIndex++)
+				int32 AutoInstanceMeshIndex = 0;
+				for (const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh : RestCollection->AutoInstanceMeshes)
 				{
-					const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh = RestCollection->AutoInstanceMeshes[MeshIndex];
 					if (const UStaticMesh* StaticMesh = AutoInstanceMesh.Mesh)
 					{
 						bool bMaterialOverride = false;
@@ -4430,25 +4407,29 @@ void UGeometryCollectionComponent::AddAutoInstancesToISMPool()
 						{
 							StaticMeshInstance.MaterialsOverrides = AutoInstanceMesh.Materials;
 						}
+
+						const bool bHasValidAssetCustomInstanceData = AutoInstanceMesh.NumInstances && (AutoInstanceMesh.CustomData.Num() % AutoInstanceMesh.NumInstances == 0);
+						const int32 NumCustomDataFloatsFromAsset = bHasValidAssetCustomInstanceData ? AutoInstanceMesh.GetNumDataPerInstance() : 0;
+						const int32 NumCustomDataFloats = NumCustomDataFloatsFromAsset + NumCustomDataFloatsFromComponent;
+
 						StaticMeshInstance.NumCustomDataFloats = NumCustomDataFloats;
 
 						if (NumCustomDataFloats > 0)
 						{
-							const int32 InstanceCount = InstanceCounts[MeshIndex];
 							CustomFloatData.Reset();
-							CustomFloatData.Reserve(InstanceCount * NumCustomDataFloats);
+							CustomFloatData.Reserve(AutoInstanceMesh.NumInstances * NumCustomDataFloats);
 							
-							for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+							for (int32 InstanceIndex = 0; InstanceIndex < AutoInstanceMesh.NumInstances; ++InstanceIndex)
 							{
 								CustomFloatData.Append(ISMPoolMaterialCustomData);
 								// Append each set of values from AutoInstanceMaterialCustomData after the common values from ISMPoolMaterialCustomData
-								CustomFloatData.Append(&RestCollection->AutoInstanceMaterialCustomData[CustomDataFromAssetReadIndex], NumCustomDataFloatsFromAsset);
-								CustomDataFromAssetReadIndex += NumCustomDataFloatsFromAsset;
+								CustomFloatData.Append(&AutoInstanceMesh.CustomData[InstanceIndex], NumCustomDataFloatsFromAsset);
 							}
 						}
 
-						ISMPoolAutoInstancesMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, InstanceCounts[MeshIndex], CustomFloatData, bChaos_GC_UseHierarchicalISMForLeafMeshes));
+						ISMPoolAutoInstancesMeshIds.Add(ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, AutoInstanceMesh.NumInstances, CustomFloatData, bChaos_GC_UseHierarchicalISMForLeafMeshes));
 					}
+					AutoInstanceMeshIndex++;
 				}
 			}
 		}

@@ -40,6 +40,7 @@
 #include "Chaos/ChaosArchive.h"
 #include "GeometryCollectionProxyData.h"
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
+#include "GeometryCollection/Facades/CollectionInstancedMeshFacade.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionObject)
 
@@ -412,12 +413,11 @@ void UGeometryCollection::Reset()
 {
 	if (GeometryCollection.IsValid())
 	{
-		Modify();
+		Modify(); 
 		GeometryCollection->Empty();
 		Materials.Empty();
 		EmbeddedGeometryExemplar.Empty();
 		AutoInstanceMeshes.Empty();
-		AutoInstanceMaterialCustomData.Empty();
 		InvalidateCollection();
 	}
 }
@@ -999,6 +999,11 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		UpdateRootIndex();
 	}
 
+	if (Ar.IsLoading())
+	{
+		FillAutoInstanceMeshesInstancesIfNeeded();
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (bCreateSimulationData)
 	{
@@ -1027,6 +1032,35 @@ void UGeometryCollection::SetEnableNanite(bool bValue)
 #if WITH_EDITOR
 		RebuildRenderData();
 #endif
+	}
+}
+
+void UGeometryCollection::FillAutoInstanceMeshesInstancesIfNeeded()
+{
+	// make sure the instanced meshes have their instance count properly set 
+	if (GeometryCollection && AutoInstanceMeshes.Num() > 0 && AutoInstanceMeshes[0].NumInstances == 0)
+	{
+		//  make sure to rest all of it first 
+		for (FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh : AutoInstanceMeshes)
+		{
+			AutoInstanceMesh.NumInstances = 0;
+		}
+
+		const GeometryCollection::Facades::FCollectionInstancedMeshFacade InstancedMeshFacade(*GeometryCollection);
+
+		const int32 NumTransforms = GeometryCollection->Children.Num();
+		for (int32 TransformIndex = 0; TransformIndex < NumTransforms; TransformIndex++)
+		{
+			// only applies to leaves nodes
+			if (GeometryCollection->Children[TransformIndex].Num() == 0)
+			{
+				const int32 AutoInstanceMeshIndex = InstancedMeshFacade.GetIndex(TransformIndex);
+				if (AutoInstanceMeshes.IsValidIndex(AutoInstanceMeshIndex))
+				{
+					AutoInstanceMeshes[AutoInstanceMeshIndex].NumInstances++;
+				}
+			}
+		}
 	}
 }
 
@@ -1353,6 +1387,11 @@ void UGeometryCollection::RemoveExemplars(const TArray<int32>& SortedRemovalIndi
 	}
 }
 
+int32 FGeometryCollectionAutoInstanceMesh::GetNumDataPerInstance() const
+{
+	return NumInstances? (CustomData.Num() / NumInstances): 0;
+}
+
 bool FGeometryCollectionAutoInstanceMesh::operator ==(const FGeometryCollectionAutoInstanceMesh& Other) const
 {
 	return (Mesh == Other.Mesh) && (Materials == Other.Materials);
@@ -1365,9 +1404,12 @@ const FGeometryCollectionAutoInstanceMesh& UGeometryCollection::GetAutoInstanceM
 }
 
 /**  find or add a auto instance mesh from another one and return its index */
-int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanecMesh)
+int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh)
 {
-	return AutoInstanceMeshes.AddUnique(AutoInstanecMesh);
+	int32 AutoInstanceMeshIndex = AutoInstanceMeshes.AddUnique(AutoInstanceMesh);
+	FGeometryCollectionAutoInstanceMesh& Instance = AutoInstanceMeshes[AutoInstanceMeshIndex];
+	Instance.NumInstances++;
+	return AutoInstanceMeshIndex;
 }
 
 int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& MeshMaterials)
@@ -1375,7 +1417,8 @@ int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const UStaticMesh* StaticMe
 	FGeometryCollectionAutoInstanceMesh NewMesh;
 	NewMesh.Mesh = StaticMesh;
 	NewMesh.Materials = MeshMaterials;
-	return AutoInstanceMeshes.AddUnique(NewMesh);
+
+	return FindOrAddAutoInstanceMesh(NewMesh);
 }
 
 FGuid UGeometryCollection::GetIdGuid() const
