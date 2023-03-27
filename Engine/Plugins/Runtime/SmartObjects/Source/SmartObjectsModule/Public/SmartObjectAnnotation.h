@@ -8,6 +8,8 @@
 struct FSmartObjectVisualizationContext;
 class FGameplayDebuggerCategory;
 struct FSmartObjectSlotView;
+class USmartObjectDefinition;
+struct FSmartObjectAnnotationGameplayDebugContext;
 
 /**
  * Base class for Smart Object Slot annotations. Annotation is a specific type of slot definition data that has methods to visualize it.
@@ -44,7 +46,27 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotAnnotation : public FSmartObjectSl
 	virtual TOptional<FTransform> GetWorldTransform(const FTransform& SlotTransform) const { return TOptional<FTransform>(); }
 	
 #if WITH_GAMEPLAY_DEBUGGER
-	virtual void CollectDataForGameplayDebugger(FGameplayDebuggerCategory& Category, const FTransform& SlotTransform, const AActor* SmartObjectOwnerActor, const FVector ViewLocation, const FVector ViewDirection, const AActor* DebugActor) const {}
+	virtual void CollectDataForGameplayDebugger(FSmartObjectAnnotationGameplayDebugContext& DebugContext) const {}
 #endif // WITH_GAMEPLAY_DEBUGGER	
 	
+};
+
+/**
+ * Context passed to CollectDataForGameplayDebugger to show gameplay debugger information.
+ */
+struct SMARTOBJECTSMODULE_API FSmartObjectAnnotationGameplayDebugContext
+{
+	explicit FSmartObjectAnnotationGameplayDebugContext(FGameplayDebuggerCategory& InCategory, const USmartObjectDefinition& InDefinition)
+		: Category(InCategory)
+		, Definition(InDefinition)
+	{
+	}
+	
+	FGameplayDebuggerCategory& Category;
+	const USmartObjectDefinition& Definition;
+	const AActor* SmartObjectOwnerActor = nullptr;
+	const AActor* DebugActor = nullptr;
+	FTransform SlotTransform;
+	FVector ViewLocation;
+	FVector ViewDirection;
 };

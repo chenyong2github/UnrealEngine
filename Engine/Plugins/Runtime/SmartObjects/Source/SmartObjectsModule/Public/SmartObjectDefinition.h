@@ -11,8 +11,8 @@
 #include "SmartObjectDefinition.generated.h"
 
 struct FSmartObjectSlotIndex;
-
 class UGameplayBehaviorConfig;
+class USmartObjectSlotValidationFilter;
 enum class ESmartObjectTagFilteringPolicy: uint8;
 enum class ESmartObjectTagMergingPolicy: uint8;
 
@@ -106,6 +106,31 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 
 
 /**
+ * Data used for previewing in the Smart Object editor. 
+ */
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectDefinitionPreviewData
+{
+	GENERATED_BODY()
+	
+	/** Actor class used as the object for previewing the definition in the asset editor. */
+	UPROPERTY(EditDefaultsOnly, Category = "Object Preview")
+	TSoftClassPtr<AActor> ObjectActorClass;
+
+	/** Path of the static mesh used as the object for previewing the definition in the asset editor. */
+	UPROPERTY(EditDefaultsOnly, Category = "Object Preview", meta = (AllowedClasses = "/Script/Engine.StaticMesh"))
+	FSoftObjectPath ObjectMeshPath;
+
+	/** Actor class used for previewing the smart object user actor in the asset editor. */
+	UPROPERTY(EditDefaultsOnly, Category = "User Preview")
+	TSoftClassPtr<AActor> UserActorClass;
+
+	/** Validation filter used for previewing the smart object user in the asset editor. */
+	UPROPERTY(EditDefaultsOnly, Category = "User Preview")
+	TSoftClassPtr<USmartObjectSlotValidationFilter> UserValidationFilterClass;
+};
+
+/**
  * SmartObject definition asset. Contains sharable information that can be used by multiple SmartObject instances at runtime.
  */
 UCLASS(BlueprintType, Blueprintable, CollapseCategories)
@@ -148,6 +173,10 @@ public:
 #if WITH_EDITOR
 	/** Returns a view on all the slot definitions */
 	TArrayView<FSmartObjectSlotDefinition> GetMutableSlots() { return Slots; }
+
+	/** @return validation filter class for preview. */
+	TSubclassOf<USmartObjectSlotValidationFilter> GetPreviewValidationFilterClass() const;
+
 #endif
 
 	/** Return bounds encapsulating all slots */
@@ -236,12 +265,18 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Actor class used for previewing the definition in the asset editor. */
+	UE_DEPRECATED(5.3, "Use ObjectActorClass in PreviewData instead.")
 	UPROPERTY()
-	TSoftClassPtr<AActor> PreviewClass;
+	TSoftClassPtr<AActor> PreviewClass_DEPRECATED;
 
 	/** Path of the static mesh used for previewing the definition in the asset editor. */
+	UE_DEPRECATED(5.3, "Use ObjectMeshPath in PreviewData instead.")
 	UPROPERTY()
-	FSoftObjectPath PreviewMeshPath;
+	FSoftObjectPath PreviewMeshPath_DEPRECATED;
+
+	/** Actor class used for previewing the user in the asset editor. */
+	UPROPERTY()
+	FSmartObjectDefinitionPreviewData PreviewData;
 #endif // WITH_EDITORONLY_DATA
 
 	const USmartObjectWorldConditionSchema* GetWorldConditionSchema() const { return WorldConditionSchemaClass.GetDefaultObject(); }

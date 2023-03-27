@@ -3,6 +3,7 @@
 #include "SmartObjectSubsystem.h"
 #include "Math/ColorList.h"
 #include "SmartObjectComponent.h"
+#include "SmartObjectUserComponent.h"
 #include "SmartObjectTypes.h"
 #include "EngineUtils.h"
 #include "MassCommandBuffer.h"
@@ -84,37 +85,9 @@ namespace UE::SmartObject
 // FSmartObjectSlotEntryRequest
 //----------------------------------------------------------------------//
 
-bool FSmartObjectSlotEntranceLocationRequest::SetNavigationDataFromActor(const AActor& InRequesterActor, const TSubclassOf<USmartObjectSlotValidationFilter> InValidationFilter)
+bool FSmartObjectSlotEntranceLocationRequest::SetNavigationDataFromActor(const AActor& InUserActor, const TSubclassOf<USmartObjectSlotValidationFilter> InValidationFilter)
 {
-	SearchLocation = FVector::ZeroVector;
-	InstigatorActor = nullptr;
-	NavigationData = nullptr;
-	NavigationFilter = nullptr;
-
-	const UWorld* World = InRequesterActor.GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-	
-	NavigationData = UE::SmartObject::Annotations::GetNavDataForActor(*World, &InRequesterActor);
-	if (!NavigationData)
-	{
-		return false;
-	}
-
-	const USmartObjectSlotValidationFilter* Filter = InValidationFilter.GetDefaultObject();
-	if (Filter)
-	{
-		NavigationFilter = UNavigationQueryFilter::GetQueryFilter(*NavigationData, &InRequesterActor, Filter->GetNavigationFilter());
-		if (Filter->GetNavigationFilter().Get() && !NavigationFilter)
-		{
-			return false;
-		}
-	}
-	
-	InstigatorActor = &InRequesterActor;
-	
+	UserActor = &InUserActor;
 	ValidationFilter = InValidationFilter;
 
 	return true;
@@ -126,7 +99,6 @@ bool FSmartObjectSlotEntranceLocationRequest::SetNavigationDataFromActor(const A
 USmartObjectSubsystem::USmartObjectSubsystem()
 	: SmartObjectContainer(this)
 {
-	
 }
 
 void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
@@ -1553,43 +1525,101 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 {
 	Result = {};
 
-	UWorld* World = GetWorld();
-
-	const USmartObjectSlotValidationFilter* ValidationFilter = Request.ValidationFilter ? Request.ValidationFilter.GetDefaultObject() : GetDefault<USmartObjectSlotValidationFilter>();
-
-	
-	// Navdata must be valid when checking testing for navigable. 
-	if (Request.bProjectNavigationLocation && !Request.NavigationData)
-	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error,
-			TEXT("Can't find entry location for slot handle %s since request's NavigationData is not set."), *LexToString(SlotHandle));
-		return false;
-	}
-
 	// Slot view must be valid.
 	const FSmartObjectSlotView SlotView = GetSlotView(SlotHandle);
 	if (!SlotView.IsValid())
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Error,
-			TEXT("Can't find entry location for slot handle %s since its owning smart object instance can't be found."), *LexToString(SlotHandle));
+			TEXT("%hs: Can't find entry location for slot handle %s since its owning smart object instance can't be found."),
+			__FUNCTION__, *LexToString(SlotHandle));
 		return false;
 	}
 
-	// Use capsule size used for collision overlap testing.
-	// @todo: move this outside, and allow to pass the value via Request?
+	UWorld* World = GetWorld();
+
+	TSubclassOf<USmartObjectSlotValidationFilter> ValidationFilterClass = Request.ValidationFilter;
+	const ANavigationData* NavigationData = Request.NavigationData;
+	
+	if (Request.UserActor)
+	{
+		// If user actor is present, try to query some data automatically from interfaces and components. 
+		if (!ValidationFilterClass.Get())
+		{
+			if (const USmartObjectUserComponent* UserComponent = Request.UserActor->GetComponentByClass<USmartObjectUserComponent>())
+			{
+				ValidationFilterClass = UserComponent->GetValidationFilter();
+			}
+		}
+
+		if (!NavigationData)
+		{
+			NavigationData = UE::SmartObject::Annotations::GetNavDataForActor(*World, Request.UserActor);
+		}
+	}
+
+	if (!ValidationFilterClass.Get())
+	{
+		// @todo: restore this as an error.
+		UE_VLOG_UELOG(this, LogSmartObject, Warning,
+			TEXT("%hs: Slot %s, Invalid validation filter for user actor %s."),
+			__FUNCTION__, *LexToString(SlotHandle), *GetNameSafe(Request.UserActor));
+		// return false;
+	}
+	
+	const USmartObjectSlotValidationFilter* ValidationFilter = ValidationFilterClass.Get() ? ValidationFilterClass.GetDefaultObject() : GetDefault<USmartObjectSlotValidationFilter>();
+	check(ValidationFilter);
+	const FSmartObjectSlotValidationParams& ValidationParams = ValidationFilter->GetValidationParams(Request.LocationType);
+
 	FSmartObjectUserCapsuleParams UserCapsule;
-	if (Request.InstigatorActor
-		&& !ValidationFilter->GetUserCapsuleForActor(*Request.InstigatorActor, UserCapsule))
+	if (Request.UserCapsule.IsSet())
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Failed to find user capsule for actor."), *GetNameSafe(Request.InstigatorActor));
-		return false;
+		UserCapsule = ValidationParams.GetUserCapsule(Request.UserCapsule.GetValue());
 	}
-	if (!ValidationFilter->GetDefaultUserCapsule(*World, UserCapsule))
+	else
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Failed to find default user capsule."), *GetNameSafe(Request.InstigatorActor));
+		if (Request.UserActor)
+		{
+			if (!ValidationParams.GetUserCapsuleForActor(*Request.UserActor, UserCapsule))
+			{
+				UE_VLOG_UELOG(this, LogSmartObject, Error,
+					TEXT("%hs: Slot %s, Could not resolve user capsule size. Failed to access navigation parameters for user actor %s."),
+					__FUNCTION__, *LexToString(SlotHandle), *GetNameSafe(Request.UserActor));
+				return false;
+			}
+		}
+		else
+		{
+			UE_VLOG_UELOG(this, LogSmartObject, Error,
+				TEXT("%hs: Slot %s, Could not resolve user capsule size. Request's UserCapsule is expected to be set when user actor is not specified."),
+				__FUNCTION__, *LexToString(SlotHandle));
+			return false;
+		}
+	}
+
+	// Navdata must be valid when checking testing for navigable. 
+	if (Request.bProjectNavigationLocation && !NavigationData)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Error,
+			TEXT("%hs: Slot %s, ProjectNavigationLocation is requested, expecting valid navigation data, NavigationData is not set."),
+			__FUNCTION__, *LexToString(SlotHandle));
 		return false;
 	}
 
+	FSharedConstNavQueryFilter NavigationFilter;
+	if (NavigationData)
+	{
+		if (ValidationParams.GetNavigationFilter().Get())
+		{
+			NavigationFilter = UNavigationQueryFilter::GetQueryFilter(*NavigationData, Request.UserActor, ValidationParams.GetNavigationFilter());
+			if (!NavigationFilter.IsValid())
+			{
+				UE_VLOG_UELOG(this, LogSmartObject, Error,
+					TEXT("%hs: Slot %s, Navigation filter was specified was failed to resolve it."),
+					__FUNCTION__, *LexToString(SlotHandle));
+				return false;
+			}
+		}
+	}
 
 	struct FSlotEntryCandidate
 	{
@@ -1693,9 +1723,9 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 
 	check(Candidates.Num() > 0);
 
-	const FSmartObjectTraceParams& GroundTraceParameters = ValidationFilter->GetGroundTraceParameters();
-	const FSmartObjectTraceParams& TransitionTraceParameters = ValidationFilter->GetTransitionTraceParameters();
-	const FVector SearchExtents = FVector(ValidationFilter->GetSearchExtents());
+	const FSmartObjectTraceParams& GroundTraceParameters = ValidationParams.GetGroundTraceParameters();
+	const FSmartObjectTraceParams& TransitionTraceParameters = ValidationParams.GetTransitionTraceParameters();
+	const FVector SearchExtents = FVector(ValidationParams.GetSearchExtents());
 
 	FCollisionQueryParams GroundTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), GroundTraceParameters.bTraceComplex);
 	FCollisionQueryParams TransitionTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), TransitionTraceParameters.bTraceComplex);
@@ -1710,10 +1740,10 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 		GroundTraceQueryParams.AddIgnoredActor(SmartObjectActor);
 		TransitionTraceQueryParams.AddIgnoredActor(SmartObjectActor);
 	}
-	if (Request.InstigatorActor)
+	if (Request.UserActor)
 	{
-		GroundTraceQueryParams.AddIgnoredActor(Request.InstigatorActor);
-		TransitionTraceQueryParams.AddIgnoredActor(Request.InstigatorActor);
+		GroundTraceQueryParams.AddIgnoredActor(Request.UserActor);
+		TransitionTraceQueryParams.AddIgnoredActor(Request.UserActor);
 	}
 
 	// If the slot location should be free of collisions, check it now since it's shared for all entries.
@@ -1740,7 +1770,7 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 		if (Request.bProjectNavigationLocation)
 		{
 			FNavLocation NavLocation;
-			if (!UE::SmartObject::Annotations::ProjectNavigationLocation(*Request.NavigationData, Candidate.Location, SearchBounds, Request.NavigationFilter, Request.InstigatorActor, NavLocation))
+			if (!UE::SmartObject::Annotations::ProjectNavigationLocation(*NavigationData, Candidate.Location, SearchBounds, NavigationFilter, Request.UserActor, NavLocation))
 			{
 				// If no navigable area found, skip the candidate.
 				continue;

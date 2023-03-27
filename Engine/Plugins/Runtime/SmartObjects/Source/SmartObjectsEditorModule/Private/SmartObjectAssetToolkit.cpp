@@ -7,10 +7,13 @@
 #include "ScopedTransaction.h"
 #include "SmartObjectAssetEditorViewportClient.h"
 #include "SmartObjectDefinition.h"
+#include "SmartObjectTypes.h"
 #include "Viewports.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Text/STextBlock.h"
 #include "SSmartObjectViewport.h"
+#include "IStructureDetailsView.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "SmartObjectAssetToolkit"
 
@@ -83,6 +86,12 @@ void FSmartObjectAssetToolkit::PostInitAssetEditor()
 	checkf(SmartObjectViewportClient.IsValid(), TEXT("ViewportClient is created in CreateEditorViewportClient before calling PostInitAssetEditor"));
 	SmartObjectViewportClient->SetSmartObjectDefinition(*Definition);
 
+	if (PreviewDetailsView.IsValid())
+	{
+		CachedPreviewData = MakeShared<TStructOnScope<FSmartObjectDefinitionPreviewData>>(Definition->PreviewData);
+		PreviewDetailsView->SetStructureData(CachedPreviewData);
+	}
+
 	UpdatePreviewActor();
 
 	// Register to be notified when properties are edited
@@ -118,75 +127,79 @@ TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_SceneViewport(const FSpa
 
 TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_PreviewSettings(const FSpawnTabArgs& Args)
 {
-	const TSharedPtr<SDockTab> PreviewSettingsTab = SNew(SDockTab)
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+
+	FStructureDetailsViewArgs StructureViewArgs;
+	StructureViewArgs.bShowObjects = true;
+	StructureViewArgs.bShowAssets = true;
+	StructureViewArgs.bShowClasses = true;
+	StructureViewArgs.bShowInterfaces = true;
+
+	PreviewDetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
+	PreviewDetailsView->GetOnFinishedChangingPropertiesDelegate().AddLambda([&](const FPropertyChangedEvent& PropertyChangedEvent)
+	{
+		USmartObjectDefinition* Definition = Cast<USmartObjectDefinition>(GetEditingObject());
+		// Ignore temporary interaction (dragging sliders, etc.)
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet
+			&& CachedPreviewData.IsValid()
+			&& Definition)
+		{
+			{
+				const FText PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetDisplayNameText() : FText::GetEmpty(); 
+				FScopedTransaction Transaction(FText::Format(LOCTEXT("OnPreviewValueChanged", "Set {0}"), PropertyName));
+				Definition->Modify();
+
+				if (const FSmartObjectDefinitionPreviewData* PreviewData = CachedPreviewData->Get())
+				{
+					Definition->PreviewData = *PreviewData;
+				}
+			}
+			
+			UpdatePreviewActor();
+		}
+	});
+
+	if (USmartObjectDefinition* Definition = Cast<USmartObjectDefinition>(GetEditingObject()))
+	{
+		CachedPreviewData = MakeShared<TStructOnScope<FSmartObjectDefinitionPreviewData>>(Definition->PreviewData);
+		PreviewDetailsView->SetStructureData(CachedPreviewData);
+	}
+	
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Label(LOCTEXT("PreviewSettingsTitle", "Preview Settings"))
-		.ShouldAutosize(true)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(3.0f)
-			[
-				// @todo: make the selection between class and mesh mutually exclusive. 
-				SNew(STextBlock)
-				.Text(LOCTEXT("PreviewMesh_Title", "Select Preview Mesh"))
-				.ToolTipText(LOCTEXT("PreviewMesh_Tooltip", "Select Mesh to instantiate for previewing the definition."))
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(6.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SObjectPropertyEntryBox)
-				.AllowedClass(UStaticMesh::StaticClass())
-				.ObjectPath_Lambda([this]()
-				{
-					const USmartObjectDefinition* Definition = CastChecked<USmartObjectDefinition>(GetEditingObject());
-					return Definition ? Definition->PreviewMeshPath.GetAssetPathString() : FString();
-				})
-				.OnObjectChanged_Lambda([this](const FAssetData& AssetData)
-				{
-					FScopedTransaction Transaction(LOCTEXT("SetPreviewMesh", "Set Preview Mesh"));
-					USmartObjectDefinition* Definition = CastChecked<USmartObjectDefinition>(GetEditingObject());
-					Definition->Modify();
-					Definition->PreviewMeshPath = AssetData.GetObjectPathString();
-
-					UpdatePreviewActor();
-				})
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(3.0f)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("PreviewActorClass_Title", "Select Preview Actor Class"))
-				.ToolTipText(LOCTEXT("PreviewActorClass_Tooltip", "Select class of Actor to instantiate for previewing the definition."))
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(6.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SClassPropertyEntryBox)
-				.MetaClass(AActor::StaticClass())
-				.SelectedClass_Lambda([this]()
-				{
-					const USmartObjectDefinition* Definition = CastChecked<USmartObjectDefinition>(GetEditingObject());
-					return Definition ? Definition->PreviewClass.Get() : nullptr;
-				})
-				.OnSetClass_Lambda([this](const UClass* SelectedClass)
-				{
-					FScopedTransaction Transaction(LOCTEXT("SetPreviewClass", "Set Preview Class"));
-					USmartObjectDefinition* Definition = CastChecked<USmartObjectDefinition>(GetEditingObject());
-					Definition->Modify();
-					Definition->PreviewClass = SelectedClass;
-
-					UpdatePreviewActor();
-				})
-			]
+			PreviewDetailsView->GetWidget().ToSharedRef()
 		];
 
-	return PreviewSettingsTab.ToSharedRef();
+	return SpawnedTab;
+}
+
+void FSmartObjectAssetToolkit::PostUndo(bool bSuccess)
+{
+	UpdateCachedPreviewDataFromDefinition();
+}
+
+void FSmartObjectAssetToolkit::PostRedo(bool bSuccess)
+{
+	UpdateCachedPreviewDataFromDefinition();
+}
+
+void FSmartObjectAssetToolkit::UpdateCachedPreviewDataFromDefinition()
+{
+	const USmartObjectDefinition* Definition = Cast<USmartObjectDefinition>(GetEditingObject());
+	if (Definition
+		&& CachedPreviewData.IsValid())
+	{
+		if (FSmartObjectDefinitionPreviewData* PreviewData = CachedPreviewData->Get())
+		{
+			*PreviewData = Definition->PreviewData;
+		}
+		
+		PreviewDetailsView->GetDetailsView()->ForceRefresh();
+		UpdatePreviewActor();
+	}
 }
 
 void FSmartObjectAssetToolkit::UpdatePreviewActor()
@@ -199,13 +212,13 @@ void FSmartObjectAssetToolkit::UpdatePreviewActor()
 		return;
 	}
 
-	if (Definition->PreviewClass.IsValid())
+	if (Definition->PreviewData.ObjectActorClass.IsValid())
 	{
-		SmartObjectViewportClient->SetPreviewActorClass(Definition->PreviewClass.Get());
+		SmartObjectViewportClient->SetPreviewActorClass(Definition->PreviewData.ObjectActorClass.Get());
 	}
-	else if (Definition->PreviewMeshPath.IsValid())
+	else if (Definition->PreviewData.ObjectMeshPath.IsValid())
 	{
-		UStaticMesh* PreviewMesh = FindObject<UStaticMesh>(nullptr, *Definition->PreviewMeshPath.GetAssetPathString());
+		UStaticMesh* PreviewMesh = Cast<UStaticMesh>(Definition->PreviewData.ObjectMeshPath.TryLoad());
 		if (PreviewMesh)
 		{
 			SmartObjectViewportClient->SetPreviewMesh(PreviewMesh);

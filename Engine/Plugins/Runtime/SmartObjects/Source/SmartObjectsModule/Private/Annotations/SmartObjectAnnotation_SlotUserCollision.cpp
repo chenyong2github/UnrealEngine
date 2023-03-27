@@ -9,6 +9,7 @@
 #include "NavigationData.h"
 #include "Annotations/SmartObjectSlotEntranceAnnotation.h"
 #include "SmartObjectSettings.h"
+#include "SmartObjectUserComponent.h"
 
 #if WITH_GAMEPLAY_DEBUGGER
 #include "GameplayDebuggerCategory.h"
@@ -39,13 +40,14 @@ void FSmartObjectAnnotation_SlotUserCollision::DrawVisualization(FSmartObjectVis
 		return;
 	}
 
-	const USmartObjectSlotValidationFilter* DefaultFilter = UE::SmartObject::Annotations::GetPreviewValidationFilter();
-	check(DefaultFilter);
+	const USmartObjectSlotValidationFilter* PreviewValidationFilter = VisContext.PreviewValidationFilterClass.GetDefaultObject();
+	check(PreviewValidationFilter);
+	const FSmartObjectSlotValidationParams& ValidationParams = PreviewValidationFilter->GetEntryValidationParams();
 
 	FSmartObjectUserCapsuleParams CapsuleValue = Capsule;
 	if (bUseUserCapsuleSize)
 	{
-		if (!DefaultFilter->GetDefaultUserCapsule(VisContext.World, CapsuleValue))
+		if (!ValidationParams.GetPreviewUserCapsule(VisContext.World, CapsuleValue))
 		{
 			return;
 		}
@@ -60,7 +62,7 @@ void FSmartObjectAnnotation_SlotUserCollision::DrawVisualization(FSmartObjectVis
 	TArray<FSmartObjectAnnotationCollider> Colliders;
 	GetColliders(CapsuleValue, *SlotTransform, Colliders);
 
-	const FSmartObjectTraceParams& OverlapParameters = DefaultFilter->GetTransitionTraceParameters();
+	const FSmartObjectTraceParams& OverlapParameters = ValidationParams.GetTransitionTraceParameters();
 	FCollisionQueryParams OverlapQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), OverlapParameters.bTraceComplex);
 	if (VisContext.PreviewActor)
 	{
@@ -104,21 +106,36 @@ void FSmartObjectAnnotation_SlotUserCollision::DrawVisualizationHUD(FSmartObject
 #endif // WITH_EDITOR
 
 #if WITH_GAMEPLAY_DEBUGGER
-void FSmartObjectAnnotation_SlotUserCollision::CollectDataForGameplayDebugger(FGameplayDebuggerCategory& Category, const FTransform& SlotTransform, const AActor* SmartObjectOwnerActor, const FVector ViewLocation, const FVector ViewDirection, const AActor* DebugActor) const
+void FSmartObjectAnnotation_SlotUserCollision::CollectDataForGameplayDebugger(FSmartObjectAnnotationGameplayDebugContext& DebugContext) const
 {
-	const UWorld* World = Category.GetWorldFromReplicator();
+	const UWorld* World = DebugContext.Category.GetWorldFromReplicator();
 	if (!World)
 	{
 		return;
 	}
 
-	const USmartObjectSlotValidationFilter* DefaultFilter = UE::SmartObject::Annotations::GetPreviewValidationFilter();
-	check(DefaultFilter);
+	TSubclassOf<USmartObjectSlotValidationFilter> ValidationFilterClass = nullptr;
+	if (DebugContext.DebugActor)
+	{
+		// If user actor is present, try to query some data automatically from interfaces and components. 
+		if (!ValidationFilterClass.Get())
+		{
+			if (const USmartObjectUserComponent* UserComponent = DebugContext.DebugActor->GetComponentByClass<USmartObjectUserComponent>())
+			{
+				ValidationFilterClass = UserComponent->GetValidationFilter();
+			}
+		}
+	}
+
+	const USmartObjectSlotValidationFilter* ValidationFilter = ValidationFilterClass.Get() ? ValidationFilterClass.GetDefaultObject() : GetDefault<USmartObjectSlotValidationFilter>();
+	check(ValidationFilter);
+	const FSmartObjectSlotValidationParams& ValidationParams = ValidationFilter->GetEntryValidationParams(); 
 
 	FSmartObjectUserCapsuleParams CapsuleValue = Capsule;
 	if (bUseUserCapsuleSize)
 	{
-		if (!DefaultFilter->GetUserCapsuleForActor(*DebugActor, CapsuleValue))
+		if (!DebugContext.DebugActor
+			|| !ValidationParams.GetUserCapsuleForActor(*DebugContext.DebugActor, CapsuleValue))
 		{
 			return;
 		}
@@ -128,13 +145,17 @@ void FSmartObjectAnnotation_SlotUserCollision::CollectDataForGameplayDebugger(FG
 
 	// Draw capsule
 	TArray<FSmartObjectAnnotationCollider> Colliders;
-	GetColliders(CapsuleValue, SlotTransform, Colliders);
+	GetColliders(CapsuleValue, DebugContext.SlotTransform, Colliders);
 
-	const FSmartObjectTraceParams& OverlapParameters = DefaultFilter->GetTransitionTraceParameters();
+	const FSmartObjectTraceParams& OverlapParameters = ValidationParams.GetTransitionTraceParameters();
 	FCollisionQueryParams OverlapQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), OverlapParameters.bTraceComplex);
-	if (SmartObjectOwnerActor)
+	if (DebugContext.SmartObjectOwnerActor)
 	{
-		OverlapQueryParams.AddIgnoredActor(SmartObjectOwnerActor);
+		OverlapQueryParams.AddIgnoredActor(DebugContext.SmartObjectOwnerActor);
+	}
+	if (DebugContext.DebugActor)
+	{
+		OverlapQueryParams.AddIgnoredActor(DebugContext.DebugActor);
 	}
 	if (UE::SmartObject::Annotations::TestCollidersOverlap(*World, Colliders, OverlapParameters, OverlapQueryParams))
 	{
@@ -147,21 +168,21 @@ void FSmartObjectAnnotation_SlotUserCollision::CollectDataForGameplayDebugger(FG
 		{
 			if (Collider.CollisionShape.IsCapsule())
 			{
-				Category.AddShape(FGameplayDebuggerShape::MakeCapsule(Collider.Location, Collider.Rotation.Rotator(), Collider.CollisionShape.GetCapsuleRadius(), Collider.CollisionShape.GetCapsuleHalfHeight(), Color.ToFColor(/*bSRGB*/true)));
+				DebugContext.Category.AddShape(FGameplayDebuggerShape::MakeCapsule(Collider.Location, Collider.Rotation.Rotator(), Collider.CollisionShape.GetCapsuleRadius(), Collider.CollisionShape.GetCapsuleHalfHeight(), Color.ToFColor(/*bSRGB*/true)));
 			}
 			else if (Collider.CollisionShape.IsBox())
 			{
-				Category.AddShape(FGameplayDebuggerShape::MakeBox(Collider.Location, Collider.Rotation.Rotator(), Collider.CollisionShape.GetExtent(), Color.ToFColor(/*bSRGB*/true)));
+				DebugContext.Category.AddShape(FGameplayDebuggerShape::MakeBox(Collider.Location, Collider.Rotation.Rotator(), Collider.CollisionShape.GetExtent(), Color.ToFColor(/*bSRGB*/true)));
 			}
 			else if (Collider.CollisionShape.IsSphere())
 			{
-				Category.AddShape(FGameplayDebuggerShape::MakePoint(Collider.Location, Collider.CollisionShape.GetSphereRadius(), Color.ToFColor(/*bSRGB*/true)));
+				DebugContext.Category.AddShape(FGameplayDebuggerShape::MakePoint(Collider.Location, Collider.CollisionShape.GetSphereRadius(), Color.ToFColor(/*bSRGB*/true)));
 			}
 		}
 	}
 
 	// Ground level
-	Category.AddShape(FGameplayDebuggerShape::MakeCircle(SlotTransform.GetLocation(), SlotTransform.GetUnitAxis(EAxis::X), SlotTransform.GetUnitAxis(EAxis::Y), CapsuleValue.Radius, UE::SmartObject::Annotations::CapsuleFloorColor));
+	DebugContext.Category.AddShape(FGameplayDebuggerShape::MakeCircle(DebugContext.SlotTransform.GetLocation(), DebugContext.SlotTransform.GetUnitAxis(EAxis::X), DebugContext.SlotTransform.GetUnitAxis(EAxis::Y), CapsuleValue.Radius, UE::SmartObject::Annotations::CapsuleFloorColor));
 }
 #endif // WITH_GAMEPLAY_DEBUGGER
 

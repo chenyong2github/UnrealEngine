@@ -3,6 +3,7 @@
 
 #include "AdvancedPreviewScene.h" // IWYU pragma: keep
 #include "Tools/BaseAssetToolkit.h"
+#include "EditorUndoClient.h"
 
 class FAdvancedPreviewScene;
 class FSpawnTabArgs;
@@ -10,7 +11,9 @@ class FSpawnTabArgs;
 class FEditorViewportClient;
 class UAssetEditor;
 
-class SMARTOBJECTSEDITORMODULE_API FSmartObjectAssetToolkit : public FBaseAssetToolkit, public FGCObject
+struct FSmartObjectDefinitionPreviewData;
+
+class SMARTOBJECTSEDITORMODULE_API FSmartObjectAssetToolkit : public FBaseAssetToolkit, public FSelfRegisteringEditorUndoClient, public FGCObject
 {
 public:
 	explicit FSmartObjectAssetToolkit(UAssetEditor* InOwningAssetEditor);
@@ -28,9 +31,13 @@ protected:
 		return TEXT("FSmartObjectAssetToolkit");
 	}
 
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	
 private:
 
 	void UpdatePreviewActor();
+	void UpdateCachedPreviewDataFromDefinition();
 	
 	/** Callback to detect changes in number of slot to keep gizmos in sync. */
 	void OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent) const;
@@ -47,6 +54,11 @@ private:
 	/** Scene in which the 3D preview of the asset lives. */
 	TUniquePtr<FAdvancedPreviewScene> AdvancedPreviewScene;
 
+	/** Details view for the preview settings. */
+	TSharedPtr<IStructureDetailsView> PreviewDetailsView;
+
+	TSharedPtr<TStructOnScope<FSmartObjectDefinitionPreviewData>> CachedPreviewData;
+	
     /** Typed pointer to the custom ViewportClient created by the toolkit. */
 	mutable TSharedPtr<class FSmartObjectAssetEditorViewportClient> SmartObjectViewportClient;
 };

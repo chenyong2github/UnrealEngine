@@ -12,6 +12,7 @@ class USmartObjectDefinition;
 class UFont;
 class USmartObjectSubsystem;
 class AActor;
+class USmartObjectSlotValidationFilter;
 
 #if WITH_EDITOR
 
@@ -20,11 +21,7 @@ class AActor;
  */
 struct SMARTOBJECTSMODULE_API FSmartObjectVisualizationContext
 {
-	explicit FSmartObjectVisualizationContext(const USmartObjectDefinition& InDefinition, const UWorld& InWorld)
-		: Definition(InDefinition)
-		, World(InWorld)
-	{
-	}
+	explicit FSmartObjectVisualizationContext(const USmartObjectDefinition& InDefinition, const UWorld& InWorld);
 
 	/** @return true of the context is property set up for 2D drawing. */
 	bool IsValidForDraw() const;
@@ -65,6 +62,9 @@ struct SMARTOBJECTSMODULE_API FSmartObjectVisualizationContext
 
 	/** Actor used for previewing the Smart Object. */
 	const AActor* PreviewActor = nullptr;
+
+	/** Validation filter class used for previewing. */
+	TSubclassOf<USmartObjectSlotValidationFilter> PreviewValidationFilterClass;
 	
 	/** Index of the visualized slot, or invalid of the annotation is on the object.  */
 	int32 SlotIndex = INDEX_NONE;

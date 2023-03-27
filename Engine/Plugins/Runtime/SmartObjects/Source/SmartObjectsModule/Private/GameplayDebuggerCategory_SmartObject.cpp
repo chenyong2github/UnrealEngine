@@ -149,13 +149,20 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		}
 
 		// Let annotations debug draw too
-		const AActor* OwnerActor = ObjectRuntime->GetOwnerActor();
+
+		FSmartObjectAnnotationGameplayDebugContext DebugContext(*this, View.GetSmartObjectDefinition());
+		DebugContext.SmartObjectOwnerActor = ObjectRuntime->GetOwnerActor();
+		DebugContext.DebugActor = DebugActor;
+		DebugContext.SlotTransform = Transform;
+		DebugContext.ViewLocation = ViewLocation;
+		DebugContext.ViewDirection = ViewDirection;
+		
 		const FSmartObjectSlotDefinition& Definition = View.GetDefinition();
 		for (const FInstancedStruct& Data : Definition.Data)
 		{
 			if (const FSmartObjectSlotAnnotation* Annotation = Data.GetPtr<FSmartObjectSlotAnnotation>())
 			{
-				Annotation->CollectDataForGameplayDebugger(*this, Transform, OwnerActor, ViewLocation, ViewDirection, DebugActor);
+				Annotation->CollectDataForGameplayDebugger(DebugContext);
 			}
 		}
 		

@@ -3,8 +3,21 @@
 #include "CanvasTypes.h"
 #include "SceneView.h"
 #include "SceneManagement.h"
+#include "SmartObjectDefinition.h"
+#include "SmartObjectTypes.h"
 
 #if WITH_EDITOR
+
+FSmartObjectVisualizationContext::FSmartObjectVisualizationContext(const USmartObjectDefinition& InDefinition, const UWorld& InWorld)
+	: Definition(InDefinition)
+	, World(InWorld)
+{
+	PreviewValidationFilterClass = InDefinition.GetPreviewValidationFilterClass();
+	if (PreviewValidationFilterClass.Get() == nullptr)
+	{
+		PreviewValidationFilterClass = USmartObjectSlotValidationFilter::StaticClass(); 
+	}
+}
 
 bool FSmartObjectVisualizationContext::IsValidForDraw() const
 {

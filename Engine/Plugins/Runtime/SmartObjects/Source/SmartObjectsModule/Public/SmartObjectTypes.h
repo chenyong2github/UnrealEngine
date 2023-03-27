@@ -46,6 +46,18 @@ enum class ESmartObjectTagFilteringPolicy : uint8
 	Override
 };
 
+/**
+ * Enum indicating if we're looking for a location to enter or exit the Smart Object slot.
+ */
+UENUM()
+enum class ESmartObjectSlotNavigationLocationType : uint8
+{
+	/** Find a location to enter the slot. */
+	Entry,
+	
+	/** Find a location to exit the slot. */
+	Exit,
+};
 
 /**
  * Handle to a smartobject user.
@@ -398,11 +410,10 @@ struct SMARTOBJECTSMODULE_API FSmartObjectUserCapsuleParams
 };
 
 /**
- * Class used to define settings for Smart Object navigation and collision validation. 
- * The values of the CDO are used, the users are expected to derive from this class to create custom settings. 
+ * Parameters for Smart Object navigation and collision validation. 
  */
-UCLASS(Blueprintable, Abstract)
-class SMARTOBJECTSMODULE_API USmartObjectSlotValidationFilter : public UObject
+USTRUCT()
+struct FSmartObjectSlotValidationParams
 {
 	GENERATED_BODY()
 
@@ -423,25 +434,31 @@ public:
 	bool ShouldTestUserOverlapOnEntrance() const { return bTestUserOverlapOnEntrance; }
 
 	/**
+	 * Selects between specified NavigationCapsule size and capsule size defined in the params based on bUseNavigationCapsuleSize.
+	 * @param NavigationCapsule Size of the navigation capsule.
+	 * @return reference to selected capsule. */
+	const FSmartObjectUserCapsuleParams& GetUserCapsule(const FSmartObjectUserCapsuleParams& NavigationCapsule) const;
+
+	/**
 	 * Gets user capsule for a specified actor, if bUseNavigationCapsuleSize is specified uses INavAgentInterface to forward the values from navigation system.
 	 * The method can fail if the navigation capsule is requested, but we fail to get the navigation properties from the actor. 
 	 * @param UserActor Actor used to look up navigation settings from.
 	 * @param OutCapsule Dimensions of the user capsule.
 	 * @return true operation succeeds. */
 	bool GetUserCapsuleForActor(const AActor& UserActor, FSmartObjectUserCapsuleParams& OutCapsule) const;
-	
+
 	/**
-	 * Gets default user capsule size used for preview.
+	 * Gets default user capsule size used for preview when the user actor is now known.
 	 * The method can fail if the navigation capsule is requested, but we fail to get the navigation properties from the world.
 	 * @param World where to look for default navigation settings.
 	 * @param OutCapsule Dimensions of the user capsule.
 	 * @return true if operation succeeds. */
-	bool GetDefaultUserCapsule(const UWorld& World, FSmartObjectUserCapsuleParams& OutCapsule) const;
+	bool GetPreviewUserCapsule(const UWorld& World, FSmartObjectUserCapsuleParams& OutCapsule) const;
 
 protected:
 	/** Navigation filter used to validate entrance locations. */
 	UPROPERTY(EditAnywhere, Category = "Default")
-	const TSubclassOf<UNavigationQueryFilter> NavigationFilter;
+	TSubclassOf<UNavigationQueryFilter> NavigationFilter;
 
 	/** How far we allow the validated location to be from the specified navigation location. */
 	UPROPERTY(EditAnywhere, Category = "Default")
@@ -466,6 +483,53 @@ protected:
 	/** Dimensions of the capsule used for testing if user can fit into a specific location. */
 	UPROPERTY(EditAnywhere, Category = "Default", meta = (EditCondition = "bTestUserOverlapOnEntrance == true && bUseNavigationCapsuleSize == false", EditConditionHides))
 	FSmartObjectUserCapsuleParams UserCapsule;
+};
+
+/**
+ * Class used to define settings for Smart Object navigation and collision validation.
+ * It is possible to specify two set of validation parameters. The one labeled "entry" is used for validating
+ * entry locations and other general collision validation.
+ * A separate set can be defined for checking exit locations. This allows the exit location checking to be relaxed.
+ * E.g. we might not allow to enter the SO on water area, but it is fine to exit on water.
+ * The values of the CDO are used, the users are expected to derive from this class to create custom settings. 
+ */
+UCLASS(Blueprintable, Abstract)
+class SMARTOBJECTSMODULE_API USmartObjectSlotValidationFilter : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	/** @return validation parameters based on location type (enter & exit) */
+	const FSmartObjectSlotValidationParams& GetValidationParams(const ESmartObjectSlotNavigationLocationType LocationType) const
+	{
+		return LocationType == ESmartObjectSlotNavigationLocationType::Entry ? GetEntryValidationParams() : GetExitValidationParams();
+	}
+	
+	/** @return validation parameters for entry validation, and general use. */
+	const FSmartObjectSlotValidationParams& GetEntryValidationParams() const
+	{
+		return EntryParameters;
+	}
+
+	/** @return validation parameters for exit validation. */
+	const FSmartObjectSlotValidationParams& GetExitValidationParams() const
+    {
+    	return bUseEntryParametersForExit ? EntryParameters : ExitParameters;
+    }
+
+protected:
+	/** Parameters to use for validating entry locations or general collision validation. */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	FSmartObjectSlotValidationParams EntryParameters;
+
+	/** If true, use separate settings for validating exit locations. */
+	UPROPERTY(EditAnywhere, Category = "Default")
+	bool bUseEntryParametersForExit = true;
+
+	/** Parameters to use for validating exit locations. The separate set allows to specify looser settings on exits. */
+	UPROPERTY(EditAnywhere, Category = "Default", meta = (EditCondition = "bUseEntryParametersForExit == false", EditConditionHides))
+	FSmartObjectSlotValidationParams ExitParameters;
 };
 
 /**

@@ -29,7 +29,16 @@ FSmartObjectAnnotationCollider FSmartObjectUserCapsuleParams::GetAsCollider(cons
 	return Collider;
 }
 
-bool USmartObjectSlotValidationFilter::GetUserCapsuleForActor(const AActor& UserActor, FSmartObjectUserCapsuleParams& OutCapsule) const
+const FSmartObjectUserCapsuleParams& FSmartObjectSlotValidationParams::GetUserCapsule(const FSmartObjectUserCapsuleParams& NavigationCapsule) const
+{
+	if (bUseNavigationCapsuleSize)
+	{
+		return NavigationCapsule;
+	}
+	return UserCapsule;
+}
+
+bool FSmartObjectSlotValidationParams::GetUserCapsuleForActor(const AActor& UserActor, FSmartObjectUserCapsuleParams& OutCapsule) const
 {
 	if (bUseNavigationCapsuleSize)
 	{
@@ -59,7 +68,7 @@ bool USmartObjectSlotValidationFilter::GetUserCapsuleForActor(const AActor& User
 	return true;
 }
 
-bool USmartObjectSlotValidationFilter::GetDefaultUserCapsule(const UWorld& World, FSmartObjectUserCapsuleParams& OutCapsule) const
+bool FSmartObjectSlotValidationParams::GetPreviewUserCapsule(const UWorld& World, FSmartObjectUserCapsuleParams& OutCapsule) const
 {
 	if (bUseNavigationCapsuleSize)
 	{

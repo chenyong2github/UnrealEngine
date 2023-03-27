@@ -66,6 +66,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Default")
 	bool bCheckTransitionTrajectory = true;
 
+	/** If true, check user capsule collisions at the entrance location. Uses capsule dimensions set in the validation filter. */
+	UPROPERTY(EditAnywhere, Category="Default")
+	bool bCheckEntranceLocationOverlap = true;
+
+	/** If true, check user capsule collisions at the slot location. Uses capsule dimensions set in an annotation on the slot. */
+	UPROPERTY(EditAnywhere, Category="Default")
+	bool bCheckSlotLocationOverlap = true;
+
 	/** If true, include slot location as candidate if no entry annotation is present. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	bool bUseSlotLocationAsFallbackCandidate = false;

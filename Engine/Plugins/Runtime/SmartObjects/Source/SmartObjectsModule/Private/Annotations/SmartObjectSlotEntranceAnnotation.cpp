@@ -9,6 +9,7 @@
 #include "NavigationData.h"
 #include "AI/Navigation/NavAgentInterface.h"
 #include "SmartObjectSettings.h"
+#include "SmartObjectUserComponent.h"
 
 #if WITH_GAMEPLAY_DEBUGGER
 #include "GameplayDebuggerCategory.h"
@@ -27,18 +28,6 @@ namespace UE::SmartObject::Annotations
 		}
 		return NavSys->GetDefaultNavDataInstance();
 	}
-
-	const USmartObjectSlotValidationFilter* GetPreviewValidationFilter()
-	{
-		const TSubclassOf<USmartObjectSlotValidationFilter> DefaultValidationFilterClass = GetDefault<USmartObjectSettings>()->PreviewValidationFilter;
-		const USmartObjectSlotValidationFilter* DefaultFilter = DefaultValidationFilterClass.GetDefaultObject();
-		if (!DefaultFilter)
-		{
-			DefaultFilter = GetDefault<USmartObjectSlotValidationFilter>();
-		}
-		return DefaultFilter;
-	}
-
 
 	const ANavigationData* GetNavDataForActor(const UWorld& World, const AActor* UserActor)
 	{
@@ -142,20 +131,31 @@ namespace UE::SmartObject::Annotations
 		FLinearColor ColliderColor = CollisionColor;
 	};
 
-	void UpdateVisualizationLogic(const UWorld& World, const FSmartObjectSlotEntranceAnnotation& Annotation, const FTransform& SlotTransform, const FTransform& AnnotationTransform, const AActor* PreviewActor, FVisualizationData& OutData)
+	void UpdateVisualizationLogic(const UWorld& World, const FSmartObjectSlotEntranceAnnotation& Annotation, const FTransform& SlotTransform, const FTransform& AnnotationTransform,
+									const AActor* PreviewSmartObjectActor, const AActor* PreviewUserActor, TSubclassOf<USmartObjectSlotValidationFilter> PreviewValidationFilterClass, FVisualizationData& OutData)
 	{
-		const ANavigationData* DefaultNavData = GetDefaultNavData(World);
-		const USmartObjectSlotValidationFilter* DefaultFilter = GetPreviewValidationFilter();
+		const USmartObjectSlotValidationFilter* PreviewValidationFilter = PreviewValidationFilterClass.GetDefaultObject();
+		if (!PreviewValidationFilter)
+		{
+			PreviewValidationFilter = GetDefault<USmartObjectSlotValidationFilter>(); 
+		}
 		
-		check(DefaultFilter);
-		const FSmartObjectTraceParams& GroundTraceParameters = DefaultFilter->GetGroundTraceParameters();
-		const FSmartObjectTraceParams& TransitionTraceParameters = DefaultFilter->GetTransitionTraceParameters();
+		const ANavigationData* DefaultNavData = GetDefaultNavData(World);
+
+		const FSmartObjectSlotValidationParams& ValidationParams = PreviewValidationFilter->GetEntryValidationParams(); 
+		const FSmartObjectTraceParams& GroundTraceParameters = ValidationParams.GetGroundTraceParameters();
+		const FSmartObjectTraceParams& TransitionTraceParameters = ValidationParams.GetTransitionTraceParameters();
 		FCollisionQueryParams GroundTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), GroundTraceParameters.bTraceComplex);
 		FCollisionQueryParams TransitionTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), TransitionTraceParameters.bTraceComplex);
-		if (PreviewActor)
+		if (PreviewSmartObjectActor)
 		{
-			GroundTraceQueryParams.AddIgnoredActor(PreviewActor);
-			TransitionTraceQueryParams.AddIgnoredActor(PreviewActor);
+			GroundTraceQueryParams.AddIgnoredActor(PreviewSmartObjectActor);
+			TransitionTraceQueryParams.AddIgnoredActor(PreviewSmartObjectActor);
+		}
+		if (PreviewUserActor)
+		{
+			GroundTraceQueryParams.AddIgnoredActor(PreviewUserActor);
+			TransitionTraceQueryParams.AddIgnoredActor(PreviewUserActor);
 		}
 
 		const FVector AnnotationWorldLocation = AnnotationTransform.GetTranslation();
@@ -170,7 +170,7 @@ namespace UE::SmartObject::Annotations
 		OutData.MarkerAxisX = AxisX;
 		OutData.MarkerAxisY = AxisY;
 
-		const FBox SearchBounds(AnnotationWorldLocation - DefaultFilter->GetSearchExtents(), AnnotationWorldLocation + DefaultFilter->GetSearchExtents());
+		const FBox SearchBounds(AnnotationWorldLocation - ValidationParams.GetSearchExtents(), AnnotationWorldLocation + ValidationParams.GetSearchExtents());
 
 		OutData.ValidatedLocation = AnnotationWorldLocation;
 
@@ -178,8 +178,14 @@ namespace UE::SmartObject::Annotations
 		// @todo: add visualization for missing navdata.
 		if (DefaultNavData)
 		{
+			FSharedConstNavQueryFilter NavigationFilter;
+			if (ValidationParams.GetNavigationFilter())
+			{
+				NavigationFilter = UNavigationQueryFilter::GetQueryFilter(*DefaultNavData, nullptr, ValidationParams.GetNavigationFilter());
+			}
+
 			FNavLocation NavLocation;
-			if (ProjectNavigationLocation(*DefaultNavData, AnnotationWorldLocation, SearchBounds, {}, /*RequesterActor*/nullptr, NavLocation))
+			if (ProjectNavigationLocation(*DefaultNavData, AnnotationWorldLocation, SearchBounds, NavigationFilter, /*RequesterActor*/nullptr, NavLocation))
 			{
 				OutData.ValidatedLocation = NavLocation.Location;
 			}
@@ -241,7 +247,8 @@ void FSmartObjectSlotEntranceAnnotation::DrawVisualization(FSmartObjectVisualiza
 	}
 
 	UE::SmartObject::Annotations::FVisualizationData Data;
-	UE::SmartObject::Annotations::UpdateVisualizationLogic(VisContext.World, *this, *SlotTransform, *AnnotationTransform, VisContext.PreviewActor, Data);
+	UE::SmartObject::Annotations::UpdateVisualizationLogic(VisContext.World, *this, *SlotTransform, *AnnotationTransform,
+		VisContext.PreviewActor, nullptr, VisContext.PreviewValidationFilterClass, Data);
 
 	// Draw validated location in relation to the marker locations.
 	if (FVector::Distance(Data.MarkerLocation, Data.ValidatedLocation) > UE_KINDA_SMALL_NUMBER)
@@ -406,31 +413,48 @@ FRotator FSmartObjectSlotEntranceAnnotation::GetWorldRotation(const FTransform& 
 }
 
 #if WITH_GAMEPLAY_DEBUGGER
-void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FGameplayDebuggerCategory& Category, const FTransform& SlotTransform, const AActor* SmartObjectOwnerActor, const FVector ViewLocation, const FVector ViewDirection, const AActor* DebugActor) const
+void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FSmartObjectAnnotationGameplayDebugContext& DebugContext) const
 {
 	constexpr FVector::FReal MarkerRadius = 20.0;
 	constexpr FVector::FReal TickSize = 5.0;
 	constexpr FVector::FReal MinArrowDrawDistance = 20.0;
 
-	const UWorld* World = Category.GetWorldFromReplicator();
+	const UWorld* World = DebugContext.Category.GetWorldFromReplicator();
 	if (!World)
 	{
 		return;
 	}
 	
-	const TOptional<FTransform> AnnotationTransform = GetWorldTransform(SlotTransform);
+	const TOptional<FTransform> AnnotationTransform = GetWorldTransform(DebugContext.SlotTransform);
 	if (!AnnotationTransform.IsSet())
 	{
 		return;
 	}
 
+	TSubclassOf<USmartObjectSlotValidationFilter> ValidationFilterClass;
+	if (DebugContext.DebugActor)
+	{
+		// If user actor is present, try to query some data automatically from interfaces and components. 
+		if (!ValidationFilterClass.Get())
+		{
+			if (const USmartObjectUserComponent* UserComponent = DebugContext.DebugActor->GetComponentByClass<USmartObjectUserComponent>())
+			{
+				if (UserComponent->GetValidationFilter().Get())
+				{
+					ValidationFilterClass = UserComponent->GetValidationFilter();
+				}
+			}
+		}
+	}
+
 	UE::SmartObject::Annotations::FVisualizationData Data;
-	UE::SmartObject::Annotations::UpdateVisualizationLogic(*World, *this, SlotTransform, *AnnotationTransform, SmartObjectOwnerActor, Data);
+	UE::SmartObject::Annotations::UpdateVisualizationLogic(*World, *this, DebugContext.SlotTransform, *AnnotationTransform,
+		DebugContext.SmartObjectOwnerActor, DebugContext.DebugActor, ValidationFilterClass, Data);
 
 	// Draw validated location in relation to the marker locations.
 	if (FVector::Distance(Data.MarkerLocation, Data.ValidatedLocation) > UE_KINDA_SMALL_NUMBER)
 	{
-		Category.AddShape(FGameplayDebuggerShape::MakeSegmentList( {
+		DebugContext.Category.AddShape(FGameplayDebuggerShape::MakeSegmentList( {
 				Data.GroundLocationStart, Data.GroundLocationEnd,
 				Data.ValidatedLocation - Data.MarkerAxisX * TickSize * 0.5, Data.ValidatedLocation + Data.MarkerAxisX * TickSize * 0.5,
 				Data.ValidatedLocation - Data.MarkerAxisY * TickSize * 0.5, Data.ValidatedLocation + Data.MarkerAxisY * TickSize * 0.5
@@ -439,7 +463,7 @@ void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FGamepla
 	
 	if (bIsEntry)
 	{
-		Category.AddShape(FGameplayDebuggerShape::MakePolyline({
+		DebugContext.Category.AddShape(FGameplayDebuggerShape::MakePolyline({
 				Data.MarkerLocation + Data.MarkerAxisY * MarkerRadius,
 				Data.MarkerLocation + Data.MarkerAxisX * MarkerRadius * 0.25 + Data.MarkerAxisY * MarkerRadius,
 				Data.MarkerLocation + Data.MarkerAxisX * MarkerRadius,
@@ -450,7 +474,7 @@ void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FGamepla
 
 	if (bIsExit)
 	{
-		Category.AddShape(FGameplayDebuggerShape::MakePolyline({
+		DebugContext.Category.AddShape(FGameplayDebuggerShape::MakePolyline({
 			Data.MarkerLocation + Data.MarkerAxisY * MarkerRadius,
 			Data.MarkerLocation - Data.MarkerAxisX * MarkerRadius * 0.5 + Data.MarkerAxisY * MarkerRadius,
 			Data.MarkerLocation - Data.MarkerAxisX * MarkerRadius * 0.5 - Data.MarkerAxisY * MarkerRadius,
@@ -464,21 +488,21 @@ void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FGamepla
 		{
 			if (Collider.CollisionShape.IsCapsule())
 			{
-				Category.AddShape(FGameplayDebuggerShape::MakeCapsule(Collider.Location, Collider.Rotation.Rotator(), Collider.CollisionShape.GetCapsuleRadius(), Collider.CollisionShape.GetCapsuleHalfHeight(), Data.ColliderColor.ToFColor(/*bSRGB*/true)));
+				DebugContext.Category.AddShape(FGameplayDebuggerShape::MakeCapsule(Collider.Location, Collider.Rotation.Rotator(), Collider.CollisionShape.GetCapsuleRadius(), Collider.CollisionShape.GetCapsuleHalfHeight(), Data.ColliderColor.ToFColor(/*bSRGB*/true)));
 			}
 			else if (Collider.CollisionShape.IsBox())
 			{
-				Category.AddShape(FGameplayDebuggerShape::MakeBox(Collider.Location, Collider.Rotation.Rotator(), Collider.CollisionShape.GetExtent(), Data.ColliderColor.ToFColor(/*bSRGB*/true)));
+				DebugContext.Category.AddShape(FGameplayDebuggerShape::MakeBox(Collider.Location, Collider.Rotation.Rotator(), Collider.CollisionShape.GetExtent(), Data.ColliderColor.ToFColor(/*bSRGB*/true)));
 			}
 			else if (Collider.CollisionShape.IsSphere())
 			{
-				Category.AddShape(FGameplayDebuggerShape::MakePoint(Collider.Location, Collider.CollisionShape.GetSphereRadius(), Data.ColliderColor.ToFColor(/*bSRGB*/true)));
+				DebugContext.Category.AddShape(FGameplayDebuggerShape::MakePoint(Collider.Location, Collider.CollisionShape.GetSphereRadius(), Data.ColliderColor.ToFColor(/*bSRGB*/true)));
 			}
 		}
 	}
 	
 	// Tick at the center.
-	Category.AddShape(FGameplayDebuggerShape::MakeSegmentList( {
+	DebugContext.Category.AddShape(FGameplayDebuggerShape::MakeSegmentList( {
 			Data.MarkerLocation - Data.MarkerAxisX * TickSize,
 			Data.MarkerLocation + Data.MarkerAxisX * TickSize,
 			Data.MarkerLocation - Data.MarkerAxisY * TickSize,
@@ -488,7 +512,7 @@ void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FGamepla
 	// Arrow pointing at the the slot, if far enough from the slot.
 	if (FVector::DistSquared(Data.MarkerLocation, Data.SlotLocation) > FMath::Square(MinArrowDrawDistance))
 	{
-		Category.AddShape(FGameplayDebuggerShape::MakeSegment(Data.MarkerLocation, Data.SlotLocation, 1.0f, Data.MarkerColor.ToFColor(/*bSRGB*/true)));
+		DebugContext.Category.AddShape(FGameplayDebuggerShape::MakeSegment(Data.MarkerLocation, Data.SlotLocation, 1.0f, Data.MarkerColor.ToFColor(/*bSRGB*/true)));
 	}
 
 }

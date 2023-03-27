@@ -41,13 +41,15 @@ bool FStateTreeTask_FindSlotEntranceLocation::UpdateResult(const FStateTreeExecu
 	}
 
 	FSmartObjectSlotEntranceLocationRequest Request;
-	Request.SetNavigationDataFromActor(*InstanceData.UserActor, ValidationFilter);
+	Request.UserActor = InstanceData.UserActor;
+	Request.ValidationFilter = ValidationFilter;
 	Request.SelectMethod = SelectMethod;
 	Request.bProjectNavigationLocation = bProjectNavigationLocation;
 	Request.bTraceGroundLocation = bTraceGroundLocation;
+	Request.bCheckEntranceLocationOverlap = bCheckEntranceLocationOverlap;
+	Request.bCheckSlotLocationOverlap = bCheckSlotLocationOverlap;
 	Request.bCheckTransitionTrajectory = bCheckTransitionTrajectory;
-	Request.LocationType = LocationType;
-
+	
 	FSmartObjectSlotEntranceLocationResult EntryLocation;
 	if (SmartObjectSubsystem.FindEntranceLocationForSlot(InstanceData.ReferenceSlot, Request, EntryLocation))
 	{

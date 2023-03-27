@@ -159,19 +159,6 @@ enum class FSmartObjectSlotEntrySelectionMethod : uint8
 };
 
 /**
- * Enum indicating if we're looking for a location to enter or exit the Smart Object slot.
- */
-UENUM()
-enum class ESmartObjectSlotNavigationLocationType : uint8
-{
-	/** Find a location to enter the slot. */
-	Entry,
-	
-	/** Find a location to exit the slot. */
-	Exit,
-};
-
-/**
  * Handle describing a specific entrance on a Smart Object slot.
  */
 USTRUCT()
@@ -222,6 +209,11 @@ private:
 /**
  * Struct used to request slot entry or exit location.
  *
+ * When used with actor, it is generally enough to set the UserActor. In that case NavigationData, ValidationFilter,
+ * and UserCapsule are queried via the INavAgentInterface and USmartObjectUserComponent on the actor if they are _not_ set.
+ * 
+ * If the user actor is not available (e.g. with Mass), then ValidationFilter and UserCapsule must be defined, and if bProjectNavigationLocation is set NavigationData must be valid. 
+ * 
  * The location validation is done in following order:
  *  - navigation projection
  *  - trace ground location (uses altered location from navigation test if applicable)
@@ -232,25 +224,26 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationRequest
 {
 	GENERATED_BODY()
 
+	// @todo: remove
 	/**
 	 * Sets the NavigationData, NavigationFilter, NavigationValidationExtents, ValidationFilter, and RequesterActor from the specified actor and navigation filter.
 	 * @return true if navigation data was set successfully.
 	 */
-	bool SetNavigationDataFromActor(const AActor& InRequesterActor, const TSubclassOf<USmartObjectSlotValidationFilter> InValidationFilter);
+	bool SetNavigationDataFromActor(const AActor& InInstigatorActor, const TSubclassOf<USmartObjectSlotValidationFilter> InValidationFilter);
 
-	/** Actor that is passed to the navigation queries. (Optional) */
-	TObjectPtr<const AActor> InstigatorActor = nullptr;
+	/** Actor that is using the smart object slot. (Optional) */
+	TObjectPtr<const AActor> UserActor = nullptr;
 
-	/** Navigation data to use for the navigation queries (must exists, if bMustBeNavigable is true). */
-	TObjectPtr<const ANavigationData> NavigationData = nullptr;
-	
-	/** Navigation query filter to use for the navigation queries. (Optional)*/
-	FSharedConstNavQueryFilter NavigationFilter;
-
-	/** Filter to use for the validation. */
+	/** Filter to use for the validation. If not set and UserActor is valid, the filter is queried via USmartObjectUserComponent. */
 	TSubclassOf<USmartObjectSlotValidationFilter> ValidationFilter = nullptr;
 
-	/** Search location that may be used to select an entry from multiple candidates. (e.g. actor location). */
+	/** Navigation data to use for the navigation queries. If not set and UserActor is valid, the navigation data is queried via INavAgentInterface. */
+	TObjectPtr<const ANavigationData> NavigationData = nullptr;
+	
+	/** Size of the user of the smart object. If not set and UserActor is valid, the dimensions are queried via INavAgentInterface. */
+	TOptional<FSmartObjectUserCapsuleParams> UserCapsule;
+	
+	/** Search location that may be used to select an entry from multiple candidates. (e.g. user actor location). */
 	FVector SearchLocation = FVector::ZeroVector;
 
 	/** How to select an entry when a slot has multiple entries. */
@@ -276,8 +269,6 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationRequest
 
 	/** If true, include slot location as a candidate if no navigation annotation is present. */
 	bool bUseSlotLocationAsFallback = false;
-
-	friend class USmartObjectSubsystem;
 };
 
 /**

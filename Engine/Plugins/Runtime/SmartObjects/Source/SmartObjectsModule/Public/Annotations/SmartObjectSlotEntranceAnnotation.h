@@ -9,7 +9,9 @@
 #include "SmartObjectSlotEntranceAnnotation.generated.h"
 
 class ANavigationData;
+class USmartObjectDefinition;
 struct FNavLocation;
+enum class ESmartObjectSlotNavigationLocationType : uint8;
 
 /**
  * Enum used to define a entrance selection priority. Highest priority is preferred, but when the priority is the same
@@ -63,7 +65,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceAnnotation : public FSmart
 	virtual void GetTrajectoryColliders(const FTransform& SlotTransform, TArray<FSmartObjectAnnotationCollider>& OutColliders) const;
 
 #if WITH_GAMEPLAY_DEBUGGER
-	virtual void CollectDataForGameplayDebugger(FGameplayDebuggerCategory& Category, const FTransform& SlotTransform, const AActor* SmartObjectOwnerActor, const FVector ViewLocation, const FVector ViewDirection, const AActor* DebugActor) const override;
+	virtual void CollectDataForGameplayDebugger(FSmartObjectAnnotationGameplayDebugContext& DebugContext) const override;
 #endif // WITH_GAMEPLAY_DEBUGGER	
 
 	/** Local space offset of the entry. */
@@ -119,11 +121,6 @@ namespace UE::SmartObject::Annotations
 	 * @returns navigation data for a specific actor. Similar to FNavigationSystem::GetNavDataForActor() but allows to pass custom world.
 	 */
 	extern SMARTOBJECTSMODULE_API const ANavigationData* GetNavDataForActor(const UWorld& World, const AActor* UserActor);
-
-	/**
-	 * @returns pointer to preview validation filter from settings or if empty, the default validation filter object. 
-	 */
-	const USmartObjectSlotValidationFilter* GetPreviewValidationFilter();
 
 	/**
 	 * Projects given location on nearest navigable surface.

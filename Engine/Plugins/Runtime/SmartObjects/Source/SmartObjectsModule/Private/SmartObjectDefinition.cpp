@@ -6,6 +6,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "WorldConditions/WorldCondition_SmartObjectActorTagQuery.h"
 #include "WorldConditions/SmartObjectWorldConditionObjectTagQuery.h"
+#include "SmartObjectUserComponent.h"
+#include "Engine/SCS_Node.h"
 #endif
 
 
@@ -34,6 +36,46 @@ EDataValidationResult USmartObjectDefinition::IsDataValid(TArray<FText>& Validat
 	Validate(&ValidationErrors);
 	
 	return CombineDataValidationResults(Result, bValid ? EDataValidationResult::Valid : EDataValidationResult::Invalid);
+}
+
+TSubclassOf<USmartObjectSlotValidationFilter> USmartObjectDefinition::GetPreviewValidationFilterClass() const
+{
+	if (PreviewData.UserActorClass.IsValid())
+	{
+		if (const UClass* UserActorClass = PreviewData.UserActorClass.Get())
+		{
+			// Try to get smart object user component added in the BP.
+			if (const UBlueprintGeneratedClass* UserBlueprintClass = Cast<UBlueprintGeneratedClass>(UserActorClass))
+			{
+				const TArray<USCS_Node*>& Nodes = UserBlueprintClass->SimpleConstructionScript->GetAllNodes();
+				for (USCS_Node* Node : Nodes)
+				{
+					UActorComponent* Component = Node->GetActualComponentTemplate(const_cast<UBlueprintGeneratedClass*>(UserBlueprintClass));
+					if (const USmartObjectUserComponent* UserComponent = Cast<USmartObjectUserComponent>(Component))
+					{
+						return UserComponent->GetValidationFilter();
+					}
+				}
+			}
+			
+			// Try to get the component from the CDO (e.g. added as default object in C++).
+			if (const AActor* UserActor = Cast<AActor>(UserActorClass->GetDefaultObject()))
+			{
+				if (const USmartObjectUserComponent* UserComponent = UserActor->GetComponentByClass<USmartObjectUserComponent>())
+				{
+					return UserComponent->GetValidationFilter();
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	if (PreviewData.UserValidationFilterClass.IsValid())
+	{
+		return PreviewData.UserValidationFilterClass.Get();
+	}
+	
+	return nullptr;
 }
 
 #endif // WITH_EDITOR
@@ -314,6 +356,17 @@ void USmartObjectDefinition::PostLoad()
 			" If the intent was to validate against instance runtime tags then the condition should be replaced by %s."),
 			*FWorldCondition_SmartObjectActorTagQuery::StaticStruct()->GetName(),
 			*FSmartObjectWorldConditionObjectTagQuery::StaticStruct()->GetName());
+	}
+
+	if (PreviewClass_DEPRECATED.IsValid())
+	{
+		PreviewData.ObjectActorClass = PreviewClass_DEPRECATED;
+		PreviewClass_DEPRECATED.Reset();
+	}
+	if (PreviewMeshPath_DEPRECATED.IsValid())
+	{
+		PreviewData.ObjectMeshPath = PreviewMeshPath_DEPRECATED;
+		PreviewMeshPath_DEPRECATED.Reset();
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif	

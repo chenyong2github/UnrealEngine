@@ -22,7 +22,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectAnnotation_SlotUserCollision : public 
 	virtual void GetColliders(const FSmartObjectUserCapsuleParams& UserCapsule, const FTransform& SlotTransform, TArray<FSmartObjectAnnotationCollider>& OutColliders) const;
 
 #if WITH_GAMEPLAY_DEBUGGER
-	virtual void CollectDataForGameplayDebugger(FGameplayDebuggerCategory& Category, const FTransform& SlotTransform, const AActor* SmartObjectOwnerActor, const FVector ViewLocation, const FVector ViewDirection, const AActor* DebugActor) const override;
+	virtual void CollectDataForGameplayDebugger(FSmartObjectAnnotationGameplayDebugContext& DebugContext) const override;
 #endif // WITH_GAMEPLAY_DEBUGGER	
 
 	/** If true, the user capsule size is got from validation filter and used for testing. */
