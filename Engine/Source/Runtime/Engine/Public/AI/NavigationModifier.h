@@ -332,7 +332,7 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 	FORCEINLINE void SetFillCollisionUnderneathForNavmesh(bool bValue) { bFillCollisionUnderneathForNavmesh = bValue; }
 	FORCEINLINE bool GetMaskFillCollisionUnderneathForNavmesh() const { return bMaskFillCollisionUnderneathForNavmesh; }
 	FORCEINLINE void SetMaskFillCollisionUnderneathForNavmesh(bool bValue) { bMaskFillCollisionUnderneathForNavmesh = bValue; }
-	FORCEINLINE ENavigationDataResolution GetNavMeshResolution() const { return NavMeshResolution; }
+	FORCEINLINE ENavigationDataResolution GetNavMeshResolution() const { return bEnableNavMeshResolutions ? NavMeshResolution : ENavigationDataResolution::Invalid; }
 	FORCEINLINE void SetNavMeshResolution(ENavigationDataResolution Resolution) { NavMeshResolution = Resolution; }
 	FORCEINLINE void ReserveForAdditionalAreas(int32 AdditionalElementsCount) { Areas.Reserve(Areas.Num() + AdditionalElementsCount); }
 
@@ -356,6 +356,8 @@ public:
 	// Gathers per instance data for navigation area modifiers in a specified area box
 	FNavDataPerInstanceTransformDelegate NavDataPerInstanceTransformDelegate;
 
+	static bool bEnableNavMeshResolutions;
+	
 private:
 	TArray<FAreaNavModifier> Areas;
 	TArray<FSimpleLinkNavModifier> SimpleLinks;

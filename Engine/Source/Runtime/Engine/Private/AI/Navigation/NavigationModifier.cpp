@@ -18,6 +18,13 @@
 // should be less than voxel size (recast navmesh)
 static const FVector::FReal CONVEX_HULL_POINTS_MIN_DISTANCE_SQ = 4.0f * 4.0f;
 
+bool FCompositeNavModifier::bEnableNavMeshResolutions = true;
+
+namespace UE::Navigation::Private
+{
+	FAutoConsoleVariableRef CVarEnableNavMeshResolutions(TEXT("ai.nav.EnableNavMeshResolutions"), FCompositeNavModifier::bEnableNavMeshResolutions, TEXT("When set to false, navmesh resoutions will be ignored."), ECVF_Default);
+}
+
 //----------------------------------------------------------------------//
 // FNavigationLinkBase
 //----------------------------------------------------------------------//
