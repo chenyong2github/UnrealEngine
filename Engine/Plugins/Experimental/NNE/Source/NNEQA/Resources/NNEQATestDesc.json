@@ -540,6 +540,15 @@
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
 			]
+		},
+		{
+			"category": "GlobalAveragePoolOp",
+			"targets": [
+				{ "target": "GlobalAveragePool", "absolute_tolerance": 1e-6 }
+			],
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
+			]
 		}
 	],
 
@@ -1187,6 +1196,18 @@
 			"name": "PoolOp.2D.Strides2",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 1, 2, 256, 256 ] } ], "outputs": [ { "shape": [ 1, 2, 128, 128 ] } ] }
+			]
+		},
+		{
+			"name": "GlobalAveragePoolOp.2D",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 2, 128, 256 ] } ], "outputs": [ { "shape": [ 2, 2, 1, 1 ] } ] }
+			]
+		},
+		{
+			"name": "GlobalAveragePoolOp.3D",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3, 128, 256, 64 ] } ], "outputs": [ { "shape": [ 2, 3, 1, 1, 1 ] } ] }
 			]
 		},
 		{ 

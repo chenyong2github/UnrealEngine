@@ -13,7 +13,7 @@ namespace UE::NNERuntimeRDG::Private::Dml
 /**
 	* MaxPool
 	*/
-template <typename TDmlPoolOpDesc, DML_OPERATOR_TYPE DmlOpType>
+template <typename TDmlPoolOpDesc, DML_OPERATOR_TYPE DmlOpType, bool UseGlobalPooling>
 class FOperatorDmlPool : public FOperatorDml
 {
 	using FIntArray = TArray<int32>;
@@ -22,7 +22,7 @@ public:
 
 	static FOperatorDml* Create()
 	{
-		return new FOperatorDmlPool<TDmlPoolOpDesc, DmlOpType>();
+		return new FOperatorDmlPool<TDmlPoolOpDesc, DmlOpType, UseGlobalPooling>();
 	}
 
 	//
@@ -46,26 +46,40 @@ public:
 		DmlUtil::FSmallUIntArray StartPadding, EndPadding, KernelShape, Strides, Dilations;
 
 		Strides.Init(1u, NumSpatialDimensions);
-		if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("strides")), Strides, TConstArrayView<uint32>(Strides)))
+		if constexpr(!UseGlobalPooling)
 		{
-			UE_LOG(LogNNE, Error, TEXT("Strides attribute cast led to overflow"));
-			return false;
+			if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("strides")), Strides, TConstArrayView<uint32>(Strides)))
+			{
+				UE_LOG(LogNNE, Error, TEXT("Strides attribute cast led to overflow"));
+				return false;
+			}
 		}
 		check(Strides.Num() == NumSpatialDimensions);
 
 		Dilations.Init(1u, NumSpatialDimensions);
-		if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("dilations")), Dilations, TConstArrayView<uint32>(Dilations)))
+		if constexpr(!UseGlobalPooling)
 		{
-			UE_LOG(LogNNE, Error, TEXT("Dilations attribute cast led to overflow"));
-			return false;
+			if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("dilations")), Dilations, TConstArrayView<uint32>(Dilations)))
+			{
+				UE_LOG(LogNNE, Error, TEXT("Dilations attribute cast led to overflow"));
+				return false;
+			}
 		}
 		check(Dilations.Num() == NumSpatialDimensions);
-
-		if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("kernel_shape")), KernelShape))
+		
+		if constexpr(UseGlobalPooling)
 		{
-			UE_LOG(LogNNE, Error, TEXT("kernel_shape attribute cast led to overflow"));
-			return false;
+			KernelShape = DmlUtil::FSmallUIntArray{ InputShape.RightChop(NonspatialDimensionCount) };
 		}
+		else
+		{
+			if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("kernel_shape")), KernelShape))
+			{
+				UE_LOG(LogNNE, Error, TEXT("kernel_shape attribute cast led to overflow"));
+				return false;
+			}
+		}
+		
 		if (KernelShape.IsEmpty())
 		{
 			UE_LOG(LogNNE, Error, TEXT("kernel_shape attribute is required for pooling operators"));
@@ -73,14 +87,22 @@ public:
 		}
 		check(KernelShape.Num() == NumSpatialDimensions);
 
-		ComputeStartEndPaddings(
-			InputShape,
-			Attributes,
-			StartPadding,
-			EndPadding,
-			KernelPadding(InputShape, KernelShape, Dilations, Strides)
-		);
-
+		if constexpr(UseGlobalPooling)
+		{
+			StartPadding.Init(0u, NumSpatialDimensions);
+			EndPadding.Init(0u, NumSpatialDimensions);
+		}
+		else
+		{
+			ComputeStartEndPaddings(
+				InputShape,
+				Attributes,
+				StartPadding,
+				EndPadding,
+				KernelPadding(InputShape, KernelShape, Dilations, Strides)
+			);
+		}
+		
 		for (int Idx = 0; Idx < OutputTensors.Num(); ++Idx)
 		{
 			check(OutputTensors[Idx].GetShape().Rank() == InputShape.Num());
@@ -171,20 +193,21 @@ public:
 	}
 };
 
-#define NNE_DML_REGISTER_POOLING_OP(OpName, DmlPrefix) \
+#define NNE_DML_REGISTER_POOLING_OP(OpName, DmlPrefix, UseGlobalPooling) \
 struct FDmlOperator##OpName##Registrator \
 { \
 	FDmlOperator##OpName##Registrator() \
 	{ \
-		FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDmlPool<DML_##DmlPrefix##_POOLING_OPERATOR_DESC, DML_OPERATOR_##DmlPrefix##_POOLING>::Create); \
+		FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDmlPool<DML_##DmlPrefix##_POOLING_OPERATOR_DESC, DML_OPERATOR_##DmlPrefix##_POOLING, UseGlobalPooling>::Create); \
 	} \
 }; \
 \
 static FDmlOperator##OpName##Registrator RegisterDmlOperator##OpName;
 
 // Register pooling operator on Module startup
-NNE_DML_REGISTER_POOLING_OP(MaxPool, MAX)
-NNE_DML_REGISTER_POOLING_OP(AveragePool, AVERAGE)
+NNE_DML_REGISTER_POOLING_OP(MaxPool, MAX, false)
+NNE_DML_REGISTER_POOLING_OP(AveragePool, AVERAGE, false)
+NNE_DML_REGISTER_POOLING_OP(GlobalAveragePool, AVERAGE, true)
 
 #undef NNE_DML_REGISTER_POOLING_OP
 
