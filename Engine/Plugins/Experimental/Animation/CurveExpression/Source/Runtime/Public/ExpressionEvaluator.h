@@ -4,6 +4,7 @@
 
 #include "Containers/Map.h"
 #include "Misc/TVariant.h"
+#include "Misc/TVariantMeta.h"
 #include "UObject/NameTypes.h"
 
 template <typename OptionalType> struct TOptional;
@@ -11,55 +12,22 @@ template <typename OptionalType> struct TOptional;
 namespace CurveExpression::Evaluator
 {
 
-struct FParseLocation
-{
-	FParseLocation() = default;
-	FParseLocation(int32 InStart, int32 InEndLocation) :
-		Start(InStart), 
-		End(InEndLocation)
-	{}
-	FParseLocation(FStringView InParseRange, const TCHAR* InParseStart) :
-		Start(static_cast<int32>(InParseRange.begin() - InParseStart)),
-		End(static_cast<int32>(InParseRange.end() - InParseStart))
-	{}
-
-	/** Merge two parse locations and return a new one */
-	FParseLocation Join(const FParseLocation& InLocation) const
-	{
-		return FParseLocation(FMath::Min(Start, InLocation.Start), FMath::Max(End, InLocation.End));
-	}
-	
-	const int32 Start = INDEX_NONE;
-	const int32 End = INDEX_NONE;
-};
-
 struct FParseError
 {
 	FParseError() = default;
-	FParseError(FString&& InMessage, FParseLocation InLocation) :
-		Message(MoveTemp(InMessage)),
-		Location(InLocation)
-	{}
+	FParseError(const int32 InColumn, FString&& InMessage) : Column(InColumn), Message(MoveTemp(InMessage)) {}
+
+	/** The column at which the error occurs. Zero-based. */
+	const int32 Column = 0;
 
 	/** The human-readable parsing error */
-	const FString Message{};
-	
-	/** The parse location where the error took place. */
-	const FParseLocation Location{};
+	const FString Message = FString();
 };
 
 struct FExpressionObject
 {
 	FString ToString() const;
-
-	/** Returns all named constants used by this expression */
-	TSet<FName> GetUsedConstants() const;
-
-	void Load(FArchive& Ar);
-	void Save(FArchive& Ar) const;
-	
 private:
-	
 	enum class EOperator : int32
 	{
 		Negate,				// Negation operator.
@@ -106,40 +74,74 @@ private:
  *	rather than:
  *	   foo (1) * 2.0
  */
+enum class EParseFlags
+{
+	Default				= 0,		/** Default parsing behavior */
+	ValidateConstants	= 1 << 0,	/** Validate that the referred-to constant exists */
+};
+ENUM_CLASS_FLAGS(EParseFlags)
 
+
+/** Dictate how constants are updated. */
+enum class EUpdateConstantsMethod
+{
+	IgnoreMissing,					/** Existing constant values that are not updated are left unchanged. */
+	ZeroMissing						/** Existing constant values that are not updated are zeroed out. */
+};
 
 class CURVEEXPRESSION_API FEngine
 {
 public:
+	explicit FEngine(EParseFlags InParseFlags = EParseFlags::Default) :
+		ParseFlags(InParseFlags)
+	{ }
+
+	/** Initialize the engine with constants, making a copy of the value constant map. */
+	explicit FEngine(
+		const TMap<FName, float>& InConstants,
+		EParseFlags InParseFlags = EParseFlags::Default
+		);
+	
+	/** Initialize the engine with constants, taking ownership of the value constant map. */
+	explicit FEngine(
+		TMap<FName, float>&& InConstants,
+		EParseFlags InParseFlags = EParseFlags::Default
+		);
+
+	/** Update existing constant values. No new constants are added. */
+	void UpdateConstantValues(
+		const TMap<FName, float>& InConstants,
+		EUpdateConstantsMethod InUpdateMethod = EUpdateConstantsMethod::ZeroMissing
+		);
+
+	/** Return existing constants and their values. */
+	const TMap<FName, float>& GetConstantValues() const
+	{
+		return Constants;
+	}
+
 	/** Parse an expression and either receive an error or a expression execution object that
 	 *  matches this evaluator. */
 	TVariant<FExpressionObject, FParseError> Parse(
-		FStringView InExpression,
-		TFunction<TOptional<float>(FName InConstantName)> InConstantEvaluator = {} 
+		FStringView InExpression
 		) const;
 
-	/** Executes the given expression object.
-	 *  \param InExpressionObject The parsed expression object to evaluate.
-	 *  \param InConstantEvaluator A function that returns the value of a given constant, if it's known, or none otherwise.
-	 */
+	/** Executes the given expression object */
 	float Execute(
-		const FExpressionObject& InExpressionObject,
-		TFunctionRef<TOptional<float>(FName InConstantName)> InConstantEvaluator
+		const FExpressionObject& InExpressionObject
 		) const;
 	
 	/** Evaluate an expression directly and returns the result. If the expression is incorrectly
 	 *  formed, then the optional return value holds nothing.
 	 */ 
 	TOptional<float> Evaluate(
-		FStringView InExpression,
-		TFunctionRef<TOptional<float>(FName InConstantName)> InConstantEvaluator
+		FStringView InExpression
 		) const;
 
 	/** Verify an expression. Does not check for variable validity, only that the expression
 	 *  can be evaluated */
 	TOptional<FParseError> Verify(
-		FStringView InExpression,
-		TFunction<TOptional<float>(FName InConstantName)> InConstantEvaluator = {} 
+		FStringView InExpression
 		) const;
 	
 private:
@@ -160,42 +162,11 @@ private:
 		Max					// Must be last
 	};
 	using FToken = TVariant<EOperatorToken, /* Identifier */ FName, /* Value */ float>;
-
-	struct FTokenParseResult
-	{
-		FTokenParseResult() = default;
-		
-		FTokenParseResult(FToken&& InToken, FStringView InTokenRange, const TCHAR* InExpression) :
-			Result(TInPlaceType<FToken>(), MoveTemp(InToken)),
-			Location(InTokenRange, InExpression)
-		{}
-		
-		FTokenParseResult(FString&& InError, FStringView InTokenRange, const TCHAR* InExpression) :
-			Result(TInPlaceType<FString>(), MoveTemp(InError)),
-			Location(InTokenRange, InExpression)
-		{}
-		
-		bool IsError() const { return Result.IsType<FString>(); }
-		bool IsToken() const { return Result.IsType<FToken>(); }
-		
-		const FToken& GetToken() const
-		{
-			return Result.Get<FToken>();
-		}
-		
-		FParseError GetParseError()
-		{
-			return FParseError(MoveTemp(Result.Get<FString>()), Location);
-		}
-		
-		TVariant<FString, FToken> Result;
-		FParseLocation Location{};
-	};
 	
 	/** Parse a floating point value and return the result (or error). Same semantics
 	 *  apply as with ParseToken.
 	 */
-	static FTokenParseResult ParseFloat(
+	static TVariant<FToken, FParseError> ParseFloat(
 		FStringView& InOutParseRange,
 		FStringView InExpression
 		);
@@ -203,26 +174,39 @@ private:
 	/** Parse a constant reference and return the result (or error). Same semantics
 	 *  apply as with ParseToken.
 	 */
-	static FTokenParseResult ParseIdentifier(
+	TVariant<FToken, FParseError> ParseIdentifier(
 		FStringView& InOutParseRange,
 		FStringView InExpression
-		);
+		) const;
 	
 	/** Parse a single token from the beginning of the range, returning either the token
 	 *  or an error, if one was encountered.
 	 *  If the token was successfully parsed, then the given string view range gets updated
 	 *  with the new starting point at the end of the token just parsed
 	 */
-	static FTokenParseResult ParseToken(
+	TVariant<FToken, FParseError> ParseToken(
 		FStringView& InOutParseRange,
 		FStringView InExpression
-		);
+		) const;
 
+	/** Helper function to construct a token parse error result */
+	static TVariant<FToken, FParseError> ParseTokenError(
+		FString&& InError,
+		const TCHAR* InCurrentPos,
+		FStringView InExpression
+		);
+	
 	/** Helper function to get a text version of a token. */
 	static FString TokenToString(
 		const FToken& InToken
 		);
 	
+	/** The list of constants, stored using the FName key since the expression object refers
+	 *  to it directly */
+	// TBD: Add support for variables by allowing TFunction{Ref} objects along with direct
+	// constants.
+	TMap<FName, float> Constants;
+
 	/** For now we just have built-in functions */
 	friend struct FInitializeBuiltinFunctions;
 	using FunctionType = TFunction<float(TArrayView<const float>)>;
@@ -233,20 +217,9 @@ private:
 	};
 	static TMap<FName, int32> FunctionNameIndex;
 	static TArray<FFunctionInfo> Functions;
+
+	/** The parse flags for this engine. Only set once */
+	EParseFlags ParseFlags = EParseFlags::Default;
 };
 
-}
-
-
-static FArchive& operator<<(FArchive& Ar, CurveExpression::Evaluator::FExpressionObject& InObject)
-{
-	if (Ar.IsLoading())
-	{
-		InObject.Load(Ar);
-	}
-	else
-	{
-		InObject.Save(Ar);
-	}
-	return Ar;
 }

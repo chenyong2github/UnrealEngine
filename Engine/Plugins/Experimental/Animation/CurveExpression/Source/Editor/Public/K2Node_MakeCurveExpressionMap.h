@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CurveExpressionsDataAsset.h"
-
 #include "K2Node.h"
 
 #include "K2Node_MakeCurveExpressionMap.generated.h"
@@ -12,6 +10,14 @@ class FCompilerResultsLog;
 class FNodeHandlingFunctor;
 namespace ENodeTitleType { enum Type : int; }
 
+USTRUCT()
+struct FCurveExpressionList
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category="Expressions")
+	FString AssignmentExpressions;
+};
 
 UCLASS()
 class CURVEEXPRESSIONEDITOR_API UK2Node_MakeCurveExpressionMap :

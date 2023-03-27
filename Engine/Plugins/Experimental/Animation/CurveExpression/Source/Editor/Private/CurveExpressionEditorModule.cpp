@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimGraphNode_RemapCurves.h"
 #include "AnimGraphNode_RemapCurvesFromMesh.h"
 #include "CurveExpressionDetailsCustomization.h"
 #include "CurveExpressionEditorStyle.h"
@@ -42,13 +41,8 @@ public:
 			);
 			
 		RegisterClassCustomization(
-			UAnimGraphNode_RemapCurves::StaticClass()->GetFName(),
-			&FAnimGraphNode_RemapCurvesDebuggingCustomization::MakeInstance
-			);
-		
-		RegisterClassCustomization(
 			UAnimGraphNode_RemapCurvesFromMesh::StaticClass()->GetFName(),
-			&FAnimGraphNode_RemapCurvesDebuggingCustomization::MakeInstance
+			&FAnimGraphNode_RemapCurvesFromMeshCustomization::MakeInstance
 			);
 	}
 	virtual void ShutdownModule() override

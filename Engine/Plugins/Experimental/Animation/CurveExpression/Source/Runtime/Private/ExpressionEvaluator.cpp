@@ -3,8 +3,6 @@
 #include "ExpressionEvaluator.h"
 #include <limits> // IWYU pragma: keep
 
-#include "CurveExpressionModule.h"
-
 namespace CurveExpression::Evaluator
 {
 
@@ -106,124 +104,63 @@ FString FExpressionObject::ToString() const
 }
 
 
-TSet<FName> FExpressionObject::GetUsedConstants() const
+FEngine::FEngine(
+	const TMap<FName, float>& InConstants, 
+	EParseFlags InParseFlags
+	) :
+	Constants(InConstants),
+	ParseFlags(InParseFlags)
 {
-	TSet<FName> UsedConstants;
-	for (int32 Index = 0; Index < Expression.Num(); Index++)
-	{
-		if (const FName* ConstantName = Expression[Index].TryGet<FName>())
-		{
-			UsedConstants.Add(*ConstantName);
-		}
-	}
-	return UsedConstants;	
 }
 
 
-void FExpressionObject::Load(FArchive& Ar)
+FEngine::FEngine(
+	TMap<FName, float>&& InConstants,
+	EParseFlags InParseFlags
+	) :
+	Constants(MoveTemp(InConstants)),
+	ParseFlags(InParseFlags)
 {
-	int32 OperandCount = 0;
-	Ar << OperandCount;
-
-	Expression.Reset(OperandCount);
-
-	for (int32 OperandIndex = 0; OperandIndex < OperandCount; OperandIndex++)
-	{
-		int32 OperandType = INDEX_NONE;
-		Ar << OperandType;
-		switch(OperandType)
-		{
-		case OpElement::IndexOfType<EOperator>():
-			{
-				int32 OperatorType = 0;
-				Ar << OperatorType;
-				Expression.Add(OpElement(TInPlaceType<EOperator>(), static_cast<EOperator>(OperatorType)));
-			}
-			break;
-		case OpElement::IndexOfType<FName>():
-			{
-				FName ConstantName;
-				Ar << ConstantName;
-				Expression.Add(OpElement(TInPlaceType<FName>(), ConstantName));
-			}
-			break;
-		case OpElement::IndexOfType<FFunctionRef>():
-			{
-				int32 FunctionIndex;
-				Ar << FunctionIndex;
-				Expression.Add(OpElement(TInPlaceType<FFunctionRef>(), FFunctionRef(FunctionIndex)));
-			}
-			break;
-		case OpElement::IndexOfType<float>():
-			{
-				float Value;
-				Ar << Value;
-				Expression.Add(OpElement(TInPlaceType<float>(), Value));
-			}
-			break;
-		default:
-			UE_LOG(LogCurveExpression, Error, TEXT("Invalid element type found in serialized expression"));
-			Ar.SetError();
-			return;
-		}
-	}
 }
 
 
-void FExpressionObject::Save(FArchive& Ar) const
+void FEngine::UpdateConstantValues(
+	const TMap<FName, float>& InConstants,
+	EUpdateConstantsMethod InUpdateMethod
+	)
 {
-	int32 OperandCount = Expression.Num(); 
-	Ar << OperandCount;
-
-	for (const OpElement& Operand: Expression)
+	for (TTuple<FName, float>& OldConstantItem: Constants)
 	{
-		int32 OperandType = Operand.GetIndex();
-		Ar << OperandType;
-		
-		switch(OperandType)
+		if (const float* NewConstant = InConstants.Find(OldConstantItem.Key))
 		{
-		case OpElement::IndexOfType<EOperator>():
-			{
-				int32 OperatorType = static_cast<int32>(Operand.Get<EOperator>());
-				Ar << OperatorType;
-			}
-			break;
-		case OpElement::IndexOfType<FName>():
-			{
-				FName ConstantName = Operand.Get<FName>();
-				Ar << ConstantName;
-			}
-			break;
-		case OpElement::IndexOfType<FFunctionRef>():
-			{
-				int32 FunctionIndex = Operand.Get<FFunctionRef>().Index;
-				Ar << FunctionIndex;
-			}
-			break;
-		case OpElement::IndexOfType<float>():
-			{
-				float Value = Operand.Get<float>();
-				Ar << Value;
-			}
-			break;
-		default:
-			checkNoEntry();
-			return;
+			OldConstantItem.Value = *NewConstant;
+		}
+		else if (InUpdateMethod == EUpdateConstantsMethod::ZeroMissing)
+		{
+			OldConstantItem.Value = 0.0f;
 		}
 	}
 }
-
 
 // We can't use FChar::IsDigit, since it obeys locale, which would allow all sorts of non-ASCII
 // numeric digits from Unicode.
-static bool IsASCIIDigit(const TCHAR InCh)
+static bool IsASCIIDigit(TCHAR InCh)
 {
 	return InCh >= '0' && InCh <= '9';
 }
 
+TVariant<FEngine::FToken, FParseError> FEngine::ParseTokenError(
+	FString&& InError,
+	const TCHAR* InCurrentPos,
+	FStringView InExpression)
+{
+	return TVariant<FToken, FParseError>(TInPlaceType<FParseError>(),
+		static_cast<int32>(InCurrentPos - InExpression.GetData()), MoveTemp(InError));
+}
+
 
 FString FEngine::TokenToString(
-	const FToken& InToken
+	const FEngine::FToken& InToken
 	)
 {
 	const TCHAR* TypeStr = TEXT("<unknown>");
@@ -245,10 +182,6 @@ FString FEngine::TokenToString(
 		case EOperatorToken::ParenOpen:		ValueStr = TEXT("("); break;
 		case EOperatorToken::ParenClose:	ValueStr = TEXT(")"); break;
 		case EOperatorToken::Comma:			ValueStr = TEXT(","); break;
-		
-		case EOperatorToken::Max:
-			checkNoEntry();
-			break;
 		}
 	}
 	else if (const FName* Identifier = InToken.TryGet<FName>())
@@ -266,10 +199,10 @@ FString FEngine::TokenToString(
 }
 
 
-auto FEngine::ParseFloat(
+TVariant<FEngine::FToken, FParseError> FEngine::ParseFloat(
 	FStringView& InOutParseRange,
 	FStringView InExpression
-	) -> FTokenParseResult
+	)
 {
 	// We only parse at most 11 significant digits, since 9 is the maximum decimal precision 
 	// a float will hold. We store 2 extra digits to make sure we round properly on the 
@@ -325,9 +258,7 @@ auto FEngine::ParseFloat(
 	if (MantissaLen == 0)
 	{
 		// We only parsed the period. That's not a valid float.
-		return FTokenParseResult(TEXT("Invalid floating point value"),
-			InOutParseRange.Left(1), 
-		InExpression.GetData());
+		return ParseTokenError(TEXT("Invalid floating point value"), InOutParseRange.GetData(), InExpression);
 	}
 
 	// Adjustment for the exponent based on number of significant digits in the fraction part.
@@ -441,19 +372,17 @@ auto FEngine::ParseFloat(
 		Fraction *= DoubleExponent;
 	}
 
-	const FStringView TokenParseRange(InOutParseRange.Left(LastPos));
-	
-	// Update the parse range for the next token. 
 	InOutParseRange = InOutParseRange.Mid(LastPos);
 	
-	return FTokenParseResult(FToken(TInPlaceType<float>(), Fraction), TokenParseRange, InExpression.GetData());
+	return TVariant<FToken, FParseError>(
+		TInPlaceType<FToken>(), FToken(TInPlaceType<float>(), Fraction));
 }
 
 
-auto FEngine::ParseIdentifier(
+TVariant<FEngine::FToken, FParseError> FEngine::ParseIdentifier(
 	FStringView& InOutParseRange,
 	FStringView InExpression
-	) -> FTokenParseResult 
+	) const
 {
 	// FIXME: We need quote escaping.
 	bool bStopAtSingleQuote = false;
@@ -464,13 +393,13 @@ auto FEngine::ParseIdentifier(
 		ParseIndex++;
 		if (ParseIndex >= InOutParseRange.Len())
 		{
-			return FTokenParseResult(TEXT("Missing end quote for constant"), InOutParseRange, InExpression.GetData());
+			return ParseTokenError(TEXT("Missing end quote for constant"), InOutParseRange.GetData(), InExpression);
 		}
 	}
 	// Unquoted constants have to start with an alphabetic character.
 	else if (!FChar::IsAlpha(InOutParseRange[0]) && InOutParseRange[0] != '_')
 	{
-		return FTokenParseResult(TEXT("Unexpected character"), InOutParseRange.Left(1), InExpression.GetData());
+		return ParseTokenError(TEXT("Unexpected character"), InOutParseRange.GetData(), InExpression);
 	}
 
 	const int32 ConstantStart = ParseIndex;
@@ -487,7 +416,7 @@ auto FEngine::ParseIdentifier(
 
 		if (ParseIndex == InOutParseRange.Len())
 		{
-			return FTokenParseResult(TEXT("Missing end quote for constant"), InOutParseRange, InExpression.GetData());
+			return ParseTokenError(TEXT("Missing end quote for constant"), InOutParseRange.GetData(), InExpression);
 		}
 
 		ConstantEnd = ParseIndex;
@@ -504,61 +433,86 @@ auto FEngine::ParseIdentifier(
 		ConstantEnd = ParseIndex;
 	}
 
+	// Look up this identifier. We don't want to create a new FName, to avoid polluting the
+	// FNameEntry cache.
 	const FStringView Identifier(InOutParseRange.SubStr(ConstantStart, ConstantEnd - ConstantStart));
-	const FName Name(Identifier.Len(), Identifier.GetData());
+	const FName Name(Identifier.Len(), Identifier.GetData(), FNAME_Find);
 	
-	const FStringView TokenParseRange(InOutParseRange.Left(ParseIndex));
-	InOutParseRange = InOutParseRange.Mid(ParseIndex);
+	InOutParseRange = InOutParseRange.Mid(ParseIndex); 
 
-	return FTokenParseResult(FToken(TInPlaceType<FName>(), Name), TokenParseRange, InExpression.GetData());
+	if (Constants.Contains(Name) || FunctionNameIndex.Contains(Name))
+	{
+		return TVariant<FToken, FParseError>(
+			TInPlaceType<FToken>(), FToken(TInPlaceType<FName>(), Name));
+	}
+	else if (EnumHasAllFlags(ParseFlags, EParseFlags::ValidateConstants))
+	{
+		return ParseTokenError(FString::Printf(TEXT("Unknown identifier '%s'"), *FString(Identifier)),
+			InOutParseRange.GetData(), InExpression); 
+	}
+	else
+	{
+		// If the constant value is not found, it gets a default value of None.
+		return TVariant<FToken, FParseError>(
+			TInPlaceType<FToken>(), FToken(TInPlaceType<FName>(), NAME_None));
+	}
 }
 
 
-auto FEngine::ParseToken(
+TVariant<FEngine::FToken, FParseError> FEngine::ParseToken(
 	FStringView& InOutParseRange,
 	FStringView InExpression
-	) -> FTokenParseResult
+	) const
 {
-	auto TokenResult = [&InOutParseRange, Expression=InExpression.GetData()](EOperatorToken InTokenKind, int32 InTokenLength)
+	auto TokenResult = [](EOperatorToken InTokenKind)
 	{
-		const FStringView TokenRange(InOutParseRange.Left(InTokenLength));
-		InOutParseRange = InOutParseRange.Mid(InTokenLength); 
-		return FTokenParseResult(FToken(TInPlaceType<EOperatorToken>(), InTokenKind), TokenRange, Expression);
+		return TVariant<FToken, FParseError>(
+			TInPlaceType<FToken>(), FToken(TInPlaceType<EOperatorToken>(), InTokenKind));
 	};
 
 	switch(InOutParseRange[0])
 	{
 	case '+':
-		return TokenResult(EOperatorToken::Add, 1);
+		InOutParseRange = InOutParseRange.Mid(1);
+		return TokenResult(EOperatorToken::Add);
 		
 	case '-':
-		return TokenResult(EOperatorToken::Subtract, 1);
+		InOutParseRange = InOutParseRange.Mid(1);
+		return TokenResult(EOperatorToken::Subtract);
 		
 	case '*':
 		if (InOutParseRange.Len() >= 2 && InOutParseRange[1] == '*')
 		{
-			return TokenResult(EOperatorToken::Power, 2);
+			InOutParseRange = InOutParseRange.Mid(2);
+			return TokenResult(EOperatorToken::Power);
 		}
-		return TokenResult(EOperatorToken::Multiply, 1);
+		InOutParseRange = InOutParseRange.Mid(1);
+		return TokenResult(EOperatorToken::Multiply);
 		
 	case '/':
 		if (InOutParseRange.Len() >= 2 && InOutParseRange[1] == '/')
 		{
-			return TokenResult(EOperatorToken::FloorDivide, 2);
+			InOutParseRange = InOutParseRange.Mid(2);
+			return TokenResult(EOperatorToken::FloorDivide);
 		}
-		return TokenResult(EOperatorToken::Divide, 1);
+		InOutParseRange = InOutParseRange.Mid(1);
+		return TokenResult(EOperatorToken::Divide);
 		
 	case '%':
-		return TokenResult(EOperatorToken::Modulo, 1);
+		InOutParseRange = InOutParseRange.Mid(1);
+		return TokenResult(EOperatorToken::Modulo);
 
 	case '(':
-		return TokenResult(EOperatorToken::ParenOpen, 1);
+		InOutParseRange = InOutParseRange.Mid(1);
+		return TokenResult(EOperatorToken::ParenOpen);
 		
 	case ')':
-		return TokenResult(EOperatorToken::ParenClose, 1);
+		InOutParseRange = InOutParseRange.Mid(1);
+		return TokenResult(EOperatorToken::ParenClose);
 
 	case ',':
-		return TokenResult(EOperatorToken::Comma, 1);
+		InOutParseRange = InOutParseRange.Mid(1);
+		return TokenResult(EOperatorToken::Comma);
 		
 	default:
 		if (IsASCIIDigit(InOutParseRange[0]) || InOutParseRange[0] == '.')
@@ -571,8 +525,7 @@ auto FEngine::ParseToken(
 
 
 TVariant<FExpressionObject, FParseError> FEngine::Parse(
-	FStringView InExpression,
-	TFunction<TOptional<float>(FName InConstantName)> InConstantEvaluator
+	FStringView InExpression
 	) const
 {
 	enum class EAssociativity
@@ -620,44 +573,44 @@ TVariant<FExpressionObject, FParseError> FEngine::Parse(
 	// Run Dijkstra's classic Shunting Yard algorithm to convert infix expressions to RPN.
 	// TODO: Better error pinpointing by storing the token parse result with the token.
 	TArray<FExpressionObject::OpElement, TInlineAllocator<64>> Expression;
-	TArray<FParseLocation, TInlineAllocator<64>> Locations;
-	TArray<TTuple<EOperatorToken, FParseLocation>, TInlineAllocator<32>> OperatorStack;
-	
+	TArray<EOperatorToken, TInlineAllocator<32>> OperatorStack;
 	struct FFunctionCallInfo
 	{
 		int32 FunctionIndex = INDEX_NONE;
 		int32 CountedCommas = 0;
 		int32 OpeningOpStackSize = 0;
 		int32 ExpressionSize = 0;
-		FParseLocation Location{};
+		const TCHAR* TokenStart = nullptr;
 	};
 	TArray<FFunctionCallInfo, TInlineAllocator<32>> FunctionStack;
 
-	auto ParseError = [](FString&& InError, FParseLocation InLocation)
+	auto ParseError = [InExpression](FString&& InError, const TCHAR* InCurrentPos)
 	{
-		return TVariant<FExpressionObject, FParseError>(TInPlaceType<FParseError>(), MoveTemp(InError), InLocation);
+		return TVariant<FExpressionObject, FParseError>(TInPlaceType<FParseError>(),
+			static_cast<int32>(InCurrentPos - InExpression.GetData()), MoveTemp(InError));
 	};
-	auto PushOperatorTokenToExpression = [GetOperatorTokenInfo, &Expression, &Locations](TTuple<EOperatorToken, FParseLocation> InTokenAndLocation)
+	auto PushOperatorTokenToExpression = [GetOperatorTokenInfo, &Expression](EOperatorToken InOpToken)
 	{
 		Expression.Push(FExpressionObject::OpElement(TInPlaceType<FExpressionObject::EOperator>(), 
-			*GetOperatorTokenInfo(InTokenAndLocation.Get<0>()).Operator));
-		Locations.Push(InTokenAndLocation.Get<1>());
+			*GetOperatorTokenInfo(InOpToken).Operator));
 	};
 	// Used to check if we encounter a '-' to see if we need to turn it into a negate operator
 	// and also to see if we have two operators in a row (error).
 	TOptional<FToken> LastToken;
+	FStringView LastTokenParseRange;
 
 	do
 	{
-		FTokenParseResult ParseResult = ParseToken(ParseRange, InExpression);
+		const TCHAR* TokenStart = ParseRange.GetData();
+		TVariant<FToken, FParseError> ParseResult = ParseToken(ParseRange, InExpression);
 		
-		if (ParseResult.IsError())
+		if (FParseError* Error = ParseResult.TryGet<FParseError>())
 		{
-			return TVariant<FExpressionObject, FParseError>(TInPlaceType<FParseError>(), ParseResult.GetParseError());
+			return TVariant<FExpressionObject, FParseError>(TInPlaceType<FParseError>(), *Error);
 		}
 
-		const FToken& Token = ParseResult.GetToken();
-		
+		const FStringView TokenParseRange(TokenStart, ParseRange.GetData() - TokenStart);
+		const FToken& Token = ParseResult.Get<FToken>();
 
 		// Values / identifiers go onto the expression stack immediately.
 		if (const FName* Identifier = Token.TryGet<FName>())
@@ -665,20 +618,18 @@ TVariant<FExpressionObject, FParseError> FEngine::Parse(
 			if (LastToken.IsSet() &&
 				(LastToken->IsType<FName>() || LastToken->IsType<float>()))
 			{
-				return ParseError(TEXT("Expected an operator"), ParseResult.Location);
+				return ParseError(TEXT("Expected an operator"), TokenParseRange.GetData());
 			}
 			Expression.Push(FExpressionObject::OpElement(TInPlaceType<FName>(), *Identifier));
-			Locations.Push(ParseResult.Location);
 		}
 		else if (const float* Value = Token.TryGet<float>())
 		{
 			if (LastToken.IsSet() &&
 				(LastToken->IsType<FName>() || LastToken->IsType<float>()))
 			{
-				return ParseError(TEXT("Expected an operator"), ParseResult.Location);
+				return ParseError(TEXT("Expected an operator"), TokenParseRange.GetData());
 			}
 			Expression.Push(FExpressionObject::OpElement(TInPlaceType<float>(), *Value));
-			Locations.Push(ParseResult.Location);
 		}
 		else
 		{
@@ -693,16 +644,16 @@ TVariant<FExpressionObject, FParseError> FEngine::Parse(
 					const FOperatorTokenInfo& LastTokenInfo = GetOperatorTokenInfo(*LastOp);
 					if (TokenInfo.Operator.IsSet() && LastTokenInfo.Operator.IsSet())
 					{
-						return ParseError(TEXT("Expected an expression"), ParseResult.Location);
+						return ParseError(TEXT("Expected an expression"), TokenParseRange.GetData());
 					}
 					if (*LastOp == EOperatorToken::ParenClose && Op == EOperatorToken::ParenOpen)
 					{
-						return ParseError(TEXT("Expected an operator"), ParseResult.Location);
+						return ParseError(TEXT("Expected an operator"), TokenParseRange.GetData());
 					}
 					if (*LastOp == EOperatorToken::ParenOpen && Op == EOperatorToken::ParenClose &&
 					    (FunctionStack.IsEmpty() || FunctionStack.Top().OpeningOpStackSize != OperatorStack.Num()))
 					{
-						return ParseError(TEXT("Empty Parentheses"), ParseResult.Location);
+						return ParseError(TEXT("Empty Parentheses"), TokenParseRange.GetData());
 					}
 				}
 			}
@@ -712,35 +663,34 @@ TVariant<FExpressionObject, FParseError> FEngine::Parse(
 				(!LastToken.IsSet() || (LastToken->IsType<EOperatorToken>() && LastToken->Get<EOperatorToken>() != EOperatorToken::ParenClose)))
 			{
 				Op = EOperatorToken::Negate;
-				OperatorStack.Push({Op, ParseResult.Location});
+				OperatorStack.Push(Op);
 			}
 			else if (Op == EOperatorToken::ParenOpen)
 			{
-				OperatorStack.Push({Op, ParseResult.Location});
+				OperatorStack.Push(Op);
 
-				// If the top element on the expression is a constant, check if it is a function name and if so, 
-				// pop the constant out of the expression. 
+				// If the top element on the expression is a constant, check if it is a function and if so, pop the constant
+				// out of the expression. 
 				if (!Expression.IsEmpty() && Expression.Top().IsType<FName>())
 				{
 					FName ConstantName = Expression.Top().Get<FName>();
 					const int32 *FunctionIndexPtr = FunctionNameIndex.Find(ConstantName);
 					if (FunctionIndexPtr == nullptr)
 					{
-						return ParseError(FString::Printf(TEXT("Unknown function '%s'"), *ConstantName.ToString()), Locations.Top());
+						return ParseError(FString::Printf(TEXT("Unknown function '%s'"), *ConstantName.ToString()), LastTokenParseRange.GetData());
 					}
 
 					Expression.Pop();
-					const FParseLocation LastLocation = Locations.Pop();
-					FunctionStack.Push({*FunctionIndexPtr, 0, OperatorStack.Num(), Expression.Num(), LastLocation});
+					FunctionStack.Push({*FunctionIndexPtr, 0, OperatorStack.Num(), Expression.Num(), LastTokenParseRange.GetData()});
 				}
 			}
 			else if (Op == EOperatorToken::ParenClose)
 			{
-				while(OperatorStack.IsEmpty() || OperatorStack.Last().Key != EOperatorToken::ParenOpen)
+				while(OperatorStack.IsEmpty() || OperatorStack.Last() != EOperatorToken::ParenOpen)
 				{
 					if (OperatorStack.IsEmpty())
 					{
-						return ParseError(TEXT("Mismatched parentheses"), ParseResult.Location); 
+						return ParseError(TEXT("Mismatched parentheses"), TokenParseRange.GetData()); 
 					}
 					PushOperatorTokenToExpression(OperatorStack.Pop(false));
 				}
@@ -754,12 +704,10 @@ TVariant<FExpressionObject, FParseError> FEngine::Parse(
 
 					if (ArgumentCount != FunctionInfo.ArgumentCount)
 					{
-						return ParseError(FString::Printf(TEXT("Invalid argument count. Expected %d, got %d"), FunctionInfo.ArgumentCount, ArgumentCount),
-							CallInfo.Location.Join(ParseResult.Location)); 
+						return ParseError(FString::Printf(TEXT("Invalid argument count. Expected %d, got %d"), FunctionInfo.ArgumentCount, ArgumentCount), CallInfo.TokenStart); 
 					}
 
 					Expression.Push(FExpressionObject::OpElement(TInPlaceType<FExpressionObject::FFunctionRef>(), CallInfo.FunctionIndex));
-					Locations.Push(ParseResult.Location);
 				}
 				
 				// Remove the now unneeded open parentheses.
@@ -769,58 +717,44 @@ TVariant<FExpressionObject, FParseError> FEngine::Parse(
 			{
 				if (FunctionStack.IsEmpty() || FunctionStack.Top().OpeningOpStackSize != OperatorStack.Num())
 				{
-					return ParseError(TEXT("Unexpected comma"), ParseResult.Location); 
+					return ParseError(TEXT("Unexpected comma"), TokenParseRange.GetData()); 
 				}
 				FunctionStack.Top().CountedCommas++;
 			}
 			else if (GetOperatorTokenInfo(Op).Associativity == EAssociativity::Left)
 			{
 				// Peel off all operators that have the same precedence or higher.
-				while (!OperatorStack.IsEmpty() && GetOperatorTokenInfo(OperatorStack.Last().Get<0>()).Precedence >= TokenInfo.Precedence)
+				while (!OperatorStack.IsEmpty() && GetOperatorTokenInfo(OperatorStack.Last()).Precedence >= TokenInfo.Precedence)
 				{
 					PushOperatorTokenToExpression(OperatorStack.Pop(false));
 				}
-				OperatorStack.Push({Op, ParseResult.Location});
+				OperatorStack.Push(Op);
 			}
 			else if (GetOperatorTokenInfo(Op).Associativity == EAssociativity::Right)
 			{
 				// Peel off all operators that have higher precedence.
-				while (!OperatorStack.IsEmpty() && GetOperatorTokenInfo(OperatorStack.Last().Get<0>()).Precedence > TokenInfo.Precedence)
+				while (!OperatorStack.IsEmpty() && GetOperatorTokenInfo(OperatorStack.Last()).Precedence > TokenInfo.Precedence)
 				{
 					PushOperatorTokenToExpression(OperatorStack.Pop(false));
 				}
-				OperatorStack.Push({Op, ParseResult.Location});
+				OperatorStack.Push(Op);
 			}
 		}
 
 		LastToken = Token;
+		LastTokenParseRange = ParseRange;
 		ParseRange = ParseRange.TrimStart();
 	} while(!ParseRange.IsEmpty());
 
 	while (!OperatorStack.IsEmpty())
 	{
-		if (!GetOperatorTokenInfo(OperatorStack.Last().Get<0>()).Operator.IsSet())
+		if (!GetOperatorTokenInfo(OperatorStack.Last()).Operator.IsSet())
 		{
-			return ParseError(TEXT("Mismatched parentheses"), OperatorStack.Last().Get<1>()); 
+			return ParseError(TEXT("Mismatched parentheses"), InExpression.GetData()); 
 		}
 		PushOperatorTokenToExpression(OperatorStack.Pop(false));
 	}
 
-	// If a constant evaluator function is given, then check if the constants exist.  
-	if (InConstantEvaluator)
-	{
-		for (int32 Index = 0; Index < Expression.Num(); Index++)
-		{
-			if (const FName* ConstantName = Expression[Index].TryGet<FName>())
-			{
-				if (!InConstantEvaluator(*ConstantName).IsSet())
-				{
-					return ParseError(*FString::Printf(TEXT("Unknown identifier '%s'"), *ConstantName->ToString()), Locations[Index]); 
-				}
-			}
-		}
-	}
-	
 	FExpressionObject S;
 	S.Expression = Expression;
 	return TVariant<FExpressionObject, FParseError>(TInPlaceType<FExpressionObject>(), S);
@@ -828,8 +762,7 @@ TVariant<FExpressionObject, FParseError> FEngine::Parse(
 
 
 float FEngine::Execute(
-	const FExpressionObject& InExpressionObject,
-	TFunctionRef<TOptional<float>(FName InConstantName)> InConstantEvaluator
+	const FExpressionObject& InExpressionObject
 	) const
 {
 	// An empty expression object is valid.
@@ -848,10 +781,10 @@ float FEngine::Execute(
 		{
 			ValueStack.Push(*Value);
 		}
-		else if (const FName* ConstantName = Token.TryGet<FName>())
+		else if (const FName* Constant = Token.TryGet<FName>())
 		{
-			TOptional<float> ConstantValue = InConstantEvaluator(*ConstantName);
-			ValueStack.Push(ConstantValue.IsSet() ? ConstantValue.GetValue() : 0.0f);
+			const float *ConstantValue = Constants.Find(*Constant);
+			ValueStack.Push(ConstantValue ? *ConstantValue : 0.0f);
 		}
 		else if (const FExpressionObject::EOperator* Operator = Token.TryGet<FExpressionObject::EOperator>())
 		{
@@ -953,14 +886,13 @@ float FEngine::Execute(
 
 
 TOptional<float> FEngine::Evaluate(
-	FStringView InExpression,
-	TFunctionRef<TOptional<float>(FName InConstantName)> InConstantEvaluator
+	FStringView InExpression
 	) const
 {
 	TVariant<FExpressionObject, FParseError> Result = Parse(InExpression);
 	if (const FExpressionObject* ExpressionObject = Result.TryGet<FExpressionObject>())
 	{
-		return Execute(*ExpressionObject, InConstantEvaluator);
+		return Execute(*ExpressionObject);
 	}
 
 	return {};
@@ -968,11 +900,10 @@ TOptional<float> FEngine::Evaluate(
 
 
 TOptional<FParseError> FEngine::Verify(
-	FStringView InExpression,
-	TFunction<TOptional<float>(FName InConstantName)> InConstantEvaluator 
+	FStringView InExpression
 	) const
 {
-	TVariant<FExpressionObject, FParseError> Result = Parse(InExpression, InConstantEvaluator);
+	TVariant<FExpressionObject, FParseError> Result = Parse(InExpression);
 	if (const FParseError* Error = Result.TryGet<FParseError>())
 	{
 		return *Error;

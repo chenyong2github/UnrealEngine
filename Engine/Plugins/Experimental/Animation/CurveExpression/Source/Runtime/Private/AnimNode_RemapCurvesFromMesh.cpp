@@ -1,64 +1,117 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNode_RemapCurvesFromMesh.h"
-
-#include "CurveExpressionCustomVersion.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNodeFunctionRef.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/ExposedValueHandler.h"
+#include "CurveExpressionModule.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimCurveTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RemapCurvesFromMesh)
 
-
-void FAnimNode_RemapCurvesFromMesh::PreUpdate(
-	const UAnimInstance* InAnimInstance
+void FAnimNode_RemapCurvesFromMesh::Initialize_AnyThread(
+	const FAnimationInitializeContext& Context
 	)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(PreUpdate);
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
+	Super::Initialize_AnyThread(Context);
+	SourcePose.Initialize(Context);
+}
 
-	// Make sure we're using the correct source and target skeleton components, since they
-	// may have changed from underneath us.
-	RefreshMeshComponent(InAnimInstance->GetSkelMeshComponent());
 
-	FAnimNode_RemapCurvesBase::PreUpdate(InAnimInstance);
+void FAnimNode_RemapCurvesFromMesh::CacheBones_AnyThread(
+	const FAnimationCacheBonesContext& Context
+	)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
+	Super::CacheBones_AnyThread(Context);
+	SourcePose.CacheBones(Context);
+}
 	
-	const USkeletalMeshComponent* CurrentMeshComponent = CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get() : nullptr;
 
-	if (CurrentMeshComponent && CurrentMeshComponent->GetSkeletalMeshAsset() && CurrentMeshComponent->IsRegistered())
+void FAnimNode_RemapCurvesFromMesh::VerifyExpressions(
+	TFunction<void(FString)> InReportingFunc
+	) const
+{
+	using namespace CurveExpression::Evaluator;
+
+	auto ReportAndLog = [InReportingFunc](FString InMessage)
 	{
-		// If our source is running under leader-pose, then get bone data from there
-		if(const USkeletalMeshComponent* LeaderPoseComponent = Cast<USkeletalMeshComponent>(CurrentMeshComponent->LeaderPoseComponent.Get()))
+		if (InReportingFunc)
 		{
-			CurrentMeshComponent = LeaderPoseComponent;
+			InReportingFunc(InMessage);
 		}
+		UE_LOG(LogCurveExpression, Warning, TEXT("%s"), *InMessage);
+	};
+	
+	if (!ExpressionEngine.IsSet())
+	{
+		return;
+	}
+	
+	if (CurveExpressions.IsEmpty())
+	{
+		ReportAndLog(TEXT("No curve expressions set."));
+		return;
+	}
 
-		// re-check mesh component validity as it may have changed to leader
-		if(CurrentMeshComponent->GetSkeletalMeshAsset() && CurrentMeshComponent->IsRegistered())
-		{
-			if (const UAnimInstance* SourceAnimInstance = CurrentMeshComponent->GetAnimInstance())
-			{
-				// We have a valid instance, let's grab any curve values for the constants used by our expressions.
-				SourceCurveValues.Reset();
+	bool bFoundError = false;
+	const FEngine VerificationEngine(
+		ExpressionEngine->GetConstantValues(),
+		EParseFlags::ValidateConstants);
 
-				const TMap<FName, float>& CurveValues = SourceAnimInstance->GetAnimationCurveList(EAnimCurveType::AttributeCurve);
-				for (FName ConstantName: GetCompiledExpressionConstants())
-				{
-					if (const float* Value = CurveValues.Find(ConstantName))
-					{
-						SourceCurveValues.Add(ConstantName, *Value);
-					}
-				}
-			}
-		}
-		else
+	for (const TPair<FName, FString>& ExpressionPair: CurveExpressions)
+	{
+		TOptional<FParseError> Error = VerificationEngine.Verify(ExpressionPair.Value);
+		if (Error.IsSet())
 		{
-			// If there's no skeletal mesh, then empty the curve values.
-			SourceCurveValues.Reset();
+			ReportAndLog(FString::Printf(TEXT("Expression error in '%s': %s"), *ExpressionPair.Value, *Error->Message));
+			bFoundError = true;
 		}
 	}
+
+	if (!bFoundError)
+	{
+		UE_LOG(LogCurveExpression, Display, TEXT("Curve expressions verified ok."))
+	}
+}
+
+
+
+bool FAnimNode_RemapCurvesFromMesh::CanVerifyExpressions() const
+{
+	return ExpressionEngine.IsSet();
+}
+
+
+void FAnimNode_RemapCurvesFromMesh::Update_AnyThread(
+	const FAnimationUpdateContext& Context
+	)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
+
+	// Run update on input pose nodes
+	SourcePose.Update(Context);
+
+	// Evaluate any BP logic plugged into this node
+	GetEvaluateGraphExposedInputs().Execute(Context);
+	
+	if (bExpressionsImmutable && ExpressionEngine.IsSet() && !CurveExpressions.IsEmpty() && CachedExpressions.IsEmpty())
+	{
+		CachedExpressions.Reset();
+		for (const TPair<FName, FString>& ExpressionPair: CurveExpressions)
+		{
+			using namespace CurveExpression::Evaluator;
+
+			TVariant<FExpressionObject, FParseError> Result = ExpressionEngine->Parse(ExpressionPair.Value);
+			if (const FExpressionObject* Expression = Result.TryGet<FExpressionObject>())
+			{
+				CachedExpressions.Add(ExpressionPair.Key, *Expression);
+			}
+		}
+	}			
 }
 
 
@@ -67,28 +120,42 @@ void FAnimNode_RemapCurvesFromMesh::Evaluate_AnyThread(
 	)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
-	
-	using namespace CurveExpression::Evaluator;
-	
+
 	FPoseContext SourceData(Output);
 	SourcePose.Evaluate(SourceData);
 	
 	Output = SourceData;
-
-	for (const TTuple<FName, FExpressionObject>& Assignment: GetCompiledAssignments())
+	
+	// If we have an expression engine, evaluate the expressions that have a matching target curve.
+	// If the expressions are not immutable between compiles, then we need to reparse them each time. 
+	if (ExpressionEngine.IsSet())
 	{
-		if (const SmartName::UID_Type* UID = CurveNameToUIDMap.Find(Assignment.Key))
+		if (bExpressionsImmutable)
 		{
-			Output.Curve.Set(*UID, FEngine().Execute(Assignment.Value,
-				[&CurveValues = SourceCurveValues](const FName InName) -> TOptional<float>
+			FBlendedCurve Curve;
+			Curve.Reserve(CachedExpressions.Num());
+			for (const TTuple<FName, CurveExpression::Evaluator::FExpressionObject>& ExpressionItem : CachedExpressions)
+			{
+				Curve.Add(ExpressionItem.Key, ExpressionEngine->Execute(ExpressionItem.Value)); 
+			}
+
+			Output.Curve.Combine(Curve);
+		}
+		else
+		{
+			FBlendedCurve Curve;
+			Curve.Reserve(CurveExpressions.Num());
+
+			for (const TTuple<FName, FString>& ExpressionItem : CurveExpressions)
+			{
+				TOptional<float> Result = ExpressionEngine->Evaluate(ExpressionItem.Value);
+				if (Result.IsSet())
 				{
-					if (const float* Value = CurveValues.Find(InName))
-					{
-						return *Value;
-					}
-					return {};
+					Curve.Add(ExpressionItem.Key, *Result);
 				}
-			));
+			}
+
+			Output.Curve.Combine(Curve);
 		}
 	}
 }
@@ -106,17 +173,42 @@ void FAnimNode_RemapCurvesFromMesh::GatherDebugData(
 }
 
 
-bool FAnimNode_RemapCurvesFromMesh::Serialize(FArchive& Ar)
+void FAnimNode_RemapCurvesFromMesh::PreUpdate(
+	const UAnimInstance* InAnimInstance
+	)
 {
-	SerializeNode(Ar, this, StaticStruct());
+	QUICK_SCOPE_CYCLE_COUNTER(FAnimNode_RemapCurvesFromMesh_PreUpdate);
 
-	if (IsLoading() && Ar.CustomVer(FCurveExpressionCustomVersion::GUID) < FCurveExpressionCustomVersion::SerializedExpressions)
+	// Make sure we're using the correct source and target skeleton components, since they
+	// may have changed from underneath us.
+	RefreshMeshComponent(InAnimInstance->GetSkelMeshComponent());
+
+	const USkeletalMeshComponent* CurrentMeshComponent = CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get() : nullptr;
+
+	if (CurrentMeshComponent && CurrentMeshComponent->GetSkeletalMeshAsset() && CurrentMeshComponent->IsRegistered())
 	{
-		// Default to expression map if loading from an older version.
-		ExpressionSource = ERemapCurvesExpressionSource::ExpressionMap;
+		// If our source is running under leader-pose, then get bone data from there
+		if(USkeletalMeshComponent* LeaderPoseComponent = Cast<USkeletalMeshComponent>(CurrentMeshComponent->LeaderPoseComponent.Get()))
+		{
+			CurrentMeshComponent = LeaderPoseComponent;
+		}
+
+		// re-check mesh component validity as it may have changed to leader
+		if(CurrentMeshComponent->GetSkeletalMeshAsset() && CurrentMeshComponent->IsRegistered())
+		{
+			if (ExpressionEngine.IsSet())
+			{
+				if (const UAnimInstance* SourceAnimInstance = CurrentMeshComponent->GetAnimInstance())
+				{
+					ExpressionEngine->UpdateConstantValues(SourceAnimInstance->GetAnimationCurveList(EAnimCurveType::AttributeCurve));
+				}
+			}
+		}
+		else
+		{
+			ExpressionEngine.Reset();
+		}
 	}
-	
-	return true;
 }
 
 
@@ -129,6 +221,8 @@ void FAnimNode_RemapCurvesFromMesh::ReinitializeMeshComponent(
 	CurrentlyUsedSourceMesh.Reset();
 	CurrentlyUsedTargetMesh.Reset();
 	
+	ExpressionEngine.Reset();
+	CachedExpressions.Reset();
 
 	if (InTargetMeshComponent && IsValid(InNewSkeletalMeshComponent) && InNewSkeletalMeshComponent->GetSkeletalMeshAsset())
 	{
@@ -142,6 +236,19 @@ void FAnimNode_RemapCurvesFromMesh::ReinitializeMeshComponent(
 			CurrentlyUsedSourceMesh = SourceSkelMesh;
 			CurrentlyUsedTargetMesh = TargetSkelMesh;
 
+			// Grab the source curves and use their names to seed the expression evaluation engine.
+			TMap<FName, float> SourceCurves;
+			const USkeleton* SourceSkeleton = SourceSkelMesh->GetSkeleton();
+			if (ensureMsgf(SourceSkeleton, TEXT("Invalid null source skeleton : %s"), *GetNameSafe(TargetSkelMesh)))
+			{
+				// TODO: is this good enough for future use? ExpressionEngine appears to have been built on the assumption that curves are always pre-defined.
+				SourceSkeleton->ForEachCurveMetaData([&SourceCurves](FName InCurveName, const FCurveMetaData& InCurveMetaData)
+				{
+					SourceCurves.Add(InCurveName, 0.0f);
+				});
+
+				ExpressionEngine.Emplace(MoveTemp(SourceCurves));
+			}
 		}
 	}
 }

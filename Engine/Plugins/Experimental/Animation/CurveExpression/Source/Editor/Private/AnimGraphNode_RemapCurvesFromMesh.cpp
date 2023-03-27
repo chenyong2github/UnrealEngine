@@ -7,11 +7,11 @@
 #include "Animation/AnimAttributes.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_RemapCurvesFromMesh)
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_RemapCurvesFromMesh"
+
 
 bool UAnimGraphNode_RemapCurvesFromMesh::CanVerifyExpressions() const
 {
@@ -27,19 +27,8 @@ void UAnimGraphNode_RemapCurvesFromMesh::VerifyExpressions()
 {
 	if (const FAnimNode_RemapCurvesFromMesh* DebuggedNode = GetDebuggedNode())
 	{
-		const USkeletalMeshComponent* TargetComponent = GetDebuggedComponent();
-		const USkeletalMeshComponent* SourceComponent = nullptr;
-		if (Node.SourceMeshComponent.IsValid())
-		{
-			SourceComponent = Node.SourceMeshComponent.Get();
-		}
-		else if (Node.bUseAttachedParent && TargetComponent)
-		{
-			SourceComponent = Cast<USkeletalMeshComponent>(TargetComponent->GetAttachParent());
-		}
-		
 		TArray<FString> Results;
-		DebuggedNode->VerifyExpressions(TargetComponent, SourceComponent, [&Results](const FString& InMessage){
+		DebuggedNode->VerifyExpressions([&Results](const FString& InMessage){
 			Results.Add(InMessage);
 		});
 
@@ -84,57 +73,7 @@ void UAnimGraphNode_RemapCurvesFromMesh::GetOutputLinkAttributes(FNodeAttributeA
 }
 
 
-void UAnimGraphNode_RemapCurvesFromMesh::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
-{
-	Super::CustomizePinData(Pin, SourcePropertyName, ArrayIndex);
-
-	if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RemapCurvesBase, CurveExpressionsDataAsset))
-	{
-		Pin->bHidden = (Node.ExpressionSource != ERemapCurvesExpressionSource::DataAsset);
-	}
-	if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RemapCurvesBase, CurveExpressions))
-	{
-		Pin->bHidden = (Node.ExpressionSource != ERemapCurvesExpressionSource::ExpressionMap);
-	}
-}
-
-
-void UAnimGraphNode_RemapCurvesFromMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FCurveExpressionList, AssignmentExpressions) || 
-	 	PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_RemapCurvesFromMesh, ExpressionSource))
-	{
-		Node.ParseAndCacheExpressions();
-	}
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_RemapCurvesBase, ExpressionSource))
-	{
-		{
-			FScopedTransaction Transaction(LOCTEXT("ChangeExpressionSource", "Change Expression Source"));
-			Modify();
-
-			for (UEdGraphPin* Pin: Pins)
-			{
-				if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RemapCurvesBase, CurveExpressionsDataAsset) &&
-					Node.ExpressionSource != ERemapCurvesExpressionSource::DataAsset)
-				{
-					Pin->BreakAllPinLinks();
-				}
-				if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RemapCurvesBase, CurveExpressions) &&
-					Node.ExpressionSource != ERemapCurvesExpressionSource::ExpressionMap)
-				{
-					Pin->BreakAllPinLinks();
-				}
-			}
-		}
-		ReconstructNode();
-		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
-	}
-}
-
-USkeletalMeshComponent* UAnimGraphNode_RemapCurvesFromMesh::GetDebuggedComponent() const
+FAnimNode_RemapCurvesFromMesh* UAnimGraphNode_RemapCurvesFromMesh::GetDebuggedNode() const
 {
 	if (const UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged())
 	{
@@ -143,19 +82,9 @@ USkeletalMeshComponent* UAnimGraphNode_RemapCurvesFromMesh::GetDebuggedComponent
 			USkeletalMeshComponent* Component = InstanceBeingDebugged->GetSkelMeshComponent();
 			if (Component != nullptr && Component->GetAnimInstance() != nullptr)
 			{
-				return Component;
+				return static_cast<FAnimNode_RemapCurvesFromMesh*>(FindDebugAnimNode(Component));
 			}
 		}
-	}
-	return nullptr;
-}
-
-
-FAnimNode_RemapCurvesFromMesh* UAnimGraphNode_RemapCurvesFromMesh::GetDebuggedNode() const
-{
-	if (USkeletalMeshComponent* Component = GetDebuggedComponent(); Component != nullptr)
-	{
-		return static_cast<FAnimNode_RemapCurvesFromMesh*>(FindDebugAnimNode(Component));
 	}
 
 	return nullptr;
