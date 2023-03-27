@@ -831,6 +831,7 @@ inline bool IsVulkanPlatform(const FStaticShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform);
 }
 
+UE_DEPRECATED(5.3, "Use a combination of IsVulkanPlatform and IsFeatureLevelSupported (or GetMaxFeatureLevel) instead.")
 inline bool IsVulkanSM5Platform(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform)
