@@ -5987,7 +5987,13 @@ bool FHeaderParser::CheckForPropertyGetterFunction(FUnrealStructDefinitionInfo& 
 	{
 		PropertyType += TEXT("*");
 	}
-	if (GetterType.Compare(PropertyType, ESearchCase::CaseSensitive) != 0)
+
+	FString GetterTypeTest = GetterType;
+	GetterTypeTest.RemoveSpacesInline();
+	FString PropertyTypeTest = PropertyType;
+	PropertyTypeTest.RemoveSpacesInline();
+
+	if (GetterTypeTest.Compare(PropertyTypeTest, ESearchCase::CaseSensitive) != 0)
 	{
 		if (bExplicitGetter)
 		{
