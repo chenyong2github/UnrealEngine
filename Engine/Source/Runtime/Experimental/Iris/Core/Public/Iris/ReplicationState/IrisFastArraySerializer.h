@@ -22,7 +22,7 @@ USTRUCT()
 struct FIrisFastArraySerializer : public FFastArraySerializer
 {
 	// At the moment as we have no way to specify this we reserve 31 bits that can be used, the first bit is used for the array itself
-	enum { IrisFastArrayChangeMaskBits = 31U };
+	enum { IrisFastArrayChangeMaskBits = 63U };
 	enum { IrisFastArrayChangeMaskBitOffset = 1U };
 	enum { IrisFastArrayPropertyBitIndex = 0U };	
 
@@ -68,17 +68,23 @@ struct FIrisFastArraySerializer : public FFastArraySerializer
 	friend UE::Net::Private::FIrisFastArraySerializerPrivateAccessor;
 
 private:
+	enum : unsigned
+	{
+		MemberChangeMaskStorageIndex = 0U,
+		ConditionalChangeMaskStorageIndex = 2U,
+	};
+
 	// Mark item at index as changed, and set the array as dirty
 	void InitChangeMask();
 	void InternalMarkItemChanged(int32 ItemIdx);
 	void InternalMarkAllItemsChanged();
 	void InternalMarkArrayAsDirty();
 
+	// Header for dirty state tracking needs to be just before ChangeMaskStorage. See GetReplicationStateHeader for more info.
+	UE::Net::FReplicationStateHeader ReplicationStateHeader;
+
 	// Storage for changemask, this is currently hardcoded
 	UPROPERTY(Transient, NotReplicated)
-	uint32 ChangeMaskStorage[2];
-
-	// Header for dirty state tracking
-	UE::Net::FReplicationStateHeader ReplicationStateHeader;
+	uint32 ChangeMaskStorage[4];
 };
 

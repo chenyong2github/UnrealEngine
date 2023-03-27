@@ -34,15 +34,8 @@ namespace UE::Net::Private
 inline UE::Net::FReplicationStateHeader& GetReplicationStateHeader(void* StateBuffer, const FReplicationStateDescriptor* Descriptor)
 {
 	// $IRIS: $TODO: Currently we do not store the offset to the internal replication state
-	if (!EnumHasAnyFlags(Descriptor->Traits, EReplicationStateTraits::IsNativeFastArrayReplicationState))
-	{
-		return *reinterpret_cast<UE::Net::FReplicationStateHeader*>(StateBuffer);
-	}
-	else
-	{
-		const SIZE_T ReplicationStateHeaderOffset = Descriptor->ChangeMasksExternalOffset + 8U;
-		return *reinterpret_cast<UE::Net::FReplicationStateHeader*>(reinterpret_cast<uint8*>(StateBuffer) + ReplicationStateHeaderOffset);
-	}
+	const SIZE_T ReplicationStateHeaderOffset = (EnumHasAnyFlags(Descriptor->Traits, EReplicationStateTraits::IsNativeFastArrayReplicationState) ? SIZE_T(Descriptor->ChangeMasksExternalOffset - sizeof(FReplicationStateHeader)) : SIZE_T(0));
+	return *reinterpret_cast<UE::Net::FReplicationStateHeader*>(reinterpret_cast<uint8*>(StateBuffer) + ReplicationStateHeaderOffset);
 }
 
 inline bool IsReplicationStateBound(void* StateBuffer, const FReplicationStateDescriptor* Descriptor)

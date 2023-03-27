@@ -7,6 +7,7 @@
 FIrisFastArraySerializer::FIrisFastArraySerializer()
 : FFastArraySerializer()
 {
+	static_assert(offsetof(FIrisFastArraySerializer, ChangeMaskStorage) - sizeof(UE::Net::FReplicationStateHeader) == offsetof(FIrisFastArraySerializer, ReplicationStateHeader), "GetReplicationStateHeader is no longer compatible with FIrisFastArraySerializer");
 	InitChangeMask();
 }
 
@@ -54,8 +55,18 @@ FIrisFastArraySerializer& FIrisFastArraySerializer::operator=(FIrisFastArraySeri
 void FIrisFastArraySerializer::InitChangeMask()
 {
 	// Init changemask and conditional changemask
-	ChangeMaskStorage[0] = 0U;
-	ChangeMaskStorage[1] = 0xffffffffU;
+	for (uint32& Storage : ChangeMaskStorage)
+	{
+		const SIZE_T Index = &Storage - &ChangeMaskStorage[0];
+		if (Index < ConditionalChangeMaskStorageIndex)
+		{
+			Storage = 0U;
+		}
+		else
+		{
+			Storage = 0xFFFFFFFFU;
+		}
+	}
 }
 
 void FIrisFastArraySerializer::InternalMarkAllItemsChanged()
@@ -81,12 +92,12 @@ namespace UE::Net::Private
 
 FNetBitArrayView FIrisFastArraySerializerPrivateAccessor::GetChangeMask(FIrisFastArraySerializer& Array)
 {
-	return MakeNetBitArrayView(&Array.ChangeMaskStorage[0], FIrisFastArraySerializer::IrisFastArrayChangeMaskBits + 1U);
+	return MakeNetBitArrayView(&Array.ChangeMaskStorage[FIrisFastArraySerializer::MemberChangeMaskStorageIndex], FIrisFastArraySerializer::IrisFastArrayChangeMaskBits + 1U);
 }
 
 FNetBitArrayView FIrisFastArraySerializerPrivateAccessor::GetConditionalChangeMask(FIrisFastArraySerializer& Array)
 {
-	return MakeNetBitArrayView(&Array.ChangeMaskStorage[1], FIrisFastArraySerializer::IrisFastArrayChangeMaskBits + 1U);
+	return MakeNetBitArrayView(&Array.ChangeMaskStorage[FIrisFastArraySerializer::ConditionalChangeMaskStorageIndex], FIrisFastArraySerializer::IrisFastArrayChangeMaskBits + 1U);
 }
 
 void FIrisFastArraySerializerPrivateAccessor::MarkAllArrayItemsDirty(FIrisFastArraySerializer& Array, uint32 StartingIndex)
