@@ -2645,36 +2645,70 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 		const FTransform& ActorToWorld = Parameters.WorldTransform;
 
 		const int32 NumTransforms = PhysicsThreadCollection.NumElements(FGeometryCollection::TransformGroup);
-		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+		if (Chaos::FPhysicsSolver* RigidSolver = GetSolver<Chaos::FPhysicsSolver>())
 		{
-			if (Chaos::FPBDRigidClusteredParticleHandle* Handle = SolverParticleHandles[TransformGroupIndex])
+			FClusterUnionManager& ClusterUnionManager = RigidSolver->GetEvolution()->GetRigidClustering().GetClusterUnionManager();
+
+			// Assume all particles are in the same cluster union.
+			FClusterUnionIndex ClusterUnionIndex = INDEX_NONE;
+			TArray<FPBDRigidParticleHandle*> DeferredClusterUnionParticleUpdates;
+			TArray<FTransform> DeferredClusterUnionChildToParentUpdates;
+
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 			{
-				FClusterHandle* KinematicRootHandle = nullptr;
-				if (!Handle->Disabled() && Handle->ObjectState() == Chaos::EObjectStateType::Kinematic)
+				if (Chaos::FPBDRigidClusteredParticleHandle* Handle = SolverParticleHandles[TransformGroupIndex])
 				{
-					KinematicRootHandle = Handle;
-				}
-				else 
-				{
-					// is there a internal parent as a kinematic root?
+					FClusterHandle* KinematicRootHandle = nullptr;
 					FClusterHandle* ParentHandle = Handle->Parent();
-					if (ParentHandle && ParentHandle->InternalCluster() && !ParentHandle->Disabled() && ParentHandle->ObjectState() == Chaos::EObjectStateType::Kinematic)
+
+					if (!Handle->Disabled() && Handle->ObjectState() == Chaos::EObjectStateType::Kinematic)
 					{
-						if (!ProcessedInternalClusters.Contains(ParentHandle))
+						KinematicRootHandle = Handle;
+					}
+					else
+					{
+						// is there a internal parent as a kinematic root?
+						if (ParentHandle && ParentHandle->InternalCluster() && !ParentHandle->Disabled() && ParentHandle->ObjectState() == Chaos::EObjectStateType::Kinematic && ParentHandle->PhysicsProxy() == this)
 						{
-							ProcessedInternalClusters.Add(ParentHandle);
-							KinematicRootHandle = ParentHandle;
+							if (!ProcessedInternalClusters.Contains(ParentHandle))
+							{
+								ProcessedInternalClusters.Add(ParentHandle);
+								KinematicRootHandle = ParentHandle;
+							}
+						}
+					}
+
+					if (KinematicRootHandle)
+					{
+						const FTransform RootWorldTransform(KinematicRootHandle->R(), KinematicRootHandle->X());
+						const FTransform RootRelativeTransform = RootWorldTransform.GetRelativeTransform(Parameters.PrevWorldTransform);
+						const FTransform WorldTransform = RootRelativeTransform * ActorToWorld;
+
+						SetClusteredParticleKinematicTarget_Internal(KinematicRootHandle, WorldTransform);
+					}
+					else if (ParentHandle)
+					{
+						if (ClusterUnionIndex == INDEX_NONE)
+						{
+							ClusterUnionIndex = ClusterUnionManager.FindClusterUnionIndexFromParticle(Handle);
+						}
+
+						if (ClusterUnionIndex != INDEX_NONE)
+						{
+							const FTransform ParentWorldTransform{ ParentHandle->R(), ParentHandle->X() };
+							const FTransform NewWorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * Parameters.WorldTransform;
+							const FTransform RelativeTransform = NewWorldTransform.GetRelativeTransform(ParentWorldTransform);
+
+							DeferredClusterUnionParticleUpdates.Add(Handle);
+							DeferredClusterUnionChildToParentUpdates.Add(RelativeTransform);
 						}
 					}
 				}
-				if (KinematicRootHandle)
-				{
-					const FTransform RootWorldTransform(KinematicRootHandle->R(), KinematicRootHandle->X());
-					const FTransform RootRelativeTransform = RootWorldTransform.GetRelativeTransform(Parameters.PrevWorldTransform);
-					const FTransform WorldTransform = RootRelativeTransform * ActorToWorld;
+			}
 
-					SetClusteredParticleKinematicTarget_Internal(KinematicRootHandle, WorldTransform);
-				}
+			if (ClusterUnionIndex != INDEX_NONE && !DeferredClusterUnionParticleUpdates.IsEmpty() && !DeferredClusterUnionChildToParentUpdates.IsEmpty())
+			{
+				ClusterUnionManager.UpdateClusterUnionParticlesChildToparent(ClusterUnionIndex, DeferredClusterUnionParticleUpdates, DeferredClusterUnionChildToParentUpdates);
 			}
 		}
 	}

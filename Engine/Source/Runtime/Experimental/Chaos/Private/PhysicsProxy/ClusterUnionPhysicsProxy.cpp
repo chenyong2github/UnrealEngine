@@ -539,33 +539,13 @@ namespace Chaos
 		Solver->EnqueueCommandImmediate(
 			[this, Objects, Transforms]() mutable
 			{
-				FPBDRigidsEvolutionGBF& Evolution = *GetEvolution(this);
-				FClusterUnionManager& ClusterUnionManager = Evolution.GetRigidClustering().GetClusterUnionManager();
-
-				if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnion(ClusterUnionIndex))
+				FReadPhysicsObjectInterface_Internal Interface = FPhysicsObjectInternalInterface::GetRead();
+				TArray<FPBDRigidParticleHandle*> Particles = Interface.GetAllRigidParticles(Objects);
+				if (ensure(Particles.Num() == Objects.Num()))
 				{
-					for (int32 Index = 0; Index < Objects.Num() && Index < Transforms.Num(); ++Index)
-					{
-						FPhysicsObjectHandle Child = Objects[Index];
-						FGeometryParticleHandle* Particle = Child->GetParticle<EThreadContext::Internal>();
-						if (!ensure(Particle))
-						{
-							return;
-						}
-
-						const int32 ParticleIndex = ClusterUnion->ChildParticles.Find(Particle->CastToRigidParticle());
-						if (ParticleIndex != INDEX_NONE && ClusterUnion->InternalCluster)
-						{
-							if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ParticleIndex]->CastToClustered())
-							{
-								ChildHandle->SetChildToParent(Transforms[Index]);
-							}
-						}
-					}
-
-					ClusterUnionManager.UpdateAllClusterUnionProperties(*ClusterUnion, false);
-					Evolution.GetParticles().MarkTransientDirtyParticle(ClusterUnion->InternalCluster);
-					Evolution.DirtyParticle(*ClusterUnion->InternalCluster);
+					FPBDRigidsEvolutionGBF& Evolution = *static_cast<FPBDRigidsSolver*>(Solver)->GetEvolution();
+					FClusterUnionManager& ClusterUnionManager = Evolution.GetRigidClustering().GetClusterUnionManager();
+					ClusterUnionManager.UpdateClusterUnionParticlesChildToparent(ClusterUnionIndex, Particles, Transforms);
 				}
 			}
 		);

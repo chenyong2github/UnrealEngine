@@ -520,4 +520,35 @@ namespace Chaos
 		}
 		return INDEX_NONE;
 	}
+
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::UpdateClusterUnionParticlesChildToparent"), STAT_UpdateClusterUnionParticlesChildToparent, STATGROUP_Chaos);
+	void FClusterUnionManager::UpdateClusterUnionParticlesChildToparent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionParticlesChildToparent);
+
+		if (FClusterUnion* ClusterUnion = FindClusterUnion(Index))
+		{
+			for (int32 ParticleIndex = 0; ParticleIndex < Particles.Num() && ParticleIndex < ChildToParent.Num(); ++ParticleIndex)
+			{
+				FPBDRigidParticleHandle* Particle = Particles[ParticleIndex];
+				if (!ensure(Particle))
+				{
+					return;
+				}
+
+				const int32 ChildIndex = ClusterUnion->ChildParticles.Find(Particle->CastToRigidParticle());
+				if (ChildIndex != INDEX_NONE && ClusterUnion->InternalCluster)
+				{
+					if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ChildIndex]->CastToClustered())
+					{
+						ChildHandle->SetChildToParent(ChildToParent[ParticleIndex]);
+					}
+				}
+			}
+
+			UpdateAllClusterUnionProperties(*ClusterUnion, false);
+			MEvolution.GetParticles().MarkTransientDirtyParticle(ClusterUnion->InternalCluster);
+			MEvolution.DirtyParticle(*ClusterUnion->InternalCluster);
+		}
+	}
 }
