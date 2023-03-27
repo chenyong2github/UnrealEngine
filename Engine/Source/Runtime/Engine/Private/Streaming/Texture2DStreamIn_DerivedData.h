@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Experimental/Async/LazyEvent.h"
+#include "Async/ManualResetEvent.h"
 #include "Serialization/DerivedData.h"
 #include "Texture2DStreamIn.h"
 
@@ -31,7 +31,7 @@ protected:
 
 private:
 	FDerivedDataIoResponse Response;
-	FLazyEvent ResponseComplete;
+	FManualResetEvent ResponseComplete;
 	bool bHighPriority;
 };
 

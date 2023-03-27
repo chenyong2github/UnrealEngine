@@ -15,7 +15,6 @@ namespace UE
 
 FTexture2DStreamIn_DerivedData::FTexture2DStreamIn_DerivedData(UTexture2D* InTexture, bool bInHighPriority)
 	: FTexture2DStreamIn(InTexture)
-	, ResponseComplete(EEventMode::AutoReset)
 	, bHighPriority(bInHighPriority)
 {
 }
@@ -78,7 +77,7 @@ void FTexture2DStreamIn_DerivedData::DoBeginIoRequests(const FContext& Context)
 			}
 		}
 
-		ResponseComplete.Trigger();
+		ResponseComplete.Notify();
 
 		// Tick to schedule the task or cancellation callback. Use TT_None to avoid a deadlock.
 		Tick(FTexture2DUpdate::TT_None);

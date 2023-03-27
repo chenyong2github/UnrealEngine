@@ -140,7 +140,7 @@ void FBuildJobContext::BeginBuild(IRequestOwner& InOwner, TUniqueFunction<void (
 void FBuildJobContext::EndBuild()
 {
 	OnEndBuild();
-	BuildCompleteEvent.Trigger();
+	BuildCompleteEvent.Notify();
 	Owner = nullptr;
 }
 
