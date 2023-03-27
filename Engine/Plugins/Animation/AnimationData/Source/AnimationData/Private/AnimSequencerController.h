@@ -129,8 +129,6 @@ private:
 	UPROPERTY(transient)
 	TScriptInterface<IAnimationDataModel> ModelInterface;
 
-	TUniquePtr<IAnimationDataModel::FEvaluationAndModificationLock> BracketLock;
-
 	friend class FAnimDataControllerTestBase;
 	friend UE::Anim::FOpenBracketAction;
 	friend UE::Anim::FCloseBracketAction;

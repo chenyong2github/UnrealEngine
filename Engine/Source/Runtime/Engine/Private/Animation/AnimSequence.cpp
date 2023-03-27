@@ -4662,14 +4662,17 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 		UpdateDependentStreamingAnimations();
 	};
 
-	auto HandleTrackDataChanged = [this, UpdateRawDataGuid]()
+	auto HandleTrackDataChanged = [this, UpdateRawDataGuid](bool bWasReset = false)
 	{
 		if (NotifyCollector.IsNotWithinBracket())
 		{
 			CalculateNumberOfSampledKeys();
 			UpdateRawDataGuid(RegenerateGUID);
 			ClearAllCachedCookedPlatformData();
-			BeginCacheDerivedDataForCurrentPlatform();
+			if(!bWasReset)
+			{
+				BeginCacheDerivedDataForCurrentPlatform();
+			}
 		}
 	};
 
@@ -4798,7 +4801,7 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 					const bool bWasModelReset = NotifyCollector.Contains(EAnimDataModelNotifyType::Reset);
 					UpdateRawDataGuid(bWasModelReset ? GenerateNewGUID : RegenerateGUID);
 					ClearCompressedCurveData();
-					HandleTrackDataChanged();
+					HandleTrackDataChanged(bWasModelReset);
 				}
 			}
 

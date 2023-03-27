@@ -53,7 +53,7 @@ void UAnimSequencerController::OpenBracket(const FText& InTitle, bool bShouldTra
 	{
 		FBracketPayload Payload;
 		Payload.Description = InTitle.ToString();
-		BracketLock = MakeUnique<IAnimationDataModel::FEvaluationAndModificationLock>(*ModelInterface);
+
 		Model->GetNotifier().Notify(EAnimDataModelNotifyType::BracketOpened, Payload);
 	}
 
@@ -83,7 +83,6 @@ void UAnimSequencerController::CloseBracket(bool bShouldTransact /*= true*/)
 			ChangeTransactor.CloseTransaction();
 		}
 		
-		BracketLock.Reset();
 		Model->GetNotifier().Notify(EAnimDataModelNotifyType::BracketClosed);
 	}
 }
