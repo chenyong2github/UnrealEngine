@@ -329,7 +329,18 @@ FTechSoftFileParser::FTechSoftFileParser(FCADFileData& InCADData, const FString&
 #ifdef USE_TECHSOFT_SDK
 ECADParsingResult FTechSoftFileParser::Process()
 {
+	bProcessIsRunning = true;
+	TArray<UE::Tasks::FTask> Checkers;
+	if(FImportParameters::bValidationProcess)
+	{
+		Checkers.Emplace(UE::Tasks::Launch(TEXT("MemoryChecker"), [&]() { CheckMemory(); }));
+	}
+
+	//FPlatformMemoryStats StartMem = FPlatformMemory::GetStats();
+	uint64 StartTime = FPlatformTime::Cycles64();
+
 	const FFileDescriptor& File = CADFileData.GetCADFileDescription();
+	FImportRecord& ProcessReport = CADFileData.GetRecord();
 
 	if (File.GetPathOfFileToLoad().IsEmpty())
 	{
@@ -346,6 +357,7 @@ ECADParsingResult FTechSoftFileParser::Process()
 
 	A3DStatus LoadStatus = A3DStatus::A3D_SUCCESS;
 	ModelFile = TechSoftInterface::LoadModelFileFromFile(Import, LoadStatus);
+	ProcessReport.ImportTime += FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime);
 
 	if (!ModelFile.IsValid())
 	{
@@ -398,30 +410,41 @@ ECADParsingResult FTechSoftFileParser::Process()
 	// save the file for the next load
 	if (CADFileData.IsCacheDefined())
 	{
+		uint64 StartSaveTime = FPlatformTime::Cycles64();
 		FString CacheFilePath = CADFileData.GetCADCachePath();
 		if (CacheFilePath != File.GetPathOfFileToLoad())
 		{
 			TechSoftUtils::SaveModelFileToPrcFile(ModelFile.Get(), CacheFilePath);
 		}
+		ProcessReport.SavePrcTime = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartSaveTime);
 	}
 
 	// Adapt BRep to UE::CADKernel
 	{
+		uint64 StartAdaptTime = FPlatformTime::Cycles64();
 		if (AdaptBRepModel() != A3D_SUCCESS)
 		{
 			return ECADParsingResult::ProcessFailed;
 		}
+		ProcessReport.AdaptBRepTime = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartAdaptTime);
 	}
 
 	// Some formats (like IGES) require a sew all the time. In this case, bForceSew = true
 	if (bForceSew || CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingSew)
 	{
+		uint64 StartSewTime = FPlatformTime::Cycles64();
 		SewModel();
+		ProcessReport.SewTime = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartSewTime);
 	}
+
+	uint64 StartTraversTime = FPlatformTime::Cycles64();
 
 	ReserveCADFileData();
 	ReadMaterialsAndColors();
 	ECADParsingResult Result = TraverseModel();
+
+	ProcessReport.ImportTime += FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTraversTime);
+
 
 	if (Result == ECADParsingResult::ProcessOk)
 	{
@@ -437,6 +460,11 @@ ECADParsingResult FTechSoftFileParser::Process()
 
 	ModelFile.Reset();
 
+	ProcessReport.LoadProcessTime = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime);
+
+	bProcessIsRunning = false;
+	UE::Tasks::Wait(Checkers);
+
 	return Result;
 }
 
@@ -451,12 +479,14 @@ void FTechSoftFileParser::SewModel()
 
 void FTechSoftFileParser::GenerateBodyMeshes()
 {
+	uint64 StartGenerateBodyMeshesTime = FPlatformTime::Cycles64();
 	for (TPair<A3DRiRepresentationItem*, FCadId>& Entry : RepresentationItemsCache)
 	{
 		A3DRiRepresentationItem* RepresentationItemPtr = Entry.Key;
 		FArchiveBody& Body = SceneGraph.GetBody(Entry.Value);
 		GenerateBodyMesh(RepresentationItemPtr, Body);
 	}
+	CADFileData.GetRecord().MeshTime = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartGenerateBodyMeshesTime);
 }
 
 void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representation, FArchiveBody& Body)
@@ -1970,6 +2000,22 @@ void FTechSoftFileParser::ReadMaterialsAndColors()
 		}
 	}
 }
+
+void FTechSoftFileParser::CheckMemory()
+{
+	CADFileData.GetRecord().StartMemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
+	uint64& MaxMemoryUsed = CADFileData.GetRecord().MaxMemoryUsed;
+	while (bProcessIsRunning)
+	{
+		FPlatformProcess::Sleep(0.1);
+		const uint64 MemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
+		if (MaxMemoryUsed < MemoryUsed)
+		{
+			MaxMemoryUsed = MemoryUsed;
+		}
+	}
+}
+
 
 #endif  
 

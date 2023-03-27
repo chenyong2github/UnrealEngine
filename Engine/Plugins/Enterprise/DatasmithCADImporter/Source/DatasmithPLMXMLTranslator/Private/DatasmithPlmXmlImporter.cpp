@@ -277,7 +277,7 @@ namespace PlmXml
 
 		void Process(const FDatasmithSceneSource& Source)
 		{
-			DatasmithDispatcher->Process(true);
+			DatasmithDispatcher->Process(CADLibrary::GMaxImportThreads != 1);
 			SceneGraphBuilder = MakeUnique<FDatasmithSceneGraphBuilder>(CADFileToUEFileMap, CacheDir, DatasmithScene, Source, ImportParameters);
 			SceneGraphBuilder->LoadSceneGraphDescriptionFiles();
 			MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUEGeomMap, CacheDir, ImportParameters);

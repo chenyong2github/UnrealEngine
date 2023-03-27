@@ -336,6 +336,10 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 
 	for (const CADLibrary::FFileDescriptor& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
 	{
+		if (ExternalReferenceFile.GetFileName().IsEmpty())
+		{
+			continue;
+		}
 		Dispatcher.AddTask(ExternalReferenceFile);
 	}
 

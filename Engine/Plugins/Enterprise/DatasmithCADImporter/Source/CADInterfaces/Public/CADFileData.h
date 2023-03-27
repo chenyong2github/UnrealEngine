@@ -10,6 +10,21 @@
 namespace CADLibrary
 {
 
+#define CSV_HEADER TEXT("Input File,FileHash,FileSize(KB),Time.LoadStep(ms),Time.SavePrcTime(ms),Time.AdaptBRepTime(ms),Time.SewStep(ms),Time.MeshStep(ms),Time.Total(ms),MemoryUsage(MB),SceneGrapheData.InstanceNum,SceneGrapheData.Bodies,SceneGrapheData.References,SceneGrapheData.UnloadedReferences,SceneGrapheData.ExternalReferenceFiles,SceneGrapheData.ColorHIdToColor,SceneGrapheData.MaterialHIdToMaterial,Meshes.FaceCount,Meshes.VertexCount, 0\n")
+
+struct FImportRecord
+{
+	double ImportTime = 0;
+	double SavePrcTime = 0;
+	double SewTime = 0;
+	double AdaptBRepTime = 0;
+	double MeshTime = 0;
+	double LoadProcessTime = 0; // Full process
+
+	uint64 StartMemoryUsed = 0;
+	uint64 MaxMemoryUsed = 0;
+};
+
 class FCADFileData
 {
 public:
@@ -60,6 +75,23 @@ public:
 		if (IsCacheDefined())
 		{
 			return FPaths::Combine(CachePath, TEXT("scene"), SceneGraphArchive.ArchiveFileName + TEXT(".sg"));
+		}
+		return FString();
+	}
+
+	const FString GetValidationFilePath() const
+	{
+		if (IsCacheDefined())
+		{
+			const FString& RootPath = FileDescription.GetRootFolder();
+			const FString& FilePath = FileDescription.GetSourcePath();
+			FString FileRootFolder = FilePath.Right(FilePath.Len() - RootPath.Len() - 1);
+			int32 Index;
+			if (FileRootFolder.FindChar(TEXT('/'), Index))
+			{
+				FileRootFolder = FileRootFolder.Left(Index);
+			}
+			return FPaths::Combine(CachePath, TEXT("validation"), FileRootFolder, SceneGraphArchive.ArchiveFileName + TEXT(".csv"));
 		}
 		return FString();
 	}
@@ -261,12 +293,24 @@ public:
 
 	void UpdateExternalRefPath()
 	{
-		const FString Root = FileDescription.GetRootFolder();
-		const FString ArchiveRoot = FPaths::GetPath(SceneGraphArchive.FullPath);
-		for (FFileDescriptor& File : SceneGraphArchive.ExternalReferenceFiles)
+		if(!FImportParameters::bValidationProcess)
 		{
-			File.ChangePath(ArchiveRoot, Root);
+			const FString Root = FileDescription.GetRootFolder();
+			const FString ArchiveRoot = FPaths::GetPath(SceneGraphArchive.FullPath);
+			for (FFileDescriptor& File : SceneGraphArchive.ExternalReferenceFiles)
+			{
+				File.ChangePath(ArchiveRoot, Root);
+			}
 		}
+	}
+
+	void InitCsvFile();
+	void ExportValidationData();
+	void GetMeshStatsToCsv(int32& FaceCount, int32& VertexCount);
+
+	FImportRecord& GetRecord()
+	{
+		return Record;
 	}
 
 private:
@@ -282,6 +326,8 @@ private:
 	TArray<FBodyMesh> BodyMeshes;
 
 	TArray<TPair<uint8, FString>> Messages;
+
+	FImportRecord Record;
 
 	mutable uint32 SceneFileHash = 0;
 	mutable uint32 GeomFileHash = 0;

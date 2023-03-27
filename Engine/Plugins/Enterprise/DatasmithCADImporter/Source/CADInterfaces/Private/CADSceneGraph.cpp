@@ -106,7 +106,7 @@ FArchive& operator<<(FArchive& Ar, FArchiveSceneGraph& SceneGraph)
 void FArchiveSceneGraph::SerializeMockUp(const TCHAR* Filename)
 {
 	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(Filename));
-	if (Archive)
+	if (Archive.IsValid())
 	{
 		*Archive << *this;
 		Archive->Close();
@@ -386,6 +386,11 @@ void FArchiveSceneGraph::RemoveLastBody()
 
 void FArchiveSceneGraph::AddExternalReferenceFile(const FArchiveUnloadedReference& Reference)
 {
+	if (Reference.ExternalFile.GetFileName().IsEmpty())
+	{
+		return;
+	}
+
 	const int32 Index = CADIdToIndex[Reference.Id];
 	ensure(ExternalReferenceFiles.Add(Reference.ExternalFile) == Index);
 }

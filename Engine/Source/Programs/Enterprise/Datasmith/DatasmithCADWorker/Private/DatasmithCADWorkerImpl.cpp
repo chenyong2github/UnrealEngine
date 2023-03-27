@@ -242,12 +242,9 @@ void FDatasmithCADWorkerImpl::CheckMemory()
 	uint64 MaxMemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
 	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - Start Ram used %llu MB"), MaxMemoryUsed / OneMegaBit);
 
-	uint64 StartTime = FPlatformTime::Cycles64();
 	while (bProcessIsRunning)
 	{
 		FPlatformProcess::Sleep(0.1);
-		double Duration = (FPlatformTime::Cycles64() - StartTime) * FPlatformTime::GetSecondsPerCycle64();
-
 		const uint64 MemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
 		if (MaxMemoryUsed < MemoryUsed)
 		{

@@ -142,6 +142,9 @@ private:
 	void ExtractGeneralTransformation(const A3DMiscTransformation* GeneralTransformation, FArchiveCADObject& Component);
 	void ExtractTransformation3D(const A3DMiscTransformation* CartesianTransformation, FArchiveCADObject& Component);
 
+	void CheckMemory();
+
+
 #endif
 
 protected:
@@ -163,6 +166,9 @@ protected:
 
 	TMap<A3DRiRepresentationItem*, FCadId> RepresentationItemsCache;
 	TMap<A3DAsmProductOccurrence*, FCadId> ReferenceCache;
+
+	std::atomic<bool> bProcessIsRunning;
+
 };
 
 } // ns CADLibrary

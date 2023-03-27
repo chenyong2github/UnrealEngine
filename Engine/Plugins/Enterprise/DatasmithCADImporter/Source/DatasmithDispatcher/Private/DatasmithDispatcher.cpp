@@ -9,6 +9,7 @@
 #include "DatasmithDispatcherTask.h"
 
 #include "Algo/Count.h"
+#include "Algo/Find.h"
 #include "HAL/FileManager.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
@@ -73,12 +74,10 @@ FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& 
 void FDatasmithDispatcher::AddTask(const CADLibrary::FFileDescriptor& InFileDescription)
 {
 	FScopeLock Lock(&TaskPoolCriticalSection);
-	for (const FTask& Task : TaskPool)
+
+	if (Algo::FindByPredicate(TaskPool, [&InFileDescription](const FTask& Task) { return Task.FileDescription == InFileDescription; }))
 	{
-		if (Task.FileDescription == InFileDescription)
-		{
-			return;
-		}
+		return;
 	}
 
 	int32 TaskIndex = TaskPool.Emplace(InFileDescription);
@@ -132,6 +131,8 @@ TOptional<FTask> FDatasmithDispatcher::GetNextTask()
 	}
 
 	TaskPool[NextTaskIndex].State = ETaskState::Running;
+	UE_LOG(LogDatasmithDispatcher, Display, TEXT(" Launch %s (%d / %d)"), *TaskPool[NextTaskIndex].FileDescription.GetSourcePath(), NextTaskIndex, TaskPool.Num());
+
 	return TaskPool[NextTaskIndex++];
 }
 
@@ -187,7 +188,7 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 void FDatasmithDispatcher::Process(bool bWithProcessor)
 {
 	EstimationOfMemoryUsedByStaticMeshes = 0;
-	bool bCheckMemory = true;
+	bool bCheckMemory = CADLibrary::FImportParameters::bValidationProcess ? false : true;
 
 	// This function is added in 5.1.1 but is cloned with the lines 370 to 387
 	TFunction<bool()> CanImportContinue = [&]() -> bool

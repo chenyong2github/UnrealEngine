@@ -98,6 +98,8 @@ namespace CADLibrary
 			return ECADParsingResult::ProcessFailed;
 		}
 
+		CADFileData.SetArchiveNames();
+
 		if (!FindFile(CADFileData.GetCADFileDescription()))
 		{
 			return ECADParsingResult::FileNotFound;
@@ -105,8 +107,6 @@ namespace CADLibrary
 
 		if (FImportParameters::bGEnableCADCache)
 		{
-			CADFileData.SetArchiveNames();
-
 			bool bNeedToProceed = true;
 
 			FString CADFileCachePath = CADFileData.GetCADCachePath();
@@ -135,6 +135,11 @@ namespace CADLibrary
 			}
 		}
 
+		if (FImportParameters::bValidationProcess)
+		{
+			CADFileData.InitCsvFile();
+		}
+
 		// Process the file
 		ECADParsingResult Result = CADParser->Process();
 
@@ -145,6 +150,11 @@ namespace CADLibrary
 				CADFileData.ExportSceneGraphFile();
 				CADFileData.ExportMeshArchiveFile();
 			}
+		}
+
+		if (FImportParameters::bValidationProcess)
+		{
+			CADFileData.ExportValidationData();
 		}
 
 		return Result;

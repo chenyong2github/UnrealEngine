@@ -22,6 +22,8 @@
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
 #include "CADKernel/Topo/Topomaker.h"
 
+#include "HAL/PlatformTime.h"
+
 namespace CADLibrary
 {
 
@@ -109,6 +111,7 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 	}
 
 	// Sew if needed
+	uint64 StartSewTime = FPlatformTime::Cycles64();
 	UE::CADKernel::FTopomakerOptions TopomakerOptions((UE::CADKernel::ESewOption) SewOption::GetFromImportParameters(), GeometricTolerance, FImportParameters::GStitchingForceFactor);
 
 	FTopomaker Topomaker(CADKernelSession, TopomakerOptions);
@@ -169,6 +172,10 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 		}
 	}
 
+	CADFileData.GetRecord().SewTime += FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartSewTime);
+
+	uint64 StartMeshTime = FPlatformTime::Cycles64();
+
 	// Process existing bodies
 	for (FBody* Body : ExistingBodies)
 	{
@@ -203,6 +210,8 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 			ArchiveBody.Delete();
 		}
 	}
+
+	CADFileData.GetRecord().MeshTime += FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartMeshTime);
 }
 
 void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentationItem* Representation, FArchiveBody& ArchiveBody)
