@@ -113,15 +113,6 @@ private:
 	 */
 	static bool ParseContentLength(const FHttpServerRequest& InRequest, int32& OutContentLength);
 
-	/**
-	 * Returns a decoded version of the percent-encoded passed in string
-	 *
-	 * @param EncodedString The percent encoded string to convert to string
-	 * @return The decoded string
-	 */
-	static FString UrlDecode(const FString& EncodedString);
-
-
 private:
 
 	/** The underlying connection */
