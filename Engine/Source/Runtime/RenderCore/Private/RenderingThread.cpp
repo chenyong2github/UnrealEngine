@@ -114,13 +114,6 @@ static void WaitAndResumeRendering()
  */
 FSuspendRenderingThread::FSuspendRenderingThread( bool bInRecreateThread )
 {
-	// Suspend async loading thread so that it doesn't start queueing render commands 
-	// while the render thread is suspended.
-	if (IsAsyncLoadingMultithreaded())
-	{
-		SuspendAsyncLoading();
-	}
-
 	// Pause asset streaming to prevent rendercommands from being enqueued.
 	SuspendTextureStreamingRenderTasks();
 
