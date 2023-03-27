@@ -2124,6 +2124,12 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 		FileContents += TEXT("[Audio]") LINE_TERMINATOR;
 		FileContents += TEXT("UseAudioMixer=True") LINE_TERMINATOR;
 
+		/** 5.3 OnlineSubsystemEOS logic overrides */
+
+		FileContents += LINE_TERMINATOR;
+		FileContents += TEXT("[OnlineSubsystemEOS]") LINE_TERMINATOR;
+		FileContents += TEXT("bUseSessionPresenceAttribute=True") LINE_TERMINATOR;
+
 		if (InProjectInfo.bCopyStarterContent)
 		{
 			FileContents += LINE_TERMINATOR;

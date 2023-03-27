@@ -344,6 +344,7 @@ private:
 
 	bool bIsDedicatedServer;
 	bool bIsUsingP2PSockets;
+	bool bUsePresenceAttribute = false;
 };
 
 typedef TSharedPtr<FOnlineSessionEOS, ESPMode::ThreadSafe> FOnlineSessionEOSPtr;

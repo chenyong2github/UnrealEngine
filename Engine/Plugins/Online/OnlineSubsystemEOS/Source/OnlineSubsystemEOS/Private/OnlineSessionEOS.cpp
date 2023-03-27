@@ -25,6 +25,8 @@
 #include "eos_metrics.h"
 #include "eos_lobby.h"
 
+#define USES_PRESENCE_ATTRIBUTE_KEY FName("USES_PRESENCE")
+
 FString MakeStringFromAttributeValue(const EOS_Sessions_AttributeData* Attribute)
 {
 	switch (Attribute->ValueType)
@@ -500,6 +502,12 @@ void FOnlineSessionEOS::Init()
 
 	bIsDedicatedServer = IsRunningDedicatedServer();
 	bIsUsingP2PSockets = false;
+
+	// Presence usage used to be guessed from other session parameters like permission level, with this new logic we have a reliable way of transmitting that information, in the form of a session attribute
+	if (!GConfig->GetBool(TEXT("OnlineSubsystemEOS"), TEXT("bUseSessionPresenceAttribute"), bUsePresenceAttribute, GEngineIni))
+	{
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("Upgrade note: OSSEOS is updating how Session and Lobby presence information is tracked to match other OSS implementations. For more information, search for bUsePresenceAttribute in the release notes."));
+	}
 
  	if (!GConfig->GetBool(TEXT("/Script/OnlineSubsystemEOS.NetDriverEOS"), TEXT("bIsUsingP2PSockets"), bIsUsingP2PSockets, GEngineIni))
 	{
@@ -1287,13 +1295,33 @@ uint32 FOnlineSessionEOS::CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineS
 
 	EOS_HSessionModification SessionModHandle = nullptr;
 
+	EOS_Bool bPresenceEnabled = EOS_FALSE;
+	if (bUsePresenceAttribute)
+	{
+		bPresenceEnabled = Session->SessionSettings.bUsesPresence ? EOS_TRUE : EOS_FALSE;
+
+		Session->SessionSettings.Settings.Add(USES_PRESENCE_ATTRIBUTE_KEY, FOnlineSessionSetting(Session->SessionSettings.bUsesPresence, EOnlineDataAdvertisementType::ViaOnlineService));
+
+		if (!Session->SessionSettings.bUsesPresence && (Session->SessionSettings.bAllowJoinViaPresence || Session->SessionSettings.bAllowJoinViaPresenceFriendsOnly))
+		{
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("FOnlineSessionSettings::bUsesPresence is set to false, bAllowJoinViaPresence and bAllowJoinViaPresenceFriendsOnly will be automatically set to false as well"));
+
+			Session->SessionSettings.bAllowJoinViaPresence = false;
+			Session->SessionSettings.bAllowJoinViaPresenceFriendsOnly = false;
+		}
+	}
+	else
+	{
+		bPresenceEnabled = (Session->SessionSettings.bUsesPresence ||
+			Session->SessionSettings.bAllowJoinViaPresence ||
+			Session->SessionSettings.bAllowJoinViaPresenceFriendsOnly ||
+			Session->SessionSettings.bAllowInvites) ? EOS_TRUE : EOS_FALSE;
+	}
+
 	FSessionCreateOptions Options(TCHAR_TO_UTF8(*Session->SessionName.ToString()));
 	Options.MaxPlayers = Session->SessionSettings.NumPrivateConnections + Session->SessionSettings.NumPublicConnections;
 	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(HostingPlayerNum);
-	Options.bPresenceEnabled = (Session->SessionSettings.bUsesPresence ||
-		Session->SessionSettings.bAllowJoinViaPresence ||
-		Session->SessionSettings.bAllowJoinViaPresenceFriendsOnly ||
-		Session->SessionSettings.bAllowInvites) ? EOS_TRUE : EOS_FALSE;
+	Options.bPresenceEnabled = bPresenceEnabled;
 	const auto BucketIdUtf8 = StringCast<UTF8CHAR>(*GetBucketId(Session->SessionSettings));
 	Options.BucketId = (const char*)BucketIdUtf8.Get();
 
@@ -2067,18 +2095,22 @@ void FOnlineSessionEOS::CopySearchResult(EOS_HSessionDetails SessionHandle, EOS_
 	OutSession.SessionSettings.NumPrivateConnections = SessionInfo->Settings->NumPublicConnections;
 	OutSession.SessionSettings.bAllowJoinInProgress = SessionInfo->Settings->bAllowJoinInProgress == EOS_TRUE;
 	OutSession.SessionSettings.bAllowInvites = SessionInfo->Settings->bInvitesAllowed == EOS_TRUE;
+
+	if (!bUsePresenceAttribute)
+	{
+		OutSession.SessionSettings.bUsesPresence = true;
+	}
+
 	switch (SessionInfo->Settings->PermissionLevel)
 	{
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_InviteOnly:
 		{
-			OutSession.SessionSettings.bUsesPresence = true;
 			OutSession.SessionSettings.bAllowJoinViaPresence = false;
 			break;
 		}
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_JoinViaPresence:
 		case EOS_EOnlineSessionPermissionLevel::EOS_OSPF_PublicAdvertised:
 		{
-			OutSession.SessionSettings.bUsesPresence = true;
 			OutSession.SessionSettings.bAllowJoinViaPresence = true;
 			break;
 		}
@@ -2106,7 +2138,11 @@ void FOnlineSessionEOS::CopyAttributes(EOS_HSessionDetails SessionHandle, FOnlin
 		if (ResultCode == EOS_EResult::EOS_Success)
 		{
 			FString Key = Attribute->Data->Key;
-			if (Key == TEXT("NumPublicConnections"))
+			if (bUsePresenceAttribute && Key == USES_PRESENCE_ATTRIBUTE_KEY.ToString())
+			{
+				OutSession.SessionSettings.bUsesPresence = Attribute->Data->Value.AsBool == EOS_TRUE;
+			}
+			else if (Key == TEXT("NumPublicConnections"))
 			{
 				// Adjust the public connections based upon this
 				OutSession.SessionSettings.NumPublicConnections = Attribute->Data->Value.AsInt64;
@@ -3685,6 +3721,19 @@ uint32 FOnlineSessionEOS::CreateLobbySession(int32 HostingPlayerNum, FNamedOnlin
 	bool bUseHostMigration = true;
 	Session->SessionSettings.Get(SETTING_HOST_MIGRATION, bUseHostMigration);
 
+	if (bUsePresenceAttribute)
+	{
+		Session->SessionSettings.Settings.Add(USES_PRESENCE_ATTRIBUTE_KEY, FOnlineSessionSetting(Session->SessionSettings.bUsesPresence, EOnlineDataAdvertisementType::ViaOnlineService));
+
+		if (!Session->SessionSettings.bUsesPresence && (Session->SessionSettings.bAllowJoinViaPresence || Session->SessionSettings.bAllowJoinViaPresenceFriendsOnly))
+		{
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("FOnlineSessionSettings::bUsesPresence is set to false, bAllowJoinViaPresence and bAllowJoinViaPresenceFriendsOnly will be automatically set to false as well"));
+
+			Session->SessionSettings.bAllowJoinViaPresence = false;
+			Session->SessionSettings.bAllowJoinViaPresenceFriendsOnly = false;
+		}
+	}
+
 	EOS_Lobby_CreateLobbyOptions CreateLobbyOptions = { 0 };
 	CreateLobbyOptions.ApiVersion = 8;
 	UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_CREATELOBBY_API_LATEST, 8);
@@ -4449,7 +4498,10 @@ void FOnlineSessionEOS::CopyLobbyData(const TSharedRef<FLobbyDetailsEOS>& LobbyD
 	{
 	case EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED:
 	case EOS_ELobbyPermissionLevel::EOS_LPL_JOINVIAPRESENCE:
-		OutSession.SessionSettings.bUsesPresence = true;
+		if (!bUsePresenceAttribute)
+		{
+			OutSession.SessionSettings.bUsesPresence = true;
+		}
 		OutSession.SessionSettings.bAllowJoinViaPresence = true;
 
 		OutSession.SessionSettings.NumPublicConnections = LobbyDetailsInfo->MaxMembers;
@@ -4457,7 +4509,10 @@ void FOnlineSessionEOS::CopyLobbyData(const TSharedRef<FLobbyDetailsEOS>& LobbyD
 
 		break;
 	case EOS_ELobbyPermissionLevel::EOS_LPL_INVITEONLY:
-		OutSession.SessionSettings.bUsesPresence = false;
+		if (!bUsePresenceAttribute)
+		{
+			OutSession.SessionSettings.bUsesPresence = false;
+		}
 		OutSession.SessionSettings.bAllowJoinViaPresence = false;
 
 		OutSession.SessionSettings.NumPrivateConnections = LobbyDetailsInfo->MaxMembers;
@@ -4555,7 +4610,11 @@ void FOnlineSessionEOS::CopyLobbyAttributes(const TSharedRef<FLobbyDetailsEOS>& 
 		if (ResultCode == EOS_EResult::EOS_Success)
 		{
 			FString Key = UTF8_TO_TCHAR(Attribute->Data->Key);
-			if (Key == TEXT("NumPublicConnections"))
+			if (bUsePresenceAttribute && Key == USES_PRESENCE_ATTRIBUTE_KEY.ToString())
+			{
+				OutSession.SessionSettings.bUsesPresence = Attribute->Data->Value.AsBool == EOS_TRUE;
+			}
+			else if (Key == TEXT("NumPublicConnections"))
 			{
 				OutSession.SessionSettings.NumPublicConnections = Attribute->Data->Value.AsInt64;
 			}
