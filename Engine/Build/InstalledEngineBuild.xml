@@ -396,7 +396,7 @@
 			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Mac" Files="#UnrealGame Mac Unstripped" Tag="#UnrealGame Mac Stripped"/>
 
 			<Do If="'$(SignExecutables)' == true">
-				<Tag Files="#UnrealGame Mac" Filter="$(MacSignFilter)" With="#UnrealGame Mac Unsigned"/>
+				<Tag Files="#UnrealGame Mac" Filter="$(MacSignFilter)" Except=";Engine/Binaries/Mac/*.app/Contents/MacOS/*" With="#UnrealGame Mac Unsigned"/>
 				<Copy Files="#UnrealGame Mac Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Game_ToSign_Mac"/>
 				<Sign Files="#Game_ToSign_Mac" Tag="#UnrealGame Mac Signed"/>
 			</Do>

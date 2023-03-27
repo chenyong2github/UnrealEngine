@@ -692,6 +692,13 @@ namespace UnrealBuildTool
 				// Make sure OS X knows the bundle was updated
 				AppendMacLine(FinalizeAppBundleScript, "touch -c \"{0}.app\"", ExeName);
 
+
+				// codesign with ad-hoc signature for when building outside of Xcode the there will be at least some signature
+				// (and it can be a BuildProduct down in ModifyBuildProducts)
+				AppendMacLine(FinalizeAppBundleScript, "codesign -f -s - \"{0}.app\"", ExeName);
+				AppendMacLine(FinalizeAppBundleScript, "codesign -f -s \"Developer ID Application\" \"{0}.app\"", ExeName);
+				AppendMacLine(FinalizeAppBundleScript, "echo done > /dev/null");
+
 				FinalizeAppBundleScript.Close();
 			}
 
@@ -1127,6 +1134,10 @@ namespace UnrealBuildTool
 				// And we also need all the resources
 				BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "Info.plist"), BuildProductType.RequiredResource);
 				BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "PkgInfo"), BuildProductType.RequiredResource);
+
+				// when we codesign, we need to copy the signature around on build machines, etc. this will put the CodeResources (that were created by post-build signing)
+				// is in the .target receipt file
+				BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "_CodeSignature", "CodeResources"), BuildProductType.RequiredResource);
 
 				// modern xcode doesn't use the bootstrap launcher because it can make full .app with staged data inside it
 				if (!Target.MacPlatform.bUseModernXcode)
