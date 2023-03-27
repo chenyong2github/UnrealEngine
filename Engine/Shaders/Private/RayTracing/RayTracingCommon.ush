@@ -517,9 +517,7 @@ uint TranslateRayTracingInstanceFlags(uint InFlags)
 
 struct FMaterialClosestHitPayload : FMinimalPayload
 {
-	// Unpacked  Packed
-	// offset    bytes
-	// float FMinimalPayload::HitT
+	// float FMinimalPay	// float FMinimalPayload::HitT
 	FRayCone RayCone;
 	float3 Radiance;
 	float3 WorldNormal; // Top Layer Normal
@@ -560,9 +558,9 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint Radiance;										 // 4  bytes
 	uint PackedGeometryNormal;							 // 4  bytes
 	uint SceneInstanceIndex;                             // 4  bytes - GPUSceneInstanceIndex
-														 //=28 bytes - must be in sync with HeaderPayload in InternalGetRayTracingMaterialPayloadSizeInBytes()
-	FStrataRaytracingPayload StrataData;				 // 44 bytes
-														 //=68 bytes total
+														 //=24 bytes - must be in sync with InternalGetRayTracingMaterialPayloadSizeInBytes()
+	FStrataRaytracingPayload StrataData;				 //  ? bytes - must be in sync with GetRaytracingMaterialPayloadSize (see FStrataRaytracingPayload)
+														 //=24+? bytes total
 
 	void SetMinimalPayloadMode()			{ Flags |= RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD; }
 	bool IsMinimalPayloadMode()				{ return (Flags & RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD) != 0; }

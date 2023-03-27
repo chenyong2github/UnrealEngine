@@ -11,7 +11,18 @@
 
 uint32 GetRaytracingMaterialPayloadSize()
 {
-	return Strata::IsStrataEnabled() ? Strata::GetRayTracingMaterialPayloadSizeInBytes() : 64u;
+	if (Strata::IsStrataEnabled())
+	{
+		// All the data from FPackedMaterialClosestHitPayload except FStrataRaytracingPayload (see RayTracingCommon.ush)
+		uint32 PayloadSizeBytes = 6 * sizeof(uint32);
+
+		// The remaining data from FStrataRaytracingPayload.
+		PayloadSizeBytes += Strata::GetRayTracingMaterialPayloadSizeInBytes();
+
+		return PayloadSizeBytes;
+	}
+
+	return 64u;
 }
 
 IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::Default, 24);

@@ -1619,15 +1619,6 @@ namespace Strata
 		return InternalGetBytePerPixel(CVarBudget.Get(InPlatform));
 	}
 
-	static uint32 InternalGetRayTracingMaterialPayloadSizeInBytes(uint32 InBytePerPixels, uint32 InNormalQuality)
-	{
-		// If Strata is enabled, resize the payload accordingly to the byte per pixel request
-		const uint32 HeaderPayload = sizeof(uint32) * (6u); // See FPackedMaterialClosestHitPayload in RayTracingCommon.ush
-		const uint32 TopNormalPayload = sizeof(uint32) * (InNormalQuality == 1 ? 2u : 1u);
-
-		return HeaderPayload + TopNormalPayload + InBytePerPixels;
-	}
-
 	uint32 GetNormalQuality()
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
@@ -1636,12 +1627,29 @@ namespace Strata
 
 	uint32 GetRayTracingMaterialPayloadSizeInBytes()
 	{
-		return InternalGetRayTracingMaterialPayloadSizeInBytes(GetBytePerPixel(), GetNormalQuality());
-	}
+		// The payload size represents FPackedMaterialClosestHitPayload containing FStrataRaytracingPayload composed of 
+		//  (1)- top layer data using a count of STRATA_TOP_LAYER_TYPE uints
+		//  (2)- packed data in a uint32 array of size STRATA_RT_PAYLOAD_NUM_UINTS
 
-	uint32 GetRayTracingMaterialPayloadSizeInBytes(EShaderPlatform InPlatform)
-	{
-		return InternalGetRayTracingMaterialPayloadSizeInBytes(GetBytePerPixel(InPlatform), GetNormalQuality());
+		uint32 PayloadSizeBytes = 0;
+
+		// Account for (1)
+		const uint32 StrataNormalQuality = Strata::GetNormalQuality();
+		check(StrataNormalQuality >= 0 && StrataNormalQuality <= 1);
+		switch (StrataNormalQuality)
+		{
+		case 0:
+			PayloadSizeBytes += 1 * sizeof(uint32);
+			break;
+		case 1:
+			PayloadSizeBytes += 2 * sizeof(uint32);	// with high quality normal
+			break;
+		}
+
+		// Account for (2)
+		PayloadSizeBytes += Strata::GetBytePerPixel();
+
+		return PayloadSizeBytes;
 	}
 
 	bool IsBackCompatibilityEnabled()

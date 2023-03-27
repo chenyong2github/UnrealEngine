@@ -1656,6 +1656,7 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 
 struct FStrataRaytracingPayload
 {
+	// !!! This structure content must be in sync with GetRaytracingMaterialPayloadSize !!!
 	STRATA_TOP_LAYER_TYPE PackedTopLayerData;
 	uint Data[STRATA_RT_PAYLOAD_NUM_UINTS];
 };
