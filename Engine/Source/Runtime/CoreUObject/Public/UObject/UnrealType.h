@@ -5039,39 +5039,6 @@ public:
 		});
 	}
 
-	/**
-	 * Checks if a key in the map matches the specified key
-	 *
-	 * @param	InBaseAddress	The base address of the map
-	 * @param	InKeyValue		The key to find within the map
-	 *
-	 * @return	True if the key is found, false otherwise
-	 */
-	bool HasKey(const void* InBaseAddress, const FString& InKeyValue) const
-	{
-		for (int32 Index = 0, ItemsLeft = Num(); ItemsLeft > 0; ++Index)
-		{
-			if (IsValidIndex(Index))
-			{
-				--ItemsLeft;
-
-				const uint8* PairPtr = GetPairPtr(Index);
-				const uint8* KeyPtr = KeyProp->ContainerPtrToValuePtr<const uint8>(PairPtr);
-
-				FString KeyValue;
-				if (KeyPtr != InBaseAddress && KeyProp->ExportText_Direct(KeyValue, KeyPtr, KeyPtr, nullptr, 0))
-				{
-					if ((CastField<FObjectProperty>(KeyProp) != nullptr && KeyValue.Contains(InKeyValue)) || InKeyValue == KeyValue)
-					{
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
-	}
-
 	static FScriptMapHelper CreateHelperFormInnerProperties(FProperty* InKeyProperty, FProperty* InValProperty, const void *InMap, EMapPropertyFlags InMapFlags = EMapPropertyFlags::None)
 	{
 		return FScriptMapHelper(
