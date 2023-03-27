@@ -25,8 +25,7 @@ namespace EpicGames.UHT.Types
 		/// Construct new property
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
-		/// <param name="intType">Integer type</param>
-		public UhtInt64Property(UhtPropertySettings propertySettings, UhtPropertyIntType intType) : base(propertySettings, intType)
+		public UhtInt64Property(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
 			PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 		}
@@ -64,7 +63,7 @@ namespace EpicGames.UHT.Types
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtProperty? Int64Property(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			return new UhtInt64Property(propertySettings, UhtPropertyIntType.Sized);
+			return new UhtInt64Property(propertySettings);
 		}
 		#endregion
 	}

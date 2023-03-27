@@ -25,8 +25,7 @@ namespace EpicGames.UHT.Types
 		/// Construct new property
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
-		/// <param name="intType">Integer type</param>
-		public UhtInt16Property(UhtPropertySettings propertySettings, UhtPropertyIntType intType) : base(propertySettings, intType)
+		public UhtInt16Property(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
 		}
 
@@ -62,7 +61,7 @@ namespace EpicGames.UHT.Types
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtProperty? Int16Property(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			return new UhtInt16Property(propertySettings, UhtPropertyIntType.Sized);
+			return new UhtInt16Property(propertySettings);
 		}
 		#endregion
 	}

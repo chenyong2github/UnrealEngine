@@ -25,8 +25,7 @@ namespace EpicGames.UHT.Types
 		/// Construct new property
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
-		/// <param name="intType">Integer type</param>
-		public UhtIntProperty(UhtPropertySettings propertySettings, UhtPropertyIntType intType) : base(propertySettings, intType)
+		public UhtIntProperty(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
 			PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}
@@ -34,16 +33,13 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(builder, context, name, nameSuffix, tabs,
-				IntType == UhtPropertyIntType.Unsized ? "FUnsizedIntPropertyParams" : "FIntPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FIntPropertyParams");
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs,
-				IntType == UhtPropertyIntType.Unsized ? "FUnsizedIntPropertyParams" : "FIntPropertyParams",
-				"UECodeGen_Private::EPropertyGenFlags::Int");
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FIntPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Int");
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -67,7 +63,7 @@ namespace EpicGames.UHT.Types
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtProperty? Int32Property(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			return new UhtIntProperty(propertySettings, UhtPropertyIntType.Sized);
+			return new UhtIntProperty(propertySettings);
 		}
 
 		[UhtPropertyType(Keyword = "int", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
@@ -75,7 +71,7 @@ namespace EpicGames.UHT.Types
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtProperty? IntProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			return new UhtIntProperty(propertySettings, UhtPropertyIntType.Unsized);
+			return new UhtIntProperty(propertySettings);
 		}
 
 		[UhtPropertyType(Keyword = "signed", Options = UhtPropertyTypeOptions.Immediate)]
@@ -86,7 +82,7 @@ namespace EpicGames.UHT.Types
 			tokenReader
 				.Require("signed")
 				.Optional("int");
-			return new UhtIntProperty(propertySettings, UhtPropertyIntType.Unsized);
+			return new UhtIntProperty(propertySettings);
 		}
 		#endregion
 	}

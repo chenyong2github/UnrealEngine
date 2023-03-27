@@ -18,20 +18,12 @@ extern FUnrealClassDefinitionInfo* GUInterfaceDef;
 
 FPropertyBase::FPropertyBase(EPropertyType InType)
 	: Type(InType)
-	, IntType(GetSizedIntTypeFromPropertyType(InType))
-{
-}
-
-FPropertyBase::FPropertyBase(EPropertyType InType, EIntType InIntType)
-	: Type(InType)
-	, IntType(InIntType)
 {
 }
 
 FPropertyBase::FPropertyBase(FUnrealEnumDefinitionInfo& InEnumDef, EPropertyType InType)
 	: Type(InType)
 	, EnumDef(&InEnumDef)
-	, IntType(GetSizedIntTypeFromPropertyType(InType))
 {
 }
 
@@ -54,7 +46,6 @@ FPropertyBase::FPropertyBase(FUnrealScriptStructDefinitionInfo& InStructDef)
 FPropertyBase::FPropertyBase(FName InFieldClassName, EPropertyType InType)
 	: Type(InType)
 	, FieldClassName(InFieldClassName)
-	, IntType(GetSizedIntTypeFromPropertyType(InType))
 {
 }
 

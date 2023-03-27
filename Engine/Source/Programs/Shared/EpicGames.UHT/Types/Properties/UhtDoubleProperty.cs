@@ -27,7 +27,7 @@ namespace EpicGames.UHT.Types
 		/// Create new property
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
-		public UhtDoubleProperty(UhtPropertySettings propertySettings) : base(propertySettings, UhtPropertyIntType.None)
+		public UhtDoubleProperty(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
 			PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}

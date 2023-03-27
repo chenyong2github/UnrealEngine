@@ -3100,8 +3100,8 @@ namespace UECodeGen_Private
 		UInt16            = 0x05,
 		UInt32            = 0x06,
 		UInt64            = 0x07,
-		UnsizedInt        = 0x08,
-		UnsizedUInt       = 0x09,
+		//                = 0x08,
+		//                = 0x09,
 		Float             = 0x0A,
 		Double            = 0x0B,
 		Bool              = 0x0C,
@@ -3131,6 +3131,9 @@ namespace UECodeGen_Private
 		ObjectPtr         = 0x40,
 
 	};
+
+	static_assert(std::is_same_v<int32,  int         >, "CoreUObject property system expects int32 to be an int");
+	static_assert(std::is_same_v<uint32, unsigned int>, "CoreUObject property system expects uint32 to be an unsigned int");
 
 	ENUM_CLASS_FLAGS(EPropertyGenFlags)
 
@@ -3483,11 +3486,9 @@ namespace UECodeGen_Private
 	typedef FGenericPropertyParams FInt16PropertyParams;
 	typedef FGenericPropertyParams FIntPropertyParams;
 	typedef FGenericPropertyParams FInt64PropertyParams;
-	typedef FGenericPropertyParams FFInt16PropertyParams;
+	typedef FGenericPropertyParams FUInt16PropertyParams;
 	typedef FGenericPropertyParams FUInt32PropertyParams;
-	typedef FGenericPropertyParams FFInt64PropertyParams;
-	typedef FGenericPropertyParams FUnsizedIntPropertyParams;
-	typedef FGenericPropertyParams FUnsizedFIntPropertyParams;
+	typedef FGenericPropertyParams FUInt64PropertyParams;
 	typedef FGenericPropertyParams FFloatPropertyParams;
 	typedef FGenericPropertyParams FDoublePropertyParams;
 	typedef FGenericPropertyParams FLargeWorldCoordinatesRealPropertyParams;

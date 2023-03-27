@@ -659,8 +659,6 @@ struct FPropertyTypeTraitsInt : public FPropertyTypeTraitsNumericBase
 
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		PropDef.SetUnsized(VarProperty.IntType == EIntType::Unsized);
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -733,8 +731,6 @@ struct FPropertyTypeTraitsUInt32 : public FPropertyTypeTraitsNumericBase
 {
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		PropDef.SetUnsized(VarProperty.IntType == EIntType::Unsized);
 	}
 
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
@@ -1046,7 +1042,6 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 		case EUnderlyingEnumType::uint64:      UnderlyingProperty.Type = CPT_UInt64; break;
 		case EUnderlyingEnumType::Unspecified:
 			UnderlyingProperty.Type = CPT_Int;
-			UnderlyingProperty.IntType = EIntType::Unsized;
 			break;
 
 		default:

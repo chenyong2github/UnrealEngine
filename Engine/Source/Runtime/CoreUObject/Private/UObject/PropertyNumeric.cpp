@@ -300,7 +300,7 @@ FInt64Property::FInt64Property(FFieldVariant InOwner, const UECodeGen_Private::F
 {
 }
 
-FUInt16Property::FUInt16Property(FFieldVariant InOwner, const UECodeGen_Private::FFInt16PropertyParams& Prop)
+FUInt16Property::FUInt16Property(FFieldVariant InOwner, const UECodeGen_Private::FUInt16PropertyParams& Prop)
 	: TProperty_Numeric(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop)
 {
 }
@@ -310,7 +310,7 @@ FUInt32Property::FUInt32Property(FFieldVariant InOwner, const UECodeGen_Private:
 {
 }
 
-FUInt64Property::FUInt64Property(FFieldVariant InOwner, const UECodeGen_Private::FUnsizedIntPropertyParams& Prop)
+FUInt64Property::FUInt64Property(FFieldVariant InOwner, const UECodeGen_Private::FUInt64PropertyParams& Prop)
 	: TProperty_Numeric(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop)
 {
 }

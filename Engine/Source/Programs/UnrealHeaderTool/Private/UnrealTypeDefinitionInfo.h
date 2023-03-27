@@ -981,22 +981,6 @@ public:
 	}
 
 	/**
-	 * Return true if the property is unsized
-	 */
-	bool IsUnsized() const
-	{
-		return bUnsized;
-	}
-
-	/**
-	 * Set the unsized flag
-	 */
-	void SetUnsized(bool bInUnsized)
-	{
-		bUnsized = bInUnsized;
-	}
-
-	/**
 	 * Return the allocator type
 	 */
 	EAllocatorType GetAllocatorType() const
@@ -1165,7 +1149,6 @@ private:
 	EVariableCategory VariableCategory = EVariableCategory::Member;
 	EAccessSpecifier AccessSpecifier = ACCESS_Public;
 	EAllocatorType AllocatorType = EAllocatorType::Default;
-	bool bUnsized = false;
 	bool bSignatureSet = false; // temporary flag to know if we have set the signature
 };
 

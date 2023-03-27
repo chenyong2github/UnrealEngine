@@ -5629,7 +5629,7 @@ namespace UECodeGen_Private
 
 			case EPropertyGenFlags::UInt16:
 			{
-				NewProp = NewFProperty<FUInt16Property, FFInt16PropertyParams>(Outer, *PropBase);
+				NewProp = NewFProperty<FUInt16Property, FUInt16PropertyParams>(Outer, *PropBase);
 			}
 			break;
 
@@ -5641,19 +5641,7 @@ namespace UECodeGen_Private
 
 			case EPropertyGenFlags::UInt64:
 			{
-				NewProp = NewFProperty<FUInt64Property, FFInt64PropertyParams>(Outer, *PropBase);
-			}
-			break;
-
-			case EPropertyGenFlags::UnsizedInt:
-			{
-				NewProp = NewFProperty<FUInt64Property, FUnsizedIntPropertyParams>(Outer, *PropBase);
-			}
-			break;
-
-			case EPropertyGenFlags::UnsizedUInt:
-			{
-				NewProp = NewFProperty<FUInt64Property, FUnsizedFIntPropertyParams>(Outer, *PropBase);
+				NewProp = NewFProperty<FUInt64Property, FUInt64PropertyParams>(Outer, *PropBase);
 			}
 			break;
 

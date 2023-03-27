@@ -50,12 +50,6 @@ namespace EpicGames.UHT.Types
 		public UhtEnumUnderlyingType UnderlyingType => Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? Enum.UnderlyingType : UhtEnumUnderlyingType.Int32;
 
 		/// <summary>
-		/// Underlying type size.  Defaults to unsized if the referenced enum doesn't have an underlying type
-		/// </summary>
-		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public UhtPropertyIntType UnderlyingTypeSize => Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? UhtPropertyIntType.Sized : UhtPropertyIntType.Unsized;
-
-		/// <summary>
 		/// Construct property
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
@@ -316,21 +310,21 @@ namespace EpicGames.UHT.Types
 			switch (UnderlyingType)
 			{
 				case UhtEnumUnderlyingType.Int8:
-					return new UhtInt8Property(propertySettings, UnderlyingTypeSize);
+					return new UhtInt8Property(propertySettings);
 				case UhtEnumUnderlyingType.Int16:
-					return new UhtInt16Property(propertySettings, UnderlyingTypeSize);
+					return new UhtInt16Property(propertySettings);
 				case UhtEnumUnderlyingType.Int32:
-					return new UhtIntProperty(propertySettings, UnderlyingTypeSize);
+					return new UhtIntProperty(propertySettings);
 				case UhtEnumUnderlyingType.Int64:
-					return new UhtInt64Property(propertySettings, UnderlyingTypeSize);
+					return new UhtInt64Property(propertySettings);
 				case UhtEnumUnderlyingType.Uint8:
-					return new UhtByteProperty(propertySettings, UnderlyingTypeSize);
+					return new UhtByteProperty(propertySettings);
 				case UhtEnumUnderlyingType.Uint16:
-					return new UhtUInt16Property(propertySettings, UnderlyingTypeSize);
+					return new UhtUInt16Property(propertySettings);
 				case UhtEnumUnderlyingType.Uint32:
-					return new UhtUInt32Property(propertySettings, UnderlyingTypeSize);
+					return new UhtUInt32Property(propertySettings);
 				case UhtEnumUnderlyingType.Uint64:
-					return new UhtUInt64Property(propertySettings, UnderlyingTypeSize);
+					return new UhtUInt64Property(propertySettings);
 				default:
 					throw new UhtIceException("Unexpected underlying enum type");
 			}
@@ -354,7 +348,7 @@ namespace EpicGames.UHT.Types
 					enumObj = outer.FindType(UhtFindOptions.Enum | UhtFindOptions.SourceName, tokenList, tokenReader) as UhtEnum;
 				})
 				.Require('>');
-			return enumObj != null ? new UhtByteProperty(propertySettings, UhtPropertyIntType.None, enumObj) : null;
+			return enumObj != null ? new UhtByteProperty(propertySettings, enumObj) : null;
 		}
 		#endregion
 	}

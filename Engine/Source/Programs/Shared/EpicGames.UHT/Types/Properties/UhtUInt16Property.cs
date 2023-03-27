@@ -26,21 +26,20 @@ namespace EpicGames.UHT.Types
 		/// Construct a new property
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
-		/// <param name="intType">Integer type</param>
-		public UhtUInt16Property(UhtPropertySettings propertySettings, UhtPropertyIntType intType) : base(propertySettings, intType)
+		public UhtUInt16Property(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FFInt16PropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FUInt16PropertyParams");
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FFInt16PropertyParams", "UECodeGen_Private::EPropertyGenFlags::UInt16");
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FUInt16PropertyParams", "UECodeGen_Private::EPropertyGenFlags::UInt16");
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -69,7 +68,7 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				return new UhtUInt16Property(propertySettings, UhtPropertyIntType.Sized);
+				return new UhtUInt16Property(propertySettings);
 			}
 		}
 		#endregion

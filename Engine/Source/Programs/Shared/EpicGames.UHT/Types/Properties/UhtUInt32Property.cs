@@ -26,8 +26,7 @@ namespace EpicGames.UHT.Types
 		/// Construct a new property
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
-		/// <param name="intType">Integer type</param>
-		public UhtUInt32Property(UhtPropertySettings propertySettings, UhtPropertyIntType intType) : base(propertySettings, intType)
+		public UhtUInt32Property(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
 			PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
 		}
@@ -35,16 +34,13 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(builder, context, name, nameSuffix, tabs,
-				IntType == UhtPropertyIntType.Unsized ? "FUnsizedFIntPropertyParams" : "FUInt32PropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FUInt32PropertyParams");
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs,
-				IntType == UhtPropertyIntType.Unsized ? "FUnsizedFIntPropertyParams" : "FUInt32PropertyParams",
-				"UECodeGen_Private::EPropertyGenFlags::UInt32");
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FUInt32PropertyParams", "UECodeGen_Private::EPropertyGenFlags::UInt32");
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -73,7 +69,7 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				return new UhtUInt32Property(propertySettings, UhtPropertyIntType.Sized);
+				return new UhtUInt32Property(propertySettings);
 			}
 		}
 
@@ -85,7 +81,7 @@ namespace EpicGames.UHT.Types
 			tokenReader
 				.Require("unsigned")
 				.Optional("int");
-			return new UhtUInt32Property(propertySettings, UhtPropertyIntType.Unsized);
+			return new UhtUInt32Property(propertySettings);
 		}
 		#endregion
 	}

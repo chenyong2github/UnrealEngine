@@ -212,28 +212,6 @@ namespace EpicGames.UHT.Types
 	}
 
 	/// <summary>
-	/// Size type of an integer
-	/// </summary>
-	public enum UhtPropertyIntType
-	{
-
-		/// <summary>
-		/// Property is not an integer
-		/// </summary>
-		None,
-
-		/// <summary>
-		/// Property is a sized integer
-		/// </summary>
-		Sized,
-
-		/// <summary>
-		/// Property is an unsized integer
-		/// </summary>
-		Unsized,
-	};
-
-	/// <summary>
 	/// Type of reference
 	/// </summary>
 	public enum UhtPropertyRefQualifier

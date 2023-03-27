@@ -2226,7 +2226,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * @param InOwner Owner of the property
 	 * @param PropBase Pointer to the compiled in structure describing the property
 	 **/
-	FUInt16Property(FFieldVariant InOwner, const UECodeGen_Private::FFInt16PropertyParams& Prop);
+	FUInt16Property(FFieldVariant InOwner, const UECodeGen_Private::FUInt16PropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FUInt16Property(UField* InField)
@@ -2304,7 +2304,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * @param InOwner Owner of the property
 	 * @param PropBase Pointer to the compiled in structure describing the property
 	 **/
-	FUInt64Property(FFieldVariant InOwner, const UECodeGen_Private::FUnsizedIntPropertyParams& Prop);
+	FUInt64Property(FFieldVariant InOwner, const UECodeGen_Private::FUInt64PropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FUInt64Property(UField* InField)
@@ -2313,28 +2313,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 #endif // WITH_EDITORONLY_DATA
 };
-
-
-/*-----------------------------------------------------------------------------
-	Aliases for implicitly-sized integer properties.
------------------------------------------------------------------------------*/
-
-namespace UETypes_Private
-{
-	template <typename IntType> struct TIntegerPropertyMapping;
-
-	template <> struct TIntegerPropertyMapping<int8>   { typedef FInt8Property   Type; };
-	template <> struct TIntegerPropertyMapping<int16>  { typedef FInt16Property  Type; };
-	template <> struct TIntegerPropertyMapping<int32>  { typedef FIntProperty    Type; };
-	template <> struct TIntegerPropertyMapping<int64>  { typedef FInt64Property  Type; };
-	template <> struct TIntegerPropertyMapping<uint8>  { typedef FByteProperty   Type; };
-	template <> struct TIntegerPropertyMapping<uint16> { typedef FUInt16Property Type; };
-	template <> struct TIntegerPropertyMapping<uint32> { typedef FUInt32Property Type; };
-	template <> struct TIntegerPropertyMapping<uint64> { typedef FUInt64Property Type; };
-}
-
-typedef UETypes_Private::TIntegerPropertyMapping<signed int>::Type UUnsizedIntProperty;
-typedef UETypes_Private::TIntegerPropertyMapping<unsigned int>::Type UUnsizedFIntProperty;
 
 
 /*-----------------------------------------------------------------------------

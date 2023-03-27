@@ -41,9 +41,8 @@ namespace EpicGames.UHT.Types
 		/// Construct a new property
 		/// </summary>
 		/// <param name="propertySettings">Property settings</param>
-		/// <param name="intType">Integer type</param>
 		/// <param name="enumObj">Optional referenced enum</param>
-		public UhtByteProperty(UhtPropertySettings propertySettings, UhtPropertyIntType intType, UhtEnum? enumObj = null) : base(propertySettings, intType)
+		public UhtByteProperty(UhtPropertySettings propertySettings, UhtEnum? enumObj = null) : base(propertySettings)
 		{
 			Enum = enumObj;
 			PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
@@ -170,7 +169,7 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				return new UhtByteProperty(propertySettings, UhtPropertyIntType.Sized);
+				return new UhtByteProperty(propertySettings);
 			}
 		}
 		#endregion

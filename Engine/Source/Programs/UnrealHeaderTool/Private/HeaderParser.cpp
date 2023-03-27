@@ -3839,17 +3839,17 @@ void FHeaderParser::GetVarType(
 	}
 	else if ( VarType.IsValue(TEXT("int"), ESearchCase::CaseSensitive) )
 	{
-		VarProperty = FPropertyBase(CPT_Int, EIntType::Unsized);
+		VarProperty = FPropertyBase(CPT_Int);
 	}
 	else if ( VarType.IsValue(TEXT("signed"), ESearchCase::CaseSensitive) )
 	{
 		MatchIdentifier(TEXT("int"), ESearchCase::CaseSensitive);
-		VarProperty = FPropertyBase(CPT_Int, EIntType::Unsized);
+		VarProperty = FPropertyBase(CPT_Int);
 	}
 	else if (VarType.IsValue(TEXT("unsigned"), ESearchCase::CaseSensitive))
 	{
 		MatchIdentifier(TEXT("int"), ESearchCase::CaseSensitive);
-		VarProperty = FPropertyBase(CPT_UInt32, EIntType::Unsized);
+		VarProperty = FPropertyBase(CPT_UInt32);
 	}
 	else if ( VarType.IsValue(TEXT("bool"), ESearchCase::CaseSensitive) )
 	{
