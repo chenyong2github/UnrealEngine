@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -1017,20 +1017,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected virtual void CopyLocalizationsResources(string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir, ILogger Logger)
-		{
-			string LocalizationsPath = BuildDirectory + "/Resources/Localizations";
-			if (Directory.Exists(LocalizationsPath))
-			{
-				Logger.LogInformation("Copy localizations from Resources {LocalizationsPath}, {AppDirectory}", LocalizationsPath, AppDirectory);
-				CopyFolder(BuildDirectory + "/Resources/Localizations", AppDirectory, true, delegate(string InFilename)
-				{
-					if (Path.GetFileName(InFilename).Equals(".DS_Store")) return false;
-					return true;
-				});
-			}
-		}
-
 		public bool PrepForUATPackageOrDeploy(UnrealTargetConfiguration Config, FileReference ProjectFile, string InProjectName, string InProjectDirectory, FileReference Executable, string InEngineDir, bool bForDistribution, string CookFlavor, bool bIsDataDeploy, bool bCreateStubIPA, TargetReceipt Receipt)
 		{
 			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties, Logger);
@@ -1261,8 +1247,6 @@ namespace UnrealBuildTool
 
 			if (!bCreateStubIPA)
 			{
-				CopyLocalizationsResources(InEngineDir, AppDirectory, BuildDirectory, IntermediateDirectory, Logger);
-
 				CopyCloudResources(InProjectDirectory, AppDirectory);
 
 				// copy additional engine framework assets in

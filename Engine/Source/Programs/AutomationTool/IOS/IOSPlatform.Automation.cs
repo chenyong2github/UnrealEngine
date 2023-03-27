@@ -673,6 +673,27 @@ public class IOSPlatform : ApplePlatform
 		return bIsBuiltAsFramework;
 	}
 
+	private void StageCustomLocalizationResources(ProjectParams Params, DeploymentContext SC)
+	{
+		string RelativeResourcesPath = CombinePaths("Build", "IOS", "Resources", "Localizations");
+		DirectoryReference LocalizationDirectory = DirectoryReference.Combine(Params.RawProjectPath.Directory, RelativeResourcesPath);
+		if (DirectoryReference.Exists(LocalizationDirectory))
+		{
+			IEnumerable<DirectoryReference> LocalizationDirsToStage = DirectoryReference.EnumerateDirectories(LocalizationDirectory, "*.lproj", SearchOption.TopDirectoryOnly);
+			LogInformation("There are {0} Localization directories.", LocalizationDirsToStage.Count());
+
+			foreach (DirectoryReference FullLocDirPath in LocalizationDirsToStage)
+			{
+				StagedDirectoryReference LocInStageDir = new StagedDirectoryReference(FullLocDirPath.GetDirectoryName());
+				SC.StageFiles(StagedFileType.SystemNonUFS, FullLocDirPath, StageFilesSearch.TopDirectoryOnly, LocInStageDir);
+			}
+		}
+		else
+		{
+			LogInformation("App has no custom Localization resources");
+		}
+	}
+
 	private void StageCustomLaunchScreenStoryboard(ProjectParams Params, DeploymentContext SC)
 	{
 		string InterfaceSBDirectory = Path.GetDirectoryName(Params.RawProjectPath.FullName) + "/Build/IOS/Resources/Interface/";
@@ -1462,6 +1483,9 @@ public class IOSPlatform : ApplePlatform
 				SC.StageFile(StagedFileType.SystemNonUFS, MuteCafFile, new StagedFileReference("mute.caf"));
 			}
 		}
+
+		// Copy any project defined iOS specific localization resources into Staging (ie: App Display Name)
+		StageCustomLocalizationResources(Params, SC);
 	}
 
 	protected void StageMovieFiles(DirectoryReference InputDir, DeploymentContext SC)
