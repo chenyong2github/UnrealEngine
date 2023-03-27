@@ -219,41 +219,6 @@
 #error Collision between FORCE_FLOATS and PLATFORM_SUPPORTS_REAL_TYPES
 #endif
 
-#ifndef COMPILER_SUPPORTS_PACK_INTRINSICS
-#define COMPILER_SUPPORTS_PACK_INTRINSICS 0
-
-uint PackUInt2ToUInt(uint X, uint Y)
-{
-	return X | (Y << 16u);
-}
-
-#endif
-
-uint PackUInt2ToUInt(uint2 XY)
-{
-	return PackUInt2ToUInt(XY.x, XY.y);
-}
-
-uint2 UnpackUInt2FromUInt(uint Packed)
-{
-	return uint2(Packed & 0xffff, Packed >> 16);
-}
-
-uint PackFloat2ToUInt(float X, float Y)
-{
-	return PackUInt2ToUInt(f32tof16(X), f32tof16(Y));
-}
-
-uint PackFloat2ToUInt(float2 XY)
-{
-	return PackFloat2ToUInt(XY.x, XY.y);
-}
-
-float2 UnpackFloat2FromUInt(uint In)
-{
-	return float2(f16tof32(In), f16tof32(In >> 16));
-}
-
 #ifndef COMPILER_SUPPORTS_WAVE_32_64_MODE
 #define COMPILER_SUPPORTS_WAVE_32_64_MODE 0
 #endif

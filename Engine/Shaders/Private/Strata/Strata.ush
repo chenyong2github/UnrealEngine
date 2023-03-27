@@ -535,8 +535,6 @@ void   EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF);
 void   StrataRequestSharedLocalBasisTangent(inout uint Types, uint Index);
 float3 StrataUnpackNormal(uint PackedNormal);
 void   StrataUnpackNormalAndTangent(inout float3 Normal, inout float3 Tangent, in uint InPacked);
-uint   PackR8(float Value);
-float  UnpackR8(uint Value);
 uint   PackRGBA8(float4 rgba);
 float4 UnpackRGBA8(uint rgba);
 uint   Pack10F(float Value);
@@ -3094,20 +3092,6 @@ float4 UnpackColorGamma2ToLinearAlphaLinear(uint In)
 {
 	float4 Out = UnpackRGBA8(In);
 	return float4(StrataSrgbToLinear(Out.rgb), Out.a);
-}
-
-uint PackR8(float Value)
-{
-	return uint(saturate(Value) * 255.0f);
-}
-
-float UnpackR8(uint In)
-{
-#if COMPILER_SUPPORTS_UNPACKBYTEN
-	return UnpackByte0(In) * (1.0f / 255.0f);
-#else
-	return float(In & 0xFF) * (1.0f / 255.0f);
-#endif
 }
 
 uint PackRGBA8(float4 In)

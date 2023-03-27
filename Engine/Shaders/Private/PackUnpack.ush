@@ -1,0 +1,108 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	PackUnpack.ush: Common shader code for packing and unpacking data. 
+					Automatically included from Common.ush.
+=============================================================================*/
+
+#pragma once
+
+#include "/Engine/Public/Platform.ush"
+
+//
+//	float2 <-> Unorm
+//
+
+uint PackUnorm2x16(float2 v)
+{
+	uint2 sv = uint2(round(clamp(v, 0.0, 1.0) * 65535.0));
+	return (sv.x | (sv.y << 16u));
+}
+
+float2 UnpackUnorm2x16(uint p)
+{
+	float2 Ret;
+	Ret.x = (p & 0xffff) * rcp(65535.0f);
+	Ret.y = (p >> 16u) * rcp(65535.0f);
+	return Ret;
+}
+
+//
+//	float2 <-> Snorm
+//
+
+uint PackSnorm2x16(float2 v)
+{
+	uint2 sv = uint2(round(clamp(v, -1.0, 1.0) * 32767.0) + 32767.0);
+	return (sv.x | (sv.y << 16u));
+}
+
+float2 UnpackSnorm2x16(uint p)
+{
+	float2 Ret;
+	Ret.x = clamp((float(p & 0xffff) - 32767.0f) * rcp(32767.0f), -1.0, 1.0);
+	Ret.y = clamp((float(p >> 16u) - 32767.0f) * rcp(32767.0f), -1.0, 1.0);
+	return Ret;
+}
+
+//
+//	uint2 <-> uint
+//
+
+#ifndef COMPILER_SUPPORTS_PACK_INTRINSICS
+#define COMPILER_SUPPORTS_PACK_INTRINSICS 0
+
+uint PackUInt2ToUInt(uint X, uint Y)
+{
+	return X | (Y << 16u);
+}
+
+#endif
+
+uint PackUInt2ToUInt(uint2 XY)
+{
+	return PackUInt2ToUInt(XY.x, XY.y);
+}
+
+uint2 UnpackUInt2FromUInt(uint Packed)
+{
+	return uint2(Packed & 0xffff, Packed >> 16);
+}
+
+//
+//	float2 <-> uint
+//
+
+uint PackFloat2ToUInt(float X, float Y)
+{
+	return PackUInt2ToUInt(f32tof16(X), f32tof16(Y));
+}
+
+uint PackFloat2ToUInt(float2 XY)
+{
+	return PackFloat2ToUInt(XY.x, XY.y);
+}
+
+float2 UnpackFloat2FromUInt(uint In)
+{
+	return float2(f16tof32(In), f16tof32(In >> 16));
+}
+
+//
+//	float <-> u8
+//
+
+uint PackR8(float Value)
+{
+	return uint(saturate(Value) * 255.0f);
+}
+
+float UnpackR8(uint In)
+{
+#if COMPILER_SUPPORTS_UNPACKBYTEN
+	return UnpackByte0(In) * (1.0f / 255.0f);
+#else
+	return float(In & 0xFF) * (1.0f / 255.0f);
+#endif
+}
+

@@ -7,6 +7,9 @@
 #pragma once
 
 #include "/Engine/Public/Platform.ush"
+
+#include "PackUnpack.ush"
+
 // These types are used for material translator generated code, or any functions the translated code can call
 #if PIXELSHADER && !FORCE_MATERIAL_FLOAT_FULL_PRECISION
 	#define MaterialFloat half
@@ -897,34 +900,6 @@ float4 ConvertTangentSnormToUnorm16(float4 Input)
 // We don't use a function so we can avoid type promotion/ coercion.
 #define TangentBias(X)		(X)
 #define TangentUnbias(X)	(X)
-
-uint PackUnorm2x16(float2 v)
-{
-	uint2 sv = uint2(round(clamp(v, 0.0, 1.0) * 65535.0));
-	return (sv.x | (sv.y << 16u));
-}
-
-uint PackSnorm2x16(float2 v)
-{
-	uint2 sv = uint2(round(clamp(v, -1.0, 1.0) * 32767.0) + 32767.0);
-	return (sv.x | (sv.y << 16u));
-}
-
-float2 UnpackUnorm2x16(uint p)
-{
-	float2 Ret;
-	Ret.x = (p & 0xffff) * rcp(65535.0f);
-	Ret.y = (p >> 16u) * rcp(65535.0f);
-	return Ret;
-}
-
-float2 UnpackSnorm2x16(uint p)
-{
-	float2 Ret;
-	Ret.x = clamp((float(p & 0xffff) - 32767.0f) * rcp(32767.0f), -1.0, 1.0);
-	Ret.y = clamp((float(p >> 16u) - 32767.0f) * rcp(32767.0f), -1.0, 1.0);
-	return Ret;
-}
 
 float Square( float x )
 {
