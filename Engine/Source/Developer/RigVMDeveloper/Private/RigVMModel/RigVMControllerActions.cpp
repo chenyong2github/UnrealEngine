@@ -38,9 +38,20 @@ const UScriptStruct* FRigVMActionWrapper::GetScriptStruct() const
 	return CastChecked<UScriptStruct>(StructOnScope->GetStruct());
 }
 
-FRigVMBaseAction* FRigVMActionWrapper::GetAction() const
+FRigVMBaseAction* FRigVMActionWrapper::GetAction(URigVMController* InLastController) const
 {
-	return (FRigVMBaseAction*)StructOnScope->GetStructMemory();
+	FRigVMBaseAction* Action = (FRigVMBaseAction*)StructOnScope->GetStructMemory();
+
+	// reuse the last controller so that we don't have to rely on resolving it
+	// from the soft object path each time
+	if(InLastController != nullptr && !Action->WeakController.IsValid())
+	{
+		if(Action->ControllerPath.ToString() == InLastController->GetPathName())
+		{
+			Action->WeakController = InLastController;
+		}
+	}
+	return Action;
 }
 
 FString FRigVMActionWrapper::ExportText() const
@@ -55,9 +66,9 @@ FString FRigVMActionWrapper::ExportText() const
 	return ExportedText;
 }
 
-bool URigVMActionStack::OpenUndoBracket(const FString& InTitle)
+bool URigVMActionStack::OpenUndoBracket(URigVMController* InController, const FString& InTitle)
 {
-	FRigVMBaseAction* Action = new FRigVMBaseAction;
+	FRigVMBaseAction* Action = new FRigVMBaseAction(InController);
 	Action->Title = InTitle;
 	BracketActions.Add(Action);
 	BeginAction(*Action);
@@ -81,16 +92,14 @@ bool URigVMActionStack::CancelUndoBracket(URigVMController* InController)
 {
 	ensure(BracketActions.Num() > 0);
 	FRigVMBaseAction* Action = BracketActions.Pop();
-	CancelAction(*Action, InController);
+	CancelAction(*Action);
 	delete(Action);
 	return true;
 }
 
 bool URigVMActionStack::Undo(URigVMController* InController)
 {
-	check(InController)
-
-	if (UndoActions.Num() == 0)
+	if (UndoActions.Num() == 0 && InController)
 	{
 		InController->ReportWarning(TEXT("Nothing to undo."));
 		return false;
@@ -106,21 +115,22 @@ bool URigVMActionStack::Undo(URigVMController* InController)
 	LogAction(Wrapper.GetScriptStruct(), *Wrapper.GetAction(), FRigVMBaseAction::UndoPrefix);
 #endif
 	
-	if (Wrapper.GetAction()->Undo(InController))
+	if (Wrapper.GetAction(InController)->Undo())
 	{
 		RedoActions.Add(KeyToUndo);
 		return true;
 	}
 
-	InController->ReportAndNotifyErrorf(TEXT("Error while undoing action %s."), *Wrapper.GetAction()->Title);
+	if(InController)
+	{
+		InController->ReportAndNotifyErrorf(TEXT("Error while undoing action %s."), *Wrapper.GetAction()->Title);
+	}
 	return false;
 }
 
 bool URigVMActionStack::Redo(URigVMController* InController)
 {
-	check(InController)
-
-	if (RedoActions.Num() == 0)
+	if (RedoActions.Num() == 0 && InController)
 	{
 		InController->ReportWarning(TEXT("Nothing to redo."));
 		return false;
@@ -135,14 +145,17 @@ bool URigVMActionStack::Redo(URigVMController* InController)
 	LogAction(Wrapper.GetScriptStruct(), *Wrapper.GetAction(), FRigVMBaseAction::RedoPrefix);
 #endif
 	
-	if (Wrapper.GetAction()->Redo(InController))
+	if (Wrapper.GetAction(InController)->Redo())
 	{
 		UndoActions.Add(KeyToRedo);
 		ActionIndex = UndoActions.Num();
 		return true;
 	}
 
-	InController->ReportAndNotifyErrorf(TEXT("Error while undoing action %s."), *Wrapper.GetAction()->Title);
+	if(InController)
+	{
+		InController->ReportAndNotifyErrorf(TEXT("Error while undoing action %s."), *Wrapper.GetAction()->Title);
+	}
 	return false;
 }
 
@@ -152,12 +165,6 @@ void URigVMActionStack::PostTransacted(const FTransactionObjectEvent& Transactio
 {
 	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
 	{
-		URigVMController* Controller = Cast< URigVMController>(GetOuter());
-		if (Controller == nullptr)
-		{
-			return;
-		}
-
 		int32 DesiredActionIndex = ActionIndex;
 		ActionIndex = UndoActions.Num();
 
@@ -174,7 +181,7 @@ void URigVMActionStack::PostTransacted(const FTransactionObjectEvent& Transactio
 			{
 				break;
 			}
-			if (!Undo(Controller))
+			if (!Undo(nullptr))
 			{
 				ModifiedEvent.Broadcast(ERigVMGraphNotifType::InteractionBracketCanceled, nullptr, nullptr);
 				return;
@@ -186,7 +193,7 @@ void URigVMActionStack::PostTransacted(const FTransactionObjectEvent& Transactio
 			{
 				break;
 			}
-			if (!Redo(Controller))
+			if (!Redo(nullptr))
 			{
 				ModifiedEvent.Broadcast(ERigVMGraphNotifType::InteractionBracketCanceled, nullptr, nullptr);
 				return;
@@ -206,7 +213,7 @@ void URigVMActionStack::LogAction(const UScriptStruct* InActionStruct, const FRi
 		return;
 	}
 	
-	if(URigVMController* Controller = GetTypedOuter<URigVMController>())
+	if(URigVMController* Controller = InAction.GetController())
 	{
 		static TArray<FString> TabPrefix = {TEXT(""), TEXT("  ")};
 
@@ -221,11 +228,12 @@ void URigVMActionStack::LogAction(const UScriptStruct* InActionStruct, const FRi
 
 	if(InPrefix == FRigVMBaseAction::AddActionPrefix)
 	{
+		URigVMController* Controller = InAction.GetController();
 		TGuardValue<int32> ActionDepthGuard(LogActionDepth, LogActionDepth + 1);
 		for(const FRigVMActionKey& SubAction : InAction.SubActions)
 		{
 			const FRigVMActionWrapper Wrapper(SubAction);
-			LogAction(Wrapper.GetScriptStruct(), *Wrapper.GetAction(), InPrefix);
+			LogAction(Wrapper.GetScriptStruct(), *Wrapper.GetAction(Controller), InPrefix);
 		}
 	}
 }
@@ -234,6 +242,18 @@ void URigVMActionStack::LogAction(const UScriptStruct* InActionStruct, const FRi
 
 #endif
 
+
+URigVMController* FRigVMBaseAction::GetController() const
+{
+	if(!WeakController.IsValid())
+	{
+		if(URigVMController* Controller = Cast<URigVMController>(ControllerPath.ResolveObject()))
+		{
+			WeakController = Controller;
+		}
+	}
+	return WeakController.Get();
+}
 
 bool FRigVMBaseAction::Merge(const FRigVMBaseAction* Other)
 {
@@ -245,62 +265,79 @@ bool FRigVMBaseAction::MakesObsolete(const FRigVMBaseAction* Other) const
 	return false;
 }
 
-bool FRigVMBaseAction::Undo(URigVMController* InController)
+bool FRigVMBaseAction::Undo()
 {
+	URigVMController* Controller = GetController();
+	if(Controller == nullptr)
+	{
+		return false;
+	}
+
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG		
-	URigVMActionStack* Stack = InController->ActionStack;
+	URigVMActionStack* Stack = Controller->GetActionStack();
 	check(Stack);
 	TGuardValue<int32> TabDepthGuard(Stack->LogActionDepth, Stack->LogActionDepth + 1);
 #endif
-	TGuardValue<bool> TransactionGuard(InController->bIsTransacting, true);
+	TGuardValue<bool> TransactionGuard(Controller->bIsTransacting, true);
 
 	bool Result = true;
 	for (int32 KeyIndex = SubActions.Num() - 1; KeyIndex >= 0; KeyIndex--)
 	{
 		FRigVMActionWrapper Wrapper(SubActions[KeyIndex]);
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG		
-		Wrapper.GetAction()->LogAction(InController, UndoPrefix);
+		Wrapper.GetAction(Controller)->LogAction(UndoPrefix);
 #endif
-		if(!Wrapper.GetAction()->Undo(InController))
+		if(!Wrapper.GetAction(Controller)->Undo())
 		{
-			InController->ReportAndNotifyErrorf(TEXT("Error while undoing action '%s'."), *Wrapper.GetAction()->Title);
+			Controller->ReportAndNotifyErrorf(TEXT("Error while undoing action '%s'."), *Wrapper.GetAction(Controller)->Title);
 			Result = false;
 		}
 	}
 	return Result;
 }
 
-bool FRigVMBaseAction::Redo(URigVMController* InController)
+bool FRigVMBaseAction::Redo()
 {
+	URigVMController* Controller = GetController();
+	if(Controller == nullptr)
+	{
+		return false;
+	}
+
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG		
-	URigVMActionStack* Stack = InController->ActionStack;
+	URigVMActionStack* Stack = Controller->GetActionStack();
 	check(Stack);
 	TGuardValue<int32> TabDepthGuard(Stack->LogActionDepth, Stack->LogActionDepth + 1);
 #endif
-	TGuardValue<bool> TransactionGuard(InController->bIsTransacting, true);
+	TGuardValue<bool> TransactionGuard(Controller->bIsTransacting, true);
 
 	bool Result = true;
 	for (int32 KeyIndex = 0; KeyIndex < SubActions.Num(); KeyIndex++)
 	{
 		FRigVMActionWrapper Wrapper(SubActions[KeyIndex]);
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG		
-		Wrapper.GetAction()->LogAction(InController, RedoPrefix);
+		Wrapper.GetAction()->LogAction(RedoPrefix);
 #endif
-		if (!Wrapper.GetAction()->Redo(InController))
+		if (!Wrapper.GetAction()->Redo())
 		{
-			InController->ReportAndNotifyErrorf(TEXT("Error while redoing action '%s'."), *Wrapper.GetAction()->Title);
+			Controller->ReportAndNotifyErrorf(TEXT("Error while redoing action '%s'."), *Wrapper.GetAction()->Title);
 			Result = false;
 		}
 	}
 	return Result;
 }
 
-bool FRigVMBaseAction::StoreNode(const URigVMNode* InNode, URigVMController* InController, bool bIsPriorChange)
+bool FRigVMBaseAction::StoreNode(const URigVMNode* InNode, bool bIsPriorChange)
 {
-	check(InNode);
-	check(InController);
+	URigVMController* Controller = GetController();
+	if(Controller == nullptr)
+	{
+		return false;
+	}
 
-	const FString& Content = InController->ExportNodesToText({InNode->GetFName()}, true);
+	check(InNode);
+
+	const FString& Content = Controller->ExportNodesToText({InNode->GetFName()}, true);
 	if(!Content.IsEmpty())
 	{
 		FRigVMActionNodeContent& StoredContent = ExportedNodes.FindOrAdd(InNode->GetFName());
@@ -316,25 +353,29 @@ bool FRigVMBaseAction::StoreNode(const URigVMNode* InNode, URigVMController* InC
 	return !Content.IsEmpty();
 }
 
-bool FRigVMBaseAction::RestoreNode(const FName& InNodeName, URigVMController* InController, bool bIsUndoing)
+bool FRigVMBaseAction::RestoreNode(const FName& InNodeName, bool bIsUndoing)
 {
-	URigVMGraph* Graph = InController->GetGraph();
+	URigVMController* Controller = GetController();
+	if(Controller == nullptr)
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = Controller->GetGraph();
 	check(Graph);
 
 	FRigVMActionNodeContent& Content = ExportedNodes.FindChecked(InNodeName);
 
-	//TArray<URigVMController::FLinkedPath> LinkedPaths;
 	if(URigVMNode* ExistingNode = Graph->FindNodeByName(InNodeName))
 	{
-		//LinkedPaths = InController->GetLinkedPaths(ExistingNode);
-		if(!InController->RemoveNode(ExistingNode, false, false))
+		if(!Controller->RemoveNode(ExistingNode, false, false))
 		{
 			return false;
 		}
 	}
 
 	const FString& ContentToImport = bIsUndoing ? Content.Old : Content.New;
-	const TArray<FName> ImportedNodeNames = InController->ImportNodesFromText(ContentToImport, false, false);
+	const TArray<FName> ImportedNodeNames = Controller->ImportNodesFromText(ContentToImport, false, false);
 	if(ImportedNodeNames.Num() == 1)
 	{
 		if(!ImportedNodeNames[0].IsEqual(InNodeName, ENameCase::CaseSensitive))
@@ -343,25 +384,20 @@ bool FRigVMBaseAction::RestoreNode(const FName& InNodeName, URigVMController* In
 		}
 	}
 
-	/*
-	if(!LinkedPaths.IsEmpty())
-	{
-		if(!InController->RestoreLinkedPaths(LinkedPaths))
-		{
-			return false;
-		}
-	}
-	*/
-	
 	return true;
 }
 
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG
 
-void FRigVMBaseAction::LogAction(URigVMController* InController, const FString& InPrefix) const
+void FRigVMBaseAction::LogAction(const FString& InPrefix) const
 {
-	check(InController);
-	URigVMActionStack* Stack = InController->ActionStack;
+	URigVMController* Controller = GetController();
+	if(Controller == nullptr)
+	{
+		return;
+	}
+	
+	URigVMActionStack* Stack = Controller->GetActionStack();
 	check(Stack);
 	TGuardValue<int32> TabDepthGuard(Stack->LogActionDepth, Stack->LogActionDepth + 1);
 
@@ -371,18 +407,20 @@ void FRigVMBaseAction::LogAction(URigVMController* InController, const FString& 
 #endif
 
 FRigVMInjectNodeIntoPinAction::FRigVMInjectNodeIntoPinAction()
-	: PinPath()
-	, bAsInput(false)
-	, InputPinName(NAME_None)
-	, OutputPinName(NAME_None)
-	, NodePath()
+: FRigVMBaseAction(nullptr)
+, PinPath()
+, bAsInput(false)
+, InputPinName(NAME_None)
+, OutputPinName(NAME_None)
+, NodePath()
 {
 }
 
-FRigVMInjectNodeIntoPinAction::FRigVMInjectNodeIntoPinAction(URigVMInjectionInfo* InInjectionInfo)
-	: PinPath(InInjectionInfo->GetPin()->GetPinPath())
-	, bAsInput(InInjectionInfo->bInjectedAsInput)
-	, NodePath(InInjectionInfo->Node->GetName())
+FRigVMInjectNodeIntoPinAction::FRigVMInjectNodeIntoPinAction(URigVMController* InController, URigVMInjectionInfo* InInjectionInfo)
+: FRigVMBaseAction(InController)
+, PinPath(InInjectionInfo->GetPin()->GetPinPath())
+, bAsInput(InInjectionInfo->bInjectedAsInput)
+, NodePath(InInjectionInfo->Node->GetName())
 {
 	if (InInjectionInfo->InputPin)
 	{
@@ -394,60 +432,74 @@ FRigVMInjectNodeIntoPinAction::FRigVMInjectNodeIntoPinAction(URigVMInjectionInfo
 	}
 }
 
-bool FRigVMInjectNodeIntoPinAction::Undo(URigVMController* InController)
+bool FRigVMInjectNodeIntoPinAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->EjectNodeFromPin(*PinPath, false) != nullptr;
+	return GetController()->EjectNodeFromPin(*PinPath, false) != nullptr;
 }
 
-bool FRigVMInjectNodeIntoPinAction::Redo(URigVMController* InController)
+bool FRigVMInjectNodeIntoPinAction::Redo()
 {
-#if WITH_EDITOR
-	if (URigVMInjectionInfo* InjectionInfo = InController->InjectNodeIntoPin(PinPath, bAsInput, InputPinName, OutputPinName, false))
+	if(!CanUndoRedo())
 	{
-		return FRigVMBaseAction::Redo(InController);
+		return false;
+	}
+#if WITH_EDITOR
+	if (URigVMInjectionInfo* InjectionInfo = GetController()->InjectNodeIntoPin(PinPath, bAsInput, InputPinName, OutputPinName, false))
+	{
+		return FRigVMBaseAction::Redo();
 	}
 #endif
 	return false;
 }
 
 FRigVMEjectNodeFromPinAction::FRigVMEjectNodeFromPinAction()
-	: FRigVMInjectNodeIntoPinAction()
+: FRigVMInjectNodeIntoPinAction()
 {
 }
 
-FRigVMEjectNodeFromPinAction::FRigVMEjectNodeFromPinAction(URigVMInjectionInfo* InInjectionInfo)
-	: FRigVMInjectNodeIntoPinAction(InInjectionInfo)
+FRigVMEjectNodeFromPinAction::FRigVMEjectNodeFromPinAction(URigVMController* InController, URigVMInjectionInfo* InInjectionInfo)
+: FRigVMInjectNodeIntoPinAction(InController, InInjectionInfo)
 {
 }
 
-bool FRigVMEjectNodeFromPinAction::Undo(URigVMController* InController)
+bool FRigVMEjectNodeFromPinAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
 #if WITH_EDITOR
-	const URigVMInjectionInfo* InjectionInfo = InController->InjectNodeIntoPin(PinPath, bAsInput, InputPinName, OutputPinName, false);
+	const URigVMInjectionInfo* InjectionInfo = GetController()->InjectNodeIntoPin(PinPath, bAsInput, InputPinName, OutputPinName, false);
 	return InjectionInfo != nullptr;
 #else
 	return false;
 #endif
 }
 
-bool FRigVMEjectNodeFromPinAction::Redo(URigVMController* InController)
+bool FRigVMEjectNodeFromPinAction::Redo()
 {
-	if (InController->EjectNodeFromPin(*PinPath, false) != nullptr)
+	if(!CanUndoRedo())
 	{
-		return FRigVMBaseAction::Redo(InController);
+		return false;
+	}
+	if (GetController()->EjectNodeFromPin(*PinPath, false) != nullptr)
+	{
+		return FRigVMBaseAction::Redo();
 	}
 	return false;
 }
 
-FRigVMRemoveNodesAction::FRigVMRemoveNodesAction(TArray<URigVMNode*> InNodes, URigVMController* InController)
+FRigVMRemoveNodesAction::FRigVMRemoveNodesAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMRemoveNodesAction::FRigVMRemoveNodesAction(URigVMController* InController, TArray<URigVMNode*> InNodes)
+: FRigVMBaseAction(InController)
 {
 	Algo::Transform(InNodes, NodeNames, [](const URigVMNode* Node) -> FName
 	{
@@ -456,55 +508,73 @@ FRigVMRemoveNodesAction::FRigVMRemoveNodesAction(TArray<URigVMNode*> InNodes, UR
 	ExportedContent = InController->ExportNodesToText(NodeNames, true);
 }
 
-bool FRigVMRemoveNodesAction::Undo(URigVMController* InController)
+bool FRigVMRemoveNodesAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	const TArray<FName> NewNodeNames = InController->ImportNodesFromText(ExportedContent, false, false);
+	const TArray<FName> NewNodeNames = GetController()->ImportNodesFromText(ExportedContent, false, false);
 	return NewNodeNames.Num() == NodeNames.Num();
 }
 
-bool FRigVMRemoveNodesAction::Redo(URigVMController* InController)
+bool FRigVMRemoveNodesAction::Redo()
 {
-	if(InController->RemoveNodesByName(NodeNames, false, false))
+	if(!CanUndoRedo())
 	{
-		return FRigVMBaseAction::Redo(InController);
+		return false;
+	}
+	if(GetController()->RemoveNodesByName(NodeNames, false, false))
+	{
+		return FRigVMBaseAction::Redo();
 	}
 	return false;
 }
 
 FRigVMSetNodeSelectionAction::FRigVMSetNodeSelectionAction()
+: FRigVMBaseAction(nullptr)
 {
 }
 
-FRigVMSetNodeSelectionAction::FRigVMSetNodeSelectionAction(URigVMGraph* InGraph, TArray<FName> InNewSelection)
+FRigVMSetNodeSelectionAction::FRigVMSetNodeSelectionAction(URigVMController* InController, URigVMGraph* InGraph, TArray<FName> InNewSelection)
+: FRigVMBaseAction(InController)
 {
 	OldSelection = InGraph->GetSelectNodes();
 	NewSelection = InNewSelection;
 }
 
-bool FRigVMSetNodeSelectionAction::Undo(URigVMController* InController)
+bool FRigVMSetNodeSelectionAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetNodeSelection(OldSelection, false);
+	return GetController()->SetNodeSelection(OldSelection, false);
 }
 
-bool FRigVMSetNodeSelectionAction::Redo(URigVMController* InController)
+bool FRigVMSetNodeSelectionAction::Redo()
 {
-	if(!InController->SetNodeSelection(NewSelection, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->SetNodeSelection(NewSelection, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetNodePositionAction::FRigVMSetNodePositionAction(URigVMNode* InNode, const FVector2D& InNewPosition)
-: NodePath(InNode->GetNodePath())
+FRigVMSetNodePositionAction::FRigVMSetNodePositionAction()
+: FRigVMBaseAction(nullptr)
+, OldPosition(FVector2D::ZeroVector)
+, NewPosition(FVector2D::ZeroVector)
+{
+}
+
+FRigVMSetNodePositionAction::FRigVMSetNodePositionAction(URigVMController* InController, URigVMNode* InNode, const FVector2D& InNewPosition)
+: FRigVMBaseAction(InController)
+, NodePath(InNode->GetNodePath())
 , OldPosition(InNode->GetPosition())
 , NewPosition(InNewPosition)
 {
@@ -527,26 +597,38 @@ bool FRigVMSetNodePositionAction::Merge(const FRigVMBaseAction* Other)
 	return true;
 }
 
-bool FRigVMSetNodePositionAction::Undo(URigVMController* InController)
+bool FRigVMSetNodePositionAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetNodePositionByName(*NodePath, OldPosition, false);
+	return GetController()->SetNodePositionByName(*NodePath, OldPosition, false);
 }
 
-bool FRigVMSetNodePositionAction::Redo(URigVMController* InController)
+bool FRigVMSetNodePositionAction::Redo()
 {
-	if(!InController->SetNodePositionByName(*NodePath, NewPosition, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->SetNodePositionByName(*NodePath, NewPosition, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetNodeSizeAction::FRigVMSetNodeSizeAction(URigVMNode* InNode, const FVector2D& InNewSize)
-: NodePath(InNode->GetNodePath())
+FRigVMSetNodeSizeAction::FRigVMSetNodeSizeAction()
+: FRigVMBaseAction(nullptr)
+, OldSize(FVector2D::ZeroVector)
+, NewSize(FVector2D::ZeroVector)
+{
+}
+
+FRigVMSetNodeSizeAction::FRigVMSetNodeSizeAction(URigVMController* InController, URigVMNode* InNode, const FVector2D& InNewSize)
+: FRigVMBaseAction(InController)
+, NodePath(InNode->GetNodePath())
 , OldSize(InNode->GetSize())
 , NewSize(InNewSize)
 {
@@ -569,26 +651,38 @@ bool FRigVMSetNodeSizeAction::Merge(const FRigVMBaseAction* Other)
 	return true;
 }
 
-bool FRigVMSetNodeSizeAction::Undo(URigVMController* InController)
+bool FRigVMSetNodeSizeAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetNodeSizeByName(*NodePath, OldSize, false);
+	return GetController()->SetNodeSizeByName(*NodePath, OldSize, false);
 }
 
-bool FRigVMSetNodeSizeAction::Redo(URigVMController* InController)
+bool FRigVMSetNodeSizeAction::Redo()
 {
-	if(!InController->SetNodeSizeByName(*NodePath, NewSize, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->SetNodeSizeByName(*NodePath, NewSize, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetNodeColorAction::FRigVMSetNodeColorAction(URigVMNode* InNode, const FLinearColor& InNewColor)
-: NodePath(InNode->GetNodePath())
+FRigVMSetNodeColorAction::FRigVMSetNodeColorAction()
+: FRigVMBaseAction(nullptr)
+, OldColor(FLinearColor::Black)
+, NewColor(FLinearColor::Black)
+{
+}
+
+FRigVMSetNodeColorAction::FRigVMSetNodeColorAction(URigVMController* InController, URigVMNode* InNode, const FLinearColor& InNewColor)
+: FRigVMBaseAction(InController)
+, NodePath(InNode->GetNodePath())
 , OldColor(InNode->GetNodeColor())
 , NewColor(InNewColor)
 {
@@ -611,28 +705,40 @@ bool FRigVMSetNodeColorAction::Merge(const FRigVMBaseAction* Other)
 	return true;
 }
 
-bool FRigVMSetNodeColorAction::Undo(URigVMController* InController)
+bool FRigVMSetNodeColorAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetNodeColorByName(*NodePath, OldColor, false);
+	return GetController()->SetNodeColorByName(*NodePath, OldColor, false);
 }
 
-bool FRigVMSetNodeColorAction::Redo(URigVMController* InController)
+bool FRigVMSetNodeColorAction::Redo()
 {
-	if(!InController->SetNodeColorByName(*NodePath, NewColor, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->SetNodeColorByName(*NodePath, NewColor, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetNodeCategoryAction::FRigVMSetNodeCategoryAction(URigVMCollapseNode* InNode, const FString& InNewCategory)
-	: NodePath(InNode->GetNodePath())
-	, OldCategory(InNode->GetNodeCategory())
-	, NewCategory(InNewCategory)
+FRigVMSetNodeCategoryAction::FRigVMSetNodeCategoryAction()
+: FRigVMBaseAction(nullptr)
+, OldCategory()
+, NewCategory()
+{
+}
+
+FRigVMSetNodeCategoryAction::FRigVMSetNodeCategoryAction(URigVMController* InController, URigVMCollapseNode* InNode, const FString& InNewCategory)
+: FRigVMBaseAction(InController)
+, NodePath(InNode->GetNodePath())
+, OldCategory(InNode->GetNodeCategory())
+, NewCategory(InNewCategory)
 {
 }
 
@@ -653,28 +759,40 @@ bool FRigVMSetNodeCategoryAction::Merge(const FRigVMBaseAction* Other)
 	return true;
 }
 
-bool FRigVMSetNodeCategoryAction::Undo(URigVMController* InController)
+bool FRigVMSetNodeCategoryAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetNodeCategoryByName(*NodePath, OldCategory, false);
+	return GetController()->SetNodeCategoryByName(*NodePath, OldCategory, false);
 }
 
-bool FRigVMSetNodeCategoryAction::Redo(URigVMController* InController)
+bool FRigVMSetNodeCategoryAction::Redo()
 {
-	if (!InController->SetNodeCategoryByName(*NodePath, NewCategory, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if (!GetController()->SetNodeCategoryByName(*NodePath, NewCategory, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetNodeKeywordsAction::FRigVMSetNodeKeywordsAction(URigVMCollapseNode* InNode, const FString& InNewKeywords)
-	: NodePath(InNode->GetNodePath())
-	, OldKeywords(InNode->GetNodeKeywords())
-	, NewKeywords(InNewKeywords)
+FRigVMSetNodeKeywordsAction::FRigVMSetNodeKeywordsAction()
+: FRigVMBaseAction(nullptr)
+, OldKeywords()
+, NewKeywords()
+{
+}
+
+FRigVMSetNodeKeywordsAction::FRigVMSetNodeKeywordsAction(URigVMController* InController, URigVMCollapseNode* InNode, const FString& InNewKeywords)
+: FRigVMBaseAction(InController)
+, NodePath(InNode->GetNodePath())
+, OldKeywords(InNode->GetNodeKeywords())
+, NewKeywords(InNewKeywords)
 {
 }
 
@@ -695,28 +813,40 @@ bool FRigVMSetNodeKeywordsAction::Merge(const FRigVMBaseAction* Other)
 	return true;
 }
 
-bool FRigVMSetNodeKeywordsAction::Undo(URigVMController* InController)
+bool FRigVMSetNodeKeywordsAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetNodeKeywordsByName(*NodePath, OldKeywords, false);
+	return GetController()->SetNodeKeywordsByName(*NodePath, OldKeywords, false);
 }
 
-bool FRigVMSetNodeKeywordsAction::Redo(URigVMController* InController)
+bool FRigVMSetNodeKeywordsAction::Redo()
 {
-	if (!InController->SetNodeKeywordsByName(*NodePath, NewKeywords, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if (!GetController()->SetNodeKeywordsByName(*NodePath, NewKeywords, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetNodeDescriptionAction::FRigVMSetNodeDescriptionAction(URigVMCollapseNode* InNode, const FString& InNewDescription)
-	: NodePath(InNode->GetNodePath())
-	, OldDescription(InNode->GetNodeDescription())
-	, NewDescription(InNewDescription)
+FRigVMSetNodeDescriptionAction::FRigVMSetNodeDescriptionAction()
+: FRigVMBaseAction(nullptr)
+, OldDescription()
+, NewDescription()
+{
+}
+
+FRigVMSetNodeDescriptionAction::FRigVMSetNodeDescriptionAction(URigVMController* InController, URigVMCollapseNode* InNode, const FString& InNewDescription)
+: FRigVMBaseAction(InController)
+, NodePath(InNode->GetNodePath())
+, OldDescription(InNode->GetNodeDescription())
+, NewDescription(InNewDescription)
 {
 }
 
@@ -737,26 +867,31 @@ bool FRigVMSetNodeDescriptionAction::Merge(const FRigVMBaseAction* Other)
 	return true;
 }
 
-bool FRigVMSetNodeDescriptionAction::Undo(URigVMController* InController)
+bool FRigVMSetNodeDescriptionAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetNodeDescriptionByName(*NodePath, OldDescription, false);
+	return GetController()->SetNodeDescriptionByName(*NodePath, OldDescription, false);
 }
 
-bool FRigVMSetNodeDescriptionAction::Redo(URigVMController* InController)
+bool FRigVMSetNodeDescriptionAction::Redo()
 {
-	if (!InController->SetNodeDescriptionByName(*NodePath, NewDescription, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if (!GetController()->SetNodeDescriptionByName(*NodePath, NewDescription, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
 FRigVMSetCommentTextAction::FRigVMSetCommentTextAction()
-: NodePath()
+: FRigVMBaseAction(nullptr)
+, NodePath()
 , OldText()
 , NewText()
 , OldFontSize(18)
@@ -770,8 +905,9 @@ FRigVMSetCommentTextAction::FRigVMSetCommentTextAction()
 }
 
 
-FRigVMSetCommentTextAction::FRigVMSetCommentTextAction(URigVMCommentNode* InNode, const FString& InNewText, const int32& InNewFontSize, const bool& bInNewBubbleVisible, const bool& bInNewColorBubble)
-: NodePath(InNode->GetNodePath())
+FRigVMSetCommentTextAction::FRigVMSetCommentTextAction(URigVMController* InController, URigVMCommentNode* InNode, const FString& InNewText, const int32& InNewFontSize, const bool& bInNewBubbleVisible, const bool& bInNewColorBubble)
+: FRigVMBaseAction(InController)
+, NodePath(InNode->GetNodePath())
 , OldText(InNode->GetCommentText())
 , NewText(InNewText)
 , OldFontSize(InNode->GetCommentFontSize())
@@ -783,132 +919,183 @@ FRigVMSetCommentTextAction::FRigVMSetCommentTextAction(URigVMCommentNode* InNode
 {
 }
 
-bool FRigVMSetCommentTextAction::Undo(URigVMController* InController)
+bool FRigVMSetCommentTextAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetCommentTextByName(*NodePath, OldText, OldFontSize, bOldBubbleVisible, bOldColorBubble, false);
+	return GetController()->SetCommentTextByName(*NodePath, OldText, OldFontSize, bOldBubbleVisible, bOldColorBubble, false);
 }
 
-bool FRigVMSetCommentTextAction::Redo(URigVMController* InController)
+bool FRigVMSetCommentTextAction::Redo()
 {
-	if(!InController->SetCommentTextByName(*NodePath, NewText, NewFontSize, bNewBubbleVisible, bNewColorBubble, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->SetCommentTextByName(*NodePath, NewText, NewFontSize, bNewBubbleVisible, bNewColorBubble, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
 FRigVMSetRerouteCompactnessAction::FRigVMSetRerouteCompactnessAction()
-	: NodePath()
-	, OldShowAsFullNode(false)
-	, NewShowAsFullNode(false)
+: FRigVMBaseAction(nullptr)
+, NodePath()
+, OldShowAsFullNode(false)
+, NewShowAsFullNode(false)
 {
 
 }
-FRigVMSetRerouteCompactnessAction::FRigVMSetRerouteCompactnessAction(URigVMRerouteNode* InNode, bool InShowAsFullNode)
-	: NodePath(InNode->GetNodePath())
-	, OldShowAsFullNode(InNode->GetShowsAsFullNode())
-	, NewShowAsFullNode(InShowAsFullNode)
+FRigVMSetRerouteCompactnessAction::FRigVMSetRerouteCompactnessAction(URigVMController* InController, URigVMRerouteNode* InNode, bool InShowAsFullNode)
+: FRigVMBaseAction(InController)
+, NodePath(InNode->GetNodePath())
+, OldShowAsFullNode(InNode->GetShowsAsFullNode())
+, NewShowAsFullNode(InShowAsFullNode)
 {
 }
 
-bool FRigVMSetRerouteCompactnessAction::Undo(URigVMController* InController)
+bool FRigVMSetRerouteCompactnessAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetRerouteCompactnessByName(*NodePath, OldShowAsFullNode, false);
+	return GetController()->SetRerouteCompactnessByName(*NodePath, OldShowAsFullNode, false);
 }
 
-bool FRigVMSetRerouteCompactnessAction::Redo(URigVMController* InController)
+bool FRigVMSetRerouteCompactnessAction::Redo()
 {
-	if(!InController->SetRerouteCompactnessByName(*NodePath, NewShowAsFullNode, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->SetRerouteCompactnessByName(*NodePath, NewShowAsFullNode, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMRenameVariableAction::FRigVMRenameVariableAction(const FName& InOldVariableName, const FName& InNewVariableName)
-: OldVariableName(InOldVariableName.ToString())
+FRigVMRenameVariableAction::FRigVMRenameVariableAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMRenameVariableAction::FRigVMRenameVariableAction(URigVMController* InController, const FName& InOldVariableName, const FName& InNewVariableName)
+: FRigVMBaseAction(InController)
+, OldVariableName(InOldVariableName.ToString())
 , NewVariableName(InNewVariableName.ToString())
 {
 }
 
-bool FRigVMRenameVariableAction::Undo(URigVMController* InController)
+bool FRigVMRenameVariableAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->OnExternalVariableRenamed(*NewVariableName, *OldVariableName, false);
+	return GetController()->OnExternalVariableRenamed(*NewVariableName, *OldVariableName, false);
 }
 
-bool FRigVMRenameVariableAction::Redo(URigVMController* InController)
+bool FRigVMRenameVariableAction::Redo()
 {
-	if(!InController->OnExternalVariableRenamed(*OldVariableName, *NewVariableName, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->OnExternalVariableRenamed(*OldVariableName, *NewVariableName, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetPinExpansionAction::FRigVMSetPinExpansionAction(URigVMPin* InPin, bool bNewIsExpanded)
-: PinPath(InPin->GetPinPath())
+FRigVMSetPinExpansionAction::FRigVMSetPinExpansionAction()
+: FRigVMBaseAction(nullptr)
+, PinPath()
+, OldIsExpanded(false)
+, NewIsExpanded(false)
+{
+}
+
+FRigVMSetPinExpansionAction::FRigVMSetPinExpansionAction(URigVMController* InController, URigVMPin* InPin, bool bNewIsExpanded)
+: FRigVMBaseAction(InController)
+, PinPath(InPin->GetPinPath())
 , OldIsExpanded(InPin->IsExpanded())
 , NewIsExpanded(bNewIsExpanded)
 {
 }
 
-bool FRigVMSetPinExpansionAction::Undo(URigVMController* InController)
+bool FRigVMSetPinExpansionAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetPinExpansion(PinPath, OldIsExpanded, false);
+	return GetController()->SetPinExpansion(PinPath, OldIsExpanded, false);
 }
 
-bool FRigVMSetPinExpansionAction::Redo(URigVMController* InController)
+bool FRigVMSetPinExpansionAction::Redo()
 {
-	if(!InController->SetPinExpansion(PinPath, NewIsExpanded, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->SetPinExpansion(PinPath, NewIsExpanded, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetPinWatchAction::FRigVMSetPinWatchAction(URigVMPin* InPin, bool bNewIsWatched)
-: PinPath(InPin->GetPinPath())
+FRigVMSetPinWatchAction::FRigVMSetPinWatchAction()
+: FRigVMBaseAction(nullptr)
+, OldIsWatched(false)
+, NewIsWatched(false)
+{
+}
+
+FRigVMSetPinWatchAction::FRigVMSetPinWatchAction(URigVMController* InController, URigVMPin* InPin, bool bNewIsWatched)
+: FRigVMBaseAction(InController)
+, PinPath(InPin->GetPinPath())
 , OldIsWatched(InPin->RequiresWatch())
 , NewIsWatched(bNewIsWatched)
 {
 }
 
-bool FRigVMSetPinWatchAction::Undo(URigVMController* InController)
+bool FRigVMSetPinWatchAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetPinIsWatched(PinPath, OldIsWatched, false);
+	return GetController()->SetPinIsWatched(PinPath, OldIsWatched, false);
 }
 
-bool FRigVMSetPinWatchAction::Redo(URigVMController* InController)
+bool FRigVMSetPinWatchAction::Redo()
 {
-	if(!InController->SetPinIsWatched(PinPath, NewIsWatched, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->SetPinIsWatched(PinPath, NewIsWatched, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetPinDefaultValueAction::FRigVMSetPinDefaultValueAction(URigVMPin* InPin, const FString& InNewDefaultValue)
-: PinPath(InPin->GetPinPath())
+FRigVMSetPinDefaultValueAction::FRigVMSetPinDefaultValueAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMSetPinDefaultValueAction::FRigVMSetPinDefaultValueAction(URigVMController* InController, URigVMPin* InPin, const FString& InNewDefaultValue)
+: FRigVMBaseAction(InController)
+, PinPath(InPin->GetPinPath())
 , OldDefaultValue(InPin->GetDefaultValue())
 , NewDefaultValue(InNewDefaultValue)
 {
@@ -942,9 +1129,9 @@ bool FRigVMSetPinDefaultValueAction::Merge(const FRigVMBaseAction* Other)
 	return true;
 }
 
-bool FRigVMSetPinDefaultValueAction::Undo(URigVMController* InController)
+bool FRigVMSetPinDefaultValueAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
@@ -952,122 +1139,169 @@ bool FRigVMSetPinDefaultValueAction::Undo(URigVMController* InController)
 	{
 		return true;
 	}
-	return InController->SetPinDefaultValue(PinPath, OldDefaultValue, true, false);
+	return GetController()->SetPinDefaultValue(PinPath, OldDefaultValue, true, false);
 }
 
-bool FRigVMSetPinDefaultValueAction::Redo(URigVMController* InController)
+bool FRigVMSetPinDefaultValueAction::Redo()
 {
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
 	if (!NewDefaultValue.IsEmpty())
 	{
-		if (!InController->SetPinDefaultValue(PinPath, NewDefaultValue, true, false))
+		if (!GetController()->SetPinDefaultValue(PinPath, NewDefaultValue, true, false))
 		{
 			return false;
 		}
 	}
-	return FRigVMBaseAction::Redo(InController);
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMInsertArrayPinAction::FRigVMInsertArrayPinAction(URigVMPin* InArrayPin, int32 InIndex, const FString& InNewDefaultValue)
-: ArrayPinPath(InArrayPin->GetPinPath())
+FRigVMInsertArrayPinAction::FRigVMInsertArrayPinAction()
+: FRigVMBaseAction(nullptr)
+, Index(0)
+{
+}
+
+FRigVMInsertArrayPinAction::FRigVMInsertArrayPinAction(URigVMController* InController, URigVMPin* InArrayPin, int32 InIndex, const FString& InNewDefaultValue)
+: FRigVMBaseAction(InController)
+, ArrayPinPath(InArrayPin->GetPinPath())
 , Index(InIndex)
 , NewDefaultValue(InNewDefaultValue)
 {
 }
 
-bool FRigVMInsertArrayPinAction::Undo(URigVMController* InController)
+bool FRigVMInsertArrayPinAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->RemoveArrayPin(FString::Printf(TEXT("%s.%d"), *ArrayPinPath, Index), false);
+	return GetController()->RemoveArrayPin(FString::Printf(TEXT("%s.%d"), *ArrayPinPath, Index), false);
 }
 
-bool FRigVMInsertArrayPinAction::Redo(URigVMController* InController)
+bool FRigVMInsertArrayPinAction::Redo()
 {
-	if(InController->InsertArrayPin(ArrayPinPath, Index, NewDefaultValue, false).IsEmpty())
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(GetController()->InsertArrayPin(ArrayPinPath, Index, NewDefaultValue, false).IsEmpty())
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMRemoveArrayPinAction::FRigVMRemoveArrayPinAction(URigVMPin* InArrayElementPin)
-: ArrayPinPath(InArrayElementPin->GetParentPin()->GetPinPath())
+FRigVMRemoveArrayPinAction::FRigVMRemoveArrayPinAction()
+: FRigVMBaseAction(nullptr)
+, Index(0)
+{
+}
+
+FRigVMRemoveArrayPinAction::FRigVMRemoveArrayPinAction(URigVMController* InController, URigVMPin* InArrayElementPin)
+: FRigVMBaseAction(InController)
+, ArrayPinPath(InArrayElementPin->GetParentPin()->GetPinPath())
 , Index(InArrayElementPin->GetPinIndex())
 , DefaultValue(InArrayElementPin->GetDefaultValue())
 {
 }
 
-bool FRigVMRemoveArrayPinAction::Undo(URigVMController* InController)
+bool FRigVMRemoveArrayPinAction::Undo()
 {
-	if (InController->InsertArrayPin(*ArrayPinPath, Index, DefaultValue, false).IsEmpty())
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Undo(InController);
-}
-
-bool FRigVMRemoveArrayPinAction::Redo(URigVMController* InController)
-{
-	if (!FRigVMBaseAction::Redo(InController))
+	if (GetController()->InsertArrayPin(*ArrayPinPath, Index, DefaultValue, false).IsEmpty())
 	{
 		return false;
 	}
-	return InController->RemoveArrayPin(FString::Printf(TEXT("%s.%d"), *ArrayPinPath, Index), false);
+	return FRigVMBaseAction::Undo();
 }
 
-FRigVMAddLinkAction::FRigVMAddLinkAction(URigVMPin* InOutputPin, URigVMPin* InInputPin)
-: OutputPinPath(InOutputPin->GetPinPath())
+bool FRigVMRemoveArrayPinAction::Redo()
+{
+	if (!FRigVMBaseAction::Redo())
+	{
+		return false;
+	}
+	return GetController()->RemoveArrayPin(FString::Printf(TEXT("%s.%d"), *ArrayPinPath, Index), false);
+}
+
+FRigVMAddLinkAction::FRigVMAddLinkAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMAddLinkAction::FRigVMAddLinkAction(URigVMController* InController, URigVMPin* InOutputPin, URigVMPin* InInputPin)
+: FRigVMBaseAction(InController)
+, OutputPinPath(InOutputPin->GetPinPath())
 , InputPinPath(InInputPin->GetPinPath())
 {
 }
 
-bool FRigVMAddLinkAction::Undo(URigVMController* InController)
+bool FRigVMAddLinkAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->BreakLink(OutputPinPath, InputPinPath, false);
+	return GetController()->BreakLink(OutputPinPath, InputPinPath, false);
 }
 
-bool FRigVMAddLinkAction::Redo(URigVMController* InController)
+bool FRigVMAddLinkAction::Redo()
 {
-	if(!InController->AddLink(OutputPinPath, InputPinPath, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->AddLink(OutputPinPath, InputPinPath, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMBreakLinkAction::FRigVMBreakLinkAction(URigVMPin* InOutputPin, URigVMPin* InInputPin)
-: OutputPinPath(InOutputPin->GetPinPath())
+FRigVMBreakLinkAction::FRigVMBreakLinkAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMBreakLinkAction::FRigVMBreakLinkAction(URigVMController* InController, URigVMPin* InOutputPin, URigVMPin* InInputPin)
+: FRigVMBaseAction(InController)
+, OutputPinPath(InOutputPin->GetPinPath())
 , InputPinPath(InInputPin->GetPinPath())
 {
 	GraphPath = TSoftObjectPtr<URigVMGraph>(Cast<URigVMGraph>(InOutputPin->GetGraph())).GetUniqueID();
 }
 
-bool FRigVMBreakLinkAction::Undo(URigVMController* InController)
+bool FRigVMBreakLinkAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->AddLink(OutputPinPath, InputPinPath, false);
+	return GetController()->AddLink(OutputPinPath, InputPinPath, false);
 }
 
-bool FRigVMBreakLinkAction::Redo(URigVMController* InController)
+bool FRigVMBreakLinkAction::Redo()
 {
-	if(!InController->BreakLink(OutputPinPath, InputPinPath, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if(!GetController()->BreakLink(OutputPinPath, InputPinPath, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
 FRigVMChangePinTypeAction::FRigVMChangePinTypeAction()
-: PinPath()
+: FRigVMBaseAction(nullptr)
+, PinPath()
 , OldTypeIndex(INDEX_NONE)
 , NewTypeIndex(INDEX_NONE)
 , bSetupOrphanPins(true)
@@ -1075,8 +1309,9 @@ FRigVMChangePinTypeAction::FRigVMChangePinTypeAction()
 , bRemoveSubPins(true)
 {}
 
-FRigVMChangePinTypeAction::FRigVMChangePinTypeAction(URigVMPin* InPin, int32 InTypeIndex, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins)
-: PinPath(InPin->GetPinPath())
+FRigVMChangePinTypeAction::FRigVMChangePinTypeAction(URigVMController* InController, URigVMPin* InPin, int32 InTypeIndex, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins)
+: FRigVMBaseAction(InController)
+, PinPath(InPin->GetPinPath())
 , OldTypeIndex(InPin->GetTypeIndex())
 , NewTypeIndex(InTypeIndex)
 , bSetupOrphanPins(InSetupOrphanPins)
@@ -1085,30 +1320,34 @@ FRigVMChangePinTypeAction::FRigVMChangePinTypeAction(URigVMPin* InPin, int32 InT
 {
 }
 
-bool FRigVMChangePinTypeAction::Undo(URigVMController* InController)
+bool FRigVMChangePinTypeAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
 
-	if(const URigVMGraph* Graph = InController->GetGraph())
+	if(const URigVMGraph* Graph = GetController()->GetGraph())
 	{
 		if(URigVMPin* Pin = Graph->FindPin(PinPath))
 		{
-			return InController->ChangePinType(Pin, OldTypeIndex, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
+			return GetController()->ChangePinType(Pin, OldTypeIndex, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
 		}
 	}
 	return false;
 }
 
-bool FRigVMChangePinTypeAction::Redo(URigVMController* InController)
+bool FRigVMChangePinTypeAction::Redo()
 {
-	if(const URigVMGraph* Graph = InController->GetGraph())
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
+	if(const URigVMGraph* Graph = GetController()->GetGraph())
 	{
 		if(URigVMPin* Pin = Graph->FindPin(PinPath))
 		{
-			if(!InController->ChangePinType(Pin, NewTypeIndex, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins))
+			if(!GetController()->ChangePinType(Pin, NewTypeIndex, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins))
 			{
 				return false;
 			}
@@ -1122,16 +1361,20 @@ bool FRigVMChangePinTypeAction::Redo(URigVMController* InController)
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	return FRigVMBaseAction::Redo();
 }
 
 FRigVMCollapseNodesAction::FRigVMCollapseNodesAction()
-	: LibraryNodePath(), bIsAggregate(false)
+: FRigVMBaseAction(nullptr)
+, LibraryNodePath()
+, bIsAggregate(false)
 {
 }
 
 FRigVMCollapseNodesAction::FRigVMCollapseNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, const FString& InNodePath, const bool bIsAggregate)
-	: LibraryNodePath(InNodePath), bIsAggregate(bIsAggregate)
+: FRigVMBaseAction(InController)
+, LibraryNodePath(InNodePath)
+, bIsAggregate(bIsAggregate)
 {
 	TArray<FName> NodesToExport;
 	for (const URigVMNode* InNode : InNodes)
@@ -1143,22 +1386,22 @@ FRigVMCollapseNodesAction::FRigVMCollapseNodesAction(URigVMController* InControl
 	CollapsedNodesContent = InController->ExportNodesToText(NodesToExport, true);
 }
 
-bool FRigVMCollapseNodesAction::Undo(URigVMController* InController)
+bool FRigVMCollapseNodesAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
 
 	// remove the library node
 	{
-		if(!InController->RemoveNodeByName(*LibraryNodePath, false, false))
+		if(!GetController()->RemoveNodeByName(*LibraryNodePath, false, false))
 		{
 			return false;
 		}
 	}
 
-	const TArray<FName> RecoveredNodes = InController->ImportNodesFromText(CollapsedNodesContent, false, false);
+	const TArray<FName> RecoveredNodes = GetController()->ImportNodesFromText(CollapsedNodesContent, false, false);
 	if(RecoveredNodes.Num() != CollapsedNodesPaths.Num())
 	{
 		return false;
@@ -1167,8 +1410,12 @@ bool FRigVMCollapseNodesAction::Undo(URigVMController* InController)
 	return true;
 }
 
-bool FRigVMCollapseNodesAction::Redo(URigVMController* InController)
+bool FRigVMCollapseNodesAction::Redo()
 {
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
 #if WITH_EDITOR
 	TArray<FName> NodeNames;
 	for (const FString& NodePath : CollapsedNodesPaths)
@@ -1176,31 +1423,33 @@ bool FRigVMCollapseNodesAction::Redo(URigVMController* InController)
 		NodeNames.Add(*NodePath);
 	}
 
-	URigVMLibraryNode* LibraryNode = InController->CollapseNodes(NodeNames, LibraryNodePath, false, false, bIsAggregate);
+	URigVMLibraryNode* LibraryNode = GetController()->CollapseNodes(NodeNames, LibraryNodePath, false, false, bIsAggregate);
 	if (LibraryNode)
 	{
-		return FRigVMBaseAction::Redo(InController);
+		return FRigVMBaseAction::Redo();
 	}
 #endif
 	return false;
 }
 
 FRigVMExpandNodeAction::FRigVMExpandNodeAction()
-	: LibraryNodePath()
+: FRigVMBaseAction(nullptr)
+, LibraryNodePath()
 {
 }
 
 FRigVMExpandNodeAction::FRigVMExpandNodeAction(URigVMController* InController, URigVMLibraryNode* InLibraryNode)
-	: LibraryNodePath(InLibraryNode->GetName())
+: FRigVMBaseAction(InController)
+, LibraryNodePath(InLibraryNode->GetName())
 {
 	TArray<FName> NodesToExport;
 	NodesToExport.Add(InLibraryNode->GetFName());
 	LibraryNodeContent = InController->ExportNodesToText(NodesToExport, true);
 }
 
-bool FRigVMExpandNodeAction::Undo(URigVMController* InController)
+bool FRigVMExpandNodeAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
@@ -1211,12 +1460,12 @@ bool FRigVMExpandNodeAction::Undo(URigVMController* InController)
 	{
 		return FName(*NodePath); 
 	});
-	if(!InController->RemoveNodesByName(NodeNames, false, false))
+	if(!GetController()->RemoveNodesByName(NodeNames, false, false))
 	{
 		return false;
 	}
 
-	const TArray<FName> RecoveredNodes = InController->ImportNodesFromText(LibraryNodeContent, false, false);
+	const TArray<FName> RecoveredNodes = GetController()->ImportNodesFromText(LibraryNodeContent, false, false);
 	if(RecoveredNodes.Num() != 1)
 	{
 		return false;
@@ -1225,63 +1474,79 @@ bool FRigVMExpandNodeAction::Undo(URigVMController* InController)
 	return true;
 }
 
-bool FRigVMExpandNodeAction::Redo(URigVMController* InController)
+bool FRigVMExpandNodeAction::Redo()
 {
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
 #if WITH_EDITOR
-	const TArray<URigVMNode*> ExpandedNodes = InController->ExpandLibraryNode(*LibraryNodePath, false);
+	const TArray<URigVMNode*> ExpandedNodes = GetController()->ExpandLibraryNode(*LibraryNodePath, false);
 	if (ExpandedNodes.Num() == ExpandedNodePaths.Num())
 	{
-		return FRigVMBaseAction::Redo(InController);
+		return FRigVMBaseAction::Redo();
 	}
 #endif
 	return false;
 }
 
-FRigVMRenameNodeAction::FRigVMRenameNodeAction(const FName& InOldNodeName, const FName& InNewNodeName)
-	: OldNodeName(InOldNodeName.ToString())
-	, NewNodeName(InNewNodeName.ToString())
+FRigVMRenameNodeAction::FRigVMRenameNodeAction()
+: FRigVMBaseAction(nullptr)
 {
 }
 
-bool FRigVMRenameNodeAction::Undo(URigVMController* InController)
+FRigVMRenameNodeAction::FRigVMRenameNodeAction(URigVMController* InController, const FName& InOldNodeName, const FName& InNewNodeName)
+: FRigVMBaseAction(InController)
+, OldNodeName(InOldNodeName.ToString())
+, NewNodeName(InNewNodeName.ToString())
 {
-	if (!FRigVMBaseAction::Undo(InController))
+}
+
+bool FRigVMRenameNodeAction::Undo()
+{
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	if (URigVMNode* Node = InController->GetGraph()->FindNode(NewNodeName))
+	if (URigVMNode* Node = GetController()->GetGraph()->FindNode(NewNodeName))
 	{
-		return InController->RenameNode(Node, *OldNodeName, false);
+		return GetController()->RenameNode(Node, *OldNodeName, false);
 	}
 	return false;
 }
 
-bool FRigVMRenameNodeAction::Redo(URigVMController* InController)
+bool FRigVMRenameNodeAction::Redo()
 {
-	if (URigVMNode* Node = InController->GetGraph()->FindNode(OldNodeName))
-	{
-		return InController->RenameNode(Node, *NewNodeName, false);
-	}
-	else
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if (URigVMNode* Node = GetController()->GetGraph()->FindNode(OldNodeName))
+	{
+		return GetController()->RenameNode(Node, *NewNodeName, false);
+	}
+	return false;
 }
 
-FRigVMPushGraphAction::FRigVMPushGraphAction(UObject* InGraph)
+FRigVMPushGraphAction::FRigVMPushGraphAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMPushGraphAction::FRigVMPushGraphAction(URigVMController* InController, UObject* InGraph)
+: FRigVMBaseAction(InController)
 {
 	GraphPath = TSoftObjectPtr<URigVMGraph>(Cast<URigVMGraph>(InGraph)).GetUniqueID();
 }
 
-bool FRigVMPushGraphAction::Undo(URigVMController* InController)
+bool FRigVMPushGraphAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
 	
-	if(URigVMGraph* PoppedGraph = InController->PopGraph(false))
+	if(URigVMGraph* PoppedGraph = GetController()->PopGraph(false))
 	{
 		const FSoftObjectPath PoppedGraphPath = TSoftObjectPtr<URigVMGraph>(PoppedGraph).GetUniqueID();
 		return PoppedGraphPath == GraphPath;
@@ -1290,13 +1555,17 @@ bool FRigVMPushGraphAction::Undo(URigVMController* InController)
 	return false;
 }
 
-bool FRigVMPushGraphAction::Redo(URigVMController* InController)
+bool FRigVMPushGraphAction::Redo()
 {
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
 	TSoftObjectPtr<URigVMGraph> GraphPtr(GraphPath);
 	if(URigVMGraph* Graph = GraphPtr.Get())
 	{
-		InController->PushGraph(Graph, false);
-		return FRigVMBaseAction::Redo(InController);
+		GetController()->PushGraph(Graph, false);
+		return FRigVMBaseAction::Redo();
 	}
 	return false;
 }
@@ -1314,14 +1583,20 @@ bool FRigVMPushGraphAction::MakesObsolete(const FRigVMBaseAction* Other) const
 	return false;
 }
 
-FRigVMPopGraphAction::FRigVMPopGraphAction(UObject* InGraph)
+FRigVMPopGraphAction::FRigVMPopGraphAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMPopGraphAction::FRigVMPopGraphAction(URigVMController* InController, UObject* InGraph)
+: FRigVMBaseAction(InController)
 {
 	GraphPath = TSoftObjectPtr<URigVMGraph>(Cast<URigVMGraph>(InGraph)).GetUniqueID();
 }
 
-bool FRigVMPopGraphAction::Undo(URigVMController* InController)
+bool FRigVMPopGraphAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
@@ -1329,20 +1604,24 @@ bool FRigVMPopGraphAction::Undo(URigVMController* InController)
 	TSoftObjectPtr<URigVMGraph> GraphPtr(GraphPath);
 	if (URigVMGraph* Graph = GraphPtr.Get())
 	{
-		InController->PushGraph(Graph, false);
+		GetController()->PushGraph(Graph, false);
 		return true;
 	}
 	return false;
 }
 
-bool FRigVMPopGraphAction::Redo(URigVMController* InController)
+bool FRigVMPopGraphAction::Redo()
 {
-	if(URigVMGraph* PoppedGraph = InController->PopGraph(false))
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
+	if(URigVMGraph* PoppedGraph = GetController()->PopGraph(false))
 	{
 		const FSoftObjectPath PoppedGraphPath = TSoftObjectPtr<URigVMGraph>(PoppedGraph).GetUniqueID();
 		if(PoppedGraphPath == GraphPath)
 		{
-			return FRigVMBaseAction::Redo(InController);
+			return FRigVMBaseAction::Redo();
 		}
 	}
 	return false;
@@ -1361,12 +1640,19 @@ bool FRigVMPopGraphAction::MakesObsolete(const FRigVMBaseAction* Other) const
 	return false;
 }
 
-FRigVMAddExposedPinAction::FRigVMAddExposedPinAction(URigVMPin* InPin)
-	: PinName(InPin->GetName())
-	, Direction(InPin->GetDirection())
-	, CPPType(InPin->GetCPPType())
-	, CPPTypeObjectPath()
-	, DefaultValue(InPin->GetDefaultValue())
+FRigVMAddExposedPinAction::FRigVMAddExposedPinAction()
+: FRigVMBaseAction(nullptr)
+, Direction(ERigVMPinDirection::Input)
+{
+}
+
+FRigVMAddExposedPinAction::FRigVMAddExposedPinAction(URigVMController* InController, URigVMPin* InPin)
+: FRigVMBaseAction(InController)
+, PinName(InPin->GetName())
+, Direction(InPin->GetDirection())
+, CPPType(InPin->GetCPPType())
+, CPPTypeObjectPath()
+, DefaultValue(InPin->GetDefaultValue())
 {
 	if (UObject* CPPTypeObject = InPin->GetCPPTypeObject())
 	{
@@ -1374,36 +1660,43 @@ FRigVMAddExposedPinAction::FRigVMAddExposedPinAction(URigVMPin* InPin)
 	}
 }
 
-bool FRigVMAddExposedPinAction::Undo(URigVMController* InController)
+bool FRigVMAddExposedPinAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->RemoveExposedPin(*PinName, false);
+	return GetController()->RemoveExposedPin(*PinName, false);
 }
 
-bool FRigVMAddExposedPinAction::Redo(URigVMController* InController)
+bool FRigVMAddExposedPinAction::Redo()
 {
-	if (!InController->AddExposedPin(*PinName, Direction, CPPType, *CPPTypeObjectPath, DefaultValue, false).IsNone())
+	if(!CanUndoRedo())
 	{
-		return FRigVMBaseAction::Redo(InController);
+		return false;
+	}
+	if (!GetController()->AddExposedPin(*PinName, Direction, CPPType, *CPPTypeObjectPath, DefaultValue, false).IsNone())
+	{
+		return FRigVMBaseAction::Redo();
 	}
 	return false;
 }
 
 FRigVMRemoveExposedPinAction::FRigVMRemoveExposedPinAction()
-	: PinIndex(INDEX_NONE)
+: FRigVMBaseAction(nullptr)
+, Direction(ERigVMPinDirection::Input)
+, PinIndex(INDEX_NONE)
 {
 }
 
-FRigVMRemoveExposedPinAction::FRigVMRemoveExposedPinAction(URigVMPin* InPin)
-	: PinName(InPin->GetName())
-	, Direction(InPin->GetDirection())
-	, CPPType(InPin->GetCPPType())
-	, CPPTypeObjectPath()
-	, DefaultValue(InPin->GetDefaultValue())
-	, PinIndex(InPin->GetPinIndex())
+FRigVMRemoveExposedPinAction::FRigVMRemoveExposedPinAction(URigVMController* InController, URigVMPin* InPin)
+: FRigVMBaseAction(InController)
+, PinName(InPin->GetName())
+, Direction(InPin->GetDirection())
+, CPPType(InPin->GetCPPType())
+, CPPTypeObjectPath()
+, DefaultValue(InPin->GetDefaultValue())
+, PinIndex(InPin->GetPinIndex())
 {
 	if (UObject* CPPTypeObject = InPin->GetCPPTypeObject())
 	{
@@ -1411,89 +1704,126 @@ FRigVMRemoveExposedPinAction::FRigVMRemoveExposedPinAction(URigVMPin* InPin)
 	}
 }
 
-bool FRigVMRemoveExposedPinAction::Undo(URigVMController* InController)
+bool FRigVMRemoveExposedPinAction::Undo()
 {
-	if(!InController->AddExposedPin(*PinName, Direction, CPPType, *CPPTypeObjectPath, DefaultValue, false).IsNone())
+	if(!CanUndoRedo())
 	{
-		if (InController->SetExposedPinIndex(*PinName, PinIndex, false))
+		return false;
+	}
+	if(!GetController()->AddExposedPin(*PinName, Direction, CPPType, *CPPTypeObjectPath, DefaultValue, false).IsNone())
+	{
+		if (GetController()->SetExposedPinIndex(*PinName, PinIndex, false))
 		{
-			return FRigVMBaseAction::Undo(InController);
+			return FRigVMBaseAction::Undo();
 		}
 	}
 	return false;
 }
 
-bool FRigVMRemoveExposedPinAction::Redo(URigVMController* InController)
+bool FRigVMRemoveExposedPinAction::Redo()
 {
-	if(FRigVMBaseAction::Redo(InController))
+	if(!CanUndoRedo())
 	{
-		return InController->RemoveExposedPin(*PinName, false);
+		return false;
+	}
+	if(FRigVMBaseAction::Redo())
+	{
+		return GetController()->RemoveExposedPin(*PinName, false);
 	}
 	return false;
 }
 
-FRigVMRenameExposedPinAction::FRigVMRenameExposedPinAction(const FName& InOldPinName, const FName& InNewPinName)
-	: OldPinName(InOldPinName.ToString())
-	, NewPinName(InNewPinName.ToString())
+FRigVMRenameExposedPinAction::FRigVMRenameExposedPinAction()
+: FRigVMBaseAction(nullptr)
 {
 }
 
-bool FRigVMRenameExposedPinAction::Undo(URigVMController* InController)
+FRigVMRenameExposedPinAction::FRigVMRenameExposedPinAction(URigVMController* InController, const FName& InOldPinName, const FName& InNewPinName)
+: FRigVMBaseAction(InController)
+, OldPinName(InOldPinName.ToString())
+, NewPinName(InNewPinName.ToString())
 {
-	if (!FRigVMBaseAction::Undo(InController))
-	{
-		return false;
-	}
-	return InController->RenameExposedPin(*NewPinName, *OldPinName, false);
 }
 
-bool FRigVMRenameExposedPinAction::Redo(URigVMController* InController)
+bool FRigVMRenameExposedPinAction::Undo()
 {
-	if(!InController->RenameExposedPin(*OldPinName, *NewPinName, false))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	return GetController()->RenameExposedPin(*NewPinName, *OldPinName, false);
+}
+
+bool FRigVMRenameExposedPinAction::Redo()
+{
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
+	if(!GetController()->RenameExposedPin(*OldPinName, *NewPinName, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
 FRigVMSetPinIndexAction::FRigVMSetPinIndexAction()
-	: PinPath()
-	, OldIndex(INDEX_NONE)
-	, NewIndex(INDEX_NONE)
+: FRigVMBaseAction(nullptr)
+, PinPath()
+, OldIndex(INDEX_NONE)
+, NewIndex(INDEX_NONE)
 {
 }
 
-FRigVMSetPinIndexAction::FRigVMSetPinIndexAction(URigVMPin* InPin, int32 InNewIndex)
-	: PinPath(InPin->GetName())
-	, OldIndex(InPin->GetPinIndex())
-	, NewIndex(InNewIndex)
+FRigVMSetPinIndexAction::FRigVMSetPinIndexAction(URigVMController* InController, URigVMPin* InPin, int32 InNewIndex)
+: FRigVMBaseAction(InController)
+, PinPath(InPin->GetName())
+, OldIndex(InPin->GetPinIndex())
+, NewIndex(InNewIndex)
 {
 }
 
-bool FRigVMSetPinIndexAction::Undo(URigVMController* InController)
+bool FRigVMSetPinIndexAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetExposedPinIndex(*PinPath, OldIndex, false);
+	return GetController()->SetExposedPinIndex(*PinPath, OldIndex, false);
 }
 
-bool FRigVMSetPinIndexAction::Redo(URigVMController* InController)
+bool FRigVMSetPinIndexAction::Redo()
 {
-	if (!InController->SetExposedPinIndex(*PinPath, NewIndex, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if (!GetController()->SetExposedPinIndex(*PinPath, NewIndex, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetRemappedVariableAction::FRigVMSetRemappedVariableAction(URigVMFunctionReferenceNode* InFunctionRefNode,
-	const FName& InInnerVariableName, const FName& InOldOuterVariableName, const FName& InNewOuterVariableName)
-	: NodePath()
-	, InnerVariableName(InInnerVariableName)
-	, OldOuterVariableName(InOldOuterVariableName)
-	, NewOuterVariableName(InNewOuterVariableName)
+FRigVMSetRemappedVariableAction::FRigVMSetRemappedVariableAction()
+: FRigVMBaseAction(nullptr)
+, InnerVariableName(NAME_None)
+, OldOuterVariableName(NAME_None)
+, NewOuterVariableName(NAME_None)
+{
+}
+
+FRigVMSetRemappedVariableAction::FRigVMSetRemappedVariableAction(
+	URigVMController* InController,
+	URigVMFunctionReferenceNode* InFunctionRefNode,
+	const FName& InInnerVariableName,
+	const FName& InOldOuterVariableName,
+	const FName& InNewOuterVariableName)
+: FRigVMBaseAction(InController)
+, NodePath()
+, InnerVariableName(InInnerVariableName)
+, OldOuterVariableName(InOldOuterVariableName)
+, NewOuterVariableName(InNewOuterVariableName)
 {
 	if(InFunctionRefNode)
 	{
@@ -1501,296 +1831,379 @@ FRigVMSetRemappedVariableAction::FRigVMSetRemappedVariableAction(URigVMFunctionR
 	}
 }
 
-bool FRigVMSetRemappedVariableAction::Undo(URigVMController* InController)
+bool FRigVMSetRemappedVariableAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	if (URigVMFunctionReferenceNode* Node = Cast<URigVMFunctionReferenceNode>(InController->GetGraph()->FindNode(NodePath)))
+	if (URigVMFunctionReferenceNode* Node = Cast<URigVMFunctionReferenceNode>(GetController()->GetGraph()->FindNode(NodePath)))
 	{
-		return InController->SetRemappedVariable(Node, InnerVariableName, OldOuterVariableName, false);
+		return GetController()->SetRemappedVariable(Node, InnerVariableName, OldOuterVariableName, false);
 	}
 	return false;
 }
 
-bool FRigVMSetRemappedVariableAction::Redo(URigVMController* InController)
+bool FRigVMSetRemappedVariableAction::Redo()
 {
-	if (URigVMFunctionReferenceNode* Node = Cast<URigVMFunctionReferenceNode>(InController->GetGraph()->FindNode(NodePath)))
-	{
-		return InController->SetRemappedVariable(Node, InnerVariableName, NewOuterVariableName, false);
-	}
-	else
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if (URigVMFunctionReferenceNode* Node = Cast<URigVMFunctionReferenceNode>(GetController()->GetGraph()->FindNode(NodePath)))
+	{
+		return GetController()->SetRemappedVariable(Node, InnerVariableName, NewOuterVariableName, false);
+	}
+	return false;
 }
 
-FRigVMAddLocalVariableAction::FRigVMAddLocalVariableAction(const FRigVMGraphVariableDescription& InLocalVariable)
-	: LocalVariable(InLocalVariable)
+FRigVMAddLocalVariableAction::FRigVMAddLocalVariableAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMAddLocalVariableAction::FRigVMAddLocalVariableAction(URigVMController* InController, const FRigVMGraphVariableDescription& InLocalVariable)
+: FRigVMBaseAction(InController)
+, LocalVariable(InLocalVariable)
 {
 	
 }
 
-bool FRigVMAddLocalVariableAction::Undo(URigVMController* InController)
+bool FRigVMAddLocalVariableAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->RemoveLocalVariable(LocalVariable.Name, false);
+	return GetController()->RemoveLocalVariable(LocalVariable.Name, false);
 }
 
-bool FRigVMAddLocalVariableAction::Redo(URigVMController* InController)
+bool FRigVMAddLocalVariableAction::Redo()
 {
-	if (!LocalVariable.Name.IsNone())
-	{
-		return InController->AddLocalVariable(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, LocalVariable.DefaultValue, false).Name.IsNone() == false;
-	}
-	return FRigVMBaseAction::Redo(InController);
-}
-
-FRigVMRemoveLocalVariableAction::FRigVMRemoveLocalVariableAction(const FRigVMGraphVariableDescription& InLocalVariable)
-	: LocalVariable(InLocalVariable)
-{
-}
-
-bool FRigVMRemoveLocalVariableAction::Undo(URigVMController* InController)
-{
-	if (!FRigVMBaseAction::Undo(InController))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return !InController->AddLocalVariable(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, LocalVariable.DefaultValue, false).Name.IsNone();
-}
-
-bool FRigVMRemoveLocalVariableAction::Redo(URigVMController* InController)
-{
 	if (!LocalVariable.Name.IsNone())
 	{
-		return InController->RemoveLocalVariable(LocalVariable.Name, false);
+		return GetController()->AddLocalVariable(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, LocalVariable.DefaultValue, false).Name.IsNone() == false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMRenameLocalVariableAction::FRigVMRenameLocalVariableAction(const FName& InOldName, const FName& InNewName)
-	: OldVariableName(InOldName), NewVariableName(InNewName)
+FRigVMRemoveLocalVariableAction::FRigVMRemoveLocalVariableAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMRemoveLocalVariableAction::FRigVMRemoveLocalVariableAction(URigVMController* InController, const FRigVMGraphVariableDescription& InLocalVariable)
+: FRigVMBaseAction(InController)
+, LocalVariable(InLocalVariable)
+{
+}
+
+bool FRigVMRemoveLocalVariableAction::Undo()
+{
+	if (!FRigVMBaseAction::Undo())
+	{
+		return false;
+	}
+	return !GetController()->AddLocalVariable(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, LocalVariable.DefaultValue, false).Name.IsNone();
+}
+
+bool FRigVMRemoveLocalVariableAction::Redo()
+{
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
+	if (!LocalVariable.Name.IsNone())
+	{
+		return GetController()->RemoveLocalVariable(LocalVariable.Name, false);
+	}
+	return FRigVMBaseAction::Redo();
+}
+
+FRigVMRenameLocalVariableAction::FRigVMRenameLocalVariableAction()
+: FRigVMBaseAction(nullptr)
+, OldVariableName(NAME_None)
+, NewVariableName(NAME_None)
+{
+}
+
+FRigVMRenameLocalVariableAction::FRigVMRenameLocalVariableAction(URigVMController* InController, const FName& InOldName, const FName& InNewName)
+: FRigVMBaseAction(InController)
+, OldVariableName(InOldName)
+, NewVariableName(InNewName)
 {
 	
 }
 
-bool FRigVMRenameLocalVariableAction::Undo(URigVMController* InController)
+bool FRigVMRenameLocalVariableAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->RenameLocalVariable(NewVariableName, OldVariableName, false);
+	return GetController()->RenameLocalVariable(NewVariableName, OldVariableName, false);
 }
 
-bool FRigVMRenameLocalVariableAction::Redo(URigVMController* InController)
+bool FRigVMRenameLocalVariableAction::Redo()
 {
-	if (!InController->RenameLocalVariable(OldVariableName, NewVariableName, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if (!GetController()->RenameLocalVariable(OldVariableName, NewVariableName, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
 FRigVMChangeLocalVariableTypeAction::FRigVMChangeLocalVariableTypeAction()
-	: LocalVariable()
-	, CPPType()
-	, CPPTypeObject(nullptr)
+: FRigVMBaseAction(nullptr)
+, LocalVariable()
+, CPPType()
+, CPPTypeObject(nullptr)
 {
 }
 
 FRigVMChangeLocalVariableTypeAction::FRigVMChangeLocalVariableTypeAction(
-	const FRigVMGraphVariableDescription& InLocalVariable, const FString& InCPPType, UObject* InCPPTypeObject)
-		: LocalVariable(InLocalVariable), CPPType(InCPPType), CPPTypeObject(InCPPTypeObject)
+	URigVMController* InController, 
+	const FRigVMGraphVariableDescription& InLocalVariable,
+	const FString& InCPPType,
+	UObject* InCPPTypeObject)
+: FRigVMBaseAction(InController)
+, LocalVariable(InLocalVariable)
+, CPPType(InCPPType)
+, CPPTypeObject(InCPPTypeObject)
 {
 }
 
-bool FRigVMChangeLocalVariableTypeAction::Undo(URigVMController* InController)
+bool FRigVMChangeLocalVariableTypeAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetLocalVariableType(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, false);
+	return GetController()->SetLocalVariableType(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, false);
 }
 
-bool FRigVMChangeLocalVariableTypeAction::Redo(URigVMController* InController)
+bool FRigVMChangeLocalVariableTypeAction::Redo()
 {
-	if (!InController->SetLocalVariableType(LocalVariable.Name, CPPType, CPPTypeObject, false))
+	if(!CanUndoRedo())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	if (!GetController()->SetLocalVariableType(LocalVariable.Name, CPPType, CPPTypeObject, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo();
 }
 
 FRigVMChangeLocalVariableDefaultValueAction::FRigVMChangeLocalVariableDefaultValueAction()
-	: LocalVariable()
-	, DefaultValue()
+: FRigVMBaseAction(nullptr)
+, LocalVariable()
+, DefaultValue()
 {
 }
 
 FRigVMChangeLocalVariableDefaultValueAction::FRigVMChangeLocalVariableDefaultValueAction(
-	const FRigVMGraphVariableDescription& InLocalVariable, const FString& InDefaultValue)
-		: LocalVariable(InLocalVariable), DefaultValue(InDefaultValue)
+	URigVMController* InController, 
+	const FRigVMGraphVariableDescription& InLocalVariable,
+	const FString& InDefaultValue)
+: FRigVMBaseAction(InController)
+, LocalVariable(InLocalVariable)
+, DefaultValue(InDefaultValue)
 {
 }
 
-bool FRigVMChangeLocalVariableDefaultValueAction::Undo(URigVMController* InController)
+bool FRigVMChangeLocalVariableDefaultValueAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->SetLocalVariableDefaultValue(LocalVariable.Name, LocalVariable.DefaultValue, false);
+	return GetController()->SetLocalVariableDefaultValue(LocalVariable.Name, LocalVariable.DefaultValue, false);
 }
 
-bool FRigVMChangeLocalVariableDefaultValueAction::Redo(URigVMController* InController)
+bool FRigVMChangeLocalVariableDefaultValueAction::Redo()
 {
-	if (!InController->SetLocalVariableDefaultValue(LocalVariable.Name, DefaultValue, false))
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
+	if (!GetController()->SetLocalVariableDefaultValue(LocalVariable.Name, DefaultValue, false))
 	{
 		return false;		
 	}
-	return FRigVMBaseAction::Redo(InController);
+	return FRigVMBaseAction::Redo();
 }
 
 FRigVMPromoteNodeAction::FRigVMPromoteNodeAction()
-	: LibraryNodePath()
-	, FunctionDefinitionPath()
-	, bFromFunctionToCollapseNode(false)
+: FRigVMBaseAction(nullptr)
+, LibraryNodePath()
+, FunctionDefinitionPath()
+, bFromFunctionToCollapseNode(false)
 {
 }
 
-FRigVMPromoteNodeAction::FRigVMPromoteNodeAction(const URigVMNode* InNodeToPromote, const FString& InNodePath, const FString& InFunctionDefinitionPath)
-	: LibraryNodePath(InNodePath)
-	, FunctionDefinitionPath(InFunctionDefinitionPath)
-	, bFromFunctionToCollapseNode(InNodeToPromote->IsA<URigVMFunctionReferenceNode>())
+FRigVMPromoteNodeAction::FRigVMPromoteNodeAction(URigVMController* InController, const URigVMNode* InNodeToPromote, const FString& InNodePath, const FString& InFunctionDefinitionPath)
+: FRigVMBaseAction(InController)
+, LibraryNodePath(InNodePath)
+, FunctionDefinitionPath(InFunctionDefinitionPath)
+, bFromFunctionToCollapseNode(InNodeToPromote->IsA<URigVMFunctionReferenceNode>())
 {
 }
 
-bool FRigVMPromoteNodeAction::Undo(URigVMController* InController)
+bool FRigVMPromoteNodeAction::Undo()
 {
 	if(bFromFunctionToCollapseNode)
 	{
-		const FName FunctionRefNodeName = InController->PromoteCollapseNodeToFunctionReferenceNode(*LibraryNodePath, false, false, FunctionDefinitionPath);
+		const FName FunctionRefNodeName = GetController()->PromoteCollapseNodeToFunctionReferenceNode(*LibraryNodePath, false, false, FunctionDefinitionPath);
 		return FunctionRefNodeName.ToString() == LibraryNodePath;
 	}
 
-	const FName CollapseNodeName = InController->PromoteFunctionReferenceNodeToCollapseNode(*LibraryNodePath, false, false, true);
+	const FName CollapseNodeName = GetController()->PromoteFunctionReferenceNodeToCollapseNode(*LibraryNodePath, false, false, true);
 	return CollapseNodeName.ToString() == LibraryNodePath;
 }
 
-bool FRigVMPromoteNodeAction::Redo(URigVMController* InController)
+bool FRigVMPromoteNodeAction::Redo()
 {
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
 	if(bFromFunctionToCollapseNode)
 	{
-		const FName CollapseNodeName = InController->PromoteFunctionReferenceNodeToCollapseNode(*LibraryNodePath, false, false, false);
+		const FName CollapseNodeName = GetController()->PromoteFunctionReferenceNodeToCollapseNode(*LibraryNodePath, false, false, false);
 		return CollapseNodeName.ToString() == LibraryNodePath;
 	}
-	const FName FunctionRefNodeName = InController->PromoteCollapseNodeToFunctionReferenceNode(*LibraryNodePath, false, false);
+	const FName FunctionRefNodeName = GetController()->PromoteCollapseNodeToFunctionReferenceNode(*LibraryNodePath, false, false);
 	return FunctionRefNodeName.ToString() == LibraryNodePath;
 }
 
 FRigVMMarkFunctionPublicAction::FRigVMMarkFunctionPublicAction()
-	: FunctionName(NAME_None)
-	, bIsPublic(false)
+: FRigVMBaseAction(nullptr)
+, FunctionName(NAME_None)
+, bIsPublic(false)
 {
 }
 
-FRigVMMarkFunctionPublicAction::FRigVMMarkFunctionPublicAction(const FName& InFunctionName, bool bInIsPublic)
-	: FunctionName(InFunctionName)
-	, bIsPublic(bInIsPublic)
+FRigVMMarkFunctionPublicAction::FRigVMMarkFunctionPublicAction(URigVMController* InController, const FName& InFunctionName, bool bInIsPublic)
+: FRigVMBaseAction(InController)
+, FunctionName(InFunctionName)
+, bIsPublic(bInIsPublic)
 {
 }
 
-bool FRigVMMarkFunctionPublicAction::Undo(URigVMController* InController)
+bool FRigVMMarkFunctionPublicAction::Undo()
 {
-	if (!FRigVMBaseAction::Undo(InController))
+	if (!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->MarkFunctionAsPublic(FunctionName, !bIsPublic, false);
+	return GetController()->MarkFunctionAsPublic(FunctionName, !bIsPublic, false);
 }
 
-bool FRigVMMarkFunctionPublicAction::Redo(URigVMController* InController)
+bool FRigVMMarkFunctionPublicAction::Redo()
 {
-#if WITH_EDITOR
-	if (InController->MarkFunctionAsPublic(FunctionName, bIsPublic, false))
+	if(!CanUndoRedo())
 	{
-		return FRigVMBaseAction::Redo(InController);
+		return false;
+	}
+#if WITH_EDITOR
+	if (GetController()->MarkFunctionAsPublic(FunctionName, bIsPublic, false))
+	{
+		return FRigVMBaseAction::Redo();
 	}
 #endif
 	return false;
 }
 
-FRigVMImportFromTextAction::FRigVMImportFromTextAction(const FString& InContent, const TArray<FName>& InTopLevelNodeNames)
-	: Content(InContent)
-	, TopLevelNodeNames(InTopLevelNodeNames)
+FRigVMImportFromTextAction::FRigVMImportFromTextAction()
+: FRigVMBaseAction(nullptr)
 {
 }
 
-FRigVMImportFromTextAction::FRigVMImportFromTextAction(URigVMNode* InNode, URigVMController* InController, bool bIncludeExteriorLinks)
+FRigVMImportFromTextAction::FRigVMImportFromTextAction(URigVMController* InController, const FString& InContent, const TArray<FName>& InTopLevelNodeNames)
+: FRigVMBaseAction(InController)
+, Content(InContent)
+, TopLevelNodeNames(InTopLevelNodeNames)
 {
-	SetContent({InNode}, InController, bIncludeExteriorLinks);
 }
 
-FRigVMImportFromTextAction::FRigVMImportFromTextAction(const TArray<URigVMNode*>& InNodes, URigVMController* InController, bool bIncludeExteriorLinks)
+FRigVMImportFromTextAction::FRigVMImportFromTextAction(URigVMController* InController, URigVMNode* InNode, bool bIncludeExteriorLinks)
+: FRigVMBaseAction(InController)
 {
-	SetContent(InNodes, InController, bIncludeExteriorLinks);
+	SetContent({InNode}, bIncludeExteriorLinks);
 }
 
-void FRigVMImportFromTextAction::SetContent(const TArray<URigVMNode*>& InNodes, URigVMController* InController, bool bIncludeExteriorLinks)
+FRigVMImportFromTextAction::FRigVMImportFromTextAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, bool bIncludeExteriorLinks)
+: FRigVMBaseAction(InController)
+{
+	SetContent(InNodes, bIncludeExteriorLinks);
+}
+
+void FRigVMImportFromTextAction::SetContent(const TArray<URigVMNode*>& InNodes, bool bIncludeExteriorLinks)
 {
 	TopLevelNodeNames.Reset();
 	Algo::Transform(InNodes, TopLevelNodeNames, [](const URigVMNode* Node)
 	{
 		return Node->GetFName();
 	});
-	Content = InController->ExportNodesToText(TopLevelNodeNames, bIncludeExteriorLinks);
+	Content = GetController()->ExportNodesToText(TopLevelNodeNames, bIncludeExteriorLinks);
 }
 
-bool FRigVMImportFromTextAction::Undo(URigVMController* InController)
+bool FRigVMImportFromTextAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
-	return InController->RemoveNodesByName(TopLevelNodeNames, false, false);
+	return GetController()->RemoveNodesByName(TopLevelNodeNames, false, false);
 }
 
-bool FRigVMImportFromTextAction::Redo(URigVMController* InController)
+bool FRigVMImportFromTextAction::Redo()
 {
-	const TArray<FName> ImportedNames = InController->ImportNodesFromText(Content, false, false);
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
+	const TArray<FName> ImportedNames = GetController()->ImportNodesFromText(Content, false, false);
 	if(ImportedNames.Num() != TopLevelNodeNames.Num())
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
+	return FRigVMBaseAction::Redo();
 }
 
-FRigVMReplaceNodesAction::FRigVMReplaceNodesAction(const TArray<URigVMNode*>& InNodes, URigVMController* InController)
+FRigVMReplaceNodesAction::FRigVMReplaceNodesAction()
+: FRigVMBaseAction(nullptr)
+{
+}
+
+FRigVMReplaceNodesAction::FRigVMReplaceNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes)
+: FRigVMBaseAction(InController)
 {
 	for(const URigVMNode* Node : InNodes)
 	{
-		StoreNode(Node, InController);
+		StoreNode(Node, true);
 	}
 }
 
-bool FRigVMReplaceNodesAction::Undo(URigVMController* InController)
+bool FRigVMReplaceNodesAction::Undo()
 {
-	if(!FRigVMBaseAction::Undo(InController))
+	if(!FRigVMBaseAction::Undo())
 	{
 		return false;
 	}
 
 	for(const TPair<FName, FRigVMActionNodeContent>& Pair : ExportedNodes)
 	{
-		if(!RestoreNode(Pair.Key, InController, true))
+		if(!RestoreNode(Pair.Key, true))
 		{
 			return false;
 		}
@@ -1799,16 +2212,20 @@ bool FRigVMReplaceNodesAction::Undo(URigVMController* InController)
 	return true;
 }
 
-bool FRigVMReplaceNodesAction::Redo(URigVMController* InController)
+bool FRigVMReplaceNodesAction::Redo()
 {
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
 	for(const TPair<FName, FRigVMActionNodeContent>& Pair : ExportedNodes)
 	{
-		if(!RestoreNode(Pair.Key, InController, false))
+		if(!RestoreNode(Pair.Key, false))
 		{
 			return false;
 		}
 	}
 	
-	return FRigVMBaseAction::Redo(InController);
+	return FRigVMBaseAction::Redo();
 }
 

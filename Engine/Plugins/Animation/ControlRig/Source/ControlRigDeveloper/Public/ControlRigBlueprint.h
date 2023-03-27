@@ -802,8 +802,6 @@ public:
 
 #endif
 
-	static constexpr TCHAR RigVMModelPrefix[] = TEXT("RigVMModel");
-
 protected:
 
 	static FSoftObjectPath PreDuplicateAssetPath;

@@ -143,7 +143,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	{
 		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
 		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer, false);
-		RigVMClient.AddModel(RigVMModelPrefix, false, &ObjectInitializer, false);
+		RigVMClient.AddModel(FRigVMClient::RigVMModelPrefix, false, &ObjectInitializer, false);
 	}
 	RigVMClient.SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
 	
@@ -1984,7 +1984,7 @@ URigVMFunctionLibrary* UControlRigBlueprint::GetLocalFunctionLibrary() const
 URigVMGraph* UControlRigBlueprint::AddModel(FString InName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	const FString DesiredName = FString::Printf(TEXT("%s %s"),
-    	UControlRigBlueprint::RigVMModelPrefix, *InName);
+    	FRigVMClient::RigVMModelPrefix, *InName);
 
 	TGuardValue<bool> EnablePythonPrint(bSuspendPythonMessagesForRigVMClient, !bPrintPythonCommand);
 	return RigVMClient.AddModel(*DesiredName, bSetupUndoRedo);
@@ -5193,7 +5193,7 @@ UEdGraph* UControlRigBlueprint::CreateEdGraph(URigVMGraph* InModel, bool bForce)
 	}
 
 	FString GraphName = InModel->GetName();
-	GraphName.RemoveFromStart(RigVMModelPrefix);
+	GraphName.RemoveFromStart(FRigVMClient::RigVMModelPrefix);
 	GraphName.TrimStartAndEndInline();
 
 	if(GraphName.IsEmpty())

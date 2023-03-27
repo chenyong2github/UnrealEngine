@@ -113,11 +113,6 @@ URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 	, bRegisterTemplateNodeUsage(true)
 #endif
 {
-	ActionStack = CreateDefaultSubobject<URigVMActionStack>(TEXT("ActionStack"));
-
-	ActionStack->OnModified().AddLambda([&](ERigVMGraphNotifType NotifType, URigVMGraph* InGraph, UObject* InSubject) -> void {
-		Notify(NotifType, InSubject);
-	});
 }
 
 URigVMController::~URigVMController()
@@ -185,7 +180,7 @@ bool URigVMController::PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo)
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMPushGraphAction(InGraph));
+		GetActionStack()->AddAction(FRigVMPushGraphAction(this, InGraph));
 	}
 
 	return true;
@@ -214,7 +209,7 @@ URigVMGraph* URigVMController::PopGraph(bool bSetupUndoRedo)
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMPopGraphAction(LastGraph));
+		GetActionStack()->AddAction(FRigVMPopGraphAction(this, LastGraph));
 	}
 
 	return LastGraph;
@@ -258,6 +253,10 @@ void URigVMController::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubje
 	if (URigVMGraph* Graph = GetGraph())
 	{
 		Graph->Notify(InNotifType, InSubject);
+	}
+	else
+	{
+		const_cast<URigVMController*>(this)->HandleModifiedEvent(InNotifType, nullptr, InSubject);
 	}
 }
 
@@ -1345,12 +1344,12 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Add %s Node"), *Node->GetNodeTitle());
-		ActionStack->BeginAction(Action);
-		ActionStack->AddAction(FRigVMImportFromTextAction(Node, this));
+		Action.SetTitle(FString::Printf(TEXT("Add %s Node"), *Node->GetNodeTitle()));
+		GetActionStack()->BeginAction(Action);
+		GetActionStack()->AddAction(FRigVMImportFromTextAction(this, Node));
 	}
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
@@ -1367,7 +1366,7 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -1687,12 +1686,12 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Add %s Variable"), *InVariableName.ToString());
-		ActionStack->BeginAction(Action);
-		ActionStack->AddAction(FRigVMImportFromTextAction(Node, this));
+		Action.SetTitle(FString::Printf(TEXT("Add %s Variable"), *InVariableName.ToString()));
+		GetActionStack()->BeginAction(Action);
+		GetActionStack()->AddAction(FRigVMImportFromTextAction(this, Node));
 	}
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
@@ -1700,7 +1699,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -2257,11 +2256,11 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMNode*>& InNodes
 		return false;
 	}
 	
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if(bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Unresolve nodes");
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(TEXT("Unresolve nodes"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	{
@@ -2338,7 +2337,7 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMNode*>& InNodes
 
 	if(bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return true;
@@ -2428,11 +2427,11 @@ TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<URigVMNode*>& In
 		return InNodes;
 	}
 
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if(bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Upgrade nodes");
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(TEXT("Upgrade nodes"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	// find all links affecting the nodes to upgrade
@@ -2441,7 +2440,7 @@ TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<URigVMNode*>& In
 	{
 		if(bSetupUndoRedo)
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 		return TArray<URigVMNode*>();
 	}
@@ -2473,7 +2472,7 @@ TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<URigVMNode*>& In
 
 	if(bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return UpgradedNodes;
@@ -2498,11 +2497,11 @@ URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRed
 	const FString NodeName = InNode->GetName();
 	const FVector2D NodePosition = InNode->GetPosition();
 
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if(bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Upgrade node");
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(TEXT("Upgrade node"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	URigVMNode* UpgradedNode = nullptr;
@@ -2528,7 +2527,7 @@ URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRed
 	{
 		if(bSetupUndoRedo)
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 		ReportErrorf(TEXT("Unable to remove node %s."), *NodeName);
 		return nullptr;
@@ -2574,7 +2573,7 @@ URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRed
 	{
 		if(bSetupUndoRedo)
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 		ReportErrorf(TEXT("Unable to upgrade node %s."), *NodeName);
 		return nullptr;
@@ -2625,7 +2624,7 @@ URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRed
 
 	if(bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return UpgradedNode;
@@ -2699,19 +2698,19 @@ URigVMCommentNode* URigVMController::AddCommentNode(const FString& InCommentText
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Add Comment"));
-		ActionStack->BeginAction(Action);
-		ActionStack->AddAction(FRigVMImportFromTextAction(Node, this));
+		Action.SetTitle(FString::Printf(TEXT("Add Comment")));
+		GetActionStack()->BeginAction(Action);
+		GetActionStack()->AddAction(FRigVMImportFromTextAction(this, Node));
 	}
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -2751,11 +2750,11 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnLink(URigVMLink* InLink, bo
 	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Add Reroute"));
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Add Reroute")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	URigVMRerouteNode* Node = AddRerouteNodeOnPin(TargetPin->GetPinPath(), true, bShowAsFullNode, InPosition, InNodeName, bSetupUndoRedo);
@@ -2763,7 +2762,7 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnLink(URigVMLink* InLink, bo
 	{
 		if (bSetupUndoRedo)
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 		return nullptr;
 	}
@@ -2773,7 +2772,7 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnLink(URigVMLink* InLink, bo
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -2843,11 +2842,11 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Add Reroute"));
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Add Reroute")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	//in case an injected node is present, use its pins for any new links
@@ -2891,7 +2890,7 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMImportFromTextAction(Node, this, false));
+		GetActionStack()->AddAction(FRigVMImportFromTextAction(this, Node, false));
 	}
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
@@ -2907,7 +2906,7 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -3013,11 +3012,11 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 	// 3.- Inject node into pin
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Add Injected Node"));
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Add Injected Node")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	// 1.- Create unit node
@@ -3033,7 +3032,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		{
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return nullptr;
 		}
@@ -3043,7 +3042,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 			RemoveNode(UnitNode, false);
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return nullptr;
 		}
@@ -3059,7 +3058,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 			ReportErrorf(TEXT("Injected node %s is using incompatible input and output pins."), *InScriptStruct->GetName());
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return nullptr;
 		}
@@ -3070,7 +3069,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 			ReportErrorf(TEXT("Injected node %s is using incompatible pin."), *InScriptStruct->GetName());
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return nullptr;
 		}
@@ -3123,7 +3122,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 	
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -3206,11 +3205,11 @@ bool URigVMController::RemoveInjectedNode(const FString& InPinPath, bool bAsInpu
 	// 3.- Remove node
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Remove Injected Node"));
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Remove Injected Node")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	URigVMInjectionInfo* InjectionInfo = Pin->InjectionInfos.Last();
@@ -3221,7 +3220,7 @@ bool URigVMController::RemoveInjectedNode(const FString& InPinPath, bool bAsInpu
 	URigVMNode* NodeEjected = EjectNodeFromPin(InPinPath, bSetupUndoRedo);
 	if (!NodeEjected)
 	{
-		ActionStack->CancelAction(Action, this);
+		GetActionStack()->CancelAction(Action);
 		return false;
 	}
 
@@ -3245,7 +3244,7 @@ bool URigVMController::RemoveInjectedNode(const FString& InPinPath, bool bAsInpu
 	// 3.- Remove node
 	if (!RemoveNode(NodeEjected))
 	{
-		ActionStack->CancelAction(Action, this);
+		GetActionStack()->CancelAction(Action);
 		return false;
 	}
 
@@ -3256,7 +3255,7 @@ bool URigVMController::RemoveInjectedNode(const FString& InPinPath, bool bAsInpu
 	
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -3357,11 +3356,11 @@ URigVMInjectionInfo* URigVMController::InjectNodeIntoPin(URigVMPin* InPin, bool 
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Inject Node"));
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Inject Node")));
+		GetActionStack()->BeginAction(Action);
 	}
 	
 	URigVMInjectionInfo* InjectionInfo = NewObject<URigVMInjectionInfo>(InPin);
@@ -3408,8 +3407,8 @@ URigVMInjectionInfo* URigVMController::InjectNodeIntoPin(URigVMPin* InPin, bool 
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMInjectNodeIntoPinAction(InjectionInfo));
-		ActionStack->EndAction(Action);
+		GetActionStack()->AddAction(FRigVMInjectNodeIntoPinAction(this, InjectionInfo));
+		GetActionStack()->EndAction(Action);
 	}
 
 	return InjectionInfo;
@@ -3470,13 +3469,13 @@ URigVMNode* URigVMController::EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndo
 
 	
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Eject node");
+		Action.SetTitle(TEXT("Eject node"));
 
-		ActionStack->BeginAction(Action);
-		ActionStack->AddAction(FRigVMEjectNodeFromPinAction(Injection));
+		GetActionStack()->BeginAction(Action);
+		GetActionStack()->AddAction(FRigVMEjectNodeFromPinAction(this, Injection));
 	}
 
 	FVector2D Position = InPin->GetNode()->GetPosition() + FVector2D(0.f, 12.f) * float(InPin->GetPinIndex());
@@ -3542,7 +3541,7 @@ URigVMNode* URigVMController::EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndo
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -3576,10 +3575,10 @@ bool URigVMController::EjectAllInjectedNodes(URigVMNode* InNode, bool bSetupUndo
 		return false;
 	}
 
-	FRigVMBaseAction EjectAllInjectedNodesAction;
+	FRigVMBaseAction EjectAllInjectedNodesAction(this);
 	if (bSetupUndoRedo)
 	{
-		ActionStack->BeginAction(EjectAllInjectedNodesAction);
+		GetActionStack()->BeginAction(EjectAllInjectedNodesAction);
 	}
 
 	for(URigVMPin* Pin : InNode->GetPins())
@@ -3595,7 +3594,7 @@ bool URigVMController::EjectAllInjectedNodes(URigVMNode* InNode, bool bSetupUndo
 
 	if(bSetupUndoRedo)
 	{
-		ActionStack->EndAction(EjectAllInjectedNodesAction);
+		GetActionStack()->EndAction(EjectAllInjectedNodesAction);
 	}
 
 	return true;
@@ -3609,7 +3608,7 @@ bool URigVMController::Undo()
 		return false;
 	}
 
-	return ActionStack->Undo(this);
+	return GetActionStack()->Undo(this);
 }
 
 bool URigVMController::Redo()
@@ -3619,7 +3618,7 @@ bool URigVMController::Redo()
 		return false;
 	}
 
-	return ActionStack->Redo(this);
+	return GetActionStack()->Redo(this);
 }
 
 bool URigVMController::OpenUndoBracket(const FString& InTitle)
@@ -3628,7 +3627,7 @@ bool URigVMController::OpenUndoBracket(const FString& InTitle)
 	{
 		return false;
 	}
-	return ActionStack->OpenUndoBracket(InTitle);
+	return GetActionStack()->OpenUndoBracket(this, InTitle);
 }
 
 bool URigVMController::CloseUndoBracket()
@@ -3637,7 +3636,7 @@ bool URigVMController::CloseUndoBracket()
 	{
 		return false;
 	}
-	return ActionStack->CloseUndoBracket(this);
+	return GetActionStack()->CloseUndoBracket(this);
 }
 
 bool URigVMController::CancelUndoBracket()
@@ -3646,7 +3645,7 @@ bool URigVMController::CancelUndoBracket()
 	{
 		return false;
 	}
-	return ActionStack->CancelUndoBracket(this);
+	return GetActionStack()->CancelUndoBracket(this);
 }
 
 FString URigVMController::ExportNodesToText(const TArray<FName>& InNodeNames, bool bIncludeExteriorLinks)
@@ -4096,9 +4095,9 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 	if (bSetupUndoRedo)
 	{
-		FRigVMImportFromTextAction Action(InText, NodeNames);
-		Action.Title = TEXT("Importing Nodes from Text");
-		ActionStack->AddAction(Action);
+		FRigVMImportFromTextAction Action(this, InText, NodeNames);
+		Action.SetTitle(TEXT("Importing Nodes from Text"));
+		GetActionStack()->AddAction(Action);
 	}
 
 #if WITH_EDITOR
@@ -4633,8 +4632,8 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 	if (bSetupUndoRedo)
 	{
 		CollapseAction = FRigVMCollapseNodesAction(this, Nodes, CollapseNodeName, bIsAggregate); 
-		CollapseAction.Title = TEXT("Collapse Nodes");
-		ActionStack->BeginAction(CollapseAction);
+		CollapseAction.SetTitle(TEXT("Collapse Nodes"));
+		GetActionStack()->BeginAction(CollapseAction);
 	}
 
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
@@ -5013,7 +5012,7 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(CollapseAction);
+		GetActionStack()->EndAction(CollapseAction);
 	}
 
 	return CollapseNode;
@@ -5067,8 +5066,8 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 	if (bSetupUndoRedo)
 	{
 		ExpandAction = FRigVMExpandNodeAction(this, InNode);
-		ExpandAction.Title = FString::Printf(TEXT("Expand '%s' Node"), *InNode->GetName());
-		ActionStack->BeginAction(ExpandAction);
+		ExpandAction.SetTitle(FString::Printf(TEXT("Expand '%s' Node"), *InNode->GetName()));
+		GetActionStack()->BeginAction(ExpandAction);
 	}
 
 	TArray<FName> NodeNames;
@@ -5107,7 +5106,7 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 	{
 		if (bSetupUndoRedo)
 		{
-			ActionStack->CancelAction(ExpandAction, this);
+			GetActionStack()->CancelAction(ExpandAction);
 		}
 		return TArray<URigVMNode*>();
 	}
@@ -5159,7 +5158,7 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 							ReportErrorf(TEXT("Found variable %s of incompatible type with a local variable inside function %s"), *LocalVariable.Name.ToString(), *FunctionReferenceNode->GetReferencedFunctionHeader().Name.ToString());
 							if (bSetupUndoRedo)
 							{
-								ActionStack->CancelAction(ExpandAction, this);
+								GetActionStack()->CancelAction(ExpandAction);
 							}
 							return TArray<URigVMNode*>();
 						}
@@ -5732,7 +5731,7 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(URigVMLibraryNode* InNod
 		{
 			ExpandAction.ExpandedNodePaths.Add(ExpandedNode->GetName());
 		}
-		ActionStack->EndAction(ExpandAction);
+		GetActionStack()->EndAction(ExpandAction);
 	}
 
 	return ExpandedNodes;
@@ -5928,7 +5927,7 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 
 		if (bSetupUndoRedo)
 		{
-			ActionStack->AddAction(FRigVMPromoteNodeAction(InCollapseNode, NodeName, FString()));
+			GetActionStack()->AddAction(FRigVMPromoteNodeAction(this, InCollapseNode, NodeName, FString()));
 		}
 	}
 
@@ -6012,7 +6011,7 @@ URigVMCollapseNode* URigVMController::PromoteFunctionReferenceNodeToCollapseNode
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMPromoteNodeAction(InFunctionRefNode, NodeName, FunctionDefinition->GetPathName()));
+		GetActionStack()->AddAction(FRigVMPromoteNodeAction(this, InFunctionRefNode, NodeName, FunctionDefinition->GetPathName()));
 	}
 
 	FastBreakLinkedPaths(LinkedPaths);
@@ -6252,21 +6251,20 @@ bool URigVMController::RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoR
 	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMBaseAction();
 		if(InNodes.Num() == 1)
 		{
-			Action.Title = FString::Printf(TEXT("Remove %s Node"), *InNodes[0]->GetNodeTitle());
+			Action.SetTitle(FString::Printf(TEXT("Remove %s Node"), *InNodes[0]->GetNodeTitle()));
 		}
 		else
 		{
 			static const FString RemoveNodesTitle = TEXT("Remove nodes");
-			Action.Title = RemoveNodesTitle;
+			Action.SetTitle(RemoveNodesTitle);
 		}
-		ActionStack->BeginAction(Action);
-		ActionStack->AddAction(FRigVMRemoveNodesAction(InNodes, this));
+		GetActionStack()->BeginAction(Action);
+		GetActionStack()->AddAction(FRigVMRemoveNodesAction(this, InNodes));
 	}
 
 	for(URigVMNode* InNode : InNodes)
@@ -6278,7 +6276,7 @@ bool URigVMController::RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoR
 
 			if (!EjectNodeFromPin(Pin->GetPinPath(), bSetupUndoRedo))
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 				return false;
 			}
 			
@@ -6354,7 +6352,7 @@ bool URigVMController::RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoR
 
 					if (bSetupUndoRedo)
 					{
-						ActionStack->AddAction(FRigVMMarkFunctionPublicAction(LibraryNode->GetFName(), true));
+						GetActionStack()->AddAction(FRigVMMarkFunctionPublicAction(this, LibraryNode->GetFName(), true));
 					}
 				}
 			}
@@ -6451,7 +6449,7 @@ bool URigVMController::RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoR
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return true;
@@ -6523,8 +6521,8 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 	FRigVMRenameNodeAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMRenameNodeAction(InNode->GetFName(), ValidNewName);
-		ActionStack->BeginAction(Action);
+		Action = FRigVMRenameNodeAction(this, InNode->GetFName(), ValidNewName);
+		GetActionStack()->BeginAction(Action);
 	}
 
 	// loop over all links and remove them
@@ -6535,7 +6533,7 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 	InNode->PreviousName = InNode->GetFName();
 	if (!RenameObject(InNode, *ValidNewName.ToString()))
 	{
-		ActionStack->CancelAction(Action, this);
+		GetActionStack()->CancelAction(Action);
 		return false;
 	}
 
@@ -6570,7 +6568,7 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (GetGraph()->IsA<URigVMFunctionLibrary>())
@@ -6665,7 +6663,7 @@ bool URigVMController::SetNodeSelection(const TArray<FName>& InNodeNames, bool b
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	FRigVMSetNodeSelectionAction Action(Graph, InNodeNames);
+	FRigVMSetNodeSelectionAction Action(this, Graph, InNodeNames);
 	bool bSelectionChanged = false;
 
 	TArray<FName> PreviousSelection = Graph->GetSelectNodes();
@@ -6700,20 +6698,20 @@ bool URigVMController::SetNodeSelection(const TArray<FName>& InNodeNames, bool b
 			const TArray<FName>& SelectedNodes = Graph->GetSelectNodes();
 			if (SelectedNodes.Num() == 0)
 			{
-				Action.Title = TEXT("Deselect all nodes.");
+				Action.SetTitle(TEXT("Deselect all nodes."));
 			}
 			else
 			{
 				if (SelectedNodes.Num() == 1)
 				{
-					Action.Title = FString::Printf(TEXT("Selected node '%s'."), *SelectedNodes[0].ToString());
+					Action.SetTitle(FString::Printf(TEXT("Selected node '%s'."), *SelectedNodes[0].ToString()));
 				}
 				else
 				{
-					Action.Title = TEXT("Selected multiple nodes.");
+					Action.SetTitle(TEXT("Selected multiple nodes."));
 				}
 			}
-			ActionStack->AddAction(Action);
+			GetActionStack()->AddAction(Action);
 		}
 	}
 
@@ -6766,9 +6764,9 @@ bool URigVMController::SetNodePosition(URigVMNode* InNode, const FVector2D& InPo
 	FRigVMSetNodePositionAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetNodePositionAction(InNode, InPosition);
-		Action.Title = FString::Printf(TEXT("Set Node Position"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetNodePositionAction(this, InNode, InPosition);
+		Action.SetTitle(FString::Printf(TEXT("Set Node Position")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InNode->Position = InPosition;
@@ -6776,7 +6774,7 @@ bool URigVMController::SetNodePosition(URigVMNode* InNode, const FVector2D& InPo
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action, bMergeUndoAction);
+		GetActionStack()->EndAction(Action, bMergeUndoAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -6834,9 +6832,9 @@ bool URigVMController::SetNodeSize(URigVMNode* InNode, const FVector2D& InSize, 
 	FRigVMSetNodeSizeAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetNodeSizeAction(InNode, InSize);
-		Action.Title = FString::Printf(TEXT("Set Node Size"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetNodeSizeAction(this, InNode, InSize);
+		Action.SetTitle(FString::Printf(TEXT("Set Node Size")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InNode->Size = InSize;
@@ -6844,7 +6842,7 @@ bool URigVMController::SetNodeSize(URigVMNode* InNode, const FVector2D& InSize, 
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action, bMergeUndoAction);
+		GetActionStack()->EndAction(Action, bMergeUndoAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -6901,9 +6899,9 @@ bool URigVMController::SetNodeColor(URigVMNode* InNode, const FLinearColor& InCo
 	FRigVMSetNodeColorAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetNodeColorAction(InNode, InColor);
-		Action.Title = FString::Printf(TEXT("Set Node Color"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetNodeColorAction(this, InNode, InColor);
+		Action.SetTitle(FString::Printf(TEXT("Set Node Color")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InNode->NodeColor = InColor;
@@ -6923,7 +6921,7 @@ bool URigVMController::SetNodeColor(URigVMNode* InNode, const FLinearColor& InCo
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action, bMergeUndoAction);
+		GetActionStack()->EndAction(Action, bMergeUndoAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -6980,9 +6978,9 @@ bool URigVMController::SetNodeCategory(URigVMCollapseNode* InNode, const FString
 	FRigVMSetNodeCategoryAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetNodeCategoryAction(InNode, InCategory);
-		Action.Title = FString::Printf(TEXT("Set Node Category"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetNodeCategoryAction(this, InNode, InCategory);
+		Action.SetTitle(FString::Printf(TEXT("Set Node Category")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InNode->NodeCategory = InCategory;
@@ -6990,7 +6988,7 @@ bool URigVMController::SetNodeCategory(URigVMCollapseNode* InNode, const FString
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action, bMergeUndoAction);
+		GetActionStack()->EndAction(Action, bMergeUndoAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -7047,9 +7045,9 @@ bool URigVMController::SetNodeKeywords(URigVMCollapseNode* InNode, const FString
 	FRigVMSetNodeKeywordsAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetNodeKeywordsAction(InNode, InKeywords);
-		Action.Title = FString::Printf(TEXT("Set Node Keywords"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetNodeKeywordsAction(this, InNode, InKeywords);
+		Action.SetTitle(FString::Printf(TEXT("Set Node Keywords")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InNode->NodeKeywords = InKeywords;
@@ -7057,7 +7055,7 @@ bool URigVMController::SetNodeKeywords(URigVMCollapseNode* InNode, const FString
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action, bMergeUndoAction);
+		GetActionStack()->EndAction(Action, bMergeUndoAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -7114,9 +7112,9 @@ bool URigVMController::SetNodeDescription(URigVMCollapseNode* InNode, const FStr
 	FRigVMSetNodeDescriptionAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetNodeDescriptionAction(InNode, InDescription);
-		Action.Title = FString::Printf(TEXT("Set Node Description"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetNodeDescriptionAction(this, InNode, InDescription);
+		Action.SetTitle(FString::Printf(TEXT("Set Node Description")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InNode->NodeDescription = InDescription;
@@ -7124,7 +7122,7 @@ bool URigVMController::SetNodeDescription(URigVMCollapseNode* InNode, const FStr
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action, bMergeUndoAction);
+		GetActionStack()->EndAction(Action, bMergeUndoAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -7183,9 +7181,9 @@ bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InComme
 		FRigVMSetCommentTextAction Action;
 		if (bSetupUndoRedo)
 		{
-			Action = FRigVMSetCommentTextAction(CommentNode, InCommentText, InCommentFontSize, bInCommentBubbleVisible, bInCommentColorBubble);
-			Action.Title = FString::Printf(TEXT("Set Comment Text"));
-			ActionStack->BeginAction(Action);
+			Action = FRigVMSetCommentTextAction(this, CommentNode, InCommentText, InCommentFontSize, bInCommentBubbleVisible, bInCommentColorBubble);
+			Action.SetTitle(FString::Printf(TEXT("Set Comment Text")));
+			GetActionStack()->BeginAction(Action);
 		}
 
 		CommentNode->CommentText = InCommentText;
@@ -7196,7 +7194,7 @@ bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InComme
 
 		if (bSetupUndoRedo)
 		{
-			ActionStack->EndAction(Action);
+			GetActionStack()->EndAction(Action);
 		}
 
 		if (bPrintPythonCommand)
@@ -7258,9 +7256,9 @@ bool URigVMController::SetRerouteCompactness(URigVMNode* InNode, bool bShowAsFul
 		FRigVMSetRerouteCompactnessAction Action;
 		if (bSetupUndoRedo)
 		{
-			Action = FRigVMSetRerouteCompactnessAction(RerouteNode, bShowAsFullNode);
-			Action.Title = FString::Printf(TEXT("Set Reroute Size"));
-			ActionStack->BeginAction(Action);
+			Action = FRigVMSetRerouteCompactnessAction(this, RerouteNode, bShowAsFullNode);
+			Action.SetTitle(FString::Printf(TEXT("Set Reroute Size")));
+			GetActionStack()->BeginAction(Action);
 		}
 
 		RerouteNode->bShowAsFullNode = bShowAsFullNode;
@@ -7268,7 +7266,7 @@ bool URigVMController::SetRerouteCompactness(URigVMNode* InNode, bool bShowAsFul
 
 		if (bSetupUndoRedo)
 		{
-			ActionStack->EndAction(Action);
+			GetActionStack()->EndAction(Action);
 		}
 
 		return true;
@@ -7340,9 +7338,9 @@ bool URigVMController::RenameVariable(const FName& InOldName, const FName& InNew
 	FRigVMRenameVariableAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMRenameVariableAction(InOldName, InNewName);
-		Action.Title = FString::Printf(TEXT("Rename Variable"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMRenameVariableAction(this, InOldName, InNewName);
+		Action.SetTitle(FString::Printf(TEXT("Rename Variable")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	TArray<URigVMNode*> RenamedNodes;
@@ -7371,11 +7369,11 @@ bool URigVMController::RenameVariable(const FName& InOldName, const FName& InNew
 	{
 		if (RenamedNodes.Num() > 0)
 		{
-			ActionStack->EndAction(Action);
+			GetActionStack()->EndAction(Action);
 		}
 		else
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 	}
 
@@ -7474,9 +7472,9 @@ bool URigVMController::SetPinExpansion(URigVMPin* InPin, bool bIsExpanded, bool 
 	FRigVMSetPinExpansionAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetPinExpansionAction(InPin, bIsExpanded);
-		Action.Title = bIsExpanded ? TEXT("Expand Pin") : TEXT("Collapse Pin");
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetPinExpansionAction(this, InPin, bIsExpanded);
+		Action.SetTitle(bIsExpanded ? TEXT("Expand Pin") : TEXT("Collapse Pin"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InPin->bIsExpanded = bIsExpanded;
@@ -7489,7 +7487,7 @@ bool URigVMController::SetPinExpansion(URigVMPin* InPin, bool bIsExpanded, bool 
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return true;
@@ -7549,9 +7547,9 @@ bool URigVMController::SetPinIsWatched(URigVMPin* InPin, bool bIsWatched, bool b
 	FRigVMSetPinWatchAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetPinWatchAction(InPin, bIsWatched);
-		Action.Title = bIsWatched ? TEXT("Watch Pin") : TEXT("Unwatch Pin");
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetPinWatchAction(this, InPin, bIsWatched);
+		Action.SetTitle(bIsWatched ? TEXT("Watch Pin") : TEXT("Unwatch Pin"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InPin->bRequiresWatch = bIsWatched;
@@ -7564,7 +7562,7 @@ bool URigVMController::SetPinIsWatched(URigVMPin* InPin, bool bIsWatched, bool b
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return true;
@@ -7682,9 +7680,9 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	FRigVMSetPinDefaultValueAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMSetPinDefaultValueAction(InPin, InDefaultValue);
-		Action.Title = FString::Printf(TEXT("Set Pin Default Value"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMSetPinDefaultValueAction(this, InPin, InDefaultValue);
+		Action.SetTitle(FString::Printf(TEXT("Set Pin Default Value")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	const FString ClampedDefaultValue = InPin->IsRootPin() ? InPin->ClampDefaultValueFromMetaData(InDefaultValue) : InDefaultValue;
@@ -7763,7 +7761,7 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action, bMergeUndoAction);
+		GetActionStack()->EndAction(Action, bMergeUndoAction);
 	}
 
 	return true;
@@ -8039,8 +8037,8 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 	FRigVMReplaceNodesAction Action;
 	if(bSetupUndoRedo)
 	{
-		Action = FRigVMReplaceNodesAction({InNode}, this);
-		Action.Title = TEXT("Add aggregate pin");
+		Action = FRigVMReplaceNodesAction(this, {InNode});
+		Action.SetTitle(TEXT("Add aggregate pin"));
 	}
 
 	if (AggregateNode == nullptr)
@@ -8311,8 +8309,8 @@ FString URigVMController::AddAggregatePin(URigVMNode* InNode, const FString& InP
 
 	if (bSetupUndoRedo)
 	{
-		Action.StoreNode(AggregateNode, this, false);
-		ActionStack->AddAction(Action);
+		Action.StoreNode(AggregateNode, false);
+		GetActionStack()->AddAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -8381,8 +8379,8 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 	FRigVMReplaceNodesAction Action;
 	if(bSetupUndoRedo)
 	{
-		Action = FRigVMReplaceNodesAction({InPin->GetNode()}, this);
-		Action.Title = TEXT("Remove aggregate pin");
+		Action = FRigVMReplaceNodesAction(this, {InPin->GetNode()});
+		Action.SetTitle(TEXT("Remove aggregate pin"));
 	}
 
 	URigVMNode* Node = InPin->GetNode();
@@ -8534,8 +8532,8 @@ bool URigVMController::RemoveAggregatePin(URigVMPin* InPin, bool bSetupUndoRedo,
 	{
 		if (bSuccess)
 		{
-			Action.StoreNode(Node, this, false);
-			ActionStack->AddAction(Action);
+			Action.StoreNode(Node, false);
+			GetActionStack()->AddAction(Action);
 		}
 	}
 
@@ -8672,9 +8670,9 @@ URigVMPin* URigVMController::InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, 
 	FRigVMInsertArrayPinAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMInsertArrayPinAction(ArrayPin, InIndex, InDefaultValue);
-		Action.Title = FString::Printf(TEXT("Insert Array Pin"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMInsertArrayPinAction(this, ArrayPin, InIndex, InDefaultValue);
+		Action.SetTitle(FString::Printf(TEXT("Insert Array Pin")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	for (int32 ExistingIndex = ArrayPin->GetSubPins().Num() - 1; ExistingIndex >= InIndex; ExistingIndex--)
@@ -8726,7 +8724,7 @@ URigVMPin* URigVMController::InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, 
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return Pin;
@@ -8768,9 +8766,9 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 	FRigVMRemoveArrayPinAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMRemoveArrayPinAction(ArrayElementPin);
-		Action.Title = FString::Printf(TEXT("Remove Array Pin"));
-		ActionStack->BeginAction(Action);
+		Action = FRigVMRemoveArrayPinAction(this, ArrayElementPin);
+		Action.SetTitle(FString::Printf(TEXT("Remove Array Pin")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	// we need to keep at least one element for fixed size arrays
@@ -8803,7 +8801,7 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -8899,11 +8897,11 @@ bool URigVMController::SetArrayPinSize(const FString& InArrayPinPath, int32 InSi
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Set Array Pin Size (%d)"), InSize);
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Set Array Pin Size (%d)"), InSize));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	InSize = FMath::Max<int32>(InSize, 0);
@@ -8926,7 +8924,7 @@ bool URigVMController::SetArrayPinSize(const FString& InArrayPinPath, int32 InSi
 		{
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return false;
 		}
@@ -8939,7 +8937,7 @@ bool URigVMController::SetArrayPinSize(const FString& InArrayPinPath, int32 InSi
 		{
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return false;
 		}
@@ -8955,11 +8953,11 @@ bool URigVMController::SetArrayPinSize(const FString& InArrayPinPath, int32 InSi
 	{
 		if (RemovedPins > 0 || AddedPins > 0)
 		{
-			ActionStack->EndAction(Action);
+			GetActionStack()->EndAction(Action);
 		}
 		else
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 	}
 
@@ -9067,11 +9065,11 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 	}
 	
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Bind pin to variable");
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(TEXT("Bind pin to variable"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	// Unbind any other variables, remove any other injections, and break all links to the input pin
@@ -9102,7 +9100,7 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		{
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return false;
 		}
@@ -9122,7 +9120,7 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 			{
 				if (bSetupUndoRedo)
 				{
-					ActionStack->CancelAction(Action, this);
+					GetActionStack()->CancelAction(Action);
 				}
 				return false;
 			}
@@ -9134,14 +9132,14 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 	{
 		if (bSetupUndoRedo)
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 		return false;
 	}
 	
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return true;
@@ -9209,18 +9207,18 @@ bool URigVMController::UnbindPinFromVariable(URigVMPin* InPin, bool bSetupUndoRe
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Unbind pin from variable");
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(TEXT("Unbind pin from variable"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	RemoveInjectedNode(InPin->GetPinPath(), true, bSetupUndoRedo);
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return true;
@@ -9606,11 +9604,11 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	ensure(!InputPin->IsLinkedTo(OutputPin));
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Add Link");
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(TEXT("Add Link"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	// check if we need to inject cast node
@@ -9636,7 +9634,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 				{
 					if (bSetupUndoRedo)
 					{
-						ActionStack->CancelAction(Action, this);
+						GetActionStack()->CancelAction(Action);
 					}
 					return false;
 				}
@@ -9675,7 +9673,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 				{
 					if (bSetupUndoRedo)
 					{
-						ActionStack->CancelAction(Action, this);
+						GetActionStack()->CancelAction(Action);
 					}
 					return false;
 				}
@@ -9691,7 +9689,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 					{
 						if (bSetupUndoRedo)
 						{
-							ActionStack->CancelAction(Action, this);
+							GetActionStack()->CancelAction(Action);
 						}
 						return false;
 					}
@@ -9703,7 +9701,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 					{
 						if (bSetupUndoRedo)
 						{
-							ActionStack->CancelAction(Action, this);
+							GetActionStack()->CancelAction(Action);
 						}
 						return false;
 					}
@@ -9711,8 +9709,8 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 
 				if(bSetupUndoRedo)
 				{
-					Action.Title = TEXT("Add Link with Cast");
-					ActionStack->EndAction(Action);
+					Action.SetTitle(TEXT("Add Link with Cast"));
+					GetActionStack()->EndAction(Action);
 				}
 				return true;
 			}
@@ -9792,7 +9790,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		{
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return false;
 		}
@@ -9800,7 +9798,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMAddLinkAction(OutputPin, InputPin));
+		GetActionStack()->AddAction(FRigVMAddLinkAction(this, OutputPin, InputPin));
 	}
 
 	URigVMLink* Link = nullptr;
@@ -9894,7 +9892,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		}
 #endif
 		
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (!bIsTransacting)
@@ -10049,9 +10047,9 @@ bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool
 			FRigVMBreakLinkAction Action;
 			if (bSetupUndoRedo)
 			{
-				Action = FRigVMBreakLinkAction(OutputPin, InputPin);
-				Action.Title = FString::Printf(TEXT("Break Link"));
-				ActionStack->BeginAction(Action);
+				Action = FRigVMBreakLinkAction(this, OutputPin, InputPin);
+				Action.SetTitle(FString::Printf(TEXT("Break Link")));
+				GetActionStack()->BeginAction(Action);
 			}
 
 			OutputPin->Links.Remove(Link);
@@ -10079,7 +10077,7 @@ bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool
 
 			if (bSetupUndoRedo)
 			{
-				ActionStack->EndAction(Action);
+				GetActionStack()->EndAction(Action);
 			}
 
 			return true;
@@ -10144,11 +10142,11 @@ bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupU
 	}
 	
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Break All Links"));
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Break All Links")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	int32 LinksBroken = 0;
@@ -10178,11 +10176,11 @@ bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupU
 	{
 		if (LinksBroken > 0)
 		{
-			ActionStack->EndAction(Action);
+			GetActionStack()->EndAction(Action);
 		}
 		else
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 	}
 
@@ -10332,10 +10330,10 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMAddExposedPinAction Action(Pin);
+	FRigVMAddExposedPinAction Action(this, Pin);
 	if (bSetupUndoRedo)
 	{
-		ActionStack->BeginAction(Action);
+		GetActionStack()->BeginAction(Action);
 	}
 
 	{
@@ -10383,7 +10381,7 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -10456,10 +10454,10 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMRemoveExposedPinAction Action(Pin);
+	FRigVMRemoveExposedPinAction Action(this, Pin);
 	if (bSetupUndoRedo)
 	{
-		ActionStack->BeginAction(Action);
+		GetActionStack()->BeginAction(Action);
 	}
 
 	bool bSuccessfullyRemovedPin = false;
@@ -10494,11 +10492,11 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 	{
 		if (bSuccessfullyRemovedPin)
 		{
-			ActionStack->EndAction(Action);
+			GetActionStack()->EndAction(Action);
 		}
 		else
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 	}
 
@@ -10585,8 +10583,8 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 	FRigVMRenameExposedPinAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMRenameExposedPinAction(Pin->GetFName(), PinName);
-		ActionStack->BeginAction(Action);
+		Action = FRigVMRenameExposedPinAction(this, Pin->GetFName(), PinName);
+		GetActionStack()->BeginAction(Action);
 	}
 
 	struct Local
@@ -10641,7 +10639,7 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 
 	if (!Local::RenamePin(this, Pin, PinName))
 	{
-		ActionStack->CancelAction(Action, this);
+		GetActionStack()->CancelAction(Action);
 		return false;
 	}
 
@@ -10682,7 +10680,7 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -10802,11 +10800,11 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Change Exposed Pin Type"));
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Change Exposed Pin Type")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	FRigVMRegistry& Registry = FRigVMRegistry::Get();
@@ -10869,7 +10867,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 		{
 			if (bSetupUndoRedo)
 			{
-				ActionStack->CancelAction(Action, this);
+				GetActionStack()->CancelAction(Action);
 			}
 			return false;
 		}
@@ -10922,7 +10920,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -10990,7 +10988,7 @@ bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewInd
 
 	FRigVMControllerCompileBracketScope CompileBracketScope(this);
 
-	FRigVMSetPinIndexAction PinIndexAction(Pin, InNewIndex);
+	FRigVMSetPinIndexAction PinIndexAction(this, Pin, InNewIndex);
 	{
 		LibraryNode->Pins.Remove(Pin);
 		LibraryNode->Pins.Insert(Pin, InNewIndex);
@@ -11005,7 +11003,7 @@ bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewInd
 	
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(PinIndexAction);
+		GetActionStack()->AddAction(PinIndexAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -11099,9 +11097,9 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNodeFromDescr
 
 	if (bSetupUndoRedo)
 	{
-		FRigVMImportFromTextAction Action(FunctionRefNode, this);
-		Action.Title = TEXT("Add function node");
-		ActionStack->AddAction(Action);
+		FRigVMImportFromTextAction Action(this, FunctionRefNode);
+		Action.SetTitle(TEXT("Add function node"));
+		GetActionStack()->AddAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -11276,7 +11274,7 @@ bool URigVMController::SetRemappedVariable(URigVMFunctionReferenceNode* InFuncti
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if(bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMSetRemappedVariableAction(InFunctionRefNode, InInnerVariableName, OldOuterVariableName, InOuterVariableName));
+		GetActionStack()->AddAction(FRigVMSetRemappedVariableAction(this, InFunctionRefNode, InInnerVariableName, OldOuterVariableName, InOuterVariableName));
 	}
 	
 	return true;
@@ -11369,9 +11367,9 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 
 	if (bSetupUndoRedo)
 	{
-		FRigVMImportFromTextAction Action(CollapseNode, this);
-		Action.Title = TEXT("Add function to library");
-		ActionStack->AddAction(Action);
+		FRigVMImportFromTextAction Action(this, CollapseNode);
+		Action.SetTitle(TEXT("Add function to library"));
+		GetActionStack()->AddAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -11485,11 +11483,11 @@ bool URigVMController::MarkFunctionAsPublic(const FName& InFunctionName, bool bI
 
 		if (bSetupUndoRedo)
 		{
-			FRigVMBaseAction BaseAction;
-			BaseAction.Title = FString::Printf(TEXT("Mark function %s as %s"), *InFunctionName.ToString(), (bInIsPublic) ? TEXT("Public") : TEXT("Private"));
-			ActionStack->BeginAction(BaseAction);
-			ActionStack->AddAction(FRigVMMarkFunctionPublicAction(InFunctionName, bInIsPublic));
-			ActionStack->EndAction(BaseAction);
+			FRigVMBaseAction BaseAction(this);
+			BaseAction.SetTitle(FString::Printf(TEXT("Mark function %s as %s"), *InFunctionName.ToString(), (bInIsPublic) ? TEXT("Public") : TEXT("Private")));
+			GetActionStack()->BeginAction(BaseAction);
+			GetActionStack()->AddAction(FRigVMMarkFunctionPublicAction(this, InFunctionName, bInIsPublic));
+			GetActionStack()->EndAction(BaseAction);
 		}
 
 		if (bInIsPublic)
@@ -11621,9 +11619,9 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& I
 
 	if (bSetupUndoRedo)
 	{
-		FRigVMAddLocalVariableAction Action(NewVariable);
-		Action.Title = FString::Printf(TEXT("Add Local Variable %s"), *InVariableName.ToString());
-		ActionStack->AddAction(Action);
+		FRigVMAddLocalVariableAction Action(this, NewVariable);
+		Action.SetTitle(FString::Printf(TEXT("Add Local Variable %s"), *InVariableName.ToString()));
+		GetActionStack()->AddAction(Action);
 	}
 
 	if (!bSuspendNotifications)
@@ -11703,11 +11701,11 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 	if (FoundIndex != INDEX_NONE)
 	{
 		FRigVMControllerCompileBracketScope CompileScope(this);
-		FRigVMBaseAction BaseAction;
+		FRigVMBaseAction BaseAction(this);
 		if (bSetupUndoRedo)
 		{
-			BaseAction.Title = FString::Printf(TEXT("Remove Local Variable %s"), *InVariableName.ToString());
-			ActionStack->BeginAction(BaseAction);			
+			BaseAction.SetTitle(FString::Printf(TEXT("Remove Local Variable %s"), *InVariableName.ToString()));
+			GetActionStack()->BeginAction(BaseAction);			
 		}	
 		
 		const FString VarNameStr = InVariableName.ToString();
@@ -11788,13 +11786,13 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 
 		if (bSetupUndoRedo)
 		{
-			ActionStack->AddAction(FRigVMRemoveLocalVariableAction(LocalVariables[FoundIndex]));
+			GetActionStack()->AddAction(FRigVMRemoveLocalVariableAction(this, LocalVariables[FoundIndex]));
 		}
 		LocalVariables.RemoveAt(FoundIndex);
 
 		if (bSetupUndoRedo)
 		{
-			ActionStack->EndAction(BaseAction);
+			GetActionStack()->EndAction(BaseAction);
 		}
 
 		if (bPrintPythonCommand)
@@ -11859,12 +11857,12 @@ bool URigVMController::RenameLocalVariable(const FName& InVariableName, const FN
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if (bSetupUndoRedo)
 	{
-		FRigVMBaseAction BaseAction;
-		BaseAction.Title = FString::Printf(TEXT("Rename Local Variable %s to %s"), *InVariableName.ToString(), *InNewVariableName.ToString());
+		FRigVMBaseAction BaseAction(this);
+		BaseAction.SetTitle(FString::Printf(TEXT("Rename Local Variable %s to %s"), *InVariableName.ToString(), *InNewVariableName.ToString()));
 
-		ActionStack->BeginAction(BaseAction);
-		ActionStack->AddAction(FRigVMRenameLocalVariableAction(LocalVariables[FoundIndex].Name, InNewVariableName));
-		ActionStack->EndAction(BaseAction);
+		GetActionStack()->BeginAction(BaseAction);
+		GetActionStack()->AddAction(FRigVMRenameLocalVariableAction(this, LocalVariables[FoundIndex].Name, InNewVariableName));
+		GetActionStack()->EndAction(BaseAction);
 	}
 	
 	LocalVariables[FoundIndex].Name = InNewVariableName;
@@ -11943,13 +11941,13 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction BaseAction;
+	FRigVMBaseAction BaseAction(this);
 	if (bSetupUndoRedo)
 	{
-		BaseAction.Title = FString::Printf(TEXT("Change Local Variable type %s to %s"), *InVariableName.ToString(), *InCPPType);
-		ActionStack->BeginAction(BaseAction);
+		BaseAction.SetTitle(FString::Printf(TEXT("Change Local Variable type %s to %s"), *InVariableName.ToString(), *InCPPType));
+		GetActionStack()->BeginAction(BaseAction);
 
-		ActionStack->AddAction(FRigVMChangeLocalVariableTypeAction(LocalVariables[FoundIndex], InCPPType, InCPPTypeObject));
+		GetActionStack()->AddAction(FRigVMChangeLocalVariableTypeAction(this, LocalVariables[FoundIndex], InCPPType, InCPPTypeObject));
 	}	
 	
 	LocalVariables[FoundIndex].CPPType = InCPPType;
@@ -11995,7 +11993,7 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(BaseAction);
+		GetActionStack()->EndAction(BaseAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -12064,9 +12062,9 @@ bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName,
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if (bSetupUndoRedo)
 	{
-		FRigVMChangeLocalVariableDefaultValueAction Action(LocalVariables[FoundIndex], InDefaultValue);
-		Action.Title = FString::Printf(TEXT("Change Local Variable %s default value"), *InVariableName.ToString());
-		ActionStack->AddAction(Action);
+		FRigVMChangeLocalVariableDefaultValueAction Action(this, LocalVariables[FoundIndex], InDefaultValue);
+		Action.SetTitle(FString::Printf(TEXT("Change Local Variable %s default value"), *InVariableName.ToString()));
+		GetActionStack()->AddAction(Action);
 	}
 
 	FRigVMGraphVariableDescription& VariableDescription = LocalVariables[FoundIndex];
@@ -12150,20 +12148,20 @@ bool URigVMController::PerformUserWorkflow(const FRigVMUserWorkflow& InWorkflow,
 	}
 
 
-	FRigVMBaseAction Bracket;
-	Bracket.Title = InWorkflow.GetTitle();
-	ActionStack->BeginAction(Bracket);
+	FRigVMBaseAction Bracket(this);
+	Bracket.SetTitle(InWorkflow.GetTitle());
+	GetActionStack()->BeginAction(Bracket);
 
 	const bool bSuccess = InWorkflow.Perform(InOptions, this);
 
-	ActionStack->EndAction(Bracket);
+	GetActionStack()->EndAction(Bracket);
 
 	if(!bSuccess)
 	{
 		// if the workflow was run as the top level action we'll undo
-		if(ActionStack->CurrentActions.IsEmpty())
+		if(GetActionStack()->CurrentActions.IsEmpty())
 		{
-			ActionStack->Undo(this);
+			GetActionStack()->Undo(this);
 		}
 	}
 
@@ -12436,11 +12434,11 @@ URigVMRerouteNode* URigVMController::AddFreeRerouteNode(bool bShowAsFullNode, co
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Add Reroute"));
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(FString::Printf(TEXT("Add Reroute")));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("RerouteNode")) : InNodeName);
@@ -12473,14 +12471,14 @@ URigVMRerouteNode* URigVMController::AddFreeRerouteNode(bool bShowAsFullNode, co
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMImportFromTextAction(Node, this));
+		GetActionStack()->AddAction(FRigVMImportFromTextAction(this, Node));
 	}
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	return Node;
@@ -12712,19 +12710,19 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
 
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if (bSetupUndoRedo)
 	{
-		ActionStack->BeginAction(Action);
-		ActionStack->AddAction(FRigVMImportFromTextAction(Node, this));
+		GetActionStack()->BeginAction(Action);
+		GetActionStack()->AddAction(FRigVMImportFromTextAction(this, Node));
 	}
 	
 	ResolveTemplateNodeMetaData(Node, bSetupUndoRedo);
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -12864,7 +12862,7 @@ URigVMEnumNode* URigVMController::AddEnumNode(const FName& InCPPTypeObjectPath, 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMImportFromTextAction(Node, this));
+		GetActionStack()->AddAction(FRigVMImportFromTextAction(this, Node));
 	}
 
 	if (bPrintPythonCommand)
@@ -13073,9 +13071,9 @@ URigVMInvokeEntryNode* URigVMController::AddInvokeEntryNode(const FName& InEntry
 
 	if (bSetupUndoRedo)
 	{
-		FRigVMImportFromTextAction Action(Node, this);
-		Action.Title = FString::Printf(TEXT("Add Invoke %s Entry"), *InEntryName.ToString());
-		ActionStack->AddAction(Action);
+		FRigVMImportFromTextAction Action(this, Node);
+		Action.SetTitle(FString::Printf(TEXT("Add Invoke %s Entry"), *InEntryName.ToString()));
+		GetActionStack()->AddAction(Action);
 	}
 
 	if (bPrintPythonCommand)
@@ -16210,11 +16208,11 @@ bool URigVMController::ResolveWildCardPin(URigVMPin* InPin, TRigVMTypeIndex InTy
 		return false;
 	}
 	
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Resolve Wildcard Pin");
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(TEXT("Resolve Wildcard Pin"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	if (!InPin->IsWildCard())
@@ -16229,7 +16227,7 @@ bool URigVMController::ResolveWildCardPin(URigVMPin* InPin, TRigVMTypeIndex InTy
 	{
 		if (bSetupUndoRedo)
 		{
-			ActionStack->CancelAction(Action, this);
+			GetActionStack()->CancelAction(Action);
 		}
 		return false;
 	}
@@ -16238,7 +16236,7 @@ bool URigVMController::ResolveWildCardPin(URigVMPin* InPin, TRigVMTypeIndex InTy
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 	
 	return true;
@@ -16782,11 +16780,11 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeInd
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMBaseAction Action(this);
 	if (bSetupUndoRedo)
 	{
-		Action.Title = TEXT("Change pin type");
-		ActionStack->BeginAction(Action);
+		Action.SetTitle(TEXT("Change pin type"));
+		GetActionStack()->BeginAction(Action);
 	}
 
 	TArray<FLinkedPath> LinkedPaths;
@@ -16839,7 +16837,7 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeInd
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMChangePinTypeAction(InPin, TypeIndex, bSetupOrphanPins, bBreakLinks, bRemoveSubPins));
+		GetActionStack()->AddAction(FRigVMChangePinTypeAction(this, InPin, TypeIndex, bSetupOrphanPins, bBreakLinks, bRemoveSubPins));
 	}
 	
 	// compute the number of remaining wildcard pins
@@ -17065,7 +17063,7 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeInd
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		GetActionStack()->EndAction(Action);
 	}
 
 	if(!LinkedPaths.IsEmpty())
@@ -17547,7 +17545,7 @@ bool URigVMController::BreakLinkedPaths(const TArray<FLinkedPath>& InLinkedPaths
 
 				if(bSetupUndoRedo && SourcePin && TargetPin)
 				{
-					ActionStack->AddAction(FRigVMBreakLinkAction(SourcePin, TargetPin));
+					GetActionStack()->AddAction(FRigVMBreakLinkAction(this, SourcePin, TargetPin));
 				}
 			}
 			else
@@ -18355,6 +18353,37 @@ void URigVMController::PostDuplicateHost(const FString& InOldPathName, const FSt
 }
 
 #endif
+
+URigVMActionStack* URigVMController::GetActionStack() const
+{
+	if(WeakActionStack.IsValid())
+	{
+		return WeakActionStack.Get();
+	}
+	checkNoEntry();
+	return nullptr;
+}
+
+void URigVMController::SetActionStack(URigVMActionStack* InActionStack)
+{
+	if(URigVMActionStack* PreviousActionStack = WeakActionStack.Get())
+	{
+		PreviousActionStack->OnModified().Remove(ActionStackHandle);
+		ActionStackHandle.Reset();
+	}
+
+	WeakActionStack = InActionStack;
+
+	if(URigVMActionStack* NewActionStack = WeakActionStack.Get())
+	{
+		ActionStackHandle = NewActionStack->OnModified().AddLambda([&](ERigVMGraphNotifType NotifType, URigVMGraph* InGraph, UObject* InSubject) -> void {
+			if(InGraph == GetGraph())
+			{
+				Notify(NotifType, InSubject);
+			}
+		});
+	}
+}
 
 URigVMControllerSettings::URigVMControllerSettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)

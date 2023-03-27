@@ -79,7 +79,7 @@ public:
 	~FRigVMActionWrapper();
 
 	const UScriptStruct* GetScriptStruct() const;
-	FRigVMBaseAction* GetAction() const;
+	FRigVMBaseAction* GetAction(URigVMController* InLastController = nullptr) const;
 	FString ExportText() const;
 
 private:
@@ -116,6 +116,8 @@ struct FRigVMBaseAction
 {
 	GENERATED_BODY()
 
+public:
+	
 	inline static const FString RedoPrefix = TEXT("Redo");
 	inline static const FString UndoPrefix = TEXT("Undo");
 	inline static const FString AddActionPrefix = TEXT("Add Action");
@@ -124,13 +126,21 @@ struct FRigVMBaseAction
 	inline static const FString CancelActionPrefix = TEXT("Cancel Action");
 
 	// Default constructor
-	FRigVMBaseAction()
-		 : Title(TEXT("Action"))
+	FRigVMBaseAction(URigVMController* InController)
+		: WeakController(InController)
+		, Title(TEXT("Action"))
 	{
+		if(InController)
+		{
+			ControllerPath = FSoftObjectPath(InController);
+		}
 	}
 
 	// Default destructor
 	virtual ~FRigVMBaseAction() {};
+
+	// Returns the controller of this action
+	URigVMController* GetController() const;
 
 	// Access to the actions script struct. this needs to be overloaded
 	virtual UScriptStruct* GetScriptStruct() const { return FRigVMBaseAction::StaticStruct(); }
@@ -141,6 +151,9 @@ struct FRigVMBaseAction
 	// Returns the title of the action - used for the Edit menu's undo / redo
 	virtual FString GetTitle() const { return Title; }
 
+	// Sets the title of the action - used for the Edit menu's undo / redo
+	virtual void SetTitle(const FString& InTitle) { Title = InTitle; }
+
 	// Trys to merge the action with another action and 
 	// returns true if successfull.
 	virtual bool Merge(const FRigVMBaseAction* Other);
@@ -148,30 +161,48 @@ struct FRigVMBaseAction
 	// Returns true if this action makes the other action obsolete.
 	virtual bool MakesObsolete(const FRigVMBaseAction* Other) const;
 
+	// Returns true if this action can undo / redo
+	bool CanUndoRedo() const { return GetController() != nullptr; }
+
 	// Un-does the action and returns true if successfull.
-	virtual bool Undo(URigVMController* InController);
+	virtual bool Undo();
 
 	// Re-does the action and returns true if successfull.
-	virtual bool Redo(URigVMController* InController);
+	virtual bool Redo();
 
 	// Adds a child / sub action to this one
 	template<class ActionType>
-	void AddAction(const ActionType& InAction, URigVMController* InController)
+	void AddAction(const ActionType& InAction)
 	{
+		check(InAction.CanUndoRedo());
 		FRigVMActionKey Key;
 		Key.Set<ActionType>(InAction);
 		SubActions.Add(Key);
 	}
 
-	bool StoreNode(const URigVMNode* InNode, URigVMController* InController, bool bIsPriorChange = true);
-	bool RestoreNode(const FName& InNodeName, URigVMController* InController, bool bIsUndoing);
+	bool StoreNode(const URigVMNode* InNode, bool bIsPriorChange = true);
+	bool RestoreNode(const FName& InNodeName, bool bIsUndoing);
 
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG
 	
 	// Logs the action to the console / output log
-	void LogAction(URigVMController* InController, const FString& InPrefix) const;
+	void LogAction(const FString& InPrefix) const;
 
 #endif
+
+protected:
+
+	// Empty constructor
+	FRigVMBaseAction()
+		: WeakController(nullptr)
+		, Title(TEXT("Action"))
+	{
+	}
+
+	mutable TWeakObjectPtr<URigVMController> WeakController;
+
+	UPROPERTY()
+	FSoftObjectPath ControllerPath;
 
 	UPROPERTY()
 	FString Title;
@@ -181,6 +212,10 @@ struct FRigVMBaseAction
 
 	UPROPERTY()
 	TMap<FName, FRigVMActionNodeContent> ExportedNodes;
+
+	friend struct FRigVMActionWrapper;
+	friend class URigVMActionStack;
+	friend class UScriptStruct;
 };
 
 /**
@@ -192,7 +227,7 @@ struct FRigVMBaseAction
  * actions occuring during the bracket's lifetime.
  */
 UCLASS()
-class URigVMActionStack : public UObject
+class RIGVMDEVELOPER_API URigVMActionStack : public UObject
 {
 	GENERATED_BODY()
 
@@ -247,13 +282,13 @@ public:
 	// Cancels an action, closes a bracket / scope and discards all 
 	// actions to this point.
 	template<class ActionType>
-	void CancelAction(ActionType& InAction, URigVMController* InController)
+	void CancelAction(ActionType& InAction)
 	{
 		ensure(CurrentActions.Num() > 0);
 		ensure((FRigVMBaseAction*)&InAction == CurrentActions.Last());
 		CurrentActions.Pop();
 
-		InAction.Undo(InController);
+		InAction.Undo();
 
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG		
 		TGuardValue<int32> TabDepthGuard(LogActionDepth, CurrentActions.Num());
@@ -338,7 +373,7 @@ public:
 	// Opens an undo bracket / scope to record actions into.
 	// This is primary useful for Python.
 	UFUNCTION()
-	bool OpenUndoBracket(const FString& InTitle);
+	bool OpenUndoBracket(URigVMController* InController, const FString& InTitle);
 
 	// Closes an undo bracket / scope.
 	// This is primary useful for Python.
@@ -415,11 +450,11 @@ struct FRigVMInjectNodeIntoPinAction : public FRigVMBaseAction
 public:
 
 	FRigVMInjectNodeIntoPinAction();
-	FRigVMInjectNodeIntoPinAction(URigVMInjectionInfo* InInjectionInfo);
+	FRigVMInjectNodeIntoPinAction(URigVMController* InController, URigVMInjectionInfo* InInjectionInfo);
 	virtual ~FRigVMInjectNodeIntoPinAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMInjectNodeIntoPinAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString PinPath;
@@ -448,11 +483,11 @@ struct FRigVMEjectNodeFromPinAction : public FRigVMInjectNodeIntoPinAction
 public:
 
 	FRigVMEjectNodeFromPinAction();
-	FRigVMEjectNodeFromPinAction(URigVMInjectionInfo* InInjectionInfo);
+	FRigVMEjectNodeFromPinAction(URigVMController* InController, URigVMInjectionInfo* InInjectionInfo);
 	virtual ~FRigVMEjectNodeFromPinAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMEjectNodeFromPinAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 };
 
 /**
@@ -465,12 +500,12 @@ struct FRigVMRemoveNodesAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMRemoveNodesAction() {}
-	FRigVMRemoveNodesAction(TArray<URigVMNode*> InNodes, URigVMController* InController);
+	FRigVMRemoveNodesAction();
+	FRigVMRemoveNodesAction(URigVMController* InController, TArray<URigVMNode*> InNodes);
 	virtual ~FRigVMRemoveNodesAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRemoveNodesAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	TArray<FName> NodeNames;
@@ -490,11 +525,11 @@ struct FRigVMSetNodeSelectionAction : public FRigVMBaseAction
 public:
 
 	FRigVMSetNodeSelectionAction();
-	FRigVMSetNodeSelectionAction(URigVMGraph* InGraph, TArray<FName> InNewSelection);
+	FRigVMSetNodeSelectionAction(URigVMController* InController, URigVMGraph* InGraph, TArray<FName> InNewSelection);
 	virtual ~FRigVMSetNodeSelectionAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetNodeSelectionAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	TArray<FName> NewSelection;
@@ -513,16 +548,13 @@ struct FRigVMSetNodePositionAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetNodePositionAction()
-	{
-		OldPosition = NewPosition = FVector2D::ZeroVector;
-	}
-	FRigVMSetNodePositionAction(URigVMNode* InNode, const FVector2D& InNewPosition);
+	FRigVMSetNodePositionAction();
+	FRigVMSetNodePositionAction(URigVMController* InController, URigVMNode* InNode, const FVector2D& InNewPosition);
 	virtual ~FRigVMSetNodePositionAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetNodePositionAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -544,16 +576,13 @@ struct FRigVMSetNodeSizeAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetNodeSizeAction()
-	{
-		OldSize = NewSize = FVector2D::ZeroVector;
-	}
-	FRigVMSetNodeSizeAction(URigVMNode* InNode, const FVector2D& InNewSize);
+	FRigVMSetNodeSizeAction();
+	FRigVMSetNodeSizeAction(URigVMController* InController, URigVMNode* InNode, const FVector2D& InNewSize);
 	virtual ~FRigVMSetNodeSizeAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetNodeSizeAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -575,16 +604,13 @@ struct FRigVMSetNodeColorAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetNodeColorAction()
-	{
-		OldColor = NewColor = FLinearColor::Black;
-	}
-	FRigVMSetNodeColorAction(URigVMNode* InNode, const FLinearColor& InNewColor);
+	FRigVMSetNodeColorAction();
+	FRigVMSetNodeColorAction(URigVMController* InController, URigVMNode* InNode, const FLinearColor& InNewColor);
 	virtual ~FRigVMSetNodeColorAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetNodeColorAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -606,16 +632,13 @@ struct FRigVMSetNodeCategoryAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetNodeCategoryAction()
-	{
-		OldCategory = NewCategory = FString();
-	}
-	FRigVMSetNodeCategoryAction(URigVMCollapseNode* InNode, const FString& InNewCategory);
+	FRigVMSetNodeCategoryAction();
+	FRigVMSetNodeCategoryAction(URigVMController* InController, URigVMCollapseNode* InNode, const FString& InNewCategory);
 	virtual ~FRigVMSetNodeCategoryAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetNodeCategoryAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -638,16 +661,13 @@ struct FRigVMSetNodeKeywordsAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetNodeKeywordsAction()
-	{
-		OldKeywords = NewKeywords = FString();
-	}
-	FRigVMSetNodeKeywordsAction(URigVMCollapseNode* InNode, const FString& InNewKeywords);
+	FRigVMSetNodeKeywordsAction();
+	FRigVMSetNodeKeywordsAction(URigVMController* InController, URigVMCollapseNode* InNode, const FString& InNewKeywords);
 	virtual ~FRigVMSetNodeKeywordsAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetNodeKeywordsAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -669,16 +689,13 @@ struct FRigVMSetNodeDescriptionAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetNodeDescriptionAction()
-	{
-		OldDescription = NewDescription = FString();
-	}
-	FRigVMSetNodeDescriptionAction(URigVMCollapseNode* InNode, const FString& InNewDescription);
+	FRigVMSetNodeDescriptionAction();
+	FRigVMSetNodeDescriptionAction(URigVMController* InController, URigVMCollapseNode* InNode, const FString& InNewDescription);
 	virtual ~FRigVMSetNodeDescriptionAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetNodeDescriptionAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -701,11 +718,11 @@ struct FRigVMSetCommentTextAction : public FRigVMBaseAction
 public:
 
 	FRigVMSetCommentTextAction();
-	FRigVMSetCommentTextAction(URigVMCommentNode* InNode, const FString& InNewText, const int32& InNewFontSize, const bool& bInNewBubbleVisible, const bool& bInNewColorBubble);
+	FRigVMSetCommentTextAction(URigVMController* InController, URigVMCommentNode* InNode, const FString& InNewText, const int32& InNewFontSize, const bool& bInNewBubbleVisible, const bool& bInNewColorBubble);
 	virtual ~FRigVMSetCommentTextAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetCommentTextAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -746,11 +763,11 @@ struct FRigVMSetRerouteCompactnessAction : public FRigVMBaseAction
 public:
 
 	FRigVMSetRerouteCompactnessAction();
-	FRigVMSetRerouteCompactnessAction(URigVMRerouteNode* InNode, bool InShowAsFullNode);
+	FRigVMSetRerouteCompactnessAction(URigVMController* InController, URigVMRerouteNode* InNode, bool InShowAsFullNode);
 	virtual ~FRigVMSetRerouteCompactnessAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetRerouteCompactnessAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -772,12 +789,12 @@ struct FRigVMRenameVariableAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMRenameVariableAction() {}
-	FRigVMRenameVariableAction(const FName& InOldVariableName, const FName& InNewVariableName);
+	FRigVMRenameVariableAction();
+	FRigVMRenameVariableAction(URigVMController* InController, const FName& InOldVariableName, const FName& InNewVariableName);
 	virtual ~FRigVMRenameVariableAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRenameVariableAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString OldVariableName;
@@ -796,17 +813,12 @@ struct FRigVMSetPinExpansionAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetPinExpansionAction()
-	{
-		PinPath = FString();
-		OldIsExpanded = NewIsExpanded = false;
-	}
-
-	FRigVMSetPinExpansionAction(URigVMPin* InPin, bool bNewIsExpanded);
+	FRigVMSetPinExpansionAction();
+	FRigVMSetPinExpansionAction(URigVMController* InController, URigVMPin* InPin, bool bNewIsExpanded);
 	virtual ~FRigVMSetPinExpansionAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetPinExpansionAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString PinPath;
@@ -828,16 +840,12 @@ struct FRigVMSetPinWatchAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetPinWatchAction()
-	{
-		OldIsWatched = NewIsWatched = false;
-	}
-
-	FRigVMSetPinWatchAction(URigVMPin* InPin, bool bNewIsWatched);
+	FRigVMSetPinWatchAction();
+	FRigVMSetPinWatchAction(URigVMController* InController, URigVMPin* InPin, bool bNewIsWatched);
 	virtual ~FRigVMSetPinWatchAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetPinWatchAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString PinPath;
@@ -859,13 +867,13 @@ struct FRigVMSetPinDefaultValueAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetPinDefaultValueAction() {}
-	FRigVMSetPinDefaultValueAction(URigVMPin* InPin, const FString& InNewDefaultValue);
+	FRigVMSetPinDefaultValueAction();
+	FRigVMSetPinDefaultValueAction(URigVMController* InController, URigVMPin* InPin, const FString& InNewDefaultValue);
 	virtual ~FRigVMSetPinDefaultValueAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetPinDefaultValueAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString PinPath;
@@ -887,15 +895,12 @@ struct FRigVMInsertArrayPinAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMInsertArrayPinAction()
-		: Index(0)
-	{
-	}
-	FRigVMInsertArrayPinAction(URigVMPin* InArrayPin, int32 InIndex, const FString& InNewDefaultValue);
+	FRigVMInsertArrayPinAction();
+	FRigVMInsertArrayPinAction(URigVMController* InController, URigVMPin* InArrayPin, int32 InIndex, const FString& InNewDefaultValue);
 	virtual ~FRigVMInsertArrayPinAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMInsertArrayPinAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString ArrayPinPath;
@@ -917,15 +922,12 @@ struct FRigVMRemoveArrayPinAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMRemoveArrayPinAction()
-		: Index(0)
-	{
-	}
-	FRigVMRemoveArrayPinAction(URigVMPin* InArrayElementPin);
+	FRigVMRemoveArrayPinAction();
+	FRigVMRemoveArrayPinAction(URigVMController* InController, URigVMPin* InArrayElementPin);
 	virtual ~FRigVMRemoveArrayPinAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRemoveArrayPinAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString ArrayPinPath;
@@ -947,12 +949,12 @@ struct FRigVMAddLinkAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMAddLinkAction() {}
-	FRigVMAddLinkAction(URigVMPin* InOutputPin, URigVMPin* InInputPin);
+	FRigVMAddLinkAction();
+	FRigVMAddLinkAction(URigVMController* InController, URigVMPin* InOutputPin, URigVMPin* InInputPin);
 	virtual ~FRigVMAddLinkAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddLinkAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString OutputPinPath;
@@ -971,12 +973,12 @@ struct FRigVMBreakLinkAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMBreakLinkAction() {}
-	FRigVMBreakLinkAction(URigVMPin* InOutputPin, URigVMPin* InInputPin);
+	FRigVMBreakLinkAction();
+	FRigVMBreakLinkAction(URigVMController* InController, URigVMPin* InOutputPin, URigVMPin* InInputPin);
 	virtual ~FRigVMBreakLinkAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMBreakLinkAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FSoftObjectPath GraphPath;
@@ -999,11 +1001,11 @@ struct FRigVMChangePinTypeAction : public FRigVMBaseAction
 public:
 
 	FRigVMChangePinTypeAction();
-	FRigVMChangePinTypeAction(URigVMPin* InPin, int32 InTypeIndex, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins);
+	FRigVMChangePinTypeAction(URigVMController* InController, URigVMPin* InPin, int32 InTypeIndex, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins);
 	virtual ~FRigVMChangePinTypeAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMChangePinTypeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString PinPath;
@@ -1038,8 +1040,8 @@ public:
 	FRigVMCollapseNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, const FString& InNodePath, const bool bIsAggregate);
 	virtual ~FRigVMCollapseNodesAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMCollapseNodesAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString LibraryNodePath;
@@ -1068,8 +1070,8 @@ public:
 	FRigVMExpandNodeAction(URigVMController* InController, URigVMLibraryNode* InLibraryNode);
 	virtual ~FRigVMExpandNodeAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMExpandNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString LibraryNodePath;
@@ -1091,12 +1093,12 @@ struct FRigVMRenameNodeAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMRenameNodeAction() {}
-	FRigVMRenameNodeAction(const FName& InOldNodeName, const FName& InNewNodeName);
+	FRigVMRenameNodeAction();
+	FRigVMRenameNodeAction(URigVMController* InController, const FName& InOldNodeName, const FName& InNewNodeName);
 	virtual ~FRigVMRenameNodeAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRenameNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString OldNodeName;
@@ -1115,12 +1117,12 @@ struct FRigVMPushGraphAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMPushGraphAction() {}
-	FRigVMPushGraphAction(UObject* InGraph);
+	FRigVMPushGraphAction();
+	FRigVMPushGraphAction(URigVMController* InController, UObject* InGraph);
 	virtual ~FRigVMPushGraphAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMPushGraphAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 	virtual bool MakesObsolete(const FRigVMBaseAction* Other) const override;
 
 	UPROPERTY()
@@ -1137,12 +1139,12 @@ struct FRigVMPopGraphAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMPopGraphAction() {}
-	FRigVMPopGraphAction(UObject* InGraph);
+	FRigVMPopGraphAction();
+	FRigVMPopGraphAction(URigVMController* InController, UObject* InGraph);
 	virtual ~FRigVMPopGraphAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMPopGraphAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 	virtual bool MakesObsolete(const FRigVMBaseAction* Other) const override;
 
 	UPROPERTY()
@@ -1160,18 +1162,18 @@ struct FRigVMAddExposedPinAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMAddExposedPinAction() {}
-	FRigVMAddExposedPinAction(URigVMPin* InPin);
+	FRigVMAddExposedPinAction();
+	FRigVMAddExposedPinAction(URigVMController* InController, URigVMPin* InPin);
 	virtual ~FRigVMAddExposedPinAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddExposedPinAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString PinName;
 	
 	UPROPERTY()
-	ERigVMPinDirection Direction = ERigVMPinDirection::Input;
+	ERigVMPinDirection Direction;
 
 	UPROPERTY()
 	FString CPPType;
@@ -1194,17 +1196,17 @@ struct FRigVMRemoveExposedPinAction : public FRigVMBaseAction
 public:
 
 	FRigVMRemoveExposedPinAction();
-	FRigVMRemoveExposedPinAction(URigVMPin* InPin);
+	FRigVMRemoveExposedPinAction(URigVMController* InController, URigVMPin* InPin);
 	virtual ~FRigVMRemoveExposedPinAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRemoveExposedPinAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString PinName;
 	
 	UPROPERTY()
-	ERigVMPinDirection Direction = ERigVMPinDirection::Input;
+	ERigVMPinDirection Direction;
 
 	UPROPERTY()
 	FString CPPType;
@@ -1229,12 +1231,12 @@ struct FRigVMRenameExposedPinAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMRenameExposedPinAction() {}
-	FRigVMRenameExposedPinAction(const FName& InOldPinName, const FName& InNewPinName);
+	FRigVMRenameExposedPinAction();
+	FRigVMRenameExposedPinAction(URigVMController* InController, const FName& InOldPinName, const FName& InNewPinName);
 	virtual ~FRigVMRenameExposedPinAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRenameExposedPinAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString OldPinName;
@@ -1254,11 +1256,11 @@ struct FRigVMSetPinIndexAction : public FRigVMBaseAction
 public:
 
 	FRigVMSetPinIndexAction();
-	FRigVMSetPinIndexAction(URigVMPin* InPin, int32 InNewIndex);
+	FRigVMSetPinIndexAction(URigVMController* InController, URigVMPin* InPin, int32 InNewIndex);
 	virtual ~FRigVMSetPinIndexAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetPinIndexAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString PinPath;
@@ -1280,13 +1282,13 @@ struct FRigVMSetRemappedVariableAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMSetRemappedVariableAction() {}
-	FRigVMSetRemappedVariableAction(URigVMFunctionReferenceNode* InFunctionRefNode, const FName& InInnerVariableName,
+	FRigVMSetRemappedVariableAction();
+	FRigVMSetRemappedVariableAction(URigVMController* InController, URigVMFunctionReferenceNode* InFunctionRefNode, const FName& InInnerVariableName,
 		const FName& InOldOuterVariableName, const FName& InNewOuterVariableName);
 	virtual ~FRigVMSetRemappedVariableAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetRemappedVariableAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString NodePath;
@@ -1311,12 +1313,12 @@ struct FRigVMAddLocalVariableAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMAddLocalVariableAction() {}
-	FRigVMAddLocalVariableAction(const FRigVMGraphVariableDescription& InLocalVariable);
+	FRigVMAddLocalVariableAction();
+	FRigVMAddLocalVariableAction(URigVMController* InController, const FRigVMGraphVariableDescription& InLocalVariable);
 	virtual ~FRigVMAddLocalVariableAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddLocalVariableAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FRigVMGraphVariableDescription LocalVariable;
@@ -1332,12 +1334,12 @@ struct FRigVMRemoveLocalVariableAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMRemoveLocalVariableAction() {}
-	FRigVMRemoveLocalVariableAction(const FRigVMGraphVariableDescription& InLocalVariable);
+	FRigVMRemoveLocalVariableAction();
+	FRigVMRemoveLocalVariableAction(URigVMController* InController, const FRigVMGraphVariableDescription& InLocalVariable);
 	virtual ~FRigVMRemoveLocalVariableAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRemoveLocalVariableAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FRigVMGraphVariableDescription LocalVariable;
@@ -1353,12 +1355,12 @@ struct FRigVMRenameLocalVariableAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMRenameLocalVariableAction() {}
-	FRigVMRenameLocalVariableAction(const FName& InOldName, const FName& InNewName);
+	FRigVMRenameLocalVariableAction();
+	FRigVMRenameLocalVariableAction(URigVMController* InController, const FName& InOldName, const FName& InNewName);
 	virtual ~FRigVMRenameLocalVariableAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRenameLocalVariableAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FName OldVariableName;
@@ -1377,11 +1379,11 @@ struct FRigVMChangeLocalVariableTypeAction : public FRigVMBaseAction
 
 public:
 	FRigVMChangeLocalVariableTypeAction();
-	FRigVMChangeLocalVariableTypeAction(const FRigVMGraphVariableDescription& InLocalVariable, const FString& InCPPType, UObject* InCPPTypeObject);
+	FRigVMChangeLocalVariableTypeAction(URigVMController* InController, const FRigVMGraphVariableDescription& InLocalVariable, const FString& InCPPType, UObject* InCPPTypeObject);
 	virtual ~FRigVMChangeLocalVariableTypeAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMChangeLocalVariableTypeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FRigVMGraphVariableDescription LocalVariable;
@@ -1403,11 +1405,11 @@ struct FRigVMChangeLocalVariableDefaultValueAction : public FRigVMBaseAction
 
 public:
 	FRigVMChangeLocalVariableDefaultValueAction();
-	FRigVMChangeLocalVariableDefaultValueAction(const FRigVMGraphVariableDescription& InLocalVariable, const FString& InDefaultValue);
+	FRigVMChangeLocalVariableDefaultValueAction(URigVMController* InController, const FRigVMGraphVariableDescription& InLocalVariable, const FString& InDefaultValue);
 	virtual ~FRigVMChangeLocalVariableDefaultValueAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMChangeLocalVariableDefaultValueAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FRigVMGraphVariableDescription LocalVariable;
@@ -1427,11 +1429,11 @@ struct FRigVMPromoteNodeAction : public FRigVMBaseAction
 public:
 
 	FRigVMPromoteNodeAction();
-	FRigVMPromoteNodeAction(const URigVMNode* InNodeToPromote, const FString& InNodePath, const FString& InFunctionDefinitionPath);
+	FRigVMPromoteNodeAction(URigVMController* InController, const URigVMNode* InNodeToPromote, const FString& InNodePath, const FString& InFunctionDefinitionPath);
 	virtual ~FRigVMPromoteNodeAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMPromoteNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString LibraryNodePath;
@@ -1454,11 +1456,11 @@ struct FRigVMMarkFunctionPublicAction : public FRigVMBaseAction
 public:
 
 	FRigVMMarkFunctionPublicAction();
-	FRigVMMarkFunctionPublicAction(const FName& InFunctionName, bool bInIsPublic);
+	FRigVMMarkFunctionPublicAction(URigVMController* InController, const FName& InFunctionName, bool bInIsPublic);
 	virtual ~FRigVMMarkFunctionPublicAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMMarkFunctionPublicAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FName FunctionName;
@@ -1477,15 +1479,15 @@ struct FRigVMImportFromTextAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMImportFromTextAction() {}
-	FRigVMImportFromTextAction(const FString& InContent, const TArray<FName>& InTopLevelNodeNames);
-	FRigVMImportFromTextAction(URigVMNode* InNode, URigVMController* InController, bool bIncludeExteriorLinks = true);
-	FRigVMImportFromTextAction(const TArray<URigVMNode*>& InNodes, URigVMController* InController, bool bIncludeExteriorLinks = true);
-	void SetContent(const TArray<URigVMNode*>& InNodes, URigVMController* InController, bool bIncludeExteriorLinks = true);
+	FRigVMImportFromTextAction();
+	FRigVMImportFromTextAction(URigVMController* InController, const FString& InContent, const TArray<FName>& InTopLevelNodeNames);
+	FRigVMImportFromTextAction(URigVMController* InController, URigVMNode* InNode, bool bIncludeExteriorLinks = true);
+	FRigVMImportFromTextAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes, bool bIncludeExteriorLinks = true);
+	void SetContent(const TArray<URigVMNode*>& InNodes, bool bIncludeExteriorLinks = true);
 	virtual ~FRigVMImportFromTextAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMImportFromTextAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 
 	UPROPERTY()
 	FString Content;
@@ -1504,10 +1506,10 @@ struct FRigVMReplaceNodesAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMReplaceNodesAction() {}
-	FRigVMReplaceNodesAction(const TArray<URigVMNode*>& InNodes, URigVMController* InController);
+	FRigVMReplaceNodesAction();
+	FRigVMReplaceNodesAction(URigVMController* InController, const TArray<URigVMNode*>& InNodes);
 	virtual ~FRigVMReplaceNodesAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMReplaceNodesAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
+	virtual bool Undo() override;
+	virtual bool Redo() override;
 };

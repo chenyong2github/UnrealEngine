@@ -68,7 +68,7 @@ void UControlRigGraph::HandleRigVMGraphRenamed(const FString& InOldNodePath, con
 			GraphName = ModelNodePath;
 		}
 		GraphName.RemoveFromEnd(TEXT("::"));
-		GraphName.RemoveFromStart(UControlRigBlueprint::RigVMModelPrefix);
+		GraphName.RemoveFromStart(FRigVMClient::RigVMModelPrefix);
 		GraphName.TrimStartAndEndInline();
 
 		if(GraphName.IsEmpty())

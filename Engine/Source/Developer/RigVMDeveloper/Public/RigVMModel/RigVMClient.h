@@ -166,6 +166,8 @@ public:
 	bool UpdateGraphFunctionSerializedGraph(URigVMLibraryNode* InLibraryNode);
 	bool IsFunctionPublic(URigVMLibraryNode* InLibraryNode);
 
+	static constexpr TCHAR RigVMModelPrefix[] = TEXT("RigVMModel");
+
 private:
 
 	enum ERigVMClientAction
@@ -183,6 +185,7 @@ private:
 	};
 
 	URigVMController* CreateController(const URigVMGraph* InModel);
+	URigVMActionStack* GetOrCreateActionStack();
 
 	UPROPERTY(transient)
 	TObjectPtr<UScriptStruct> ExecuteContextStruct;
@@ -195,6 +198,9 @@ private:
 
 	UPROPERTY(transient)
 	TMap<FSoftObjectPath, TObjectPtr<URigVMController>> Controllers;
+
+	UPROPERTY(transient)
+	TObjectPtr<URigVMActionStack> ActionStack;
 
 	UPROPERTY(transient)
 	int32 UndoRedoIndex = 0;

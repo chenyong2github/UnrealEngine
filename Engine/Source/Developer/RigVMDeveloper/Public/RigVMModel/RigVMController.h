@@ -1271,6 +1271,9 @@ public:
 	FRigVMTemplate::FTypeMap GetCommonlyUsedTypesForTemplate(const URigVMTemplateNode* InNode) const;
 #endif
 
+	URigVMActionStack* GetActionStack() const;
+	void SetActionStack(URigVMActionStack* InActionStack);
+
 protected:
 
 	// backwards compatibility code
@@ -1346,8 +1349,8 @@ private:
 	UPROPERTY(transient)
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
 
-	UPROPERTY(transient)
-	TObjectPtr<URigVMActionStack> ActionStack;
+	TWeakObjectPtr<URigVMActionStack> WeakActionStack;
+	FDelegateHandle ActionStackHandle;
 
 	bool bSuspendNotifications;
 	bool bReportWarningsAndErrors;

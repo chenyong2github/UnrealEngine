@@ -5,6 +5,7 @@
 #include "Exporters/Exporter.h"
 #include "Algo/Sort.h"
 #include "UnrealExporter.h"
+#include "RigVMModel/RigVMControllerActions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMClient)
 
@@ -19,6 +20,15 @@ void FRigVMClient::SetOuterClientHost(UObject* InOuterClientHost, const FName& I
 
 	check(OuterClientHost->Implements<URigVMClientHost>());
 	check(GetOuterClientProperty() != nullptr);
+
+	// create the null graph / default controller.
+	// we need this to react to notifs without a valid graph
+	// such as interaction brackets
+	static const URigVMGraph* NullGraph = nullptr;
+	if(!Controllers.Contains(NullGraph))
+	{
+		CreateController(NullGraph);
+	}
 }
 
 void FRigVMClient::SetFromDeprecatedData(URigVMGraph* InDefaultGraph, URigVMFunctionLibrary* InFunctionLibrary)
@@ -625,10 +635,15 @@ void FRigVMClient::NotifyOuterOfPropertyChange(EPropertyChangeType::Type ChangeT
 
 URigVMController* FRigVMClient::CreateController(const URigVMGraph* InModel)
 {
-	const FName SafeControllerName = GetUniqueName(*FString::Printf(TEXT("%s_Controller"), *InModel->GetName()));
+	const FString ModelName = InModel ? InModel->GetName() : TEXT("__NullGraph");
+	const FName SafeControllerName = GetUniqueName(*FString::Printf(TEXT("%s_Controller"), *ModelName));
 	URigVMController* Controller = NewObject<URigVMController>(GetOuter(), SafeControllerName);
 	Controllers.Add(InModel, Controller);
-	Controller->SetGraph((URigVMGraph*)InModel);
+	Controller->SetActionStack(GetOrCreateActionStack());
+	if(InModel)
+	{
+		Controller->SetGraph((URigVMGraph*)InModel);
+	}
 	Controller->OnModified().AddLambda([this](ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 	{
 		HandleGraphModifiedEvent(InNotifType, InGraph, InSubject);
@@ -639,9 +654,29 @@ URigVMController* FRigVMClient::CreateController(const URigVMGraph* InModel)
 		IRigVMClientHost* ClientHost = Cast<IRigVMClientHost>(GetOuter());
 		ClientHost->HandleConfigureRigVMController(this, Controller);
 	}
-	
-	Controller->RemoveStaleNodes();
+
+	if(InModel)
+	{
+		Controller->RemoveStaleNodes();
+	}
 	return Controller;
+}
+
+URigVMActionStack* FRigVMClient::GetOrCreateActionStack()
+{
+	if(UObject* Outer = GetOuter())
+	{
+		if(ActionStack == nullptr)
+		{
+			ActionStack = NewObject<URigVMActionStack>(Outer, TEXT("ActionStack"));
+		}
+		else if(ActionStack->GetOuter() != Outer)
+		{
+			// make sure the action stack is parented correctly
+			ActionStack->Rename(nullptr, Outer, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		}
+	}
+	return ActionStack;
 }
 
 FName FRigVMClient::GetUniqueName(const FName& InDesiredName) const

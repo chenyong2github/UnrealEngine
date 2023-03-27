@@ -1427,7 +1427,7 @@ void UControlRigGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /
 						static constexpr TCHAR NodePathSuffix[] = TEXT("::");
 						FString NodePath = NodePathParts[0];
 						NodePath.RemoveFromEnd(NodePathSuffix);
-						NodePath.RemoveFromStart(UControlRigBlueprint::RigVMModelPrefix);
+						NodePath.RemoveFromStart(FRigVMClient::RigVMModelPrefix);
 						NodePath.TrimStartAndEndInline();
 						DisplayInfo.DisplayName = FText::FromString(NodePath);
 						DisplayInfo.PlainName = DisplayInfo.DisplayName;
@@ -1643,7 +1643,7 @@ bool UControlRigGraphSchema::TryRenameGraph(UEdGraph* GraphToRename, const FName
 			{
 				if(Model->IsRootGraph())
 				{
-					const FString NewName = FString::Printf(TEXT("%s %s"), RigBlueprint->RigVMModelPrefix, *InNewName.ToString()); 
+					const FString NewName = FString::Printf(TEXT("%s %s"), FRigVMClient::RigVMModelPrefix, *InNewName.ToString()); 
 					RigBlueprint->RenameGraph(Model->GetNodePath(), *NewName);
 				}
 				else if (URigVMGraph* RootModel = Model->GetRootGraph())
