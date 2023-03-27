@@ -168,6 +168,12 @@ namespace UnrealBuildTool
 			return InPlatform.ToString();
 		}
 
+		public override bool RequiresDistinctVisualStudioConfigurationName(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, DirectoryReference InProjectDir)
+		{
+			// Win64 and HoloLens support the same architectures so the config names need to be unique.
+			return true;
+		}
+
 		private bool IsValidHoloLensTarget(UnrealTargetPlatform InPlatform, TargetType InTargetType, FileReference InTargetFilePath)
 		{
 			if ((InPlatform == UnrealTargetPlatform.HoloLens) &&
