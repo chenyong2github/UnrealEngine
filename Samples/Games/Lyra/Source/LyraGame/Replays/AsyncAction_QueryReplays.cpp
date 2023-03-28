@@ -52,15 +52,7 @@ void UAsyncAction_QueryReplays::OnEnumerateStreamsComplete(const FEnumerateStrea
 	}
 
 	// Sort demo names by date
-	struct FCompareDateTime
-	{
-		FORCEINLINE bool operator()(const ULyraReplayListEntry& A, const ULyraReplayListEntry& B) const
-		{
-			return A.StreamInfo.Timestamp.GetTicks() > B.StreamInfo.Timestamp.GetTicks();
-		}
-	};
-
-	Sort(ResultList->Results.GetData(), ResultList->Results.Num(), FCompareDateTime());
+	Algo::SortBy(ResultList->Results, [](const TObjectPtr<ULyraReplayListEntry>& Data) { return Data->StreamInfo.Timestamp.GetTicks(); }, TGreater<>());
 
 	QueryComplete.Broadcast(ResultList);
 }

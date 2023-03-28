@@ -101,15 +101,7 @@ void ULyraReplaySubsystem::OnEnumerateStreamsCompleteForDelete(const FEnumerateS
 	}
 
 	// Sort by date
-	struct FCompareDateTime
-	{
-		FORCEINLINE bool operator()(const FNetworkReplayStreamInfo& A, const FNetworkReplayStreamInfo& B) const
-		{
-			return A.Timestamp.GetTicks() > B.Timestamp.GetTicks();
-		}
-	};
-
-	Sort(StreamsToDelete.GetData(), StreamsToDelete.Num(), FCompareDateTime());
+	Algo::SortBy(StreamsToDelete, [](const FNetworkReplayStreamInfo& Data) { return Data.Timestamp.GetTicks(); }, TGreater<>());
 
 	if (StreamsToDelete.Num() > DeletingReplaysNumberToKeep)
 	{

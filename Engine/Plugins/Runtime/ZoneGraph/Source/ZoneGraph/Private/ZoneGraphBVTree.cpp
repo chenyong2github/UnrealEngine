@@ -76,8 +76,8 @@ namespace UE::ZoneGraph::BVTree
 			// Needs splitting
 			Node = CalcNodeBounds(Items, BeginIndex, EndIndex);
 
-			const int Axis = GetLongestAxis(Node);
-			::Sort(Items.GetData() + BeginIndex, Count, FAxisSort(Axis));
+			const int32 Axis = GetLongestAxis(Node);
+			Algo::Sort(MakeArrayView(Items.GetData() + BeginIndex, Count), FAxisSort(Axis));
 			
 			const int32 SplitIndex = BeginIndex + Count / 2;
 

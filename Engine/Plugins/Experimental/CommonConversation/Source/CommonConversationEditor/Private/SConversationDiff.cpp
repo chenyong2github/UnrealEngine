@@ -197,14 +197,7 @@ TSharedRef<SWidget> SConversationDiff::GenerateDiffListWidget()
 	BuildDiffSourceArray();
 	if(DiffListSource.Num() > 0)
 	{
-		struct FSortDiff
-		{
-			bool operator () (const FSharedDiffOnGraph& A, const FSharedDiffOnGraph& B) const
-			{
-				return A->Result.Diff < B->Result.Diff;
-			}
-		};
-		Sort(DiffListSource.GetData(),DiffListSource.Num(), FSortDiff());
+		Algo::SortBy(DiffListSource, [](const FSharedDiffOnGraph& Data) { return Data->Result.Diff; });
 
 		// Map commands through UI
 		const FDiffListCommands& Commands = FDiffListCommands::Get();

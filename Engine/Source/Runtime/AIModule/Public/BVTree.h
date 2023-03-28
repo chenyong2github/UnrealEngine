@@ -133,7 +133,7 @@ protected:
 				}
 			};
 
-			::Sort(ElementBBoxes.GetData() + StartIndex, Count, FAxisSort(Axis));
+			Algo::Sort(MakeArrayView(ElementBBoxes.GetData() + StartIndex, Count), FAxisSort(Axis));
 			
 			const int SplitIndex = StartIndex + Count / 2;
 

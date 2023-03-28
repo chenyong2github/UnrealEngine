@@ -170,14 +170,7 @@ const TArray<FSceneViewExtensionRef> FDisplayClusterViewport::GatherActiveExtens
 	}
 
 	// Sort extensions in order of priority (copied from FSceneViewExtensions::GatherActiveExtensions)
-	struct SortPriority
-	{
-		bool operator () (const FSceneViewExtensionRef& A, const FSceneViewExtensionRef& B) const
-		{
-			return A->GetPriority() > B->GetPriority();
-		}
-	};
-	Sort(OutCustomExtensions.GetData(), OutCustomExtensions.Num(), SortPriority());
+	Algo::SortBy(OutCustomExtensions, &ISceneViewExtension::GetPriority, TGreater<>());
 
 	return OutCustomExtensions;
 }
