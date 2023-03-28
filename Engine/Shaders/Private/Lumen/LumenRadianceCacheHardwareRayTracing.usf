@@ -92,7 +92,6 @@ float NearFieldMaxTraceDistance;
 float FarFieldBias;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
-int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 
 float3 FarFieldReferencePos;
@@ -169,7 +168,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 
 			const uint LinearCoord = ProbeTexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + ProbeTexelCoord.x;
 			const uint CullingMode = 0;
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, ProbeTexelCoord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations);
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, ProbeTexelCoord, LinearCoord, CullingMode, MaxTraversalIterations);
 
 			// Set far-field context specialization
 			Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;

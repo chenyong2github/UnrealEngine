@@ -49,6 +49,11 @@ float3 CalcPrevTranslatedWorldPositionFromGPUSceneInstanceIndex(float3 Translate
 #define LUMEN_HARDWARE_INLINE_RAYTRACING 0
 #endif
 
+// Whether to skip back-face and two-sided hits for a short distance
+#ifndef AVOID_SELF_INTERSECTIONS
+	#define AVOID_SELF_INTERSECTIONS 0
+#endif
+
 // Helper macro to set common entry point for passes that have both inline (CS) and non-inline (RGS) version.
 // Given "name" it will create "nameCS" entry point for compute and "nameRGS" for raygen shader.
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
@@ -115,18 +120,23 @@ struct FRayTracedLightingContext
 	uint2 TraceCoord;
 	uint LinearCoord;
 	uint InstanceMask;
-	uint MaxTraversalIterations; // Max ray tracing traversal iterations on supported platforms
+
+	// Max ray tracing traversal iterations on supported platforms
+	uint MaxTraversalIterations;
+
 	float MinTraceDistanceToSampleSurfaceCache;
 	float FarFieldMaxTraceDistance;
 	float3 FarFieldReferencePos;
 
 	// Any hit shading
 	bool bAlphaMasking;
-	uint TranslucentSkipCountMax;
 	uint MaxReflectionBounces;
 
 	uint CullingMode;
-	bool bHiResSurface;	// Whether to sample high res surface cache data or low res always resident pages
+
+	// Whether to sample high res surface cache data or low res always resident pages
+	bool bHiResSurface;
+
 	bool bAcceptFirstHitAndEndSearch;
 	bool bSkipClosestHitShader;
 	bool bCalculateHitVelocity;
@@ -138,7 +148,6 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in uint2 TraceCoord,
 	in uint LinearCoord,
 	in uint CullingMode,
-	in int TranslucentSkipCountMax,
 	uint MaxTraversalIterations,
 	bool bHiResSurface
 )
@@ -148,7 +157,6 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.TraceCoord = TraceCoord;
 	Context.LinearCoord = LinearCoord;
 	Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
-	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
 	Context.bAlphaMasking = true;
 	Context.MaxReflectionBounces = 1;
 	Context.FarFieldMaxTraceDistance = -1.0;
@@ -169,12 +177,11 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in uint2 TraceCoord,
 	in uint LinearCoord,
 	in uint CullingMode,
-	in int TranslucentSkipCountMax,
 	uint MaxTraversalIterations
 )
 {
 	bool bHiResSurface = false;
-	return CreateRayTracedLightingContext(RayCone, TraceCoord, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
+	return CreateRayTracedLightingContext(RayCone, TraceCoord, LinearCoord, CullingMode, MaxTraversalIterations, bHiResSurface);
 }
 
 struct FLumenMinimalRayResult
@@ -302,6 +309,57 @@ bool TraceLumenHitLightingRay(
 }
 #endif // !COMPUTESHADER
 
+/**
+ * Lumen minimal (surface cache) ray any hit shader logic shared between inline and RayGen traces.
+ */
+bool LumenMinimalRayAnyHitShader(uint UserData, float HitT, bool bHitBackFace)
+{
+	const bool bIsTwoSided = (UserData >> 30) & 0x1;
+	const bool bIsTranslucent = (UserData >> 31) & 0x1;
+
+	#if AVOID_SELF_INTERSECTIONS
+	{
+		// Avoid self-shadowing by skipping back face hits for some distance
+		if (bHitBackFace && HitT < LumenHardwareRayTracingUniformBuffer.SkipBackFaceHitDistance)
+		{
+			return false;
+		}
+
+		// SkipBackFaceHitDistance doesn't work on two sided geometry, but we still need to avoid self-intersections with the Nanite fallback mesh
+		if (bIsTwoSided && HitT < LumenHardwareRayTracingUniformBuffer.SkipTwoSidedHitDistance)
+		{
+			return false;
+		}
+	}
+	#endif
+
+	// Skip all translucent meshes
+	if (bIsTranslucent)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+#if COMPUTESHADER && LUMEN_HARDWARE_INLINE_RAYTRACING
+struct FLumenTraceRayInlineCallback : FDefaultTraceRayInlineCallback
+{
+	StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+
+	bool OnAnyHit(float3 ObjectRayOrigin, float3 ObjectRayDirection, FTraceRayInlineResult Hit)
+	{ 
+		// Our SBTs always have 2 slots per material. Therefore InstanceContributionToHitGroupIndex has a RAY_TRACING_NUM_SHADER_SLOTS multiplier.
+		// But because we only encode 1 material into LumenHardwareRayTracingHitDataBuffer we want to get actual material index.
+		uint InstanceContributionIndex = Hit.InstanceContributionToHitGroupIndex / RAY_TRACING_NUM_SHADER_SLOTS;
+		uint HitGroupIndex = Hit.GeometryIndex + InstanceContributionIndex;
+		FHitGroupRootConstants HitData = HitGroupData[HitGroupIndex];
+
+		return LumenMinimalRayAnyHitShader(HitData.UserData, Hit.HitT, /*bHitBackFace*/ !Hit.bIsFrontFace);
+	}
+};
+#endif
+
 FLumenMinimalRayResult TraceLumenMinimalRay(
 	in RaytracingAccelerationStructure TLAS,
 	FRayDesc Ray,
@@ -310,7 +368,7 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 	FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
 	FLumenMinimalRayResult MinimalRayResult = InitLumenMinimalRayResult();
 
-	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
+	uint RayFlags = RAY_FLAG_FORCE_NON_OPAQUE; // Run any-hit shader
 	RayFlags |= Context.CullingMode;
 	RayFlags |= Context.bAcceptFirstHitAndEndSearch ? RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH : 0;
 	RayFlags |= Context.bSkipClosestHitShader ? RAY_FLAG_SKIP_CLOSEST_HIT_SHADER : 0;
@@ -319,7 +377,11 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 	{
 		FTraceRayInlineContext TraceRayInlineContext = CreateTraceRayInlineContext();
 		TraceRayInlineContext.MaxIterations = Context.MaxTraversalIterations;
-		FTraceRayInlineResult TraceResult = TraceRayInline(TLAS, RayFlags, Context.InstanceMask, Ray.GetNativeDesc(), TraceRayInlineContext);
+
+		FLumenTraceRayInlineCallback LumenCallback;
+		LumenCallback.HitGroupData = Context.HitGroupData;
+		FTraceRayInlineResult TraceResult = TraceRayInlineWithCallback(TLAS, RayFlags, Context.InstanceMask, Ray.GetNativeDesc(), TraceRayInlineContext, LumenCallback);
+
 		if (TraceResult.IsHit())
 		{
 			Payload.HitT = TraceResult.HitT;
@@ -372,7 +434,9 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 	}
 	#else
 	{
-		TraceLumenRay(TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray.GetNativeDesc(), Payload, MinimalRayResult.Bookmark);
+		// AVOID_SELF_INTERSECTIONS AHS permutation is stored as two HitGroups
+		const uint ShaderSlotIndex = AVOID_SELF_INTERSECTIONS ? RAY_TRACING_SHADER_SLOT_SHADOW : RAY_TRACING_SHADER_SLOT_MATERIAL;
+		TraceLumenRay(TLAS, RayFlags, Context.InstanceMask, ShaderSlotIndex, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray.GetNativeDesc(), Payload, MinimalRayResult.Bookmark);
 	}
 	#endif
 
@@ -804,31 +868,6 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 #endif // !COMPUTESHADER
 
 /**
- * Returns whether hit occurred based on the surface cache properties
- */
-bool SurfaceCacheAnyHitShader(FRayDesc Ray, FRayTracedLightingContext Context, FLumenMinimalRayResult MinimalRayResult)
-{
-	if (MinimalRayResult.bHit && MinimalRayResult.bCompleted && Context.TranslucentSkipCountMax > 0)
-	{
-		if (MinimalRayResult.bTranslucent)
-		{
-			return false;
-		}
-		
-		if (Context.bAlphaMasking)
-		{
-			FSurfaceCacheSample SurfaceCacheSample = SampleLumenMinimalRayHit(Ray, Context, MinimalRayResult);
-			if (SurfaceCacheSample.bValid)
-			{
-				return SurfaceCacheSample.Opacity >= 0.5f;
-			}
-		}
-	}
-
-	return true;
-}
-
-/**
  * Trace ray without using any material shaders
  * Optionally handle alpha masking through surface cache
  */
@@ -839,30 +878,23 @@ FRayTracedLightingResult TraceSurfaceCacheRay(
 {
 	FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(TLAS, Ray, Context);
 
-	// Emulate any hit shader by casting multiple rays
-	BRANCH
-	if (!SurfaceCacheAnyHitShader(Ray, Context, MinimalRayResult))
-	{
-		for (uint TranslucentSkipCount = 0; TranslucentSkipCount < Context.TranslucentSkipCountMax; ++TranslucentSkipCount)
-		{
-			float Epsilon = 0.01;
-			Ray.TMin = MinimalRayResult.HitT + Epsilon;
-			MinimalRayResult = TraceLumenMinimalRay(TLAS, Ray, Context);
-
-			if (TranslucentSkipCount + 1 < Context.TranslucentSkipCountMax)
-			{
-				if (SurfaceCacheAnyHitShader(Ray, Context, MinimalRayResult))
-				{
-					break;
-				}
-			}
-		}
-	}
-
 	FSurfaceCacheSample SurfaceCacheSample = InitSurfaceCacheSample();
 	if (MinimalRayResult.bHit && MinimalRayResult.bCompleted)
 	{
 		SurfaceCacheSample = SampleLumenMinimalRayHit(Ray, Context, MinimalRayResult);
+	}
+
+	// Single re-trace when hit masked part of surface cache
+	if (MinimalRayResult.bHit && MinimalRayResult.bCompleted && Context.bAlphaMasking && SurfaceCacheSample.bValid && SurfaceCacheSample.Opacity < 0.5f)
+	{
+		Ray.TMin = MinimalRayResult.HitT + 0.01f;
+		MinimalRayResult = TraceLumenMinimalRay(TLAS, Ray, Context);
+
+		SurfaceCacheSample = InitSurfaceCacheSample();
+		if (MinimalRayResult.bHit && MinimalRayResult.bCompleted)
+		{
+			SurfaceCacheSample = SampleLumenMinimalRayHit(Ray, Context, MinimalRayResult);
+		}
 	}
 
 	return CreateRayTracedLightingResult(Ray, Context, MinimalRayResult, SurfaceCacheSample);

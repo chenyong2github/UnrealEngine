@@ -92,8 +92,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 
 			const uint LinearCoord = GridCoordinate.y * TranslucencyGIGridSize.x + GridCoordinate.x;
 			const uint CullingMode = 0;
-			int TranslucentSkipCountMax = 0;
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, GridCoordinate.xy, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations);
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, GridCoordinate.xy, LinearCoord, CullingMode, MaxTraversalIterations);
 
 			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
 				{

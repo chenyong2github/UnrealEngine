@@ -127,7 +127,6 @@ class FLumenReflectionHardwareRayTracing : public FLumenHardwareRayTracingShader
 		SHADER_PARAMETER(uint32, UseReflectionCaptures)
 		SHADER_PARAMETER(float, FarFieldBias)
 		SHADER_PARAMETER(float, PullbackBias)
-		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER(int, ApplySkyLight)
 		SHADER_PARAMETER(int, HitLightingForceEnabled)
@@ -364,7 +363,7 @@ void DispatchRayGenOrComputeShader(
 		Parameters->HardwareRayTracingIndirectArgs = HardwareRayTracingIndirectArgsBuffer;
 		Parameters->CompactedTraceTexelAllocator = GraphBuilder.CreateSRV(CompactedTraceTexelAllocator, PF_R32_UINT);
 		Parameters->CompactedTraceTexelData = GraphBuilder.CreateSRV(CompactedTraceTexelData, PF_R32_UINT);
-
+			
 		Parameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
 
 		if (Parameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !Parameters->SharedParameters.SceneTextures.GBufferVelocityTexture)
@@ -382,7 +381,6 @@ void DispatchRayGenOrComputeShader(
 		Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
 		Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 		Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
-		Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 		Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 		Parameters->ApplySkyLight = bApplySkyLight;
 		Parameters->HitLightingForceEnabled = bIsHitLightingForceEnabled;

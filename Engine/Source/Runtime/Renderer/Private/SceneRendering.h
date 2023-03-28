@@ -85,6 +85,7 @@ struct FNaniteMaterialPassCommand;
 struct FScreenMessageWriter;
 struct FVisibilityTaskData;
 struct FVolumetricFogIntegrationParameterData;
+class FLumenHardwareRayTracingUniformBufferParameters;
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
 
@@ -1637,7 +1638,10 @@ public:
 	FRayTracingPipelineState* LumenHardwareRayTracingMaterialPipeline = nullptr;
 
 	// Buffer that stores the hit group data for Lumen passes that use MinimalPayload and inline ray tracing.
-	FRDGBufferRef			  LumenHardwareRayTracingHitDataBuffer = nullptr;	
+	FRDGBufferRef LumenHardwareRayTracingHitDataBuffer = nullptr;
+
+	// Global Lumen parameters for CHS, AHS and inline
+	TRDGUniformBufferRef<FLumenHardwareRayTracingUniformBufferParameters> LumenHardwareRayTracingUniformBuffer;
 
 	TArray<FRayTracingLocalShaderBindingWriter*, SceneRenderingAllocator>	RayTracingMaterialBindings; // One per binding task
 	FGraphEventRef									RayTracingMaterialBindingsTask;

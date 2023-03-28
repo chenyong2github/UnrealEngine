@@ -51,7 +51,6 @@ float PullbackBias;
 float NormalBias;
 float AvoidSelfIntersectionTraceDistance;
 float SkipFirstTwoSidedHitDistance;
-int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 float MinTraceDistanceToSampleSurfaceCache;
 
@@ -141,7 +140,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 			ScreenTileCoord,
 			ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x,
 			CullingMode,
-			MaxTranslucentSkipCount,
 			MaxTraversalIterations);
 		Context.bCalculateHitVelocity = true;
 		Context.MinTraceDistanceToSampleSurfaceCache = MinTraceDistanceToSampleSurfaceCache;
@@ -155,42 +153,34 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 
 		bool bReachedRadianceCache = false;
 
-		// Initialize by testing against a small epsilon
-		float RemainingTraceTMin;
-		FRayTracedLightingResult Result = EpsilonTrace(TLAS, Ray, Context, RemainingTraceTMin);
+		float ClippedNearFieldMaxTraceDistance = ClipAndDitherNearFieldMaxTraceDistance(
+			Ray.Origin,
+			Ray.Direction,
+			ScreenTileCoord,
+			NearFieldSceneRadius,
+			NearFieldMaxTraceDistance,
+			/*NearFieldMaxTraceDistanceDitherScale*/ 0.0f);
 
-		if (!Result.bIsHit)
+		Ray.TMax = max(ClippedNearFieldMaxTraceDistance, Ray.TMin);
+
+		#if DIM_RADIANCE_CACHE
 		{
-			float ClippedNearFieldMaxTraceDistance = ClipAndDitherNearFieldMaxTraceDistance(
-				Ray.Origin,
-				Ray.Direction,
-				ScreenTileCoord,
-				NearFieldSceneRadius,
-				NearFieldMaxTraceDistance,
-				/*NearFieldMaxTraceDistanceDitherScale*/ 0.0f);
-
-			Ray.TMin = max(Ray.TMin, RemainingTraceTMin);
-			Ray.TMax = max(ClippedNearFieldMaxTraceDistance, Ray.TMin);
-
-			#if DIM_RADIANCE_CACHE
+			float ClipmapDitherRandom = InterleavedGradientNoise(ScreenTileCoord, View.StateFrameIndexMod8);
+			float3 RayOriginWorldPos = Ray.Origin - LWCHackToFloat(PrimaryView.PreViewTranslation);
+			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(RayOriginWorldPos, Ray.Direction, ClipmapDitherRandom); // LUMEN_LWC_TODO
+			if (Coverage.bValid)
 			{
-				float ClipmapDitherRandom = InterleavedGradientNoise(ScreenTileCoord, View.StateFrameIndexMod8);
-				float3 RayOriginWorldPos = Ray.Origin - LWCHackToFloat(PrimaryView.PreViewTranslation);
-				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(RayOriginWorldPos, Ray.Direction, ClipmapDitherRandom); // LUMEN_LWC_TODO
-				if (Coverage.bValid)
-				{
-					Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
-					bReachedRadianceCache = true;
-				}
+				Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
+				bReachedRadianceCache = true;
 			}
-			#endif
-
-			// Set far-field context specialization
-			Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
-			Context.FarFieldReferencePos = FarFieldReferencePos;
-
-			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 		}
+		#endif
+
+		// Set far-field context specialization
+		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
+		Context.FarFieldReferencePos = FarFieldReferencePos;
+		
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
 
 		bool bMoving = false;
 		if (Result.bIsHit)

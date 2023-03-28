@@ -51,7 +51,6 @@ StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 Buffer<uint2> ShadowTraceTileData;
 Buffer<int> VirtualShadowMapIds;
 
-uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 uint ViewIndex;
 
@@ -158,7 +157,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						CoordInCardTile,
 						CoordInCardTile.x, // dummy coordinate
 						CullingMode,
-						MaxTranslucentSkipCount,
 						MaxTraversalIterations);
 
 					// Shadows don't need closest hit distance
@@ -174,7 +172,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 #if ENABLE_FAR_FIELD_TRACING
 					{
 						Context.bSkipClosestHitShader = true;
-						Context.TranslucentSkipCountMax = 0;
 						Context.FarFieldReferencePos = FarFieldReferencePos;
 						Context.FarFieldMaxTraceDistance = FarFieldTMax;
 						
@@ -212,7 +209,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 					if (!bRayOccluded)
 					{						
 						Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
-						Context.TranslucentSkipCountMax = MaxTranslucentSkipCount;
 						Context.bSkipClosestHitShader = false;
 
 						FRayTracedLightingResult RayResult = TraceSurfaceCacheRay(TLAS, Ray, Context);

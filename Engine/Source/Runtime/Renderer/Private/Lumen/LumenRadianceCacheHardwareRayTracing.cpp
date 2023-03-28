@@ -96,7 +96,6 @@ class FLumenRadianceCacheHardwareRayTracing : public FLumenHardwareRayTracingSha
 		SHADER_PARAMETER(float, NearFieldSceneRadius)
 		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
 		SHADER_PARAMETER(float, PullbackBias)
-		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
 		SHADER_PARAMETER(uint32, TempAtlasNumTraceTiles)
@@ -351,7 +350,6 @@ void DispatchRayGenOrComputeShader(
 		PassParameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
 		PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
-		PassParameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 		PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 		PassParameters->TempAtlasNumTraceTiles = TempAtlasNumTraceTiles;
 

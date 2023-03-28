@@ -72,13 +72,6 @@ static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxIterations(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxTranslucentSkipCount(
-	TEXT("r.Lumen.HardwareRayTracing.MaxTranslucentSkipCount"),
-	2,
-	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
-	ECVF_RenderThreadSafe
-);
-
 TAutoConsoleVariable<float> CVarLumenHardwareRayTracingMinTraceDistanceToSampleSurfaceCache(
 	TEXT("r.Lumen.HardwareRayTracing.MinTraceDistanceToSampleSurfaceCache"),
 	10.0f,
@@ -108,11 +101,6 @@ bool Lumen::UseHardwareRayTracing(const FSceneViewFamily& ViewFamily)
 #else
 	return false;
 #endif
-}
-
-int32 Lumen::GetMaxTranslucentSkipCount()
-{
-	return CVarLumenHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 }
 
 float LumenHardwareRayTracing::GetMinTraceDistanceToSampleSurfaceCache()
@@ -290,6 +278,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 
 	// Inline
 	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBuffer ? GraphBuilder.CreateSRV(View.LumenHardwareRayTracingHitDataBuffer) : nullptr;
+	SharedParameters->LumenHardwareRayTracingUniformBuffer = View.LumenHardwareRayTracingUniformBuffer;
 	SharedParameters->RayTracingSceneMetadata = View.GetRayTracingSceneChecked()->GetMetadataBufferSRV();
 
 	// Use surface cache, instead

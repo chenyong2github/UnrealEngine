@@ -428,7 +428,6 @@ uint ThreadCount;
 uint GroupCount;
 uint LightingMode;
 uint UseReflectionCaptures;
-uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 float3 FarFieldReferencePos;
 float NearFieldMaxTraceDistanceDitherScale;
@@ -501,7 +500,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 			TraceCoord,
 			LinearCoord,
 			CullingMode,
-			MaxTranslucentSkipCount,
 			MaxTraversalIterations,
 			bHiResSurface);
 		Context.MaxReflectionBounces = MaxReflectionBounces;

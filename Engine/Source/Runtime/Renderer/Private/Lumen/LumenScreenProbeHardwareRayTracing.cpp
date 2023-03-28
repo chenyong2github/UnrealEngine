@@ -36,20 +36,6 @@ static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingNormalBias(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingAvoidSelfIntersectionTraceDistance(
-	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.AvoidSelfIntersectionTraceDistance"),
-	5.0f,
-	TEXT("Distance to trace with backface culling enabled, useful when the Ray Tracing geometry doesn't match the GBuffer (Nanite Proxy geometry)"),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingSkipFirstTwoSidedHitDistance(
-	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.SkipFirstTwoSidedHitDistance"),
-	1.0f,
-	TEXT("When the AvoidSelfIntersectionTrace is enabled, the first Two sided material hit within this distance will be skipped.  This is useful for avoiding self-intersections with the Nanite fallback mesh on foliage, as AvoidSelfIntersectionTrace doesn't work on two sided materials."),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingRetraceFarField(
 	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.Retrace.FarField"),
 	1,
@@ -120,9 +106,6 @@ class FLumenScreenProbeGatherHardwareRayTracing : public FLumenHardwareRayTracin
 		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(float, NormalBias)
-		SHADER_PARAMETER(float, AvoidSelfIntersectionTraceDistance)
-		SHADER_PARAMETER(float, SkipFirstTwoSidedHitDistance)
-		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER(float, MinTraceDistanceToSampleSurfaceCache)
 		SHADER_PARAMETER(float, FarFieldBias)
@@ -165,6 +148,8 @@ class FLumenScreenProbeGatherHardwareRayTracing : public FLumenHardwareRayTracin
 		{
 			OutEnvironment.SetDefine(TEXT("ENABLE_FAR_FIELD_TRACING"), 1);
 		}
+
+		OutEnvironment.SetDefine(TEXT("AVOID_SELF_INTERSECTIONS"), 1);
 	}
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
@@ -311,9 +296,6 @@ void DispatchRayGenOrComputeShader(
 		Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 		Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 		Parameters->NormalBias = CVarLumenHardwareRayTracingNormalBias.GetValueOnRenderThread();
-		Parameters->AvoidSelfIntersectionTraceDistance = FMath::Max(CVarLumenHardwareRayTracingAvoidSelfIntersectionTraceDistance.GetValueOnRenderThread(), 0.0f);
-		Parameters->SkipFirstTwoSidedHitDistance = CVarLumenHardwareRayTracingSkipFirstTwoSidedHitDistance.GetValueOnRenderThread();
-		Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 		Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 		Parameters->MinTraceDistanceToSampleSurfaceCache = LumenHardwareRayTracing::GetMinTraceDistanceToSampleSurfaceCache();
 	}

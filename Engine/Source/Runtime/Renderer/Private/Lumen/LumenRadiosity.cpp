@@ -124,14 +124,6 @@ static TAutoConsoleVariable<int32> CVarLumenRadiosityHardwareRayTracing(
 	ECVF_RenderThreadSafe
 );
 
-float GLumenRadiosityAvoidSelfIntersectionTraceDistance = 5.0f;
-FAutoConsoleVariableRef CVarRadiosityAvoidSelfIntersectionTraceDistance(
-	TEXT("r.LumenScene.Radiosity.HardwareRayTracing.AvoidSelfIntersectionTraceDistance"),
-	GLumenRadiosityAvoidSelfIntersectionTraceDistance,
-	TEXT("When greater than zero, a short trace skipping backfaces will be done to escape the surface, followed by the remaining trace that can hit backfaces."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 int32 GLumenRadiosityTemporalAccumulation = 1;
 FAutoConsoleVariableRef CVarLumenRadiosityTemporalAccumulation(
 	TEXT("r.LumenScene.Radiosity.Temporal"),
@@ -380,9 +372,6 @@ class FLumenRadiosityHardwareRayTracing : public FLumenHardwareRayTracingShaderB
 {
 	DECLARE_LUMEN_RAYTRACING_SHADER(FLumenRadiosityHardwareRayTracing, Lumen::ERayTracingShaderDispatchSize::DispatchSize1D)
 
-	class FAvoidSelfIntersectionTrace : SHADER_PERMUTATION_BOOL("DIM_AVOID_SELF_INTERSECTION_TRACE");
-	using FPermutationDomain = TShaderPermutationDomain<FAvoidSelfIntersectionTrace>;
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingShaderBase::FSharedParameters, SharedParameters)
 		RDG_BUFFER_ACCESS(HardwareRayTracingIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
@@ -392,9 +381,7 @@ class FLumenRadiosityHardwareRayTracing : public FLumenHardwareRayTracingShaderB
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(float, SurfaceBias)
 		SHADER_PARAMETER(float, HeightfieldSurfaceBias)
-		SHADER_PARAMETER(float, AvoidSelfIntersectionTraceDistance)
 		SHADER_PARAMETER(float, MaxRayIntensity)
-		SHADER_PARAMETER(int32, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER(float, MinTraceDistanceToSampleSurfaceCache)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWTraceRadianceAtlas)
@@ -406,6 +393,7 @@ class FLumenRadiosityHardwareRayTracing : public FLumenHardwareRayTracingShaderB
 		FLumenHardwareRayTracingShaderBase::ModifyCompilationEnvironment(Parameters, ShaderDispatchType, Lumen::ESurfaceCacheSampling::HighResPages, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
 		OutEnvironment.SetDefine(TEXT("ENABLE_DYNAMIC_SKY_LIGHT"), 1);
+		OutEnvironment.SetDefine(TEXT("AVOID_SELF_INTERSECTIONS"), 1);
 	}
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
@@ -429,7 +417,6 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadiosityLumen
 	if (Lumen::ShouldRenderRadiosityHardwareRayTracing(*View.Family))
 	{
 		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FAvoidSelfIntersectionTrace>(GLumenRadiosityAvoidSelfIntersectionTraceDistance > 0.0f);
 		TShaderRef<FLumenRadiosityHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenRadiosityHardwareRayTracingRGS>(PermutationVector);
 		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 	}
@@ -744,16 +731,13 @@ void LumenRadiosity::AddRadiosityPass(
 		PassParameters->NumThreadsToDispatch = NumThreadsToDispatch;
 		PassParameters->SurfaceBias = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceSlopeBias, 0.0f, 1000.0f);
 		PassParameters->HeightfieldSurfaceBias = Lumen::GetHeightfieldReceiverBias();
-		PassParameters->AvoidSelfIntersectionTraceDistance = FMath::Clamp(GLumenRadiosityAvoidSelfIntersectionTraceDistance, 0.0f, 1000000.0f);
 		PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 		PassParameters->MinTraceDistance = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceBias, 0.0f, 1000.0f);
 		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
-		PassParameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 		PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 		PassParameters->MinTraceDistanceToSampleSurfaceCache = LumenHardwareRayTracing::GetMinTraceDistanceToSampleSurfaceCache();
 
 		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FAvoidSelfIntersectionTrace>(GLumenRadiosityAvoidSelfIntersectionTraceDistance > 0.0f);		
 
 		const FIntPoint DispatchResolution = FIntPoint(NumThreadsToDispatch, 1);
 		FString Resolution = FString::Printf(TEXT("%ux%u"), DispatchResolution.X, DispatchResolution.Y);

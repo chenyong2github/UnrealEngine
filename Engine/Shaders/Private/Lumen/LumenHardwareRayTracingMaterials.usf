@@ -3,6 +3,7 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/SceneData.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
+#include "/Engine/Private/Lumen/LumenHardwareRayTracingCommon.ush"
 #include "/Engine/Private/Lumen/LumenHardwareRayTracingPayloadCommon.ush"
 #include "/Engine/Private/Lumen/LumenHardwareRayTracingPlatformCommon.ush"
 
@@ -35,4 +36,22 @@ RAY_TRACING_ENTRY_MISS(LumenHardwareRayTracingMaterialMS,
 	FLumenMinimalPayload, Payload)
 {
 	Payload.SetMiss();
+}
+
+RAY_TRACING_ENTRY_ANY_HIT(
+	LumenHardwareRayTracingMaterialAHS,
+	FLumenMinimalPayload,
+	Payload,
+	FRayTracingIntersectionAttributes,
+	Attributes)
+{
+	const bool bAcceptHit = LumenMinimalRayAnyHitShader(
+		GetHitGroupUserData(),
+		RayTCurrent(),
+		HitKind() == HIT_KIND_TRIANGLE_BACK_FACE);
+
+	if (!bAcceptHit)
+	{
+		IgnoreHit();
+	}
 }

@@ -70,6 +70,7 @@ public:
 
 		// Inline data
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<Lumen::FHitGroupRootConstants>, HitGroupData)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenHardwareRayTracingUniformBufferParameters, LumenHardwareRayTracingUniformBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	FLumenHardwareRayTracingShaderBase();
@@ -231,3 +232,8 @@ static void AddLumenRayTraceDispatchIndirectPass(
 }
 
 #endif // RHI_RAYTRACING
+
+BEGIN_UNIFORM_BUFFER_STRUCT(FLumenHardwareRayTracingUniformBufferParameters, )
+	SHADER_PARAMETER(float, SkipBackFaceHitDistance)
+	SHADER_PARAMETER(float, SkipTwoSidedHitDistance)
+END_UNIFORM_BUFFER_STRUCT()

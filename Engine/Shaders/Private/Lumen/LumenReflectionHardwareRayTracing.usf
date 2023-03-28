@@ -55,8 +55,8 @@ float3 FarFieldReferencePos;
 RaytracingAccelerationStructure TLAS;
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
-StructuredBuffer<FHitGroupRootConstants> HitGroupData;
-StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
+	StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+	StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 int NearFieldLightingMode;
@@ -67,7 +67,6 @@ float FarFieldMaxTraceDistance;
 float NearFieldMaxTraceDistanceDitherScale;
 float NearFieldSceneRadius;
 float PullbackBias;
-int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 int ApplySkyLight;
 int HitLightingForceEnabled;
@@ -136,7 +135,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 		const bool bHiResSurface = UseHighResSurface ? 1 : 0;
 		const uint CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-		FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, ReflectionTracingCoord.Coord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
+		FRayTracedLightingContext Context = CreateRayTracedLightingContext(RayCone, ReflectionTracingCoord.Coord, LinearCoord, CullingMode, MaxTraversalIterations, bHiResSurface);
 		Context.MaxReflectionBounces = MaxReflectionBounces;
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
