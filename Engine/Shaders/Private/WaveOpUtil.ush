@@ -115,6 +115,13 @@ that's to be written to as a parameter on all platforms. Also unfortunate is tha
 		InterlockedMax( Dest, MaxValue ); \
 }
 
+#define WaveInterlockedOr( Dest, Value ) \
+{ \
+	uint OrValue = WaveActiveBitOr( Value ); \
+	if( WaveIsFirstLane() ) \
+		InterlockedOr( Dest, OrValue ); \
+}
+
 #else
 
 #define WaveInterlockedAddScalar( Dest, Value )					InterlockedAdd( Dest, Value )
@@ -136,5 +143,8 @@ that's to be written to as a parameter on all platforms. Also unfortunate is tha
 
 #define WaveInterlockedMin( Dest, Value ) { InterlockedMin(Dest, Value); }
 #define WaveInterlockedMax( Dest, Value ) { InterlockedMax(Dest, Value); }
+
+#define WaveInterlockedOr( Dest, Value ) { InterlockedOr(Dest, Value); }
+
 
 #endif // PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
