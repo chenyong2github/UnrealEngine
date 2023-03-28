@@ -27,7 +27,6 @@ namespace EpicGames.Horde.Compute
 		CancellationTokenSource _cancellationSource = new CancellationTokenSource();
 
 		readonly Dictionary<int, IComputeBufferWriter> _receiveBuffers = new Dictionary<int, IComputeBufferWriter>();
-		readonly AsyncEvent _recvBufferWritersChangedEvent = new AsyncEvent();
 
 		readonly SemaphoreSlim _sendSemaphore = new SemaphoreSlim(1, 1);
 		readonly Dictionary<int, IComputeBufferReader> _sendBuffers = new Dictionary<int, IComputeBufferReader>();
@@ -128,24 +127,8 @@ namespace EpicGames.Horde.Compute
 					}
 					else
 					{
-						IComputeBufferWriter writer = await GetReceiveBufferAsync(cachedWriters, id);
-						for (int offset = 0; offset < size;)
-						{
-							Memory<byte> memory = writer.GetMemory();
-							if (memory.Length == 0)
-							{
-								_logger.LogTrace("No space in buffer {Id}, flushing", id);
-								await writer.FlushAsync(cancellationToken);
-							}
-							else
-							{
-								int maxRead = Math.Min(size - offset, memory.Length);
-								int read = await transport.ReadPartialAsync(memory.Slice(0, maxRead), cancellationToken);
-								writer.Advance(read);
-
-								offset += read;
-							}
-						}
+						IComputeBufferWriter writer = GetReceiveBuffer(cachedWriters, id);
+						await ReadPacketAsync(transport, id, size, writer, cancellationToken);
 					}
 				}
 			}
@@ -166,7 +149,28 @@ namespace EpicGames.Horde.Compute
 			_logger.LogTrace("Closing reader");
 		}
 
-		async Task<IComputeBufferWriter> GetReceiveBufferAsync(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
+		async Task ReadPacketAsync(IComputeTransport transport, int id, int size, IComputeBufferWriter writer, CancellationToken cancellationToken)
+		{
+			for (int offset = 0; offset < size;)
+			{
+				Memory<byte> memory = writer.GetMemory();
+				if (memory.Length == 0)
+				{
+					_logger.LogTrace("No space in buffer {Id}, flushing", id);
+					await writer.FlushAsync(cancellationToken);
+				}
+				else
+				{
+					int maxRead = Math.Min(size - offset, memory.Length);
+					int read = await transport.ReadPartialAsync(memory.Slice(0, maxRead), cancellationToken);
+					writer.Advance(read);
+
+					offset += read;
+				}
+			}
+		}
+
+		IComputeBufferWriter GetReceiveBuffer(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
 		{
 			IComputeBufferWriter? writer;
 			if (cachedWriters.TryGetValue(id, out writer))
@@ -174,38 +178,16 @@ namespace EpicGames.Horde.Compute
 				return writer;
 			}
 
-			int delayTime = 1;
-			Task? delayTask = null;
-			Stopwatch? timer = null;
-
-			for (; ; )
+			lock (_lockObject)
 			{
-				Task waitTask;
-				lock (_lockObject)
+				if (_receiveBuffers.TryGetValue(id, out writer))
 				{
-					if (_receiveBuffers.TryGetValue(id, out writer))
-					{
-						cachedWriters.Add(id, writer);
-						return writer;
-					}
-					waitTask = _recvBufferWritersChangedEvent.Task;
+					cachedWriters.Add(id, writer);
+					return writer;
 				}
-
-				timer ??= Stopwatch.StartNew();
-				delayTask ??= Task.Delay(TimeSpan.FromSeconds(delayTime));
-
-				while (!waitTask.IsCompleted)
-				{
-					if (await Task.WhenAny(waitTask, delayTask) == delayTask)
-					{
-						_logger.LogWarning("Socket stalled for {Time}s waiting for a buffer to be attached to channel {ChannelId}", (int)timer.Elapsed.TotalSeconds, id);
-						delayTime = Math.Min(15, delayTime + 2);
-						delayTask = Task.Delay(TimeSpan.FromSeconds(delayTime));
-					}
-				}
-
-				await waitTask;
 			}
+
+			throw new ComputeInternalException($"No buffer is attached to channel {id}");
 		}
 
 		class SendSegment : ReadOnlySequenceSegment<byte>
@@ -285,17 +267,11 @@ namespace EpicGames.Horde.Compute
 				}
 			}
 
-			if (recvBufferWriter != null)
+			if (recvBufferWriter != null && complete)
 			{
-				if (complete)
-				{
-					recvBufferWriter.MarkComplete();
-				}
-				else
-				{
-					_recvBufferWritersChangedEvent.Set();
-				}
+				recvBufferWriter.MarkComplete();
 			}
+
 			return new ValueTask();
 		}
 

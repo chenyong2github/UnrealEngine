@@ -25,19 +25,24 @@ namespace EpicGames.Horde.Compute
 		None = 0x00,
 
 		/// <summary>
+		/// Indicates that the remote is ready to receive messages on the current channel
+		/// </summary>
+		Ready = 0x01,
+
+		/// <summary>
 		/// Sent in place of a regular response if an error occurs on the remote
 		/// </summary>
-		Exception = 0x01,
+		Exception = 0x02,
 
 		/// <summary>
 		/// Fork a new request channel
 		/// </summary>
-		Fork = 0x02,
+		Fork = 0x03,
 
 		/// <summary>
 		/// Untyped user data
 		/// </summary>
-		UserData = 0x03,
+		UserData = 0x04,
 
 		#region Process Management
 
@@ -62,14 +67,14 @@ namespace EpicGames.Horde.Compute
 		Execute = 0x16,
 
 		/// <summary>
-		/// Returns the process exit code (Remote -> Initiator)
-		/// </summary>
-		ExecuteResult = 0x17,
-
-		/// <summary>
 		/// Returns output from the child process to the caller (Remote -> Initiator)
 		/// </summary>
-		ExecuteOutput = 0x18,
+		ExecuteOutput = 0x17,
+
+		/// <summary>
+		/// Returns the process exit code (Remote -> Initiator)
+		/// </summary>
+		ExecuteResult = 0x18,
 
 		#endregion
 
@@ -197,6 +202,15 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public static class ComputeMessageExtensions
 	{
+		/// <summary>
+		/// Sends a message to the remote indicating that we're ready to receive messages on the given channel
+		/// </summary>
+		public static async ValueTask SendReadyAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken)
+		{
+			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Ready, cancellationToken);
+			message.Send();
+		}
+
 		/// <summary>
 		/// Sends an exception response to the remote
 		/// </summary>
@@ -332,53 +346,6 @@ namespace EpicGames.Horde.Compute
 			return new DeleteFilesMessage(files);
 		}
 
-		class StringOutputWriter
-		{
-			byte[] _buffer;
-			int _length;
-			readonly Action<string> _handler;
-
-			public StringOutputWriter(Action<string> handler)
-			{
-				_buffer = new byte[10];
-				_handler = handler;
-			}
-
-			public void WriteData(ReadOnlyMemory<byte> data)
-			{
-				int requiredLength = _length + data.Length;
-				if (requiredLength > _buffer.Length)
-				{
-					Array.Resize(ref _buffer, requiredLength);
-				}
-
-				data.CopyTo(_buffer.AsMemory(_length));
-				_length += data.Length;
-
-				ReadOnlySpan<byte> output = _buffer.AsSpan(0, _length);
-				for (; ; )
-				{
-					int newLineIdx = output.IndexOf((byte)'\n');
-					if (newLineIdx == -1)
-					{
-						break;
-					}
-
-					int length = newLineIdx;
-					if (length > 0 && output[length - 1] == (byte)'\r')
-					{
-						length--;
-					}
-
-					_handler(Encoding.UTF8.GetString(output.Slice(0, length)));
-					output = output.Slice(newLineIdx + 1);
-				}
-
-				_length = output.Length;
-				output.CopyTo(_buffer);
-			}
-		}
-
 		/// <summary>
 		/// Executes a remote process
 		/// </summary>
@@ -386,26 +353,9 @@ namespace EpicGames.Horde.Compute
 		/// <param name="executable">Executable to run, relative to the sandbox root</param>
 		/// <param name="arguments">Arguments for the child process</param>
 		/// <param name="workingDir">Working directory for the process</param>
-		/// <param name="outputHandler">Output callback for stdout</param>
 		/// <param name="envVars">Environment variables for the child process</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static Task<int> ExecuteAsync(this IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, Action<string> outputHandler, CancellationToken cancellationToken = default)
-		{
-			StringOutputWriter writer = new StringOutputWriter(outputHandler);
-			return ExecuteAsync(channel, executable, arguments, workingDir, envVars, writer.WriteData, cancellationToken);
-		}
-
-		/// <summary>
-		/// Executes a remote process
-		/// </summary>
-		/// <param name="channel">Current channel</param>
-		/// <param name="executable">Executable to run, relative to the sandbox root</param>
-		/// <param name="arguments">Arguments for the child process</param>
-		/// <param name="workingDir">Working directory for the process</param>
-		/// <param name="outputHandler">Output callback for stdout</param>
-		/// <param name="envVars">Environment variables for the child process</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task<int> ExecuteAsync(this IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, Action<ReadOnlyMemory<byte>> outputHandler, CancellationToken cancellationToken = default)
+		public static async Task<IComputeProcess> ExecuteAsync(this IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken = default)
 		{
 			using (IComputeMessageBuilder request = await channel.CreateMessageAsync(ComputeMessageType.Execute, cancellationToken))
 			{
@@ -415,25 +365,7 @@ namespace EpicGames.Horde.Compute
 				request.WriteDictionary(envVars ?? new Dictionary<string, string?>(), MemoryWriterExtensions.WriteString, MemoryWriterExtensions.WriteOptionalString);
 				request.Send();
 			}
-
-			for (; ; )
-			{
-				using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
-				switch (message.Type)
-				{
-					case ComputeMessageType.Exception:
-						ExceptionMessage exception = message.ParseExceptionMessage();
-						throw new ComputeRemoteException(exception);
-					case ComputeMessageType.ExecuteOutput:
-						outputHandler(message.Data);
-						break;
-					case ComputeMessageType.ExecuteResult:
-						ExecuteProcessResponseMessage executeProcessResponse = message.ParseExecuteProcessResponse();
-						return executeProcessResponse.ExitCode;
-					default:
-						throw new ComputeInvalidMessageException(message);
-				}
-			}
+			return new ComputeProcess(channel);
 		}
 
 		/// <summary>

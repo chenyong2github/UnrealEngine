@@ -46,6 +46,20 @@ namespace EpicGames.Horde.Compute
 	public static class ComputeChannelExtensions
 	{
 		/// <summary>
+		/// Waits for the remote machine to send a 'ready' response
+		/// </summary>
+		/// <param name="channel">Channel to receive on</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async ValueTask WaitForAttachAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
+		{
+			IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
+			if (message.Type != ComputeMessageType.Ready)
+			{
+				throw new ComputeInvalidMessageException(message);
+			}
+		}
+
+		/// <summary>
 		/// Creates a new builder for a message
 		/// </summary>
 		/// <param name="channel">Channel to send on</param>

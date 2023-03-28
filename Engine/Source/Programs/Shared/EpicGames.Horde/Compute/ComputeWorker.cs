@@ -51,6 +51,8 @@ namespace EpicGames.Horde.Compute
 		{
 			await using (IComputeMessageChannel channel = await socket.CreateMessageChannelAsync(channelId, 4 * 1024 * 1024, _logger, cancellationToken))
 			{
+				await channel.SendReadyAsync(cancellationToken);
+
 				List<Task> childTasks = new List<Task>();
 				for (; ; )
 				{

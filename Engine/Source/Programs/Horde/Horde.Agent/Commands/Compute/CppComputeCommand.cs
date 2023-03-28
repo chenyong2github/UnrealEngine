@@ -59,7 +59,15 @@ namespace Horde.Agent.Commands.Compute
 			await using (IComputeMessageChannel channel = await lease.Socket.CreateMessageChannelAsync(0, 4 * 1024 * 1024, _logger, cancellationToken))
 			{
 				await channel.UploadFilesAsync("", sandbox, storage, cancellationToken);
-				await channel.ExecuteAsync(jsonComputeTask.Executable, jsonComputeTask.Arguments, jsonComputeTask.WorkingDir, jsonComputeTask.EnvVars, (string x) => _logger.LogInformation("Child Process: {Text}", x), cancellationToken);
+
+				await using (IComputeProcess process = await channel.ExecuteAsync(jsonComputeTask.Executable, jsonComputeTask.Arguments, jsonComputeTask.WorkingDir, jsonComputeTask.EnvVars, cancellationToken))
+				{
+					string? line;
+					while ((line = await process.ReadLineAsync(cancellationToken)) != null)
+					{
+						_logger.LogInformation("Child Process: {Text}", line);
+					}
+				}
 			}
 
 			return true;
