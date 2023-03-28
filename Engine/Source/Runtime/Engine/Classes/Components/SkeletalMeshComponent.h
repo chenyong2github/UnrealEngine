@@ -2376,6 +2376,8 @@ protected:
 
 private:
 
+	virtual void OnClearAnimScriptInstance() {};
+
 	friend struct FSkeletalMeshComponentEndPhysicsTickFunction;
 
 	/** Update systems after physics sim is done */
