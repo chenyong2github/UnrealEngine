@@ -93,7 +93,7 @@ TAutoConsoleVariable<int32> CVarTSRRejectionAntiAliasingQuality(
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRAsyncCompute(
-	TEXT("r.TSR.AsyncCompute"), 0,
+	TEXT("r.TSR.AsyncCompute"), 2,
 	TEXT("Whether to run TSR on async compute. Some TSR passes can overlap with previous passe.\n")
 	TEXT(" 0: Disabled (default);\n")
 	TEXT(" 1: Only ClearPrevTextures pass;\n")

@@ -24,7 +24,7 @@ TAutoConsoleVariable<int32> CVarBloomCacheKernel(
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarAsynComputeFFTBloom(
-	TEXT("r.Bloom.AsyncCompute"), 0,
+	TEXT("r.Bloom.AsyncCompute"), 1,
 	TEXT("Whether to run FFT bloom on async compute.\n"),
 	ECVF_RenderThreadSafe);
 
