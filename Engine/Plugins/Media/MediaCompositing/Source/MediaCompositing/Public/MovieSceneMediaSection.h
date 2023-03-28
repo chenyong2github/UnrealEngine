@@ -4,8 +4,10 @@
 
 #include "MovieSceneSection.h"
 
+#include "Channels/MovieSceneChannelProxy.h"
 #include "MediaSource.h"
 #include "MovieSceneObjectBindingID.h"
+#include "Channels/MovieSceneBoolChannel.h"
 
 #include "MovieSceneMediaSection.generated.h"
 
@@ -72,6 +74,10 @@ public:
 	/** True if the object bound to this track has a media player proxy. */
 	UPROPERTY(Transient)
 	bool bHasMediaPlayerProxy;
+
+	/** If true then the media player can be open. */
+	UPROPERTY()
+	FMovieSceneBoolChannel ChannelCanPlayerBeOpen;
 
 public:
 

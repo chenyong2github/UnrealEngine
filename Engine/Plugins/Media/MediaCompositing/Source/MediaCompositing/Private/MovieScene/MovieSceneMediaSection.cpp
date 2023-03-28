@@ -36,6 +36,14 @@ UMovieSceneMediaSection::UMovieSceneMediaSection(const FObjectInitializer& Objec
 
 	EvalOptions.CompletionMode = EMovieSceneCompletionMode::RestoreState;
 	BlendType = EMovieSceneBlendType::Absolute;
+	ChannelCanPlayerBeOpen.SetDefault(true);
+
+#if WITH_EDITOR
+	static const FMovieSceneChannelMetaData MetaData("CanPlayerBeOpen", LOCTEXT("CanPlayerBeOpenChannelText", "Can the media player be open."));
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(ChannelCanPlayerBeOpen, MetaData, TMovieSceneExternalValue<bool>::Make());
+#else
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(ChannelCanPlayerBeOpen);
+#endif
 }
 
 void UMovieSceneMediaSection::PostInitProperties()
