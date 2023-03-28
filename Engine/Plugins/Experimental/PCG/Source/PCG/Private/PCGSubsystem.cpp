@@ -1228,7 +1228,7 @@ void UPCGSubsystem::FlushCache()
 	// Garbage collection is very seldom run in the editor, but we currently can consume a lot of memory in the cache.
 	if (!PCGHelpers::IsRuntimeOrPIE())
 	{
-		CollectGarbage(RF_NoFlags, true);
-	}	
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
+	}
 #endif
 }

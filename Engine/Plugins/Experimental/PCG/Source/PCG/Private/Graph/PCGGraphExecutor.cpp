@@ -1237,7 +1237,7 @@ void FPCGGraphExecutor::ReleaseUnusedActors()
 		if (ReleaseActorsCountUntilGC <= 0)
 		{
 			ReleaseActorsCountUntilGC = 30;
-			CollectGarbage(RF_NoFlags, true);
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 		}
 	}
 #endif
