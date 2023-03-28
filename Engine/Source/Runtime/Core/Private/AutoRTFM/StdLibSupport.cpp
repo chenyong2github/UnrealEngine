@@ -77,7 +77,47 @@ void* STM_realloc(void* Ptr, size_t Size, FContext* Context)
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(realloc);
 
+char* STM_strcpy(char* const Dst, const char* const Src, FContext* const Context)
+{
+    const size_t SrcLen = strlen(Src);
 
+    Context->RecordWrite(Dst, SrcLen, true);
+    return strcpy(Dst, Src);
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strcpy);
+
+char* STM_strncpy(char* const Dst, const char* const Src, const size_t Num, FContext* const Context)
+{
+    Context->RecordWrite(Dst, Num, true);
+    return strncpy(Dst, Src, Num);
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strncpy);
+
+char* STM_strcat(char* const Dst, const char* const Src, FContext* const Context)
+{
+    const size_t DstLen = strlen(Dst);
+    const size_t SrcLen = strlen(Src);
+
+    Context->RecordWrite(Dst + DstLen, SrcLen + 1, true);
+    return strcat(Dst, Src);
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strcat);
+
+char* STM_strncat(char* const Dst, const char* const Src, const size_t Num, FContext* const Context)
+{
+    const size_t DstLen = strlen(Dst);
+
+    Context->RecordWrite(Dst + DstLen, Num + 1, true);
+    return strncat(Dst, Src, Num);
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strncat);
+
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(memcmp);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(strcmp);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(strncmp);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<const char*(*)(const char*, int)>(&strchr));
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<const char* (*)(const char*, int)>(&strrchr));
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<const char* (*)(const char*, const char*)>(&strstr));
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(strlen);
 
 // FIXME: This is only correct when:
@@ -93,26 +133,6 @@ int STM_snprintf(char* Str, size_t Size, char* Format, FContext* Context, ...)
     return Result;
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(snprintf);
-
-char *STM_strncpy(char* Dst, const char* Src, size_t Len, FContext* Context)
-{
-    AutoRTFM::Unreachable();
-}
-
-#ifdef _MSC_VER
-/*
-   Disable warning about deprecated STD C functions.
-*/
-#pragma warning(disable : 4996)
-
-#pragma warning(push)
-#endif
-
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strncpy);
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 int STM_printf(const char* Format, FContext* Context, ...)
 {
