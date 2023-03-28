@@ -73,6 +73,7 @@
     <ClCompile Include="src\Store.cpp" />
     <ClCompile Include="src\StoreCborServer.cpp" />
     <ClCompile Include="src\StoreService.cpp" />
+    <ClCompile Include="src\StoreSettings.cpp" />
     <ClCompile Include="src\SystemTray.cpp" />
     <ClCompile Include="src\TraceRelay.cpp" />
   </ItemGroup>
@@ -92,6 +93,7 @@
     <ClInclude Include="src\Store.h" />
     <ClInclude Include="src\StoreCborServer.h" />
     <ClInclude Include="src\StoreService.h" />
+    <ClInclude Include="src\StoreSettings.h" />
     <ClInclude Include="src\TraceRelay.h" />
     <ClInclude Include="src\Utils.h" />
     <ClInclude Include="src\Version.h" />
