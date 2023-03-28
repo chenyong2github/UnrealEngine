@@ -261,7 +261,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 
 	struct FQuery
 	{
-		void Add(FHairBulkContainer& In, TCHAR* InSuffix);
+		void Add(FHairBulkContainer& In, const TCHAR* InSuffix);
 
 		enum EQueryType { None, ReadDDC, WriteDDC, ReadIO, ReadWriteIO /* aka regular Serialize() */};
 		EQueryType Type = None;
