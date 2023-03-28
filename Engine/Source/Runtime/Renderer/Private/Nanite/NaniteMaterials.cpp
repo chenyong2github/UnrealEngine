@@ -360,6 +360,12 @@ class FEmitCustomDepthStencilPS : public FNaniteGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FWriteCustomStencilDim>())
+		{
+			OutEnvironment.SetRenderTargetOutputFormat(0, PF_R16G16_UINT);
+		}
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -373,7 +379,7 @@ class FEmitCustomDepthStencilPS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, CustomDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<uint2>, CustomStencil)
 		RENDER_TARGET_BINDING_SLOTS()
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitCustomDepthStencilPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitCustomDepthStencilPS", SF_Pixel);
 
@@ -1941,6 +1947,7 @@ void EmitCustomDepthStencilTargets(
 			FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
 
 			PassParameters->View					= View.GetShaderParameters();
+			PassParameters->Scene					= View.GetSceneUniforms().GetBuffer(GraphBuilder);
 			PassParameters->InViews					= GraphBuilder.CreateSRV(ViewsBuffer);
 			PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->PageConstants			= PageConstants;

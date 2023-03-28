@@ -587,3 +587,4 @@ void FullScreenVS(
 	// Output.EyeIndex will be calculated in the pixel shader instead based on which view rect it is in.
 #endif
 }
+
