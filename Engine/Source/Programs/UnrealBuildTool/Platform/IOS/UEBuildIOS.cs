@@ -984,11 +984,15 @@ namespace UnrealBuildTool
 			string ProvisionKey = ProjectSettings.BundleIdentifier + " " + bForDistribution.ToString();
 
             IOSProvisioningData? ProvisioningData;
-			if(!ProvisionCache.TryGetValue(ProvisionKey, out ProvisioningData))
-            {
-				ProvisioningData = CreateProvisioningData(ProjectSettings, bForDistribution);
-                ProvisionCache.Add(ProvisionKey, ProvisioningData);
-            }
+ 
+			lock(ProvisionCache)
+			{
+				if (!ProvisionCache.TryGetValue(ProvisionKey, out ProvisioningData))
+				{
+					ProvisioningData = CreateProvisioningData(ProjectSettings, bForDistribution);
+					ProvisionCache.Add(ProvisionKey, ProvisioningData);
+				}
+			}
 			return ProvisioningData;
         }
 
