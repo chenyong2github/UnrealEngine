@@ -967,7 +967,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendDisc(
 	UseGenerator->Radius = FMath::Max(FMathf::ZeroTolerance, Radius);
 	UseGenerator->Normal = FVector3f::UnitZ();
 	UseGenerator->AngleSamples = FMath::Max(3, AngleSteps);
-	UseGenerator->RadialSamples = FMath::Max(3, SpokeSteps);
+	UseGenerator->RadialSamples = FMath::Max(1, SpokeSteps);
 	UseGenerator->StartAngle = StartAngle;
 	UseGenerator->EndAngle = EndAngle;
 	UseGenerator->bSinglePolygroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
