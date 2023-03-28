@@ -26,7 +26,7 @@ namespace
 
 		if (IsSFU && Settings::SimulcastParameters.Layers.Num() > 0)
 		{
-			using FLayer = FPixelStreamingSimulcastParameters::FLayer;
+			using FLayer = FPixelStreamingSimulcastParameters::FPixelStreamingSimulcastLayer;
 
 			// encodings should be lowest res to highest
 			TArray<FLayer*> SortedLayers;

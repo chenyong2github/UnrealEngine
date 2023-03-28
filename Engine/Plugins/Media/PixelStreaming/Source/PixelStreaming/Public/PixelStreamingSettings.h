@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "Containers/Array.h"
+
 /**
  * A struct representing the simulcast paramaters used by PixelStreaming. The parameters
  * contain an array of layers, with each layer having a Scale, MinBitrate and MaxBitrate
@@ -9,14 +12,14 @@
  */
 struct PIXELSTREAMING_API FPixelStreamingSimulcastParameters
 {
-	struct FLayer
+	struct PIXELSTREAMING_API FPixelStreamingSimulcastLayer
 	{
 		float Scaling;
 		int MinBitrate;
 		int MaxBitrate;
 	};
 
-	TArray<FLayer> Layers;
+	TArray<FPixelStreamingSimulcastLayer> Layers;
 };
 
 /**

@@ -437,7 +437,7 @@ namespace UE::PixelStreaming::Settings
 		int NextOption = 0;
 		while (bSuccess && ((OptionCount - NextOption) >= 3))
 		{
-			FPixelStreamingSimulcastParameters::FLayer Layer;
+			FPixelStreamingSimulcastParameters::FPixelStreamingSimulcastLayer Layer;
 			bSuccess = FDefaultValueHelper::ParseFloat(ParameterArray[NextOption++], Layer.Scaling);
 			bSuccess = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MinBitrate);
 			bSuccess = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MaxBitrate);
