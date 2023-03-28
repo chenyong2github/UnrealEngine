@@ -1013,6 +1013,7 @@ public:
 	FGeometryDynamicCollection* GetDynamicCollection();  // TEMP HACK?
 
 	UInstancedStaticMeshComponent* GetRootProxyISM() const;
+	TArray<UStaticMeshComponent*> CreateProxyComponents() const;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
@@ -1306,4 +1307,10 @@ public:
 	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
 	virtual Chaos::FPhysicsObjectId GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const override;
 	//~ End IPhysicsComponent Interface.
+
+#if WITH_EDITOR
+	//~ Begin UActorComponent interface.
+	virtual bool IsHLODRelevant() const override;
+	//~ End UActorComponent interface.
+#endif
 };
