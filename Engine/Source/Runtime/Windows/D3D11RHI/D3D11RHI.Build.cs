@@ -3,7 +3,7 @@
 using System.IO;
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win64")]
+[SupportedPlatformGroups("Windows")]
 public class D3D11RHI : ModuleRules
 {
 	protected virtual bool bIncludeExtensions { get => true; }
@@ -37,7 +37,7 @@ public class D3D11RHI : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			PrivateIncludePaths.Add(Path.Combine(this.ModuleDirectory, "Private", "Windows"));
 		}

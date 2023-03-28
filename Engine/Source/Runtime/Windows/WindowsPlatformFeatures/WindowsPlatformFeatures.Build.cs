@@ -3,7 +3,7 @@
 using System.IO;
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win64")]
+[SupportedPlatformGroups("Windows")]
 public class WindowsPlatformFeatures : ModuleRules
 {
 	public WindowsPlatformFeatures(ReadOnlyTargetRules Target) : base(Target)

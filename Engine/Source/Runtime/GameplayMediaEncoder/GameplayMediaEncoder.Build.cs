@@ -3,7 +3,7 @@
 using System.IO;
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win64")]
+[SupportedPlatformGroups("Windows")]
 public class GameplayMediaEncoder : ModuleRules
 {
 	public GameplayMediaEncoder(ReadOnlyTargetRules Target) : base(Target)
@@ -27,7 +27,7 @@ public class GameplayMediaEncoder : ModuleRules
 			"AVEncoder"
 		});
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			PrivateDependencyModuleNames.Add("D3D11RHI");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");

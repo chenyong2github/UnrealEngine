@@ -2,7 +2,8 @@
 
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win64", "Linux", "Android", "LinuxArm64")]
+[SupportedPlatforms("Linux", "Android", "LinuxArm64")]
+[SupportedPlatformGroups("Windows")]
 public class OpenGLDrv : ModuleRules
 {
 	public OpenGLDrv(ReadOnlyTargetRules Target) : base(Target)
@@ -48,7 +49,7 @@ public class OpenGLDrv : ModuleRules
 			PrivateIncludePathModuleNames.Add("Launch");
 		}
 
-        if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)
+        if (!Target.IsInPlatformGroup(UnrealPlatformGroup.Windows)
 			&& Target.Platform != UnrealTargetPlatform.IOS && Target.Platform != UnrealTargetPlatform.Android
 			&& !Target.IsInPlatformGroup(UnrealPlatformGroup.Linux)
 			&& Target.Platform != UnrealTargetPlatform.TVOS)
