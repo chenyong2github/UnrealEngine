@@ -108,6 +108,11 @@ namespace UnrealBuildTool
 		/// Disable Dump Syms step for faster iteration
 		/// </summary>
 		DisableDumpSyms = 1 << 16,
+
+		/// <summary>
+		/// Indicates that the AutoRTFM Clang compiler should be used instead of the standard clang compiler
+		/// </summary>
+		UseAutoRTFMCompiler = 1 << 17,
 	}
 
 	abstract class ClangToolChain : ISPCToolChain

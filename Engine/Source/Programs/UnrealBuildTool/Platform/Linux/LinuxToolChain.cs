@@ -125,6 +125,16 @@ namespace UnrealBuildTool
 				FileReference LlvmArPath = FileReference.Combine(BaseLinuxPath, "bin", $"llvm-ar{BuildHostPlatform.Current.BinarySuffix}");
 				FileReference ObjcopyPath = FileReference.Combine(BaseLinuxPath, "bin", $"llvm-objcopy{BuildHostPlatform.Current.BinarySuffix}");
 
+				// if we have RTFMCompiler enabled switch the compiler but leave the sysroot to use our toolchain
+				// this *shouldnt* cause issues as these compiler should ideally be the same version
+				if (Options.HasFlag(ClangToolChainOptions.UseAutoRTFMCompiler))
+				{
+					DirectoryReference AutoRTFMDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Restricted", "NotForLicensees", "Binaries", BuildHostPlatform.Current.Platform.ToString(), "AutoRTFM", "bin");
+
+					// set up the path to our toolchain
+					ClangPath = FileReference.Combine(AutoRTFMDir, $"verse-clang-cl");
+				}
+
 				// When cross-compiling on Windows, use old FixDeps. It is slow, but it does not have timing issues
 				bUseFixdeps = BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64;
 
@@ -452,6 +462,8 @@ namespace UnrealBuildTool
 
 			// build up the commandline common to C and C++
 
+			// always select the driver g++ in-case we are using a different binary for clang, such as clang/clang-cl
+			Arguments.Add("--driver-mode=g++");
 			if (ShouldUseLibcxx())
 			{
 				Arguments.Add("-nostdinc++");
@@ -552,6 +564,8 @@ namespace UnrealBuildTool
 
 		protected virtual void GetLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
+			// always select the driver g++ in-case we are using a different binary for clang, such as clang/clang-cl
+			Arguments.Add("--driver-mode=g++");
 			Arguments.Add((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? "-fuse-ld=lld.exe" : "-fuse-ld=lld");
 
 			// debugging symbols

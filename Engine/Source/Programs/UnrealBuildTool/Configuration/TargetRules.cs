@@ -744,6 +744,15 @@ namespace UnrealBuildTool
 		public bool bUseVerse = true;
 
 		/// <summary>
+		/// Whether to use the AutoRTFM Clang compiler.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-NoUseAutoRTFM", Value = "false")]
+		[CommandLine("-UseAutoRTFM", Value = "true")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bUseAutoRTFMCompiler = false;
+
+		/// <summary>
 		/// Whether to compile the Chaos physics plugin.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2948,6 +2957,11 @@ namespace UnrealBuildTool
 		public bool bUseVerse
 		{
 			get { return Inner.bUseVerse; }
+		}
+
+		public bool bUseAutoRTFMCompiler
+		{
+			get { return Inner.bUseAutoRTFMCompiler; }
 		}
 
 		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]

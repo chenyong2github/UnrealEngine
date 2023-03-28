@@ -1087,6 +1087,11 @@ namespace UnrealBuildTool
 				Logger.LogInformation("Defaulting static analyzer output type to text");
 			}
 
+			if (Target.bUseAutoRTFMCompiler)
+			{
+				Target.WindowsPlatform.Compiler = WindowsCompiler.ClangRTFM;
+			}
+
 			// Set the compiler version if necessary
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Default)
 			{
