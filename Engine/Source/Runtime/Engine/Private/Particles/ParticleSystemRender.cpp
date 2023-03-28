@@ -176,15 +176,6 @@ void FDynamicSpriteEmitterDataBase::SortSpriteParticles(int32 SortMode, bool bLo
 {
 	SCOPE_CYCLE_COUNTER(STAT_SortingTime);
 
-	struct FCompareParticleOrderZ
-	{
-		FORCEINLINE bool operator()( const FParticleOrder& A, const FParticleOrder& B ) const { return B.Z < A.Z; }
-	};
-	struct FCompareParticleOrderC
-	{
-		FORCEINLINE bool operator()( const FParticleOrder& A, const FParticleOrder& B ) const { return B.C < A.C; }
-	};
-
 	if (SortMode == PSORTMODE_ViewProjDepth)
 	{
 		for (int32 ParticleIndex = 0; ParticleIndex < ParticleCount; ParticleIndex++)
@@ -203,7 +194,7 @@ void FDynamicSpriteEmitterDataBase::SortSpriteParticles(int32 SortMode, bool bLo
 
 			ParticleOrder[ParticleIndex].Z = InZ;
 		}
-		Sort( ParticleOrder, ParticleCount, FCompareParticleOrderZ() );
+		Algo::SortBy(MakeArrayView(ParticleOrder, ParticleCount), &FParticleOrder::Z, TGreater<>());
 	}
 	else if (SortMode == PSORTMODE_DistanceToView)
 	{
@@ -224,7 +215,7 @@ void FDynamicSpriteEmitterDataBase::SortSpriteParticles(int32 SortMode, bool bLo
 			ParticleOrder[ParticleIndex].ParticleIndex = ParticleIndex;
 			ParticleOrder[ParticleIndex].Z = InZ;
 		}
-		Sort( ParticleOrder, ParticleCount, FCompareParticleOrderZ() );
+		Algo::SortBy(MakeArrayView(ParticleOrder, ParticleCount), &FParticleOrder::Z, TGreater<>());
 	}
 	else if (SortMode == PSORTMODE_Age_OldestFirst)
 	{
@@ -234,7 +225,7 @@ void FDynamicSpriteEmitterDataBase::SortSpriteParticles(int32 SortMode, bool bLo
 			ParticleOrder[ParticleIndex].ParticleIndex = ParticleIndex;
 			ParticleOrder[ParticleIndex].C = Particle.Flags & STATE_CounterMask;
 		}
-		Sort( ParticleOrder, ParticleCount, FCompareParticleOrderC() );
+		Algo::SortBy(MakeArrayView(ParticleOrder, ParticleCount), &FParticleOrder::C, TGreater<>());
 	}
 	else if (SortMode == PSORTMODE_Age_NewestFirst)
 	{
@@ -244,7 +235,7 @@ void FDynamicSpriteEmitterDataBase::SortSpriteParticles(int32 SortMode, bool bLo
 			ParticleOrder[ParticleIndex].ParticleIndex = ParticleIndex;
 			ParticleOrder[ParticleIndex].C = (~Particle.Flags) & STATE_CounterMask;
 		}
-		Sort( ParticleOrder, ParticleCount, FCompareParticleOrderC() );
+		Algo::SortBy(MakeArrayView(ParticleOrder, ParticleCount), &FParticleOrder::C, TGreater<>());
 	}
 }
 

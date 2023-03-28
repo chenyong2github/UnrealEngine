@@ -1185,7 +1185,7 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 			}
 			if (NumCoincident > NumCoincidentPrev)
 			{
-				Sort(&PointOrder[0], NumPoints - NumCoincidentPrev, AscendingRankPred);
+				Algo::Sort(MakeArrayView(PointOrder.GetData(), NumPoints - NumCoincidentPrev), AscendingRankPred);
 			}
 		}
 	}
@@ -1369,7 +1369,7 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 
 		// Sort the just-added points by curvature (they were in arbitrary order before)
 		DescendingPredicate<FReal> DescendingCurvaturePred(PointCurvatures);
-		Sort(&PointOrder[MovedPtsOffset], NumToMoveToFront, DescendingCurvaturePred);
+		Algo::Sort(MakeArrayView(&PointOrder[MovedPtsOffset], NumToMoveToFront), DescendingCurvaturePred);
 
 		MovedPtsOffset += NumToMoveToFront;
 	}
@@ -1378,7 +1378,7 @@ TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
 	if (MovedPtsOffset < NumPoints)
 	{
 		DescendingPredicate<FReal> DescendingCurvaturePred(PointCurvatures);
-		Sort(&PointOrder[MovedPtsOffset], NumPoints - MovedPtsOffset - NumCoincident, DescendingCurvaturePred);
+		Algo::Sort(MakeArrayView(&PointOrder[MovedPtsOffset], NumPoints - MovedPtsOffset - NumCoincident), DescendingCurvaturePred);
 	}
 
 	return PointOrder;

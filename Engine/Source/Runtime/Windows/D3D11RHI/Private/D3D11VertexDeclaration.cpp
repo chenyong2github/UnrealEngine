@@ -82,7 +82,7 @@ struct FD3D11VertexDeclarationKey
 				return ((int32)A.AlignedByteOffset + A.InputSlot * MAX_uint16) < ((int32)B.AlignedByteOffset + B.InputSlot * MAX_uint16);
 			}
 		};
-		Sort(VertexElements.GetData(), VertexElements.Num(), FCompareDesc());
+		Algo::Sort(VertexElements, FCompareDesc());
 
 		// Hash once.
 		Hash = FCrc::MemCrc_DEPRECATED(VertexElements.GetData(),VertexElements.Num()*sizeof(D3D11_INPUT_ELEMENT_DESC));

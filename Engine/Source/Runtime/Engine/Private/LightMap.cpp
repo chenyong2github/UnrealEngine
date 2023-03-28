@@ -2385,19 +2385,6 @@ TRefCountPtr<FLightMap2D> FLightMap2D::AllocateInstancedLightMap(UObject* LightM
 #endif //WITH_EDITOR
 }
 
-#if WITH_EDITOR
-
-struct FCompareLightmaps
-{
-	FORCEINLINE bool operator()(const FLightMapAllocationGroup& A, const FLightMapAllocationGroup& B) const
-	{
-		// Order descending by total size of allocation
-		return A.TotalTexels > B.TotalTexels;
-	}
-};
-
-#endif //WITH_EDITOR
-
 /**
  * Executes all pending light-map encoding requests.
  * @param	bLightingSuccessful	Whether the lighting build was successful or not.
@@ -2459,7 +2446,7 @@ void FLightMap2D::EncodeTextures( UWorld* InWorld, ULevel* LightingScenario, boo
 		}
 
 		// Sort the light-maps in descending order by size.
-		Sort(PendingLightMaps.GetData(), PendingLightMaps.Num(), FCompareLightmaps());
+		Algo::SortBy(PendingLightMaps, &FLightMapAllocationGroup::TotalTexels, TGreater<>());
 
 		// Allocate texture space for each light-map.
 		TArray<FLightMapPendingTexture*> PendingTextures;

@@ -120,26 +120,12 @@ using FSavePackageOutputFileArray = TArray<FSavePackageOutputFile, TInlineAlloca
   */
 struct FObjectImportSortHelper
 {
-private:
-	/**
-	 * Map of UObject => full name; optimization for sorting.
-	 */
-	TMap<UObject*, FString>			ObjectToFullNameMap;
-
-	/** the linker that we're sorting names for */
-	friend struct TDereferenceWrapper<FObjectImport, FObjectImportSortHelper>;
-
-	/** Comparison function used by Sort */
-	bool operator()(const FObjectImport& A, const FObjectImport& B) const;
-
-public:
-
 	/**
 	 * Sorts imports according to the order in which they occur in the list of imports.
 	 *
 	 * @param	Linker				linker containing the imports that need to be sorted
 	 */
-	void SortImports(FLinkerSave* Linker);
+	static void SortImports(FLinkerSave* Linker);
 };
 
 /**
@@ -148,25 +134,12 @@ public:
  */
 struct FObjectExportSortHelper
 {
-public:
 	/**
 	 * Sorts exports alphabetically.
 	 *
 	 * @param	Linker				linker containing the exports that need to be sorted
 	 */
-	void SortExports(FLinkerSave* Linker);
-
-private:
-	/** Comparison function used by Sort */
-	bool operator()(const FObjectExport& A, const FObjectExport& B) const;
-
-	/** the linker that we're sorting exports for */
-	friend struct TDereferenceWrapper<FObjectExport, FObjectExportSortHelper>;
-
-	/**
-	 * Map of UObject => full name; optimization for sorting.
-	 */
-	TMap<UObject*, FString>			ObjectToFullNameMap;
+	static void SortExports(FLinkerSave* Linker);
 };
 
 struct FEDLCookCheckerThreadState;

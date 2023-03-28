@@ -759,7 +759,7 @@ FPostProcessMaterialChain GetPostProcessMaterialChain(const FViewInfo& View, EBl
 		return {};
 	}
 
-	::Sort(Nodes.GetData(), Nodes.Num(), FPostProcessMaterialNode::FCompare());
+	Algo::Sort(Nodes, FPostProcessMaterialNode::FCompare());
 
 	FPostProcessMaterialChain OutputChain;
 	OutputChain.Reserve(Nodes.Num());

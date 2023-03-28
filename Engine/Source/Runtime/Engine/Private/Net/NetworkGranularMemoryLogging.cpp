@@ -60,7 +60,7 @@ namespace UE::Net::Private::GranularMemoryTracking
 			}
 
 			// Keep our total scope data in place, but sort the rest of the fields.
-			Sort(FieldValues.GetData() + 2, FieldValues.Num() - 2, FieldLessThan);
+			Algo::Sort(MakeArrayView(FieldValues.GetData() + 2, FieldValues.Num() - 2), FieldLessThan);
 
 			FString ReportRow = FString::Printf(TEXT("%s\r\n%s"),
 				*FString::JoinBy(FieldValues, TEXT(","), [](const FField& Field) { return *Field.Name; }),

@@ -595,7 +595,7 @@ void FMallocBinnedGPU::InitMallocBinned()
 	}
 	if (ArenaParams.AdditionalBlockSizes.Num())
 	{
-		Sort(&SizeTable[0], SizeTable.Num());
+		Algo::Sort(SizeTable);
 	}
 	check(ArenaParams.PoolCount == SizeTable.Num());
 	check(SizeTable.Num() < 256);

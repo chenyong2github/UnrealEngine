@@ -387,7 +387,7 @@ inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& 
 	checkSlow(CheckNumLockRequests == NumLockRequests);
 
 	// Sort so highest priority requests are at the front of the list
-	::Sort(SortedKeys, NumLoadRequests);
+	Algo::Sort(MakeArrayView(SortedKeys, NumLoadRequests));
 
 	// Clamp number of load requests to maximum, but also ensure all lock requests are considered
 	const uint32 NewNumLoadRequests = FMath::Min(NumLoadRequests, FMath::Max(NumLockRequests, MaxNumRequests));

@@ -111,15 +111,8 @@ static TArray< FMergeGraphEntry > GenerateDiffListItems(const FBlueprintRevPair&
 		{
 			TArray<FDiffSingleResult> Results;
 			FGraphDiffControl::DiffGraphs(GraphOld ? *GraphOld : nullptr, GraphNew, Results);
-			struct SortDiff
-			{
-				bool operator () (const FDiffResultItem& A, const FDiffResultItem& B) const
-				{
-					return A.Result.Diff < B.Result.Diff;
-				}
-			};
 
-			Sort(Results.GetData(), Results.Num(), SortDiff());
+			Algo::SortBy(Results, [](const FDiffResultItem& Data) { return Data.Result.Diff; });
 			return Results;
 		};
 

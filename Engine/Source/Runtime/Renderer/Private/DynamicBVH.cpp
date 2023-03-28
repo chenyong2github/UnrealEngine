@@ -66,7 +66,7 @@ void FMortonArray::RegenerateCodes( const FRange& Range )
 		Sorted[i].Code = Morton;
 	}
 
-	Sort( &Sorted[ Range.Begin ], Range.End - Range.Begin );
+	Algo::Sort(MakeArrayView(&Sorted[Range.Begin], Range.End - Range.Begin));
 }
 
 

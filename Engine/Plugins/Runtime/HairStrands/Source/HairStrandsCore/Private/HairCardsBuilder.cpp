@@ -2473,11 +2473,8 @@ namespace HairCards
 			const uint32 BucketDescriptorCount = EndDescriptorIt - StartDescriptorIt;
 			if (BucketDescriptorCount > 1)
 			{
-				Sort(Descriptors.GetData() + StartDescriptorIt, BucketDescriptorCount,
-					[](const FClusterTextureDescriptor& A, const FClusterTextureDescriptor& B)
-					{
-						return A.CurveCount > B.CurveCount;
-					});
+				Algo::SortBy(MakeArrayView(Descriptors.GetData() + StartDescriptorIt, BucketDescriptorCount),
+					&FClusterTextureDescriptor::CurveCount, TGreater<>());
 			}
 
 			// Take the first descritor (Longer & denser as the representative of the bucket)

@@ -2123,11 +2123,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 				}
 
 				// And partial sort those that fall within this bucket
-				Sort(&VisibleInstances[0], PartitionIndex, [](const SVisibleInstance& Instance0, const SVisibleInstance& Instance1)
-				{
-					return Instance0.DistanceToView < Instance1.DistanceToView;
-				}
-				);
+				Algo::SortBy(MakeArrayView(VisibleInstances.GetData(), PartitionIndex), &SVisibleInstance::DistanceToView);
 			}
 		}
 	}

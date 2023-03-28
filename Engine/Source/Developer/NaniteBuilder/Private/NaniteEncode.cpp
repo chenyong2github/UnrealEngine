@@ -3156,7 +3156,7 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 			TriangleSortEntries[ i ] = (Component << 24) | (Distance << 8) | TriangleIndex;
 
 		}
-		Sort( TriangleSortEntries, RangeLength );
+		Algo::Sort( MakeArrayView(TriangleSortEntries, RangeLength) );
 
 		for(uint32 i = 0; i < RangeLength; i++)
 		{

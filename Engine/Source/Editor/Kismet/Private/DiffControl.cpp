@@ -534,15 +534,7 @@ void FBlueprintTypeDiffControl::BuildDiffSourceArray()
 			}
 		}
 
-		struct SortDiff
-		{
-			bool operator () (const TSharedPtr<FDiffResultItem>& A, const TSharedPtr<FDiffResultItem>& B) const
-			{
-				return A->Result.Diff < B->Result.Diff;
-			}
-		};
-
-		Sort(DiffListSource.GetData(), DiffListSource.Num(), SortDiff());
+		Algo::SortBy(DiffListSource, [](const TSharedPtr<FDiffResultItem>& Data) { return Data->Result.Diff; });
 	}
 }
 
@@ -699,16 +691,8 @@ void FGraphToDiff::BuildDiffSourceArray()
 {
 	FoundDiffs->Empty();
 	FGraphDiffControl::DiffGraphs(GraphOld, GraphNew, *FoundDiffs);
-
-	struct SortDiff
-	{
-		bool operator () (const FDiffSingleResult& A, const FDiffSingleResult& B) const
-		{
-			return A.Diff < B.Diff;
-		}
-	};
-
-	Sort(FoundDiffs->GetData(), FoundDiffs->Num(), SortDiff());
+	
+	Algo::SortBy(*FoundDiffs, &FDiffSingleResult::Diff);
 
 	DiffListSource.Empty();
 	for (const FDiffSingleResult& Diff : *FoundDiffs)

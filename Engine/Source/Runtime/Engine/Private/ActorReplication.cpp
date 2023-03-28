@@ -894,15 +894,7 @@ void AActor::GetSubobjectsWithStableNamesForNetworking(TArray<UObject*> &ObjList
 	}
 
 	// Sort the list so that we generate the same list on client/server
-	struct FCompareComponentNames
-	{
-		FORCEINLINE bool operator()( UObject& A, UObject& B ) const
-		{
-			return A.GetName() < B.GetName();
-		}
-	};
-
-	Sort( ObjList.GetData(), ObjList.Num(), FCompareComponentNames() );
+	Algo::SortBy(ObjList, &UObject::GetFName, FNameLexicalLess());
 }
 
 void AActor::OnSubobjectCreatedFromReplication(UObject *NewSubobject)

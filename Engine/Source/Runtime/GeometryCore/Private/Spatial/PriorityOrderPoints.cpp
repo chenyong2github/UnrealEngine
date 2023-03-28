@@ -2,6 +2,7 @@
 
 
 #include "Spatial/PriorityOrderPoints.h"
+#include "Algo/Sort.h"
 #include "BoxTypes.h"
 
 using namespace UE::Geometry;
@@ -284,7 +285,7 @@ void OrderPoints(TArray<int32>& PointOrder, TArrayView<const TVector<RealType>> 
 		if (NumWeights > 0)
 		{
 			DescendingPredicate<float> DescendingImportancePred(ImportanceWeights[0]);
-			Sort(&PointOrder[MovedPtsOffset], NumToMoveToFront, DescendingImportancePred);
+			Algo::Sort(MakeArrayView(&PointOrder[MovedPtsOffset], NumToMoveToFront), DescendingImportancePred);
 		}
 
 		MovedPtsOffset += NumToMoveToFront;
@@ -299,7 +300,7 @@ void OrderPoints(TArray<int32>& PointOrder, TArrayView<const TVector<RealType>> 
 	if (NumWeights > 0 && (EarlyStop < 0 || EarlyStop > MovedPtsOffset) && MovedPtsOffset < NumPoints)
 	{
 		DescendingPredicate<float> DescendingImportancePred(ImportanceWeights[0]);
-		Sort(&PointOrder[MovedPtsOffset], NumPoints - MovedPtsOffset, DescendingImportancePred);
+		Algo::Sort(MakeArrayView(&PointOrder[MovedPtsOffset], NumPoints - MovedPtsOffset), DescendingImportancePred);
 	}
 }
 }
@@ -346,5 +347,5 @@ void FPriorityOrderPoints::ComputeDescendingImportance(TArrayView<const float> I
 		Order[Idx] = Idx;
 	}
 	PriorityOrderPointsLocal::DescendingPredicate<float> DescendingImportancePred(ImportanceWeights);
-	Sort(&Order[0], NumPoints, DescendingImportancePred);
+	Algo::Sort(Order, DescendingImportancePred);
 }

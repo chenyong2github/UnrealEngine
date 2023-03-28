@@ -2319,15 +2319,7 @@ void FHttpNetworkReplayStreamer::HttpEnumerateCheckpointsFinished( FHttpRequestP
 		else
 		{
 			// Sort checkpoints by time
-			struct FCompareCheckpointTime
-			{
-				FORCEINLINE bool operator()(const FReplayEventListItem & A, const FReplayEventListItem & B) const
-				{
-					return A.Time1 < B.Time1;
-				}
-			};
-
-			Sort( CheckpointList.ReplayEvents.GetData(), CheckpointList.ReplayEvents.Num(), FCompareCheckpointTime() );
+			Algo::SortBy(CheckpointList.ReplayEvents, &FReplayEventListItem::Time1);
 
 			Result.Result = EStreamingOperationResult::Success;
 		}	

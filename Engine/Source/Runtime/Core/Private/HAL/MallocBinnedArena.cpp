@@ -5,6 +5,7 @@
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
+#include "Algo/Sort.h"
 #include "Logging/LogMacros.h"
 #include "Templates/Function.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
@@ -584,7 +585,7 @@ void FMallocBinnedArena::InitMallocBinned()
 	}
 	if (ArenaParams.AdditionalBlockSizes.Num())
 	{
-		Sort(&SizeTable[0], SizeTable.Num());
+		Algo::Sort(SizeTable);
 	}
 	check(ArenaParams.PoolCount == SizeTable.Num());
 	check(SizeTable.Num() < 256);

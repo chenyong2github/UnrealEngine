@@ -95,7 +95,7 @@ struct FD3D12VertexDeclarationKey
 				return A.SemanticIndex < B.SemanticIndex;
 			}
 		};
-		Sort(VertexElements.GetData(), VertexElements.Num(), FCompareDesc());
+		Algo::Sort(VertexElements, FCompareDesc());
 
 		// Hash once.
 		Hash = FCrc::MemCrc_DEPRECATED(VertexElements.GetData(), VertexElements.Num()*sizeof(D3D12_INPUT_ELEMENT_DESC));

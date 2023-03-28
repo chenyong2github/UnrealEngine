@@ -114,15 +114,7 @@ const TArray<FSceneViewExtensionRef> FSceneViewExtensions::GatherActiveExtension
 			ActiveExtensions.Add(ActiveExtension);
 		});
 
-	struct SortPriority
-	{
-		bool operator () (const FSceneViewExtensionRef& A, const FSceneViewExtensionRef& B) const
-		{
-			return A->GetPriority() > B->GetPriority();
-		}
-	};
-
-	Sort(ActiveExtensions.GetData(), ActiveExtensions.Num(), SortPriority());
+	Algo::SortBy(ActiveExtensions, &ISceneViewExtension::GetPriority, TGreater<>());
 
 	return ActiveExtensions;
 }

@@ -4523,7 +4523,7 @@ void UClass::SetUpRuntimeReplicationData()
 					NetProperties.Add(Prop);
 				}
 			}
-			}
+		}
 
 		for(TFieldIterator<UField> It(this,EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
@@ -4544,22 +4544,22 @@ void UClass::SetUpRuntimeReplicationData()
 		const bool bIsNativeClass = HasAnyClassFlags(CLASS_Native);
 		if (!bIsNativeClass)
 		{
-		// Sort NetProperties so that their ClassReps are sorted by memory offset
+			// Sort NetProperties so that their ClassReps are sorted by memory offset
 			struct FComparePropertyOffsets
-		{
-				FORCEINLINE bool operator()(FProperty& A, FProperty& B) const
 			{
-				// Ensure stable sort
-					if (A.GetOffset_ForGC() == B.GetOffset_ForGC())
+				FORCEINLINE bool operator()(FProperty* A, FProperty* B) const
 				{
-					return A.GetName() < B.GetName();
+					// Ensure stable sort
+					if (A->GetOffset_ForGC() == B->GetOffset_ForGC())
+					{
+						return A->GetName() < B->GetName();
+					}
+
+					return A->GetOffset_ForGC() < B->GetOffset_ForGC();
 				}
+			};
 
-				return A.GetOffset_ForGC() < B.GetOffset_ForGC();
-			}
-		};
-
-			Sort(NetProperties.GetData(), NetProperties.Num(), FComparePropertyOffsets());
+			Algo::Sort(NetProperties, FComparePropertyOffsets());
 		}
 
 		ClassReps.Reserve(ClassReps.Num() + NetProperties.Num());
@@ -4579,15 +4579,8 @@ void UClass::SetUpRuntimeReplicationData()
 		}
 
 		NetFields.Shrink();
-
-		struct FCompareUFieldNames
-		{
-			FORCEINLINE bool operator()(UField& A, UField& B) const
-			{
-				return A.GetName() < B.GetName();
-			}
-		};
-		Sort(NetFields.GetData(), NetFields.Num(), FCompareUFieldNames());
+		
+		Algo::SortBy(NetFields, &UField::GetFName, FNameLexicalLess());
 
 		ClassFlags |= CLASS_ReplicationDataIsSetUp;
 

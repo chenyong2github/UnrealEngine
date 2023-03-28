@@ -4,6 +4,7 @@
 	OpenGLVertexDeclaration.cpp: OpenGL vertex declaration RHI implementation.
 =============================================================================*/
 
+#include "Algo/StableSort.h"
 #include "CoreMinimal.h"
 #include "OpenGLDrv.h"
 
@@ -122,7 +123,7 @@ struct FOpenGLVertexDeclarationKey
 			}
 		};
 		// Sort the FOpenGLVertexElements by stream then offset.
-		StableSort( VertexElements.GetData(), VertexElements.Num(), FCompareFOpenGLVertexElement() );
+		Algo::StableSort( VertexElements, FCompareFOpenGLVertexElement() );
 
 		Hash = FCrc::MemCrc_DEPRECATED(VertexElements.GetData(),VertexElements.Num()*sizeof(FOpenGLVertexElement));
 		Hash = FCrc::MemCrc_DEPRECATED(StreamStrides, sizeof(StreamStrides), Hash);

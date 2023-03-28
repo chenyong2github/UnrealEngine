@@ -1007,10 +1007,6 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 
 struct FNameEntryIdSortHelper
 {
-private:
-	/** the linker that we're sorting names for */
-	friend struct TDereferenceWrapper<FNameEntryId, FNameEntryIdSortHelper>;
-
 	/** Comparison function used by Sort */
 	FORCEINLINE bool operator()(const FName& A, const FName& B) const
 	{
@@ -1022,19 +1018,6 @@ private:
 	{
 		//@todo Could be implemented without constructing FName but need a would new FNameEntry comparison API
 		return A != B && operator()(FName::CreateFromDisplayId(A, 0), FName::CreateFromDisplayId(B, 0));
-	}
-};
-
-struct FObjectResourceSortHelper
-{
-private:
-	friend struct TDereferenceWrapper<FObjectImport, FObjectResourceSortHelper>;
-	friend struct TDereferenceWrapper<FObjectExport, FObjectResourceSortHelper>;
-
-	/** Comparison function used by Sort */
-	FORCEINLINE bool operator()(const FObjectResource& A, const FObjectResource& B) const
-	{
-		return A.ObjectName.Compare(B.ObjectName) < 0;
 	}
 };
 
@@ -1139,10 +1122,9 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		Linker->Summary.NameCount = Linker->NameMap.Num();
 		Linker->Summary.NamesReferencedFromExportDataCount = NamesReferencedFromExportData.Num();
 
-		Sort(Linker->NameMap.GetData(), Linker->Summary.NamesReferencedFromExportDataCount, FNameEntryIdSortHelper());
-		Sort(Linker->NameMap.GetData() + Linker->Summary.NamesReferencedFromExportDataCount,
-			Linker->Summary.NameCount - Linker->Summary.NamesReferencedFromExportDataCount,
-			FNameEntryIdSortHelper());
+		Algo::Sort(MakeArrayView(Linker->NameMap.GetData(), Linker->Summary.NamesReferencedFromExportDataCount), FNameEntryIdSortHelper());
+		Algo::Sort(MakeArrayView(Linker->NameMap.GetData() + Linker->Summary.NamesReferencedFromExportDataCount,
+			Linker->Summary.NameCount - Linker->Summary.NamesReferencedFromExportDataCount), FNameEntryIdSortHelper());
 
 		if (!SaveContext.IsTextFormat())
 		{
@@ -1216,7 +1198,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 				ObjectImport.ObjectName = ReplacedName;
 			}
 		}
-		//Sort(&Linker->ImportMap[0], Linker->ImportMap.Num(), FObjectResourceSortHelper());
+		//Algo::SortBy(Linker->ImportMap, &FObjectResource::ObjectName, FNameLexicalLess());
 
 		// @todo: To stay consistent with the old save and prevent binary diff between the algo, use the old import sort for now
 		// a future cvar could allow projects use the less expensive sort in their own time down the line
@@ -1241,7 +1223,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 				Export.PackageFlags = Package->GetPackageFlags();
 			}
 		}
-		//Sort(&Linker->ExportMap[0], Linker->ExportMap.Num(), FObjectResourceSortHelper());
+		//Algo::SortBy(Linker->ExportMap, &FObjectResource::ObjectName, FNameLexicalLess());
 
 		// @todo: To stay consistent with the old save and prevent binary diff between the algo, use the old import sort for now
 		// a future cvar could allow projects use the less expensive sort in their own time down the line

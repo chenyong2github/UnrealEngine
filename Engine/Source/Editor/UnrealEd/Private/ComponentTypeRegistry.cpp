@@ -636,7 +636,7 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 	
 	if (SortedClassList.Num() > 0)
 	{
-		Sort(SortedClassList.GetData(), SortedClassList.Num(), SortComboEntry());
+		Algo::Sort(SortedClassList, SortComboEntry());
 
 		FString PreviousHeading;
 		for (int32 ClassIndex = 0; ClassIndex < SortedClassList.Num(); ClassIndex++)

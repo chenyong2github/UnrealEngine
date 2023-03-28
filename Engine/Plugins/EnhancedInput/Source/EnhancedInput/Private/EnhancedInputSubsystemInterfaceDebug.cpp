@@ -146,7 +146,7 @@ void IEnhancedInputSubsystemInterface::ShowMappingContextDebugInfo(UCanvas* Canv
 				}
 			}
 
-			Sort(OrderedActions.GetData(), OrderedActions.Num(), [](const UInputAction& A, const UInputAction& B) { return A.GetFName().LexicalLess(B.GetFName()); });
+			Algo::SortBy(OrderedActions, &UInputAction::GetFName, FNameLexicalLess());
 
 			for (const UInputAction* Action : OrderedActions)
 			{

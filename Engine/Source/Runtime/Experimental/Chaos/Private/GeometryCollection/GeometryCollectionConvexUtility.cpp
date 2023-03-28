@@ -230,7 +230,7 @@ void FilterHullPoints(const TArray<Chaos::FConvex::FVec3Type>& InPts, TArray<Cha
 		}
 
 		// Sort in descending order
-		Sort(&PointOrder[0], NumPts, [&DistSq](int32 i, int32 j)
+		Algo::Sort(PointOrder, [&DistSq](int32 i, int32 j)
 			{
 				return DistSq[i] > DistSq[j];
 			});

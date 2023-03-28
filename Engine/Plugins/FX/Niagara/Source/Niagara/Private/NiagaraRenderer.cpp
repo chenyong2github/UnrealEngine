@@ -754,7 +754,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 
 	if (!bUseRadixSort)
 	{
-		Sort(ParticleOrder, NumInstances, [](const FParticleOrderAsUint& A, const FParticleOrderAsUint& B) { return A.OrderAsUint < B.OrderAsUint; });
+		Algo::SortBy(MakeArrayView(ParticleOrder, NumInstances), &FParticleOrderAsUint::OrderAsUint);
 		//Now transfer to the real index buffer.
 		for (uint32 i = 0; i < NumInstances; ++i)
 		{
@@ -928,7 +928,7 @@ int32 FNiagaraRenderer::SortAndCullIndices(const FNiagaraGPUSortInfo& SortInfo, 
 		const bool bUseRadixSort = GNiagaraRadixSortThreshold != -1 && (int32)OutNumInstances > GNiagaraRadixSortThreshold;
 		if (!bUseRadixSort)
 		{
-			Sort(ParticleOrder, OutNumInstances, [](const FParticleOrderAsUint& A, const FParticleOrderAsUint& B) { return A.OrderAsUint < B.OrderAsUint; });
+			Algo::SortBy(MakeArrayView(ParticleOrder, OutNumInstances), &FParticleOrderAsUint::OrderAsUint);
 
 			for (int32 i = 0; i < OutNumInstances; ++i)
 			{

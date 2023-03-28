@@ -5605,22 +5605,22 @@ static int32 InitFromStructProperty(
 	// Sort NetProperties by memory offset
 	struct FCompareUFieldOffsets
 	{
-		FORCEINLINE bool operator()(FProperty& A, FProperty& B) const
+		FORCEINLINE bool operator()(FProperty* A, FProperty* B) const
 		{
-			const int32 AOffset = GetOffsetForProperty<BuildType>(A);
-			const int32 BOffset = GetOffsetForProperty<BuildType>(B);
+			const int32 AOffset = GetOffsetForProperty<BuildType>(*A);
+			const int32 BOffset = GetOffsetForProperty<BuildType>(*B);
 
 			// Ensure stable sort
 			if (AOffset == BOffset)
 			{
-				return A.GetName() < B.GetName();
+				return A->GetName() < B->GetName();
 			}
 
 			return AOffset < BOffset;
 		}
 	};
 
-	Sort(NetProperties.GetData(), NetProperties.Num(), FCompareUFieldOffsets());
+	Algo::Sort(NetProperties, FCompareUFieldOffsets());
 
 	const uint32 StructChecksum = GetRepLayoutCmdCompatibleChecksum(SharedParams, StackParams);
 

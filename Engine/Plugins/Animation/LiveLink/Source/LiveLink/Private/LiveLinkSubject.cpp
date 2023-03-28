@@ -620,16 +620,13 @@ void FLiveLinkSubject::AdjustSubFrame_SceneTime(int32 InFrameIndex)
 	check(LowerInclusiveLimit <= HigherInclusiveLimit);
 	if (LowerInclusiveLimit < HigherInclusiveLimit)
 	{
-		struct TLess
-		{
-			FORCEINLINE bool operator()(const FLiveLinkFrameDataStruct& A, const FLiveLinkFrameDataStruct& B) const
+		Algo::SortBy(MakeArrayView(&FrameData[LowerInclusiveLimit], HigherInclusiveLimit - LowerInclusiveLimit + 1), 
+			[](const FLiveLinkFrameDataStruct& Data)
 			{
 				//Use SourceTime to make final granular sorting when generating subframes. 
 				//@note Should be updated to have frame numbers associated to each packet to correctly apply subframes
-				return A.GetBaseData()->WorldTime.GetSourceTime() < B.GetBaseData()->WorldTime.GetSourceTime();
-			}
-		};
-		Sort(&FrameData[LowerInclusiveLimit], HigherInclusiveLimit - LowerInclusiveLimit + 1, TLess());
+				return Data.GetBaseData()->WorldTime.GetSourceTime();
+			});
 
 		// generate sub frame
 

@@ -838,90 +838,98 @@ bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bChe
 	return false;
 }
 
-bool FObjectImportSortHelper::operator()(const FObjectImport& A, const FObjectImport& B) const
-{
-	int32 Result = 0;
-	if (A.XObject == nullptr)
-	{
-		Result = 1;
-	}
-	else if (B.XObject == nullptr)
-	{
-		Result = -1;
-	}
-	else
-	{
-		const FString* FullNameA = ObjectToFullNameMap.Find(A.XObject);
-		const FString* FullNameB = ObjectToFullNameMap.Find(B.XObject);
-		checkSlow(FullNameA);
-		checkSlow(FullNameB);
-
-		Result = FCString::Stricmp(**FullNameA, **FullNameB);
-	}
-
-	return Result < 0;
-}
-
 void FObjectImportSortHelper::SortImports(FLinkerSave* Linker)
 {
 	TArray<FObjectImport>& Imports = Linker->ImportMap;
-	ObjectToFullNameMap.Reserve(Linker->ImportMap.Num());
-	for (int32 ImportIndex = 0; ImportIndex < Linker->ImportMap.Num(); ImportIndex++)
+	if (Imports.IsEmpty())
 	{
-		const FObjectImport& Import = Linker->ImportMap[ImportIndex];
+		return;
+	}
+
+	// Map of UObject => full name; optimization for sorting.
+	TMap<UObject*, FString> ObjectToFullNameMap;
+	ObjectToFullNameMap.Reserve(Imports.Num());
+
+	for (const FObjectImport& Import : Imports)
+	{
 		if (Import.XObject)
 		{
 			ObjectToFullNameMap.Add(Import.XObject, Import.XObject->GetFullName());
 		}
 	}
 
-	if (Linker->ImportMap.Num())
+	auto CompareObjectImports = [&ObjectToFullNameMap](const FObjectImport& A, const FObjectImport& B)
 	{
-		Sort(&Linker->ImportMap[0], Linker->ImportMap.Num(), *this);
-	}
-}
+		int32 Result = 0;
+		if (A.XObject == nullptr)
+		{
+			Result = 1;
+		}
+		else if (B.XObject == nullptr)
+		{
+			Result = -1;
+		}
+		else
+		{
+			const FString* FullNameA = ObjectToFullNameMap.Find(A.XObject);
+			const FString* FullNameB = ObjectToFullNameMap.Find(B.XObject);
+			checkSlow(FullNameA);
+			checkSlow(FullNameB);
 
-bool FObjectExportSortHelper::operator()(const FObjectExport& A, const FObjectExport& B) const
-{
-	int32 Result = 0;
-	if (A.Object == nullptr)
-	{
-		Result = 1;
-	}
-	else if (B.Object == nullptr)
-	{
-		Result = -1;
-	}
-	else
-	{
-		const FString* FullNameA = ObjectToFullNameMap.Find(A.Object);
-		const FString* FullNameB = ObjectToFullNameMap.Find(B.Object);
-		checkSlow(FullNameA);
-		checkSlow(FullNameB);
+			Result = FCString::Stricmp(**FullNameA, **FullNameB);
+		}
 
-		Result = FCString::Stricmp(**FullNameA, **FullNameB);
-	}
-
-	return Result < 0;
+		return Result < 0;
+	};
+	
+	Algo::Sort(Linker->ImportMap, CompareObjectImports);
 }
 
 void FObjectExportSortHelper::SortExports(FLinkerSave* Linker)
 {
-	ObjectToFullNameMap.Reserve(Linker->ExportMap.Num());
-
-	for ( int32 ExportIndex = 0; ExportIndex < Linker->ExportMap.Num(); ExportIndex++ )
+	TArray<FObjectExport>& Exports = Linker->ExportMap;
+	if (Exports.IsEmpty())
 	{
-		const FObjectExport& Export = Linker->ExportMap[ExportIndex];
+		return;
+	}
+	
+	// Map of UObject => full name; optimization for sorting.
+	TMap<UObject*, FString> ObjectToFullNameMap;
+	ObjectToFullNameMap.Reserve(Exports.Num());
+
+	for (const FObjectExport& Export : Exports)
+	{
 		if (Export.Object)
 		{
 			ObjectToFullNameMap.Add(Export.Object, Export.Object->GetFullName());
 		}
 	}
 
-	if (Linker->ExportMap.Num())
+	auto CompareObjectExports = [&ObjectToFullNameMap](const FObjectExport& A, const FObjectExport& B)
 	{
-		Sort(&Linker->ExportMap[0], Linker->ExportMap.Num(), *this);
-	}
+		int32 Result = 0;
+		if (A.Object == nullptr)
+		{
+			Result = 1;
+		}
+		else if (B.Object == nullptr)
+		{
+			Result = -1;
+		}
+		else
+		{
+			const FString* FullNameA = ObjectToFullNameMap.Find(A.Object);
+			const FString* FullNameB = ObjectToFullNameMap.Find(B.Object);
+			checkSlow(FullNameA);
+			checkSlow(FullNameB);
+
+			Result = FCString::Stricmp(**FullNameA, **FullNameB);
+		}
+
+		return Result < 0;
+	};
+	
+	Algo::Sort(Linker->ExportMap, CompareObjectExports);
 }
 
 FEDLCookChecker::FEDLNodeHash::FEDLNodeHash()

@@ -142,7 +142,7 @@ static void PaintPolygon(
 		}
 		FSlateVertex MidPoint;
 	};
-	Sort(Vertices.GetData() + 1, Vertices.Num() - 1, FComparePoints(MidVertex));
+	Algo::Sort(MakeArrayView(Vertices.GetData() + 1, Vertices.Num() - 1), FComparePoints(MidVertex));
 
 	if (FillColor.A > 0)
 	{
