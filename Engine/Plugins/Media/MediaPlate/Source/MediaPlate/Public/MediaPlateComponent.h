@@ -152,19 +152,19 @@ public:
 	void SetLoop(bool bInLoop);
 
 	/** If set then play when opening the media. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaPlate")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Control")
 	bool bPlayOnOpen = true;
 
 	/** If set then start playing when this object is active. */
-	UPROPERTY(EditAnywhere, Category = "MediaPlate")
+	UPROPERTY(EditAnywhere, Category = "Control")
 	bool bAutoPlay = true;
 
 	/** If set then enable audio. */
-	UPROPERTY(EditAnywhere, Category = "MediaPlate")
+	UPROPERTY(EditAnywhere, Category = "Control")
 	bool bEnableAudio = false;
 
 	/** What time to start playing from (in seconds). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaPlate", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Control", meta = (ClampMin = "0.0"))
 	float StartTime = 0.0f;
 
 	/** Holds the component to play sound. */
@@ -320,11 +320,11 @@ private:
 	float CurrentRate = 0.0f;
 
 	/** If true then only allow playback when the media plate is visible. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Control", meta = (AllowPrivateAccess = true))
 	bool bPlayOnlyWhenVisible = false;
 
 	/** If set then loop when we reach the end. */
-	UPROPERTY(EditAnywhere, Blueprintgetter = GetLoop, BlueprintSetter = SetLoop, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, Blueprintgetter = GetLoop, BlueprintSetter = SetLoop, Category = "Control", meta = (AllowPrivateAccess = true))
 	bool bLoop = true;
 
 	/** Visible mips and tiles calculation mode for the supported mesh types in MediaPlate. (Player restart on change.) */

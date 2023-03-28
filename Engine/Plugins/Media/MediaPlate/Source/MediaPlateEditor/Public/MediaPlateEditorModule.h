@@ -74,6 +74,11 @@ private:
 	void RegisterPlacementModeItems();
 
 	/**
+	 * Register which categories belong to which section.
+	 */
+	void RegisterSectionMappings();
+
+	/**
 	 * Unregister items in Place Actors panel.
 	 */
 	void UnregisterPlacementModeItems();

@@ -34,6 +34,7 @@ void FMediaPlateEditorModule::StartupModule()
 
 	FMediaPlateEditorCommands::Register();
 	RegisterPlacementModeItems();
+	RegisterSectionMappings();
 
 	// Register customizations.
 	MediaPlateName = UMediaPlateComponent::StaticClass()->GetFName();
@@ -213,6 +214,15 @@ void FMediaPlateEditorModule::RegisterPlacementModeItems()
 	}
 }
 
+void FMediaPlateEditorModule::RegisterSectionMappings()
+{
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	// Media Plate.
+	TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("Object", "General", LOCTEXT("General", "General"));
+	Section->AddCategory("Control");
+	Section->AddCategory("MediaPlate");
+}
 
 void FMediaPlateEditorModule::UnregisterPlacementModeItems()
 {
