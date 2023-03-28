@@ -41,7 +41,7 @@ FMaterialSample TwoSidedFoliage_SampleMaterial(
 	const FTwoSidedFoliageData Data = PrepareTwoSidedFoliageData(Payload, V_World);
 	if (RandSample.x < Data.ProbT)
 	{
-		RandSample.x /= Data.ProbT;
+		RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, Data.ProbT);
 
 		const float3 N = Payload.WorldNormal;
 		const float4 SampledValue = CosineSampleHemisphere(RandSample.yz);
@@ -50,8 +50,7 @@ FMaterialSample TwoSidedFoliage_SampleMaterial(
 	}
 	else
 	{
-		RandSample.x -= Data.ProbT;
-		RandSample.x /= 1.0 - Data.ProbT;
+		RandSample.x = RescaleRandomNumber(RandSample.x, Data.ProbT, 1.0);
 
 		FMaterialSample Result = DefaultLit_SampleMaterial(V_World, Payload, RandSample);
 		Result.Weight /= 1.0 - Data.ProbT;

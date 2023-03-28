@@ -853,12 +853,6 @@ float3 ComputeDwivediScale(float3 Albedo)
 	return rsqrt(1.0 - pow(ClampedAlbedo, 2.44294 - 0.0215813 * ClampedAlbedo + 0.578637 / ClampedAlbedo));
 }
 
-float RescaleRandomNumber(float RandVal, float LowerBound, float UpperBound)
-{
-	const float OneMinusEpsilon = 0.99999994; // 32-bit float just before 1.0
-	return min((RandVal - LowerBound) / (UpperBound - LowerBound), OneMinusEpsilon);
-}
-
 float SampleGuidedSpectralTransmittance(float RandValue, float SlabCosine, float3 DwivediScale, float GuidingFactor, float3 Sigma, float3 ProbT, float3 ColorChannelPdf)
 {
 	float3 ColorChannelCdf = float3(
@@ -1244,16 +1238,12 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 
 			// we hit the boundary! overwrite the current payload and exit the walk with a diffuse scattering event
 			Payload.TranslatedWorldPos = Ray.Origin + ProbeResult.HitT * Ray.Direction;
-			Payload.WorldNormal = ProbeResult.WorldNormal;
-			Payload.WorldSmoothNormal = ProbeResult.WorldSmoothNormal;
-			Payload.WorldGeoNormal = ProbeResult.WorldGeoNormal;
 			// make sure normal is pointed outward from the object so we capture illumination from the exterior
-			if (ProbeResult.FrontFace != Payload.IsFrontFace())
-			{
-				Payload.WorldNormal *= -1.0;
-				Payload.WorldSmoothNormal *= -1.0;
-				Payload.WorldGeoNormal *= -1.0;
-			}
+			float SignFlip = (ProbeResult.FrontFace != Payload.IsFrontFace()) ? -1.0 : 1.0;
+			Payload.WorldNormal       = SignFlip * ProbeResult.WorldNormal;
+			Payload.WorldSmoothNormal = SignFlip * ProbeResult.WorldSmoothNormal;
+			Payload.WorldGeoNormal    = SignFlip * ProbeResult.WorldGeoNormal;
+			
 			Payload.ShadingModelID = SHADINGMODELID_NUM; // invalid value so that we get diffuse shading
 			Payload.BSDFOpacity = 1;
 			Payload.BaseColor = 1;
@@ -1675,7 +1665,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// long term we will probably want a stack with priorities
 	if (MaterialSample.PositionBiasSign < 0 && Payload.IsMaterialSolidGlass())
 	{
-		const float3 LocalSigmaT = PathTracingGlassTransmittanceToExtinction(Payload.GetTransmittanceColor());
+		const float3 LocalSigmaT = Payload.GetExtinction();
 		if (Payload.IsFrontFace())
 		{
 			// entering

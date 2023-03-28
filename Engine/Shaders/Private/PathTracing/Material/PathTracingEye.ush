@@ -70,9 +70,10 @@ FMaterialEval Eye_EvalMaterial(
 	const float Iris = IrisNoL * Caustic;
 	const float Sclera = NoL;
 	const float EyeDiffuseTweak = 2 * lerp(Sclera, Iris, IrisMask);
+	const float DiffPdf = 1 / (2 * PI);
 
 	// Diffuse Lobe
-	Result.AddLobeWithMIS(Data.DiffWeight * EyeDiffuseTweak * DiffuseSpecularScale.x, 1 / (2 * PI), Data.LobeProb);
+	Result.AddLobeWithMIS(Data.DiffWeight * EyeDiffuseTweak * DiffuseSpecularScale.x, DiffPdf, Data.LobeProb);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Data.Alpha);
@@ -103,15 +104,14 @@ FMaterialSample Eye_SampleMaterial(
 	const bool bSampledDiffuse = RandSample.x < Data.LobeProb;
 	if (bSampledDiffuse)
 	{
-		RandSample.x /= Data.LobeProb;
+		RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, Data.LobeProb);
 
 		L = UniformSampleHemisphere(RandSample.xy).xyz;
 		H = normalize(L + V);
 	}
 	else
 	{
-		RandSample.x -= Data.LobeProb;
-		RandSample.x /= 1.0 - Data.LobeProb;
+		RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeProb, 1.0);
 
 		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Data.Alpha, V).xyz;
 		L = reflect(-V, H);
@@ -130,6 +130,10 @@ FMaterialSample Eye_SampleMaterial(
 	const float NoL = saturate(L.z);
 	const float VoH = saturate(dot(V, H));
 
+	const float2 GGXResult = GGXEvalReflection(L, V, H, Data.Alpha);
+	const float SpecPdf = GGXResult.y;
+	const float DiffPdf = 1 / (2 * PI);
+
 	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 	if (bSampledDiffuse)
 	{
@@ -145,16 +149,18 @@ FMaterialSample Eye_SampleMaterial(
 		const float EyeDiffuseTweak = 2 * lerp(Sclera, Iris, IrisMask);
 
 		// Diffuse Lobe
-		Result.AddLobeWithMIS(Data.DiffWeight * EyeDiffuseTweak, 1 / (2 * PI), Data.LobeProb);
+		Result.AddLobeWithMIS(Data.DiffWeight * EyeDiffuseTweak, DiffPdf, Data.LobeProb);
+
+		Result.Pdf += (1 - Data.LobeProb) * SpecPdf;
 	}
 	else
 	{
 		// Specular lobe
-		const float2 GGXResult = GGXEvalReflection(L, V, H, Data.Alpha);
 		const float3 F = F_Schlick(Payload.SpecularColor, VoH);
 		const float3 SpecWeight = F * GGXResult.x * Data.Spec.W;
-		const float SpecPdf = GGXResult.y;
+		
 		Result.AddLobeWithMIS(SpecWeight, SpecPdf, 1.0 - Data.LobeProb);
+		Result.Pdf += Data.LobeProb * DiffPdf;
 		Result.Roughness = Payload.Roughness;
 		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
 	}

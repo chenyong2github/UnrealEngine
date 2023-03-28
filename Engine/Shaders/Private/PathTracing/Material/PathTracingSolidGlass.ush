@@ -75,7 +75,7 @@ FMaterialSample RoughGlass_SampleMaterial(
 	// Randomly choose to sample diffuse or specular
 	if (RandSample.x < Data.LobeCdf.x)
 	{
-		RandSample.x /= Data.LobeCdf.x;
+		RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, Data.LobeCdf.x);
 
 		// Lambert
 		// TODO: evaluate CosineSampleHemisphereConcentric
@@ -103,13 +103,11 @@ FMaterialSample RoughGlass_SampleMaterial(
 
 		if (bDoSpec)
 		{
-			RandSample.x -= Data.LobeCdf.x;
-			RandSample.x /= Data.LobeCdf.y - Data.LobeCdf.x;
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.x, Data.LobeCdf.y);
 		}
 		else
 		{
-			RandSample.x -= Data.LobeCdf.y;
-			RandSample.x /= 1.0 - Data.LobeCdf.y;
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.y, 1.0);
 		}
 
 		// #dxr_todo: Evaluate UniformSampleDiskConcentric
@@ -151,7 +149,7 @@ FMaterialSample RoughGlass_SampleMaterial(
 
 			const float2 GGXResult = bRefract ? GGXEvalRefraction(L, V, H, Data.Alpha, Data.Eta) : GGXEvalReflection(L, V, H, Data.Alpha);
 
-			return CreateMaterialSample(L_World, (1.0 - Payload.BSDFOpacity) * GGXResult.x / Data.EGlass, F * GGXResult.y, bRefract ? -1.0 : 1.0, Payload.Roughness, bRefract ? PATHTRACER_SCATTER_REFRACT : PATHTRACER_SCATTER_SPECULAR);
+			return CreateMaterialSample(L_World, (1.0 - Payload.BSDFOpacity) * GGXResult.x / (Data.EGlass * Data.LobePdf.z), F * GGXResult.y * Data.LobePdf.z, bRefract ? -1.0 : 1.0, Payload.Roughness, bRefract ? PATHTRACER_SCATTER_REFRACT : PATHTRACER_SCATTER_SPECULAR);
 		}
 	}
 }

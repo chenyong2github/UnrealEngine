@@ -65,9 +65,9 @@ FPathState LoadPathStateData(uint Index)
 	Output.SigmaT.z = f16tof32(Data.PackedRoughnessSigma.y >> 16);
 	// extract scatter type from sign bits of SigmaT
 	Output.FirstScatterType = 0;
-	Output.FirstScatterType |= asuint(Output.SigmaT.x) >> 31;
-	Output.FirstScatterType |= asuint(Output.SigmaT.y) >> 30;
-	Output.FirstScatterType |= asuint(Output.SigmaT.z) >> 29;
+	Output.FirstScatterType |= (asuint(Output.SigmaT.x) >> 31) << 0;
+	Output.FirstScatterType |= (asuint(Output.SigmaT.y) >> 31) << 1;
+	Output.FirstScatterType |= (asuint(Output.SigmaT.z) >> 31) << 2;
 	// remove sign bits from SigmaT (must be a positive value)
 	Output.SigmaT = abs(Output.SigmaT);
 	return Output;

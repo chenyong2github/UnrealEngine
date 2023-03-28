@@ -24,6 +24,7 @@
 #include "/Engine/Private/DeferredShadingCommon.ush"
 #include "/Engine/Private/SubsurfaceProfileCommon.ush"
 #include "/Engine/Private/BurleyNormalizedSSSCommon.ush"
+#include "/Engine/Private/PathTracing/PathTracingCommon.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
 
@@ -126,6 +127,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	const bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
 	{
 		const float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+		MaterialParameters.CameraVector = -WorldRayDirection();
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 	}
 
@@ -523,7 +525,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT; // replace shading model to avoid extra cases in raygen
 		Payload.BaseColor = WaterAlbedo; // TODO: unused at the moment
-		Payload.SetTransmittanceColor(PathTracingGlassExtinctionToTransmittance(WaterExtinction));
+		Payload.SetExtinction(WaterExtinction);
 		Payload.Ior = DielectricF0ToIor(DielectricSpecularToF0(Specular));
 		// we are using actual refraction, so don't apply any transparency
 		Payload.TransparencyColor = 0.0;
@@ -644,10 +646,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	{
 		// only allow refraction for default lit materials since we need space for the absorption amount
 #if HAVE_GetAbsorptionMediumMaterialOutput0
-		Payload.SetTransmittanceColor(GetAbsorptionMediumMaterialOutput0(MaterialParameters));
+		Payload.SetExtinction(PathTracingGlassTransmittanceToExtinction(GetAbsorptionMediumMaterialOutput0(MaterialParameters)));
 #else
 		// Make the glass totally clear if no custom medium is set
-		Payload.SetTransmittanceColor(1.0);
+		Payload.SetExtinction(0.0);
 #endif
 		Payload.Ior = Ior;
 		if (Ior > 0.0)

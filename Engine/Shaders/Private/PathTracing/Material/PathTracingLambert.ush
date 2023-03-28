@@ -30,6 +30,7 @@ FMaterialEval Lambert_EvalMaterial(
 	return CreateMaterialEval(Payload.BSDFOpacity * Payload.BaseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal) * DiffuseSpecularScale.x, NoL / PI);
 }
 
+#if SIMPLIFIED_MATERIAL_SHADER
 
 FMaterialSample Simplified_SampleMaterial(
 	FPathTracingPayload Payload,
@@ -73,3 +74,5 @@ FMaterialEval Simplified_EvalMaterial(
 	Weight *= Payload.BSDFOpacity;
 	return CreateMaterialEval(Weight, Pdf * saturate(abs(NoL)) / PI);
 }
+
+#endif // SIMPLIFIED_MATERIAL_SHADER

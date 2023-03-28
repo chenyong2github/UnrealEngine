@@ -191,6 +191,7 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 
 	if (RandSample.x < Data.LobeCdf.x)
 	{
+		RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, Data.LobeCdf.x);
 		// Diffuse lobe
 		const float3 L = CosineSampleHemisphere(RandSample.xy).xyz;
 		const float3 H = normalize(L + V);
@@ -209,6 +210,10 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 
 		FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 		Result.AddLobeWithMIS(DiffWeight, DiffPdf, Data.LobePdf.x);
+
+		const float SpecPdf = GGXEvalReflection(L, V, H, Data.AlphaR).y;
+		Result.Pdf += Data.LobePdf.y * SpecPdf;
+		Result.Pdf += Data.LobePdf.z * SpecPdf;
 		return Result;
 	}
 	else
@@ -217,18 +222,15 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 		const bool bIsReflection = RandSample.x < Data.LobeCdf.z;
 		if (RandSample.x < Data.LobeCdf.y)
 		{
-			RandSample.x -= Data.LobeCdf.x;
-			RandSample.x /= Data.LobeCdf.y - Data.LobeCdf.x;
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.x, Data.LobeCdf.y);
 		}
 		else if (RandSample.x < Data.LobeCdf.z)
 		{
-			RandSample.x -= Data.LobeCdf.y;
-			RandSample.x /= Data.LobeCdf.z - Data.LobeCdf.y;
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.y, Data.LobeCdf.z);
 		}
 		else
 		{
-			RandSample.x -= Data.LobeCdf.z;
-			RandSample.x /= 1.0 - Data.LobeCdf.z;
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.z, 1.0);
 		}
 		const float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), bIsReflection ? Data.AlphaR : Data.AlphaT, V).xyz;
 		const float NoH = saturate(H.z);
@@ -262,6 +264,8 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 			const float3 GlassWeight = ((1 - Payload.BSDFOpacity) * Data.NudgeE * GGXResult.x * Data.SpecR.W) * SlabResult.Reflected;
 			const float GlassPdf = GGXResult.y;
 			Result.AddLobeWithMIS(GlassWeight, GlassPdf, Data.LobePdf.z);
+
+			Result.Pdf += Data.LobePdf.x * NoL / PI;
 
 			Result.Direction = mul(L, Data.Basis);
 			Result.PositionBiasSign = 1.0;

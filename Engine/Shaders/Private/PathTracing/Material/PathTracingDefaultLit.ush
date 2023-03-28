@@ -89,7 +89,7 @@ FMaterialSample DefaultLit_SampleMaterial(
 	const bool bSampledDiffuse = RandSample.x < Data.LobeProb;
 	if (bSampledDiffuse)
 	{
-		RandSample.x /= Data.LobeProb;
+		RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, Data.LobeProb);
 
 		// Lambert
 		// TODO: evaluate CosineSampleHemisphereConcentric
@@ -98,8 +98,7 @@ FMaterialSample DefaultLit_SampleMaterial(
 	}
 	else
 	{
-		RandSample.x -= Data.LobeProb;
-		RandSample.x /= 1.0 - Data.LobeProb;
+		RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeProb, 1.0);
 
 		// #dxr_todo: Evaluate UniformSampleDiskConcentric
 		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Data.Alpha, Data.V).xyz;
@@ -119,20 +118,24 @@ FMaterialSample DefaultLit_SampleMaterial(
 	const float VoH = saturate(dot(V, H));
 	const float NoH = saturate(H.z);
 
+	const float2 GGXResult = GGXEvalReflection(L, V, H, Data.Alpha);
+	const float SpecPdf = GGXResult.y;
+	const float DiffPdf = NoL / PI;
+
 	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 	if (bSampledDiffuse)
 	{
 		const float3 Diffuse = GetPathTracingDiffuseModel(Data.DiffuseWeight, Payload.Roughness, NoV, NoL, VoH, NoH);
-		Result.AddLobeWithMIS(Diffuse * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, Data.LobeProb);
+		Result.AddLobeWithMIS(Diffuse * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), DiffPdf, Data.LobeProb);
+		Result.Pdf += (1.0 - Data.LobeProb) * SpecPdf;
 	}
 	else
 	{
-		const float2 GGXResult = GGXEvalReflection(L, V, H, Data.Alpha);
 		const float3 F = F_Schlick(Payload.SpecularColor, VoH);
 		const float3 SpecWeight = F * GGXResult.x * Data.Spec.W;
-		const float SpecPdf = GGXResult.y;
 
 		Result.AddLobeWithMIS(SpecWeight, SpecPdf, 1.0 - Data.LobeProb);
+		Result.Pdf += Data.LobeProb * DiffPdf;
 		Result.Roughness = Payload.Roughness;
 		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
 	}

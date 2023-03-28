@@ -9,6 +9,7 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 #include "PathTracingLambert.ush"
+#if !SIMPLIFIED_MATERIAL_SHADER
 #include "PathTracingGlossy.ush"
 #include "PathTracingSolidGlass.ush"
 #include "PathTracingThinGlass.ush"
@@ -20,12 +21,7 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingEye.ush"
 #include "PathTracingHair.ush"
 #include "PathTracingMedium.ush"
-
-// Simplified material shaders for GPU Lightmass, supporting Lambert, Two Sided Foliage and Thin Translucent
-// Make sure material evaluation code below matches with hit shader which fills the payload
-#ifndef SIMPLIFIED_MATERIAL_SHADER
-	#define SIMPLIFIED_MATERIAL_SHADER 0
-#endif
+#endif // !SIMPLIFIED_MATERIAL_SHADER
 
 float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 {

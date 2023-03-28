@@ -40,7 +40,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingInitExtinctionCoefficientRG)
 		if (HitPayload.IsMaterialSolidGlass())
 		{
 			// Found a solid transmissive medium -- pickup the extinction
-			float3 LocalSigmaT = PathTracingGlassTransmittanceToExtinction(HitPayload.GetTransmittanceColor());
+			float3 LocalSigmaT = HitPayload.GetExtinction();
 
 			// increase when we leave a medium (that means we must have been inside before)
 			// decrease when we enter a medium (will be cancelled out when we leave)

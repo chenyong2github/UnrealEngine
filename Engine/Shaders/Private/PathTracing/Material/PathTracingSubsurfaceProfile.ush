@@ -97,7 +97,7 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 	float OutRoughness = 0;
 	if (bSampledDiffuse)
 	{
-		RandSample.x /= Data.LobeCdf.x;
+		RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, Data.LobeCdf.x);
 
 		L = CosineSampleHemisphere(RandSample.xy).xyz;
 		H = normalize(L + V);
@@ -108,14 +108,12 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 		const bool bUseSpec0 = RandSample.x < Data.LobeCdf.y;
 		if (bUseSpec0)
 		{
-			RandSample.x -= Data.LobeCdf.x;
-			RandSample.x /= Data.LobeCdf.y - Data.LobeCdf.x;
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.x, Data.LobeCdf.y);
 			OutRoughness = DualRoughnessData.x;
 		}
 		else
 		{
-			RandSample.x -= Data.LobeCdf.y;
-			RandSample.x /= 1.0 - Data.LobeCdf.y;
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.y, 1.0);
 			OutRoughness = DualRoughnessData.y;
 		}
 
@@ -133,22 +131,27 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 	// transform to world space
 	const float3 L_World = normalize(mul(L, Data.Basis));
 
+	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
+	const float2 GGXResult1 = GGXEvalReflection(L, V, H, Data.Alpha1);
+	const float NoL = L.z;
+	const float DiffPdf = NoL / PI;
+
 	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, OutRoughness, PATHTRACER_SCATTER_DIFFUSE);
 	if (bSampledDiffuse)
 	{
 		// Diffuse Lobe
-		const float NoL = L.z;
-		Result.AddLobeWithMIS(Data.DiffuseWeight * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, Data.LobePdf.x);
+		Result.AddLobeWithMIS(Data.DiffuseWeight * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), DiffPdf, Data.LobePdf.x);
+		Result.Pdf += Data.LobePdf.y * GGXResult0.y;
+		Result.Pdf += Data.LobePdf.z * GGXResult1.y;
 	}
 	else 
 	{
 		const float VoH = saturate(dot(V, H));
 		// Specular lobes
-		const float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
-		const float2 GGXResult1 = GGXEvalReflection(L, V, H, Data.Alpha1);
 		const float3 F = F_Schlick(Payload.SpecularColor, VoH);
 		Result.AddLobeWithMIS((1 - DualRoughnessData.z) * F * GGXResult0.x * Data.Spec0.W, GGXResult0.y, Data.LobePdf.y);
 		Result.AddLobeWithMIS((    DualRoughnessData.z) * F * GGXResult1.x * Data.Spec1.W, GGXResult1.y, Data.LobePdf.z);
+		Result.Pdf += Data.LobePdf.z * DiffPdf;
 		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
 	}
 	return Result;

@@ -109,19 +109,18 @@ FMaterialSample Cloth_SampleMaterial(
 	// The cloth lobe is low enough frequency that sampling with cosine weighting is sufficient
 
 	float3 L = 0.0, H = 0.0;
+	float OutRoughness = 1.0;
 	const bool bSampledDiffuse = RandSample.x < Data.LobeCdf.x;
-	bool bSampledCloth = false;
-	if (RandSample.x < Data.LobeCdf.y)
+	const bool bSampledCloth   = RandSample.x < Data.LobeCdf.y;
+	if (bSampledDiffuse || bSampledCloth)
 	{
-		if (RandSample.x < Data.LobeCdf.x)
+		if (bSampledDiffuse)
 		{
-			RandSample.x /= Data.LobeCdf.x;
+			RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, Data.LobeCdf.x);
 		}
 		else
 		{
-			RandSample.x -= Data.LobeCdf.x;
-			RandSample.x /= Data.LobeCdf.y - Data.LobeCdf.x;
-			bSampledCloth = true;
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.x, Data.LobeCdf.y);
 		}
 
 		// Lambert
@@ -130,8 +129,7 @@ FMaterialSample Cloth_SampleMaterial(
 	}
 	else
 	{
-		RandSample.x -= Data.LobeCdf.y;
-		RandSample.x /= 1.0 - Data.LobeCdf.y;
+		RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.y, 1.0);
 
 		// #dxr_todo: Evaluate UniformSampleDiskConcentric
 		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Data.Alpha, Data.V).xyz;
@@ -141,6 +139,7 @@ FMaterialSample Cloth_SampleMaterial(
 			// invalid output direction, exit early
 			return NullMaterialSample();
 		}
+		OutRoughness = Payload.Roughness;
 	}
 
 	// With a valid direction in hand -- now evaluate the BxDF (taking advantage of already computed terms)
@@ -153,33 +152,41 @@ FMaterialSample Cloth_SampleMaterial(
 	const float NoH = saturate(H.z);
 
 	const float ClothBlend = Payload.GetClothAmount();
+	const float2 GGXResult = GGXEvalReflection(L, V, H, Data.Alpha);
+	const float SpecPdf = GGXResult.y;
+	const float DiffPdf = NoL / PI;
+	const float ClothPdf = DiffPdf;
 
-	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
+
+	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, OutRoughness, PATHTRACER_SCATTER_DIFFUSE);
 
 	const float ShadowTerminator = ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal);
 
 	if (bSampledDiffuse)
 	{
-		Result.AddLobeWithMIS(Data.DiffWeight * ShadowTerminator, NoL / PI, Data.LobePdf.x);
-	}
-	else if (bSampledCloth)
-	{
-		const float DCloth = D_InvGGX(Pow4(Payload.Roughness), NoH);
-		const float3 FCloth = F_Schlick(Payload.GetClothColor(), VoH);
-		const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * ClothBlend * DCloth * Vis_Cloth(NoV, NoL)) * FCloth * ComputeEnergyConservation(Data.Fuzz) : 0.0;
-		Result.AddLobeWithMIS(ClothWeight * ShadowTerminator, NoL / PI, Data.LobePdf.y);
-		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
+		Result.AddLobeWithMIS(Data.DiffWeight * ShadowTerminator, DiffPdf, Data.LobePdf.x);
+
+		// Cloth and Spec PDF
+		Result.Pdf += Data.LobePdf.y * ClothPdf;
+		Result.Pdf += Data.LobePdf.z * SpecPdf;
 	}
 	else
 	{
+		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
+
+		// Cloth Lobe
+		const float DCloth = D_InvGGX(Pow4(Payload.Roughness), NoH);
+		const float3 FCloth = F_Schlick(Payload.GetClothColor(), VoH);
+		const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * ClothBlend * DCloth * Vis_Cloth(NoV, NoL)) * FCloth * ComputeEnergyConservation(Data.Fuzz) : 0.0;
+		Result.AddLobeWithMIS(ClothWeight * ShadowTerminator, ClothPdf, Data.LobePdf.y);
+
 		// Specular lobe
-		const float2 GGXResult = GGXEvalReflection(L, V, H, Data.Alpha);
 		const float3 F = F_Schlick(Payload.SpecularColor, VoH);
 		const float3 SpecWeight = (1 - ClothBlend) * F * GGXResult.x * Data.Spec.W;
-		const float SpecPdf = GGXResult.y;
 		Result.AddLobeWithMIS(SpecWeight, SpecPdf, Data.LobePdf.z);
-		Result.Roughness = Payload.Roughness;
-		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
+
+		// Diffuse PDF
+		Result.Pdf += Data.LobePdf.x * DiffPdf;
 	}
 	Result.Weight *= Payload.BSDFOpacity;
 	return Result;

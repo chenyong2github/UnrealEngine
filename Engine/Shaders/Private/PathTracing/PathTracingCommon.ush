@@ -43,13 +43,6 @@ float3 PathTracingGlassTransmittanceToExtinction(float3 TransmittanceColor)
 	return -log(max(TransmittanceColor, 1e-8f)) * PATH_TRACING_ABSORPTION_SCALE;
 }
 
-float3 PathTracingGlassExtinctionToTransmittance(float3 ExtinctionCoefficient)
-{
-	// inverse of function above
-	return exp(-max(ExtinctionCoefficient, 0.0) / PATH_TRACING_ABSORPTION_SCALE);
-}
-
-
 uint PayloadEncodeUnitVector(float3 Normal)
 {
 	const int BITS = PATH_TRACING_PAYLOAD_NORMAL_BITS;
@@ -258,7 +251,7 @@ struct FPackedPathTracingPayload : FMinimalPayload
 		PackedData[13] = f32tof16(DBufferC.z);
 		PackedData[13] |= f32tof16(DBufferC.w) << 16;
 	}
-#endif
+#endif // IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
 };
 
 #if IS_PAYLOAD_ENABLED(RT_PAYLOAD_PATH_TRACING_MATERIAL)
@@ -374,9 +367,13 @@ struct FPathTracingPayload : FMinimalPayload
 	float2 GetHairPrimitiveUV() { return CustomData0.xy; }
 	void SetHairPrimitiveUV(float2 UV) { CustomData0.xy = UV; }
 
-	// SHADINGMODELID_DEFAULT_LIT, SHADINGMODELID_THIN_TRANSLUCENT
+	// SHADINGMODELID_THIN_TRANSLUCENT
 	float3 GetTransmittanceColor() { return CustomData0.xyz; }
 	void SetTransmittanceColor(float3 TransmittanceColor) { CustomData0.xyz = TransmittanceColor; }
+
+	// SHADINGMODELID_DEFAULT_LIT
+	float3 GetExtinction() { return CustomData0.xyz; }
+	void SetExtinction(float3 SigmaT) { CustomData0.xyz = SigmaT; }
 
 	// SHADINGMODELID_MEDIUM
 	float3 GetHGWeight() { return CustomData0.xyz; }

@@ -523,6 +523,15 @@ float MISWeightRobust(float Pdf, float OtherPdf) {
 	}
 }
 
+// When sampling from discrete CDFs, it can be convenient to re-use the random number by rescaling it
+// This function assumes that RandVal is in the interval: [LowerBound, UpperBound) and returns a value in [0,1)
+float RescaleRandomNumber(float RandVal, float LowerBound, float UpperBound)
+{
+	const float OneMinusEpsilon = 0.99999994; // 32-bit float just before 1.0
+	return min((RandVal - LowerBound) / (UpperBound - LowerBound), OneMinusEpsilon);
+}
+
+
 // Compute PDF of reflection (2 * dot( V, H ) * H - V).
 // [Heitz 2014, "Importance Sampling Microfacet-Based BSDFs using the Distribution of Visible Normals"]
 float RayPDFToReflectionRayPDF(float VoH, float RayPDF)
