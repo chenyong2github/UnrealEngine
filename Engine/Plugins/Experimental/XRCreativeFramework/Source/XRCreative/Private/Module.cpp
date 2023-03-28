@@ -2,8 +2,6 @@
 
 #include "Module.h"
 #include "XRCreativeLog.h"
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
 
 
 #define LOCTEXT_NAMESPACE "FXRCreativeModule"
