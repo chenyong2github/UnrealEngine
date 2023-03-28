@@ -41,7 +41,6 @@ private:
 	void OnDSCheckboxChanged(ECheckBoxState NewState)					{ bShowDS = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	void OnUAVCheckboxChanged(ECheckBoxState NewState)					{ bShowUAV = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	void OnRTASCheckboxChanged(ECheckBoxState NewState)					{ bShowRTAS = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
-	void OnNoneCheckboxChanged(ECheckBoxState NewState)					{ bShowNone = (NewState == ECheckBoxState::Checked); RefreshNodes(); }
 	FReply OnRefreshButtonClicked()										{ RefreshNodes(true); return FReply::Handled(); }
 	void InitCommandList();
 	TSharedPtr<SWidget> OpenContextMenu();
@@ -60,11 +59,10 @@ private:
 	TSharedPtr<FUICommandList> CommandList;
 
 	bool bShowResident = true;			// Show resource with Resident flag set
-	bool bShowTransient = true;			// Show resource with Transient flag set
+	bool bShowTransient = false;		// Show resource with Transient flag set
 	bool bShowStreaming = true;			// Show resource with Streaming flag set
 	bool bShowRT = true;				// Show resource with RenderTarget flag set
 	bool bShowDS = true;				// Show resource with DepthStencil flag set
 	bool bShowUAV = true;				// Show resource with UAV flag set
 	bool bShowRTAS = true;				// Show resource with RayTracingAccelationStructure flag set
-	bool bShowNone = true;				// Show resource with no flag set
 };

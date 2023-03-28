@@ -169,7 +169,6 @@ void SRenderResourceViewerWidget::Construct(const FArguments& InArgs, const TSha
 					RENDER_RESOURCE_VIEWER_ADD_CHECKBOX(bShowDS, LOCTEXT("DSText", "DS"), LOCTEXT("DSTooltip", "Resource can be written to as a Depth Stencil buffer by GPU"), SRenderResourceViewerWidget::OnDSCheckboxChanged)
 					RENDER_RESOURCE_VIEWER_ADD_CHECKBOX(bShowUAV, LOCTEXT("UAVText", "UAV"), LOCTEXT("UAVTooltip", "Resource supports Unordered Access View which allows temporally unordered read/write access from multiple GPU threads without generating memory conflicts"), SRenderResourceViewerWidget::OnUAVCheckboxChanged)
 					RENDER_RESOURCE_VIEWER_ADD_CHECKBOX(bShowRTAS, LOCTEXT("RTASText", "RTAS"), LOCTEXT("RTASTooltip", "Resource is a Ray Tracing Acceleration Structure"), SRenderResourceViewerWidget::OnRTASCheckboxChanged)
-					RENDER_RESOURCE_VIEWER_ADD_CHECKBOX(bShowNone, LOCTEXT("NoneText", "None"), LOCTEXT("NoneTooltip", "Resource with no flags set"), SRenderResourceViewerWidget::OnNoneCheckboxChanged)
 
 					// Refresh button to update the resource list
 					+ SHorizontalBox::Slot()
@@ -280,13 +279,20 @@ void SRenderResourceViewerWidget::RefreshNodes(bool bUpdateRHIResources)
 	TotalResourceSize = 0;
 	for (const TSharedPtr<FRHIResourceStats>& Info : RHIResources)
 	{
+		ensure(Info->bHasFlags);
+
 		bool bContainsFilterText = FilterText.IsEmpty() || Info->Name.ToString().Contains(FilterText.ToString()) || Info->OwnerName.ToString().Contains(FilterText.ToString());
-		// Note bMarkedForDelete resources are excluded from display
-		bool bContainsFilterFlags = (bShowResident && Info->bResident) || (bShowTransient && Info->bTransient) || (bShowStreaming && Info->bStreaming)
-									|| (bShowRT && Info->bRenderTarget) || (bShowDS && Info->bDepthStencil) || (bShowUAV && Info->bUnorderedAccessView) || (bShowRTAS && Info->bRayTracingAccelerationStructure)
-									|| (bShowNone && !Info->bHasFlags);
+		bool bContainsFilterFlags = true;
+		// If the resource has a flag set and its matching check box is un-ticked, exclude from display.
 		// bMarkedForDelete resources are excluded from display
-		if (Info->bMarkedForDelete)
+		if ((!bShowResident && Info->bResident) ||
+			(!bShowTransient && Info->bTransient) ||
+			(!bShowStreaming && Info->bStreaming) ||
+			(!bShowRT && Info->bRenderTarget) ||
+			(!bShowDS && Info->bDepthStencil) ||
+			(!bShowUAV && Info->bUnorderedAccessView) ||
+			(!bShowRTAS && Info->bRayTracingAccelerationStructure) ||
+			Info->bMarkedForDelete)
 		{
 			bContainsFilterFlags = false;
 		}
