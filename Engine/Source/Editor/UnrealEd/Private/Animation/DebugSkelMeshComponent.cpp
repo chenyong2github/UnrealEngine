@@ -570,6 +570,14 @@ void UDebugSkelMeshComponent::SetAnimClass(class UClass* NewClass)
 	UE_LOG(LogAnimation, Warning, TEXT("Attempting to destroy an animation preview actor, skipping."));
 }
 
+void UDebugSkelMeshComponent::OnClearAnimScriptInstance()
+{
+	// call to super not strictly necessary (since it is empty)
+	Super::OnClearAnimScriptInstance();
+	
+	SavedAnimScriptInstance = nullptr;
+}
+
 void UDebugSkelMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bReinitPose)
 {
 	Super::SetSkeletalMesh(InSkelMesh, bReinitPose);
