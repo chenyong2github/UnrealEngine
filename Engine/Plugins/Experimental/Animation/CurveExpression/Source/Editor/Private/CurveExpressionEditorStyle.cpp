@@ -54,19 +54,18 @@ FCurveExpressionEditorStyle::FCurveExpressionEditorStyle() :
 		const FTextBlockStyle ErrorText = FTextBlockStyle(NormalText)
 			.SetUnderlineBrush(IMAGE_BRUSH("Images/White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
 			.SetColorAndOpacity(FLinearColor::Red);
-		// ;
 		
 		Set("TextEditor.NormalText", NormalText);
 		
 		Set("TextEditor.Border", new BOX_BRUSH("Images/TextEditorBorder", FMargin(4.0f/16.0f), FLinearColor(0.02f,0.02f,0.02f,1)));
 
-		const FEditableTextBoxStyle EditableTextBoxStyle = FEditableTextBoxStyle()
-			.SetTextStyle(NormalText)
-			.SetBackgroundImageNormal( FSlateNoResource() )
-			.SetBackgroundImageHovered( FSlateNoResource() )
-			.SetBackgroundImageFocused( FSlateNoResource() )
-			.SetBackgroundImageReadOnly( FSlateNoResource() );
+		const FEditableTextBoxStyle EditableTextBoxStyle = FEditableTextBoxStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
+			.SetTextStyle(NormalText);
 		
 		Set("TextEditor.EditableTextBox", EditableTextBoxStyle);
+
+		const FScrollBarStyle ScrollBarStyle = FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"))
+			.SetThickness(6.0f);
+		Set("TextEditor.ScrollBar", ScrollBarStyle);
 	}
 }

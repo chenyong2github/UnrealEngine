@@ -9,33 +9,32 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Text/SMultiLineEditableText.h"
 
 
 #define LOCTEXT_NAMESPACE "CurveExpressionDetailsCustomization"
 
-TSharedRef<IDetailCustomization> FAnimGraphNode_RemapCurvesFromMeshCustomization::MakeInstance()
+TSharedRef<IDetailCustomization> FAnimGraphNode_RemapCurvesDebuggingCustomization::MakeInstance()
 {
-	return MakeShared<FAnimGraphNode_RemapCurvesFromMeshCustomization>();
+	return MakeShared<FAnimGraphNode_RemapCurvesDebuggingCustomization>();
 }
 
 
-void FAnimGraphNode_RemapCurvesFromMeshCustomization::CustomizeDetails(
+void FAnimGraphNode_RemapCurvesDebuggingCustomization::CustomizeDetails(
 	IDetailLayoutBuilder& InDetailBuilder
 	)
 {
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	InDetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
 
-	TArray<TWeakObjectPtr<UAnimGraphNode_RemapCurvesFromMesh>> RemapNodes;
+	TArray<TWeakObjectPtr<UObject>> RemapNodes;
 	for (TWeakObjectPtr<UObject> Object: ObjectsBeingCustomized)
 	{
-		TWeakObjectPtr<UAnimGraphNode_RemapCurvesFromMesh> RemapNode = Cast<UAnimGraphNode_RemapCurvesFromMesh>(Object.Get());
-		if (RemapNode.IsValid())
+		if (Cast<IRemapCurvesDebuggingProvider>(Object.Get()))
 		{
-			RemapNodes.Add(RemapNode);
+			RemapNodes.Add(Object);
 		}
 	}
 
@@ -53,9 +52,9 @@ void FAnimGraphNode_RemapCurvesFromMeshCustomization::CustomizeDetails(
 				.ToolTipText(LOCTEXT("VerifyExpressions_Tooltip", "Verify all the expressions as applied to the currently debugged object. If debugging is not active, no verification is done. Verification output is sent to the output log."))
 				.OnClicked_Lambda([this, RemapNodes]()
 				{
-					for (TWeakObjectPtr<UAnimGraphNode_RemapCurvesFromMesh> RemapNodeWeak: RemapNodes)
+					for (TWeakObjectPtr<UObject> Object: RemapNodes)
 					{
-						if (UAnimGraphNode_RemapCurvesFromMesh* RemapNode = RemapNodeWeak.Get())
+						if (IRemapCurvesDebuggingProvider* RemapNode = Cast<IRemapCurvesDebuggingProvider>(Object.Get()))
 						{
 							RemapNode->VerifyExpressions();
 						}
@@ -64,9 +63,9 @@ void FAnimGraphNode_RemapCurvesFromMeshCustomization::CustomizeDetails(
 				})
 				.IsEnabled_Lambda([this, RemapNodes]()
 				{
-					for (TWeakObjectPtr<UAnimGraphNode_RemapCurvesFromMesh> RemapNodeWeak: RemapNodes)
+					for (TWeakObjectPtr<UObject> Object: RemapNodes)
 					{
-						if (UAnimGraphNode_RemapCurvesFromMesh* RemapNode = RemapNodeWeak.Get())
+						if (const IRemapCurvesDebuggingProvider* RemapNode = Cast<IRemapCurvesDebuggingProvider>(Object.Get()))
 						{
 							return RemapNode->CanVerifyExpressions();
 						}
@@ -92,18 +91,24 @@ void FCurveExpressionListCustomization::CustomizeHeader(
 {
 	AssignmentExpressionsProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FCurveExpressionList, AssignmentExpressions));
 
+	const FScrollBarStyle& ScrollBarStyle = FCurveExpressionEditorStyle::Get().GetWidgetStyle<FScrollBarStyle>("TextEditor.ScrollBar"); 
+
 	HorizontalScrollbar =
 		SNew(SScrollBar)
+			.Style(&ScrollBarStyle)
 			.AlwaysShowScrollbar(true)
-			.Orientation(Orient_Horizontal);
+			.Orientation(Orient_Horizontal)
+			.Thickness(FVector2D(6.0f, 6.0f));
 
 	VerticalScrollbar =
 		SNew(SScrollBar)
+			.Style(&ScrollBarStyle)
 			.AlwaysShowScrollbar(true)
-			.Orientation(Orient_Vertical);
+			.Orientation(Orient_Vertical)
+			.Thickness(FVector2D(6.0f, 6.0f));
 
-	const FTextBlockStyle &TextStyle = FCurveExpressionEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TextEditor.NormalText");
-	const FSlateFontInfo &Font = TextStyle.Font;
+	const FEditableTextBoxStyle &TextBoxStyle = FCurveExpressionEditorStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("TextEditor.EditableTextBox");
+	const FSlateFontInfo &Font = TextBoxStyle.TextStyle.Font;
 	
 	InHeaderRow
 	.WholeRowContent()
@@ -122,44 +127,24 @@ void FCurveExpressionListCustomization::CustomizeHeader(
 			.BorderImage(FCurveExpressionEditorStyle::Get().GetBrush("TextEditor.Border"))
 			.BorderBackgroundColor(FLinearColor::Black)
 			[
-				SNew(SGridPanel)
-				.FillColumn(0, 1.0f)
-				.FillRow(0, 1.0f)
-				+SGridPanel::Slot(0, 0)
-				[
-					SNew(SScrollBox)
-					.Orientation(Orient_Vertical)
-					.ExternalScrollbar(VerticalScrollbar)
-					+ SScrollBox::Slot()
-					[
-						SAssignNew(TextEditor, SMultiLineEditableText)
-						.Font(Font)
-						.TextStyle(&TextStyle)
-						.Text_Lambda([this]()
-						{
-							FString Text;
-							AssignmentExpressionsProperty->GetValue(Text);
-							return FText::FromString(Text);
-						})
-						.OnTextChanged_Lambda([this](const FText& InText)
-						{
-							AssignmentExpressionsProperty->SetValue(InText.ToString());
-						})
-						// By default, the Tab key gets routed to "next widget". We want to disable that behaviour.
-						.OnIsTypedCharValid_Lambda([](const TCHAR InChar) { return true; })
-						.AutoWrapText(false)
-						.HScrollBar(HorizontalScrollbar)
-						.VScrollBar(VerticalScrollbar)
-					]
-				]
-				+SGridPanel::Slot(1, 0)
-				[
-					VerticalScrollbar.ToSharedRef()
-				]
-				+SGridPanel::Slot(0, 1)
-				[
-					HorizontalScrollbar.ToSharedRef()
-				]
+				SAssignNew(TextEditor, SMultiLineEditableTextBox)
+				.Font(Font)
+				.Style(&FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
+				.Text_Lambda([this]()
+				{
+					FString Text;
+					AssignmentExpressionsProperty->GetValue(Text);
+					return FText::FromString(Text);
+				})
+				.OnTextChanged_Lambda([this](const FText& InText)
+				{
+					AssignmentExpressionsProperty->SetValue(InText.ToString());
+				})
+				// By default, the Tab key gets routed to "next widget". We want to disable that behaviour.
+				.OnIsTypedCharValid_Lambda([](const TCHAR InChar) { return true; })
+				.AutoWrapText(false)
+				.HScrollBar(HorizontalScrollbar)
+				.VScrollBar(VerticalScrollbar)
 			]
 		]
 	];

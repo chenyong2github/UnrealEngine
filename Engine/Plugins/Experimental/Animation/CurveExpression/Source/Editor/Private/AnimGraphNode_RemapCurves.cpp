@@ -1,9 +1,8 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimGraphNode_RemapCurvesFromMesh.h"
+#include "AnimGraphNode_RemapCurves.h"
 
 #include "SGraphNode.h"
-
 #include "Animation/AnimAttributes.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -11,13 +10,11 @@
 #include "ScopedTransaction.h"
 
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_RemapCurvesFromMesh)
+#define LOCTEXT_NAMESPACE "AnimGraphNode_RemapCurves"
 
-#define LOCTEXT_NAMESPACE "AnimGraphNode_RemapCurvesFromMesh"
-
-bool UAnimGraphNode_RemapCurvesFromMesh::CanVerifyExpressions() const
+bool UAnimGraphNode_RemapCurves::CanVerifyExpressions() const
 {
-	if (const FAnimNode_RemapCurvesFromMesh* DebuggedNode = GetDebuggedNode())
+	if (const FAnimNode_RemapCurves* DebuggedNode = GetDebuggedNode())
 	{
 		return DebuggedNode->CanVerifyExpressions();
 	}
@@ -25,23 +22,14 @@ bool UAnimGraphNode_RemapCurvesFromMesh::CanVerifyExpressions() const
 }
 
 
-void UAnimGraphNode_RemapCurvesFromMesh::VerifyExpressions()
+void UAnimGraphNode_RemapCurves::VerifyExpressions()
 {
-	if (const FAnimNode_RemapCurvesFromMesh* DebuggedNode = GetDebuggedNode())
+	if (const FAnimNode_RemapCurves* DebuggedNode = GetDebuggedNode())
 	{
-		const USkeletalMeshComponent* TargetComponent = GetDebuggedComponent();
-		const USkeletalMeshComponent* SourceComponent = nullptr;
-		if (Node.SourceMeshComponent.IsValid())
-		{
-			SourceComponent = Node.SourceMeshComponent.Get();
-		}
-		else if (Node.bUseAttachedParent && TargetComponent)
-		{
-			SourceComponent = Cast<USkeletalMeshComponent>(TargetComponent->GetAttachParent());
-		}
+		const USkeletalMeshComponent* Component = GetDebuggedComponent();
 		
 		TArray<FString> Results;
-		DebuggedNode->VerifyExpressions(TargetComponent, SourceComponent, [&Results](const FString& InMessage){
+		DebuggedNode->VerifyExpressions(Component, Component, [&Results](const FString& InMessage){
 			Results.Add(InMessage);
 		});
 
@@ -63,30 +51,30 @@ void UAnimGraphNode_RemapCurvesFromMesh::VerifyExpressions()
 }
 
 
-FText UAnimGraphNode_RemapCurvesFromMesh::GetNodeTitle(ENodeTitleType::Type TitleType) const
+FText UAnimGraphNode_RemapCurves::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("NodeTitle", "Remap Curves From Mesh");
+	return LOCTEXT("NodeTitle", "Remap Curves");
 }
 
-FText UAnimGraphNode_RemapCurvesFromMesh::GetTooltipText() const
+FText UAnimGraphNode_RemapCurves::GetTooltipText() const
 {
-	return LOCTEXT("Tooltip", "The Remap Curves From Mesh node copies curves from another component to this. Can be used to map any curve to any and perform mathematical operations on them.");
+	return LOCTEXT("Tooltip", "The Remap Curves node allows applying mathematical expressions on the pose's curve.");
 }
 
 
-FText UAnimGraphNode_RemapCurvesFromMesh::GetMenuCategory() const
+FText UAnimGraphNode_RemapCurves::GetMenuCategory() const
 {
 	return LOCTEXT("NodeCategory", "Animation|Curve Expression");
 }
 
 
-void UAnimGraphNode_RemapCurvesFromMesh::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+void UAnimGraphNode_RemapCurves::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
 {
 	OutAttributes.Add(UE::Anim::FAttributes::Curves);
 }
 
 
-void UAnimGraphNode_RemapCurvesFromMesh::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
+void UAnimGraphNode_RemapCurves::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
 {
 	Super::CustomizePinData(Pin, SourcePropertyName, ArrayIndex);
 
@@ -101,13 +89,13 @@ void UAnimGraphNode_RemapCurvesFromMesh::CustomizePinData(UEdGraphPin* Pin, FNam
 }
 
 
-void UAnimGraphNode_RemapCurvesFromMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UAnimGraphNode_RemapCurves::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FCurveExpressionList, AssignmentExpressions) || 
-	 	PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_RemapCurvesFromMesh, ExpressionSource))
+	 	PropertyName == GET_MEMBER_NAME_CHECKED(FAnimNode_RemapCurves, ExpressionSource))
 	{
 		Node.ParseAndCacheExpressions();
 	}
@@ -136,7 +124,8 @@ void UAnimGraphNode_RemapCurvesFromMesh::PostEditChangeProperty(FPropertyChanged
 	}
 }
 
-USkeletalMeshComponent* UAnimGraphNode_RemapCurvesFromMesh::GetDebuggedComponent() const
+
+USkeletalMeshComponent* UAnimGraphNode_RemapCurves::GetDebuggedComponent() const
 {
 	if (const UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged())
 	{
@@ -153,15 +142,16 @@ USkeletalMeshComponent* UAnimGraphNode_RemapCurvesFromMesh::GetDebuggedComponent
 }
 
 
-FAnimNode_RemapCurvesFromMesh* UAnimGraphNode_RemapCurvesFromMesh::GetDebuggedNode() const
+FAnimNode_RemapCurves* UAnimGraphNode_RemapCurves::GetDebuggedNode() const
 {
 	if (USkeletalMeshComponent* Component = GetDebuggedComponent(); Component != nullptr)
 	{
-		return static_cast<FAnimNode_RemapCurvesFromMesh*>(FindDebugAnimNode(Component));
+		return static_cast<FAnimNode_RemapCurves*>(FindDebugAnimNode(Component));
 	}
 
 	return nullptr;
 }
 
-#undef LOCTEXT_NAMESPACE
 
+#undef LOCTEXT_NAMESPACE
+ 
