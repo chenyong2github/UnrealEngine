@@ -97,7 +97,19 @@ FString GetTechSoftVersion()
 FUniqueTechSoftModelFile LoadModelFileFromFile(const A3DImport& Import, A3DStatus& Status)
 {
 	A3DAsmModelFile* ModelFile = nullptr;
-	Status = A3DAsmModelFileLoadFromFile(Import.GetFilePath(), &Import.m_sLoadData, &ModelFile);
+#if !PLATFORM_EXCEPTIONS_DISABLED
+	try
+#endif
+	{
+		Status = A3DAsmModelFileLoadFromFile(Import.GetFilePath(), &Import.m_sLoadData, &ModelFile);
+	}
+#if !PLATFORM_EXCEPTIONS_DISABLED
+	catch (...)
+	{
+		UE_LOG(LogCADInterfaces, Warning, TEXT("Failed to load %s. An exception is thrown."), *Import.GetFilePath());
+		return FUniqueTechSoftModelFile();
+	}
+#endif
 
 	switch (Status)
 	{
