@@ -14,9 +14,6 @@ class FAutoConsoleVariableRef;
 
 struct ENGINE_API FLightWeightInstanceSubsystem
 {
-	friend struct FActorInstanceHandle;
-	friend class ALightWeightInstanceManager;
-
 	static FCriticalSection GetFunctionCS;
 
 	static FLightWeightInstanceSubsystem& Get()
@@ -105,6 +102,12 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 	// Helper that converts a position (world space) into a coordinate for the LWI grid.
 	static FInt32Vector3 ConvertPositionToCoord(const FVector & InPosition);
 
+	// Add a manager to the subsystem, thread safe.
+	bool AddManager(ALightWeightInstanceManager* Manager);
+
+	// Remove a manager from the subsystem, thread safe.
+	bool RemoveManager(ALightWeightInstanceManager* Manager);
+
 protected:
 	// Returns the class of the instance manager best suited to support instances of type ActorClass
 	UClass* FindBestInstanceManagerClass(const UClass* ActorClass);
@@ -126,6 +129,9 @@ private:
 	// CVar variable that is the size of the grid managers are placed into.
 	static int32 LWIGridSize;
 	static FAutoConsoleVariableRef CVarLWIGridSize;
+
+	// Mutex to make sure we don't change the LWInstanceManagers array while reading/writing it.
+	mutable FRWLock LWIManagersRWLock;
 
 #ifdef WITH_EDITOR
 private:

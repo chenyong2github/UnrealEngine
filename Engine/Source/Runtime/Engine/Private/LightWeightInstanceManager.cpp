@@ -21,13 +21,13 @@ ALightWeightInstanceManager::ALightWeightInstanceManager(const FObjectInitialize
 	AcceptedClass = AActor::StaticClass();
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		FLightWeightInstanceSubsystem::Get().LWInstanceManagers.Add(this);
+		FLightWeightInstanceSubsystem::Get().AddManager(this);
 	}
 }
 
 ALightWeightInstanceManager::~ALightWeightInstanceManager()
 {
-	FLightWeightInstanceSubsystem::Get().LWInstanceManagers.Remove(this);
+	FLightWeightInstanceSubsystem::Get().RemoveManager(this);
 }
 
 void ALightWeightInstanceManager::SetRepresentedClass(UClass* ActorClass)
@@ -269,22 +269,22 @@ FString ALightWeightInstanceManager::GetName(const FActorInstanceHandle& Handle)
 
 bool ALightWeightInstanceManager::DoesRepresentClass(const UClass* OtherClass) const
 {
-	return OtherClass ? OtherClass->IsChildOf(RepresentedClass) : false;
+	return OtherClass ? OtherClass->IsChildOf(GetRepresentedClass()) : false;
 }
 
 bool ALightWeightInstanceManager::DoesAcceptClass(const UClass* OtherClass) const
 {
-	return OtherClass ? OtherClass->IsChildOf(AcceptedClass) : false;
+	return OtherClass ? OtherClass->IsChildOf(GetAcceptedClass()) : false;
 }
 
 UClass* ALightWeightInstanceManager::GetRepresentedClass() const
 {
-	return RepresentedClass;
+	return IsValid(RepresentedClass) ? RepresentedClass : nullptr;
 }
 
 UClass* ALightWeightInstanceManager::GetAcceptedClass() const
 {
-	return AcceptedClass;
+	return IsValid(AcceptedClass) ? AcceptedClass : nullptr;
 }
 
 int32 ALightWeightInstanceManager::AddNewInstance(FLWIData* InitData)

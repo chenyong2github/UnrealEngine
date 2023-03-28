@@ -29,14 +29,14 @@ FLightWeightInstanceSubsystem::FLightWeightInstanceSubsystem()
 			{
 				if (ALightWeightInstanceManager* LWIManager = Cast<ALightWeightInstanceManager>(Actor))
 				{
-					FLightWeightInstanceSubsystem::Get().LWInstanceManagers.AddUnique(LWIManager);
+					Get().AddManager(LWIManager);
 				}
 			});
 		OnLevelActorDeletedHandle = GEngine->OnLevelActorDeleted().AddLambda([this](AActor* Actor)
 			{
 				if (ALightWeightInstanceManager* LWIManager = Cast<ALightWeightInstanceManager>(Actor))
 				{
-					FLightWeightInstanceSubsystem::Get().LWInstanceManagers.Remove(LWIManager);
+					Get().RemoveManager(LWIManager);
 				}
 			});
 	}
@@ -56,6 +56,7 @@ FLightWeightInstanceSubsystem::~FLightWeightInstanceSubsystem()
 
 int32 FLightWeightInstanceSubsystem::GetManagerIndex(const ALightWeightInstanceManager* Manager) const
 {
+	FReadScopeLock Lock(LWIManagersRWLock);
 	for (int32 Idx = 0; Idx < LWInstanceManagers.Num(); ++Idx)
 	{
 		if (LWInstanceManagers[Idx] == Manager)
@@ -69,7 +70,20 @@ int32 FLightWeightInstanceSubsystem::GetManagerIndex(const ALightWeightInstanceM
 
 const ALightWeightInstanceManager* FLightWeightInstanceSubsystem::GetManagerAt(int32 Index) const
 {
+	FReadScopeLock Lock(LWIManagersRWLock);
 	return LWInstanceManagers.IsValidIndex(Index) ? LWInstanceManagers[Index] : nullptr;
+}
+
+bool FLightWeightInstanceSubsystem::AddManager(ALightWeightInstanceManager* Manager)
+{
+	FWriteScopeLock Lock(LWIManagersRWLock);
+	return Get().LWInstanceManagers.Add(Manager) ? true : false;
+}
+
+bool FLightWeightInstanceSubsystem::RemoveManager(ALightWeightInstanceManager* Manager)
+{
+	FWriteScopeLock Lock(LWIManagersRWLock);
+	return Get().LWInstanceManagers.Remove(Manager) ? true : false;
 }
 
 FInt32Vector3 FLightWeightInstanceSubsystem::ConvertPositionToCoord(const FVector & InPosition)
@@ -97,7 +111,8 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 	if (Handle.Actor.IsValid())
 	{
 		const FInt32Vector3 GridCoord = ConvertPositionToCoord(Handle.GetLocation());
-		
+
+		FReadScopeLock Lock(LWIManagersRWLock);
 		// see if we already have a match
 		for (ALightWeightInstanceManager* LWInstance : LWInstanceManagers)
 		{
@@ -141,18 +156,22 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass& ActorClass, UWorld& World, const FVector& InPos, const UDataLayerInstance* DataLayer) const
 {
 	const FInt32Vector3 GridCoord = ConvertPositionToCoord(InPos);
+	FReadScopeLock Lock(LWIManagersRWLock);
 
 	for (ALightWeightInstanceManager* InstanceManager : LWInstanceManagers)
 	{
-		const FInt32Vector3 ManagerGridCoord = ConvertPositionToCoord(InstanceManager->GetActorLocation());
-		
-		if (InstanceManager->GetRepresentedClass() == &ActorClass && ManagerGridCoord == GridCoord)
+		if (IsValid(InstanceManager))
 		{
-#if WITH_EDITOR
-			if (!DataLayer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(DataLayer)))
-#endif // WITH_EDITOR
+			const FInt32Vector3 ManagerGridCoord = ConvertPositionToCoord(InstanceManager->GetActorLocation());
+			
+			if (InstanceManager->GetRepresentedClass() == &ActorClass && ManagerGridCoord == GridCoord)
 			{
-				return InstanceManager;
+	#if WITH_EDITOR
+				if (!DataLayer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(DataLayer)))
+	#endif // WITH_EDITOR
+				{
+					return InstanceManager;
+				}
 			}
 		}
 	}
@@ -166,7 +185,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 	{
 		return FoundManager;
 	}
-	
+
 	// we didn't find a match so we should add one.
 	// Find the best base class to start from
 	UClass* BestMatchingClass = FindBestInstanceManagerClass(&ActorClass);
