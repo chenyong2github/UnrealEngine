@@ -88,6 +88,7 @@ private:
 	void BindCommands();
 	void ExtendToolbar();
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+	TSharedRef<SWidget> GenerateRetargetModesMenu();
 	/** END toolbar */
 	
 	/** preview scene setup */

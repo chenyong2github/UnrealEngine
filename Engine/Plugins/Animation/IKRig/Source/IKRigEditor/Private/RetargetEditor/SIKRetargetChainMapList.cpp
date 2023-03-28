@@ -230,40 +230,14 @@ void SIKRetargetChainMapList::Construct(
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(5, 0)
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SPositiveActionButton)
-				.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
-				.Text(LOCTEXT("EditGlobalButtonLabel", "Global Settings"))
-				.ToolTipText(LOCTEXT("EditGlobalButtonToolTip", "Edit the global retarget settings."))
-				.OnClicked(this, &SIKRetargetChainMapList::OnGlobalSettingsButtonClicked)
-			]
 			
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(5, 0)
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SPositiveActionButton)
-				.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
-				.Text(LOCTEXT("EditRootButtonLabel", "Root Settings"))
-				.ToolTipText(LOCTEXT("EditRootButtonToolTip", "Edit the root retarget settings."))
-				.OnClicked(this, &SIKRetargetChainMapList::OnRootSettingsButtonClicked)
-			]
-
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("TargetRootLabel", "Target: "))
+				.Text(LOCTEXT("TargetRootLabel", "Target Root: "))
 				.TextStyle(FAppStyle::Get(), "NormalText")
 			]
 
@@ -284,7 +258,7 @@ void SIKRetargetChainMapList::Construct(
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("SourceRootLabel", "Source: "))
+				.Text(LOCTEXT("SourceRootLabel", "Source Root: "))
 				.TextStyle(FAppStyle::Get(), "NormalText")
 			]
 
@@ -771,50 +745,6 @@ void SIKRetargetChainMapList::AutoMapChains(const EAutoMapChainType AutoMapType,
 	RetargeterController->AutoMapChains(AutoMapType, bForceRemap);
 	Controller->HandleRetargeterNeedsInitialized();
 }
-
-FReply SIKRetargetChainMapList::OnGlobalSettingsButtonClicked() const
-{
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return FReply::Unhandled();
-	}
-
-	UIKRetargeterController* RetargeterController = GetRetargetController();
-	if (!RetargeterController)
-	{
-		return FReply::Unhandled();
-	}
-
-	UIKRetargetGlobalSettings* GlobalSettings = Controller->AssetController->GetAsset()->GetGlobalSettingsUObject();
-	if (GlobalSettings->EditorController != Controller)
-	{
-		GlobalSettings->EditorController = Controller;
-	}
-	
-	Controller->SetDetailsObject(GlobalSettings);
-	
-	return FReply::Handled();
-}
-
-FReply SIKRetargetChainMapList::OnRootSettingsButtonClicked() const
-{
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return FReply::Unhandled();
-	}
-
-	UIKRetargeterController* RetargeterController = GetRetargetController();
-	if (!RetargeterController)
-	{
-		return FReply::Unhandled();
-	}
-	
-	Controller->SetRootSelected(true);
-	return FReply::Handled();
-}
-
 
 #undef LOCTEXT_NAMESPACE
 

@@ -144,6 +144,7 @@ public:
 	void SetAssetBrowserView(TSharedPtr<SIKRetargetAssetBrowser> InAssetBrowserView) { AssetBrowserView = InAssetBrowserView; };
 	void SetOutputLogView(TSharedPtr<SIKRigOutputLog> InOutputLogView) { OutputLogView = InOutputLogView; };
 	void SetHierarchyView(TSharedPtr<SIKRetargetHierarchy> InHierarchyView) { HierarchyView = InHierarchyView; };
+	bool IsObjectInDetailsView(const UObject* Object);
 	
 	/** force refresh all views in the editor */
 	void RefreshAllViews() const;
@@ -154,6 +155,26 @@ public:
 	void RefreshPoseList() const;
 	void SetDetailsObject(UObject* DetailsObject) const;
 	void SetDetailsObjects(const TArray<UObject*>& DetailsObjects) const;
+
+	/** retargeter state */
+	bool IsReadyToRetarget() const;
+	bool IsCurrentMeshLoaded() const;
+	bool IsEditingPose() const;
+
+	/** display global settings in the details panel */
+	void ShowGlobalSettings();
+	bool IsShowingGlobalSettings();
+	/** display root settings in the details panel */
+	void ShowRootSettings();
+	bool IsShowingRootSettings();
+
+	/** toggle retarget passes */
+	void ToggleRootRetargetPass();
+	bool IsRootRetargetOn();
+	void ToggleFKRetargetPass();
+	bool IsFKRetargetOn();
+	void ToggleIKRetargetPass();
+	bool IsIKRetargetOn();
 
 	/** clear the output log */
 	void ClearOutputLog() const;
@@ -190,8 +211,11 @@ public:
 
 	/** Set viewport / editor tool mode */
 	void SetRetargeterMode(ERetargeterOutputMode Mode);
+	void SetRetargetModeToPreviousMode() { SetRetargeterMode(PreviousMode); };
 	ERetargeterOutputMode GetRetargeterMode() const { return OutputMode; }
-	ERetargeterOutputMode PreviousMode;
+	FText GetRetargeterModeLabel();
+	FSlateIcon GetCurrentRetargetModeIcon() const;
+	FSlateIcon GetRetargeterModeIcon(ERetargeterOutputMode Mode) const;
 	float GetRetargetPoseAmount() const;
 	void SetRetargetPoseAmount(float InValue);
 	/** END viewport / editor tool mode */
@@ -246,20 +270,10 @@ public:
 
 	/** ------------------------- RETARGET POSES -----------------------------*/
 	
-	/** go to retarget pose */
-	FReply HandleShowRetargetPose();
-	bool CanShowRetargetPose() const;
-	bool IsShowingRetargetPose() const;
-	
 	/** toggle current retarget pose */
 	TArray<TSharedPtr<FName>> PoseNames;
 	FText GetCurrentPoseName() const;
 	void OnPoseSelected(TSharedPtr<FName> InPoseName, ESelectInfo::Type SelectInfo) const;
-	
-	/** edit retarget poses */
-	void HandleEditPose();
-	bool CanEditPose() const;
-	bool IsEditingPose() const;
 
 	/** reset retarget pose */
 	void HandleResetAllBones() const;
@@ -324,6 +338,7 @@ private:
 
 	/** the current output mode of the retargeter */
 	ERetargeterOutputMode OutputMode = ERetargeterOutputMode::RunRetarget;
+	ERetargeterOutputMode PreviousMode;
 	/** slider value to blend between reference pose and retarget pose */
 	float RetargetPosePreviewBlend = 1.0f;
 	

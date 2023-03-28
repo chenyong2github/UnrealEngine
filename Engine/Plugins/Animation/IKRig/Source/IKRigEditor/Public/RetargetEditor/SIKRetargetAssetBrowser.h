@@ -26,6 +26,9 @@ private:
 
 	FReply OnExportButtonClicked();
 	bool IsExportButtonEnabled() const;
+
+	FReply OnPlayRefPoseClicked();
+	bool IsPlayRefPoseEnabled() const;
 	
 	void OnAssetDoubleClicked(const FAssetData& AssetData);
 	bool OnShouldFilterAsset(const struct FAssetData& AssetData);

@@ -41,21 +41,29 @@ void FIKRetargetAnimInstanceProxy::CacheBones()
 }
 
 bool FIKRetargetAnimInstanceProxy::Evaluate(FPoseContext& Output)
-{	
-	if (OutputMode == ERetargeterOutputMode::RunRetarget)
+{
+	switch (OutputMode)
 	{
-		if (SourceOrTarget == ERetargetSourceOrTarget::Source)
+	case ERetargeterOutputMode::RunRetarget:
 		{
-			FAnimPreviewInstanceProxy::Evaluate(Output);
+			if (SourceOrTarget == ERetargetSourceOrTarget::Source)
+			{
+				FAnimPreviewInstanceProxy::Evaluate(Output);
+			}
+			else
+			{
+				RetargetNode->Evaluate_AnyThread(Output);
+			}
+			break;
 		}
-		else
+	case ERetargeterOutputMode::EditRetargetPose:
+	case ERetargeterOutputMode::ShowRetargetPose:
 		{
-			RetargetNode->Evaluate_AnyThread(Output);
+			PreviewPoseNode->Evaluate_AnyThread(Output);
+			break;
 		}
-	}
-	else
-	{
-		PreviewPoseNode->Evaluate_AnyThread(Output);
+	default:
+		checkNoEntry();
 	}
 	
 	return true;

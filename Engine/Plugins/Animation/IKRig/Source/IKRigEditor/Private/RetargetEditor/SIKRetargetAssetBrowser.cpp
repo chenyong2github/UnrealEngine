@@ -30,22 +30,31 @@ void SIKRetargetAssetBrowser::Construct(
 	ChildSlot
     [
         SNew(SVerticalBox)
-        
-        + SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(5)
-		[
+        +SVerticalBox::Slot()
+        .AutoHeight()
+        [
 			SNew(SPositiveActionButton)
 			.IsEnabled(this, &SIKRetargetAssetBrowser::IsExportButtonEnabled)
 			.Icon(FAppStyle::Get().GetBrush("Icons.Save"))
 			.Text(LOCTEXT("ExportButtonLabel", "Export Selected Animations"))
 			.ToolTipText(LOCTEXT("ExportButtonToolTip", "Generate new retargeted sequence assets on target skeletal mesh (uses current retargeting configuration)."))
 			.OnClicked(this, &SIKRetargetAssetBrowser::OnExportButtonClicked)
-		]
+        ]        
 
 		+SVerticalBox::Slot()
 		[
 			SAssignNew(AssetBrowserBox, SBox)
+		]
+		
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SPositiveActionButton)
+			.IsEnabled(this, &SIKRetargetAssetBrowser::IsPlayRefPoseEnabled)
+			.Icon(FAppStyle::Get().GetBrush("GenericStop"))
+			.Text(LOCTEXT("PlayRefPoseLabel", "Play Ref Pose"))
+			.ToolTipText(LOCTEXT("PlayRefPoseTooltip", "Stop playback and set source to reference pose."))
+			.OnClicked(this, &SIKRetargetAssetBrowser::OnPlayRefPoseClicked)
 		]
     ];
 
@@ -201,6 +210,32 @@ bool SIKRetargetAssetBrowser::IsExportButtonEnabled() const
 	}
 
 	return true;
+}
+
+FReply SIKRetargetAssetBrowser::OnPlayRefPoseClicked()
+{
+	FIKRetargetEditorController* Controller = EditorController.Pin().Get();
+	if (!Controller)
+	{
+		checkNoEntry();
+		return FReply::Handled();
+	}
+
+	Controller->SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
+	Controller->PlaybackManager->StopPlayback();
+	return FReply::Handled();
+}
+
+bool SIKRetargetAssetBrowser::IsPlayRefPoseEnabled() const
+{
+	FIKRetargetEditorController* Controller = EditorController.Pin().Get();
+	if (!Controller)
+	{
+		checkNoEntry();
+		return false;
+	}
+	
+	return Controller->GetSkeletalMesh(ERetargetSourceOrTarget::Source) != nullptr;
 }
 
 void SIKRetargetAssetBrowser::OnAssetDoubleClicked(const FAssetData& AssetData)

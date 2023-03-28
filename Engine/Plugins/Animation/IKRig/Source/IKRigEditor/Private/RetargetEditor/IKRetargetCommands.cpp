@@ -6,9 +6,13 @@
 
 void FIKRetargetCommands::RegisterCommands()
 {
-	UI_COMMAND(ShowRetargetPose, "Show Retarget Pose", "Pause playback and set Source and Target meshes to the Retarget Pose.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(RunRetargeter, "Run Retargeter", "Resume playback of animation and retarget to the target skeleton.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(EditRetargetPose, "Edit Retarget Pose", "Enter into mode allowing manual editing of the target skeleton pose in the viewport.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ShowRetargetPose, "Show Retarget Pose", "Display the retarget pose and retarget to the target skeleton.", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(ShowGlobalSettings, "Global Settings", "Open global settings in detail tab.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ShowRootSettings, "Root Settings", "Open root settings in detail tab.", EUserInterfaceActionType::Button, FInputChord());
 	
-	UI_COMMAND(EditRetargetPose, "Edit Mode", "Enter into mode allowing manual editing of the target skeleton pose in the viewport.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ResetAllBones, "Reset All", "Sets the selected bones to the mesh reference pose.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ResetSelectedBones, "Reset Selected Bones", "Sets the selected bones to the mesh reference pose.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ResetSelectedAndChildrenBones, "Reset Selected and Children Bones", "Sets the selected bones (and all children recursively) to the mesh reference pose.", EUserInterfaceActionType::Button, FInputChord());

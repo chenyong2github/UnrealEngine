@@ -122,10 +122,6 @@ private:
 	bool IsChainMapEnabled() const;
 	/** when a chain is clicked on in the table view */
 	void OnItemClicked(TSharedPtr<FRetargetChainMapElement> InItem) const;
-	/** when edit global settings button clicked */
-	FReply OnGlobalSettingsButtonClicked() const;
-	/** when edit root settings button clicked */
-	FReply OnRootSettingsButtonClicked() const;
 
 	/** auto-map chain button*/
 	TSharedRef<SWidget> CreateChainMapMenuWidget();

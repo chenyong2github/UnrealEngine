@@ -26,98 +26,6 @@ void SIKRetargetPoseEditor::Construct(
 	[
 		SNew(SVerticalBox)
 
-		// run/pause retargeter
-		+SVerticalBox::Slot()
-		.Padding(2.0f)
-		.AutoHeight()
-		.HAlign(HAlign_Center)
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4,0)
-			[
-				SNew(SButton)
-				.OnClicked(Controller, &FIKRetargetEditorController::HandleShowRetargetPose)
-				.IsEnabled_Lambda([Controller]
-				{
-					return Controller->GetRetargeterMode() != ERetargeterOutputMode::EditRetargetPose;
-				})
-				.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
-				.ForegroundColor(FLinearColor::Black)
-				.Content()
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-					[
-						SNew(SImage)
-						.ColorAndOpacity(FLinearColor::Black)
-						.Image_Lambda([Controller]() -> const FSlateBrush*
-						{
-							if (Controller->GetRetargeterMode() == ERetargeterOutputMode::RunRetarget)
-							{
-								return FAppStyle::GetBrush("GenericPause");
-							}
-							return FAppStyle::GetBrush("GenericPlay");
-						})
-					]
-			
-					+SHorizontalBox::Slot()
-					.HAlign(HAlign_Right)
-					.Padding(4,0)
-					[
-						SNew(STextBlock)
-						.ToolTipText(LOCTEXT("BlendPoseToolTip", "Pause playback and show the retarget pose. Use slider below to blend between reference pose (0) and retarget pose (1)."))
-						.Text_Lambda([Controller]() -> const FText
-						{
-							if (Controller->GetRetargeterMode() == ERetargeterOutputMode::RunRetarget)
-							{
-								return LOCTEXT("ShowPoseText", "Show Retarget Pose");
-							}
-							return LOCTEXT("RunRetargetText", "Run Retargeter");
-						})
-					]
-				]
-			]
-
-			// stop playback button (contextually disabled)
-			+SHorizontalBox::Slot()
-			.Padding(4,0)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.OnClicked_Lambda([Controller]
-				{
-					Controller->PlaybackManager->StopPlayback();
-					return FReply::Handled();
-				})
-				.IsEnabled_Lambda([Controller]
-				{
-					return !Controller->PlaybackManager->IsStopped();
-				})
-				.Content()
-				[
-					SNew(SImage)
-					.ToolTipText(LOCTEXT("StopPlaybackToolTip", "Stop playback of current animation and show the reference pose."))
-					.Image(FAppStyle::GetBrush("GenericStop"))
-					.ColorAndOpacity_Lambda([Controller]
-					{
-						const bool bRunning = !Controller->PlaybackManager->IsStopped();
-						return bRunning ? FLinearColor::Red : FSlateColor::UseForeground();
-					})
-				]
-			]
-		]
-		
-		+SVerticalBox::Slot()
-		.Padding(2.0f)
-		.AutoHeight()
-		[
-			SNew(SSeparator)
-		]
-
 		+SVerticalBox::Slot()
 		.Padding(2.0f)
 		.AutoHeight()
@@ -203,13 +111,6 @@ TSharedRef<SWidget>  SIKRetargetPoseEditor::MakeToolbar(TSharedPtr<FUICommandLis
 	FToolBarBuilder ToolbarBuilder(Commands, FMultiBoxCustomization::None);
 	
 	ToolbarBuilder.BeginSection("Edit Current Pose");
-
-	ToolbarBuilder.AddToolBarButton(
-		FIKRetargetCommands::Get().EditRetargetPose,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Edit"));
 
 	ToolbarBuilder.AddComboButton(
 		FUIAction(),
