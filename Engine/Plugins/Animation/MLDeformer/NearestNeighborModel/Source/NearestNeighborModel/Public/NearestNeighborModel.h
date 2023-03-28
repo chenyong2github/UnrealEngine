@@ -18,7 +18,16 @@ class UNeuralNetwork;
 class UMLDeformerAsset;
 class USkeleton;
 class IPropertyHandle;
+class UNearestNeighborModelInstance;
 class UNearestNeighborOptimizedNetwork;
+class UNearestNeighborTrainingModel;
+
+namespace UE::NearestNeighborModel
+{
+	class FNearestNeighborEditorModel;
+	class FNearestNeighborGeomCacheSampler;
+	class FNearestNeighborModelDetails;
+};
 
 NEARESTNEIGHBORMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogNearestNeighborModel, Log, All);
 
@@ -148,16 +157,16 @@ namespace UE::NearestNeighborModel
  * The pca basis and the nearest neighbor data are compressed into morph targets.
  */
 UCLASS()
-class NEARESTNEIGHBORMODEL_API UNearestNeighborModel 
-	: public UMLDeformerMorphModel
+class NEARESTNEIGHBORMODEL_API UNearestNeighborModel final 
+	: public UMLDeformerMorphModel 
 {
 	GENERATED_BODY()
 
 public:
 	UNearestNeighborModel(const FObjectInitializer& ObjectInitializer);
-	virtual void PostLoad() override;
 
 	// UMLDeformerModel overrides.
+	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Archive) override;
 	virtual bool DoesSupportQualityLevels() const override { return false; }
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
@@ -165,6 +174,13 @@ public:
 	virtual FString GetDisplayName() const override { return "Nearest Neighbor Model"; }
 	// ~END UMLDeformerModel overrides.
 
+	friend class UNearestNeighborModelInstance;
+	friend class UNearestNeighborTrainingModel;
+	friend class UE::NearestNeighborModel::FNearestNeighborEditorModel;
+	friend class UE::NearestNeighborModel::FNearestNeighborGeomCacheSampler;
+	friend class UE::NearestNeighborModel::FNearestNeighborModelDetails;
+
+private:
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
 	int32 GetNumParts() const { return ClothPartData.Num(); }
 
@@ -335,7 +351,6 @@ public:
 	bool DoesUseDualQuaternionDeltas() const { return bUseDualQuaternionDeltas; }
 #endif
 
-
 protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Training Settings")
@@ -403,7 +418,6 @@ protected:
 	static constexpr int32 NearestNeighborNumFloatsPerBone = 3;
 	static constexpr int32 NearestNeighborNumFloatsPerCurve = 0;
 	
-public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KMeans Pose Generator")
 	TArray<TObjectPtr<UAnimSequence>> SourceAnims;
@@ -436,6 +450,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors", META = (ClampMin = "0", ClampMax = "1"))
 	float NearestNeighborOffsetWeight = 1.0f;
 
+private:
 	UPROPERTY()
 	TObjectPtr<UNearestNeighborOptimizedNetwork> OptimizedNetwork = nullptr;
 

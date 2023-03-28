@@ -5,6 +5,13 @@
 #include "MLDeformerInputInfo.h"
 #include "NearestNeighborModelInputInfo.generated.h"
 
+class UNearestNeighborModelInstance;
+class UNearestNeighborModel;
+namespace UE::NearestNeighborModel
+{
+    class FNearestNeighborEditorModel;
+};
+
 UCLASS()
 class NEARESTNEIGHBORMODEL_API UNearestNeighborModelInputInfo
     : public UMLDeformerInputInfo
@@ -17,6 +24,11 @@ public:
     virtual void ExtractBoneRotations(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutRotations) const override;
     // ~END UMLDeformerInputInfo overrides
 
+    friend class UNearestNeighborModel;
+    friend class UNearestNeighborModelInstance;
+    friend class UE::NearestNeighborModel::FNearestNeighborEditorModel;
+
+private:
     void InitRefBoneRotations(USkeletalMesh* SkelMesh);
     void ComputeNetworkInput(const TArray<FQuat>& BoneRotations, float* OutputBuffer, int64 StartIndex = 0) const;
 

@@ -10,6 +10,8 @@ class UGeometryCacheComponent;
 
 namespace UE::NearestNeighborModel
 {
+	class FNearestNeighborEditorModel;
+
 	using namespace UE::MLDeformer;
 
 	enum : int32
@@ -23,13 +25,15 @@ namespace UE::NearestNeighborModel
 	public:
 		FNearestNeighborEditorModelActor(const FConstructSettings& Settings);
 
+		friend class FNearestNeighborEditorModel; 
+
+	private:
 		void SetGeometryCacheComponent(UGeometryCacheComponent* Component) { GeomCacheComponent = Component; }
 		UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeomCacheComponent; }
 
 		void InitNearestNeighborActor(const int32 InPartId, const UMLDeformerComponent* InComponent);
 		void TickNearestNeighborActor();
 
-	protected:
 		int32 PartId = INDEX_NONE;
 		const UMLDeformerComponent* MLDeformerComponent = nullptr;
 	};

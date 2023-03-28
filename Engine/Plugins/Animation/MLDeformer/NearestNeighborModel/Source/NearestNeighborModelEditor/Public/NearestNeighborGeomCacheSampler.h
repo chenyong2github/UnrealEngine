@@ -4,8 +4,11 @@
 
 #include "MLDeformerGeomCacheSampler.h"
 
+class UNearestNeighborTrainingModel;
 namespace UE::NearestNeighborModel
 {
+	class FNearestNeighborEditorModel;
+
 	class NEARESTNEIGHBORMODELEDITOR_API FNearestNeighborGeomCacheSampler
 		: public UE::MLDeformer::FMLDeformerGeomCacheSampler
 	{
@@ -14,6 +17,10 @@ namespace UE::NearestNeighborModel
 		virtual void Sample(int32 InAnimFrameIndex) override;
 		// ~END FMLDeformerGeomCacheSampler overrides
 
+		friend class FNearestNeighborEditorModel;
+		friend class ::UNearestNeighborTrainingModel;
+
+	private:
 		virtual void SampleDualQuaternionDeltas(int32 InAnimFrameIndex);
 		virtual uint8 SamplePart(int32 InAnimFrameIndex, int32 PartId);
 		virtual bool SampleKMeansAnim(const int32 SkeletonId);
@@ -26,7 +33,6 @@ namespace UE::NearestNeighborModel
 		TArray<uint32> GetMeshIndexBuffer() const;
 		FVector3f CalcDualQuaternionDelta(int32 VertexIndex, const FVector3f& WorldDelta, const FSkeletalMeshLODRenderData& SkelMeshLODData, const FSkinWeightVertexBuffer& SkinWeightBuffer) const;
 
-	protected:
 		TArray<float> PartVertexDeltas;
 		TArray<int32> MeshMappingIndices;
 		int32 KMeansAnimId;

@@ -14,7 +14,7 @@ namespace UE::NearestNeighborModel
 class UNearestNeighborModel;
 
 UCLASS(Blueprintable)
-class NEARESTNEIGHBORMODELEDITOR_API UNearestNeighborTrainingModel
+class NEARESTNEIGHBORMODELEDITOR_API UNearestNeighborTrainingModel final
 	: public UMLDeformerTrainingModel
 {
 	GENERATED_BODY()
@@ -26,6 +26,22 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Python")
 	int32 Train() const;
 
+	friend class UE::NearestNeighborModel::FNearestNeighborEditorModel;
+
+protected:
+	UFUNCTION(BlueprintImplementableEvent, Category = "Python")
+	int32 UpdateNearestNeighborData();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Python")
+	int32 KmeansClusterPoses(const int32 PartId) const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
+	TArray<float> PartSampleDeltas;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
+	TArray<int32> KmeansResults;
+
+private:
 	UFUNCTION(BlueprintPure, Category = "Python")
 	UNearestNeighborModel* GetNearestNeighborModel() const;
 
@@ -37,17 +53,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Python")
 	int32 SamplePart(int32 PartId, int32 Index);
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Python")
-	int32 UpdateNearestNeighborData();
-
 	UFUNCTION(BlueprintCallable, Category = "Python")
 	int32 SetSamplerPartData(const int32 PartId);
 
 	UFUNCTION(BlueprintPure, Category = "Python")
 	int32 GetPartNumNeighbors(const int32 PartId) const;
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "Python")
-	int32 KmeansClusterPoses(const int32 PartId) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python")
 	bool SampleKmeansAnim(const int32 SkeletonId);
@@ -69,13 +79,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Python")
 	const TArray<int32> GetMeshIndexBuffer() const;
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
-	TArray<float> PartSampleDeltas;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
-	TArray<int32> KmeansResults;
 
 	UNearestNeighborModel* NearestNeighborModel = nullptr;
 };

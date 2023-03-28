@@ -7,6 +7,10 @@
 #include "NearestNeighborModelVizSettings.generated.h"
 
 class UGeometryCache;
+namespace UE::NearestNeighborModel
+{
+    class FNearestNeighborEditorModel;
+};
 
 /**
  * The vizualization settings specific to the the vertex delta model.
@@ -16,14 +20,12 @@ class NEARESTNEIGHBORMODEL_API UNearestNeighborModelVizSettings
 	: public UMLDeformerMorphModelVizSettings
 {
 	GENERATED_BODY()
-public:
 #if	WITH_EDITORONLY_DATA
-	void SetNearestNeighborActorsOffset(float InOffset) { NearestNeighborActorsOffset = InOffset; }
-	float GetNearestNeighborActorsOffset() const { return NearestNeighborActorsOffset; }
+public:
 	static FName GetNearestNeighborActorsOffsetPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModelVizSettings, NearestNeighborActorsOffset); }
-
 	static FName GetNearestNeighborIdsPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModelVizSettings, NearestNeighborIds); }
-	void SetNearestNeighborIds(const TArray<uint32>& InNearestNeighborIds) { NearestNeighborIds = InNearestNeighborIds; }
+	
+	friend class UE::NearestNeighborModel::FNearestNeighborEditorModel;
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
@@ -31,5 +33,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Live Settings")
 	TArray<uint32> NearestNeighborIds;
+
+private:
+	void SetNearestNeighborActorsOffset(float InOffset) { NearestNeighborActorsOffset = InOffset; }
+	float GetNearestNeighborActorsOffset() const { return NearestNeighborActorsOffset; }
+	void SetNearestNeighborIds(const TArray<uint32>& InNearestNeighborIds) { NearestNeighborIds = InNearestNeighborIds; }
 #endif
 };

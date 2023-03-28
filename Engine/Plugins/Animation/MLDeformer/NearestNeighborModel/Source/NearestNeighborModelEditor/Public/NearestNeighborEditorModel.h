@@ -13,6 +13,7 @@ class UMLDeformerComponent;
 class UMLDeformerOptimizedNetwork;
 class UNearestNeighborModel;
 class UNearestNeighborModelInstance;
+class UNearestNeighborTrainingModel;
 class UNearestNeighborModelVizSettings;
 
 namespace UE::NearestNeighborModel
@@ -20,9 +21,10 @@ namespace UE::NearestNeighborModel
 	using namespace UE::MLDeformer;
 
 	class FNearestNeighborEditorModelActor;
+	class FNearestNeighborModelDetails;
 	class FNearestNeighborModelSampler;
 
-	class NEARESTNEIGHBORMODELEDITOR_API FNearestNeighborEditorModel 
+	class NEARESTNEIGHBORMODELEDITOR_API FNearestNeighborEditorModel final 
 		: public UE::MLDeformer::FMLDeformerMorphModelEditorModel
 	{
 	public:
@@ -50,6 +52,11 @@ namespace UE::NearestNeighborModel
 		virtual int32 GetNumTrainingFrames() const override;
 		// ~END FMLDeformerGeomCacheEditorModel overrides.
 
+		friend class FNearestNeighborModelSampler;
+		friend class FNearestNeighborModelDetails;
+		friend class ::UNearestNeighborTrainingModel;
+
+	private:
 		// Some helpers that cast to this model's variants of some classes.
 		UNearestNeighborModel* GetNearestNeighborModel() const { return static_cast<UNearestNeighborModel*>(Model); }
 		UNearestNeighborModelVizSettings* GetNearestNeighborModelVizSettings() const;
@@ -83,7 +90,6 @@ namespace UE::NearestNeighborModel
 		uint8 WarnIfNetworkInvalid();
 		bool IsNeuralNetworkLoaded();
 
-	protected:
 		virtual void CreateNearestNeighborActors(UWorld* World, int32 StartIndex = 0);
 
 		template<class TrainingModelClass>
@@ -104,7 +110,6 @@ namespace UE::NearestNeighborModel
 		// Actors showing the nearest neighbors of the current frame
 		TArray<FNearestNeighborEditorModelActor*> NearestNeighborActors;
 
-	private:
 		UWorld* EditorWorld = nullptr;
 		uint8 MorphTargetUpdateResult = 0;
 		uint8 KMeansClusterResult = 0;
