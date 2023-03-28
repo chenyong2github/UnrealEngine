@@ -54,29 +54,24 @@ protected:
 
 	FText GetCurrentToolName() const;
 	FSlateIcon GetCurrentToolIcon() const;
-	TSharedRef<SWidget> GetToolSelector();
 	bool GetToolSelectorIsVisible() const;
 	EVisibility GetToolSelectorVisibility() const;
 
 	FName GetCurrentBrushFName() const;
 	FText GetCurrentBrushName() const;
 	FSlateIcon GetCurrentBrushIcon() const;
-	TSharedRef<SWidget> GetBrushSelector();
 	bool GetBrushSelectorIsVisible() const;
 	EVisibility GetBrushSelectorVisibility() const;
 
 	FName GetCurrentBrushFalloffFName() const;
 	FText GetCurrentBrushFalloffName() const;
 	FSlateIcon GetCurrentBrushFalloffIcon() const;
-	TSharedRef<SWidget> GetBrushFalloffSelector();
 	bool GetBrushFalloffSelectorIsVisible() const;
 	EVisibility GetBrushFalloffSelectorVisibility() const;
 
 	void SetBrushCommand(FName);
 
 	bool IsBrushSetEnabled() const;
-
-	TSharedPtr<FUICommandList> CommandList;
 
 	TSharedPtr<FLandscapeEditorDetailCustomization_NewLandscape> Customization_NewLandscape;
 	TSharedPtr<FLandscapeEditorDetailCustomization_ResizeLandscape> Customization_ResizeLandscape;
