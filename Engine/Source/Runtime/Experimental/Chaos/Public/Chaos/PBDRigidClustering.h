@@ -404,6 +404,14 @@ public:
 
 	void RemoveChildFromParent(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
 
+	// When a body has broken due to contact resolution, record an entry in a set
+	// for the collision and the particle who's momentum should be restored.
+	void TrackBreakingCollision(FPBDRigidClusteredParticleHandle* ClusteredParticle);
+
+	// Restore some percentage of momenta for objects which were involved in collisions
+	// with destroyed GCs
+	void RestoreBreakingMomentum();
+
 	void SendBreakingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle, bool bFromCrumble);
 	void SendCrumblingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle);
 
@@ -454,6 +462,11 @@ private:
 	TArray<FCrumblingData> MAllClusterCrumblings;
 
 	TSet<FPBDRigidClusteredParticleHandle*> CrumbledSinceLastUpdate;
+
+	// Pairs of collision constraints and rigid particle handles of particles which collided with
+	// rigid clusters which broken. Some portion of the momentum change due to the constraint
+	// will be restored to each of the corresponding particles.
+	TSet<TPair<FPBDCollisionConstraint*, FPBDRigidParticleHandle*>> BreakingCollisions;
 
 	FReal MClusterConnectionFactor;
 	FClusterCreationParameters::EConnectionMethod MClusterUnionConnectionType;
