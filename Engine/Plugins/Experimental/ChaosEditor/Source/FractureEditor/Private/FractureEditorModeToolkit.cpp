@@ -1654,16 +1654,17 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 
 		if (IsValid(FracturedGeometryCollection)) // Prevents crash when GC is deleted from content browser and actor is selected.
 		{
-			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
+			if (TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection())
+			{
+				FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollectionPtr.Get(), -1);
+				UpdateExplodedVectors(Component);
+				UpdateHideForComponent(Component);
 
-			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollectionPtr.Get(), -1);
-			UpdateExplodedVectors(Component);
-			UpdateHideForComponent(Component);
+				UpdateGeometryComponentAttributes(Component);
+				ComponentsToEdit.Add(Component);
 
-			UpdateGeometryComponentAttributes(Component);
-			ComponentsToEdit.Add(Component);
-
-			Component->MarkRenderStateDirty();
+				Component->MarkRenderStateDirty();
+			}
 		}	
 	}
 
