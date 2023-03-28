@@ -50,12 +50,13 @@ struct FManagerImpl
 	{
 		if (IConcertSyncClientModule::IsAvailable())
 		{
-			TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser"));
 			Unregister();
-
-			IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
-			ConcertClient->OnSessionStartup().RemoveAll(this);
-			ConcertClient->OnSessionShutdown().RemoveAll(this);
+			if (const TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
+			{
+				IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
+				ConcertClient->OnSessionStartup().RemoveAll(this);
+				ConcertClient->OnSessionShutdown().RemoveAll(this);
+			}
 		}
 
 		UnregisterExtensions();
