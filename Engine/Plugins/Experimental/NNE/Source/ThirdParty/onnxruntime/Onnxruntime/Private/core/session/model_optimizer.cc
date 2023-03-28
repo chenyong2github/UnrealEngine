@@ -153,10 +153,15 @@ static void FillTensorInfo(GraphTensorInfo& info, const NodeArg* arg) {
 	
 	const ONNX_NAMESPACE::TensorShapeProto* shape = arg->Shape();
 
-	info.shapeLen = shape->dim_size();
+	if (shape) {
+		info.shapeLen = shape->dim_size();
 
-	for (int c = 0; c < GraphTensorInfo::cMaxDim; ++c)
-		info.shape[c] = c < info.shapeLen ? shape->dim().Get(c).dim_value() : 0;
+		for (int c = 0; c < GraphTensorInfo::cMaxDim; ++c)
+			info.shape[c] = c < info.shapeLen ? shape->dim().Get(c).dim_value() : 0;
+	}
+	else {
+		info.shapeLen = 0;
+	}
 
     info.dataType = (Ort::GraphTensorDataType)arg->TypeAsProto()->tensor_type().elem_type();
 }
