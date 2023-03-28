@@ -1,21 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGGather.h"
+
 #include "PCGContext.h"
 #include "PCGPin.h"
 	
 TArray<FPCGPinProperties> UPCGGatherSettings::InputPinProperties() const
 {
+	EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+	if (InputTypeUnion == EPCGDataType::None)
+	{
+		InputTypeUnion = EPCGDataType::Any;
+	}
+
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any);
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, InputTypeUnion);
 
 	return PinProperties;
 }
 
 TArray<FPCGPinProperties> UPCGGatherSettings::OutputPinProperties() const
 {
+	EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+	if (InputTypeUnion == EPCGDataType::None)
+	{
+		InputTypeUnion = EPCGDataType::Any;
+	}
+
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, InputTypeUnion);
 
 	return PinProperties;
 }
@@ -32,5 +45,4 @@ bool FPCGGatherElement::ExecuteInternal(FPCGContext* Context) const
 	Context->OutputData = Context->InputData;
 
 	return true;
-
 }
