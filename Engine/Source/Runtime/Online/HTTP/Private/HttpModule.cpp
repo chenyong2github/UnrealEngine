@@ -91,6 +91,17 @@ void FHttpModule::StartupModule()
 		}
 	}
 
+	// Load from a configurable array of modules at this point, so things that need to bind to the SDK Manager init hooks can do so.
+	TArray<FString> ModulesToLoad;
+	GConfig->GetArray(TEXT("HTTP"), TEXT("ModulesToLoad"), ModulesToLoad, GEngineIni);
+	for (const FString& ModuleToLoad : ModulesToLoad)
+	{
+		if (FModuleManager::Get().ModuleExists(*ModuleToLoad))
+		{
+			FModuleManager::Get().LoadModule(*ModuleToLoad);
+		}
+	}
+
 	// Initialize FPlatformHttp after we have read config values
 	FPlatformHttp::Init();
 
