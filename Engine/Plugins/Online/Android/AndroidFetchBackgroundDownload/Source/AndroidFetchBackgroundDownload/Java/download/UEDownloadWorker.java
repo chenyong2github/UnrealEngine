@@ -33,6 +33,9 @@ import com.epicgames.unreal.download.datastructs.DownloadQueueDescription;
 import com.epicgames.unreal.download.datastructs.DownloadWorkerParameterKeys;
 import com.epicgames.unreal.download.fetch.FetchManager;
 
+import com.epicgames.unreal.network.NetworkConnectivityClient;
+import com.epicgames.unreal.network.NetworkChangedManager;
+
 import com.tonyodev.fetch2.Download;
 import com.tonyodev.fetch2.Error;
 import com.tonyodev.fetch2.Request;
@@ -83,6 +86,24 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		{
 			NotificationDescription = new DownloadNotificationDescription(getInputData(), getApplicationContext(), Log);
 		}
+
+		if (null == NetworkListener)
+		{
+
+			NetworkListener = new NetworkConnectivityClient.Listener() {
+				@Override
+				public void onNetworkAvailable(NetworkConnectivityClient.NetworkTransportType networkTransportType) {
+					bLostNetwork = false;
+				}
+
+				@Override
+				public void onNetworkLost() {
+					bLostNetwork = true;
+				}
+			};
+			NetworkChangedManager.getInstance().addListener(NetworkListener);
+		}
+
 
 		bHasEnqueueHappened = false;
 		bForceStopped = false;
@@ -204,15 +225,15 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		{
 			NotificationDescription.CurrentProgress = CurrentProgress;
 			NotificationDescription.Indeterminate = Indeterminate;
-
 			setForegroundAsync(CreateForegroundInfo(NotificationDescription));
+			
 		}
 		else
 		{
 			Log.error("Unexpected NULL NotificationDescripton during UpdateNotification!");
 		}
 	}
-	
+
 	@NonNull
 	private ForegroundInfo CreateForegroundInfo(DownloadNotificationDescription Description) 
 	{		
@@ -221,18 +242,6 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		
 		CreateNotificationChannel(context, notificationManager, Description);
 
-		//Setup Notification Text Values (ContentText and ContentInfo)
-		boolean bIsComplete = (Description.CurrentProgress >= Description.MAX_PROGRESS);
-		String NotificationTextToUse = null;
-		if (!bIsComplete)
-		{
-			NotificationTextToUse = String.format(Description.ContentText, Description.CurrentProgress);
-		}
-		else
-		{
-			NotificationTextToUse = Description.ContentCompleteText;
-		}
-		
 		//Setup Opening UE app if clicked
 		PendingIntent pendingNotificationIntent = null;
 		{
@@ -246,20 +255,80 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 
 			pendingNotificationIntent = PendingIntent.getActivity(context, Description.NotificationID, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 		}
+		
+		Notification notification = null;
+		if(!bLostNetwork)
+		{
+			notification = CreateDownloadProgressNotification(context, Description, pendingNotificationIntent);
+		}
+		else
+		{
+			notification = CreateNoInternetDownloadNotification(context, Description, pendingNotificationIntent);
+		}
+		
+		return new ForegroundInfo(Description.NotificationID,notification);
+	}
+
+	public Notification CreateNoInternetDownloadNotification(Context context,
+		DownloadNotificationDescription Description,
+		PendingIntent pendingNotificationIntent)
+	{
+		//Setup Notification Text Values (ContentText and ContentInfo)
+		boolean bIsComplete = (Description.CurrentProgress >= Description.MAX_PROGRESS);
+		String NotificationTextToUse = null;
+		if (!bIsComplete)
+		{
+			NotificationTextToUse = String.format(Description.ContentText, Description.CurrentProgress);
+		}
+		else
+		{
+			NotificationTextToUse = Description.ContentCompleteText;
+		}
+
+		Notification notification = new NotificationCompat.Builder(context, Description.NotificationChannelID)
+			.setContentTitle(Description.NoInternetAvailable)
+			.setTicker(Description.TitleText)
+			.setContentText(NotificationTextToUse)
+			.setContentIntent(pendingNotificationIntent)
+			.setProgress(Description.MAX_PROGRESS, Description.CurrentProgress, Description.Indeterminate)
+			.setOngoing(true)
+			.setOnlyAlertOnce (true)
+			.setSmallIcon(Description.SmallIconResourceID)
+			.addAction(Description.CancelIconResourceID, Description.CancelText, CancelIntent)
+			.build();
+
+		return notification;
+	}
+
+	public Notification CreateDownloadProgressNotification(Context context,
+		DownloadNotificationDescription Description,
+		PendingIntent pendingNotificationIntent)
+	{
+		//Setup Notification Text Values (ContentText and ContentInfo)
+		boolean bIsComplete = (Description.CurrentProgress >= Description.MAX_PROGRESS);
+		String NotificationTextToUse = null;
+		if (!bIsComplete)
+		{
+			NotificationTextToUse = String.format(Description.ContentText, Description.CurrentProgress);
+		}
+		else
+		{
+			NotificationTextToUse = Description.ContentCompleteText;
+		}
 
 		Notification notification = new NotificationCompat.Builder(context, Description.NotificationChannelID)
 			.setContentTitle(Description.TitleText)
 			.setTicker(Description.TitleText)
 			.setContentText(NotificationTextToUse)
 			.setContentIntent(pendingNotificationIntent)
-			.setProgress(Description.MAX_PROGRESS,Description.CurrentProgress, Description.Indeterminate)
+			.setProgress(Description.MAX_PROGRESS, Description.CurrentProgress, Description.Indeterminate)
 			.setOngoing(true)
 			.setOnlyAlertOnce (true)
 			.setSmallIcon(Description.SmallIconResourceID)
 			.addAction(Description.CancelIconResourceID, Description.CancelText, CancelIntent)
 			.build();
-		
-		return new ForegroundInfo(Description.NotificationID,notification);
+
+		return notification;
 	}
 
 	//Gets the Notification Manager through the appropriate method based on build version
@@ -405,6 +474,8 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 	public native void nativeAndroidBackgroundDownloadOnAllComplete(boolean bDidAllRequestsSucceed);
 	public native void nativeAndroidBackgroundDownloadOnTick();
 	
+	private NetworkConnectivityClient.Listener NetworkListener = null;
+	private boolean bLostNetwork = false;
 	private boolean bForceStopped = false;
 	private DownloadQueueDescription QueueDescription = null;
 	private volatile boolean bHasEnqueueHappened = false;

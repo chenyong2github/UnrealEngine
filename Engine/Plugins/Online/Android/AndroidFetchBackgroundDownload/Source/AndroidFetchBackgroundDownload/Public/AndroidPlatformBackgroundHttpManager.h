@@ -149,6 +149,8 @@ protected:
 		FPolyglotTextData DefaultNotificationText_Content;
 		FPolyglotTextData DefaultNotificationText_Complete;
 		FPolyglotTextData DefaultNotificationText_Cancel;
+		FPolyglotTextData DefaultNotificationText_NoInternet;
+
 
 		void InitFromIniSettings(const FString& ConfigFileName);
 
@@ -212,6 +214,7 @@ public:
 	static const FString NOTIFICATION_CONTENT_TITLE_KEY;
 	static const FString NOTIFICATION_CONTENT_TEXT_KEY;
 	static const FString NOTIFICATION_CONTENT_CANCEL_DOWNLOAD_TEXT_KEY;
+	static const FString NOTIFICATION_CONTENT_NO_INTERNET_TEXT_KEY;
 	static const FString NOTIFICATION_CONTENT_COMPLETE_TEXT_KEY;
 
 	static const FString NOTIFICATION_RESOURCE_CANCEL_ICON_NAME;

@@ -83,6 +83,12 @@ public class DownloadNotificationDescription
 			{
 				CancelText = "Cancel";
 			}
+
+			NoInternetAvailable = data.getString(DownloadWorkerParameterKeys.NOTIFICATION_CONTENT_NO_INTERNET_TEXT_KEY);
+			if (null == NoInternetAvailable)
+			{
+				NoInternetAvailable = "No Internet Available";
+			}
 		}
 		
 		//Load the Cancel Icon Resource
@@ -226,6 +232,7 @@ public class DownloadNotificationDescription
 	public String ContentText = null;
 	public String ContentCompleteText = null;
 	public String CancelText = null;
+	public String NoInternetAvailable = null;
 	
 	public int CancelIconResourceID = 0;
 	public int SmallIconResourceID = 0;
