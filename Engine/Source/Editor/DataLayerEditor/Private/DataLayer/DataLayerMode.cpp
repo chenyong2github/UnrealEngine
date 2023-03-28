@@ -1332,7 +1332,7 @@ void FDataLayerMode::RegisterContextMenu()
 					return BestCandidate;
 				};
 
-				auto CreateNewDataLayerInternal = [&GetBestCandidateWorldDataLayersFromSelection, SceneOutliner, Mode](UDataLayerInstance* InParentDataLayer, const UDataLayerAsset* InDataLayerAsset = nullptr) -> UDataLayerInstance*
+				auto CreateNewDataLayerInternal = [&GetBestCandidateWorldDataLayersFromSelection, SceneOutliner, Mode](UDataLayerInstance* InParentDataLayer, const UDataLayerAsset* InDataLayerAsset = nullptr, bool bInIsPrivate = false) -> UDataLayerInstance*
 				{
 					const FScopedTransaction Transaction(LOCTEXT("CreateNewDataLayer", "Create New Data Layer"));
 					AWorldDataLayers* TargetWorldDataLayers = GetBestCandidateWorldDataLayersFromSelection(SceneOutliner, Mode);
@@ -1342,6 +1342,7 @@ void FDataLayerMode::RegisterContextMenu()
 					FDataLayerCreationParameters CreationParams;
 					CreationParams.DataLayerAsset = const_cast<UDataLayerAsset*>(InDataLayerAsset);
 					CreationParams.WorldDataLayers = InParentDataLayer ? InParentDataLayer->GetOuterWorldDataLayers() : TargetWorldDataLayers;
+					CreationParams.bIsPrivate = bInIsPrivate;
 					if (UDataLayerInstance* NewDataLayerInstance = UDataLayerEditorSubsystem::Get()->CreateDataLayerInstance(CreationParams))
 					{
 						UDataLayerEditorSubsystem::Get()->SetParentDataLayer(NewDataLayerInstance, InParentDataLayer);
@@ -1356,26 +1357,33 @@ void FDataLayerMode::RegisterContextMenu()
 					return nullptr;
 				};
 
-				auto CreateNewDataLayer = [SceneOutliner, Mode, CreateNewDataLayerInternal](UDataLayerInstance* InParentDataLayer = nullptr, const UDataLayerAsset* InDataLayerAsset = nullptr) -> UDataLayerInstance*
+				auto CreateNewDataLayer = [SceneOutliner, Mode, CreateNewDataLayerInternal](UDataLayerInstance* InParentDataLayer = nullptr, const UDataLayerAsset* InDataLayerAsset = nullptr, bool bInIsPrivate = false) -> UDataLayerInstance*
 				{
 					if (UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers())
 					{
 						check(InDataLayerAsset == nullptr);
-						return CreateNewDataLayerInternal(InParentDataLayer);
+						return CreateNewDataLayerInternal(InParentDataLayer, nullptr, false);
 					}
 					else
 					{
-						return CreateNewDataLayerInternal(InParentDataLayer, InDataLayerAsset);
+						return CreateNewDataLayerInternal(InParentDataLayer, InDataLayerAsset, bInIsPrivate);
 					}
 				};
 
-				auto CreateNewEmptyDataLayer = [SceneOutliner, Mode, CreateNewDataLayerInternal](UDataLayerInstance* InParentDataLayer = nullptr) -> UDataLayerInstance*
+				auto CreateNewEmptyDataLayer = [SceneOutliner, Mode, CreateNewDataLayerInternal](UDataLayerInstance* InParentDataLayer = nullptr, bool bInIsPrivate = false) -> UDataLayerInstance*
 				{
-					return CreateNewDataLayerInternal(InParentDataLayer);
+					return CreateNewDataLayerInternal(InParentDataLayer, nullptr, bInIsPrivate);
 				};
 				
 				Section.AddMenuEntry("CreateNewDataLayer", LOCTEXT("CreateNewDataLayer", "Create New Data Layer"), FText(), FSlateIcon(),
 					FUIAction(FExecuteAction::CreateLambda([CreateNewEmptyDataLayer]() { CreateNewEmptyDataLayer(); })));
+				
+				Section.AddMenuEntry("CreateNewDataLayerPrivate", LOCTEXT("CreateNewDataLayerPrivate", "Create New Private Data Layer"), LOCTEXT("CreateNewDataLayerPrivateToolTip", "Creates an Editor Only Data Layer that cannot be used by other Worlds."), FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([CreateNewEmptyDataLayer]() { CreateNewEmptyDataLayer(nullptr, true); }),
+						FCanExecuteAction(),
+						FIsActionChecked(),
+						FIsActionButtonVisible::CreateLambda([]() { return !UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers(); })));
 
 				const bool bAllSelectedDataLayersCanAddActors = !!SelectedDataLayers.FindByPredicate([](const UDataLayerInstance* DataLayerInstance) { return !DataLayerInstance->CanUserAddActors(); });
 				Section.AddMenuEntry("AddSelectedActorsToSelectedDataLayers", LOCTEXT("AddSelectedActorsToSelectedDataLayersMenu", "Add Selected Actors to Selected Data Layers"), FText(), FSlateIcon(),

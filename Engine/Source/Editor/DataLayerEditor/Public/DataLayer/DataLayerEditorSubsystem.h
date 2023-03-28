@@ -59,6 +59,9 @@ struct DATALAYEREDITOR_API FDataLayerCreationParameters
 	// Optional. Will default at the level WorldDataLayers if unset.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Layer")
 	TObjectPtr<AWorldDataLayers> WorldDataLayers;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Layer")
+	bool bIsPrivate;
 };
 
 UCLASS()

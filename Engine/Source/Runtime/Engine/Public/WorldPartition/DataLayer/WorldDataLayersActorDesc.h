@@ -20,33 +20,39 @@ public:
 	FName GetParentName() const { return ParentName; }
 	bool IsUsingAsset() const { return bIsUsingAsset; }
 	FName GetAssetPath() const { return AssetPath; }
-	class UDataLayerAsset* GetAsset() const;
 	EDataLayerType GetDataLayerType() const;
 	FString GetShortName() const;
 	bool IsIncludedInActorFilterDefault() const { return bIsIncludedInActorFilterDefault; }
+	bool SupportsActorFilters() const;
 
 private:
+	class UDataLayerAsset* GetAsset() const;
+
 	// DataLayerInstance Name
 	FName Name;
 	// Parent DataLayerInstance Name
 	FName ParentName;
-	// We can't rely on a valid AssetPath to determine if DataLayerInstance is UDataLayerInstanceWithAsset
+	// We can't rely on a valid AssetPath to determine if DataLayerInstance is UDataLayerInstanceWithAsset/UDataLayerInstancePrivate
 	bool bIsUsingAsset;
 
-	//~ Begin UDataLayerInstanceWithAsset
+	//~ Begin UDataLayerInstance
 	// DataLayer Asset Path 
 	FName AssetPath;
-	//~ End UDataLayerInstanceWithAsset
-
-	//~ Begin UDeprecatedDataLayerInstance
-	// Runtime or Editor
-	bool bIsRuntime;
-	// Label
-	FString ShortName;
-	//~ End UDeprecatedDataLayerInstance
-
 	// Returns if data layer should be included by default in FWorldPartitionActorFilter.
 	bool bIsIncludedInActorFilterDefault;
+	// DataLayer Asset is Private
+	bool bIsPrivate;
+	//~ End UDataLayerInstance
+
+	// If DataLayer Asset is Private store the SupportsActorFilter() flag
+	bool bPrivateDataLayerSupportsActorFilter;
+	// If DataLayer Asset is Private store the ShortName (also used for UDeprecatedDataLayerInstance)
+	FString PrivateShortName;
+
+	//~ Begin UDeprecatedDataLayerInstance
+	bool bDeprecatedIsRuntime;
+	//~ End UDeprecatedDataLayerInstance
+
 };
 
 /**

@@ -45,6 +45,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
+#include "WorldPartition/DataLayer/DataLayerInstancePrivate.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DeprecatedDataLayerInstance.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
@@ -60,7 +61,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogDataLayerEditorSubsystem, All, All);
 
 FDataLayerCreationParameters::FDataLayerCreationParameters()
 	:DataLayerAsset(nullptr),
-	WorldDataLayers(nullptr)
+	WorldDataLayers(nullptr),
+	bIsPrivate(false)
 {
 
 }
@@ -1227,7 +1229,14 @@ UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(const FDa
 	{
 		if (!WorldDataLayers->HasDeprecatedDataLayers())
 		{
-			NewDataLayer = CreateDataLayerInstance<UDataLayerInstanceWithAsset>(WorldDataLayers, Parameters.DataLayerAsset);
+			if (Parameters.bIsPrivate)
+			{
+				NewDataLayer = CreateDataLayerInstance<UDataLayerInstancePrivate>(WorldDataLayers);
+			}
+			else
+			{
+				NewDataLayer = CreateDataLayerInstance<UDataLayerInstanceWithAsset>(WorldDataLayers, Parameters.DataLayerAsset);
+			}
 		}
 		else
 		{

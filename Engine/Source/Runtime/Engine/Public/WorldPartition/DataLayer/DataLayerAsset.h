@@ -21,18 +21,24 @@ class ENGINE_API UDataLayerAsset : public UObject
 #if WITH_EDITOR
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	//~ End UObject Interface
 
 public:
-	void SetType(EDataLayerType Type) { DataLayerType = Type; }
+	void SetType(EDataLayerType Type) 
+	{ 
+		check(Type == EDataLayerType::Editor || !IsPrivate());
+		DataLayerType = Type; 
+	}
 	void SetDebugColor(FColor InDebugColor) { DebugColor = InDebugColor; }
 #endif
+	bool IsPrivate() const;
 
 	UFUNCTION(Category = "Data Layer", BlueprintCallable)
 	EDataLayerType GetType() const { return DataLayerType; }
 
 	UFUNCTION(Category = "Data Layer|Runtime", BlueprintCallable)
-	bool IsRuntime() const { return DataLayerType == EDataLayerType::Runtime; }
+	bool IsRuntime() const { return !IsPrivate() && DataLayerType == EDataLayerType::Runtime; }
 
 	UFUNCTION(Category = "Data Layer|Runtime", BlueprintCallable)
 	FColor GetDebugColor() const { return DebugColor; }
@@ -43,9 +49,9 @@ private:
 	UPROPERTY(Category = "Data Layer", EditAnywhere)
 	EDataLayerType DataLayerType;
 
-	UPROPERTY(Category = "Data Layer|Actor Filter", EditAnywhere)
+	UPROPERTY(Category = "Actor Filter", EditAnywhere)
 	bool bSupportsActorFilters;
 		
-	UPROPERTY(Category = "Data Layer|Runtime", EditAnywhere)
+	UPROPERTY(Category = "Runtime", EditAnywhere)
 	FColor DebugColor;
 };

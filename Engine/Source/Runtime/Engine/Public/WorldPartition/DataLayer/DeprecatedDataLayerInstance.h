@@ -37,8 +37,6 @@ public:
 	static FName MakeName(const UDEPRECATED_DataLayer* DeprecatedDataLayer);
 	void OnCreated(const UDEPRECATED_DataLayer* DeprecatedDataLayer);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	void SetDataLayerLabel(FName InDataLayerLabel);
 #endif
 	
 	FName GetDataLayerLabel() const { return Label; }

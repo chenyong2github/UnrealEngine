@@ -704,13 +704,9 @@ const UDataLayerInstance* AWorldDataLayers::GetDataLayerInstance(const UDataLaye
 #if WITH_EDITOR	
 	for (const UDataLayerInstance* DataLayerInstance : DataLayerInstances)
 	{
-		static_assert(DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED, "Remove unnecessary cast. All DataLayerInstance now have assets");
-		if (const UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance))
+		if (DataLayerInstance->GetAsset() == InDataLayerAsset)
 		{
-			if (DataLayerInstanceWithAsset->GetAsset() == InDataLayerAsset)
-			{
-				return DataLayerInstance;
-			}
+			return DataLayerInstance;
 		}
 	}
 #else

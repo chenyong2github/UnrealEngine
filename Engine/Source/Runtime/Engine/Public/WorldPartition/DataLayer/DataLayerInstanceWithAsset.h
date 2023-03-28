@@ -33,7 +33,7 @@ public:
 	bool IsIncludedInActorFilterDefault() const;
 #endif
 
-	const UDataLayerAsset* GetAsset() const { return DataLayerAsset; }
+	const UDataLayerAsset* GetAsset() const override { return DataLayerAsset; }
 
 	virtual EDataLayerType GetType() const override { return DataLayerAsset != nullptr ? DataLayerAsset->GetType() : EDataLayerType::Unknown; }
 

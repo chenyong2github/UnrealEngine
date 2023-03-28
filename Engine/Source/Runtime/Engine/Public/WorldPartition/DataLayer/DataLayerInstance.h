@@ -16,6 +16,7 @@ class AWorldDataLayers;
 class FText;
 class IStreamingGenerationErrorHandler;
 class UWorld;
+class UDataLayerAsset;
 
 UENUM(BlueprintType)
 enum class EDataLayerRuntimeState : uint8
@@ -107,6 +108,9 @@ public:
 
 	virtual bool CanEditDataLayerShortName() const { return false; }
 
+	virtual bool SupportsActorFilters() const { return false; }
+	virtual bool IsIncludedInActorFilterDefault() const { return false; }
+
 	// Whether the DataLayer was created by a user and can be deleted by a user.
 	virtual bool IsUserManaged() const { return true; }
 
@@ -155,6 +159,8 @@ public:
 	EDataLayerRuntimeState GetRuntimeState() const;
 	EDataLayerRuntimeState GetEffectiveRuntimeState() const;
 
+	virtual const UDataLayerAsset* GetAsset() const { return nullptr; }
+
 	const TArray<TObjectPtr<UDataLayerInstance>>& GetChildren() const { return Children; }
 	void ForEachChild(TFunctionRef<bool(const UDataLayerInstance*)> Operation) const;
 
@@ -192,11 +198,11 @@ protected:
 	uint32 bIsVisible : 1;
 
 	/** Whether actors associated with the Data Layer should be initially visible in the viewport when loading the map */
-	UPROPERTY(Category = "Data Layer|Editor", EditAnywhere)
+	UPROPERTY(Category = "Editor", EditAnywhere)
 	uint32 bIsInitiallyVisible : 1;
 
 	/** Determines the default value of the data layer's loaded state in editor if it hasn't been changed in data layer outliner by the user */
-	UPROPERTY(Category = "Data Layer|Editor", EditAnywhere, meta = (DisplayName = "Is Initially Loaded"))
+	UPROPERTY(Category = "Editor", EditAnywhere, meta = (DisplayName = "Is Initially Loaded"))
 	uint32 bIsInitiallyLoadedInEditor : 1;
 
 	/** Wheter the data layer is loaded in editor (user setting) */
@@ -213,7 +219,7 @@ protected:
 	uint32 bIsLocked : 1;
 #endif
 
-	UPROPERTY(Category = "Data Layer|Advanced|Runtime", EditAnywhere)
+	UPROPERTY(Category = "Runtime", EditAnywhere)
 	EDataLayerRuntimeState InitialRuntimeState;
 
 private:

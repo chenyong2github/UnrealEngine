@@ -283,6 +283,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// FActorContainerID is now an FGuid instead of a uint64
 		WorldPartitionFActorContainerIDu64ToGuid,
 
+		// FDataLayerInstanceDesc support for private data layers
+		WorldPartitionPrivateDataLayers,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

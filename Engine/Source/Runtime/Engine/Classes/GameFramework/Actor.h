@@ -4279,6 +4279,7 @@ private:
 	static bool RemoveDataLayerAsset(AActor* InActor, const UDataLayerAsset* InDataLayerAsset);
 
 	friend class UDataLayerInstanceWithAsset;
+	friend class UDataLayerInstancePrivate;
 	friend class ULevelInstanceSubsystem;
 };
 #endif

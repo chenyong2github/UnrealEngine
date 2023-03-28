@@ -177,7 +177,7 @@ FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilte
 		for (const FDataLayerInstanceDesc& DataLayerInstanceDesc : WorldDataLayersActorDesc->GetDataLayerInstances())
 		{
 			// For now consider all DataLayerInstances using Assets as filters that are included by default
-			if (DataLayerInstanceDesc.IsUsingAsset() && DataLayerInstanceDesc.GetAsset() && DataLayerInstanceDesc.GetAsset()->SupportsActorFilters())
+			if (DataLayerInstanceDesc.SupportsActorFilters())
 			{
 				Filter.DataLayerFilters.Add(FSoftObjectPath(DataLayerInstanceDesc.GetAssetPath().ToString()), FWorldPartitionActorFilter::FDataLayerFilter(DataLayerInstanceDesc.GetShortName(), DataLayerInstanceDesc.IsIncludedInActorFilterDefault()));
 			}
