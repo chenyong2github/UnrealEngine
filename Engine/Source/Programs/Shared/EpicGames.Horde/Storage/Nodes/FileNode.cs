@@ -112,7 +112,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				file.Attributes &= ~FileAttributes.ReadOnly;
 			}
-			using (FileStream stream = file.OpenWrite())
+			using (FileStream stream = file.Open(FileMode.Create, FileAccess.Write, FileShare.Read))
 			{
 				await CopyToStreamAsync(reader, stream, cancellationToken);
 			}
