@@ -12,16 +12,23 @@
 
 namespace PCGActorSelector
 {
-	// Need to pass a pointer of pointer to the found actor. The lambda will capture this pointer and modify its value when an actor is found.
-	TFunction<bool(AActor*)> GetFilteringFunction(const FPCGActorSelectorSettings& InSettings, TArray<AActor*>& InFoundActors)
+	// Filter is required if it is not disabled and if we are gathering all world actors or gathering all children.
+	bool FilterRequired(const FPCGActorSelectorSettings& InSettings)
 	{
-		// If we're not filtering all world actors, and if the Include Children is enabled, then we allow
-		// user to disable the filter which ignores all filtering options, which is convenient for workflow simplification.
-		if (InSettings.ActorFilter != EPCGActorFilter::AllWorldActors && (!InSettings.bIncludeChildren || InSettings.bDisableFilter))
+		return (InSettings.ActorFilter == EPCGActorFilter::AllWorldActors || InSettings.bIncludeChildren) && !InSettings.bDisableFilter;
+	}
+
+	// Need to pass a pointer of pointer to the found actor. The lambda will capture this pointer and modify its value when an actor is found.
+	TFunction<bool(AActor*)> GetFilteringFunction(const FPCGActorSelectorSettings& InSettings, const TFunction<bool(const AActor*)>& BoundsCheck, TArray<AActor*>& InFoundActors)
+	{
+		if (!FilterRequired(InSettings))
 		{
-			return [&InFoundActors](AActor* Actor) -> bool
+			return [&InFoundActors, &BoundsCheck](AActor* Actor) -> bool
 			{
-				InFoundActors.Add(Actor);
+				if (BoundsCheck(Actor))
+				{
+					InFoundActors.Add(Actor);
+				}
 				return true;
 			};
 		}
@@ -31,9 +38,9 @@ namespace PCGActorSelector
 		switch (InSettings.ActorSelection)
 		{
 		case EPCGActorSelection::ByTag:
-			return[ActorSelectionTag = InSettings.ActorSelectionTag, &InFoundActors, bMultiSelect](AActor* Actor) -> bool
+			return[ActorSelectionTag = InSettings.ActorSelectionTag, &InFoundActors, bMultiSelect, &BoundsCheck](AActor* Actor) -> bool
 			{
-				if (Actor->ActorHasTag(ActorSelectionTag))
+				if (Actor->ActorHasTag(ActorSelectionTag) && BoundsCheck(Actor))
 				{
 					InFoundActors.Add(Actor);
 					return bMultiSelect;
@@ -43,9 +50,9 @@ namespace PCGActorSelector
 			};
 
 		case EPCGActorSelection::ByName:
-			return[ActorSelectionName = InSettings.ActorSelectionName, &InFoundActors, bMultiSelect](AActor* Actor) -> bool
+			return[ActorSelectionName = InSettings.ActorSelectionName, &InFoundActors, bMultiSelect, &BoundsCheck](AActor* Actor) -> bool
 			{
-				if (Actor->GetFName().IsEqual(ActorSelectionName, ENameCase::IgnoreCase, /*bCompareNumber=*/ false))
+				if (Actor->GetFName().IsEqual(ActorSelectionName, ENameCase::IgnoreCase, /*bCompareNumber=*/ false) && BoundsCheck(Actor))
 				{
 					InFoundActors.Add(Actor);
 					return bMultiSelect;
@@ -55,9 +62,9 @@ namespace PCGActorSelector
 			};
 
 		case EPCGActorSelection::ByClass:
-			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActors, bMultiSelect](AActor* Actor) -> bool
+			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActors, bMultiSelect, &BoundsCheck](AActor* Actor) -> bool
 			{
-				if (Actor->IsA(ActorSelectionClass))
+				if (Actor->IsA(ActorSelectionClass) && BoundsCheck(Actor))
 				{
 					InFoundActors.Add(Actor);
 					return bMultiSelect;
@@ -73,7 +80,7 @@ namespace PCGActorSelector
 		return [](AActor* Actor) -> bool { return false; };
 	}
 
-	TArray<AActor*> FindActors(const FPCGActorSelectorSettings& Settings, const UPCGComponent* InComponent)
+	TArray<AActor*> FindActors(const FPCGActorSelectorSettings& Settings, const UPCGComponent* InComponent, const TFunction<bool(const AActor*)>& BoundsCheck)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGActorSelector::FindActor);
 
@@ -87,10 +94,8 @@ namespace PCGActorSelector
 			return FoundActors;
 		}
 
-		// Early out if we have not the information necessary. A filter must be set up if we are taking all world actors,
-		// or including children and not disabling the filter.
-		const bool bFilterRequired = (Settings.ActorFilter == EPCGActorFilter::AllWorldActors) || (Settings.bIncludeChildren && !Settings.bDisableFilter);
-		if (bFilterRequired &&
+		// Early out if we have not the information necessary.
+		if (FilterRequired(Settings) &&
 			((Settings.ActorSelection == EPCGActorSelection::ByTag && Settings.ActorSelectionTag == NAME_None) ||
 			(Settings.ActorSelection == EPCGActorSelection::ByName && Settings.ActorSelectionName == NAME_None) ||
 			(Settings.ActorSelection == EPCGActorSelection::ByClass && !Settings.ActorSelectionClass)))
@@ -100,11 +105,12 @@ namespace PCGActorSelector
 
 		// We pass FoundActor ref, that will be captured by the FilteringFunction
 		// It will modify the FoundActor pointer to the found actor, if found.
-		TFunction<bool(AActor*)> FilteringFunction = PCGActorSelector::GetFilteringFunction(Settings, FoundActors);
+		TFunction<bool(AActor*)> FilteringFunction = PCGActorSelector::GetFilteringFunction(Settings, BoundsCheck, FoundActors);
 
 		// In case of iterating over all actors in the world, call our filtering function and get out.
 		if (Settings.ActorFilter == EPCGActorFilter::AllWorldActors)
 		{
+			// A potential optimization if we know the sought actors are collide-able could be to obtain overlaps via a collision query.
 			UPCGActorHelpers::ForEachActorInWorld<AActor>(World, FilteringFunction);
 
 			// FoundActor is set by the FilteringFunction (captured)
@@ -194,13 +200,13 @@ namespace PCGActorSelector
 		return FoundActors;
 	}
 
-	AActor* FindActor(const FPCGActorSelectorSettings& InSettings, UPCGComponent* InComponent)
+	AActor* FindActor(const FPCGActorSelectorSettings& InSettings, UPCGComponent* InComponent, const TFunction<bool(const AActor*)>& BoundsCheck)
 	{
 		// In order to make sure we don't try to select multiple, we'll do a copy of the settings here.
 		FPCGActorSelectorSettings Settings = InSettings;
 		Settings.bSelectMultiple = false;
 
-		TArray<AActor*> Actors = FindActors(Settings, InComponent);
+		TArray<AActor*> Actors = FindActors(Settings, InComponent, BoundsCheck);
 		return Actors.IsEmpty() ? nullptr : Actors[0];
 	}
 }

@@ -3,6 +3,7 @@
 #include "Elements/PCGDataFromActor.h"
 
 #include "PCGComponent.h"
+#include "PCGHelpers.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGSpatialData.h"
 
@@ -69,11 +70,23 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* InContext) const
 	const UPCGDataFromActorSettings* Settings = Context->GetInputSettings<UPCGDataFromActorSettings>();
 	check(Settings);
 
-	UWorld* World = Context->SourceComponent.IsValid() ? Context->SourceComponent->GetWorld() : nullptr;
-
 	if (!Context->bPerformedQuery)
 	{
-		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, Context->SourceComponent.Get());
+		TFunction<bool(const AActor*)> BoundsCheck = [](const AActor*) -> bool { return true; };
+		const UPCGComponent* PCGComponent = Context->SourceComponent.IsValid() ? Context->SourceComponent.Get() : nullptr;
+		const AActor* Self = PCGComponent ? PCGComponent->GetOwner() : nullptr;
+		if (Self && Settings->ActorSelector.bMustOverlapSelf)
+		{
+			// Capture ActorBounds by value because it goes out of scope
+			const FBox ActorBounds = PCGHelpers::GetActorBounds(Self);
+			BoundsCheck = [Settings, ActorBounds, PCGComponent](const AActor* OtherActor) -> bool
+			{
+				const FBox OtherActorBounds = OtherActor ? PCGHelpers::GetGridBounds(OtherActor, PCGComponent) : FBox(EForceInit::ForceInit);
+				return ActorBounds.Intersect(OtherActorBounds);
+			};
+		}
+
+		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, Context->SourceComponent.Get(), BoundsCheck);
 		Context->bPerformedQuery = true;
 
 		if (Context->FoundActors.IsEmpty())

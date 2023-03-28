@@ -2,6 +2,8 @@
 
 #include "Elements/PCGTypedGetter.h"
 
+#include "Landscape.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTypedGetter)
 
 #define LOCTEXT_NAMESPACE "PCGTypedGetterElements"
@@ -10,6 +12,18 @@ UPCGGetLandscapeSettings::UPCGGetLandscapeSettings()
 {
 	bDisplayModeSettings = false;
 	Mode = EPCGGetDataFromActorMode::ParseActorComponents;
+
+	// We want to apply different defaults to newly placed nodes. We detect new object if they are not a default object/archetype
+	// and/or they do not need load. Followed similar pattern to UPCGComponent::PostInitProperties().
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad))
+	{
+		// This setup replicates what was implemented on the Landscape input node pin
+		ActorSelector.ActorFilter = EPCGActorFilter::AllWorldActors;
+		ActorSelector.bMustOverlapSelf = true;
+		ActorSelector.bSelectMultiple = true;
+		ActorSelector.ActorSelection = EPCGActorSelection::ByClass;
+		ActorSelector.ActorSelectionClass = ALandscapeProxy::StaticClass();
+	}
 }
 
 TArray<FPCGPinProperties> UPCGGetLandscapeSettings::OutputPinProperties() const

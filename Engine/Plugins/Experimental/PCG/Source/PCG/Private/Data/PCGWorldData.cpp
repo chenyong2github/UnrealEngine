@@ -185,7 +185,7 @@ const UPCGPointData* UPCGWorldVolumetricData::CreatePointData(FPCGContext* Conte
 	{
 		if (!Bounds.IsValid && !InBounds.IsValid)
 		{
-			UE_LOG(LogPCG, Error, TEXT("PCG World Volumetric Data cannot generate if there are no framing bounds"));
+			UE_LOG(LogPCG, Error, TEXT("PCG World Volumetric Data cannot generate without sampling bounds. Consider using a Volume Sampler with the Unbounded option disabled."));
 		}
 		
 		return Data;
@@ -361,7 +361,7 @@ const UPCGPointData* UPCGWorldRayHitData::CreatePointData(FPCGContext* Context, 
 	{
 		if (!Bounds.IsValid && !InBounds.IsValid)
 		{
-			UE_LOG(LogPCG, Error, TEXT("PCG World Ray Hit Data cannot generate if there are no framing bounds"));
+			UE_LOG(LogPCG, Error, TEXT("PCG World Ray Hit Data cannot generate without sampling bounds. Consider using a Surface Sampler with the Unbounded option disabled."));
 		}
 
 		return Data;

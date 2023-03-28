@@ -262,7 +262,15 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!InputBounds.IsValid)
 		{
-			PCGE_LOG(Verbose, LogOnly, LOCTEXT("InvalidBounds", "Input data has invalid bounds"));
+			if (!GeneratingShape->IsBounded())
+			{
+				// Some inputs are unable to provide bounds, like the WorldVolumetricQuery, in which case the user must provide bounds.
+				PCGE_LOG(Warning, GraphAndLog, LOCTEXT("CouldNotObtainInputBounds", "Input data is not bounded, so bounds must be provided for sampling. Consider providing a Bounding Shape input."));
+			}
+			else
+			{
+				PCGE_LOG(Verbose, LogOnly, LOCTEXT("InvalidSamplingBounds", "Final sampling bounds is invalid/zero-sized."));
+			}
 
 			Outputs.RemoveAt(GenerationIndex);
 			GeneratingShapes.RemoveAt(GenerationIndex);

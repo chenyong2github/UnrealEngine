@@ -458,9 +458,14 @@ void FPCGSurfaceSamplerElement::AllocateOutputs(FPCGSurfaceSamplerContext* InCon
 		TentativeLoopData.bEnableTimeSlicing = true;
 		if (!InputBounds.IsValid || !TentativeLoopData.Initialize(Settings, InContext, InputBounds))
 		{
-			if (!InputBounds.IsValid)
+			if (!GeneratingShape->IsBounded())
 			{
-				PCGE_LOG_C(Warning, GraphAndLog, InContext, LOCTEXT("InvalidInputBounds", "Input data has invalid bounds"));
+				// Some inputs are unable to provide bounds, like the WorldRayHit, in which case the user must provide bounds.
+				PCGE_LOG_C(Warning, GraphAndLog, InContext, LOCTEXT("CouldNotObtainInputBounds", "Input data is not bounded, so bounds must be provided for sampling. Consider providing a Bounding Shape input."));
+			}
+			else if(!InputBounds.IsValid)
+			{
+				PCGE_LOG_C(Verbose, LogOnly, InContext, LOCTEXT("InvalidSamplingBounds", "Final sampling bounds is invalid/zero-sized."));
 			}
 
 			Outputs.RemoveAt(GeneratingShapeIndex);
