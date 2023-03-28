@@ -41,6 +41,7 @@ public:
 		return FGraphIslandHandle{ GetUniqueIndex(), const_cast<UGraphIsland*>(this) };
 	}
 
+	bool IsPendingDestroy() const { return bPendingDestroy; }
 	bool IsEmpty() const { return Vertices.IsEmpty(); }
 	const TSet<FGraphVertexHandle>& GetVertices() const { return Vertices; }
 	FSerializedIslandData GetSerializedData() const;
@@ -73,4 +74,7 @@ protected:
 private:
 	UPROPERTY(SaveGame)
 	TSet<FGraphVertexHandle> Vertices;
+
+	UPROPERTY(Transient)
+	bool bPendingDestroy;
 };

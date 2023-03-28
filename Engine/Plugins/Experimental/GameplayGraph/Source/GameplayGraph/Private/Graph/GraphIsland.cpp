@@ -9,10 +9,12 @@
 UGraphIsland::UGraphIsland()
 	: Super(EGraphElementType::Island)
 {
+	bPendingDestroy = false;
 }
 
 void UGraphIsland::Destroy()
 {
+	bPendingDestroy = true;
 	TSet<FGraphVertexHandle> VertexCopy = Vertices;
 	Vertices.Empty();
 
