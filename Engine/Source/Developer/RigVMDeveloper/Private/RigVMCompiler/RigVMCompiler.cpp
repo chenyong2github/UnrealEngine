@@ -1584,8 +1584,8 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		{
 			Function = DispatchNode->GetResolvedFunction();
 		}
-			
-		check(Function);
+
+		checkf(Function, TEXT("Could not find function for node %s in package %s"), *Node->GetPathName(), *GetPackage()->GetPathName());
 
 		FRigVMOperand CountOperand;
 		FRigVMOperand IndexOperand;

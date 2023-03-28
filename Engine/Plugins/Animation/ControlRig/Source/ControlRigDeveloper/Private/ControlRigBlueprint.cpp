@@ -1522,6 +1522,18 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 						static const TCHAR UnresolvedDispatchNodeMessage[] = TEXT("Dispatch node %s has no factory..");
 						Controller->ReportErrorf(UnresolvedDispatchNodeMessage, *ModelNode->GetNodePath(true));
 					}
+					else if (!DispatchNode->HasWildCardPin())
+					{
+						if (DispatchNode->GetResolvedFunction() == nullptr)
+						{
+							Controller->FullyResolveTemplateNode(DispatchNode, INDEX_NONE, false);
+						}
+						if (DispatchNode->GetResolvedFunction() == nullptr)
+						{
+							static const TCHAR UnresolvedDispatchNodeMessage[] = TEXT("Node %s could not be resolved.");
+							Controller->ReportErrorf(UnresolvedDispatchNodeMessage, *ModelNode->GetNodePath(true));
+						}
+					}
 				}
 			}
 		}
