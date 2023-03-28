@@ -16,6 +16,42 @@ class UObject;
 struct FPropertyChangedEvent;
 struct FSoftObjectPath;
 
+USTRUCT()
+struct FBoneToRemove
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	bool bIncludeBone = false;
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	FName BoneName;
+};
+
+
+USTRUCT()
+struct FLODReductionSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Selects which bones will be removed from the final skeleton
+	* BoneName: Name of the bone that will be removed. Its children will be removed too.
+	* Remove Only Children: If true, only the children of the selected bone will be removed. The selected bone will remain.
+	*/
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	TArray<FBoneToRemove> BonesToRemove;
+};
+
+
+USTRUCT()
+struct FComponentSettings
+{
+	GENERATED_USTRUCT_BODY()
+	
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	TArray<FLODReductionSettings> LODReductionSettings;
+};
+
 
 USTRUCT()
 struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectState
@@ -154,7 +190,12 @@ public:
     // so it is need to keep them syncronized. 
     // This overrides the per skeletal mesh node selection 
     UPROPERTY()
-    TArray<FRealTimeMorphSelectionOverride> RealTimeMorphSelectionOverrides; 
+    TArray<FRealTimeMorphSelectionOverride> RealTimeMorphSelectionOverrides;
+
+	// Array of bones to remove from the mesh.All influences assigned to these bones will be transferred to the closest valid bone.
+	// Selected per component and LOD. Bones will be accumulated down the line.
+	UPROPERTY(VisibleAnywhere, Category = CustomizableObject)
+	TArray<FComponentSettings> ComponentSettings;
 	
     // To avoid any no properly saved GUIDs
 	FGuid IdentifierVerification;
@@ -231,5 +272,9 @@ public:
 	{
 		NumMeshComponents = MeshComponentNum;
 	}
+
+	// Node Details Support
+	int32 CurrentComponent = 0;
+	int32 CurrentLOD = 0;
 };
 

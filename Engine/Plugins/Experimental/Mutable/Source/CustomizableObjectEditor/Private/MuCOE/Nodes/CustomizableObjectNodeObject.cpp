@@ -31,6 +31,12 @@ UCustomizableObjectNodeObject::UCustomizableObjectNodeObject()
 		Identifier = FGuid::NewGuid();
 		IdentifierVerification = Identifier;
 	}
+
+	if (ComponentSettings.IsEmpty())
+	{
+		ComponentSettings.Add(FComponentSettings());
+		ComponentSettings.Last().LODReductionSettings.Add(FLODReductionSettings());
+	}
 }
 
 
@@ -75,7 +81,22 @@ void UCustomizableObjectNodeObject::PostEditChangeProperty(FPropertyChangedEvent
 	{
 		NumLODs = FMath::Clamp(NumLODs, 1, 64);
 
+		for (int32 CompSetIndex = 0; CompSetIndex < ComponentSettings.Num(); ++CompSetIndex)
+		{
+			ComponentSettings[CompSetIndex].LODReductionSettings.SetNum(NumLODs);
+		}
+
 		ReconstructNode();
+	}
+
+	if (PropertyThatChanged && PropertyThatChanged->GetName() == TEXT("NumMeshComponents"))
+	{
+		ComponentSettings.SetNum(NumMeshComponents);
+
+		for (int32 CompSetIndex = 0; CompSetIndex < ComponentSettings.Num(); ++CompSetIndex)
+		{
+			ComponentSettings[CompSetIndex].LODReductionSettings.SetNum(NumLODs);
+		}
 	}
 	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
