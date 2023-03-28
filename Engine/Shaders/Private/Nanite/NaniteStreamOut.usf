@@ -61,12 +61,37 @@ float StreamOutCutError;
 // 0 - vertex buffer offset
 // 1 - index buffer offset
 // 2 - vertex count
-// 3 - segment 0 tri count
-// 4 - segment 0 tri offset
-// 5 - segment ... tri count
-// 6 - segment ... tri offset
-// 7 - segment N tri count
-// 8 - segment N tri offset
+// 3 - segment 0 index count
+// 4 - segment 0 index buffer offset
+//   - segment ... index count
+//   - segment ... index buffer offset
+//   - segment N index count
+//   - segment N index buffer offset
+
+uint GetMeshVertexBufferOffsetIndex(uint MeshDataOffset)
+{
+	return MeshDataOffset + 0;
+}
+
+uint GetMeshIndexBufferOffsetIndex(uint MeshDataOffset)
+{
+	return MeshDataOffset + 1;
+}
+
+uint GetMeshVertexCountIndex(uint MeshDataOffset)
+{
+	return MeshDataOffset + 2;
+}
+
+uint GetMeshSegmentIndexCountIndex(uint MeshDataOffset, uint SegmentIndex)
+{
+	return MeshDataOffset + 3 + SegmentIndex * 2 + 0;
+}
+
+uint GetMeshSegmentIndexBufferOffsetIndex(uint MeshDataOffset, uint SegmentIndex)
+{
+	return MeshDataOffset + 3 + SegmentIndex * 2 + 1;
+}
 
 RWStructuredBuffer<uint>	MeshDataBuffer;
 RWStructuredBuffer<float>	VertexBuffer; // can't use RWStructuredBuffer<float3> because of bDisableScalarBlockLayout
@@ -275,11 +300,13 @@ void WriteSegment(uint MaterialIndex, uint TriStart, uint TriLength, uint Cluste
 	checkSlow(MaterialIndex < RequestData.NumMaterials);
 	const uint SegmentIndex = SegmentMappingBuffer[RequestData.SegmentMappingOffset + MaterialIndex];
 
-	const uint SegmentDataOffset = MeshDataOffset + 3 + SegmentIndex * 2;
+	const uint MeshSegmentIndexCountIndex = GetMeshSegmentIndexCountIndex(MeshDataOffset, SegmentIndex);
+	const uint MeshSegmentIndexBufferOffsetIndex = GetMeshSegmentIndexBufferOffsetIndex(MeshDataOffset, SegmentIndex);
 
-	const uint SegmentBaseIndexBufferOffset = MeshDataBuffer[SegmentDataOffset + 1];
+	const uint SegmentBaseIndexBufferOffset = MeshDataBuffer[MeshSegmentIndexBufferOffsetIndex];
+
 	uint ClusterIndexBufferOffset;
-	InterlockedAdd(MeshDataBuffer[SegmentDataOffset + 0], TriLength * 3, ClusterIndexBufferOffset);
+	InterlockedAdd(MeshDataBuffer[MeshSegmentIndexCountIndex], TriLength * 3, ClusterIndexBufferOffset);
 
 	const uint SegmentStartTriangle = TriStart;
 	const uint SegmentNumTriangles = TriLength;
@@ -294,7 +321,7 @@ void WriteSegment(uint MaterialIndex, uint TriStart, uint TriLength, uint Cluste
 RWCoherentByteAddressBuffer NodesAndClusterBatches;
 RWCoherentByteAddressBuffer CandididateClusters;
 
-struct CountTrianglesClusterSegmentProcessor
+struct FCountTrianglesClusterSegmentProcessor
 {
 	uint MeshDataOffset;
 	FNaniteStreamOutRequest RequestData;
@@ -303,11 +330,12 @@ struct CountTrianglesClusterSegmentProcessor
 	{
 		checkSlow(MaterialIndex < RequestData.NumMaterials);
 		const uint SegmentIndex = SegmentMappingBuffer[RequestData.SegmentMappingOffset + MaterialIndex];
-		InterlockedAdd(MeshDataBuffer[MeshDataOffset + 3 + (SegmentIndex * 2)], TriLength * 3);
+		const uint MeshSegmentIndexCountIndex = GetMeshSegmentIndexCountIndex(MeshDataOffset, SegmentIndex);
+		InterlockedAdd(MeshDataBuffer[MeshSegmentIndexCountIndex], TriLength * 3);
 	}
 };
 
-struct StreamOutClusterSegmentProcessor
+struct FStreamOutClusterSegmentProcessor
 {
 	uint ClusterVertexOffset;
 	uint MeshDataOffset;
@@ -457,22 +485,26 @@ struct FNaniteTraversalStreamOutCallback
 			// - Output using one group per cluster
 
 			const uint MeshDataOffset = RequestData.MeshDataOffset;
+			const uint MeshVertexCountIndex = GetMeshVertexCountIndex(MeshDataOffset);
 
 #if NANITE_STREAM_OUT_COUNT_VERTICES_AND_TRIANGLES
 
-			InterlockedAdd(MeshDataBuffer[MeshDataOffset + 2], Cluster.NumVerts);
+			InterlockedAdd(MeshDataBuffer[MeshVertexCountIndex], Cluster.NumVerts);
 
-			CountTrianglesClusterSegmentProcessor Processor;
+			FCountTrianglesClusterSegmentProcessor Processor;
 			Processor.MeshDataOffset = MeshDataOffset;
 			Processor.RequestData = RequestData;
 
 #else // !NANITE_STREAM_OUT_COUNT_VERTICES_AND_TRIANGLES
 
-			const uint VertexBufferOffset = MeshDataBuffer[MeshDataOffset + 0];
-			const uint IndexBufferOffset = MeshDataBuffer[MeshDataOffset + 1];
+			const uint VertexBufferOffsetIndex = GetMeshVertexBufferOffsetIndex(MeshDataOffset);
+			const uint IndexBufferOffsetIndex = GetMeshIndexBufferOffsetIndex(MeshDataOffset);
+
+			const uint VertexBufferOffset = MeshDataBuffer[VertexBufferOffsetIndex];
+			const uint IndexBufferOffset = MeshDataBuffer[IndexBufferOffsetIndex];
 
 			uint ClusterVertexOffset = 0;
-			InterlockedAdd(MeshDataBuffer[MeshDataOffset + 2], Cluster.NumVerts, ClusterVertexOffset);
+			InterlockedAdd(MeshDataBuffer[MeshVertexCountIndex], Cluster.NumVerts, ClusterVertexOffset);
 
 			for (uint VertexIndex = 0; VertexIndex < Cluster.NumVerts; ++VertexIndex)
 			{
@@ -484,7 +516,7 @@ struct FNaniteTraversalStreamOutCallback
 				VertexBuffer[IndexInVertexBuffer + 2] = Pos.z;
 			}
 
-			StreamOutClusterSegmentProcessor Processor;
+			FStreamOutClusterSegmentProcessor Processor;
 			Processor.ClusterVertexOffset = ClusterVertexOffset;
 			Processor.MeshDataOffset = MeshDataOffset;
 			Processor.IndexBufferOffset = IndexBufferOffset;
@@ -525,31 +557,36 @@ void InitQueue(uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 
 #if ALLOCATE_VERTICES_AND_TRIANGLES_RANGES
 		const uint MeshDataOffset = RequestData.MeshDataOffset;
+		const uint MeshVertexBufferOffsetIndex = GetMeshVertexBufferOffsetIndex(MeshDataOffset);
+		const uint MeshIndexBufferOffsetIndex = GetMeshIndexBufferOffsetIndex(MeshDataOffset);
+		const uint MeshVertexCountIndex = GetMeshVertexCountIndex(MeshDataOffset);
 
-		uint NumVertices = MeshDataBuffer[MeshDataOffset + 2];
+		uint NumVertices = MeshDataBuffer[MeshVertexCountIndex];
 		uint NumIndices = 0;
 		for (uint SegmentIndex = 0; SegmentIndex < RequestData.NumSegments; ++SegmentIndex)
 		{
-			const uint SegmentDataOffset = MeshDataOffset + 3 + SegmentIndex * 2;
-			MeshDataBuffer[SegmentDataOffset + 1] = NumIndices; // segment first index
-			NumIndices += MeshDataBuffer[SegmentDataOffset];
+			const uint MeshSegmentIndexCountIndex = GetMeshSegmentIndexCountIndex(MeshDataOffset, SegmentIndex);
+			const uint MeshSegmentIndexBufferOffsetIndex = GetMeshSegmentIndexBufferOffsetIndex(MeshDataOffset, SegmentIndex);
 
-			MeshDataBuffer[SegmentDataOffset] = 0; // reset counter back to zero so that each cluster can determine it's offset during stream out pass
+			MeshDataBuffer[MeshSegmentIndexBufferOffsetIndex] = NumIndices; // segment first index
+			NumIndices += MeshDataBuffer[MeshSegmentIndexCountIndex];
+
+			MeshDataBuffer[MeshSegmentIndexCountIndex] = 0; // reset counter back to zero so that each cluster can determine it's offset during stream out pass
 		}
 
-		MeshDataBuffer[MeshDataOffset + 2] = 0; // reset counter back to zero so that each cluster can determine it's offset during stream out pass
+		MeshDataBuffer[MeshVertexCountIndex] = 0; // reset counter back to zero so that each cluster can determine it's offset during stream out pass
 
 		uint BaseVertexOffset = 0u;		
 		uint BaseIndexOffset = 0u;
 		if (AllocateVertexAndIndexRanges(NumVertices, NumIndices, BaseVertexOffset, BaseIndexOffset))
 		{
-			MeshDataBuffer[MeshDataOffset + 0] = BaseVertexOffset;
-			MeshDataBuffer[MeshDataOffset + 1] = BaseIndexOffset;
+			MeshDataBuffer[MeshVertexBufferOffsetIndex] = BaseVertexOffset;
+			MeshDataBuffer[MeshIndexBufferOffsetIndex] = BaseIndexOffset;
 		}
 		else
 		{
-			MeshDataBuffer[MeshDataOffset + 0] = 0xFFFFFFFFu;
-			MeshDataBuffer[MeshDataOffset + 1] = 0xFFFFFFFFu;
+			MeshDataBuffer[MeshVertexBufferOffsetIndex] = 0xFFFFFFFFu;
+			MeshDataBuffer[MeshIndexBufferOffsetIndex] = 0xFFFFFFFFu;
 			return;
 		}
 #endif
