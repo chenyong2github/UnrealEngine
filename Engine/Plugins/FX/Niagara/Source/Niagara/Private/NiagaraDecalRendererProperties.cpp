@@ -67,6 +67,7 @@ namespace NiagaraDecalRendererPropertiesLocal
 		Props->DecalOrientationBinding.Setup(GetDecalOrientationVariable(), GetDecalOrientationVariable());
 		Props->DecalSizeBinding.Setup(GetDecalSizeVariable(), GetDecalSizeVariable());
 		Props->DecalFadeBinding.Setup(GetDecalFadeVariable(), GetDecalFadeVariable());
+		Props->DecalSortOrderBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_UNIQUE_ID);
 		Props->DecalColorBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COLOR);
 		Props->DecalVisibleBinding.Setup(GetDecalVisibleVariable(), GetDecalVisibleVariable());
 		Props->RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
@@ -85,6 +86,7 @@ UNiagaraDecalRendererProperties::UNiagaraDecalRendererProperties()
 	AttributeBindings.Add(&DecalOrientationBinding);
 	AttributeBindings.Add(&DecalSizeBinding);
 	AttributeBindings.Add(&DecalFadeBinding);
+	AttributeBindings.Add(&DecalSortOrderBinding);
 	AttributeBindings.Add(&DecalColorBinding);
 	AttributeBindings.Add(&DecalVisibleBinding);
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
@@ -244,6 +246,7 @@ void UNiagaraDecalRendererProperties::CacheFromCompiledData(const FNiagaraDataSe
 	DecalOrientationDataSetAccessor.Init(CompiledData, DecalOrientationBinding.GetDataSetBindableVariable().GetName());
 	DecalSizeDataSetAccessor.Init(CompiledData, DecalSizeBinding.GetDataSetBindableVariable().GetName());
 	DecalFadeDataSetAccessor.Init(CompiledData, DecalFadeBinding.GetDataSetBindableVariable().GetName());
+	DecalSortOrderDataSetAccessor.Init(CompiledData, DecalSortOrderBinding.GetDataSetBindableVariable().GetName());
 	DecalColorDataSetAccessor.Init(CompiledData, DecalColorBinding.GetDataSetBindableVariable().GetName());
 	DecalVisibleAccessor.Init(CompiledData, DecalVisibleBinding.GetDataSetBindableVariable().GetName());
 	RendererVisibilityTagAccessor.Init(CompiledData, RendererVisibilityTagBinding.GetDataSetBindableVariable().GetName());
@@ -297,6 +300,7 @@ const TArray<FNiagaraVariable>& UNiagaraDecalRendererProperties::GetOptionalAttr
 		Attrs.Add(GetDecalSizeVariable());
 		Attrs.Add(GetDecalOrientationVariable());
 		Attrs.Add(GetDecalFadeVariable());
+		Attrs.Add(SYS_PARAM_PARTICLES_UNIQUE_ID);
 		Attrs.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
 	}
 	return Attrs;

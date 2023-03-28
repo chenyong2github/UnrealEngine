@@ -159,6 +159,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 	const FVector3f DefaultSize = UNiagaraDecalRendererProperties::GetDefaultDecalSize();
 	const FNiagaraBool DefaultVisible = UNiagaraDecalRendererProperties::GetDefaultDecalVisible();
 	const float DefaultFade = UNiagaraDecalRendererProperties::GetDefaultDecalFade();
+	const int32 DefaultSortOrder = UNiagaraDecalRendererProperties::GetDefaultDecalSortOrder();
 
 	// Check for Material Update
 	UMaterialInterface* Material = BaseMaterials_GT.Num() ? BaseMaterials_GT[0] : nullptr;
@@ -188,6 +189,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 		const auto SizeReader = RendererProperties->DecalSizeDataSetAccessor.GetReader(DataSet);
 		const auto ColorReader = RendererProperties->DecalColorDataSetAccessor.GetReader(DataSet);
 		const auto FadeReader = RendererProperties->DecalFadeDataSetAccessor.GetReader(DataSet);
+		const auto SortOrderReader = RendererProperties->DecalSortOrderDataSetAccessor.GetReader(DataSet);
 		const auto VisibleReader = RendererProperties->DecalVisibleAccessor.GetReader(DataSet);
 		const auto VisTagReader = RendererProperties->RendererVisibilityTagAccessor.GetReader(DataSet);
 
@@ -209,6 +211,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			const FVector Size = FVector(SizeReader.GetSafe(ParticleIndex, DefaultSize) * 0.5f);
 			const FLinearColor DecalColor = ColorReader.GetSafe(ParticleIndex, FLinearColor::White);
 			const float Fade = FadeReader.GetSafe(ParticleIndex, DefaultFade);
+			const int32 SortOrder = SortOrderReader.GetSafe(ParticleIndex, DefaultSortOrder);
 
 			// Create Update Parameters
 			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
@@ -232,6 +235,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			UpdateParams.FadeDuration = 1.0f;
 			UpdateParams.FadeScreenSize = RendererProperties->DecalScreenSizeFade;
 			UpdateParams.DecalColor = DecalColor;
+			UpdateParams.SortOrder = SortOrder;
 		}
 	}
 	// Emitter source mode
@@ -250,6 +254,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			const FVector Size = FVector(ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSizeBinding.GetParamMapBindableVariable(), DefaultSize) * 0.5f);
 			const FLinearColor DecalColor = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalColorBinding.GetParamMapBindableVariable(), FLinearColor::White);
 			const float Fade = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalFadeBinding.GetParamMapBindableVariable(), DefaultFade);
+			const int32 SortOrder = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSortOrderBinding.GetParamMapBindableVariable(), DefaultSortOrder);
 
 			// Create Update Parameters
 			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
@@ -273,6 +278,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			UpdateParams.FadeDuration = 1.0f;
 			UpdateParams.FadeScreenSize = RendererProperties->DecalScreenSizeFade;
 			UpdateParams.DecalColor = DecalColor;
+			UpdateParams.SortOrder = SortOrder;
 		}
 	}
 
