@@ -521,10 +521,10 @@ namespace Chaos
 		return INDEX_NONE;
 	}
 
-	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::UpdateClusterUnionParticlesChildToparent"), STAT_UpdateClusterUnionParticlesChildToparent, STATGROUP_Chaos);
-	void FClusterUnionManager::UpdateClusterUnionParticlesChildToparent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent)
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::UpdateClusterUnionParticlesChildToParent"), STAT_UpdateClusterUnionParticlesChildToParent, STATGROUP_Chaos);
+	void FClusterUnionManager::UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionParticlesChildToparent);
+		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionParticlesChildToParent);
 
 		if (FClusterUnion* ClusterUnion = FindClusterUnion(Index))
 		{

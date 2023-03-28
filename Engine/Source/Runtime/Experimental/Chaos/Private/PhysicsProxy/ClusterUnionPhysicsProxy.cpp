@@ -545,7 +545,7 @@ namespace Chaos
 				{
 					FPBDRigidsEvolutionGBF& Evolution = *static_cast<FPBDRigidsSolver*>(Solver)->GetEvolution();
 					FClusterUnionManager& ClusterUnionManager = Evolution.GetRigidClustering().GetClusterUnionManager();
-					ClusterUnionManager.UpdateClusterUnionParticlesChildToparent(ClusterUnionIndex, Particles, Transforms);
+					ClusterUnionManager.UpdateClusterUnionParticlesChildToParent(ClusterUnionIndex, Particles, Transforms);
 				}
 			}
 		);
