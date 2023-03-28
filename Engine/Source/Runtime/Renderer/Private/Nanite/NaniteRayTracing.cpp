@@ -91,6 +91,14 @@ static FAutoConsoleVariableRef CVarNaniteRayTracingMaxStagingBufferSizeMB(
 	ECVF_RenderThreadSafe
 );
 
+static bool GNaniteRayTracingProfileStreamOut = false;
+static FAutoConsoleVariableRef CVarNaniteRayTracingProfileStreamOut(
+	TEXT("r.RayTracing.Nanite.ProfileStreamOut"),
+	GNaniteRayTracingProfileStreamOut,
+	TEXT("[Development only] Stream out pending requests every frame in order to measure performance."),
+	ECVF_RenderThreadSafe
+);
+
 DECLARE_GPU_STAT(RebuildNaniteBLAS);
 
 DECLARE_STATS_GROUP(TEXT("Nanite RayTracing"), STATGROUP_NaniteRayTracing, STATCAT_Advanced);
@@ -383,7 +391,10 @@ namespace Nanite
 
 				check(NewAuxiliaryDataBufferSize <= (1u << 31)); // D3D12 limits resources to 2048MB.
 
-				UpdateRequests.Remove(GeometryId);
+				if (!GNaniteRayTracingProfileStreamOut) // don't remove request when profiling stream out
+				{
+					UpdateRequests.Remove(GeometryId);
+				}
 				ToUpdate.Add(GeometryId);
 
 				check(!Data.bUpdating);
@@ -412,6 +423,7 @@ namespace Nanite
 		bUpdating = true;
 
 		FReadbackData& ReadbackData = ReadbackBuffers[ReadbackBuffersWriteIndex];
+		check(ReadbackData.Entries.IsEmpty());
 
 		// Upload geometry data
 		FRDGBufferRef RequestBuffer = nullptr;
@@ -500,18 +512,37 @@ namespace Nanite
 
 		INC_DWORD_STAT_BY(STAT_NaniteRayTracingStreamOutRequests, ToUpdate.Num());
 
-		// readback
+		if (!GNaniteRayTracingProfileStreamOut)
 		{
-			AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("NaniteRayTracing::Readback"), MeshDataBuffer,
-				[MeshDataReadbackBuffer = ReadbackData.MeshDataReadbackBuffer, MeshDataBuffer](FRHICommandList& RHICmdList)
+			// readback
 			{
-				MeshDataReadbackBuffer->EnqueueCopy(RHICmdList, MeshDataBuffer->GetRHI(), 0u);
-			});
+				AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("NaniteRayTracing::Readback"), MeshDataBuffer,
+					[MeshDataReadbackBuffer = ReadbackData.MeshDataReadbackBuffer, MeshDataBuffer](FRHICommandList& RHICmdList)
+					{
+						MeshDataReadbackBuffer->EnqueueCopy(RHICmdList, MeshDataBuffer->GetRHI(), 0u);
+					});
 
-			ReadbackData.NumMeshDataEntries = NumMeshDataEntries;
+				ReadbackData.NumMeshDataEntries = NumMeshDataEntries;
 
-			ReadbackBuffersWriteIndex = (ReadbackBuffersWriteIndex + 1u) % MaxReadbackBuffers;
-			ReadbackBuffersNumPending = FMath::Min(ReadbackBuffersNumPending + 1u, MaxReadbackBuffers);
+				ReadbackBuffersWriteIndex = (ReadbackBuffersWriteIndex + 1u) % MaxReadbackBuffers;
+				ReadbackBuffersNumPending = FMath::Min(ReadbackBuffersNumPending + 1u, MaxReadbackBuffers);
+			}
+		}
+		else
+		{
+			// if running profile mode, clear state for next frame
+
+			bUpdating = false;
+
+			for (auto GeometryId : ToUpdate)
+			{
+				FInternalData& Data = *Geometries[GeometryId];
+				Data.bUpdating = false;
+				Data.BaseMeshDataOffset = -1;
+				Data.StagingAuxiliaryDataOffset = INDEX_NONE;
+			}
+
+			ReadbackData.Entries.Empty();
 		}
 
 		ToUpdate.Empty();
