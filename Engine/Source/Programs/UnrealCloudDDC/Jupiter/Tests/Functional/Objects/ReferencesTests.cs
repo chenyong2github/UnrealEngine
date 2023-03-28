@@ -610,6 +610,11 @@ namespace Jupiter.FunctionalTests.References
         [TestMethod]
         public async Task PutLargeCompactBinary()
         {
+            if (this is MongoReferencesTests)
+            {
+                Assert.Inconclusive("Mongo server runs out of space in the wait queue when running this test");
+            }
+
             byte[] data = await File.ReadAllBytesAsync($"Objects/Payloads/lyra.cb");
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
             IoHashKey key = IoHashKey.FromName("largeCompactBinary");
