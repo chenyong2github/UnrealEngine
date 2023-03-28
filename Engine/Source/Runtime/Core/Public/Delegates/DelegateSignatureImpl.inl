@@ -602,7 +602,7 @@ protected:
 	 */
 	FORCEINLINE DelegateInstanceInterfaceType* GetDelegateInstanceProtected() const
 	{
-		return (DelegateInstanceInterfaceType*)Super::GetDelegateInstanceProtected();
+		return static_cast<DelegateInstanceInterfaceType*>(Super::GetDelegateInstanceProtected());
 	}
 };
 
