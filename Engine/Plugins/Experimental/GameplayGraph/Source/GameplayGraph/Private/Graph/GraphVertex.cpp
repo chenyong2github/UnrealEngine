@@ -40,3 +40,9 @@ void UGraphVertex::HandleOnVertexRemoved()
 {
 	OnVertexRemoved.Broadcast();
 }
+
+void UGraphVertex::SetParentIsland(const FGraphIslandHandle& Island)
+{
+	ParentIsland = Island;
+	OnParentIslandSet.Broadcast(Island);
+}
