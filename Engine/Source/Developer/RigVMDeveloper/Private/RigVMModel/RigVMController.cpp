@@ -9529,23 +9529,45 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 {
 	if (!bIsTransacting && !IsGraphEditable())
 	{
+		static const FString FailureReason = TEXT("Cannot add links in non-editable graph."); 
+		if(OutFailureReason)
+		{
+			*OutFailureReason = FailureReason;
+		}
+		ReportError(FailureReason);
 		return false;
 	}
 	
 	if(OutputPin == nullptr)
 	{
-		ReportError(TEXT("OutputPin is nullptr."));
+		static const FString FailureReason = TEXT("OutputPin is nullptr."); 
+		if(OutFailureReason)
+		{
+			*OutFailureReason = FailureReason;
+		}
+		ReportError(FailureReason);
 		return false;
 	}
 
 	if(InputPin == nullptr)
 	{
-		ReportError(TEXT("InputPin is nullptr."));
+		static const FString FailureReason = TEXT("InputPin is nullptr."); 
+		if(OutFailureReason)
+		{
+			*OutFailureReason = FailureReason;
+		}
+		ReportError(FailureReason);
 		return false;
 	}
 
 	if(!IsValidPinForGraph(OutputPin) || !IsValidPinForGraph(InputPin))
 	{
+		static const FString FailureReason = TEXT("Pin is not valid for graph."); 
+		if(OutFailureReason)
+		{
+			*OutFailureReason = FailureReason;
+		}
+		ReportError(FailureReason);
 		return false;
 	}
 

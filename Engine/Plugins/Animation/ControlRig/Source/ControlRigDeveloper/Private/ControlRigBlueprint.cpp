@@ -1437,6 +1437,7 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 			URigVMController* Controller = GetOrCreateController(Graph);
 			// temporarily disable default value validation during load time, serialized values should always be accepted
 			TGuardValue<bool> PerGraphDisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
+			TGuardValue<bool> GuardEditGraph(Graph->bEditable, true);
 			FRigVMControllerNotifGuard NotifGuard(Controller, true);
 			LinkedPaths.Add(Graph, Controller->GetLinkedPaths());
 			Controller->FastBreakLinkedPaths(LinkedPaths.FindChecked(Graph));
@@ -1452,6 +1453,7 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 	for (URigVMGraph* Graph : AllModelsLeavesFirst)
 	{
 		URigVMController* Controller = GetOrCreateController(Graph);
+		TGuardValue<bool> GuardEditGraph(Graph->bEditable, true);
 		FRigVMControllerNotifGuard NotifGuard(Controller, true);
 		{
 			URigVMController::FRestoreLinkedPathSettings Settings;
@@ -1459,8 +1461,6 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 			Controller->RestoreLinkedPaths(LinkedPaths.FindChecked(Graph));
 		}
 
-		TGuardValue<bool> GuardEditGraph(Graph->bEditable, true);
-		
 		for(URigVMNode* ModelNode : Graph->GetNodes())
 		{
 			Controller->RemoveUnusedOrphanedPins(ModelNode);
