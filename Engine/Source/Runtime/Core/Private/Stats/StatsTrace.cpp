@@ -23,7 +23,7 @@ UE_TRACE_EVENT_BEGIN(Stats, Spec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Group)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Stats, EventBatch)
+UE_TRACE_EVENT_BEGIN(Stats, EventBatch2)
 	UE_TRACE_EVENT_FIELD(uint8[], Data)
 UE_TRACE_EVENT_END()
 
@@ -49,7 +49,6 @@ public:
 
 	struct FThreadState
 	{
-		uint64 TracedBufferLastCycle;
 		uint64 LastCycle;
 		uint16 BufferSize;
 		uint8 Buffer[MaxBufferSize];
@@ -71,7 +70,6 @@ FStatsTraceInternal::FThreadState* FStatsTraceInternal::InitThreadState()
 {
 	LLM_SCOPE_BYNAME(TEXT("Trace/Stats"));
 	ThreadLocalThreadState = new FThreadState();
-	ThreadLocalThreadState->TracedBufferLastCycle = 0;
 	ThreadLocalThreadState->LastCycle = 0;
 	ThreadLocalThreadState->BufferSize = 0;
 	return ThreadLocalThreadState;
@@ -79,18 +77,10 @@ FStatsTraceInternal::FThreadState* FStatsTraceInternal::InitThreadState()
 
 void FStatsTraceInternal::FlushThreadBuffer(FThreadState* ThreadState)
 {
-	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StatsChannel))
-	{
-		UE_TRACE_LOG(Stats, EventBatch, StatsChannel)
-			<< EventBatch.Data(ThreadState->Buffer, ThreadState->BufferSize);
+	UE_TRACE_LOG(Stats, EventBatch2, StatsChannel)
+		<< EventBatch2.Data(ThreadState->Buffer, ThreadState->BufferSize);
 
-		ThreadState->TracedBufferLastCycle = ThreadState->LastCycle;
-	}
-	else
-	{
-		// If the current buffer was not actually traced, we need to reset the base timestamp.
-		ThreadState->LastCycle = ThreadState->TracedBufferLastCycle;
-	}
+	ThreadState->LastCycle = 0; // each batch starts with an absolute timestamp value
 	ThreadState->BufferSize = 0;
 }
 

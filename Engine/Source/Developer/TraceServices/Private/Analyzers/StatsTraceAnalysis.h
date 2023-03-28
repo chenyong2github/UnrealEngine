@@ -31,6 +31,7 @@ private:
 	{
 		RouteId_Spec,
 		RouteId_EventBatch,
+		RouteId_EventBatch2,
 		RouteId_BeginFrame,
 		RouteId_EndFrame
 	};

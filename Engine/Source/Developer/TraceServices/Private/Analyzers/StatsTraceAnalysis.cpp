@@ -27,8 +27,9 @@ void FStatsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 	Builder.RouteEvent(RouteId_Spec, "Stats", "Spec");
 	Builder.RouteEvent(RouteId_EventBatch, "Stats", "EventBatch");
+	Builder.RouteEvent(RouteId_EventBatch2, "Stats", "EventBatch2");
 	Builder.RouteEvent(RouteId_BeginFrame, "Misc", "BeginFrame");
-	Builder.RouteEvent(RouteId_EndFrame, "Misc", "EndFrame");
+	//Builder.RouteEvent(RouteId_EndFrame, "Misc", "EndFrame");
 }
 
 void FStatsAnalyzer::OnAnalysisEnd()
@@ -116,10 +117,15 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 			break;
 		}
 
-		case RouteId_EventBatch:
+		case RouteId_EventBatch: // deprecated in UE 5.3
+		case RouteId_EventBatch2: // added in UE 5.3
 		{
 			uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 			TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
+			if (RouteId == RouteId_EventBatch2)
+			{
+				ThreadState->LastCycle = 0; // each batch starts with an absolute timestamp value
+			}
 			TArrayView<const uint8> DataView = FTraceAnalyzerUtils::LegacyAttachmentArray("Data", Context);
 			uint64 BufferSize = DataView.Num();
 			const uint8* BufferPtr = DataView.GetData();
