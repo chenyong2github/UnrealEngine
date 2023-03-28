@@ -27,8 +27,14 @@ namespace UE::GameFeatures
 {
 	namespace PluginURLStructureInfo
 	{
+		/** Character used to denote what value is being assigned to the option before it */
 		extern const TCHAR* OptionAssignOperator;
+
+		/** Character used to separate options on the URL. Used between each assigned value and the next Option name. */
 		extern const TCHAR* OptionSeperator;
+
+		/** Character used to separate lists of values for a single option. Used between each entry in the list. */
+		extern const TCHAR* OptionListSeperator;
 	};
 
 	namespace CommonErrorCodes

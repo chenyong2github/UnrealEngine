@@ -3007,9 +3007,11 @@ FString FInstallBundlePluginProtocolMetaData::ToString() const
 
 	//Always encode InstallBundles
 	ReturnedString = LexToString(EGameFeatureInstallBundleProtocolOptions::Bundles) + UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator;
-	for (const FName& BundleName : InstallBundles)
+	
+	if (InstallBundles.Num() > 0)
 	{
-		ReturnedString.Append(BundleName.ToString());
+		const FString BundlesList = FString::JoinBy(InstallBundles, UE::GameFeatures::PluginURLStructureInfo::OptionListSeperator, [](const FName& BundleName){ return FNameBuilder(BundleName); });
+		ReturnedString.Append(BundlesList);
 	}
 
 	//Always encode version

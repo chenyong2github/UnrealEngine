@@ -41,6 +41,7 @@ namespace UE::GameFeatures
 	{
 		const TCHAR* OptionAssignOperator = TEXT("=");
 		const TCHAR* OptionSeperator = TEXT("?");
+		const TCHAR* OptionListSeperator = TEXT(",");
 	}
 
 	namespace CommonErrorCodes
