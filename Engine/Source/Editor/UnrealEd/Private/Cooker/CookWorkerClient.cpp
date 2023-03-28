@@ -192,7 +192,7 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 
 	FName PackageName = PackageData.GetPackageName();
 	Result->SetPackageName(PackageName);
-	Result->SetSuppressCookReason(ESuppressCookReason::InvalidSuppressCookReason);
+	Result->SetSuppressCookReason(ESuppressCookReason::NotSuppressed);
 	Result->SetPlatforms(OrderedSessionPlatforms);
 	if (FGeneratorPackage* Generator = PackageData.GetGeneratorPackage(); Generator)
 	{
@@ -204,7 +204,7 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 	{
 		ITargetPlatform* TargetPlatform = OrderedSessionPlatforms[PlatformIndex];
 		FPackageRemoteResult::FPlatformResult& PlatformResults = Result->GetPlatforms()[PlatformIndex];
-		FPackageData::FPlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
+		FPackagePlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
 		PlatformResults.SetCookResults(PackagePlatformData.GetCookResults());
 	}
 
@@ -297,12 +297,15 @@ void FCookWorkerClient::ReportPackageMessage(FName PackageName, TUniquePtr<FPack
 	}
 }
 
-void FCookWorkerClient::ReportDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator)
+void FCookWorkerClient::ReportDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator,
+	FDiscoveredPlatformSet&& ReachablePlatforms)
 {
-	FDiscoveredPackage& Discovered = PendingDiscoveredPackages.Emplace_GetRef();
+	FDiscoveredPackageReplication& Discovered = PendingDiscoveredPackages.Emplace_GetRef();
 	Discovered.PackageName = PackageData.GetPackageName();
 	Discovered.NormalizedFileName = PackageData.GetFileName();
 	Discovered.Instigator = Instigator;
+	Discovered.Platforms = MoveTemp(ReachablePlatforms);
+	Discovered.Platforms.ConvertToBitfield(OrderedSessionAndSpecialPlatforms);
 }
 
 EPollStatus FCookWorkerClient::PollTryConnect(const FDirectorConnectionInfo& ConnectInfo)
@@ -468,6 +471,9 @@ void FCookWorkerClient::PollReceiveConfigMessage()
 	}
 	DirectorCookMode = InitialConfigMessage->GetDirectorCookMode();
 	OrderedSessionPlatforms = InitialConfigMessage->GetOrderedSessionPlatforms();
+	OrderedSessionAndSpecialPlatforms.Reset(OrderedSessionPlatforms.Num() + 1);
+	OrderedSessionAndSpecialPlatforms.Append(OrderedSessionPlatforms);
+	OrderedSessionAndSpecialPlatforms.Add(CookerLoadingPlatformKey);
 	const TArray<ITargetPlatform*>& ActiveTargetPlatforms = GetTargetPlatformManagerRef().GetActiveTargetPlatforms();
 
 	auto GetPlatformDetails = [this, &ActiveTargetPlatforms](TStringBuilder<512>& StringBuilder)
@@ -568,6 +574,7 @@ void FCookWorkerClient::SendPendingResults()
 	if (!PendingDiscoveredPackages.IsEmpty())
 	{
 		FDiscoveredPackagesMessage DiscoveredMessage;
+		DiscoveredMessage.OrderedSessionAndSpecialPlatforms = OrderedSessionAndSpecialPlatforms;
 		DiscoveredMessage.Packages = MoveTemp(PendingDiscoveredPackages);
 		SendMessage(DiscoveredMessage);
 		PendingDiscoveredPackages.Reset();
@@ -628,6 +635,7 @@ void FCookWorkerClient::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 			else if (Message.MessageType == FAssignPackagesMessage::MessageType)
 			{
 				FAssignPackagesMessage AssignPackagesMessage;
+				AssignPackagesMessage.OrderedSessionPlatforms = OrderedSessionPlatforms;
 				if (!AssignPackagesMessage.TryRead(Message.Object))
 				{
 					LogInvalidMessage(TEXT("FAssignPackagesMessage"));
@@ -741,36 +749,46 @@ void FCookWorkerClient::LogInvalidMessage(const TCHAR* MessageTypeName)
 
 void FCookWorkerClient::AssignPackages(FAssignPackagesMessage& Message)
 {
+	if (Message.PackageDatas.IsEmpty())
+	{
+		return;
+	}
+
+	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> NeedCookPlatformsBuffer;
 	for (FAssignPackageData& AssignData: Message.PackageDatas)
 	{
 		FPackageData& PackageData = COTFS.PackageDatas->FindOrAddPackageData(AssignData.ConstructData.PackageName,
 			AssignData.ConstructData.NormalizedFileName);
-		// If already InProgress, ignore the duplicate package silently
+		TConstArrayView<const ITargetPlatform*> NeedCookPlatforms = 
+			AssignData.NeedCookPlatforms.GetPlatforms(COTFS, nullptr, OrderedSessionPlatforms, &NeedCookPlatformsBuffer);
 		if (PackageData.IsInProgress())
 		{
-			return;
+			// If already in progress and no new platforms, ignore the duplicate
+			// If there are new platforms, we don't currently handle that; the director should have retracted it first
+			for (const ITargetPlatform* TargetPlatform : NeedCookPlatforms)
+			{
+				check(TargetPlatform != CookerLoadingPlatformKey);
+				checkf(PackageData.FindOrAddPlatformData(TargetPlatform).IsReachable(),
+					TEXT("CookWorker received AssignPackage for package %s which is already in progress, with new platform %s. Adding new platforms to an inprogress package is not yet supported"),
+					*PackageData.GetPackageName().ToString(), *TargetPlatform->PlatformName());
+			}
+			continue;
 		}
 
 		// We do not want CookWorkers to explore dependencies in CookRequestCluster because the Director did it already.
 		// Mark the PackageDatas we get from the Director as already explored.
-		for (const ITargetPlatform* TargetPlatform : OrderedSessionPlatforms)
+		for (const ITargetPlatform* TargetPlatform : NeedCookPlatforms)
 		{
-			FPackageData::FPlatformData& PlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
-			PlatformData.SetExplored(true);
-			PlatformData.SetCookable(true);
+			PackageData.FindOrAddPlatformData(TargetPlatform).MarkCookableForWorker(*this);
 		}
-
-		PackageData.SetRequestData(OrderedSessionPlatforms , false /* bInIsUrgent */, FCompletionCallback(),
-			FInstigator(AssignData.Instigator));
+		PackageData.FindOrAddPlatformData(CookerLoadingPlatformKey).MarkCookableForWorker(*this);
+		PackageData.SetInstigator(*this, FInstigator(AssignData.Instigator));
 		PackageData.SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
 	}
 
-	if (!Message.PackageDatas.IsEmpty())
-	{
-		// Clear the SoftGC diagnostic ExpectedNeverLoadPackages because we have new assigned packages
-		// that we didn't consider during SoftGC
-		COTFS.PackageTracker->ClearExpectedNeverLoadPackages();
-	}
+	// Clear the SoftGC diagnostic ExpectedNeverLoadPackages because we have new assigned packages
+	// that we didn't consider during SoftGC
+	COTFS.PackageTracker->ClearExpectedNeverLoadPackages();
 }
 
 void FCookWorkerClient::Register(IMPCollector* Collector)

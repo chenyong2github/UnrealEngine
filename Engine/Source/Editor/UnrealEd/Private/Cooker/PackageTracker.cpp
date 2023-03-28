@@ -105,11 +105,21 @@ TMap<UPackage*, FInstigator> FPackageTracker::GetNewPackages()
 	return Result;
 }
 
-bool FPackageTracker::HasBeenConsumed() const
+void FPackageTracker::MarkLoadedPackagesAsNew()
 {
-	// Tracking is initialized only during GetNewPackages, so we can use bTrackingInitialized to
-	// tell whether GetNewPackages has been called.
-	return bTrackingInitialized;
+	if (!bTrackingInitialized)
+	{
+		return;
+	}
+
+	LLM_SCOPE_BYTAG(Cooker);
+
+	FWriteScopeLock ScopeLock(Lock);
+	NewPackages.Reserve(LoadedPackages.Num());
+	for (UPackage* Package : LoadedPackages)
+	{
+		NewPackages.FindOrAdd(Package, FInstigator(EInstigator::StartupPackage));
+	}
 }
 
 void FPackageTracker::NotifyUObjectCreated(const class UObjectBase* Object, int32 Index)

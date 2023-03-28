@@ -179,8 +179,11 @@ public:
 	/** Returns all packages that have been loaded since the last time GetNewPackages was called */
 	TMap<UPackage*, FInstigator> GetNewPackages();
 
-	/** Report whether GetNewPackages has ever been called */
-	bool HasBeenConsumed() const;
+	/**
+	 * Copy all LoadedPackages into NewPackages. Called when reachability of all packages needs to be recalculated
+	 * because a new session platform was added.
+	 */
+	void MarkLoadedPackagesAsNew();
 
 	virtual void NotifyUObjectCreated(const class UObjectBase* Object, int32 Index) override;
 	virtual void NotifyUObjectDeleted(const class UObjectBase* Object, int32 Index) override;

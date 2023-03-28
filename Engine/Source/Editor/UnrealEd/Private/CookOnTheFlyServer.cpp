@@ -381,7 +381,7 @@ public:
 				{
 					return;
 				}
-				PackageData->ClearCookProgress();
+				PackageData->ClearCookResults();
 			});
 	}
 
@@ -744,7 +744,7 @@ void UCookOnTheFlyServer::StartCookOnTheFlySessionFromGameThread(ITargetPlatform
 		InitializeSession();
 	}
 	PlatformManager->AddSessionPlatform(*this, TargetPlatform);
-	bPackageFilterDirty = true;
+	ResetCook({ TPair<const ITargetPlatform*,bool>{TargetPlatform, true /* bResetResults */} });
 
 	// Blocking on the AssetRegistry needs to wait until the session starts because it needs all plugins loaded.
 	// AddCookOnTheFlyPlatformFromGameThread can be called on cooker startup which occurs in UUnrealEdEngine::Init
@@ -754,12 +754,22 @@ void UCookOnTheFlyServer::StartCookOnTheFlySessionFromGameThread(ITargetPlatform
 
 void UCookOnTheFlyServer::OnTargetPlatformsInvalidated()
 {
+	using namespace UE::Cook;
+
 	check(IsInGameThread());
 	TMap<ITargetPlatform*, ITargetPlatform*> Remap = PlatformManager->RemapTargetPlatforms();
 
 	PackageDatas->RemapTargetPlatforms(Remap);
 	PackageTracker->RemapTargetPlatforms(Remap);
 	WorkerRequests->RemapTargetPlatforms(Remap);
+	for (UE::Cook::FRequestCluster& Cluster : PackageDatas->GetRequestQueue().GetRequestClusters())
+	{
+		Cluster.RemapTargetPlatforms(Remap);
+	}
+	for (FDiscoveryQueueElement& Element : PackageDatas->GetRequestQueue().GetDiscoveryQueue())
+	{
+		Element.ReachablePlatforms.RemapTargetPlatforms(Remap);
+	}
 
 	if (PlatformManager->GetArePlatformsPrepopulated())
 	{
@@ -1300,7 +1310,7 @@ void UCookOnTheFlyServer::RunCookList(ECookListOptions CookListOptions)
 	PumpExternalRequests(StackData.Timer);
 	ProcessUnsolicitedPackages();
 	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-	while (RequestQueue.GetRequestClusters().Num() != 0 || RequestQueue.GetUnclusteredRequests().Num() != 0)
+	while (RequestQueue.HasRequestsToExplore())
 	{
 		int32 NumPushed;
 		PumpRequests(StackData, NumPushed);
@@ -1312,7 +1322,7 @@ void UCookOnTheFlyServer::RunCookList(ECookListOptions CookListOptions)
 		bool bIncludePackage;
 		if (EnumHasAnyFlags(CookListOptions, ECookListOptions::ShowRejected))
 		{
-			bIncludePackage = PackageData->GetInstigator().Category != EInstigator::NotYetRequested;
+			bIncludePackage = PackageData->HasInstigator();
 			if (bIncludePackage)
 			{
 				// Skip printing out a message for external actors
@@ -1468,7 +1478,6 @@ void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
 	UpdateDisplay(StackData, false /* bForceDisplay */);
 	ProcessAsyncLoading(false, false, 0.0f);
 	ProcessUnsolicitedPackages();
-	UpdatePackageFilter();
 	PumpExternalRequests(StackData.Timer);
 }
 
@@ -2213,7 +2222,7 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 	}
 
 	UE::Cook::FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-	if (RequestQueue.GetRequestClusters().Num() != 0 || RequestQueue.GetUnclusteredRequests().Num() != 0)
+	if (RequestQueue.HasRequestsToExplore())
 	{
 		SetIdleStatus(StackData, EIdleStatus::Active);
 		return ECookAction::Request;
@@ -2415,7 +2424,7 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 #endif
 			bool bRequestsAreUrgent = IsCookOnTheFlyMode() && IsUsingLegacyCookOnTheFlyScheduling();
 			TRingBuffer<UE::Cook::FRequestCluster>& RequestClusters = PackageDatas->GetRequestQueue().GetRequestClusters();
-			UE::Cook::FRequestCluster::AddClusters(*this, MoveTemp(BuildRequests), bRequestsAreUrgent, RequestClusters);
+			RequestClusters.Add(UE::Cook::FRequestCluster(*this, MoveTemp(BuildRequests), bRequestsAreUrgent));
 		}
 	}
 }
@@ -2424,7 +2433,7 @@ bool UCookOnTheFlyServer::TryCreateRequestCluster(UE::Cook::FPackageData& Packag
 {
 	check(PackageData.IsInProgress()); // This should only be called from Pump functions, and only on in-progress Packages
 	using namespace UE::Cook;
-	if (!PackageData.AreAllRequestedPlatformsExplored())
+	if (!PackageData.AreAllReachablePlatformsVisitedByCluster())
 	{
 		PackageData.SendToState(EPackageState::Request, ESendFlags::QueueAdd);
 		return true;
@@ -2439,59 +2448,76 @@ void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData, int3
 
 	OutNumPushed = 0;
 	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-	FPackageDataSet& UnclusteredRequests = RequestQueue.GetUnclusteredRequests();
+	FPackageDataSet& RestartedRequests = RequestQueue.GetRestartedRequests();
+	TRingBuffer<FDiscoveryQueueElement>& DiscoveryQueue = RequestQueue.GetDiscoveryQueue();
 	TRingBuffer<FRequestCluster>& RequestClusters = RequestQueue.GetRequestClusters();
 	const FCookerTimer& CookerTimer = StackData.Timer;
-	if (!UnclusteredRequests.IsEmpty())
-	{
-		FRequestCluster::AddClusters(*this, UnclusteredRequests, RequestClusters, RequestQueue);
-		UnclusteredRequests.Empty();
-		if (CookerTimer.IsTimeUp())
-		{
-			return;
-		}
-	}
 
-	while (RequestClusters.Num() > 0)
+	// First pump all requestclusters and unclustered/discovered requests that need to create a requestcluster
+	for (;;)
 	{
-		FRequestCluster& RequestCluster = RequestClusters.First();
-		bool bComplete = false;
-		RequestCluster.Process(CookerTimer, bComplete);
-		if (bComplete)
+		// We completely finish the first cluster before moving on to new or remaining clusters.
+		// This prevents the problem of an infinite loop due to having two clusters steal a PackageData
+		// back and forth from each other.
+		if (!RequestClusters.IsEmpty())
 		{
-			TArray<FPackageData*> RequestsToLoad;
-			TArray<TPair<FPackageData*, ESuppressCookReason>> RequestsToDemote;
-			TMap<FPackageData*, TArray<FPackageData*>> RequestGraph;
-			RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote, RequestGraph);
-			AssignRequests(RequestsToLoad, RequestQueue, MoveTemp(RequestGraph));
-			for (TPair<FPackageData*, ESuppressCookReason>& Pair : RequestsToDemote)
+			FRequestCluster& RequestCluster = RequestClusters.First();
+			bool bComplete = false;
+			RequestCluster.Process(CookerTimer, bComplete);
+			if (bComplete)
 			{
-				DemoteToIdle(*Pair.Key, ESendFlags::QueueAdd, Pair.Value);
+				TArray<FPackageData*> RequestsToLoad;
+				TArray<TPair<FPackageData*, ESuppressCookReason>> RequestsToDemote;
+				TMap<FPackageData*, TArray<FPackageData*>> RequestGraph;
+				RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote, RequestGraph);
+				AssignRequests(RequestsToLoad, RequestQueue, MoveTemp(RequestGraph));
+				for (TPair<FPackageData*, ESuppressCookReason>& Pair : RequestsToDemote)
+				{
+					DemoteToIdle(*Pair.Key, ESendFlags::QueueAdd, Pair.Value);
+				}
+				RequestClusters.PopFront();
+				OnRequestClusterCompleted(RequestCluster);
 			}
-			RequestClusters.PopFront();
-			OnRequestClusterCompleted(RequestCluster);
 		}
+		else if (!RestartedRequests.IsEmpty())
+		{
+			RequestClusters.Add(FRequestCluster(*this, MoveTemp(RestartedRequests)));
+			RestartedRequests.Empty();
+		}
+		else if (!DiscoveryQueue.IsEmpty())
+		{
+			FRequestCluster Cluster(*this, DiscoveryQueue);
+			if (Cluster.NumPackageDatas() > 0)
+			{
+				RequestClusters.Add(MoveTemp(Cluster));
+			}
+		}
+		else
+		{
+			break;
+		}
+
 		if (CookerTimer.IsTimeUp())
 		{
 			return;
 		}
 	}
 
-	COOK_STAT(DetailedCookStats::PeakRequestQueueSize = FMath::Max(DetailedCookStats::PeakRequestQueueSize, static_cast<int32>(RequestQueue.ReadyRequestsNum())));
+	// After all clusters have been processed, pull a batch of readyrequests into the load state
+	COOK_STAT(DetailedCookStats::PeakRequestQueueSize = FMath::Max(DetailedCookStats::PeakRequestQueueSize,
+		static_cast<int32>(RequestQueue.ReadyRequestsNum())));
 	uint32 NumInBatch = 0;
 	while (!RequestQueue.IsReadyRequestsEmpty() && NumInBatch < RequestBatchSize)
 	{
 		FPackageData* PackageData = RequestQueue.PopReadyRequest();
+		check(PackageData->GetState() == EPackageState::Request);
 		FPoppedPackageDataScope Scope(*PackageData);
 		if (TryCreateRequestCluster(*PackageData))
 		{
 			continue;
 		}
-		if (PackageData->AreAllRequestedPlatformsCooked(true /* bAllowFailedCooks */))
+		if (PackageData->GetPlatformsNeedingCookingNum() == 0)
 		{
-#if DEBUG_COOKONTHEFLY
-			UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *PackageData.GetFileName().ToString());
-#endif
 			DemoteToIdle(*PackageData, ESendFlags::QueueAdd, ESuppressCookReason::AlreadyCooked);
 			continue;
 		}
@@ -2572,10 +2598,10 @@ void UCookOnTheFlyServer::DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::
 						ULevel::GetExternalActorsFolderName(), ESearchCase::IgnoreCase) != INDEX_NONE))
 				{
 					UE_CLOG((GCookProgressDisplay & (int32)ECookProgressDisplayMode::Instigators), LogCook, Display,
-						TEXT("Cooking %s, Instigator: { %s } -> Skipped %s"), *PackageNameStr,
+						TEXT("Cooking %s, Instigator: { %s } -> Rejected %s"), *PackageNameStr,
 						*(PackageData.GetInstigator().ToString()), LexToString(Reason));
 					UE_CLOG(GCookProgressDisplay & (int32)ECookProgressDisplayMode::PackageNames, LogCook, Display,
-						TEXT("Cooking %s -> Skipped %s"), *PackageNameStr, LexToString(Reason));
+						TEXT("Cooking %s -> Rejected %s"), *PackageNameStr, LexToString(Reason));
 				}
 			}
 		}
@@ -2723,9 +2749,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 			FPackageData& OtherPackageData = PackageDatas->AddPackageDataByPackageNameChecked(LoadedPackage->GetFName());
 			UE_LOG(LogCook, Verbose, TEXT("Request for %s received going to save %s"), *PackageFileName.ToString(),
 				*OtherPackageData.GetFileName().ToString());
-			TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> RequestedPlatforms;
-			PackageData.GetRequestedPlatforms(RequestedPlatforms);
-			QueueDiscoveredPackageData(OtherPackageData, FInstigator(PackageData.GetInstigator()));
+			QueueDiscoveredPackage(OtherPackageData, FInstigator(PackageData.GetInstigator()), EDiscoveredPlatformSet::CopyFromInstigator);
 
 			PackageData.SetPlatformsCooked(PlatformManager->GetSessionPlatforms(), ECookResult::Succeeded);
 			RejectPackageToLoad(PackageData, TEXT("is redirected to another filename"), ESuppressCookReason::Redirected);
@@ -2785,7 +2809,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 		}
 	}
 
-	if (PackageData.AreAllRequestedPlatformsCooked(true))
+	if (PackageData.GetPlatformsNeedingCookingNum() == 0)
 	{
 		// Already cooked. This can happen if we needed to load a package that was previously cooked and garbage collected because it is a loaddependency of a new request.
 		// Send the package back to idle, nothing further to do with it.
@@ -2802,9 +2826,9 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 void UCookOnTheFlyServer::RejectPackageToLoad(UE::Cook::FPackageData& PackageData, const TCHAR* ReasonText, UE::Cook::ESuppressCookReason Reason)
 {
 	// make sure this package doesn't exist
-	for (const TPair<const ITargetPlatform*, UE::Cook::FPackageData::FPlatformData>& Pair : PackageData.GetPlatformDatas())
+	for (const TPair<const ITargetPlatform*, UE::Cook::FPackagePlatformData>& Pair : PackageData.GetPlatformDatas())
 	{
-		if (!Pair.Value.IsRequested())
+		if (Pair.Key == CookerLoadingPlatformKey || !Pair.Value.NeedsCooking(Pair.Key))
 		{
 			continue;
 		}
@@ -2823,53 +2847,34 @@ void UCookOnTheFlyServer::RejectPackageToLoad(UE::Cook::FPackageData& PackageDat
 	DemoteToIdle(PackageData, UE::Cook::ESendFlags::QueueAdd, Reason);
 }
 
-//////////////////////////////////////////////////////////////////////////
-
-UE::Cook::FPackageData* UCookOnTheFlyServer::QueueDiscoveredPackage(UPackage* Package,
-	UE::Cook::FInstigator&& Instigator, bool* bOutWasInProgress)
-{
-	check(Package != nullptr);
-
-	UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(Package->GetFName());
-	if (!PackageData)
-	{
-		return nullptr;	// Getting the PackageData will fail if e.g. it is a script package
-	}
-
-	if (bOutWasInProgress)
-	{
-		*bOutWasInProgress = PackageData->IsInProgress();
-	}
-	QueueDiscoveredPackageData(*PackageData, MoveTemp(Instigator), true /* bIsLoadReady */);
-	return PackageData;
-}
-
-void UCookOnTheFlyServer::QueueDiscoveredPackageData(UE::Cook::FPackageData& PackageData,
-	UE::Cook::FInstigator&& Instigator, bool bLoadReady)
+void UCookOnTheFlyServer::QueueDiscoveredPackage(UE::Cook::FPackageData& PackageData,
+	UE::Cook::FInstigator&& Instigator, UE::Cook::FDiscoveredPlatformSet&& ReachablePlatforms)
 {
 	using namespace UE::Cook;
 
-	const TArray<const ITargetPlatform*>& TargetPlatforms = PlatformManager->GetSessionPlatforms();
-	if (PackageData.HasAllCookedPlatforms(TargetPlatforms, true /* bIncludeFailed */))
+	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> BufferPlatforms;
+	if (PackageData.HasReachablePlatforms(
+		ReachablePlatforms.GetPlatforms(*this, &Instigator,
+			TConstArrayView<const ITargetPlatform*>(), &BufferPlatforms, true /* bAllowPartialInstigatorResults */)))
 	{
-		// All SessionPlatforms have already been cooked for the package, so we don't need to save it again
-		return;
-	}
-
-	if (!PackageData.CanCookForPlatforms())
-	{
-		return;
-	}
-
-	if (PackageData.IsInProgress())
-	{
+		// Not a new discovery; ignore
 		return;
 	}
 
 	if (bHiddenDependenciesDebug)
 	{
-		OnDiscoveredPackageDebug(PackageData.GetPackageName(), Instigator);
+		if (!PackageData.IsGenerated())
+		{
+			OnDiscoveredPackageDebug(PackageData.GetPackageName(), Instigator);
+		}
 	}
+	WorkerRequests->QueueDiscoveredPackage(*this, PackageData, MoveTemp(Instigator), MoveTemp(ReachablePlatforms));
+}
+
+void UCookOnTheFlyServer::QueueDiscoveredPackageOnDirector(UE::Cook::FPackageData& PackageData,
+	UE::Cook::FInstigator&& Instigator, UE::Cook::FDiscoveredPlatformSet&& ReachablePlatforms)
+{
+	using namespace UE::Cook;
 
 	if (CookOnTheFlyRequestManager)
 	{
@@ -2883,65 +2888,41 @@ void UCookOnTheFlyServer::QueueDiscoveredPackageData(UE::Cook::FPackageData& Pac
 		}
 	}
 
-	bool bShouldAddToQueue;
-	WorkerRequests->AddDiscoveredPackage(PackageData, Instigator, bLoadReady, bShouldAddToQueue);
-	if (!bShouldAddToQueue)
+	if (!CookByTheBookOptions->bSkipHardReferences ||
+		(Instigator.Category == EInstigator::GeneratedPackage))
 	{
-		return;
-	}
-
-	if ((Instigator.Category == EInstigator::GeneratedPackage) || 
-		(Instigator.Category == EInstigator::Unspecified) || 
-		(Instigator.Category == EInstigator::Unsolicited && !CookByTheBookOptions->bSkipHardReferences) ||
-		!CookByTheBookOptions->bSkipSoftReferences)
-	{
-		PackageData.SetRequestData(TargetPlatforms, /*bIsUrgent*/ false, UE::Cook::FCompletionCallback(),
-			MoveTemp(Instigator));
-		if (bLoadReady)
-		{
-			// Send this package into the LoadReadyQueue to fully load it and send it on to the SaveQueue
-			PackageData.SendToState(UE::Cook::EPackageState::LoadReady, UE::Cook::ESendFlags::QueueRemove);
-			// Send it to the front of the LoadReadyQueue since it is mostly loaded already
-			PackageDatas->GetLoadReadyQueue().AddFront(&PackageData);
-		}
-		else
-		{
-			PackageData.SendToState(UE::Cook::EPackageState::Request, UE::Cook::ESendFlags::QueueAddAndRemove);
-		}
+		PackageData.QueueAsDiscovered(MoveTemp(Instigator), MoveTemp(ReachablePlatforms));
 	}
 }
 
-FName GInstigatorUpdatePackageFilter(TEXT("UpdatePackageFilter"));
-
-void UCookOnTheFlyServer::UpdatePackageFilter()
+void UCookOnTheFlyServer::OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform, int32 RemovedIndex)
 {
-	if (!bPackageFilterDirty)
+	using namespace UE::Cook;
+
+	for (FDiscoveryQueueElement& Element : PackageDatas->GetRequestQueue().GetDiscoveryQueue())
 	{
-		return;
+		Element.ReachablePlatforms.OnRemoveSessionPlatform(TargetPlatform, RemovedIndex);
 	}
-	bPackageFilterDirty = false;
-
-	UE_SCOPED_COOKTIMER(UpdatePackageFilter);
-	const TArray<const ITargetPlatform*>& TargetPlatforms = PlatformManager->GetSessionPlatforms();
-
-	PackageTracker->ForEachLoadedPackage(
-		[this, &TargetPlatforms](UPackage* Package)
-		{
-			UE::Cook::FPackageData* PackageData = QueueDiscoveredPackage(Package,
-			UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorUpdatePackageFilter));
-			if (PackageData && PackageData->IsInProgress())
-			{
-				PackageData->UpdateRequestData(TargetPlatforms, /*bIsUrgent*/ false, UE::Cook::FCompletionCallback(),
-					UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorUpdatePackageFilter));
-			}
-		}
-	);
-}
-
-void UCookOnTheFlyServer::OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform)
-{
+	for (UE::Cook::FRequestCluster& Cluster : PackageDatas->GetRequestQueue().GetRequestClusters())
+	{
+		Cluster.OnRemoveSessionPlatform(TargetPlatform);
+	}
 	PackageDatas->OnRemoveSessionPlatform(TargetPlatform);
 	WorkerRequests->OnRemoveSessionPlatform(TargetPlatform);
+}
+
+void UCookOnTheFlyServer::OnPlatformAddedToSession(const ITargetPlatform* TargetPlatform)
+{
+	using namespace UE::Cook;
+
+	for (FDiscoveryQueueElement& Element : PackageDatas->GetRequestQueue().GetDiscoveryQueue())
+	{
+		Element.ReachablePlatforms.OnPlatformAddedToSession(TargetPlatform);
+	}
+	for (UE::Cook::FRequestCluster& Cluster : PackageDatas->GetRequestQueue().GetRequestClusters())
+	{
+		Cluster.OnPlatformAddedToSession(TargetPlatform);
+	}
 }
 
 void UCookOnTheFlyServer::TickNetwork()
@@ -3114,10 +3095,13 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::QueueGeneratedPackages(UE::Cook::FGen
 	FName OwnerName = Owner->GetFName();
 	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::QueueGeneratedPackages)
 	{
+		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> ReachablePlatforms;
+		PackageData.GetReachablePlatforms(ReachablePlatforms);
 		for (const FCookGenerationInfo& ChildInfo: Generator.GetPackagesToGenerate())
 		{
 			FPackageData* ChildPackageData = ChildInfo.PackageData;
-			QueueDiscoveredPackageData(*ChildPackageData, FInstigator(EInstigator::GeneratedPackage, OwnerName));
+			QueueDiscoveredPackage(*ChildPackageData, FInstigator(EInstigator::GeneratedPackage, OwnerName),
+				EDiscoveredPlatformSet::CopyFromInstigator);
 		}
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::QueueGeneratedPackages);
 	}
@@ -3305,7 +3289,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 	{
 		return Result;
 	}
-	Info.BeginCacheObjects.EndRound(PackageData.GetNumRequestedPlatforms());
+	Info.BeginCacheObjects.EndRound(PackageData.GetCachedObjectsInOuterNumPlatforms());
 	return EPollStatus::Success;
 }
 
@@ -3444,7 +3428,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 	{
 		return Result;
 	}
-	Info.BeginCacheObjects.EndRound(PackageData.GetNumRequestedPlatforms());
+	Info.BeginCacheObjects.EndRound(PackageData.GetCachedObjectsInOuterNumPlatforms());
 
 	return EPollStatus::Success;
 }
@@ -3696,7 +3680,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::CallBeginCacheOnObjects(UE::Cook::FPa
 	check(Package);
 
 	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> TargetPlatforms;
-	PackageData.GetRequestedPlatforms(TargetPlatforms);
+	PackageData.GetCachedObjectsInOuterPlatforms(TargetPlatforms);
 
 	FWeakObjectPtr* ObjectsData = Objects.GetData();
 	int NumPlatforms = TargetPlatforms.Num();
@@ -3833,7 +3817,7 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 		// and this PackageData may therefore still have GetNumPendingCookedPlatformData > 0
 		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor.
 		{
-			int32 NumPlatforms = PackageData.GetNumRequestedPlatforms();
+			int32 NumPlatforms = PackageData.GetCachedObjectsInOuterNumPlatforms();
 			if (NumPlatforms > 0) // Shouldn't happen because PumpSaves checks for this, but avoid a divide by 0 if it does.
 			{
 				// We have only called BeginCacheForCookedPlatformData on Object,Platform pairs up to GetCookedPlatformDataNextIndex.
@@ -4095,17 +4079,48 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages(TArray<FName>* OutDiscovere
 	for (auto& PackageWithInstigator : NewPackages)
 	{
 		UPackage* Package = PackageWithInstigator.Key;
+		check(Package != nullptr);
 		FInstigator& Instigator = PackageWithInstigator.Value;
 
-		bool bWasInProgress;
-		FPackageData* PackageData = QueueDiscoveredPackage(Package, FInstigator(Instigator), &bWasInProgress);
-		if (PackageData && OutDiscoveredPackageNames && !bWasInProgress)
+		UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(Package->GetFName());
+		if (!PackageData)
 		{
-			FInstigator& Existing = OutInstigators->FindOrAdd(PackageData->GetPackageName());
-			if (Existing.Category == EInstigator::InvalidCategory)
+			continue; // Getting the PackageData will fail if e.g. it is a script package
+		}
+		if (PackageData->IsGenerated())
+		{
+			continue; // Generated pacakges are queued separately (with the correct instigator) in QueueGeneratedPackages
+		}
+
+		if (OutDiscoveredPackageNames)
+		{
+			if (!PackageData->IsInProgress())
 			{
-				OutDiscoveredPackageNames->Add(PackageData->GetPackageName());
-				Existing = Instigator;
+				FInstigator& Existing = OutInstigators->FindOrAdd(PackageData->GetPackageName());
+				if (Existing.Category == EInstigator::InvalidCategory)
+				{
+					OutDiscoveredPackageNames->Add(PackageData->GetPackageName());
+					Existing = Instigator;
+				}
+			}
+		}
+
+		if (!PackageData->FindOrAddPlatformData(CookerLoadingPlatformKey).IsReachable())
+		{
+			// Possibly an unexpected load, but it might be an expected load after we finish processing some other unexpected loads that were
+			// discovered earlier during the same LoadPackage call. Queue it for discovery and if it is still unreachable when its turn comes
+			// we will add the hidden dependency for it.
+			// as reachable in all of its instigator's reachable platforms
+			QueueDiscoveredPackage(*PackageData, MoveTemp(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
+		}
+		else
+		{
+			// This load was expected so we do not need to add a hidden dependency for it.
+			// ONLYEDITORONLY_TODO: Read the list of Imports in FinishPlatform out of the SavePackage results instead, and then turn off bMarkExpectedLoadsReachableAsWell
+			constexpr bool bMarkExpectedLoadsReachableAsWell = true;
+			if (bMarkExpectedLoadsReachableAsWell)
+			{
+				QueueDiscoveredPackage(*PackageData, MoveTemp(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
 			}
 		}
 	}
@@ -4223,7 +4238,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 		}
 
 		// Cook only the session platforms that have not yet been cooked for the given package
-		PackageData.GetUncookedPlatforms(PlatformsForPackage);
+		PackageData.GetPlatformsNeedingCooking(PlatformsForPackage);
 		if (PlatformsForPackage.Num() == 0)
 		{
 			// We've already saved all possible platforms for this package; this should not be possible.
@@ -4452,7 +4467,8 @@ void UCookOnTheFlyServer::PostLoadPackageFixup(UE::Cook::FPackageData& PackageDa
 		UE::Cook::FPackageData* NewPackageData = PackageDatas->TryAddPackageDataByPackageName(FName(*PackageName));
 		if (NewPackageData)
 		{
-			QueueDiscoveredPackageData(*NewPackageData, UE::Cook::FInstigator(UE::Cook::EInstigator::Dependency, OwnerName));
+			QueueDiscoveredPackage(*NewPackageData, UE::Cook::FInstigator(UE::Cook::EInstigator::Dependency, OwnerName),
+				UE::Cook::EDiscoveredPlatformSet::CopyFromInstigator);
 		}
 	}
 }
@@ -5478,14 +5494,16 @@ void UCookOnTheFlyServer::MarkPackageDirtyForCookerFromSchedulerThread(const FNa
 	{
 		check(IsInGameThread()); // We're editing scheduler data, which is only allowable from the scheduler thread
 		bool bHadCookedPlatforms = PackageData->HasAnyCookedPlatform();
-		PackageData->ClearCookProgress();
+		PackageData->ClearCookResults();
 		if (PackageData->IsInProgress())
 		{
 			PackageData->SendToState(UE::Cook::EPackageState::Request, UE::Cook::ESendFlags::QueueAddAndRemove);
 		}
 		else if (IsCookByTheBookMode() && IsInSession() && bHadCookedPlatforms)
 		{
-			QueueDiscoveredPackageData(*PackageData, UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorMarkPackageDirty));
+			QueueDiscoveredPackage(*PackageData,
+				UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorMarkPackageDirty),
+				UE::Cook::EDiscoveredPlatformSet::CopyFromInstigator);
 		}
 
 		if ( IsCookOnTheFlyMode() && FileModifiedDelegate.IsBound())
@@ -5847,7 +5865,7 @@ void FSaveCookedPackageContext::SetupPlatform(const ITargetPlatform* InTargetPla
 	Info.LooseFilePath = PlatFilename;
 	PackageWriter->BeginPackage(Info);
 	// Set platform-specific save flags
-	FPackageData::FPlatformData& PlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
+	FPackagePlatformData& PlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
 	uint32 PlatformSaveFlagsMask = SAVE_AllowTimeout;
 	SaveFlags = (SaveFlags & ~PlatformSaveFlagsMask);
 	if (!PlatformData.IsSaveTimedOut())
@@ -6058,17 +6076,21 @@ void FSaveCookedPackageContext::FinishPackage()
 	FName PackageFName = Package->GetFName();
 	if (!COTFS.CookByTheBookOptions->bSkipSoftReferences)
 	{
+		TConstArrayView<const ITargetPlatform*> ReachablePlatforms = PlatformsForPackage;
 		// Also request any localized variants of this package
 		for (FName LocalizedPackageName : FRequestCluster::GetLocalizationReferences(PackageFName, COTFS))
 		{
 			UE::Cook::FPackageData* LocalizedPackageData = COTFS.PackageDatas->TryAddPackageDataByPackageName(LocalizedPackageName);
 			if (LocalizedPackageData)
 			{
-				COTFS.QueueDiscoveredPackageData(*LocalizedPackageData, UE::Cook::FInstigator(UE::Cook::EInstigator::SoftDependency, PackageFName));
+				COTFS.QueueDiscoveredPackage(*LocalizedPackageData,
+					UE::Cook::FInstigator(UE::Cook::EInstigator::SoftDependency, PackageFName),
+					FDiscoveredPlatformSet(ReachablePlatforms));
 			}
 		}
 
 		// Add SoftObjectPaths to the cook. This has to be done after the package save to catch any SoftObjectPaths that were added during save.
+		// ONLYEDITORONLY_TODO: Read the list of SoftPackagePaths in FinishPlatform out of the SavePackage results instead
 		TSet<FName> SoftObjectPackages;
 		GRedirectCollector.ProcessSoftObjectPathPackageList(PackageFName, false /* bGetEditorOnly */, SoftObjectPackages);
 		for (FName SoftObjectPackage : SoftObjectPackages)
@@ -6087,7 +6109,9 @@ void FSaveCookedPackageContext::FinishPackage()
 			UE::Cook::FPackageData* SoftObjectPackageData = COTFS.PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
 			if (SoftObjectPackageData)
 			{
-				COTFS.QueueDiscoveredPackageData(*SoftObjectPackageData, UE::Cook::FInstigator(UE::Cook::EInstigator::SoftDependency, PackageFName));
+				COTFS.QueueDiscoveredPackage(*SoftObjectPackageData,
+					UE::Cook::FInstigator(UE::Cook::EInstigator::SoftDependency, PackageFName),
+					FDiscoveredPlatformSet(ReachablePlatforms));
 			}
 		}
 	}
@@ -9311,12 +9335,13 @@ void UCookOnTheFlyServer::CancelAllQueues()
 	}
 	PackageDatas->GetAssignedToWorkerSet().Empty();
 	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-	FPackageDataSet& UnclusteredRequests = RequestQueue.GetUnclusteredRequests();
-	for (FPackageData* PackageData : UnclusteredRequests)
+	RequestQueue.GetDiscoveryQueue().Empty();
+	FPackageDataSet& RestartedRequests = RequestQueue.GetRestartedRequests();
+	for (FPackageData* PackageData : RestartedRequests)
 	{
 		DemoteToIdle(*PackageData, ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
 	}
-	UnclusteredRequests.Empty();
+	RestartedRequests.Empty();
 	TRingBuffer<FRequestCluster>& RequestClusters = RequestQueue.GetRequestClusters();
 	for (FRequestCluster& RequestCluster : RequestClusters)
 	{
@@ -9365,18 +9390,19 @@ void UCookOnTheFlyServer::ResetCook(TConstArrayView<TPair<const ITargetPlatform*
 {
 	PackageDatas->LockAndEnumeratePackageDatas([TargetPlatforms](UE::Cook::FPackageData* PackageData)
 	{
+		PackageData->FindOrAddPlatformData(CookerLoadingPlatformKey).ResetReachable();
+
 		for (const TPair<const ITargetPlatform*, bool>& Pair : TargetPlatforms)
 		{
 			const ITargetPlatform* TargetPlatform = Pair.Key;
-			UE::Cook::FPackageData::FPlatformData* PlatformData = PackageData->FindPlatformData(TargetPlatform);
+			UE::Cook::FPackagePlatformData* PlatformData = PackageData->FindPlatformData(TargetPlatform);
 			if (PlatformData)
 			{
 				bool bResetResults = Pair.Value;
-				PlatformData->SetExplored(false);
+				PlatformData->ResetReachable();
 				if (bResetResults)
 				{
-					PlatformData->SetSaveTimedOut(false);
-					PackageData->ClearCookProgress(TargetPlatform);
+					PackageData->ClearCookResults(TargetPlatform);
 				}
 			}
 		}
@@ -9393,6 +9419,8 @@ void UCookOnTheFlyServer::ResetCook(TConstArrayView<TPair<const ITargetPlatform*
 			PackageTracker->UnsolicitedCookedPackages.GetPackagesForPlatformAndRemove(TargetPlatform, PackageNames);
 		}
 	}
+
+	PackageTracker->MarkLoadedPackagesAsNew();
 }
 
 void UCookOnTheFlyServer::ClearCachedCookedPlatformDataForPlatform(const ITargetPlatform* TargetPlatform)
@@ -10620,10 +10648,7 @@ void UCookOnTheFlyServer::SelectSessionPlatforms(FBeginCookContext& BeginContext
 {
 	InitializeSession();
 	PlatformManager->SelectSessionPlatforms(*this, BeginContext.TargetPlatforms);
-	if (PackageTracker->HasBeenConsumed())
-	{
-		bPackageFilterDirty = true;
-	}
+
 	FindOrCreateSaveContexts(BeginContext.TargetPlatforms);
 	for (FBeginCookContextPlatform& PlatformContext : BeginContext.PlatformContexts)
 	{
@@ -10884,9 +10909,9 @@ void UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded(UPackage *Package)
 		if (IsCookFlagSet(ECookInitializationFlags::LogDebugInfo))
 		{
 			FString Platforms;
-			for (const TPair<const ITargetPlatform*, UE::Cook::FPackageData::FPlatformData>& Pair : PackageData->GetPlatformDatas())
+			for (const TPair<const ITargetPlatform*, UE::Cook::FPackagePlatformData>& Pair : PackageData->GetPlatformDatas())
 			{
-				if (Pair.Value.IsCookAttempted())
+				if (Pair.Key != CookerLoadingPlatformKey && Pair.Value.IsCookAttempted())
 				{
 					Platforms += TEXT(" ");
 					Platforms += Pair.Key->PlatformName();
@@ -10904,12 +10929,6 @@ void UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded(UPackage *Package)
 	}
 
 	check(IsInGameThread());
-	if (PackageTracker->NeverCookPackageList.Contains(StandardName))
-	{
-		bShouldMarkAsAlreadyProcessed = true;
-		UE_LOG(LogCook, Verbose, TEXT("Marking %s as reloading for cooker because it was requested as never cook package."), *StandardName.ToString());
-	}
-
 	if (bShouldMarkAsAlreadyProcessed)
 	{
 		if (Package->IsFullyLoaded() == false)
@@ -11403,13 +11422,6 @@ void UCookOnTheFlyServer::OnDiscoveredPackageDebug(FName PackageName, const UE::
 					break;
 				default:
 					// Discovered earlier; nothing to report now
-					bShouldReport = false;
-					return;
-				}
-
-				if (!Value.bCookable)
-				{
-					// Skipped during exploration because it is not cookable; we will skip it again in QueueDiscoveredPackageData.
 					bShouldReport = false;
 					return;
 				}

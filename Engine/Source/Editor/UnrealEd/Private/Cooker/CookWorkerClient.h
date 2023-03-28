@@ -16,7 +16,7 @@ namespace UE::Cook { class IMPCollector; }
 namespace UE::Cook { struct FAbortPackagesMessage; }
 namespace UE::Cook { struct FAssignPackagesMessage; }
 namespace UE::Cook { struct FDirectorConnectionInfo; }
-namespace UE::Cook { struct FDiscoveredPackage; }
+namespace UE::Cook { struct FDiscoveredPackageReplication; }
 namespace UE::Cook { struct FHeartbeatMessage; }
 namespace UE::Cook { struct FInitialConfigMessage; }
 namespace UE::Cook { struct FPackageRemoteResult; }
@@ -63,7 +63,8 @@ public:
 	/** Queue a message to the server that the Package was saved. Will be sent during Tick. */
 	void ReportPromoteToSaveComplete(FPackageData& PackageData);
 	/** Queue a message to the server that a package was discovered as needed in the cook. Will be sent during Tick. */
-	void ReportDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator);
+	void ReportDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator,
+		FDiscoveredPlatformSet&& ReachablePlatforms);
 
 	/** Register a Collector for periodic ticking that sends messages to the Director. */
 	void Register(IMPCollector* Collector);
@@ -141,7 +142,8 @@ private:
 	TSharedPtr<FInternetAddr> DirectorAddr;
 	TUniquePtr<FInitialConfigMessage> InitialConfigMessage;
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;
-	TArray<FDiscoveredPackage> PendingDiscoveredPackages;
+	TArray<ITargetPlatform*> OrderedSessionAndSpecialPlatforms;
+	TArray<FDiscoveredPackageReplication> PendingDiscoveredPackages;
 	TMap<FGuid, TRefCountPtr<IMPCollector>> Collectors;
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
 	UE::CompactBinaryTCP::FReceiveBuffer ReceiveBuffer;

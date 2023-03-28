@@ -42,10 +42,10 @@ void FWorkerRequestsLocal::DequeueAllExternal(TArray<FSchedulerCallback>& OutCal
 	ExternalRequests.DequeueAll(OutCallbacks, OutCookRequests);
 }
 
-void FWorkerRequestsLocal::AddDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator,
-	bool bLoadReady, bool& bOutShouldAddToQueue)
+void FWorkerRequestsLocal::QueueDiscoveredPackage(UCookOnTheFlyServer& COTFS, FPackageData& PackageData,
+	FInstigator&& Instigator, FDiscoveredPlatformSet&& ReachablePlatforms)
 {
-	bOutShouldAddToQueue = true;
+	COTFS.QueueDiscoveredPackageOnDirector(PackageData, MoveTemp(Instigator), MoveTemp(ReachablePlatforms));
 }
 
 void FWorkerRequestsLocal::AddStartCookByTheBookRequest(FFilePlatformRequest&& Request)

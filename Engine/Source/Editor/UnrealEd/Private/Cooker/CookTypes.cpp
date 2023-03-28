@@ -3,6 +3,7 @@
 #include "CookTypes.h"
 
 #include "CompactBinaryTCP.h"
+#include "CookPackageData.h"
 #include "Containers/StringView.h"
 #include "DerivedDataRequest.h"
 #include "HAL/PlatformTLS.h"
@@ -37,7 +38,8 @@ const TCHAR* LexToString(ESuppressCookReason Reason)
 {
 	switch (Reason)
 	{
-	case ESuppressCookReason::InvalidSuppressCookReason: return TEXT("InvalidSuppressCookReason");
+	case ESuppressCookReason::Invalid: return TEXT("Invalid");
+	case ESuppressCookReason::NotSuppressed: return TEXT("NotSuppressed");
 	case ESuppressCookReason::AlreadyCooked: return TEXT("AlreadyCooked");
 	case ESuppressCookReason::NeverCook: return TEXT("NeverCook");
 	case ESuppressCookReason::DoesNotExistInWorkspaceDomain: return TEXT("DoesNotExistInWorkspaceDomain");
@@ -51,7 +53,7 @@ const TCHAR* LexToString(ESuppressCookReason Reason)
 	case ESuppressCookReason::CookCanceled: return TEXT("CookCanceled");
 	case ESuppressCookReason::MultiprocessAssignmentError: return TEXT("MultiprocessAssignmentError");
 	case ESuppressCookReason::RetractedByCookDirector: return TEXT("RetractedByCookDirector");
-	default: return TEXT("InvalidSuppressCookReason");
+	default: return TEXT("Invalid");
 	}
 }
 
@@ -192,6 +194,351 @@ bool IsCookIgnoreTimeouts()
 {
 	static bool bIsIgnoreCookTimeouts = FParse::Param(FCommandLine::Get(), TEXT("CookIgnoreTimeouts"));
 	return bIsIgnoreCookTimeouts;
+}
+
+FDiscoveredPlatformSet::FDiscoveredPlatformSet(EDiscoveredPlatformSet InSource)
+	: Source(InSource)
+{
+	ConstructUnion();
+}
+
+FDiscoveredPlatformSet::FDiscoveredPlatformSet(TConstArrayView<const ITargetPlatform*> InPlatforms)
+	: FDiscoveredPlatformSet(EDiscoveredPlatformSet::EmbeddedList)
+{
+	Platforms.Append(InPlatforms);
+}
+
+FDiscoveredPlatformSet::FDiscoveredPlatformSet(const TBitArray<>& InOrderedPlatformBits)
+	: FDiscoveredPlatformSet(EDiscoveredPlatformSet::EmbeddedBitField)
+{
+	OrderedPlatformBits = InOrderedPlatformBits;
+}
+
+FDiscoveredPlatformSet::~FDiscoveredPlatformSet()
+{
+	DestructUnion();
+}
+
+FDiscoveredPlatformSet::FDiscoveredPlatformSet(const FDiscoveredPlatformSet& Other)
+	: FDiscoveredPlatformSet(Other.Source)
+{
+	*this = Other;
+}
+
+FDiscoveredPlatformSet::FDiscoveredPlatformSet(FDiscoveredPlatformSet&& Other)
+	: FDiscoveredPlatformSet(Other.Source)
+{
+	*this = MoveTemp(Other);
+}
+
+FDiscoveredPlatformSet& FDiscoveredPlatformSet::operator=(const FDiscoveredPlatformSet& Other)
+{
+	if (Source != Other.Source)
+	{
+		DestructUnion();
+		Source = Other.Source;
+		ConstructUnion();
+	}
+	switch (Source)
+	{
+	case EDiscoveredPlatformSet::EmbeddedBitField:
+		OrderedPlatformBits = Other.OrderedPlatformBits;
+		break;
+	default:
+		Platforms = Other.Platforms;
+		break;
+	}
+	return *this;
+}
+
+FDiscoveredPlatformSet& FDiscoveredPlatformSet::operator=(FDiscoveredPlatformSet&& Other)
+{
+	if (Source != Other.Source)
+	{
+		DestructUnion();
+		Source = Other.Source;
+		ConstructUnion();
+	}
+	switch (Other.Source)
+	{
+	case EDiscoveredPlatformSet::EmbeddedBitField:
+		OrderedPlatformBits = MoveTemp(Other.OrderedPlatformBits);
+		break;
+	default:
+		Platforms = MoveTemp(Other.Platforms);
+		break;
+	}
+	return *this;
+}
+
+void FDiscoveredPlatformSet::ConstructUnion()
+{
+	switch (Source)
+	{
+	case EDiscoveredPlatformSet::EmbeddedBitField:
+		new (&OrderedPlatformBits) TBitArray<>();
+		break;
+	default:
+		new (&Platforms) TArray<const ITargetPlatform*>();
+		break;
+	}
+}
+
+void FDiscoveredPlatformSet::DestructUnion()
+{
+	switch (Source)
+	{
+	case EDiscoveredPlatformSet::EmbeddedBitField:
+		OrderedPlatformBits.~TBitArray<>();
+		break;
+	default:
+		Platforms.~TArray<const ITargetPlatform*>();
+		break;
+	}
+}
+
+void FDiscoveredPlatformSet::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
+{
+	if (Source != EDiscoveredPlatformSet::EmbeddedBitField)
+	{
+		for (const ITargetPlatform*& Existing : Platforms)
+		{
+			Existing = Remap[Existing];
+		}
+	}
+}
+
+void FDiscoveredPlatformSet::OnRemoveSessionPlatform(const ITargetPlatform* Platform, int32 RemovedIndex)
+{
+	if (Source == EDiscoveredPlatformSet::EmbeddedBitField)
+	{
+		int32 OldNumPlatforms = OrderedPlatformBits.Num();
+		check(OldNumPlatforms > RemovedIndex);
+		TBitArray<> NewBits(false, OldNumPlatforms - 1);
+		int32 ReadIndex;
+		for (ReadIndex = 0; ReadIndex < RemovedIndex; ++ReadIndex)
+		{
+			NewBits[ReadIndex] = OrderedPlatformBits[ReadIndex];
+		}
+		for (++ReadIndex; ReadIndex < OldNumPlatforms; ++ReadIndex)
+		{
+			NewBits[ReadIndex - 1] = OrderedPlatformBits[ReadIndex];
+		}
+		OrderedPlatformBits = MoveTemp(NewBits);
+	}
+	else
+	{
+		Platforms.Remove(Platform);
+	}
+}
+
+void FDiscoveredPlatformSet::OnPlatformAddedToSession(const ITargetPlatform* Platform)
+{
+	if (Source == EDiscoveredPlatformSet::EmbeddedBitField)
+	{
+		OrderedPlatformBits.Add(false);
+	}
+}
+
+void FDiscoveredPlatformSet::ConvertFromBitfield(TConstArrayView<const ITargetPlatform*> OrderedPlatforms)
+{
+	if (Source == EDiscoveredPlatformSet::EmbeddedBitField)
+	{
+		TArray<const ITargetPlatform*> LocalPlatforms;
+		int32 NumPlatforms = OrderedPlatformBits.Num();
+		check(NumPlatforms == OrderedPlatforms.Num());
+		for (int32 Index = 0; Index < NumPlatforms; ++Index)
+		{
+			if (OrderedPlatformBits[Index])
+			{
+				LocalPlatforms.Add(OrderedPlatforms[Index]);
+			}
+		}
+		DestructUnion();
+		Source = EDiscoveredPlatformSet::EmbeddedList;
+		ConstructUnion();
+		Platforms = MoveTemp(LocalPlatforms);
+	}
+}
+
+void FDiscoveredPlatformSet::ConvertToBitfield(TConstArrayView<const ITargetPlatform*> OrderedPlatforms)
+{
+	if (Source == EDiscoveredPlatformSet::EmbeddedBitField)
+	{
+		check(OrderedPlatformBits.Num() == OrderedPlatforms.Num());
+	}
+	else if (Source == EDiscoveredPlatformSet::EmbeddedList)
+	{
+		TArray<const ITargetPlatform*> LocalPlatforms = MoveTemp(Platforms);
+		DestructUnion();
+		Source = EDiscoveredPlatformSet::EmbeddedBitField;
+		ConstructUnion();
+		int32 NumPlatforms = OrderedPlatforms.Num();
+		OrderedPlatformBits.Init(false, NumPlatforms);
+		for (int32 Index = 0; Index < NumPlatforms; ++Index)
+		{
+			OrderedPlatformBits[Index] = LocalPlatforms.Contains(OrderedPlatforms[Index]);
+		}
+	}
+}
+
+TConstArrayView<const ITargetPlatform*> FDiscoveredPlatformSet::GetPlatforms(UCookOnTheFlyServer& COTFS,
+	FInstigator* Instigator, TConstArrayView<const ITargetPlatform*> OrderedPlatforms,
+	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>>* OutBuffer,
+	bool bAllowPartialInstigatorResults)
+{
+	switch (Source)
+	{
+	case EDiscoveredPlatformSet::EmbeddedList:
+		return Platforms;
+	case EDiscoveredPlatformSet::EmbeddedBitField:
+	{
+		check(OutBuffer);
+		OutBuffer->Reset();
+		int32 NumPlatforms = OrderedPlatformBits.Num();
+		check(NumPlatforms == OrderedPlatforms.Num());
+		for (int32 Index = 0; Index < NumPlatforms; ++Index)
+		{
+			if (OrderedPlatformBits[Index])
+			{
+				OutBuffer->Add(OrderedPlatforms[Index]);
+			}
+		}
+		return *OutBuffer;
+	}
+	case EDiscoveredPlatformSet::CopyFromInstigator:
+		Platforms.Reset();
+		check(Instigator);
+		FPackageData::GetReachablePlatformsForInstigator(COTFS, Instigator->Referencer, Platforms,
+			bAllowPartialInstigatorResults);
+		return Platforms;
+	default:
+		checkNoEntry();
+		return Platforms;
+	}
+}
+
+void WriteToCompactBinary(FCbWriter& Writer, const FDiscoveredPlatformSet& Value,
+	TConstArrayView<const ITargetPlatform*> OrderedReplicationPlatforms)
+{
+	Writer.BeginArray();
+	Writer << static_cast<uint8>(Value.Source);
+	switch (Value.Source)
+	{
+	case EDiscoveredPlatformSet::EmbeddedList:
+	{
+		TArray<uint8, TInlineAllocator<ExpectedMaxNumPlatforms>> PlatformIntegers;
+		for (const ITargetPlatform* Platform : Value.Platforms)
+		{
+			if (Platform == CookerLoadingPlatformKey)
+			{
+				PlatformIntegers.Add(MAX_uint8);
+			}
+			else
+			{
+				int32 PlatformIndex = OrderedReplicationPlatforms.IndexOfByKey(Platform);
+				check(0 <= PlatformIndex && PlatformIndex < MAX_uint8);
+				PlatformIntegers.Add(static_cast<uint8>(PlatformIndex));
+			}
+		}
+		Writer << PlatformIntegers;
+		break;
+	}
+	case EDiscoveredPlatformSet::EmbeddedBitField:
+	{
+		int32 NumPlatforms = Value.OrderedPlatformBits.Num();
+		check(OrderedReplicationPlatforms.Num() == NumPlatforms);
+		Writer.BeginArray();
+		for (int32 Index = 0; Index < NumPlatforms; ++Index)
+		{
+			Writer.AddBool(Value.OrderedPlatformBits[Index]);
+		}
+		Writer.EndArray();
+		break;
+	}
+	case EDiscoveredPlatformSet::CopyFromInstigator:
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+	Writer.EndArray();
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPlatformSet& OutValue,
+	TConstArrayView<const ITargetPlatform*> OrderedReplicationPlatforms)
+{
+	FCbArrayView FieldAsArray = Field.AsArrayView();
+	if (Field.HasError())
+	{
+		return false;
+	}
+	FCbFieldViewIterator It = FieldAsArray.CreateViewIterator();
+	uint8 SourceAsInt;
+	if (!LoadFromCompactBinary(*It++, SourceAsInt) || SourceAsInt >= static_cast<uint8>(EDiscoveredPlatformSet::Count))
+	{
+		return false;
+	}
+	OutValue = FDiscoveredPlatformSet(static_cast<EDiscoveredPlatformSet>(SourceAsInt));
+
+	bool bOk = true;
+	switch (OutValue.Source)
+	{
+	case EDiscoveredPlatformSet::EmbeddedList:
+	{
+		TArray<uint8, TInlineAllocator<ExpectedMaxNumPlatforms>> PlatformIntegers;
+		if (!LoadFromCompactBinary(*It++, PlatformIntegers))
+		{
+			bOk = false;
+		}
+		OutValue.Platforms.Reserve(PlatformIntegers.Num());
+		for (uint8 PlatformInteger : PlatformIntegers)
+		{
+			if (PlatformInteger == MAX_uint8)
+			{
+				OutValue.Platforms.Add(CookerLoadingPlatformKey);
+			}
+			else
+			{
+				if (PlatformInteger < OrderedReplicationPlatforms.Num())
+				{
+					OutValue.Platforms.Add(OrderedReplicationPlatforms[PlatformInteger]);
+				}
+				else
+				{
+					bOk = false;
+				}
+			}
+		}
+		break;
+	}
+	case EDiscoveredPlatformSet::EmbeddedBitField:
+	{
+		FCbArrayView BitArrayField = (*It++).AsArrayView();
+		int32 NumPlatforms = BitArrayField.Num();
+		if (NumPlatforms != OrderedReplicationPlatforms.Num())
+		{
+			bOk = false;
+			OutValue = FDiscoveredPlatformSet(EDiscoveredPlatformSet::EmbeddedList);
+		}
+		else
+		{
+			OutValue.OrderedPlatformBits.Init(false, NumPlatforms);
+			int32 Index = 0;
+			for (FCbFieldView BoolField : BitArrayField)
+			{
+				OutValue.OrderedPlatformBits[Index++] = BoolField.AsBool(false);
+			}
+		}
+		break;
+	}
+	case EDiscoveredPlatformSet::CopyFromInstigator:
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+	return bOk;
 }
 
 }

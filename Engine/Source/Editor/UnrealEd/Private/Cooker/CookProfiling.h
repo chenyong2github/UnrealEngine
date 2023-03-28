@@ -156,7 +156,6 @@ extern bool IsFastCook;
 extern bool IsUnversioned;
 
 // Stats tracked through FAutoRegisterCallback
-extern uint32 NumPreloadedDependencies;
 extern std::atomic<int32> NumDetectedLoads;
 extern int32 NumRequestedLoads;
 extern uint32 NumPackagesIterativelySkipped;

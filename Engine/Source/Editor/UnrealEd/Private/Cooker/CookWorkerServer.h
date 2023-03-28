@@ -23,7 +23,7 @@ class ITargetPlatform;
 struct FProcHandle;
 namespace UE::CompactBinaryTCP { struct FMarshalledMessage; }
 namespace UE::Cook { class FCookDirector; }
-namespace UE::Cook { struct FDiscoveredPackage; }
+namespace UE::Cook { struct FDiscoveredPackageReplication; }
 namespace UE::Cook { enum class ECookDirectorThread : uint8; };
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FPackageResultsMessage; }
@@ -167,7 +167,7 @@ private:
 	/** Add results from the client to the local CookOnTheFlyServer. */
 	void RecordResults(FPackageResultsMessage& Message);
 	void LogInvalidMessage(const TCHAR* MessageTypeName);
-	void AddDiscoveredPackage(FDiscoveredPackage&& DiscoveredPackage);
+	void QueueDiscoveredPackage(FDiscoveredPackageReplication&& DiscoveredPackage);
 
 	// Lock guarding access to all data on *this
 	mutable FCriticalSection CommunicationLock;
@@ -176,6 +176,7 @@ private:
 	TArray<FPackageData*> PackagesToAssign;
 	TSet<FPackageData*> PendingPackages;
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;
+	TArray<ITargetPlatform*> OrderedSessionAndSpecialPlatforms;
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
 	UE::CompactBinaryTCP::FReceiveBuffer ReceiveBuffer;
 	TRingBuffer<UE::CompactBinaryTCP::FMarshalledMessage> ReceiveMessages;
@@ -201,9 +202,13 @@ struct FAssignPackageData
 {
 	FConstructPackageData ConstructData;
 	FInstigator Instigator;
+	FDiscoveredPlatformSet NeedCookPlatforms;
 };
-FCbWriter& operator<<(FCbWriter& Writer, const FAssignPackageData& AssignData);
-bool LoadFromCompactBinary(FCbFieldView Field, FAssignPackageData& AssignData);
+
+void WriteToCompactBinary(FCbWriter& Writer, const FAssignPackageData& AssignData,
+	TConstArrayView<const ITargetPlatform*> OrderedSessionPlatforms);
+bool LoadFromCompactBinary(FCbFieldView Field, FAssignPackageData& AssignData, 
+	TConstArrayView<const ITargetPlatform*> OrderedSessionPlatforms);
 FCbWriter& operator<<(FCbWriter& Writer, const FInstigator& Instigator);
 bool LoadFromCompactBinary(FCbFieldView Field, FInstigator& Instigator);
 
@@ -220,6 +225,7 @@ public:
 
 public:
 	TArray<FAssignPackageData> PackageDatas;
+	TConstArrayView<const ITargetPlatform*> OrderedSessionPlatforms;
 	static FGuid MessageType;
 };
 
@@ -300,14 +306,18 @@ private:
 };
 
 /** Information about a discovered package sent from a CookWorker to the Director. */
-struct FDiscoveredPackage
+struct FDiscoveredPackageReplication
 {
 	FName PackageName;
 	FName NormalizedFileName;
 	FInstigator Instigator;
+	FDiscoveredPlatformSet Platforms;
 };
-FCbWriter& operator<<(FCbWriter& Writer, const FDiscoveredPackage& Package);
-bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPackage& OutPackage);
+
+void WriteToCompactBinary(FCbWriter& Writer, const FDiscoveredPackageReplication& Package,
+	TConstArrayView<const ITargetPlatform*> OrderedSessionAndSpecialPlatforms);
+bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPackageReplication& OutPackage,
+	TConstArrayView<const ITargetPlatform*> OrderedSessionAndSpecialPlatforms);
 
 /**
  * Message from CookWorker to Director that reports dependency packages discovered during load/save of
@@ -321,7 +331,8 @@ public:
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 public:
-	TArray<FDiscoveredPackage> Packages;
+	TArray<FDiscoveredPackageReplication> Packages;
+	TConstArrayView<const ITargetPlatform*> OrderedSessionAndSpecialPlatforms;
 	static FGuid MessageType;
 };
 

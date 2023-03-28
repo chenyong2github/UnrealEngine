@@ -27,6 +27,7 @@ namespace UE::Cook { struct FBeginCookConfigSettings; }
 namespace UE::Cook { struct FCookByTheBookOptions; }
 namespace UE::Cook { struct FCookOnTheFlyOptions; }
 namespace UE::Cook { struct FInitializeConfigSettings; }
+namespace UE::Cook { struct FInstigator; }
 
 FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FBeginCookConfigSettings& Value);
 bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FBeginCookConfigSettings& OutValue);
@@ -41,6 +42,8 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FInitializeConfigSettin
 #define DEBUG_COOKONTHEFLY 0
 
 LLM_DECLARE_TAG(Cooker_CachedPlatformData);
+
+inline constexpr uint32 ExpectedMaxNumPlatforms = 32;
 
 /** A BaseKeyFuncs for Maps and Sets with a quicker hash function for pointers than TDefaultMapKeyFuncs */
 template<typename KeyType>
@@ -141,7 +144,8 @@ namespace UE::Cook
 
 	enum class ESuppressCookReason : uint8
 	{
-		InvalidSuppressCookReason,
+		Invalid, // Used by containers for values not in container, not used in cases for passing between containers
+		NotSuppressed,
 		AlreadyCooked,
 		NeverCook,
 		DoesNotExistInWorkspaceDomain,
@@ -451,6 +455,60 @@ struct FCookOnTheFlyOptions
 	friend bool ::LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookOnTheFlyOptions& Value);
 };
 
+/** Enum used by FDiscoveredPlatformSet to specify what source it will use for the set of platforms. */
+enum class EDiscoveredPlatformSet
+{
+	EmbeddedList,
+	EmbeddedBitField,
+	CopyFromInstigator,
+	Count,
+};
+
+/**
+ * A provider of a set of platforms to mark reachable for a discovered package. It might be an embedded list or
+ * it might hold instructions for where to get the platforms from other context data.
+ */
+struct FDiscoveredPlatformSet
+{
+	FDiscoveredPlatformSet(EDiscoveredPlatformSet InSource = EDiscoveredPlatformSet::EmbeddedList);
+	explicit FDiscoveredPlatformSet(TConstArrayView<const ITargetPlatform*> InPlatforms);
+	explicit FDiscoveredPlatformSet(const TBitArray<>& InOrderedPlatformBits);
+	~FDiscoveredPlatformSet();
+	FDiscoveredPlatformSet(const FDiscoveredPlatformSet& Other);
+	FDiscoveredPlatformSet(FDiscoveredPlatformSet&& Other);
+	FDiscoveredPlatformSet& operator=(const FDiscoveredPlatformSet& Other);
+	FDiscoveredPlatformSet& operator=(FDiscoveredPlatformSet&& Other);
+
+	EDiscoveredPlatformSet GetSource() const { return Source; }
+
+	void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
+	void OnRemoveSessionPlatform(const ITargetPlatform* Platform, int32 RemovedIndex);
+	void OnPlatformAddedToSession(const ITargetPlatform* Platform);
+	TConstArrayView<const ITargetPlatform*> GetPlatforms(UCookOnTheFlyServer& COTFS,
+		FInstigator* Instigator, TConstArrayView<const ITargetPlatform*> OrderedPlatforms,
+		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>>* OutBuffer,
+		bool bAllowPartialInstigatorResults=false);
+	/** If the current type is EmbeddedBitField, change it to EmbeddedList. */
+	void ConvertFromBitfield(TConstArrayView<const ITargetPlatform*> OrderedPlatforms);
+	/** If the current type is EmbeddedList, change it to EmbeddedBitfield. Asserts if the type is already EmbeddedBitfield. */
+	void ConvertToBitfield(TConstArrayView<const ITargetPlatform*> OrderedPlatforms);
+
+private:
+	void DestructUnion();
+	void ConstructUnion();
+	friend void WriteToCompactBinary(FCbWriter& Writer, const FDiscoveredPlatformSet& Value,
+		TConstArrayView<const ITargetPlatform*> OrderedSessionPlatforms);
+	friend bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPlatformSet& OutValue,
+		TConstArrayView<const ITargetPlatform*> OrderedSessionPlatforms);
+
+	union 
+	{
+		TArray<const ITargetPlatform*> Platforms;
+		TBitArray<> OrderedPlatformBits;
+	};
+	EDiscoveredPlatformSet Source;
+};
+
 }
 
 
@@ -519,7 +577,6 @@ bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorker& Value
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
 LLM_DECLARE_TAG(Cooker);
 
-inline constexpr uint32 ExpectedMaxNumPlatforms = 32;
 #define REMAPPED_PLUGINS TEXTVIEW("RemappedPlugins")
 extern float GCookProgressWarnBusyTime;
 

@@ -1646,10 +1646,10 @@ void FCookDirector::FRetractionHandler::ReassignPackages(const FWorkerId& FromWo
 	if (WorkersToSplitOver.IsEmpty())
 	{
 		// Send the packages back to the Director for reassignment
-		FPackageDataSet& UnclusteredRequests = Director.COTFS.PackageDatas->GetRequestQueue().GetUnclusteredRequests();
+		FPackageDataSet& RestartedRequests = Director.COTFS.PackageDatas->GetRequestQueue().GetRestartedRequests();
 		for (FPackageData* PackageData : AssignmentPackages)
 		{
-			UnclusteredRequests.Add(PackageData);
+			RestartedRequests.Add(PackageData);
 		}
 		// MPCOOKTODO: Add a method to PumpRequests long enough to assign the packages
 		UE_LOG(LogCook, Display, TEXT("%d packages retracted from %s. No workers are currently idle so the packages were assigned evenly to all CookWorkers."),

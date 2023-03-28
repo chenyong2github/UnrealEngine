@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/BitArray.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/ContainersFwd.h"
 #include "Containers/Set.h"
@@ -16,6 +17,7 @@
 #include "Containers/MpscQueue.h"
 #include "Containers/RingBuffer.h"
 #include "Cooker/CookTypes.h"
+#include "Cooker/TypedBlockAllocator.h"
 #include "HAL/CriticalSection.h"
 #include "TargetDomain/TargetDomainUtils.h"
 #include "Templates/UniquePtr.h"
@@ -28,13 +30,15 @@ class ICookedPackageWriter;
 class ITargetPlatform;
 class UCookOnTheFlyServer;
 namespace UE::Cook { class FRequestQueue; }
+namespace UE::Cook { struct FDiscoveryQueueElement; }
 namespace UE::Cook { struct FFilePlatformRequest; }
+namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FPackageDatas; }
+namespace UE::Cook { struct FPackagePlatformData; }
 namespace UE::Cook { struct FPackageTracker; }
 
 namespace UE::Cook
 {
-struct FPackageData;
 
 /**
  * A group of external requests sent to CookOnTheFlyServer's tick loop. Transitive dependencies are found and all of the
@@ -43,18 +47,10 @@ struct FPackageData;
 class FRequestCluster
 {
 public:
-	/** The cluster's data about a package from the external requests or discovered dependency. */
-	struct FFileNameRequest
-	{
-		FName FileName;
-		FInstigator Instigator;
-		FCompletionCallback CompletionCallback;
-		bool bUrgent;
-
-		FFileNameRequest(FFilePlatformRequest&& FileRequest, bool bInUrgent);
-	};
-	explicit FRequestCluster(UCookOnTheFlyServer& COTFS, TArray<const ITargetPlatform*>&& Platforms);
-	explicit FRequestCluster(UCookOnTheFlyServer& COTFS, TConstArrayView<const ITargetPlatform*> Platforms);
+	FRequestCluster(UCookOnTheFlyServer& COTFS, TArray<FFilePlatformRequest>&& InRequests,
+		bool bInExternalRequestsAreUrgent);
+	FRequestCluster(UCookOnTheFlyServer& COTFS, FPackageDataSet&& InRequests);
+	FRequestCluster(UCookOnTheFlyServer& COTFS, TRingBuffer<FDiscoveryQueueElement>& DiscoveryQueue);
 	FRequestCluster(FRequestCluster&&) = default;
 
 	/**
@@ -63,11 +59,15 @@ public:
 	 */
 	void Process(const FCookerTimer& CookerTimer, bool& bOutComplete);
 
-	TConstArrayView<const ITargetPlatform*> GetPlatforms() const { return Platforms; }
 	/** PackageData container interface: return the number of PackageDatas owned by this container. */
 	int32 NumPackageDatas() const;
 	/** PackageData container interface: remove the PackageData from this container. */
 	void RemovePackageData(FPackageData* PackageData);
+	void OnNewReachablePlatforms(FPackageData* PackageData);
+	void OnPlatformAddedToSession(const ITargetPlatform* TargetPlatform);
+	void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform);
+	void RemapTargetPlatforms(TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
+
 	/** PackageData container interface: whether the PackageData is owned by this container. */
 	bool Contains(FPackageData* PackageData) const;
 	/**
@@ -80,14 +80,6 @@ public:
 		TArray<TPair<FPackageData*, ESuppressCookReason>>& OutRequestsToDemote,
 		TMap<FPackageData*, TArray<FPackageData*>>& OutRequestGraph);
 
-	/**
-	 * Create clusters(s) for all the given name or packagedata requests and append them to OutClusters.
-	 * Multiple clusters are necessary if the list of platforms differs between requests.
-	 */
-	static void AddClusters(UCookOnTheFlyServer& COTFS, TArray<FFilePlatformRequest>&& InRequests,
-		bool bRequestsAreUrgent, TRingBuffer<FRequestCluster>& OutClusters);
-	static void AddClusters(UCookOnTheFlyServer& COTFS, FPackageDataSet& UnclusteredRequests,
-		TRingBuffer<FRequestCluster>& OutClusters, FRequestQueue& QueueForReadyRequests);
 	static TConstArrayView<FName> GetLocalizationReferences(FName PackageName, UCookOnTheFlyServer& InCOTFS);
 
 private:
@@ -100,52 +92,40 @@ private:
 		bool bVisited = false;
 	};
 
+	/** Per-platform data in an active query for a vertex's dependencies/previous incremental results. */
+	struct FQueryPlatformData
+	{
+		/** Data looked up about the package's dependencies from the PackageWriter's previous cook of the package */
+		UE::TargetDomain::FCookAttachments CookAttachments;
+		/**
+		 * Platforms present in the FVertexQueryData are recorded as a an array of all possible platforms, with
+		 * bActive=true for the ones that are present.
+		 */
+		bool bActive = false;
+	};
+
+	/** Input/output data for an active query for a vertex's dependencies/previous incrementa results. */
+	struct FVertexQueryData
+	{
+		void Reset();
+
+		FName PackageName;
+		/** Settings and Results for each of the GraphSearch's FetchPlatforms. Element n corresponds to FetchPlatform n. */
+		TArray<FQueryPlatformData> Platforms;
+		/** Number of asynchronous results from PackageWriter still being waited on. */
+		std::atomic<uint32> PendingPlatforms;
+	};
+
 	/**
-	 * GraphSearch data for an in-progress package. VertexData is created when a package is discovered
-	 * from the dependencies of a referencer package. It is in-progress while its own dependencies
-	 * are looked up asynchronously. The VertexData is freed after those dependencies have been logged
-	 * and cook flags have been set on the FPackageData for the package.
+	 * GraphSearch data for an package referenced by the cluster. VertexData is created when a package is discovered
+	 * from the dependencies of a referencer package. It remains allocated for the rest of the Cluster's lifetime.
 	 */
 	struct FVertexData
 	{
-		enum ESkipDependenciesType
-		{
-			ESkipDependencies
-		};
-		enum EAsyncType
-		{
-			EAsync
-		};
-		FVertexData(EAsyncType, int32 NumPlatforms);
-		FVertexData(ESkipDependenciesType, FPackageData& PackageData, FRequestCluster& Cluster);
-		void Reset();
-
-		/** Data looked up about the package's dependencies from the PackageWriter's previous cook of the package */
-		TArray<UE::TargetDomain::FCookAttachments> CookAttachments;
-		/** Copy of PackageData->GetPackageName() */
-		FName PackageName;
-		/**
-		 * Not dereferenceable since it may be removed while in use on async threads.
-		 * Used as an identifier when the vertex is returned to the process thread.
-		 */
-		UE::Cook::FPackageData* PackageData;
-		/** Number of asynchronous results from PackageWriter still being waited on. */
-		std::atomic<uint32> PendingPlatforms;
-		/** The reason it is not cookable if !bCookable, or ESuppressCookReason::InvalidSuppressCookReason if bCookable. */
-		ESuppressCookReason SuppressCookReason;
-		/**
-		 * Written/Read when VertexData is allocated for a package name.
-		 * It is Set to false if the packagename should not be part of the graph search.
-		 */
-		bool bValid : 1;
-		/** True if the package is from the Cluster's initial requests. Initial requests are always visited. */
-		bool bInitialRequest : 1;
-		/** True if the package is cookable. Non-cookable packages are demoted back to idle. */
-		bool bCookable : 1;
-		/** True if any dependencies should be explored. */
-		bool bExploreDependencies : 1;
-		/** True if soft dependencies should be explored. */
-		bool bExploreSoftDependencies : 1;
+		UE::Cook::FPackageData* PackageData = nullptr;
+		/** Non-null if there as a query active for the vertex's dependencies/previous incremental results. */
+		FVertexQueryData* QueryData = nullptr;
+		bool bAnyCookable = true;
 	};
 
 	/**
@@ -164,39 +144,40 @@ private:
 		void RecordCacheResults(FName PackageName, int32 PlatformIndex,
 			UE::TargetDomain::FCookAttachments&& CookAttachments);
 
-		struct FScratch
+		struct FPlatformData
 		{
 			TArray<FName> PackageNames;
 		};
 
-		/** Scratch-space variables that are reused to avoid allocations. */
-		FScratch Scratch;
+		TArray<FPlatformData> PlatformDatas;
 		/**
-		 * Map of the requested vertices by name. The keys in the map are created during Send and are
-		 * read-only afterwards (so the map is multithread-readable). The value for a given 
-		 * key is deleted when the results for the vertex are received and the FVertexData is
-		 * moved to CompletedVertices on the FGraphSearch.
+		 * Map of the requested vertices by name. The map is created during Send and is
+		 * read-only afterwards (so the map is multithread-readable). The Vertices pointed to have their own
+		 * rules for what is accessible from the async work threads.
 		 * */
-		TMap<FName, TUniquePtr<FVertexData>> Vertices;
+		TMap<FName, FVertexData*> Vertices;
 		/** Accessor for the GraphSearch; only thread-safe functions and variables should be accessed. */
 		FGraphSearch& ThreadSafeOnlyVars;
-		/** Copy of NumPlatforms from GraphSearch; read-only */
-		int32 NumPlatforms;
 		/** The number of vertices that are still awaiting results. This batch is closed when PendingVertices == 0. */
 		std::atomic<uint32> PendingVertices;
 	};
 
-	/** A scope to notify GraphSearch that more vertices are coming and it should wait for a full batch to send. */
-	struct FHasPendingVerticesScope
+	/** Platform information that is constant (usually, some events can change it) during the cluster's lifetime. */
+	struct FFetchPlatformData
 	{
-		FHasPendingVerticesScope(FGraphSearch& InGraphSearch);
-		~FHasPendingVerticesScope();
-
-		FGraphSearch& GraphSearch;
+		const ITargetPlatform* Platform = nullptr;
+		ICookedPackageWriter* Writer = nullptr;
+		bool bIsPlatformAgnosticPlatform = false;
+		bool bIsCookerLoadingPlatform = false;
 	};
+	// Platforms are listed in various arrays, always in the same order. Some special case entries exist and are added
+	// at specified indices in the arrays.
+	static constexpr int32 PlatformAgnosticPlatformIndex = 0;
+	static constexpr int32 CookerLoadingPlatformIndex = 1;
+	static constexpr int32 FirstSessionPlatformIndex = 2;
 
 	/**
-	 * Variables and functions that are only used during FetchDependencies. FetchDependencies executes a graph search
+	 * Variables and functions that are only used during PumpExploration. PumpExploration executes a graph search
 	 * over the graph of packages (vertices) and their hard/soft dependencies upon other packages (edges). 
 	 * Finding the dependencies for each package uses previous cook results and is executed asynchronously.
 	 * After the graph is searched, packages are sorted topologically from leaf to root, so that packages are
@@ -210,34 +191,21 @@ private:
 		~FGraphSearch();
 
 		// All public functions are callable only from the process thread
+		/** Skip the entire GraphSearch and just visit the Cluster's current OwnedPackageDatas. */
+		void VisitWithoutDependencies();
+		/** Start a search from the Cluster's current OwnedPackageDatas. */
+		void StartSearch();
+		void RemovePackageData(FPackageData* PackageData);
+		void OnNewReachablePlatforms(FPackageData* PackageData);
+
 		/**
-		 * Called from the Process Thread to consume FVertexData that have finished their async work and are
-		 * ready for the processing that must happen on the process thread
+		 * Visit newly reachable PackageDatas, queue a fetch of their dependencies, harvest new reachable PackageDatas
+		 * from the results of the fetch.
 		 */
-		void Poll(TArray<TUniquePtr<FVertexData>>& OutCompletedVertices, bool& bOutIsDone);
-		/** Sleep (with timeout) until results are ready in Poll */
-		void WaitForPollAvailability(double WaitTimeSeconds);
-		/** Log diagnostic information about the search, e.g. timeout warnings. */
-		void UpdateDisplay();
-		/** AddVertices that need async processing */
-		void AddVertices(TArray<TUniquePtr<FVertexData>>&& Vertices);
-		/**
-		 * Record a vertex's cook flags and dependencies on the PackageData.
-		 * Create and send any new vertex dependencies for async work. Called from processs-thread only.
-		 */
-		void VisitVertex(const FVertexData& VertexData);
-		/**
-		 * Find the PackageData for the given PackageName if it has been visited before.
-		 * If not, construct a new vertex to be async processed and visited.
-		 */
-		FPackageData* FindOrAddVertex(FName PackageName, FPackageData* PackageData, bool bInitialRequest,
-			bool bHardDependency, const FInstigator& InInstigator, TUniquePtr<FVertexData>& OutNewVertex);
-		/** Allocate memory for a new vertex; returned vertex is not yet constructed. */
-		TUniquePtr<FVertexData> AllocateVertex();
-		/** Free an allocated vertex. */ 
-		void FreeVertex(TUniquePtr<FVertexData>&& Batch);
-		/** PackageDatas found during the graph search, including the initial requests. */
-		TArray<FPackageData*>& GetTransitiveRequests();
+		void TickExploration(bool& bOutDone);
+		/** Sleep (with timeout) until work is available in TickExploration */
+		void WaitForAsyncQueue(double WaitTimeSeconds);
+
 		/**
 		 * Edges in the dependency graph found during graph search.
 		 * Only includes PackageDatas that are part of this cluster
@@ -245,26 +213,56 @@ private:
 		TMap<FPackageData*, TArray<FPackageData*>>& GetGraphEdges();
 
 	private:
+		// Scratch data structures used to avoid dynamic allocations; lifetime of each use is only on the stack
+		struct FScratchPlatformDependencyBits
+		{
+			TBitArray<> HasPlatformByIndex;
+			bool bHardDependency = false;
+		};
 		struct FScratch
 		{
-			TArray<FName> HardDependencies;
-			TArray<FName> SoftDependencies;
-			TArray<TUniquePtr<FVertexData>> NewVertices;
+			TArray<FName> HardGameDependencies;
+			TArray<FName> SoftGameDependencies;
+			TArray<FName> CookerLoadingDependencies;
+			TMap<FName, FScratchPlatformDependencyBits> PlatformDependencyMap;
+			TSet<FName> HardDependenciesSet;
 			TSet<FName> SkippedPackages;
 		};
 		friend struct FQueryVertexBatch;
-		friend struct FHasPendingVerticesScope;
+		friend struct FVertexData;
 		
 		// Functions callable only from the Process thread
-		void MarkExplored(FPackageData& PackageData, bool bCookable);
+		/** Log diagnostic information about the search, e.g. timeout warnings. */
+		void UpdateDisplay();
+
+		/** Asynchronously fetch the dependencies and previous incremental results for a vertex */
+		void QueueEdgesFetch(FVertexData& Vertex, TConstArrayView<const ITargetPlatform*> Platforms);
+		/** Calculate and store the vertex's PackageData's cookability for each reachable platform. Kick off edges fetch. */
+		void VisitVertex(FVertexData& VertexData, bool bSkipDependencies=false);
+		/** Calculate and store the vertex's PackageData's cookability for the platform. */
+		void VisitVertexForPlatform(FVertexData& VertexData, const ITargetPlatform* Platform,
+			FPackagePlatformData& PlatformData, ESuppressCookReason& AccumulatedSuppressCookReason);
+		 /** Process the results from async edges fetch and queue the found dependencies-for-visiting. */
+		void ExploreVertexEdges(FVertexData& VertexData);
+
+		/** Find or add a Vertex for PackageName. If PackageData is provided, use it, otherwise look it up. */
+		FVertexData& FindOrAddVertex(FName PackageName);
+		FVertexData& FindOrAddVertex(FName PackageName, FPackageData& PackageData);
+		/** Batched allocation for vertices. */
+		FVertexData* AllocateVertex();
+		/** Batched allocation and free for QueryData. */
+		FVertexQueryData* AllocateQueryData();
+		void FreeQueryData(FVertexQueryData* QueryData);
+		/** Queue a vertex for visiting and dependency traversal */
+		void AddToFrontier(FVertexData& Vertex);
 
 		// Functions that must be called only within the Lock
 		/** Allocate memory for a new batch; returned batch is not yet constructed. */
-		TUniquePtr<FQueryVertexBatch> AllocateBatch();
+		FQueryVertexBatch* AllocateBatch();
 		/** Free an allocated batch. */ 
-		void FreeBatch(TUniquePtr<FQueryVertexBatch>&& Batch);
+		void FreeBatch(FQueryVertexBatch* Batch);
 		/** Pop vertices from VerticesToRead into batches, if there are enough of them. */
-		TArray<FQueryVertexBatch*> CreateAvailableBatches();
+		void CreateAvailableBatches(bool bAllowIncompleteBatch);
 		/** Pop a single batch vertices from VerticesToRead. */
 		FQueryVertexBatch* CreateBatchOfPoppedVertices(int32 BatchSize);
 
@@ -273,59 +271,58 @@ private:
 		void OnBatchCompleted(FQueryVertexBatch* Batch);
 		/** Notify process thread of vertex completion. */
 		void OnVertexCompleted();
-		/**
-		 * Get the number of platforms sent to FetchCookAttachments.
-		 * This includes +1 for null platform that fetches platform-agnostic data.
-		 **/
-		int32 GetNumPlatforms() const;
+
+		/** Total number of platforms known to the cluster, including the special cases. */
+		int32 NumFetchPlatforms() const { return FetchPlatforms.Num(); }
+		/** Total number of non-special-case platforms known to the cluster.Identical to COTFS's session platforms */
+		int32 NumSessionPlatforms() const { return FetchPlatforms.Num() - 2; }
 
 	private:
 		// Variables that are read-only during multithreading
+		TArray<FFetchPlatformData> FetchPlatforms;
 		FRequestCluster& Cluster;
 		bool bCookAttachmentsEnabled = false;
 
 		// Variables that are accessible only from the Process thread
 		/** Scratch-space variables that are reused to avoid allocations. */
 		FScratch Scratch;
-		TArray<FPackageData*> TransitiveRequests;
 		TMap<FPackageData*, TArray<FPackageData*>> GraphEdges;
-		/** Which PackageNames have already been inspected, and either discarded or a Vertex created for them. */
-		TMap<FName, FVisitStatus> Visited;
-		TArray<TUniquePtr<FVertexData>> VertexAllocationPool;
-		TRingBuffer<TUniquePtr<FVertexData>> VerticesToRead;
+		TMap<FName, FVertexData*> Vertices;
+		TSet<FVertexData*> Frontier;
+		TTypedBlockAllocatorFreeList<FVertexData> VertexAllocator;
+		TTypedBlockAllocatorResetList<FVertexQueryData> VertexQueryAllocator;
+		/** Vertices queued for async processing that are not yet numerous enough to fill a batch. */
+		TRingBuffer<FVertexData*> PreAsyncQueue;
 		/** Time-tracker for timeout warnings in Poll */
 		double LastActivityTime;
-		/** A stack-scope variable to control automatic CreateAvailableBatches behavior. */
-		bool bHasPendingVertices = false;
 
 		// Variables that are accessible from multiple threads, guarded by Lock
 		FCriticalSection Lock;
-		TArray<TUniquePtr<FQueryVertexBatch>> BatchAllocationPool;
-		TMap<FQueryVertexBatch*, TUniquePtr<FQueryVertexBatch>> Batches;
+		TTypedBlockAllocatorResetList<FQueryVertexBatch> BatchAllocator;
+		TSet<FQueryVertexBatch*> AsyncQueueBatches;
 
 		// Variables that are accessible from multiple threads, internally threadsafe
-		TMpscQueue<TUniquePtr<FVertexData>> CompletedVertices;
-		FEventRef PollReadyEvent;
+		TMpscQueue<FVertexData*> AsyncQueueResults;
+		FEventRef AsyncResultsReadyEvent;
 	};
 
-	void Initialize(UCookOnTheFlyServer& COTFS);
+private:
+	explicit FRequestCluster(UCookOnTheFlyServer& COTFS);
+	void ReserveInitialRequests(int32 RequestNum);
+	void PullIntoCluster(FPackageData& PackageData);
 	void FetchPackageNames(const FCookerTimer& CookerTimer, bool& bOutComplete);
-	void FetchDependencies(const FCookerTimer& CookerTimer, bool& bOutComplete);
+	void PumpExploration(const FCookerTimer& CookerTimer, bool& bOutComplete);
 	void StartAsync(const FCookerTimer& CookerTimer, bool& bOutComplete);
-	bool TryTakeOwnership(FPackageData& PackageData, bool bUrgent, FCompletionCallback&& CompletionCallback,
-		const FInstigator& InInstigator);
-	bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData, ESuppressCookReason& OutReason);
-	static bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData,
+	void IsRequestCookable(const ITargetPlatform* TargetPlatform, FName PackageName, FPackageData& PackageData,
+		ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
+	static void IsRequestCookable(const ITargetPlatform* TargetPlatform, FName PackageName, FPackageData& PackageData,
 		FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
 		FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences,
-		TConstArrayView<const ITargetPlatform*> RequestPlatforms, ESuppressCookReason& OutReason);
+		bool bCanSkipEditorReferencedPackagesWhenCooking,
+		ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
 
-	TArray<FFileNameRequest> InRequests;
-	TArray<FPackageData*> Requests;
-	TArray<TPair<FPackageData*, ESuppressCookReason>> RequestsToDemote;
-	TArray<const ITargetPlatform*> Platforms;
-	TArray<ICookedPackageWriter*> PackageWriters;
-	FPackageDataSet OwnedPackageDatas;
+	TArray<FFilePlatformRequest> FilePlatformRequests;
+	TFastPointerMap<FPackageData*, ESuppressCookReason> OwnedPackageDatas;
 	TMap<FPackageData*, TArray<FPackageData*>> RequestGraph;
 	FString DLCPath;
 	TUniquePtr<FGraphSearch> GraphSearch; // Needs to be dynamic-allocated because of large alignment
@@ -334,7 +331,7 @@ private:
 	IAssetRegistry& AssetRegistry;
 	FPackageTracker& PackageTracker;
 	FBuildDefinitions& BuildDefinitions;
-	int32 NextRequest = 0;
+	bool bExternalRequestsAreUrgent = false;
 	bool bAllowHardDependencies = true;
 	bool bAllowSoftDependencies = true;
 	bool bHybridIterativeEnabled = true;

@@ -178,6 +178,7 @@ namespace UE::Cook
 	struct FCookerTimer;
 	struct FCookGenerationInfo;
 	struct FCookSavePackageContext;
+	struct FDiscoveredPlatformSet;
 	struct FGeneratorPackage;
 	struct FInitializeConfigSettings;
 	struct FPackageData;
@@ -516,38 +517,30 @@ private:
 	 * Report the number of requests that were completed (either skipped or successfully saved or failed to save)
 	 */
 	void PumpSaves(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy);
-	/**
-	 * Inspect the given package and queue it for saving if necessary.
-	 *
-	 * @param Package				The package to be considered for saving.
-	 * @param bOutWasInProgress		Report whether the package was already in progress.
-	 * @return						Returns the PackageData for this queued package.
-	 */
-	UE::Cook::FPackageData* QueueDiscoveredPackage(UPackage* Package, UE::Cook::FInstigator&& Instigator,
-		bool* bOutWasInProgress = nullptr);
+
 	/**
 	 * Inspect the given package and queue it for saving if necessary.
 	 *
 	 * @param PackageData			The PackageData to be considered for saving.
-	 * @param bLoadReady			If true send on to LoadReady, otherwise add it at the Request stage.
 	 */
-	void QueueDiscoveredPackageData(UE::Cook::FPackageData& PackageData, UE::Cook::FInstigator&& Instigator,
-		bool bLoadReady = false);
+	void QueueDiscoveredPackage(UE::Cook::FPackageData& PackageData, UE::Cook::FInstigator&& Instigator, 
+		UE::Cook::FDiscoveredPlatformSet&& ReachablePlatforms);
+	void QueueDiscoveredPackageOnDirector(UE::Cook::FPackageData& PackageData, UE::Cook::FInstigator&& Instigator,
+		UE::Cook::FDiscoveredPlatformSet&& ReachablePlatforms);
 
 	/** Called when a package is cancelled and returned to idle. Notifies CookDirector when on a CookWorker. */
 	void DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags, UE::Cook::ESuppressCookReason Reason);
 	/** Called when a package completes its save and returns to idle. Notifies the CookDirector when on a CookWorker. */
 	void PromoteToSaveComplete(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags);
 
-	/** If the package filter has changed, call QueueDiscoveredPackage again on each existing package. */
-	void UpdatePackageFilter();
-
 	/**
 	 * Remove all request data about the given platform from any data in the CookOnTheFlyServer.
 	 * Called when a platform is removed from the list of session platforms e.g. because it has not been recently
 	 * used by CookOnTheFly. Does not modify Cooked platforms.
 	 */
-	void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform);
+	void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform, int32 RemovedIndex);
+	/** Update structures that have data per platfrom when COTF adds a new SessionPlatform. */
+	void OnPlatformAddedToSession(const ITargetPlatform* TargetPlatform);
 
 	void InitializePollables();
 	void PumpPollables(UE::Cook::FTickStackData& StackData, bool bIsIdle);
@@ -1404,8 +1397,9 @@ private:
 	/** Data tracking the package currently having calls made (Load/Save/Other) from COTFS. Used for diagnostics. */
 	FActivePackageData ActivePackageData;
 
-	/** True when the which packages we need to cook changes because e.g. a platform was added to the sessionplatforms. */
-	bool bPackageFilterDirty = false;
+	/** Package -> Package dependencies that were hidden and discovered when a package loaded or ran system-specific code. */
+	TMap<FName, TArray<FName>> DiscoveredDependencies;
+
 	/** True when PumpLoads has detected it is blocked on async work and CookOnTheFlyServer should do work elsewhere. */
 	bool bLoadBusy = false;
 	/** True when PumpSaves has detected it is blocked on async work and CookOnTheFlyServer should do work elsewhere. */

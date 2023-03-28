@@ -157,6 +157,10 @@ void FPlatformManager::AddSessionPlatform(UCookOnTheFlyServer& COTFS, FPlatformI
 		return;
 	}
 	SessionPlatforms.Add(TargetPlatform);
+	if (COTFS.bSessionRunning)
+	{
+		COTFS.OnPlatformAddedToSession(TargetPlatform);
+	}
 	COTFS.bSessionRunning = true;
 	bHasSelectedSessionPlatforms = true;
 }
@@ -269,14 +273,17 @@ void FPlatformManager::PruneUnreferencedSessionPlatforms(UCookOnTheFlyServer& Co
 			if (PlatformData->LastReferenceTime > 0. && PlatformData->ReferenceCount == 0
 				&& PlatformData->LastReferenceTime < OldestKeepTime)
 			{
+				int32 RemovedIndex = SessionPlatforms.IndexOfByKey(TargetPlatform);
+				check(RemovedIndex != INDEX_NONE);
+
 				// Mark that the platform no longer needs to be inspected for pruning because we have removed it
 				// from CookOnTheFly's SessionPlatforms
 				PlatformData->LastReferenceTime = 0.;
 
 				// Remove the SessionPlatform
-				CookOnTheFlyServer.OnRemoveSessionPlatform(TargetPlatform);
+				CookOnTheFlyServer.OnRemoveSessionPlatform(TargetPlatform, RemovedIndex);
 
-				SessionPlatforms.Remove(TargetPlatform);
+				SessionPlatforms.RemoveAt(RemovedIndex);
 				if (SessionPlatforms.Num() == 0)
 				{
 					CookOnTheFlyServer.bSessionRunning = false;

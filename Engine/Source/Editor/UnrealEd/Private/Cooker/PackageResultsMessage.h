@@ -121,7 +121,7 @@ private:
 	TArray<FAsyncMessage> AsyncMessages;
 	TArray<FName> ExternalActorDependencies;
 	FName PackageName;
-	/** If failure reason is InvalidSuppressCookReason, it was saved. Otherwise, holds the suppression reason */
+	/** If failure reason is NotSuppressed, it was saved. Otherwise, holds the suppression reason */
 	ESuppressCookReason SuppressCookReason;
 	bool bReferencedOnlyByEditorOnlyData = false;
 

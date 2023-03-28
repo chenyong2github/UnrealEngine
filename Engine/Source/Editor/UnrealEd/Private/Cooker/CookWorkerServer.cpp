@@ -2,6 +2,7 @@
 
 #include "CookWorkerServer.h"
 
+#include "Algo/Find.h"
 #include "Commandlets/AssetRegistryGenerator.h"
 #include "CompactBinaryTCP.h"
 #include "CookDirector.h"
@@ -393,6 +394,9 @@ bool FCookWorkerServer::TryHandleConnectMessage(FWorkerConnectMessage& Message, 
 	HandleReceiveMessagesInternal();
 	const FInitialConfigMessage& InitialConfigMessage = Director.GetInitialConfigMessage();
 	OrderedSessionPlatforms = InitialConfigMessage.GetOrderedSessionPlatforms();
+	OrderedSessionAndSpecialPlatforms.Reset(OrderedSessionPlatforms.Num() + 1);
+	OrderedSessionAndSpecialPlatforms.Append(OrderedSessionPlatforms);
+	OrderedSessionAndSpecialPlatforms.Add(CookerLoadingPlatformKey);
 	SendMessageInLock(InitialConfigMessage);
 	return true;
 }
@@ -602,15 +606,27 @@ void FCookWorkerServer::SendPendingPackages()
 
 	TArray<FAssignPackageData> AssignDatas;
 	AssignDatas.Reserve(PackagesToAssign.Num());
+	TBitArray<> SessionPlatformNeedsCook;
+
 	for (FPackageData* PackageData : PackagesToAssign)
 	{
 		FAssignPackageData& AssignData = AssignDatas.Emplace_GetRef();
 		AssignData.ConstructData = PackageData->CreateConstructData();
 		AssignData.Instigator = PackageData->GetInstigator();
+		SessionPlatformNeedsCook.Init(false, OrderedSessionPlatforms.Num());
+		int32 PlatformIndex = 0;
+		for (const ITargetPlatform* SessionPlatform : OrderedSessionPlatforms)
+		{
+			FPackagePlatformData* PlatformData = PackageData->FindPlatformData(SessionPlatform);
+			SessionPlatformNeedsCook[PlatformIndex++] = PlatformData && PlatformData->NeedsCooking(SessionPlatform);
+		}
+		AssignData.NeedCookPlatforms = FDiscoveredPlatformSet(SessionPlatformNeedsCook);
 	}
 	PendingPackages.Append(PackagesToAssign);
 	PackagesToAssign.Empty();
-	SendMessageInLock(FAssignPackagesMessage(MoveTemp(AssignDatas)));
+	FAssignPackagesMessage AssignPackagesMessage(MoveTemp(AssignDatas));
+	AssignPackagesMessage.OrderedSessionPlatforms = OrderedSessionPlatforms;
+	SendMessageInLock(MoveTemp(AssignPackagesMessage));
 }
 
 void FCookWorkerServer::PumpReceiveMessages()
@@ -683,15 +699,16 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 		else if (Message.MessageType == FDiscoveredPackagesMessage::MessageType)
 		{
 			FDiscoveredPackagesMessage DiscoveredMessage;
+			DiscoveredMessage.OrderedSessionAndSpecialPlatforms = OrderedSessionAndSpecialPlatforms;
 			if (!DiscoveredMessage.TryRead(Message.Object))
 			{
 				LogInvalidMessage(TEXT("FDiscoveredPackagesMessage"));
 			}
 			else
 			{
-				for (FDiscoveredPackage& DiscoveredPackage : DiscoveredMessage.Packages)
+				for (FDiscoveredPackageReplication& DiscoveredPackage : DiscoveredMessage.Packages)
 				{
-					AddDiscoveredPackage(MoveTemp(DiscoveredPackage));
+					QueueDiscoveredPackage(MoveTemp(DiscoveredPackage));
 				}
 			}
 		}
@@ -792,7 +809,7 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 
 		// MPCOOKTODO: Refactor FSaveCookedPackageContext::FinishPlatform and ::FinishPackage so we can call them from here
 		// to reduce duplication
-		if (Result.GetSuppressCookReason() == ESuppressCookReason::InvalidSuppressCookReason)
+		if (Result.GetSuppressCookReason() == ESuppressCookReason::NotSuppressed)
 		{
 			int32 NumPlatforms = OrderedSessionPlatforms.Num();
 			if (Result.GetPlatforms().Num() != NumPlatforms)
@@ -832,25 +849,33 @@ void FCookWorkerServer::LogInvalidMessage(const TCHAR* MessageTypeName)
 		MessageTypeName);
 }
 
-void FCookWorkerServer::AddDiscoveredPackage(FDiscoveredPackage&& DiscoveredPackage)
+void FCookWorkerServer::QueueDiscoveredPackage(FDiscoveredPackageReplication&& DiscoveredPackage)
 {
 	check(TickState.TickThread == ECookDirectorThread::SchedulerThread);
 
-	FPackageData& PackageData = COTFS.PackageDatas->FindOrAddPackageData(DiscoveredPackage.PackageName,
+	FPackageDatas& PackageDatas = *COTFS.PackageDatas;
+	FInstigator& Instigator = DiscoveredPackage.Instigator;
+	FDiscoveredPlatformSet& Platforms = DiscoveredPackage.Platforms;
+	FPackageData& PackageData = PackageDatas.FindOrAddPackageData(DiscoveredPackage.PackageName,
 		DiscoveredPackage.NormalizedFileName);
-	if (PackageData.IsInProgress() || PackageData.HasAnyCookedPlatform())
+
+	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> BufferPlatforms;
+	if (PackageData.HasReachablePlatforms(
+		Platforms.GetPlatforms(COTFS, &Instigator, OrderedSessionAndSpecialPlatforms, &BufferPlatforms,
+			true /* bAllowPartialInstigatorResults */)))
 	{
 		// The CookWorker thought this was a new package, but the Director already knows about it; ignore the report
 		return;
 	}
 
-	if (DiscoveredPackage.Instigator.Category == EInstigator::GeneratedPackage)
+	if (Instigator.Category == EInstigator::GeneratedPackage)
 	{
 		PackageData.SetGenerated(true);
 		PackageData.SetWorkerAssignmentConstraint(GetWorkerId());
 	}
 	Director.ResetFinalIdleHeartbeatFence();
-	COTFS.QueueDiscoveredPackageData(PackageData, MoveTemp(DiscoveredPackage.Instigator));
+	Platforms.ConvertFromBitfield(OrderedSessionAndSpecialPlatforms);
+	COTFS.QueueDiscoveredPackageOnDirector(PackageData, MoveTemp(Instigator), MoveTemp(Platforms));
 }
 
 FCookWorkerServer::FTickState::FTickState()
@@ -884,29 +909,50 @@ FAssignPackagesMessage::FAssignPackagesMessage(TArray<FAssignPackageData>&& InPa
 
 void FAssignPackagesMessage::Write(FCbWriter& Writer) const
 {
-	Writer << "P" << PackageDatas;
+	Writer.BeginArray("P");
+	for (const FAssignPackageData& PackageData : PackageDatas)
+	{
+		WriteToCompactBinary(Writer, PackageData, OrderedSessionPlatforms);
+	}
+	Writer.EndArray();
 }
 
 bool FAssignPackagesMessage::TryRead(FCbObjectView Object)
 {
-	return LoadFromCompactBinary(Object["P"], PackageDatas);
+	bool bOk = true;
+	PackageDatas.Reset();
+	for (FCbFieldView PackageField : Object["P"])
+	{
+		FAssignPackageData& PackageData = PackageDatas.Emplace_GetRef();
+		if (!LoadFromCompactBinary(PackageField, PackageData, OrderedSessionPlatforms))
+		{
+			PackageDatas.Pop();
+			bOk = false;
+		}
+	}
+	return bOk;
 }
 
 FGuid FAssignPackagesMessage::MessageType(TEXT("B7B1542B73254B679319D73F753DB6F8"));
 
-FCbWriter& operator<<(FCbWriter& Writer, const FAssignPackageData& AssignData)
+void WriteToCompactBinary(FCbWriter& Writer, const FAssignPackageData& AssignData, 
+	TConstArrayView<const ITargetPlatform*> OrderedSessionPlatforms)
 {
-	Writer.BeginObject();
-	Writer << "C" << AssignData.ConstructData;
-	Writer << "I" << AssignData.Instigator;
-	Writer.EndObject();
-	return Writer;
+	Writer.BeginArray();
+	Writer << AssignData.ConstructData;
+	Writer << AssignData.Instigator;
+	WriteToCompactBinary(Writer, AssignData.NeedCookPlatforms, OrderedSessionPlatforms);
+	Writer.EndArray();
 }
 
-bool LoadFromCompactBinary(FCbFieldView Field, FAssignPackageData& AssignData)
+bool LoadFromCompactBinary(FCbFieldView Field, FAssignPackageData& AssignData,
+	TConstArrayView<const ITargetPlatform*> OrderedSessionPlatforms)
 {
-	bool bOk = LoadFromCompactBinary(Field["C"], AssignData.ConstructData);
-	bOk = LoadFromCompactBinary(Field["I"], AssignData.Instigator) & bOk;
+	FCbFieldViewIterator It = Field.CreateViewIterator();
+	bool bOk = true;
+	bOk = LoadFromCompactBinary(*It++, AssignData.ConstructData) & bOk;
+	bOk = LoadFromCompactBinary(*It++, AssignData.Instigator) & bOk;
+	bOk = LoadFromCompactBinary(*It++, AssignData.NeedCookPlatforms, OrderedSessionPlatforms) & bOk;
 	return bOk;
 }
 
@@ -1059,18 +1105,21 @@ bool FInitialConfigMessage::TryRead(FCbObjectView Object)
 
 FGuid FInitialConfigMessage::MessageType(TEXT("340CDCB927304CEB9C0A66B5F707FC2B"));
 
-FCbWriter& operator<<(FCbWriter& Writer, const FDiscoveredPackage& Package)
+void WriteToCompactBinary(FCbWriter& Writer, const FDiscoveredPackageReplication& Package,
+	TConstArrayView<const ITargetPlatform*> OrderedSessionAndSpecialPlatforms)
 {
 	Writer.BeginObject();
 	Writer << "PackageName" << Package.PackageName;
 	Writer << "NormalizedFileName" << Package.NormalizedFileName;
 	Writer << "Instigator.Category" << static_cast<uint8>(Package.Instigator.Category);
 	Writer << "Instigator.Referencer" << Package.Instigator.Referencer;
+	Writer.SetName("Platforms");
+	WriteToCompactBinary(Writer, Package.Platforms, OrderedSessionAndSpecialPlatforms);
 	Writer.EndObject();
-	return Writer;
 }
 
-bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPackage& OutPackage)
+bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPackageReplication& OutPackage,
+	TConstArrayView<const ITargetPlatform*> OrderedSessionAndSpecialPlatforms)
 {
 	bool bOk = LoadFromCompactBinary(Field["PackageName"], OutPackage.PackageName);
 	bOk = LoadFromCompactBinary(Field["NormalizedFileName"], OutPackage.NormalizedFileName) & bOk;
@@ -1086,21 +1135,38 @@ bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPackage& OutPackage)
 		bOk = false;
 	}
 	bOk = LoadFromCompactBinary(Field["Instigator.Referencer"], OutPackage.Instigator.Referencer) & bOk;
+	bOk = LoadFromCompactBinary(Field["Platforms"], OutPackage.Platforms, OrderedSessionAndSpecialPlatforms) & bOk;
 	if (!bOk)
 	{
-		OutPackage = FDiscoveredPackage();
+		OutPackage = FDiscoveredPackageReplication();
 	}
 	return bOk;
 }
 
 void FDiscoveredPackagesMessage::Write(FCbWriter& Writer) const
 {
-	Writer << "Packages" << Packages;
+	Writer.BeginArray("Packages");
+	for (const FDiscoveredPackageReplication& Package : Packages)
+	{
+		WriteToCompactBinary(Writer, Package, OrderedSessionAndSpecialPlatforms);
+	}
+	Writer.EndArray();
 }
 
 bool FDiscoveredPackagesMessage::TryRead(FCbObjectView Object)
 {
-	return LoadFromCompactBinary(Object["Packages"], Packages);
+	bool bOk = true;
+	Packages.Reset();
+	for (FCbFieldView PackageField : Object["Packages"])
+	{
+		FDiscoveredPackageReplication& Package = Packages.Emplace_GetRef();
+		if (!LoadFromCompactBinary(PackageField, Package, OrderedSessionAndSpecialPlatforms))
+		{
+			Packages.Pop();
+			bOk = false;
+		}
+	}
+	return bOk;
 }
 
 FGuid FDiscoveredPackagesMessage::MessageType(TEXT("C9F5BC5C11484B06B346B411F1ED3090"));

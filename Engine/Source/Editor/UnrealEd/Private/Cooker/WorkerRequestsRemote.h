@@ -37,8 +37,8 @@ public:
 		TArray<FFilePlatformRequest>& OutCookRequests) override;
 	virtual void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap) override;
 	virtual void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform) override;
-	virtual void AddDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator,
-		bool bLoadReady, bool& bOutShouldAddToQueue) override;
+	virtual void QueueDiscoveredPackage(UCookOnTheFlyServer& COTFS, FPackageData& PackageData,
+		FInstigator&& Instigator, FDiscoveredPlatformSet&& ReachablePlatforms) override;
 	virtual void AddStartCookByTheBookRequest(FFilePlatformRequest&& Request) override;
 	virtual void InitializeCookOnTheFly() override;
 	virtual void AddCookOnTheFlyRequest(FFilePlatformRequest&& Request) override;
