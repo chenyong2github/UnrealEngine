@@ -729,6 +729,11 @@ public:
 	bool IsQuadBufferStereoEnabled();
 	void DisableQuadBufferStereo();
 
+	void BeginRecursiveCommand()
+	{
+		// Nothing to do
+	}
+
 private:
 	void EnableDepthBoundsTest(bool bEnable, float MinDepth, float MaxDepth);
 

@@ -239,6 +239,12 @@ private:
 		return *CommandList;
 	}
 
+public:
+	void BeginRecursiveCommand()
+	{
+		// Nothing to do
+	}
+
 protected:
 	enum class EPhase
 	{

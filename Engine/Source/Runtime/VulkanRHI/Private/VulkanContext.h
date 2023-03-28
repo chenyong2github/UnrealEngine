@@ -186,6 +186,11 @@ public:
 		return Device;
 	}
 
+	void BeginRecursiveCommand()
+	{
+		// Nothing to do
+	}
+
 	void EndRenderQueryInternal(FVulkanCmdBuffer* CmdBuffer, FVulkanRenderQuery* Query);
 
 	void ReleasePendingState();

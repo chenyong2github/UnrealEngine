@@ -244,6 +244,10 @@ public:
 		ERayTracingBindingType BindingType) final override;
 #endif // METAL_RHI_RAYTRACING
 
+	void BeginRecursiveCommand()
+	{
+		// Nothing to do
+	}
 protected:
 	static TGlobalResource<TBoundShaderStateHistory<10000>> BoundShaderStateHistory;
 	
