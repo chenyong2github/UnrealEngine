@@ -2778,7 +2778,9 @@ void FHttpNetworkReplayStreamingFactory::Flush()
 				break;
 			}
 
-			Tick(AppTime - LastTime);
+			const float DeltaTime = FloatCastChecked<float>(AppTime - LastTime, UE::LWC::DefaultFloatPrecision);
+			Tick(DeltaTime);
+
 			LastTime = AppTime;
 
 			if (HasPendingHttpRequests())
