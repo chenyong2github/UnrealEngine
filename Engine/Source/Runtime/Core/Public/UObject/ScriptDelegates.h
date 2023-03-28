@@ -90,6 +90,26 @@ public:
 	{
 	}
 
+	void operator=(const TScriptDelegate& Other)
+	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
+		Object = Other.Object;
+		FunctionName = Other.FunctionName;
+	}
+	template <
+		typename OtherDummy
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+	>
+	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
+	FORCEINLINE void operator=(const TScriptDelegate<OtherDummy>& Other)
+	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
+		Object = Other.Object;
+		FunctionName = Other.FunctionName;
+	}
+
 private:
 
 	template <class UObjectTemplate>
@@ -261,26 +281,6 @@ public:
 		return Object != Other.Object || FunctionName != Other.FunctionName;
 	}
 
-	void operator=( const TScriptDelegate& Other )
-	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
-
-		Object = Other.Object;
-		FunctionName = Other.FunctionName;
-	}
-	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
-	>
-	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	FORCEINLINE void operator=(const TScriptDelegate<OtherDummy>& Other)
-	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
-
-		Object = Other.Object;
-		FunctionName = Other.FunctionName;
-	}
-
 	/** 
 	 * Gets the object bound to this delegate
 	 *
@@ -422,10 +422,7 @@ class TMulticastScriptDelegate
 
 public:
 
-	/**
-	 * Default constructor
-	 */
-	inline TMulticastScriptDelegate() { }
+	TMulticastScriptDelegate() = default;
 
 public:
 
