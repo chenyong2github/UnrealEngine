@@ -521,7 +521,8 @@
 			"category": "PoolOp",
 			"targets": [
 				{ "target": "MaxPool" },
-				{ "target": "AveragePool", "absolute_tolerance": 1e-6 }
+				{ "target": "AveragePool", "absolute_tolerance": 1e-6 },
+				{ "target": "LpPool", "absolute_tolerance": 1e-6 }
 			],
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
@@ -531,7 +532,8 @@
 			"category": "GlobalPool",
 			"targets": [
 				{ "target": "GlobalMaxPool" },
-				{ "target": "GlobalAveragePool", "absolute_tolerance": 1e-6 }
+				{ "target": "GlobalAveragePool", "absolute_tolerance": 1e-6 },
+				{ "target": "GlobalLpPool", "absolute_tolerance": 1e-6 }
 			],
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }

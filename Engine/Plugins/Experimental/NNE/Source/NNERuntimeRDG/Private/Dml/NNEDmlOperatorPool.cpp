@@ -188,6 +188,11 @@ public:
 			int32 IncludePadding = Attributes.GetValueOrDefault(TEXT("count_include_pad"), 0);
 			DmlPoolOpDesc.IncludePadding = static_cast<BOOL>(IncludePadding);
 		}
+
+		if constexpr (DmlOpType == DML_OPERATOR_LP_POOLING)
+		{
+			DmlPoolOpDesc.P = (UINT) Attributes.GetValueOrDefault<int>(TEXT("p"), 2);
+		}
 			
 		return CreateOperator(Device, DML_OPERATOR_DESC{ DmlOpType, &DmlPoolOpDesc });
 	}
@@ -209,6 +214,8 @@ NNE_DML_REGISTER_POOLING_OP(MaxPool, MAX, false)
 NNE_DML_REGISTER_POOLING_OP(GlobalMaxPool, MAX, true)
 NNE_DML_REGISTER_POOLING_OP(AveragePool, AVERAGE, false)
 NNE_DML_REGISTER_POOLING_OP(GlobalAveragePool, AVERAGE, true)
+NNE_DML_REGISTER_POOLING_OP(LpPool, LP, false)
+NNE_DML_REGISTER_POOLING_OP(GlobalLpPool, LP, true)
 
 #undef NNE_DML_REGISTER_POOLING_OP
 
