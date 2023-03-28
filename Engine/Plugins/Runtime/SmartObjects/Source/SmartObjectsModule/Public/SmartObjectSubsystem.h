@@ -224,13 +224,6 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationRequest
 {
 	GENERATED_BODY()
 
-	// @todo: remove
-	/**
-	 * Sets the NavigationData, NavigationFilter, NavigationValidationExtents, ValidationFilter, and RequesterActor from the specified actor and navigation filter.
-	 * @return true if navigation data was set successfully.
-	 */
-	bool SetNavigationDataFromActor(const AActor& InInstigatorActor, const TSubclassOf<USmartObjectSlotValidationFilter> InValidationFilter);
-
 	/** Actor that is using the smart object slot. (Optional) */
 	TObjectPtr<const AActor> UserActor = nullptr;
 
@@ -543,8 +536,6 @@ public:
 	 * @return True if valid entry found.
 	 */
 	bool FindEntranceLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotEntranceLocationResult& Result) const;
-	bool FindNavigationLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotNavigationLocationResult& Result) const;
-
 	
 	/**
 	 * Runs the same logic as FindEntranceLocationForSlot() but for a specific entrance location. The entrance handle can be get from entrance location result.

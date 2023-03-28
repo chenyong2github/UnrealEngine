@@ -80,19 +80,6 @@ namespace UE::SmartObject
 
 } // UE::SmartObject
 
-
-//----------------------------------------------------------------------//
-// FSmartObjectSlotEntryRequest
-//----------------------------------------------------------------------//
-
-bool FSmartObjectSlotEntranceLocationRequest::SetNavigationDataFromActor(const AActor& InUserActor, const TSubclassOf<USmartObjectSlotValidationFilter> InValidationFilter)
-{
-	UserActor = &InUserActor;
-	ValidationFilter = InValidationFilter;
-
-	return true;
-}
-
 //----------------------------------------------------------------------//
 // USmartObjectSubsystem
 //----------------------------------------------------------------------//
@@ -1499,12 +1486,6 @@ bool USmartObjectSubsystem::EvaluateSelectionConditions(const FSmartObjectSlotHa
 	TPair<const FSmartObjectRuntime*, bool> LastEvaluatedSmartObjectRuntime = {nullptr, false};
 	return EvaluateConditionsForFiltering(SlotHandle, ContextData, UserData, LastEvaluatedSmartObjectRuntime);
 }
-
-bool USmartObjectSubsystem::FindNavigationLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotNavigationLocationResult& Result) const
-{
-	return FindEntranceLocationInternal(SlotHandle, FSmartObjectSlotEntranceHandle(), Request, Result);
-}
-
 
 bool USmartObjectSubsystem::FindEntranceLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotEntranceLocationResult& Result) const
 {
