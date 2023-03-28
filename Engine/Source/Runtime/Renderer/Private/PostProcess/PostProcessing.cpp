@@ -1073,18 +1073,6 @@ void AddPostProcessingPasses(
 			SceneColor = AddPostProcessMaterialChain(GraphBuilder, View, PassInputs, PostProcessMaterialAfterTonemappingChain);
 		}
 
-#if UE_ENABLE_DEBUG_DRAWING
-		if (PassSequence.IsEnabled(EPass::DebugPrimitive)) //Create new debug pass sequence
-		{
-			FCompositePrimitiveInputs PassInputs;
-			PassSequence.AcceptOverrideIfLastPass(EPass::DebugPrimitive, PassInputs.OverrideOutput);
-			PassInputs.SceneColor = SceneColor;
-			PassInputs.SceneDepth = SceneDepth;
-
-			SceneColor = AddDebugPrimitivePass(GraphBuilder, View, PassInputs);
-		}
-#endif
-
 		if (PassSequence.IsEnabled(EPass::VisualizeLumenScene))
 		{
 			FVisualizeLumenSceneInputs PassInputs;
@@ -1409,6 +1397,18 @@ void AddPostProcessingPasses(
 
 		SceneColor = AddHighResolutionScreenshotMaskPass(GraphBuilder, View, PassInputs);
 	}
+
+#if UE_ENABLE_DEBUG_DRAWING
+	if (PassSequence.IsEnabled(EPass::DebugPrimitive)) //Create new debug pass sequence
+	{
+		FCompositePrimitiveInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::DebugPrimitive, PassInputs.OverrideOutput);
+		PassInputs.SceneColor = SceneColor;
+		PassInputs.SceneDepth = SceneDepth;
+
+		SceneColor = AddDebugPrimitivePass(GraphBuilder, View, PassInputs);
+	}
+#endif
 
 	if (PassSequence.IsEnabled(EPass::PrimaryUpscale))
 	{
