@@ -6406,6 +6406,17 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			}
 		});
 	}
+	
+	CreateLightPrimitiveInteractionsTask = LaunchSceneRenderTask(TEXT("CreateLightPrimitiveInteractionsTask"), [this, &SceneInfosWithAddToScene]
+	{
+		SCOPED_NAMED_EVENT(CreateLightPrimitiveInteractions, FColor::Emerald);
+
+		for (FPrimitiveSceneInfo* SceneInfo : SceneInfosWithAddToScene)
+		{
+			CreateLightPrimitiveInteractionsForPrimitive(SceneInfo);
+		}
+
+	}, EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions));
 
 	if (SceneInfosWithStaticDrawListUpdate.Num() > 0)
 	{
@@ -6428,17 +6439,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		}, bLaunchAsyncTask);
 #endif
 	}
-
-	CreateLightPrimitiveInteractionsTask = LaunchSceneRenderTask(TEXT("CreateLightPrimitiveInteractionsTask"), [this, &SceneInfosWithAddToScene]
-	{
-		SCOPED_NAMED_EVENT(CreateLightPrimitiveInteractions, FColor::Emerald);
-
-		for (FPrimitiveSceneInfo* SceneInfo : SceneInfosWithAddToScene)
-		{
-			CreateLightPrimitiveInteractionsForPrimitive(SceneInfo);
-		}
-
-	}, EnumHasAnyFlags(AsyncOps, EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions));
 
 	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : AddedPrimitiveSceneInfos)
 	{
