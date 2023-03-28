@@ -1281,7 +1281,7 @@ float UVCamComponent::GetDeltaTime()
 void UVCamComponent::UpdateActorViewportLocks()
 {
 	if (const UCineCameraComponent* Camera = GetTargetCamera()
-		; Camera && ensure(Camera->GetOwner()))
+		; Camera && ensure(Camera->GetOwner()) && IsEnabled())
 	{
 		UE::VCamCore::LevelViewportUtils::Private::UpdateViewportLocksFromOutputs(OutputProviders, ViewportLocker, *Camera->GetOwner());
 	}

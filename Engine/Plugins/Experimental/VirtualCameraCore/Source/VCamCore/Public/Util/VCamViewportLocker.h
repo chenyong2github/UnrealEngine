@@ -17,19 +17,27 @@ struct FVCamViewportLockState
 	
 	/** Whether this viewport is currently locked */
 	UPROPERTY(Transient)
-	bool bIsLockedToViewport = false;
+	bool bWasLockedToViewport = false;
 
 #if WITH_EDITORONLY_DATA
 	// This property is editor-only because we use it for EditCondition only
 	UPROPERTY(Transient)
 	bool bIsForceLocked = false;
+
+	/**
+	 * Updated every time live link calls update (every tick).
+	 * 
+	 * Used for when the lock actor is switched by an external system.
+	 * Once the lock actor becomes nullptr, we lock the viewport to our own virtual camera UNLESS
+	 * this variable points to another virtual camera. In that case we lock to that camera.
+	 * 
+	 * Consider that the live link updates are not predictable.
+	 */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<AActor> LastKnownEditorLockActor;
 #endif
 	
-	/** Used for editor */
-	UPROPERTY(Transient)
-	TWeakObjectPtr<AActor> Backup_ActorLock;
-	
-	/** Used for gameplay */
+	/** Used for gameplay to restore to the previous view taget*/
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AActor> Backup_ViewTarget;
 };
@@ -54,8 +62,7 @@ struct FVCamViewportLocker
 	{
 		for (TPair<EVCamTargetViewportID, FVCamViewportLockState>& Pair : Locks)
 		{
-			Pair.Value.bIsLockedToViewport = false;
-			Pair.Value.Backup_ActorLock = nullptr;
+			Pair.Value.bWasLockedToViewport = false;
 			Pair.Value.Backup_ViewTarget = nullptr;
 		}
 	}

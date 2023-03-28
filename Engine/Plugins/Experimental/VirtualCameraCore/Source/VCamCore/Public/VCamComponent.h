@@ -365,6 +365,12 @@ public:
 	template <typename TSubsystemClass>
 	const TArray<TSubsystemClass*>& GetSubsystemArray(const TSubclassOf<TSubsystemClass>& SubsystemClass) const { return SubsystemCollection.GetSubsystemArray(SubsystemClass); }
 
+
+	/******************** Misc ********************/
+	
+	/** Updates all actor Locks on viewports to be as configured. */
+	void UpdateActorViewportLocks();
+	
 private:
 	
 	/** Whether the VCamComponent will update every frame */
@@ -477,7 +483,6 @@ private:
 	static void CopyLiveLinkDataToCamera(const FLiveLinkCameraBlueprintData& LiveLinkData, UCineCameraComponent* CameraComponent);
 
 	float GetDeltaTime();
-	void UpdateActorViewportLocks();
 	void UnlockAllViewports();
 	void DestroyOutputProvider(UVCamOutputProviderBase* Provider);
 

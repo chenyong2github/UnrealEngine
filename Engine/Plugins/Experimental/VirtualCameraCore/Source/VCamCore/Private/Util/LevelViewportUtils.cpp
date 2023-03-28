@@ -3,15 +3,15 @@
 #include "LevelViewportUtils.h"
 
 #include "EVCamTargetViewportID.h"
+#include "VCamComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/ScopeExit.h"
 #include "Output/VCamOutputProviderBase.h"
 #include "Util/VCamViewportLocker.h"
 
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #if WITH_EDITOR
-#include "Modules/ModuleManager.h"
-#include "LevelEditor.h"
 #include "LevelEditorViewport.h"
 #include "SLevelViewport.h"
 #endif
@@ -37,28 +37,57 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 				: nullptr;
 			if (LevelViewportClient)
 			{
-				const bool bNeedsLock = !ViewportLockState.bIsLockedToViewport && bNewLockState;
-				if (bNeedsLock)
+				AActor* const CurrentLockActor = LevelViewportClient->GetActorLock().LockedActor.Get();
+				ON_SCOPE_EXIT
 				{
-					ViewportLockState.Backup_ActorLock = LevelViewportClient->GetActiveActorLock();
+					// Get it again because the GetActorLock value may have changed
+					ViewportLockState.LastKnownEditorLockActor = LevelViewportClient->GetActorLock().LockedActor.Get();
+				};
+				
+				if (bNewLockState
+					// Do not override the lock if another system has a lock
+					&& (!CurrentLockActor
+						|| !LevelViewportClient->bLockedCameraView))
+				{
+					ViewportLockState.bWasLockedToViewport = true;
+					
+					// Scenario:
+					// 1. Two VCams in the world
+					// 2. 1st locks to viewport 1, then 2nd locks viewport 1
+					// 3. External system, like Level Sequencer, takes lock (e.g. record and then review a take)
+					// 4. External system clears its own lock (e.g. finish reviewing take)
+					// 5. The 2nd Vcam should now lock viewport 1 - not the 1st VCam
+					UVCamComponent* Component = ViewportLockState.LastKnownEditorLockActor.IsValid()
+						? ViewportLockState.LastKnownEditorLockActor->FindComponentByClass<UVCamComponent>()
+						: nullptr;
+					if (Component
+						// Avoid pointless recursion
+						&& Component->GetOwner() != &ActorToLockWith)
+					{
+						// It could be that the other component's update was skipped and it points back to ActorToLockWith
+						// That would cause infinite recursion.
+						// This case is unlikely and it has never happened to me but I'm adding this logic to be 100% safe.
+						static TArray<UVCamComponent*, TInlineAllocator<4>> InfiniteRecursionProtection;
+						if (LIKELY(!InfiniteRecursionProtection.Contains(Component)))
+						{
+							InfiniteRecursionProtection.Push(Component);
+							Component->UpdateActorViewportLocks();
+							InfiniteRecursionProtection.Pop();
+							return;
+						}
+						// In unlikely case of infinite recursion, the tail will just set the actor lock now
+					}
+					
 					LevelViewportClient->SetActorLock(&ActorToLockWith);
-					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
 					LevelViewportClient->bLockedCameraView = true;
-					ViewportLockState.bIsLockedToViewport = true;
 				}
-				else if (ViewportLockState.bIsLockedToViewport && !bNewLockState
-					&& ViewportLockState.Backup_ActorLock.IsValid())
+				else if (!bNewLockState && ViewportLockState.bWasLockedToViewport
+					&& (CurrentLockActor == &ActorToLockWith || !CurrentLockActor))
 				{
-					LevelViewportClient->SetActorLock(ViewportLockState.Backup_ActorLock.Get());
-					ViewportLockState.Backup_ActorLock = nullptr;
-					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
-					LevelViewportClient->bLockedCameraView = true;
-					ViewportLockState.bIsLockedToViewport = false;
-				}
-				else if (ViewportLockState.bIsLockedToViewport && !bNewLockState)
-				{
+					ViewportLockState.bWasLockedToViewport = false;
+					
 					LevelViewportClient->SetActorLock(nullptr);
-					ViewportLockState.bIsLockedToViewport = false;
+					LevelViewportClient->bLockedCameraView = false;
 				}
 			}
 		}
@@ -72,24 +101,17 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 				APlayerController* PlayerController = ActorWorld->GetGameInstance()->GetFirstLocalPlayerController(ActorWorld);
 				if (PlayerController)
 				{
-					const bool bNeedsLock = !ViewportLockState.bIsLockedToViewport && bNewLockState;
-					if (bNeedsLock)
+					if (bNewLockState && !ViewportLockState.bWasLockedToViewport)
 					{
 						ViewportLockState.Backup_ViewTarget = PlayerController->GetViewTarget();
 						PlayerController->SetViewTarget(&ActorToLockWith);
-						ViewportLockState.bIsLockedToViewport = true;
+						ViewportLockState.bWasLockedToViewport = true;
 					}
-					else if (ViewportLockState.bIsLockedToViewport && !bNewLockState
-						&& ViewportLockState.Backup_ViewTarget.IsValid())
+					else if (!bNewLockState && ViewportLockState.bWasLockedToViewport)
 					{
 						PlayerController->SetViewTarget(ViewportLockState.Backup_ViewTarget.Get());
 						ViewportLockState.Backup_ViewTarget = nullptr;
-						ViewportLockState.bIsLockedToViewport = false;
-					}
-					else if (ViewportLockState.bIsLockedToViewport && !bNewLockState)
-					{
-						PlayerController->SetViewTarget(nullptr);
-						ViewportLockState.bIsLockedToViewport = false;
+						ViewportLockState.bWasLockedToViewport = false;
 					}
 				}
 			}
