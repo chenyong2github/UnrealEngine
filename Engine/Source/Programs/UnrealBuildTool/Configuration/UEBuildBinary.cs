@@ -758,6 +758,12 @@ namespace UnrealBuildTool
 				BinaryDependency.SetupDependentLinkEnvironment(BinaryLinkEnvironment);
 			}
 
+			// Gather debug visualizers for every relevant module 
+			foreach (UEBuildModule VisitedModule in LinkEnvironmentVisitedModules)
+			{
+				VisitedModule.LinkDebuggerVisualizers(BinaryLinkEnvironment.DebuggerVisualizerFiles, ToolChain, Logger);
+			}
+
 			// Set the link output file.
 			BinaryLinkEnvironment.OutputFilePaths = OutputFilePaths.ToList();
 

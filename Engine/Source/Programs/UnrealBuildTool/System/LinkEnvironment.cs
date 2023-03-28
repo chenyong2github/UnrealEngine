@@ -332,6 +332,11 @@ namespace UnrealBuildTool
 		/// List of functions that should be exported from this module
 		/// </summary>
 		public List<string> IncludeFunctions = new List<string>();
+		
+		/// <summary>
+		/// Debugger visualizer files to build into debug info for this binary. 
+		/// </summary>
+		public List<FileItem> DebuggerVisualizerFiles = new List<FileItem>();
 
 		/// <summary>
 		/// Provides a Module Definition File (.def) to the linker to describe various attributes of a DLL.

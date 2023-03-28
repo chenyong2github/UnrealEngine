@@ -1437,6 +1437,27 @@ namespace UnrealBuildTool
 			return BaseCompileAction;
 		}
 
+		public override FileItem? CopyDebuggerVisualizer(FileItem SourceFile, DirectoryReference IntermediateDirectory, IActionGraphBuilder Graph)
+		{
+			if (SourceFile.HasExtension(".natvis"))
+			{
+				FileItem IntermediateFile = FileItem.GetItemByFileReference(FileReference.Combine(IntermediateDirectory, SourceFile.Name));
+				Graph.CreateCopyAction(SourceFile, IntermediateFile);
+				return IntermediateFile;
+			}
+			return null;
+		}
+
+		public override FileItem? LinkDebuggerVisualizer(FileItem SourceFile, DirectoryReference IntermediateDirectory)
+		{
+			if (SourceFile.HasExtension(".natvis"))
+			{
+				FileItem IntermediateFile = FileItem.GetItemByFileReference(FileReference.Combine(IntermediateDirectory, SourceFile.Name));
+				return IntermediateFile;
+			}
+			return null;
+		}
+
 		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			VCCompileAction BaseCompileAction = CreateBaseCompileAction(CompileEnvironment);
@@ -2357,6 +2378,13 @@ namespace UnrealBuildTool
 				foreach (string SystemLibrary in LinkEnvironment.SystemLibraries)
 				{
 					InputFileNames.Add(string.Format("\"{0}\"", SystemLibrary));
+				}
+				
+				foreach (FileItem NatvisFile in LinkEnvironment.DebuggerVisualizerFiles)
+				{
+					PrerequisiteItems.Add(NatvisFile);
+					Arguments.Add(string.Format("/NATVIS:\"{0}\"", 
+						NormalizeCommandLinePath(NatvisFile)));
 				}
 
 				if (Target.WindowsPlatform.ManifestFile != null)

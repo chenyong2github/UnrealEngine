@@ -44,6 +44,16 @@ namespace UnrealBuildTool
 		{
 			return null;
 		}
+		
+		public virtual FileItem? CopyDebuggerVisualizer(FileItem SourceFile, DirectoryReference IntermediateDirectory, IActionGraphBuilder Graph)
+		{
+			return null;
+		}
+
+		public virtual FileItem? LinkDebuggerVisualizer(FileItem SourceFile, DirectoryReference IntermediateDirectory)
+		{
+			return null;
+		}
 
 		protected abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph);
 		 

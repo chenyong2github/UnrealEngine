@@ -210,6 +210,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bDependsOnVerse = false;
 
+		public FileItem? NatvisSourceFile;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -294,6 +296,11 @@ namespace UnrealBuildTool
 			AliasRestrictedFolders = new Dictionary<string, string>(Rules.AliasRestrictedFolders);
 
 			DependenciesToSkipPerArchitecture = Rules.DependenciesToSkipPerArchitecture;
+			FileReference PossibleNatvisFile = FileReference.Combine(Rules.File.Directory, $"{Name}.natvis");
+			if (FileReference.Exists(PossibleNatvisFile))
+			{
+				NatvisSourceFile = FileItem.GetItemByFileReference(PossibleNatvisFile);
+			}
 
 			// get the module directories from the module
 			ModuleDirectories = Rules.GetAllModuleDirectories();
@@ -935,6 +942,27 @@ namespace UnrealBuildTool
 			}
 
 			return new List<FileItem>();
+		}
+		
+
+		public void CopyDebuggerVisualizers(UEToolChain ToolChain, IActionGraphBuilder Graph, ILogger Logger)
+		{
+			if (NatvisSourceFile != null)
+			{
+				ToolChain.CopyDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory, Graph);
+			}	
+		}
+		
+		public void LinkDebuggerVisualizers(List<FileItem> OutFiles, UEToolChain ToolChain, ILogger Logger)
+		{
+			if (NatvisSourceFile != null) 
+			{
+				FileItem? Item = ToolChain.LinkDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory);
+				if (Item != null)
+				{
+					OutFiles.Add(Item);
+				}
+			}	
 		}
 
 		// Object interface.
