@@ -989,7 +989,11 @@ void MainCS(
 			PrevHistoryMomentMax = HighFrequencyMax;
 
 			PrevHighFrequencyColor = AccumulateHighFrequency;
-			PrevHistoryValidity = AccumulateMetadata[0];
+			#if CONFIG_METADATA_CHANNELS == 1
+				PrevHistoryValidity = AccumulateMetadata;
+			#else
+				PrevHistoryValidity = AccumulateMetadata[0];
+			#endif
 
 			PrevHistoryTranslucency = AccumulateTranslucency;
 
