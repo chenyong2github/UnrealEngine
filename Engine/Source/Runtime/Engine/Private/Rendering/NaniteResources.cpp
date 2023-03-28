@@ -850,10 +850,11 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMe
 #endif
 
 	// Only allocate if material bound which uses this
-	if (bHasPerInstanceCustomData && Component->NumCustomDataFloats > 0)
+	const int32 NumInstCustDataFloats = Component->NumCustomDataFloats;
+	if (bHasPerInstanceCustomData && NumInstCustDataFloats > 0)
 	{
-		InstanceCustomData = Component->PerInstanceSMCustomData;
-		check(InstanceCustomData.Num() / Component->NumCustomDataFloats == Component->GetInstanceCount()); // Sanity check on the data packing
+		InstanceCustomData.SetNumZeroed(NumInstCustDataFloats * Component->GetInstanceCount());
+		check(InstanceCustomData.Num() == Component->PerInstanceSMCustomData.Num()); // Sanity check on the data packing
 	}
 	else
 	{
@@ -864,7 +865,9 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMe
 
 	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
-		FInstanceSceneData& SceneData = InstanceSceneData[InstanceIndex];
+		const int32 OutputIndex = Component->GetRenderIndex(InstanceIndex);
+
+		FInstanceSceneData& SceneData = InstanceSceneData[OutputIndex];
 
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
@@ -877,7 +880,18 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMe
 			const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
 			ensure(bHasPrevTransform); // Should always be true here
 			InstancePrevTransform.AddToTranslation(TranslatedSpaceOffset);
-			InstanceDynamicData[InstanceIndex].PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
+			InstanceDynamicData[OutputIndex].PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
+		}
+
+		if (bHasPerInstanceCustomData)
+		{
+			// Sanity check overflows
+			check((InstanceIndex + 1) * NumInstCustDataFloats <= Component->PerInstanceSMCustomData.Num());
+			check((OutputIndex + 1) * NumInstCustDataFloats <= InstanceCustomData.Num());
+			
+			const float* InputFloats = &Component->PerInstanceSMCustomData[InstanceIndex * NumInstCustDataFloats];
+			float* OutputFloats = &InstanceCustomData[OutputIndex * NumInstCustDataFloats];
+			FMemory::Memcpy(OutputFloats, InputFloats, NumInstCustDataFloats * sizeof(float));
 		}
 	}
 
