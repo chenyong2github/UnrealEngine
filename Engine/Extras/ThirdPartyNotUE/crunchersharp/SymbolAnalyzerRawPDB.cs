@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Text.RegularExpressions;
 using System.Net.Mime;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 #if RAWPDB
 using PDBReader;
@@ -24,7 +25,7 @@ namespace CruncherSharp
 
 		public override bool LoadPdb(object sender, LoadPDBTask task)
 		{
-			if (task.SecondPDB)
+			if (task.SecondPDB || pdbFile == null)
 			{
 				pdbFile = new PDB(task.FileName);
 			}
@@ -110,7 +111,7 @@ namespace CruncherSharp
 					else
 					{
 						// Loading all symbols so don't recurse
-						var symbolInfo = new SymbolInfo(symBasicInfo.Name, symBasicInfo.GetType().Name, symBasicInfo.Size);
+						var symbolInfo = new SymbolInfo(symBasicInfo.Name, symBasicInfo.GetType().Name, symBasicInfo.Size, MemPools);
 						if (results.TryAdd(symbolInfo.Name, symbolInfo))
 						{
 							var symFullInfo = pdbFile.GetFullTypeInfo(symBasicInfo);
@@ -147,6 +148,13 @@ namespace CruncherSharp
 
 			worker?.ReportProgress(100, String.Format("{0} symbols added", addedSymbolsCount));
 
+			if (task.Filter.Length == 0)
+			{
+				// Everything was loaded, close PDB
+				pdbFile.Dispose();
+				pdbFile = null;
+			}
+
 			return true;
 		}
 
@@ -161,7 +169,7 @@ namespace CruncherSharp
 				return;
 			}
 
-			var symbolInfo = new SymbolInfo(newType.Name, newType.Name, newType.Size);
+			var symbolInfo = new SymbolInfo(newType.Name, newType.Name, newType.Size, MemPools);
 			if (results.TryAdd(symbolInfo.Name, symbolInfo))
 			{
 				var symFullInfo = pdbFile.GetFullTypeInfo(newType);
@@ -184,39 +192,44 @@ namespace CruncherSharp
 
 		public override bool LoadCSV(object sender, List<LoadCSVTask> tasks)
 		{
-			var worker = sender as BackgroundWorker;
-
-			var allSymbolsCount = (worker != null) ? tasks.Count : 0;
-			worker?.ReportProgress(0, "Adding symbols");
-
-			ConcurrentDictionary<string, SymbolInfo> bag = new ConcurrentDictionary<string, SymbolInfo>();
-			tasks.AsParallel().ForAll(task =>
+			// if pdbFile is null it means that it is fully loaded, just update count
+			if (pdbFile != null)
 			{
-				if (worker != null && worker.CancellationPending)
-				{
-					return;
-				}
+				var worker = sender as BackgroundWorker;
 
-				var symbol = pdbFile.FindType(task.ClassName, true);
-				if (symbol.HasValue)
-				{
-					LoadSymbolsRecursive(symbol.Value, bag);
-				}
-			});
+				var allSymbolsCount = (worker != null) ? tasks.Count : 0;
+				worker?.ReportProgress(0, "Adding symbols");
 
-			ulong addedSymbolsCount = 0;
-			foreach(KeyValuePair<string, SymbolInfo> pair in bag)
-			{
-				if (!HasSymbolInfo(pair.Key))
+				ConcurrentDictionary<string, SymbolInfo> bag = new ConcurrentDictionary<string, SymbolInfo>();
+				tasks.AsParallel().ForAll(task =>
 				{
-					Symbols.Add(pair.Key, pair.Value);
-					++addedSymbolsCount;
-					if (pair.Key.Contains("::") && !pair.Key.Contains("<"))
+					if (worker != null && worker.CancellationPending)
 					{
-						RootNamespaces.Add(pair.Key.Substring(0, pair.Key.IndexOf("::")));
-						Namespaces.Add(pair.Key.Substring(0, pair.Key.LastIndexOf("::")));
+						return;
+					}
+
+					var symbol = pdbFile.FindType(task.ClassName, true);
+					if (symbol.HasValue)
+					{
+						LoadSymbolsRecursive(symbol.Value, bag);
+					}
+				});
+
+				ulong addedSymbolsCount = 0;
+				foreach (KeyValuePair<string, SymbolInfo> pair in bag)
+				{
+					if (!HasSymbolInfo(pair.Key))
+					{
+						Symbols.Add(pair.Key, pair.Value);
+						++addedSymbolsCount;
+						if (pair.Key.Contains("::") && !pair.Key.Contains("<"))
+						{
+							RootNamespaces.Add(pair.Key.Substring(0, pair.Key.IndexOf("::")));
+							Namespaces.Add(pair.Key.Substring(0, pair.Key.LastIndexOf("::")));
+						}
 					}
 				}
+				worker?.ReportProgress(100, String.Format("{0} symbols added", addedSymbolsCount));
 			}
 
 			foreach (LoadCSVTask task in tasks)
@@ -227,8 +240,6 @@ namespace CruncherSharp
 					symbolInfo.TotalCount = symbolInfo.NumInstances = task.Count;
 				}
 			}
-
-			worker?.ReportProgress(100, String.Format("{0} symbols added", addedSymbolsCount));
 
 			RunAnalysis();
 			return true;

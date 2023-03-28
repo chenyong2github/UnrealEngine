@@ -31,6 +31,20 @@ namespace CruncherSharp
         public string LastError { get; private set; }
         public string FileName { get; set; }
 
+		private List<uint> _MemPools;
+		public List<uint> MemPools 
+		{
+			get => _MemPools;
+			set
+			{
+				_MemPools = value;
+				foreach (var symbol in Symbols.Values)
+				{
+					symbol.SetMemPools(_MemPools);
+				}
+			}
+		}
+
 		private bool _FunctionAnalysis = false;
 		public bool FunctionAnalysis 
 		{
@@ -54,7 +68,8 @@ namespace CruncherSharp
             Symbols = new Dictionary<string, SymbolInfo>();
             RootNamespaces = new SortedSet<string>();
             Namespaces = new SortedSet<string>();
-            LastError = string.Empty;
+			_MemPools = new List<uint>();
+			LastError = string.Empty;
         }
 
         public void Reset()
@@ -62,7 +77,7 @@ namespace CruncherSharp
             RootNamespaces.Clear();
             Namespaces.Clear();
             Symbols.Clear();
-            LastError = string.Empty;
+			LastError = string.Empty;
             FileName = null;
         }
 

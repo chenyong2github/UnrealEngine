@@ -84,7 +84,7 @@ namespace CruncherSharp
 				{
 					if (sym.length > 0 && !HasSymbolInfo(sym.name))
 					{
-						var symbolInfo = new SymbolInfo(sym.name, sym.GetType().Name, sym.length);
+						var symbolInfo = new SymbolInfo(sym.name, sym.GetType().Name, sym.length, MemPools);
 						ProcessChildren(symbolInfo, sym);
 						Symbols.Add(symbolInfo.Name, symbolInfo);
 
@@ -132,7 +132,7 @@ namespace CruncherSharp
 						}
 						continue;
 					}
-					var symbolInfo = new SymbolInfo(sym.name, sym.GetType().Name, sym.length);
+					var symbolInfo = new SymbolInfo(sym.name, sym.GetType().Name, sym.length, MemPools);
 					if (SetImportedFromCSV)
 					{
 						symbolInfo.IsImportedFromCSV = true;

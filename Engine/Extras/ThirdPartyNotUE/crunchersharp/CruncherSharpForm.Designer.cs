@@ -54,6 +54,7 @@
             this.restrictToSymbolsImportedFroCSVToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.unrealEngineToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.addMemPoolsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.restrictToUObjectsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openPdbDialog = new System.Windows.Forms.OpenFileDialog();
             this.openCsvDialog = new System.Windows.Forms.OpenFileDialog();
             this.saveCsvDialog = new System.Windows.Forms.SaveFileDialog();
@@ -73,6 +74,7 @@
             this.loadCSVBackgroundWorker = new System.ComponentModel.BackgroundWorker();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.checkBoxNamespaces = new System.Windows.Forms.CheckBox();
             this.checkBoxFunctionAnalysis = new System.Windows.Forms.CheckBox();
             this.checkBoxShowOverlap = new System.Windows.Forms.CheckBox();
             this.checkBoxBitPadding = new System.Windows.Forms.CheckBox();
@@ -109,11 +111,10 @@
             this.Overloaded = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.IsMasking = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.contextMenuStripClassInfo = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.toolStripMenuItemParentClasses = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItemDerivedClasses = new System.Windows.Forms.ToolStripMenuItem();
             this.contextMenuStripFunctions = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.ignoreFunctionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bindingSourceSymbols = new System.Windows.Forms.BindingSource(this.components);
-            this.checkBoxNamespaces = new System.Windows.Forms.CheckBox();
             this.mainMenu.SuspendLayout();
             this.statusStripBar.SuspendLayout();
             this.contextMenuStripMembers.SuspendLayout();
@@ -196,11 +197,12 @@
             this.exportCsvToolStripMenuItem.Size = new System.Drawing.Size(190, 22);
             this.exportCsvToolStripMenuItem.Text = "Export csv";
             this.exportCsvToolStripMenuItem.Click += new System.EventHandler(this.exportCsvToolStripMenuItem_Click);
-			// 
-			// useRawPDBToolStripMenuItem
-			// 
-			this.useRawPDBToolStripMenuItem.Checked = true;
-			this.useRawPDBToolStripMenuItem.Name = "useRawPDBToolStripMenuItem";
+            // 
+            // useRawPDBToolStripMenuItem
+            // 
+            this.useRawPDBToolStripMenuItem.Checked = true;
+            this.useRawPDBToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.useRawPDBToolStripMenuItem.Name = "useRawPDBToolStripMenuItem";
             this.useRawPDBToolStripMenuItem.Size = new System.Drawing.Size(190, 22);
             this.useRawPDBToolStripMenuItem.Text = "Use RawPDB";
             this.useRawPDBToolStripMenuItem.Click += new System.EventHandler(this.useRawPDBToolStripMenuItem_Click);
@@ -293,7 +295,8 @@
             // unrealEngineToolStripMenuItem
             // 
             this.unrealEngineToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.addMemPoolsToolStripMenuItem});
+            this.addMemPoolsToolStripMenuItem,
+            this.restrictToUObjectsToolStripMenuItem});
             this.unrealEngineToolStripMenuItem.Name = "unrealEngineToolStripMenuItem";
             this.unrealEngineToolStripMenuItem.Size = new System.Drawing.Size(92, 20);
             this.unrealEngineToolStripMenuItem.Text = "Unreal Engine";
@@ -301,9 +304,16 @@
             // addMemPoolsToolStripMenuItem
             // 
             this.addMemPoolsToolStripMenuItem.Name = "addMemPoolsToolStripMenuItem";
-            this.addMemPoolsToolStripMenuItem.Size = new System.Drawing.Size(170, 22);
+            this.addMemPoolsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.addMemPoolsToolStripMenuItem.Text = "Set memory pools";
             this.addMemPoolsToolStripMenuItem.Click += new System.EventHandler(this.addMemPoolsToolStripMenuItem_Click);
+            // 
+            // restrictToUObjectsToolStripMenuItem
+            // 
+            this.restrictToUObjectsToolStripMenuItem.Name = "restrictToUObjectsToolStripMenuItem";
+            this.restrictToUObjectsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.restrictToUObjectsToolStripMenuItem.Text = "Restrict to UObjects";
+            this.restrictToUObjectsToolStripMenuItem.Click += new System.EventHandler(this.restrictToUObjectsToolStripMenuItem_Click);
             // 
             // openPdbDialog
             // 
@@ -486,6 +496,17 @@
             this.panel1.Size = new System.Drawing.Size(1791, 104);
             this.panel1.TabIndex = 4;
             // 
+            // checkBoxNamespaces
+            // 
+            this.checkBoxNamespaces.AutoSize = true;
+            this.checkBoxNamespaces.Location = new System.Drawing.Point(444, 83);
+            this.checkBoxNamespaces.Name = "checkBoxNamespaces";
+            this.checkBoxNamespaces.Size = new System.Drawing.Size(88, 17);
+            this.checkBoxNamespaces.TabIndex = 18;
+            this.checkBoxNamespaces.Text = "Namespaces";
+            this.checkBoxNamespaces.UseVisualStyleBackColor = true;
+            this.checkBoxNamespaces.CheckedChanged += new System.EventHandler(this.checkBoxNamespaces_CheckedChanged);
+            // 
             // checkBoxFunctionAnalysis
             // 
             this.checkBoxFunctionAnalysis.AutoSize = true;
@@ -664,6 +685,7 @@
             this.dataGridSymbols.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.dataGridSymbols.Size = new System.Drawing.Size(1000, 595);
             this.dataGridSymbols.TabIndex = 11;
+            this.dataGridSymbols.CellFormatting += new System.Windows.Forms.DataGridViewCellFormattingEventHandler(this.dataGridSymbols_CellFormatting);
             this.dataGridSymbols.CellMouseDoubleClick += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.dataGridSymbols_CellMouseDoubleClick);
             this.dataGridSymbols.SelectionChanged += new System.EventHandler(this.dataGridSymbols_SelectionChanged);
             this.dataGridSymbols.SortCompare += new System.Windows.Forms.DataGridViewSortCompareEventHandler(this.dataGridSymbols_SortCompare);
@@ -914,15 +936,15 @@
             // contextMenuStripClassInfo
             // 
             this.contextMenuStripClassInfo.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.toolStripMenuItemParentClasses});
+            this.toolStripMenuItemDerivedClasses});
             this.contextMenuStripClassInfo.Name = "contextMenuStripClassInfo";
-            this.contextMenuStripClassInfo.Size = new System.Drawing.Size(148, 26);
+            this.contextMenuStripClassInfo.Size = new System.Drawing.Size(154, 26);
             // 
             // toolStripMenuItemParentClasses
             // 
-            this.toolStripMenuItemParentClasses.Name = "toolStripMenuItemParentClasses";
-            this.toolStripMenuItemParentClasses.Size = new System.Drawing.Size(147, 22);
-            this.toolStripMenuItemParentClasses.Text = "Parent classes";
+            this.toolStripMenuItemDerivedClasses.Name = "toolStripMenuItemParentClasses";
+            this.toolStripMenuItemDerivedClasses.Size = new System.Drawing.Size(153, 22);
+            this.toolStripMenuItemDerivedClasses.Text = "Derived classes";
             // 
             // contextMenuStripFunctions
             // 
@@ -937,17 +959,6 @@
             this.ignoreFunctionToolStripMenuItem.Size = new System.Drawing.Size(156, 22);
             this.ignoreFunctionToolStripMenuItem.Text = "Ignore function";
             this.ignoreFunctionToolStripMenuItem.Click += new System.EventHandler(this.ignoreFunctionToolStripMenuItem_Click);
-            // 
-            // checkBoxNamespaces
-            // 
-            this.checkBoxNamespaces.AutoSize = true;
-            this.checkBoxNamespaces.Location = new System.Drawing.Point(444, 83);
-            this.checkBoxNamespaces.Name = "checkBoxNamespaces";
-            this.checkBoxNamespaces.Size = new System.Drawing.Size(88, 17);
-            this.checkBoxNamespaces.TabIndex = 18;
-            this.checkBoxNamespaces.Text = "Namespaces";
-            this.checkBoxNamespaces.UseVisualStyleBackColor = true;
-            this.checkBoxNamespaces.CheckedChanged += new System.EventHandler(this.checkBoxNamespaces_CheckedChanged);
             // 
             // CruncherSharpForm
             // 
@@ -1028,7 +1039,7 @@
         private System.Windows.Forms.ToolStripMenuItem exportCsvToolStripMenuItem;
         private System.Windows.Forms.CheckBox chkSmartCacheLines;
         private System.Windows.Forms.ContextMenuStrip contextMenuStripClassInfo;
-        private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemParentClasses;
+        private System.Windows.Forms.ToolStripMenuItem toolStripMenuItemDerivedClasses;
         private System.Windows.Forms.Button btnReset;
         private System.Windows.Forms.ToolStripMenuItem findMSVCExtraPaddingToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem findMSVCEmptyBaseClassToolStripMenuItem;
@@ -1077,6 +1088,7 @@
 		private System.Windows.Forms.ToolStripMenuItem addMemPoolsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem useRawPDBToolStripMenuItem;
 		private System.Windows.Forms.CheckBox checkBoxNamespaces;
+		private System.Windows.Forms.ToolStripMenuItem restrictToUObjectsToolStripMenuItem;
 	}
 }
 

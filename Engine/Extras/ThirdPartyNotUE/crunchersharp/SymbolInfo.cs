@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Ports;
 using System.Linq;
 using System.Reflection;
 
@@ -18,7 +19,10 @@ namespace CruncherSharp
         public ulong? TotalPadding { get; set; } // Includes padding from base classes and members
         public ulong NumInstances { get; set; }
         public ulong TotalCount { get; set; }
-        public bool IsAbstract { get; set; }
+		public ulong LowerMemPool { get; set; }
+		public ulong UpperMemPool { get; set; }
+
+		public bool IsAbstract { get; set; }
         public bool IsTemplate { get; set; }
 		public bool IsImportedFromCSV { get; set; }
 		public List<SymbolMemberInfo> Members { get; set; }
@@ -27,13 +31,15 @@ namespace CruncherSharp
 
         private const string PaddingMarker = "****Padding";
 
-        public SymbolInfo(string name, string typeName, ulong size)
+        public SymbolInfo(string name, string typeName, ulong size, List<uint> MemPools)
         {
             Name = name;
             TypeName = typeName;
             Size = size;
             EndPadding = 0;
-            TotalPadding = null;
+			LowerMemPool = 0;
+			UpperMemPool = 0;
+			TotalPadding = null;
             Members = new List<SymbolMemberInfo>();
             Functions = new List<SymbolFunctionInfo>();
             IsAbstract = false;
@@ -41,6 +47,8 @@ namespace CruncherSharp
 
 			if (Name.Contains("<") && Name.Contains(">"))
                 IsTemplate = true;
+
+			SetMemPools(MemPools);
         }
 
         public void AddMember(SymbolMemberInfo member)
@@ -56,6 +64,24 @@ namespace CruncherSharp
 				IsAbstract = true;
 			}
         }
+
+		public void SetMemPools(List<uint> MemPools)
+		{
+			uint previousMemPool = 0;
+			foreach (var memPool in MemPools)
+			{
+				if (Size > memPool)
+				{
+					previousMemPool = memPool;
+					continue;
+				}
+				UpperMemPool = memPool;
+				LowerMemPool = previousMemPool;
+				return;
+			}
+			UpperMemPool = LowerMemPool = Size;
+		}
+
 
         private bool ComputeOffsetCollision(int index)
         {
@@ -209,22 +235,72 @@ namespace CruncherSharp
             return TotalPadding.Value;
         }
 
-        public void UpdateBaseClass(SymbolAnalyzer symbolAnalyzer)
+		public ulong ComputeTotalMempoolWin()
+		{
+			return ComputeTotalMempoolWin(Size - LowerMemPool);
+		}
+
+		private ulong ComputeTotalMempoolWin(ulong Win)
+		{
+			ulong TotalWin = 0;
+			if (LowerMemPool > 0 && (Size - Win) <= LowerMemPool)
+				TotalWin = (UpperMemPool - LowerMemPool) * NumInstances;
+
+			if (DerivedClasses != null)
+			{
+				foreach (var derivedClass in DerivedClasses)
+				{
+					TotalWin += derivedClass.ComputeTotalMempoolWin(Win);
+				}
+			}
+
+			return TotalWin;
+		}
+
+		private bool _BaseClassUpdated = false;
+		public void UpdateBaseClass(SymbolAnalyzer symbolAnalyzer)
         {
-            foreach (var member in Members)
+			if (_BaseClassUpdated)
+				return;
+			_BaseClassUpdated = true;
+
+			foreach (var member in Members)
             {
                 if (member.Category == SymbolMemberInfo.MemberCategory.Base)
                 {
-                    var referencedInfo = symbolAnalyzer.FindSymbolInfo(member.Name);
+                    var referencedInfo = symbolAnalyzer.FindSymbolInfo(member.TypeName);
                     if (referencedInfo != null)
                     {
                         if (referencedInfo.DerivedClasses == null)
                             referencedInfo.DerivedClasses = new List<SymbolInfo>();
-                        referencedInfo.DerivedClasses.Add(this);
+	                    referencedInfo.DerivedClasses.Add(this);
                     }
                 }
             }
         }
+
+		public bool IsA(string name, SymbolAnalyzer symbolAnalyzer)
+		{
+			foreach (var member in Members)
+			{
+				if (member.Category == SymbolMemberInfo.MemberCategory.Base)
+				{
+					var referencedInfo = symbolAnalyzer.FindSymbolInfo(member.TypeName);
+					if (referencedInfo != null)
+					{
+						if (referencedInfo.Name == name)
+						{
+							return true;
+						}
+						if (referencedInfo.IsA(name, symbolAnalyzer))
+						{
+							return true;
+						}
+					}
+				}
+			}
+			return false;
+		}
 
         public void CheckOverride()
         {
