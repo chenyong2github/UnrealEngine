@@ -1735,6 +1735,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			Xcconfig.AppendLine($"PRODUCT_NAME = {Name}");
 			Xcconfig.AppendLine("SYMROOT = build");
 			Xcconfig.AppendLine("USE_HEADERMAP = NO");
+			Xcconfig.AppendLine("WARNING_CFLAGS = -Wno-c++11-narrowing");
 			Xcconfig.Write();
 		}
 	}
