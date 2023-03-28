@@ -414,7 +414,7 @@ namespace UE::PixelStreaming::Settings
 
 	// End utility functions etc.
 
-	FSimulcastParameters SimulcastParameters;
+	FPixelStreamingSimulcastParameters SimulcastParameters;
 
 	void ReadSimulcastParameters()
 	{
@@ -427,7 +427,7 @@ namespace UE::PixelStreaming::Settings
 		if (!bPassedSimulcastParams)
 		{
 			// StringOptions = FString(TEXT("1.0,5000000,20000000,2.0,1000000,5000000,4.0,50000,1000000"));
-			StringOptions = FString(TEXT("1.0,5000000,100000000,2.0,1000000,5000000"));
+			StringOptions = FString(TEXT("1.0,0,1000000000"));
 		}
 
 		TArray<FString> ParameterArray;
@@ -437,7 +437,7 @@ namespace UE::PixelStreaming::Settings
 		int NextOption = 0;
 		while (bSuccess && ((OptionCount - NextOption) >= 3))
 		{
-			FSimulcastParameters::FLayer Layer;
+			FPixelStreamingSimulcastParameters::FLayer Layer;
 			bSuccess = FDefaultValueHelper::ParseFloat(ParameterArray[NextOption++], Layer.Scaling);
 			bSuccess = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MinBitrate);
 			bSuccess = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MaxBitrate);

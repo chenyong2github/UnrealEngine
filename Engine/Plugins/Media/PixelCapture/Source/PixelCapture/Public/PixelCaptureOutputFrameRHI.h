@@ -57,6 +57,8 @@ public:
 
 	FTexture2DRHIRef GetFrameTexture() const { return FrameTexture; }
 
+	void SetFrameTexture(FTexture2DRHIRef InFrameTexture) { FrameTexture = InFrameTexture; }
+
 private:
 	FTexture2DRHIRef FrameTexture;
 	bool bHasWrapperFormatData;

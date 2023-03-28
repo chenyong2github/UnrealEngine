@@ -15,6 +15,9 @@ public:
 
 	virtual FString ToString() override;
 
+protected:
+	virtual TSharedPtr<FPixelCaptureCapturer> CreateCapturer(int32 FinalFormat, float FinalScale) override;
+	
 private:
 	FPixelStreamingVideoInputVCam();
 };

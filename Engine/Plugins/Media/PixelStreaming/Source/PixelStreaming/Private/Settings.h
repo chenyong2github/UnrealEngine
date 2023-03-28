@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PixelStreamingSettings.h"
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
@@ -95,18 +96,6 @@ namespace UE::PixelStreaming::Settings
 	bool GetSignallingServerPort(uint16& OutSignallingServerPort);
 	// End utility functions etc.
 
-	struct FSimulcastParameters
-	{
-		struct FLayer
-		{
-			float Scaling;
-			int MinBitrate;
-			int MaxBitrate;
-		};
-
-		TArray<FLayer> Layers;
-	};
-
-	extern FSimulcastParameters SimulcastParameters;
+	extern FPixelStreamingSimulcastParameters SimulcastParameters;
 
 } // namespace UE::PixelStreaming::Settings
