@@ -753,6 +753,8 @@ namespace Jupiter
         public NamespaceId? FallbackNamespace { get; set; } = null;
         public bool PopulateFallbackNamespaceOnUpload { get; set; } = true;
 
+        public bool UseContentAddressedStorage { get; set; } = true;
+
         public enum StoragePoolGCMethod  {
             /// <summary>
             /// Never run GC on this namespace

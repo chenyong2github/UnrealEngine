@@ -150,13 +150,14 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObject(NamespaceId ns, IBufferedPayload payload, BlobIdentifier identifier)
     {
+        bool useContentAddressedStorage = _namespacePolicyResolver.GetPoliciesForNs(ns).UseContentAddressedStorage;
         using TelemetrySpan scope = _tracer.StartActiveSpan("put_blob")
             .SetAttribute("operation.name", "put_blob")
             .SetAttribute("resource.name", identifier.ToString())
             .SetAttribute("Content-Length", payload.Length.ToString());
 
         await using Stream hashStream = payload.GetStream();
-        BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
+        BlobIdentifier id = useContentAddressedStorage ? BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier)) : identifier;
 
         BlobIdentifier objectStoreIdentifier = await PutObjectToStores(ns, payload, id);
         await _blobIndex.AddBlobToIndex(ns, id);
@@ -167,6 +168,7 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] payload, BlobIdentifier identifier)
     {
+        bool useContentAddressedStorage = _namespacePolicyResolver.GetPoliciesForNs(ns).UseContentAddressedStorage;
         using TelemetrySpan scope = _tracer.StartActiveSpan("put_blob")
             .SetAttribute("operation.name", "put_blob")
             .SetAttribute("resource.name", identifier.ToString())
@@ -174,7 +176,7 @@ public class BlobService : IBlobService
             ;
 
         await using Stream hashStream = new MemoryStream(payload);
-        BlobIdentifier id = BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier));
+        BlobIdentifier id = useContentAddressedStorage ? BlobIdentifier.FromContentHash(await VerifyContentMatchesHash(hashStream, identifier)) : identifier;
 
         BlobIdentifier objectStoreIdentifier = await PutObjectToStores(ns, payload, id);
         await _blobIndex.AddBlobToIndex(ns, id);

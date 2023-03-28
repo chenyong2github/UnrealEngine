@@ -4,9 +4,11 @@ using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Blake3;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Newtonsoft.Json;
 using JsonWriter = Newtonsoft.Json.JsonWriter;
@@ -150,6 +152,12 @@ namespace Jupiter.Implementation
         public IoHash AsIoHash()
         {
             return new IoHash(HashData);
+        }
+
+        public static BlobIdentifier FromBundleLocator(BlobLocator locator)
+        {
+            // Hash the locator string rather then the content itself
+            return FromBlob(Encoding.UTF8.GetBytes(locator.BlobId.ToString()));
         }
     }
 

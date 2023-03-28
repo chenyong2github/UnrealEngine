@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,6 +34,7 @@ using Serilog.Core;
 using ContentHash = Jupiter.Implementation.ContentHash;
 using IBlobStore = Jupiter.Implementation.IBlobStore;
 using EpicGames.AspNet;
+using EpicGames.Horde.Storage.Backends;
 
 namespace Jupiter.FunctionalTests.Storage
 {
@@ -331,6 +333,7 @@ namespace Jupiter.FunctionalTests.Storage
     {
         protected TestServer? Server { get; set; }
         protected NamespaceId TestNamespaceName { get; } = new NamespaceId("testbucket");
+        protected NamespaceId TestBundleNamespaceName { get; } = new NamespaceId("test-namespace-bundle");
         protected NamespaceId TestRedirectNamespaceName { get; } = new NamespaceId("test-namespace-redirect");
 
         private HttpClient? _httpClient;
@@ -440,6 +443,47 @@ namespace Jupiter.FunctionalTests.Storage
             result.EnsureSuccessStatusCode();
             InsertResponse content = await result.Content.ReadAsAsync<InsertResponse>();
             Assert.AreEqual(contentHash, content.Identifier);
+        }
+
+        [TestMethod]
+        public async Task PostBundle()
+        {
+            Bundle bundle = await CreateBundle("test string");
+            byte[] payload = bundle.AsSequence().ToArray();
+            using ByteArrayContent requestContent = new ByteArrayContent(payload);
+            requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            requestContent.Headers.ContentLength = payload.Length;
+            BlobIdentifier id = BlobIdentifier.FromBundleLocator(new BlobLocator("locator"));
+            HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestBundleNamespaceName}/{id}", UriKind.Relative), requestContent);
+
+            result.EnsureSuccessStatusCode();
+            InsertResponse content = await result.Content.ReadAsAsync<InsertResponse>();
+            Assert.AreEqual(id, content.Identifier);
+        }
+
+        [TestMethod]
+        public async Task PostBundleToCASNamespace()
+        {
+            Bundle bundle = await CreateBundle("test string");
+            byte[] payload = bundle.AsSequence().ToArray();
+            using ByteArrayContent requestContent = new ByteArrayContent(payload);
+            requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            requestContent.Headers.ContentLength = payload.Length;
+            BlobIdentifier id = BlobIdentifier.FromBundleLocator(new BlobLocator("locator"));
+            HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestNamespaceName}/{id}", UriKind.Relative), requestContent);
+
+            Assert.AreEqual(HttpStatusCode.InternalServerError, result.StatusCode);
+        }
+
+        private static async Task<Bundle> CreateBundle(string contents)
+        {
+            MemoryStorageClient store = new MemoryStorageClient();
+            using TreeWriter writer = new TreeWriter(store, new TreeOptions { CompressionFormat = BundleCompressionFormat.None });
+
+            TextNode node = new TextNode(contents);
+            NodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
+
+            return await store.ReadBundleAsync(handle.Locator.Blob);
         }
 
         [TestMethod]
@@ -827,5 +871,25 @@ namespace Jupiter.FunctionalTests.Storage
     public class InsertResponse
     {
         public BlobIdentifier? Identifier { get; set; }
+    }
+
+    [TreeNode("{F63606D4-5DBB-4061-A655-6F444F65229E}")]
+    class TextNode : TreeNode
+    {
+        public string Text { get; }
+
+        public TextNode(string text) => Text = text;
+
+        public TextNode(ITreeNodeReader reader)
+        {
+            Text = reader.ReadString();
+        }
+
+        public override void Serialize(ITreeNodeWriter writer)
+        {
+            writer.WriteString(Text);
+        }
+
+        public override IEnumerable<TreeNodeRef> EnumerateRefs() => Array.Empty<TreeNodeRef>();
     }
 }

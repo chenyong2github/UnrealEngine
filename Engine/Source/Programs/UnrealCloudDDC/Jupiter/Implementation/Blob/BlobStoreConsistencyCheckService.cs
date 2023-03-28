@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
+using Jupiter.Common;
 using Jupiter.Implementation.Blob;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,13 +30,14 @@ namespace Jupiter.Implementation
         private readonly IBlobIndex _blobIndex;
         private readonly Tracer _tracer;
         private readonly ILogger _logger;
+        private readonly INamespacePolicyResolver _policyResolver;
 
         protected override bool ShouldStartPolling()
         {
             return _settings.CurrentValue.EnableBlobStoreChecks;
         }
 
-        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<UnrealCloudDDCSettings> unrealCloudDDCSettings, IServiceProvider provider, ILeaderElection leaderElection, IReferencesStore referencesStore, IBlobIndex blobIndex, Tracer tracer, ILogger<BlobStoreConsistencyCheckService> logger) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState(), logger)
+        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<UnrealCloudDDCSettings> unrealCloudDDCSettings, IServiceProvider provider, ILeaderElection leaderElection, IReferencesStore referencesStore, IBlobIndex blobIndex, Tracer tracer, ILogger<BlobStoreConsistencyCheckService> logger, INamespacePolicyResolver policyResolver) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState(), logger)
         {
             _settings = settings;
             _unrealCloudDDCSettings = unrealCloudDDCSettings;
@@ -45,6 +47,7 @@ namespace Jupiter.Implementation
             _blobIndex = blobIndex;
             _tracer = tracer;
             _logger = logger;
+            _policyResolver = policyResolver;
         }
 
         public override async Task<bool> OnPoll(ConsistencyState state, CancellationToken cancellationToken)
@@ -87,6 +90,12 @@ namespace Jupiter.Implementation
                 {
                     ulong countOfBlobsChecked = 0;
                     ulong countOfIncorrectBlobsFound = 0;
+
+                    // consistency checks do not run on none content address storage as we have no way of verifying the identifier
+                    if (!_policyResolver.GetPoliciesForNs(ns).UseContentAddressedStorage)
+                    {
+                        continue;
+                    }
 
                     await foreach ((BlobIdentifier blob, DateTime lastModified) in blobStore.ListObjects(ns))
                     {
