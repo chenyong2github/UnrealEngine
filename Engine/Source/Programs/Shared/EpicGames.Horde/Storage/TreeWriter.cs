@@ -785,7 +785,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task FlushAsync(CancellationToken cancellationToken)
+		public async Task FlushAsync(CancellationToken cancellationToken = default)
 		{
 			Complete();
 			while (_writeQueue.Count > 0)

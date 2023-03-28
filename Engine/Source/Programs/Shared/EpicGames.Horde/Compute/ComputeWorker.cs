@@ -148,59 +148,60 @@ namespace EpicGames.Horde.Compute
 
 		async Task ExecuteProcessAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			try
 			{
-				await ExecuteProcessWindowsAsync(socket, channel, executable, arguments, workingDir, envVars, cancellationToken);
+				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+				{
+					await ExecuteProcessWindowsAsync(socket, channel, executable, arguments, workingDir, envVars, cancellationToken);
+				}
+				else
+				{
+					await ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, envVars, cancellationToken);
+				}
 			}
-			else
+			catch (Exception ex)
 			{
-				await ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, envVars, cancellationToken);
+				await channel.SendExceptionAsync(ex, cancellationToken);
 			}
 		}
 
 		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
 			await using IpcComputeMessageChannel ipcChannel = new IpcComputeMessageChannel(4096, _logger);
-
-			Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
-			if (envVars != null)
+			await using (BackgroundTask ipcTask = BackgroundTask.StartNew(ctx => RunIpcChannel(socket, ipcChannel, ctx)))
 			{
-				foreach ((string name, string? value) in envVars)
+				Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
+				if (envVars != null)
 				{
-					newEnvVars.Add(name, value);
+					foreach ((string name, string? value) in envVars)
+					{
+						newEnvVars.Add(name, value);
+					}
 				}
-			}
 
-			newEnvVars[ComputeSocket.WorkerIpcEnvVar] = ipcChannel.GetStringHandle();
+				newEnvVars[ComputeSocket.WorkerIpcEnvVar] = ipcChannel.GetStringHandle();
 
-			_logger.LogInformation("Launching {Executable} {Arguments}...", CommandLineArguments.Quote(executable), arguments);
-			Task processTask = ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, newEnvVars, cancellationToken);
+				_logger.LogInformation("Launching {Executable} {Arguments}...", CommandLineArguments.Quote(executable), arguments);
+				await ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, newEnvVars, cancellationToken);
+				_logger.LogInformation("Finished executing process");
 
-			using CancellationTokenSource cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-			void OnProcessExit()
-			{
 				ipcChannel.ForceComplete();
-				cancellationSource.Cancel();
+				await ipcTask.Task.WaitAsync(TimeSpan.FromSeconds(5.0), cancellationToken);
 			}
+			_logger.LogInformation("Child process has shut down");
+		}
 
-			processTask = processTask.ContinueWith(_ => OnProcessExit(), cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
-
+		async Task RunIpcChannel(IComputeSocket socket, IpcComputeMessageChannel ipcChannel, CancellationToken cancellationToken)
+		{
 			List<IDisposable> buffers = new List<IDisposable>();
 			try
 			{
 				for (; ; )
 				{
-					using IComputeMessage message = await ipcChannel.ReceiveAsync(cancellationSource.Token);
+					using IComputeMessage message = await ipcChannel.ReceiveAsync(cancellationToken);
 					switch (message.Type)
 					{
 						case ComputeMessageType.None:
-							if (!processTask.IsCompleted)
-							{
-								_logger.LogInformation("Waiting for child process to terminate");
-							}
-							await processTask;
-							_logger.LogInformation("Finished executing process");
 							return;
 						case ComputeMessageType.AttachRecvBuffer:
 							{
@@ -209,7 +210,7 @@ namespace EpicGames.Horde.Compute
 #pragma warning disable CA2000 // Dispose objects before losing scope
 								(IComputeBufferReader reader, IComputeBufferWriter writer) = SharedMemoryBuffer.OpenIpcHandle(attachRecvBuffer.Handle).ToShared();
 								reader.Dispose();
-								await socket.AttachRecvBufferAsync(attachRecvBuffer.ChannelId, writer, cancellationSource.Token);
+								await socket.AttachRecvBufferAsync(attachRecvBuffer.ChannelId, writer, cancellationToken);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 							}
 							break;
@@ -220,7 +221,7 @@ namespace EpicGames.Horde.Compute
 #pragma warning disable CA2000 // Dispose objects before losing scope
 								(IComputeBufferReader reader, IComputeBufferWriter writer) = SharedMemoryBuffer.OpenIpcHandle(attachSendBuffer.Handle).ToShared();
 								writer.Dispose();
-								await socket.AttachSendBufferAsync(attachSendBuffer.ChannelId, reader, cancellationSource.Token);
+								await socket.AttachSendBufferAsync(attachSendBuffer.ChannelId, reader, cancellationToken);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 							}
 							break;

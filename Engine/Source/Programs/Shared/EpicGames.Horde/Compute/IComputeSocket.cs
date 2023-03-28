@@ -83,7 +83,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel to receive data on</param>
 		/// <param name="capacity">Capacity for the buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static ValueTask<IComputeBufferReader> AttachRecvBufferAsync(this IComputeSocket socket, int channelId, long capacity, CancellationToken cancellationToken)
+		public static ValueTask<IComputeBufferReader> AttachRecvBufferAsync(this IComputeSocket socket, int channelId, long capacity, CancellationToken cancellationToken = default)
 		{
 			return AttachRecvBufferAsync(socket, channelId, socket.CreateBuffer(capacity), cancellationToken);
 		}
@@ -95,7 +95,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel to receive data on</param>
 		/// <param name="buffer">Buffer to attach to the socket</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async ValueTask<IComputeBufferReader> AttachRecvBufferAsync(this IComputeSocket socket, int channelId, IComputeBuffer buffer, CancellationToken cancellationToken)
+		public static async ValueTask<IComputeBufferReader> AttachRecvBufferAsync(this IComputeSocket socket, int channelId, IComputeBuffer buffer, CancellationToken cancellationToken = default)
 		{
 			(IComputeBufferReader reader, IComputeBufferWriter writer) = buffer.ToShared();
 			await socket.AttachRecvBufferAsync(channelId, writer, cancellationToken);
@@ -109,7 +109,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel to receive data on</param>
 		/// <param name="capacity">Capacity for the buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static ValueTask<IComputeBufferWriter> AttachSendBufferAsync(this IComputeSocket socket, int channelId, long capacity, CancellationToken cancellationToken) 
+		public static ValueTask<IComputeBufferWriter> AttachSendBufferAsync(this IComputeSocket socket, int channelId, long capacity, CancellationToken cancellationToken = default) 
 			=> AttachSendBufferAsync(socket, channelId, socket.CreateBuffer(capacity), cancellationToken);
 
 		/// <summary>
@@ -119,7 +119,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel to receive data on</param>
 		/// <param name="buffer">Buffer for the data to send</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async ValueTask<IComputeBufferWriter> AttachSendBufferAsync(this IComputeSocket socket, int channelId, IComputeBuffer buffer, CancellationToken cancellationToken)
+		public static async ValueTask<IComputeBufferWriter> AttachSendBufferAsync(this IComputeSocket socket, int channelId, IComputeBuffer buffer, CancellationToken cancellationToken = default)
 		{
 			(IComputeBufferReader reader, IComputeBufferWriter writer) = buffer.ToShared();
 			await socket.AttachSendBufferAsync(channelId, reader, cancellationToken);
@@ -133,7 +133,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Identifier for the channel</param>
 		/// <param name="logger">Logger for the channel</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static ValueTask<IComputeMessageChannel> CreateMessageChannelAsync(this IComputeSocket socket, int channelId, ILogger logger, CancellationToken cancellationToken) 
+		public static ValueTask<IComputeMessageChannel> CreateMessageChannelAsync(this IComputeSocket socket, int channelId, ILogger logger, CancellationToken cancellationToken = default) 
 			=> socket.CreateMessageChannelAsync(channelId, 65536, logger, cancellationToken);
 
 		/// <summary>
@@ -144,7 +144,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="bufferSize">Size of the send and receive buffer</param>
 		/// <param name="logger">Logger for the channel</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static ValueTask<IComputeMessageChannel> CreateMessageChannelAsync(this IComputeSocket socket, int channelId, long bufferSize, ILogger logger, CancellationToken cancellationToken)
+		public static ValueTask<IComputeMessageChannel> CreateMessageChannelAsync(this IComputeSocket socket, int channelId, long bufferSize, ILogger logger, CancellationToken cancellationToken = default)
 			=> socket.CreateMessageChannelAsync(channelId, bufferSize, bufferSize, logger, cancellationToken);
 
 		/// <summary>
@@ -156,7 +156,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="recvBufferSize">Size of the recieve buffer</param>
 		/// <param name="logger">Logger for the channel</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async ValueTask<IComputeMessageChannel> CreateMessageChannelAsync(this IComputeSocket socket, int channelId, long sendBufferSize, long recvBufferSize, ILogger logger, CancellationToken cancellationToken)
+		public static async ValueTask<IComputeMessageChannel> CreateMessageChannelAsync(this IComputeSocket socket, int channelId, long sendBufferSize, long recvBufferSize, ILogger logger, CancellationToken cancellationToken = default)
 		{
 			IComputeBufferReader reader = await socket.AttachRecvBufferAsync(channelId, recvBufferSize, cancellationToken);
 			IComputeBufferWriter writer = await socket.AttachSendBufferAsync(channelId, sendBufferSize, cancellationToken);
