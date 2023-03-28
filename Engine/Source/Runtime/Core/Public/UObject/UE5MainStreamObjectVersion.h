@@ -340,6 +340,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Smart names removed from animation systems
 		AnimationRemoveSmartNames,
 
+		// Change the default for facing & alignment to be automatic
+		NiagaraSpriteRendererFacingAlignmentAutoDefault,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

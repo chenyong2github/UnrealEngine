@@ -16,6 +16,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSpriteRendererProperties)
 
@@ -54,8 +55,8 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	: Material(nullptr)
 	, SourceMode(ENiagaraRendererSourceDataMode::Particles)
 	, MaterialUserParamBinding(FNiagaraTypeDefinition(UMaterialInterface::StaticClass()))
-	, Alignment(ENiagaraSpriteAlignment::Unaligned)
-	, FacingMode(ENiagaraSpriteFacingMode::FaceCamera)
+	, Alignment(ENiagaraSpriteAlignment::Automatic)
+	, FacingMode(ENiagaraSpriteFacingMode::Automatic)
 	, PivotInUVSpace(0.5f, 0.5f)
 	, SortMode(ENiagaraSortMode::None)
 	, SubImageSize(1.0f, 1.0f)
@@ -201,11 +202,19 @@ void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Rec
 {
 	FArchive& Ar = Record.GetUnderlyingArchive();
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+	const int32 UE5MainVersion = Ar.CustomVer(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.IsLoading() && (NiagaraVersion < FNiagaraCustomVersion::DisableSortingByDefault))
 	{
 		SortMode = ENiagaraSortMode::ViewDistance;
+	}
+
+	if (Ar.IsLoading() && (UE5MainVersion < FUE5MainStreamObjectVersion::NiagaraSpriteRendererFacingAlignmentAutoDefault))
+	{
+		Alignment = ENiagaraSpriteAlignment::Unaligned;
+		FacingMode = ENiagaraSpriteFacingMode::FaceCamera;
 	}
 
 	// MIC will replace the main material during serialize

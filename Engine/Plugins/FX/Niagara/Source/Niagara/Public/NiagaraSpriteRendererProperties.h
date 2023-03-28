@@ -21,7 +21,10 @@ enum class ENiagaraSpriteAlignment : uint8
 	/** Imagine the particle texture having an arrow pointing up, this mode makes the arrow point in the direction of the Particles.Velocity attribute. FacingMode is ignored unless CustomFacingVector is set.*/
 	VelocityAligned,
 	/** Imagine the particle texture having an arrow pointing up, this mode makes the arrow point towards the axis defined by the "Particles.SpriteAlignment" attribute. FacingMode is ignored unless CustomFacingVector is set. If the "Particles.SpriteAlignment" attribute is missing, this falls back to Unaligned mode.*/
-	CustomAlignment
+	CustomAlignment,
+
+	/** Automatically select between Unaligned & CustomAlignment depending on if SpriteAlignment Binding is valid. */
+	Automatic
 };
 
 
@@ -38,7 +41,10 @@ enum class ENiagaraSpriteFacingMode : uint8
 	/** Faces the camera position, but is not dependent on the camera rotation.  This method produces more stable particles under camera rotation. Uses the up axis of (0,0,1).*/
 	FaceCameraPosition,
 	/** Blends between FaceCamera and FaceCameraPosition.*/
-	FaceCameraDistanceBlend
+	FaceCameraDistanceBlend,
+
+	/** Automatically select between FaceCamera & CustomFacingVector depending on if SpriteFacing binding is valid. */
+	Automatic
 };
 
 UENUM()

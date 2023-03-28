@@ -168,6 +168,18 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 			VFBoundOffsetsInParamStore[i] = INDEX_NONE;
 		}
 	}
+
+	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayoutWithoutCustomSort->GetVFVariables_GameThread();
+	if (Alignment == ENiagaraSpriteAlignment::Automatic)
+	{
+		const int32 RegisterIndex = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset() : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Alignment];
+		Alignment = RegisterIndex == INDEX_NONE ? ENiagaraSpriteAlignment::Unaligned : ENiagaraSpriteAlignment::CustomAlignment;
+	}
+	if (FacingMode == ENiagaraSpriteFacingMode::Automatic)
+	{
+		const int32 RegisterIndex = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset() : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Facing];
+		FacingMode = RegisterIndex == INDEX_NONE ? ENiagaraSpriteFacingMode::FaceCamera : ENiagaraSpriteFacingMode::CustomFacingVector;
+	}
 }
 
 FNiagaraRendererSprites::~FNiagaraRendererSprites()
