@@ -19,6 +19,7 @@ class UVCamWidget;
 class UVPFullScreenUserWidget;
 
 #if WITH_EDITOR
+struct FEditorViewportViewModifierParams;
 class FLevelEditorViewportClient;
 #endif
 
@@ -140,7 +141,6 @@ protected:
 	void RestoreOverrideResolutionForViewport(EVCamTargetViewportID ViewportToRestore);
 	/** Applies OverrideResolution to the passed in viewport - bUseOverrideResolution was already checked. */
 	void ApplyOverrideResolutionForViewport(EVCamTargetViewportID Viewport);
-
 	void DisplayUMG();
 	void DestroyUMG();
 
@@ -186,6 +186,14 @@ private:
 	/** Valid when active and if UMGClass is valid. */
 	UPROPERTY(Transient)
 	TObjectPtr<UVPFullScreenUserWidget> UMGWidget = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	/** We call UVPFullScreenUserWidget::SetCustomPostProcessSettingsSource(this), which will cause these settings to be discovered. They are later passed down to FEditorViewportViewModifierDelegate. */
+	UPROPERTY(Transient)
+	FPostProcessSettings PostProcessSettingsForWidget;
+	/** Handle to ModifyViewportPostProcessSettings */
+	FDelegateHandle ModifyViewportPostProcessSettingsDelegateHandle;
+#endif
 	
 	UPROPERTY(Transient)
 	TSoftObjectPtr<UCineCameraComponent> TargetCamera;
@@ -202,6 +210,10 @@ private:
 	bool IsOuterComponentEnabled() const;
 
 #if WITH_EDITOR
+
+	/** Passed to FEditorViewportClient::ViewModifiers if DisplayType == PostProcess. */
+	void ModifyViewportPostProcessSettings(FEditorViewportViewModifierParams& EditorViewportViewModifierParams);
+	
 	void StartDetectAndSnapshotWhenConnectionsChange();
 	void StopDetectAndSnapshotWhenConnectionsChange();
 	void OnConnectionReinitialized(TWeakObjectPtr<UVCamWidget> Widget);

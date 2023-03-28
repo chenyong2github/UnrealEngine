@@ -23,6 +23,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "EditorViewportClient.h"
 #include "IAssetViewport.h"
 #include "LevelEditorViewport.h"
 #include "SLevelViewport.h"
@@ -154,7 +155,6 @@ bool UVCamOutputProviderBase::IsOuterComponentEnabled() const
 	return false;
 }
 
-
 void UVCamOutputProviderBase::SetTargetCamera(const UCineCameraComponent* InTargetCamera)
 {
 	if (InTargetCamera != TargetCamera)
@@ -241,7 +241,24 @@ void UVCamOutputProviderBase::DisplayUMG()
 	{
 		if (UWorld* ActorWorld = GetWorld())
 		{
+#if WITH_EDITOR
+			// In the editor, we override the target viewport's post process settings instead of using the cine camera
+			// because other output providers with post process output would interfer with each other...
+			UMGWidget->SetCustomPostProcessSettingsSource(this);
+
+			FLevelEditorViewportClient* Client = GetTargetLevelViewportClient();
+			UE_CLOG(DisplayType == EVPWidgetDisplayType::PostProcess && !Client, LogVCamOutputProvider, Error, TEXT("Failed to find viewport client. The widget will not be rendered."));
+			if (DisplayType == EVPWidgetDisplayType::PostProcess && Client)
+			{
+				ensure(!ModifyViewportPostProcessSettingsDelegateHandle.IsValid());
+				ModifyViewportPostProcessSettingsDelegateHandle = Client->ViewModifiers.AddUObject(this, &UVCamOutputProviderBase::ModifyViewportPostProcessSettings);
+				Client->bShouldApplyViewModifiers = true;
+			}
+#else
+			// ... but in games there is only one viewport so we can just use the cine camera.
 			UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
+#endif
+			
 			if (!UMGWidget->Display(ActorWorld)
 				|| !ensureAlwaysMsgf(UMGWidget->GetWidget(), TEXT("UVPFullScreenUserWidget::Display returned true but did not create any subwidget!")))
 			{
@@ -277,6 +294,14 @@ void UVCamOutputProviderBase::DestroyUMG()
 				Modify();
 				WidgetSnapshot = UE::VCamCore::WidgetSnapshotUtils::Private::TakeTreeHierarchySnapshot(*Subwidget);
 			}
+
+			FLevelEditorViewportClient* Client = GetTargetLevelViewportClient();
+			if (DisplayType == EVPWidgetDisplayType::PostProcess && Client && ModifyViewportPostProcessSettingsDelegateHandle.IsValid())
+			{
+				Client->ViewModifiers.Remove(ModifyViewportPostProcessSettingsDelegateHandle);
+				Client->bShouldApplyViewModifiers = Client->ViewModifiers.IsBound();
+			}
+			ModifyViewportPostProcessSettingsDelegateHandle.Reset();
 #endif
 			
 			UMGWidget->Hide();
@@ -578,6 +603,12 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UVCamOutputProviderBase::ModifyViewportPostProcessSettings(FEditorViewportViewModifierParams& EditorViewportViewModifierParams)
+{
+	// The UMGWidget has put a post process material into PostProcessSettingsForWidget which causes the widget to be rendered 
+	EditorViewportViewModifierParams.AddPostProcessBlend(PostProcessSettingsForWidget, 1.f);
 }
 
 void UVCamOutputProviderBase::StartDetectAndSnapshotWhenConnectionsChange()
