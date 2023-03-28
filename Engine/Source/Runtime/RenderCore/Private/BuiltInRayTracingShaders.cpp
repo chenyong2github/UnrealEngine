@@ -9,7 +9,7 @@
 
 #include "RayTracingPayloadType.h"
 
-uint32 GetRaytracingMaterialPayloadSize()
+uint32 GetRaytracingMaterialPayloadSizeFullySimplified()
 {
 	if (Strata::IsStrataEnabled())
 	{
@@ -17,7 +17,8 @@ uint32 GetRaytracingMaterialPayloadSize()
 		uint32 PayloadSizeBytes = 6 * sizeof(uint32);
 
 		// The remaining data from FStrataRaytracingPayload.
-		PayloadSizeBytes += Strata::GetRayTracingMaterialPayloadSizeInBytes();
+		const bool bFullySimplifiedMaterial = true;	// This is needed because ERayTracingPayloadType::RayTracingMaterial will be fully simplified, see FShaderType::ModifyCompilationEnvironment.
+		PayloadSizeBytes += Strata::GetRayTracingMaterialPayloadSizeInBytes(bFullySimplifiedMaterial);
 
 		return PayloadSizeBytes;
 	}
@@ -26,7 +27,7 @@ uint32 GetRaytracingMaterialPayloadSize()
 }
 
 IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::Default, 24);
-IMPLEMENT_RT_PAYLOAD_TYPE_FUNCTION(ERayTracingPayloadType::RayTracingMaterial, GetRaytracingMaterialPayloadSize);
+IMPLEMENT_RT_PAYLOAD_TYPE_FUNCTION(ERayTracingPayloadType::RayTracingMaterial, GetRaytracingMaterialPayloadSizeFullySimplified);
 
 IMPLEMENT_GLOBAL_SHADER( FDefaultPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultPayloadMS", SF_RayMiss);
 IMPLEMENT_GLOBAL_SHADER( FPackedMaterialClosestHitPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "PackedMaterialClosestHitPayloadMS", SF_RayMiss);

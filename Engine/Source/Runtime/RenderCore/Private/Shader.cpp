@@ -450,6 +450,14 @@ void FShaderType::ModifyCompilationEnvironment(const FShaderPermutationParameter
 
 		OutEnvironment.SetDefine(TEXT("RT_PAYLOAD_TYPE"), static_cast<int32>(RayTracingPayloadType));
 		OutEnvironment.SetDefine(TEXT("RT_PAYLOAD_MAX_SIZE"), GetRayTracingPayloadTypeMaxSize(RayTracingPayloadType));
+
+		if (uint32(RayTracingPayloadType) & uint32(ERayTracingPayloadType::RayTracingMaterial))
+		{
+			// If any payload requires a fully simplified material, we force fully simplified material all the way.
+			// That is used to have material ray tracing shaders compressed to single slab.
+			// Smaller payload means faster performance and for some tracing this will be enough, e.g. reflected materials, lightmass diffuse interactions.
+			OutEnvironment.SetDefine(TEXT("STRATA_USE_FULLYSIMPLIFIED_MATERIAL"), 1);
+		}
 	}
 #endif
 }

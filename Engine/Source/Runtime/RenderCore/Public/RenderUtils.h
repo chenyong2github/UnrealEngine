@@ -489,7 +489,7 @@ namespace Strata
 	RENDERCORE_API bool Is8bitTileCoordEnabled();
 	RENDERCORE_API bool IsAccurateSRGBEnabled();
 
-	RENDERCORE_API uint32 GetRayTracingMaterialPayloadSizeInBytes();
+	RENDERCORE_API uint32 GetRayTracingMaterialPayloadSizeInBytes(bool bFullySimplifiedMaterial);
 
 	RENDERCORE_API uint32 GetBytePerPixel();
 	RENDERCORE_API uint32 GetBytePerPixel(EShaderPlatform InPlatform);

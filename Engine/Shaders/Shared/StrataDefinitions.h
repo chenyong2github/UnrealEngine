@@ -8,7 +8,7 @@
 #pragma once
 
 // Change this to force recompilation of all strata dependent shaders (use https://www.random.org/cgi-bin/randbyte?nbytes=4&format=h)
-#define STRATA_SHADER_VERSION 0x084bf26a2 
+#define STRATA_SHADER_VERSION 0xbd4a70e7
 
 
 
@@ -20,6 +20,9 @@
 
 #define STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES	4
 
+// As of today, a fully simplified material is a slab with all features allowed. It can thus be complex if anisotropy is enabled and in this case eats up to 32bytes.
+// STRATA_TODO: fully simplified should remove all features but fuzz maybe. 
+#define STRATA_FULLY_SIMPLIFIED_NUM_UINTS	(32/4)
 
 #define STRATA_BSDF_TYPE_SLAB				0
 #define STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD	1

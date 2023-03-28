@@ -15,6 +15,7 @@
 #include "ShaderPlatformCachedIniValue.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "RenderCore.h"
+#include "StrataDefinitions.h"
 
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
@@ -1625,7 +1626,7 @@ namespace Strata
 		return CVar && CVar->GetValueOnAnyThread() > 1 ? 1 : 0;
 	}
 
-	uint32 GetRayTracingMaterialPayloadSizeInBytes()
+	uint32 GetRayTracingMaterialPayloadSizeInBytes(bool bFullySimplifiedMaterial)
 	{
 		// The payload size represents FPackedMaterialClosestHitPayload containing FStrataRaytracingPayload composed of 
 		//  (1)- top layer data using a count of STRATA_TOP_LAYER_TYPE uints
@@ -1647,7 +1648,14 @@ namespace Strata
 		}
 
 		// Account for (2)
-		PayloadSizeBytes += Strata::GetBytePerPixel();
+		if (bFullySimplifiedMaterial)
+		{
+			PayloadSizeBytes += STRATA_FULLY_SIMPLIFIED_NUM_UINTS * sizeof(uint32);
+		}
+		else
+		{
+			PayloadSizeBytes += Strata::GetBytePerPixel();
+		}
 
 		return PayloadSizeBytes;
 	}

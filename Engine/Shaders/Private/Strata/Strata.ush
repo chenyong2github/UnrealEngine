@@ -1649,9 +1649,22 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 ///////////////////////////////////////////////////////////////////////////////
 // Raytracing material buffer
 
-// Data payload size is determined based on Strata.BytesPerPixel settings
-#ifndef STRATA_RT_PAYLOAD_NUM_UINTS
-#error STRATA_RT_PAYLOAD_NUM_UINTS needs to be defined
+#ifndef STRATA_MATERIAL_NUM_UINTS
+#error STRATA_MATERIAL_NUM_UINTS needs to be defined
+#endif
+
+/*
+Material payload drives whether or not a Strata material should be fully simplified.
+This is setup in a few places:
+- FShaderType::ModifyCompilationEnvironment automatically enables STRATA_USE_FULLYSIMPLIFIED_MATERIAL for some PayloadType (to automatically impact CHS, MS, RGS and tracing CS)
+- When a payload is declared and it needs to transport Strata data, the size can be computed using Strata::GetRayTracingMaterialPayloadSizeInBytes, e.g. GetRaytracingMaterialPayloadSizeFullySimplified.
+*/
+
+#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL
+#define STRATA_RT_PAYLOAD_NUM_UINTS STRATA_FULLY_SIMPLIFIED_NUM_UINTS
+#else
+// STRATA_MATERIAL_NUM_UINTS is based on Strata.BytesPerPixel settings
+#define STRATA_RT_PAYLOAD_NUM_UINTS STRATA_MATERIAL_NUM_UINTS
 #endif
 
 struct FStrataRaytracingPayload
