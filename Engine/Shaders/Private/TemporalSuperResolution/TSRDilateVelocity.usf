@@ -56,8 +56,8 @@ Texture2D<uint> PrevScatteredSubpixelDepthTexture;
 
 RWTexture2D<float2> DilatedVelocityOutput;
 RWTexture2D<float> ClosestDepthOutput;
-RWTexture2D<uint> PrevUseCountOutput;
-RWTexture2D<uint> PrevClosestDepthOutput;
+globallycoherent RWTexture2D<uint> PrevUseCountOutput;
+globallycoherent RWTexture2D<uint> PrevClosestDepthOutput;
 RWTexture2DArray<uint> R8Output;
 RWTexture2D<uint> SubpixelDepthOutput;
 
