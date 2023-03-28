@@ -978,7 +978,8 @@ public:
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
-		if (ViewportClient->IsCtrlPressed())
+		HHitProxy* HitProxy = ViewportClient->Viewport->GetHitProxy(ViewportClient->Viewport->GetMouseX(), ViewportClient->Viewport->GetMouseY());
+		if (HitProxy && ViewportClient->IsCtrlPressed())
 		{
 			LandscapeInfo = InTarget.LandscapeInfo.Get();
 			ILandscapeSplineInterface* SplineOwner = nullptr;
@@ -1000,7 +1001,6 @@ public:
 			// Hit Test
 			if (!SplineOwner)
 			{
-				HHitProxy* HitProxy = ViewportClient->Viewport->GetHitProxy(ViewportClient->Viewport->GetMouseX(), ViewportClient->Viewport->GetMouseY());
 				if (HitProxy->IsA(HActor::StaticGetType()))
 				{
 					HActor* ActorProxy = (HActor*)HitProxy;
