@@ -56,29 +56,6 @@ bool UHLODBuilder::RequiresWarmup() const
 	return true;
 }
 
-static TArray<UActorComponent*> GatherHLODRelevantComponents(const TArray<AActor*>& InSourceActors)
-{
-	TArray<UActorComponent*> HLODRelevantComponents;
-
-	for (AActor* Actor : InSourceActors)
-	{
-		if (!Actor || !Actor->IsHLODRelevant())
-		{
-			continue;
-		}
-
-		for (UActorComponent* SubComponent : Actor->GetComponents())
-		{
-			if (SubComponent && SubComponent->IsHLODRelevant())
-			{
-				HLODRelevantComponents.Add(SubComponent);
-			}
-		}
-	}
-
-	return HLODRelevantComponents;
-}
-
 uint32 UHLODBuilder::ComputeHLODHash(const UActorComponent* InSourceComponent) const
 {
 	uint32 ComponentCRC = 0;
@@ -128,12 +105,12 @@ uint32 UHLODBuilder::ComputeHLODHash(const UActorComponent* InSourceComponent) c
 	return ComponentCRC;
 }
 
-uint32 UHLODBuilder::ComputeHLODHash(const TArray<AActor*>& InSourceActors)
+uint32 UHLODBuilder::ComputeHLODHash(const TArray<UActorComponent*>& InSourceComponents)
 {
 	// We get the CRC of each component
 	TArray<uint32> ComponentsCRCs;
 
-	for (UActorComponent* SourceComponent : GatherHLODRelevantComponents(InSourceActors))
+	for (UActorComponent* SourceComponent : InSourceComponents)
 	{
 		TSubclassOf<UHLODBuilder> HLODBuilderClass = SourceComponent->GetCustomHLODBuilderClass();
 		if (!HLODBuilderClass)
@@ -276,19 +253,13 @@ static bool ShouldBatchComponent(UActorComponent* ActorComponent)
 
 TArray<UActorComponent*> UHLODBuilder::Build(const FHLODBuildContext& InHLODBuildContext) const
 {
-	TArray<UActorComponent*> HLODRelevantComponents = GatherHLODRelevantComponents(InHLODBuildContext.SourceActors);
-	if (HLODRelevantComponents.IsEmpty())
-	{
-		return {};
-	}
-
 	// Handle components using a batching policy separately
 	TArray<UActorComponent*> InputComponents;
 	TArray<UActorComponent*> ComponentsToBatch;
 
 	if (!ShouldIgnoreBatchingPolicy())
 	{				
-		for (UActorComponent* SourceComponent : HLODRelevantComponents)
+		for (UActorComponent* SourceComponent : InHLODBuildContext.SourceComponents)
 		{
 			if (ShouldBatchComponent(SourceComponent))
 			{
@@ -302,7 +273,7 @@ TArray<UActorComponent*> UHLODBuilder::Build(const FHLODBuildContext& InHLODBuil
 	}
 	else
 	{
-		InputComponents = MoveTemp(HLODRelevantComponents);
+		InputComponents = InHLODBuildContext.SourceComponents;
 	}
 
 	TMap<TSubclassOf<UHLODBuilder>, TArray<UActorComponent*>> HLODBuildersForComponents;

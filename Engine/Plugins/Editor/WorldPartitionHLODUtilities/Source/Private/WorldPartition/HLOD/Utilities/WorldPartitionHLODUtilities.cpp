@@ -114,7 +114,7 @@ static uint32 GetCRC(const TArray<FHLODSubActor>& InSubActors)
 	return CRC;
 }
 
-static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<AActor*>& InActors)
+static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<UActorComponent*>& InSourceComponents)
 {
 	FArchiveCrc32 Ar;
 
@@ -147,7 +147,7 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<AAc
 	}
 
 	// Append all components CRCs
-	uint32 HLODComponentsHash = UHLODBuilder::ComputeHLODHash(InActors);
+	uint32 HLODComponentsHash = UHLODBuilder::ComputeHLODHash(InSourceComponents);
 	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLOD Source Components = %x"), HLODComponentsHash);
 	Ar << HLODComponentsHash;
 
@@ -616,6 +616,24 @@ void GatherOutputStats(AWorldPartitionHLOD* InHLODActor)
 	InHLODActor->SetStat(FWorldPartitionHLODStats::MemoryDiskSizeBytes, 0); // Clear disk size as it is unknown at this point. It will be assigned at package loading
 }
 
+// Iterate over the source actors and retrieve HLOD relevant components using GetHLODRelevantComponents()
+static TArray<UActorComponent*> GatherHLODRelevantComponents(const TArray<AActor*>& InSourceActors)
+{
+	TSet<UActorComponent*> HLODRelevantComponents;
+
+	for (AActor* Actor : InSourceActors)
+	{
+		if (!Actor || !Actor->IsHLODRelevant())
+		{
+			continue;
+		}
+
+		HLODRelevantComponents.Append(Actor->GetHLODRelevantComponents());
+	}
+
+	return HLODRelevantComponents.Array();
+}
+
 uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 {
 	FAutoScopedDurationTimer TotalTimeScope;
@@ -639,8 +657,10 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 		UWorldPartitionLevelStreamingDynamic::UnloadFromEditor(LevelStreaming);
 	};
 
+	TArray<UActorComponent*> HLODRelevantComponents = GatherHLODRelevantComponents(LevelStreaming->GetLoadedLevel()->Actors);
+
 	uint32 OldHLODHash = bIsDirty ? 0 : InHLODActor->GetHLODHash();
-	uint32 NewHLODHash = ComputeHLODHash(InHLODActor, LevelStreaming->GetLoadedLevel()->Actors);
+	uint32 NewHLODHash = ComputeHLODHash(InHLODActor, HLODRelevantComponents);
 
 	if (OldHLODHash == NewHLODHash)
 	{
@@ -690,7 +710,7 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 
 			FHLODBuildContext HLODBuildContext;
 			HLODBuildContext.World = InHLODActor->GetWorld();
-			HLODBuildContext.SourceActors = LevelStreaming->GetLoadedLevel()->Actors;
+			HLODBuildContext.SourceComponents = HLODRelevantComponents;
 			HLODBuildContext.AssetsOuter = InHLODActor->GetPackage();
 			HLODBuildContext.AssetsBaseName = InHLODActor->GetActorLabel();
 			HLODBuildContext.MinVisibleDistance = InHLODActor->GetMinVisibleDistance();

@@ -2280,6 +2280,12 @@ public:
 	/** Indicates whether this actor contributes to the HLOD generation. */
 	virtual bool IsHLODRelevant() const;
 
+	/** Indicates whether this actor can provide HLOD relevant components. */
+	virtual bool HasHLODRelevantComponents() const;
+
+	/** Return the list of components to use when building the HLOD representation of this actor. */
+	virtual TArray<UActorComponent*> GetHLODRelevantComponents() const;
+
 	/** 
 	 * Set LOD Parent component for all of our components, normally associated with an ALODActor. 
 	 * @param InLODParent			This component used to compute visibility when hierarchical LOD is enabled. 

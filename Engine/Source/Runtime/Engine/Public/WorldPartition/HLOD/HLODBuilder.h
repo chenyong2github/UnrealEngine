@@ -41,8 +41,8 @@ struct FHLODBuildContext
 	/** World for which HLODs are being built */
 	UWorld*	World;
 
-	/** Actors that will be represented by this HLOD */
-	TArray<AActor*> SourceActors;
+	/** Components that will be represented by this HLOD */
+	TArray<UActorComponent*> SourceComponents;
 
 	/** Outer to use for generated assets */
 	UObject* AssetsOuter;
@@ -80,7 +80,7 @@ public:
 	 */
 	TArray<UActorComponent*> Build(const FHLODBuildContext& InHLODBuildContext) const;
 
-	UE_DEPRECATED(5.2, "Use Build() method that takes a single FHLODBuildContext parameter. SourceActors are now part of the HLOD build context object.")
+	UE_DEPRECATED(5.2, "Use Build() method that takes a single FHLODBuildContext parameter.")
 	TArray<UActorComponent*> Build(const FHLODBuildContext& InHLODBuildContext, const TArray<AActor*>& InSourceActors) const { return Build(InHLODBuildContext); }
 
 	/**
@@ -110,10 +110,10 @@ public:
 	virtual TArray<UActorComponent*> Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const PURE_VIRTUAL(UHLODBuilder::Build, return {};);
 
 	/**
-	 * From a set of actors, compute a unique hash from their properties that are relevant to HLOD generation.
+	 * From a set of components, compute a unique hash from their properties that are relevant to HLOD generation.
 	 * Used to detect changes to the source actors and trigger an HLOD rebuild if necessarry.
 	 */
-	static uint32 ComputeHLODHash(const TArray<AActor*>& InSourceActors);
+	static uint32 ComputeHLODHash(const TArray<UActorComponent*>& InSourceComponents);
 
 	/** 
 	 * Get the InstancedStaticMeshComponent subclass that should be used when creating instanced HLODs.

@@ -5968,7 +5968,21 @@ bool AActor::IsHLODRelevant() const
 		return false;
 	}
 
+	return HasHLODRelevantComponents();
+}
+
+bool AActor::HasHLODRelevantComponents() const
+{
 	return Algo::AnyOf(GetComponents(), [](const UActorComponent* Component) { return Component->IsHLODRelevant(); });
+}
+
+TArray<UActorComponent*> AActor::GetHLODRelevantComponents() const
+{
+	TArray<UActorComponent*> HLODRelevantComponents;
+	auto IsHLODRelevant = [](UActorComponent* Component) { return Component->IsHLODRelevant(); };
+	auto GetComponent = [](UActorComponent* Component) { return Component; };
+	Algo::TransformIf(GetComponents(), HLODRelevantComponents, IsHLODRelevant, GetComponent);
+	return HLODRelevantComponents;
 }
 
 void AActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance)
