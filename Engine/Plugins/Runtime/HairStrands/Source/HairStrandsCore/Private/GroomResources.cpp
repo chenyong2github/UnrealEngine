@@ -50,6 +50,11 @@ static int32 GHairStrandsDebugVoxel_MaxSegmentPerVoxel = 2048;
 static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_WorldSize(TEXT("r.HairStrands.DebugData.VoxelSize"), GHairStrandsDebugVoxel_WorldSize, TEXT("Voxel size use for creating debug data."));
 static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_MaxSegmentPerVoxel(TEXT("r.HairStrands.DebugData.MaxSegmentPerVoxel"), GHairStrandsDebugVoxel_MaxSegmentPerVoxel, TEXT("Max number of segments per Voxel size when creating debug data."));
 
+bool ValidateHairBulkData()
+{
+	return GHairStrandsBulkData_Validation > 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 
 EHairResourceLoadingType GetHairResourceLoadingType(EHairGeometryType InGeometryType, int32 InLODIndex)
@@ -408,9 +413,6 @@ void InternalCreateByteAddressBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, 
 	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, PF_Unknown);
 }
 
-
-
-
 template<typename FormatType>
 void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, const typename FormatType::Type* InData, uint32 InDataCount, FRDGExternalBuffer& Out, const TCHAR* DebugName, const FName& OwnerName, EHairResourceUsageType UsageType, ERDGInitialDataFlags InitialDataFlags, bool bIsByteAddressBuffer=false)
 {
@@ -541,7 +543,6 @@ void InternalCreateStructuredBufferRDG(FRDGBuilder& GraphBuilder, uint32 DataCou
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, FormatType::Format), 0u);
 	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, FormatType::Format);
 }
-
 
 template<typename FormatType>
 void InternalCreateStructuredBufferRDG_FromBulkData(FRDGBuilder& GraphBuilder, FByteBulkData& InBulkData, uint32 InDataCount, FRDGExternalBuffer& Out, const TCHAR* DebugName, const FName& OwnerName, EHairResourceUsageType UsageType)
@@ -1112,129 +1113,6 @@ void FHairStrandsDeformedResource::InternalRelease()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-// Cluster culling data
-
-FHairStrandsClusterCullingData::FHairStrandsClusterCullingData()
-{
-
-}
-
-void FHairStrandsClusterCullingData::Reset()
-{
-	*this = FHairStrandsClusterCullingData();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// Cluster culling bulk data
-FHairStrandsClusterCullingBulkData::FHairStrandsClusterCullingBulkData()
-{
-
-}
-
-void FHairStrandsClusterCullingBulkData::Reset()
-{
-	Header.ClusterCount = 0;
-	Header.ClusterLODCount = 0;
-	Header.VertexCount = 0;
-	Header.VertexLODCount = 0;
-
-	Header.LODVisibility.Empty();
-	Header.CPULODScreenSize.Empty();
-	Header.LODInfos.Empty();
-
-	Data.ClusterLODInfos.RemoveBulkData();
-	Data.VertexToClusterIds.RemoveBulkData();
-	Data.ClusterVertexIds.RemoveBulkData();
-	Data.PackedClusterInfos.RemoveBulkData();
-
-	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	Data.ClusterLODInfos 	= FHairBulkContainer();
-	Data.VertexToClusterIds = FHairBulkContainer();
-	Data.ClusterVertexIds 	= FHairBulkContainer();
-	Data.PackedClusterInfos = FHairBulkContainer();
-}
-
-void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
-{
-	Ar << Header.ClusterCount;
-	Ar << Header.ClusterLODCount;
-	Ar << Header.VertexCount;
-	Ar << Header.VertexLODCount;
-	Ar << Header.LODVisibility;
-	Ar << Header.CPULODScreenSize;
-	uint32 LODInfosCount = Header.LODInfos.Num();
-	Ar << LODInfosCount;
-	if (Ar.IsLoading())
-	{
-		Header.LODInfos.SetNum(LODInfosCount);
-	}
-	for (uint32 It = 0; It < LODInfosCount; ++It)
-	{
-		Ar << Header.LODInfos[It].CurveCount;
-		Ar << Header.LODInfos[It].PointCount;
-	}
-}
-
-uint32 FHairStrandsClusterCullingBulkData::GetResourceCount() const
-{
-	return 4;
-}
-
-void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQuery & Out)
-{
-	if (Header.ClusterLODCount)
-	{
-		Out.Add(Data.ClusterLODInfos, TEXT("_ClusterLODInfos"));
-	}
-
-	if (Header.VertexCount)
-	{
-		Out.Add(Data.VertexToClusterIds, TEXT("_VertexToClusterIds"));
-	}
-
-	if (Header.VertexLODCount)
-	{
-		Out.Add(Data.ClusterVertexIds, TEXT("_ClusterVertexIds"));
-	}
-
-	if (Header.ClusterCount)
-	{
-		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"));
-	}
-
-	if (GHairStrandsBulkData_Validation > 0 && Out.Type == FHairStrandsBulkCommon::FQuery::WriteDDC || Out.Type == FHairStrandsBulkCommon::FQuery::ReadWriteIO)
-	{
-		Validate(true);
-	}
-}
-
-void FHairStrandsClusterCullingBulkData::Validate(bool bIsSaving)
-{
-	if (Header.ClusterCount == 0)
-	{
-		return;
-	}
-
-	const FHairClusterInfo::Packed* Datas = (const FHairClusterInfo::Packed*)Data.PackedClusterInfos.Data.Lock(LOCK_READ_ONLY);
-	
-	// Simple heuristic to check if the data are valid
-	const uint32 MaxCount = FMath::Min(Header.ClusterCount, 128u);
-	bool bIsValid = true;
-	for (uint32 It = 0; It < MaxCount; ++It)
-	{
-		bIsValid = bIsValid && Datas[It].LODCount <= 8;
-		if (!bIsValid) break;
-	}
-	if (!bIsValid)
-	{
-		FString DebugName = Data.ClusterLODInfos.GetDebugName();
-		UE_LOG(LogHairStrands, Error, TEXT("[Groom/DDC] Strands - Invalid ClusterCullingBulkData when %s bulk data - %s"), bIsSaving ? TEXT("Saving") : TEXT("Loading"), *DebugName);
-	}
-
-	Data.PackedClusterInfos.Data.Unlock();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
 // Cluster culling resources
 FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(FHairStrandsClusterCullingBulkData& InBulkData, const FHairResourceName& InResourceName, const FName& InOwnerName):
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, InResourceName, InOwnerName),
@@ -1257,7 +1135,7 @@ void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuil
 	check(BulkDataRequest.IsCompleted());
 	BulkDataRequest = FHairResourceRequest();
 
-	if (GHairStrandsBulkData_Validation > 0)
+	if (ValidateHairBulkData())
 	{
 		BulkData.Validate(false);
 	}

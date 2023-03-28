@@ -47,12 +47,25 @@ void FHairStrandsPoints::SetNum(const uint32 NumPoints, uint32 InAttributes)
 	if (HasHairAttribute(InAttributes, EHairAttribute::AO))			{ PointsAO.SetNum(NumPoints); }
 }
 
+void FHairStrandsDatas::Reset()
+{
+	StrandsCurves.Reset();
+	StrandsPoints.Reset();
+	HairDensity = 1;
+	BoundingBox = FBox(EForceInit::ForceInit);
+}
+
 void FHairStrandsInterpolationDatas::Reset()
 {
 	PointsSimCurvesVertexWeights.Reset();
 	PointsSimCurvesVertexLerp.Reset();
 	PointsSimCurvesVertexIndex.Reset();
 	PointsSimCurvesIndex.Reset();
+}
+
+void FHairStrandsClusterCullingData::Reset()
+{
+	*this = FHairStrandsClusterCullingData();
 }
 
 void FHairStrandsCurves::Reset()
@@ -96,25 +109,8 @@ float GetHairStrandsMaxRadius(const FHairStrandsDatas& In)
 	return MaxRadius;
 }
 
-FArchive& operator<<(FArchive& Ar, FVector4_16& Vertex)
-{
-	Ar << Vertex.X;
-	Ar << Vertex.Y;
-	Ar << Vertex.Z;
-	Ar << Vertex.W;
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
-{
-	Ar << Vertex.X;
-	Ar << Vertex.Y;
-	Ar << Vertex.Z;
-	Ar << Vertex.PackedRadiusAndType;
-	Ar << Vertex.UCoord;
-
-	return Ar;
-}
+/////////////////////////////////////////////////////////////////////////////////////////
+// Common bulk data
 
 namespace HairStrands
 {
@@ -231,43 +227,8 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 	}
 }
 
-void FHairStrandsInterpolationBulkData::Reset()
-{
-	Header.Flags = 0;
-	Header.PointCount = 0;
-	Header.SimPointCount = 0;
-	
-	// Deallocate memory if needed
-	Data.Interpolation.RemoveBulkData();
-	Data.SimRootPointIndex.RemoveBulkData();
-
-	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	Data.Interpolation		= FHairBulkContainer();
-	Data.SimRootPointIndex	= FHairBulkContainer();
-}
-
-void FHairStrandsInterpolationBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
-{
-	Ar << Header.Flags;
-	Ar << Header.PointCount;
-	Ar << Header.SimPointCount;
-}
-
-uint32 FHairStrandsInterpolationBulkData::GetResourceCount() const
-{
-	return (Header.Flags & DataFlags_HasData) ? 2 : 0;
-}
-
-void FHairStrandsInterpolationBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
-{
-	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
-
-	if (Header.Flags & DataFlags_HasData)
-	{
-		Out.Add(Data.Interpolation, TEXT("_Interpolation"));
-		Out.Add(Data.SimRootPointIndex, TEXT("_SimRootPointIndex"));
-	}
-}
+/////////////////////////////////////////////////////////////////////////////////////////
+// Rest bulk data
 
 void FHairStrandsBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
 {
@@ -354,10 +315,153 @@ void FHairStrandsBulkData::Reset()
 	Data.Curves			= FHairBulkContainer();
 }
 
-void FHairStrandsDatas::Reset()
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// Interpolation bulk data
+
+void FHairStrandsInterpolationBulkData::Reset()
 {
-	StrandsCurves.Reset();
-	StrandsPoints.Reset();
-	HairDensity = 1;
-	BoundingBox = FBox(EForceInit::ForceInit);
+	Header.Flags = 0;
+	Header.PointCount = 0;
+	Header.SimPointCount = 0;
+	
+	// Deallocate memory if needed
+	Data.Interpolation.RemoveBulkData();
+	Data.SimRootPointIndex.RemoveBulkData();
+
+	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
+	Data.Interpolation		= FHairBulkContainer();
+	Data.SimRootPointIndex	= FHairBulkContainer();
+}
+
+void FHairStrandsInterpolationBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
+{
+	Ar << Header.Flags;
+	Ar << Header.PointCount;
+	Ar << Header.SimPointCount;
+}
+
+uint32 FHairStrandsInterpolationBulkData::GetResourceCount() const
+{
+	return (Header.Flags & DataFlags_HasData) ? 2 : 0;
+}
+
+void FHairStrandsInterpolationBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
+{
+	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
+
+	if (Header.Flags & DataFlags_HasData)
+	{
+		Out.Add(Data.Interpolation, TEXT("_Interpolation"));
+		Out.Add(Data.SimRootPointIndex, TEXT("_SimRootPointIndex"));
+	}
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// Cluster culling bulk data
+
+void FHairStrandsClusterCullingBulkData::Reset()
+{
+	Header.ClusterCount = 0;
+	Header.ClusterLODCount = 0;
+	Header.VertexCount = 0;
+	Header.VertexLODCount = 0;
+
+	Header.LODVisibility.Empty();
+	Header.CPULODScreenSize.Empty();
+	Header.LODInfos.Empty();
+
+	Data.ClusterLODInfos.RemoveBulkData();
+	Data.VertexToClusterIds.RemoveBulkData();
+	Data.ClusterVertexIds.RemoveBulkData();
+	Data.PackedClusterInfos.RemoveBulkData();
+
+	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
+	Data.ClusterLODInfos 	= FHairBulkContainer();
+	Data.VertexToClusterIds = FHairBulkContainer();
+	Data.ClusterVertexIds 	= FHairBulkContainer();
+	Data.PackedClusterInfos = FHairBulkContainer();
+}
+
+void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
+{
+	Ar << Header.ClusterCount;
+	Ar << Header.ClusterLODCount;
+	Ar << Header.VertexCount;
+	Ar << Header.VertexLODCount;
+	Ar << Header.LODVisibility;
+	Ar << Header.CPULODScreenSize;
+	uint32 LODInfosCount = Header.LODInfos.Num();
+	Ar << LODInfosCount;
+	if (Ar.IsLoading())
+	{
+		Header.LODInfos.SetNum(LODInfosCount);
+	}
+	for (uint32 It = 0; It < LODInfosCount; ++It)
+	{
+		Ar << Header.LODInfos[It].CurveCount;
+		Ar << Header.LODInfos[It].PointCount;
+	}
+}
+
+uint32 FHairStrandsClusterCullingBulkData::GetResourceCount() const
+{
+	return 4;
+}
+
+bool ValidateHairBulkData();
+
+void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQuery & Out)
+{
+	if (Header.ClusterLODCount)
+	{
+		Out.Add(Data.ClusterLODInfos, TEXT("_ClusterLODInfos"));
+	}
+
+	if (Header.VertexCount)
+	{
+		Out.Add(Data.VertexToClusterIds, TEXT("_VertexToClusterIds"));
+	}
+
+	if (Header.VertexLODCount)
+	{
+		Out.Add(Data.ClusterVertexIds, TEXT("_ClusterVertexIds"));
+	}
+
+	if (Header.ClusterCount)
+	{
+		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"));
+	}
+
+	if (ValidateHairBulkData() && (Out.Type == FHairStrandsBulkCommon::FQuery::WriteDDC || Out.Type == FHairStrandsBulkCommon::FQuery::ReadWriteIO))
+	{
+		Validate(true);
+	}
+}
+
+void FHairStrandsClusterCullingBulkData::Validate(bool bIsSaving)
+{
+	if (Header.ClusterCount == 0)
+	{
+		return;
+	}
+
+	const FHairClusterInfo::Packed* Datas = (const FHairClusterInfo::Packed*)Data.PackedClusterInfos.Data.Lock(LOCK_READ_ONLY);
+	
+	// Simple heuristic to check if the data are valid
+	const uint32 MaxCount = FMath::Min(Header.ClusterCount, 128u);
+	bool bIsValid = true;
+	for (uint32 It = 0; It < MaxCount; ++It)
+	{
+		bIsValid = bIsValid && Datas[It].LODCount <= 8;
+		if (!bIsValid) break;
+	}
+	if (!bIsValid)
+	{
+		FString DebugName = Data.ClusterLODInfos.GetDebugName();
+		UE_LOG(LogHairStrands, Error, TEXT("[Groom/DDC] Strands - Invalid ClusterCullingBulkData when %s bulk data - %s"), bIsSaving ? TEXT("Saving") : TEXT("Loading"), *DebugName);
+	}
+
+	Data.PackedClusterInfos.Data.Unlock();
 }

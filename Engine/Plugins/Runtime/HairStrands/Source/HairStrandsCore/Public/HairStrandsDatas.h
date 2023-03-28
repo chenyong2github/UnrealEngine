@@ -759,7 +759,6 @@ struct FHairLODInfo
 
 struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 {
-	FHairStrandsClusterCullingData();
 	void Reset();
 	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
 
@@ -785,7 +784,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 
 struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulkCommon
 {
-	FHairStrandsClusterCullingBulkData();
 	void Reset();
 
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
