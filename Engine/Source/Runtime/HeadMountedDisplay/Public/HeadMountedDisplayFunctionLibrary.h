@@ -276,7 +276,7 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	/**
 	 * Cross XR-System query that will list all XR devices currently being tracked.
 	 *
-	 * @param  SystemId		(Optional) Specifies an explicit system to poll devices from (use if you want only devices belonging to one explicit XR ecosystem, e.g. 'OculusHMD', or 'SteamVR')
+	 * @param  SystemId		(Optional) Specifies an explicit system to poll devices from (use if you want only devices belonging to one explicit XR ecosystem, e.g. 'OculusHMD', or 'OpenXR')
 	 * @param  DeviceType	Specifies the type of device to query for - defaults to 'Any' (meaning 'All').
 	 *
 	 * @return A list of device identifiers matching the query. Use these to query and operate on the device (e.g. through GetDevicePose, AddDeviceVisualizationComponent, etc.)

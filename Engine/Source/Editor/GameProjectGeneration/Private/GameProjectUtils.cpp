@@ -100,8 +100,7 @@ namespace
 	void SetXRPluginStates(const FProjectInformation& InProjectInfo, FProjectDescriptor& OutProject)
 	{
 		static const FString XRPlugins[] = {
-			TEXT("OculusVR"),
-			TEXT("SteamVR") };
+			TEXT("OculusVR")};
 
 		if (InProjectInfo.bEnableXR.IsSet() && 
 			InProjectInfo.bEnableXR.GetValue() == false)

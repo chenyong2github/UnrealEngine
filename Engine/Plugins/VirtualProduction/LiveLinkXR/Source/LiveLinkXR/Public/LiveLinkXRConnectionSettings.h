@@ -11,7 +11,7 @@ struct LIVELINKXR_API FLiveLinkXRConnectionSettings
 	GENERATED_BODY()
 
 public:
-	/** Track all SteamVR tracker pucks */
+	/** Track all tracker pucks */
 	UPROPERTY(EditAnywhere, Category = "Connection Settings")
 	bool bTrackTrackers = true;
 

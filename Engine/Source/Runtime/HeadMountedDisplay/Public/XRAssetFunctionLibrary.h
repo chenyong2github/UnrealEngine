@@ -47,7 +47,7 @@ public:
 	 *       will fail and return an invalid (null) object.
 	 *
 	 * @param  Target				The intended owner for the component to attach to.
-	 * @param  SystemName			(optional) Targets a specific XR system (i.e. 'Oculus', 'SteamVR', etc.). If left as 'None', then the first system found that can render the device will be used.
+	 * @param  SystemName			(optional) Targets a specific XR system (i.e. 'Oculus', 'OpenXR', etc.). If left as 'None', then the first system found that can render the device will be used.
 	 * @param  DeviceName			Source name of the specific device - expect the same names that the MotionControllerComponent's "MotionSource" field uses ('Left', 'Right', etc.).
 	 * @param  bManualAttachment	If set, will leave the component unattached (mirror's the same option on the generic AddComponent node). When unset the component will attach to the actor's root.
 	 * @param  RelativeTransform	Specifies the component initial transform (relative to its attach parent).
