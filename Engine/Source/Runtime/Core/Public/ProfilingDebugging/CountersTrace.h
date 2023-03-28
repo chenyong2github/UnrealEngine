@@ -6,11 +6,11 @@
 #include "HAL/PreprocessorHelpers.h"
 #include "Misc/Build.h"
 #include "Trace/Config.h"
+#include "Trace/Detail/Channel.h"
+#include "Trace/Detail/Channel.inl"
 #include "Trace/Trace.h"
 
 #include <atomic>
-
-namespace UE { namespace Trace { class FChannel; } }
 
 #if !defined(COUNTERSTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
@@ -34,7 +34,7 @@ enum ETraceCounterDisplayHint
 
 #if COUNTERSTRACE_ENABLED
 
-UE_TRACE_CHANNEL_EXTERN(CountersChannel);
+UE_TRACE_CHANNEL_EXTERN(CountersChannel, CORE_API);
 
 struct FCountersTrace
 {
@@ -52,7 +52,17 @@ struct FCountersTrace
 			, CounterId(0)
 			, CounterDisplayHint(InCounterDisplayHint)
 		{
-			CounterId = OutputInitCounter(InCounterName, CounterType, CounterDisplayHint);
+			EnsureInit();
+		}
+
+		void EnsureInit()
+		{
+			uint32 OldId = CounterId.load();
+			if (!OldId)
+			{
+				uint32 NewId = OutputInitCounter(CounterName, CounterType, CounterDisplayHint);
+				CounterId.compare_exchange_weak(OldId, NewId);
+			}
 		}
 
 		const ValueType& Get() const
@@ -65,7 +75,11 @@ struct FCountersTrace
 			if (Value != InValue)
 			{
 				Value = InValue;
-				OutputSetValue(CounterId, Value);
+				if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CountersChannel))
+				{
+					EnsureInit();
+					OutputSetValue(uint16(CounterId), Value);
+				}
 			}
 		}
 
@@ -74,7 +88,11 @@ struct FCountersTrace
 			if (InValue != 0)
 			{
 				Value += InValue;
-				OutputSetValue(CounterId, Value);
+				if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CountersChannel))
+				{
+					EnsureInit();
+					OutputSetValue(uint16(CounterId), Value);
+				}
 			}
 		}
 
@@ -83,26 +101,38 @@ struct FCountersTrace
 			if (InValue != 0)
 			{
 				Value -= InValue;
-				OutputSetValue(CounterId, Value);
+				if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CountersChannel))
+				{
+					EnsureInit();
+					OutputSetValue(uint16(CounterId), Value);
+				}
 			}
 		}
 
 		void Increment()
 		{
 			++Value;
-			OutputSetValue(CounterId, Value);
+			if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CountersChannel))
+			{
+				EnsureInit();
+				OutputSetValue(uint16(CounterId), Value);
+			}
 		}
 		
 		void Decrement()
 		{
 			--Value;
-			OutputSetValue(CounterId, Value);
+			if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CountersChannel))
+			{
+				EnsureInit();
+				OutputSetValue(uint16(CounterId), Value);
+			}
 		}
 
 	private:
 		StoredType Value;
 		const TCHAR* CounterName;
-		uint16 CounterId;
+		std::atomic<uint32> CounterId;
 		ETraceCounterDisplayHint CounterDisplayHint;
 	};
 
