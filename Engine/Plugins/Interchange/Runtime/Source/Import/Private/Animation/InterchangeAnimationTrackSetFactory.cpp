@@ -46,7 +46,7 @@ namespace UE::Interchange::Private
 		FString ActorNodeUid;
 		if (TrackNode->GetCustomActorDependencyUid(ActorNodeUid))
 		{
-			const FString ActorFactoryNodeUid = TEXT("Factory_") + ActorNodeUid;
+			const FString ActorFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(ActorNodeUid);
 			const UInterchangeFactoryBaseNode* ActorFactoryNode = Cast<UInterchangeFactoryBaseNode>(NodeContainer->GetNode(ActorFactoryNodeUid));
 
 			if (ActorFactoryNode)
@@ -89,7 +89,7 @@ namespace UE::Interchange::Private
 						continue;
 					}
 
-					const FString TrackSetFactoryNodeUid = TEXT("Factory_") + TrackSetNodeUid;
+					const FString TrackSetFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(TrackSetNodeUid);
 					const UInterchangeAnimationTrackSetFactoryNode* InstanceFactoryNode = Cast<UInterchangeAnimationTrackSetFactoryNode>(NodeContainer->GetNode(TrackSetFactoryNodeUid));
 
 					if (!InstanceFactoryNode)
@@ -361,7 +361,7 @@ namespace UE::Interchange::Private
 			return;
 		}
 
-		const FString TrackSetFactoryNodeUid = TEXT("Factory_") + TrackSetNodeUid;
+		const FString TrackSetFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(TrackSetNodeUid);
 		const UInterchangeAnimationTrackSetFactoryNode* InstanceFactoryNode = Cast<UInterchangeAnimationTrackSetFactoryNode>(NodeContainer.GetNode(TrackSetFactoryNodeUid));
 		
 		FString InstanceNodeDisplayLabel = InstanceNode.GetDisplayLabel();
@@ -544,7 +544,7 @@ namespace UE::Interchange::Private
 		FString ActorNodeUid;
 		if (TrackNode.GetCustomActorDependencyUid(ActorNodeUid))
 		{
-			const FString ActorFactoryNodeUid = TEXT("Factory_") + ActorNodeUid;
+			const FString ActorFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(ActorNodeUid);
 			const UInterchangeFactoryBaseNode* ActorFactoryNode = Cast<UInterchangeFactoryBaseNode>(NodeContainer.GetNode(ActorFactoryNodeUid));
 
 			if (ActorFactoryNode)

@@ -58,7 +58,7 @@ public:
 
 	static FString GetTextureFactoryNodeUidFromTextureNodeUid(const FString& TranslatedNodeUid)
 	{
-		FString NewUid = TEXT("Factory_") + TranslatedNodeUid;
+		FString NewUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(TranslatedNodeUid);
 		return NewUid;
 	}
 

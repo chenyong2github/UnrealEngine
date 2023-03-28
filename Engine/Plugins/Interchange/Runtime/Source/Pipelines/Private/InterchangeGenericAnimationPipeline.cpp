@@ -215,7 +215,7 @@ void UInterchangeGenericAnimationPipeline::CreateAnimationTrackSetFactoryNode(UI
 				FString ActorNodeUid;
 				if (TransformTrackNode->GetCustomActorDependencyUid(ActorNodeUid))
 				{
-					const FString ActorFactoryNodeUid = TEXT("Factory_") + ActorNodeUid;
+					const FString ActorFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(ActorNodeUid);
 					FactoryNode->AddFactoryDependencyUid(ActorFactoryNodeUid);
 				}
 			}
@@ -224,7 +224,7 @@ void UInterchangeGenericAnimationPipeline::CreateAnimationTrackSetFactoryNode(UI
 				FString TrackSetNodeUid;
 				if (InstanceTrackNode->GetCustomTrackSetDependencyUid(TrackSetNodeUid))
 				{
-					const FString TrackSetFactoryNodeUid = TEXT("Factory_") + TrackSetNodeUid;
+					const FString TrackSetFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(TrackSetNodeUid);
 					FactoryNode->AddFactoryDependencyUid(TrackSetFactoryNodeUid);
 				}
 
