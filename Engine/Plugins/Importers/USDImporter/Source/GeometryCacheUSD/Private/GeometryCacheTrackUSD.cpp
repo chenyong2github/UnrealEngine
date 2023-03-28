@@ -36,6 +36,33 @@ void UGeometryCacheTrackUsd::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UGeometryCacheTrackUsd::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	// This is an additional copy that lives on the track
+	MeshData.GetResourceSizeEx(CumulativeResourceSize);
+
+	if (FGeometryCacheUsdStream* UsdStreamPtr = UsdStream.Get())
+	{
+		const FGeometryCacheStreamStats& Stats = UsdStreamPtr->GetStreamStats();
+
+		int32 NumFramesFullyLoaded = Stats.NumCachedFrames;
+		float TotalMemoryForLoadedFramesMB = Stats.MemoryUsed;
+		float MemoryPerFrameMB = TotalMemoryForLoadedFramesMB / NumFramesFullyLoaded;
+
+		// Also account for frames we're going to prefetch
+		uint32 NumRemainingFrames = UsdStreamPtr->GetNumFramesNeeded();
+		float TotalMemoryMB = TotalMemoryForLoadedFramesMB + NumRemainingFrames * MemoryPerFrameMB;
+
+		// Using 1048576 instead of 1000000 for megabyte as that's what's used by FGeometryCacheStreamBase memory stats
+		double TotalMemoryBytes = TotalMemoryMB * 1048576;
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(static_cast<SIZE_T>(TotalMemoryBytes + 0.5));
+	}
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SampleInfos.GetAllocatedSize());
+}
+
 const bool UGeometryCacheTrackUsd::UpdateMeshData(const float Time, const bool bLooping, int32& InOutMeshSampleIndex, FGeometryCacheMeshData*& OutMeshData)
 {
 	const int32 SampleIndex = FindSampleIndexFromTime(Time, bLooping);

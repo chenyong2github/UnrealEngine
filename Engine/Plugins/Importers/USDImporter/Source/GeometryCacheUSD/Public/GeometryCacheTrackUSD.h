@@ -32,6 +32,7 @@ public:
 
 	//~ Begin UObject Interface.
 	virtual void BeginDestroy() override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~ End UObject Interface.
 
 	//~ Begin UGeometryCacheTrack Interface.

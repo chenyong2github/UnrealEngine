@@ -108,6 +108,19 @@ void UGeometryCache::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 	Super::GetAssetRegistryTags(OutTags);
 }
 
+void UGeometryCache::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	for(TObjectPtr<UGeometryCacheTrack> Track : Tracks)
+	{
+		if (Track)
+		{
+			Track->GetResourceSizeEx(CumulativeResourceSize);
+		}
+	}
+}
+
 void UGeometryCache::BeginDestroy()
 {
 	Super::BeginDestroy();

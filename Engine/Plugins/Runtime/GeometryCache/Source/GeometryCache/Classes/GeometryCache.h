@@ -26,6 +26,7 @@ public:
 	virtual void PostInitProperties() override;
 	virtual FString GetDesc() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;
