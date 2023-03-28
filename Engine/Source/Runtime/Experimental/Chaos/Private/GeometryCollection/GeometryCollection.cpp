@@ -704,6 +704,12 @@ void FGeometryCollection::Empty()
 	SetNumUVLayers(1);
 }
 
+void FGeometryCollection::Reset()
+{
+	Super::Reset();
+	Construct();
+}
+
 void FGeometryCollection::InitializeInterfaces()
 {
 	FGeometryCollectionConvexPropertiesInterface::InitializeInterface();

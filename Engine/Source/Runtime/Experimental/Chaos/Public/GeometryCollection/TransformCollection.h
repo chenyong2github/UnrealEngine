@@ -102,6 +102,11 @@ public:
 	*/
 	virtual void RemoveElements(const FName & Group, const TArray<int32> & SortedDeletionList, FProcessingParameters Params = FProcessingParameters()) override;
 
+	/**
+	* reset internal state
+	*/
+	virtual void Reset() override;
+
 	// Transform Group
 	TManagedArray<FTransform>   Transform;
 	TManagedArray<FString>      BoneName;

@@ -414,7 +414,7 @@ void UGeometryCollection::Reset()
 	if (GeometryCollection.IsValid())
 	{
 		Modify(); 
-		GeometryCollection->Empty();
+		GeometryCollection->Reset();
 		Materials.Empty();
 		EmbeddedGeometryExemplar.Empty();
 		AutoInstanceMeshes.Empty();

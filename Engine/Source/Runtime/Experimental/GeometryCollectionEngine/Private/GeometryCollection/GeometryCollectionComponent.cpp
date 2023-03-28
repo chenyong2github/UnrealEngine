@@ -4057,6 +4057,18 @@ void UGeometryCollectionComponent::CalculateLocalBounds()
 	LocalBounds = ComputeBounds(FMatrix::Identity);
 }
 
+#define GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_MATRICES 0
+
+#if GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_MATRICES
+static void CheckForNaNs(const TArray<FMatrix>& Matrices)
+{
+	for (const FMatrix& Matrix : Matrices)
+	{
+		ensureAlways(false == Matrix.ContainsNaN());
+	}
+}
+#endif
+
 void UGeometryCollectionComponent::CalculateGlobalMatrices()
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCCUGlobalMatrices);
@@ -4087,9 +4099,13 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
 		}
 	}
-	
+
 #if WITH_EDITOR
 	UpdateGlobalMatricesWithExplodedVectors(GlobalMatrices, *(RestCollection->GetGeometryCollection()));
+#endif
+
+#if GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_MATRICES
+	CheckForNaNs(GlobalMatrices);
 #endif
 }
 

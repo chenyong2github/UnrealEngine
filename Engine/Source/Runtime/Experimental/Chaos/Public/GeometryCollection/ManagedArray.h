@@ -953,7 +953,7 @@ private:
 		else if (Size < Array.Num())
 		{
 			const int32 NumToRemove = (Array.Num() - Size);
-			Array.RemoveAt((Array.Num() - NumToRemove - 1), NumToRemove);
+			Array.RemoveAt((Array.Num() - NumToRemove), NumToRemove);
 		}
 	}
 

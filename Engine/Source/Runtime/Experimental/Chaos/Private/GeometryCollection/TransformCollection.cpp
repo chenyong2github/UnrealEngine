@@ -40,6 +40,12 @@ void FTransformCollection::Construct()
 	AddExternalAttribute<TSet<int32>>(FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup, Children);
 }
 
+void FTransformCollection::Reset()
+{
+	Super::Reset();
+	Construct();
+}
+
 void FTransformCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
 	Super::Serialize(Ar);

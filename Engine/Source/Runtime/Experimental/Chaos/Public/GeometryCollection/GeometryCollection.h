@@ -175,6 +175,11 @@ public:
 	void Empty();
 
 	/**
+	* reset internal state
+	*/
+	virtual void Reset() override;
+
+	/**
 	* Reorders elements in a group. NewOrder must be the same length as the group.
 	*/
 	virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder) override;
