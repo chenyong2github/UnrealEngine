@@ -48,9 +48,15 @@ public:
 	DECLARE_DELEGATE_OneParam(FRemoveExternalContentComplete, bool /*bSuccess*/);
 
 	/**
-	 * Removes a reference to external content from the project and unloads the external content
-	 * @param ExternalContentId External content identifier (verse path, link code, etc)
+	 * Removes references to external content from the project and unloads the external content
+	 * @param ExternalContentIds External content identifiers (verse path, link code, etc)
 	 * @param CompleteCallback See FRemoveExternalContentComplete
 	 */
-	virtual void RemoveExternalContent(const FString& ExternalContentId, FRemoveExternalContentComplete CompleteCallback = FRemoveExternalContentComplete()) = 0;
+	virtual void RemoveExternalContent(TConstArrayView<FString> ExternalContentIds, FRemoveExternalContentComplete CompleteCallback = FRemoveExternalContentComplete()) = 0;
+
+	void RemoveExternalContent(const FString& ExternalContentId, FRemoveExternalContentComplete CompleteCallback = FRemoveExternalContentComplete())
+	{
+		TArray<FString, TInlineAllocator<1>> ExternalContentIds = { ExternalContentId };
+		RemoveExternalContent(ExternalContentIds, MoveTemp(CompleteCallback));
+	}
 };

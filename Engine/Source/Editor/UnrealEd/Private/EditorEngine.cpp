@@ -7989,7 +7989,7 @@ namespace
 		virtual bool IsExternalContentLoaded(const FString& ExternalContentId) const override { return false; }
 		virtual TArray<FString> GetExternalContentIds() const override { return {}; }
 		virtual void AddExternalContent(const FString& ExternalContentId, FAddExternalContentComplete CompleteCallback) override { CompleteCallback.ExecuteIfBound(false, /*Plugins=*/{}); }
-		virtual void RemoveExternalContent(const FString& ExternalContentId, FRemoveExternalContentComplete CompleteCallback) override { CompleteCallback.ExecuteIfBound(false); }
+		virtual void RemoveExternalContent(TConstArrayView<FString> ExternalContentIds, FRemoveExternalContentComplete CompleteCallback) override { CompleteCallback.ExecuteIfBound(false); }
 	};
 
 	FProjectExternalContentDefault ProjectExternalContentDefault;
