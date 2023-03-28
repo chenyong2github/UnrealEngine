@@ -358,19 +358,6 @@ void STM_autortfm_clear_transaction_status(FContext* Context)
 	abort();
 }
 
-bool STM_autortfm_is_aborting(FContext* Context)
-{
-	return Context->IsAborting();
-}
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_is_aborting);
-
-bool STM_autortfm_current_nest_throw(FContext* Context)
-{
-	Context->Throw();
-	return true;
-}
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_current_nest_throw);
-
 void STM_autortfm_abort_if_transactional(FContext* Context)
 {
     if (FDebug::bVerbose)
@@ -394,8 +381,12 @@ UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_abort_if_closed);
 
 void STM_autortfm_open(void (*Work)(void* Arg), void* Arg, FContext* Context)
 {
-	// WARNING! DO NOT EDIT! Changes to this function will be elided due to special compiler optimizations
 	Work(Arg);
+
+	if (Context->IsAborting())
+	{
+		Context->Throw();
+	}
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_open);
 

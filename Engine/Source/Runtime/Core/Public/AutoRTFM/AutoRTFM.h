@@ -17,9 +17,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <memory.h>
+#include <type_traits>
 
 #if UE_AUTORTFM
-#include "Templates/Function.h"
+template <typename FuncType> class TFunction;
 #endif
 
 #ifdef __cplusplus
@@ -151,24 +152,6 @@ void autortfm_clear_transaction_status();
 #else
 inline void autortfm_clear_transaction_status()
 {
-}
-#endif
-
-#if UE_AUTORTFM
-bool autortfm_is_aborting();
-#else
-inline bool autortfm_is_aborting()
-{
-	return false;
-}
-#endif
-
-#if UE_AUTORTFM
-bool autortfm_current_nest_throw();
-#else
-inline bool autortfm_current_nest_throw()
-{
-	return false;
 }
 #endif
 
@@ -399,16 +382,6 @@ inline ETransactionResult AbortTransaction()
 inline void ClearTransactionStatus()
 {
 	autortfm_clear_transaction_status();
-}
-
-inline bool IsAborting()
-{
-	return autortfm_is_aborting();
-}
-
-inline bool CurrentNestThrow()
-{
-	return autortfm_current_nest_throw();
 }
 
 // RecordOpenWrite records the memory span into the current transaction as written.

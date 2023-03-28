@@ -30,8 +30,6 @@ TEST_CASE("OpenAPI.StartAbortAndStartAgain")
 			AutoRTFM::RecordOpenWrite(&valueC);
 			valueC = 30;
 			AutoRTFM::AbortTransaction();
-
-			AutoRTFM::CurrentNestThrow();
 		});
 	});
 
@@ -87,7 +85,6 @@ TEST_CASE("OpenAPI.AbortTransactionScopedFromOpen")
 	{
 		AutoRTFM::Open([&]() {
 			AutoRTFM::AbortTransaction();
-			AutoRTFM::CurrentNestThrow();
 		});
 		FAIL("AutoRTFM::Open failed to throw after an abort");
 	});
@@ -118,7 +115,6 @@ TEST_CASE("OpenAPI.AbortTransactionDoubleScopedFromOpen")
 			value = 42424242;
 			AutoRTFM::Open([&]() {
 				AutoRTFM::AbortTransaction();
-				AutoRTFM::CurrentNestThrow();
 			});
 			FAIL("AutoRTFM::Open failed to throw after an abort");
 			value = 24242424;
@@ -376,7 +372,6 @@ TEST_CASE("OpenAPI.Commit_TransactOpenCloseAbort")
 			}));
 
 			AutoRTFM::AbortTransaction(); // undoes value = 42 in the open
-			AutoRTFM::CurrentNestThrow();
 			REQUIRE(valueLocal == 1.0);
 		});
 
@@ -504,7 +499,6 @@ TEST_CASE("OpenAPI.StackWriteAbortInTheOpen1")
 			value = 10;
 			AutoRTFM::AbortTransaction();
 			REQUIRE(value == 0);
-			AutoRTFM::CurrentNestThrow();
 		});
 	});
 }
@@ -556,7 +550,6 @@ TEST_CASE("OpenAPI.StackWriteAbortInTheOpen2")
 			AutoRTFM::WriteMemory(&value, 10); // Illegal to write to value because it's in the inner-most closed-nest
 
 			AutoRTFM::AbortTransaction();
-			AutoRTFM::CurrentNestThrow();
 		});
 
 		// Never gets here
@@ -609,7 +602,6 @@ TEST_CASE("OpenAPI.WriteTrivialStructure")
 			REQUIRE(data.E[2] == 345);
 			REQUIRE(data.E[3] == 456);
 			REQUIRE(data.E[4] == 567);
-			AutoRTFM::CurrentNestThrow();
 		});
 	});
 }
@@ -667,7 +659,6 @@ TEST_CASE("OpenAPI.WriteTrivialStructure2")
 				REQUIRE(data.E[2] == 345);
 				REQUIRE(data.E[3] == 456);
 				REQUIRE(data.E[4] == 567);
-				AutoRTFM::CurrentNestThrow();
 			});
 	});
 }
@@ -795,9 +786,7 @@ TEST_CASE("OpenAPI.TransOpenStartCloseAbortAbort")
 
 			REQUIRE(CloseStatus == AutoRTFM::EContextStatus::AbortedByRequest);
 
-			REQUIRE(AutoRTFM::IsAborting());
 			AutoRTFM::ClearTransactionStatus();
-			REQUIRE(!AutoRTFM::IsAborting());
 
 			REQUIRE(bGetsToA == false);
 
@@ -806,7 +795,6 @@ TEST_CASE("OpenAPI.TransOpenStartCloseAbortAbort")
 			AutoRTFM::AbortTransaction();
 			bGetsToC = true;
 			REQUIRE(value == 42);
-			AutoRTFM::CurrentNestThrow();
 		});
 
 		bGetsToD = true;

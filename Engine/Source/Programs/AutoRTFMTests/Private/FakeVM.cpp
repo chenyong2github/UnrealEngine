@@ -63,72 +63,57 @@ AutoRTFM::ETransactionResult FakeVM(const FOpcode* Opcodes, const int Length, in
 	{
 		AutoRTFM::Open([Opcodes, Length, &Value]
 		{
-			bool ShouldThrowNest = false;
+			std::vector<int> RecoveryOpcodeStack;
 
-			// A scope - just to ensure the destructor of `RecoveryOpcodeStack` has been run on throw!
+			for (int i = 0; i < Length; i++)
 			{
-				std::vector<int> RecoveryOpcodeStack;
-
-				for (int i = 0; i < Length; i++)
+				switch (Opcodes[i].Type)
 				{
-					switch (Opcodes[i].Type)
-					{
-					default:
-						FAIL("Unhandled opcode kind!");
-						break;
-					case EOpcodeType::StartTransaction:
-						AutoRTFM::StartTransaction();
-						RecoveryOpcodeStack.push_back(Opcodes[i].Value);
-						break;
-					case EOpcodeType::CommitTransaction:
-						REQUIRE(AutoRTFM::ETransactionResult::Committed == AutoRTFM::CommitTransaction());
-						RecoveryOpcodeStack.pop_back();
-						break;
-					case EOpcodeType::Call:
-					{
-						const FCall Call = Opcodes[i].Call;
-						const int Arg = Opcodes[i].Value;
+				default:
+					FAIL("Unhandled opcode kind!");
+					break;
+				case EOpcodeType::StartTransaction:
+					AutoRTFM::StartTransaction();
+					RecoveryOpcodeStack.push_back(Opcodes[i].Value);
+					break;
+				case EOpcodeType::CommitTransaction:
+					REQUIRE(AutoRTFM::ETransactionResult::Committed == AutoRTFM::CommitTransaction());
+					RecoveryOpcodeStack.pop_back();
+					break;
+				case EOpcodeType::Call:
+				{
+					const FCall Call = Opcodes[i].Call;
+					const int Arg = Opcodes[i].Value;
 
-						const AutoRTFM::EContextStatus Status = AutoRTFM::Close([&Value, Arg, Call]
-							{
-								Call(&Value, Arg);
-							});
-
-						if (AutoRTFM::EContextStatus::OnTrack != Status)
+					const AutoRTFM::EContextStatus Status = AutoRTFM::Close([&Value, Arg, Call]
 						{
-							if (RecoveryOpcodeStack.empty())
-							{
-								ShouldThrowNest = true;
-								break;
-							}
+							Call(&Value, Arg);
+						});
 
-							// We've handled the bad transaction status here, so clear it out!
-							AutoRTFM::ClearTransactionStatus();
-
-							// -1 just cause the loop will i++!
-							i = RecoveryOpcodeStack.back() - 1;
-							RecoveryOpcodeStack.pop_back();
+					if (AutoRTFM::EContextStatus::OnTrack != Status)
+					{
+						if (RecoveryOpcodeStack.empty())
+						{
+							// We're wanting to throw out to the parent Transact call!
+							return;
 						}
-						break;
-					}
-					case EOpcodeType::WriteToValue:
-					{
-						const int Arg = Value - Opcodes[i].Value;
-						AutoRTFM::WriteMemory(&Value, &Arg);
-						break;
-					}
-					}
 
-					if (ShouldThrowNest)
-					{
-						break;
+						// We've handled the bad transaction status here, so clear it out!
+						AutoRTFM::ClearTransactionStatus();
+
+						// -1 just cause the loop will i++!
+						i = RecoveryOpcodeStack.back() - 1;
+						RecoveryOpcodeStack.pop_back();
 					}
+					break;
 				}
-			}
-
-			if (ShouldThrowNest)
-			{
-				AutoRTFM::CurrentNestThrow();
+				case EOpcodeType::WriteToValue:
+				{
+					const int Arg = Value - Opcodes[i].Value;
+					AutoRTFM::WriteMemory(&Value, &Arg);
+					break;
+				}
+				}
 			}
 		});
 	});
