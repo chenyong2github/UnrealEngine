@@ -71,6 +71,17 @@ namespace UnrealGameSync
 		Skipped,
 	}
 
+	class Link
+	{
+		public string Text { get; set; } = String.Empty;
+		public string Url { get; set; } = String.Empty;
+	}
+
+	class BadgeMetadata
+	{
+		public List<Link>? Links { get; set; } = new List<Link>();
+	}
+
 	class BadgeData
 	{
 		public long Id { get; set; }
@@ -79,6 +90,7 @@ namespace UnrealGameSync
 		public BadgeResult Result { get; set; }
 		public string Url { get; set; } = String.Empty;
 		public string Project { get; set; } = String.Empty;
+		public BadgeMetadata? Metadata { get; set; }
 
 		public bool IsSuccess => Result == BadgeResult.Success || Result == BadgeResult.Warning;
 

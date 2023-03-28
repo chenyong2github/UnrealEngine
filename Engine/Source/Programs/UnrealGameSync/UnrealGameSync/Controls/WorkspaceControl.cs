@@ -85,26 +85,29 @@ namespace UnrealGameSync
 			public int _height;
 			public Color _backgroundColor;
 			public Color _hoverBackgroundColor;
-			public Action? _clickHandler;
+			public Action? _leftClickHandler;
+			public Action<Control, Point>? _rightClickHandler;
 			public string? _toolTip;
 
 			public BadgeInfo(string label, string group, Color badgeColor)
-				: this(label, group, null, badgeColor, badgeColor, null)
+				: this(label, group, null, badgeColor, badgeColor, null, null)
 			{
 			}
 
-			public BadgeInfo(string label, string? group, string? uniqueId, Color backgroundColor, Color hoverBackgroundColor, Action? clickHandler)
+			public BadgeInfo(string label, string? group, string? uniqueId, Color backgroundColor,
+				Color hoverBackgroundColor, Action? leftClickHandler, Action<Control, Point>? rightClickHandler)
 			{
 				_label = label;
 				_group = group;
 				_uniqueId = uniqueId;
 				_backgroundColor = backgroundColor;
 				_hoverBackgroundColor = hoverBackgroundColor;
-				_clickHandler = clickHandler;
+				_leftClickHandler = leftClickHandler;
+				_rightClickHandler = rightClickHandler;
 			}
 
 			public BadgeInfo(BadgeInfo other)
-				: this(other._label, other._group, other._uniqueId, other._backgroundColor, other._hoverBackgroundColor, other._clickHandler)
+				: this(other._label, other._group, other._uniqueId, other._backgroundColor, other._hoverBackgroundColor, other._leftClickHandler, other._rightClickHandler)
 			{
 				_offset = other._offset;
 				_width = other._width;
@@ -2576,7 +2579,7 @@ namespace UnrealGameSync
 										clickHandler = () => SafeProcessStart(expandedUrl, expandedArguments);
 									}
 
-									badges.Add(new BadgeInfo(ReplaceRegexMatches(name, matchResult), group, uniqueId, badgeColor, hoverBadgeColor, clickHandler));
+									badges.Add(new BadgeInfo(ReplaceRegexMatches(name, matchResult), group, uniqueId, badgeColor, hoverBadgeColor, clickHandler, null));
 								}
 							}
 						}
@@ -2781,12 +2784,7 @@ namespace UnrealGameSync
 					BadgeData? badgeData;
 					badgeNameToBuildData.TryGetValue(badgeNameAndGroup.Key, out badgeData);
 
-					BadgeInfo badgeInfo = CreateBadge(changeNumber, badgeNameAndGroup.Key, badgeNameAndGroup.Value, badgeData);
-					if (_maxBuildBadgeChars != -1 && badgeInfo._label.Length > _maxBuildBadgeChars)
-					{
-						badgeInfo._toolTip = badgeInfo._label;
-						badgeInfo._label = badgeInfo._label.Substring(0, _maxBuildBadgeChars);
-					}
+					BadgeInfo badgeInfo = CreateBadge(changeNumber, badgeNameAndGroup.Key, badgeNameAndGroup.Value, badgeData, _maxBuildBadgeChars);
 					badges.Add(badgeInfo);
 				}
 			}
@@ -2796,7 +2794,7 @@ namespace UnrealGameSync
 			return badges;
 		}
 
-		private static BadgeInfo CreateBadge(int changeNumber, string badgeName, string badgeGroup, BadgeData? badgeData)
+		private BadgeInfo CreateBadge(int changeNumber, string badgeName, string badgeGroup, BadgeData? badgeData, int maxBadgeChars = -1)
 		{
 			string badgeLabel = badgeName;
 			Color badgeColor = Color.FromArgb(0, Color.White);
@@ -2809,18 +2807,62 @@ namespace UnrealGameSync
 
 			Color hoverBadgeColor = Color.FromArgb(badgeColor.A, Math.Min(badgeColor.R + 32, 255), Math.Min(badgeColor.G + 32, 255), Math.Min(badgeColor.B + 32, 255));
 
-			Action? clickHandler;
+			Action? leftClickHandler;
 			if (badgeData == null || String.IsNullOrEmpty(badgeData.Url))
 			{
-				clickHandler = null;
+				leftClickHandler = null;
 			}
 			else
 			{
-				clickHandler = () => SafeProcessStart(badgeData.Url);
+				leftClickHandler = () => SafeProcessStart(badgeData.Url);
+			}
+
+			Action<Control, Point>? rightClickHandler;
+			if (badgeData?.Metadata?.Links == null || !badgeData.Metadata.Links.Any())
+			{
+				rightClickHandler = null;
+			}
+			else
+			{
+				rightClickHandler = (control, point) =>
+				{
+					BadgeContextMenu.Items.Clear();
+
+					foreach (Link additionalUrl in badgeData.Metadata.Links)
+					{
+						ToolStripMenuItem item = new ToolStripMenuItem();
+						item.Text = additionalUrl.Text;
+    					item.Click += (sender, e) => SafeProcessStart(additionalUrl.Url);
+    					BadgeContextMenu.Items.Add(item);
+					}
+
+					BadgeContextMenu.Show(control, point);
+				};
 			}
 
 			string uniqueId = String.Format("{0}:{1}", changeNumber, badgeName);
-			return new BadgeInfo(badgeLabel, badgeGroup, uniqueId, badgeColor, hoverBadgeColor, clickHandler);
+			BadgeInfo badgeInfo = new BadgeInfo(badgeLabel, badgeGroup, uniqueId, badgeColor, hoverBadgeColor, leftClickHandler, rightClickHandler);
+
+			if (maxBadgeChars != -1 && badgeInfo._label.Length > maxBadgeChars)
+			{
+				badgeInfo._toolTip = badgeInfo._label;
+				badgeInfo._label = badgeInfo._label.Substring(0, maxBadgeChars);
+			}
+
+			if (badgeInfo._rightClickHandler != null)
+			{
+				string rightClickIndictor = "\U0001F4DC";
+				if (badgeInfo._toolTip == null)
+				{
+					badgeInfo._toolTip = rightClickIndictor;
+				}
+				else
+				{
+					badgeInfo._toolTip += (" " + rightClickIndictor);
+				}
+			}
+
+			return badgeInfo;
 		}
 
 		private Dictionary<string, List<BadgeInfo>> CreateCustomBadges(int changeNumber, EventSummary? summary)
@@ -4134,9 +4176,9 @@ namespace UnrealGameSync
 								foreach (BadgeInfo badge in layoutInfo._descriptionBadges)
 								{
 									Rectangle badgeBounds = badge.GetBounds(buildListLocation);
-									if (badgeBounds.Contains(args.Location) && badge._clickHandler != null)
+									if (badgeBounds.Contains(args.Location) && badge._leftClickHandler != null)
 									{
-										badge._clickHandler();
+										badge._leftClickHandler();
 										break;
 									}
 								}
@@ -4152,9 +4194,9 @@ namespace UnrealGameSync
 								buildListLocation.X = Math.Max(buildListLocation.X, hitTest.SubItem.Bounds.Left);
 
 								BadgeInfo? badgeInfo = HitTestBadge(args.Location, layoutInfo._buildBadges, buildListLocation);
-								if (badgeInfo != null && badgeInfo._clickHandler != null)
+								if (badgeInfo != null && badgeInfo._leftClickHandler != null)
 								{
-									badgeInfo._clickHandler();
+									badgeInfo._leftClickHandler();
 								}
 							}
 						}
@@ -4171,9 +4213,9 @@ namespace UnrealGameSync
 									Point listLocation = GetBadgeListLocation(badges, hitTest.SubItem.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
 
 									BadgeInfo? badgeInfo = HitTestBadge(args.Location, badges, listLocation);
-									if (badgeInfo != null && badgeInfo._clickHandler != null)
+									if (badgeInfo != null && badgeInfo._leftClickHandler != null)
 									{
-										badgeInfo._clickHandler();
+										badgeInfo._leftClickHandler();
 									}
 								}
 							}
@@ -4199,13 +4241,38 @@ namespace UnrealGameSync
 					}
 					else
 					{
-						_contextMenuChange = (ChangesRecord)hitTest.Item.Tag;
-						// Show time related context menu items if the click was made on the time column :
-						bool isTimeColumn = (hitTest.Item.SubItems.IndexOf(hitTest.SubItem) == TimeColumn.Index);
-						ShowChangelistContextMenu(BuildList, showTimeRelatedItems: isTimeColumn, args.Location);
-					}
-				}
-			}
+						bool badgeWasClicked = false;
+						if (CISColumn.Index < hitTest.Item.SubItems.Count && hitTest.Item.SubItems[CISColumn.Index] == hitTest.SubItem)
+						{
+							ChangesRecord change = (ChangesRecord)hitTest.Item.Tag;
+							ChangeLayoutInfo layoutInfo = GetChangeLayoutInfo(change);
+							if (layoutInfo._buildBadges.Count > 0)
+							{
+								Point buildListLocation = GetBadgeListLocation(layoutInfo._buildBadges, hitTest.SubItem.Bounds, HorizontalAlign.Center, VerticalAlignment.Middle);
+								buildListLocation.X = Math.Max(buildListLocation.X, hitTest.SubItem.Bounds.Left);
+
+								BadgeInfo? badgeInfo = HitTestBadge(args.Location, layoutInfo._buildBadges, buildListLocation);
+								if (badgeInfo != null)
+								{
+									badgeWasClicked = true;
+									if (badgeInfo._rightClickHandler != null)
+									{
+										badgeInfo._rightClickHandler(BuildList, args.Location);
+									}
+								}
+							}
+						}
+
+						if (!badgeWasClicked)
+						{
+						    _contextMenuChange = (ChangesRecord)hitTest.Item.Tag;
+						    // Show time related context menu items if the click was made on the time column :
+						    bool isTimeColumn = (hitTest.Item.SubItems.IndexOf(hitTest.SubItem) == TimeColumn.Index);
+						    ShowChangelistContextMenu(BuildList, showTimeRelatedItems: isTimeColumn, args.Location);
+					    }
+				    }
+			    }
+		    }
 		}
 
 		private void ShowChangelistContextMenu(Control parentControl, bool showTimeRelatedItems, Point location, ToolStripDropDownDirection direction = ToolStripDropDownDirection.BelowRight)

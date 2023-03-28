@@ -146,6 +146,7 @@ namespace UnrealGameSync
 			this.FilterContextMenu_Author_Name = new System.Windows.Forms.ToolStripTextBox();
 			this.FilterContextMenu_AfterBadgeSeparator = new System.Windows.Forms.ToolStripSeparator();
 			this.FilterContextMenu_ShowBuildMachineChanges = new System.Windows.Forms.ToolStripMenuItem();
+			this.BadgeContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
 			this.BuildHealthContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
 			this.BuildHealthContextMenu_Browse = new System.Windows.Forms.ToolStripMenuItem();
 			this.BuildHealthContextMenu_MinSeparator = new System.Windows.Forms.ToolStripSeparator();
@@ -168,6 +169,7 @@ namespace UnrealGameSync
 			this.RecentMenu.SuspendLayout();
 			this.BuildListMultiContextMenu.SuspendLayout();
 			this.FilterContextMenu.SuspendLayout();
+			this.BadgeContextMenu.SuspendLayout();
 			this.BuildHealthContextMenu.SuspendLayout();
 			((System.ComponentModel.ISupportInitialize)(this.EditorConfigWatcher)).BeginInit();
 			this.SuspendLayout();
@@ -1222,6 +1224,10 @@ namespace UnrealGameSync
 			this.FilterContextMenu_ShowBuildMachineChanges.Text = "Show Build Machine Changes";
 			this.FilterContextMenu_ShowBuildMachineChanges.Click += new System.EventHandler(this.FilterContextMenu_ShowBuildMachineChanges_Click);
 			// 
+			// BadgeContextMenu
+			//
+			this.BadgeContextMenu.Name = "BadgeContextMenu";
+			//
 			// BuildHealthContextMenu
 			// 
 			this.BuildHealthContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
@@ -1301,6 +1307,7 @@ namespace UnrealGameSync
 			this.BuildListMultiContextMenu.ResumeLayout(false);
 			this.FilterContextMenu.ResumeLayout(false);
 			this.BuildHealthContextMenu.ResumeLayout(false);
+			this.BadgeContextMenu.ResumeLayout(false);
 			((System.ComponentModel.ISupportInitialize)(this.EditorConfigWatcher)).EndInit();
 			this.ResumeLayout(false);
 
@@ -1430,6 +1437,7 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripTextBox FilterContextMenu_Author_Name;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator10;
 		private System.Windows.Forms.ContextMenuStrip BuildHealthContextMenu;
+		private System.Windows.Forms.ContextMenuStrip BadgeContextMenu;
 		private System.Windows.Forms.ToolStripSeparator BuildHealthContextMenu_MaxSeparator;
 		private System.Windows.Forms.ToolStripMenuItem BuildHealthContextMenu_Settings;
 		private System.Windows.Forms.ToolStripMenuItem BuildHealthContextMenu_Browse;

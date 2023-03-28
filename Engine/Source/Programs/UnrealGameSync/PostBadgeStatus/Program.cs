@@ -25,12 +25,14 @@ namespace WriteBadgeStatus
 			string RestUrl = ParseParam(Arguments, "RestUrl");
 			string Status = ParseParam(Arguments, "Status");
 			string Url = ParseParam(Arguments, "Url");
+			string Metadata = ParseParam(Arguments, "Metadata");
 
 			// Check we've got all the arguments we need (and no more)
 			if (Arguments.Count > 0 || Name == null || Change == null || Project == null || RestUrl == null || Status == null || Url == null)
 			{
 				Console.WriteLine("Syntax:");
-				Console.WriteLine("  PostBadgeStatus -Name=<Name> -Change=<CL> -Project=<DepotPath> -RestUrl=<Url> -Status=<Status> -Url=<Url>");
+				Console.WriteLine("  PostBadgeStatus -Name=<Name> -Change=<CL> -Project=<DepotPath> -RestUrl=<Url> -Status=<Status> -Url=<Url> -Metadata=<json metadata>");
+				Console.WriteLine("  Metadata is optional, but if provided, it has to contain array of links; format: {'Links': [{'Text': 'link text', 'Url': 'http://your.url'}]}");
 				return 1;
 			}
 
@@ -50,6 +52,10 @@ namespace WriteBadgeStatus
 			{
 				Console.WriteLine("Change must be Starting, Failure, Warning, Success, or Skipped!");
 				return 1;
+			}
+			if (!string.IsNullOrWhiteSpace(Metadata))
+			{
+				Build.Metadata = new JavaScriptSerializer().Deserialize<object>(Metadata);
 			}
 			int NumRetries = 0;
 			while (true)
@@ -107,6 +113,7 @@ namespace WriteBadgeStatus
 			public string Url;
 			public string Project;
 			public string ArchivePath;
+			public object Metadata;
 
 			public bool IsSuccess
 			{

@@ -17,6 +17,8 @@ namespace MetadataServer.Connectors
 	public static class SqlConnector
 	{
 		private static string ConnectionString = System.Configuration.ConfigurationManager.ConnectionStrings["ConnectionString"].ConnectionString;
+		private static bool StoreBuildMetadata = Convert.ToBoolean(System.Configuration.ConfigurationManager.AppSettings["StoreBuildMetadata"]);
+
 		public static LatestData GetLastIds(string Project = null)
 		{
 			// Get ids going back 432 builds for the project being asked for
@@ -151,9 +153,14 @@ namespace MetadataServer.Connectors
 			string ProjectLikeString = "%" + (Project == null ? String.Empty : GetProjectStream(Project)) + "%";
 			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
+				string QueryWithMetadata =
+					"SELECT Badges.Id, Badges.ChangeNumber, Badges.BuildType, Badges.Result, Badges.Url, Projects.Name, Badges.ArchivePath, Badges.Metadata FROM ugs_db.Badges " +
+					"INNER JOIN ugs_db.Projects ON Projects.Id = Badges.ProjectId WHERE Badges.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Badges.Id";
+				string QueryWithoutMetadata =
+					"SELECT Badges.Id, Badges.ChangeNumber, Badges.BuildType, Badges.Result, Badges.Url, Projects.Name, Badges.ArchivePath FROM ugs_db.Badges " +
+					"INNER JOIN ugs_db.Projects ON Projects.Id = Badges.ProjectId WHERE Badges.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Badges.Id";
 				Connection.Open();
-				using (MySqlCommand Command = new MySqlCommand("SELECT Badges.Id, Badges.ChangeNumber, Badges.BuildType, Badges.Result, Badges.Url, Projects.Name, Badges.ArchivePath FROM ugs_db.Badges " +
-																 "INNER JOIN ugs_db.Projects ON Projects.Id = Badges.ProjectId WHERE Badges.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Badges.Id", Connection))
+				using (MySqlCommand Command = new MySqlCommand(StoreBuildMetadata ? QueryWithMetadata : QueryWithoutMetadata, Connection))
 				{ 
 					Command.Parameters.AddWithValue("@param1", LastBuildId);
 					Command.Parameters.AddWithValue("@param2", ProjectLikeString);
@@ -174,6 +181,12 @@ namespace MetadataServer.Connectors
 									ReturnedBuilds.Add(Build);
 								}
 							}
+
+							if (StoreBuildMetadata)
+							{
+								Build.Metadata = JsonConvert.DeserializeObject<BuildMetadata>(Reader.GetString(7));
+							}
+
 							LastBuildId = Math.Max(LastBuildId, Build.Id);
 						}
 					}
@@ -227,7 +240,12 @@ namespace MetadataServer.Connectors
 			{
 				Connection.Open();
 				long ProjectId = TryInsertAndGetProject(Connection, Build.Project);
-				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.Badges (ChangeNumber, BuildType, Result, URL, ArchivePath, ProjectId) VALUES (@ChangeNumber, @BuildType, @Result, @URL, @ArchivePath, @ProjectId)", Connection))
+
+				string InsertWithMetadata =
+					"INSERT INTO ugs_db.Badges (ChangeNumber, BuildType, Result, URL, ArchivePath, ProjectId, Metadata) VALUES (@ChangeNumber, @BuildType, @Result, @URL, @ArchivePath, @ProjectId, @Metadata)";
+				string InsertWithoutMetadata =
+					"INSERT INTO ugs_db.Badges (ChangeNumber, BuildType, Result, URL, ArchivePath, ProjectId) VALUES (@ChangeNumber, @BuildType, @Result, @URL, @ArchivePath, @ProjectId)";
+				using (MySqlCommand Command = new MySqlCommand(StoreBuildMetadata ? InsertWithMetadata : InsertWithoutMetadata, Connection))
 				{
 					Command.Parameters.AddWithValue("@ChangeNumber", Build.ChangeNumber);
 					Command.Parameters.AddWithValue("@BuildType", Build.BuildType);
@@ -235,6 +253,10 @@ namespace MetadataServer.Connectors
 					Command.Parameters.AddWithValue("@URL", Build.Url);
 					Command.Parameters.AddWithValue("@ArchivePath", Build.ArchivePath);
 					Command.Parameters.AddWithValue("@ProjectId", ProjectId);
+					if (StoreBuildMetadata)
+					{
+						Command.Parameters.AddWithValue("@Metadata", JsonConvert.SerializeObject(Build.Metadata ?? new BuildMetadata()));
+					}
 					Command.ExecuteNonQuery();
 				}
 			}
