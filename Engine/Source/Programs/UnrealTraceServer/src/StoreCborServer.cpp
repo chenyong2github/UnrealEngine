@@ -4,10 +4,12 @@
 #include "AsioIoable.h"
 #include "AsioSocket.h"
 #include "CborPayload.h"
+#include "StoreService.h"
 #include "Recorder.h"
 #include "Store.h"
 #include "StoreCborServer.h"
 #include "TraceRelay.h"
+#include "StoreSettings.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 class FStoreCborPeer
@@ -27,6 +29,7 @@ protected:
 	void					OnTraceCount();
 	void					OnTraceInfo();
 	void					OnTraceRead();
+	void					OnSettingsWrite();
 	void					SendError(EStatusCode StatusCode);
 	void					SendResponse(const FPayload& Payload);
 	virtual void			OnIoComplete(uint32 Id, int32 Size) override;
@@ -130,10 +133,18 @@ void FStoreCborPeer::OnSessionInfo()
 ////////////////////////////////////////////////////////////////////////////////
 void FStoreCborPeer::OnStatus()
 {
+	const FStoreSettings* Settings = Parent.GetSettings();
 	TPayloadBuilder<> Builder(EStatusCode::Success);
-	Builder.AddInteger("recorder_port", Recorder.GetPort());
+	Builder.AddInteger("recorder_port", Settings->RecorderPort);
 	Builder.AddInteger("change_serial", Store.GetChangeSerial());
-	Builder.AddString("store_dir", *Store.GetStoreDir());
+	Builder.AddInteger("settings_serial", Settings->GetChangeSerial());
+	Builder.AddString("store_dir", Settings->StoreDir.string().c_str());
+	TArray<FString> AdditionalWatchDirs;
+	for (const fs::path& Path : Settings->AdditionalWatchDirs)
+	{
+		AdditionalWatchDirs.Add(Path.string());
+	}
+	Builder.AddStringArray("watch_dirs", AdditionalWatchDirs);
 	SendResponse(Builder.Done());
 }
 
@@ -178,12 +189,14 @@ void FStoreCborPeer::OnTraceInfo()
 	}
 
 	auto Name = Trace->GetName();
+	auto PathString = Trace->GetPath().string();
 
 	TPayloadBuilder<> Builder(EStatusCode::Success);
 	Builder.AddInteger("id", Trace->GetId());
 	Builder.AddInteger("size", Trace->GetSize());
 	Builder.AddInteger("timestamp", Trace->GetTimestamp());
 	Builder.AddString("name", *Name);
+	Builder.AddString("uri", PathString.c_str());
 	SendResponse(Builder.Done());
 }
 
@@ -208,6 +221,29 @@ void FStoreCborPeer::OnTraceRead()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FStoreCborPeer::OnSettingsWrite()
+{
+	// Only allow local connections to change settings
+	if (!Socket.IsLocalConnection())
+	{
+		return SendError(EStatusCode::Forbidden);
+	}
+	// Copy the current settings and apply requested changes. This is possible
+	// to do without synchronization since asio currently only runs on a single
+	// thread, so no other operations should be running at the same time.
+	FStoreSettings* Settings = Parent.GetSettings();
+	Settings->ApplySettingsFromCbor(Response.GetData(), Response.GetSize());
+	// Save settings to disk
+	Settings->WriteToSettingsFile();
+
+	TPayloadBuilder<> Builder(EStatusCode::Success);
+	SendResponse(Builder.Done());
+
+	// Let all the service components know settings have changed
+	Parent.OnSettingsChanged();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FStoreCborPeer::OnPayload()
 {
 	FStringView Request = Response.GetString("$request", "");
@@ -228,6 +264,7 @@ void FStoreCborPeer::OnPayload()
 		{ QuickStoreHash("v1/trace/count"),		&FStoreCborPeer::OnTraceCount },
 		{ QuickStoreHash("v1/trace/info"),		&FStoreCborPeer::OnTraceInfo },
 		{ QuickStoreHash("v1/trace/read"),		&FStoreCborPeer::OnTraceRead },
+		{ QuickStoreHash("v1/settings/write"),	&FStoreCborPeer::OnSettingsWrite },
 	};
 
 	uint32 PathHash = QuickStoreHash(Path);
@@ -300,15 +337,16 @@ void FStoreCborPeer::OnIoComplete(uint32 Id, int32 Size)
 ////////////////////////////////////////////////////////////////////////////////
 FStoreCborServer::FStoreCborServer(
 	asio::io_context& IoContext,
-	int32 Port,
+	FStoreSettings* InSettings,
 	FStore& InStore,
 	FRecorder& InRecorder)
 : FAsioTcpServer(IoContext)
 , FAsioTickable(IoContext)
 , Store(InStore)
 , Recorder(InRecorder)
+, Settings(InSettings)
 {
-	if (!StartServer(Port))
+	if (!StartServer(Settings->StorePort))
 	{
 		StartServer();
 	}
@@ -435,6 +473,12 @@ FTraceRelay* FStoreCborServer::RelayTrace(uint32 Id)
 
 	Relays.Add(Relay);
 	return Relay;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FStoreCborServer::OnSettingsChanged()
+{
+	Store.OnSettingsChanged();
 }
 
 /* vim: set noexpandtab : */

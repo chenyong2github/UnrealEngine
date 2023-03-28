@@ -7,12 +7,13 @@
 #include "Store.h"
 #include "StoreCborServer.h"
 #include "StoreService.h"
+#include "StoreSettings.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FStoreServiceImpl
 {
 public:
-							FStoreServiceImpl(const FStoreService::FDesc& Desc);
+							FStoreServiceImpl(FStoreSettings* Settings);
 							~FStoreServiceImpl();
 	FAsioContext			Context;
 	FStore					Store;
@@ -21,12 +22,17 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-FStoreServiceImpl::FStoreServiceImpl(const FStoreService::FDesc& Desc)
-: Context(Desc.ThreadCount)
-, Store(Context.Get(), Desc.StoreDir)
+FStoreServiceImpl::FStoreServiceImpl(FStoreSettings* Settings)
+: Context(Settings->ThreadCount)
+, Store(Context.Get(), Settings)
 , Recorder(Context.Get(), Store)
-, CborServer(Context.Get(), Desc.StorePort, Store, Recorder)
+, CborServer(Context.Get(), Settings, Store, Recorder)
 {
+	if (Settings->RecorderPort >= 0)
+	{
+		Recorder.StartServer(Settings->RecorderPort);
+	}
+	Context.Start();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -43,28 +49,17 @@ FStoreServiceImpl::~FStoreServiceImpl()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-FStoreService* FStoreService::Create(const FDesc& InDesc)
+FStoreService* FStoreService::Create(FStoreSettings* Settings)
 {
-	FDesc Desc = InDesc;
-
-	if (Desc.ThreadCount <= 0)
+	if (Settings->ThreadCount <= 0)
 	{
-		Desc.ThreadCount = std::thread::hardware_concurrency();
+		Settings->ThreadCount = std::thread::hardware_concurrency();
 	}
 
 	// TODO: not thread safe yet
-	Desc.ThreadCount = 1;
+	Settings->ThreadCount = 1;
 
-	FStoreServiceImpl* Impl = new FStoreServiceImpl(Desc);
-	if (Desc.RecorderPort >= 0)
-	{
-		FRecorder& Recorder = Impl->Recorder;
-		Recorder.StartServer(Desc.RecorderPort);
-	}
-
-	Impl->Context.Start();
-
-	return (FStoreService*)Impl;
+	return (FStoreService*) new FStoreServiceImpl(Settings);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

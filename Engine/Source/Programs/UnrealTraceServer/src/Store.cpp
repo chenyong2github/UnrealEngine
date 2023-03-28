@@ -2,6 +2,7 @@
 
 #include "Pch.h"
 #include "Store.h"
+#include "StoreSettings.h"
 
 #if TS_USING(TS_PLATFORM_LINUX)
 #   include <sys/inotify.h>
@@ -25,7 +26,7 @@ static int64 FsToUnrealEpochBiasSeconds	= uint64(double(FsEpochYear - UnrealEpoc
 
 ////////////////////////////////////////////////////////////////////////////////
 #if TS_USING(TS_PLATFORM_WINDOWS)
-class FStore::FDirWatcher
+class FStore::FMount::FDirWatcher
 	: public asio::windows::object_handle
 {
 public:
@@ -34,7 +35,7 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 #elif TS_USING(TS_PLATFORM_LINUX)
-class FStore::FDirWatcher
+class FStore::FMount::FDirWatcher
 	: public asio::posix::stream_descriptor
 {
 	typedef std::function<void(asio::error_code error)> HandlerType;
@@ -48,7 +49,7 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 #elif TS_USING(TS_PLATFORM_MAC)
-class FStore::FDirWatcher
+class FStore::FMount::FDirWatcher
 {
 	typedef std::function<void(asio::error_code error)> HandlerType;
 public:
@@ -95,7 +96,7 @@ static void MacCallback(ConstFSEventStreamRef StreamRef,
 					const FSEventStreamEventFlags EventFlags[],
 					const FSEventStreamEventId EventIDs[])
 {
-	FStore::FDirWatcher* DirWatcherPtr = (FStore::FDirWatcher*)InDirWatcherPtr;
+	FStore::FMount::FDirWatcher* DirWatcherPtr = (FStore::FMount::FDirWatcher*)InDirWatcherPtr;
 	check(DirWatcherPtr);
 	check(DirWatcherPtr->EventStream == StreamRef);
 
@@ -103,7 +104,7 @@ static void MacCallback(ConstFSEventStreamRef StreamRef,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FStore::FDirWatcher::async_wait(HandlerType InHandler)
+void FStore::FMount::FDirWatcher::async_wait(HandlerType InHandler)
 {
 	if (bIsRunning)
 	{
@@ -186,8 +187,9 @@ uint32 FStore::FTrace::GetId() const
 ////////////////////////////////////////////////////////////////////////////////
 uint64 FStore::FTrace::GetSize() const
 {
-	std::error_code Ec;
-	return std::filesystem::file_size(Path, Ec);
+	std::error_code Error;
+	const uint64 Size = std::filesystem::file_size(Path, Error);
+	return Error ? 0 : Size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -196,21 +198,80 @@ uint64 FStore::FTrace::GetTimestamp() const
 	return Timestamp;
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
+FStore::FMount* FStore::FMount::Create(FStore* InParent, asio::io_context& InIoContext, const FPath& InDir)
+{
+	std::error_code ErrorCodeAbs, ErrorCodeCreate;
+	// We would like to check if the path is absolute here, but Microsoft
+	// has a very specific interpretation of what constitutes absolute path
+	// which doesn't correspond to what UE's file utilities does. Hence paths
+	// from Insights will not be correctly formatted.
+	//const FPath AbsoluteDir = InDir.is_absolute() ? InDir : fs::absolute(InDir, ErrorCodeAbs);
+	const FPath AbsoluteDir = InDir;
+	fs::create_directories(AbsoluteDir, ErrorCodeCreate);
+	if (ErrorCodeAbs || ErrorCodeCreate)
+	{
+		return nullptr;
+	}
+	return new FMount(InParent, InIoContext, AbsoluteDir);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
-FStore::FMount::FMount(const FPath& InDir)
+FStore::FMount::FMount(FStore* InParent, asio::io_context& InIoContext, const fs::path& InDir)
 : Id(QuickStoreHash(InDir.c_str()))
+, Dir(InDir)
+, Parent(InParent)
+, IoContext(InIoContext)
 {
-	std::error_code ErrorCode;
-	Dir = fs::absolute(InDir, ErrorCode);
-	fs::create_directories(Dir, ErrorCode);
+
+#if TS_USING(TS_PLATFORM_WINDOWS)
+	std::wstring StoreDirW = Dir;
+	HANDLE DirWatchHandle = FindFirstChangeNotificationW(StoreDirW.c_str(), false, FILE_NOTIFY_CHANGE_FILE_NAME|FILE_NOTIFY_CHANGE_DIR_NAME);
+	if (DirWatchHandle == INVALID_HANDLE_VALUE)
+	{
+		DirWatchHandle = 0;
+	}
+	DirWatcher = new FDirWatcher(IoContext, DirWatchHandle);
+#elif TS_USING(TS_PLATFORM_LINUX)
+	int inotfd = inotify_init();
+	int watch_desc = inotify_add_watch(inotfd, StoreDir.c_str(), IN_CREATE | IN_DELETE);
+	DirWatcher = new FDirWatcher(IoContext, inotfd);
+#elif PLATFORM_MAC
+	DirWatcher = new FDirWatcher(*StoreDir);
+#endif
+
+	WatchDir();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FStore::FMount::~FMount()
+{
+	if (DirWatcher != nullptr)
+	{
+		delete DirWatcher;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 FString FStore::FMount::GetDir() const
 {
 	return fs::ToFString(Dir);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FPath& FStore::FMount::GetPath() const
+{
+	return Dir;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FStore::FMount::Close()
+{
+	if (DirWatcher != nullptr)
+	{
+		DirWatcher->cancel();
+		DirWatcher->close();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -267,10 +328,15 @@ FStore::FTrace* FStore::FMount::AddTrace(const FPath& Path)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 FStore::FMount::Refresh()
+void FStore::FMount::ClearTraces()
 {
 	Traces.Empty();
+}
 
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStore::FMount::Refresh()
+{
+	ClearTraces();
 	uint32 ChangeSerial = 0;
 	for (auto& DirItem : std::filesystem::directory_iterator(Dir))
 	{
@@ -296,55 +362,29 @@ uint32 FStore::FMount::Refresh()
 }
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-FStore::FStore(asio::io_context& InIoContext, const FPath& InStoreDir)
-: IoContext(InIoContext)
+void FStore::SetupMounts()
 {
-	FPath StoreDir = InStoreDir / "001";
+	FPath StoreDir = Settings->StoreDir / "001";
 	AddMount(StoreDir);
 
-	Refresh();
-
-#if TS_USING(TS_PLATFORM_WINDOWS)
-	std::wstring StoreDirW = StoreDir;
-	HANDLE DirWatchHandle = FindFirstChangeNotificationW(StoreDirW.c_str(), false,
-		FILE_NOTIFY_CHANGE_FILE_NAME|FILE_NOTIFY_CHANGE_DIR_NAME);
-	if (DirWatchHandle == INVALID_HANDLE_VALUE)
+	for (const FPath& Path : Settings->AdditionalWatchDirs)
 	{
-		DirWatchHandle = 0;
+		AddMount(Path);
 	}
-	DirWatcher = new FDirWatcher(IoContext, DirWatchHandle);
-#elif TS_USING(TS_PLATFORM_LINUX)
-	int inotfd = inotify_init();
-	int watch_desc = inotify_add_watch(inotfd, StoreDir.c_str(), IN_CREATE|IN_DELETE);
-	DirWatcher = new FDirWatcher(IoContext, inotfd);
-#elif PLATFORM_MAC
-	DirWatcher = new FDirWatcher(*StoreDir);
-#endif
+}
 
-	WatchDir();
+////////////////////////////////////////////////////////////////////////////////
+FStore::FStore(asio::io_context& InIoContext, const FStoreSettings* InSettings)
+: IoContext(InIoContext)
+, Settings(InSettings)
+{
+	SetupMounts();
+	Refresh();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 FStore::~FStore()
 {
-	if (DirWatcher != nullptr)
-	{
-		check(!DirWatcher->is_open());
-		delete DirWatcher;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FStore::Close()
-{
-	if (DirWatcher != nullptr)
-	{
-		DirWatcher->cancel();
-		DirWatcher->close();
-	}
-
 	for (FMount* Mount : Mounts)
 	{
 		delete Mount;
@@ -352,11 +392,23 @@ void FStore::Close()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FStore::Close()
+{
+	for (FMount* Mount : Mounts)
+	{
+		Mount->Close();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FStore::AddMount(const FPath& Dir)
 {
-	FMount* Mount = new FMount(Dir);
-	Mounts.Add(Mount);
-	return true;
+	FMount* Mount = FMount::Create(this, IoContext, Dir);
+	if (Mount)
+	{
+		Mounts.Add(Mount);
+	}
+	return Mount != nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -377,38 +429,7 @@ bool FStore::RemoveMount(uint32 Id)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const FStore::FMount* FStore::GetMount(uint32 Id) const
-{
-	for (FMount* Mount : Mounts)
-	{
-		if (Mount->GetId() == Id)
-		{
-			return Mount;
-		}
-	}
-
-	return nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint32 FStore::GetMountCount() const
-{
-	return uint32(Mounts.Num());
-}
-
-////////////////////////////////////////////////////////////////////////////////
-const FStore::FMount* FStore::GetMountInfo(uint32 Index) const
-{
-	if (Index >= uint32(Mounts.Num()))
-	{
-		return nullptr;
-	}
-
-	return Mounts[Index];
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FStore::WatchDir()
+void FStore::FMount::WatchDir()
 {
 	if (DirWatcher == nullptr)
 	{
@@ -432,7 +453,7 @@ void FStore::WatchDir()
 		{
 			delete DelayTimer;
 
-			Refresh();
+			Parent->Refresh();
 
 			FindNextChangeNotification(DirWatcher->native_handle());
 			WatchDir();
@@ -557,6 +578,19 @@ FAsioReadable* FStore::OpenTrace(uint32 Id)
 	}
 
 	return FAsioFile::ReadFile(IoContext, Trace->GetPath());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FStore::OnSettingsChanged()
+{
+	// Remove all existing mounts
+	for (const FMount* Mount : Mounts)
+	{
+		delete Mount;
+	}
+	Mounts.Empty();
+	SetupMounts();
+	Refresh();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -9,6 +9,8 @@
 
 class FAsioReadable;
 class FAsioWriteable;
+class FDirWatcher;
+class FStoreSettings;
 
 ////////////////////////////////////////////////////////////////////////////////
 enum class EStoreVersion
@@ -46,31 +48,37 @@ public:
 	class FMount
 	{
 	public:
-						FMount(const FPath& InDir);
+		static FMount*	Create(FStore* InParent, asio::io_context& InIoContext, const FPath& InDir);
+						
+		void			Close();
 		uint32			GetId() const;
 		FString			GetDir() const;
+		const FPath&	GetPath() const;
 		uint32			GetTraceCount() const;
 		const FTrace*	GetTraceInfo(uint32 Index) const;
 
 	private:
+		class			FDirWatcher;
 		friend			FStore;
+						FMount(FStore* InParent, asio::io_context& InIoContext, const FPath& InDir);
+						~FMount();
 		FTrace*			GetTrace(uint32 Id) const;
 		FTrace*			AddTrace(const FPath& Path);
+		void			ClearTraces();
 		uint32			Refresh();
+		void			WatchDir();
 		FPath			Dir;
 		TArray<FTrace*>	Traces;
 		uint32			Id;
+		FDirWatcher*	DirWatcher = nullptr;
+		FStore*			Parent = nullptr;
+		asio::io_context& IoContext;
 	};
 
-						FStore(asio::io_context& IoContext, const FPath& InStoreDir);
+	void SetupMounts();
+						FStore(asio::io_context& IoContext, const FStoreSettings* InSettings);
 						~FStore();
 	void				Close();
-	bool				AddMount(const FPath& Dir);
-	bool				RemoveMount(uint32 Id);
-	const FMount*		GetMount(uint32 Id) const;
-	uint32				GetMountCount() const;
-	const FMount*		GetMountInfo(uint32 Index) const;
-
 	FString				GetStoreDir() const;
 	uint32				GetChangeSerial() const;
 	uint32				GetTraceCount() const;
@@ -78,16 +86,18 @@ public:
 	bool				HasTrace(uint32 Id) const;
 	FNewTrace			CreateTrace();
 	FAsioReadable*		OpenTrace(uint32 Id);
-	class				FDirWatcher;
+	void				OnSettingsChanged();
 
 private:
+	bool				AddMount(const FPath& Dir);
+	bool				RemoveMount(uint32 Id);
 	FTrace*				GetTrace(uint32 Id, FMount** OutMount=nullptr) const;
 	void				Refresh();
-	void				WatchDir();
+	
 	asio::io_context&	IoContext;
 	TArray<FMount*>		Mounts;
 	uint32				ChangeSerial;
-	FDirWatcher*		DirWatcher = nullptr;
+	const FStoreSettings* Settings;
 };
 
 /* vim: set noexpandtab : */

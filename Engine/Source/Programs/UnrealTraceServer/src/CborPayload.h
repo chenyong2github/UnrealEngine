@@ -21,6 +21,7 @@ enum class EStatusCode
 	Unknown				= 0,
 	Success				= 200,
 	BadRequest			= 400,
+	Forbidden			= 403,
 	NotFound			= 404,
 	InternalError		= 500,
 };
@@ -36,6 +37,7 @@ public:
 	template <int N>		TPayloadBuilder(const char (&Path)[N]);
 	template <int N> void	AddInteger(const char (&Name)[N], int64 Value);
 	template <int N> void	AddString(const char (&Name)[N], const char* Value, int32 Length=-1);
+	template <int N> void	AddStringArray(const char(&Name)[N], const TArray<FString> Values);
 	FPayload				Done();
 
 private:
@@ -68,6 +70,20 @@ inline void TPayloadBuilder<Size>::AddInteger(const char (&Name)[N], int64 Value
 {
 	CborWriter.WriteString(Name, N - 1);
 	CborWriter.WriteInteger(Value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template<int Size>
+template<int N>
+inline void TPayloadBuilder<Size>::AddStringArray(const char(&Name)[N], const TArray<FString> Values)
+{
+	CborWriter.WriteString(Name, N - 1);
+	CborWriter.OpenArray();
+	for (const auto& String : Values)
+	{
+		CborWriter.WriteString(*String);
+	}
+	CborWriter.Close();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
