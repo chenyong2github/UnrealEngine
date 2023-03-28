@@ -62,25 +62,17 @@ void FDelegateProperty::InstanceSubobjects(void* Data, void const* DefaultData, 
 
 bool FDelegateProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
+	check(A);
+
 	const FScriptDelegate* DA = (const FScriptDelegate*)A;
 	const FScriptDelegate* DB = (const FScriptDelegate*)B;
-	
+
 	if (!DB)
 	{
-		return DA->GetFunctionName() == NAME_None;
+		return !DA->IsBound();
 	}
-
-	if (DA->GetUObject() != DB->GetUObject())
-	{
-		return false;
-	}
-
-	if (DA->GetFunctionName() != DB->GetFunctionName())
-	{
-		return false;
-	}
-
-	return true;
+	
+	return *DA == *DB;
 }
 
 
