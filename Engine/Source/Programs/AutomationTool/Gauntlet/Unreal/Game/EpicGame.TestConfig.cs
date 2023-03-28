@@ -235,10 +235,15 @@ namespace EpicGame
 			{
 				bool bNoAccountOverride = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(ConfigRole.Platform.ToString())?.bNoAccountOverride ?? false;
 				// select an account
-				if (NoMCP == false && !bNoAccountOverride && PreAssignAccount == true)
+				if (!NoMCP)
 				{
-					Account UserAccount = AccountPool.Instance.ReserveAccount();
-					UserAccount.ApplyToConfig(AppConfig);
+					VerifyLogin = Globals.Params.ParseParam("VerifyLogin");
+
+					if (!bNoAccountOverride && PreAssignAccount)
+					{
+						Account UserAccount = AccountPool.Instance.ReserveAccount();
+						UserAccount.ApplyToConfig(AppConfig);
+					}
 				}
 			}
 

@@ -769,7 +769,7 @@ namespace Gauntlet
 				List<UnrealSessionRole> SortedRoles = SessionRoles.OrderBy(R => R.Constraint.IsIdentity() ? 1 : 0).ToList();
 
 				// first install all roles on these devices
-				foreach (var Role in SortedRoles)
+				foreach (UnrealSessionRole Role in SortedRoles)
 				{
 					ITargetDevice Device = null;
 
@@ -785,7 +785,7 @@ namespace Gauntlet
 						Device = new TargetDeviceNull(string.Format("Null{0}", Role.RoleType));
 					}
 
-					var OtherRoles = SortedRoles.Where(R => R != Role);
+					IEnumerable<UnrealSessionRole> OtherRoles = SortedRoles.Where(R => R != Role);
 
 					// create a config from the build source (this also applies the role options)
 					UnrealAppConfig AppConfig = BuildSource.CreateConfiguration(Role, OtherRoles);
@@ -867,7 +867,7 @@ namespace Gauntlet
 						IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success, BuildSource.BuildName);
 						try
 						{
-							if (Globals.Params.ParseParam("VerifyLogin") && Device is IOnlineServiceLogin)
+							if ((Role.Options as UnrealTestConfiguration).VerifyLogin && Device is IOnlineServiceLogin)
 							{
 								Log.Info("\nVerifying device login...");
 								if (!(Device as IOnlineServiceLogin).VerifyLogin())
