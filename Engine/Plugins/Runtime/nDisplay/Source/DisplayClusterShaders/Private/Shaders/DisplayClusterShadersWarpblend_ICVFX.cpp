@@ -29,7 +29,6 @@ enum class EVarIcvfxMPCDIShaderType : uint8
 	Default = 0,
 	DefaultNoBlend,
 	Passthrough,
-	ForceMultiPassRender,
 	Disable,
 };
 
@@ -40,7 +39,6 @@ static TAutoConsoleVariable<int32> CVarIcvfxMPCDIShaderType(
 	TEXT(" 0: Warp shader (used by default)\n")
 	TEXT(" 1: Warp shader with disabled blend maps\n")
 	TEXT(" 2: Passthrough shader\n")
-	TEXT(" 3: Force Multi-Pass render shaders\n")
 	TEXT(" 4: Disable all warp shaders\n"),
 	ECVF_RenderThreadSafe
 );
@@ -61,6 +59,61 @@ static FAutoConsoleVariableRef CVarDisplayClusterShadersICVFXEnableUVLightCard(
 	ECVF_RenderThreadSafe
 );
 
+int32 GDisplayClusterShadersICVFXOverlapInnerFrustumSoftEdges = 1;
+static FAutoConsoleVariableRef CVarDisplayClusterShadersICVFXOverlapInnerFrustumSoftEdges(
+	TEXT("nDisplay.render.icvfx.OverlapInnerFrustumSoftEdges"),
+	GDisplayClusterShadersICVFXOverlapInnerFrustumSoftEdges,
+	TEXT("Enable SoftEdges for Inner Frustum overlap (0 - disable).\n"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GDisplayClusterShadersICVFXEnableInnerFrustumUnderOverlap = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterShadersICVFXEnableInnerFrustumUnderOverlap(
+	TEXT("nDisplay.render.icvfx.EnableInnerFrustumUnderOverlap"),
+	GDisplayClusterShadersICVFXEnableInnerFrustumUnderOverlap,
+	TEXT("Enable Inner Frustum render under overlap area (0 - disable).\n"),
+	ECVF_RenderThreadSafe
+);
+
+/**
+ * ICVFX is rendered in several passes:
+ */
+enum class EIcvfxPassRenderPass : uint8
+{
+	None = 0,
+
+	// viewport+overlayUnder+camera1
+	Base,
+
+	// Second and next cameras additive passes
+	InnerFrustumIterator,
+
+	// LightCard overlay
+	LightCardOver,
+
+	// render overlaps for inner cameras
+	InnerFrustumChromakeyOverlapIterator,
+};
+
+enum class EIcvfxPassRenderState : uint32
+{
+	None = 0,
+	BlendDisabled = 1 << 0,
+
+	LightCardOver = 1 << 1,
+	LightCardUnder = 1 << 2,
+	UVLightCardOver = 1 << 3,
+	UVLightCardUnder = 1 << 4,
+
+	EnableInnerFrustumChromakeyOverlap = 1 << 5,
+};
+ENUM_CLASS_FLAGS(EIcvfxPassRenderState);
+
+DECLARE_GPU_STAT_NAMED(nDisplay_IcvfxRenderPass_Base, TEXT("nDisplay Icvfx::RenderPass::Base"));
+DECLARE_GPU_STAT_NAMED(nDisplay_IcvfxRenderPass_InnerFrustumIterator, TEXT("nDisplay Icvfx::RenderPass::InnerFrustumIterator"));
+DECLARE_GPU_STAT_NAMED(nDisplay_IcvfxRenderPass_LightCardOver, TEXT("nDisplay Icvfx::RenderPass::LightCardOver"));
+DECLARE_GPU_STAT_NAMED(nDisplay_IcvfxRenderPass_InnerFrustumChromakeyOverlapIterator, TEXT("nDisplay Icvfx::RenderPass::InnerFrustumChromakeyOverlapIterator"));
+
 enum class EIcvfxShaderType : uint8
 {
 	Passthrough,  // Viewport frustum (no warpblend, only frustum math)
@@ -80,7 +133,8 @@ namespace IcvfxShaderPermutation
 	class FIcvfxShaderUVLightCardUnder : SHADER_PERMUTATION_BOOL("UVLIGHTCARD_UNDER");
 	class FIcvfxShaderUVLightCardOver : SHADER_PERMUTATION_BOOL("UVLIGHTCARD_OVER");
 
-	class FIcvfxShaderInnerCamera      : SHADER_PERMUTATION_BOOL("INNER_CAMERA");
+	class FIcvfxShaderInnerCamera         : SHADER_PERMUTATION_BOOL("INNER_CAMERA");
+	class FIcvfxShaderInnerCameraOverlap  : SHADER_PERMUTATION_BOOL("INNER_CAMERA_OVERLAP");
 
 	class FIcvfxShaderChromakey           : SHADER_PERMUTATION_BOOL("CHROMAKEY");
 	class FIcvfxShaderChromakeyFrameColor : SHADER_PERMUTATION_BOOL("CHROMAKEYFRAMECOLOR");
@@ -104,6 +158,8 @@ namespace IcvfxShaderPermutation
 		FIcvfxShaderUVLightCardOver,
 
 		FIcvfxShaderInnerCamera,
+		FIcvfxShaderInnerCameraOverlap,
+
 		FIcvfxShaderChromakey,
 		FIcvfxShaderChromakeyFrameColor,
 		FIcvfxShaderChromakeyMarker,
@@ -117,12 +173,29 @@ namespace IcvfxShaderPermutation
 	{
 		if (!PermutationVector.Get<FIcvfxShaderMeshWarp>())
 		{
-			if (PermutationVector.Get<FIcvfxShaderChromakey>() || PermutationVector.Get<FIcvfxShaderChromakeyFrameColor>())
+			// UVLightCard require UV_Chromakey (Mesh Warp)
+			if (PermutationVector.Get<FIcvfxShaderUVLightCardUnder>() || PermutationVector.Get<FIcvfxShaderUVLightCardOver>())
+			{
+				return false;
+			}
+
+			// Chromakey marker require UV_Chromakey (Mesh Warp)
+			if (PermutationVector.Get<FIcvfxShaderChromakeyMarker>())
 			{
 				return false;
 			}
 		}
 
+		if (PermutationVector.Get<FIcvfxShaderInnerCameraOverlap>())
+		{
+			// Overlap use chromakeyframecolor as render base
+			if (!PermutationVector.Get<FIcvfxShaderChromakeyFrameColor>())
+			{
+				return false;
+			}
+		}
+
+		// only one type of chromakey type can by used
 		if (PermutationVector.Get<FIcvfxShaderChromakey>() && PermutationVector.Get<FIcvfxShaderChromakeyFrameColor>())
 		{
 			return false;
@@ -157,10 +230,12 @@ namespace IcvfxShaderPermutation
 
 		if (!PermutationVector.Get<FIcvfxShaderInnerCamera>())
 		{
-			if (PermutationVector.Get<FIcvfxShaderChromakey>() || PermutationVector.Get<FIcvfxShaderChromakeyFrameColor>())
-		{
-			return false;
-		}
+			// All innner camera vectors
+			if (PermutationVector.Get<FIcvfxShaderInnerCameraOverlap>()
+			|| PermutationVector.Get<FIcvfxShaderChromakey>() || PermutationVector.Get<FIcvfxShaderChromakeyFrameColor>() || PermutationVector.Get<FIcvfxShaderChromakeyMarker>())
+			{
+				return false;
+			}
 		}
 
 		if (PermutationVector.Get<FIcvfxShaderChromakeyMarker>())
@@ -174,15 +249,6 @@ namespace IcvfxShaderPermutation
 		if (!PermutationVector.Get<FIcvfxShaderAlphaMapBlending>() && PermutationVector.Get<FIcvfxShaderBetaMapBlending>())
 		{
 			return false;
-		}
-
-		// UVLightCard require UV_Chromakey (Mesh Warp)
-		if (!PermutationVector.Get<FIcvfxShaderMeshWarp>())
-		{
-			if (PermutationVector.Get<FIcvfxShaderUVLightCardUnder>() || PermutationVector.Get<FIcvfxShaderUVLightCardOver>())
-			{
-				return false;
-			}
 		}
 
 		return true;
@@ -244,6 +310,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 	SHADER_PARAMETER(float, ChromakeyMarkerScale)
 	SHADER_PARAMETER(float, ChromakeyMarkerDistance)
 	SHADER_PARAMETER(FVector2f, ChromakeyMarkerOffset)
+
+	SHADER_PARAMETER_ARRAY(FMatrix44f, OverlappedInnerCamerasProjectionMatrices, [MAX_INNER_CAMERAS_AMOUNT])
+	SHADER_PARAMETER_ARRAY(FVector4f, OverlappedInnerCameraSoftEdges, [MAX_INNER_CAMERAS_AMOUNT])
+	SHADER_PARAMETER(int, OverlappedInnerCamerasNum)
+
 END_SHADER_PARAMETER_STRUCT()
 
 class FIcvfxWarpVS : public FGlobalShader
@@ -276,6 +347,13 @@ public:
 	{
 		return IcvfxShaderPermutation::ShouldCompileCommonPSPermutation(FPermutationDomain(Parameters.PermutationId));
 	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("MAX_INNER_CAMERAS_AMOUNT"), MAX_INNER_CAMERAS_AMOUNT);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FIcvfxWarpPS, ICVFX_ShaderFileName, "IcvfxWarpPS", SF_Pixel);
@@ -290,6 +368,13 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("MAX_INNER_CAMERAS_AMOUNT"), MAX_INNER_CAMERAS_AMOUNT);
 	}
 };
 
@@ -311,7 +396,32 @@ public:
 	FIcvfxPassRenderer(const FDisplayClusterShaderParameters_WarpBlend& InWarpBlendParameters, const FDisplayClusterShaderParameters_ICVFX& InICVFXParameters)
 		: WarpBlendParameters(InWarpBlendParameters)
 		, ICVFXParameters(InICVFXParameters)
-	{}
+	{
+		if (ICVFXParameters.IsLightCardOverUsed() && GDisplayClusterShadersICVFXEnableLightCard)
+		{
+			EnumAddFlags(RenderState, EIcvfxPassRenderState::LightCardOver);
+		}
+
+		if (ICVFXParameters.IsLightCardUnderUsed() && GDisplayClusterShadersICVFXEnableLightCard)
+		{
+			EnumAddFlags(RenderState, EIcvfxPassRenderState::LightCardUnder);
+		}
+
+		if (ICVFXParameters.IsUVLightCardOverUsed() && GDisplayClusterShadersICVFXEnableUVLightCard)
+		{
+			EnumAddFlags(RenderState, EIcvfxPassRenderState::UVLightCardOver);
+		}
+
+		if (ICVFXParameters.IsUVLightCardUnderUsed() && GDisplayClusterShadersICVFXEnableUVLightCard)
+		{
+			EnumAddFlags(RenderState, EIcvfxPassRenderState::UVLightCardUnder);
+		}
+
+		if (ICVFXParameters.CameraOverlappingRenderMode != EDisplayClusterShaderParametersICVFX_CameraOverlappingRenderMode::None)
+		{
+			EnumAddFlags(RenderState, EIcvfxPassRenderState::EnableInnerFrustumChromakeyOverlap);
+		}
+	}
 
 private:
 	const FDisplayClusterShaderParameters_WarpBlend& WarpBlendParameters;
@@ -319,119 +429,15 @@ private:
 
 	EIcvfxShaderType PixelShaderType;
 
+	EIcvfxPassRenderPass  RenderPass = EIcvfxPassRenderPass::None;
+	EIcvfxPassRenderState RenderState = EIcvfxPassRenderState::None;
+	int32 ActiveCameraIndex = INDEX_NONE;
+
 	FMatrix LocalUVMatrix;
 
-	bool bIsBlendDisabled = false;
-	bool bForceMultiCameraPass = false;
-	int32 CameraIndex = 0;
-
-	//LightCards
 private:
-	inline bool IsLightcardOverUsed() const
-	{
-		return ICVFXParameters.IsLightcardOverUsed() && GDisplayClusterShadersICVFXEnableLightCard;
-	}
 
-	inline bool IsLightcardUnderUsed() const
-	{
-		return ICVFXParameters.IsLightcardUnderUsed() && GDisplayClusterShadersICVFXEnableLightCard;
-	}
-
-	inline bool IsUVLightcardOverUsed() const
-	{
-		return ICVFXParameters.IsUVLightcardOverUsed() && GDisplayClusterShadersICVFXEnableUVLightCard;
-	}
-
-	inline bool IsUVLightcardUnderUsed() const
-	{
-		return ICVFXParameters.IsUVLightcardUnderUsed() && GDisplayClusterShadersICVFXEnableUVLightCard;
-	}
-
-private:
-	inline bool IsMultiPassRender() const
-	{
-		return bForceMultiCameraPass || ICVFXParameters.IsMultiCamerasUsed();
-	}
-
-	inline bool IsFirstPass() const
-	{
-		return CameraIndex == 0;
-	}
-
-	inline bool IsLastPass() const
-	{
-		int32 TotalUsedCameras = ICVFXParameters.Cameras.Num();
-
-		if (bForceMultiCameraPass)
-		{
-			// Last pass is N or N+1
-			// 0 - viewport+overlayUnder
-			// 1 - first camera additive pass
-			// 2 - second camera additive pass
-			// N - camera N
-			// N+1 - overlayOver (optional)
-			return (IsLightcardOverUsed() || IsUVLightcardOverUsed()) ? ( CameraIndex == (TotalUsedCameras + 1) ) : ( CameraIndex == TotalUsedCameras );
-		}
-
-		if (TotalUsedCameras>1)
-		{
-			// Multi-cam
-			// 0   - viewport+overlayUnder+camera1
-			// 1   - camera2
-			// N-1 - camera N
-			// N   - overlayOver (optional)
-			return (IsLightcardOverUsed() || IsUVLightcardOverUsed()) ? ( CameraIndex == TotalUsedCameras ) : ( CameraIndex == (TotalUsedCameras-1) );
-		}
-
-		// By default render single camera in one pass
-		return CameraIndex==0;
-	}
-
-	inline bool IsLightCardRenderUnderInCamera() const
-	{
-		// Render OverlayUnder only on first pass
-		return IsFirstPass() && IsLightcardUnderUsed();
-	}
-
-	inline bool IsLightCardRenderOverInCamera() const
-	{
-		if (IsMultiPassRender())
-		{
-			// Render OverlayOver only on last additive pass
-			return IsLastPass() && IsLightcardOverUsed();
-		}
-		
-		return IsLightcardOverUsed();
-	}
-
-	inline bool IsUVLightCardRenderUnderInCamera() const
-	{
-		// Render UVLightCard Under only on first pass
-		return IsFirstPass() && IsUVLightcardUnderUsed();
-	}
-
-	inline bool IsUVLightCardRenderOverInCamera() const
-	{
-		if (IsMultiPassRender())
-		{
-			// Render UVLightCard Over only on last additive pass
-			return IsLastPass() && IsUVLightcardOverUsed();
-		}
-
-		return IsUVLightcardOverUsed();
-	}
-
-	inline int32 GetUsedCameraIndex() const
-	{
-		if (bForceMultiCameraPass)
-		{
-			return CameraIndex - 1;
-		}
-
-		return CameraIndex;
-	}
-
-	FMatrix GetStereoMatrix() const
+	inline FMatrix GetStereoMatrix() const
 	{
 		FIntPoint WarpDataSrcSize = WarpBlendParameters.Src.Texture->GetSizeXY();
 		FIntPoint WarpDataDstSize = WarpBlendParameters.Dest.Texture->GetSizeXY();
@@ -445,7 +451,7 @@ private:
 		return StereoMatrix;
 	}
 
-	FIntRect GetViewportRect() const
+	inline FIntRect GetViewportRect() const
 	{
 		const int32 PosX = WarpBlendParameters.Dest.Rect.Min.X;
 		const int32 PosY = WarpBlendParameters.Dest.Rect.Min.Y;
@@ -455,7 +461,7 @@ private:
 		return FIntRect(FIntPoint(PosX, PosY), FIntPoint(PosX + SizeX, PosY + SizeY));
 	}
 
-	EIcvfxShaderType GetPixelShaderType()
+	inline EIcvfxShaderType GetPixelShaderType()
 	{
 		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
@@ -479,7 +485,7 @@ public:
 
 	bool GetViewportParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		if (IsFirstPass())
+		if (RenderPass == EIcvfxPassRenderPass::Base)
 		{
 			// Input viewport texture
 			// Render only on first pass
@@ -584,61 +590,174 @@ public:
 	{
 		RenderPassData.PSParameters.OverlayProjectionMatrix = FMatrix44f(LocalUVMatrix);
 
-		if (IsLightCardRenderUnderInCamera() || IsLightCardRenderOverInCamera())
+		switch (RenderPass)
 		{
-			RenderPassData.PSParameters.LightCardSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			RenderPassData.PSParameters.LightCardTexture = ICVFXParameters.Lightcard.Texture;
-
-			if (IsLightCardRenderUnderInCamera())
+		case EIcvfxPassRenderPass::Base:
+			if (EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::LightCardUnder))
 			{
+				// Rendering in one pass along with the first camera
 				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderLightCardUnder>(true);
 			}
-			if (IsLightCardRenderOverInCamera())
+			else if (EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::LightCardOver) && !ICVFXParameters.IsMultiCamerasUsed())
+			{
+				// If we have only one camera, the top LC layer is rendered in one pass
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderLightCardOver>(true);
+			}
+		break;
+
+		case EIcvfxPassRenderPass::LightCardOver:
+			check(ICVFXParameters.IsMultiCamerasUsed());
+
+			if (EnumHasAllFlags(RenderState, EIcvfxPassRenderState::LightCardOver))
 			{
 				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderLightCardOver>(true);
 			}
+			break;
+
+		default:
+			break;
 		}
 
-		return true;
-	}
-
-	bool GetUVLightCardParameters(FIcvfxRenderPassData& RenderPassData)
-	{
-		if (IsUVLightCardRenderUnderInCamera() || IsUVLightCardRenderOverInCamera())
+		if(RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderLightCardUnder>()
+		|| RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderLightCardOver>())
 		{
-			// UVLightCard require Mesh warp (UV_Chromakey)
-			if (RenderPassData.VSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderMeshWarp>())
-			{
-				RenderPassData.PSParameters.UVLightCardSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-				RenderPassData.PSParameters.UVLightCardTexture = ICVFXParameters.UVLightcard.Texture;
+			RenderPassData.PSParameters.LightCardSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			RenderPassData.PSParameters.LightCardTexture = ICVFXParameters.LightCard.Texture;
 
-				if (IsUVLightCardRenderUnderInCamera())
-				{
-					RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderUVLightCardUnder>(true);
-				}
-				if (IsUVLightCardRenderOverInCamera())
-				{
-					RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderUVLightCardOver>(true);
-				}
-
-				return true;
-			}
+			return true;
 		}
 
 		return false;
 	}
 
+	bool GetUVLightCardParameters(FIcvfxRenderPassData& RenderPassData)
+	{
+		// UVLightCard require Mesh warp (UV_Chromakey)
+		if (!RenderPassData.VSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderMeshWarp>())
+		{
+			return false;
+		}
+
+		switch (RenderPass)
+		{
+		case EIcvfxPassRenderPass::Base:
+			if (EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::UVLightCardUnder))
+			{
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderUVLightCardUnder>(true);
+			}
+			else if (EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::UVLightCardOver) && !ICVFXParameters.IsMultiCamerasUsed())
+			{
+				// Render in one pass for single camera
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderUVLightCardOver>(true);
+			}
+			break;
+
+		case EIcvfxPassRenderPass::LightCardOver:
+			check(ICVFXParameters.IsMultiCamerasUsed());
+
+			if (EnumHasAllFlags(RenderState, EIcvfxPassRenderState::UVLightCardOver))
+			{
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderUVLightCardOver>(true);
+			}
+			break;
+
+		default:
+			break;
+		}
+
+		if (RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderUVLightCardUnder>()
+			|| RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderUVLightCardOver>())
+		{
+			RenderPassData.PSParameters.UVLightCardSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			RenderPassData.PSParameters.UVLightCardTexture = ICVFXParameters.UVLightCard.Texture;
+
+			return true;
+		}
+
+		return false;
+	}
+
+	int32 GetOverlappedInnerCameras(FIcvfxRenderPassData& RenderPassData)
+	{
+		static const FMatrix Game2Render(
+			FPlane(0, 0, 1, 0),
+			FPlane(1, 0, 0, 0),
+			FPlane(0, 1, 0, 0),
+			FPlane(0, 0, 0, 1));
+
+		// The total number of InCameras, which are rendered below.
+		int32 OutOverlapCameraNum = 0;
+
+		for (int32 CameraIndex = 0; CameraIndex < ActiveCameraIndex && ICVFXParameters.Cameras.IsValidIndex(CameraIndex) && CameraIndex < MAX_INNER_CAMERAS_AMOUNT; CameraIndex++)
+		{
+			const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[CameraIndex];
+			const FRotationTranslationMatrix CameraTranslationMatrix(Camera.ViewProjection.ViewRotation, Camera.ViewProjection.ViewLocation);
+
+			const FMatrix WorldToCamera = CameraTranslationMatrix.Inverse();
+			const FMatrix UVMatrix = WorldToCamera * Game2Render * Camera.ViewProjection.PrjMatrix;
+			const FMatrix InnerCameraProjectionMatrix = UVMatrix * WarpBlendParameters.Context.TextureMatrix * WarpBlendParameters.Context.RegionMatrix;
+
+			RenderPassData.PSParameters.OverlappedInnerCamerasProjectionMatrices[CameraIndex] = FMatrix44f(InnerCameraProjectionMatrix);
+			RenderPassData.PSParameters.OverlappedInnerCameraSoftEdges[CameraIndex] = GDisplayClusterShadersICVFXOverlapInnerFrustumSoftEdges ? FVector4f(Camera.SoftEdge) : FVector4f(0, 0, 0, 0);
+
+			// Count total num of overlapped cameras
+			OutOverlapCameraNum++;
+		}
+
+		return OutOverlapCameraNum;
+	}
+	
+	EDisplayClusterShaderParametersICVFX_ChromakeySource GetCameraOverlapParameters(FIcvfxRenderPassData& RenderPassData)
+	{
+		int32 OverlapCameraNum = 0;
+		EDisplayClusterShaderParametersICVFX_ChromakeySource OutChromakeySource = EDisplayClusterShaderParametersICVFX_ChromakeySource::Unknown;
+
+		if (EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::EnableInnerFrustumChromakeyOverlap) && ICVFXParameters.IsMultiCamerasUsed())
+		{
+			switch (RenderPass)
+			{
+			case EIcvfxPassRenderPass::InnerFrustumIterator:
+				// Hide Inner Frustum under overlap
+				if (!GDisplayClusterShadersICVFXEnableInnerFrustumUnderOverlap)
+				{
+					OverlapCameraNum = GetOverlappedInnerCameras(RenderPassData);
+				}
+				break;
+
+			case EIcvfxPassRenderPass::InnerFrustumChromakeyOverlapIterator:
+			{
+				// Use camera chromakey color to render overlap
+				OutChromakeySource = EDisplayClusterShaderParametersICVFX_ChromakeySource::FrameColor;
+
+				// Switch to special shader
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderInnerCameraOverlap>(true);
+
+				// Get cameraa under active
+				OverlapCameraNum = GetOverlappedInnerCameras(RenderPassData);
+
+				break;
+			}
+
+			default:
+				break;
+			}
+		}
+
+		RenderPassData.PSParameters.OverlappedInnerCamerasNum = OverlapCameraNum;
+
+		return OutChromakeySource;
+	}
+
 	bool GetCameraParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		const int32 CurrentCameraIndex = GetUsedCameraIndex();
-		if (!ICVFXParameters.IsCameraUsed(CurrentCameraIndex))
+		if (!ICVFXParameters.IsCameraUsed(ActiveCameraIndex))
 		{
 			return false;
 		}
 
 		RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderInnerCamera>(true);
 
-		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[CurrentCameraIndex];
+		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[ActiveCameraIndex];
 
 		static const FMatrix Game2Render(
 			FPlane(0, 0, 1, 0),
@@ -646,11 +765,11 @@ public:
 			FPlane(0, 1, 0, 0),
 			FPlane(0, 0, 0, 1));
 
-		FRotationTranslationMatrix CameraTranslationMatrix(Camera.CameraViewRotation, Camera.CameraViewLocation);
+		const FRotationTranslationMatrix CameraTranslationMatrix(Camera.ViewProjection.ViewRotation, Camera.ViewProjection.ViewLocation);
 
-		FMatrix WorldToCamera = CameraTranslationMatrix.Inverse();
-		FMatrix UVMatrix = WorldToCamera * Game2Render * Camera.CameraPrjMatrix;
-		FMatrix InnerCameraProjectionMatrix = UVMatrix * WarpBlendParameters.Context.TextureMatrix * WarpBlendParameters.Context.RegionMatrix;
+		const FMatrix WorldToCamera = CameraTranslationMatrix.Inverse();
+		const FMatrix UVMatrix = WorldToCamera * Game2Render * Camera.ViewProjection.PrjMatrix;
+		const FMatrix InnerCameraProjectionMatrix = UVMatrix * WarpBlendParameters.Context.TextureMatrix * WarpBlendParameters.Context.RegionMatrix;
 
 		RenderPassData.PSParameters.InnerCameraTexture = Camera.Resource.Texture;
 		RenderPassData.PSParameters.InnerCameraSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -665,12 +784,16 @@ public:
 		return true;
 	}
 
-	bool GetCameraChromakeyParameters(FIcvfxRenderPassData& RenderPassData)
+	bool GetCameraChromakeyParameters(FIcvfxRenderPassData& RenderPassData, const EDisplayClusterShaderParametersICVFX_ChromakeySource InChromakeySource)
 	{
-		const int32 CurrentCameraIndex = GetUsedCameraIndex();
-		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[CurrentCameraIndex];
+		if (!ICVFXParameters.IsCameraUsed(ActiveCameraIndex))
+		{
+			return false;
+		}
 		
-		switch (Camera.ChromakeySource)
+		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[ActiveCameraIndex];
+		
+		switch (InChromakeySource == EDisplayClusterShaderParametersICVFX_ChromakeySource::Unknown ? Camera.ChromakeySource : InChromakeySource)
 		{
 		case EDisplayClusterShaderParametersICVFX_ChromakeySource::ChromakeyLayers:
 		{
@@ -701,8 +824,12 @@ public:
 
 	bool GetCameraChromakeyMarkerParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		const int32 CurrentCameraIndex = GetUsedCameraIndex();
-		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[CurrentCameraIndex];
+		if (!ICVFXParameters.IsCameraUsed(ActiveCameraIndex))
+		{
+			return false;
+		}
+
+		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[ActiveCameraIndex];
 
 		if (Camera.IsChromakeyMarkerUsed())
 		{
@@ -732,7 +859,7 @@ public:
 		{
 			GetWarpMapParameters(RenderPassData);
 
-			if (!bIsBlendDisabled)
+			if (!EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::BlendDisabled))
 			{
 				GetWarpBlendParameters(RenderPassData);
 			}
@@ -742,8 +869,10 @@ public:
 
 			if (GetCameraParameters(RenderPassData))
 			{
+				const EDisplayClusterShaderParametersICVFX_ChromakeySource ChromakeySourceOverride = GetCameraOverlapParameters(RenderPassData);
+
 				// Chromakey inside cam:
-				if (GetCameraChromakeyParameters(RenderPassData))
+				if (GetCameraChromakeyParameters(RenderPassData, ChromakeySourceOverride))
 				{
 					//Support chromakey markers
 					GetCameraChromakeyMarkerParameters(RenderPassData);
@@ -900,24 +1029,24 @@ public:
 
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-			if (IsFirstPass())
+			switch (RenderPass)
 			{
+			case EIcvfxPassRenderPass::InnerFrustumIterator:
+			case EIcvfxPassRenderPass::InnerFrustumChromakeyOverlapIterator:
+				// Multicam rendering
+				GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
+				break;
+
+			case EIcvfxPassRenderPass::LightCardOver:
+				// render pass for LC overlays
+				GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGBA, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
+				break;
+
+			case EIcvfxPassRenderPass::Base:
+			default:
 				// First pass always override old viewport image
 				GraphicsPSOInit.BlendState = TStaticBlendState <>::GetRHI();
-			}
-			else
-			{
-				// Extra render pass: don't change target alpha channel
-				if (RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderInnerCamera>())
-				{
-					// Multicam rendering
-					GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
-				}
-				else
-				{
-					// [optional] Final render pass for LC overlays
-					GraphicsPSOInit.BlendState = TStaticBlendState <CW_RGBA, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
-				}
+				break;
 			}
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
@@ -948,34 +1077,160 @@ public:
 			return false;
 		}
 
-		bIsBlendDisabled = WarpBlendParameters.WarpInterface->GetTexture(EDisplayClusterWarpBlendTextureType::AlphaMap) == nullptr;
-		bForceMultiCameraPass = false;
+		if (WarpBlendParameters.WarpInterface->GetTexture(EDisplayClusterWarpBlendTextureType::AlphaMap) == nullptr)
+		{
+			EnumAddFlags(RenderState, EIcvfxPassRenderState::BlendDisabled);
+		};
 
 		const EVarIcvfxMPCDIShaderType ShaderType = (EVarIcvfxMPCDIShaderType)CVarIcvfxMPCDIShaderType.GetValueOnAnyThread();
 
 		switch (ShaderType)
 		{
 		case EVarIcvfxMPCDIShaderType::DefaultNoBlend:
-			bIsBlendDisabled = true;
+			EnumAddFlags(RenderState, EIcvfxPassRenderState::BlendDisabled);
 			break;
 
 		case EVarIcvfxMPCDIShaderType::Passthrough:
 			PixelShaderType = EIcvfxShaderType::Passthrough;
 			break;
 
-		case EVarIcvfxMPCDIShaderType::ForceMultiPassRender:
-			bForceMultiCameraPass = true;
-			break;
-
 		case EVarIcvfxMPCDIShaderType::Disable:
 			return false;
-			break;
 
 		case EVarIcvfxMPCDIShaderType::Default:
 		default:
 			// Use default icvfx render
 			break;
 		};
+
+		return true;
+	}
+
+	// Render Full Icvfx Warp&Blend
+	bool DoRenderPass(FRHICommandListImmediate& RHICmdList)
+	{
+		switch (RenderPass)
+		{
+		case EIcvfxPassRenderPass::None:
+			RenderPass = EIcvfxPassRenderPass::Base;
+			if (ICVFXParameters.IsAnyCameraUsed())
+			{
+				ActiveCameraIndex = 0;
+			}
+			break;
+
+		case EIcvfxPassRenderPass::Base:
+			if (!ICVFXParameters.IsMultiCamerasUsed())
+			{
+				// Render one camera in single pass
+				RenderPass = EIcvfxPassRenderPass::None;
+				return false;
+			}
+
+			// render multi-cam
+			RenderPass = EIcvfxPassRenderPass::InnerFrustumIterator;
+			ActiveCameraIndex = 1;
+			break;
+
+		case EIcvfxPassRenderPass::InnerFrustumIterator:
+			if (!ICVFXParameters.IsCameraUsed(++ActiveCameraIndex))
+			{
+				// All cameras have been rendered.
+
+				if (EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::LightCardOver | EIcvfxPassRenderState::UVLightCardOver))
+				{
+					// Render LC over cameras
+					ActiveCameraIndex = INDEX_NONE;
+					RenderPass = EIcvfxPassRenderPass::LightCardOver;
+					break;
+				}
+				else if (EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::EnableInnerFrustumChromakeyOverlap))
+				{
+					// Render camera overlaps
+					ActiveCameraIndex = 1;
+					RenderPass = EIcvfxPassRenderPass::InnerFrustumChromakeyOverlapIterator;
+					break;
+				}
+
+				// Render completed
+				RenderPass = EIcvfxPassRenderPass::None;
+				return false;
+			}
+			break;
+
+		case EIcvfxPassRenderPass::LightCardOver:
+			
+			if (EnumHasAnyFlags(RenderState, EIcvfxPassRenderState::EnableInnerFrustumChromakeyOverlap))
+			{
+				// Render camera overlaps
+				ActiveCameraIndex = 1;
+				RenderPass = EIcvfxPassRenderPass::InnerFrustumChromakeyOverlapIterator;
+				break;
+			}
+
+			// Render completed
+			RenderPass = EIcvfxPassRenderPass::None;
+			return false;
+
+		case EIcvfxPassRenderPass::InnerFrustumChromakeyOverlapIterator:
+			if (!ICVFXParameters.IsCameraUsed(++ActiveCameraIndex))
+			{
+				// Render completed
+				RenderPass = EIcvfxPassRenderPass::None;
+				return false;
+			}
+			break;
+
+		default:
+			return false;
+		}
+
+		// Build and draw render-pass:
+		FIcvfxRenderPassData RenderPassData;
+		InitRenderPass(RenderPassData);
+
+		switch (RenderPass)
+		{
+		case EIcvfxPassRenderPass::Base:
+		{
+			SCOPED_GPU_STAT(RHICmdList, nDisplay_IcvfxRenderPass_Base);
+			SCOPED_DRAW_EVENT(RHICmdList, nDisplay_IcvfxRenderPass_Base);
+
+			RenderCurentPass(RHICmdList, RenderPassData);
+		}
+		break;
+
+		case EIcvfxPassRenderPass::InnerFrustumIterator:
+		{
+			SCOPED_GPU_STAT(RHICmdList, nDisplay_IcvfxRenderPass_InnerFrustumIterator);
+			SCOPED_DRAW_EVENT(RHICmdList, nDisplay_IcvfxRenderPass_InnerFrustumIterator);
+
+			RenderCurentPass(RHICmdList, RenderPassData);
+		}
+		break;
+
+		case EIcvfxPassRenderPass::InnerFrustumChromakeyOverlapIterator:
+		{
+			SCOPED_GPU_STAT(RHICmdList, nDisplay_IcvfxRenderPass_InnerFrustumChromakeyOverlapIterator);
+			SCOPED_DRAW_EVENT(RHICmdList, nDisplay_IcvfxRenderPass_InnerFrustumChromakeyOverlapIterator);
+
+			RenderCurentPass(RHICmdList, RenderPassData);
+		}
+		break;
+
+		case EIcvfxPassRenderPass::LightCardOver:
+		{
+			SCOPED_GPU_STAT(RHICmdList, nDisplay_IcvfxRenderPass_LightCardOver);
+			SCOPED_DRAW_EVENT(RHICmdList, nDisplay_IcvfxRenderPass_LightCardOver);
+
+			RenderCurentPass(RHICmdList, RenderPassData);
+		}
+		break;
+
+		default:
+			RenderCurentPass(RHICmdList, RenderPassData);
+			break;
+		}
 
 		return true;
 	}
@@ -1001,26 +1256,9 @@ public:
 			case EIcvfxShaderType::WarpAndBlend:
 			{
 				LocalUVMatrix = WarpBlendParameters.Context.UVMatrix * WarpBlendParameters.Context.TextureMatrix * WarpBlendParameters.Context.RegionMatrix;
-				{
-					// Render Full Icvfx Warp&Blend
-					while (true)
-					{
-						{
-							// Build and draw render-pass:
-							FIcvfxRenderPassData RenderPassData;
-							InitRenderPass(RenderPassData);
-							RenderCurentPass(RHICmdList, RenderPassData);
-						}
 
-						if (IsLastPass())
-						{
-							break;
-						}
-
-						// Switch to next render-pass
-						CameraIndex++;
-					}
-				}
+				// Multi-pass ICVFX rendering
+				while (DoRenderPass(RHICmdList));
 
 				break;
 			}

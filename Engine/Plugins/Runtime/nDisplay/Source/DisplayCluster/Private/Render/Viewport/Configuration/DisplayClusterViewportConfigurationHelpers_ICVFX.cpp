@@ -489,8 +489,10 @@ FDisplayClusterShaderParameters_ICVFX::FCameraSettings FDisplayClusterViewportCo
 	// remap values from 0-1 GUI range into acceptable 0.0 - 0.25 shader range
 	Result.SoftEdge.X = FMath::GetMappedRangeValueClamped(FVector2D(0.0, 1.0f), FVector2D(0.0, 0.25), CameraSettings.SoftEdge.Horizontal) / Overscan; // Left
 	Result.SoftEdge.Y = FMath::GetMappedRangeValueClamped(FVector2D(0.0, 1.0f), FVector2D(0.0, 0.25), CameraSettings.SoftEdge.Vertical) / Overscan; // Top
-	Result.SoftEdge.Z = FMath::GetMappedRangeValueClamped(FVector2D(0.0, 1.0f), FVector2D(0.0, 0.25), CameraSettings.SoftEdge.Horizontal) / Overscan; // right
-	Result.SoftEdge.W = FMath::GetMappedRangeValueClamped(FVector2D(0.0, 1.0f), FVector2D(0.0, 0.25), CameraSettings.SoftEdge.Vertical) / Overscan; // bottom
+
+	// ZW now used in other way
+	// Z for new parameter Feather
+	Result.SoftEdge.Z = CameraSettings.SoftEdge.Feather;
 
 	// default - percents
 	const float ConvertToPercent = 0.01f;
@@ -712,6 +714,8 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportS
 
 void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chromakey(FDisplayClusterShaderParameters_ICVFX::FCameraSettings& InOutCameraSettings, const FDisplayClusterConfigurationICVFX_ChromakeySettings& InChromakeySettings, FDisplayClusterViewport* InChromakeyViewport)
 {
+	InOutCameraSettings.ChromakeyColor = InChromakeySettings.ChromakeyColor;
+
 	if (InChromakeySettings.bEnable)
 	{
 		if (InChromakeySettings.ChromakeyRenderTexture.bEnable)
@@ -727,13 +731,11 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chr
 
 				InOutCameraSettings.ChromakeySource = EDisplayClusterShaderParametersICVFX_ChromakeySource::ChromakeyLayers;
 				InOutCameraSettings.Chromakey.ViewportId = InChromakeyViewport->GetId();
-				InOutCameraSettings.ChromakeyColor = InChromakeySettings.ChromakeyColor;
 			}
 		}
 		else
 		{
 			InOutCameraSettings.ChromakeySource = EDisplayClusterShaderParametersICVFX_ChromakeySource::FrameColor;
-			InOutCameraSettings.ChromakeyColor = InChromakeySettings.ChromakeyColor;
 		}
 	}
 	else
@@ -853,10 +855,10 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 		{
 		default:
 		case EDisplayClusterConfigurationICVFX_LightcardRenderMode::Over:
-			BaseViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Over;
+			BaseViewport.RenderSettingsICVFX.ICVFX.LightCardMode = EDisplayClusterShaderParametersICVFX_LightCardRenderMode::Over;
 			break;
 		case EDisplayClusterConfigurationICVFX_LightcardRenderMode::Under:
-			BaseViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
+			BaseViewport.RenderSettingsICVFX.ICVFX.LightCardMode = EDisplayClusterShaderParametersICVFX_LightCardRenderMode::Under;
 			break;
 		};
 	}
@@ -870,13 +872,13 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 		}
 		else
 		{
-			BaseViewport.RenderSettingsICVFX.ICVFX.Lightcard.ViewportId = DstViewport.GetId();
+			BaseViewport.RenderSettingsICVFX.ICVFX.LightCard.ViewportId = DstViewport.GetId();
 		}
 	}
 
 	if (EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard))
 	{
-		BaseViewport.RenderSettingsICVFX.ICVFX.UVLightcard.ViewportId = DstViewport.GetId();
+		BaseViewport.RenderSettingsICVFX.ICVFX.UVLightCard.ViewportId = DstViewport.GetId();
 	}
 }
 

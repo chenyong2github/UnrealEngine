@@ -64,7 +64,54 @@ float4 ComposeRenderPassTwoOverlays(float4 InOverlay1, float4 InOverlay2)
 ////////////////////////////////////////////////////////////////////////////////
 float2 TileUV(float2 InUV, float InScale)
 {
-    return frac(InUV * InScale);
+	return frac(InUV * InScale);
+}
+
+float GetFeatherAlpha(float2 EdgeOffset, float Feather)
+{
+	float Alpha = 1;
+
+	Alpha *= smoothstep(0, Feather, EdgeOffset.x); // horizontal component
+	Alpha *= smoothstep(0, Feather, EdgeOffset.y); // vertical component
+
+	return Alpha;
+}
+
+float GetInnerCameraSoftEdgeAlpha(float2 CameraUV, float4 InInnerCameraSoftEdge)
+{
+
+	float2 EdgeOffset = float2(1,1);
+
+	// InInnerCameraSoftEdge.x values are used to pass left/right soft edge values
+	if(CameraUV.x < InInnerCameraSoftEdge.x) // left 
+	{
+		float CameraTextureAlphaLeft = Pow2(saturate(abs(CameraUV.x) / InInnerCameraSoftEdge.x));
+		EdgeOffset.x = CameraTextureAlphaLeft;
+	}
+	else
+	if(CameraUV.x > (1 - InInnerCameraSoftEdge.x)) // right
+	{
+		float CameraTextureAlphaRight = Pow2(saturate(abs(1 - CameraUV.x) / InInnerCameraSoftEdge.x));
+		EdgeOffset.x = CameraTextureAlphaRight;
+	}
+
+	// InInnerCameraSoftEdge.y values are used to pass top/bottom soft edge values
+	if(CameraUV.y < (InInnerCameraSoftEdge.y)) // top
+	{
+		float CameraTextureAlphaTop = Pow2(saturate(abs(CameraUV.y) / InInnerCameraSoftEdge.y));
+		EdgeOffset.y = CameraTextureAlphaTop;
+	}
+	else
+	if(CameraUV.y > (1 - InInnerCameraSoftEdge.y)) // bottom
+	{
+		float CameraTextureAlphaBottom = Pow2(saturate(abs(1 - CameraUV.y) / InInnerCameraSoftEdge.y));
+		EdgeOffset.y = CameraTextureAlphaBottom;
+	}
+
+	// InInnerCameraSoftEdge.z are used to pass Feather soft edge values
+	float Feather = InInnerCameraSoftEdge.z;
+
+	return GetFeatherAlpha(EdgeOffset, Feather);
 }
 
 float4 GetChromakeyMarkerColor(float2 InMarkersUV)
@@ -107,77 +154,116 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 	float4 CameraColor = float4(CameraBaseColor, 0);
 #endif
 
-	float2 ToEdge = 0;
-	float Weight = 0;
-
-	// *** Soft Edges **
+	// ********* Compose camera alpha **********
 	if (CameraUVW.w > 0) // clip back plane
-	{//Defined texel:
-		ToEdge = (CameraUV.xy * 2) - 1.0f; // -1..1
-		Weight = 1 - max(abs(ToEdge.x), abs(ToEdge.y));
-		// Near clip Plane tests
-		//! UV.z <= UV.w &&
+	{
+		//Defined texel:
+		float2 ToEdge = (CameraUV.xy * 2) - 1.0f; // -1..1
+		float Weight = 1 - max(abs(ToEdge.x), abs(ToEdge.y));
+
+		// Near clip Plane tests 
 		if (Weight >= 0)
 		{
-			CameraColor.w = 1;
-			
-			//InnerCameraSoftEdge.xyzw values are used to pass left/top/right/bottom soft edge values
-			if(CameraUV.x < InnerCameraSoftEdge.x) // left 
+			// *** InCamera Soft Edges ***
+			CameraColor.w = GetInnerCameraSoftEdgeAlpha(CameraUV, InnerCameraSoftEdge);
+
+			// **** disable incamera render inside overlapped areas
+			#if !INNER_CAMERA_OVERLAP
+			if(OverlappedInnerCamerasNum > 0 && CameraColor.w < 1)
 			{
-				float CameraTextureAlphaLeft = Pow2(saturate(abs(CameraUV.x) / InnerCameraSoftEdge.x));
-				CameraColor.w *= CameraTextureAlphaLeft;
+				for(uint OverlappedCameraIndex = 0; OverlappedCameraIndex < OverlappedInnerCamerasNum; OverlappedCameraIndex++)
+				{
+					float4x4 InnerCameraProjectionMatrix2 = OverlappedInnerCamerasProjectionMatrices[OverlappedCameraIndex];
+
+					// Transform WarpedUV to Camera ScreenSpaceUV
+					float4 CameraUVW2 = mul(WarpedUV, InnerCameraProjectionMatrix2);
+					if (CameraUVW2.w > 0) // clip back plane
+					{
+						float2 CameraUV2 = CameraUVW2.xy / CameraUVW2.w;
+						float2 ToEdge2 = (CameraUV2.xy * 2) - 1.0f; // -1..1
+						float Weight2 = 1 - max(abs(ToEdge2.x), abs(ToEdge2.y));
+						if (Weight2 >= 0)
+						{
+							float UnderCameraAlpha = GetInnerCameraSoftEdgeAlpha(CameraUV2, OverlappedInnerCameraSoftEdges[OverlappedCameraIndex]);
+
+							//!
+							if(UnderCameraAlpha > 0.1)
+							{
+								// This pixel was overlapped. Do not render
+								CameraColor.w = 0;
+							}
+						}
+					}
+				}
 			}
-			else
-			if(CameraUV.x > (1 - InnerCameraSoftEdge.z)) // right
+			#endif
+
+			// ********* Compose camera colors **********
+			#if CHROMAKEYFRAMECOLOR || CHROMAKEY
+				// Use frame color by default
+				float4 OverlayChromakeyColor = float4(ChromakeyColor.xyz,0);
+
+				#if CHROMAKEY
+					float4 ChromakeyCameraTextureColor = ChromakeyCameraTexture.Sample(ChromakeyCameraSampler, CameraUV);
+
+					// Get alpha from chromakey rtt frame
+					OverlayChromakeyColor.w = ChromakeyCameraTextureColor.w;
+				#endif
+
+				#if CHROMAKEY_MARKER
+					float4 ChromakeyMarkerTextureColor = GetChromakeyMarkerColor(IN.UV_Chromakey.xy);
+
+					// Blend marker color with chromakey
+					OverlayChromakeyColor.xyz = lerp(OverlayChromakeyColor.xyz, ChromakeyMarkerTextureColor.xyz, ChromakeyMarkerTextureColor.w);
+				#endif
+
+				// ********* When camera overlap we render chromakey **********
+				#if INNER_CAMERA_OVERLAP
+					if(CameraColor.w >= 0)
+					{
+						OverlayChromakeyColor.w = 0;
+
+						// disable chromakey
+						float OverlayAlphaMult = 0;
+
+						for(uint OverlappedCameraIndex = 0; OverlappedCameraIndex < OverlappedInnerCamerasNum; OverlappedCameraIndex++)
+						{
+							float4x4 InnerCameraProjectionMatrix2 = OverlappedInnerCamerasProjectionMatrices[OverlappedCameraIndex];
+
+							// Transform WarpedUV to Camera ScreenSpaceUV
+							float4 CameraUVW2 = mul(WarpedUV, InnerCameraProjectionMatrix2);
+							if (CameraUVW2.w > 0) // clip back plane
+							{
+								float2 CameraUV2 = CameraUVW2.xy / CameraUVW2.w;
+								float2 ToEdge2 = (CameraUV2.xy * 2) - 1.0f; // -1..1
+								float Weight2 = 1 - max(abs(ToEdge2.x), abs(ToEdge2.y));
+								if (Weight2 >= 0)
+								{
+									// This pixel was overlapped
+									// force to render Chromakey
+									OverlayAlphaMult = max(OverlayAlphaMult, GetInnerCameraSoftEdgeAlpha(CameraUV2, OverlappedInnerCameraSoftEdges[OverlappedCameraIndex]));
+								}
+							}
+						}
+
+						CameraColor.w = CameraColor.w * OverlayAlphaMult;
+					}
+				#endif
+
+				CameraColor.xyz = lerp(CameraColor.xyz, OverlayChromakeyColor.xyz, 1-OverlayChromakeyColor.w);
+
+			#endif
+
+			// *** InCamera Border ***
+			if(InnerCameraBorderThickness>0)
 			{
-				float CameraTextureAlphaRight = Pow2(saturate(abs(1 - CameraUV.x) / InnerCameraSoftEdge.z));
-				CameraColor.w *= CameraTextureAlphaRight;
+				if((ToEdge.x < (InnerCameraBorderThickness / InnerCameraFrameAspectRatio - 1)) || (ToEdge.x > (1 - InnerCameraBorderThickness / InnerCameraFrameAspectRatio)) ||
+					(ToEdge.y < (InnerCameraBorderThickness - 1)) || (ToEdge.y > (1 - InnerCameraBorderThickness)))
+				{
+					CameraColor.rgb = InnerCameraBorderColor.xyz;
+					CameraColor.w = 1.0f;
+				}
 			}
-
-			
-			if(CameraUV.y < (InnerCameraSoftEdge.y)) // top
-			{
-				float CameraTextureAlphaTop = Pow2(saturate(abs(CameraUV.y) / InnerCameraSoftEdge.y));
-				CameraColor.w *= CameraTextureAlphaTop;
-			}
-			else
-			if(CameraUV.y > (1 - InnerCameraSoftEdge.w)) // bottom
-			{
-				float CameraTextureAlphaBottom = Pow2(saturate(abs(1 - CameraUV.y) / InnerCameraSoftEdge.w));
-				CameraColor.w *= CameraTextureAlphaBottom;
-			}
-		}
-	}
-
-#if CHROMAKEYFRAMECOLOR || CHROMAKEY
-	// Use frame color by default
-	float4 OverlayChromakeyColor = float4(ChromakeyColor.xyz,0);
-
-#if CHROMAKEY
-	float4 ChromakeyCameraTextureColor = ChromakeyCameraTexture.Sample(ChromakeyCameraSampler, CameraUV);
-
-	// Get alpha from chromakey rtt frame
-	OverlayChromakeyColor.w = ChromakeyCameraTextureColor.w;
-#endif
-
-#if CHROMAKEY_MARKER
-	float4 ChromakeyMarkerTextureColor = GetChromakeyMarkerColor(IN.UV_Chromakey.xy);
-
-	// Blend marker color with chromakey
-	OverlayChromakeyColor.xyz = lerp(OverlayChromakeyColor.xyz, ChromakeyMarkerTextureColor.xyz, ChromakeyMarkerTextureColor.w);
-#endif
-
-	CameraColor.xyz = lerp(CameraColor.xyz, OverlayChromakeyColor.xyz, 1-OverlayChromakeyColor.w);
-#endif
-
-	// apply border
-	if((InnerCameraBorderThickness > 0) && (CameraUVW.w > 0) && (Weight >= 0))
-	{
-		if((ToEdge.x < (InnerCameraBorderThickness / InnerCameraFrameAspectRatio - 1)) || (ToEdge.x > (1 - InnerCameraBorderThickness / InnerCameraFrameAspectRatio)) ||
-		   (ToEdge.y < (InnerCameraBorderThickness - 1)) || (ToEdge.y > (1 - InnerCameraBorderThickness)))
-		{
-			CameraColor.rgb = InnerCameraBorderColor.xyz;
-			CameraColor.w = 1.0f;
 		}
 	}
 

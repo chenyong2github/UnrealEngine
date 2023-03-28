@@ -478,6 +478,10 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraS
 	/** Adjust blur amount to the left and right side edges of the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Sides", ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float Horizontal = 0.f;
+
+	/** Feather. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Feather", ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+	float Feather = 1.f;
 };
 
 USTRUCT(BlueprintType)
@@ -650,6 +654,10 @@ public:
 	/** Enable/disable the inner frustum on all ICVFX cameras. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (DisplayName = "Enable Inner Frustum"))
 	bool bEnableInnerFrustums = true;
+
+	/** Render the chromakey where the inner frustum overlaps. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (DisplayName = "Enable Inner Frustum Chromakey Overlap"))
+	bool bEnableInnerFrustumChromakeyOverlap = false;
 
 	/** Default incameras RTT texture size. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Configuration)

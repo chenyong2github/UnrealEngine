@@ -9,6 +9,7 @@
 class FDisplayClusterShaderParameters_ICVFX;
 struct FDisplayClusterShaderParameters_WarpBlend;
 
+#define MAX_INNER_CAMERAS_AMOUNT 10
 
 class FDisplayClusterShadersWarpblend_ICVFX
 {

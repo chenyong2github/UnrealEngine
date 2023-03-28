@@ -418,6 +418,10 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 				{
 					// Sort cameras by render order for each target
 					TargetIt->RenderSettingsICVFX.ICVFX.SortCamerasRenderOrder();
+
+					// Setup incamera overlap mode
+					TargetIt->RenderSettingsICVFX.ICVFX.CameraOverlappingRenderMode = StageSettings.bEnableInnerFrustumChromakeyOverlap ?
+						EDisplayClusterShaderParametersICVFX_CameraOverlappingRenderMode::FinalPass : EDisplayClusterShaderParametersICVFX_CameraOverlappingRenderMode::None;
 				}
 			}
 

@@ -39,6 +39,13 @@ float4x4 ViewportTextureProjectionMatrix;
 float4x4 OverlayProjectionMatrix;
 float4x4 InnerCameraProjectionMatrix;
 
+// The total number of InCameras, which are rendered below.
+int OverlappedInnerCamerasNum;
+
+// Matrices and SoftEdges for InCameras, which are rendered below.
+float4x4 OverlappedInnerCamerasProjectionMatrices[MAX_INNER_CAMERAS_AMOUNT];
+float4 OverlappedInnerCameraSoftEdges[MAX_INNER_CAMERAS_AMOUNT];
+
 float AlphaEmbeddedGamma;
 
 float4 InnerCameraSoftEdge;

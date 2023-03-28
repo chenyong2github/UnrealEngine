@@ -276,14 +276,14 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Over:
 
 				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::OverrideLightcardMode);
-				DstViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Over;
+				DstViewport.RenderSettingsICVFX.ICVFX.LightCardMode = EDisplayClusterShaderParametersICVFX_LightCardRenderMode::Over;
 				break;
 
 				// Over lightcard over incamera frame  for this viewport
 			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Under:
 
 				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::OverrideLightcardMode);
-				DstViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
+				DstViewport.RenderSettingsICVFX.ICVFX.LightCardMode = EDisplayClusterShaderParametersICVFX_LightCardRenderMode::Under;
 				break;
 
 			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Disabled:

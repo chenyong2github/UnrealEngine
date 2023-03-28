@@ -299,12 +299,13 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 							// matched camera reference, update context for current eye
 							const FDisplayClusterViewport_Context& InContext = SrcViewportContexts[ContextNum];
 
-							FDisplayClusterShaderParametersICVFX_CameraContext CameraContext;
-							CameraContext.CameraViewLocation = InContext.ViewLocation;
-							CameraContext.CameraViewRotation = InContext.ViewRotation;
-							CameraContext.CameraPrjMatrix = InContext.ProjectionMatrix;
+							// The context stores data in local space. For the shader they must be converted to world space
+							FDisplayClusterShaderParametersICVFX_CameraViewProjection LocalSpaceViewProjection;
+							LocalSpaceViewProjection.ViewLocation = InContext.ViewLocation;
+							LocalSpaceViewProjection.ViewRotation = InContext.ViewRotation;
+							LocalSpaceViewProjection.PrjMatrix    = InContext.ProjectionMatrix;
 
-							CameraSettings->UpdateCameraContext(CameraContext);
+							CameraSettings->SetViewProjection(LocalSpaceViewProjection);
 						}
 					}
 				}

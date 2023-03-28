@@ -97,24 +97,13 @@ void FDisplayClusterFrameQueueItem::LoadData(FRHICommandListImmediate& RHICmdLis
 					return Item.Resource.ViewportId.Equals(CameraSettings.Resource.ViewportId, ESearchCase::IgnoreCase);
 				});
 
-			// Update camera settings
 			if (TargetCameraSettings)
 			{
-				TargetCameraSettings->SoftEdge                 = CameraSettings.SoftEdge;
-				TargetCameraSettings->InnerCameraBorderColor      = CameraSettings.InnerCameraBorderColor;
-				TargetCameraSettings->InnerCameraBorderThickness  = CameraSettings.InnerCameraBorderThickness;
-				TargetCameraSettings->InnerCameraFrameAspectRatio = CameraSettings.InnerCameraFrameAspectRatio;
-				TargetCameraSettings->Local2WorldTransform     = CameraSettings.Local2WorldTransform;
-				TargetCameraSettings->CameraViewRotation       = CameraSettings.CameraViewRotation;
-				TargetCameraSettings->CameraViewLocation       = CameraSettings.CameraViewLocation;
-				TargetCameraSettings->CameraPrjMatrix          = CameraSettings.CameraPrjMatrix;
-				TargetCameraSettings->ChromakeySource          = CameraSettings.ChromakeySource;
-				TargetCameraSettings->ChromakeyColor           = CameraSettings.ChromakeyColor;
-				TargetCameraSettings->ChromakeyMarkersColor    = CameraSettings.ChromakeyMarkersColor;
-				TargetCameraSettings->ChromakeyMarkersScale    = CameraSettings.ChromakeyMarkersScale;
-				TargetCameraSettings->ChromakeyMarkersDistance = CameraSettings.ChromakeyMarkersDistance;
-				TargetCameraSettings->ChromakeyMarkersOffset   = CameraSettings.ChromakeyMarkersOffset;
-				TargetCameraSettings->RenderOrder              = CameraSettings.RenderOrder;
+				// Do not copy render resources (because they are not copied in the source code either.)
+				const bool bIncludeResources = false;
+
+				// Updating the camera settings is done with a new function that copies all settings
+				TargetCameraSettings->SetCameraSettings(CameraSettings, bIncludeResources);
 			}
 		}
 	}
