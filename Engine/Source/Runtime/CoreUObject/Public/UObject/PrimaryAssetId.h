@@ -22,11 +22,16 @@ class UObject;
 struct FPrimaryAssetType
 {
 	/** Convert from FName */
-	FPrimaryAssetType() {}
+	FPrimaryAssetType() = default;
 	FPrimaryAssetType(FName InName) : Name(InName) {}
 	FPrimaryAssetType(EName InName) : Name(FName(InName)) {}
 	FPrimaryAssetType(const WIDECHAR* InName) : Name(FName(InName)) {}
 	FPrimaryAssetType(const ANSICHAR* InName) : Name(FName(InName)) {}
+
+	FPrimaryAssetType(const FPrimaryAssetType&) = default;
+	FPrimaryAssetType(FPrimaryAssetType&&) = default;
+	FPrimaryAssetType& operator=(const FPrimaryAssetType&) = default;
+	FPrimaryAssetType& operator=(FPrimaryAssetType&&) = default;
 
 	/** Convert to FName */
 	operator FName&() { return Name; }
@@ -46,12 +51,6 @@ struct FPrimaryAssetType
 	bool operator!=(const FPrimaryAssetType& Other) const
 	{
 		return Name != Other.Name;
-	}
-
-	FPrimaryAssetType& operator=(const FPrimaryAssetType& Other)
-	{
-		Name = Other.Name;
-		return *this;
 	}
 
 	/** Returns true if this is a valid Type */
@@ -115,8 +114,7 @@ struct FPrimaryAssetId
 	static COREUOBJECT_API const FName PrimaryAssetTypeTag;
 	static COREUOBJECT_API const FName PrimaryAssetNameTag;
 
-	FPrimaryAssetId() {}
-
+	FPrimaryAssetId() = default;
 	FPrimaryAssetId(FPrimaryAssetType InAssetType, FName InAssetName)
 		: PrimaryAssetType(InAssetType), PrimaryAssetName(InAssetName)
 	{}
@@ -131,6 +129,11 @@ struct FPrimaryAssetId
 	explicit FPrimaryAssetId(const FString& TypeAndName)
 		: FPrimaryAssetId(ParseTypeAndName(TypeAndName))
 	{}
+
+	FPrimaryAssetId(const FPrimaryAssetId&) = default;
+	FPrimaryAssetId(FPrimaryAssetId&&) = default;
+	FPrimaryAssetId& operator=(const FPrimaryAssetId&) = default;
+	FPrimaryAssetId& operator=(FPrimaryAssetId&&) = default;
 
 	/** Returns true if this is a valid identifier */
 	bool IsValid() const
@@ -171,13 +174,6 @@ struct FPrimaryAssetId
 	bool operator!=(const FPrimaryAssetId& Other) const
 	{
 		return PrimaryAssetType != Other.PrimaryAssetType || PrimaryAssetName != Other.PrimaryAssetName;
-	}
-
-	FPrimaryAssetId& operator=(const FPrimaryAssetId& Other)
-	{
-		PrimaryAssetType = Other.PrimaryAssetType;
-		PrimaryAssetName = Other.PrimaryAssetName;
-		return *this;
 	}
 
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FPrimaryAssetId& Other)
