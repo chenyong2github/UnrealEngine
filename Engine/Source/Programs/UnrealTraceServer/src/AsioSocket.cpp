@@ -78,6 +78,12 @@ void FAsioSocket::Close()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool FAsioSocket::IsLocalConnection() const
+{
+	return Socket.local_endpoint().address() == Socket.remote_endpoint().address();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool FAsioSocket::Read(void* Dest, uint32 Size, FAsioIoSink* Sink, uint32 Id)
 {
 	if (!SetSink(Sink, Id))

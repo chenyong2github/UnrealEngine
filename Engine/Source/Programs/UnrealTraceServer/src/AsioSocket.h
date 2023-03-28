@@ -17,6 +17,7 @@ public:
 	virtual bool			IsOpen() const override;
 	virtual void			Close() override;
 	virtual bool			HasDataAvailable() const override;
+	bool					IsLocalConnection() const;
 	uint32					GetRemoteAddress() const;
 	uint32					GetRemotePort() const;
 	uint32					GetLocalPort() const;
